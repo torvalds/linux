@@ -128,8 +128,10 @@ static void pm860x_led_set(struct led_classdev *cdev,
 static int pm860x_led_dt_init(struct platform_device *pdev,
 			      struct pm860x_led *data)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	struct device_node *nproot, *np;
 	int iset = 0;
+
+	nproot = of_node_get(pdev->dev.parent->of_node);
 	if (!nproot)
 		return -ENODEV;
 	nproot = of_find_node_by_name(nproot, "leds");
@@ -145,6 +147,7 @@ static int pm860x_led_dt_init(struct platform_device *pdev,
 			break;
 		}
 	}
+	of_node_put(nproot);
 	return 0;
 }
 #else

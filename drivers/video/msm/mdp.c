@@ -261,7 +261,7 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 	if (f.file == NULL)
 		return -1;
 
-	if (MAJOR(f.file->f_dentry->d_inode->i_rdev) == FB_MAJOR) {
+	if (MAJOR(file_inode(f.file)->i_rdev) == FB_MAJOR) {
 		*start = info->fix.smem_start;
 		*len = info->fix.smem_len;
 	} else

@@ -1002,7 +1002,14 @@ static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	if (!list_empty(&wakeup->resources)) {
 		int sleep_state;
 
-		sleep_state = acpi_power_min_system_level(&wakeup->resources);
+		err = acpi_power_wakeup_list_init(&wakeup->resources,
+						  &sleep_state);
+		if (err) {
+			acpi_handle_warn(handle, "Retrieving current states "
+					 "of wakeup power resources failed\n");
+			acpi_power_resources_list_free(&wakeup->resources);
+			goto out;
+		}
 		if (sleep_state < wakeup->sleep_state) {
 			acpi_handle_warn(handle, "Overriding _PRW sleep state "
 					 "(S%d) by S%d from power resources\n",
@@ -1783,6 +1790,7 @@ int __init acpi_scan_init(void)
 	acpi_platform_init();
 	acpi_csrt_init();
 	acpi_container_init();
+	acpi_pci_slot_init();
 
 	mutex_lock(&acpi_scan_lock);
 	/*
@@ -1803,6 +1811,8 @@ int __init acpi_scan_init(void)
 	}
 
 	acpi_update_all_gpes();
+
+	acpi_pci_root_hp_init();
 
  out:
 	mutex_unlock(&acpi_scan_lock);

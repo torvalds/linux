@@ -103,24 +103,6 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 }
 EXPORT_SYMBOL(acpi_pci_unregister_driver);
 
-acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
-{
-	struct acpi_pci_root *root;
-	acpi_handle handle = NULL;
-	
-	mutex_lock(&acpi_pci_root_lock);
-	list_for_each_entry(root, &acpi_pci_roots, node)
-		if ((root->segment == (u16) seg) &&
-		    (root->secondary.start == (u16) bus)) {
-			handle = root->device->handle;
-			break;
-		}
-	mutex_unlock(&acpi_pci_root_lock);
-	return handle;
-}
-
-EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
-
 /**
  * acpi_is_root_bridge - determine whether an ACPI CA node is a PCI root bridge
  * @handle - the ACPI CA node in question.
@@ -431,7 +413,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	acpi_status status;
 	int result;
 	struct acpi_pci_root *root;
-	acpi_handle handle;
 	struct acpi_pci_driver *driver;
 	u32 flags, base_flags;
 	bool is_osc_granted = false;
@@ -485,16 +466,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	printk(KERN_INFO PREFIX "%s [%s] (domain %04x %pR)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       root->segment, &root->secondary);
-
-	/*
-	 * PCI Routing Table
-	 * -----------------
-	 * Evaluate and parse _PRT, if exists.
-	 */
-	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
-	if (ACPI_SUCCESS(status))
-		result = acpi_pci_irq_add_prt(device->handle, root->segment,
-					      root->secondary.start);
 
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(device->handle);
 
@@ -597,8 +568,10 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	if (device->wakeup.flags.run_wake)
 		device_set_run_wake(root->bus->bridge, true);
 
-	if (system_state != SYSTEM_BOOTING)
+	if (system_state != SYSTEM_BOOTING) {
+		pcibios_resource_survey_bus(root->bus);
 		pci_assign_unassigned_bus_resources(root->bus);
+	}
 
 	mutex_lock(&acpi_pci_root_lock);
 	list_for_each_entry(driver, &acpi_pci_drivers, node)
@@ -618,7 +591,6 @@ out_del_root:
 	list_del(&root->node);
 	mutex_unlock(&acpi_pci_root_lock);
 
-	acpi_pci_irq_del_prt(root->segment, root->secondary.start);
 end:
 	kfree(root);
 	return result;
@@ -626,8 +598,6 @@ end:
 
 static void acpi_pci_root_remove(struct acpi_device *device)
 {
-	acpi_status status;
-	acpi_handle handle;
 	struct acpi_pci_root *root = acpi_driver_data(device);
 	struct acpi_pci_driver *driver;
 
@@ -641,10 +611,6 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
-
-	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
-	if (ACPI_SUCCESS(status))
-		acpi_pci_irq_del_prt(root->segment, root->secondary.start);
 
 	pci_remove_root_bus(root->bus);
 
@@ -662,4 +628,134 @@ void __init acpi_pci_root_init(void)
 		pci_acpi_crs_quirks();
 		acpi_scan_add_handler(&pci_root_handler);
 	}
+}
+/* Support root bridge hotplug */
+
+static void handle_root_bridge_insertion(acpi_handle handle)
+{
+	struct acpi_device *device;
+
+	if (!acpi_bus_get_device(handle, &device)) {
+		printk(KERN_DEBUG "acpi device exists...\n");
+		return;
+	}
+
+	if (acpi_bus_scan(handle))
+		printk(KERN_ERR "cannot add bridge to acpi list\n");
+}
+
+static void handle_root_bridge_removal(struct acpi_device *device)
+{
+	struct acpi_eject_event *ej_event;
+
+	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
+	if (!ej_event) {
+		/* Inform firmware the hot-remove operation has error */
+		(void) acpi_evaluate_hotplug_ost(device->handle,
+					ACPI_NOTIFY_EJECT_REQUEST,
+					ACPI_OST_SC_NON_SPECIFIC_FAILURE,
+					NULL);
+		return;
+	}
+
+	ej_event->device = device;
+	ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
+
+	acpi_bus_hot_remove_device(ej_event);
+}
+
+static void _handle_hotplug_event_root(struct work_struct *work)
+{
+	struct acpi_pci_root *root;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER };
+	struct acpi_hp_work *hp_work;
+	acpi_handle handle;
+	u32 type;
+
+	hp_work = container_of(work, struct acpi_hp_work, work);
+	handle = hp_work->handle;
+	type = hp_work->type;
+
+	root = acpi_pci_find_root(handle);
+
+	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+
+	switch (type) {
+	case ACPI_NOTIFY_BUS_CHECK:
+		/* bus enumerate */
+		printk(KERN_DEBUG "%s: Bus check notify on %s\n", __func__,
+				 (char *)buffer.pointer);
+		if (!root)
+			handle_root_bridge_insertion(handle);
+
+		break;
+
+	case ACPI_NOTIFY_DEVICE_CHECK:
+		/* device check */
+		printk(KERN_DEBUG "%s: Device check notify on %s\n", __func__,
+				 (char *)buffer.pointer);
+		if (!root)
+			handle_root_bridge_insertion(handle);
+		break;
+
+	case ACPI_NOTIFY_EJECT_REQUEST:
+		/* request device eject */
+		printk(KERN_DEBUG "%s: Device eject notify on %s\n", __func__,
+				 (char *)buffer.pointer);
+		if (root)
+			handle_root_bridge_removal(root->device);
+		break;
+	default:
+		printk(KERN_WARNING "notify_handler: unknown event type 0x%x for %s\n",
+				 type, (char *)buffer.pointer);
+		break;
+	}
+
+	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
+	kfree(buffer.pointer);
+}
+
+static void handle_hotplug_event_root(acpi_handle handle, u32 type,
+					void *context)
+{
+	alloc_acpi_hp_work(handle, type, context,
+				_handle_hotplug_event_root);
+}
+
+static acpi_status __init
+find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
+{
+	acpi_status status;
+	char objname[64];
+	struct acpi_buffer buffer = { .length = sizeof(objname),
+				      .pointer = objname };
+	int *count = (int *)context;
+
+	if (!acpi_is_root_bridge(handle))
+		return AE_OK;
+
+	(*count)++;
+
+	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+
+	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+					handle_hotplug_event_root, NULL);
+	if (ACPI_FAILURE(status))
+		printk(KERN_DEBUG "acpi root: %s notify handler is not installed, exit status: %u\n",
+				  objname, (unsigned int)status);
+	else
+		printk(KERN_DEBUG "acpi root: %s notify handler is installed\n",
+				 objname);
+
+	return AE_OK;
+}
+
+void __init acpi_pci_root_hp_init(void)
+{
+	int num = 0;
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+		ACPI_UINT32_MAX, find_root_bridges, NULL, &num, NULL);
+
+	printk(KERN_DEBUG "Found %d acpi root devices\n", num);
 }

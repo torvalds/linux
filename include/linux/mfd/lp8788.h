@@ -16,6 +16,7 @@
 
 #include <linux/gpio.h>
 #include <linux/irqdomain.h>
+#include <linux/pwm.h>
 #include <linux/regmap.h>
 
 #define LP8788_DEV_BUCK		"lp8788-buck"
@@ -124,11 +125,6 @@ enum lp8788_bl_ramp_step {
 	LP8788_RAMP_65538us,
 };
 
-enum lp8788_bl_pwm_polarity {
-	LP8788_PWM_ACTIVE_HIGH,
-	LP8788_PWM_ACTIVE_LOW,
-};
-
 enum lp8788_isink_scale {
 	LP8788_ISINK_SCALE_100mA,
 	LP8788_ISINK_SCALE_120mA,
@@ -229,16 +225,6 @@ struct lp8788_charger_platform_data {
 };
 
 /*
- * struct lp8788_bl_pwm_data
- * @pwm_set_intensity     : set duty of pwm
- * @pwm_get_intensity     : get current duty of pwm
- */
-struct lp8788_bl_pwm_data {
-	void (*pwm_set_intensity) (int brightness, int max_brightness);
-	int (*pwm_get_intensity) (int max_brightness);
-};
-
-/*
  * struct lp8788_backlight_platform_data
  * @name                  : backlight driver name. (default: "lcd-backlight")
  * @initial_brightness    : initial value of backlight brightness
@@ -248,8 +234,8 @@ struct lp8788_bl_pwm_data {
  * @rise_time             : brightness ramp up step time
  * @fall_time             : brightness ramp down step time
  * @pwm_pol               : pwm polarity setting when bl_mode is pwm based
- * @pwm_data              : platform specific pwm generation functions
- *                          only valid when bl_mode is pwm based
+ * @period_ns             : platform specific pwm period value. unit is nano.
+			    Only valid when bl_mode is LP8788_BL_COMB_PWM_BASED
  */
 struct lp8788_backlight_platform_data {
 	char *name;
@@ -259,8 +245,8 @@ struct lp8788_backlight_platform_data {
 	enum lp8788_bl_full_scale_current full_scale;
 	enum lp8788_bl_ramp_step rise_time;
 	enum lp8788_bl_ramp_step fall_time;
-	enum lp8788_bl_pwm_polarity pwm_pol;
-	struct lp8788_bl_pwm_data pwm_data;
+	enum pwm_polarity pwm_pol;
+	unsigned int period_ns;
 };
 
 /*

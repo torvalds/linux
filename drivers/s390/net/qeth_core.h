@@ -818,7 +818,7 @@ static inline struct qeth_card *CARD_FROM_CDEV(struct ccw_device *cdev)
 
 static inline int qeth_get_micros(void)
 {
-	return (int) (get_clock() >> 12);
+	return (int) (get_tod_clock() >> 12);
 }
 
 static inline int qeth_get_ip_version(struct sk_buff *skb)

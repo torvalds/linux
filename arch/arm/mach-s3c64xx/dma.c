@@ -23,12 +23,11 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/amba/pl080.h>
 
 #include <mach/dma.h>
 #include <mach/map.h>
 #include <mach/irqs.h>
-
-#include <asm/hardware/pl080.h>
 
 #include "regs-sys.h"
 

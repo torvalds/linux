@@ -4,6 +4,7 @@
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
 		      Ludovico Cavedon <cavedon@sssup.it>
 		      Mauro Carvalho Chehab <mchehab@infradead.org>
+   Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
 
    Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>
 
@@ -30,13 +31,12 @@
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 
-#include <media/videobuf-vmalloc.h>
+#include <media/videobuf2-vmalloc.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/rc-core.h>
-#if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
-#include <media/videobuf-dvb.h>
-#endif
 #include "tuner-xc2028.h"
 #include "xc5000.h"
 #include "em28xx-reg.h"
@@ -157,12 +157,18 @@
 #define EM28XX_NUM_BUFS 5
 #define EM28XX_DVB_NUM_BUFS 5
 
-/* number of packets for each buffer
+/* isoc transfers: number of packets for each buffer
    windows requests only 64 packets .. so we better do the same
    this is what I found out for all alternate numbers there!
  */
-#define EM28XX_NUM_PACKETS 64
-#define EM28XX_DVB_MAX_PACKETS 64
+#define EM28XX_NUM_ISOC_PACKETS 64
+#define EM28XX_DVB_NUM_ISOC_PACKETS 64
+
+/* bulk transfers: transfer buffer size = packet size * packet multiplier
+   USB 2.0 spec says bulk packet size is always 512 bytes
+ */
+#define EM28XX_BULK_PACKET_MULTIPLIER 384
+#define EM28XX_DVB_BULK_PACKET_MULTIPLIER 384
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
@@ -187,12 +193,8 @@
 			Interval: 125us
 */
 
-/* time to wait when stopping the isoc transfer */
-#define EM28XX_URB_TIMEOUT \
-			msecs_to_jiffies(EM28XX_NUM_BUFS * EM28XX_NUM_PACKETS)
-
 /* time in msecs to wait for i2c writes to finish */
-#define EM2800_I2C_WRITE_TIMEOUT 20
+#define EM2800_I2C_XFER_TIMEOUT		20
 
 enum em28xx_mode {
 	EM28XX_SUSPEND,
@@ -203,7 +205,7 @@ enum em28xx_mode {
 
 struct em28xx;
 
-struct em28xx_usb_isoc_bufs {
+struct em28xx_usb_bufs {
 		/* max packet size of isoc transaction */
 	int				max_pkt_size;
 
@@ -213,26 +215,26 @@ struct em28xx_usb_isoc_bufs {
 		/* number of allocated urbs */
 	int				num_bufs;
 
-		/* urb for isoc transfers */
+		/* urb for isoc/bulk transfers */
 	struct urb			**urb;
 
-		/* transfer buffers for isoc transfer */
+		/* transfer buffers for isoc/bulk transfer */
 	char				**transfer_buffer;
 };
 
-struct em28xx_usb_isoc_ctl {
-		/* isoc transfer buffers for analog mode */
-	struct em28xx_usb_isoc_bufs	analog_bufs;
+struct em28xx_usb_ctl {
+		/* isoc/bulk transfer buffers for analog mode */
+	struct em28xx_usb_bufs		analog_bufs;
 
-		/* isoc transfer buffers for digital mode */
-	struct em28xx_usb_isoc_bufs	digital_bufs;
+		/* isoc/bulk transfer buffers for digital mode */
+	struct em28xx_usb_bufs		digital_bufs;
 
 		/* Stores already requested buffers */
 	struct em28xx_buffer    	*vid_buf;
 	struct em28xx_buffer    	*vbi_buf;
 
-		/* isoc urb callback */
-	int (*isoc_copy) (struct em28xx *dev, struct urb *urb);
+		/* copy data from URB */
+	int (*urb_data_copy) (struct em28xx *dev, struct urb *urb);
 
 };
 
@@ -247,19 +249,26 @@ struct em28xx_fmt {
 /* buffer for one video frame */
 struct em28xx_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct videobuf_buffer vb;
+	struct vb2_buffer vb;
+	struct list_head list;
 
-	struct list_head frame;
+	void *mem;
+	unsigned int length;
 	int top_field;
+
+	/* counter to control buffer fill */
+	unsigned int pos;
+	/* NOTE; in interlaced mode, this value is reset to zero at
+	 * the start of each new field (not frame !)		   */
+
+	/* pointer to vmalloc memory address in vb */
+	char *vb_buf;
 };
 
 struct em28xx_dmaqueue {
 	struct list_head       active;
 
 	wait_queue_head_t          wq;
-
-	/* Counters to control buffer fill */
-	int                        pos;
 };
 
 /* inputs */
@@ -430,13 +439,6 @@ struct em28xx_eeprom {
 	u8 string_idx_table;
 };
 
-/* device states */
-enum em28xx_dev_state {
-	DEV_INITIALIZED = 0x01,
-	DEV_DISCONNECTED = 0x02,
-	DEV_MISCONFIGURED = 0x04,
-};
-
 #define EM28XX_AUDIO_BUFS 5
 #define EM28XX_NUM_AUDIO_PACKETS 64
 #define EM28XX_AUDIO_MAX_PACKET_SIZE 196 /* static value */
@@ -469,12 +471,8 @@ struct em28xx_audio {
 struct em28xx;
 
 struct em28xx_fh {
+	struct v4l2_fh fh;
 	struct em28xx *dev;
-	int           radio;
-	unsigned int  resources;
-
-	struct videobuf_queue        vb_vidq;
-	struct videobuf_queue        vb_vbiq;
 
 	enum v4l2_buf_type           type;
 };
@@ -487,9 +485,14 @@ struct em28xx {
 	int devno;		/* marks the number of this device */
 	enum em28xx_chip_id chip_id;
 
+	unsigned char disconnected:1;	/* device has been diconnected */
+
 	int audio_ifnum;
 
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler ctrl_handler;
+	/* provides ac97 mute and volume overrides */
+	struct v4l2_ctrl_handler ac97_ctrl_handler;
 	struct em28xx_board board;
 
 	/* Webcam specific fields */
@@ -497,7 +500,7 @@ struct em28xx {
 	int sensor_xres, sensor_yres;
 	int sensor_xtal;
 
-	/* Allows progressive (e. g. non-interlaced) mode */
+	/* Progressive (non-interlaced) mode */
 	int progressive;
 
 	/* Vinmode/Vinctl used at the driver */
@@ -532,6 +535,7 @@ struct em28xx {
 	struct i2c_client i2c_client;
 	/* video for linux */
 	int users;		/* user count for exclusive use */
+	int streaming_users;    /* Number of actively streaming users */
 	struct video_device *vdev;	/* video for linux device struct */
 	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
@@ -554,13 +558,10 @@ struct em28xx {
 
 	struct em28xx_audio adev;
 
-	/* states */
-	enum em28xx_dev_state state;
-
-	/* vbi related state tracking */
+	/* capture state tracking */
 	int capture_type;
+	unsigned char top_field:1;
 	int vbi_read;
-	unsigned char cur_field;
 	unsigned int vbi_width;
 	unsigned int vbi_height; /* lines per field */
 
@@ -574,6 +575,12 @@ struct em28xx {
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
 
+	/* Videobuf2 */
+	struct vb2_queue vb_vidq;
+	struct vb2_queue vb_vbiq;
+	struct mutex vb_queue_lock;
+	struct mutex vb_vbi_queue_lock;
+
 	/* resources in use */
 	unsigned int resources;
 
@@ -582,17 +589,31 @@ struct em28xx {
 	/* Isoc control struct */
 	struct em28xx_dmaqueue vidq;
 	struct em28xx_dmaqueue vbiq;
-	struct em28xx_usb_isoc_ctl isoc_ctl;
+	struct em28xx_usb_ctl usb_ctl;
 	spinlock_t slock;
+
+	unsigned int field_count;
+	unsigned int vbi_field_count;
 
 	/* usb transfer */
 	struct usb_device *udev;	/* the usb device */
-	int alt;		/* alternate */
-	int max_pkt_size;	/* max packet size of isoc transaction */
-	int num_alt;		/* Number of alternative settings */
-	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
-	int dvb_alt;				/* alternate for DVB */
-	unsigned int dvb_max_pkt_size;		/* wMaxPacketSize for DVB */
+	u8 analog_ep_isoc;	/* address of isoc endpoint for analog */
+	u8 analog_ep_bulk;	/* address of bulk endpoint for analog */
+	u8 dvb_ep_isoc;		/* address of isoc endpoint for DVB */
+	u8 dvb_ep_bulk;		/* address of bulk endpoint for DVC */
+	int alt;		/* alternate setting */
+	int max_pkt_size;	/* max packet size of the selected ep at alt */
+	int packet_multiplier;	/* multiplier for wMaxPacketSize, used for
+				   URB buffer size definition */
+	int num_alt;		/* number of alternative settings */
+	unsigned int *alt_max_pkt_size_isoc; /* array of isoc wMaxPacketSize */
+	unsigned int analog_xfer_bulk:1;	/* use bulk instead of isoc
+						   transfers for analog      */
+	int dvb_alt_isoc;	/* alternate setting for DVB isoc transfers */
+	unsigned int dvb_max_pkt_size_isoc;	/* isoc max packet size of the
+						   selected DVB ep at dvb_alt */
+	unsigned int dvb_xfer_bulk:1;		/* use bulk instead of isoc
+						   transfers for DVB          */
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */
@@ -619,9 +640,6 @@ struct em28xx {
 	struct delayed_work sbutton_query_work;
 
 	struct em28xx_dvb *dvb;
-
-	/* I2C keyboard data */
-	struct IR_i2c_init_data init_data;
 };
 
 struct em28xx_ops {
@@ -666,12 +684,14 @@ int em28xx_vbi_supported(struct em28xx *dev);
 int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
-int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		      int max_packets, int num_bufs, int max_pkt_size);
-int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		     int max_packets, int num_bufs, int max_pkt_size,
-		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
-void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode);
+int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
+		      int num_bufs, int max_pkt_size, int packet_multiplier);
+int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
+			 int xfer_bulk,
+			 int num_bufs, int max_pkt_size, int packet_multiplier,
+			 int (*urb_data_copy)
+					(struct em28xx *dev, struct urb *urb));
+void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode);
 void em28xx_stop_urbs(struct em28xx *dev);
 int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
@@ -683,8 +703,13 @@ void em28xx_init_extension(struct em28xx *dev);
 void em28xx_close_extension(struct em28xx *dev);
 
 /* Provided by em28xx-video.c */
+int em28xx_vb2_setup(struct em28xx *dev);
 int em28xx_register_analog_devices(struct em28xx *dev);
 void em28xx_release_analog_resources(struct em28xx *dev);
+void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv);
+int em28xx_start_analog_streaming(struct vb2_queue *vq, unsigned int count);
+int em28xx_stop_vbi_streaming(struct vb2_queue *vq);
+extern const struct v4l2_ctrl_ops em28xx_ctrl_ops;
 
 /* Provided by em28xx-cards.c */
 extern int em2800_variant_detect(struct usb_device *udev, int model);
@@ -695,7 +720,7 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
 
 /* Provided by em28xx-vbi.c */
-extern struct videobuf_queue_ops em28xx_vbi_qops;
+extern struct vb2_ops em28xx_vbi_qops;
 
 /* printk macros */
 

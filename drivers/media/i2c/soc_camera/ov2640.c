@@ -771,9 +771,9 @@ static int ov2640_s_register(struct v4l2_subdev *sd,
 static int ov2640_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
-	return soc_camera_set_power(&client->dev, icl, on);
+	return soc_camera_set_power(&client->dev, ssdd, on);
 }
 
 /* Select the nearest higher resolution for capture */
@@ -1046,13 +1046,13 @@ static int ov2640_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
 		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 		V4L2_MBUS_DATA_ACTIVE_HIGH;
 	cfg->type = V4L2_MBUS_PARALLEL;
-	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+	cfg->flags = soc_camera_apply_board_flags(ssdd, cfg);
 
 	return 0;
 }
@@ -1080,11 +1080,11 @@ static int ov2640_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct ov2640_priv	*priv;
-	struct soc_camera_link	*icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
 	int			ret;
 
-	if (!icl) {
+	if (!ssdd) {
 		dev_err(&adapter->dev,
 			"OV2640: Missing platform_data for driver\n");
 		return -EINVAL;
@@ -1096,7 +1096,7 @@ static int ov2640_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	priv = kzalloc(sizeof(struct ov2640_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(struct ov2640_priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&adapter->dev,
 			"Failed to allocate memory for private data!\n");
@@ -1110,20 +1110,14 @@ static int ov2640_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&priv->hdl, &ov2640_ctrl_ops,
 			V4L2_CID_HFLIP, 0, 1, 1, 0);
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error) {
-		int err = priv->hdl.error;
-
-		kfree(priv);
-		return err;
-	}
+	if (priv->hdl.error)
+		return priv->hdl.error;
 
 	ret = ov2640_video_probe(client);
-	if (ret) {
+	if (ret)
 		v4l2_ctrl_handler_free(&priv->hdl);
-		kfree(priv);
-	} else {
+	else
 		dev_info(&adapter->dev, "OV2640 Probed\n");
-	}
 
 	return ret;
 }
@@ -1134,7 +1128,6 @@ static int ov2640_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
-	kfree(priv);
 	return 0;
 }
 

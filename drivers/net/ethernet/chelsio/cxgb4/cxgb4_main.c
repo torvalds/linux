@@ -2347,7 +2347,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
 	loff_t pos = *ppos;
-	loff_t avail = file->f_path.dentry->d_inode->i_size;
+	loff_t avail = file_inode(file)->i_size;
 	unsigned int mem = (uintptr_t)file->private_data & 3;
 	struct adapter *adap = file->private_data - mem;
 

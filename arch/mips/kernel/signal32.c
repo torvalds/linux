@@ -48,32 +48,19 @@ extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 __user 
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
  */
-#define __NR_O32_restart_syscall        4253
+#define __NR_O32_restart_syscall	4253
 
 /* 32-bit compatibility types */
 
 typedef unsigned int __sighandler32_t;
 typedef void (*vfptr_t)(void);
 
-struct sigaction32 {
-	unsigned int		sa_flags;
-	__sighandler32_t	sa_handler;
-	compat_sigset_t		sa_mask;
-};
-
-/* IRIX compatible stack_t  */
-typedef struct sigaltstack32 {
-	s32 ss_sp;
-	compat_size_t ss_size;
-	int ss_flags;
-} stack32_t;
-
 struct ucontext32 {
-	u32                 uc_flags;
-	s32                 uc_link;
-	stack32_t           uc_stack;
+	u32		    uc_flags;
+	s32		    uc_link;
+	compat_stack_t      uc_stack;
 	struct sigcontext32 uc_mcontext;
-	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
+	compat_sigset_t	    uc_sigmask;	  /* mask last for extensibility */
 };
 
 struct sigframe32 {
@@ -280,36 +267,13 @@ static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t __user *ubuf)
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 
-asmlinkage int sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
+asmlinkage int sys32_sigsuspend(compat_sigset_t __user *uset)
 {
-	compat_sigset_t __user *uset;
-	sigset_t newset;
-
-	uset = (compat_sigset_t __user *) regs.regs[4];
-	if (get_sigset(&newset, uset))
-		return -EFAULT;
-	return sigsuspend(&newset);
+	return compat_sys_rt_sigsuspend(uset, sizeof(compat_sigset_t));
 }
 
-asmlinkage int sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
-{
-	compat_sigset_t __user *uset;
-	sigset_t newset;
-	size_t sigsetsize;
-
-	/* XXX Don't preclude handling different sized sigset_t's.  */
-	sigsetsize = regs.regs[5];
-	if (sigsetsize != sizeof(compat_sigset_t))
-		return -EINVAL;
-
-	uset = (compat_sigset_t __user *) regs.regs[4];
-	if (get_sigset(&newset, uset))
-		return -EFAULT;
-	return sigsuspend(&newset);
-}
-
-SYSCALL_DEFINE3(32_sigaction, long, sig, const struct sigaction32 __user *, act,
-	struct sigaction32 __user *, oact)
+SYSCALL_DEFINE3(32_sigaction, long, sig, const struct compat_sigaction __user *, act,
+	struct compat_sigaction __user *, oact)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
@@ -338,7 +302,7 @@ SYSCALL_DEFINE3(32_sigaction, long, sig, const struct sigaction32 __user *, act,
 			return -EFAULT;
 		err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 		err |= __put_user((u32)(u64)old_ka.sa.sa_handler,
-		                  &oact->sa_handler);
+				  &oact->sa_handler);
 		err |= __put_user(old_ka.sa.sa_mask.sig[0], oact->sa_mask.sig);
 		err |= __put_user(0, &oact->sa_mask.sig[1]);
 		err |= __put_user(0, &oact->sa_mask.sig[2]);
@@ -347,45 +311,6 @@ SYSCALL_DEFINE3(32_sigaction, long, sig, const struct sigaction32 __user *, act,
 			return -EFAULT;
 	}
 
-	return ret;
-}
-
-asmlinkage int sys32_sigaltstack(nabi_no_regargs struct pt_regs regs)
-{
-	const stack32_t __user *uss = (const stack32_t __user *) regs.regs[4];
-	stack32_t __user *uoss = (stack32_t __user *) regs.regs[5];
-	unsigned long usp = regs.regs[29];
-	stack_t kss, koss;
-	int ret, err = 0;
-	mm_segment_t old_fs = get_fs();
-	s32 sp;
-
-	if (uss) {
-		if (!access_ok(VERIFY_READ, uss, sizeof(*uss)))
-			return -EFAULT;
-		err |= __get_user(sp, &uss->ss_sp);
-		kss.ss_sp = (void __user *) (long) sp;
-		err |= __get_user(kss.ss_size, &uss->ss_size);
-		err |= __get_user(kss.ss_flags, &uss->ss_flags);
-		if (err)
-			return -EFAULT;
-	}
-
-	set_fs(KERNEL_DS);
-	ret = do_sigaltstack(uss ? (stack_t __user *)&kss : NULL,
-			     uoss ? (stack_t __user *)&koss : NULL, usp);
-	set_fs(old_fs);
-
-	if (!ret && uoss) {
-		if (!access_ok(VERIFY_WRITE, uoss, sizeof(*uoss)))
-			return -EFAULT;
-		sp = (int) (unsigned long) koss.ss_sp;
-		err |= __put_user(sp, &uoss->ss_sp);
-		err |= __put_user(koss.ss_size, &uoss->ss_size);
-		err |= __put_user(koss.ss_flags, &uoss->ss_flags);
-		if (err)
-			return -EFAULT;
-	}
 	return ret;
 }
 
@@ -490,10 +415,7 @@ badframe:
 asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
 	struct rt_sigframe32 __user *frame;
-	mm_segment_t old_fs;
 	sigset_t set;
-	stack_t st;
-	s32 sp;
 	int sig;
 
 	frame = (struct rt_sigframe32 __user *) regs.regs[29];
@@ -510,21 +432,8 @@ asmlinkage void sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	else if (sig)
 		force_sig(sig, current);
 
-	/* The ucontext contains a stack32_t, so we must convert!  */
-	if (__get_user(sp, &frame->rs_uc.uc_stack.ss_sp))
+	if (compat_restore_altstack(&frame->rs_uc.uc_stack))
 		goto badframe;
-	st.ss_sp = (void __user *)(long) sp;
-	if (__get_user(st.ss_size, &frame->rs_uc.uc_stack.ss_size))
-		goto badframe;
-	if (__get_user(st.ss_flags, &frame->rs_uc.uc_stack.ss_flags))
-		goto badframe;
-
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	do_sigaltstack((stack_t __user *)&st, NULL, regs.regs[29]);
-	set_fs(old_fs);
 
 	/*
 	 * Don't let your children do this ...
@@ -590,7 +499,6 @@ static int setup_rt_frame_32(void *sig_return, struct k_sigaction *ka,
 {
 	struct rt_sigframe32 __user *frame;
 	int err = 0;
-	s32 sp;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
@@ -599,16 +507,10 @@ static int setup_rt_frame_32(void *sig_return, struct k_sigaction *ka,
 	/* Convert (siginfo_t -> compat_siginfo_t) and copy to user. */
 	err |= copy_siginfo_to_user32(&frame->rs_info, info);
 
-	/* Create the ucontext.  */
+	/* Create the ucontext.	 */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(0, &frame->rs_uc.uc_link);
-	sp = (int) (long) current->sas_ss_sp;
-	err |= __put_user(sp,
-	                  &frame->rs_uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->regs[29]),
-	                  &frame->rs_uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size,
-	                  &frame->rs_uc.uc_stack.ss_size);
+	err |= __compat_save_altstack(&frame->rs_uc.uc_stack, regs->regs[29]);
 	err |= setup_sigcontext32(regs, &frame->rs_uc.uc_mcontext);
 	err |= __copy_conv_sigset_to_user(&frame->rs_uc.uc_sigmask, set);
 
@@ -650,136 +552,11 @@ struct mips_abi mips_abi_32 = {
 	.setup_frame	= setup_frame_32,
 	.signal_return_offset =
 		offsetof(struct mips_vdso, o32_signal_trampoline),
-	.setup_rt_frame	= setup_rt_frame_32,
+	.setup_rt_frame = setup_rt_frame_32,
 	.rt_signal_return_offset =
 		offsetof(struct mips_vdso, o32_rt_signal_trampoline),
 	.restart	= __NR_O32_restart_syscall
 };
-
-SYSCALL_DEFINE4(32_rt_sigaction, int, sig,
-	const struct sigaction32 __user *, act,
-	struct sigaction32 __user *, oact, unsigned int, sigsetsize)
-{
-	struct k_sigaction new_sa, old_sa;
-	int ret = -EINVAL;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		goto out;
-
-	if (act) {
-		s32 handler;
-		int err = 0;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)))
-			return -EFAULT;
-		err |= __get_user(handler, &act->sa_handler);
-		new_sa.sa.sa_handler = (void __user *)(s64)handler;
-		err |= __get_user(new_sa.sa.sa_flags, &act->sa_flags);
-		err |= get_sigset(&new_sa.sa.sa_mask, &act->sa_mask);
-		if (err)
-			return -EFAULT;
-	}
-
-	ret = do_sigaction(sig, act ? &new_sa : NULL, oact ? &old_sa : NULL);
-
-	if (!ret && oact) {
-		int err = 0;
-
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)))
-			return -EFAULT;
-
-		err |= __put_user((u32)(u64)old_sa.sa.sa_handler,
-		                   &oact->sa_handler);
-		err |= __put_user(old_sa.sa.sa_flags, &oact->sa_flags);
-		err |= put_sigset(&old_sa.sa.sa_mask, &oact->sa_mask);
-		if (err)
-			return -EFAULT;
-	}
-out:
-	return ret;
-}
-
-SYSCALL_DEFINE4(32_rt_sigprocmask, int, how, compat_sigset_t __user *, set,
-	compat_sigset_t __user *, oset, unsigned int, sigsetsize)
-{
-	sigset_t old_set, new_set;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (set && get_sigset(&new_set, set))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_rt_sigprocmask(how, set ? (sigset_t __user *)&new_set : NULL,
-				 oset ? (sigset_t __user *)&old_set : NULL,
-				 sigsetsize);
-	set_fs(old_fs);
-
-	if (!ret && oset && put_sigset(&old_set, oset))
-		return -EFAULT;
-
-	return ret;
-}
-
-SYSCALL_DEFINE2(32_rt_sigpending, compat_sigset_t __user *, uset,
-	unsigned int, sigsetsize)
-{
-	int ret;
-	sigset_t set;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_rt_sigpending((sigset_t __user *)&set, sigsetsize);
-	set_fs(old_fs);
-
-	if (!ret && put_sigset(&set, uset))
-		return -EFAULT;
-
-	return ret;
-}
-
-SYSCALL_DEFINE3(32_rt_sigqueueinfo, int, pid, int, sig,
-	compat_siginfo_t __user *, uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (copy_from_user(&info, uinfo, 3*sizeof(int)) ||
-	    copy_from_user(info._sifields._pad, uinfo->_sifields._pad, SI_PAD_SIZE))
-		return -EFAULT;
-	set_fs(KERNEL_DS);
-	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __user *)&info);
-	set_fs(old_fs);
-	return ret;
-}
-
-SYSCALL_DEFINE5(32_waitid, int, which, compat_pid_t, pid,
-	     compat_siginfo_t __user *, uinfo, int, options,
-	     struct compat_rusage __user *, uru)
-{
-	siginfo_t info;
-	struct rusage ru;
-	long ret;
-	mm_segment_t old_fs = get_fs();
-
-	info.si_signo = 0;
-	set_fs(KERNEL_DS);
-	ret = sys_waitid(which, pid, (siginfo_t __user *) &info, options,
-			 uru ? (struct rusage __user *) &ru : NULL);
-	set_fs(old_fs);
-
-	if (ret < 0 || info.si_signo == 0)
-		return ret;
-
-	if (uru && (ret = put_compat_rusage(&ru, uru)))
-		return ret;
-
-	BUG_ON(info.si_code & __SI_MASK);
-	info.si_code |= __SI_CHLD;
-	return copy_siginfo_to_user32(uinfo, &info);
-}
 
 static int signal32_init(void)
 {

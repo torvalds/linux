@@ -80,6 +80,8 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 	 * is not blocked in the elevator. */
 	if (!*bh)
 		*bh = sb_getblk(sb, mmp_block);
+	if (!*bh)
+		return -ENOMEM;
 	if (*bh) {
 		get_bh(*bh);
 		lock_buffer(*bh);
@@ -91,7 +93,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 			*bh = NULL;
 		}
 	}
-	if (!*bh) {
+	if (unlikely(!*bh)) {
 		ext4_warning(sb, "Error while reading MMP block %llu",
 			     mmp_block);
 		return -EIO;

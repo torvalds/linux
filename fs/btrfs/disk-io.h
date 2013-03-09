@@ -25,6 +25,13 @@
 #define BTRFS_SUPER_MIRROR_MAX	 3
 #define BTRFS_SUPER_MIRROR_SHIFT 12
 
+enum {
+	BTRFS_WQ_ENDIO_DATA = 0,
+	BTRFS_WQ_ENDIO_METADATA = 1,
+	BTRFS_WQ_ENDIO_FREE_SPACE = 2,
+	BTRFS_WQ_ENDIO_RAID56 = 3,
+};
+
 static inline u64 btrfs_sb_offset(int mirror)
 {
 	u64 start = 16 * 1024;

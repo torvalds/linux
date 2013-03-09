@@ -117,12 +117,12 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct jffs2_inode_info *f;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct jffs2_full_dirent *fd;
 	unsigned long offset, curofs;
 
 	jffs2_dbg(1, "jffs2_readdir() for dir_i #%lu\n",
-		  filp->f_path.dentry->d_inode->i_ino);
+		  file_inode(filp)->i_ino);
 
 	f = JFFS2_INODE_INFO(inode);
 

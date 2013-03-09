@@ -618,10 +618,8 @@ static int mmp_pdma_control(struct dma_chan *dchan, enum dma_ctrl_cmd cmd,
 		else if (maxburst == 32)
 			chan->dcmd |= DCMD_BURST32;
 
-		if (cfg) {
-			chan->dir = cfg->direction;
-			chan->drcmr = cfg->slave_id;
-		}
+		chan->dir = cfg->direction;
+		chan->drcmr = cfg->slave_id;
 		chan->dev_addr = addr;
 		break;
 	default:

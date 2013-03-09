@@ -230,9 +230,11 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
 int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head,
-			const struct nfs_pgio_completion_ops *compl_ops);
+			const struct nfs_pgio_completion_ops *compl_ops,
+			struct nfs_direct_req *dreq);
 int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head,
-			const struct nfs_pgio_completion_ops *compl_ops);
+			const struct nfs_pgio_completion_ops *compl_ops,
+			struct nfs_direct_req *dreq);
 struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 
 /* nfs4_deviceid_flags */

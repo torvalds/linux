@@ -94,8 +94,8 @@ static inline struct net *ib_net(struct inet_bind_bucket *ib)
 	return read_pnet(&ib->ib_net);
 }
 
-#define inet_bind_bucket_for_each(tb, pos, head) \
-	hlist_for_each_entry(tb, pos, head, node)
+#define inet_bind_bucket_for_each(tb, head) \
+	hlist_for_each_entry(tb, head, node)
 
 struct inet_bind_hashbucket {
 	spinlock_t		lock;

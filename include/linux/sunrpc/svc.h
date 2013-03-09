@@ -50,6 +50,7 @@ struct svc_pool {
 	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
 	struct svc_pool_stats	sp_stats;	/* statistics on pool operation */
+	int			sp_task_pending;/* has pending task */
 } ____cacheline_aligned_in_smp;
 
 /*

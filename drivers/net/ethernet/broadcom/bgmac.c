@@ -15,7 +15,7 @@
 #include <linux/mii.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 
 static const struct bcma_device_id bgmac_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_4706_MAC_GBIT, BCMA_ANY_REV, BCMA_ANY_CLASS),
@@ -301,12 +301,16 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			bgmac_err(bgmac, "Found poisoned packet at slot %d, DMA issue!\n",
 				  ring->start);
 		} else {
+			/* Omit CRC. */
+			len -= ETH_FCS_LEN;
+
 			new_skb = netdev_alloc_skb_ip_align(bgmac->net_dev, len);
 			if (new_skb) {
 				skb_put(new_skb, len);
 				skb_copy_from_linear_data_offset(skb, BGMAC_RX_FRAME_OFFSET,
 								 new_skb->data,
 								 len);
+				skb_checksum_none_assert(skb);
 				new_skb->protocol =
 					eth_type_trans(new_skb, bgmac->net_dev);
 				netif_receive_skb(new_skb);
@@ -436,6 +440,8 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 	}
 
 	for (i = 0; i < BGMAC_MAX_RX_RINGS; i++) {
+		int j;
+
 		ring = &bgmac->rx_ring[i];
 		ring->num_slots = BGMAC_RX_RING_SLOTS;
 		ring->mmio_base = ring_base[i];
@@ -458,8 +464,8 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 			bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
 
 		/* Alloc RX slots */
-		for (i = 0; i < ring->num_slots; i++) {
-			err = bgmac_dma_rx_skb_for_slot(bgmac, &ring->slots[i]);
+		for (j = 0; j < ring->num_slots; j++) {
+			err = bgmac_dma_rx_skb_for_slot(bgmac, &ring->slots[j]);
 			if (err) {
 				bgmac_err(bgmac, "Can't allocate skb for slot in RX ring\n");
 				goto err_dma_free;
@@ -496,6 +502,8 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 	}
 
 	for (i = 0; i < BGMAC_MAX_RX_RINGS; i++) {
+		int j;
+
 		ring = &bgmac->rx_ring[i];
 
 		/* We don't implement unaligned addressing, so enable first */
@@ -505,11 +513,11 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 		bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_RX_RINGHI,
 			    upper_32_bits(ring->dma_base));
 
-		for (i = 0, dma_desc = ring->cpu_base; i < ring->num_slots;
-		     i++, dma_desc++) {
+		for (j = 0, dma_desc = ring->cpu_base; j < ring->num_slots;
+		     j++, dma_desc++) {
 			ctl0 = ctl1 = 0;
 
-			if (i == ring->num_slots - 1)
+			if (j == ring->num_slots - 1)
 				ctl0 |= BGMAC_DESC_CTL0_EOT;
 			ctl1 |= BGMAC_RX_BUF_SIZE & BGMAC_DESC_CTL1_LEN;
 			/* Is there any BGMAC device that requires extension? */
@@ -517,8 +525,8 @@ static void bgmac_dma_init(struct bgmac *bgmac)
 			 * B43_DMA64_DCTL1_ADDREXT_MASK;
 			 */
 
-			dma_desc->addr_low = cpu_to_le32(lower_32_bits(ring->slots[i].dma_addr));
-			dma_desc->addr_high = cpu_to_le32(upper_32_bits(ring->slots[i].dma_addr));
+			dma_desc->addr_low = cpu_to_le32(lower_32_bits(ring->slots[j].dma_addr));
+			dma_desc->addr_high = cpu_to_le32(upper_32_bits(ring->slots[j].dma_addr));
 			dma_desc->ctl0 = cpu_to_le32(ctl0);
 			dma_desc->ctl1 = cpu_to_le32(ctl1);
 		}
@@ -904,7 +912,7 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			     BGMAC_CHIPCTL_1_IF_TYPE_RMII;
 		char buf[2];
 
-		if (nvram_getenv("et_swtype", buf, 1) > 0) {
+		if (bcm47xx_nvram_getenv("et_swtype", buf, 1) > 0) {
 			if (kstrtou8(buf, 0, &et_swtype))
 				bgmac_err(bgmac, "Failed to parse et_swtype (%s)\n",
 					  buf);
@@ -1382,7 +1390,7 @@ static int bgmac_probe(struct bcma_device *core)
 	}
 
 	bgmac->int_mask = BGMAC_IS_ERRMASK | BGMAC_IS_RX | BGMAC_IS_TX_MASK;
-	if (nvram_getenv("et0_no_txint", NULL, 0) == 0)
+	if (bcm47xx_nvram_getenv("et0_no_txint", NULL, 0) == 0)
 		bgmac->int_mask &= ~BGMAC_IS_TX_MASK;
 
 	/* TODO: reset the external phy. Specs are needed */

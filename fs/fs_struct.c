@@ -10,7 +10,7 @@
  * Replace the fs->{rootmnt,root} with {mnt,dentry}. Put the old values.
  * It can block.
  */
-void set_fs_root(struct fs_struct *fs, struct path *path)
+void set_fs_root(struct fs_struct *fs, const struct path *path)
 {
 	struct path old_root;
 
@@ -29,7 +29,7 @@ void set_fs_root(struct fs_struct *fs, struct path *path)
  * Replace the fs->{pwdmnt,pwd} with {mnt,dentry}. Put the old values.
  * It can block.
  */
-void set_fs_pwd(struct fs_struct *fs, struct path *path)
+void set_fs_pwd(struct fs_struct *fs, const struct path *path)
 {
 	struct path old_pwd;
 
@@ -53,7 +53,7 @@ static inline int replace_path(struct path *p, const struct path *old, const str
 	return 1;
 }
 
-void chroot_fs_refs(struct path *old_root, struct path *new_root)
+void chroot_fs_refs(const struct path *old_root, const struct path *new_root)
 {
 	struct task_struct *g, *p;
 	struct fs_struct *fs;

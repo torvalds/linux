@@ -126,7 +126,7 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
  */
 void ima_file_free(struct file *file)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct integrity_iint_cache *iint;
 
 	if (!iint_initialized || !S_ISREG(inode->i_mode))
@@ -142,7 +142,7 @@ void ima_file_free(struct file *file)
 static int process_measurement(struct file *file, const char *filename,
 			       int mask, int function)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct integrity_iint_cache *iint;
 	char *pathbuf = NULL;
 	const char *pathname = NULL;
@@ -284,7 +284,8 @@ int ima_module_check(struct file *file)
 {
 	if (!file) {
 #ifndef CONFIG_MODULE_SIG_FORCE
-		if (ima_appraise & IMA_APPRAISE_MODULES)
+		if ((ima_appraise & IMA_APPRAISE_MODULES) &&
+		    (ima_appraise & IMA_APPRAISE_ENFORCE))
 			return -EACCES;	/* INTEGRITY_UNKNOWN */
 #endif
 		return 0;	/* We rely on module signature checking */

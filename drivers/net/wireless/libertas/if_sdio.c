@@ -825,6 +825,11 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 
 	sdio_release_host(func);
 
+	/* Set fw_ready before queuing any commands so that
+	 * lbs_thread won't block from sending them to firmware.
+	 */
+	priv->fw_ready = 1;
+
 	/*
 	 * FUNC_INIT is required for SD8688 WLAN/BT multiple functions
 	 */
@@ -839,7 +844,6 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 			netdev_alert(priv->dev, "CMD_FUNC_INIT cmd failed\n");
 	}
 
-	priv->fw_ready = 1;
 	wake_up(&card->pwron_waitq);
 
 	if (!card->started) {

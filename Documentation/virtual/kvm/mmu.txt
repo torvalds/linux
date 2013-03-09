@@ -187,13 +187,6 @@ Shadow pages contain the following information:
     perform a reverse map from a pte to a gfn. When role.direct is set, any
     element of this array can be calculated from the gfn field when used, in
     this case, the array of gfns is not allocated. See role.direct and gfn.
-  slot_bitmap:
-    A bitmap containing one bit per memory slot.  If the page contains a pte
-    mapping a page from memory slot n, then bit n of slot_bitmap will be set
-    (if a page is aliased among several slots, then it is not guaranteed that
-    all slots will be marked).
-    Used during dirty logging to avoid scanning a shadow page if none if its
-    pages need tracking.
   root_count:
     A counter keeping track of how many hardware registers (guest cr3 or
     pdptrs) are now pointing at the page.  While this counter is nonzero, the

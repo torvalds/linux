@@ -8,36 +8,36 @@
  * for more details.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/bitops.h>
 #include <linux/ptrace.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h> /* for USER_DS macros */
+#include <linux/uaccess.h> /* for USER_DS macros */
 #include <asm/cacheflush.h>
 
 void show_regs(struct pt_regs *regs)
 {
-	printk(KERN_INFO " Registers dump: mode=%X\r\n", regs->pt_mode);
-	printk(KERN_INFO " r1=%08lX, r2=%08lX, r3=%08lX, r4=%08lX\n",
+	pr_info(" Registers dump: mode=%X\r\n", regs->pt_mode);
+	pr_info(" r1=%08lX, r2=%08lX, r3=%08lX, r4=%08lX\n",
 				regs->r1, regs->r2, regs->r3, regs->r4);
-	printk(KERN_INFO " r5=%08lX, r6=%08lX, r7=%08lX, r8=%08lX\n",
+	pr_info(" r5=%08lX, r6=%08lX, r7=%08lX, r8=%08lX\n",
 				regs->r5, regs->r6, regs->r7, regs->r8);
-	printk(KERN_INFO " r9=%08lX, r10=%08lX, r11=%08lX, r12=%08lX\n",
+	pr_info(" r9=%08lX, r10=%08lX, r11=%08lX, r12=%08lX\n",
 				regs->r9, regs->r10, regs->r11, regs->r12);
-	printk(KERN_INFO " r13=%08lX, r14=%08lX, r15=%08lX, r16=%08lX\n",
+	pr_info(" r13=%08lX, r14=%08lX, r15=%08lX, r16=%08lX\n",
 				regs->r13, regs->r14, regs->r15, regs->r16);
-	printk(KERN_INFO " r17=%08lX, r18=%08lX, r19=%08lX, r20=%08lX\n",
+	pr_info(" r17=%08lX, r18=%08lX, r19=%08lX, r20=%08lX\n",
 				regs->r17, regs->r18, regs->r19, regs->r20);
-	printk(KERN_INFO " r21=%08lX, r22=%08lX, r23=%08lX, r24=%08lX\n",
+	pr_info(" r21=%08lX, r22=%08lX, r23=%08lX, r24=%08lX\n",
 				regs->r21, regs->r22, regs->r23, regs->r24);
-	printk(KERN_INFO " r25=%08lX, r26=%08lX, r27=%08lX, r28=%08lX\n",
+	pr_info(" r25=%08lX, r26=%08lX, r27=%08lX, r28=%08lX\n",
 				regs->r25, regs->r26, regs->r27, regs->r28);
-	printk(KERN_INFO " r29=%08lX, r30=%08lX, r31=%08lX, rPC=%08lX\n",
+	pr_info(" r29=%08lX, r30=%08lX, r31=%08lX, rPC=%08lX\n",
 				regs->r29, regs->r30, regs->r31, regs->pc);
-	printk(KERN_INFO " msr=%08lX, ear=%08lX, esr=%08lX, fsr=%08lX\n",
+	pr_info(" msr=%08lX, ear=%08lX, esr=%08lX, fsr=%08lX\n",
 				regs->msr, regs->ear, regs->esr, regs->fsr);
 }
 
@@ -97,13 +97,10 @@ void cpu_idle(void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
-		if (!idle)
-			idle = default_idle;
-
 		tick_nohz_idle_enter();
 		rcu_idle_enter();
 		while (!need_resched())
-			idle();
+			default_idle();
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
 

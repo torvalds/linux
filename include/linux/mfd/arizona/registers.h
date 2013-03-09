@@ -984,18 +984,34 @@
 #define ARIZONA_DSP1_STATUS_1                    0x1104
 #define ARIZONA_DSP1_STATUS_2                    0x1105
 #define ARIZONA_DSP1_STATUS_3                    0x1106
+#define ARIZONA_DSP1_SCRATCH_0                   0x1140
+#define ARIZONA_DSP1_SCRATCH_1                   0x1141
+#define ARIZONA_DSP1_SCRATCH_2                   0x1142
+#define ARIZONA_DSP1_SCRATCH_3                   0x1143
 #define ARIZONA_DSP2_CONTROL_1                   0x1200
 #define ARIZONA_DSP2_CLOCKING_1                  0x1201
 #define ARIZONA_DSP2_STATUS_1                    0x1204
 #define ARIZONA_DSP2_STATUS_2                    0x1205
+#define ARIZONA_DSP2_SCRATCH_0                   0x1240
+#define ARIZONA_DSP2_SCRATCH_1                   0x1241
+#define ARIZONA_DSP2_SCRATCH_2                   0x1242
+#define ARIZONA_DSP2_SCRATCH_3                   0x1243
 #define ARIZONA_DSP3_CONTROL_1                   0x1300
 #define ARIZONA_DSP3_CLOCKING_1                  0x1301
 #define ARIZONA_DSP3_STATUS_1                    0x1304
 #define ARIZONA_DSP3_STATUS_2                    0x1305
+#define ARIZONA_DSP3_SCRATCH_0                   0x1340
+#define ARIZONA_DSP3_SCRATCH_1                   0x1341
+#define ARIZONA_DSP3_SCRATCH_2                   0x1342
+#define ARIZONA_DSP3_SCRATCH_3                   0x1343
 #define ARIZONA_DSP4_CONTROL_1                   0x1400
 #define ARIZONA_DSP4_CLOCKING_1                  0x1401
 #define ARIZONA_DSP4_STATUS_1                    0x1404
 #define ARIZONA_DSP4_STATUS_2                    0x1405
+#define ARIZONA_DSP4_SCRATCH_0                   0x1440
+#define ARIZONA_DSP4_SCRATCH_1                   0x1441
+#define ARIZONA_DSP4_SCRATCH_2                   0x1442
+#define ARIZONA_DSP4_SCRATCH_3                   0x1443
 
 /*
  * Field Definitions.

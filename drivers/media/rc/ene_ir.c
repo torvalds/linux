@@ -1003,7 +1003,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	dev = kzalloc(sizeof(struct ene_device), GFP_KERNEL);
 	rdev = rc_allocate_device();
 	if (!dev || !rdev)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	/* validate resources */
 	error = -ENODEV;
@@ -1014,10 +1014,10 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	if (!pnp_port_valid(pnp_dev, 0) ||
 	    pnp_port_len(pnp_dev, 0) < ENE_IO_SIZE)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	if (!pnp_irq_valid(pnp_dev, 0))
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	spin_lock_init(&dev->hw_lock);
 
@@ -1033,7 +1033,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	/* detect hardware version and features */
 	error = ene_hw_detect(dev);
 	if (error)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	if (!dev->hw_learning_and_tx_capable && txsim) {
 		dev->hw_learning_and_tx_capable = true;
@@ -1075,30 +1075,30 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	device_set_wakeup_capable(&pnp_dev->dev, true);
 	device_set_wakeup_enable(&pnp_dev->dev, true);
 
+	error = rc_register_device(rdev);
+	if (error < 0)
+		goto exit_free_dev_rdev;
+
 	/* claim the resources */
 	error = -EBUSY;
 	if (!request_region(dev->hw_io, ENE_IO_SIZE, ENE_DRIVER_NAME)) {
-		goto failure;
+		goto exit_unregister_device;
 	}
 
 	dev->irq = pnp_irq(pnp_dev, 0);
 	if (request_irq(dev->irq, ene_isr,
 			IRQF_SHARED, ENE_DRIVER_NAME, (void *)dev)) {
-		goto failure2;
+		goto exit_release_hw_io;
 	}
-
-	error = rc_register_device(rdev);
-	if (error < 0)
-		goto failure3;
 
 	pr_notice("driver has been successfully loaded\n");
 	return 0;
 
-failure3:
-	free_irq(dev->irq, dev);
-failure2:
+exit_release_hw_io:
 	release_region(dev->hw_io, ENE_IO_SIZE);
-failure:
+exit_unregister_device:
+	rc_unregister_device(rdev);
+exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(dev);
 	return error;

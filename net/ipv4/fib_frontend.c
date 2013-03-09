@@ -112,7 +112,6 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 struct fib_table *fib_get_table(struct net *net, u32 id)
 {
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	unsigned int h;
 
@@ -122,7 +121,7 @@ struct fib_table *fib_get_table(struct net *net, u32 id)
 
 	rcu_read_lock();
 	head = &net->ipv4.fib_table_hash[h];
-	hlist_for_each_entry_rcu(tb, node, head, tb_hlist) {
+	hlist_for_each_entry_rcu(tb, head, tb_hlist) {
 		if (tb->tb_id == id) {
 			rcu_read_unlock();
 			return tb;
@@ -137,13 +136,12 @@ static void fib_flush(struct net *net)
 {
 	int flushed = 0;
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	unsigned int h;
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		head = &net->ipv4.fib_table_hash[h];
-		hlist_for_each_entry(tb, node, head, tb_hlist)
+		hlist_for_each_entry(tb, head, tb_hlist)
 			flushed += fib_table_flush(tb);
 	}
 
@@ -656,7 +654,6 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	int dumped = 0;
 
@@ -670,7 +667,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
 		e = 0;
 		head = &net->ipv4.fib_table_hash[h];
-		hlist_for_each_entry(tb, node, head, tb_hlist) {
+		hlist_for_each_entry(tb, head, tb_hlist) {
 			if (e < s_e)
 				goto next;
 			if (dumped)
@@ -1117,11 +1114,11 @@ static void ip_fib_net_exit(struct net *net)
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
 		struct fib_table *tb;
 		struct hlist_head *head;
-		struct hlist_node *node, *tmp;
+		struct hlist_node *tmp;
 
 		head = &net->ipv4.fib_table_hash[i];
-		hlist_for_each_entry_safe(tb, node, tmp, head, tb_hlist) {
-			hlist_del(node);
+		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist) {
+			hlist_del(&tb->tb_hlist);
 			fib_table_flush(tb);
 			fib_free_table(tb);
 		}

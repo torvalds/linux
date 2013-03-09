@@ -9,7 +9,7 @@
 extern spinlock_t rtc_lock;
 
 struct m48t37_rtc {
-	volatile u8	pad[0x7ff0];    /* NVRAM */
+	volatile u8	pad[0x7ff0];	/* NVRAM */
 	volatile u8	flags;
 	volatile u8	century;
 	volatile u8	alarm_sec;

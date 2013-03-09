@@ -1032,6 +1032,13 @@ config USER_NS
 	help
 	  This allows containers, i.e. vservers, to use user namespaces
 	  to provide different user info for different servers.
+
+	  When user namespaces are enabled in the kernel it is
+	  recommended that the MEMCG and MEMCG_KMEM options also be
+	  enabled and that user-space use the memory control groups to
+	  limit the amount of memory a memory unprivileged users can
+	  use.
+
 	  If unsure, say N.
 
 config PID_NS
@@ -1060,20 +1067,7 @@ config UIDGID_CONVERTED
 	bool
 	default y
 
-	# Networking
-	depends on NET_9P = n
-
 	# Filesystems
-	depends on 9P_FS = n
-	depends on AFS_FS = n
-	depends on CEPH_FS = n
-	depends on CIFS = n
-	depends on CODA_FS = n
-	depends on GFS2_FS = n
-	depends on NCP_FS = n
-	depends on NFSD = n
-	depends on NFS_FS = n
-	depends on OCFS2_FS = n
 	depends on XFS_FS = n
 
 config UIDGID_STRICT_TYPE_CHECKS
@@ -1228,6 +1222,21 @@ config SYSCTL_EXCEPTION_TRACE
 	bool
 	help
 	  Enable support for /proc/sys/debug/exception-trace.
+
+config SYSCTL_ARCH_UNALIGN_NO_WARN
+	bool
+	help
+	  Enable support for /proc/sys/kernel/ignore-unaligned-usertrap
+	  Allows arch to define/use @no_unaligned_warning to possibly warn
+	  about unaligned access emulation going on under the hood.
+
+config SYSCTL_ARCH_UNALIGN_ALLOW
+	bool
+	help
+	  Enable support for /proc/sys/kernel/unaligned-trap
+	  Allows arches to define/use @unaligned_enabled to runtime toggle
+	  the unaligned access emulation.
+	  see arch/parisc/kernel/unaligned.c for reference
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EXPERT
@@ -1663,6 +1672,17 @@ config MODULE_SIG_FORCE
 	  Reject unsigned modules or signed modules for which we don't have a
 	  key.  Without this, such modules will simply taint the kernel.
 
+config MODULE_SIG_ALL
+	bool "Automatically sign all modules"
+	default y
+	depends on MODULE_SIG
+	help
+	  Sign all modules during make modules_install. Without this option,
+	  modules must be signed manually, using the scripts/sign-file tool.
+
+comment "Do not forget to sign required modules with scripts/sign-file"
+	depends on MODULE_SIG_FORCE && !MODULE_SIG_ALL
+
 choice
 	prompt "Which hash algorithm should modules be signed with?"
 	depends on MODULE_SIG
@@ -1694,6 +1714,15 @@ config MODULE_SIG_SHA512
 	select CRYPTO_SHA512
 
 endchoice
+
+config MODULE_SIG_HASH
+	string
+	depends on MODULE_SIG
+	default "sha1" if MODULE_SIG_SHA1
+	default "sha224" if MODULE_SIG_SHA224
+	default "sha256" if MODULE_SIG_SHA256
+	default "sha384" if MODULE_SIG_SHA384
+	default "sha512" if MODULE_SIG_SHA512
 
 endif # MODULES
 

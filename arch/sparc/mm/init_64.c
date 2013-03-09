@@ -2027,6 +2027,16 @@ static void __init patch_tlb_miss_handler_bitmap(void)
 	flushi(&valid_addr_bitmap_insn[0]);
 }
 
+static void __init register_page_bootmem_info(void)
+{
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	int i;
+
+	for_each_online_node(i)
+		if (NODE_DATA(i)->node_spanned_pages)
+			register_page_bootmem_info_node(NODE_DATA(i));
+#endif
+}
 void __init mem_init(void)
 {
 	unsigned long codepages, datapages, initpages;
@@ -2044,20 +2054,8 @@ void __init mem_init(void)
 
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
-#ifdef CONFIG_NEED_MULTIPLE_NODES
-	{
-		int i;
-		for_each_online_node(i) {
-			if (NODE_DATA(i)->node_spanned_pages != 0) {
-				totalram_pages +=
-					free_all_bootmem_node(NODE_DATA(i));
-			}
-		}
-		totalram_pages += free_low_memory_core_early(MAX_NUMNODES);
-	}
-#else
+	register_page_bootmem_info();
 	totalram_pages = free_all_bootmem();
-#endif
 
 	/* We subtract one to account for the mem_map_zero page
 	 * allocated below.
@@ -2237,6 +2235,11 @@ void __meminit vmemmap_populate_print_last(void)
 		node_start = 0;
 	}
 }
+
+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+{
+}
+
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 static void prot_init_common(unsigned long page_none,

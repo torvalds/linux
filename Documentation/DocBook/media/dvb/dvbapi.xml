@@ -84,7 +84,7 @@ Added ISDB-T test originally written by Patrick Boettcher
 
 
 <title>LINUX DVB API</title>
-<subtitle>Version 5.8</subtitle>
+<subtitle>Version 5.10</subtitle>
 <!-- ADD THE CHAPTERS HERE -->
   <chapter id="dvb_introdution">
     &sub-intro;

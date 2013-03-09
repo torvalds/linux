@@ -538,7 +538,7 @@ struct device_info {
 	int port_num;
 };
 
-static int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha)
+int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha)
 {
 	uint32_t drv_active;
 	uint32_t dev_part, dev_part1, dev_part2;
@@ -1351,30 +1351,57 @@ exit_start_fw:
 
 /*----------------------Interrupt Related functions ---------------------*/
 
-void qla4_83xx_disable_intrs(struct scsi_qla_host *ha)
+static void qla4_83xx_disable_iocb_intrs(struct scsi_qla_host *ha)
+{
+	if (test_and_clear_bit(AF_83XX_IOCB_INTR_ON, &ha->flags))
+		qla4_8xxx_intr_disable(ha);
+}
+
+static void qla4_83xx_disable_mbox_intrs(struct scsi_qla_host *ha)
 {
 	uint32_t mb_int, ret;
 
-	if (test_and_clear_bit(AF_INTERRUPTS_ON, &ha->flags))
-		qla4_8xxx_mbx_intr_disable(ha);
-
-	ret = readl(&ha->qla4_83xx_reg->mbox_int);
-	mb_int = ret & ~INT_ENABLE_FW_MB;
-	writel(mb_int, &ha->qla4_83xx_reg->mbox_int);
-	writel(1, &ha->qla4_83xx_reg->leg_int_mask);
+	if (test_and_clear_bit(AF_83XX_MBOX_INTR_ON, &ha->flags)) {
+		ret = readl(&ha->qla4_83xx_reg->mbox_int);
+		mb_int = ret & ~INT_ENABLE_FW_MB;
+		writel(mb_int, &ha->qla4_83xx_reg->mbox_int);
+		writel(1, &ha->qla4_83xx_reg->leg_int_mask);
+	}
 }
 
-void qla4_83xx_enable_intrs(struct scsi_qla_host *ha)
+void qla4_83xx_disable_intrs(struct scsi_qla_host *ha)
+{
+	qla4_83xx_disable_mbox_intrs(ha);
+	qla4_83xx_disable_iocb_intrs(ha);
+}
+
+static void qla4_83xx_enable_iocb_intrs(struct scsi_qla_host *ha)
+{
+	if (!test_bit(AF_83XX_IOCB_INTR_ON, &ha->flags)) {
+		qla4_8xxx_intr_enable(ha);
+		set_bit(AF_83XX_IOCB_INTR_ON, &ha->flags);
+	}
+}
+
+void qla4_83xx_enable_mbox_intrs(struct scsi_qla_host *ha)
 {
 	uint32_t mb_int;
 
-	qla4_8xxx_mbx_intr_enable(ha);
-	mb_int = INT_ENABLE_FW_MB;
-	writel(mb_int, &ha->qla4_83xx_reg->mbox_int);
-	writel(0, &ha->qla4_83xx_reg->leg_int_mask);
-
-	set_bit(AF_INTERRUPTS_ON, &ha->flags);
+	if (!test_bit(AF_83XX_MBOX_INTR_ON, &ha->flags)) {
+		mb_int = INT_ENABLE_FW_MB;
+		writel(mb_int, &ha->qla4_83xx_reg->mbox_int);
+		writel(0, &ha->qla4_83xx_reg->leg_int_mask);
+		set_bit(AF_83XX_MBOX_INTR_ON, &ha->flags);
+	}
 }
+
+
+void qla4_83xx_enable_intrs(struct scsi_qla_host *ha)
+{
+	qla4_83xx_enable_mbox_intrs(ha);
+	qla4_83xx_enable_iocb_intrs(ha);
+}
+
 
 void qla4_83xx_queue_mbox_cmd(struct scsi_qla_host *ha, uint32_t *mbx_cmd,
 			      int incount)

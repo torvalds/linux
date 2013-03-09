@@ -916,21 +916,24 @@ static int set_qf_name(struct super_block *sb, int qtype, substring_t *args)
 			"Not enough memory for storing quotafile name");
 		return 0;
 	}
-	if (sbi->s_qf_names[qtype] &&
-		strcmp(sbi->s_qf_names[qtype], qname)) {
+	if (sbi->s_qf_names[qtype]) {
+		int same = !strcmp(sbi->s_qf_names[qtype], qname);
+
+		kfree(qname);
+		if (!same) {
+			ext3_msg(sb, KERN_ERR,
+				 "%s quota file already specified",
+				 QTYPE2NAME(qtype));
+		}
+		return same;
+	}
+	if (strchr(qname, '/')) {
 		ext3_msg(sb, KERN_ERR,
-			"%s quota file already specified", QTYPE2NAME(qtype));
+			"quotafile must be on filesystem root");
 		kfree(qname);
 		return 0;
 	}
 	sbi->s_qf_names[qtype] = qname;
-	if (strchr(sbi->s_qf_names[qtype], '/')) {
-		ext3_msg(sb, KERN_ERR,
-			"quotafile must be on filesystem root");
-		kfree(sbi->s_qf_names[qtype]);
-		sbi->s_qf_names[qtype] = NULL;
-		return 0;
-	}
 	set_opt(sbi->s_mount_opt, QUOTA);
 	return 1;
 }
@@ -945,11 +948,10 @@ static int clear_qf_name(struct super_block *sb, int qtype) {
 			" when quota turned on");
 		return 0;
 	}
-	/*
-	 * The space will be released later when all options are confirmed
-	 * to be correct
-	 */
-	sbi->s_qf_names[qtype] = NULL;
+	if (sbi->s_qf_names[qtype]) {
+		kfree(sbi->s_qf_names[qtype]);
+		sbi->s_qf_names[qtype] = NULL;
+	}
 	return 1;
 }
 #endif
@@ -2606,7 +2608,18 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 #ifdef CONFIG_QUOTA
 	old_opts.s_jquota_fmt = sbi->s_jquota_fmt;
 	for (i = 0; i < MAXQUOTAS; i++)
-		old_opts.s_qf_names[i] = sbi->s_qf_names[i];
+		if (sbi->s_qf_names[i]) {
+			old_opts.s_qf_names[i] = kstrdup(sbi->s_qf_names[i],
+							 GFP_KERNEL);
+			if (!old_opts.s_qf_names[i]) {
+				int j;
+
+				for (j = 0; j < i; j++)
+					kfree(old_opts.s_qf_names[j]);
+				return -ENOMEM;
+			}
+		} else
+			old_opts.s_qf_names[i] = NULL;
 #endif
 
 	/*
@@ -2699,9 +2712,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 #ifdef CONFIG_QUOTA
 	/* Release old quota file names */
 	for (i = 0; i < MAXQUOTAS; i++)
-		if (old_opts.s_qf_names[i] &&
-		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
-			kfree(old_opts.s_qf_names[i]);
+		kfree(old_opts.s_qf_names[i]);
 #endif
 	if (enable_quota)
 		dquot_resume(sb, -1);
@@ -2715,9 +2726,7 @@ restore_opts:
 #ifdef CONFIG_QUOTA
 	sbi->s_jquota_fmt = old_opts.s_jquota_fmt;
 	for (i = 0; i < MAXQUOTAS; i++) {
-		if (sbi->s_qf_names[i] &&
-		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
-			kfree(sbi->s_qf_names[i]);
+		kfree(sbi->s_qf_names[i]);
 		sbi->s_qf_names[i] = old_opts.s_qf_names[i];
 	}
 #endif

@@ -184,8 +184,6 @@ static void return_io(struct bio *return_bi)
 		return_bi = bi->bi_next;
 		bi->bi_next = NULL;
 		bi->bi_size = 0;
-		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
-					 bi, 0);
 		bio_endio(bi, 0);
 		bi = return_bi;
 	}
@@ -365,10 +363,9 @@ static struct stripe_head *__find_stripe(struct r5conf *conf, sector_t sector,
 					 short generation)
 {
 	struct stripe_head *sh;
-	struct hlist_node *hn;
 
 	pr_debug("__find_stripe, sector %llu\n", (unsigned long long)sector);
-	hlist_for_each_entry(sh, hn, stripe_hash(conf, sector), hash)
+	hlist_for_each_entry(sh, stripe_hash(conf, sector), hash)
 		if (sh->sector == sector && sh->generation == generation)
 			return sh;
 	pr_debug("__stripe %llu not in cache\n", (unsigned long long)sector);
@@ -1406,7 +1403,7 @@ static void ops_run_check_pq(struct stripe_head *sh, struct raid5_percpu *percpu
 			   &sh->ops.zero_sum_result, percpu->spare_page, &submit);
 }
 
-static void __raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
+static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 {
 	int overlap_clear = 0, i, disks = sh->disks;
 	struct dma_async_tx_descriptor *tx = NULL;
@@ -1471,36 +1468,6 @@ static void __raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 	put_cpu();
 }
 
-#ifdef CONFIG_MULTICORE_RAID456
-static void async_run_ops(void *param, async_cookie_t cookie)
-{
-	struct stripe_head *sh = param;
-	unsigned long ops_request = sh->ops.request;
-
-	clear_bit_unlock(STRIPE_OPS_REQ_PENDING, &sh->state);
-	wake_up(&sh->ops.wait_for_ops);
-
-	__raid_run_ops(sh, ops_request);
-	release_stripe(sh);
-}
-
-static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
-{
-	/* since handle_stripe can be called outside of raid5d context
-	 * we need to ensure sh->ops.request is de-staged before another
-	 * request arrives
-	 */
-	wait_event(sh->ops.wait_for_ops,
-		   !test_and_set_bit_lock(STRIPE_OPS_REQ_PENDING, &sh->state));
-	sh->ops.request = ops_request;
-
-	atomic_inc(&sh->count);
-	async_schedule(async_run_ops, sh);
-}
-#else
-#define raid_run_ops __raid_run_ops
-#endif
-
 static int grow_one_stripe(struct r5conf *conf)
 {
 	struct stripe_head *sh;
@@ -1509,9 +1476,6 @@ static int grow_one_stripe(struct r5conf *conf)
 		return 0;
 
 	sh->raid_conf = conf;
-	#ifdef CONFIG_MULTICORE_RAID456
-	init_waitqueue_head(&sh->ops.wait_for_ops);
-	#endif
 
 	spin_lock_init(&sh->stripe_lock);
 
@@ -1630,9 +1594,6 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 			break;
 
 		nsh->raid_conf = conf;
-		#ifdef CONFIG_MULTICORE_RAID456
-		init_waitqueue_head(&nsh->ops.wait_for_ops);
-		#endif
 		spin_lock_init(&nsh->stripe_lock);
 
 		list_add(&nsh->lru, &newstripes);
@@ -3917,8 +3878,6 @@ static void raid5_align_endio(struct bio *bi, int error)
 	rdev_dec_pending(rdev, conf->mddev);
 
 	if (!error && uptodate) {
-		trace_block_bio_complete(bdev_get_queue(raid_bi->bi_bdev),
-					 raid_bi, 0);
 		bio_endio(raid_bi, 0);
 		if (atomic_dec_and_test(&conf->active_aligned_reads))
 			wake_up(&conf->wait_for_stripe);
@@ -4377,8 +4336,6 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 		if ( rw == WRITE )
 			md_write_end(mddev);
 
-		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
-					 bi, 0);
 		bio_endio(bi, 0);
 	}
 }
@@ -4755,11 +4712,8 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 		handled++;
 	}
 	remaining = raid5_dec_bi_active_stripes(raid_bio);
-	if (remaining == 0) {
-		trace_block_bio_complete(bdev_get_queue(raid_bio->bi_bdev),
-					 raid_bio, 0);
+	if (remaining == 0)
 		bio_endio(raid_bio, 0);
-	}
 	if (atomic_dec_and_test(&conf->active_aligned_reads))
 		wake_up(&conf->wait_for_stripe);
 	return handled;

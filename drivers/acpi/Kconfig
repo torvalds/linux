@@ -266,7 +266,8 @@ config ACPI_CUSTOM_DSDT
 	default ACPI_CUSTOM_DSDT_FILE != ""
 
 config ACPI_INITRD_TABLE_OVERRIDE
-	bool "ACPI tables can be passed via uncompressed cpio in initrd"
+	bool "ACPI tables override via initrd"
+	depends on BLK_DEV_INITRD && X86
 	default n
 	help
 	  This option provides functionality to override arbitrary ACPI tables
@@ -306,7 +307,7 @@ config ACPI_DEBUG_FUNC_TRACE
 	  is about half of the penalty and is rarely useful.
 
 config ACPI_PCI_SLOT
-	tristate "PCI slot detection driver"
+	bool "PCI slot detection driver"
 	depends on SYSFS
 	default n
 	help
@@ -314,9 +315,6 @@ config ACPI_PCI_SLOT
 	  slots in the system.  This can help correlate PCI bus addresses,
 	  i.e., segment/bus/device/function tuples, with physical slots in
 	  the system.  If you are unsure, say N.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called pci_slot.
 
 config X86_PM_TIMER
 	bool "Power Management Timer Support" if EXPERT

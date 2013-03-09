@@ -60,6 +60,8 @@
 #define MLX4_FS_MGM_LOG_ENTRY_SIZE	7
 #define MLX4_FS_NUM_MCG			(1 << 17)
 
+#define INIT_HCA_TPT_MW_ENABLE          (1 << 7)
+
 #define MLX4_NUM_UP		8
 #define MLX4_NUM_TC		8
 #define MLX4_RATELIMIT_UNITS 3 /* 100 Mbps */
@@ -113,10 +115,10 @@ enum {
 	MLX4_NUM_CMPTS		= MLX4_CMPT_NUM_TYPE << MLX4_CMPT_SHIFT
 };
 
-enum mlx4_mr_state {
-	MLX4_MR_DISABLED = 0,
-	MLX4_MR_EN_HW,
-	MLX4_MR_EN_SW
+enum mlx4_mpt_state {
+	MLX4_MPT_DISABLED = 0,
+	MLX4_MPT_EN_HW,
+	MLX4_MPT_EN_SW
 };
 
 #define MLX4_COMM_TIME		10000
@@ -262,6 +264,22 @@ struct mlx4_icm_table {
 	struct mutex		mutex;
 	struct mlx4_icm	      **icm;
 };
+
+#define MLX4_MPT_FLAG_SW_OWNS	    (0xfUL << 28)
+#define MLX4_MPT_FLAG_FREE	    (0x3UL << 28)
+#define MLX4_MPT_FLAG_MIO	    (1 << 17)
+#define MLX4_MPT_FLAG_BIND_ENABLE   (1 << 15)
+#define MLX4_MPT_FLAG_PHYSICAL	    (1 <<  9)
+#define MLX4_MPT_FLAG_REGION	    (1 <<  8)
+
+#define MLX4_MPT_PD_FLAG_FAST_REG   (1 << 27)
+#define MLX4_MPT_PD_FLAG_RAE	    (1 << 28)
+#define MLX4_MPT_PD_FLAG_EN_INV	    (3 << 24)
+
+#define MLX4_MPT_QP_FLAG_BOUND_QP   (1 << 7)
+
+#define MLX4_MPT_STATUS_SW		0xF0
+#define MLX4_MPT_STATUS_HW		0x00
 
 /*
  * Must be packed because mtt_seg is 64 bits but only aligned to 32 bits.
@@ -863,10 +881,10 @@ int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn);
 void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn);
 int __mlx4_srq_alloc_icm(struct mlx4_dev *dev, int *srqn);
 void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn);
-int __mlx4_mr_reserve(struct mlx4_dev *dev);
-void __mlx4_mr_release(struct mlx4_dev *dev, u32 index);
-int __mlx4_mr_alloc_icm(struct mlx4_dev *dev, u32 index);
-void __mlx4_mr_free_icm(struct mlx4_dev *dev, u32 index);
+int __mlx4_mpt_reserve(struct mlx4_dev *dev);
+void __mlx4_mpt_release(struct mlx4_dev *dev, u32 index);
+int __mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index);
+void __mlx4_mpt_free_icm(struct mlx4_dev *dev, u32 index);
 u32 __mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order);
 void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 first_seg, int order);
 

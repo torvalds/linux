@@ -319,7 +319,6 @@ err_free_irq:
 	free_irq(pdev->irq, dev);
 err_iounmap:
 	iounmap(dev->base);
-	pci_set_drvdata(pdev, NULL);
 	put_device(&pdev->dev);
 	kfree(dev);
 err_release_region:
@@ -336,7 +335,6 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 
-	pci_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&dev->adapter);
 	put_device(&pdev->dev);
 

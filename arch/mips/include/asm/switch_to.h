@@ -30,7 +30,7 @@ extern struct task_struct *ll_task;
 #ifdef CONFIG_MIPS_MT_FPAFF
 
 /*
- * Handle the scheduler resume end of FPU affinity management.  We do this
+ * Handle the scheduler resume end of FPU affinity management.	We do this
  * inline to try to keep the overhead down. If we have been forced to run on
  * a "CPU" with an FPU because of a previous high level of FP computation,
  * but did not actually use the FPU during the most recent time-slice (CU1
@@ -72,7 +72,7 @@ do {									\
 		__save_dsp(prev);					\
 	__clear_software_ll_bit();					\
 	__usedfpu = test_and_clear_tsk_thread_flag(prev, TIF_USEDFPU);	\
-	(last) = resume(prev, next, task_thread_info(next), __usedfpu);	\
+	(last) = resume(prev, next, task_thread_info(next), __usedfpu); \
 } while (0)
 
 #define finish_arch_switch(prev)					\

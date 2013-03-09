@@ -23,7 +23,7 @@
  * NTP timekeeping variables:
  */
 
-DEFINE_SPINLOCK(ntp_lock);
+DEFINE_RAW_SPINLOCK(ntp_lock);
 
 
 /* USER_HZ period (usecs): */
@@ -348,7 +348,7 @@ void ntp_clear(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&ntp_lock, flags);
+	raw_spin_lock_irqsave(&ntp_lock, flags);
 
 	time_adjust	= 0;		/* stop active adjtime() */
 	time_status	|= STA_UNSYNC;
@@ -362,7 +362,7 @@ void ntp_clear(void)
 
 	/* Clear PPS state variables */
 	pps_clear();
-	spin_unlock_irqrestore(&ntp_lock, flags);
+	raw_spin_unlock_irqrestore(&ntp_lock, flags);
 
 }
 
@@ -372,9 +372,9 @@ u64 ntp_tick_length(void)
 	unsigned long flags;
 	s64 ret;
 
-	spin_lock_irqsave(&ntp_lock, flags);
+	raw_spin_lock_irqsave(&ntp_lock, flags);
 	ret = tick_length;
-	spin_unlock_irqrestore(&ntp_lock, flags);
+	raw_spin_unlock_irqrestore(&ntp_lock, flags);
 	return ret;
 }
 
@@ -395,7 +395,7 @@ int second_overflow(unsigned long secs)
 	int leap = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ntp_lock, flags);
+	raw_spin_lock_irqsave(&ntp_lock, flags);
 
 	/*
 	 * Leap second processing. If in leap-insert state at the end of the
@@ -479,7 +479,7 @@ int second_overflow(unsigned long secs)
 	time_adjust = 0;
 
 out:
-	spin_unlock_irqrestore(&ntp_lock, flags);
+	raw_spin_unlock_irqrestore(&ntp_lock, flags);
 
 	return leap;
 }
@@ -672,7 +672,7 @@ int do_adjtimex(struct timex *txc)
 
 	getnstimeofday(&ts);
 
-	spin_lock_irq(&ntp_lock);
+	raw_spin_lock_irq(&ntp_lock);
 
 	if (txc->modes & ADJ_ADJTIME) {
 		long save_adjust = time_adjust;
@@ -714,7 +714,7 @@ int do_adjtimex(struct timex *txc)
 	/* fill PPS status fields */
 	pps_fill_timex(txc);
 
-	spin_unlock_irq(&ntp_lock);
+	raw_spin_unlock_irq(&ntp_lock);
 
 	txc->time.tv_sec = ts.tv_sec;
 	txc->time.tv_usec = ts.tv_nsec;
@@ -912,7 +912,7 @@ void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 
 	pts_norm = pps_normalize_ts(*phase_ts);
 
-	spin_lock_irqsave(&ntp_lock, flags);
+	raw_spin_lock_irqsave(&ntp_lock, flags);
 
 	/* clear the error bits, they will be set again if needed */
 	time_status &= ~(STA_PPSJITTER | STA_PPSWANDER | STA_PPSERROR);
@@ -925,7 +925,7 @@ void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 	 * just start the frequency interval */
 	if (unlikely(pps_fbase.tv_sec == 0)) {
 		pps_fbase = *raw_ts;
-		spin_unlock_irqrestore(&ntp_lock, flags);
+		raw_spin_unlock_irqrestore(&ntp_lock, flags);
 		return;
 	}
 
@@ -940,7 +940,7 @@ void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 		time_status |= STA_PPSJITTER;
 		/* restart the frequency calibration interval */
 		pps_fbase = *raw_ts;
-		spin_unlock_irqrestore(&ntp_lock, flags);
+		raw_spin_unlock_irqrestore(&ntp_lock, flags);
 		pr_err("hardpps: PPSJITTER: bad pulse\n");
 		return;
 	}
@@ -957,7 +957,7 @@ void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 
 	hardpps_update_phase(pts_norm.nsec);
 
-	spin_unlock_irqrestore(&ntp_lock, flags);
+	raw_spin_unlock_irqrestore(&ntp_lock, flags);
 }
 EXPORT_SYMBOL(hardpps);
 

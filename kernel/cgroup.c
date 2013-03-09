@@ -554,7 +554,6 @@ static struct css_set *find_existing_css_set(
 {
 	int i;
 	struct cgroupfs_root *root = cgrp->root;
-	struct hlist_node *node;
 	struct css_set *cg;
 	unsigned long key;
 
@@ -577,7 +576,7 @@ static struct css_set *find_existing_css_set(
 	}
 
 	key = css_set_hash(template);
-	hash_for_each_possible(css_set_table, cg, node, hlist, key) {
+	hash_for_each_possible(css_set_table, cg, hlist, key) {
 		if (!compare_css_sets(cg, oldcg, cgrp, template))
 			continue;
 
@@ -1611,7 +1610,6 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		struct cgroupfs_root *existing_root;
 		const struct cred *cred;
 		int i;
-		struct hlist_node *node;
 		struct css_set *cg;
 
 		BUG_ON(sb->s_root != NULL);
@@ -1666,7 +1664,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		/* Link the top cgroup in this hierarchy into all
 		 * the css_set objects */
 		write_lock(&css_set_lock);
-		hash_for_each(css_set_table, i, node, cg, hlist)
+		hash_for_each(css_set_table, i, cg, hlist)
 			link_css_set(&tmp_cg_links, cg, root_cgrp);
 		write_unlock(&css_set_lock);
 
@@ -2645,7 +2643,7 @@ static struct dentry *cgroup_lookup(struct inode *dir, struct dentry *dentry, un
  */
 static inline struct cftype *__file_cft(struct file *file)
 {
-	if (file->f_dentry->d_inode->i_fop != &cgroup_file_operations)
+	if (file_inode(file)->i_fop != &cgroup_file_operations)
 		return ERR_PTR(-EINVAL);
 	return __d_cft(file->f_dentry);
 }
@@ -3902,7 +3900,7 @@ static int cgroup_write_event_control(struct cgroup *cgrp, struct cftype *cft,
 
 	/* the process need read permission on control file */
 	/* AV: shouldn't we check that it's been opened for read instead? */
-	ret = inode_permission(cfile->f_path.dentry->d_inode, MAY_READ);
+	ret = inode_permission(file_inode(cfile), MAY_READ);
 	if (ret < 0)
 		goto fail;
 
@@ -4493,7 +4491,7 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 {
 	struct cgroup_subsys_state *css;
 	int i, ret;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *tmp;
 	struct css_set *cg;
 	unsigned long key;
 
@@ -4561,7 +4559,7 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	 * this is all done under the css_set_lock.
 	 */
 	write_lock(&css_set_lock);
-	hash_for_each_safe(css_set_table, i, node, tmp, cg, hlist) {
+	hash_for_each_safe(css_set_table, i, tmp, cg, hlist) {
 		/* skip entries that we already rehashed */
 		if (cg->subsys[ss->subsys_id])
 			continue;
@@ -4571,7 +4569,7 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 		cg->subsys[ss->subsys_id] = css;
 		/* recompute hash and restore entry */
 		key = css_set_hash(cg->subsys);
-		hash_add(css_set_table, node, key);
+		hash_add(css_set_table, &cg->hlist, key);
 	}
 	write_unlock(&css_set_lock);
 
@@ -4618,10 +4616,8 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 	offline_css(ss, dummytop);
 	ss->active = 0;
 
-	if (ss->use_id) {
-		idr_remove_all(&ss->idr);
+	if (ss->use_id)
 		idr_destroy(&ss->idr);
-	}
 
 	/* deassign the subsys_id */
 	subsys[ss->subsys_id] = NULL;
@@ -5322,7 +5318,7 @@ EXPORT_SYMBOL_GPL(free_css_id);
 static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
 {
 	struct css_id *newid;
-	int myid, error, size;
+	int ret, size;
 
 	BUG_ON(!ss->use_id);
 
@@ -5330,35 +5326,24 @@ static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
 	newid = kzalloc(size, GFP_KERNEL);
 	if (!newid)
 		return ERR_PTR(-ENOMEM);
-	/* get id */
-	if (unlikely(!idr_pre_get(&ss->idr, GFP_KERNEL))) {
-		error = -ENOMEM;
-		goto err_out;
-	}
+
+	idr_preload(GFP_KERNEL);
 	spin_lock(&ss->id_lock);
 	/* Don't use 0. allocates an ID of 1-65535 */
-	error = idr_get_new_above(&ss->idr, newid, 1, &myid);
+	ret = idr_alloc(&ss->idr, newid, 1, CSS_ID_MAX + 1, GFP_NOWAIT);
 	spin_unlock(&ss->id_lock);
+	idr_preload_end();
 
 	/* Returns error when there are no free spaces for new ID.*/
-	if (error) {
-		error = -ENOSPC;
+	if (ret < 0)
 		goto err_out;
-	}
-	if (myid > CSS_ID_MAX)
-		goto remove_idr;
 
-	newid->id = myid;
+	newid->id = ret;
 	newid->depth = depth;
 	return newid;
-remove_idr:
-	error = -ENOSPC;
-	spin_lock(&ss->id_lock);
-	idr_remove(&ss->idr, myid);
-	spin_unlock(&ss->id_lock);
 err_out:
 	kfree(newid);
-	return ERR_PTR(error);
+	return ERR_PTR(ret);
 
 }
 
@@ -5489,7 +5474,7 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
 	struct inode *inode;
 	struct cgroup_subsys_state *css;
 
-	inode = f->f_dentry->d_inode;
+	inode = file_inode(f);
 	/* check in cgroup filesystem dir */
 	if (inode->i_op != &cgroup_dir_inode_operations)
 		return ERR_PTR(-EBADF);
