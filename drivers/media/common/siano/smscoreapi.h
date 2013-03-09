@@ -937,6 +937,8 @@ struct smscore_config_gpio {
 	u8 outputdriving;
 };
 
+char *smscore_translate_msg(enum msg_types msgtype);
+
 extern void smscore_registry_setmode(char *devpath, int mode);
 extern int smscore_registry_getmode(char *devpath);
 

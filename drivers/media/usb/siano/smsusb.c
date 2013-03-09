@@ -106,6 +106,10 @@ static void smsusb_onresponse(struct urb *urb)
 			} else
 				surb->cb->offset = 0;
 
+			sms_debug("received %s(%d) size: %d",
+				  smscore_translate_msg(phdr->msgType),
+				  phdr->msgType, phdr->msgLength);
+
 			smscore_onresponse(dev->coredev, surb->cb);
 			surb->cb = NULL;
 		} else {
@@ -181,7 +185,12 @@ static int smsusb_start_streaming(struct smsusb_device_t *dev)
 static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 {
 	struct smsusb_device_t *dev = (struct smsusb_device_t *) context;
+	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) buffer;
 	int dummy;
+
+	sms_debug("sending %s(%d) size: %d",
+		  smscore_translate_msg(phdr->msgType), phdr->msgType,
+		  phdr->msgLength);
 
 	smsendian_handle_message_header((struct SmsMsgHdr_ST *)buffer);
 	return usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 2),

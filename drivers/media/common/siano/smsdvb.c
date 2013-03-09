@@ -249,20 +249,16 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		break;
 
 	case MSG_SMS_SIGNAL_DETECTED_IND:
-		sms_info("MSG_SMS_SIGNAL_DETECTED_IND");
 		client->sms_stat_dvb.TransmissionData.IsDemodLocked = true;
 		is_status_update = true;
 		break;
 
 	case MSG_SMS_NO_SIGNAL_IND:
-		sms_info("MSG_SMS_NO_SIGNAL_IND");
 		client->sms_stat_dvb.TransmissionData.IsDemodLocked = false;
 		is_status_update = true;
 		break;
 
 	case MSG_SMS_TRANSMISSION_IND: {
-		sms_info("MSG_SMS_TRANSMISSION_IND");
-
 		pMsgData++;
 		memcpy(&client->sms_stat_dvb.TransmissionData, pMsgData,
 				sizeof(struct TRANSMISSION_STATISTICS_S));
@@ -281,7 +277,6 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 				&client->sms_stat_dvb.ReceptionData;
 		struct SRVM_SIGNAL_STATUS_S SignalStatusData;
 
-		/*sms_info("MSG_SMS_HO_PER_SLICES_IND");*/
 		pMsgData++;
 		SignalStatusData.result = pMsgData[0];
 		SignalStatusData.snr = pMsgData[1];
@@ -336,8 +331,6 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		struct RECEPTION_STATISTICS_S *pReceptionData =
 				&client->sms_stat_dvb.ReceptionData;
 
-		sms_info("MSG_SMS_GET_STATISTICS_RES");
-
 		is_status_update = true;
 
 		switch (smscore_get_device_mode(client->coredev)) {
@@ -360,8 +353,7 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 		break;
 	}
 	default:
-		sms_info("Unhandled message %d", phdr->msgType);
-
+		sms_info("message not handled");
 	}
 	smscore_putbuffer(client->coredev, cb);
 
