@@ -178,6 +178,8 @@ struct go7007 {
 	int channel_number; /* for multi-channel boards like Adlink PCI-MPG24 */
 	char name[64];
 	struct video_device *video_dev;
+	void *boot_fw;
+	unsigned boot_fw_len;
 	struct v4l2_device v4l2_dev;
 	int ref_count;
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;

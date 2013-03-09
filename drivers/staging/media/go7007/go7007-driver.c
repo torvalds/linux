@@ -95,34 +95,34 @@ static int go7007_load_encoder(struct go7007 *go)
 	int fw_len, rv = 0;
 	u16 intr_val, intr_data;
 
-	if (request_firmware(&fw_entry, fw_name, go->dev)) {
-		v4l2_err(go, "unable to load firmware from file "
-			"\"%s\"\n", fw_name);
-		return -1;
-	}
-	if (fw_entry->size < 16 || memcmp(fw_entry->data, "WISGO7007FW", 11)) {
-		v4l2_err(go, "file \"%s\" does not appear to be "
-				"go7007 firmware\n", fw_name);
+	if (go->boot_fw == NULL) {
+		if (request_firmware(&fw_entry, fw_name, go->dev)) {
+			v4l2_err(go, "unable to load firmware from file \"%s\"\n", fw_name);
+			return -1;
+		}
+		if (fw_entry->size < 16 || memcmp(fw_entry->data, "WISGO7007FW", 11)) {
+			v4l2_err(go, "file \"%s\" does not appear to be go7007 firmware\n", fw_name);
+			release_firmware(fw_entry);
+			return -1;
+		}
+		fw_len = fw_entry->size - 16;
+		bounce = kmemdup(fw_entry->data + 16, fw_len, GFP_KERNEL);
+		if (bounce == NULL) {
+			v4l2_err(go, "unable to allocate %d bytes for firmware transfer\n", fw_len);
+			release_firmware(fw_entry);
+			return -1;
+		}
 		release_firmware(fw_entry);
-		return -1;
+		go->boot_fw_len = fw_len;
+		go->boot_fw = bounce;
 	}
-	fw_len = fw_entry->size - 16;
-	bounce = kmemdup(fw_entry->data + 16, fw_len, GFP_KERNEL);
-	if (bounce == NULL) {
-		v4l2_err(go, "unable to allocate %d bytes for "
-				"firmware transfer\n", fw_len);
-		release_firmware(fw_entry);
-		return -1;
-	}
-	release_firmware(fw_entry);
 	if (go7007_interface_reset(go) < 0 ||
-			go7007_send_firmware(go, bounce, fw_len) < 0 ||
-			go7007_read_interrupt(go, &intr_val, &intr_data) < 0 ||
+	    go7007_send_firmware(go, go->boot_fw, go->boot_fw_len) < 0 ||
+	    go7007_read_interrupt(go, &intr_val, &intr_data) < 0 ||
 			(intr_val & ~0x1) != 0x5a5a) {
 		v4l2_err(go, "error transferring firmware\n");
 		rv = -1;
 	}
-	kfree(bounce);
 	return rv;
 }
 
@@ -675,6 +675,7 @@ void go7007_remove(struct go7007 *go)
 
 	if (go->audio_enabled)
 		go7007_snd_remove(go);
+	kfree(go->boot_fw);
 	go7007_v4l2_remove(go);
 }
 EXPORT_SYMBOL(go7007_remove);
