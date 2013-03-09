@@ -2299,10 +2299,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 	}
 
-	if (ev->opcode != HCI_OP_NOP)
+	if (opcode != HCI_OP_NOP)
 		del_timer(&hdev->cmd_timer);
 
-	hci_req_cmd_complete(hdev, ev->opcode, status);
+	hci_req_cmd_complete(hdev, opcode, status);
 
 	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
 		atomic_set(&hdev->cmd_cnt, 1);
@@ -2386,10 +2386,10 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 	}
 
-	if (ev->opcode != HCI_OP_NOP)
+	if (opcode != HCI_OP_NOP)
 		del_timer(&hdev->cmd_timer);
 
-	hci_req_cmd_status(hdev, ev->opcode, ev->status);
+	hci_req_cmd_status(hdev, opcode, ev->status);
 
 	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
 		atomic_set(&hdev->cmd_cnt, 1);
