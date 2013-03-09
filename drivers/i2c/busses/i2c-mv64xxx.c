@@ -701,9 +701,8 @@ static int
 mv64xxx_i2c_remove(struct platform_device *dev)
 {
 	struct mv64xxx_i2c_data		*drv_data = platform_get_drvdata(dev);
-	int	rc;
 
-	rc = i2c_del_adapter(&drv_data->adapter);
+	i2c_del_adapter(&drv_data->adapter);
 	free_irq(drv_data->irq, drv_data);
 	mv64xxx_i2c_unmap_regs(drv_data);
 #if defined(CONFIG_HAVE_CLK)
@@ -715,7 +714,7 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 #endif
 	kfree(drv_data);
 
-	return rc;
+	return 0;
 }
 
 static const struct of_device_id mv64xxx_i2c_of_match_table[] = {

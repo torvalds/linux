@@ -213,14 +213,8 @@ static const struct i2c_algorithm i2c_powermac_algorithm = {
 static int i2c_powermac_remove(struct platform_device *dev)
 {
 	struct i2c_adapter	*adapter = platform_get_drvdata(dev);
-	int			rc;
 
-	rc = i2c_del_adapter(adapter);
-	/* We aren't that prepared to deal with this... */
-	if (rc)
-		printk(KERN_WARNING
-		       "i2c-powermac.c: Failed to remove bus %s !\n",
-		       adapter->name);
+	i2c_del_adapter(adapter);
 	memset(adapter, 0, sizeof(*adapter));
 
 	return 0;

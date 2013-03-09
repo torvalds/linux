@@ -783,12 +783,11 @@ static int at91_twi_probe(struct platform_device *pdev)
 static int at91_twi_remove(struct platform_device *pdev)
 {
 	struct at91_twi_dev *dev = platform_get_drvdata(pdev);
-	int rc;
 
-	rc = i2c_del_adapter(&dev->adapter);
+	i2c_del_adapter(&dev->adapter);
 	clk_disable_unprepare(dev->clk);
 
-	return rc;
+	return 0;
 }
 
 #ifdef CONFIG_PM

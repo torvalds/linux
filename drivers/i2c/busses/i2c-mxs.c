@@ -686,11 +686,8 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 static int mxs_i2c_remove(struct platform_device *pdev)
 {
 	struct mxs_i2c_dev *i2c = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = i2c_del_adapter(&i2c->adapter);
-	if (ret)
-		return -EBUSY;
+	i2c_del_adapter(&i2c->adapter);
 
 	if (i2c->dmach)
 		dma_release_channel(i2c->dmach);

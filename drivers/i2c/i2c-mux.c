@@ -194,11 +194,8 @@ EXPORT_SYMBOL_GPL(i2c_add_mux_adapter);
 int i2c_del_mux_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_mux_priv *priv = adap->algo_data;
-	int ret;
 
-	ret = i2c_del_adapter(adap);
-	if (ret < 0)
-		return ret;
+	i2c_del_adapter(adap);
 	kfree(priv);
 
 	return 0;

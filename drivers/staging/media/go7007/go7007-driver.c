@@ -647,11 +647,8 @@ EXPORT_SYMBOL(go7007_alloc);
 void go7007_remove(struct go7007 *go)
 {
 	if (go->i2c_adapter_online) {
-		if (i2c_del_adapter(&go->i2c_adapter) == 0)
-			go->i2c_adapter_online = 0;
-		else
-			v4l2_err(&go->v4l2_dev,
-				"error removing I2C adapter!\n");
+		i2c_del_adapter(&go->i2c_adapter);
+		go->i2c_adapter_online = 0;
 	}
 
 	if (go->audio_enabled)
