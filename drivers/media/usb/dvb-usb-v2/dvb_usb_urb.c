@@ -54,8 +54,9 @@ static int dvb_usb_v2_generic_io(struct dvb_usb_device *d,
 				d->props->generic_bulk_ctrl_endpoint_response),
 				rbuf, rlen, &actual_length, 2000);
 		if (ret)
-			dev_err(&d->udev->dev, "%s: 2nd usb_bulk_msg() " \
-					"failed=%d\n", KBUILD_MODNAME, ret);
+			dev_err(&d->udev->dev,
+					"%s: 2nd usb_bulk_msg() failed=%d\n",
+					KBUILD_MODNAME, ret);
 
 		dev_dbg(&d->udev->dev, "%s: <<< %*ph\n", __func__,
 				actual_length, rbuf);
