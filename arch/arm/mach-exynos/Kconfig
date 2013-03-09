@@ -167,17 +167,6 @@ config EXYNOS4_SETUP_SDHCI_GPIO
 	help
 	  Common setup code for SDHCI gpio.
 
-config EXYNOS4_SETUP_DWMCI
-	bool
-	select EXYNOS4_SETUP_DWMCI_GPIO
-	help
-	  Internal helper functions for EXYNOS4 based DWMCI systems.
-
-config EXYNOS4_SETUP_DWMCI_GPIO
-	bool
-	help
-	  Common setup code for DWMCI gpio.
-
 config EXYNOS4_SETUP_FIMC
 	bool
 	help
@@ -431,8 +420,6 @@ config MACH_ODROID_4X12
 	select S5P_DEV_TV
 	select S5P_GPIO_INT
 	select EXYNOS4_DEV_USB_OHCI
-	select EXYNOS4_DEV_DWMCI
-	select EXYNOS4_SETUP_DWMCI
 	select SAMSUNG_DEV_ADC
 	help
 	  Machine support for Hardkernel ODROID_4X12
