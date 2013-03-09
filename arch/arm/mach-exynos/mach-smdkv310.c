@@ -371,7 +371,6 @@ static void s5p_tv_setup(void)
 static void __init smdkv310_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdkv310_uartcfgs, ARRAY_SIZE(smdkv310_uartcfgs));
 }
 

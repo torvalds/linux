@@ -177,7 +177,6 @@ static void __init armlex4210_smsc911x_init(void)
 static void __init armlex4210_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(armlex4210_uartcfgs,
 			   ARRAY_SIZE(armlex4210_uartcfgs));
 }
