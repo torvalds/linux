@@ -1168,7 +1168,7 @@ static int htc_wait_recv_ctrl_message(struct htc_target *target)
 
 	if (count <= 0) {
 		ath6kl_warn("htc pipe control receive timeout!\n");
-		return -ECOMM;
+		return -ETIMEDOUT;
 	}
 
 	return 0;

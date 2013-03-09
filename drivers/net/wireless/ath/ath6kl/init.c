@@ -1658,7 +1658,18 @@ static int __ath6kl_init_hw_start(struct ath6kl *ar)
 	 * size.
 	 */
 	ret = ath6kl_htc_wait_target(ar->htc_target);
-	if (ret) {
+
+	if (ret == -ETIMEDOUT) {
+		/*
+		 * Most likely USB target is in odd state after reboot and
+		 * needs a reset. A cold reset makes the whole device
+		 * disappear from USB bus and initialisation starts from
+		 * beginning.
+		 */
+		ath6kl_warn("htc wait target timed out, resetting device\n");
+		ath6kl_init_hw_reset(ar);
+		goto err_power_off;
+	} else if (ret) {
 		ath6kl_err("htc wait target failed: %d\n", ret);
 		goto err_power_off;
 	}
