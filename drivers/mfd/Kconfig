@@ -516,7 +516,6 @@ config MFD_DA9055
 	bool "Dialog Semiconductor DA9055 PMIC Support"
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	select PMIC_DA9055
 	select MFD_CORE
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
