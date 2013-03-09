@@ -301,11 +301,20 @@ config VIDEO_TVP7002
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp7002.
 
+config VIDEO_TW2804
+	tristate "Techwell TW2804 multiple video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Techwell tw2804 multiple video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw2804.
+
 config VIDEO_TW9903
 	tristate "Techwell TW9903 video decoder"
 	depends on VIDEO_V4L2 && I2C
 	---help---
-	  Support for the Techwell 9903 multi-standard video decoder
+	  Support for the Techwell tw9903 multi-standard video decoder
 	  with high quality down scaler.
 
 	  To compile this driver as a module, choose M here: the
