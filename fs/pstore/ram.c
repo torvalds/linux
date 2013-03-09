@@ -156,10 +156,9 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	time->tv_nsec = 0;
 
 	size = persistent_ram_old_size(prz);
-	*buf = kmalloc(size, GFP_KERNEL);
+	*buf = kmemdup(persistent_ram_old(prz), size, GFP_KERNEL);
 	if (*buf == NULL)
 		return -ENOMEM;
-	memcpy(*buf, persistent_ram_old(prz), size);
 
 	return size;
 }
