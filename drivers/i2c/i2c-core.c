@@ -49,7 +49,7 @@
 
 /* core_lock protects i2c_adapter_idr, and guarantees
    that device detection, deletion of detected devices, and attach_adapter
-   and detach_adapter calls are serialized */
+   calls are serialized */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
@@ -1172,11 +1172,10 @@ int i2c_add_numbered_adapter(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 
-static int i2c_do_del_adapter(struct i2c_driver *driver,
+static void i2c_do_del_adapter(struct i2c_driver *driver,
 			      struct i2c_adapter *adapter)
 {
 	struct i2c_client *client, *_n;
-	int res;
 
 	/* Remove the devices we created ourselves as the result of hardware
 	 * probing (using a driver's detect method) */
@@ -1188,16 +1187,6 @@ static int i2c_do_del_adapter(struct i2c_driver *driver,
 			i2c_unregister_device(client);
 		}
 	}
-
-	if (!driver->detach_adapter)
-		return 0;
-	dev_warn(&adapter->dev, "%s: detach_adapter method is deprecated\n",
-		 driver->driver.name);
-	res = driver->detach_adapter(adapter);
-	if (res)
-		dev_err(&adapter->dev, "detach_adapter failed (%d) "
-			"for driver [%s]\n", res, driver->driver.name);
-	return res;
 }
 
 static int __unregister_client(struct device *dev, void *dummy)
@@ -1218,7 +1207,8 @@ static int __unregister_dummy(struct device *dev, void *dummy)
 
 static int __process_removed_adapter(struct device_driver *d, void *data)
 {
-	return i2c_do_del_adapter(to_i2c_driver(d), data);
+	i2c_do_del_adapter(to_i2c_driver(d), data);
+	return 0;
 }
 
 /**
@@ -1231,7 +1221,6 @@ static int __process_removed_adapter(struct device_driver *d, void *data)
  */
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
-	int res = 0;
 	struct i2c_adapter *found;
 	struct i2c_client *client, *next;
 
@@ -1247,11 +1236,9 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 
 	/* Tell drivers about this removal */
 	mutex_lock(&core_lock);
-	res = bus_for_each_drv(&i2c_bus_type, NULL, adap,
+	bus_for_each_drv(&i2c_bus_type, NULL, adap,
 			       __process_removed_adapter);
 	mutex_unlock(&core_lock);
-	if (res)
-		return res;
 
 	/* Remove devices instantiated from sysfs */
 	mutex_lock_nested(&adap->userspace_clients_lock,
@@ -1270,8 +1257,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	 * we can't remove the dummy devices during the first pass: they
 	 * could have been instantiated by real devices wishing to clean
 	 * them up properly, so we give them a chance to do that first. */
-	res = device_for_each_child(&adap->dev, NULL, __unregister_client);
-	res = device_for_each_child(&adap->dev, NULL, __unregister_dummy);
+	device_for_each_child(&adap->dev, NULL, __unregister_client);
+	device_for_each_child(&adap->dev, NULL, __unregister_dummy);
 
 #ifdef CONFIG_I2C_COMPAT
 	class_compat_remove_link(i2c_adapter_compat_class, &adap->dev,
@@ -1367,9 +1354,9 @@ EXPORT_SYMBOL(i2c_register_driver);
 
 static int __process_removed_driver(struct device *dev, void *data)
 {
-	if (dev->type != &i2c_adapter_type)
-		return 0;
-	return i2c_do_del_adapter(data, to_i2c_adapter(dev));
+	if (dev->type == &i2c_adapter_type)
+		i2c_do_del_adapter(data, to_i2c_adapter(dev));
+	return 0;
 }
 
 /**
