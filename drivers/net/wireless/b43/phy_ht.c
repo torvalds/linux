@@ -178,6 +178,26 @@ static void b43_phy_ht_force_rf_sequence(struct b43_wldev *dev, u16 rf_seq)
 	b43_phy_write(dev, B43_PHY_HT_RF_SEQ_MODE, save_seq_mode);
 }
 
+static void b43_phy_ht_pa_override(struct b43_wldev *dev, bool enable)
+{
+	struct b43_phy_ht *htphy = dev->phy.ht;
+	static const u16 regs[3] = { B43_PHY_HT_RF_CTL_INT_C1,
+				     B43_PHY_HT_RF_CTL_INT_C2,
+				     B43_PHY_HT_RF_CTL_INT_C3 };
+	int i;
+
+	if (enable) {
+		for (i = 0; i < 3; i++)
+			b43_phy_write(dev, regs[i], htphy->rf_ctl_int_save[i]);
+	} else {
+		for (i = 0; i < 3; i++)
+			htphy->rf_ctl_int_save[i] = b43_phy_read(dev, regs[i]);
+		/* TODO: Does 5GHz band use different value (not 0x0400)? */
+		for (i = 0; i < 3; i++)
+			b43_phy_write(dev, regs[i], 0x0400);
+	}
+}
+
 /**************************************************
  * Various PHY ops
  **************************************************/
@@ -554,8 +574,10 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 
 	b43_mac_phy_clock_set(dev, true);
 
+	b43_phy_ht_pa_override(dev, false);
 	b43_phy_ht_force_rf_sequence(dev, B43_PHY_HT_RF_SEQ_TRIG_RX2TX);
 	b43_phy_ht_force_rf_sequence(dev, B43_PHY_HT_RF_SEQ_TRIG_RST2RX);
+	b43_phy_ht_pa_override(dev, true);
 
 	/* TODO: Should we restore it? Or store it in global PHY info? */
 	b43_phy_ht_classifier(dev, 0, 0);

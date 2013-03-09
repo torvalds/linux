@@ -40,6 +40,10 @@
 
 #define B43_PHY_HT_RF_CTL1			B43_PHY_EXTG(0x010)
 
+#define B43_PHY_HT_RF_CTL_INT_C1		B43_PHY_EXTG(0x04c)
+#define B43_PHY_HT_RF_CTL_INT_C2		B43_PHY_EXTG(0x06c)
+#define B43_PHY_HT_RF_CTL_INT_C3		B43_PHY_EXTG(0x08c)
+
 #define B43_PHY_HT_AFE_C1_OVER			B43_PHY_EXTG(0x110)
 #define B43_PHY_HT_AFE_C1			B43_PHY_EXTG(0x111)
 #define B43_PHY_HT_AFE_C2_OVER			B43_PHY_EXTG(0x114)
@@ -62,6 +66,7 @@ struct b43_phy_ht_channeltab_e_phy {
 
 
 struct b43_phy_ht {
+	u16 rf_ctl_int_save[3];
 };
 
 
