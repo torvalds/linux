@@ -71,9 +71,8 @@ int usbv2_cypress_load_firmware(struct usb_device *udev,
 		if (ret < 0) {
 			goto err_kfree;
 		} else if (ret != hx->len) {
-			dev_err(&udev->dev, "%s: error while transferring " \
-					"firmware (transferred size=%d, " \
-					"block size=%d)\n",
+			dev_err(&udev->dev,
+					"%s: error while transferring firmware (transferred size=%d, block size=%d)\n",
 					KBUILD_MODNAME, ret, hx->len);
 			ret = -EIO;
 			goto err_kfree;
