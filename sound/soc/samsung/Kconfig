@@ -226,7 +226,7 @@ config SND_SOC_LITTLEMILL
 
 config SND_SOC_HKDK_MAX98090
 	tristate "Audio support for MAX98090 on HKDK4412"
-	depends on SND_SOC_SAMSUNG && MACH_HKDK4412
+	depends on SND_SOC_SAMSUNG && MACH_ODROID_4X12
 	select SND_SOC_MAX98090
 	select SND_SAMSUNG_I2S
 
