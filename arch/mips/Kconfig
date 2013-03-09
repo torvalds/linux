@@ -224,7 +224,6 @@ config MACH_JZ4740
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select DMA_NONCOHERENT
 	select IRQ_CPU
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_PWM
@@ -934,7 +933,6 @@ config CSRC_SB1250
 	bool
 
 config GPIO_TXX9
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	bool
 
