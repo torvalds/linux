@@ -20,6 +20,8 @@
 #include <linux/delay.h>
 #include <linux/percpu.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
 
 #include <asm/arch_timer.h>
 #include <asm/localtimer.h>
@@ -474,14 +476,16 @@ static struct local_timer_ops exynos4_mct_tick_ops __cpuinitdata = {
 };
 #endif /* CONFIG_LOCAL_TIMERS */
 
-static void __init exynos4_timer_resources(void)
+static void __init exynos4_timer_resources(struct device_node *np)
 {
 	struct clk *mct_clk;
 	mct_clk = clk_get(NULL, "xtal");
 
 	clk_rate = clk_get_rate(mct_clk);
 
-	reg_base = S5P_VA_SYSTIMER;
+	reg_base = np ? of_iomap(np, 0) : S5P_VA_SYSTIMER;
+	if (!reg_base)
+		panic("%s: unable to ioremap mct address space\n", __func__);
 
 #ifdef CONFIG_LOCAL_TIMERS
 	if (mct_int_type == MCT_INT_PPI) {
@@ -498,30 +502,51 @@ static void __init exynos4_timer_resources(void)
 #endif /* CONFIG_LOCAL_TIMERS */
 }
 
+static const struct of_device_id exynos_mct_ids[] = {
+	{ .compatible = "samsung,exynos4210-mct", .data = (void *)MCT_INT_SPI },
+	{ .compatible = "samsung,exynos4412-mct", .data = (void *)MCT_INT_PPI },
+};
+
 void __init exynos4_timer_init(void)
 {
+	struct device_node *np = NULL;
+	const struct of_device_id *match;
+	u32 nr_irqs, i;
+
 	if (soc_is_exynos5440()) {
 		arch_timer_of_register();
 		return;
 	}
 
-	if (soc_is_exynos4210()) {
+#ifdef CONFIG_OF
+	np = of_find_matching_node_and_match(NULL, exynos_mct_ids, &match);
+#endif
+	if (np) {
+		mct_int_type = (u32)(match->data);
+
+		/* This driver uses only one global timer interrupt */
+		mct_irqs[MCT_G0_IRQ] = irq_of_parse_and_map(np, MCT_G0_IRQ);
+
+		/*
+		 * Find out the number of local irqs specified. The local
+		 * timer irqs are specified after the four global timer
+		 * irqs are specified.
+		 */
+#ifdef CONFIG_OF
+		nr_irqs = of_irq_count(np);
+#endif
+		for (i = MCT_L0_IRQ; i < nr_irqs; i++)
+			mct_irqs[i] = irq_of_parse_and_map(np, i);
+	} else if (soc_is_exynos4210()) {
 		mct_irqs[MCT_G0_IRQ] = EXYNOS4_IRQ_MCT_G0;
 		mct_irqs[MCT_L0_IRQ] = EXYNOS4_IRQ_MCT_L0;
 		mct_irqs[MCT_L1_IRQ] = EXYNOS4_IRQ_MCT_L1;
 		mct_int_type = MCT_INT_SPI;
-	} else if (soc_is_exynos5250()) {
-		mct_irqs[MCT_G0_IRQ] = EXYNOS5_IRQ_MCT_G0;
-		mct_irqs[MCT_L0_IRQ] = EXYNOS5_IRQ_MCT_L0;
-		mct_irqs[MCT_L1_IRQ] = EXYNOS5_IRQ_MCT_L1;
-		mct_int_type = MCT_INT_SPI;
 	} else {
-		mct_irqs[MCT_G0_IRQ] = EXYNOS4_IRQ_MCT_G0;
-		mct_irqs[MCT_L0_IRQ] = EXYNOS_IRQ_MCT_LOCALTIMER;
-		mct_int_type = MCT_INT_PPI;
+		panic("unable to determine mct controller type\n");
 	}
 
-	exynos4_timer_resources();
+	exynos4_timer_resources(np);
 	exynos4_clocksource_init();
 	exynos4_clockevent_init();
 }
