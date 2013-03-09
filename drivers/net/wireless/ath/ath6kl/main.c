@@ -345,39 +345,6 @@ out:
 	return ret;
 }
 
-/* FIXME: move to a better place, target.h? */
-#define AR6003_RESET_CONTROL_ADDRESS 0x00004000
-#define AR6004_RESET_CONTROL_ADDRESS 0x00004000
-
-void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
-			 bool wait_fot_compltn, bool cold_reset)
-{
-	int status = 0;
-	u32 address;
-	__le32 data;
-
-	if (target_type != TARGET_TYPE_AR6003 &&
-	    target_type != TARGET_TYPE_AR6004)
-		return;
-
-	data = cold_reset ? cpu_to_le32(RESET_CONTROL_COLD_RST) :
-			    cpu_to_le32(RESET_CONTROL_MBOX_RST);
-
-	switch (target_type) {
-	case TARGET_TYPE_AR6003:
-		address = AR6003_RESET_CONTROL_ADDRESS;
-		break;
-	case TARGET_TYPE_AR6004:
-		address = AR6004_RESET_CONTROL_ADDRESS;
-		break;
-	}
-
-	status = ath6kl_diag_write32(ar, address, data);
-
-	if (status)
-		ath6kl_err("failed to reset target\n");
-}
-
 static void ath6kl_install_static_wep_keys(struct ath6kl_vif *vif)
 {
 	u8 index;
