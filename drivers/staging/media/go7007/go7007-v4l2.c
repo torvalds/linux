@@ -842,95 +842,6 @@ static int vidioc_log_status(struct file *file, void *priv)
 	return call_all(&go->v4l2_dev, core, log_status);
 }
 
-static int vidioc_cropcap(struct file *file, void *priv,
-					struct v4l2_cropcap *cropcap)
-{
-	struct go7007 *go = video_drvdata(file);
-
-	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	/* These specify the raw input of the sensor */
-	switch (go->standard) {
-	case GO7007_STD_NTSC:
-		cropcap->bounds.top = 0;
-		cropcap->bounds.left = 0;
-		cropcap->bounds.width = 720;
-		cropcap->bounds.height = 480;
-		cropcap->defrect.top = 0;
-		cropcap->defrect.left = 0;
-		cropcap->defrect.width = 720;
-		cropcap->defrect.height = 480;
-		break;
-	case GO7007_STD_PAL:
-		cropcap->bounds.top = 0;
-		cropcap->bounds.left = 0;
-		cropcap->bounds.width = 720;
-		cropcap->bounds.height = 576;
-		cropcap->defrect.top = 0;
-		cropcap->defrect.left = 0;
-		cropcap->defrect.width = 720;
-		cropcap->defrect.height = 576;
-		break;
-	case GO7007_STD_OTHER:
-		cropcap->bounds.top = 0;
-		cropcap->bounds.left = 0;
-		cropcap->bounds.width = go->board_info->sensor_width;
-		cropcap->bounds.height = go->board_info->sensor_height;
-		cropcap->defrect.top = 0;
-		cropcap->defrect.left = 0;
-		cropcap->defrect.width = go->board_info->sensor_width;
-		cropcap->defrect.height = go->board_info->sensor_height;
-		break;
-	}
-
-	return 0;
-}
-
-static int vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
-{
-	struct go7007 *go = video_drvdata(file);
-
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	crop->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-	/* These specify the raw input of the sensor */
-	switch (go->standard) {
-	case GO7007_STD_NTSC:
-		crop->c.top = 0;
-		crop->c.left = 0;
-		crop->c.width = 720;
-		crop->c.height = 480;
-		break;
-	case GO7007_STD_PAL:
-		crop->c.top = 0;
-		crop->c.left = 0;
-		crop->c.width = 720;
-		crop->c.height = 576;
-		break;
-	case GO7007_STD_OTHER:
-		crop->c.top = 0;
-		crop->c.left = 0;
-		crop->c.width = go->board_info->sensor_width;
-		crop->c.height = go->board_info->sensor_height;
-		break;
-	}
-
-	return 0;
-}
-
-/* FIXME: vidioc_s_crop is not really implemented!!!
- */
-static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *crop)
-{
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	return 0;
-}
-
 /* FIXME:
 	Those ioctls are private, and not needed, since several standard
 	extended controls already provide streaming control.
@@ -1006,9 +917,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_parm            = vidioc_s_parm,
 	.vidioc_enum_framesizes   = vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
-	.vidioc_cropcap           = vidioc_cropcap,
-	.vidioc_g_crop            = vidioc_g_crop,
-	.vidioc_s_crop            = vidioc_s_crop,
 	.vidioc_log_status        = vidioc_log_status,
 	.vidioc_subscribe_event   = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
