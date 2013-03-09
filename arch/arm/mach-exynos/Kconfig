@@ -406,6 +406,7 @@ config MACH_EXYNOS4_DT
 	bool "Samsung Exynos4 Machine using device tree"
 	depends on ARCH_EXYNOS4
 	select ARM_AMBA
+	select CLKSRC_OF
 	select CPU_EXYNOS4210
 	select HAVE_SAMSUNG_KEYPAD if INPUT_KEYBOARD
 	select PINCTRL
@@ -422,6 +423,7 @@ config MACH_EXYNOS5_DT
 	default y
 	depends on ARCH_EXYNOS5
 	select ARM_AMBA
+	select CLKSRC_OF
 	select USE_OF
 	help
 	  Machine support for Samsung EXYNOS5 machine with device tree enabled.

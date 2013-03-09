@@ -22,6 +22,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+#include <linux/clocksource.h>
 
 #include <asm/arch_timer.h>
 #include <asm/localtimer.h>
@@ -507,16 +508,11 @@ static const struct of_device_id exynos_mct_ids[] = {
 	{ .compatible = "samsung,exynos4412-mct", .data = (void *)MCT_INT_PPI },
 };
 
-void __init exynos4_timer_init(void)
+void __init mct_init(void)
 {
 	struct device_node *np = NULL;
 	const struct of_device_id *match;
 	u32 nr_irqs, i;
-
-	if (soc_is_exynos5440()) {
-		arch_timer_of_register();
-		return;
-	}
 
 #ifdef CONFIG_OF
 	np = of_find_matching_node_and_match(NULL, exynos_mct_ids, &match);
@@ -550,3 +546,5 @@ void __init exynos4_timer_init(void)
 	exynos4_clocksource_init();
 	exynos4_clockevent_init();
 }
+CLOCKSOURCE_OF_DECLARE(exynos4210, "samsung,exynos4210-mct", mct_init)
+CLOCKSOURCE_OF_DECLARE(exynos4412, "samsung,exynos4412-mct", mct_init)
