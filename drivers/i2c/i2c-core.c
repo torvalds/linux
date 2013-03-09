@@ -1231,7 +1231,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	if (found != adap) {
 		pr_debug("i2c-core: attempting to delete unregistered "
 			 "adapter [%s]\n", adap->name);
-		return -EINVAL;
+		return 0;
 	}
 
 	/* Tell drivers about this removal */
