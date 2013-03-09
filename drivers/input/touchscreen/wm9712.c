@@ -302,8 +302,12 @@ static int wm9712_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 	}
 
 	if (wants_pen && !(*sample & WM97XX_PEN_DOWN)) {
-		wm->pen_probably_down = 0;
-		return RC_PENUP;
+		/* Sometimes it reads a wrong value the first time. */
+		*sample = wm97xx_reg_read(wm, AC97_WM97XX_DIGITISER_RD);
+		if (!(*sample & WM97XX_PEN_DOWN)) {
+			wm->pen_probably_down = 0;
+			return RC_PENUP;
+		}
 	}
 
 	return RC_VALID;
