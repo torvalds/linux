@@ -1279,6 +1279,42 @@ static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
 }
 
 /**
+ * send init device request and wait for response
+ *
+ * @param coredev pointer to a coredev object returned by
+ *                smscore_register_device
+ * @param mode requested mode of operation
+ *
+ * @return 0 on success, <0 on error.
+ */
+int smscore_init_device(struct smscore_device_t *coredev, int mode)
+{
+	void *buffer;
+	struct SmsMsgData_ST *msg;
+	int rc = 0;
+
+	buffer = kmalloc(sizeof(struct SmsMsgData_ST) +
+			SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
+	if (!buffer) {
+		sms_err("Could not allocate buffer for init device message.");
+		return -ENOMEM;
+	}
+
+	msg = (struct SmsMsgData_ST *)SMS_ALIGN_ADDRESS(buffer);
+	SMS_INIT_MSG(&msg->xMsgHeader, MSG_SMS_INIT_DEVICE_REQ,
+			sizeof(struct SmsMsgData_ST));
+	msg->msgData[0] = mode;
+
+	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)msg);
+	rc = smscore_sendrequest_and_wait(coredev, msg,
+			msg->xMsgHeader. msgLength,
+			&coredev->init_device_done);
+
+	kfree(buffer);
+	return rc;
+}
+
+/**
  * calls device handler to change mode of operation
  * NOTE: stellar/usb may disconnect when changing mode
  *
@@ -1340,8 +1376,13 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 			sms_info("mode %d is already supported by running firmware",
 				 mode);
 		}
+		if (coredev->fw_version >= 0x800) {
+			rc = smscore_init_device(coredev, mode);
+			if (rc < 0)
+				sms_err("device init failed, rc %d.", rc);
+		}
 	} else {
-		if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_DVBT_BDA) {
+		if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_MAX) {
 			sms_err("invalid mode specified %d", mode);
 			return -EINVAL;
 		}
