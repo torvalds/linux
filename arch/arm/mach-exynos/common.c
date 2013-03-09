@@ -25,6 +25,8 @@
 #include <linux/irqdomain.h>
 #include <linux/irqchip.h>
 #include <linux/of_address.h>
+#include <linux/clocksource.h>
+#include <linux/clk-provider.h>
 #include <linux/irqchip/arm-gic.h>
 
 #include <asm/proc-fns.h>
@@ -393,6 +395,20 @@ static void __init exynos5_map_io(void)
 static void __init exynos5440_map_io(void)
 {
 	iotable_init(exynos5440_iodesc0, ARRAY_SIZE(exynos5440_iodesc0));
+}
+
+void __init exynos_init_time(void)
+{
+	if (of_have_populated_dt()) {
+#ifdef CONFIG_OF
+		of_clk_init(NULL);
+		clocksource_of_init();
+#endif
+	} else {
+		/* todo: remove after migrating legacy E4 platforms to dt */
+		exynos4_clk_init(NULL);
+		mct_init();
+	}
 }
 
 void __init exynos4_init_irq(void)

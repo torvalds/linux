@@ -1379,7 +1379,7 @@ MACHINE_START(NURI, "NURI")
 	.map_io		= nuri_map_io,
 	.init_machine	= nuri_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= mct_init,
+	.init_time	= exynos_init_time,
 	.reserve        = &nuri_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

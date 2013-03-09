@@ -814,7 +814,7 @@ MACHINE_START(ORIGEN, "ORIGEN")
 	.map_io		= origen_map_io,
 	.init_machine	= origen_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= mct_init,
+	.init_time	= exynos_init_time,
 	.reserve	= &origen_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END
