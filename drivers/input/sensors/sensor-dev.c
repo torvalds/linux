@@ -31,7 +31,6 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
-#include <linux/akm8975.h>
 #include <linux/l3g4200d.h>
 #include <linux/sensor-dev.h>
 
@@ -43,7 +42,11 @@
 #define DBG(x...)
 #endif
 
-#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.1 add pressure and temperature support 2013-2-27"
+#if 0
+sensor-dev.c v1.1 add pressure and temperature support 2013-2-27
+sensor-dev.c v1.2 add akm8963 support 2013-3-10
+#endif
+#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.2 add akm8963 support 2013-3-10"
 
 
 struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
@@ -562,36 +565,122 @@ static int  gsensor_class_init(void)
 
 static int compass_dev_open(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
-	//struct i2c_client *client = sensor->client;
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
+	//struct i2c_client *client = sensor->client;	
+
 	int result = 0;
-	
-	//to do
+	int flag = 0;
+	flag = atomic_read(&sensor->flags.open_flag);
+	if(!flag)
+	{	
+		atomic_set(&sensor->flags.open_flag, 1);
+		wake_up(&sensor->flags.open_wq);
+	}
+
+	DBG("%s\n", __func__);
 	return result;
 }
+
 
 
 static int compass_dev_release(struct inode *inode, struct file *file)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
-	//struct i2c_client *client = sensor->client;	
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
+	//struct i2c_client *client = sensor->client;
+	//void __user *argp = (void __user *)arg;
 	int result = 0;
-
-	//to do
+	int flag = 0;
+	flag = atomic_read(&sensor->flags.open_flag);
+	if(flag)
+	{
+		atomic_set(&sensor->flags.open_flag, 0);
+		wake_up(&sensor->flags.open_wq);	
+	}
+	
+	DBG("%s\n", __func__);
 	return result;
 }
+
 
 
 /* ioctl - I/O control */
 static long compass_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
-	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
-	//struct i2c_client *client = sensor->client;
-	//void __user *argp = (void __user *)arg;
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
+	struct i2c_client *client = sensor->client;
+	void __user *argp = (void __user *)arg;
 	int result = 0;
+	short flag;
 	
-	//to do
+	switch (cmd) {
+		case ECS_IOCTL_APP_SET_MFLAG:
+		case ECS_IOCTL_APP_SET_AFLAG:
+		case ECS_IOCTL_APP_SET_MVFLAG:
+			if (copy_from_user(&flag, argp, sizeof(flag))) {
+				return -EFAULT;
+			}
+			if (flag < 0 || flag > 1) {
+				return -EINVAL;
+			}
+			break;
+		case ECS_IOCTL_APP_SET_DELAY:
+			if (copy_from_user(&flag, argp, sizeof(flag))) {
+				return -EFAULT;
+			}
+			break;
+		default:
+			break;
+	}
+	
+	switch (cmd) {
+		case ECS_IOCTL_APP_SET_MFLAG:	
+			atomic_set(&sensor->flags.m_flag, flag);			
+			DBG("%s:ECS_IOCTL_APP_SET_MFLAG,flag=%d\n", __func__,flag);
+			break;
+		case ECS_IOCTL_APP_GET_MFLAG:		
+			flag = atomic_read(&sensor->flags.m_flag);
+			DBG("%s:ECS_IOCTL_APP_GET_MFLAG,flag=%d\n", __func__,flag);
+			break;
+		case ECS_IOCTL_APP_SET_AFLAG:	
+			atomic_set(&sensor->flags.a_flag, flag);		
+			DBG("%s:ECS_IOCTL_APP_SET_AFLAG,flag=%d\n", __func__,flag);
+			break;
+		case ECS_IOCTL_APP_GET_AFLAG:
+			flag = atomic_read(&sensor->flags.a_flag);		
+			DBG("%s:ECS_IOCTL_APP_GET_AFLAG,flag=%d\n", __func__,flag);
+			break;
+		case ECS_IOCTL_APP_SET_MVFLAG:	
+			atomic_set(&sensor->flags.mv_flag, flag);		
+			DBG("%s:ECS_IOCTL_APP_SET_MVFLAG,flag=%d\n", __func__,flag);
+			break;
+		case ECS_IOCTL_APP_GET_MVFLAG:		
+			flag = atomic_read(&sensor->flags.mv_flag);		
+			DBG("%s:ECS_IOCTL_APP_GET_MVFLAG,flag=%d\n", __func__,flag);
+			break;
+		case ECS_IOCTL_APP_SET_DELAY:
+			sensor->flags.delay = flag;
+			break;
+		case ECS_IOCTL_APP_GET_DELAY:
+			flag = sensor->flags.delay;
+			break;
+		default:
+			return -ENOTTY;
+	}
+	
+	switch (cmd) {
+		case ECS_IOCTL_APP_GET_MFLAG:
+		case ECS_IOCTL_APP_GET_AFLAG:
+		case ECS_IOCTL_APP_GET_MVFLAG:
+		case ECS_IOCTL_APP_GET_DELAY:
+			if (copy_to_user(argp, &flag, sizeof(flag))) {
+				return -EFAULT;
+			}
+			break;
+		default:
+			break;
+	}
+
 	return result;
 }
 
@@ -1399,6 +1488,12 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 			goto out_free_memory;
 	}
 
+	if(pdata->reset_pin)
+	gpio_request(pdata->reset_pin,"sensor_reset_pin");
+
+	if(pdata->power_pin)
+	gpio_request(pdata->power_pin,"sensor_power_pin");
+		
 	memset(&(sensor->axis), 0, sizeof(struct sensor_axis) );
 	atomic_set(&(sensor->data_ready), 0);
 	init_waitqueue_head(&(sensor->data_ready_wq));
@@ -1406,6 +1501,14 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	mutex_init(&sensor->operation_mutex);	
 	mutex_init(&sensor->sensor_mutex);
 	mutex_init(&sensor->i2c_mutex);
+
+	/* As default, report all information */
+	atomic_set(&sensor->flags.m_flag, 1);
+	atomic_set(&sensor->flags.a_flag, 1);
+	atomic_set(&sensor->flags.mv_flag, 1);			
+	atomic_set(&sensor->flags.open_flag, 0);		
+	init_waitqueue_head(&sensor->flags.open_wq);
+	sensor->flags.delay = 100;
 
 	sensor->status_cur = SENSOR_OFF;
 	sensor->axis.x = 0;
@@ -1559,7 +1662,7 @@ out_input_register_device_failed:
 out_free_memory:
 	kfree(sensor);
 out_no_free:
-	dev_err(&client->adapter->dev, "%s failed %d\n", __func__, result);
+	dev_err(&client->adapter->dev, "%s failed %d\n\n", __func__, result);
 	return result;
 
 }
@@ -1603,7 +1706,8 @@ static const struct i2c_device_id sensor_id[] = {
 	{"gs_mxc6225", ACCEL_ID_MXC6225},
 	/*compass*/
 	{"compass", COMPASS_ID_ALL},
-	{"ak8975", COMPASS_ID_AK8975},
+	{"ak8975", COMPASS_ID_AK8975},	
+	{"ak8963", COMPASS_ID_AK8963},
 	{"mmc314x", COMPASS_ID_MMC314X},
 	/*gyroscope*/
 	{"gyro", GYRO_ID_ALL},	

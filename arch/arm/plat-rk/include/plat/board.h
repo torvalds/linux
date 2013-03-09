@@ -187,6 +187,16 @@ struct akm8975_platform_data {
 	int gpio_DRDY;
 };
 
+struct akm_platform_data {
+       short m_layout[4][3][3];
+       char project_name[64];
+       char layout;
+       char outbit;
+       int gpio_DRDY;
+       int gpio_RST;
+};
+
+
 struct sensor_platform_data {
 	int type;
 	int irq;
