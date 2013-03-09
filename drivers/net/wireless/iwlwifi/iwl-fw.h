@@ -203,4 +203,16 @@ struct iwl_fw {
 	bool mvm_fw;
 };
 
+static inline u8 iwl_fw_valid_tx_ant(const struct iwl_fw *fw)
+{
+	return (fw->phy_config & FW_PHY_CFG_TX_CHAIN) >>
+		FW_PHY_CFG_TX_CHAIN_POS;
+}
+
+static inline u8 iwl_fw_valid_rx_ant(const struct iwl_fw *fw)
+{
+	return (fw->phy_config & FW_PHY_CFG_RX_CHAIN) >>
+		FW_PHY_CFG_RX_CHAIN_POS;
+}
+
 #endif  /* __iwl_fw_h__ */
