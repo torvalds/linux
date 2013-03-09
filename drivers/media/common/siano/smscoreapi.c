@@ -1359,6 +1359,8 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			coredev->mode = ver->FirmwareId == 255 ?
 				DEVICE_MODE_NONE : ver->FirmwareId;
 			coredev->modes_supported = ver->SupportedProtocols;
+			coredev->fw_version = ver->RomVersionMajor << 8 |
+					      ver->RomVersionMinor;
 
 			complete(&coredev->version_ex_done);
 			break;

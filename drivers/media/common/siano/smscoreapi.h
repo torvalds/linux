@@ -178,6 +178,7 @@ struct smscore_device_t {
 	/* Firmware */
 	u8 *fw_buf;
 	u32 fw_buf_size;
+	u16 fw_version;
 
 	/* Infrared (IR) */
 	struct ir_t ir;
