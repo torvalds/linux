@@ -1331,6 +1331,8 @@ static void __init nuri_map_io(void)
 {
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_uarts(nuri_uartcfgs, ARRAY_SIZE(nuri_uartcfgs));
+	xxti_f = 0;
+	xusbxti_f = 24000000;
 }
 
 static void __init nuri_reserve(void)

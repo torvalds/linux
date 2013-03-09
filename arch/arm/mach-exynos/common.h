@@ -16,6 +16,7 @@
 
 extern void mct_init(void);
 void exynos_init_time(void);
+extern unsigned long xxti_f, xusbxti_f;
 
 struct map_desc;
 void exynos_init_io(struct map_desc *mach_desc, int size);

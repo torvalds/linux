@@ -372,6 +372,8 @@ static void __init smdkv310_map_io(void)
 {
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_uarts(smdkv310_uartcfgs, ARRAY_SIZE(smdkv310_uartcfgs));
+	xxti_f = 12000000;
+	xusbxti_f = 24000000;
 }
 
 static void __init smdkv310_reserve(void)

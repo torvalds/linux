@@ -69,6 +69,8 @@ static void exynos5440_map_io(void);
 static void exynos4_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 static int exynos_init(void);
 
+unsigned long xxti_f = 0, xusbxti_f = 0;
+
 static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= EXYNOS4210_CPU_ID,
@@ -407,6 +409,7 @@ void __init exynos_init_time(void)
 	} else {
 		/* todo: remove after migrating legacy E4 platforms to dt */
 		exynos4_clk_init(NULL);
+		exynos4_clk_register_fixed_ext(xxti_f, xusbxti_f);
 		mct_init();
 	}
 }
