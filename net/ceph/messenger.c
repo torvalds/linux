@@ -471,6 +471,22 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 	return r;
 }
 
+static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
+		     int page_offset, size_t length)
+{
+	void *kaddr;
+	int ret;
+
+	BUG_ON(page_offset + length > PAGE_SIZE);
+
+	kaddr = kmap(page);
+	BUG_ON(!kaddr);
+	ret = ceph_tcp_recvmsg(sock, kaddr + page_offset, length);
+	kunmap(page);
+
+	return ret;
+}
+
 /*
  * write something.  @more is true if caller will be sending more data
  * shortly.
@@ -1809,26 +1825,36 @@ static int read_partial_message_pages(struct ceph_connection *con,
 {
 	struct ceph_msg_pos *msg_pos = &con->in_msg_pos;
 	struct page *page;
-	void *p;
+	size_t page_offset;
+	size_t length;
+	unsigned int left;
 	int ret;
-	int left;
 
-	left = min((int)(data_len - msg_pos->data_pos),
-		   (int)(PAGE_SIZE - msg_pos->page_pos));
 	/* (page) data */
 	BUG_ON(pages == NULL);
 	page = pages[msg_pos->page];
-	p = kmap(page);
-	ret = ceph_tcp_recvmsg(con->sock, p + msg_pos->page_pos, left);
-	if (ret > 0 && do_datacrc)
-		con->in_data_crc =
-			crc32c(con->in_data_crc,
-				  p + msg_pos->page_pos, ret);
-	kunmap(page);
+	page_offset = msg_pos->page_pos;
+	BUG_ON(msg_pos->data_pos >= data_len);
+	left = data_len - msg_pos->data_pos;
+	BUG_ON(page_offset >= PAGE_SIZE);
+	length = min_t(unsigned int, PAGE_SIZE - page_offset, left);
+
+	ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
 	if (ret <= 0)
 		return ret;
 
-	in_msg_pos_next(con, left, ret);
+	if (do_datacrc) {
+		void *kaddr;
+		void *base;
+
+		kaddr = kmap(page);
+		BUG_ON(!kaddr);
+		base = kaddr + page_offset;
+		con->in_data_crc = crc32c(con->in_data_crc, base, ret);
+		kunmap(page);
+	}
+
+	in_msg_pos_next(con, length, ret);
 
 	return ret;
 }
@@ -1841,29 +1867,37 @@ static int read_partial_message_bio(struct ceph_connection *con,
 	struct ceph_msg_pos *msg_pos = &con->in_msg_pos;
 	struct bio_vec *bv;
 	struct page *page;
-	void *p;
-	int ret, left;
+	size_t page_offset;
+	size_t length;
+	unsigned int left;
+	int ret;
 
 	BUG_ON(!msg);
 	BUG_ON(!msg->bio_iter);
 	bv = bio_iovec_idx(msg->bio_iter, msg->bio_seg);
-
-	left = min((int)(data_len - msg_pos->data_pos),
-		   (int)(bv->bv_len - msg_pos->page_pos));
-
 	page = bv->bv_page;
-	p = kmap(page) + bv->bv_offset;
+	page_offset = bv->bv_offset + msg_pos->page_pos;
+	BUG_ON(msg_pos->data_pos >= data_len);
+	left = data_len - msg_pos->data_pos;
+	BUG_ON(msg_pos->page_pos >= bv->bv_len);
+	length = min_t(unsigned int, bv->bv_len - msg_pos->page_pos, left);
 
-	ret = ceph_tcp_recvmsg(con->sock, p + msg_pos->page_pos, left);
-	if (ret > 0 && do_datacrc)
-		con->in_data_crc =
-			crc32c(con->in_data_crc,
-				  p + msg_pos->page_pos, ret);
-	kunmap(page);
+	ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
 	if (ret <= 0)
 		return ret;
 
-	in_msg_pos_next(con, left, ret);
+	if (do_datacrc) {
+		void *kaddr;
+		void *base;
+
+		kaddr = kmap(page);
+		BUG_ON(!kaddr);
+		base = kaddr + page_offset;
+		con->in_data_crc = crc32c(con->in_data_crc, base, ret);
+		kunmap(page);
+	}
+
+	in_msg_pos_next(con, length, ret);
 
 	return ret;
 }
