@@ -35,6 +35,7 @@ config CPU_EXYNOS4210
 	select PM_GENERIC_DOMAINS
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
+	select PM_GENERIC_DOMAINS
 	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS4210 CPU support
@@ -403,6 +404,37 @@ config MACH_SMDK4412
 	select SOC_EXYNOS4412
 	help
 	  Machine support for Samsung SMDK4412
+
+config MACH_ODROID_4X12
+	bool "ODROID 4X12 board"
+	select SOC_EXYNOS4412
+	select MACH_SMDK4212
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_USB_HSOTG
+	select S5P_DEV_CSIS0
+	select S5P_DEV_G2D
+	select S5P_DEV_JPEG
+	select S5P_DEV_USB_EHCI
+	select S5P_DEV_I2C_HDMIPHY
+	select S5P_DEV_TV
+	select S5P_GPIO_INT
+	select EXYNOS4_DEV_USB_OHCI
+	select SAMSUNG_DEV_ADC
+	help
+	  Machine support for Hardkernel ODROID_4X12
+
+choice
+	depends on MACH_ODROID_4X12
+	prompt "ODROID_4412 PRODUCT"
+	default BOARD_ODROID_U2
+
+	config BOARD_ODROID_U2
+		bool "ODROID U2 ARM Quad-Core Ultra mini-PC"
+		help
+		  This enables support for ODROID U2(Quad-Core ARM PC)
+endchoice
+
 endif
 
 comment "Flattened Device Tree based board for EXYNOS SoCs"

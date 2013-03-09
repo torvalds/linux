@@ -48,6 +48,10 @@ obj-$(CONFIG_MACH_ORIGEN)		+= mach-origen.o
 obj-$(CONFIG_MACH_SMDK4212)		+= mach-smdk4x12.o
 obj-$(CONFIG_MACH_SMDK4412)		+= mach-smdk4x12.o
 
+ifeq ($(CONFIG_MACH_ODROID_4X12),y)
+	obj-$(CONFIG_BOARD_ODROID_U2)	+= mach-odroid-u2.o
+endif
+
 obj-$(CONFIG_MACH_EXYNOS4_DT)		+= mach-exynos4-dt.o
 obj-$(CONFIG_MACH_EXYNOS5_DT)		+= mach-exynos5-dt.o
 
