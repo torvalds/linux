@@ -36,6 +36,9 @@
 #define  B43_PHY_HT_TXPCTL_CMD_C1_PCTLEN	0x8000	/* TX power control enable */
 #define B43_PHY_HT_TXPCTL_CMD_C2		0x222
 #define  B43_PHY_HT_TXPCTL_CMD_C2_INIT		0x007F
+#define B43_PHY_HT_RSSI_C1			0x219
+#define B43_PHY_HT_RSSI_C2			0x21A
+#define B43_PHY_HT_RSSI_C3			0x21B
 
 #define B43_PHY_HT_C1_CLIP1THRES		B43_PHY_OFDM(0x00E)
 #define B43_PHY_HT_C2_CLIP1THRES		B43_PHY_OFDM(0x04E)
@@ -91,6 +94,8 @@ struct b43_phy_ht {
 	u8 tx_pwr_idx[3];
 
 	s32 bb_mult_save[3];
+
+	u8 idle_tssi[3];
 };
 
 
