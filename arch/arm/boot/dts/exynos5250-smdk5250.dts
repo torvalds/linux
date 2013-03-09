@@ -244,4 +244,11 @@
 		samsung,link-rate = <0x0a>;
 		samsung,lane-count = <4>;
 	};
+
+	fixed-rate-clocks {
+		xxti {
+			compatible = "samsung,clock-xxti";
+			clock-frequency = <24000000>;
+		};
+	};
 };

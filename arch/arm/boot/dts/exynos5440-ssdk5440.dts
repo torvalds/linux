@@ -27,4 +27,11 @@
 	spi {
 		status = "disabled";
 	};
+
+	fixed-rate-clocks {
+		xtal {
+			compatible = "samsung,clock-xtal";
+			clock-frequency = <50000000>;
+		};
+	};
 };

@@ -44,4 +44,11 @@
 	usb@12110000 {
 		samsung,vbus-gpio = <&gpx1 1 1 3 3>;
 	};
+
+	fixed-rate-clocks {
+		xxti {
+			compatible = "samsung,clock-xxti";
+			clock-frequency = <24000000>;
+		};
+	};
 };
