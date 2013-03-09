@@ -203,7 +203,6 @@ config GE_IMP3A
 	select DEFAULT_UIMAGE
 	select SWIOTLB
 	select MMIO_NVRAM
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GE_FPGA
 	help
