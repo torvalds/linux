@@ -3447,11 +3447,29 @@ static int snd_hdspm_put_playback_mixer(struct snd_kcontrol *kcontrol,
 	.get = snd_hdspm_get_sync_check \
 }
 
+#define HDSPM_TCO_LOCK_CHECK(xname, xindex) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.private_value = xindex, \
+	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
+	.info = snd_hdspm_tco_info_lock_check, \
+	.get = snd_hdspm_get_sync_check \
+}
+
+
 
 static int snd_hdspm_info_sync_check(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "No Lock", "Lock", "Sync", "N/A" };
+	ENUMERATED_CTL_INFO(uinfo, texts);
+	return 0;
+}
+
+static int snd_hdspm_tco_info_lock_check(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_info *uinfo)
+{
+	static char *texts[] = { "No Lock", "Lock" };
 	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
@@ -3585,6 +3603,14 @@ static int hdspm_aes_sync_check(struct hdspm *hdspm, int idx)
 	return 0;
 }
 
+static int hdspm_tco_input_check(struct hdspm *hdspm, u32 mask)
+{
+	u32 status;
+	status = hdspm_read(hdspm, HDSPM_RD_TCO + 4);
+
+	return (status & mask) ? 1 : 0;
+}
+
 
 static int hdspm_tco_sync_check(struct hdspm *hdspm)
 {
@@ -3690,6 +3716,22 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 		}
 		break;
 
+	}
+
+	if (hdspm->tco) {
+		switch (kcontrol->private_value) {
+		case 11:
+			/* Check TCO for lock state of its current input */
+			val = hdspm_tco_input_check(hdspm, HDSPM_TCO1_TCO_lock);
+			break;
+		case 12:
+			/* Check TCO for valid time code on LTC input. */
+			val = hdspm_tco_input_check(hdspm,
+				HDSPM_TCO1_LTC_Input_valid);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (-1 == val)
