@@ -23,6 +23,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 
 struct go7007;
 
@@ -143,6 +144,7 @@ struct go7007_buffer {
 };
 
 struct go7007_file {
+	struct v4l2_fh fh;
 	struct go7007 *go;
 	struct mutex lock;
 	int buf_count;

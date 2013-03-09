@@ -27,13 +27,14 @@
 #include <linux/time.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
+#include <linux/i2c.h>
+#include <linux/mutex.h>
+#include <linux/uaccess.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
-#include <linux/i2c.h>
-#include <linux/mutex.h>
-#include <linux/uaccess.h>
+#include <media/v4l2-event.h>
 
 #include "go7007.h"
 #include "go7007-priv.h"
@@ -101,6 +102,8 @@ static int go7007_open(struct file *file)
 	mutex_init(&gofh->lock);
 	gofh->buf_count = 0;
 	file->private_data = gofh;
+	v4l2_fh_init(&gofh->fh, video_devdata(file));
+	v4l2_fh_add(&gofh->fh);
 	return 0;
 }
 
@@ -115,6 +118,8 @@ static int go7007_release(struct file *file)
 		kfree(gofh->bufs);
 		gofh->buf_count = 0;
 	}
+	v4l2_fh_del(&gofh->fh);
+	v4l2_fh_exit(&gofh->fh);
 	kfree(gofh);
 	file->private_data = NULL;
 	return 0;
@@ -1582,16 +1587,20 @@ static int go7007_mmap(struct file *file, struct vm_area_struct *vma)
 
 static unsigned int go7007_poll(struct file *file, poll_table *wait)
 {
+	unsigned long req_events = poll_requested_events(wait);
 	struct go7007_file *gofh = file->private_data;
 	struct go7007_buffer *gobuf;
+	unsigned int res = v4l2_ctrl_poll(file, wait);
 
+	if (!(req_events & (POLLIN | POLLRDNORM)))
+		return res;
 	if (list_empty(&gofh->go->stream))
 		return POLLERR;
 	gobuf = list_entry(gofh->go->stream.next, struct go7007_buffer, stream);
 	poll_wait(file, &gofh->go->frame_waitq, wait);
 	if (gobuf->state == BUF_STATE_DONE)
-		return POLLIN | POLLRDNORM;
-	return 0;
+		return res | POLLIN | POLLRDNORM;
+	return res;
 }
 
 static void go7007_vfl_release(struct video_device *vfd)
@@ -1645,6 +1654,9 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_cropcap           = vidioc_cropcap,
 	.vidioc_g_crop            = vidioc_g_crop,
 	.vidioc_s_crop            = vidioc_s_crop,
+	.vidioc_log_status        = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event   = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static struct video_device go7007_template = {
@@ -1707,6 +1719,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	if (go->video_dev == NULL)
 		return -ENOMEM;
 	*go->video_dev = go7007_template;
+	set_bit(V4L2_FL_USE_FH_PRIO, &go->video_dev->flags);
 	video_set_drvdata(go->video_dev, go);
 	go->video_dev->v4l2_dev = &go->v4l2_dev;
 	rv = video_register_device(go->video_dev, VFL_TYPE_GRABBER, -1);
