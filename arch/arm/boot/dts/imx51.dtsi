@@ -317,6 +317,16 @@
 					};
 				};
 
+				ecspi2 {
+					pinctrl_ecspi2_1: ecspi2grp-1 {
+						fsl,pins = <
+							MX51_PAD_NANDF_RB3__ECSPI2_MISO 0x185
+							MX51_PAD_NANDF_D15__ECSPI2_MOSI 0x185
+							MX51_PAD_NANDF_RB2__ECSPI2_SCLK 0x185
+						>;
+					};
+				};
+
 				esdhc1 {
 					pinctrl_esdhc1_1: esdhc1grp-1 {
 						fsl,pins = <
