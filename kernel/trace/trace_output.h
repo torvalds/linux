@@ -5,6 +5,8 @@
 #include "trace.h"
 
 extern enum print_line_t
+trace_print_bputs_msg_only(struct trace_iterator *iter);
+extern enum print_line_t
 trace_print_bprintk_msg_only(struct trace_iterator *iter);
 extern enum print_line_t
 trace_print_printk_msg_only(struct trace_iterator *iter);

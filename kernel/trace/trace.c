@@ -350,6 +350,77 @@ void tracing_on(void)
 }
 EXPORT_SYMBOL_GPL(tracing_on);
 
+/**
+ * __trace_puts - write a constant string into the trace buffer.
+ * @ip:	   The address of the caller
+ * @str:   The constant string to write
+ * @size:  The size of the string.
+ */
+int __trace_puts(unsigned long ip, const char *str, int size)
+{
+	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
+	struct print_entry *entry;
+	unsigned long irq_flags;
+	int alloc;
+
+	alloc = sizeof(*entry) + size + 2; /* possible \n added */
+
+	local_save_flags(irq_flags);
+	buffer = global_trace.trace_buffer.buffer;
+	event = trace_buffer_lock_reserve(buffer, TRACE_PRINT, alloc, 
+					  irq_flags, preempt_count());
+	if (!event)
+		return 0;
+
+	entry = ring_buffer_event_data(event);
+	entry->ip = ip;
+
+	memcpy(&entry->buf, str, size);
+
+	/* Add a newline if necessary */
+	if (entry->buf[size - 1] != '\n') {
+		entry->buf[size] = '\n';
+		entry->buf[size + 1] = '\0';
+	} else
+		entry->buf[size] = '\0';
+
+	__buffer_unlock_commit(buffer, event);
+
+	return size;
+}
+EXPORT_SYMBOL_GPL(__trace_puts);
+
+/**
+ * __trace_bputs - write the pointer to a constant string into trace buffer
+ * @ip:	   The address of the caller
+ * @str:   The constant string to write to the buffer to
+ */
+int __trace_bputs(unsigned long ip, const char *str)
+{
+	struct ring_buffer_event *event;
+	struct ring_buffer *buffer;
+	struct bputs_entry *entry;
+	unsigned long irq_flags;
+	int size = sizeof(struct bputs_entry);
+
+	local_save_flags(irq_flags);
+	buffer = global_trace.trace_buffer.buffer;
+	event = trace_buffer_lock_reserve(buffer, TRACE_BPUTS, size,
+					  irq_flags, preempt_count());
+	if (!event)
+		return 0;
+
+	entry = ring_buffer_event_data(event);
+	entry->ip			= ip;
+	entry->str			= str;
+
+	__buffer_unlock_commit(buffer, event);
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(__trace_bputs);
+
 #ifdef CONFIG_TRACER_SNAPSHOT
 /**
  * trace_snapshot - take a snapshot of the current buffer.
@@ -2474,6 +2545,11 @@ enum print_line_t print_trace_line(struct trace_iterator *iter)
 		if (ret != TRACE_TYPE_UNHANDLED)
 			return ret;
 	}
+
+	if (iter->ent->type == TRACE_BPUTS &&
+			trace_flags & TRACE_ITER_PRINTK &&
+			trace_flags & TRACE_ITER_PRINTK_MSGONLY)
+		return trace_print_bputs_msg_only(iter);
 
 	if (iter->ent->type == TRACE_BPRINT &&
 			trace_flags & TRACE_ITER_PRINTK &&

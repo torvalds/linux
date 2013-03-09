@@ -37,6 +37,22 @@ int trace_print_seq(struct seq_file *m, struct trace_seq *s)
 	return ret;
 }
 
+enum print_line_t trace_print_bputs_msg_only(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry = iter->ent;
+	struct bputs_entry *field;
+	int ret;
+
+	trace_assign_type(field, entry);
+
+	ret = trace_seq_puts(s, field->str);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
 enum print_line_t trace_print_bprintk_msg_only(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1244,6 +1260,64 @@ static struct trace_event trace_user_stack_event = {
 	.funcs		= &trace_user_stack_funcs,
 };
 
+/* TRACE_BPUTS */
+static enum print_line_t
+trace_bputs_print(struct trace_iterator *iter, int flags,
+		   struct trace_event *event)
+{
+	struct trace_entry *entry = iter->ent;
+	struct trace_seq *s = &iter->seq;
+	struct bputs_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (!seq_print_ip_sym(s, field->ip, flags))
+		goto partial;
+
+	if (!trace_seq_puts(s, ": "))
+		goto partial;
+
+	if (!trace_seq_puts(s, field->str))
+		goto partial;
+
+	return TRACE_TYPE_HANDLED;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+
+static enum print_line_t
+trace_bputs_raw(struct trace_iterator *iter, int flags,
+		struct trace_event *event)
+{
+	struct bputs_entry *field;
+	struct trace_seq *s = &iter->seq;
+
+	trace_assign_type(field, iter->ent);
+
+	if (!trace_seq_printf(s, ": %lx : ", field->ip))
+		goto partial;
+
+	if (!trace_seq_puts(s, field->str))
+		goto partial;
+
+	return TRACE_TYPE_HANDLED;
+
+ partial:
+	return TRACE_TYPE_PARTIAL_LINE;
+}
+
+static struct trace_event_functions trace_bputs_funcs = {
+	.trace		= trace_bputs_print,
+	.raw		= trace_bputs_raw,
+};
+
+static struct trace_event trace_bputs_event = {
+	.type		= TRACE_BPUTS,
+	.funcs		= &trace_bputs_funcs,
+};
+
 /* TRACE_BPRINT */
 static enum print_line_t
 trace_bprint_print(struct trace_iterator *iter, int flags,
@@ -1356,6 +1430,7 @@ static struct trace_event *events[] __initdata = {
 	&trace_wake_event,
 	&trace_stack_event,
 	&trace_user_stack_event,
+	&trace_bputs_event,
 	&trace_bprint_event,
 	&trace_print_event,
 	NULL
