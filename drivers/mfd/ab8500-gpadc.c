@@ -594,9 +594,12 @@ static int ab8500_gpadc_runtime_suspend(struct device *dev)
 static int ab8500_gpadc_runtime_resume(struct device *dev)
 {
 	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
+	int ret;
 
-	regulator_enable(gpadc->regu);
-	return 0;
+	ret = regulator_enable(gpadc->regu);
+	if (ret)
+		dev_err(dev, "Failed to enable vtvout LDO: %d\n", ret);
+	return ret;
 }
 
 static int ab8500_gpadc_runtime_idle(struct device *dev)
@@ -643,7 +646,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	}
 
 	/* VTVout LDO used to power up ab8500-GPADC */
-	gpadc->regu = regulator_get(&pdev->dev, "vddadc");
+	gpadc->regu = devm_regulator_get(&pdev->dev, "vddadc");
 	if (IS_ERR(gpadc->regu)) {
 		ret = PTR_ERR(gpadc->regu);
 		dev_err(gpadc->dev, "failed to get vtvout LDO\n");
@@ -652,7 +655,11 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpadc);
 
-	regulator_enable(gpadc->regu);
+	ret = regulator_enable(gpadc->regu);
+	if (ret) {
+		dev_err(gpadc->dev, "Failed to enable vtvout LDO: %d\n", ret);
+		goto fail_enable;
+	}
 
 	pm_runtime_set_autosuspend_delay(gpadc->dev, GPADC_AUDOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(gpadc->dev);
@@ -663,6 +670,8 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	list_add_tail(&gpadc->node, &ab8500_gpadc_list);
 	dev_dbg(gpadc->dev, "probe success\n");
 	return 0;
+
+fail_enable:
 fail_irq:
 	free_irq(gpadc->irq, gpadc);
 fail:
