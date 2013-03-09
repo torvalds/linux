@@ -79,12 +79,6 @@ config SOC_EXYNOS5440
 	help
 	  Enable EXYNOS5440 SoC support
 
-config EXYNOS4_MCT
-	bool
-	default y
-	help
-	  Use MCT (Multi Core Timer) as kernel timers
-
 config EXYNOS_DEV_DMA
 	bool
 	help
