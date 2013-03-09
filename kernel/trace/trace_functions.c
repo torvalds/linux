@@ -214,38 +214,37 @@ static struct tracer function_trace __read_mostly =
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-static void
-ftrace_traceon(unsigned long ip, unsigned long parent_ip, void **data)
+static int update_count(void **data)
 {
-	long *count = (long *)data;
-
-	if (tracing_is_on())
-		return;
+	unsigned long *count = (long *)data;
 
 	if (!*count)
-		return;
+		return 0;
 
 	if (*count != -1)
 		(*count)--;
 
-	tracing_on();
+	return 1;
+}
+
+static void
+ftrace_traceon(unsigned long ip, unsigned long parent_ip, void **data)
+{
+	if (tracing_is_on())
+		return;
+
+	if (update_count(data))
+		tracing_on();
 }
 
 static void
 ftrace_traceoff(unsigned long ip, unsigned long parent_ip, void **data)
 {
-	long *count = (long *)data;
-
 	if (!tracing_is_on())
 		return;
 
-	if (!*count)
-		return;
-
-	if (*count != -1)
-		(*count)--;
-
-	tracing_off();
+	if (update_count(data))
+		tracing_off();
 }
 
 static int
