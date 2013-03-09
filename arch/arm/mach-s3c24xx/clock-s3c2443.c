@@ -41,7 +41,6 @@
 
 #include <plat/cpu-freq.h>
 
-#include <plat/s3c2443.h>
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/cpu.h>
