@@ -75,7 +75,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Focus         0
 #endif
 
-#define CONFIG_SENSOR_I2C_SPEED    250000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED    100000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
@@ -198,7 +198,7 @@ static struct  flash_timer flash_off_timer;
 static struct reginfo sensor_init_data[] =
 {
 	{0x3103, 0x11},
-	{0x3008, 0x82},
+	//{0x3008, 0x82},
 	{0x3008, 0x42},
 	{0x3103, 0x03},
 	{0x3017, 0xff},
