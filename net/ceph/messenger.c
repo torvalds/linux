@@ -1076,7 +1076,7 @@ static void in_msg_pos_next(struct ceph_connection *con, size_t len,
  *  0 -> socket full, but more to do
  * <0 -> error
  */
-static int write_partial_msg_pages(struct ceph_connection *con)
+static int write_partial_message_data(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->out_msg;
 	struct ceph_msg_pos *msg_pos = &con->out_msg_pos;
@@ -1088,7 +1088,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 	const size_t trail_len = (msg->trail ? msg->trail->length : 0);
 	const size_t trail_off = data_len - trail_len;
 
-	dout("write_partial_msg_pages %p msg %p page %d offset %d\n",
+	dout("%s %p msg %p page %d offset %d\n", __func__,
 	     con, msg, msg_pos->page, msg_pos->page_pos);
 
 	/*
@@ -1157,7 +1157,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 		out_msg_pos_next(con, page, length, (size_t) ret, in_trail);
 	}
 
-	dout("write_partial_msg_pages %p msg %p done\n", con, msg);
+	dout("%s %p msg %p done\n", __func__, con, msg);
 
 	/* prepare and queue up footer, too */
 	if (!do_datacrc)
@@ -1869,13 +1869,44 @@ static int read_partial_message_bio(struct ceph_connection *con,
 }
 #endif
 
+static int read_partial_msg_data(struct ceph_connection *con)
+{
+	struct ceph_msg *msg = con->in_msg;
+	struct ceph_msg_pos *msg_pos = &con->in_msg_pos;
+	const bool do_datacrc = !con->msgr->nocrc;
+	unsigned int data_len;
+	int ret;
+
+	BUG_ON(!msg);
+
+	data_len = le32_to_cpu(con->in_hdr.data_len);
+	while (msg_pos->data_pos < data_len) {
+		if (msg->pages) {
+			ret = read_partial_message_pages(con, msg->pages,
+						 data_len, do_datacrc);
+			if (ret <= 0)
+				return ret;
+#ifdef CONFIG_BLOCK
+		} else if (msg->bio) {
+			ret = read_partial_message_bio(con,
+						 data_len, do_datacrc);
+			if (ret <= 0)
+				return ret;
+#endif
+		} else {
+			BUG_ON(1);
+		}
+	}
+
+	return 1;	/* must return > 0 to indicate success */
+}
+
 /*
  * read (part of) a message.
  */
 static int read_partial_message(struct ceph_connection *con)
 {
 	struct ceph_msg *m = con->in_msg;
-	struct ceph_msg_pos *msg_pos = &con->in_msg_pos;
 	int size;
 	int end;
 	int ret;
@@ -1978,22 +2009,10 @@ static int read_partial_message(struct ceph_connection *con)
 	}
 
 	/* (page) data */
-	while (msg_pos->data_pos < data_len) {
-		if (m->pages) {
-			ret = read_partial_message_pages(con, m->pages,
-						 data_len, do_datacrc);
-			if (ret <= 0)
-				return ret;
-#ifdef CONFIG_BLOCK
-		} else if (m->bio) {
-			ret = read_partial_message_bio(con,
-						 data_len, do_datacrc);
-			if (ret <= 0)
-				return ret;
-#endif
-		} else {
-			BUG_ON(1);
-		}
+	if (data_len) {
+		ret = read_partial_msg_data(con);
+		if (ret <= 0)
+			return ret;
 	}
 
 	/* footer */
@@ -2119,13 +2138,13 @@ more_kvec:
 			goto do_next;
 		}
 
-		ret = write_partial_msg_pages(con);
+		ret = write_partial_message_data(con);
 		if (ret == 1)
 			goto more_kvec;  /* we need to send the footer, too! */
 		if (ret == 0)
 			goto out;
 		if (ret < 0) {
-			dout("try_write write_partial_msg_pages err %d\n",
+			dout("try_write write_partial_message_data err %d\n",
 			     ret);
 			goto out;
 		}
