@@ -253,6 +253,13 @@ static int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 	return usb_urb_exitv2(&adap->stream);
 }
 
+static int wait_schedule(void *ptr)
+{
+	schedule();
+
+	return 0;
+}
+
 static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 		int count)
 {
@@ -265,6 +272,9 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 			adap->pid_filtering ? "yes" : "no", dvbdmxfeed->pid,
 			dvbdmxfeed->pid, dvbdmxfeed->index,
 			(count == 1) ? "on" : "off");
+
+	wait_on_bit(&adap->state_bits, ADAP_INIT, wait_schedule,
+			TASK_UNINTERRUPTIBLE);
 
 	if (adap->active_fe == -1)
 		return -EINVAL;
@@ -283,11 +293,14 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 						"failed=%d\n", KBUILD_MODNAME,
 						ret);
 				usb_urb_killv2(&adap->stream);
-				goto err_mutex_unlock;
+				goto err_clear_wait;
 			}
 		}
 		usb_urb_killv2(&adap->stream);
-		mutex_unlock(&adap->sync_mutex);
+
+		clear_bit(ADAP_STREAMING, &adap->state_bits);
+		smp_mb__after_clear_bit();
+		wake_up_bit(&adap->state_bits, ADAP_STREAMING);
 	}
 
 	/* activate the pid on the device pid filter */
@@ -303,7 +316,7 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 	/* start feeding if it is first pid */
 	if (adap->feed_count == 1 && count == 1) {
 		struct usb_data_stream_properties stream_props;
-		mutex_lock(&adap->sync_mutex);
+		set_bit(ADAP_STREAMING, &adap->state_bits);
 		dev_dbg(&d->udev->dev, "%s: start feeding\n", __func__);
 
 		/* resolve input and output streaming paramters */
@@ -314,7 +327,7 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 					adap->fe[adap->active_fe],
 					&adap->ts_type, &stream_props);
 			if (ret < 0)
-				goto err_mutex_unlock;
+				goto err_clear_wait;
 		} else {
 			stream_props = adap->props->stream;
 		}
@@ -344,7 +357,7 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 				dev_err(&d->udev->dev, "%s: " \
 						"pid_filter_ctrl() failed=%d\n",
 						KBUILD_MODNAME, ret);
-				goto err_mutex_unlock;
+				goto err_clear_wait;
 			}
 		}
 
@@ -355,14 +368,16 @@ static inline int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed,
 				dev_err(&d->udev->dev, "%s: streaming_ctrl() " \
 						"failed=%d\n", KBUILD_MODNAME,
 						ret);
-				goto err_mutex_unlock;
+				goto err_clear_wait;
 			}
 		}
 	}
 
 	return 0;
-err_mutex_unlock:
-	mutex_unlock(&adap->sync_mutex);
+err_clear_wait:
+	clear_bit(ADAP_STREAMING, &adap->state_bits);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&adap->state_bits, ADAP_STREAMING);
 	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
@@ -435,8 +450,6 @@ static int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 		goto err_dvb_net_init;
 	}
 
-	mutex_init(&adap->sync_mutex);
-
 	return 0;
 err_dvb_net_init:
 	dvb_dmxdev_release(&adap->dmxdev);
@@ -500,7 +513,7 @@ static int dvb_usb_fe_init(struct dvb_frontend *fe)
 
 	if (!adap->suspend_resume_active) {
 		adap->active_fe = fe->id;
-		mutex_lock(&adap->sync_mutex);
+		set_bit(ADAP_INIT, &adap->state_bits);
 	}
 
 	ret = dvb_usbv2_device_power_ctrl(d, 1);
@@ -519,8 +532,11 @@ static int dvb_usb_fe_init(struct dvb_frontend *fe)
 			goto err;
 	}
 err:
-	if (!adap->suspend_resume_active)
-		mutex_unlock(&adap->sync_mutex);
+	if (!adap->suspend_resume_active) {
+		clear_bit(ADAP_INIT, &adap->state_bits);
+		smp_mb__after_clear_bit();
+		wake_up_bit(&adap->state_bits, ADAP_INIT);
+	}
 
 	dev_dbg(&d->udev->dev, "%s: ret=%d\n", __func__, ret);
 	return ret;
@@ -534,8 +550,11 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 	dev_dbg(&d->udev->dev, "%s: adap=%d fe=%d\n", __func__, adap->id,
 			fe->id);
 
-	if (!adap->suspend_resume_active)
-		mutex_lock(&adap->sync_mutex);
+	if (!adap->suspend_resume_active) {
+		set_bit(ADAP_SLEEP, &adap->state_bits);
+		wait_on_bit(&adap->state_bits, ADAP_STREAMING, wait_schedule,
+				TASK_UNINTERRUPTIBLE);
+	}
 
 	if (adap->fe_sleep[fe->id]) {
 		ret = adap->fe_sleep[fe->id](fe);
@@ -555,7 +574,9 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 err:
 	if (!adap->suspend_resume_active) {
 		adap->active_fe = -1;
-		mutex_unlock(&adap->sync_mutex);
+		clear_bit(ADAP_SLEEP, &adap->state_bits);
+		smp_mb__after_clear_bit();
+		wake_up_bit(&adap->state_bits, ADAP_SLEEP);
 	}
 
 	dev_dbg(&d->udev->dev, "%s: ret=%d\n", __func__, ret);
