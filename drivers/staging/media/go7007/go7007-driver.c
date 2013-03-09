@@ -196,18 +196,22 @@ int go7007_reset_encoder(struct go7007 *go)
 /*
  * Attempt to instantiate an I2C client by ID, probably loading a module.
  */
-static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
-			   int addr)
+static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *const i2c)
 {
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
+	struct i2c_board_info info;
 
-	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, type, addr, NULL))
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, i2c->type, sizeof(info.type));
+	info.addr = i2c->addr;
+	info.flags = i2c->flags;
+
+	if (v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, NULL))
 		return 0;
 
-	dev_info(&adapter->dev,
-		 "go7007: probing for module i2c:%s failed\n", type);
-	return -1;
+	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", i2c->type);
+	return -EINVAL;
 }
 
 /*
@@ -243,9 +247,7 @@ int go7007_register_encoder(struct go7007 *go)
 	}
 	if (go->i2c_adapter_online) {
 		for (i = 0; i < go->board_info->num_i2c_devs; ++i)
-			init_i2c_module(&go->i2c_adapter,
-					go->board_info->i2c_devs[i].type,
-					go->board_info->i2c_devs[i].addr);
+			init_i2c_module(&go->i2c_adapter, &go->board_info->i2c_devs[i]);
 		if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
 			i2c_clients_command(&go->i2c_adapter,
 				DECODER_SET_CHANNEL, &go->channel_number);
