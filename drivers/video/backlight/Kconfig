@@ -126,6 +126,13 @@ config LCD_AMS369FG06
 	  If you have an AMS369FG06 AMOLED Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_LP101WH1
+    bool "LG Display LP101WH1 LCD Driver"
+    depends on BACKLIGHT_CLASS_DEVICE
+    help
+	  If you have an LP101WH1 Panel, say Y to enable its
+	  LCD control driver
+
 endif # LCD_CLASS_DEVICE
 
 #

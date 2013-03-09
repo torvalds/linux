@@ -1101,8 +1101,6 @@ static struct platform_device *hkdk4412_devices[] __initdata = {
 	&hkdk4412_lcd_lp101wh1,
 #endif
 	&hkdk4412_gpio_keys,
-	&samsung_asoc_dma,
-	&samsung_asoc_idma,
 #if defined(CONFIG_SND_SOC_HKDK_MAX98090)
 	&hardkernel_audio_device,
 #endif
