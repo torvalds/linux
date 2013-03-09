@@ -43,6 +43,7 @@
 
 #include "smscoreapi.h"
 #include "sms-cards.h"
+#include "smsendian.h"
 
 /* Registers */
 
@@ -97,6 +98,7 @@ static int smssdio_sendrequest(void *context, void *buffer, size_t size)
 
 	sdio_claim_host(smsdev->func);
 
+	smsendian_handle_tx_message((struct SmsMsgData_ST *) buffer);
 	while (size >= smsdev->func->cur_blksize) {
 		ret = sdio_memcpy_toio(smsdev->func, SMSSDIO_DATA,
 					buffer, smsdev->func->cur_blksize);
@@ -231,6 +233,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 	cb->size = hdr->msgLength;
 	cb->offset = 0;
 
+	smsendian_handle_rx_message((struct SmsMsgData_ST *) cb->p);
 	smscore_onresponse(smsdev->coredev, cb);
 }
 

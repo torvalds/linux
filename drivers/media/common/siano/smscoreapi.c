@@ -37,7 +37,6 @@
 #include "smscoreapi.h"
 #include "sms-cards.h"
 #include "smsir.h"
-#include "smsendian.h"
 
 static int sms_dbg;
 module_param_named(debug, sms_dbg, int, 0644);
@@ -807,8 +806,6 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 				msg->msgData[0] = coredev->ir.controller;
 				msg->msgData[1] = coredev->ir.timeout;
 
-				smsendian_handle_tx_message(
-					(struct SmsMsgHdr_ST2 *)msg);
 				rc = smscore_sendrequest_and_wait(coredev, msg,
 						msg->xMsgHeader. msgLength,
 						&coredev->ir_init_done);
@@ -853,7 +850,6 @@ int smscore_configure_board(struct smscore_device_t *coredev)
 		MtuMsg.xMsgHeader.msgLength = sizeof(MtuMsg);
 		MtuMsg.msgData[0] = board->mtu;
 
-		smsendian_handle_tx_message((struct SmsMsgHdr_ST *)&MtuMsg);
 		coredev->sendrequest_handler(coredev->context, &MtuMsg,
 					     sizeof(MtuMsg));
 	}
@@ -867,7 +863,6 @@ int smscore_configure_board(struct smscore_device_t *coredev)
 				sizeof(CrysMsg));
 		CrysMsg.msgData[0] = board->crystal;
 
-		smsendian_handle_tx_message((struct SmsMsgHdr_S *)&CrysMsg);
 		coredev->sendrequest_handler(coredev->context, &CrysMsg,
 					     sizeof(CrysMsg));
 	}
@@ -989,7 +984,6 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		/* Entry point */
 	msg->msgData[1] = firmware->Length;
 	msg->msgData[2] = 0; /* Regular checksum*/
-	smsendian_handle_tx_message(msg);
 	rc = smscore_sendrequest_and_wait(coredev, msg,
 					  msg->xMsgHeader.msgLength,
 					  &coredev->data_validity_done);
@@ -1013,14 +1007,12 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		TriggerMsg->msgData[3] = 0; /* Parameter */
 		TriggerMsg->msgData[4] = 4; /* Task ID */
 
-		smsendian_handle_tx_message((struct SmsMsgHdr_S *)msg);
 		rc = smscore_sendrequest_and_wait(coredev, TriggerMsg,
 					TriggerMsg->xMsgHeader.msgLength,
 					&coredev->trigger_done);
 	} else {
 		SMS_INIT_MSG(&msg->xMsgHeader, MSG_SW_RELOAD_EXEC_REQ,
 				sizeof(struct SmsMsgHdr_ST));
-		smsendian_handle_tx_message((struct SmsMsgHdr_S *)msg);
 		rc = coredev->sendrequest_handler(coredev->context, msg,
 				msg->xMsgHeader.msgLength);
 	}
@@ -1305,7 +1297,6 @@ int smscore_init_device(struct smscore_device_t *coredev, int mode)
 			sizeof(struct SmsMsgData_ST));
 	msg->msgData[0] = mode;
 
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)msg);
 	rc = smscore_sendrequest_and_wait(coredev, msg,
 			msg->xMsgHeader. msgLength,
 			&coredev->init_device_done);
@@ -1526,8 +1517,6 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		rc = client->onresponse_handler(client->context, cb);
 
 	if (rc < 0) {
-		smsendian_handle_rx_message((struct SmsMsgData_ST *)phdr);
-
 		switch (phdr->msgType) {
 		case MSG_SMS_ISDBT_TUNE_RES:
 			break;
@@ -2008,7 +1997,6 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 		pMsg->msgData[5] = 0;
 	}
 
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)pMsg);
 	rc = smscore_sendrequest_and_wait(coredev, pMsg, totalLen,
 			&coredev->gpio_configuration_done);
 
@@ -2058,7 +2046,6 @@ int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,
 	pMsg->msgData[1] = NewLevel;
 
 	/* Send message to SMS */
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)pMsg);
 	rc = smscore_sendrequest_and_wait(coredev, pMsg, totalLen,
 			&coredev->gpio_set_level_done);
 
@@ -2107,7 +2094,6 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,
 	pMsg->msgData[1] = 0;
 
 	/* Send message to SMS */
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)pMsg);
 	rc = smscore_sendrequest_and_wait(coredev, pMsg, totalLen,
 			&coredev->gpio_get_level_done);
 

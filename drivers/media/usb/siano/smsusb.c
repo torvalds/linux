@@ -129,6 +129,8 @@ static void smsusb_onresponse(struct urb *urb)
 				  smscore_translate_msg(phdr->msgType),
 				  phdr->msgType, phdr->msgLength);
 
+			smsendian_handle_rx_message((struct SmsMsgData_ST *) phdr);
+
 			smscore_onresponse(dev->coredev, surb->cb);
 			surb->cb = NULL;
 		} else {
@@ -207,13 +209,14 @@ static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) buffer;
 	int dummy;
 
+	if (dev->state != SMSUSB_ACTIVE)
+		return -ENOENT;
+
 	sms_debug("sending %s(%d) size: %d",
 		  smscore_translate_msg(phdr->msgType), phdr->msgType,
 		  phdr->msgLength);
 
-	if (dev->state != SMSUSB_ACTIVE)
-		return -ENOENT;
-
+	smsendian_handle_tx_message((struct SmsMsgData_ST *) phdr);
 	smsendian_handle_message_header((struct SmsMsgHdr_ST *)buffer);
 	return usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 2),
 			    buffer, size, &dummy, 1000);

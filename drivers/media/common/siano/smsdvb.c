@@ -29,7 +29,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "dvb_frontend.h"
 
 #include "smscoreapi.h"
-#include "smsendian.h"
 #include "sms-cards.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
@@ -324,8 +323,6 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 	/*u32 MsgDataLen = phdr->msgLength - sizeof(struct SmsMsgHdr_ST);*/
 	bool is_status_update = false;
 
-	smsendian_handle_rx_message((struct SmsMsgData_ST *) phdr);
-
 	switch (phdr->msgType) {
 	case MSG_SMS_DVBT_BDA_DATA:
 		dvb_dmx_swfilter(&client->demux, (u8 *)(phdr + 1),
@@ -545,7 +542,6 @@ static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 	PidMsg.xMsgHeader.msgLength = sizeof(PidMsg);
 	PidMsg.msgData[0] = feed->pid;
 
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)&PidMsg);
 	return smsclient_sendrequest(client->smsclient,
 				     &PidMsg, sizeof(PidMsg));
 }
@@ -566,7 +562,6 @@ static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 	PidMsg.xMsgHeader.msgLength = sizeof(PidMsg);
 	PidMsg.msgData[0] = feed->pid;
 
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)&PidMsg);
 	return smsclient_sendrequest(client->smsclient,
 				     &PidMsg, sizeof(PidMsg));
 }
@@ -577,7 +572,6 @@ static int smsdvb_sendrequest_and_wait(struct smsdvb_client_t *client,
 {
 	int rc;
 
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)buffer);
 	rc = smsclient_sendrequest(client->smsclient, buffer, size);
 	if (rc < 0)
 		return rc;
@@ -605,8 +599,6 @@ static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 		Msg.msgType = MSG_SMS_GET_STATISTICS_EX_REQ;
 	else
 		Msg.msgType = MSG_SMS_GET_STATISTICS_REQ;
-
-	smsendian_handle_tx_message((struct SmsMsgHdr_S *)&Msg);
 
 	rc = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
 					 &client->stats_done);
