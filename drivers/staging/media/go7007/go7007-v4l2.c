@@ -1188,6 +1188,14 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return call_all(&go->v4l2_dev, tuner, s_frequency, f);
 }
 
+static int vidioc_log_status(struct file *file, void *priv)
+{
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
+
+	v4l2_ctrl_log_status(file, priv);
+	return call_all(&go->v4l2_dev, core, log_status);
+}
+
 static int vidioc_cropcap(struct file *file, void *priv,
 					struct v4l2_cropcap *cropcap)
 {
@@ -1654,7 +1662,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_cropcap           = vidioc_cropcap,
 	.vidioc_g_crop            = vidioc_g_crop,
 	.vidioc_s_crop            = vidioc_s_crop,
-	.vidioc_log_status        = v4l2_ctrl_log_status,
+	.vidioc_log_status        = vidioc_log_status,
 	.vidioc_subscribe_event   = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
