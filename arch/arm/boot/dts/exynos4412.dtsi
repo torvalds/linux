@@ -25,4 +25,28 @@
 	gic:interrupt-controller@10490000 {
 		cpu-offset = <0x4000>;
 	};
+
+	mct@10050000 {
+		compatible = "samsung,exynos4412-mct";
+		reg = <0x10050000 0x800>;
+		interrupt-controller;
+		#interrups-cells = <2>;
+		interrupt-parent = <&mct_map>;
+		interrupts = <0 0>, <1 0>, <2 0>, <3 0>,
+			     <4 0>, <5 0>, <6 0>, <7 0>;
+
+		mct_map: mct-map {
+			#interrupt-cells = <2>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = <0x0 0 &gic 0 57 0>,
+					<0x1 0 &combiner 12 5>,
+					<0x2 0 &combiner 12 6>,
+					<0x3 0 &combiner 12 7>,
+					<0x4 0 &gic 1 12 0>,
+					<0x5 0 &gic 1 12 0>,
+					<0x6 0 &gic 1 12 0>,
+					<0x7 0 &gic 1 12 0>;
+		};
+	};
 };
