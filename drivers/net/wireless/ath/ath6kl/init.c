@@ -1657,13 +1657,15 @@ static int __ath6kl_init_hw_start(struct ath6kl *ar)
 	 * driver layer has to init BMI in order to set the host block
 	 * size.
 	 */
-	if (ath6kl_htc_wait_target(ar->htc_target)) {
-		ret = -EIO;
+	ret = ath6kl_htc_wait_target(ar->htc_target);
+	if (ret) {
+		ath6kl_err("htc wait target failed: %d\n", ret);
 		goto err_power_off;
 	}
 
-	if (ath6kl_init_service_ep(ar)) {
-		ret = -EIO;
+	ret = ath6kl_init_service_ep(ar);
+	if (ret) {
+		ath6kl_err("Endpoint service initilisation failed: %d\n", ret);
 		goto err_cleanup_scatter;
 	}
 
