@@ -319,6 +319,46 @@ static void b43_phy_ht_tx_power_fix(struct b43_wldev *dev)
 	}
 }
 
+#if 0
+static void b43_phy_ht_tx_power_ctl(struct b43_wldev *dev, bool enable)
+{
+	struct b43_phy_ht *phy_ht = dev->phy.ht;
+	u16 en_bits = B43_PHY_HT_TXPCTL_CMD_C1_COEFF |
+		      B43_PHY_HT_TXPCTL_CMD_C1_HWPCTLEN |
+		      B43_PHY_HT_TXPCTL_CMD_C1_PCTLEN;
+	static const u16 cmd_regs[3] = { B43_PHY_HT_TXPCTL_CMD_C1,
+					 B43_PHY_HT_TXPCTL_CMD_C2,
+					 B43_PHY_HT_TXPCTL_CMD_C3 };
+	int i;
+
+	if (!enable) {
+		if (b43_phy_read(dev, B43_PHY_HT_TXPCTL_CMD_C1) & en_bits) {
+			/* We disable enabled TX pwr ctl, save it's state */
+			/*
+			 * TODO: find the registers. On N-PHY they were 0x1ed
+			 * and 0x1ee, we need 3 such a registers for HT-PHY
+			 */
+		}
+		b43_phy_mask(dev, B43_PHY_HT_TXPCTL_CMD_C1, ~en_bits);
+	} else {
+		b43_phy_set(dev, B43_PHY_HT_TXPCTL_CMD_C1, en_bits);
+
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) {
+			for (i = 0; i < 3; i++)
+				b43_phy_write(dev, cmd_regs[i], 0x32);
+		}
+
+		for (i = 0; i < 3; i++)
+			if (phy_ht->tx_pwr_idx[i] <=
+			    B43_PHY_HT_TXPCTL_CMD_C1_INIT)
+				b43_phy_write(dev, cmd_regs[i],
+					      phy_ht->tx_pwr_idx[i]);
+	}
+
+	phy_ht->tx_pwr_ctl = enable;
+}
+#endif
+
 /**************************************************
  * Channel switching ops.
  **************************************************/
@@ -455,14 +495,21 @@ static void b43_phy_ht_op_prepare_structs(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_ht *phy_ht = phy->ht;
+	int i;
 
 	memset(phy_ht, 0, sizeof(*phy_ht));
+
+	phy_ht->tx_pwr_ctl = true;
+	for (i = 0; i < 3; i++)
+		phy_ht->tx_pwr_idx[i] = B43_PHY_HT_TXPCTL_CMD_C1_INIT + 1;
 }
 
 static int b43_phy_ht_op_init(struct b43_wldev *dev)
 {
+	struct b43_phy_ht *phy_ht = dev->phy.ht;
 	u16 tmp;
 	u16 clip_state[3];
+	bool saved_tx_pwr_ctl;
 
 	if (dev->dev->bus_type != B43_BUS_BCMA) {
 		b43err(dev->wl, "HT-PHY is supported only on BCMA bus!\n");
@@ -588,6 +635,14 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 
 	b43_httab_write_bulk(dev, B43_HTTAB32(0x1a, 0xc0),
 			B43_HTTAB_1A_C0_LATE_SIZE, b43_httab_0x1a_0xc0_late);
+
+	saved_tx_pwr_ctl = phy_ht->tx_pwr_ctl;
+	b43_phy_ht_tx_power_fix(dev);
+#if 0
+	b43_phy_ht_tx_power_ctl(dev, false);
+	/* TODO */
+	b43_phy_ht_tx_power_ctl(dev, saved_tx_pwr_ctl);
+#endif
 
 	return 0;
 }

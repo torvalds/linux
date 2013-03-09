@@ -22,6 +22,13 @@
 #define B43_PHY_HT_BW4				0x1D1
 #define B43_PHY_HT_BW5				0x1D2
 #define B43_PHY_HT_BW6				0x1D3
+#define B43_PHY_HT_TXPCTL_CMD_C1		0x1E7	/* TX power control command */
+#define  B43_PHY_HT_TXPCTL_CMD_C1_INIT		0x007F	/* Init */
+#define  B43_PHY_HT_TXPCTL_CMD_C1_COEFF		0x2000	/* Power control coefficients */
+#define  B43_PHY_HT_TXPCTL_CMD_C1_HWPCTLEN	0x4000	/* Hardware TX power control enable */
+#define  B43_PHY_HT_TXPCTL_CMD_C1_PCTLEN	0x8000	/* TX power control enable */
+#define B43_PHY_HT_TXPCTL_CMD_C2		0x222
+#define  B43_PHY_HT_TXPCTL_CMD_C2_INIT		0x007F
 
 #define B43_PHY_HT_C1_CLIP1THRES		B43_PHY_OFDM(0x00E)
 #define B43_PHY_HT_C2_CLIP1THRES		B43_PHY_OFDM(0x04E)
@@ -51,6 +58,9 @@
 #define B43_PHY_HT_AFE_C3_OVER			B43_PHY_EXTG(0x118)
 #define B43_PHY_HT_AFE_C3			B43_PHY_EXTG(0x119)
 
+#define B43_PHY_HT_TXPCTL_CMD_C3		B43_PHY_EXTG(0x164)
+#define  B43_PHY_HT_TXPCTL_CMD_C3_INIT		0x007F
+
 #define B43_PHY_HT_TEST				B43_PHY_N_BMODE(0x00A)
 
 
@@ -67,6 +77,9 @@ struct b43_phy_ht_channeltab_e_phy {
 
 struct b43_phy_ht {
 	u16 rf_ctl_int_save[3];
+
+	bool tx_pwr_ctl;
+	u8 tx_pwr_idx[3];
 };
 
 
