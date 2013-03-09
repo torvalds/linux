@@ -1087,6 +1087,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		goto allocfail;
 	usb->board = board;
 	usb->usbdev = usbdev;
+	usb_make_path(usbdev, go->bus_info, sizeof(go->bus_info));
 	go->board_id = id->driver_info;
 	strncpy(go->name, name, sizeof(go->name));
 	if (board->flags & GO7007_USB_EZUSB)

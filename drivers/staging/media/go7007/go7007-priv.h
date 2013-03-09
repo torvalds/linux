@@ -171,6 +171,7 @@ enum go7007_parser_state {
 
 struct go7007 {
 	struct device *dev;
+	u8 bus_info[32];
 	struct go7007_board_info *board_info;
 	unsigned int board_id;
 	int tuner_type;
