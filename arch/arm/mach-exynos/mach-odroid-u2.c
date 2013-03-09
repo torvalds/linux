@@ -990,6 +990,26 @@ static struct dw_mci_board odroid_u2_dwmci_pdata = {
 	.get_bus_wd		= odroid_u2_dwmci_get_bus_wd,
 };
 
+static struct resource tmu_resource[] = {
+	[0] = {
+		.start	= EXYNOS4_PA_TMU,
+		.end	= EXYNOS4_PA_TMU + 0xFFFF - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= EXYNOS4_IRQ_TMU_TRIG0,
+		.end	= EXYNOS4_IRQ_TMU_TRIG0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device exynos4412_tmu = {
+	.id = -1,
+	.name = "exynos5250-tmu", // misleading name, I know.
+	.num_resources	= ARRAY_SIZE(tmu_resource),
+	.resource	= tmu_resource,
+};
+
 static struct platform_device *odroid_u2_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_i2c0,
@@ -1027,6 +1047,7 @@ static struct platform_device *odroid_u2_devices[] __initdata = {
 #if defined(CONFIG_SND_SOC_HKDK_MAX98090)
 	&hardkernel_audio_device,
 #endif
+	&exynos4412_tmu,
 };
 
 static void __init odroid_u2_map_io(void)
