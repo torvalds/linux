@@ -1819,14 +1819,16 @@ static int read_partial_message_pages(struct ceph_connection *con,
 
 #ifdef CONFIG_BLOCK
 static int read_partial_message_bio(struct ceph_connection *con,
-				    struct bio **bio_iter,
-				    unsigned int *bio_seg,
 				    unsigned int data_len, bool do_datacrc)
 {
-	struct bio_vec *bv = bio_iovec_idx(*bio_iter, *bio_seg);
+	struct ceph_msg *msg = con->in_msg;
+	struct bio_vec *bv;
 	void *p;
 	int ret, left;
 
+	BUG_ON(!msg);
+	BUG_ON(!msg->bio_iter);
+	bv = bio_iovec_idx(msg->bio_iter, msg->bio_seg);
 	left = min((int)(data_len - con->in_msg_pos.data_pos),
 		   (int)(bv->bv_len - con->in_msg_pos.page_pos));
 
@@ -1845,7 +1847,7 @@ static int read_partial_message_bio(struct ceph_connection *con,
 	con->in_msg_pos.page_pos += ret;
 	if (con->in_msg_pos.page_pos == bv->bv_len) {
 		con->in_msg_pos.page_pos = 0;
-		iter_bio_next(bio_iter, bio_seg);
+		iter_bio_next(&msg->bio_iter, &msg->bio_seg);
 	}
 
 	return ret;
@@ -1975,9 +1977,7 @@ static int read_partial_message(struct ceph_connection *con)
 				return ret;
 #ifdef CONFIG_BLOCK
 		} else if (m->bio) {
-			BUG_ON(!m->bio_iter);
 			ret = read_partial_message_bio(con,
-						 &m->bio_iter, &m->bio_seg,
 						 data_len, do_datacrc);
 			if (ret <= 0)
 				return ret;
