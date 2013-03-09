@@ -2788,7 +2788,7 @@ static __init void exynos_gpiolib_attach_ofnode(struct samsung_gpio_chip *chip,
 
 static __init void exynos4_gpiolib_init(void)
 {
-#ifdef CONFIG_CPU_EXYNOS4210
+#ifdef CONFIG_ARCH_EXYNOS4
 	struct samsung_gpio_chip *chip;
 	int i, nr_chips;
 	void __iomem *gpio_base1, *gpio_base2, *gpio_base3;
@@ -2877,7 +2877,7 @@ err_ioremap2:
 	iounmap(gpio_base1);
 err_ioremap1:
 	return;
-#endif	/* CONFIG_CPU_EXYNOS4210 */
+#endif	/* CONFIG_ARCH_EXYNOS4 */
 }
 
 static __init void exynos5_gpiolib_init(void)
@@ -3098,6 +3098,8 @@ static __init int samsung_gpiolib_init(void)
 		exynos4_gpiolib_init();
 	} else if (soc_is_exynos5250()) {
 		exynos5_gpiolib_init();
+	} else if (soc_is_exynos4212() || soc_is_exynos4412()) {
+		exynos4_gpiolib_init();
 	} else {
 		WARN(1, "Unknown SoC in gpio-samsung, no GPIOs added\n");
 		return -ENODEV;
