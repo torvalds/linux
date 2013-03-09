@@ -23,7 +23,7 @@
 #include <cypress_firmware.h>
 
 #define S2250_LOADER_FIRMWARE	"s2250_loader.fw"
-#define S2250_FIRMWARE		"s2250.fw"
+#define S2250_FIRMWARE		"2250.fw"
 
 typedef struct device_extension_s {
     struct kref     kref;
@@ -31,22 +31,22 @@ typedef struct device_extension_s {
     struct usb_device *usbdev;
 } device_extension_t, *pdevice_extension_t;
 
-#define USB_s2250loader_MAJOR 240
-#define USB_s2250loader_MINOR_BASE 0
+#define USB_go7007_loader_MAJOR 240
+#define USB_go7007_loader_MINOR_BASE 0
 #define MAX_DEVICES 256
 
-static pdevice_extension_t s2250_dev_table[MAX_DEVICES];
-static DEFINE_MUTEX(s2250_dev_table_mutex);
+static pdevice_extension_t go7007_dev_table[MAX_DEVICES];
+static DEFINE_MUTEX(go7007_dev_table_mutex);
 
-#define to_s2250loader_dev_common(d) container_of(d, device_extension_t, kref)
-static void s2250loader_delete(struct kref *kref)
+#define to_go7007_loader_dev_common(d) container_of(d, device_extension_t, kref)
+static void go7007_loader_delete(struct kref *kref)
 {
-	pdevice_extension_t s = to_s2250loader_dev_common(kref);
-	s2250_dev_table[s->minor] = NULL;
+	pdevice_extension_t s = to_go7007_loader_dev_common(kref);
+	go7007_dev_table[s->minor] = NULL;
 	kfree(s);
 }
 
-static int s2250loader_probe(struct usb_interface *interface,
+static int go7007_loader_probe(struct usb_interface *interface,
 				const struct usb_device_id *id)
 {
 	struct usb_device *usbdev;
@@ -56,10 +56,9 @@ static int s2250loader_probe(struct usb_interface *interface,
 
 	usbdev = usb_get_dev(interface_to_usbdev(interface));
 	if (!usbdev) {
-		dev_err(&interface->dev, "Enter s2250loader_probe failed\n");
+		dev_err(&interface->dev, "Enter go7007_loader_probe failed\n");
 		return -1;
 	}
-	dev_info(&interface->dev, "Enter s2250loader_probe 2.6 kernel\n");
 	dev_info(&interface->dev, "vendor id 0x%x, device id 0x%x devnum:%d\n",
 		 usbdev->descriptor.idVendor, usbdev->descriptor.idProduct,
 		 usbdev->devnum);
@@ -68,10 +67,10 @@ static int s2250loader_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "can't handle multiple config\n");
 		return -1;
 	}
-	mutex_lock(&s2250_dev_table_mutex);
+	mutex_lock(&go7007_dev_table_mutex);
 
 	for (minor = 0; minor < MAX_DEVICES; minor++) {
-		if (s2250_dev_table[minor] == NULL)
+		if (go7007_dev_table[minor] == NULL)
 			break;
 	}
 
@@ -85,23 +84,23 @@ static int s2250loader_probe(struct usb_interface *interface,
 	if (s == NULL)
 		goto failed;
 
-	s2250_dev_table[minor] = s;
+	go7007_dev_table[minor] = s;
 
 	dev_info(&interface->dev,
-		 "s2250loader_probe: Device %d on Bus %d Minor %d\n",
+		 "Device %d on Bus %d Minor %d\n",
 		 usbdev->devnum, usbdev->bus->busnum, minor);
 
 	memset(s, 0, sizeof(device_extension_t));
 	s->usbdev = usbdev;
-	dev_info(&interface->dev, "loading 2250 loader\n");
+	dev_info(&interface->dev, "loading go7007-loader\n");
 
 	kref_init(&(s->kref));
 
-	mutex_unlock(&s2250_dev_table_mutex);
+	mutex_unlock(&go7007_dev_table_mutex);
 
 	if (request_firmware(&fw, S2250_LOADER_FIRMWARE, &usbdev->dev)) {
 		dev_err(&interface->dev,
-			"s2250: unable to load firmware from file \"%s\"\n",
+			"unable to load firmware from file \"%s\"\n",
 			S2250_LOADER_FIRMWARE);
 		goto failed2;
 	}
@@ -114,14 +113,14 @@ static int s2250loader_probe(struct usb_interface *interface,
 
 	if (request_firmware(&fw, S2250_FIRMWARE, &usbdev->dev)) {
 		dev_err(&interface->dev,
-			"s2250: unable to load firmware from file \"%s\"\n",
+			"unable to load firmware from file \"%s\"\n",
 			S2250_FIRMWARE);
 		goto failed2;
 	}
 	ret = usbv2_cypress_load_firmware(usbdev, fw, CYPRESS_FX2);
 	release_firmware(fw);
 	if (0 != ret) {
-		dev_err(&interface->dev, "firmware_s2250 download failed\n");
+		dev_err(&interface->dev, "firmware download failed\n");
 		goto failed2;
 	}
 
@@ -129,42 +128,42 @@ static int s2250loader_probe(struct usb_interface *interface,
 	return 0;
 
 failed:
-	mutex_unlock(&s2250_dev_table_mutex);
+	mutex_unlock(&go7007_dev_table_mutex);
 failed2:
 	if (s)
-		kref_put(&(s->kref), s2250loader_delete);
+		kref_put(&(s->kref), go7007_loader_delete);
 
 	dev_err(&interface->dev, "probe failed\n");
 	return -1;
 }
 
-static void s2250loader_disconnect(struct usb_interface *interface)
+static void go7007_loader_disconnect(struct usb_interface *interface)
 {
 	pdevice_extension_t s;
-	dev_info(&interface->dev, "s2250: disconnect\n");
+	dev_info(&interface->dev, "disconnect\n");
 	s = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
-	kref_put(&(s->kref), s2250loader_delete);
+	kref_put(&(s->kref), go7007_loader_delete);
 }
 
-static const struct usb_device_id s2250loader_ids[] = {
+static const struct usb_device_id go7007_loader_ids[] = {
 	{USB_DEVICE(0x1943, 0xa250)},
 	{}                          /* Terminating entry */
 };
 
-MODULE_DEVICE_TABLE(usb, s2250loader_ids);
+MODULE_DEVICE_TABLE(usb, go7007_loader_ids);
 
-static struct usb_driver s2250loader_driver = {
-	.name		= "s2250-loader",
-	.probe		= s2250loader_probe,
-	.disconnect	= s2250loader_disconnect,
-	.id_table	= s2250loader_ids,
+static struct usb_driver go7007_loader_driver = {
+	.name		= "go7007-loader",
+	.probe		= go7007_loader_probe,
+	.disconnect	= go7007_loader_disconnect,
+	.id_table	= go7007_loader_ids,
 };
 
-module_usb_driver(s2250loader_driver);
+module_usb_driver(go7007_loader_driver);
 
 MODULE_AUTHOR("");
-MODULE_DESCRIPTION("firmware loader for Sensoray 2250/2251");
+MODULE_DESCRIPTION("firmware loader for go7007 USB devices");
 MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(S2250_LOADER_FIRMWARE);
 MODULE_FIRMWARE(S2250_FIRMWARE);
