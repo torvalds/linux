@@ -1238,6 +1238,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (!go->i2c_adapter_online)
 		return -EIO;
 
+	strlcpy(t->name, "Tuner", sizeof(t->name));
 	return call_all(&go->v4l2_dev, tuner, g_tuner, t);
 }
 

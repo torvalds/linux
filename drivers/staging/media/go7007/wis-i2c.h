@@ -34,9 +34,3 @@ struct video_decoder_resolution {
 
 #define	DECODER_SET_RESOLUTION	_IOW('d', 200, struct video_decoder_resolution)
 #define	DECODER_SET_CHANNEL	_IOW('d', 201, int)
-
-/* Sony tuner types */
-
-#define TUNER_SONY_BTF_PG472Z		200
-#define TUNER_SONY_BTF_PK467Z		201
-#define TUNER_SONY_BTF_PB463Z		202

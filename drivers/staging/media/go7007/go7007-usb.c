@@ -27,6 +27,7 @@
 #include <linux/i2c.h>
 #include <asm/byteorder.h>
 #include <media/tvaudio.h>
+#include <media/tuner.h>
 
 #include "go7007-priv.h"
 #include "wis-i2c.h"
