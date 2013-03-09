@@ -176,10 +176,10 @@ static void b43_phy_ht_afe_unk1(struct b43_wldev *dev)
 {
 	u8 i;
 
-	const u16 ctl_regs[3][2] = {
-		{ B43_PHY_HT_AFE_CTL1, B43_PHY_HT_AFE_CTL2 },
-		{ B43_PHY_HT_AFE_CTL3, B43_PHY_HT_AFE_CTL4 },
-		{ B43_PHY_HT_AFE_CTL5, B43_PHY_HT_AFE_CTL6},
+	static const u16 ctl_regs[3][2] = {
+		{ B43_PHY_HT_AFE_C1_OVER, B43_PHY_HT_AFE_C1 },
+		{ B43_PHY_HT_AFE_C2_OVER, B43_PHY_HT_AFE_C2 },
+		{ B43_PHY_HT_AFE_C3_OVER, B43_PHY_HT_AFE_C3},
 	};
 
 	for (i = 0; i < 3; i++) {
@@ -362,9 +362,9 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 
 	b43_phy_mask(dev, B43_PHY_EXTG(0), ~0x3);
 
-	b43_phy_write(dev, B43_PHY_HT_AFE_CTL1, 0);
-	b43_phy_write(dev, B43_PHY_HT_AFE_CTL3, 0);
-	b43_phy_write(dev, B43_PHY_HT_AFE_CTL5, 0);
+	b43_phy_write(dev, B43_PHY_HT_AFE_C1_OVER, 0);
+	b43_phy_write(dev, B43_PHY_HT_AFE_C2_OVER, 0);
+	b43_phy_write(dev, B43_PHY_HT_AFE_C3_OVER, 0);
 
 	b43_phy_write(dev, B43_PHY_EXTG(0x103), 0x20);
 	b43_phy_write(dev, B43_PHY_EXTG(0x101), 0x20);
@@ -511,19 +511,19 @@ static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 static void b43_phy_ht_op_switch_analog(struct b43_wldev *dev, bool on)
 {
 	if (on) {
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL2, 0x00cd);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL1, 0x0000);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL4, 0x00cd);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL3, 0x0000);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL6, 0x00cd);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL5, 0x0000);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C1, 0x00cd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C1_OVER, 0x0000);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C2, 0x00cd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C2_OVER, 0x0000);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C3, 0x00cd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C3_OVER, 0x0000);
 	} else {
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL1, 0x07ff);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL2, 0x00fd);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL3, 0x07ff);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL4, 0x00fd);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL5, 0x07ff);
-		b43_phy_write(dev, B43_PHY_HT_AFE_CTL6, 0x00fd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C1_OVER, 0x07ff);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C1, 0x00fd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C2_OVER, 0x07ff);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C2, 0x00fd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C3_OVER, 0x07ff);
+		b43_phy_write(dev, B43_PHY_HT_AFE_C3, 0x00fd);
 	}
 }
 
