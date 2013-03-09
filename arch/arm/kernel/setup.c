@@ -291,10 +291,10 @@ static int cpu_has_aliasing_icache(unsigned int arch)
 
 static void __init cacheid_init(void)
 {
-	unsigned int cachetype = read_cpuid_cachetype();
 	unsigned int arch = cpu_architecture();
 
 	if (arch >= CPU_ARCH_ARMv6) {
+		unsigned int cachetype = read_cpuid_cachetype();
 		if ((cachetype & (7 << 29)) == 4 << 29) {
 			/* ARMv7 register format */
 			arch = CPU_ARCH_ARMv7;

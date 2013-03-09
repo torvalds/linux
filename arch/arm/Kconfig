@@ -1684,8 +1684,9 @@ config SCHED_HRTICK
 	def_bool HIGH_RES_TIMERS
 
 config THUMB2_KERNEL
-	bool "Compile the kernel in Thumb-2 mode"
+	bool "Compile the kernel in Thumb-2 mode" if !CPU_THUMBONLY
 	depends on CPU_V7 && !CPU_V6 && !CPU_V6K
+	default y if CPU_THUMBONLY
 	select AEABI
 	select ARM_ASM_UNIFIED
 	select ARM_UNWIND

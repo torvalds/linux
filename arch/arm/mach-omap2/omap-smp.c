@@ -209,7 +209,7 @@ static void __init omap4_smp_init_cpus(void)
 	unsigned int i = 0, ncores = 1, cpu_id;
 
 	/* Use ARM cpuid check here, as SoC detection will not work so early */
-	cpu_id = read_cpuid(CPUID_ID) & CPU_MASK;
+	cpu_id = read_cpuid_id() & CPU_MASK;
 	if (cpu_id == CPU_CORTEX_A9) {
 		/*
 		 * Currently we can't call ioremap here because

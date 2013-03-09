@@ -300,7 +300,7 @@ void __init omap3xxx_check_revision(void)
 	 * If the processor type is Cortex-A8 and the revision is 0x0
 	 * it means its Cortex r0p0 which is 3430 ES1.0.
 	 */
-	cpuid = read_cpuid(CPUID_ID);
+	cpuid = read_cpuid_id();
 	if ((((cpuid >> 4) & 0xfff) == 0xc08) && ((cpuid & 0xf) == 0x0)) {
 		omap_revision = OMAP3430_REV_ES1_0;
 		cpu_rev = "1.0";
@@ -460,7 +460,7 @@ void __init omap4xxx_check_revision(void)
 	 * Use ARM register to detect the correct ES version
 	 */
 	if (!rev && (hawkeye != 0xb94e) && (hawkeye != 0xb975)) {
-		idcode = read_cpuid(CPUID_ID);
+		idcode = read_cpuid_id();
 		rev = (idcode & 0xf) - 1;
 	}
 
