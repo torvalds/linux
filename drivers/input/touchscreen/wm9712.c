@@ -298,7 +298,7 @@ static int wm9712_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 		dev_dbg(wm->dev, "adc wrong sample, wanted %x got %x",
 			adcsel & WM97XX_ADCSEL_MASK,
 			*sample & WM97XX_ADCSEL_MASK);
-		return RC_PENUP;
+		return RC_AGAIN;
 	}
 
 	if (wants_pen && !(*sample & WM97XX_PEN_DOWN)) {
