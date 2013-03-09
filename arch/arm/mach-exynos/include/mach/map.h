@@ -37,6 +37,8 @@
 
 #define EXYNOS4_PA_JPEG			0x11840000
 
+#define EXYNOS4_PA_AUDSS		0x03810000
+
 /* x = 0...1 */
 #define EXYNOS4_PA_FIMC_LITE(x)		(0x12390000 + ((x) * 0x10000))
 
