@@ -1085,6 +1085,19 @@ static void in_msg_pos_next(struct ceph_connection *con, size_t len,
 #endif /* CONFIG_BLOCK */
 }
 
+static u32 ceph_crc32c_page(u32 crc, struct page *page,
+				unsigned int page_offset,
+				unsigned int length)
+{
+	char *kaddr;
+
+	kaddr = kmap(page);
+	BUG_ON(kaddr == NULL);
+	crc = crc32c(crc, kaddr + page_offset, length);
+	kunmap(page);
+
+	return crc;
+}
 /*
  * Write as much message data payload as we can.  If we finish, queue
  * up the footer.
@@ -1153,15 +1166,9 @@ static int write_partial_message_data(struct ceph_connection *con)
 
 		page_offset = msg_pos->page_pos + bio_offset;
 		if (do_datacrc && !msg_pos->did_page_crc) {
-			void *base;
 			u32 crc = le32_to_cpu(msg->footer.data_crc);
-			char *kaddr;
 
-			kaddr = kmap(page);
-			BUG_ON(kaddr == NULL);
-			base = kaddr + page_offset;
-			crc = crc32c(crc, base, length);
-			kunmap(page);
+			crc = ceph_crc32c_page(crc, page, page_offset, length);
 			msg->footer.data_crc = cpu_to_le32(crc);
 			msg_pos->did_page_crc = true;
 		}
@@ -1843,16 +1850,9 @@ static int read_partial_message_pages(struct ceph_connection *con,
 	if (ret <= 0)
 		return ret;
 
-	if (do_datacrc) {
-		void *kaddr;
-		void *base;
-
-		kaddr = kmap(page);
-		BUG_ON(!kaddr);
-		base = kaddr + page_offset;
-		con->in_data_crc = crc32c(con->in_data_crc, base, ret);
-		kunmap(page);
-	}
+	if (do_datacrc)
+		con->in_data_crc = ceph_crc32c_page(con->in_data_crc, page,
+							page_offset, ret);
 
 	in_msg_pos_next(con, length, ret);
 
@@ -1886,16 +1886,9 @@ static int read_partial_message_bio(struct ceph_connection *con,
 	if (ret <= 0)
 		return ret;
 
-	if (do_datacrc) {
-		void *kaddr;
-		void *base;
-
-		kaddr = kmap(page);
-		BUG_ON(!kaddr);
-		base = kaddr + page_offset;
-		con->in_data_crc = crc32c(con->in_data_crc, base, ret);
-		kunmap(page);
-	}
+	if (do_datacrc)
+		con->in_data_crc = ceph_crc32c_page(con->in_data_crc, page,
+							page_offset, ret);
 
 	in_msg_pos_next(con, length, ret);
 
