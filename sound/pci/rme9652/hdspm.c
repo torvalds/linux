@@ -1076,6 +1076,20 @@ static int snd_hdspm_use_is_exclusive(struct hdspm *hdspm)
 	return ret;
 }
 
+/* round arbitary sample rates to commonly known rates */
+static int hdspm_round_frequency(int rate)
+{
+	if (rate < 38050)
+		return 32000;
+	if (rate < 46008)
+		return 44100;
+	else
+		return 48000;
+}
+
+static int hdspm_tco_sync_check(struct hdspm *hdspm);
+static int hdspm_sync_in_sync_check(struct hdspm *hdspm);
+
 /* check for external sample rate */
 static int hdspm_external_sample_rate(struct hdspm *hdspm)
 {
@@ -1217,21 +1231,44 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 				break;
 			}
 
-			/* QS and DS rates normally can not be detected
-			 * automatically by the card. Only exception is MADI
-			 * in 96k frame mode.
-			 *
-			 * So if we read SS values (32 .. 48k), check for
-			 * user-provided DS/QS bits in the control register
-			 * and multiply the base frequency accordingly.
-			 */
-			if (rate <= 48000) {
-				if (hdspm->control_register & HDSPM_QuadSpeed)
-					rate *= 4;
-				else if (hdspm->control_register &
-						HDSPM_DoubleSpeed)
-					rate *= 2;
+		} /* endif HDSPM_madiLock */
+
+		/* check sample rate from TCO or SYNC_IN */
+		{
+			bool is_valid_input = 0;
+			bool has_sync = 0;
+
+			syncref = hdspm_autosync_ref(hdspm);
+			if (HDSPM_AUTOSYNC_FROM_TCO == syncref) {
+				is_valid_input = 1;
+				has_sync = (HDSPM_SYNC_CHECK_SYNC ==
+					hdspm_tco_sync_check(hdspm));
+			} else if (HDSPM_AUTOSYNC_FROM_SYNC_IN == syncref) {
+				is_valid_input = 1;
+				has_sync = (HDSPM_SYNC_CHECK_SYNC ==
+					hdspm_sync_in_sync_check(hdspm));
 			}
+
+			if (is_valid_input && has_sync) {
+				rate = hdspm_round_frequency(
+					hdspm_get_pll_freq(hdspm));
+			}
+		}
+
+		/* QS and DS rates normally can not be detected
+		 * automatically by the card. Only exception is MADI
+		 * in 96k frame mode.
+		 *
+		 * So if we read SS values (32 .. 48k), check for
+		 * user-provided DS/QS bits in the control register
+		 * and multiply the base frequency accordingly.
+		 */
+		if (rate <= 48000) {
+			if (hdspm->control_register & HDSPM_QuadSpeed)
+				rate *= 4;
+			else if (hdspm->control_register &
+					HDSPM_DoubleSpeed)
+				rate *= 2;
 		}
 		break;
 	}
