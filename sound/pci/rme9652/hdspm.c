@@ -4192,6 +4192,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_madi[] = {
 	HDSPM_SYNC_CHECK("SYNC IN SyncCheck", 3),
 	HDSPM_TOGGLE_SETTING("Line Out", HDSPM_LineOut),
 	HDSPM_TOGGLE_SETTING("TX 64 channels mode", HDSPM_TX_64ch),
+	HDSPM_TOGGLE_SETTING("Disable 96K frames", HDSPM_SMUX),
 	HDSPM_TOGGLE_SETTING("Clear Track Marker", HDSPM_clr_tms),
 	HDSPM_TOGGLE_SETTING("Safe Mode", HDSPM_AutoInp),
 	HDSPM_INPUT_SELECT("Input Select", 0),
