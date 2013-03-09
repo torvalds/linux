@@ -188,6 +188,7 @@ struct go7007 {
 	int audio_enabled;
 	struct v4l2_subdev *sd_video;
 	struct v4l2_subdev *sd_audio;
+	u8 usb_buf[16];
 
 	/* Video input */
 	int input;

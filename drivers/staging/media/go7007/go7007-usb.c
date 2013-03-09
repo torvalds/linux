@@ -652,7 +652,7 @@ static int go7007_usb_ezusb_write_interrupt(struct go7007 *go,
 {
 	struct go7007_usb *usb = go->hpi_context;
 	int i, r;
-	u16 status_reg;
+	u16 status_reg = 0;
 	int timeout = 500;
 
 #ifdef GO7007_USB_DEBUG
@@ -664,15 +664,17 @@ static int go7007_usb_ezusb_write_interrupt(struct go7007 *go,
 		r = usb_control_msg(usb->usbdev,
 				usb_rcvctrlpipe(usb->usbdev, 0), 0x14,
 				USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-				0, HPI_STATUS_ADDR, &status_reg,
+				0, HPI_STATUS_ADDR, go->usb_buf,
 				sizeof(status_reg), timeout);
 		if (r < 0)
-			goto write_int_error;
-		__le16_to_cpus(&status_reg);
+			break;
+		status_reg = le16_to_cpu(*((u16 *)go->usb_buf));
 		if (!(status_reg & 0x0010))
 			break;
 		msleep(10);
 	}
+	if (r < 0)
+		goto write_int_error;
 	if (i == 100) {
 		printk(KERN_ERR
 			"go7007-usb: device is hung, status reg = 0x%04x\n",
@@ -700,7 +702,6 @@ static int go7007_usb_onboard_write_interrupt(struct go7007 *go,
 						int addr, int data)
 {
 	struct go7007_usb *usb = go->hpi_context;
-	u8 *tbuf;
 	int r;
 	int timeout = 500;
 
@@ -709,17 +710,14 @@ static int go7007_usb_onboard_write_interrupt(struct go7007 *go,
 		"go7007-usb: WriteInterrupt: %04x %04x\n", addr, data);
 #endif
 
-	tbuf = kzalloc(8, GFP_KERNEL);
-	if (tbuf == NULL)
-		return -ENOMEM;
-	tbuf[0] = data & 0xff;
-	tbuf[1] = data >> 8;
-	tbuf[2] = addr & 0xff;
-	tbuf[3] = addr >> 8;
+	go->usb_buf[0] = data & 0xff;
+	go->usb_buf[1] = data >> 8;
+	go->usb_buf[2] = addr & 0xff;
+	go->usb_buf[3] = addr >> 8;
+	go->usb_buf[4] = go->usb_buf[5] = go->usb_buf[6] = go->usb_buf[7] = 0;
 	r = usb_control_msg(usb->usbdev, usb_sndctrlpipe(usb->usbdev, 2), 0x00,
 			USB_TYPE_VENDOR | USB_RECIP_ENDPOINT, 0x55aa,
-			0xf0f0, tbuf, 8, timeout);
-	kfree(tbuf);
+			0xf0f0, go->usb_buf, 8, timeout);
 	if (r < 0) {
 		printk(KERN_ERR "go7007-usb: error in WriteInterrupt: %d\n", r);
 		return r;
@@ -913,7 +911,7 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 {
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct go7007_usb *usb = go->hpi_context;
-	u8 buf[16];
+	u8 *buf = go->usb_buf;
 	int buf_len, i;
 	int ret = -EIO;
 
@@ -1169,14 +1167,12 @@ static int go7007_usb_probe(struct usb_interface *intf,
 
 	/* Probe the tuner model on the TV402U */
 	if (go->board_id == GO7007_BOARDID_PX_TV402U_ANY) {
-		u8 data[3];
-
 		/* Board strapping indicates tuner model */
-		if (go7007_usb_vendor_request(go, 0x41, 0, 0, data, 3, 1) < 0) {
+		if (go7007_usb_vendor_request(go, 0x41, 0, 0, go->usb_buf, 3, 1) < 0) {
 			printk(KERN_ERR "go7007-usb: GPIO read failed!\n");
 			goto initfail;
 		}
-		switch (data[0] >> 6) {
+		switch (go->usb_buf[0] >> 6) {
 		case 1:
 			go->board_id = GO7007_BOARDID_PX_TV402U_EU;
 			go->tuner_type = TUNER_SONY_BTF_PG472Z;
@@ -1309,8 +1305,8 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 
 	kfree(go->hpi_context);
 
-	go7007_remove(go);
 	go->status = STATUS_SHUTDOWN;
+	go7007_remove(go);
 }
 
 static struct usb_driver go7007_usb_driver = {

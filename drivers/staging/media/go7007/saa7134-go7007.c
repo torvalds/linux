@@ -261,12 +261,12 @@ static int saa7134_go7007_stream_start(struct go7007 *go)
 
 	saa->top_dma = dma_map_page(&dev->pci->dev, virt_to_page(saa->top),
 			0, PAGE_SIZE, DMA_FROM_DEVICE);
-	if (!saa->top_dma)
+	if (dma_mapping_error(&dev->pci->dev, saa->top_dma))
 		return -ENOMEM;
 	saa->bottom_dma = dma_map_page(&dev->pci->dev,
 			virt_to_page(saa->bottom),
 			0, PAGE_SIZE, DMA_FROM_DEVICE);
-	if (!saa->bottom_dma) {
+	if (dma_mapping_error(&dev->pci->dev, saa->bottom_dma)) {
 		dma_unmap_page(&dev->pci->dev, saa->top_dma, PAGE_SIZE,
 				DMA_FROM_DEVICE);
 		return -ENOMEM;

@@ -584,7 +584,7 @@ static int s2250_probe(struct i2c_client *client,
 	if (audio == NULL)
 		return -ENOMEM;
 
-	state = kmalloc(sizeof(struct s2250), GFP_KERNEL);
+	state = kzalloc(sizeof(struct s2250), GFP_KERNEL);
 	if (state == NULL) {
 		i2c_unregister_device(audio);
 		return -ENOMEM;
