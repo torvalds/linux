@@ -360,6 +360,13 @@
 							MX51_PAD_KEY_COL5__I2C2_SDA 0x400001ed
 						>;
 					};
+
+					pinctrl_i2c2_2: i2c2grp-2 {
+						fsl,pins = <
+							MX51_PAD_EIM_D27__I2C2_SCL 0x400001ed
+							MX51_PAD_EIM_D24__I2C2_SDA 0x400001ed
+						>;
+					};
 				};
 
 				ipu_disp1 {
