@@ -899,6 +899,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	if ((iph->ttl = tiph->ttl) == 0)
 		iph->ttl	=	iph6->hop_limit;
 
+	skb->ip_summed = CHECKSUM_NONE;
+	ip_select_ident(iph, skb_dst(skb), NULL);
 	iptunnel_xmit(skb, dev);
 	return NETDEV_TX_OK;
 

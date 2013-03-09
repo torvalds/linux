@@ -855,7 +855,6 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	__u16 src_port;
 	__be16 df = 0;
 	__u8 tos, ttl;
-	int err;
 	bool did_rsc = false;
 	const struct vxlan_fdb *f;
 
@@ -980,18 +979,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (handle_offloads(skb))
 		goto drop;
 
-	err = ip_local_out(skb);
-	if (likely(net_xmit_eval(err) == 0)) {
-		struct vxlan_stats *stats = this_cpu_ptr(vxlan->stats);
-
-		u64_stats_update_begin(&stats->syncp);
-		stats->tx_packets++;
-		stats->tx_bytes += pkt_len;
-		u64_stats_update_end(&stats->syncp);
-	} else {
-		dev->stats.tx_errors++;
-		dev->stats.tx_aborted_errors++;
-	}
+	iptunnel_xmit(skb, dev);
 	return NETDEV_TX_OK;
 
 drop:

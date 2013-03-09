@@ -762,7 +762,6 @@ error:
 
 static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct pcpu_tstats *tstats = this_cpu_ptr(dev->tstats);
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr  *old_iph;
 	const struct iphdr  *tiph;
@@ -778,7 +777,6 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	int    mtu;
 	u8     ttl;
 	int    err;
-	int    pkt_len;
 
 	skb = handle_offloads(tunnel, skb);
 	if (IS_ERR(skb)) {
@@ -1022,19 +1020,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 		}
 	}
 
-	nf_reset(skb);
-
-	pkt_len = skb->len - skb_transport_offset(skb);
-	err = ip_local_out(skb);
-	if (likely(net_xmit_eval(err) == 0)) {
-		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += pkt_len;
-		tstats->tx_packets++;
-		u64_stats_update_end(&tstats->syncp);
-	} else {
-		dev->stats.tx_errors++;
-		dev->stats.tx_aborted_errors++;
-	}
+	iptunnel_xmit(skb, dev);
 	return NETDEV_TX_OK;
 
 #if IS_ENABLED(CONFIG_IPV6)

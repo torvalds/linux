@@ -51,13 +51,10 @@ struct ip_tunnel_prl_entry {
 static inline void iptunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int err;
-	struct iphdr *iph = ip_hdr(skb);
 	int pkt_len = skb->len - skb_transport_offset(skb);
 	struct pcpu_tstats *tstats = this_cpu_ptr(dev->tstats);
 
 	nf_reset(skb);
-	skb->ip_summed = CHECKSUM_NONE;
-	ip_select_ident(iph, skb_dst(skb), NULL);
 
 	err = ip_local_out(skb);
 	if (likely(net_xmit_eval(err) == 0)) {
