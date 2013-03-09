@@ -132,14 +132,6 @@ void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 	if (bl_data->check_fb)
 		samsung_bl_data->check_fb = bl_data->check_fb;
 
-	/* Register the specific PWM timer dev for Backlight control */
-	ret = platform_device_register(
-			&s3c_device_timer[samsung_bl_data->pwm_id]);
-	if (ret) {
-		printk(KERN_ERR "failed to register pwm timer for backlight: %d\n", ret);
-		goto err_plat_reg1;
-	}
-
 	/* Register the Backlight dev */
 	ret = platform_device_register(samsung_bl_device);
 	if (ret) {
@@ -150,8 +142,6 @@ void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 	return;
 
 err_plat_reg2:
-	platform_device_unregister(&s3c_device_timer[samsung_bl_data->pwm_id]);
-err_plat_reg1:
 	kfree(samsung_bl_data);
 err_data:
 	kfree(samsung_bl_device);
