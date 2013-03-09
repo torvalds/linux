@@ -4366,7 +4366,11 @@ static struct snd_kcontrol_new snd_hdspm_controls_tco[] = {
 	HDSPM_TCO_WCK_CONVERSION("TCO WCK Conversion", 0),
 	HDSPM_TCO_FRAME_RATE("TCO Frame Rate", 0),
 	HDSPM_TCO_SYNC_SOURCE("TCO Sync Source", 0),
-	HDSPM_TCO_WORD_TERM("TCO Word Term", 0)
+	HDSPM_TCO_WORD_TERM("TCO Word Term", 0),
+	HDSPM_TCO_LOCK_CHECK("TCO Input Check", 11),
+	HDSPM_TCO_LOCK_CHECK("TCO LTC Valid", 12),
+	HDSPM_TCO_LTC_FRAMES("TCO Detected Frame Rate", 0),
+	HDSPM_TCO_VIDEO_INPUT_FORMAT("Video Input Format", 0)
 };
 
 
