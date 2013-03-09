@@ -56,6 +56,12 @@
 		reg = <0x10044040 0x20>;
 	};
 
+	clock: clock-controller@0x10010000 {
+		compatible = "samsung,exynos5250-clock";
+		reg = <0x10010000 0x30000>;
+		#clock-cells = <1>;
+	};
+
 	gic:interrupt-controller@10481000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;

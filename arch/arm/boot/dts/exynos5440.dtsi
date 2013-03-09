@@ -16,6 +16,12 @@
 
 	interrupt-parent = <&gic>;
 
+	clock: clock-controller@0x160000 {
+		compatible = "samsung,exynos5440-clock";
+		reg = <0x160000 0x1000>;
+		#clock-cells = <1>;
+	};
+
 	gic:interrupt-controller@2E0000 {
 		compatible = "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
