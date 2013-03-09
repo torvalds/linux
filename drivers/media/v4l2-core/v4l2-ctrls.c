@@ -1362,11 +1362,13 @@ static inline int handler_set_err(struct v4l2_ctrl_handler *hdl, int err)
 }
 
 /* Initialize the handler */
-int v4l2_ctrl_handler_init(struct v4l2_ctrl_handler *hdl,
-			   unsigned nr_of_controls_hint)
+int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
+				 unsigned nr_of_controls_hint,
+				 struct lock_class_key *key, const char *name)
 {
 	hdl->lock = &hdl->_lock;
 	mutex_init(hdl->lock);
+	lockdep_set_class_and_name(hdl->lock, key, name);
 	INIT_LIST_HEAD(&hdl->ctrls);
 	INIT_LIST_HEAD(&hdl->ctrl_refs);
 	hdl->nr_of_buckets = 1 + nr_of_controls_hint / 8;
@@ -1375,7 +1377,7 @@ int v4l2_ctrl_handler_init(struct v4l2_ctrl_handler *hdl,
 	hdl->error = hdl->buckets ? 0 : -ENOMEM;
 	return hdl->error;
 }
-EXPORT_SYMBOL(v4l2_ctrl_handler_init);
+EXPORT_SYMBOL(v4l2_ctrl_handler_init_class);
 
 /* Free all controls and control refs */
 void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
