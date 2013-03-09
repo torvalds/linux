@@ -19,7 +19,8 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
-#include <dvb-usb.h>
+#include <linux/firmware.h>
+#include <cypress_firmware.h>
 
 #define S2250_LOADER_FIRMWARE	"s2250_loader.fw"
 #define S2250_FIRMWARE		"s2250.fw"
@@ -104,7 +105,7 @@ static int s2250loader_probe(struct usb_interface *interface,
 			S2250_LOADER_FIRMWARE);
 		goto failed2;
 	}
-	ret = usb_cypress_load_firmware(usbdev, fw, CYPRESS_FX2);
+	ret = usbv2_cypress_load_firmware(usbdev, fw, CYPRESS_FX2);
 	release_firmware(fw);
 	if (0 != ret) {
 		dev_err(&interface->dev, "loader download failed\n");
@@ -117,7 +118,7 @@ static int s2250loader_probe(struct usb_interface *interface,
 			S2250_FIRMWARE);
 		goto failed2;
 	}
-	ret = usb_cypress_load_firmware(usbdev, fw, CYPRESS_FX2);
+	ret = usbv2_cypress_load_firmware(usbdev, fw, CYPRESS_FX2);
 	release_firmware(fw);
 	if (0 != ret) {
 		dev_err(&interface->dev, "firmware_s2250 download failed\n");
