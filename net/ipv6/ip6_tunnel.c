@@ -955,7 +955,6 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	unsigned int max_headroom = sizeof(struct ipv6hdr);
 	u8 proto;
 	int err = -1;
-	int pkt_len;
 
 	if (!fl6->flowi6_mark)
 		dst = ip6_tnl_dst_check(t);
@@ -1035,19 +1034,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;
 	ipv6h->daddr = fl6->daddr;
-	nf_reset(skb);
-	pkt_len = skb->len;
-	err = ip6_local_out(skb);
-
-	if (net_xmit_eval(err) == 0) {
-		struct pcpu_tstats *tstats = this_cpu_ptr(t->dev->tstats);
-
-		tstats->tx_bytes += pkt_len;
-		tstats->tx_packets++;
-	} else {
-		stats->tx_errors++;
-		stats->tx_aborted_errors++;
-	}
+	ip6tunnel_xmit(skb, dev);
 	if (ndst)
 		ip6_tnl_dst_store(t, ndst);
 	return 0;

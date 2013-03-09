@@ -667,7 +667,6 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	struct net_device_stats *stats = &tunnel->dev->stats;
 	int err = -1;
 	u8 proto;
-	int pkt_len;
 	struct sk_buff *new_skb;
 
 	if (dev->type == ARPHRD_ETHER)
@@ -801,23 +800,9 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 		}
 	}
 
-	nf_reset(skb);
-	pkt_len = skb->len;
-	err = ip6_local_out(skb);
-
-	if (net_xmit_eval(err) == 0) {
-		struct pcpu_tstats *tstats = this_cpu_ptr(tunnel->dev->tstats);
-
-		tstats->tx_bytes += pkt_len;
-		tstats->tx_packets++;
-	} else {
-		stats->tx_errors++;
-		stats->tx_aborted_errors++;
-	}
-
+	ip6tunnel_xmit(skb, dev);
 	if (ndst)
 		ip6_tnl_dst_store(tunnel, ndst);
-
 	return 0;
 tx_err_link_failure:
 	stats->tx_carrier_errors++;
