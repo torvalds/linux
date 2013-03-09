@@ -35,7 +35,6 @@
 #include <media/v4l2-common.h>
 
 #include "go7007-priv.h"
-#include "wis-i2c.h"
 
 /*
  * Wait for an interrupt to be delivered from the GO7007SB and return
@@ -200,6 +199,7 @@ static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *con
 {
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
+	struct v4l2_subdev *sd;
 	struct i2c_board_info info;
 
 	memset(&info, 0, sizeof(info));
@@ -207,8 +207,14 @@ static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *con
 	info.addr = i2c->addr;
 	info.flags = i2c->flags;
 
-	if (v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, NULL))
+	sd = v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, NULL);
+	if (sd) {
+		if (i2c->is_video)
+			go->sd_video = sd;
+		if (i2c->is_audio)
+			go->sd_audio = sd;
 		return 0;
+	}
 
 	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", i2c->type);
 	return -EINVAL;
@@ -222,7 +228,7 @@ static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *con
  *
  * Must NOT be called with the hw_lock held.
  */
-int go7007_register_encoder(struct go7007 *go)
+int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs)
 {
 	int i, ret;
 
@@ -246,11 +252,22 @@ int go7007_register_encoder(struct go7007 *go)
 		go->i2c_adapter_online = 1;
 	}
 	if (go->i2c_adapter_online) {
-		for (i = 0; i < go->board_info->num_i2c_devs; ++i)
+		for (i = 0; i < num_i2c_devs; ++i)
 			init_i2c_module(&go->i2c_adapter, &go->board_info->i2c_devs[i]);
+
+		if (go->tuner_type >= 0) {
+			struct tuner_setup setup = {
+				.addr = ADDR_UNSET,
+				.type = go->tuner_type,
+				.mode_mask = T_ANALOG_TV,
+			};
+
+			v4l2_device_call_all(&go->v4l2_dev, 0, tuner,
+				s_type_addr, &setup);
+		}
 		if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
-			i2c_clients_command(&go->i2c_adapter,
-				DECODER_SET_CHANNEL, &go->channel_number);
+			v4l2_subdev_call(go->sd_video, video, s_routing,
+					0, 0, go->channel_number + 1);
 	}
 	if (go->board_info->flags & GO7007_BOARD_HAS_AUDIO) {
 		go->audio_enabled = 1;

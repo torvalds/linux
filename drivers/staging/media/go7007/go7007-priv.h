@@ -90,16 +90,23 @@ struct go7007_board_info {
 	int num_i2c_devs;
 	struct go_i2c {
 		const char *type;
-		int id;
+		int is_video:1;
+		int is_audio:1;
 		int addr;
 		u32 flags;
-	} i2c_devs[4];
+	} i2c_devs[5];
 	int num_inputs;
 	struct {
 		int video_input;
-		int audio_input;
+		int audio_index;
 		char *name;
 	} inputs[4];
+	int video_config;
+	int num_aud_inputs;
+	struct {
+		int audio_input;
+		char *name;
+	} aud_inputs[3];
 };
 
 struct go7007_hpi_ops {
@@ -178,9 +185,12 @@ struct go7007 {
 	int streaming;
 	int in_use;
 	int audio_enabled;
+	struct v4l2_subdev *sd_video;
+	struct v4l2_subdev *sd_audio;
 
 	/* Video input */
 	int input;
+	int aud_input;
 	enum { GO7007_STD_NTSC, GO7007_STD_PAL, GO7007_STD_OTHER } standard;
 	int sensor_framerate;
 	int width;
@@ -268,7 +278,7 @@ int go7007_read_addr(struct go7007 *go, u16 addr, u16 *data);
 int go7007_read_interrupt(struct go7007 *go, u16 *value, u16 *data);
 int go7007_boot_encoder(struct go7007 *go, int init_i2c);
 int go7007_reset_encoder(struct go7007 *go);
-int go7007_register_encoder(struct go7007 *go);
+int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs);
 int go7007_start_encoder(struct go7007 *go);
 void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length);
 struct go7007 *go7007_alloc(struct go7007_board_info *board,

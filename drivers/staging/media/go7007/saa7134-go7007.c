@@ -468,7 +468,7 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 
 	/* Do any final GO7007 initialization, then register the
 	 * V4L2 and ALSA interfaces */
-	if (go7007_register_encoder(go) < 0)
+	if (go7007_register_encoder(go, go->board_info->num_i2c_devs) < 0)
 		goto initfail;
 	dev->empress_dev = go->video_dev;
 	video_set_drvdata(dev->empress_dev, go);

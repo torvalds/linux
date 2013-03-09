@@ -26,11 +26,11 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <asm/byteorder.h>
-#include <media/tvaudio.h>
+#include <media/saa7115.h>
 #include <media/tuner.h>
+#include <media/uda1342.h>
 
 #include "go7007-priv.h"
-#include "wis-i2c.h"
 
 static unsigned int assume_endura;
 module_param(assume_endura, int, 0644);
@@ -93,9 +93,9 @@ static struct go7007_usb_board board_matrix_ii = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "wis_saa7115",
-				.id	= I2C_DRIVERID_WIS_SAA7115,
+				.type	= "saa7115",
 				.addr	= 0x20,
+				.is_video = 1,
 			},
 		},
 		.num_inputs	 = 2,
@@ -109,6 +109,7 @@ static struct go7007_usb_board board_matrix_ii = {
 				.name		= "S-Video",
 			},
 		},
+		.video_config	= SAA7115_IDQ_IS_DEFAULT,
 	},
 };
 
@@ -130,9 +131,9 @@ static struct go7007_usb_board board_matrix_reload = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "wis_saa7113",
-				.id	= I2C_DRIVERID_WIS_SAA7113,
+				.type	= "saa7115",
 				.addr	= 0x25,
+				.is_video = 1,
 			},
 		},
 		.num_inputs	 = 2,
@@ -146,6 +147,7 @@ static struct go7007_usb_board board_matrix_reload = {
 				.name		= "S-Video",
 			},
 		},
+		.video_config	= SAA7115_IDQ_IS_DEFAULT,
 	},
 };
 
@@ -168,30 +170,31 @@ static struct go7007_usb_board board_star_trek = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "wis_saa7115",
-				.id	= I2C_DRIVERID_WIS_SAA7115,
+				.type	= "saa7115",
 				.addr	= 0x20,
+				.is_video = 1,
 			},
 		},
 		.num_inputs	 = 2,
 		.inputs		 = {
+		/*	{
+		 *		.video_input	= 3,
+		 *		.audio_index	= AUDIO_TUNER,
+		 *		.name		= "Tuner",
+		 *	},
+		 */
 			{
 				.video_input	= 1,
-			/*	.audio_input	= AUDIO_EXTERN, */
+			/*	.audio_index	= AUDIO_EXTERN, */
 				.name		= "Composite",
 			},
 			{
 				.video_input	= 8,
-			/*	.audio_input	= AUDIO_EXTERN, */
+			/*	.audio_index	= AUDIO_EXTERN, */
 				.name		= "S-Video",
 			},
-		/*	{
-		 *		.video_input	= 3,
-		 *		.audio_input	= AUDIO_TUNER,
-		 *		.name		= "Tuner",
-		 *	},
-		 */
 		},
+		.video_config	= SAA7115_IDQ_IS_DEFAULT,
 	},
 };
 
@@ -211,40 +214,59 @@ static struct go7007_usb_board board_px_tv402u = {
 		.audio_bclk_div	 = 8,
 		.audio_main_div	 = 2,
 		.hpi_buffer_cap  = 7,
-		.num_i2c_devs	 = 3,
+		.num_i2c_devs	 = 5,
 		.i2c_devs	 = {
 			{
-				.type	= "wis_saa7115",
-				.id	= I2C_DRIVERID_WIS_SAA7115,
+				.type	= "saa7115",
 				.addr	= 0x20,
+				.is_video = 1,
 			},
 			{
-				.type	= "wis_uda1342",
-				.id	= I2C_DRIVERID_WIS_UDA1342,
+				.type	= "uda1342",
 				.addr	= 0x1a,
+				.is_audio = 1,
 			},
 			{
-				.type	= "wis_sony_tuner",
-				.id	= I2C_DRIVERID_WIS_SONY_TUNER,
+				.type	= "tuner",
 				.addr	= 0x60,
+			},
+			{
+				.type	= "tuner",
+				.addr	= 0x43,
+			},
+			{
+				.type	= "sony-btf-mpx",
+				.addr	= 0x44,
 			},
 		},
 		.num_inputs	 = 3,
 		.inputs		 = {
 			{
+				.video_input	= 3,
+				.audio_index	= 0,
+				.name		= "Tuner",
+			},
+			{
 				.video_input	= 1,
-				.audio_input	= TVAUDIO_INPUT_EXTERN,
+				.audio_index	= 1,
 				.name		= "Composite",
 			},
 			{
 				.video_input	= 8,
-				.audio_input	= TVAUDIO_INPUT_EXTERN,
+				.audio_index	= 1,
 				.name		= "S-Video",
 			},
+		},
+		.video_config	= SAA7115_IDQ_IS_DEFAULT,
+		.num_aud_inputs	 = 2,
+		.aud_inputs	 = {
 			{
-				.video_input	= 3,
-				.audio_input	= TVAUDIO_INPUT_TUNER,
+				.audio_input	= UDA1342_IN2,
 				.name		= "Tuner",
+			},
+			{
+				.audio_input	= UDA1342_IN1,
+				.name		= "Line In",
 			},
 		},
 	},
@@ -272,8 +294,7 @@ static struct go7007_usb_board board_xmen = {
 		.num_i2c_devs	  = 1,
 		.i2c_devs	  = {
 			{
-				.type	= "wis_ov7640",
-				.id	= I2C_DRIVERID_WIS_OV7640,
+				.type	= "ov7640",
 				.addr	= 0x21,
 			},
 		},
@@ -305,8 +326,8 @@ static struct go7007_usb_board board_matrix_revolution = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "wis_tw9903",
-				.id	= I2C_DRIVERID_WIS_TW9903,
+				.type	= "tw9903",
+				.is_video = 1,
 				.addr	= 0x44,
 			},
 		},
@@ -395,10 +416,10 @@ static struct go7007_usb_board board_adlink_mpg24 = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "wis_tw2804",
-				.id	= I2C_DRIVERID_WIS_TW2804,
+				.type	= "tw2804",
 				.addr	= 0x00, /* yes, really */
 				.flags  = I2C_CLIENT_TEN,
+				.is_video = 1,
 			},
 		},
 		.num_inputs	 = 1,
@@ -428,8 +449,9 @@ static struct go7007_usb_board board_sensoray_2250 = {
 		.i2c_devs	 = {
 			{
 				.type	= "s2250",
-				.id	= I2C_DRIVERID_S2250,
 				.addr	= 0x43,
+				.is_video = 1,
+				.is_audio = 1,
 			},
 		},
 		.num_inputs	 = 2,
@@ -441,6 +463,21 @@ static struct go7007_usb_board board_sensoray_2250 = {
 			{
 				.video_input	= 1,
 				.name		= "S-Video",
+			},
+		},
+		.num_aud_inputs	 = 3,
+		.aud_inputs	 = {
+			{
+				.audio_input	= 0,
+				.name		= "Line In",
+			},
+			{
+				.audio_input	= 1,
+				.name		= "Mic",
+			},
+			{
+				.audio_input	= 2,
+				.name		= "Mic Boost",
 			},
 		},
 	},
@@ -972,6 +1009,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	struct go7007_usb *usb;
 	struct go7007_usb_board *board;
 	struct usb_device *usbdev = interface_to_usbdev(intf);
+	unsigned num_i2c_devs;
 	char *name;
 	int video_pipe, i, v_urb_len;
 
@@ -1126,6 +1164,8 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		}
 	}
 
+	num_i2c_devs = go->board_info->num_i2c_devs;
+
 	/* Probe the tuner model on the TV402U */
 	if (go->board_id == GO7007_BOARDID_PX_TV402U_ANY) {
 		u8 data[3];
@@ -1145,12 +1185,14 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		case 2:
 			go->board_id = GO7007_BOARDID_PX_TV402U_JP;
 			go->tuner_type = TUNER_SONY_BTF_PK467Z;
+			num_i2c_devs -= 2;
 			strncpy(go->name, "Plextor PX-TV402U-JP",
 					sizeof(go->name));
 			break;
 		case 3:
 			go->board_id = GO7007_BOARDID_PX_TV402U_NA;
 			go->tuner_type = TUNER_SONY_BTF_PB463Z;
+			num_i2c_devs -= 2;
 			strncpy(go->name, "Plextor PX-TV402U-NA",
 					sizeof(go->name));
 			break;
@@ -1180,7 +1222,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 
 	/* Do any final GO7007 initialization, then register the
 	 * V4L2 and ALSA interfaces */
-	if (go7007_register_encoder(go) < 0)
+	if (go7007_register_encoder(go, num_i2c_devs) < 0)
 		goto initfail;
 
 	/* Allocate the URBs and buffers for receiving the video stream */

@@ -28,7 +28,6 @@
 #include <linux/uaccess.h>
 
 #include "go7007-priv.h"
-#include "wis-i2c.h"
 
 /********************* Driver for on-board I2C adapter *********************/
 

@@ -37,7 +37,6 @@
 
 #include "go7007.h"
 #include "go7007-priv.h"
-#include "wis-i2c.h"
 
 /* Temporary defines until accepted in v4l-dvb */
 #ifndef V4L2_MPEG_STREAM_TYPE_MPEG_ELEM
@@ -264,6 +263,7 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 			mbus_fmt.height = height;
 			go->encoder_v_halve = 1;
 		}
+		mbus_fmt.height *= 2;
 		call_all(&go->v4l2_dev, video, s_mbus_fmt, &mbus_fmt);
 	} else {
 		if (width <= sensor_width / 4) {
@@ -1184,9 +1184,9 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	strncpy(inp->name, go->board_info->inputs[inp->index].name,
 			sizeof(inp->name));
 
-	/* If this board has a tuner, it will be the last input */
+	/* If this board has a tuner, it will be the first input */
 	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
-			inp->index == go->board_info->num_inputs - 1)
+			inp->index == 0)
 		inp->type = V4L2_INPUT_TYPE_TUNER;
 	else
 		inp->type = V4L2_INPUT_TYPE_CAMERA;
@@ -1223,7 +1223,17 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int input)
 
 	go->input = input;
 
-	return call_all(&go->v4l2_dev, video, s_routing, input, 0, 0);
+	v4l2_subdev_call(go->sd_video, video, s_routing,
+			go->board_info->inputs[input].video_input, 0,
+			go->board_info->video_config);
+	if (go->board_info->num_aud_inputs) {
+		int aud_input = go->board_info->inputs[input].audio_index;
+
+		v4l2_subdev_call(go->sd_audio, audio, s_routing,
+			go->board_info->aud_inputs[aud_input].audio_input, 0, 0);
+		go->aud_input = aud_input;
+	}
+	return 0;
 }
 
 static int vidioc_g_tuner(struct file *file, void *priv,
