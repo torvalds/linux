@@ -442,6 +442,12 @@ void tracing_snapshot(void)
 	struct tracer *tracer = tr->current_trace;
 	unsigned long flags;
 
+	if (in_nmi()) {
+		internal_trace_puts("*** SNAPSHOT CALLED FROM NMI CONTEXT ***\n");
+		internal_trace_puts("*** snapshot is being ignored        ***\n");
+		return;
+	}
+
 	if (!tr->allocated_snapshot) {
 		internal_trace_puts("*** SNAPSHOT NOT ALLOCATED ***\n");
 		internal_trace_puts("*** stopping trace here!   ***\n");
@@ -460,6 +466,7 @@ void tracing_snapshot(void)
 	update_max_tr(tr, current, smp_processor_id());
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(tracing_snapshot);
 
 static int resize_buffer_duplicate_size(struct trace_buffer *trace_buf,
 					struct trace_buffer *size_buf, int cpu_id);
@@ -493,16 +500,19 @@ void tracing_snapshot_alloc(void)
 
 	tracing_snapshot();
 }
+EXPORT_SYMBOL_GPL(tracing_snapshot_alloc);
 #else
 void tracing_snapshot(void)
 {
 	WARN_ONCE(1, "Snapshot feature not enabled, but internal snapshot used");
 }
+EXPORT_SYMBOL_GPL(tracing_snapshot);
 void tracing_snapshot_alloc(void)
 {
 	/* Give warning */
 	tracing_snapshot();
 }
+EXPORT_SYMBOL_GPL(tracing_snapshot_alloc);
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
 /**
