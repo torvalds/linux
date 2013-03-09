@@ -969,6 +969,7 @@ static int snd_hdspm_create_pcm(struct snd_card *card,
 				struct hdspm *hdspm);
 
 static inline void snd_hdspm_initialize_midi_flush(struct hdspm *hdspm);
+static inline int hdspm_get_pll_freq(struct hdspm *hdspm);
 static int hdspm_update_simple_mixer_controls(struct hdspm *hdspm);
 static int hdspm_autosync_ref(struct hdspm *hdspm);
 static int snd_hdspm_set_defaults(struct hdspm *hdspm);
@@ -1979,16 +1980,25 @@ static void hdspm_midi_tasklet(unsigned long arg)
 /* get the system sample rate which is set */
 
 
+static inline int hdspm_get_pll_freq(struct hdspm *hdspm)
+{
+	unsigned int period, rate;
+
+	period = hdspm_read(hdspm, HDSPM_RD_PLL_FREQ);
+	rate = hdspm_calc_dds_value(hdspm, period);
+
+	return rate;
+}
+
 /**
  * Calculate the real sample rate from the
  * current DDS value.
  **/
 static int hdspm_get_system_sample_rate(struct hdspm *hdspm)
 {
-	unsigned int period, rate;
+	unsigned int rate;
 
-	period = hdspm_read(hdspm, HDSPM_RD_PLL_FREQ);
-	rate = hdspm_calc_dds_value(hdspm, period);
+	rate = hdspm_get_pll_freq(hdspm);
 
 	if (rate > 207000) {
 		/* Unreasonable high sample rate as seen on PCI MADI cards. */
