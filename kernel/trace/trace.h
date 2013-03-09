@@ -1040,6 +1040,17 @@ void trace_printk_start_comm(void);
 int trace_keep_overwrite(struct tracer *tracer, u32 mask, int set);
 int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled);
 
+/*
+ * Normal trace_printk() and friends allocates special buffers
+ * to do the manipulation, as well as saves the print formats
+ * into sections to display. But the trace infrastructure wants
+ * to use these without the added overhead at the price of being
+ * a bit slower (used mainly for warnings, where we don't care
+ * about performance). The internal_trace_puts() is for such
+ * a purpose.
+ */
+#define internal_trace_puts(str) __trace_puts(_THIS_IP_, str, strlen(str))
+
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, id, tstruct, print, filter)	\
 	extern struct ftrace_event_call					\

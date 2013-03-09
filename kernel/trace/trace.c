@@ -443,16 +443,16 @@ void tracing_snapshot(void)
 	unsigned long flags;
 
 	if (!tr->allocated_snapshot) {
-		trace_printk("*** SNAPSHOT NOT ALLOCATED ***\n");
-		trace_printk("*** stopping trace here!   ***\n");
+		internal_trace_puts("*** SNAPSHOT NOT ALLOCATED ***\n");
+		internal_trace_puts("*** stopping trace here!   ***\n");
 		tracing_off();
 		return;
 	}
 
 	/* Note, snapshot can not be used when the tracer uses it */
 	if (tracer->use_max_tr) {
-		trace_printk("*** LATENCY TRACER ACTIVE ***\n");
-		trace_printk("*** Can not use snapshot (sorry) ***\n");
+		internal_trace_puts("*** LATENCY TRACER ACTIVE ***\n");
+		internal_trace_puts("*** Can not use snapshot (sorry) ***\n");
 		return;
 	}
 
