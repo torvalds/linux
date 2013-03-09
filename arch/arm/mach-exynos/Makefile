@@ -49,7 +49,10 @@ obj-$(CONFIG_MACH_SMDK4212)		+= mach-smdk4x12.o
 obj-$(CONFIG_MACH_SMDK4412)		+= mach-smdk4x12.o
 
 ifeq ($(CONFIG_MACH_ODROID_4X12),y)
-	obj-$(CONFIG_BOARD_ODROID_U2)	+= mach-odroid-u2.o
+	obj-$(CONFIG_BOARD_ODROID_U2)	+= mach-odroid-u.o
+	obj-$(CONFIG_BOARD_ODROID_U)	+= mach-odroid-u.o
+	obj-$(CONFIG_BOARD_ODROID_X)	+= mach-odroid-x.o
+	obj-$(CONFIG_BOARD_ODROID_X2)	+= mach-odroid-x2.o
 endif
 
 obj-$(CONFIG_MACH_EXYNOS4_DT)		+= mach-exynos4-dt.o

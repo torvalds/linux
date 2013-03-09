@@ -443,9 +443,24 @@ choice
 	default BOARD_ODROID_U2
 
 	config BOARD_ODROID_U2
-		bool "ODROID U2 ARM Quad-Core Ultra mini-PC"
+		bool "ODROID-U2 ARM Quad-Core Ultra mini-PC"
 		help
-		  This enables support for ODROID U2(Quad-Core ARM PC)
+		  This enables support for ODROID-U2(Quad-Core ARM PC)
+
+	config BOARD_ODROID_U
+		bool "ODROID-U ARM Quad-Core Ultra mini-PC"
+		help
+		  This enables support for ODROID-U
+
+	config BOARD_ODROID_X
+		bool "ODROID-X ARM Quad-Core mini-PC"
+		help
+		  This enables support for ODROID-X
+
+	config BOARD_ODROID_X2
+		bool "ODROID-X2 ARM Quad-Core mini-PC"
+		help
+		  This enables support for ODROID-X2
 endchoice
 
 endif
