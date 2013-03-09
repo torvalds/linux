@@ -1887,7 +1887,7 @@ static int read_partial_message(struct ceph_connection *con)
 	if (front_len > CEPH_MSG_MAX_FRONT_LEN)
 		return -EIO;
 	middle_len = le32_to_cpu(con->in_hdr.middle_len);
-	if (middle_len > CEPH_MSG_MAX_DATA_LEN)
+	if (middle_len > CEPH_MSG_MAX_MIDDLE_LEN)
 		return -EIO;
 	data_len = le32_to_cpu(con->in_hdr.data_len);
 	if (data_len > CEPH_MSG_MAX_DATA_LEN)

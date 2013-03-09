@@ -66,6 +66,7 @@ struct ceph_options {
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
+#define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
 
 #define CEPH_AUTH_NAME_DEFAULT   "guest"
