@@ -223,3 +223,15 @@ config SND_SOC_LITTLEMILL
 	select SND_SAMSUNG_I2S
 	select MFD_WM8994
 	select SND_SOC_WM8994
+
+config SND_SOC_HKDK_MAX98090
+	tristate "Audio support for MAX98090 on HKDK4412"
+	depends on SND_SOC_SAMSUNG && MACH_HKDK4412
+	select SND_SOC_MAX98090
+	select SND_SAMSUNG_I2S
+
+config MAX98090_HEADSET
+	bool "MAX98090 HeadSet detect"
+	depends on SND_SOC_HKDK_MAX98090
+	help
+	  Provides support for detecting max98090 jack_sw
