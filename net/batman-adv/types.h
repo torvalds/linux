@@ -61,6 +61,7 @@ struct batadv_hard_iface_bat_iv {
  * @if_status: status of the interface for batman-adv
  * @net_dev: pointer to the net_device
  * @frag_seqno: last fragment sequence number sent by this interface
+ * @num_bcasts: number of payload re-broadcasts on this interface (ARQ)
  * @hardif_obj: kobject of the per interface sysfs "mesh" directory
  * @refcount: number of contexts the object is used
  * @batman_adv_ptype: packet type describing packets that should be processed by
@@ -76,6 +77,7 @@ struct batadv_hard_iface {
 	char if_status;
 	struct net_device *net_dev;
 	atomic_t frag_seqno;
+	uint8_t num_bcasts;
 	struct kobject *hardif_obj;
 	atomic_t refcount;
 	struct packet_type batman_adv_ptype;
