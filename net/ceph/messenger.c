@@ -1916,7 +1916,7 @@ static int read_partial_message(struct ceph_connection *con)
 		int skip = 0;
 
 		dout("got hdr type %d front %d data %d\n", con->in_hdr.type,
-		     con->in_hdr.front_len, con->in_hdr.data_len);
+		     front_len, data_len);
 		ret = ceph_con_in_msg_alloc(con, &skip);
 		if (ret < 0)
 			return ret;
