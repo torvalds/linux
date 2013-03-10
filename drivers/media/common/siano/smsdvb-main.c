@@ -663,6 +663,11 @@ static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 	int rc;
 	struct SmsMsgHdr_ST Msg;
 
+	/* Don't request stats too fast */
+	if (client->get_stats_jiffies &&
+	   (!time_after(jiffies, client->get_stats_jiffies)))
+		return 0;
+	client->get_stats_jiffies = jiffies + msecs_to_jiffies(100);
 
 	Msg.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
 	Msg.msgDstId = HIF_TASK;

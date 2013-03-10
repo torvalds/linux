@@ -52,6 +52,8 @@ struct smsdvb_client_t {
 	int event_fe_state;
 	int event_unc_state;
 
+	unsigned long		get_stats_jiffies;
+
 	/* Stats debugfs data */
 	struct dentry		*debugfs;
 
