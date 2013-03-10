@@ -181,7 +181,8 @@ static int aw_pm_enter(suspend_state_t state)
     memcpy((void *)SRAM_FUNC_START, (void *)&standby_bin_start, (int)&standby_bin_end - (int)&standby_bin_start);
 
     /* config system wakeup evetn type */
-    standby_info.standby_para.event = SUSPEND_WAKEUP_SRC_EXINT | SUSPEND_WAKEUP_SRC_ALARM;
+    standby_info.standby_para.event = SUSPEND_WAKEUP_SRC_EXINT | SUSPEND_WAKEUP_SRC_ALARM \
+	    | SUSPEND_WAKEUP_SRC_KEY | SUSPEND_WAKEUP_SRC_IR  | SUSPEND_WAKEUP_SRC_USB;
 
     /*FIXME: cannot wakeup */
     /* goto sram and run */

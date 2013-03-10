@@ -58,7 +58,7 @@ static __u32 dram_traning_area_back[DRAM_TRANING_SIZE];
 * Note       :
 *********************************************************************************************************
 */
-int main(struct aw_pm_info *arg)
+int __attribute__((section(".startup")))main(struct aw_pm_info *arg)
 {
     char    *tmpPtr = (char *)&__bss_start;
 
