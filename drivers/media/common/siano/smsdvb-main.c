@@ -22,7 +22,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"
@@ -32,38 +31,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "smscoreapi.h"
 #include "sms-cards.h"
 
+#include "smsdvb.h"
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-
-struct smsdvb_client_t {
-	struct list_head entry;
-
-	struct smscore_device_t *coredev;
-	struct smscore_client_t *smsclient;
-
-	struct dvb_adapter      adapter;
-	struct dvb_demux        demux;
-	struct dmxdev           dmxdev;
-	struct dvb_frontend     frontend;
-
-	fe_status_t             fe_status;
-
-	struct completion       tune_done;
-	struct completion       stats_done;
-
-	int last_per;
-
-	int legacy_ber, legacy_per;
-
-	int event_fe_state;
-	int event_unc_state;
-
-	/* Stats debugfs data */
-	struct dentry		*debugfs;
-	char			*stats_data;
-	atomic_t		stats_count;
-	bool			stats_was_read;
-	wait_queue_head_t	stats_queue;
-};
 
 static struct list_head g_smsdvb_clients;
 static struct mutex g_smsdvb_clientslock;
@@ -72,39 +42,6 @@ static int sms_dbg;
 module_param_named(debug, sms_dbg, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 
-/*
- * This struct is a mix of RECEPTION_STATISTICS_EX_S and SRVM_SIGNAL_STATUS_S.
- * It was obtained by comparing the way it was filled by the original code
- */
-struct RECEPTION_STATISTICS_PER_SLICES_S {
-	u32 result;
-	u32 snr;
-	s32 inBandPower;
-	u32 tsPackets;
-	u32 etsPackets;
-	u32 constellation;
-	u32 hpCode;
-	u32 tpsSrvIndLP;
-	u32 tpsSrvIndHP;
-	u32 cellId;
-	u32 reason;
-	u32 requestId;
-	u32 ModemState;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
-
-	u32 BER;		/* Post Viterbi BER [1E-5] */
-	s32 RSSI;		/* dBm */
-	s32 CarrierOffset;	/* Carrier Offset in bin/1024 */
-
-	u32 IsRfLocked;		/* 0 - not locked, 1 - locked */
-	u32 IsDemodLocked;	/* 0 - not locked, 1 - locked */
-
-	u32 BERBitCount;	/* Total number of SYNC bits. */
-	u32 BERErrorCount;	/* Number of erronous SYNC bits. */
-
-	s32 MRC_SNR;		/* dB */
-	s32 MRC_InBandPwr;	/* In band power in dBM */
-	s32 MRC_RSSI;		/* dBm */
-};
 
 u32 sms_to_bw_table[] = {
 	[BW_8_MHZ]		= 8000000,
@@ -148,359 +85,6 @@ u32 sms_to_modulation_table[] = {
 	[3] = DQPSK,
 };
 
-static struct dentry *smsdvb_debugfs;
-
-static void smsdvb_print_dvb_stats(struct smsdvb_client_t *client,
-				   struct SMSHOSTLIB_STATISTICS_ST *p)
-{
-	int n = 0;
-	char *buf;
-
-	if (!client->stats_data || atomic_read(&client->stats_count))
-		return;
-
-	buf = client->stats_data;
-
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsRfLocked = %d\n", p->IsRfLocked);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsDemodLocked = %d\n", p->IsDemodLocked);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsExternalLNAOn = %d\n", p->IsExternalLNAOn);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SNR = %d\n", p->SNR);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BER = %d\n", p->BER);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "FIB_CRC = %d\n", p->FIB_CRC);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TS_PER = %d\n", p->TS_PER);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "MFER = %d\n", p->MFER);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "RSSI = %d\n", p->RSSI);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "InBandPwr = %d\n", p->InBandPwr);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CarrierOffset = %d\n", p->CarrierOffset);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ModemState = %d\n", p->ModemState);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Frequency = %d\n", p->Frequency);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Bandwidth = %d\n", p->Bandwidth);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TransmissionMode = %d\n", p->TransmissionMode);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ModemState = %d\n", p->ModemState);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "GuardInterval = %d\n", p->GuardInterval);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CodeRate = %d\n", p->CodeRate);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "LPCodeRate = %d\n", p->LPCodeRate);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Hierarchy = %d\n", p->Hierarchy);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Constellation = %d\n", p->Constellation);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BurstSize = %d\n", p->BurstSize);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BurstDuration = %d\n", p->BurstDuration);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BurstCycleTime = %d\n", p->BurstCycleTime);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CalculatedBurstCycleTime = %d\n",
-		      p->CalculatedBurstCycleTime);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfRows = %d\n", p->NumOfRows);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfPaddCols = %d\n", p->NumOfPaddCols);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfPunctCols = %d\n", p->NumOfPunctCols);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ErrorTSPackets = %d\n", p->ErrorTSPackets);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TotalTSPackets = %d\n", p->TotalTSPackets);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfValidMpeTlbs = %d\n", p->NumOfValidMpeTlbs);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfInvalidMpeTlbs = %d\n", p->NumOfInvalidMpeTlbs);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfCorrectedMpeTlbs = %d\n", p->NumOfCorrectedMpeTlbs);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BERErrorCount = %d\n", p->BERErrorCount);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BERBitCount = %d\n", p->BERBitCount);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SmsToHostTxErrors = %d\n", p->SmsToHostTxErrors);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "PreBER = %d\n", p->PreBER);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CellId = %d\n", p->CellId);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "DvbhSrvIndHP = %d\n", p->DvbhSrvIndHP);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "DvbhSrvIndLP = %d\n", p->DvbhSrvIndLP);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumMPEReceived = %d\n", p->NumMPEReceived);
-
-	atomic_set(&client->stats_count, n);
-	wake_up(&client->stats_queue);
-}
-
-static void smsdvb_print_isdb_stats(struct smsdvb_client_t *client,
-				    struct SMSHOSTLIB_STATISTICS_ISDBT_ST *p)
-{
-	int i, n = 0;
-	char *buf;
-
-	if (!client->stats_data || atomic_read(&client->stats_count))
-		return;
-
-	buf = client->stats_data;
-
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsRfLocked = %d\t\t", p->IsRfLocked);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsDemodLocked = %d\t", p->IsDemodLocked);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsExternalLNAOn = %d\n", p->IsExternalLNAOn);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SNR = %d dB\t\t", p->SNR);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "RSSI = %d dBm\t\t", p->RSSI);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "InBandPwr = %d dBm\n", p->InBandPwr);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CarrierOffset = %d\t", p->CarrierOffset);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Bandwidth = %d\t\t", p->Bandwidth);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Frequency = %d Hz\n", p->Frequency);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TransmissionMode = %d\t", p->TransmissionMode);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ModemState = %d\t\t", p->ModemState);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "GuardInterval = %d\n", p->GuardInterval);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SystemType = %d\t\t", p->SystemType);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "PartialReception = %d\t", p->PartialReception);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfLayers = %d\n", p->NumOfLayers);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SmsToHostTxErrors = %d\n", p->SmsToHostTxErrors);
-
-	for (i = 0; i < 3; i++) {
-		if (p->LayerInfo[i].NumberOfSegments < 1 ||
-		    p->LayerInfo[i].NumberOfSegments > 13)
-			continue;
-
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\nLayer %d\n", i);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tCodeRate = %d\t",
-			      p->LayerInfo[i].CodeRate);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "Constellation = %d\n",
-			      p->LayerInfo[i].Constellation);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tBER = %-5d\t",
-			      p->LayerInfo[i].BER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tBERErrorCount = %-5d\t",
-			      p->LayerInfo[i].BERErrorCount);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "BERBitCount = %-5d\n",
-			      p->LayerInfo[i].BERBitCount);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tPreBER = %-5d\t",
-			      p->LayerInfo[i].PreBER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tTS_PER = %-5d\n",
-			      p->LayerInfo[i].TS_PER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tErrorTSPackets = %-5d\t",
-			      p->LayerInfo[i].ErrorTSPackets);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TotalTSPackets = %-5d\t",
-			      p->LayerInfo[i].TotalTSPackets);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TILdepthI = %d\n",
-			      p->LayerInfo[i].TILdepthI);
-		n += snprintf(&buf[n], PAGE_SIZE - n,
-			      "\tNumberOfSegments = %d\t",
-			      p->LayerInfo[i].NumberOfSegments);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TMCCErrors = %d\n",
-			      p->LayerInfo[i].TMCCErrors);
-	}
-
-	atomic_set(&client->stats_count, n);
-	wake_up(&client->stats_queue);
-}
-
-static void
-smsdvb_print_isdb_stats_ex(struct smsdvb_client_t *client,
-			   struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST *p)
-{
-	int i, n = 0;
-	char *buf;
-
-	if (!client->stats_data || atomic_read(&client->stats_count))
-		return;
-
-	buf = client->stats_data;
-
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsRfLocked = %d\t\t", p->IsRfLocked);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsDemodLocked = %d\t", p->IsDemodLocked);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsExternalLNAOn = %d\n", p->IsExternalLNAOn);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SNR = %d dB\t\t", p->SNR);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "RSSI = %d dBm\t\t", p->RSSI);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "InBandPwr = %d dBm\n", p->InBandPwr);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CarrierOffset = %d\t", p->CarrierOffset);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Bandwidth = %d\t\t", p->Bandwidth);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Frequency = %d Hz\n", p->Frequency);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TransmissionMode = %d\t", p->TransmissionMode);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ModemState = %d\t\t", p->ModemState);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "GuardInterval = %d\n", p->GuardInterval);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SystemType = %d\t\t", p->SystemType);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "PartialReception = %d\t", p->PartialReception);
-	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfLayers = %d\n", p->NumOfLayers);
-	n += snprintf(&buf[n], PAGE_SIZE - n, "SegmentNumber = %d\t",
-		      p->SegmentNumber);
-	n += snprintf(&buf[n], PAGE_SIZE - n, "TuneBW = %d\n",
-		      p->TuneBW);
-
-	for (i = 0; i < 3; i++) {
-		if (p->LayerInfo[i].NumberOfSegments < 1 ||
-		    p->LayerInfo[i].NumberOfSegments > 13)
-			continue;
-
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\nLayer %d\n", i);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tCodeRate = %d\t",
-			      p->LayerInfo[i].CodeRate);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "Constellation = %d\n",
-			      p->LayerInfo[i].Constellation);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tBER = %-5d\t",
-			      p->LayerInfo[i].BER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tBERErrorCount = %-5d\t",
-			      p->LayerInfo[i].BERErrorCount);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "BERBitCount = %-5d\n",
-			      p->LayerInfo[i].BERBitCount);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tPreBER = %-5d\t",
-			      p->LayerInfo[i].PreBER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tTS_PER = %-5d\n",
-			      p->LayerInfo[i].TS_PER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tErrorTSPackets = %-5d\t",
-			      p->LayerInfo[i].ErrorTSPackets);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TotalTSPackets = %-5d\t",
-			      p->LayerInfo[i].TotalTSPackets);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TILdepthI = %d\n",
-			      p->LayerInfo[i].TILdepthI);
-		n += snprintf(&buf[n], PAGE_SIZE - n,
-			      "\tNumberOfSegments = %d\t",
-			      p->LayerInfo[i].NumberOfSegments);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TMCCErrors = %d\n",
-			      p->LayerInfo[i].TMCCErrors);
-	}
-
-	atomic_set(&client->stats_count, n);
-	wake_up(&client->stats_queue);
-}
-
-static int smsdvb_stats_open(struct inode *inode, struct file *file)
-{
-	struct smsdvb_client_t *client = inode->i_private;
-
-	atomic_set(&client->stats_count, 0);
-	client->stats_was_read = false;
-
-	init_waitqueue_head(&client->stats_queue);
-
-	client->stats_data = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (client->stats_data == NULL)
-		return -ENOMEM;
-
-	file->private_data = client;
-
-	return 0;
-}
-
-static ssize_t smsdvb_stats_read(struct file *file, char __user *user_buf,
-				      size_t nbytes, loff_t *ppos)
-{
-	struct smsdvb_client_t *client = file->private_data;
-
-	if (!client->stats_data || client->stats_was_read)
-		return 0;
-
-	wait_event_interruptible(client->stats_queue,
-				 atomic_read(&client->stats_count));
-
-	return simple_read_from_buffer(user_buf, nbytes, ppos,
-				       client->stats_data,
-				       atomic_read(&client->stats_count));
-
-	client->stats_was_read = true;
-}
-
-static int smsdvb_stats_release(struct inode *inode, struct file *file)
-{
-	struct smsdvb_client_t *client = file->private_data;
-
-	kfree(client->stats_data);
-	client->stats_data = NULL;
-
-	return 0;
-}
-
-static const struct file_operations debugfs_stats_ops = {
-	.open = smsdvb_stats_open,
-	.read = smsdvb_stats_read,
-	.release = smsdvb_stats_release,
-	.llseek = generic_file_llseek,
-};
-
-static int create_stats_debugfs(struct smsdvb_client_t *client)
-{
-	struct smscore_device_t *coredev = client->coredev;
-	struct dentry *d;
-
-	if (!smsdvb_debugfs)
-		return -ENODEV;
-
-	client->debugfs = debugfs_create_dir(coredev->devpath, smsdvb_debugfs);
-	if (IS_ERR_OR_NULL(client->debugfs)) {
-		sms_info("Unable to create debugfs %s directory.\n",
-			 coredev->devpath);
-		return -ENODEV;
-	}
-
-	d = debugfs_create_file("stats", S_IRUGO | S_IWUSR, client->debugfs,
-				client, &debugfs_stats_ops);
-	if (!d) {
-		debugfs_remove(client->debugfs);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void release_stats_debugfs(struct smsdvb_client_t *client)
-{
-	if (!client->debugfs)
-		return;
-
-	debugfs_remove_recursive(client->debugfs);
-
-	client->debugfs = NULL;
-}
 
 /* Events that may come from DVB v3 adapter */
 static void sms_board_dvb3_event(struct smsdvb_client_t *client,
@@ -708,7 +292,8 @@ static void smsdvb_update_dvb_stats(struct smsdvb_client_t *client,
 	struct dvb_frontend *fe = &client->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	smsdvb_print_dvb_stats(client, p);
+	if (client->prt_dvb_stats)
+		client->prt_dvb_stats(client->debug_data, p);
 
 	client->fe_status = sms_to_status(p->IsDemodLocked, p->IsRfLocked);
 
@@ -758,7 +343,8 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 	struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST *lr;
 	int i, n_layers;
 
-	smsdvb_print_isdb_stats(client, p);
+	if (client->prt_isdb_stats)
+		client->prt_isdb_stats(client->debug_data, p);
 
 	/* Update ISDB-T transmission parameters */
 	c->frequency = p->Frequency;
@@ -834,7 +420,8 @@ static void smsdvb_update_isdbt_stats_ex(struct smsdvb_client_t *client,
 	struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST *lr;
 	int i, n_layers;
 
-	smsdvb_print_isdb_stats_ex(client, p);
+	if (client->prt_isdb_stats_ex)
+		client->prt_isdb_stats_ex(client->debug_data, p);
 
 	/* Update ISDB-T transmission parameters */
 	c->frequency = p->Frequency;
@@ -998,7 +585,7 @@ static void smsdvb_unregister_client(struct smsdvb_client_t *client)
 
 	list_del(&client->entry);
 
-	release_stats_debugfs(client);
+	smsdvb_debugfs_release(client);
 	smscore_unregister_client(client->smsclient);
 	dvb_unregister_frontend(&client->frontend);
 	dvb_dmxdev_release(&client->dmxdev);
@@ -1288,6 +875,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 	struct sms_board *board = sms_get_board(board_id);
 	enum sms_device_type_st type = board->type;
 	int ret;
+
 	struct {
 		struct SmsMsgHdr_ST	Msg;
 		u32		Data[4];
@@ -1536,7 +1124,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	sms_info("success");
 	sms_board_setup(coredev);
 
-	if (create_stats_debugfs(client) < 0)
+	if (smsdvb_debugfs_create(client) < 0)
 		sms_info("failed to create debugfs node");
 
 	return 0;
@@ -1561,16 +1149,11 @@ adapter_error:
 static int __init smsdvb_module_init(void)
 {
 	int rc;
-	struct dentry *d;
 
 	INIT_LIST_HEAD(&g_smsdvb_clients);
 	kmutex_init(&g_smsdvb_clientslock);
 
-	d = debugfs_create_dir("smsdvb", usb_debug_root);
-	if (IS_ERR_OR_NULL(d))
-		sms_err("Couldn't create sysfs node for smsdvb");
-	else
-		smsdvb_debugfs = d;
+	smsdvb_debugfs_register();
 
 	rc = smscore_register_hotplug(smsdvb_hotplug);
 
@@ -1586,11 +1169,9 @@ static void __exit smsdvb_module_exit(void)
 	kmutex_lock(&g_smsdvb_clientslock);
 
 	while (!list_empty(&g_smsdvb_clients))
-	       smsdvb_unregister_client(
-			(struct smsdvb_client_t *) g_smsdvb_clients.next);
+		smsdvb_unregister_client((struct smsdvb_client_t *)g_smsdvb_clients.next);
 
-	if (smsdvb_debugfs)
-		debugfs_remove_recursive(smsdvb_debugfs);
+	smsdvb_debugfs_unregister();
 
 	kmutex_unlock(&g_smsdvb_clientslock);
 }

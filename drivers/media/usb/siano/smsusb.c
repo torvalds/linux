@@ -412,6 +412,8 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 
 	smscore_set_board_id(dev->coredev, board_id);
 
+	dev->coredev->is_usb_device = true;
+
 	/* initialize urbs */
 	for (i = 0; i < MAX_URBS; i++) {
 		dev->surbs[i].dev = dev;

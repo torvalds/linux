@@ -184,6 +184,12 @@ struct smscore_device_t {
 	/* Infrared (IR) */
 	struct ir_t ir;
 
+	/*
+	 * Identify if device is USB or not.
+	 * Used by smsdvb-sysfs to know the root node for debugfs
+	 */
+	bool is_usb_device;
+
 	int led_state;
 };
 
