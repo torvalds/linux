@@ -31,8 +31,8 @@ MODULE_PARM_DESC(audio,
 
 __s32 hdmi_state = HDMI_State_Wait_Hpd;
 __bool video_enable;
-__bool audio_edid;
-__bool audio_enable = 1;
+static __bool audio_edid;
+static __bool audio_enable = 1;
 __s32 video_mode = HDMI720P_50;
 HDMI_AUDIO_INFO audio_info;
 __u8 EDID_Buf[1024];
