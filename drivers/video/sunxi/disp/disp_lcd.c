@@ -1858,7 +1858,6 @@ __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode)
 		videomode->pixclock = HZ2PICOS(
 			clk_tab.vga_clk_tab[vga_mode].tve_clk /
 			clk_tab.vga_clk_tab[vga_mode].pre_scale);
-		interlaced = Disp_get_screen_scan_mode(vga_mode);
 	} else {
 		DE_INF("get videomode fail because device is not output !\n");
 		return DIS_FAIL;

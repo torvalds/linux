@@ -155,8 +155,6 @@ __s32 LCD_LVDS_close(__u32 sel);
 __s32 TCON0_open(__u32 sel);
 __s32 TCON0_close(__u32 sel);
 void TCON0_cfg(__u32 sel, __panel_para_t *info);
-__s32 TCON0_get_width(__u32 sel);
-__s32 TCON0_get_height(__u32 sel);
 __s32 TCON0_set_dclk_div(__u32 sel, __u8 div);
 __s32 TCON0_select_src(__u32 sel, enum lcdc_src src);
 __u32 TCON0_get_dclk_div(__u32 sel);
@@ -170,8 +168,6 @@ __u32 TCON1_set_tv_mode(__u32 sel, __u8 mode);
 __s32 TCON1_set_vga_mode(__u32 sel, __u8 mode);
 __s32 TCON1_select_src(__u32 sel, enum lcdc_src src);
 __bool TCON1_in_valid_regn(__u32 sel, __u32 juststd);
-__s32 TCON1_get_width(__u32 sel);
-__s32 TCON1_get_height(__u32 sel);
 __s32 TCON1_set_gamma_table(__u32 sel, __u32 address, __u32 size);
 __s32 TCON1_set_gamma_Enable(__u32 sel, __bool enable);
 

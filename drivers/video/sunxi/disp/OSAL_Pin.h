@@ -26,27 +26,10 @@ __hdle OSAL_GPIO_Request_Ex(char *main_name, const char *sub_name);
 
 __s32 OSAL_GPIO_Release(__hdle p_handler, __s32 if_release_to_default_status);
 
-__s32 OSAL_GPIO_DevGetAllPins_Status(unsigned p_handler,
-				     user_gpio_set_t *gpio_status,
-				     unsigned gpio_count_max,
-				     unsigned if_get_from_hardware);
-
-__s32 OSAL_GPIO_DevGetONEPins_Status(unsigned p_handler,
-				     user_gpio_set_t *gpio_status,
-				     const char *gpio_name,
-				     unsigned if_get_from_hardware);
-
-__s32 OSAL_GPIO_DevSetONEPin_Status(u32 p_handler,
-				    user_gpio_set_t *gpio_status,
-				    const char *gpio_name,
-				    __u32 if_set_to_current_input_status);
 
 __s32 OSAL_GPIO_DevSetONEPIN_IO_STATUS(u32 p_handler,
 				       __u32 if_set_to_output_status,
 				       const char *gpio_name);
-
-__s32 OSAL_GPIO_DevSetONEPIN_PULL_STATUS(u32 p_handler, __u32 set_pull_status,
-					 const char *gpio_name);
 
 __s32 OSAL_GPIO_DevREAD_ONEPIN_DATA(u32 p_handler, const char *gpio_name);
 

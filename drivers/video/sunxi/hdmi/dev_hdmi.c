@@ -98,34 +98,34 @@ static struct platform_driver hdmi_driver = {
 		   },
 };
 
-int hdmi_open(struct inode *inode, struct file *file)
+static int hdmi_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-int hdmi_release(struct inode *inode, struct file *file)
+static int hdmi_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-ssize_t hdmi_read(struct file *file, char __user *buf, size_t count,
+static ssize_t hdmi_read(struct file *file, char __user *buf, size_t count,
 		  loff_t *ppos)
 {
 	return -EINVAL;
 }
 
-ssize_t hdmi_write(struct file *file, const char __user *buf, size_t count,
-		   loff_t *ppos)
+static ssize_t hdmi_write(struct file *file,
+		const char __user *buf, size_t count, loff_t *ppos)
 {
 	return -EINVAL;
 }
 
-int hdmi_mmap(struct file *file, struct vm_area_struct *vma)
+static int hdmi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	return 0;
 }
 
-long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return 0;
 }

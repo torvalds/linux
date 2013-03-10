@@ -422,16 +422,6 @@ __s32 TCON0_select_src(__u32 sel, enum lcdc_src src)
 	return 0;
 }
 
-__s32 TCON0_get_width(__u32 sel)
-{
-	return -1;
-}
-
-__s32 TCON0_get_height(__u32 sel)
-{
-	return -1;
-}
-
 __s32 TCON0_set_dclk_div(__u32 sel, __u8 div)
 {
 	LCDC_INIT_BIT(sel, LCDC_DCLK_OFF, 0xff, div);
@@ -984,16 +974,6 @@ __bool TCON1_in_valid_regn(__u32 sel, __u32 juststd)
 	else
 		return 0;
 
-}
-
-__s32 TCON1_get_width(__u32 sel)
-{
-	return -1;
-}
-
-__s32 TCON1_get_height(__u32 sel)
-{
-	return -1;
 }
 
 /*

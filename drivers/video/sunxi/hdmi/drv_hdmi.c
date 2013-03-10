@@ -49,7 +49,7 @@ static __s32 Hdmi_enable(__bool enable)
 	return 0;
 }
 
-__s32 hdmi_wait_edid(void)
+static __s32 hdmi_wait_edid(void)
 {
 	unsigned long start = jiffies;
 
@@ -69,7 +69,7 @@ __s32 hdmi_wait_edid(void)
 	return -1;
 }
 
-__s32 Hdmi_open(void)
+static __s32 Hdmi_open(void)
 {
 	__inf("[Hdmi_open]\n");
 
@@ -85,7 +85,7 @@ __s32 Hdmi_open(void)
 	return 0;
 }
 
-__s32 Hdmi_close(void)
+static __s32 Hdmi_close(void)
 {
 	__inf("[Hdmi_close]\n");
 
@@ -143,7 +143,7 @@ static __u32 Hdmi_tv_mode_to_hdmi_mode(__disp_tv_mode_t mode)
 	}
 }
 
-__s32 Hdmi_set_display_mode(__disp_tv_mode_t mode)
+static __s32 Hdmi_set_display_mode(__disp_tv_mode_t mode)
 {
 	__u32 hdmi_mode;
 
@@ -163,7 +163,7 @@ __s32 Hdmi_set_display_mode(__disp_tv_mode_t mode)
 	return 0;
 }
 
-__s32 Hdmi_set_display_videomode(const struct __disp_video_timing *mode)
+static __s32 Hdmi_set_display_videomode(const struct __disp_video_timing *mode)
 {
 	__inf("[Hdmi_set_display_videomode]\n");
 
@@ -184,7 +184,7 @@ __s32 Hdmi_set_display_videomode(const struct __disp_video_timing *mode)
 	return 0;
 }
 
-__s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel)
+static __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel)
 {
 	__inf("[Hdmi_Audio_Enable],ch:%d\n", channel);
 
@@ -197,7 +197,7 @@ __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel)
 	return 0;
 }
 
-__s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para)
+static __s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para)
 {
 	__inf("[Hdmi_Set_Audio_Para]\n");
 
@@ -225,7 +225,7 @@ __s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para)
 	return 0;
 }
 
-__s32 Hdmi_mode_support(__disp_tv_mode_t mode)
+static __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
 {
 	__u32 hdmi_mode = Hdmi_tv_mode_to_hdmi_mode(mode);
 
@@ -238,7 +238,7 @@ __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
 	return Device_Support_VIC[hdmi_mode];
 }
 
-__s32 hdmi_get_video_timing(__disp_tv_mode_t mode,
+static __s32 hdmi_get_video_timing(__disp_tv_mode_t mode,
 	struct __disp_video_timing *video_timing_dest)
 {
 	__u32 hdmi_mode;
@@ -257,7 +257,7 @@ __s32 hdmi_get_video_timing(__disp_tv_mode_t mode,
 	return 0;
 }
 
-__s32 Hdmi_get_HPD_status(void)
+static __s32 Hdmi_get_HPD_status(void)
 {
 	return Hpd_Check();
 }

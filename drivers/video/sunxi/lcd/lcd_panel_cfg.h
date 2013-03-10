@@ -68,7 +68,4 @@ void LCD_get_panel_funs_1(__lcd_panel_fun_t *fun);
 #define BIT30	0x40000000
 #define BIT31	0x80000000
 
-#define sys_get_wvalue(n) (*((volatile __u32 *)(n))) /* word input */
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n)) = (c)) /* word output */
-
 #endif
