@@ -1289,6 +1289,7 @@ static struct file_system_type efivarfs_type = {
 	.mount   = efivarfs_mount,
 	.kill_sb = efivarfs_kill_sb,
 };
+MODULE_ALIAS_FS("efivarfs");
 
 /*
  * Handle negative dentry.
