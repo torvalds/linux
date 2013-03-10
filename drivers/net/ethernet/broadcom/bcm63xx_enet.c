@@ -1670,7 +1670,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		ret = PTR_ERR(priv->mac_clk);
 		goto out;
 	}
-	clk_enable(priv->mac_clk);
+	clk_prepare_enable(priv->mac_clk);
 
 	/* initialize default and fetch platform data */
 	priv->rx_ring_size = BCMENET_DEF_RX_DESC;
@@ -1699,7 +1699,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 			priv->phy_clk = NULL;
 			goto out_put_clk_mac;
 		}
-		clk_enable(priv->phy_clk);
+		clk_prepare_enable(priv->phy_clk);
 	}
 
 	/* do minimal hardware init to be able to probe mii bus */
@@ -1800,12 +1800,12 @@ out_uninit_hw:
 	/* turn off mdc clock */
 	enet_writel(priv, 0, ENET_MIISC_REG);
 	if (priv->phy_clk) {
-		clk_disable(priv->phy_clk);
+		clk_disable_unprepare(priv->phy_clk);
 		clk_put(priv->phy_clk);
 	}
 
 out_put_clk_mac:
-	clk_disable(priv->mac_clk);
+	clk_disable_unprepare(priv->mac_clk);
 	clk_put(priv->mac_clk);
 out:
 	free_netdev(dev);
@@ -1843,10 +1843,10 @@ static int bcm_enet_remove(struct platform_device *pdev)
 
 	/* disable hw block clocks */
 	if (priv->phy_clk) {
-		clk_disable(priv->phy_clk);
+		clk_disable_unprepare(priv->phy_clk);
 		clk_put(priv->phy_clk);
 	}
-	clk_disable(priv->mac_clk);
+	clk_disable_unprepare(priv->mac_clk);
 	clk_put(priv->mac_clk);
 
 	platform_set_drvdata(pdev, NULL);
