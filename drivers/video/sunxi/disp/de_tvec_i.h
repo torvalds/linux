@@ -56,12 +56,19 @@
 /* pfff, get do { } while (0) around these */
 #define TVE_GET_REG_BASE(sel) ((sel)==0?(tve_reg_base0):(tve_reg_base1))
 
-#define TVE_WUINT32(sel,offset,value) (*((volatile __u32 *)( TVE_GET_REG_BASE(sel) + (offset) ))=(value))
-#define TVE_RUINT32(sel,offset)	(*((volatile __u32 *)( TVE_GET_REG_BASE(sel) + (offset) )))
+#define TVE_WUINT32(sel, offset, value) \
+	writel(value, TVE_GET_REG_BASE(sel)+offset)
+#define TVE_RUINT32(sel, offset) \
+	readl(TVE_GET_REG_BASE(sel)+offset)
 
-#define TVE_SET_BIT(sel,offset,bit) (*((volatile __u32 *)( TVE_GET_REG_BASE(sel) + (offset) )) |= (bit))
-#define TVE_CLR_BIT(sel,offset,bit) (*((volatile __u32 *)( TVE_GET_REG_BASE(sel) + (offset) )) &= (~(bit)))
-#define TVE_INIT_BIT(sel,offset,c,s) (*((volatile __u32 *)( TVE_GET_REG_BASE(sel) + (offset) )) = \
-(((*(volatile __u32 *)( TVE_GET_REG_BASE(sel) + (offset) )) & (~(c))) | (s)))
+#define TVE_SET_BIT(sel, offset, bit) \
+	writel(readl(TVE_GET_REG_BASE(sel)+offset) | (bit), \
+			TVE_GET_REG_BASE(sel)+offset)
+#define TVE_CLR_BIT(sel, offset, bit) \
+	writel(readl(TVE_GET_REG_BASE(sel)+offset) & ~(bit), \
+			TVE_GET_REG_BASE(sel)+offset)
+#define TVE_INIT_BIT(sel, offset, c, s) \
+	writel((readl(TVE_GET_REG_BASE(sel)+offset) & ~(c)) | (s), \
+			TVE_GET_REG_BASE(sel)+offset)
 
 #endif
