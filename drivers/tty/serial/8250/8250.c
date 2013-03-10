@@ -3417,3 +3417,32 @@ module_param_array(probe_rsa, ulong, &probe_rsa_count, 0444);
 MODULE_PARM_DESC(probe_rsa, "Probe I/O ports for RSA");
 #endif
 MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
+
+#ifndef MODULE
+/* This module was renamed to 8250_core in 3.7.  Keep the old "8250" name
+ * working as well for the module options so we don't break people.  We
+ * need to keep the names identical and the convenient macros will happily
+ * refuse to let us do that by failing the build with redefinition errors
+ * of global variables.  So we stick them inside a dummy function to avoid
+ * those conflicts.  The options still get parsed, and the redefined
+ * MODULE_PARAM_PREFIX lets us keep the "8250." syntax alive.
+ *
+ * This is hacky.  I'm sorry.
+ */
+static void __used s8250_options(void)
+{
+#undef MODULE_PARAM_PREFIX
+#define MODULE_PARAM_PREFIX "8250."
+
+	module_param_cb(share_irqs, &param_ops_uint, &share_irqs, 0644);
+	module_param_cb(nr_uarts, &param_ops_uint, &nr_uarts, 0644);
+	module_param_cb(skip_txen_test, &param_ops_uint, &skip_txen_test, 0644);
+#ifdef CONFIG_SERIAL_8250_RSA
+	__module_param_call(MODULE_PARAM_PREFIX, probe_rsa,
+		&param_array_ops, .arr = &__param_arr_probe_rsa,
+		0444, -1);
+#endif
+}
+#else
+MODULE_ALIAS("8250");
+#endif
