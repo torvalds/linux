@@ -1327,7 +1327,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		   __func__, ar, ept, skb, packet->buf,
 		   packet->act_len, status);
 
-	if (status || !(skb->data + HTC_HDR_LENGTH)) {
+	if (status || packet->act_len < HTC_HDR_LENGTH) {
 		dev_kfree_skb(skb);
 		return;
 	}
