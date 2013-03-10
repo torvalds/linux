@@ -20,36 +20,37 @@
 #include <sound/pcm.h>
 #include "hdmi_core.h"
 #include "../disp/dev_disp.h"
+#include "../disp/sunxi_disp_regs.h"
 
 void DDC_Init(void)
 {
 	pr_info("DDC_Init\n");
 
-	HDMI_WUINT32(0x500, 0x80000001);
+	HDMI_WUINT32(HDMI_I2C_GENERAL, 0x80000001);
 	hdmi_delay_ms(1);
 
 #if 0
-	while (HDMI_RUINT32(0x500) & 0x1)
+	while (HDMI_RUINT32(HDMI_I2C_GENERAL) & 0x1)
 		;
 #endif
-	if (HDMI_RUINT32(0x500) & 0x1)
+	if (HDMI_RUINT32(HDMI_I2C_GENERAL) & 0x1)
 		pr_info("EDID not ready\n");
 	else
 		pr_info("EDID ready\n");
 
 	/* N = 5,M=1 Fscl= Ftmds/2/10/2^N/(M+1) */
-	HDMI_WUINT32(0x528, 0x0d);
+	HDMI_WUINT32(HDMI_I2C_CLK, 0x0d);
 
 	/* ddc address  0x60 */
-	//HDMI_WUINT8(0x506, 0x60);
+	/*HDMI_WUINT8(HDMI_I2C_ADDR + 1, 0x60);*/
 
 	/* slave address  0xa0 */
-	//HDMI_WUINT8(0x504, 0xa0 >> 1);
+	/*HDMI_WUINT8(HDMI_I2C_ADDR, 0xa0 >> 1);*/
 
 	/* enable analog sda/scl pad */
-	HDMI_WUINT32(0x540, (0 << 12) + (3 << 8));
+	HDMI_WUINT32(HDMI_I2C_LINE_CTRL, (0 << 12) + (3 << 8));
 
-	//send_ini_sequence();
+	/*send_ini_sequence();*/
 }
 
 #if 0
@@ -59,11 +60,11 @@ void send_ini_sequence()
 
 	set_wbit(HDMI_BASE + 0x524, BIT3);
 	for (i = 0; i < 9; i++) {
-		for (j = 0; j < 200; j++) //for simulation, delete it
+		for (j = 0; j < 200; j++) /*for simulation, delete it*/
 			;
 		clr_wbit(HDMI_BASE + 0x524, BIT2);
 
-		for (j = 0; j < 200; j++) //for simulation, delete it
+		for (j = 0; j < 200; j++) /*for simulation, delete it*/
 			;
 		set_wbit(HDMI_BASE + 0x524, BIT2);
 	}
@@ -90,28 +91,33 @@ __s32 DDC_Read(char cmd, char pointer, char offset, int nbyte, char *pbuf)
 			n = nbyte;
 		nbyte = nbyte - n;
 
-		reg_val = HDMI_RUINT32(0x500);
+		 /* set FIFO read */
+		reg_val = HDMI_RUINT32(HDMI_I2C_GENERAL);
 		reg_val &= 0xfffffeff;
-		HDMI_WUINT32(0x500, reg_val); /* set FIFO read */
+		HDMI_WUINT32(HDMI_I2C_GENERAL, reg_val);
 
-		HDMI_WUINT32(0x504, (pointer << 24) + (0x60 << 16) +
+		HDMI_WUINT32(HDMI_I2C_ADDR, (pointer << 24) + (0x60 << 16) +
 			     (off << 8) + (0xa0 >> 1));
 
-		reg_val = HDMI_RUINT32(0x510);
+		 /* FIFO address clear */
+		reg_val = HDMI_RUINT32(HDMI_I2C_GENERAL_2);
 		reg_val |= 0x80000000;
-		HDMI_WUINT32(0x510, reg_val); /* FIFO address clear */
+		HDMI_WUINT32(HDMI_I2C_GENERAL_2, reg_val);
 
-		HDMI_WUINT32(0x51c, n);	/* nbyte to access */
-		HDMI_WUINT32(0x520, cmd); /* set cmd type */
+		/* nbyte to access */
+		HDMI_WUINT32(HDMI_I2C_DATA_LENGTH, n);
+		/* set cmd type */
+		HDMI_WUINT32(HDMI_I2C_CMD, cmd);
 
-		reg_val = HDMI_RUINT32(0x500);
+		 /* start and cmd */
+		reg_val = HDMI_RUINT32(HDMI_I2C_GENERAL);
 		reg_val |= 0x40000000;
-		HDMI_WUINT32(0x500, reg_val); /* start and cmd */
+		HDMI_WUINT32(HDMI_I2C_GENERAL, reg_val);
 
 		off += n;
 
 		begin_ms = (jiffies * 1000) / HZ;
-		while (HDMI_RUINT32(0x500) & 0x40000000) {
+		while (HDMI_RUINT32(HDMI_I2C_GENERAL) & 0x40000000) {
 			end_ms = (jiffies * 1000) / HZ;
 			if ((end_ms - begin_ms) > 1000) {
 				__wrn("ddc read timeout\n");
@@ -120,7 +126,7 @@ __s32 DDC_Read(char cmd, char pointer, char offset, int nbyte, char *pbuf)
 		}
 
 		for (i = 0; i < n; i++)
-			*pbuf++ = HDMI_RUINT8(0x518);
+			*pbuf++ = HDMI_RUINT8(HDMI_I2C_DATA);
 	}
 
 	return 0;
