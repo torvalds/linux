@@ -603,7 +603,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			break;
 		}
 
-		dev_dbg(musb->controller, "VBUS_ERROR in %s (%02x, %s), retry #%d, port1 %08x\n",
+		dev_printk(ignore ? KERN_DEBUG : KERN_ERR, musb->controller,
+				"VBUS_ERROR in %s (%02x, %s), retry #%d, port1 %08x\n",
 				usb_otg_state_string(musb->xceiv->state),
 				devctl,
 				({ char *s;
