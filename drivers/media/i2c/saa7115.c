@@ -1360,6 +1360,34 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	 */
 
 	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
+
+	if (state->ident == V4L2_IDENT_SAA7115) {
+		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
+
+		v4l2_dbg(1, debug, sd, "Status byte 1 (0x1e)=0x%02x\n", reg1e);
+
+		switch (reg1e & 0x03) {
+		case 1:
+			*std &= V4L2_STD_NTSC;
+			break;
+		case 2:
+			/*
+			 * V4L2_STD_PAL just cover the european PAL standards.
+			 * This is wrong, as the device could also be using an
+			 * other PAL standard.
+			 */
+			*std &= V4L2_STD_PAL   | V4L2_STD_PAL_N  | V4L2_STD_PAL_Nc |
+				V4L2_STD_PAL_M | V4L2_STD_PAL_60;
+			break;
+		case 3:
+			*std &= V4L2_STD_SECAM;
+			break;
+		default:
+			/* Can't detect anything */
+			break;
+		}
+	}
+
 	v4l2_dbg(1, debug, sd, "Status byte 2 (0x1f)=0x%02x\n", reg1f);
 
 	/* horizontal/vertical not locked */
@@ -1370,34 +1398,6 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 		*std &= V4L2_STD_525_60;
 	else
 		*std &= V4L2_STD_625_50;
-
-	if (state->ident != V4L2_IDENT_SAA7115)
-		goto ret;
-
-	reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
-
-	switch (reg1e & 0x03) {
-	case 1:
-		*std &= V4L2_STD_NTSC;
-		break;
-	case 2:
-		/*
-		 * V4L2_STD_PAL just cover the european PAL standards.
-		 * This is wrong, as the device could also be using an
-		 * other PAL standard.
-		 */
-		*std &= V4L2_STD_PAL   | V4L2_STD_PAL_N  | V4L2_STD_PAL_Nc |
-			V4L2_STD_PAL_M | V4L2_STD_PAL_60;
-		break;
-	case 3:
-		*std &= V4L2_STD_SECAM;
-		break;
-	default:
-		/* Can't detect anything */
-		break;
-	}
-
-	v4l2_dbg(1, debug, sd, "Status byte 1 (0x1e)=0x%02x\n", reg1e);
 
 ret:
 	v4l2_dbg(1, debug, sd, "detected std mask = %08Lx\n", *std);
