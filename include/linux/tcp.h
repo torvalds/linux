@@ -361,10 +361,6 @@ struct tcp_timewait_sock {
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key	  *tw_md5_key;
 #endif
-	/* Few sockets in timewait have cookies; in that case, then this
-	 * object holds a reference to them (tw_cookie_values->kref).
-	 */
-	struct tcp_cookie_values  *tw_cookie_values;
 };
 
 static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)
