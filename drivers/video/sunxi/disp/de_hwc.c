@@ -62,7 +62,7 @@ __s32 DE_BE_HWC_Set_Palette(__u32 sel, __u32 address, __u32 offset, __u32 size)
 	reg_addr = DE_BE_HWC_PALETTE_TABLE_ADDR_OFF + offset;
 
 	for (i = 0; i < size; i = i + 4) {
-		read_val = DE_RUINT32(address + i);
+		read_val = readl(address + i);
 		DE_BE_WUINT32(sel, reg_addr, read_val);
 		reg_addr = reg_addr + 4;
 	}
@@ -115,20 +115,20 @@ __s32 DE_BE_HWC_Set_Src(__u32 sel, __disp_hwc_pattern_t *hwc_pat)
 		for (i = 0; i < size; i += 4) {
 			__u32 value = 0;
 
-			tmp = DE_RUINT8(hwc_pat->addr + i);
+			tmp = readb(hwc_pat->addr + i);
 			value = tmp;
-			tmp = DE_RUINT8(hwc_pat->addr + i + 1);
+			tmp = readb(hwc_pat->addr + i + 1);
 			value |= (tmp << 8);
-			tmp = DE_RUINT8(hwc_pat->addr + i + 2);
+			tmp = readb(hwc_pat->addr + i + 2);
 			value |= (tmp << 16);
-			tmp = DE_RUINT8(hwc_pat->addr + i + 3);
+			tmp = readb(hwc_pat->addr + i + 3);
 			value |= (tmp << 24);
 			DE_BE_WUINT32(sel, DE_BE_HWC_MEMORY_ADDR_OFF + i,
 				      value);
 		}
 	} else {
 		for (i = 0; i < size; i += 4) {
-			tmp = DE_RUINT32(hwc_pat->addr + i);
+			tmp = readl(hwc_pat->addr + i);
 			DE_BE_WUINT32(sel, DE_BE_HWC_MEMORY_ADDR_OFF + i, tmp);
 		}
 	}

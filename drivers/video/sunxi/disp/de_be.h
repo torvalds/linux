@@ -98,19 +98,6 @@
 extern __u32 image_reg_base[2];
 #define DE_BE_GET_REG_BASE(sel) image_reg_base[sel]
 
-#define DE_WUINT8(offset,value) (*((volatile __u8 *)(offset))=(value))
-#define DE_RUINT8(offset)  (*((volatile __u8 *)(offset)))
-#define DE_WUINT16(offset,value)(*((volatile __u16 *)(offset))=(value))
-#define DE_RUINT16(offset) (*((volatile __u16 *)(offset)))
-#define DE_WUINT32(offset,value)(*((volatile __u32 *)(offset))=(value))
-#define DE_RUINT32(offset) (*((volatile __u32 *)(offset)))
-#define DE_WUINT8IDX(offset,index,value)((*((volatile __u8 *)(offset+index)))=(value))
-#define DE_RUINT8IDX(offset,index) (*((volatile __u8 *)(offset+index)))
-#define DE_WUINT16IDX(offset,index,value)  (*((volatile __u16 *)(offset+2*index))=(value))
-#define DE_RUINT16IDX(offset,index) ( *((volatile __u16 *)(offset+2*index)))
-#define DE_WUINT32IDX(offset,index,value)  (*((volatile __u32 *)(offset+4*index))=(value))
-#define DE_RUINT32IDX(offset,index) (*((volatile __u32 *)(offset+4*index)))
-
 #define DE_BE_WUINT8(sel, offset, value) \
 	writeb(value, DE_BE_GET_REG_BASE(sel)+offset)
 #define DE_BE_RUINT8(sel, offset) \
