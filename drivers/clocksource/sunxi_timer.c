@@ -25,15 +25,15 @@
 #include <linux/sunxi_timer.h>
 #include <linux/clk/sunxi.h>
 
-#define TIMER_CTL_REG		0x00
-#define TIMER_CTL_ENABLE		(1 << 0)
+#define TIMER_IRQ_EN_REG	0x00
+#define TIMER_IRQ_EN(val)		(1 << val)
 #define TIMER_IRQ_ST_REG	0x04
-#define TIMER0_CTL_REG		0x10
-#define TIMER0_CTL_ENABLE		(1 << 0)
-#define TIMER0_CTL_AUTORELOAD		(1 << 1)
-#define TIMER0_CTL_ONESHOT		(1 << 7)
-#define TIMER0_INTVAL_REG	0x14
-#define TIMER0_CNTVAL_REG	0x18
+#define TIMER_CTL_REG(val)	(0x10 * val + 0x10)
+#define TIMER_CTL_ENABLE		(1 << 0)
+#define TIMER_CTL_AUTORELOAD		(1 << 1)
+#define TIMER_CTL_ONESHOT		(1 << 7)
+#define TIMER_INTVAL_REG(val)	(0x10 * val + 0x14)
+#define TIMER_CNTVAL_REG(val)	(0x10 * val + 0x18)
 
 #define TIMER_SCAL		16
 
@@ -42,21 +42,21 @@ static void __iomem *timer_base;
 static void sunxi_clkevt_mode(enum clock_event_mode mode,
 			      struct clock_event_device *clk)
 {
-	u32 u = readl(timer_base + TIMER0_CTL_REG);
+	u32 u = readl(timer_base + TIMER_CTL_REG(0));
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		u &= ~(TIMER0_CTL_ONESHOT);
-		writel(u | TIMER0_CTL_ENABLE, timer_base + TIMER0_CTL_REG);
+		u &= ~(TIMER_CTL_ONESHOT);
+		writel(u | TIMER_CTL_ENABLE, timer_base + TIMER_CTL_REG(0));
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
-		writel(u | TIMER0_CTL_ONESHOT, timer_base + TIMER0_CTL_REG);
+		writel(u | TIMER_CTL_ONESHOT, timer_base + TIMER_CTL_REG(0));
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	default:
-		writel(u & ~(TIMER0_CTL_ENABLE), timer_base + TIMER0_CTL_REG);
+		writel(u & ~(TIMER_CTL_ENABLE), timer_base + TIMER_CTL_REG(0));
 		break;
 	}
 }
@@ -64,10 +64,10 @@ static void sunxi_clkevt_mode(enum clock_event_mode mode,
 static int sunxi_clkevt_next_event(unsigned long evt,
 				   struct clock_event_device *unused)
 {
-	u32 u = readl(timer_base + TIMER0_CTL_REG);
-	writel(evt, timer_base + TIMER0_CNTVAL_REG);
-	writel(u | TIMER0_CTL_ENABLE | TIMER0_CTL_AUTORELOAD,
-	       timer_base + TIMER0_CTL_REG);
+	u32 u = readl(timer_base + TIMER_CTL_REG(0));
+	writel(evt, timer_base + TIMER_CNTVAL_REG(0));
+	writel(u | TIMER_CTL_ENABLE | TIMER_CTL_AUTORELOAD,
+	       timer_base + TIMER_CTL_REG(0));
 
 	return 0;
 }
@@ -132,26 +132,26 @@ void __init sunxi_timer_init(void)
 	rate = clk_get_rate(clk);
 
 	writel(rate / (TIMER_SCAL * HZ),
-	       timer_base + TIMER0_INTVAL_REG);
+	       timer_base + TIMER_INTVAL_REG(0));
 
 	/* set clock source to HOSC, 16 pre-division */
-	val = readl(timer_base + TIMER0_CTL_REG);
+	val = readl(timer_base + TIMER_CTL_REG(0));
 	val &= ~(0x07 << 4);
 	val &= ~(0x03 << 2);
 	val |= (4 << 4) | (1 << 2);
-	writel(val, timer_base + TIMER0_CTL_REG);
+	writel(val, timer_base + TIMER_CTL_REG(0));
 
 	/* set mode to auto reload */
-	val = readl(timer_base + TIMER0_CTL_REG);
-	writel(val | TIMER0_CTL_AUTORELOAD, timer_base + TIMER0_CTL_REG);
+	val = readl(timer_base + TIMER_CTL_REG(0));
+	writel(val | TIMER_CTL_AUTORELOAD, timer_base + TIMER_CTL_REG(0));
 
 	ret = setup_irq(irq, &sunxi_timer_irq);
 	if (ret)
 		pr_warn("failed to setup irq %d\n", irq);
 
 	/* Enable timer0 interrupt */
-	val = readl(timer_base + TIMER_CTL_REG);
-	writel(val | TIMER_CTL_ENABLE, timer_base + TIMER_CTL_REG);
+	val = readl(timer_base + TIMER_IRQ_EN_REG);
+	writel(val | TIMER_IRQ_EN(0), timer_base + TIMER_IRQ_EN_REG);
 
 	sunxi_clockevent.cpumask = cpumask_of(0);
 
