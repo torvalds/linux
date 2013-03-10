@@ -10,7 +10,7 @@ targets	+= $(standby-y)
 STANDBY_OBJS = $(addprefix $(obj)/,$(standby-y))
 
 LD_FILE = standby.lds
-KBUILD_CFLAGS := $(LINUXINCLUDE) -Os -g -march=armv7-a -mlittle-endian -c
+KBUILD_CFLAGS := $(LINUXINCLUDE) -Os -g -march=armv7-a -marm -mlittle-endian -c
 KBUILD_CFLAGS += -fno-unwind-tables -fno-asynchronous-unwind-tables
 KBUILD_AFLAGS := $(KBUILD_CFLAGS) -D__ASSEMBLY__
 

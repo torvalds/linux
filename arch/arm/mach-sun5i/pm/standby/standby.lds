@@ -28,7 +28,7 @@ SECTIONS
 	__standby_start = . ;
 	.text 0xf0000000 :
 	{
-		arch/arm/mach-sun5i/pm/standby/standby.o(.text)
+		arch/arm/mach-sun5i/pm/standby/standby.o(.startup)
 		*(.text)
 	}
 	.rodata : { *(.rodata) }
