@@ -227,18 +227,18 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 
 	/* Read data from i2c device */
 	ret = dev->em28xx_read_reg_req_len(dev, 2, addr, buf, len);
-	if (ret != len) {
-		if (ret < 0) {
-			em28xx_warn("reading from i2c device at 0x%x failed "
-				    "(error=%i)\n", addr, ret);
-			return ret;
-		} else {
-			em28xx_warn("%i bytes requested from i2c device at "
-				    "0x%x, but %i bytes received\n",
-				    len, addr, ret);
-			return -EIO;
-		}
+	if (ret < 0) {
+		em28xx_warn("reading from i2c device at 0x%x failed (error=%i)\n",
+			    addr, ret);
+		return ret;
 	}
+	/* NOTE: some devices with two i2c busses have the bad habit to return 0
+	 * bytes if we are on bus B AND there was no write attempt to the
+	 * specified slave address before AND no device is present at the
+	 * requested slave address.
+	 * Anyway, the next check will fail with -ENODEV in this case, so avoid
+	 * spamming the system log on device probing and do nothing here.
+	 */
 
 	/* Check success of the i2c operation */
 	ret = dev->em28xx_read_reg(dev, 0x05);
