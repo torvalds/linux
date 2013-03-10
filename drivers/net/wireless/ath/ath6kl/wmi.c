@@ -2029,6 +2029,9 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 		if (!sband)
 			continue;
 
+		if (WARN_ON(band >= ATH6KL_NUM_BANDS))
+			break;
+
 		ratemask = rates[band];
 		supp_rates = sc->supp_rates[band].rates;
 		num_rates = 0;
