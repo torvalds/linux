@@ -17,6 +17,7 @@
 
 #include <linux/init.h>
 #include <linux/of.h>
+#include <linux/string.h>
 
 #include <asm/compiler.h>
 #include <asm/errno.h>
@@ -26,6 +27,11 @@
 
 struct psci_operations psci_ops;
 
+/* Type of psci support. Currently can only be enabled or disabled */
+#define PSCI_SUP_DISABLED		0
+#define PSCI_SUP_ENABLED		1
+
+static unsigned int psci;
 static int (*invoke_psci_fn)(u32, u32, u32, u32);
 
 enum psci_function {
@@ -167,6 +173,9 @@ static int __init psci_init(void)
 	const char *method;
 	u32 id;
 
+	if (psci == PSCI_SUP_DISABLED)
+		return 0;
+
 	np = of_find_matching_node(NULL, psci_of_match);
 	if (!np)
 		return 0;
@@ -218,10 +227,27 @@ int __init psci_probe(void)
 	struct device_node *np;
 	int ret = -ENODEV;
 
-	np = of_find_matching_node(NULL, psci_of_match);
-	if (np)
-		ret = 0;
+	if (psci == PSCI_SUP_ENABLED) {
+		np = of_find_matching_node(NULL, psci_of_match);
+		if (np)
+			ret = 0;
+	}
 
 	of_node_put(np);
 	return ret;
 }
+
+static int __init early_psci(char *val)
+{
+	int ret = 0;
+
+	if (strcmp(val, "enable") == 0)
+		psci = PSCI_SUP_ENABLED;
+	else if (strcmp(val, "disable") == 0)
+		psci = PSCI_SUP_DISABLED;
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+early_param("psci", early_psci);
