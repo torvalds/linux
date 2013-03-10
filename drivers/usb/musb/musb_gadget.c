@@ -1934,6 +1934,7 @@ static int musb_gadget_stop(struct usb_gadget *g,
 	dev_dbg(musb->controller, "unregistering driver %s\n", driver->function);
 
 	musb->is_active = 0;
+	musb->gadget_driver = NULL;
 	musb_platform_try_idle(musb, 0);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
