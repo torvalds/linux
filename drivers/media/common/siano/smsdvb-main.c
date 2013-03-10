@@ -43,18 +43,6 @@ module_param_named(debug, sms_dbg, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 
 
-u32 sms_to_bw_table[] = {
-	[BW_8_MHZ]		= 8000000,
-	[BW_7_MHZ]		= 7000000,
-	[BW_6_MHZ]		= 6000000,
-	[BW_5_MHZ]		= 5000000,
-	[BW_2_MHZ]		= 2000000,
-	[BW_1_5_MHZ]		= 1500000,
-	[BW_ISDBT_1SEG]		= 6000000,
-	[BW_ISDBT_3SEG]		= 6000000,
-	[BW_ISDBT_13SEG]	= 6000000,
-};
-
 u32 sms_to_guard_interval_table[] = {
 	[0] = GUARD_INTERVAL_1_32,
 	[1] = GUARD_INTERVAL_1_16,
@@ -204,6 +192,10 @@ static inline int sms_to_status(u32 is_demod_locked, u32 is_rf_locked)
 	return 0;
 }
 
+static inline u32 sms_to_bw(u32 value)
+{
+	return value * 1000000;
+}
 
 #define convert_from_table(value, table, defval) ({			\
 	u32 __ret;							\
@@ -213,9 +205,6 @@ static inline int sms_to_status(u32 is_demod_locked, u32 is_rf_locked)
 		__ret = defval;						\
 	__ret;								\
 })
-
-#define sms_to_bw(value)						\
-	convert_from_table(value, sms_to_bw_table, 0);
 
 #define sms_to_guard_interval(value)					\
 	convert_from_table(value, sms_to_guard_interval_table,		\
