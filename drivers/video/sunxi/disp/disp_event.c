@@ -83,7 +83,6 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 				DE_SCAL_Reset(i);
 				DE_SCAL_Start(i);
 #endif
-				gdisp.scaler[i].b_reg_change = FALSE;
 			}
 			if (gdisp.scaler[i].b_close == TRUE) {
 				Scaler_close(i);

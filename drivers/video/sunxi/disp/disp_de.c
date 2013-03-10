@@ -336,7 +336,6 @@ __s32 Disp_set_out_interlace(__u32 sel)
 			if ((gdisp.scaler[i].status & SCALER_USED) &&
 			    (gdisp.scaler[i].screen_index == sel)) {
 				Scaler_Set_Outitl(i, FALSE);
-				gdisp.scaler[i].b_reg_change = TRUE;
 			}
 		}
 		gdisp.screen[sel].de_flicker_status |= DE_FLICKER_USED;
@@ -348,7 +347,6 @@ __s32 Disp_set_out_interlace(__u32 sel)
 				Scaler_Set_Outitl(i,
 						  gdisp.screen[sel].
 						  b_out_interlace);
-				gdisp.scaler[i].b_reg_change = TRUE;
 			}
 		}
 		gdisp.screen[sel].de_flicker_status &= ~DE_FLICKER_USED;

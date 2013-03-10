@@ -434,12 +434,6 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t *pfb)
 			}
 
 			memcpy(&layer_man->para.fb, pfb, sizeof(__disp_fb_t));
-
-			if (layer_man->para.mode ==
-			    DISP_LAYER_WORK_MODE_SCALER) {
-				gdisp.scaler[layer_man->scaler_index].
-				    b_reg_change = TRUE;
-			}
 			BSP_disp_cfg_finish(sel);
 
 			return DIS_SUCCESS;
@@ -498,8 +492,6 @@ __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid, __disp_rect_t *regn)
 			__s32 ret = 0;
 
 			ret = Scaler_Set_SclRegn(layer_man->scaler_index, regn);
-			gdisp.scaler[layer_man->scaler_index].b_reg_change =
-			    TRUE;
 			BSP_disp_cfg_finish(sel);
 			return ret;
 		} else {
@@ -638,11 +630,6 @@ __s32 BSP_disp_layer_set_screen_window(__u32 sel, __u32 hid,
 		layer_man->para.scn_win.y = regn->y;
 		layer_man->para.scn_win.width = regn->width;
 		layer_man->para.scn_win.height = regn->height;
-
-		if (layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER) {
-			gdisp.scaler[layer_man->scaler_index].b_reg_change =
-			    TRUE;
-		}
 		BSP_disp_cfg_finish(sel);
 
 		return DIS_SUCCESS;
@@ -838,10 +825,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 			layer_man->para.b_from_screen = player->b_from_screen;
 		}
 
-		if (layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER) {
-			gdisp.scaler[layer_man->scaler_index].b_reg_change =
-			    TRUE;
-		}
 		BSP_disp_cfg_finish(sel);
 
 		return DIS_SUCCESS;
