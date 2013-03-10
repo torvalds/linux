@@ -24,6 +24,8 @@
 #include <linux/spinlock.h>
 
 #include "core.h"
+#include "../core.h"
+#include "../pinconf.h"
 
 struct sh_pfc_pin_config {
 	u32 type;
@@ -230,57 +232,118 @@ static const struct pinmux_ops sh_pfc_pinmux_ops = {
 	.gpio_set_direction	= sh_pfc_gpio_set_direction,
 };
 
+/* Check whether the requested parameter is supported for a pin. */
+static bool sh_pfc_pinconf_validate(struct sh_pfc *pfc, unsigned int _pin,
+				    enum pin_config_param param)
+{
+	int idx = sh_pfc_get_pin_index(pfc, _pin);
+	const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
+
+	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+		return true;
+
+	case PIN_CONFIG_BIAS_PULL_UP:
+		return pin->configs & SH_PFC_PIN_CFG_PULL_UP;
+
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		return pin->configs & SH_PFC_PIN_CFG_PULL_DOWN;
+
+	default:
+		return false;
+	}
+}
+
 static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 			      unsigned long *config)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct sh_pfc *pfc = pmx->pfc;
-	int idx = sh_pfc_get_pin_index(pfc, _pin);
-	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
+	enum pin_config_param param = pinconf_to_config_param(*config);
+	unsigned long flags;
+	unsigned int bias;
 
-	*config = cfg->type;
+	if (!sh_pfc_pinconf_validate(pfc, _pin, param))
+		return -ENOTSUPP;
+
+	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		if (!pfc->info->ops || !pfc->info->ops->get_bias)
+			return -ENOTSUPP;
+
+		spin_lock_irqsave(&pfc->lock, flags);
+		bias = pfc->info->ops->get_bias(pfc, _pin);
+		spin_unlock_irqrestore(&pfc->lock, flags);
+
+		if (bias != param)
+			return -EINVAL;
+
+		*config = 0;
+		break;
+
+	default:
+		return -ENOTSUPP;
+	}
 
 	return 0;
 }
 
-static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
+static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
 			      unsigned long config)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct sh_pfc *pfc = pmx->pfc;
+	enum pin_config_param param = pinconf_to_config_param(config);
+	unsigned long flags;
 
-	/* Validate the new type */
-	if (config >= PINMUX_FLAG_TYPE)
-		return -EINVAL;
+	if (!sh_pfc_pinconf_validate(pfc, _pin, param))
+		return -ENOTSUPP;
 
-	return sh_pfc_reconfig_pin(pmx, pin, config);
+	switch (param) {
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_DISABLE:
+		if (!pfc->info->ops || !pfc->info->ops->set_bias)
+			return -ENOTSUPP;
+
+		spin_lock_irqsave(&pfc->lock, flags);
+		pfc->info->ops->set_bias(pfc, _pin, param);
+		spin_unlock_irqrestore(&pfc->lock, flags);
+
+		break;
+
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
 }
 
-static void sh_pfc_pinconf_dbg_show(struct pinctrl_dev *pctldev,
-				    struct seq_file *s, unsigned pin)
+static int sh_pfc_pinconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
+				    unsigned long config)
 {
-	const char *pinmux_type_str[] = {
-		[PINMUX_TYPE_NONE]		= "none",
-		[PINMUX_TYPE_FUNCTION]		= "function",
-		[PINMUX_TYPE_GPIO]		= "gpio",
-		[PINMUX_TYPE_OUTPUT]		= "output",
-		[PINMUX_TYPE_INPUT]		= "input",
-		[PINMUX_TYPE_INPUT_PULLUP]	= "input bias pull up",
-		[PINMUX_TYPE_INPUT_PULLDOWN]	= "input bias pull down",
-	};
-	unsigned long config;
-	int rc;
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	const unsigned int *pins;
+	unsigned int num_pins;
+	unsigned int i;
 
-	rc = sh_pfc_pinconf_get(pctldev, pin, &config);
-	if (unlikely(rc != 0))
-		return;
+	pins = pmx->pfc->info->groups[group].pins;
+	num_pins = pmx->pfc->info->groups[group].nr_pins;
 
-	seq_printf(s, " %s", pinmux_type_str[config]);
+	for (i = 0; i < num_pins; ++i)
+		sh_pfc_pinconf_set(pctldev, pins[i], config);
+
+	return 0;
 }
 
 static const struct pinconf_ops sh_pfc_pinconf_ops = {
-	.pin_config_get		= sh_pfc_pinconf_get,
-	.pin_config_set		= sh_pfc_pinconf_set,
-	.pin_config_dbg_show	= sh_pfc_pinconf_dbg_show,
+	.is_generic			= true,
+	.pin_config_get			= sh_pfc_pinconf_get,
+	.pin_config_set			= sh_pfc_pinconf_set,
+	.pin_config_group_set		= sh_pfc_pinconf_group_set,
+	.pin_config_config_dbg_show	= pinconf_generic_dump_config,
 };
 
 /* PFC ranges -> pinctrl pin descs */

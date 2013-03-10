@@ -31,9 +31,15 @@ enum {
 	PINMUX_FLAG_TYPE,	/* must be last */
 };
 
+#define SH_PFC_PIN_CFG_INPUT		(1 << 0)
+#define SH_PFC_PIN_CFG_OUTPUT		(1 << 1)
+#define SH_PFC_PIN_CFG_PULL_UP		(1 << 2)
+#define SH_PFC_PIN_CFG_PULL_DOWN	(1 << 3)
+
 struct sh_pfc_pin {
 	const pinmux_enum_t enum_id;
 	const char *name;
+	unsigned int configs;
 };
 
 #define SH_PFC_PIN_GROUP(n)				\
@@ -120,8 +126,18 @@ struct pinmux_range {
 	pinmux_enum_t force;
 };
 
+struct sh_pfc;
+
+struct sh_pfc_soc_operations {
+	unsigned int (*get_bias)(struct sh_pfc *pfc, unsigned int pin);
+	void (*set_bias)(struct sh_pfc *pfc, unsigned int pin,
+			 unsigned int bias);
+};
+
 struct sh_pfc_soc_info {
 	const char *name;
+	const struct sh_pfc_soc_operations *ops;
+
 	struct pinmux_range input;
 	struct pinmux_range input_pd;
 	struct pinmux_range input_pu;
