@@ -561,13 +561,13 @@ __s32 audio_config(void)
 #if 0
 	/* dedicated dma setting aw1623 env */
 	/* ddma ch5 seting from addr =0x40c00000 */
-	sys_put_wvalue(0xf1c023a4, 0x40c00000);
-	sys_put_wvalue(0xf1c023a8, 0x00000000); /* des =0 */
-	sys_put_wvalue(0xf1c023ac, 0x01f00000); /* byte to trans */
-	sys_put_wvalue(0xf1c023b8, (31 << 24) + (7 << 16) + (31 << 8) +
-		       (7 << 0)); /* data block and wait cycle */
+	writel(0x40c00000, 0xf1c023a4);
+	writel(0x00000000, 0xf1c023a8); /* des =0 */
+	writel(0x01f00000, 0xf1c023ac); /* byte to trans */
+	writel((31 << 24) + (7 << 16) + (31 << 8) +
+		       (7 << 0), 0xf1c023b8); /* data block and wait cycle */
 	/* from src0 to des1,continous mode */
-	sys_put_wvalue(0xf1c023a0, 0xa4b80481);
+	writel(0xa4b80481, 0xf1c023a0);
 #endif
 
 	return 0;

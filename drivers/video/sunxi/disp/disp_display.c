@@ -279,10 +279,10 @@ __s32 BSP_disp_print_reg(__bool b_force_on, __u32 id)
 	for (i = 0; i < size; i += 16) {
 		__u32 reg[4];
 
-		reg[0] = sys_get_wvalue(base + i);
-		reg[1] = sys_get_wvalue(base + i + 4);
-		reg[2] = sys_get_wvalue(base + i + 8);
-		reg[3] = sys_get_wvalue(base + i + 12);
+		reg[0] = readl(base + i);
+		reg[1] = readl(base + i + 4);
+		reg[2] = readl(base + i + 8);
+		reg[3] = readl(base + i + 12);
 
 		if (b_force_on)
 			DE_WRN("0x%08x:%08x,%08x:%08x,%08x\n", base + i,

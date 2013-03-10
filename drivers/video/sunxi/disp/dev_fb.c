@@ -371,34 +371,34 @@ fb_draw_colorbar(__u32 base, __u32 width, __u32 height,
 
 			if (var->bits_per_pixel == 32) {
 				offset = width * i + j;
-				sys_put_wvalue(base + offset * 4,
-					       (((1 << var->transp.length) -
+				writel((((1 << var->transp.length) -
 						 1) << var->transp.offset) |
 					       (((1 << var->red.length) -
-						 1) << var->red.offset));
+						 1) << var->red.offset),
+						 base + offset * 4);
 
 				offset = width * i + j + width / 4;
-				sys_put_wvalue(base + offset * 4,
-					       (((1 << var->transp.length) -
+				writel((((1 << var->transp.length) -
 						 1) << var->transp.offset) |
 					       (((1 << var->green.length) -
-						 1) << var->green.offset));
+						 1) << var->green.offset),
+						 base + offset * 4);
 
 				offset = width * i + j + width / 4 * 2;
-				sys_put_wvalue(base + offset * 4,
-					       (((1 << var->transp.length) -
+				writel((((1 << var->transp.length) -
 						 1) << var->transp.offset) |
 					       (((1 << var->blue.length) -
-						 1) << var->blue.offset));
+						 1) << var->blue.offset),
+						 base + offset * 4);
 
 				offset = width * i + j + width / 4 * 3;
-				sys_put_wvalue(base + offset * 4,
-					       (((1 << var->transp.length) -
+				writel((((1 << var->transp.length) -
 						 1) << var->transp.offset) |
 					       (((1 << var->red.length) -
 						 1) << var->red.offset) |
 					       (((1 << var->green.length) -
-						 1) << var->green.offset));
+						 1) << var->green.offset),
+						 base + offset * 4);
 			} else if (var->bits_per_pixel == 16) {
 				offset = width * i + j;
 				sys_put_hvalue(base + offset * 2,
@@ -453,7 +453,7 @@ fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height,
 					((time * 15) << 16) |
 					((time * 15) << 8) | (time * 15);
 
-				sys_put_wvalue(addr, value);
+				writel(value, addr);
 			}
 		}
 		DE_WRN("----%d\n", time * 15);
