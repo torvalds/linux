@@ -24,5 +24,6 @@ int test__parse_events(void);
 int test__hists_link(void);
 int test__python_use(void);
 int test__bp_signal(void);
+int test__bp_signal_overflow(void);
 
 #endif /* TESTS_H */

@@ -82,6 +82,10 @@ static struct test {
 		.func = test__bp_signal,
 	},
 	{
+		.desc = "Test breakpoint overflow sampling",
+		.func = test__bp_signal_overflow,
+	},
+	{
 		.func = NULL,
 	},
 };
