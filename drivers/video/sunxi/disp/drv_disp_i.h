@@ -57,13 +57,5 @@ typedef enum {
 #define DISP_IO_IEP	8
 #endif
 
-/* half word input */
-#define sys_get_hvalue(n)   (*((volatile __u16 *)(n)))
-/* half word output */
-#define sys_put_hvalue(n,c) (*((volatile __u16 *)(n)) = (c))
-/* word input */
-#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))
-/* word output */
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))
 
 #endif
