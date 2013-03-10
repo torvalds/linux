@@ -10,7 +10,6 @@
  */
 
 #define DRV_NAME "sh-pfc"
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitops.h>
 #include <linux/err.h>
@@ -173,9 +172,9 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 
 	sh_pfc_config_reg_helper(pfc, crp, field, &mapped_reg, &mask, &pos);
 
-	pr_debug("write_reg addr = %lx, value = %ld, field = %ld, "
-		 "r_width = %ld, f_width = %ld\n",
-		 crp->reg, value, field, crp->reg_width, crp->field_width);
+	dev_dbg(pfc->dev, "write_reg addr = %lx, value = %ld, field = %ld, "
+		"r_width = %ld, f_width = %ld\n",
+		crp->reg, value, field, crp->reg_width, crp->field_width);
 
 	mask = ~(mask << pos);
 	value = value << pos;
@@ -254,7 +253,8 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
 		}
 	}
 
-	pr_err("cannot locate data/mark enum_id for mark %d\n", mark);
+	dev_err(pfc->dev, "cannot locate data/mark enum_id for mark %d\n",
+		mark);
 	return -EINVAL;
 }
 
@@ -396,13 +396,13 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		 * PFC state as it is, given that there are already
 		 * extant users of it that have succeeded by this point.
 		 */
-		pr_notice("failed to init GPIO chip, ignoring...\n");
+		dev_notice(pfc->dev, "failed to init GPIO chip, ignoring...\n");
 	}
 #endif
 
 	platform_set_drvdata(pdev, pfc);
 
-	pr_info("%s support registered\n", info->name);
+	dev_info(pfc->dev, "%s support registered\n", info->name);
 
 	return 0;
 }

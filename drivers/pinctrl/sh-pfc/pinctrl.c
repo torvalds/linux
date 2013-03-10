@@ -9,7 +9,6 @@
  */
 
 #define DRV_NAME "sh-pfc"
-#define pr_fmt(fmt) KBUILD_MODNAME " pinctrl: " fmt
 
 #include <linux/device.h>
 #include <linux/err.h>
@@ -176,7 +175,9 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 	spin_lock_irqsave(&pfc->lock, flags);
 
 	if (cfg->type != PINMUX_TYPE_NONE) {
-		pr_err("Pin %u is busy, can't configure it as GPIO.\n", offset);
+		dev_err(pfc->dev,
+			"Pin %u is busy, can't configure it as GPIO.\n",
+			offset);
 		ret = -EBUSY;
 		goto done;
 	}

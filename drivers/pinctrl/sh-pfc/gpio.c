@@ -9,8 +9,6 @@
  * for more details.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME " gpio: " fmt
-
 #include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -273,12 +271,18 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 
 static int gpio_function_request(struct gpio_chip *gc, unsigned offset)
 {
+	static bool __print_once;
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
 	unsigned int mark = pfc->info->func_gpios[offset].enum_id;
 	unsigned long flags;
 	int ret;
 
-	pr_notice_once("Use of GPIO API for function requests is deprecated, convert to pinctrl\n");
+	if (!__print_once) {
+		dev_notice(pfc->dev,
+			   "Use of GPIO API for function requests is deprecated."
+			   " Convert to pinctrl\n");
+		__print_once = true;
+	}
 
 	if (mark == 0)
 		return -EINVAL;
@@ -334,9 +338,9 @@ sh_pfc_add_gpiochip(struct sh_pfc *pfc, int(*setup)(struct sh_pfc_chip *))
 	if (unlikely(ret < 0))
 		return ERR_PTR(ret);
 
-	pr_info("%s handling gpio %u -> %u\n",
-		chip->gpio_chip.label, chip->gpio_chip.base,
-		chip->gpio_chip.base + chip->gpio_chip.ngpio - 1);
+	dev_info(pfc->dev, "%s handling gpio %u -> %u\n",
+		 chip->gpio_chip.label, chip->gpio_chip.base,
+		 chip->gpio_chip.base + chip->gpio_chip.ngpio - 1);
 
 	return chip;
 }
