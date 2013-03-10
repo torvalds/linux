@@ -74,6 +74,7 @@
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
  * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
  * @IWL_UCODE_TLV_FLAGS_DW_BC_TABLE: The SCD byte count table is in DWORDS
+ * @IWL_UCODE_TLV_FLAGS_UAPSD: This uCode image supports uAPSD
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
@@ -81,6 +82,7 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
 	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
 	IWL_UCODE_TLV_FLAGS_DW_BC_TABLE	= BIT(4),
+	IWL_UCODE_TLV_FLAGS_UAPSD	= BIT(6),
 };
 
 /* The default calibrate table size if not specified by firmware file */

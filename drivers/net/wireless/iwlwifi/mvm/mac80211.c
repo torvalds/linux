@@ -774,9 +774,14 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
-		ret = iwl_mvm_power_update_mode(mvm, vif);
-		if (ret)
-			IWL_ERR(mvm, "failed to update power mode\n");
+		if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD)) {
+			/* Workaround for FW bug, otherwise FW disables device
+			 * power save upon disassociation
+			 */
+			ret = iwl_mvm_power_update_mode(mvm, vif);
+			if (ret)
+				IWL_ERR(mvm, "failed to update power mode\n");
+		}
 	} else if (changes & BSS_CHANGED_BEACON_INFO) {
 		/*
 		 * We received a beacon _after_ association so

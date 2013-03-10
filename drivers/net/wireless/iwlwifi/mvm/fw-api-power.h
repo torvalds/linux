@@ -79,6 +79,10 @@
  *		'1' Driver enables PM (use rest of parameters)
  * @POWER_FLAGS_SKIP_OVER_DTIM_MSK: '0' PM have to walk up every DTIM,
  *		'1' PM could sleep over DTIM till listen Interval.
+ * @POWER_FLAGS_SNOOZE_ENA_MSK: Enable snoozing only if uAPSD is enabled and all
+ *		access categories are both delivery and trigger enabled.
+ * @POWER_FLAGS_BT_SCO_ENA: Enable BT SCO coex only if uAPSD and
+ *		PBW Snoozing enabled
  * @POWER_FLAGS_ADVANCE_PM_ENA_MSK: Advanced PM (uAPSD) enable mask
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
 */
@@ -86,6 +90,8 @@ enum iwl_power_flags {
 	POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
 	POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK	= BIT(1),
 	POWER_FLAGS_SKIP_OVER_DTIM_MSK		= BIT(2),
+	POWER_FLAGS_SNOOZE_ENA_MSK		= BIT(5),
+	POWER_FLAGS_BT_SCO_ENA			= BIT(8),
 	POWER_FLAGS_ADVANCE_PM_ENA_MSK		= BIT(9),
 	POWER_FLAGS_LPRX_ENA_MSK		= BIT(11),
 };
@@ -93,7 +99,8 @@ enum iwl_power_flags {
 #define IWL_POWER_VEC_SIZE 5
 
 /**
- * struct iwl_powertable_cmd - Power Table Command
+ * struct iwl_powertable_cmd - legacy power command. Beside old API support this
+ *	is used also with a new	power API for device wide power settings.
  * POWER_TABLE_CMD = 0x77 (command, has simple generic response)
  *
  * @flags:		Power table command flags from POWER_FLAGS_*
@@ -122,6 +129,72 @@ struct iwl_powertable_cmd {
 	__le32 sleep_interval[IWL_POWER_VEC_SIZE];
 	__le32 skip_dtim_periods;
 	__le32 lprx_rssi_threshold;
+} __packed;
+
+/**
+ * struct iwl_mac_power_cmd - New power command containing uAPSD support
+ * MAC_PM_POWER_TABLE = 0xA9 (command, has simple generic response)
+ * @id_and_color:	MAC contex identifier
+ * @flags:		Power table command flags from POWER_FLAGS_*
+ * @keep_alive_seconds:	Keep alive period in seconds. Default - 25 sec.
+ *			Minimum allowed:- 3 * DTIM. Keep alive period must be
+ *			set regardless of power scheme or current power state.
+ *			FW use this value also when PM is disabled.
+ * @rx_data_timeout:    Minimum time (usec) from last Rx packet for AM to
+ *			PSM transition - legacy PM
+ * @tx_data_timeout:    Minimum time (usec) from last Tx packet for AM to
+ *			PSM transition - legacy PM
+ * @sleep_interval:	not in use
+ * @skip_dtim_periods:	Number of DTIM periods to skip if Skip over DTIM flag
+ *			is set. For example, if it is required to skip over
+ *			one DTIM, this value need to be set to 2 (DTIM periods).
+ * @rx_data_timeout_uapsd: Minimum time (usec) from last Rx packet for AM to
+ *			PSM transition - uAPSD
+ * @tx_data_timeout_uapsd: Minimum time (usec) from last Tx packet for AM to
+ *			PSM transition - uAPSD
+ * @lprx_rssi_threshold: Signal strength up to which LP RX can be enabled.
+ *			Default: 80dbm
+ * @num_skip_dtim:	Number of DTIMs to skip if Skip over DTIM flag is set
+ * @snooze_interval:	TBD
+ * @snooze_window:	TBD
+ * @snooze_step:	TBD
+ * @qndp_tid:		TID client shall use for uAPSD QNDP triggers
+ * @uapsd_ac_flags:	Set trigger-enabled and delivery-enabled indication for
+ *			each corresponding AC.
+ *			Use IEEE80211_WMM_IE_STA_QOSINFO_AC* for correct values.
+ * @uapsd_max_sp:	Use IEEE80211_WMM_IE_STA_QOSINFO_SP_* for correct
+ *			values.
+ * @heavy_traffic_thr_tx_pkts:	TX threshold measured in number of packets
+ * @heavy_traffic_thr_rx_pkts:	RX threshold measured in number of packets
+ * @heavy_traffic_thr_tx_load:	TX threshold measured in load's percentage
+ * @heavy_traffic_thr_rx_load:	RX threshold measured in load's percentage
+ * @limited_ps_threshold:
+*/
+struct iwl_mac_power_cmd {
+	/* CONTEXT_DESC_API_T_VER_1 */
+	__le32 id_and_color;
+
+	/* CLIENT_PM_POWER_TABLE_S_VER_1 */
+	__le16 flags;
+	__le16 keep_alive_seconds;
+	__le32 rx_data_timeout;
+	__le32 tx_data_timeout;
+	__le32 rx_data_timeout_uapsd;
+	__le32 tx_data_timeout_uapsd;
+	u8 lprx_rssi_threshold;
+	u8 skip_dtim_periods;
+	__le16 snooze_interval;
+	__le16 snooze_window;
+	u8 snooze_step;
+	u8 qndp_tid;
+	u8 uapsd_ac_flags;
+	u8 uapsd_max_sp;
+	u8 heavy_traffic_threshold_tx_packets;
+	u8 heavy_traffic_threshold_rx_packets;
+	u8 heavy_traffic_threshold_tx_percentage;
+	u8 heavy_traffic_threshold_rx_percentage;
+	u8 limited_ps_threshold;
+	u8 reserved;
 } __packed;
 
 /**

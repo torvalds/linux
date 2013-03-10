@@ -136,7 +136,7 @@ enum {
 	CALIB_RES_NOTIF_PHY_DB = 0x6b,
 	/* PHY_DB_CMD = 0x6c, */
 
-	/* Power */
+	/* Power - legacy power table command */
 	POWER_TABLE_CMD = 0x77,
 
 	/* Thermal Throttling*/
@@ -165,6 +165,9 @@ enum {
 	CARD_STATE_NOTIFICATION = 0xa1,
 
 	MISSED_BEACONS_NOTIFICATION = 0xa2,
+
+	/* Power - new power table command */
+	MAC_PM_POWER_TABLE = 0xa9,
 
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
