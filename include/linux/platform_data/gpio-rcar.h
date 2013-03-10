@@ -20,6 +20,7 @@ struct gpio_rcar_config {
 	unsigned int gpio_base;
 	unsigned int irq_base;
 	unsigned int number_of_pins;
+	const char *pctl_name;
 };
 
 #endif /* __GPIO_RCAR_H__ */

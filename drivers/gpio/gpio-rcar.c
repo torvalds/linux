@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -190,6 +191,21 @@ static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
 	spin_unlock_irqrestore(&p->lock, flags);
 }
 
+static int gpio_rcar_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(chip->base + offset);
+}
+
+static void gpio_rcar_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(chip->base + offset);
+
+	/* Set the GPIO as an input to ensure that the next GPIO request won't
+	 * drive the GPIO pin as an output.
+	 */
+	gpio_rcar_config_general_input_output_mode(chip, offset, false);
+}
+
 static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	gpio_rcar_config_general_input_output_mode(chip, offset, false);
@@ -285,6 +301,8 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	}
 
 	gpio_chip = &p->gpio_chip;
+	gpio_chip->request = gpio_rcar_request;
+	gpio_chip->free = gpio_rcar_free;
 	gpio_chip->direction_input = gpio_rcar_direction_input;
 	gpio_chip->get = gpio_rcar_get;
 	gpio_chip->direction_output = gpio_rcar_direction_output;
@@ -336,6 +354,11 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "irq base mismatch (%u/%u)\n",
 				 p->config.irq_base, ret);
 	}
+
+	ret = gpiochip_add_pin_range(gpio_chip, p->config.pctl_name, 0,
+				     gpio_chip->base, gpio_chip->ngpio);
+	if (ret < 0)
+		dev_warn(&pdev->dev, "failed to add pin range\n");
 
 	return 0;
 
