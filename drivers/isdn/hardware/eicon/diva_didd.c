@@ -29,7 +29,7 @@ static char *main_revision = "$Revision: 1.13.6.4 $";
 static char *DRIVERNAME =
 	"Eicon DIVA - DIDD table (http://www.melware.net)";
 static char *DRIVERLNAME = "divadidd";
-static char *DRIVERRELEASE_DIDD = "2.0";
+char *DRIVERRELEASE_DIDD = "2.0";
 
 MODULE_DESCRIPTION("DIDD table driver for diva drivers");
 MODULE_AUTHOR("Cytronics & Melware, Eicon Networks");
