@@ -35,6 +35,8 @@
 	memset((u8 *)(p) + offsetof(typeof(*(p)), field) + sizeof((p)->field), \
 	0, sizeof(*(p)) - offsetof(typeof(*(p)), field) - sizeof((p)->field))
 
+#define is_valid_ioctl(vfd, cmd) test_bit(_IOC_NR(cmd), (vfd)->valid_ioctls)
+
 struct std_descr {
 	v4l2_std_id std;
 	const char *descr;
@@ -1005,6 +1007,7 @@ static int v4l_s_priority(const struct v4l2_ioctl_ops *ops,
 static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
+	struct video_device *vfd = video_devdata(file);
 	struct v4l2_input *p = arg;
 
 	/*
@@ -1013,11 +1016,11 @@ static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
 	 * driver. If the driver doesn't support these
 	 * for a specific input, it must override these flags.
 	 */
-	if (ops->vidioc_s_std)
+	if (is_valid_ioctl(vfd, VIDIOC_S_STD))
 		p->capabilities |= V4L2_IN_CAP_STD;
-	if (ops->vidioc_s_dv_preset)
+	if (is_valid_ioctl(vfd, VIDIOC_S_DV_PRESET))
 		p->capabilities |= V4L2_IN_CAP_PRESETS;
-	if (ops->vidioc_s_dv_timings)
+	if (is_valid_ioctl(vfd, VIDIOC_S_DV_TIMINGS))
 		p->capabilities |= V4L2_IN_CAP_DV_TIMINGS;
 
 	return ops->vidioc_enum_input(file, fh, p);
@@ -1026,6 +1029,7 @@ static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
 static int v4l_enumoutput(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
+	struct video_device *vfd = video_devdata(file);
 	struct v4l2_output *p = arg;
 
 	/*
@@ -1034,11 +1038,11 @@ static int v4l_enumoutput(const struct v4l2_ioctl_ops *ops,
 	 * driver. If the driver doesn't support these
 	 * for a specific output, it must override these flags.
 	 */
-	if (ops->vidioc_s_std)
+	if (is_valid_ioctl(vfd, VIDIOC_S_STD))
 		p->capabilities |= V4L2_OUT_CAP_STD;
-	if (ops->vidioc_s_dv_preset)
+	if (is_valid_ioctl(vfd, VIDIOC_S_DV_PRESET))
 		p->capabilities |= V4L2_OUT_CAP_PRESETS;
-	if (ops->vidioc_s_dv_timings)
+	if (is_valid_ioctl(vfd, VIDIOC_S_DV_TIMINGS))
 		p->capabilities |= V4L2_OUT_CAP_DV_TIMINGS;
 
 	return ops->vidioc_enum_output(file, fh, p);
@@ -1521,7 +1525,7 @@ static int v4l_g_parm(const struct v4l2_ioctl_ops *ops,
 	    p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		return -EINVAL;
 	p->parm.capture.readbuffers = 2;
-	if (ops->vidioc_g_std)
+	if (is_valid_ioctl(vfd, VIDIOC_G_STD) && ops->vidioc_g_std)
 		ret = ops->vidioc_g_std(file, fh, &std);
 	if (ret == 0)
 		v4l2_video_std_frame_period(std,
@@ -1881,7 +1885,7 @@ static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
 		return -EINVAL;
 	if (ops->vidioc_enum_freq_bands)
 		return ops->vidioc_enum_freq_bands(file, fh, p);
-	if (ops->vidioc_g_tuner) {
+	if (is_valid_ioctl(vfd, VIDIOC_G_TUNER)) {
 		struct v4l2_tuner t = {
 			.index = p->tuner,
 			.type = type,
@@ -1899,7 +1903,7 @@ static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
 			V4L2_BAND_MODULATION_FM : V4L2_BAND_MODULATION_VSB;
 		return 0;
 	}
-	if (ops->vidioc_g_modulator) {
+	if (is_valid_ioctl(vfd, VIDIOC_G_MODULATOR)) {
 		struct v4l2_modulator m = {
 			.index = p->tuner,
 		};
