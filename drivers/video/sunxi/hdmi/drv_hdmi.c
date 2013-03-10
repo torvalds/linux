@@ -35,7 +35,7 @@ extern void audio_set_hdmi_func(__audio_hdmi_func *hdmi_func);
 
 static struct semaphore *run_sem;
 static struct task_struct *HDMI_task;
-void __iomem *HDMI_BASE;
+void __iomem *hdmi_base;
 
 
 static __s32 Hdmi_enable(__bool enable)
@@ -298,7 +298,7 @@ __s32 Hdmi_init(struct platform_device *dev)
 	run_sem = kmalloc(sizeof(struct semaphore), GFP_KERNEL | __GFP_ZERO);
 	sema_init((struct semaphore *)run_sem, 0);
 
-	HDMI_BASE = (void __iomem *) ghdmi.base_hdmi;
+	hdmi_base = (void __iomem *) ghdmi.base_hdmi;
 	hdmi_core_initial();
 	err = hdmi_i2c_sunxi_probe(dev);
 	if (err)
