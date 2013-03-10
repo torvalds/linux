@@ -846,11 +846,9 @@ create_lease_buf(u8 *lease_key, u8 oplock)
 {
 	struct create_lease *buf;
 
-	buf = kmalloc(sizeof(struct create_lease), GFP_KERNEL);
+	buf = kzalloc(sizeof(struct create_lease), GFP_KERNEL);
 	if (!buf)
 		return NULL;
-
-	memset(buf, 0, sizeof(struct create_lease));
 
 	buf->lcontext.LeaseKeyLow = cpu_to_le64(*((u64 *)lease_key));
 	buf->lcontext.LeaseKeyHigh = cpu_to_le64(*((u64 *)(lease_key + 8)));
