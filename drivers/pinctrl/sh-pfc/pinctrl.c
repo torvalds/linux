@@ -119,12 +119,7 @@ static int sh_pfc_func_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	spin_lock_irqsave(&pfc->lock, flags);
 
 	for (i = 0; i < grp->nr_pins; ++i) {
-		if (sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION,
-				      GPIO_CFG_DRYRUN))
-			goto done;
-
-		if (sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION,
-				      GPIO_CFG_REQ))
+		if (sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION))
 			goto done;
 	}
 
@@ -138,19 +133,6 @@ done:
 static void sh_pfc_func_disable(struct pinctrl_dev *pctldev, unsigned selector,
 				unsigned group)
 {
-	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct sh_pfc *pfc = pmx->pfc;
-	const struct sh_pfc_pin_group *grp = &pfc->info->groups[group];
-	unsigned long flags;
-	unsigned int i;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-
-	for (i = 0; i < grp->nr_pins; ++i)
-		sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION,
-				  GPIO_CFG_FREE);
-
-	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
 static int sh_pfc_reconfig_pin(struct sh_pfc_pinctrl *pmx, unsigned offset,
@@ -166,32 +148,18 @@ static int sh_pfc_reconfig_pin(struct sh_pfc_pinctrl *pmx, unsigned offset,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	/*
-	 * See if the present config needs to first be de-configured.
-	 */
 	switch (cfg->type) {
 	case PINMUX_TYPE_GPIO:
-		break;
 	case PINMUX_TYPE_OUTPUT:
 	case PINMUX_TYPE_INPUT:
 	case PINMUX_TYPE_INPUT_PULLUP:
 	case PINMUX_TYPE_INPUT_PULLDOWN:
-		sh_pfc_config_mux(pfc, mark, cfg->type, GPIO_CFG_FREE);
 		break;
 	default:
 		goto err;
 	}
 
-	/*
-	 * Dry run
-	 */
-	if (sh_pfc_config_mux(pfc, mark, new_type, GPIO_CFG_DRYRUN) != 0)
-		goto err;
-
-	/*
-	 * Request
-	 */
-	if (sh_pfc_config_mux(pfc, mark, new_type, GPIO_CFG_REQ) != 0)
+	if (sh_pfc_config_mux(pfc, mark, new_type) != 0)
 		goto err;
 
 	cfg->type = new_type;
@@ -241,18 +209,6 @@ static void sh_pfc_gpio_disable_free(struct pinctrl_dev *pctldev,
 				     struct pinctrl_gpio_range *range,
 				     unsigned offset)
 {
-	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct sh_pfc *pfc = pmx->pfc;
-	int idx = sh_pfc_get_pin_index(pfc, offset);
-	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
-	struct sh_pfc_pin *pin = &pfc->info->pins[idx];
-	unsigned long flags;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-
-	sh_pfc_config_mux(pfc, pin->enum_id, cfg->type, GPIO_CFG_FREE);
-
-	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
 static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,

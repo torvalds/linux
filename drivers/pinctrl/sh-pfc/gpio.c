@@ -285,10 +285,7 @@ static int gpio_function_request(struct gpio_chip *gc, unsigned offset)
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	if (sh_pfc_config_mux(pfc, mark, PINMUX_TYPE_FUNCTION, GPIO_CFG_DRYRUN))
-		goto done;
-
-	if (sh_pfc_config_mux(pfc, mark, PINMUX_TYPE_FUNCTION, GPIO_CFG_REQ))
+	if (sh_pfc_config_mux(pfc, mark, PINMUX_TYPE_FUNCTION))
 		goto done;
 
 	ret = 0;
@@ -300,15 +297,6 @@ done:
 
 static void gpio_function_free(struct gpio_chip *gc, unsigned offset)
 {
-	struct sh_pfc *pfc = gpio_to_pfc(gc);
-	unsigned int mark = pfc->info->func_gpios[offset].enum_id;
-	unsigned long flags;
-
-	spin_lock_irqsave(&pfc->lock, flags);
-
-	sh_pfc_config_mux(pfc, mark, PINMUX_TYPE_FUNCTION, GPIO_CFG_FREE);
-
-	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
 static int gpio_function_setup(struct sh_pfc_chip *chip)

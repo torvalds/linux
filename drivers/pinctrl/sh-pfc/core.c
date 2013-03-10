@@ -163,22 +163,6 @@ static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
 	}
 }
 
-static int sh_pfc_read_config_reg(struct sh_pfc *pfc,
-				  struct pinmux_cfg_reg *crp,
-				  unsigned long field)
-{
-	void __iomem *mapped_reg;
-	unsigned long mask, pos;
-
-	sh_pfc_config_reg_helper(pfc, crp, field, &mapped_reg, &mask, &pos);
-
-	pr_debug("read_reg: addr = %lx, field = %ld, "
-		 "r_width = %ld, f_width = %ld\n",
-		 crp->reg, field, crp->reg_width, crp->field_width);
-
-	return (sh_pfc_read_raw_reg(mapped_reg, crp->reg_width) >> pos) & mask;
-}
-
 static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 				    struct pinmux_cfg_reg *crp,
 				    unsigned long field, unsigned long value)
@@ -209,7 +193,7 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 
 static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 				 struct pinmux_cfg_reg **crp, int *fieldp,
-				 int *valuep, unsigned long **cntp)
+				 int *valuep)
 {
 	struct pinmux_cfg_reg *config_reg;
 	unsigned long r_width, f_width, curr_width, ncomb;
@@ -239,7 +223,6 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 					*crp = config_reg;
 					*fieldp = m;
 					*valuep = n;
-					*cntp = &config_reg->cnt[m];
 					return 0;
 				}
 			}
@@ -274,14 +257,12 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
 	return -1;
 }
 
-int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type,
-		      int cfg_mode)
+int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 {
 	struct pinmux_cfg_reg *cr = NULL;
 	pinmux_enum_t enum_id;
 	struct pinmux_range *range;
 	int in_range, pos, field, value;
-	unsigned long *cntp;
 
 	switch (pinmux_type) {
 
@@ -306,7 +287,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type,
 		break;
 
 	default:
-		goto out_err;
+		return -1;
 	}
 
 	pos = 0;
@@ -316,7 +297,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type,
 	while (1) {
 		pos = sh_pfc_mark_to_enum(pfc, mark, pos, &enum_id);
 		if (pos <= 0)
-			goto out_err;
+			return -1;
 
 		if (!enum_id)
 			break;
@@ -360,30 +341,13 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type,
 			continue;
 
 		if (sh_pfc_get_config_reg(pfc, enum_id, &cr,
-					  &field, &value, &cntp) != 0)
-			goto out_err;
+					  &field, &value) != 0)
+			return -1;
 
-		switch (cfg_mode) {
-		case GPIO_CFG_DRYRUN:
-			if (!*cntp ||
-			    (sh_pfc_read_config_reg(pfc, cr, field) != value))
-				continue;
-			break;
-
-		case GPIO_CFG_REQ:
-			sh_pfc_write_config_reg(pfc, cr, field, value);
-			*cntp = *cntp + 1;
-			break;
-
-		case GPIO_CFG_FREE:
-			*cntp = *cntp - 1;
-			break;
-		}
+		sh_pfc_write_config_reg(pfc, cr, field, value);
 	}
 
 	return 0;
- out_err:
-	return -1;
 }
 
 static int sh_pfc_probe(struct platform_device *pdev)
