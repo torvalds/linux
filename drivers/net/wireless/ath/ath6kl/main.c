@@ -1294,9 +1294,11 @@ void init_netdev(struct net_device *dev)
 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
 
 	dev->needed_headroom = ETH_HLEN;
-	dev->needed_headroom += sizeof(struct ath6kl_llc_snap_hdr) +
-				sizeof(struct wmi_data_hdr) + HTC_HDR_LENGTH
-				+ WMI_MAX_TX_META_SZ + ATH6KL_HTC_ALIGN_BYTES;
+	dev->needed_headroom += roundup(sizeof(struct ath6kl_llc_snap_hdr) +
+					sizeof(struct wmi_data_hdr) +
+					HTC_HDR_LENGTH +
+					WMI_MAX_TX_META_SZ +
+					ATH6KL_HTC_ALIGN_BYTES, 4);
 
 	dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 
