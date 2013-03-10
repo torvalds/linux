@@ -22,7 +22,7 @@
 
 #include "drv_hdmi_i.h"
 
-extern void __iomem *HDMI_BASE;
+extern void __iomem *hdmi_base;
 
 #define HDMI_DEVICE_SUPPORT_VIC_SIZE	512
 
