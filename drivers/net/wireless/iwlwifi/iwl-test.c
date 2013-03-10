@@ -272,7 +272,7 @@ static int iwl_test_fw_cmd(struct iwl_test *tst, struct nlattr **tb)
 
 	reply_len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 	skb = iwl_test_alloc_reply(tst, reply_len + 20);
-	reply_buf = kmalloc(reply_len, GFP_KERNEL);
+	reply_buf = kmemdup(&pkt->hdr, reply_len, GFP_KERNEL);
 	if (!skb || !reply_buf) {
 		kfree_skb(skb);
 		kfree(reply_buf);
@@ -280,7 +280,6 @@ static int iwl_test_fw_cmd(struct iwl_test *tst, struct nlattr **tb)
 	}
 
 	/* The reply is in a page, that we cannot send to user space. */
-	memcpy(reply_buf, &(pkt->hdr), reply_len);
 	iwl_free_resp(&cmd);
 
 	if (nla_put_u32(skb, IWL_TM_ATTR_COMMAND,
