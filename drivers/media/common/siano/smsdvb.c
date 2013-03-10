@@ -724,7 +724,8 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 			smsdvb_update_isdbt_stats(client, p);
 			break;
 		default:
-			smsdvb_update_dvb_stats(client, p);
+			/* Skip SmsMsgStatisticsInfo_ST:RequestResult field */
+			smsdvb_update_dvb_stats(client, p + sizeof(u32));
 		}
 
 		is_status_update = true;
@@ -732,7 +733,8 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 
 	/* Only for ISDB-T */
 	case MSG_SMS_GET_STATISTICS_EX_RES:
-		smsdvb_update_isdbt_stats_ex(client, p);
+		/* Skip SmsMsgStatisticsInfo_ST:RequestResult field? */
+		smsdvb_update_isdbt_stats_ex(client, p + sizeof(u32));
 		is_status_update = true;
 		break;
 	default:
