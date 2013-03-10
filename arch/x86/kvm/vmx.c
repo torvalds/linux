@@ -5286,8 +5286,7 @@ static struct loaded_vmcs *nested_get_current_vmcs02(struct vcpu_vmx *vmx)
 	}
 
 	/* Create a new VMCS */
-	item = (struct vmcs02_list *)
-		kmalloc(sizeof(struct vmcs02_list), GFP_KERNEL);
+	item = kmalloc(sizeof(struct vmcs02_list), GFP_KERNEL);
 	if (!item)
 		return NULL;
 	item->vmcs02.vmcs = alloc_vmcs();
