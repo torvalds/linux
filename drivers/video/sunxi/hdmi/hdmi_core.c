@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <mach/aw_ccu.h>
 #include "hdmi_core.h"
+#include "../disp/sunxi_disp_regs.h"
 
 static char *audio;
 module_param(audio, charp, 0444);
@@ -88,7 +89,7 @@ __s32 hdmi_core_initial(void)
 	memset(&audio_info, 0, sizeof(HDMI_AUDIO_INFO));
 	memset(Device_Support_VIC, 0, HDMI_DEVICE_SUPPORT_VIC_SIZE);
 
-	HDMI_WUINT32(0x004, 0x80000000); /* start hdmi controller */
+	HDMI_WUINT32(HDMI_CTRL, 0x80000000); /* start hdmi controller */
 
 	return 0;
 }
@@ -101,7 +102,7 @@ main_Hpd_Check(void)
 
 	for (i = 0; i < 3; i++) {
 		hdmi_delay_ms(1);
-		if (HDMI_RUINT32(0x00c) & 0x01)
+		if (HDMI_RUINT32(HDMI_HPD) & 0x01)
 			times++;
 	}
 	if (times == 3)
@@ -130,18 +131,19 @@ __s32 hdmi_main_task_loop(void)
 	case HDMI_State_Rx_Sense:
 
 	case HDMI_State_EDID_Parse:
-		HDMI_WUINT32(0x004, 0x80000000);
-		HDMI_WUINT32(0x208, (1 << 31) + (1 << 30) + (1 << 29) +
+		HDMI_WUINT32(HDMI_CTRL, 0x80000000);
+		HDMI_WUINT32(HDMI_TX_DRIVER + 8,
+				(1 << 31) + (1 << 30) + (1 << 29) +
 			     (3 << 27) + (0 << 26) + (1 << 25) + (0 << 24) +
 			     (0 << 23) + (4 << 20) + (7 << 17) + (15 << 12) +
 			     (7 << 8) + (0x0f << 4) + (8 << 0));
-		HDMI_WUINT32(0x200, 0xfe800000); /* txen enable */
-		HDMI_WUINT32(0x204, 0x00D8C860); /* ckss = 1 */
+		HDMI_WUINT32(HDMI_TX_DRIVER, 0xfe800000); /* txen enable */
+		HDMI_WUINT32(HDMI_TX_DRIVER + 4, 0x00D8C860); /* ckss = 1 */
 
-		HDMI_WUINT32(0x20c, 0 << 21);
+		HDMI_WUINT32(HDMI_TX_DRIVER + 12, 0 << 21);
 
 		ParseEDID();
-		HDMI_RUINT32(0x5f0);
+		HDMI_RUINT32(HDMI_I2C_UNKNOWN_1);
 
 		if (audio_edid && Device_Support_VIC[HDMI_EDID]) {
 			if (audio_info.supported_rates)
@@ -275,62 +277,64 @@ __s32 video_config(__s32 vic)
 	if ((vic == HDMI1440_480I) || (vic == HDMI1440_576I))
 		dw = 1; /* Double Width */
 
-	HDMI_WUINT32(0x004, 0x00000000);
-	HDMI_WUINT32(0x040, 0x00000000); /* disable audio output */
-	HDMI_WUINT32(0x010, 0x00000000); /* disable video output */
+	HDMI_WUINT32(HDMI_CTRL, 0x00000000);
+	HDMI_WUINT32(HDMI_AUDIO_CTRL, 0x00000000); /* disable audio output */
+	HDMI_WUINT32(HDMI_VIDEO_CTRL, 0x00000000); /* disable video output */
 	/* interrupt mask and clear all interrupt */
-	HDMI_WUINT32(0x008, 0xffffffff);
+	HDMI_WUINT32(HDMI_INT_CTRL, 0xffffffff);
 
 	reg_val = 0x00000000;
 	if (dw)
 		reg_val |= 0x00000001; /* repetition */
 	if (video_timing[vic_tab].I)
 		reg_val |= 0x00000010; /* interlace */
-	HDMI_WUINT32(0x010, reg_val);
+	HDMI_WUINT32(HDMI_VIDEO_CTRL, reg_val);
 
 	/* active H */
-	HDMI_WUINT16(0x014, (video_timing[vic_tab].INPUTX << dw) - 1);
+	HDMI_WUINT16(HDMI_VIDEO_H, (video_timing[vic_tab].INPUTX << dw) - 1);
 	/* active HBP */
-	HDMI_WUINT16(0x018, (video_timing[vic_tab].HBP << dw) - 1);
+	HDMI_WUINT16(HDMI_VIDEO_HBP, (video_timing[vic_tab].HBP << dw) - 1);
 	/* active HFP */
-	HDMI_WUINT16(0x01c, (video_timing[vic_tab].HFP << dw) - 1);
+	HDMI_WUINT16(HDMI_VIDEO_HFP, (video_timing[vic_tab].HFP << dw) - 1);
 	/* active HSPW */
-	HDMI_WUINT16(0x020, (video_timing[vic_tab].HPSW << dw) - 1);
+	HDMI_WUINT16(HDMI_VIDEO_HSPW, (video_timing[vic_tab].HPSW << dw) - 1);
 
 	/* set active V */
 	if ((vic == HDMI1080P_24_3D_FP) || (vic == HDMI720P_50_3D_FP) ||
 	    (vic == HDMI720P_60_3D_FP))
-		HDMI_WUINT16(0x016, video_timing[vic_tab].INPUTY +
+		HDMI_WUINT16(HDMI_VIDEO_V, video_timing[vic_tab].INPUTY +
 			     video_timing[vic_tab].VBP +
 			     video_timing[vic_tab].VFP - 1);
 	else if (video_timing[vic_tab].I)
-		HDMI_WUINT16(0x016, (video_timing[vic_tab].INPUTY / 2) - 1);
+		HDMI_WUINT16(HDMI_VIDEO_V, (video_timing[vic_tab].INPUTY / 2) - 1);
 	else
-		HDMI_WUINT16(0x016, video_timing[vic_tab].INPUTY - 1);
+		HDMI_WUINT16(HDMI_VIDEO_V, video_timing[vic_tab].INPUTY - 1);
 
-
-	HDMI_WUINT16(0x01a, video_timing[vic_tab].VBP - 1); /* active VBP */
-	HDMI_WUINT16(0x01e, video_timing[vic_tab].VFP - 1); /* active VFP */
-	HDMI_WUINT16(0x022, video_timing[vic_tab].VPSW - 1); /* active VSPW */
+	/* active VBP */
+	HDMI_WUINT16(HDMI_VIDEO_VBP, video_timing[vic_tab].VBP - 1);
+	/* active VFP */
+	HDMI_WUINT16(HDMI_VIDEO_VFP, video_timing[vic_tab].VFP - 1);
+	/* active VSPW */
+	HDMI_WUINT16(HDMI_VIDEO_VPSW, video_timing[vic_tab].VPSW - 1);
 
 	reg_val = 0;
 	if (video_timing[vic_tab].HSYNC)
 		reg_val |= 0x01; /* Positive Hsync */
 	if (video_timing[vic_tab].VSYNC)
 		reg_val |= 0x02; /* Positive Vsync */
-	HDMI_WUINT16(0x024, reg_val);
+	HDMI_WUINT16(HDMI_VIDEO_POLARITY, reg_val);
 
-	HDMI_WUINT16(0x026, 0x03e0); /* TX clock sequence */
+	HDMI_WUINT16(HDMI_TX_CLOCK, 0x03e0); /* TX clock sequence */
 
 	/* avi packet */
-	HDMI_WUINT8(0x080, 0x82);
-	HDMI_WUINT8(0x081, 0x02);
-	HDMI_WUINT8(0x082, 0x0d);
-	HDMI_WUINT8(0x083, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME, 0x82);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 1, 0x02);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 2, 0x0d);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 3, 0x00);
 #ifdef YUV_COLORSPACE /* Fix me */
-	HDMI_WUINT8(0x084, 0x52); /* Data Byte 1: 4:4:4 YCbCr */
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 4, 0x52); /* Data Byte 1: 4:4:4 YCbCr */
 #else
-	HDMI_WUINT8(0x084, 0x12); /* Data Byte 1: RGB */
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 4, 0x12); /* Data Byte 1: RGB */
 #endif
 	if (video_timing[vic_tab].PCLK <= 27000000)
 		reg_val = 0x40;  /* SD-modes, assume ITU601 colorspace */
@@ -341,89 +345,89 @@ __s32 video_config(__s32 vic)
 		reg_val |= 0x18; /* 4 : 3 */
 	else
 		reg_val |= 0x28; /* 16 : 9 */
-	HDMI_WUINT8(0x085, reg_val); /* Data Byte 2 */
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 5, reg_val); /* Data Byte 2 */
 #ifdef YUV_COLORSPACE /* Fix me */
-	HDMI_WUINT8(0x086, 0x80);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 6, 0x80);
 #else
-	HDMI_WUINT8(0x086, 0x88);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 6, 0x88);
 #endif
-	HDMI_WUINT8(0x087, (video_timing[vic_tab].VIC >=
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 7, (video_timing[vic_tab].VIC >=
 					HDMI_NON_CEA861D_START) ?
 			   0 : video_timing[vic_tab].VIC);
-	HDMI_WUINT8(0x088, video_timing[vic_tab].AVI_PR);
-	HDMI_WUINT8(0x089, 0x00);
-	HDMI_WUINT8(0x08a, 0x00);
-	HDMI_WUINT8(0x08b, 0x00);
-	HDMI_WUINT8(0x08c, 0x00);
-	HDMI_WUINT8(0x08d, 0x00);
-	HDMI_WUINT8(0x08e, 0x00);
-	HDMI_WUINT8(0x08f, 0x00);
-	HDMI_WUINT8(0x090, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 8, video_timing[vic_tab].AVI_PR);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 9, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 10, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 11, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 12, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 13, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 14, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 15, 0x00);
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 16, 0x00);
 
-	reg_val = HDMI_RUINT8(0x080) + HDMI_RUINT8(0x081) +
-		HDMI_RUINT8(0x082) + HDMI_RUINT8(0x084) +
-		HDMI_RUINT8(0x085) + HDMI_RUINT8(0x086) +
-		HDMI_RUINT8(0x087) + HDMI_RUINT8(0x088) +
-		HDMI_RUINT8(0x089) + HDMI_RUINT8(0x08a) +
-		HDMI_RUINT8(0x08b) + HDMI_RUINT8(0x08c) +
-		HDMI_RUINT8(0x08d) + HDMI_RUINT8(0x08e) +
-		HDMI_RUINT8(0x08f) + HDMI_RUINT8(0x090);
+	reg_val = HDMI_RUINT8(HDMI_AVI_INFOFRAME) + HDMI_RUINT8(HDMI_AVI_INFOFRAME + 1) +
+		HDMI_RUINT8(HDMI_AVI_INFOFRAME + 2) + HDMI_RUINT8(HDMI_AVI_INFOFRAME + 4) +
+		HDMI_RUINT8(HDMI_AVI_INFOFRAME + 5) + HDMI_RUINT8(HDMI_AVI_INFOFRAME + 6) +
+		HDMI_RUINT8(HDMI_AVI_INFOFRAME + 7) + HDMI_RUINT8(HDMI_AVI_INFOFRAME + 8) +
+		HDMI_RUINT8(HDMI_AVI_INFOFRAME + 9) + HDMI_RUINT8(HDMI_AVI_INFOFRAME + 10) +
+		HDMI_RUINT8(HDMI_AVI_INFOFRAME + 11) + HDMI_RUINT8(HDMI_AVI_INFOFRAME + 12) +
+		HDMI_RUINT8(HDMI_AVI_INFOFRAME + 13) + HDMI_RUINT8(HDMI_AVI_INFOFRAME + 14) +
+		HDMI_RUINT8(HDMI_AVI_INFOFRAME + 15) + HDMI_RUINT8(HDMI_AVI_INFOFRAME + 16);
 	reg_val = reg_val & 0xff;
 	if (reg_val != 0)
 		reg_val = 0x100 - reg_val;
 
-	HDMI_WUINT8(0x083, reg_val); /* checksum */
+	HDMI_WUINT8(HDMI_AVI_INFOFRAME + 3, reg_val); /* checksum */
 
 	/* gcp packet */
-	HDMI_WUINT32(0x0e0, 0x00000003);
-	HDMI_WUINT32(0x0e4, 0x00000000);
+	HDMI_WUINT32(HDMI_QCP_PACKET, 0x00000003);
+	HDMI_WUINT32(HDMI_QCP_PACKET + 4, 0x00000000);
 
 	/* vendor infoframe */
-	HDMI_WUINT8(0x240, 0x81);
-	HDMI_WUINT8(0x241, 0x01);
-	HDMI_WUINT8(0x242, 6);	/* length */
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME, 0x81);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 1, 0x01);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 2, 6);	/* length */
 
-	HDMI_WUINT8(0x243, 0x29); /* pb0:checksum */
-	HDMI_WUINT8(0x244, 0x03); /* pb1-3:24bit ieee id */
-	HDMI_WUINT8(0x245, 0x0c);
-	HDMI_WUINT8(0x246, 0x00);
-	HDMI_WUINT8(0x247, 0x40); /* pb4 */
-	HDMI_WUINT8(0x248, 0x00); /* pb5:3d meta not present, frame packing */
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 3, 0x29); /* pb0:checksum */
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 4, 0x03); /* pb1-3:24bit ieee id */
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 5, 0x0c);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 6, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 7, 0x40); /* pb4 */
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 8, 0x00); /* pb5:3d meta not present, frame packing */
 
-	HDMI_WUINT8(0x249, 0x00); /* pb6:extra data for 3d */
-	HDMI_WUINT8(0x24a, 0x00); /* pb7: matadata type=0,len=8 */
-	HDMI_WUINT8(0x24b, 0x00);
-	HDMI_WUINT8(0x24c, 0x00);
-	HDMI_WUINT8(0x24d, 0x00);
-	HDMI_WUINT8(0x24e, 0x00);
-	HDMI_WUINT8(0x24f, 0x00);
-	HDMI_WUINT8(0x250, 0x00);
-	HDMI_WUINT8(0x251, 0x00);
-	HDMI_WUINT8(0x252, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 9, 0x00); /* pb6:extra data for 3d */
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 10, 0x00); /* pb7: matadata type=0,len=8 */
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 11, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 12, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 13, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 14, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 15, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 16, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 17, 0x00);
+	HDMI_WUINT8(HDMI_VENDOR_INFOFRAME + 18, 0x00);
 
 	/* packet config */
 	if ((vic != HDMI1080P_24_3D_FP) && (vic != HDMI720P_50_3D_FP) &&
 	    (vic != HDMI720P_60_3D_FP)) {
-		HDMI_WUINT32(0x2f0, 0x0000f321);
-		HDMI_WUINT32(0x2f4, 0x0000000f);
+		HDMI_WUINT32(HDMI_PACKET_CONFIG, 0x0000f321);
+		HDMI_WUINT32(HDMI_PACKET_CONFIG + 4, 0x0000000f);
 	} else {
-		HDMI_WUINT32(0x2f0, 0x00005321);
-		HDMI_WUINT32(0x2f4, 0x0000000f);
+		HDMI_WUINT32(HDMI_PACKET_CONFIG, 0x00005321);
+		HDMI_WUINT32(HDMI_PACKET_CONFIG + 4, 0x0000000f);
 	}
 
-	HDMI_WUINT32(0x300, 0x08000000); /* set input sync enable */
+	HDMI_WUINT32(HDMI_UNKNOWN, 0x08000000); /* set input sync enable */
 
 	if (audio_enable)
-		HDMI_WUINT8(0x013, 0xc0); /* hdmi mode + hdmi audio */
+		HDMI_WUINT8(HDMI_VIDEO_CTRL + 3, 0xc0); /* hdmi mode + hdmi audio */
 	else
-		HDMI_WUINT8(0x013, 0x80); /* hdmi/dvi mode */
-	HDMI_WUINT32(0x004, 0x80000000); /* start hdmi controller */
+		HDMI_WUINT8(HDMI_VIDEO_CTRL + 3, 0x80); /* hdmi/dvi mode */
+	HDMI_WUINT32(HDMI_CTRL, 0x80000000); /* start hdmi controller */
 
 	if (audio_enable)
-		HDMI_WUINT8(0x013, 0xc0); /* hdmi mode + hdmi audio */
+		HDMI_WUINT8(HDMI_VIDEO_CTRL + 3, 0xc0); /* hdmi mode + hdmi audio */
 	else
-		HDMI_WUINT8(0x013, 0x80); /* hdmi/dvi mode */
-	HDMI_WUINT32(0x004, 0x80000000); /* start hdmi controller */
+		HDMI_WUINT8(HDMI_VIDEO_CTRL + 3, 0x80); /* hdmi/dvi mode */
+	HDMI_WUINT32(HDMI_CTRL, 0x80000000); /* start hdmi controller */
 
 	/* hdmi pll setting */
 	if ((vic == HDMI1440_480I) || (vic == HDMI1440_576I)) {
@@ -434,13 +438,13 @@ __s32 video_config(__s32 vic)
 	}
 	clk_div &= 0x0f;
 
-	HDMI_WUINT32(0x208,
+	HDMI_WUINT32(HDMI_TX_DRIVER + 8,
 		     (1 << 31) + (1 << 30) + (1 << 29) + (3 << 27) + (0 << 26) +
 		     (1 << 25) + (0 << 24) + (0 << 23) + (4 << 20) + (7 << 17) +
 		     (15 << 12) + (7 << 8) + (clk_div << 4) + (8 << 0));
 
 	/* tx driver setting */
-	HDMI_WUINT32(0x200, 0xfe800000); /* txen enable */
+	HDMI_WUINT32(HDMI_TX_DRIVER, 0xfe800000); /* txen enable */
 
 	/*
 	 * Below are some notes on the use of register 0x204 and register 0x20c
@@ -482,14 +486,14 @@ __s32 video_config(__s32 vic)
 	 */
 
 	if (hdmi_pll == AW_SYS_CLK_PLL3 || hdmi_pll == AW_SYS_CLK_PLL7)
-		HDMI_WUINT32(0x204, 0x00D8C860);
+		HDMI_WUINT32(HDMI_TX_DRIVER + 4, 0x00D8C860);
 	else
-		HDMI_WUINT32(0x204, 0x00D8C820);
+		HDMI_WUINT32(HDMI_TX_DRIVER + 4, 0x00D8C820);
 
 	if (hdmi_pll == AW_SYS_CLK_PLL7 || hdmi_pll == AW_SYS_CLK_PLL7X2)
-		HDMI_WUINT32(0x20c, 1 << 21);
+		HDMI_WUINT32(HDMI_TX_DRIVER + 12, 1 << 21);
 	else
-		HDMI_WUINT32(0x20c, 0 << 21);
+		HDMI_WUINT32(HDMI_TX_DRIVER + 12, 0 << 21);
 
 	return 0;
 }
@@ -500,12 +504,12 @@ __s32 audio_config(void)
 
 	__inf("audio_config, sample_rate:%d\n", audio_info.sample_rate);
 
-	HDMI_WUINT32(0x040, 0x00000000);
-	HDMI_WUINT32(0x040, 0x40000000);
-	while (HDMI_RUINT32(0x040) != 0)
+	HDMI_WUINT32(HDMI_AUDIO_CTRL, 0x00000000);
+	HDMI_WUINT32(HDMI_AUDIO_CTRL, 0x40000000);
+	while (HDMI_RUINT32(HDMI_AUDIO_CTRL) != 0)
 		;
-	HDMI_WUINT32(0x040, 0x40000000);
-	while (HDMI_RUINT32(0x040) != 0)
+	HDMI_WUINT32(HDMI_AUDIO_CTRL, 0x40000000);
+	while (HDMI_RUINT32(HDMI_AUDIO_CTRL) != 0)
 		;
 
 	if (!audio_info.audio_en)
@@ -517,44 +521,44 @@ __s32 audio_config(void)
 
 	if (audio_info.channel_num == 1) {
 		/* audio fifo rst and select ddma, 2 ch 16bit pcm */
-		HDMI_WUINT32(0x044, 0x00000000);
-		HDMI_WUINT32(0x048, 0x00000000); /* ddma,pcm layout0 1ch */
-		HDMI_WUINT32(0x04c, 0x76543200);
+		HDMI_WUINT32(HDMI_AUDIO_UNKNOWN_0, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_LAYOUT, 0x00000000); /* ddma,pcm layout0 1ch */
+		HDMI_WUINT32(HDMI_AUDIO_UNKNOWN_1, 0x76543200);
 
-		HDMI_WUINT32(0x0A0, 0x710a0184); /* audio infoframe head */
-		HDMI_WUINT32(0x0A4, 0x00000000); /* CA = 0X1F */
-		HDMI_WUINT32(0x0A8, 0x00000000);
-		HDMI_WUINT32(0x0Ac, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME, 0x710a0184); /* audio infoframe head */
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 4, 0x00000000); /* CA = 0X1F */
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 8, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 12, 0x00000000);
 	} else if (audio_info.channel_num == 2) {
 		/* audio fifo rst and select ddma, 2 ch 16bit pcm */
-		HDMI_WUINT32(0x044, 0x00000000);
-		HDMI_WUINT32(0x048, 0x00000001); /* ddma,pcm layout0 2ch */
-		HDMI_WUINT32(0x04c, 0x76543210);
+		HDMI_WUINT32(HDMI_AUDIO_UNKNOWN_0, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_LAYOUT, 0x00000001); /* ddma,pcm layout0 2ch */
+		HDMI_WUINT32(HDMI_AUDIO_UNKNOWN_1, 0x76543210);
 
-		HDMI_WUINT32(0x0A0, 0x710a0184); /* audio infoframe head */
-		HDMI_WUINT32(0x0A4, 0x00000000); /* CA = 0X1F */
-		HDMI_WUINT32(0x0A8, 0x00000000);
-		HDMI_WUINT32(0x0Ac, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME, 0x710a0184); /* audio infoframe head */
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 4, 0x00000000); /* CA = 0X1F */
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 8, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 12, 0x00000000);
 	} else if (audio_info.channel_num == 8) {
 		/* audio fifo rst and select ddma, 2 ch 16bit pcm */
-		HDMI_WUINT32(0x044, 0x00000000);
-		HDMI_WUINT32(0x048, 0x0000000f); /* ddma,pcm layout1 8ch */
-		HDMI_WUINT32(0x04c, 0x76543210);
+		HDMI_WUINT32(HDMI_AUDIO_UNKNOWN_0, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_LAYOUT, 0x0000000f); /* ddma,pcm layout1 8ch */
+		HDMI_WUINT32(HDMI_AUDIO_UNKNOWN_1, 0x76543210);
 
-		HDMI_WUINT32(0x0A0, 0x520a0184); /* audio infoframe head */
-		HDMI_WUINT32(0x0A4, 0x1F000000); /* CA = 0X1F */
-		HDMI_WUINT32(0x0A8, 0x00000000);
-		HDMI_WUINT32(0x0Ac, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME, 0x520a0184); /* audio infoframe head */
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 4, 0x1F000000); /* CA = 0X1F */
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 8, 0x00000000);
+		HDMI_WUINT32(HDMI_AUDIO_INFOFRAME + 12, 0x00000000);
 	} else
 		__wrn("unkonwn num_ch:%d\n", audio_info.channel_num);
 
-	HDMI_WUINT32(0x050, audio_info.CTS); /* CTS and N */
-	HDMI_WUINT32(0x054, audio_info.ACR_N);
-	HDMI_WUINT32(0x058, audio_info.CH_STATUS0);
-	HDMI_WUINT32(0x05c, audio_info.CH_STATUS1);
+	HDMI_WUINT32(HDMI_AUDIO_CTS, audio_info.CTS); /* CTS and N */
+	HDMI_WUINT32(HDMI_AUDIO_ACR_N, audio_info.ACR_N);
+	HDMI_WUINT32(HDMI_AUDIO_CH_STATUS0, audio_info.CH_STATUS0);
+	HDMI_WUINT32(HDMI_AUDIO_CH_STATUS1, audio_info.CH_STATUS1);
 
-	HDMI_WUINT32(0x040, 0x80000000);
-	HDMI_WUINT32(0x004, 0x80000000);
+	HDMI_WUINT32(HDMI_AUDIO_CTRL, 0x80000000);
+	HDMI_WUINT32(HDMI_CTRL, 0x80000000);
 
 	/* for audio test */
 #if 0
