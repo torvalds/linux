@@ -20,7 +20,10 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
-#include <linux/irqchip/sunxi.h>
+#include <asm/exception.h>
+#include <asm/mach/irq.h>
+
+#include "irqchip.h"
 
 #define SUNXI_IRQ_VECTOR_REG		0x00
 #define SUNXI_IRQ_PROTECTION_REG	0x08
@@ -32,6 +35,8 @@
 
 static void __iomem *sunxi_irq_base;
 static struct irq_domain *sunxi_irq_domain;
+
+static asmlinkage void __exception_irq_entry sunxi_handle_irq(struct pt_regs *regs);
 
 void sunxi_irq_ack(struct irq_data *irqd)
 {
@@ -125,20 +130,13 @@ static int __init sunxi_of_init(struct device_node *node,
 	if (!sunxi_irq_domain)
 		panic("%s: unable to create IRQ domain\n", node->full_name);
 
+	set_handle_irq(sunxi_handle_irq);
+
 	return 0;
 }
+IRQCHIP_DECLARE(allwinner_sunxi_ic, "allwinner,sunxi-ic", sunxi_of_init);
 
-static struct of_device_id sunxi_irq_dt_ids[] __initconst = {
-	{ .compatible = "allwinner,sunxi-ic", .data = sunxi_of_init },
-	{ }
-};
-
-void __init sunxi_init_irq(void)
-{
-	of_irq_init(sunxi_irq_dt_ids);
-}
-
-asmlinkage void __exception_irq_entry sunxi_handle_irq(struct pt_regs *regs)
+static asmlinkage void __exception_irq_entry sunxi_handle_irq(struct pt_regs *regs)
 {
 	u32 irq, hwirq;
 

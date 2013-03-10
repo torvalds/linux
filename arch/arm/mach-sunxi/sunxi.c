@@ -14,13 +14,13 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 
 #include <linux/clk/sunxi.h>
-#include <linux/irqchip/sunxi.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -104,8 +104,7 @@ static const char * const sunxi_board_dt_compat[] = {
 DT_MACHINE_START(SUNXI_DT, "Allwinner A1X (Device Tree)")
 	.init_machine	= sunxi_dt_init,
 	.map_io		= sunxi_map_io,
-	.init_irq	= sunxi_init_irq,
-	.handle_irq	= sunxi_handle_irq,
+	.init_irq	= irqchip_init,
 	.restart	= sunxi_restart,
 	.init_time	= sunxi_timer_init,
 	.dt_compat	= sunxi_board_dt_compat,
