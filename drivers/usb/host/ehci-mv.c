@@ -225,7 +225,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		(void __iomem *) ((unsigned long) ehci_mv->cap_regs + offset);
 
 	hcd->rsrc_start = r->start;
-	hcd->rsrc_len = r->end - r->start + 1;
+	hcd->rsrc_len = resource_size(r);
 	hcd->regs = ehci_mv->op_regs;
 
 	hcd->irq = platform_get_irq(pdev, 0);
