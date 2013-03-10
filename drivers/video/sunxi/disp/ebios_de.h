@@ -358,7 +358,7 @@ __s32 DE_BE_HWC_Set_Src(__u32 sel, __disp_hwc_pattern_t *hwc_pat);
 
 __s32 DE_BE_Sprite_Enable(__u32 sel, __bool enable);
 __s32 DE_BE_Sprite_Set_Format(__u32 sel, __u8 pixel_seq, __u8 format);
-__s32 DE_BE_Sprite_Global_Alpha_Enable(__u32 sel, __bool enable);
+__s32 DE_BE_Sprite_Global_Alpha_Enable(__u32 sel, bool enable);
 __s32 DE_BE_Sprite_Set_Global_Alpha(__u32 sel, __u8 alpha_val);
 __s32 DE_BE_Sprite_Block_Set_Pos(__u32 sel, __u8 blk_idx, __s16 x, __s16 y);
 __s32 DE_BE_Sprite_Block_Set_Size(__u32 sel, __u8 blk_idx, __u32 xsize,
@@ -377,7 +377,7 @@ __s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range,
 			__s32 brightness, __s32 contrast, __s32 saturation,
 			__s32 hue);
 #endif
-__s32 DE_BE_enhance_enable(__u32 sel, __bool enable);
+__s32 DE_BE_enhance_enable(__u32 sel, bool enable);
 __s32 DE_BE_set_display_size(__u32 sel, __u32 width, __u32 height);
 __s32 DE_BE_get_display_width(__u32 sel);
 __s32 DE_BE_get_display_height(__u32 sel);
