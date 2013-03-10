@@ -1727,7 +1727,8 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		 * if a slave is not present on hw */
 		bus->phy_mask = ~(1 << priv->phy_id);
 
-		bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+		bus->irq = devm_kzalloc(&pdev->dev, sizeof(int) * PHY_MAX_ADDR,
+					GFP_KERNEL);
 		if (!bus->irq) {
 			ret = -ENOMEM;
 			goto out_free_mdio;
@@ -1788,10 +1789,8 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	return 0;
 
 out_unregister_mdio:
-	if (priv->mii_bus) {
+	if (priv->mii_bus)
 		mdiobus_unregister(priv->mii_bus);
-		kfree(priv->mii_bus->irq);
-	}
 
 out_free_mdio:
 	if (priv->mii_bus)
@@ -1832,7 +1831,6 @@ static int bcm_enet_remove(struct platform_device *pdev)
 
 	if (priv->has_phy) {
 		mdiobus_unregister(priv->mii_bus);
-		kfree(priv->mii_bus->irq);
 		mdiobus_free(priv->mii_bus);
 	} else {
 		struct bcm63xx_enet_platform_data *pd;
