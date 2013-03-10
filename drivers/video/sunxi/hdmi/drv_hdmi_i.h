@@ -44,6 +44,7 @@
 #include <linux/clk.h>
 #include <linux/cdev.h>
 #include <linux/types.h>
+#include <linux/i2c.h>
 
 #include <video/sunxi_disp_ioctl.h>
 #include <linux/drv_hdmi.h>
@@ -51,7 +52,7 @@
 #define __inf(msg, ...) pr_debug("[DISP] " msg, ##__VA_ARGS__)
 #define __wrn(msg, ...) pr_warn("[DISP] " msg, ##__VA_ARGS__)
 
-__s32 Hdmi_init(void);
-__s32 Hdmi_exit(void);
+__s32 Hdmi_init(struct platform_device *dev);
+__s32 Hdmi_exit(struct platform_device *dev);
 
 #endif

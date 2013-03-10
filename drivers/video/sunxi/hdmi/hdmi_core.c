@@ -35,7 +35,6 @@ static __bool audio_edid;
 static __bool audio_enable = 1;
 __s32 video_mode = HDMI720P_50;
 HDMI_AUDIO_INFO audio_info;
-__u8 EDID_Buf[1024];
 __u8 Device_Support_VIC[HDMI_DEVICE_SUPPORT_VIC_SIZE];
 static __s32 HPD;
 
