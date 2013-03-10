@@ -461,8 +461,6 @@ __s32 Disp_de_flicker_enable(__u32 sel, __u32 en)
 				    (gdisp.scaler[scaler_index].screen_index ==
 				     sel)) {
 					Scaler_Set_Outitl(scaler_index, TRUE);
-					gdisp.scaler[scaler_index].b_reg_change
-						= TRUE;
 				}
 			}
 
@@ -499,10 +497,6 @@ __s32 Disp_de_flicker_enable(__u32 sel, __u32 en)
 							Scaler_Set_Outitl
 								(scaler_index,
 								 FALSE);
-							gdisp.scaler
-								[scaler_index].
-								b_reg_change
-								= TRUE;
 						}
 					}
 
@@ -540,8 +534,6 @@ __s32 Disp_de_flicker_enable(__u32 sel, __u32 en)
 				    (gdisp.scaler[scaler_index].screen_index ==
 				     sel)) {
 					Scaler_Set_Outitl(scaler_index, TRUE);
-					gdisp.scaler[scaler_index].
-						b_reg_change = TRUE;
 				}
 			}
 

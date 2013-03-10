@@ -37,7 +37,6 @@ typedef enum {
 
 typedef struct {
 	__u32 status;
-	__bool b_reg_change;
 	__bool b_close;
 
 	__u32 screen_index;

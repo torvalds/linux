@@ -851,8 +851,6 @@ __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t mode)
 	gdisp.scaler[sel].coef_change = 1;
 #endif
 
-	scaler->b_reg_change = TRUE;
-
 	return DIS_SUCCESS;
 }
 
@@ -1276,7 +1274,6 @@ __s32 Scaler_Set_Enhance(__u32 sel, __u32 bright, __u32 contrast,
 				     scaler->out_fb.cs_mode, b_yuv_in,
 				     b_yuv_out, bright, contrast, saturation,
 				     hue, scaler->in_fb.br_swap, 0);
-	scaler->b_reg_change = TRUE;
 
 	return DIS_SUCCESS;
 }
