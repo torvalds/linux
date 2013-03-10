@@ -1952,9 +1952,13 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb_write_ulpi_buscontrol(musb->mregs, busctl);
 	}
 
-	MUSB_DEV_MODE(musb);
-	musb->xceiv->otg->default_a = 0;
-	musb->xceiv->state = OTG_STATE_B_IDLE;
+	if (musb->xceiv->otg->default_a) {
+		MUSB_HST_MODE(musb);
+		musb->xceiv->state = OTG_STATE_A_IDLE;
+	} else {
+		MUSB_DEV_MODE(musb);
+		musb->xceiv->state = OTG_STATE_B_IDLE;
+	}
 
 	status = musb_gadget_setup(musb);
 
