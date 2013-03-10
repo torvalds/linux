@@ -28,6 +28,8 @@
 #include <ump/ump_kernel_interface.h>
 #endif
 
+#include <linux/console.h>
+
 #include "drv_disp_i.h"
 #include "dev_disp.h"
 #include "disp_lcd.h"
@@ -580,6 +582,11 @@ static struct early_suspend backlight_early_suspend_handler = {
 static int
 disp_normal_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	int i;
+	console_lock();
+	for(i = 0; i < SUNXI_MAX_FB; i++)
+		fb_set_suspend(g_fbi.fbinfo[i], 1);
+	console_unlock();
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	disp_suspend(3, 3);
 #else
@@ -591,11 +598,16 @@ disp_normal_suspend(struct platform_device *pdev, pm_message_t state)
 static int
 disp_normal_resume(struct platform_device *pdev)
 {
+	int i;
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	disp_resume(3, 3);
 #else
 	disp_resume(1, 2);
 #endif
+	console_lock();
+	for(i = 0; i < SUNXI_MAX_FB; i++)
+		fb_set_suspend(g_fbi.fbinfo[i], 0);
+	console_unlock();
 	return 0;
 }
 
