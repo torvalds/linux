@@ -42,6 +42,7 @@ static u32 psci_function_id[PSCI_FN_MAX];
 #define PSCI_RET_EOPNOTSUPP		-1
 #define PSCI_RET_EINVAL			-2
 #define PSCI_RET_EPERM			-3
+#define PSCI_RET_EALREADYON		-4
 
 static int psci_to_linux_errno(int errno)
 {
@@ -54,6 +55,8 @@ static int psci_to_linux_errno(int errno)
 		return -EINVAL;
 	case PSCI_RET_EPERM:
 		return -EPERM;
+	case PSCI_RET_EALREADYON:
+		return -EAGAIN;
 	};
 
 	return -EINVAL;
