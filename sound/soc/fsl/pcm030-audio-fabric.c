@@ -51,7 +51,7 @@ static struct snd_soc_card pcm030_card = {
 	.num_links = ARRAY_SIZE(pcm030_fabric_dai),
 };
 
-static int __init pcm030_fabric_probe(struct platform_device *op)
+static int pcm030_fabric_probe(struct platform_device *op)
 {
 	struct device_node *np = op->dev.of_node;
 	struct device_node *platform_np;
