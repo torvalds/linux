@@ -121,11 +121,22 @@ static int sh_pfc_func_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	spin_lock_irqsave(&pfc->lock, flags);
 
 	for (i = 0; i < grp->nr_pins; ++i) {
+		int idx = sh_pfc_get_pin_index(pfc, grp->pins[i]);
+		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
+
+		if (cfg->type != PINMUX_TYPE_NONE) {
+			ret = -EBUSY;
+			goto done;
+		}
+	}
+
+	for (i = 0; i < grp->nr_pins; ++i) {
 		ret = sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION);
 		if (ret < 0)
 			break;
 	}
 
+done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
 	return ret;
 }
@@ -133,6 +144,22 @@ static int sh_pfc_func_enable(struct pinctrl_dev *pctldev, unsigned selector,
 static void sh_pfc_func_disable(struct pinctrl_dev *pctldev, unsigned selector,
 				unsigned group)
 {
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct sh_pfc *pfc = pmx->pfc;
+	const struct sh_pfc_pin_group *grp = &pfc->info->groups[group];
+	unsigned long flags;
+	unsigned int i;
+
+	spin_lock_irqsave(&pfc->lock, flags);
+
+	for (i = 0; i < grp->nr_pins; ++i) {
+		int idx = sh_pfc_get_pin_index(pfc, grp->pins[i]);
+		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
+
+		cfg->type = PINMUX_TYPE_NONE;
+	}
+
+	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
 static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
@@ -148,21 +175,17 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	switch (cfg->type) {
-	case PINMUX_TYPE_GPIO:
-	case PINMUX_TYPE_INPUT:
-	case PINMUX_TYPE_OUTPUT:
-		break;
-	case PINMUX_TYPE_FUNCTION:
-	default:
-		pr_err("Unsupported mux type (%d), bailing...\n", cfg->type);
-		ret = -ENOTSUPP;
-		goto err;
+	if (cfg->type != PINMUX_TYPE_NONE) {
+		pr_err("Pin %u is busy, can't configure it as GPIO.\n", offset);
+		ret = -EBUSY;
+		goto done;
 	}
+
+	cfg->type = PINMUX_TYPE_GPIO;
 
 	ret = 0;
 
-err:
+done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
 
 	return ret;
@@ -172,6 +195,15 @@ static void sh_pfc_gpio_disable_free(struct pinctrl_dev *pctldev,
 				     struct pinctrl_gpio_range *range,
 				     unsigned offset)
 {
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct sh_pfc *pfc = pmx->pfc;
+	int idx = sh_pfc_get_pin_index(pfc, offset);
+	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
+	unsigned long flags;
+
+	spin_lock_irqsave(&pfc->lock, flags);
+	cfg->type = PINMUX_TYPE_NONE;
+	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
 static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
@@ -182,27 +214,14 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	struct sh_pfc *pfc = pmx->pfc;
 	int new_type = input ? PINMUX_TYPE_INPUT : PINMUX_TYPE_OUTPUT;
 	int idx = sh_pfc_get_pin_index(pfc, offset);
-	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
 	const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
-	unsigned int mark = pin->enum_id;
+	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	switch (cfg->type) {
-	case PINMUX_TYPE_GPIO:
-	case PINMUX_TYPE_OUTPUT:
-	case PINMUX_TYPE_INPUT:
-	case PINMUX_TYPE_INPUT_PULLUP:
-	case PINMUX_TYPE_INPUT_PULLDOWN:
-		break;
-	default:
-		ret = -EINVAL;
-		goto done;
-	}
-
-	ret = sh_pfc_config_mux(pfc, mark, new_type);
+	ret = sh_pfc_config_mux(pfc, pin->enum_id, new_type);
 	if (ret < 0)
 		goto done;
 
@@ -210,7 +229,6 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 
 done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
-
 	return ret;
 }
 
@@ -383,7 +401,7 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 
 			pin->number = number;
 			pin->name = info->name;
-			cfg->type = PINMUX_TYPE_GPIO;
+			cfg->type = PINMUX_TYPE_NONE;
 		}
 	}
 
