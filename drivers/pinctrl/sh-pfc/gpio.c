@@ -276,22 +276,17 @@ static int gpio_function_request(struct gpio_chip *gc, unsigned offset)
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
 	unsigned int mark = pfc->info->func_gpios[offset].enum_id;
 	unsigned long flags;
-	int ret = -EINVAL;
+	int ret;
 
 	pr_notice_once("Use of GPIO API for function requests is deprecated, convert to pinctrl\n");
 
 	if (mark == 0)
-		return ret;
+		return -EINVAL;
 
 	spin_lock_irqsave(&pfc->lock, flags);
-
-	if (sh_pfc_config_mux(pfc, mark, PINMUX_TYPE_FUNCTION))
-		goto done;
-
-	ret = 0;
-
-done:
+	ret = sh_pfc_config_mux(pfc, mark, PINMUX_TYPE_FUNCTION);
 	spin_unlock_irqrestore(&pfc->lock, flags);
+
 	return ret;
 }
 

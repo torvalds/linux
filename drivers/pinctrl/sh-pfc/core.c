@@ -93,7 +93,7 @@ int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin)
 		offset += range->end - range->begin + 1;
 	}
 
-	return -1;
+	return -EINVAL;
 }
 
 static int sh_pfc_enum_in_range(pinmux_enum_t enum_id,
@@ -233,7 +233,7 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 		k++;
 	}
 
-	return -1;
+	return -EINVAL;
 }
 
 static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
@@ -255,7 +255,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
 	}
 
 	pr_err("cannot locate data/mark enum_id for mark %d\n", mark);
-	return -1;
+	return -EINVAL;
 }
 
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
@@ -264,6 +264,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	pinmux_enum_t enum_id;
 	const struct pinmux_range *range;
 	int in_range, pos, field, value;
+	int ret;
 
 	switch (pinmux_type) {
 
@@ -288,7 +289,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 		break;
 
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	pos = 0;
@@ -297,8 +298,8 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	value = 0;
 	while (1) {
 		pos = sh_pfc_mark_to_enum(pfc, mark, pos, &enum_id);
-		if (pos <= 0)
-			return -1;
+		if (pos < 0)
+			return pos;
 
 		if (!enum_id)
 			break;
@@ -341,9 +342,9 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 		if (!in_range)
 			continue;
 
-		if (sh_pfc_get_config_reg(pfc, enum_id, &cr,
-					  &field, &value) != 0)
-			return -1;
+		ret = sh_pfc_get_config_reg(pfc, enum_id, &cr, &field, &value);
+		if (ret < 0)
+			return ret;
 
 		sh_pfc_write_config_reg(pfc, cr, field, value);
 	}

@@ -114,18 +114,16 @@ static int sh_pfc_func_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	const struct sh_pfc_pin_group *grp = &pfc->info->groups[group];
 	unsigned long flags;
 	unsigned int i;
-	int ret = -EINVAL;
+	int ret = 0;
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
 	for (i = 0; i < grp->nr_pins; ++i) {
-		if (sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION))
-			goto done;
+		ret = sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION);
+		if (ret < 0)
+			break;
 	}
 
-	ret = 0;
-
-done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
 	return ret;
 }
@@ -144,7 +142,7 @@ static int sh_pfc_reconfig_pin(struct sh_pfc_pinctrl *pmx, unsigned offset,
 	const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
 	unsigned int mark = pin->enum_id;
 	unsigned long flags;
-	int ret = -EINVAL;
+	int ret;
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
@@ -156,17 +154,17 @@ static int sh_pfc_reconfig_pin(struct sh_pfc_pinctrl *pmx, unsigned offset,
 	case PINMUX_TYPE_INPUT_PULLDOWN:
 		break;
 	default:
-		goto err;
+		ret = -EINVAL;
+		goto done;
 	}
 
-	if (sh_pfc_config_mux(pfc, mark, new_type) != 0)
-		goto err;
+	ret = sh_pfc_config_mux(pfc, mark, new_type);
+	if (ret < 0)
+		goto done;
 
 	cfg->type = new_type;
 
-	ret = 0;
-
-err:
+done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
 
 	return ret;
