@@ -100,12 +100,10 @@ __s32 get_video_info(__s32 vic);
 
 extern __u32 hdmi_pll; /* 0: video pll 0; 1: video pll 1 */
 extern __u32 hdmi_clk;
+extern struct i2c_adapter sunxi_hdmi_i2c_adapter;
+int hdmi_i2c_sunxi_probe(struct platform_device *dev);
+int hdmi_i2c_sunxi_remove(struct platform_device *dev);
 
-void DDC_Init(void);
-void send_ini_sequence(void);
-__s32 DDC_Read(char cmd, char pointer, char offset, int nbyte, char *pbuf);
-
-extern __u8 EDID_Buf[1024];
 extern __u8 Device_Support_VIC[HDMI_DEVICE_SUPPORT_VIC_SIZE];
 
 extern __bool video_enable;

@@ -18,152 +18,10 @@
  */
 
 #include <sound/pcm.h>
+#include <linux/fb.h>
 #include "hdmi_core.h"
 #include "../disp/dev_disp.h"
 #include "../disp/sunxi_disp_regs.h"
-
-void DDC_Init(void)
-{
-	pr_info("DDC_Init\n");
-
-	writel(0x80000001, HDMI_I2C_GENERAL);
-	hdmi_delay_ms(1);
-
-#if 0
-	while (readl(HDMI_I2C_GENERAL) & 0x1)
-		;
-#endif
-	if (readl(HDMI_I2C_GENERAL) & 0x1)
-		pr_info("EDID not ready\n");
-	else
-		pr_info("EDID ready\n");
-
-	/* N = 5,M=1 Fscl= Ftmds/2/10/2^N/(M+1) */
-	writel(0x0d, HDMI_I2C_CLK);
-
-	/* ddc address  0x60 */
-	/*writeb(0x60, HDMI_I2C_LINE_CTRL);*/
-
-	/* slave address  0xa0 */
-	/*writeb(0xa0 >> 1, HDMI_I2C_LINE_CTRL);*/
-
-	/* enable analog sda/scl pad */
-	writel((0 << 12) + (3 << 8), HDMI_I2C_LINE_CTRL);
-
-	/*send_ini_sequence();*/
-}
-
-#if 0
-void send_ini_sequence()
-{
-	int i, j;
-
-	set_wbit(0x524, BIT3);
-	for (i = 0; i < 9; i++) {
-		for (j = 0; j < 200; j++) /*for simulation, delete it*/
-			;
-		clr_wbit(0x524, BIT2);
-
-		for (j = 0; j < 200; j++) /*for simulation, delete it*/
-			;
-		set_wbit(0x524, BIT2);
-	}
-
-	clr_wbit(0x524, BIT3);
-	clr_wbit(0x524, BIT1);
-}
-#endif
-
-__s32 DDC_Read(char cmd, char pointer, char offset, int nbyte, char *pbuf)
-{
-	__u8 i = 0;
-	__u8 n = 0;
-	__u8 off = offset;
-	__s32 reg_val;
-	__u32 begin_ms, end_ms;
-
-	pr_info("DDC_Read\n");
-
-	while (nbyte > 0) {
-		if (nbyte > 16)
-			n = 16;
-		else
-			n = nbyte;
-		nbyte = nbyte - n;
-
-		 /* set FIFO read */
-		writel(readl(HDMI_I2C_GENERAL) & 0xfffffeff,
-			HDMI_I2C_GENERAL);
-
-		writel((pointer << 24) | (0x60 << 16) | (off << 8) |
-			(0xa0 >> 1), HDMI_I2C_ADDR);
-
-		 /* FIFO address clear */
-		writel(readl(HDMI_I2C_GENERAL_2) | 0x80000000,
-			HDMI_I2C_GENERAL_2);
-
-		/* nbyte to access */
-		writel(n, HDMI_I2C_DATA_LENGTH);
-
-		/* set cmd type */
-		writel(cmd, HDMI_I2C_CMD);
-
-		 /* start and cmd */
-		writel(readl(HDMI_I2C_GENERAL) | 0x40000000,
-			HDMI_I2C_GENERAL);
-
-
-		off += n;
-
-		begin_ms = (jiffies * 1000) / HZ;
-		while (readl(HDMI_I2C_GENERAL) & 0x40000000) {
-			end_ms = (jiffies * 1000) / HZ;
-			if ((end_ms - begin_ms) > 1000) {
-				__wrn("ddc read timeout\n");
-				return -1;
-			}
-		}
-
-		for (i = 0; i < n; i++)
-			*pbuf++ = readb(HDMI_I2C_DATA);
-	}
-
-	return 0;
-}
-
-static void
-GetEDIDData(__u8 block, __u8 *buf)
-{
-	__u8 i;
-	__u8 *pbuf = buf + 128 * block;
-	__u8 offset = (block & 0x01) ? 128 : 0;
-
-	DDC_Read(Explicit_Offset_Address_E_DDC_Read, block >> 1, offset, 128,
-		 pbuf);
-
-	pr_info("Sink : EDID bank %d:\n", block);
-
-	pr_info(" 0   1   2   3   4   5   6   7   8   9   "
-	      "A   B   C   D   E   F\n");
-	pr_info(" ======================================================="
-	      "========================================\n");
-
-	for (i = 0; i < 8; i++) {
-		pr_info(" %2.2x  %2.2x  %2.2x  %2.2x  %2.2x  %2.2x  %2.2x"
-		      "  %2.2x  %2.2x  %2.2x  %2.2x  %2.2x  %2.2x  "
-		      "%2.2x  %2.2x  %2.2x\n",
-		      pbuf[i * 16 + 0], pbuf[i * 16 + 1], pbuf[i * 16 + 2],
-		      pbuf[i * 16 + 3], pbuf[i * 16 + 4], pbuf[i * 16 + 5],
-		      pbuf[i * 16 + 6], pbuf[i * 16 + 7], pbuf[i * 16 + 8],
-		      pbuf[i * 16 + 9], pbuf[i * 16 + 10], pbuf[i * 16 + 11],
-		      pbuf[i * 16 + 12], pbuf[i * 16 + 13], pbuf[i * 16 + 14],
-		      pbuf[i * 16 + 15]);
-	}
-	pr_info(" ======================================================="
-	      "========================================\n");
-
-	return;
-}
 
 /*
  * ParseEDID()
@@ -459,7 +317,7 @@ Parse_HDMI_VSDB(__u8 *pbuf, __u8 size)
 	return 0;
 }
 
-static __s32 ParseEDID_CEA861_extension_block(__u32 i)
+static __s32 ParseEDID_CEA861_extension_block(__u32 i, __u8 *EDID_Buf)
 {
 	__u32 offset;
 	if (EDID_Buf[0x80 * i + 3] & 0x40) {
@@ -505,6 +363,39 @@ static __s32 ParseEDID_CEA861_extension_block(__u32 i)
 	return 1;
 }
 
+#define DDC_ADDR 0x50
+#define EDID_LENGTH 0x80
+static int probe_ddc_edid(struct i2c_adapter *adapter,
+		int block, unsigned char *buf)
+{
+	unsigned char start = block * EDID_LENGTH;
+	struct i2c_msg msgs[] = {
+		{
+			.addr	= DDC_ADDR,
+			.flags	= 0,
+			.len	= 1,
+			.buf	= &start,
+		}, {
+			.addr	= DDC_ADDR,
+			.flags	= I2C_M_RD,
+			.len	= EDID_LENGTH,
+			.buf	= buf + start,
+		}
+	};
+
+	if (!buf) {
+		dev_warn(&adapter->dev, "unable to allocate memory for EDID "
+			 "block.\n");
+		return -EIO;
+	}
+
+	if (i2c_transfer(adapter, msgs, 2) == 2)
+		return 0;
+
+	dev_warn(&adapter->dev, "unable to read EDID block.\n");
+	return -EIO;
+}
+
 /*
  * collect the EDID ucdata of segment 0
  */
@@ -512,6 +403,9 @@ __s32 ParseEDID(void)
 {
 	__u8 BlockCount;
 	__u32 i;
+	unsigned char *EDID_Buf = kmalloc(EDID_LENGTH*4, GFP_KERNEL);
+	if (!EDID_Buf)
+		return -ENOMEM;
 
 	pr_info("ParseEDID\n");
 
@@ -523,20 +417,18 @@ __s32 ParseEDID(void)
 	} else {
 		memset(Device_Support_VIC, 0, HDMI_DEVICE_SUPPORT_VIC_SIZE);
 	}
-	memset(EDID_Buf, 0, sizeof(EDID_Buf));
 
-	DDC_Init();
-
-	GetEDIDData(0, EDID_Buf);
+	if (probe_ddc_edid(&sunxi_hdmi_i2c_adapter, 0, EDID_Buf))
+		goto ret;
 
 	if (EDID_CheckSum(0, EDID_Buf) != 0)
-		return 0;
+		goto ret;
 
 	if (EDID_Header_Check(EDID_Buf) != 0)
-		return 0;
+		goto ret;
 
 	if (EDID_Version_Check(EDID_Buf) != 0)
-		return 0;
+		goto ret;
 
 	Parse_DTD_Block(EDID_Buf + 0x36);
 
@@ -547,7 +439,8 @@ __s32 ParseEDID(void)
 		BlockCount = 5;
 
 	for (i = 1; i < BlockCount; i++) {
-		GetEDIDData(i, EDID_Buf);
+		if (probe_ddc_edid(&sunxi_hdmi_i2c_adapter, i, EDID_Buf))
+			break;
 		if (EDID_CheckSum(i, EDID_Buf) != 0) {
 			BlockCount = i;
 			break;
@@ -558,10 +451,12 @@ __s32 ParseEDID(void)
 
 	for (i = 1; i < BlockCount; i++) {
 		if (EDID_Buf[0x80 * i + 0] == 2) {
-			if (!ParseEDID_CEA861_extension_block(i))
-				return 0;
+			if (!ParseEDID_CEA861_extension_block(i, EDID_Buf))
+				goto ret;
 		}
 	}
 
+ret:
+	kfree(EDID_Buf);
 	return 0;
 }

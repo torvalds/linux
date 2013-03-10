@@ -59,7 +59,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	ghdmi.base_hdmi = 0xf1c16000;
 
-	Hdmi_init();
+	Hdmi_init(pdev);
 	Fb_Init(SUNXI_HDMI);
 
 	return 0;
@@ -69,7 +69,7 @@ static int hdmi_remove(struct platform_device *pdev)
 {
 	__inf("hdmi_remove call\n");
 
-	Hdmi_exit();
+	Hdmi_exit(pdev);
 
 	return 0;
 }

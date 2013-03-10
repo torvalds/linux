@@ -289,16 +289,21 @@ Hdmi_run_thread(void *parg)
 	return 0;
 }
 
-__s32 Hdmi_init(void)
+__s32 Hdmi_init(struct platform_device *dev)
 {
 	__audio_hdmi_func audio_func;
 	__disp_hdmi_func disp_func;
+	int err = 0;
 
 	run_sem = kmalloc(sizeof(struct semaphore), GFP_KERNEL | __GFP_ZERO);
 	sema_init((struct semaphore *)run_sem, 0);
 
 	HDMI_BASE = (void __iomem *) ghdmi.base_hdmi;
 	hdmi_core_initial();
+	err = hdmi_i2c_sunxi_probe(dev);
+	if (err)
+		return err;
+
 	audio_info.channel_num = 2;
 #if 0
 	{ /* for audio test */
@@ -347,7 +352,7 @@ __s32 Hdmi_init(void)
 	return 0;
 }
 
-__s32 Hdmi_exit(void)
+__s32 Hdmi_exit(struct platform_device *dev)
 {
 
 	kfree(run_sem);
@@ -357,6 +362,8 @@ __s32 Hdmi_exit(void)
 		kthread_stop(HDMI_task);
 		HDMI_task = NULL;
 	}
+
+	hdmi_i2c_sunxi_remove(dev);
 
 	return 0;
 }
