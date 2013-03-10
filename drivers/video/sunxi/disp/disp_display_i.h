@@ -80,29 +80,5 @@ enum {
 #define BIT30	0x40000000
 #define BIT31	0x80000000
 
-/* byte */
-#define sys_get_value(n)    (*((volatile __u8 *)(n)))
-#define sys_put_value(n,c)  (*((volatile __u8 *)(n)) = (c))
-
-/* half word */
-#define sys_get_hvalue(n)   (*((volatile __u16 *)(n)))
-#define sys_put_hvalue(n,c) (*((volatile __u16 *)(n)) = (c))
-
-/* word */
-#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))
-
-/* byte bit */
-#define sys_set_bit(n,c)    (*((volatile __u8 *)(n)) |= (c))
-#define sys_clr_bit(n,c)    (*((volatile __u8 *)(n)) &=~(c))
-
-/* half word bit */
-#define sys_set_hbit(n,c)   (*((volatile __u16 *)(n))|= (c))
-#define sys_clr_hbit(n,c)   (*((volatile __u16 *)(n))&=~(c))
-
-/* word bit */
-#define sys_set_wbit(n,c)   (*((volatile __u32 *)(n))|= (c))
-#define sys_cmp_wvalue(n,c) (c == (*((volatile __u32 *) (n))))
-#define sys_clr_wbit(n,c)   (*((volatile __u32 *)(n))&=~(c))
 
 #endif
