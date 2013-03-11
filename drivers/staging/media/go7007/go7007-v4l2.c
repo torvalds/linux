@@ -652,12 +652,12 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *std)
 
 static int go7007_s_std(struct go7007 *go)
 {
-	if (go->std & V4L2_STD_525_60) {
-		go->standard = GO7007_STD_NTSC;
-		go->sensor_framerate = 30000;
-	} else {
+	if (go->std & V4L2_STD_625_50) {
 		go->standard = GO7007_STD_PAL;
 		go->sensor_framerate = 25025;
+	} else {
+		go->standard = GO7007_STD_NTSC;
+		go->sensor_framerate = 30000;
 	}
 
 	call_all(&go->v4l2_dev, core, s_std, go->std);
