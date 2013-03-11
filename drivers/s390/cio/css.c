@@ -1065,9 +1065,8 @@ void channel_subsystem_reinit(void)
 	chsc_enable_facility(CHSC_SDA_OC_MSS);
 	chp_id_for_each(&chpid) {
 		chp = chpid_to_chp(chpid);
-		if (!chp)
-			continue;
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		if (chp)
+			chp_update_desc(chp);
 	}
 }
 
