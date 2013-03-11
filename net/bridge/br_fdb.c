@@ -722,13 +722,10 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		 * specify a VLAN.  To be nice, add/update entry for every
 		 * vlan on this port.
 		 */
-		vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
-		while (vid < BR_VLAN_BITMAP_LEN) {
+		for_each_set_bit(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
 			err = __br_fdb_add(ndm, p, addr, nlh_flags, vid);
 			if (err)
 				goto out;
-			vid = find_next_bit(pv->vlan_bitmap,
-					    BR_VLAN_BITMAP_LEN, vid+1);
 		}
 	}
 
@@ -813,11 +810,8 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		 * vlan on this port.
 		 */
 		err = -ENOENT;
-		vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
-		while (vid < BR_VLAN_BITMAP_LEN) {
+		for_each_set_bit(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
 			err &= __br_fdb_delete(p, addr, vid);
-			vid = find_next_bit(pv->vlan_bitmap,
-					    BR_VLAN_BITMAP_LEN, vid+1);
 		}
 	}
 out:
