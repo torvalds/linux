@@ -559,6 +559,7 @@ void ehrpwm_pwm_restore_context(struct ehrpwm_pwm_chip *pc)
 	ehrpwm_write(pc->mmio_base, TBCTL, pc->ctx.tbctl);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ehrpwm_pwm_suspend(struct device *dev)
 {
 	struct ehrpwm_pwm_chip *pc = dev_get_drvdata(dev);
@@ -594,6 +595,7 @@ static int ehrpwm_pwm_resume(struct device *dev)
 	ehrpwm_pwm_restore_context(pc);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ehrpwm_pwm_pm_ops, ehrpwm_pwm_suspend,
 		ehrpwm_pwm_resume);
