@@ -42,13 +42,6 @@ static DECLARE_WAIT_QUEUE_HEAD(tty_ldisc_wait);
 /* Line disc dispatch table */
 static struct tty_ldisc_ops *tty_ldiscs[NR_LDISCS];
 
-static inline struct tty_ldisc *get_ldisc(struct tty_ldisc *ld)
-{
-	if (ld)
-		atomic_inc(&ld->users);
-	return ld;
-}
-
 /**
  *	tty_register_ldisc	-	install a line discipline
  *	@disc: ldisc number
@@ -269,10 +262,13 @@ static struct tty_ldisc *tty_ldisc_try(struct tty_struct *tty)
 	unsigned long flags;
 	struct tty_ldisc *ld;
 
+	/* FIXME: this allows reference acquire after TTY_LDISC is cleared */
 	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
 	ld = NULL;
-	if (test_bit(TTY_LDISC, &tty->flags))
-		ld = get_ldisc(tty->ldisc);
+	if (test_bit(TTY_LDISC, &tty->flags) && tty->ldisc) {
+		ld = tty->ldisc;
+		atomic_inc(&ld->users);
+	}
 	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 	return ld;
 }
