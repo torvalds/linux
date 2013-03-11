@@ -349,7 +349,7 @@
 			rx_descs = <64>;
 			mac_control = <0x20>;
 			slaves = <2>;
-			cpts_active_slave = <0>;
+			active_slave = <0>;
 			cpts_clock_mult = <0x80000000>;
 			cpts_clock_shift = <29>;
 			reg = <0x4a100000 0x800

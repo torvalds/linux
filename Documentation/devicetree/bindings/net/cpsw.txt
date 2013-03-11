@@ -15,7 +15,8 @@ Required properties:
 - mac_control		: Specifies Default MAC control register content
 			  for the specific platform
 - slaves		: Specifies number for slaves
-- cpts_active_slave	: Specifies the slave to use for time stamping
+- active_slave		: Specifies the slave to use for time stamping,
+			  ethtool and SIOCGMIIPHY
 - cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
 - cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
 
@@ -52,7 +53,7 @@ Examples:
 		rx_descs = <64>;
 		mac_control = <0x20>;
 		slaves = <2>;
-		cpts_active_slave = <0>;
+		active_slave = <0>;
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
 		cpsw_emac0: slave@0 {
@@ -78,7 +79,7 @@ Examples:
 		rx_descs = <64>;
 		mac_control = <0x20>;
 		slaves = <2>;
-		cpts_active_slave = <0>;
+		active_slave = <0>;
 		cpts_clock_mult = <0x80000000>;
 		cpts_clock_shift = <29>;
 		cpsw_emac0: slave@0 {

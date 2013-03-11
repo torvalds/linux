@@ -942,7 +942,7 @@ static void cpsw_ndo_change_rx_flags(struct net_device *ndev, int flags)
 
 static void cpsw_hwtstamp_v1(struct cpsw_priv *priv)
 {
-	struct cpsw_slave *slave = &priv->slaves[priv->data.cpts_active_slave];
+	struct cpsw_slave *slave = &priv->slaves[priv->data.active_slave];
 	u32 ts_en, seq_id;
 
 	if (!priv->cpts->tx_enable && !priv->cpts->rx_enable) {
@@ -971,7 +971,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	if (priv->data.dual_emac)
 		slave = &priv->slaves[priv->emac_port];
 	else
-		slave = &priv->slaves[priv->data.cpts_active_slave];
+		slave = &priv->slaves[priv->data.active_slave];
 
 	ctrl = slave_read(slave, CPSW2_CONTROL);
 	ctrl &= ~CTRL_ALL_TS_MASK;
@@ -1282,12 +1282,12 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->slaves = prop;
 
-	if (of_property_read_u32(node, "cpts_active_slave", &prop)) {
-		pr_err("Missing cpts_active_slave property in the DT.\n");
+	if (of_property_read_u32(node, "active_slave", &prop)) {
+		pr_err("Missing active_slave property in the DT.\n");
 		ret = -EINVAL;
 		goto error_ret;
 	}
-	data->cpts_active_slave = prop;
+	data->active_slave = prop;
 
 	if (of_property_read_u32(node, "cpts_clock_mult", &prop)) {
 		pr_err("Missing cpts_clock_mult property in the DT.\n");
