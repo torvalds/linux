@@ -1596,7 +1596,9 @@ static void n_tty_close(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	n_tty_flush_buffer(tty);
+	if (tty->link)
+		n_tty_packet_mode_flush(tty);
+
 	kfree(ldata->read_buf);
 	kfree(ldata->echo_buf);
 	kfree(ldata);
