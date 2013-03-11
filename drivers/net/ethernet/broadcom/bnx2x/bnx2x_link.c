@@ -152,6 +152,7 @@
 #define SFP_EEPROM_CON_TYPE_ADDR		0x2
 	#define SFP_EEPROM_CON_TYPE_VAL_LC	0x7
 	#define SFP_EEPROM_CON_TYPE_VAL_COPPER	0x21
+	#define SFP_EEPROM_CON_TYPE_VAL_RJ45	0x22
 
 
 #define SFP_EEPROM_COMP_CODE_ADDR		0x3
@@ -8049,20 +8050,24 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		break;
 	}
 	case SFP_EEPROM_CON_TYPE_VAL_LC:
+	case SFP_EEPROM_CON_TYPE_VAL_RJ45:
 		check_limiting_mode = 1;
 		if ((val[1] & (SFP_EEPROM_COMP_CODE_SR_MASK |
 			       SFP_EEPROM_COMP_CODE_LR_MASK |
 			       SFP_EEPROM_COMP_CODE_LRM_MASK)) == 0) {
-			DP(NETIF_MSG_LINK, "1G Optic module detected\n");
+			DP(NETIF_MSG_LINK, "1G SFP module detected\n");
 			gport = params->port;
 			phy->media_type = ETH_PHY_SFP_1G_FIBER;
-			phy->req_line_speed = SPEED_1000;
-			if (!CHIP_IS_E1x(bp))
-				gport = BP_PATH(bp) + (params->port << 1);
-			netdev_err(bp->dev, "Warning: Link speed was forced to 1000Mbps."
-			      " Current SFP module in port %d is not"
-			      " compliant with 10G Ethernet\n",
-			 gport);
+			if (phy->req_line_speed != SPEED_1000) {
+				phy->req_line_speed = SPEED_1000;
+				if (!CHIP_IS_E1x(bp)) {
+					gport = BP_PATH(bp) +
+					(params->port << 1);
+				}
+				netdev_err(bp->dev,
+					   "Warning: Link speed was forced to 1000Mbps. Current SFP module in port %d is not compliant with 10G Ethernet\n",
+					   gport);
+			}
 		} else {
 			int idx, cfg_idx = 0;
 			DP(NETIF_MSG_LINK, "10G Optic module detected\n");
