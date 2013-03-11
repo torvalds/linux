@@ -1063,14 +1063,7 @@ static int au0828_v4l2_close(struct file *filp)
 		res_free(fh, AU0828_RESOURCE_VBI);
 	}
 
-	if (dev->users == 1) {
-		if (dev->dev_state & DEV_DISCONNECTED) {
-			au0828_analog_unregister(dev);
-			kfree(fh);
-			kfree(dev);
-			return 0;
-		}
-
+	if (dev->users == 1 && video_is_registered(video_devdata(filp))) {
 		au0828_analog_stream_disable(dev);
 
 		au0828_uninit_isoc(dev);
