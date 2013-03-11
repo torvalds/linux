@@ -392,12 +392,13 @@ static void vfio_device_release(struct kref *kref)
 }
 
 /* Device reference always implies a group reference */
-static void vfio_device_put(struct vfio_device *device)
+void vfio_device_put(struct vfio_device *device)
 {
 	struct vfio_group *group = device->group;
 	kref_put_mutex(&device->kref, vfio_device_release, &group->device_lock);
 	vfio_group_put(group);
 }
+EXPORT_SYMBOL_GPL(vfio_device_put);
 
 static void vfio_device_get(struct vfio_device *device)
 {
@@ -626,6 +627,33 @@ int vfio_add_group_dev(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vfio_add_group_dev);
+
+/**
+ * Get a reference to the vfio_device for a device that is known to
+ * be bound to a vfio driver.  The driver implicitly holds a
+ * vfio_device reference between vfio_add_group_dev and
+ * vfio_del_group_dev.  We can therefore use drvdata to increment
+ * that reference from the struct device.  This additional
+ * reference must be released by calling vfio_device_put.
+ */
+struct vfio_device *vfio_device_get_from_dev(struct device *dev)
+{
+	struct vfio_device *device = dev_get_drvdata(dev);
+
+	vfio_device_get(device);
+
+	return device;
+}
+EXPORT_SYMBOL_GPL(vfio_device_get_from_dev);
+
+/*
+ * Caller must hold a reference to the vfio_device
+ */
+void *vfio_device_data(struct vfio_device *device)
+{
+	return device->device_data;
+}
+EXPORT_SYMBOL_GPL(vfio_device_data);
 
 /* Given a referenced group, check if it contains the device */
 static bool vfio_dev_present(struct vfio_group *group, struct device *dev)
