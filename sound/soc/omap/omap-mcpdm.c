@@ -464,11 +464,9 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -ENOMEM;
 
-	mcpdm->io_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!mcpdm->io_base) {
-		dev_err(&pdev->dev, "cannot remap\n");
-		return -ENOMEM;
-	}
+	mcpdm->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mcpdm->io_base))
+		return PTR_ERR(mcpdm->io_base);
 
 	mcpdm->irq = platform_get_irq(pdev, 0);
 	if (mcpdm->irq < 0)

@@ -493,12 +493,9 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	dmic->io_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!dmic->io_base) {
-		dev_err(&pdev->dev, "cannot remap\n");
-		ret = -ENOMEM;
-		goto err_put_clk;
-	}
+	dmic->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dmic->io_base))
+		return PTR_ERR(dmic->io_base);
 
 	ret = snd_soc_register_dai(&pdev->dev, &omap_dmic_dai);
 	if (ret)
