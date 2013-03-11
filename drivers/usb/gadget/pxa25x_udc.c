@@ -1303,6 +1303,10 @@ stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
 	}
 	del_timer_sync(&dev->timer);
 
+	/* report disconnect; the driver is already quiesced */
+	if (driver)
+		driver->disconnect(&dev->gadget);
+
 	/* re-init driver-visible data structures */
 	udc_reinit(dev);
 }
