@@ -153,6 +153,12 @@ static void n_tty_set_room(struct tty_struct *tty)
 	if (left && !old_left) {
 		WARN_RATELIMIT(tty->port->itty == NULL,
 				"scheduling with invalid itty\n");
+		/* see if ldisc has been killed - if so, this means that
+		 * even though the ldisc has been halted and ->buf.work
+		 * cancelled, ->buf.work is about to be rescheduled
+		 */
+		WARN_RATELIMIT(test_bit(TTY_LDISC_HALTED, &tty->flags),
+			       "scheduling buffer work for halted ldisc\n");
 		schedule_work(&tty->port->buf.work);
 	}
 }
@@ -1624,6 +1630,8 @@ static int n_tty_open(struct tty_struct *tty)
 		goto err_free_bufs;
 
 	tty->disc_data = ldata;
+	/* indicate buffer work may resume */
+	clear_bit(TTY_LDISC_HALTED, &tty->flags);
 	reset_buffer_flags(tty);
 	tty_unthrottle(tty);
 	ldata->column = 0;

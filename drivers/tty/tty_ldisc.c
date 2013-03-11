@@ -375,6 +375,7 @@ static inline void tty_ldisc_put(struct tty_ldisc *ld)
 
 void tty_ldisc_enable(struct tty_struct *tty)
 {
+	clear_bit(TTY_LDISC_HALTED, &tty->flags);
 	set_bit(TTY_LDISC, &tty->flags);
 	clear_bit(TTY_LDISC_CHANGING, &tty->flags);
 	wake_up(&tty_ldisc_wait);
@@ -513,8 +514,11 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 
 static int tty_ldisc_halt(struct tty_struct *tty)
 {
+	int scheduled;
 	clear_bit(TTY_LDISC, &tty->flags);
-	return cancel_work_sync(&tty->port->buf.work);
+	scheduled = cancel_work_sync(&tty->port->buf.work);
+	set_bit(TTY_LDISC_HALTED, &tty->flags);
+	return scheduled;
 }
 
 /**
@@ -820,6 +824,7 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	clear_bit(TTY_LDISC, &tty->flags);
 	tty_unlock(tty);
 	cancel_work_sync(&tty->port->buf.work);
+	set_bit(TTY_LDISC_HALTED, &tty->flags);
 	mutex_unlock(&tty->ldisc_mutex);
 retry:
 	tty_lock(tty);
