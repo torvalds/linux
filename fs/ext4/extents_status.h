@@ -39,6 +39,8 @@
 				 EXTENT_STATUS_DELAYED | \
 				 EXTENT_STATUS_HOLE)
 
+struct ext4_extent;
+
 struct extent_status {
 	struct rb_node rb_node;
 	ext4_lblk_t es_lblk;	/* first logical block extent covers */
@@ -64,6 +66,7 @@ extern void ext4_es_find_delayed_extent(struct inode *inode, ext4_lblk_t lblk,
 					struct extent_status *es);
 extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 				 struct extent_status *es);
+extern int ext4_es_zeroout(struct inode *inode, struct ext4_extent *ex);
 
 static inline int ext4_es_is_written(struct extent_status *es)
 {

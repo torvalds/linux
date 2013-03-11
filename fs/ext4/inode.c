@@ -722,6 +722,15 @@ found:
 		}
 #endif
 
+		/*
+		 * If the extent has been zeroed out, we don't need to update
+		 * extent status tree.
+		 */
+		if ((flags & EXT4_GET_BLOCKS_PRE_IO) &&
+		    ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
+			if (ext4_es_is_written(&es))
+				goto has_zeroout;
+		}
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
 		if (!(flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) &&
@@ -734,6 +743,7 @@ found:
 			retval = ret;
 	}
 
+has_zeroout:
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
 		int ret = check_block_validity(inode, map);
