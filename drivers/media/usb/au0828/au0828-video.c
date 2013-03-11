@@ -1182,9 +1182,6 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 	int width = format->fmt.pix.width;
 	int height = format->fmt.pix.height;
 
-	if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	/* If they are demanding a format other than the one we support,
 	   bail out (tvtime asks for UYVY and then retries with YUYV) */
 	if (format->fmt.pix.pixelformat != V4L2_PIX_FMT_UYVY)
@@ -1203,6 +1200,7 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 	format->fmt.pix.sizeimage = width * height * 2;
 	format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	format->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	format->fmt.pix.priv = 0;
 
 	if (cmd == VIDIOC_TRY_FMT)
 		return 0;
@@ -1289,6 +1287,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.sizeimage = dev->frame_size;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M; /* NTSC/PAL */
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	f->fmt.pix.priv = 0;
 	return 0;
 }
 
@@ -1596,6 +1595,7 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	format->fmt.vbi.count[1] = dev->vbi_height;
 	format->fmt.vbi.start[0] = 21;
 	format->fmt.vbi.start[1] = 284;
+	memset(format->fmt.vbi.reserved, 0, sizeof(format->fmt.vbi.reserved));
 
 	return 0;
 }
@@ -1879,6 +1879,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap     = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
 	.vidioc_g_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
+	.vidioc_try_fmt_vbi_cap     = vidioc_g_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_enumaudio           = vidioc_enumaudio,
 	.vidioc_g_audio             = vidioc_g_audio,
