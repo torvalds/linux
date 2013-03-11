@@ -373,7 +373,7 @@ static inline void tty_ldisc_put(struct tty_ldisc *ld)
  *	Clearing directly is allowed.
  */
 
-void tty_ldisc_enable(struct tty_struct *tty)
+static void tty_ldisc_enable(struct tty_struct *tty)
 {
 	clear_bit(TTY_LDISC_HALTED, &tty->flags);
 	set_bit(TTY_LDISC, &tty->flags);

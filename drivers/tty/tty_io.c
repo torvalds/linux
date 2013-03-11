@@ -693,7 +693,6 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 	 */
 	set_bit(TTY_HUPPED, &tty->flags);
 	clear_bit(TTY_HUPPING, &tty->flags);
-	tty_ldisc_enable(tty);
 
 	tty_unlock(tty);
 
