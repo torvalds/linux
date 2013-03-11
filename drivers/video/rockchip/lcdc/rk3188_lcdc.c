@@ -65,7 +65,7 @@ static int rk3188_lcdc_clk_disable(struct rk3188_lcdc_device *lcdc_dev)
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_dev->clk_on = 0;
 	spin_unlock(&lcdc_dev->reg_lock);
-
+	mdelay(25);
 	clk_disable(lcdc_dev->dclk);
 	clk_disable(lcdc_dev->hclk);
 	clk_disable(lcdc_dev->aclk);
@@ -310,6 +310,8 @@ static int rk3188_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,b
 
 	if((!open) && (!lcdc_dev->atv_layer_cnt))  //when all layer closed,disable clk
 	{
+		lcdc_msk_reg(lcdc_dev,INT_STATUS,m_FS_INT_CLEAR,v_FS_INT_CLEAR(1));
+		rk3188_lcdc_reg_update(dev_drv);
 		rk3188_lcdc_clk_disable(lcdc_dev);
 	}
 
@@ -927,7 +929,6 @@ static int rk3188_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 		return 0;
 	}
 
-	mdelay(25);
 	rk3188_lcdc_clk_disable(lcdc_dev);
 	return 0;
 }
