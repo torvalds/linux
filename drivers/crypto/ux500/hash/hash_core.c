@@ -1368,14 +1368,12 @@ static int hash_setkey(struct crypto_ahash *tfm,
 	/**
 	 * Freed in final.
 	 */
-	ctx->key = kmalloc(keylen, GFP_KERNEL);
+	ctx->key = kmemdup(key, keylen, GFP_KERNEL);
 	if (!ctx->key) {
 		pr_err(DEV_DBG_NAME " [%s] Failed to allocate ctx->key "
 		       "for %d\n", __func__, alg);
 		return -ENOMEM;
 	}
-
-	memcpy(ctx->key, key, keylen);
 	ctx->keylen = keylen;
 
 	return ret;
