@@ -1854,6 +1854,7 @@ static int bnx2x_vlan_mac_del_all(struct bnx2x *bp,
 				return rc;
 			}
 			list_del(&exeq_pos->link);
+			bnx2x_exe_queue_free_elem(bp, exeq_pos);
 		}
 	}
 
