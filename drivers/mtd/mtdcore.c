@@ -492,7 +492,7 @@ out_error:
  *
  * Returns zero in case of success and a negative error code in case of failure.
  */
-int mtd_device_parse_register(struct mtd_info *mtd, const char **types,
+int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      struct mtd_part_parser_data *parser_data,
 			      const struct mtd_partition *parts,
 			      int nr_parts)

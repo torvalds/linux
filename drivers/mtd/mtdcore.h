@@ -15,7 +15,8 @@ extern int del_mtd_device(struct mtd_info *mtd);
 extern int add_mtd_partitions(struct mtd_info *, const struct mtd_partition *,
 			      int);
 extern int del_mtd_partitions(struct mtd_info *);
-extern int parse_mtd_partitions(struct mtd_info *master, const char **types,
+extern int parse_mtd_partitions(struct mtd_info *master,
+				const char * const *types,
 				struct mtd_partition **pparts,
 				struct mtd_part_parser_data *data);
 

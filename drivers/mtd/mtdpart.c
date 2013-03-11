@@ -720,7 +720,7 @@ static const char *default_mtd_part_types[] = {
  * o a positive number of found partitions, in which case on exit @pparts will
  *   point to an array containing this number of &struct mtd_info objects.
  */
-int parse_mtd_partitions(struct mtd_info *master, const char **types,
+int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			 struct mtd_partition **pparts,
 			 struct mtd_part_parser_data *data)
 {
