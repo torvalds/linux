@@ -348,13 +348,11 @@ static void wmt_complete_data_request(struct wmt_mci_priv *priv)
 
 static irqreturn_t wmt_mci_dma_isr(int irq_num, void *data)
 {
-	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
 
 	int status;
 
 	priv = (struct wmt_mci_priv *)data;
-	mmc = priv->mmc;
 
 	status = readl(priv->sdmmc_base + SDDMA_CCR) & 0x0F;
 
