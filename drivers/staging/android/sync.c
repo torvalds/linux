@@ -261,7 +261,7 @@ static struct sync_fence *sync_fence_alloc(const char *name)
 
 	fence->file = anon_inode_getfile("sync_fence", &sync_fence_fops,
 					 fence, 0);
-	if (fence->file == NULL)
+	if (IS_ERR(fence->file))
 		goto err;
 
 	kref_init(&fence->kref);
