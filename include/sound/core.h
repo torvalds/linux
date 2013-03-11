@@ -229,7 +229,7 @@ int snd_register_device_for_dev(int type, struct snd_card *card,
  * This function uses the card's device pointer to link to the
  * correct &struct device.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 static inline int snd_register_device(int type, struct snd_card *card, int dev,
 				      const struct file_operations *f_ops,

@@ -95,7 +95,7 @@ static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream
  *
  * Releases the pre-allocated buffer of the given substream.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
 {
@@ -115,7 +115,7 @@ int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
  *
  * Releases all the pre-allocated buffers on the given pcm.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 {
@@ -265,7 +265,7 @@ static int snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
  * destruction time.  The dma_buf_id must be unique for all systems
  * (in the same DMA buffer type) e.g. using snd_dma_pci_buf_id().
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
 				  int type, struct device *data,
@@ -289,7 +289,7 @@ EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages);
  * Do pre-allocation to all substreams of the given pcm for the
  * specified DMA type.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 					  int type, void *data,
@@ -313,8 +313,9 @@ EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
  * @substream: the pcm substream instance
  * @offset: the buffer offset
  *
- * Returns the page struct at the given buffer offset.
  * Used as the page callback of PCM ops.
+ *
+ * Return: The page struct at the given buffer offset. %NULL on failure.
  */
 struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigned long offset)
 {
@@ -337,7 +338,7 @@ EXPORT_SYMBOL(snd_pcm_sgbuf_ops_page);
  * Allocates the DMA buffer on the BUS type given earlier to
  * snd_pcm_lib_preallocate_xxx_pages().
  *
- * Returns 1 if the buffer is changed, 0 if not changed, or a negative
+ * Return: 1 if the buffer is changed, 0 if not changed, or a negative
  * code on failure.
  */
 int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
@@ -390,7 +391,7 @@ EXPORT_SYMBOL(snd_pcm_lib_malloc_pages);
  *
  * Releases the DMA buffer allocated via snd_pcm_lib_malloc_pages().
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 {
@@ -437,6 +438,8 @@ EXPORT_SYMBOL(_snd_pcm_lib_alloc_vmalloc_buffer);
  * snd_pcm_lib_free_vmalloc_buffer - free vmalloc buffer
  * @substream: the substream with a buffer allocated by
  *	snd_pcm_lib_alloc_vmalloc_buffer()
+ *
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream)
 {
@@ -458,6 +461,8 @@ EXPORT_SYMBOL(snd_pcm_lib_free_vmalloc_buffer);
  * @offset: offset in the buffer
  *
  * This function is to be used as the page callback in the PCM ops.
+ *
+ * Return: The page struct, or %NULL on failure.
  */
 struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
 					  unsigned long offset)

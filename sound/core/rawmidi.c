@@ -863,7 +863,7 @@ static int snd_rawmidi_control_ioctl(struct snd_card *card,
  *
  * Reads the data from the internal buffer.
  *
- * Returns the size of read data, or a negative error code on failure.
+ * Return: The size of read data, or a negative error code on failure.
  */
 int snd_rawmidi_receive(struct snd_rawmidi_substream *substream,
 			const unsigned char *buffer, int count)
@@ -1024,8 +1024,8 @@ static ssize_t snd_rawmidi_read(struct file *file, char __user *buf, size_t coun
 /**
  * snd_rawmidi_transmit_empty - check whether the output buffer is empty
  * @substream: the rawmidi substream
- * 
- * Returns 1 if the internal output buffer is empty, 0 if not.
+ *
+ * Return: 1 if the internal output buffer is empty, 0 if not.
  */
 int snd_rawmidi_transmit_empty(struct snd_rawmidi_substream *substream)
 {
@@ -1055,7 +1055,7 @@ int snd_rawmidi_transmit_empty(struct snd_rawmidi_substream *substream)
  * and call snd_rawmidi_transmit_ack() after the transmission is
  * finished.
  *
- * Returns the size of copied data, or a negative error code on failure.
+ * Return: The size of copied data, or a negative error code on failure.
  */
 int snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
 			      unsigned char *buffer, int count)
@@ -1107,7 +1107,7 @@ int snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
  * the given size and updates the condition.
  * Call after the transmission is finished.
  *
- * Returns the advanced size if successful, or a negative error code on failure.
+ * Return: The advanced size if successful, or a negative error code on failure.
  */
 int snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int count)
 {
@@ -1140,7 +1140,7 @@ int snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int count)
  * 
  * Copies data from the buffer to the device and advances the pointer.
  *
- * Returns the copied size if successful, or a negative error code on failure.
+ * Return: The copied size if successful, or a negative error code on failure.
  */
 int snd_rawmidi_transmit(struct snd_rawmidi_substream *substream,
 			 unsigned char *buffer, int count)
@@ -1438,7 +1438,7 @@ static int snd_rawmidi_alloc_substreams(struct snd_rawmidi *rmidi,
  * Creates a new rawmidi instance.
  * Use snd_rawmidi_set_ops() to set the operators to the new instance.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 		    int output_count, int input_count,
