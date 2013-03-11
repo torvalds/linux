@@ -161,9 +161,7 @@ void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr)
 	if (!pv)
 		return;
 
-	for (vid = find_next_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN, vid);
-	     vid < BR_VLAN_BITMAP_LEN;
-	     vid = find_next_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN, vid+1)) {
+	for_each_set_bit_from(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
 		f = __br_fdb_get(br, br->dev->dev_addr, vid);
 		if (f && f->is_local && !f->dst)
 			fdb_delete(br, f);
