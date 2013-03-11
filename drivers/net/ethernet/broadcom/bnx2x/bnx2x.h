@@ -729,7 +729,7 @@ struct bnx2x_fastpath {
 #define SKB_CS(skb)		(*(u16 *)(skb_transport_header(skb) + \
 					  skb->csum_offset))
 
-#define pbd_tcp_flags(skb)	(ntohl(tcp_flag_word(tcp_hdr(skb)))>>16 & 0xff)
+#define pbd_tcp_flags(tcp_hdr)	(ntohl(tcp_flag_word(tcp_hdr))>>16 & 0xff)
 
 #define XMIT_PLAIN			0
 #define XMIT_CSUM_V4			0x1

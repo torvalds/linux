@@ -2953,14 +2953,15 @@ static unsigned long bnx2x_get_common_flags(struct bnx2x *bp,
 	__set_bit(BNX2X_Q_FLG_ACTIVE, &flags);
 
 	/* tx only connections collect statistics (on the same index as the
-	 *  parent connection). The statistics are zeroed when the parent
-	 *  connection is initialized.
+	 * parent connection). The statistics are zeroed when the parent
+	 * connection is initialized.
 	 */
 
 	__set_bit(BNX2X_Q_FLG_STATS, &flags);
 	if (zero_stats)
 		__set_bit(BNX2X_Q_FLG_ZERO_STATS, &flags);
 
+	__set_bit(BNX2X_Q_FLG_PCSUM_ON_PKT, &flags);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	__set_bit(BNX2X_Q_FLG_TX_SEC, &flags);

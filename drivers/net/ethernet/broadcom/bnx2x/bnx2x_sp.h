@@ -100,6 +100,7 @@ struct bnx2x_raw_obj {
 /************************* VLAN-MAC commands related parameters ***************/
 struct bnx2x_mac_ramrod_data {
 	u8 mac[ETH_ALEN];
+	u8 is_inner_mac;
 };
 
 struct bnx2x_vlan_ramrod_data {
@@ -108,6 +109,7 @@ struct bnx2x_vlan_ramrod_data {
 
 struct bnx2x_vlan_mac_ramrod_data {
 	u8 mac[ETH_ALEN];
+	u8 is_inner_mac;
 	u16 vlan;
 };
 
@@ -825,7 +827,8 @@ enum {
 	BNX2X_Q_FLG_TX_SEC,
 	BNX2X_Q_FLG_ANTI_SPOOF,
 	BNX2X_Q_FLG_SILENT_VLAN_REM,
-	BNX2X_Q_FLG_FORCE_DEFAULT_PRI
+	BNX2X_Q_FLG_FORCE_DEFAULT_PRI,
+	BNX2X_Q_FLG_PCSUM_ON_PKT
 };
 
 /* Queue type options: queue type may be a compination of below. */
