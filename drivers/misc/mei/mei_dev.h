@@ -374,6 +374,17 @@ static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
 	return msecs_to_jiffies(sec * MSEC_PER_SEC);
 }
 
+/**
+ * mei_data2slots - get slots - number of (dwords) from a message length
+ *	+ size of the mei header
+ * @length - size of the messages in bytes
+ * returns  - number of slots
+ */
+static inline u32 mei_data2slots(size_t length)
+{
+	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
+}
+
 
 /*
  * mei init function prototypes

@@ -153,24 +153,26 @@ static int _mei_irq_thread_close(struct mei_device *dev, s32 *slots,
 				struct mei_cl *cl,
 				struct mei_cl_cb *cmpl_list)
 {
-	if ((*slots * sizeof(u32)) < (sizeof(struct mei_msg_hdr) +
-			sizeof(struct hbm_client_connect_request)))
-		return -EBADMSG;
+	u32 msg_slots =
+		mei_data2slots(sizeof(struct hbm_client_connect_request));
 
-	*slots -= mei_data2slots(sizeof(struct hbm_client_connect_request));
+	if (*slots < msg_slots)
+		return -EMSGSIZE;
+
+	*slots -= msg_slots;
 
 	if (mei_hbm_cl_disconnect_req(dev, cl)) {
 		cl->status = 0;
 		cb_pos->buf_idx = 0;
 		list_move_tail(&cb_pos->list, &cmpl_list->list);
-		return -EMSGSIZE;
-	} else {
-		cl->state = MEI_FILE_DISCONNECTING;
-		cl->status = 0;
-		cb_pos->buf_idx = 0;
-		list_move_tail(&cb_pos->list, &dev->ctrl_rd_list.list);
-		cl->timer_count = MEI_CONNECT_TIMEOUT;
+		return -EIO;
 	}
+
+	cl->state = MEI_FILE_DISCONNECTING;
+	cl->status = 0;
+	cb_pos->buf_idx = 0;
+	list_move_tail(&cb_pos->list, &dev->ctrl_rd_list.list);
+	cl->timer_count = MEI_CONNECT_TIMEOUT;
 
 	return 0;
 }
@@ -192,14 +194,15 @@ static int _mei_irq_thread_read(struct mei_device *dev,	s32 *slots,
 			struct mei_cl *cl,
 			struct mei_cl_cb *cmpl_list)
 {
-	if ((*slots * sizeof(u32)) < (sizeof(struct mei_msg_hdr) +
-			sizeof(struct hbm_flow_control))) {
+	u32 msg_slots = mei_data2slots(sizeof(struct hbm_flow_control));
+
+	if (*slots < msg_slots) {
 		/* return the cancel routine */
 		list_del(&cb_pos->list);
-		return -EBADMSG;
+		return -EMSGSIZE;
 	}
 
-	*slots -= mei_data2slots(sizeof(struct hbm_flow_control));
+	*slots -= msg_slots;
 
 	if (mei_hbm_cl_flow_control_req(dev, cl)) {
 		cl->status = -ENODEV;
@@ -229,15 +232,19 @@ static int _mei_irq_thread_ioctl(struct mei_device *dev, s32 *slots,
 			struct mei_cl *cl,
 			struct mei_cl_cb *cmpl_list)
 {
-	if ((*slots * sizeof(u32)) < (sizeof(struct mei_msg_hdr) +
-			sizeof(struct hbm_client_connect_request))) {
+	u32 msg_slots =
+		mei_data2slots(sizeof(struct hbm_client_connect_request));
+
+	if (*slots < msg_slots) {
 		/* return the cancel routine */
 		list_del(&cb_pos->list);
-		return -EBADMSG;
+		return -EMSGSIZE;
 	}
 
+	*slots -=  msg_slots;
+
 	cl->state = MEI_FILE_CONNECTING;
-	*slots -= mei_data2slots(sizeof(struct hbm_client_connect_request));
+
 	if (mei_hbm_cl_connect_req(dev, cl)) {
 		cl->status = -ENODEV;
 		cb_pos->buf_idx = 0;
@@ -266,7 +273,7 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 	struct mei_msg_hdr mei_hdr;
 	struct mei_cl *cl = cb->cl;
 	size_t len = cb->request_buffer.size - cb->buf_idx;
-	size_t msg_slots = mei_data2slots(len);
+	u32 msg_slots = mei_data2slots(len);
 
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
@@ -419,8 +426,7 @@ end:
  *
  * returns 0 on success, <0 on failure.
  */
-int mei_irq_write_handler(struct mei_device *dev,
-				struct mei_cl_cb *cmpl_list)
+int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 {
 
 	struct mei_cl *cl;

@@ -295,10 +295,11 @@ static int mei_me_write_message(struct mei_device *dev,
 			unsigned char *buf)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
-	unsigned long rem, dw_cnt;
+	unsigned long rem;
 	unsigned long length = header->length;
 	u32 *reg_buf = (u32 *)buf;
 	u32 hcsr;
+	u32 dw_cnt;
 	int i;
 	int empty_slots;
 
