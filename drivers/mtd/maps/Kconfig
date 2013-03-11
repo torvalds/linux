@@ -425,15 +425,6 @@ config MTD_UCLINUX
 	help
 	  Map driver to support image based filesystems for uClinux.
 
-config MTD_DMV182
-        tristate "Map driver for Dy-4 SVME/DMV-182 board."
-        depends on DMV182
-	select MTD_MAP_BANK_WIDTH_32
-	select MTD_CFI_I8
-	select MTD_CFI_AMDSTD
-        help
-          Map driver for Dy-4 SVME/DMV-182 board.
-
 config MTD_INTEL_VR_NOR
 	tristate "NOR flash on Intel Vermilion Range Expansion Bus CS0"
 	depends on PCI
