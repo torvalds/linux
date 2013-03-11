@@ -20,6 +20,8 @@
  * Copyright (C) 2007-2008 Marvell Semiconductor
  *			   Lennert Buytenhek <buytenh@marvell.com>
  *
+ * Copyright (C) 2013 Michael Stapelberg <michael@stapelberg.de>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -1523,6 +1525,34 @@ mv643xx_eth_get_settings_phyless(struct mv643xx_eth_private *mp,
 	return 0;
 }
 
+static void
+mv643xx_eth_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	wol->supported = 0;
+	wol->wolopts = 0;
+	if (mp->phy)
+		phy_ethtool_get_wol(mp->phy, wol);
+}
+
+static int
+mv643xx_eth_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	int err;
+
+	if (mp->phy == NULL)
+		return -EOPNOTSUPP;
+
+	err = phy_ethtool_set_wol(mp->phy, wol);
+	/* Given that mv643xx_eth works without the marvell-specific PHY driver,
+	 * this debugging hint is useful to have.
+	 */
+	if (err == -EOPNOTSUPP)
+		netdev_info(dev, "The PHY does not support set_wol, was CONFIG_MARVELL_PHY enabled?\n");
+	return err;
+}
+
 static int
 mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
@@ -1708,6 +1738,8 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
 	.get_sset_count		= mv643xx_eth_get_sset_count,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_wol                = mv643xx_eth_get_wol,
+	.set_wol                = mv643xx_eth_set_wol,
 };
 
 
