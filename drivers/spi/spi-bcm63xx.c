@@ -102,12 +102,6 @@ static int bcm63xx_spi_check_transfer(struct spi_device *spi,
 		return -EINVAL;
 	}
 
-	if (spi->chip_select > spi->master->num_chipselect) {
-		dev_err(&spi->dev, "%s, unsupported slave %d\n",
-			__func__, spi->chip_select);
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
