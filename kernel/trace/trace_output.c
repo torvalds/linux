@@ -14,7 +14,7 @@
 /* must be a power of 2 */
 #define EVENT_HASHSIZE	128
 
-DECLARE_RWSEM(trace_event_mutex);
+DECLARE_RWSEM(trace_event_sem);
 
 static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
 
@@ -826,12 +826,12 @@ static int trace_search_list(struct list_head **list)
 
 void trace_event_read_lock(void)
 {
-	down_read(&trace_event_mutex);
+	down_read(&trace_event_sem);
 }
 
 void trace_event_read_unlock(void)
 {
-	up_read(&trace_event_mutex);
+	up_read(&trace_event_sem);
 }
 
 /**
@@ -854,7 +854,7 @@ int register_ftrace_event(struct trace_event *event)
 	unsigned key;
 	int ret = 0;
 
-	down_write(&trace_event_mutex);
+	down_write(&trace_event_sem);
 
 	if (WARN_ON(!event))
 		goto out;
@@ -909,14 +909,14 @@ int register_ftrace_event(struct trace_event *event)
 
 	ret = event->type;
  out:
-	up_write(&trace_event_mutex);
+	up_write(&trace_event_sem);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_ftrace_event);
 
 /*
- * Used by module code with the trace_event_mutex held for write.
+ * Used by module code with the trace_event_sem held for write.
  */
 int __unregister_ftrace_event(struct trace_event *event)
 {
@@ -931,9 +931,9 @@ int __unregister_ftrace_event(struct trace_event *event)
  */
 int unregister_ftrace_event(struct trace_event *event)
 {
-	down_write(&trace_event_mutex);
+	down_write(&trace_event_sem);
 	__unregister_ftrace_event(event);
-	up_write(&trace_event_mutex);
+	up_write(&trace_event_sem);
 
 	return 0;
 }
