@@ -294,14 +294,6 @@ config MTD_RPXLITE
 	  to communicate with the chips on the RPXLite board. More at
 	  <http://www.embeddedplanet.com/>.
 
-config MTD_MBX860
-	tristate "System flash on MBX860 board"
-	depends on MTD_CFI && MBX
-	help
-	  This enables access routines for the flash chips on the Motorola
-	  MBX860 board. If you have one of these boards and would like
-	  to use the flash chips on it, say 'Y'.
-
 config MTD_CFI_FLAGADM
 	tristate "CFI Flash device mapping on FlagaDM"
 	depends on 8xx && MTD_CFI
