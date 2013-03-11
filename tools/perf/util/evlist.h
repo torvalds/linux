@@ -86,6 +86,7 @@ void perf_evlist__config(struct perf_evlist *evlist,
 			 struct perf_record_opts *opts);
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
+				  struct perf_target *target,
 				  struct perf_record_opts *opts,
 				  const char *argv[]);
 int perf_evlist__start_workload(struct perf_evlist *evlist);

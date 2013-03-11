@@ -745,6 +745,7 @@ out_err:
 }
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
+				  struct perf_target *target,
 				  struct perf_record_opts *opts,
 				  const char *argv[])
 {
@@ -800,7 +801,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 		exit(-1);
 	}
 
-	if (perf_target__none(&opts->target))
+	if (perf_target__none(target))
 		evlist->threads->map[0] = evlist->workload.pid;
 
 	close(child_ready_pipe[1]);
