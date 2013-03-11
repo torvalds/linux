@@ -158,12 +158,6 @@ static int bcm63xx_spi_setup(struct spi_device *spi)
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
 
-	if (spi->mode & ~MODEBITS) {
-		dev_err(&spi->dev, "%s, unsupported mode bits %x\n",
-			__func__, spi->mode & ~MODEBITS);
-		return -EINVAL;
-	}
-
 	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec/bit\n",
 		__func__, spi->mode & MODEBITS, spi->bits_per_word, 0);
 
