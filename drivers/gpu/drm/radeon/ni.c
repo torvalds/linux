@@ -616,11 +616,22 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	WREG32(DMA_TILING_CONFIG + DMA0_REGISTER_OFFSET, gb_addr_config);
 	WREG32(DMA_TILING_CONFIG + DMA1_REGISTER_OFFSET, gb_addr_config);
 
-	tmp = gb_addr_config & NUM_PIPES_MASK;
-	tmp = r6xx_remap_render_backend(rdev, tmp,
-					rdev->config.cayman.max_backends_per_se *
-					rdev->config.cayman.max_shader_engines,
-					CAYMAN_MAX_BACKENDS, disabled_rb_mask);
+	if ((rdev->config.cayman.max_backends_per_se == 1) &&
+	    (rdev->flags & RADEON_IS_IGP)) {
+		if ((disabled_rb_mask & 3) == 1) {
+			/* RB0 disabled, RB1 enabled */
+			tmp = 0x11111111;
+		} else {
+			/* RB1 disabled, RB0 enabled */
+			tmp = 0x00000000;
+		}
+	} else {
+		tmp = gb_addr_config & NUM_PIPES_MASK;
+		tmp = r6xx_remap_render_backend(rdev, tmp,
+						rdev->config.cayman.max_backends_per_se *
+						rdev->config.cayman.max_shader_engines,
+						CAYMAN_MAX_BACKENDS, disabled_rb_mask);
+	}
 	WREG32(GB_BACKEND_MAP, tmp);
 
 	cgts_tcc_disable = 0xffff0000;
