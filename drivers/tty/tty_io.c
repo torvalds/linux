@@ -1510,6 +1510,17 @@ void tty_free_termios(struct tty_struct *tty)
 }
 EXPORT_SYMBOL(tty_free_termios);
 
+/**
+ *	tty_flush_works		-	flush all works of a tty
+ *	@tty: tty device to flush works for
+ *
+ *	Sync flush all works belonging to @tty.
+ */
+static void tty_flush_works(struct tty_struct *tty)
+{
+	flush_work(&tty->SAK_work);
+	flush_work(&tty->hangup_work);
+}
 
 /**
  *	release_one_tty		-	release tty structure memory
@@ -1831,6 +1842,12 @@ int tty_release(struct inode *inode, struct file *filp)
 	 * Ask the line discipline code to release its structures
 	 */
 	tty_ldisc_release(tty, o_tty);
+
+	/* Wait for pending work before tty destruction commmences */
+	tty_flush_works(tty);
+	if (o_tty)
+		tty_flush_works(o_tty);
+
 	/*
 	 * The release_tty function takes care of the details of clearing
 	 * the slots and preserving the termios structure. The tty_unlock_pair

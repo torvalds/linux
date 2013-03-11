@@ -499,18 +499,6 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 }
 
 /**
- *	tty_ldisc_flush_works	-	flush all works of a tty
- *	@tty: tty device to flush works for
- *
- *	Sync flush all works belonging to @tty.
- */
-static void tty_ldisc_flush_works(struct tty_struct *tty)
-{
-	flush_work(&tty->SAK_work);
-	flush_work(&tty->hangup_work);
-}
-
-/**
  *	tty_ldisc_wait_idle	-	wait for the ldisc to become idle
  *	@tty: tty to wait for
  *	@timeout: for how long to wait at most
@@ -698,13 +686,13 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	retval = tty_ldisc_halt(tty, o_tty, 5 * HZ);
 
 	/*
-	 * Wait for ->hangup_work and ->buf.work handlers to terminate.
+	 * Wait for hangup to complete, if pending.
 	 * We must drop the mutex here in case a hangup is also in process.
 	 */
 
 	mutex_unlock(&tty->ldisc_mutex);
 
-	tty_ldisc_flush_works(tty);
+	flush_work(&tty->hangup_work);
 
 	tty_lock(tty);
 	mutex_lock(&tty->ldisc_mutex);
@@ -951,15 +939,11 @@ static void tty_ldisc_kill(struct tty_struct *tty)
 void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 {
 	/*
-	 * Prevent flush_to_ldisc() from rescheduling the work for later.  Then
-	 * kill any delayed work. As this is the final close it does not
-	 * race with the set_ldisc code path.
+	 * Shutdown this line discipline. As this is the final close,
+	 * it does not race with the set_ldisc code path.
 	 */
 
 	tty_ldisc_halt(tty, o_tty, MAX_SCHEDULE_TIMEOUT);
-	tty_ldisc_flush_works(tty);
-	if (o_tty)
-		tty_ldisc_flush_works(o_tty);
 
 	tty_lock_pair(tty, o_tty);
 	/* This will need doing differently if we need to lock */
