@@ -3823,6 +3823,7 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	nfsd4_close_open_stateid(stp);
 	release_last_closed_stateid(oo);
+	oo->oo_flags &= ~NFS4_OO_PURGE_CLOSE;
 	oo->oo_last_closed_stid = stp;
 
 	if (list_empty(&oo->oo_owner.so_stateids)) {
