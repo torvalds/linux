@@ -1800,12 +1800,12 @@ static void rk30_pm_power_off(void)
 #if defined(CONFIG_REGULATOR_ACT8846)
        if (pmic_is_tps65910()) {
                printk("enter dcdet===========\n");
-               if((gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)||(gpio_get_value (RK30_PIN0_PA7) == GPIO_HIGH))
+               if(gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)
                {
                        printk("enter restart===========\n");
                        arm_pm_restart(0, NULL);
                }
-               //act8931_device_shutdown();
+               tps65910_device_shutdown();
        }
 #endif
 	while (1);
