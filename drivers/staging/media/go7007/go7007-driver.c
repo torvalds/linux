@@ -268,12 +268,17 @@ int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs)
 	ret = go7007_init_encoder(go);
 	mutex_unlock(&go->hw_lock);
 	if (ret < 0)
-		return -1;
+		return ret;
+
+	ret = go7007_v4l2_ctrl_init(go);
+	if (ret < 0)
+		return ret;
 
 	if (!go->i2c_adapter_online &&
 			go->board_info->flags & GO7007_BOARD_USE_ONBOARD_I2C) {
-		if (go7007_i2c_init(go) < 0)
-			return -1;
+		ret = go7007_i2c_init(go);
+		if (ret < 0)
+			return ret;
 		go->i2c_adapter_online = 1;
 	}
 	if (go->i2c_adapter_online) {

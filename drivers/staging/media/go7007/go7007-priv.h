@@ -22,6 +22,7 @@
  */
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 struct go7007;
 
@@ -182,6 +183,7 @@ struct go7007 {
 	void *boot_fw;
 	unsigned boot_fw_len;
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler hdl;
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;
 	spinlock_t spinlock;
 	struct mutex hw_lock;
@@ -296,6 +298,7 @@ int go7007_i2c_remove(struct go7007 *go);
 
 /* go7007-v4l2.c */
 int go7007_v4l2_init(struct go7007 *go);
+int go7007_v4l2_ctrl_init(struct go7007 *go);
 void go7007_v4l2_remove(struct go7007 *go);
 
 /* snd-go7007.c */
