@@ -625,15 +625,6 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 		return 0;
 	}
 
-	tty_unlock(tty);
-	/*
-	 *	Problem: What do we do if this blocks ?
-	 *	We could deadlock here
-	 */
-
-	tty_wait_until_sent(tty, 0);
-
-	tty_lock(tty);
 	mutex_lock(&tty->ldisc_mutex);
 
 	/*
