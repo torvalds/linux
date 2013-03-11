@@ -263,6 +263,8 @@ struct rk29_vmac_platform_data {
         int(*rmii_speed_switch)(int speed);
 };
 /* adc battery */
+#define LCDC_ON 0x0001
+#define BACKLIGHT_ON 0x0002
 struct rk30_adc_battery_platform_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);
