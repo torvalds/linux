@@ -1157,14 +1157,26 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
+	struct cpsw_priv *priv = netdev_priv(dev);
+	struct mii_ioctl_data *data = if_mii(req);
+	int slave_no = cpsw_slave_index(priv);
+
 	if (!netif_running(dev))
 		return -EINVAL;
 
+	switch (cmd) {
 #ifdef CONFIG_TI_CPTS
-	if (cmd == SIOCSHWTSTAMP)
+	case SIOCSHWTSTAMP:
 		return cpsw_hwtstamp_ioctl(dev, req);
 #endif
-	return -ENOTSUPP;
+	case SIOCGMIIPHY:
+		data->phy_id = priv->slaves[slave_no].phy->addr;
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
 }
 
 static void cpsw_ndo_tx_timeout(struct net_device *ndev)
