@@ -381,8 +381,8 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 
 static void print_stats(struct xen_blkif *blkif)
 {
-	pr_info("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d"
-		 "  |  ds %4d\n",
+	pr_info("xen-blkback (%s): oo %3llu  |  rd %4llu  |  wr %4llu  |  f %4llu"
+		 "  |  ds %4llu\n",
 		 current->comm, blkif->st_oo_req,
 		 blkif->st_rd_req, blkif->st_wr_req,
 		 blkif->st_f_req, blkif->st_ds_req);
