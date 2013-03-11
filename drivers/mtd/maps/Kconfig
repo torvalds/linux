@@ -274,16 +274,6 @@ config MTD_L440GX
 
 	  BE VERY CAREFUL.
 
-config MTD_TQM8XXL
-	tristate "CFI Flash device mapped on TQM8XXL"
-	depends on MTD_CFI && TQM8xxL
-	help
-	  The TQM8xxL PowerPC board has up to two banks of CFI-compliant
-	  chips, currently uses AMD one. This 'mapping' driver supports
-	  that arrangement, allowing the CFI probe and command set driver
-	  code to communicate with the chips on the TQM8xxL board. More at
-	  <http://www.denx.de/wiki/PPCEmbedded/>.
-
 config MTD_CFI_FLAGADM
 	tristate "CFI Flash device mapping on FlagaDM"
 	depends on 8xx && MTD_CFI
