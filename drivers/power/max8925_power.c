@@ -489,7 +489,8 @@ static int max8925_power_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	info = kzalloc(sizeof(struct max8925_power_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max8925_power_info),
+				GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	info->chip = chip;
@@ -546,7 +547,6 @@ out_battery:
 out_usb:
 	power_supply_unregister(&info->ac);
 out:
-	kfree(info);
 	return ret;
 }
 
@@ -559,7 +559,6 @@ static int max8925_power_remove(struct platform_device *pdev)
 		power_supply_unregister(&info->usb);
 		power_supply_unregister(&info->battery);
 		max8925_deinit_charger(info);
-		kfree(info);
 	}
 	return 0;
 }
