@@ -41,6 +41,10 @@
      */
 
 #define FBPIXMAPSIZE	(1024 * 8)
+__weak int get_battery_status(void)
+{
+	return 0;
+}
 
 static DEFINE_MUTEX(registration_lock);
 struct fb_info *registered_fb[FB_MAX] __read_mostly;
@@ -499,8 +503,18 @@ static int fb_show_logo_line(struct fb_info *info, int rotate,
 		fb_set_logo(info, logo, logo_new, fb_logo.depth);
 	}
 
+#ifdef CONFIG_LOGO_LOWERPOWER_WARNING
+	if(1 == get_battery_status()){
+		image.dx = (info->var.xres/2)-(logo->width)/2;
+		image.dy = (info->var.yres/2)-(logo->height)/2;
+	}else{
+		image.dx = 0;
+		image.dy = y;
+	}
+#else
 	image.dx = 0;
 	image.dy = y;
+#endif
 	image.width = logo->width;
 	image.height = logo->height;
 
@@ -664,9 +678,19 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 int fb_show_logo(struct fb_info *info, int rotate)
 {
 	int y;
+#ifdef CONFIG_LOGO_LOWERPOWER_WARNING
+	if(1 ==  get_battery_status()){
+		y = fb_show_logo_line(info, rotate, fb_logo.logo, 0,
+				     1);
+	}else{
+		y = fb_show_logo_line(info, rotate, fb_logo.logo, 0,
+			      num_online_cpus());
 
+	}
+#else
 	y = fb_show_logo_line(info, rotate, fb_logo.logo, 0,
 			      num_online_cpus());
+#endif
 	y = fb_show_extra_logos(info, y, rotate);
 
 	return y;

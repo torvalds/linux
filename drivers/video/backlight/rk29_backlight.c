@@ -301,6 +301,9 @@ void rk29_backlight_set(bool on)
 }
 EXPORT_SYMBOL(rk29_backlight_set);
 #endif
+#ifdef CONFIG_BATTERY_RK30_ADC_FAC
+extern int adc_battery_notifier_call_chain(unsigned long val);
+#endif
 
 static int rk29_backlight_probe(struct platform_device *pdev)
 {		
@@ -388,7 +391,9 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	}
 
 	register_early_suspend(&bl_early_suspend);
-
+#ifdef CONFIG_BATTERY_RK30_ADC_FAC
+	adc_battery_notifier_call_chain(BACKLIGHT_ON);
+#endif
 	printk("RK29 Backlight Driver Initialized.\n");
 	return ret;
 }

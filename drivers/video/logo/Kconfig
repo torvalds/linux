@@ -102,6 +102,10 @@ menuconfig LOGO_LINUX_BMP
         bool "Bmp logo support"
 	default n
 
+config LOGO_LOWERPOWER_WARNING
+	bool "warning: lowerpower when poweron"
+	default n
+
 config LOGO_LINUX_BMP_SUNSET
 	bool "Bmp logo sunset"
 	depends on  LOGO_LINUX_BMP

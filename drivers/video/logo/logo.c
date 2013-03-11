@@ -42,6 +42,10 @@ const unsigned char password[32] = {
  * modpost that it is intended that this function uses data
  * marked __initdata.
  */
+__weak int get_battery_status(void)
+{
+	return 0;
+}
 const struct linux_logo * __init_refok fb_find_logo(int depth)
 {
         struct linux_logo *logo = NULL;
@@ -128,6 +132,12 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 #ifdef CONFIG_LOGO_LINUX_800x480_CLUT224
                 logo = &logo_linux_800x480_clut224;
 #endif
+#ifdef CONFIG_LOGO_LOWERPOWER_WARNING
+		if( 1 ==  get_battery_status()){
+			logo = &logo_linux_lowerpower_clut224;
+		}
+#endif 
+
 		if (depth >= 24)
 		{
 			#ifdef  CONFIG_LOGO_LINUX_BMP
