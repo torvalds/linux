@@ -151,12 +151,6 @@ struct go7007_file {
 	struct go7007_buffer *bufs;
 };
 
-#define	GO7007_FORMAT_MJPEG	0
-#define GO7007_FORMAT_MPEG4	1
-#define GO7007_FORMAT_MPEG1	2
-#define GO7007_FORMAT_MPEG2	3
-#define GO7007_FORMAT_H263	4
-
 #define GO7007_RATIO_1_1	0
 #define GO7007_RATIO_4_3	1
 #define GO7007_RATIO_16_9	2
@@ -186,6 +180,11 @@ struct go7007 {
 	unsigned boot_fw_len;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler hdl;
+	struct v4l2_ctrl *mpeg_video_encoding;
+	struct v4l2_ctrl *mpeg_video_gop_size;
+	struct v4l2_ctrl *mpeg_video_gop_closure;
+	struct v4l2_ctrl *mpeg_video_bitrate;
+	struct v4l2_ctrl *mpeg_video_aspect_ratio;
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;
 	spinlock_t spinlock;
 	struct mutex hw_lock;
@@ -211,7 +210,7 @@ struct go7007 {
 	unsigned int encoder_subsample:1;
 
 	/* Encoder config */
-	int format;
+	u32 format;
 	int bitrate;
 	int fps_scale;
 	int pali;

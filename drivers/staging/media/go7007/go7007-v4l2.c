@@ -39,11 +39,6 @@
 #include "go7007.h"
 #include "go7007-priv.h"
 
-/* Temporary defines until accepted in v4l-dvb */
-#ifndef V4L2_MPEG_STREAM_TYPE_MPEG_ELEM
-#define	V4L2_MPEG_STREAM_TYPE_MPEG_ELEM   6 /* MPEG elementary stream */
-#endif
-
 #define call_all(dev, o, f, args...) \
 	v4l2_device_call_until_err(dev, 0, o, f, ##args)
 
@@ -85,6 +80,10 @@ static int go7007_streamoff(struct go7007 *go)
 		go7007_reset_encoder(go);
 	}
 	mutex_unlock(&go->hw_lock);
+	v4l2_ctrl_grab(go->mpeg_video_gop_size, false);
+	v4l2_ctrl_grab(go->mpeg_video_gop_closure, false);
+	v4l2_ctrl_grab(go->mpeg_video_bitrate, false);
+	v4l2_ctrl_grab(go->mpeg_video_aspect_ratio, false);
 	return 0;
 }
 
@@ -125,14 +124,27 @@ static int go7007_release(struct file *file)
 	return 0;
 }
 
+static bool valid_pixelformat(u32 pixelformat)
+{
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_MJPEG:
+	case V4L2_PIX_FMT_MPEG1:
+	case V4L2_PIX_FMT_MPEG2:
+	case V4L2_PIX_FMT_MPEG4:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static u32 get_frame_type_flag(struct go7007_buffer *gobuf, int format)
 {
 	u8 *f = page_address(gobuf->pages[0]);
 
 	switch (format) {
-	case GO7007_FORMAT_MJPEG:
+	case V4L2_PIX_FMT_MJPEG:
 		return V4L2_BUF_FLAG_KEYFRAME;
-	case GO7007_FORMAT_MPEG4:
+	case V4L2_PIX_FMT_MPEG4:
 		switch ((f[gobuf->frame_offset + 4] >> 6) & 0x3) {
 		case 0:
 			return V4L2_BUF_FLAG_KEYFRAME;
@@ -143,8 +155,8 @@ static u32 get_frame_type_flag(struct go7007_buffer *gobuf, int format)
 		default:
 			return 0;
 		}
-	case GO7007_FORMAT_MPEG1:
-	case GO7007_FORMAT_MPEG2:
+	case V4L2_PIX_FMT_MPEG1:
+	case V4L2_PIX_FMT_MPEG2:
 		switch ((f[gobuf->frame_offset + 5] >> 3) & 0x7) {
 		case 1:
 			return V4L2_BUF_FLAG_KEYFRAME;
@@ -179,13 +191,87 @@ static void get_resolution(struct go7007 *go, int *width, int *height)
 	}
 }
 
+static void set_formatting(struct go7007 *go)
+{
+	if (go->format == V4L2_PIX_FMT_MJPEG) {
+		go->pali = 0;
+		go->aspect_ratio = GO7007_RATIO_1_1;
+		go->gop_size = 0;
+		go->ipb = 0;
+		go->closed_gop = 0;
+		go->repeat_seqhead = 0;
+		go->seq_header_enable = 0;
+		go->gop_header_enable = 0;
+		go->dvd_mode = 0;
+		return;
+	}
+
+	switch (go->format) {
+	case V4L2_PIX_FMT_MPEG1:
+		go->pali = 0;
+		break;
+	default:
+	case V4L2_PIX_FMT_MPEG2:
+		go->pali = 0x48;
+		break;
+	case V4L2_PIX_FMT_MPEG4:
+		/* For future reference: this is the list of MPEG4
+		 * profiles that are available, although they are
+		 * untested:
+		 *
+		 * Profile		pali
+		 * --------------	----
+		 * PROFILE_S_L0		0x08
+		 * PROFILE_S_L1		0x01
+		 * PROFILE_S_L2		0x02
+		 * PROFILE_S_L3		0x03
+		 * PROFILE_ARTS_L1	0x91
+		 * PROFILE_ARTS_L2	0x92
+		 * PROFILE_ARTS_L3	0x93
+		 * PROFILE_ARTS_L4	0x94
+		 * PROFILE_AS_L0	0xf0
+		 * PROFILE_AS_L1	0xf1
+		 * PROFILE_AS_L2	0xf2
+		 * PROFILE_AS_L3	0xf3
+		 * PROFILE_AS_L4	0xf4
+		 * PROFILE_AS_L5	0xf5
+		 */
+		go->pali = 0xf5;
+		break;
+	}
+	go->gop_size = v4l2_ctrl_g_ctrl(go->mpeg_video_gop_size);
+	go->closed_gop = v4l2_ctrl_g_ctrl(go->mpeg_video_gop_closure);
+	go->bitrate = v4l2_ctrl_g_ctrl(go->mpeg_video_bitrate);
+	go->gop_header_enable = 1;
+	go->dvd_mode = 0;
+	if (go->format == V4L2_PIX_FMT_MPEG2)
+		go->dvd_mode =
+			go->bitrate == 9800000 &&
+			go->gop_size == 15 &&
+			go->closed_gop;
+	go->repeat_seqhead = go->dvd_mode;
+	go->ipb = 0;
+
+	switch (v4l2_ctrl_g_ctrl(go->mpeg_video_aspect_ratio)) {
+	default:
+	case V4L2_MPEG_VIDEO_ASPECT_1x1:
+		go->aspect_ratio = GO7007_RATIO_1_1;
+		break;
+	case V4L2_MPEG_VIDEO_ASPECT_4x3:
+		go->aspect_ratio = GO7007_RATIO_4_3;
+		break;
+	case V4L2_MPEG_VIDEO_ASPECT_16x9:
+		go->aspect_ratio = GO7007_RATIO_16_9;
+		break;
+	}
+}
+
 static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 {
 	int sensor_height = 0, sensor_width = 0;
 	int width, height, i;
 
-	if (fmt != NULL && fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_MJPEG &&
-			fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_MPEG)
+	if (fmt != NULL && !valid_pixelformat(fmt->fmt.pix.pixelformat))
 		return -EINVAL;
 
 	get_resolution(go, &sensor_width, &sensor_height);
@@ -241,6 +327,8 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 	if (try)
 		return 0;
 
+	if (fmt)
+		go->format = fmt->fmt.pix.pixelformat;
 	go->width = width;
 	go->height = height;
 	go->encoder_h_offset = go->board_info->sensor_h_offset;
@@ -274,55 +362,6 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 			go->encoder_v_halve = 0;
 			go->encoder_subsample = 0;
 		}
-	}
-
-	if (fmt == NULL)
-		return 0;
-
-	switch (fmt->fmt.pix.pixelformat) {
-	case V4L2_PIX_FMT_MPEG:
-		if (go->format == GO7007_FORMAT_MPEG1 ||
-				go->format == GO7007_FORMAT_MPEG2 ||
-				go->format == GO7007_FORMAT_MPEG4)
-			break;
-		go->format = GO7007_FORMAT_MPEG1;
-		go->pali = 0;
-		go->aspect_ratio = GO7007_RATIO_1_1;
-		go->gop_size = go->sensor_framerate / 1000;
-		go->ipb = 0;
-		go->closed_gop = 1;
-		go->repeat_seqhead = 1;
-		go->seq_header_enable = 1;
-		go->gop_header_enable = 1;
-		go->dvd_mode = 0;
-		break;
-	/* Backwards compatibility only! */
-	case V4L2_PIX_FMT_MPEG4:
-		if (go->format == GO7007_FORMAT_MPEG4)
-			break;
-		go->format = GO7007_FORMAT_MPEG4;
-		go->pali = 0xf5;
-		go->aspect_ratio = GO7007_RATIO_1_1;
-		go->gop_size = go->sensor_framerate / 1000;
-		go->ipb = 0;
-		go->closed_gop = 1;
-		go->repeat_seqhead = 1;
-		go->seq_header_enable = 1;
-		go->gop_header_enable = 1;
-		go->dvd_mode = 0;
-		break;
-	case V4L2_PIX_FMT_MJPEG:
-		go->format = GO7007_FORMAT_MJPEG;
-		go->pali = 0;
-		go->aspect_ratio = GO7007_RATIO_1_1;
-		go->gop_size = 0;
-		go->ipb = 0;
-		go->closed_gop = 0;
-		go->repeat_seqhead = 0;
-		go->seq_header_enable = 0;
-		go->gop_header_enable = 0;
-		go->dvd_mode = 0;
-		break;
 	}
 	return 0;
 }
@@ -385,98 +424,6 @@ static int clip_to_modet_map(struct go7007 *go, int region,
 }
 #endif
 
-static int go7007_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct go7007 *go =
-		container_of(ctrl->handler, struct go7007, hdl);
-
-	/* pretty sure we can't change any of these while streaming */
-	if (go->streaming)
-		return -EBUSY;
-
-	switch (ctrl->id) {
-	case V4L2_CID_MPEG_STREAM_TYPE:
-		switch (ctrl->val) {
-		case V4L2_MPEG_STREAM_TYPE_MPEG2_DVD:
-			go->format = GO7007_FORMAT_MPEG2;
-			go->bitrate = 9800000;
-			go->gop_size = 15;
-			go->pali = 0x48;
-			go->closed_gop = 1;
-			go->repeat_seqhead = 0;
-			go->seq_header_enable = 1;
-			go->gop_header_enable = 1;
-			go->dvd_mode = 1;
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		switch (ctrl->val) {
-		case V4L2_MPEG_VIDEO_ENCODING_MPEG_1:
-			go->format = GO7007_FORMAT_MPEG1;
-			go->pali = 0;
-			break;
-		case V4L2_MPEG_VIDEO_ENCODING_MPEG_2:
-			go->format = GO7007_FORMAT_MPEG2;
-			/*if (mpeg->pali >> 24 == 2)
-				go->pali = mpeg->pali & 0xff;
-			else*/
-				go->pali = 0x48;
-			break;
-		case V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC:
-			go->format = GO7007_FORMAT_MPEG4;
-			/*if (mpeg->pali >> 24 == 4)
-				go->pali = mpeg->pali & 0xff;
-			else*/
-				go->pali = 0xf5;
-			break;
-		default:
-			return -EINVAL;
-		}
-		go->gop_header_enable =
-			/*mpeg->flags & GO7007_MPEG_OMIT_GOP_HEADER
-			? 0 :*/ 1;
-		/*if (mpeg->flags & GO7007_MPEG_REPEAT_SEQHEADER)
-			go->repeat_seqhead = 1;
-		else*/
-			go->repeat_seqhead = 0;
-		go->dvd_mode = 0;
-		break;
-	case V4L2_CID_MPEG_VIDEO_ASPECT:
-		/* TODO: is this really the right thing to do for mjpeg? */
-		if (go->format == GO7007_FORMAT_MJPEG)
-			return -EINVAL;
-		switch (ctrl->val) {
-		case V4L2_MPEG_VIDEO_ASPECT_1x1:
-			go->aspect_ratio = GO7007_RATIO_1_1;
-			break;
-		case V4L2_MPEG_VIDEO_ASPECT_4x3:
-			go->aspect_ratio = GO7007_RATIO_4_3;
-			break;
-		case V4L2_MPEG_VIDEO_ASPECT_16x9:
-			go->aspect_ratio = GO7007_RATIO_16_9;
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		go->gop_size = ctrl->val;
-		break;
-	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
-		go->closed_gop = ctrl->val;
-		break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE:
-		go->bitrate = ctrl->val;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
@@ -504,11 +451,19 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	switch (fmt->index) {
 	case 0:
 		fmt->pixelformat = V4L2_PIX_FMT_MJPEG;
-		desc = "Motion-JPEG";
+		desc = "Motion JPEG";
 		break;
 	case 1:
-		fmt->pixelformat = V4L2_PIX_FMT_MPEG;
-		desc = "MPEG1/MPEG2/MPEG4";
+		fmt->pixelformat = V4L2_PIX_FMT_MPEG1;
+		desc = "MPEG-1 ES";
+		break;
+	case 2:
+		fmt->pixelformat = V4L2_PIX_FMT_MPEG2;
+		desc = "MPEG-2 ES";
+		break;
+	case 3:
+		fmt->pixelformat = V4L2_PIX_FMT_MPEG4;
+		desc = "MPEG-4 ES";
 		break;
 	default:
 		return -EINVAL;
@@ -529,8 +484,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	fmt->fmt.pix.width = go->width;
 	fmt->fmt.pix.height = go->height;
-	fmt->fmt.pix.pixelformat = (go->format == GO7007_FORMAT_MJPEG) ?
-				   V4L2_PIX_FMT_MJPEG : V4L2_PIX_FMT_MPEG;
+	fmt->fmt.pix.pixelformat = go->format;
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
 	fmt->fmt.pix.bytesperline = 0;
 	fmt->fmt.pix.sizeimage = GO7007_BUF_SIZE;
@@ -578,6 +532,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		if (gofh->bufs[i].mapped > 0)
 			goto unlock_and_return;
 
+	set_formatting(go);
 	mutex_lock(&go->hw_lock);
 	if (go->in_use > 0 && gofh->buf_count == 0) {
 		mutex_unlock(&go->hw_lock);
@@ -833,6 +788,10 @@ static int vidioc_streamon(struct file *file, void *priv,
 	mutex_unlock(&go->hw_lock);
 	mutex_unlock(&gofh->lock);
 	call_all(&go->v4l2_dev, video, s_stream, 1);
+	v4l2_ctrl_grab(go->mpeg_video_gop_size, true);
+	v4l2_ctrl_grab(go->mpeg_video_gop_closure, true);
+	v4l2_ctrl_grab(go->mpeg_video_bitrate, true);
+	v4l2_ctrl_grab(go->mpeg_video_aspect_ratio, true);
 
 	return retval;
 }
@@ -911,8 +870,7 @@ static int vidioc_enum_framesizes(struct file *filp, void *priv,
 	if (fsize->index > 2)
 		return -EINVAL;
 
-	if (fsize->pixel_format != V4L2_PIX_FMT_MJPEG &&
-	    fsize->pixel_format != V4L2_PIX_FMT_MPEG)
+	if (!valid_pixelformat(fsize->pixel_format))
 		return -EINVAL;
 
 	get_resolution(go, &width, &height);
@@ -932,8 +890,7 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 	if (fival->index > 4)
 		return -EINVAL;
 
-	if (fival->pixel_format != V4L2_PIX_FMT_MJPEG &&
-	    fival->pixel_format != V4L2_PIX_FMT_MPEG)
+	if (!valid_pixelformat(fival->pixel_format))
 		return -EINVAL;
 
 	if (!(go->board_info->sensor_flags & GO7007_SENSOR_SCALING)) {
@@ -1257,180 +1214,6 @@ static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *
  */
 
 #if 0
-	/* Temporary ioctls for controlling compression characteristics */
-	case GO7007IOC_S_BITRATE:
-	{
-		int *bitrate = arg;
-
-		if (go->streaming)
-			return -EINVAL;
-		/* Upper bound is kind of arbitrary here */
-		if (*bitrate < 64000 || *bitrate > 10000000)
-			return -EINVAL;
-		go->bitrate = *bitrate;
-		return 0;
-	}
-	case GO7007IOC_G_BITRATE:
-	{
-		int *bitrate = arg;
-
-		*bitrate = go->bitrate;
-		return 0;
-	}
-	case GO7007IOC_S_COMP_PARAMS:
-	{
-		struct go7007_comp_params *comp = arg;
-
-		if (go->format == GO7007_FORMAT_MJPEG)
-			return -EINVAL;
-		if (comp->gop_size > 0)
-			go->gop_size = comp->gop_size;
-		else
-			go->gop_size = go->sensor_framerate / 1000;
-		if (go->gop_size != 15)
-			go->dvd_mode = 0;
-		/*go->ipb = comp->max_b_frames > 0;*/ /* completely untested */
-		if (go->board_info->sensor_flags & GO7007_SENSOR_TV) {
-			switch (comp->aspect_ratio) {
-			case GO7007_ASPECT_RATIO_4_3_NTSC:
-			case GO7007_ASPECT_RATIO_4_3_PAL:
-				go->aspect_ratio = GO7007_RATIO_4_3;
-				break;
-			case GO7007_ASPECT_RATIO_16_9_NTSC:
-			case GO7007_ASPECT_RATIO_16_9_PAL:
-				go->aspect_ratio = GO7007_RATIO_16_9;
-				break;
-			default:
-				go->aspect_ratio = GO7007_RATIO_1_1;
-				break;
-			}
-		}
-		if (comp->flags & GO7007_COMP_OMIT_SEQ_HEADER) {
-			go->dvd_mode = 0;
-			go->seq_header_enable = 0;
-		} else {
-			go->seq_header_enable = 1;
-		}
-		/* fall-through */
-	}
-	case GO7007IOC_G_COMP_PARAMS:
-	{
-		struct go7007_comp_params *comp = arg;
-
-		if (go->format == GO7007_FORMAT_MJPEG)
-			return -EINVAL;
-		memset(comp, 0, sizeof(*comp));
-		comp->gop_size = go->gop_size;
-		comp->max_b_frames = go->ipb ? 2 : 0;
-		switch (go->aspect_ratio) {
-		case GO7007_RATIO_4_3:
-			if (go->standard == GO7007_STD_NTSC)
-				comp->aspect_ratio =
-					GO7007_ASPECT_RATIO_4_3_NTSC;
-			else
-				comp->aspect_ratio =
-					GO7007_ASPECT_RATIO_4_3_PAL;
-			break;
-		case GO7007_RATIO_16_9:
-			if (go->standard == GO7007_STD_NTSC)
-				comp->aspect_ratio =
-					GO7007_ASPECT_RATIO_16_9_NTSC;
-			else
-				comp->aspect_ratio =
-					GO7007_ASPECT_RATIO_16_9_PAL;
-			break;
-		default:
-			comp->aspect_ratio = GO7007_ASPECT_RATIO_1_1;
-			break;
-		}
-		if (go->closed_gop)
-			comp->flags |= GO7007_COMP_CLOSED_GOP;
-		if (!go->seq_header_enable)
-			comp->flags |= GO7007_COMP_OMIT_SEQ_HEADER;
-		return 0;
-	}
-	case GO7007IOC_S_MPEG_PARAMS:
-	{
-		struct go7007_mpeg_params *mpeg = arg;
-
-		if (go->format != GO7007_FORMAT_MPEG1 &&
-				go->format != GO7007_FORMAT_MPEG2 &&
-				go->format != GO7007_FORMAT_MPEG4)
-			return -EINVAL;
-
-		if (mpeg->flags & GO7007_MPEG_FORCE_DVD_MODE) {
-			go->format = GO7007_FORMAT_MPEG2;
-			go->bitrate = 9800000;
-			go->gop_size = 15;
-			go->pali = 0x48;
-			go->closed_gop = 1;
-			go->repeat_seqhead = 0;
-			go->seq_header_enable = 1;
-			go->gop_header_enable = 1;
-			go->dvd_mode = 1;
-		} else {
-			switch (mpeg->mpeg_video_standard) {
-			case GO7007_MPEG_VIDEO_MPEG1:
-				go->format = GO7007_FORMAT_MPEG1;
-				go->pali = 0;
-				break;
-			case GO7007_MPEG_VIDEO_MPEG2:
-				go->format = GO7007_FORMAT_MPEG2;
-				if (mpeg->pali >> 24 == 2)
-					go->pali = mpeg->pali & 0xff;
-				else
-					go->pali = 0x48;
-				break;
-			case GO7007_MPEG_VIDEO_MPEG4:
-				go->format = GO7007_FORMAT_MPEG4;
-				if (mpeg->pali >> 24 == 4)
-					go->pali = mpeg->pali & 0xff;
-				else
-					go->pali = 0xf5;
-				break;
-			default:
-				return -EINVAL;
-			}
-			go->gop_header_enable =
-				mpeg->flags & GO7007_MPEG_OMIT_GOP_HEADER
-				? 0 : 1;
-			if (mpeg->flags & GO7007_MPEG_REPEAT_SEQHEADER)
-				go->repeat_seqhead = 1;
-			else
-				go->repeat_seqhead = 0;
-			go->dvd_mode = 0;
-		}
-		/* fall-through */
-	}
-	case GO7007IOC_G_MPEG_PARAMS:
-	{
-		struct go7007_mpeg_params *mpeg = arg;
-
-		memset(mpeg, 0, sizeof(*mpeg));
-		switch (go->format) {
-		case GO7007_FORMAT_MPEG1:
-			mpeg->mpeg_video_standard = GO7007_MPEG_VIDEO_MPEG1;
-			mpeg->pali = 0;
-			break;
-		case GO7007_FORMAT_MPEG2:
-			mpeg->mpeg_video_standard = GO7007_MPEG_VIDEO_MPEG2;
-			mpeg->pali = GO7007_MPEG_PROFILE(2, go->pali);
-			break;
-		case GO7007_FORMAT_MPEG4:
-			mpeg->mpeg_video_standard = GO7007_MPEG_VIDEO_MPEG4;
-			mpeg->pali = GO7007_MPEG_PROFILE(4, go->pali);
-			break;
-		default:
-			return -EINVAL;
-		}
-		if (!go->gop_header_enable)
-			mpeg->flags |= GO7007_MPEG_OMIT_GOP_HEADER;
-		if (go->repeat_seqhead)
-			mpeg->flags |= GO7007_MPEG_REPEAT_SEQHEADER;
-		if (go->dvd_mode)
-			mpeg->flags |= GO7007_MPEG_FORCE_DVD_MODE;
-		return 0;
-	}
 	case GO7007IOC_S_MD_PARAMS:
 	{
 		struct go7007_md_params *mdp = arg;
@@ -1448,25 +1231,6 @@ static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *
 		} else
 			go->modet[mdp->region].enable = 0;
 		/* fall-through */
-	}
-	case GO7007IOC_G_MD_PARAMS:
-	{
-		struct go7007_md_params *mdp = arg;
-		int region = mdp->region;
-
-		if (mdp->region > 3)
-			return -EINVAL;
-		memset(mdp, 0, sizeof(struct go7007_md_params));
-		mdp->region = region;
-		if (!go->modet[region].enable)
-			return 0;
-		mdp->pixel_threshold =
-			(go->modet[region].pixel_threshold << 1) + 1;
-		mdp->motion_threshold =
-			(go->modet[region].motion_threshold << 1) + 1;
-		mdp->trigger =
-			(go->modet[region].mb_threshold << 1) + 1;
-		return 0;
 	}
 	case GO7007IOC_S_MD_REGION:
 	{
@@ -1590,10 +1354,6 @@ static struct v4l2_file_operations go7007_fops = {
 	.poll		= go7007_poll,
 };
 
-static struct v4l2_ctrl_ops go7007_ctrl_ops = {
-	.s_ctrl = go7007_s_ctrl,
-};
-
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querycap          = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
@@ -1645,29 +1405,18 @@ int go7007_v4l2_ctrl_init(struct go7007 *go)
 	struct v4l2_ctrl *ctrl;
 
 	v4l2_ctrl_handler_init(hdl, 12);
-	v4l2_ctrl_new_std_menu(hdl, &go7007_ctrl_ops,
-			V4L2_CID_MPEG_STREAM_TYPE,
-			V4L2_MPEG_STREAM_TYPE_MPEG2_DVD,
-			0x7,
-			V4L2_MPEG_STREAM_TYPE_MPEG2_DVD);
-	v4l2_ctrl_new_std_menu(hdl, &go7007_ctrl_ops,
-			V4L2_CID_MPEG_VIDEO_ENCODING,
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC,
-			0,
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_2);
-	v4l2_ctrl_new_std_menu(hdl, &go7007_ctrl_ops,
-			V4L2_CID_MPEG_VIDEO_ASPECT,
-			V4L2_MPEG_VIDEO_ASPECT_16x9,
-			0,
-			V4L2_MPEG_VIDEO_ASPECT_1x1);
-	v4l2_ctrl_new_std(hdl, &go7007_ctrl_ops,
+	go->mpeg_video_gop_size = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_MPEG_VIDEO_GOP_SIZE, 0, 34, 1, 15);
-	v4l2_ctrl_new_std(hdl, &go7007_ctrl_ops,
-			V4L2_CID_MPEG_VIDEO_GOP_CLOSURE, 0, 1, 1, 0);
-	v4l2_ctrl_new_std(hdl, &go7007_ctrl_ops,
+	go->mpeg_video_gop_closure = v4l2_ctrl_new_std(hdl, NULL,
+			V4L2_CID_MPEG_VIDEO_GOP_CLOSURE, 0, 1, 1, 1);
+	go->mpeg_video_bitrate = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_MPEG_VIDEO_BITRATE,
-			64000, 10000000, 1, 1500000);
-	ctrl = v4l2_ctrl_new_std(hdl, &go7007_ctrl_ops,
+			64000, 10000000, 1, 9800000);
+	go->mpeg_video_aspect_ratio = v4l2_ctrl_new_std_menu(hdl, NULL,
+			V4L2_CID_MPEG_VIDEO_ASPECT,
+			V4L2_MPEG_VIDEO_ASPECT_16x9, 0,
+			V4L2_MPEG_VIDEO_ASPECT_1x1);
+	ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_JPEG_ACTIVE_MARKER, 0,
 			V4L2_JPEG_ACTIVE_MARKER_DQT | V4L2_JPEG_ACTIVE_MARKER_DHT, 0,
 			V4L2_JPEG_ACTIVE_MARKER_DQT | V4L2_JPEG_ACTIVE_MARKER_DHT);

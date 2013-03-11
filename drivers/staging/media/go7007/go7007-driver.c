@@ -433,12 +433,12 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 	spin_lock(&go->spinlock);
 
 	switch (go->format) {
-	case GO7007_FORMAT_MPEG4:
+	case V4L2_PIX_FMT_MPEG4:
 		seq_start_code = 0xB0;
 		frame_start_code = 0xB6;
 		break;
-	case GO7007_FORMAT_MPEG1:
-	case GO7007_FORMAT_MPEG2:
+	case V4L2_PIX_FMT_MPEG1:
+	case V4L2_PIX_FMT_MPEG2:
 		seq_start_code = 0xB3;
 		frame_start_code = 0x00;
 		break;
@@ -518,9 +518,9 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 			}
 			/* If this is the start of a new MPEG frame,
 			 * get a new buffer */
-			if ((go->format == GO7007_FORMAT_MPEG1 ||
-					go->format == GO7007_FORMAT_MPEG2 ||
-					go->format == GO7007_FORMAT_MPEG4) &&
+			if ((go->format == V4L2_PIX_FMT_MPEG1 ||
+			     go->format == V4L2_PIX_FMT_MPEG2 ||
+			     go->format == V4L2_PIX_FMT_MPEG4) &&
 					(buf[i] == seq_start_code ||
 						buf[i] == 0xB8 || /* GOP code */
 						buf[i] == frame_start_code)) {
@@ -577,7 +577,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 				/* go->state remains STATE_FF */
 				break;
 			case 0xD8:
-				if (go->format == GO7007_FORMAT_MJPEG)
+				if (go->format == V4L2_PIX_FMT_MJPEG)
 					frame_boundary(go);
 				/* fall through */
 			default:
@@ -654,8 +654,8 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	go->encoder_h_halve = 0;
 	go->encoder_v_halve = 0;
 	go->encoder_subsample = 0;
+	go->format = V4L2_PIX_FMT_MJPEG;
 	go->streaming = 0;
-	go->format = GO7007_FORMAT_MJPEG;
 	go->bitrate = 1500000;
 	go->fps_scale = 1;
 	go->pali = 0;
