@@ -1467,7 +1467,6 @@ static u8 bnx2x_vf_is_pcie_pending(struct bnx2x *bp, u8 abs_vfid)
 		return bnx2x_is_pcie_pending(dev);
 
 unknown_dev:
-	BNX2X_ERR("Unknown device\n");
 	return false;
 }
 
@@ -1972,8 +1971,10 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 	if (iov->total == 0)
 		goto failed;
 
-	/* calculate the actual number of VFs */
-	iov->nr_virtfn = min_t(u16, iov->total, (u16)num_vfs_param);
+	iov->nr_virtfn = min_t(u16, iov->total, num_vfs_param);
+
+	DP(BNX2X_MSG_IOV, "num_vfs_param was %d, nr_virtfn was %d\n",
+	   num_vfs_param, iov->nr_virtfn);
 
 	/* allocate the vf array */
 	bp->vfdb->vfs = kzalloc(sizeof(struct bnx2x_virtf) *
@@ -3020,21 +3021,47 @@ void bnx2x_unlock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	vf->op_current = CHANNEL_TLV_NONE;
 }
 
-void bnx2x_enable_sriov(struct bnx2x *bp)
+int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 {
-	int rc = 0;
 
-	/* disbale sriov in case it is still enabled */
-	pci_disable_sriov(bp->pdev);
-	DP(BNX2X_MSG_IOV, "sriov disabled\n");
+	struct bnx2x *bp = netdev_priv(pci_get_drvdata(dev));
 
-	/* enable sriov */
-	DP(BNX2X_MSG_IOV, "vf num (%d)\n", (bp->vfdb->sriov.nr_virtfn));
-	rc = pci_enable_sriov(bp->pdev, (bp->vfdb->sriov.nr_virtfn));
-	if (rc)
+	DP(BNX2X_MSG_IOV, "bnx2x_sriov_configure called with %d, BNX2X_NR_VIRTFN(bp) was %d\n",
+	   num_vfs_param, BNX2X_NR_VIRTFN(bp));
+
+	/* HW channel is only operational when PF is up */
+	if (bp->state != BNX2X_STATE_OPEN) {
+		BNX2X_ERR("VF num configurtion via sysfs not supported while PF is down");
+		return -EINVAL;
+	}
+
+	/* we are always bound by the total_vfs in the configuration space */
+	if (num_vfs_param > BNX2X_NR_VIRTFN(bp)) {
+		BNX2X_ERR("truncating requested number of VFs (%d) down to maximum allowed (%d)\n",
+			  num_vfs_param, BNX2X_NR_VIRTFN(bp));
+		num_vfs_param = BNX2X_NR_VIRTFN(bp);
+	}
+
+	bp->requested_nr_virtfn = num_vfs_param;
+	if (num_vfs_param == 0) {
+		pci_disable_sriov(dev);
+		return 0;
+	} else {
+		return bnx2x_enable_sriov(bp);
+	}
+}
+
+int bnx2x_enable_sriov(struct bnx2x *bp)
+{
+	int rc = 0, req_vfs = bp->requested_nr_virtfn;
+
+	rc = pci_enable_sriov(bp->pdev, req_vfs);
+	if (rc) {
 		BNX2X_ERR("pci_enable_sriov failed with %d\n", rc);
-	else
-		DP(BNX2X_MSG_IOV, "sriov enabled\n");
+		return rc;
+	}
+	DP(BNX2X_MSG_IOV, "sriov enabled (%d vfs)\n", req_vfs);
+	return req_vfs;
 }
 
 void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
@@ -3048,6 +3075,11 @@ void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
 		if (BP_VF(bp, vfidx)->cfg_flags & VF_CFG_VLAN)
 			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0);
 	}
+}
+
+void bnx2x_disable_sriov(struct bnx2x *bp)
+{
+	pci_disable_sriov(bp->pdev);
 }
 
 static int bnx2x_vf_ndo_sanity(struct bnx2x *bp, int vfidx,
@@ -3087,6 +3119,10 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
 	if (rc)
 		return rc;
+	if (!mac_obj || !vlan_obj || !bulletin) {
+		BNX2X_ERR("VF partially initialized\n");
+		return -EINVAL;
+	}
 
 	ivi->vf = vfidx;
 	ivi->qos = 0;
@@ -3404,4 +3440,27 @@ alloc_mem_err:
 	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
 		       sizeof(union pf_vf_bulletin));
 	return -ENOMEM;
+}
+
+int bnx2x_open_epilog(struct bnx2x *bp)
+{
+	/* Enable sriov via delayed work. This must be done via delayed work
+	 * because it causes the probe of the vf devices to be run, which invoke
+	 * register_netdevice which must have rtnl lock taken. As we are holding
+	 * the lock right now, that could only work if the probe would not take
+	 * the lock. However, as the probe of the vf may be called from other
+	 * contexts as well (such as passthrough to vm failes) it can't assume
+	 * the lock is being held for it. Using delayed work here allows the
+	 * probe code to simply take the lock (i.e. wait for it to be released
+	 * if it is being held). We only want to do this if the number of VFs
+	 * was set before PF driver was loaded.
+	 */
+	if (IS_SRIOV(bp) && BNX2X_NR_VIRTFN(bp)) {
+		smp_mb__before_clear_bit();
+		set_bit(BNX2X_SP_RTNL_ENABLE_SRIOV, &bp->sp_rtnl_state);
+		smp_mb__after_clear_bit();
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+	}
+
+	return 0;
 }

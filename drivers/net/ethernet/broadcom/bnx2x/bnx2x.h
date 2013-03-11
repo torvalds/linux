@@ -1281,6 +1281,8 @@ struct bnx2x {
 	dma_addr_t		pf2vf_bulletin_mapping;
 
 	struct pf_vf_bulletin_content	old_bulletin;
+
+	u16 requested_nr_virtfn;
 #endif /* CONFIG_BNX2X_SRIOV */
 
 	struct net_device	*dev;

@@ -9546,8 +9546,10 @@ sp_rtnl_not_reset:
 
 	/* enable SR-IOV if applicable */
 	if (IS_SRIOV(bp) && test_and_clear_bit(BNX2X_SP_RTNL_ENABLE_SRIOV,
-					       &bp->sp_rtnl_state))
+					       &bp->sp_rtnl_state)) {
+		bnx2x_disable_sriov(bp);
 		bnx2x_enable_sriov(bp);
+	}
 }
 
 static void bnx2x_period_task(struct work_struct *work)
@@ -11423,26 +11425,6 @@ static int bnx2x_init_bp(struct bnx2x *bp)
  * net_device service functions
  */
 
-static int bnx2x_open_epilog(struct bnx2x *bp)
-{
-	/* Enable sriov via delayed work. This must be done via delayed work
-	 * because it causes the probe of the vf devices to be run, which invoke
-	 * register_netdevice which must have rtnl lock taken. As we are holding
-	 * the lock right now, that could only work if the probe would not take
-	 * the lock. However, as the probe of the vf may be called from other
-	 * contexts as well (such as passthrough to vm failes) it can't assume
-	 * the lock is being held for it. Using delayed work here allows the
-	 * probe code to simply take the lock (i.e. wait for it to be released
-	 * if it is being held).
-	 */
-	smp_mb__before_clear_bit();
-	set_bit(BNX2X_SP_RTNL_ENABLE_SRIOV, &bp->sp_rtnl_state);
-	smp_mb__after_clear_bit();
-	schedule_delayed_work(&bp->sp_rtnl_task, 0);
-
-	return 0;
-}
-
 /* called with rtnl_lock */
 static int bnx2x_open(struct net_device *dev)
 {
@@ -12498,13 +12480,8 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 			goto init_one_exit;
 	}
 
-	/* Enable SRIOV if capability found in configuration space.
-	 * Once the generic SR-IOV framework makes it in from the
-	 * pci tree this will be revised, to allow dynamic control
-	 * over the number of VFs. Right now, change the num of vfs
-	 * param below to enable SR-IOV.
-	 */
-	rc = bnx2x_iov_init_one(bp, int_mode, 0/*num vfs*/);
+	/* Enable SRIOV if capability found in configuration space */
+	rc = bnx2x_iov_init_one(bp, int_mode, BNX2X_MAX_NUM_OF_VFS);
 	if (rc)
 		goto init_one_exit;
 
@@ -12820,6 +12797,9 @@ static struct pci_driver bnx2x_pci_driver = {
 	.suspend     = bnx2x_suspend,
 	.resume      = bnx2x_resume,
 	.err_handler = &bnx2x_err_handler,
+#ifdef CONFIG_BNX2X_SRIOV
+	.sriov_configure = bnx2x_sriov_configure,
+#endif
 };
 
 static int __init bnx2x_init(void)
