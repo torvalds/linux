@@ -201,7 +201,9 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 
 			return (flags & PCI_MSIX_FLAGS_QSIZE) + 1;
 		}
-	}
+	} else if (irq_type == VFIO_PCI_ERR_IRQ_INDEX)
+		if (pci_is_pcie(vdev->pdev))
+			return 1;
 
 	return 0;
 }
@@ -316,6 +318,17 @@ static long vfio_pci_ioctl(void *device_data,
 
 		if (info.argsz < minsz || info.index >= VFIO_PCI_NUM_IRQS)
 			return -EINVAL;
+
+		switch (info.index) {
+		case VFIO_PCI_INTX_IRQ_INDEX ... VFIO_PCI_MSIX_IRQ_INDEX:
+			break;
+		case VFIO_PCI_ERR_IRQ_INDEX:
+			if (pci_is_pcie(vdev->pdev))
+				break;
+		/* pass thru to return error */
+		default:
+			return -EINVAL;
+		}
 
 		info.flags = VFIO_IRQ_INFO_EVENTFD;
 
@@ -551,11 +564,40 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 	kfree(vdev);
 }
 
+static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
+						  pci_channel_state_t state)
+{
+	struct vfio_pci_device *vdev;
+	struct vfio_device *device;
+
+	device = vfio_device_get_from_dev(&pdev->dev);
+	if (device == NULL)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	vdev = vfio_device_data(device);
+	if (vdev == NULL) {
+		vfio_device_put(device);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	if (vdev->err_trigger)
+		eventfd_signal(vdev->err_trigger, 1);
+
+	vfio_device_put(device);
+
+	return PCI_ERS_RESULT_CAN_RECOVER;
+}
+
+static struct pci_error_handlers vfio_err_handlers = {
+	.error_detected = vfio_pci_aer_err_detected,
+};
+
 static struct pci_driver vfio_pci_driver = {
 	.name		= "vfio-pci",
 	.id_table	= NULL, /* only dynamic ids */
 	.probe		= vfio_pci_probe,
 	.remove		= vfio_pci_remove,
+	.err_handler	= &vfio_err_handlers,
 };
 
 static void __exit vfio_pci_cleanup(void)
