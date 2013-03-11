@@ -200,6 +200,7 @@ struct go7007 {
 	int input;
 	int aud_input;
 	enum { GO7007_STD_NTSC, GO7007_STD_PAL, GO7007_STD_OTHER } standard;
+	v4l2_std_id std;
 	int sensor_framerate;
 	int width;
 	int height;
@@ -291,6 +292,8 @@ int go7007_start_encoder(struct go7007 *go);
 void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length);
 struct go7007 *go7007_alloc(struct go7007_board_info *board,
 					struct device *dev);
+void go7007_update_board(struct go7007 *go);
+
 /* go7007-fw.c */
 int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen);
 

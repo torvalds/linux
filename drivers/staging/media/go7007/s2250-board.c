@@ -354,18 +354,13 @@ static int s2250_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	u16 vidsource;
 
 	vidsource = (state->input == 1) ? 0x040 : 0x020;
-	switch (norm) {
-	case V4L2_STD_NTSC:
-		write_regs_fp(client, vid_regs_fp);
-		write_reg_fp(client, 0x20, vidsource | 1);
-		break;
-	case V4L2_STD_PAL:
+	if (norm & V4L2_STD_625_50) {
 		write_regs_fp(client, vid_regs_fp);
 		write_regs_fp(client, vid_regs_fp_pal);
 		write_reg_fp(client, 0x20, vidsource);
-		break;
-	default:
-		return -EINVAL;
+	} else {
+		write_regs_fp(client, vid_regs_fp);
+		write_reg_fp(client, 0x20, vidsource | 1);
 	}
 	state->std = norm;
 	return 0;

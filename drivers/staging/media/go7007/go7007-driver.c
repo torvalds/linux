@@ -650,19 +650,7 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	init_waitqueue_head(&go->interrupt_waitq);
 	go->in_use = 0;
 	go->input = 0;
-	if (board->sensor_flags & GO7007_SENSOR_TV) {
-		go->standard = GO7007_STD_NTSC;
-		go->width = 720;
-		go->height = 480;
-		go->sensor_framerate = 30000;
-	} else {
-		go->standard = GO7007_STD_OTHER;
-		go->width = board->sensor_width;
-		go->height = board->sensor_height;
-		go->sensor_framerate = board->sensor_framerate;
-	}
-	go->encoder_v_offset = board->sensor_v_offset;
-	go->encoder_h_offset = board->sensor_h_offset;
+	go7007_update_board(go);
 	go->encoder_h_halve = 0;
 	go->encoder_v_halve = 0;
 	go->encoder_subsample = 0;
@@ -691,5 +679,26 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	return go;
 }
 EXPORT_SYMBOL(go7007_alloc);
+
+void go7007_update_board(struct go7007 *go)
+{
+	struct go7007_board_info *board = go->board_info;
+
+	if (board->sensor_flags & GO7007_SENSOR_TV) {
+		go->standard = GO7007_STD_NTSC;
+		go->std = V4L2_STD_NTSC_M;
+		go->width = 720;
+		go->height = 480;
+		go->sensor_framerate = 30000;
+	} else {
+		go->standard = GO7007_STD_OTHER;
+		go->width = board->sensor_width;
+		go->height = board->sensor_height;
+		go->sensor_framerate = board->sensor_framerate;
+	}
+	go->encoder_v_offset = board->sensor_v_offset;
+	go->encoder_h_offset = board->sensor_h_offset;
+}
+EXPORT_SYMBOL(go7007_update_board);
 
 MODULE_LICENSE("GPL v2");

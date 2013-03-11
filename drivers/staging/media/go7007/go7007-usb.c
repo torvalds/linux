@@ -1193,6 +1193,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 					"Adlink PCI-MPG24, channel #%d",
 					channel);
 			}
+			go7007_update_board(go);
 		}
 	}
 
@@ -1209,12 +1210,14 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		case 1:
 			go->board_id = GO7007_BOARDID_PX_TV402U_EU;
 			go->tuner_type = TUNER_SONY_BTF_PG472Z;
+			go->std = V4L2_STD_PAL;
 			strncpy(go->name, "Plextor PX-TV402U-EU",
 					sizeof(go->name));
 			break;
 		case 2:
 			go->board_id = GO7007_BOARDID_PX_TV402U_JP;
 			go->tuner_type = TUNER_SONY_BTF_PK467Z;
+			go->std = V4L2_STD_NTSC_M_JP;
 			num_i2c_devs -= 2;
 			strncpy(go->name, "Plextor PX-TV402U-JP",
 					sizeof(go->name));
