@@ -1685,15 +1685,12 @@ static void sirfsoc_gpio_set_pullup(const u32 *pullups)
 	const unsigned long *p = (const unsigned long *)pullups;
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
-		n = find_first_bit(p + i, BITS_PER_LONG);
-		while (n < BITS_PER_LONG) {
+		for_each_set_bit(n, p + i, BITS_PER_LONG) {
 			u32 offset = SIRFSOC_GPIO_CTRL(i, n);
 			u32 val = readl(sgpio_bank[i].chip.regs + offset);
 			val |= SIRFSOC_GPIO_CTL_PULL_MASK;
 			val |= SIRFSOC_GPIO_CTL_PULL_HIGH;
 			writel(val, sgpio_bank[i].chip.regs + offset);
-
-			n = find_next_bit(p + i, BITS_PER_LONG, n + 1);
 		}
 	}
 }
@@ -1704,15 +1701,12 @@ static void sirfsoc_gpio_set_pulldown(const u32 *pulldowns)
 	const unsigned long *p = (const unsigned long *)pulldowns;
 
 	for (i = 0; i < SIRFSOC_GPIO_NO_OF_BANKS; i++) {
-		n = find_first_bit(p + i, BITS_PER_LONG);
-		while (n < BITS_PER_LONG) {
+		for_each_set_bit(n, p + i, BITS_PER_LONG) {
 			u32 offset = SIRFSOC_GPIO_CTRL(i, n);
 			u32 val = readl(sgpio_bank[i].chip.regs + offset);
 			val |= SIRFSOC_GPIO_CTL_PULL_MASK;
 			val &= ~SIRFSOC_GPIO_CTL_PULL_HIGH;
 			writel(val, sgpio_bank[i].chip.regs + offset);
-
-			n = find_next_bit(p + i, BITS_PER_LONG, n + 1);
 		}
 	}
 }
