@@ -557,8 +557,7 @@ static int bnx2x_vfop_config_list(struct bnx2x *bp,
 		rc = bnx2x_config_vlan_mac(bp, vlan_mac);
 		if (rc >= 0) {
 			cnt += pos->add ? 1 : -1;
-			list_del(&pos->link);
-			list_add(&pos->link, &rollback_list);
+			list_move(&pos->link, &rollback_list);
 			rc = 0;
 		} else if (rc == -EEXIST) {
 			rc = 0;
