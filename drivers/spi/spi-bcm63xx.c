@@ -151,10 +151,6 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 
 static int bcm63xx_spi_setup(struct spi_device *spi)
 {
-	struct bcm63xx_spi *bs;
-
-	bs = spi_master_get_devdata(spi->master);
-
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
 
