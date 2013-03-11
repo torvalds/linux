@@ -117,6 +117,7 @@ struct go7007_hpi_ops {
 	int (*stream_stop)(struct go7007 *go);
 	int (*send_firmware)(struct go7007 *go, u8 *data, int len);
 	int (*send_command)(struct go7007 *go, unsigned int cmd, void *arg);
+	void (*release)(struct go7007 *go);
 };
 
 /* The video buffer size must be a multiple of PAGE_SIZE */
@@ -181,7 +182,6 @@ struct go7007 {
 	void *boot_fw;
 	unsigned boot_fw_len;
 	struct v4l2_device v4l2_dev;
-	int ref_count;
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;
 	spinlock_t spinlock;
 	struct mutex hw_lock;
@@ -287,8 +287,6 @@ int go7007_start_encoder(struct go7007 *go);
 void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length);
 struct go7007 *go7007_alloc(struct go7007_board_info *board,
 					struct device *dev);
-void go7007_remove(struct go7007 *go);
-
 /* go7007-fw.c */
 int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen);
 

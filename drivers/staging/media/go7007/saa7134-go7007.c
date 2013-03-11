@@ -499,12 +499,17 @@ static int saa7134_go7007_fini(struct saa7134_dev *dev)
 		return 0;
 
 	go = video_get_drvdata(dev->empress_dev);
+	if (go->audio_enabled)
+		go7007_snd_remove(go);
+
 	saa = go->hpi_context;
 	go->status = STATUS_SHUTDOWN;
 	free_page((unsigned long)saa->top);
 	free_page((unsigned long)saa->bottom);
 	kfree(saa);
-	go7007_remove(go);
+	video_unregister_device(&go->vdev);
+
+	v4l2_device_put(&go->v4l2_dev);
 	dev->empress_dev = NULL;
 
 	return 0;

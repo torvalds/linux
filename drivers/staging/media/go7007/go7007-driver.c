@@ -221,6 +221,31 @@ static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *con
 }
 
 /*
+ * Detach and unregister the encoder.  The go7007 struct won't be freed
+ * until v4l2 finishes releasing its resources and all associated fds are
+ * closed by applications.
+ */
+static void go7007_remove(struct v4l2_device *v4l2_dev)
+{
+	struct go7007 *go = container_of(v4l2_dev, struct go7007, v4l2_dev);
+
+	v4l2_device_unregister(v4l2_dev);
+	if (go->hpi_ops->release)
+		go->hpi_ops->release(go);
+	if (go->i2c_adapter_online) {
+		if (i2c_del_adapter(&go->i2c_adapter) == 0)
+			go->i2c_adapter_online = 0;
+		else
+			v4l2_err(&go->v4l2_dev,
+				"error removing I2C adapter!\n");
+	}
+
+	kfree(go->boot_fw);
+	go7007_v4l2_remove(go);
+	kfree(go);
+}
+
+/*
  * Finalize the GO7007 hardware setup, register the on-board I2C adapter
  * (if used on this board), load the I2C client driver for the sensor
  * (SAA7115 or whatever) and other devices, and register the ALSA and V4L2
@@ -234,16 +259,16 @@ int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs)
 
 	dev_info(go->dev, "go7007: registering new %s\n", go->name);
 
+	go->v4l2_dev.release = go7007_remove;
+	ret = v4l2_device_register(go->dev, &go->v4l2_dev);
+	if (ret < 0)
+		return ret;
+
 	mutex_lock(&go->hw_lock);
 	ret = go7007_init_encoder(go);
 	mutex_unlock(&go->hw_lock);
 	if (ret < 0)
 		return -1;
-
-	/* v4l2 init must happen before i2c subdevs */
-	ret = go7007_v4l2_init(go);
-	if (ret < 0)
-		return ret;
 
 	if (!go->i2c_adapter_online &&
 			go->board_info->flags & GO7007_BOARD_USE_ONBOARD_I2C) {
@@ -269,6 +294,11 @@ int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs)
 			v4l2_subdev_call(go->sd_video, video, s_routing,
 					0, 0, go->channel_number + 1);
 	}
+
+	ret = go7007_v4l2_init(go);
+	if (ret < 0)
+		return ret;
+
 	if (go->board_info->flags & GO7007_BOARD_HAS_AUDIO) {
 		go->audio_enabled = 1;
 		go7007_snd_init(go);
@@ -608,7 +638,6 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	init_waitqueue_head(&go->frame_waitq);
 	spin_lock_init(&go->spinlock);
 	go->video_dev = NULL;
-	go->ref_count = 0;
 	go->status = STATUS_INIT;
 	memset(&go->i2c_adapter, 0, sizeof(go->i2c_adapter));
 	go->i2c_adapter_online = 0;
@@ -657,27 +686,5 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	return go;
 }
 EXPORT_SYMBOL(go7007_alloc);
-
-/*
- * Detach and unregister the encoder.  The go7007 struct won't be freed
- * until v4l2 finishes releasing its resources and all associated fds are
- * closed by applications.
- */
-void go7007_remove(struct go7007 *go)
-{
-	if (go->i2c_adapter_online) {
-		if (i2c_del_adapter(&go->i2c_adapter) == 0)
-			go->i2c_adapter_online = 0;
-		else
-			v4l2_err(&go->v4l2_dev,
-				"error removing I2C adapter!\n");
-	}
-
-	if (go->audio_enabled)
-		go7007_snd_remove(go);
-	kfree(go->boot_fw);
-	go7007_v4l2_remove(go);
-}
-EXPORT_SYMBOL(go7007_remove);
 
 MODULE_LICENSE("GPL v2");

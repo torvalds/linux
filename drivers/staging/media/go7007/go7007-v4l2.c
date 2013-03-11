@@ -100,7 +100,6 @@ static int go7007_open(struct file *file)
 	gofh = kzalloc(sizeof(struct go7007_file), GFP_KERNEL);
 	if (gofh == NULL)
 		return -ENOMEM;
-	++go->ref_count;
 	gofh->go = go;
 	mutex_init(&gofh->lock);
 	gofh->buf_count = 0;
@@ -120,8 +119,6 @@ static int go7007_release(struct file *file)
 		gofh->buf_count = 0;
 	}
 	kfree(gofh);
-	if (--go->ref_count == 0)
-		kfree(go);
 	file->private_data = NULL;
 	return 0;
 }
@@ -1772,11 +1769,7 @@ static unsigned int go7007_poll(struct file *file, poll_table *wait)
 
 static void go7007_vfl_release(struct video_device *vfd)
 {
-	struct go7007 *go = video_get_drvdata(vfd);
-
 	video_device_release(vfd);
-	if (--go->ref_count == 0)
-		kfree(go);
 }
 
 static struct v4l2_file_operations go7007_fops = {
@@ -1844,7 +1837,8 @@ int go7007_v4l2_init(struct go7007 *go)
 	if (go->video_dev == NULL)
 		return -ENOMEM;
 	*go->video_dev = go7007_template;
-	go->video_dev->parent = go->dev;
+	video_set_drvdata(go->video_dev, go);
+	go->video_dev->v4l2_dev = &go->v4l2_dev;
 	rv = video_register_device(go->video_dev, VFL_TYPE_GRABBER, -1);
 	if (rv < 0) {
 		video_device_release(go->video_dev);
@@ -1856,14 +1850,6 @@ int go7007_v4l2_init(struct go7007 *go)
 		v4l2_disable_ioctl(go->video_dev, VIDIOC_S_AUDIO);
 		v4l2_disable_ioctl(go->video_dev, VIDIOC_ENUMAUDIO);
 	}
-	rv = v4l2_device_register(go->dev, &go->v4l2_dev);
-	if (rv < 0) {
-		video_device_release(go->video_dev);
-		go->video_dev = NULL;
-		return rv;
-	}
-	video_set_drvdata(go->video_dev, go);
-	++go->ref_count;
 	dev_info(go->dev, "registered device %s [v4l2]\n",
 		 video_device_node_name(go->video_dev));
 
@@ -1883,8 +1869,4 @@ void go7007_v4l2_remove(struct go7007 *go)
 		spin_unlock_irqrestore(&go->spinlock, flags);
 	}
 	mutex_unlock(&go->hw_lock);
-	if (go->video_dev)
-		video_unregister_device(go->video_dev);
-	if (go->status != STATUS_SHUTDOWN)
-		v4l2_device_unregister(&go->v4l2_dev);
 }

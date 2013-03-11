@@ -221,8 +221,6 @@ static int go7007_snd_free(struct snd_device *device)
 
 	kfree(go->snd_context);
 	go->snd_context = NULL;
-	if (--go->ref_count == 0)
-		kfree(go);
 	return 0;
 }
 
@@ -285,8 +283,8 @@ int go7007_snd_init(struct go7007 *go)
 
 	gosnd->substream = NULL;
 	go->snd_context = gosnd;
+	v4l2_device_get(&go->v4l2_dev);
 	++dev;
-	++go->ref_count;
 
 	return 0;
 }
@@ -298,6 +296,7 @@ int go7007_snd_remove(struct go7007 *go)
 
 	snd_card_disconnect(gosnd->card);
 	snd_card_free_when_closed(gosnd->card);
+	v4l2_device_put(&go->v4l2_dev);
 	return 0;
 }
 EXPORT_SYMBOL(go7007_snd_remove);

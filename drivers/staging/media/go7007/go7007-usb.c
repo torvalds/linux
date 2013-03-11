@@ -617,6 +617,8 @@ static int go7007_usb_interface_reset(struct go7007 *go)
 	struct go7007_usb *usb = go->hpi_context;
 	u16 intr_val, intr_data;
 
+	if (go->status == STATUS_SHUTDOWN)
+		return -1;
 	/* Reset encoder */
 	if (go7007_write_interrupt(go, 0x0001, 0x0001) < 0)
 		return -1;
@@ -886,6 +888,35 @@ static int go7007_usb_send_firmware(struct go7007 *go, u8 *data, int len)
 					&transferred, timeout);
 }
 
+static void go7007_usb_release(struct go7007 *go)
+{
+	struct go7007_usb *usb = go->hpi_context;
+	struct urb *vurb, *aurb;
+	int i;
+
+	usb_kill_urb(usb->intr_urb);
+
+	/* Free USB-related structs */
+	for (i = 0; i < 8; ++i) {
+		vurb = usb->video_urbs[i];
+		if (vurb) {
+			usb_kill_urb(vurb);
+			kfree(vurb->transfer_buffer);
+			usb_free_urb(vurb);
+		}
+		aurb = usb->audio_urbs[i];
+		if (aurb) {
+			usb_kill_urb(aurb);
+			kfree(aurb->transfer_buffer);
+			usb_free_urb(aurb);
+		}
+	}
+	kfree(usb->intr_urb->transfer_buffer);
+	usb_free_urb(usb->intr_urb);
+
+	kfree(go->hpi_context);
+}
+
 static struct go7007_hpi_ops go7007_usb_ezusb_hpi_ops = {
 	.interface_reset	= go7007_usb_interface_reset,
 	.write_interrupt	= go7007_usb_ezusb_write_interrupt,
@@ -893,6 +924,7 @@ static struct go7007_hpi_ops go7007_usb_ezusb_hpi_ops = {
 	.stream_start		= go7007_usb_stream_start,
 	.stream_stop		= go7007_usb_stream_stop,
 	.send_firmware		= go7007_usb_send_firmware,
+	.release		= go7007_usb_release,
 };
 
 static struct go7007_hpi_ops go7007_usb_onboard_hpi_ops = {
@@ -902,6 +934,7 @@ static struct go7007_hpi_ops go7007_usb_onboard_hpi_ops = {
 	.stream_start		= go7007_usb_stream_start,
 	.stream_stop		= go7007_usb_stream_stop,
 	.send_firmware		= go7007_usb_send_firmware,
+	.release		= go7007_usb_release,
 };
 
 /********************* Driver for EZ-USB I2C adapter *********************/
@@ -1279,34 +1312,15 @@ allocfail:
 static void go7007_usb_disconnect(struct usb_interface *intf)
 {
 	struct go7007 *go = to_go7007(usb_get_intfdata(intf));
-	struct go7007_usb *usb = go->hpi_context;
-	struct urb *vurb, *aurb;
-	int i;
 
-	usb_kill_urb(usb->intr_urb);
-
-	/* Free USB-related structs */
-	for (i = 0; i < 8; ++i) {
-		vurb = usb->video_urbs[i];
-		if (vurb) {
-			usb_kill_urb(vurb);
-			kfree(vurb->transfer_buffer);
-			usb_free_urb(vurb);
-		}
-		aurb = usb->audio_urbs[i];
-		if (aurb) {
-			usb_kill_urb(aurb);
-			kfree(aurb->transfer_buffer);
-			usb_free_urb(aurb);
-		}
-	}
-	kfree(usb->intr_urb->transfer_buffer);
-	usb_free_urb(usb->intr_urb);
-
-	kfree(go->hpi_context);
+	if (go->audio_enabled)
+		go7007_snd_remove(go);
 
 	go->status = STATUS_SHUTDOWN;
-	go7007_remove(go);
+	v4l2_device_disconnect(&go->v4l2_dev);
+	video_unregister_device(go->video_dev);
+
+	v4l2_device_put(&go->v4l2_dev);
 }
 
 static struct usb_driver go7007_usb_driver = {
