@@ -10286,7 +10286,8 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
 
 		/* Determine if EEE was negotiated */
-		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
+		if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+		    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834))
 			bnx2x_eee_an_resolve(phy, params, vars);
 	}
 
