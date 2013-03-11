@@ -236,7 +236,7 @@ static void saa7134_go7007_irq_ts_done(struct saa7134_dev *dev,
 	struct go7007 *go = video_get_drvdata(dev->empress_dev);
 	struct saa7134_go7007 *saa = go->hpi_context;
 
-	if (!go->streaming)
+	if (!vb2_is_streaming(&go->vidq))
 		return;
 	if (0 != (status & 0x000f0000))
 		printk(KERN_DEBUG "saa7134-go7007: irq: lost %ld\n",

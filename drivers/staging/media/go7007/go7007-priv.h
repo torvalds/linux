@@ -24,6 +24,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
+#include <media/videobuf2-core.h>
 
 struct go7007;
 
@@ -125,20 +126,10 @@ struct go7007_hpi_ops {
 #define	GO7007_BUF_SIZE		(GO7007_BUF_PAGES << PAGE_SHIFT)
 
 struct go7007_buffer {
-	struct go7007 *go; /* Reverse reference for VMA ops */
-	int index; /* Reverse reference for DQBUF */
-	enum { BUF_STATE_IDLE, BUF_STATE_QUEUED, BUF_STATE_DONE } state;
-	u32 seq;
-	struct timeval timestamp;
-	struct list_head stream;
-	struct page *pages[GO7007_BUF_PAGES + 1]; /* extra for straddling */
-	unsigned long user_addr;
-	unsigned int page_count;
-	unsigned int offset;
-	unsigned int bytesused;
+	struct vb2_buffer vb;
+	struct list_head list;
 	unsigned int frame_offset;
 	u32 modet_active;
-	int mapped;
 };
 
 #define GO7007_RATIO_1_1	0
@@ -178,8 +169,7 @@ struct go7007 {
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;
 	spinlock_t spinlock;
 	struct mutex hw_lock;
-	int streaming;
-	int in_use;
+	struct mutex serialize_lock;
 	int audio_enabled;
 	struct v4l2_subdev *sd_video;
 	struct v4l2_subdev *sd_audio;
@@ -226,17 +216,16 @@ struct go7007 {
 	unsigned char active_map[216];
 
 	/* Video streaming */
-	struct go7007_buffer *active_buf;
+	struct mutex queue_lock;
+	struct vb2_queue vidq;
 	enum go7007_parser_state state;
 	int parse_length;
 	u16 modet_word;
 	int seen_frame;
 	u32 next_seq;
-	struct list_head stream;
+	struct list_head vidq_active;
 	wait_queue_head_t frame_waitq;
-	int buf_count;
-	struct go7007_buffer *bufs;
-	struct v4l2_fh *bufs_owner;
+	struct go7007_buffer *active_buf;
 
 	/* Audio streaming */
 	void (*audio_deliver)(struct go7007 *go, u8 *buf, int length);

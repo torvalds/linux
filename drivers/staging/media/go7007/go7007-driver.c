@@ -363,48 +363,54 @@ start_error:
 /*
  * Store a byte in the current video buffer, if there is one.
  */
-static inline void store_byte(struct go7007_buffer *gobuf, u8 byte)
+static inline void store_byte(struct go7007_buffer *vb, u8 byte)
 {
-	if (gobuf != NULL && gobuf->bytesused < GO7007_BUF_SIZE) {
-		unsigned int pgidx = gobuf->offset >> PAGE_SHIFT;
-		unsigned int pgoff = gobuf->offset & ~PAGE_MASK;
+	if (vb && vb->vb.v4l2_planes[0].bytesused < GO7007_BUF_SIZE) {
+		u8 *ptr = vb2_plane_vaddr(&vb->vb, 0);
 
-		*((u8 *)page_address(gobuf->pages[pgidx]) + pgoff) = byte;
-		++gobuf->offset;
-		++gobuf->bytesused;
+		ptr[vb->vb.v4l2_planes[0].bytesused++] = byte;
 	}
 }
 
 /*
  * Deliver the last video buffer and get a new one to start writing to.
  */
-static void frame_boundary(struct go7007 *go)
+static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buffer *vb)
 {
-	struct go7007_buffer *gobuf;
+	struct go7007_buffer *vb_tmp = NULL;
+	u32 *bytesused = &vb->vb.v4l2_planes[0].bytesused;
 	int i;
 
-	if (go->active_buf) {
-		if (go->active_buf->modet_active) {
-			if (go->active_buf->bytesused + 216 < GO7007_BUF_SIZE) {
+	if (vb) {
+		if (vb->modet_active) {
+			if (*bytesused + 216 < GO7007_BUF_SIZE) {
 				for (i = 0; i < 216; ++i)
-					store_byte(go->active_buf,
-							go->active_map[i]);
-				go->active_buf->bytesused -= 216;
+					store_byte(vb, go->active_map[i]);
+				*bytesused -= 216;
 			} else
-				go->active_buf->modet_active = 0;
+				vb->modet_active = 0;
 		}
-		go->active_buf->state = BUF_STATE_DONE;
-		wake_up_interruptible(&go->frame_waitq);
-		go->active_buf = NULL;
+		vb->vb.v4l2_buf.sequence = go->next_seq++;
+		v4l2_get_timestamp(&vb->vb.v4l2_buf.timestamp);
+		vb_tmp = vb;
+		spin_lock(&go->spinlock);
+		list_del(&vb->list);
+		if (list_empty(&go->vidq_active))
+			vb = NULL;
+		else
+			vb = list_first_entry(&go->vidq_active, struct go7007_buffer, list);
+		go->active_buf = vb;
+		spin_unlock(&go->spinlock);
+		vb2_buffer_done(&vb_tmp->vb, VB2_BUF_STATE_DONE);
+		return vb;
 	}
-	list_for_each_entry(gobuf, &go->stream, stream)
-		if (gobuf->state == BUF_STATE_QUEUED) {
-			gobuf->seq = go->next_seq;
-			do_gettimeofday(&gobuf->timestamp);
-			go->active_buf = gobuf;
-			break;
-		}
-	++go->next_seq;
+	spin_lock(&go->spinlock);
+	if (!list_empty(&go->vidq_active))
+		vb = go->active_buf =
+			list_first_entry(&go->vidq_active, struct go7007_buffer, list);
+	spin_unlock(&go->spinlock);
+	go->next_seq++;
+	return vb;
 }
 
 static void write_bitmap_word(struct go7007 *go)
@@ -428,9 +434,8 @@ static void write_bitmap_word(struct go7007 *go)
  */
 void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 {
+	struct go7007_buffer *vb = go->active_buf;
 	int i, seq_start_code = -1, frame_start_code = -1;
-
-	spin_lock(&go->spinlock);
 
 	switch (go->format) {
 	case V4L2_PIX_FMT_MPEG4:
@@ -445,13 +450,12 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 	}
 
 	for (i = 0; i < length; ++i) {
-		if (go->active_buf != NULL &&
-			    go->active_buf->bytesused >= GO7007_BUF_SIZE - 3) {
+		if (vb && vb->vb.v4l2_planes[0].bytesused >= GO7007_BUF_SIZE - 3) {
 			v4l2_info(&go->v4l2_dev, "dropping oversized frame\n");
-			go->active_buf->offset -= go->active_buf->bytesused;
-			go->active_buf->bytesused = 0;
-			go->active_buf->modet_active = 0;
-			go->active_buf = NULL;
+			vb->vb.v4l2_planes[0].bytesused = 0;
+			vb->frame_offset = 0;
+			vb->modet_active = 0;
+			vb = go->active_buf = NULL;
 		}
 
 		switch (go->state) {
@@ -464,7 +468,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 				go->state = STATE_FF;
 				break;
 			default:
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, buf[i]);
 				break;
 			}
 			break;
@@ -474,12 +478,12 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 				go->state = STATE_00_00;
 				break;
 			case 0xFF:
-				store_byte(go->active_buf, 0x00);
+				store_byte(vb, 0x00);
 				go->state = STATE_FF;
 				break;
 			default:
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, 0x00);
+				store_byte(vb, buf[i]);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -487,21 +491,21 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 		case STATE_00_00:
 			switch (buf[i]) {
 			case 0x00:
-				store_byte(go->active_buf, 0x00);
+				store_byte(vb, 0x00);
 				/* go->state remains STATE_00_00 */
 				break;
 			case 0x01:
 				go->state = STATE_00_00_01;
 				break;
 			case 0xFF:
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
 				go->state = STATE_FF;
 				break;
 			default:
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, buf[i]);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -509,10 +513,10 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 		case STATE_00_00_01:
 			if (buf[i] == 0xF8 && go->modet_enable == 0) {
 				/* MODET start code, but MODET not enabled */
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x01);
-				store_byte(go->active_buf, 0xF8);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x01);
+				store_byte(vb, 0xF8);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -521,19 +525,14 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 			if ((go->format == V4L2_PIX_FMT_MPEG1 ||
 			     go->format == V4L2_PIX_FMT_MPEG2 ||
 			     go->format == V4L2_PIX_FMT_MPEG4) &&
-					(buf[i] == seq_start_code ||
-						buf[i] == 0xB8 || /* GOP code */
-						buf[i] == frame_start_code)) {
-				if (go->active_buf == NULL || go->seen_frame)
-					frame_boundary(go);
-				if (buf[i] == frame_start_code) {
-					if (go->active_buf != NULL)
-						go->active_buf->frame_offset =
-							go->active_buf->offset;
-					go->seen_frame = 1;
-				} else {
-					go->seen_frame = 0;
-				}
+			    (buf[i] == seq_start_code ||
+			     buf[i] == 0xB8 || /* GOP code */
+			     buf[i] == frame_start_code)) {
+				if (vb == NULL || go->seen_frame)
+					vb = frame_boundary(go, vb);
+				go->seen_frame = buf[i] == frame_start_code;
+				if (vb && go->seen_frame)
+					vb->frame_offset = vb->vb.v4l2_planes[0].bytesused;
 			}
 			/* Handle any special chunk types, or just write the
 			 * start code to the (potentially new) buffer */
@@ -552,16 +551,16 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 				go->state = STATE_MODET_MAP;
 				break;
 			case 0xFF: /* Potential JPEG start code */
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x01);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x01);
 				go->state = STATE_FF;
 				break;
 			default:
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x01);
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x01);
+				store_byte(vb, buf[i]);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -569,20 +568,20 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 		case STATE_FF:
 			switch (buf[i]) {
 			case 0x00:
-				store_byte(go->active_buf, 0xFF);
+				store_byte(vb, 0xFF);
 				go->state = STATE_00;
 				break;
 			case 0xFF:
-				store_byte(go->active_buf, 0xFF);
+				store_byte(vb, 0xFF);
 				/* go->state remains STATE_FF */
 				break;
 			case 0xD8:
 				if (go->format == V4L2_PIX_FMT_MJPEG)
-					frame_boundary(go);
+					vb = frame_boundary(go, vb);
 				/* fall through */
 			default:
-				store_byte(go->active_buf, 0xFF);
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, 0xFF);
+				store_byte(vb, buf[i]);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -605,8 +604,8 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 					write_bitmap_word(go);
 				} else
 					go->modet_word = buf[i] << 8;
-			} else if (go->parse_length == 207 && go->active_buf) {
-				go->active_buf->modet_active = buf[i];
+			} else if (go->parse_length == 207 && vb) {
+				vb->modet_active = buf[i];
 			}
 			if (++go->parse_length == 208)
 				go->state = STATE_DATA;
@@ -617,8 +616,6 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 			break;
 		}
 	}
-
-	spin_unlock(&go->spinlock);
 }
 EXPORT_SYMBOL(go7007_parse_video_stream);
 
@@ -648,14 +645,12 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	go->i2c_adapter_online = 0;
 	go->interrupt_available = 0;
 	init_waitqueue_head(&go->interrupt_waitq);
-	go->in_use = 0;
 	go->input = 0;
 	go7007_update_board(go);
 	go->encoder_h_halve = 0;
 	go->encoder_v_halve = 0;
 	go->encoder_subsample = 0;
 	go->format = V4L2_PIX_FMT_MJPEG;
-	go->streaming = 0;
 	go->bitrate = 1500000;
 	go->fps_scale = 1;
 	go->pali = 0;
@@ -674,7 +669,6 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 		go->modet_map[i] = 0;
 	go->audio_deliver = NULL;
 	go->audio_enabled = 0;
-	INIT_LIST_HEAD(&go->stream);
 
 	return go;
 }

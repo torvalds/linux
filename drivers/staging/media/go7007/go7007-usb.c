@@ -780,7 +780,7 @@ static void go7007_usb_read_video_pipe_complete(struct urb *urb)
 	struct go7007 *go = (struct go7007 *)urb->context;
 	int r, status = urb->status;
 
-	if (!go->streaming) {
+	if (!vb2_is_streaming(&go->vidq)) {
 		wake_up_interruptible(&go->frame_waitq);
 		return;
 	}
@@ -804,7 +804,7 @@ static void go7007_usb_read_audio_pipe_complete(struct urb *urb)
 	struct go7007 *go = (struct go7007 *)urb->context;
 	int r, status = urb->status;
 
-	if (!go->streaming)
+	if (!vb2_is_streaming(&go->vidq))
 		return;
 	if (status) {
 		printk(KERN_ERR "go7007-usb: error in audio pipe: %d\n",
@@ -1316,12 +1316,17 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 {
 	struct go7007 *go = to_go7007(usb_get_intfdata(intf));
 
+	mutex_lock(&go->queue_lock);
+	mutex_lock(&go->serialize_lock);
+
 	if (go->audio_enabled)
 		go7007_snd_remove(go);
 
 	go->status = STATUS_SHUTDOWN;
 	v4l2_device_disconnect(&go->v4l2_dev);
 	video_unregister_device(go->video_dev);
+	mutex_unlock(&go->serialize_lock);
+	mutex_unlock(&go->queue_lock);
 
 	v4l2_device_put(&go->v4l2_dev);
 }
