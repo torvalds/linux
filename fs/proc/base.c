@@ -2018,6 +2018,7 @@ struct timers_private {
 	struct pid *pid;
 	struct task_struct *task;
 	struct sighand_struct *sighand;
+	struct pid_namespace *ns;
 	unsigned long flags;
 };
 
@@ -2060,9 +2061,24 @@ static void timers_stop(struct seq_file *m, void *v)
 static int show_timer(struct seq_file *m, void *v)
 {
 	struct k_itimer *timer;
+	struct timers_private *tp = m->private;
+	int notify;
+	static char *nstr[] = {
+		[SIGEV_SIGNAL] = "signal",
+		[SIGEV_NONE] = "none",
+		[SIGEV_THREAD] = "thread",
+	};
 
 	timer = list_entry((struct list_head *)v, struct k_itimer, list);
+	notify = timer->it_sigev_notify;
+
 	seq_printf(m, "ID: %d\n", timer->it_id);
+	seq_printf(m, "signal: %d/%p\n", timer->sigq->info.si_signo,
+			timer->sigq->info.si_value.sival_ptr);
+	seq_printf(m, "notify: %s/%s.%d\n",
+		nstr[notify & ~SIGEV_THREAD_ID],
+		(notify & SIGEV_THREAD_ID) ? "tid" : "pid",
+		pid_nr_ns(timer->it_pid, tp->ns));
 
 	return 0;
 }
@@ -2084,6 +2100,7 @@ static int proc_timers_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	tp->pid = proc_pid(inode);
+	tp->ns = inode->i_sb->s_fs_info;
 	return 0;
 }
 
