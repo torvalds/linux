@@ -5978,8 +5978,8 @@ void
 trace_printk_seq(struct trace_seq *s)
 {
 	/* Probably should print a warning here. */
-	if (s->len >= 1000)
-		s->len = 1000;
+	if (s->len >= TRACE_MAX_PRINT)
+		s->len = TRACE_MAX_PRINT;
 
 	/* should be zero ended, but we are paranoid. */
 	s->buffer[s->len] = 0;
