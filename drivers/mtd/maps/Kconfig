@@ -249,22 +249,6 @@ config MTD_LANTIQ
 	help
 	  Support for NOR flash attached to the Lantiq SoC's External Bus Unit.
 
-config MTD_DILNETPC
-	tristate "CFI Flash device mapped on DIL/Net PC"
-	depends on X86 && MTD_CFI_INTELEXT && BROKEN
-	help
-	  MTD map driver for SSV DIL/Net PC Boards "DNP" and "ADNP".
-	  For details, see <http://www.ssv-embedded.de/ssv/pc104/p169.htm>
- 	  and <http://www.ssv-embedded.de/ssv/pc104/p170.htm>
-
-config MTD_DILNETPC_BOOTSIZE
-	hex "Size of DIL/Net PC flash boot partition"
-	depends on MTD_DILNETPC
-	default "0x80000"
-	help
-	  The amount of space taken up by the kernel or Etherboot
-	  on the DIL/Net PC flash chips.
-
 config MTD_L440GX
 	tristate "BIOS flash chip on Intel L440GX boards"
 	depends on X86 && MTD_JEDECPROBE
