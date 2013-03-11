@@ -1188,3 +1188,19 @@ int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 	return 0;
 }
 EXPORT_SYMBOL(phy_ethtool_set_eee);
+
+int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	if (phydev->drv->set_wol)
+		return phydev->drv->set_wol(phydev, wol);
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(phy_ethtool_set_wol);
+
+void phy_ethtool_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	if (phydev->drv->get_wol)
+		phydev->drv->get_wol(phydev, wol);
+}
+EXPORT_SYMBOL(phy_ethtool_get_wol);
