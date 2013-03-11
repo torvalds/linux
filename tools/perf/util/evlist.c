@@ -38,13 +38,12 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 	evlist->workload.pid = -1;
 }
 
-struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
-				     struct thread_map *threads)
+struct perf_evlist *perf_evlist__new(void)
 {
 	struct perf_evlist *evlist = zalloc(sizeof(*evlist));
 
 	if (evlist != NULL)
-		perf_evlist__init(evlist, cpus, threads);
+		perf_evlist__init(evlist, NULL, NULL);
 
 	return evlist;
 }
