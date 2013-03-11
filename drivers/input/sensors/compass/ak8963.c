@@ -127,6 +127,7 @@ Defines a read-only address of the fuse ROM of the AK8963.*/
 
 #define AK8963_DEVICE_ID		0x48
 static struct i2c_client *this_client;
+static struct miscdevice compass_dev_device;
 
 static short g_akm_rbuf[12];
 
@@ -182,9 +183,15 @@ static int sensor_init(struct i2c_client *client)
 	if((info & (0x0f<<3)) != AK8963_INFO_DATA)
 	{
 		printk("%s:info=0x%x,it is not %s\n",__func__, info, sensor->ops->name);
-		result = -1;
+		return -1;
 	}
 
+	result = misc_register(&compass_dev_device);
+	if (result < 0) {
+		printk("%s:fail to register misc device %s\n", __func__, compass_dev_device.name);
+		result = -1;
+	}
+	
 	DBG("%s:status_cur=%d\n",__func__, sensor->status_cur);
 	return result;
 }
@@ -765,13 +772,7 @@ static int __init compass_akm8963_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, compass_get_ops);
-
-	result = misc_register(&compass_dev_device);
-	if (result < 0) {
-		printk("%s:fail to register misc device %s\n", __func__, compass_dev_device.name);
-		goto error;
-	}
-error:				
+				
 	return result;
 }
 
