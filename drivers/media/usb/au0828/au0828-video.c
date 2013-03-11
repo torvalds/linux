@@ -1391,19 +1391,9 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
+static void au0828_s_input(struct au0828_dev *dev, int index)
 {
-	struct au0828_fh *fh = priv;
-	struct au0828_dev *dev = fh->dev;
 	int i;
-
-	dprintk(1, "VIDIOC_S_INPUT in function %s, input=%d\n", __func__,
-		index);
-	if (index >= AU0828_MAX_INPUT)
-		return -EINVAL;
-	if (AUVI_INPUT(index).type == 0)
-		return -EINVAL;
-	dev->ctrl_input = index;
 
 	switch (AUVI_INPUT(index).type) {
 	case AU0828_VMUX_SVIDEO:
@@ -1419,7 +1409,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		dev->ctrl_ainput = 0;
 		break;
 	default:
-		dprintk(1, "VIDIOC_S_INPUT unknown input type set [%d]\n",
+		dprintk(1, "unknown input type set [%d]\n",
 			AUVI_INPUT(index).type);
 		break;
 	}
@@ -1450,6 +1440,21 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing,
 			AUVI_INPUT(index).amux, 0, 0);
+}
+
+static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
+{
+	struct au0828_fh *fh = priv;
+	struct au0828_dev *dev = fh->dev;
+
+	dprintk(1, "VIDIOC_S_INPUT in function %s, input=%d\n", __func__,
+		index);
+	if (index >= AU0828_MAX_INPUT)
+		return -EINVAL;
+	if (AUVI_INPUT(index).type == 0)
+		return -EINVAL;
+	dev->ctrl_input = index;
+	au0828_s_input(dev, index);
 	return 0;
 }
 
@@ -1982,6 +1987,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->ctrl_ainput = 0;
 	dev->ctrl_freq = 960;
 	dev->std = V4L2_STD_NTSC_M;
+	au0828_s_input(dev, 0);
 
 	/* allocate and fill v4l2 video struct */
 	dev->vdev = video_device_alloc();
