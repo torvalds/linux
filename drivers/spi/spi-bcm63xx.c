@@ -93,18 +93,6 @@ static const unsigned bcm63xx_spi_freq_table[SPI_CLK_MASK][2] = {
 	{   391000, SPI_CLK_0_391MHZ }
 };
 
-static int bcm63xx_spi_check_transfer(struct spi_device *spi,
-					struct spi_transfer *t)
-{
-	if (t->bits_per_word != 8) {
-		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
-			__func__, t->bits_per_word);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 				      struct spi_transfer *t)
 {
@@ -293,9 +281,12 @@ static int bcm63xx_spi_transfer_one(struct spi_master *master,
 	 * full-duplex transfers.
 	 */
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		status = bcm63xx_spi_check_transfer(spi, t);
-		if (status < 0)
+		if (t->bits_per_word != 8) {
+			dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
+				__func__, t->bits_per_word);
+			status = -EINVAL;
 			goto exit;
+		}
 
 		if (!first)
 			first = t;
