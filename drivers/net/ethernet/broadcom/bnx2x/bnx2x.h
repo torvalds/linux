@@ -2285,7 +2285,7 @@ static const u32 dmae_reg_go_c[] = {
 	DMAE_REG_GO_C12, DMAE_REG_GO_C13, DMAE_REG_GO_C14, DMAE_REG_GO_C15
 };
 
-void bnx2x_set_ethtool_ops(struct net_device *netdev);
+void bnx2x_set_ethtool_ops(struct bnx2x *bp, struct net_device *netdev);
 void bnx2x_notify_link_changed(struct bnx2x *bp);
 
 #define BNX2X_MF_SD_PROTOCOL(bp) \

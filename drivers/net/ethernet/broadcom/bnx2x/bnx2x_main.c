@@ -11953,7 +11953,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	dev->netdev_ops = &bnx2x_netdev_ops;
-	bnx2x_set_ethtool_ops(dev);
+	bnx2x_set_ethtool_ops(bp, dev);
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
