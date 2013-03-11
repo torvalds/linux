@@ -412,18 +412,9 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 	bs->pdev = pdev;
 
-	if (!devm_request_mem_region(&pdev->dev, r->start,
-					resource_size(r), PFX)) {
-		dev_err(dev, "iomem request failed\n");
-		ret = -ENXIO;
-		goto out_err;
-	}
-
-	bs->regs = devm_ioremap_nocache(&pdev->dev, r->start,
-							resource_size(r));
-	if (!bs->regs) {
-		dev_err(dev, "unable to ioremap regs\n");
-		ret = -ENOMEM;
+	bs->regs = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(bs->regs)) {
+		ret = PTR_ERR(bs->regs);
 		goto out_err;
 	}
 
