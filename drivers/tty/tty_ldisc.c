@@ -530,24 +530,38 @@ static int tty_ldisc_wait_idle(struct tty_struct *tty, long timeout)
 /**
  *	tty_ldisc_halt		-	shut down the line discipline
  *	@tty: tty device
+ *	@pending: returns true if work was scheduled when cancelled
+ *		  (can be set to NULL)
+ *	@timeout: # of jiffies to wait for ldisc refs to be released
  *
  *	Shut down the line discipline and work queue for this tty device.
  *	The TTY_LDISC flag being cleared ensures no further references can
  *	be obtained while the delayed work queue halt ensures that no more
  *	data is fed to the ldisc.
  *
+ *	Furthermore, guarantee that existing ldisc references have been
+ *	released, which in turn, guarantees that no future buffer work
+ *	can be rescheduled.
+ *
  *	You need to do a 'flush_scheduled_work()' (outside the ldisc_mutex)
  *	in order to make sure any currently executing ldisc work is also
  *	flushed.
  */
 
-static int tty_ldisc_halt(struct tty_struct *tty)
+static int tty_ldisc_halt(struct tty_struct *tty, int *pending, long timeout)
 {
-	int scheduled;
+	int scheduled, retval;
+
 	clear_bit(TTY_LDISC, &tty->flags);
+	retval = tty_ldisc_wait_idle(tty, timeout);
+	if (retval)
+		return retval;
+
 	scheduled = cancel_work_sync(&tty->port->buf.work);
 	set_bit(TTY_LDISC_HALTED, &tty->flags);
-	return scheduled;
+	if (pending)
+		*pending = scheduled;
+	return 0;
 }
 
 /**
@@ -688,9 +702,9 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	 *	parallel to the change and re-referencing the tty.
 	 */
 
-	work = tty_ldisc_halt(tty);
-	if (o_tty)
-		o_work = tty_ldisc_halt(o_tty);
+	retval = tty_ldisc_halt(tty, &work, 5 * HZ);
+	if (!retval && o_tty)
+		retval = tty_ldisc_halt(o_tty, &o_work, 5 * HZ);
 
 	/*
 	 * Wait for ->hangup_work and ->buf.work handlers to terminate.
@@ -700,8 +714,6 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	mutex_unlock(&tty->ldisc_mutex);
 
 	tty_ldisc_flush_works(tty);
-
-	retval = tty_ldisc_wait_idle(tty, 5 * HZ);
 
 	tty_lock(tty);
 	mutex_lock(&tty->ldisc_mutex);
@@ -921,11 +933,6 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 
 static void tty_ldisc_kill(struct tty_struct *tty)
 {
-	/* There cannot be users from userspace now. But there still might be
-	 * drivers holding a reference via tty_ldisc_ref. Do not steal them the
-	 * ldisc until they are done. */
-	tty_ldisc_wait_idle(tty, MAX_SCHEDULE_TIMEOUT);
-
 	mutex_lock(&tty->ldisc_mutex);
 	/*
 	 * Now kill off the ldisc
@@ -958,13 +965,12 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 	 * race with the set_ldisc code path.
 	 */
 
-	tty_ldisc_halt(tty);
-	if (o_tty)
-		tty_ldisc_halt(o_tty);
-
+	tty_ldisc_halt(tty, NULL, MAX_SCHEDULE_TIMEOUT);
 	tty_ldisc_flush_works(tty);
-	if (o_tty)
+	if (o_tty) {
+		tty_ldisc_halt(o_tty, NULL, MAX_SCHEDULE_TIMEOUT);
 		tty_ldisc_flush_works(o_tty);
+	}
 
 	tty_lock_pair(tty, o_tty);
 	/* This will need doing differently if we need to lock */
