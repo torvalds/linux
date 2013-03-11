@@ -3692,11 +3692,7 @@ repeat:
 	if (free < needed && busy) {
 		busy = 0;
 		ext4_unlock_group(sb, group);
-		/*
-		 * Yield the CPU here so that we don't get soft lockup
-		 * in non preempt case.
-		 */
-		yield();
+		cond_resched();
 		goto repeat;
 	}
 
@@ -4246,7 +4242,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 			ext4_claim_free_clusters(sbi, ar->len, ar->flags)) {
 
 			/* let others to free the space */
-			yield();
+			cond_resched();
 			ar->len = ar->len >> 1;
 		}
 		if (!ar->len) {

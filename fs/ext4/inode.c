@@ -1352,7 +1352,7 @@ repeat:
 		ei->i_da_metadata_calc_last_lblock = save_last_lblock;
 		spin_unlock(&ei->i_block_reservation_lock);
 		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
-			yield();
+			cond_resched();
 			goto repeat;
 		}
 		dquot_release_reservation_block(inode, EXT4_C2B(sbi, 1));
