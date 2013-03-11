@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <acpi/button.h>
 
 #define PREFIX "ACPI: "
 
