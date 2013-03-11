@@ -268,11 +268,29 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 			memcpy(&buf[5], msg[0].buf, msg[0].len);
 			ret = af9035_ctrl_msg(d, &req);
 		}
+	} else if (num == 1 && (msg[0].flags & I2C_M_RD)) {
+		if (msg[0].len > 40) {
+			/* TODO: correct limits > 40 */
+			ret = -EOPNOTSUPP;
+		} else {
+			/* I2C */
+			u8 buf[5];
+			struct usb_req req = { CMD_I2C_RD, 0, sizeof(buf),
+					buf, msg[0].len, msg[0].buf };
+			req.mbox |= ((msg[0].addr & 0x80)  >>  3);
+			buf[0] = msg[0].len;
+			buf[1] = msg[0].addr << 1;
+			buf[2] = 0x00; /* reg addr len */
+			buf[3] = 0x00; /* reg addr MSB */
+			buf[4] = 0x00; /* reg addr LSB */
+			ret = af9035_ctrl_msg(d, &req);
+		}
 	} else {
 		/*
-		 * We support only two kind of I2C transactions:
-		 * 1) 1 x read + 1 x write
+		 * We support only three kind of I2C transactions:
+		 * 1) 1 x read + 1 x write (repeated start)
 		 * 2) 1 x write
+		 * 3) 1 x read
 		 */
 		ret = -EOPNOTSUPP;
 	}
