@@ -60,7 +60,7 @@ struct usb_configuration;
  * @name: For diagnostics, identifies the function.
  * @strings: tables of strings, keyed by identifiers assigned during bind()
  *	and by language IDs provided in control requests
- * @descriptors: Table of full (or low) speed descriptors, using interface and
+ * @fs_descriptors: Table of full (or low) speed descriptors, using interface and
  *	string identifiers assigned during @bind().  If this pointer is null,
  *	the function will not be available at full speed (or at low speed).
  * @hs_descriptors: Table of high speed descriptors, using interface and
@@ -290,6 +290,7 @@ enum {
  *	after function notifications
  * @resume: Notifies configuration when the host restarts USB traffic,
  *	before function notifications
+ * @gadget_driver: Gadget driver controlling this driver
  *
  * Devices default to reporting self powered operation.  Devices which rely
  * on bus powered operation should report this in their @bind method.
