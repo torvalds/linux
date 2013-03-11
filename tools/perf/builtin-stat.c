@@ -337,16 +337,14 @@ static void print_interval(void)
 	}
 }
 
-static int __run_perf_stat(int argc __maybe_unused, const char **argv)
+static int __run_perf_stat(int argc, const char **argv)
 {
 	char msg[512];
 	unsigned long long t0, t1;
 	struct perf_evsel *counter;
 	struct timespec ts;
 	int status = 0;
-	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = (argc > 0);
-	char buf;
 
 	if (interval) {
 		ts.tv_sec  = interval / 1000;
@@ -362,55 +360,12 @@ static int __run_perf_stat(int argc __maybe_unused, const char **argv)
 		return -1;
 	}
 
-	if (forks && (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0)) {
-		perror("failed to create pipes");
-		return -1;
-	}
-
 	if (forks) {
-		if ((child_pid = fork()) < 0)
-			perror("failed to fork");
-
-		if (!child_pid) {
-			close(child_ready_pipe[0]);
-			close(go_pipe[1]);
-			fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
-
-			/*
-			 * Do a dummy execvp to get the PLT entry resolved,
-			 * so we avoid the resolver overhead on the real
-			 * execvp call.
-			 */
-			execvp("", (char **)argv);
-
-			/*
-			 * Tell the parent we're ready to go
-			 */
-			close(child_ready_pipe[1]);
-
-			/*
-			 * Wait until the parent tells us to go.
-			 */
-			if (read(go_pipe[0], &buf, 1) == -1)
-				perror("unable to read pipe");
-
-			execvp(argv[0], (char **)argv);
-
-			perror(argv[0]);
-			exit(-1);
+		if (perf_evlist__prepare_workload(evsel_list, &target, argv,
+						  false, false) < 0) {
+			perror("failed to prepare workload");
+			return -1;
 		}
-
-		if (perf_target__none(&target))
-			evsel_list->threads->map[0] = child_pid;
-
-		/*
-		 * Wait for the child to be ready to exec.
-		 */
-		close(child_ready_pipe[1]);
-		close(go_pipe[0]);
-		if (read(child_ready_pipe[0], &buf, 1) == -1)
-			perror("unable to read pipe");
-		close(child_ready_pipe[0]);
 	}
 
 	if (group)
@@ -457,7 +412,8 @@ static int __run_perf_stat(int argc __maybe_unused, const char **argv)
 	clock_gettime(CLOCK_MONOTONIC, &ref_time);
 
 	if (forks) {
-		close(go_pipe[1]);
+		perf_evlist__start_workload(evsel_list);
+
 		if (interval) {
 			while (!waitpid(child_pid, &status, WNOHANG)) {
 				nanosleep(&ts, NULL);
