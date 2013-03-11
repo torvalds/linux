@@ -576,6 +576,7 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 							false);
 
 		node->handles[i] = 0;
+		node->obj_type[i] = 0;
 	}
 
 	node->map_nr = 0;
