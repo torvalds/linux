@@ -97,15 +97,12 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 				      struct spi_transfer *t)
 {
 	struct bcm63xx_spi *bs = spi_master_get_devdata(spi->master);
-	u32 hz;
 	u8 clk_cfg, reg;
 	int i;
 
-	hz = (t) ? t->speed_hz : spi->max_speed_hz;
-
 	/* Find the closest clock configuration */
 	for (i = 0; i < SPI_CLK_MASK; i++) {
-		if (hz >= bcm63xx_spi_freq_table[i][0]) {
+		if (t->speed_hz >= bcm63xx_spi_freq_table[i][0]) {
 			clk_cfg = bcm63xx_spi_freq_table[i][1];
 			break;
 		}
@@ -122,7 +119,7 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 
 	bcm_spi_writeb(bs, reg, SPI_CLK_CFG);
 	dev_dbg(&spi->dev, "Setting clock register to %02x (hz %d)\n",
-		clk_cfg, hz);
+		clk_cfg, t->speed_hz);
 }
 
 /* the spi->mode bits understood by this driver: */
