@@ -747,7 +747,11 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 		length = exec[i].relocation_count *
 			sizeof(struct drm_i915_gem_relocation_entry);
-		/* we may also need to update the presumed offsets */
+		/*
+		 * We must check that the entire relocation array is safe
+		 * to read, but since we may need to update the presumed
+		 * offsets during execution, check for full write access.
+		 */
 		if (!access_ok(VERIFY_WRITE, ptr, length))
 			return -EFAULT;
 
