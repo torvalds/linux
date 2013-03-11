@@ -1324,7 +1324,7 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 
 	go->status = STATUS_SHUTDOWN;
 	v4l2_device_disconnect(&go->v4l2_dev);
-	video_unregister_device(go->video_dev);
+	video_unregister_device(&go->vdev);
 	mutex_unlock(&go->serialize_lock);
 	mutex_unlock(&go->queue_lock);
 

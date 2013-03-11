@@ -156,7 +156,7 @@ struct go7007 {
 	int tuner_type;
 	int channel_number; /* for multi-channel boards like Adlink PCI-MPG24 */
 	char name[64];
-	struct video_device *video_dev;
+	struct video_device vdev;
 	void *boot_fw;
 	unsigned boot_fw_len;
 	struct v4l2_device v4l2_dev;

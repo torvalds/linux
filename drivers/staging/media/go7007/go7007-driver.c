@@ -639,7 +639,6 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	mutex_init(&go->hw_lock);
 	init_waitqueue_head(&go->frame_waitq);
 	spin_lock_init(&go->spinlock);
-	go->video_dev = NULL;
 	go->status = STATUS_INIT;
 	memset(&go->i2c_adapter, 0, sizeof(go->i2c_adapter));
 	go->i2c_adapter_online = 0;

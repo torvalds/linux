@@ -967,11 +967,6 @@ static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *
 	}
 #endif
 
-static void go7007_vfl_release(struct video_device *vfd)
-{
-	video_device_release(vfd);
-}
-
 static struct v4l2_file_operations go7007_fops = {
 	.owner		= THIS_MODULE,
 	.open		= v4l2_fh_open,
@@ -1022,7 +1017,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static struct video_device go7007_template = {
 	.name		= "go7007",
 	.fops		= &go7007_fops,
-	.release	= go7007_vfl_release,
+	.release	= video_device_release_empty,
 	.ioctl_ops	= &video_ioctl_ops,
 	.tvnorms	= V4L2_STD_ALL,
 };
@@ -1062,6 +1057,7 @@ int go7007_v4l2_ctrl_init(struct go7007 *go)
 
 int go7007_v4l2_init(struct go7007 *go)
 {
+	struct video_device *vdev = &go->vdev;
 	int rv;
 
 	mutex_init(&go->serialize_lock);
@@ -1079,22 +1075,19 @@ int go7007_v4l2_init(struct go7007 *go)
 	rv = vb2_queue_init(&go->vidq);
 	if (rv)
 		return rv;
-	go->video_dev = video_device_alloc();
-	if (go->video_dev == NULL)
-		return -ENOMEM;
-	*go->video_dev = go7007_template;
-	go->video_dev->lock = &go->serialize_lock;
-	go->video_dev->queue = &go->vidq;
-	set_bit(V4L2_FL_USE_FH_PRIO, &go->video_dev->flags);
-	video_set_drvdata(go->video_dev, go);
-	go->video_dev->v4l2_dev = &go->v4l2_dev;
+	*vdev = go7007_template;
+	vdev->lock = &go->serialize_lock;
+	vdev->queue = &go->vidq;
+	set_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags);
+	video_set_drvdata(vdev, go);
+	vdev->v4l2_dev = &go->v4l2_dev;
 	if (!v4l2_device_has_op(&go->v4l2_dev, video, querystd))
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_QUERYSTD);
+		v4l2_disable_ioctl(vdev, VIDIOC_QUERYSTD);
 	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER)) {
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_S_FREQUENCY);
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_G_FREQUENCY);
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_S_TUNER);
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(vdev, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(vdev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(vdev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(vdev, VIDIOC_G_TUNER);
 	} else {
 		struct v4l2_frequency f = {
 			.type = V4L2_TUNER_ANALOG_TV,
@@ -1104,16 +1097,16 @@ int go7007_v4l2_init(struct go7007 *go)
 		call_all(&go->v4l2_dev, tuner, s_frequency, &f);
 	}
 	if (!(go->board_info->sensor_flags & GO7007_SENSOR_TV)) {
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_G_STD);
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_S_STD);
-		go->video_dev->tvnorms = 0;
+		v4l2_disable_ioctl(vdev, VIDIOC_G_STD);
+		v4l2_disable_ioctl(vdev, VIDIOC_S_STD);
+		vdev->tvnorms = 0;
 	}
 	if (go->board_info->sensor_flags & GO7007_SENSOR_SCALING)
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_ENUM_FRAMESIZES);
+		v4l2_disable_ioctl(vdev, VIDIOC_ENUM_FRAMESIZES);
 	if (go->board_info->num_aud_inputs == 0) {
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_G_AUDIO);
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_S_AUDIO);
-		v4l2_disable_ioctl(go->video_dev, VIDIOC_ENUMAUDIO);
+		v4l2_disable_ioctl(vdev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(vdev, VIDIOC_S_AUDIO);
+		v4l2_disable_ioctl(vdev, VIDIOC_ENUMAUDIO);
 	}
 	/* Setup correct crystal frequency on this board */
 	if (go->board_info->sensor_flags & GO7007_SENSOR_SAA7115)
@@ -1124,14 +1117,11 @@ int go7007_v4l2_init(struct go7007 *go)
 	go7007_s_input(go);
 	if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
 		go7007_s_std(go);
-	rv = video_register_device(go->video_dev, VFL_TYPE_GRABBER, -1);
-	if (rv < 0) {
-		video_device_release(go->video_dev);
-		go->video_dev = NULL;
+	rv = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
+	if (rv < 0)
 		return rv;
-	}
 	dev_info(go->dev, "registered device %s [v4l2]\n",
-		 video_device_node_name(go->video_dev));
+		 video_device_node_name(vdev));
 
 	return 0;
 }
