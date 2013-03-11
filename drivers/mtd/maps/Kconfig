@@ -284,16 +284,6 @@ config MTD_TQM8XXL
 	  code to communicate with the chips on the TQM8xxL board. More at
 	  <http://www.denx.de/wiki/PPCEmbedded/>.
 
-config MTD_RPXLITE
-	tristate "CFI Flash device mapped on RPX Lite or CLLF"
-	depends on MTD_CFI && (RPXCLASSIC || RPXLITE)
-	help
-	  The RPXLite PowerPC board has CFI-compliant chips mapped in
-	  a strange sparse mapping. This 'mapping' driver supports that
-	  arrangement, allowing the CFI probe and command set driver code
-	  to communicate with the chips on the RPXLite board. More at
-	  <http://www.embeddedplanet.com/>.
-
 config MTD_CFI_FLAGADM
 	tristate "CFI Flash device mapping on FlagaDM"
 	depends on 8xx && MTD_CFI
