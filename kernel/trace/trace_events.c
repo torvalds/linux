@@ -158,7 +158,7 @@ static int trace_define_common_fields(void)
 	return ret;
 }
 
-void trace_destroy_fields(struct ftrace_event_call *call)
+static void trace_destroy_fields(struct ftrace_event_call *call)
 {
 	struct ftrace_event_field *field, *next;
 	struct list_head *head;
