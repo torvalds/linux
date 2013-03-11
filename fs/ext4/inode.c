@@ -482,6 +482,58 @@ static pgoff_t ext4_num_dirty_pages(struct inode *inode, pgoff_t idx,
 	return num;
 }
 
+#ifdef ES_AGGRESSIVE_TEST
+static void ext4_map_blocks_es_recheck(handle_t *handle,
+				       struct inode *inode,
+				       struct ext4_map_blocks *es_map,
+				       struct ext4_map_blocks *map,
+				       int flags)
+{
+	int retval;
+
+	map->m_flags = 0;
+	/*
+	 * There is a race window that the result is not the same.
+	 * e.g. xfstests #223 when dioread_nolock enables.  The reason
+	 * is that we lookup a block mapping in extent status tree with
+	 * out taking i_data_sem.  So at the time the unwritten extent
+	 * could be converted.
+	 */
+	if (!(flags & EXT4_GET_BLOCKS_NO_LOCK))
+		down_read((&EXT4_I(inode)->i_data_sem));
+	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
+		retval = ext4_ext_map_blocks(handle, inode, map, flags &
+					     EXT4_GET_BLOCKS_KEEP_SIZE);
+	} else {
+		retval = ext4_ind_map_blocks(handle, inode, map, flags &
+					     EXT4_GET_BLOCKS_KEEP_SIZE);
+	}
+	if (!(flags & EXT4_GET_BLOCKS_NO_LOCK))
+		up_read((&EXT4_I(inode)->i_data_sem));
+	/*
+	 * Clear EXT4_MAP_FROM_CLUSTER and EXT4_MAP_BOUNDARY flag
+	 * because it shouldn't be marked in es_map->m_flags.
+	 */
+	map->m_flags &= ~(EXT4_MAP_FROM_CLUSTER | EXT4_MAP_BOUNDARY);
+
+	/*
+	 * We don't check m_len because extent will be collpased in status
+	 * tree.  So the m_len might not equal.
+	 */
+	if (es_map->m_lblk != map->m_lblk ||
+	    es_map->m_flags != map->m_flags ||
+	    es_map->m_pblk != map->m_pblk) {
+		printk("ES cache assertation failed for inode: %lu "
+		       "es_cached ex [%d/%d/%llu/%x] != "
+		       "found ex [%d/%d/%llu/%x] retval %d flags %x\n",
+		       inode->i_ino, es_map->m_lblk, es_map->m_len,
+		       es_map->m_pblk, es_map->m_flags, map->m_lblk,
+		       map->m_len, map->m_pblk, map->m_flags,
+		       retval, flags);
+	}
+}
+#endif /* ES_AGGRESSIVE_TEST */
+
 /*
  * The ext4_map_blocks() function tries to look up the requested blocks,
  * and returns if the blocks are already mapped.
@@ -509,6 +561,11 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 {
 	struct extent_status es;
 	int retval;
+#ifdef ES_AGGRESSIVE_TEST
+	struct ext4_map_blocks orig_map;
+
+	memcpy(&orig_map, map, sizeof(*map));
+#endif
 
 	map->m_flags = 0;
 	ext_debug("ext4_map_blocks(): inode %lu, flag %d, max_blocks %u,"
@@ -531,6 +588,10 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		} else {
 			BUG_ON(1);
 		}
+#ifdef ES_AGGRESSIVE_TEST
+		ext4_map_blocks_es_recheck(handle, inode, map,
+					   &orig_map, flags);
+#endif
 		goto found;
 	}
 
@@ -550,6 +611,15 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	if (retval > 0) {
 		int ret;
 		unsigned long long status;
+
+#ifdef ES_AGGRESSIVE_TEST
+		if (retval != map->m_len) {
+			printk("ES len assertation failed for inode: %lu "
+			       "retval %d != map->m_len %d "
+			       "in %s (lookup)\n", inode->i_ino, retval,
+			       map->m_len, __func__);
+		}
+#endif
 
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
@@ -642,6 +712,15 @@ found:
 	if (retval > 0) {
 		int ret;
 		unsigned long long status;
+
+#ifdef ES_AGGRESSIVE_TEST
+		if (retval != map->m_len) {
+			printk("ES len assertation failed for inode: %lu "
+			       "retval %d != map->m_len %d "
+			       "in %s (allocation)\n", inode->i_ino, retval,
+			       map->m_len, __func__);
+		}
+#endif
 
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
@@ -1768,6 +1847,11 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 	struct extent_status es;
 	int retval;
 	sector_t invalid_block = ~((sector_t) 0xffff);
+#ifdef ES_AGGRESSIVE_TEST
+	struct ext4_map_blocks orig_map;
+
+	memcpy(&orig_map, map, sizeof(*map));
+#endif
 
 	if (invalid_block < ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es))
 		invalid_block = ~0;
@@ -1809,6 +1893,9 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 		else
 			BUG_ON(1);
 
+#ifdef ES_AGGRESSIVE_TEST
+		ext4_map_blocks_es_recheck(NULL, inode, map, &orig_map, 0);
+#endif
 		return retval;
 	}
 
@@ -1872,6 +1959,15 @@ add_delayed:
 	} else if (retval > 0) {
 		int ret;
 		unsigned long long status;
+
+#ifdef ES_AGGRESSIVE_TEST
+		if (retval != map->m_len) {
+			printk("ES len assertation failed for inode: %lu "
+			       "retval %d != map->m_len %d "
+			       "in %s (lookup)\n", inode->i_ino, retval,
+			       map->m_len, __func__);
+		}
+#endif
 
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;

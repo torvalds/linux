@@ -21,6 +21,12 @@
 #endif
 
 /*
+ * With ES_AGGRESSIVE_TEST defined, the result of es caching will be
+ * checked with old map_block's result.
+ */
+#define ES_AGGRESSIVE_TEST__
+
+/*
  * These flags live in the high bits of extent_status.es_pblk
  */
 #define EXTENT_STATUS_WRITTEN	(1ULL << 63)

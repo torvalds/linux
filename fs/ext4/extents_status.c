@@ -399,6 +399,179 @@ ext4_es_try_to_merge_right(struct inode *inode, struct extent_status *es)
 	return es;
 }
 
+#ifdef ES_AGGRESSIVE_TEST
+static void ext4_es_insert_extent_ext_check(struct inode *inode,
+					    struct extent_status *es)
+{
+	struct ext4_ext_path *path = NULL;
+	struct ext4_extent *ex;
+	ext4_lblk_t ee_block;
+	ext4_fsblk_t ee_start;
+	unsigned short ee_len;
+	int depth, ee_status, es_status;
+
+	path = ext4_ext_find_extent(inode, es->es_lblk, NULL);
+	if (IS_ERR(path))
+		return;
+
+	depth = ext_depth(inode);
+	ex = path[depth].p_ext;
+
+	if (ex) {
+
+		ee_block = le32_to_cpu(ex->ee_block);
+		ee_start = ext4_ext_pblock(ex);
+		ee_len = ext4_ext_get_actual_len(ex);
+
+		ee_status = ext4_ext_is_uninitialized(ex) ? 1 : 0;
+		es_status = ext4_es_is_unwritten(es) ? 1 : 0;
+
+		/*
+		 * Make sure ex and es are not overlap when we try to insert
+		 * a delayed/hole extent.
+		 */
+		if (!ext4_es_is_written(es) && !ext4_es_is_unwritten(es)) {
+			if (in_range(es->es_lblk, ee_block, ee_len)) {
+				pr_warn("ES insert assertation failed for "
+					"inode: %lu we can find an extent "
+					"at block [%d/%d/%llu/%c], but we "
+					"want to add an delayed/hole extent "
+					"[%d/%d/%llu/%llx]\n",
+					inode->i_ino, ee_block, ee_len,
+					ee_start, ee_status ? 'u' : 'w',
+					es->es_lblk, es->es_len,
+					ext4_es_pblock(es), ext4_es_status(es));
+			}
+			goto out;
+		}
+
+		/*
+		 * We don't check ee_block == es->es_lblk, etc. because es
+		 * might be a part of whole extent, vice versa.
+		 */
+		if (es->es_lblk < ee_block ||
+		    ext4_es_pblock(es) != ee_start + es->es_lblk - ee_block) {
+			pr_warn("ES insert assertation failed for inode: %lu "
+				"ex_status [%d/%d/%llu/%c] != "
+				"es_status [%d/%d/%llu/%c]\n", inode->i_ino,
+				ee_block, ee_len, ee_start,
+				ee_status ? 'u' : 'w', es->es_lblk, es->es_len,
+				ext4_es_pblock(es), es_status ? 'u' : 'w');
+			goto out;
+		}
+
+		if (ee_status ^ es_status) {
+			pr_warn("ES insert assertation failed for inode: %lu "
+				"ex_status [%d/%d/%llu/%c] != "
+				"es_status [%d/%d/%llu/%c]\n", inode->i_ino,
+				ee_block, ee_len, ee_start,
+				ee_status ? 'u' : 'w', es->es_lblk, es->es_len,
+				ext4_es_pblock(es), es_status ? 'u' : 'w');
+		}
+	} else {
+		/*
+		 * We can't find an extent on disk.  So we need to make sure
+		 * that we don't want to add an written/unwritten extent.
+		 */
+		if (!ext4_es_is_delayed(es) && !ext4_es_is_hole(es)) {
+			pr_warn("ES insert assertation failed for inode: %lu "
+				"can't find an extent at block %d but we want "
+				"to add an written/unwritten extent "
+				"[%d/%d/%llu/%llx]\n", inode->i_ino,
+				es->es_lblk, es->es_lblk, es->es_len,
+				ext4_es_pblock(es), ext4_es_status(es));
+		}
+	}
+out:
+	if (path) {
+		ext4_ext_drop_refs(path);
+		kfree(path);
+	}
+}
+
+static void ext4_es_insert_extent_ind_check(struct inode *inode,
+					    struct extent_status *es)
+{
+	struct ext4_map_blocks map;
+	int retval;
+
+	/*
+	 * Here we call ext4_ind_map_blocks to lookup a block mapping because
+	 * 'Indirect' structure is defined in indirect.c.  So we couldn't
+	 * access direct/indirect tree from outside.  It is too dirty to define
+	 * this function in indirect.c file.
+	 */
+
+	map.m_lblk = es->es_lblk;
+	map.m_len = es->es_len;
+
+	retval = ext4_ind_map_blocks(NULL, inode, &map, 0);
+	if (retval > 0) {
+		if (ext4_es_is_delayed(es) || ext4_es_is_hole(es)) {
+			/*
+			 * We want to add a delayed/hole extent but this
+			 * block has been allocated.
+			 */
+			pr_warn("ES insert assertation failed for inode: %lu "
+				"We can find blocks but we want to add a "
+				"delayed/hole extent [%d/%d/%llu/%llx]\n",
+				inode->i_ino, es->es_lblk, es->es_len,
+				ext4_es_pblock(es), ext4_es_status(es));
+			return;
+		} else if (ext4_es_is_written(es)) {
+			if (retval != es->es_len) {
+				pr_warn("ES insert assertation failed for "
+					"inode: %lu retval %d != es_len %d\n",
+					inode->i_ino, retval, es->es_len);
+				return;
+			}
+			if (map.m_pblk != ext4_es_pblock(es)) {
+				pr_warn("ES insert assertation failed for "
+					"inode: %lu m_pblk %llu != "
+					"es_pblk %llu\n",
+					inode->i_ino, map.m_pblk,
+					ext4_es_pblock(es));
+				return;
+			}
+		} else {
+			/*
+			 * We don't need to check unwritten extent because
+			 * indirect-based file doesn't have it.
+			 */
+			BUG_ON(1);
+		}
+	} else if (retval == 0) {
+		if (ext4_es_is_written(es)) {
+			pr_warn("ES insert assertation failed for inode: %lu "
+				"We can't find the block but we want to add "
+				"an written extent [%d/%d/%llu/%llx]\n",
+				inode->i_ino, es->es_lblk, es->es_len,
+				ext4_es_pblock(es), ext4_es_status(es));
+			return;
+		}
+	}
+}
+
+static inline void ext4_es_insert_extent_check(struct inode *inode,
+					       struct extent_status *es)
+{
+	/*
+	 * We don't need to worry about the race condition because
+	 * caller takes i_data_sem locking.
+	 */
+	BUG_ON(!rwsem_is_locked(&EXT4_I(inode)->i_data_sem));
+	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
+		ext4_es_insert_extent_ext_check(inode, es);
+	else
+		ext4_es_insert_extent_ind_check(inode, es);
+}
+#else
+static inline void ext4_es_insert_extent_check(struct inode *inode,
+					       struct extent_status *es)
+{
+}
+#endif
+
 static int __es_insert_extent(struct inode *inode, struct extent_status *newes)
 {
 	struct ext4_es_tree *tree = &EXT4_I(inode)->i_es_tree;
@@ -480,6 +653,8 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	ext4_es_store_pblock(&newes, pblk);
 	ext4_es_store_status(&newes, status);
 	trace_ext4_es_insert_extent(inode, &newes);
+
+	ext4_es_insert_extent_check(inode, &newes);
 
 	write_lock(&EXT4_I(inode)->i_es_lock);
 	err = __es_remove_extent(inode, lblk, end);
