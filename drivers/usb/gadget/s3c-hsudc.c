@@ -283,7 +283,6 @@ static void s3c_hsudc_nuke_ep(struct s3c_hsudc_ep *hsep, int status)
 /**
  * s3c_hsudc_stop_activity - Stop activity on all endpoints.
  * @hsudc: Device controller for which EP activity is to be stopped.
- * @driver: Reference to the gadget driver which is currently active.
  *
  * All the endpoints are stopped and any pending transfer requests if any on
  * the endpoint are terminated.
