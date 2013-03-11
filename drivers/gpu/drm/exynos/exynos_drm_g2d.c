@@ -450,7 +450,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 						DMA_BIDIRECTIONAL);
 	if (ret < 0) {
 		DRM_ERROR("failed to map sgt with dma region.\n");
-		goto err_free_sgt;
+		goto err_sg_free_table;
 	}
 
 	g2d_userptr->dma_addr = sgt->sgl[0].dma_address;
@@ -467,8 +467,10 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 
 	return &g2d_userptr->dma_addr;
 
-err_free_sgt:
+err_sg_free_table:
 	sg_free_table(sgt);
+
+err_free_sgt:
 	kfree(sgt);
 	sgt = NULL;
 
