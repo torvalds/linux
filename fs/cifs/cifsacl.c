@@ -63,11 +63,10 @@ cifs_idmap_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 		key->datalen = prep->datalen;
 		return 0;
 	}
-	payload = kmalloc(prep->datalen, GFP_KERNEL);
+	payload = kmemdup(prep->data, prep->datalen, GFP_KERNEL);
 	if (!payload)
 		return -ENOMEM;
 
-	memcpy(payload, prep->data, prep->datalen);
 	key->payload.data = payload;
 	key->datalen = prep->datalen;
 	return 0;

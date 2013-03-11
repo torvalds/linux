@@ -3742,12 +3742,11 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 			rc = -EINVAL;
 			*pbuflen = 0;
 		} else {
-			*acl_inf = kmalloc(*pbuflen, GFP_KERNEL);
+			*acl_inf = kmemdup(pdata, *pbuflen, GFP_KERNEL);
 			if (*acl_inf == NULL) {
 				*pbuflen = 0;
 				rc = -ENOMEM;
 			}
-			memcpy(*acl_inf, pdata, *pbuflen);
 		}
 	}
 qsec_out:

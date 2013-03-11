@@ -37,12 +37,11 @@ cifs_spnego_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 	int ret;
 
 	ret = -ENOMEM;
-	payload = kmalloc(prep->datalen, GFP_KERNEL);
+	payload = kmemdup(prep->data, prep->datalen, GFP_KERNEL);
 	if (!payload)
 		goto error;
 
 	/* attach the data */
-	memcpy(payload, prep->data, prep->datalen);
 	key->payload.data = payload;
 	ret = 0;
 

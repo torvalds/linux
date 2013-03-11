@@ -399,12 +399,12 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 		return -EINVAL;
 	}
 	if (tilen) {
-		ses->auth_key.response = kmalloc(tilen, GFP_KERNEL);
+		ses->auth_key.response = kmemdup(bcc_ptr + tioffset, tilen,
+						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
 			cERROR(1, "Challenge target info allocation failure");
 			return -ENOMEM;
 		}
-		memcpy(ses->auth_key.response, bcc_ptr + tioffset, tilen);
 		ses->auth_key.len = tilen;
 	}
 
@@ -761,14 +761,14 @@ ssetup_ntlmssp_authenticate:
 			goto ssetup_exit;
 		}
 
-		ses->auth_key.response = kmalloc(msg->sesskey_len, GFP_KERNEL);
+		ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
+						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
 			cERROR(1, "Kerberos can't allocate (%u bytes) memory",
 					msg->sesskey_len);
 			rc = -ENOMEM;
 			goto ssetup_exit;
 		}
-		memcpy(ses->auth_key.response, msg->data, msg->sesskey_len);
 		ses->auth_key.len = msg->sesskey_len;
 
 		pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
