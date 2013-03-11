@@ -2397,8 +2397,7 @@ static void __d_materialise_dentry(struct dentry *dentry, struct dentry *anon)
 	dentry->d_parent = dentry;
 	list_del_init(&dentry->d_u.d_child);
 	anon->d_parent = dparent;
-	list_del(&anon->d_u.d_child);
-	list_add(&anon->d_u.d_child, &dparent->d_subdirs);
+	list_move(&anon->d_u.d_child, &dparent->d_subdirs);
 
 	write_seqcount_end(&dentry->d_seq);
 	write_seqcount_end(&anon->d_seq);
