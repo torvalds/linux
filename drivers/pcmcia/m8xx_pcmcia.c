@@ -419,65 +419,6 @@ static inline int voltage_set(int slot, int vcc, int vpp)
 
 #endif
 
-/* ------------------------------------------------------------------------- */
-/* Motorola MBX860                                                           */
-
-#if defined(CONFIG_MBX)
-
-#define PCMCIA_BOARD_MSG "MBX"
-
-static int voltage_set(int slot, int vcc, int vpp)
-{
-	u8 reg = 0;
-
-	switch (vcc) {
-	case 0:
-		break;
-	case 33:
-		reg |= CSR2_VCC_33;
-		break;
-	case 50:
-		reg |= CSR2_VCC_50;
-		break;
-	default:
-		return 1;
-	}
-
-	switch (vpp) {
-	case 0:
-		break;
-	case 33:
-	case 50:
-		if (vcc == vpp)
-			reg |= CSR2_VPP_VCC;
-		else
-			return 1;
-		break;
-	case 120:
-		if ((vcc == 33) || (vcc == 50))
-			reg |= CSR2_VPP_12;
-		else
-			return 1;
-	default:
-		return 1;
-	}
-
-	/* first, turn off all power */
-	out_8((u8 *) MBX_CSR2_ADDR,
-	      in_8((u8 *) MBX_CSR2_ADDR) & ~(CSR2_VCC_MASK | CSR2_VPP_MASK));
-
-	/* enable new powersettings */
-	out_8((u8 *) MBX_CSR2_ADDR, in_8((u8 *) MBX_CSR2_ADDR) | reg);
-
-	return 0;
-}
-
-#define socket_get(_slot_) PCMCIA_SOCKET_KEY_5V
-#define hardware_enable(_slot_)	/* No hardware to enable */
-#define hardware_disable(_slot_)	/* No hardware to disable */
-
-#endif				/* CONFIG_MBX */
-
 #if defined(CONFIG_PRxK)
 #include <asm/cpld.h>
 extern volatile fpga_pc_regs *fpga_pc;
