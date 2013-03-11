@@ -3253,7 +3253,7 @@ void btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	if (btrfs_root_refs(&root->root_item) == 0)
 		synchronize_srcu(&fs_info->subvol_srcu);
 
-	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		btrfs_free_log(NULL, root);
 		btrfs_free_log_root_tree(NULL, fs_info);
 	}
