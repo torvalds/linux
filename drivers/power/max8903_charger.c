@@ -189,7 +189,7 @@ static int max8903_probe(struct platform_device *pdev)
 	int ta_in = 0;
 	int usb_in = 0;
 
-	data = kzalloc(sizeof(struct max8903_data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct max8903_data), GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(dev, "Cannot allocate memory.\n");
 		return -ENOMEM;
@@ -341,7 +341,6 @@ err_dc_irq:
 err_psy:
 	power_supply_unregister(&data->psy);
 err:
-	kfree(data);
 	return ret;
 }
 
@@ -359,7 +358,6 @@ static int max8903_remove(struct platform_device *pdev)
 		if (pdata->dc_valid)
 			free_irq(gpio_to_irq(pdata->dok), data);
 		power_supply_unregister(&data->psy);
-		kfree(data);
 	}
 
 	return 0;
