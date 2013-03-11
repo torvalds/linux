@@ -315,8 +315,22 @@ static int line_activate(struct tty_port *port, struct tty_struct *tty)
 	return 0;
 }
 
+static void unregister_winch(struct tty_struct *tty);
+
+static void line_destruct(struct tty_port *port)
+{
+	struct tty_struct *tty = tty_port_tty_get(port);
+	struct line *line = tty->driver_data;
+
+	if (line->sigio) {
+		unregister_winch(tty);
+		line->sigio = 0;
+	}
+}
+
 static const struct tty_port_operations line_port_ops = {
 	.activate = line_activate,
+	.destruct = line_destruct,
 };
 
 int line_open(struct tty_struct *tty, struct file *filp)
@@ -338,18 +352,6 @@ int line_install(struct tty_driver *driver, struct tty_struct *tty,
 	tty->driver_data = line;
 
 	return 0;
-}
-
-static void unregister_winch(struct tty_struct *tty);
-
-void line_cleanup(struct tty_struct *tty)
-{
-	struct line *line = tty->driver_data;
-
-	if (line->sigio) {
-		unregister_winch(tty);
-		line->sigio = 0;
-	}
 }
 
 void line_close(struct tty_struct *tty, struct file * filp)
