@@ -34,7 +34,7 @@ char event_storage[EVENT_STORAGE_SIZE];
 EXPORT_SYMBOL_GPL(event_storage);
 
 LIST_HEAD(ftrace_events);
-LIST_HEAD(ftrace_common_fields);
+static LIST_HEAD(ftrace_common_fields);
 
 #define GFP_TRACE (GFP_KERNEL | __GFP_ZERO)
 
@@ -54,12 +54,39 @@ static struct kmem_cache *file_cachep;
 #define while_for_each_event_file()		\
 	}
 
-struct list_head *
+static struct list_head *
 trace_get_fields(struct ftrace_event_call *event_call)
 {
 	if (!event_call->class->get_fields)
 		return &event_call->class->fields;
 	return event_call->class->get_fields(event_call);
+}
+
+static struct ftrace_event_field *
+__find_event_field(struct list_head *head, char *name)
+{
+	struct ftrace_event_field *field;
+
+	list_for_each_entry(field, head, link) {
+		if (!strcmp(field->name, name))
+			return field;
+	}
+
+	return NULL;
+}
+
+struct ftrace_event_field *
+trace_find_event_field(struct ftrace_event_call *call, char *name)
+{
+	struct ftrace_event_field *field;
+	struct list_head *head;
+
+	field = __find_event_field(&ftrace_common_fields, name);
+	if (field)
+		return field;
+
+	head = trace_get_fields(call);
+	return __find_event_field(head, name);
 }
 
 static int __trace_define_field(struct list_head *head, const char *type,

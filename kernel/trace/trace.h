@@ -995,8 +995,6 @@ struct filter_pred {
 	unsigned short		right;
 };
 
-extern struct list_head ftrace_common_fields;
-
 extern enum regex_type
 filter_parse_regex(char *buff, int len, char **search, int *not);
 extern void print_event_filter(struct ftrace_event_call *call,
@@ -1009,8 +1007,8 @@ extern void print_subsystem_event_filter(struct event_subsystem *system,
 					 struct trace_seq *s);
 extern int filter_assign_type(const char *type);
 
-struct list_head *
-trace_get_fields(struct ftrace_event_call *event_call);
+struct ftrace_event_field *
+trace_find_event_field(struct ftrace_event_call *call, char *name);
 
 static inline int
 filter_check_discard(struct ftrace_event_call *call, void *rec,
