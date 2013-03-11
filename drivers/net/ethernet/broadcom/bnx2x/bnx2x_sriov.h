@@ -193,6 +193,7 @@ struct bnx2x_virtf {
 #define VF_CFG_TPA		0x0004
 #define VF_CFG_INT_SIMD		0x0008
 #define VF_CACHE_LINE		0x0010
+#define VF_CFG_VLAN		0x0020
 
 	u8 state;
 #define VF_FREE		0	/* VF ready to be acquired holds no resc */
@@ -757,6 +758,7 @@ static inline int bnx2x_vf_headroom(struct bnx2x *bp)
 {
 	return bp->vfdb->sriov.nr_virtfn * BNX2X_CLIENTS_PER_VF;
 }
+void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp);
 
 #else /* CONFIG_BNX2X_SRIOV */
 
@@ -804,6 +806,7 @@ static inline enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp
 
 static inline int bnx2x_vf_map_doorbells(struct bnx2x *bp) {return 0; }
 static inline int bnx2x_vf_pci_alloc(struct bnx2x *bp) {return 0; }
+static inline void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp) {}
 
 #endif /* CONFIG_BNX2X_SRIOV */
 #endif /* bnx2x_sriov.h */

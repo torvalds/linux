@@ -20,7 +20,9 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 #include "bnx2x_cmn.h"
+#include "bnx2x_sp.h"
 #include <linux/crc32.h>
+#include <linux/if_vlan.h>
 
 /* General service functions */
 static void storm_memset_vf_to_pf(struct bnx2x *bp, u16 abs_fid,
@@ -958,6 +960,12 @@ op_err:
 	BNX2X_ERR("QSETUP[%d:%d] error: rc %d\n", vf->abs_vfid, qid, vfop->rc);
 op_done:
 	case BNX2X_VFOP_QSETUP_DONE:
+		vf->cfg_flags |= VF_CFG_VLAN;
+		smp_mb__before_clear_bit();
+		set_bit(BNX2X_SP_RTNL_HYPERVISOR_VLAN,
+			&bp->sp_rtnl_state);
+		smp_mb__after_clear_bit();
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
 		bnx2x_vfop_end(bp, vf, vfop);
 		return;
 	default:
@@ -3029,6 +3037,88 @@ void bnx2x_enable_sriov(struct bnx2x *bp)
 		DP(BNX2X_MSG_IOV, "sriov enabled\n");
 }
 
+void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
+{
+	int vfidx;
+	struct pf_vf_bulletin_content *bulletin;
+
+	DP(BNX2X_MSG_IOV, "configuring vlan for VFs from sp-task\n");
+	for_each_vf(bp, vfidx) {
+	bulletin = BP_VF_BULLETIN(bp, vfidx);
+		if (BP_VF(bp, vfidx)->cfg_flags & VF_CFG_VLAN)
+			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0);
+	}
+}
+
+static int bnx2x_vf_ndo_sanity(struct bnx2x *bp, int vfidx,
+			       struct bnx2x_virtf *vf)
+{
+	if (!IS_SRIOV(bp)) {
+		BNX2X_ERR("vf ndo called though sriov is disabled\n");
+		return -EINVAL;
+	}
+
+	if (vfidx >= BNX2X_NR_VIRTFN(bp)) {
+		BNX2X_ERR("vf ndo called for uninitialized VF. vfidx was %d BNX2X_NR_VIRTFN was %d\n",
+			  vfidx, BNX2X_NR_VIRTFN(bp));
+		return -EINVAL;
+	}
+
+	if (!vf) {
+		BNX2X_ERR("vf ndo called but vf was null. vfidx was %d\n",
+			  vfidx);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
+			struct ifla_vf_info *ivi)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
+	struct bnx2x_vlan_mac_obj *mac_obj = &bnx2x_vfq(vf, 0, mac_obj);
+	struct bnx2x_vlan_mac_obj *vlan_obj = &bnx2x_vfq(vf, 0, vlan_obj);
+	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+	int rc;
+
+	/* sanity */
+	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	if (rc)
+		return rc;
+
+	ivi->vf = vfidx;
+	ivi->qos = 0;
+	ivi->tx_rate = 10000; /* always 10G. TBA take from link struct */
+	ivi->spoofchk = 1; /*always enabled */
+	if (vf->state == VF_ENABLED) {
+		/* mac and vlan are in vlan_mac objects */
+		mac_obj->get_n_elements(bp, mac_obj, 1, (u8 *)&ivi->mac,
+					0, ETH_ALEN);
+		vlan_obj->get_n_elements(bp, vlan_obj, 1, (u8 *)&ivi->vlan,
+					 0, VLAN_HLEN);
+	} else {
+		/* mac */
+		if (bulletin->valid_bitmap & (1 << MAC_ADDR_VALID))
+			/* mac configured by ndo so its in bulletin board */
+			memcpy(&ivi->mac, bulletin->mac, ETH_ALEN);
+		else
+			/* funtion has not been loaded yet. Show mac as 0s */
+			memset(&ivi->mac, 0, ETH_ALEN);
+
+		/* vlan */
+		if (bulletin->valid_bitmap & (1 << VLAN_VALID))
+			/* vlan configured by ndo so its in bulletin board */
+			memcpy(&ivi->vlan, &bulletin->vlan, VLAN_HLEN);
+		else
+			/* funtion has not been loaded yet. Show vlans as 0s */
+			memset(&ivi->vlan, 0, VLAN_HLEN);
+	}
+
+	return 0;
+}
+
 /* New mac for VF. Consider these cases:
  * 1. VF hasn't been acquired yet - save the mac in local bulletin board and
  *    supply at acquire.
@@ -3044,23 +3134,19 @@ void bnx2x_enable_sriov(struct bnx2x *bp)
  * VF to configure any mac for itself except for this mac. In case of a race
  * where the VF fails to see the new post on its bulletin board before sending a
  * mac configuration request, the PF will simply fail the request and VF can try
- * again after consulting its bulletin board
+ * again after consulting its bulletin board.
  */
-int bnx2x_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
+int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int rc, q_logical_state, vfidx = queue;
+	int rc, q_logical_state;
 	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
 	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
 
-	/* if SRIOV is disabled there is nothing to do (and somewhere, someone
-	 * has erred).
-	 */
-	if (!IS_SRIOV(bp)) {
-		BNX2X_ERR("bnx2x_set_vf_mac called though sriov is disabled\n");
-		return -EINVAL;
-	}
-
+	/* sanity */
+	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	if (rc)
+		return rc;
 	if (!is_valid_ether_addr(mac)) {
 		BNX2X_ERR("mac address invalid\n");
 		return -EINVAL;
@@ -3085,7 +3171,7 @@ int bnx2x_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
 	if (vf->state == VF_ENABLED &&
 	    q_logical_state == BNX2X_Q_LOGICAL_STATE_ACTIVE) {
 		/* configure the mac in device on this vf's queue */
-		unsigned long flags = 0;
+		unsigned long ramrod_flags = 0;
 		struct bnx2x_vlan_mac_obj *mac_obj = &bnx2x_vfq(vf, 0, mac_obj);
 
 		/* must lock vfpf channel to protect against vf flows */
@@ -3106,14 +3192,133 @@ int bnx2x_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
 		}
 
 		/* configure the new mac to device */
-		__set_bit(RAMROD_COMP_WAIT, &flags);
+		__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
 		bnx2x_set_mac_one(bp, (u8 *)&bulletin->mac, mac_obj, true,
-				  BNX2X_ETH_MAC, &flags);
+				  BNX2X_ETH_MAC, &ramrod_flags);
 
 		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_MAC);
 	}
 
-	return rc;
+	return 0;
+}
+
+int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int rc, q_logical_state;
+	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
+	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+
+	/* sanity */
+	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	if (rc)
+		return rc;
+
+	if (vlan > 4095) {
+		BNX2X_ERR("illegal vlan value %d\n", vlan);
+		return -EINVAL;
+	}
+
+	DP(BNX2X_MSG_IOV, "configuring VF %d with VLAN %d qos %d\n",
+	   vfidx, vlan, 0);
+
+	/* update PF's copy of the VF's bulletin. No point in posting the vlan
+	 * to the VF since it doesn't have anything to do with it. But it useful
+	 * to store it here in case the VF is not up yet and we can only
+	 * configure the vlan later when it does.
+	 */
+	bulletin->valid_bitmap |= 1 << VLAN_VALID;
+	bulletin->vlan = vlan;
+
+	/* is vf initialized and queue set up? */
+	q_logical_state =
+		bnx2x_get_q_logical_state(bp, &bnx2x_vfq(vf, 0, sp_obj));
+	if (vf->state == VF_ENABLED &&
+	    q_logical_state == BNX2X_Q_LOGICAL_STATE_ACTIVE) {
+		/* configure the vlan in device on this vf's queue */
+		unsigned long ramrod_flags = 0;
+		unsigned long vlan_mac_flags = 0;
+		struct bnx2x_vlan_mac_obj *vlan_obj =
+			&bnx2x_vfq(vf, 0, vlan_obj);
+		struct bnx2x_vlan_mac_ramrod_params ramrod_param;
+		struct bnx2x_queue_state_params q_params = {NULL};
+		struct bnx2x_queue_update_params *update_params;
+
+		memset(&ramrod_param, 0, sizeof(ramrod_param));
+
+		/* must lock vfpf channel to protect against vf flows */
+		bnx2x_lock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_VLAN);
+
+		/* remove existing vlans */
+		__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+		rc = vlan_obj->delete_all(bp, vlan_obj, &vlan_mac_flags,
+					  &ramrod_flags);
+		if (rc) {
+			BNX2X_ERR("failed to delete vlans\n");
+			return -EINVAL;
+		}
+
+		/* send queue update ramrod to configure default vlan and silent
+		 * vlan removal
+		 */
+		__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
+		q_params.cmd = BNX2X_Q_CMD_UPDATE;
+		q_params.q_obj = &bnx2x_vfq(vf, 0, sp_obj);
+		update_params = &q_params.params.update;
+		__set_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN_CHNG,
+			  &update_params->update_flags);
+		__set_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM_CHNG,
+			  &update_params->update_flags);
+
+		if (vlan == 0) {
+			/* if vlan is 0 then we want to leave the VF traffic
+			 * untagged, and leave the incoming traffic untouched
+			 * (i.e. do not remove any vlan tags).
+			 */
+			__clear_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN,
+				    &update_params->update_flags);
+			__clear_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM,
+				    &update_params->update_flags);
+		} else {
+			/* configure the new vlan to device */
+			__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+			ramrod_param.vlan_mac_obj = vlan_obj;
+			ramrod_param.ramrod_flags = ramrod_flags;
+			ramrod_param.user_req.u.vlan.vlan = vlan;
+			ramrod_param.user_req.cmd = BNX2X_VLAN_MAC_ADD;
+			rc = bnx2x_config_vlan_mac(bp, &ramrod_param);
+			if (rc) {
+				BNX2X_ERR("failed to configure vlan\n");
+				return -EINVAL;
+			}
+
+			/* configure default vlan to vf queue and set silent
+			 * vlan removal (the vf remains unaware of this vlan).
+			 */
+			update_params = &q_params.params.update;
+			__set_bit(BNX2X_Q_UPDATE_DEF_VLAN_EN,
+				  &update_params->update_flags);
+			__set_bit(BNX2X_Q_UPDATE_SILENT_VLAN_REM,
+				  &update_params->update_flags);
+			update_params->def_vlan = vlan;
+		}
+
+		/* Update the Queue state */
+		rc = bnx2x_queue_state_change(bp, &q_params);
+		if (rc) {
+			BNX2X_ERR("Failed to configure default VLAN\n");
+			return rc;
+		}
+
+		/* clear the flag indicating that this VF needs its vlan
+		 * (will only be set if the HV configured th Vlan before vf was
+		 * and we were called because the VF came up later
+		 */
+		vf->cfg_flags &= ~VF_CFG_VLAN;
+
+		bnx2x_unlock_vf_pf_channel(bp, vf, CHANNEL_TLV_PF_SET_VLAN);
+	}
+	return 0;
 }
 
 /* crc is the first field in the bulletin board. compute the crc over the
@@ -3164,6 +3369,10 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 		/* update new mac to net device */
 		memcpy(bp->dev->dev_addr, bulletin.mac, ETH_ALEN);
 	}
+
+	/* the vlan in bulletin board is valid and is new */
+	if (bulletin.valid_bitmap & 1 << VLAN_VALID)
+		memcpy(&bulletin.vlan, &bp->old_bulletin.vlan, VLAN_HLEN);
 
 	/* copy new bulletin board to bp */
 	bp->old_bulletin = bulletin;
