@@ -98,7 +98,7 @@ int sysctl_tcp_frto_response __read_mostly;
 int sysctl_tcp_thin_dupack __read_mostly;
 
 int sysctl_tcp_moderate_rcvbuf __read_mostly = 1;
-int sysctl_tcp_early_retrans __read_mostly = 2;
+int sysctl_tcp_early_retrans __read_mostly = 3;
 
 #define FLAG_DATA		0x01 /* Incoming frame contained data.		*/
 #define FLAG_WIN_UPDATE		0x02 /* Incoming ACK was a window update.	*/
@@ -2150,15 +2150,16 @@ static bool tcp_pause_early_retransmit(struct sock *sk, int flag)
 	 * max(RTT/4, 2msec) unless ack has ECE mark, no RTT samples
 	 * available, or RTO is scheduled to fire first.
 	 */
-	if (sysctl_tcp_early_retrans < 2 || (flag & FLAG_ECE) || !tp->srtt)
+	if (sysctl_tcp_early_retrans < 2 || sysctl_tcp_early_retrans > 3 ||
+	    (flag & FLAG_ECE) || !tp->srtt)
 		return false;
 
 	delay = max_t(unsigned long, (tp->srtt >> 5), msecs_to_jiffies(2));
 	if (!time_after(inet_csk(sk)->icsk_timeout, (jiffies + delay)))
 		return false;
 
-	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, delay, TCP_RTO_MAX);
-	tp->early_retrans_delayed = 1;
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_EARLY_RETRANS, delay,
+				  TCP_RTO_MAX);
 	return true;
 }
 
@@ -2321,7 +2322,7 @@ static bool tcp_time_to_recover(struct sock *sk, int flag)
 	 * interval if appropriate.
 	 */
 	if (tp->do_early_retrans && !tp->retrans_out && tp->sacked_out &&
-	    (tp->packets_out == (tp->sacked_out + 1) && tp->packets_out < 4) &&
+	    (tp->packets_out >= (tp->sacked_out + 1) && tp->packets_out < 4) &&
 	    !tcp_may_send_now(sk))
 		return !tcp_pause_early_retransmit(sk, flag);
 
@@ -3081,6 +3082,7 @@ static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
  */
 void tcp_rearm_rto(struct sock *sk)
 {
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	/* If the retrans timer is currently being used by Fast Open
@@ -3094,12 +3096,13 @@ void tcp_rearm_rto(struct sock *sk)
 	} else {
 		u32 rto = inet_csk(sk)->icsk_rto;
 		/* Offset the time elapsed after installing regular RTO */
-		if (tp->early_retrans_delayed) {
+		if (icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
+		    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE) {
 			struct sk_buff *skb = tcp_write_queue_head(sk);
 			const u32 rto_time_stamp = TCP_SKB_CB(skb)->when + rto;
 			s32 delta = (s32)(rto_time_stamp - tcp_time_stamp);
 			/* delta may not be positive if the socket is locked
-			 * when the delayed ER timer fires and is rescheduled.
+			 * when the retrans timer fires and is rescheduled.
 			 */
 			if (delta > 0)
 				rto = delta;
@@ -3107,7 +3110,6 @@ void tcp_rearm_rto(struct sock *sk)
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, rto,
 					  TCP_RTO_MAX);
 	}
-	tp->early_retrans_delayed = 0;
 }
 
 /* This function is called when the delayed ER timer fires. TCP enters
@@ -3601,7 +3603,8 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	if (after(ack, tp->snd_nxt))
 		goto invalid_ack;
 
-	if (tp->early_retrans_delayed)
+	if (icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
+	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)
 		tcp_rearm_rto(sk);
 
 	if (after(ack, prior_snd_una))
@@ -3678,6 +3681,9 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		if (dst)
 			dst_confirm(dst);
 	}
+
+	if (icsk->icsk_pending == ICSK_TIME_RETRANS)
+		tcp_schedule_loss_probe(sk);
 	return 1;
 
 no_queue:

@@ -201,7 +201,6 @@ struct tcp_sock {
 		unused      : 1;
 	u8	repair_queue;
 	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
-		early_retrans_delayed:1, /* Delayed ER timer installed */
 		syn_data:1,	/* SYN includes data */
 		syn_fastopen:1,	/* SYN includes Fast Open option */
 		syn_data_acked:1;/* data in SYN is acked by SYN-ACK */

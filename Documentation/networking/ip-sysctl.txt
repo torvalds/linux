@@ -190,7 +190,9 @@ tcp_early_retrans - INTEGER
 	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
 	for triggering fast retransmit when the amount of outstanding data is
 	small and when no previously unsent data can be transmitted (such
-	that limited transmit could be used).
+	that limited transmit could be used). Also controls the use of
+	Tail loss probe (TLP) that converts RTOs occuring due to tail
+	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
 	Possible values:
 		0 disables ER
 		1 enables ER
@@ -198,7 +200,9 @@ tcp_early_retrans - INTEGER
 		  by a fourth of RTT. This mitigates connection falsely
 		  recovers when network has a small degree of reordering
 		  (less than 3 packets).
-	Default: 2
+		3 enables delayed ER and TLP.
+		4 enables TLP only.
+	Default: 3
 
 tcp_ecn - INTEGER
 	Control use of Explicit Congestion Notification (ECN) by TCP.

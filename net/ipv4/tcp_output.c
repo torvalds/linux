@@ -74,6 +74,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 /* Account for new data that has been sent to the network. */
 static void tcp_event_new_data_sent(struct sock *sk, const struct sk_buff *skb)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned int prior_packets = tp->packets_out;
 
@@ -85,7 +86,8 @@ static void tcp_event_new_data_sent(struct sock *sk, const struct sk_buff *skb)
 		tp->frto_counter = 3;
 
 	tp->packets_out += tcp_skb_pcount(skb);
-	if (!prior_packets || tp->early_retrans_delayed)
+	if (!prior_packets || icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
+	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)
 		tcp_rearm_rto(sk);
 }
 
@@ -1959,6 +1961,9 @@ static int tcp_mtu_probe(struct sock *sk)
  * snd_up-64k-mss .. snd_up cannot be large. However, taking into
  * account rare use of URG, this is not a big flaw.
  *
+ * Send at most one packet when push_one > 0. Temporarily ignore
+ * cwnd limit to force at most one packet out when push_one == 2.
+
  * Returns true, if no segments are in flight and we have queued segments,
  * but cannot send anything now because of SWS or another problem.
  */
@@ -1994,8 +1999,13 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			goto repair; /* Skip network transmission */
 
 		cwnd_quota = tcp_cwnd_test(tp, skb);
-		if (!cwnd_quota)
-			break;
+		if (!cwnd_quota) {
+			if (push_one == 2)
+				/* Force out a loss probe pkt. */
+				cwnd_quota = 1;
+			else
+				break;
+		}
 
 		if (unlikely(!tcp_snd_wnd_test(tp, skb, mss_now)))
 			break;
@@ -2049,10 +2059,120 @@ repair:
 	if (likely(sent_pkts)) {
 		if (tcp_in_cwnd_reduction(sk))
 			tp->prr_out += sent_pkts;
+
+		/* Send one loss probe per tail loss episode. */
+		if (push_one != 2)
+			tcp_schedule_loss_probe(sk);
 		tcp_cwnd_validate(sk);
 		return false;
 	}
-	return !tp->packets_out && tcp_send_head(sk);
+	return (push_one == 2) || (!tp->packets_out && tcp_send_head(sk));
+}
+
+bool tcp_schedule_loss_probe(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+	u32 timeout, tlp_time_stamp, rto_time_stamp;
+	u32 rtt = tp->srtt >> 3;
+
+	if (WARN_ON(icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS))
+		return false;
+	/* No consecutive loss probes. */
+	if (WARN_ON(icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)) {
+		tcp_rearm_rto(sk);
+		return false;
+	}
+	/* Don't do any loss probe on a Fast Open connection before 3WHS
+	 * finishes.
+	 */
+	if (sk->sk_state == TCP_SYN_RECV)
+		return false;
+
+	/* TLP is only scheduled when next timer event is RTO. */
+	if (icsk->icsk_pending != ICSK_TIME_RETRANS)
+		return false;
+
+	/* Schedule a loss probe in 2*RTT for SACK capable connections
+	 * in Open state, that are either limited by cwnd or application.
+	 */
+	if (sysctl_tcp_early_retrans < 3 || !rtt || !tp->packets_out ||
+	    !tcp_is_sack(tp) || inet_csk(sk)->icsk_ca_state != TCP_CA_Open)
+		return false;
+
+	if ((tp->snd_cwnd > tcp_packets_in_flight(tp)) &&
+	     tcp_send_head(sk))
+		return false;
+
+	/* Probe timeout is at least 1.5*rtt + TCP_DELACK_MAX to account
+	 * for delayed ack when there's one outstanding packet.
+	 */
+	timeout = rtt << 1;
+	if (tp->packets_out == 1)
+		timeout = max_t(u32, timeout,
+				(rtt + (rtt >> 1) + TCP_DELACK_MAX));
+	timeout = max_t(u32, timeout, msecs_to_jiffies(10));
+
+	/* If RTO is shorter, just schedule TLP in its place. */
+	tlp_time_stamp = tcp_time_stamp + timeout;
+	rto_time_stamp = (u32)inet_csk(sk)->icsk_timeout;
+	if ((s32)(tlp_time_stamp - rto_time_stamp) > 0) {
+		s32 delta = rto_time_stamp - tcp_time_stamp;
+		if (delta > 0)
+			timeout = delta;
+	}
+
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_LOSS_PROBE, timeout,
+				  TCP_RTO_MAX);
+	return true;
+}
+
+/* When probe timeout (PTO) fires, send a new segment if one exists, else
+ * retransmit the last segment.
+ */
+void tcp_send_loss_probe(struct sock *sk)
+{
+	struct sk_buff *skb;
+	int pcount;
+	int mss = tcp_current_mss(sk);
+	int err = -1;
+
+	if (tcp_send_head(sk) != NULL) {
+		err = tcp_write_xmit(sk, mss, TCP_NAGLE_OFF, 2, GFP_ATOMIC);
+		goto rearm_timer;
+	}
+
+	/* Retransmit last segment. */
+	skb = tcp_write_queue_tail(sk);
+	if (WARN_ON(!skb))
+		goto rearm_timer;
+
+	pcount = tcp_skb_pcount(skb);
+	if (WARN_ON(!pcount))
+		goto rearm_timer;
+
+	if ((pcount > 1) && (skb->len > (pcount - 1) * mss)) {
+		if (unlikely(tcp_fragment(sk, skb, (pcount - 1) * mss, mss)))
+			goto rearm_timer;
+		skb = tcp_write_queue_tail(sk);
+	}
+
+	if (WARN_ON(!skb || !tcp_skb_pcount(skb)))
+		goto rearm_timer;
+
+	/* Probe with zero data doesn't trigger fast recovery. */
+	if (skb->len > 0)
+		err = __tcp_retransmit_skb(sk, skb);
+
+rearm_timer:
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+				  inet_csk(sk)->icsk_rto,
+				  TCP_RTO_MAX);
+
+	if (likely(!err))
+		NET_INC_STATS_BH(sock_net(sk),
+				 LINUX_MIB_TCPLOSSPROBES);
+	return;
 }
 
 /* Push out any pending frames which were held back due to

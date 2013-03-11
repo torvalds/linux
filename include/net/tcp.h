@@ -543,6 +543,8 @@ extern bool tcp_syn_flood_action(struct sock *sk,
 extern void tcp_push_one(struct sock *, unsigned int mss_now);
 extern void tcp_send_ack(struct sock *sk);
 extern void tcp_send_delayed_ack(struct sock *sk);
+extern void tcp_send_loss_probe(struct sock *sk);
+extern bool tcp_schedule_loss_probe(struct sock *sk);
 
 /* tcp_input.c */
 extern void tcp_cwnd_application_limited(struct sock *sk);
@@ -873,8 +875,8 @@ static inline void tcp_enable_fack(struct tcp_sock *tp)
 static inline void tcp_enable_early_retrans(struct tcp_sock *tp)
 {
 	tp->do_early_retrans = sysctl_tcp_early_retrans &&
-		!sysctl_tcp_thin_dupack && sysctl_tcp_reordering == 3;
-	tp->early_retrans_delayed = 0;
+		sysctl_tcp_early_retrans < 4 && !sysctl_tcp_thin_dupack &&
+		sysctl_tcp_reordering == 3;
 }
 
 static inline void tcp_disable_early_retrans(struct tcp_sock *tp)

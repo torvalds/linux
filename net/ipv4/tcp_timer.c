@@ -342,10 +342,6 @@ void tcp_retransmit_timer(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	if (tp->early_retrans_delayed) {
-		tcp_resume_early_retransmit(sk);
-		return;
-	}
 	if (tp->fastopen_rsk) {
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 			     sk->sk_state != TCP_FIN_WAIT1);
@@ -495,13 +491,20 @@ void tcp_write_timer_handler(struct sock *sk)
 	}
 
 	event = icsk->icsk_pending;
-	icsk->icsk_pending = 0;
 
 	switch (event) {
+	case ICSK_TIME_EARLY_RETRANS:
+		tcp_resume_early_retransmit(sk);
+		break;
+	case ICSK_TIME_LOSS_PROBE:
+		tcp_send_loss_probe(sk);
+		break;
 	case ICSK_TIME_RETRANS:
+		icsk->icsk_pending = 0;
 		tcp_retransmit_timer(sk);
 		break;
 	case ICSK_TIME_PROBE0:
+		icsk->icsk_pending = 0;
 		tcp_probe_timer(sk);
 		break;
 	}
