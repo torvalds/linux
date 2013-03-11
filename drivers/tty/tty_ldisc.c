@@ -228,24 +228,6 @@ const struct file_operations tty_ldiscs_proc_fops = {
 };
 
 /**
- *	tty_ldisc_assign	-	set ldisc on a tty
- *	@tty: tty to assign
- *	@ld: line discipline
- *
- *	Install an instance of a line discipline into a tty structure. The
- *	ldisc must have a reference count above zero to ensure it remains.
- *	The tty instance refcount starts at zero.
- *
- *	Locking:
- *		Caller must hold references
- */
-
-static void tty_ldisc_assign(struct tty_struct *tty, struct tty_ldisc *ld)
-{
-	tty->ldisc = ld;
-}
-
-/**
  *	tty_ldisc_try		-	internal helper
  *	@tty: the tty
  *
@@ -488,7 +470,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 	/* There is an outstanding reference here so this is safe */
 	old = tty_ldisc_get(old->ops->num);
 	WARN_ON(IS_ERR(old));
-	tty_ldisc_assign(tty, old);
+	tty->ldisc = old;
 	tty_set_termios_ldisc(tty, old->ops->num);
 	if (tty_ldisc_open(tty, old) < 0) {
 		tty_ldisc_put(old);
@@ -496,7 +478,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 		new_ldisc = tty_ldisc_get(N_TTY);
 		if (IS_ERR(new_ldisc))
 			panic("n_tty: get");
-		tty_ldisc_assign(tty, new_ldisc);
+		tty->ldisc = new_ldisc;
 		tty_set_termios_ldisc(tty, N_TTY);
 		r = tty_ldisc_open(tty, new_ldisc);
 		if (r < 0)
@@ -725,7 +707,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	tty_ldisc_close(tty, o_ldisc);
 
 	/* Now set up the new line discipline. */
-	tty_ldisc_assign(tty, new_ldisc);
+	tty->ldisc = new_ldisc;
 	tty_set_termios_ldisc(tty, ldisc);
 
 	retval = tty_ldisc_open(tty, new_ldisc);
@@ -799,11 +781,10 @@ static int tty_ldisc_reinit(struct tty_struct *tty, int ldisc)
 
 	tty_ldisc_close(tty, tty->ldisc);
 	tty_ldisc_put(tty->ldisc);
-	tty->ldisc = NULL;
 	/*
 	 *	Switch the line discipline back
 	 */
-	tty_ldisc_assign(tty, ld);
+	tty->ldisc = ld;
 	tty_set_termios_ldisc(tty, ldisc);
 
 	return 0;
@@ -986,7 +967,7 @@ void tty_ldisc_init(struct tty_struct *tty)
 	struct tty_ldisc *ld = tty_ldisc_get(N_TTY);
 	if (IS_ERR(ld))
 		panic("n_tty: init_tty");
-	tty_ldisc_assign(tty, ld);
+	tty->ldisc = ld;
 }
 
 /**
@@ -999,7 +980,7 @@ void tty_ldisc_init(struct tty_struct *tty)
 void tty_ldisc_deinit(struct tty_struct *tty)
 {
 	tty_ldisc_put(tty->ldisc);
-	tty_ldisc_assign(tty, NULL);
+	tty->ldisc = NULL;
 }
 
 void tty_ldisc_begin(void)
