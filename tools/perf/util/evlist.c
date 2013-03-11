@@ -746,7 +746,8 @@ out_err:
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 				  struct perf_target *target,
-				  const char *argv[], bool pipe_output)
+				  const char *argv[], bool pipe_output,
+				  bool want_signal)
 {
 	int child_ready_pipe[2], go_pipe[2];
 	char bf;
@@ -796,7 +797,8 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 		execvp(argv[0], (char **)argv);
 
 		perror(argv[0]);
-		kill(getppid(), SIGUSR1);
+		if (want_signal)
+			kill(getppid(), SIGUSR1);
 		exit(-1);
 	}
 
