@@ -35,6 +35,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-event.h>
+#include <media/saa7115.h>
 
 #include "go7007.h"
 #include "go7007-priv.h"
@@ -1461,6 +1462,12 @@ int go7007_v4l2_init(struct go7007 *go)
 		v4l2_disable_ioctl(go->video_dev, VIDIOC_S_AUDIO);
 		v4l2_disable_ioctl(go->video_dev, VIDIOC_ENUMAUDIO);
 	}
+	/* Setup correct crystal frequency on this board */
+	if (go->board_info->sensor_flags & GO7007_SENSOR_SAA7115)
+		v4l2_subdev_call(go->sd_video, video, s_crystal_freq,
+				SAA7115_FREQ_24_576_MHZ,
+				SAA7115_FREQ_FL_APLL | SAA7115_FREQ_FL_UCGC |
+				SAA7115_FREQ_FL_DOUBLE_ASCLK);
 	go7007_s_input(go);
 	if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
 		go7007_s_std(go);

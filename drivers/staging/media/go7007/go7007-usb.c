@@ -88,6 +88,7 @@ static struct go7007_usb_board board_matrix_ii = {
 		.sensor_flags	 = GO7007_SENSOR_656 |
 					GO7007_SENSOR_VALID_ENABLE |
 					GO7007_SENSOR_TV |
+					GO7007_SENSOR_SAA7115 |
 					GO7007_SENSOR_VBI |
 					GO7007_SENSOR_SCALING,
 		.num_i2c_devs	 = 1,
@@ -131,7 +132,7 @@ static struct go7007_usb_board board_matrix_reload = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "saa7115",
+				.type	= "saa7113",
 				.addr	= 0x25,
 				.is_video = 1,
 			},
@@ -160,6 +161,7 @@ static struct go7007_usb_board board_star_trek = {
 		.sensor_flags	 = GO7007_SENSOR_656 |
 					GO7007_SENSOR_VALID_ENABLE |
 					GO7007_SENSOR_TV |
+					GO7007_SENSOR_SAA7115 |
 					GO7007_SENSOR_VBI |
 					GO7007_SENSOR_SCALING,
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
@@ -207,6 +209,7 @@ static struct go7007_usb_board board_px_tv402u = {
 		.sensor_flags	 = GO7007_SENSOR_656 |
 					GO7007_SENSOR_VALID_ENABLE |
 					GO7007_SENSOR_TV |
+					GO7007_SENSOR_SAA7115 |
 					GO7007_SENSOR_VBI |
 					GO7007_SENSOR_SCALING,
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |

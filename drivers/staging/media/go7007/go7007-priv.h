@@ -60,6 +60,7 @@ struct go7007;
 #define GO7007_SENSOR_TV		(1<<7)
 #define GO7007_SENSOR_VBI		(1<<8)
 #define GO7007_SENSOR_SCALING		(1<<9)
+#define GO7007_SENSOR_SAA7115		(1<<10)
 
 /* Characteristics of audio sensor devices */
 #define GO7007_AUDIO_I2S_MODE_1		(1)
