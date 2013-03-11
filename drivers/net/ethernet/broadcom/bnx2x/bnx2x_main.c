@@ -10034,8 +10034,12 @@ static void bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	id = ((val & 0xffff) << 16);
 	val = REG_RD(bp, MISC_REG_CHIP_REV);
 	id |= ((val & 0xf) << 12);
-	val = REG_RD(bp, MISC_REG_CHIP_METAL);
-	id |= ((val & 0xff) << 4);
+
+	/* Metal is read from PCI regs, but we can't access >=0x400 from
+	 * the configuration space (so we need to reg_rd)
+	 */
+	val = REG_RD(bp, PCICFG_OFFSET + PCI_ID_VAL3);
+	id |= (((val >> 24) & 0xf) << 4);
 	val = REG_RD(bp, MISC_REG_BOND_ID);
 	id |= (val & 0xf);
 	bp->common.chip_id = id;
