@@ -86,7 +86,8 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	gpio_charger = kzalloc(sizeof(*gpio_charger), GFP_KERNEL);
+	gpio_charger = devm_kzalloc(&pdev->dev, sizeof(*gpio_charger),
+					GFP_KERNEL);
 	if (!gpio_charger) {
 		dev_err(&pdev->dev, "Failed to alloc driver structure\n");
 		return -ENOMEM;
@@ -140,7 +141,6 @@ static int gpio_charger_probe(struct platform_device *pdev)
 err_gpio_free:
 	gpio_free(pdata->gpio);
 err_free:
-	kfree(gpio_charger);
 	return ret;
 }
 
@@ -156,7 +156,6 @@ static int gpio_charger_remove(struct platform_device *pdev)
 	gpio_free(gpio_charger->pdata->gpio);
 
 	platform_set_drvdata(pdev, NULL);
-	kfree(gpio_charger);
 
 	return 0;
 }
