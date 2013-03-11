@@ -15,6 +15,8 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/idr.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/pagemap.h>
 #include <linux/export.h>
 #include <linux/leds.h>
@@ -23,6 +25,7 @@
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/slot-gpio.h>
 
 #include "core.h"
 #include "host.h"
@@ -295,6 +298,126 @@ static inline void mmc_host_clk_sysfs_init(struct mmc_host *host)
 #endif
 
 /**
+ *	mmc_of_parse() - parse host's device-tree node
+ *	@host: host whose node should be parsed.
+ *
+ * To keep the rest of the MMC subsystem unaware of whether DT has been
+ * used to to instantiate and configure this host instance or not, we
+ * parse the properties and set respective generic mmc-host flags and
+ * parameters.
+ */
+void mmc_of_parse(struct mmc_host *host)
+{
+	struct device_node *np;
+	u32 bus_width;
+	bool explicit_inv_wp, gpio_inv_wp = false;
+	enum of_gpio_flags flags;
+	int len, ret, gpio;
+
+	if (!host->parent || !host->parent->of_node)
+		return;
+
+	np = host->parent->of_node;
+
+	/* "bus-width" is translated to MMC_CAP_*_BIT_DATA flags */
+	if (of_property_read_u32(np, "bus-width", &bus_width) < 0) {
+		dev_dbg(host->parent,
+			"\"bus-width\" property is missing, assuming 1 bit.\n");
+		bus_width = 1;
+	}
+
+	switch (bus_width) {
+	case 8:
+		host->caps |= MMC_CAP_8_BIT_DATA;
+		/* Hosts capable of 8-bit transfers can also do 4 bits */
+	case 4:
+		host->caps |= MMC_CAP_4_BIT_DATA;
+		break;
+	case 1:
+		break;
+	default:
+		dev_err(host->parent,
+			"Invalid \"bus-width\" value %ud!\n", bus_width);
+	}
+
+	/* f_max is obtained from the optional "max-frequency" property */
+	of_property_read_u32(np, "max-frequency", &host->f_max);
+
+	/*
+	 * Configure CD and WP pins. They are both by default active low to
+	 * match the SDHCI spec. If GPIOs are provided for CD and / or WP, the
+	 * mmc-gpio helpers are used to attach, configure and use them. If
+	 * polarity inversion is specified in DT, one of MMC_CAP2_CD_ACTIVE_HIGH
+	 * and MMC_CAP2_RO_ACTIVE_HIGH capability-2 flags is set. If the
+	 * "broken-cd" property is provided, the MMC_CAP_NEEDS_POLL capability
+	 * is set. If the "non-removable" property is found, the
+	 * MMC_CAP_NONREMOVABLE capability is set and no card-detection
+	 * configuration is performed.
+	 */
+
+	/* Parse Card Detection */
+	if (of_find_property(np, "non-removable", &len)) {
+		host->caps |= MMC_CAP_NONREMOVABLE;
+	} else {
+		bool explicit_inv_cd, gpio_inv_cd = false;
+
+		explicit_inv_cd = of_property_read_bool(np, "cd-inverted");
+
+		if (of_find_property(np, "broken-cd", &len))
+			host->caps |= MMC_CAP_NEEDS_POLL;
+
+		gpio = of_get_named_gpio_flags(np, "cd-gpios", 0, &flags);
+		if (gpio_is_valid(gpio)) {
+			if (!(flags & OF_GPIO_ACTIVE_LOW))
+				gpio_inv_cd = true;
+
+			ret = mmc_gpio_request_cd(host, gpio);
+			if (ret < 0)
+				dev_err(host->parent,
+					"Failed to request CD GPIO #%d: %d!\n",
+					gpio, ret);
+			else
+				dev_info(host->parent, "Got CD GPIO #%d.\n",
+					 gpio);
+		}
+
+		if (explicit_inv_cd ^ gpio_inv_cd)
+			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+	}
+
+	/* Parse Write Protection */
+	explicit_inv_wp = of_property_read_bool(np, "wp-inverted");
+
+	gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
+	if (gpio_is_valid(gpio)) {
+		if (!(flags & OF_GPIO_ACTIVE_LOW))
+			gpio_inv_wp = true;
+
+		ret = mmc_gpio_request_ro(host, gpio);
+		if (ret < 0)
+			dev_err(host->parent,
+				"Failed to request WP GPIO: %d!\n", ret);
+	}
+	if (explicit_inv_wp ^ gpio_inv_wp)
+		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+
+	if (of_find_property(np, "cap-sd-highspeed", &len))
+		host->caps |= MMC_CAP_SD_HIGHSPEED;
+	if (of_find_property(np, "cap-mmc-highspeed", &len))
+		host->caps |= MMC_CAP_MMC_HIGHSPEED;
+	if (of_find_property(np, "cap-power-off-card", &len))
+		host->caps |= MMC_CAP_POWER_OFF_CARD;
+	if (of_find_property(np, "cap-sdio-irq", &len))
+		host->caps |= MMC_CAP_SDIO_IRQ;
+	if (of_find_property(np, "keep-power-in-suspend", &len))
+		host->pm_caps |= MMC_PM_KEEP_POWER;
+	if (of_find_property(np, "enable-sdio-wakeup", &len))
+		host->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+}
+
+EXPORT_SYMBOL(mmc_of_parse);
+
+/**
  *	mmc_alloc_host - initialise the per-host structure.
  *	@extra: sizeof private data structure
  *	@dev: pointer to host device model structure
@@ -306,19 +429,20 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	int err;
 	struct mmc_host *host;
 
-	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
-		return NULL;
-
 	host = kzalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);
 	if (!host)
 		return NULL;
 
 	/* scanning will be enabled when we're ready */
 	host->rescan_disable = 1;
+	idr_preload(GFP_KERNEL);
 	spin_lock(&mmc_host_lock);
-	err = idr_get_new(&mmc_host_idr, host, &host->index);
+	err = idr_alloc(&mmc_host_idr, host, 0, 0, GFP_NOWAIT);
+	if (err >= 0)
+		host->index = err;
 	spin_unlock(&mmc_host_lock);
-	if (err)
+	idr_preload_end();
+	if (err < 0)
 		goto free;
 
 	dev_set_name(&host->class_dev, "mmc%d", host->index);

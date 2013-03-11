@@ -142,6 +142,9 @@ static int usb_get_ver_info(struct device_node *np)
 			return ver;
 	}
 
+	if (of_device_is_compatible(np, "fsl,mpc5121-usb2-dr"))
+		return FSL_USB_VER_OLD;
+
 	if (of_device_is_compatible(np, "fsl-usb2-mph")) {
 		if (of_device_is_compatible(np, "fsl-usb2-mph-v1.6"))
 			ver = FSL_USB_VER_1_6;

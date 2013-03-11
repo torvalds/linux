@@ -127,7 +127,7 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 			pte_val(*pte) = _PAGE_TYPE_EMPTY;
 			continue;
 		}
-		*pte = mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));
+		pte_val(*pte) = __pa(address);
 	}
 }
 

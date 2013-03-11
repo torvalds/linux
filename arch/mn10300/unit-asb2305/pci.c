@@ -24,7 +24,6 @@
 unsigned int pci_probe = 1;
 
 int pcibios_last_bus = -1;
-struct pci_bus *pci_root_bus;
 struct pci_ops *pci_root_ops;
 
 /*
@@ -282,7 +281,7 @@ static int __init pci_check_direct(void)
 	return -ENODEV;
 }
 
-static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
+static int is_valid_resource(struct pci_dev *dev, int idx)
 {
 	unsigned int i, type_mask = IORESOURCE_IO | IORESOURCE_MEM;
 	struct resource *devr = &dev->resource[idx], *busr;
@@ -302,7 +301,7 @@ static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
 	return 0;
 }
 
-static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+static void pcibios_fixup_device_resources(struct pci_dev *dev)
 {
 	int limit, i;
 
@@ -325,7 +324,7 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
  *  Called after each bus is probed, but before its children
  *  are examined.
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
@@ -377,8 +376,7 @@ static int __init pcibios_init(void)
 
 	pci_add_resource_offset(&resources, &pci_ioport_resource, io_offset);
 	pci_add_resource_offset(&resources, &pci_iomem_resource, mem_offset);
-	pci_root_bus = pci_scan_root_bus(NULL, 0, &pci_direct_ampci, NULL,
-					 &resources);
+	pci_scan_root_bus(NULL, 0, &pci_direct_ampci, NULL, &resources);
 
 	pcibios_irq_init();
 	pcibios_fixup_irqs();

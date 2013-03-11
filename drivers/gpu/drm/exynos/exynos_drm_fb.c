@@ -6,24 +6,10 @@
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -112,6 +98,10 @@ static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/* This fb should have only one gem object. */
+	if (WARN_ON(exynos_fb->buf_cnt != 1))
+		return -EINVAL;
 
 	return drm_gem_handle_create(file_priv,
 			&exynos_fb->exynos_gem_obj[0]->base, handle);
@@ -231,21 +221,23 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		      struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
+	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct exynos_drm_fb *exynos_fb;
 	int i, ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
-	if (!obj) {
-		DRM_ERROR("failed to lookup gem object\n");
-		return ERR_PTR(-ENOENT);
-	}
-
 	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
 	if (!exynos_fb) {
 		DRM_ERROR("failed to allocate exynos drm framebuffer\n");
 		return ERR_PTR(-ENOMEM);
+	}
+
+	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object\n");
+		ret = -ENOENT;
+		goto err_free;
 	}
 
 	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
@@ -255,43 +247,44 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	DRM_DEBUG_KMS("buf_cnt = %d\n", exynos_fb->buf_cnt);
 
 	for (i = 1; i < exynos_fb->buf_cnt; i++) {
-		struct exynos_drm_gem_obj *exynos_gem_obj;
-		int ret;
-
 		obj = drm_gem_object_lookup(dev, file_priv,
 				mode_cmd->handles[i]);
 		if (!obj) {
 			DRM_ERROR("failed to lookup gem object\n");
-			kfree(exynos_fb);
-			return ERR_PTR(-ENOENT);
+			ret = -ENOENT;
+			exynos_fb->buf_cnt = i;
+			goto err_unreference;
 		}
 
 		exynos_gem_obj = to_exynos_gem_obj(obj);
+		exynos_fb->exynos_gem_obj[i] = exynos_gem_obj;
 
 		ret = check_fb_gem_memory_type(dev, exynos_gem_obj);
 		if (ret < 0) {
 			DRM_ERROR("cannot use this gem memory type for fb.\n");
-			kfree(exynos_fb);
-			return ERR_PTR(ret);
+			goto err_unreference;
 		}
-
-		exynos_fb->exynos_gem_obj[i] = to_exynos_gem_obj(obj);
 	}
 
 	ret = drm_framebuffer_init(dev, &exynos_fb->fb, &exynos_drm_fb_funcs);
 	if (ret) {
-		for (i = 0; i < exynos_fb->buf_cnt; i++) {
-			struct exynos_drm_gem_obj *gem_obj;
-
-			gem_obj = exynos_fb->exynos_gem_obj[i];
-			drm_gem_object_unreference_unlocked(&gem_obj->base);
-		}
-
-		kfree(exynos_fb);
-		return ERR_PTR(ret);
+		DRM_ERROR("failed to init framebuffer.\n");
+		goto err_unreference;
 	}
 
 	return &exynos_fb->fb;
+
+err_unreference:
+	for (i = 0; i < exynos_fb->buf_cnt; i++) {
+		struct drm_gem_object *obj;
+
+		obj = &exynos_fb->exynos_gem_obj[i]->base;
+		if (obj)
+			drm_gem_object_unreference_unlocked(obj);
+	}
+err_free:
+	kfree(exynos_fb);
+	return ERR_PTR(ret);
 }
 
 struct exynos_drm_gem_buf *exynos_drm_fb_buffer(struct drm_framebuffer *fb,

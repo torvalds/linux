@@ -43,9 +43,6 @@ int pci_probe_reset_function(struct pci_dev *dev);
  *                platform; to be used during system-wide transitions from a
  *                sleeping state to the working state and vice versa
  *
- * @can_wakeup: returns 'true' if given device is capable of waking up the
- *              system from a sleeping state
- *
  * @sleep_wake: enables/disables the system wake up capability of given device
  *
  * @run_wake: enables/disables the platform to generate run-time wake-up events
@@ -59,7 +56,6 @@ struct pci_platform_pm_ops {
 	bool (*is_manageable)(struct pci_dev *dev);
 	int (*set_state)(struct pci_dev *dev, pci_power_t state);
 	pci_power_t (*choose_state)(struct pci_dev *dev);
-	bool (*can_wakeup)(struct pci_dev *dev);
 	int (*sleep_wake)(struct pci_dev *dev, bool enable);
 	int (*run_wake)(struct pci_dev *dev, bool enable);
 };
@@ -74,7 +70,6 @@ extern void pci_wakeup_bus(struct pci_bus *bus);
 extern void pci_config_pm_runtime_get(struct pci_dev *dev);
 extern void pci_config_pm_runtime_put(struct pci_dev *dev);
 extern void pci_pm_init(struct pci_dev *dev);
-extern void platform_pci_wakeup_init(struct pci_dev *dev);
 extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);
 void pci_free_cap_save_buffers(struct pci_dev *dev);
 
@@ -208,8 +203,8 @@ extern int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 				struct resource *res, unsigned int reg);
 extern int pci_resource_bar(struct pci_dev *dev, int resno,
 			    enum pci_bar_type *type);
-extern int pci_bus_add_child(struct pci_bus *bus);
-extern void pci_enable_ari(struct pci_dev *dev);
+extern void pci_configure_ari(struct pci_dev *dev);
+
 /**
  * pci_ari_enabled - query ARI forwarding status
  * @bus: the PCI bus

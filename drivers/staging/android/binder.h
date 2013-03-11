@@ -163,7 +163,7 @@ struct binder_pri_ptr_cookie {
 	void *cookie;
 };
 
-enum BinderDriverReturnProtocol {
+enum binder_driver_return_protocol {
 	BR_ERROR = _IOR('r', 0, int),
 	/*
 	 * int: error code
@@ -224,7 +224,7 @@ enum BinderDriverReturnProtocol {
 	BR_SPAWN_LOOPER = _IO('r', 13),
 	/*
 	 * No parameters.  The driver has determined that a process has no
-	 * threads waiting to service incomming transactions.  When a process
+	 * threads waiting to service incoming transactions.  When a process
 	 * receives this command, it must spawn a new service thread and
 	 * register it via bcENTER_LOOPER.
 	 */
@@ -251,7 +251,7 @@ enum BinderDriverReturnProtocol {
 	 */
 };
 
-enum BinderDriverCommandProtocol {
+enum binder_driver_command_protocol {
 	BC_TRANSACTION = _IOW('c', 0, struct binder_transaction_data),
 	BC_REPLY = _IOW('c', 1, struct binder_transaction_data),
 	/*

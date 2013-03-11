@@ -48,6 +48,8 @@ TODO:
 3. Implement calibration.
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 /* all the registers for the pci1723 board */
@@ -327,11 +329,6 @@ static int adv_pci1723_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adv_pci1723_driver);
 }
 
-static void adv_pci1723_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(adv_pci1723_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1723) },
 	{ 0 }
@@ -342,7 +339,7 @@ static struct pci_driver adv_pci1723_pci_driver = {
 	.name		= "adv_pci1723",
 	.id_table	= adv_pci1723_pci_table,
 	.probe		= adv_pci1723_pci_probe,
-	.remove		= adv_pci1723_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adv_pci1723_driver, adv_pci1723_pci_driver);
 

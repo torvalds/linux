@@ -257,7 +257,7 @@ static void rfcomm_session_clear_timer(struct rfcomm_session *s)
 {
 	BT_DBG("session %p state %ld", s, s->state);
 
-	if (timer_pending(&s->timer) && del_timer(&s->timer))
+	if (del_timer(&s->timer))
 		rfcomm_session_put(s);
 }
 
@@ -285,7 +285,7 @@ static void rfcomm_dlc_clear_timer(struct rfcomm_dlc *d)
 {
 	BT_DBG("dlc %p state %ld", d, d->state);
 
-	if (timer_pending(&d->timer) && del_timer(&d->timer))
+	if (del_timer(&d->timer))
 		rfcomm_dlc_put(d);
 }
 

@@ -20,6 +20,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -129,7 +130,7 @@ static inline void gizmo_writel(struct tegra_ahb *ahb, u32 value, u32 offset)
 	writel(value, ahb->regs + offset);
 }
 
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+#ifdef CONFIG_TEGRA_IOMMU_SMMU
 static int tegra_ahb_match_by_smmu(struct device *dev, void *data)
 {
 	struct tegra_ahb *ahb = dev_get_drvdata(dev);
@@ -243,7 +244,7 @@ static void tegra_ahb_gizmo_init(struct tegra_ahb *ahb)
 	gizmo_writel(ahb, val, AHB_MEM_PREFETCH_CFG4);
 }
 
-static int __devinit tegra_ahb_probe(struct platform_device *pdev)
+static int tegra_ahb_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct tegra_ahb *ahb;
@@ -257,9 +258,9 @@ static int __devinit tegra_ahb_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
-	ahb->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ahb->regs)
-		return -EBUSY;
+	ahb->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ahb->regs))
+		return PTR_ERR(ahb->regs);
 
 	ahb->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ahb);
@@ -267,7 +268,7 @@ static int __devinit tegra_ahb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra_ahb_of_match[] __devinitconst = {
+static const struct of_device_id tegra_ahb_of_match[] = {
 	{ .compatible = "nvidia,tegra30-ahb", },
 	{ .compatible = "nvidia,tegra20-ahb", },
 	{},

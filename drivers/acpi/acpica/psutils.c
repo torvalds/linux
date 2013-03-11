@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -199,14 +199,6 @@ void acpi_ps_free_op(union acpi_parse_object *op)
 u8 acpi_ps_is_leading_char(u32 c)
 {
 	return ((u8) (c == '_' || (c >= 'A' && c <= 'Z')));
-}
-
-/*
- * Is "c" a namestring prefix character?
- */
-u8 acpi_ps_is_prefix_char(u32 c)
-{
-	return ((u8) (c == '\\' || c == '^'));
 }
 
 /*

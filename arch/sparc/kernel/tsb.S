@@ -136,12 +136,43 @@ tsb_miss_page_table_walk_sun4v_fastpath:
 	 nop
 
 	/* It is a huge page, use huge page TSB entry address we
-	 * calculated above.
+	 * calculated above.  If the huge page TSB has not been
+	 * allocated, setup a trap stack and call hugetlb_setup()
+	 * to do so, then return from the trap to replay the TLB
+	 * miss.
+	 *
+	 * This is necessary to handle the case of transparent huge
+	 * pages where we don't really have a non-atomic context
+	 * in which to allocate the hugepage TSB hash table.  When
+	 * the 'mm' faults in the hugepage for the first time, we
+	 * thus handle it here.  This also makes sure that we can
+	 * allocate the TSB hash table on the correct NUMA node.
 	 */
 	TRAP_LOAD_TRAP_BLOCK(%g7, %g2)
-	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP], %g2
-	cmp		%g2, -1
-	movne		%xcc, %g2, %g1
+	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP], %g1
+	cmp		%g1, -1
+	bne,pt		%xcc, 60f
+	 nop
+
+661:	rdpr		%pstate, %g5
+	wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate
+	.section	.sun4v_2insn_patch, "ax"
+	.word		661b
+	SET_GL(1)
+	nop
+	.previous
+
+	rdpr	%tl, %g3
+	cmp	%g3, 1
+	bne,pn	%xcc, winfix_trampoline
+	 nop
+	ba,pt	%xcc, etrap
+	 rd	%pc, %g7
+	call	hugetlb_setup
+	 add	%sp, PTREGS_OFF, %o0
+	ba,pt	%xcc, rtrap
+	 nop
+
 60:
 #endif
 

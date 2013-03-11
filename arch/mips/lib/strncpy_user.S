@@ -23,7 +23,7 @@
 
 /*
  * Ugly special case have to check: we might get passed a user space
- * pointer which wraps into the kernel space.  We don't deal with that.  If
+ * pointer which wraps into the kernel space.  We don't deal with that.	 If
  * it happens at most some bytes of the exceptions handlers will be copied.
  */
 

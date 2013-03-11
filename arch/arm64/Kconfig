@@ -1,7 +1,12 @@
 config ARM64
 	def_bool y
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+	select ARCH_WANT_FRAME_POINTERS
+	select ARM_AMBA
+	select ARM_ARCH_TIMER
+	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_HARDIRQS_NO_DEPRECATED
@@ -19,7 +24,6 @@ config ARM64
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
-	select HAVE_IRQ_WORK
 	select HAVE_MEMBLOCK
 	select HAVE_PERF_EVENTS
 	select IRQ_DOMAIN
@@ -31,7 +35,6 @@ config ARM64
 	select RTC_LIB
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
-	select CLONE_BACKWARDS
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
@@ -89,6 +92,9 @@ config SWIOTLB
 
 config IOMMU_HELPER
 	def_bool SWIOTLB
+
+config GENERIC_GPIO
+	bool
 
 source "init/Kconfig"
 
@@ -200,6 +206,8 @@ config COMPAT
 	depends on !ARM64_64K_PAGES
 	select COMPAT_BINFMT_ELF
 	select HAVE_UID16
+	select OLD_SIGSUSPEND3
+	select COMPAT_OLD_SIGACTION
 	help
 	  This option enables support for a 32-bit EL0 running under a 64-bit
 	  kernel at EL1. AArch32-specific components such as system calls,

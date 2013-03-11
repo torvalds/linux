@@ -1632,9 +1632,9 @@ hfcpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 
 
 /* this variable is used as card index when more than one cards are present */
-static struct pci_dev *dev_hfcpci __devinitdata = NULL;
+static struct pci_dev *dev_hfcpci = NULL;
 
-int __devinit
+int
 setup_hfcpci(struct IsdnCard *card)
 {
 	u_long flags;

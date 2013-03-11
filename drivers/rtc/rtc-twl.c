@@ -27,6 +27,7 @@
 #include <linux/bcd.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 
 #include <linux/i2c/twl.h>
 
@@ -458,7 +459,7 @@ static struct rtc_class_ops twl_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit twl_rtc_probe(struct platform_device *pdev)
+static int twl_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	int ret = -EINVAL;
@@ -535,7 +536,7 @@ out1:
  * Disable all TWL RTC module interrupts.
  * Sets status flag to free.
  */
-static int __devexit twl_rtc_remove(struct platform_device *pdev)
+static int twl_rtc_remove(struct platform_device *pdev)
 {
 	/* leave rtc running, but disable irqs */
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
@@ -588,23 +589,26 @@ static int twl_rtc_resume(struct platform_device *pdev)
 #define twl_rtc_resume  NULL
 #endif
 
+#ifdef CONFIG_OF
 static const struct of_device_id twl_rtc_of_match[] = {
 	{.compatible = "ti,twl4030-rtc", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
+#endif
+
 MODULE_ALIAS("platform:twl_rtc");
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove		= __devexit_p(twl_rtc_remove),
+	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.suspend	= twl_rtc_suspend,
 	.resume		= twl_rtc_resume,
 	.driver		= {
 		.owner		= THIS_MODULE,
 		.name		= "twl_rtc",
-		.of_match_table = twl_rtc_of_match,
+		.of_match_table = of_match_ptr(twl_rtc_of_match),
 	},
 };
 

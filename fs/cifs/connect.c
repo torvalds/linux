@@ -97,7 +97,7 @@ enum {
 	Opt_user, Opt_pass, Opt_ip,
 	Opt_unc, Opt_domain,
 	Opt_srcaddr, Opt_prefixpath,
-	Opt_iocharset, Opt_sockopt,
+	Opt_iocharset,
 	Opt_netbiosname, Opt_servern,
 	Opt_ver, Opt_vers, Opt_sec, Opt_cache,
 
@@ -202,7 +202,6 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_srcaddr, "srcaddr=%s" },
 	{ Opt_prefixpath, "prefixpath=%s" },
 	{ Opt_iocharset, "iocharset=%s" },
-	{ Opt_sockopt, "sockopt=%s" },
 	{ Opt_netbiosname, "netbiosname=%s" },
 	{ Opt_servern, "servern=%s" },
 	{ Opt_ver, "ver=%s" },
@@ -987,6 +986,41 @@ static int get_option_ul(substring_t args[], unsigned long *option)
 	return rc;
 }
 
+static int get_option_uid(substring_t args[], kuid_t *result)
+{
+	unsigned long value;
+	kuid_t uid;
+	int rc;
+
+	rc = get_option_ul(args, &value);
+	if (rc)
+		return rc;
+
+	uid = make_kuid(current_user_ns(), value);
+	if (!uid_valid(uid))
+		return -EINVAL;
+
+	*result = uid;
+	return 0;
+}
+
+static int get_option_gid(substring_t args[], kgid_t *result)
+{
+	unsigned long value;
+	kgid_t gid;
+	int rc;
+
+	rc = get_option_ul(args, &value);
+	if (rc)
+		return rc;
+
+	gid = make_kgid(current_user_ns(), value);
+	if (!gid_valid(gid))
+		return -EINVAL;
+
+	*result = gid;
+	return 0;
+}
 
 static int cifs_parse_security_flavors(char *value,
 				       struct smb_vol *vol)
@@ -996,7 +1030,7 @@ static int cifs_parse_security_flavors(char *value,
 
 	switch (match_token(value, cifs_secflavor_tokens, args)) {
 	case Opt_sec_krb5:
-		vol->secFlg |= CIFSSEC_MAY_KRB5;
+		vol->secFlg |= CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_SIGN;
 		break;
 	case Opt_sec_krb5i:
 		vol->secFlg |= CIFSSEC_MAY_KRB5 | CIFSSEC_MUST_SIGN;
@@ -1424,47 +1458,42 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 		/* Numeric Values */
 		case Opt_backupuid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_uid(args, &vol->backupuid)) {
 				cERROR(1, "%s: Invalid backupuid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->backupuid = option;
 			vol->backupuid_specified = true;
 			break;
 		case Opt_backupgid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_gid(args, &vol->backupgid)) {
 				cERROR(1, "%s: Invalid backupgid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->backupgid = option;
 			vol->backupgid_specified = true;
 			break;
 		case Opt_uid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_uid(args, &vol->linux_uid)) {
 				cERROR(1, "%s: Invalid uid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->linux_uid = option;
 			uid_specified = true;
 			break;
 		case Opt_cruid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_uid(args, &vol->cred_uid)) {
 				cERROR(1, "%s: Invalid cruid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->cred_uid = option;
 			break;
 		case Opt_gid:
-			if (get_option_ul(args, &option)) {
+			if (get_option_gid(args, &vol->linux_gid)) {
 				cERROR(1, "%s: Invalid gid value",
 						__func__);
 				goto cifs_parse_mount_err;
 			}
-			vol->linux_gid = option;
 			gid_specified = true;
 			break;
 		case Opt_file_mode:
@@ -1722,19 +1751,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 */
 			cFYI(1, "iocharset set to %s", string);
 			break;
-		case Opt_sockopt:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-
-			if (strnicmp(string, "TCP_NODELAY", 11) == 0) {
-				printk(KERN_WARNING "CIFS: the "
-					"sockopt=TCP_NODELAY option has been "
-					"deprecated and will be removed "
-					"in 3.9\n");
-				vol->sockopt_tcp_nodelay = 1;
-			}
-			break;
 		case Opt_netbiosname:
 			string = match_strdup(args);
 			if (string == NULL)
@@ -1917,7 +1933,7 @@ srcip_matches(struct sockaddr *srcaddr, struct sockaddr *rhs)
 	}
 	case AF_INET6: {
 		struct sockaddr_in6 *saddr6 = (struct sockaddr_in6 *)srcaddr;
-		struct sockaddr_in6 *vaddr6 = (struct sockaddr_in6 *)&rhs;
+		struct sockaddr_in6 *vaddr6 = (struct sockaddr_in6 *)rhs;
 		return ipv6_addr_equal(&saddr6->sin6_addr, &vaddr6->sin6_addr);
 	}
 	default:
@@ -2241,7 +2257,7 @@ static int match_session(struct cifs_ses *ses, struct smb_vol *vol)
 {
 	switch (ses->server->secType) {
 	case Kerberos:
-		if (vol->cred_uid != ses->cred_uid)
+		if (!uid_eq(vol->cred_uid, ses->cred_uid))
 			return 0;
 		break;
 	default:
@@ -2713,7 +2729,7 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 	if (new->rsize && new->rsize < old->rsize)
 		return 0;
 
-	if (old->mnt_uid != new->mnt_uid || old->mnt_gid != new->mnt_gid)
+	if (!uid_eq(old->mnt_uid, new->mnt_uid) || !gid_eq(old->mnt_gid, new->mnt_gid))
 		return 0;
 
 	if (old->mnt_file_mode != new->mnt_file_mode ||
@@ -3919,7 +3935,7 @@ cifs_set_vol_auth(struct smb_vol *vol, struct cifs_ses *ses)
 }
 
 static struct cifs_tcon *
-cifs_construct_tcon(struct cifs_sb_info *cifs_sb, uid_t fsuid)
+cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 {
 	int rc;
 	struct cifs_tcon *master_tcon = cifs_sb_master_tcon(cifs_sb);
@@ -3989,7 +4005,7 @@ cifs_sb_tcon_pending_wait(void *unused)
 
 /* find and return a tlink with given uid */
 static struct tcon_link *
-tlink_rb_search(struct rb_root *root, uid_t uid)
+tlink_rb_search(struct rb_root *root, kuid_t uid)
 {
 	struct rb_node *node = root->rb_node;
 	struct tcon_link *tlink;
@@ -3997,9 +4013,9 @@ tlink_rb_search(struct rb_root *root, uid_t uid)
 	while (node) {
 		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
 
-		if (tlink->tl_uid > uid)
+		if (uid_gt(tlink->tl_uid, uid))
 			node = node->rb_left;
-		else if (tlink->tl_uid < uid)
+		else if (uid_lt(tlink->tl_uid, uid))
 			node = node->rb_right;
 		else
 			return tlink;
@@ -4018,7 +4034,7 @@ tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink)
 		tlink = rb_entry(*new, struct tcon_link, tl_rbnode);
 		parent = *new;
 
-		if (tlink->tl_uid > new_tlink->tl_uid)
+		if (uid_gt(tlink->tl_uid, new_tlink->tl_uid))
 			new = &((*new)->rb_left);
 		else
 			new = &((*new)->rb_right);
@@ -4048,7 +4064,7 @@ struct tcon_link *
 cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 {
 	int ret;
-	uid_t fsuid = current_fsuid();
+	kuid_t fsuid = current_fsuid();
 	struct tcon_link *tlink, *newtlink;
 
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))

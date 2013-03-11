@@ -98,6 +98,8 @@ extern int sdhci_pltfm_register(struct platform_device *pdev,
 				struct sdhci_pltfm_data *pdata);
 extern int sdhci_pltfm_unregister(struct platform_device *pdev);
 
+extern unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host);
+
 #ifdef CONFIG_PM
 extern const struct dev_pm_ops sdhci_pltfm_pmops;
 #define SDHCI_PLTFM_PMOPS (&sdhci_pltfm_pmops)

@@ -3,24 +3,10 @@
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  * Author: Inki Dae <inki.dae@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -33,6 +19,7 @@
 struct exynos_drm_dmabuf_attachment {
 	struct sg_table sgt;
 	enum dma_data_direction dir;
+	bool is_mapped;
 };
 
 static int exynos_gem_attach_dma_buf(struct dma_buf *dmabuf,
@@ -86,16 +73,9 @@ static struct sg_table *
 
 	DRM_DEBUG_PRIME("%s\n", __FILE__);
 
-	if (WARN_ON(dir == DMA_NONE))
-		return ERR_PTR(-EINVAL);
-
 	/* just return current sgt if already requested. */
-	if (exynos_attach->dir == dir)
+	if (exynos_attach->dir == dir && exynos_attach->is_mapped)
 		return &exynos_attach->sgt;
-
-	/* reattaching is not allowed. */
-	if (WARN_ON(exynos_attach->dir != DMA_NONE))
-		return ERR_PTR(-EBUSY);
 
 	buf = gem_obj->buffer;
 	if (!buf) {
@@ -121,13 +101,17 @@ static struct sg_table *
 		wr = sg_next(wr);
 	}
 
-	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
-	if (!nents) {
-		DRM_ERROR("failed to map sgl with iommu.\n");
-		sgt = ERR_PTR(-EIO);
-		goto err_unlock;
+	if (dir != DMA_NONE) {
+		nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
+		if (!nents) {
+			DRM_ERROR("failed to map sgl with iommu.\n");
+			sg_free_table(sgt);
+			sgt = ERR_PTR(-EIO);
+			goto err_unlock;
+		}
 	}
 
+	exynos_attach->is_mapped = true;
 	exynos_attach->dir = dir;
 	attach->priv = exynos_attach;
 
@@ -222,7 +206,7 @@ struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 
 	return dma_buf_export(exynos_gem_obj, &exynos_dmabuf_ops,
-				exynos_gem_obj->base.size, 0600);
+				exynos_gem_obj->base.size, flags);
 }
 
 struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
@@ -246,7 +230,12 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 
 		/* is it from our device? */
 		if (obj->dev == drm_dev) {
+			/*
+			 * Importing dmabuf exported from out own gem increases
+			 * refcount on gem itself instead of f_count of dmabuf.
+			 */
 			drm_gem_object_reference(obj);
+			dma_buf_put(dma_buf);
 			return obj;
 		}
 	}

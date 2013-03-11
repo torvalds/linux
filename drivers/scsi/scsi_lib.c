@@ -71,9 +71,14 @@ struct kmem_cache *scsi_sdb_cache;
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 
+static bool acpi_scsi_bus_match(struct device *dev)
+{
+	return dev->bus == &scsi_bus_type;
+}
+
 int scsi_register_acpi_bus_type(struct acpi_bus_type *bus)
 {
-        bus->bus = &scsi_bus_type;
+        bus->match = acpi_scsi_bus_match;
         return register_acpi_bus_type(bus);
 }
 EXPORT_SYMBOL_GPL(scsi_register_acpi_bus_type);
@@ -2617,3 +2622,17 @@ void scsi_kunmap_atomic_sg(void *virt)
 	kunmap_atomic(virt);
 }
 EXPORT_SYMBOL(scsi_kunmap_atomic_sg);
+
+void sdev_disable_disk_events(struct scsi_device *sdev)
+{
+	atomic_inc(&sdev->disk_events_disable_depth);
+}
+EXPORT_SYMBOL(sdev_disable_disk_events);
+
+void sdev_enable_disk_events(struct scsi_device *sdev)
+{
+	if (WARN_ON_ONCE(atomic_read(&sdev->disk_events_disable_depth) <= 0))
+		return;
+	atomic_dec(&sdev->disk_events_disable_depth);
+}
+EXPORT_SYMBOL(sdev_enable_disk_events);

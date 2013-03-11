@@ -84,7 +84,8 @@ static enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
  */
-void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port, bool use_fdi_mode)
+static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
+				      bool use_fdi_mode)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
@@ -114,16 +115,17 @@ void intel_prepare_ddi(struct drm_device *dev)
 {
 	int port;
 
-	if (IS_HASWELL(dev)) {
-		for (port = PORT_A; port < PORT_E; port++)
-			intel_prepare_ddi_buffers(dev, port, false);
+	if (!HAS_DDI(dev))
+		return;
 
-		/* DDI E is the suggested one to work in FDI mode, so program is as such by
-		 * default. It will have to be re-programmed in case a digital DP output
-		 * will be detected on it
-		 */
-		intel_prepare_ddi_buffers(dev, PORT_E, true);
-	}
+	for (port = PORT_A; port < PORT_E; port++)
+		intel_prepare_ddi_buffers(dev, port, false);
+
+	/* DDI E is the suggested one to work in FDI mode, so program is as such
+	 * by default. It will have to be re-programmed in case a digital DP
+	 * output will be detected on it
+	 */
+	intel_prepare_ddi_buffers(dev, PORT_E, true);
 }
 
 static const long hsw_ddi_buf_ctl_values[] = {
@@ -178,10 +180,8 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 				  FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
 
 	/* Enable the PCH Receiver FDI PLL */
-	rx_ctl_val = FDI_RX_PLL_ENABLE | FDI_RX_ENHANCE_FRAME_ENABLE |
-		     ((intel_crtc->fdi_lanes - 1) << 19);
-	if (dev_priv->fdi_rx_polarity_reversed)
-		rx_ctl_val |= FDI_RX_POLARITY_REVERSED_LPT;
+	rx_ctl_val = dev_priv->fdi_rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
+		     FDI_RX_PLL_ENABLE | ((intel_crtc->fdi_lanes - 1) << 19);
 	I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
 	POSTING_READ(_FDI_RXA_CTL);
 	udelay(220);
@@ -203,7 +203,10 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 					DP_TP_CTL_LINK_TRAIN_PAT1 |
 					DP_TP_CTL_ENABLE);
 
-		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage */
+		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage.
+		 * DDI E does not support port reversal, the functionality is
+		 * achieved on the PCH side in FDI_RX_CTL, so no need to set the
+		 * port reversal bit */
 		I915_WRITE(DDI_BUF_CTL(PORT_E),
 			   DDI_BUF_CTL_ENABLE |
 			   ((intel_crtc->fdi_lanes - 1) << 1) |
@@ -675,10 +678,14 @@ static void intel_ddi_mode_set(struct drm_encoder *encoder,
 	DRM_DEBUG_KMS("Preparing DDI mode for Haswell on port %c, pipe %c\n",
 		      port_name(port), pipe_name(pipe));
 
+	intel_crtc->eld_vld = false;
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *intel_dig_port =
+			enc_to_dig_port(encoder);
 
-		intel_dp->DP = DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
+		intel_dp->DP = intel_dig_port->port_reversal |
+			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
 		switch (intel_dp->lane_count) {
 		case 1:
 			intel_dp->DP |= DDI_PORT_WIDTH_X1;
@@ -985,7 +992,13 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 	if (cpu_transcoder == TRANSCODER_EDP) {
 		switch (pipe) {
 		case PIPE_A:
-			temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
+			/* Can only use the always-on power well for eDP when
+			 * not using the panel fitter, and when not using motion
+			  * blur mitigation (which we don't support). */
+			if (dev_priv->pch_pf_size)
+				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
+			else
+				temp |= TRANS_DDI_EDP_INPUT_A_ON;
 			break;
 		case PIPE_B:
 			temp |= TRANS_DDI_EDP_INPUT_B_ONOFF;
@@ -1069,7 +1082,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	if (port == PORT_A)
 		cpu_transcoder = TRANSCODER_EDP;
 	else
-		cpu_transcoder = pipe;
+		cpu_transcoder = (enum transcoder) pipe;
 
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 
@@ -1285,34 +1298,58 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
+	uint32_t tmp;
 
 	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_digital_port *intel_dig_port =
+			enc_to_dig_port(encoder);
+
 		/* In HDMI/DVI mode, the port width, and swing/emphasis values
 		 * are ignored so nothing special needs to be done besides
 		 * enabling the port.
 		 */
-		I915_WRITE(DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE);
+		I915_WRITE(DDI_BUF_CTL(port),
+			   intel_dig_port->port_reversal | DDI_BUF_CTL_ENABLE);
 	} else if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		ironlake_edp_backlight_on(intel_dp);
+	}
+
+	if (intel_crtc->eld_vld) {
+		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+		tmp |= ((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
+		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 	}
 }
 
 static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
 	int type = intel_encoder->type;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		ironlake_edp_backlight_off(intel_dp);
 	}
+
+	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+	tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
+	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 }
 
 int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
@@ -1354,8 +1391,8 @@ void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	enum port port = intel_dig_port->port;
-	bool wait;
 	uint32_t val;
+	bool wait = false;
 
 	if (I915_READ(DP_TP_CTL(port)) & DP_TP_CTL_ENABLE) {
 		val = I915_READ(DDI_BUF_CTL(port));
@@ -1452,11 +1489,11 @@ static const struct drm_encoder_funcs intel_ddi_funcs = {
 static const struct drm_encoder_helper_funcs intel_ddi_helper_funcs = {
 	.mode_fixup = intel_ddi_mode_fixup,
 	.mode_set = intel_ddi_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 void intel_ddi_init(struct drm_device *dev, enum port port)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
@@ -1497,6 +1534,8 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 
 	intel_dig_port->port = port;
+	intel_dig_port->port_reversal = I915_READ(DDI_BUF_CTL(port)) &
+					DDI_BUF_PORT_REVERSAL;
 	if (hdmi_connector)
 		intel_dig_port->hdmi.sdvox_reg = DDI_BUF_CTL(port);
 	else

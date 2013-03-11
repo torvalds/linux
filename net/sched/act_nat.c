@@ -44,7 +44,7 @@ static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
 	[TCA_NAT_PARMS]	= { .len = sizeof(struct tc_nat) },
 };
 
-static int tcf_nat_init(struct nlattr *nla, struct nlattr *est,
+static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
 	struct nlattr *tb[TCA_NAT_MAX + 1];

@@ -214,7 +214,7 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
  * PCI_CLASS_BRIDGE_HOST or Linux will errantly try to process the BAR's on
  * the device. Decoding setup is handled by the orion code.
  */
-static void __devinit rc_pci_fixup(struct pci_dev *dev)
+static void rc_pci_fixup(struct pci_dev *dev)
 {
 	if (dev->bus->parent == NULL && dev->devfn == 0) {
 		int i;
@@ -247,13 +247,9 @@ static struct hw_pci kirkwood_pci __initdata = {
 
 static void __init add_pcie_port(int index, void __iomem *base)
 {
-	pr_info("Kirkwood PCIe port %d: ", index);
-
-	if (orion_pcie_link_up(base)) {
-		pr_info("link up\n");
-		pcie_port_map[num_pcie_ports++] = index;
-	} else
-		pr_info("link down, ignoring\n");
+	pcie_port_map[num_pcie_ports++] = index;
+	pr_info("Kirkwood PCIe port %d: link %s\n", index,
+		orion_pcie_link_up(base) ? "up" : "down");
 }
 
 void __init kirkwood_pcie_init(unsigned int portmask)

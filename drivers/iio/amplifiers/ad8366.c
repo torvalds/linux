@@ -133,7 +133,7 @@ static const struct iio_chan_spec ad8366_channels[] = {
 	AD8366_CHAN(1),
 };
 
-static int __devinit ad8366_probe(struct spi_device *spi)
+static int ad8366_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct ad8366_state *st;
@@ -182,7 +182,7 @@ error_put_reg:
 	return ret;
 }
 
-static int __devexit ad8366_remove(struct spi_device *spi)
+static int ad8366_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad8366_state *st = iio_priv(indio_dev);
@@ -211,7 +211,7 @@ static struct spi_driver ad8366_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad8366_probe,
-	.remove		= __devexit_p(ad8366_remove),
+	.remove		= ad8366_remove,
 	.id_table	= ad8366_id,
 };
 

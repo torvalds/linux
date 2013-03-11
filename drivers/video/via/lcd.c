@@ -49,7 +49,7 @@ static struct _lcd_scaling_factor lcd_scaling_factor_CLE = {
 };
 
 static bool lvds_identify_integratedlvds(void);
-static void __devinit fp_id_to_vindex(int panel_id);
+static void fp_id_to_vindex(int panel_id);
 static int lvds_register_read(int index);
 static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		      int panel_vres);
@@ -81,7 +81,7 @@ static inline bool check_lvds_chip(int device_id_subaddr, int device_id)
 	return lvds_register_read(device_id_subaddr) == device_id;
 }
 
-void __devinit viafb_init_lcd_size(void)
+void viafb_init_lcd_size(void)
 {
 	DEBUG_MSG(KERN_INFO "viafb_init_lcd_size()\n");
 
@@ -139,7 +139,7 @@ static bool lvds_identify_integratedlvds(void)
 	return true;
 }
 
-bool __devinit viafb_lvds_trasmitter_identify(void)
+bool viafb_lvds_trasmitter_identify(void)
 {
 	if (viafb_lvds_identify_vt1636(VIA_PORT_31)) {
 		viaparinfo->chip_info->lvds_chip_info.i2c_port = VIA_PORT_31;
@@ -180,7 +180,7 @@ bool __devinit viafb_lvds_trasmitter_identify(void)
 	return false;
 }
 
-static void __devinit fp_id_to_vindex(int panel_id)
+static void fp_id_to_vindex(int panel_id)
 {
 	DEBUG_MSG(KERN_INFO "fp_get_panel_id()\n");
 
@@ -549,7 +549,7 @@ void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
 	u32 clock;
-	struct display_timing timing;
+	struct via_display_timing timing;
 	struct fb_var_screeninfo panel_var;
 	const struct fb_videomode *mode_crt_table, *panel_crt_table;
 
@@ -914,7 +914,7 @@ static void check_diport_of_integrated_lvds(
 		  plvds_chip_info->output_interface);
 }
 
-void __devinit viafb_init_lvds_output_interface(struct lvds_chip_information
+void viafb_init_lvds_output_interface(struct lvds_chip_information
 				*plvds_chip_info,
 				struct lvds_setting_information
 				*plvds_setting_info)

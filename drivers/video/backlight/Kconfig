@@ -126,6 +126,21 @@ config LCD_AMS369FG06
 	  If you have an AMS369FG06 AMOLED Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_LMS501KF03
+	tristate "LMS501KF03 LCD Driver"
+	depends on SPI
+	default n
+	help
+	  If you have an LMS501KF03 LCD Panel, say Y to enable its
+	  LCD control driver.
+
+config LCD_HX8357
+	tristate "Himax HX-8357 LCD Driver"
+	depends on SPI
+	help
+	  If you have a HX-8357 LCD panel, say Y to enable its LCD control
+	  driver.
+
 endif # LCD_CLASS_DEVICE
 
 #
@@ -366,8 +381,14 @@ config BACKLIGHT_LP855X
 	tristate "Backlight driver for TI LP855X"
 	depends on BACKLIGHT_CLASS_DEVICE && I2C
 	help
-	  This supports TI LP8550, LP8551, LP8552, LP8553 and LP8556
+	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8556 and LP8557
 	  backlight driver.
+
+config BACKLIGHT_LP8788
+	tristate "Backlight driver for TI LP8788 MFD"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788
+	help
+	  This supports TI LP8788 backlight driver.
 
 config BACKLIGHT_OT200
 	tristate "Backlight driver for ot200 visualisation device"
@@ -388,6 +409,13 @@ config BACKLIGHT_TPS65217
 	depends on BACKLIGHT_CLASS_DEVICE && MFD_TPS65217
 	help
 	  If you have a Texas Instruments TPS65217 say Y to enable the
+	  backlight driver.
+
+config BACKLIGHT_AS3711
+	tristate "AS3711 Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_AS3711
+	help
+	  If you have an Austrian Microsystems AS3711 say Y to enable the
 	  backlight driver.
 
 endif # BACKLIGHT_CLASS_DEVICE

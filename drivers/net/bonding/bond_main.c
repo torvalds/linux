@@ -746,11 +746,9 @@ static void __bond_resend_igmp_join_requests(struct net_device *dev)
 {
 	struct in_device *in_dev;
 
-	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev)
 		ip_mc_rejoin_groups(in_dev);
-	rcu_read_unlock();
 }
 
 /*
@@ -760,9 +758,10 @@ static void __bond_resend_igmp_join_requests(struct net_device *dev)
  */
 static void bond_resend_igmp_join_requests(struct bonding *bond)
 {
-	struct net_device *bond_dev, *vlan_dev, *master_dev;
+	struct net_device *bond_dev, *vlan_dev, *upper_dev;
 	struct vlan_entry *vlan;
 
+	rcu_read_lock();
 	read_lock(&bond->lock);
 
 	bond_dev = bond->dev;
@@ -774,18 +773,14 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 	 * if bond is enslaved to a bridge,
 	 * then rejoin all groups on its master
 	 */
-	master_dev = bond_dev->master;
-	if (master_dev)
-		if ((master_dev->priv_flags & IFF_EBRIDGE)
-			&& (bond_dev->priv_flags & IFF_BRIDGE_PORT))
-			__bond_resend_igmp_join_requests(master_dev);
+	upper_dev = netdev_master_upper_dev_get_rcu(bond_dev);
+	if (upper_dev && upper_dev->priv_flags & IFF_EBRIDGE)
+		__bond_resend_igmp_join_requests(upper_dev);
 
 	/* rejoin all groups on vlan devices */
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		rcu_read_lock();
 		vlan_dev = __vlan_find_dev_deep(bond_dev,
 						vlan->vlan_id);
-		rcu_read_unlock();
 		if (vlan_dev)
 			__bond_resend_igmp_join_requests(vlan_dev);
 	}
@@ -794,13 +789,16 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
 
 	read_unlock(&bond->lock);
+	rcu_read_unlock();
 }
 
 static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    mcast_work.work);
+	rcu_read_lock();
 	bond_resend_igmp_join_requests(bond);
+	rcu_read_unlock();
 }
 
 /*
@@ -1251,7 +1249,7 @@ static inline void slave_disable_netpoll(struct slave *slave)
 		return;
 
 	slave->np = NULL;
-	__netpoll_free_rcu(np);
+	__netpoll_free_async(np);
 }
 static inline bool slave_dev_support_netpoll(struct net_device *slave_dev)
 {
@@ -1322,14 +1320,15 @@ static void bond_netpoll_cleanup(struct net_device *bond_dev)
 
 /*---------------------------------- IOCTL ----------------------------------*/
 
-static int bond_sethwaddr(struct net_device *bond_dev,
-			  struct net_device *slave_dev)
+static void bond_set_dev_addr(struct net_device *bond_dev,
+			      struct net_device *slave_dev)
 {
 	pr_debug("bond_dev=%p\n", bond_dev);
 	pr_debug("slave_dev=%p\n", slave_dev);
 	pr_debug("slave_dev->addr_len=%d\n", slave_dev->addr_len);
 	memcpy(bond_dev->dev_addr, slave_dev->dev_addr, slave_dev->addr_len);
-	return 0;
+	bond_dev->addr_assign_type = NET_ADDR_SET;
+	call_netdevice_notifiers(NETDEV_CHANGEADDR, bond_dev);
 }
 
 static netdev_features_t bond_fix_features(struct net_device *dev,
@@ -1493,6 +1492,27 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	return ret;
 }
 
+static int bond_master_upper_dev_link(struct net_device *bond_dev,
+				      struct net_device *slave_dev)
+{
+	int err;
+
+	err = netdev_master_upper_dev_link(slave_dev, bond_dev);
+	if (err)
+		return err;
+	slave_dev->flags |= IFF_SLAVE;
+	rtmsg_ifinfo(RTM_NEWLINK, slave_dev, IFF_SLAVE);
+	return 0;
+}
+
+static void bond_upper_dev_unlink(struct net_device *bond_dev,
+				  struct net_device *slave_dev)
+{
+	netdev_upper_dev_unlink(slave_dev, bond_dev);
+	slave_dev->flags &= ~IFF_SLAVE;
+	rtmsg_ifinfo(RTM_NEWLINK, slave_dev, IFF_SLAVE);
+}
+
 /* enslave device <slave> to bond device <master> */
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {
@@ -1609,10 +1629,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* If this is the first slave, then we need to set the master's hardware
 	 * address to be the same as the slave's. */
-	if (is_zero_ether_addr(bond->dev->dev_addr))
-		memcpy(bond->dev->dev_addr, slave_dev->dev_addr,
-		       slave_dev->addr_len);
-
+	if (bond->slave_cnt == 0 && bond->dev_addr_from_first)
+		bond_set_dev_addr(bond->dev, slave_dev);
 
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
 	if (!new_slave) {
@@ -1655,9 +1673,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 	}
 
-	res = netdev_set_bond_master(slave_dev, bond_dev);
+	res = bond_master_upper_dev_link(bond_dev, slave_dev);
 	if (res) {
-		pr_debug("Error %d calling netdev_set_bond_master\n", res);
+		pr_debug("Error %d calling bond_master_upper_dev_link\n", res);
 		goto err_restore_mac;
 	}
 
@@ -1891,7 +1909,7 @@ err_close:
 	dev_close(slave_dev);
 
 err_unset_master:
-	netdev_set_bond_master(slave_dev, NULL);
+	bond_upper_dev_unlink(bond_dev, slave_dev);
 
 err_restore_mac:
 	if (!bond->params.fail_over_mac) {
@@ -1919,7 +1937,8 @@ err_undo_flags:
 /*
  * Try to release the slave device <slave> from the bond device <master>
  * It is legal to access curr_active_slave without a lock because all the function
- * is write-locked.
+ * is write-locked. If "all" is true it means that the function is being called
+ * while destroying a bond interface and all slaves are being released.
  *
  * The rules for slave state should be:
  *   for Active/Backup:
@@ -1927,7 +1946,9 @@ err_undo_flags:
  *   for Bonded connections:
  *     The first up interface should be left on and all others downed.
  */
-int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
+static int __bond_release_one(struct net_device *bond_dev,
+			      struct net_device *slave_dev,
+			      bool all)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *oldcurrent;
@@ -1936,7 +1957,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* slave is not a slave or master is not master of this slave */
 	if (!(slave_dev->flags & IFF_SLAVE) ||
-	    (slave_dev->master != bond_dev)) {
+	    !netdev_has_upper_dev(slave_dev, bond_dev)) {
 		pr_err("%s: Error: cannot release %s.\n",
 		       bond_dev->name, slave_dev->name);
 		return -EINVAL;
@@ -1964,7 +1985,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	synchronize_net();
 	write_lock_bh(&bond->lock);
 
-	if (!bond->params.fail_over_mac) {
+	if (!all && !bond->params.fail_over_mac) {
 		if (ether_addr_equal(bond_dev->dev_addr, slave->perm_hwaddr) &&
 		    bond->slave_cnt > 1)
 			pr_warning("%s: Warning: the permanent HWaddr of %s - %pM - is still in use by %s. Set the HWaddr of %s to a different address to avoid conflicts.\n",
@@ -2010,7 +2031,9 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		write_lock_bh(&bond->lock);
 	}
 
-	if (oldcurrent == slave) {
+	if (all) {
+		bond->curr_active_slave = NULL;
+	} else if (oldcurrent == slave) {
 		/*
 		 * Note that we hold RTNL over this sequence, so there
 		 * is no concern that another slave add/remove event
@@ -2029,12 +2052,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	if (bond->slave_cnt == 0) {
 		bond_set_carrier(bond);
-
-		/* if the last slave was removed, zero the mac address
-		 * of the master so it will be set by the application
-		 * to the mac address of the first slave
-		 */
-		memset(bond_dev->dev_addr, 0, bond_dev->addr_len);
+		eth_hw_addr_random(bond_dev);
+		bond->dev_addr_from_first = true;
 
 		if (bond_vlan_used(bond)) {
 			pr_warning("%s: Warning: clearing HW address of %s while it still has VLANs.\n",
@@ -2080,7 +2099,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		netif_addr_unlock_bh(bond_dev);
 	}
 
-	netdev_set_bond_master(slave_dev, NULL);
+	bond_upper_dev_unlink(bond_dev, slave_dev);
 
 	slave_disable_netpoll(slave);
 
@@ -2101,6 +2120,12 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	kfree(slave);
 
 	return 0;  /* deletion OK */
+}
+
+/* A wrapper used because of ndo_del_link */
+int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
+{
+	return __bond_release_one(bond_dev, slave_dev, false);
 }
 
 /*
@@ -2124,121 +2149,6 @@ static int  bond_release_and_destroy(struct net_device *bond_dev,
 }
 
 /*
- * This function releases all slaves.
- */
-static int bond_release_all(struct net_device *bond_dev)
-{
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave;
-	struct net_device *slave_dev;
-	struct sockaddr addr;
-
-	write_lock_bh(&bond->lock);
-
-	netif_carrier_off(bond_dev);
-
-	if (bond->slave_cnt == 0)
-		goto out;
-
-	bond->current_arp_slave = NULL;
-	bond->primary_slave = NULL;
-	bond_change_active_slave(bond, NULL);
-
-	while ((slave = bond->first_slave) != NULL) {
-		/* Inform AD package of unbinding of slave
-		 * before slave is detached from the list.
-		 */
-		if (bond->params.mode == BOND_MODE_8023AD)
-			bond_3ad_unbind_slave(slave);
-
-		slave_dev = slave->dev;
-		bond_detach_slave(bond, slave);
-
-		/* now that the slave is detached, unlock and perform
-		 * all the undo steps that should not be called from
-		 * within a lock.
-		 */
-		write_unlock_bh(&bond->lock);
-
-		/* unregister rx_handler early so bond_handle_frame wouldn't
-		 * be called for this slave anymore.
-		 */
-		netdev_rx_handler_unregister(slave_dev);
-		synchronize_net();
-
-		if (bond_is_lb(bond)) {
-			/* must be called only after the slave
-			 * has been detached from the list
-			 */
-			bond_alb_deinit_slave(bond, slave);
-		}
-
-		bond_destroy_slave_symlinks(bond_dev, slave_dev);
-		bond_del_vlans_from_slave(bond, slave_dev);
-
-		/* If the mode USES_PRIMARY, then we should only remove its
-		 * promisc and mc settings if it was the curr_active_slave, but that was
-		 * already taken care of above when we detached the slave
-		 */
-		if (!USES_PRIMARY(bond->params.mode)) {
-			/* unset promiscuity level from slave */
-			if (bond_dev->flags & IFF_PROMISC)
-				dev_set_promiscuity(slave_dev, -1);
-
-			/* unset allmulti level from slave */
-			if (bond_dev->flags & IFF_ALLMULTI)
-				dev_set_allmulti(slave_dev, -1);
-
-			/* flush master's mc_list from slave */
-			netif_addr_lock_bh(bond_dev);
-			bond_mc_list_flush(bond_dev, slave_dev);
-			netif_addr_unlock_bh(bond_dev);
-		}
-
-		netdev_set_bond_master(slave_dev, NULL);
-
-		slave_disable_netpoll(slave);
-
-		/* close slave before restoring its mac address */
-		dev_close(slave_dev);
-
-		if (!bond->params.fail_over_mac) {
-			/* restore original ("permanent") mac address*/
-			memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
-			addr.sa_family = slave_dev->type;
-			dev_set_mac_address(slave_dev, &addr);
-		}
-
-		kfree(slave);
-
-		/* re-acquire the lock before getting the next slave */
-		write_lock_bh(&bond->lock);
-	}
-
-	/* zero the mac address of the master so it will be
-	 * set by the application to the mac address of the
-	 * first slave
-	 */
-	memset(bond_dev->dev_addr, 0, bond_dev->addr_len);
-
-	if (bond_vlan_used(bond)) {
-		pr_warning("%s: Warning: clearing HW address of %s while it still has VLANs.\n",
-			   bond_dev->name, bond_dev->name);
-		pr_warning("%s: When re-adding slaves, make sure the bond's HW address matches its VLANs'.\n",
-			   bond_dev->name);
-	}
-
-	pr_info("%s: released all slaves\n", bond_dev->name);
-
-out:
-	write_unlock_bh(&bond->lock);
-
-	bond_compute_features(bond);
-
-	return 0;
-}
-
-/*
  * This function changes the active slave to slave <slave_dev>.
  * It returns -EINVAL in the following cases.
  *  - <slave_dev> is not found in the list.
@@ -2259,8 +2169,9 @@ static int bond_ioctl_change_active(struct net_device *bond_dev, struct net_devi
 	if (!USES_PRIMARY(bond->params.mode))
 		return -EINVAL;
 
-	/* Verify that master_dev is indeed the master of slave_dev */
-	if (!(slave_dev->flags & IFF_SLAVE) || (slave_dev->master != bond_dev))
+	/* Verify that bond_dev is indeed the master of slave_dev */
+	if (!(slave_dev->flags & IFF_SLAVE) ||
+	    !netdev_has_upper_dev(slave_dev, bond_dev))
 		return -EINVAL;
 
 	read_lock(&bond->lock);
@@ -3258,36 +3169,32 @@ static int bond_master_netdev_event(unsigned long event,
 static int bond_slave_netdev_event(unsigned long event,
 				   struct net_device *slave_dev)
 {
-	struct net_device *bond_dev = slave_dev->master;
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave = NULL;
+	struct slave *slave = bond_slave_get_rtnl(slave_dev);
+	struct bonding *bond = slave->bond;
+	struct net_device *bond_dev = slave->bond->dev;
+	u32 old_speed;
+	u8 old_duplex;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		if (bond_dev) {
-			if (bond->setup_by_slave)
-				bond_release_and_destroy(bond_dev, slave_dev);
-			else
-				bond_release(bond_dev, slave_dev);
-		}
+		if (bond->setup_by_slave)
+			bond_release_and_destroy(bond_dev, slave_dev);
+		else
+			bond_release(bond_dev, slave_dev);
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		slave = bond_get_slave_by_dev(bond, slave_dev);
-		if (slave) {
-			u32 old_speed = slave->speed;
-			u8  old_duplex = slave->duplex;
+		old_speed = slave->speed;
+		old_duplex = slave->duplex;
 
-			bond_update_speed_duplex(slave);
+		bond_update_speed_duplex(slave);
 
-			if (bond->params.mode == BOND_MODE_8023AD) {
-				if (old_speed != slave->speed)
-					bond_3ad_adapter_speed_changed(slave);
-				if (old_duplex != slave->duplex)
-					bond_3ad_adapter_duplex_changed(slave);
-			}
+		if (bond->params.mode == BOND_MODE_8023AD) {
+			if (old_speed != slave->speed)
+				bond_3ad_adapter_speed_changed(slave);
+			if (old_duplex != slave->duplex)
+				bond_3ad_adapter_duplex_changed(slave);
 		}
-
 		break;
 	case NETDEV_DOWN:
 		/*
@@ -3604,6 +3511,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	struct ifslave k_sinfo;
 	struct ifslave __user *u_sinfo = NULL;
 	struct mii_ioctl_data *mii = NULL;
+	struct net *net;
 	int res = 0;
 
 	pr_debug("bond_ioctl: master=%s, cmd=%d\n", bond_dev->name, cmd);
@@ -3670,10 +3578,12 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		break;
 	}
 
-	if (!capable(CAP_NET_ADMIN))
+	net = dev_net(bond_dev);
+
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	slave_dev = dev_get_by_name(dev_net(bond_dev), ifr->ifr_slave);
+	slave_dev = dev_get_by_name(net, ifr->ifr_slave);
 
 	pr_debug("slave_dev=%p:\n", slave_dev);
 
@@ -3692,7 +3602,8 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 			break;
 		case BOND_SETHWADDR_OLD:
 		case SIOCBONDSETHWADDR:
-			res = bond_sethwaddr(bond_dev, slave_dev);
+			bond_set_dev_addr(bond_dev, slave_dev);
+			res = 0;
 			break;
 		case BOND_CHANGE_ACTIVE_OLD:
 		case SIOCBONDCHANGEACTIVE:
@@ -4314,11 +4225,12 @@ void bond_set_mode_ops(struct bonding *bond, int mode)
 }
 
 static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
-				    struct ethtool_drvinfo *drvinfo)
+				     struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver, DRV_NAME, 32);
-	strncpy(drvinfo->version, DRV_VERSION, 32);
-	snprintf(drvinfo->fw_version, 32, "%d", BOND_ABI_VERSION);
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version), "%d",
+		 BOND_ABI_VERSION);
 }
 
 static const struct ethtool_ops bond_ethtool_ops = {
@@ -4352,6 +4264,10 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_fix_features	= bond_fix_features,
 };
 
+static const struct device_type bond_type = {
+	.name = "bond",
+};
+
 static void bond_destructor(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
@@ -4381,6 +4297,8 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_set_mode_ops(bond, bond->params.mode);
 
 	bond_dev->destructor = bond_destructor;
+
+	SET_NETDEV_DEVTYPE(bond_dev, &bond_type);
 
 	/* Initialize the device options */
 	bond_dev->tx_queue_len = 0;
@@ -4427,7 +4345,9 @@ static void bond_uninit(struct net_device *bond_dev)
 	bond_netpoll_cleanup(bond_dev);
 
 	/* Release the bonded slaves */
-	bond_release_all(bond_dev);
+	while (bond->first_slave != NULL)
+		__bond_release_one(bond_dev, bond->first_slave->dev, true);
+	pr_info("%s: released all slaves\n", bond_dev->name);
 
 	list_del(&bond->bond_list);
 
@@ -4840,6 +4760,13 @@ static int bond_init(struct net_device *bond_dev)
 	bond_prepare_sysfs_group(bond);
 
 	bond_debug_register(bond);
+
+	/* Ensure valid dev_addr */
+	if (is_zero_ether_addr(bond_dev->dev_addr) &&
+	    bond_dev->addr_assign_type == NET_ADDR_PERM) {
+		eth_hw_addr_random(bond_dev);
+		bond->dev_addr_from_first = true;
+	}
 
 	__hw_addr_init(&bond->mc_list);
 	return 0;

@@ -183,60 +183,15 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 static u32 initiate_bulk_draining(struct nfs_client *clp,
 				  struct cb_layoutrecallargs *args)
 {
-	struct nfs_server *server;
-	struct pnfs_layout_hdr *lo;
-	struct inode *ino;
-	u32 rv = NFS4ERR_NOMATCHING_LAYOUT;
-	struct pnfs_layout_hdr *tmp;
-	LIST_HEAD(recall_list);
-	LIST_HEAD(free_me_list);
-	struct pnfs_layout_range range = {
-		.iomode = IOMODE_ANY,
-		.offset = 0,
-		.length = NFS4_MAX_UINT64,
-	};
+	int stat;
 
-	spin_lock(&clp->cl_lock);
-	rcu_read_lock();
-	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
-		if ((args->cbl_recall_type == RETURN_FSID) &&
-		    memcmp(&server->fsid, &args->cbl_fsid,
-			   sizeof(struct nfs_fsid)))
-			continue;
-
-		list_for_each_entry(lo, &server->layouts, plh_layouts) {
-			ino = igrab(lo->plh_inode);
-			if (ino)
-				continue;
-			spin_lock(&ino->i_lock);
-			/* Is this layout in the process of being freed? */
-			if (NFS_I(ino)->layout != lo) {
-				spin_unlock(&ino->i_lock);
-				iput(ino);
-				continue;
-			}
-			pnfs_get_layout_hdr(lo);
-			spin_unlock(&ino->i_lock);
-			list_add(&lo->plh_bulk_recall, &recall_list);
-		}
-	}
-	rcu_read_unlock();
-	spin_unlock(&clp->cl_lock);
-
-	list_for_each_entry_safe(lo, tmp,
-				 &recall_list, plh_bulk_recall) {
-		ino = lo->plh_inode;
-		spin_lock(&ino->i_lock);
-		set_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
-		if (pnfs_mark_matching_lsegs_invalid(lo, &free_me_list, &range))
-			rv = NFS4ERR_DELAY;
-		list_del_init(&lo->plh_bulk_recall);
-		spin_unlock(&ino->i_lock);
-		pnfs_free_lseg_list(&free_me_list);
-		pnfs_put_layout_hdr(lo);
-		iput(ino);
-	}
-	return rv;
+	if (args->cbl_recall_type == RETURN_FSID)
+		stat = pnfs_destroy_layouts_byfsid(clp, &args->cbl_fsid, true);
+	else
+		stat = pnfs_destroy_layouts_byclid(clp, true);
+	if (stat != 0)
+		return NFS4ERR_DELAY;
+	return NFS4ERR_NOMATCHING_LAYOUT;
 }
 
 static u32 do_callback_layoutrecall(struct nfs_client *clp,

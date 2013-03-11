@@ -731,9 +731,9 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
 	queue->aifs = params->aifs;
 	queue->txop = params->txop;
 
-	INFO(rt2x00dev,
-	     "Configured TX queue %d - CWmin: %d, CWmax: %d, Aifs: %d, TXop: %d.\n",
-	     queue_idx, queue->cw_min, queue->cw_max, queue->aifs, queue->txop);
+	DEBUG(rt2x00dev,
+	      "Configured TX queue %d - CWmin: %d, CWmax: %d, Aifs: %d, TXop: %d.\n",
+	      queue_idx, queue->cw_min, queue->cw_max, queue->aifs, queue->txop);
 
 	return 0;
 }

@@ -16,12 +16,11 @@
 #include <linux/amba/pl08x.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <asm/hardware/pl080.h>
-#include <asm/hardware/vic.h>
+#include <linux/amba/pl080.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
@@ -374,7 +373,7 @@ void __init spear6xx_map_io(void)
 	iotable_init(spear6xx_io_desc, ARRAY_SIZE(spear6xx_io_desc));
 }
 
-static void __init spear6xx_timer_init(void)
+void __init spear6xx_timer_init(void)
 {
 	char pclk_name[] = "pll3_clk";
 	struct clk *gpt_clk, *pclk;
@@ -403,10 +402,6 @@ static void __init spear6xx_timer_init(void)
 	spear_setup_of_timer();
 }
 
-struct sys_timer spear6xx_timer = {
-	.init = spear6xx_timer_init,
-};
-
 /* Add auxdata to pass platform data */
 struct of_dev_auxdata spear6xx_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,pl080", SPEAR6XX_ICM3_DMA_BASE, NULL,
@@ -425,21 +420,10 @@ static const char *spear600_dt_board_compat[] = {
 	NULL
 };
 
-static const struct of_device_id vic_of_match[] __initconst = {
-	{ .compatible = "arm,pl190-vic", .data = vic_of_init, },
-	{ /* Sentinel */ }
-};
-
-static void __init spear6xx_dt_init_irq(void)
-{
-	of_irq_init(vic_of_match);
-}
-
 DT_MACHINE_START(SPEAR600_DT, "ST SPEAr600 (Flattened Device Tree)")
 	.map_io		=	spear6xx_map_io,
-	.init_irq	=	spear6xx_dt_init_irq,
-	.handle_irq	=	vic_handle_irq,
-	.timer		=	&spear6xx_timer,
+	.init_irq	=	irqchip_init,
+	.init_time	=	spear6xx_timer_init,
 	.init_machine	=	spear600_dt_init,
 	.restart	=	spear_restart,
 	.dt_compat	=	spear600_dt_board_compat,

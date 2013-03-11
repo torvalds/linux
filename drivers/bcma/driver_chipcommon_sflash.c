@@ -5,10 +5,10 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "bcma_private.h"
+
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
-
-#include "bcma_private.h"
 
 static struct resource bcma_sflash_resource = {
 	.name	= "bcma_sflash",
@@ -35,7 +35,7 @@ static struct bcma_sflash_tbl_e bcma_sflash_st_tbl[] = {
 	{ "M25P40", 0x12, 0x10000, 8, },
 
 	{ "M25P16", 0x14, 0x10000, 32, },
-	{ "M25P32", 0x14, 0x10000, 64, },
+	{ "M25P32", 0x15, 0x10000, 64, },
 	{ "M25P64", 0x16, 0x10000, 128, },
 	{ "M25FL128", 0x17, 0x10000, 256, },
 	{ 0 },

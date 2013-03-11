@@ -352,7 +352,7 @@ nouveau_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
 	u64 mm_length = (offset + length) - mm_offset;
 	int ret;
 
-	vm = *pvm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
 		return -ENOMEM;
 
@@ -375,6 +375,8 @@ nouveau_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
 		kfree(vm);
 		return ret;
 	}
+
+	*pvm = vm;
 
 	return 0;
 }

@@ -152,6 +152,12 @@
 #define USB_INTRF_FUNC_SUSPEND_LP	(1 << (8 + 0))
 #define USB_INTRF_FUNC_SUSPEND_RW	(1 << (8 + 1))
 
+/*
+ * Interface status, Figure 9-5 USB 3.0 spec
+ */
+#define USB_INTRF_STAT_FUNC_RW_CAP     1
+#define USB_INTRF_STAT_FUNC_RW         2
+
 #define USB_ENDPOINT_HALT		0	/* IN/OUT will STALL */
 
 /* Bit array elements as returned by the USB_REQ_GET_STATUS request. */

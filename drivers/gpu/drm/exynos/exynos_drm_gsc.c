@@ -25,7 +25,7 @@
 #include "exynos_drm_gsc.h"
 
 /*
- * GSC is stand for General SCaler and
+ * GSC stands for General SCaler and
  * supports image scaler/rotator and input/output DMA operations.
  * input DMA reads image data from the memory.
  * output DMA writes image data to memory.
@@ -711,7 +711,7 @@ static int gsc_src_set_addr(struct device *dev,
 {
 	struct gsc_context *ctx = get_gsc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 
 	if (!c_node) {
@@ -720,10 +720,6 @@ static int gsc_src_set_addr(struct device *dev,
 	}
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property.\n");
-		return -EFAULT;
-	}
 
 	DRM_DEBUG_KMS("%s:prop_id[%d]buf_id[%d]buf_type[%d]\n", __func__,
 		property->prop_id, buf_id, buf_type);
@@ -1171,7 +1167,7 @@ static int gsc_dst_set_addr(struct device *dev,
 {
 	struct gsc_context *ctx = get_gsc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 
 	if (!c_node) {
@@ -1180,10 +1176,6 @@ static int gsc_dst_set_addr(struct device *dev,
 	}
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property.\n");
-		return -EFAULT;
-	}
 
 	DRM_DEBUG_KMS("%s:prop_id[%d]buf_id[%d]buf_type[%d]\n", __func__,
 		property->prop_id, buf_id, buf_type);
@@ -1312,7 +1304,7 @@ static irqreturn_t gsc_irq_handler(int irq, void *dev_id)
 {
 	struct gsc_context *ctx = dev_id;
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_event_work *event_work =
 		c_node->event_work;
 	u32 status;
@@ -1399,7 +1391,7 @@ static inline bool gsc_check_drm_flip(enum drm_exynos_flip flip)
 	case EXYNOS_DRM_FLIP_NONE:
 	case EXYNOS_DRM_FLIP_VERTICAL:
 	case EXYNOS_DRM_FLIP_HORIZONTAL:
-	case EXYNOS_DRM_FLIP_VERTICAL | EXYNOS_DRM_FLIP_HORIZONTAL:
+	case EXYNOS_DRM_FLIP_BOTH:
 		return true;
 	default:
 		DRM_DEBUG_KMS("%s:invalid flip\n", __func__);
@@ -1549,7 +1541,7 @@ static int gsc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 {
 	struct gsc_context *ctx = get_gsc_context(dev);
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_property *property;
 	struct drm_exynos_ipp_config *config;
 	struct drm_exynos_pos	img_pos[EXYNOS_DRM_OPS_MAX];
@@ -1565,10 +1557,6 @@ static int gsc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	}
 
 	property = &c_node->property;
-	if (!property) {
-		DRM_ERROR("failed to get property.\n");
-		return -EINVAL;
-	}
 
 	gsc_handle_irq(ctx, true, false, true);
 
@@ -1604,7 +1592,7 @@ static int gsc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 		exynos_drm_ippnb_send_event(IPP_SET_WRITEBACK, (void *)&set_wb);
 
 		/* src local path */
-		cfg = readl(GSC_IN_CON);
+		cfg = gsc_read(GSC_IN_CON);
 		cfg &= ~(GSC_IN_PATH_MASK | GSC_IN_LOCAL_SEL_MASK);
 		cfg |= (GSC_IN_PATH_LOCAL | GSC_IN_LOCAL_FIMD_WB);
 		gsc_write(cfg, GSC_IN_CON);
@@ -1683,7 +1671,7 @@ static void gsc_ippdrv_stop(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	gsc_write(cfg, GSC_ENABLE);
 }
 
-static int __devinit gsc_probe(struct platform_device *pdev)
+static int gsc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gsc_context *ctx;
@@ -1696,34 +1684,23 @@ static int __devinit gsc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* clock control */
-	ctx->gsc_clk = clk_get(dev, "gscl");
+	ctx->gsc_clk = devm_clk_get(dev, "gscl");
 	if (IS_ERR(ctx->gsc_clk)) {
 		dev_err(dev, "failed to get gsc clock.\n");
-		ret = PTR_ERR(ctx->gsc_clk);
-		goto err_ctx;
+		return PTR_ERR(ctx->gsc_clk);
 	}
 
 	/* resource memory */
 	ctx->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!ctx->regs_res) {
-		dev_err(dev, "failed to find registers.\n");
-		ret = -ENOENT;
-		goto err_clk;
-	}
-
-	ctx->regs = devm_request_and_ioremap(dev, ctx->regs_res);
-	if (!ctx->regs) {
-		dev_err(dev, "failed to map registers.\n");
-		ret = -ENXIO;
-		goto err_clk;
-	}
+	ctx->regs = devm_ioremap_resource(dev, ctx->regs_res);
+	if (IS_ERR(ctx->regs))
+		return PTR_ERR(ctx->regs);
 
 	/* resource irq */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "failed to request irq resource.\n");
-		ret = -ENOENT;
-		goto err_get_regs;
+		return -ENOENT;
 	}
 
 	ctx->irq = res->start;
@@ -1731,7 +1708,7 @@ static int __devinit gsc_probe(struct platform_device *pdev)
 		IRQF_ONESHOT, "drm_gsc", ctx);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq.\n");
-		goto err_get_regs;
+		return ret;
 	}
 
 	/* context initailization */
@@ -1775,16 +1752,10 @@ err_ippdrv_register:
 	pm_runtime_disable(dev);
 err_get_irq:
 	free_irq(ctx->irq, ctx);
-err_get_regs:
-	devm_iounmap(dev, ctx->regs);
-err_clk:
-	clk_put(ctx->gsc_clk);
-err_ctx:
-	devm_kfree(dev, ctx);
 	return ret;
 }
 
-static int __devexit gsc_remove(struct platform_device *pdev)
+static int gsc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gsc_context *ctx = get_gsc_context(dev);
@@ -1798,11 +1769,6 @@ static int __devexit gsc_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 
 	free_irq(ctx->irq, ctx);
-	devm_iounmap(dev, ctx->regs);
-
-	clk_put(ctx->gsc_clk);
-
-	devm_kfree(dev, ctx);
 
 	return 0;
 }
@@ -1860,7 +1826,7 @@ static const struct dev_pm_ops gsc_pm_ops = {
 
 struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
-	.remove		= __devexit_p(gsc_remove),
+	.remove		= gsc_remove,
 	.driver		= {
 		.name	= "exynos-drm-gsc",
 		.owner	= THIS_MODULE,

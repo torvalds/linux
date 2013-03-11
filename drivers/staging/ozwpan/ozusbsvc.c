@@ -34,7 +34,7 @@
  */
 int oz_usb_init(void)
 {
-	oz_event_log(OZ_EVT_SERVICE, 1, OZ_APPID_USB, 0, 0);
+	oz_event_log(OZ_EVT_SERVICE, 1, OZ_APPID_USB, NULL, 0);
 	return oz_hcd_init();
 }
 /*------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ int oz_usb_init(void)
  */
 void oz_usb_term(void)
 {
-	oz_event_log(OZ_EVT_SERVICE, 2, OZ_APPID_USB, 0, 0);
+	oz_event_log(OZ_EVT_SERVICE, 2, OZ_APPID_USB, NULL, 0);
 	oz_hcd_term();
 }
 /*------------------------------------------------------------------------------
@@ -54,8 +54,8 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 {
 	int rc = 0;
 	struct oz_usb_ctx *usb_ctx;
-	struct oz_usb_ctx *old_ctx = 0;
-	oz_event_log(OZ_EVT_SERVICE, 3, OZ_APPID_USB, 0, resume);
+	struct oz_usb_ctx *old_ctx;
+	oz_event_log(OZ_EVT_SERVICE, 3, OZ_APPID_USB, NULL, resume);
 	if (resume) {
 		oz_trace("USB service resumed.\n");
 		return 0;
@@ -65,7 +65,7 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	 * has a USB context then we will destroy it.
 	 */
 	usb_ctx = kzalloc(sizeof(struct oz_usb_ctx), GFP_ATOMIC);
-	if (usb_ctx == 0)
+	if (usb_ctx == NULL)
 		return -ENOMEM;
 	atomic_set(&usb_ctx->ref_count, 1);
 	usb_ctx->pd = pd;
@@ -76,7 +76,7 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	 */
 	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	old_ctx = pd->app_ctx[OZ_APPID_USB-1];
-	if (old_ctx == 0)
+	if (old_ctx == NULL)
 		pd->app_ctx[OZ_APPID_USB-1] = usb_ctx;
 	oz_usb_get(pd->app_ctx[OZ_APPID_USB-1]);
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
@@ -98,10 +98,10 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 		oz_hcd_pd_reset(usb_ctx, usb_ctx->hport);
 	} else {
 		usb_ctx->hport = oz_hcd_pd_arrived(usb_ctx);
-		if (usb_ctx->hport == 0) {
+		if (usb_ctx->hport == NULL) {
 			oz_trace("USB hub returned null port.\n");
 			spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-			pd->app_ctx[OZ_APPID_USB-1] = 0;
+			pd->app_ctx[OZ_APPID_USB-1] = NULL;
 			spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 			oz_usb_put(usb_ctx);
 			rc = -1;
@@ -117,14 +117,14 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 void oz_usb_stop(struct oz_pd *pd, int pause)
 {
 	struct oz_usb_ctx *usb_ctx;
-	oz_event_log(OZ_EVT_SERVICE, 4, OZ_APPID_USB, 0, pause);
+	oz_event_log(OZ_EVT_SERVICE, 4, OZ_APPID_USB, NULL, pause);
 	if (pause) {
 		oz_trace("USB service paused.\n");
 		return;
 	}
 	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
-	pd->app_ctx[OZ_APPID_USB-1] = 0;
+	pd->app_ctx[OZ_APPID_USB-1] = NULL;
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	if (usb_ctx) {
 		unsigned long tout = jiffies + HZ;
@@ -182,7 +182,7 @@ int oz_usb_heartbeat(struct oz_pd *pd)
 	if (usb_ctx)
 		oz_usb_get(usb_ctx);
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	if (usb_ctx == 0)
+	if (usb_ctx == NULL)
 		return rc;
 	if (usb_ctx->stopped)
 		goto done;

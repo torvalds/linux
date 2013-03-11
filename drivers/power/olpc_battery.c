@@ -668,7 +668,7 @@ static int olpc_battery_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id olpc_battery_ids[] __devinitconst = {
+static const struct of_device_id olpc_battery_ids[] = {
 	{ .compatible = "olpc,xo1-battery" },
 	{}
 };

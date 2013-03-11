@@ -1785,12 +1785,13 @@ static void devm_input_device_release(struct device *dev, void *res)
  * its driver (or binding fails). Once managed input device is allocated,
  * it is ready to be set up and registered in the same fashion as regular
  * input device. There are no special devm_input_device_[un]register()
- * variants, regular ones work with both managed and unmanaged devices.
+ * variants, regular ones work with both managed and unmanaged devices,
+ * should you need them. In most cases however, managed input device need
+ * not be explicitly unregistered or freed.
  *
  * NOTE: the owner device is set up as parent of input device and users
  * should not override it.
  */
-
 struct input_dev *devm_input_allocate_device(struct device *dev)
 {
 	struct input_dev *input;
@@ -2004,6 +2005,17 @@ static void devm_input_device_unregister(struct device *dev, void *res)
  * Once device has been successfully registered it can be unregistered
  * with input_unregister_device(); input_free_device() should not be
  * called in this case.
+ *
+ * Note that this function is also used to register managed input devices
+ * (ones allocated with devm_input_allocate_device()). Such managed input
+ * devices need not be explicitly unregistered or freed, their tear down
+ * is controlled by the devres infrastructure. It is also worth noting
+ * that tear down of managed input devices is internally a 2-step process:
+ * registered managed input device is first unregistered, but stays in
+ * memory and can still handle input_event() calls (although events will
+ * not be delivered anywhere). The freeing of managed input device will
+ * happen later, when devres stack is unwound to the point where device
+ * allocation was made.
  */
 int input_register_device(struct input_dev *dev)
 {

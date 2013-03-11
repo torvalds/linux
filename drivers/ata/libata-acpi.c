@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_qos.h>
 #include <scsi/scsi_device.h>
 #include "libata.h"
 
@@ -835,50 +836,95 @@ void ata_acpi_on_resume(struct ata_port *ap)
 	}
 }
 
-/**
- * ata_acpi_set_state - set the port power state
- * @ap: target ATA port
- * @state: state, on/off
- *
- * This function executes the _PS0/_PS3 ACPI method to set the power state.
- * ACPI spec requires _PS0 when IDE power on and _PS3 when power off
- */
-void ata_acpi_set_state(struct ata_port *ap, pm_message_t state)
+static int ata_acpi_choose_suspend_state(struct ata_device *dev, bool runtime)
 {
+	int d_max_in = ACPI_STATE_D3_COLD;
+	if (!runtime)
+		goto out;
+
+	/*
+	 * For ATAPI, runtime D3 cold is only allowed
+	 * for ZPODD in zero power ready state
+	 */
+	if (dev->class == ATA_DEV_ATAPI &&
+	    !(zpodd_dev_enabled(dev) && zpodd_zpready(dev)))
+		d_max_in = ACPI_STATE_D3_HOT;
+
+out:
+	return acpi_pm_device_sleep_state(&dev->sdev->sdev_gendev,
+					  NULL, d_max_in);
+}
+
+static void sata_acpi_set_state(struct ata_port *ap, pm_message_t state)
+{
+	bool runtime = PMSG_IS_AUTO(state);
 	struct ata_device *dev;
 	acpi_handle handle;
 	int acpi_state;
-
-	/* channel first and then drives for power on and vica versa
-	   for power off */
-	handle = ata_ap_acpi_handle(ap);
-	if (handle && state.event == PM_EVENT_ON)
-		acpi_bus_set_power(handle, ACPI_STATE_D0);
 
 	ata_for_each_dev(dev, &ap->link, ENABLED) {
 		handle = ata_dev_acpi_handle(dev);
 		if (!handle)
 			continue;
 
-		if (state.event != PM_EVENT_ON) {
-			acpi_state = acpi_pm_device_sleep_state(
-				&dev->sdev->sdev_gendev, NULL, ACPI_STATE_D3);
-			if (acpi_state > 0)
-				acpi_bus_set_power(handle, acpi_state);
-			/* TBD: need to check if it's runtime pm request */
-			acpi_pm_device_run_wake(
-				&dev->sdev->sdev_gendev, true);
+		if (!(state.event & PM_EVENT_RESUME)) {
+			acpi_state = ata_acpi_choose_suspend_state(dev, runtime);
+			if (acpi_state == ACPI_STATE_D0)
+				continue;
+			if (runtime && zpodd_dev_enabled(dev) &&
+			    acpi_state == ACPI_STATE_D3_COLD)
+				zpodd_enable_run_wake(dev);
+			acpi_bus_set_power(handle, acpi_state);
 		} else {
-			/* Ditto */
-			acpi_pm_device_run_wake(
-				&dev->sdev->sdev_gendev, false);
+			if (runtime && zpodd_dev_enabled(dev))
+				zpodd_disable_run_wake(dev);
 			acpi_bus_set_power(handle, ACPI_STATE_D0);
 		}
 	}
+}
 
-	handle = ata_ap_acpi_handle(ap);
-	if (handle && state.event != PM_EVENT_ON)
-		acpi_bus_set_power(handle, ACPI_STATE_D3);
+/* ACPI spec requires _PS0 when IDE power on and _PS3 when power off */
+static void pata_acpi_set_state(struct ata_port *ap, pm_message_t state)
+{
+	struct ata_device *dev;
+	acpi_handle port_handle;
+
+	port_handle = ata_ap_acpi_handle(ap);
+	if (!port_handle)
+		return;
+
+	/* channel first and then drives for power on and vica versa
+	   for power off */
+	if (state.event & PM_EVENT_RESUME)
+		acpi_bus_set_power(port_handle, ACPI_STATE_D0);
+
+	ata_for_each_dev(dev, &ap->link, ENABLED) {
+		acpi_handle dev_handle = ata_dev_acpi_handle(dev);
+		if (!dev_handle)
+			continue;
+
+		acpi_bus_set_power(dev_handle, state.event & PM_EVENT_RESUME ?
+						ACPI_STATE_D0 : ACPI_STATE_D3);
+	}
+
+	if (!(state.event & PM_EVENT_RESUME))
+		acpi_bus_set_power(port_handle, ACPI_STATE_D3);
+}
+
+/**
+ * ata_acpi_set_state - set the port power state
+ * @ap: target ATA port
+ * @state: state, on/off
+ *
+ * This function sets a proper ACPI D state for the device on
+ * system and runtime PM operations.
+ */
+void ata_acpi_set_state(struct ata_port *ap, pm_message_t state)
+{
+	if (ap->flags & ATA_FLAG_ACPI_SATA)
+		sata_acpi_set_state(ap, state);
+	else
+		pata_acpi_set_state(ap, state);
 }
 
 /**
@@ -974,96 +1020,35 @@ void ata_acpi_on_disable(struct ata_device *dev)
 	ata_acpi_clear_gtf(dev);
 }
 
-static void ata_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
-{
-	struct ata_device *ata_dev = context;
-
-	if (event == ACPI_NOTIFY_DEVICE_WAKE && ata_dev &&
-			pm_runtime_suspended(&ata_dev->sdev->sdev_gendev))
-		scsi_autopm_get_device(ata_dev->sdev);
-}
-
-static void ata_acpi_add_pm_notifier(struct ata_device *dev)
-{
-	struct acpi_device *acpi_dev;
-	acpi_handle handle;
-	acpi_status status;
-
-	handle = ata_dev_acpi_handle(dev);
-	if (!handle)
-		return;
-
-	status = acpi_bus_get_device(handle, &acpi_dev);
-	if (ACPI_FAILURE(status))
-		return;
-
-	if (dev->sdev->can_power_off) {
-		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-			ata_acpi_wake_dev, dev);
-		device_set_run_wake(&dev->sdev->sdev_gendev, true);
-	}
-}
-
-static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
-{
-	struct acpi_device *acpi_dev;
-	acpi_handle handle;
-	acpi_status status;
-
-	handle = ata_dev_acpi_handle(dev);
-	if (!handle)
-		return;
-
-	status = acpi_bus_get_device(handle, &acpi_dev);
-	if (ACPI_FAILURE(status))
-		return;
-
-	if (dev->sdev->can_power_off) {
-		device_set_run_wake(&dev->sdev->sdev_gendev, false);
-		acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
-			ata_acpi_wake_dev);
-	}
-}
-
 static void ata_acpi_register_power_resource(struct ata_device *dev)
 {
 	struct scsi_device *sdev = dev->sdev;
 	acpi_handle handle;
-	struct device *device;
 
 	handle = ata_dev_acpi_handle(dev);
-	if (!handle)
-		return;
-
-	device = &sdev->sdev_gendev;
-
-	acpi_power_resource_register_device(device, handle);
+	if (handle)
+		acpi_dev_pm_remove_dependent(handle, &sdev->sdev_gendev);
 }
 
 static void ata_acpi_unregister_power_resource(struct ata_device *dev)
 {
 	struct scsi_device *sdev = dev->sdev;
 	acpi_handle handle;
-	struct device *device;
 
 	handle = ata_dev_acpi_handle(dev);
-	if (!handle)
-		return;
-
-	device = &sdev->sdev_gendev;
-
-	acpi_power_resource_unregister_device(device, handle);
+	if (handle)
+		acpi_dev_pm_remove_dependent(handle, &sdev->sdev_gendev);
 }
 
 void ata_acpi_bind(struct ata_device *dev)
 {
-	ata_acpi_add_pm_notifier(dev);
 	ata_acpi_register_power_resource(dev);
+	if (zpodd_dev_enabled(dev))
+		dev_pm_qos_expose_flags(&dev->sdev->sdev_gendev, 0);
 }
 
 void ata_acpi_unbind(struct ata_device *dev)
 {
-	ata_acpi_remove_pm_notifier(dev);
 	ata_acpi_unregister_power_resource(dev);
 }
 
@@ -1105,9 +1090,6 @@ static int ata_acpi_bind_device(struct ata_port *ap, struct scsi_device *sdev,
 				acpi_handle *handle)
 {
 	struct ata_device *ata_dev;
-	acpi_status status;
-	struct acpi_device *acpi_dev;
-	struct acpi_device_power_state *states;
 
 	if (ap->flags & ATA_FLAG_ACPI_SATA) {
 		if (!sata_pmp_attached(ap))
@@ -1123,21 +1105,6 @@ static int ata_acpi_bind_device(struct ata_port *ap, struct scsi_device *sdev,
 
 	if (!*handle)
 		return -ENODEV;
-
-	status = acpi_bus_get_device(*handle, &acpi_dev);
-	if (ACPI_FAILURE(status))
-		return 0;
-
-	/*
-	 * If firmware has _PS3 or _PR3 for this device,
-	 * and this ata ODD device support device attention,
-	 * it means this device can be powered off
-	 */
-	states = acpi_dev->power.states;
-	if ((states[ACPI_STATE_D3_HOT].flags.valid ||
-			states[ACPI_STATE_D3_COLD].flags.explicit_set) &&
-			ata_dev->flags & ATA_DFLAG_DA)
-		sdev->can_power_off = 1;
 
 	return 0;
 }
@@ -1177,13 +1144,8 @@ static int ata_acpi_find_device(struct device *dev, acpi_handle *handle)
 		return -ENODEV;
 }
 
-static int ata_acpi_find_dummy(struct device *dev, acpi_handle *handle)
-{
-	return -ENODEV;
-}
-
 static struct acpi_bus_type ata_acpi_bus = {
-	.find_bridge = ata_acpi_find_dummy,
+	.name = "ATA",
 	.find_device = ata_acpi_find_device,
 };
 

@@ -840,7 +840,7 @@ static struct ata_port_operations octeon_cf_ops = {
 	.dev_config		= octeon_cf_dev_config,
 };
 
-static int __devinit octeon_cf_probe(struct platform_device *pdev)
+static int octeon_cf_probe(struct platform_device *pdev)
 {
 	struct resource *res_cs0, *res_cs1;
 

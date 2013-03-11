@@ -63,6 +63,7 @@
 #include <net/ip_fib.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
+#include <net/addrconf.h>
 
 #include "fib_lookup.h"
 
@@ -93,6 +94,7 @@ static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_ADDRESS]   	= { .type = NLA_U32 },
 	[IFA_BROADCAST] 	= { .type = NLA_U32 },
 	[IFA_LABEL]     	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
+	[IFA_CACHEINFO]		= { .len = sizeof(struct ifa_cacheinfo) },
 };
 
 #define IN4_ADDR_HSIZE_SHIFT	8
@@ -137,10 +139,9 @@ struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 	u32 hash = inet_addr_hash(net, addr);
 	struct net_device *result = NULL;
 	struct in_ifaddr *ifa;
-	struct hlist_node *node;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(ifa, node, &inet_addr_lst[hash], hash) {
+	hlist_for_each_entry_rcu(ifa, &inet_addr_lst[hash], hash) {
 		if (ifa->ifa_local == addr) {
 			struct net_device *dev = ifa->ifa_dev->dev;
 
@@ -417,6 +418,10 @@ static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 	__inet_del_ifa(in_dev, ifap, destroy, NULL, 0);
 }
 
+static void check_lifetime(struct work_struct *work);
+
+static DECLARE_DELAYED_WORK(check_lifetime_work, check_lifetime);
+
 static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 			     u32 portid)
 {
@@ -461,6 +466,9 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 	*ifap = ifa;
 
 	inet_hash_insert(dev_net(in_dev->dev), ifa);
+
+	cancel_delayed_work(&check_lifetime_work);
+	schedule_delayed_work(&check_lifetime_work, 0);
 
 	/* Send message first, then call notifier.
 	   Notifier will trigger FIB update, so that
@@ -573,7 +581,105 @@ errout:
 	return err;
 }
 
-static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh)
+#define INFINITY_LIFE_TIME	0xFFFFFFFF
+
+static void check_lifetime(struct work_struct *work)
+{
+	unsigned long now, next, next_sec, next_sched;
+	struct in_ifaddr *ifa;
+	int i;
+
+	now = jiffies;
+	next = round_jiffies_up(now + ADDR_CHECK_FREQUENCY);
+
+	rcu_read_lock();
+	for (i = 0; i < IN4_ADDR_HSIZE; i++) {
+		hlist_for_each_entry_rcu(ifa, &inet_addr_lst[i], hash) {
+			unsigned long age;
+
+			if (ifa->ifa_flags & IFA_F_PERMANENT)
+				continue;
+
+			/* We try to batch several events at once. */
+			age = (now - ifa->ifa_tstamp +
+			       ADDRCONF_TIMER_FUZZ_MINUS) / HZ;
+
+			if (ifa->ifa_valid_lft != INFINITY_LIFE_TIME &&
+			    age >= ifa->ifa_valid_lft) {
+				struct in_ifaddr **ifap ;
+
+				rtnl_lock();
+				for (ifap = &ifa->ifa_dev->ifa_list;
+				     *ifap != NULL; ifap = &ifa->ifa_next) {
+					if (*ifap == ifa)
+						inet_del_ifa(ifa->ifa_dev,
+							     ifap, 1);
+				}
+				rtnl_unlock();
+			} else if (ifa->ifa_preferred_lft ==
+				   INFINITY_LIFE_TIME) {
+				continue;
+			} else if (age >= ifa->ifa_preferred_lft) {
+				if (time_before(ifa->ifa_tstamp +
+						ifa->ifa_valid_lft * HZ, next))
+					next = ifa->ifa_tstamp +
+					       ifa->ifa_valid_lft * HZ;
+
+				if (!(ifa->ifa_flags & IFA_F_DEPRECATED)) {
+					ifa->ifa_flags |= IFA_F_DEPRECATED;
+					rtmsg_ifa(RTM_NEWADDR, ifa, NULL, 0);
+				}
+			} else if (time_before(ifa->ifa_tstamp +
+					       ifa->ifa_preferred_lft * HZ,
+					       next)) {
+				next = ifa->ifa_tstamp +
+				       ifa->ifa_preferred_lft * HZ;
+			}
+		}
+	}
+	rcu_read_unlock();
+
+	next_sec = round_jiffies_up(next);
+	next_sched = next;
+
+	/* If rounded timeout is accurate enough, accept it. */
+	if (time_before(next_sec, next + ADDRCONF_TIMER_FUZZ))
+		next_sched = next_sec;
+
+	now = jiffies;
+	/* And minimum interval is ADDRCONF_TIMER_FUZZ_MAX. */
+	if (time_before(next_sched, now + ADDRCONF_TIMER_FUZZ_MAX))
+		next_sched = now + ADDRCONF_TIMER_FUZZ_MAX;
+
+	schedule_delayed_work(&check_lifetime_work, next_sched - now);
+}
+
+static void set_ifa_lifetime(struct in_ifaddr *ifa, __u32 valid_lft,
+			     __u32 prefered_lft)
+{
+	unsigned long timeout;
+
+	ifa->ifa_flags &= ~(IFA_F_PERMANENT | IFA_F_DEPRECATED);
+
+	timeout = addrconf_timeout_fixup(valid_lft, HZ);
+	if (addrconf_finite_timeout(timeout))
+		ifa->ifa_valid_lft = timeout;
+	else
+		ifa->ifa_flags |= IFA_F_PERMANENT;
+
+	timeout = addrconf_timeout_fixup(prefered_lft, HZ);
+	if (addrconf_finite_timeout(timeout)) {
+		if (timeout == 0)
+			ifa->ifa_flags |= IFA_F_DEPRECATED;
+		ifa->ifa_preferred_lft = timeout;
+	}
+	ifa->ifa_tstamp = jiffies;
+	if (!ifa->ifa_cstamp)
+		ifa->ifa_cstamp = ifa->ifa_tstamp;
+}
+
+static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
+				       __u32 *pvalid_lft, __u32 *pprefered_lft)
 {
 	struct nlattr *tb[IFA_MAX+1];
 	struct in_ifaddr *ifa;
@@ -633,24 +739,73 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh)
 	else
 		memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
 
+	if (tb[IFA_CACHEINFO]) {
+		struct ifa_cacheinfo *ci;
+
+		ci = nla_data(tb[IFA_CACHEINFO]);
+		if (!ci->ifa_valid || ci->ifa_prefered > ci->ifa_valid) {
+			err = -EINVAL;
+			goto errout;
+		}
+		*pvalid_lft = ci->ifa_valid;
+		*pprefered_lft = ci->ifa_prefered;
+	}
+
 	return ifa;
 
 errout:
 	return ERR_PTR(err);
 }
 
+static struct in_ifaddr *find_matching_ifa(struct in_ifaddr *ifa)
+{
+	struct in_device *in_dev = ifa->ifa_dev;
+	struct in_ifaddr *ifa1, **ifap;
+
+	if (!ifa->ifa_local)
+		return NULL;
+
+	for (ifap = &in_dev->ifa_list; (ifa1 = *ifap) != NULL;
+	     ifap = &ifa1->ifa_next) {
+		if (ifa1->ifa_mask == ifa->ifa_mask &&
+		    inet_ifa_match(ifa1->ifa_address, ifa) &&
+		    ifa1->ifa_local == ifa->ifa_local)
+			return ifa1;
+	}
+	return NULL;
+}
+
 static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
 	struct in_ifaddr *ifa;
+	struct in_ifaddr *ifa_existing;
+	__u32 valid_lft = INFINITY_LIFE_TIME;
+	__u32 prefered_lft = INFINITY_LIFE_TIME;
 
 	ASSERT_RTNL();
 
-	ifa = rtm_to_ifaddr(net, nlh);
+	ifa = rtm_to_ifaddr(net, nlh, &valid_lft, &prefered_lft);
 	if (IS_ERR(ifa))
 		return PTR_ERR(ifa);
 
-	return __inet_insert_ifa(ifa, nlh, NETLINK_CB(skb).portid);
+	ifa_existing = find_matching_ifa(ifa);
+	if (!ifa_existing) {
+		/* It would be best to check for !NLM_F_CREATE here but
+		 * userspace alreay relies on not having to provide this.
+		 */
+		set_ifa_lifetime(ifa, valid_lft, prefered_lft);
+		return __inet_insert_ifa(ifa, nlh, NETLINK_CB(skb).portid);
+	} else {
+		inet_free_ifa(ifa);
+
+		if (nlh->nlmsg_flags & NLM_F_EXCL ||
+		    !(nlh->nlmsg_flags & NLM_F_REPLACE))
+			return -EEXIST;
+
+		set_ifa_lifetime(ifa_existing, valid_lft, prefered_lft);
+	}
+	return 0;
 }
 
 /*
@@ -823,9 +978,9 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		if (!ifa) {
 			ret = -ENOBUFS;
 			ifa = inet_alloc_ifa();
-			INIT_HLIST_NODE(&ifa->hash);
 			if (!ifa)
 				break;
+			INIT_HLIST_NODE(&ifa->hash);
 			if (colon)
 				memcpy(ifa->ifa_label, ifr.ifr_name, IFNAMSIZ);
 			else
@@ -852,6 +1007,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 			ifa->ifa_prefixlen = 32;
 			ifa->ifa_mask = inet_make_mask(32);
 		}
+		set_ifa_lifetime(ifa, INFINITY_LIFE_TIME, INFINITY_LIFE_TIME);
 		ret = inet_set_ifa(dev, ifa);
 		break;
 
@@ -1190,6 +1346,8 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 				ifa->ifa_dev = in_dev;
 				ifa->ifa_scope = RT_SCOPE_HOST;
 				memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
+				set_ifa_lifetime(ifa, INFINITY_LIFE_TIME,
+						 INFINITY_LIFE_TIME);
 				inet_insert_ifa(ifa);
 			}
 		}
@@ -1246,11 +1404,30 @@ static size_t inet_nlmsg_size(void)
 	       + nla_total_size(IFNAMSIZ); /* IFA_LABEL */
 }
 
+static inline u32 cstamp_delta(unsigned long cstamp)
+{
+	return (cstamp - INITIAL_JIFFIES) * 100UL / HZ;
+}
+
+static int put_cacheinfo(struct sk_buff *skb, unsigned long cstamp,
+			 unsigned long tstamp, u32 preferred, u32 valid)
+{
+	struct ifa_cacheinfo ci;
+
+	ci.cstamp = cstamp_delta(cstamp);
+	ci.tstamp = cstamp_delta(tstamp);
+	ci.ifa_prefered = preferred;
+	ci.ifa_valid = valid;
+
+	return nla_put(skb, IFA_CACHEINFO, sizeof(ci), &ci);
+}
+
 static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 			    u32 portid, u32 seq, int event, unsigned int flags)
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr  *nlh;
+	u32 preferred, valid;
 
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*ifm), flags);
 	if (nlh == NULL)
@@ -1259,10 +1436,31 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_INET;
 	ifm->ifa_prefixlen = ifa->ifa_prefixlen;
-	ifm->ifa_flags = ifa->ifa_flags|IFA_F_PERMANENT;
+	ifm->ifa_flags = ifa->ifa_flags;
 	ifm->ifa_scope = ifa->ifa_scope;
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
+	if (!(ifm->ifa_flags & IFA_F_PERMANENT)) {
+		preferred = ifa->ifa_preferred_lft;
+		valid = ifa->ifa_valid_lft;
+		if (preferred != INFINITY_LIFE_TIME) {
+			long tval = (jiffies - ifa->ifa_tstamp) / HZ;
+
+			if (preferred > tval)
+				preferred -= tval;
+			else
+				preferred = 0;
+			if (valid != INFINITY_LIFE_TIME) {
+				if (valid > tval)
+					valid -= tval;
+				else
+					valid = 0;
+			}
+		}
+	} else {
+		preferred = INFINITY_LIFE_TIME;
+		valid = INFINITY_LIFE_TIME;
+	}
 	if ((ifa->ifa_address &&
 	     nla_put_be32(skb, IFA_ADDRESS, ifa->ifa_address)) ||
 	    (ifa->ifa_local &&
@@ -1270,7 +1468,9 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	    (ifa->ifa_broadcast &&
 	     nla_put_be32(skb, IFA_BROADCAST, ifa->ifa_broadcast)) ||
 	    (ifa->ifa_label[0] &&
-	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)))
+	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)) ||
+	    put_cacheinfo(skb, ifa->ifa_cstamp, ifa->ifa_tstamp,
+			  preferred, valid))
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
@@ -1290,7 +1490,6 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
 	struct hlist_head *head;
-	struct hlist_node *node;
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
@@ -1300,7 +1499,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 		idx = 0;
 		head = &net->dev_index_head[h];
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(dev, node, head, index_hlist) {
+		hlist_for_each_entry_rcu(dev, head, index_hlist) {
 			if (idx < s_idx)
 				goto cont;
 			if (h > s_h || idx > s_idx)
@@ -1987,6 +2186,8 @@ void __init devinet_init(void)
 
 	register_gifconf(PF_INET, inet_gifconf);
 	register_netdevice_notifier(&ip_netdev_notifier);
+
+	schedule_delayed_work(&check_lifetime_work, 0);
 
 	rtnl_af_register(&inet_af_ops);
 

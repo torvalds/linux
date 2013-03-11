@@ -171,7 +171,8 @@
 		};
 
 		pinctrl {
-			compatible = "stericsson,nmk_pinctrl";
+			compatible = "stericsson,nmk-pinctrl";
+			prcm = <&prcmu>;
 		};
 
 		usb@a03e0000 {
@@ -188,9 +189,10 @@
 			interrupts = <0 25 0x4>;
 		};
 
-		prcmu@80157000 {
+		prcmu: prcmu@80157000 {
 			compatible = "stericsson,db8500-prcmu";
 			reg = <0x80157000 0x1000>;
+			reg-names = "prcmu";
 			interrupts = <0 47 0x4>;
 			#address-cells = <1>;
 			#size-cells = <1>;

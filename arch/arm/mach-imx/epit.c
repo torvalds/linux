@@ -178,7 +178,6 @@ static struct irqaction epit_timer_irq = {
 static struct clock_event_device clockevent_epit = {
 	.name		= "epit",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.set_mode	= epit_set_mode,
 	.set_next_event	= epit_set_next_event,
 	.rating		= 200,
@@ -186,18 +185,10 @@ static struct clock_event_device clockevent_epit = {
 
 static int __init epit_clockevent_init(struct clk *timer_clk)
 {
-	unsigned int c = clk_get_rate(timer_clk);
-
-	clockevent_epit.mult = div_sc(c, NSEC_PER_SEC,
-					clockevent_epit.shift);
-	clockevent_epit.max_delta_ns =
-			clockevent_delta2ns(0xfffffffe, &clockevent_epit);
-	clockevent_epit.min_delta_ns =
-			clockevent_delta2ns(0x800, &clockevent_epit);
-
 	clockevent_epit.cpumask = cpumask_of(0);
-
-	clockevents_register_device(&clockevent_epit);
+	clockevents_config_and_register(&clockevent_epit,
+					clk_get_rate(timer_clk),
+					0x800, 0xfffffffe);
 
 	return 0;
 }

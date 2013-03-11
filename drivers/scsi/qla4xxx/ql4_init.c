@@ -195,12 +195,10 @@ exit_get_sys_info_no_free:
  * @ha: pointer to host adapter structure.
  *
  **/
-static int qla4xxx_init_local_data(struct scsi_qla_host *ha)
+static void qla4xxx_init_local_data(struct scsi_qla_host *ha)
 {
 	/* Initialize aen queue */
 	ha->aen_q_count = MAX_AEN_ENTRIES;
-
-	return qla4xxx_get_firmware_status(ha);
 }
 
 static uint8_t
@@ -935,14 +933,23 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha, int is_reset)
 	if (ha->isp_ops->start_firmware(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
+	/*
+	 * For ISP83XX, mailbox and IOCB interrupts are enabled separately.
+	 * Mailbox interrupts must be enabled prior to issuing any mailbox
+	 * command in order to prevent the possibility of losing interrupts
+	 * while switching from polling to interrupt mode. IOCB interrupts are
+	 * enabled via isp_ops->enable_intrs.
+	 */
+	if (is_qla8032(ha))
+		qla4_83xx_enable_mbox_intrs(ha);
+
 	if (qla4xxx_about_firmware(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
 	if (ha->isp_ops->get_sys_info(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
-	if (qla4xxx_init_local_data(ha) == QLA_ERROR)
-		goto exit_init_hba;
+	qla4xxx_init_local_data(ha);
 
 	status = qla4xxx_init_firmware(ha);
 	if (status == QLA_ERROR)

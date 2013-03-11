@@ -68,7 +68,7 @@ static int spi_clps711x_setup_xfer(struct spi_device *spi,
 				   struct spi_transfer *xfer)
 {
 	u32 speed = xfer->speed_hz ? : spi->max_speed_hz;
-	u8 bpw = xfer->bits_per_word ? : spi->bits_per_word;
+	u8 bpw = xfer->bits_per_word;
 	struct spi_clps711x_data *hw = spi_master_get_devdata(spi->master);
 
 	if (bpw != 8) {

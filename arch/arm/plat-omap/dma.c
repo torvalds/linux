@@ -2000,7 +2000,7 @@ void omap_dma_global_context_restore(void)
 			omap_clear_dma(ch);
 }
 
-static int __devinit omap_system_dma_probe(struct platform_device *pdev)
+static int omap_system_dma_probe(struct platform_device *pdev)
 {
 	int ch, ret = 0;
 	int dma_irq;
@@ -2019,7 +2019,7 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 	errata			= p->errata;
 
 	if ((d->dev_caps & RESERVE_CHANNEL) && omap_dma_reserve_channels
-			&& (omap_dma_reserve_channels <= dma_lch_count))
+			&& (omap_dma_reserve_channels < d->lch_count))
 		d->lch_count	= omap_dma_reserve_channels;
 
 	dma_lch_count		= d->lch_count;
@@ -2116,7 +2116,7 @@ exit_dma_lch_fail:
 	return ret;
 }
 
-static int __devexit omap_system_dma_remove(struct platform_device *pdev)
+static int omap_system_dma_remove(struct platform_device *pdev)
 {
 	int dma_irq;
 
@@ -2140,7 +2140,7 @@ static int __devexit omap_system_dma_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_system_dma_driver = {
 	.probe		= omap_system_dma_probe,
-	.remove		= __devexit_p(omap_system_dma_remove),
+	.remove		= omap_system_dma_remove,
 	.driver		= {
 		.name	= "omap_dma_system"
 	},

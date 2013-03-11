@@ -852,7 +852,7 @@ void __init setup_arch(char **cmdline_p)
 /*
  *
  */
-static int __devinit setup_arch_serial(void)
+static int setup_arch_serial(void)
 {
 	/* register those serial ports that are available */
 #ifndef CONFIG_GDBSTUB_UART0

@@ -130,9 +130,10 @@ static int lp8788_led_probe(struct platform_device *pdev)
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	struct lp8788_led_platform_data *led_pdata;
 	struct lp8788_led *led;
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	led = devm_kzalloc(lp->dev, sizeof(struct lp8788_led), GFP_KERNEL);
+	led = devm_kzalloc(dev, sizeof(struct lp8788_led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 
@@ -154,13 +155,13 @@ static int lp8788_led_probe(struct platform_device *pdev)
 
 	ret = lp8788_led_init_device(led, led_pdata);
 	if (ret) {
-		dev_err(lp->dev, "led init device err: %d\n", ret);
+		dev_err(dev, "led init device err: %d\n", ret);
 		return ret;
 	}
 
-	ret = led_classdev_register(lp->dev, &led->led_dev);
+	ret = led_classdev_register(dev, &led->led_dev);
 	if (ret) {
-		dev_err(lp->dev, "led register err: %d\n", ret);
+		dev_err(dev, "led register err: %d\n", ret);
 		return ret;
 	}
 

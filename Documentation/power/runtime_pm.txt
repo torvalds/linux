@@ -426,6 +426,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       'power.runtime_error' is set or 'power.disable_depth' is greater than
       zero)
 
+  bool pm_runtime_active(struct device *dev);
+    - return true if the device's runtime PM status is 'active' or its
+      'power.disable_depth' field is not equal to zero, or false otherwise
+
   bool pm_runtime_suspended(struct device *dev);
     - return true if the device's runtime PM status is 'suspended' and its
       'power.disable_depth' field is equal to zero, or false otherwise
@@ -642,12 +646,13 @@ out the following operations:
   * During system suspend it calls pm_runtime_get_noresume() and
     pm_runtime_barrier() for every device right before executing the
     subsystem-level .suspend() callback for it.  In addition to that it calls
-    pm_runtime_disable() for every device right after executing the
-    subsystem-level .suspend() callback for it.
+    __pm_runtime_disable() with 'false' as the second argument for every device
+    right before executing the subsystem-level .suspend_late() callback for it.
 
   * During system resume it calls pm_runtime_enable() and pm_runtime_put_sync()
-    for every device right before and right after executing the subsystem-level
-    .resume() callback for it, respectively.
+    for every device right after executing the subsystem-level .resume_early()
+    callback and right after executing the subsystem-level .resume() callback
+    for it, respectively.
 
 7. Generic subsystem callbacks
 

@@ -101,6 +101,8 @@ struct atmel_nand_host {
 	u8			pmecc_corr_cap;
 	u16			pmecc_sector_size;
 	u32			pmecc_lookup_table_offset;
+	u32			pmecc_lookup_table_offset_512;
+	u32			pmecc_lookup_table_offset_1024;
 
 	int			pmecc_bytes_per_sector;
 	int			pmecc_sector_number;
@@ -338,7 +340,7 @@ static int pmecc_get_ecc_bytes(int cap, int sector_size)
 }
 
 static void pmecc_config_ecc_layout(struct nand_ecclayout *layout,
-	int oobsize, int ecc_len)
+				    int oobsize, int ecc_len)
 {
 	int i;
 
@@ -908,6 +910,84 @@ static void atmel_pmecc_core_init(struct mtd_info *mtd)
 	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_ENABLE);
 }
 
+/*
+ * Get ECC requirement in ONFI parameters, returns -1 if ONFI
+ * parameters is not supported.
+ * return 0 if success to get the ECC requirement.
+ */
+static int get_onfi_ecc_param(struct nand_chip *chip,
+		int *ecc_bits, int *sector_size)
+{
+	*ecc_bits = *sector_size = 0;
+
+	if (chip->onfi_params.ecc_bits == 0xff)
+		/* TODO: the sector_size and ecc_bits need to be find in
+		 * extended ecc parameter, currently we don't support it.
+		 */
+		return -1;
+
+	*ecc_bits = chip->onfi_params.ecc_bits;
+
+	/* The default sector size (ecc codeword size) is 512 */
+	*sector_size = 512;
+
+	return 0;
+}
+
+/*
+ * Get ecc requirement from ONFI parameters ecc requirement.
+ * If pmecc-cap, pmecc-sector-size in DTS are not specified, this function
+ * will set them according to ONFI ecc requirement. Otherwise, use the
+ * value in DTS file.
+ * return 0 if success. otherwise return error code.
+ */
+static int pmecc_choose_ecc(struct atmel_nand_host *host,
+		int *cap, int *sector_size)
+{
+	/* Get ECC requirement from ONFI parameters */
+	*cap = *sector_size = 0;
+	if (host->nand_chip.onfi_version) {
+		if (!get_onfi_ecc_param(&host->nand_chip, cap, sector_size))
+			dev_info(host->dev, "ONFI params, minimum required ECC: %d bits in %d bytes\n",
+				*cap, *sector_size);
+		else
+			dev_info(host->dev, "NAND chip ECC reqirement is in Extended ONFI parameter, we don't support yet.\n");
+	} else {
+		dev_info(host->dev, "NAND chip is not ONFI compliant, assume ecc_bits is 2 in 512 bytes");
+	}
+	if (*cap == 0 && *sector_size == 0) {
+		*cap = 2;
+		*sector_size = 512;
+	}
+
+	/* If dts file doesn't specify then use the one in ONFI parameters */
+	if (host->pmecc_corr_cap == 0) {
+		/* use the most fitable ecc bits (the near bigger one ) */
+		if (*cap <= 2)
+			host->pmecc_corr_cap = 2;
+		else if (*cap <= 4)
+			host->pmecc_corr_cap = 4;
+		else if (*cap < 8)
+			host->pmecc_corr_cap = 8;
+		else if (*cap < 12)
+			host->pmecc_corr_cap = 12;
+		else if (*cap < 24)
+			host->pmecc_corr_cap = 24;
+		else
+			return -EINVAL;
+	}
+	if (host->pmecc_sector_size == 0) {
+		/* use the most fitable sector size (the near smaller one ) */
+		if (*sector_size >= 1024)
+			host->pmecc_sector_size = 1024;
+		else if (*sector_size >= 512)
+			host->pmecc_sector_size = 512;
+		else
+			return -EINVAL;
+	}
+	return 0;
+}
+
 static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
 					 struct atmel_nand_host *host)
 {
@@ -916,8 +996,22 @@ static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
 	struct resource *regs, *regs_pmerr, *regs_rom;
 	int cap, sector_size, err_no;
 
+	err_no = pmecc_choose_ecc(host, &cap, &sector_size);
+	if (err_no) {
+		dev_err(host->dev, "The NAND flash's ECC requirement are not support!");
+		return err_no;
+	}
+
+	if (cap != host->pmecc_corr_cap ||
+			sector_size != host->pmecc_sector_size)
+		dev_info(host->dev, "WARNING: Be Caution! Using different PMECC parameters from Nand ONFI ECC reqirement.\n");
+
 	cap = host->pmecc_corr_cap;
 	sector_size = host->pmecc_sector_size;
+	host->pmecc_lookup_table_offset = (sector_size == 512) ?
+			host->pmecc_lookup_table_offset_512 :
+			host->pmecc_lookup_table_offset_1024;
+
 	dev_info(host->dev, "Initialize PMECC params, cap: %d, sector: %d\n",
 		 cap, sector_size);
 
@@ -1213,9 +1307,9 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 
 #if defined(CONFIG_OF)
 static int atmel_of_init_port(struct atmel_nand_host *host,
-					 struct device_node *np)
+			      struct device_node *np)
 {
-	u32 val, table_offset;
+	u32 val;
 	u32 offset[2];
 	int ecc_mode;
 	struct atmel_nand_data *board = &host->board;
@@ -1259,48 +1353,47 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 
 	/* use PMECC, get correction capability, sector size and lookup
 	 * table offset.
+	 * If correction bits and sector size are not specified, then find
+	 * them from NAND ONFI parameters.
 	 */
-	if (of_property_read_u32(np, "atmel,pmecc-cap", &val) != 0) {
-		dev_err(host->dev, "Cannot decide PMECC Capability\n");
-		return -EINVAL;
-	} else if ((val != 2) && (val != 4) && (val != 8) && (val != 12) &&
-	    (val != 24)) {
-		dev_err(host->dev,
-			"Unsupported PMECC correction capability: %d; should be 2, 4, 8, 12 or 24\n",
-			val);
-		return -EINVAL;
+	if (of_property_read_u32(np, "atmel,pmecc-cap", &val) == 0) {
+		if ((val != 2) && (val != 4) && (val != 8) && (val != 12) &&
+				(val != 24)) {
+			dev_err(host->dev,
+				"Unsupported PMECC correction capability: %d; should be 2, 4, 8, 12 or 24\n",
+				val);
+			return -EINVAL;
+		}
+		host->pmecc_corr_cap = (u8)val;
 	}
-	host->pmecc_corr_cap = (u8)val;
 
-	if (of_property_read_u32(np, "atmel,pmecc-sector-size", &val) != 0) {
-		dev_err(host->dev, "Cannot decide PMECC Sector Size\n");
-		return -EINVAL;
-	} else if ((val != 512) && (val != 1024)) {
-		dev_err(host->dev,
-			"Unsupported PMECC sector size: %d; should be 512 or 1024 bytes\n",
-			val);
-		return -EINVAL;
+	if (of_property_read_u32(np, "atmel,pmecc-sector-size", &val) == 0) {
+		if ((val != 512) && (val != 1024)) {
+			dev_err(host->dev,
+				"Unsupported PMECC sector size: %d; should be 512 or 1024 bytes\n",
+				val);
+			return -EINVAL;
+		}
+		host->pmecc_sector_size = (u16)val;
 	}
-	host->pmecc_sector_size = (u16)val;
 
 	if (of_property_read_u32_array(np, "atmel,pmecc-lookup-table-offset",
 			offset, 2) != 0) {
 		dev_err(host->dev, "Cannot get PMECC lookup table offset\n");
 		return -EINVAL;
 	}
-	table_offset = host->pmecc_sector_size == 512 ? offset[0] : offset[1];
-
-	if (!table_offset) {
+	if (!offset[0] && !offset[1]) {
 		dev_err(host->dev, "Invalid PMECC lookup table offset\n");
 		return -EINVAL;
 	}
-	host->pmecc_lookup_table_offset = table_offset;
+	host->pmecc_lookup_table_offset_512 = offset[0];
+	host->pmecc_lookup_table_offset_1024 = offset[1];
 
 	return 0;
 }
 #else
 static int atmel_of_init_port(struct atmel_nand_host *host,
-					 struct device_node *np)
+			      struct device_node *np)
 {
 	return -EINVAL;
 }

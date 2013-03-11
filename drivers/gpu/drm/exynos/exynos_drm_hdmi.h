@@ -3,24 +3,10 @@
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Authoer: Inki Dae <inki.dae@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #ifndef _EXYNOS_DRM_HDMI_H_
@@ -44,9 +30,9 @@ struct exynos_drm_hdmi_context {
 struct exynos_hdmi_ops {
 	/* display */
 	bool (*is_connected)(void *ctx);
-	int (*get_edid)(void *ctx, struct drm_connector *connector,
-			u8 *edid, int len);
-	int (*check_timing)(void *ctx, void *timing);
+	struct edid *(*get_edid)(void *ctx,
+			struct drm_connector *connector);
+	int (*check_timing)(void *ctx, struct fb_videomode *timing);
 	int (*power_on)(void *ctx, int mode);
 
 	/* manager */
@@ -72,6 +58,9 @@ struct exynos_mixer_ops {
 	void (*win_mode_set)(void *ctx, struct exynos_drm_overlay *overlay);
 	void (*win_commit)(void *ctx, int zpos);
 	void (*win_disable)(void *ctx, int zpos);
+
+	/* display */
+	int (*check_timing)(void *ctx, struct fb_videomode *timing);
 };
 
 void exynos_hdmi_drv_attach(struct exynos_drm_hdmi_context *ctx);

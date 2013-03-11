@@ -109,14 +109,11 @@ struct ath_descdma {
 	void *dd_desc;
 	dma_addr_t dd_desc_paddr;
 	u32 dd_desc_len;
-	struct ath_buf *dd_bufptr;
 };
 
 int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		      struct list_head *head, const char *name,
 		      int nbuf, int ndesc, bool is_tx);
-void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
-			 struct list_head *head);
 
 /***********/
 /* RX / TX */
@@ -317,18 +314,17 @@ struct ath_rx {
 	u32 *rxlink;
 	u32 num_pkts;
 	unsigned int rxfilter;
-	spinlock_t rxbuflock;
 	struct list_head rxbuf;
 	struct ath_descdma rxdma;
-	struct ath_buf *rx_bufptr;
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 
 	struct sk_buff *frag;
+
+	u32 ampdu_ref;
 };
 
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
-void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
@@ -338,14 +334,12 @@ void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq);
 void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq);
 void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
-bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx);
-void ath_draintxq(struct ath_softc *sc,
-		     struct ath_txq *txq, bool retry_tx);
+bool ath_drain_all_txq(struct ath_softc *sc);
+void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an);
 void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
-void ath_tx_cleanup(struct ath_softc *sc);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
 void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop);
@@ -395,6 +389,7 @@ struct ath_beacon_config {
 	u16 bmiss_timeout;
 	u8 dtim_count;
 	bool enable_beacon;
+	bool ibss_creator;
 };
 
 struct ath_beacon {
@@ -646,7 +641,6 @@ void ath_ant_comb_update(struct ath_softc *sc);
 enum sc_op_flags {
 	SC_OP_INVALID,
 	SC_OP_BEACONS,
-	SC_OP_RXFLUSH,
 	SC_OP_ANI_RUN,
 	SC_OP_PRIM_STA_VIF,
 	SC_OP_HW_RESET,
@@ -673,6 +667,23 @@ struct ath9k_vif_iter_data {
 	int nstations; /* number of station vifs */
 	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
+};
+
+/* enum spectral_mode:
+ *
+ * @SPECTRAL_DISABLED: spectral mode is disabled
+ * @SPECTRAL_BACKGROUND: hardware sends samples when it is not busy with
+ *	something else.
+ * @SPECTRAL_MANUAL: spectral scan is enabled, triggering for samples
+ *	is performed manually.
+ * @SPECTRAL_CHANSCAN: Like manual, but also triggered when changing channels
+ *	during a channel scan.
+ */
+enum spectral_mode {
+	SPECTRAL_DISABLED = 0,
+	SPECTRAL_BACKGROUND,
+	SPECTRAL_MANUAL,
+	SPECTRAL_CHANSCAN,
 };
 
 struct ath_softc {
@@ -743,6 +754,11 @@ struct ath_softc {
 	u8 ant_tx, ant_rx;
 	struct dfs_pattern_detector *dfs_detector;
 	u32 wow_enabled;
+	/* relay(fs) channel for spectral scan */
+	struct rchan *rfs_chan_spec_scan;
+	enum spectral_mode spectral_mode;
+	struct ath_spec_scan spec_config;
+	int scanning;
 
 #ifdef CONFIG_PM_SLEEP
 	atomic_t wow_got_bmiss_intr;
@@ -750,6 +766,133 @@ struct ath_softc {
 	u32 wow_intr_before_sleep;
 #endif
 };
+
+#define SPECTRAL_SCAN_BITMASK		0x10
+/* Radar info packet format, used for DFS and spectral formats. */
+struct ath_radar_info {
+	u8 pulse_length_pri;
+	u8 pulse_length_ext;
+	u8 pulse_bw_info;
+} __packed;
+
+/* The HT20 spectral data has 4 bytes of additional information at it's end.
+ *
+ * [7:0]: all bins {max_magnitude[1:0], bitmap_weight[5:0]}
+ * [7:0]: all bins  max_magnitude[9:2]
+ * [7:0]: all bins {max_index[5:0], max_magnitude[11:10]}
+ * [3:0]: max_exp (shift amount to size max bin to 8-bit unsigned)
+ */
+struct ath_ht20_mag_info {
+	u8 all_bins[3];
+	u8 max_exp;
+} __packed;
+
+#define SPECTRAL_HT20_NUM_BINS		56
+
+/* WARNING: don't actually use this struct! MAC may vary the amount of
+ * data by -1/+2. This struct is for reference only.
+ */
+struct ath_ht20_fft_packet {
+	u8 data[SPECTRAL_HT20_NUM_BINS];
+	struct ath_ht20_mag_info mag_info;
+	struct ath_radar_info radar_info;
+} __packed;
+
+#define SPECTRAL_HT20_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_fft_packet))
+
+/* Dynamic 20/40 mode:
+ *
+ * [7:0]: lower bins {max_magnitude[1:0], bitmap_weight[5:0]}
+ * [7:0]: lower bins  max_magnitude[9:2]
+ * [7:0]: lower bins {max_index[5:0], max_magnitude[11:10]}
+ * [7:0]: upper bins {max_magnitude[1:0], bitmap_weight[5:0]}
+ * [7:0]: upper bins  max_magnitude[9:2]
+ * [7:0]: upper bins {max_index[5:0], max_magnitude[11:10]}
+ * [3:0]: max_exp (shift amount to size max bin to 8-bit unsigned)
+ */
+struct ath_ht20_40_mag_info {
+	u8 lower_bins[3];
+	u8 upper_bins[3];
+	u8 max_exp;
+} __packed;
+
+#define SPECTRAL_HT20_40_NUM_BINS		128
+
+/* WARNING: don't actually use this struct! MAC may vary the amount of
+ * data. This struct is for reference only.
+ */
+struct ath_ht20_40_fft_packet {
+	u8 data[SPECTRAL_HT20_40_NUM_BINS];
+	struct ath_ht20_40_mag_info mag_info;
+	struct ath_radar_info radar_info;
+} __packed;
+
+
+#define SPECTRAL_HT20_40_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_40_fft_packet))
+
+/* grabs the max magnitude from the all/upper/lower bins */
+static inline u16 spectral_max_magnitude(u8 *bins)
+{
+	return (bins[0] & 0xc0) >> 6 |
+	       (bins[1] & 0xff) << 2 |
+	       (bins[2] & 0x03) << 10;
+}
+
+/* return the max magnitude from the all/upper/lower bins */
+static inline u8 spectral_max_index(u8 *bins)
+{
+	s8 m = (bins[2] & 0xfc) >> 2;
+
+	/* TODO: this still doesn't always report the right values ... */
+	if (m > 32)
+		m |= 0xe0;
+	else
+		m &= ~0xe0;
+
+	return m + 29;
+}
+
+/* return the bitmap weight from the all/upper/lower bins */
+static inline u8 spectral_bitmap_weight(u8 *bins)
+{
+	return bins[0] & 0x3f;
+}
+
+/* FFT sample format given to userspace via debugfs.
+ *
+ * Please keep the type/length at the front position and change
+ * other fields after adding another sample type
+ *
+ * TODO: this might need rework when switching to nl80211-based
+ * interface.
+ */
+enum ath_fft_sample_type {
+	ATH_FFT_SAMPLE_HT20 = 1,
+};
+
+struct fft_sample_tlv {
+	u8 type;	/* see ath_fft_sample */
+	__be16 length;
+	/* type dependent data follows */
+} __packed;
+
+struct fft_sample_ht20 {
+	struct fft_sample_tlv tlv;
+
+	u8 max_exp;
+
+	__be16 freq;
+	s8 rssi;
+	s8 noise;
+
+	__be16 max_magnitude;
+	u8 max_index;
+	u8 bitmap_weight;
+
+	__be64 tsf;
+
+	u8 data[SPECTRAL_HT20_NUM_BINS];
+} __packed;
 
 void ath9k_tasklet(unsigned long data);
 int ath_cabq_update(struct ath_softc *);
@@ -773,6 +916,10 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath9k_reload_chainmask_settings(struct ath_softc *sc);
 
 bool ath9k_uses_beacons(int type);
+void ath9k_spectral_scan_trigger(struct ieee80211_hw *hw);
+int ath9k_spectral_scan_config(struct ieee80211_hw *hw,
+			       enum spectral_mode spectral_mode);
+
 
 #ifdef CONFIG_ATH9K_PCI
 int ath_pci_init(void);

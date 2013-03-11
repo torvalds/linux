@@ -64,7 +64,7 @@ struct i2c_driver hdmiphy_driver = {
 	},
 	.id_table = hdmiphy_id,
 	.probe		= hdmiphy_probe,
-	.remove		= __devexit_p(hdmiphy_remove),
+	.remove		= hdmiphy_remove,
 	.command		= NULL,
 };
 EXPORT_SYMBOL(hdmiphy_driver);

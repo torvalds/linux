@@ -21,6 +21,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-event.h>
 #include <linux/workqueue.h>
+#include <linux/of.h>
 #include <media/videobuf2-core.h>
 #include "s5p_mfc_common.h"
 #include "s5p_mfc_ctrl.h"
@@ -273,7 +274,6 @@ static void s5p_mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 	struct s5p_mfc_buf  *dst_buf;
 	size_t dspl_y_addr;
 	unsigned int frame_type;
-	unsigned int index;
 
 	dspl_y_addr = s5p_mfc_hw_call(dev->mfc_ops, get_dspl_y_adr, dev);
 	frame_type = s5p_mfc_hw_call(dev->mfc_ops, get_dec_frame_type, dev);
@@ -310,7 +310,6 @@ static void s5p_mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 			vb2_buffer_done(dst_buf->b,
 				err ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 
-			index = dst_buf->b->v4l2_buf.index;
 			break;
 		}
 	}
@@ -325,8 +324,6 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_buf *src_buf;
 	unsigned long flags;
 	unsigned int res_change;
-
-	unsigned int index;
 
 	dst_frame_status = s5p_mfc_hw_call(dev->mfc_ops, get_dspl_status, dev)
 				& S5P_FIMV_DEC_STATUS_DECODING_STATUS_MASK;
@@ -387,7 +384,6 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 			mfc_debug(2, "Running again the same buffer\n");
 			ctx->after_packed_pb = 1;
 		} else {
-			index = src_buf->b->v4l2_buf.index;
 			mfc_debug(2, "MFC needs next buffer\n");
 			ctx->consumed_stream = 0;
 			list_del(&src_buf->list);
@@ -412,62 +408,48 @@ leave_handle_frame:
 }
 
 /* Error handling for interrupt */
-static void s5p_mfc_handle_error(struct s5p_mfc_ctx *ctx,
-				 unsigned int reason, unsigned int err)
+static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
+		struct s5p_mfc_ctx *ctx, unsigned int reason, unsigned int err)
 {
-	struct s5p_mfc_dev *dev;
 	unsigned long flags;
 
-	/* If no context is available then all necessary
-	 * processing has been done. */
-	if (ctx == NULL)
-		return;
-
-	dev = ctx->dev;
 	mfc_err("Interrupt Error: %08x\n", err);
-	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
-	wake_up_dev(dev, reason, err);
 
-	/* Error recovery is dependent on the state of context */
-	switch (ctx->state) {
-	case MFCINST_INIT:
-		/* This error had to happen while acquireing instance */
-	case MFCINST_GOT_INST:
-		/* This error had to happen while parsing the header */
-	case MFCINST_HEAD_PARSED:
-		/* This error had to happen while setting dst buffers */
-	case MFCINST_RETURN_INST:
-		/* This error had to happen while releasing instance */
-		clear_work_bit(ctx);
-		wake_up_ctx(ctx, reason, err);
-		if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-			BUG();
-		s5p_mfc_clock_off();
-		ctx->state = MFCINST_ERROR;
-		break;
-	case MFCINST_FINISHING:
-	case MFCINST_FINISHED:
-	case MFCINST_RUNNING:
-		/* It is higly probable that an error occured
-		 * while decoding a frame */
-		clear_work_bit(ctx);
-		ctx->state = MFCINST_ERROR;
-		/* Mark all dst buffers as having an error */
-		spin_lock_irqsave(&dev->irqlock, flags);
-		s5p_mfc_hw_call(dev->mfc_ops, cleanup_queue, &ctx->dst_queue,
-				&ctx->vq_dst);
-		/* Mark all src buffers as having an error */
-		s5p_mfc_hw_call(dev->mfc_ops, cleanup_queue, &ctx->src_queue,
-				&ctx->vq_src);
-		spin_unlock_irqrestore(&dev->irqlock, flags);
-		if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-			BUG();
-		s5p_mfc_clock_off();
-		break;
-	default:
-		mfc_err("Encountered an error interrupt which had not been handled\n");
-		break;
+	if (ctx != NULL) {
+		/* Error recovery is dependent on the state of context */
+		switch (ctx->state) {
+		case MFCINST_RES_CHANGE_INIT:
+		case MFCINST_RES_CHANGE_FLUSH:
+		case MFCINST_RES_CHANGE_END:
+		case MFCINST_FINISHING:
+		case MFCINST_FINISHED:
+		case MFCINST_RUNNING:
+			/* It is higly probable that an error occured
+			 * while decoding a frame */
+			clear_work_bit(ctx);
+			ctx->state = MFCINST_ERROR;
+			/* Mark all dst buffers as having an error */
+			spin_lock_irqsave(&dev->irqlock, flags);
+			s5p_mfc_hw_call(dev->mfc_ops, cleanup_queue,
+						&ctx->dst_queue, &ctx->vq_dst);
+			/* Mark all src buffers as having an error */
+			s5p_mfc_hw_call(dev->mfc_ops, cleanup_queue,
+						&ctx->src_queue, &ctx->vq_src);
+			spin_unlock_irqrestore(&dev->irqlock, flags);
+			wake_up_ctx(ctx, reason, err);
+			break;
+		default:
+			clear_work_bit(ctx);
+			ctx->state = MFCINST_ERROR;
+			wake_up_ctx(ctx, reason, err);
+			break;
+		}
 	}
+	if (test_and_clear_bit(0, &dev->hw_lock) == 0)
+		BUG();
+	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
+	s5p_mfc_clock_off();
+	wake_up_dev(dev, reason, err);
 	return;
 }
 
@@ -600,8 +582,7 @@ static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx,
 
 	clear_work_bit(ctx);
 
-	if (test_and_clear_bit(0, &dev->hw_lock) == 0)
-		WARN_ON(1);
+	WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 
 	s5p_mfc_clock_off();
 	wake_up(&ctx->queue);
@@ -632,7 +613,7 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 				dev->warn_start)
 			s5p_mfc_handle_frame(ctx, reason, err);
 		else
-			s5p_mfc_handle_error(ctx, reason, err);
+			s5p_mfc_handle_error(dev, ctx, reason, err);
 		clear_bit(0, &dev->enter_suspend);
 		break;
 
@@ -689,6 +670,12 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	case S5P_MFC_R2H_CMD_COMPLETE_SEQ_RET:
 		s5p_mfc_handle_stream_complete(ctx, reason, err);
 		break;
+
+	case S5P_MFC_R2H_CMD_DPB_FLUSH_RET:
+		clear_work_bit(ctx);
+		ctx->state = MFCINST_RUNNING;
+		wake_up(&ctx->queue);
+		goto irq_cleanup_hw;
 
 	default:
 		mfc_debug(2, "Unknown int reason\n");
@@ -791,14 +778,16 @@ static int s5p_mfc_open(struct file *file)
 			goto err_pwr_enable;
 		}
 		s5p_mfc_clock_on();
-		ret = s5p_mfc_alloc_and_load_firmware(dev);
-		if (ret)
-			goto err_alloc_fw;
+		ret = s5p_mfc_load_firmware(dev);
+		if (ret) {
+			s5p_mfc_clock_off();
+			goto err_load_fw;
+		}
 		/* Init the FW */
 		ret = s5p_mfc_init_hw(dev);
+		s5p_mfc_clock_off();
 		if (ret)
 			goto err_init_hw;
-		s5p_mfc_clock_off();
 	}
 	/* Init videobuf2 queue for CAPTURE */
 	q = &ctx->vq_dst;
@@ -847,21 +836,20 @@ static int s5p_mfc_open(struct file *file)
 	return ret;
 	/* Deinit when failure occured */
 err_queue_init:
+	if (dev->num_inst == 1)
+		s5p_mfc_deinit_hw(dev);
 err_init_hw:
-	s5p_mfc_release_firmware(dev);
-err_alloc_fw:
-	dev->ctx[ctx->num] = NULL;
-	del_timer_sync(&dev->watchdog_timer);
-	s5p_mfc_clock_off();
+err_load_fw:
 err_pwr_enable:
 	if (dev->num_inst == 1) {
 		if (s5p_mfc_power_off() < 0)
 			mfc_err("power off failed\n");
-		s5p_mfc_release_firmware(dev);
+		del_timer_sync(&dev->watchdog_timer);
 	}
 err_ctrls_setup:
 	s5p_mfc_dec_ctrls_delete(ctx);
 err_bad_node:
+	dev->ctx[ctx->num] = NULL;
 err_no_ctx:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
@@ -915,11 +903,8 @@ static int s5p_mfc_release(struct file *file)
 		clear_bit(0, &dev->hw_lock);
 	dev->num_inst--;
 	if (dev->num_inst == 0) {
-		mfc_debug(2, "Last instance - release firmware\n");
-		/* reset <-> F/W release */
-		s5p_mfc_reset(dev);
+		mfc_debug(2, "Last instance\n");
 		s5p_mfc_deinit_hw(dev);
-		s5p_mfc_release_firmware(dev);
 		del_timer_sync(&dev->watchdog_timer);
 		if (s5p_mfc_power_off() < 0)
 			mfc_err("Power off failed\n");
@@ -1027,6 +1012,48 @@ static int match_child(struct device *dev, void *data)
 	return !strcmp(dev_name(dev), (char *)data);
 }
 
+static void *mfc_get_drv_data(struct platform_device *pdev);
+
+static int s5p_mfc_alloc_memdevs(struct s5p_mfc_dev *dev)
+{
+	unsigned int mem_info[2];
+
+	dev->mem_dev_l = devm_kzalloc(&dev->plat_dev->dev,
+			sizeof(struct device), GFP_KERNEL);
+	if (!dev->mem_dev_l) {
+		mfc_err("Not enough memory\n");
+		return -ENOMEM;
+	}
+	device_initialize(dev->mem_dev_l);
+	of_property_read_u32_array(dev->plat_dev->dev.of_node,
+			"samsung,mfc-l", mem_info, 2);
+	if (dma_declare_coherent_memory(dev->mem_dev_l, mem_info[0],
+				mem_info[0], mem_info[1],
+				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE) == 0) {
+		mfc_err("Failed to declare coherent memory for\n"
+		"MFC device\n");
+		return -ENOMEM;
+	}
+
+	dev->mem_dev_r = devm_kzalloc(&dev->plat_dev->dev,
+			sizeof(struct device), GFP_KERNEL);
+	if (!dev->mem_dev_r) {
+		mfc_err("Not enough memory\n");
+		return -ENOMEM;
+	}
+	device_initialize(dev->mem_dev_r);
+	of_property_read_u32_array(dev->plat_dev->dev.of_node,
+			"samsung,mfc-r", mem_info, 2);
+	if (dma_declare_coherent_memory(dev->mem_dev_r, mem_info[0],
+				mem_info[0], mem_info[1],
+				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE) == 0) {
+		pr_err("Failed to declare coherent memory for\n"
+		"MFC device\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
 /* MFC probe function */
 static int s5p_mfc_probe(struct platform_device *pdev)
 {
@@ -1050,8 +1077,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev->variant = (struct s5p_mfc_variant *)
-		platform_get_device_id(pdev)->driver_data;
+	dev->variant = mfc_get_drv_data(pdev);
 
 	ret = s5p_mfc_init_pm(dev);
 	if (ret < 0) {
@@ -1061,11 +1087,9 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	dev->regs_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (dev->regs_base == NULL) {
-		dev_err(&pdev->dev, "Failed to obtain io memory\n");
-		return -ENOENT;
-	}
+	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->regs_base))
+		return PTR_ERR(dev->regs_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
@@ -1081,34 +1105,42 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 
-	dev->mem_dev_l = device_find_child(&dev->plat_dev->dev, "s5p-mfc-l",
-					   match_child);
-	if (!dev->mem_dev_l) {
-		mfc_err("Mem child (L) device get failed\n");
-		ret = -ENODEV;
-		goto err_res;
-	}
-
-	dev->mem_dev_r = device_find_child(&dev->plat_dev->dev, "s5p-mfc-r",
-					   match_child);
-	if (!dev->mem_dev_r) {
-		mfc_err("Mem child (R) device get failed\n");
-		ret = -ENODEV;
-		goto err_res;
+	if (pdev->dev.of_node) {
+		if (s5p_mfc_alloc_memdevs(dev) < 0)
+			goto err_res;
+	} else {
+		dev->mem_dev_l = device_find_child(&dev->plat_dev->dev,
+				"s5p-mfc-l", match_child);
+		if (!dev->mem_dev_l) {
+			mfc_err("Mem child (L) device get failed\n");
+			ret = -ENODEV;
+			goto err_res;
+		}
+		dev->mem_dev_r = device_find_child(&dev->plat_dev->dev,
+				"s5p-mfc-r", match_child);
+		if (!dev->mem_dev_r) {
+			mfc_err("Mem child (R) device get failed\n");
+			ret = -ENODEV;
+			goto err_res;
+		}
 	}
 
 	dev->alloc_ctx[0] = vb2_dma_contig_init_ctx(dev->mem_dev_l);
-	if (IS_ERR_OR_NULL(dev->alloc_ctx[0])) {
+	if (IS_ERR(dev->alloc_ctx[0])) {
 		ret = PTR_ERR(dev->alloc_ctx[0]);
 		goto err_res;
 	}
 	dev->alloc_ctx[1] = vb2_dma_contig_init_ctx(dev->mem_dev_r);
-	if (IS_ERR_OR_NULL(dev->alloc_ctx[1])) {
+	if (IS_ERR(dev->alloc_ctx[1])) {
 		ret = PTR_ERR(dev->alloc_ctx[1]);
 		goto err_mem_init_ctx_1;
 	}
 
 	mutex_init(&dev->mfc_mutex);
+
+	ret = s5p_mfc_alloc_firmware(dev);
+	if (ret)
+		goto err_alloc_fw;
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
@@ -1191,6 +1223,8 @@ err_dec_reg:
 err_dec_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_v4l2_dev_reg:
+	s5p_mfc_release_firmware(dev);
+err_alloc_fw:
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
 err_mem_init_ctx_1:
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
@@ -1203,7 +1237,7 @@ err_res:
 }
 
 /* Remove the driver */
-static int __devexit s5p_mfc_remove(struct platform_device *pdev)
+static int s5p_mfc_remove(struct platform_device *pdev)
 {
 	struct s5p_mfc_dev *dev = platform_get_drvdata(pdev);
 
@@ -1216,8 +1250,13 @@ static int __devexit s5p_mfc_remove(struct platform_device *pdev)
 	video_unregister_device(dev->vfd_enc);
 	video_unregister_device(dev->vfd_dec);
 	v4l2_device_unregister(&dev->v4l2_dev);
+	s5p_mfc_release_firmware(dev);
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
+	if (pdev->dev.of_node) {
+		put_device(dev->mem_dev_l);
+		put_device(dev->mem_dev_r);
+	}
 
 	s5p_mfc_final_pm(dev);
 	return 0;
@@ -1366,14 +1405,44 @@ static struct platform_device_id mfc_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, mfc_driver_ids);
 
+static const struct of_device_id exynos_mfc_match[] = {
+	{
+		.compatible = "samsung,mfc-v5",
+		.data = &mfc_drvdata_v5,
+	}, {
+		.compatible = "samsung,mfc-v6",
+		.data = &mfc_drvdata_v6,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_mfc_match);
+
+static void *mfc_get_drv_data(struct platform_device *pdev)
+{
+	struct s5p_mfc_variant *driver_data = NULL;
+
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(of_match_ptr(exynos_mfc_match),
+				pdev->dev.of_node);
+		if (match)
+			driver_data = (struct s5p_mfc_variant *)match->data;
+	} else {
+		driver_data = (struct s5p_mfc_variant *)
+			platform_get_device_id(pdev)->driver_data;
+	}
+	return driver_data;
+}
+
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
-	.remove		= __devexit_p(s5p_mfc_remove),
+	.remove		= s5p_mfc_remove,
 	.id_table	= mfc_driver_ids,
 	.driver	= {
 		.name	= S5P_MFC_NAME,
 		.owner	= THIS_MODULE,
-		.pm	= &s5p_mfc_pm_ops
+		.pm	= &s5p_mfc_pm_ops,
+		.of_match_table = exynos_mfc_match,
 	},
 };
 

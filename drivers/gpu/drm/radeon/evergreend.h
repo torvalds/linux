@@ -729,6 +729,18 @@
 #define	WAIT_UNTIL					0x8040
 
 #define	SRBM_STATUS				        0x0E50
+#define		RLC_RQ_PENDING 				(1 << 3)
+#define		GRBM_RQ_PENDING 			(1 << 5)
+#define		VMC_BUSY 				(1 << 8)
+#define		MCB_BUSY 				(1 << 9)
+#define		MCB_NON_DISPLAY_BUSY 			(1 << 10)
+#define		MCC_BUSY 				(1 << 11)
+#define		MCD_BUSY 				(1 << 12)
+#define		SEM_BUSY 				(1 << 14)
+#define		RLC_BUSY 				(1 << 15)
+#define		IH_BUSY 				(1 << 17)
+#define	SRBM_STATUS2				        0x0EC4
+#define		DMA_BUSY 				(1 << 5)
 #define	SRBM_SOFT_RESET				        0x0E60
 #define		SRBM_SOFT_RESET_ALL_MASK    	       	0x00FEEFA6
 #define		SOFT_RESET_BIF				(1 << 1)
@@ -742,8 +754,9 @@
 #define		SOFT_RESET_ROM				(1 << 14)
 #define		SOFT_RESET_SEM				(1 << 15)
 #define		SOFT_RESET_VMC				(1 << 17)
+#define		SOFT_RESET_DMA				(1 << 20)
 #define		SOFT_RESET_TST				(1 << 21)
-#define		SOFT_RESET_REGBB		       	(1 << 22)
+#define		SOFT_RESET_REGBB			(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
 
 /* display watermarks */
@@ -923,20 +936,23 @@
 #define CAYMAN_DMA1_CNTL                                  0xd82c
 
 /* async DMA packets */
-#define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
-					 (((t) & 0x1) << 23) |		\
-					 (((s) & 0x1) << 22) |		\
-					 (((n) & 0xFFFFF) << 0))
+#define DMA_PACKET(cmd, sub_cmd, n) ((((cmd) & 0xF) << 28) |    \
+                                    (((sub_cmd) & 0xFF) << 20) |\
+                                    (((n) & 0xFFFFF) << 0))
+#define GET_DMA_CMD(h) (((h) & 0xf0000000) >> 28)
+#define GET_DMA_COUNT(h) ((h) & 0x000fffff)
+#define GET_DMA_SUB_CMD(h) (((h) & 0x0ff00000) >> 20)
+
 /* async DMA Packet types */
-#define	DMA_PACKET_WRITE				  0x2
-#define	DMA_PACKET_COPY					  0x3
-#define	DMA_PACKET_INDIRECT_BUFFER			  0x4
-#define	DMA_PACKET_SEMAPHORE				  0x5
-#define	DMA_PACKET_FENCE				  0x6
-#define	DMA_PACKET_TRAP					  0x7
-#define	DMA_PACKET_SRBM_WRITE				  0x9
-#define	DMA_PACKET_CONSTANT_FILL			  0xd
-#define	DMA_PACKET_NOP					  0xf
+#define	DMA_PACKET_WRITE                        0x2
+#define	DMA_PACKET_COPY                         0x3
+#define	DMA_PACKET_INDIRECT_BUFFER              0x4
+#define	DMA_PACKET_SEMAPHORE                    0x5
+#define	DMA_PACKET_FENCE                        0x6
+#define	DMA_PACKET_TRAP                         0x7
+#define	DMA_PACKET_SRBM_WRITE                   0x9
+#define	DMA_PACKET_CONSTANT_FILL                0xd
+#define	DMA_PACKET_NOP                          0xf
 
 /* PCIE link stuff */
 #define PCIE_LC_TRAINING_CNTL                             0xa1 /* PCIE_P */
@@ -979,16 +995,7 @@
 /*
  * PM4
  */
-#define	PACKET_TYPE0	0
-#define	PACKET_TYPE1	1
-#define	PACKET_TYPE2	2
-#define	PACKET_TYPE3	3
-
-#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
-#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
-#define CP_PACKET0_GET_REG(h) (((h) & 0xFFFF) << 2)
-#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
-#define PACKET0(reg, n)	((PACKET_TYPE0 << 30) |				\
+#define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
 			 (((reg) >> 2) & 0xFFFF) |			\
 			 ((n) & 0x3FFF) << 16)
 #define CP_PACKET2			0x80000000
@@ -997,7 +1004,7 @@
 
 #define PACKET2(v)	(CP_PACKET2 | REG_SET(PACKET2_PAD, (v)))
 
-#define PACKET3(op, n)	((PACKET_TYPE3 << 30) |				\
+#define PACKET3(op, n)	((RADEON_PACKET_TYPE3 << 30) |			\
 			 (((op) & 0xFF) << 8) |				\
 			 ((n) & 0x3FFF) << 16)
 
@@ -2026,5 +2033,16 @@
 #define CAYMAN_SX_SCATTER_EXPORT_BASE			0x28358
 /* cayman packet3 addition */
 #define	CAYMAN_PACKET3_DEALLOC_STATE			0x14
+
+/* DMA regs common on r6xx/r7xx/evergreen/ni */
+#define DMA_RB_CNTL                                       0xd000
+#       define DMA_RB_ENABLE                              (1 << 0)
+#       define DMA_RB_SIZE(x)                             ((x) << 1) /* log2 */
+#       define DMA_RB_SWAP_ENABLE                         (1 << 9) /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_ENABLE                  (1 << 12)
+#       define DMA_RPTR_WRITEBACK_SWAP_ENABLE             (1 << 13)  /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_TIMER(x)                ((x) << 16) /* log2 */
+#define DMA_STATUS_REG                                    0xd034
+#       define DMA_IDLE                                   (1 << 0)
 
 #endif

@@ -213,7 +213,7 @@ pci_create_OF_bus_map(void)
 	}
 }
 
-void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
+void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
 	unsigned long io_offset;
 	struct resource *res = &hose->io_resource;

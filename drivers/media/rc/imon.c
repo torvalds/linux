@@ -255,7 +255,7 @@ static struct usb_device_id imon_usb_id_table[] = {
 static struct usb_driver imon_driver = {
 	.name		= MOD_NAME,
 	.probe		= imon_probe,
-	.disconnect	= __devexit_p(imon_disconnect),
+	.disconnect	= imon_disconnect,
 	.suspend	= imon_suspend,
 	.resume		= imon_resume,
 	.id_table	= imon_usb_id_table,
@@ -1221,7 +1221,7 @@ static u32 imon_panel_key_lookup(u64 code)
 static bool imon_mouse_event(struct imon_context *ictx,
 			     unsigned char *buf, int len)
 {
-	char rel_x = 0x00, rel_y = 0x00;
+	signed char rel_x = 0x00, rel_y = 0x00;
 	u8 right_shift = 1;
 	bool mouse_input = true;
 	int dir = 0;
@@ -1297,7 +1297,7 @@ static void imon_touch_event(struct imon_context *ictx, unsigned char *buf)
 static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 {
 	int dir = 0;
-	char rel_x = 0x00, rel_y = 0x00;
+	signed char rel_x = 0x00, rel_y = 0x00;
 	u16 timeout, threshold;
 	u32 scancode = KEY_RESERVED;
 	unsigned long flags;
@@ -2288,8 +2288,8 @@ static void imon_init_display(struct imon_context *ictx,
 /**
  * Callback function for USB core API: Probe
  */
-static int __devinit imon_probe(struct usb_interface *interface,
-				const struct usb_device_id *id)
+static int imon_probe(struct usb_interface *interface,
+		      const struct usb_device_id *id)
 {
 	struct usb_device *usbdev = NULL;
 	struct usb_host_interface *iface_desc = NULL;
@@ -2372,7 +2372,7 @@ fail:
 /**
  * Callback function for USB core API: disconnect
  */
-static void __devexit imon_disconnect(struct usb_interface *interface)
+static void imon_disconnect(struct usb_interface *interface)
 {
 	struct imon_context *ictx;
 	struct device *dev;

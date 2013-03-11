@@ -32,9 +32,9 @@
 #define cpu_scache_line_size()	0
 
 #ifdef CONFIG_64BIT
-#define cpu_has_llsc            0
+#define cpu_has_llsc		0
 #else
-#define cpu_has_llsc            1
+#define cpu_has_llsc		1
 #endif
 
 #define cpu_has_mips16		0

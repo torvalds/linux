@@ -1047,7 +1047,7 @@ out:
 	return err;
 }
 
-static int __devexit tegra_aes_remove(struct platform_device *pdev)
+static int tegra_aes_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tegra_aes_dev *dd = platform_get_drvdata(pdev);
@@ -1074,7 +1074,7 @@ static int __devexit tegra_aes_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tegra_aes_of_match[] __devinitdata = {
+static struct of_device_id tegra_aes_of_match[] = {
 	{ .compatible = "nvidia,tegra20-aes", },
 	{ .compatible = "nvidia,tegra30-aes", },
 	{ },
@@ -1082,7 +1082,7 @@ static struct of_device_id tegra_aes_of_match[] __devinitdata = {
 
 static struct platform_driver tegra_aes_driver = {
 	.probe  = tegra_aes_probe,
-	.remove = __devexit_p(tegra_aes_remove),
+	.remove = tegra_aes_remove,
 	.driver = {
 		.name   = "tegra-aes",
 		.owner  = THIS_MODULE,

@@ -99,7 +99,7 @@ static int bttv_bit_getsda(void *data)
 	return state;
 }
 
-static struct i2c_algo_bit_data __devinitdata bttv_i2c_algo_bit_template = {
+static struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
 	.setsda  = bttv_bit_setsda,
 	.setscl  = bttv_bit_setscl,
 	.getsda  = bttv_bit_getsda,
@@ -173,7 +173,7 @@ bttv_i2c_sendbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 		if (i2c_debug)
 			pr_cont(" %02x", msg->buf[cnt]);
 	}
-	if (!(xmit & BT878_I2C_NOSTOP))
+	if (i2c_debug && !(xmit & BT878_I2C_NOSTOP))
 		pr_cont(">\n");
 	return msg->len;
 
@@ -312,7 +312,7 @@ int bttv_I2CWrite(struct bttv *btv, unsigned char addr, unsigned char b1,
 }
 
 /* read EEPROM content */
-void __devinit bttv_readee(struct bttv *btv, unsigned char *eedata, int addr)
+void bttv_readee(struct bttv *btv, unsigned char *eedata, int addr)
 {
 	memset(eedata, 0, 256);
 	if (0 != btv->i2c_rc)
@@ -347,7 +347,7 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 }
 
 /* init + register i2c adapter */
-int __devinit init_bttv_i2c(struct bttv *btv)
+int init_bttv_i2c(struct bttv *btv)
 {
 	strlcpy(btv->i2c_client.name, "bttv internal", I2C_NAME_SIZE);
 
@@ -366,8 +366,7 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 
 		strlcpy(btv->c.i2c_adap.name, "bttv",
 			sizeof(btv->c.i2c_adap.name));
-		memcpy(&btv->i2c_algo, &bttv_i2c_algo_bit_template,
-		       sizeof(bttv_i2c_algo_bit_template));
+		btv->i2c_algo = bttv_i2c_algo_bit_template;
 		btv->i2c_algo.udelay = i2c_udelay;
 		btv->i2c_algo.data = btv;
 		btv->c.i2c_adap.algo_data = &btv->i2c_algo;

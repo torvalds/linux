@@ -53,6 +53,18 @@ static match_table_t f2fs_tokens = {
 	{Opt_err, NULL},
 };
 
+void f2fs_msg(struct super_block *sb, const char *level, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk("%sF2FS-fs (%s): %pV\n", level, sb->s_id, &vaf);
+	va_end(args);
+}
+
 static void init_once(void *foo)
 {
 	struct f2fs_inode_info *fi = (struct f2fs_inode_info *) foo;
@@ -100,7 +112,7 @@ static void f2fs_put_super(struct super_block *sb)
 	f2fs_destroy_stats(sbi);
 	stop_gc_thread(sbi);
 
-	write_checkpoint(sbi, false, true);
+	write_checkpoint(sbi, true);
 
 	iput(sbi->node_inode);
 	iput(sbi->meta_inode);
@@ -119,15 +131,32 @@ static void f2fs_put_super(struct super_block *sb)
 int f2fs_sync_fs(struct super_block *sb, int sync)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	int ret = 0;
 
 	if (!sbi->s_dirty && !get_pages(sbi, F2FS_DIRTY_NODES))
 		return 0;
 
 	if (sync)
-		write_checkpoint(sbi, false, false);
+		write_checkpoint(sbi, false);
+	else
+		f2fs_balance_fs(sbi);
 
-	return ret;
+	return 0;
+}
+
+static int f2fs_freeze(struct super_block *sb)
+{
+	int err;
+
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	err = f2fs_sync_fs(sb, 1);
+	return err;
+}
+
+static int f2fs_unfreeze(struct super_block *sb)
+{
+	return 0;
 }
 
 static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -148,8 +177,8 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = buf->f_blocks - valid_user_blocks(sbi) - ovp_count;
 	buf->f_bavail = user_block_count - valid_user_blocks(sbi);
 
-	buf->f_files = valid_inode_count(sbi);
-	buf->f_ffree = sbi->total_node_count - valid_node_count(sbi);
+	buf->f_files = sbi->total_node_count;
+	buf->f_ffree = sbi->total_node_count - valid_inode_count(sbi);
 
 	buf->f_namelen = F2FS_MAX_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;
@@ -185,7 +214,7 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noacl");
 #endif
 	if (test_opt(sbi, DISABLE_EXT_IDENTIFY))
-		seq_puts(seq, ",disable_ext_indentify");
+		seq_puts(seq, ",disable_ext_identify");
 
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
@@ -200,6 +229,8 @@ static struct super_operations f2fs_sops = {
 	.evict_inode	= f2fs_evict_inode,
 	.put_super	= f2fs_put_super,
 	.sync_fs	= f2fs_sync_fs,
+	.freeze_fs	= f2fs_freeze,
+	.unfreeze_fs	= f2fs_unfreeze,
 	.statfs		= f2fs_statfs,
 };
 
@@ -248,7 +279,8 @@ static const struct export_operations f2fs_export_ops = {
 	.get_parent = f2fs_get_parent,
 };
 
-static int parse_options(struct f2fs_sb_info *sbi, char *options)
+static int parse_options(struct super_block *sb, struct f2fs_sb_info *sbi,
+				char *options)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
@@ -287,7 +319,8 @@ static int parse_options(struct f2fs_sb_info *sbi, char *options)
 			break;
 #else
 		case Opt_nouser_xattr:
-			pr_info("nouser_xattr options not supported\n");
+			f2fs_msg(sb, KERN_INFO,
+				"nouser_xattr options not supported");
 			break;
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
@@ -296,13 +329,13 @@ static int parse_options(struct f2fs_sb_info *sbi, char *options)
 			break;
 #else
 		case Opt_noacl:
-			pr_info("noacl options not supported\n");
+			f2fs_msg(sb, KERN_INFO, "noacl options not supported");
 			break;
 #endif
 		case Opt_active_logs:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
-			if (arg != 2 && arg != 4 && arg != 6)
+			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
 				return -EINVAL;
 			sbi->active_logs = arg;
 			break;
@@ -310,8 +343,9 @@ static int parse_options(struct f2fs_sb_info *sbi, char *options)
 			set_opt(sbi, DISABLE_EXT_IDENTIFY);
 			break;
 		default:
-			pr_err("Unrecognized mount option \"%s\" or missing value\n",
-					p);
+			f2fs_msg(sb, KERN_ERR,
+				"Unrecognized mount option \"%s\" or missing value",
+				p);
 			return -EINVAL;
 		}
 	}
@@ -338,30 +372,53 @@ static loff_t max_file_size(unsigned bits)
 	return result;
 }
 
-static int sanity_check_raw_super(struct f2fs_super_block *raw_super)
+static int sanity_check_raw_super(struct super_block *sb,
+			struct f2fs_super_block *raw_super)
 {
 	unsigned int blocksize;
 
-	if (F2FS_SUPER_MAGIC != le32_to_cpu(raw_super->magic))
+	if (F2FS_SUPER_MAGIC != le32_to_cpu(raw_super->magic)) {
+		f2fs_msg(sb, KERN_INFO,
+			"Magic Mismatch, valid(0x%x) - read(0x%x)",
+			F2FS_SUPER_MAGIC, le32_to_cpu(raw_super->magic));
 		return 1;
+	}
+
+	/* Currently, support only 4KB page cache size */
+	if (F2FS_BLKSIZE != PAGE_CACHE_SIZE) {
+		f2fs_msg(sb, KERN_INFO,
+			"Invalid page_cache_size (%lu), supports only 4KB\n",
+			PAGE_CACHE_SIZE);
+		return 1;
+	}
 
 	/* Currently, support only 4KB block size */
 	blocksize = 1 << le32_to_cpu(raw_super->log_blocksize);
-	if (blocksize != PAGE_CACHE_SIZE)
+	if (blocksize != F2FS_BLKSIZE) {
+		f2fs_msg(sb, KERN_INFO,
+			"Invalid blocksize (%u), supports only 4KB\n",
+			blocksize);
 		return 1;
+	}
+
 	if (le32_to_cpu(raw_super->log_sectorsize) !=
-					F2FS_LOG_SECTOR_SIZE)
+					F2FS_LOG_SECTOR_SIZE) {
+		f2fs_msg(sb, KERN_INFO, "Invalid log sectorsize");
 		return 1;
+	}
 	if (le32_to_cpu(raw_super->log_sectors_per_block) !=
-					F2FS_LOG_SECTORS_PER_BLOCK)
+					F2FS_LOG_SECTORS_PER_BLOCK) {
+		f2fs_msg(sb, KERN_INFO, "Invalid log sectors per block");
 		return 1;
+	}
 	return 0;
 }
 
-static int sanity_check_ckpt(struct f2fs_super_block *raw_super,
-				struct f2fs_checkpoint *ckpt)
+static int sanity_check_ckpt(struct f2fs_sb_info *sbi)
 {
 	unsigned int total, fsmeta;
+	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 
 	total = le32_to_cpu(raw_super->segment_count);
 	fsmeta = le32_to_cpu(raw_super->segment_count_ckpt);
@@ -372,6 +429,11 @@ static int sanity_check_ckpt(struct f2fs_super_block *raw_super,
 
 	if (fsmeta >= total)
 		return 1;
+
+	if (is_set_ckpt_flags(ckpt, CP_ERROR_FLAG)) {
+		f2fs_msg(sbi->sb, KERN_ERR, "A bug case: need to run fsck");
+		return 1;
+	}
 	return 0;
 }
 
@@ -400,6 +462,32 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 		atomic_set(&sbi->nr_pages[i], 0);
 }
 
+static int validate_superblock(struct super_block *sb,
+		struct f2fs_super_block **raw_super,
+		struct buffer_head **raw_super_buf, sector_t block)
+{
+	const char *super = (block == 0 ? "first" : "second");
+
+	/* read f2fs raw super block */
+	*raw_super_buf = sb_bread(sb, block);
+	if (!*raw_super_buf) {
+		f2fs_msg(sb, KERN_ERR, "unable to read %s superblock",
+				super);
+		return 1;
+	}
+
+	*raw_super = (struct f2fs_super_block *)
+		((char *)(*raw_super_buf)->b_data + F2FS_SUPER_OFFSET);
+
+	/* sanity checking of raw super */
+	if (!sanity_check_raw_super(sb, *raw_super))
+		return 0;
+
+	f2fs_msg(sb, KERN_ERR, "Can't find a valid F2FS filesystem "
+				"in %s superblock", super);
+	return 1;
+}
+
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct f2fs_sb_info *sbi;
@@ -414,19 +502,17 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbi)
 		return -ENOMEM;
 
-	/* set a temporary block size */
-	if (!sb_set_blocksize(sb, F2FS_BLKSIZE))
-		goto free_sbi;
-
-	/* read f2fs raw super block */
-	raw_super_buf = sb_bread(sb, 0);
-	if (!raw_super_buf) {
-		err = -EIO;
+	/* set a block size */
+	if (!sb_set_blocksize(sb, F2FS_BLKSIZE)) {
+		f2fs_msg(sb, KERN_ERR, "unable to set blocksize");
 		goto free_sbi;
 	}
-	raw_super = (struct f2fs_super_block *)
-			((char *)raw_super_buf->b_data + F2FS_SUPER_OFFSET);
 
+	if (validate_superblock(sb, &raw_super, &raw_super_buf, 0)) {
+		brelse(raw_super_buf);
+		if (validate_superblock(sb, &raw_super, &raw_super_buf, 1))
+			goto free_sb_buf;
+	}
 	/* init some FS parameters */
 	sbi->active_logs = NR_CURSEG_TYPE;
 
@@ -439,11 +525,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	set_opt(sbi, POSIX_ACL);
 #endif
 	/* parse mount options */
-	if (parse_options(sbi, (char *)data))
-		goto free_sb_buf;
-
-	/* sanity checking of raw super */
-	if (sanity_check_raw_super(raw_super))
+	if (parse_options(sb, sbi, (char *)data))
 		goto free_sb_buf;
 
 	sb->s_maxbytes = max_file_size(le32_to_cpu(raw_super->log_blocksize));
@@ -478,18 +560,23 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	/* get an inode for meta space */
 	sbi->meta_inode = f2fs_iget(sb, F2FS_META_INO(sbi));
 	if (IS_ERR(sbi->meta_inode)) {
+		f2fs_msg(sb, KERN_ERR, "Failed to read F2FS meta data inode");
 		err = PTR_ERR(sbi->meta_inode);
 		goto free_sb_buf;
 	}
 
 	err = get_valid_checkpoint(sbi);
-	if (err)
+	if (err) {
+		f2fs_msg(sb, KERN_ERR, "Failed to get valid F2FS checkpoint");
 		goto free_meta_inode;
+	}
 
 	/* sanity checking of checkpoint */
 	err = -EINVAL;
-	if (sanity_check_ckpt(raw_super, sbi->ckpt))
+	if (sanity_check_ckpt(sbi)) {
+		f2fs_msg(sb, KERN_ERR, "Invalid F2FS checkpoint");
 		goto free_cp;
+	}
 
 	sbi->total_valid_node_count =
 				le32_to_cpu(sbi->ckpt->valid_node_count);
@@ -503,38 +590,41 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&sbi->dir_inode_list);
 	spin_lock_init(&sbi->dir_inode_lock);
 
-	/* init super block */
-	if (!sb_set_blocksize(sb, sbi->blocksize))
-		goto free_cp;
-
 	init_orphan_info(sbi);
 
 	/* setup f2fs internal modules */
 	err = build_segment_manager(sbi);
-	if (err)
+	if (err) {
+		f2fs_msg(sb, KERN_ERR,
+			"Failed to initialize F2FS segment manager");
 		goto free_sm;
+	}
 	err = build_node_manager(sbi);
-	if (err)
+	if (err) {
+		f2fs_msg(sb, KERN_ERR,
+			"Failed to initialize F2FS node manager");
 		goto free_nm;
+	}
 
 	build_gc_manager(sbi);
 
 	/* get an inode for node space */
 	sbi->node_inode = f2fs_iget(sb, F2FS_NODE_INO(sbi));
 	if (IS_ERR(sbi->node_inode)) {
+		f2fs_msg(sb, KERN_ERR, "Failed to read node inode");
 		err = PTR_ERR(sbi->node_inode);
 		goto free_nm;
 	}
 
 	/* if there are nt orphan nodes free them */
 	err = -EINVAL;
-	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG) &&
-				recover_orphan_inodes(sbi))
+	if (recover_orphan_inodes(sbi))
 		goto free_node_inode;
 
 	/* read root inode and dentry */
 	root = f2fs_iget(sb, F2FS_ROOT_INO(sbi));
 	if (IS_ERR(root)) {
+		f2fs_msg(sb, KERN_ERR, "Failed to read root inode");
 		err = PTR_ERR(root);
 		goto free_node_inode;
 	}
@@ -548,8 +638,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* recover fsynced data */
-	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG) &&
-				!test_opt(sbi, DISABLE_ROLL_FORWARD))
+	if (!test_opt(sbi, DISABLE_ROLL_FORWARD))
 		recover_fsync_data(sbi);
 
 	/* After POR, we can run background GC thread */
@@ -598,8 +687,9 @@ static struct file_system_type f2fs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("f2fs");
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	f2fs_inode_cachep = f2fs_kmem_cache_create("f2fs_inode_cache",
 			sizeof(struct f2fs_inode_info), NULL);
@@ -634,14 +724,17 @@ static int __init init_f2fs_fs(void)
 	err = create_checkpoint_caches();
 	if (err)
 		goto fail;
-	return register_filesystem(&f2fs_fs_type);
+	err = register_filesystem(&f2fs_fs_type);
+	if (err)
+		goto fail;
+	f2fs_create_root_stats();
 fail:
 	return err;
 }
 
 static void __exit exit_f2fs_fs(void)
 {
-	destroy_root_stats();
+	f2fs_destroy_root_stats();
 	unregister_filesystem(&f2fs_fs_type);
 	destroy_checkpoint_caches();
 	destroy_gc_caches();

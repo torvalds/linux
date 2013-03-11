@@ -165,10 +165,11 @@ void set_task_blockstep(struct task_struct *task, bool on)
 	 * Ensure irq/preemption can't change debugctl in between.
 	 * Note also that both TIF_BLOCKSTEP and debugctl should
 	 * be changed atomically wrt preemption.
-	 * FIXME: this means that set/clear TIF_BLOCKSTEP is simply
-	 * wrong if task != current, SIGKILL can wakeup the stopped
-	 * tracee and set/clear can play with the running task, this
-	 * can confuse the next __switch_to_xtra().
+	 *
+	 * NOTE: this means that set/clear TIF_BLOCKSTEP is only safe if
+	 * task is current or it can't be running, otherwise we can race
+	 * with __switch_to_xtra(). We rely on ptrace_freeze_traced() but
+	 * PTRACE_KILL is not safe.
 	 */
 	local_irq_disable();
 	debugctl = get_debugctlmsr();

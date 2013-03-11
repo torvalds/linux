@@ -16,6 +16,7 @@
 #include <linux/regmap.h>
 #include <linux/fs.h>
 #include <linux/list.h>
+#include <linux/wait.h>
 
 struct regmap;
 struct regcache_ops;
@@ -25,6 +26,7 @@ struct regmap_debugfs_off_cache {
 	off_t min;
 	off_t max;
 	unsigned int base_reg;
+	unsigned int max_reg;
 };
 
 struct regmap_format {
@@ -37,6 +39,13 @@ struct regmap_format {
 	void (*format_reg)(void *buf, unsigned int reg, unsigned int shift);
 	void (*format_val)(void *buf, unsigned int val, unsigned int shift);
 	unsigned int (*parse_val)(void *buf);
+};
+
+struct regmap_async {
+	struct list_head list;
+	struct work_struct cleanup;
+	struct regmap *map;
+	void *work_buf;
 };
 
 struct regmap {
@@ -52,6 +61,11 @@ struct regmap {
 	const struct regmap_bus *bus;
 	void *bus_context;
 	const char *name;
+
+	spinlock_t async_lock;
+	wait_queue_head_t async_waitq;
+	struct list_head async_list;
+	int async_ret;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
@@ -73,6 +87,11 @@ struct regmap {
 	const struct regmap_access_table *rd_table;
 	const struct regmap_access_table *volatile_table;
 	const struct regmap_access_table *precious_table;
+
+	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
+	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
+
+	bool defer_caching;
 
 	u8 read_flag_mask;
 	u8 write_flag_mask;
@@ -175,7 +194,10 @@ bool regcache_set_val(void *base, unsigned int idx,
 		      unsigned int val, unsigned int word_size);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
 
+void regmap_async_complete_cb(struct regmap_async *async, int ret);
+
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
+extern struct regcache_ops regcache_flat_ops;
 
 #endif

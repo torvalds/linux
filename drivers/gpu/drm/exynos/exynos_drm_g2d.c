@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-attrs.h>
+#include <linux/of.h>
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
@@ -324,7 +325,7 @@ out:
 	g2d_userptr = NULL;
 }
 
-dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 					unsigned long userptr,
 					unsigned long size,
 					struct drm_file *filp,
@@ -429,7 +430,7 @@ dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 
 	g2d_userptr->pages = pages;
 
-	sgt = kzalloc(sizeof *sgt, GFP_KERNEL);
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
 		DRM_ERROR("failed to allocate sg table.\n");
 		ret = -ENOMEM;
@@ -1090,7 +1091,7 @@ static void g2d_close(struct drm_device *drm_dev, struct device *dev,
 	kfree(file_priv->g2d_priv);
 }
 
-static int __devinit g2d_probe(struct platform_device *pdev)
+static int g2d_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -1136,10 +1137,9 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	g2d->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!g2d->regs) {
-		dev_err(dev, "failed to remap I/O memory\n");
-		ret = -ENXIO;
+	g2d->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(g2d->regs)) {
+		ret = PTR_ERR(g2d->regs);
 		goto err_put_clk;
 	}
 
@@ -1188,7 +1188,7 @@ err_destroy_slab:
 	return ret;
 }
 
-static int __devexit g2d_remove(struct platform_device *pdev)
+static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_data *g2d = platform_get_drvdata(pdev);
 
@@ -1240,12 +1240,21 @@ static int g2d_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id exynos_g2d_match[] = {
+	{ .compatible = "samsung,exynos5250-g2d" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_g2d_match);
+#endif
+
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
-	.remove		= __devexit_p(g2d_remove),
+	.remove		= g2d_remove,
 	.driver		= {
 		.name	= "s5p-g2d",
 		.owner	= THIS_MODULE,
 		.pm	= &g2d_pm_ops,
+		.of_match_table = of_match_ptr(exynos_g2d_match),
 	},
 };

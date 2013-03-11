@@ -69,7 +69,7 @@ static struct spi_board_info ap121_spi_info[] = {
 
 static struct ath79_spi_platform_data ap121_spi_data = {
 	.bus_num	= 0,
-	.num_chipselect	= 1,
+	.num_chipselect = 1,
 };
 
 static void __init ap121_setup(void)

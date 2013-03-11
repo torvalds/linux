@@ -20,14 +20,24 @@ if RTC_CLASS
 config RTC_HCTOSYS
 	bool "Set system time from RTC on startup and resume"
 	default y
+	depends on !ALWAYS_USE_PERSISTENT_CLOCK
 	help
 	  If you say yes here, the system time (wall clock) will be set using
 	  the value read from a specified RTC device. This is useful to avoid
 	  unnecessary fsck runs at boot time, and to network better.
 
+config RTC_SYSTOHC
+	bool "Set the RTC time based on NTP synchronization"
+	default y
+	depends on !ALWAYS_USE_PERSISTENT_CLOCK
+	help
+	  If you say yes here, the system time (wall clock) will be stored
+	  in the RTC specified by RTC_HCTOSYS_DEVICE approximately every 11
+	  minutes if userspace reports synchronized NTP status.
+
 config RTC_HCTOSYS_DEVICE
 	string "RTC used to set the system time"
-	depends on RTC_HCTOSYS = y
+	depends on RTC_HCTOSYS = y || RTC_SYSTOHC = y
 	default "rtc0"
 	help
 	  The RTC device that will be used to (re)initialize the system
@@ -194,6 +204,12 @@ config RTC_DRV_DS3232
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
 
+config RTC_DRV_LP8788
+	tristate "TI LP8788 RTC driver"
+	depends on MFD_LP8788
+	help
+	  Say Y to enable support for the LP8788 RTC/ALARM driver.
+
 config RTC_DRV_MAX6900
 	tristate "Maxim MAX6900"
 	help
@@ -233,6 +249,26 @@ config RTC_DRV_MAX8998
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max8998.
 
+config RTC_DRV_MAX8997
+	tristate "Maxim MAX8997"
+	depends on MFD_MAX8997
+	help
+	  If you say yes here you will get support for the
+	  RTC of Maxim MAX8997 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max8997.
+
+config RTC_DRV_MAX77686
+	tristate "Maxim MAX77686"
+	depends on MFD_MAX77686
+	help
+	  If you say yes here you will get support for the
+	  RTC of Maxim MAX77686 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max77686.
+
 config RTC_DRV_RS5C372
 	tristate "Ricoh R2025S/D, RS5C372A/B, RV5C386, RV5C387A"
 	help
@@ -268,6 +304,16 @@ config RTC_DRV_X1205
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-x1205.
+
+config RTC_DRV_PALMAS
+	tristate "TI Palmas RTC driver"
+	depends on MFD_PALMAS
+	help
+	  If you say yes here you get support for the RTC of TI PALMA series PMIC
+	  chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-palma.
 
 config RTC_DRV_PCF8523
 	tristate "NXP PCF8523"
@@ -352,6 +398,14 @@ config RTC_DRV_TWL4030
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-twl.
 
+config RTC_DRV_TPS6586X
+	tristate "TI TPS6586X RTC driver"
+	depends on MFD_TPS6586X
+	help
+	  TI Power Managment IC TPS6586X supports RTC functionality
+	  along with alarm. This driver supports the RTC driver for
+	  the TPS6586X RTC module.
+
 config RTC_DRV_TPS65910
 	tristate "TI TPS65910 RTC driver"
 	depends on RTC_CLASS && MFD_TPS65910
@@ -361,6 +415,14 @@ config RTC_DRV_TPS65910
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-tps65910.
+
+config RTC_DRV_TPS80031
+	tristate "TI TPS80031/TPS80032 RTC driver"
+	depends on MFD_TPS80031
+	help
+	  TI Power Managment IC TPS80031 supports RTC functionality
+	  along with alarm. This driver supports the RTC driver for
+	  the TPS80031 RTC module.
 
 config RTC_DRV_RC5T583
 	tristate "RICOH 5T583 RTC driver"
@@ -518,6 +580,14 @@ config RTC_DRV_PCF2123
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf2123.
+
+config RTC_DRV_RX4581
+	tristate "Epson RX-4581"
+	help
+	  If you say yes here you will get support for the Epson RX-4581.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-rx4581.
 
 endif # SPI_MASTER
 
@@ -1015,7 +1085,7 @@ config RTC_DRV_TX4939
 
 config RTC_DRV_MV
 	tristate "Marvell SoC RTC"
-	depends on ARCH_KIRKWOOD || ARCH_DOVE
+	depends on ARCH_KIRKWOOD || ARCH_DOVE || ARCH_MVEBU
 	help
 	  If you say yes here you will get support for the in-chip RTC
 	  that can be found in some of Marvell's SoC devices, such as
@@ -1164,5 +1234,21 @@ config RTC_DRV_SNVS
 
 	   This driver can also be built as a module, if so, the module
 	   will be called "rtc-snvs".
+
+comment "HID Sensor RTC drivers"
+
+config RTC_DRV_HID_SENSOR_TIME
+	tristate "HID Sensor Time"
+	depends on USB_HID
+	select IIO
+	select HID_SENSOR_HUB
+	select HID_SENSOR_IIO_COMMON
+	help
+	  Say yes here to build support for the HID Sensors of type Time.
+	  This drivers makes such sensors available as RTCs.
+
+	  If this driver is compiled as a module, it will be named
+	  rtc-hid-sensor-time.
+
 
 endif # RTC_CLASS

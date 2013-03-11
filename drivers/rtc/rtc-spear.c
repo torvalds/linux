@@ -351,7 +351,7 @@ static struct rtc_class_ops spear_rtc_ops = {
 	.alarm_irq_enable = spear_alarm_irq_enable,
 };
 
-static int __devinit spear_rtc_probe(struct platform_device *pdev)
+static int spear_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct spear_rtc_config *config;
@@ -385,11 +385,9 @@ static int __devinit spear_rtc_probe(struct platform_device *pdev)
 		return status;
 	}
 
-	config->ioaddr = devm_request_and_ioremap(&pdev->dev, res);
-	if (!config->ioaddr) {
-		dev_err(&pdev->dev, "request-ioremap fail\n");
-		return -ENOMEM;
-	}
+	config->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(config->ioaddr))
+		return PTR_ERR(config->ioaddr);
 
 	config->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(config->clk))
@@ -425,7 +423,7 @@ err_disable_clock:
 	return status;
 }
 
-static int __devexit spear_rtc_remove(struct platform_device *pdev)
+static int spear_rtc_remove(struct platform_device *pdev)
 {
 	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 
@@ -499,7 +497,7 @@ MODULE_DEVICE_TABLE(of, spear_rtc_id_table);
 
 static struct platform_driver spear_rtc_driver = {
 	.probe = spear_rtc_probe,
-	.remove = __devexit_p(spear_rtc_remove),
+	.remove = spear_rtc_remove,
 	.suspend = spear_rtc_suspend,
 	.resume = spear_rtc_resume,
 	.shutdown = spear_rtc_shutdown,

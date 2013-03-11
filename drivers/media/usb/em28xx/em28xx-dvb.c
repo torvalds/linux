@@ -10,6 +10,8 @@
 
  (c) 2008 Aidan Thornton <makosoft@googlemail.com>
 
+ (c) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
+
  Based on cx88-dvb, saa7134-dvb and videobuf-dvb originally written by:
 	(c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
 	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
@@ -25,7 +27,9 @@
 
 #include "em28xx.h"
 #include <media/v4l2-common.h>
-#include <media/videobuf-vmalloc.h>
+#include <dvb_demux.h>
+#include <dvb_net.h>
+#include <dmxdev.h>
 #include <media/tuner.h>
 #include "tuner-simple.h"
 #include <linux/gpio.h>
@@ -124,34 +128,47 @@ static inline void print_err_status(struct em28xx *dev,
 	}
 }
 
-static inline int em28xx_dvb_isoc_copy(struct em28xx *dev, struct urb *urb)
+static inline int em28xx_dvb_urb_data_copy(struct em28xx *dev, struct urb *urb)
 {
-	int i;
+	int xfer_bulk, num_packets, i;
 
 	if (!dev)
 		return 0;
 
-	if ((dev->state & DEV_DISCONNECTED) || (dev->state & DEV_MISCONFIGURED))
+	if (dev->disconnected)
 		return 0;
 
-	if (urb->status < 0) {
+	if (urb->status < 0)
 		print_err_status(dev, -1, urb->status);
-		if (urb->status == -ENOENT)
-			return 0;
-	}
 
-	for (i = 0; i < urb->number_of_packets; i++) {
-		int status = urb->iso_frame_desc[i].status;
+	xfer_bulk = usb_pipebulk(urb->pipe);
 
-		if (status < 0) {
-			print_err_status(dev, i, status);
-			if (urb->iso_frame_desc[i].status != -EPROTO)
-				continue;
+	if (xfer_bulk) /* bulk */
+		num_packets = 1;
+	else /* isoc */
+		num_packets = urb->number_of_packets;
+
+	for (i = 0; i < num_packets; i++) {
+		if (xfer_bulk) {
+			if (urb->status < 0) {
+				print_err_status(dev, i, urb->status);
+				if (urb->status != -EPROTO)
+					continue;
+			}
+			dvb_dmx_swfilter(&dev->dvb->demux, urb->transfer_buffer,
+					urb->actual_length);
+		} else {
+			if (urb->iso_frame_desc[i].status < 0) {
+				print_err_status(dev, i,
+						 urb->iso_frame_desc[i].status);
+				if (urb->iso_frame_desc[i].status != -EPROTO)
+					continue;
+			}
+			dvb_dmx_swfilter(&dev->dvb->demux,
+					 urb->transfer_buffer +
+					 urb->iso_frame_desc[i].offset,
+					 urb->iso_frame_desc[i].actual_length);
 		}
-
-		dvb_dmx_swfilter(&dev->dvb->demux, urb->transfer_buffer +
-				 urb->iso_frame_desc[i].offset,
-				 urb->iso_frame_desc[i].actual_length);
 	}
 
 	return 0;
@@ -161,24 +178,40 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 {
 	int rc;
 	struct em28xx *dev = dvb->adapter.priv;
-	int max_dvb_packet_size;
+	int dvb_max_packet_size, packet_multiplier, dvb_alt;
 
-	usb_set_interface(dev->udev, 0, dev->dvb_alt);
+	if (dev->dvb_xfer_bulk) {
+		if (!dev->dvb_ep_bulk)
+			return -ENODEV;
+		dvb_max_packet_size = 512; /* USB 2.0 spec */
+		packet_multiplier = EM28XX_DVB_BULK_PACKET_MULTIPLIER;
+		dvb_alt = 0;
+	} else { /* isoc */
+		if (!dev->dvb_ep_isoc)
+			return -ENODEV;
+		dvb_max_packet_size = dev->dvb_max_pkt_size_isoc;
+		if (dvb_max_packet_size < 0)
+			return dvb_max_packet_size;
+		packet_multiplier = EM28XX_DVB_NUM_ISOC_PACKETS;
+		dvb_alt = dev->dvb_alt_isoc;
+	}
+
+	usb_set_interface(dev->udev, 0, dvb_alt);
 	rc = em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	if (rc < 0)
 		return rc;
 
-	max_dvb_packet_size = dev->dvb_max_pkt_size;
-	if (max_dvb_packet_size < 0)
-		return max_dvb_packet_size;
 	dprintk(1, "Using %d buffers each with %d x %d bytes\n",
 		EM28XX_DVB_NUM_BUFS,
-		EM28XX_DVB_MAX_PACKETS,
-		max_dvb_packet_size);
+		packet_multiplier,
+		dvb_max_packet_size);
 
-	return em28xx_init_isoc(dev, EM28XX_DIGITAL_MODE,
-				EM28XX_DVB_MAX_PACKETS, EM28XX_DVB_NUM_BUFS,
-				max_dvb_packet_size, em28xx_dvb_isoc_copy);
+	return em28xx_init_usb_xfer(dev, EM28XX_DIGITAL_MODE,
+				    dev->dvb_xfer_bulk,
+				    EM28XX_DVB_NUM_BUFS,
+				    dvb_max_packet_size,
+				    packet_multiplier,
+				    em28xx_dvb_urb_data_copy);
 }
 
 static int em28xx_stop_streaming(struct em28xx_dvb *dvb)
@@ -714,7 +747,8 @@ static struct tda18271_config em28xx_cxd2820r_tda18271_config = {
 };
 
 static const struct tda10071_config em28xx_tda10071_config = {
-	.i2c_address = 0x55, /* (0xaa >> 1) */
+	.demod_i2c_addr = 0x55, /* (0xaa >> 1) */
+	.tuner_i2c_addr = 0x14,
 	.i2c_wr_max = 64,
 	.ts_mode = TDA10071_TS_SERIAL,
 	.spec_inv = 0,
@@ -1288,7 +1322,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
 
-		if (dev->state & DEV_DISCONNECTED) {
+		if (dev->disconnected) {
 			/* We cannot tell the device to sleep
 			 * once it has been unplugged. */
 			if (dvb->fe[0])

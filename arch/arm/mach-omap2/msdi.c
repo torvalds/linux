@@ -150,7 +150,7 @@ void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 		return;
 	}
 	pdev = omap_device_build(dev_name, id, oh, mmc_data[0],
-				 sizeof(struct omap_mmc_platform_data), NULL, 0, 0);
+				 sizeof(struct omap_mmc_platform_data));
 	if (IS_ERR(pdev))
 		WARN(1, "Can'd build omap_device for %s:%s.\n",
 					dev_name, oh->name);

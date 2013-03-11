@@ -33,6 +33,7 @@
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
 #include <linux/i2c/at24.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -361,7 +362,7 @@ static struct platform_device *omap3_stalker_devices[] __initdata = {
 	&keys_gpio,
 };
 
-static struct usbhs_omap_board_data usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -404,6 +405,7 @@ static void __init omap3_stalker_init(void)
 
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params, NULL);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 	omap_ads7846_init(1, OMAP3_STALKER_TS_GPIO, 310, NULL);
@@ -427,6 +429,6 @@ MACHINE_START(SBC3530, "OMAP3 STALKER")
 	.handle_irq		= omap3_intc_handle_irq,
 	.init_machine		= omap3_stalker_init,
 	.init_late		= omap35xx_init_late,
-	.timer			= &omap3_secure_timer,
+	.init_time		= omap3_secure_sync32k_timer_init,
 	.restart		= omap3xxx_restart,
 MACHINE_END

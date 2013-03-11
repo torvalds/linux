@@ -32,7 +32,7 @@ struct mvebu_soc_descr {
 
 #define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
 
-static struct clk __init *mvebu_clk_gating_get_src(
+static struct clk *mvebu_clk_gating_get_src(
 	struct of_phandle_args *clkspec, void *data)
 {
 	struct mvebu_gating_ctrl *ctrl = (struct mvebu_gating_ctrl *)data;
@@ -193,6 +193,7 @@ static const struct mvebu_soc_descr __initconst kirkwood_gating_descr[] = {
 	{ "runit", NULL, 7 },
 	{ "xor0", NULL, 8 },
 	{ "audio", NULL, 9 },
+	{ "powersave", "cpuclk", 11 },
 	{ "sata0", NULL, 14 },
 	{ "sata1", NULL, 15 },
 	{ "xor1", NULL, 16 },

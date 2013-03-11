@@ -603,6 +603,33 @@ struct cx231xx_board cx231xx_boards[] = {
 			.gpio = NULL,
 		} },
 	},
+	[CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2] = {
+		.name = "Elgato Video Capture V2",
+		.tuner_type = TUNER_ABSENT,
+		.decoder = CX231XX_AVDECODER,
+		.output_mode = OUT_MODE_VIP11,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.norm = V4L2_STD_NTSC,
+		.no_alt_vanc = 1,
+		.external_av = 1,
+		.dont_use_port_3 = 1,
+		.input = {{
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = NULL,
+		} },
+	},
 };
 const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 
@@ -642,6 +669,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_KWORLD_UB430_USB_HYBRID},
 	{USB_DEVICE(0x1f4d, 0x0237),
 	 .driver_info = CX231XX_BOARD_ICONBIT_U100},
+	{USB_DEVICE(0x0fd9, 0x0037),
+	 .driver_info = CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2},
 	{},
 };
 
@@ -707,7 +736,7 @@ static void cx231xx_sleep_s5h1432(struct cx231xx *dev)
 
 static inline void cx231xx_set_model(struct cx231xx *dev)
 {
-	memcpy(&dev->board, &cx231xx_boards[dev->model], sizeof(dev->board));
+	dev->board = cx231xx_boards[dev->model];
 }
 
 /* Since cx231xx_pre_card_setup() requires a proper dev->model,

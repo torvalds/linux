@@ -198,7 +198,7 @@ struct tjmax {
 static const struct tjmax __cpuinitconst tjmax_table[] = {
 	{ "CPU  230", 100000 },		/* Model 0x1c, stepping 2	*/
 	{ "CPU  330", 125000 },		/* Model 0x1c, stepping 2	*/
-	{ "CPU CE4110", 110000 },	/* Model 0x1c, stepping 10	*/
+	{ "CPU CE4110", 110000 },	/* Model 0x1c, stepping 10 Sodaville */
 	{ "CPU CE4150", 110000 },	/* Model 0x1c, stepping 10	*/
 	{ "CPU CE4170", 110000 },	/* Model 0x1c, stepping 10	*/
 };
@@ -212,7 +212,7 @@ struct tjmax_model {
 #define ANY 0xff
 
 static const struct tjmax_model __cpuinitconst tjmax_model_table[] = {
-	{ 0x1c, 10, 100000 },	/* D4xx, N4xx, D5xx, N5xx */
+	{ 0x1c, 10, 100000 },	/* D4xx, K4xx, N4xx, D5xx, K5xx, N5xx */
 	{ 0x1c, ANY, 90000 },	/* Z5xx, N2xx, possibly others
 				 * Note: Also matches 230 and 330,
 				 * which are covered by tjmax_table
@@ -222,6 +222,7 @@ static const struct tjmax_model __cpuinitconst tjmax_model_table[] = {
 				 * is undetectable by software
 				 */
 	{ 0x27, ANY, 90000 },	/* Atom Medfield (Z2460) */
+	{ 0x35, ANY, 90000 },	/* Atom Clover Trail/Cloverview (Z2760) */
 	{ 0x36, ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx) */
 };
 

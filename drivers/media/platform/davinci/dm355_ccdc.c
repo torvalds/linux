@@ -557,7 +557,7 @@ static int ccdc_config_vdfc(struct ccdc_vertical_dft *dfc)
  */
 static void ccdc_config_csc(struct ccdc_csc *csc)
 {
-	u32 val1, val2;
+	u32 val1 = 0, val2;
 	int i;
 
 	if (!csc->enable)
@@ -965,7 +965,7 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 	},
 };
 
-static int __devinit dm355_ccdc_probe(struct platform_device *pdev)
+static int dm355_ccdc_probe(struct platform_device *pdev)
 {
 	void (*setup_pinmux)(void);
 	struct resource	*res;
@@ -1069,7 +1069,7 @@ static struct platform_driver dm355_ccdc_driver = {
 		.name	= "dm355_ccdc",
 		.owner = THIS_MODULE,
 	},
-	.remove = __devexit_p(dm355_ccdc_remove),
+	.remove = dm355_ccdc_remove,
 	.probe = dm355_ccdc_probe,
 };
 

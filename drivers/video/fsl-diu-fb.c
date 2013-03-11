@@ -55,7 +55,7 @@
  * order if increasing resolution and frequency.  The 320x240-60 mode is
  * the initial AOI for the second and third planes.
  */
-static struct fb_videomode __devinitdata fsl_diu_mode_db[] = {
+static struct fb_videomode fsl_diu_mode_db[] = {
 	{
 		.refresh	= 60,
 		.xres		= 1024,
@@ -944,7 +944,7 @@ static u32 fsl_diu_get_pixel_format(unsigned int bits_per_pixel)
 #define PF_COMP_0_MASK		0x0000000F
 #define PF_COMP_0_SHIFT		0
 
-#define MAKE_PF(alpha, red, blue, green, size, c0, c1, c2, c3) \
+#define MAKE_PF(alpha, red, green, blue, size, c0, c1, c2, c3) \
 	cpu_to_le32(PF_BYTE_F | (alpha << PF_ALPHA_C_SHIFT) | \
 	(blue << PF_BLUE_C_SHIFT) | (green << PF_GREEN_C_SHIFT) | \
 	(red << PF_RED_C_SHIFT) | (c3 << PF_COMP_3_SHIFT) | \
@@ -954,10 +954,10 @@ static u32 fsl_diu_get_pixel_format(unsigned int bits_per_pixel)
 	switch (bits_per_pixel) {
 	case 32:
 		/* 0x88883316 */
-		return MAKE_PF(3, 2, 0, 1, 3, 8, 8, 8, 8);
+		return MAKE_PF(3, 2, 1, 0, 3, 8, 8, 8, 8);
 	case 24:
 		/* 0x88082219 */
-		return MAKE_PF(4, 0, 1, 2, 2, 0, 8, 8, 8);
+		return MAKE_PF(4, 0, 1, 2, 2, 8, 8, 8, 0);
 	case 16:
 		/* 0x65053118 */
 		return MAKE_PF(4, 2, 1, 0, 1, 5, 6, 5, 0);
@@ -1232,6 +1232,16 @@ static int fsl_diu_ioctl(struct fb_info *info, unsigned int cmd,
 	return 0;
 }
 
+static inline void fsl_diu_enable_interrupts(struct fsl_diu_data *data)
+{
+	u32 int_mask = INT_UNDRUN; /* enable underrun detection */
+
+	if (IS_ENABLED(CONFIG_NOT_COHERENT_CACHE))
+		int_mask |= INT_VSYNC; /* enable vertical sync */
+
+	clrbits32(&data->diu_reg->int_mask, int_mask);
+}
+
 /* turn on fb if count == 1
  */
 static int fsl_diu_open(struct fb_info *info, int user)
@@ -1251,19 +1261,7 @@ static int fsl_diu_open(struct fb_info *info, int user)
 		if (res < 0)
 			mfbi->count--;
 		else {
-			struct fsl_diu_data *data = mfbi->parent;
-
-#ifdef CONFIG_NOT_COHERENT_CACHE
-			/*
-			 * Enable underrun detection and vertical sync
-			 * interrupts.
-			 */
-			clrbits32(&data->diu_reg->int_mask,
-				  INT_UNDRUN | INT_VSYNC);
-#else
-			/* Enable underrun detection */
-			clrbits32(&data->diu_reg->int_mask, INT_UNDRUN);
-#endif
+			fsl_diu_enable_interrupts(mfbi->parent);
 			fsl_diu_enable_panel(info);
 		}
 	}
@@ -1283,9 +1281,18 @@ static int fsl_diu_release(struct fb_info *info, int user)
 	mfbi->count--;
 	if (mfbi->count == 0) {
 		struct fsl_diu_data *data = mfbi->parent;
+		bool disable = true;
+		int i;
 
-		/* Disable interrupts */
-		out_be32(&data->diu_reg->int_mask, 0xffffffff);
+		/* Disable interrupts only if all AOIs are closed */
+		for (i = 0; i < NUM_AOIS; i++) {
+			struct mfb_info *mi = data->fsl_diu_info[i].par;
+
+			if (mi->count)
+				disable = false;
+		}
+		if (disable)
+			out_be32(&data->diu_reg->int_mask, 0xffffffff);
 		fsl_diu_disable_panel(info);
 	}
 
@@ -1307,7 +1314,7 @@ static struct fb_ops fsl_diu_ops = {
 	.fb_release = fsl_diu_release,
 };
 
-static int __devinit install_fb(struct fb_info *info)
+static int install_fb(struct fb_info *info)
 {
 	int rc;
 	struct mfb_info *mfbi = info->par;
@@ -1518,7 +1525,7 @@ static ssize_t show_monitor(struct device *device,
 	return 0;
 }
 
-static int __devinit fsl_diu_probe(struct platform_device *pdev)
+static int fsl_diu_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mfb_info *mfbi;
@@ -1614,14 +1621,6 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	out_be32(&data->diu_reg->desc[1], data->dummy_ad.paddr);
 	out_be32(&data->diu_reg->desc[2], data->dummy_ad.paddr);
 
-	for (i = 0; i < NUM_AOIS; i++) {
-		ret = install_fb(&data->fsl_diu_info[i]);
-		if (ret) {
-			dev_err(&pdev->dev, "could not register fb %d\n", i);
-			goto error;
-		}
-	}
-
 	/*
 	 * Older versions of U-Boot leave interrupts enabled, so disable
 	 * all of them and clear the status register.
@@ -1630,10 +1629,19 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	in_be32(&data->diu_reg->int_status);
 
 	ret = request_irq(data->irq, fsl_diu_isr, 0, "fsl-diu-fb",
-			  &data->diu_reg);
+			  data->diu_reg);
 	if (ret) {
 		dev_err(&pdev->dev, "could not claim irq\n");
 		goto error;
+	}
+
+	for (i = 0; i < NUM_AOIS; i++) {
+		ret = install_fb(&data->fsl_diu_info[i]);
+		if (ret) {
+			dev_err(&pdev->dev, "could not register fb %d\n", i);
+			free_irq(data->irq, data->diu_reg);
+			goto error;
+		}
 	}
 
 	sysfs_attr_init(&data->dev_attr.attr);
@@ -1667,7 +1675,7 @@ static int fsl_diu_remove(struct platform_device *pdev)
 	data = dev_get_drvdata(&pdev->dev);
 	disable_lcdc(&data->fsl_diu_info[0]);
 
-	free_irq(data->irq, &data->diu_reg);
+	free_irq(data->irq, data->diu_reg);
 
 	for (i = 0; i < NUM_AOIS; i++)
 		uninstall_fb(&data->fsl_diu_info[i]);

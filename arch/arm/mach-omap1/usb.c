@@ -629,8 +629,14 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 static inline void omap_1510_usb_init(struct omap_usb_config *config) {}
 #endif
 
-void __init omap1_usb_init(struct omap_usb_config *pdata)
+void __init omap1_usb_init(struct omap_usb_config *_pdata)
 {
+	struct omap_usb_config *pdata;
+
+	pdata = kmemdup(_pdata, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return;
+
 	pdata->usb0_init = omap1_usb0_init;
 	pdata->usb1_init = omap1_usb1_init;
 	pdata->usb2_init = omap1_usb2_init;

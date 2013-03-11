@@ -500,18 +500,18 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	/* input device for IR remote (and tx) */
 	rdev = rc_allocate_device();
 	if (!rdev)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	ret = -ENODEV;
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0)) {
 		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
-		goto failure;
+		goto exit_free_dev_rdev;
 	}
 
 	if (!pnp_irq_valid(pdev, 0)) {
 		dev_err(&pdev->dev, "IR PNP IRQ not valid!\n");
-		goto failure;
+		goto exit_free_dev_rdev;
 	}
 
 	fintek->cir_addr = pnp_port_start(pdev, 0);
@@ -528,7 +528,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 
 	ret = fintek_hw_detect(fintek);
 	if (ret)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	/* Initialize CIR & CIR Wake Logical Devices */
 	fintek_config_mode_enable(fintek);
@@ -557,40 +557,42 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
 	rdev->rx_resolution = US_TO_NS(CIR_SAMPLE_PERIOD);
 
+	fintek->rdev = rdev;
+
 	ret = -EBUSY;
 	/* now claim resources */
 	if (!request_region(fintek->cir_addr,
 			    fintek->cir_port_len, FINTEK_DRIVER_NAME))
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	if (request_irq(fintek->cir_irq, fintek_cir_isr, IRQF_SHARED,
 			FINTEK_DRIVER_NAME, (void *)fintek))
-		goto failure2;
+		goto exit_free_cir_addr;
 
 	ret = rc_register_device(rdev);
 	if (ret)
-		goto failure3;
+		goto exit_free_irq;
 
 	device_init_wakeup(&pdev->dev, true);
-	fintek->rdev = rdev;
+
 	fit_pr(KERN_NOTICE, "driver has been successfully loaded\n");
 	if (debug)
 		cir_dump_regs(fintek);
 
 	return 0;
 
-failure3:
+exit_free_irq:
 	free_irq(fintek->cir_irq, fintek);
-failure2:
+exit_free_cir_addr:
 	release_region(fintek->cir_addr, fintek->cir_port_len);
-failure:
+exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(fintek);
 
 	return ret;
 }
 
-static void __devexit fintek_remove(struct pnp_dev *pdev)
+static void fintek_remove(struct pnp_dev *pdev)
 {
 	struct fintek_dev *fintek = pnp_get_drvdata(pdev);
 	unsigned long flags;
@@ -678,7 +680,7 @@ static struct pnp_driver fintek_driver = {
 	.id_table	= fintek_ids,
 	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
 	.probe		= fintek_probe,
-	.remove		= __devexit_p(fintek_remove),
+	.remove		= fintek_remove,
 	.suspend	= fintek_suspend,
 	.resume		= fintek_resume,
 	.shutdown	= fintek_shutdown,

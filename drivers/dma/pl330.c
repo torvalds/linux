@@ -25,6 +25,7 @@
 #include <linux/amba/pl330.h>
 #include <linux/scatterlist.h>
 #include <linux/of.h>
+#include <linux/of_dma.h>
 
 #include "dmaengine.h"
 #define PL330_MAX_CHAN		8
@@ -604,6 +605,11 @@ struct dma_pl330_desc {
 
 	/* The channel which currently holds this desc */
 	struct dma_pl330_chan *pchan;
+};
+
+struct dma_pl330_filter_args {
+	struct dma_pl330_dmac *pdmac;
+	unsigned int chan_id;
 };
 
 static inline void _callback(struct pl330_req *r, enum pl330_op_err err)
@@ -2352,6 +2358,16 @@ static void dma_pl330_rqcb(void *token, enum pl330_op_err err)
 	tasklet_schedule(&pch->task);
 }
 
+static bool pl330_dt_filter(struct dma_chan *chan, void *param)
+{
+	struct dma_pl330_filter_args *fargs = param;
+
+	if (chan->device != &fargs->pdmac->ddma)
+		return false;
+
+	return (chan->chan_id == fargs->chan_id);
+}
+
 bool pl330_filter(struct dma_chan *chan, void *param)
 {
 	u8 *peri_id;
@@ -2359,24 +2375,34 @@ bool pl330_filter(struct dma_chan *chan, void *param)
 	if (chan->device->dev->driver != &pl330_driver.drv)
 		return false;
 
-#ifdef CONFIG_OF
-	if (chan->device->dev->of_node) {
-		const __be32 *prop_value;
-		phandle phandle;
-		struct device_node *node;
-
-		prop_value = ((struct property *)param)->value;
-		phandle = be32_to_cpup(prop_value++);
-		node = of_find_node_by_phandle(phandle);
-		return ((chan->private == node) &&
-				(chan->chan_id == be32_to_cpup(prop_value)));
-	}
-#endif
-
 	peri_id = chan->private;
 	return *peri_id == (unsigned)param;
 }
 EXPORT_SYMBOL(pl330_filter);
+
+static struct dma_chan *of_dma_pl330_xlate(struct of_phandle_args *dma_spec,
+						struct of_dma *ofdma)
+{
+	int count = dma_spec->args_count;
+	struct dma_pl330_dmac *pdmac = ofdma->of_dma_data;
+	struct dma_pl330_filter_args fargs;
+	dma_cap_mask_t cap;
+
+	if (!pdmac)
+		return NULL;
+
+	if (count != 1)
+		return NULL;
+
+	fargs.pdmac = pdmac;
+	fargs.chan_id = dma_spec->args[0];
+
+	dma_cap_zero(cap);
+	dma_cap_set(DMA_SLAVE, cap);
+	dma_cap_set(DMA_CYCLIC, cap);
+
+	return dma_request_channel(cap, pl330_dt_filter, &fargs);
+}
 
 static int pl330_alloc_chan_resources(struct dma_chan *chan)
 {
@@ -2866,7 +2892,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pdat = adev->dev.platform_data;
 
 	/* Allocate a new DMAC and its Channels */
-	pdmac = kzalloc(sizeof(*pdmac), GFP_KERNEL);
+	pdmac = devm_kzalloc(&adev->dev, sizeof(*pdmac), GFP_KERNEL);
 	if (!pdmac) {
 		dev_err(&adev->dev, "unable to allocate mem\n");
 		return -ENOMEM;
@@ -2878,13 +2904,9 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pi->mcbufsz = pdat ? pdat->mcbuf_sz : 0;
 
 	res = &adev->res;
-	request_mem_region(res->start, resource_size(res), "dma-pl330");
-
-	pi->base = ioremap(res->start, resource_size(res));
-	if (!pi->base) {
-		ret = -ENXIO;
-		goto probe_err1;
-	}
+	pi->base = devm_request_and_ioremap(&adev->dev, res);
+	if (!pi->base)
+		return -ENXIO;
 
 	amba_set_drvdata(adev, pdmac);
 
@@ -2892,11 +2914,11 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = request_irq(irq, pl330_irq_handler, 0,
 			dev_name(&adev->dev), pi);
 	if (ret)
-		goto probe_err2;
+		return ret;
 
 	ret = pl330_add(pi);
 	if (ret)
-		goto probe_err3;
+		goto probe_err1;
 
 	INIT_LIST_HEAD(&pdmac->desc_pool);
 	spin_lock_init(&pdmac->pool_lock);
@@ -2918,7 +2940,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	if (!pdmac->peripherals) {
 		ret = -ENOMEM;
 		dev_err(&adev->dev, "unable to allocate pdmac->peripherals\n");
-		goto probe_err4;
+		goto probe_err2;
 	}
 
 	for (i = 0; i < num_chan; i++) {
@@ -2962,7 +2984,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = dma_async_device_register(pd);
 	if (ret) {
 		dev_err(&adev->dev, "unable to register DMAC\n");
-		goto probe_err4;
+		goto probe_err2;
 	}
 
 	dev_info(&adev->dev,
@@ -2973,31 +2995,35 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		pi->pcfg.data_bus_width / 8, pi->pcfg.num_chan,
 		pi->pcfg.num_peri, pi->pcfg.num_events);
 
+	ret = of_dma_controller_register(adev->dev.of_node,
+					 of_dma_pl330_xlate, pdmac);
+	if (ret) {
+		dev_err(&adev->dev,
+		"unable to register DMA to the generic DT DMA helpers\n");
+		goto probe_err2;
+	}
+
 	return 0;
 
-probe_err4:
-	pl330_del(pi);
-probe_err3:
-	free_irq(irq, pi);
 probe_err2:
-	iounmap(pi->base);
+	pl330_del(pi);
 probe_err1:
-	release_mem_region(res->start, resource_size(res));
-	kfree(pdmac);
+	free_irq(irq, pi);
 
 	return ret;
 }
 
-static int __devexit pl330_remove(struct amba_device *adev)
+static int pl330_remove(struct amba_device *adev)
 {
 	struct dma_pl330_dmac *pdmac = amba_get_drvdata(adev);
 	struct dma_pl330_chan *pch, *_p;
 	struct pl330_info *pi;
-	struct resource *res;
 	int irq;
 
 	if (!pdmac)
 		return 0;
+
+	of_dma_controller_free(adev->dev.of_node);
 
 	amba_set_drvdata(adev, NULL);
 
@@ -3019,13 +3045,6 @@ static int __devexit pl330_remove(struct amba_device *adev)
 
 	irq = adev->irq[0];
 	free_irq(irq, pi);
-
-	iounmap(pi->base);
-
-	res = &adev->res;
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(pdmac);
 
 	return 0;
 }

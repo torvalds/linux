@@ -145,7 +145,7 @@ void __init pci_acpi_crs_quirks(void)
 }
 
 #ifdef	CONFIG_PCI_MMCONFIG
-static int __devinit check_segment(u16 seg, struct device *dev, char *estr)
+static int check_segment(u16 seg, struct device *dev, char *estr)
 {
 	if (seg) {
 		dev_err(dev,
@@ -168,9 +168,8 @@ static int __devinit check_segment(u16 seg, struct device *dev, char *estr)
 	return 0;
 }
 
-static int __devinit setup_mcfg_map(struct pci_root_info *info,
-				    u16 seg, u8 start, u8 end,
-				    phys_addr_t addr)
+static int setup_mcfg_map(struct pci_root_info *info, u16 seg, u8 start,
+			  u8 end, phys_addr_t addr)
 {
 	int result;
 	struct device *dev = &info->bridge->dev;
@@ -208,7 +207,7 @@ static void teardown_mcfg_map(struct pci_root_info *info)
 	}
 }
 #else
-static int __devinit setup_mcfg_map(struct pci_root_info *info,
+static int setup_mcfg_map(struct pci_root_info *info,
 				    u16 seg, u8 start, u8 end,
 				    phys_addr_t addr)
 {
@@ -474,7 +473,7 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 				info);
 }
 
-struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
+struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 {
 	struct acpi_device *device = root->device;
 	struct pci_root_info *info = NULL;
@@ -522,6 +521,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 	sd = &info->sd;
 	sd->domain = domain;
 	sd->node = node;
+	sd->acpi = device->handle;
 	/*
 	 * Maybe the desired pci bus has been already scanned. In such case
 	 * it is unnecessary to scan the pci bus with the given domain,busnum.
@@ -591,6 +591,14 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 	}
 
 	return bus;
+}
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	struct pci_sysdata *sd = bridge->bus->sysdata;
+
+	ACPI_HANDLE_SET(&bridge->dev, sd->acpi);
+	return 0;
 }
 
 int __init pci_acpi_init(void)

@@ -317,6 +317,23 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	{ 0x8086, 0x9c09, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
 	/* SATA Controller IDE (DH89xxCC) */
 	{ 0x8086, 0x2326, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
+	/* SATA Controller IDE (Avoton) */
+	{ 0x8086, 0x1f20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_snb },
+	/* SATA Controller IDE (Avoton) */
+	{ 0x8086, 0x1f21, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_snb },
+	/* SATA Controller IDE (Avoton) */
+	{ 0x8086, 0x1f30, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
+	/* SATA Controller IDE (Avoton) */
+	{ 0x8086, 0x1f31, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
+	/* SATA Controller IDE (Wellsburg) */
+	{ 0x8086, 0x8d00, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_snb },
+	/* SATA Controller IDE (Wellsburg) */
+	{ 0x8086, 0x8d08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
+	/* SATA Controller IDE (Wellsburg) */
+	{ 0x8086, 0x8d60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_snb },
+	/* SATA Controller IDE (Wellsburg) */
+	{ 0x8086, 0x8d68, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
+
 	{ }	/* terminate list */
 };
 
@@ -1270,7 +1287,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
  *	they are found return an error code so we can turn off DMA
  */
 
-static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
+static int piix_check_450nx_errata(struct pci_dev *ata_dev)
 {
 	struct pci_dev *pdev = NULL;
 	u16 cfg;
@@ -1296,8 +1313,8 @@ static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
 	return no_piix_dma;
 }
 
-static void __devinit piix_init_pcs(struct ata_host *host,
-				    const struct piix_map_db *map_db)
+static void piix_init_pcs(struct ata_host *host,
+			  const struct piix_map_db *map_db)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
 	u16 pcs, new_pcs;
@@ -1313,9 +1330,9 @@ static void __devinit piix_init_pcs(struct ata_host *host,
 	}
 }
 
-static const int *__devinit piix_init_sata_map(struct pci_dev *pdev,
-					       struct ata_port_info *pinfo,
-					       const struct piix_map_db *map_db)
+static const int *piix_init_sata_map(struct pci_dev *pdev,
+				     struct ata_port_info *pinfo,
+				     const struct piix_map_db *map_db)
 {
 	const int *map;
 	int i, invalid_map = 0;
@@ -1392,7 +1409,7 @@ static bool piix_no_sidpr(struct ata_host *host)
 	return false;
 }
 
-static int __devinit piix_init_sidpr(struct ata_host *host)
+static int piix_init_sidpr(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
 	struct piix_host_priv *hpriv = host->private_data;
@@ -1595,8 +1612,7 @@ static void piix_ignore_devices_quirk(struct ata_host *host)
  *	Zero on success, or -ERRNO value.
  */
 
-static int __devinit piix_init_one(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_port_info port_info[2];

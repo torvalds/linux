@@ -306,7 +306,6 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_MIDI_YAMAHA] = create_any_midi_quirk,
 		[QUIRK_MIDI_MIDIMAN] = create_any_midi_quirk,
 		[QUIRK_MIDI_NOVATION] = create_any_midi_quirk,
-		[QUIRK_MIDI_MBOX2] = create_any_midi_quirk,
 		[QUIRK_MIDI_RAW_BYTES] = create_any_midi_quirk,
 		[QUIRK_MIDI_EMAGIC] = create_any_midi_quirk,
 		[QUIRK_MIDI_CME] = create_any_midi_quirk,
@@ -388,11 +387,13 @@ static int snd_usb_fasttrackpro_boot_quirk(struct usb_device *dev)
 		 * rules
 		 */
 		err = usb_driver_set_configuration(dev, 2);
-		if (err < 0) {
+		if (err < 0)
 			snd_printdd("error usb_driver_set_configuration: %d\n",
 				    err);
-			return -ENODEV;
-		}
+		/* Always return an error, so that we stop creating a device
+		   that will just be destroyed and recreated with a new
+		   configuration */
+		return -ENODEV;
 	} else
 		snd_printk(KERN_INFO "usb-audio: Fast Track Pro config OK\n");
 
@@ -528,11 +529,11 @@ static void mbox2_setup_48_24_magic(struct usb_device *dev)
 #define MBOX2_BOOT_LOADING     0x01 /* Hard coded into the device */
 #define MBOX2_BOOT_READY       0x02 /* Hard coded into the device */
 
-int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
+static int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
 {
 	struct usb_host_config *config = dev->actconfig;
 	int err;
-	u8 bootresponse;
+	u8 bootresponse[0x12];
 	int fwsize;
 	int count;
 
@@ -546,20 +547,20 @@ int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
 	snd_printd("usb-audio: Sending Digidesign Mbox 2 boot sequence...\n");
 
 	count = 0;
-	bootresponse = MBOX2_BOOT_LOADING;
-	while ((bootresponse == MBOX2_BOOT_LOADING) && (count < 10)) {
+	bootresponse[0] = MBOX2_BOOT_LOADING;
+	while ((bootresponse[0] == MBOX2_BOOT_LOADING) && (count < 10)) {
 		msleep(500); /* 0.5 second delay */
 		snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
 			/* Control magic - load onboard firmware */
 			0x85, 0xc0, 0x0001, 0x0000, &bootresponse, 0x0012);
-		if (bootresponse == MBOX2_BOOT_READY)
+		if (bootresponse[0] == MBOX2_BOOT_READY)
 			break;
 		snd_printd("usb-audio: device not ready, resending boot sequence...\n");
 		count++;
 	}
 
-	if (bootresponse != MBOX2_BOOT_READY) {
-		snd_printk(KERN_ERR "usb-audio: Unknown bootresponse=%d, or timed out, ignoring device.\n", bootresponse);
+	if (bootresponse[0] != MBOX2_BOOT_READY) {
+		snd_printk(KERN_ERR "usb-audio: Unknown bootresponse=%d, or timed out, ignoring device.\n", bootresponse[0]);
 		return -ENODEV;
 	}
 
@@ -659,7 +660,6 @@ static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
 
 	return 0; /* keep this altsetting */
 }
-
 
 static int fasttrackpro_skip_setting_quirk(struct snd_usb_audio *chip,
 					   int iface, int altno)
@@ -861,6 +861,18 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 	if ((le16_to_cpu(ep->chip->dev->descriptor.idVendor) == 0x23ba) &&
 	    ep->type == SND_USB_ENDPOINT_TYPE_SYNC)
 		ep->skip_packets = 4;
+
+	/*
+	 * M-Audio Fast Track C400/C600 - when packets are not skipped, real
+	 * world latency varies by approx. +/- 50 frames (at 96KHz) each time
+	 * the stream is (re)started. When skipping packets 16 at endpoint
+	 * start up, the real world latency is stable within +/- 1 frame (also
+	 * across power cycles).
+	 */
+	if ((ep->chip->usb_id == USB_ID(0x0763, 0x2030) ||
+	     ep->chip->usb_id == USB_ID(0x0763, 0x2031)) &&
+	    ep->type == SND_USB_ENDPOINT_TYPE_DATA)
+		ep->skip_packets = 16;
 }
 
 void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,

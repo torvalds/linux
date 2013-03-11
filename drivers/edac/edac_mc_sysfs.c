@@ -7,7 +7,7 @@
  *
  * Written Doug Thompson <norsk5@xmission.com> www.softwarebitmaker.com
  *
- * (c) 2012 - Mauro Carvalho Chehab <mchehab@redhat.com>
+ * (c) 2012-2013 - Mauro Carvalho Chehab <mchehab@redhat.com>
  *	The entire API were re-written, and ported to use struct device
  *
  */
@@ -429,8 +429,12 @@ static int edac_create_csrow_objects(struct mem_ctl_info *mci)
 		if (!nr_pages_per_csrow(csrow))
 			continue;
 		err = edac_create_csrow_object(mci, mci->csrows[i], i);
-		if (err < 0)
+		if (err < 0) {
+			edac_dbg(1,
+				 "failure: create csrow objects for csrow %d\n",
+				 i);
 			goto error;
+		}
 	}
 	return 0;
 
@@ -472,8 +476,7 @@ static void edac_delete_csrow_objects(struct mem_ctl_info *mci)
 			device_remove_file(&csrow->dev,
 						dynamic_csrow_ce_count_attr[chan]);
 		}
-		put_device(&mci->csrows[i]->dev);
-		device_del(&mci->csrows[i]->dev);
+		device_unregister(&mci->csrows[i]->dev);
 	}
 }
 #endif
@@ -678,9 +681,6 @@ static ssize_t mci_sdram_scrub_rate_store(struct device *dev,
 	unsigned long bandwidth = 0;
 	int new_bw = 0;
 
-	if (!mci->set_sdram_scrub_rate)
-		return -ENODEV;
-
 	if (strict_strtoul(data, 10, &bandwidth) < 0)
 		return -EINVAL;
 
@@ -703,9 +703,6 @@ static ssize_t mci_sdram_scrub_rate_show(struct device *dev,
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 	int bandwidth = 0;
-
-	if (!mci->get_sdram_scrub_rate)
-		return -ENODEV;
 
 	bandwidth = mci->get_sdram_scrub_rate(mci);
 	if (bandwidth < 0) {
@@ -867,8 +864,7 @@ DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
 DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
 
 /* memory scrubber attribute file */
-DEVICE_ATTR(sdram_scrub_rate, S_IRUGO | S_IWUSR, mci_sdram_scrub_rate_show,
-	mci_sdram_scrub_rate_store);
+DEVICE_ATTR(sdram_scrub_rate, 0, NULL, NULL);
 
 static struct attribute *mci_attrs[] = {
 	&dev_attr_reset_counters.attr,
@@ -879,7 +875,6 @@ static struct attribute *mci_attrs[] = {
 	&dev_attr_ce_noinfo_count.attr,
 	&dev_attr_ue_count.attr,
 	&dev_attr_ce_count.attr,
-	&dev_attr_sdram_scrub_rate.attr,
 	&dev_attr_max_location.attr,
 	NULL
 };
@@ -1008,11 +1003,28 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	edac_dbg(0, "creating device %s\n", dev_name(&mci->dev));
 	err = device_add(&mci->dev);
 	if (err < 0) {
+		edac_dbg(1, "failure: create device %s\n", dev_name(&mci->dev));
 		bus_unregister(&mci->bus);
 		kfree(mci->bus.name);
 		return err;
 	}
 
+	if (mci->set_sdram_scrub_rate || mci->get_sdram_scrub_rate) {
+		if (mci->get_sdram_scrub_rate) {
+			dev_attr_sdram_scrub_rate.attr.mode |= S_IRUGO;
+			dev_attr_sdram_scrub_rate.show = &mci_sdram_scrub_rate_show;
+		}
+		if (mci->set_sdram_scrub_rate) {
+			dev_attr_sdram_scrub_rate.attr.mode |= S_IWUSR;
+			dev_attr_sdram_scrub_rate.store = &mci_sdram_scrub_rate_store;
+		}
+		err = device_create_file(&mci->dev,
+					 &dev_attr_sdram_scrub_rate);
+		if (err) {
+			edac_dbg(1, "failure: create sdram_scrub_rate\n");
+			goto fail2;
+		}
+	}
 	/*
 	 * Create the dimm/rank devices
 	 */
@@ -1055,11 +1067,10 @@ fail:
 		struct dimm_info *dimm = mci->dimms[i];
 		if (dimm->nr_pages == 0)
 			continue;
-		put_device(&dimm->dev);
-		device_del(&dimm->dev);
+		device_unregister(&dimm->dev);
 	}
-	put_device(&mci->dev);
-	device_del(&mci->dev);
+fail2:
+	device_unregister(&mci->dev);
 	bus_unregister(&mci->bus);
 	kfree(mci->bus.name);
 	return err;
@@ -1086,16 +1097,14 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 		if (dimm->nr_pages == 0)
 			continue;
 		edac_dbg(0, "removing device %s\n", dev_name(&dimm->dev));
-		put_device(&dimm->dev);
-		device_del(&dimm->dev);
+		device_unregister(&dimm->dev);
 	}
 }
 
 void edac_unregister_sysfs(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "Unregistering device %s\n", dev_name(&mci->dev));
-	put_device(&mci->dev);
-	device_del(&mci->dev);
+	device_unregister(&mci->dev);
 	bus_unregister(&mci->bus);
 	kfree(mci->bus.name);
 }
@@ -1159,8 +1168,6 @@ int __init edac_mc_sysfs_init(void)
 
 void __exit edac_mc_sysfs_exit(void)
 {
-	put_device(mci_pdev);
-	device_del(mci_pdev);
+	device_unregister(mci_pdev);
 	edac_put_sysfs_subsys();
-	kfree(mci_pdev);
 }

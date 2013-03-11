@@ -447,23 +447,25 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 		return IRQ_NONE;
 	uhci_writew(uhci, status, USBSTS);		/* Clear it */
 
+	spin_lock(&uhci->lock);
+	if (unlikely(!uhci->is_initialized))	/* not yet configured */
+		goto done;
+
 	if (status & ~(USBSTS_USBINT | USBSTS_ERROR | USBSTS_RD)) {
 		if (status & USBSTS_HSE)
-			dev_err(uhci_dev(uhci), "host system error, "
-					"PCI problems?\n");
+			dev_err(uhci_dev(uhci),
+				"host system error, PCI problems?\n");
 		if (status & USBSTS_HCPE)
-			dev_err(uhci_dev(uhci), "host controller process "
-					"error, something bad happened!\n");
+			dev_err(uhci_dev(uhci),
+				"host controller process error, something bad happened!\n");
 		if (status & USBSTS_HCH) {
-			spin_lock(&uhci->lock);
 			if (uhci->rh_state >= UHCI_RH_RUNNING) {
 				dev_err(uhci_dev(uhci),
-					"host controller halted, "
-					"very bad!\n");
+					"host controller halted, very bad!\n");
 				if (debug > 1 && errbuf) {
 					/* Print the schedule for debugging */
-					uhci_sprint_schedule(uhci,
-							errbuf, ERRBUF_LEN);
+					uhci_sprint_schedule(uhci, errbuf,
+						ERRBUF_LEN - EXTRA_SPACE);
 					lprintk(errbuf);
 				}
 				uhci_hc_died(uhci);
@@ -473,15 +475,15 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 				 * pending unlinks */
 				mod_timer(&hcd->rh_timer, jiffies);
 			}
-			spin_unlock(&uhci->lock);
 		}
 	}
 
-	if (status & USBSTS_RD)
+	if (status & USBSTS_RD) {
+		spin_unlock(&uhci->lock);
 		usb_hcd_poll_rh_status(hcd);
-	else {
-		spin_lock(&uhci->lock);
+	} else {
 		uhci_scan_schedule(uhci);
+ done:
 		spin_unlock(&uhci->lock);
 	}
 
@@ -589,8 +591,8 @@ static int uhci_start(struct usb_hcd *hcd)
 			UHCI_NUMFRAMES * sizeof(*uhci->frame),
 			&uhci->frame_dma_handle, 0);
 	if (!uhci->frame) {
-		dev_err(uhci_dev(uhci), "unable to allocate "
-				"consistent memory for frame list\n");
+		dev_err(uhci_dev(uhci),
+			"unable to allocate consistent memory for frame list\n");
 		goto err_alloc_frame;
 	}
 	memset(uhci->frame, 0, UHCI_NUMFRAMES * sizeof(*uhci->frame));
@@ -598,8 +600,8 @@ static int uhci_start(struct usb_hcd *hcd)
 	uhci->frame_cpu = kcalloc(UHCI_NUMFRAMES, sizeof(*uhci->frame_cpu),
 			GFP_KERNEL);
 	if (!uhci->frame_cpu) {
-		dev_err(uhci_dev(uhci), "unable to allocate "
-				"memory for frame pointers\n");
+		dev_err(uhci_dev(uhci),
+			"unable to allocate memory for frame pointers\n");
 		goto err_alloc_frame_cpu;
 	}
 
@@ -662,9 +664,9 @@ static int uhci_start(struct usb_hcd *hcd)
 	 */
 	mb();
 
+	spin_lock_irq(&uhci->lock);
 	configure_hc(uhci);
 	uhci->is_initialized = 1;
-	spin_lock_irq(&uhci->lock);
 	start_rh(uhci);
 	spin_unlock_irq(&uhci->lock);
 	return 0;
@@ -734,8 +736,8 @@ static int uhci_rh_suspend(struct usb_hcd *hcd)
 	 */
 	else if (hcd->self.root_hub->do_remote_wakeup &&
 			uhci->resuming_ports) {
-		dev_dbg(uhci_dev(uhci), "suspend failed because a port "
-				"is resuming\n");
+		dev_dbg(uhci_dev(uhci),
+			"suspend failed because a port is resuming\n");
 		rc = -EBUSY;
 	} else
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
@@ -826,8 +828,8 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 
 	/* Anything greater than 7 is weird so we'll ignore it. */
 	if (port > UHCI_RH_MAXCHILD) {
-		dev_info(uhci_dev(uhci), "port count misdetected? "
-				"forcing to 2 ports\n");
+		dev_info(uhci_dev(uhci),
+			"port count misdetected? forcing to 2 ports\n");
 		port = 2;
 	}
 

@@ -139,7 +139,7 @@ static irqreturn_t rotator_irq_handler(int irq, void *arg)
 {
 	struct rot_context *rot = arg;
 	struct exynos_drm_ippdrv *ippdrv = &rot->ippdrv;
-	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->cmd;
+	struct drm_exynos_ipp_cmd_node *c_node = ippdrv->c_node;
 	struct drm_exynos_ipp_event_work *event_work = c_node->event_work;
 	enum rot_irq_status irq_status;
 	u32 val;
@@ -513,6 +513,7 @@ static inline bool rotator_check_drm_flip(enum drm_exynos_flip flip)
 	case EXYNOS_DRM_FLIP_NONE:
 	case EXYNOS_DRM_FLIP_VERTICAL:
 	case EXYNOS_DRM_FLIP_HORIZONTAL:
+	case EXYNOS_DRM_FLIP_BOTH:
 		return true;
 	default:
 		DRM_DEBUG_KMS("%s:invalid flip\n", __func__);
@@ -638,7 +639,7 @@ static int rotator_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	return 0;
 }
 
-static int __devinit rotator_probe(struct platform_device *pdev)
+static int rotator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rot_context *rot;
@@ -655,34 +656,24 @@ static int __devinit rotator_probe(struct platform_device *pdev)
 				platform_get_device_id(pdev)->driver_data;
 
 	rot->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!rot->regs_res) {
-		dev_err(dev, "failed to find registers\n");
-		ret = -ENOENT;
-		goto err_get_resource;
-	}
-
-	rot->regs = devm_request_and_ioremap(dev, rot->regs_res);
-	if (!rot->regs) {
-		dev_err(dev, "failed to map register\n");
-		ret = -ENXIO;
-		goto err_get_resource;
-	}
+	rot->regs = devm_ioremap_resource(dev, rot->regs_res);
+	if (IS_ERR(rot->regs))
+		return PTR_ERR(rot->regs);
 
 	rot->irq = platform_get_irq(pdev, 0);
 	if (rot->irq < 0) {
 		dev_err(dev, "failed to get irq\n");
-		ret = rot->irq;
-		goto err_get_irq;
+		return rot->irq;
 	}
 
 	ret = request_threaded_irq(rot->irq, NULL, rotator_irq_handler,
 			IRQF_ONESHOT, "drm_rotator", rot);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq\n");
-		goto err_get_irq;
+		return ret;
 	}
 
-	rot->clock = clk_get(dev, "rotator");
+	rot->clock = devm_clk_get(dev, "rotator");
 	if (IS_ERR_OR_NULL(rot->clock)) {
 		dev_err(dev, "failed to get clock\n");
 		ret = PTR_ERR(rot->clock);
@@ -720,17 +711,12 @@ static int __devinit rotator_probe(struct platform_device *pdev)
 err_ippdrv_register:
 	devm_kfree(dev, ippdrv->prop_list);
 	pm_runtime_disable(dev);
-	clk_put(rot->clock);
 err_clk_get:
 	free_irq(rot->irq, rot);
-err_get_irq:
-	devm_iounmap(dev, rot->regs);
-err_get_resource:
-	devm_kfree(dev, rot);
 	return ret;
 }
 
-static int __devexit rotator_remove(struct platform_device *pdev)
+static int rotator_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rot_context *rot = dev_get_drvdata(dev);
@@ -740,17 +726,13 @@ static int __devexit rotator_remove(struct platform_device *pdev)
 	exynos_drm_ippdrv_unregister(ippdrv);
 
 	pm_runtime_disable(dev);
-	clk_put(rot->clock);
 
 	free_irq(rot->irq, rot);
-	devm_iounmap(dev, rot->regs);
-
-	devm_kfree(dev, rot);
 
 	return 0;
 }
 
-struct rot_limit_table rot_limit_tbl = {
+static struct rot_limit_table rot_limit_tbl = {
 	.ycbcr420_2p = {
 		.min_w = 32,
 		.min_h = 32,
@@ -767,7 +749,7 @@ struct rot_limit_table rot_limit_tbl = {
 	},
 };
 
-struct platform_device_id rotator_driver_ids[] = {
+static struct platform_device_id rotator_driver_ids[] = {
 	{
 		.name		= "exynos-rot",
 		.driver_data	= (unsigned long)&rot_limit_tbl,
@@ -845,7 +827,7 @@ static const struct dev_pm_ops rotator_pm_ops = {
 
 struct platform_driver rotator_driver = {
 	.probe		= rotator_probe,
-	.remove		= __devexit_p(rotator_remove),
+	.remove		= rotator_remove,
 	.id_table	= rotator_driver_ids,
 	.driver		= {
 		.name	= "exynos-rot",

@@ -265,7 +265,7 @@ static int at91_dt_node_to_map(struct pinctrl_dev *pctldev,
 	/* create mux map */
 	parent = of_get_parent(np);
 	if (!parent) {
-		kfree(new_map);
+		devm_kfree(pctldev->dev, new_map);
 		return -EINVAL;
 	}
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
@@ -792,8 +792,8 @@ static struct pinctrl_desc at91_pinctrl_desc = {
 
 static const char *gpio_compat = "atmel,at91rm9200-gpio";
 
-static void __devinit at91_pinctrl_child_count(struct at91_pinctrl *info,
-					      struct device_node *np)
+static void at91_pinctrl_child_count(struct at91_pinctrl *info,
+				     struct device_node *np)
 {
 	struct device_node *child;
 
@@ -807,8 +807,8 @@ static void __devinit at91_pinctrl_child_count(struct at91_pinctrl *info,
 	}
 }
 
-static int __devinit at91_pinctrl_mux_mask(struct at91_pinctrl *info,
-					  struct device_node *np)
+static int at91_pinctrl_mux_mask(struct at91_pinctrl *info,
+				 struct device_node *np)
 {
 	int ret = 0;
 	int size;
@@ -840,10 +840,9 @@ static int __devinit at91_pinctrl_mux_mask(struct at91_pinctrl *info,
 	return ret;
 }
 
-static int __devinit at91_pinctrl_parse_groups(struct device_node *np,
-				struct at91_pin_group *grp,
-				struct at91_pinctrl *info,
-				u32 index)
+static int at91_pinctrl_parse_groups(struct device_node *np,
+				     struct at91_pin_group *grp,
+				     struct at91_pinctrl *info, u32 index)
 {
 	struct at91_pmx_pin *pin;
 	int size;
@@ -889,8 +888,8 @@ static int __devinit at91_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static int __devinit at91_pinctrl_parse_functions(struct device_node *np,
-			struct at91_pinctrl *info, u32 index)
+static int at91_pinctrl_parse_functions(struct device_node *np,
+					struct at91_pinctrl *info, u32 index)
 {
 	struct device_node *child;
 	struct at91_pmx_func *func;
@@ -926,14 +925,14 @@ static int __devinit at91_pinctrl_parse_functions(struct device_node *np,
 	return 0;
 }
 
-static struct of_device_id at91_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id at91_pinctrl_of_match[] = {
 	{ .compatible = "atmel,at91sam9x5-pinctrl", .data = &at91sam9x5_ops },
 	{ .compatible = "atmel,at91rm9200-pinctrl", .data = &at91rm9200_ops },
 	{ /* sentinel */ }
 };
 
-static int __devinit at91_pinctrl_probe_dt(struct platform_device *pdev,
-					   struct at91_pinctrl *info)
+static int at91_pinctrl_probe_dt(struct platform_device *pdev,
+				 struct at91_pinctrl *info)
 {
 	int ret = 0;
 	int i, j;
@@ -999,7 +998,7 @@ static int __devinit at91_pinctrl_probe_dt(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit at91_pinctrl_probe(struct platform_device *pdev)
+static int at91_pinctrl_probe(struct platform_device *pdev)
 {
 	struct at91_pinctrl *info;
 	struct pinctrl_pin_desc *pdesc;
@@ -1063,7 +1062,7 @@ err:
 	return ret;
 }
 
-static int __devexit at91_pinctrl_remove(struct platform_device *pdev)
+static int at91_pinctrl_remove(struct platform_device *pdev)
 {
 	struct at91_pinctrl *info = platform_get_drvdata(pdev);
 
@@ -1443,7 +1442,7 @@ static struct gpio_chip at91_gpio_template = {
 	.ngpio			= MAX_NB_GPIO_PER_BANK,
 };
 
-static void __devinit at91_gpio_probe_fixup(void)
+static void at91_gpio_probe_fixup(void)
 {
 	unsigned i;
 	struct at91_gpio_chip *at91_gpio, *last = NULL;
@@ -1461,13 +1460,13 @@ static void __devinit at91_gpio_probe_fixup(void)
 	}
 }
 
-static struct of_device_id at91_gpio_of_match[] __devinitdata = {
+static struct of_device_id at91_gpio_of_match[] = {
 	{ .compatible = "atmel,at91sam9x5-gpio", .data = &at91sam9x5_ops, },
 	{ .compatible = "atmel,at91rm9200-gpio", .data = &at91rm9200_ops },
 	{ /* sentinel */ }
 };
 
-static int __devinit at91_gpio_probe(struct platform_device *pdev)
+static int at91_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
@@ -1504,10 +1503,9 @@ static int __devinit at91_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	at91_chip->regbase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!at91_chip->regbase) {
-		dev_err(&pdev->dev, "failed to map registers, ignoring.\n");
-		ret = -EBUSY;
+	at91_chip->regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(at91_chip->regbase)) {
+		ret = PTR_ERR(at91_chip->regbase);
 		goto err;
 	}
 
@@ -1609,7 +1607,7 @@ static struct platform_driver at91_pinctrl_driver = {
 		.of_match_table = of_match_ptr(at91_pinctrl_of_match),
 	},
 	.probe = at91_pinctrl_probe,
-	.remove = __devexit_p(at91_pinctrl_remove),
+	.remove = at91_pinctrl_remove,
 };
 
 static int __init at91_pinctrl_init(void)

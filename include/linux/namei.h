@@ -2,6 +2,7 @@
 #define _LINUX_NAMEI_H
 
 #include <linux/dcache.h>
+#include <linux/errno.h>
 #include <linux/linkage.h>
 #include <linux/path.h>
 

@@ -360,8 +360,8 @@ dvb_dmx_err:
 	dvb_dmx_release(&dvb->demux);
 frontend_err:
 	if (dvb->frontend) {
-		dvb_frontend_detach(dvb->frontend);
 		dvb_unregister_frontend(dvb->frontend);
+		dvb_frontend_detach(dvb->frontend);
 	}
 adapter_err:
 	dvb_unregister_adapter(&dvb->adapter);
@@ -384,8 +384,8 @@ static void unregister_dvb(struct tm6000_core *dev)
 
 /*	mutex_lock(&tm6000_driver.open_close_mutex); */
 	if (dvb->frontend) {
-		dvb_frontend_detach(dvb->frontend);
 		dvb_unregister_frontend(dvb->frontend);
+		dvb_frontend_detach(dvb->frontend);
 	}
 
 	dvb_dmxdev_release(&dvb->dmxdev);

@@ -9,13 +9,13 @@
  *
  */
 
+#include "bcm47xxnflash.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
-
-#include "bcm47xxnflash.h"
 
 MODULE_DESCRIPTION("NAND flash driver for BCMA bus");
 MODULE_LICENSE("GPL");
@@ -66,7 +66,7 @@ out:
 	return err;
 }
 
-static int __devexit bcm47xxnflash_remove(struct platform_device *pdev)
+static int bcm47xxnflash_remove(struct platform_device *pdev)
 {
 	struct bcma_nflash *nflash = dev_get_platdata(&pdev->dev);
 
@@ -77,7 +77,8 @@ static int __devexit bcm47xxnflash_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver bcm47xxnflash_driver = {
-	.remove = __devexit_p(bcm47xxnflash_remove),
+	.probe	= bcm47xxnflash_probe,
+	.remove = bcm47xxnflash_remove,
 	.driver = {
 		.name = "bcma_nflash",
 		.owner = THIS_MODULE,
@@ -88,13 +89,10 @@ static int __init bcm47xxnflash_init(void)
 {
 	int err;
 
-	/*
-	 * Platform device "bcma_nflash" exists on SoCs and is registered very
-	 * early, it won't be added during runtime (use platform_driver_probe).
-	 */
-	err = platform_driver_probe(&bcm47xxnflash_driver, bcm47xxnflash_probe);
+	err = platform_driver_register(&bcm47xxnflash_driver);
 	if (err)
-		pr_err("Failed to register serial flash driver: %d\n", err);
+		pr_err("Failed to register bcm47xx nand flash driver: %d\n",
+		       err);
 
 	return err;
 }

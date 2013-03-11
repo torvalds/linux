@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/file.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <asm/unaligned.h>
@@ -1957,13 +1958,10 @@ static int __core_scsi3_write_aptpl_to_file(
 {
 	struct t10_wwn *wwn = &dev->t10_wwn;
 	struct file *file;
-	struct iovec iov[1];
-	mm_segment_t old_fs;
 	int flags = O_RDWR | O_CREAT | O_TRUNC;
 	char path[512];
 	int ret;
 
-	memset(iov, 0, sizeof(struct iovec));
 	memset(path, 0, 512);
 
 	if (strlen(&wwn->unit_serial[0]) >= 512) {
@@ -1974,31 +1972,22 @@ static int __core_scsi3_write_aptpl_to_file(
 
 	snprintf(path, 512, "/var/target/pr/aptpl_%s", &wwn->unit_serial[0]);
 	file = filp_open(path, flags, 0600);
-	if (IS_ERR(file) || !file || !file->f_dentry) {
+	if (IS_ERR(file)) {
 		pr_err("filp_open(%s) for APTPL metadata"
 			" failed\n", path);
-		return IS_ERR(file) ? PTR_ERR(file) : -ENOENT;
+		return PTR_ERR(file);
 	}
 
-	iov[0].iov_base = &buf[0];
 	if (!pr_aptpl_buf_len)
-		iov[0].iov_len = (strlen(&buf[0]) + 1); /* Add extra for NULL */
-	else
-		iov[0].iov_len = pr_aptpl_buf_len;
+		pr_aptpl_buf_len = (strlen(&buf[0]) + 1); /* Add extra for NULL */
 
-	old_fs = get_fs();
-	set_fs(get_ds());
-	ret = vfs_writev(file, &iov[0], 1, &file->f_pos);
-	set_fs(old_fs);
+	ret = kernel_write(file, buf, pr_aptpl_buf_len, 0);
 
-	if (ret < 0) {
+	if (ret < 0)
 		pr_debug("Error writing APTPL metadata file: %s\n", path);
-		filp_close(file, NULL);
-		return -EIO;
-	}
-	filp_close(file, NULL);
+	fput(file);
 
-	return 0;
+	return ret ? -EIO : 0;
 }
 
 static int
@@ -2053,7 +2042,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	/* Used for APTPL metadata w/ UNREGISTER */
 	unsigned char *pr_aptpl_buf = NULL;
 	unsigned char isid_buf[PR_REG_ISID_LEN], *isid_ptr = NULL;
-	sense_reason_t ret;
+	sense_reason_t ret = TCM_NO_SENSE;
 	int pr_holder = 0, type;
 
 	if (!se_sess || !se_lun) {

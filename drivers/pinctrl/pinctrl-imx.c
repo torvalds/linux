@@ -425,10 +425,10 @@ static int imx_pinctrl_get_pin_id_and_mux(const struct imx_pinctrl_soc_info *inf
 	return 0;
 }
 
-static int __devinit imx_pinctrl_parse_groups(struct device_node *np,
-				struct imx_pin_group *grp,
-				struct imx_pinctrl_soc_info *info,
-				u32 index)
+static int imx_pinctrl_parse_groups(struct device_node *np,
+				    struct imx_pin_group *grp,
+				    struct imx_pinctrl_soc_info *info,
+				    u32 index)
 {
 	unsigned int pin_func_id;
 	int ret, size;
@@ -482,8 +482,9 @@ static int __devinit imx_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static int __devinit imx_pinctrl_parse_functions(struct device_node *np,
-			struct imx_pinctrl_soc_info *info, u32 index)
+static int imx_pinctrl_parse_functions(struct device_node *np,
+				       struct imx_pinctrl_soc_info *info,
+				       u32 index)
 {
 	struct device_node *child;
 	struct imx_pmx_func *func;
@@ -517,7 +518,7 @@ static int __devinit imx_pinctrl_parse_functions(struct device_node *np,
 	return 0;
 }
 
-static int __devinit imx_pinctrl_probe_dt(struct platform_device *pdev,
+static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 				struct imx_pinctrl_soc_info *info)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -560,8 +561,8 @@ static int __devinit imx_pinctrl_probe_dt(struct platform_device *pdev,
 	return 0;
 }
 
-int __devinit imx_pinctrl_probe(struct platform_device *pdev,
-				struct imx_pinctrl_soc_info *info)
+int imx_pinctrl_probe(struct platform_device *pdev,
+		      struct imx_pinctrl_soc_info *info)
 {
 	struct imx_pinctrl *ipctl;
 	struct resource *res;
@@ -583,9 +584,9 @@ int __devinit imx_pinctrl_probe(struct platform_device *pdev,
 	if (!res)
 		return -ENOENT;
 
-	ipctl->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ipctl->base)
-		return -EBUSY;
+	ipctl->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ipctl->base))
+		return PTR_ERR(ipctl->base);
 
 	imx_pinctrl_desc.name = dev_name(&pdev->dev);
 	imx_pinctrl_desc.pins = info->pins;

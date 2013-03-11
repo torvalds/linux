@@ -50,10 +50,13 @@ int  nouveau_object_fini(struct nouveau_object *, bool suspend);
 
 extern struct nouveau_ofuncs nouveau_object_ofuncs;
 
+/* Don't allocate dynamically, because lockdep needs lock_class_keys to be in
+ * ".data". */
 struct nouveau_oclass {
 	u32 handle;
-	struct nouveau_ofuncs *ofuncs;
-	struct nouveau_omthds *omthds;
+	struct nouveau_ofuncs * const ofuncs;
+	struct nouveau_omthds * const omthds;
+	struct lock_class_key lock_class_key;
 };
 
 #define nv_oclass(o)    nv_object(o)->oclass
@@ -133,7 +136,7 @@ static inline u8
 nv_ro08(void *obj, u64 addr)
 {
 	u8 data = nv_ofuncs(obj)->rd08(obj, addr);
-	nv_spam(obj, "nv_ro08 0x%08x 0x%02x\n", addr, data);
+	nv_spam(obj, "nv_ro08 0x%08llx 0x%02x\n", addr, data);
 	return data;
 }
 
@@ -141,7 +144,7 @@ static inline u16
 nv_ro16(void *obj, u64 addr)
 {
 	u16 data = nv_ofuncs(obj)->rd16(obj, addr);
-	nv_spam(obj, "nv_ro16 0x%08x 0x%04x\n", addr, data);
+	nv_spam(obj, "nv_ro16 0x%08llx 0x%04x\n", addr, data);
 	return data;
 }
 
@@ -149,28 +152,28 @@ static inline u32
 nv_ro32(void *obj, u64 addr)
 {
 	u32 data = nv_ofuncs(obj)->rd32(obj, addr);
-	nv_spam(obj, "nv_ro32 0x%08x 0x%08x\n", addr, data);
+	nv_spam(obj, "nv_ro32 0x%08llx 0x%08x\n", addr, data);
 	return data;
 }
 
 static inline void
 nv_wo08(void *obj, u64 addr, u8 data)
 {
-	nv_spam(obj, "nv_wo08 0x%08x 0x%02x\n", addr, data);
+	nv_spam(obj, "nv_wo08 0x%08llx 0x%02x\n", addr, data);
 	nv_ofuncs(obj)->wr08(obj, addr, data);
 }
 
 static inline void
 nv_wo16(void *obj, u64 addr, u16 data)
 {
-	nv_spam(obj, "nv_wo16 0x%08x 0x%04x\n", addr, data);
+	nv_spam(obj, "nv_wo16 0x%08llx 0x%04x\n", addr, data);
 	nv_ofuncs(obj)->wr16(obj, addr, data);
 }
 
 static inline void
 nv_wo32(void *obj, u64 addr, u32 data)
 {
-	nv_spam(obj, "nv_wo32 0x%08x 0x%08x\n", addr, data);
+	nv_spam(obj, "nv_wo32 0x%08llx 0x%08x\n", addr, data);
 	nv_ofuncs(obj)->wr32(obj, addr, data);
 }
 

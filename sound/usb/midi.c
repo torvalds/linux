@@ -2181,10 +2181,6 @@ int snd_usbmidi_create(struct snd_card *card,
 		umidi->usb_protocol_ops = &snd_usbmidi_novation_ops;
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
-	case QUIRK_MIDI_MBOX2:
-		umidi->usb_protocol_ops = &snd_usbmidi_midiman_ops;
-		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
-		break;
 	case QUIRK_MIDI_RAW_BYTES:
 		umidi->usb_protocol_ops = &snd_usbmidi_raw_ops;
 		/*

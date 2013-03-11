@@ -132,6 +132,20 @@ extern int radeon_lockup_timeout;
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
 #define RADEON_IB_VM_MAX_SIZE			(64 << 10)
 
+/* reset flags */
+#define RADEON_RESET_GFX			(1 << 0)
+#define RADEON_RESET_COMPUTE			(1 << 1)
+#define RADEON_RESET_DMA			(1 << 2)
+#define RADEON_RESET_CP				(1 << 3)
+#define RADEON_RESET_GRBM			(1 << 4)
+#define RADEON_RESET_DMA1			(1 << 5)
+#define RADEON_RESET_RLC			(1 << 6)
+#define RADEON_RESET_SEM			(1 << 7)
+#define RADEON_RESET_IH				(1 << 8)
+#define RADEON_RESET_VMC			(1 << 9)
+#define RADEON_RESET_MC				(1 << 10)
+#define RADEON_RESET_DISPLAY			(1 << 11)
+
 /*
  * Errata workarounds.
  */
@@ -319,7 +333,6 @@ struct radeon_bo {
 	struct list_head		list;
 	/* Protected by tbo.reserved */
 	u32				placements[3];
-	u32				busy_placements[3];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
@@ -337,7 +350,6 @@ struct radeon_bo {
 	struct drm_gem_object		gem_base;
 
 	struct ttm_bo_kmap_obj dma_buf_vmap;
-	int vmapping_count;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
@@ -649,6 +661,8 @@ struct radeon_ring {
 	u32			ptr_reg_mask;
 	u32			nop;
 	u32			idx;
+	u64			last_semaphore_signal_addr;
+	u64			last_semaphore_wait_addr;
 };
 
 /*
@@ -765,6 +779,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib *ib, struct radeon_vm *vm,
 		  unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib);
+void radeon_ib_sync_to(struct radeon_ib *ib, struct radeon_fence *fence);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		       struct radeon_ib *const_ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
@@ -1163,6 +1178,10 @@ struct radeon_asic {
 	bool (*gui_idle)(struct radeon_device *rdev);
 	/* wait for mc_idle */
 	int (*mc_wait_for_idle)(struct radeon_device *rdev);
+	/* get the reference clock */
+	u32 (*get_xclk)(struct radeon_device *rdev);
+	/* get the gpu clock counter */
+	uint64_t (*get_gpu_clock_counter)(struct radeon_device *rdev);
 	/* gart */
 	struct {
 		void (*tlb_flush)(struct radeon_device *rdev);
@@ -1173,7 +1192,9 @@ struct radeon_asic {
 		void (*fini)(struct radeon_device *rdev);
 
 		u32 pt_ring_index;
-		void (*set_page)(struct radeon_device *rdev, uint64_t pe,
+		void (*set_page)(struct radeon_device *rdev,
+				 struct radeon_ib *ib,
+				 uint64_t pe,
 				 uint64_t addr, unsigned count,
 				 uint32_t incr, uint32_t flags);
 	} vm;
@@ -1751,6 +1772,7 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE6(rdev) ((rdev->family >= CHIP_ARUBA))
 #define ASIC_IS_DCE61(rdev) ((rdev->family >= CHIP_ARUBA) && \
 			     (rdev->flags & RADEON_IS_IGP))
+#define ASIC_IS_DCE64(rdev) ((rdev->family == CHIP_OLAND))
 
 /*
  * BIOS helpers.
@@ -1795,7 +1817,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart.set_page((rdev), (i), (p))
 #define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
 #define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
-#define radeon_asic_vm_set_page(rdev, pe, addr, count, incr, flags) ((rdev)->asic->vm.set_page((rdev), (pe), (addr), (count), (incr), (flags)))
+#define radeon_asic_vm_set_page(rdev, ib, pe, addr, count, incr, flags) ((rdev)->asic->vm.set_page((rdev), (ib), (pe), (addr), (count), (incr), (flags)))
 #define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)].ring_start((rdev), (cp))
 #define radeon_ring_test(rdev, r, cp) (rdev)->asic->ring[(r)].ring_test((rdev), (cp))
 #define radeon_ib_test(rdev, r, cp) (rdev)->asic->ring[(r)].ib_test((rdev), (cp))
@@ -1841,10 +1863,13 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_post_page_flip(rdev, crtc) (rdev)->asic->pflip.post_page_flip((rdev), (crtc))
 #define radeon_wait_for_vblank(rdev, crtc) (rdev)->asic->display.wait_for_vblank((rdev), (crtc))
 #define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
+#define radeon_get_xclk(rdev) (rdev)->asic->get_xclk((rdev))
+#define radeon_get_gpu_clock_counter(rdev) (rdev)->asic->get_gpu_clock_counter((rdev))
 
 /* Common functions */
 /* AGP */
 extern int radeon_gpu_reset(struct radeon_device *rdev);
+extern void r600_set_bios_scratch_engine_hung(struct radeon_device *rdev, bool hung);
 extern void radeon_agp_disable(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
@@ -1965,6 +1990,19 @@ extern void radeon_acpi_fini(struct radeon_device *rdev);
 static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; }
 static inline void radeon_acpi_fini(struct radeon_device *rdev) { }
 #endif
+
+int radeon_cs_packet_parse(struct radeon_cs_parser *p,
+			   struct radeon_cs_packet *pkt,
+			   unsigned idx);
+bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p);
+void radeon_cs_dump_packet(struct radeon_cs_parser *p,
+			   struct radeon_cs_packet *pkt);
+int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
+				struct radeon_cs_reloc **cs_reloc,
+				int nomm);
+int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
+			       uint32_t *vline_start_end,
+			       uint32_t *vline_status);
 
 #include "radeon_object.h"
 

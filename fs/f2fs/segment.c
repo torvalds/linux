@@ -12,29 +12,12 @@
 #include <linux/f2fs_fs.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/prefetch.h>
 #include <linux/vmalloc.h>
 
 #include "f2fs.h"
 #include "segment.h"
 #include "node.h"
-
-static int need_to_flush(struct f2fs_sb_info *sbi)
-{
-	unsigned int pages_per_sec = (1 << sbi->log_blocks_per_seg) *
-			sbi->segs_per_sec;
-	int node_secs = ((get_pages(sbi, F2FS_DIRTY_NODES) + pages_per_sec - 1)
-		>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
-	int dent_secs = ((get_pages(sbi, F2FS_DIRTY_DENTS) + pages_per_sec - 1)
-		>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
-
-	if (sbi->por_doing)
-		return 0;
-
-	if (free_sections(sbi) <= (node_secs + 2 * dent_secs +
-						reserved_sections(sbi)))
-		return 1;
-	return 0;
-}
 
 /*
  * This function balances dirty node and dentry pages.
@@ -42,27 +25,13 @@ static int need_to_flush(struct f2fs_sb_info *sbi)
  */
 void f2fs_balance_fs(struct f2fs_sb_info *sbi)
 {
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = LONG_MAX,
-		.for_reclaim = 0,
-	};
-
-	if (sbi->por_doing)
-		return;
-
 	/*
-	 * We should do checkpoint when there are so many dirty node pages
-	 * with enough free segments. After then, we should do GC.
+	 * We should do GC or end up with checkpoint, if there are so many dirty
+	 * dir/node pages without enough free segments.
 	 */
-	if (need_to_flush(sbi)) {
-		sync_dirty_dir_inodes(sbi);
-		sync_node_pages(sbi, 0, &wbc);
-	}
-
-	if (has_not_enough_free_secs(sbi)) {
+	if (has_not_enough_free_secs(sbi, 0)) {
 		mutex_lock(&sbi->gc_mutex);
-		f2fs_gc(sbi, 1);
+		f2fs_gc(sbi);
 	}
 }
 
@@ -339,7 +308,7 @@ static unsigned int check_prefree_segments(struct f2fs_sb_info *sbi,
 	 * If there is not enough reserved sections,
 	 * we should not reuse prefree segments.
 	 */
-	if (has_not_enough_free_secs(sbi))
+	if (has_not_enough_free_secs(sbi, 0))
 		return NULL_SEGNO;
 
 	/*
@@ -567,6 +536,23 @@ static void change_curseg(struct f2fs_sb_info *sbi, int type, bool reuse)
 	}
 }
 
+static int get_ssr_segment(struct f2fs_sb_info *sbi, int type)
+{
+	struct curseg_info *curseg = CURSEG_I(sbi, type);
+	const struct victim_selection *v_ops = DIRTY_I(sbi)->v_ops;
+
+	if (IS_NODESEG(type) || !has_not_enough_free_secs(sbi, 0))
+		return v_ops->get_victim(sbi,
+				&(curseg)->next_segno, BG_GC, type, SSR);
+
+	/* For data segments, let's do SSR more intensively */
+	for (; type >= CURSEG_HOT_DATA; type--)
+		if (v_ops->get_victim(sbi, &(curseg)->next_segno,
+						BG_GC, type, SSR))
+			return 1;
+	return 0;
+}
+
 /*
  * flush out current segment and replace it with new segment
  * This function should be returned with success, otherwise BUG
@@ -631,7 +617,7 @@ static void f2fs_end_io_write(struct bio *bio, int err)
 			if (page->mapping)
 				set_bit(AS_EIO, &page->mapping->flags);
 			set_ckpt_flags(p->sbi->ckpt, CP_ERROR_FLAG);
-			set_page_dirty(page);
+			p->sbi->sb->s_flags |= MS_RDONLY;
 		}
 		end_page_writeback(page);
 		dec_page_count(p->sbi, F2FS_WRITEBACK);
@@ -791,11 +777,10 @@ static int __get_segment_type(struct page *page, enum page_type p_type)
 		return __get_segment_type_2(page, p_type);
 	case 4:
 		return __get_segment_type_4(page, p_type);
-	case 6:
-		return __get_segment_type_6(page, p_type);
-	default:
-		BUG();
 	}
+	/* NR_CURSEG_TYPE(6) logs by default */
+	BUG_ON(sbi->active_logs != NR_CURSEG_TYPE);
+	return __get_segment_type_6(page, p_type);
 }
 
 static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
@@ -848,15 +833,10 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 	mutex_unlock(&curseg->curseg_mutex);
 }
 
-int write_meta_page(struct f2fs_sb_info *sbi, struct page *page,
-			struct writeback_control *wbc)
+void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 {
-	if (wbc->for_reclaim)
-		return AOP_WRITEPAGE_ACTIVATE;
-
 	set_page_writeback(page);
 	submit_write_page(sbi, page, page->index, META);
-	return 0;
 }
 
 void write_node_page(struct f2fs_sb_info *sbi, struct page *page,
@@ -1608,7 +1588,6 @@ static int build_dirty_segmap(struct f2fs_sb_info *sbi)
 
 	for (i = 0; i < NR_DIRTY_TYPE; i++) {
 		dirty_i->dirty_segmap[i] = kzalloc(bitmap_size, GFP_KERNEL);
-		dirty_i->nr_dirty[i] = 0;
 		if (!dirty_i->dirty_segmap[i])
 			return -ENOMEM;
 	}

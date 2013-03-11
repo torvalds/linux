@@ -663,34 +663,6 @@ static struct exynos_drm_manager fimd_manager = {
 	.display_ops	= &fimd_display_ops,
 };
 
-static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
-{
-	struct exynos_drm_private *dev_priv = drm_dev->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	struct timeval now;
-	unsigned long flags;
-
-	spin_lock_irqsave(&drm_dev->event_lock, flags);
-
-	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
-			base.link) {
-		/* if event's pipe isn't same as crtc then ignore it. */
-		if (crtc != e->pipe)
-			continue;
-
-		do_gettimeofday(&now);
-		e->event.sequence = 0;
-		e->event.tv_sec = now.tv_sec;
-		e->event.tv_usec = now.tv_usec;
-
-		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
-		wake_up_interruptible(&e->base.file_priv->event_wait);
-		drm_vblank_put(drm_dev, crtc);
-	}
-
-	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
-}
-
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
@@ -710,7 +682,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 		goto out;
 
 	drm_handle_vblank(drm_dev, manager->pipe);
-	fimd_finish_pageflip(drm_dev, manager->pipe);
+	exynos_drm_crtc_finish_pageflip(drm_dev, manager->pipe);
 
 	/* set wait vsync event to zero and wake up queue. */
 	if (atomic_read(&ctx->wait_vsync_event)) {
@@ -898,7 +870,7 @@ static int fimd_activate(struct fimd_context *ctx, bool enable)
 	return 0;
 }
 
-static int __devinit fimd_probe(struct platform_device *pdev)
+static int fimd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimd_context *ctx;
@@ -941,11 +913,9 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	ctx->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ctx->regs) {
-		dev_err(dev, "failed to map registers\n");
-		return -ENXIO;
-	}
+	ctx->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ctx->regs))
+		return PTR_ERR(ctx->regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -997,7 +967,7 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit fimd_remove(struct platform_device *pdev)
+static int fimd_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimd_context *ctx = platform_get_drvdata(pdev);
@@ -1046,7 +1016,7 @@ static int fimd_resume(struct device *dev)
 	 * of pm runtime would still be 1 so in this case, fimd driver
 	 * should be on directly not drawing on pm runtime interface.
 	 */
-	if (pm_runtime_suspended(dev)) {
+	if (!pm_runtime_suspended(dev)) {
 		int ret;
 
 		ret = fimd_activate(ctx, true);
@@ -1105,7 +1075,7 @@ static const struct dev_pm_ops fimd_pm_ops = {
 
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
-	.remove		= __devexit_p(fimd_remove),
+	.remove		= fimd_remove,
 	.id_table       = fimd_driver_ids,
 	.driver		= {
 		.name	= "exynos4-fb",

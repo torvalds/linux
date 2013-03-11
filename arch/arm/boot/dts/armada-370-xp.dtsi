@@ -50,24 +50,27 @@
 		ranges;
 
 		serial@d0012000 {
-				compatible = "ns16550";
+				compatible = "snps,dw-apb-uart";
 				reg = <0xd0012000 0x100>;
 				reg-shift = <2>;
 				interrupts = <41>;
+				reg-io-width = <4>;
 				status = "disabled";
 		};
 		serial@d0012100 {
-				compatible = "ns16550";
+				compatible = "snps,dw-apb-uart";
 				reg = <0xd0012100 0x100>;
 				reg-shift = <2>;
 				interrupts = <42>;
+				reg-io-width = <4>;
 				status = "disabled";
 		};
 
 		timer@d0020300 {
 			       compatible = "marvell,armada-370-xp-timer";
-			       reg = <0xd0020300 0x30>;
-			       interrupts = <37>, <38>, <39>, <40>;
+			       reg = <0xd0020300 0x30>,
+			       <0xd0021040 0x30>;
+			       interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
 			       clocks = <&coreclk 2>;
 		};
 
@@ -126,6 +129,56 @@
 			#size-cells = <0>;
 			interrupts = <32>;
 			timeout-ms = <1000>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		rtc@10300 {
+			compatible = "marvell,orion-rtc";
+			reg = <0xd0010300 0x20>;
+			interrupts = <50>;
+		};
+
+		mvsdio@d00d4000 {
+			compatible = "marvell,orion-sdio";
+			reg = <0xd00d4000 0x200>;
+			interrupts = <54>;
+			clocks = <&gateclk 17>;
+			status = "disabled";
+		};
+
+		usb@d0050000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0xd0050000 0x500>;
+			interrupts = <45>;
+			status = "disabled";
+		};
+
+		usb@d0051000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0xd0051000 0x500>;
+			interrupts = <46>;
+			status = "disabled";
+		};
+
+		spi0: spi@d0010600 {
+			compatible = "marvell,orion-spi";
+			reg = <0xd0010600 0x28>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <30>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		spi1: spi@d0010680 {
+			compatible = "marvell,orion-spi";
+			reg = <0xd0010680 0x28>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			interrupts = <92>;
 			clocks = <&coreclk 0>;
 			status = "disabled";
 		};

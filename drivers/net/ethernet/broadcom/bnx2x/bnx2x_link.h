@@ -1,4 +1,4 @@
-/* Copyright 2008-2012 Broadcom Corporation
+/* Copyright 2008-2013 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -307,7 +307,8 @@ struct link_params {
 	struct bnx2x *bp;
 	u16 req_fc_auto_adv; /* Should be set to TX / BOTH when
 				req_flow_ctrl is set to AUTO */
-	u16 rsrv1;
+	u16 link_flags;
+#define LINK_FLAGS_INT_DISABLED		(1<<0)
 	u32 lfa_base;
 };
 

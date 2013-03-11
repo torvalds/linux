@@ -757,7 +757,7 @@ err_probe:
 
 #ifdef CONFIG_OF
 static int spear_smi_probe_config_dt(struct platform_device *pdev,
-					       struct device_node *np)
+				     struct device_node *np)
 {
 	struct spear_smi_plat_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *pp = NULL;
@@ -800,7 +800,7 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 }
 #else
 static int spear_smi_probe_config_dt(struct platform_device *pdev,
-					       struct device_node *np)
+				     struct device_node *np)
 {
 	return -ENOSYS;
 }
@@ -949,10 +949,9 @@ static int spear_smi_probe(struct platform_device *pdev)
 
 	smi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	dev->io_base = devm_request_and_ioremap(&pdev->dev, smi_base);
-	if (!dev->io_base) {
-		ret = -EIO;
-		dev_err(&pdev->dev, "devm_request_and_ioremap fail\n");
+	dev->io_base = devm_ioremap_resource(&pdev->dev, smi_base);
+	if (IS_ERR(dev->io_base)) {
+		ret = PTR_ERR(dev->io_base);
 		goto err;
 	}
 

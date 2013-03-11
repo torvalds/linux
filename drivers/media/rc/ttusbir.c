@@ -194,8 +194,8 @@ static void ttusbir_urb_complete(struct urb *urb)
 		dev_warn(tt->dev, "failed to resubmit urb: %d\n", rc);
 }
 
-static int __devinit ttusbir_probe(struct usb_interface *intf,
-						const struct usb_device_id *id)
+static int ttusbir_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
 {
 	struct ttusbir *tt;
 	struct usb_interface_descriptor *idesc;
@@ -213,19 +213,20 @@ static int __devinit ttusbir_probe(struct usb_interface *intf,
 
 	/* find the correct alt setting */
 	for (i = 0; i < intf->num_altsetting && altsetting == -1; i++) {
-		int bulk_out_endp = -1, iso_in_endp = -1;
+		int max_packet, bulk_out_endp = -1, iso_in_endp = -1;
 
 		idesc = &intf->altsetting[i].desc;
 
 		for (j = 0; j < idesc->bNumEndpoints; j++) {
 			desc = &intf->altsetting[i].endpoint[j].desc;
+			max_packet = le16_to_cpu(desc->wMaxPacketSize);
 			if (usb_endpoint_dir_in(desc) &&
 					usb_endpoint_xfer_isoc(desc) &&
-					desc->wMaxPacketSize == 0x10)
+					max_packet == 0x10)
 				iso_in_endp = j;
 			else if (usb_endpoint_dir_out(desc) &&
 					usb_endpoint_xfer_bulk(desc) &&
-					desc->wMaxPacketSize == 0x20)
+					max_packet == 0x20)
 				bulk_out_endp = j;
 
 			if (bulk_out_endp != -1 && iso_in_endp != -1) {
@@ -367,7 +368,7 @@ out:
 	return ret;
 }
 
-static void __devexit ttusbir_disconnect(struct usb_interface *intf)
+static void ttusbir_disconnect(struct usb_interface *intf)
 {
 	struct ttusbir *tt = usb_get_intfdata(intf);
 	struct usb_device *udev = tt->udev;
@@ -408,9 +409,8 @@ static int ttusbir_resume(struct usb_interface *intf)
 	struct ttusbir *tt = usb_get_intfdata(intf);
 	int i, rc;
 
-	led_classdev_resume(&tt->led);
 	tt->is_led_on = true;
-	ttusbir_set_led(tt);
+	led_classdev_resume(&tt->led);
 
 	for (i = 0; i < NUM_URBS; i++) {
 		rc = usb_submit_urb(tt->urb[i], GFP_KERNEL);
@@ -435,7 +435,7 @@ static struct usb_driver ttusbir_driver = {
 	.suspend = ttusbir_suspend,
 	.resume = ttusbir_resume,
 	.reset_resume = ttusbir_resume,
-	.disconnect = __devexit_p(ttusbir_disconnect)
+	.disconnect = ttusbir_disconnect,
 };
 
 module_usb_driver(ttusbir_driver);

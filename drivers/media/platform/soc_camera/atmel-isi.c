@@ -166,7 +166,7 @@ static irqreturn_t atmel_isi_handle_streaming(struct atmel_isi *isi)
 		struct frame_buffer *buf = isi->active;
 
 		list_del_init(&buf->list);
-		do_gettimeofday(&vb->v4l2_buf.timestamp);
+		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 		vb->v4l2_buf.sequence = isi->sequence++;
 		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 	}
@@ -745,7 +745,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	return formats;
 }
 
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static int isi_camera_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -770,7 +770,7 @@ static int isi_camera_add_device(struct soc_camera_device *icd)
 		 icd->devnum);
 	return 0;
 }
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static void isi_camera_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -897,7 +897,7 @@ static struct soc_camera_host_ops isi_soc_camera_host_ops = {
 };
 
 /* -----------------------------------------------------------------------*/
-static int __devexit atmel_isi_remove(struct platform_device *pdev)
+static int atmel_isi_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct atmel_isi *isi = container_of(soc_host,
@@ -921,7 +921,7 @@ static int __devexit atmel_isi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit atmel_isi_probe(struct platform_device *pdev)
+static int atmel_isi_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
 	struct atmel_isi *isi;
@@ -1074,7 +1074,7 @@ err_clk_prepare_pclk:
 
 static struct platform_driver atmel_isi_driver = {
 	.probe		= atmel_isi_probe,
-	.remove		= __devexit_p(atmel_isi_remove),
+	.remove		= atmel_isi_remove,
 	.driver		= {
 		.name = "atmel_isi",
 		.owner = THIS_MODULE,

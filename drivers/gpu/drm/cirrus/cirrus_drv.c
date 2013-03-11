@@ -56,8 +56,8 @@ static int cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
 	return 0;
 }
 
-static int __devinit
-cirrus_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int cirrus_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	int ret;
 

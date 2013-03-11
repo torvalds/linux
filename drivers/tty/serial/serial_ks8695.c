@@ -153,7 +153,6 @@ static void ks8695uart_disable_ms(struct uart_port *port)
 static irqreturn_t ks8695uart_rx_chars(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned int status, ch, lsr, flg, max_count = 256;
 
 	status = UART_GET_LSR(port);		/* clears pending LSR interrupts */
@@ -200,7 +199,7 @@ static irqreturn_t ks8695uart_rx_chars(int irq, void *dev_id)
 ignore_char:
 		status = UART_GET_LSR(port);
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 
 	return IRQ_HANDLED;
 }

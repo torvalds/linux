@@ -23,7 +23,7 @@ use IO::Handle;
 
 @components = ( "sp8870", "sp887x", "tda10045", "tda10046",
 		"tda10046lifeview", "av7110", "dec2000t", "dec2540t",
-		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
+		"dec3000s", "vp7041", "vp7049", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
@@ -287,6 +287,19 @@ sub vp7041 {
     copy("$tmpdir/fwtmp3", $outfile);
 
     $outfile;
+}
+
+sub vp7049 {
+    my $fwfile = "dvb-usb-vp7049-0.95.fw";
+    my $url = "http://ao2.it/sites/default/files/blog/2012/11/06/linux-support-digicom-digitune-s-vp7049-udtt7049/$fwfile";
+    my $hash = "5609fd295168aea88b25ff43a6f79c36";
+
+    checkstandard();
+
+    wgetfile($fwfile, $url);
+    verify($fwfile, $hash);
+
+    $fwfile;
 }
 
 sub dibusb {
@@ -677,7 +690,7 @@ sub drxk_terratec_h5 {
 }
 
 sub drxk_terratec_htc_stick {
-    my $url = "http://ftp.terratec.de/Receiver/Cinergy_HTC_Stick/Updates/";
+    my $url = "http://ftp.terratec.de/Receiver/Cinergy_HTC_Stick/Updates/History/";
     my $zipfile = "Cinergy_HTC_Stick_Drv_5.09.1202.00_XP_Vista_7.exe";
     my $hash = "6722a2442a05423b781721fbc069ed5e";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);

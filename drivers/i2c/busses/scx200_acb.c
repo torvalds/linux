@@ -542,7 +542,6 @@ static int scx200_remove(struct platform_device *pdev)
 	struct scx200_acb_iface *iface;
 
 	iface = platform_get_drvdata(pdev);
-	platform_set_drvdata(pdev, NULL);
 	scx200_cleanup_iface(iface);
 
 	return 0;

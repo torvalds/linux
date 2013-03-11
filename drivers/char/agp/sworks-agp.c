@@ -445,8 +445,8 @@ static const struct agp_bridge_driver sworks_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static int __devinit agp_serverworks_probe(struct pci_dev *pdev,
-					   const struct pci_device_id *ent)
+static int agp_serverworks_probe(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	struct agp_bridge_data *bridge;
 	struct pci_dev *bridge_dev;

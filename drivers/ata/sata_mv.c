@@ -4148,7 +4148,7 @@ err:
  *      A platform bus SATA device has been unplugged. Perform the needed
  *      cleanup. Also called on module unload for any active devices.
  */
-static int __devexit mv_platform_remove(struct platform_device *pdev)
+static int mv_platform_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 #if defined(CONFIG_HAVE_CLK)
@@ -4215,7 +4215,7 @@ static int mv_platform_resume(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_OF
-static struct of_device_id mv_sata_dt_ids[] __devinitdata = {
+static struct of_device_id mv_sata_dt_ids[] = {
 	{ .compatible = "marvell,orion-sata", },
 	{},
 };
@@ -4224,7 +4224,7 @@ MODULE_DEVICE_TABLE(of, mv_sata_dt_ids);
 
 static struct platform_driver mv_platform_driver = {
 	.probe		= mv_platform_probe,
-	.remove		= __devexit_p(mv_platform_remove),
+	.remove		= mv_platform_remove,
 	.suspend	= mv_platform_suspend,
 	.resume		= mv_platform_resume,
 	.driver		= {
@@ -4429,7 +4429,7 @@ static int mv_pci_device_resume(struct pci_dev *pdev)
 #endif
 
 static int mv_platform_probe(struct platform_device *pdev);
-static int __devexit mv_platform_remove(struct platform_device *pdev);
+static int mv_platform_remove(struct platform_device *pdev);
 
 static int __init mv_init(void)
 {

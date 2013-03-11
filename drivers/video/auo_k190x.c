@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/fb.h>
 #include <linux/delay.h>
@@ -773,8 +774,8 @@ EXPORT_SYMBOL_GPL(auok190x_pm);
  * Common probe and remove code
  */
 
-int __devinit auok190x_common_probe(struct platform_device *pdev,
-				    struct auok190x_init_data *init)
+int auok190x_common_probe(struct platform_device *pdev,
+			  struct auok190x_init_data *init)
 {
 	struct auok190x_board *board = init->board;
 	struct auok190xfb_par *par;
@@ -1006,7 +1007,7 @@ err_reg:
 }
 EXPORT_SYMBOL_GPL(auok190x_common_probe);
 
-int  __devexit auok190x_common_remove(struct platform_device *pdev)
+int  auok190x_common_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct auok190xfb_par *par = info->par;

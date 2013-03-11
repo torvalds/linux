@@ -1,8 +1,8 @@
 /*
  * Samsung S5P/EXYNOS4 SoC series FIMC (video postprocessor) driver
  *
- * Copyright (C) 2012 Samsung Electronics Co., Ltd.
- * Sylwester Nawrocki, <s.nawrocki@samsung.com>
+ * Copyright (C) 2012 - 2013 Samsung Electronics Co., Ltd.
+ * Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published
@@ -160,8 +160,7 @@ static void fimc_device_run(void *priv)
 	fimc_hw_set_output_addr(fimc, &df->paddr, -1);
 
 	fimc_activate_capture(ctx);
-	ctx->state &= (FIMC_CTX_M2M | FIMC_CTX_CAP |
-		       FIMC_SRC_FMT | FIMC_DST_FMT);
+	ctx->state &= (FIMC_CTX_M2M | FIMC_CTX_CAP);
 	fimc_hw_activate_input_dma(fimc, true);
 
 dma_unlock:
@@ -294,21 +293,20 @@ static int fimc_m2m_g_fmt_mplane(struct file *file, void *fh,
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
 
-	return fimc_fill_format(frame, f);
+	__fimc_get_format(frame, f);
+	return 0;
 }
 
 static int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct fimc_variant *variant = fimc->variant;
+	const struct fimc_variant *variant = fimc->variant;
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
 	struct fimc_fmt *fmt;
 	u32 max_w, mod_x, mod_y;
 
 	if (!IS_M2M(f->type))
 		return -EINVAL;
-
-	dbg("w: %d, h: %d", pix->width, pix->height);
 
 	fmt = fimc_find_format(&pix->pixelformat, NULL,
 			       get_m2m_fmt_flags(f->type), 0);
@@ -349,8 +347,28 @@ static int fimc_m2m_try_fmt_mplane(struct file *file, void *fh,
 				   struct v4l2_format *f)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-
 	return fimc_try_fmt_mplane(ctx, f);
+}
+
+static void __set_frame_format(struct fimc_frame *frame, struct fimc_fmt *fmt,
+			       struct v4l2_pix_format_mplane *pixm)
+{
+	int i;
+
+	for (i = 0; i < fmt->colplanes; i++) {
+		frame->bytesperline[i] = pixm->plane_fmt[i].bytesperline;
+		frame->payload[i] = pixm->plane_fmt[i].sizeimage;
+	}
+
+	frame->f_width = pixm->width;
+	frame->f_height	= pixm->height;
+	frame->o_width = pixm->width;
+	frame->o_height = pixm->height;
+	frame->width = pixm->width;
+	frame->height = pixm->height;
+	frame->offs_h = 0;
+	frame->offs_v = 0;
+	frame->fmt = fmt;
 }
 
 static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
@@ -358,10 +376,10 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
 	struct fimc_dev *fimc = ctx->fimc_dev;
+	struct fimc_fmt *fmt;
 	struct vb2_queue *vq;
 	struct fimc_frame *frame;
-	struct v4l2_pix_format_mplane *pix;
-	int i, ret = 0;
+	int ret;
 
 	ret = fimc_try_fmt_mplane(ctx, f);
 	if (ret)
@@ -379,30 +397,15 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 	else
 		frame = &ctx->d_frame;
 
-	pix = &f->fmt.pix_mp;
-	frame->fmt = fimc_find_format(&pix->pixelformat, NULL,
-				      get_m2m_fmt_flags(f->type), 0);
-	if (!frame->fmt)
+	fmt = fimc_find_format(&f->fmt.pix_mp.pixelformat, NULL,
+			       get_m2m_fmt_flags(f->type), 0);
+	if (!fmt)
 		return -EINVAL;
+
+	__set_frame_format(frame, fmt, &f->fmt.pix_mp);
 
 	/* Update RGB Alpha control state and value range */
 	fimc_alpha_ctrl_update(ctx);
-
-	for (i = 0; i < frame->fmt->colplanes; i++) {
-		frame->payload[i] =
-			(pix->width * pix->height * frame->fmt->depth[i]) / 8;
-	}
-
-	fimc_fill_frame(frame, f);
-
-	ctx->scaler.enabled = 1;
-
-	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		fimc_ctx_state_set(FIMC_PARAMS | FIMC_DST_FMT, ctx);
-	else
-		fimc_ctx_state_set(FIMC_PARAMS | FIMC_SRC_FMT, ctx);
-
-	dbg("f_w: %d, f_h: %d", frame->f_width, frame->f_height);
 
 	return 0;
 }
@@ -411,7 +414,6 @@ static int fimc_m2m_reqbufs(struct file *file, void *fh,
 			    struct v4l2_requestbuffers *reqbufs)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
 
@@ -419,7 +421,6 @@ static int fimc_m2m_querybuf(struct file *file, void *fh,
 			     struct v4l2_buffer *buf)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-
 	return v4l2_m2m_querybuf(file, ctx->m2m_ctx, buf);
 }
 
@@ -427,7 +428,6 @@ static int fimc_m2m_qbuf(struct file *file, void *fh,
 			 struct v4l2_buffer *buf)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-
 	return v4l2_m2m_qbuf(file, ctx->m2m_ctx, buf);
 }
 
@@ -435,7 +435,6 @@ static int fimc_m2m_dqbuf(struct file *file, void *fh,
 			  struct v4l2_buffer *buf)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-
 	return v4l2_m2m_dqbuf(file, ctx->m2m_ctx, buf);
 }
 
@@ -443,7 +442,6 @@ static int fimc_m2m_expbuf(struct file *file, void *fh,
 			    struct v4l2_exportbuffer *eb)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-
 	return v4l2_m2m_expbuf(file, ctx->m2m_ctx, eb);
 }
 
@@ -452,15 +450,6 @@ static int fimc_m2m_streamon(struct file *file, void *fh,
 			     enum v4l2_buf_type type)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-
-	/* The source and target color format need to be set */
-	if (V4L2_TYPE_IS_OUTPUT(type)) {
-		if (!fimc_ctx_state_is_set(FIMC_SRC_FMT, ctx))
-			return -EINVAL;
-	} else if (!fimc_ctx_state_is_set(FIMC_DST_FMT, ctx)) {
-		return -EINVAL;
-	}
-
 	return v4l2_m2m_streamon(file, ctx->m2m_ctx, type);
 }
 
@@ -468,7 +457,6 @@ static int fimc_m2m_streamoff(struct file *file, void *fh,
 			    enum v4l2_buf_type type)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-
 	return v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
 }
 
@@ -576,20 +564,18 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, const struct v4l2_crop *
 		&ctx->s_frame : &ctx->d_frame;
 
 	/* Check to see if scaling ratio is within supported range */
-	if (fimc_ctx_state_is_set(FIMC_DST_FMT | FIMC_SRC_FMT, ctx)) {
-		if (cr.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-			ret = fimc_check_scaler_ratio(ctx, cr.c.width,
-					cr.c.height, ctx->d_frame.width,
-					ctx->d_frame.height, ctx->rotation);
-		} else {
-			ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
-					ctx->s_frame.height, cr.c.width,
-					cr.c.height, ctx->rotation);
-		}
-		if (ret) {
-			v4l2_err(&fimc->m2m.vfd, "Out of scaler range\n");
-			return -EINVAL;
-		}
+	if (cr.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		ret = fimc_check_scaler_ratio(ctx, cr.c.width,
+				cr.c.height, ctx->d_frame.width,
+				ctx->d_frame.height, ctx->rotation);
+	} else {
+		ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
+				ctx->s_frame.height, cr.c.width,
+				cr.c.height, ctx->rotation);
+	}
+	if (ret) {
+		v4l2_err(&fimc->m2m.vfd, "Out of scaler range\n");
+		return -EINVAL;
 	}
 
 	f->offs_h = cr.c.left;
@@ -652,6 +638,29 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	return vb2_queue_init(dst_vq);
 }
 
+static int fimc_m2m_set_default_format(struct fimc_ctx *ctx)
+{
+	struct v4l2_pix_format_mplane pixm = {
+		.pixelformat	= V4L2_PIX_FMT_RGB32,
+		.width		= 800,
+		.height		= 600,
+		.plane_fmt[0]	= {
+			.bytesperline = 800 * 4,
+			.sizeimage = 800 * 4 * 600,
+		},
+	};
+	struct fimc_fmt *fmt;
+
+	fmt = fimc_find_format(&pixm.pixelformat, NULL, FMT_FLAGS_M2M, 0);
+	if (!fmt)
+		return -EINVAL;
+
+	__set_frame_format(&ctx->s_frame, fmt, &pixm);
+	__set_frame_format(&ctx->d_frame, fmt, &pixm);
+
+	return 0;
+}
+
 static int fimc_m2m_open(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
@@ -696,6 +705,7 @@ static int fimc_m2m_open(struct file *file)
 	ctx->flags = 0;
 	ctx->in_path = FIMC_IO_DMA;
 	ctx->out_path = FIMC_IO_DMA;
+	ctx->scaler.enabled = 1;
 
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(fimc->m2m.m2m_dev, ctx, queue_init);
 	if (IS_ERR(ctx->m2m_ctx)) {
@@ -706,9 +716,15 @@ static int fimc_m2m_open(struct file *file)
 	if (fimc->m2m.refcnt++ == 0)
 		set_bit(ST_M2M_RUN, &fimc->state);
 
+	ret = fimc_m2m_set_default_format(ctx);
+	if (ret < 0)
+		goto error_m2m_ctx;
+
 	mutex_unlock(&fimc->lock);
 	return 0;
 
+error_m2m_ctx:
+	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 error_c:
 	fimc_ctrls_delete(ctx);
 error_fh:

@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -111,8 +111,7 @@ MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registrations. "
 		"0 - no FDMI. Default is 1 - perform FDMI.");
 
-#define MAX_Q_DEPTH    32
-static int ql2xmaxqdepth = MAX_Q_DEPTH;
+int ql2xmaxqdepth = MAX_Q_DEPTH;
 module_param(ql2xmaxqdepth, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xmaxqdepth,
 		"Maximum queue depth to set for each LUN. "
@@ -359,6 +358,9 @@ static void qla2x00_free_req_que(struct qla_hw_data *ha, struct req_que *req)
 		dma_free_coherent(&ha->pdev->dev,
 		(req->length + 1) * sizeof(request_t),
 		req->ring, req->dma);
+
+	if (req)
+		kfree(req->outstanding_cmds);
 
 	kfree(req);
 	req = NULL;
@@ -628,7 +630,7 @@ qla2x00_sp_free_dma(void *vha, void *ptr)
 	}
 
 	CMD_SP(cmd) = NULL;
-	mempool_free(sp, ha->srb_mempool);
+	qla2x00_rel_sp(sp->fcport->vha, sp);
 }
 
 static void
@@ -716,9 +718,11 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		goto qc24_target_busy;
 	}
 
-	sp = qla2x00_get_sp(base_vha, fcport, GFP_ATOMIC);
-	if (!sp)
+	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
+	if (!sp) {
+		set_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags);
 		goto qc24_host_busy;
+	}
 
 	sp->u.scmd.cmd = cmd;
 	sp->type = SRB_SCSI_CMD;
@@ -731,6 +735,7 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x3013,
 		    "Start scsi failed rval=%d for cmd=%p.\n", rval, cmd);
+		set_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags);
 		goto qc24_host_busy_free_sp;
 	}
 
@@ -1010,7 +1015,7 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *vha, unsigned int t,
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	req = vha->req;
 	for (cnt = 1; status == QLA_SUCCESS &&
-		cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+		cnt < req->num_outstanding_cmds; cnt++) {
 		sp = req->outstanding_cmds[cnt];
 		if (!sp)
 			continue;
@@ -1300,14 +1305,14 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 	}
 
 	if (ha->flags.enable_lip_full_login && !IS_CNA_CAPABLE(ha)) {
+		atomic_set(&vha->loop_state, LOOP_DOWN);
+		atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
+		qla2x00_mark_all_devices_lost(vha, 0);
 		ret = qla2x00_full_login_lip(vha);
 		if (ret != QLA_SUCCESS) {
 			ql_dbg(ql_dbg_taskm, vha, 0x802d,
 			    "full_login_lip=%d.\n", ret);
 		}
-		atomic_set(&vha->loop_state, LOOP_DOWN);
-		atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
-		qla2x00_mark_all_devices_lost(vha, 0);
 	}
 
 	if (ha->flags.enable_lip_reset) {
@@ -1337,7 +1342,9 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 		req = ha->req_q_map[que];
 		if (!req)
 			continue;
-		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+		if (!req->outstanding_cmds)
+			continue;
+		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
 				req->outstanding_cmds[cnt] = NULL;
@@ -1451,6 +1458,81 @@ qla2x00_change_queue_type(struct scsi_device *sdev, int tag_type)
 		tag_type = 0;
 
 	return tag_type;
+}
+
+static void
+qla2x00_host_ramp_down_queuedepth(scsi_qla_host_t *vha)
+{
+	scsi_qla_host_t *vp;
+	struct Scsi_Host *shost;
+	struct scsi_device *sdev;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
+
+	ha->host_last_rampdown_time = jiffies;
+
+	if (ha->cfg_lun_q_depth <= vha->host->cmd_per_lun)
+		return;
+
+	if ((ha->cfg_lun_q_depth / 2) < vha->host->cmd_per_lun)
+		ha->cfg_lun_q_depth = vha->host->cmd_per_lun;
+	else
+		ha->cfg_lun_q_depth = ha->cfg_lun_q_depth / 2;
+
+	/*
+	 * Geometrically ramp down the queue depth for all devices on this
+	 * adapter
+	 */
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	list_for_each_entry(vp, &ha->vp_list, list) {
+		shost = vp->host;
+		shost_for_each_device(sdev, shost) {
+			if (sdev->queue_depth > shost->cmd_per_lun) {
+				if (sdev->queue_depth < ha->cfg_lun_q_depth)
+					continue;
+				ql_log(ql_log_warn, vp, 0x3031,
+				    "%ld:%d:%d: Ramping down queue depth to %d",
+				    vp->host_no, sdev->id, sdev->lun,
+				    ha->cfg_lun_q_depth);
+				qla2x00_change_queue_depth(sdev,
+				    ha->cfg_lun_q_depth, SCSI_QDEPTH_DEFAULT);
+			}
+		}
+	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+	return;
+}
+
+static void
+qla2x00_host_ramp_up_queuedepth(scsi_qla_host_t *vha)
+{
+	scsi_qla_host_t *vp;
+	struct Scsi_Host *shost;
+	struct scsi_device *sdev;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
+
+	ha->host_last_rampup_time = jiffies;
+	ha->cfg_lun_q_depth++;
+
+	/*
+	 * Linearly ramp up the queue depth for all devices on this
+	 * adapter
+	 */
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	list_for_each_entry(vp, &ha->vp_list, list) {
+		shost = vp->host;
+		shost_for_each_device(sdev, shost) {
+			if (sdev->queue_depth > ha->cfg_lun_q_depth)
+				continue;
+			qla2x00_change_queue_depth(sdev, ha->cfg_lun_q_depth,
+			    SCSI_QDEPTH_RAMP_UP);
+		}
+	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+	return;
 }
 
 /**
@@ -1730,6 +1812,9 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 
 mqiobase_exit:
 	ha->msix_count = ha->max_rsp_queues + 1;
+
+	qlt_83xx_iospace_config(ha);
+
 	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x011f,
 	    "MSIX Count:%d.\n", ha->msix_count);
 	return 0;
@@ -2154,7 +2239,7 @@ qla2xxx_scan_finished(struct Scsi_Host *shost, unsigned long time)
 /*
  * PCI driver interface
  */
-static int __devinit
+static int
 qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int	ret = -ENODEV;
@@ -2230,6 +2315,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->link_data_rate = PORT_SPEED_UNKNOWN;
 	ha->optrom_size = OPTROM_SIZE_2300;
+	ha->cfg_lun_q_depth = ql2xmaxqdepth;
 
 	/* Assign ISP specific operations. */
 	if (IS_QLA2100(ha)) {
@@ -2307,6 +2393,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
+		ha->tgt.atio_q_length = ATIO_ENTRY_CNT_24XX;
 		ha->max_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct mid_init_cb_81xx);
 		ha->gid_list_info_size = 8;
@@ -2338,6 +2425,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
+		ha->tgt.atio_q_length = ATIO_ENTRY_CNT_24XX;
 		ha->max_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct mid_init_cb_81xx);
 		ha->gid_list_info_size = 8;
@@ -2377,6 +2465,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	complete(&ha->mbx_cmd_comp);
 	init_completion(&ha->mbx_intr_comp);
 	init_completion(&ha->dcbx_comp);
+	init_completion(&ha->lb_portup_comp);
 
 	set_bit(0, (unsigned long *) ha->vp_idx_map);
 
@@ -2719,6 +2808,9 @@ qla2x00_shutdown(struct pci_dev *pdev)
 {
 	scsi_qla_host_t *vha;
 	struct qla_hw_data  *ha;
+
+	if (!atomic_read(&pdev->enable_cnt))
+		return;
 
 	vha = pci_get_drvdata(pdev);
 	ha = vha->hw;
@@ -3974,6 +4066,8 @@ qla83xx_force_lock_recovery(scsi_qla_host_t *base_vha)
 	uint32_t idc_lck_rcvry_stage_mask = 0x3;
 	uint32_t idc_lck_rcvry_owner_mask = 0x3c;
 	struct qla_hw_data *ha = base_vha->hw;
+	ql_dbg(ql_dbg_p3p, base_vha, 0xb086,
+	    "Trying force recovery of the IDC lock.\n");
 
 	rval = qla83xx_rd_reg(base_vha, QLA83XX_IDC_LOCK_RECOVERY, &data);
 	if (rval)
@@ -4065,6 +4159,7 @@ qla83xx_idc_lock(scsi_qla_host_t *base_vha, uint16_t requester_id)
 {
 	uint16_t options = (requester_id << 15) | BIT_6;
 	uint32_t data;
+	uint32_t lock_owner;
 	struct qla_hw_data *ha = base_vha->hw;
 
 	/* IDC-lock implementation using driver-lock/lock-id remote registers */
@@ -4076,8 +4171,11 @@ retry_lock:
 			qla83xx_wr_reg(base_vha, QLA83XX_DRIVER_LOCKID,
 			    ha->portnum);
 		} else {
+			qla83xx_rd_reg(base_vha, QLA83XX_DRIVER_LOCKID,
+			    &lock_owner);
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb063,
-			    "Failed to acquire IDC lock. retrying...\n");
+			    "Failed to acquire IDC lock, acquired by %d, "
+			    "retrying...\n", lock_owner);
 
 			/* Retry/Perform IDC-Lock recovery */
 			if (qla83xx_idc_lock_recovery(base_vha)
@@ -4605,6 +4703,18 @@ qla2x00_do_dpc(void *data)
 			qla2xxx_flash_npiv_conf(base_vha);
 		}
 
+		if (test_and_clear_bit(HOST_RAMP_DOWN_QUEUE_DEPTH,
+		    &base_vha->dpc_flags)) {
+			/* Prevents simultaneous ramp up and down */
+			clear_bit(HOST_RAMP_UP_QUEUE_DEPTH,
+			    &base_vha->dpc_flags);
+			qla2x00_host_ramp_down_queuedepth(base_vha);
+		}
+
+		if (test_and_clear_bit(HOST_RAMP_UP_QUEUE_DEPTH,
+		    &base_vha->dpc_flags))
+			qla2x00_host_ramp_up_queuedepth(base_vha);
+
 		if (!ha->interrupts_on)
 			ha->isp_ops->enable_intrs(ha);
 
@@ -4733,7 +4843,7 @@ qla2x00_timer(scsi_qla_host_t *vha)
 				    cpu_flags);
 				req = ha->req_q_map[0];
 				for (index = 1;
-				    index < MAX_OUTSTANDING_COMMANDS;
+				    index < req->num_outstanding_cmds;
 				    index++) {
 					fc_port_t *sfcp;
 
@@ -4802,7 +4912,9 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	    test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags) ||
 	    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags) ||
 	    test_bit(VP_DPC_NEEDED, &vha->dpc_flags) ||
-	    test_bit(RELOGIN_NEEDED, &vha->dpc_flags))) {
+	    test_bit(RELOGIN_NEEDED, &vha->dpc_flags) ||
+	    test_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags) ||
+	    test_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags))) {
 		ql_dbg(ql_dbg_timer, vha, 0x600b,
 		    "isp_abort_needed=%d loop_resync_needed=%d "
 		    "fcport_update_needed=%d start_dpc=%d "
@@ -4815,12 +4927,15 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		ql_dbg(ql_dbg_timer, vha, 0x600c,
 		    "beacon_blink_needed=%d isp_unrecoverable=%d "
 		    "fcoe_ctx_reset_needed=%d vp_dpc_needed=%d "
-		    "relogin_needed=%d.\n",
+		    "relogin_needed=%d, host_ramp_down_needed=%d "
+		    "host_ramp_up_needed=%d.\n",
 		    test_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags),
 		    test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags),
 		    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags),
 		    test_bit(VP_DPC_NEEDED, &vha->dpc_flags),
-		    test_bit(RELOGIN_NEEDED, &vha->dpc_flags));
+		    test_bit(RELOGIN_NEEDED, &vha->dpc_flags),
+		    test_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags),
+		    test_bit(HOST_RAMP_DOWN_QUEUE_DEPTH, &vha->dpc_flags));
 		qla2xxx_wake_dpc(vha);
 	}
 

@@ -13,7 +13,7 @@
  *
  */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -217,8 +217,7 @@ int hdpvr_register_i2c_adapter(struct hdpvr_device *dev)
 
 	hdpvr_activate_ir(dev);
 
-	memcpy(&dev->i2c_adapter, &hdpvr_i2c_adapter_template,
-	       sizeof(struct i2c_adapter));
+	dev->i2c_adapter = hdpvr_i2c_adapter_template;
 	dev->i2c_adapter.dev.parent = &dev->udev->dev;
 
 	i2c_set_adapdata(&dev->i2c_adapter, dev);

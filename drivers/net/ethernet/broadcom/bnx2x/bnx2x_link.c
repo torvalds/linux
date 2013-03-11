@@ -1,4 +1,4 @@
-/* Copyright 2008-2012 Broadcom Corporation
+/* Copyright 2008-2013 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -3659,7 +3659,7 @@ static void bnx2x_warpcore_enable_AN_KR2(struct bnx2x_phy *phy,
 	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
 				 MDIO_WC_REG_CL49_USERB0_CTRL, (3<<6));
 
-	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
+	for (i = 0; i < ARRAY_SIZE(reg_set); i++)
 		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
 				 reg_set[i].val);
 
@@ -3713,7 +3713,7 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	};
 	DP(NETIF_MSG_LINK, "Enable Auto Negotiation for KR\n");
 	/* Set to default registers that may be overriden by 10G force */
-	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
+	for (i = 0; i < ARRAY_SIZE(reg_set); i++)
 		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
 				 reg_set[i].val);
 
@@ -3854,7 +3854,7 @@ static void bnx2x_warpcore_set_10G_KR(struct bnx2x_phy *phy,
 		{MDIO_PMA_DEVAD, MDIO_WC_REG_PMD_KR_CONTROL, 0x2}
 	};
 
-	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
+	for (i = 0; i < ARRAY_SIZE(reg_set); i++)
 		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
 				 reg_set[i].val);
 
@@ -4242,7 +4242,7 @@ static void bnx2x_warpcore_clear_regs(struct bnx2x_phy *phy,
 	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
 				 MDIO_WC_REG_RX66_CONTROL, (3<<13));
 
-	for (i = 0; i < sizeof(wc_regs)/sizeof(struct bnx2x_reg_set); i++)
+	for (i = 0; i < ARRAY_SIZE(wc_regs); i++)
 		bnx2x_cl45_write(bp, phy, wc_regs[i].devad, wc_regs[i].reg,
 				 wc_regs[i].val);
 
@@ -4748,6 +4748,12 @@ void bnx2x_link_status_update(struct link_params *params,
 	vars->link_status = REG_RD(bp, params->shmem_base +
 				   offsetof(struct shmem_region,
 					    port_mb[port].link_status));
+
+	/* Force link UP in non LOOPBACK_EXT loopback mode(s) */
+	if (bp->link_params.loopback_mode != LOOPBACK_NONE &&
+	    bp->link_params.loopback_mode != LOOPBACK_EXT)
+		vars->link_status |= LINK_STATUS_LINK_UP;
+
 	if (bnx2x_eee_has_cap(params))
 		vars->eee_status = REG_RD(bp, params->shmem2_base +
 					  offsetof(struct shmem2_region,
@@ -9520,7 +9526,7 @@ static void bnx2x_save_848xx_spirom_version(struct bnx2x_phy *phy,
 	} else {
 		/* For 32-bit registers in 848xx, access via MDIO2ARM i/f. */
 		/* (1) set reg 0xc200_0014(SPI_BRIDGE_CTRL_2) to 0x03000000 */
-		for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set);
+		for (i = 0; i < ARRAY_SIZE(reg_set);
 		      i++)
 			bnx2x_cl45_write(bp, phy, reg_set[i].devad,
 					 reg_set[i].reg, reg_set[i].val);
@@ -9592,7 +9598,7 @@ static void bnx2x_848xx_set_led(struct bnx2x *bp,
 			 MDIO_PMA_DEVAD,
 			 MDIO_PMA_REG_8481_LINK_SIGNAL, val);
 
-	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
+	for (i = 0; i < ARRAY_SIZE(reg_set); i++)
 		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
 				 reg_set[i].val);
 
@@ -10416,6 +10422,28 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x0);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Disable MI_INT interrupt before setting LED4
+				 * source to constant off.
+				 */
+				if (REG_RD(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+					   params->port*4) &
+				    NIG_MASK_MI_INT) {
+					params->link_flags |=
+					LINK_FLAGS_INT_DISABLED;
+
+					bnx2x_bits_dis(
+						bp,
+						NIG_REG_MASK_INTERRUPT_PORT0 +
+						params->port*4,
+						NIG_MASK_MI_INT);
+				}
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x0);
+			}
 		}
 		break;
 	case LED_MODE_ON:
@@ -10462,6 +10490,28 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x20);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Disable MI_INT interrupt before setting LED4
+				 * source to constant on.
+				 */
+				if (REG_RD(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+					   params->port*4) &
+				    NIG_MASK_MI_INT) {
+					params->link_flags |=
+					LINK_FLAGS_INT_DISABLED;
+
+					bnx2x_bits_dis(
+						bp,
+						NIG_REG_MASK_INTERRUPT_PORT0 +
+						params->port*4,
+						NIG_MASK_MI_INT);
+				}
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x20);
+			}
 		}
 		break;
 
@@ -10526,6 +10576,22 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LINK_SIGNAL,
 					 val);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Restore LED4 source to external link,
+				 * and re-enable interrupts.
+				 */
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x40);
+				if (params->link_flags &
+				    LINK_FLAGS_INT_DISABLED) {
+					bnx2x_link_int_enable(params);
+					params->link_flags &=
+						~LINK_FLAGS_INT_DISABLED;
+				}
+			}
 		}
 		break;
 	}
@@ -11785,6 +11851,8 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 			phy->media_type = ETH_PHY_KR;
 			phy->flags |= FLAGS_WC_DUAL_MODE;
 			phy->supported &= (SUPPORTED_20000baseKR2_Full |
+					   SUPPORTED_10000baseT_Full |
+					   SUPPORTED_1000baseT_Full |
 					   SUPPORTED_Autoneg |
 					   SUPPORTED_FIBRE |
 					   SUPPORTED_Pause |
@@ -13007,64 +13075,6 @@ static int bnx2x_84833_common_init_phy(struct bnx2x *bp,
 	return 0;
 }
 
-static int bnx2x_84833_pre_init_phy(struct bnx2x *bp,
-				    struct bnx2x_phy *phy,
-				    u8 port)
-{
-	u16 val, cnt;
-	/* Wait for FW completing its initialization. */
-	for (cnt = 0; cnt < 1500; cnt++) {
-		bnx2x_cl45_read(bp, phy,
-				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_CTRL, &val);
-		if (!(val & (1<<15)))
-			break;
-		usleep_range(1000, 2000);
-	}
-	if (cnt >= 1500) {
-		DP(NETIF_MSG_LINK, "84833 reset timeout\n");
-		return -EINVAL;
-	}
-
-	/* Put the port in super isolate mode. */
-	bnx2x_cl45_read(bp, phy,
-			MDIO_CTL_DEVAD,
-			MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val);
-	val |= MDIO_84833_SUPER_ISOLATE;
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_CTL_DEVAD,
-			 MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
-
-	/* Save spirom version */
-	bnx2x_save_848xx_spirom_version(phy, bp, port);
-	return 0;
-}
-
-int bnx2x_pre_init_phy(struct bnx2x *bp,
-				  u32 shmem_base,
-				  u32 shmem2_base,
-				  u32 chip_id,
-				  u8 port)
-{
-	int rc = 0;
-	struct bnx2x_phy phy;
-	if (bnx2x_populate_phy(bp, EXT_PHY1, shmem_base, shmem2_base,
-			       port, &phy) != 0) {
-		DP(NETIF_MSG_LINK, "populate_phy failed\n");
-		return -EINVAL;
-	}
-	bnx2x_set_mdio_clk(bp, chip_id, phy.mdio_ctrl);
-	switch (phy.type) {
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834:
-		rc = bnx2x_84833_pre_init_phy(bp, &phy, port);
-		break;
-	default:
-		break;
-	}
-	return rc;
-}
-
 static int bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
 				     u32 shmem2_base_path[], u8 phy_index,
 				     u32 ext_phy_type, u32 chip_id)
@@ -13395,7 +13405,7 @@ static void bnx2x_disable_kr2(struct link_params *params,
 	};
 	DP(NETIF_MSG_LINK, "Disabling 20G-KR2\n");
 
-	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
+	for (i = 0; i < ARRAY_SIZE(reg_set); i++)
 		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
 				 reg_set[i].val);
 	vars->link_attr_sync &= ~LINK_ATTR_SYNC_KR2_ENABLE;
@@ -13489,7 +13499,7 @@ void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 		struct bnx2x_phy *phy = &params->phy[INT_PHY];
 		bnx2x_set_aer_mmd(params, phy);
 		if ((phy->supported & SUPPORTED_20000baseKR2_Full) &&
-		    (phy->speed_cap_mask & SPEED_20000))
+		    (phy->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_20G))
 			bnx2x_check_kr2_wa(params, vars, phy);
 		bnx2x_check_over_curr(params, vars);
 		if (vars->rx_tx_asic_rst)

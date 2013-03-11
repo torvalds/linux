@@ -961,7 +961,7 @@ err_free_mem:
 	return err;
 }
 
-static void __devexit pch_dma_remove(struct pci_dev *pdev)
+static void pch_dma_remove(struct pci_dev *pdev)
 {
 	struct pch_dma *pd = pci_get_drvdata(pdev);
 	struct pch_dma_chan *pd_chan;
@@ -1029,18 +1029,7 @@ static struct pci_driver pch_dma_driver = {
 #endif
 };
 
-static int __init pch_dma_init(void)
-{
-	return pci_register_driver(&pch_dma_driver);
-}
-
-static void __exit pch_dma_exit(void)
-{
-	pci_unregister_driver(&pch_dma_driver);
-}
-
-module_init(pch_dma_init);
-module_exit(pch_dma_exit);
+module_pci_driver(pch_dma_driver);
 
 MODULE_DESCRIPTION("Intel EG20T PCH / LAPIS Semicon ML7213/ML7223/ML7831 IOH "
 		   "DMA controller driver");

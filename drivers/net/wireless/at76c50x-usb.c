@@ -2164,10 +2164,8 @@ static int at76_alloc_urbs(struct at76_priv *priv,
 
 	buffer_size = sizeof(struct at76_tx_buffer) + MAX_PADDING_SIZE;
 	priv->bulk_out_buffer = kmalloc(buffer_size, GFP_KERNEL);
-	if (!priv->bulk_out_buffer) {
-		dev_err(&interface->dev, "cannot allocate output buffer\n");
+	if (!priv->bulk_out_buffer)
 		return -ENOMEM;
-	}
 
 	at76_dbg(DBG_PROC_ENTRY, "%s: EXIT", __func__);
 

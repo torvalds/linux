@@ -6,24 +6,10 @@
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -406,4 +392,34 @@ void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int crtc)
 
 	exynos_drm_fn_encoder(private->crtc[crtc], &crtc,
 			exynos_drm_disable_vblank);
+}
+
+void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int crtc)
+{
+	struct exynos_drm_private *dev_priv = dev->dev_private;
+	struct drm_pending_vblank_event *e, *t;
+	struct timeval now;
+	unsigned long flags;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+
+	list_for_each_entry_safe(e, t, &dev_priv->pageflip_event_list,
+			base.link) {
+		/* if event's pipe isn't same as crtc then ignore it. */
+		if (crtc != e->pipe)
+			continue;
+
+		do_gettimeofday(&now);
+		e->event.sequence = 0;
+		e->event.tv_sec = now.tv_sec;
+		e->event.tv_usec = now.tv_usec;
+
+		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
+		wake_up_interruptible(&e->base.file_priv->event_wait);
+		drm_vblank_put(dev, crtc);
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 }

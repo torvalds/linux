@@ -862,9 +862,6 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 		prev_eedata = eedata;
 	}
 
-	/* Store MAC Address in perm_addr */
-	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
-
 	np = netdev_priv(dev);
 	np->ioaddr = ioaddr;
 

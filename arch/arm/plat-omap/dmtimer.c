@@ -777,7 +777,7 @@ EXPORT_SYMBOL_GPL(omap_dm_timers_active);
  * Called by driver framework at the end of device registration for all
  * timer devices.
  */
-static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
+static int omap_dm_timer_probe(struct platform_device *pdev)
 {
 	unsigned long flags;
 	struct omap_dm_timer *timer;
@@ -808,11 +808,9 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 		return  -ENOMEM;
 	}
 
-	timer->io_base = devm_request_and_ioremap(dev, mem);
-	if (!timer->io_base) {
-		dev_err(dev, "%s: region already claimed.\n", __func__);
-		return -ENOMEM;
-	}
+	timer->io_base = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(timer->io_base))
+		return PTR_ERR(timer->io_base);
 
 	if (dev->of_node) {
 		if (of_find_property(dev->of_node, "ti,timer-alwon", NULL))
@@ -864,7 +862,7 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
  * In addition to freeing platform resources it also deletes the timer
  * entry from the local list.
  */
-static int __devexit omap_dm_timer_remove(struct platform_device *pdev)
+static int omap_dm_timer_remove(struct platform_device *pdev)
 {
 	struct omap_dm_timer *timer;
 	unsigned long flags;
@@ -891,7 +889,7 @@ MODULE_DEVICE_TABLE(of, omap_timer_match);
 
 static struct platform_driver omap_dm_timer_driver = {
 	.probe  = omap_dm_timer_probe,
-	.remove = __devexit_p(omap_dm_timer_remove),
+	.remove = omap_dm_timer_remove,
 	.driver = {
 		.name   = "omap_timer",
 		.of_match_table = of_match_ptr(omap_timer_match),

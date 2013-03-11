@@ -871,9 +871,8 @@
       <para>
       This function itself doesn't allocate the data space. The data
       must be allocated manually beforehand, and its pointer is passed
-      as the argument. This pointer is used as the
-      (<parameter>chip</parameter> identifier in the above example)
-      for the instance. 
+      as the argument. This pointer (<parameter>chip</parameter> in the
+      above example) is used as the identifier for the instance.
       </para>
 
       <para>
@@ -2304,7 +2303,7 @@ struct _snd_pcm_runtime {
         <constant>SNDRV_PCM_INFO_XXX</constant>. Here, at least, you
         have to specify whether the mmap is supported and which
         interleaved format is supported.
-        When the is supported, add the
+        When the hardware supports mmap, add the
         <constant>SNDRV_PCM_INFO_MMAP</constant> flag here. When the
         hardware supports the interleaved or the non-interleaved
         formats, <constant>SNDRV_PCM_INFO_INTERLEAVED</constant> or
@@ -2898,7 +2897,7 @@ struct _snd_pcm_runtime {
 
         <para>
           When the pcm supports the pause operation (given in the info
-        field of the hardware table), the <constant>PAUSE_PUSE</constant>
+        field of the hardware table), the <constant>PAUSE_PUSH</constant>
         and <constant>PAUSE_RELEASE</constant> commands must be
         handled here, too. The former is the command to pause the pcm,
         and the latter to restart the pcm again. 
@@ -3085,7 +3084,7 @@ struct _snd_pcm_runtime {
       <section id="pcm-interface-interrupt-handler-timer">
         <title>High frequency timer interrupts</title>
         <para>
-	This happense when the hardware doesn't generate interrupts
+	This happens when the hardware doesn't generate interrupts
         at the period boundary but issues timer interrupts at a fixed
         timer rate (e.g. es1968 or ymfpci drivers). 
         In this case, you need to check the current hardware
@@ -3251,49 +3250,6 @@ struct _snd_pcm_runtime {
 	  <title>Example of Hardware Constraints for Channels</title>
 	  <programlisting>
 <![CDATA[
-  static int hw_rule_format_by_channels(struct snd_pcm_hw_params *params,
-                                        struct snd_pcm_hw_rule *rule)
-  {
-          struct snd_interval *c = hw_param_interval(params,
-                SNDRV_PCM_HW_PARAM_CHANNELS);
-          struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-          struct snd_mask fmt;
-
-          snd_mask_any(&fmt);    /* Init the struct */
-          if (c->min < 2) {
-                  fmt.bits[0] &= SNDRV_PCM_FMTBIT_S16_LE;
-                  return snd_mask_refine(f, &fmt);
-          }
-          return 0;
-  }
-]]>
-          </programlisting>
-        </example>
-      </para>
- 
-      <para>
-        Then you need to call this function to add your rule:
-
-       <informalexample>
-	 <programlisting>
-<![CDATA[
-  snd_pcm_hw_rule_add(substream->runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-                      hw_rule_channels_by_format, 0, SNDRV_PCM_HW_PARAM_FORMAT,
-                      -1);
-]]>
-          </programlisting>
-        </informalexample>
-      </para>
-
-      <para>
-        The rule function is called when an application sets the number of
-        channels. But an application can set the format before the number of
-        channels. Thus you also need to define the inverse rule:
-
-       <example>
-	 <title>Example of Hardware Constraints for Channels</title>
-	 <programlisting>
-<![CDATA[
   static int hw_rule_channels_by_format(struct snd_pcm_hw_params *params,
                                         struct snd_pcm_hw_rule *rule)
   {
@@ -3314,6 +3270,50 @@ struct _snd_pcm_runtime {
           </programlisting>
         </example>
       </para>
+ 
+      <para>
+        Then you need to call this function to add your rule:
+
+       <informalexample>
+	 <programlisting>
+<![CDATA[
+  snd_pcm_hw_rule_add(substream->runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+                      hw_rule_channels_by_format, NULL,
+                      SNDRV_PCM_HW_PARAM_FORMAT, -1);
+]]>
+          </programlisting>
+        </informalexample>
+      </para>
+
+      <para>
+        The rule function is called when an application sets the PCM
+	format, and it refines the number of channels accordingly.
+        But an application may set the number of channels before
+	setting the format. Thus you also need to define the inverse rule:
+
+       <example>
+	 <title>Example of Hardware Constraints for Formats</title>
+	 <programlisting>
+<![CDATA[
+  static int hw_rule_format_by_channels(struct snd_pcm_hw_params *params,
+                                        struct snd_pcm_hw_rule *rule)
+  {
+          struct snd_interval *c = hw_param_interval(params,
+                SNDRV_PCM_HW_PARAM_CHANNELS);
+          struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+          struct snd_mask fmt;
+
+          snd_mask_any(&fmt);    /* Init the struct */
+          if (c->min < 2) {
+                  fmt.bits[0] &= SNDRV_PCM_FMTBIT_S16_LE;
+                  return snd_mask_refine(f, &fmt);
+          }
+          return 0;
+  }
+]]>
+          </programlisting>
+        </example>
+      </para>
 
       <para>
       ...and in the open callback:
@@ -3321,8 +3321,8 @@ struct _snd_pcm_runtime {
 	 <programlisting>
 <![CDATA[
   snd_pcm_hw_rule_add(substream->runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
-                      hw_rule_format_by_channels, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-                      -1);
+                      hw_rule_format_by_channels, NULL,
+                      SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 ]]>
           </programlisting>
         </informalexample>

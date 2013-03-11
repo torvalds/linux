@@ -34,7 +34,6 @@ int noioapicreroute = 1;
 #endif
 int pcibios_last_bus = -1;
 unsigned long pirq_table_addr;
-struct pci_bus *pci_root_bus;
 const struct pci_raw_ops *__read_mostly raw_pci_ops;
 const struct pci_raw_ops *__read_mostly raw_pci_ext_ops;
 
@@ -81,14 +80,14 @@ struct pci_ops pci_root_ops = {
  */
 DEFINE_RAW_SPINLOCK(pci_config_lock);
 
-static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
+static int can_skip_ioresource_align(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
 	printk(KERN_INFO "PCI: %s detected, can skip ISA alignment\n", d->ident);
 	return 0;
 }
 
-static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __devinitconst = {
+static const struct dmi_system_id can_skip_pciprobe_dmi_table[] = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
  * when the ISA enable bit in the bridge control is not set
@@ -125,7 +124,7 @@ void __init dmi_check_skip_isa_align(void)
 	dmi_check_system(can_skip_pciprobe_dmi_table);
 }
 
-static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+static void pcibios_fixup_device_resources(struct pci_dev *dev)
 {
 	struct resource *rom_r = &dev->resource[PCI_ROM_RESOURCE];
 	struct resource *bar_r;
@@ -162,7 +161,7 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
  *  are examined.
  */
 
-void __devinit pcibios_fixup_bus(struct pci_bus *b)
+void pcibios_fixup_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
@@ -176,7 +175,7 @@ void __devinit pcibios_fixup_bus(struct pci_bus *b)
  * on the kernel command line (which was parsed earlier).
  */
 
-static int __devinit set_bf_sort(const struct dmi_system_id *d)
+static int set_bf_sort(const struct dmi_system_id *d)
 {
 	if (pci_bf_sort == pci_bf_sort_default) {
 		pci_bf_sort = pci_dmi_bf;
@@ -185,7 +184,7 @@ static int __devinit set_bf_sort(const struct dmi_system_id *d)
 	return 0;
 }
 
-static void __devinit read_dmi_type_b1(const struct dmi_header *dm,
+static void read_dmi_type_b1(const struct dmi_header *dm,
 				       void *private_data)
 {
 	u8 *d = (u8 *)dm + 4;
@@ -207,7 +206,7 @@ static void __devinit read_dmi_type_b1(const struct dmi_header *dm,
 	}
 }
 
-static int __devinit find_sort_method(const struct dmi_system_id *d)
+static int find_sort_method(const struct dmi_system_id *d)
 {
 	dmi_walk(read_dmi_type_b1, NULL);
 
@@ -222,7 +221,7 @@ static int __devinit find_sort_method(const struct dmi_system_id *d)
  * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
  */
 #ifdef __i386__
-static int __devinit assign_all_busses(const struct dmi_system_id *d)
+static int assign_all_busses(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_ASSIGN_ALL_BUSSES;
 	printk(KERN_INFO "%s detected: enabling PCI bus# renumbering"
@@ -231,7 +230,7 @@ static int __devinit assign_all_busses(const struct dmi_system_id *d)
 }
 #endif
 
-static int __devinit set_scan_all(const struct dmi_system_id *d)
+static int set_scan_all(const struct dmi_system_id *d)
 {
 	printk(KERN_INFO "PCI: %s detected, enabling pci=pcie_scan_all\n",
 	       d->ident);
@@ -239,7 +238,7 @@ static int __devinit set_scan_all(const struct dmi_system_id *d)
 	return 0;
 }
 
-static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
+static const struct dmi_system_id pciprobe_dmi_table[] = {
 #ifdef __i386__
 /*
  * Laptops which need pci=assign-busses to see Cardbus cards
@@ -446,7 +445,7 @@ void __init dmi_check_pciprobe(void)
 	dmi_check_system(pciprobe_dmi_table);
 }
 
-struct pci_bus * __devinit pcibios_scan_root(int busnum)
+struct pci_bus *pcibios_scan_root(int busnum)
 {
 	struct pci_bus *bus = NULL;
 
@@ -665,7 +664,7 @@ int pci_ext_cfg_avail(void)
 		return 0;
 }
 
-struct pci_bus * __devinit pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
+struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
 {
 	LIST_HEAD(resources);
 	struct pci_bus *bus = NULL;
@@ -693,7 +692,7 @@ struct pci_bus * __devinit pci_scan_bus_on_node(int busno, struct pci_ops *ops, 
 	return bus;
 }
 
-struct pci_bus * __devinit pci_scan_bus_with_sysdata(int busno)
+struct pci_bus *pci_scan_bus_with_sysdata(int busno)
 {
 	return pci_scan_bus_on_node(busno, &pci_root_ops, -1);
 }

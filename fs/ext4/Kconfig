@@ -41,6 +41,7 @@ config EXT4_USE_FOR_EXT23
 
 config EXT4_FS_POSIX_ACL
 	bool "Ext4 POSIX Access Control Lists"
+	depends on EXT4_FS
 	select FS_POSIX_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
@@ -53,6 +54,7 @@ config EXT4_FS_POSIX_ACL
 
 config EXT4_FS_SECURITY
 	bool "Ext4 Security Labels"
+	depends on EXT4_FS
 	help
 	  Security labels support alternative access control models
 	  implemented by security modules like SELinux.  This option

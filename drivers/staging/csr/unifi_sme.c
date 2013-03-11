@@ -15,7 +15,7 @@
 #include "unifi_priv.h"
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_conversions.h"
-
+#include <linux/sched/rt.h>
 
 
 
@@ -1196,7 +1196,6 @@ void uf_send_pkt_to_encrypt(struct work_struct *work)
 
         if (pktBulkDataLength > 0) {
 		    pktBulkData = kmalloc(pktBulkDataLength, GFP_KERNEL);
-		    memset(pktBulkData, 0, pktBulkDataLength);
 	    } else {
 		    unifi_error(priv, "uf_send_pkt_to_encrypt() : invalid buffer\n");
 		    return;

@@ -777,7 +777,7 @@ static struct spi_driver acx565akm_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= acx565akm_spi_probe,
-	.remove	= __devexit_p(acx565akm_spi_remove),
+	.remove	= acx565akm_spi_remove,
 };
 
 module_spi_driver(acx565akm_spi_driver);

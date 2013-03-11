@@ -325,8 +325,8 @@ static const struct iio_info ad7791_no_filter_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad7791_setup(struct ad7791_state *st,
-	struct ad7791_platform_data *pdata)
+static int ad7791_setup(struct ad7791_state *st,
+			struct ad7791_platform_data *pdata)
 {
 	/* Set to poweron-reset default values */
 	st->mode = AD7791_MODE_BUFFER;
@@ -349,7 +349,7 @@ static int __devinit ad7791_setup(struct ad7791_state *st,
 		st->mode);
 }
 
-static int __devinit ad7791_probe(struct spi_device *spi)
+static int ad7791_probe(struct spi_device *spi)
 {
 	struct ad7791_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
@@ -418,7 +418,7 @@ err_iio_free:
 	return ret;
 }
 
-static int __devexit ad7791_remove(struct spi_device *spi)
+static int ad7791_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7791_state *st = iio_priv(indio_dev);
@@ -450,7 +450,7 @@ static struct spi_driver ad7791_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7791_probe,
-	.remove		= __devexit_p(ad7791_remove),
+	.remove		= ad7791_remove,
 	.id_table	= ad7791_spi_ids,
 };
 module_spi_driver(ad7791_driver);

@@ -19,23 +19,28 @@
 
 static efi_system_table_t *sys_table;
 
+static void efi_char16_printk(efi_char16_t *str)
+{
+	struct efi_simple_text_output_protocol *out;
+
+	out = (struct efi_simple_text_output_protocol *)sys_table->con_out;
+	efi_call_phys2(out->output_string, out, str);
+}
+
 static void efi_printk(char *str)
 {
 	char *s8;
 
 	for (s8 = str; *s8; s8++) {
-		struct efi_simple_text_output_protocol *out;
 		efi_char16_t ch[2] = { 0 };
 
 		ch[0] = *s8;
-		out = (struct efi_simple_text_output_protocol *)sys_table->con_out;
-
 		if (*s8 == '\n') {
 			efi_char16_t nl[2] = { '\r', 0 };
-			efi_call_phys2(out->output_string, out, nl);
+			efi_char16_printk(nl);
 		}
 
-		efi_call_phys2(out->output_string, out, ch);
+		efi_char16_printk(ch);
 	}
 }
 
@@ -256,10 +261,10 @@ static efi_status_t setup_efi_pci(struct boot_params *params)
 	int i;
 	struct setup_data *data;
 
-	data = (struct setup_data *)params->hdr.setup_data;
+	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
 
 	while (data && data->next)
-		data = (struct setup_data *)data->next;
+		data = (struct setup_data *)(unsigned long)data->next;
 
 	status = efi_call_phys5(sys_table->boottime->locate_handle,
 				EFI_LOCATE_BY_PROTOCOL, &pci_proto,
@@ -295,14 +300,16 @@ static efi_status_t setup_efi_pci(struct boot_params *params)
 		if (!pci)
 			continue;
 
+#ifdef CONFIG_X86_64
 		status = efi_call_phys4(pci->attributes, pci,
 					EfiPciIoAttributeOperationGet, 0,
 					&attributes);
-
+#else
+		status = efi_call_phys5(pci->attributes, pci,
+					EfiPciIoAttributeOperationGet, 0, 0,
+					&attributes);
+#endif
 		if (status != EFI_SUCCESS)
-			continue;
-
-		if (!attributes & EFI_PCI_IO_ATTRIBUTE_EMBEDDED_ROM)
 			continue;
 
 		if (!pci->romimage || !pci->romsize)
@@ -345,9 +352,9 @@ static efi_status_t setup_efi_pci(struct boot_params *params)
 		memcpy(rom->romdata, pci->romimage, pci->romsize);
 
 		if (data)
-			data->next = (uint64_t)rom;
+			data->next = (unsigned long)rom;
 		else
-			params->hdr.setup_data = (uint64_t)rom;
+			params->hdr.setup_data = (unsigned long)rom;
 
 		data = (struct setup_data *)rom;
 
@@ -432,10 +439,9 @@ static efi_status_t setup_gop(struct screen_info *si, efi_guid_t *proto,
 			 * Once we've found a GOP supporting ConOut,
 			 * don't bother looking any further.
 			 */
+			first_gop = gop;
 			if (conout_found)
 				break;
-
-			first_gop = gop;
 		}
 	}
 
@@ -708,7 +714,12 @@ static efi_status_t handle_ramdisks(efi_loaded_image_t *image,
 			if ((u8 *)p >= (u8 *)filename_16 + sizeof(filename_16))
 				break;
 
-			*p++ = *str++;
+			if (*str == '/') {
+				*p++ = '\\';
+				*str++;
+			} else {
+				*p++ = *str++;
+			}
 		}
 
 		*p = '\0';
@@ -736,7 +747,9 @@ static efi_status_t handle_ramdisks(efi_loaded_image_t *image,
 		status = efi_call_phys5(fh->open, fh, &h, filename_16,
 					EFI_FILE_MODE_READ, (u64)0);
 		if (status != EFI_SUCCESS) {
-			efi_printk("Failed to open initrd file\n");
+			efi_printk("Failed to open initrd file: ");
+			efi_char16_printk(filename_16);
+			efi_printk("\n");
 			goto close_handles;
 		}
 

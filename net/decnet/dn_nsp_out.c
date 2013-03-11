@@ -598,7 +598,7 @@ void dn_nsp_send_disc(struct sock *sk, unsigned char msgflg,
 	if (reason == 0)
 		reason = le16_to_cpu(scp->discdata_out.opt_status);
 
-	dn_nsp_do_disc(sk, msgflg, reason, gfp, sk->sk_dst_cache, ddl,
+	dn_nsp_do_disc(sk, msgflg, reason, gfp, __sk_dst_get(sk), ddl,
 		scp->discdata_out.opt_data, scp->addrrem, scp->addrloc);
 }
 

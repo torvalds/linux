@@ -500,7 +500,7 @@ static void remove_common(struct virtio_balloon *vb)
 	vb->vdev->config->del_vqs(vb->vdev);
 }
 
-static void __devexit virtballoon_remove(struct virtio_device *vdev)
+static void virtballoon_remove(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 
@@ -552,7 +552,7 @@ static struct virtio_driver virtio_balloon_driver = {
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.probe =	virtballoon_probe,
-	.remove =	__devexit_p(virtballoon_remove),
+	.remove =	virtballoon_remove,
 	.config_changed = virtballoon_changed,
 #ifdef CONFIG_PM
 	.freeze	=	virtballoon_freeze,
@@ -560,18 +560,7 @@ static struct virtio_driver virtio_balloon_driver = {
 #endif
 };
 
-static int __init init(void)
-{
-	return register_virtio_driver(&virtio_balloon_driver);
-}
-
-static void __exit fini(void)
-{
-	unregister_virtio_driver(&virtio_balloon_driver);
-}
-module_init(init);
-module_exit(fini);
-
+module_virtio_driver(virtio_balloon_driver);
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio balloon driver");
 MODULE_LICENSE("GPL");

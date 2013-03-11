@@ -1390,8 +1390,7 @@ fail:
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit e752x_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int e752x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	edac_dbg(0, "\n");
 
@@ -1402,7 +1401,7 @@ static int __devinit e752x_init_one(struct pci_dev *pdev,
 	return e752x_probe1(pdev, ent->driver_data);
 }
 
-static void __devexit e752x_remove_one(struct pci_dev *pdev)
+static void e752x_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct e752x_pvt *pvt;
@@ -1445,7 +1444,7 @@ MODULE_DEVICE_TABLE(pci, e752x_pci_tbl);
 static struct pci_driver e752x_driver = {
 	.name = EDAC_MOD_STR,
 	.probe = e752x_init_one,
-	.remove = __devexit_p(e752x_remove_one),
+	.remove = e752x_remove_one,
 	.id_table = e752x_pci_tbl,
 };
 

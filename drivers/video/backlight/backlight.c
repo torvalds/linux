@@ -371,7 +371,7 @@ void backlight_device_unregister(struct backlight_device *bd)
 EXPORT_SYMBOL(backlight_device_unregister);
 
 #ifdef CONFIG_OF
-static int of_parent_match(struct device *dev, void *data)
+static int of_parent_match(struct device *dev, const void *data)
 {
 	return dev->parent && dev->parent->of_node == data;
 }

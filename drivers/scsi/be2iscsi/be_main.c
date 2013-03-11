@@ -4790,8 +4790,8 @@ beiscsi_hw_health_check(struct work_struct *work)
 			      msecs_to_jiffies(1000));
 }
 
-static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
-				const struct pci_device_id *id)
+static int beiscsi_dev_probe(struct pci_dev *pcidev,
+			     const struct pci_device_id *id)
 {
 	struct beiscsi_hba *phba = NULL;
 	struct hwi_controller *phwi_ctrlr;

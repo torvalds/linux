@@ -3,24 +3,10 @@
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Author: Inki Dae <inki.dae@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -343,17 +329,11 @@ static struct drm_file *exynos_drm_find_drm_file(struct drm_device *drm_dev,
 {
 	struct drm_file *file_priv;
 
-	mutex_lock(&drm_dev->struct_mutex);
-
 	/* find current process's drm_file from filelist. */
-	list_for_each_entry(file_priv, &drm_dev->filelist, lhead) {
-		if (file_priv->filp == filp) {
-			mutex_unlock(&drm_dev->struct_mutex);
+	list_for_each_entry(file_priv, &drm_dev->filelist, lhead)
+		if (file_priv->filp == filp)
 			return file_priv;
-		}
-	}
 
-	mutex_unlock(&drm_dev->struct_mutex);
 	WARN_ON(1);
 
 	return ERR_PTR(-EFAULT);
@@ -414,9 +394,7 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 	 */
 	drm_gem_object_reference(obj);
 
-	mutex_lock(&drm_dev->struct_mutex);
 	drm_vm_open_locked(drm_dev, vma);
-	mutex_unlock(&drm_dev->struct_mutex);
 
 	return 0;
 }
@@ -446,6 +424,16 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	}
 
 	/*
+	 * We have to use gem object and its fops for specific mmaper,
+	 * but vm_mmap() can deliver only filp. So we have to change
+	 * filp->f_op and filp->private_data temporarily, then restore
+	 * again. So it is important to keep lock until restoration the
+	 * settings to prevent others from misuse of filp->f_op or
+	 * filp->private_data.
+	 */
+	mutex_lock(&dev->struct_mutex);
+
+	/*
 	 * Set specific mmper's fops. And it will be restored by
 	 * exynos_drm_gem_mmap_buffer to dev->driver->fops.
 	 * This is used to call specific mapper temporarily.
@@ -462,12 +450,19 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	addr = vm_mmap(file_priv->filp, 0, args->size,
 			PROT_READ | PROT_WRITE, MAP_SHARED, 0);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_unreference(obj);
 
 	if (IS_ERR((void *)addr)) {
-		file_priv->filp->private_data = file_priv;
+		/* check filp->f_op, filp->private_data are restored */
+		if (file_priv->filp->f_op == &exynos_drm_gem_fops) {
+			file_priv->filp->f_op = fops_get(dev->driver->fops);
+			file_priv->filp->private_data = file_priv;
+		}
+		mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR((void *)addr);
 	}
+
+	mutex_unlock(&dev->struct_mutex);
 
 	args->mapped = addr;
 

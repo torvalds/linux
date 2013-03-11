@@ -45,7 +45,6 @@
 			reg = <1>;
 		};
 
-/* A7s disabled till big.LITTLE patches are available...
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
@@ -63,7 +62,6 @@
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
 		};
-*/
 	};
 
 	memory@80000000 {
@@ -74,7 +72,7 @@
 	wdt@2a490000 {
 		compatible = "arm,sp805", "arm,primecell";
 		reg = <0 0x2a490000 0 0x1000>;
-		interrupts = <98>;
+		interrupts = <0 98 4>;
 		clocks = <&oscclk6a>, <&oscclk6a>;
 		clock-names = "wdogclk", "apb_pclk";
 	};

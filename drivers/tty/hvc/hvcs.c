@@ -609,11 +609,11 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	/* remove the read masks */
 	hvcsd->todo_mask &= ~(HVCS_READ_MASK);
 
-	if (tty_buffer_request_room(tty, HVCS_BUFF_LEN) >= HVCS_BUFF_LEN) {
+	if (tty_buffer_request_room(&hvcsd->port, HVCS_BUFF_LEN) >= HVCS_BUFF_LEN) {
 		got = hvc_get_chars(unit_address,
 				&buf[0],
 				HVCS_BUFF_LEN);
-		tty_insert_flip_string(tty, buf, got);
+		tty_insert_flip_string(&hvcsd->port, buf, got);
 	}
 
 	/* Give the TTY time to process the data we just sent. */
@@ -623,7 +623,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
 	/* This is synch because tty->low_latency == 1 */
 	if(got)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&hvcsd->port);
 
 	if (!got) {
 		/* Do this _after_ the flip_buffer_push */
@@ -881,17 +881,12 @@ static struct vio_driver hvcs_vio_driver = {
 /* Only called from hvcs_get_pi please */
 static void hvcs_set_pi(struct hvcs_partner_info *pi, struct hvcs_struct *hvcsd)
 {
-	int clclength;
-
 	hvcsd->p_unit_address = pi->unit_address;
 	hvcsd->p_partition_ID  = pi->partition_ID;
-	clclength = strlen(&pi->location_code[0]);
-	if (clclength > HVCS_CLC_LENGTH)
-		clclength = HVCS_CLC_LENGTH;
 
 	/* copy the null-term char too */
-	strncpy(&hvcsd->p_location_code[0],
-			&pi->location_code[0], clclength + 1);
+	strlcpy(&hvcsd->p_location_code[0],
+			&pi->location_code[0], sizeof(hvcsd->p_location_code));
 }
 
 /*

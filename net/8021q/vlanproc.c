@@ -131,7 +131,7 @@ void vlan_proc_cleanup(struct net *net)
 		remove_proc_entry(name_conf, vn->proc_vlan_dir);
 
 	if (vn->proc_vlan_dir)
-		proc_net_remove(net, name_root);
+		remove_proc_entry(name_root, net->proc_net);
 
 	/* Dynamically added entries should be cleaned up as their vlan_device
 	 * is removed, so we should not have to take care of it here...

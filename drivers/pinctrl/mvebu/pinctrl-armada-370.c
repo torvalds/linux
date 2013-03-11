@@ -367,7 +367,7 @@ static struct mvebu_mpp_mode mv88f6710_mpp_modes[] = {
 
 static struct mvebu_pinctrl_soc_info armada_370_pinctrl_info;
 
-static struct of_device_id armada_370_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id armada_370_pinctrl_of_match[] = {
 	{ .compatible = "marvell,mv88f6710-pinctrl" },
 	{ },
 };
@@ -382,7 +382,7 @@ static struct pinctrl_gpio_range mv88f6710_mpp_gpio_ranges[] = {
 	MPP_GPIO_RANGE(2,  64, 64,  2),
 };
 
-static int __devinit armada_370_pinctrl_probe(struct platform_device *pdev)
+static int armada_370_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = &armada_370_pinctrl_info;
 
@@ -399,7 +399,7 @@ static int __devinit armada_370_pinctrl_probe(struct platform_device *pdev)
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int __devexit armada_370_pinctrl_remove(struct platform_device *pdev)
+static int armada_370_pinctrl_remove(struct platform_device *pdev)
 {
 	return mvebu_pinctrl_remove(pdev);
 }
@@ -411,7 +411,7 @@ static struct platform_driver armada_370_pinctrl_driver = {
 		.of_match_table = of_match_ptr(armada_370_pinctrl_of_match),
 	},
 	.probe = armada_370_pinctrl_probe,
-	.remove = __devexit_p(armada_370_pinctrl_remove),
+	.remove = armada_370_pinctrl_remove,
 };
 
 module_platform_driver(armada_370_pinctrl_driver);

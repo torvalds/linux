@@ -31,6 +31,7 @@
  *   Copyright (C) 2006 Tower Technologies
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -910,7 +911,7 @@ static struct ata_port_operations ep93xx_pata_port_ops = {
 	.port_start		= ep93xx_pata_port_start,
 };
 
-static int __devinit ep93xx_pata_probe(struct platform_device *pdev)
+static int ep93xx_pata_probe(struct platform_device *pdev)
 {
 	struct ep93xx_pata_data *drv_data;
 	struct ata_host *host;
@@ -937,9 +938,9 @@ static int __devinit ep93xx_pata_probe(struct platform_device *pdev)
 		goto err_rel_gpio;
 	}
 
-	ide_base = devm_request_and_ioremap(&pdev->dev, mem_res);
-	if (!ide_base) {
-		err = -ENXIO;
+	ide_base = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(ide_base)) {
+		err = PTR_ERR(ide_base);
 		goto err_rel_gpio;
 	}
 
@@ -1011,7 +1012,7 @@ err_rel_gpio:
 	return err;
 }
 
-static int __devexit ep93xx_pata_remove(struct platform_device *pdev)
+static int ep93xx_pata_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 	struct ep93xx_pata_data *drv_data = host->private_data;
@@ -1029,7 +1030,7 @@ static struct platform_driver ep93xx_pata_platform_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ep93xx_pata_probe,
-	.remove = __devexit_p(ep93xx_pata_remove),
+	.remove = ep93xx_pata_remove,
 };
 
 module_platform_driver(ep93xx_pata_platform_driver);

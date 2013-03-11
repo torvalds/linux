@@ -27,12 +27,10 @@
 #include <core/handle.h>
 #include <core/class.h>
 
-#include <engine/software.h>
 #include <engine/disp.h>
 
 #include <subdev/timer.h>
 #include <subdev/fb.h>
-#include <subdev/bar.h>
 #include <subdev/clock.h>
 
 #include <subdev/bios.h>
@@ -230,7 +228,7 @@ nvd0_disp_sync_ctor(struct nouveau_object *parent,
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	if (size < sizeof(*data) || args->head >= priv->head.nr)
+	if (size < sizeof(*args) || args->head >= priv->head.nr)
 		return -EINVAL;
 
 	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
@@ -270,7 +268,7 @@ nvd0_disp_ovly_ctor(struct nouveau_object *parent,
 	struct nv50_disp_dmac *dmac;
 	int ret;
 
-	if (size < sizeof(*data) || args->head >= priv->head.nr)
+	if (size < sizeof(*args) || args->head >= priv->head.nr)
 		return -EINVAL;
 
 	ret = nv50_disp_dmac_create_(parent, engine, oclass, args->pushbuf,
@@ -443,6 +441,18 @@ nvd0_disp_curs_ofuncs = {
  * Base display object
  ******************************************************************************/
 
+static void
+nvd0_disp_base_vblank_enable(struct nouveau_event *event, int head)
+{
+	nv_mask(event->priv, 0x6100c0 + (head * 0x800), 0x00000001, 0x00000001);
+}
+
+static void
+nvd0_disp_base_vblank_disable(struct nouveau_event *event, int head)
+{
+	nv_mask(event->priv, 0x6100c0 + (head * 0x800), 0x00000001, 0x00000000);
+}
+
 static int
 nvd0_disp_base_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
@@ -458,6 +468,10 @@ nvd0_disp_base_ctor(struct nouveau_object *parent,
 	*pobject = nv_object(base);
 	if (ret)
 		return ret;
+
+	priv->base.vblank->priv = priv;
+	priv->base.vblank->enable = nvd0_disp_base_vblank_enable;
+	priv->base.vblank->disable = nvd0_disp_base_vblank_disable;
 
 	return nouveau_ramht_new(parent, parent, 0x1000, 0, &base->ramht);
 }
@@ -609,13 +623,24 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl,
 }
 
 static bool
-exec_script(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl, int id)
+exec_script(struct nv50_disp_priv *priv, int head, int id)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_outp info;
 	struct dcb_output dcb;
 	u8  ver, hdr, cnt, len;
+	u32 ctrl = 0x00000000;
 	u16 data;
+	int outp;
+
+	for (outp = 0; !(ctrl & (1 << head)) && outp < 8; outp++) {
+		ctrl = nv_rd32(priv, 0x640180 + (outp * 0x20));
+		if (ctrl & (1 << head))
+			break;
+	}
+
+	if (outp == 8)
+		return false;
 
 	data = exec_lookup(priv, head, outp, ctrl, &dcb, &ver, &hdr, &cnt, &len, &info);
 	if (data) {
@@ -635,21 +660,31 @@ exec_script(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl, int id)
 }
 
 static u32
-exec_clkcmp(struct nv50_disp_priv *priv, int head, int outp,
-	    u32 ctrl, int id, u32 pclk)
+exec_clkcmp(struct nv50_disp_priv *priv, int head, int id,
+	    u32 pclk, struct dcb_output *dcb)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_outp info1;
 	struct nvbios_ocfg info2;
-	struct dcb_output dcb;
 	u8  ver, hdr, cnt, len;
-	u16 data, conf;
+	u32 ctrl = 0x00000000;
+	u32 data, conf = ~0;
+	int outp;
 
-	data = exec_lookup(priv, head, outp, ctrl, &dcb, &ver, &hdr, &cnt, &len, &info1);
-	if (data == 0x0000)
+	for (outp = 0; !(ctrl & (1 << head)) && outp < 8; outp++) {
+		ctrl = nv_rd32(priv, 0x660180 + (outp * 0x20));
+		if (ctrl & (1 << head))
+			break;
+	}
+
+	if (outp == 8)
 		return false;
 
-	switch (dcb.type) {
+	data = exec_lookup(priv, head, outp, ctrl, dcb, &ver, &hdr, &cnt, &len, &info1);
+	if (data == 0x0000)
+		return conf;
+
+	switch (dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		conf = (ctrl & 0x00000f00) >> 8;
 		if (pclk >= 165000)
@@ -668,46 +703,52 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int outp,
 	}
 
 	data = nvbios_ocfg_match(bios, data, conf, &ver, &hdr, &cnt, &len, &info2);
-	if (data) {
+	if (data && id < 0xff) {
 		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
 		if (data) {
 			struct nvbios_init init = {
 				.subdev = nv_subdev(priv),
 				.bios = bios,
 				.offset = data,
-				.outp = &dcb,
+				.outp = dcb,
 				.crtc = head,
 				.execute = 1,
 			};
 
-			if (nvbios_exec(&init))
-				return 0x0000;
-			return conf;
+			nvbios_exec(&init);
 		}
 	}
 
-	return 0x0000;
+	return conf;
 }
 
 static void
-nvd0_display_unk1_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
+nvd0_disp_intr_unk1_0(struct nv50_disp_priv *priv, int head)
 {
-	int i;
-
-	for (i = 0; mask && i < 8; i++) {
-		u32 mcc = nv_rd32(priv, 0x640180 + (i * 0x20));
-		if (mcc & (1 << head))
-			exec_script(priv, head, i, mcc, 1);
-	}
-
-	nv_wr32(priv, 0x6101d4, 0x00000000);
-	nv_wr32(priv, 0x6109d4, 0x00000000);
-	nv_wr32(priv, 0x6101d0, 0x80000000);
+	exec_script(priv, head, 1);
 }
 
 static void
-nvd0_display_unk2_calc_tu(struct nv50_disp_priv *priv, int head, int or)
+nvd0_disp_intr_unk2_0(struct nv50_disp_priv *priv, int head)
 {
+	exec_script(priv, head, 2);
+}
+
+static void
+nvd0_disp_intr_unk2_1(struct nv50_disp_priv *priv, int head)
+{
+	struct nouveau_clock *clk = nouveau_clock(priv);
+	u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
+	if (pclk)
+		clk->pll_set(clk, PLL_VPLL0 + head, pclk);
+	nv_wr32(priv, 0x612200 + (head * 0x800), 0x00000000);
+}
+
+static void
+nvd0_disp_intr_unk2_2_tu(struct nv50_disp_priv *priv, int head,
+			 struct dcb_output *outp)
+{
+	const int or = ffs(outp->or) - 1;
 	const u32 ctrl = nv_rd32(priv, 0x660200 + (or   * 0x020));
 	const u32 conf = nv_rd32(priv, 0x660404 + (head * 0x300));
 	const u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
@@ -750,105 +791,102 @@ nvd0_display_unk2_calc_tu(struct nv50_disp_priv *priv, int head, int or)
 }
 
 static void
-nvd0_display_unk2_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
+nvd0_disp_intr_unk2_2(struct nv50_disp_priv *priv, int head)
 {
-	u32 pclk;
-	int i;
+	struct dcb_output outp;
+	u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
+	u32 conf = exec_clkcmp(priv, head, 0xff, pclk, &outp);
+	if (conf != ~0) {
+		u32 addr, data;
 
-	for (i = 0; mask && i < 8; i++) {
-		u32 mcc = nv_rd32(priv, 0x640180 + (i * 0x20));
-		if (mcc & (1 << head))
-			exec_script(priv, head, i, mcc, 2);
-	}
-
-	pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
-	nv_debug(priv, "head %d pclk %d mask 0x%08x\n", head, pclk, mask);
-	if (pclk && (mask & 0x00010000)) {
-		struct nouveau_clock *clk = nouveau_clock(priv);
-		clk->pll_set(clk, PLL_VPLL0 + head, pclk);
-	}
-
-	nv_wr32(priv, 0x612200 + (head * 0x800), 0x00000000);
-
-	for (i = 0; mask && i < 8; i++) {
-		u32 mcp = nv_rd32(priv, 0x660180 + (i * 0x20)), cfg;
-		if (mcp & (1 << head)) {
-			if ((cfg = exec_clkcmp(priv, head, i, mcp, 0, pclk))) {
-				u32 addr, mask, data = 0x00000000;
-				if (i < 4) {
-					addr = 0x612280 + ((i - 0) * 0x800);
-					mask = 0xffffffff;
-				} else {
-					switch (mcp & 0x00000f00) {
-					case 0x00000800:
-					case 0x00000900:
-						nvd0_display_unk2_calc_tu(priv, head, i - 4);
-						break;
-					default:
-						break;
-					}
-
-					addr = 0x612300 + ((i - 4) * 0x800);
-					mask = 0x00000707;
-					if (cfg & 0x00000100)
-						data = 0x00000101;
-				}
-				nv_mask(priv, addr, mask, data);
+		if (outp.type == DCB_OUTPUT_DP) {
+			u32 sync = nv_rd32(priv, 0x660404 + (head * 0x300));
+			switch ((sync & 0x000003c0) >> 6) {
+			case 6: pclk = pclk * 30 / 8; break;
+			case 5: pclk = pclk * 24 / 8; break;
+			case 2:
+			default:
+				pclk = pclk * 18 / 8;
+				break;
 			}
-			break;
+
+			nouveau_dp_train(&priv->base, priv->sor.dp,
+					 &outp, head, pclk);
+		}
+
+		exec_clkcmp(priv, head, 0, pclk, &outp);
+
+		if (outp.type == DCB_OUTPUT_ANALOG) {
+			addr = 0x612280 + (ffs(outp.or) - 1) * 0x800;
+			data = 0x00000000;
+		} else {
+			if (outp.type == DCB_OUTPUT_DP)
+				nvd0_disp_intr_unk2_2_tu(priv, head, &outp);
+			addr = 0x612300 + (ffs(outp.or) - 1) * 0x800;
+			data = (conf & 0x0100) ? 0x00000101 : 0x00000000;
+		}
+
+		nv_mask(priv, addr, 0x00000707, data);
+	}
+}
+
+static void
+nvd0_disp_intr_unk4_0(struct nv50_disp_priv *priv, int head)
+{
+	struct dcb_output outp;
+	u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
+	exec_clkcmp(priv, head, 1, pclk, &outp);
+}
+
+void
+nvd0_disp_intr_supervisor(struct work_struct *work)
+{
+	struct nv50_disp_priv *priv =
+		container_of(work, struct nv50_disp_priv, supervisor);
+	u32 mask[4];
+	int head;
+
+	nv_debug(priv, "supervisor %08x\n", priv->super);
+	for (head = 0; head < priv->head.nr; head++) {
+		mask[head] = nv_rd32(priv, 0x6101d4 + (head * 0x800));
+		nv_debug(priv, "head %d: 0x%08x\n", head, mask[head]);
+	}
+
+	if (priv->super & 0x00000001) {
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(mask[head] & 0x00001000))
+				continue;
+			nvd0_disp_intr_unk1_0(priv, head);
+		}
+	} else
+	if (priv->super & 0x00000002) {
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(mask[head] & 0x00001000))
+				continue;
+			nvd0_disp_intr_unk2_0(priv, head);
+		}
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(mask[head] & 0x00010000))
+				continue;
+			nvd0_disp_intr_unk2_1(priv, head);
+		}
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(mask[head] & 0x00001000))
+				continue;
+			nvd0_disp_intr_unk2_2(priv, head);
+		}
+	} else
+	if (priv->super & 0x00000004) {
+		for (head = 0; head < priv->head.nr; head++) {
+			if (!(mask[head] & 0x00001000))
+				continue;
+			nvd0_disp_intr_unk4_0(priv, head);
 		}
 	}
 
-	nv_wr32(priv, 0x6101d4, 0x00000000);
-	nv_wr32(priv, 0x6109d4, 0x00000000);
+	for (head = 0; head < priv->head.nr; head++)
+		nv_wr32(priv, 0x6101d4 + (head * 0x800), 0x00000000);
 	nv_wr32(priv, 0x6101d0, 0x80000000);
-}
-
-static void
-nvd0_display_unk4_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
-{
-	int pclk, i;
-
-	pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
-
-	for (i = 0; mask && i < 8; i++) {
-		u32 mcp = nv_rd32(priv, 0x660180 + (i * 0x20));
-		if (mcp & (1 << head))
-			exec_clkcmp(priv, head, i, mcp, 1, pclk);
-	}
-
-	nv_wr32(priv, 0x6101d4, 0x00000000);
-	nv_wr32(priv, 0x6109d4, 0x00000000);
-	nv_wr32(priv, 0x6101d0, 0x80000000);
-}
-
-static void
-nvd0_disp_intr_vblank(struct nv50_disp_priv *priv, int crtc)
-{
-	struct nouveau_bar *bar = nouveau_bar(priv);
-	struct nouveau_disp *disp = &priv->base;
-	struct nouveau_software_chan *chan, *temp;
-	unsigned long flags;
-
-	spin_lock_irqsave(&disp->vblank.lock, flags);
-	list_for_each_entry_safe(chan, temp, &disp->vblank.list, vblank.head) {
-		if (chan->vblank.crtc != crtc)
-			continue;
-
-		nv_wr32(priv, 0x001718, 0x80000000 | chan->vblank.channel);
-		bar->flush(bar);
-		nv_wr32(priv, 0x06000c, upper_32_bits(chan->vblank.offset));
-		nv_wr32(priv, 0x060010, lower_32_bits(chan->vblank.offset));
-		nv_wr32(priv, 0x060014, chan->vblank.value);
-
-		list_del(&chan->vblank.head);
-		if (disp->vblank.put)
-			disp->vblank.put(disp->vblank.data, crtc);
-	}
-	spin_unlock_irqrestore(&disp->vblank.lock, flags);
-
-	if (disp->vblank.notify)
-		disp->vblank.notify(disp->vblank.data, crtc);
 }
 
 void
@@ -884,27 +922,11 @@ nvd0_disp_intr(struct nouveau_subdev *subdev)
 
 	if (intr & 0x00100000) {
 		u32 stat = nv_rd32(priv, 0x6100ac);
-		u32 mask = 0, crtc = ~0;
-
-		while (!mask && ++crtc < priv->head.nr)
-			mask = nv_rd32(priv, 0x6101d4 + (crtc * 0x800));
-
-		if (stat & 0x00000001) {
-			nv_wr32(priv, 0x6100ac, 0x00000001);
-			nvd0_display_unk1_handler(priv, crtc, mask);
-			stat &= ~0x00000001;
-		}
-
-		if (stat & 0x00000002) {
-			nv_wr32(priv, 0x6100ac, 0x00000002);
-			nvd0_display_unk2_handler(priv, crtc, mask);
-			stat &= ~0x00000002;
-		}
-
-		if (stat & 0x00000004) {
-			nv_wr32(priv, 0x6100ac, 0x00000004);
-			nvd0_display_unk4_handler(priv, crtc, mask);
-			stat &= ~0x00000004;
+		if (stat & 0x00000007) {
+			priv->super = (stat & 0x00000007);
+			schedule_work(&priv->supervisor);
+			nv_wr32(priv, 0x6100ac, priv->super);
+			stat &= ~0x00000007;
 		}
 
 		if (stat) {
@@ -920,7 +942,7 @@ nvd0_disp_intr(struct nouveau_subdev *subdev)
 		if (mask & intr) {
 			u32 stat = nv_rd32(priv, 0x6100bc + (i * 0x800));
 			if (stat & 0x00000001)
-				nvd0_disp_intr_vblank(priv, i);
+				nouveau_event_trigger(priv->base.vblank, i);
 			nv_mask(priv, 0x6100bc + (i * 0x800), 0, 0);
 			nv_rd32(priv, 0x6100c0 + (i * 0x800));
 		}
@@ -933,10 +955,11 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_object **pobject)
 {
 	struct nv50_disp_priv *priv;
+	int heads = nv_rd32(parent, 0x022448);
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, "PDISP",
-				  "display", &priv);
+	ret = nouveau_disp_create(parent, engine, oclass, heads,
+				  "PDISP", "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -944,8 +967,9 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->sclass = nvd0_disp_base_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nvd0_disp_intr;
+	INIT_WORK(&priv->supervisor, nvd0_disp_intr_supervisor);
 	priv->sclass = nvd0_disp_sclass;
-	priv->head.nr = nv_rd32(priv, 0x022448);
+	priv->head.nr = heads;
 	priv->dac.nr = 3;
 	priv->sor.nr = 4;
 	priv->dac.power = nv50_dac_power;
@@ -953,14 +977,7 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hda_eld = nvd0_hda_eld;
 	priv->sor.hdmi = nvd0_hdmi_ctrl;
-	priv->sor.dp_train = nvd0_sor_dp_train;
-	priv->sor.dp_train_init = nv94_sor_dp_train_init;
-	priv->sor.dp_train_fini = nv94_sor_dp_train_fini;
-	priv->sor.dp_lnkctl = nvd0_sor_dp_lnkctl;
-	priv->sor.dp_drvctl = nvd0_sor_dp_drvctl;
-
-	INIT_LIST_HEAD(&priv->base.vblank.list);
-	spin_lock_init(&priv->base.vblank.lock);
+	priv->sor.dp = &nvd0_sor_dp_func;
 	return 0;
 }
 

@@ -37,10 +37,10 @@ void mips_display_message(const char *str)
 		display = ioremap(ASCII_DISPLAY_POS_BASE, 16*sizeof(int));
 
 	for (i = 0; i <= 14; i=i+2) {
-	         if (*str)
-		         __raw_writel(*str++, display + i);
+		 if (*str)
+			 __raw_writel(*str++, display + i);
 		 else
-		         __raw_writel(' ', display + i);
+			 __raw_writel(' ', display + i);
 	}
 }
 

@@ -30,7 +30,7 @@ void __ref highbank_cpu_die(unsigned int cpu)
 {
 	flush_cache_all();
 
-	highbank_set_cpu_jump(cpu, secondary_startup);
+	highbank_set_cpu_jump(cpu, phys_to_virt(0));
 	highbank_set_core_pwr();
 
 	cpu_do_idle();

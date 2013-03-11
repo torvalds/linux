@@ -475,13 +475,12 @@ int __init pci_v3_setup(int nr, struct pci_sys_data *sys)
 {
 	int ret = 0;
 
+	if (!ap_syscon_base)
+		return -EINVAL;
+
 	if (nr == 0) {
 		sys->mem_offset = PHYS_PCI_MEM_BASE;
 		ret = pci_v3_setup_resources(sys);
-		/* Remap the Integrator system controller */
-		ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
-		if (!ap_syscon_base)
-			return -EINVAL;
 	}
 
 	return ret;
@@ -496,6 +495,13 @@ void __init pci_v3_preinit(void)
 	unsigned long flags;
 	unsigned int temp;
 	int ret;
+
+	/* Remap the Integrator system controller */
+	ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
+	if (!ap_syscon_base) {
+		pr_err("unable to remap the AP syscon for PCIv3\n");
+		return;
+	}
 
 	pcibios_min_mem = 0x00100000;
 

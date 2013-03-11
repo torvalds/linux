@@ -45,6 +45,12 @@
 #define DM_MCAST_ADDR	0x16	/* 8 bytes */
 #define DM_GPR_CTRL	0x1e
 #define DM_GPR_DATA	0x1f
+#define DM_CHIP_ID	0x2c
+#define DM_MODE_CTRL	0x91	/* only on dm9620 */
+
+/* chip id values */
+#define ID_DM9601	0
+#define ID_DM9620	1
 
 #define DM_MAX_MCAST	64
 #define DM_MCAST_SIZE	8
@@ -52,7 +58,6 @@
 #define DM_TX_OVERHEAD	2	/* 2 byte header */
 #define DM_RX_OVERHEAD	7	/* 3 byte header + 4 byte crc tail */
 #define DM_TIMEOUT	1000
-
 
 static int dm_read(struct usbnet *dev, u8 reg, u16 length, void *data)
 {
@@ -84,32 +89,23 @@ static int dm_write(struct usbnet *dev, u8 reg, u16 length, void *data)
 
 static int dm_write_reg(struct usbnet *dev, u8 reg, u8 value)
 {
-	return usbnet_write_cmd(dev, DM_WRITE_REGS,
+	return usbnet_write_cmd(dev, DM_WRITE_REG,
 				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				value, reg, NULL, 0);
 }
 
-static void dm_write_async_helper(struct usbnet *dev, u8 reg, u8 value,
-				  u16 length, void *data)
+static void dm_write_async(struct usbnet *dev, u8 reg, u16 length, void *data)
 {
 	usbnet_write_cmd_async(dev, DM_WRITE_REGS,
 			       USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			       value, reg, data, length);
-}
-
-static void dm_write_async(struct usbnet *dev, u8 reg, u16 length, void *data)
-{
-	netdev_dbg(dev->net, "dm_write_async() reg=0x%02x length=%d\n", reg, length);
-
-	dm_write_async_helper(dev, reg, 0, length, data);
+			       0, reg, data, length);
 }
 
 static void dm_write_reg_async(struct usbnet *dev, u8 reg, u8 value)
 {
-	netdev_dbg(dev->net, "dm_write_reg_async() reg=0x%02x value=0x%02x\n",
-		   reg, value);
-
-	dm_write_async_helper(dev, reg, value, 0, NULL);
+	usbnet_write_cmd_async(dev, DM_WRITE_REG,
+			       USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			       value, reg, NULL, 0);
 }
 
 static int dm_read_shared_word(struct usbnet *dev, int phy, u8 reg, __le16 *value)
@@ -122,7 +118,7 @@ static int dm_read_shared_word(struct usbnet *dev, int phy, u8 reg, __le16 *valu
 	dm_write_reg(dev, DM_SHARED_CTRL, phy ? 0xc : 0x4);
 
 	for (i = 0; i < DM_TIMEOUT; i++) {
-		u8 tmp;
+		u8 tmp = 0;
 
 		udelay(1);
 		ret = dm_read_reg(dev, DM_SHARED_CTRL, &tmp);
@@ -165,7 +161,7 @@ static int dm_write_shared_word(struct usbnet *dev, int phy, u8 reg, __le16 valu
 	dm_write_reg(dev, DM_SHARED_CTRL, phy ? 0x1a : 0x12);
 
 	for (i = 0; i < DM_TIMEOUT; i++) {
-		u8 tmp;
+		u8 tmp = 0;
 
 		udelay(1);
 		ret = dm_read_reg(dev, DM_SHARED_CTRL, &tmp);
@@ -358,7 +354,7 @@ static const struct net_device_ops dm9601_netdev_ops = {
 static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret;
-	u8 mac[ETH_ALEN];
+	u8 mac[ETH_ALEN], id;
 
 	ret = usbnet_get_endpoints(dev, intf);
 	if (ret)
@@ -397,6 +393,24 @@ static int dm9601_bind(struct usbnet *dev, struct usb_interface *intf)
 			"dm9601: No valid MAC address in EEPROM, using %pM\n",
 			dev->net->dev_addr);
 		__dm9601_set_mac_address(dev);
+	}
+
+	if (dm_read_reg(dev, DM_CHIP_ID, &id) < 0) {
+		netdev_err(dev->net, "Error reading chip ID\n");
+		ret = -ENODEV;
+		goto out;
+	}
+
+	/* put dm9620 devices in dm9601 mode */
+	if (id == ID_DM9620) {
+		u8 mode;
+
+		if (dm_read_reg(dev, DM_MODE_CTRL, &mode) < 0) {
+			netdev_err(dev->net, "Error reading MODE_CTRL\n");
+			ret = -ENODEV;
+			goto out;
+		}
+		dm_write_reg(dev, DM_MODE_CTRL, mode & 0x7f);
 	}
 
 	/* power up phy */
@@ -579,6 +593,10 @@ static const struct usb_device_id products[] = {
 	 },
 	{
 	 USB_DEVICE(0x0a46, 0x9000),	/* DM9000E */
+	 .driver_info = (unsigned long)&dm9601_info,
+	 },
+	{
+	 USB_DEVICE(0x0a46, 0x9620),	/* DM9620 USB to Fast Ethernet Adapter */
 	 .driver_info = (unsigned long)&dm9601_info,
 	 },
 	{},			// END

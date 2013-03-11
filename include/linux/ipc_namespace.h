@@ -24,6 +24,7 @@ struct ipc_ids {
 	unsigned short seq_max;
 	struct rw_semaphore rw_mutex;
 	struct idr ipcs_idr;
+	int next_id;
 };
 
 struct ipc_namespace {

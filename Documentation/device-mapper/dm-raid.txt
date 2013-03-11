@@ -30,6 +30,7 @@ The target is named "raid" and it accepts the following parameters:
   raid10        Various RAID10 inspired algorithms chosen by additional params
 		- RAID10: Striped Mirrors (aka 'Striping on top of mirrors')
 		- RAID1E: Integrated Adjacent Stripe Mirroring
+		- RAID1E: Integrated Offset Stripe Mirroring
 		-  and other similar RAID10 variants
 
   Reference: Chapter 4 of
@@ -64,15 +65,15 @@ The target is named "raid" and it accepts the following parameters:
 		synchronisation state for each region.
 
         [raid10_copies   <# copies>]
-        [raid10_format   near]
+        [raid10_format   <near|far|offset>]
 		These two options are used to alter the default layout of
 		a RAID10 configuration.  The number of copies is can be
-		specified, but the default is 2.  There are other variations
-		to how the copies are laid down - the default and only current
-		option is "near".  Near copies are what most people think of
-		with respect to mirroring.  If these options are left
-		unspecified, or 'raid10_copies 2' and/or 'raid10_format near'
-		are given, then the layouts for 2, 3 and 4 devices are:
+		specified, but the default is 2.  There are also three
+		variations to how the copies are laid down - the default
+		is "near".  Near copies are what most people think of with
+		respect to mirroring.  If these options are left unspecified,
+		or 'raid10_copies 2' and/or 'raid10_format near' are given,
+		then the layouts for 2, 3 and 4 devices	are:
 		2 drives         3 drives          4 drives
 		--------         ----------        --------------
 		A1  A1           A1  A1  A2        A1  A1  A2  A2
@@ -84,6 +85,33 @@ The target is named "raid" and it accepts the following parameters:
 		layout is what a traditional RAID10 would look like.  The
 		3-device layout is what might be called a 'RAID1E - Integrated
 		Adjacent Stripe Mirroring'.
+
+		If 'raid10_copies 2' and 'raid10_format far', then the layouts
+		for 2, 3 and 4 devices are:
+		2 drives             3 drives             4 drives
+		--------             --------------       --------------------
+		A1  A2               A1   A2   A3         A1   A2   A3   A4
+		A3  A4               A4   A5   A6         A5   A6   A7   A8
+		A5  A6               A7   A8   A9         A9   A10  A11  A12
+		..  ..               ..   ..   ..         ..   ..   ..   ..
+		A2  A1               A3   A1   A2         A2   A1   A4   A3
+		A4  A3               A6   A4   A5         A6   A5   A8   A7
+		A6  A5               A9   A7   A8         A10  A9   A12  A11
+		..  ..               ..   ..   ..         ..   ..   ..   ..
+
+		If 'raid10_copies 2' and 'raid10_format offset', then the
+		layouts for 2, 3 and 4 devices are:
+		2 drives       3 drives           4 drives
+		--------       ------------       -----------------
+		A1  A2         A1  A2  A3         A1  A2  A3  A4
+		A2  A1         A3  A1  A2         A2  A1  A4  A3
+		A3  A4         A4  A5  A6         A5  A6  A7  A8
+		A4  A3         A6  A4  A5         A6  A5  A8  A7
+		A5  A6         A7  A8  A9         A9  A10 A11 A12
+		A6  A5         A9  A7  A8         A10 A9  A12 A11
+		..  ..         ..  ..  ..         ..  ..  ..  ..
+		Here we see layouts closely akin to 'RAID1E - Integrated
+		Offset Stripe Mirroring'.
 
 <#raid_devs>: The number of devices composing the array.
 	Each device consists of two entries.  The first is the device
@@ -141,3 +169,6 @@ Version History
 1.2.0	Handle creation of arrays that contain failed devices.
 1.3.0	Added support for RAID 10
 1.3.1	Allow device replacement/rebuild for RAID 10
+1.3.2   Fix/improve redundancy checking for RAID10
+1.4.0	Non-functional change.  Removes arg from mapping function.
+1.4.1   Add RAID10 "far" and "offset" algorithm support.

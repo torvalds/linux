@@ -35,6 +35,7 @@
 #include <net/sock.h>
 #include <net/compat.h>
 #include <net/scm.h>
+#include <net/cls_cgroup.h>
 
 
 /*
@@ -302,8 +303,10 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 		}
 		/* Bump the usage count and install the file. */
 		sock = sock_from_file(fp[i], &err);
-		if (sock)
+		if (sock) {
 			sock_update_netprioidx(sock->sk, current);
+			sock_update_classid(sock->sk, current);
+		}
 		fd_install(new_fd, get_file(fp[i]));
 	}
 

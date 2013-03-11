@@ -439,7 +439,7 @@ void cx23885_wakeup(struct cx23885_tsport *port,
 		if ((s16) (count - buf->count) < 0)
 			break;
 
-		do_gettimeofday(&buf->vb.ts);
+		v4l2_get_timestamp(&buf->vb.ts);
 		dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf, buf->vb.i,
 			count, buf->count);
 		buf->vb.state = VIDEOBUF_DONE;
@@ -2086,8 +2086,8 @@ void cx23885_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput)
 	/* TODO: 23-19 */
 }
 
-static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
-				     const struct pci_device_id *pci_id)
+static int cx23885_initdev(struct pci_dev *pci_dev,
+			   const struct pci_device_id *pci_id)
 {
 	struct cx23885_dev *dev;
 	int err;
@@ -2167,7 +2167,7 @@ fail_free:
 	return err;
 }
 
-static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
+static void cx23885_finidev(struct pci_dev *pci_dev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct cx23885_dev *dev = to_cx23885(v4l2_dev);
@@ -2210,7 +2210,7 @@ static struct pci_driver cx23885_pci_driver = {
 	.name     = "cx23885",
 	.id_table = cx23885_pci_tbl,
 	.probe    = cx23885_initdev,
-	.remove   = __devexit_p(cx23885_finidev),
+	.remove   = cx23885_finidev,
 	/* TODO */
 	.suspend  = NULL,
 	.resume   = NULL,

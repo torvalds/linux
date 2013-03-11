@@ -365,7 +365,6 @@ static int s6i2c_remove(struct platform_device *pdev)
 {
 	struct s6i2c_if *iface = platform_get_drvdata(pdev);
 	i2c_wr16(iface, S6_I2C_ENABLE, 0);
-	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&iface->adap);
 	free_irq(iface->irq, iface);
 	clk_disable(iface->clk);

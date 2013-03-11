@@ -327,6 +327,14 @@ static int demod_attach_drxd(struct ngene_channel *chan)
 		pr_err("No DRXD found!\n");
 		return -ENODEV;
 	}
+	return 0;
+}
+
+static int tuner_attach_dtt7520x(struct ngene_channel *chan)
+{
+	struct drxd_config *feconf;
+
+	feconf = chan->dev->card_info->fe_config[chan->number];
 
 	if (!dvb_attach(dvb_pll_attach, chan->fe, feconf->pll_address,
 			&chan->i2c_adapter,
@@ -724,6 +732,7 @@ static struct ngene_info ngene_info_terratec = {
 	.name           = "Terratec Integra/Cinergy2400i Dual DVB-T",
 	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN},
 	.demod_attach   = {demod_attach_drxd, demod_attach_drxd},
+	.tuner_attach	= {tuner_attach_dtt7520x, tuner_attach_dtt7520x},
 	.fe_config      = {&fe_terratec_dvbt_0, &fe_terratec_dvbt_1},
 	.i2c_access     = 1,
 };
@@ -743,7 +752,7 @@ static struct ngene_info ngene_info_terratec = {
 
 /****************************************************************************/
 
-static const struct pci_device_id ngene_id_tbl[] __devinitdata = {
+static const struct pci_device_id ngene_id_tbl[] = {
 	NGENE_ID(0x18c3, 0xabc3, ngene_info_cineS2),
 	NGENE_ID(0x18c3, 0xabc4, ngene_info_cineS2),
 	NGENE_ID(0x18c3, 0xdb01, ngene_info_satixS2),
@@ -800,7 +809,7 @@ static struct pci_driver ngene_pci_driver = {
 	.name        = "ngene",
 	.id_table    = ngene_id_tbl,
 	.probe       = ngene_probe,
-	.remove      = __devexit_p(ngene_remove),
+	.remove      = ngene_remove,
 	.err_handler = &ngene_errors,
 	.shutdown    = ngene_shutdown,
 };

@@ -30,33 +30,47 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu@900 {
 			compatible = "arm,cortex-a9";
-			reg = <0>;
+			device_type = "cpu";
+			reg = <0x900>;
+			next-level-cache = <&L2>;
+			clocks = <&a9pll>;
+			clock-names = "cpu";
+			operating-points = <
+				/* kHz    ignored */
+				 1300000  1000000
+				 1200000  1000000
+				 1100000  1000000
+				  800000  1000000
+				  400000  1000000
+				  200000  1000000
+			>;
+			clock-latency = <100000>;
+		};
+
+		cpu@901 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0x901>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 
-		cpu@1 {
+		cpu@902 {
 			compatible = "arm,cortex-a9";
-			reg = <1>;
+			device_type = "cpu";
+			reg = <0x902>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
 		};
 
-		cpu@2 {
+		cpu@903 {
 			compatible = "arm,cortex-a9";
-			reg = <2>;
-			next-level-cache = <&L2>;
-			clocks = <&a9pll>;
-			clock-names = "cpu";
-		};
-
-		cpu@3 {
-			compatible = "arm,cortex-a9";
-			reg = <3>;
+			device_type = "cpu";
+			reg = <0x903>;
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";

@@ -641,7 +641,7 @@ int bt_procfs_init(struct module* module, struct net *net, const char *name,
 	sk_list->fops.llseek    = seq_lseek;
 	sk_list->fops.release   = seq_release_private;
 
-	pde = proc_net_fops_create(net, name, 0, &sk_list->fops);
+	pde = proc_create(name, 0, net->proc_net, &sk_list->fops);
 	if (!pde)
 		return -ENOMEM;
 
@@ -652,7 +652,7 @@ int bt_procfs_init(struct module* module, struct net *net, const char *name,
 
 void bt_procfs_cleanup(struct net *net, const char *name)
 {
-	proc_net_remove(net, name);
+	remove_proc_entry(name, net->proc_net);
 }
 #else
 int bt_procfs_init(struct module* module, struct net *net, const char *name,

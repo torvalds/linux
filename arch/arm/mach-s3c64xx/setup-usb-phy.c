@@ -15,10 +15,11 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <mach/map.h>
-#include <mach/regs-sys.h>
 #include <plat/cpu.h>
 #include <plat/regs-usb-hsotg-phy.h>
 #include <plat/usb-phy.h>
+
+#include "regs-sys.h"
 
 static int s3c_usb_otgphy_init(struct platform_device *pdev)
 {

@@ -241,6 +241,7 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 
 static void gfs2_reverse_hex(char *c, u64 value)
 {
+	*c = '0';
 	while (value) {
 		*c-- = hex_asc[value & 0x0f];
 		value >>= 4;
@@ -280,6 +281,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	int lvb_needs_unlock = 0;
 	int error;
 
 	if (gl->gl_lksb.sb_lkid == 0) {
@@ -293,8 +295,12 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	gfs2_update_request_times(gl);
 
 	/* don't want to skip dlm_unlock writing the lvb when lock is ex */
+
+	if (gl->gl_lksb.sb_lvbptr && (gl->gl_state == LM_ST_EXCLUSIVE))
+		lvb_needs_unlock = 1;
+
 	if (test_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags) &&
-	    gl->gl_lksb.sb_lvbptr && (gl->gl_state != LM_ST_EXCLUSIVE)) {
+	    !lvb_needs_unlock) {
 		gfs2_glock_free(gl);
 		return;
 	}

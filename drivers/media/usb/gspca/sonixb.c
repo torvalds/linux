@@ -496,7 +496,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	}
 }
 
-static void i2c_w(struct gspca_dev *gspca_dev, const __u8 *buffer)
+static void i2c_w(struct gspca_dev *gspca_dev, const u8 *buf)
 {
 	int retry = 60;
 
@@ -504,16 +504,19 @@ static void i2c_w(struct gspca_dev *gspca_dev, const __u8 *buffer)
 		return;
 
 	/* is i2c ready */
-	reg_w(gspca_dev, 0x08, buffer, 8);
+	reg_w(gspca_dev, 0x08, buf, 8);
 	while (retry--) {
 		if (gspca_dev->usb_err < 0)
 			return;
-		msleep(10);
+		msleep(1);
 		reg_r(gspca_dev, 0x08);
 		if (gspca_dev->usb_buf[0] & 0x04) {
 			if (gspca_dev->usb_buf[0] & 0x08) {
 				dev_err(gspca_dev->v4l2_dev.dev,
-					"i2c write error\n");
+					"i2c error writing %02x %02x %02x %02x"
+					" %02x %02x %02x %02x\n",
+					buf[0], buf[1], buf[2], buf[3],
+					buf[4], buf[5], buf[6], buf[7]);
 				gspca_dev->usb_err = -EIO;
 			}
 			return;
@@ -530,7 +533,7 @@ static void i2c_w_vector(struct gspca_dev *gspca_dev,
 	for (;;) {
 		if (gspca_dev->usb_err < 0)
 			return;
-		reg_w(gspca_dev, 0x08, *buffer, 8);
+		i2c_w(gspca_dev, *buffer);
 		len -= 8;
 		if (len <= 0)
 			break;
@@ -1397,7 +1400,7 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
 			int len)		/* interrupt packet length */
@@ -1427,7 +1430,7 @@ static const struct sd_desc sd_desc = {
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 	.dq_callback = do_autogain,
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
 };
@@ -1445,7 +1448,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x600d), SB(PAS106, 101)},
 	{USB_DEVICE(0x0c45, 0x6011), SB(OV6650, 101)},
 	{USB_DEVICE(0x0c45, 0x6019), SB(OV7630, 101)},
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
+#if !IS_ENABLED(CONFIG_USB_SN9C102)
 	{USB_DEVICE(0x0c45, 0x6024), SB(TAS5130CXX, 102)},
 	{USB_DEVICE(0x0c45, 0x6025), SB(TAS5130CXX, 102)},
 #endif

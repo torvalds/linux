@@ -609,6 +609,9 @@ static struct target_core_dev_attrib_attribute				\
 	__CONFIGFS_EATTR_RO(_name,					\
 	target_core_dev_show_attr_##_name);
 
+DEF_DEV_ATTRIB(emulate_model_alias);
+SE_DEV_ATTR(emulate_model_alias, S_IRUGO | S_IWUSR);
+
 DEF_DEV_ATTRIB(emulate_dpo);
 SE_DEV_ATTR(emulate_dpo, S_IRUGO | S_IWUSR);
 
@@ -681,6 +684,7 @@ SE_DEV_ATTR(max_write_same_len, S_IRUGO | S_IWUSR);
 CONFIGFS_EATTR_OPS(target_core_dev_attrib, se_dev_attrib, da_group);
 
 static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
+	&target_core_dev_attrib_emulate_model_alias.attr,
 	&target_core_dev_attrib_emulate_dpo.attr,
 	&target_core_dev_attrib_emulate_fua_write.attr,
 	&target_core_dev_attrib_emulate_fua_read.attr,

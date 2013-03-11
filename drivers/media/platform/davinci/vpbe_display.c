@@ -791,7 +791,6 @@ static int vpbe_display_g_crop(struct file *file, void *priv,
 	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
 	struct osd_state *osd_device = fh->disp_dev->osd_device;
 	struct v4l2_rect *rect = &crop->c;
-	int ret;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
 			"VIDIOC_G_CROP, layer id = %d\n",
@@ -799,7 +798,7 @@ static int vpbe_display_g_crop(struct file *file, void *priv,
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		v4l2_err(&vpbe_dev->v4l2_dev, "Invalid buf type\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 	osd_device->ops.get_layer_config(osd_device,
 				layer->layer_info.id, cfg);
@@ -1393,9 +1392,9 @@ static int vpbe_display_reqbufs(struct file *file, void *priv,
 	}
 	/* Initialize videobuf queue as per the buffer type */
 	layer->alloc_ctx = vb2_dma_contig_init_ctx(vpbe_dev->pdev);
-	if (!layer->alloc_ctx) {
+	if (IS_ERR(layer->alloc_ctx)) {
 		v4l2_err(&vpbe_dev->v4l2_dev, "Failed to get the context\n");
-		return -EINVAL;
+		return PTR_ERR(layer->alloc_ctx);
 	}
 	q = &layer->buffer_queue;
 	memset(q, 0, sizeof(*q));
@@ -1656,14 +1655,14 @@ static int vpbe_device_get(struct device *dev, void *data)
 	if (strcmp("vpbe_controller", pdev->name) == 0)
 		vpbe_disp->vpbe_dev = platform_get_drvdata(pdev);
 
-	if (strcmp("vpbe-osd", pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-osd") != NULL)
 		vpbe_disp->osd_device = platform_get_drvdata(pdev);
 
 	return 0;
 }
 
-static __devinit int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
-				     struct platform_device *pdev)
+static int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
+			   struct platform_device *pdev)
 {
 	struct vpbe_layer *vpbe_display_layer = NULL;
 	struct video_device *vbd = NULL;
@@ -1718,9 +1717,10 @@ static __devinit int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 	return 0;
 }
 
-static __devinit int register_device(struct vpbe_layer *vpbe_display_layer,
-					struct vpbe_display *disp_dev,
-					struct platform_device *pdev) {
+static int register_device(struct vpbe_layer *vpbe_display_layer,
+			   struct vpbe_display *disp_dev,
+			   struct platform_device *pdev)
+{
 	int err;
 
 	v4l2_info(&disp_dev->vpbe_dev->v4l2_dev,
@@ -1752,7 +1752,7 @@ static __devinit int register_device(struct vpbe_layer *vpbe_display_layer,
  * This function creates device entries by register itself to the V4L2 driver
  * and initializes fields of each layer objects
  */
-static __devinit int vpbe_display_probe(struct platform_device *pdev)
+static int vpbe_display_probe(struct platform_device *pdev)
 {
 	struct vpbe_layer *vpbe_display_layer;
 	struct vpbe_display *disp_dev;
@@ -1886,7 +1886,7 @@ static struct platform_driver vpbe_display_driver = {
 		.bus = &platform_bus_type,
 	},
 	.probe = vpbe_display_probe,
-	.remove = __devexit_p(vpbe_display_remove),
+	.remove = vpbe_display_remove,
 };
 
 module_platform_driver(vpbe_display_driver);

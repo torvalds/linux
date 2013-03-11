@@ -936,7 +936,7 @@ static struct pinctrl_gpio_range bcm2835_pinctrl_gpio_range = {
 	.npins = BCM2835_NUM_GPIOS,
 };
 
-static int __devinit bcm2835_pinctrl_probe(struct platform_device *pdev)
+static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -959,9 +959,9 @@ static int __devinit bcm2835_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	pc->base = devm_request_and_ioremap(dev, &iomem);
-	if (!pc->base)
-		return -EADDRNOTAVAIL;
+	pc->base = devm_ioremap_resource(dev, &iomem);
+	if (IS_ERR(pc->base))
+		return PTR_ERR(pc->base);
 
 	pc->gpio_chip = bcm2835_gpio_chip;
 	pc->gpio_chip.dev = dev;

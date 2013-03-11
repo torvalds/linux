@@ -216,11 +216,6 @@ do {					\
  */
 #define ELF_PLATFORM  (NULL)
 
-#ifdef __KERNEL__
-#define SET_PERSONALITY(ex) \
-	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
-#endif
-
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,

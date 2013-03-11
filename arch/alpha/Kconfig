@@ -5,11 +5,11 @@ config ALPHA
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_SYSCALL_WRAPPERS
-	select HAVE_IRQ_WORK
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
 	select HAVE_DMA_ATTRS
 	select HAVE_GENERIC_HARDIRQS
+	select HAVE_VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
 	select AUTO_IRQ_AFFINITY if SMP
 	select GENERIC_IRQ_SHOW
@@ -22,7 +22,8 @@ config ALPHA
 	select GENERIC_STRNLEN_USER
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
-	select GENERIC_SIGALTSTACK
+	select ODD_RT_SIGACTION
+	select OLD_SIGSUSPEND
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
@@ -125,6 +126,7 @@ choice
 
 config ALPHA_GENERIC
 	bool "Generic"
+	depends on TTY
 	help
 	  A generic kernel will run on all supported Alpha hardware.
 
@@ -491,6 +493,7 @@ config VGA_HOSE
 
 config ALPHA_SRM
 	bool "Use SRM as bootloader" if ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS || ALPHA_NONAME
+	depends on TTY
 	default y if ALPHA_JENSEN || ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
 	---help---
 	  There are two different types of booting firmware on Alphas: SRM,
@@ -556,8 +559,7 @@ config NR_CPUS
           with working support have a maximum of 4 CPUs.
 
 config ARCH_DISCONTIGMEM_ENABLE
-	bool "Discontiguous Memory Support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Discontiguous Memory Support"
 	help
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)

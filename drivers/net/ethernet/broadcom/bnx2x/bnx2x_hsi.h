@@ -1,6 +1,6 @@
 /* bnx2x_hsi.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2012 Broadcom Corporation
+ * Copyright (c) 2007-2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -898,6 +898,10 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
 	#define PORT_FEAT_CFG_DCBX_MASK                     0x00000100
 		#define PORT_FEAT_CFG_DCBX_DISABLED                  0x00000000
 		#define PORT_FEAT_CFG_DCBX_ENABLED                   0x00000100
+
+		#define PORT_FEAT_CFG_STORAGE_PERSONALITY_MASK        0x00000C00
+		#define PORT_FEAT_CFG_STORAGE_PERSONALITY_FCOE        0x00000400
+		#define PORT_FEAT_CFG_STORAGE_PERSONALITY_ISCSI       0x00000800
 
 	#define PORT_FEATURE_EN_SIZE_MASK                   0x0f000000
 	#define PORT_FEATURE_EN_SIZE_SHIFT                           24
@@ -3374,6 +3378,10 @@ struct regpair {
 	__le32 hi;
 };
 
+struct regpair_native {
+	u32 lo;
+	u32 hi;
+};
 
 /*
  * Classify rule opcodes in E2/E3
@@ -4400,13 +4408,13 @@ struct tstorm_eth_function_common_config {
  * MAC filtering configuration parameters per port in Tstorm
  */
 struct tstorm_eth_mac_filter_config {
-	__le32 ucast_drop_all;
-	__le32 ucast_accept_all;
-	__le32 mcast_drop_all;
-	__le32 mcast_accept_all;
-	__le32 bcast_accept_all;
-	__le32 vlan_filter[2];
-	__le32 unmatched_unicast;
+	u32 ucast_drop_all;
+	u32 ucast_accept_all;
+	u32 mcast_drop_all;
+	u32 mcast_accept_all;
+	u32 bcast_accept_all;
+	u32 vlan_filter[2];
+	u32 unmatched_unicast;
 };
 
 
@@ -4898,7 +4906,7 @@ union event_data {
  * per PF event ring data
  */
 struct event_ring_data {
-	struct regpair base_addr;
+	struct regpair_native base_addr;
 #if defined(__BIG_ENDIAN)
 	u8 index_id;
 	u8 sb_id;
@@ -5131,7 +5139,7 @@ struct pci_entity {
  * The fast-path status block meta-data, common to all chips
  */
 struct hc_sb_data {
-	struct regpair host_sb_addr;
+	struct regpair_native host_sb_addr;
 	struct hc_status_block_sm state_machine[HC_SB_MAX_SM];
 	struct pci_entity p_func;
 #if defined(__BIG_ENDIAN)
@@ -5145,7 +5153,7 @@ struct hc_sb_data {
 	u8 state;
 	u8 rsrv0;
 #endif
-	struct regpair rsrv1[2];
+	struct regpair_native rsrv1[2];
 };
 
 
@@ -5163,7 +5171,7 @@ enum hc_segment {
  * The fast-path status block meta-data
  */
 struct hc_sp_status_block_data {
-	struct regpair host_sb_addr;
+	struct regpair_native host_sb_addr;
 #if defined(__BIG_ENDIAN)
 	u8 rsrv1;
 	u8 state;

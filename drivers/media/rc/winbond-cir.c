@@ -154,6 +154,8 @@
 #define WBCIR_CNTR_R		0x02
 /* Invert TX */
 #define WBCIR_IRTX_INV		0x04
+/* Receiver oversampling */
+#define WBCIR_RX_T_OV		0x40
 
 /* Valid banks for the SP3 UART */
 enum wbcir_bank {
@@ -394,7 +396,8 @@ wbcir_irq_rx(struct wbcir_data *data, struct pnp_dev *device)
 		if (data->rxstate == WBCIR_RXSTATE_ERROR)
 			continue;
 
-		duration = ((irdata & 0x7F) + 1) * 2;
+		duration = ((irdata & 0x7F) + 1) *
+			(data->carrier_report_enabled ? 2 : 10);
 		rawir.pulse = irdata & 0x80 ? false : true;
 		rawir.duration = US_TO_NS(duration);
 
@@ -549,6 +552,17 @@ wbcir_set_carrier_report(struct rc_dev *dev, int enable)
 	if (enable && data->dev->idle)
 		wbcir_set_bits(data->ebase + WBCIR_REG_ECEIR_CCTL,
 				WBCIR_CNTR_EN, WBCIR_CNTR_EN | WBCIR_CNTR_R);
+
+	/* Set a higher sampling resolution if carrier reports are enabled */
+	wbcir_select_bank(data, WBCIR_BANK_2);
+	data->dev->rx_resolution = US_TO_NS(enable ? 2 : 10);
+	outb(enable ? 0x03 : 0x0f, data->sbase + WBCIR_REG_SP3_BGDL);
+	outb(0x00, data->sbase + WBCIR_REG_SP3_BGDH);
+
+	/* Enable oversampling if carrier reports are enabled */
+	wbcir_select_bank(data, WBCIR_BANK_7);
+	wbcir_set_bits(data->sbase + WBCIR_REG_SP3_RCCFG,
+				enable ? WBCIR_RX_T_OV : 0, WBCIR_RX_T_OV);
 
 	data->carrier_report_enabled = enable;
 	spin_unlock_irqrestore(&data->spinlock, flags);
@@ -931,8 +945,8 @@ wbcir_init_hw(struct wbcir_data *data)
 	/* prescaler 1.0, tx/rx fifo lvl 16 */
 	outb(0x30, data->sbase + WBCIR_REG_SP3_EXCR2);
 
-	/* Set baud divisor to sample every 2 ns */
-	outb(0x03, data->sbase + WBCIR_REG_SP3_BGDL);
+	/* Set baud divisor to sample every 10 us */
+	outb(0x0f, data->sbase + WBCIR_REG_SP3_BGDL);
 	outb(0x00, data->sbase + WBCIR_REG_SP3_BGDH);
 
 	/* Set CEIR mode */
@@ -941,12 +955,9 @@ wbcir_init_hw(struct wbcir_data *data)
 	inb(data->sbase + WBCIR_REG_SP3_LSR); /* Clear LSR */
 	inb(data->sbase + WBCIR_REG_SP3_MSR); /* Clear MSR */
 
-	/*
-	 * Disable RX demod, enable run-length enc/dec, set freq span and
-	 * enable over-sampling
-	 */
+	/* Disable RX demod, enable run-length enc/dec, set freq span */
 	wbcir_select_bank(data, WBCIR_BANK_7);
-	outb(0xd0, data->sbase + WBCIR_REG_SP3_RCCFG);
+	outb(0x90, data->sbase + WBCIR_REG_SP3_RCCFG);
 
 	/* Disable timer */
 	wbcir_select_bank(data, WBCIR_BANK_4);
@@ -1008,7 +1019,7 @@ wbcir_resume(struct pnp_dev *device)
 	return 0;
 }
 
-static int __devinit
+static int
 wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 {
 	struct device *dev = &device->dev;
@@ -1093,11 +1104,15 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	data->dev->rx_resolution = US_TO_NS(2);
 	data->dev->allowed_protos = RC_BIT_ALL;
 
+	err = rc_register_device(data->dev);
+	if (err)
+		goto exit_free_rc;
+
 	if (!request_region(data->wbase, WAKEUP_IOMEM_LEN, DRVNAME)) {
 		dev_err(dev, "Region 0x%lx-0x%lx already in use!\n",
 			data->wbase, data->wbase + WAKEUP_IOMEM_LEN - 1);
 		err = -EBUSY;
-		goto exit_free_rc;
+		goto exit_unregister_device;
 	}
 
 	if (!request_region(data->ebase, EHFUNC_IOMEM_LEN, DRVNAME)) {
@@ -1122,24 +1137,20 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		goto exit_release_sbase;
 	}
 
-	err = rc_register_device(data->dev);
-	if (err)
-		goto exit_free_irq;
-
 	device_init_wakeup(&device->dev, 1);
 
 	wbcir_init_hw(data);
 
 	return 0;
 
-exit_free_irq:
-	free_irq(data->irq, device);
 exit_release_sbase:
 	release_region(data->sbase, SP_IOMEM_LEN);
 exit_release_ebase:
 	release_region(data->ebase, EHFUNC_IOMEM_LEN);
 exit_release_wbase:
 	release_region(data->wbase, WAKEUP_IOMEM_LEN);
+exit_unregister_device:
+	rc_unregister_device(data->dev);
 exit_free_rc:
 	rc_free_device(data->dev);
 exit_unregister_led:
@@ -1155,7 +1166,7 @@ exit:
 	return err;
 }
 
-static void __devexit
+static void
 wbcir_remove(struct pnp_dev *device)
 {
 	struct wbcir_data *data = pnp_get_drvdata(device);
@@ -1201,7 +1212,7 @@ static struct pnp_driver wbcir_driver = {
 	.name     = WBCIR_NAME,
 	.id_table = wbcir_ids,
 	.probe    = wbcir_probe,
-	.remove   = __devexit_p(wbcir_remove),
+	.remove   = wbcir_remove,
 	.suspend  = wbcir_suspend,
 	.resume   = wbcir_resume,
 	.shutdown = wbcir_shutdown

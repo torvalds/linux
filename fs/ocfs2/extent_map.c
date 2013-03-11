@@ -282,8 +282,7 @@ search:
 	spin_unlock(&oi->ip_lock);
 
 out:
-	if (new_emi)
-		kfree(new_emi);
+	kfree(new_emi);
 }
 
 static int ocfs2_last_eb_is_empty(struct inode *inode,

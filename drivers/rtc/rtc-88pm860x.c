@@ -286,8 +286,8 @@ out:
 #endif
 
 #ifdef CONFIG_OF
-static int __devinit pm860x_rtc_dt_init(struct platform_device *pdev,
-					struct pm860x_rtc_info *info)
+static int pm860x_rtc_dt_init(struct platform_device *pdev,
+			      struct pm860x_rtc_info *info)
 {
 	struct device_node *np = pdev->dev.parent->of_node;
 	int ret;
@@ -307,7 +307,7 @@ static int __devinit pm860x_rtc_dt_init(struct platform_device *pdev,
 #define pm860x_rtc_dt_init(x, y)	(-1)
 #endif
 
-static int __devinit pm860x_rtc_probe(struct platform_device *pdev)
+static int pm860x_rtc_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_rtc_pdata *pdata = NULL;
@@ -412,7 +412,7 @@ out:
 	return ret;
 }
 
-static int __devexit pm860x_rtc_remove(struct platform_device *pdev)
+static int pm860x_rtc_remove(struct platform_device *pdev)
 {
 	struct pm860x_rtc_info *info = platform_get_drvdata(pdev);
 
@@ -459,7 +459,7 @@ static struct platform_driver pm860x_rtc_driver = {
 		.pm	= &pm860x_rtc_pm_ops,
 	},
 	.probe		= pm860x_rtc_probe,
-	.remove		= __devexit_p(pm860x_rtc_remove),
+	.remove		= pm860x_rtc_remove,
 };
 
 module_platform_driver(pm860x_rtc_driver);

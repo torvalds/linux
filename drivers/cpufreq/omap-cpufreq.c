@@ -110,13 +110,16 @@ static int omap_target(struct cpufreq_policy *policy,
 	freq = ret;
 
 	if (mpu_reg) {
+		rcu_read_lock();
 		opp = opp_find_freq_ceil(mpu_dev, &freq);
 		if (IS_ERR(opp)) {
+			rcu_read_unlock();
 			dev_err(mpu_dev, "%s: unable to find MPU OPP for %d\n",
 				__func__, freqs.new);
 			return -EINVAL;
 		}
 		volt = opp_get_voltage(opp);
+		rcu_read_unlock();
 		tol = volt * OPP_TOLERANCE / 100;
 		volt_old = regulator_get_voltage(mpu_reg);
 	}
@@ -211,10 +214,8 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	 * interface to handle this scenario. Additional is_smp() check
 	 * is to keep SMP_ON_UP build working.
 	 */
-	if (is_smp()) {
-		policy->shared_type = CPUFREQ_SHARED_TYPE_ANY;
+	if (is_smp())
 		cpumask_setall(policy->cpus);
-	}
 
 	/* FIXME: what's the actual transition time? */
 	policy->cpuinfo.transition_latency = 300 * 1000;

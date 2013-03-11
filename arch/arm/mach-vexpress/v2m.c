@@ -7,6 +7,7 @@
 #include <linux/io.h>
 #include <linux/smp.h>
 #include <linux/init.h>
+#include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
@@ -30,7 +31,6 @@
 #include <asm/mach/time.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/timer-sp.h>
 
 #include <mach/ct-ca9x4.h>
@@ -291,10 +291,6 @@ static void __init v2m_timer_init(void)
 	v2m_sp804_init(ioremap(V2M_TIMER01, SZ_4K), IRQ_V2M_TIMER0);
 }
 
-static struct sys_timer v2m_timer = {
-	.init	= v2m_timer_init,
-};
-
 static void __init v2m_init_early(void)
 {
 	if (ct_desc->init_early)
@@ -376,8 +372,7 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.map_io		= v2m_map_io,
 	.init_early	= v2m_init_early,
 	.init_irq	= v2m_init_irq,
-	.timer		= &v2m_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= v2m_timer_init,
 	.init_machine	= v2m_init,
 	.restart	= vexpress_restart,
 MACHINE_END
@@ -434,16 +429,6 @@ void __init v2m_dt_init_early(void)
 	}
 }
 
-static  struct of_device_id vexpress_irq_match[] __initdata = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{}
-};
-
-static void __init v2m_dt_init_irq(void)
-{
-	of_irq_init(vexpress_irq_match);
-}
-
 static void __init v2m_dt_timer_init(void)
 {
 	struct device_node *node = NULL;
@@ -467,10 +452,6 @@ static void __init v2m_dt_timer_init(void)
 		versatile_sched_clock_init(vexpress_get_24mhz_clock_base(),
 				24000000);
 }
-
-static struct sys_timer v2m_dt_timer = {
-	.init = v2m_dt_timer_init,
-};
 
 static const struct of_device_id v2m_dt_bus_match[] __initconst = {
 	{ .compatible = "simple-bus", },
@@ -497,9 +478,8 @@ DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.smp		= smp_ops(vexpress_smp_ops),
 	.map_io		= v2m_dt_map_io,
 	.init_early	= v2m_dt_init_early,
-	.init_irq	= v2m_dt_init_irq,
-	.timer		= &v2m_dt_timer,
+	.init_irq	= irqchip_init,
+	.init_time	= v2m_dt_timer_init,
 	.init_machine	= v2m_dt_init,
-	.handle_irq	= gic_handle_irq,
 	.restart	= vexpress_restart,
 MACHINE_END

@@ -280,7 +280,7 @@ static const struct rtc_class_ops vr41xx_rtc_ops = {
 	.set_alarm	= vr41xx_rtc_set_alarm,
 };
 
-static int __devinit rtc_probe(struct platform_device *pdev)
+static int rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct rtc_device *rtc;
@@ -352,7 +352,7 @@ static int __devinit rtc_probe(struct platform_device *pdev)
 	disable_irq(aie_irq);
 	disable_irq(pie_irq);
 
-	printk(KERN_INFO "rtc: Real Time Clock of NEC VR4100 series\n");
+	dev_info(&pdev->dev, "Real Time Clock of NEC VR4100 series\n");
 
 	return 0;
 
@@ -373,7 +373,7 @@ err_rtc1_iounmap:
 	return retval;
 }
 
-static int __devexit rtc_remove(struct platform_device *pdev)
+static int rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
@@ -398,7 +398,7 @@ MODULE_ALIAS("platform:RTC");
 
 static struct platform_driver rtc_platform_driver = {
 	.probe		= rtc_probe,
-	.remove		= __devexit_p(rtc_remove),
+	.remove		= rtc_remove,
 	.driver		= {
 		.name	= rtc_name,
 		.owner	= THIS_MODULE,

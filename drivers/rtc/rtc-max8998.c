@@ -249,7 +249,7 @@ static const struct rtc_class_ops max8998_rtc_ops = {
 	.alarm_irq_enable = max8998_rtc_alarm_irq_enable,
 };
 
-static int __devinit max8998_rtc_probe(struct platform_device *pdev)
+static int max8998_rtc_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *max8998 = dev_get_drvdata(pdev->dev.parent);
 	struct max8998_platform_data *pdata = dev_get_platdata(max8998->dev);
@@ -298,7 +298,7 @@ out_rtc:
 	return ret;
 }
 
-static int __devexit max8998_rtc_remove(struct platform_device *pdev)
+static int max8998_rtc_remove(struct platform_device *pdev)
 {
 	struct max8998_rtc_info *info = platform_get_drvdata(pdev);
 
@@ -323,7 +323,7 @@ static struct platform_driver max8998_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8998_rtc_probe,
-	.remove		= __devexit_p(max8998_rtc_remove),
+	.remove		= max8998_rtc_remove,
 	.id_table	= max8998_rtc_id,
 };
 

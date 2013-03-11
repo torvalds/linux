@@ -451,8 +451,7 @@ int spear310_o2p(int offset)
 		return offset + 2;
 }
 
-static int __devinit plgpio_probe_dt(struct platform_device *pdev,
-		struct plgpio *plgpio)
+static int plgpio_probe_dt(struct platform_device *pdev, struct plgpio *plgpio)
 {
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -EINVAL;
@@ -522,7 +521,7 @@ static int __devinit plgpio_probe_dt(struct platform_device *pdev,
 end:
 	return ret;
 }
-static int __devinit plgpio_probe(struct platform_device *pdev)
+static int plgpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct plgpio *plgpio;
@@ -541,11 +540,9 @@ static int __devinit plgpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	plgpio->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!plgpio->base) {
-		dev_err(&pdev->dev, "request and ioremap fail\n");
-		return -ENOMEM;
-	}
+	plgpio->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(plgpio->base))
+		return PTR_ERR(plgpio->base);
 
 	ret = plgpio_probe_dt(pdev, plgpio);
 	if (ret) {

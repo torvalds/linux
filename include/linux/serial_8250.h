@@ -59,6 +59,8 @@ enum {
 	PLAT8250_DEV_SM501,
 };
 
+struct uart_8250_dma;
+
 /*
  * This should be used by drivers which want to register
  * their own 8250 ports without registering their own
@@ -90,6 +92,8 @@ struct uart_8250_port {
 	unsigned char		lsr_saved_flags;
 #define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
 	unsigned char		msr_saved_flags;
+
+	struct uart_8250_dma	*dma;
 
 	/* 8250 specific callbacks */
 	int			(*dl_read)(struct uart_8250_port *);

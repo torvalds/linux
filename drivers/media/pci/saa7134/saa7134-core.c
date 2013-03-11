@@ -308,7 +308,7 @@ void saa7134_buffer_finish(struct saa7134_dev *dev,
 
 	/* finish current buffer */
 	q->curr->vb.state = state;
-	do_gettimeofday(&q->curr->vb.ts);
+	v4l2_get_timestamp(&q->curr->vb.ts);
 	wake_up(&q->curr->vb.done);
 	q->curr = NULL;
 }
@@ -754,7 +754,7 @@ static int saa7134_hwfini(struct saa7134_dev *dev)
 	return 0;
 }
 
-static void __devinit must_configure_manually(int has_eeprom)
+static void must_configure_manually(int has_eeprom)
 {
 	unsigned int i,p;
 
@@ -860,8 +860,8 @@ static void mpeg_ops_detach(struct saa7134_mpeg_ops *ops,
 	dev->mops = NULL;
 }
 
-static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
-				     const struct pci_device_id *pci_id)
+static int saa7134_initdev(struct pci_dev *pci_dev,
+			   const struct pci_device_id *pci_id)
 {
 	struct saa7134_dev *dev;
 	struct saa7134_mpeg_ops *mops;
@@ -1102,7 +1102,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	return err;
 }
 
-static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
+static void saa7134_finidev(struct pci_dev *pci_dev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct saa7134_dev *dev = container_of(v4l2_dev, struct saa7134_dev, v4l2_dev);
@@ -1322,7 +1322,7 @@ static struct pci_driver saa7134_pci_driver = {
 	.name     = "saa7134",
 	.id_table = saa7134_pci_tbl,
 	.probe    = saa7134_initdev,
-	.remove   = __devexit_p(saa7134_finidev),
+	.remove   = saa7134_finidev,
 #ifdef CONFIG_PM
 	.suspend  = saa7134_suspend,
 	.resume   = saa7134_resume
