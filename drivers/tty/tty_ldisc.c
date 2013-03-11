@@ -49,37 +49,6 @@ static inline struct tty_ldisc *get_ldisc(struct tty_ldisc *ld)
 	return ld;
 }
 
-static void put_ldisc(struct tty_ldisc *ld)
-{
-	unsigned long flags;
-
-	if (WARN_ON_ONCE(!ld))
-		return;
-
-	/*
-	 * If this is the last user, free the ldisc, and
-	 * release the ldisc ops.
-	 *
-	 * We really want an "atomic_dec_and_raw_lock_irqsave()",
-	 * but we don't have it, so this does it by hand.
-	 */
-	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
-	if (atomic_dec_and_test(&ld->users)) {
-		struct tty_ldisc_ops *ldo = ld->ops;
-
-		ldo->refcount--;
-		module_put(ldo->owner);
-		raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-
-		kfree(ld);
-		return;
-	}
-	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-
-	if (waitqueue_active(&ld->wq_idle))
-		wake_up(&ld->wq_idle);
-}
-
 /**
  *	tty_register_ldisc	-	install a line discipline
  *	@disc: ldisc number
@@ -363,13 +332,45 @@ EXPORT_SYMBOL_GPL(tty_ldisc_ref);
 
 void tty_ldisc_deref(struct tty_ldisc *ld)
 {
-	put_ldisc(ld);
+	unsigned long flags;
+
+	if (WARN_ON_ONCE(!ld))
+		return;
+
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
+	/*
+	 * WARNs if one-too-many reader references were released
+	 * - the last reference must be released with tty_ldisc_put
+	 */
+	WARN_ON(atomic_dec_and_test(&ld->users));
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+
+	if (waitqueue_active(&ld->wq_idle))
+		wake_up(&ld->wq_idle);
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_deref);
 
+/**
+ *	tty_ldisc_put		-	release the ldisc
+ *
+ *	Complement of tty_ldisc_get().
+ */
 static inline void tty_ldisc_put(struct tty_ldisc *ld)
 {
-	put_ldisc(ld);
+	unsigned long flags;
+
+	if (WARN_ON_ONCE(!ld))
+		return;
+
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
+
+	/* unreleased reader reference(s) will cause this WARN */
+	WARN_ON(!atomic_dec_and_test(&ld->users));
+
+	ld->ops->refcount--;
+	module_put(ld->ops->owner);
+	kfree(ld);
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 }
 
 /**
@@ -1001,7 +1002,7 @@ void tty_ldisc_init(struct tty_struct *tty)
  */
 void tty_ldisc_deinit(struct tty_struct *tty)
 {
-	put_ldisc(tty->ldisc);
+	tty_ldisc_put(tty->ldisc);
 	tty_ldisc_assign(tty, NULL);
 }
 
