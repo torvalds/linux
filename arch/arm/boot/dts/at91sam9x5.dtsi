@@ -238,8 +238,8 @@
 				nand {
 					pinctrl_nand: nand-0 {
 						atmel,pins =
-							<3 4 0x0 0x1	/* PD5 gpio RDY pin pull_up */
-							 3 5 0x0 0x1>;	/* PD4 gpio enable pin pull_up */
+							<3 4 0x0 0x1	/* PD4 gpio Chip Enable pin pull_up */
+							 3 5 0x0 0x1>;	/* PD5 gpio RDY/BUSY pin pull_up */
 					};
 				};
 
