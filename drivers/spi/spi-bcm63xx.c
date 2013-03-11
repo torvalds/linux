@@ -489,7 +489,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	default:
 		dev_err(dev, "unsupported MSG_CTL width: %d\n",
 			 bs->msg_ctl_width);
-		goto out_clk_disable;
+		goto out_err;
 	}
 
 	/* Initialize hardware */
