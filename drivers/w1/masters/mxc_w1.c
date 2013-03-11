@@ -121,9 +121,9 @@ static int mxc_w1_probe(struct platform_device *pdev)
 	mdev->clkdiv = (clk_get_rate(mdev->clk) / 1000000) - 1;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mdev->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!mdev->regs)
-		return -EBUSY;
+	mdev->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mdev->regs))
+		return PTR_ERR(mdev->regs);
 
 	clk_prepare_enable(mdev->clk);
 	__raw_writeb(mdev->clkdiv, mdev->regs + MXC_W1_TIME_DIVIDER);
