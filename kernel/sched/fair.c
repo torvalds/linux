@@ -652,7 +652,7 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 /*
- * We calculate the vruntime slice of a to be inserted task
+ * We calculate the vruntime slice of a to-be-inserted task.
  *
  * vs = s/w
  */
