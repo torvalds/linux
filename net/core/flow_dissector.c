@@ -119,6 +119,17 @@ ipv6:
 				nhoff += 4;
 			if (hdr->flags & GRE_SEQ)
 				nhoff += 4;
+			if (proto == htons(ETH_P_TEB)) {
+				const struct ethhdr *eth;
+				struct ethhdr _eth;
+
+				eth = skb_header_pointer(skb, nhoff,
+							 sizeof(_eth), &_eth);
+				if (!eth)
+					return false;
+				proto = eth->h_proto;
+				nhoff += sizeof(*eth);
+			}
 			goto again;
 		}
 		break;
