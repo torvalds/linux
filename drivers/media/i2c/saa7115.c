@@ -83,9 +83,10 @@ struct saa711x_state {
 	u32 ident;
 	u32 audclk_freq;
 	u32 crystal_freq;
-	u8 ucgc;
+	bool ucgc;
 	u8 cgcdiv;
-	u8 apll;
+	bool apll;
+	bool double_asclk;
 };
 
 static inline struct saa711x_state *to_state(struct v4l2_subdev *sd)
@@ -732,8 +733,12 @@ static int saa711x_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	if (state->apll)
 		acc |= 0x08;
 
+	if (state->double_asclk) {
+		acpf <<= 1;
+		acni <<= 1;
+	}
 	saa711x_write(sd, R_38_CLK_RATIO_AMXCLK_TO_ASCLK, 0x03);
-	saa711x_write(sd, R_39_CLK_RATIO_ASCLK_TO_ALRCLK, 0x10);
+	saa711x_write(sd, R_39_CLK_RATIO_ASCLK_TO_ALRCLK, 0x10 << state->double_asclk);
 	saa711x_write(sd, R_3A_AUD_CLK_GEN_BASIC_SETUP, acc);
 
 	saa711x_write(sd, R_30_AUD_MAST_CLK_CYCLES_PER_FIELD, acpf & 0xff);
@@ -1302,9 +1307,10 @@ static int saa711x_s_crystal_freq(struct v4l2_subdev *sd, u32 freq, u32 flags)
 	if (freq != SAA7115_FREQ_32_11_MHZ && freq != SAA7115_FREQ_24_576_MHZ)
 		return -EINVAL;
 	state->crystal_freq = freq;
+	state->double_asclk = flags & SAA7115_FREQ_FL_DOUBLE_ASCLK;
 	state->cgcdiv = (flags & SAA7115_FREQ_FL_CGCDIV) ? 3 : 4;
-	state->ucgc = (flags & SAA7115_FREQ_FL_UCGC) ? 1 : 0;
-	state->apll = (flags & SAA7115_FREQ_FL_APLL) ? 1 : 0;
+	state->ucgc = flags & SAA7115_FREQ_FL_UCGC;
+	state->apll = flags & SAA7115_FREQ_FL_APLL;
 	saa711x_s_clock_freq(sd, state->audclk_freq);
 	return 0;
 }
