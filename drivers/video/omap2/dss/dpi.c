@@ -63,15 +63,29 @@ static struct platform_device *dpi_get_dsidev(enum omap_channel channel)
 	case OMAPDSS_VER_OMAP3630:
 	case OMAPDSS_VER_AM35xx:
 		return NULL;
-	default:
-		break;
-	}
 
-	switch (channel) {
-	case OMAP_DSS_CHANNEL_LCD:
-		return dsi_get_dsidev_from_id(0);
-	case OMAP_DSS_CHANNEL_LCD2:
-		return dsi_get_dsidev_from_id(1);
+	case OMAPDSS_VER_OMAP4430_ES1:
+	case OMAPDSS_VER_OMAP4430_ES2:
+	case OMAPDSS_VER_OMAP4:
+		switch (channel) {
+		case OMAP_DSS_CHANNEL_LCD:
+			return dsi_get_dsidev_from_id(0);
+		case OMAP_DSS_CHANNEL_LCD2:
+			return dsi_get_dsidev_from_id(1);
+		default:
+			return NULL;
+		}
+
+	case OMAPDSS_VER_OMAP5:
+		switch (channel) {
+		case OMAP_DSS_CHANNEL_LCD:
+			return dsi_get_dsidev_from_id(0);
+		case OMAP_DSS_CHANNEL_LCD3:
+			return dsi_get_dsidev_from_id(1);
+		default:
+			return NULL;
+		}
+
 	default:
 		return NULL;
 	}
