@@ -451,7 +451,8 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
  * Compute number of aggregated segments, and gso_type.
  */
 static void bnx2x_set_gro_params(struct sk_buff *skb, u16 parsing_flags,
-				 u16 len_on_bd, unsigned int pkt_len)
+				 u16 len_on_bd, unsigned int pkt_len,
+				 u16 num_of_coalesced_segs)
 {
 	/* TPA aggregation won't have either IP options or TCP options
 	 * other than timestamp or IPv6 extension headers.
@@ -480,8 +481,7 @@ static void bnx2x_set_gro_params(struct sk_buff *skb, u16 parsing_flags,
 	/* tcp_gro_complete() will copy NAPI_GRO_CB(skb)->count
 	 * to skb_shinfo(skb)->gso_segs
 	 */
-	NAPI_GRO_CB(skb)->count = DIV_ROUND_UP(pkt_len - hdrs_len,
-					       skb_shinfo(skb)->gso_size);
+	NAPI_GRO_CB(skb)->count = num_of_coalesced_segs;
 }
 
 static int bnx2x_alloc_rx_sge(struct bnx2x *bp,
@@ -537,7 +537,8 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	/* This is needed in order to enable forwarding support */
 	if (frag_size)
 		bnx2x_set_gro_params(skb, tpa_info->parsing_flags, len_on_bd,
-				     le16_to_cpu(cqe->pkt_len));
+				     le16_to_cpu(cqe->pkt_len),
+				     le16_to_cpu(cqe->num_of_coalesced_segs));
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (pages > min_t(u32, 8, MAX_SKB_FRAGS) * SGE_PAGES) {
