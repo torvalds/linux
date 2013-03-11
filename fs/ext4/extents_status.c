@@ -333,17 +333,27 @@ static void ext4_es_free_extent(struct inode *inode, struct extent_status *es)
 static int ext4_es_can_be_merged(struct extent_status *es1,
 				 struct extent_status *es2)
 {
-	if (es1->es_lblk + es1->es_len != es2->es_lblk)
-		return 0;
-
 	if (ext4_es_status(es1) != ext4_es_status(es2))
 		return 0;
 
-	if ((ext4_es_is_written(es1) || ext4_es_is_unwritten(es1)) &&
-	    (ext4_es_pblock(es1) + es1->es_len != ext4_es_pblock(es2)))
+	if (((__u64) es1->es_len) + es2->es_len > 0xFFFFFFFFULL)
 		return 0;
 
-	return 1;
+	if (((__u64) es1->es_lblk) + es1->es_len != es2->es_lblk)
+		return 0;
+
+	if ((ext4_es_is_written(es1) || ext4_es_is_unwritten(es1)) &&
+	    (ext4_es_pblock(es1) + es1->es_len == ext4_es_pblock(es2)))
+		return 1;
+
+	if (ext4_es_is_hole(es1))
+		return 1;
+
+	/* we need to check delayed extent is without unwritten status */
+	if (ext4_es_is_delayed(es1) && !ext4_es_is_unwritten(es1))
+		return 1;
+
+	return 0;
 }
 
 static struct extent_status *
