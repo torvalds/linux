@@ -746,8 +746,7 @@ out_err:
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 				  struct perf_target *target,
-				  struct perf_record_opts *opts,
-				  const char *argv[])
+				  const char *argv[], bool pipe_output)
 {
 	int child_ready_pipe[2], go_pipe[2];
 	char bf;
@@ -769,7 +768,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 	}
 
 	if (!evlist->workload.pid) {
-		if (opts->pipe_output)
+		if (pipe_output)
 			dup2(2, 1);
 
 		close(child_ready_pipe[0]);
