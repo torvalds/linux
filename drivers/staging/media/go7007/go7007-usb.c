@@ -568,7 +568,7 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 		.idProduct	= 0xa104,  /* Product ID of TV402U */
 		.bcdDevice_lo	= 0x1,
 		.bcdDevice_hi	= 0x1,
-		.driver_info	= (kernel_ulong_t)GO7007_BOARDID_PX_TV402U_ANY,
+		.driver_info	= (kernel_ulong_t)GO7007_BOARDID_PX_TV402U,
 	},
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
@@ -1079,7 +1079,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		name = "Plextor PX-M402U";
 		board = &board_matrix_ii;
 		break;
-	case GO7007_BOARDID_PX_TV402U_ANY:
+	case GO7007_BOARDID_PX_TV402U:
 		name = "Plextor PX-TV402U (unknown tuner)";
 		board = &board_px_tv402u;
 		break;
@@ -1200,7 +1200,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	num_i2c_devs = go->board_info->num_i2c_devs;
 
 	/* Probe the tuner model on the TV402U */
-	if (go->board_id == GO7007_BOARDID_PX_TV402U_ANY) {
+	if (go->board_id == GO7007_BOARDID_PX_TV402U) {
 		/* Board strapping indicates tuner model */
 		if (go7007_usb_vendor_request(go, 0x41, 0, 0, go->usb_buf, 3, 1) < 0) {
 			printk(KERN_ERR "go7007-usb: GPIO read failed!\n");
@@ -1208,14 +1208,12 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		}
 		switch (go->usb_buf[0] >> 6) {
 		case 1:
-			go->board_id = GO7007_BOARDID_PX_TV402U_EU;
 			go->tuner_type = TUNER_SONY_BTF_PG472Z;
 			go->std = V4L2_STD_PAL;
 			strncpy(go->name, "Plextor PX-TV402U-EU",
 					sizeof(go->name));
 			break;
 		case 2:
-			go->board_id = GO7007_BOARDID_PX_TV402U_JP;
 			go->tuner_type = TUNER_SONY_BTF_PK467Z;
 			go->std = V4L2_STD_NTSC_M_JP;
 			num_i2c_devs -= 2;
@@ -1223,7 +1221,6 @@ static int go7007_usb_probe(struct usb_interface *intf,
 					sizeof(go->name));
 			break;
 		case 3:
-			go->board_id = GO7007_BOARDID_PX_TV402U_NA;
 			go->tuner_type = TUNER_SONY_BTF_PB463Z;
 			num_i2c_devs -= 2;
 			strncpy(go->name, "Plextor PX-TV402U-NA",

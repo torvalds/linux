@@ -1075,15 +1075,6 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (t->index != 0)
 		return -EINVAL;
 
-	switch (go->board_id) {
-	case GO7007_BOARDID_PX_TV402U_NA:
-	case GO7007_BOARDID_PX_TV402U_JP:
-		/* No selectable options currently */
-		if (t->audmode != V4L2_TUNER_MODE_STEREO)
-			return -EINVAL;
-		break;
-	}
-
 	return call_all(&go->v4l2_dev, tuner, s_tuner, t);
 }
 

@@ -36,15 +36,12 @@ struct go7007;
 #define GO7007_BOARDID_XMEN_II		5
 #define GO7007_BOARDID_XMEN_III		6
 #define GO7007_BOARDID_MATRIX_REV	7
-#define GO7007_BOARDID_PX_M402U		16
-#define GO7007_BOARDID_PX_TV402U_ANY	17 /* need to check tuner model */
-#define GO7007_BOARDID_PX_TV402U_NA	18 /* detected NTSC tuner */
-#define GO7007_BOARDID_PX_TV402U_EU	19 /* detected PAL tuner */
-#define GO7007_BOARDID_PX_TV402U_JP	20 /* detected NTSC-J tuner */
-#define GO7007_BOARDID_LIFEVIEW_LR192	21 /* TV Walker Ultra */
-#define GO7007_BOARDID_ENDURA		22
-#define GO7007_BOARDID_ADLINK_MPG24	23
-#define GO7007_BOARDID_SENSORAY_2250	24 /* Sensoray 2250/2251 */
+#define GO7007_BOARDID_PX_M402U		8
+#define GO7007_BOARDID_PX_TV402U	9
+#define GO7007_BOARDID_LIFEVIEW_LR192	10 /* TV Walker Ultra */
+#define GO7007_BOARDID_ENDURA		11
+#define GO7007_BOARDID_ADLINK_MPG24	12
+#define GO7007_BOARDID_SENSORAY_2250	13 /* Sensoray 2250/2251 */
 
 /* Various characteristics of each board */
 #define GO7007_BOARD_HAS_AUDIO		(1<<0)
