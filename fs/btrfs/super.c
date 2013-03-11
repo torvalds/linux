@@ -92,18 +92,13 @@ static const char *btrfs_decode_error(int errno, char nbuf[16])
 	return errstr;
 }
 
-static void __save_error_info(struct btrfs_fs_info *fs_info)
+static void save_error_info(struct btrfs_fs_info *fs_info)
 {
 	/*
 	 * today we only save the error info into ram.  Long term we'll
 	 * also send it down to the disk
 	 */
 	set_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state);
-}
-
-static void save_error_info(struct btrfs_fs_info *fs_info)
-{
-	__save_error_info(fs_info);
 }
 
 /* btrfs handle error by forcing the filesystem readonly */
