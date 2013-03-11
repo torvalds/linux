@@ -2276,6 +2276,7 @@ nv50_display_create(struct drm_device *dev)
 			NV_WARN(drm, "failed to create encoder %d/%d/%d: %d\n",
 				     dcbe->location, dcbe->type,
 				     ffs(dcbe->or) - 1, ret);
+			ret = 0;
 		}
 	}
 
