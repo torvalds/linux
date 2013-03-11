@@ -151,8 +151,11 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 
 static int bcm63xx_spi_setup(struct spi_device *spi)
 {
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
+	if (spi->bits_per_word != 8) {
+		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
+			__func__, spi->bits_per_word);
+		return -EINVAL;
+	}
 
 	return 0;
 }
