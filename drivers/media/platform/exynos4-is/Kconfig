@@ -46,4 +46,16 @@ config VIDEO_EXYNOS_FIMC_LITE
 	  module will be called exynos-fimc-lite.
 endif
 
+config VIDEO_EXYNOS4_FIMC_IS
+	tristate "EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver"
+	select VIDEOBUF2_DMA_CONTIG
+	depends on OF
+	select FW_LOADER
+	help
+	  This is a V4L2 driver for Samsung EXYNOS4x12 SoC series
+	  FIMC-IS (Imaging Subsystem).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exynos4-fimc-is.
+
 endif # VIDEO_SAMSUNG_S5P_FIMC
