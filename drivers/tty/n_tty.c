@@ -204,9 +204,8 @@ static void put_tty_queue(unsigned char c, struct n_tty_data *ldata)
  *	Locking: tty_read_lock for read fields.
  */
 
-static void reset_buffer_flags(struct tty_struct *tty)
+static void reset_buffer_flags(struct n_tty_data *ldata)
 {
-	struct n_tty_data *ldata = tty->disc_data;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&ldata->read_lock, flags);
@@ -219,7 +218,6 @@ static void reset_buffer_flags(struct tty_struct *tty)
 
 	ldata->canon_head = ldata->canon_data = ldata->erasing = 0;
 	bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
-	n_tty_set_room(tty);
 }
 
 static void n_tty_packet_mode_flush(struct tty_struct *tty)
@@ -247,7 +245,8 @@ static void n_tty_packet_mode_flush(struct tty_struct *tty)
 
 static void n_tty_flush_buffer(struct tty_struct *tty)
 {
-	reset_buffer_flags(tty);
+	reset_buffer_flags(tty->disc_data);
+	n_tty_set_room(tty);
 
 	if (tty->link)
 		n_tty_packet_mode_flush(tty);
@@ -1633,14 +1632,14 @@ static int n_tty_open(struct tty_struct *tty)
 		goto err_free_bufs;
 
 	tty->disc_data = ldata;
-	/* indicate buffer work may resume */
-	clear_bit(TTY_LDISC_HALTED, &tty->flags);
-	reset_buffer_flags(tty);
-	tty_unthrottle(tty);
+	reset_buffer_flags(tty->disc_data);
 	ldata->column = 0;
-	n_tty_set_termios(tty, NULL);
 	tty->minimum_to_wake = 1;
 	tty->closing = 0;
+	/* indicate buffer work may resume */
+	clear_bit(TTY_LDISC_HALTED, &tty->flags);
+	n_tty_set_termios(tty, NULL);
+	tty_unthrottle(tty);
 
 	return 0;
 err_free_bufs:
