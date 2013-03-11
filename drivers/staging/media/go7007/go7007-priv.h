@@ -141,14 +141,6 @@ struct go7007_buffer {
 	int mapped;
 };
 
-struct go7007_file {
-	struct v4l2_fh fh;
-	struct go7007 *go;
-	struct mutex lock;
-	int buf_count;
-	struct go7007_buffer *bufs;
-};
-
 #define GO7007_RATIO_1_1	0
 #define GO7007_RATIO_4_3	1
 #define GO7007_RATIO_16_9	2
@@ -242,6 +234,9 @@ struct go7007 {
 	u32 next_seq;
 	struct list_head stream;
 	wait_queue_head_t frame_waitq;
+	int buf_count;
+	struct go7007_buffer *bufs;
+	struct v4l2_fh *bufs_owner;
 
 	/* Audio streaming */
 	void (*audio_deliver)(struct go7007 *go, u8 *buf, int length);
