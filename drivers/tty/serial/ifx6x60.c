@@ -1279,30 +1279,6 @@ static void ifx_spi_spi_shutdown(struct spi_device *spi)
  */
 
 /**
- *	ifx_spi_spi_suspend	-	suspend SPI on system suspend
- *	@dev: device being suspended
- *
- *	Suspend the SPI side. No action needed on Intel MID platforms, may
- *	need extending for other systems.
- */
-static int ifx_spi_spi_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	return 0;
-}
-
-/**
- *	ifx_spi_spi_resume	-	resume SPI side on system resume
- *	@dev: device being suspended
- *
- *	Suspend the SPI side. No action needed on Intel MID platforms, may
- *	need extending for other systems.
- */
-static int ifx_spi_spi_resume(struct spi_device *spi)
-{
-	return 0;
-}
-
-/**
  *	ifx_spi_pm_suspend	-	suspend modem on system suspend
  *	@dev: device being suspended
  *
@@ -1391,8 +1367,6 @@ static struct spi_driver ifx_spi_driver = {
 	.probe = ifx_spi_spi_probe,
 	.shutdown = ifx_spi_spi_shutdown,
 	.remove = ifx_spi_spi_remove,
-	.suspend = ifx_spi_spi_suspend,
-	.resume = ifx_spi_spi_resume,
 	.id_table = ifx_id_table
 };
 
