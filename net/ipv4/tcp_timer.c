@@ -356,6 +356,8 @@ void tcp_retransmit_timer(struct sock *sk)
 
 	WARN_ON(tcp_write_queue_empty(sk));
 
+	tp->tlp_high_seq = 0;
+
 	if (!tp->snd_wnd && !sock_flag(sk, SOCK_DEAD) &&
 	    !((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))) {
 		/* Receiver dastardly shrinks window. Our retransmits

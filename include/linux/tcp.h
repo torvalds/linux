@@ -204,6 +204,7 @@ struct tcp_sock {
 		syn_data:1,	/* SYN includes data */
 		syn_fastopen:1,	/* SYN includes Fast Open option */
 		syn_data_acked:1;/* data in SYN is acked by SYN-ACK */
+	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
 /* RTT measurement */
 	u32	srtt;		/* smoothed round trip time << 3	*/

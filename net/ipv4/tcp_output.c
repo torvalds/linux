@@ -2132,6 +2132,7 @@ bool tcp_schedule_loss_probe(struct sock *sk)
  */
 void tcp_send_loss_probe(struct sock *sk)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	int pcount;
 	int mss = tcp_current_mss(sk);
@@ -2141,6 +2142,10 @@ void tcp_send_loss_probe(struct sock *sk)
 		err = tcp_write_xmit(sk, mss, TCP_NAGLE_OFF, 2, GFP_ATOMIC);
 		goto rearm_timer;
 	}
+
+	/* At most one outstanding TLP retransmission. */
+	if (tp->tlp_high_seq)
+		goto rearm_timer;
 
 	/* Retransmit last segment. */
 	skb = tcp_write_queue_tail(sk);
@@ -2163,6 +2168,10 @@ void tcp_send_loss_probe(struct sock *sk)
 	/* Probe with zero data doesn't trigger fast recovery. */
 	if (skb->len > 0)
 		err = __tcp_retransmit_skb(sk, skb);
+
+	/* Record snd_nxt for loss detection. */
+	if (likely(!err))
+		tp->tlp_high_seq = tp->snd_nxt;
 
 rearm_timer:
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,

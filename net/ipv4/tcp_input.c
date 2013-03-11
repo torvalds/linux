@@ -2682,6 +2682,7 @@ static void tcp_init_cwnd_reduction(struct sock *sk, const bool set_ssthresh)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->high_seq = tp->snd_nxt;
+	tp->tlp_high_seq = 0;
 	tp->snd_cwnd_cnt = 0;
 	tp->prior_cwnd = tp->snd_cwnd;
 	tp->prr_delivered = 0;
@@ -3569,6 +3570,38 @@ static void tcp_send_challenge_ack(struct sock *sk)
 	}
 }
 
+/* This routine deals with acks during a TLP episode.
+ * Ref: loss detection algorithm in draft-dukkipati-tcpm-tcp-loss-probe.
+ */
+static void tcp_process_tlp_ack(struct sock *sk, u32 ack, int flag)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	bool is_tlp_dupack = (ack == tp->tlp_high_seq) &&
+			     !(flag & (FLAG_SND_UNA_ADVANCED |
+				       FLAG_NOT_DUP | FLAG_DATA_SACKED));
+
+	/* Mark the end of TLP episode on receiving TLP dupack or when
+	 * ack is after tlp_high_seq.
+	 */
+	if (is_tlp_dupack) {
+		tp->tlp_high_seq = 0;
+		return;
+	}
+
+	if (after(ack, tp->tlp_high_seq)) {
+		tp->tlp_high_seq = 0;
+		/* Don't reduce cwnd if DSACK arrives for TLP retrans. */
+		if (!(flag & FLAG_DSACKING_ACK)) {
+			tcp_init_cwnd_reduction(sk, true);
+			tcp_set_ca_state(sk, TCP_CA_CWR);
+			tcp_end_cwnd_reduction(sk);
+			tcp_set_ca_state(sk, TCP_CA_Open);
+			NET_INC_STATS_BH(sock_net(sk),
+					 LINUX_MIB_TCPLOSSPROBERECOVERY);
+		}
+	}
+}
+
 /* This routine deals with incoming acks, but not outgoing ones. */
 static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 {
@@ -3676,6 +3709,9 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 			tcp_cong_avoid(sk, ack, prior_in_flight);
 	}
 
+	if (tp->tlp_high_seq)
+		tcp_process_tlp_ack(sk, ack, flag);
+
 	if ((flag & FLAG_FORWARD_PROGRESS) || !(flag & FLAG_NOT_DUP)) {
 		struct dst_entry *dst = __sk_dst_get(sk);
 		if (dst)
@@ -3697,6 +3733,9 @@ no_queue:
 	 */
 	if (tcp_send_head(sk))
 		tcp_ack_probe(sk);
+
+	if (tp->tlp_high_seq)
+		tcp_process_tlp_ack(sk, ack, flag);
 	return 1;
 
 invalid_ack:
