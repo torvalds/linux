@@ -854,11 +854,12 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 */
 	mutex_lock(&tty->ldisc_mutex);
 
-	/* At this point we have a closed ldisc and we want to
-	   reopen it. We could defer this to the next open but
-	   it means auditing a lot of other paths so this is
-	   a FIXME */
 	if (tty_ldisc_hangup_halt(tty)) {
+
+		/* At this point we have a halted ldisc; we want to close it and
+		   reopen a new ldisc. We could defer the reopen to the next
+		   open but it means auditing a lot of other paths so this is
+		   a FIXME */
 		if (reset == 0) {
 
 			if (!tty_ldisc_reinit(tty, tty->termios.c_line))
