@@ -222,6 +222,38 @@ static bool mei_me_hw_is_ready(struct mei_device *dev)
 	return (hw->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA;
 }
 
+static int mei_me_hw_ready_wait(struct mei_device *dev)
+{
+	int err;
+	if (mei_me_hw_is_ready(dev))
+		return 0;
+
+	mutex_unlock(&dev->device_lock);
+	err = wait_event_interruptible_timeout(dev->wait_hw_ready,
+			dev->recvd_hw_ready, MEI_INTEROP_TIMEOUT);
+	mutex_lock(&dev->device_lock);
+	if (!err && !dev->recvd_hw_ready) {
+		dev_err(&dev->pdev->dev,
+			"wait hw ready failed. status = 0x%x\n", err);
+		return -ETIMEDOUT;
+	}
+
+	dev->recvd_hw_ready = false;
+	return 0;
+}
+
+static int mei_me_hw_start(struct mei_device *dev)
+{
+	int ret = mei_me_hw_ready_wait(dev);
+	if (ret)
+		return ret;
+	dev_dbg(&dev->pdev->dev, "hw is ready\n");
+
+	mei_me_host_set_ready(dev);
+	return ret;
+}
+
+
 /**
  * mei_hbuf_filled_slots - gets number of device filled buffer slots
  *
@@ -456,14 +488,9 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 		if (mei_hw_is_ready(dev)) {
 			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
 
-			mei_host_set_ready(dev);
+			dev->recvd_hw_ready = true;
+			wake_up_interruptible(&dev->wait_hw_ready);
 
-			dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
-			/* link is established * start sending messages.  */
-
-			dev->dev_state = MEI_DEV_INIT_CLIENTS;
-
-			mei_hbm_start_req(dev);
 			mutex_unlock(&dev->device_lock);
 			return IRQ_HANDLED;
 		} else {
@@ -521,12 +548,12 @@ end:
 }
 static const struct mei_hw_ops mei_me_hw_ops = {
 
-	.host_set_ready = mei_me_host_set_ready,
 	.host_is_ready = mei_me_host_is_ready,
 
 	.hw_is_ready = mei_me_hw_is_ready,
 	.hw_reset = mei_me_hw_reset,
-	.hw_config  = mei_me_hw_config,
+	.hw_config = mei_me_hw_config,
+	.hw_start = mei_me_hw_start,
 
 	.intr_clear = mei_me_intr_clear,
 	.intr_enable = mei_me_intr_enable,

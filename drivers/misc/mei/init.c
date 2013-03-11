@@ -22,6 +22,7 @@
 #include <linux/mei.h>
 
 #include "mei_dev.h"
+#include "hbm.h"
 #include "client.h"
 
 const char *mei_dev_state_str(int state)
@@ -47,6 +48,7 @@ void mei_device_init(struct mei_device *dev)
 	/* setup our list array */
 	INIT_LIST_HEAD(&dev->file_list);
 	mutex_init(&dev->device_lock);
+	init_waitqueue_head(&dev->wait_hw_ready);
 	init_waitqueue_head(&dev->wait_recvd_msg);
 	init_waitqueue_head(&dev->wait_stop_wd);
 	dev->dev_state = MEI_DEV_INITIALIZING;
@@ -175,6 +177,20 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	if (unexpected)
 		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
 			 mei_dev_state_str(dev->dev_state));
+
+	if (!interrupts_enabled) {
+		dev_dbg(&dev->pdev->dev, "intr not enabled end of reset\n");
+		return;
+	}
+
+	mei_hw_start(dev);
+
+	dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
+	/* link is established * start sending messages.  */
+
+	dev->dev_state = MEI_DEV_INIT_CLIENTS;
+
+	mei_hbm_start_req(dev);
 
 	/* wake up all readings so they can be interrupted */
 	mei_cl_all_read_wakeup(dev);

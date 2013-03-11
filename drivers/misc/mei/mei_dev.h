@@ -213,11 +213,11 @@ struct mei_cl {
 
 /** struct mei_hw_ops
  *
- * @host_set_ready   - notify FW that host side is ready
  * @host_is_ready    - query for host readiness
 
  * @hw_is_ready      - query if hw is ready
  * @hw_reset         - reset hw
+ * @hw_start         - start hw after reset
  * @hw_config        - configure hw
 
  * @intr_clear       - clear pending interrupts
@@ -237,11 +237,11 @@ struct mei_cl {
  */
 struct mei_hw_ops {
 
-	void (*host_set_ready) (struct mei_device *dev);
 	bool (*host_is_ready) (struct mei_device *dev);
 
 	bool (*hw_is_ready) (struct mei_device *dev);
 	void (*hw_reset) (struct mei_device *dev, bool enable);
+	int  (*hw_start) (struct mei_device *dev);
 	void (*hw_config) (struct mei_device *dev);
 
 	void (*intr_clear) (struct mei_device *dev);
@@ -296,11 +296,14 @@ struct mei_device {
 	 */
 	struct mutex device_lock; /* device lock */
 	struct delayed_work timer_work;	/* MEI timer delayed work (timeouts) */
+
+	bool recvd_hw_ready;
 	bool recvd_msg;
 
 	/*
 	 * waiting queue for receive message from FW
 	 */
+	wait_queue_head_t wait_hw_ready;
 	wait_queue_head_t wait_recvd_msg;
 	wait_queue_head_t wait_stop_wd;
 
@@ -465,6 +468,11 @@ static inline void mei_hw_reset(struct mei_device *dev, bool enable)
 	dev->ops->hw_reset(dev, enable);
 }
 
+static inline void mei_hw_start(struct mei_device *dev)
+{
+	dev->ops->hw_start(dev);
+}
+
 static inline void mei_clear_interrupts(struct mei_device *dev)
 {
 	dev->ops->intr_clear(dev);
@@ -480,10 +488,6 @@ static inline void mei_disable_interrupts(struct mei_device *dev)
 	dev->ops->intr_disable(dev);
 }
 
-static inline void mei_host_set_ready(struct mei_device *dev)
-{
-	dev->ops->host_set_ready(dev);
-}
 static inline bool mei_host_is_ready(struct mei_device *dev)
 {
 	return dev->ops->host_is_ready(dev);
