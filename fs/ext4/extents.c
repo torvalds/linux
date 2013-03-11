@@ -4165,9 +4165,6 @@ got_allocated_blocks:
 			}
 		} else {
 			BUG_ON(allocated_clusters < reserved_clusters);
-			/* We will claim quota for all newly allocated blocks.*/
-			ext4_da_update_reserve_space(inode, allocated_clusters,
-							1);
 			if (reserved_clusters < allocated_clusters) {
 				struct ext4_inode_info *ei = EXT4_I(inode);
 				int reservation = allocated_clusters -
@@ -4218,6 +4215,15 @@ got_allocated_blocks:
 				ei->i_reserved_data_blocks += reservation;
 				spin_unlock(&ei->i_block_reservation_lock);
 			}
+			/*
+			 * We will claim quota for all newly allocated blocks.
+			 * We're updating the reserved space *after* the
+			 * correction above so we do not accidentally free
+			 * all the metadata reservation because we might
+			 * actually need it later on.
+			 */
+			ext4_da_update_reserve_space(inode, allocated_clusters,
+							1);
 		}
 	}
 
