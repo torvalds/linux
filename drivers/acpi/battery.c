@@ -146,7 +146,7 @@ struct acpi_battery {
 
 #define to_acpi_battery(x) container_of(x, struct acpi_battery, bat)
 
-inline int acpi_battery_present(struct acpi_battery *battery)
+static inline int acpi_battery_present(struct acpi_battery *battery)
 {
 	return battery->device->status.battery_present;
 }
