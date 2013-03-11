@@ -152,7 +152,6 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 static int bcm63xx_spi_setup(struct spi_device *spi)
 {
 	struct bcm63xx_spi *bs;
-	int ret;
 
 	bs = spi_master_get_devdata(spi->master);
 
