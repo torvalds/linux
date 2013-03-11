@@ -90,7 +90,7 @@ EXPORT_SYMBOL(go7007_read_addr);
 static int go7007_load_encoder(struct go7007 *go)
 {
 	const struct firmware *fw_entry;
-	char fw_name[] = "go7007fw.bin";
+	char fw_name[] = "go7007/go7007fw.bin";
 	void *bounce;
 	int fw_len, rv = 0;
 	u16 intr_val, intr_data;
@@ -126,7 +126,7 @@ static int go7007_load_encoder(struct go7007 *go)
 	return rv;
 }
 
-MODULE_FIRMWARE("go7007fw.bin");
+MODULE_FIRMWARE("go7007/go7007fw.bin");
 
 /*
  * Boot the encoder and register the I2C adapter if requested.  Do the

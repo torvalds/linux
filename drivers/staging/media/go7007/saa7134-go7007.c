@@ -65,7 +65,7 @@ struct saa7134_go7007 {
 };
 
 static struct go7007_board_info board_voyager = {
-	.firmware	 = "go7007tv.bin",
+	.firmware	 = "go7007/go7007tv.bin",
 	.flags		 = 0,
 	.sensor_flags	 = GO7007_SENSOR_656 |
 				GO7007_SENSOR_VALID_ENABLE |
@@ -430,6 +430,7 @@ static struct go7007_hpi_ops saa7134_go7007_hpi_ops = {
 	.send_firmware		= saa7134_go7007_send_firmware,
 	.send_command		= saa7134_go7007_send_command,
 };
+MODULE_FIRMWARE("go7007/go7007tv.bin");
 
 /********************* Add/remove functions *********************/
 
