@@ -20,6 +20,17 @@
 #include <linux/uaccess.h>
 #include <linux/ratelimit.h>
 
+#undef LDISC_DEBUG_HANGUP
+
+#ifdef LDISC_DEBUG_HANGUP
+#define tty_ldisc_debug(tty, f, args...) ({				       \
+	char __b[64];							       \
+	printk(KERN_DEBUG "%s: %s: " f, __func__, tty_name(tty, __b), ##args); \
+})
+#else
+#define tty_ldisc_debug(tty, f, args...)
+#endif
+
 /*
  *	This guards the refcounted line discipline lists. The lock
  *	must be taken with irqs off because there are hangup path
@@ -822,6 +833,8 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	int reset = tty->driver->flags & TTY_DRIVER_RESET_TERMIOS;
 	int err = 0;
 
+	tty_ldisc_debug(tty, "closing ldisc: %p\n", tty->ldisc);
+
 	/*
 	 * FIXME! What are the locking issues here? This may me overdoing
 	 * things... This question is especially important now that we've
@@ -878,6 +891,8 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	mutex_unlock(&tty->ldisc_mutex);
 	if (reset)
 		tty_reset_termios(tty);
+
+	tty_ldisc_debug(tty, "re-opened ldisc: %p\n", tty->ldisc);
 }
 
 /**
@@ -944,6 +959,8 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 	 * it does not race with the set_ldisc code path.
 	 */
 
+	tty_ldisc_debug(tty, "closing ldisc: %p\n", tty->ldisc);
+
 	tty_ldisc_halt(tty, o_tty, MAX_SCHEDULE_TIMEOUT);
 
 	tty_lock_pair(tty, o_tty);
@@ -955,6 +972,8 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 	tty_unlock_pair(tty, o_tty);
 	/* And the memory resources remaining (buffers, termios) will be
 	   disposed of when the kref hits zero */
+
+	tty_ldisc_debug(tty, "ldisc closed\n");
 }
 
 /**
