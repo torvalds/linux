@@ -21,8 +21,6 @@
 #include <linux/aer.h>
 #include <linux/log2.h>
 
-#include <linux/sysfs.h>
-
 #define QLC_STATUS_UNSUPPORTED_CMD	-2
 
 int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
