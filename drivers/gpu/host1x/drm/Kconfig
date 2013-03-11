@@ -1,6 +1,6 @@
 config DRM_TEGRA
 	bool "NVIDIA Tegra DRM"
-	depends on DRM && OF
+	depends on DRM
 	select DRM_KMS_HELPER
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
