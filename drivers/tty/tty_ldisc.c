@@ -179,6 +179,29 @@ static struct tty_ldisc *tty_ldisc_get(int disc)
 	return ld;
 }
 
+/**
+ *	tty_ldisc_put		-	release the ldisc
+ *
+ *	Complement of tty_ldisc_get().
+ */
+static inline void tty_ldisc_put(struct tty_ldisc *ld)
+{
+	unsigned long flags;
+
+	if (WARN_ON_ONCE(!ld))
+		return;
+
+	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
+
+	/* unreleased reader reference(s) will cause this WARN */
+	WARN_ON(!atomic_dec_and_test(&ld->users));
+
+	ld->ops->refcount--;
+	module_put(ld->ops->owner);
+	kfree(ld);
+	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+}
+
 static void *tty_ldiscs_seq_start(struct seq_file *m, loff_t *pos)
 {
 	return (*pos < NR_LDISCS) ? pos : NULL;
@@ -327,29 +350,6 @@ void tty_ldisc_deref(struct tty_ldisc *ld)
 		wake_up(&ld->wq_idle);
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_deref);
-
-/**
- *	tty_ldisc_put		-	release the ldisc
- *
- *	Complement of tty_ldisc_get().
- */
-static inline void tty_ldisc_put(struct tty_ldisc *ld)
-{
-	unsigned long flags;
-
-	if (WARN_ON_ONCE(!ld))
-		return;
-
-	raw_spin_lock_irqsave(&tty_ldisc_lock, flags);
-
-	/* unreleased reader reference(s) will cause this WARN */
-	WARN_ON(!atomic_dec_and_test(&ld->users));
-
-	ld->ops->refcount--;
-	module_put(ld->ops->owner);
-	kfree(ld);
-	raw_spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-}
 
 /**
  *	tty_ldisc_enable	-	allow ldisc use
