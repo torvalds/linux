@@ -59,6 +59,12 @@ do {\
 	} \
   } while (0)
 
+static inline void i2c_gate_ctrl(struct au0828_dev *dev, int val)
+{
+	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
+		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, val);
+}
+
 static inline void print_err_status(struct au0828_dev *dev,
 				    int packet, int status)
 {
@@ -1320,8 +1326,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 
-	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
-		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 1);
+	i2c_gate_ctrl(dev, 1);
 
 	/* FIXME: when we support something other than NTSC, we are going to
 	   have to make the au0828 bridge adjust the size of its capture
@@ -1330,8 +1335,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, norm);
 	dev->std_set_in_tuner_core = 1;
 
-	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
-		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 0);
+	i2c_gate_ctrl(dev, 0);
 	dev->std = norm;
 
 	return 0;
@@ -1517,13 +1521,11 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (t->index != 0)
 		return -EINVAL;
 
-	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
-		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 1);
+	i2c_gate_ctrl(dev, 1);
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
 
-	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
-		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 0);
+	i2c_gate_ctrl(dev, 0);
 
 	dprintk(1, "VIDIOC_S_TUNER: signal = %x, afc = %x\n", t->signal,
 		t->afc);
@@ -1554,8 +1556,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (freq->tuner != 0)
 		return -EINVAL;
 
-	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
-		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 1);
+	i2c_gate_ctrl(dev, 1);
 
 	if (dev->std_set_in_tuner_core == 0) {
 		/* If we've never sent the standard in tuner core, do so now.
@@ -1571,8 +1572,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_frequency, &new_freq);
 	dev->ctrl_freq = new_freq.frequency;
 
-	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
-		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 0);
+	i2c_gate_ctrl(dev, 0);
 
 	au0828_analog_stream_reset(dev);
 
