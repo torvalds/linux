@@ -156,6 +156,9 @@ static void local_release(struct kref *ref)
 	cancel_work_sync(&local->rx_work);
 	cancel_work_sync(&local->timeout_work);
 	kfree_skb(local->rx_pending);
+	del_timer_sync(&local->sdreq_timer);
+	cancel_work_sync(&local->sdreq_timeout_work);
+	nfc_llcp_free_sdp_tlv_list(&local->pending_sdreqs);
 	kfree(local);
 }
 
@@ -221,6 +224,47 @@ static void nfc_llcp_symm_timer(unsigned long data)
 	pr_err("SYMM timeout\n");
 
 	schedule_work(&local->timeout_work);
+}
+
+static void nfc_llcp_sdreq_timeout_work(struct work_struct *work)
+{
+	unsigned long time;
+	HLIST_HEAD(nl_sdres_list);
+	struct hlist_node *n;
+	struct nfc_llcp_sdp_tlv *sdp;
+	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
+						    sdreq_timeout_work);
+
+	mutex_lock(&local->sdreq_lock);
+
+	time = jiffies - msecs_to_jiffies(3 * local->remote_lto);
+
+	hlist_for_each_entry_safe(sdp, n, &local->pending_sdreqs, node) {
+		if (time_after(sdp->time, time))
+			continue;
+
+		sdp->sap = LLCP_SDP_UNBOUND;
+
+		hlist_del(&sdp->node);
+
+		hlist_add_head(&sdp->node, &nl_sdres_list);
+	}
+
+	if (!hlist_empty(&local->pending_sdreqs))
+		mod_timer(&local->sdreq_timer,
+			  jiffies + msecs_to_jiffies(3 * local->remote_lto));
+
+	mutex_unlock(&local->sdreq_lock);
+
+	if (!hlist_empty(&nl_sdres_list))
+		nfc_genl_llc_send_sdres(local->dev, &nl_sdres_list);
+}
+
+static void nfc_llcp_sdreq_timer(unsigned long data)
+{
+	struct nfc_llcp_local *local = (struct nfc_llcp_local *) data;
+
+	schedule_work(&local->sdreq_timeout_work);
 }
 
 struct nfc_llcp_local *nfc_llcp_find_local(struct nfc_dev *dev)
@@ -766,8 +810,6 @@ static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
 	ui_cb->dsap = dsap;
 	ui_cb->ssap = ssap;
 
-	printk("%s %d %d\n", __func__, dsap, ssap);
-
 	pr_debug("%d %d\n", dsap, ssap);
 
 	/* We're looking for a bound socket, not a client one */
@@ -865,7 +907,9 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 	new_sock = nfc_llcp_sock(new_sk);
 	new_sock->dev = local->dev;
 	new_sock->local = nfc_llcp_local_get(local);
-	new_sock->miu = local->remote_miu;
+	new_sock->rw = sock->rw;
+	new_sock->miux = sock->miux;
+	new_sock->remote_miu = local->remote_miu;
 	new_sock->nfc_protocol = sock->nfc_protocol;
 	new_sock->dsap = ssap;
 	new_sock->target_idx = local->target_idx;
@@ -919,11 +963,11 @@ int nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
 
 	pr_debug("Remote ready %d tx queue len %d remote rw %d",
 		 sock->remote_ready, skb_queue_len(&sock->tx_pending_queue),
-		 sock->rw);
+		 sock->remote_rw);
 
 	/* Try to queue some I frames for transmission */
 	while (sock->remote_ready &&
-	       skb_queue_len(&sock->tx_pending_queue) < sock->rw) {
+	       skb_queue_len(&sock->tx_pending_queue) < sock->remote_rw) {
 		struct sk_buff *pdu;
 
 		pdu = skb_dequeue(&sock->tx_queue);
@@ -1144,6 +1188,10 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 	u16 tlv_len, offset;
 	char *service_name;
 	size_t service_name_len;
+	struct nfc_llcp_sdp_tlv *sdp;
+	HLIST_HEAD(llc_sdres_list);
+	size_t sdres_tlvs_len;
+	HLIST_HEAD(nl_sdres_list);
 
 	dsap = nfc_llcp_dsap(skb);
 	ssap = nfc_llcp_ssap(skb);
@@ -1158,6 +1206,7 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 	tlv = &skb->data[LLCP_HEADER_SIZE];
 	tlv_len = skb->len - LLCP_HEADER_SIZE;
 	offset = 0;
+	sdres_tlvs_len = 0;
 
 	while (offset < tlv_len) {
 		type = tlv[0];
@@ -1175,14 +1224,14 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 			    !strncmp(service_name, "urn:nfc:sn:sdp",
 				     service_name_len)) {
 				sap = 1;
-				goto send_snl;
+				goto add_snl;
 			}
 
 			llcp_sock = nfc_llcp_sock_from_sn(local, service_name,
 							  service_name_len);
 			if (!llcp_sock) {
 				sap = 0;
-				goto send_snl;
+				goto add_snl;
 			}
 
 			/*
@@ -1199,7 +1248,7 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 
 				if (sap == LLCP_SAP_MAX) {
 					sap = 0;
-					goto send_snl;
+					goto add_snl;
 				}
 
 				client_count =
@@ -1216,8 +1265,37 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 
 			pr_debug("%p %d\n", llcp_sock, sap);
 
-send_snl:
-			nfc_llcp_send_snl(local, tid, sap);
+add_snl:
+			sdp = nfc_llcp_build_sdres_tlv(tid, sap);
+			if (sdp == NULL)
+				goto exit;
+
+			sdres_tlvs_len += sdp->tlv_len;
+			hlist_add_head(&sdp->node, &llc_sdres_list);
+			break;
+
+		case LLCP_TLV_SDRES:
+			mutex_lock(&local->sdreq_lock);
+
+			pr_debug("LLCP_TLV_SDRES: searching tid %d\n", tlv[2]);
+
+			hlist_for_each_entry(sdp, &local->pending_sdreqs, node) {
+				if (sdp->tid != tlv[2])
+					continue;
+
+				sdp->sap = tlv[3];
+
+				pr_debug("Found: uri=%s, sap=%d\n",
+					 sdp->uri, sdp->sap);
+
+				hlist_del(&sdp->node);
+
+				hlist_add_head(&sdp->node, &nl_sdres_list);
+
+				break;
+			}
+
+			mutex_unlock(&local->sdreq_lock);
 			break;
 
 		default:
@@ -1228,6 +1306,13 @@ send_snl:
 		offset += length + 2;
 		tlv += length + 2;
 	}
+
+exit:
+	if (!hlist_empty(&nl_sdres_list))
+		nfc_genl_llc_send_sdres(local->dev, &nl_sdres_list);
+
+	if (!hlist_empty(&llc_sdres_list))
+		nfc_llcp_send_snl_sdres(local, &llc_sdres_list, sdres_tlvs_len);
 }
 
 static void nfc_llcp_rx_work(struct work_struct *work)
@@ -1412,6 +1497,13 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 
 	local->remote_miu = LLCP_DEFAULT_MIU;
 	local->remote_lto = LLCP_DEFAULT_LTO;
+
+	mutex_init(&local->sdreq_lock);
+	INIT_HLIST_HEAD(&local->pending_sdreqs);
+	init_timer(&local->sdreq_timer);
+	local->sdreq_timer.data = (unsigned long) local;
+	local->sdreq_timer.function = nfc_llcp_sdreq_timer;
+	INIT_WORK(&local->sdreq_timeout_work, nfc_llcp_sdreq_timeout_work);
 
 	list_add(&local->list, &llcp_devices);
 
