@@ -234,8 +234,8 @@ static void sprom_get_mac(char *mac, const u16 *in)
 {
 	int i;
 	for (i = 0; i < 3; i++) {
-		*mac++ = in[i];
 		*mac++ = in[i] >> 8;
+		*mac++ = in[i];
 	}
 }
 
