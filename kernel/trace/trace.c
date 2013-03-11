@@ -5205,8 +5205,6 @@ static inline int register_snapshot_cmd(void) { return 0; }
 
 struct dentry *tracing_init_dentry_tr(struct trace_array *tr)
 {
-	static int once;
-
 	if (tr->dir)
 		return tr->dir;
 
@@ -5216,11 +5214,8 @@ struct dentry *tracing_init_dentry_tr(struct trace_array *tr)
 	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
 		tr->dir = debugfs_create_dir("tracing", NULL);
 
-	if (!tr->dir && !once) {
-		once = 1;
-		pr_warning("Could not create debugfs directory 'tracing'\n");
-		return NULL;
-	}
+	if (!tr->dir)
+		pr_warn_once("Could not create debugfs directory 'tracing'\n");
 
 	return tr->dir;
 }
