@@ -232,6 +232,7 @@ struct mwl8k_priv {
 	u16 num_mcaddrs;
 	u8 hw_rev;
 	u32 fw_rev;
+	u32 caps;
 
 	/*
 	 * Running count of TX packets in flight, to avoid
@@ -2410,6 +2411,9 @@ mwl8k_set_caps(struct ieee80211_hw *hw, u32 caps)
 {
 	struct mwl8k_priv *priv = hw->priv;
 
+	if (priv->caps)
+		return;
+
 	if ((caps & MWL8K_CAP_2GHZ4) || !(caps & MWL8K_CAP_BAND_MASK)) {
 		mwl8k_setup_2ghz_band(hw);
 		if (caps & MWL8K_CAP_MIMO)
@@ -2421,6 +2425,8 @@ mwl8k_set_caps(struct ieee80211_hw *hw, u32 caps)
 		if (caps & MWL8K_CAP_MIMO)
 			mwl8k_set_ht_caps(hw, &priv->band_50, caps);
 	}
+
+	priv->caps = caps;
 }
 
 static int mwl8k_cmd_get_hw_spec_sta(struct ieee80211_hw *hw)
