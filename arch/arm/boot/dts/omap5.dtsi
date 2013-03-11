@@ -434,6 +434,9 @@
 			reg-names = "mpu", "dma";
 			interrupts = <0 112 0x4>;
 			ti,hwmods = "mcpdm";
+			dmas = <&sdma 65>,
+			       <&sdma 66>;
+			dma-names = "up_link", "dn_link";
 		};
 
 		dmic: dmic@4012e000 {
@@ -443,6 +446,8 @@
 			reg-names = "mpu", "dma";
 			interrupts = <0 114 0x4>;
 			ti,hwmods = "dmic";
+			dmas = <&sdma 67>;
+			dma-names = "up_link";
 		};
 
 		mcbsp1: mcbsp@40122000 {
@@ -454,6 +459,9 @@
 			interrupt-names = "common";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp1";
+			dmas = <&sdma 33>,
+			       <&sdma 34>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp2: mcbsp@40124000 {
@@ -465,6 +473,9 @@
 			interrupt-names = "common";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp2";
+			dmas = <&sdma 17>,
+			       <&sdma 18>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp3: mcbsp@40126000 {
@@ -476,6 +487,9 @@
 			interrupt-names = "common";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp3";
+			dmas = <&sdma 19>,
+			       <&sdma 20>;
+			dma-names = "tx", "rx";
 		};
 
 		timer1: timer@4ae18000 {

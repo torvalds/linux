@@ -307,6 +307,9 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp1";
+			dmas = <&sdma 31>,
+			       <&sdma 32>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp2: mcbsp@49022000 {
@@ -321,6 +324,9 @@
 			interrupt-names = "common", "tx", "rx", "sidetone";
 			ti,buffer-size = <1280>;
 			ti,hwmods = "mcbsp2", "mcbsp2_sidetone";
+			dmas = <&sdma 33>,
+			       <&sdma 34>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp3: mcbsp@49024000 {
@@ -335,6 +341,9 @@
 			interrupt-names = "common", "tx", "rx", "sidetone";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp3", "mcbsp3_sidetone";
+			dmas = <&sdma 17>,
+			       <&sdma 18>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp4: mcbsp@49026000 {
@@ -347,6 +356,9 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp4";
+			dmas = <&sdma 19>,
+			       <&sdma 20>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp5: mcbsp@48096000 {
@@ -359,6 +371,9 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp5";
+			dmas = <&sdma 21>,
+			       <&sdma 22>;
+			dma-names = "tx", "rx";
 		};
 
 		timer1: timer@48318000 {
