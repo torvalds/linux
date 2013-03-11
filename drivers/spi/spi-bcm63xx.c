@@ -96,12 +96,9 @@ static const unsigned bcm63xx_spi_freq_table[SPI_CLK_MASK][2] = {
 static int bcm63xx_spi_check_transfer(struct spi_device *spi,
 					struct spi_transfer *t)
 {
-	u8 bits_per_word;
-
-	bits_per_word = (t) ? t->bits_per_word : spi->bits_per_word;
-	if (bits_per_word != 8) {
+	if (t->bits_per_word != 8) {
 		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
-			__func__, bits_per_word);
+			__func__, t->bits_per_word);
 		return -EINVAL;
 	}
 
