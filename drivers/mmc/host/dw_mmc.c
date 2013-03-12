@@ -1573,11 +1573,11 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 {
 	struct dw_mci *host = dev_id;
 	u32 pending;
-	unsigned int pass_count = 0;
 	int i;
 
-	do {
-		pending = mci_readl(host, MINTSTS); /* read-only mask reg */
+	pending = mci_readl(host, MINTSTS); /* read-only mask reg */
+
+	if (pending) {
 
 		/*
 		 * DTO fix - version 2.10a and below, and only if internal DMA
@@ -1588,9 +1588,6 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			    ((mci_readl(host, STATUS) >> 17) & 0x1fff))
 				pending |= SDMMC_INT_DATA_OVER;
 		}
-
-		if (!pending)
-			break;
 
 		if (pending & DW_MCI_CMD_ERROR_FLAGS) {
 			mci_writel(host, RINTSTS, DW_MCI_CMD_ERROR_FLAGS);
@@ -1652,7 +1649,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			}
 		}
 
-	} while (pass_count++ < 5);
+	}
 
 #ifdef CONFIG_MMC_DW_IDMAC
 	/* Handle DMA interrupts */
