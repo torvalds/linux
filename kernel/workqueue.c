@@ -1707,7 +1707,8 @@ static struct worker *create_worker(struct worker_pool *pool)
 					"kworker/%d:%d%s", pool->cpu, id, pri);
 	else
 		worker->task = kthread_create(worker_thread, worker,
-					      "kworker/u:%d%s", id, pri);
+					      "kworker/u%d:%d%s",
+					      pool->id, id, pri);
 	if (IS_ERR(worker->task))
 		goto fail;
 
