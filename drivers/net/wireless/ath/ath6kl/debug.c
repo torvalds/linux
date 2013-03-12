@@ -1810,8 +1810,10 @@ int ath6kl_debug_init_fs(struct ath6kl *ar)
 	debugfs_create_file("tgt_stats", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_tgt_stats);
 
-	debugfs_create_file("credit_dist_stats", S_IRUSR, ar->debugfs_phy, ar,
-			    &fops_credit_dist_stats);
+	if (ar->hif_type == ATH6KL_HIF_TYPE_SDIO)
+		debugfs_create_file("credit_dist_stats", S_IRUSR,
+				    ar->debugfs_phy, ar,
+				    &fops_credit_dist_stats);
 
 	debugfs_create_file("endpoint_stats", S_IRUSR | S_IWUSR,
 			    ar->debugfs_phy, ar, &fops_endpoint_stats);
