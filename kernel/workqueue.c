@@ -3329,6 +3329,23 @@ fail:
 	return NULL;
 }
 
+/* initialize @pwq which interfaces with @pool for @wq and link it in */
+static void init_and_link_pwq(struct pool_workqueue *pwq,
+			      struct workqueue_struct *wq,
+			      struct worker_pool *pool)
+{
+	BUG_ON((unsigned long)pwq & WORK_STRUCT_FLAG_MASK);
+
+	pwq->pool = pool;
+	pwq->wq = wq;
+	pwq->flush_color = -1;
+	pwq->max_active = wq->saved_max_active;
+	INIT_LIST_HEAD(&pwq->delayed_works);
+	INIT_LIST_HEAD(&pwq->mayday_node);
+
+	list_add_tail_rcu(&pwq->pwqs_node, &wq->pwqs);
+}
+
 static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 {
 	bool highpri = wq->flags & WQ_HIGHPRI;
@@ -3345,23 +3362,23 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 			struct worker_pool *cpu_pools =
 				per_cpu(cpu_worker_pools, cpu);
 
-			pwq->pool = &cpu_pools[highpri];
-			list_add_tail_rcu(&pwq->pwqs_node, &wq->pwqs);
+			init_and_link_pwq(pwq, wq, &cpu_pools[highpri]);
 		}
 	} else {
 		struct pool_workqueue *pwq;
+		struct worker_pool *pool;
 
 		pwq = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
 		if (!pwq)
 			return -ENOMEM;
 
-		pwq->pool = get_unbound_pool(unbound_std_wq_attrs[highpri]);
-		if (!pwq->pool) {
+		pool = get_unbound_pool(unbound_std_wq_attrs[highpri]);
+		if (!pool) {
 			kmem_cache_free(pwq_cache, pwq);
 			return -ENOMEM;
 		}
 
-		list_add_tail_rcu(&pwq->pwqs_node, &wq->pwqs);
+		init_and_link_pwq(pwq, wq, pool);
 	}
 
 	return 0;
@@ -3406,7 +3423,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 
 	wq = kzalloc(sizeof(*wq) + namelen, GFP_KERNEL);
 	if (!wq)
-		goto err;
+		return NULL;
 
 	vsnprintf(wq->name, namelen, fmt, args1);
 	va_end(args);
@@ -3429,18 +3446,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 	INIT_LIST_HEAD(&wq->list);
 
 	if (alloc_and_link_pwqs(wq) < 0)
-		goto err;
-
-	local_irq_disable();
-	for_each_pwq(pwq, wq) {
-		BUG_ON((unsigned long)pwq & WORK_STRUCT_FLAG_MASK);
-		pwq->wq = wq;
-		pwq->flush_color = -1;
-		pwq->max_active = max_active;
-		INIT_LIST_HEAD(&pwq->delayed_works);
-		INIT_LIST_HEAD(&pwq->mayday_node);
-	}
-	local_irq_enable();
+		goto err_free_wq;
 
 	/*
 	 * Workqueues which may be used during memory reclaim should
@@ -3449,16 +3455,19 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 	if (flags & WQ_MEM_RECLAIM) {
 		struct worker *rescuer;
 
-		wq->rescuer = rescuer = alloc_worker();
+		rescuer = alloc_worker();
 		if (!rescuer)
-			goto err;
+			goto err_destroy;
 
 		rescuer->rescue_wq = wq;
 		rescuer->task = kthread_create(rescuer_thread, rescuer, "%s",
 					       wq->name);
-		if (IS_ERR(rescuer->task))
-			goto err;
+		if (IS_ERR(rescuer->task)) {
+			kfree(rescuer);
+			goto err_destroy;
+		}
 
+		wq->rescuer = rescuer;
 		rescuer->task->flags |= PF_THREAD_BOUND;
 		wake_up_process(rescuer->task);
 	}
@@ -3479,12 +3488,12 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 	spin_unlock_irq(&workqueue_lock);
 
 	return wq;
-err:
-	if (wq) {
-		free_pwqs(wq);
-		kfree(wq->rescuer);
-		kfree(wq);
-	}
+
+err_free_wq:
+	kfree(wq);
+	return NULL;
+err_destroy:
+	destroy_workqueue(wq);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(__alloc_workqueue_key);
@@ -3526,7 +3535,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	 * wq list is used to freeze wq, remove from list after
 	 * flushing is complete in case freeze races us.
 	 */
-	list_del(&wq->list);
+	list_del_init(&wq->list);
 
 	spin_unlock_irq(&workqueue_lock);
 
