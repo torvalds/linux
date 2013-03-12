@@ -157,8 +157,6 @@ struct ceph_msg {
 };
 
 struct ceph_msg_pos {
-	int page, page_pos;  /* which page; offset in page */
-	int data_pos;        /* offset in data payload */
 	bool did_page_crc;   /* true if we've calculated crc for current page */
 };
 
