@@ -2988,18 +2988,20 @@ static void ftrace_free_entry_rcu(struct rcu_head *rhp)
 	kfree(entry);
 }
 
-
 int
 register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			      void *data)
 {
 	struct ftrace_func_probe *entry;
+	struct ftrace_hash **orig_hash = &trace_probe_ops.filter_hash;
+	struct ftrace_hash *hash;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	int type, len, not;
 	unsigned long key;
 	int count = 0;
 	char *search;
+	int ret;
 
 	type = filter_parse_regex(glob, strlen(glob), &search, &not);
 	len = strlen(search);
@@ -3010,8 +3012,16 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 	mutex_lock(&ftrace_lock);
 
-	if (unlikely(ftrace_disabled))
+	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, *orig_hash);
+	if (!hash) {
+		count = -ENOMEM;
 		goto out_unlock;
+	}
+
+	if (unlikely(ftrace_disabled)) {
+		count = -ENODEV;
+		goto out_unlock;
+	}
 
 	do_for_each_ftrace_rec(pg, rec) {
 
@@ -3043,6 +3053,13 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			}
 		}
 
+		ret = enter_record(hash, rec, 0);
+		if (ret < 0) {
+			kfree(entry);
+			count = ret;
+			goto out_unlock;
+		}
+
 		entry->ops = ops;
 		entry->ip = rec->ip;
 
@@ -3050,10 +3067,16 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		hlist_add_head_rcu(&entry->node, &ftrace_func_hash[key]);
 
 	} while_for_each_ftrace_rec();
+
+	ret = ftrace_hash_move(&trace_probe_ops, 1, orig_hash, hash);
+	if (ret < 0)
+		count = ret;
+
 	__enable_ftrace_function_probe();
 
  out_unlock:
 	mutex_unlock(&ftrace_lock);
+	free_ftrace_hash(hash);
 
 	return count;
 }
@@ -3067,7 +3090,10 @@ static void
 __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 				  void *data, int flags)
 {
+	struct ftrace_func_entry *rec_entry;
 	struct ftrace_func_probe *entry;
+	struct ftrace_hash **orig_hash = &trace_probe_ops.filter_hash;
+	struct ftrace_hash *hash;
 	struct hlist_node *n, *tmp;
 	char str[KSYM_SYMBOL_LEN];
 	int type = MATCH_FULL;
@@ -3088,6 +3114,12 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	}
 
 	mutex_lock(&ftrace_lock);
+
+	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, *orig_hash);
+	if (!hash)
+		/* Hmm, should report this somehow */
+		goto out_unlock;
+
 	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
 		struct hlist_head *hhd = &ftrace_func_hash[i];
 
@@ -3108,12 +3140,24 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 					continue;
 			}
 
+			rec_entry = ftrace_lookup_ip(hash, entry->ip);
+			/* It is possible more than one entry had this ip */
+			if (rec_entry)
+				free_hash_entry(hash, rec_entry);
+
 			hlist_del_rcu(&entry->node);
 			call_rcu_sched(&entry->rcu, ftrace_free_entry_rcu);
 		}
 	}
 	__disable_ftrace_function_probe();
+	/*
+	 * Remove after the disable is called. Otherwise, if the last
+	 * probe is removed, a null hash means *all enabled*.
+	 */
+	ftrace_hash_move(&trace_probe_ops, 1, orig_hash, hash);
+ out_unlock:
 	mutex_unlock(&ftrace_lock);
+	free_ftrace_hash(hash);
 }
 
 void
