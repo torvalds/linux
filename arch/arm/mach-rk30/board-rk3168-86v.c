@@ -1793,21 +1793,33 @@ static void rk30_pm_power_off(void)
 {
 	printk(KERN_ERR "rk30_pm_power_off start...\n");
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-#if defined(CONFIG_MFD_WM831X)
-	wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
-	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
-#endif
-#if defined(CONFIG_REGULATOR_ACT8846)
+	
        if (pmic_is_tps65910()) {
-               printk("enter dcdet===========\n");
+               printk("enter dcdet pmic_is_tps65910===========\n");
                if(gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)
                {
                        printk("enter restart===========\n");
                        arm_pm_restart(0, NULL);
                }
                tps65910_device_shutdown();
-       }
-#endif
+       }else if(pmic_is_act8846()){
+		 printk("enter dcdet pmic_is_act8846===========\n");
+               if(gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)
+               {
+                       printk("enter restart===========\n");
+                       arm_pm_restart(0, NULL);
+               }
+              act8846_device_shutdown();
+	}else if(pmic_is_wm8326()){
+		 printk("enter dcdet pmic_is_wm8326===========\n");
+               if(gpio_get_value (RK30_PIN0_PB2) == GPIO_LOW)
+               {
+                       printk("enter restart===========\n");
+                       arm_pm_restart(0, NULL);
+               }
+		wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
+		wm831x_device_shutdown(Wm831x);//wm8326 shutdown
+	}
 	while (1);
 }
 
