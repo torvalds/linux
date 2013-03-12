@@ -4189,6 +4189,24 @@ restart:
 	spin_unlock(&kvm->mmu_lock);
 }
 
+void kvm_mmu_zap_mmio_sptes(struct kvm *kvm)
+{
+	struct kvm_mmu_page *sp, *node;
+	LIST_HEAD(invalid_list);
+
+	spin_lock(&kvm->mmu_lock);
+restart:
+	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link) {
+		if (!sp->mmio_cached)
+			continue;
+		if (kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list))
+			goto restart;
+	}
+
+	kvm_mmu_commit_zap_page(kvm, &invalid_list);
+	spin_unlock(&kvm->mmu_lock);
+}
+
 static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct kvm *kvm;

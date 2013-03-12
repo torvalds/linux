@@ -6991,7 +6991,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * mmio sptes.
 	 */
 	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE)) {
-		kvm_mmu_zap_all(kvm);
+		kvm_mmu_zap_mmio_sptes(kvm);
 		kvm_reload_remote_mmus(kvm);
 	}
 }
