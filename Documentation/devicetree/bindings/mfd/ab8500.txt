@@ -13,9 +13,6 @@ Required parent device properties:
                                   4 = active high level-sensitive
                                   8 = active low level-sensitive
 
-Optional parent device properties:
-- reg                    : contains the PRCMU mailbox address for the AB8500 i2c port
-
 The AB8500 consists of a large and varied group of sub-devices:
 
 Device                     IRQ Names              Supply Names   Description
@@ -86,9 +83,8 @@ Non-standard child device properties:
    - stericsson,amic2-bias-vamic1           : Analoge Mic wishes to use a non-standard Vamic
    - stericsson,earpeice-cmv                : Earpeice voltage (only: 950 | 1100 | 1270 | 1580)
 
-ab8500@5 {
+ab8500 {
          compatible = "stericsson,ab8500";
-         reg = <5>; /* mailbox 5 is i2c */
          interrupts = <0 40 0x4>;
          interrupt-controller;
          #interrupt-cells = <2>;
