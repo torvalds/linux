@@ -49,6 +49,10 @@ struct clk_hw;
  *		This function is allowed to sleep. Optional, if this op is not
  *		set then the prepare count will be used.
  *
+ * @unprepare_unused: Unprepare the clock atomically.  Only called from
+ *		clk_disable_unused for prepare clocks with special needs.
+ *		Called with prepare mutex held. This function may sleep.
+ *
  * @enable:	Enable the clock atomically. This must not return until the
  * 		clock is generating a valid clock signal, usable by consumer
  * 		devices. Called with enable_lock held. This function must not
@@ -113,6 +117,7 @@ struct clk_ops {
 	int		(*prepare)(struct clk_hw *hw);
 	void		(*unprepare)(struct clk_hw *hw);
 	int		(*is_prepared)(struct clk_hw *hw);
+	void		(*unprepare_unused)(struct clk_hw *hw);
 	int		(*enable)(struct clk_hw *hw);
 	void		(*disable)(struct clk_hw *hw);
 	int		(*is_enabled)(struct clk_hw *hw);
