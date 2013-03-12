@@ -343,6 +343,30 @@
 					};
 				};
 
+				i2c_gpio0 {
+					pinctrl_i2c_gpio0: i2c_gpio0-0 {
+						atmel,pins =
+							<0 30 0x0 0x2	/* PA30 gpio multidrive I2C0 data */
+							 0 31 0x0 0x2>;	/* PA31 gpio multidrive I2C0 clock */
+					};
+				};
+
+				i2c_gpio1 {
+					pinctrl_i2c_gpio1: i2c_gpio1-0 {
+						atmel,pins =
+							<2 0 0x0 0x2	/* PC0 gpio multidrive I2C1 data */
+							 2 1 0x0 0x2>;	/* PC1 gpio multidrive I2C1 clock */
+					};
+				};
+
+				i2c_gpio2 {
+					pinctrl_i2c_gpio2: i2c_gpio2-0 {
+						atmel,pins =
+							<1 4 0x0 0x2	/* PB4 gpio multidrive I2C2 data */
+							 1 5 0x0 0x2>;	/* PB5 gpio multidrive I2C2 clock */
+					};
+				};
+
 				pioA: gpio@fffff400 {
 					compatible = "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;
@@ -583,6 +607,8 @@
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c_gpio0>;
 		status = "disabled";
 	};
 
@@ -596,6 +622,8 @@
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c_gpio1>;
 		status = "disabled";
 	};
 
@@ -609,6 +637,8 @@
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c_gpio2>;
 		status = "disabled";
 	};
 };
