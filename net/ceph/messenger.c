@@ -2185,66 +2185,15 @@ static int read_partial_message_section(struct ceph_connection *con,
 	return 1;
 }
 
-static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip);
-
-static int read_partial_message_pages(struct ceph_connection *con,
-				      unsigned int data_len, bool do_datacrc)
-{
-	struct ceph_msg *msg = con->in_msg;
-	struct page *page;
-	size_t page_offset;
-	size_t length;
-	int ret;
-
-	page = ceph_msg_data_next(&msg->p, &page_offset, &length, NULL);
-
-	ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
-	if (ret <= 0)
-		return ret;
-
-	if (do_datacrc)
-		con->in_data_crc = ceph_crc32c_page(con->in_data_crc, page,
-							page_offset, ret);
-
-	in_msg_pos_next(con, length, ret);
-
-	return ret;
-}
-
-#ifdef CONFIG_BLOCK
-static int read_partial_message_bio(struct ceph_connection *con,
-				    unsigned int data_len, bool do_datacrc)
-{
-	struct ceph_msg *msg = con->in_msg;
-	struct page *page;
-	size_t page_offset;
-	size_t length;
-	int ret;
-
-	BUG_ON(!msg);
-
-	page = ceph_msg_data_next(&msg->b, &page_offset, &length, NULL);
-
-	ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
-	if (ret <= 0)
-		return ret;
-
-	if (do_datacrc)
-		con->in_data_crc = ceph_crc32c_page(con->in_data_crc, page,
-							page_offset, ret);
-
-	in_msg_pos_next(con, length, ret);
-
-	return ret;
-}
-#endif
-
 static int read_partial_msg_data(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->in_msg;
 	struct ceph_msg_pos *msg_pos = &con->in_msg_pos;
 	const bool do_datacrc = !con->msgr->nocrc;
 	unsigned int data_len;
+	struct page *page;
+	size_t page_offset;
+	size_t length;
 	int ret;
 
 	BUG_ON(!msg);
@@ -2252,20 +2201,25 @@ static int read_partial_msg_data(struct ceph_connection *con)
 	data_len = le32_to_cpu(con->in_hdr.data_len);
 	while (msg_pos->data_pos < data_len) {
 		if (ceph_msg_has_pages(msg)) {
-			ret = read_partial_message_pages(con, data_len,
-							do_datacrc);
-			if (ret <= 0)
-				return ret;
+			page = ceph_msg_data_next(&msg->p, &page_offset,
+					&length, NULL);
 #ifdef CONFIG_BLOCK
 		} else if (ceph_msg_has_bio(msg)) {
-			ret = read_partial_message_bio(con,
-						 data_len, do_datacrc);
-			if (ret <= 0)
-				return ret;
+			page = ceph_msg_data_next(&msg->b, &page_offset,
+					&length, NULL);
 #endif
 		} else {
 			BUG_ON(1);
 		}
+		ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
+		if (ret <= 0)
+			return ret;
+
+		if (do_datacrc)
+			con->in_data_crc = ceph_crc32c_page(con->in_data_crc,
+							page, page_offset, ret);
+
+		in_msg_pos_next(con, length, ret);
 	}
 
 	return 1;	/* must return > 0 to indicate success */
@@ -2274,6 +2228,8 @@ static int read_partial_msg_data(struct ceph_connection *con)
 /*
  * read (part of) a message.
  */
+static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip);
+
 static int read_partial_message(struct ceph_connection *con)
 {
 	struct ceph_msg *m = con->in_msg;
