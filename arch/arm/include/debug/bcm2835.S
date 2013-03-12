@@ -11,7 +11,8 @@
  *
  */
 
-#include <mach/bcm2835_soc.h>
+#define BCM2835_DEBUG_PHYS 0x20201000
+#define BCM2835_DEBUG_VIRT 0xf0201000
 
 	.macro	addruart, rp, rv, tmp
 	ldr	\rp, =BCM2835_DEBUG_PHYS

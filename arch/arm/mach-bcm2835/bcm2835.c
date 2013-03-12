@@ -23,8 +23,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/bcm2835_soc.h>
-
 #define PM_RSTC				0x1c
 #define PM_RSTS				0x20
 #define PM_WDOG				0x24
@@ -33,6 +31,10 @@
 #define PM_RSTC_WRCFG_MASK		0x00000030
 #define PM_RSTC_WRCFG_FULL_RESET	0x00000020
 #define PM_RSTS_HADWRH_SET		0x00000040
+
+#define BCM2835_PERIPH_PHYS	0x20000000
+#define BCM2835_PERIPH_VIRT	0xf0000000
+#define BCM2835_PERIPH_SIZE	SZ_16M
 
 static void __iomem *wdt_regs;
 
