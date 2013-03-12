@@ -1207,7 +1207,6 @@ MODULE_DEVICE_TABLE(spi, mcp251x_id_table);
 static struct spi_driver mcp251x_can_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 	},
 
