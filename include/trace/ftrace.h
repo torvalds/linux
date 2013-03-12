@@ -413,6 +413,10 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *	int __data_size;
  *	int pc;
  *
+ *	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT,
+ *		     &ftrace_file->flags))
+ *		return;
+ *
  *	local_save_flags(irq_flags);
  *	pc = preempt_count();
  *
@@ -517,6 +521,10 @@ ftrace_raw_event_##call(void *__data, proto)				\
 	unsigned long irq_flags;					\
 	int __data_size;						\
 	int pc;								\
+									\
+	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT,			\
+		     &ftrace_file->flags))				\
+		return;							\
 									\
 	local_save_flags(irq_flags);					\
 	pc = preempt_count();						\

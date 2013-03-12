@@ -251,16 +251,23 @@ struct ftrace_subsystem_dir;
 enum {
 	FTRACE_EVENT_FL_ENABLED_BIT,
 	FTRACE_EVENT_FL_RECORDED_CMD_BIT,
+	FTRACE_EVENT_FL_SOFT_MODE_BIT,
+	FTRACE_EVENT_FL_SOFT_DISABLED_BIT,
 };
 
 /*
  * Ftrace event file flags:
  *  ENABLED	  - The event is enabled
  *  RECORDED_CMD  - The comms should be recorded at sched_switch
+ *  SOFT_MODE     - The event is enabled/disabled by SOFT_DISABLED
+ *  SOFT_DISABLED - When set, do not trace the event (even though its
+ *                   tracepoint may be enabled)
  */
 enum {
 	FTRACE_EVENT_FL_ENABLED		= (1 << FTRACE_EVENT_FL_ENABLED_BIT),
 	FTRACE_EVENT_FL_RECORDED_CMD	= (1 << FTRACE_EVENT_FL_RECORDED_CMD_BIT),
+	FTRACE_EVENT_FL_SOFT_MODE	= (1 << FTRACE_EVENT_FL_SOFT_MODE_BIT),
+	FTRACE_EVENT_FL_SOFT_DISABLED	= (1 << FTRACE_EVENT_FL_SOFT_DISABLED_BIT),
 };
 
 struct ftrace_event_file {
@@ -274,17 +281,18 @@ struct ftrace_event_file {
 	 * 32 bit flags:
 	 *   bit 0:		enabled
 	 *   bit 1:		enabled cmd record
+	 *   bit 2:		enable/disable with the soft disable bit
+	 *   bit 3:		soft disabled
 	 *
-	 * Changes to flags must hold the event_mutex.
-	 *
-	 * Note: Reads of flags do not hold the event_mutex since
-	 * they occur in critical sections. But the way flags
+	 * Note: The bits must be set atomically to prevent races
+	 * from other writers. Reads of flags do not need to be in
+	 * sync as they occur in critical sections. But the way flags
 	 * is currently used, these changes do not affect the code
 	 * except that when a change is made, it may have a slight
 	 * delay in propagating the changes to other CPUs due to
-	 * caching and such.
+	 * caching and such. Which is mostly OK ;-)
 	 */
-	unsigned int		flags;
+	unsigned long		flags;
 };
 
 #define __TRACE_EVENT_FLAGS(name, value)				\

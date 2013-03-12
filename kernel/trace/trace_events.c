@@ -205,37 +205,77 @@ void trace_event_enable_cmd_record(bool enable)
 
 		if (enable) {
 			tracing_start_cmdline_record();
-			file->flags |= FTRACE_EVENT_FL_RECORDED_CMD;
+			set_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
 		} else {
 			tracing_stop_cmdline_record();
-			file->flags &= ~FTRACE_EVENT_FL_RECORDED_CMD;
+			clear_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
 		}
 	} while_for_each_event_file();
 	mutex_unlock(&event_mutex);
 }
 
-static int ftrace_event_enable_disable(struct ftrace_event_file *file,
-				       int enable)
+static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
+					 int enable, int soft_disable)
 {
 	struct ftrace_event_call *call = file->event_call;
 	int ret = 0;
+	int disable;
 
 	switch (enable) {
 	case 0:
-		if (file->flags & FTRACE_EVENT_FL_ENABLED) {
-			file->flags &= ~FTRACE_EVENT_FL_ENABLED;
+		/*
+		 * When soft_disable is set and enable is cleared, we want
+		 * to clear the SOFT_DISABLED flag but leave the event in the
+		 * state that it was. That is, if the event was enabled and
+		 * SOFT_DISABLED isn't set, then do nothing. But if SOFT_DISABLED
+		 * is set we do not want the event to be enabled before we
+		 * clear the bit.
+		 *
+		 * When soft_disable is not set but the SOFT_MODE flag is,
+		 * we do nothing. Do not disable the tracepoint, otherwise
+		 * "soft enable"s (clearing the SOFT_DISABLED bit) wont work.
+		 */
+		if (soft_disable) {
+			disable = file->flags & FTRACE_EVENT_FL_SOFT_DISABLED;
+			clear_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
+		} else
+			disable = !(file->flags & FTRACE_EVENT_FL_SOFT_MODE);
+
+		if (disable && (file->flags & FTRACE_EVENT_FL_ENABLED)) {
+			clear_bit(FTRACE_EVENT_FL_ENABLED_BIT, &file->flags);
 			if (file->flags & FTRACE_EVENT_FL_RECORDED_CMD) {
 				tracing_stop_cmdline_record();
-				file->flags &= ~FTRACE_EVENT_FL_RECORDED_CMD;
+				clear_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
 			}
 			call->class->reg(call, TRACE_REG_UNREGISTER, file);
 		}
+		/* If in SOFT_MODE, just set the SOFT_DISABLE_BIT */
+		if (file->flags & FTRACE_EVENT_FL_SOFT_MODE)
+			set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
 		break;
 	case 1:
+		/*
+		 * When soft_disable is set and enable is set, we want to
+		 * register the tracepoint for the event, but leave the event
+		 * as is. That means, if the event was already enabled, we do
+		 * nothing (but set SOFT_MODE). If the event is disabled, we
+		 * set SOFT_DISABLED before enabling the event tracepoint, so
+		 * it still seems to be disabled.
+		 */
+		if (!soft_disable)
+			clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+		else
+			set_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
+
 		if (!(file->flags & FTRACE_EVENT_FL_ENABLED)) {
+
+			/* Keep the event disabled, when going to SOFT_MODE. */
+			if (soft_disable)
+				set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+
 			if (trace_flags & TRACE_ITER_RECORD_CMD) {
 				tracing_start_cmdline_record();
-				file->flags |= FTRACE_EVENT_FL_RECORDED_CMD;
+				set_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
 			}
 			ret = call->class->reg(call, TRACE_REG_REGISTER, file);
 			if (ret) {
@@ -244,7 +284,7 @@ static int ftrace_event_enable_disable(struct ftrace_event_file *file,
 					"%s\n", call->name);
 				break;
 			}
-			file->flags |= FTRACE_EVENT_FL_ENABLED;
+			set_bit(FTRACE_EVENT_FL_ENABLED_BIT, &file->flags);
 
 			/* WAS_ENABLED gets set but never cleared. */
 			call->flags |= TRACE_EVENT_FL_WAS_ENABLED;
@@ -253,6 +293,12 @@ static int ftrace_event_enable_disable(struct ftrace_event_file *file,
 	}
 
 	return ret;
+}
+
+static int ftrace_event_enable_disable(struct ftrace_event_file *file,
+				       int enable)
+{
+	return __ftrace_event_enable_disable(file, enable, 0);
 }
 
 static void ftrace_clear_events(struct trace_array *tr)
@@ -547,12 +593,15 @@ event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	struct ftrace_event_file *file = filp->private_data;
 	char *buf;
 
-	if (file->flags & FTRACE_EVENT_FL_ENABLED)
-		buf = "1\n";
-	else
+	if (file->flags & FTRACE_EVENT_FL_ENABLED) {
+		if (file->flags & FTRACE_EVENT_FL_SOFT_DISABLED)
+			buf = "0*\n";
+		else
+			buf = "1\n";
+	} else
 		buf = "0\n";
 
-	return simple_read_from_buffer(ubuf, cnt, ppos, buf, 2);
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, strlen(buf));
 }
 
 static ssize_t
