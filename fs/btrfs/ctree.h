@@ -340,6 +340,7 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
  */
 #define BTRFS_FS_STATE_ERROR		0
 #define BTRFS_FS_STATE_REMOUNTING	1
+#define BTRFS_FS_STATE_TRANS_ABORTED	2
 
 /* Super block flags */
 /* Errors detected */

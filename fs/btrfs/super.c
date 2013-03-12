@@ -64,9 +64,9 @@
 static const struct super_operations btrfs_super_ops;
 static struct file_system_type btrfs_fs_type;
 
-static const char *btrfs_decode_error(int errno, char nbuf[16])
+static const char *btrfs_decode_error(int errno)
 {
-	char *errstr = NULL;
+	char *errstr = "unknown";
 
 	switch (errno) {
 	case -EIO:
@@ -80,12 +80,6 @@ static const char *btrfs_decode_error(int errno, char nbuf[16])
 		break;
 	case -EEXIST:
 		errstr = "Object already exists";
-		break;
-	default:
-		if (nbuf) {
-			if (snprintf(nbuf, 16, "error %d", -errno) >= 0)
-				errstr = nbuf;
-		}
 		break;
 	}
 
@@ -122,7 +116,6 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 		 * mounted writeable again, the device replace
 		 * operation continues.
 		 */
-//		WARN_ON(1);
 	}
 }
 
@@ -135,7 +128,6 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		       unsigned int line, int errno, const char *fmt, ...)
 {
 	struct super_block *sb = fs_info->sb;
-	char nbuf[16];
 	const char *errstr;
 
 	/*
@@ -145,7 +137,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 	if (errno == -EROFS && (sb->s_flags & MS_RDONLY))
   		return;
 
-  	errstr = btrfs_decode_error(errno, nbuf);
+	errstr = btrfs_decode_error(errno);
 	if (fmt) {
 		struct va_format vaf;
 		va_list args;
@@ -154,12 +146,12 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: %s (%pV)\n",
-			sb->s_id, function, line, errstr, &vaf);
+		printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: errno=%d %s (%pV)\n",
+			sb->s_id, function, line, errno, errstr, &vaf);
 		va_end(args);
 	} else {
-		printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: %s\n",
-			sb->s_id, function, line, errstr);
+		printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: errno=%d %s\n",
+			sb->s_id, function, line, errno, errstr);
 	}
 
 	/* Don't go through full error handling during mount */
@@ -248,17 +240,23 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, const char *function,
 			       unsigned int line, int errno)
 {
-	WARN_ONCE(1, KERN_DEBUG "btrfs: Transaction aborted\n");
+	/*
+	 * Report first abort since mount
+	 */
+	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,
+				&root->fs_info->fs_state)) {
+		WARN(1, KERN_DEBUG "btrfs: Transaction aborted (error %d)\n",
+				errno);
+	}
 	trans->aborted = errno;
 	/* Nothing used. The other threads that have joined this
 	 * transaction may be able to continue. */
 	if (!trans->blocks_used) {
-		char nbuf[16];
 		const char *errstr;
 
-		errstr = btrfs_decode_error(errno, nbuf);
+		errstr = btrfs_decode_error(errno);
 		btrfs_printk(root->fs_info,
-			     "%s:%d: Aborting unused transaction(%s).\n",
+			     "%s:%d: Aborting unused transaction (%s)\n",
 			     function, line, errstr);
 		return;
 	}
@@ -272,7 +270,6 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int errno, const char *fmt, ...)
 {
-	char nbuf[16];
 	char *s_id = "<unknown>";
 	const char *errstr;
 	struct va_format vaf = { .fmt = fmt };
@@ -284,13 +281,13 @@ void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 	va_start(args, fmt);
 	vaf.va = &args;
 
-	errstr = btrfs_decode_error(errno, nbuf);
+	errstr = btrfs_decode_error(errno);
 	if (fs_info && (fs_info->mount_opt & BTRFS_MOUNT_PANIC_ON_FATAL_ERROR))
-		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (%s)\n",
-			s_id, function, line, &vaf, errstr);
+		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (errno=%d %s)\n",
+			s_id, function, line, &vaf, errno, errstr);
 
-	printk(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (%s)\n",
-	       s_id, function, line, &vaf, errstr);
+	printk(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (errno=%d %s)\n",
+	       s_id, function, line, &vaf, errno, errstr);
 	va_end(args);
 	/* Caller calls BUG() */
 }

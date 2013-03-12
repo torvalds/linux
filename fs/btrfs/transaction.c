@@ -1808,7 +1808,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_transaction(trans, root);
 	if (ret) {
 		btrfs_error(root->fs_info, ret,
-			    "Error while writing out transaction.");
+			    "Error while writing out transaction");
 		mutex_unlock(&root->fs_info->tree_log_mutex);
 		goto cleanup_transaction;
 	}
@@ -1864,8 +1864,7 @@ cleanup_transaction:
 		btrfs_qgroup_free(root, trans->qgroup_reserved);
 		trans->qgroup_reserved = 0;
 	}
-	btrfs_printk(root->fs_info, "Skipping commit of aborted transaction.\n");
-//	WARN_ON(1);
+	btrfs_printk(root->fs_info, "Skipping commit of aborted transaction\n");
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
 	cleanup_transaction(trans, root, ret);
