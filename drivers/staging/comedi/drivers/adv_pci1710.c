@@ -50,17 +50,6 @@ Configuration options:
 #include "8253.h"
 #include "amcc_s5933.h"
 
-/*
- * The pci1710 and pci1710hg boards have the same device id!
- *
- * The only difference between these boards is in the
- * supported analog input ranges.
- *
- * #define this if your card is a pci1710hg and you need the
- * correct ranges reported to user space.
- */
-#undef USE_PCI1710HG_RANGE
-
 #define PCI171x_PARANOIDCHECK	/* if defined, then is used code which control
 				 * correct channel number on every 12 bit
 				 * sample */
@@ -144,7 +133,6 @@ static const struct comedi_lrange range_pci1710_3 = { 9, {
 static const char range_codes_pci1710_3[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
 					      0x10, 0x11, 0x12, 0x13 };
 
-#ifdef USE_PCI1710HG_RANGE
 static const struct comedi_lrange range_pci1710hg = { 12, {
 							   BIP_RANGE(5),
 							   BIP_RANGE(0.5),
@@ -164,7 +152,6 @@ static const struct comedi_lrange range_pci1710hg = { 12, {
 static const char range_codes_pci1710hg[] = { 0x00, 0x01, 0x02, 0x03, 0x04,
 					      0x05, 0x06, 0x07, 0x10, 0x11,
 					      0x12, 0x13 };
-#endif /* USE_PCI1710HG_RANGE */
 
 static const struct comedi_lrange range_pci17x1 = { 5, {
 							BIP_RANGE(10),
@@ -193,6 +180,7 @@ static const struct comedi_lrange range_pci171x_da = { 2, {
 
 enum pci1710_boardid {
 	BOARD_PCI1710,
+	BOARD_PCI1710HG,
 	BOARD_PCI1711,
 	BOARD_PCI1713,
 	BOARD_PCI1720,
@@ -233,13 +221,27 @@ static const struct boardtype boardtypes[] = {
 		.n_counter	= 1,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
-#ifndef USE_PCI1710HG_RANGE
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
-#else
+		.rangelist_ao	= &range_pci171x_da,
+		.ai_ns_min	= 10000,
+		.fifo_half_size	= 2048,
+	},
+	[BOARD_PCI1710HG] = {
+		.name		= "pci1710hg",
+		.iorange	= IORANGE_171x,
+		.have_irq	= 1,
+		.cardtype	= TYPE_PCI171X,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.n_aochan	= 2,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.n_counter	= 1,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
-#endif
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
@@ -1397,7 +1399,57 @@ static int adv_pci1710_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adv_pci1710_pci_table) = {
-	{ PCI_VDEVICE(ADVANTECH, 0x1710), BOARD_PCI1710 },
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0x0000),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb100),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb200),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc100),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc200),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710, 0x1000, 0xd100),
+		.driver_data = BOARD_PCI1710,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0x0002),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb102),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb202),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc102),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc202),
+		.driver_data = BOARD_PCI1710HG,
+	}, {
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710, 0x1000, 0xd102),
+		.driver_data = BOARD_PCI1710HG,
+	},
 	{ PCI_VDEVICE(ADVANTECH, 0x1711), BOARD_PCI1711 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1713), BOARD_PCI1713 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1720), BOARD_PCI1720 },
