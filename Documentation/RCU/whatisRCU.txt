@@ -842,9 +842,7 @@ SRCU:	Critical sections	Grace period		Barrier
 
 	srcu_read_lock		synchronize_srcu	srcu_barrier
 	srcu_read_unlock	call_srcu
-	srcu_read_lock_raw	synchronize_srcu_expedited
-	srcu_read_unlock_raw
-	srcu_dereference
+	srcu_dereference	synchronize_srcu_expedited
 
 SRCU:	Initialization/cleanup
 	init_srcu_struct
@@ -865,38 +863,32 @@ list can be helpful:
 
 a.	Will readers need to block?  If so, you need SRCU.
 
-b.	Is it necessary to start a read-side critical section in a
-	hardirq handler or exception handler, and then to complete
-	this read-side critical section in the task that was
-	interrupted?  If so, you need SRCU's srcu_read_lock_raw() and
-	srcu_read_unlock_raw() primitives.
-
-c.	What about the -rt patchset?  If readers would need to block
+b.	What about the -rt patchset?  If readers would need to block
 	in an non-rt kernel, you need SRCU.  If readers would block
 	in a -rt kernel, but not in a non-rt kernel, SRCU is not
 	necessary.
 
-d.	Do you need to treat NMI handlers, hardirq handlers,
+c.	Do you need to treat NMI handlers, hardirq handlers,
 	and code segments with preemption disabled (whether
 	via preempt_disable(), local_irq_save(), local_bh_disable(),
 	or some other mechanism) as if they were explicit RCU readers?
 	If so, RCU-sched is the only choice that will work for you.
 
-e.	Do you need RCU grace periods to complete even in the face
+d.	Do you need RCU grace periods to complete even in the face
 	of softirq monopolization of one or more of the CPUs?  For
 	example, is your code subject to network-based denial-of-service
 	attacks?  If so, you need RCU-bh.
 
-f.	Is your workload too update-intensive for normal use of
+e.	Is your workload too update-intensive for normal use of
 	RCU, but inappropriate for other synchronization mechanisms?
 	If so, consider SLAB_DESTROY_BY_RCU.  But please be careful!
 
-g.	Do you need read-side critical sections that are respected
+f.	Do you need read-side critical sections that are respected
 	even though they are in the middle of the idle loop, during
 	user-mode execution, or on an offlined CPU?  If so, SRCU is the
 	only choice that will work for you.
 
-h.	Otherwise, use RCU.
+g.	Otherwise, use RCU.
 
 Of course, this all assumes that you have determined that RCU is in fact
 the right tool for your job.
