@@ -336,6 +336,28 @@ static inline int clk_debug_register(struct clk *clk) { return 0; }
 #endif
 
 /* caller must hold prepare_lock */
+static void clk_unprepare_unused_subtree(struct clk *clk)
+{
+	struct clk *child;
+
+	if (!clk)
+		return;
+
+	hlist_for_each_entry(child, &clk->children, child_node)
+		clk_unprepare_unused_subtree(child);
+
+	if (clk->prepare_count)
+		return;
+
+	if (clk->flags & CLK_IGNORE_UNUSED)
+		return;
+
+	if (__clk_is_prepared(clk))
+		if (clk->ops->unprepare)
+			clk->ops->unprepare(clk->hw);
+}
+
+/* caller must hold prepare_lock */
 static void clk_disable_unused_subtree(struct clk *clk)
 {
 	struct clk *child;
@@ -385,6 +407,12 @@ static int clk_disable_unused(void)
 
 	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
 		clk_disable_unused_subtree(clk);
+
+	hlist_for_each_entry(clk, &clk_root_list, child_node)
+		clk_unprepare_unused_subtree(clk);
+
+	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
+		clk_unprepare_unused_subtree(clk);
 
 	mutex_unlock(&prepare_lock);
 
