@@ -179,6 +179,9 @@ There are several ways to build.
   =m or =y.
 - and build your kernel as usual.
 - install the built kernel.
+  Note: Since linux-3.9, every filesystem module requires an alias
+  "fs-<fsname>". You should make sure that "fs-aufs" is listed in your
+  modules.aliases file if you set CONFIG_AUFS_FS=m.
 - install the header files too by "make headers_install" to the
   directory where you specify. By default, it is $PWD/usr.
   "make help" shows a brief note for headers_install.
@@ -196,6 +199,9 @@ There are several ways to build.
   Note: You should read $PWD/fs/aufs/Kconfig carefully which describes
   every aufs configurations.
 - build the module by simple "make".
+  Note: Since linux-3.9, every filesystem module requires an alias
+  "fs-<fsname>". You should make sure that "fs-aufs" is listed in your
+  modules.aliases file.
 - you can specify ${KDIR} make variable which points to your kernel
   source tree.
 - install the files
