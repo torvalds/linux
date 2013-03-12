@@ -155,6 +155,11 @@ THUMB(	orr	r7, #(1 << 30)	)	@ HSCTLR.TE
 	mcr	p15, 4, r7, c14, c1, 0	@ CNTHCTL
 	mov	r7, #0
 	mcrr	p15, 4, r7, r7, c14	@ CNTVOFF
+
+	@ Disable virtual timer in case it was counting
+	mrc	p15, 0, r7, c14, c3, 1	@ CNTV_CTL
+	bic	r7, #1			@ Clear ENABLE
+	mcr	p15, 0, r7, c14, c3, 1	@ CNTV_CTL
 1:
 #endif
 
