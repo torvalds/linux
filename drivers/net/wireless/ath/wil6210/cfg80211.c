@@ -21,7 +21,6 @@
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <net/cfg80211.h>
 
 #include "wil6210.h"
