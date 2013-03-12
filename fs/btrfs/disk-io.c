@@ -1658,15 +1658,20 @@ static int cleaner_kthread(void *arg)
 	struct btrfs_root *root = arg;
 
 	do {
+		int again = 0;
+
 		if (!(root->fs_info->sb->s_flags & MS_RDONLY) &&
-		    mutex_trylock(&root->fs_info->cleaner_mutex)) {
-			btrfs_run_delayed_iputs(root);
-			btrfs_clean_old_snapshots(root);
-			mutex_unlock(&root->fs_info->cleaner_mutex);
+		    down_read_trylock(&root->fs_info->sb->s_umount)) {
+			if (mutex_trylock(&root->fs_info->cleaner_mutex)) {
+				btrfs_run_delayed_iputs(root);
+				again = btrfs_clean_one_deleted_snapshot(root);
+				mutex_unlock(&root->fs_info->cleaner_mutex);
+			}
 			btrfs_run_defrag_inodes(root->fs_info);
+			up_read(&root->fs_info->sb->s_umount);
 		}
 
-		if (!try_to_freeze()) {
+		if (!try_to_freeze() && !again) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (!kthread_should_stop())
 				schedule();
@@ -3358,8 +3363,8 @@ int btrfs_commit_super(struct btrfs_root *root)
 
 	mutex_lock(&root->fs_info->cleaner_mutex);
 	btrfs_run_delayed_iputs(root);
-	btrfs_clean_old_snapshots(root);
 	mutex_unlock(&root->fs_info->cleaner_mutex);
+	wake_up_process(root->fs_info->cleaner_kthread);
 
 	/* wait until ongoing cleanup work done */
 	down_write(&root->fs_info->cleanup_work_sem);

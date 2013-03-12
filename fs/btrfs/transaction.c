@@ -948,7 +948,7 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 int btrfs_add_dead_root(struct btrfs_root *root)
 {
 	spin_lock(&root->fs_info->trans_lock);
-	list_add(&root->root_list, &root->fs_info->dead_roots);
+	list_add_tail(&root->root_list, &root->fs_info->dead_roots);
 	spin_unlock(&root->fs_info->trans_lock);
 	return 0;
 }
@@ -1873,31 +1873,49 @@ cleanup_transaction:
 }
 
 /*
- * interface function to delete all the snapshots we have scheduled for deletion
+ * return < 0 if error
+ * 0 if there are no more dead_roots at the time of call
+ * 1 there are more to be processed, call me again
+ *
+ * The return value indicates there are certainly more snapshots to delete, but
+ * if there comes a new one during processing, it may return 0. We don't mind,
+ * because btrfs_commit_super will poke cleaner thread and it will process it a
+ * few seconds later.
  */
-int btrfs_clean_old_snapshots(struct btrfs_root *root)
+int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 {
-	LIST_HEAD(list);
+	int ret;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
+	if (fs_info->sb->s_flags & MS_RDONLY) {
+		pr_debug("btrfs: cleaner called for RO fs!\n");
+		return 0;
+	}
+
 	spin_lock(&fs_info->trans_lock);
-	list_splice_init(&fs_info->dead_roots, &list);
+	if (list_empty(&fs_info->dead_roots)) {
+		spin_unlock(&fs_info->trans_lock);
+		return 0;
+	}
+	root = list_first_entry(&fs_info->dead_roots,
+			struct btrfs_root, root_list);
+	list_del(&root->root_list);
 	spin_unlock(&fs_info->trans_lock);
 
-	while (!list_empty(&list)) {
-		int ret;
+	pr_debug("btrfs: cleaner removing %llu\n",
+			(unsigned long long)root->objectid);
 
-		root = list_entry(list.next, struct btrfs_root, root_list);
-		list_del(&root->root_list);
+	btrfs_kill_all_delayed_nodes(root);
 
-		btrfs_kill_all_delayed_nodes(root);
-
-		if (btrfs_header_backref_rev(root->node) <
-		    BTRFS_MIXED_BACKREF_REV)
-			ret = btrfs_drop_snapshot(root, NULL, 0, 0);
-		else
-			ret =btrfs_drop_snapshot(root, NULL, 1, 0);
-		BUG_ON(ret < 0);
-	}
-	return 0;
+	if (btrfs_header_backref_rev(root->node) <
+			BTRFS_MIXED_BACKREF_REV)
+		ret = btrfs_drop_snapshot(root, NULL, 0, 0);
+	else
+		ret = btrfs_drop_snapshot(root, NULL, 1, 0);
+	/*
+	 * If we encounter a transaction abort during snapshot cleaning, we
+	 * don't want to crash here
+	 */
+	BUG_ON(ret < 0 && ret != -EAGAIN && ret != -EROFS);
+	return 1;
 }
