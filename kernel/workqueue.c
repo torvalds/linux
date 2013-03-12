@@ -124,7 +124,7 @@ enum {
 
 struct worker_pool {
 	spinlock_t		lock;		/* the pool lock */
-	unsigned int		cpu;		/* I: the associated cpu */
+	int			cpu;		/* I: the associated cpu */
 	int			id;		/* I: pool ID */
 	unsigned int		flags;		/* X: flags */
 
@@ -467,8 +467,7 @@ static struct worker_pool *get_std_worker_pool(int cpu, bool highpri)
 	return &pools[highpri];
 }
 
-static struct pool_workqueue *get_pwq(unsigned int cpu,
-				      struct workqueue_struct *wq)
+static struct pool_workqueue *get_pwq(int cpu, struct workqueue_struct *wq)
 {
 	if (!(wq->flags & WQ_UNBOUND)) {
 		if (likely(cpu < nr_cpu_ids))
@@ -730,7 +729,7 @@ static void wake_up_worker(struct worker_pool *pool)
  * CONTEXT:
  * spin_lock_irq(rq->lock)
  */
-void wq_worker_waking_up(struct task_struct *task, unsigned int cpu)
+void wq_worker_waking_up(struct task_struct *task, int cpu)
 {
 	struct worker *worker = kthread_data(task);
 
@@ -755,8 +754,7 @@ void wq_worker_waking_up(struct task_struct *task, unsigned int cpu)
  * RETURNS:
  * Worker task on @cpu to wake up, %NULL if none.
  */
-struct task_struct *wq_worker_sleeping(struct task_struct *task,
-				       unsigned int cpu)
+struct task_struct *wq_worker_sleeping(struct task_struct *task, int cpu)
 {
 	struct worker *worker = kthread_data(task), *to_wakeup = NULL;
 	struct worker_pool *pool;
@@ -1159,7 +1157,7 @@ static bool is_chained_work(struct workqueue_struct *wq)
 	return worker && worker->current_pwq->wq == wq;
 }
 
-static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
+static void __queue_work(int cpu, struct workqueue_struct *wq,
 			 struct work_struct *work)
 {
 	struct pool_workqueue *pwq;
@@ -1714,7 +1712,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 	if (pool->cpu != WORK_CPU_UNBOUND)
 		worker->task = kthread_create_on_node(worker_thread,
 					worker, cpu_to_node(pool->cpu),
-					"kworker/%u:%d%s", pool->cpu, id, pri);
+					"kworker/%d:%d%s", pool->cpu, id, pri);
 	else
 		worker->task = kthread_create(worker_thread, worker,
 					      "kworker/u:%d%s", id, pri);
@@ -3345,7 +3343,7 @@ EXPORT_SYMBOL_GPL(workqueue_set_max_active);
  * RETURNS:
  * %true if congested, %false otherwise.
  */
-bool workqueue_congested(unsigned int cpu, struct workqueue_struct *wq)
+bool workqueue_congested(int cpu, struct workqueue_struct *wq)
 {
 	struct pool_workqueue *pwq = get_pwq(cpu, wq);
 
@@ -3461,7 +3459,7 @@ static int __cpuinit workqueue_cpu_up_callback(struct notifier_block *nfb,
 					       unsigned long action,
 					       void *hcpu)
 {
-	unsigned int cpu = (unsigned long)hcpu;
+	int cpu = (unsigned long)hcpu;
 	struct worker_pool *pool;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
@@ -3507,7 +3505,7 @@ static int __cpuinit workqueue_cpu_down_callback(struct notifier_block *nfb,
 						 unsigned long action,
 						 void *hcpu)
 {
-	unsigned int cpu = (unsigned long)hcpu;
+	int cpu = (unsigned long)hcpu;
 	struct work_struct unbind_work;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
@@ -3547,7 +3545,7 @@ static void work_for_cpu_fn(struct work_struct *work)
  * It is up to the caller to ensure that the cpu doesn't go offline.
  * The caller must not hold any locks which would prevent @fn from completing.
  */
-long work_on_cpu(unsigned int cpu, long (*fn)(void *), void *arg)
+long work_on_cpu(int cpu, long (*fn)(void *), void *arg)
 {
 	struct work_for_cpu wfc = { .fn = fn, .arg = arg };
 
@@ -3705,7 +3703,7 @@ out_unlock:
 
 static int __init init_workqueues(void)
 {
-	unsigned int cpu;
+	int cpu;
 
 	/* make sure we have enough bits for OFFQ pool ID */
 	BUILD_BUG_ON((1LU << (BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT)) <

@@ -435,7 +435,7 @@ extern bool cancel_delayed_work_sync(struct delayed_work *dwork);
 
 extern void workqueue_set_max_active(struct workqueue_struct *wq,
 				     int max_active);
-extern bool workqueue_congested(unsigned int cpu, struct workqueue_struct *wq);
+extern bool workqueue_congested(int cpu, struct workqueue_struct *wq);
 extern unsigned int work_busy(struct work_struct *work);
 
 /*
@@ -466,12 +466,12 @@ static inline bool __deprecated flush_delayed_work_sync(struct delayed_work *dwo
 }
 
 #ifndef CONFIG_SMP
-static inline long work_on_cpu(unsigned int cpu, long (*fn)(void *), void *arg)
+static inline long work_on_cpu(int cpu, long (*fn)(void *), void *arg)
 {
 	return fn(arg);
 }
 #else
-long work_on_cpu(unsigned int cpu, long (*fn)(void *), void *arg);
+long work_on_cpu(int cpu, long (*fn)(void *), void *arg);
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_FREEZER
