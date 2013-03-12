@@ -372,7 +372,7 @@ static int msm_ssbi_remove(struct platform_device *pdev)
 
 static struct platform_driver msm_ssbi_driver = {
 	.probe		= msm_ssbi_probe,
-	.remove		= __exit_p(msm_ssbi_remove),
+	.remove		= msm_ssbi_remove,
 	.driver		= {
 		.name	= "msm_ssbi",
 		.owner	= THIS_MODULE,
