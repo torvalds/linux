@@ -1788,6 +1788,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	nfs4_lock_state();
 	unconf = find_unconfirmed_client(&cr_ses->clientid, true, nn);
 	conf = find_confirmed_client(&cr_ses->clientid, true, nn);
+	WARN_ON_ONCE(conf && unconf);
 
 	if (conf) {
 		cs_slot = &conf->cl_cs_slot;
@@ -2129,6 +2130,7 @@ nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 	nfs4_lock_state();
 	unconf = find_unconfirmed_client(&dc->clientid, true, nn);
 	conf = find_confirmed_client(&dc->clientid, true, nn);
+	WARN_ON_ONCE(conf && unconf);
 
 	if (conf) {
 		clp = conf;
