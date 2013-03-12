@@ -34,8 +34,6 @@
 #include "solo6x10.h"
 #include "tw28.h"
 
-#define SOLO_DISP_PIX_FIELD	V4L2_FIELD_INTERLACED
-
 /* Image size is two fields, SOLO_HW_BPL is one horizontal line in hardware */
 #define SOLO_HW_BPL		2048
 #define solo_vlines(__solo)	(__solo->video_vsize * 2)
@@ -439,7 +437,7 @@ static int solo_v4l2_open(struct file *file)
 	videobuf_queue_dma_contig_init(&fh->vidq, &solo_video_qops,
 				       &solo_dev->pdev->dev, &fh->slock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
-				       SOLO_DISP_PIX_FIELD,
+				       V4L2_FIELD_INTERLACED,
 				       sizeof(struct videobuf_buffer),
 				       fh, NULL);
 	return 0;
@@ -581,23 +579,16 @@ static int solo_try_fmt_cap(struct file *file, void *priv,
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	int image_size = solo_image_size(solo_dev);
 
-	/* Check supported sizes */
-	if (pix->width != solo_dev->video_hsize)
-		pix->width = solo_dev->video_hsize;
-	if (pix->height != solo_vlines(solo_dev))
-		pix->height = solo_vlines(solo_dev);
-	if (pix->sizeimage != image_size)
-		pix->sizeimage = image_size;
-
-	/* Check formats */
-	if (pix->field == V4L2_FIELD_ANY)
-		pix->field = SOLO_DISP_PIX_FIELD;
-
-	if (pix->pixelformat != V4L2_PIX_FMT_UYVY ||
-	    pix->field       != SOLO_DISP_PIX_FIELD ||
-	    pix->colorspace  != V4L2_COLORSPACE_SMPTE170M)
+	if (pix->pixelformat != V4L2_PIX_FMT_UYVY)
 		return -EINVAL;
 
+	pix->width = solo_dev->video_hsize;
+	pix->height = solo_vlines(solo_dev);
+	pix->sizeimage = image_size;
+	pix->field = V4L2_FIELD_INTERLACED;
+	pix->pixelformat = V4L2_PIX_FMT_UYVY;
+	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	pix->priv = 0;
 	return 0;
 }
 
@@ -624,10 +615,11 @@ static int solo_get_fmt_cap(struct file *file, void *priv,
 	pix->width = solo_dev->video_hsize;
 	pix->height = solo_vlines(solo_dev);
 	pix->pixelformat = V4L2_PIX_FMT_UYVY;
-	pix->field = SOLO_DISP_PIX_FIELD;
+	pix->field = V4L2_FIELD_INTERLACED;
 	pix->sizeimage = solo_image_size(solo_dev);
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pix->bytesperline = solo_bytesperline(solo_dev);
+	pix->priv = 0;
 
 	return 0;
 }

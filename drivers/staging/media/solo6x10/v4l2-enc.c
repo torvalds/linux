@@ -1039,13 +1039,6 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 	    pix->pixelformat != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
 
-	/* We cannot change width/height in mid mpeg */
-	if (atomic_read(&solo_enc->mpeg_readers) > 0) {
-		if (pix->width != solo_enc->width ||
-		    pix->height != solo_enc->height)
-			return -EBUSY;
-	}
-
 	if (pix->width < solo_dev->video_hsize ||
 	    pix->height < solo_dev->video_vsize << 1) {
 		/* Default to CIF 1/2 size */
@@ -1057,14 +1050,20 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 		pix->height = solo_dev->video_vsize << 1;
 	}
 
-	if (pix->field == V4L2_FIELD_ANY)
+	switch (pix->field) {
+	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_INTERLACED:
+		break;
+	case V4L2_FIELD_ANY:
+	default:
 		pix->field = V4L2_FIELD_INTERLACED;
-	else if (pix->field != V4L2_FIELD_INTERLACED)
-		pix->field = V4L2_FIELD_INTERLACED;
+		break;
+	}
 
 	/* Just set these */
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pix->sizeimage = FRAME_BUF_SIZE;
+	pix->priv = 0;
 
 	return 0;
 }
@@ -1081,6 +1080,15 @@ static int solo_enc_set_fmt_cap(struct file *file, void *priv,
 	mutex_lock(&solo_enc->enable_lock);
 
 	ret = solo_enc_try_fmt_cap(file, priv, f);
+	if (ret)
+		return ret;
+
+	/* We cannot change width/height in mid read */
+	if (!ret && atomic_read(&solo_enc->readers) > 0) {
+		if (pix->width != solo_enc->width ||
+		    pix->height != solo_enc->height)
+			ret = -EBUSY;
+	}
 	if (ret) {
 		mutex_unlock(&solo_enc->enable_lock);
 		return ret;
@@ -1116,6 +1124,7 @@ static int solo_enc_get_fmt_cap(struct file *file, void *priv,
 		     V4L2_FIELD_NONE;
 	pix->sizeimage = FRAME_BUF_SIZE;
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	pix->priv = 0;
 
 	return 0;
 }
@@ -1205,7 +1214,8 @@ static int solo_enum_framesizes(struct file *file, void *priv,
 	struct solo_enc_fh *fh = priv;
 	struct solo_dev *solo_dev = fh->enc->solo_dev;
 
-	if (fsize->pixel_format != V4L2_PIX_FMT_MPEG)
+	if (fsize->pixel_format != V4L2_PIX_FMT_MPEG &&
+	    fsize->pixel_format != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
 
 	switch (fsize->index) {
@@ -1232,16 +1242,24 @@ static int solo_enum_frameintervals(struct file *file, void *priv,
 	struct solo_enc_fh *fh = priv;
 	struct solo_dev *solo_dev = fh->enc->solo_dev;
 
-	if (fintv->pixel_format != V4L2_PIX_FMT_MPEG || fintv->index)
+	if (fintv->pixel_format != V4L2_PIX_FMT_MPEG &&
+	    fintv->pixel_format != V4L2_PIX_FMT_MJPEG)
+		return -EINVAL;
+	if (fintv->index)
+		return -EINVAL;
+	if ((fintv->width != solo_dev->video_hsize >> 1 ||
+	     fintv->height != solo_dev->video_vsize) &&
+	    (fintv->width != solo_dev->video_hsize ||
+	     fintv->height != solo_dev->video_vsize << 1))
 		return -EINVAL;
 
 	fintv->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 
-	fintv->stepwise.min.numerator = solo_dev->fps;
-	fintv->stepwise.min.denominator = 1;
+	fintv->stepwise.min.denominator = solo_dev->fps;
+	fintv->stepwise.min.numerator = 15;
 
-	fintv->stepwise.max.numerator = solo_dev->fps;
-	fintv->stepwise.max.denominator = 15;
+	fintv->stepwise.max.denominator = solo_dev->fps;
+	fintv->stepwise.max.numerator = 1;
 
 	fintv->stepwise.step.numerator = 1;
 	fintv->stepwise.step.denominator = 1;
@@ -1298,6 +1316,7 @@ static int solo_s_parm(struct file *file, void *priv,
 	solo_enc->interval = cp->timeperframe.numerator;
 
 	cp->capability = V4L2_CAP_TIMEPERFRAME;
+	cp->readbuffers = 2;
 
 	solo_update_mode(solo_enc);
 
