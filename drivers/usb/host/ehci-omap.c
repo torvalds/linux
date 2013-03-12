@@ -48,6 +48,8 @@
 #include <linux/clk.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/of.h>
+#include <linux/dma-mapping.h>
 
 #include "ehci.h"
 
@@ -121,6 +123,8 @@ static const struct ehci_driver_overrides ehci_omap_overrides __initdata = {
 	.extra_priv_size = sizeof(struct omap_hcd),
 };
 
+static u64 omap_ehci_dma_mask = DMA_BIT_MASK(32);
+
 /**
  * ehci_hcd_omap_probe - initialize TI-based HCDs
  *
@@ -148,6 +152,17 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/* For DT boot, get platform data from parent. i.e. usbhshost */
+	if (dev->of_node) {
+		pdata = dev->parent->platform_data;
+		dev->platform_data = pdata;
+	}
+
+	if (!pdata) {
+		dev_err(dev, "Missing platform data\n");
+		return -ENODEV;
+	}
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(dev, "EHCI irq failed\n");
@@ -158,6 +173,14 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
+
+	/*
+	 * Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &omap_ehci_dma_mask;
 
 	hcd = usb_create_hcd(&ehci_omap_hc_driver, dev,
 			dev_name(dev));
@@ -183,7 +206,10 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 			continue;
 
 		/* get the PHY device */
-		phy = devm_usb_get_phy_dev(dev, i);
+		if (dev->of_node)
+			phy = devm_usb_get_phy_by_phandle(dev, "phys", i);
+		else
+			phy = devm_usb_get_phy_dev(dev, i);
 		if (IS_ERR(phy) || !phy) {
 			ret = IS_ERR(phy) ? PTR_ERR(phy) : -ENODEV;
 			dev_err(dev, "Can't get PHY device for port %d: %d\n",
@@ -273,6 +299,13 @@ static void ehci_hcd_omap_shutdown(struct platform_device *pdev)
 		hcd->driver->shutdown(hcd);
 }
 
+static const struct of_device_id omap_ehci_dt_ids[] = {
+	{ .compatible = "ti,ehci-omap" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, omap_ehci_dt_ids);
+
 static struct platform_driver ehci_hcd_omap_driver = {
 	.probe			= ehci_hcd_omap_probe,
 	.remove			= ehci_hcd_omap_remove,
@@ -281,6 +314,7 @@ static struct platform_driver ehci_hcd_omap_driver = {
 	/*.resume		= ehci_hcd_omap_resume, */
 	.driver = {
 		.name		= hcd_name,
+		.of_match_table = of_match_ptr(omap_ehci_dt_ids),
 	}
 };
 
@@ -307,6 +341,7 @@ module_exit(ehci_omap_cleanup);
 MODULE_ALIAS("platform:ehci-omap");
 MODULE_AUTHOR("Texas Instruments, Inc.");
 MODULE_AUTHOR("Felipe Balbi <felipe.balbi@nokia.com>");
+MODULE_AUTHOR("Roger Quadros <rogerq@ti.com>");
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
