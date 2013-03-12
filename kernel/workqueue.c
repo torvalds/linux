@@ -1209,6 +1209,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 			 struct work_struct *work)
 {
 	struct pool_workqueue *pwq;
+	struct worker_pool *last_pool;
 	struct list_head *worklist;
 	unsigned int work_flags;
 	unsigned int req_cpu = cpu;
@@ -1228,41 +1229,36 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	    WARN_ON_ONCE(!is_chained_work(wq)))
 		return;
 
-	/* determine the pwq to use */
+	/* pwq which will be used unless @work is executing elsewhere */
 	if (!(wq->flags & WQ_UNBOUND)) {
-		struct worker_pool *last_pool;
-
 		if (cpu == WORK_CPU_UNBOUND)
 			cpu = raw_smp_processor_id();
-
-		/*
-		 * It's multi cpu.  If @work was previously on a different
-		 * cpu, it might still be running there, in which case the
-		 * work needs to be queued on that cpu to guarantee
-		 * non-reentrancy.
-		 */
 		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
-		last_pool = get_work_pool(work);
+	} else {
+		pwq = first_pwq(wq);
+	}
 
-		if (last_pool && last_pool != pwq->pool) {
-			struct worker *worker;
+	/*
+	 * If @work was previously on a different pool, it might still be
+	 * running there, in which case the work needs to be queued on that
+	 * pool to guarantee non-reentrancy.
+	 */
+	last_pool = get_work_pool(work);
+	if (last_pool && last_pool != pwq->pool) {
+		struct worker *worker;
 
-			spin_lock(&last_pool->lock);
+		spin_lock(&last_pool->lock);
 
-			worker = find_worker_executing_work(last_pool, work);
+		worker = find_worker_executing_work(last_pool, work);
 
-			if (worker && worker->current_pwq->wq == wq) {
-				pwq = per_cpu_ptr(wq->cpu_pwqs, last_pool->cpu);
-			} else {
-				/* meh... not running there, queue here */
-				spin_unlock(&last_pool->lock);
-				spin_lock(&pwq->pool->lock);
-			}
+		if (worker && worker->current_pwq->wq == wq) {
+			pwq = worker->current_pwq;
 		} else {
+			/* meh... not running there, queue here */
+			spin_unlock(&last_pool->lock);
 			spin_lock(&pwq->pool->lock);
 		}
 	} else {
-		pwq = first_pwq(wq);
 		spin_lock(&pwq->pool->lock);
 	}
 
