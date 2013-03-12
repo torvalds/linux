@@ -47,12 +47,12 @@ static int adt7410_i2c_probe(struct i2c_client *client,
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	return adt7x10_probe(&client->dev, NULL, &adt7410_i2c_ops);
+	return adt7x10_probe(&client->dev, NULL, client->irq, &adt7410_i2c_ops);
 }
 
 static int adt7410_i2c_remove(struct i2c_client *client)
 {
-	return adt7x10_remove(&client->dev);
+	return adt7x10_remove(&client->dev, client->irq);
 }
 
 static const struct i2c_device_id adt7410_ids[] = {

@@ -90,13 +90,13 @@ static const struct adt7x10_ops adt7310_spi_ops = {
 
 static int adt7310_spi_probe(struct spi_device *spi)
 {
-	return adt7x10_probe(&spi->dev, spi_get_device_id(spi)->name,
+	return adt7x10_probe(&spi->dev, spi_get_device_id(spi)->name, spi->irq,
 			&adt7310_spi_ops);
 }
 
 static int adt7310_spi_remove(struct spi_device *spi)
 {
-	return adt7x10_remove(&spi->dev);
+	return adt7x10_remove(&spi->dev, spi->irq);
 }
 
 static const struct spi_device_id adt7310_id[] = {

@@ -30,6 +30,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "adt7x10.h"
 
@@ -111,6 +112,25 @@ static const u8 ADT7X10_REG_TEMP[4] = {
 	ADT7X10_T_ALARM_LOW,		/* low */
 	ADT7X10_T_CRIT,			/* critical */
 };
+
+static irqreturn_t adt7x10_irq_handler(int irq, void *private)
+{
+	struct device *dev = private;
+	int status;
+
+	status = adt7x10_read_byte(dev, ADT7X10_STATUS);
+	if (status < 0)
+		return IRQ_HANDLED;
+
+	if (status & ADT7X10_STAT_T_HIGH)
+		sysfs_notify(&dev->kobj, NULL, "temp1_max_alarm");
+	if (status & ADT7X10_STAT_T_LOW)
+		sysfs_notify(&dev->kobj, NULL, "temp1_min_alarm");
+	if (status & ADT7X10_STAT_T_CRIT)
+		sysfs_notify(&dev->kobj, NULL, "temp1_crit_alarm");
+
+	return IRQ_HANDLED;
+}
 
 static int adt7x10_temp_ready(struct device *dev)
 {
@@ -359,7 +379,7 @@ static const struct attribute_group adt7x10_group = {
 	.attrs = adt7x10_attributes,
 };
 
-int adt7x10_probe(struct device *dev, const char *name,
+int adt7x10_probe(struct device *dev, const char *name, int irq,
 		  const struct adt7x10_ops *ops)
 {
 	struct adt7x10_data *data;
@@ -387,8 +407,10 @@ int adt7x10_probe(struct device *dev, const char *name,
 	 * Set to 16 bit resolution, continous conversion and comparator mode.
 	 */
 	data->config = data->oldconfig;
-	data->config &= ~ADT7X10_MODE_MASK;
+	data->config &= ~(ADT7X10_MODE_MASK | ADT7X10_CT_POLARITY |
+			ADT7X10_INT_POLARITY);
 	data->config |= ADT7X10_FULL | ADT7X10_RESOLUTION | ADT7X10_EVENT_MODE;
+
 	if (data->config != data->oldconfig) {
 		ret = adt7x10_write_byte(dev, ADT7X10_CONFIG, data->config);
 		if (ret)
@@ -422,8 +444,18 @@ int adt7x10_probe(struct device *dev, const char *name,
 		goto exit_remove_name;
 	}
 
+	if (irq > 0) {
+		ret = request_threaded_irq(irq, NULL, adt7x10_irq_handler,
+				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				dev_name(dev), dev);
+		if (ret)
+			goto exit_hwmon_device_unregister;
+	}
+
 	return 0;
 
+exit_hwmon_device_unregister:
+	hwmon_device_unregister(data->hwmon_dev);
 exit_remove_name:
 	if (name)
 		device_remove_file(dev, &dev_attr_name);
@@ -435,9 +467,12 @@ exit_restore:
 }
 EXPORT_SYMBOL_GPL(adt7x10_probe);
 
-int adt7x10_remove(struct device *dev)
+int adt7x10_remove(struct device *dev, int irq)
 {
 	struct adt7x10_data *data = dev_get_drvdata(dev);
+
+	if (irq > 0)
+		free_irq(irq, dev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	if (data->name)
