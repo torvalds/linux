@@ -694,7 +694,7 @@ EXPORT_SYMBOL_GPL(deregister_mtd_parser);
  * Do not forget to update 'parse_mtd_partitions()' kerneldoc comment if you
  * are changing this array!
  */
-static const char *default_mtd_part_types[] = {
+static const char * const default_mtd_part_types[] = {
 	"cmdlinepart",
 	"ofpart",
 	NULL
