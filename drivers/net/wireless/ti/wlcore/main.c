@@ -4505,6 +4505,9 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 		return -EBUSY;
 	}
 
+	/* use the previous security seq, if this is a recovery/resume */
+	wl->links[wl_sta->hlid].total_freed_pkts = wl_sta->total_freed_pkts;
+
 	set_bit(wl_sta->hlid, wlvif->ap.sta_hlid_map);
 	memcpy(wl->links[wl_sta->hlid].addr, sta->addr, ETH_ALEN);
 	wl->active_sta_count++;
@@ -4513,12 +4516,37 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 
 void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 {
+	struct wl1271_station *wl_sta;
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+
 	if (!test_bit(hlid, wlvif->ap.sta_hlid_map))
 		return;
 
 	clear_bit(hlid, wlvif->ap.sta_hlid_map);
 	__clear_bit(hlid, &wl->ap_ps_map);
 	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+
+	/*
+	 * save the last used PN in the private part of iee80211_sta,
+	 * in case of recovery/suspend
+	 */
+	rcu_read_lock();
+	sta = ieee80211_find_sta(vif, wl->links[hlid].addr);
+	if (sta) {
+		wl_sta = (void *)sta->drv_priv;
+		wl_sta->total_freed_pkts = wl->links[hlid].total_freed_pkts;
+
+		/*
+		 * increment the initial seq number on recovery to account for
+		 * transmitted packets that we haven't yet got in the FW status
+		 */
+		if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags))
+			wl_sta->total_freed_pkts +=
+					WL1271_TX_SQN_POST_RECOVERY_PADDING;
+	}
+	rcu_read_unlock();
+
 	wl12xx_free_link(wl, wlvif, &hlid);
 	wl->active_sta_count--;
 

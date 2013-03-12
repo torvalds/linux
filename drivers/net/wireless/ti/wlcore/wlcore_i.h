@@ -325,6 +325,13 @@ struct wl12xx_rx_filter {
 struct wl1271_station {
 	u8 hlid;
 	bool in_connection;
+
+	/*
+	 * total freed FW packets on the link to the STA - used for tracking the
+	 * AES/TKIP PN across recoveries. Re-initialized each time from the
+	 * wl1271_station structure.
+	 */
+	u64 total_freed_pkts;
 };
 
 struct wl12xx_vif {
@@ -461,6 +468,8 @@ struct wl12xx_vif {
 		 * total freed FW packets on the link - used for
 		 * storing the AES/TKIP PN during recovery, as this
 		 * structure is not zeroed out.
+		 * For STA this holds the PN of the link to the AP.
+		 * For AP this holds the PN of the broadcast link.
 		 */
 		u64 total_freed_pkts;
 	};

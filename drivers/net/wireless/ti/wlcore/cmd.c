@@ -366,7 +366,9 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	wl1271_tx_reset_link_queues(wl, *hlid);
 	wl->links[*hlid].wlvif = NULL;
 
-	if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
+	    (wlvif->bss_type == BSS_TYPE_AP_BSS &&
+	     *hlid == wlvif->ap.bcast_hlid)) {
 		/*
 		 * save the total freed packets in the wlvif, in case this is
 		 * recovery or suspend
@@ -634,6 +636,10 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	ret = wl12xx_allocate_link(wl, wlvif, &wlvif->ap.bcast_hlid);
 	if (ret < 0)
 		goto out_free_global;
+
+	/* use the previous security seq, if this is a recovery/resume */
+	wl->links[wlvif->ap.bcast_hlid].total_freed_pkts =
+						wlvif->total_freed_pkts;
 
 	cmd->role_id = wlvif->role_id;
 	cmd->ap.aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
