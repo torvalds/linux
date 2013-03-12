@@ -13,6 +13,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mempool.h>
@@ -794,8 +796,7 @@ static int __init init(void)
 
 	virtscsi_cmd_cache = KMEM_CACHE(virtio_scsi_cmd, 0);
 	if (!virtscsi_cmd_cache) {
-		printk(KERN_ERR "kmem_cache_create() for "
-				"virtscsi_cmd_cache failed\n");
+		pr_err("kmem_cache_create() for virtscsi_cmd_cache failed\n");
 		goto error;
 	}
 
@@ -804,8 +805,7 @@ static int __init init(void)
 		mempool_create_slab_pool(VIRTIO_SCSI_MEMPOOL_SZ,
 					 virtscsi_cmd_cache);
 	if (!virtscsi_cmd_pool) {
-		printk(KERN_ERR "mempool_create() for"
-				"virtscsi_cmd_pool failed\n");
+		pr_err("mempool_create() for virtscsi_cmd_pool failed\n");
 		goto error;
 	}
 	ret = register_virtio_driver(&virtio_scsi_driver);
