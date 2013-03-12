@@ -1555,7 +1555,7 @@ int acpi_check_resource_conflict(const struct resource *res)
 	else
 		space_id = ACPI_ADR_SPACE_SYSTEM_MEMORY;
 
-	length = res->end - res->start + 1;
+	length = resource_size(res);
 	if (acpi_enforce_resources != ENFORCE_RESOURCES_NO)
 		warn = 1;
 	clash = acpi_check_address_range(space_id, res->start, length, warn);
