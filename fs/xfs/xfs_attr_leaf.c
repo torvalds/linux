@@ -172,7 +172,8 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 	int dsize;
 	xfs_mount_t *mp = dp->i_mount;
 
-	offset = (XFS_LITINO(mp) - bytes) >> 3; /* rounded down */
+	/* rounded down */
+	offset = (XFS_LITINO(mp, dp->i_d.di_version) - bytes) >> 3;
 
 	switch (dp->i_d.di_format) {
 	case XFS_DINODE_FMT_DEV:
@@ -243,7 +244,8 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 	minforkoff = roundup(minforkoff, 8) >> 3;
 
 	/* attr fork btree root can have at least this many key/ptr pairs */
-	maxforkoff = XFS_LITINO(mp) - XFS_BMDR_SPACE_CALC(MINABTPTRS);
+	maxforkoff = XFS_LITINO(mp, dp->i_d.di_version) -
+			XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	maxforkoff = maxforkoff >> 3;	/* rounded down */
 
 	if (offset >= maxforkoff)
