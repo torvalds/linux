@@ -29,7 +29,7 @@ struct videomode {
 	u32 vback_porch;
 	u32 vsync_len;
 
-	unsigned int flags; /* display flags */
+	enum display_flags flags; /* display flags */
 };
 
 /**
