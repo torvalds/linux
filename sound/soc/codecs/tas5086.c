@@ -584,17 +584,7 @@ static struct i2c_driver tas5086_i2c_driver = {
 	.remove		= tas5086_i2c_remove,
 };
 
-static int __init tas5086_modinit(void)
-{
-	return i2c_add_driver(&tas5086_i2c_driver);
-}
-module_init(tas5086_modinit);
-
-static void __exit tas5086_modexit(void)
-{
-	i2c_del_driver(&tas5086_i2c_driver);
-}
-module_exit(tas5086_modexit);
+module_i2c_driver(tas5086_i2c_driver);
 
 MODULE_AUTHOR("Daniel Mack <zonque@gmail.com>");
 MODULE_DESCRIPTION("Texas Instruments TAS5086 ALSA SoC Codec Driver");
