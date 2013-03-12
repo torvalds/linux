@@ -18,7 +18,6 @@
 typedef u64 async_cookie_t;
 typedef void (async_func_ptr) (void *data, async_cookie_t cookie);
 struct async_domain {
-	struct list_head node;
 	struct list_head pending;
 	unsigned registered:1;
 };
@@ -27,8 +26,7 @@ struct async_domain {
  * domain participates in global async_synchronize_full
  */
 #define ASYNC_DOMAIN(_name) \
-	struct async_domain _name = { .node = LIST_HEAD_INIT(_name.node), \
-				      .pending = LIST_HEAD_INIT(_name.pending), \
+	struct async_domain _name = { .pending = LIST_HEAD_INIT(_name.pending),	\
 				      .registered = 1 }
 
 /*
@@ -36,8 +34,7 @@ struct async_domain {
  * complete, this domain does not participate in async_synchronize_full
  */
 #define ASYNC_DOMAIN_EXCLUSIVE(_name) \
-	struct async_domain _name = { .node = LIST_HEAD_INIT(_name.node), \
-				      .pending = LIST_HEAD_INIT(_name.pending), \
+	struct async_domain _name = { .pending = LIST_HEAD_INIT(_name.pending), \
 				      .registered = 0 }
 
 extern async_cookie_t async_schedule(async_func_ptr *ptr, void *data);
