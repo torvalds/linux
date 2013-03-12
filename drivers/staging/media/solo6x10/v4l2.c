@@ -476,12 +476,11 @@ static int solo_querycap(struct file *file, void  *priv,
 
 	strcpy(cap->driver, SOLO6X10_NAME);
 	strcpy(cap->card, "Softlogic 6x10");
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI %s",
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(solo_dev->pdev));
-	cap->version = SOLO6X10_VER_NUM;
-	cap->capabilities =     V4L2_CAP_VIDEO_CAPTURE |
-				V4L2_CAP_READWRITE |
-				V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
+			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 

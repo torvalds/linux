@@ -71,16 +71,7 @@
 
 #define SOLO_MAX_CHANNELS		16
 
-/* Make sure these two match */
-#define SOLO6X10_VER_MAJOR		2
-#define SOLO6X10_VER_MINOR		4
-#define SOLO6X10_VER_SUB		4
-#define SOLO6X10_VER_NUM \
-	KERNEL_VERSION(SOLO6X10_VER_MAJOR, SOLO6X10_VER_MINOR, SOLO6X10_VER_SUB)
-#define SOLO6X10_VERSION \
-	__stringify(SOLO6X10_VER_MAJOR) "." \
-	__stringify(SOLO6X10_VER_MINOR) "." \
-	__stringify(SOLO6X10_VER_SUB)
+#define SOLO6X10_VERSION		"3.0.0"
 
 /*
  * The SOLO6x10 actually has 8 i2c channels, but we only use 2.
