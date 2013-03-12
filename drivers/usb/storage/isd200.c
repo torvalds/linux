@@ -1457,8 +1457,7 @@ static int isd200_init_info(struct us_data *us)
 		retStatus = ISD200_ERROR;
 	else {
 		info->id = kzalloc(ATA_ID_WORDS * 2, GFP_KERNEL);
-		info->RegsBuf = (unsigned char *)
-				kmalloc(sizeof(info->ATARegs), GFP_KERNEL);
+		info->RegsBuf = kmalloc(sizeof(info->ATARegs), GFP_KERNEL);
 		info->srb.sense_buffer =
 				kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
 		if (!info->id || !info->RegsBuf || !info->srb.sense_buffer) {
