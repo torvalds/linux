@@ -155,7 +155,7 @@ config USB_EHCI_MXC
 	  Variation of ARC USB block used in some Freescale chips.
 
 config USB_EHCI_HCD_OMAP
-	bool "EHCI support for OMAP3 and later chips"
+	tristate "EHCI support for OMAP3 and later chips"
 	depends on USB_EHCI_HCD && ARCH_OMAP
 	default y
 	---help---

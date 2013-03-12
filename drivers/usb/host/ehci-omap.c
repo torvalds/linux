@@ -36,6 +36,9 @@
  *	- convert to use hwmod and runtime PM
  */
 
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/usb/ulpi.h>
@@ -43,6 +46,10 @@
 #include <linux/pm_runtime.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
+#include "ehci.h"
 
 #include <linux/platform_data/usb-omap.h>
 
@@ -57,9 +64,11 @@
 #define	EHCI_INSNREG05_ULPI_EXTREGADD_SHIFT		8
 #define	EHCI_INSNREG05_ULPI_WRDATA_SHIFT		0
 
-/*-------------------------------------------------------------------------*/
+#define DRIVER_DESC "OMAP-EHCI Host Controller driver"
 
-static const struct hc_driver ehci_omap_hc_driver;
+static const char hcd_name[] = "ehci-omap";
+
+/*-------------------------------------------------------------------------*/
 
 
 static inline void ehci_write(void __iomem *base, u32 reg, u32 val)
@@ -165,6 +174,12 @@ static void disable_put_regulator(
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
+
+static struct hc_driver __read_mostly ehci_omap_hc_driver;
+
+static const struct ehci_driver_overrides ehci_omap_overrides __initdata = {
+	.reset =		omap_ehci_init,
+};
 
 /**
  * ehci_hcd_omap_probe - initialize TI-based HCDs
@@ -315,56 +330,33 @@ static struct platform_driver ehci_hcd_omap_driver = {
 	/*.suspend		= ehci_hcd_omap_suspend, */
 	/*.resume		= ehci_hcd_omap_resume, */
 	.driver = {
-		.name		= "ehci-omap",
+		.name		= hcd_name,
 	}
 };
 
 /*-------------------------------------------------------------------------*/
 
-static const struct hc_driver ehci_omap_hc_driver = {
-	.description		= hcd_name,
-	.product_desc		= "OMAP-EHCI Host Controller",
-	.hcd_priv_size		= sizeof(struct ehci_hcd),
+static int __init ehci_omap_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
 
-	/*
-	 * generic hardware linkage
-	 */
-	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
-	/*
-	 * basic lifecycle operations
-	 */
-	.reset			= omap_ehci_init,
-	.start			= ehci_run,
-	.stop			= ehci_stop,
-	.shutdown		= ehci_shutdown,
+	ehci_init_driver(&ehci_omap_hc_driver, &ehci_omap_overrides);
+	return platform_driver_register(&ehci_hcd_omap_driver);
+}
+module_init(ehci_omap_init);
 
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue		= ehci_urb_enqueue,
-	.urb_dequeue		= ehci_urb_dequeue,
-	.endpoint_disable	= ehci_endpoint_disable,
-	.endpoint_reset		= ehci_endpoint_reset,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number	= ehci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data	= ehci_hub_status_data,
-	.hub_control		= ehci_hub_control,
-	.bus_suspend		= ehci_bus_suspend,
-	.bus_resume		= ehci_bus_resume,
-
-	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
-};
+static void __exit ehci_omap_cleanup(void)
+{
+	platform_driver_unregister(&ehci_hcd_omap_driver);
+}
+module_exit(ehci_omap_cleanup);
 
 MODULE_ALIAS("platform:ehci-omap");
 MODULE_AUTHOR("Texas Instruments, Inc.");
 MODULE_AUTHOR("Felipe Balbi <felipe.balbi@nokia.com>");
 
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL");
