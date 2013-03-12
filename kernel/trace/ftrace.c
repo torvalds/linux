@@ -2984,7 +2984,7 @@ static void ftrace_free_entry_rcu(struct rcu_head *rhp)
 		container_of(rhp, struct ftrace_func_probe, rcu);
 
 	if (entry->ops->free)
-		entry->ops->free(&entry->data);
+		entry->ops->free(entry->ops, entry->ip, &entry->data);
 	kfree(entry);
 }
 
@@ -3045,8 +3045,8 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		 * for each function we find. We call the callback
 		 * to give the caller an opportunity to do so.
 		 */
-		if (ops->callback) {
-			if (ops->callback(rec->ip, &entry->data) < 0) {
+		if (ops->init) {
+			if (ops->init(ops, rec->ip, &entry->data) < 0) {
 				/* caller does not like this func */
 				kfree(entry);
 				continue;
