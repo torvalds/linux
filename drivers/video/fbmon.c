@@ -1398,13 +1398,13 @@ int fb_videomode_from_videomode(const struct videomode *vm,
 
 	fbmode->sync = 0;
 	fbmode->vmode = 0;
-	if (vm->dmt_flags & VESA_DMT_HSYNC_HIGH)
+	if (vm->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		fbmode->sync |= FB_SYNC_HOR_HIGH_ACT;
-	if (vm->dmt_flags & VESA_DMT_HSYNC_HIGH)
+	if (vm->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		fbmode->sync |= FB_SYNC_VERT_HIGH_ACT;
-	if (vm->data_flags & DISPLAY_FLAGS_INTERLACED)
+	if (vm->flags & DISPLAY_FLAGS_INTERLACED)
 		fbmode->vmode |= FB_VMODE_INTERLACED;
-	if (vm->data_flags & DISPLAY_FLAGS_DOUBLESCAN)
+	if (vm->flags & DISPLAY_FLAGS_DOUBLESCAN)
 		fbmode->vmode |= FB_VMODE_DOUBLE;
 	fbmode->flag = 0;
 

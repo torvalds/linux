@@ -31,8 +31,7 @@ int videomode_from_timing(const struct display_timings *disp,
 	vm->vback_porch = display_timing_get_value(&dt->vback_porch, TE_TYP);
 	vm->vsync_len = display_timing_get_value(&dt->vsync_len, TE_TYP);
 
-	vm->dmt_flags = dt->dmt_flags;
-	vm->data_flags = dt->data_flags;
+	vm->flags = dt->flags;
 
 	return 0;
 }

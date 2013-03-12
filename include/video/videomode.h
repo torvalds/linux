@@ -29,8 +29,7 @@ struct videomode {
 	u32 vback_porch;
 	u32 vsync_len;
 
-	unsigned int dmt_flags;	/* VESA DMT flags */
-	unsigned int data_flags; /* video data flags */
+	unsigned int flags; /* display flags */
 };
 
 /**

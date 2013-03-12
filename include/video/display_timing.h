@@ -12,19 +12,16 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
-/* VESA display monitor timing parameters */
-#define VESA_DMT_HSYNC_LOW		BIT(0)
-#define VESA_DMT_HSYNC_HIGH		BIT(1)
-#define VESA_DMT_VSYNC_LOW		BIT(2)
-#define VESA_DMT_VSYNC_HIGH		BIT(3)
-
-/* display specific flags */
-#define DISPLAY_FLAGS_DE_LOW		BIT(0)	/* data enable flag */
-#define DISPLAY_FLAGS_DE_HIGH		BIT(1)
-#define DISPLAY_FLAGS_PIXDATA_POSEDGE	BIT(2)	/* drive data on pos. edge */
-#define DISPLAY_FLAGS_PIXDATA_NEGEDGE	BIT(3)	/* drive data on neg. edge */
-#define DISPLAY_FLAGS_INTERLACED	BIT(4)
-#define DISPLAY_FLAGS_DOUBLESCAN	BIT(5)
+#define DISPLAY_FLAGS_HSYNC_LOW		BIT(0)
+#define DISPLAY_FLAGS_HSYNC_HIGH	BIT(1)
+#define DISPLAY_FLAGS_VSYNC_LOW		BIT(2)
+#define DISPLAY_FLAGS_VSYNC_HIGH	BIT(3)
+#define DISPLAY_FLAGS_DE_LOW		BIT(4)	/* data enable flag */
+#define DISPLAY_FLAGS_DE_HIGH		BIT(5)
+#define DISPLAY_FLAGS_PIXDATA_POSEDGE	BIT(6)	/* drive data on pos. edge */
+#define DISPLAY_FLAGS_PIXDATA_NEGEDGE	BIT(7)	/* drive data on neg. edge */
+#define DISPLAY_FLAGS_INTERLACED	BIT(8)
+#define DISPLAY_FLAGS_DOUBLESCAN	BIT(9)
 
 /*
  * A single signal can be specified via a range of minimal and maximal values
@@ -72,8 +69,7 @@ struct display_timing {
 	struct timing_entry vback_porch;	/* ver. back porch */
 	struct timing_entry vsync_len;		/* ver. sync len */
 
-	unsigned int dmt_flags;			/* VESA DMT flags */
-	unsigned int data_flags;		/* video data flags */
+	unsigned int flags;			/* display flags */
 };
 
 /*
