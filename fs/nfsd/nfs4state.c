@@ -3282,16 +3282,6 @@ static inline __be32 nfs4_check_fh(struct svc_fh *fhp, struct nfs4_ol_stateid *s
 	return nfs_ok;
 }
 
-static int
-STALE_STATEID(stateid_t *stateid, struct nfsd_net *nn)
-{
-	if (stateid->si_opaque.so_clid.cl_boot == nn->boot_time)
-		return 0;
-	dprintk("NFSD: stale stateid " STATEID_FMT "!\n",
-		STATEID_VAL(stateid));
-	return 1;
-}
-
 static inline int
 access_permit_read(struct nfs4_ol_stateid *stp)
 {
@@ -3422,19 +3412,20 @@ static __be32 nfsd4_lookup_stateid(stateid_t *stateid, unsigned char typemask,
 				   struct nfsd_net *nn)
 {
 	struct nfs4_client *cl;
+	__be32 status;
 
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
 		return nfserr_bad_stateid;
-	if (STALE_STATEID(stateid, nn))
+	status = lookup_clientid(&stateid->si_opaque.so_clid, sessions,
+							nn, &cl);
+	if (status == nfserr_stale_clientid)
 		return nfserr_stale_stateid;
-	cl = find_confirmed_client(&stateid->si_opaque.so_clid, sessions, nn);
-	if (!cl)
-		return nfserr_expired;
+	if (status)
+		return status;
 	*s = find_stateid_by_type(cl, stateid, typemask);
 	if (!*s)
 		return nfserr_bad_stateid;
 	return nfs_ok;
-
 }
 
 /*
