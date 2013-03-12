@@ -2470,6 +2470,12 @@ M:	Matthew Garrett <mjg59@srcf.ucam.org>
 S:	Maintained
 F:	drivers/platform/x86/dell-wmi.c
 
+DESIGNWARE USB2 DRD IP DRIVER
+M:	Paul Zimmerman <paulz@synopsys.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/dwc2/
+
 DESIGNWARE USB3 DRD IP DRIVER
 M:	Felipe Balbi <balbi@ti.com>
 L:	linux-usb@vger.kernel.org
