@@ -19,6 +19,7 @@
 #include <linux/irqchip.h>
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
 

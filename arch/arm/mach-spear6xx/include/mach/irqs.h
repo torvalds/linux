@@ -1,10 +1,9 @@
 /*
- * arch/arm/mach-spear6xx/include/mach/irqs.h
+ * IRQ helper macros for spear machine family
  *
- * IRQ helper macros for SPEAr6xx machine family
- *
- * Copyright (C) 2009 ST Microelectronics
- * Rajeev Kumar<rajeev-dlh.kumar@st.com>
+ * Copyright (C) 2009-2012 ST Microelectronics
+ * Rajeev Kumar <rajeev-dlh.kumar@st.com>
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -14,6 +13,11 @@
 #ifndef __MACH_IRQS_H
 #define __MACH_IRQS_H
 
+#ifdef CONFIG_ARCH_SPEAR3XX
+#define NR_IRQS			256
+#endif
+
+#ifdef CONFIG_ARCH_SPEAR6XX
 /* IRQ definitions */
 /* VIC 1 */
 #define IRQ_VIC_END				64
@@ -21,5 +25,11 @@
 /* GPIO pins virtual irqs */
 #define VIRTUAL_IRQS				24
 #define NR_IRQS					(IRQ_VIC_END + VIRTUAL_IRQS)
+#endif
 
-#endif	/* __MACH_IRQS_H */
+#ifdef CONFIG_ARCH_SPEAR13XX
+#define IRQ_GIC_END			160
+#define NR_IRQS				IRQ_GIC_END
+#endif
+
+#endif /* __MACH_IRQS_H */
