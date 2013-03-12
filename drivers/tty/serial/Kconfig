@@ -211,7 +211,7 @@ config SERIAL_SAMSUNG
 config SERIAL_SAMSUNG_UARTS_4
 	bool
 	depends on PLAT_SAMSUNG
-	default y if !(CPU_S3C2410 || SERIAL_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
+	default y if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
 	help
 	  Internal node for the common case of 4 Samsung compatible UARTs
 
