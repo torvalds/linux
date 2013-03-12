@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
+#include <linux/spinlock.h>
 
 #include "wlcore.h"
 #include "debug.h"
@@ -1289,7 +1290,7 @@ bool wlcore_is_queue_stopped_by_reason_locked(struct wl1271 *wl,
 {
 	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
 
-	WARN_ON_ONCE(!spin_is_locked(&wl->wl_lock));
+	assert_spin_locked(&wl->wl_lock);
 	return test_bit(reason, &wl->queue_stop_reasons[hwq]);
 }
 
@@ -1298,6 +1299,6 @@ bool wlcore_is_queue_stopped_locked(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 {
 	int hwq = wlcore_tx_get_mac80211_queue(wlvif, queue);
 
-	WARN_ON_ONCE(!spin_is_locked(&wl->wl_lock));
+	assert_spin_locked(&wl->wl_lock);
 	return !!wl->queue_stop_reasons[hwq];
 }
