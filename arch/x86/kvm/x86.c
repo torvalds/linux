@@ -1079,6 +1079,10 @@ static void kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
 	u32 thresh_lo, thresh_hi;
 	int use_scaling = 0;
 
+	/* tsc_khz can be zero if TSC calibration fails */
+	if (this_tsc_khz == 0)
+		return;
+
 	/* Compute a scale to convert nanoseconds in TSC cycles */
 	kvm_get_time_scale(this_tsc_khz, NSEC_PER_SEC / 1000,
 			   &vcpu->arch.virtual_tsc_shift,
@@ -1156,20 +1160,23 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	ns = get_kernel_ns();
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 
-	/* n.b - signed multiplication and division required */
-	usdiff = data - kvm->arch.last_tsc_write;
+	if (vcpu->arch.virtual_tsc_khz) {
+		/* n.b - signed multiplication and division required */
+		usdiff = data - kvm->arch.last_tsc_write;
 #ifdef CONFIG_X86_64
-	usdiff = (usdiff * 1000) / vcpu->arch.virtual_tsc_khz;
+		usdiff = (usdiff * 1000) / vcpu->arch.virtual_tsc_khz;
 #else
-	/* do_div() only does unsigned */
-	asm("idivl %2; xor %%edx, %%edx"
-	    : "=A"(usdiff)
-	    : "A"(usdiff * 1000), "rm"(vcpu->arch.virtual_tsc_khz));
+		/* do_div() only does unsigned */
+		asm("idivl %2; xor %%edx, %%edx"
+		: "=A"(usdiff)
+		: "A"(usdiff * 1000), "rm"(vcpu->arch.virtual_tsc_khz));
 #endif
-	do_div(elapsed, 1000);
-	usdiff -= elapsed;
-	if (usdiff < 0)
-		usdiff = -usdiff;
+		do_div(elapsed, 1000);
+		usdiff -= elapsed;
+		if (usdiff < 0)
+			usdiff = -usdiff;
+	} else
+		usdiff = USEC_PER_SEC; /* disable TSC match window below */
 
 	/*
 	 * Special case: TSC write with a small delta (1 second) of virtual
