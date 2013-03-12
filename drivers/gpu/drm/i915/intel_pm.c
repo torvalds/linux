@@ -2821,7 +2821,7 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 	ret = intel_ring_idle(ring);
 	dev_priv->mm.interruptible = was_interruptible;
 	if (ret) {
-		DRM_ERROR("failed to enable ironlake power power savings\n");
+		DRM_ERROR("failed to enable ironlake power savings\n");
 		ironlake_teardown_rc6(dev);
 		return;
 	}
