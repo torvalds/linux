@@ -530,7 +530,7 @@ static int work_next_color(int color)
 static inline void set_work_data(struct work_struct *work, unsigned long data,
 				 unsigned long flags)
 {
-	BUG_ON(!work_pending(work));
+	WARN_ON_ONCE(!work_pending(work));
 	atomic_long_set(&work->data, data | flags | work_static(work));
 }
 
@@ -785,7 +785,8 @@ struct task_struct *wq_worker_sleeping(struct task_struct *task,
 	pool = worker->pool;
 
 	/* this can only happen on the local cpu */
-	BUG_ON(cpu != raw_smp_processor_id());
+	if (WARN_ON_ONCE(cpu != raw_smp_processor_id()))
+		return NULL;
 
 	/*
 	 * The counterpart of the following dec_and_test, implied mb,
@@ -1458,9 +1459,10 @@ static void worker_enter_idle(struct worker *worker)
 {
 	struct worker_pool *pool = worker->pool;
 
-	BUG_ON(worker->flags & WORKER_IDLE);
-	BUG_ON(!list_empty(&worker->entry) &&
-	       (worker->hentry.next || worker->hentry.pprev));
+	if (WARN_ON_ONCE(worker->flags & WORKER_IDLE) ||
+	    WARN_ON_ONCE(!list_empty(&worker->entry) &&
+			 (worker->hentry.next || worker->hentry.pprev)))
+		return;
 
 	/* can't use worker_set_flags(), also called from start_worker() */
 	worker->flags |= WORKER_IDLE;
@@ -1497,7 +1499,8 @@ static void worker_leave_idle(struct worker *worker)
 {
 	struct worker_pool *pool = worker->pool;
 
-	BUG_ON(!(worker->flags & WORKER_IDLE));
+	if (WARN_ON_ONCE(!(worker->flags & WORKER_IDLE)))
+		return;
 	worker_clr_flags(worker, WORKER_IDLE);
 	pool->nr_idle--;
 	list_del_init(&worker->entry);
@@ -1793,8 +1796,9 @@ static void destroy_worker(struct worker *worker)
 	int id = worker->id;
 
 	/* sanity check frenzy */
-	BUG_ON(worker->current_work);
-	BUG_ON(!list_empty(&worker->scheduled));
+	if (WARN_ON(worker->current_work) ||
+	    WARN_ON(!list_empty(&worker->scheduled)))
+		return;
 
 	if (worker->flags & WORKER_STARTED)
 		pool->nr_workers--;
@@ -1923,7 +1927,8 @@ restart:
 			del_timer_sync(&pool->mayday_timer);
 			spin_lock_irq(&pool->lock);
 			start_worker(worker);
-			BUG_ON(need_to_create_worker(pool));
+			if (WARN_ON_ONCE(need_to_create_worker(pool)))
+				goto restart;
 			return true;
 		}
 
@@ -2256,7 +2261,7 @@ recheck:
 	 * preparing to process a work or actually processing it.
 	 * Make sure nobody diddled with it while I was sleeping.
 	 */
-	BUG_ON(!list_empty(&worker->scheduled));
+	WARN_ON_ONCE(!list_empty(&worker->scheduled));
 
 	/*
 	 * When control reaches this point, we're guaranteed to have
@@ -2364,7 +2369,7 @@ repeat:
 		 * Slurp in all works issued via this workqueue and
 		 * process'em.
 		 */
-		BUG_ON(!list_empty(&rescuer->scheduled));
+		WARN_ON_ONCE(!list_empty(&rescuer->scheduled));
 		list_for_each_entry_safe(work, n, &pool->worklist, entry)
 			if (get_work_pwq(work) == pwq)
 				move_linked_works(work, scheduled, &n);
@@ -2499,7 +2504,7 @@ static bool flush_workqueue_prep_pwqs(struct workqueue_struct *wq,
 	unsigned int cpu;
 
 	if (flush_color >= 0) {
-		BUG_ON(atomic_read(&wq->nr_pwqs_to_flush));
+		WARN_ON_ONCE(atomic_read(&wq->nr_pwqs_to_flush));
 		atomic_set(&wq->nr_pwqs_to_flush, 1);
 	}
 
@@ -2510,7 +2515,7 @@ static bool flush_workqueue_prep_pwqs(struct workqueue_struct *wq,
 		spin_lock_irq(&pool->lock);
 
 		if (flush_color >= 0) {
-			BUG_ON(pwq->flush_color != -1);
+			WARN_ON_ONCE(pwq->flush_color != -1);
 
 			if (pwq->nr_in_flight[flush_color]) {
 				pwq->flush_color = flush_color;
@@ -2520,7 +2525,7 @@ static bool flush_workqueue_prep_pwqs(struct workqueue_struct *wq,
 		}
 
 		if (work_color >= 0) {
-			BUG_ON(work_color != work_next_color(pwq->work_color));
+			WARN_ON_ONCE(work_color != work_next_color(pwq->work_color));
 			pwq->work_color = work_color;
 		}
 
@@ -2568,13 +2573,13 @@ void flush_workqueue(struct workqueue_struct *wq)
 		 * becomes our flush_color and work_color is advanced
 		 * by one.
 		 */
-		BUG_ON(!list_empty(&wq->flusher_overflow));
+		WARN_ON_ONCE(!list_empty(&wq->flusher_overflow));
 		this_flusher.flush_color = wq->work_color;
 		wq->work_color = next_color;
 
 		if (!wq->first_flusher) {
 			/* no flush in progress, become the first flusher */
-			BUG_ON(wq->flush_color != this_flusher.flush_color);
+			WARN_ON_ONCE(wq->flush_color != this_flusher.flush_color);
 
 			wq->first_flusher = &this_flusher;
 
@@ -2587,7 +2592,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 			}
 		} else {
 			/* wait in queue */
-			BUG_ON(wq->flush_color == this_flusher.flush_color);
+			WARN_ON_ONCE(wq->flush_color == this_flusher.flush_color);
 			list_add_tail(&this_flusher.list, &wq->flusher_queue);
 			flush_workqueue_prep_pwqs(wq, -1, wq->work_color);
 		}
@@ -2621,8 +2626,8 @@ void flush_workqueue(struct workqueue_struct *wq)
 
 	wq->first_flusher = NULL;
 
-	BUG_ON(!list_empty(&this_flusher.list));
-	BUG_ON(wq->flush_color != this_flusher.flush_color);
+	WARN_ON_ONCE(!list_empty(&this_flusher.list));
+	WARN_ON_ONCE(wq->flush_color != this_flusher.flush_color);
 
 	while (true) {
 		struct wq_flusher *next, *tmp;
@@ -2635,8 +2640,8 @@ void flush_workqueue(struct workqueue_struct *wq)
 			complete(&next->done);
 		}
 
-		BUG_ON(!list_empty(&wq->flusher_overflow) &&
-		       wq->flush_color != work_next_color(wq->work_color));
+		WARN_ON_ONCE(!list_empty(&wq->flusher_overflow) &&
+			     wq->flush_color != work_next_color(wq->work_color));
 
 		/* this flush_color is finished, advance by one */
 		wq->flush_color = work_next_color(wq->flush_color);
@@ -2660,7 +2665,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 		}
 
 		if (list_empty(&wq->flusher_queue)) {
-			BUG_ON(wq->flush_color != wq->work_color);
+			WARN_ON_ONCE(wq->flush_color != wq->work_color);
 			break;
 		}
 
@@ -2668,8 +2673,8 @@ void flush_workqueue(struct workqueue_struct *wq)
 		 * Need to flush more colors.  Make the next flusher
 		 * the new first flusher and arm pwqs.
 		 */
-		BUG_ON(wq->flush_color == wq->work_color);
-		BUG_ON(wq->flush_color != next->flush_color);
+		WARN_ON_ONCE(wq->flush_color == wq->work_color);
+		WARN_ON_ONCE(wq->flush_color != next->flush_color);
 
 		list_del_init(&next->list);
 		wq->first_flusher = next;
@@ -3263,6 +3268,19 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	/* drain it before proceeding with destruction */
 	drain_workqueue(wq);
 
+	/* sanity checks */
+	for_each_pwq_cpu(cpu, wq) {
+		struct pool_workqueue *pwq = get_pwq(cpu, wq);
+		int i;
+
+		for (i = 0; i < WORK_NR_COLORS; i++)
+			if (WARN_ON(pwq->nr_in_flight[i]))
+				return;
+		if (WARN_ON(pwq->nr_active) ||
+		    WARN_ON(!list_empty(&pwq->delayed_works)))
+			return;
+	}
+
 	/*
 	 * wq list is used to freeze wq, remove from list after
 	 * flushing is complete in case freeze races us.
@@ -3270,17 +3288,6 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	spin_lock(&workqueue_lock);
 	list_del(&wq->list);
 	spin_unlock(&workqueue_lock);
-
-	/* sanity check */
-	for_each_pwq_cpu(cpu, wq) {
-		struct pool_workqueue *pwq = get_pwq(cpu, wq);
-		int i;
-
-		for (i = 0; i < WORK_NR_COLORS; i++)
-			BUG_ON(pwq->nr_in_flight[i]);
-		BUG_ON(pwq->nr_active);
-		BUG_ON(!list_empty(&pwq->delayed_works));
-	}
 
 	if (wq->flags & WQ_RESCUER) {
 		kthread_stop(wq->rescuer->task);
@@ -3424,7 +3431,7 @@ static void wq_unbind_fn(struct work_struct *work)
 	int i;
 
 	for_each_std_worker_pool(pool, cpu) {
-		BUG_ON(cpu != smp_processor_id());
+		WARN_ON_ONCE(cpu != smp_processor_id());
 
 		mutex_lock(&pool->assoc_mutex);
 		spin_lock_irq(&pool->lock);
@@ -3594,7 +3601,7 @@ void freeze_workqueues_begin(void)
 
 	spin_lock(&workqueue_lock);
 
-	BUG_ON(workqueue_freezing);
+	WARN_ON_ONCE(workqueue_freezing);
 	workqueue_freezing = true;
 
 	for_each_wq_cpu(cpu) {
@@ -3642,7 +3649,7 @@ bool freeze_workqueues_busy(void)
 
 	spin_lock(&workqueue_lock);
 
-	BUG_ON(!workqueue_freezing);
+	WARN_ON_ONCE(!workqueue_freezing);
 
 	for_each_wq_cpu(cpu) {
 		struct workqueue_struct *wq;
@@ -3656,7 +3663,7 @@ bool freeze_workqueues_busy(void)
 			if (!pwq || !(wq->flags & WQ_FREEZABLE))
 				continue;
 
-			BUG_ON(pwq->nr_active < 0);
+			WARN_ON_ONCE(pwq->nr_active < 0);
 			if (pwq->nr_active) {
 				busy = true;
 				goto out_unlock;
