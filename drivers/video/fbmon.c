@@ -1376,7 +1376,7 @@ int fb_get_mode(int flags, u32 val, struct fb_var_screeninfo *var, struct fb_inf
 	return err;
 }
 
-#if IS_ENABLED(CONFIG_VIDEOMODE)
+#ifdef CONFIG_VIDEOMODE_HELPERS
 int fb_videomode_from_videomode(const struct videomode *vm,
 				struct fb_videomode *fbmode)
 {
@@ -1424,9 +1424,8 @@ int fb_videomode_from_videomode(const struct videomode *vm,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fb_videomode_from_videomode);
-#endif
 
-#if IS_ENABLED(CONFIG_OF_VIDEOMODE)
+#ifdef CONFIG_OF
 static inline void dump_fb_videomode(const struct fb_videomode *m)
 {
 	pr_debug("fb_videomode = %ux%u@%uHz (%ukHz) %u %u %u %u %u %u %u %u %u\n",
@@ -1465,7 +1464,8 @@ int of_get_fb_videomode(struct device_node *np, struct fb_videomode *fb,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_fb_videomode);
-#endif
+#endif /* CONFIG_OF */
+#endif /* CONFIG_VIDEOMODE_HELPERS */
 
 #else
 int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var)

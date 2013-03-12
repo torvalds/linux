@@ -506,7 +506,7 @@ drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
 }
 EXPORT_SYMBOL(drm_gtf_mode);
 
-#if IS_ENABLED(CONFIG_VIDEOMODE)
+#ifdef CONFIG_VIDEOMODE_HELPERS
 int drm_display_mode_from_videomode(const struct videomode *vm,
 				    struct drm_display_mode *dmode)
 {
@@ -540,9 +540,8 @@ int drm_display_mode_from_videomode(const struct videomode *vm,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_display_mode_from_videomode);
-#endif
 
-#if IS_ENABLED(CONFIG_OF_VIDEOMODE)
+#ifdef CONFIG_OF
 /**
  * of_get_drm_display_mode - get a drm_display_mode from devicetree
  * @np: device_node with the timing specification
@@ -572,7 +571,8 @@ int of_get_drm_display_mode(struct device_node *np,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
-#endif
+#endif /* CONFIG_OF */
+#endif /* CONFIG_VIDEOMODE_HELPERS */
 
 /**
  * drm_mode_set_name - set the name on a mode
