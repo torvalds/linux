@@ -12,27 +12,27 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _LINUX_MSM_SSBI_H
-#define _LINUX_MSM_SSBI_H
+#ifndef _LINUX_SSBI_H
+#define _LINUX_SSBI_H
 
 #include <linux/types.h>
 
-struct msm_ssbi_slave_info {
+struct ssbi_slave_info {
 	const char	*name;
 	void		*platform_data;
 };
 
-enum msm_ssbi_controller_type {
+enum ssbi_controller_type {
 	MSM_SBI_CTRL_SSBI = 0,
 	MSM_SBI_CTRL_SSBI2,
 	MSM_SBI_CTRL_PMIC_ARBITER,
 };
 
-struct msm_ssbi_platform_data {
-	struct msm_ssbi_slave_info	slave;
-	enum msm_ssbi_controller_type controller_type;
+struct ssbi_platform_data {
+	struct ssbi_slave_info	slave;
+	enum ssbi_controller_type controller_type;
 };
 
-int msm_ssbi_write(struct device *dev, u16 addr, u8 *buf, int len);
-int msm_ssbi_read(struct device *dev, u16 addr, u8 *buf, int len);
+int ssbi_write(struct device *dev, u16 addr, u8 *buf, int len);
+int ssbi_read(struct device *dev, u16 addr, u8 *buf, int len);
 #endif
