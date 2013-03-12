@@ -403,7 +403,7 @@ CsrResult enque_tx_data_pdu(unifi_priv_t *priv, bulk_data_param_t *bulkdata,
 
 
 
-    tx_q_item = (tx_buffered_packets_t *)kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
+    tx_q_item = kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
     if (tx_q_item == NULL) {
         unifi_error(priv,
                 "Failed to allocate %d bytes for tx packet record\n",
@@ -3282,7 +3282,7 @@ void add_to_send_cfm_list(unifi_priv_t * priv,
 {
     tx_buffered_packets_t *send_cfm_list_item = NULL;
 
-    send_cfm_list_item = (tx_buffered_packets_t *) kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
+    send_cfm_list_item = kmalloc(sizeof(tx_buffered_packets_t), GFP_ATOMIC);
 
     if(send_cfm_list_item == NULL){
         unifi_warning(priv, "%s: Failed to allocate memory for new list item \n");

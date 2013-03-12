@@ -1815,7 +1815,7 @@ udi_log_event(ul_client_t *pcli,
     }
 
     /* Allocate log structure plus actual signal. */
-    logptr = (udi_log_t *)kmalloc(sizeof(udi_log_t) + total_len, GFP_KERNEL);
+    logptr = kmalloc(sizeof(udi_log_t) + total_len, GFP_KERNEL);
 
     if (logptr == NULL) {
         printk(KERN_ERR
@@ -1890,7 +1890,7 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
     }
 
     /* Allocate log structure plus actual signal. */
-    logptr = (udi_log_t *)kmalloc(sizeof(udi_log_t) + length, GFP_ATOMIC);
+    logptr = kmalloc(sizeof(udi_log_t) + length, GFP_ATOMIC);
     if (logptr == NULL) {
         unifi_error(priv, "Failed to allocate %d bytes for an SME message\n",
                     sizeof(udi_log_t) + length);
