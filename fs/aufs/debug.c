@@ -327,8 +327,11 @@ void au_dbg_sleep_jiffy(int jiffy)
 
 void au_dbg_iattr(struct iattr *ia)
 {
-#define AuBit(name)	if (ia->ia_valid & ATTR_ ## name) \
-				dpri(#name "\n")
+#define AuBit(name)					\
+	do {						\
+		if (ia->ia_valid & ATTR_ ## name)	\
+			dpri(#name "\n");		\
+	} while (0)
 	AuBit(MODE);
 	AuBit(UID);
 	AuBit(GID);
