@@ -289,9 +289,8 @@ void hv_synic_init(void *arg)
 	/* Check the version */
 	rdmsrl(HV_X64_MSR_SVERSION, version);
 
-	hv_context.event_dpc[cpu] = (struct tasklet_struct *)
-					kmalloc(sizeof(struct tasklet_struct),
-						GFP_ATOMIC);
+	hv_context.event_dpc[cpu] = kmalloc(sizeof(struct tasklet_struct),
+					    GFP_ATOMIC);
 	if (hv_context.event_dpc[cpu] == NULL) {
 		pr_err("Unable to allocate event dpc\n");
 		goto cleanup;
