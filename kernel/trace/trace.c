@@ -5086,7 +5086,114 @@ static const struct file_operations tracing_dyn_info_fops = {
 	.read		= tracing_read_dyn_info,
 	.llseek		= generic_file_llseek,
 };
-#endif
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+#if defined(CONFIG_TRACER_SNAPSHOT) && defined(CONFIG_DYNAMIC_FTRACE)
+static void
+ftrace_snapshot(unsigned long ip, unsigned long parent_ip, void **data)
+{
+	tracing_snapshot();
+}
+
+static void
+ftrace_count_snapshot(unsigned long ip, unsigned long parent_ip, void **data)
+{
+	unsigned long *count = (long *)data;
+
+	if (!*count)
+		return;
+
+	if (*count != -1)
+		(*count)--;
+
+	tracing_snapshot();
+}
+
+static int
+ftrace_snapshot_print(struct seq_file *m, unsigned long ip,
+		      struct ftrace_probe_ops *ops, void *data)
+{
+	long count = (long)data;
+
+	seq_printf(m, "%ps:", (void *)ip);
+
+	seq_printf(m, "snapshot");
+
+	if (count == -1)
+		seq_printf(m, ":unlimited\n");
+	else
+		seq_printf(m, ":count=%ld\n", count);
+
+	return 0;
+}
+
+static struct ftrace_probe_ops snapshot_probe_ops = {
+	.func			= ftrace_snapshot,
+	.print			= ftrace_snapshot_print,
+};
+
+static struct ftrace_probe_ops snapshot_count_probe_ops = {
+	.func			= ftrace_count_snapshot,
+	.print			= ftrace_snapshot_print,
+};
+
+static int
+ftrace_trace_snapshot_callback(struct ftrace_hash *hash,
+			       char *glob, char *cmd, char *param, int enable)
+{
+	struct ftrace_probe_ops *ops;
+	void *count = (void *)-1;
+	char *number;
+	int ret;
+
+	/* hash funcs only work with set_ftrace_filter */
+	if (!enable)
+		return -EINVAL;
+
+	ops = param ? &snapshot_count_probe_ops :  &snapshot_probe_ops;
+
+	if (glob[0] == '!') {
+		unregister_ftrace_function_probe_func(glob+1, ops);
+		return 0;
+	}
+
+	if (!param)
+		goto out_reg;
+
+	number = strsep(&param, ":");
+
+	if (!strlen(number))
+		goto out_reg;
+
+	/*
+	 * We use the callback data field (which is a pointer)
+	 * as our counter.
+	 */
+	ret = kstrtoul(number, 0, (unsigned long *)&count);
+	if (ret)
+		return ret;
+
+ out_reg:
+	ret = register_ftrace_function_probe(glob, ops, count);
+
+	if (ret >= 0)
+		alloc_snapshot(&global_trace);
+
+	return ret < 0 ? ret : 0;
+}
+
+static struct ftrace_func_command ftrace_snapshot_cmd = {
+	.name			= "snapshot",
+	.func			= ftrace_trace_snapshot_callback,
+};
+
+static int register_snapshot_cmd(void)
+{
+	return register_ftrace_command(&ftrace_snapshot_cmd);
+}
+#else
+static inline int register_snapshot_cmd(void) { return 0; }
+#endif /* defined(CONFIG_TRACER_SNAPSHOT) && defined(CONFIG_DYNAMIC_FTRACE) */
 
 struct dentry *tracing_init_dentry_tr(struct trace_array *tr)
 {
@@ -6075,6 +6182,8 @@ __init static int tracer_alloc_buffers(void)
 		option = strsep(&trace_boot_options, ",");
 		trace_set_options(&global_trace, option);
 	}
+
+	register_snapshot_cmd();
 
 	return 0;
 
