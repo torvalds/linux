@@ -2203,10 +2203,11 @@ static int read_partial_message_section(struct ceph_connection *con,
 static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip);
 
 static int read_partial_message_pages(struct ceph_connection *con,
-				      struct page **pages,
 				      unsigned int data_len, bool do_datacrc)
 {
+	struct ceph_msg *msg = con->in_msg;
 	struct ceph_msg_pos *msg_pos = &con->in_msg_pos;
+	struct page **pages;
 	struct page *page;
 	size_t page_offset;
 	size_t length;
@@ -2214,6 +2215,7 @@ static int read_partial_message_pages(struct ceph_connection *con,
 	int ret;
 
 	/* (page) data */
+	pages = msg->p.pages;
 	BUG_ON(pages == NULL);
 	page = pages[msg_pos->page];
 	page_offset = msg_pos->page_pos;
@@ -2285,8 +2287,8 @@ static int read_partial_msg_data(struct ceph_connection *con)
 	data_len = le32_to_cpu(con->in_hdr.data_len);
 	while (msg_pos->data_pos < data_len) {
 		if (ceph_msg_has_pages(msg)) {
-			ret = read_partial_message_pages(con, msg->p.pages,
-						 data_len, do_datacrc);
+			ret = read_partial_message_pages(con, data_len,
+							do_datacrc);
 			if (ret <= 0)
 				return ret;
 #ifdef CONFIG_BLOCK
