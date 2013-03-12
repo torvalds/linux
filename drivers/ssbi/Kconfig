@@ -5,7 +5,7 @@
 menu "Qualcomm MSM SSBI bus support"
 
 config MSM_SSBI
-	bool "Qualcomm Single-wire Serial Bus Interface (SSBI)"
+	tristate "Qualcomm Single-wire Serial Bus Interface (SSBI)"
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in SSBI interface on Qualcomm MSM family processors.
