@@ -1584,7 +1584,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.flags         = 0,
 	},
 #endif
-#if defined (CONFIG_SND_SOC_RT5631)
+#if defined (CONFIG_SND_SOC_RT5631) || defined (CONFIG_SND_SOC_RT5631_PHONE)
         {
                 .type                   = "rt5631",
                 .addr                   = 0x1a,
