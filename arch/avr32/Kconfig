@@ -27,7 +27,7 @@ config AVR32
 	  http://avr32linux.org/.
 
 config GENERIC_GPIO
-	def_bool y
+	def_bool n
 
 config STACKTRACE_SUPPORT
 	def_bool y
