@@ -974,6 +974,8 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	iph->ttl	= ttl ? : ip4_dst_hoplimit(&rt->dst);
 	tunnel_ip_select_ident(skb, old_iph, &rt->dst);
 
+	nf_reset(skb);
+
 	vxlan_set_owner(dev, skb);
 
 	if (handle_offloads(skb))
@@ -1507,6 +1509,14 @@ static __net_init int vxlan_init_net(struct net *net)
 static __net_exit void vxlan_exit_net(struct net *net)
 {
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
+	struct vxlan_dev *vxlan;
+	unsigned h;
+
+	rtnl_lock();
+	for (h = 0; h < VNI_HASH_SIZE; ++h)
+		hlist_for_each_entry(vxlan, &vn->vni_list[h], hlist)
+			dev_close(vxlan->dev);
+	rtnl_unlock();
 
 	if (vn->sock) {
 		sk_release_kernel(vn->sock->sk);

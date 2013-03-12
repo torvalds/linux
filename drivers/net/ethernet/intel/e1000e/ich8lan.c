@@ -782,6 +782,59 @@ release:
 }
 
 /**
+ *  e1000_k1_workaround_lpt_lp - K1 workaround on Lynxpoint-LP
+ *  @hw:   pointer to the HW structure
+ *  @link: link up bool flag
+ *
+ *  When K1 is enabled for 1Gbps, the MAC can miss 2 DMA completion indications
+ *  preventing further DMA write requests.  Workaround the issue by disabling
+ *  the de-assertion of the clock request when in 1Gpbs mode.
+ **/
+static s32 e1000_k1_workaround_lpt_lp(struct e1000_hw *hw, bool link)
+{
+	u32 fextnvm6 = er32(FEXTNVM6);
+	s32 ret_val = 0;
+
+	if (link && (er32(STATUS) & E1000_STATUS_SPEED_1000)) {
+		u16 kmrn_reg;
+
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			return ret_val;
+
+		ret_val =
+		    e1000e_read_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_K1_CONFIG,
+						&kmrn_reg);
+		if (ret_val)
+			goto release;
+
+		ret_val =
+		    e1000e_write_kmrn_reg_locked(hw,
+						 E1000_KMRNCTRLSTA_K1_CONFIG,
+						 kmrn_reg &
+						 ~E1000_KMRNCTRLSTA_K1_ENABLE);
+		if (ret_val)
+			goto release;
+
+		usleep_range(10, 20);
+
+		ew32(FEXTNVM6, fextnvm6 | E1000_FEXTNVM6_REQ_PLL_CLK);
+
+		ret_val =
+		    e1000e_write_kmrn_reg_locked(hw,
+						 E1000_KMRNCTRLSTA_K1_CONFIG,
+						 kmrn_reg);
+release:
+		hw->phy.ops.release(hw);
+	} else {
+		/* clear FEXTNVM6 bit 8 on link down or 10/100 */
+		ew32(FEXTNVM6, fextnvm6 & ~E1000_FEXTNVM6_REQ_PLL_CLK);
+	}
+
+	return ret_val;
+}
+
+/**
  *  e1000_check_for_copper_link_ich8lan - Check for link (Copper)
  *  @hw: pointer to the HW structure
  *
@@ -814,6 +867,14 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 
 	if (hw->mac.type == e1000_pchlan) {
 		ret_val = e1000_k1_gig_workaround_hv(hw, link);
+		if (ret_val)
+			return ret_val;
+	}
+
+	/* Work-around I218 hang issue */
+	if ((hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_LM) ||
+	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_V)) {
+		ret_val = e1000_k1_workaround_lpt_lp(hw, link);
 		if (ret_val)
 			return ret_val;
 	}
@@ -3953,8 +4014,16 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 
 	phy_ctrl = er32(PHY_CTRL);
 	phy_ctrl |= E1000_PHY_CTRL_GBE_DISABLE;
+
 	if (hw->phy.type == e1000_phy_i217) {
-		u16 phy_reg;
+		u16 phy_reg, device_id = hw->adapter->pdev->device;
+
+		if ((device_id == E1000_DEV_ID_PCH_LPTLP_I218_LM) ||
+		    (device_id == E1000_DEV_ID_PCH_LPTLP_I218_V)) {
+			u32 fextnvm6 = er32(FEXTNVM6);
+
+			ew32(FEXTNVM6, fextnvm6 & ~E1000_FEXTNVM6_REQ_PLL_CLK);
+		}
 
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val)

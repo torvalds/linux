@@ -1870,6 +1870,8 @@ static void tg3_link_report(struct tg3 *tp)
 
 		tg3_ump_link_report(tp);
 	}
+
+	tp->link_up = netif_carrier_ok(tp->dev);
 }
 
 static u16 tg3_advert_flowctrl_1000X(u8 flow_ctrl)
@@ -2523,12 +2525,6 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 	return err;
 }
 
-static void tg3_carrier_on(struct tg3 *tp)
-{
-	netif_carrier_on(tp->dev);
-	tp->link_up = true;
-}
-
 static void tg3_carrier_off(struct tg3 *tp)
 {
 	netif_carrier_off(tp->dev);
@@ -2554,7 +2550,7 @@ static int tg3_phy_reset(struct tg3 *tp)
 		return -EBUSY;
 
 	if (netif_running(tp->dev) && tp->link_up) {
-		tg3_carrier_off(tp);
+		netif_carrier_off(tp->dev);
 		tg3_link_report(tp);
 	}
 
@@ -4403,9 +4399,9 @@ static bool tg3_test_and_report_link_chg(struct tg3 *tp, int curr_link_up)
 {
 	if (curr_link_up != tp->link_up) {
 		if (curr_link_up) {
-			tg3_carrier_on(tp);
+			netif_carrier_on(tp->dev);
 		} else {
-			tg3_carrier_off(tp);
+			netif_carrier_off(tp->dev);
 			if (tp->phy_flags & TG3_PHYFLG_MII_SERDES)
 				tp->phy_flags &= ~TG3_PHYFLG_PARALLEL_DETECT;
 		}
