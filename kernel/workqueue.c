@@ -188,11 +188,7 @@ struct wq_flusher {
  */
 struct workqueue_struct {
 	unsigned int		flags;		/* W: WQ_* flags */
-	union {
-		struct pool_workqueue __percpu		*pcpu;
-		struct pool_workqueue			*single;
-		unsigned long				v;
-	} pool_wq;				/* I: pwq's */
+	struct pool_workqueue __percpu *cpu_pwqs; /* I: per-cpu pwq's */
 	struct list_head	pwqs;		/* I: all pwqs of this wq */
 	struct list_head	list;		/* W: list of all workqueues */
 
@@ -471,9 +467,11 @@ static struct pool_workqueue *get_pwq(int cpu, struct workqueue_struct *wq)
 {
 	if (!(wq->flags & WQ_UNBOUND)) {
 		if (likely(cpu < nr_cpu_ids))
-			return per_cpu_ptr(wq->pool_wq.pcpu, cpu);
-	} else if (likely(cpu == WORK_CPU_UNBOUND))
-		return wq->pool_wq.single;
+			return per_cpu_ptr(wq->cpu_pwqs, cpu);
+	} else if (likely(cpu == WORK_CPU_UNBOUND)) {
+		return list_first_entry(&wq->pwqs, struct pool_workqueue,
+					pwqs_node);
+	}
 	return NULL;
 }
 
@@ -3085,8 +3083,8 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 	int cpu;
 
 	if (!(wq->flags & WQ_UNBOUND)) {
-		wq->pool_wq.pcpu = alloc_percpu(struct pool_workqueue);
-		if (!wq->pool_wq.pcpu)
+		wq->cpu_pwqs = alloc_percpu(struct pool_workqueue);
+		if (!wq->cpu_pwqs)
 			return -ENOMEM;
 
 		for_each_possible_cpu(cpu) {
@@ -3102,7 +3100,6 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 		if (!pwq)
 			return -ENOMEM;
 
-		wq->pool_wq.single = pwq;
 		pwq->pool = get_std_worker_pool(WORK_CPU_UNBOUND, highpri);
 		list_add_tail(&pwq->pwqs_node, &wq->pwqs);
 	}
@@ -3113,9 +3110,10 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 static void free_pwqs(struct workqueue_struct *wq)
 {
 	if (!(wq->flags & WQ_UNBOUND))
-		free_percpu(wq->pool_wq.pcpu);
-	else
-		kmem_cache_free(pwq_cache, wq->pool_wq.single);
+		free_percpu(wq->cpu_pwqs);
+	else if (!list_empty(&wq->pwqs))
+		kmem_cache_free(pwq_cache, list_first_entry(&wq->pwqs,
+					struct pool_workqueue, pwqs_node));
 }
 
 static int wq_clamp_max_active(int max_active, unsigned int flags,
