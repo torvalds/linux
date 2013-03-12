@@ -964,11 +964,11 @@ static void spi_sunxi_work(struct work_struct *work)
 		spi = msg->spi;
 		/* set default value,no need to change cs,keep select until spi transfer require to change cs. */
 		cs_change = 1;
-		/* set message status to succeed. */
-		status = 0;
+		/* set to force xfer_setup on first transfer. */
+		status = -1;
 		/* search the spi transfer in this message, deal with it alone. */
 		list_for_each_entry (t, &msg->transfers, transfer_list) {
-			if (t->bits_per_word || t->speed_hz) { /* if spi transfer is zero,use spi device value. */
+			if ((status == -1) || t->bits_per_word || t->speed_hz) { /* xfer_setup if first transfer or overrides provided. */
 				status = spi_sunxi_xfer_setup(spi, t);/* set the value every spi transfer */
 				spi_msg(" xfer setup \n");
 				if (status < 0)
@@ -1009,8 +1009,6 @@ static void spi_sunxi_work(struct work_struct *work)
 		if (status || !cs_change) {
 			aw_spi->cs_control(spi, 0);
 		}
-        /* restore default value. */
-		spi_sunxi_xfer_setup(spi, NULL);
 		spin_lock_irq(&aw_spi->lock);
 	}
 	/* set spi to free */
@@ -1308,19 +1306,10 @@ static int spi_sunxi_hw_init(struct sunxi_spi *aw_spi)
 	else{
         aw_spi_set_cs(1, base_addr);
 	}
-    /*
-     * 3. master: set spi module clock;
-     * 4. set the default frequency	10MHz
-     */
+	/* 3. master */
     aw_spi_set_master(base_addr);
     sclk_freq  = clk_get_rate(aw_spi->mclk);
-    aw_spi_set_clk(10000000, sclk_freq, base_addr);
-    /*
-     * 5. master : set POL,PHA,SSOPL,LMTF,DDB,DHB; default: SSCTL=0,SMC=1,TBW=0.
-     * 6. set bit width-default: 8 bits
-     */
-    aw_spi_config(1, SPI_MODE_3, base_addr);
-	/* 7. manual control the chip select */
+	/* 4. manual control the chip select */
 	aw_spi_ss_ctrl(base_addr, 1);
 	return 0;
 }
