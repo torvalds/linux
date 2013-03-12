@@ -1827,7 +1827,7 @@ static void send_mayday(struct work_struct *work)
 
 	lockdep_assert_held(&workqueue_lock);
 
-	if (!(wq->flags & WQ_RESCUER))
+	if (!wq->rescuer)
 		return;
 
 	/* mayday mayday mayday */
@@ -2285,7 +2285,7 @@ sleep:
  * @__rescuer: self
  *
  * Workqueue rescuer thread function.  There's one rescuer for each
- * workqueue which has WQ_RESCUER set.
+ * workqueue which has WQ_MEM_RECLAIM set.
  *
  * Regular work processing on a pool may block trying to create a new
  * worker which uses GFP_KERNEL allocation which has slight chance of
@@ -2769,7 +2769,7 @@ static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr)
 	 * flusher is not running on the same workqueue by verifying write
 	 * access.
 	 */
-	if (pwq->wq->saved_max_active == 1 || pwq->wq->flags & WQ_RESCUER)
+	if (pwq->wq->saved_max_active == 1 || pwq->wq->rescuer)
 		lock_map_acquire(&pwq->wq->lockdep_map);
 	else
 		lock_map_acquire_read(&pwq->wq->lockdep_map);
@@ -3412,13 +3412,6 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 	va_end(args);
 	va_end(args1);
 
-	/*
-	 * Workqueues which may be used during memory reclaim should
-	 * have a rescuer to guarantee forward progress.
-	 */
-	if (flags & WQ_MEM_RECLAIM)
-		flags |= WQ_RESCUER;
-
 	max_active = max_active ?: WQ_DFL_ACTIVE;
 	max_active = wq_clamp_max_active(max_active, flags, wq->name);
 
@@ -3449,7 +3442,11 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 	}
 	local_irq_enable();
 
-	if (flags & WQ_RESCUER) {
+	/*
+	 * Workqueues which may be used during memory reclaim should
+	 * have a rescuer to guarantee forward progress.
+	 */
+	if (flags & WQ_MEM_RECLAIM) {
 		struct worker *rescuer;
 
 		wq->rescuer = rescuer = alloc_worker();
@@ -3533,9 +3530,10 @@ void destroy_workqueue(struct workqueue_struct *wq)
 
 	spin_unlock_irq(&workqueue_lock);
 
-	if (wq->flags & WQ_RESCUER) {
+	if (wq->rescuer) {
 		kthread_stop(wq->rescuer->task);
 		kfree(wq->rescuer);
+		wq->rescuer = NULL;
 	}
 
 	/*
