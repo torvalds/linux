@@ -785,8 +785,6 @@ static int mt9m111_init(struct mt9m111 *mt9m111)
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9m111->subdev);
 	int ret;
 
-	/* Default HIGHPOWER context */
-	mt9m111->ctx = &context_b;
 	ret = mt9m111_enable(mt9m111);
 	if (!ret)
 		ret = mt9m111_reset(mt9m111);
@@ -974,6 +972,9 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111 = devm_kzalloc(&client->dev, sizeof(struct mt9m111), GFP_KERNEL);
 	if (!mt9m111)
 		return -ENOMEM;
+
+	/* Default HIGHPOWER context */
+	mt9m111->ctx = &context_b;
 
 	v4l2_i2c_subdev_init(&mt9m111->subdev, client, &mt9m111_subdev_ops);
 	v4l2_ctrl_handler_init(&mt9m111->hdl, 5);
