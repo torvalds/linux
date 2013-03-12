@@ -539,6 +539,7 @@ static void virtblk_config_changed_work(struct work_struct *work)
 	struct virtio_device *vdev = vblk->vdev;
 	struct request_queue *q = vblk->disk->queue;
 	char cap_str_2[10], cap_str_10[10];
+	char *envp[] = { "RESIZE=1", NULL };
 	u64 capacity, size;
 
 	mutex_lock(&vblk->config_lock);
@@ -568,6 +569,7 @@ static void virtblk_config_changed_work(struct work_struct *work)
 
 	set_capacity(vblk->disk, capacity);
 	revalidate_disk(vblk->disk);
+	kobject_uevent_env(&disk_to_dev(vblk->disk)->kobj, KOBJ_CHANGE, envp);
 done:
 	mutex_unlock(&vblk->config_lock);
 }
