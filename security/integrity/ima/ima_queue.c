@@ -50,7 +50,7 @@ static struct ima_queue_entry *ima_lookup_digest_entry(u8 *digest_value)
 	key = ima_hash_key(digest_value);
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(qe, &ima_htable.queue[key], hnext) {
-		rc = memcmp(qe->entry->digest, digest_value, IMA_DIGEST_SIZE);
+		rc = memcmp(qe->entry->digest, digest_value, TPM_DIGEST_SIZE);
 		if (rc == 0) {
 			ret = qe;
 			break;
@@ -106,7 +106,7 @@ static int ima_pcr_extend(const u8 *hash)
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode)
 {
-	u8 digest[IMA_DIGEST_SIZE];
+	u8 digest[TPM_DIGEST_SIZE];
 	const char *audit_cause = "hash_added";
 	char tpm_audit_cause[AUDIT_CAUSE_LEN_MAX];
 	int audit_info = 1;

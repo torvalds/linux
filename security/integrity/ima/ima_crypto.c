@@ -155,7 +155,7 @@ static void __init ima_pcrread(int idx, u8 *pcr)
  */
 int __init ima_calc_boot_aggregate(char *digest)
 {
-	u8 pcr_i[IMA_DIGEST_SIZE];
+	u8 pcr_i[TPM_DIGEST_SIZE];
 	int rc, i;
 	struct {
 		struct shash_desc shash;
@@ -173,7 +173,7 @@ int __init ima_calc_boot_aggregate(char *digest)
 	for (i = TPM_PCR0; i < TPM_PCR8; i++) {
 		ima_pcrread(i, pcr_i);
 		/* now accumulate with current aggregate */
-		rc = crypto_shash_update(&desc.shash, pcr_i, IMA_DIGEST_SIZE);
+		rc = crypto_shash_update(&desc.shash, pcr_i, TPM_DIGEST_SIZE);
 	}
 	if (!rc)
 		crypto_shash_final(&desc.shash, digest);

@@ -133,7 +133,7 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	ima_putc(m, &pcr, sizeof pcr);
 
 	/* 2nd: template digest */
-	ima_putc(m, e->digest, IMA_DIGEST_SIZE);
+	ima_putc(m, e->digest, TPM_DIGEST_SIZE);
 
 	/* 3rd: template name size */
 	namelen = strlen(e->template_name);
@@ -167,11 +167,11 @@ static const struct file_operations ima_measurements_ops = {
 	.release = seq_release,
 };
 
-static void ima_print_digest(struct seq_file *m, u8 *digest)
+static void ima_print_digest(struct seq_file *m, u8 *digest, int size)
 {
 	int i;
 
-	for (i = 0; i < IMA_DIGEST_SIZE; i++)
+	for (i = 0; i < size; i++)
 		seq_printf(m, "%02x", *(digest + i));
 }
 
@@ -182,7 +182,7 @@ void ima_template_show(struct seq_file *m, void *e, enum ima_show_type show)
 
 	switch (show) {
 	case IMA_SHOW_ASCII:
-		ima_print_digest(m, entry->digest);
+		ima_print_digest(m, entry->digest, IMA_DIGEST_SIZE);
 		seq_printf(m, " %s\n", entry->file_name);
 		break;
 	case IMA_SHOW_BINARY:
@@ -212,7 +212,7 @@ static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 	seq_printf(m, "%2d ", CONFIG_IMA_MEASURE_PCR_IDX);
 
 	/* 2nd: SHA1 template hash */
-	ima_print_digest(m, e->digest);
+	ima_print_digest(m, e->digest, TPM_DIGEST_SIZE);
 
 	/* 3th:  template name */
 	seq_printf(m, " %s ", e->template_name);

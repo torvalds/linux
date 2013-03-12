@@ -46,7 +46,7 @@ int ima_store_template(struct ima_template_entry *entry,
 	int result;
 	struct {
 		struct ima_digest_data hdr;
-		char digest[IMA_MAX_DIGEST_SIZE];
+		char digest[TPM_DIGEST_SIZE];
 	} hash;
 
 	memset(entry->digest, 0, sizeof(entry->digest));

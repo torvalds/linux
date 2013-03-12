@@ -74,7 +74,7 @@ err_out:
 
 int __init ima_init(void)
 {
-	u8 pcr_i[IMA_DIGEST_SIZE];
+	u8 pcr_i[TPM_DIGEST_SIZE];
 	int rc;
 
 	ima_used_chip = 0;
