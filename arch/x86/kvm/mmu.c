@@ -199,8 +199,11 @@ EXPORT_SYMBOL_GPL(kvm_mmu_set_mmio_spte_mask);
 
 static void mark_mmio_spte(u64 *sptep, u64 gfn, unsigned access)
 {
+	struct kvm_mmu_page *sp =  page_header(__pa(sptep));
+
 	access &= ACC_WRITE_MASK | ACC_USER_MASK;
 
+	sp->mmio_cached = true;
 	trace_mark_mmio_spte(sptep, gfn, access);
 	mmu_spte_set(sptep, shadow_mmio_mask | access | gfn << PAGE_SHIFT);
 }
