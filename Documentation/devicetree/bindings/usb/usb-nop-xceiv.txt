@@ -1,0 +1,34 @@
+USB NOP PHY
+
+Required properties:
+- compatible: should be usb-nop-xceiv
+
+Optional properties:
+- clocks: phandle to the PHY clock. Use as per Documentation/devicetree
+  /bindings/clock/clock-bindings.txt
+  This property is required if clock-frequency is specified.
+
+- clock-names: Should be "main_clk"
+
+- clock-frequency: the clock frequency (in Hz) that the PHY clock must
+  be configured to.
+
+- vcc-supply: phandle to the regulator that provides RESET to the PHY.
+
+- reset-supply: phandle to the regulator that provides power to the PHY.
+
+Example:
+
+	hsusb1_phy {
+		compatible = "usb-nop-xceiv";
+		clock-frequency = <19200000>;
+		clocks = <&osc 0>;
+		clock-names = "main_clk";
+		vcc-supply = <&hsusb1_vcc_regulator>;
+		reset-supply = <&hsusb1_reset_regulator>;
+	};
+
+hsusb1_phy is a NOP USB PHY device that gets its clock from an oscillator
+and expects that clock to be configured to 19.2MHz by the NOP PHY driver.
+hsusb1_vcc_regulator provides power to the PHY and hsusb1_reset_regulator
+controls RESET.
