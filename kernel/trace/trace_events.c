@@ -1798,6 +1798,283 @@ __trace_add_event_dirs(struct trace_array *tr)
 	}
 }
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+/* Avoid typos */
+#define ENABLE_EVENT_STR	"enable_event"
+#define DISABLE_EVENT_STR	"disable_event"
+
+struct event_probe_data {
+	struct ftrace_event_file	*file;
+	unsigned long			count;
+	int				ref;
+	bool				enable;
+};
+
+static struct ftrace_event_file *
+find_event_file(struct trace_array *tr, const char *system,  const char *event)
+{
+	struct ftrace_event_file *file;
+	struct ftrace_event_call *call;
+
+	list_for_each_entry(file, &tr->events, list) {
+
+		call = file->event_call;
+
+		if (!call->name || !call->class || !call->class->reg)
+			continue;
+
+		if (call->flags & TRACE_EVENT_FL_IGNORE_ENABLE)
+			continue;
+
+		if (strcmp(event, call->name) == 0 &&
+		    strcmp(system, call->class->system) == 0)
+			return file;
+	}
+	return NULL;
+}
+
+static void
+event_enable_probe(unsigned long ip, unsigned long parent_ip, void **_data)
+{
+	struct event_probe_data **pdata = (struct event_probe_data **)_data;
+	struct event_probe_data *data = *pdata;
+
+	if (!data)
+		return;
+
+	if (data->enable)
+		clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &data->file->flags);
+	else
+		set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &data->file->flags);
+}
+
+static void
+event_enable_count_probe(unsigned long ip, unsigned long parent_ip, void **_data)
+{
+	struct event_probe_data **pdata = (struct event_probe_data **)_data;
+	struct event_probe_data *data = *pdata;
+
+	if (!data)
+		return;
+
+	if (!data->count)
+		return;
+
+	/* Skip if the event is in a state we want to switch to */
+	if (data->enable == !(data->file->flags & FTRACE_EVENT_FL_SOFT_DISABLED))
+		return;
+
+	if (data->count != -1)
+		(data->count)--;
+
+	event_enable_probe(ip, parent_ip, _data);
+}
+
+static int
+event_enable_print(struct seq_file *m, unsigned long ip,
+		      struct ftrace_probe_ops *ops, void *_data)
+{
+	struct event_probe_data *data = _data;
+
+	seq_printf(m, "%ps:", (void *)ip);
+
+	seq_printf(m, "%s:%s:%s",
+		   data->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
+		   data->file->event_call->class->system,
+		   data->file->event_call->name);
+
+	if (data->count == -1)
+		seq_printf(m, ":unlimited\n");
+	else
+		seq_printf(m, ":count=%ld\n", data->count);
+
+	return 0;
+}
+
+static int
+event_enable_init(struct ftrace_probe_ops *ops, unsigned long ip,
+		  void **_data)
+{
+	struct event_probe_data **pdata = (struct event_probe_data **)_data;
+	struct event_probe_data *data = *pdata;
+
+	data->ref++;
+	return 0;
+}
+
+static void
+event_enable_free(struct ftrace_probe_ops *ops, unsigned long ip,
+		  void **_data)
+{
+	struct event_probe_data **pdata = (struct event_probe_data **)_data;
+	struct event_probe_data *data = *pdata;
+
+	if (WARN_ON_ONCE(data->ref <= 0))
+		return;
+
+	data->ref--;
+	if (!data->ref) {
+		/* Remove the SOFT_MODE flag */
+		__ftrace_event_enable_disable(data->file, 0, 1);
+		module_put(data->file->event_call->mod);
+		kfree(data);
+	}
+	*pdata = NULL;
+}
+
+static struct ftrace_probe_ops event_enable_probe_ops = {
+	.func			= event_enable_probe,
+	.print			= event_enable_print,
+	.init			= event_enable_init,
+	.free			= event_enable_free,
+};
+
+static struct ftrace_probe_ops event_enable_count_probe_ops = {
+	.func			= event_enable_count_probe,
+	.print			= event_enable_print,
+	.init			= event_enable_init,
+	.free			= event_enable_free,
+};
+
+static struct ftrace_probe_ops event_disable_probe_ops = {
+	.func			= event_enable_probe,
+	.print			= event_enable_print,
+	.init			= event_enable_init,
+	.free			= event_enable_free,
+};
+
+static struct ftrace_probe_ops event_disable_count_probe_ops = {
+	.func			= event_enable_count_probe,
+	.print			= event_enable_print,
+	.init			= event_enable_init,
+	.free			= event_enable_free,
+};
+
+static int
+event_enable_func(struct ftrace_hash *hash,
+		  char *glob, char *cmd, char *param, int enabled)
+{
+	struct trace_array *tr = top_trace_array();
+	struct ftrace_event_file *file;
+	struct ftrace_probe_ops *ops;
+	struct event_probe_data *data;
+	const char *system;
+	const char *event;
+	char *number;
+	bool enable;
+	int ret;
+
+	/* hash funcs only work with set_ftrace_filter */
+	if (!enabled)
+		return -EINVAL;
+
+	if (!param)
+		return -EINVAL;
+
+	system = strsep(&param, ":");
+	if (!param)
+		return -EINVAL;
+
+	event = strsep(&param, ":");
+
+	mutex_lock(&event_mutex);
+
+	ret = -EINVAL;
+	file = find_event_file(tr, system, event);
+	if (!file)
+		goto out;
+
+	enable = strcmp(cmd, ENABLE_EVENT_STR) == 0;
+
+	if (enable)
+		ops = param ? &event_enable_count_probe_ops : &event_enable_probe_ops;
+	else
+		ops = param ? &event_disable_count_probe_ops : &event_disable_probe_ops;
+
+	if (glob[0] == '!') {
+		unregister_ftrace_function_probe_func(glob+1, ops);
+		ret = 0;
+		goto out;
+	}
+
+	ret = -ENOMEM;
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		goto out;
+
+	data->enable = enable;
+	data->count = -1;
+	data->file = file;
+
+	if (!param)
+		goto out_reg;
+
+	number = strsep(&param, ":");
+
+	ret = -EINVAL;
+	if (!strlen(number))
+		goto out_free;
+
+	/*
+	 * We use the callback data field (which is a pointer)
+	 * as our counter.
+	 */
+	ret = kstrtoul(number, 0, &data->count);
+	if (ret)
+		goto out_free;
+
+ out_reg:
+	/* Don't let event modules unload while probe registered */
+	ret = try_module_get(file->event_call->mod);
+	if (!ret)
+		goto out_free;
+
+	ret = __ftrace_event_enable_disable(file, 1, 1);
+	if (ret < 0)
+		goto out_put;
+	ret = register_ftrace_function_probe(glob, ops, data);
+	if (!ret)
+		goto out_disable;
+ out:
+	mutex_unlock(&event_mutex);
+	return ret;
+
+ out_disable:
+	__ftrace_event_enable_disable(file, 0, 1);
+ out_put:
+	module_put(file->event_call->mod);
+ out_free:
+	kfree(data);
+	goto out;
+}
+
+static struct ftrace_func_command event_enable_cmd = {
+	.name			= ENABLE_EVENT_STR,
+	.func			= event_enable_func,
+};
+
+static struct ftrace_func_command event_disable_cmd = {
+	.name			= DISABLE_EVENT_STR,
+	.func			= event_enable_func,
+};
+
+static __init int register_event_cmds(void)
+{
+	int ret;
+
+	ret = register_ftrace_command(&event_enable_cmd);
+	if (WARN_ON(ret < 0))
+		return ret;
+	ret = register_ftrace_command(&event_disable_cmd);
+	if (WARN_ON(ret < 0))
+		unregister_ftrace_command(&event_enable_cmd);
+	return ret;
+}
+#else
+static inline int register_event_cmds(void) { return 0; }
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
 /*
  * The top level array has already had its ftrace_event_file
  * descriptors created in order to allow for early events to
@@ -2057,6 +2334,8 @@ static __init int event_trace_enable(void)
 	}
 
 	trace_printk_start_comm();
+
+	register_event_cmds();
 
 	return 0;
 }
