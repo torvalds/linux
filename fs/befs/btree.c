@@ -436,8 +436,7 @@ befs_btree_read(struct super_block *sb, befs_data_stream * ds,
 		goto error;
 	}
 
-	if ((this_node = (befs_btree_node *)
-	     kmalloc(sizeof (befs_btree_node), GFP_NOFS)) == NULL) {
+	if ((this_node = kmalloc(sizeof (befs_btree_node), GFP_NOFS)) == NULL) {
 		befs_error(sb, "befs_btree_read() failed to allocate %u "
 			   "bytes of memory", sizeof (befs_btree_node));
 		goto error;
