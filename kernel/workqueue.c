@@ -253,47 +253,12 @@ EXPORT_SYMBOL_GPL(system_freezable_wq);
 			   "sched RCU or workqueue lock should be held")
 
 #define for_each_std_worker_pool(pool, cpu)				\
-	for ((pool) = &std_worker_pools(cpu)[0];			\
-	     (pool) < &std_worker_pools(cpu)[NR_STD_WORKER_POOLS]; (pool)++)
+	for ((pool) = &per_cpu(cpu_std_worker_pools, cpu)[0];		\
+	     (pool) < &per_cpu(cpu_std_worker_pools, cpu)[NR_STD_WORKER_POOLS]; \
+	     (pool)++)
 
 #define for_each_busy_worker(worker, i, pool)				\
 	hash_for_each(pool->busy_hash, i, worker, hentry)
-
-static inline int __next_wq_cpu(int cpu, const struct cpumask *mask,
-				unsigned int sw)
-{
-	if (cpu < nr_cpu_ids) {
-		if (sw & 1) {
-			cpu = cpumask_next(cpu, mask);
-			if (cpu < nr_cpu_ids)
-				return cpu;
-		}
-		if (sw & 2)
-			return WORK_CPU_UNBOUND;
-	}
-	return WORK_CPU_END;
-}
-
-/*
- * CPU iterators
- *
- * An extra cpu number is defined using an invalid cpu number
- * (WORK_CPU_UNBOUND) to host workqueues which are not bound to any
- * specific CPU.  The following iterators are similar to for_each_*_cpu()
- * iterators but also considers the unbound CPU.
- *
- * for_each_wq_cpu()		: possible CPUs + WORK_CPU_UNBOUND
- * for_each_online_wq_cpu()	: online CPUs + WORK_CPU_UNBOUND
- */
-#define for_each_wq_cpu(cpu)						\
-	for ((cpu) = __next_wq_cpu(-1, cpu_possible_mask, 3);		\
-	     (cpu) < WORK_CPU_END;					\
-	     (cpu) = __next_wq_cpu((cpu), cpu_possible_mask, 3))
-
-#define for_each_online_wq_cpu(cpu)					\
-	for ((cpu) = __next_wq_cpu(-1, cpu_online_mask, 3);		\
-	     (cpu) < WORK_CPU_END;					\
-	     (cpu) = __next_wq_cpu((cpu), cpu_online_mask, 3))
 
 /**
  * for_each_pool - iterate through all worker_pools in the system
@@ -456,7 +421,6 @@ static bool workqueue_freezing;		/* W: have wqs started freezing? */
  */
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct worker_pool [NR_STD_WORKER_POOLS],
 				     cpu_std_worker_pools);
-static struct worker_pool unbound_std_worker_pools[NR_STD_WORKER_POOLS];
 
 /*
  * idr of all pools.  Modifications are protected by workqueue_lock.  Read
@@ -465,19 +429,6 @@ static struct worker_pool unbound_std_worker_pools[NR_STD_WORKER_POOLS];
 static DEFINE_IDR(worker_pool_idr);
 
 static int worker_thread(void *__worker);
-
-static struct worker_pool *std_worker_pools(int cpu)
-{
-	if (cpu != WORK_CPU_UNBOUND)
-		return per_cpu(cpu_std_worker_pools, cpu);
-	else
-		return unbound_std_worker_pools;
-}
-
-static int std_worker_pool_pri(struct worker_pool *pool)
-{
-	return pool - std_worker_pools(pool->cpu);
-}
 
 /* allocate ID and assign it to @pool */
 static int worker_pool_assign_id(struct worker_pool *pool)
@@ -494,13 +445,6 @@ static int worker_pool_assign_id(struct worker_pool *pool)
 	} while (ret == -EAGAIN);
 
 	return ret;
-}
-
-static struct worker_pool *get_std_worker_pool(int cpu, bool highpri)
-{
-	struct worker_pool *pools = std_worker_pools(cpu);
-
-	return &pools[highpri];
 }
 
 /**
@@ -3397,8 +3341,10 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 		for_each_possible_cpu(cpu) {
 			struct pool_workqueue *pwq =
 				per_cpu_ptr(wq->cpu_pwqs, cpu);
+			struct worker_pool *cpu_pools =
+				per_cpu(cpu_std_worker_pools, cpu);
 
-			pwq->pool = get_std_worker_pool(cpu, highpri);
+			pwq->pool = &cpu_pools[highpri];
 			list_add_tail_rcu(&pwq->pwqs_node, &wq->pwqs);
 		}
 	} else {
