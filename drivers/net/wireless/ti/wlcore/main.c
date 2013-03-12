@@ -2523,6 +2523,8 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		wl1271_ps_elp_sleep(wl);
 	}
 deinit:
+	wl12xx_tx_reset_wlvif(wl, wlvif);
+
 	/* clear all hlids (except system_hlid) */
 	wlvif->dev_hlid = WL12XX_INVALID_LINK_ID;
 
@@ -2546,7 +2548,6 @@ deinit:
 
 	dev_kfree_skb(wlvif->probereq);
 	wlvif->probereq = NULL;
-	wl12xx_tx_reset_wlvif(wl, wlvif);
 	if (wl->last_wlvif == wlvif)
 		wl->last_wlvif = NULL;
 	list_del(&wlvif->list);
