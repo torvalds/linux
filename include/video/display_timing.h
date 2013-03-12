@@ -39,12 +39,6 @@ struct timing_entry {
 	u32 max;
 };
 
-enum timing_entry_index {
-	TE_MIN = 0,
-	TE_TYP = 1,
-	TE_MAX = 2,
-};
-
 /*
  * Single "mode" entry. This describes one set of signal timings a display can
  * have in one setting. This struct can later be converted to struct videomode
@@ -90,25 +84,6 @@ struct display_timings {
 
 	struct display_timing **timings;
 };
-
-/* get value specified by index from struct timing_entry */
-static inline u32 display_timing_get_value(const struct timing_entry *te,
-					   enum timing_entry_index index)
-{
-	switch (index) {
-	case TE_MIN:
-		return te->min;
-		break;
-	case TE_TYP:
-		return te->typ;
-		break;
-	case TE_MAX:
-		return te->max;
-		break;
-	default:
-		return te->typ;
-	}
-}
 
 /* get one entry from struct display_timings */
 static inline struct display_timing *display_timings_get(const struct
