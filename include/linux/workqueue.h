@@ -293,6 +293,7 @@ enum {
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
 	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu instensive workqueue */
+	WQ_SYSFS		= 1 << 6, /* visible in sysfs, see wq_sysfs_register() */
 
 	__WQ_DRAINING		= 1 << 16, /* internal: workqueue is draining */
 	__WQ_ORDERED		= 1 << 17, /* internal: workqueue is ordered */
@@ -494,5 +495,12 @@ extern void freeze_workqueues_begin(void);
 extern bool freeze_workqueues_busy(void);
 extern void thaw_workqueues(void);
 #endif /* CONFIG_FREEZER */
+
+#ifdef CONFIG_SYSFS
+int workqueue_sysfs_register(struct workqueue_struct *wq);
+#else	/* CONFIG_SYSFS */
+static inline int workqueue_sysfs_register(struct workqueue_struct *wq)
+{ return 0; }
+#endif	/* CONFIG_SYSFS */
 
 #endif
