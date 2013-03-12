@@ -122,6 +122,9 @@ enum {
  * W: workqueue_lock protected.
  *
  * R: workqueue_lock protected for writes.  Sched-RCU protected for reads.
+ *
+ * FR: wq->flush_mutex and workqueue_lock protected for writes.  Sched-RCU
+ *     protected for reads.
  */
 
 /* struct worker is defined in workqueue_internal.h */
@@ -185,7 +188,7 @@ struct pool_workqueue {
 	int			nr_active;	/* L: nr of active works */
 	int			max_active;	/* L: max active works */
 	struct list_head	delayed_works;	/* L: delayed works */
-	struct list_head	pwqs_node;	/* R: node on wq->pwqs */
+	struct list_head	pwqs_node;	/* FR: node on wq->pwqs */
 	struct list_head	mayday_node;	/* W: node on wq->maydays */
 
 	/*
@@ -214,7 +217,7 @@ struct wq_flusher {
 struct workqueue_struct {
 	unsigned int		flags;		/* W: WQ_* flags */
 	struct pool_workqueue __percpu *cpu_pwqs; /* I: per-cpu pwq's */
-	struct list_head	pwqs;		/* R: all pwqs of this wq */
+	struct list_head	pwqs;		/* FR: all pwqs of this wq */
 	struct list_head	list;		/* W: list of all workqueues */
 
 	struct mutex		flush_mutex;	/* protects wq flushing */
@@ -3402,9 +3405,16 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 	if (WARN_ON_ONCE(!(wq->flags & WQ_UNBOUND)))
 		return;
 
+	/*
+	 * Unlink @pwq.  Synchronization against flush_mutex isn't strictly
+	 * necessary on release but do it anyway.  It's easier to verify
+	 * and consistent with the linking path.
+	 */
+	mutex_lock(&wq->flush_mutex);
 	spin_lock_irq(&workqueue_lock);
 	list_del_rcu(&pwq->pwqs_node);
 	spin_unlock_irq(&workqueue_lock);
+	mutex_unlock(&wq->flush_mutex);
 
 	put_unbound_pool(pool);
 	call_rcu_sched(&pwq->rcu, rcu_free_pwq);
@@ -3432,7 +3442,18 @@ static void init_and_link_pwq(struct pool_workqueue *pwq,
 	INIT_LIST_HEAD(&pwq->mayday_node);
 	INIT_WORK(&pwq->unbound_release_work, pwq_unbound_release_workfn);
 
+	/*
+	 * Link @pwq and set the matching work_color.  This is synchronized
+	 * with flush_mutex to avoid confusing flush_workqueue().
+	 */
+	mutex_lock(&wq->flush_mutex);
+	spin_lock_irq(&workqueue_lock);
+
+	pwq->work_color = wq->work_color;
 	list_add_tail_rcu(&pwq->pwqs_node, &wq->pwqs);
+
+	spin_unlock_irq(&workqueue_lock);
+	mutex_unlock(&wq->flush_mutex);
 }
 
 static int alloc_and_link_pwqs(struct workqueue_struct *wq)
