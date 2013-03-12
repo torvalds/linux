@@ -327,6 +327,14 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	wl->links[link].prev_freed_pkts =
 			wl->fw_status_2->counters.tx_lnk_free_pkts[link];
 	wl->links[link].wlvif = wlvif;
+
+	/*
+	 * Take saved value for total freed packets from wlvif, in case this is
+	 * recovery/resume
+	 */
+	if (wlvif->bss_type != BSS_TYPE_AP_BSS)
+		wl->links[link].total_freed_pkts = wlvif->total_freed_pkts;
+
 	*hlid = link;
 
 	wl->active_link_count++;
@@ -357,6 +365,24 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	 */
 	wl1271_tx_reset_link_queues(wl, *hlid);
 	wl->links[*hlid].wlvif = NULL;
+
+	if (wlvif->bss_type != BSS_TYPE_AP_BSS) {
+		/*
+		 * save the total freed packets in the wlvif, in case this is
+		 * recovery or suspend
+		 */
+		wlvif->total_freed_pkts = wl->links[*hlid].total_freed_pkts;
+
+		/*
+		 * increment the initial seq number on recovery to account for
+		 * transmitted packets that we haven't yet got in the FW status
+		 */
+		if (test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags))
+			wlvif->total_freed_pkts +=
+					WL1271_TX_SQN_POST_RECOVERY_PADDING;
+	}
+
+	wl->links[*hlid].total_freed_pkts = 0;
 
 	*hlid = WL12XX_INVALID_LINK_ID;
 	wl->active_link_count--;

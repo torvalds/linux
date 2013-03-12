@@ -418,13 +418,21 @@ static int wlcore_fw_status(struct wl1271 *wl,
 
 
 	for_each_set_bit(i, wl->links_map, WL12XX_MAX_LINKS) {
+		u8 diff;
 		lnk = &wl->links[i];
-		/* prevent wrap-around in freed-packets counter */
-		lnk->allocated_pkts -=
-			(status_2->counters.tx_lnk_free_pkts[i] -
-			 lnk->prev_freed_pkts) & 0xff;
 
+		/* prevent wrap-around in freed-packets counter */
+		diff = (status_2->counters.tx_lnk_free_pkts[i] -
+		       lnk->prev_freed_pkts) & 0xff;
+
+		if (diff == 0)
+			continue;
+
+		lnk->allocated_pkts -= diff;
 		lnk->prev_freed_pkts = status_2->counters.tx_lnk_free_pkts[i];
+
+		/* accumulate the prev_freed_pkts counter */
+		lnk->total_freed_pkts += diff;
 	}
 
 	/* prevent wrap-around in total blocks counter */
@@ -921,18 +929,6 @@ static void wl1271_recovery_work(struct work_struct *work)
 	if (wl->conf.recovery.no_recovery) {
 		wl1271_info("No recovery (chosen on module load). Fw will remain stuck.");
 		goto out_unlock;
-	}
-
-	/*
-	 * Advance security sequence number to overcome potential progress
-	 * in the firmware during recovery. This doens't hurt if the network is
-	 * not encrypted.
-	 */
-	wl12xx_for_each_wlvif(wl, wlvif) {
-		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
-		    test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags))
-			wlvif->tx_security_seq +=
-				WL1271_TX_SQN_POST_RECOVERY_PADDING;
 	}
 
 	/* Prevent spurious TX during FW restart */
@@ -2864,10 +2860,6 @@ static int wlcore_unset_assoc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 				     wlvif->sta.klv_template_id,
 				     ACX_KEEP_ALIVE_TPL_INVALID);
 
-	/* reset TX security counters on a clean disconnect */
-	wlvif->tx_security_last_seq_lsb = 0;
-	wlvif->tx_security_seq = 0;
-
 	return 0;
 }
 
@@ -3266,6 +3258,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	u32 tx_seq_32 = 0;
 	u16 tx_seq_16 = 0;
 	u8 key_type;
+	u8 hlid;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 set key");
 
@@ -3274,6 +3267,22 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		     key_conf->cipher, key_conf->keyidx,
 		     key_conf->keylen, key_conf->flags);
 	wl1271_dump(DEBUG_CRYPT, "KEY: ", key_conf->key, key_conf->keylen);
+
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
+		if (sta) {
+			struct wl1271_station *wl_sta = (void *)sta->drv_priv;
+			hlid = wl_sta->hlid;
+		} else {
+			hlid = wlvif->ap.bcast_hlid;
+		}
+	else
+		hlid = wlvif->sta.hlid;
+
+	if (hlid != WL12XX_INVALID_LINK_ID) {
+		u64 tx_seq = wl->links[hlid].total_freed_pkts;
+		tx_seq_32 = WL1271_TX_SECURITY_HI32(tx_seq);
+		tx_seq_16 = WL1271_TX_SECURITY_LO16(tx_seq);
+	}
 
 	switch (key_conf->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -3284,22 +3293,14 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		key_type = KEY_TKIP;
-
 		key_conf->hw_key_idx = key_conf->keyidx;
-		tx_seq_32 = WL1271_TX_SECURITY_HI32(wlvif->tx_security_seq);
-		tx_seq_16 = WL1271_TX_SECURITY_LO16(wlvif->tx_security_seq);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		key_type = KEY_AES;
-
 		key_conf->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
-		tx_seq_32 = WL1271_TX_SECURITY_HI32(wlvif->tx_security_seq);
-		tx_seq_16 = WL1271_TX_SECURITY_LO16(wlvif->tx_security_seq);
 		break;
 	case WL1271_CIPHER_SUITE_GEM:
 		key_type = KEY_GEM;
-		tx_seq_32 = WL1271_TX_SECURITY_HI32(wlvif->tx_security_seq);
-		tx_seq_16 = WL1271_TX_SECURITY_LO16(wlvif->tx_security_seq);
 		break;
 	default:
 		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
