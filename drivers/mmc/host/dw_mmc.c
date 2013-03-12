@@ -1199,12 +1199,15 @@ static void dw_mci_pull_final_bytes(struct dw_mci *host, void *buf, int cnt)
 
 static void dw_mci_push_data16(struct dw_mci *host, void *buf, int cnt)
 {
+	struct mmc_data *data = host->data;
+	int init_cnt = cnt;
+
 	/* try and push anything in the part_buf */
 	if (unlikely(host->part_buf_count)) {
 		int len = dw_mci_push_part_bytes(host, buf, cnt);
 		buf += len;
 		cnt -= len;
-		if (!sg_next(host->sg) || host->part_buf_count == 2) {
+		if (host->part_buf_count == 2) {
 			mci_writew(host, DATA(host->data_offset),
 					host->part_buf16);
 			host->part_buf_count = 0;
@@ -1237,9 +1240,11 @@ static void dw_mci_push_data16(struct dw_mci *host, void *buf, int cnt)
 	/* put anything remaining in the part_buf */
 	if (cnt) {
 		dw_mci_set_part_bytes(host, buf, cnt);
-		if (!sg_next(host->sg))
+		 /* Push data if we have reached the expected data length */
+		if ((data->bytes_xfered + init_cnt) ==
+		    (data->blksz * data->blocks))
 			mci_writew(host, DATA(host->data_offset),
-					host->part_buf16);
+				   host->part_buf16);
 	}
 }
 
@@ -1277,12 +1282,15 @@ static void dw_mci_pull_data16(struct dw_mci *host, void *buf, int cnt)
 
 static void dw_mci_push_data32(struct dw_mci *host, void *buf, int cnt)
 {
+	struct mmc_data *data = host->data;
+	int init_cnt = cnt;
+
 	/* try and push anything in the part_buf */
 	if (unlikely(host->part_buf_count)) {
 		int len = dw_mci_push_part_bytes(host, buf, cnt);
 		buf += len;
 		cnt -= len;
-		if (!sg_next(host->sg) || host->part_buf_count == 4) {
+		if (host->part_buf_count == 4) {
 			mci_writel(host, DATA(host->data_offset),
 					host->part_buf32);
 			host->part_buf_count = 0;
@@ -1315,9 +1323,11 @@ static void dw_mci_push_data32(struct dw_mci *host, void *buf, int cnt)
 	/* put anything remaining in the part_buf */
 	if (cnt) {
 		dw_mci_set_part_bytes(host, buf, cnt);
-		if (!sg_next(host->sg))
+		 /* Push data if we have reached the expected data length */
+		if ((data->bytes_xfered + init_cnt) ==
+		    (data->blksz * data->blocks))
 			mci_writel(host, DATA(host->data_offset),
-						host->part_buf32);
+				   host->part_buf32);
 	}
 }
 
@@ -1355,12 +1365,15 @@ static void dw_mci_pull_data32(struct dw_mci *host, void *buf, int cnt)
 
 static void dw_mci_push_data64(struct dw_mci *host, void *buf, int cnt)
 {
+	struct mmc_data *data = host->data;
+	int init_cnt = cnt;
+
 	/* try and push anything in the part_buf */
 	if (unlikely(host->part_buf_count)) {
 		int len = dw_mci_push_part_bytes(host, buf, cnt);
 		buf += len;
 		cnt -= len;
-		if (!sg_next(host->sg) || host->part_buf_count == 8) {
+		if (host->part_buf_count == 8) {
 			mci_writew(host, DATA(host->data_offset),
 					host->part_buf);
 			host->part_buf_count = 0;
@@ -1393,9 +1406,11 @@ static void dw_mci_push_data64(struct dw_mci *host, void *buf, int cnt)
 	/* put anything remaining in the part_buf */
 	if (cnt) {
 		dw_mci_set_part_bytes(host, buf, cnt);
-		if (!sg_next(host->sg))
+		/* Push data if we have reached the expected data length */
+		if ((data->bytes_xfered + init_cnt) ==
+		    (data->blksz * data->blocks))
 			mci_writeq(host, DATA(host->data_offset),
-					host->part_buf);
+				   host->part_buf);
 	}
 }
 
