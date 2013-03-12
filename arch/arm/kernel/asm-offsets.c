@@ -110,7 +110,7 @@ int main(void)
   BLANK();
 #endif
 #ifdef CONFIG_CPU_HAS_ASID
-  DEFINE(MM_CONTEXT_ID,		offsetof(struct mm_struct, context.id));
+  DEFINE(MM_CONTEXT_ID,		offsetof(struct mm_struct, context.id.counter));
   BLANK();
 #endif
   DEFINE(VMA_VM_MM,		offsetof(struct vm_area_struct, vm_mm));

@@ -41,8 +41,6 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-#define MAX_KMALLOC_SIZE	131072
-
 static struct sctp_ssnmap *sctp_ssnmap_init(struct sctp_ssnmap *map, __u16 in,
 					    __u16 out);
 
@@ -65,7 +63,7 @@ struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
 	int size;
 
 	size = sctp_ssnmap_size(in, out);
-	if (size <= MAX_KMALLOC_SIZE)
+	if (size <= KMALLOC_MAX_SIZE)
 		retval = kmalloc(size, gfp);
 	else
 		retval = (struct sctp_ssnmap *)
@@ -82,7 +80,7 @@ struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
 	return retval;
 
 fail_map:
-	if (size <= MAX_KMALLOC_SIZE)
+	if (size <= KMALLOC_MAX_SIZE)
 		kfree(retval);
 	else
 		free_pages((unsigned long)retval, get_order(size));
@@ -124,7 +122,7 @@ void sctp_ssnmap_free(struct sctp_ssnmap *map)
 		int size;
 
 		size = sctp_ssnmap_size(map->in.len, map->out.len);
-		if (size <= MAX_KMALLOC_SIZE)
+		if (size <= KMALLOC_MAX_SIZE)
 			kfree(map);
 		else
 			free_pages((unsigned long)map, get_order(size));
