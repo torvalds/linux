@@ -2878,6 +2878,51 @@ static int binder_release(struct inode *nodp, struct file *filp)
 	return 0;
 }
 
+static int binder_node_release(struct binder_node *node, int refs)
+{
+	struct binder_ref *ref;
+	int death = 0;
+
+	list_del_init(&node->work.entry);
+	binder_release_work(&node->async_todo);
+
+	if (hlist_empty(&node->refs)) {
+		kfree(node);
+		binder_stats_deleted(BINDER_STAT_NODE);
+
+		return refs;
+	}
+
+	node->proc = NULL;
+	node->local_strong_refs = 0;
+	node->local_weak_refs = 0;
+	hlist_add_head(&node->dead_node, &binder_dead_nodes);
+
+	hlist_for_each_entry(ref, &node->refs, node_entry) {
+		refs++;
+
+		if (!ref->death)
+			goto out;
+
+		death++;
+
+		if (list_empty(&ref->death->work.entry)) {
+			ref->death->work.type = BINDER_WORK_DEAD_BINDER;
+			list_add_tail(&ref->death->work.entry,
+				      &ref->proc->todo);
+			wake_up_interruptible(&ref->proc->wait);
+		} else
+			BUG();
+	}
+
+out:
+	binder_debug(BINDER_DEBUG_DEAD_BINDER,
+		     "node %d now dead, refs %d, death %d\n",
+		     node->debug_id, refs, death);
+
+	return refs;
+}
+
 static void binder_deferred_release(struct binder_proc *proc)
 {
 	struct binder_transaction *t;
@@ -2909,36 +2954,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 
 		nodes++;
 		rb_erase(&node->rb_node, &proc->nodes);
-		list_del_init(&node->work.entry);
-		binder_release_work(&node->async_todo);
-		if (hlist_empty(&node->refs)) {
-			kfree(node);
-			binder_stats_deleted(BINDER_STAT_NODE);
-		} else {
-			struct binder_ref *ref;
-			int death = 0;
-
-			node->proc = NULL;
-			node->local_strong_refs = 0;
-			node->local_weak_refs = 0;
-			hlist_add_head(&node->dead_node, &binder_dead_nodes);
-
-			hlist_for_each_entry(ref, &node->refs, node_entry) {
-				incoming_refs++;
-				if (ref->death) {
-					death++;
-					if (list_empty(&ref->death->work.entry)) {
-						ref->death->work.type = BINDER_WORK_DEAD_BINDER;
-						list_add_tail(&ref->death->work.entry, &ref->proc->todo);
-						wake_up_interruptible(&ref->proc->wait);
-					} else
-						BUG();
-				}
-			}
-			binder_debug(BINDER_DEBUG_DEAD_BINDER,
-				     "node %d now dead, refs %d, death %d\n",
-				      node->debug_id, incoming_refs, death);
-		}
+		incoming_refs = binder_node_release(node, incoming_refs);
 	}
 	outgoing_refs = 0;
 	while ((n = rb_first(&proc->refs_by_desc))) {
