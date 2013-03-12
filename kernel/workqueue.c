@@ -463,16 +463,9 @@ static struct worker_pool *get_std_worker_pool(int cpu, bool highpri)
 	return &pools[highpri];
 }
 
-static struct pool_workqueue *get_pwq(int cpu, struct workqueue_struct *wq)
+static struct pool_workqueue *first_pwq(struct workqueue_struct *wq)
 {
-	if (!(wq->flags & WQ_UNBOUND)) {
-		if (likely(cpu < nr_cpu_ids))
-			return per_cpu_ptr(wq->cpu_pwqs, cpu);
-	} else if (likely(cpu == WORK_CPU_UNBOUND)) {
-		return list_first_entry(&wq->pwqs, struct pool_workqueue,
-					pwqs_node);
-	}
-	return NULL;
+	return list_first_entry(&wq->pwqs, struct pool_workqueue, pwqs_node);
 }
 
 static unsigned int work_color_to_flags(int color)
@@ -1191,7 +1184,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 		 * work needs to be queued on that cpu to guarantee
 		 * non-reentrancy.
 		 */
-		pwq = get_pwq(cpu, wq);
+		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
 		last_pool = get_work_pool(work);
 
 		if (last_pool && last_pool != pwq->pool) {
@@ -1202,7 +1195,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 			worker = find_worker_executing_work(last_pool, work);
 
 			if (worker && worker->current_pwq->wq == wq) {
-				pwq = get_pwq(last_pool->cpu, wq);
+				pwq = per_cpu_ptr(wq->cpu_pwqs, last_pool->cpu);
 			} else {
 				/* meh... not running there, queue here */
 				spin_unlock(&last_pool->lock);
@@ -1212,7 +1205,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 			spin_lock(&pwq->pool->lock);
 		}
 	} else {
-		pwq = get_pwq(WORK_CPU_UNBOUND, wq);
+		pwq = first_pwq(wq);
 		spin_lock(&pwq->pool->lock);
 	}
 
@@ -1650,7 +1643,7 @@ static void rebind_workers(struct worker_pool *pool)
 		else
 			wq = system_wq;
 
-		insert_work(get_pwq(pool->cpu, wq), rebind_work,
+		insert_work(per_cpu_ptr(wq->cpu_pwqs, pool->cpu), rebind_work,
 			    worker->scheduled.next,
 			    work_color_to_flags(WORK_NO_COLOR));
 	}
@@ -3088,7 +3081,8 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 			return -ENOMEM;
 
 		for_each_possible_cpu(cpu) {
-			struct pool_workqueue *pwq = get_pwq(cpu, wq);
+			struct pool_workqueue *pwq =
+				per_cpu_ptr(wq->cpu_pwqs, cpu);
 
 			pwq->pool = get_std_worker_pool(cpu, highpri);
 			list_add_tail(&pwq->pwqs_node, &wq->pwqs);
@@ -3343,7 +3337,12 @@ EXPORT_SYMBOL_GPL(workqueue_set_max_active);
  */
 bool workqueue_congested(int cpu, struct workqueue_struct *wq)
 {
-	struct pool_workqueue *pwq = get_pwq(cpu, wq);
+	struct pool_workqueue *pwq;
+
+	if (!(wq->flags & WQ_UNBOUND))
+		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
+	else
+		pwq = first_pwq(wq);
 
 	return !list_empty(&pwq->delayed_works);
 }
