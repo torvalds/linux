@@ -29,6 +29,7 @@
 
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-event.h>
 #include <media/videobuf-dma-sg.h>
 
 #include "solo6x10.h"
@@ -46,7 +47,8 @@ enum solo_enc_types {
 };
 
 struct solo_enc_fh {
-	struct			solo_enc_dev *enc;
+	struct v4l2_fh		fh;
+	struct solo_enc_dev	*enc;
 	u32			fmt;
 	u8			enc_on;
 	enum solo_enc_types	type;
@@ -823,7 +825,11 @@ static unsigned int solo_enc_poll(struct file *file,
 				  struct poll_table_struct *wait)
 {
 	struct solo_enc_fh *fh = file->private_data;
+	unsigned long req_events = poll_requested_events(wait);
+	unsigned res = v4l2_ctrl_poll(file, wait);
 
+	if (!(req_events & (POLLIN | POLLRDNORM)))
+		return res;
 	return videobuf_poll_stream(file, &fh->vidq, wait);
 }
 
@@ -892,6 +898,7 @@ static int solo_enc_open(struct file *file)
 		return -ENOMEM;
 	}
 
+	v4l2_fh_init(&fh->fh, video_devdata(file));
 	fh->enc = solo_enc;
 	spin_lock_init(&fh->av_lock);
 	file->private_data = fh;
@@ -906,7 +913,7 @@ static int solo_enc_open(struct file *file)
 				V4L2_FIELD_INTERLACED,
 				sizeof(struct solo_videobuf),
 				fh, NULL);
-
+	v4l2_fh_add(&fh->fh);
 	return 0;
 }
 
@@ -931,6 +938,8 @@ static int solo_enc_release(struct file *file)
 	struct solo_dev *solo_dev = fh->enc->solo_dev;
 
 	solo_enc_off(fh);
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 
 	videobuf_stop(&fh->vidq);
 	videobuf_mmap_free(&fh->vidq);
@@ -1063,6 +1072,7 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 	/* Just set these */
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pix->sizeimage = FRAME_BUF_SIZE;
+	pix->bytesperline = 0;
 	pix->priv = 0;
 
 	return 0;
@@ -1417,6 +1427,10 @@ static const struct v4l2_ioctl_ops solo_enc_ioctl_ops = {
 	/* Video capture parameters */
 	.vidioc_s_parm			= solo_s_parm,
 	.vidioc_g_parm			= solo_g_parm,
+	/* Logging and events */
+	.vidioc_log_status		= v4l2_ctrl_log_status,
+	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
 static const struct video_device solo_enc_template = {
@@ -1516,6 +1530,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	*solo_enc->vfd = solo_enc_template;
 	solo_enc->vfd->v4l2_dev = &solo_dev->v4l2_dev;
 	solo_enc->vfd->ctrl_handler = hdl;
+	set_bit(V4L2_FL_USE_FH_PRIO, &solo_enc->vfd->flags);
 	ret = video_register_device(solo_enc->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0) {
 		video_device_release(solo_enc->vfd);

@@ -29,6 +29,7 @@
 
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-event.h>
 #include <media/videobuf-dma-contig.h>
 
 #include "solo6x10.h"
@@ -45,6 +46,7 @@
 
 /* Simple file handle */
 struct solo_filehandle {
+	struct v4l2_fh		fh;
 	struct solo_dev	*solo_dev;
 	struct videobuf_queue	vidq;
 	struct task_struct      *kthread;
@@ -402,8 +404,12 @@ static unsigned int solo_v4l2_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
 	struct solo_filehandle *fh = file->private_data;
+	unsigned long req_events = poll_requested_events(wait);
+	unsigned res = v4l2_ctrl_poll(file, wait);
 
-	return videobuf_poll_stream(file, &fh->vidq, wait);
+	if (!(req_events & (POLLIN | POLLRDNORM)))
+		return res;
+	return res | videobuf_poll_stream(file, &fh->vidq, wait);
 }
 
 static int solo_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
@@ -423,6 +429,7 @@ static int solo_v4l2_open(struct file *file)
 	if (fh == NULL)
 		return -ENOMEM;
 
+	v4l2_fh_init(&fh->fh, video_devdata(file));
 	spin_lock_init(&fh->slock);
 	INIT_LIST_HEAD(&fh->vidq_active);
 	fh->solo_dev = solo_dev;
@@ -440,6 +447,7 @@ static int solo_v4l2_open(struct file *file)
 				       V4L2_FIELD_INTERLACED,
 				       sizeof(struct videobuf_buffer),
 				       fh, NULL);
+	v4l2_fh_add(&fh->fh);
 	return 0;
 }
 
@@ -461,6 +469,8 @@ static int solo_v4l2_release(struct file *file)
 	videobuf_stop(&fh->vidq);
 	videobuf_mmap_free(&fh->vidq);
 
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 
 	return 0;
@@ -737,6 +747,10 @@ static const struct v4l2_ioctl_ops solo_v4l2_ioctl_ops = {
 	.vidioc_dqbuf			= solo_dqbuf,
 	.vidioc_streamon		= solo_streamon,
 	.vidioc_streamoff		= solo_streamoff,
+	/* Logging and events */
+	.vidioc_log_status		= v4l2_ctrl_log_status,
+	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
 static struct video_device solo_v4l2_template = {
@@ -782,6 +796,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	if (solo_dev->disp_hdl.error)
 		return solo_dev->disp_hdl.error;
 	solo_dev->vfd->ctrl_handler = &solo_dev->disp_hdl;
+	set_bit(V4L2_FL_USE_FH_PRIO, &solo_dev->vfd->flags);
 
 	ret = video_register_device(solo_dev->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0) {
