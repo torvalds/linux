@@ -128,11 +128,8 @@ static int bp_wake_ap(struct bp_private_data *bp)
 {
 	int result = 0;
 	
-	if(bp->suspend_status)
-	{
-		bp->suspend_status = 0;
-		wake_lock_timeout(&bp->bp_wakelock, 10 * HZ);
-	}
+	bp->suspend_status = 0;
+	wake_lock_timeout(&bp->bp_wakelock, 10 * HZ);
 	
 	return result;
 }
