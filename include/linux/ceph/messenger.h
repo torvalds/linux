@@ -64,8 +64,6 @@ struct ceph_messenger {
 	u32 required_features;
 };
 
-#define ceph_msg_has_data(m)		((m)->data.type != CEPH_MSG_DATA_NONE)
-
 enum ceph_msg_data_type {
 	CEPH_MSG_DATA_NONE,	/* message contains no data payload */
 	CEPH_MSG_DATA_PAGES,	/* data source/destination is a page array */
@@ -141,8 +139,7 @@ struct ceph_msg {
 	struct kvec front;              /* unaligned blobs of message */
 	struct ceph_buffer *middle;
 
-	/* data payload */
-	struct ceph_msg_data	data;
+	struct ceph_msg_data	*data;	/* data payload */
 
 	struct ceph_connection *con;
 	struct list_head list_head;	/* links for connection lists */
