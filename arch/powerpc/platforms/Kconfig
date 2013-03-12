@@ -344,7 +344,6 @@ config FSL_ULI1575
 
 config CPM
 	bool
-	select PPC_CLOCK
 
 config OF_RTC
 	bool
