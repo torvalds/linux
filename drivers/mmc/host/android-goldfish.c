@@ -476,7 +476,7 @@ static int goldfish_mmc_probe(struct platform_device *pdev)
 	host->mmc = mmc;
 
 	pr_err("mmc: Mapping %lX to %lX\n", (long)res->start, (long)res->end);
-	host->reg_base = ioremap(res->start, res->end - res->start + 1);
+	host->reg_base = ioremap(res->start, resource_size(res));
 	if (host->reg_base == NULL) {
 		ret = -ENOMEM;
 		goto ioremap_failed;
