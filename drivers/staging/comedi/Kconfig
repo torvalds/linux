@@ -728,6 +728,16 @@ config COMEDI_ADV_PCI1723
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci1723.
 
+config COMEDI_ADV_PCI1724
+	tristate "Advantech PCI-1724U support"
+	---help---
+	  Enable support for Advantech PCI-1724U cards.  These are 32-channel
+	  analog output cards with voltage and current loop output ranges and
+	  14-bit resolution.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adv_pci1724.
+
 config COMEDI_ADV_PCI_DIO
 	tristate "Advantech PCI DIO card support"
 	select COMEDI_8255
