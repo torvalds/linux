@@ -105,6 +105,8 @@ static int rk30_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
 		v_WIN2_CHANNEL_ID(6) | v_WIN1_CBR_CHANNEL_ID(5) | v_WIN1_YRGB_CHANNEL_ID(4) | 
 		v_WIN0_CBR_CHANNEL1_ID(3) | v_WIN0_YRGB_CHANNEL1_ID(2) | v_WIN0_CBR_CHANNEL0_ID(1) |
 		v_WIN0_YRGB_CHANNEL0_ID(0));			//channel id ,just use default value
+	lcdc_writel(lcdc_dev,WIN0_SCL_FACTOR_YRGB,0x10001000);
+	lcdc_writel(lcdc_dev,WIN1_SCL_FACTOR_YRGB,0x10001000);
 	lcdc_set_bit(lcdc_dev,DSP_CTRL0, m_LCDC_AXICLK_AUTO_ENABLE);//eanble axi-clk auto gating for low power
 	lcdc_msk_reg(lcdc_dev,INT_STATUS,m_FRM_START_INT_CLEAR | m_BUS_ERR_INT_CLEAR | m_LINE_FLAG_INT_EN |
               m_FRM_START_INT_EN | m_HOR_START_INT_EN,v_FRM_START_INT_CLEAR(1) | v_BUS_ERR_INT_CLEAR(0) |
@@ -980,227 +982,252 @@ static int rk30_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool
 	return ovl;
 }
 
-static ssize_t dump_win0_disp_info(struct rk30_lcdc_device *lcdc_dev,char *buf)
-{
-        char format[9] = "NULL";
-        u32 fmt_id = lcdc_readl(lcdc_dev,SYS_CTRL1);
-        u32 xvir,act_info,dsp_info,dsp_st,factor;
-        u16 x_act,y_act,x_dsp,y_dsp,x_factor,y_factor;
-        u16 x_scale,y_scale;
-        switch((fmt_id&m_W0_FORMAT)>>4)
-        {
-                case 0:
-                        strcpy(format,"ARGB888");
-                        break;
-                case 1:
-                        strcpy(format,"RGB888");
-                        break;
-                case 2:
-                        strcpy(format,"RGB565");
-                        break;
-                case 4:
-                        strcpy(format,"YCbCr420");
-                        break;
-                case 5:
-                        strcpy(format,"YCbCr422");
-                        break;
-                case 6:
-                        strcpy(format,"YCbCr444");
-                        break;
-                default:
-                        strcpy(format,"inval\n");
-                        break;
-        }
-
-        xvir = lcdc_readl(lcdc_dev,WIN0_VIR)&0xffff;
-        act_info = lcdc_readl(lcdc_dev,WIN0_ACT_INFO);
-        dsp_info = lcdc_readl(lcdc_dev,WIN0_DSP_INFO);
-        dsp_st = lcdc_readl(lcdc_dev,WIN0_DSP_ST);
-        factor = lcdc_readl(lcdc_dev,WIN0_SCL_FACTOR_YRGB);
-        x_act =  (act_info&0xffff) + 1;
-        y_act = (act_info>>16) + 1;
-        x_dsp = (dsp_info&0xffff) + 1;
-        y_dsp = (dsp_info>>16) + 1;
-	 x_factor = factor&0xffff;
-        y_factor = factor>>16;
-        x_scale = 4096*100/x_factor;
-        y_scale = 4096*100/y_factor;
-        return snprintf(buf,PAGE_SIZE,
-		"xvir:%d\n"
-		"xact:%d\n"
-		"yact:%d\n"
-		"xdsp:%d\n"
-		"ydsp:%d\n"
-		"x_st:%d\n"
-		"y_st:%d\n"
-		"x_scale:%d.%d\n"
-		"y_scale:%d.%d\n"
-		"format:%s\n",
-                xvir,
-                x_act,
-                y_act,
-                x_dsp,
-                y_dsp,
-                dsp_st&0xffff,
-                dsp_st>>16,
-                x_scale/100,
-                x_scale%100,
-                y_scale/100,
-                y_scale%100,
-                format);
-
-}
-static ssize_t dump_win1_disp_info(struct rk30_lcdc_device *lcdc_dev,char *buf)
-{
-        char format[9] = "NULL";
-        u32 fmt_id = lcdc_readl(lcdc_dev,SYS_CTRL1);
-        u32 xvir,act_info,dsp_info,dsp_st,factor;
-        u16 x_act,y_act,x_dsp,y_dsp,x_factor,y_factor;
-        u16 x_scale,y_scale;
-        switch((fmt_id&m_W1_FORMAT)>>7)
-        {
-                case 0:
-                        strcpy(format,"ARGB888");
-                        break;
-                case 1:
-                        strcpy(format,"RGB888");
-                        break;
-                case 2:
-                        strcpy(format,"RGB565");
-                        break;
-                case 4:
-                        strcpy(format,"YCbCr420");
-                        break;
-                case 5:
-                        strcpy(format,"YCbCr422");
-                        break;
-                case 6:
-                        strcpy(format,"YCbCr444");
-                        break;
-                default:
-                        strcpy(format,"inval\n");
-                        break;
-        }
-
-        xvir = lcdc_readl(lcdc_dev,WIN1_VIR)&0xffff;
-        act_info = lcdc_readl(lcdc_dev,WIN1_ACT_INFO);
-        dsp_info = lcdc_readl(lcdc_dev,WIN1_DSP_INFO);
-        dsp_st = lcdc_readl(lcdc_dev,WIN1_DSP_ST);
-        factor = lcdc_readl(lcdc_dev,WIN1_SCL_FACTOR_YRGB);
-        x_act = (act_info&0xffff) + 1;
-        y_act = (act_info>>16) + 1;
-        x_dsp = (dsp_info&0xffff) + 1;
-        y_dsp = (dsp_info>>16) + 1;
-        x_factor = factor&0xffff;
-        y_factor = factor>>16;
-        x_scale = 4096*100/x_factor;
-        y_scale = 4096*100/y_factor;
-	 return snprintf(buf,PAGE_SIZE,
-	 	"xvir:%d\n"
-	 	"xact:%d\n"
-	 	"yact:%d\n"
-	 	"xdsp:%d\n"
-	 	"ydsp:%d\n"
-	 	"x_st:%d\n"
-	 	"y_st:%d\n"
-	 	"x_scale:%d.%d\n"
-	 	"y_scale:%d.%d\n"
-	 	"format:%s\n",
-                xvir,
-                x_act,
-                y_act,
-                x_dsp,
-                y_dsp,
-                dsp_st&0xffff,
-                dsp_st>>16,
-                x_scale/100,
-                x_scale%100,
-                y_scale/100,
-                y_scale%100,
-                format);
-
-}
-
-static ssize_t dump_win2_disp_info(struct rk30_lcdc_device *lcdc_dev,char *buf)
-{
-        char format[9] = "NULL";
-        u32 fmt_id = lcdc_readl(lcdc_dev,SYS_CTRL1);
-        u32 xvir,dsp_info,dsp_st;
-        u16 x_dsp,y_dsp;
-   
-        switch((fmt_id&m_W2_FORMAT)>>10)
-        {
-                case 0:
-                        strcpy(format,"ARGB888");
-                        break;
-                case 1:
-                        strcpy(format,"RGB888");
-                        break;
-                case 2:
-                        strcpy(format,"RGB565");
-                        break;
-                case 4:
-                        strcpy(format,"8bpp");
-                        break;
-                        case 5:
-                        strcpy(format,"4bpp");
-                        break;
-                case 6:
-                        strcpy(format,"2bpp");
-                        break;
-                case 7:
-                        strcpy(format,"1bpp");
-                        break;
-                default:
-                        strcpy(format,"inval\n");
-                        break;
-        }
-
-        xvir = lcdc_readl(lcdc_dev,WIN2_VIR)&0xffff;
-        dsp_info = lcdc_readl(lcdc_dev,WIN2_DSP_INFO);
-        dsp_st = lcdc_readl(lcdc_dev,WIN2_DSP_ST);
-
-        x_dsp = dsp_info&0xffff;
-        y_dsp = dsp_info>>16;
-
-        return snprintf(buf,PAGE_SIZE,
-		"xvir:%d\n"
-		"xdsp:%d\n"
-		"ydsp:%d\n"
-		"x_st:%d\n"
-		"y_st:%d\n"
-		"format:%s\n",
-                xvir,
-                x_dsp,
-                y_dsp,
-                dsp_st&0xffff,
-                dsp_st>>16,
-                format);
-}
 
 static ssize_t  rk30_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,char *buf,int layer_id)
 {
         struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
-        if(layer_id == 0)
-        {
-                return dump_win0_disp_info(lcdc_dev,buf);
-        }
-        else if(layer_id == 1)
-        {
-                return dump_win1_disp_info(lcdc_dev,buf);
-        }
-        else if(layer_id == 2)
-        {
-                return dump_win2_disp_info(lcdc_dev,buf);
-        }
+	char format_w0[9]= "NULL";
+	char format_w1[9]= "NULL";
+	char format_w2[9]= "NULL";
+	char status_w0[9]= "NULL";
+	char status_w1[9]= "NULL";
+	char status_w2[9]= "NULL";
+	u32 fmt_id = lcdc_readl(lcdc_dev,SYS_CTRL1);
+	u32 act_info,dsp_info,dsp_st,factor;
+	u16 xvir_w0,x_act_w0,y_act_w0,x_dsp_w0,y_dsp_w0,x_st_w0,y_st_w0;
+	u16 xvir_w1,x_act_w1,y_act_w1,x_dsp_w1,y_dsp_w1,x_st_w1,y_st_w1;
+	u16 xvir_w2,x_dsp_w2,y_dsp_w2,x_st_w2,y_st_w2;
+	u16 x_scale_w0,y_scale_w0,x_scale_w1,y_scale_w1;
+	int ovl = lcdc_read_bit(lcdc_dev,DSP_CTRL0,m_W0W1_POSITION_SWAP);
 
+	switch((fmt_id&m_W0_FORMAT)>>4)
+	{
+	case 0:
+	        strcpy(format_w0,"ARGB888");
+	        break;
+	case 1:
+	        strcpy(format_w0,"RGB888");
+	        break;
+	case 2:
+	        strcpy(format_w0,"RGB565");
+	        break;
+	case 4:
+	        strcpy(format_w0,"YCbCr420");
+	        break;
+	case 5:
+	        strcpy(format_w0,"YCbCr422");
+	        break;
+	case 6:
+	        strcpy(format_w0,"YCbCr444");
+	        break;
+	default:
+	        strcpy(format_w0,"inval\n");
+	        break;
+	}
+
+	
+	switch((fmt_id&m_W1_FORMAT)>>7)
+	{
+	case 0:
+		strcpy(format_w1,"ARGB888");
+		break;
+	case 1:
+		strcpy(format_w1,"RGB888");
+		break;
+	case 2:
+		strcpy(format_w1,"RGB565");
+		break;
+	case 4:
+		strcpy(format_w1,"YCbCr420");
+		break;
+	case 5:
+		strcpy(format_w1,"YCbCr422");
+		break;
+	case 6:
+		strcpy(format_w1,"YCbCr444");
+		break;
+	default:
+		strcpy(format_w1,"inval\n");
+		break;
+	}
+
+	switch((fmt_id&m_W2_FORMAT)>>10)
+	{
+	case 0:
+	        strcpy(format_w2,"ARGB888");
+	        break;
+	case 1:
+	        strcpy(format_w2,"RGB888");
+	        break;
+	case 2:
+	        strcpy(format_w2,"RGB565");
+	        break;
+	case 4:
+	        strcpy(format_w2,"8bpp");
+	        break;
+	        case 5:
+	        strcpy(format_w2,"4bpp");
+	        break;
+	case 6:
+	        strcpy(format_w2,"2bpp");
+	        break;
+	case 7:
+	        strcpy(format_w2,"1bpp");
+	        break;
+	default:
+	        strcpy(format_w2,"inval\n");
+	        break;
+	}
+
+	if(fmt_id&m_W0_EN)
+	{
+		strcpy(status_w0,"enabled");
+	}
+	else
+	{
+		strcpy(status_w0,"disabled");
+	}
+
+	if((fmt_id&m_W1_EN)>>1)
+	{
+		strcpy(status_w1,"enabled");
+	}
+	else
+	{
+		strcpy(status_w1,"disabled");
+	}
+
+	
+	if((fmt_id&m_W2_EN)>>1)
+	{
+		strcpy(status_w2,"enabled");
+	}
+	else
+	{
+		strcpy(status_w2,"disabled");
+	}
+	
+	xvir_w0 = lcdc_readl(lcdc_dev,WIN0_VIR)&0xffff;
+	act_info = lcdc_readl(lcdc_dev,WIN0_ACT_INFO);
+	dsp_info = lcdc_readl(lcdc_dev,WIN0_DSP_INFO);
+	dsp_st = lcdc_readl(lcdc_dev,WIN0_DSP_ST);
+	factor = lcdc_readl(lcdc_dev,WIN0_SCL_FACTOR_YRGB);
+	x_act_w0 =  (act_info&0xffff) + 1;
+	y_act_w0 = (act_info>>16) + 1;
+	x_dsp_w0 = (dsp_info&0xffff) + 1;
+	y_dsp_w0 = (dsp_info>>16) + 1;
+	x_st_w0 = (dsp_st&0xfff);
+	y_st_w0 = (dsp_st>>16);
+	x_scale_w0 = 4096*100/(factor&0xffff);
+	y_scale_w0 = 4096*100/(factor>>16);
+	
+	xvir_w1= lcdc_readl(lcdc_dev,WIN1_VIR)&0xffff;
+	act_info = lcdc_readl(lcdc_dev,WIN1_ACT_INFO);
+	dsp_info = lcdc_readl(lcdc_dev,WIN1_DSP_INFO);
+	dsp_st = lcdc_readl(lcdc_dev,WIN1_DSP_ST);
+	factor = lcdc_readl(lcdc_dev,WIN1_SCL_FACTOR_YRGB);
+	x_act_w1= (act_info&0xffff) + 1;
+	y_act_w1 = (act_info>>16) + 1;
+	x_dsp_w1 = (dsp_info&0xffff) + 1;
+	y_dsp_w1= (dsp_info>>16) + 1;
+	x_st_w1 = (dsp_st&0xfff);
+	y_st_w1 = (dsp_st>>16);
+	x_scale_w1= 4096*100/(factor&0xffff);
+	y_scale_w1= 4096*100/(factor>>16);
+
+	xvir_w2 = lcdc_readl(lcdc_dev,WIN2_VIR)&0xffff;
+        dsp_info = lcdc_readl(lcdc_dev,WIN2_DSP_INFO);
+        dsp_st = lcdc_readl(lcdc_dev,WIN2_DSP_ST);
+
+        x_dsp_w2 = dsp_info&0xffff;
+        y_dsp_w2 = dsp_info>>16;
+	x_st_w2 = dsp_st&0xfff;
+	y_st_w2 = dsp_st>>16;
+
+	
+	return snprintf(buf,PAGE_SIZE,
+			"win0:%s\n"
+			"xvir:%d\n"
+			"xact:%d\n"
+			"yact:%d\n"
+			"xdsp:%d\n"
+			"ydsp:%d\n"
+			"x_st:%d\n"
+			"y_st:%d\n"
+			"x_scale:%d.%d\n"
+			"y_scale:%d.%d\n"
+			"format:%s\n"
+			"YRGB buffer addr:0x%08x\n"
+			"CBR buffer addr:0x%08x\n\n"
+			"win1:%s\n"
+			"xvir:%d\n"
+			"xact:%d\n"
+			"yact:%d\n"
+			"xdsp:%d\n"
+			"ydsp:%d\n"
+			"x_st:%d\n"
+			"y_st:%d\n"
+			"x_scale:%d.%d\n"
+			"y_scale:%d.%d\n"
+			"format:%s\n"
+			"YRGB buffer addr:0x%08x\n"
+			"CBR buffer addr:0x%08x\n\n"
+			"overlay:%s\n\n"
+			"win2:%s\n"
+			"xvir:%d\n"
+			"xdsp:%d\n"
+			"ydsp:%d\n"
+			"x_st:%d\n"
+			"y_st:%d\n"
+			"format:%s\n"
+			"YRGB buffer addr:0x%08x\n",
+			status_w0,
+			xvir_w0,
+			x_act_w0,
+			y_act_w0,
+			x_dsp_w0,
+			y_dsp_w0,
+			x_st_w0,
+			y_st_w0,
+			x_scale_w0/100,
+			x_scale_w0%100,
+			y_scale_w0/100,
+			y_scale_w0%100,
+			format_w0,
+			lcdc_readl(lcdc_dev,WIN0_YRGB_MST0),
+			lcdc_readl(lcdc_dev,WIN0_CBR_MST0),
+			status_w1,
+			xvir_w1,
+			x_act_w1,
+			y_act_w1,
+			x_dsp_w1,
+			y_dsp_w1,
+			x_st_w1,
+			y_st_w1,
+			x_scale_w1/100,
+			x_scale_w1%100,
+			y_scale_w1/100,
+			y_scale_w1%100,
+			format_w1,
+			lcdc_readl(lcdc_dev,WIN1_YRGB_MST),
+			lcdc_readl(lcdc_dev,WIN1_CBR_MST),
+			ovl ? "win0 on the top of win1\n":"win1 on the top of win0\n",
+			status_w2,
+			xvir_w2,
+			x_dsp_w2,
+			y_dsp_w2,
+			x_st_w2,
+			y_st_w2,
+			format_w2,
+			lcdc_readl(lcdc_dev,WIN2_MST));
         return 0;
 }
 
-
-
 /*******************************************
 lcdc fps manager,set or get lcdc fps
+
+
+
 set:0 get
      1 set
 ********************************************/
