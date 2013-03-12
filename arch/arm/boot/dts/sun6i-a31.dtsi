@@ -66,6 +66,18 @@
 		#size-cells = <1>;
 		ranges;
 
+		pio: pinctrl@01c20800 {
+			compatible = "allwinner,sun6i-a31-pinctrl";
+			reg = <0x01c20800 0x400>;
+			interrupts = <0 11 1>, <0 15 1>, <0 16 1>, <0 17 1>;
+			clocks = <&osc>;
+			gpio-controller;
+			interrupt-controller;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#gpio-cells = <3>;
+		};
+
 		timer@01c20c00 {
 			compatible = "allwinner,sun4i-timer";
 			reg = <0x01c20c00 0xa0>;
