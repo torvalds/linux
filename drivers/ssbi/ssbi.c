@@ -87,6 +87,15 @@ static inline void ssbi_writel(struct msm_ssbi *ssbi, u32 val, u32 reg)
 	writel(val, ssbi->base + reg);
 }
 
+/*
+ * Via private exchange with one of the original authors, the hardware
+ * should generally finish a transaction in about 5us.  The worst
+ * case, is when using the arbiter and both other CPUs have just
+ * started trying to use the SSBI bus will result in a time of about
+ * 20us.  It should never take longer than this.
+ *
+ * As such, this wait merely spins, with a udelay.
+ */
 static int ssbi_wait_mask(struct msm_ssbi *ssbi, u32 set_mask, u32 clr_mask)
 {
 	u32 timeout = SSBI_TIMEOUT_US;
@@ -161,6 +170,10 @@ err:
 	return ret;
 }
 
+/*
+ * See ssbi_wait_mask for an explanation of the time and the
+ * busywait.
+ */
 static inline int
 msm_ssbi_pa_transfer(struct msm_ssbi *ssbi, u32 cmd, u8 *data)
 {
