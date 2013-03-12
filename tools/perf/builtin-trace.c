@@ -527,13 +527,6 @@ again:
 				continue;
 			}
 
-			if (sample.raw_data == NULL) {
-				printf("%s sample with no payload for tid: %d, cpu %d, raw_size=%d, skipping...\n",
-				       perf_evsel__name(evsel), sample.tid,
-				       sample.cpu, sample.raw_size);
-				continue;
-			}
-
 			handler = evsel->handler.func;
 			handler(trace, evsel, &sample);
 		}
