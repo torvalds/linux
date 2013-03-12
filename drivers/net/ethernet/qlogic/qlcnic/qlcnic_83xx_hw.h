@@ -12,6 +12,8 @@
 #include <linux/etherdevice.h>
 #include "qlcnic_hw.h"
 
+#define QLCNIC_83XX_BAR0_LENGTH 0x4000
+
 /* Directly mapped registers */
 #define QLC_83XX_CRB_WIN_BASE		0x3800
 #define QLC_83XX_CRB_WIN_FUNC(f)	(QLC_83XX_CRB_WIN_BASE+((f)*4))
@@ -257,8 +259,8 @@ struct qlc_83xx_idc {
 #define QLC_83XX_FLASH_BULK_WRITE_CMD		0xcadcadca
 #define QLC_83XX_FLASH_READ_RETRY_COUNT	5000
 #define QLC_83XX_FLASH_STATUS_READY		0x6
-#define QLC_83XX_FLASH_BULK_WRITE_MIN		2
-#define QLC_83XX_FLASH_BULK_WRITE_MAX		64
+#define QLC_83XX_FLASH_WRITE_MIN		2
+#define QLC_83XX_FLASH_WRITE_MAX		64
 #define QLC_83XX_FLASH_STATUS_REG_POLL_DELAY	1
 #define QLC_83XX_ERASE_MODE			1
 #define QLC_83XX_WRITE_MODE			2
@@ -451,4 +453,6 @@ int qlcnic_83xx_loopback_test(struct net_device *, u8);
 int qlcnic_83xx_interrupt_test(struct net_device *);
 int qlcnic_83xx_set_led(struct net_device *, enum ethtool_phys_id_state);
 int qlcnic_83xx_flash_test(struct qlcnic_adapter *);
+int qlcnic_83xx_enable_flash_write(struct qlcnic_adapter *);
+int qlcnic_83xx_disable_flash_write(struct qlcnic_adapter *);
 #endif
