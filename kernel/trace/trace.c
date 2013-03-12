@@ -149,14 +149,14 @@ static int __init set_ftrace_dump_on_oops(char *str)
 }
 __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
 
-static int __init alloc_snapshot(char *str)
+static int __init boot_alloc_snapshot(char *str)
 {
 	allocate_snapshot = true;
 	/* We also need the main ring buffer expanded */
 	ring_buffer_expanded = true;
 	return 1;
 }
-__setup("alloc_snapshot", alloc_snapshot);
+__setup("alloc_snapshot", boot_alloc_snapshot);
 
 
 static char trace_boot_options_buf[MAX_TRACER_SIZE] __initdata;
@@ -470,6 +470,38 @@ EXPORT_SYMBOL_GPL(tracing_snapshot);
 
 static int resize_buffer_duplicate_size(struct trace_buffer *trace_buf,
 					struct trace_buffer *size_buf, int cpu_id);
+static void set_buffer_entries(struct trace_buffer *buf, unsigned long val);
+
+static int alloc_snapshot(struct trace_array *tr)
+{
+	int ret;
+
+	if (!tr->allocated_snapshot) {
+
+		/* allocate spare buffer */
+		ret = resize_buffer_duplicate_size(&tr->max_buffer,
+				   &tr->trace_buffer, RING_BUFFER_ALL_CPUS);
+		if (ret < 0)
+			return ret;
+
+		tr->allocated_snapshot = true;
+	}
+
+	return 0;
+}
+
+void free_snapshot(struct trace_array *tr)
+{
+	/*
+	 * We don't free the ring buffer. instead, resize it because
+	 * The max_tr ring buffer has some state (e.g. ring->clock) and
+	 * we want preserve it.
+	 */
+	ring_buffer_resize(tr->max_buffer.buffer, 1, RING_BUFFER_ALL_CPUS);
+	set_buffer_entries(&tr->max_buffer, 1);
+	tracing_reset_online_cpus(&tr->max_buffer);
+	tr->allocated_snapshot = false;
+}
 
 /**
  * trace_snapshot_alloc - allocate and take a snapshot of the current buffer.
@@ -487,16 +519,9 @@ void tracing_snapshot_alloc(void)
 	struct trace_array *tr = &global_trace;
 	int ret;
 
-	if (!tr->allocated_snapshot) {
-
-		/* allocate spare buffer */
-		ret = resize_buffer_duplicate_size(&tr->max_buffer,
-				   &tr->trace_buffer, RING_BUFFER_ALL_CPUS);
-		if (WARN_ON(ret < 0))
-			return;
-
-		tr->allocated_snapshot = true;
-	}
+	ret = alloc_snapshot(tr);
+	if (WARN_ON(ret < 0))
+		return;
 
 	tracing_snapshot();
 }
@@ -3581,15 +3606,7 @@ static int tracing_set_tracer(const char *buf)
 		 * so a synchronized_sched() is sufficient.
 		 */
 		synchronize_sched();
-		/*
-		 * We don't free the ring buffer. instead, resize it because
-		 * The max_tr ring buffer has some state (e.g. ring->clock) and
-		 * we want preserve it.
-		 */
-		ring_buffer_resize(tr->max_buffer.buffer, 1, RING_BUFFER_ALL_CPUS);
-		set_buffer_entries(&tr->max_buffer, 1);
-		tracing_reset_online_cpus(&tr->max_buffer);
-		tr->allocated_snapshot = false;
+		free_snapshot(tr);
 	}
 #endif
 	destroy_trace_option_files(topts);
@@ -3598,12 +3615,9 @@ static int tracing_set_tracer(const char *buf)
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 	if (t->use_max_tr && !had_max_tr) {
-		/* we need to make per cpu buffer sizes equivalent */
-		ret = resize_buffer_duplicate_size(&tr->max_buffer, &tr->trace_buffer,
-						   RING_BUFFER_ALL_CPUS);
+		ret = alloc_snapshot(tr);
 		if (ret < 0)
 			goto out;
-		tr->allocated_snapshot = true;
 	}
 #endif
 
@@ -4475,14 +4489,8 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 			ret = -EINVAL;
 			break;
 		}
-		if (tr->allocated_snapshot) {
-			/* free spare buffer */
-			ring_buffer_resize(tr->max_buffer.buffer, 1,
-					   RING_BUFFER_ALL_CPUS);
-			set_buffer_entries(&tr->max_buffer, 1);
-			tracing_reset_online_cpus(&tr->max_buffer);
-			tr->allocated_snapshot = false;
-		}
+		if (tr->allocated_snapshot)
+			free_snapshot(tr);
 		break;
 	case 1:
 /* Only allow per-cpu swap if the ring buffer supports it */
@@ -4493,12 +4501,9 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		}
 #endif
 		if (!tr->allocated_snapshot) {
-			/* allocate spare buffer */
-			ret = resize_buffer_duplicate_size(&tr->max_buffer,
-					&tr->trace_buffer, RING_BUFFER_ALL_CPUS);
+			ret = alloc_snapshot(tr);
 			if (ret < 0)
 				break;
-			tr->allocated_snapshot = true;
 		}
 		local_irq_disable();
 		/* Now, we're going to swap */
