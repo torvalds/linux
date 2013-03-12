@@ -580,6 +580,7 @@ propagation along the hierarchy. See the comment on
 cgroup_for_each_descendant_pre() for details.
 
 void css_offline(struct cgroup *cgrp);
+(cgroup_mutex held by caller)
 
 This is the counterpart of css_online() and called iff css_online()
 has succeeded on @cgrp. This signifies the beginning of the end of

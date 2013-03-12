@@ -4169,17 +4169,8 @@ static void offline_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 	if (!(css->flags & CSS_ONLINE))
 		return;
 
-	/*
-	 * css_offline() should be called with cgroup_mutex unlocked.  See
-	 * 3fa59dfbc3 ("cgroup: fix potential deadlock in pre_destroy") for
-	 * details.  This temporary unlocking should go away once
-	 * cgroup_mutex is unexported from controllers.
-	 */
-	if (ss->css_offline) {
-		mutex_unlock(&cgroup_mutex);
+	if (ss->css_offline)
 		ss->css_offline(cgrp);
-		mutex_lock(&cgroup_mutex);
-	}
 
 	cgrp->subsys[ss->subsys_id]->flags &= ~CSS_ONLINE;
 }
