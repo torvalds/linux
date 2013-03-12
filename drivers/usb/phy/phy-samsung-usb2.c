@@ -382,7 +382,8 @@ static int samsung_usb2phy_probe(struct platform_device *pdev)
 
 	drv_data = samsung_usbphy_get_driver_data(pdev);
 
-	if (drv_data->cpu_type == TYPE_EXYNOS5250)
+	if (drv_data->cpu_type == TYPE_EXYNOS5250 ||
+	    drv_data->cpu_type == TYPE_EXYNOS5420)
 		clk = devm_clk_get(dev, "usbhost");
 	else
 		clk = devm_clk_get(dev, "otg");
@@ -483,6 +484,16 @@ static struct samsung_usbphy_drvdata usb2phy_exynos5 = {
 	.phy_disable		= samsung_exynos5_usb2phy_disable,
 };
 
+static struct samsung_usbphy_drvdata usb2phy_exynos5420 = {
+	.cpu_type		= TYPE_EXYNOS5420,
+	.hostphy_en_mask	= EXYNOS_USBPHY_ENABLE,
+	.hostphy_reg_offset	= EXYNOS5420_USBHOST_PHY_CTRL_OFFSET,
+	.rate_to_clksel		= samsung_usbphy_rate_to_clksel_4x12,
+	.set_isolation		= samsung_usbphy_set_isolation_4210,
+	.phy_enable		= samsung_exynos5_usb2phy_enable,
+	.phy_disable		= samsung_exynos5_usb2phy_disable,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id samsung_usbphy_dt_match[] = {
 	{
@@ -497,6 +508,9 @@ static const struct of_device_id samsung_usbphy_dt_match[] = {
 	}, {
 		.compatible = "samsung,exynos5250-usb2phy",
 		.data = &usb2phy_exynos5
+	}, {
+		.compatible = "samsung,exynos5420-usb2phy",
+		.data = &usb2phy_exynos5420
 	},
 	{},
 };
@@ -516,6 +530,9 @@ static struct platform_device_id samsung_usbphy_driver_ids[] = {
 	}, {
 		.name		= "exynos5250-usb2phy",
 		.driver_data	= (unsigned long)&usb2phy_exynos5,
+	}, {
+		.name		= "exynos5420-usb2phy",
+		.driver_data	= (unsigned long)&usb2phy_exynos5420,
 	},
 	{},
 };

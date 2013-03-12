@@ -244,6 +244,7 @@
 #endif
 
 #define EXYNOS_USBHOST_PHY_CTRL_OFFSET		(0x4)
+#define EXYNOS5420_USBHOST_PHY_CTRL_OFFSET	(0x8)
 #define S3C64XX_USBPHY_ENABLE			(0x1 << 16)
 #define EXYNOS_USBPHY_ENABLE			(0x1 << 0)
 #define EXYNOS_USB20PHY_CFG_HOST_LINK		(0x1 << 0)
@@ -253,6 +254,7 @@ enum samsung_cpu_type {
 	TYPE_EXYNOS4210,
 	TYPE_EXYNOS4X12,
 	TYPE_EXYNOS5250,
+	TYPE_EXYNOS5420,
 };
 
 struct samsung_usbphy;

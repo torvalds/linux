@@ -23,6 +23,14 @@ Exynos5250:
 - reg : base physical address of the phy registers and length of memory mapped
 	region.
 
+Exynos5420:
+- compatible : should be "samsung,exynos5420-usb2phy"
+- reg : base physical address of the phy registers and length of memory mapped
+	region.
+- clocks: Clock IDs array as required by the controller.
+- clock-names: names of clock correseponding IDs clock property as requested
+              by the controller driver.
+
 Optional properties:
 - #address-cells: should be '1' when usbphy node has a child node with 'reg'
 		  property.
