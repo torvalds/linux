@@ -95,6 +95,7 @@ static __inline__ bool ceph_msg_data_type_valid(enum ceph_msg_data_type type)
 }
 
 struct ceph_msg_data_cursor {
+	size_t		resid;		/* bytes not yet consumed */
 	bool		last_piece;	/* now at last piece of data item */
 	union {
 #ifdef CONFIG_BLOCK
@@ -105,7 +106,6 @@ struct ceph_msg_data_cursor {
 		};
 #endif /* CONFIG_BLOCK */
 		struct {				/* pages */
-			size_t		resid;		/* bytes from array */
 			unsigned int	page_offset;	/* offset in page */
 			unsigned short	page_index;	/* index in array */
 			unsigned short	page_count;	/* pages in array */
