@@ -4100,11 +4100,10 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	return 0;
 }
 
-static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
+static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 msr;
-	int ret;
 
 	vmx->rmode.vm86_active = 0;
 
@@ -4195,10 +4194,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	update_exception_bitmap(&vmx->vcpu);
 
 	vpid_sync_context(vmx);
-
-	ret = 0;
-
-	return ret;
 }
 
 /*
