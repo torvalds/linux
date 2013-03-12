@@ -379,7 +379,7 @@ static int __init msm_ssbi_init(void)
 {
 	return platform_driver_register(&msm_ssbi_driver);
 }
-postcore_initcall(msm_ssbi_init);
+module_init(msm_ssbi_init);
 
 static void __exit msm_ssbi_exit(void)
 {
