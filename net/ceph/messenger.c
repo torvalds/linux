@@ -716,29 +716,6 @@ static void con_out_kvec_add(struct ceph_connection *con,
 }
 
 #ifdef CONFIG_BLOCK
-static void init_bio_iter(struct bio *bio, struct bio **bio_iter,
-			unsigned int *bio_seg)
-{
-	if (!bio) {
-		*bio_iter = NULL;
-		*bio_seg = 0;
-		return;
-	}
-	*bio_iter = bio;
-	*bio_seg = (unsigned int) bio->bi_idx;
-}
-
-static void iter_bio_next(struct bio **bio_iter, unsigned int *seg)
-{
-	if (*bio_iter == NULL)
-		return;
-
-	BUG_ON(*seg >= (*bio_iter)->bi_vcnt);
-
-	(*seg)++;
-	if (*seg == (*bio_iter)->bi_vcnt)
-		init_bio_iter((*bio_iter)->bi_next, bio_iter, seg);
-}
 
 /*
  * For a bio data item, a piece is whatever remains of the next
@@ -1112,10 +1089,6 @@ static void prepare_message_data(struct ceph_msg *msg,
 		msg_pos->page_pos = msg->p.alignment;
 	else
 		msg_pos->page_pos = 0;
-#ifdef CONFIG_BLOCK
-	if (ceph_msg_has_bio(msg))
-		init_bio_iter(msg->b.bio, &msg->b.bio_iter, &msg->b.bio_seg);
-#endif
 	msg_pos->data_pos = 0;
 
 	/* Initialize data cursors */
@@ -1478,10 +1451,6 @@ static void in_msg_pos_next(struct ceph_connection *con, size_t len,
 	BUG_ON(received != len);
 	msg_pos->page_pos = 0;
 	msg_pos->page++;
-#ifdef CONFIG_BLOCK
-	if (msg->b.bio)
-		iter_bio_next(&msg->b.bio_iter, &msg->b.bio_seg);
-#endif /* CONFIG_BLOCK */
 }
 
 static u32 ceph_crc32c_page(u32 crc, struct page *page,

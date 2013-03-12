@@ -121,11 +121,7 @@ struct ceph_msg_data {
 	enum ceph_msg_data_type		type;
 	union {
 #ifdef CONFIG_BLOCK
-		struct {
-			struct bio	*bio_iter;	/* iterator */
-			struct bio	*bio;
-			unsigned int	bio_seg;	/* current seg in bio */
-		};
+		struct bio		*bio;
 #endif /* CONFIG_BLOCK */
 		struct {
 			struct page	**pages;	/* NOT OWNER. */
