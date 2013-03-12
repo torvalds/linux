@@ -100,15 +100,14 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	enum usb_phy_type	type = USB_PHY_TYPE_USB2;
 	int err;
 
-	nop = kzalloc(sizeof *nop, GFP_KERNEL);
+	nop = devm_kzalloc(&pdev->dev, sizeof(*nop), GFP_KERNEL);
 	if (!nop)
 		return -ENOMEM;
 
-	nop->phy.otg = kzalloc(sizeof *nop->phy.otg, GFP_KERNEL);
-	if (!nop->phy.otg) {
-		kfree(nop);
+	nop->phy.otg = devm_kzalloc(&pdev->dev, sizeof(*nop->phy.otg),
+							GFP_KERNEL);
+	if (!nop->phy.otg)
 		return -ENOMEM;
-	}
 
 	if (pdata)
 		type = pdata->type;
@@ -127,7 +126,7 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
-		goto exit;
+		return err;
 	}
 
 	platform_set_drvdata(pdev, nop);
@@ -135,10 +134,6 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	ATOMIC_INIT_NOTIFIER_HEAD(&nop->phy.notifier);
 
 	return 0;
-exit:
-	kfree(nop->phy.otg);
-	kfree(nop);
-	return err;
 }
 
 static int nop_usb_xceiv_remove(struct platform_device *pdev)
@@ -148,8 +143,6 @@ static int nop_usb_xceiv_remove(struct platform_device *pdev)
 	usb_remove_phy(&nop->phy);
 
 	platform_set_drvdata(pdev, NULL);
-	kfree(nop->phy.otg);
-	kfree(nop);
 
 	return 0;
 }
