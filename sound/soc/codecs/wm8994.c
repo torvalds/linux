@@ -2209,7 +2209,7 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 				vmid_reference(codec);
 				break;
 			case WM8958:
-				if (wm8994->revision < 1)
+				if (control->revision < 1)
 					vmid_reference(codec);
 				break;
 			default:
@@ -2244,7 +2244,7 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 				vmid_dereference(codec);
 				break;
 			case WM8958:
-				if (wm8994->revision < 1)
+				if (control->revision < 1)
 					vmid_dereference(codec);
 				break;
 			default:
@@ -2443,7 +2443,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			switch (control->type) {
 			case WM8958:
-				if (wm8994->revision == 0) {
+				if (control->revision == 0) {
 					/* Optimise performance for rev A */
 					snd_soc_update_bits(codec,
 							    WM8958_CHARGE_PUMP_2,
@@ -3094,7 +3094,7 @@ static int wm8994_codec_resume(struct snd_soc_codec *codec)
 	int i, ret;
 	unsigned int val, mask;
 
-	if (wm8994->revision < 4) {
+	if (control->revision < 4) {
 		/* force a HW read */
 		ret = regmap_read(control->regmap,
 				  WM8994_POWER_MANAGEMENT_5, &val);
@@ -3911,7 +3911,6 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	codec->dapm.idle_bias_off = 1;
 
 	/* Set revision-specific configuration */
-	wm8994->revision = snd_soc_read(codec, WM8994_CHIP_REVISION);
 	switch (control->type) {
 	case WM8994:
 		/* Single ended line outputs should have VMID on. */
@@ -3919,7 +3918,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		    !control->pdata.lineout2_diff)
 			codec->dapm.idle_bias_off = 0;
 
-		switch (wm8994->revision) {
+		switch (control->revision) {
 		case 2:
 		case 3:
 			wm8994->hubs.dcs_codes_l = -5;
@@ -3938,7 +3937,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		wm8994->hubs.dcs_readback_mode = 1;
 		wm8994->hubs.hp_startup_mode = 1;
 
-		switch (wm8994->revision) {
+		switch (control->revision) {
 		case 0:
 			break;
 		default:
@@ -4041,7 +4040,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	switch (control->type) {
 	case WM1811:
-		if (control->cust_id > 1 || wm8994->revision > 1) {
+		if (control->cust_id > 1 || control->revision > 1) {
 			ret = wm8994_request_irq(wm8994->wm8994,
 						 WM8994_IRQ_GPIO(6),
 						 wm1811_jackdet_irq, "JACKDET",
@@ -4155,7 +4154,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	case WM8994:
 		snd_soc_dapm_new_controls(dapm, wm8994_specific_dapm_widgets,
 					  ARRAY_SIZE(wm8994_specific_dapm_widgets));
-		if (wm8994->revision < 4) {
+		if (control->revision < 4) {
 			snd_soc_dapm_new_controls(dapm, wm8994_lateclk_revd_widgets,
 						  ARRAY_SIZE(wm8994_lateclk_revd_widgets));
 			snd_soc_dapm_new_controls(dapm, wm8994_adc_revd_widgets,
@@ -4176,7 +4175,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 				     ARRAY_SIZE(wm8958_snd_controls));
 		snd_soc_dapm_new_controls(dapm, wm8958_dapm_widgets,
 					  ARRAY_SIZE(wm8958_dapm_widgets));
-		if (wm8994->revision < 1) {
+		if (control->revision < 1) {
 			snd_soc_dapm_new_controls(dapm, wm8994_lateclk_revd_widgets,
 						  ARRAY_SIZE(wm8994_lateclk_revd_widgets));
 			snd_soc_dapm_new_controls(dapm, wm8994_adc_revd_widgets,
@@ -4215,7 +4214,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		snd_soc_dapm_add_routes(dapm, wm8994_intercon,
 					ARRAY_SIZE(wm8994_intercon));
 
-		if (wm8994->revision < 4) {
+		if (control->revision < 4) {
 			snd_soc_dapm_add_routes(dapm, wm8994_revd_intercon,
 						ARRAY_SIZE(wm8994_revd_intercon));
 			snd_soc_dapm_add_routes(dapm, wm8994_lateclk_revd_intercon,
@@ -4226,7 +4225,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		}
 		break;
 	case WM8958:
-		if (wm8994->revision < 1) {
+		if (control->revision < 1) {
 			snd_soc_dapm_add_routes(dapm, wm8994_intercon,
 						ARRAY_SIZE(wm8994_intercon));
 			snd_soc_dapm_add_routes(dapm, wm8994_revd_intercon,
