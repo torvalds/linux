@@ -728,8 +728,6 @@ struct wl1271_acx_ht_information {
 	u8 padding[2];
 } __packed;
 
-#define RX_BA_MAX_SESSIONS 3
-
 struct wl1271_acx_ba_initiator_policy {
 	struct acx_header header;
 
