@@ -85,7 +85,7 @@ void samsung_usbphy_set_isolation_4210(struct samsung_usbphy *sphy, bool on)
 	}
 
 	if (sphy->phy_type == USB_PHY_TYPE_DEVICE) {
-		reg = sphy->pmuregs + sphy->drv_data->devphy_reg_offset;
+		reg = sphy->pmuregs + sphy->drv_data->dev0_phy_reg_offset;
 		en_mask = sphy->drv_data->devphy_en_mask;
 	} else if (sphy->phy_type == USB_PHY_TYPE_HOST) {
 		reg = sphy->pmuregs + sphy->drv_data->hostphy_reg_offset;

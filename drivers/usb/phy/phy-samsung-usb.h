@@ -244,6 +244,7 @@
 #endif
 
 #define EXYNOS_USBHOST_PHY_CTRL_OFFSET		(0x4)
+#define EXYNOS5420_USBDEV1_PHY_CTRL_OFFSET	(0x4)
 #define EXYNOS5420_USBHOST_PHY_CTRL_OFFSET	(0x8)
 #define S3C64XX_USBPHY_ENABLE			(0x1 << 16)
 #define EXYNOS_USBPHY_ENABLE			(0x1 << 0)
@@ -264,8 +265,11 @@ struct samsung_usbphy;
  * @cpu_type: machine identifier
  * @devphy_en_mask: device phy enable mask for PHY CONTROL register
  * @hostphy_en_mask: host phy enable mask for PHY CONTROL register
- * @devphy_reg_offset: offset to DEVICE PHY CONTROL register from
+ * @dev0_phy_reg_offset: offset to DEVICE_0 PHY CONTROL register from
  *		       mapped address of system controller.
+ * @dev1_phy_reg_offset: offset to DEVICE_1 PHY CONTROL register from
+ *		       mapped address of system controller (valid in case
+ *		       of multiple device type PHY controllers).
  * @hostphy_reg_offset: offset to HOST PHY CONTROL register from
  *		       mapped address of system controller.
  *
@@ -281,7 +285,8 @@ struct samsung_usbphy_drvdata {
 	int cpu_type;
 	int devphy_en_mask;
 	int hostphy_en_mask;
-	u32 devphy_reg_offset;
+	u32 dev0_phy_reg_offset;
+	u32 dev1_phy_reg_offset;
 	u32 hostphy_reg_offset;
 	int (*rate_to_clksel)(struct samsung_usbphy *, unsigned long);
 	void (*set_isolation)(struct samsung_usbphy *, bool);

@@ -310,11 +310,24 @@ static struct samsung_usbphy_drvdata usb3phy_exynos5 = {
 	.phy_disable		= samsung_exynos5_usb3phy_disable,
 };
 
+static struct samsung_usbphy_drvdata usb3phy_exynos5420 = {
+	.cpu_type		= TYPE_EXYNOS5420,
+	.devphy_en_mask		= EXYNOS_USBPHY_ENABLE,
+	.dev1_phy_reg_offset	= EXYNOS5420_USBDEV1_PHY_CTRL_OFFSET,
+	.rate_to_clksel		= samsung_usbphy_rate_to_clksel_4x12,
+	.set_isolation		= samsung_usbphy_set_isolation_4210,
+	.phy_enable		= samsung_exynos5_usb3phy_enable,
+	.phy_disable		= samsung_exynos5_usb3phy_disable,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id samsung_usbphy_dt_match[] = {
 	{
 		.compatible = "samsung,exynos5250-usb3phy",
 		.data = &usb3phy_exynos5
+	}, {
+		.compatible = "samsung,exynos5420-usb3phy",
+		.data = &usb3phy_exynos5420
 	},
 	{},
 };
@@ -325,6 +338,9 @@ static struct platform_device_id samsung_usbphy_driver_ids[] = {
 	{
 		.name		= "exynos5250-usb3phy",
 		.driver_data	= (unsigned long)&usb3phy_exynos5,
+	}, {
+		.name		= "exynos5420-usb3phy",
+		.driver_data	= (unsigned long)&usb3phy_exynos5420,
 	},
 	{},
 };
