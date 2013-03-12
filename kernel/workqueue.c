@@ -169,7 +169,7 @@ struct pool_workqueue {
 	int			nr_active;	/* L: nr of active works */
 	int			max_active;	/* L: max active works */
 	struct list_head	delayed_works;	/* L: delayed works */
-};
+} __aligned(1 << WORK_STRUCT_FLAG_BITS);
 
 /*
  * Structure used to wait for workqueue flush.
@@ -232,6 +232,8 @@ struct workqueue_struct {
 #endif
 	char			name[];		/* I: workqueue name */
 };
+
+static struct kmem_cache *pwq_cache;
 
 struct workqueue_struct *system_wq __read_mostly;
 EXPORT_SYMBOL_GPL(system_wq);
@@ -3096,34 +3098,11 @@ int keventd_up(void)
 
 static int alloc_pwqs(struct workqueue_struct *wq)
 {
-	/*
-	 * pwqs are forced aligned according to WORK_STRUCT_FLAG_BITS.
-	 * Make sure that the alignment isn't lower than that of
-	 * unsigned long long.
-	 */
-	const size_t size = sizeof(struct pool_workqueue);
-	const size_t align = max_t(size_t, 1 << WORK_STRUCT_FLAG_BITS,
-				   __alignof__(unsigned long long));
-
 	if (!(wq->flags & WQ_UNBOUND))
-		wq->pool_wq.pcpu = __alloc_percpu(size, align);
-	else {
-		void *ptr;
+		wq->pool_wq.pcpu = alloc_percpu(struct pool_workqueue);
+	else
+		wq->pool_wq.single = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
 
-		/*
-		 * Allocate enough room to align pwq and put an extra
-		 * pointer at the end pointing back to the originally
-		 * allocated pointer which will be used for free.
-		 */
-		ptr = kzalloc(size + align + sizeof(void *), GFP_KERNEL);
-		if (ptr) {
-			wq->pool_wq.single = PTR_ALIGN(ptr, align);
-			*(void **)(wq->pool_wq.single + 1) = ptr;
-		}
-	}
-
-	/* just in case, make sure it's actually aligned */
-	BUG_ON(!IS_ALIGNED(wq->pool_wq.v, align));
 	return wq->pool_wq.v ? 0 : -ENOMEM;
 }
 
@@ -3131,10 +3110,8 @@ static void free_pwqs(struct workqueue_struct *wq)
 {
 	if (!(wq->flags & WQ_UNBOUND))
 		free_percpu(wq->pool_wq.pcpu);
-	else if (wq->pool_wq.single) {
-		/* the pointer to free is stored right after the pwq */
-		kfree(*(void **)(wq->pool_wq.single + 1));
-	}
+	else
+		kmem_cache_free(pwq_cache, wq->pool_wq.single);
 }
 
 static int wq_clamp_max_active(int max_active, unsigned int flags,
@@ -3733,6 +3710,10 @@ static int __init init_workqueues(void)
 	/* make sure we have enough bits for OFFQ pool ID */
 	BUILD_BUG_ON((1LU << (BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT)) <
 		     WORK_CPU_END * NR_STD_WORKER_POOLS);
+
+	WARN_ON(__alignof__(struct pool_workqueue) < __alignof__(long long));
+
+	pwq_cache = KMEM_CACHE(pool_workqueue, SLAB_PANIC);
 
 	cpu_notifier(workqueue_cpu_up_callback, CPU_PRI_WORKQUEUE_UP);
 	hotcpu_notifier(workqueue_cpu_down_callback, CPU_PRI_WORKQUEUE_DOWN);
