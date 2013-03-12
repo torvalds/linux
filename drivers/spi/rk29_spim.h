@@ -64,6 +64,10 @@
 
 #define SPI_SCOL_OFFSET			7                  /* Serial Clock Polarity */
 
+#define SPI_OPMOD_OFFSET	    20
+#define SPI_OPMOD_MASTER        0
+#define SPI_OPMOD_SLAVE         1
+
 #define SPI_TMOD_OFFSET			18                 /* Transfer Mode */
 #define	SPI_TMOD_TR			    0x00		       /* xmit & recv */
 #define SPI_TMOD_TO			    0x01		       /* xmit only */
@@ -254,6 +258,7 @@ struct rk29xx_spi_chip {
 	u8 poll_mode;	/* 0 for contoller polling mode */
 	u8 type;	/* SPI/SSP/Micrwire */
 	u8 enable_dma;
+	u8 slave_enable;
 	void (*cs_control)(struct rk29xx_spi *dws, u32 cs, u8 flag);
 };
 
