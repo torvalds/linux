@@ -1558,13 +1558,13 @@ static int set_affinity_irq(struct irq_data *data, const struct cpumask *dest,
 	return rebind_irq_to_cpu(data->irq, tcpu);
 }
 
-int resend_irq_on_evtchn(unsigned int irq)
+static int retrigger_evtchn(int evtchn)
 {
-	int masked, evtchn = evtchn_from_irq(irq);
+	int masked;
 	struct shared_info *s = HYPERVISOR_shared_info;
 
 	if (!VALID_EVTCHN(evtchn))
-		return 1;
+		return 0;
 
 	masked = sync_test_and_set_bit(evtchn, BM(s->evtchn_mask));
 	sync_set_bit(evtchn, BM(s->evtchn_pending));
@@ -1572,6 +1572,11 @@ int resend_irq_on_evtchn(unsigned int irq)
 		unmask_evtchn(evtchn);
 
 	return 1;
+}
+
+int resend_irq_on_evtchn(unsigned int irq)
+{
+	return retrigger_evtchn(evtchn_from_irq(irq));
 }
 
 static void enable_dynirq(struct irq_data *data)
@@ -1608,21 +1613,7 @@ static void mask_ack_dynirq(struct irq_data *data)
 
 static int retrigger_dynirq(struct irq_data *data)
 {
-	int evtchn = evtchn_from_irq(data->irq);
-	struct shared_info *sh = HYPERVISOR_shared_info;
-	int ret = 0;
-
-	if (VALID_EVTCHN(evtchn)) {
-		int masked;
-
-		masked = sync_test_and_set_bit(evtchn, BM(sh->evtchn_mask));
-		sync_set_bit(evtchn, BM(sh->evtchn_pending));
-		if (!masked)
-			unmask_evtchn(evtchn);
-		ret = 1;
-	}
-
-	return ret;
+	return retrigger_evtchn(evtchn_from_irq(data->irq));
 }
 
 static void restore_pirqs(void)
