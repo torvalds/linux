@@ -61,7 +61,7 @@
 #include <plat/system.h>
 #include <plat/sys_config.h>
 
-#ifdef ARCH_SUN4I
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
 #include <mach/ramconsole.h>
 #endif
 
@@ -354,21 +354,6 @@ static int __init reserve_ve_param(char *s)
 early_param("sunxi_ve_mem_reserve", reserve_ve_param);
 #endif
 
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
-/* The RAMCONSOLE block is used by the Android RAM Console
- *
- * See drivers/staging/android/ram_console.c
- */
-
-static void __init reserve_ramconsole(void)
-{
-	memblock_remove(SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
-	pr_reserve_info("RAMCONSOLE", SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
-}
-#else
-static void __init reserve_ramconsole(void) {}
-#endif
-
 static void reserve_sys(void)
 {
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
@@ -427,7 +412,15 @@ static void __init sw_core_reserve(void)
 	}
 	reserve_mem(&fb_start, &fb_size, "LCD ");
 #endif
-	reserve_ramconsole();
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	/* The RAMCONSOLE block is used by the Android RAM Console
+	 *
+	 * See drivers/staging/android/ram_console.c
+	 */
+
+	memblock_remove(SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
+	pr_reserve_info("RAMCONSOLE", SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
+#endif
 }
 
 void sw_irq_ack(struct irq_data *irqd)
