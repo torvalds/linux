@@ -4620,13 +4620,11 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 				   enum ieee80211_sta_state new_state)
 {
 	struct wl1271_station *wl_sta;
-	u8 hlid;
 	bool is_ap = wlvif->bss_type == BSS_TYPE_AP_BSS;
 	bool is_sta = wlvif->bss_type == BSS_TYPE_STA_BSS;
 	int ret;
 
 	wl_sta = (struct wl1271_station *)sta->drv_priv;
-	hlid = wl_sta->hlid;
 
 	/* Add station (AP mode) */
 	if (is_ap &&
@@ -4652,12 +4650,12 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 	/* Authorize station (AP mode) */
 	if (is_ap &&
 	    new_state == IEEE80211_STA_AUTHORIZED) {
-		ret = wl12xx_cmd_set_peer_state(wl, wlvif, hlid);
+		ret = wl12xx_cmd_set_peer_state(wl, wlvif, wl_sta->hlid);
 		if (ret < 0)
 			return ret;
 
 		ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap, true,
-						     hlid);
+						     wl_sta->hlid);
 		if (ret)
 			return ret;
 
