@@ -447,7 +447,7 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 	pzone->therm_dev = thermal_zone_device_register("db8500_thermal_zone",
 		ptrips->num_trips, 0, pzone, &thdev_ops, NULL, 0, 0);
 
-	if (IS_ERR_OR_NULL(pzone->therm_dev)) {
+	if (IS_ERR(pzone->therm_dev)) {
 		dev_err(&pdev->dev, "Register thermal zone device failed.\n");
 		return PTR_ERR(pzone->therm_dev);
 	}
