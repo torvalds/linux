@@ -553,8 +553,8 @@ static void palmas_dt_to_pdata(struct device *dev,
 				sizeof(struct palmas_reg_init), GFP_KERNEL);
 
 		pdata->reg_init[idx]->warm_reset =
-			of_property_read_u32(palmas_matches[idx].of_node,
-					     "ti,warm-reset", &prop);
+			of_property_read_bool(palmas_matches[idx].of_node,
+					     "ti,warm-reset");
 
 		pdata->reg_init[idx]->roof_floor =
 			of_property_read_bool(palmas_matches[idx].of_node,
