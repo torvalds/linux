@@ -108,8 +108,7 @@ static void wl1271_reg_notify(struct wiphy *wiphy,
 
 	}
 
-	if (likely(wl->state == WLCORE_STATE_ON))
-		wlcore_regdomain_config(wl);
+	wlcore_regdomain_config(wl);
 }
 
 static int wl1271_set_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
@@ -3364,6 +3363,10 @@ void wlcore_regdomain_config(struct wl1271 *wl)
 		return;
 
 	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state != WLCORE_STATE_ON))
+		goto out;
+
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
