@@ -448,9 +448,6 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
 
 int cgroup_task_count(const struct cgroup *cgrp);
 
-/* Return true if cgrp is a descendant of the task's cgroup */
-int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
-
 /*
  * Control Group taskset, used to pass around set of tasks to cgroup_subsys
  * methods.

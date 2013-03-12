@@ -5035,34 +5035,6 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 	put_css_set_taskexit(cg);
 }
 
-/**
- * cgroup_is_descendant - see if @cgrp is a descendant of @task's cgrp
- * @cgrp: the cgroup in question
- * @task: the task in question
- *
- * See if @cgrp is a descendant of @task's cgroup in the appropriate
- * hierarchy.
- *
- * If we are sending in dummytop, then presumably we are creating
- * the top cgroup in the subsystem.
- *
- * Called only by the ns (nsproxy) cgroup.
- */
-int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task)
-{
-	int ret;
-	struct cgroup *target;
-
-	if (cgrp == dummytop)
-		return 1;
-
-	target = task_cgroup_from_root(task, cgrp->root);
-	while (cgrp != target && cgrp!= cgrp->top_cgroup)
-		cgrp = cgrp->parent;
-	ret = (cgrp == target);
-	return ret;
-}
-
 static void check_for_release(struct cgroup *cgrp)
 {
 	/* All of these checks rely on RCU to keep the cgroup
