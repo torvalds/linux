@@ -1205,6 +1205,49 @@ static void system_root_device_release(struct device *dev)
 {
 	kfree(dev);
 }
+
+static int subsys_register(struct bus_type *subsys,
+			   const struct attribute_group **groups,
+			   struct kobject *parent_of_root)
+{
+	struct device *dev;
+	int err;
+
+	err = bus_register(subsys);
+	if (err < 0)
+		return err;
+
+	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	if (!dev) {
+		err = -ENOMEM;
+		goto err_dev;
+	}
+
+	err = dev_set_name(dev, "%s", subsys->name);
+	if (err < 0)
+		goto err_name;
+
+	dev->kobj.parent = parent_of_root;
+	dev->groups = groups;
+	dev->release = system_root_device_release;
+
+	err = device_register(dev);
+	if (err < 0)
+		goto err_dev_reg;
+
+	subsys->dev_root = dev;
+	return 0;
+
+err_dev_reg:
+	put_device(dev);
+	dev = NULL;
+err_name:
+	kfree(dev);
+err_dev:
+	bus_unregister(subsys);
+	return err;
+}
+
 /**
  * subsys_system_register - register a subsystem at /sys/devices/system/
  * @subsys: system subsystem
@@ -1226,44 +1269,32 @@ static void system_root_device_release(struct device *dev)
 int subsys_system_register(struct bus_type *subsys,
 			   const struct attribute_group **groups)
 {
-	struct device *dev;
-	int err;
-
-	err = bus_register(subsys);
-	if (err < 0)
-		return err;
-
-	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
-	if (!dev) {
-		err = -ENOMEM;
-		goto err_dev;
-	}
-
-	err = dev_set_name(dev, "%s", subsys->name);
-	if (err < 0)
-		goto err_name;
-
-	dev->kobj.parent = &system_kset->kobj;
-	dev->groups = groups;
-	dev->release = system_root_device_release;
-
-	err = device_register(dev);
-	if (err < 0)
-		goto err_dev_reg;
-
-	subsys->dev_root = dev;
-	return 0;
-
-err_dev_reg:
-	put_device(dev);
-	dev = NULL;
-err_name:
-	kfree(dev);
-err_dev:
-	bus_unregister(subsys);
-	return err;
+	return subsys_register(subsys, groups, &system_kset->kobj);
 }
 EXPORT_SYMBOL_GPL(subsys_system_register);
+
+/**
+ * subsys_virtual_register - register a subsystem at /sys/devices/virtual/
+ * @subsys: virtual subsystem
+ * @groups: default attributes for the root device
+ *
+ * All 'virtual' subsystems have a /sys/devices/system/<name> root device
+ * with the name of the subystem.  The root device can carry subsystem-wide
+ * attributes.  All registered devices are below this single root device.
+ * There's no restriction on device naming.  This is for kernel software
+ * constructs which need sysfs interface.
+ */
+int subsys_virtual_register(struct bus_type *subsys,
+			    const struct attribute_group **groups)
+{
+	struct kobject *virtual_dir;
+
+	virtual_dir = virtual_device_parent(NULL);
+	if (!virtual_dir)
+		return -ENOMEM;
+
+	return subsys_register(subsys, groups, virtual_dir);
+}
 
 int __init buses_init(void)
 {
