@@ -644,6 +644,7 @@ next:
 
 	}
 
+out:
 	if (!skb &&
 	    test_and_clear_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags)) {
 		int q;
@@ -657,7 +658,6 @@ next:
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
 
-out:
 	return skb;
 }
 
