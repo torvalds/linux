@@ -197,7 +197,7 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config GENERIC_HWEIGHT
 	bool
-	default y if !ULTRA_HAS_POPULATION_COUNT
+	default y
 
 config GENERIC_CALIBRATE_DELAY
 	bool
