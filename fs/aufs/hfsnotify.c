@@ -104,8 +104,11 @@ static void au_hfsn_ctl(struct au_hinode *hinode, int do_set)
 static char *au_hfsn_name(u32 mask)
 {
 #ifdef CONFIG_AUFS_DEBUG
-#define test_ret(flag)	if (mask & flag) \
-				return #flag;
+#define test_ret(flag)				\
+	do {					\
+		if (mask & flag)		\
+			return #flag;		\
+	} while (0)
 	test_ret(FS_ACCESS);
 	test_ret(FS_MODIFY);
 	test_ret(FS_ATTRIB);
