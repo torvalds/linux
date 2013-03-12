@@ -1383,40 +1383,6 @@ out:
 	return ret;  /* done! */
 }
 
-static void out_msg_pos_next(struct ceph_connection *con, struct page *page,
-			size_t len, size_t sent)
-{
-	struct ceph_msg *msg = con->out_msg;
-	bool need_crc;
-
-	BUG_ON(!msg);
-	BUG_ON(!sent);
-
-	need_crc = ceph_msg_data_advance(&msg->data, sent);
-	BUG_ON(need_crc && sent != len);
-
-	if (sent < len)
-		return;
-
-	BUG_ON(sent != len);
-}
-
-static void in_msg_pos_next(struct ceph_connection *con, size_t len,
-				size_t received)
-{
-	struct ceph_msg *msg = con->in_msg;
-
-	BUG_ON(!msg);
-	BUG_ON(!received);
-
-	(void) ceph_msg_data_advance(&msg->data, received);
-
-	if (received < len)
-		return;
-
-	BUG_ON(received != len);
-}
-
 static u32 ceph_crc32c_page(u32 crc, struct page *page,
 				unsigned int page_offset,
 				unsigned int length)
@@ -1463,6 +1429,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 		size_t page_offset;
 		size_t length;
 		bool last_piece;
+		bool need_crc;
 		int ret;
 
 		page = ceph_msg_data_next(&msg->data, &page_offset, &length,
@@ -1477,7 +1444,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 		}
 		if (do_datacrc && cursor->need_crc)
 			crc = ceph_crc32c_page(crc, page, page_offset, length);
-		out_msg_pos_next(con, page, length, (size_t) ret);
+		need_crc = ceph_msg_data_advance(&msg->data, (size_t) ret);
 	}
 
 	dout("%s %p msg %p done\n", __func__, con, msg);
@@ -2164,7 +2131,7 @@ static int read_partial_msg_data(struct ceph_connection *con)
 
 		if (do_datacrc)
 			crc = ceph_crc32c_page(crc, page, page_offset, ret);
-		in_msg_pos_next(con, length, ret);
+		(void) ceph_msg_data_advance(&msg->data, (size_t) ret);
 	}
 	if (do_datacrc)
 		con->in_data_crc = crc;
