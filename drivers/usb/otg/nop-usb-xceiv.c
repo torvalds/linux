@@ -147,6 +147,8 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	enum usb_phy_type	type = USB_PHY_TYPE_USB2;
 	int err;
 	u32 clk_rate = 0;
+	bool needs_vcc = false;
+	bool needs_reset = false;
 
 	nop = devm_kzalloc(&pdev->dev, sizeof(*nop), GFP_KERNEL);
 	if (!nop)
@@ -163,9 +165,14 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
 			clk_rate = 0;
 
+		needs_vcc = of_property_read_bool(node, "vcc-supply");
+		needs_reset = of_property_read_bool(node, "reset-supply");
+
 	} else if (pdata) {
 		type = pdata->type;
 		clk_rate = pdata->clk_rate;
+		needs_vcc = pdata->needs_vcc;
+		needs_reset = pdata->needs_reset;
 	}
 
 	nop->clk = devm_clk_get(&pdev->dev, "main_clk");
@@ -194,12 +201,16 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	if (IS_ERR(nop->vcc)) {
 		dev_dbg(&pdev->dev, "Error getting vcc regulator: %ld\n",
 					PTR_ERR(nop->vcc));
+		if (needs_vcc)
+			return -EPROBE_DEFER;
 	}
 
 	nop->reset = devm_regulator_get(&pdev->dev, "reset");
 	if (IS_ERR(nop->reset)) {
 		dev_dbg(&pdev->dev, "Error getting reset regulator: %ld\n",
 					PTR_ERR(nop->reset));
+		if (needs_reset)
+			return -EPROBE_DEFER;
 	}
 
 	nop->dev		= &pdev->dev;
