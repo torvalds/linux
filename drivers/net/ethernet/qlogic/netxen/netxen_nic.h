@@ -955,9 +955,10 @@ typedef struct nx_mac_list_s {
 	uint8_t mac_addr[ETH_ALEN+2];
 } nx_mac_list_t;
 
-struct nx_vlan_ip_list {
+struct nx_ip_list {
 	struct list_head list;
 	__be32 ip_addr;
+	bool master;
 };
 
 /*
@@ -1605,7 +1606,7 @@ struct netxen_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct list_head mac_list;
-	struct list_head vlan_ip_list;
+	struct list_head ip_list;
 
 	spinlock_t tx_clean_lock;
 
