@@ -2937,8 +2937,8 @@ static void binder_deferred_release(struct binder_proc *proc)
 
 	if (binder_context_mgr_node && binder_context_mgr_node->proc == proc) {
 		binder_debug(BINDER_DEBUG_DEAD_BINDER,
-			     "binder_release: %d context_mgr_node gone\n",
-			     proc->pid);
+			     "%s: %d context_mgr_node gone\n",
+			     __func__, proc->pid);
 		binder_context_mgr_node = NULL;
 	}
 
@@ -3008,8 +3008,8 @@ static void binder_deferred_release(struct binder_proc *proc)
 
 			page_addr = proc->buffer + i * PAGE_SIZE;
 			binder_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				     "binder_release: %d: page %d at %p not freed\n",
-				     proc->pid, i, page_addr);
+				     "%s: %d: page %d at %p not freed\n",
+				     __func__, proc->pid, i, page_addr);
 			unmap_kernel_range((unsigned long)page_addr, PAGE_SIZE);
 			__free_page(proc->pages[i]);
 			page_count++;
@@ -3021,9 +3021,9 @@ static void binder_deferred_release(struct binder_proc *proc)
 	put_task_struct(proc->tsk);
 
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE,
-		     "binder_release: %d threads %d, nodes %d (ref %d), refs %d, active transactions %d, buffers %d, pages %d\n",
-		     proc->pid, threads, nodes, incoming_refs, outgoing_refs,
-		     active_transactions, buffers, page_count);
+		     "%s: %d threads %d, nodes %d (ref %d), refs %d, active transactions %d, buffers %d, pages %d\n",
+		     __func__, proc->pid, threads, nodes, incoming_refs,
+		     outgoing_refs, active_transactions, buffers, page_count);
 
 	kfree(proc);
 }
