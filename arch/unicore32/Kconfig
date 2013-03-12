@@ -24,7 +24,7 @@ config UNICORE32
 	  Please see web page at <http://www.pkunity.com/>.
 
 config GENERIC_GPIO
-	def_bool y
+	bool
 
 config GENERIC_CSUM
 	def_bool y
