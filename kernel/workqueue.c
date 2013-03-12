@@ -169,6 +169,7 @@ struct pool_workqueue {
 	int			nr_active;	/* L: nr of active works */
 	int			max_active;	/* L: max active works */
 	struct list_head	delayed_works;	/* L: delayed works */
+	struct list_head	pwqs_node;	/* I: node on wq->pwqs */
 } __aligned(1 << WORK_STRUCT_FLAG_BITS);
 
 /*
@@ -212,6 +213,7 @@ struct workqueue_struct {
 		struct pool_workqueue			*single;
 		unsigned long				v;
 	} pool_wq;				/* I: pwq's */
+	struct list_head	pwqs;		/* I: all pwqs of this wq */
 	struct list_head	list;		/* W: list of all workqueues */
 
 	struct mutex		flush_mutex;	/* protects wq flushing */
@@ -3096,14 +3098,32 @@ int keventd_up(void)
 	return system_wq != NULL;
 }
 
-static int alloc_pwqs(struct workqueue_struct *wq)
+static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 {
-	if (!(wq->flags & WQ_UNBOUND))
-		wq->pool_wq.pcpu = alloc_percpu(struct pool_workqueue);
-	else
-		wq->pool_wq.single = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
+	int cpu;
 
-	return wq->pool_wq.v ? 0 : -ENOMEM;
+	if (!(wq->flags & WQ_UNBOUND)) {
+		wq->pool_wq.pcpu = alloc_percpu(struct pool_workqueue);
+		if (!wq->pool_wq.pcpu)
+			return -ENOMEM;
+
+		for_each_possible_cpu(cpu) {
+			struct pool_workqueue *pwq = get_pwq(cpu, wq);
+
+			list_add_tail(&pwq->pwqs_node, &wq->pwqs);
+		}
+	} else {
+		struct pool_workqueue *pwq;
+
+		pwq = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
+		if (!pwq)
+			return -ENOMEM;
+
+		wq->pool_wq.single = pwq;
+		list_add_tail(&pwq->pwqs_node, &wq->pwqs);
+	}
+
+	return 0;
 }
 
 static void free_pwqs(struct workqueue_struct *wq)
@@ -3165,13 +3185,14 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 	wq->saved_max_active = max_active;
 	mutex_init(&wq->flush_mutex);
 	atomic_set(&wq->nr_pwqs_to_flush, 0);
+	INIT_LIST_HEAD(&wq->pwqs);
 	INIT_LIST_HEAD(&wq->flusher_queue);
 	INIT_LIST_HEAD(&wq->flusher_overflow);
 
 	lockdep_init_map(&wq->lockdep_map, lock_name, key, 0);
 	INIT_LIST_HEAD(&wq->list);
 
-	if (alloc_pwqs(wq) < 0)
+	if (alloc_and_link_pwqs(wq) < 0)
 		goto err;
 
 	for_each_pwq_cpu(cpu, wq) {
