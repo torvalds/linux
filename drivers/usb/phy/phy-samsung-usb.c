@@ -34,9 +34,15 @@
 int samsung_usbphy_parse_dt(struct samsung_usbphy *sphy)
 {
 	struct device_node *usbphy_sys;
+	struct device_node *node = sphy->dev->of_node;
+
+	/* Get the Channel number in case of multiple PHY controllers */
+	sphy->channel = of_alias_get_id(node, "usb3phy");
+	if (sphy->channel < 0)
+		dev_info(sphy->dev, "Not a multi controller PHY\n");
 
 	/* Getting node for system controller interface for usb-phy */
-	usbphy_sys = of_get_child_by_name(sphy->dev->of_node, "usbphy-sys");
+	usbphy_sys = of_get_child_by_name(node, "usbphy-sys");
 	if (!usbphy_sys) {
 		dev_err(sphy->dev, "No sys-controller interface for usb-phy\n");
 		return -ENODEV;
@@ -85,21 +91,26 @@ void samsung_usbphy_set_isolation_4210(struct samsung_usbphy *sphy, bool on)
 	}
 
 	if (sphy->phy_type == USB_PHY_TYPE_DEVICE) {
-		reg = sphy->pmuregs + sphy->drv_data->dev0_phy_reg_offset;
+		if (sphy->channel == 1)
+			reg = sphy->pmuregs +
+				sphy->drv_data->dev1_phy_reg_offset;
+		else
+			reg = sphy->pmuregs +
+				sphy->drv_data->dev0_phy_reg_offset;
 		en_mask = sphy->drv_data->devphy_en_mask;
 	} else if (sphy->phy_type == USB_PHY_TYPE_HOST) {
 		reg = sphy->pmuregs + sphy->drv_data->hostphy_reg_offset;
 		en_mask = sphy->drv_data->hostphy_en_mask;
 	}
 
-	reg_val = readl(reg);
-
-	if (on)
-		reg_val &= ~en_mask;
-	else
-		reg_val |= en_mask;
-
-	writel(reg_val, reg);
+	if (reg) {
+		reg_val = readl(reg);
+		if (on)
+			reg_val &= ~en_mask;
+		else
+			reg_val |= en_mask;
+		writel(reg_val, reg);
+	}
 
 	if (sphy->drv_data->cpu_type == TYPE_EXYNOS4X12) {
 		writel(reg_val, sphy->pmuregs + EXYNOS4X12_PHY_HSIC_CTRL0);

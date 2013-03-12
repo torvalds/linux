@@ -309,6 +309,7 @@ struct samsung_usbphy_drvdata {
  *						#DEVICE
  * @phy_usage: usage count for phy
  * @lock: lock for phy operations
+ * @channel: Channel number of controller in multi controller scenerio.
  */
 struct samsung_usbphy {
 	struct usb_phy	phy;
@@ -323,6 +324,7 @@ struct samsung_usbphy {
 	enum samsung_usb_phy_type phy_type;
 	atomic_t	phy_usage;
 	spinlock_t	lock;
+	int		channel;
 };
 
 #define phy_to_sphy(x)		container_of((x), struct samsung_usbphy, phy)

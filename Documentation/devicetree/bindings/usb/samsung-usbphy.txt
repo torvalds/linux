@@ -115,6 +115,11 @@ Optional properties:
 	  USBDEVICE_PHY_CONTROL and USBHOST_PHY_CONTROL registers in exynos4x).
 	  and so on.
 
+- Aliases: exynos5420 has multiple usb 3.0 phy transceivers interacting with multiple
+          dwc3 controllers. So the usb 3.0 phy controller nodes should be represented
+          in the aliases node using the following format:
+          'usb3phy{n}' where n is a unique number for the alias.
+
 Example:
 	usbphy@12100000 {
 		compatible = "samsung,exynos5250-usb3phy";
