@@ -122,10 +122,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 		goto out_cleanup;
 	}
 
-	/* r100 doesn't have dma engine so skip the test */
-	/* also, VRAM-to-VRAM test doesn't make much sense for DMA */
-	/* skip it as well if domains are the same */
-	if ((rdev->asic->copy.dma) && (sdomain != ddomain)) {
+	if (rdev->asic->copy.dma) {
 		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
 						RADEON_BENCHMARK_COPY_DMA, n);
 		if (time < 0)
