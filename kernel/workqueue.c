@@ -3494,7 +3494,12 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 	struct pool_workqueue *pwq, *last_pwq;
 	struct worker_pool *pool;
 
+	/* only unbound workqueues can change attributes */
 	if (WARN_ON(!(wq->flags & WQ_UNBOUND)))
+		return -EINVAL;
+
+	/* creating multiple pwqs breaks ordering guarantee */
+	if (WARN_ON((wq->flags & __WQ_ORDERED) && !list_empty(&wq->pwqs)))
 		return -EINVAL;
 
 	pwq = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
@@ -3751,6 +3756,10 @@ static void pwq_set_max_active(struct pool_workqueue *pwq, int max_active)
 void workqueue_set_max_active(struct workqueue_struct *wq, int max_active)
 {
 	struct pool_workqueue *pwq;
+
+	/* disallow meddling with max_active for ordered workqueues */
+	if (WARN_ON(wq->flags & __WQ_ORDERED))
+		return;
 
 	max_active = wq_clamp_max_active(max_active, wq->flags, wq->name);
 
