@@ -26,6 +26,8 @@
 #include <linux/slab.h>
 #include <linux/msm_ssbi.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 /* SSBI 2.0 controller registers */
 #define SSBI2_CMD			0x0008
@@ -261,56 +263,13 @@ int msm_ssbi_write(struct device *dev, u16 addr, u8 *buf, int len)
 }
 EXPORT_SYMBOL_GPL(msm_ssbi_write);
 
-static int msm_ssbi_add_slave(struct msm_ssbi *ssbi,
-				const struct msm_ssbi_slave_info *slave)
-{
-	struct platform_device *slave_pdev;
-	int ret;
-
-	if (ssbi->slave) {
-		pr_err("slave already attached??\n");
-		return -EBUSY;
-	}
-
-	slave_pdev = platform_device_alloc(slave->name, -1);
-	if (!slave_pdev) {
-		pr_err("cannot allocate pdev for slave '%s'", slave->name);
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	slave_pdev->dev.parent = ssbi->dev;
-	slave_pdev->dev.platform_data = slave->platform_data;
-
-	ret = platform_device_add(slave_pdev);
-	if (ret) {
-		pr_err("cannot add slave platform device for '%s'\n",
-				slave->name);
-		goto err;
-	}
-
-	ssbi->slave = &slave_pdev->dev;
-	return 0;
-
-err:
-	if (slave_pdev)
-		platform_device_put(slave_pdev);
-	return ret;
-}
-
 static int msm_ssbi_probe(struct platform_device *pdev)
 {
-	const struct msm_ssbi_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
 	struct resource *mem_res;
 	struct msm_ssbi *ssbi;
 	int ret = 0;
-
-	if (!pdata) {
-		pr_err("missing platform data\n");
-		return -EINVAL;
-	}
-
-	pr_debug("%s\n", pdata->slave.name);
+	const char *type;
 
 	ssbi = kzalloc(sizeof(struct msm_ssbi), GFP_KERNEL);
 	if (!ssbi) {
@@ -334,7 +293,25 @@ static int msm_ssbi_probe(struct platform_device *pdev)
 	ssbi->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ssbi);
 
-	ssbi->controller_type = pdata->controller_type;
+	type = of_get_property(np, "qcom,controller-type", NULL);
+	if (type == NULL) {
+		pr_err("Missing qcom,controller-type property\n");
+		ret = -EINVAL;
+		goto err_ssbi_controller;
+	}
+	dev_info(&pdev->dev, "SSBI controller type: '%s'\n", type);
+	if (strcmp(type, "ssbi") == 0)
+		ssbi->controller_type = MSM_SBI_CTRL_SSBI;
+	else if (strcmp(type, "ssbi2") == 0)
+		ssbi->controller_type = MSM_SBI_CTRL_SSBI2;
+	else if (strcmp(type, "pmic-arbiter") == 0)
+		ssbi->controller_type = MSM_SBI_CTRL_PMIC_ARBITER;
+	else {
+		pr_err("Unknown qcom,controller-type\n");
+		ret = -EINVAL;
+		goto err_ssbi_controller;
+	}
+
 	if (ssbi->controller_type == MSM_SBI_CTRL_PMIC_ARBITER) {
 		ssbi->read = msm_ssbi_pa_read_bytes;
 		ssbi->write = msm_ssbi_pa_write_bytes;
@@ -345,13 +322,13 @@ static int msm_ssbi_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ssbi->lock);
 
-	ret = msm_ssbi_add_slave(ssbi, &pdata->slave);
+	ret = of_platform_populate(np, NULL, NULL, &pdev->dev);
 	if (ret)
-		goto err_ssbi_add_slave;
+		goto err_ssbi_controller;
 
 	return 0;
 
-err_ssbi_add_slave:
+err_ssbi_controller:
 	platform_set_drvdata(pdev, NULL);
 	iounmap(ssbi->base);
 err_ioremap:
@@ -370,12 +347,18 @@ static int msm_ssbi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id ssbi_match_table[] = {
+	{ .compatible = "qcom,ssbi" },
+	{}
+};
+
 static struct platform_driver msm_ssbi_driver = {
 	.probe		= msm_ssbi_probe,
 	.remove		= msm_ssbi_remove,
 	.driver		= {
 		.name	= "msm_ssbi",
 		.owner	= THIS_MODULE,
+		.of_match_table = ssbi_match_table,
 	},
 };
 
