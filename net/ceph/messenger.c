@@ -1512,13 +1512,10 @@ static int write_partial_message_data(struct ceph_connection *con)
 							&length, &last_piece);
 #endif
 		} else {
-			size_t resid = data_len - msg_pos->data_pos;
-
-			page = zero_page;
-			page_offset = msg_pos->page_pos;
-			length = PAGE_SIZE - page_offset;
-			length = min(resid, length);
-			last_piece = length == resid;
+			WARN(1, "con %p data_len %u but no outbound data\n",
+				con, data_len);
+			ret = -EINVAL;
+			goto out;
 		}
 		if (do_datacrc && !msg_pos->did_page_crc) {
 			u32 crc = le32_to_cpu(msg->footer.data_crc);
