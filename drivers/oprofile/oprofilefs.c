@@ -276,6 +276,7 @@ static struct file_system_type oprofilefs_type = {
 	.mount		= oprofilefs_mount,
 	.kill_sb	= kill_litter_super,
 };
+MODULE_ALIAS_FS("oprofilefs");
 
 
 int __init oprofilefs_register(void)

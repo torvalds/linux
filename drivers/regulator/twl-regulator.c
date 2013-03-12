@@ -471,24 +471,23 @@ twl4030ldo_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 			    selector);
 }
 
-static int twl4030ldo_get_voltage(struct regulator_dev *rdev)
+static int twl4030ldo_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
-	int		vsel = twlreg_read(info, TWL_MODULE_PM_RECEIVER,
-								VREG_VOLTAGE);
+	int vsel = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE);
 
 	if (vsel < 0)
 		return vsel;
 
 	vsel &= info->table_len - 1;
-	return LDO_MV(info->table[vsel]) * 1000;
+	return vsel;
 }
 
 static struct regulator_ops twl4030ldo_ops = {
 	.list_voltage	= twl4030ldo_list_voltage,
 
 	.set_voltage_sel = twl4030ldo_set_voltage_sel,
-	.get_voltage	= twl4030ldo_get_voltage,
+	.get_voltage_sel = twl4030ldo_get_voltage_sel,
 
 	.enable		= twl4030reg_enable,
 	.disable	= twl4030reg_disable,
