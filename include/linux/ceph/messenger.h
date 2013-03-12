@@ -64,11 +64,7 @@ struct ceph_messenger {
 	u32 required_features;
 };
 
-#define ceph_msg_has_pages(m)		((m)->p.type == CEPH_MSG_DATA_PAGES)
-#define ceph_msg_has_pagelist(m)	((m)->l.type == CEPH_MSG_DATA_PAGELIST)
-#ifdef CONFIG_BLOCK
-#define ceph_msg_has_bio(m)		((m)->b.type == CEPH_MSG_DATA_BIO)
-#endif /* CONFIG_BLOCK */
+#define ceph_msg_has_data(m)		((m)->data.type != CEPH_MSG_DATA_NONE)
 
 enum ceph_msg_data_type {
 	CEPH_MSG_DATA_NONE,	/* message contains no data payload */
@@ -145,11 +141,7 @@ struct ceph_msg {
 	struct ceph_buffer *middle;
 
 	/* data payload */
-	struct ceph_msg_data	p;	/* pages */
-	struct ceph_msg_data	l;	/* pagelist */
-#ifdef CONFIG_BLOCK
-	struct ceph_msg_data	b;	/* bio */
-#endif /* CONFIG_BLOCK */
+	struct ceph_msg_data	data;
 
 	struct ceph_connection *con;
 	struct list_head list_head;	/* links for connection lists */
