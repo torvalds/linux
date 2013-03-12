@@ -148,6 +148,8 @@ struct worker_pool {
 	struct mutex		assoc_mutex;	/* protect POOL_DISASSOCIATED */
 	struct ida		worker_ida;	/* L: for worker IDs */
 
+	struct workqueue_attrs	*attrs;		/* I: worker attributes */
+
 	/*
 	 * The current concurrency level.  As it's likely to be accessed
 	 * from other CPUs during try_to_wake_up(), put it in a separate
@@ -1566,14 +1568,13 @@ __acquires(&pool->lock)
 		 * against POOL_DISASSOCIATED.
 		 */
 		if (!(pool->flags & POOL_DISASSOCIATED))
-			set_cpus_allowed_ptr(current, get_cpu_mask(pool->cpu));
+			set_cpus_allowed_ptr(current, pool->attrs->cpumask);
 
 		spin_lock_irq(&pool->lock);
 		if (pool->flags & POOL_DISASSOCIATED)
 			return false;
 		if (task_cpu(current) == pool->cpu &&
-		    cpumask_equal(&current->cpus_allowed,
-				  get_cpu_mask(pool->cpu)))
+		    cpumask_equal(&current->cpus_allowed, pool->attrs->cpumask))
 			return true;
 		spin_unlock_irq(&pool->lock);
 
@@ -1679,7 +1680,7 @@ static void rebind_workers(struct worker_pool *pool)
 		 * wq doesn't really matter but let's keep @worker->pool
 		 * and @pwq->pool consistent for sanity.
 		 */
-		if (std_worker_pool_pri(worker->pool))
+		if (worker->pool->attrs->nice < 0)
 			wq = system_highpri_wq;
 		else
 			wq = system_wq;
@@ -1721,7 +1722,7 @@ static struct worker *alloc_worker(void)
  */
 static struct worker *create_worker(struct worker_pool *pool)
 {
-	const char *pri = std_worker_pool_pri(pool) ? "H" : "";
+	const char *pri = pool->attrs->nice < 0  ? "H" : "";
 	struct worker *worker = NULL;
 	int id = -1;
 
@@ -1751,24 +1752,23 @@ static struct worker *create_worker(struct worker_pool *pool)
 	if (IS_ERR(worker->task))
 		goto fail;
 
-	if (std_worker_pool_pri(pool))
-		set_user_nice(worker->task, HIGHPRI_NICE_LEVEL);
+	set_user_nice(worker->task, pool->attrs->nice);
+	set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
 
 	/*
-	 * Determine CPU binding of the new worker depending on
-	 * %POOL_DISASSOCIATED.  The caller is responsible for ensuring the
-	 * flag remains stable across this function.  See the comments
-	 * above the flag definition for details.
-	 *
-	 * As an unbound worker may later become a regular one if CPU comes
-	 * online, make sure every worker has %PF_THREAD_BOUND set.
+	 * %PF_THREAD_BOUND is used to prevent userland from meddling with
+	 * cpumask of workqueue workers.  This is an abuse.  We need
+	 * %PF_NO_SETAFFINITY.
 	 */
-	if (!(pool->flags & POOL_DISASSOCIATED)) {
-		kthread_bind(worker->task, pool->cpu);
-	} else {
-		worker->task->flags |= PF_THREAD_BOUND;
+	worker->task->flags |= PF_THREAD_BOUND;
+
+	/*
+	 * The caller is responsible for ensuring %POOL_DISASSOCIATED
+	 * remains stable across this function.  See the comments above the
+	 * flag definition for details.
+	 */
+	if (pool->flags & POOL_DISASSOCIATED)
 		worker->flags |= WORKER_UNBOUND;
-	}
 
 	return worker;
 fail:
@@ -3123,7 +3123,52 @@ int keventd_up(void)
 	return system_wq != NULL;
 }
 
-static void init_worker_pool(struct worker_pool *pool)
+/**
+ * free_workqueue_attrs - free a workqueue_attrs
+ * @attrs: workqueue_attrs to free
+ *
+ * Undo alloc_workqueue_attrs().
+ */
+void free_workqueue_attrs(struct workqueue_attrs *attrs)
+{
+	if (attrs) {
+		free_cpumask_var(attrs->cpumask);
+		kfree(attrs);
+	}
+}
+
+/**
+ * alloc_workqueue_attrs - allocate a workqueue_attrs
+ * @gfp_mask: allocation mask to use
+ *
+ * Allocate a new workqueue_attrs, initialize with default settings and
+ * return it.  Returns NULL on failure.
+ */
+struct workqueue_attrs *alloc_workqueue_attrs(gfp_t gfp_mask)
+{
+	struct workqueue_attrs *attrs;
+
+	attrs = kzalloc(sizeof(*attrs), gfp_mask);
+	if (!attrs)
+		goto fail;
+	if (!alloc_cpumask_var(&attrs->cpumask, gfp_mask))
+		goto fail;
+
+	cpumask_setall(attrs->cpumask);
+	return attrs;
+fail:
+	free_workqueue_attrs(attrs);
+	return NULL;
+}
+
+/**
+ * init_worker_pool - initialize a newly zalloc'd worker_pool
+ * @pool: worker_pool to initialize
+ *
+ * Initiailize a newly zalloc'd @pool.  It also allocates @pool->attrs.
+ * Returns 0 on success, -errno on failure.
+ */
+static int init_worker_pool(struct worker_pool *pool)
 {
 	spin_lock_init(&pool->lock);
 	pool->flags |= POOL_DISASSOCIATED;
@@ -3141,6 +3186,11 @@ static void init_worker_pool(struct worker_pool *pool)
 	mutex_init(&pool->manager_arb);
 	mutex_init(&pool->assoc_mutex);
 	ida_init(&pool->worker_ida);
+
+	pool->attrs = alloc_workqueue_attrs(GFP_KERNEL);
+	if (!pool->attrs)
+		return -ENOMEM;
+	return 0;
 }
 
 static int alloc_and_link_pwqs(struct workqueue_struct *wq)
@@ -3792,7 +3842,8 @@ out_unlock:
 
 static int __init init_workqueues(void)
 {
-	int cpu;
+	int std_nice[NR_STD_WORKER_POOLS] = { 0, HIGHPRI_NICE_LEVEL };
+	int i, cpu;
 
 	/* make sure we have enough bits for OFFQ pool ID */
 	BUILD_BUG_ON((1LU << (BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT)) <
@@ -3809,9 +3860,17 @@ static int __init init_workqueues(void)
 	for_each_wq_cpu(cpu) {
 		struct worker_pool *pool;
 
+		i = 0;
 		for_each_std_worker_pool(pool, cpu) {
-			init_worker_pool(pool);
+			BUG_ON(init_worker_pool(pool));
 			pool->cpu = cpu;
+
+			if (cpu != WORK_CPU_UNBOUND)
+				cpumask_copy(pool->attrs->cpumask, cpumask_of(cpu));
+			else
+				cpumask_setall(pool->attrs->cpumask);
+
+			pool->attrs->nice = std_nice[i++];
 
 			/* alloc pool ID */
 			BUG_ON(worker_pool_assign_id(pool));

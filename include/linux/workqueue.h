@@ -11,6 +11,7 @@
 #include <linux/lockdep.h>
 #include <linux/threads.h>
 #include <linux/atomic.h>
+#include <linux/cpumask.h>
 
 struct workqueue_struct;
 
@@ -113,6 +114,15 @@ struct delayed_work {
 	/* target workqueue and CPU ->timer uses to queue ->work */
 	struct workqueue_struct *wq;
 	int cpu;
+};
+
+/*
+ * A struct for workqueue attributes.  This can be used to change
+ * attributes of an unbound workqueue.
+ */
+struct workqueue_attrs {
+	int			nice;		/* nice level */
+	cpumask_var_t		cpumask;	/* allowed CPUs */
 };
 
 static inline struct delayed_work *to_delayed_work(struct work_struct *work)
@@ -398,6 +408,9 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
 	alloc_workqueue((name), WQ_UNBOUND | WQ_MEM_RECLAIM, 1)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
+
+struct workqueue_attrs *alloc_workqueue_attrs(gfp_t gfp_mask);
+void free_workqueue_attrs(struct workqueue_attrs *attrs);
 
 extern bool queue_work_on(int cpu, struct workqueue_struct *wq,
 			struct work_struct *work);
