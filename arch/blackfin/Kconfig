@@ -31,7 +31,7 @@ config BLACKFIN
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select ARCH_HAVE_CUSTOM_GPIO_H
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_UID16
 	select VIRT_TO_BUS
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -56,7 +56,7 @@ config ZONE_DMA
 	def_bool y
 
 config GENERIC_GPIO
-	def_bool y
+	def_bool n
 
 config FORCE_MAX_ZONEORDER
 	int
