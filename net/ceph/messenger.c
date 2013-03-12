@@ -1468,6 +1468,10 @@ static void in_msg_pos_next(struct ceph_connection *con, size_t len,
 
 	msg_pos->data_pos += received;
 	msg_pos->page_pos += received;
+#ifdef CONFIG_BLOCK
+	if (ceph_msg_has_bio(msg))
+		(void) ceph_msg_data_advance(&msg->b, received);
+#endif /* CONFIG_BLOCK */
 	if (received < len)
 		return;
 
@@ -2255,23 +2259,14 @@ static int read_partial_message_bio(struct ceph_connection *con,
 				    unsigned int data_len, bool do_datacrc)
 {
 	struct ceph_msg *msg = con->in_msg;
-	struct ceph_msg_pos *msg_pos = &con->in_msg_pos;
-	struct bio_vec *bv;
 	struct page *page;
 	size_t page_offset;
 	size_t length;
-	unsigned int left;
 	int ret;
 
 	BUG_ON(!msg);
-	BUG_ON(!msg->b.bio_iter);
-	bv = bio_iovec_idx(msg->b.bio_iter, msg->b.bio_seg);
-	page = bv->bv_page;
-	page_offset = bv->bv_offset + msg_pos->page_pos;
-	BUG_ON(msg_pos->data_pos >= data_len);
-	left = data_len - msg_pos->data_pos;
-	BUG_ON(msg_pos->page_pos >= bv->bv_len);
-	length = min_t(unsigned int, bv->bv_len - msg_pos->page_pos, left);
+
+	page = ceph_msg_data_next(&msg->b, &page_offset, &length, NULL);
 
 	ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
 	if (ret <= 0)
