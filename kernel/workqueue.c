@@ -3123,6 +3123,26 @@ int keventd_up(void)
 	return system_wq != NULL;
 }
 
+static void init_worker_pool(struct worker_pool *pool)
+{
+	spin_lock_init(&pool->lock);
+	pool->flags |= POOL_DISASSOCIATED;
+	INIT_LIST_HEAD(&pool->worklist);
+	INIT_LIST_HEAD(&pool->idle_list);
+	hash_init(pool->busy_hash);
+
+	init_timer_deferrable(&pool->idle_timer);
+	pool->idle_timer.function = idle_worker_timeout;
+	pool->idle_timer.data = (unsigned long)pool;
+
+	setup_timer(&pool->mayday_timer, pool_mayday_timeout,
+		    (unsigned long)pool);
+
+	mutex_init(&pool->manager_arb);
+	mutex_init(&pool->assoc_mutex);
+	ida_init(&pool->worker_ida);
+}
+
 static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 {
 	bool highpri = wq->flags & WQ_HIGHPRI;
@@ -3790,23 +3810,8 @@ static int __init init_workqueues(void)
 		struct worker_pool *pool;
 
 		for_each_std_worker_pool(pool, cpu) {
-			spin_lock_init(&pool->lock);
+			init_worker_pool(pool);
 			pool->cpu = cpu;
-			pool->flags |= POOL_DISASSOCIATED;
-			INIT_LIST_HEAD(&pool->worklist);
-			INIT_LIST_HEAD(&pool->idle_list);
-			hash_init(pool->busy_hash);
-
-			init_timer_deferrable(&pool->idle_timer);
-			pool->idle_timer.function = idle_worker_timeout;
-			pool->idle_timer.data = (unsigned long)pool;
-
-			setup_timer(&pool->mayday_timer, pool_mayday_timeout,
-				    (unsigned long)pool);
-
-			mutex_init(&pool->manager_arb);
-			mutex_init(&pool->assoc_mutex);
-			ida_init(&pool->worker_ida);
 
 			/* alloc pool ID */
 			BUG_ON(worker_pool_assign_id(pool));
