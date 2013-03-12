@@ -818,6 +818,14 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
 		set_bit(DW_MMC_CARD_NEED_INIT, &slot->flags);
+		/* Power up slot */
+		if (slot->host->pdata->setpower)
+			slot->host->pdata->setpower(slot->id, mmc->ocr_avail);
+		break;
+	case MMC_POWER_OFF:
+		/* Power down slot */
+		if (slot->host->pdata->setpower)
+			slot->host->pdata->setpower(slot->id, 0);
 		break;
 	default:
 		break;
@@ -1676,10 +1684,6 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
 
-			/* Power up slot (before spin_lock, may sleep) */
-			if (present != 0 && host->pdata->setpower)
-				host->pdata->setpower(slot->id, mmc->ocr_avail);
-
 			spin_lock_bh(&host->lock);
 
 			/* Card change detected */
@@ -1761,10 +1765,6 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 			}
 
 			spin_unlock_bh(&host->lock);
-
-			/* Power down slot (after spin_unlock, may sleep) */
-			if (present == 0 && host->pdata->setpower)
-				host->pdata->setpower(slot->id, 0);
 
 			present = dw_mci_get_cd(mmc);
 		}
