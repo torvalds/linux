@@ -6,6 +6,10 @@
 	model = "Avionic Design Medcom-Wide board";
 	compatible = "ad,medcom-wide", "ad,tamonten", "nvidia,tegra20";
 
+	pwm {
+		status = "okay";
+	};
+
 	i2c@7000c000 {
 		wm8903: wm8903@1a {
 			compatible = "wlf,wm8903";
