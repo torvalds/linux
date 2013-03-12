@@ -93,6 +93,7 @@ static __inline__ bool ceph_msg_data_type_valid(enum ceph_msg_data_type type)
 struct ceph_msg_data_cursor {
 	size_t		resid;		/* bytes not yet consumed */
 	bool		last_piece;	/* now at last piece of data item */
+	bool		need_crc;	/* new piece; crc update needed */
 	union {
 #ifdef CONFIG_BLOCK
 		struct {				/* bio */
@@ -156,10 +157,6 @@ struct ceph_msg {
 	struct ceph_msgpool *pool;
 };
 
-struct ceph_msg_pos {
-	bool did_page_crc;   /* true if we've calculated crc for current page */
-};
-
 /* ceph connection fault delay defaults, for exponential backoff */
 #define BASE_DELAY_INTERVAL	(HZ/2)
 #define MAX_DELAY_INTERVAL	(5 * 60 * HZ)
@@ -217,7 +214,6 @@ struct ceph_connection {
 	struct ceph_msg *out_msg;        /* sending message (== tail of
 					    out_sent) */
 	bool out_msg_done;
-	struct ceph_msg_pos out_msg_pos;
 
 	struct kvec out_kvec[8],         /* sending header/footer data */
 		*out_kvec_cur;
@@ -231,7 +227,6 @@ struct ceph_connection {
 	/* message in temps */
 	struct ceph_msg_header in_hdr;
 	struct ceph_msg *in_msg;
-	struct ceph_msg_pos in_msg_pos;
 	u32 in_front_crc, in_middle_crc, in_data_crc;  /* calculated crc */
 
 	char in_tag;         /* protocol control byte */
