@@ -1225,7 +1225,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	debug_work_activate(work);
 
 	/* if dying, only works from the same workqueue are allowed */
-	if (unlikely(wq->flags & WQ_DRAINING) &&
+	if (unlikely(wq->flags & __WQ_DRAINING) &&
 	    WARN_ON_ONCE(!is_chained_work(wq)))
 		return;
 retry:
@@ -2763,11 +2763,11 @@ void drain_workqueue(struct workqueue_struct *wq)
 	/*
 	 * __queue_work() needs to test whether there are drainers, is much
 	 * hotter than drain_workqueue() and already looks at @wq->flags.
-	 * Use WQ_DRAINING so that queue doesn't have to check nr_drainers.
+	 * Use __WQ_DRAINING so that queue doesn't have to check nr_drainers.
 	 */
 	spin_lock_irq(&workqueue_lock);
 	if (!wq->nr_drainers++)
-		wq->flags |= WQ_DRAINING;
+		wq->flags |= __WQ_DRAINING;
 	spin_unlock_irq(&workqueue_lock);
 reflush:
 	flush_workqueue(wq);
@@ -2795,7 +2795,7 @@ reflush:
 
 	spin_lock(&workqueue_lock);
 	if (!--wq->nr_drainers)
-		wq->flags &= ~WQ_DRAINING;
+		wq->flags &= ~__WQ_DRAINING;
 	spin_unlock(&workqueue_lock);
 
 	local_irq_enable();
