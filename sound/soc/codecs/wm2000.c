@@ -190,9 +190,9 @@ static int wm2000_power_up(struct i2c_client *i2c, int analogue)
 
 	ret = wm2000_read(i2c, WM2000_REG_SPEECH_CLARITY);
 	if (wm2000->speech_clarity)
-		ret &= ~WM2000_SPEECH_CLARITY;
-	else
 		ret |= WM2000_SPEECH_CLARITY;
+	else
+		ret &= ~WM2000_SPEECH_CLARITY;
 	wm2000_write(i2c, WM2000_REG_SPEECH_CLARITY, ret);
 
 	wm2000_write(i2c, WM2000_REG_SYS_START0, 0x33);
@@ -692,7 +692,7 @@ static int wm2000_resume(struct snd_soc_codec *codec)
 #endif
 
 static const struct regmap_config wm2000_regmap = {
-	.reg_bits = 8,
+	.reg_bits = 16,
 	.val_bits = 8,
 };
 

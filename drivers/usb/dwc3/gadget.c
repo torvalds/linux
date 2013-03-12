@@ -238,8 +238,11 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 	if (req->request.status == -EINPROGRESS)
 		req->request.status = status;
 
-	usb_gadget_unmap_request(&dwc->gadget, &req->request,
-			req->direction);
+	if (dwc->ep0_bounced && dep->number == 0)
+		dwc->ep0_bounced = false;
+	else
+		usb_gadget_unmap_request(&dwc->gadget, &req->request,
+				req->direction);
 
 	dev_dbg(dwc->dev, "request %p from %s completed %d/%d ===> %d\n",
 			req, dep->name, req->request.actual,
@@ -1450,6 +1453,7 @@ static int __devinit dwc3_gadget_init_endpoints(struct dwc3 *dwc)
 
 		if (epnum == 0 || epnum == 1) {
 			dep->endpoint.maxpacket = 512;
+			dep->endpoint.maxburst = 1;
 			dep->endpoint.ops = &dwc3_gadget_ep0_ops;
 			if (!epnum)
 				dwc->gadget.ep0 = &dep->endpoint;
@@ -1774,6 +1778,7 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum)
 		ret = dwc3_send_gadget_ep_cmd(dwc, dep->number, cmd, &params);
 		WARN_ON_ONCE(ret);
 		dep->res_trans_idx = 0;
+		dep->flags &= ~DWC3_EP_BUSY;
 	}
 }
 

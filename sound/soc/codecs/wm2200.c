@@ -897,8 +897,6 @@ static const char *wm2200_mixer_texts[] = {
 	"EQR",
 	"LHPF1",
 	"LHPF2",
-	"LHPF3",
-	"LHPF4",
 	"DSP1.1",
 	"DSP1.2",
 	"DSP1.3",
@@ -931,7 +929,6 @@ static int wm2200_mixer_values[] = {
 	0x25,
 	0x50,   /* EQ */
 	0x51,
-	0x52,
 	0x60,   /* LHPF1 */
 	0x61,   /* LHPF2 */
 	0x68,   /* DSP1 */
@@ -993,9 +990,9 @@ SOC_DOUBLE_R_TLV("IN3 Volume", WM2200_IN3L_CONTROL, WM2200_IN3R_CONTROL,
 
 SOC_DOUBLE_R("IN1 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_1L,
 	     WM2200_ADC_DIGITAL_VOLUME_1R, WM2200_IN1L_MUTE_SHIFT, 1, 1),
-SOC_DOUBLE_R("IN2 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_1L,
+SOC_DOUBLE_R("IN2 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_2L,
 	     WM2200_ADC_DIGITAL_VOLUME_2R, WM2200_IN2L_MUTE_SHIFT, 1, 1),
-SOC_DOUBLE_R("IN3 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_1L,
+SOC_DOUBLE_R("IN3 Digital Switch", WM2200_ADC_DIGITAL_VOLUME_3L,
 	     WM2200_ADC_DIGITAL_VOLUME_3R, WM2200_IN3L_MUTE_SHIFT, 1, 1),
 
 SOC_DOUBLE_R_TLV("IN1 Digital Volume", WM2200_ADC_DIGITAL_VOLUME_1L,
@@ -1028,7 +1025,7 @@ SOC_DOUBLE_R_TLV("OUT2 Digital Volume", WM2200_DAC_DIGITAL_VOLUME_2L,
 		 WM2200_DAC_DIGITAL_VOLUME_2R, WM2200_OUT2L_VOL_SHIFT, 0x9f, 0,
 		 digital_tlv),
 SOC_DOUBLE("OUT2 Switch", WM2200_PDM_1, WM2200_SPK1L_MUTE_SHIFT,
-	   WM2200_SPK1R_MUTE_SHIFT, 1, 0),
+	   WM2200_SPK1R_MUTE_SHIFT, 1, 1),
 };
 
 WM2200_MIXER_ENUMS(OUT1L, WM2200_OUT1LMIX_INPUT_1_SOURCE);
@@ -1380,14 +1377,8 @@ static int wm2200_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		fmt_val = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		fmt_val = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		fmt_val = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		fmt_val = 3;
 		break;
 	default:
 		dev_err(codec->dev, "Unsupported DAI format %d\n",
@@ -1440,7 +1431,7 @@ static int wm2200_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			    WM2200_AIF1TX_LRCLK_MSTR | WM2200_AIF1TX_LRCLK_INV,
 			    lrclk);
 	snd_soc_update_bits(codec, WM2200_AUDIO_IF_1_5,
-			    WM2200_AIF1_FMT_MASK << 1, fmt_val << 1);
+			    WM2200_AIF1_FMT_MASK, fmt_val);
 
 	return 0;
 }
@@ -2091,6 +2082,7 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 
 	switch (wm2200->rev) {
 	case 0:
+	case 1:
 		ret = regmap_register_patch(wm2200->regmap, wm2200_reva_patch,
 					    ARRAY_SIZE(wm2200_reva_patch));
 		if (ret != 0) {

@@ -162,10 +162,14 @@ static int digsig_verify_rsa(struct key *key,
 	memset(out1, 0, head);
 	memcpy(out1 + head, p, l);
 
-	err = pkcs_1_v1_5_decode_emsa(out1, len, mblen, out2, &len);
+	kfree(p);
 
-	if (!err && len == hlen)
-		err = memcmp(out2, h, hlen);
+	err = pkcs_1_v1_5_decode_emsa(out1, len, mblen, out2, &len);
+	if (err)
+		goto err;
+
+	if (len != hlen || memcmp(out2, h, hlen))
+		err = -EINVAL;
 
 err:
 	mpi_free(in);

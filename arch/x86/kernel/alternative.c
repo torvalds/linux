@@ -160,7 +160,7 @@ static const unsigned char * const k7_nops[ASM_NOP_MAX+2] =
 #endif
 
 #ifdef P6_NOP1
-static const unsigned char  __initconst_or_module p6nops[] =
+static const unsigned char p6nops[] =
 {
 	P6_NOP1,
 	P6_NOP2,
@@ -219,7 +219,7 @@ void __init arch_init_ideal_nops(void)
 			ideal_nops = intel_nops;
 #endif
 		}
-
+		break;
 	default:
 #ifdef CONFIG_X86_64
 		ideal_nops = k8_nops;

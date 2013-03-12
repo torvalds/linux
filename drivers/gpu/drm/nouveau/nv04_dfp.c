@@ -476,7 +476,7 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
-	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
+	NV_DEBUG(dev, "Output %s is running on CRTC %d using output %c\n",
 		drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
 		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
 }
@@ -504,7 +504,7 @@ static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
 
 static inline bool is_powersaving_dpms(int mode)
 {
-	return (mode != DRM_MODE_DPMS_ON);
+	return mode != DRM_MODE_DPMS_ON && mode != NV_DPMS_CLEARED;
 }
 
 static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
@@ -519,7 +519,7 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 		return;
 	nv_encoder->last_dpms = mode;
 
-	NV_INFO(dev, "Setting dpms mode %d on lvds encoder (output %d)\n",
+	NV_DEBUG(dev, "Setting dpms mode %d on lvds encoder (output %d)\n",
 		     mode, nv_encoder->dcb->index);
 
 	if (was_powersaving && is_powersaving_dpms(mode))
@@ -564,7 +564,7 @@ static void nv04_tmds_dpms(struct drm_encoder *encoder, int mode)
 		return;
 	nv_encoder->last_dpms = mode;
 
-	NV_INFO(dev, "Setting dpms mode %d on tmds encoder (output %d)\n",
+	NV_DEBUG(dev, "Setting dpms mode %d on tmds encoder (output %d)\n",
 		     mode, nv_encoder->dcb->index);
 
 	nv04_dfp_update_backlight(encoder, mode);

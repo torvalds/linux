@@ -229,6 +229,7 @@ enum tcm_sense_reason_table {
 	TCM_CHECK_CONDITION_UNIT_ATTENTION	= 0x0e,
 	TCM_CHECK_CONDITION_NOT_READY		= 0x0f,
 	TCM_RESERVATION_CONFLICT		= 0x10,
+	TCM_ADDRESS_OUT_OF_RANGE		= 0x11,
 };
 
 enum target_sc_flags_table {
@@ -778,6 +779,8 @@ struct se_subsystem_dev {
 };
 
 struct se_device {
+#define SE_DEV_LINK_MAGIC			0xfeeddeef
+	u32			dev_link_magic;
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
 	u16			dev_rpti_counter;
 	/* Used for SAM Task Attribute ordering */
@@ -868,6 +871,8 @@ struct se_port_stat_grps {
 };
 
 struct se_lun {
+#define SE_LUN_LINK_MAGIC			0xffff7771
+	u32			lun_link_magic;
 	/* See transport_lun_status_table */
 	enum transport_lun_status_table lun_status;
 	u32			lun_access;

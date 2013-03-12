@@ -185,6 +185,7 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
 		    struct page **pages, unsigned int count);
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
-		      struct page **pages, unsigned int count, bool clear_pte);
+		      struct gnttab_map_grant_ref *kunmap_ops,
+		      struct page **pages, unsigned int count);
 
 #endif /* __ASM_GNTTAB_H__ */

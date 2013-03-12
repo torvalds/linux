@@ -713,10 +713,15 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	if (radeon_connector->router.ddc_valid)
 		radeon_router_select_ddc_port(radeon_connector);
 
-	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
-	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) ||
-	    (radeon_connector_encoder_get_dp_bridge_encoder_id(&radeon_connector->base) !=
-	     ENCODER_OBJECT_ID_NONE)) {
+	if (radeon_connector_encoder_get_dp_bridge_encoder_id(&radeon_connector->base) !=
+	    ENCODER_OBJECT_ID_NONE) {
+		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
+
+		if (dig->dp_i2c_bus)
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
+							      &dig->dp_i2c_bus->adapter);
+	} else if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
+		   (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
 
 		if ((dig->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
@@ -1124,14 +1129,16 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	}
 
 	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
-	if (radeon_fb == NULL)
+	if (radeon_fb == NULL) {
+		drm_gem_object_unreference_unlocked(obj);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	ret = radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
 	if (ret) {
 		kfree(radeon_fb);
 		drm_gem_object_unreference_unlocked(obj);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	return &radeon_fb->base;

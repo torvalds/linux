@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
+#include <linux/efi.h>
 #if (defined CONFIG_ACPI_VIDEO || defined CONFIG_ACPI_VIDEO_MODULE)
 #include <acpi/video.h>
 #endif
@@ -1506,6 +1507,16 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 		},
 	 .driver_data = &samsung_broken_acpi_video,
 	},
+	{
+	 .callback = samsung_dmi_matched,
+	 .ident = "N250P",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "N250P"),
+		DMI_MATCH(DMI_BOARD_NAME, "N250P"),
+		},
+	 .driver_data = &samsung_broken_acpi_video,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(dmi, samsung_dmi_table);
@@ -1516,6 +1527,9 @@ static int __init samsung_init(void)
 {
 	struct samsung_laptop *samsung;
 	int ret;
+
+	if (efi_enabled(EFI_BOOT))
+		return -ENODEV;
 
 	quirks = &samsung_unknown;
 	if (!force && !dmi_check_system(samsung_dmi_table))

@@ -1821,8 +1821,14 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
 
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
 		/* if we're here, all write(s) have completed, so clean up */
-		md_done_sync(mddev, r1_bio->sectors, 1);
-		put_buf(r1_bio);
+		int s = r1_bio->sectors;
+		if (test_bit(R1BIO_MadeGood, &r1_bio->state) ||
+		    test_bit(R1BIO_WriteError, &r1_bio->state))
+			reschedule_retry(r1_bio);
+		else {
+			put_buf(r1_bio);
+			md_done_sync(mddev, s, 1);
+		}
 	}
 }
 
@@ -2423,7 +2429,10 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 		/* There is nowhere to write, so all non-sync
 		 * drives must be failed - so we are finished
 		 */
-		sector_t rv = max_sector - sector_nr;
+		sector_t rv;
+		if (min_bad > 0)
+			max_sector = sector_nr + min_bad;
+		rv = max_sector - sector_nr;
 		*skipped = 1;
 		put_buf(r1_bio);
 		return rv;
@@ -2486,9 +2495,10 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 	 */
 	if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
 		atomic_set(&r1_bio->remaining, read_targets);
-		for (i = 0; i < conf->raid_disks * 2; i++) {
+		for (i = 0; i < conf->raid_disks * 2 && read_targets; i++) {
 			bio = r1_bio->bios[i];
 			if (bio->bi_end_io == end_sync_read) {
+				read_targets--;
 				md_sync_acct(bio->bi_bdev, nr_sectors);
 				generic_make_request(bio);
 			}
@@ -2554,7 +2564,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 		    || disk_idx < 0)
 			continue;
 		if (test_bit(Replacement, &rdev->flags))
-			disk = conf->mirrors + conf->raid_disks + disk_idx;
+			disk = conf->mirrors + mddev->raid_disks + disk_idx;
 		else
 			disk = conf->mirrors + disk_idx;
 

@@ -234,7 +234,7 @@ static int pgid_cmp(struct pgid *p1, struct pgid *p2)
  * Determine pathgroup state from PGID data.
  */
 static void pgid_analyze(struct ccw_device *cdev, struct pgid **p,
-			 int *mismatch, int *reserved, u8 *reset)
+			 int *mismatch, u8 *reserved, u8 *reset)
 {
 	struct pgid *pgid = &cdev->private->pgid[0];
 	struct pgid *first = NULL;
@@ -248,7 +248,7 @@ static void pgid_analyze(struct ccw_device *cdev, struct pgid **p,
 		if ((cdev->private->pgid_valid_mask & lpm) == 0)
 			continue;
 		if (pgid->inf.ps.state2 == SNID_STATE2_RESVD_ELSE)
-			*reserved = 1;
+			*reserved |= lpm;
 		if (pgid_is_reset(pgid)) {
 			*reset |= lpm;
 			continue;
@@ -316,14 +316,14 @@ static void snid_done(struct ccw_device *cdev, int rc)
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct pgid *pgid;
 	int mismatch = 0;
-	int reserved = 0;
+	u8 reserved = 0;
 	u8 reset = 0;
 	u8 donepm;
 
 	if (rc)
 		goto out;
 	pgid_analyze(cdev, &pgid, &mismatch, &reserved, &reset);
-	if (reserved)
+	if (reserved == cdev->private->pgid_valid_mask)
 		rc = -EUSERS;
 	else if (mismatch)
 		rc = -EOPNOTSUPP;
@@ -336,7 +336,7 @@ static void snid_done(struct ccw_device *cdev, int rc)
 	}
 out:
 	CIO_MSG_EVENT(2, "snid: device 0.%x.%04x: rc=%d pvm=%02x vpm=%02x "
-		      "todo=%02x mism=%d rsvd=%d reset=%02x\n", id->ssid,
+		      "todo=%02x mism=%d rsvd=%02x reset=%02x\n", id->ssid,
 		      id->devno, rc, cdev->private->pgid_valid_mask, sch->vpm,
 		      cdev->private->pgid_todo_mask, mismatch, reserved, reset);
 	switch (rc) {

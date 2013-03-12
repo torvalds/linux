@@ -64,14 +64,33 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 
 	/* just deal with DP (not eDP) here. */
 	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
-		int saved_dpms = connector->dpms;
+		struct radeon_connector_atom_dig *dig_connector =
+			radeon_connector->con_priv;
 
-		/* Only turn off the display it it's physically disconnected */
-		if (!radeon_hpd_sense(rdev, radeon_connector->hpd.hpd))
-			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
-		else if (radeon_dp_needs_link_train(radeon_connector))
-			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
-		connector->dpms = saved_dpms;
+		/* if existing sink type was not DP no need to retrain */
+		if (dig_connector->dp_sink_type != CONNECTOR_OBJECT_ID_DISPLAYPORT)
+			return;
+
+		/* first get sink type as it may be reset after (un)plug */
+		dig_connector->dp_sink_type = radeon_dp_getsinktype(radeon_connector);
+		/* don't do anything if sink is not display port, i.e.,
+		 * passive dp->(dvi|hdmi) adaptor
+		 */
+		if (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+			int saved_dpms = connector->dpms;
+			/* Only turn off the display if it's physically disconnected */
+			if (!radeon_hpd_sense(rdev, radeon_connector->hpd.hpd)) {
+				drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+			} else if (radeon_dp_needs_link_train(radeon_connector)) {
+				/* set it to OFF so that drm_helper_connector_dpms()
+				 * won't return immediately since the current state
+				 * is ON at this point.
+				 */
+				connector->dpms = DRM_MODE_DPMS_OFF;
+				drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+			}
+			connector->dpms = saved_dpms;
+		}
 	}
 }
 
@@ -670,7 +689,7 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 		ret = connector_status_disconnected;
 
 	if (radeon_connector->ddc_bus)
-		dret = radeon_ddc_probe(radeon_connector);
+		dret = radeon_ddc_probe(radeon_connector, false);
 	if (dret) {
 		radeon_connector->detected_by_load = false;
 		if (radeon_connector->edid) {
@@ -876,7 +895,7 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 		return connector->status;
 
 	if (radeon_connector->ddc_bus)
-		dret = radeon_ddc_probe(radeon_connector);
+		dret = radeon_ddc_probe(radeon_connector, false);
 	if (dret) {
 		radeon_connector->detected_by_load = false;
 		if (radeon_connector->edid) {
@@ -1316,7 +1335,8 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 		if (encoder) {
 			/* setup ddc on the bridge */
 			radeon_atom_ext_encoder_setup_ddc(encoder);
-			if (radeon_ddc_probe(radeon_connector)) /* try DDC */
+			/* bridge chips are always aux */
+			if (radeon_ddc_probe(radeon_connector, true)) /* try DDC */
 				ret = connector_status_connected;
 			else if (radeon_connector->dac_load_detect) { /* try load detection */
 				struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
@@ -1334,7 +1354,8 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 				if (radeon_dp_getdpcd(radeon_connector))
 					ret = connector_status_connected;
 			} else {
-				if (radeon_ddc_probe(radeon_connector))
+				/* try non-aux ddc (DP to DVI/HMDI/etc. adapter) */
+				if (radeon_ddc_probe(radeon_connector, false))
 					ret = connector_status_connected;
 			}
 		}

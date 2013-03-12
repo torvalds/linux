@@ -885,7 +885,6 @@ static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
 				struct completion *completion, int is_tmf,
 				struct mvs_tmf_task *tmf)
 {
-	struct domain_device *dev = task->dev;
 	struct mvs_info *mvi = NULL;
 	u32 rc = 0;
 	u32 pass = 0;
@@ -1630,7 +1629,7 @@ int mvs_abort_task(struct sas_task *task)
 			mv_dprintk("mvs_abort_task() mvi=%p task=%p "
 				   "slot=%p slot_idx=x%x\n",
 				   mvi, task, slot, slot_idx);
-			mvs_tmf_timedout((unsigned long)task);
+			task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 			mvs_slot_task_free(mvi, task, slot, slot_idx);
 			rc = TMF_RESP_FUNC_COMPLETE;
 			goto out;

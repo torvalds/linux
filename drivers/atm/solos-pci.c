@@ -967,10 +967,11 @@ static uint32_t fpga_tx(struct solos_card *card)
 	for (port = 0; tx_pending; tx_pending >>= 1, port++) {
 		if (tx_pending & 1) {
 			struct sk_buff *oldskb = card->tx_skb[port];
-			if (oldskb)
+			if (oldskb) {
 				pci_unmap_single(card->dev, SKB_CB(oldskb)->dma_addr,
 						 oldskb->len, PCI_DMA_TODEVICE);
-
+				card->tx_skb[port] = NULL;
+			}
 			spin_lock(&card->tx_queue_lock);
 			skb = skb_dequeue(&card->tx_queue[port]);
 			if (!skb)

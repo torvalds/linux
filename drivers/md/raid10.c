@@ -476,7 +476,7 @@ static void raid10_end_write_request(struct bio *bio, int error)
 	 */
 	one_write_done(r10_bio);
 	if (dec_rdev)
-		rdev_dec_pending(conf->mirrors[dev].rdev, conf->mddev);
+		rdev_dec_pending(rdev, conf->mddev);
 }
 
 /*
@@ -612,20 +612,24 @@ static int raid10_mergeable_bvec(struct request_queue *q,
 		max = biovec->bv_len;
 
 	if (mddev->merge_check_needed) {
-		struct r10bio r10_bio;
+		struct {
+			struct r10bio r10_bio;
+			struct r10dev devs[conf->copies];
+		} on_stack;
+		struct r10bio *r10_bio = &on_stack.r10_bio;
 		int s;
-		r10_bio.sector = sector;
-		raid10_find_phys(conf, &r10_bio);
+		r10_bio->sector = sector;
+		raid10_find_phys(conf, r10_bio);
 		rcu_read_lock();
 		for (s = 0; s < conf->copies; s++) {
-			int disk = r10_bio.devs[s].devnum;
+			int disk = r10_bio->devs[s].devnum;
 			struct md_rdev *rdev = rcu_dereference(
 				conf->mirrors[disk].rdev);
 			if (rdev && !test_bit(Faulty, &rdev->flags)) {
 				struct request_queue *q =
 					bdev_get_queue(rdev->bdev);
 				if (q->merge_bvec_fn) {
-					bvm->bi_sector = r10_bio.devs[s].addr
+					bvm->bi_sector = r10_bio->devs[s].addr
 						+ rdev->data_offset;
 					bvm->bi_bdev = rdev->bdev;
 					max = min(max, q->merge_bvec_fn(
@@ -637,7 +641,7 @@ static int raid10_mergeable_bvec(struct request_queue *q,
 				struct request_queue *q =
 					bdev_get_queue(rdev->bdev);
 				if (q->merge_bvec_fn) {
-					bvm->bi_sector = r10_bio.devs[s].addr
+					bvm->bi_sector = r10_bio->devs[s].addr
 						+ rdev->data_offset;
 					bvm->bi_bdev = rdev->bdev;
 					max = min(max, q->merge_bvec_fn(
@@ -1178,18 +1182,21 @@ retry_write:
 			blocked_rdev = rrdev;
 			break;
 		}
+		if (rdev && (test_bit(Faulty, &rdev->flags)
+			     || test_bit(Unmerged, &rdev->flags)))
+			rdev = NULL;
 		if (rrdev && (test_bit(Faulty, &rrdev->flags)
 			      || test_bit(Unmerged, &rrdev->flags)))
 			rrdev = NULL;
 
 		r10_bio->devs[i].bio = NULL;
 		r10_bio->devs[i].repl_bio = NULL;
-		if (!rdev || test_bit(Faulty, &rdev->flags) ||
-		    test_bit(Unmerged, &rdev->flags)) {
+
+		if (!rdev && !rrdev) {
 			set_bit(R10BIO_Degraded, &r10_bio->state);
 			continue;
 		}
-		if (test_bit(WriteErrorSeen, &rdev->flags)) {
+		if (rdev && test_bit(WriteErrorSeen, &rdev->flags)) {
 			sector_t first_bad;
 			sector_t dev_sector = r10_bio->devs[i].addr;
 			int bad_sectors;
@@ -1231,8 +1238,10 @@ retry_write:
 					max_sectors = good_sectors;
 			}
 		}
-		r10_bio->devs[i].bio = bio;
-		atomic_inc(&rdev->nr_pending);
+		if (rdev) {
+			r10_bio->devs[i].bio = bio;
+			atomic_inc(&rdev->nr_pending);
+		}
 		if (rrdev) {
 			r10_bio->devs[i].repl_bio = bio;
 			atomic_inc(&rrdev->nr_pending);
@@ -1288,51 +1297,52 @@ retry_write:
 	for (i = 0; i < conf->copies; i++) {
 		struct bio *mbio;
 		int d = r10_bio->devs[i].devnum;
-		if (!r10_bio->devs[i].bio)
-			continue;
+		if (r10_bio->devs[i].bio) {
+			struct md_rdev *rdev = conf->mirrors[d].rdev;
+			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+			md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
+				    max_sectors);
+			r10_bio->devs[i].bio = mbio;
 
-		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
-			    max_sectors);
-		r10_bio->devs[i].bio = mbio;
+			mbio->bi_sector	= (r10_bio->devs[i].addr+
+					   rdev->data_offset);
+			mbio->bi_bdev = rdev->bdev;
+			mbio->bi_end_io	= raid10_end_write_request;
+			mbio->bi_rw = WRITE | do_sync | do_fua;
+			mbio->bi_private = r10_bio;
 
-		mbio->bi_sector	= (r10_bio->devs[i].addr+
-				   conf->mirrors[d].rdev->data_offset);
-		mbio->bi_bdev = conf->mirrors[d].rdev->bdev;
-		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | do_sync | do_fua;
-		mbio->bi_private = r10_bio;
+			atomic_inc(&r10_bio->remaining);
+			spin_lock_irqsave(&conf->device_lock, flags);
+			bio_list_add(&conf->pending_bio_list, mbio);
+			conf->pending_count++;
+			spin_unlock_irqrestore(&conf->device_lock, flags);
+		}
 
-		atomic_inc(&r10_bio->remaining);
-		spin_lock_irqsave(&conf->device_lock, flags);
-		bio_list_add(&conf->pending_bio_list, mbio);
-		conf->pending_count++;
-		spin_unlock_irqrestore(&conf->device_lock, flags);
+		if (r10_bio->devs[i].repl_bio) {
+			struct md_rdev *rdev = conf->mirrors[d].replacement;
+			if (rdev == NULL) {
+				/* Replacement just got moved to main 'rdev' */
+				smp_mb();
+				rdev = conf->mirrors[d].rdev;
+			}
+			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+			md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
+				    max_sectors);
+			r10_bio->devs[i].repl_bio = mbio;
 
-		if (!r10_bio->devs[i].repl_bio)
-			continue;
+			mbio->bi_sector	= (r10_bio->devs[i].addr+
+					   rdev->data_offset);
+			mbio->bi_bdev = rdev->bdev;
+			mbio->bi_end_io	= raid10_end_write_request;
+			mbio->bi_rw = WRITE | do_sync | do_fua;
+			mbio->bi_private = r10_bio;
 
-		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
-			    max_sectors);
-		r10_bio->devs[i].repl_bio = mbio;
-
-		/* We are actively writing to the original device
-		 * so it cannot disappear, so the replacement cannot
-		 * become NULL here
-		 */
-		mbio->bi_sector	= (r10_bio->devs[i].addr+
-				   conf->mirrors[d].replacement->data_offset);
-		mbio->bi_bdev = conf->mirrors[d].replacement->bdev;
-		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | do_sync | do_fua;
-		mbio->bi_private = r10_bio;
-
-		atomic_inc(&r10_bio->remaining);
-		spin_lock_irqsave(&conf->device_lock, flags);
-		bio_list_add(&conf->pending_bio_list, mbio);
-		conf->pending_count++;
-		spin_unlock_irqrestore(&conf->device_lock, flags);
+			atomic_inc(&r10_bio->remaining);
+			spin_lock_irqsave(&conf->device_lock, flags);
+			bio_list_add(&conf->pending_bio_list, mbio);
+			conf->pending_count++;
+			spin_unlock_irqrestore(&conf->device_lock, flags);
+		}
 	}
 
 	/* Don't remove the bias on 'remaining' (one_write_done) until
@@ -3015,7 +3025,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 				else {
 					bad_sectors -= (sector - first_bad);
 					if (max_sync > bad_sectors)
-						max_sync = max_sync;
+						max_sync = bad_sectors;
 					continue;
 				}
 			}

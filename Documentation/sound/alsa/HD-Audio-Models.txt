@@ -21,10 +21,11 @@ ALC267/268
 ==========
   N/A
 
-ALC269
+ALC269/270/275/276/280/282
 ======
   laptop-amic	Laptops with analog-mic input
   laptop-dmic	Laptops with digital-mic input
+  lenovo-dock   Enables docking station I/O for some Lenovos
 
 ALC662/663/272
 ==============
@@ -46,6 +47,7 @@ ALC882/883/885/888/889
   acer-aspire-4930g	Acer Aspire 4930G/5930G/6530G/6930G/7730G
   acer-aspire-8930g	Acer Aspire 8330G/6935G
   acer-aspire		Acer Aspire others
+  no-primary-hp		VAIO Z workaround (for fixed speaker DAC)
 
 ALC861/660
 ==========

@@ -496,6 +496,11 @@ extern void efi_map_pal_code (void);
 extern void efi_memmap_walk (efi_freemem_callback_t callback, void *arg);
 extern void efi_gettimeofday (struct timespec *ts);
 extern void efi_enter_virtual_mode (void);	/* switch EFI to virtual mode, if possible */
+#ifdef CONFIG_X86
+extern void efi_free_boot_services(void);
+#else
+static inline void efi_free_boot_services(void) {}
+#endif
 extern u64 efi_get_iobase (void);
 extern u32 efi_mem_type (unsigned long phys_addr);
 extern u64 efi_mem_attributes (unsigned long phys_addr);
@@ -534,18 +539,30 @@ extern int __init efi_setup_pcdp_console(char *);
 #endif
 
 /*
- * We play games with efi_enabled so that the compiler will, if possible, remove
- * EFI-related code altogether.
+ * We play games with efi_enabled so that the compiler will, if
+ * possible, remove EFI-related code altogether.
  */
+#define EFI_BOOT		0	/* Were we booted from EFI? */
+#define EFI_SYSTEM_TABLES	1	/* Can we use EFI system tables? */
+#define EFI_CONFIG_TABLES	2	/* Can we use EFI config tables? */
+#define EFI_RUNTIME_SERVICES	3	/* Can we use runtime services? */
+#define EFI_MEMMAP		4	/* Can we use EFI memory map? */
+#define EFI_64BIT		5	/* Is the firmware 64-bit? */
+
 #ifdef CONFIG_EFI
 # ifdef CONFIG_X86
-   extern int efi_enabled;
-   extern bool efi_64bit;
+extern int efi_enabled(int facility);
 # else
-#  define efi_enabled 1
+static inline int efi_enabled(int facility)
+{
+	return 1;
+}
 # endif
 #else
-# define efi_enabled 0
+static inline int efi_enabled(int facility)
+{
+	return 0;
+}
 #endif
 
 /*

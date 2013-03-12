@@ -1018,7 +1018,7 @@ int vmw_event_fence_action_create(struct drm_file *file_priv,
 	}
 
 
-	event = kzalloc(sizeof(event->event), GFP_KERNEL);
+	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (unlikely(event == NULL)) {
 		DRM_ERROR("Failed to allocate an event.\n");
 		ret = -ENOMEM;

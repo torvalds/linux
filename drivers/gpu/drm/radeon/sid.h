@@ -413,6 +413,7 @@
 #       define RDERR_INT_ENABLE                         (1 << 0)
 #       define GUI_IDLE_INT_ENABLE                      (1 << 19)
 
+#define	CP_STRMOUT_CNTL					0x84FC
 #define	SCRATCH_REG0					0x8500
 #define	SCRATCH_REG1					0x8504
 #define	SCRATCH_REG2					0x8508

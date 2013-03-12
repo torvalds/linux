@@ -1158,6 +1158,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum_insertion);
 		wmb();
 		priv->hw->desc->set_tx_owner(desc);
+		wmb();
 	}
 
 	/* Interrupt on completition only for the latest segment */
@@ -1173,6 +1174,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* To avoid raise condition */
 	priv->hw->desc->set_tx_owner(first);
+	wmb();
 
 	priv->cur_tx++;
 
@@ -1236,6 +1238,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 		}
 		wmb();
 		priv->hw->desc->set_rx_owner(p + entry);
+		wmb();
 	}
 }
 

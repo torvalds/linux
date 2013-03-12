@@ -495,15 +495,16 @@ static int __decode_pool_names(void **p, void *end, struct ceph_osdmap *map)
 		ceph_decode_32_safe(p, end, pool, bad);
 		ceph_decode_32_safe(p, end, len, bad);
 		dout("  pool %d len %d\n", pool, len);
+		ceph_decode_need(p, end, len, bad);
 		pi = __lookup_pg_pool(&map->pg_pools, pool);
 		if (pi) {
+			char *name = kstrndup(*p, len, GFP_NOFS);
+
+			if (!name)
+				return -ENOMEM;
 			kfree(pi->name);
-			pi->name = kmalloc(len + 1, GFP_NOFS);
-			if (pi->name) {
-				memcpy(pi->name, *p, len);
-				pi->name[len] = '\0';
-				dout("  name is %s\n", pi->name);
-			}
+			pi->name = name;
+			dout("  name is %s\n", pi->name);
 		}
 		*p += len;
 	}
@@ -612,10 +613,12 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	ceph_decode_32_safe(p, end, max, bad);
 	while (max--) {
 		ceph_decode_need(p, end, 4 + 1 + sizeof(pi->v), bad);
+		err = -ENOMEM;
 		pi = kzalloc(sizeof(*pi), GFP_NOFS);
 		if (!pi)
 			goto bad;
 		pi->id = ceph_decode_32(p);
+		err = -EINVAL;
 		ev = ceph_decode_8(p); /* encoding version */
 		if (ev > CEPH_PG_POOL_VERSION) {
 			pr_warning("got unknown v %d > %d of ceph_pg_pool\n",
@@ -631,8 +634,13 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		__insert_pg_pool(&map->pg_pools, pi);
 	}
 
-	if (version >= 5 && __decode_pool_names(p, end, map) < 0)
-		goto bad;
+	if (version >= 5) {
+		err = __decode_pool_names(p, end, map);
+		if (err < 0) {
+			dout("fail to decode pool names");
+			goto bad;
+		}
+	}
 
 	ceph_decode_32_safe(p, end, map->pool_max, bad);
 
@@ -673,6 +681,9 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		ceph_decode_need(p, end, sizeof(u32) + sizeof(u64), bad);
 		ceph_decode_copy(p, &pgid, sizeof(pgid));
 		n = ceph_decode_32(p);
+		err = -EINVAL;
+		if (n > (UINT_MAX - sizeof(*pg)) / sizeof(u32))
+			goto bad;
 		ceph_decode_need(p, end, n * sizeof(u32), bad);
 		err = -ENOMEM;
 		pg = kmalloc(sizeof(*pg) + n*sizeof(u32), GFP_NOFS);
@@ -709,7 +720,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	return map;
 
 bad:
-	dout("osdmap_decode fail\n");
+	dout("osdmap_decode fail err %d\n", err);
 	ceph_osdmap_destroy(map);
 	return ERR_PTR(err);
 }
@@ -803,6 +814,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		if (ev > CEPH_PG_POOL_VERSION) {
 			pr_warning("got unknown v %d > %d of ceph_pg_pool\n",
 				   ev, CEPH_PG_POOL_VERSION);
+			err = -EINVAL;
 			goto bad;
 		}
 		pi = __lookup_pg_pool(&map->pg_pools, pool);
@@ -819,8 +831,11 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		if (err < 0)
 			goto bad;
 	}
-	if (version >= 5 && __decode_pool_names(p, end, map) < 0)
-		goto bad;
+	if (version >= 5) {
+		err = __decode_pool_names(p, end, map);
+		if (err < 0)
+			goto bad;
+	}
 
 	/* old_pool */
 	ceph_decode_32_safe(p, end, len, bad);
@@ -890,13 +905,19 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		pglen = ceph_decode_32(p);
 
 		if (pglen) {
-			/* insert */
 			ceph_decode_need(p, end, pglen*sizeof(u32), bad);
-			pg = kmalloc(sizeof(*pg) + sizeof(u32)*pglen, GFP_NOFS);
-			if (!pg) {
-				err = -ENOMEM;
+
+			/* removing existing (if any) */
+			(void) __remove_pg_mapping(&map->pg_temp, pgid);
+
+			/* insert */
+			err = -EINVAL;
+			if (pglen > (UINT_MAX - sizeof(*pg)) / sizeof(u32))
 				goto bad;
-			}
+			err = -ENOMEM;
+			pg = kmalloc(sizeof(*pg) + sizeof(u32)*pglen, GFP_NOFS);
+			if (!pg)
+				goto bad;
 			pg->pgid = pgid;
 			pg->len = pglen;
 			for (j = 0; j < pglen; j++)
@@ -940,7 +961,7 @@ bad:
  * for now, we write only a single su, until we can
  * pass a stride back to the caller.
  */
-void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
+int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 				   u64 off, u64 *plen,
 				   u64 *ono,
 				   u64 *oxoff, u64 *oxlen)
@@ -954,11 +975,17 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 
 	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, *plen,
 	     osize, su);
+	if (su == 0 || sc == 0)
+		goto invalid;
 	su_per_object = osize / su;
+	if (su_per_object == 0)
+		goto invalid;
 	dout("osize %u / su %u = su_per_object %u\n", osize, su,
 	     su_per_object);
 
-	BUG_ON((su & ~PAGE_MASK) != 0);
+	if ((su & ~PAGE_MASK) != 0)
+		goto invalid;
+
 	/* bl = *off / su; */
 	t = off;
 	do_div(t, su);
@@ -986,6 +1013,14 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 	*plen = *oxlen;
 
 	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
+	return 0;
+
+invalid:
+	dout(" invalid layout\n");
+	*ono = 0;
+	*oxoff = 0;
+	*oxlen = 0;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 

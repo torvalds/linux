@@ -182,6 +182,7 @@ static struct pci_device_id vmw_pci_id_list[] = {
 	{0x15ad, 0x0405, PCI_ANY_ID, PCI_ANY_ID, 0, 0, VMWGFX_CHIP_SVGAII},
 	{0, 0, 0}
 };
+MODULE_DEVICE_TABLE(pci, vmw_pci_id_list);
 
 static int enable_fbdev;
 
@@ -1101,6 +1102,11 @@ static void vmw_pm_complete(struct device *kdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct vmw_private *dev_priv = vmw_priv(dev);
 
+	mutex_lock(&dev_priv->hw_mutex);
+	vmw_write(dev_priv, SVGA_REG_ID, SVGA_ID_2);
+	(void) vmw_read(dev_priv, SVGA_REG_ID);
+	mutex_unlock(&dev_priv->hw_mutex);
+
 	/**
 	 * Reclaim 3d reference held by fbdev and potentially
 	 * start fifo.
@@ -1158,6 +1164,11 @@ static struct drm_driver driver = {
 	.open = vmw_driver_open,
 	.preclose = vmw_preclose,
 	.postclose = vmw_postclose,
+
+	.dumb_create = vmw_dumb_create,
+	.dumb_map_offset = vmw_dumb_map_offset,
+	.dumb_destroy = vmw_dumb_destroy,
+
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,

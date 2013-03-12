@@ -255,6 +255,7 @@ struct intel_device_info {
 	u8 is_broadwater:1;
 	u8 is_crestline:1;
 	u8 is_ivybridge:1;
+	u8 has_force_wake:1;
 	u8 has_fbc:1;
 	u8 has_pipe_cxsr:1;
 	u8 has_hotplug:1;
@@ -405,6 +406,8 @@ typedef struct drm_i915_private {
 	unsigned int lvds_use_ssc:1;
 	unsigned int display_clock_mode:1;
 	int lvds_ssc_freq;
+	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
+	unsigned int lvds_val; /* used for checking LVDS channel mode */
 	struct {
 		int rate;
 		int lanes;
@@ -1051,6 +1054,8 @@ struct drm_i915_file_private {
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
 
+#define HAS_FORCE_WAKE(dev) (INTEL_INFO(dev)->has_force_wake)
+
 #include "i915_trace.h"
 
 /**
@@ -1449,12 +1454,6 @@ extern void intel_display_print_error_state(struct seq_file *m,
 void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
 int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
-
-/* We give fast paths for the really cool registers */
-#define NEEDS_FORCE_WAKE(dev_priv, reg) \
-	(((dev_priv)->info->gen >= 6) && \
-	 ((reg) < 0x40000) &&		 \
-	 ((reg) != FORCEWAKE))
 
 #define __i915_read(x, y) \
 	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);

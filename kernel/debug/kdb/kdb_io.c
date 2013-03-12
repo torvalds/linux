@@ -560,6 +560,7 @@ int vkdb_printf(const char *fmt, va_list ap)
 {
 	int diag;
 	int linecount;
+	int colcount;
 	int logging, saved_loglevel = 0;
 	int saved_trap_printk;
 	int got_printf_lock = 0;
@@ -591,6 +592,10 @@ int vkdb_printf(const char *fmt, va_list ap)
 	diag = kdbgetintenv("LINES", &linecount);
 	if (diag || linecount <= 1)
 		linecount = 24;
+
+	diag = kdbgetintenv("COLUMNS", &colcount);
+	if (diag || colcount <= 1)
+		colcount = 80;
 
 	diag = kdbgetintenv("LOGGING", &logging);
 	if (diag)
@@ -698,7 +703,7 @@ kdb_printit:
 		gdbstub_msg_write(kdb_buffer, retlen);
 	} else {
 		if (dbg_io_ops && !dbg_io_ops->is_console) {
-			len = strlen(kdb_buffer);
+			len = retlen;
 			cp = kdb_buffer;
 			while (len--) {
 				dbg_io_ops->write_char(*cp);
@@ -717,11 +722,29 @@ kdb_printit:
 		printk(KERN_INFO "%s", kdb_buffer);
 	}
 
-	if (KDB_STATE(PAGER) && strchr(kdb_buffer, '\n'))
-		kdb_nextline++;
+	if (KDB_STATE(PAGER)) {
+		/*
+		 * Check printed string to decide how to bump the
+		 * kdb_nextline to control when the more prompt should
+		 * show up.
+		 */
+		int got = 0;
+		len = retlen;
+		while (len--) {
+			if (kdb_buffer[len] == '\n') {
+				kdb_nextline++;
+				got = 0;
+			} else if (kdb_buffer[len] == '\r') {
+				got = 0;
+			} else {
+				got++;
+			}
+		}
+		kdb_nextline += got / (colcount + 1);
+	}
 
 	/* check for having reached the LINES number of printed lines */
-	if (kdb_nextline == linecount) {
+	if (kdb_nextline >= linecount) {
 		char buf1[16] = "";
 #if defined(CONFIG_SMP)
 		char buf2[32];
@@ -784,7 +807,7 @@ kdb_printit:
 			kdb_grepping_flag = 0;
 			kdb_printf("\n");
 		} else if (buf1[0] == ' ') {
-			kdb_printf("\n");
+			kdb_printf("\r");
 			suspend_grep = 1; /* for this recursion */
 		} else if (buf1[0] == '\n') {
 			kdb_nextline = linecount - 1;

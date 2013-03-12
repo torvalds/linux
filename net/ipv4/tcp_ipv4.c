@@ -678,10 +678,11 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
 	arg.flags = (sk && inet_sk(sk)->transparent) ? IP_REPLY_ARG_NOSRCCHECK : 0;
 	/* When socket is gone, all binding information is lost.
-	 * routing might fail in this case. using iif for oif to
-	 * make sure we can deliver it
+	 * routing might fail in this case. No choice here, if we choose to force
+	 * input interface, we will misroute in case of asymmetric route.
 	 */
-	arg.bound_dev_if = sk ? sk->sk_bound_dev_if : inet_iif(skb);
+	if (sk)
+		arg.bound_dev_if = sk->sk_bound_dev_if;
 
 	net = dev_net(skb_dst(skb)->dev);
 	arg.tos = ip_hdr(skb)->tos;
@@ -1523,10 +1524,8 @@ exit:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
 put_and_exit:
-	tcp_clear_xmit_timers(newsk);
-	tcp_cleanup_congestion_control(newsk);
-	bh_unlock_sock(newsk);
-	sock_put(newsk);
+	inet_csk_prepare_forced_close(newsk);
+	tcp_done(newsk);
 	goto exit;
 }
 EXPORT_SYMBOL(tcp_v4_syn_recv_sock);

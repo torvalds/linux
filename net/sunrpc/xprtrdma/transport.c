@@ -200,6 +200,7 @@ xprt_rdma_connect_worker(struct work_struct *work)
 	int rc = 0;
 
 	if (!xprt->shutdown) {
+		current->flags |= PF_FSTRANS;
 		xprt_clear_connected(xprt);
 
 		dprintk("RPC:       %s: %sconnect\n", __func__,
@@ -212,10 +213,10 @@ xprt_rdma_connect_worker(struct work_struct *work)
 
 out:
 	xprt_wake_pending_tasks(xprt, rc);
-
 out_clear:
 	dprintk("RPC:       %s: exit\n", __func__);
 	xprt_clear_connecting(xprt);
+	current->flags &= ~PF_FSTRANS;
 }
 
 /*
@@ -712,6 +713,7 @@ static void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 static struct rpc_xprt_ops xprt_rdma_procs = {
 	.reserve_xprt		= xprt_rdma_reserve_xprt,
 	.release_xprt		= xprt_release_xprt_cong, /* sunrpc/xprt.c */
+	.alloc_slot		= xprt_alloc_slot,
 	.release_request	= xprt_release_rqst_cong,       /* ditto */
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def, /* ditto */
 	.rpcbind		= rpcb_getport_async,	/* sunrpc/rpcb_clnt.c */

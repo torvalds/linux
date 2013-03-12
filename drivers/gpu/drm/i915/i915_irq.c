@@ -530,6 +530,12 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_GSE_IVB)
 		intel_opregion_gse_intr(dev);
 
+	if (de_iir & DE_PIPEA_VBLANK_IVB)
+		drm_handle_vblank(dev, 0);
+
+	if (de_iir & DE_PIPEB_VBLANK_IVB)
+		drm_handle_vblank(dev, 1);
+
 	if (de_iir & DE_PLANEA_FLIP_DONE_IVB) {
 		intel_prepare_page_flip(dev, 0);
 		intel_finish_page_flip_plane(dev, 0);
@@ -539,12 +545,6 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 		intel_prepare_page_flip(dev, 1);
 		intel_finish_page_flip_plane(dev, 1);
 	}
-
-	if (de_iir & DE_PIPEA_VBLANK_IVB)
-		drm_handle_vblank(dev, 0);
-
-	if (de_iir & DE_PIPEB_VBLANK_IVB)
-		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */
 	if (de_iir & DE_PCH_EVENT_IVB) {
@@ -622,6 +622,12 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_GSE)
 		intel_opregion_gse_intr(dev);
 
+	if (de_iir & DE_PIPEA_VBLANK)
+		drm_handle_vblank(dev, 0);
+
+	if (de_iir & DE_PIPEB_VBLANK)
+		drm_handle_vblank(dev, 1);
+
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 0);
 		intel_finish_page_flip_plane(dev, 0);
@@ -631,12 +637,6 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 		intel_prepare_page_flip(dev, 1);
 		intel_finish_page_flip_plane(dev, 1);
 	}
-
-	if (de_iir & DE_PIPEA_VBLANK)
-		drm_handle_vblank(dev, 0);
-
-	if (de_iir & DE_PIPEB_VBLANK)
-		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */
 	if (de_iir & DE_PCH_EVENT) {
@@ -2051,10 +2051,22 @@ static int i915_driver_irq_postinstall(struct drm_device *dev)
 			hotplug_en |= HDMIC_HOTPLUG_INT_EN;
 		if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
 			hotplug_en |= HDMID_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
-			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
-			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+		if (IS_G4X(dev)) {
+			if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_G4X)
+				hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+			if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_G4X)
+				hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+		} else if (IS_GEN4(dev)) {
+			if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_I965)
+				hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+			if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_I965)
+				hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+		} else {
+			if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_I915)
+				hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+			if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_I915)
+				hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+		}
 		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
 			hotplug_en |= CRT_HOTPLUG_INT_EN;
 

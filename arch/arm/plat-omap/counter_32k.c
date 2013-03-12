@@ -50,22 +50,29 @@ static u32 notrace omap_32k_read_sched_clock(void)
  * nsecs and adds to a monotonically increasing timespec.
  */
 static struct timespec persistent_ts;
-static cycles_t cycles, last_cycles;
+static cycles_t cycles;
 static unsigned int persistent_mult, persistent_shift;
+static DEFINE_SPINLOCK(read_persistent_clock_lock);
+
 void read_persistent_clock(struct timespec *ts)
 {
 	unsigned long long nsecs;
-	cycles_t delta;
-	struct timespec *tsp = &persistent_ts;
+	cycles_t last_cycles;
+	unsigned long flags;
+
+	spin_lock_irqsave(&read_persistent_clock_lock, flags);
 
 	last_cycles = cycles;
 	cycles = timer_32k_base ? __raw_readl(timer_32k_base) : 0;
-	delta = cycles - last_cycles;
 
-	nsecs = clocksource_cyc2ns(delta, persistent_mult, persistent_shift);
+	nsecs = clocksource_cyc2ns(cycles - last_cycles,
+					persistent_mult, persistent_shift);
 
-	timespec_add_ns(tsp, nsecs);
-	*ts = *tsp;
+	timespec_add_ns(&persistent_ts, nsecs);
+
+	*ts = persistent_ts;
+
+	spin_unlock_irqrestore(&read_persistent_clock_lock, flags);
 }
 
 int __init omap_init_clocksource_32k(void)

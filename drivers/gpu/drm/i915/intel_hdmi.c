@@ -138,14 +138,17 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 
 	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | val | port | flags);
 
+	mmiowb();
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(VIDEO_DIP_DATA, *data);
 		data++;
 	}
+	mmiowb();
 
 	flags |= intel_infoframe_flags(frame);
 
 	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | val | port | flags);
+	POSTING_READ(VIDEO_DIP_CTL);
 }
 
 static void ironlake_write_infoframe(struct drm_encoder *encoder,
@@ -168,14 +171,17 @@ static void ironlake_write_infoframe(struct drm_encoder *encoder,
 
 	I915_WRITE(reg, VIDEO_DIP_ENABLE | val | flags);
 
+	mmiowb();
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
+	mmiowb();
 
 	flags |= intel_infoframe_flags(frame);
 
 	I915_WRITE(reg, VIDEO_DIP_ENABLE | val | flags);
+	POSTING_READ(reg);
 }
 static void intel_set_infoframe(struct drm_encoder *encoder,
 				struct dip_infoframe *frame)
@@ -271,7 +277,7 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 	u32 temp;
 	u32 enable_bits = SDVO_ENABLE;
 
-	if (intel_hdmi->has_audio)
+	if (intel_hdmi->has_audio || mode != DRM_MODE_DPMS_ON)
 		enable_bits |= SDVO_AUDIO_ENABLE;
 
 	temp = I915_READ(intel_hdmi->sdvox_reg);
@@ -549,10 +555,13 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	if (!HAS_PCH_SPLIT(dev)) {
 		intel_hdmi->write_infoframe = i9xx_write_infoframe;
 		I915_WRITE(VIDEO_DIP_CTL, 0);
+		POSTING_READ(VIDEO_DIP_CTL);
 	} else {
 		intel_hdmi->write_infoframe = ironlake_write_infoframe;
-		for_each_pipe(i)
+		for_each_pipe(i) {
 			I915_WRITE(TVIDEO_DIP_CTL(i), 0);
+			POSTING_READ(TVIDEO_DIP_CTL(i));
+		}
 	}
 
 	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
