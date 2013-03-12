@@ -40,6 +40,7 @@ struct nop_usb_xceiv {
 	struct device		*dev;
 	struct clk		*clk;
 	struct regulator	*vcc;
+	struct regulator	*reset;
 };
 
 static struct platform_device *pd;
@@ -80,12 +81,24 @@ static int nop_init(struct usb_phy *phy)
 	if (!IS_ERR(nop->clk))
 		clk_enable(nop->clk);
 
+	if (!IS_ERR(nop->reset)) {
+		/* De-assert RESET */
+		if (regulator_enable(nop->reset))
+			dev_err(phy->dev, "Failed to de-assert reset\n");
+	}
+
 	return 0;
 }
 
 static void nop_shutdown(struct usb_phy *phy)
 {
 	struct nop_usb_xceiv *nop = dev_get_drvdata(phy->dev);
+
+	if (!IS_ERR(nop->reset)) {
+		/* Assert RESET */
+		if (regulator_disable(nop->reset))
+			dev_err(phy->dev, "Failed to assert reset\n");
+	}
 
 	if (!IS_ERR(nop->clk))
 		clk_disable(nop->clk);
@@ -170,6 +183,12 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	if (IS_ERR(nop->vcc)) {
 		dev_dbg(&pdev->dev, "Error getting vcc regulator: %ld\n",
 					PTR_ERR(nop->vcc));
+	}
+
+	nop->reset = devm_regulator_get(&pdev->dev, "reset");
+	if (IS_ERR(nop->reset)) {
+		dev_dbg(&pdev->dev, "Error getting reset regulator: %ld\n",
+					PTR_ERR(nop->reset));
 	}
 
 	nop->dev		= &pdev->dev;
