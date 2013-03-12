@@ -1460,8 +1460,8 @@ static u32 ceph_crc32c_page(u32 crc, struct page *page,
 static int write_partial_message_data(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->out_msg;
+	struct ceph_msg_data_cursor *cursor = &msg->data.cursor;
 	struct ceph_msg_pos *msg_pos = &con->out_msg_pos;
-	unsigned int data_len = le32_to_cpu(msg->hdr.data_len);
 	bool do_datacrc = !con->msgr->nocrc;
 	int ret;
 
@@ -1479,7 +1479,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 	 * need to map the page.  If we have no pages, they have
 	 * been revoked, so use the zero page.
 	 */
-	while (data_len > msg_pos->data_pos) {
+	while (cursor->resid) {
 		struct page *page;
 		size_t page_offset;
 		size_t length;
@@ -1489,7 +1489,6 @@ static int write_partial_message_data(struct ceph_connection *con)
 							&last_piece);
 		if (do_datacrc && !msg_pos->did_page_crc) {
 			u32 crc = le32_to_cpu(msg->footer.data_crc);
-
 			crc = ceph_crc32c_page(crc, page, page_offset, length);
 			msg->footer.data_crc = cpu_to_le32(crc);
 			msg_pos->did_page_crc = true;
@@ -2158,7 +2157,7 @@ static int read_partial_message_section(struct ceph_connection *con,
 static int read_partial_msg_data(struct ceph_connection *con)
 {
 	struct ceph_msg *msg = con->in_msg;
-	struct ceph_msg_pos *msg_pos = &con->in_msg_pos;
+	struct ceph_msg_data_cursor *cursor = &msg->data.cursor;
 	const bool do_datacrc = !con->msgr->nocrc;
 	unsigned int data_len;
 	struct page *page;
@@ -2171,7 +2170,7 @@ static int read_partial_msg_data(struct ceph_connection *con)
 		return -EIO;
 
 	data_len = le32_to_cpu(con->in_hdr.data_len);
-	while (msg_pos->data_pos < data_len) {
+	while (cursor->resid) {
 		page = ceph_msg_data_next(&msg->data, &page_offset, &length,
 							NULL);
 		ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
