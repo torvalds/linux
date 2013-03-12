@@ -1803,7 +1803,7 @@ void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
 		inode->i_fop = &def_blk_fops;
 		inode->i_rdev = rdev;
 	} else if (S_ISFIFO(mode))
-		inode->i_fop = &def_fifo_fops;
+		inode->i_fop = &pipefifo_fops;
 	else if (S_ISSOCK(mode))
 		inode->i_fop = &bad_sock_fops;
 	else

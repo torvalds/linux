@@ -2080,7 +2080,6 @@ extern int sync_filesystem(struct super_block *);
 extern const struct file_operations def_blk_fops;
 extern const struct file_operations def_chr_fops;
 extern const struct file_operations bad_sock_fops;
-extern const struct file_operations def_fifo_fops;
 #ifdef CONFIG_BLOCK
 extern int ioctl_by_bdev(struct block_device *, unsigned, unsigned long);
 extern int blkdev_ioctl(struct block_device *, fmode_t, unsigned, unsigned long);
@@ -2151,10 +2150,6 @@ extern void init_special_inode(struct inode *, umode_t, dev_t);
 /* Invalid inode operations -- fs/bad_inode.c */
 extern void make_bad_inode(struct inode *);
 extern int is_bad_inode(struct inode *);
-
-extern const struct file_operations read_pipefifo_fops;
-extern const struct file_operations write_pipefifo_fops;
-extern const struct file_operations rdwr_pipefifo_fops;
 
 #ifdef CONFIG_BLOCK
 /*

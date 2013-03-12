@@ -25,6 +25,8 @@
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
 
+#include "internal.h"
+
 /*
  * The max size that a non-root user is allowed to grow the pipe. Can
  * be set by root in /proc/sys/fs/pipe-max-size
@@ -662,19 +664,6 @@ out:
 	return ret;
 }
 
-static ssize_t
-bad_pipe_r(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
-{
-	return -EBADF;
-}
-
-static ssize_t
-bad_pipe_w(struct file *filp, const char __user *buf, size_t count,
-	   loff_t *ppos)
-{
-	return -EBADF;
-}
-
 static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -734,14 +723,16 @@ pipe_poll(struct file *filp, poll_table *wait)
 }
 
 static int
-pipe_release(struct inode *inode, int decr, int decw)
+pipe_release(struct inode *inode, struct file *file)
 {
 	struct pipe_inode_info *pipe;
 
 	mutex_lock(&inode->i_mutex);
 	pipe = inode->i_pipe;
-	pipe->readers -= decr;
-	pipe->writers -= decw;
+	if (file->f_mode & FMODE_READ)
+		pipe->readers--;
+	if (file->f_mode & FMODE_WRITE)
+		pipe->writers--;
 
 	if (!pipe->readers && !pipe->writers) {
 		free_pipe_info(inode);
@@ -756,173 +747,24 @@ pipe_release(struct inode *inode, int decr, int decw)
 }
 
 static int
-pipe_read_fasync(int fd, struct file *filp, int on)
-{
-	struct inode *inode = file_inode(filp);
-	int retval;
-
-	mutex_lock(&inode->i_mutex);
-	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_readers);
-	mutex_unlock(&inode->i_mutex);
-
-	return retval;
-}
-
-
-static int
-pipe_write_fasync(int fd, struct file *filp, int on)
-{
-	struct inode *inode = file_inode(filp);
-	int retval;
-
-	mutex_lock(&inode->i_mutex);
-	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_writers);
-	mutex_unlock(&inode->i_mutex);
-
-	return retval;
-}
-
-
-static int
-pipe_rdwr_fasync(int fd, struct file *filp, int on)
+pipe_fasync(int fd, struct file *filp, int on)
 {
 	struct inode *inode = file_inode(filp);
 	struct pipe_inode_info *pipe = inode->i_pipe;
-	int retval;
+	int retval = 0;
 
 	mutex_lock(&inode->i_mutex);
-	retval = fasync_helper(fd, filp, on, &pipe->fasync_readers);
-	if (retval >= 0) {
+	if (filp->f_mode & FMODE_READ)
+		retval = fasync_helper(fd, filp, on, &pipe->fasync_readers);
+	if ((filp->f_mode & FMODE_WRITE) && retval >= 0) {
 		retval = fasync_helper(fd, filp, on, &pipe->fasync_writers);
-		if (retval < 0) /* this can happen only if on == T */
+		if (retval < 0 && (filp->f_mode & FMODE_READ))
+			/* this can happen only if on == T */
 			fasync_helper(-1, filp, 0, &pipe->fasync_readers);
 	}
 	mutex_unlock(&inode->i_mutex);
 	return retval;
 }
-
-
-static int
-pipe_read_release(struct inode *inode, struct file *filp)
-{
-	return pipe_release(inode, 1, 0);
-}
-
-static int
-pipe_write_release(struct inode *inode, struct file *filp)
-{
-	return pipe_release(inode, 0, 1);
-}
-
-static int
-pipe_rdwr_release(struct inode *inode, struct file *filp)
-{
-	int decr, decw;
-
-	decr = (filp->f_mode & FMODE_READ) != 0;
-	decw = (filp->f_mode & FMODE_WRITE) != 0;
-	return pipe_release(inode, decr, decw);
-}
-
-static int
-pipe_read_open(struct inode *inode, struct file *filp)
-{
-	int ret = -ENOENT;
-
-	mutex_lock(&inode->i_mutex);
-
-	if (inode->i_pipe) {
-		ret = 0;
-		inode->i_pipe->readers++;
-	}
-
-	mutex_unlock(&inode->i_mutex);
-
-	return ret;
-}
-
-static int
-pipe_write_open(struct inode *inode, struct file *filp)
-{
-	int ret = -ENOENT;
-
-	mutex_lock(&inode->i_mutex);
-
-	if (inode->i_pipe) {
-		ret = 0;
-		inode->i_pipe->writers++;
-	}
-
-	mutex_unlock(&inode->i_mutex);
-
-	return ret;
-}
-
-static int
-pipe_rdwr_open(struct inode *inode, struct file *filp)
-{
-	int ret = -ENOENT;
-
-	if (!(filp->f_mode & (FMODE_READ|FMODE_WRITE)))
-		return -EINVAL;
-
-	mutex_lock(&inode->i_mutex);
-
-	if (inode->i_pipe) {
-		ret = 0;
-		if (filp->f_mode & FMODE_READ)
-			inode->i_pipe->readers++;
-		if (filp->f_mode & FMODE_WRITE)
-			inode->i_pipe->writers++;
-	}
-
-	mutex_unlock(&inode->i_mutex);
-
-	return ret;
-}
-
-/*
- * The file_operations structs are not static because they
- * are also used in linux/fs/fifo.c to do operations on FIFOs.
- *
- * Pipes reuse fifos' file_operations structs.
- */
-const struct file_operations read_pipefifo_fops = {
-	.llseek		= no_llseek,
-	.read		= do_sync_read,
-	.aio_read	= pipe_read,
-	.write		= bad_pipe_w,
-	.poll		= pipe_poll,
-	.unlocked_ioctl	= pipe_ioctl,
-	.open		= pipe_read_open,
-	.release	= pipe_read_release,
-	.fasync		= pipe_read_fasync,
-};
-
-const struct file_operations write_pipefifo_fops = {
-	.llseek		= no_llseek,
-	.read		= bad_pipe_r,
-	.write		= do_sync_write,
-	.aio_write	= pipe_write,
-	.poll		= pipe_poll,
-	.unlocked_ioctl	= pipe_ioctl,
-	.open		= pipe_write_open,
-	.release	= pipe_write_release,
-	.fasync		= pipe_write_fasync,
-};
-
-const struct file_operations rdwr_pipefifo_fops = {
-	.llseek		= no_llseek,
-	.read		= do_sync_read,
-	.aio_read	= pipe_read,
-	.write		= do_sync_write,
-	.aio_write	= pipe_write,
-	.poll		= pipe_poll,
-	.unlocked_ioctl	= pipe_ioctl,
-	.open		= pipe_rdwr_open,
-	.release	= pipe_rdwr_release,
-	.fasync		= pipe_rdwr_fasync,
-};
 
 struct pipe_inode_info * alloc_pipe_info(struct inode *inode)
 {
@@ -996,7 +838,7 @@ static struct inode * get_pipe_inode(void)
 	inode->i_pipe = pipe;
 
 	pipe->readers = pipe->writers = 1;
-	inode->i_fop = &rdwr_pipefifo_fops;
+	inode->i_fop = &pipefifo_fops;
 
 	/*
 	 * Mark the inode dirty from the very beginning,
@@ -1039,13 +881,13 @@ int create_pipe_files(struct file **res, int flags)
 	d_instantiate(path.dentry, inode);
 
 	err = -ENFILE;
-	f = alloc_file(&path, FMODE_WRITE, &write_pipefifo_fops);
+	f = alloc_file(&path, FMODE_WRITE, &pipefifo_fops);
 	if (IS_ERR(f))
 		goto err_dentry;
 
 	f->f_flags = O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT));
 
-	res[0] = alloc_file(&path, FMODE_READ, &read_pipefifo_fops);
+	res[0] = alloc_file(&path, FMODE_READ, &pipefifo_fops);
 	if (IS_ERR(res[0]))
 		goto err_file;
 
@@ -1164,6 +1006,7 @@ static void wake_up_partner(struct inode* inode)
 static int fifo_open(struct inode *inode, struct file *filp)
 {
 	struct pipe_inode_info *pipe;
+	bool is_pipe = inode->i_sb->s_magic == PIPEFS_MAGIC;
 	int ret;
 
 	mutex_lock(&inode->i_mutex);
@@ -1187,12 +1030,11 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 *  POSIX.1 says that O_NONBLOCK means return with the FIFO
 	 *  opened, even when there is no process writing the FIFO.
 	 */
-		filp->f_op = &read_pipefifo_fops;
 		pipe->r_counter++;
 		if (pipe->readers++ == 0)
 			wake_up_partner(inode);
 
-		if (!pipe->writers) {
+		if (!is_pipe && !pipe->writers) {
 			if ((filp->f_flags & O_NONBLOCK)) {
 				/* suppress POLLHUP until we have
 				 * seen a writer */
@@ -1211,15 +1053,14 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 *  errno=ENXIO when there is no process reading the FIFO.
 	 */
 		ret = -ENXIO;
-		if ((filp->f_flags & O_NONBLOCK) && !pipe->readers)
+		if (!is_pipe && (filp->f_flags & O_NONBLOCK) && !pipe->readers)
 			goto err;
 
-		filp->f_op = &write_pipefifo_fops;
 		pipe->w_counter++;
 		if (!pipe->writers++)
 			wake_up_partner(inode);
 
-		if (!pipe->readers) {
+		if (!is_pipe && !pipe->readers) {
 			if (wait_for_partner(inode, &pipe->r_counter))
 				goto err_wr;
 		}
@@ -1232,7 +1073,6 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 *  This implementation will NEVER block on a O_RDWR open, since
 	 *  the process can at least talk to itself.
 	 */
-		filp->f_op = &rdwr_pipefifo_fops;
 
 		pipe->readers++;
 		pipe->writers++;
@@ -1272,14 +1112,17 @@ err_nocleanup:
 	return ret;
 }
 
-/*
- * Dummy default file-operations: the only thing this does
- * is contain the open that then fills in the correct operations
- * depending on the access mode of the file...
- */
-const struct file_operations def_fifo_fops = {
-	.open		= fifo_open,	/* will set read_ or write_pipefifo_fops */
-	.llseek		= noop_llseek,
+const struct file_operations pipefifo_fops = {
+	.open		= fifo_open,
+	.llseek		= no_llseek,
+	.read		= do_sync_read,
+	.aio_read	= pipe_read,
+	.write		= do_sync_write,
+	.aio_write	= pipe_write,
+	.poll		= pipe_poll,
+	.unlocked_ioctl	= pipe_ioctl,
+	.release	= pipe_release,
+	.fasync		= pipe_fasync,
 };
 
 /*
