@@ -1228,7 +1228,7 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	if (unlikely(wq->flags & WQ_DRAINING) &&
 	    WARN_ON_ONCE(!is_chained_work(wq)))
 		return;
-
+retry:
 	/* pwq which will be used unless @work is executing elsewhere */
 	if (!(wq->flags & WQ_UNBOUND)) {
 		if (cpu == WORK_CPU_UNBOUND)
@@ -1260,6 +1260,25 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 		}
 	} else {
 		spin_lock(&pwq->pool->lock);
+	}
+
+	/*
+	 * pwq is determined and locked.  For unbound pools, we could have
+	 * raced with pwq release and it could already be dead.  If its
+	 * refcnt is zero, repeat pwq selection.  Note that pwqs never die
+	 * without another pwq replacing it as the first pwq or while a
+	 * work item is executing on it, so the retying is guaranteed to
+	 * make forward-progress.
+	 */
+	if (unlikely(!pwq->refcnt)) {
+		if (wq->flags & WQ_UNBOUND) {
+			spin_unlock(&pwq->pool->lock);
+			cpu_relax();
+			goto retry;
+		}
+		/* oops */
+		WARN_ONCE(true, "workqueue: per-cpu pwq for %s on cpu%d has 0 refcnt",
+			  wq->name, cpu);
 	}
 
 	/* pwq determined, queue */
@@ -3425,7 +3444,8 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 
 static void init_and_link_pwq(struct pool_workqueue *pwq,
 			      struct workqueue_struct *wq,
-			      struct worker_pool *pool)
+			      struct worker_pool *pool,
+			      struct pool_workqueue **p_last_pwq)
 {
 	BUG_ON((unsigned long)pwq & WORK_STRUCT_FLAG_MASK);
 
@@ -3445,11 +3465,56 @@ static void init_and_link_pwq(struct pool_workqueue *pwq,
 	mutex_lock(&wq->flush_mutex);
 	spin_lock_irq(&workqueue_lock);
 
+	if (p_last_pwq)
+		*p_last_pwq = first_pwq(wq);
 	pwq->work_color = wq->work_color;
-	list_add_tail_rcu(&pwq->pwqs_node, &wq->pwqs);
+	list_add_rcu(&pwq->pwqs_node, &wq->pwqs);
 
 	spin_unlock_irq(&workqueue_lock);
 	mutex_unlock(&wq->flush_mutex);
+}
+
+/**
+ * apply_workqueue_attrs - apply new workqueue_attrs to an unbound workqueue
+ * @wq: the target workqueue
+ * @attrs: the workqueue_attrs to apply, allocated with alloc_workqueue_attrs()
+ *
+ * Apply @attrs to an unbound workqueue @wq.  If @attrs doesn't match the
+ * current attributes, a new pwq is created and made the first pwq which
+ * will serve all new work items.  Older pwqs are released as in-flight
+ * work items finish.  Note that a work item which repeatedly requeues
+ * itself back-to-back will stay on its current pwq.
+ *
+ * Performs GFP_KERNEL allocations.  Returns 0 on success and -errno on
+ * failure.
+ */
+int apply_workqueue_attrs(struct workqueue_struct *wq,
+			  const struct workqueue_attrs *attrs)
+{
+	struct pool_workqueue *pwq, *last_pwq;
+	struct worker_pool *pool;
+
+	if (WARN_ON(!(wq->flags & WQ_UNBOUND)))
+		return -EINVAL;
+
+	pwq = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
+	if (!pwq)
+		return -ENOMEM;
+
+	pool = get_unbound_pool(attrs);
+	if (!pool) {
+		kmem_cache_free(pwq_cache, pwq);
+		return -ENOMEM;
+	}
+
+	init_and_link_pwq(pwq, wq, pool, &last_pwq);
+	if (last_pwq) {
+		spin_lock_irq(&last_pwq->pool->lock);
+		put_pwq(last_pwq);
+		spin_unlock_irq(&last_pwq->pool->lock);
+	}
+
+	return 0;
 }
 
 static int alloc_and_link_pwqs(struct workqueue_struct *wq)
@@ -3468,26 +3533,12 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 			struct worker_pool *cpu_pools =
 				per_cpu(cpu_worker_pools, cpu);
 
-			init_and_link_pwq(pwq, wq, &cpu_pools[highpri]);
+			init_and_link_pwq(pwq, wq, &cpu_pools[highpri], NULL);
 		}
+		return 0;
 	} else {
-		struct pool_workqueue *pwq;
-		struct worker_pool *pool;
-
-		pwq = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
-		if (!pwq)
-			return -ENOMEM;
-
-		pool = get_unbound_pool(unbound_std_wq_attrs[highpri]);
-		if (!pool) {
-			kmem_cache_free(pwq_cache, pwq);
-			return -ENOMEM;
-		}
-
-		init_and_link_pwq(pwq, wq, pool);
+		return apply_workqueue_attrs(wq, unbound_std_wq_attrs[highpri]);
 	}
-
-	return 0;
 }
 
 static int wq_clamp_max_active(int max_active, unsigned int flags,
