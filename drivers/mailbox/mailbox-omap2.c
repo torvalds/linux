@@ -19,7 +19,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/mailbox-omap.h>
 
-#include <plat/mailbox.h>
+#include "omap-mbox.h"
 
 #define MAILBOX_REVISION		0x000
 #define MAILBOX_MESSAGE(m)		(0x040 + 4 * (m))
@@ -331,9 +331,9 @@ static int omap2_mbox_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver omap2_mbox_driver = {
-	.probe = omap2_mbox_probe,
-	.remove = omap2_mbox_remove,
-	.driver = {
+	.probe	= omap2_mbox_probe,
+	.remove	= omap2_mbox_remove,
+	.driver	= {
 		.name = "omap-mailbox",
 	},
 };

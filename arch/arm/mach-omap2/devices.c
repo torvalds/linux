@@ -328,7 +328,7 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 	return 0;
 }
 
-#if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
+#if defined(CONFIG_OMAP2PLUS_MBOX) || defined(CONFIG_OMAP2PLUS_MBOX_MODULE)
 static inline void __init omap_init_mbox(void)
 {
 	struct omap_hwmod *oh;
@@ -352,7 +352,7 @@ static inline void __init omap_init_mbox(void)
 }
 #else
 static inline void omap_init_mbox(void) { }
-#endif /* CONFIG_OMAP_MBOX_FWK */
+#endif /* CONFIG_OMAP2PLUS_MBOX */
 
 static inline void omap_init_sti(void) {}
 
