@@ -1,64 +1,33 @@
 config VIDEO_DAVINCI_VPIF_DISPLAY
-	tristate "DM646x/DA850/OMAPL138 EVM Video Display"
-	depends on VIDEO_DEV && (MACH_DAVINCI_DM6467_EVM || MACH_DAVINCI_DA850_EVM)
+	tristate "TI DaVinci VPIF V4L2-Display driver"
+	depends on VIDEO_DEV && ARCH_DAVINCI
 	select VIDEOBUF2_DMA_CONTIG
-	select VIDEO_DAVINCI_VPIF
 	select VIDEO_ADV7343 if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_THS7303 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Enables Davinci VPIF module used for display devices.
-	  This module is common for following DM6467/DA850/OMAPL138
-	  based display devices.
+	  This module is used for display on TI DM6467/DA850/OMAPL138
+	  SoCs.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called vpif_display.
+	  To compile this driver as a module, choose M here. There will
+	  be two modules called vpif.ko and vpif_display.ko
 
 config VIDEO_DAVINCI_VPIF_CAPTURE
-	tristate "DM646x/DA850/OMAPL138 EVM Video Capture"
-	depends on VIDEO_DEV && (MACH_DAVINCI_DM6467_EVM || MACH_DAVINCI_DA850_EVM)
+	tristate "TI DaVinci VPIF video capture driver"
+	depends on VIDEO_DEV && ARCH_DAVINCI
 	select VIDEOBUF2_DMA_CONTIG
-	select VIDEO_DAVINCI_VPIF
 	help
-	  Enables Davinci VPIF module used for captur devices.
-	  This module is common for following DM6467/DA850/OMAPL138
-	  based capture devices.
+	  Enables Davinci VPIF module used for capture devices.
+	  This module is used for capture on TI DM6467/DA850/OMAPL138
+	  SoCs.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called vpif_capture.
-
-config VIDEO_DAVINCI_VPIF
-	tristate "DaVinci VPIF Driver"
-	depends on VIDEO_DAVINCI_VPIF_DISPLAY || VIDEO_DAVINCI_VPIF_CAPTURE
-	help
-	  Support for DaVinci VPIF Driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vpif.
-
-config VIDEO_VPSS_SYSTEM
-	tristate "VPSS System module driver"
-	depends on ARCH_DAVINCI
-	help
-	  Support for vpss system module for video driver
-
-config VIDEO_VPFE_CAPTURE
-	tristate "VPFE Video Capture Driver"
-	depends on VIDEO_V4L2 && (ARCH_DAVINCI || ARCH_OMAP3)
-	depends on I2C
-	select VIDEOBUF_DMA_CONTIG
-	help
-	  Support for DMx/AMx VPFE based frame grabber. This is the
-	  common V4L2 module for following DMx/AMx SoCs from Texas
-	  Instruments:- DM6446, DM365, DM355 & AM3517/05.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vpfe-capture.
+	  To compile this driver as a module, choose M here. There will
+	  be two modules called vpif.ko and vpif_capture.ko
 
 config VIDEO_DM6446_CCDC
-	tristate "DM6446 CCDC HW module"
-	depends on VIDEO_VPFE_CAPTURE
-	select VIDEO_VPSS_SYSTEM
-	default y
+	tristate "TI DM6446 CCDC video capture driver"
+	depends on VIDEO_V4L2 && (ARCH_DAVINCI || ARCH_OMAP3)
+	select VIDEOBUF_DMA_CONTIG
 	help
 	   Enables DaVinci CCD hw module. DaVinci CCDC hw interfaces
 	   with decoder modules such as TVP5146 over BT656 or
@@ -66,14 +35,13 @@ config VIDEO_DM6446_CCDC
 	   module configures the interface and CCDC/ISIF to do
 	   video frame capture from slave decoders.
 
-	   To compile this driver as a module, choose M here: the
-	   module will be called vpfe.
+	   To compile this driver as a module, choose M here. There will
+	   be three modules called vpfe_capture.ko, vpss.ko and dm644x_ccdc.ko
 
 config VIDEO_DM355_CCDC
-	tristate "DM355 CCDC HW module"
-	depends on ARCH_DAVINCI_DM355 && VIDEO_VPFE_CAPTURE
-	select VIDEO_VPSS_SYSTEM
-	default y
+	tristate "TI DM355 CCDC video capture driver"
+	depends on VIDEO_V4L2 && ARCH_DAVINCI
+	select VIDEOBUF_DMA_CONTIG
 	help
 	   Enables DM355 CCD hw module. DM355 CCDC hw interfaces
 	   with decoder modules such as TVP5146 over BT656 or
@@ -81,31 +49,30 @@ config VIDEO_DM355_CCDC
 	   module configures the interface and CCDC/ISIF to do
 	   video frame capture from a slave decoders
 
-	   To compile this driver as a module, choose M here: the
-	   module will be called vpfe.
+	   To compile this driver as a module, choose M here. There will
+	   be three modules called vpfe_capture.ko, vpss.ko and dm355_ccdc.ko
 
-config VIDEO_ISIF
-	tristate "ISIF HW module"
-	depends on ARCH_DAVINCI_DM365 && VIDEO_VPFE_CAPTURE
-	select VIDEO_VPSS_SYSTEM
-	default y
+config VIDEO_DM365_ISIF
+	tristate "TI DM365 ISIF video capture driver"
+	depends on VIDEO_V4L2 && ARCH_DAVINCI
+	select VIDEOBUF_DMA_CONTIG
 	help
 	   Enables ISIF hw module. This is the hardware module for
-	   configuring ISIF in VPFE to capture Raw Bayer RGB data  from
+	   configuring ISIF in VPFE to capture Raw Bayer RGB data from
 	   a image sensor or YUV data from a YUV source.
 
-	   To compile this driver as a module, choose M here: the
-	   module will be called vpfe.
+	   To compile this driver as a module, choose M here. There will
+	   be three modules called vpfe_capture.ko, vpss.ko and isif.ko
 
 config VIDEO_DAVINCI_VPBE_DISPLAY
-	tristate "DM644X/DM365/DM355 VPBE HW module"
-	depends on ARCH_DAVINCI_DM644x || ARCH_DAVINCI_DM355 || ARCH_DAVINCI_DM365
-	select VIDEO_VPSS_SYSTEM
+	tristate "TI DaVinci VPBE V4L2-Display driver"
+	depends on ARCH_DAVINCI
 	select VIDEOBUF2_DMA_CONTIG
 	help
 	    Enables Davinci VPBE module used for display devices.
-	    This module is common for following DM644x/DM365/DM355
+	    This module is used for display on TI DM644x/DM365/DM355
 	    based display devices.
 
-	    To compile this driver as a module, choose M here: the
-	    module will be called vpbe.
+	    To compile this driver as a module, choose M here. There will
+	    be five modules created called vpss.ko, vpbe.ko, vpbe_osd.ko,
+	    vpbe_venc.ko and vpbe_display.ko
