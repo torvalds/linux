@@ -295,6 +295,14 @@ static inline int __next_wq_cpu(int cpu, const struct cpumask *mask,
 	     (cpu) = __next_wq_cpu((cpu), cpu_online_mask, 3))
 
 /**
+ * for_each_pool - iterate through all worker_pools in the system
+ * @pool: iteration cursor
+ * @id: integer used for iteration
+ */
+#define for_each_pool(pool, id)						\
+	idr_for_each_entry(&worker_pool_idr, pool, id)
+
+/**
  * for_each_pwq - iterate through all pool_workqueues of the specified workqueue
  * @pwq: iteration cursor
  * @wq: the target workqueue
@@ -3586,33 +3594,31 @@ EXPORT_SYMBOL_GPL(work_on_cpu);
  */
 void freeze_workqueues_begin(void)
 {
-	unsigned int cpu;
+	struct worker_pool *pool;
+	int id;
 
 	spin_lock_irq(&workqueue_lock);
 
 	WARN_ON_ONCE(workqueue_freezing);
 	workqueue_freezing = true;
 
-	for_each_wq_cpu(cpu) {
-		struct worker_pool *pool;
+	for_each_pool(pool, id) {
 		struct workqueue_struct *wq;
 
-		for_each_std_worker_pool(pool, cpu) {
-			spin_lock(&pool->lock);
+		spin_lock(&pool->lock);
 
-			WARN_ON_ONCE(pool->flags & POOL_FREEZING);
-			pool->flags |= POOL_FREEZING;
+		WARN_ON_ONCE(pool->flags & POOL_FREEZING);
+		pool->flags |= POOL_FREEZING;
 
-			list_for_each_entry(wq, &workqueues, list) {
-				struct pool_workqueue *pwq = get_pwq(cpu, wq);
+		list_for_each_entry(wq, &workqueues, list) {
+			struct pool_workqueue *pwq = get_pwq(pool->cpu, wq);
 
-				if (pwq && pwq->pool == pool &&
-				    (wq->flags & WQ_FREEZABLE))
-					pwq->max_active = 0;
-			}
-
-			spin_unlock(&pool->lock);
+			if (pwq && pwq->pool == pool &&
+			    (wq->flags & WQ_FREEZABLE))
+				pwq->max_active = 0;
 		}
+
+		spin_unlock(&pool->lock);
 	}
 
 	spin_unlock_irq(&workqueue_lock);
