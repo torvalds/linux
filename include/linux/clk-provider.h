@@ -45,6 +45,10 @@ struct clk_hw;
  * 		undo any work done in the @prepare callback. Called with
  * 		prepare_lock held.
  *
+ * @is_prepared: Queries the hardware to determine if the clock is prepared.
+ *		This function is allowed to sleep. Optional, if this op is not
+ *		set then the prepare count will be used.
+ *
  * @enable:	Enable the clock atomically. This must not return until the
  * 		clock is generating a valid clock signal, usable by consumer
  * 		devices. Called with enable_lock held. This function must not
@@ -108,6 +112,7 @@ struct clk_hw;
 struct clk_ops {
 	int		(*prepare)(struct clk_hw *hw);
 	void		(*unprepare)(struct clk_hw *hw);
+	int		(*is_prepared)(struct clk_hw *hw);
 	int		(*enable)(struct clk_hw *hw);
 	void		(*disable)(struct clk_hw *hw);
 	int		(*is_enabled)(struct clk_hw *hw);
@@ -351,6 +356,7 @@ unsigned int __clk_get_enable_count(struct clk *clk);
 unsigned int __clk_get_prepare_count(struct clk *clk);
 unsigned long __clk_get_rate(struct clk *clk);
 unsigned long __clk_get_flags(struct clk *clk);
+bool __clk_is_prepared(struct clk *clk);
 bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
 

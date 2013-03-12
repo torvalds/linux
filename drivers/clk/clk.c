@@ -451,6 +451,27 @@ unsigned long __clk_get_flags(struct clk *clk)
 	return !clk ? 0 : clk->flags;
 }
 
+bool __clk_is_prepared(struct clk *clk)
+{
+	int ret;
+
+	if (!clk)
+		return false;
+
+	/*
+	 * .is_prepared is optional for clocks that can prepare
+	 * fall back to software usage counter if it is missing
+	 */
+	if (!clk->ops->is_prepared) {
+		ret = clk->prepare_count ? 1 : 0;
+		goto out;
+	}
+
+	ret = clk->ops->is_prepared(clk->hw);
+out:
+	return !!ret;
+}
+
 bool __clk_is_enabled(struct clk *clk)
 {
 	int ret;
