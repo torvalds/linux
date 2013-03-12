@@ -283,22 +283,6 @@ ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
 }
 
 static int
-ftrace_trace_onoff_unreg(char *glob, char *cmd, char *param)
-{
-	struct ftrace_probe_ops *ops;
-
-	/* we register both traceon and traceoff to this callback */
-	if (strcmp(cmd, "traceon") == 0)
-		ops = &traceon_probe_ops;
-	else
-		ops = &traceoff_probe_ops;
-
-	unregister_ftrace_function_probe_func(glob, ops);
-
-	return 0;
-}
-
-static int
 ftrace_trace_onoff_callback(struct ftrace_hash *hash,
 			    char *glob, char *cmd, char *param, int enable)
 {
@@ -311,14 +295,16 @@ ftrace_trace_onoff_callback(struct ftrace_hash *hash,
 	if (!enable)
 		return -EINVAL;
 
-	if (glob[0] == '!')
-		return ftrace_trace_onoff_unreg(glob+1, cmd, param);
-
 	/* we register both traceon and traceoff to this callback */
 	if (strcmp(cmd, "traceon") == 0)
 		ops = &traceon_probe_ops;
 	else
 		ops = &traceoff_probe_ops;
+
+	if (glob[0] == '!') {
+		unregister_ftrace_function_probe_func(glob+1, ops);
+		return 0;
+	}
 
 	if (!param)
 		goto out_reg;
