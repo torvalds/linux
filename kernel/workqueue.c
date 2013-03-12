@@ -64,7 +64,6 @@ enum {
 	 * create_worker() is in progress.
 	 */
 	POOL_MANAGE_WORKERS	= 1 << 0,	/* need to manage workers */
-	POOL_MANAGING_WORKERS   = 1 << 1,       /* managing workers */
 	POOL_DISASSOCIATED	= 1 << 2,	/* cpu can't serve workers */
 	POOL_FREEZING		= 1 << 3,	/* freeze in progress */
 
@@ -145,6 +144,7 @@ struct worker_pool {
 	DECLARE_HASHTABLE(busy_hash, BUSY_WORKER_HASH_ORDER);
 						/* L: hash of busy workers */
 
+	struct mutex		manager_arb;	/* manager arbitration */
 	struct mutex		assoc_mutex;	/* protect POOL_DISASSOCIATED */
 	struct ida		worker_ida;	/* L: for worker IDs */
 
@@ -706,7 +706,7 @@ static bool need_to_manage_workers(struct worker_pool *pool)
 /* Do we have too many workers and should some go away? */
 static bool too_many_workers(struct worker_pool *pool)
 {
-	bool managing = pool->flags & POOL_MANAGING_WORKERS;
+	bool managing = mutex_is_locked(&pool->manager_arb);
 	int nr_idle = pool->nr_idle + managing; /* manager is considered idle */
 	int nr_busy = pool->nr_workers - nr_idle;
 
@@ -2029,19 +2029,17 @@ static bool manage_workers(struct worker *worker)
 	struct worker_pool *pool = worker->pool;
 	bool ret = false;
 
-	if (pool->flags & POOL_MANAGING_WORKERS)
+	if (!mutex_trylock(&pool->manager_arb))
 		return ret;
-
-	pool->flags |= POOL_MANAGING_WORKERS;
 
 	/*
 	 * To simplify both worker management and CPU hotplug, hold off
 	 * management while hotplug is in progress.  CPU hotplug path can't
-	 * grab %POOL_MANAGING_WORKERS to achieve this because that can
-	 * lead to idle worker depletion (all become busy thinking someone
-	 * else is managing) which in turn can result in deadlock under
-	 * extreme circumstances.  Use @pool->assoc_mutex to synchronize
-	 * manager against CPU hotplug.
+	 * grab @pool->manager_arb to achieve this because that can lead to
+	 * idle worker depletion (all become busy thinking someone else is
+	 * managing) which in turn can result in deadlock under extreme
+	 * circumstances.  Use @pool->assoc_mutex to synchronize manager
+	 * against CPU hotplug.
 	 *
 	 * assoc_mutex would always be free unless CPU hotplug is in
 	 * progress.  trylock first without dropping @pool->lock.
@@ -2077,8 +2075,8 @@ static bool manage_workers(struct worker *worker)
 	ret |= maybe_destroy_workers(pool);
 	ret |= maybe_create_worker(pool);
 
-	pool->flags &= ~POOL_MANAGING_WORKERS;
 	mutex_unlock(&pool->assoc_mutex);
+	mutex_unlock(&pool->manager_arb);
 	return ret;
 }
 
@@ -3806,6 +3804,7 @@ static int __init init_workqueues(void)
 			setup_timer(&pool->mayday_timer, pool_mayday_timeout,
 				    (unsigned long)pool);
 
+			mutex_init(&pool->manager_arb);
 			mutex_init(&pool->assoc_mutex);
 			ida_init(&pool->worker_ida);
 
