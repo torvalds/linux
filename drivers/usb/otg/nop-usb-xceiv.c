@@ -32,10 +32,12 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/nop-usb-xceiv.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 struct nop_usb_xceiv {
 	struct usb_phy		phy;
 	struct device		*dev;
+	struct clk		*clk;
 };
 
 static struct platform_device *pd;
@@ -62,6 +64,24 @@ EXPORT_SYMBOL(usb_nop_xceiv_unregister);
 static int nop_set_suspend(struct usb_phy *x, int suspend)
 {
 	return 0;
+}
+
+static int nop_init(struct usb_phy *phy)
+{
+	struct nop_usb_xceiv *nop = dev_get_drvdata(phy->dev);
+
+	if (!IS_ERR(nop->clk))
+		clk_enable(nop->clk);
+
+	return 0;
+}
+
+static void nop_shutdown(struct usb_phy *phy)
+{
+	struct nop_usb_xceiv *nop = dev_get_drvdata(phy->dev);
+
+	if (!IS_ERR(nop->clk))
+		clk_disable(nop->clk);
 }
 
 static int nop_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
@@ -112,10 +132,34 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	if (pdata)
 		type = pdata->type;
 
+	nop->clk = devm_clk_get(&pdev->dev, "main_clk");
+	if (IS_ERR(nop->clk)) {
+		dev_dbg(&pdev->dev, "Can't get phy clock: %ld\n",
+					PTR_ERR(nop->clk));
+	}
+
+	if (!IS_ERR(nop->clk) && pdata && pdata->clk_rate) {
+		err = clk_set_rate(nop->clk, pdata->clk_rate);
+		if (err) {
+			dev_err(&pdev->dev, "Error setting clock rate\n");
+			return err;
+		}
+	}
+
+	if (!IS_ERR(nop->clk)) {
+		err = clk_prepare(nop->clk);
+		if (err) {
+			dev_err(&pdev->dev, "Error preparing clock\n");
+			return err;
+		}
+	}
+
 	nop->dev		= &pdev->dev;
 	nop->phy.dev		= nop->dev;
 	nop->phy.label		= "nop-xceiv";
 	nop->phy.set_suspend	= nop_set_suspend;
+	nop->phy.init		= nop_init;
+	nop->phy.shutdown	= nop_shutdown;
 	nop->phy.state		= OTG_STATE_UNDEFINED;
 
 	nop->phy.otg->phy		= &nop->phy;
@@ -126,7 +170,7 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
-		return err;
+		goto err_add;
 	}
 
 	platform_set_drvdata(pdev, nop);
@@ -134,11 +178,19 @@ static int nop_usb_xceiv_probe(struct platform_device *pdev)
 	ATOMIC_INIT_NOTIFIER_HEAD(&nop->phy.notifier);
 
 	return 0;
+
+err_add:
+	if (!IS_ERR(nop->clk))
+		clk_unprepare(nop->clk);
+	return err;
 }
 
 static int nop_usb_xceiv_remove(struct platform_device *pdev)
 {
 	struct nop_usb_xceiv *nop = platform_get_drvdata(pdev);
+
+	if (!IS_ERR(nop->clk))
+		clk_unprepare(nop->clk);
 
 	usb_remove_phy(&nop->phy);
 
