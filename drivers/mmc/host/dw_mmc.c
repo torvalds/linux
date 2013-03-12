@@ -2293,6 +2293,18 @@ int dw_mci_probe(struct dw_mci *host)
 	mci_writel(host, CLKENA, 0);
 	mci_writel(host, CLKSRC, 0);
 
+	/*
+	 * In 2.40a spec, Data offset is changed.
+	 * Need to check the version-id and set data-offset for DATA register.
+	 */
+	host->verid = SDMMC_GET_VERID(mci_readl(host, VERID));
+	dev_info(host->dev, "Version ID is %04x\n", host->verid);
+
+	if (host->verid < DW_MMC_240A)
+		host->data_offset = DATA_OFFSET;
+	else
+		host->data_offset = DATA_240A_OFFSET;
+
 	tasklet_init(&host->tasklet, dw_mci_tasklet_func, (unsigned long)host);
 	host->card_workqueue = alloc_workqueue("dw-mci-card",
 			WQ_MEM_RECLAIM | WQ_NON_REENTRANT, 1);
@@ -2340,18 +2352,6 @@ int dw_mci_probe(struct dw_mci *host)
 					"but failed on all\n", host->num_slots);
 		goto err_workqueue;
 	}
-
-	/*
-	 * In 2.40a spec, Data offset is changed.
-	 * Need to check the version-id and set data-offset for DATA register.
-	 */
-	host->verid = SDMMC_GET_VERID(mci_readl(host, VERID));
-	dev_info(host->dev, "Version ID is %04x\n", host->verid);
-
-	if (host->verid < DW_MMC_240A)
-		host->data_offset = DATA_OFFSET;
-	else
-		host->data_offset = DATA_240A_OFFSET;
 
 	if (host->quirks & DW_MCI_QUIRK_IDMAC_DTO)
 		dev_info(host->dev, "Internal DMAC interrupt fix enabled.\n");
