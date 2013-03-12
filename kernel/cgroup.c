@@ -4346,10 +4346,8 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 {
 	struct dentry *d = cgrp->dentry;
 	struct cgroup *parent = cgrp->parent;
-	DEFINE_WAIT(wait);
 	struct cgroup_event *event, *tmp;
 	struct cgroup_subsys *ss;
-	LIST_HEAD(tmp_list);
 
 	lockdep_assert_held(&d->d_inode->i_mutex);
 	lockdep_assert_held(&cgroup_mutex);
