@@ -35,15 +35,6 @@ struct mxsfb_platform_data {
 
 	unsigned dotclk_delay;	/* refer manual HW_LCDIF_VDCTRL4 register */
 	unsigned ld_intf_width;	/* refer STMLCDIF_* macros */
-
-	unsigned fb_size;	/* Size of the video memory. If zero a
-				 * default will be used
-				 */
-	unsigned long fb_phys;	/* physical address for the video memory. If
-				 * zero the framebuffer memory will be dynamically
-				 * allocated. If specified,fb_size must also be specified.
-				 * fb_phys must be unused by Linux.
-				 */
 	u32 sync;		/* sync mask, contains MXSFB specifics not
 				 * carried in fb_info->var.sync
 				 */

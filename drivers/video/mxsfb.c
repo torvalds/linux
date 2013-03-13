@@ -168,7 +168,6 @@ struct mxsfb_info {
 	unsigned ld_intf_width;
 	unsigned dotclk_delay;
 	const struct mxsfb_devdata *devdata;
-	int mapped;
 	u32 sync;
 };
 
@@ -686,7 +685,7 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	struct mxsfb_platform_data *pdata = host->pdev->dev.platform_data;
 	dma_addr_t fb_phys;
 	void *fb_virt;
-	unsigned fb_size = pdata->fb_size;
+	unsigned fb_size;
 
 	fb_info->fbops = &mxsfb_ops;
 	fb_info->flags = FBINFO_FLAG_DEFAULT | FBINFO_READS_FAST;
@@ -706,30 +705,12 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	host->ld_intf_width = pdata->ld_intf_width;
 
 	/* Memory allocation for framebuffer */
-	if (pdata->fb_phys) {
-		if (!fb_size)
-			return -EINVAL;
+	fb_size = SZ_2M;
+	fb_virt = alloc_pages_exact(fb_size, GFP_DMA);
+	if (!fb_virt)
+		return -ENOMEM;
 
-		fb_phys = pdata->fb_phys;
-
-		if (!request_mem_region(fb_phys, fb_size, host->pdev->name))
-			return -ENOMEM;
-
-		fb_virt = ioremap(fb_phys, fb_size);
-		if (!fb_virt) {
-			release_mem_region(fb_phys, fb_size);
-			return -ENOMEM;
-		}
-		host->mapped = 1;
-	} else {
-		if (!fb_size)
-			fb_size = SZ_2M; /* default */
-		fb_virt = alloc_pages_exact(fb_size, GFP_DMA);
-		if (!fb_virt)
-			return -ENOMEM;
-
-		fb_phys = virt_to_phys(fb_virt);
-	}
+	fb_phys = virt_to_phys(fb_virt);
 
 	fb_info->fix.smem_start = fb_phys;
 	fb_info->screen_base = fb_virt;
@@ -745,13 +726,7 @@ static void mxsfb_free_videomem(struct mxsfb_info *host)
 {
 	struct fb_info *fb_info = &host->fb_info;
 
-	if (host->mapped) {
-		iounmap(fb_info->screen_base);
-		release_mem_region(fb_info->fix.smem_start,
-				fb_info->screen_size);
-	} else {
-		free_pages_exact(fb_info->screen_base, fb_info->fix.smem_len);
-	}
+	free_pages_exact(fb_info->screen_base, fb_info->fix.smem_len);
 }
 
 static struct platform_device_id mxsfb_devtype[] = {
