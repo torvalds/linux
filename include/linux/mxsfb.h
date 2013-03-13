@@ -33,7 +33,6 @@ struct mxsfb_platform_data {
 
 	unsigned default_bpp;
 
-	unsigned dotclk_delay;	/* refer manual HW_LCDIF_VDCTRL4 register */
 	unsigned ld_intf_width;	/* refer STMLCDIF_* macros */
 	u32 sync;		/* sync mask, contains MXSFB specifics not
 				 * carried in fb_info->var.sync

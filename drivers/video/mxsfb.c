@@ -701,7 +701,6 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	var->accel_flags = 0;
 	var->vmode = FB_VMODE_NONINTERLACED;
 
-	host->dotclk_delay = pdata->dotclk_delay;
 	host->ld_intf_width = pdata->ld_intf_width;
 
 	/* Memory allocation for framebuffer */
