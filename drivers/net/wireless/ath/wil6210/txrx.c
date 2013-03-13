@@ -557,7 +557,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	if (rc)
 		goto out_free;
 
-	if (reply.cmd.status != WMI_VRING_CFG_SUCCESS) {
+	if (reply.cmd.status != WMI_FW_STATUS_SUCCESS) {
 		wil_err(wil, "Tx config failed, status 0x%02x\n",
 			reply.cmd.status);
 		rc = -EINVAL;

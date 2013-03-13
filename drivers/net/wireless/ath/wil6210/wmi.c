@@ -269,16 +269,18 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 	struct wmi_ready_event *evt = d;
-	u32 ver = le32_to_cpu(evt->sw_version);
+	wil->fw_version = le32_to_cpu(evt->sw_version);
+	wil->n_mids = evt->numof_additional_mids;
 
-	wil_dbg_wmi(wil, "FW ver. %d; MAC %pM\n", ver, evt->mac);
+	wil_dbg_wmi(wil, "FW ver. %d; MAC %pM; %d MID's\n", wil->fw_version,
+		    evt->mac, wil->n_mids);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		memcpy(ndev->dev_addr, evt->mac, ETH_ALEN);
 		memcpy(ndev->perm_addr, evt->mac, ETH_ALEN);
 	}
 	snprintf(wdev->wiphy->fw_version, sizeof(wdev->wiphy->fw_version),
-		 "%d", ver);
+		 "%d", wil->fw_version);
 }
 
 static void wmi_evt_fw_ready(struct wil6210_priv *wil, int id, void *d,
@@ -714,18 +716,39 @@ int wmi_set_mac_address(struct wil6210_priv *wil, void *addr)
 	return wmi_send(wil, WMI_SET_MAC_ADDRESS_CMDID, &cmd, sizeof(cmd));
 }
 
-int wmi_set_bcon(struct wil6210_priv *wil, int bi, u8 wmi_nettype)
+int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 {
-	struct wmi_bcon_ctrl_cmd cmd = {
+	int rc;
+
+	struct wmi_pcp_start_cmd cmd = {
 		.bcon_interval = cpu_to_le16(bi),
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
+		.channel = chan,
 	};
+	struct {
+		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_pcp_started_event evt;
+	} __packed reply;
 
 	if (!wil->secure_pcp)
 		cmd.disable_sec = 1;
 
-	return wmi_send(wil, WMI_BCON_CTRL_CMDID, &cmd, sizeof(cmd));
+	rc = wmi_call(wil, WMI_PCP_START_CMDID, &cmd, sizeof(cmd),
+		      WMI_PCP_STARTED_EVENTID, &reply, sizeof(reply), 100);
+	if (rc)
+		return rc;
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS)
+		rc = -EINVAL;
+
+	return rc;
+}
+
+int wmi_pcp_stop(struct wil6210_priv *wil)
+{
+	return wmi_call(wil, WMI_PCP_STOP_CMDID, NULL, 0,
+			WMI_PCP_STOPPED_EVENTID, NULL, 0, 20);
 }
 
 int wmi_set_ssid(struct wil6210_priv *wil, u8 ssid_len, const void *ssid)
@@ -794,6 +817,16 @@ int wmi_get_channel(struct wil6210_priv *wil, int *channel)
 	*channel = reply.cmd.channel + 1;
 
 	return 0;
+}
+
+int wmi_p2p_cfg(struct wil6210_priv *wil, int channel)
+{
+	struct wmi_p2p_cfg_cmd cmd = {
+		.discovery_mode = WMI_DISCOVERY_MODE_NON_OFFLOAD,
+		.channel = channel - 1,
+	};
+
+	return wmi_send(wil, WMI_P2P_CFG_CMDID, &cmd, sizeof(cmd));
 }
 
 int wmi_tx_eapol(struct wil6210_priv *wil, struct sk_buff *skb)

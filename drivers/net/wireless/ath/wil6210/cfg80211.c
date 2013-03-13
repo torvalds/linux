@@ -427,10 +427,6 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (rc)
 		return rc;
 
-	rc = wmi_set_channel(wil, channel->hw_value);
-	if (rc)
-		return rc;
-
 	/* MAC address - pre-requisite for other commands */
 	wmi_set_mac_address(wil, ndev->dev_addr);
 
@@ -450,7 +446,8 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	wil->secure_pcp = info->privacy;
 
-	rc = wmi_set_bcon(wil, info->beacon_interval, wmi_nettype);
+	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
+			   channel->hw_value);
 	if (rc)
 		return rc;
 
@@ -467,11 +464,8 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 {
 	int rc = 0;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-	struct wireless_dev *wdev = ndev->ieee80211_ptr;
-	u8 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
 
-	/* To stop beaconing, set BI to 0 */
-	rc = wmi_set_bcon(wil, 0, wmi_nettype);
+	rc = wmi_pcp_stop(wil);
 
 	return rc;
 }

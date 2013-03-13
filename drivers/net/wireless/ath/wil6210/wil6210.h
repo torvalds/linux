@@ -209,6 +209,8 @@ struct wil6210_priv {
 	struct wireless_dev *wdev;
 	void __iomem *csr;
 	ulong status;
+	u32 fw_version;
+	u8 n_mids; /* number of additional MIDs as reported by FW */
 	/* profile */
 	u32 monitor_flags;
 	u32 secure_pcp; /* create secure PCP? */
@@ -326,6 +328,7 @@ int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
+int wmi_p2p_cfg(struct wil6210_priv *wil, int channel);
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
@@ -339,7 +342,8 @@ struct wireless_dev *wil_cfg80211_init(struct device *dev);
 void wil_wdev_free(struct wil6210_priv *wil);
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
-int wmi_set_bcon(struct wil6210_priv *wil, int bi, u8 wmi_nettype);
+int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
+int wmi_pcp_stop(struct wil6210_priv *wil);
 void wil6210_disconnect(struct wil6210_priv *wil, void *bssid);
 
 int wil_rx_init(struct wil6210_priv *wil);

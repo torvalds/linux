@@ -343,9 +343,9 @@ static int __wil_up(struct wil6210_priv *wil)
 			wil_err(wil, "SSID not set\n");
 			return -EINVAL;
 		}
-		wmi_set_ssid(wil, wdev->ssid_len, wdev->ssid);
-		if (channel)
-			wmi_set_channel(wil, channel->hw_value);
+		rc = wmi_set_ssid(wil, wdev->ssid_len, wdev->ssid);
+		if (rc)
+			return rc;
 		break;
 	default:
 		break;
@@ -355,9 +355,12 @@ static int __wil_up(struct wil6210_priv *wil)
 	wmi_set_mac_address(wil, ndev->dev_addr);
 
 	/* Set up beaconing if required. */
-	rc = wmi_set_bcon(wil, bi, wmi_nettype);
-	if (rc)
-		return rc;
+	if (bi > 0) {
+		rc = wmi_pcp_start(wil, bi, wmi_nettype,
+				   (channel ? channel->hw_value : 0));
+		if (rc)
+			return rc;
+	}
 
 	/* Rx VRING. After MAC and beacon */
 	wil_rx_init(wil);
