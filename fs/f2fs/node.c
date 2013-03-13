@@ -1106,15 +1106,15 @@ static int f2fs_write_node_page(struct page *page,
 
 	/* This page is already truncated */
 	if (ni.blk_addr == NULL_ADDR)
-		return 0;
+		goto out;
 
 	set_page_writeback(page);
 
 	/* insert node offset */
 	write_node_page(sbi, page, nid, ni.blk_addr, &new_addr);
 	set_node_addr(sbi, &ni, new_addr);
+out:
 	dec_page_count(sbi, F2FS_DIRTY_NODES);
-
 	mutex_unlock_op(sbi, NODE_WRITE);
 	unlock_page(page);
 	return 0;
