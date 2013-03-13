@@ -283,7 +283,7 @@ EXPORT_SYMBOL_GPL(system_freezable_wq);
 /**
  * for_each_pool - iterate through all worker_pools in the system
  * @pool: iteration cursor
- * @id: integer used for iteration
+ * @pi: integer used for iteration
  *
  * This must be called either with workqueue_lock held or sched RCU read
  * locked.  If the pool needs to be used beyond the locking in effect, the
@@ -292,8 +292,8 @@ EXPORT_SYMBOL_GPL(system_freezable_wq);
  * The if/else clause exists only for the lockdep assertion and can be
  * ignored.
  */
-#define for_each_pool(pool, id)						\
-	idr_for_each_entry(&worker_pool_idr, pool, id)			\
+#define for_each_pool(pool, pi)						\
+	idr_for_each_entry(&worker_pool_idr, pool, pi)			\
 		if (({ assert_rcu_or_wq_lock(); false; })) { }		\
 		else
 
@@ -4354,7 +4354,7 @@ void freeze_workqueues_begin(void)
 	struct worker_pool *pool;
 	struct workqueue_struct *wq;
 	struct pool_workqueue *pwq;
-	int id;
+	int pi;
 
 	spin_lock_irq(&workqueue_lock);
 
@@ -4362,7 +4362,7 @@ void freeze_workqueues_begin(void)
 	workqueue_freezing = true;
 
 	/* set FREEZING */
-	for_each_pool(pool, id) {
+	for_each_pool(pool, pi) {
 		spin_lock(&pool->lock);
 		WARN_ON_ONCE(pool->flags & POOL_FREEZING);
 		pool->flags |= POOL_FREEZING;
@@ -4435,7 +4435,7 @@ void thaw_workqueues(void)
 	struct workqueue_struct *wq;
 	struct pool_workqueue *pwq;
 	struct worker_pool *pool;
-	int id;
+	int pi;
 
 	spin_lock_irq(&workqueue_lock);
 
@@ -4443,7 +4443,7 @@ void thaw_workqueues(void)
 		goto out_unlock;
 
 	/* clear FREEZING */
-	for_each_pool(pool, id) {
+	for_each_pool(pool, pi) {
 		spin_lock(&pool->lock);
 		WARN_ON_ONCE(!(pool->flags & POOL_FREEZING));
 		pool->flags &= ~POOL_FREEZING;
@@ -4457,7 +4457,7 @@ void thaw_workqueues(void)
 	}
 
 	/* kick workers */
-	for_each_pool(pool, id) {
+	for_each_pool(pool, pi) {
 		spin_lock(&pool->lock);
 		wake_up_worker(pool);
 		spin_unlock(&pool->lock);
