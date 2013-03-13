@@ -263,7 +263,7 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	return;
 }
 
-static struct pinconf_ops mvebu_pinconf_ops = {
+static const struct pinconf_ops mvebu_pinconf_ops = {
 	.pin_config_group_get = mvebu_pinconf_group_get,
 	.pin_config_group_set = mvebu_pinconf_group_set,
 	.pin_config_group_dbg_show = mvebu_pinconf_group_dbg_show,
@@ -369,7 +369,7 @@ static int mvebu_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
-static struct pinmux_ops mvebu_pinmux_ops = {
+static const struct pinmux_ops mvebu_pinmux_ops = {
 	.get_functions_count = mvebu_pinmux_get_funcs_count,
 	.get_function_name = mvebu_pinmux_get_func_name,
 	.get_function_groups = mvebu_pinmux_get_groups,
@@ -470,7 +470,7 @@ static void mvebu_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops mvebu_pinctrl_ops = {
+static const struct pinctrl_ops mvebu_pinctrl_ops = {
 	.get_groups_count = mvebu_pinctrl_get_groups_count,
 	.get_group_name = mvebu_pinctrl_get_group_name,
 	.get_group_pins = mvebu_pinctrl_get_group_pins,
