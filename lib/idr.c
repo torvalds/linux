@@ -569,8 +569,7 @@ void idr_remove(struct idr *idp, int id)
 	struct idr_layer *p;
 	struct idr_layer *to_free;
 
-	/* see comment in idr_find_slowpath() */
-	if (WARN_ON_ONCE(id < 0))
+	if (id < 0)
 		return;
 
 	sub_remove(idp, (idp->layers - 1) * IDR_BITS, id);
@@ -667,15 +666,7 @@ void *idr_find_slowpath(struct idr *idp, int id)
 	int n;
 	struct idr_layer *p;
 
-	/*
-	 * If @id is negative, idr_find() used to ignore the sign bit and
-	 * performed lookup with the rest of bits, which is weird and can
-	 * lead to very obscure bugs.  We're now returning NULL for all
-	 * negative IDs but just in case somebody was depending on the sign
-	 * bit being ignored, let's trigger WARN_ON_ONCE() so that they can
-	 * be detected and fixed.  WARN_ON_ONCE() can later be removed.
-	 */
-	if (WARN_ON_ONCE(id < 0))
+	if (id < 0)
 		return NULL;
 
 	p = rcu_dereference_raw(idp->top);
@@ -824,8 +815,7 @@ void *idr_replace(struct idr *idp, void *ptr, int id)
 	int n;
 	struct idr_layer *p, *old_p;
 
-	/* see comment in idr_find_slowpath() */
-	if (WARN_ON_ONCE(id < 0))
+	if (id < 0)
 		return ERR_PTR(-EINVAL);
 
 	p = idp->top;

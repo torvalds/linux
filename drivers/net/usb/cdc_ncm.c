@@ -1213,6 +1213,14 @@ static const struct usb_device_id cdc_devs[] = {
 	  .driver_info = (unsigned long) &wwan_info,
 	},
 
+	/* tag Huawei devices as wwan */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x12d1,
+					USB_CLASS_COMM,
+					USB_CDC_SUBCLASS_NCM,
+					USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&wwan_info,
+	},
+
 	/* Huawei NCM devices disguised as vendor specific */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x12d1, 0xff, 0x02, 0x16),
 	  .driver_info = (unsigned long)&wwan_info,
