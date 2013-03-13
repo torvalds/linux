@@ -378,12 +378,12 @@ extern void slb_set_size(u16 size);
  */
 
 #define CONTEXT_BITS		19
-#define USER_ESID_BITS		18
-#define USER_ESID_BITS_1T	6
+#define ESID_BITS		18
+#define ESID_BITS_1T		6
 
 /*
  * 256MB segment
- * The proto-VSID space has 2^(CONTEX_BITS + USER_ESID_BITS) - 1 segments
+ * The proto-VSID space has 2^(CONTEX_BITS + ESID_BITS) - 1 segments
  * available for user + kernel mapping. The top 4 contexts are used for
  * kernel mapping. Each segment contains 2^28 bytes. Each
  * context maps 2^46 bytes (64TB) so we can support 2^19-1 contexts
@@ -396,15 +396,15 @@ extern void slb_set_size(u16 size);
  * doesn't overflow 64 bits. It should also be co-prime to vsid_modulus
  */
 #define VSID_MULTIPLIER_256M	ASM_CONST(12538073)	/* 24-bit prime */
-#define VSID_BITS_256M		(CONTEXT_BITS + USER_ESID_BITS)
+#define VSID_BITS_256M		(CONTEXT_BITS + ESID_BITS)
 #define VSID_MODULUS_256M	((1UL<<VSID_BITS_256M)-1)
 
 #define VSID_MULTIPLIER_1T	ASM_CONST(12538073)	/* 24-bit prime */
-#define VSID_BITS_1T		(CONTEXT_BITS + USER_ESID_BITS_1T)
+#define VSID_BITS_1T		(CONTEXT_BITS + ESID_BITS_1T)
 #define VSID_MODULUS_1T		((1UL<<VSID_BITS_1T)-1)
 
 
-#define USER_VSID_RANGE	(1UL << (USER_ESID_BITS + SID_SHIFT))
+#define USER_VSID_RANGE	(1UL << (ESID_BITS + SID_SHIFT))
 
 /*
  * This macro generates asm code to compute the VSID scramble
@@ -540,9 +540,9 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 		return 0;
 
 	if (ssize == MMU_SEGSIZE_256M)
-		return vsid_scramble((context << USER_ESID_BITS)
+		return vsid_scramble((context << ESID_BITS)
 				     | (ea >> SID_SHIFT), 256M);
-	return vsid_scramble((context << USER_ESID_BITS_1T)
+	return vsid_scramble((context << ESID_BITS_1T)
 			     | (ea >> SID_SHIFT_1T), 1T);
 }
 

@@ -1472,7 +1472,7 @@ _GLOBAL(do_stab_bolted)
 	addi	r9,r9,(MAX_USER_CONTEXT + 1)@l
 
 	srdi	r10,r11,SID_SHIFT
-	rldimi  r10,r9,USER_ESID_BITS,0 /* proto vsid */
+	rldimi  r10,r9,ESID_BITS,0 /* proto vsid */
 	ASM_VSID_SCRAMBLE(r10, r9, 256M)
 	rldic	r9,r10,12,16	/* r9 = vsid << 12 */
 

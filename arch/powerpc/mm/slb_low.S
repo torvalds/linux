@@ -232,7 +232,7 @@ _GLOBAL(slb_allocate_user)
  * r3 = EA, r9 = context, r10 = ESID, r11 = flags, clobbers r9, cr7 = <> PAGE_OFFSET
  */
 slb_finish_load:
-	rldimi  r10,r9,USER_ESID_BITS,0
+	rldimi  r10,r9,ESID_BITS,0
 	ASM_VSID_SCRAMBLE(r10,r9,256M)
 	/*
 	 * bits above VSID_BITS_256M need to be ignored from r10
@@ -301,7 +301,7 @@ _GLOBAL(slb_compare_rr_to_size)
  */
 slb_finish_load_1T:
 	srdi	r10,r10,(SID_SHIFT_1T - SID_SHIFT)	/* get 1T ESID */
-	rldimi  r10,r9,USER_ESID_BITS_1T,0
+	rldimi  r10,r9,ESID_BITS_1T,0
 	ASM_VSID_SCRAMBLE(r10,r9,1T)
 	/*
 	 * bits above VSID_BITS_1T need to be ignored from r10
