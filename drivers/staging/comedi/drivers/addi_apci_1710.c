@@ -45,16 +45,7 @@ static int apci1710_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-
-	if (this_board->i_IorangeBase1)
-		dev->iobase = pci_resource_start(pcidev, 1);
-	else
-		dev->iobase = pci_resource_start(pcidev, 0);
-
-	devpriv->iobase = dev->iobase;
-	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
-	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
-	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
+	devpriv->s_BoardInfos.ui_Address = pci_resource_start(pcidev, 2);
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
@@ -64,8 +55,6 @@ static int apci1710_auto_attach(struct comedi_device *dev,
 	}
 
 	i_ADDI_AttachPCI1710(dev);
-
-	devpriv->s_BoardInfos.ui_Address = pci_resource_start(pcidev, 2);
 
 	i_APCI1710_Reset(dev);
 	return 0;
