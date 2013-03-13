@@ -73,6 +73,8 @@ void xen_poll_irq_timeout(int irq, u64 timeout);
 
 /* Determine the IRQ which is bound to an event channel */
 unsigned irq_from_evtchn(unsigned int evtchn);
+int irq_from_virq(unsigned int cpu, unsigned int virq);
+unsigned int evtchn_from_irq(unsigned irq);
 
 /* Xen HVM evtchn vector callback */
 void xen_hvm_callback_vector(void);
