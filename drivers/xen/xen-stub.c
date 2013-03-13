@@ -25,7 +25,6 @@
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_drivers.h>
 #include <xen/acpi.h>
 
 #ifdef CONFIG_ACPI
