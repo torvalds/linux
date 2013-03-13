@@ -127,6 +127,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status;
+	unsigned long long sta;
 
 	/* If there is no handle, the device node has been unregistered. */
 	if (!handle) {
@@ -164,10 +165,25 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 		if (status == AE_NOT_FOUND) {
 			return -ENODEV;
 		} else {
-			acpi_handle_warn(handle, "Eject failed\n");
+			acpi_handle_warn(handle, "Eject failed (0x%x)\n",
+								status);
 			return -EIO;
 		}
 	}
+
+	/*
+	 * Verify if eject was indeed successful.  If not, log an error
+	 * message.  No need to call _OST since _EJ0 call was made OK.
+	 */
+	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_warn(handle,
+			"Status check after eject failed (0x%x)\n", status);
+	} else if (sta & ACPI_STA_DEVICE_ENABLED) {
+		acpi_handle_warn(handle,
+			"Eject incomplete - status 0x%llx\n", sta);
+	}
+
 	return 0;
 }
 
