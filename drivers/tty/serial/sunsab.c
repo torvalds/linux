@@ -203,7 +203,7 @@ receive_chars(struct uart_sunsab_port *up,
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(&up->port, ch))
+		if (uart_handle_sysrq_char(&up->port, ch) || !port)
 			continue;
 
 		if ((stat->sreg.isr0 & (up->port.ignore_status_mask & 0xff)) == 0 &&
