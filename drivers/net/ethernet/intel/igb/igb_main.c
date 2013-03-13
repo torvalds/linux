@@ -2542,8 +2542,8 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211))
 		return;
 
-	igb_enable_sriov(pdev, max_vfs);
 	pci_sriov_set_totalvfs(pdev, 7);
+	igb_enable_sriov(pdev, max_vfs);
 
 #endif /* CONFIG_PCI_IOV */
 }
