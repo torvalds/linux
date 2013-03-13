@@ -1068,7 +1068,7 @@ struct ftrace_func_probe {
 	unsigned long		flags;
 	unsigned long		ip;
 	void			*data;
-	struct rcu_head		rcu;
+	struct list_head	free_list;
 };
 
 struct ftrace_func_entry {
@@ -2978,11 +2978,8 @@ static void __disable_ftrace_function_probe(void)
 }
 
 
-static void ftrace_free_entry_rcu(struct rcu_head *rhp)
+static void ftrace_free_entry(struct ftrace_func_probe *entry)
 {
-	struct ftrace_func_probe *entry =
-		container_of(rhp, struct ftrace_func_probe, rcu);
-
 	if (entry->ops->free)
 		entry->ops->free(entry->ops, entry->ip, &entry->data);
 	kfree(entry);
@@ -3092,7 +3089,9 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 {
 	struct ftrace_func_entry *rec_entry;
 	struct ftrace_func_probe *entry;
+	struct ftrace_func_probe *p;
 	struct ftrace_hash **orig_hash = &trace_probe_ops.filter_hash;
+	struct list_head free_list;
 	struct ftrace_hash *hash;
 	struct hlist_node *n, *tmp;
 	char str[KSYM_SYMBOL_LEN];
@@ -3120,6 +3119,8 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		/* Hmm, should report this somehow */
 		goto out_unlock;
 
+	INIT_LIST_HEAD(&free_list);
+
 	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
 		struct hlist_head *hhd = &ftrace_func_hash[i];
 
@@ -3146,7 +3147,7 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 				free_hash_entry(hash, rec_entry);
 
 			hlist_del_rcu(&entry->node);
-			call_rcu_sched(&entry->rcu, ftrace_free_entry_rcu);
+			list_add(&entry->free_list, &free_list);
 		}
 	}
 	__disable_ftrace_function_probe();
@@ -3155,6 +3156,12 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	 * probe is removed, a null hash means *all enabled*.
 	 */
 	ftrace_hash_move(&trace_probe_ops, 1, orig_hash, hash);
+	synchronize_sched();
+	list_for_each_entry_safe(entry, p, &free_list, free_list) {
+		list_del(&entry->free_list);
+		ftrace_free_entry(entry);
+	}
+		
  out_unlock:
 	mutex_unlock(&ftrace_lock);
 	free_ftrace_hash(hash);
