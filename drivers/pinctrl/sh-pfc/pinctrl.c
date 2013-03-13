@@ -218,7 +218,17 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
 	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
 	unsigned long flags;
+	unsigned int dir;
 	int ret;
+
+	/* Check if the requested direction is supported by the pin. Not all SoC
+	 * provide pin config data, so perform the check conditionally.
+	 */
+	if (pin->configs) {
+		dir = input ? SH_PFC_PIN_CFG_INPUT : SH_PFC_PIN_CFG_OUTPUT;
+		if (!(pin->configs & dir))
+			return -EINVAL;
+	}
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
