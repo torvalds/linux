@@ -54,34 +54,22 @@ static void quirk_fsl_pcie_header(struct pci_dev *dev)
 	return;
 }
 
-static int __init fsl_pcie_check_link(struct pci_controller *hose,
-				  struct resource *rsrc)
+static int __init fsl_pcie_check_link(struct pci_controller *hose)
 {
-	struct ccsr_pci __iomem *pci = NULL;
 	u32 val;
 
-	/* for PCIe IP rev 3.0 or greater use CSR0 for link state */
-	if (rsrc) {
-		pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
-		    (u64)rsrc->start, (u64)rsrc->end - (u64)rsrc->start + 1);
-		pci = ioremap(rsrc->start, rsrc->end - rsrc->start + 1);
-		if (!pci) {
-			dev_err(hose->parent, "Unable to map PCIe registers\n");
-			return -ENOMEM;
-		}
-		if (in_be32(&pci->block_rev1) >= PCIE_IP_REV_3_0) {
-			val = (in_be32(&pci->pex_csr0) & PEX_CSR0_LTSSM_MASK)
-					>> PEX_CSR0_LTSSM_SHIFT;
-			if (val != PEX_CSR0_LTSSM_L0)
-				return 1;
-			iounmap(pci);
-			return 0;
-		}
-		iounmap(pci);
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK) {
+		early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);
+		if (val < PCIE_LTSSM_L0)
+			return 1;
+	} else {
+		struct ccsr_pci __iomem *pci = hose->private_data;
+		/* for PCIe IP rev 3.0 or greater use CSR0 for link state */
+		val = (in_be32(&pci->pex_csr0) & PEX_CSR0_LTSSM_MASK)
+				>> PEX_CSR0_LTSSM_SHIFT;
+		if (val != PEX_CSR0_LTSSM_L0)
+			return 1;
 	}
-	early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);
-	if (val < PCIE_LTSSM_L0)
-		return 1;
 
 	return 0;
 }
@@ -148,10 +136,9 @@ static int setup_one_atmu(struct ccsr_pci __iomem *pci,
 }
 
 /* atmu setup for fsl pci/pcie controller */
-static void setup_pci_atmu(struct pci_controller *hose,
-				  struct resource *rsrc)
+static void setup_pci_atmu(struct pci_controller *hose)
 {
-	struct ccsr_pci __iomem *pci;
+	struct ccsr_pci __iomem *pci = hose->private_data;
 	int i, j, n, mem_log, win_idx = 3, start_idx = 1, end_idx = 4;
 	u64 mem, sz, paddr_hi = 0;
 	u64 paddr_lo = ULLONG_MAX;
@@ -161,15 +148,6 @@ static void setup_pci_atmu(struct pci_controller *hose,
 	const char *name = hose->dn->full_name;
 	const u64 *reg;
 	int len;
-
-	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
-		 (u64)rsrc->start, (u64)resource_size(rsrc));
-
-	pci = ioremap(rsrc->start, resource_size(rsrc));
-	if (!pci) {
-	    dev_err(hose->parent, "Unable to map ATMU registers\n");
-	    return;
-	}
 
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		if (in_be32(&pci->block_rev1) >= PCIE_IP_REV_2_2) {
@@ -451,6 +429,7 @@ int __init fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	const int *bus_range;
 	u8 hdr_type, progif;
 	struct device_node *dev;
+	struct ccsr_pci __iomem *pci;
 
 	dev = pdev->dev.of_node;
 
@@ -483,8 +462,18 @@ int __init fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
+	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
+		 (u64)rsrc.start, (u64)resource_size(&rsrc));
+
+	pci = hose->private_data = ioremap(rsrc.start, resource_size(&rsrc));
+	if (!hose->private_data)
+		goto no_bridge;
+
 	setup_indirect_pci(hose, rsrc.start, rsrc.start + 0x4,
 		PPC_INDIRECT_TYPE_BIG_ENDIAN);
+
+	if (in_be32(&pci->block_rev1) < PCIE_IP_REV_3_0)
+		hose->indirect_type |= PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK;
 
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		/* For PCIE read HEADER_TYPE to identify controler mode */
@@ -505,7 +494,7 @@ int __init fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		hose->indirect_type |= PPC_INDIRECT_TYPE_EXT_REG |
 			PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
-		if (fsl_pcie_check_link(hose, &rsrc))
+		if (fsl_pcie_check_link(hose))
 			hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
 	}
 
@@ -522,11 +511,12 @@ int __init fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	pci_process_bridge_OF_ranges(hose, dev, is_primary);
 
 	/* Setup PEX window registers */
-	setup_pci_atmu(hose, &rsrc);
+	setup_pci_atmu(hose);
 
 	return 0;
 
 no_bridge:
+	iounmap(hose->private_data);
 	/* unmap cfg_data & cfg_addr separately if not on same page */
 	if (((unsigned long)hose->cfg_data & PAGE_MASK) !=
 	    ((unsigned long)hose->cfg_addr & PAGE_MASK))
@@ -703,11 +693,12 @@ static int __init mpc83xx_pcie_setup(struct pci_controller *hose,
 	WARN_ON(hose->dn->data);
 	hose->dn->data = pcie;
 	hose->ops = &mpc83xx_pcie_ops;
+	hose->indirect_type |= PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK;
 
 	out_le32(pcie->cfg_type0 + PEX_OUTWIN0_TAH, 0);
 	out_le32(pcie->cfg_type0 + PEX_OUTWIN0_TAL, 0);
 
-	if (fsl_pcie_check_link(hose, NULL))
+	if (fsl_pcie_check_link(hose))
 		hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
 
 	return 0;

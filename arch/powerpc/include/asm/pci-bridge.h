@@ -70,6 +70,8 @@ struct pci_controller {
 	 *  BIG_ENDIAN - cfg_addr is a big endian register
 	 *  BROKEN_MRM - the 440EPx/GRx chips have an errata that causes hangs on
 	 *   the PLB4.  Effectively disable MRM commands by setting this.
+	 *  FSL_CFG_REG_LINK - Freescale controller version in which the PCIe
+	 *   link status is in a RC PCIe cfg register (vs being a SoC register)
 	 */
 #define PPC_INDIRECT_TYPE_SET_CFG_TYPE		0x00000001
 #define PPC_INDIRECT_TYPE_EXT_REG		0x00000002
@@ -77,6 +79,7 @@ struct pci_controller {
 #define PPC_INDIRECT_TYPE_NO_PCIE_LINK		0x00000008
 #define PPC_INDIRECT_TYPE_BIG_ENDIAN		0x00000010
 #define PPC_INDIRECT_TYPE_BROKEN_MRM		0x00000020
+#define PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK	0x00000040
 	u32 indirect_type;
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more
@@ -90,9 +93,9 @@ struct pci_controller {
 
 #ifdef CONFIG_PPC64
 	unsigned long buid;
+#endif	/* CONFIG_PPC64 */
 
 	void *private_data;
-#endif	/* CONFIG_PPC64 */
 };
 
 /* These are used for config access before all the PCI probing
