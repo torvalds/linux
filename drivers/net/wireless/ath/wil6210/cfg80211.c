@@ -445,8 +445,13 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	/* IE's */
 	/* bcon 'head IE's are not relevant for 60g band */
-	wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
-		   bcon->beacon_ies);
+	/*
+	 * FW do not form regular beacon, so bcon IE's are not set
+	 * For the DMG bcon, when it will be supported, bcon IE's will
+	 * be reused; add something like:
+	 * wmi_set_ie(wil, WMI_FRAME_BEACON, bcon->beacon_ies_len,
+	 * bcon->beacon_ies);
+	 */
 	wmi_set_ie(wil, WMI_FRAME_PROBE_RESP, bcon->proberesp_ies_len,
 		   bcon->proberesp_ies);
 	wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
