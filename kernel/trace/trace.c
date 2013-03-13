@@ -1657,8 +1657,9 @@ void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
 
 /**
  * trace_dump_stack - record a stack back trace in the trace buffer
+ * @skip: Number of functions to skip (helper handlers)
  */
-void trace_dump_stack(void)
+void trace_dump_stack(int skip)
 {
 	unsigned long flags;
 
@@ -1667,9 +1668,13 @@ void trace_dump_stack(void)
 
 	local_save_flags(flags);
 
-	/* skipping 3 traces, seems to get us at the caller of this function */
-	__ftrace_trace_stack(global_trace.trace_buffer.buffer, flags, 3,
-			     preempt_count(), NULL);
+	/*
+	 * Skip 3 more, seems to get us at the caller of
+	 * this function.
+	 */
+	skip += 3;
+	__ftrace_trace_stack(global_trace.trace_buffer.buffer,
+			     flags, skip, preempt_count(), NULL);
 }
 
 static DEFINE_PER_CPU(int, user_stack_count);

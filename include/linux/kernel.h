@@ -597,7 +597,7 @@ extern int __trace_puts(unsigned long ip, const char *str, int size);
 		__trace_puts(_THIS_IP_, str, strlen(str));		\
 })
 
-extern void trace_dump_stack(void);
+extern void trace_dump_stack(int skip);
 
 /*
  * The double __builtin_constant_p is because gcc will give us an error
