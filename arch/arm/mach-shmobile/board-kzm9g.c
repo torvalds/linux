@@ -654,6 +654,9 @@ static const struct pinctrl_map kzm_pinctrl_map[] = {
 	/* SMSC */
 	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x.0", "pfc-sh73a0",
 				  "bsc_cs4", "bsc"),
+	/* USB */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs", "pfc-sh73a0",
+				  "usb_vbus", "usb"),
 };
 
 /*
@@ -737,9 +740,6 @@ static void __init kzm_init(void)
 
 	/* enable Micro SD */
 	gpio_request_one(14, GPIOF_OUT_INIT_HIGH, NULL); /* power */
-
-	/* enable USB */
-	gpio_request(GPIO_FN_VBUS_0,	NULL);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
