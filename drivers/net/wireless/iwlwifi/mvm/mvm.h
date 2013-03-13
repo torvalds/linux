@@ -157,6 +157,8 @@ enum iwl_power_scheme {
  * @uploaded: indicates the MAC context has been added to the device
  * @ap_active: indicates that ap context is configured, and that the interface
  *  should get quota etc.
+ * @monitor_active: indicates that monitor context is configured, and that the
+ * interface should get quota etc.
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
  *  vifs: P2P_DEVICE, GO and AP.
@@ -169,6 +171,7 @@ struct iwl_mvm_vif {
 
 	bool uploaded;
 	bool ap_active;
+	bool monitor_active;
 
 	u32 ap_beacon_time;
 

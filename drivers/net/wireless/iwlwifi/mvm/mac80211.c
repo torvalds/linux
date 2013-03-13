@@ -1264,6 +1264,7 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 	 * will handle quota settings.
 	 */
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
+		mvmvif->monitor_active = true;
 		ret = iwl_mvm_update_quotas(mvm, vif);
 		if (ret)
 			goto out_remove_binding;
@@ -1294,15 +1295,16 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_AP)
 		goto out_unlock;
 
-	iwl_mvm_binding_remove_vif(mvm, vif);
 	switch (vif->type) {
 	case NL80211_IFTYPE_MONITOR:
-		iwl_mvm_update_quotas(mvm, vif);
+		mvmvif->monitor_active = false;
+		iwl_mvm_update_quotas(mvm, NULL);
 		break;
 	default:
 		break;
 	}
 
+	iwl_mvm_binding_remove_vif(mvm, vif);
 out_unlock:
 	mvmvif->phy_ctxt = NULL;
 	mutex_unlock(&mvm->mutex);
