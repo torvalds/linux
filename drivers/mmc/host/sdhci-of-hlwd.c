@@ -60,7 +60,7 @@ static struct sdhci_ops sdhci_hlwd_ops = {
 	.write_b = sdhci_hlwd_writeb,
 };
 
-static struct sdhci_pltfm_data sdhci_hlwd_pdata = {
+static const struct sdhci_pltfm_data sdhci_hlwd_pdata = {
 	.quirks = SDHCI_QUIRK_32BIT_DMA_ADDR |
 		  SDHCI_QUIRK_32BIT_DMA_SIZE,
 	.ops = &sdhci_hlwd_ops,

@@ -39,7 +39,7 @@
 #define NVQUIRK_ENABLE_SDHCI_SPEC_300	BIT(2)
 
 struct sdhci_tegra_soc_data {
-	struct sdhci_pltfm_data *pdata;
+	const struct sdhci_pltfm_data *pdata;
 	u32 nvquirks;
 };
 
@@ -156,7 +156,7 @@ static struct sdhci_ops tegra_sdhci_ops = {
 	.platform_reset_exit = tegra_sdhci_reset_exit,
 };
 
-static struct sdhci_pltfm_data sdhci_tegra20_pdata = {
+static const struct sdhci_pltfm_data sdhci_tegra20_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
 		  SDHCI_QUIRK_NO_HISPD_BIT |
@@ -170,7 +170,7 @@ static struct sdhci_tegra_soc_data soc_data_tegra20 = {
 		    NVQUIRK_ENABLE_BLOCK_GAP_DET,
 };
 
-static struct sdhci_pltfm_data sdhci_tegra30_pdata = {
+static const struct sdhci_pltfm_data sdhci_tegra30_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
@@ -184,7 +184,7 @@ static struct sdhci_tegra_soc_data soc_data_tegra30 = {
 	.nvquirks = NVQUIRK_ENABLE_SDHCI_SPEC_300,
 };
 
-static struct sdhci_pltfm_data sdhci_tegra114_pdata = {
+static const struct sdhci_pltfm_data sdhci_tegra114_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |

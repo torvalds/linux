@@ -249,7 +249,7 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 	.adma_workaround = esdhci_of_adma_workaround,
 };
 
-static struct sdhci_pltfm_data sdhci_esdhc_pdata = {
+static const struct sdhci_pltfm_data sdhci_esdhc_pdata = {
 	/*
 	 * card detection could be handled via GPIO
 	 * eSDHC cannot support End Attribute in NOP ADMA descriptor

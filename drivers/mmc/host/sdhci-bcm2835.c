@@ -135,7 +135,7 @@ static struct sdhci_ops bcm2835_sdhci_ops = {
 	.get_min_clock = bcm2835_sdhci_get_min_clock,
 };
 
-static struct sdhci_pltfm_data bcm2835_sdhci_pdata = {
+static const struct sdhci_pltfm_data bcm2835_sdhci_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
 	.ops = &bcm2835_sdhci_ops,

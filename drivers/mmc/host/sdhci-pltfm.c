@@ -115,7 +115,7 @@ void sdhci_get_of_property(struct platform_device *pdev) {}
 EXPORT_SYMBOL_GPL(sdhci_get_of_property);
 
 struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
-				    struct sdhci_pltfm_data *pdata)
+				    const struct sdhci_pltfm_data *pdata)
 {
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
@@ -202,7 +202,7 @@ void sdhci_pltfm_free(struct platform_device *pdev)
 EXPORT_SYMBOL_GPL(sdhci_pltfm_free);
 
 int sdhci_pltfm_register(struct platform_device *pdev,
-			 struct sdhci_pltfm_data *pdata)
+			 const struct sdhci_pltfm_data *pdata)
 {
 	struct sdhci_host *host;
 	int ret = 0;
