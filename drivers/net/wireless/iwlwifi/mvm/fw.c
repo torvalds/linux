@@ -134,9 +134,10 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	alive_data->scd_base_addr = le32_to_cpu(palive->scd_base_ptr);
 
 	alive_data->valid = le16_to_cpu(palive->status) == IWL_ALIVE_STATUS_OK;
-	IWL_DEBUG_FW(mvm, "Alive ucode status 0x%04x revision 0x%01X 0x%01X\n",
+	IWL_DEBUG_FW(mvm,
+		     "Alive ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
 		     le16_to_cpu(palive->status), palive->ver_type,
-		     palive->ver_subtype);
+		     palive->ver_subtype, palive->flags);
 
 	return true;
 }
