@@ -57,30 +57,6 @@ struct psb_intel_limit_t {
 	struct psb_intel_p2_t p2;
 };
 
-#define I8XX_DOT_MIN		  25000
-#define I8XX_DOT_MAX		 350000
-#define I8XX_VCO_MIN		 930000
-#define I8XX_VCO_MAX		1400000
-#define I8XX_N_MIN		      3
-#define I8XX_N_MAX		     16
-#define I8XX_M_MIN		     96
-#define I8XX_M_MAX		    140
-#define I8XX_M1_MIN		     18
-#define I8XX_M1_MAX		     26
-#define I8XX_M2_MIN		      6
-#define I8XX_M2_MAX		     16
-#define I8XX_P_MIN		      4
-#define I8XX_P_MAX		    128
-#define I8XX_P1_MIN		      2
-#define I8XX_P1_MAX		     33
-#define I8XX_P1_LVDS_MIN	      1
-#define I8XX_P1_LVDS_MAX	      6
-#define I8XX_P2_SLOW		      4
-#define I8XX_P2_FAST		      2
-#define I8XX_P2_LVDS_SLOW	      14
-#define I8XX_P2_LVDS_FAST	      14	/* No fast option */
-#define I8XX_P2_SLOW_LIMIT	 165000
-
 #define I9XX_DOT_MIN		  20000
 #define I9XX_DOT_MAX		 400000
 #define I9XX_VCO_MIN		1400000
@@ -106,36 +82,10 @@ struct psb_intel_limit_t {
 #define I9XX_P2_LVDS_FAST		      7
 #define I9XX_P2_LVDS_SLOW_LIMIT		 112000
 
-#define INTEL_LIMIT_I8XX_DVO_DAC    0
-#define INTEL_LIMIT_I8XX_LVDS	    1
-#define INTEL_LIMIT_I9XX_SDVO_DAC   2
-#define INTEL_LIMIT_I9XX_LVDS	    3
+#define INTEL_LIMIT_I9XX_SDVO_DAC   0
+#define INTEL_LIMIT_I9XX_LVDS	    1
 
 static const struct psb_intel_limit_t psb_intel_limits[] = {
-	{			/* INTEL_LIMIT_I8XX_DVO_DAC */
-	 .dot = {.min = I8XX_DOT_MIN, .max = I8XX_DOT_MAX},
-	 .vco = {.min = I8XX_VCO_MIN, .max = I8XX_VCO_MAX},
-	 .n = {.min = I8XX_N_MIN, .max = I8XX_N_MAX},
-	 .m = {.min = I8XX_M_MIN, .max = I8XX_M_MAX},
-	 .m1 = {.min = I8XX_M1_MIN, .max = I8XX_M1_MAX},
-	 .m2 = {.min = I8XX_M2_MIN, .max = I8XX_M2_MAX},
-	 .p = {.min = I8XX_P_MIN, .max = I8XX_P_MAX},
-	 .p1 = {.min = I8XX_P1_MIN, .max = I8XX_P1_MAX},
-	 .p2 = {.dot_limit = I8XX_P2_SLOW_LIMIT,
-		.p2_slow = I8XX_P2_SLOW, .p2_fast = I8XX_P2_FAST},
-	 },
-	{			/* INTEL_LIMIT_I8XX_LVDS */
-	 .dot = {.min = I8XX_DOT_MIN, .max = I8XX_DOT_MAX},
-	 .vco = {.min = I8XX_VCO_MIN, .max = I8XX_VCO_MAX},
-	 .n = {.min = I8XX_N_MIN, .max = I8XX_N_MAX},
-	 .m = {.min = I8XX_M_MIN, .max = I8XX_M_MAX},
-	 .m1 = {.min = I8XX_M1_MIN, .max = I8XX_M1_MAX},
-	 .m2 = {.min = I8XX_M2_MIN, .max = I8XX_M2_MAX},
-	 .p = {.min = I8XX_P_MIN, .max = I8XX_P_MAX},
-	 .p1 = {.min = I8XX_P1_LVDS_MIN, .max = I8XX_P1_LVDS_MAX},
-	 .p2 = {.dot_limit = I8XX_P2_SLOW_LIMIT,
-		.p2_slow = I8XX_P2_LVDS_SLOW, .p2_fast = I8XX_P2_LVDS_FAST},
-	 },
 	{			/* INTEL_LIMIT_I9XX_SDVO_DAC */
 	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
 	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
