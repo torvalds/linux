@@ -3725,6 +3725,26 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 		kfree(wq);
 }
 
+/**
+ * pwq_set_max_active - adjust max_active of a pwq
+ * @pwq: target pool_workqueue
+ * @max_active: new max_active value.
+ *
+ * Set @pwq->max_active to @max_active and activate delayed works if
+ * increased.
+ *
+ * CONTEXT:
+ * spin_lock_irq(pool->lock).
+ */
+static void pwq_set_max_active(struct pool_workqueue *pwq, int max_active)
+{
+	pwq->max_active = max_active;
+
+	while (!list_empty(&pwq->delayed_works) &&
+	       pwq->nr_active < pwq->max_active)
+		pwq_activate_first_delayed(pwq);
+}
+
 static void init_and_link_pwq(struct pool_workqueue *pwq,
 			      struct workqueue_struct *wq,
 			      struct worker_pool *pool,
@@ -4010,26 +4030,6 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	}
 }
 EXPORT_SYMBOL_GPL(destroy_workqueue);
-
-/**
- * pwq_set_max_active - adjust max_active of a pwq
- * @pwq: target pool_workqueue
- * @max_active: new max_active value.
- *
- * Set @pwq->max_active to @max_active and activate delayed works if
- * increased.
- *
- * CONTEXT:
- * spin_lock_irq(pool->lock).
- */
-static void pwq_set_max_active(struct pool_workqueue *pwq, int max_active)
-{
-	pwq->max_active = max_active;
-
-	while (!list_empty(&pwq->delayed_works) &&
-	       pwq->nr_active < pwq->max_active)
-		pwq_activate_first_delayed(pwq);
-}
 
 /**
  * workqueue_set_max_active - adjust max_active of a workqueue
