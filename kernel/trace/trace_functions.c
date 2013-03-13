@@ -265,42 +265,38 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip, void **data)
 	tracing_off();
 }
 
+/*
+ * Skip 4:
+ *   ftrace_stacktrace()
+ *   function_trace_probe_call()
+ *   ftrace_ops_list_func()
+ *   ftrace_call()
+ */
+#define STACK_SKIP 4
+
+static void
+ftrace_stacktrace(unsigned long ip, unsigned long parent_ip, void **data)
+{
+	trace_dump_stack(STACK_SKIP);
+}
+
+static void
+ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip, void **data)
+{
+	if (!tracing_is_on())
+		return;
+
+	if (update_count(data))
+		trace_dump_stack(STACK_SKIP);
+}
+
 static int
-ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
-			 struct ftrace_probe_ops *ops, void *data);
-
-static struct ftrace_probe_ops traceon_count_probe_ops = {
-	.func			= ftrace_traceon_count,
-	.print			= ftrace_trace_onoff_print,
-};
-
-static struct ftrace_probe_ops traceoff_count_probe_ops = {
-	.func			= ftrace_traceoff_count,
-	.print			= ftrace_trace_onoff_print,
-};
-
-static struct ftrace_probe_ops traceon_probe_ops = {
-	.func			= ftrace_traceon,
-	.print			= ftrace_trace_onoff_print,
-};
-
-static struct ftrace_probe_ops traceoff_probe_ops = {
-	.func			= ftrace_traceoff,
-	.print			= ftrace_trace_onoff_print,
-};
-
-static int
-ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
-			 struct ftrace_probe_ops *ops, void *data)
+ftrace_probe_print(const char *name, struct seq_file *m,
+		   unsigned long ip, void *data)
 {
 	long count = (long)data;
 
-	seq_printf(m, "%ps:", (void *)ip);
-
-	if (ops == &traceon_probe_ops || ops == &traceon_count_probe_ops)
-		seq_printf(m, "traceon");
-	else
-		seq_printf(m, "traceoff");
+	seq_printf(m, "%ps:%s", (void *)ip, name);
 
 	if (count == -1)
 		seq_printf(m, ":unlimited\n");
@@ -311,10 +307,61 @@ ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
 }
 
 static int
-ftrace_trace_onoff_callback(struct ftrace_hash *hash,
-			    char *glob, char *cmd, char *param, int enable)
+ftrace_traceon_print(struct seq_file *m, unsigned long ip,
+			 struct ftrace_probe_ops *ops, void *data)
 {
-	struct ftrace_probe_ops *ops;
+	return ftrace_probe_print("traceon", m, ip, data);
+}
+
+static int
+ftrace_traceoff_print(struct seq_file *m, unsigned long ip,
+			 struct ftrace_probe_ops *ops, void *data)
+{
+	return ftrace_probe_print("traceoff", m, ip, data);
+}
+
+static int
+ftrace_stacktrace_print(struct seq_file *m, unsigned long ip,
+			struct ftrace_probe_ops *ops, void *data)
+{
+	return ftrace_probe_print("stacktrace", m, ip, data);
+}
+
+static struct ftrace_probe_ops traceon_count_probe_ops = {
+	.func			= ftrace_traceon_count,
+	.print			= ftrace_traceon_print,
+};
+
+static struct ftrace_probe_ops traceoff_count_probe_ops = {
+	.func			= ftrace_traceoff_count,
+	.print			= ftrace_traceoff_print,
+};
+
+static struct ftrace_probe_ops stacktrace_count_probe_ops = {
+	.func			= ftrace_stacktrace_count,
+	.print			= ftrace_stacktrace_print,
+};
+
+static struct ftrace_probe_ops traceon_probe_ops = {
+	.func			= ftrace_traceon,
+	.print			= ftrace_traceon_print,
+};
+
+static struct ftrace_probe_ops traceoff_probe_ops = {
+	.func			= ftrace_traceoff,
+	.print			= ftrace_traceoff_print,
+};
+
+static struct ftrace_probe_ops stacktrace_probe_ops = {
+	.func			= ftrace_stacktrace,
+	.print			= ftrace_stacktrace_print,
+};
+
+static int
+ftrace_trace_probe_callback(struct ftrace_probe_ops *ops,
+			    struct ftrace_hash *hash, char *glob,
+			    char *cmd, char *param, int enable)
+{
 	void *count = (void *)-1;
 	char *number;
 	int ret;
@@ -322,12 +369,6 @@ ftrace_trace_onoff_callback(struct ftrace_hash *hash,
 	/* hash funcs only work with set_ftrace_filter */
 	if (!enable)
 		return -EINVAL;
-
-	/* we register both traceon and traceoff to this callback */
-	if (strcmp(cmd, "traceon") == 0)
-		ops = param ? &traceon_count_probe_ops : &traceon_probe_ops;
-	else
-		ops = param ? &traceoff_count_probe_ops : &traceoff_probe_ops;
 
 	if (glob[0] == '!') {
 		unregister_ftrace_function_probe_func(glob+1, ops);
@@ -356,6 +397,34 @@ ftrace_trace_onoff_callback(struct ftrace_hash *hash,
 	return ret < 0 ? ret : 0;
 }
 
+static int
+ftrace_trace_onoff_callback(struct ftrace_hash *hash,
+			    char *glob, char *cmd, char *param, int enable)
+{
+	struct ftrace_probe_ops *ops;
+
+	/* we register both traceon and traceoff to this callback */
+	if (strcmp(cmd, "traceon") == 0)
+		ops = param ? &traceon_count_probe_ops : &traceon_probe_ops;
+	else
+		ops = param ? &traceoff_count_probe_ops : &traceoff_probe_ops;
+
+	return ftrace_trace_probe_callback(ops, hash, glob, cmd,
+					   param, enable);
+}
+
+static int
+ftrace_stacktrace_callback(struct ftrace_hash *hash,
+			   char *glob, char *cmd, char *param, int enable)
+{
+	struct ftrace_probe_ops *ops;
+
+	ops = param ? &stacktrace_count_probe_ops : &stacktrace_probe_ops;
+
+	return ftrace_trace_probe_callback(ops, hash, glob, cmd,
+					   param, enable);
+}
+
 static struct ftrace_func_command ftrace_traceon_cmd = {
 	.name			= "traceon",
 	.func			= ftrace_trace_onoff_callback,
@@ -364,6 +433,11 @@ static struct ftrace_func_command ftrace_traceon_cmd = {
 static struct ftrace_func_command ftrace_traceoff_cmd = {
 	.name			= "traceoff",
 	.func			= ftrace_trace_onoff_callback,
+};
+
+static struct ftrace_func_command ftrace_stacktrace_cmd = {
+	.name			= "stacktrace",
+	.func			= ftrace_stacktrace_callback,
 };
 
 static int __init init_func_cmd_traceon(void)
@@ -377,6 +451,12 @@ static int __init init_func_cmd_traceon(void)
 	ret = register_ftrace_command(&ftrace_traceon_cmd);
 	if (ret)
 		unregister_ftrace_command(&ftrace_traceoff_cmd);
+
+	ret = register_ftrace_command(&ftrace_stacktrace_cmd);
+	if (ret) {
+		unregister_ftrace_command(&ftrace_traceoff_cmd);
+		unregister_ftrace_command(&ftrace_traceon_cmd);
+	}
 	return ret;
 }
 #else
