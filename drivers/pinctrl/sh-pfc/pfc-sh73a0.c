@@ -2936,11 +2936,10 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(usb),
 };
 
-#define PINMUX_FN_BASE	GPIO_FN_VBUS_0
+#define PINMUX_FN_BASE	GPIO_FN_GPI0
 
 static const struct pinmux_func pinmux_func_gpios[] = {
 	/* Table 25-1 (Functions 0-7) */
-	GPIO_FN(VBUS_0),
 	GPIO_FN(GPI0),
 	GPIO_FN(GPI1),
 	GPIO_FN(GPI2),
