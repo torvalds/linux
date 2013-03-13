@@ -3771,21 +3771,25 @@ static void init_and_link_pwq(struct pool_workqueue *pwq,
 	pwq->wq = wq;
 	pwq->flush_color = -1;
 	pwq->refcnt = 1;
-	pwq->max_active = wq->saved_max_active;
 	INIT_LIST_HEAD(&pwq->delayed_works);
 	INIT_LIST_HEAD(&pwq->mayday_node);
 	INIT_WORK(&pwq->unbound_release_work, pwq_unbound_release_workfn);
 
-	/*
-	 * Link @pwq and set the matching work_color.  This is synchronized
-	 * with flush_mutex to avoid confusing flush_workqueue().
-	 */
 	mutex_lock(&wq->flush_mutex);
 	spin_lock_irq(&workqueue_lock);
 
+	/*
+	 * Set the matching work_color.  This is synchronized with
+	 * flush_mutex to avoid confusing flush_workqueue().
+	 */
 	if (p_last_pwq)
 		*p_last_pwq = first_pwq(wq);
 	pwq->work_color = wq->work_color;
+
+	/* sync max_active to the current setting */
+	pwq_adjust_max_active(pwq);
+
+	/* link in @pwq */
 	list_add_rcu(&pwq->pwqs_node, &wq->pwqs);
 
 	spin_unlock_irq(&workqueue_lock);
