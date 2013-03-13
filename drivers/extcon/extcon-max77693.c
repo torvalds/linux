@@ -32,6 +32,38 @@
 #define	DEV_NAME			"max77693-muic"
 #define	DELAY_MS_DEFAULT		20000		/* unit: millisecond */
 
+/*
+ * Default value of MAX77693 register to bring up MUIC device.
+ * If user don't set some initial value for MUIC device through platform data,
+ * extcon-max77693 driver use 'default_init_data' to bring up base operation
+ * of MAX77693 MUIC device.
+ */
+struct max77693_reg_data default_init_data[] = {
+	{
+		/* STATUS2 - [3]ChgDetRun */
+		.addr = MAX77693_MUIC_REG_STATUS2,
+		.data = STATUS2_CHGDETRUN_MASK,
+	}, {
+		/* INTMASK1 - Unmask [3]ADC1KM,[0]ADCM */
+		.addr = MAX77693_MUIC_REG_INTMASK1,
+		.data = INTMASK1_ADC1K_MASK
+			| INTMASK1_ADC_MASK,
+	}, {
+		/* INTMASK2 - Unmask [0]ChgTypM */
+		.addr = MAX77693_MUIC_REG_INTMASK2,
+		.data = INTMASK2_CHGTYP_MASK,
+	}, {
+		/* INTMASK3 - Mask all of interrupts */
+		.addr = MAX77693_MUIC_REG_INTMASK3,
+		.data = 0x0,
+	}, {
+		/* CDETCTRL2 */
+		.addr = MAX77693_MUIC_REG_CDETCTRL2,
+		.data = CDETCTRL2_VIDRMEN_MASK
+			| CDETCTRL2_DXOVPEN_MASK,
+	},
+};
+
 enum max77693_muic_adc_debounce_time {
 	ADC_DEBOUNCE_TIME_5MS = 0,
 	ADC_DEBOUNCE_TIME_10MS,
@@ -1046,6 +1078,8 @@ static int max77693_muic_probe(struct platform_device *pdev)
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
 	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
 	struct max77693_muic_info *info;
+	struct max77693_reg_data *init_data;
+	int num_init_data;
 	int delay_jiffies;
 	int ret;
 	int i;
@@ -1144,34 +1178,43 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
+
+	/* Initialize MUIC register by using platform data or default data */
+	if (pdata->muic_data) {
+		init_data = pdata->muic_data->init_data;
+		num_init_data = pdata->muic_data->num_init_data;
+	} else {
+		init_data = default_init_data;
+		num_init_data = ARRAY_SIZE(default_init_data);
+	}
+
+	for (i = 0 ; i < num_init_data ; i++) {
+		enum max77693_irq_source irq_src
+				= MAX77693_IRQ_GROUP_NR;
+
+		max77693_write_reg(info->max77693->regmap_muic,
+				init_data[i].addr,
+				init_data[i].data);
+
+		switch (init_data[i].addr) {
+		case MAX77693_MUIC_REG_INTMASK1:
+			irq_src = MUIC_INT1;
+			break;
+		case MAX77693_MUIC_REG_INTMASK2:
+			irq_src = MUIC_INT2;
+			break;
+		case MAX77693_MUIC_REG_INTMASK3:
+			irq_src = MUIC_INT3;
+			break;
+		}
+
+		if (irq_src < MAX77693_IRQ_GROUP_NR)
+			info->max77693->irq_masks_cur[irq_src]
+				= init_data[i].data;
+	}
+
 	if (pdata->muic_data) {
 		struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
-
-		/* Initialize MUIC register by using platform data */
-		for (i = 0 ; i < muic_pdata->num_init_data ; i++) {
-			enum max77693_irq_source irq_src
-					= MAX77693_IRQ_GROUP_NR;
-
-			max77693_write_reg(info->max77693->regmap_muic,
-					muic_pdata->init_data[i].addr,
-					muic_pdata->init_data[i].data);
-
-			switch (muic_pdata->init_data[i].addr) {
-			case MAX77693_MUIC_REG_INTMASK1:
-				irq_src = MUIC_INT1;
-				break;
-			case MAX77693_MUIC_REG_INTMASK2:
-				irq_src = MUIC_INT2;
-				break;
-			case MAX77693_MUIC_REG_INTMASK3:
-				irq_src = MUIC_INT3;
-				break;
-			}
-
-			if (irq_src < MAX77693_IRQ_GROUP_NR)
-				info->max77693->irq_masks_cur[irq_src]
-					= muic_pdata->init_data[i].data;
-		}
 
 		/*
 		 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
