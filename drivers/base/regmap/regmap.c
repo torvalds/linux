@@ -950,7 +950,7 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 	size_t len;
 	int i;
 
-	BUG_ON(!map->bus);
+	WARN_ON(!map->bus);
 
 	/* Check for unwritable registers before we start */
 	if (map->writeable_reg)
@@ -1104,7 +1104,7 @@ static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 	struct regmap_range_node *range;
 	struct regmap *map = context;
 
-	BUG_ON(!map->bus || !map->format.format_write);
+	WARN_ON(!map->bus || !map->format.format_write);
 
 	range = _regmap_range_lookup(map, reg);
 	if (range) {
@@ -1130,7 +1130,7 @@ static int _regmap_bus_raw_write(void *context, unsigned int reg,
 {
 	struct regmap *map = context;
 
-	BUG_ON(!map->bus || !map->format.format_val);
+	WARN_ON(!map->bus || !map->format.format_val);
 
 	map->format.format_val(map->work_buf + map->format.reg_bytes
 			       + map->format.pad_bytes, val, 0);
@@ -1356,7 +1356,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 	u8 *u8 = map->work_buf;
 	int ret;
 
-	BUG_ON(!map->bus);
+	WARN_ON(!map->bus);
 
 	range = _regmap_range_lookup(map, reg);
 	if (range) {
@@ -1411,7 +1411,7 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 	int ret;
 	void *context = _regmap_map_get_context(map);
 
-	BUG_ON(!map->reg_read);
+	WARN_ON(!map->reg_read);
 
 	if (!map->cache_bypass) {
 		ret = regcache_read(map, reg, val);
