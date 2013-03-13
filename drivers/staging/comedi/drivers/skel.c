@@ -606,7 +606,6 @@ static void skel_detach(struct comedi_device *dev)
 {
 	const struct skel_board *thisboard = comedi_board(dev);
 	struct skel_private *devpriv = dev->private;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (!thisboard || !devpriv)
 		return;
@@ -626,8 +625,7 @@ static void skel_detach(struct comedi_device *dev)
 		 * If PCI device enabled by _auto_attach() (or _attach()),
 		 * disable it here.
 		 */
-		if (pcidev && dev->iobase)
-			comedi_pci_disable(pcidev);
+		comedi_pci_disable(dev);
 	} else {
 		/*
 		 * ISA board

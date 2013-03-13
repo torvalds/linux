@@ -816,7 +816,6 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 static void jr3_pci_detach(struct comedi_device *dev)
 {
 	int i;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -828,9 +827,8 @@ static void jr3_pci_detach(struct comedi_device *dev)
 		}
 		if (devpriv->iobase)
 			iounmap(devpriv->iobase);
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver jr3_pci_driver = {

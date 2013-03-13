@@ -385,7 +385,7 @@ struct pci_driver;
 struct pci_dev *comedi_to_pci_dev(struct comedi_device *);
 
 int comedi_pci_enable(struct pci_dev *, const char *);
-void comedi_pci_disable(struct pci_dev *);
+void comedi_pci_disable(struct comedi_device *);
 
 int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *,
 			   unsigned long context);
@@ -426,7 +426,7 @@ static inline int comedi_pci_enable(struct pci_dev *dev, const char *name)
 	return -ENOSYS;
 }
 
-static inline void comedi_pci_disable(struct pci_dev *dev)
+static inline void comedi_pci_disable(struct comedi_device *dev)
 {
 }
 

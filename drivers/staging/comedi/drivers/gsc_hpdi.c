@@ -596,9 +596,8 @@ static void hpdi_detach(struct comedi_device *dev)
 					    NUM_DMA_DESCRIPTORS,
 					    devpriv->dma_desc,
 					    devpriv->dma_desc_phys_addr);
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
 	}
+	comedi_pci_disable(dev);
 }
 
 static int dio_config_block_size(struct comedi_device *dev, unsigned int *data)

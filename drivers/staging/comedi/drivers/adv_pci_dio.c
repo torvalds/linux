@@ -1165,7 +1165,6 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 static void pci_dio_detach(struct comedi_device *dev)
 {
 	struct pci_dio_private *devpriv = dev->private;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int i;
 
@@ -1181,10 +1180,7 @@ static void pci_dio_detach(struct comedi_device *dev)
 			s->private = NULL;
 		}
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver adv_pci_dio_driver = {

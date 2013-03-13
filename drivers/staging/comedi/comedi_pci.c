@@ -57,14 +57,16 @@ EXPORT_SYMBOL_GPL(comedi_pci_enable);
 
 /**
  * comedi_pci_disable() - Release the regions and disable the PCI device.
- * @pcidev: pci_dev struct
- *
- * This must be matched with a previous successful call to comedi_pci_enable().
+ * @dev: comedi_device struct
  */
-void comedi_pci_disable(struct pci_dev *pcidev)
+void comedi_pci_disable(struct comedi_device *dev)
 {
-	pci_release_regions(pcidev);
-	pci_disable_device(pcidev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev && dev->iobase) {
+		pci_release_regions(pcidev);
+		pci_disable_device(pcidev);
+	}
 }
 EXPORT_SYMBOL_GPL(comedi_pci_disable);
 

@@ -247,7 +247,6 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 
 static void pci_8255_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct pci_8255_boardinfo *board = comedi_board(dev);
 	struct pci_8255_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
@@ -261,12 +260,9 @@ static void pci_8255_detach(struct comedi_device *dev)
 			subdev_8255_cleanup(dev, s);
 		}
 	}
-	if (pcidev) {
-		if (devpriv->mmio_base)
-			iounmap(devpriv->mmio_base);
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	if (devpriv->mmio_base)
+		iounmap(devpriv->mmio_base);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver pci_8255_driver = {

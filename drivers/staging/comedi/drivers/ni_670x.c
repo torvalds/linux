@@ -222,6 +222,7 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
+	dev->iobase = 1;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -286,6 +287,7 @@ static void ni_670x_detach(struct comedi_device *dev)
 		mite_unsetup(devpriv->mite);
 		mite_free(devpriv->mite);
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni_670x_driver = {

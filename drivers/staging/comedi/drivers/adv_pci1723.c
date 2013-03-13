@@ -306,14 +306,9 @@ static int pci1723_auto_attach(struct comedi_device *dev,
 
 static void pci1723_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase) {
-			pci1723_reset(dev);
-			comedi_pci_disable(pcidev);
-		}
-	}
+	if (dev->iobase)
+		pci1723_reset(dev);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver adv_pci1723_driver = {

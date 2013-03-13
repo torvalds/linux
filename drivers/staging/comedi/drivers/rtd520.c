@@ -1373,7 +1373,6 @@ static int rtd_auto_attach(struct comedi_device *dev,
 static void rtd_detach(struct comedi_device *dev)
 {
 	struct rtdPrivate *devpriv = dev->private;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (devpriv) {
 		/* Shut down any board ops by resetting it */
@@ -1392,10 +1391,7 @@ static void rtd_detach(struct comedi_device *dev)
 		if (devpriv->lcfg)
 			iounmap(devpriv->lcfg);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver rtd520_driver = {

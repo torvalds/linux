@@ -201,14 +201,11 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 
 static void apci1516_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		apci1516_reset(dev);
 	if (dev->subdevices)
 		addi_watchdog_cleanup(&dev->subdevices[2]);
-	if (dev->iobase)
-		comedi_pci_disable(pcidev);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci1516_driver = {

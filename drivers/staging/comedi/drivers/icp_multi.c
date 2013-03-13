@@ -594,7 +594,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 static void icp_multi_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct icp_multi_private *devpriv = dev->private;
 
 	if (devpriv)
@@ -604,10 +603,7 @@ static void icp_multi_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (devpriv && devpriv->io_addr)
 		iounmap(devpriv->io_addr);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver icp_multi_driver = {

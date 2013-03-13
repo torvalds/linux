@@ -208,10 +208,8 @@ void mite_unsetup(struct mite_struct *mite)
 		iounmap(mite->daq_io_addr);
 		mite->daq_io_addr = NULL;
 	}
-	if (mite->mite_phys_addr) {
-		comedi_pci_disable(mite->pcidev);
+	if (mite->mite_phys_addr)
 		mite->mite_phys_addr = 0;
-	}
 }
 EXPORT_SYMBOL(mite_unsetup);
 

@@ -350,8 +350,6 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 
 static void apci2032_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		apci2032_reset(dev);
 	if (dev->irq)
@@ -360,10 +358,7 @@ static void apci2032_detach(struct comedi_device *dev)
 		kfree(dev->read_subdev->private);
 	if (dev->subdevices)
 		addi_watchdog_cleanup(&dev->subdevices[1]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci2032_driver = {

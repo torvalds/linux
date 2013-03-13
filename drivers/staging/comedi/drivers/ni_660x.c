@@ -1188,6 +1188,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
+	dev->iobase = 1;
 
 	ret = ni_660x_alloc_mite_rings(dev);
 	if (ret < 0)
@@ -1302,6 +1303,7 @@ static void ni_660x_detach(struct comedi_device *dev)
 			mite_free(devpriv->mite);
 		}
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni_660x_driver = {

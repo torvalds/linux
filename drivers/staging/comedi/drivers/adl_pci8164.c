@@ -136,21 +136,11 @@ static int adl_pci8164_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void adl_pci8164_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
-}
-
 static struct comedi_driver adl_pci8164_driver = {
 	.driver_name	= "adl_pci8164",
 	.module		= THIS_MODULE,
 	.auto_attach	= adl_pci8164_auto_attach,
-	.detach		= adl_pci8164_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int adl_pci8164_pci_probe(struct pci_dev *dev,

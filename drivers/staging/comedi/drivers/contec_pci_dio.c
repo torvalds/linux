@@ -109,21 +109,11 @@ static int contec_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void contec_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
-}
-
 static struct comedi_driver contec_pci_dio_driver = {
 	.driver_name	= "contec_pci_dio",
 	.module		= THIS_MODULE,
 	.auto_attach	= contec_auto_attach,
-	.detach		= contec_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int contec_pci_dio_pci_probe(struct pci_dev *dev,

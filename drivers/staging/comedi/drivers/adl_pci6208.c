@@ -233,21 +233,11 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void pci6208_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
-}
-
 static struct comedi_driver adl_pci6208_driver = {
 	.driver_name	= "adl_pci6208",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci6208_auto_attach,
-	.detach		= pci6208_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int adl_pci6208_pci_probe(struct pci_dev *dev,

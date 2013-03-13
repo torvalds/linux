@@ -1458,6 +1458,7 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
+	dev->iobase = 1;
 
 	devpriv->s5933_config = pci_resource_start(pcidev, 0);
 	devpriv->control_status = pci_resource_start(pcidev, 1);
@@ -1599,7 +1600,6 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 static void cb_pcidas_detach(struct comedi_device *dev)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (devpriv) {
 		if (devpriv->s5933_config) {
@@ -1611,10 +1611,7 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, &dev->subdevices[2]);
-	if (pcidev) {
-		if (devpriv->s5933_config)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver cb_pcidas_driver = {

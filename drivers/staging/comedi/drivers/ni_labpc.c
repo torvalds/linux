@@ -722,6 +722,7 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0)
 		return ret;
+	dev->iobase = 1;
 	iobase = (unsigned long)devpriv->mite->daq_io_addr;
 	irq = mite_irq(devpriv->mite);
 	return labpc_common_attach(dev, iobase, irq, 0);
@@ -800,6 +801,7 @@ void labpc_common_detach(struct comedi_device *dev)
 		mite_unsetup(devpriv->mite);
 		mite_free(devpriv->mite);
 	}
+	comedi_pci_disable(dev);
 #endif
 };
 EXPORT_SYMBOL_GPL(labpc_common_detach);

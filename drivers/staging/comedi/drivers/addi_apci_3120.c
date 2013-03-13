@@ -203,7 +203,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 
 static void apci3120_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct addi_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -222,10 +221,7 @@ static void apci3120_detach(struct comedi_device *dev)
 				devpriv->ui_DmaBufferPages[1]);
 		}
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci3120_driver = {

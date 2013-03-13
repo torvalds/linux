@@ -2029,14 +2029,9 @@ static void dio200_detach(struct comedi_device *dev)
 			release_region(devpriv->io.u.iobase,
 				       thisboard->mainsize);
 	} else if (is_pci_board(thisboard)) {
-		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-		if (pcidev) {
-			if (devpriv->io.regtype != no_regtype) {
-				if (devpriv->io.regtype == mmio_regtype)
-					iounmap(devpriv->io.u.membase);
-				comedi_pci_disable(pcidev);
-			}
-		}
+		if (devpriv->io.regtype == mmio_regtype)
+			iounmap(devpriv->io.u.membase);
+		comedi_pci_disable(dev);
 	}
 }
 

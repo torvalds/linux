@@ -130,16 +130,11 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 static void apci2200_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		apci2200_reset(dev);
 	if (dev->subdevices)
 		addi_watchdog_cleanup(&dev->subdevices[2]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci2200_driver = {

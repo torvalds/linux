@@ -576,11 +576,9 @@ static void pc236_detach(struct comedi_device *dev)
 			release_region(dev->iobase, PC236_IO_SIZE);
 	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-		if (pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(pcidev);
+		comedi_pci_disable(dev);
+		if (pcidev)
 			pci_dev_put(pcidev);
-		}
 	}
 }
 

@@ -254,15 +254,11 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 
 static void dyna_pci10xx_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct dyna_pci10xx_private *devpriv = dev->private;
 
 	if (devpriv)
 		mutex_destroy(&devpriv->mutex);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver dyna_pci10xx_driver = {

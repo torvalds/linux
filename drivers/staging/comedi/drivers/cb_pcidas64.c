@@ -4194,10 +4194,7 @@ static void detach(struct comedi_device *dev)
 	}
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, &dev->subdevices[4]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver cb_pcidas64_driver = {

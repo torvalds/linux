@@ -317,7 +317,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 
 static void i_ADDI_Detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct addi_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -328,8 +327,5 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 		if (devpriv->dw_AiBase)
 			iounmap(devpriv->dw_AiBase);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }

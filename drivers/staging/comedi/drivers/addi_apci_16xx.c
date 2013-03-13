@@ -184,21 +184,11 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void apci16xx_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
-}
-
 static struct comedi_driver apci16xx_driver = {
 	.driver_name	= "addi_apci_16xx",
 	.module		= THIS_MODULE,
 	.auto_attach	= apci16xx_auto_attach,
-	.detach		= apci16xx_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int apci16xx_pci_probe(struct pci_dev *dev,

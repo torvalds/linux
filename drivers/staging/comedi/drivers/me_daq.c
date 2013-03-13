@@ -580,7 +580,6 @@ static int me_auto_attach(struct comedi_device *dev,
 
 static void me_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct me_private_data *dev_private = dev->private;
 
 	if (dev_private) {
@@ -591,10 +590,7 @@ static void me_detach(struct comedi_device *dev)
 		if (dev_private->plx_regbase)
 			iounmap(dev_private->plx_regbase);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver me_daq_driver = {

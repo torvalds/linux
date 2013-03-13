@@ -1128,6 +1128,7 @@ static int nidio_auto_attach(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
+	dev->iobase = 1;
 
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->di_mite_ring == NULL)
@@ -1202,6 +1203,7 @@ static void nidio_detach(struct comedi_device *dev)
 			mite_free(devpriv->mite);
 		}
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni_pcidio_driver = {

@@ -614,6 +614,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
+	dev->iobase = 1;
 
 	dev->irq = mite_irq(devpriv->mite);
 	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
@@ -748,6 +749,7 @@ static void ni_65xx_detach(struct comedi_device *dev)
 			mite_free(devpriv->mite);
 		}
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni_65xx_driver = {

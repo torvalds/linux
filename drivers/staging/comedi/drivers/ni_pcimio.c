@@ -1470,6 +1470,7 @@ static void pcimio_detach(struct comedi_device *dev)
 			mite_free(devpriv->mite);
 		}
 	}
+	comedi_pci_disable(dev);
 }
 
 static int pcimio_auto_attach(struct comedi_device *dev,
@@ -1513,6 +1514,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		pr_warn("error setting up mite\n");
 		return ret;
 	}
+	dev->iobase = 1;
 
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->ai_mite_ring == NULL)

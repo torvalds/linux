@@ -2790,7 +2790,6 @@ static int s626_auto_attach(struct comedi_device *dev,
 
 static void s626_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct s626_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -2818,10 +2817,7 @@ static void s626_detach(struct comedi_device *dev)
 		if (devpriv->base_addr)
 			iounmap(devpriv->base_addr);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver s626_driver = {

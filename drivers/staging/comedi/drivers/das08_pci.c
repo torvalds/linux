@@ -81,11 +81,8 @@ static int das08_pci_auto_attach(struct comedi_device *dev,
 
 static void das08_pci_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pdev = comedi_to_pci_dev(dev);
-
 	das08_common_detach(dev);
-	if (dev->iobase)
-		comedi_pci_disable(pdev);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver das08_pci_comedi_driver = {

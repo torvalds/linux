@@ -131,21 +131,11 @@ static int cnt_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void cnt_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
-}
-
 static struct comedi_driver ke_counter_driver = {
 	.driver_name	= "ke_counter",
 	.module		= THIS_MODULE,
 	.auto_attach	= cnt_auto_attach,
-	.detach		= cnt_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int ke_counter_pci_probe(struct pci_dev *dev,

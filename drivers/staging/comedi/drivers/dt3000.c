@@ -814,7 +814,6 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 
 static void dt3000_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct dt3k_private *devpriv = dev->private;
 
 	if (dev->irq)
@@ -823,10 +822,7 @@ static void dt3000_detach(struct comedi_device *dev)
 		if (devpriv->io_addr)
 			iounmap(devpriv->io_addr);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver dt3000_driver = {
