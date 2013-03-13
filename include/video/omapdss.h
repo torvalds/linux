@@ -781,6 +781,7 @@ struct omap_overlay *omap_dss_get_overlay(int num);
 
 struct omap_dss_output *omap_dss_get_output(enum omap_dss_output_id id);
 struct omap_dss_output *omap_dss_find_output(const char *name);
+struct omap_dss_output *omap_dss_find_output_by_node(struct device_node *node);
 int omapdss_output_set_device(struct omap_dss_output *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_output *out);
