@@ -27,6 +27,7 @@ extern unsigned int nf_conntrack_in(struct net *net,
 
 extern int nf_conntrack_init_net(struct net *net);
 extern void nf_conntrack_cleanup_net(struct net *net);
+extern void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list);
 
 extern int nf_conntrack_proto_pernet_init(struct net *net);
 extern void nf_conntrack_proto_pernet_fini(struct net *net);
