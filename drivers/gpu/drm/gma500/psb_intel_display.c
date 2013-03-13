@@ -57,62 +57,36 @@ struct psb_intel_limit_t {
 	struct psb_intel_p2_t p2;
 };
 
-#define I9XX_DOT_MIN		  20000
-#define I9XX_DOT_MAX		 400000
-#define I9XX_VCO_MIN		1400000
-#define I9XX_VCO_MAX		2800000
-#define I9XX_N_MIN		      1
-#define I9XX_N_MAX		      6
-#define I9XX_M_MIN		     70
-#define I9XX_M_MAX		    120
-#define I9XX_M1_MIN		      8
-#define I9XX_M1_MAX		     18
-#define I9XX_M2_MIN		      3
-#define I9XX_M2_MAX		      7
-#define I9XX_P_SDVO_DAC_MIN	      5
-#define I9XX_P_SDVO_DAC_MAX	     80
-#define I9XX_P_LVDS_MIN		      7
-#define I9XX_P_LVDS_MAX		     98
-#define I9XX_P1_MIN		      1
-#define I9XX_P1_MAX		      8
-#define I9XX_P2_SDVO_DAC_SLOW		     10
-#define I9XX_P2_SDVO_DAC_FAST		      5
-#define I9XX_P2_SDVO_DAC_SLOW_LIMIT	 200000
-#define I9XX_P2_LVDS_SLOW		     14
-#define I9XX_P2_LVDS_FAST		      7
-#define I9XX_P2_LVDS_SLOW_LIMIT		 112000
-
 #define INTEL_LIMIT_I9XX_SDVO_DAC   0
 #define INTEL_LIMIT_I9XX_LVDS	    1
 
 static const struct psb_intel_limit_t psb_intel_limits[] = {
 	{			/* INTEL_LIMIT_I9XX_SDVO_DAC */
-	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
-	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
-	 .n = {.min = I9XX_N_MIN, .max = I9XX_N_MAX},
-	 .m = {.min = I9XX_M_MIN, .max = I9XX_M_MAX},
-	 .m1 = {.min = I9XX_M1_MIN, .max = I9XX_M1_MAX},
-	 .m2 = {.min = I9XX_M2_MIN, .max = I9XX_M2_MAX},
-	 .p = {.min = I9XX_P_SDVO_DAC_MIN, .max = I9XX_P_SDVO_DAC_MAX},
-	 .p1 = {.min = I9XX_P1_MIN, .max = I9XX_P1_MAX},
-	 .p2 = {.dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
-		.p2_slow = I9XX_P2_SDVO_DAC_SLOW, .p2_fast =
-		I9XX_P2_SDVO_DAC_FAST},
+	 .dot = {.min = 20000, .max = 400000},
+	 .vco = {.min = 1400000, .max = 2800000},
+	 .n = {.min = 1, .max = 6},
+	 .m = {.min = 70, .max = 120},
+	 .m1 = {.min = 8, .max = 18},
+	 .m2 = {.min = 3, .max = 7},
+	 .p = {.min = 5, .max = 80},
+	 .p1 = {.min = 1, .max = 8},
+	 .p2 = {.dot_limit = 200000,
+		.p2_slow = 10, .p2_fast = 5},
 	 },
 	{			/* INTEL_LIMIT_I9XX_LVDS */
-	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
-	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
-	 .n = {.min = I9XX_N_MIN, .max = I9XX_N_MAX},
-	 .m = {.min = I9XX_M_MIN, .max = I9XX_M_MAX},
-	 .m1 = {.min = I9XX_M1_MIN, .max = I9XX_M1_MAX},
-	 .m2 = {.min = I9XX_M2_MIN, .max = I9XX_M2_MAX},
-	 .p = {.min = I9XX_P_LVDS_MIN, .max = I9XX_P_LVDS_MAX},
-	 .p1 = {.min = I9XX_P1_MIN, .max = I9XX_P1_MAX},
+	 .dot = {.min = 20000, .max = 400000},
+	 .vco = {.min = 1400000, .max = 2800000},
+	 .n = {.min = 1, .max = 6},
+	 .m = {.min = 70, .max = 120},
+	 .m1 = {.min = 8, .max = 18},
+	 .m2 = {.min = 3, .max = 7},
+	 .p = {.min = 7, .max = 98},
+	 .p1 = {.min = 1, .max = 8},
 	 /* The single-channel range is 25-112Mhz, and dual-channel
 	  * is 80-224Mhz.  Prefer single channel as much as possible.
 	  */
-	 .p2 = {.dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
-		.p2_slow = I9XX_P2_LVDS_SLOW, .p2_fast = I9XX_P2_LVDS_FAST},
+	 .p2 = {.dot_limit = 112000,
+		.p2_slow = 14, .p2_fast = 7},
 	 },
 };
 
