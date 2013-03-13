@@ -251,7 +251,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct tas5086_private *priv = snd_soc_codec_get_drvdata(codec);
-	unsigned int val;
+	int val;
 	int ret;
 
 	priv->rate = params_rate(params);
