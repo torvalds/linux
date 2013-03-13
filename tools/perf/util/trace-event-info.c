@@ -119,16 +119,9 @@ static void put_tracing_file(char *file)
 	free(file);
 }
 
-static ssize_t calc_data_size;
-
 static ssize_t write_or_die(const void *buf, size_t len)
 {
 	int ret;
-
-	if (calc_data_size) {
-		calc_data_size += len;
-		return len;
-	}
 
 	ret = write(output_fd, buf, len);
 	if (ret < 0)
