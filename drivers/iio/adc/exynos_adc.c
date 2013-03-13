@@ -85,6 +85,7 @@ enum adc_version {
 
 struct exynos_adc {
 	void __iomem		*regs;
+	void __iomem		*enable_reg;
 	struct clk		*clk;
 	unsigned int		irq;
 	struct regulator	*vdd;
@@ -269,9 +270,15 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	info = iio_priv(indio_dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 	info->regs = devm_request_and_ioremap(&pdev->dev, mem);
 	if (!info->regs) {
+		ret = -ENOMEM;
+		goto err_iio;
+	}
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	info->enable_reg = devm_request_and_ioremap(&pdev->dev, mem);
+	if (!info->enable_reg) {
 		ret = -ENOMEM;
 		goto err_iio;
 	}
@@ -294,6 +301,8 @@ static int exynos_adc_probe(struct platform_device *pdev)
 							info->irq);
 		goto err_iio;
 	}
+
+	writel(1, info->enable_reg);
 
 	info->clk = devm_clk_get(&pdev->dev, "adc");
 	if (IS_ERR(info->clk)) {
@@ -370,6 +379,7 @@ static int exynos_adc_remove(struct platform_device *pdev)
 				exynos_adc_remove_devices);
 	regulator_disable(info->vdd);
 	clk_disable_unprepare(info->clk);
+	writel(0, info->enable_reg);
 	iio_device_unregister(indio_dev);
 	free_irq(info->irq, info);
 	iio_device_free(indio_dev);
@@ -395,6 +405,7 @@ static int exynos_adc_suspend(struct device *dev)
 	}
 
 	clk_disable_unprepare(info->clk);
+	writel(0, info->enable_reg);
 	regulator_disable(info->vdd);
 
 	return 0;
@@ -410,6 +421,7 @@ static int exynos_adc_resume(struct device *dev)
 	if (ret)
 		return ret;
 
+	writel(1, info->enable_reg);
 	clk_prepare_enable(info->clk);
 
 	exynos_adc_hw_init(info);
