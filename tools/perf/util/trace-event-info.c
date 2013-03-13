@@ -43,8 +43,6 @@
 
 #define VERSION "0.5"
 
-unsigned int page_size;
-
 static const char *output_file = "trace.info";
 static int output_fd;
 
@@ -431,7 +429,6 @@ static void tracing_data_header(void)
 	write_or_die(buf, 1);
 
 	/* save page_size */
-	page_size = sysconf(_SC_PAGESIZE);
 	write_or_die(&page_size, 4);
 }
 
