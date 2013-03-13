@@ -937,8 +937,8 @@ static int _regmap_select_page(struct regmap *map, unsigned int *reg,
 	return 0;
 }
 
-static int _regmap_raw_write(struct regmap *map, unsigned int reg,
-			     const void *val, size_t val_len, bool async)
+int _regmap_raw_write(struct regmap *map, unsigned int reg,
+		      const void *val, size_t val_len, bool async)
 {
 	struct regmap_range_node *range;
 	unsigned long flags;
