@@ -549,6 +549,16 @@ static void wmi_evt_linkdown(struct wil6210_priv *wil, int id, void *d, int len)
 	netif_carrier_off(ndev);
 }
 
+static void wmi_evt_ba_status(struct wil6210_priv *wil, int id, void *d,
+			      int len)
+{
+	struct wmi_vring_ba_status_event *evt = d;
+
+	wil_dbg_wmi(wil, "BACK[%d] %s {%d} timeout %d\n",
+		    evt->ringid, evt->status ? "N/A" : "OK", evt->agg_wsize,
+		    __le16_to_cpu(evt->ba_timeout));
+}
+
 static const struct {
 	int eventid;
 	void (*handler)(struct wil6210_priv *wil, int eventid,
@@ -564,6 +574,7 @@ static const struct {
 	{WMI_EAPOL_RX_EVENTID,		wmi_evt_eapol_rx},
 	{WMI_DATA_PORT_OPEN_EVENTID,	wmi_evt_linkup},
 	{WMI_WBE_LINKDOWN_EVENTID,	wmi_evt_linkdown},
+	{WMI_BA_STATUS_EVENTID,		wmi_evt_ba_status},
 };
 
 /*
