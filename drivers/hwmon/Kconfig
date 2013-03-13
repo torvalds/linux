@@ -899,6 +899,7 @@ config SENSORS_MCP3021
 
 config SENSORS_NTC_THERMISTOR
 	tristate "NTC thermistor support"
+	depends on (!OF && !IIO) || (OF && IIO)
 	help
 	  This driver supports NTC thermistors sensor reading and its
 	  interpretation. The driver can also monitor the temperature and
