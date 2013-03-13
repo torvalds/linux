@@ -242,9 +242,8 @@ kmem_cache *slab)
 	if (!stid)
 		return NULL;
 
-	if (!idr_pre_get(stateids, GFP_KERNEL))
-		goto out_free;
-	if (idr_get_new_above(stateids, stid, min_stateid, &new_id))
+	new_id = idr_alloc(stateids, stid, min_stateid, 0, GFP_KERNEL);
+	if (new_id < 0)
 		goto out_free;
 	stid->sc_client = cl;
 	stid->sc_type = 0;
