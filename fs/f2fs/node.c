@@ -1097,13 +1097,6 @@ static int f2fs_write_node_page(struct page *page,
 	block_t new_addr;
 	struct node_info ni;
 
-	if (wbc->for_reclaim) {
-		dec_page_count(sbi, F2FS_DIRTY_NODES);
-		wbc->pages_skipped++;
-		set_page_dirty(page);
-		return AOP_WRITEPAGE_ACTIVATE;
-	}
-
 	wait_on_page_writeback(page);
 
 	mutex_lock_op(sbi, NODE_WRITE);
@@ -1117,6 +1110,14 @@ static int f2fs_write_node_page(struct page *page,
 	/* This page is already truncated */
 	if (ni.blk_addr == NULL_ADDR)
 		goto out;
+
+	if (wbc->for_reclaim) {
+		dec_page_count(sbi, F2FS_DIRTY_NODES);
+		wbc->pages_skipped++;
+		set_page_dirty(page);
+		mutex_unlock_op(sbi, NODE_WRITE);
+		return AOP_WRITEPAGE_ACTIVATE;
+	}
 
 	set_page_writeback(page);
 
