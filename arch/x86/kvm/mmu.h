@@ -57,8 +57,11 @@ int kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {
-	return kvm->arch.n_max_mmu_pages -
-		kvm->arch.n_used_mmu_pages;
+	if (kvm->arch.n_max_mmu_pages > kvm->arch.n_used_mmu_pages)
+		return kvm->arch.n_max_mmu_pages -
+			kvm->arch.n_used_mmu_pages;
+
+	return 0;
 }
 
 static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
