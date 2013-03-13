@@ -29,12 +29,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
- * TODO (last updated Feb 27, 2010):
- *	- add kernel-doc
- *	- enable AUTOIDLE
- *	- add suspend/resume
- *	- add HSIC and TLL support
- *	- convert to use hwmod and runtime PM
  */
 
 #include <linux/kernel.h>
@@ -87,26 +81,12 @@ static inline u32 ehci_read(void __iomem *base, u32 reg)
 	return __raw_readl(base + reg);
 }
 
-static int omap_ehci_init(struct usb_hcd *hcd)
-{
-	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
-	int rc;
-
-	/* we know this is the memory we want, no need to ioremap again */
-	ehci->caps = hcd->regs;
-
-	rc = ehci_setup(hcd);
-
-	return rc;
-}
-
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
 
 static struct hc_driver __read_mostly ehci_omap_hc_driver;
 
 static const struct ehci_driver_overrides ehci_omap_overrides __initdata = {
-	.reset = omap_ehci_init,
 	.extra_priv_size = sizeof(struct omap_hcd),
 };
 
@@ -179,6 +159,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 	hcd->regs = regs;
+	hcd_to_ehci(hcd)->caps = regs;
 
 	omap = (struct omap_hcd *)hcd_to_ehci(hcd)->priv;
 	omap->nports = pdata->nports;
