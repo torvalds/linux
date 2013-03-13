@@ -3350,7 +3350,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	switch (codec->vendor_id) {
 	case 0x14f15045:
 		codec->single_adc_amp = 1;
-		codec->power_filter = NULL; /* Needs speaker amp to D3 to avoid click */
 		break;
 	case 0x14f15047:
 		codec->pin_amp_workaround = 1;

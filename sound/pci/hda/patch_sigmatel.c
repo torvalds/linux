@@ -3774,6 +3774,7 @@ static int patch_stac9200(struct hda_codec *codec)
 	spec->gen.own_eapd_ctl = 1;
 
 	codec->patch_ops = stac_patch_ops;
+	codec->power_filter = snd_hda_codec_eapd_power_filter;
 
 	snd_hda_add_verbs(codec, stac9200_eapd_init);
 

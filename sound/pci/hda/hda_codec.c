@@ -1296,8 +1296,6 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
 
 static unsigned int hda_set_power_state(struct hda_codec *codec,
 				unsigned int power_state);
-static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
-					 unsigned int power_state);
 
 /**
  * snd_hda_codec_new - create a HDA codec
@@ -1418,7 +1416,6 @@ int snd_hda_codec_new(struct hda_bus *bus,
 #endif
 	codec->epss = snd_hda_codec_get_supported_ps(codec, fg,
 					AC_PWRST_EPSS);
-	codec->power_filter = default_power_filter;
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec, AC_PWRST_D0);
@@ -3759,8 +3756,9 @@ static unsigned int hda_sync_power_state(struct hda_codec *codec,
 }
 
 /* don't power down the widget if it controls eapd and EAPD_BTLENABLE is set */
-static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
-					 unsigned int power_state)
+unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
+					     hda_nid_t nid,
+					     unsigned int power_state)
 {
 	if (power_state == AC_PWRST_D3 &&
 	    get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_PIN &&
@@ -3772,6 +3770,7 @@ static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
 	}
 	return power_state;
 }
+EXPORT_SYMBOL_HDA(snd_hda_codec_eapd_power_filter);
 
 /*
  * set power state of the codec, and return the power state
@@ -3816,8 +3815,8 @@ static void sync_power_up_states(struct hda_codec *codec)
 	hda_nid_t nid = codec->start_nid;
 	int i;
 
-	/* don't care if no or standard filter is used */
-	if (!codec->power_filter || codec->power_filter == default_power_filter)
+	/* don't care if no filter is used */
+	if (!codec->power_filter)
 		return;
 
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
