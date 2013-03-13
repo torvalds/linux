@@ -571,6 +571,23 @@ static const struct pinctrl_map ag5evm_pinctrl_map[] = {
 				  "i2c2_0", "i2c2"),
 	PIN_MAP_MUX_GROUP_DEFAULT("i2c-sh_mobile.3", "pfc-sh73a0",
 				  "i2c3_0", "i2c3"),
+	/* KEYSC */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_in8", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out04", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out5", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out6_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out7_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out8_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out9_2", "keysc"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				      "keysc_in8", pin_pullup_conf),
 	/* MMCIF */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
 				  "mmc0_data8_0", "mmc0"),
@@ -614,26 +631,6 @@ static void __init ag5evm_init(void)
 	pinctrl_register_mappings(ag5evm_pinctrl_map,
 				  ARRAY_SIZE(ag5evm_pinctrl_map));
 	sh73a0_pinmux_init();
-
-	/* enable KEYSC */
-	gpio_request(GPIO_FN_KEYIN0_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN1_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN2_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN3_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN4_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN5_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN6_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN7_PU, NULL);
-	gpio_request(GPIO_FN_KEYOUT0, NULL);
-	gpio_request(GPIO_FN_KEYOUT1, NULL);
-	gpio_request(GPIO_FN_KEYOUT2, NULL);
-	gpio_request(GPIO_FN_KEYOUT3, NULL);
-	gpio_request(GPIO_FN_KEYOUT4, NULL);
-	gpio_request(GPIO_FN_KEYOUT5, NULL);
-	gpio_request(GPIO_FN_PORT59_KEYOUT6, NULL);
-	gpio_request(GPIO_FN_PORT58_KEYOUT7, NULL);
-	gpio_request(GPIO_FN_KEYOUT8, NULL);
-	gpio_request(GPIO_FN_PORT149_KEYOUT9, NULL);
 
 	/* enable MMCIF */
 	gpio_request_one(208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
