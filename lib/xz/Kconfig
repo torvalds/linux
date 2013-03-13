@@ -15,7 +15,7 @@ config XZ_DEC_X86
 
 config XZ_DEC_POWERPC
 	bool "PowerPC BCJ filter decoder"
-	default y if POWERPC
+	default y if PPC
 	select XZ_DEC_BCJ
 
 config XZ_DEC_IA64
