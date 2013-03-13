@@ -142,7 +142,7 @@ static void mxc_rnga_cleanup(struct hwrng *rng)
 static int __init mxc_rnga_probe(struct platform_device *pdev)
 {
 	int err = -ENODEV;
-	struct resource *res, *mem;
+	struct resource *res;
 	struct mxc_rng *mxc_rng;
 
 	mxc_rng = devm_kzalloc(&pdev->dev, sizeof(struct mxc_rng),
@@ -172,15 +172,9 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 		goto err_region;
 	}
 
-	mem = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (mem == NULL) {
-		err = -EBUSY;
-		goto err_region;
-	}
-
-	mxc_rng->mem = ioremap(res->start, resource_size(res));
-	if (!mxc_rng->mem) {
-		err = -ENOMEM;
+	mxc_rng->mem = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mxc_rng->mem)) {
+		err = PTR_ERR(mxc_rng->mem);
 		goto err_ioremap;
 	}
 
@@ -195,8 +189,6 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	return 0;
 
 err_ioremap:
-	release_mem_region(res->start, resource_size(res));
-
 err_region:
 	clk_disable_unprepare(mxc_rng->clk);
 
@@ -206,14 +198,9 @@ out:
 
 static int __exit mxc_rnga_remove(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct mxc_rng *mxc_rng = platform_get_drvdata(pdev);
 
 	hwrng_unregister(&mxc_rng->rng);
-
-	iounmap(mxc_rng->mem);
-
-	release_mem_region(res->start, resource_size(res));
 
 	clk_disable_unprepare(mxc_rng->clk);
 
