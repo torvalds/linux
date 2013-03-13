@@ -333,7 +333,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	int oh_cnt, i, ret = 0;
 
 	oh_cnt = of_property_count_strings(node, "ti,hwmods");
-	if (!oh_cnt || IS_ERR_VALUE(oh_cnt)) {
+	if (oh_cnt <= 0) {
 		dev_dbg(&pdev->dev, "No 'hwmods' to build omap_device\n");
 		return -ENODEV;
 	}

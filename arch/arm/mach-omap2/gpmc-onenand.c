@@ -303,7 +303,7 @@ static int omap2_onenand_setup_async(void __iomem *onenand_base)
 	t = omap2_onenand_calc_async_timings();
 
 	ret = gpmc_set_async_mode(gpmc_onenand_data->cs, &t);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		return ret;
 
 	omap2_onenand_set_async_mode(onenand_base);
@@ -325,7 +325,7 @@ static int omap2_onenand_setup_sync(void __iomem *onenand_base, int *freq_ptr)
 	t = omap2_onenand_calc_sync_timings(gpmc_onenand_data, freq);
 
 	ret = gpmc_set_sync_mode(gpmc_onenand_data->cs, &t);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		return ret;
 
 	set_onenand_cfg(onenand_base);
