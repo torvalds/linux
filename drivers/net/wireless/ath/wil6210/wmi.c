@@ -334,6 +334,9 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 		} else {
 			wil_err(wil, "cfg80211_inform_bss() failed\n");
 		}
+	} else {
+		cfg80211_rx_mgmt(wil->wdev, freq, signal,
+				 (void *)rx_mgmt_frame, d_len, GFP_KERNEL);
 	}
 }
 
