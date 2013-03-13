@@ -21,7 +21,6 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
-#include <linux/pci.h>
 #include <linux/cpu_rmap.h>
 #include <linux/aer.h>
 #include "net_driver.h"
