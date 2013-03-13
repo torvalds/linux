@@ -1,6 +1,7 @@
 config USB_DWC2
 	tristate "DesignWare USB2 DRD Core Support"
 	depends on USB
+	depends on VIRT_TO_BUS
 	select USB_OTG_UTILS
 	help
 	  Say Y or M here if your system has a Dual Role HighSpeed
