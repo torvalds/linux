@@ -126,6 +126,13 @@ do {								\
 #define CPSW_FIFO_DUAL_MAC_MODE		(1 << 15)
 #define CPSW_FIFO_RATE_LIMIT_MODE	(2 << 15)
 
+#define CPSW_INTPACEEN		(0x3f << 16)
+#define CPSW_INTPRESCALE_MASK	(0x7FF << 0)
+#define CPSW_CMINTMAX_CNT	63
+#define CPSW_CMINTMIN_CNT	2
+#define CPSW_CMINTMAX_INTVL	(1000 / CPSW_CMINTMIN_CNT)
+#define CPSW_CMINTMIN_INTVL	((1000 / CPSW_CMINTMAX_CNT) + 1)
+
 #define cpsw_enable_irq(priv)	\
 	do {			\
 		u32 i;		\
@@ -138,6 +145,10 @@ do {								\
 		for (i = 0; i < priv->num_irqs; i++) \
 			disable_irq_nosync(priv->irqs_table[i]); \
 	} while (0);
+
+#define cpsw_slave_index(priv)				\
+		((priv->data.dual_emac) ? priv->emac_port :	\
+		priv->data.active_slave)
 
 static int debug_level;
 module_param(debug_level, int, 0);
@@ -160,6 +171,15 @@ struct cpsw_wr_regs {
 	u32	rx_en;
 	u32	tx_en;
 	u32	misc_en;
+	u32	mem_allign1[8];
+	u32	rx_thresh_stat;
+	u32	rx_stat;
+	u32	tx_stat;
+	u32	misc_stat;
+	u32	mem_allign2[8];
+	u32	rx_imax;
+	u32	tx_imax;
+
 };
 
 struct cpsw_ss_regs {
@@ -314,6 +334,8 @@ struct cpsw_priv {
 	struct cpsw_host_regs __iomem	*host_port_regs;
 	u32				msg_enable;
 	u32				version;
+	u32				coal_intvl;
+	u32				bus_freq_mhz;
 	struct net_device_stats		stats;
 	int				rx_packet_max;
 	int				host_port;
@@ -612,6 +634,77 @@ static void cpsw_adjust_link(struct net_device *ndev)
 	}
 }
 
+static int cpsw_get_coalesce(struct net_device *ndev,
+				struct ethtool_coalesce *coal)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	coal->rx_coalesce_usecs = priv->coal_intvl;
+	return 0;
+}
+
+static int cpsw_set_coalesce(struct net_device *ndev,
+				struct ethtool_coalesce *coal)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	u32 int_ctrl;
+	u32 num_interrupts = 0;
+	u32 prescale = 0;
+	u32 addnl_dvdr = 1;
+	u32 coal_intvl = 0;
+
+	if (!coal->rx_coalesce_usecs)
+		return -EINVAL;
+
+	coal_intvl = coal->rx_coalesce_usecs;
+
+	int_ctrl =  readl(&priv->wr_regs->int_control);
+	prescale = priv->bus_freq_mhz * 4;
+
+	if (coal_intvl < CPSW_CMINTMIN_INTVL)
+		coal_intvl = CPSW_CMINTMIN_INTVL;
+
+	if (coal_intvl > CPSW_CMINTMAX_INTVL) {
+		/* Interrupt pacer works with 4us Pulse, we can
+		 * throttle further by dilating the 4us pulse.
+		 */
+		addnl_dvdr = CPSW_INTPRESCALE_MASK / prescale;
+
+		if (addnl_dvdr > 1) {
+			prescale *= addnl_dvdr;
+			if (coal_intvl > (CPSW_CMINTMAX_INTVL * addnl_dvdr))
+				coal_intvl = (CPSW_CMINTMAX_INTVL
+						* addnl_dvdr);
+		} else {
+			addnl_dvdr = 1;
+			coal_intvl = CPSW_CMINTMAX_INTVL;
+		}
+	}
+
+	num_interrupts = (1000 * addnl_dvdr) / coal_intvl;
+	writel(num_interrupts, &priv->wr_regs->rx_imax);
+	writel(num_interrupts, &priv->wr_regs->tx_imax);
+
+	int_ctrl |= CPSW_INTPACEEN;
+	int_ctrl &= (~CPSW_INTPRESCALE_MASK);
+	int_ctrl |= (prescale & CPSW_INTPRESCALE_MASK);
+	writel(int_ctrl, &priv->wr_regs->int_control);
+
+	cpsw_notice(priv, timer, "Set coalesce to %d usecs.\n", coal_intvl);
+	if (priv->data.dual_emac) {
+		int i;
+
+		for (i = 0; i < priv->data.slaves; i++) {
+			priv = netdev_priv(priv->slaves[i].ndev);
+			priv->coal_intvl = coal_intvl;
+		}
+	} else {
+		priv->coal_intvl = coal_intvl;
+	}
+
+	return 0;
+}
+
 static inline int __show_stat(char *buf, int maxlen, const char *name, u32 val)
 {
 	static char *leader = "........................................";
@@ -834,6 +927,14 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		cpsw_info(priv, ifup, "submitted %d rx descriptors\n", i);
 	}
 
+	/* Enable Interrupt pacing if configured */
+	if (priv->coal_intvl != 0) {
+		struct ethtool_coalesce coal;
+
+		coal.rx_coalesce_usecs = (priv->coal_intvl << 4);
+		cpsw_set_coalesce(ndev, &coal);
+	}
+
 	cpdma_ctlr_start(priv->dma);
 	cpsw_intr_enable(priv);
 	napi_enable(&priv->napi);
@@ -942,7 +1043,7 @@ static void cpsw_ndo_change_rx_flags(struct net_device *ndev, int flags)
 
 static void cpsw_hwtstamp_v1(struct cpsw_priv *priv)
 {
-	struct cpsw_slave *slave = &priv->slaves[priv->data.cpts_active_slave];
+	struct cpsw_slave *slave = &priv->slaves[priv->data.active_slave];
 	u32 ts_en, seq_id;
 
 	if (!priv->cpts->tx_enable && !priv->cpts->rx_enable) {
@@ -971,7 +1072,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	if (priv->data.dual_emac)
 		slave = &priv->slaves[priv->emac_port];
 	else
-		slave = &priv->slaves[priv->data.cpts_active_slave];
+		slave = &priv->slaves[priv->data.active_slave];
 
 	ctrl = slave_read(slave, CPSW2_CONTROL);
 	ctrl &= ~CTRL_ALL_TS_MASK;
@@ -1056,14 +1157,26 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
+	struct cpsw_priv *priv = netdev_priv(dev);
+	struct mii_ioctl_data *data = if_mii(req);
+	int slave_no = cpsw_slave_index(priv);
+
 	if (!netif_running(dev))
 		return -EINVAL;
 
+	switch (cmd) {
 #ifdef CONFIG_TI_CPTS
-	if (cmd == SIOCSHWTSTAMP)
+	case SIOCSHWTSTAMP:
 		return cpsw_hwtstamp_ioctl(dev, req);
 #endif
-	return -ENOTSUPP;
+	case SIOCGMIIPHY:
+		data->phy_id = priv->slaves[slave_no].phy->addr;
+		break;
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
 }
 
 static void cpsw_ndo_tx_timeout(struct net_device *ndev)
@@ -1244,12 +1357,39 @@ static int cpsw_get_ts_info(struct net_device *ndev,
 	return 0;
 }
 
+static int cpsw_get_settings(struct net_device *ndev,
+			     struct ethtool_cmd *ecmd)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	int slave_no = cpsw_slave_index(priv);
+
+	if (priv->slaves[slave_no].phy)
+		return phy_ethtool_gset(priv->slaves[slave_no].phy, ecmd);
+	else
+		return -EOPNOTSUPP;
+}
+
+static int cpsw_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	int slave_no = cpsw_slave_index(priv);
+
+	if (priv->slaves[slave_no].phy)
+		return phy_ethtool_sset(priv->slaves[slave_no].phy, ecmd);
+	else
+		return -EOPNOTSUPP;
+}
+
 static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_drvinfo	= cpsw_get_drvinfo,
 	.get_msglevel	= cpsw_get_msglevel,
 	.set_msglevel	= cpsw_set_msglevel,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= cpsw_get_ts_info,
+	.get_settings	= cpsw_get_settings,
+	.set_settings	= cpsw_set_settings,
+	.get_coalesce	= cpsw_get_coalesce,
+	.set_coalesce	= cpsw_set_coalesce,
 };
 
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
@@ -1282,12 +1422,12 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->slaves = prop;
 
-	if (of_property_read_u32(node, "cpts_active_slave", &prop)) {
-		pr_err("Missing cpts_active_slave property in the DT.\n");
+	if (of_property_read_u32(node, "active_slave", &prop)) {
+		pr_err("Missing active_slave property in the DT.\n");
 		ret = -EINVAL;
 		goto error_ret;
 	}
-	data->cpts_active_slave = prop;
+	data->active_slave = prop;
 
 	if (of_property_read_u32(node, "cpts_clock_mult", &prop)) {
 		pr_err("Missing cpts_clock_mult property in the DT.\n");
@@ -1437,6 +1577,9 @@ static int cpsw_probe_dual_emac(struct platform_device *pdev,
 	priv_sl2->slaves = priv->slaves;
 	priv_sl2->clk = priv->clk;
 
+	priv_sl2->coal_intvl = 0;
+	priv_sl2->bus_freq_mhz = priv->bus_freq_mhz;
+
 	priv_sl2->cpsw_res = priv->cpsw_res;
 	priv_sl2->regs = priv->regs;
 	priv_sl2->host_port = priv->host_port;
@@ -1546,6 +1689,8 @@ static int cpsw_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto clean_slave_ret;
 	}
+	priv->coal_intvl = 0;
+	priv->bus_freq_mhz = clk_get_rate(priv->clk) / 1000000;
 
 	priv->cpsw_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!priv->cpsw_res) {
