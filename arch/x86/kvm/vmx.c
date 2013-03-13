@@ -2040,14 +2040,16 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	 */
 
 	/* pin-based controls */
+	rdmsr(MSR_IA32_VMX_PINBASED_CTLS,
+	      nested_vmx_pinbased_ctls_low, nested_vmx_pinbased_ctls_high);
 	/*
 	 * According to the Intel spec, if bit 55 of VMX_BASIC is off (as it is
 	 * in our case), bits 1, 2 and 4 (i.e., 0x16) must be 1 in this MSR.
 	 */
-	nested_vmx_pinbased_ctls_low = 0x16 ;
-	nested_vmx_pinbased_ctls_high = 0x16 |
-		PIN_BASED_EXT_INTR_MASK | PIN_BASED_NMI_EXITING |
-		PIN_BASED_VIRTUAL_NMIS;
+	nested_vmx_pinbased_ctls_low |= PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
+	nested_vmx_pinbased_ctls_high &= PIN_BASED_EXT_INTR_MASK |
+		PIN_BASED_NMI_EXITING | PIN_BASED_VIRTUAL_NMIS;
+	nested_vmx_pinbased_ctls_high |= PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
 
 	/*
 	 * Exit controls
