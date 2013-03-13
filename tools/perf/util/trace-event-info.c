@@ -55,18 +55,6 @@ unsigned int page_size;
 static const char *output_file = "trace.info";
 static int output_fd;
 
-struct event_list {
-	struct event_list *next;
-	const char *event;
-};
-
-struct events {
-	struct events *sibling;
-	struct events *children;
-	struct events *next;
-	char *name;
-};
-
 
 static void *malloc_or_die(unsigned int size)
 {
