@@ -291,7 +291,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 
 	/* WMI_CONNECT_CMD */
 	memset(&conn, 0, sizeof(conn));
-	switch (bss->capability & 0x03) {
+	switch (bss->capability & WLAN_CAPABILITY_DMG_TYPE_MASK) {
 	case WLAN_CAPABILITY_DMG_TYPE_AP:
 		conn.network_type = WMI_NETTYPE_INFRA;
 		break;
