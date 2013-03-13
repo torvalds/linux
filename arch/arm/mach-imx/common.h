@@ -111,7 +111,6 @@ void tzic_handle_irq(struct pt_regs *);
 extern void imx_enable_cpu(int cpu, bool enable);
 extern void imx_set_cpu_jump(int cpu, void *jump_addr);
 extern void v7_cpu_resume(void);
-extern u32 *pl310_get_save_ptr(void);
 #ifdef CONFIG_SMP
 extern void v7_secondary_startup(void);
 extern void imx_scu_map_io(void);
