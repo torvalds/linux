@@ -302,7 +302,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_version = 0;
 	ci->i_time_warp_seq = 0;
 	ci->i_ceph_flags = 0;
-	ci->i_release_count = 0;
+	atomic_set(&ci->i_release_count, 1);
+	atomic_set(&ci->i_complete_count, 0);
 	ci->i_symlink = NULL;
 
 	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
@@ -721,9 +722,9 @@ static int fill_inode(struct inode *inode,
 	    ceph_snap(inode) == CEPH_NOSNAP &&
 	    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
 	    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
-	    (ci->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
+	    !__ceph_dir_is_complete(ci)) {
 		dout(" marking %p complete (empty)\n", inode);
-		ci->i_ceph_flags |= CEPH_I_COMPLETE;
+		__ceph_dir_set_complete(ci, atomic_read(&ci->i_release_count));
 		ci->i_max_offset = 2;
 	}
 no_change:
@@ -857,7 +858,7 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 	di = ceph_dentry(dn);
 
 	spin_lock(&ci->i_ceph_lock);
-	if ((ceph_inode(inode)->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
+	if (!__ceph_dir_is_complete(ci)) {
 		spin_unlock(&ci->i_ceph_lock);
 		return;
 	}
@@ -1061,8 +1062,8 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			/*
 			 * d_move() puts the renamed dentry at the end of
 			 * d_subdirs.  We need to assign it an appropriate
-			 * directory offset so we can behave when holding
-			 * I_COMPLETE.
+			 * directory offset so we can behave when dir is
+			 * complete.
 			 */
 			ceph_set_dentry_offset(req->r_old_dentry);
 			dout("dn %p gets new offset %lld\n", req->r_old_dentry, 

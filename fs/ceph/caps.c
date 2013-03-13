@@ -490,7 +490,7 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
 		ci->i_rdcache_gen++;
 
 	/*
-	 * if we are newly issued FILE_SHARED, clear I_COMPLETE; we
+	 * if we are newly issued FILE_SHARED, mark dir not complete; we
 	 * don't know what happened to this directory while we didn't
 	 * have the cap.
 	 */
@@ -499,7 +499,7 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
 		ci->i_shared_gen++;
 		if (S_ISDIR(ci->vfs_inode.i_mode)) {
 			dout(" marking %p NOT complete\n", &ci->vfs_inode);
-			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
+			__ceph_dir_clear_complete(ci);
 		}
 	}
 }
