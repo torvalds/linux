@@ -582,8 +582,8 @@ struct nand_chip {
  * @pagesize: size of the NAND page in bytes; if 0, then the real page size (as
  *            well as the eraseblock size) is determined from the extended NAND
  *            chip ID array)
- * @erasesize: eraseblock size in bytes (determined from the extended ID if 0)
  * @chipsize: total chip size in MiB
+ * @erasesize: eraseblock size in bytes (determined from the extended ID if 0)
  * @options: stores various chip bit options
  */
 struct nand_flash_dev {
@@ -595,10 +595,10 @@ struct nand_flash_dev {
 		};
 		uint8_t id[8];
 	};
-	unsigned long pagesize;
-	unsigned long chipsize;
-	unsigned long erasesize;
-	unsigned long options;
+	unsigned int pagesize;
+	unsigned int chipsize;
+	unsigned int erasesize;
+	unsigned int options;
 };
 
 /**
