@@ -52,6 +52,13 @@
  */
 #define OMAP4_DPLL_ABE_DEFFREQ				98304000
 
+/*
+ * OMAP4 USB DPLL default frequency. In OMAP4430 TRM version V, section
+ * "3.6.3.9.5 DPLL_USB Preferred Settings" shows that the preferred
+ * locked frequency for the USB DPLL is 960MHz.
+ */
+#define OMAP4_DPLL_USB_DEFFREQ				960000000
+
 /* Root clocks */
 
 DEFINE_CLK_FIXED_RATE(extalt_clkin_ck, CLK_IS_ROOT, 59000000, 0x0);
@@ -1704,6 +1711,14 @@ int __init omap4xxx_clk_init(void)
 		rc = clk_set_rate(&dpll_abe_ck, OMAP4_DPLL_ABE_DEFFREQ);
 	if (rc)
 		pr_err("%s: failed to configure ABE DPLL!\n", __func__);
+
+	/*
+	 * Lock USB DPLL on OMAP4 devices so that the L3INIT power
+	 * domain can transition to retention state when not in use.
+	 */
+	rc = clk_set_rate(&dpll_usb_ck, OMAP4_DPLL_USB_DEFFREQ);
+	if (rc)
+		pr_err("%s: failed to configure USB DPLL!\n", __func__);
 
 	return 0;
 }
