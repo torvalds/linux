@@ -43,13 +43,6 @@
 
 #define VERSION "0.5"
 
-#define TRACE_CTRL	"tracing_on"
-#define TRACE		"trace"
-#define AVAILABLE	"available_tracers"
-#define CURRENT		"current_tracer"
-#define ITER_CTRL	"trace_options"
-#define MAX_LATENCY	"tracing_max_latency"
-
 unsigned int page_size;
 
 static const char *output_file = "trace.info";
