@@ -36,7 +36,7 @@ struct spear_sdhci {
 };
 
 /* sdhci ops */
-static struct sdhci_ops sdhci_pltfm_ops = {
+static const struct sdhci_ops sdhci_pltfm_ops = {
 	/* Nothing to do for now. */
 };
 

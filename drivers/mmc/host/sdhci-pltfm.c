@@ -44,7 +44,7 @@ unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host)
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_clk_get_max_clock);
 
-static struct sdhci_ops sdhci_pltfm_ops = {
+static const struct sdhci_ops sdhci_pltfm_ops = {
 };
 
 #ifdef CONFIG_OF

@@ -80,7 +80,7 @@ out:
 	host->clock = clock;
 }
 
-static struct sdhci_ops sdhci_cns3xxx_ops = {
+static const struct sdhci_ops sdhci_cns3xxx_ops = {
 	.get_max_clock	= sdhci_cns3xxx_get_max_clk,
 	.set_clock	= sdhci_cns3xxx_set_clock,
 };

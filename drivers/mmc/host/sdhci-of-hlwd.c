@@ -51,7 +51,7 @@ static void sdhci_hlwd_writeb(struct sdhci_host *host, u8 val, int reg)
 	udelay(SDHCI_HLWD_WRITE_DELAY);
 }
 
-static struct sdhci_ops sdhci_hlwd_ops = {
+static const struct sdhci_ops sdhci_hlwd_ops = {
 	.read_l = sdhci_be32bs_readl,
 	.read_w = sdhci_be32bs_readw,
 	.read_b = sdhci_be32bs_readb,
