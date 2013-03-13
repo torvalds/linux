@@ -6,6 +6,7 @@ config ARCH_BCM
 	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC
 	select CPU_V7
+	select CLKSRC_OF
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_TIME
 	select GPIO_BCM
