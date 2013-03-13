@@ -136,74 +136,74 @@ extern int intel_agp_enabled;
 	.driver_data = (unsigned long) info }
 
 static const struct intel_device_info intel_i830_info = {
-	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1,
+	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_845g_info = {
-	.gen = 2,
+	.gen = 2, .num_pipes = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i85x_info = {
-	.gen = 2, .is_i85x = 1, .is_mobile = 1,
+	.gen = 2, .is_i85x = 1, .is_mobile = 1, .num_pipes = 2,
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i865g_info = {
-	.gen = 2,
+	.gen = 2, .num_pipes = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i915g_info = {
-	.gen = 3, .is_i915g = 1, .cursor_needs_physical = 1,
+	.gen = 3, .is_i915g = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 static const struct intel_device_info intel_i915gm_info = {
-	.gen = 3, .is_mobile = 1,
+	.gen = 3, .is_mobile = 1, .num_pipes = 2,
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
 };
 static const struct intel_device_info intel_i945g_info = {
-	.gen = 3, .has_hotplug = 1, .cursor_needs_physical = 1,
+	.gen = 3, .has_hotplug = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 static const struct intel_device_info intel_i945gm_info = {
-	.gen = 3, .is_i945gm = 1, .is_mobile = 1,
+	.gen = 3, .is_i945gm = 1, .is_mobile = 1, .num_pipes = 2,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
 };
 
 static const struct intel_device_info intel_i965g_info = {
-	.gen = 4, .is_broadwater = 1,
+	.gen = 4, .is_broadwater = 1, .num_pipes = 2,
 	.has_hotplug = 1,
 	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
-	.gen = 4, .is_crestline = 1,
+	.gen = 4, .is_crestline = 1, .num_pipes = 2,
 	.is_mobile = 1, .has_fbc = 1, .has_hotplug = 1,
 	.has_overlay = 1,
 	.supports_tv = 1,
 };
 
 static const struct intel_device_info intel_g33_info = {
-	.gen = 3, .is_g33 = 1,
+	.gen = 3, .is_g33 = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_g45_info = {
-	.gen = 4, .is_g4x = 1, .need_gfx_hws = 1,
+	.gen = 4, .is_g4x = 1, .need_gfx_hws = 1, .num_pipes = 2,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_gm45_info = {
-	.gen = 4, .is_g4x = 1,
+	.gen = 4, .is_g4x = 1, .num_pipes = 2,
 	.is_mobile = 1, .need_gfx_hws = 1, .has_fbc = 1,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
 	.supports_tv = 1,
@@ -211,26 +211,26 @@ static const struct intel_device_info intel_gm45_info = {
 };
 
 static const struct intel_device_info intel_pineview_info = {
-	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1,
+	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_ironlake_d_info = {
-	.gen = 5,
+	.gen = 5, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
-	.gen = 5, .is_mobile = 1,
+	.gen = 5, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 1,
 	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_d_info = {
-	.gen = 6,
+	.gen = 6, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
@@ -239,7 +239,7 @@ static const struct intel_device_info intel_sandybridge_d_info = {
 };
 
 static const struct intel_device_info intel_sandybridge_m_info = {
-	.gen = 6, .is_mobile = 1,
+	.gen = 6, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 1,
 	.has_bsd_ring = 1,
@@ -249,7 +249,7 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 };
 
 static const struct intel_device_info intel_ivybridge_d_info = {
-	.is_ivybridge = 1, .gen = 7,
+	.is_ivybridge = 1, .gen = 7, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
@@ -258,7 +258,7 @@ static const struct intel_device_info intel_ivybridge_d_info = {
 };
 
 static const struct intel_device_info intel_ivybridge_m_info = {
-	.is_ivybridge = 1, .gen = 7, .is_mobile = 1,
+	.is_ivybridge = 1, .gen = 7, .is_mobile = 1, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 0,	/* FBC is not enabled on Ivybridge mobile yet */
 	.has_bsd_ring = 1,
@@ -268,7 +268,7 @@ static const struct intel_device_info intel_ivybridge_m_info = {
 };
 
 static const struct intel_device_info intel_valleyview_m_info = {
-	.gen = 7, .is_mobile = 1,
+	.gen = 7, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 0,
 	.has_bsd_ring = 1,
@@ -279,7 +279,7 @@ static const struct intel_device_info intel_valleyview_m_info = {
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
-	.gen = 7,
+	.gen = 7, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 0,
 	.has_bsd_ring = 1,
@@ -290,7 +290,7 @@ static const struct intel_device_info intel_valleyview_d_info = {
 };
 
 static const struct intel_device_info intel_haswell_d_info = {
-	.is_haswell = 1, .gen = 7,
+	.is_haswell = 1, .gen = 7, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
@@ -299,7 +299,7 @@ static const struct intel_device_info intel_haswell_d_info = {
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
-	.is_haswell = 1, .gen = 7, .is_mobile = 1,
+	.is_haswell = 1, .gen = 7, .is_mobile = 1, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,

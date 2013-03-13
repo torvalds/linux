@@ -93,7 +93,7 @@ enum port {
 	 I915_GEM_DOMAIN_INSTRUCTION | \
 	 I915_GEM_DOMAIN_VERTEX)
 
-#define for_each_pipe(p) for ((p) = 0; (p) < dev_priv->num_pipe; (p)++)
+#define for_each_pipe(p) for ((p) = 0; (p) < INTEL_INFO(dev)->num_pipes; (p)++)
 
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
@@ -341,6 +341,7 @@ struct drm_i915_gt_funcs {
 
 struct intel_device_info {
 	u32 display_mmio_offset;
+	u8 num_pipes:3;
 	u8 gen;
 	u8 is_mobile:1;
 	u8 is_i85x:1;
@@ -912,7 +913,6 @@ typedef struct drm_i915_private {
 	struct work_struct hotplug_work;
 	bool enable_hotplug_processing;
 
-	int num_pipe;
 	int num_pch_pll;
 
 	unsigned long cfb_size;
