@@ -3334,6 +3334,13 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 
 	clk_set_rate_nolock(&clk_cpu, 816*MHZ);//816
 	//general
+#ifdef CONFIG_RK29_VMAC
+	/* because loader gpll_rate = 300M, but config(nr, nf, no) is not fit for VMAC,
+	 * board with VMAC need gpll 300, so it will do nothing when gpll init,
+	 * DO below to make sure gpll's config use (nr = 1, nf = 25, no = 2)
+	 */
+	clk_set_rate_nolock(&general_pll_clk, 297 * MHZ);
+#endif
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
