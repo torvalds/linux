@@ -27,6 +27,22 @@ config USB_ANNOUNCE_NEW_DEVICES
 comment "Miscellaneous USB options"
 	depends on USB
 
+config USB_DEFAULT_PERSIST
+	bool "Enable USB persist by default"
+	depends on USB
+	default y
+	help
+	  Say N here if you don't want USB power session persistance
+	  enabled by default.  If you say N it will make suspended USB
+	  devices that lose power get reenumerated as if they had been
+	  unplugged, causing any mounted filesystems to be lost.  The
+	  persist feature can still be enabled for individual devices
+	  through the power/persist sysfs node. See
+	  Documentation/usb/persist.txt for more info.
+
+	  If you have any questions about this, say Y here, only say N
+	  if you know exactly what you are doing.
+
 config USB_DYNAMIC_MINORS
 	bool "Dynamic USB minor allocation"
 	depends on USB
