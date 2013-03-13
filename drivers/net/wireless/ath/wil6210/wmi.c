@@ -528,6 +528,27 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 	}
 }
 
+static void wmi_evt_linkup(struct wil6210_priv *wil, int id, void *d, int len)
+{
+	struct net_device *ndev = wil_to_ndev(wil);
+	struct wmi_data_port_open_event *evt = d;
+
+	wil_dbg_wmi(wil, "Link UP for CID %d\n", evt->cid);
+
+	netif_carrier_on(ndev);
+}
+
+static void wmi_evt_linkdown(struct wil6210_priv *wil, int id, void *d, int len)
+{
+	struct net_device *ndev = wil_to_ndev(wil);
+	struct wmi_wbe_link_down_event *evt = d;
+
+	wil_dbg_wmi(wil, "Link DOWN for CID %d, reason %d\n",
+		    evt->cid, le32_to_cpu(evt->reason));
+
+	netif_carrier_off(ndev);
+}
+
 static const struct {
 	int eventid;
 	void (*handler)(struct wil6210_priv *wil, int eventid,
@@ -541,6 +562,8 @@ static const struct {
 	{WMI_DISCONNECT_EVENTID,	wmi_evt_disconnect},
 	{WMI_NOTIFY_REQ_DONE_EVENTID,	wmi_evt_notify},
 	{WMI_EAPOL_RX_EVENTID,		wmi_evt_eapol_rx},
+	{WMI_DATA_PORT_OPEN_EVENTID,	wmi_evt_linkup},
+	{WMI_WBE_LINKDOWN_EVENTID,	wmi_evt_linkdown},
 };
 
 /*
