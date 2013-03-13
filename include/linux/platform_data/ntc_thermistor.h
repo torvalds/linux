@@ -45,8 +45,8 @@ struct ntc_thermistor_platform_data {
 	 * chan: iio_channel pointer to communicate with the ADC which the
 	 * thermistor is using for conversion of the analog values.
 	 */
-	int (*read_uV)(struct ntc_thermistor_platform_data *);
-	unsigned int pullup_uV;
+	int (*read_uv)(struct ntc_thermistor_platform_data *);
+	unsigned int pullup_uv;
 
 	unsigned int pullup_ohm;
 	unsigned int pulldown_ohm;
