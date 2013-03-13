@@ -96,8 +96,6 @@
 #define G2D_CMDLIST_POOL_SIZE		(G2D_CMDLIST_SIZE * G2D_CMDLIST_NUM)
 #define G2D_CMDLIST_DATA_NUM		(G2D_CMDLIST_SIZE / sizeof(u32) - 2)
 
-#define MAX_BUF_ADDR_NR			6
-
 /* maximum buffer pool size of userptr is 64MB as default */
 #define MAX_POOL		(64 * 1024 * 1024)
 
@@ -106,11 +104,38 @@ enum {
 	BUF_TYPE_USERPTR,
 };
 
+enum g2d_reg_type {
+	REG_TYPE_NONE = -1,
+	REG_TYPE_SRC,
+	REG_TYPE_SRC_PLANE2,
+	REG_TYPE_DST,
+	REG_TYPE_DST_PLANE2,
+	REG_TYPE_PAT,
+	REG_TYPE_MSK,
+	MAX_REG_TYPE_NR
+};
+
 /* cmdlist data structure */
 struct g2d_cmdlist {
 	u32		head;
 	unsigned long	data[G2D_CMDLIST_DATA_NUM];
 	u32		last;	/* last data offset */
+};
+
+/*
+ * A structure of buffer information
+ *
+ * @map_nr: manages the number of mapped buffers
+ * @reg_types: stores regitster type in the order of requested command
+ * @handles: stores buffer handle in its reg_type position
+ * @types: stores buffer type in its reg_type position
+ *
+ */
+struct g2d_buf_info {
+	unsigned int		map_nr;
+	enum g2d_reg_type	reg_types[MAX_REG_TYPE_NR];
+	unsigned long		handles[MAX_REG_TYPE_NR];
+	unsigned int		types[MAX_REG_TYPE_NR];
 };
 
 struct drm_exynos_pending_g2d_event {
@@ -134,10 +159,8 @@ struct g2d_cmdlist_userptr {
 struct g2d_cmdlist_node {
 	struct list_head	list;
 	struct g2d_cmdlist	*cmdlist;
-	unsigned int		map_nr;
-	unsigned long		handles[MAX_BUF_ADDR_NR];
-	unsigned int		buf_type[MAX_BUF_ADDR_NR];
 	dma_addr_t		dma_addr;
+	struct g2d_buf_info	buf_info;
 
 	struct drm_exynos_pending_g2d_event	*event;
 };
@@ -187,6 +210,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 	struct exynos_drm_subdrv *subdrv = &g2d->subdrv;
 	int nr;
 	int ret;
+	struct g2d_buf_info *buf_info;
 
 	init_dma_attrs(&g2d->cmdlist_dma_attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &g2d->cmdlist_dma_attrs);
@@ -208,10 +232,16 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 	}
 
 	for (nr = 0; nr < G2D_CMDLIST_NUM; nr++) {
+		unsigned int i;
+
 		node[nr].cmdlist =
 			g2d->cmdlist_pool_virt + nr * G2D_CMDLIST_SIZE;
 		node[nr].dma_addr =
 			g2d->cmdlist_pool + nr * G2D_CMDLIST_SIZE;
+
+		buf_info = &node[nr].buf_info;
+		for (i = 0; i < MAX_REG_TYPE_NR; i++)
+			buf_info->reg_types[i] = REG_TYPE_NONE;
 
 		list_add_tail(&node[nr].list, &g2d->free_cmdlist);
 	}
@@ -507,36 +537,80 @@ static void g2d_userptr_free_all(struct drm_device *drm_dev,
 	g2d->current_pool = 0;
 }
 
+static enum g2d_reg_type g2d_get_reg_type(int reg_offset)
+{
+	enum g2d_reg_type reg_type;
+
+	switch (reg_offset) {
+	case G2D_SRC_BASE_ADDR:
+		reg_type = REG_TYPE_SRC;
+		break;
+	case G2D_SRC_PLANE2_BASE_ADDR:
+		reg_type = REG_TYPE_SRC_PLANE2;
+		break;
+	case G2D_DST_BASE_ADDR:
+		reg_type = REG_TYPE_DST;
+		break;
+	case G2D_DST_PLANE2_BASE_ADDR:
+		reg_type = REG_TYPE_DST_PLANE2;
+		break;
+	case G2D_PAT_BASE_ADDR:
+		reg_type = REG_TYPE_PAT;
+		break;
+	case G2D_MSK_BASE_ADDR:
+		reg_type = REG_TYPE_MSK;
+		break;
+	default:
+		reg_type = REG_TYPE_NONE;
+		DRM_ERROR("Unknown register offset![%d]\n", reg_offset);
+		break;
+	};
+
+	return reg_type;
+}
+
 static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 				struct g2d_cmdlist_node *node,
 				struct drm_device *drm_dev,
 				struct drm_file *file)
 {
 	struct g2d_cmdlist *cmdlist = node->cmdlist;
+	struct g2d_buf_info *buf_info = &node->buf_info;
 	int offset;
+	int ret;
 	int i;
 
-	for (i = 0; i < node->map_nr; i++) {
+	for (i = 0; i < buf_info->map_nr; i++) {
+		enum g2d_reg_type reg_type;
+		int reg_pos;
 		unsigned long handle;
 		dma_addr_t *addr;
 
-		offset = cmdlist->last - (i * 2 + 1);
-		handle = cmdlist->data[offset];
+		reg_pos = cmdlist->last - 2 * (i + 1);
 
-		if (node->buf_type[i] == BUF_TYPE_GEM) {
+		offset = cmdlist->data[reg_pos];
+		handle = cmdlist->data[reg_pos + 1];
+
+		reg_type = g2d_get_reg_type(offset);
+		if (reg_type == REG_TYPE_NONE) {
+			ret = -EFAULT;
+			goto err;
+		}
+
+		if (buf_info->types[reg_type] == BUF_TYPE_GEM) {
 			addr = exynos_drm_gem_get_dma_addr(drm_dev, handle,
 								file);
 			if (IS_ERR(addr)) {
-				node->map_nr = i;
-				return -EFAULT;
+				ret = -EFAULT;
+				goto err;
 			}
 		} else {
 			struct drm_exynos_g2d_userptr g2d_userptr;
 
 			if (copy_from_user(&g2d_userptr, (void __user *)handle,
 				sizeof(struct drm_exynos_g2d_userptr))) {
-				node->map_nr = i;
-				return -EFAULT;
+				ret = -EFAULT;
+				goto err;
 			}
 
 			addr = g2d_userptr_get_dma_addr(drm_dev,
@@ -545,16 +619,21 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 							file,
 							&handle);
 			if (IS_ERR(addr)) {
-				node->map_nr = i;
-				return -EFAULT;
+				ret = -EFAULT;
+				goto err;
 			}
 		}
 
-		cmdlist->data[offset] = *addr;
-		node->handles[i] = handle;
+		cmdlist->data[reg_pos + 1] = *addr;
+		buf_info->reg_types[i] = reg_type;
+		buf_info->handles[reg_type] = handle;
 	}
 
 	return 0;
+
+err:
+	buf_info->map_nr = i;
+	return ret;
 }
 
 static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
@@ -562,23 +641,30 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 				  struct drm_file *filp)
 {
 	struct exynos_drm_subdrv *subdrv = &g2d->subdrv;
+	struct g2d_buf_info *buf_info = &node->buf_info;
 	int i;
 
-	for (i = 0; i < node->map_nr; i++) {
-		unsigned long handle = node->handles[i];
+	for (i = 0; i < buf_info->map_nr; i++) {
+		enum g2d_reg_type reg_type;
+		unsigned long handle;
 
-		if (node->buf_type[i] == BUF_TYPE_GEM)
+		reg_type = buf_info->reg_types[i];
+
+		handle = buf_info->handles[reg_type];
+
+		if (buf_info->types[reg_type] == BUF_TYPE_GEM)
 			exynos_drm_gem_put_dma_addr(subdrv->drm_dev, handle,
 							filp);
 		else
 			g2d_userptr_put_dma_addr(subdrv->drm_dev, handle,
 							false);
 
-		node->handles[i] = 0;
-		node->buf_type[i] = 0;
+		buf_info->reg_types[i] = REG_TYPE_NONE;
+		buf_info->handles[reg_type] = 0;
+		buf_info->types[reg_type] = 0;
 	}
 
-	node->map_nr = 0;
+	buf_info->map_nr = 0;
 }
 
 static void g2d_dma_start(struct g2d_data *g2d,
@@ -721,20 +807,12 @@ static int g2d_check_reg_offset(struct device *dev,
 	int i;
 
 	for (i = 0; i < nr; i++) {
+		struct g2d_buf_info *buf_info = &node->buf_info;
+		enum g2d_reg_type reg_type;
+
 		index = cmdlist->last - 2 * (i + 1);
 
-		if (for_addr) {
-			/* check userptr buffer type. */
-			reg_offset = (cmdlist->data[index] &
-					~0x7fffffff) >> 31;
-			if (reg_offset) {
-				node->buf_type[i] = BUF_TYPE_USERPTR;
-				cmdlist->data[index] &= ~G2D_BUF_USERPTR;
-			}
-		}
-
 		reg_offset = cmdlist->data[index] & ~0xfffff000;
-
 		if (reg_offset < G2D_VALID_START || reg_offset > G2D_VALID_END)
 			goto err;
 		if (reg_offset % 4)
@@ -750,8 +828,16 @@ static int g2d_check_reg_offset(struct device *dev,
 			if (!for_addr)
 				goto err;
 
-			if (node->buf_type[i] != BUF_TYPE_USERPTR)
-				node->buf_type[i] = BUF_TYPE_GEM;
+			reg_type = g2d_get_reg_type(reg_offset);
+			if (reg_type == REG_TYPE_NONE)
+				goto err;
+
+			/* check userptr buffer type. */
+			if ((cmdlist->data[index] & ~0x7fffffff) >> 31) {
+				buf_info->types[reg_type] = BUF_TYPE_USERPTR;
+				cmdlist->data[index] &= ~G2D_BUF_USERPTR;
+			} else
+				buf_info->types[reg_type] = BUF_TYPE_GEM;
 			break;
 		default:
 			if (for_addr)
@@ -898,7 +984,7 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	if (ret < 0)
 		goto err_free_event;
 
-	node->map_nr = req->cmd_buf_nr;
+	node->buf_info.map_nr = req->cmd_buf_nr;
 	if (req->cmd_buf_nr) {
 		struct drm_exynos_g2d_cmd *cmd_buf;
 
