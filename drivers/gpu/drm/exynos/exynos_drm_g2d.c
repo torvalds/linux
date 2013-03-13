@@ -131,13 +131,12 @@ struct g2d_cmdlist_userptr {
 	bool			in_pool;
 	bool			out_of_list;
 };
-
 struct g2d_cmdlist_node {
 	struct list_head	list;
 	struct g2d_cmdlist	*cmdlist;
 	unsigned int		map_nr;
 	unsigned long		handles[MAX_BUF_ADDR_NR];
-	unsigned int		obj_type[MAX_BUF_ADDR_NR];
+	unsigned int		buf_type[MAX_BUF_ADDR_NR];
 	dma_addr_t		dma_addr;
 
 	struct drm_exynos_pending_g2d_event	*event;
@@ -524,7 +523,7 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 		offset = cmdlist->last - (i * 2 + 1);
 		handle = cmdlist->data[offset];
 
-		if (node->obj_type[i] == BUF_TYPE_GEM) {
+		if (node->buf_type[i] == BUF_TYPE_GEM) {
 			addr = exynos_drm_gem_get_dma_addr(drm_dev, handle,
 								file);
 			if (IS_ERR(addr)) {
@@ -568,7 +567,7 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 	for (i = 0; i < node->map_nr; i++) {
 		unsigned long handle = node->handles[i];
 
-		if (node->obj_type[i] == BUF_TYPE_GEM)
+		if (node->buf_type[i] == BUF_TYPE_GEM)
 			exynos_drm_gem_put_dma_addr(subdrv->drm_dev, handle,
 							filp);
 		else
@@ -576,7 +575,7 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 							false);
 
 		node->handles[i] = 0;
-		node->obj_type[i] = 0;
+		node->buf_type[i] = 0;
 	}
 
 	node->map_nr = 0;
@@ -641,7 +640,6 @@ static void g2d_runqueue_worker(struct work_struct *work)
 {
 	struct g2d_data *g2d = container_of(work, struct g2d_data,
 					    runqueue_work);
-
 
 	mutex_lock(&g2d->runqueue_mutex);
 	clk_disable(g2d->gate_clk);
@@ -730,7 +728,7 @@ static int g2d_check_reg_offset(struct device *dev,
 			reg_offset = (cmdlist->data[index] &
 					~0x7fffffff) >> 31;
 			if (reg_offset) {
-				node->obj_type[i] = BUF_TYPE_USERPTR;
+				node->buf_type[i] = BUF_TYPE_USERPTR;
 				cmdlist->data[index] &= ~G2D_BUF_USERPTR;
 			}
 		}
@@ -752,8 +750,8 @@ static int g2d_check_reg_offset(struct device *dev,
 			if (!for_addr)
 				goto err;
 
-			if (node->obj_type[i] != BUF_TYPE_USERPTR)
-				node->obj_type[i] = BUF_TYPE_GEM;
+			if (node->buf_type[i] != BUF_TYPE_USERPTR)
+				node->buf_type[i] = BUF_TYPE_GEM;
 			break;
 		default:
 			if (for_addr)
