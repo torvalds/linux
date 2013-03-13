@@ -1049,7 +1049,8 @@ static struct notifier_block dbg_cpu_pm_nb = {
 
 static void __init pm_init(void)
 {
-	cpu_pm_register_notifier(&dbg_cpu_pm_nb);
+	if (has_ossr)
+		cpu_pm_register_notifier(&dbg_cpu_pm_nb);
 }
 #else
 static inline void pm_init(void)
