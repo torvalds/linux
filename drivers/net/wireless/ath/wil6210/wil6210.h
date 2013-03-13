@@ -21,8 +21,6 @@
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
 
-#include "dbg_hexdump.h"
-
 #define WIL_NAME "wil6210"
 
 /**
@@ -277,13 +275,13 @@ struct wil6210_priv {
 
 #define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
 			  groupsize, buf, len, ascii)		\
-			  wil_print_hex_dump_debug("DBG[TXRX]" prefix_str,\
+			  print_hex_dump_debug("DBG[TXRX]" prefix_str,\
 					 prefix_type, rowsize,	\
 					 groupsize, buf, len, ascii)
 
 #define wil_hex_dump_wmi(prefix_str, prefix_type, rowsize,	\
 			 groupsize, buf, len, ascii)		\
-			 wil_print_hex_dump_debug("DBG[ WMI]" prefix_str,\
+			 print_hex_dump_debug("DBG[ WMI]" prefix_str,\
 					prefix_type, rowsize,	\
 					groupsize, buf, len, ascii)
 
