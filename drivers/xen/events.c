@@ -334,24 +334,6 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	info_for_irq(irq)->cpu = cpu;
 }
 
-static void init_evtchn_cpu_bindings(void)
-{
-	int i;
-#ifdef CONFIG_SMP
-	struct irq_info *info;
-
-	/* By default all event channels notify CPU#0. */
-	list_for_each_entry(info, &xen_irq_list_head, list) {
-		struct irq_desc *desc = irq_to_desc(info->irq);
-		cpumask_copy(desc->irq_data.affinity, cpumask_of(0));
-	}
-#endif
-
-	for_each_possible_cpu(i)
-		memset(per_cpu(cpu_evtchn_mask, i),
-		       (i == 0) ? ~0 : 0, NR_EVENT_CHANNELS/8);
-}
-
 static inline void clear_evtchn(int port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
@@ -1778,8 +1760,6 @@ void xen_irq_resume(void)
 	unsigned int cpu, evtchn;
 	struct irq_info *info;
 
-	init_evtchn_cpu_bindings();
-
 	/* New event-channel space is not 'live' yet. */
 	for (evtchn = 0; evtchn < NR_EVENT_CHANNELS; evtchn++)
 		mask_evtchn(evtchn);
@@ -1889,8 +1869,6 @@ void __init xen_init_IRQ(void)
 	BUG_ON(!evtchn_to_irq);
 	for (i = 0; i < NR_EVENT_CHANNELS; i++)
 		evtchn_to_irq[i] = -1;
-
-	init_evtchn_cpu_bindings();
 
 	/* No event channels are 'live' right now. */
 	for (i = 0; i < NR_EVENT_CHANNELS; i++)
