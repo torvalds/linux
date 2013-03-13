@@ -20,6 +20,9 @@ Required properties:
 			format is being dependent on which interrupt controller
 			the Samsung device uses.
 - #io-channel-cells = <1>; As ADC has multiple outputs
+- clocks		From common clock binding: handle to adc clock.
+- clock-names		From common clock binding: Shall be "adc".
+- vdd-supply		VDD input supply.
 
 Note: child nodes can be added for auto probing from device tree.
 
@@ -31,6 +34,11 @@ adc: adc@12D10000 {
 	interrupts = <0 106 0>;
 	#io-channel-cells = <1>;
 	io-channel-ranges;
+
+	clocks = <&clock 303>;
+	clock-names = "adc";
+
+	vdd-supply = <&buck5_reg>;
 };
 
 
