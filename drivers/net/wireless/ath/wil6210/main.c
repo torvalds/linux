@@ -103,15 +103,6 @@ static void wil_connect_timer_fn(ulong x)
 	schedule_work(&wil->disconnect_worker);
 }
 
-static void wil_cache_mbox_regs(struct wil6210_priv *wil)
-{
-	/* make shadow copy of registers that should not change on run time */
-	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
-			     sizeof(struct wil6210_mbox_ctl));
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
-}
-
 static void wil_connect_worker(struct work_struct *work)
 {
 	int rc;
@@ -161,8 +152,6 @@ int wil_priv_init(struct wil6210_priv *wil)
 		return -EAGAIN;
 	}
 
-	wil_cache_mbox_regs(wil);
-
 	return 0;
 }
 
@@ -199,14 +188,10 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
 	W(RGF_USER_USER_CPU_0, BIT(1)); /* user_cpu_man_rst */
 
-	msleep(100);
-
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000170);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FC00);
-
-	msleep(100);
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
@@ -216,12 +201,6 @@ static void wil_target_reset(struct wil6210_priv *wil)
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000001);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00000080);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
-
-	msleep(2000);
-
-	W(RGF_USER_USER_CPU_0, BIT(0)); /* user_cpu_man_de_rst */
-
-	msleep(2000);
 
 	wil_dbg_misc(wil, "Reset completed\n");
 
@@ -278,8 +257,6 @@ int wil_reset(struct wil6210_priv *wil)
 	/* init after reset */
 	wil->pending_connect_cid = -1;
 	INIT_COMPLETION(wil->wmi_ready);
-
-	wil_cache_mbox_regs(wil);
 
 	/* TODO: release MAC reset */
 	wil6210_enable_irq(wil);

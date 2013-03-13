@@ -585,6 +585,11 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 	void __iomem *src;
 	ulong flags;
 
+	if (!test_bit(wil_status_reset_done, &wil->status)) {
+		wil_err(wil, "Reset not completed\n");
+		return;
+	}
+
 	for (;;) {
 		u16 len;
 

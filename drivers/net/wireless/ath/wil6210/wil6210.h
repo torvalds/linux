@@ -186,6 +186,7 @@ enum { /* for wil6210_priv.status */
 	wil_status_fwready = 0,
 	wil_status_fwconnected,
 	wil_status_dontscan,
+	wil_status_reset_done,
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
 };
 
