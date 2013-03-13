@@ -505,7 +505,7 @@ int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	}
 
 	ret = clk_set_parent(timer->fclk, parent);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		pr_err("%s: failed to set %s as parent\n", __func__,
 			parent_name);
 
