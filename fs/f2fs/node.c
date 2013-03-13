@@ -1317,7 +1317,8 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 			break;
 	}
 
-	nm_i->next_scan_nid = nid;
+	/* go to the next nat page in order to reuse free nids first */
+	nm_i->next_scan_nid = nm_i->init_scan_nid + NAT_ENTRY_PER_BLOCK;
 
 	/* find free nids from current sum_pages */
 	mutex_lock(&curseg->curseg_mutex);
