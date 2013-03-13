@@ -320,7 +320,6 @@ config PM_H1940
 
 config MACH_N30
 	bool "Acer N30 family"
-	select MACH_N35
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
 	help
