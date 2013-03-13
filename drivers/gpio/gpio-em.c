@@ -245,7 +245,7 @@ static int em_gio_probe(struct platform_device *pdev)
 	const char *name = dev_name(&pdev->dev);
 	int ret;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		ret = -ENOMEM;
@@ -264,21 +264,23 @@ static int em_gio_probe(struct platform_device *pdev)
 	if (!io[0] || !io[1] || !irq[0] || !irq[1]) {
 		dev_err(&pdev->dev, "missing IRQ or IOMEM\n");
 		ret = -EINVAL;
-		goto err1;
+		goto err0;
 	}
 
-	p->base0 = ioremap_nocache(io[0]->start, resource_size(io[0]));
+	p->base0 = devm_ioremap_nocache(&pdev->dev, io[0]->start,
+					resource_size(io[0]));
 	if (!p->base0) {
 		dev_err(&pdev->dev, "failed to remap low I/O memory\n");
 		ret = -ENXIO;
-		goto err1;
+		goto err0;
 	}
 
-	p->base1 = ioremap_nocache(io[1]->start, resource_size(io[1]));
+	p->base1 = devm_ioremap_nocache(&pdev->dev, io[1]->start,
+				   resource_size(io[1]));
 	if (!p->base1) {
 		dev_err(&pdev->dev, "failed to remap high I/O memory\n");
 		ret = -ENXIO;
-		goto err2;
+		goto err0;
 	}
 
 	if (!pdata) {
@@ -289,13 +291,13 @@ static int em_gio_probe(struct platform_device *pdev)
 					 &pdata->number_of_pins)) {
 			dev_err(&pdev->dev, "Missing ngpios OF property\n");
 			ret = -EINVAL;
-			goto err3;
+			goto err0;
 		}
 
 		ret = of_alias_get_id(pdev->dev.of_node, "gpio");
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Couldn't get OF id\n");
-			goto err3;
+			goto err0;
 		}
 		pdata->gpio_base = ret * 32; /* 32 GPIOs per instance */
 	}
@@ -327,40 +329,32 @@ static int em_gio_probe(struct platform_device *pdev)
 	if (!p->irq_domain) {
 		ret = -ENXIO;
 		dev_err(&pdev->dev, "cannot initialize irq domain\n");
-		goto err3;
+		goto err0;
 	}
 
-	if (request_irq(irq[0]->start, em_gio_irq_handler, 0, name, p)) {
+	if (devm_request_irq(&pdev->dev, irq[0]->start,
+			     em_gio_irq_handler, 0, name, p)) {
 		dev_err(&pdev->dev, "failed to request low IRQ\n");
 		ret = -ENOENT;
-		goto err4;
+		goto err1;
 	}
 
-	if (request_irq(irq[1]->start, em_gio_irq_handler, 0, name, p)) {
+	if (devm_request_irq(&pdev->dev, irq[1]->start,
+			     em_gio_irq_handler, 0, name, p)) {
 		dev_err(&pdev->dev, "failed to request high IRQ\n");
 		ret = -ENOENT;
-		goto err5;
+		goto err1;
 	}
 
 	ret = gpiochip_add(gpio_chip);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add GPIO controller\n");
-		goto err6;
+		goto err1;
 	}
 	return 0;
 
-err6:
-	free_irq(irq[1]->start, pdev);
-err5:
-	free_irq(irq[0]->start, pdev);
-err4:
-	irq_domain_remove(p->irq_domain);
-err3:
-	iounmap(p->base1);
-err2:
-	iounmap(p->base0);
 err1:
-	kfree(p);
+	irq_domain_remove(p->irq_domain);
 err0:
 	return ret;
 }
@@ -368,22 +362,13 @@ err0:
 static int em_gio_remove(struct platform_device *pdev)
 {
 	struct em_gio_priv *p = platform_get_drvdata(pdev);
-	struct resource *irq[2];
 	int ret;
 
 	ret = gpiochip_remove(&p->gpio_chip);
 	if (ret)
 		return ret;
 
-	irq[0] = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	irq[1] = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
-
-	free_irq(irq[1]->start, pdev);
-	free_irq(irq[0]->start, pdev);
 	irq_domain_remove(p->irq_domain);
-	iounmap(p->base1);
-	iounmap(p->base0);
-	kfree(p);
 	return 0;
 }
 
