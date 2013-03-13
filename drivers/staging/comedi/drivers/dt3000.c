@@ -735,7 +735,7 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret < 0)
 		return ret;
 	dev->iobase = 1;	/* the "detach" needs this */

@@ -90,7 +90,7 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 	dev->board_name = dev->driver->driver_name;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 

@@ -1571,7 +1571,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = info;
 
-	result = comedi_pci_enable(pcidev, dev->board_name);
+	result = comedi_pci_enable(dev);
 	if (result)
 		return result;
 

@@ -4059,11 +4059,9 @@ static int auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
-		dev_warn(dev->class_dev,
-			 "failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
+	retval = comedi_pci_enable(dev);
+	if (retval)
+		return retval;
 	pci_set_master(pcidev);
 
 	/* Initialize dev->board_name */

@@ -208,6 +208,11 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+	dev->iobase = 1;
+
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
@@ -222,7 +227,6 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
-	dev->iobase = 1;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)

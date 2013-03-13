@@ -499,11 +499,9 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (comedi_pci_enable(pcidev, dev->board_name)) {
-		dev_warn(dev->class_dev,
-			 "failed enable PCI device and request regions\n");
-		return -EIO;
-	}
+	retval = comedi_pci_enable(dev);
+	if (retval)
+		return retval;
 	dev->iobase = 1;	/* the "detach" needs this */
 	pci_set_master(pcidev);
 

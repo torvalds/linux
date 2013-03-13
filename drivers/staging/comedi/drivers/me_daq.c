@@ -511,7 +511,7 @@ static int me_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = dev_private;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = 1;	/* detach needs this */

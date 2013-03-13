@@ -1174,6 +1174,11 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+	dev->iobase = 1;
+
 	ret = ni_660x_allocate_private(dev);
 	if (ret < 0)
 		return ret;
@@ -1188,7 +1193,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
-	dev->iobase = 1;
 
 	ret = ni_660x_alloc_mite_rings(dev);
 	if (ret < 0)

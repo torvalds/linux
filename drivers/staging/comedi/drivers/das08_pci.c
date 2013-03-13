@@ -71,7 +71,7 @@ static int das08_pci_auto_attach(struct comedi_device *dev,
 	/* The das08 driver needs the board_ptr */
 	dev->board_ptr = &das08_pci_boards[0];
 
-	ret = comedi_pci_enable(pdev, dev->driver->driver_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pdev, 2);

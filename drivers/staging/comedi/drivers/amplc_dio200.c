@@ -1950,12 +1950,11 @@ static int dio200_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 	thisboard = comedi_board(dev);
-	ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
-	if (ret < 0) {
-		dev_err(dev->class_dev,
-			"error! cannot enable PCI device and request regions!\n");
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
 		return ret;
-	}
+
 	bar = thisboard->mainbar;
 	base = pci_resource_start(pci_dev, bar);
 	len = pci_resource_len(pci_dev, bar);

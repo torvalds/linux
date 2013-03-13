@@ -702,11 +702,11 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	}
 	dev->board_name = "jr3_pci";
 
-	result = comedi_pci_enable(pcidev, "jr3_pci");
-	if (result < 0)
+	result = comedi_pci_enable(dev);
+	if (result)
 		return result;
-
 	dev->iobase = 1;	/* the "detach" needs this */
+
 	devpriv->iobase = ioremap(pci_resource_start(pcidev, 0),
 				  offsetof(struct jr3_t,
 					   channel[devpriv->n_channels]));

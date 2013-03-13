@@ -1112,6 +1112,11 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+	dev->iobase = 1;
+
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
@@ -1128,7 +1133,6 @@ static int nidio_auto_attach(struct comedi_device *dev,
 		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
-	dev->iobase = 1;
 
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->di_mite_ring == NULL)

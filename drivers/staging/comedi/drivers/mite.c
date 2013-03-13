@@ -109,11 +109,6 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 	u32 csigr_bits;
 	unsigned unknown_dma_burst_bits;
 
-	if (comedi_pci_enable(mite->pcidev, "mite")) {
-		dev_err(&mite->pcidev->dev,
-			"error enabling mite and requesting io regions\n");
-		return -EIO;
-	}
 	pci_set_master(mite->pcidev);
 
 	addr = pci_resource_start(mite->pcidev, 0);

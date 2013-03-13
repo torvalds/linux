@@ -1970,12 +1970,9 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	u16 u16w;
 
 	dev->board_name = this_board->name;
-	ret = comedi_pci_enable(pcidev, dev->board_name);
-	if (ret) {
-		dev_err(dev->class_dev,
-			"cannot enable PCI device %s\n", pci_name(pcidev));
+	ret = comedi_pci_enable(dev);
+	if (ret)
 		return ret;
-	}
 	if (master)
 		pci_set_master(pcidev);
 

@@ -249,13 +249,11 @@ static int pc263_pci_common_attach(struct comedi_device *dev,
 
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
-	ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME);
-	if (ret < 0) {
-		dev_err(dev->class_dev,
-			"error! cannot enable PCI device and request regions!\n");
+	ret = comedi_pci_enable(dev);
+	if (ret)
 		return ret;
-	}
 	iobase = pci_resource_start(pci_dev, 2);
+
 	return pc263_common_attach(dev, iobase);
 }
 

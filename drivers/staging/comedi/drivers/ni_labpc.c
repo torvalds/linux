@@ -708,6 +708,11 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
 		return -ENODEV;
 
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+	dev->iobase = 1;
+
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
@@ -722,7 +727,6 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0)
 		return ret;
-	dev->iobase = 1;
 	iobase = (unsigned long)devpriv->mite->daq_io_addr;
 	irq = mite_irq(devpriv->mite);
 	return labpc_common_attach(dev, iobase, irq, 0);

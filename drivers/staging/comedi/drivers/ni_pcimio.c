@@ -1488,6 +1488,11 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+	dev->iobase = 1;
+
 	ret = ni_alloc_private(dev);
 	if (ret)
 		return ret;
@@ -1514,7 +1519,6 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		pr_warn("error setting up mite\n");
 		return ret;
 	}
-	dev->iobase = 1;
 
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->ai_mite_ring == NULL)

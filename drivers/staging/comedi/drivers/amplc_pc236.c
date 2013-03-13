@@ -470,12 +470,10 @@ static int pc236_pci_common_attach(struct comedi_device *dev,
 
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
-	ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME);
-	if (ret < 0) {
-		dev_err(dev->class_dev,
-			"error! cannot enable PCI device and request regions!\n");
+	ret = comedi_pci_enable(dev);
+	if (ret)
 		return ret;
-	}
+
 	devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
 	iobase = pci_resource_start(pci_dev, 2);
 	return pc236_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);

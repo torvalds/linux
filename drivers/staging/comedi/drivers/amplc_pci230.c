@@ -2645,12 +2645,11 @@ static int pci230_attach_common(struct comedi_device *dev,
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
 	dev->board_name = thisboard->name;
-	/* Enable PCI device and reserve I/O spaces. */
-	if (comedi_pci_enable(pci_dev, "amplc_pci230") < 0) {
-		dev_err(dev->class_dev,
-			"failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
+
+	rc = comedi_pci_enable(dev);
+	if (rc)
+		return rc;
+
 	/* Read base addresses of the PCI230's two I/O regions from PCI
 	 * configuration register. */
 	iobase1 = pci_resource_start(pci_dev, 2);

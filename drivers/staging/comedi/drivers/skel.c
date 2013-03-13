@@ -567,7 +567,7 @@ static int skel_auto_attach(struct comedi_device *dev,
 	dev->private = devpriv;
 
 	/* Enable the PCI device. */
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 

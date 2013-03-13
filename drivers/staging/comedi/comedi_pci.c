@@ -36,18 +36,23 @@ EXPORT_SYMBOL_GPL(comedi_to_pci_dev);
 
 /**
  * comedi_pci_enable() - Enable the PCI device and request the regions.
- * @pcidev: pci_dev struct
- * @res_name: name for the requested reqource
+ * @dev: comedi_device struct
  */
-int comedi_pci_enable(struct pci_dev *pcidev, const char *res_name)
+int comedi_pci_enable(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int rc;
+
+	if (!pcidev)
+		return -ENODEV;
 
 	rc = pci_enable_device(pcidev);
 	if (rc < 0)
 		return rc;
 
-	rc = pci_request_regions(pcidev, res_name);
+	rc = pci_request_regions(pcidev, dev->board_name
+						? dev->board_name
+						: dev->driver->driver_name);
 	if (rc < 0)
 		pci_disable_device(pcidev);
 
