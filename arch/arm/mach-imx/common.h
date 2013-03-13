@@ -122,8 +122,6 @@ static inline void imx_scu_map_io(void) {}
 static inline void imx_smp_prepare(void) {}
 static inline void imx_scu_standby_enable(void) {}
 #endif
-extern void imx_enable_cpu(int cpu, bool enable);
-extern void imx_set_cpu_jump(int cpu, void *jump_addr);
 extern void imx_src_init(void);
 extern void imx_src_prepare_restart(void);
 extern void imx_gpc_init(void);
