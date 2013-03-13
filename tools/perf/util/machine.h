@@ -97,7 +97,6 @@ static inline bool machine__is_host(struct machine *machine)
 }
 
 struct thread *machine__findnew_thread(struct machine *machine, pid_t pid);
-void machine__remove_thread(struct machine *machine, struct thread *th);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 
