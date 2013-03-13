@@ -116,7 +116,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * issue as it will have to complete before the next command is
 	 * executed, and a new time event means a new command.
 	 */
-	iwl_mvm_flush_tx_path(mvm, BIT(IWL_OFFCHANNEL_QUEUE), false);
+	iwl_mvm_flush_tx_path(mvm, BIT(IWL_MVM_OFFCHANNEL_QUEUE), false);
 }
 
 static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)

@@ -90,10 +90,6 @@ enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_VO,
 };
 
-/* Placeholder */
-#define IWL_OFFCHANNEL_QUEUE 8
-#define IWL_FIRST_AMPDU_QUEUE 11
-
 extern struct ieee80211_ops iwl_mvm_hw_ops;
 /**
  * struct iwl_mvm_mod_params - module parameters for iwlmvm

@@ -196,7 +196,7 @@ u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 	u32 qmask, ac;
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
-		return BIT(IWL_OFFCHANNEL_QUEUE);
+		return BIT(IWL_MVM_OFFCHANNEL_QUEUE);
 
 	qmask = (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE) ?
 		BIT(vif->cab_queue) : 0;

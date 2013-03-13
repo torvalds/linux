@@ -143,8 +143,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_TIMING_BEACON_ONLY;
 
-	hw->queues = IWL_FIRST_AMPDU_QUEUE;
-	hw->offchannel_tx_hw_queue = IWL_OFFCHANNEL_QUEUE;
+	hw->queues = IWL_MVM_FIRST_AGG_QUEUE;
+	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
 	hw->rate_control_algorithm = "iwl-mvm-rs";
 
 	/*
@@ -257,7 +257,7 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 		goto drop;
 	}
 
-	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_OFFCHANNEL_QUEUE &&
+	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
 	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
 		goto drop;
 
