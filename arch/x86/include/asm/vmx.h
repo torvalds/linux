@@ -95,6 +95,8 @@
 
 #define VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR	0x000011ff
 
+#define VMX_MISC_SAVE_EFER_LMA			0x00000020
+
 /* VMCS Encodings */
 enum vmcs_field {
 	VIRTUAL_PROCESSOR_ID            = 0x00000000,

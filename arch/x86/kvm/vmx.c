@@ -2022,6 +2022,7 @@ static u32 nested_vmx_secondary_ctls_low, nested_vmx_secondary_ctls_high;
 static u32 nested_vmx_pinbased_ctls_low, nested_vmx_pinbased_ctls_high;
 static u32 nested_vmx_exit_ctls_low, nested_vmx_exit_ctls_high;
 static u32 nested_vmx_entry_ctls_low, nested_vmx_entry_ctls_high;
+static u32 nested_vmx_misc_low, nested_vmx_misc_high;
 static __init void nested_vmx_setup_ctls_msrs(void)
 {
 	/*
@@ -2106,6 +2107,11 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	nested_vmx_secondary_ctls_high &=
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_WBINVD_EXITING;
+
+	/* miscellaneous data */
+	rdmsr(MSR_IA32_VMX_MISC, nested_vmx_misc_low, nested_vmx_misc_high);
+	nested_vmx_misc_low &= VMX_MISC_SAVE_EFER_LMA;
+	nested_vmx_misc_high = 0;
 }
 
 static inline bool vmx_control_verify(u32 control, u32 low, u32 high)
@@ -2176,7 +2182,8 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 					nested_vmx_entry_ctls_high);
 		break;
 	case MSR_IA32_VMX_MISC:
-		*pdata = 0;
+		*pdata = vmx_control_msr(nested_vmx_misc_low,
+					 nested_vmx_misc_high);
 		break;
 	/*
 	 * These MSRs specify bits which the guest must keep fixed (on or off)
@@ -7397,6 +7404,10 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
 	vmcs12->guest_pending_dbg_exceptions =
 		vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS);
+
+	vmcs12->vm_entry_controls =
+		(vmcs12->vm_entry_controls & ~VM_ENTRY_IA32E_MODE) |
+		(vmcs_read32(VM_ENTRY_CONTROLS) & VM_ENTRY_IA32E_MODE);
 
 	/* TODO: These cannot have changed unless we have MSR bitmaps and
 	 * the relevant bit asks not to trap the change */
