@@ -4072,6 +4072,19 @@ void workqueue_set_max_active(struct workqueue_struct *wq, int max_active)
 EXPORT_SYMBOL_GPL(workqueue_set_max_active);
 
 /**
+ * current_is_workqueue_rescuer - is %current workqueue rescuer?
+ *
+ * Determine whether %current is a workqueue rescuer.  Can be used from
+ * work functions to determine whether it's being run off the rescuer task.
+ */
+bool current_is_workqueue_rescuer(void)
+{
+	struct worker *worker = current_wq_worker();
+
+	return worker && worker == worker->current_pwq->wq->rescuer;
+}
+
+/**
  * workqueue_congested - test whether a workqueue is congested
  * @cpu: CPU in question
  * @wq: target workqueue
