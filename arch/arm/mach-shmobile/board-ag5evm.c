@@ -571,6 +571,9 @@ static const struct pinctrl_map ag5evm_pinctrl_map[] = {
 				  "i2c2_0", "i2c2"),
 	PIN_MAP_MUX_GROUP_DEFAULT("i2c-sh_mobile.3", "pfc-sh73a0",
 				  "i2c3_0", "i2c3"),
+	/* IrDA */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_irda.0", "pfc-sh73a0",
+				  "irda_0", "irda"),
 	/* KEYSC */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
 				  "keysc_in8", "keysc"),
@@ -638,11 +641,6 @@ static void __init ag5evm_init(void)
 	/* enable SMSC911X */
 	gpio_request_one(144, GPIOF_IN, NULL); /* PINTA2 */
 	gpio_request_one(145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
-
-	/* IrDA */
-	gpio_request(GPIO_FN_PORT241_IRDA_OUT, NULL);
-	gpio_request(GPIO_FN_PORT242_IRDA_IN,  NULL);
-	gpio_request(GPIO_FN_PORT243_IRDA_FIRSEL, NULL);
 
 	/* LCD panel */
 	gpio_request_one(217, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
