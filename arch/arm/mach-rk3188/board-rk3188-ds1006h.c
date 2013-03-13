@@ -2001,53 +2001,86 @@ static void __init rk30_reserve(void)
 #endif
 	board_mem_reserved();
 }
-
+/******************************** arm dvfs frequency volt table **********************************/
 /**
  * dvfs_cpu_logic_table: table for arm and logic dvfs 
  * @frequency	: arm frequency
  * @cpu_volt	: arm voltage depend on frequency
- * @logic_volt	: logic voltage arm requests depend on frequency
- * comments	: min arm/logic voltage
  */
-static struct cpufreq_frequency_table dvfs_arm_table[] = {
-#if 0
-	{.frequency = 312 * 1000,       .index = 850 * 1000},
-	{.frequency = 504 * 1000,       .index = 900 * 1000},
-	{.frequency = 816 * 1000,       .index = 950 * 1000},
-	{.frequency = 1008 * 1000,      .index = 1025 * 1000},
-	{.frequency = 1200 * 1000,      .index = 1100 * 1000},
-	{.frequency = 1416 * 1000,      .index = 1200 * 1000},
-	//{.frequency = 1608 * 1000,      .index = 1300 * 1000},
-#else
-        {.frequency = 312 * 1000,       .index = 800 * 1000},
-        {.frequency = 504 * 1000,       .index = 850 * 1000},
+
+//sdk
+static struct cpufreq_frequency_table dvfs_arm_table_volt_level0[] = {
+        {.frequency = 312 * 1000,       .index = 850 * 1000},
+        {.frequency = 504 * 1000,       .index = 900 * 1000},
         {.frequency = 816 * 1000,       .index = 950 * 1000},
-        {.frequency = 1008 * 1000,      .index = 1000 * 1000},
-        {.frequency = 1200 * 1000,      .index = 1075 * 1000},
-        {.frequency = 1416 * 1000,      .index = 1175 * 1000},
-        {.frequency = 1608 * 1000,      .index = 1275 * 1000},
+        {.frequency = 1008 * 1000,      .index = 1025 * 1000},
+        {.frequency = 1200 * 1000,      .index = 1100 * 1000},
+        {.frequency = 1416 * 1000,      .index = 1200 * 1000},
+        {.frequency = 1608 * 1000,      .index = 1300 * 1000},
+        {.frequency = CPUFREQ_TABLE_END},
+};
+//default
+static struct cpufreq_frequency_table dvfs_arm_table_volt_level1[] = {
+        {.frequency = 312 * 1000,       .index = 875 * 1000},
+        {.frequency = 504 * 1000,       .index = 925 * 1000},
+        {.frequency = 816 * 1000,       .index = 975 * 1000},
+        {.frequency = 1008 * 1000,      .index = 1075 * 1000},
+        {.frequency = 1200 * 1000,      .index = 1150 * 1000},
+        {.frequency = 1416 * 1000,      .index = 1250 * 1000},
+        {.frequency = 1608 * 1000,      .index = 1350 * 1000},
+        {.frequency = CPUFREQ_TABLE_END},
+};
+// ds1006h 10'
+static struct cpufreq_frequency_table dvfs_arm_table_volt_level2[] = {
+        {.frequency = 312 * 1000,       .index = 900 * 1000},
+        {.frequency = 504 * 1000,       .index = 925 * 1000},
+        {.frequency = 816 * 1000,       .index = 1000 * 1000},
+        {.frequency = 1008 * 1000,      .index = 1075 * 1000},
+        {.frequency = 1200 * 1000,      .index = 1200 * 1000},
+        {.frequency = 1416 * 1000,      .index = 1250 * 1000},
+        {.frequency = 1608 * 1000,      .index = 1350 * 1000},
+        {.frequency = CPUFREQ_TABLE_END},
+};
+//if you board is good for volt quality,select dvfs_arm_table_volt_level0
+#define dvfs_arm_table dvfs_arm_table_volt_level2
 
-#endif
-	{.frequency = CPUFREQ_TABLE_END},
+/******************************** gpu dvfs frequency volt table **********************************/
+//sdk
+static struct cpufreq_frequency_table dvfs_gpu_table_volt_level0[] = {	
+        {.frequency = 133 * 1000,       .index = 975 * 1000},//the mininum rate is limited 133M for rk3188
+	{.frequency = 200 * 1000,       .index = 975 * 1000},
+	{.frequency = 266 * 1000,       .index = 1000 * 1000},
+	{.frequency = 300 * 1000,       .index = 1050 * 1000},
+	{.frequency = 400 * 1000,       .index = 1100 * 1000},
+	{.frequency = 600 * 1000,       .index = 1200 * 1000},
+        {.frequency = CPUFREQ_TABLE_END},
+};
+//ds1006h 10'
+static struct cpufreq_frequency_table dvfs_gpu_table_volt_level1[] = {	
+       {.frequency = 133 * 1000,       .index = 975 * 1000},
+	{.frequency = 200 * 1000,       .index = 1000 * 1000},
+	{.frequency = 266 * 1000,       .index = 1025 * 1000},
+	{.frequency = 300 * 1000,       .index = 1050 * 1000},
+	{.frequency = 400 * 1000,       .index = 1100 * 1000},
+	{.frequency = 600 * 1000,       .index = 1250 * 1000},
+        {.frequency = CPUFREQ_TABLE_END},
 };
 
-static struct cpufreq_frequency_table dvfs_gpu_table[] = {
-	{.frequency = 100 * 1000,       .index = 950 * 1000},
-       {.frequency = 150 * 1000,       .index = 975 * 1000},
-       {.frequency = 200 * 1000,       .index = 975 * 1000},  
-       {.frequency = 240 * 1000,       .index = 1000 * 1000},  
-       {.frequency = 300 * 1000,       .index = 1050 * 1000},  
-       {.frequency = 400 * 1000,       .index = 1100 * 1000},
-       {.frequency = 600 * 1000,       .index = 1200 * 1000},
-	{.frequency = CPUFREQ_TABLE_END},
-};
+#define dvfs_gpu_table dvfs_gpu_table_volt_level1
 
-static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-	//{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
+/******************************** ddr dvfs frequency volt table **********************************/
+static struct cpufreq_frequency_table dvfs_ddr_table_volt_level0[] = {
+	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
 	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,      .index = 1000 * 1000},
-	{.frequency = 400 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
+	{.frequency = 396 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
+
+#define dvfs_ddr_table dvfs_ddr_table_volt_level0
+
+/******************************** arm dvfs frequency volt table end **********************************/
+
+
 
 //#define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
 //static struct cpufreq_frequency_table cpu_dvfs_table[DVFS_CPU_TABLE_SIZE];
