@@ -298,7 +298,8 @@ struct __packed vmcs12 {
 	u32 guest_activity_state;
 	u32 guest_sysenter_cs;
 	u32 host_ia32_sysenter_cs;
-	u32 padding32[8]; /* room for future expansion */
+	u32 vmx_preemption_timer_value;
+	u32 padding32[7]; /* room for future expansion */
 	u16 virtual_processor_id;
 	u16 guest_es_selector;
 	u16 guest_cs_selector;
@@ -537,6 +538,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD(GUEST_ACTIVITY_STATE, guest_activity_state),
 	FIELD(GUEST_SYSENTER_CS, guest_sysenter_cs),
 	FIELD(HOST_IA32_SYSENTER_CS, host_ia32_sysenter_cs),
+	FIELD(VMX_PREEMPTION_TIMER_VALUE, vmx_preemption_timer_value),
 	FIELD(CR0_GUEST_HOST_MASK, cr0_guest_host_mask),
 	FIELD(CR4_GUEST_HOST_MASK, cr4_guest_host_mask),
 	FIELD(CR0_READ_SHADOW, cr0_read_shadow),
@@ -2049,7 +2051,8 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	 */
 	nested_vmx_pinbased_ctls_low |= PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
 	nested_vmx_pinbased_ctls_high &= PIN_BASED_EXT_INTR_MASK |
-		PIN_BASED_NMI_EXITING | PIN_BASED_VIRTUAL_NMIS;
+		PIN_BASED_NMI_EXITING | PIN_BASED_VIRTUAL_NMIS |
+		PIN_BASED_VMX_PREEMPTION_TIMER;
 	nested_vmx_pinbased_ctls_high |= PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
 
 	/*
@@ -2110,7 +2113,8 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 
 	/* miscellaneous data */
 	rdmsr(MSR_IA32_VMX_MISC, nested_vmx_misc_low, nested_vmx_misc_high);
-	nested_vmx_misc_low &= VMX_MISC_SAVE_EFER_LMA;
+	nested_vmx_misc_low &= VMX_MISC_PREEMPTION_TIMER_RATE_MASK |
+		VMX_MISC_SAVE_EFER_LMA;
 	nested_vmx_misc_high = 0;
 }
 
@@ -6190,6 +6194,9 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_EPT_VIOLATION:
 	case EXIT_REASON_EPT_MISCONFIG:
 		return 0;
+	case EXIT_REASON_PREEMPTION_TIMER:
+		return vmcs12->pin_based_vm_exec_control &
+			PIN_BASED_VMX_PREEMPTION_TIMER;
 	case EXIT_REASON_WBINVD:
 		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_WBINVD_EXITING);
 	case EXIT_REASON_XSETBV:
@@ -7010,6 +7017,10 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL,
 		(vmcs_config.pin_based_exec_ctrl |
 		 vmcs12->pin_based_vm_exec_control));
+
+	if (vmcs12->pin_based_vm_exec_control & PIN_BASED_VMX_PREEMPTION_TIMER)
+		vmcs_write32(VMX_PREEMPTION_TIMER_VALUE,
+			     vmcs12->vmx_preemption_timer_value);
 
 	/*
 	 * Whether page-faults are trapped is determined by a combination of
