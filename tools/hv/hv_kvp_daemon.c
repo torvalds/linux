@@ -1503,6 +1503,10 @@ int main(void)
 		}
 
 		incoming_msg = (struct nlmsghdr *)kvp_recv_buffer;
+
+		if (incoming_msg->nlmsg_type != NLMSG_DONE)
+			continue;
+
 		incoming_cn_msg = (struct cn_msg *)NLMSG_DATA(incoming_msg);
 		hv_msg = (struct hv_kvp_msg *)incoming_cn_msg->data;
 
