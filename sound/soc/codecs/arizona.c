@@ -75,6 +75,7 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	bool manual_ena = false;
+	int val;
 
 	switch (arizona->type) {
 	case WM5102:
@@ -97,6 +98,16 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMU:
+		val = snd_soc_read(codec, ARIZONA_INTERRUPT_RAW_STATUS_3);
+		if (val & ARIZONA_SPK_SHUTDOWN_STS) {
+			dev_crit(arizona->dev,
+				 "Speaker not enabled due to temperature\n");
+			return -EBUSY;
+		}
+
+		snd_soc_update_bits(codec, ARIZONA_OUTPUT_ENABLES_1,
+				    1 << w->shift, 1 << w->shift);
+
 		if (priv->spk_ena_pending) {
 			msleep(75);
 			snd_soc_write(codec, 0x4f5, 0xda);
@@ -110,6 +121,9 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 			if (!priv->spk_ena)
 				snd_soc_write(codec, 0x4f5, 0x25a);
 		}
+
+		snd_soc_update_bits(codec, ARIZONA_OUTPUT_ENABLES_1,
+				    1 << w->shift, 0);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (manual_ena) {
@@ -153,18 +167,26 @@ static irqreturn_t arizona_thermal_shutdown(int irq, void *data)
 			ret);
 	} else if (val & ARIZONA_SPK_SHUTDOWN_STS) {
 		dev_crit(arizona->dev, "Thermal shutdown\n");
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_OUTPUT_ENABLES_1,
+					 ARIZONA_OUT4L_ENA |
+					 ARIZONA_OUT4R_ENA, 0);
+		if (ret != 0)
+			dev_crit(arizona->dev,
+				 "Failed to disable speaker outputs: %d\n",
+				 ret);
 	}
 
 	return IRQ_HANDLED;
 }
 
 static const struct snd_soc_dapm_widget arizona_spkl =
-	SND_SOC_DAPM_PGA_E("OUT4L", ARIZONA_OUTPUT_ENABLES_1,
+	SND_SOC_DAPM_PGA_E("OUT4L", SND_SOC_NOPM,
 			   ARIZONA_OUT4L_ENA_SHIFT, 0, NULL, 0, arizona_spk_ev,
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU);
 
 static const struct snd_soc_dapm_widget arizona_spkr =
-	SND_SOC_DAPM_PGA_E("OUT4R", ARIZONA_OUTPUT_ENABLES_1,
+	SND_SOC_DAPM_PGA_E("OUT4R", SND_SOC_NOPM,
 			   ARIZONA_OUT4R_ENA_SHIFT, 0, NULL, 0, arizona_spk_ev,
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU);
 
