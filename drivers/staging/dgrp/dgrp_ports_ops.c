@@ -65,7 +65,7 @@ void dgrp_register_ports_hook(struct proc_dir_entry *de)
 	struct nd_struct *node = de->data;
 
 	de->proc_iops = &ports_inode_ops;
-	de->proc_fops = &ports_ops;
+	rcu_assign_pointer(de->proc_fops, &ports_ops);
 	node->nd_ports_de = de;
 }
 

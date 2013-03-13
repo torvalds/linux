@@ -116,7 +116,7 @@ void dgrp_register_dpa_hook(struct proc_dir_entry *de)
 	struct nd_struct *node = de->data;
 
 	de->proc_iops = &dpa_inode_ops;
-	de->proc_fops = &dpa_ops;
+	rcu_assign_pointer(de->proc_fops, &dpa_ops);
 
 	node->nd_dpa_de = de;
 	spin_lock_init(&node->nd_dpa_lock);

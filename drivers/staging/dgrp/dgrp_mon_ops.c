@@ -66,7 +66,7 @@ void dgrp_register_mon_hook(struct proc_dir_entry *de)
 	struct nd_struct *node = de->data;
 
 	de->proc_iops = &mon_inode_ops;
-	de->proc_fops = &mon_ops;
+	rcu_assign_pointer(de->proc_fops, &mon_ops);
 	node->nd_mon_de = de;
 	sema_init(&node->nd_mon_semaphore, 1);
 }

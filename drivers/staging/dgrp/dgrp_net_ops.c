@@ -91,7 +91,7 @@ void dgrp_register_net_hook(struct proc_dir_entry *de)
 	struct nd_struct *node = de->data;
 
 	de->proc_iops = &net_inode_ops;
-	de->proc_fops = &net_ops;
+	rcu_assign_pointer(de->proc_fops, &net_ops);
 	node->nd_net_de = de;
 	sema_init(&node->nd_net_semaphore, 1);
 	node->nd_state = NS_CLOSED;
