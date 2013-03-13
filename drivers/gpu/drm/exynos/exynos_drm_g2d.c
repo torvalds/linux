@@ -82,7 +82,7 @@
 #define G2D_DMA_LIST_DONE_COUNT_OFFSET	17
 
 /* G2D_DMA_HOLD_CMD */
-#define G2D_USET_HOLD			(1 << 2)
+#define G2D_USER_HOLD			(1 << 2)
 #define G2D_LIST_HOLD			(1 << 1)
 #define G2D_BITBLT_HOLD			(1 << 0)
 
@@ -592,10 +592,6 @@ static void g2d_dma_start(struct g2d_data *g2d,
 	pm_runtime_get_sync(g2d->dev);
 	clk_enable(g2d->gate_clk);
 
-	/* interrupt enable */
-	writel_relaxed(G2D_INTEN_ACF | G2D_INTEN_UCF | G2D_INTEN_GCF,
-			g2d->regs + G2D_INTEN);
-
 	writel_relaxed(node->dma_addr, g2d->regs + G2D_DMA_SFR_BASE_ADDR);
 	writel_relaxed(G2D_DMA_START, g2d->regs + G2D_DMA_COMMAND);
 }
@@ -863,9 +859,23 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	cmdlist->data[cmdlist->last++] = G2D_SRC_BASE_ADDR;
 	cmdlist->data[cmdlist->last++] = 0;
 
+	/*
+	 * 'LIST_HOLD' command should be set to the DMA_HOLD_CMD_REG
+	 * and GCF bit should be set to INTEN register if user wants
+	 * G2D interrupt event once current command list execution is
+	 * finished.
+	 * Otherwise only ACF bit should be set to INTEN register so
+	 * that one interrupt is occured after all command lists
+	 * have been completed.
+	 */
 	if (node->event) {
+		cmdlist->data[cmdlist->last++] = G2D_INTEN;
+		cmdlist->data[cmdlist->last++] = G2D_INTEN_ACF | G2D_INTEN_GCF;
 		cmdlist->data[cmdlist->last++] = G2D_DMA_HOLD_CMD;
 		cmdlist->data[cmdlist->last++] = G2D_LIST_HOLD;
+	} else {
+		cmdlist->data[cmdlist->last++] = G2D_INTEN;
+		cmdlist->data[cmdlist->last++] = G2D_INTEN_ACF;
 	}
 
 	/* Check size of cmdlist: last 2 is about G2D_BITBLT_START */
