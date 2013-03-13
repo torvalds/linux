@@ -127,30 +127,12 @@ static const struct psb_intel_limit_t *psb_intel_limit(struct drm_crtc *crtc)
 	return limit;
 }
 
-/** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
-
-static void i8xx_clock(int refclk, struct psb_intel_clock_t *clock)
+static void psb_intel_clock(int refclk, struct psb_intel_clock_t *clock)
 {
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
 	clock->dot = clock->vco / clock->p;
-}
-
-/** Derive the pixel clock for the given refclk and divisors for 9xx chips. */
-
-static void i9xx_clock(int refclk, struct psb_intel_clock_t *clock)
-{
-	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
-	clock->p = clock->p1 * clock->p2;
-	clock->vco = refclk * clock->m / (clock->n + 2);
-	clock->dot = clock->vco / clock->p;
-}
-
-static void psb_intel_clock(struct drm_device *dev, int refclk,
-			struct psb_intel_clock_t *clock)
-{
-	return i9xx_clock(refclk, clock);
 }
 
 /**
@@ -258,7 +240,7 @@ static bool psb_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 				     clock.p1++) {
 					int this_err;
 
-					psb_intel_clock(dev, refclk, &clock);
+					psb_intel_clock(refclk, &clock);
 
 					if (!psb_intel_PLL_is_valid
 					    (crtc, &clock))
@@ -1099,9 +1081,9 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 		if ((dpll & PLL_REF_INPUT_MASK) ==
 		    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
 			/* XXX: might not be 66MHz */
-			i8xx_clock(66000, &clock);
+			psb_intel_clock(66000, &clock);
 		} else
-			i8xx_clock(48000, &clock);
+			psb_intel_clock(48000, &clock);
 	} else {
 		if (dpll & PLL_P1_DIVIDE_BY_TWO)
 			clock.p1 = 2;
@@ -1116,7 +1098,7 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 		else
 			clock.p2 = 2;
 
-		i8xx_clock(48000, &clock);
+		psb_intel_clock(48000, &clock);
 	}
 
 	/* XXX: It would be nice to validate the clocks, but we can't reuse
