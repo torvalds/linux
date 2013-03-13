@@ -962,6 +962,31 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 	return rc;
 }
 
+int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r)
+{
+	int rc;
+	struct wmi_temp_sense_cmd cmd = {
+		.measure_marlon_m_en = cpu_to_le32(!!t_m),
+		.measure_marlon_r_en = cpu_to_le32(!!t_r),
+	};
+	struct {
+		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_temp_sense_done_event evt;
+	} __packed reply;
+
+	rc = wmi_call(wil, WMI_TEMP_SENSE_CMDID, &cmd, sizeof(cmd),
+		      WMI_TEMP_SENSE_DONE_EVENTID, &reply, sizeof(reply), 100);
+	if (rc)
+		return rc;
+
+	if (t_m)
+		*t_m = le32_to_cpu(reply.evt.marlon_m_t1000);
+	if (t_r)
+		*t_r = le32_to_cpu(reply.evt.marlon_r_t1000);
+
+	return 0;
+}
+
 void wmi_event_flush(struct wil6210_priv *wil)
 {
 	struct pending_wmi_event *evt, *t;
