@@ -1026,7 +1026,7 @@ static struct clk *clk_propagate_rate_change(struct clk *clk, unsigned long even
 	int ret = NOTIFY_DONE;
 
 	if (clk->rate == clk->new_rate)
-		return 0;
+		return NULL;
 
 	if (clk->notifier_count) {
 		ret = __clk_notify(clk, event, clk->rate, clk->new_rate);
