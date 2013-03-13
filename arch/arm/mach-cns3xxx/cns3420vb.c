@@ -31,9 +31,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/cns3xxx.h>
-#include <mach/irqs.h>
-#include <mach/pm.h>
+#include "cns3xxx.h"
+#include "pm.h"
 #include "core.h"
 #include "devices.h"
 

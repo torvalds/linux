@@ -8,7 +8,7 @@
  */
 
 #include <asm/mach-types.h>
-#include <mach/cns3xxx.h>
+#include "cns3xxx.h"
 
 #define AMBA_UART_DR(base)	(*(volatile unsigned char *)((base) + 0x00))
 #define AMBA_UART_LCRH(base)	(*(volatile unsigned char *)((base) + 0x2c))

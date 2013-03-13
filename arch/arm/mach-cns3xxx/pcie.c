@@ -20,7 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <asm/mach/map.h>
-#include <mach/cns3xxx.h>
+#include "cns3xxx.h"
 #include "core.h"
 
 enum cns3xxx_access_type {
