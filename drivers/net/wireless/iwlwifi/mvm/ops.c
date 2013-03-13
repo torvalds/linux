@@ -227,6 +227,9 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif, false),
 
+	RX_HANDLER(MISSED_BEACONS_NOTIFICATION, iwl_mvm_rx_missed_beacons_notif,
+		   false),
+
 	RX_HANDLER(REPLY_ERROR, iwl_mvm_rx_fw_error, false),
 };
 #undef RX_HANDLER
@@ -289,6 +292,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(NET_DETECT_HOTSPOTS_CMD),
 	CMD(NET_DETECT_HOTSPOTS_QUERY_CMD),
 	CMD(CARD_STATE_NOTIFICATION),
+	CMD(MISSED_BEACONS_NOTIFICATION),
 	CMD(BT_COEX_PRIO_TABLE),
 	CMD(BT_COEX_PROT_ENV),
 	CMD(BT_PROFILE_NOTIFICATION),
