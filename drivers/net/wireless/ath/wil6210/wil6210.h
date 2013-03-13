@@ -225,7 +225,7 @@ struct wil6210_priv {
 	struct workqueue_struct *wmi_wq; /* for deferred calls */
 	struct work_struct wmi_event_worker;
 	struct workqueue_struct *wmi_wq_conn; /* for connect worker */
-	struct work_struct wmi_connect_worker;
+	struct work_struct connect_worker;
 	struct work_struct disconnect_worker;
 	struct timer_list connect_timer;
 	int pending_connect_cid;
@@ -311,7 +311,6 @@ int wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len);
 void wmi_recv_cmd(struct wil6210_priv *wil);
 int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,
 	     u16 reply_id, void *reply, u8 reply_size, int to_msec);
-void wmi_connect_worker(struct work_struct *work);
 void wmi_event_worker(struct work_struct *work);
 void wmi_event_flush(struct wil6210_priv *wil);
 int wmi_set_ssid(struct wil6210_priv *wil, u8 ssid_len, const void *ssid);

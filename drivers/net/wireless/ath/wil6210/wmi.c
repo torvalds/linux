@@ -443,7 +443,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 	memcpy(wil->dst_addr[0], evt->bssid, ETH_ALEN);
 
 	wil->pending_connect_cid = evt->cid;
-	queue_work(wil->wmi_wq_conn, &wil->wmi_connect_worker);
+	queue_work(wil->wmi_wq_conn, &wil->connect_worker);
 }
 
 static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
@@ -1030,25 +1030,4 @@ void wmi_event_worker(struct work_struct *work)
 		wmi_event_handle(wil, &evt->event.hdr);
 		kfree(evt);
 	}
-}
-
-void wmi_connect_worker(struct work_struct *work)
-{
-	int rc;
-	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
-						wmi_connect_worker);
-
-	if (wil->pending_connect_cid < 0) {
-		wil_err(wil, "No connection pending\n");
-		return;
-	}
-
-	wil_dbg_wmi(wil, "Configure for connection CID %d\n",
-		    wil->pending_connect_cid);
-
-	rc = wil_vring_init_tx(wil, 0, WIL6210_TX_RING_SIZE,
-			       wil->pending_connect_cid, 0);
-	wil->pending_connect_cid = -1;
-	if (rc == 0)
-		wil_link_on(wil);
 }

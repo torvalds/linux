@@ -118,6 +118,26 @@ static void wil_cache_mbox_regs(struct wil6210_priv *wil)
 	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
 }
 
+static void wil_connect_worker(struct work_struct *work)
+{
+	int rc;
+	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
+						connect_worker);
+	int cid = wil->pending_connect_cid;
+
+	if (cid < 0) {
+		wil_err(wil, "No connection pending\n");
+		return;
+	}
+
+	wil_dbg_wmi(wil, "Configure for connection CID %d\n", cid);
+
+	rc = wil_vring_init_tx(wil, 0, WIL6210_TX_RING_SIZE, cid, 0);
+	wil->pending_connect_cid = -1;
+	if (rc == 0)
+		wil_link_on(wil);
+}
+
 int wil_priv_init(struct wil6210_priv *wil)
 {
 	wil_dbg_misc(wil, "%s()\n", __func__);
@@ -130,7 +150,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->pending_connect_cid = -1;
 	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
 
-	INIT_WORK(&wil->wmi_connect_worker, wmi_connect_worker);
+	INIT_WORK(&wil->connect_worker, wil_connect_worker);
 	INIT_WORK(&wil->disconnect_worker, wil_disconnect_worker);
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);
 
