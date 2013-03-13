@@ -458,8 +458,8 @@ unsigned int regcache_get_val(struct regmap *map, const void *base,
 
 	/* Use device native format if possible */
 	if (map->format.parse_val)
-		return map->format.parse_val(base +
-					     (map->cache_word_size * idx));
+		return map->format.parse_val(regcache_get_val_addr(map, base,
+								   idx));
 
 	switch (map->cache_word_size) {
 	case 1: {
