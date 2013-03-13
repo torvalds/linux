@@ -651,6 +651,9 @@ static const struct pinctrl_map kzm_pinctrl_map[] = {
 				  "sdhi2_data4", "sdhi2"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-sh73a0",
 				  "sdhi2_ctrl", "sdhi2"),
+	/* SMSC */
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x.0", "pfc-sh73a0",
+				  "bsc_cs4", "bsc"),
 };
 
 /*
@@ -717,9 +720,6 @@ static void __init kzm_init(void)
 	pinctrl_register_mappings(kzm_pinctrl_map, ARRAY_SIZE(kzm_pinctrl_map));
 
 	sh73a0_pinmux_init();
-
-	/* CS4 for SMSC/USB */
-	gpio_request(GPIO_FN_CS4_, NULL); /* CS4 */
 
 	/* SMSC */
 	gpio_request_one(224, GPIOF_IN, NULL); /* IRQ3 */
