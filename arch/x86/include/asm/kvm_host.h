@@ -345,7 +345,6 @@ struct kvm_vcpu_arch {
 	unsigned long apic_attention;
 	int32_t apic_arb_prio;
 	int mp_state;
-	int sipi_vector;
 	u64 ia32_misc_enable_msr;
 	bool tpr_access_reporting;
 
@@ -819,6 +818,7 @@ int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu);
 
 void kvm_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg);
+void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, unsigned int vector);
 
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 		    int reason, bool has_error_code, u32 error_code);
@@ -1002,6 +1002,7 @@ int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v);
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
+void kvm_vcpu_reset(struct kvm_vcpu *vcpu);
 
 void kvm_define_shared_msr(unsigned index, u32 msr);
 void kvm_set_shared_msr(unsigned index, u64 val, u64 mask);

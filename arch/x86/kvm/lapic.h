@@ -5,6 +5,9 @@
 
 #include <linux/kvm_host.h>
 
+#define KVM_APIC_INIT		0
+#define KVM_APIC_SIPI		1
+
 struct kvm_timer {
 	struct hrtimer timer;
 	s64 period; 				/* unit: ns */
@@ -32,6 +35,8 @@ struct kvm_lapic {
 	void *regs;
 	gpa_t vapic_addr;
 	struct page *vapic_page;
+	unsigned long pending_events;
+	unsigned int sipi_vector;
 };
 int kvm_create_lapic(struct kvm_vcpu *vcpu);
 void kvm_free_lapic(struct kvm_vcpu *vcpu);
@@ -39,6 +44,7 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu);
 int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu);
 int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu);
+void kvm_apic_accept_events(struct kvm_vcpu *vcpu);
 void kvm_lapic_reset(struct kvm_vcpu *vcpu);
 u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu);
 void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8);
@@ -157,5 +163,10 @@ static inline u16 apic_logical_id(struct kvm_apic_map *map, u32 ldr)
 void kvm_calculate_eoi_exitmap(struct kvm_vcpu *vcpu,
 				struct kvm_lapic_irq *irq,
 				u64 *eoi_bitmap);
+
+static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.apic->pending_events;
+}
 
 #endif

@@ -731,7 +731,11 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	case APIC_DM_INIT:
 		if (!trig_mode || level) {
 			result = 1;
-			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
+			/* assumes that there are only KVM_APIC_INIT/SIPI */
+			apic->pending_events = (1UL << KVM_APIC_INIT);
+			/* make sure pending_events is visible before sending
+			 * the request */
+			smp_wmb();
 			kvm_make_request(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
 		} else {
@@ -743,13 +747,13 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	case APIC_DM_STARTUP:
 		apic_debug("SIPI to vcpu %d vector 0x%02x\n",
 			   vcpu->vcpu_id, vector);
-		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
-			result = 1;
-			vcpu->arch.sipi_vector = vector;
-			vcpu->arch.mp_state = KVM_MP_STATE_SIPI_RECEIVED;
-			kvm_make_request(KVM_REQ_EVENT, vcpu);
-			kvm_vcpu_kick(vcpu);
-		}
+		result = 1;
+		apic->sipi_vector = vector;
+		/* make sure sipi_vector is visible for the receiver */
+		smp_wmb();
+		set_bit(KVM_APIC_SIPI, &apic->pending_events);
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		kvm_vcpu_kick(vcpu);
 		break;
 
 	case APIC_DM_EXTINT:
@@ -1858,6 +1862,34 @@ int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data)
 		return 0;
 	return kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.pv_eoi.data,
 					 addr);
+}
+
+void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	unsigned int sipi_vector;
+
+	if (!kvm_vcpu_has_lapic(vcpu))
+		return;
+
+	if (test_and_clear_bit(KVM_APIC_INIT, &apic->pending_events)) {
+		kvm_lapic_reset(vcpu);
+		kvm_vcpu_reset(vcpu);
+		if (kvm_vcpu_is_bsp(apic->vcpu))
+			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+		else
+			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
+	}
+	if (test_and_clear_bit(KVM_APIC_SIPI, &apic->pending_events) &&
+	    vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
+		/* evaluate pending_events before reading the vector */
+		smp_rmb();
+		sipi_vector = apic->sipi_vector;
+		pr_debug("vcpu %d received sipi with vector # %x\n",
+			 vcpu->vcpu_id, sipi_vector);
+		kvm_vcpu_deliver_sipi_vector(vcpu, sipi_vector);
+		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+	}
 }
 
 void kvm_lapic_init(void)

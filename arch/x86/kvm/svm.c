@@ -1199,12 +1199,6 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	init_vmcb(svm);
 
-	if (!kvm_vcpu_is_bsp(vcpu)) {
-		kvm_rip_write(vcpu, 0);
-		svm->vmcb->save.cs.base = svm->vcpu.arch.sipi_vector << 12;
-		svm->vmcb->save.cs.selector = svm->vcpu.arch.sipi_vector << 8;
-	}
-
 	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy);
 	kvm_register_write(vcpu, VCPU_REGS_RDX, eax);
 }

@@ -4119,12 +4119,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmx_segment_cache_clear(vmx);
 
 	seg_setup(VCPU_SREG_CS);
-	if (kvm_vcpu_is_bsp(&vmx->vcpu))
-		vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
-	else {
-		vmcs_write16(GUEST_CS_SELECTOR, vmx->vcpu.arch.sipi_vector << 8);
-		vmcs_writel(GUEST_CS_BASE, vmx->vcpu.arch.sipi_vector << 12);
-	}
+	vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
 
 	seg_setup(VCPU_SREG_DS);
 	seg_setup(VCPU_SREG_ES);
@@ -4147,10 +4142,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmcs_writel(GUEST_SYSENTER_EIP, 0);
 
 	vmcs_writel(GUEST_RFLAGS, 0x02);
-	if (kvm_vcpu_is_bsp(&vmx->vcpu))
-		kvm_rip_write(vcpu, 0xfff0);
-	else
-		kvm_rip_write(vcpu, 0);
+	kvm_rip_write(vcpu, 0xfff0);
 
 	vmcs_writel(GUEST_GDTR_BASE, 0);
 	vmcs_write32(GUEST_GDTR_LIMIT, 0xffff);

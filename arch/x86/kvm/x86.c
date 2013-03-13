@@ -162,8 +162,6 @@ u64 __read_mostly host_xcr0;
 
 static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt);
 
-static void kvm_vcpu_reset(struct kvm_vcpu *vcpu);
-
 static inline void kvm_async_pf_hash_reset(struct kvm_vcpu *vcpu)
 {
 	int i;
@@ -2830,10 +2828,9 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	events->nmi.masked = kvm_x86_ops->get_nmi_mask(vcpu);
 	events->nmi.pad = 0;
 
-	events->sipi_vector = vcpu->arch.sipi_vector;
+	events->sipi_vector = 0; /* never valid when reporting to user space */
 
 	events->flags = (KVM_VCPUEVENT_VALID_NMI_PENDING
-			 | KVM_VCPUEVENT_VALID_SIPI_VECTOR
 			 | KVM_VCPUEVENT_VALID_SHADOW);
 	memset(&events->reserved, 0, sizeof(events->reserved));
 }
@@ -2864,8 +2861,9 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 		vcpu->arch.nmi_pending = events->nmi.pending;
 	kvm_x86_ops->set_nmi_mask(vcpu, events->nmi.masked);
 
-	if (events->flags & KVM_VCPUEVENT_VALID_SIPI_VECTOR)
-		vcpu->arch.sipi_vector = events->sipi_vector;
+	if (events->flags & KVM_VCPUEVENT_VALID_SIPI_VECTOR &&
+	    kvm_vcpu_has_lapic(vcpu))
+		vcpu->arch.apic->sipi_vector = events->sipi_vector;
 
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
@@ -5720,6 +5718,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	}
 
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
+		kvm_apic_accept_events(vcpu);
+		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
+			r = 1;
+			goto out;
+		}
+
 		inject_pending_event(vcpu);
 
 		/* enable NMI/IRQ window open exits if needed */
@@ -5854,14 +5858,6 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	int r;
 	struct kvm *kvm = vcpu->kvm;
 
-	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED)) {
-		pr_debug("vcpu %d received sipi with vector # %x\n",
-			 vcpu->vcpu_id, vcpu->arch.sipi_vector);
-		kvm_lapic_reset(vcpu);
-		kvm_vcpu_reset(vcpu);
-		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
-	}
-
 	vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
 	r = vapic_enter(vcpu);
 	if (r) {
@@ -5878,8 +5874,8 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
 			kvm_vcpu_block(vcpu);
 			vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
-			if (kvm_check_request(KVM_REQ_UNHALT, vcpu))
-			{
+			if (kvm_check_request(KVM_REQ_UNHALT, vcpu)) {
+				kvm_apic_accept_events(vcpu);
 				switch(vcpu->arch.mp_state) {
 				case KVM_MP_STATE_HALTED:
 					vcpu->arch.mp_state =
@@ -5887,7 +5883,8 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 				case KVM_MP_STATE_RUNNABLE:
 					vcpu->arch.apf.halted = false;
 					break;
-				case KVM_MP_STATE_SIPI_RECEIVED:
+				case KVM_MP_STATE_INIT_RECEIVED:
+					break;
 				default:
 					r = -EINTR;
 					break;
@@ -6022,6 +6019,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
 		kvm_vcpu_block(vcpu);
+		kvm_apic_accept_events(vcpu);
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		r = -EAGAIN;
 		goto out;
@@ -6178,6 +6176,7 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
+	kvm_apic_accept_events(vcpu);
 	mp_state->mp_state = vcpu->arch.mp_state;
 	return 0;
 }
@@ -6185,7 +6184,15 @@ int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	vcpu->arch.mp_state = mp_state->mp_state;
+	if (!kvm_vcpu_has_lapic(vcpu) &&
+	    mp_state->mp_state != KVM_MP_STATE_RUNNABLE)
+		return -EINVAL;
+
+	if (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED) {
+		vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
+		set_bit(KVM_APIC_SIPI, &vcpu->arch.apic->pending_events);
+	} else
+		vcpu->arch.mp_state = mp_state->mp_state;
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return 0;
 }
@@ -6522,7 +6529,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->vcpu_free(vcpu);
 }
 
-static void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
+void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	atomic_set(&vcpu->arch.nmi_queued, 0);
 	vcpu->arch.nmi_pending = 0;
@@ -6550,6 +6557,17 @@ static void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs_dirty = ~0;
 
 	kvm_x86_ops->vcpu_reset(vcpu);
+}
+
+void kvm_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, unsigned int vector)
+{
+	struct kvm_segment cs;
+
+	kvm_get_segment(vcpu, &cs, VCPU_SREG_CS);
+	cs.selector = vector << 8;
+	cs.base = vector << 12;
+	kvm_set_segment(vcpu, &cs, VCPU_SREG_CS);
+	kvm_rip_write(vcpu, 0);
 }
 
 int kvm_arch_hardware_enable(void *garbage)
@@ -6995,7 +7013,7 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 	return (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE &&
 		!vcpu->arch.apf.halted)
 		|| !list_empty_careful(&vcpu->async_pf.done)
-		|| vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED
+		|| kvm_apic_has_events(vcpu)
 		|| atomic_read(&vcpu->arch.nmi_queued) ||
 		(kvm_arch_interrupt_allowed(vcpu) &&
 		 kvm_cpu_has_interrupt(vcpu));
