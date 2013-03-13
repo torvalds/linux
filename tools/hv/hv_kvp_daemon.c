@@ -1443,7 +1443,7 @@ int main(void)
 	addr.nl_family = AF_NETLINK;
 	addr.nl_pad = 0;
 	addr.nl_pid = 0;
-	addr.nl_groups = CN_KVP_IDX;
+	addr.nl_groups = 0;
 
 
 	error = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
@@ -1452,7 +1452,7 @@ int main(void)
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
-	sock_opt = addr.nl_groups;
+	sock_opt = CN_KVP_IDX;
 	setsockopt(fd, 270, 1, &sock_opt, sizeof(sock_opt));
 	/*
 	 * Register ourselves with the kernel.
