@@ -1068,12 +1068,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mtspr	SPRN_MAS0,r3
 	tlbre
 	mfspr	r6,SPRN_MAS1
-	rlwinm	r6,r6,0,2,0	/* clear IPROT */
+	rlwinm	r6,r6,0,2,31	/* clear IPROT and VALID */
 	mtspr	SPRN_MAS1,r6
 	tlbwe
-
-	/* Invalidate TLB1 */
-	PPC_TLBILX_ALL(0,R0)
 	sync
 	isync
 
@@ -1127,12 +1124,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mtspr	SPRN_MAS0,r4
 	tlbre
 	mfspr	r5,SPRN_MAS1
-	rlwinm	r5,r5,0,2,0	/* clear IPROT */
+	rlwinm	r5,r5,0,2,31	/* clear IPROT and VALID */
 	mtspr	SPRN_MAS1,r5
 	tlbwe
-
-	/* Invalidate TLB1 */
-	PPC_TLBILX_ALL(0,R0)
 	sync
 	isync
 
