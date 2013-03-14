@@ -130,9 +130,8 @@ int __init amd_numa_init(void)
 		}
 
 		limit >>= 16;
-		limit <<= 24;
-		limit |= (1<<24)-1;
 		limit++;
+		limit <<= 24;
 
 		if (limit > end)
 			limit = end;
