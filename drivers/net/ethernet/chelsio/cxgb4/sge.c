@@ -506,10 +506,14 @@ static void unmap_rx_buf(struct adapter *adap, struct sge_fl *q)
 
 static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 {
+	u32 val;
 	if (q->pend_cred >= 8) {
+		val = PIDX(q->pend_cred / 8);
+		if (!is_t4(adap->chip))
+			val |= DBTYPE(1);
 		wmb();
 		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL), DBPRIO(1) |
-			     QID(q->cntxt_id) | PIDX(q->pend_cred / 8));
+			     QID(q->cntxt_id) | val);
 		q->pend_cred &= 7;
 	}
 }
@@ -1555,7 +1559,6 @@ static noinline int handle_trace_pkt(struct adapter *adap,
 				     const struct pkt_gl *gl)
 {
 	struct sk_buff *skb;
-	struct cpl_trace_pkt *p;
 
 	skb = cxgb4_pktgl_to_skb(gl, RX_PULL_LEN, RX_PULL_LEN);
 	if (unlikely(!skb)) {
@@ -1563,8 +1566,11 @@ static noinline int handle_trace_pkt(struct adapter *adap,
 		return 0;
 	}
 
-	p = (struct cpl_trace_pkt *)skb->data;
-	__skb_pull(skb, sizeof(*p));
+	if (is_t4(adap->chip))
+		__skb_pull(skb, sizeof(struct cpl_trace_pkt));
+	else
+		__skb_pull(skb, sizeof(struct cpl_t5_trace_pkt));
+
 	skb_reset_mac_header(skb);
 	skb->protocol = htons(0xffff);
 	skb->dev = adap->port[0];
@@ -1625,8 +1631,10 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	const struct cpl_rx_pkt *pkt;
 	struct sge_eth_rxq *rxq = container_of(q, struct sge_eth_rxq, rspq);
 	struct sge *s = &q->adap->sge;
+	int cpl_trace_pkt = is_t4(q->adap->chip) ?
+			    CPL_TRACE_PKT : CPL_TRACE_PKT_T5;
 
-	if (unlikely(*(u8 *)rsp == CPL_TRACE_PKT))
+	if (unlikely(*(u8 *)rsp == cpl_trace_pkt))
 		return handle_trace_pkt(q->adap, si);
 
 	pkt = (const struct cpl_rx_pkt *)rsp;
@@ -2587,11 +2595,20 @@ static int t4_sge_init_hard(struct adapter *adap)
 	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
 	 * and generate an interrupt when this occurs so we can recover.
 	 */
-	t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
-			V_HP_INT_THRESH(M_HP_INT_THRESH) |
-			V_LP_INT_THRESH(M_LP_INT_THRESH),
-			V_HP_INT_THRESH(dbfifo_int_thresh) |
-			V_LP_INT_THRESH(dbfifo_int_thresh));
+	if (is_t4(adap->chip)) {
+		t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
+				 V_HP_INT_THRESH(M_HP_INT_THRESH) |
+				 V_LP_INT_THRESH(M_LP_INT_THRESH),
+				 V_HP_INT_THRESH(dbfifo_int_thresh) |
+				 V_LP_INT_THRESH(dbfifo_int_thresh));
+	} else {
+		t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
+				 V_LP_INT_THRESH_T5(M_LP_INT_THRESH_T5),
+				 V_LP_INT_THRESH_T5(dbfifo_int_thresh));
+		t4_set_reg_field(adap, SGE_DBFIFO_STATUS2,
+				 V_HP_INT_THRESH_T5(M_HP_INT_THRESH_T5),
+				 V_HP_INT_THRESH_T5(dbfifo_int_thresh));
+	}
 	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_ENABLE_DROP,
 			F_ENABLE_DROP);
 

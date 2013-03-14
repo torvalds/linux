@@ -233,7 +233,9 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 };
 
 #define FW_FNAME "cxgb4/t4fw.bin"
+#define FW5_FNAME "cxgb4/t5fw.bin"
 #define FW_CFNAME "cxgb4/t4-config.txt"
+#define FW5_CFNAME "cxgb4/t5-config.txt"
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
@@ -241,6 +243,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4_pci_tbl);
 MODULE_FIRMWARE(FW_FNAME);
+MODULE_FIRMWARE(FW5_FNAME);
 
 /*
  * Normally we're willing to become the firmware's Master PF but will be happy
@@ -319,10 +322,14 @@ static bool vf_acls;
 module_param(vf_acls, bool, 0644);
 MODULE_PARM_DESC(vf_acls, "if set enable virtualization L2 ACL enforcement");
 
-static unsigned int num_vf[4];
+/* Since T5 has more num of PFs, using NUM_OF_PF_WITH_SRIOV_T5
+ * macro as num_vf array size
+ */
+static unsigned int num_vf[NUM_OF_PF_WITH_SRIOV_T5];
 
 module_param_array(num_vf, uint, NULL, 0644);
-MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3");
+MODULE_PARM_DESC(num_vf,
+		 "number of VFs for each of PFs 0-3 for T4 and PFs 0-7 for T5");
 #endif
 
 /*
@@ -1002,21 +1009,36 @@ freeout:	t4_free_sge_resources(adap);
 static int upgrade_fw(struct adapter *adap)
 {
 	int ret;
-	u32 vers;
+	u32 vers, exp_major;
 	const struct fw_hdr *hdr;
 	const struct firmware *fw;
 	struct device *dev = adap->pdev_dev;
+	char *fw_file_name;
 
-	ret = request_firmware(&fw, FW_FNAME, dev);
+	switch (CHELSIO_CHIP_VERSION(adap->chip)) {
+	case CHELSIO_T4:
+		fw_file_name = FW_FNAME;
+		exp_major = FW_VERSION_MAJOR;
+		break;
+	case CHELSIO_T5:
+		fw_file_name = FW5_FNAME;
+		exp_major = FW_VERSION_MAJOR_T5;
+		break;
+	default:
+		dev_err(dev, "Unsupported chip type, %x\n", adap->chip);
+		return -EINVAL;
+	}
+
+	ret = request_firmware(&fw, fw_file_name, dev);
 	if (ret < 0) {
-		dev_err(dev, "unable to load firmware image " FW_FNAME
-			", error %d\n", ret);
+		dev_err(dev, "unable to load firmware image %s, error %d\n",
+			fw_file_name, ret);
 		return ret;
 	}
 
 	hdr = (const struct fw_hdr *)fw->data;
 	vers = ntohl(hdr->fw_ver);
-	if (FW_HDR_FW_VER_MAJOR_GET(vers) != FW_VERSION_MAJOR) {
+	if (FW_HDR_FW_VER_MAJOR_GET(vers) != exp_major) {
 		ret = -EINVAL;              /* wrong major version, won't do */
 		goto out;
 	}
@@ -1024,18 +1046,15 @@ static int upgrade_fw(struct adapter *adap)
 	/*
 	 * If the flash FW is unusable or we found something newer, load it.
 	 */
-	if (FW_HDR_FW_VER_MAJOR_GET(adap->params.fw_vers) != FW_VERSION_MAJOR ||
+	if (FW_HDR_FW_VER_MAJOR_GET(adap->params.fw_vers) != exp_major ||
 	    vers > adap->params.fw_vers) {
 		dev_info(dev, "upgrading firmware ...\n");
 		ret = t4_fw_upgrade(adap, adap->mbox, fw->data, fw->size,
 				    /*force=*/false);
 		if (!ret)
-			dev_info(dev, "firmware successfully upgraded to "
-				 FW_FNAME " (%d.%d.%d.%d)\n",
-				 FW_HDR_FW_VER_MAJOR_GET(vers),
-				 FW_HDR_FW_VER_MINOR_GET(vers),
-				 FW_HDR_FW_VER_MICRO_GET(vers),
-				 FW_HDR_FW_VER_BUILD_GET(vers));
+			dev_info(dev,
+				 "firmware upgraded to version %pI4 from %s\n",
+				 &hdr->fw_ver, fw_file_name);
 		else
 			dev_err(dev, "firmware upgrade failed! err=%d\n", -ret);
 	} else {
@@ -1413,7 +1432,8 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
  */
 static inline unsigned int mk_adap_vers(const struct adapter *ap)
 {
-	return 4 | (ap->params.rev << 10) | (1 << 16);
+	return CHELSIO_CHIP_VERSION(ap->chip) |
+		(CHELSIO_CHIP_RELEASE(ap->chip) << 10) | (1 << 16);
 }
 
 static void reg_block_dump(struct adapter *ap, void *buf, unsigned int start,
@@ -3745,6 +3765,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	unsigned long mtype = 0, maddr = 0;
 	u32 finiver, finicsum, cfcsum;
 	int ret, using_flash;
+	char *fw_config_file, fw_config_file_path[256];
 
 	/*
 	 * Reset device if necessary.
@@ -3761,7 +3782,21 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * then use that.  Otherwise, use the configuration file stored
 	 * in the adapter flash ...
 	 */
-	ret = request_firmware(&cf, FW_CFNAME, adapter->pdev_dev);
+	switch (CHELSIO_CHIP_VERSION(adapter->chip)) {
+	case CHELSIO_T4:
+		fw_config_file = FW_CFNAME;
+		break;
+	case CHELSIO_T5:
+		fw_config_file = FW5_CFNAME;
+		break;
+	default:
+		dev_err(adapter->pdev_dev, "Device %d is not supported\n",
+		       adapter->pdev->device);
+		ret = -EINVAL;
+		goto bye;
+	}
+
+	ret = request_firmware(&cf, fw_config_file, adapter->pdev_dev);
 	if (ret < 0) {
 		using_flash = 1;
 		mtype = FW_MEMTYPE_CF_FLASH;
@@ -3877,6 +3912,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	if (ret < 0)
 		goto bye;
 
+	sprintf(fw_config_file_path, "/lib/firmware/%s", fw_config_file);
 	/*
 	 * Return successfully and note that we're operating with parameters
 	 * not supplied by the driver, rather than from hard-wired
@@ -3887,7 +3923,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		 "Configuration File %s, version %#x, computed checksum %#x\n",
 		 (using_flash
 		  ? "in device FLASH"
-		  : "/lib/firmware/" FW_CFNAME),
+		  : fw_config_file_path),
 		 finiver, cfcsum);
 	return 0;
 
@@ -4015,8 +4051,10 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	 */
 	{
 		int pf, vf;
+		int max_no_pf = is_t4(adapter->chip) ? NUM_OF_PF_WITH_SRIOV_T4 :
+				NUM_OF_PF_WITH_SRIOV_T5;
 
-		for (pf = 0; pf < ARRAY_SIZE(num_vf); pf++) {
+		for (pf = 0; pf < max_no_pf; pf++) {
 			if (num_vf[pf] <= 0)
 				continue;
 
@@ -4814,7 +4852,8 @@ static void print_port_info(const struct net_device *dev)
 	sprintf(bufp, "BASE-%s", base[pi->port_type]);
 
 	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
-		    adap->params.vpd.id, adap->params.rev, buf,
+		    adap->params.vpd.id,
+		    CHELSIO_CHIP_RELEASE(adap->params.rev), buf,
 		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
 		    (adap->flags & USING_MSIX) ? " MSI-X" :
 		    (adap->flags & USING_MSI) ? " MSI" : "");
@@ -4861,6 +4900,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct port_info *pi;
 	bool highdma = false;
 	struct adapter *adapter = NULL;
+#ifdef CONFIG_PCI_IOV
+	int max_no_pf;
+#endif
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -5052,7 +5094,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 sriov:
 #ifdef CONFIG_PCI_IOV
-	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0)
+	max_no_pf = is_t4(adapter->chip) ? NUM_OF_PF_WITH_SRIOV_T4 :
+			NUM_OF_PF_WITH_SRIOV_T5;
+
+	if (func < max_no_pf && num_vf[func] > 0)
 		if (pci_enable_sriov(pdev, num_vf[func]) == 0)
 			dev_info(&pdev->dev,
 				 "instantiated %u virtual functions\n",
