@@ -45,6 +45,16 @@ MODULE_DESCRIPTION("Chelsio T4/T5 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
+static int allow_db_fc_on_t5;
+module_param(allow_db_fc_on_t5, int, 0644);
+MODULE_PARM_DESC(allow_db_fc_on_t5,
+		 "Allow DB Flow Control on T5 (default = 0)");
+
+static int allow_db_coalescing_on_t5;
+module_param(allow_db_coalescing_on_t5, int, 0644);
+MODULE_PARM_DESC(allow_db_coalescing_on_t5,
+		 "Allow DB Coalescing on T5 (default = 0)");
+
 struct uld_ctx {
 	struct list_head entry;
 	struct cxgb4_lld_info lldi;
@@ -630,8 +640,19 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	if (!ocqp_supported(infop))
 		pr_info("%s: On-Chip Queues not supported on this device.\n",
 			pci_name(infop->pdev));
-	if (!is_t4(infop->adapter_type))
-		db_fc_threshold = 100000;
+
+	if (!is_t4(infop->adapter_type)) {
+		if (!allow_db_fc_on_t5) {
+			db_fc_threshold = 100000;
+			pr_info("DB Flow Control Disabled.\n");
+		}
+
+		if (!allow_db_coalescing_on_t5) {
+			db_coalescing_threshold = -1;
+			pr_info("DB Coalescing Disabled.\n");
+		}
+	}
+
 	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
 	if (!devp) {
 		printk(KERN_ERR MOD "Cannot allocate ib device\n");

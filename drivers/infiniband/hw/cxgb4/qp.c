@@ -1455,8 +1455,9 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 		rhp->db_state = NORMAL;
 		idr_for_each(&rhp->qpidr, enable_qp_db, NULL);
 	}
-	if (rhp->qpcnt <= db_coalescing_threshold)
-		cxgb4_enable_db_coalescing(rhp->rdev.lldi.ports[0]);
+	if (db_coalescing_threshold >= 0)
+		if (rhp->qpcnt <= db_coalescing_threshold)
+			cxgb4_enable_db_coalescing(rhp->rdev.lldi.ports[0]);
 	spin_unlock_irq(&rhp->lock);
 	atomic_dec(&qhp->refcnt);
 	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
@@ -1574,8 +1575,9 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		rhp->db_state = FLOW_CONTROL;
 		idr_for_each(&rhp->qpidr, disable_qp_db, NULL);
 	}
-	if (rhp->qpcnt > db_coalescing_threshold)
-		cxgb4_disable_db_coalescing(rhp->rdev.lldi.ports[0]);
+	if (db_coalescing_threshold >= 0)
+		if (rhp->qpcnt > db_coalescing_threshold)
+			cxgb4_disable_db_coalescing(rhp->rdev.lldi.ports[0]);
 	ret = insert_handle_nolock(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
 	spin_unlock_irq(&rhp->lock);
 	if (ret)

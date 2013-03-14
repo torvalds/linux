@@ -939,6 +939,7 @@ extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 extern int c4iw_max_read_depth;
 extern int db_fc_threshold;
+extern int db_coalescing_threshold;
 
 
 #endif
