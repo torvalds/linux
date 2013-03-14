@@ -39,7 +39,6 @@
  */
 #include "f_ecm.c"
 #include "f_obex.c"
-#include "f_serial.c"
 #include "f_phonet.c"
 #include "u_ether.c"
 
