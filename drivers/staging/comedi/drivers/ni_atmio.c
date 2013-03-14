@@ -467,7 +467,7 @@ static int ni_atmio_attach(struct comedi_device *dev,
 		return -EIO;
 
 	dev->board_ptr = ni_boards + board;
-	boardtype = comedi_board(dev)
+	boardtype = comedi_board(dev);
 
 	printk(" %s", boardtype->name);
 	dev->board_name = boardtype->name;
