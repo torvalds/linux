@@ -1429,14 +1429,14 @@ static int gpmc_probe_onenand_child(struct platform_device *pdev,
 #endif
 
 /**
- * gpmc_probe_nor_child - configures the gpmc for a nor device
+ * gpmc_probe_generic_child - configures the gpmc for a child device
  * @pdev:	pointer to gpmc platform device
- * @child:	pointer to device-tree node for nor device
+ * @child:	pointer to device-tree node for child device
  *
- * Allocates and configures a GPMC chip-select for a NOR flash device.
+ * Allocates and configures a GPMC chip-select for a child device.
  * Returns 0 on success and appropriate negative error code on failure.
  */
-static int gpmc_probe_nor_child(struct platform_device *pdev,
+static int gpmc_probe_generic_child(struct platform_device *pdev,
 				struct device_node *child)
 {
 	struct gpmc_settings gpmc_s;
@@ -1537,7 +1537,7 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 	}
 
 	for_each_node_by_name(child, "nor") {
-		ret = gpmc_probe_nor_child(pdev, child);
+		ret = gpmc_probe_generic_child(pdev, child);
 		if (ret < 0) {
 			of_node_put(child);
 			return ret;
