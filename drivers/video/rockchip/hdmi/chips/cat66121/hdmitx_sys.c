@@ -459,11 +459,13 @@ int HDMITX_DevLoopProc()
 			if( RxCapability.ValidHDMI )
 			{
 				bHDMIMode = TRUE ;
-
+				bAudioEnable = TRUE ;
+#if 0
 				if(RxCapability.VideoMode & (1<<6))
 				{
 					bAudioEnable = TRUE ;
 				}
+#endif
 				if( RxCapability.VideoMode & (1<<5))
 				{
 					bOutputColorMode &= ~F_MODE_CLRMOD_MASK ;
@@ -565,7 +567,7 @@ int HDMITX_DevLoopProc()
     }
 
     DevLoopCount ++ ;
-    return HPDStatus;
+    return HPDChangeStatus;
 }
 
 #ifdef HDMITX_AUTO_MONITOR_INPUT
@@ -1169,10 +1171,16 @@ BYTE ParseEDID()
 
     EDID_Buf = CommunBuff;
     RxCapability.ValidCEA = FALSE ;
-    RxCapability.ValidHDMI = FALSE ;
+    RxCapability.ValidHDMI = TRUE;
     RxCapability.dc.uc = 0;
 
     getHDMITX_EDIDBlock(0, EDID_Buf);
+#if Debug_message
+    for( j = 0 ; j < 128 ; j++ )
+    {
+	    EDID_DEBUG_PRINTF(("%02X%c",(int)EDID_Buf[j],(7 == (j&7))?'\n':' '));
+    }
+#endif // Debug_message
 
     for( i = 0, CheckSum = 0 ; i < 128 ; i++ )
     {

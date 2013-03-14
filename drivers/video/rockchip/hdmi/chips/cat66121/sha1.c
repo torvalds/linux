@@ -9,8 +9,6 @@
 //   @fileversion: COMMON_FILE_1.01
 //******************************************/
 
-#include <stdio.h>
-//#include <stdlib.h>
 #include "sha1.h"
 
 

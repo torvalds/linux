@@ -24,6 +24,7 @@ struct cat66121_hdmi_pdata {
 
 extern struct cat66121_hdmi_pdata *cat66121_hdmi;
 
+extern int cat66121_detect_device(void);
 extern int cat66121_hdmi_sys_init(void);
 extern void cat66121_hdmi_interrupt(void);
 extern int cat66121_hdmi_sys_detect_hpd(void);

@@ -141,7 +141,21 @@ static int cat66121_hdmi_i2c_read_reg(char reg, char *val)
  ******************************/
 int cat66121_detect_device(void)
 {
-	printk(">>>%s \n",__func__);
+	uint8_t VendorID0, VendorID1, DeviceID0, DeviceID1;
+	
+	Switch_HDMITX_Bank(0);
+	VendorID0 = HDMITX_ReadI2C_Byte(REG_VENDOR_ID0);
+	VendorID1 = HDMITX_ReadI2C_Byte(REG_VENDOR_ID1);
+	DeviceID0 = HDMITX_ReadI2C_Byte(REG_DEVICE_ID0);
+	DeviceID1 = HDMITX_ReadI2C_Byte(REG_DEVICE_ID1);
+	ErrorF("CAT66121: Reg[0-3] = 0x[%02x].[%02x].[%02x].[%02x]\n",
+			   VendorID0, VendorID1, DeviceID0, DeviceID1);
+	if( (VendorID0 == 0x54) && (VendorID1 == 0x49) &&
+		(DeviceID0 == 0x12) && (DeviceID1 == 0x06) )
+		return 1;
+
+	printk("[CAT66121] Device not found!\n");
+
 	return 0;
 }
 

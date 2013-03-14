@@ -10,18 +10,20 @@
 //******************************************/
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
-#pragma message("config.h")
+//#pragma message("config.h")
 
 #ifdef EXTERN_HDCPROM
 #pragma message("Defined EXTERN_HDCPROM")
 #endif // EXTERN_HDCPROM
 
 #define SUPPORT_EDID
-//#define SUPPORT_HDCP
-//#define SUPPORT_SHA
 //#define SUPPORT_AUDIO_MONITOR
 #define AudioOutDelayCnt 250
 
+#ifdef CONFIG_SUPPORT_HDCP
+#define SUPPORT_HDCP
+#define SUPPORT_SHA
+#endif
 
 
 //////////////////////////////////////////////////////////////////////////////////////////

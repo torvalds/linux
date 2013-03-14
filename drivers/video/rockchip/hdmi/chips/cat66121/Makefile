@@ -5,5 +5,6 @@ obj-$(CONFIG_HDMI_CAT66121)       += cat66121_hdmi.o \
 				 	hdmitx_sys.o \
 				 	hdmitx_hdcp.o \
 				 	hdmitx_input.o \
-				 	hdmitx_drv.o
+				 	hdmitx_drv.o \
+					sha1.o
 

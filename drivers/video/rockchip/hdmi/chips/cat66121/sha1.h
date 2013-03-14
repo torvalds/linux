@@ -12,16 +12,6 @@
 #ifndef _SHA_1_H_
 #define _SHA_1_H_
 
-#ifdef _MCU_8051_
-    #include "Mcu.h"
-#endif
-
-#include <string.h>
-
-#if Debug_message
-    #include <stdio.h>
-#endif
-
 #include "config.h"
 #include "typedef.h"
 

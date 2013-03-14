@@ -10,13 +10,14 @@
 //******************************************/
 #ifndef _DEBUG_H_
 #define _DEBUG_H_
-#define Debug_message 0
 
-#pragma message("debug.h")
-
-#ifndef Debug_message
+#ifdef CONFIG_RK_HDMI_DEBUG
 #define Debug_message 1
+#else
+#define Debug_message 0
 #endif
+
+//#pragma message("debug.h")
 
 #if Debug_message
 

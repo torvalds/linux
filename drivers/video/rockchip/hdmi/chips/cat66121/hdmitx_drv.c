@@ -86,7 +86,7 @@ _CODE RegSetEntry HDMITX_Init_Table[] = {
     {0x05, 0xC0, 0x40},
     {REG_TX_INT_MASK1, 0xFF, ~(B_TX_RXSEN_MASK|B_TX_HPD_MASK)},
     {REG_TX_INT_MASK2, 0xFF, ~(B_TX_KSVLISTCHK_MASK|B_TX_AUTH_DONE_MASK|B_TX_AUTH_FAIL_MASK)},
-    {REG_TX_INT_MASK3, 0xFF, ~(B_TX_VIDSTABLE_MASK)},
+    {REG_TX_INT_MASK3, 0xFF, ~(0x0)},
     {0x0C, 0xFF, 0xFF},
     {0x0D, 0xFF, 0xFF},
     {0x0E, 0x03, 0x03},
@@ -504,8 +504,9 @@ BYTE CheckHDMITX(BYTE *pHPD,BYTE *pHPDChange)
         }
         #endif // SUPPORT_HDCP
 
-		/*
+#if 1
 		intdata3 = HDMITX_ReadI2C_Byte(REG_TX_INT_STAT3);
+        HDMITX_DEBUG_PRINTF(("INT_Handler: reg%X = %X\n",(int)REG_TX_INT_STAT3,(int)intdata3));
 		if(intdata3 & B_TX_INT_VIDSTABLE)
 		{
 			sysstat = HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS);
@@ -514,19 +515,19 @@ BYTE CheckHDMITX(BYTE *pHPD,BYTE *pHPDChange)
 				hdmitx_FireAFE();
 			}
 		}
-		*/
+#endif
         intdata3= HDMITX_ReadI2C_Byte(0xEE);
         if( intdata3 )
         {
             HDMITX_WriteI2C_Byte(0xEE,intdata3); // clear ext interrupt ;
             HDMITX_DEBUG_PRINTF(("%s%s%s%s%s%s%s\n",
-                (intdata3&0x40)?"video parameter change ":"",
-                (intdata3&0x20)?"HDCP Pj check done ":"",
-                (intdata3&0x10)?"HDCP Ri check done ":"",
-                (intdata3&0x8)? "DDC bus hang ":"",
-                (intdata3&0x4)? "Video input FIFO auto reset ":"",
-                (intdata3&0x2)? "No audio input interrupt  ":"",
-                (intdata3&0x1)? "Audio decode error interrupt ":""));
+                (intdata3&0x40)?"video parameter change \n":"",
+                (intdata3&0x20)?"HDCP Pj check done \n":"",
+                (intdata3&0x10)?"HDCP Ri check done \n":"",
+                (intdata3&0x8)? "DDC bus hang \n":"",
+                (intdata3&0x4)? "Video input FIFO auto reset \n":"",
+                (intdata3&0x2)? "No audio input interrupt  \n":"",
+                (intdata3&0x1)? "Audio decode error interrupt \n":""));
         }
         HDMITX_WriteI2C_Byte(REG_TX_INT_CLR0,0xFF);
         HDMITX_WriteI2C_Byte(REG_TX_INT_CLR1,0xFF);

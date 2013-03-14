@@ -84,7 +84,7 @@ static void cat66121_irq_work_func(struct work_struct *work)
 				hdmi->hdcp_irq_cb(0);
 		}
 		#ifndef HDMI_USE_IRQ
-		queue_delayed_work(cat66121_hdmi->workqueue, &cat66121_hdmi->delay_work, 50);
+		queue_delayed_work(cat66121_hdmi->workqueue, &cat66121_hdmi->delay_work, 100);
 		#endif
 	}
 }
@@ -177,6 +177,12 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 		rc = -ENXIO;
 		goto err_request_lcdc;
 	}
+	if(cat66121_detect_device()!=1){
+		dev_err(hdmi->dev, "can't find it6610 device \n");
+		rc = -ENXIO;
+		goto err_request_lcdc;
+	}
+
 	hdmi->xscale = 100;
 	hdmi->yscale = 100;
 	hdmi->insert = cat66121_hdmi_sys_insert;

@@ -10,6 +10,7 @@
 //******************************************/
 #include "hdmitx.h"
 #include "hdmitx_drv.h"
+#include "sha1.h"
 
 static BYTE countbit(BYTE b);
 
@@ -30,10 +31,11 @@ BOOL HDMITX_EnableHDCP(BYTE bEnable)
     {
         if(ER_FAIL == hdmitx_hdcp_Authenticate())
         {
-            //printf("ER_FAIL == hdmitx_hdcp_Authenticate\n");
+            printk("ER_FAIL == hdmitx_hdcp_Authenticate\n");
             hdmitx_hdcp_ResetAuth();
 			return FALSE ;
         }
+            HDCP_DEBUG_PRINTF(("hdmitx_hdcp_Authenticate SUCCESS\n"));
     }
     else
     {
@@ -661,7 +663,7 @@ SYS_STATUS hdmitx_hdcp_CheckSHA(BYTE pM0[],USHORT BStatus,BYTE pKSVList[],int cD
         }
     }
     */
-    //SHA_Simple(SHABuff,n,V);
+    SHA_Simple(SHABuff,n,V);
     for(i = 0 ; i < 20 ; i++)
     {
         if(V[i] != Vr[i])
