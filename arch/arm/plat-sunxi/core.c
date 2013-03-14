@@ -200,6 +200,7 @@ void __init sunxi_core_fixup(struct machine_desc *desc,
 		mi->bank[0].start = 0x40000000;
 		mi->bank[0].size = SZ_1M * (512 - 64);
 
+		reserved_mali_mem = 1;
 		size -= 512;
 		if (size) {
 			mi->nr_banks++;
