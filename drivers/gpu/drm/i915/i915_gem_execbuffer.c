@@ -359,8 +359,7 @@ i915_gem_execbuffer_relocate_object_slow(struct drm_i915_gem_object *obj,
 }
 
 static int
-i915_gem_execbuffer_relocate(struct drm_device *dev,
-			     struct eb_objects *eb)
+i915_gem_execbuffer_relocate(struct eb_objects *eb)
 {
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
@@ -989,7 +988,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* The objects are in their final locations, apply the relocations. */
 	if (need_relocs)
-		ret = i915_gem_execbuffer_relocate(dev, eb);
+		ret = i915_gem_execbuffer_relocate(eb);
 	if (ret) {
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, args, file, ring,
