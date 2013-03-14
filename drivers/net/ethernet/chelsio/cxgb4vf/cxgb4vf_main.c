@@ -54,8 +54,8 @@
 /*
  * Generic information about the driver.
  */
-#define DRV_VERSION "1.0.0"
-#define DRV_DESC "Chelsio T4 Virtual Function (VF) Network Driver"
+#define DRV_VERSION "2.0.0-ko"
+#define DRV_DESC "Chelsio T4/T5 Virtual Function (VF) Network Driver"
 
 /*
  * Module Parameters.
@@ -1050,7 +1050,7 @@ static inline unsigned int mk_adap_vers(const struct adapter *adapter)
 	/*
 	 * Chip version 4, revision 0x3f (cxgb4vf).
 	 */
-	return 4 | (0x3f << 10);
+	return CHELSIO_CHIP_VERSION(adapter->chip) | (0x3f << 10);
 }
 
 /*
@@ -2099,6 +2099,15 @@ static int adap_init0(struct adapter *adapter)
 		return err;
 	}
 
+	switch (adapter->pdev->device >> 12) {
+	case CHELSIO_T4:
+		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
+		break;
+	case CHELSIO_T5:
+		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T5, 0);
+		break;
+	}
+
 	/*
 	 * Grab basic operational parameters.  These will predominantly have
 	 * been set up by the Physical Function Driver or will be hard coded
@@ -2888,6 +2897,26 @@ static struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0x480a, 0),   /* T404-bt */
 	CH_DEVICE(0x480d, 0),   /* T480-cr */
 	CH_DEVICE(0x480e, 0),   /* T440-lp-cr */
+	CH_DEVICE(0x5800, 0),	/* T580-dbg */
+	CH_DEVICE(0x5801, 0),	/* T520-cr */
+	CH_DEVICE(0x5802, 0),	/* T522-cr */
+	CH_DEVICE(0x5803, 0),	/* T540-cr */
+	CH_DEVICE(0x5804, 0),	/* T520-bch */
+	CH_DEVICE(0x5805, 0),   /* T540-bch */
+	CH_DEVICE(0x5806, 0),	/* T540-ch */
+	CH_DEVICE(0x5807, 0),	/* T520-so */
+	CH_DEVICE(0x5808, 0),	/* T520-cx */
+	CH_DEVICE(0x5809, 0),	/* T520-bt */
+	CH_DEVICE(0x580a, 0),   /* T504-bt */
+	CH_DEVICE(0x580b, 0),   /* T520-sr */
+	CH_DEVICE(0x580c, 0),   /* T504-bt */
+	CH_DEVICE(0x580d, 0),   /* T580-cr */
+	CH_DEVICE(0x580e, 0),   /* T540-lp-cr */
+	CH_DEVICE(0x580f, 0),   /* Amsterdam */
+	CH_DEVICE(0x5810, 0),   /* T580-lp-cr */
+	CH_DEVICE(0x5811, 0),   /* T520-lp-cr */
+	CH_DEVICE(0x5812, 0),   /* T560-cr */
+	CH_DEVICE(0x5813, 0),   /* T580-cr */
 	{ 0, }
 };
 

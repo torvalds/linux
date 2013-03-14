@@ -528,17 +528,21 @@ static void unmap_rx_buf(struct adapter *adapter, struct sge_fl *fl)
  */
 static inline void ring_fl_db(struct adapter *adapter, struct sge_fl *fl)
 {
+	u32 val;
+
 	/*
 	 * The SGE keeps track of its Producer and Consumer Indices in terms
 	 * of Egress Queue Units so we can only tell it about integral numbers
 	 * of multiples of Free List Entries per Egress Queue Units ...
 	 */
 	if (fl->pend_cred >= FL_PER_EQ_UNIT) {
+		val = PIDX(fl->pend_cred / FL_PER_EQ_UNIT);
+		if (!is_t4(adapter->chip))
+			val |= DBTYPE(1);
 		wmb();
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
 			     DBPRIO(1) |
-			     QID(fl->cntxt_id) |
-			     PIDX(fl->pend_cred / FL_PER_EQ_UNIT));
+			     QID(fl->cntxt_id) | val);
 		fl->pend_cred %= FL_PER_EQ_UNIT;
 	}
 }
