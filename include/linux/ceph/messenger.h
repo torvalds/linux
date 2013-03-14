@@ -104,13 +104,13 @@ struct ceph_msg_data {
 		};
 		struct ceph_pagelist	*pagelist;
 	};
-	struct ceph_msg_data_cursor	*cursor;
 };
 
 struct ceph_msg_data_cursor {
-	size_t		resid;		/* bytes not yet consumed */
-	bool		last_piece;	/* now at last piece of data item */
-	bool		need_crc;	/* new piece; crc update needed */
+	struct ceph_msg_data	*data;		/* data item this describes */
+	size_t			resid;		/* bytes not yet consumed */
+	bool			last_piece;	/* current is last piece */
+	bool			need_crc;	/* crc update needed */
 	union {
 #ifdef CONFIG_BLOCK
 		struct {				/* bio */
