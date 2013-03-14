@@ -465,14 +465,9 @@ static int alarm_resume(struct platform_device *pdev)
 
 static void alarm_shutdown(struct platform_device *pdev)
 {
-	struct rtc_wkalrm alarm;
-
 	pr_alarm(FLOW, "alarm_shutdown(%p)\n", pdev);
 
-	memset(&alarm, 0, sizeof(alarm));
-	rtc_time_to_tm(0, &alarm.time);
-	alarm.enabled = 0;
-	rtc_set_alarm(alarm_rtc_dev, &alarm);
+	rtc_alarm_irq_enable(alarm_rtc_dev, false);
 }
 
 static struct rtc_task alarm_rtc_task = {
