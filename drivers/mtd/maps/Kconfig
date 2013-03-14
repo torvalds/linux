@@ -311,13 +311,6 @@ config MTD_IMPA7
 	  This enables access to the NOR Flash on the impA7 board of
 	  implementa GmbH. If you have such a board, say 'Y' here.
 
-config MTD_H720X
-	tristate "Hynix evaluation board mappings"
-	depends on MTD_CFI && ( ARCH_H7201 || ARCH_H7202 )
-	help
-	  This enables access to the flash chips on the Hynix evaluation boards.
-	  If you have such a board, say 'Y'.
-
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
 	tristate "PCI MTD driver"
