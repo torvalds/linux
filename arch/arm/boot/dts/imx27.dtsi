@@ -60,9 +60,27 @@
 
 			wdog: wdog@10002000 {
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
-				reg = <0x10002000 0x4000>;
+				reg = <0x10002000 0x1000>;
 				interrupts = <27>;
 				clocks = <&clks 0>;
+			};
+
+			gpt1: timer@10003000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10003000 0x1000>;
+				interrupts = <26>;
+			};
+
+			gpt2: timer@10004000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10004000 0x1000>;
+				interrupts = <25>;
+			};
+
+			gpt3: timer@10005000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10005000 0x1000>;
+				interrupts = <24>;
 			};
 
 			uart1: serial@1000a000 {
@@ -204,6 +222,18 @@
 				status = "disabled";
 			};
 
+			gpt4: timer@10019000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10019000 0x1000>;
+				interrupts = <4>;
+			};
+
+			gpt5: timer@1001a000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x1001a000 0x1000>;
+				interrupts = <3>;
+			};
+
 			uart5: serial@1001b000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1001b000 0x1000>;
@@ -232,6 +262,11 @@
 				status = "disabled";
 			};
 
+			gpt6: timer@1001f000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x1001f000 0x1000>;
+				interrupts = <2>;
+			};
 		};
 
 		aipi@10020000 { /* AIPI2 */
