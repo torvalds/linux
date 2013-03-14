@@ -516,6 +516,7 @@ int disp_suspend(int clk, int status)
 
 	__inf("disp_suspend clk %d status %d call\n", clk, status);
 
+	if (clk != 1)
 	for (i = 0; i < 2; i++) {
 		suspend_output_type[i] = BSP_disp_get_output_type(i);
 		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
@@ -541,6 +542,7 @@ int disp_resume(int clk, int status)
 
 	BSP_disp_clk_on(clk);
 
+	if (clk != 1)
 	for (i = 0; i < 2; i++) {
 		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
 			DRV_lcd_open(i);
