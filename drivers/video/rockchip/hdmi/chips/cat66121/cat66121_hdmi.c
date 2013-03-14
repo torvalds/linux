@@ -177,6 +177,12 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 		rc = -ENXIO;
 		goto err_request_lcdc;
 	}
+	if(pdata->io_init){
+		if(pdata->io_init()<0){
+			dev_err(&client->dev, "fail to rst chip\n");
+			goto err_request_lcdc;
+		}
+	}
 	if(cat66121_detect_device()!=1){
 		dev_err(hdmi->dev, "can't find it6610 device \n");
 		rc = -ENXIO;
@@ -213,12 +219,7 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 	spin_lock_init(&hdmi->irq_lock);
 	mutex_init(&hdmi->enable_mutex);
 	
-	if(pdata->io_init){
-		if(pdata->io_init()<0){
-			dev_err(&client->dev, "fail to rst chip\n");
-			goto err_request_lcdc;
-		}
-	}
+
 	cat66121_hdmi_sys_init();
 #ifdef HDMI_USE_IRQ
 	if(client->irq != INVALID_GPIO) {
