@@ -114,15 +114,14 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 		limit = prtd->dma_limit;
 
 	if (DMA_INFIN_LOOP()) {
-		if(prtd->dma_period % prtd->params->dma_size*16){
-			WARN_ON(1);
+		if(prtd->dma_period % (prtd->params->dma_size*16)){
+			printk("dma_period(%d) is not an integer multiple of dma_size(%d)",prtd->dma_period,prtd->params->dma_size*16);
 			rk29_dma_config(prtd->params->channel,
 								prtd->params->dma_size, 1);
 		}							
 		else
 			rk29_dma_config(prtd->params->channel,
 							prtd->params->dma_size, 16);	
-
 		ret = rk29_dma_enqueue_ring(prtd->params->channel,
 				substream, pos, prtd->dma_period, limit ,true);
 		if (ret == 0) 
