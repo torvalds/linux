@@ -1006,6 +1006,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "n25q512a13", INFO(0x20ba20,  0, 64 * 1024,  1024, SECT_4K | E_FSR) },
 	{ "n25q512a11", INFO(0x20bb20,  0, 64 * 1024,  1024, SECT_4K | E_FSR) },
 	{ "n25q00aa13", INFO(0x20ba21,  0, 64 * 1024,  2048, SECT_4K | E_FSR) },
+	{ "n25q00",   INFO(0x20ba21, 0, 64 * 1024, 256, SECT_4K) },
 
 	/* Spansion -- single (large) sector size only, at least
 	 * for the chips listed here (without boot sectors).

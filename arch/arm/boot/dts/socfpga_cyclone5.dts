@@ -95,10 +95,10 @@
 				fifo-depth = <128>;
 				bus-num = <2>;
 
-				flash0: n25q128@0 {
+				flash0: n25q00@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "n25q128";
+					compatible = "n25q00";
 					reg = <0>;	/* chip select */
 					spi-max-frequency = <100000000>;
 					page-size = <256>;
@@ -141,6 +141,7 @@
 						reg = <0x0 0x1000000>;
 					};
 				};
+		};
 
 		i2c0: i2c@ffc04000 {
 			speed-mode = <0>;
