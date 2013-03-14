@@ -193,7 +193,7 @@ alarm_timer_callback(struct nouveau_alarm *alarm)
 					     NOUVEAU_THERM_THRS_SHUTDOWN);
 
 	/* schedule the next poll in one second */
-	if (list_empty(&alarm->head))
+	if (therm->temp_get(therm) >= 0 && list_empty(&alarm->head))
 		ptimer->alarm(ptimer, 1000 * 1000 * 1000, alarm);
 
 	spin_unlock_irqrestore(&priv->sensor.alarm_program_lock, flags);
