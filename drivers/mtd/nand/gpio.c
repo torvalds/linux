@@ -190,7 +190,6 @@ static struct resource *gpio_nand_get_io_sync_of(struct platform_device *pdev)
 	return r;
 }
 #else /* CONFIG_OF */
-#define gpio_nand_id_table NULL
 static inline int gpio_nand_get_config_of(const struct device *dev,
 					  struct gpio_nand_platdata *plat)
 {
@@ -418,7 +417,7 @@ static struct platform_driver gpio_nand_driver = {
 	.remove		= gpio_nand_remove,
 	.driver		= {
 		.name	= "gpio-nand",
-		.of_match_table = gpio_nand_id_table,
+		.of_match_table = of_match_ptr(gpio_nand_id_table),
 	},
 };
 
