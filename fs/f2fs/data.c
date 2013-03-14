@@ -683,7 +683,7 @@ static void f2fs_invalidate_data_page(struct page *page, unsigned long offset)
 static int f2fs_release_data_page(struct page *page, gfp_t wait)
 {
 	ClearPagePrivate(page);
-	return 0;
+	return 1;
 }
 
 static int f2fs_set_data_page_dirty(struct page *page)

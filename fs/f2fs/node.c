@@ -933,7 +933,6 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	if (!nid)
 		return ERR_PTR(-ENOENT);
 
-repeat:
 	page = grab_cache_page(mapping, nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
@@ -960,12 +959,6 @@ page_hit:
 	if (PageError(page)) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
-	}
-
-	/* Has the page been truncated? */
-	if (page->mapping != mapping) {
-		f2fs_put_page(page, 1);
-		goto repeat;
 	}
 	mark_page_accessed(page);
 	return page;
@@ -1189,7 +1182,7 @@ static void f2fs_invalidate_node_page(struct page *page, unsigned long offset)
 static int f2fs_release_node_page(struct page *page, gfp_t wait)
 {
 	ClearPagePrivate(page);
-	return 0;
+	return 1;
 }
 
 /*
@@ -1630,8 +1623,6 @@ flush_now:
 			write_lock(&nm_i->nat_tree_lock);
 			__del_from_nat_cache(nm_i, ne);
 			write_unlock(&nm_i->nat_tree_lock);
-
-			/* We can reuse this freed nid at this point */
 			add_free_nid(NM_I(sbi), nid);
 		} else {
 			write_lock(&nm_i->nat_tree_lock);
