@@ -46,7 +46,7 @@ static void rcar_du_vga_connector_destroy(struct drm_connector *connector)
 static enum drm_connector_status
 rcar_du_vga_connector_detect(struct drm_connector *connector, bool force)
 {
-	return connector_status_unknown;
+	return connector_status_connected;
 }
 
 static const struct drm_connector_funcs connector_funcs = {

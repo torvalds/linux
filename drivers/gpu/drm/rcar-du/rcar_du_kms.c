@@ -167,8 +167,16 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	return drm_fb_cma_create(dev, file_priv, mode_cmd);
 }
 
+static void rcar_du_output_poll_changed(struct drm_device *dev)
+{
+	struct rcar_du_device *rcdu = dev->dev_private;
+
+	drm_fbdev_cma_hotplug_event(rcdu->fbdev);
+}
+
 static const struct drm_mode_config_funcs rcar_du_mode_config_funcs = {
 	.fb_create = rcar_du_fb_create,
+	.output_poll_changed = rcar_du_output_poll_changed,
 };
 
 int rcar_du_modeset_init(struct rcar_du_device *rcdu)
@@ -179,17 +187,18 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	struct drm_device *dev = rcdu->ddev;
 	struct drm_encoder *encoder;
+	struct drm_fbdev_cma *fbdev;
 	unsigned int num_groups;
 	unsigned int i;
 	int ret;
 
-	drm_mode_config_init(rcdu->ddev);
+	drm_mode_config_init(dev);
 
-	rcdu->ddev->mode_config.min_width = 0;
-	rcdu->ddev->mode_config.min_height = 0;
-	rcdu->ddev->mode_config.max_width = 4095;
-	rcdu->ddev->mode_config.max_height = 2047;
-	rcdu->ddev->mode_config.funcs = &rcar_du_mode_config_funcs;
+	dev->mode_config.min_width = 0;
+	dev->mode_config.min_height = 0;
+	dev->mode_config.max_width = 4095;
+	dev->mode_config.max_height = 2047;
+	dev->mode_config.funcs = &rcar_du_mode_config_funcs;
 
 	rcdu->num_crtcs = rcdu->info->num_crtcs;
 
@@ -262,9 +271,20 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 			return ret;
 	}
 
-	drm_kms_helper_poll_init(rcdu->ddev);
+	drm_kms_helper_poll_init(dev);
 
-	drm_helper_disable_unused_functions(rcdu->ddev);
+	drm_helper_disable_unused_functions(dev);
+
+	fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
+				   dev->mode_config.num_connector);
+	if (IS_ERR(fbdev))
+		return PTR_ERR(fbdev);
+
+#ifndef CONFIG_FRAMEBUFFER_CONSOLE
+	drm_fbdev_cma_restore_mode(fbdev);
+#endif
+
+	rcdu->fbdev = fbdev;
 
 	return 0;
 }
