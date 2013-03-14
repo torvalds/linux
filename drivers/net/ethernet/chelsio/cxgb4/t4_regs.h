@@ -68,9 +68,14 @@
 #define  QID_SHIFT   15
 #define  QID(x)      ((x) << QID_SHIFT)
 #define  DBPRIO(x)   ((x) << 14)
+#define  DBTYPE(x)   ((x) << 13)
 #define  PIDX_MASK   0x00003fffU
 #define  PIDX_SHIFT  0
 #define  PIDX(x)     ((x) << PIDX_SHIFT)
+#define  S_PIDX_T5   0
+#define  M_PIDX_T5   0x1fffU
+#define  PIDX_T5(x)  (((x) >> S_PIDX_T5) & M_PIDX_T5)
+
 
 #define SGE_PF_GTS 0x4
 #define  INGRESSQID_MASK   0xffff0000U
@@ -151,6 +156,8 @@
 #define SGE_EGRESS_QUEUES_PER_PAGE_PF 0x1010
 #define  QUEUESPERPAGEPF0_MASK   0x0000000fU
 #define  QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
+
+#define QUEUESPERPAGEPF1    4
 
 #define SGE_INT_CAUSE1 0x1024
 #define SGE_INT_CAUSE2 0x1030
@@ -272,16 +279,35 @@
 #define S_HP_INT_THRESH    28
 #define M_HP_INT_THRESH 0xfU
 #define V_HP_INT_THRESH(x) ((x) << S_HP_INT_THRESH)
+#define S_LP_INT_THRESH_T5    18
+#define V_LP_INT_THRESH_T5(x) ((x) << S_LP_INT_THRESH_T5)
+#define M_LP_COUNT_T5    0x3ffffU
+#define G_LP_COUNT_T5(x) (((x) >> S_LP_COUNT) & M_LP_COUNT_T5)
 #define M_HP_COUNT 0x7ffU
 #define S_HP_COUNT 16
 #define G_HP_COUNT(x) (((x) >> S_HP_COUNT) & M_HP_COUNT)
 #define S_LP_INT_THRESH    12
 #define M_LP_INT_THRESH 0xfU
+#define M_LP_INT_THRESH_T5    0xfffU
 #define V_LP_INT_THRESH(x) ((x) << S_LP_INT_THRESH)
 #define M_LP_COUNT 0x7ffU
 #define S_LP_COUNT 0
 #define G_LP_COUNT(x) (((x) >> S_LP_COUNT) & M_LP_COUNT)
 #define A_SGE_DBFIFO_STATUS 0x10a4
+
+#define SGE_STAT_TOTAL 0x10e4
+#define SGE_STAT_MATCH 0x10e8
+
+#define SGE_STAT_CFG   0x10ec
+#define S_STATSOURCE_T5    9
+#define STATSOURCE_T5(x) ((x) << S_STATSOURCE_T5)
+
+#define SGE_DBFIFO_STATUS2 0x1118
+#define M_HP_COUNT_T5    0x3ffU
+#define G_HP_COUNT_T5(x) ((x)  & M_HP_COUNT_T5)
+#define S_HP_INT_THRESH_T5    10
+#define M_HP_INT_THRESH_T5    0xfU
+#define V_HP_INT_THRESH_T5(x) ((x) << S_HP_INT_THRESH_T5)
 
 #define S_ENABLE_DROP    13
 #define V_ENABLE_DROP(x) ((x) << S_ENABLE_DROP)
@@ -331,8 +357,27 @@
 #define  MSIADDRHPERR  0x00000002U
 #define  MSIADDRLPERR  0x00000001U
 
+#define  READRSPERR      0x20000000U
+#define  TRGT1GRPPERR    0x10000000U
+#define  IPSOTPERR       0x08000000U
+#define  IPRXDATAGRPPERR 0x02000000U
+#define  IPRXHDRGRPPERR  0x01000000U
+#define  MAGRPPERR       0x00400000U
+#define  VFIDPERR        0x00200000U
+#define  HREQWRPERR      0x00010000U
+#define  DREQWRPERR      0x00002000U
+#define  MSTTAGQPERR     0x00000400U
+#define  PIOREQGRPPERR   0x00000100U
+#define  PIOCPLGRPPERR   0x00000080U
+#define  MSIXSTIPERR     0x00000004U
+#define  MSTTIMEOUTPERR  0x00000002U
+#define  MSTGRPPERR      0x00000001U
+
 #define PCIE_NONFAT_ERR 0x3010
 #define PCIE_MEM_ACCESS_BASE_WIN 0x3068
+#define S_PCIEOFST       10
+#define M_PCIEOFST       0x3fffffU
+#define GET_PCIEOFST(x)  (((x) >> S_PCIEOFST) & M_PCIEOFST)
 #define  PCIEOFST_MASK   0xfffffc00U
 #define  BIR_MASK        0x00000300U
 #define  BIR_SHIFT       8
@@ -341,6 +386,9 @@
 #define  WINDOW_SHIFT    0
 #define  WINDOW(x)       ((x) << WINDOW_SHIFT)
 #define PCIE_MEM_ACCESS_OFFSET 0x306c
+
+#define S_PFNUM    0
+#define V_PFNUM(x) ((x) << S_PFNUM)
 
 #define PCIE_FW 0x30b8
 #define  PCIE_FW_ERR		0x80000000U
@@ -407,12 +455,18 @@
 
 #define MC_BIST_STATUS_RDATA 0x7688
 
+#define MA_EDRAM0_BAR 0x77c0
+#define MA_EDRAM1_BAR 0x77c4
+#define EDRAM_SIZE_MASK   0xfffU
+#define EDRAM_SIZE_GET(x) ((x) & EDRAM_SIZE_MASK)
+
 #define MA_EXT_MEMORY_BAR 0x77c8
 #define  EXT_MEM_SIZE_MASK   0x00000fffU
 #define  EXT_MEM_SIZE_SHIFT  0
 #define  EXT_MEM_SIZE_GET(x) (((x) & EXT_MEM_SIZE_MASK) >> EXT_MEM_SIZE_SHIFT)
 
 #define MA_TARGET_MEM_ENABLE 0x77d8
+#define  EXT_MEM1_ENABLE 0x00000010U
 #define  EXT_MEM_ENABLE 0x00000004U
 #define  EDRAM1_ENABLE  0x00000002U
 #define  EDRAM0_ENABLE  0x00000001U
@@ -431,6 +485,7 @@
 #define MA_PCIE_FW 0x30b8
 #define MA_PARITY_ERROR_STATUS 0x77f4
 
+#define MA_EXT_MEMORY1_BAR 0x7808
 #define EDC_0_BASE_ADDR 0x7900
 
 #define EDC_BIST_CMD 0x7904
@@ -801,6 +856,15 @@
 #define MPS_PORT_STAT_RX_PORT_PPP7_H 0x60c
 #define MPS_PORT_STAT_RX_PORT_LESS_64B_L 0x610
 #define MPS_PORT_STAT_RX_PORT_LESS_64B_H 0x614
+#define MAC_PORT_CFG2 0x818
+#define MAC_PORT_MAGIC_MACID_LO 0x824
+#define MAC_PORT_MAGIC_MACID_HI 0x828
+#define MAC_PORT_EPIO_DATA0 0x8c0
+#define MAC_PORT_EPIO_DATA1 0x8c4
+#define MAC_PORT_EPIO_DATA2 0x8c8
+#define MAC_PORT_EPIO_DATA3 0x8cc
+#define MAC_PORT_EPIO_OP 0x8d0
+
 #define MPS_CMN_CTL 0x9000
 #define  NUMPORTS_MASK   0x00000003U
 #define  NUMPORTS_SHIFT  0
@@ -1063,6 +1127,7 @@
 #define  ADDRESS_SHIFT  0
 #define  ADDRESS(x)     ((x) << ADDRESS_SHIFT)
 
+#define MAC_PORT_INT_CAUSE 0x8dc
 #define XGMAC_PORT_INT_CAUSE 0x10dc
 
 #define A_TP_TX_MOD_QUEUE_REQ_MAP 0x7e28
@@ -1100,5 +1165,34 @@
 #define S_PORT    1
 #define V_PORT(x) ((x) << S_PORT)
 #define F_PORT    V_PORT(1U)
+
+#define NUM_MPS_CLS_SRAM_L_INSTANCES 336
+#define NUM_MPS_T5_CLS_SRAM_L_INSTANCES 512
+
+#define T5_PORT0_BASE 0x30000
+#define T5_PORT_STRIDE 0x4000
+#define T5_PORT_BASE(idx) (T5_PORT0_BASE + (idx) * T5_PORT_STRIDE)
+#define T5_PORT_REG(idx, reg) (T5_PORT_BASE(idx) + (reg))
+
+#define MC_0_BASE_ADDR 0x40000
+#define MC_1_BASE_ADDR 0x48000
+#define MC_STRIDE (MC_1_BASE_ADDR - MC_0_BASE_ADDR)
+#define MC_REG(reg, idx) (reg + MC_STRIDE * idx)
+
+#define MC_P_BIST_CMD 0x41400
+#define MC_P_BIST_CMD_ADDR 0x41404
+#define MC_P_BIST_CMD_LEN 0x41408
+#define MC_P_BIST_DATA_PATTERN 0x4140c
+#define MC_P_BIST_STATUS_RDATA 0x41488
+#define EDC_T50_BASE_ADDR 0x50000
+#define EDC_H_BIST_CMD 0x50004
+#define EDC_H_BIST_CMD_ADDR 0x50008
+#define EDC_H_BIST_CMD_LEN 0x5000c
+#define EDC_H_BIST_DATA_PATTERN 0x50010
+#define EDC_H_BIST_STATUS_RDATA 0x50028
+
+#define EDC_T51_BASE_ADDR 0x50800
+#define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
+#define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
 
 #endif /* __T4_REGS_H */
