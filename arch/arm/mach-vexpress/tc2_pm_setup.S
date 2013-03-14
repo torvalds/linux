@@ -16,6 +16,7 @@
 
 
 #define SPC_PHYS_BASE		0x7FFF0000
+#define SPC_WAKE_INT_STAT	0xb2c
 
 #define SNOOP_CTL_A15		0x404
 #define SNOOP_CTL_A7		0x504
@@ -41,6 +42,19 @@
 #define CCI_A15_OFFSET		CCI_SLAVE_OFFSET(CCI_SLAVE_A15)
 #define CCI_A7_OFFSET		CCI_SLAVE_OFFSET(CCI_SLAVE_A7)
 
+
+ENTRY(tc2_resume)
+	mrc	p15, 0, r0, c0, c0, 5
+	ubfx	r1, r0, #0, #4		@ r1 = cpu
+	ubfx	r2, r0, #8, #4		@ r2 = cluster
+	add	r1, r1, r2, lsl #2	@ r1 = index of CPU in WAKE_INT_STAT
+	ldr	r3, =SPC_PHYS_BASE + SPC_WAKE_INT_STAT
+	ldr	r3, [r3]
+	lsr	r3, r1
+	tst	r3, #1
+	wfieq				@ if no pending IRQ reenters wfi
+	b	mcpm_entry_point
+ENDPROC(tc2_resume)
 
 /*
  * Enable cluster-level coherency, in preparation for turning on the MMU.

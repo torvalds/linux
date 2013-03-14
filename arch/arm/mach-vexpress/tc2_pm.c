@@ -172,13 +172,15 @@ static void tc2_pm_power_down(void)
 
 static void tc2_pm_suspend(u64 residency)
 {
+	extern void tc2_resume(void);
 	unsigned int mpidr, cpu, cluster;
 
 	mpidr = read_cpuid_mpidr();
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	vexpress_spc_write_bxaddr_reg(cluster, cpu,
-				      virt_to_phys(mcpm_entry_point));
+				      virt_to_phys(tc2_resume));
+
 	tc2_pm_down(residency);
 }
 
