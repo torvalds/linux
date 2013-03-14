@@ -1787,6 +1787,37 @@ static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 	return false;
 }
 
+static bool semaphore_passed(struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 acthd = intel_ring_get_active_head(ring) & HEAD_ADDR;
+	struct intel_ring_buffer *signaller;
+	u32 cmd, ipehr, acthd_min;
+
+	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
+	if ((ipehr & ~(0x3 << 16)) !=
+	    (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE | MI_SEMAPHORE_REGISTER))
+		return false;
+
+	/* ACTHD is likely pointing to the dword after the actual command,
+	 * so scan backwards until we find the MBOX.
+	 */
+	acthd_min = max((int)acthd - 3 * 4, 0);
+	do {
+		cmd = ioread32(ring->virtual_start + acthd);
+		if (cmd == ipehr)
+			break;
+
+		acthd -= 4;
+		if (acthd < acthd_min)
+			return false;
+	} while (1);
+
+	signaller = &dev_priv->ring[(ring->id + (((ipehr >> 17) & 1) + 1)) % 3];
+	return i915_seqno_passed(signaller->get_seqno(signaller, false),
+				 ioread32(ring->virtual_start+acthd+4)+1);
+}
+
 static bool kick_ring(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -1794,6 +1825,15 @@ static bool kick_ring(struct intel_ring_buffer *ring)
 	u32 tmp = I915_READ_CTL(ring);
 	if (tmp & RING_WAIT) {
 		DRM_ERROR("Kicking stuck wait on %s\n",
+			  ring->name);
+		I915_WRITE_CTL(ring, tmp);
+		return true;
+	}
+
+	if (INTEL_INFO(dev)->gen >= 6 &&
+	    tmp & RING_WAIT_SEMAPHORE &&
+	    semaphore_passed(ring)) {
+		DRM_ERROR("Kicking stuck semaphore on %s\n",
 			  ring->name);
 		I915_WRITE_CTL(ring, tmp);
 		return true;
