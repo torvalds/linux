@@ -154,8 +154,9 @@
 /* OTG Registers */
 #define DWC3_OCFG		0xcc00
 #define DWC3_OCTL		0xcc04
-#define DWC3_OEVTEN		0xcc08
-#define DWC3_OSTS		0xcc0C
+#define DWC3_OEVT		0xcc08
+#define DWC3_OEVTEN		0xcc0C
+#define DWC3_OSTS		0xcc10
 
 /* Bit fields */
 
