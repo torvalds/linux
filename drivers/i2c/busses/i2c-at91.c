@@ -603,8 +603,6 @@ static const struct of_device_id atmel_twi_dt_ids[] = {
 	}
 };
 MODULE_DEVICE_TABLE(of, atmel_twi_dt_ids);
-#else
-#define atmel_twi_dt_ids NULL
 #endif
 
 static bool filter(struct dma_chan *chan, void *slave)
@@ -828,7 +826,7 @@ static struct platform_driver at91_twi_driver = {
 	.driver		= {
 		.name	= "at91_i2c",
 		.owner	= THIS_MODULE,
-		.of_match_table = atmel_twi_dt_ids,
+		.of_match_table = of_match_ptr(atmel_twi_dt_ids),
 		.pm	= at91_twi_pm_ops,
 	},
 };
