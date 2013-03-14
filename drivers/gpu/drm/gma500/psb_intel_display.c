@@ -50,8 +50,6 @@ struct psb_intel_p2_t {
 	int p2_slow, p2_fast;
 };
 
-#define INTEL_P2_NUM		      2
-
 struct psb_intel_limit_t {
 	struct psb_intel_range_t dot, vco, n, m, m1, m2, p, p1;
 	struct psb_intel_p2_t p2;
