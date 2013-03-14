@@ -675,6 +675,7 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select SOC_BUS
 	select SPARSE_IRQ
 	select USE_OF
 	help
