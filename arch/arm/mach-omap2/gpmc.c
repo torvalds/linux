@@ -1495,6 +1495,7 @@ static int gpmc_probe_nor_child(struct platform_device *pdev,
 		return 0;
 
 	dev_err(&pdev->dev, "failed to create gpmc child %s\n", child->name);
+	ret = -ENODEV;
 
 err:
 	gpmc_cs_free(cs);
