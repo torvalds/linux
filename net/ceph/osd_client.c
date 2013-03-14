@@ -220,6 +220,75 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 }
 EXPORT_SYMBOL(ceph_osdc_alloc_request);
 
+static bool osd_req_opcode_valid(u16 opcode)
+{
+	switch (opcode) {
+	case CEPH_OSD_OP_READ:
+	case CEPH_OSD_OP_STAT:
+	case CEPH_OSD_OP_MAPEXT:
+	case CEPH_OSD_OP_MASKTRUNC:
+	case CEPH_OSD_OP_SPARSE_READ:
+	case CEPH_OSD_OP_NOTIFY:
+	case CEPH_OSD_OP_NOTIFY_ACK:
+	case CEPH_OSD_OP_ASSERT_VER:
+	case CEPH_OSD_OP_WRITE:
+	case CEPH_OSD_OP_WRITEFULL:
+	case CEPH_OSD_OP_TRUNCATE:
+	case CEPH_OSD_OP_ZERO:
+	case CEPH_OSD_OP_DELETE:
+	case CEPH_OSD_OP_APPEND:
+	case CEPH_OSD_OP_STARTSYNC:
+	case CEPH_OSD_OP_SETTRUNC:
+	case CEPH_OSD_OP_TRIMTRUNC:
+	case CEPH_OSD_OP_TMAPUP:
+	case CEPH_OSD_OP_TMAPPUT:
+	case CEPH_OSD_OP_TMAPGET:
+	case CEPH_OSD_OP_CREATE:
+	case CEPH_OSD_OP_ROLLBACK:
+	case CEPH_OSD_OP_WATCH:
+	case CEPH_OSD_OP_OMAPGETKEYS:
+	case CEPH_OSD_OP_OMAPGETVALS:
+	case CEPH_OSD_OP_OMAPGETHEADER:
+	case CEPH_OSD_OP_OMAPGETVALSBYKEYS:
+	case CEPH_OSD_OP_OMAPSETVALS:
+	case CEPH_OSD_OP_OMAPSETHEADER:
+	case CEPH_OSD_OP_OMAPCLEAR:
+	case CEPH_OSD_OP_OMAPRMKEYS:
+	case CEPH_OSD_OP_OMAP_CMP:
+	case CEPH_OSD_OP_CLONERANGE:
+	case CEPH_OSD_OP_ASSERT_SRC_VERSION:
+	case CEPH_OSD_OP_SRC_CMPXATTR:
+	case CEPH_OSD_OP_GETXATTR:
+	case CEPH_OSD_OP_GETXATTRS:
+	case CEPH_OSD_OP_CMPXATTR:
+	case CEPH_OSD_OP_SETXATTR:
+	case CEPH_OSD_OP_SETXATTRS:
+	case CEPH_OSD_OP_RESETXATTRS:
+	case CEPH_OSD_OP_RMXATTR:
+	case CEPH_OSD_OP_PULL:
+	case CEPH_OSD_OP_PUSH:
+	case CEPH_OSD_OP_BALANCEREADS:
+	case CEPH_OSD_OP_UNBALANCEREADS:
+	case CEPH_OSD_OP_SCRUB:
+	case CEPH_OSD_OP_SCRUB_RESERVE:
+	case CEPH_OSD_OP_SCRUB_UNRESERVE:
+	case CEPH_OSD_OP_SCRUB_STOP:
+	case CEPH_OSD_OP_SCRUB_MAP:
+	case CEPH_OSD_OP_WRLOCK:
+	case CEPH_OSD_OP_WRUNLOCK:
+	case CEPH_OSD_OP_RDLOCK:
+	case CEPH_OSD_OP_RDUNLOCK:
+	case CEPH_OSD_OP_UPLOCK:
+	case CEPH_OSD_OP_DNLOCK:
+	case CEPH_OSD_OP_CALL:
+	case CEPH_OSD_OP_PGLS:
+	case CEPH_OSD_OP_PGLS_FILTER:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			      struct ceph_osd_op *dst,
 			      struct ceph_osd_req_op *src)
@@ -227,7 +296,11 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 	u64 out_data_len = 0;
 	struct ceph_pagelist *pagelist;
 
-	dst->op = cpu_to_le16(src->op);
+	if (WARN_ON(!osd_req_opcode_valid(src->op))) {
+		pr_err("unrecognized osd opcode %d\n", src->op);
+
+		return 0;
+	}
 
 	switch (src->op) {
 	case CEPH_OSD_OP_STAT:
@@ -271,68 +344,13 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 		dst->watch.flag = src->watch.flag;
 		break;
 	default:
-		pr_err("unrecognized osd opcode %d\n", src->op);
-		WARN_ON(1);
-		break;
-	case CEPH_OSD_OP_MAPEXT:
-	case CEPH_OSD_OP_MASKTRUNC:
-	case CEPH_OSD_OP_SPARSE_READ:
-	case CEPH_OSD_OP_NOTIFY:
-	case CEPH_OSD_OP_ASSERT_VER:
-	case CEPH_OSD_OP_WRITEFULL:
-	case CEPH_OSD_OP_TRUNCATE:
-	case CEPH_OSD_OP_ZERO:
-	case CEPH_OSD_OP_DELETE:
-	case CEPH_OSD_OP_APPEND:
-	case CEPH_OSD_OP_SETTRUNC:
-	case CEPH_OSD_OP_TRIMTRUNC:
-	case CEPH_OSD_OP_TMAPUP:
-	case CEPH_OSD_OP_TMAPPUT:
-	case CEPH_OSD_OP_TMAPGET:
-	case CEPH_OSD_OP_CREATE:
-	case CEPH_OSD_OP_ROLLBACK:
-	case CEPH_OSD_OP_OMAPGETKEYS:
-	case CEPH_OSD_OP_OMAPGETVALS:
-	case CEPH_OSD_OP_OMAPGETHEADER:
-	case CEPH_OSD_OP_OMAPGETVALSBYKEYS:
-	case CEPH_OSD_OP_MODE_RD:
-	case CEPH_OSD_OP_OMAPSETVALS:
-	case CEPH_OSD_OP_OMAPSETHEADER:
-	case CEPH_OSD_OP_OMAPCLEAR:
-	case CEPH_OSD_OP_OMAPRMKEYS:
-	case CEPH_OSD_OP_OMAP_CMP:
-	case CEPH_OSD_OP_CLONERANGE:
-	case CEPH_OSD_OP_ASSERT_SRC_VERSION:
-	case CEPH_OSD_OP_SRC_CMPXATTR:
-	case CEPH_OSD_OP_GETXATTR:
-	case CEPH_OSD_OP_GETXATTRS:
-	case CEPH_OSD_OP_CMPXATTR:
-	case CEPH_OSD_OP_SETXATTR:
-	case CEPH_OSD_OP_SETXATTRS:
-	case CEPH_OSD_OP_RESETXATTRS:
-	case CEPH_OSD_OP_RMXATTR:
-	case CEPH_OSD_OP_PULL:
-	case CEPH_OSD_OP_PUSH:
-	case CEPH_OSD_OP_BALANCEREADS:
-	case CEPH_OSD_OP_UNBALANCEREADS:
-	case CEPH_OSD_OP_SCRUB:
-	case CEPH_OSD_OP_SCRUB_RESERVE:
-	case CEPH_OSD_OP_SCRUB_UNRESERVE:
-	case CEPH_OSD_OP_SCRUB_STOP:
-	case CEPH_OSD_OP_SCRUB_MAP:
-	case CEPH_OSD_OP_WRLOCK:
-	case CEPH_OSD_OP_WRUNLOCK:
-	case CEPH_OSD_OP_RDLOCK:
-	case CEPH_OSD_OP_RDUNLOCK:
-	case CEPH_OSD_OP_UPLOCK:
-	case CEPH_OSD_OP_DNLOCK:
-	case CEPH_OSD_OP_PGLS:
-	case CEPH_OSD_OP_PGLS_FILTER:
 		pr_err("unsupported osd opcode %s\n",
 			ceph_osd_op_name(src->op));
 		WARN_ON(1);
-		break;
+
+		return 0;
 	}
+	dst->op = cpu_to_le16(src->op);
 	dst->payload_len = cpu_to_le32(src->payload_len);
 
 	return out_data_len;
