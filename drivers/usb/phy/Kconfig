@@ -86,11 +86,18 @@ config OMAP_USB3
 	  on/off the PHY.
 
 config SAMSUNG_USBPHY
-	bool "Samsung USB PHY controller Driver"
-	depends on USB_S3C_HSOTG || USB_EHCI_S5P || USB_OHCI_EXYNOS
+	tristate "Samsung USB PHY Driver"
 	help
-	  Enable this to support Samsung USB phy controller for samsung
-	  SoCs.
+	  Enable this to support Samsung USB phy helper driver for Samsung SoCs.
+	  This driver provides common interface to interact, for Samsung USB 2.0 PHY
+	  driver and later for Samsung USB 3.0 PHY driver.
+
+config SAMSUNG_USB2PHY
+	tristate "Samsung USB 2.0 PHY controller Driver"
+	select SAMSUNG_USBPHY
+	help
+	  Enable this to support Samsung USB 2.0 (High Speed) PHY controller
+	  driver for Samsung SoCs.
 
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
