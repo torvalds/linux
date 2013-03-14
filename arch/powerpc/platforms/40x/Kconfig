@@ -119,9 +119,6 @@ config 405EZ
 	select IBM_EMAC_MAL_CLR_ICINTSTAT
 	select IBM_EMAC_MAL_COMMON_ERR
 
-config 405GPR
-	bool
-
 config XILINX_VIRTEX
 	bool
 	select DEFAULT_UIMAGE
