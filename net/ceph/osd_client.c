@@ -512,9 +512,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	msg->front.iov_len = msg_size;
 	msg->hdr.front_len = cpu_to_le32(msg_size);
 
-	dout("build_request msg_size was %d num_ops %d\n", (int)msg_size,
-	     num_ops);
-	return;
+	dout("build_request msg_size was %d\n", (int)msg_size);
 }
 EXPORT_SYMBOL(ceph_osdc_build_request);
 
@@ -532,18 +530,15 @@ EXPORT_SYMBOL(ceph_osdc_build_request);
 struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       struct ceph_file_layout *layout,
 					       struct ceph_vino vino,
-					       u64 off, u64 *plen,
+					       u64 off, u64 *plen, int num_ops,
+					       struct ceph_osd_req_op *ops,
 					       int opcode, int flags,
 					       struct ceph_snap_context *snapc,
-					       int do_sync,
 					       u32 truncate_seq,
 					       u64 truncate_size,
-					       struct timespec *mtime,
 					       bool use_mempool)
 {
-	struct ceph_osd_req_op ops[2];
 	struct ceph_osd_request *req;
-	unsigned int num_op = do_sync ? 2 : 1;
 	u64 objnum = 0;
 	u64 objoff = 0;
 	u64 objlen = 0;
@@ -553,7 +548,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	BUG_ON(opcode != CEPH_OSD_OP_READ && opcode != CEPH_OSD_OP_WRITE);
 
-	req = ceph_osdc_alloc_request(osdc, snapc, num_op, use_mempool,
+	req = ceph_osdc_alloc_request(osdc, snapc, num_ops, use_mempool,
 					GFP_NOFS);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
@@ -578,7 +573,12 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	osd_req_op_extent_init(&ops[0], opcode, objoff, objlen,
 				truncate_size, truncate_seq);
-	if (do_sync)
+	/*
+	 * A second op in the ops array means the caller wants to
+	 * also issue a include a 'startsync' command so that the
+	 * osd will flush data quickly.
+	 */
+	if (num_ops > 1)
 		osd_req_op_init(&ops[1], CEPH_OSD_OP_STARTSYNC);
 
 	req->r_file_layout = *layout;  /* keep a copy */
@@ -586,9 +586,6 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx",
 		vino.ino, objnum);
 	req->r_oid_len = strlen(req->r_oid);
-
-	ceph_osdc_build_request(req, off, num_op, ops,
-				snapc, vino.snap, mtime);
 
 	return req;
 }
@@ -2047,16 +2044,19 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 {
 	struct ceph_osd_request *req;
 	struct ceph_osd_data *osd_data;
+	struct ceph_osd_req_op op;
 	int rc = 0;
 
 	dout("readpages on ino %llx.%llx on %llu~%llu\n", vino.ino,
 	     vino.snap, off, *plen);
-	req = ceph_osdc_new_request(osdc, layout, vino, off, plen,
+	req = ceph_osdc_new_request(osdc, layout, vino, off, plen, 1, &op,
 				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
-				    NULL, 0, truncate_seq, truncate_size, NULL,
+				    NULL, truncate_seq, truncate_size,
 				    false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+
+	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
 
 	/* it may be a short read due to an object boundary */
 
@@ -2092,18 +2092,20 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 {
 	struct ceph_osd_request *req;
 	struct ceph_osd_data *osd_data;
+	struct ceph_osd_req_op op;
 	int rc = 0;
 	int page_align = off & ~PAGE_MASK;
 
-	BUG_ON(vino.snap != CEPH_NOSNAP);
-	req = ceph_osdc_new_request(osdc, layout, vino, off, &len,
+	BUG_ON(vino.snap != CEPH_NOSNAP);	/* snapshots aren't writeable */
+	req = ceph_osdc_new_request(osdc, layout, vino, off, &len, 1, &op,
 				    CEPH_OSD_OP_WRITE,
 				    CEPH_OSD_FLAG_ONDISK | CEPH_OSD_FLAG_WRITE,
-				    snapc, 0,
-				    truncate_seq, truncate_size, mtime,
+				    snapc, truncate_seq, truncate_size,
 				    true);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+
+	ceph_osdc_build_request(req, off, 1, &op, snapc, CEPH_NOSNAP, mtime);
 
 	/* it may be a short write due to an object boundary */
 	osd_data = &req->r_data_out;

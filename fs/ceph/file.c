@@ -475,14 +475,17 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_snap_context *snapc;
+	struct ceph_vino vino;
 	struct ceph_osd_request *req;
+	struct ceph_osd_req_op ops[2];
+	int num_ops = 1;
 	struct page **pages;
 	int num_pages;
 	long long unsigned pos;
 	u64 len;
 	int written = 0;
 	int flags;
-	int do_sync = 0;
 	int check_caps = 0;
 	int page_align, io_align;
 	unsigned long buf_align;
@@ -516,7 +519,7 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	if ((file->f_flags & (O_SYNC|O_DIRECT)) == 0)
 		flags |= CEPH_OSD_FLAG_ACK;
 	else
-		do_sync = 1;
+		num_ops++;	/* Also include a 'startsync' command. */
 
 	/*
 	 * we may need to do multiple writes here if we span an object
@@ -527,15 +530,18 @@ more:
 	buf_align = (unsigned long)data & ~PAGE_MASK;
 	len = left;
 
+	snapc = ci->i_snap_realm->cached_context;
+	vino = ceph_vino(inode);
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-				    ceph_vino(inode), pos, &len,
-				    CEPH_OSD_OP_WRITE, flags,
-				    ci->i_snap_realm->cached_context,
-				    do_sync,
+				    vino, pos, &len, num_ops, ops,
+				    CEPH_OSD_OP_WRITE, flags, snapc,
 				    ci->i_truncate_seq, ci->i_truncate_size,
-				    &mtime, false);
+				    false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+
+	ceph_osdc_build_request(req, pos, num_ops, ops,
+				snapc, vino.snap, &mtime);
 
 	/* write from beginning of first page, regardless of io alignment */
 	page_align = file->f_flags & O_DIRECT ? buf_align : io_align;

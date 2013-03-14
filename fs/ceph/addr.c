@@ -284,7 +284,9 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 		&ceph_inode_to_client(inode)->client->osdc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct page *page = list_entry(page_list->prev, struct page, lru);
+	struct ceph_vino vino;
 	struct ceph_osd_request *req;
+	struct ceph_osd_req_op op;
 	u64 off;
 	u64 len;
 	int i;
@@ -308,15 +310,16 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	len = nr_pages << PAGE_CACHE_SHIFT;
 	dout("start_read %p nr_pages %d is %lld~%lld\n", inode, nr_pages,
 	     off, len);
-
-	req = ceph_osdc_new_request(osdc, &ci->i_layout, ceph_vino(inode),
-				    off, &len,
-				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
-				    NULL, 0,
+	vino = ceph_vino(inode);
+	req = ceph_osdc_new_request(osdc, &ci->i_layout, vino, off, &len,
+				    1, &op, CEPH_OSD_OP_READ,
+				    CEPH_OSD_FLAG_READ, NULL,
 				    ci->i_truncate_seq, ci->i_truncate_size,
-				    NULL, false);
+				    false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+
+	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
 
 	/* build page vector */
 	nr_pages = calc_pages_for(0, len);
@@ -736,6 +739,7 @@ retry:
 	last_snapc = snapc;
 
 	while (!done && index <= end) {
+		struct ceph_osd_req_op ops[2];
 		unsigned i;
 		int first;
 		pgoff_t next;
@@ -825,26 +829,32 @@ get_more_pages:
 
 			/* ok */
 			if (locked_pages == 0) {
+				struct ceph_vino vino;
+				int num_ops = do_sync ? 2 : 1;
+
 				/* prepare async write request */
 				offset = (u64) page_offset(page);
 				len = wsize;
+				vino = ceph_vino(inode);
+				/* BUG_ON(vino.snap != CEPH_NOSNAP); */
 				req = ceph_osdc_new_request(&fsc->client->osdc,
-					    &ci->i_layout,
-					    ceph_vino(inode),
-					    offset, &len,
+					    &ci->i_layout, vino, offset, &len,
+					    num_ops, ops,
 					    CEPH_OSD_OP_WRITE,
 					    CEPH_OSD_FLAG_WRITE |
 						    CEPH_OSD_FLAG_ONDISK,
-					    snapc, do_sync,
-					    ci->i_truncate_seq,
-					    ci->i_truncate_size,
-					    &inode->i_mtime, true);
+					    snapc, ci->i_truncate_seq,
+					    ci->i_truncate_size, true);
 
 				if (IS_ERR(req)) {
 					rc = PTR_ERR(req);
 					unlock_page(page);
 					break;
 				}
+
+				ceph_osdc_build_request(req, offset,
+					num_ops, ops, snapc, vino.snap,
+					&inode->i_mtime);
 
 				req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGES;
 				req->r_data_out.length = len;
