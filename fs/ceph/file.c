@@ -540,9 +540,6 @@ more:
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	ceph_osdc_build_request(req, pos, num_ops, ops,
-				snapc, vino.snap, &mtime);
-
 	/* write from beginning of first page, regardless of io alignment */
 	page_align = file->f_flags & O_DIRECT ? buf_align : io_align;
 	num_pages = calc_pages_for(page_align, len);
@@ -582,6 +579,10 @@ more:
 	req->r_data_out.length = len;
 	req->r_data_out.alignment = page_align;
 	req->r_inode = inode;
+
+	/* BUG_ON(vino.snap != CEPH_NOSNAP); */
+	ceph_osdc_build_request(req, pos, num_ops, ops,
+				snapc, vino.snap, &mtime);
 
 	ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);
 	if (!ret) {

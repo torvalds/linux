@@ -319,8 +319,6 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
-
 	/* build page vector */
 	nr_pages = calc_pages_for(0, len);
 	pages = kmalloc(sizeof(*pages) * nr_pages, GFP_NOFS);
@@ -350,6 +348,8 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	req->r_data_in.alignment = 0;
 	req->r_callback = finish_read;
 	req->r_inode = inode;
+
+	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
 
 	dout("start_read %p starting %p %lld~%lld\n", inode, req, off, len);
 	ret = ceph_osdc_start_request(osdc, req, false);

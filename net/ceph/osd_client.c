@@ -2056,8 +2056,6 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
-
 	/* it may be a short read due to an object boundary */
 
 	osd_data = &req->r_data_in;
@@ -2068,6 +2066,8 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 
 	dout("readpages  final extent is %llu~%llu (%llu bytes align %d)\n",
 	     off, *plen, osd_data->length, page_align);
+
+	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
 
 	rc = ceph_osdc_start_request(osdc, req, false);
 	if (!rc)
@@ -2105,8 +2105,6 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	ceph_osdc_build_request(req, off, 1, &op, snapc, CEPH_NOSNAP, mtime);
-
 	/* it may be a short write due to an object boundary */
 	osd_data = &req->r_data_out;
 	osd_data->type = CEPH_OSD_DATA_TYPE_PAGES;
@@ -2114,6 +2112,8 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 	osd_data->length = len;
 	osd_data->alignment = page_align;
 	dout("writepages %llu~%llu (%llu bytes)\n", off, len, osd_data->length);
+
+	ceph_osdc_build_request(req, off, 1, &op, snapc, CEPH_NOSNAP, mtime);
 
 	rc = ceph_osdc_start_request(osdc, req, true);
 	if (!rc)
