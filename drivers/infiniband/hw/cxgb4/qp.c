@@ -140,7 +140,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	int wr_len;
 	struct c4iw_wr_wait wr_wait;
 	struct sk_buff *skb;
-	int ret;
+	int ret = 0;
 	int eqsize;
 
 	wq->sq.qid = c4iw_get_qpid(rdev, uctx);
@@ -180,17 +180,14 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	}
 
 	if (user) {
-		ret = alloc_oc_sq(rdev, &wq->sq);
+		if (alloc_oc_sq(rdev, &wq->sq) && alloc_host_sq(rdev, &wq->sq))
+			goto free_hwaddr;
+	} else {
+		ret = alloc_host_sq(rdev, &wq->sq);
 		if (ret)
 			goto free_hwaddr;
+	}
 
-		ret = alloc_host_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_sq;
-	} else
-		ret = alloc_host_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_hwaddr;
 	memset(wq->sq.queue, 0, wq->sq.memsize);
 	dma_unmap_addr_set(&wq->sq, mapping, wq->sq.dma_addr);
 
