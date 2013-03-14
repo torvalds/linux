@@ -258,50 +258,6 @@ fail:
 	return status;
 }
 
-#ifdef USB_FSERIAL_INCLUDED
-
-static void
-gser_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	usb_free_all_descriptors(f);
-	kfree(func_to_gser(f));
-}
-
-/**
- * gser_bind_config - add a generic serial function to a configuration
- * @c: the configuration to support the serial instance
- * @port_num: /dev/ttyGS* port this interface will use
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- */
-int __init gser_bind_config(struct usb_configuration *c, u8 port_num)
-{
-	struct f_gser	*gser;
-	int		status;
-
-	/* allocate and initialize one new instance */
-	gser = kzalloc(sizeof *gser, GFP_KERNEL);
-	if (!gser)
-		return -ENOMEM;
-
-	gser->port_num = port_num;
-
-	gser->port.func.name = "gser";
-	gser->port.func.strings = gser_strings;
-	gser->port.func.bind = gser_bind;
-	gser->port.func.unbind = gser_old_unbind;
-	gser->port.func.set_alt = gser_set_alt;
-	gser->port.func.disable = gser_disable;
-
-	status = usb_add_function(c, &gser->port.func);
-	if (status)
-		kfree(gser);
-	return status;
-}
-
-#else
-
 static void gser_free_inst(struct usb_function_instance *f)
 {
 	struct f_serial_opts *opts;
@@ -372,5 +328,3 @@ DECLARE_USB_FUNCTION_INIT(gser, gser_alloc_inst, gser_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Al Borchers");
 MODULE_AUTHOR("David Brownell");
-
-#endif
