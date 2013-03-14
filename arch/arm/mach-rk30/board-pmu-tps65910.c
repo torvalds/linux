@@ -92,7 +92,8 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	}
 
 	val |= (1<<5);		//when 1: 1.5 A
-	val |= (0x07<<2);	//TSTEP[2:0] = 111 : 2.5 mV/¦Ìs(sampling 3 Mhz/5)
+	val &= (~(0x3 <<2));
+	val |= (0x01<<2);	//TSTEP[3:2] = 01 : 12.5 mV/us(sampling 3 Mhz)
 	err = tps65910_reg_write(tps65910, TPS65910_VDD1, val);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_VDD1 reg\n");
@@ -107,6 +108,8 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	}
 
 	val |= (1<<5);		//when 1: 1.5 A
+	val &= (~(0x3 <<2));
+	val |= (0x01<<2);	//TSTEP[3:2] = 01 : 12.5 mV/us(sampling 3 Mhz)
 	err = tps65910_reg_write(tps65910, TPS65910_VDD2, val);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_VDD2 reg\n");

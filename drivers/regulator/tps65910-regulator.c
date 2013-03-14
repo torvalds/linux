@@ -936,7 +936,7 @@ static int tps65910_set_voltage_dcdc_time_sel(struct regulator_dev *dev,
 	switch (id) {
 	case TPS65910_REG_VDD1:
 	case TPS65910_REG_VDD2:
-		return DIV_ROUND_UP(abs(old_volt - new_volt), 12500);
+		return DIV_ROUND_UP(abs(old_volt - new_volt)*2, 12500);
 	case TPS65911_REG_VDDCTRL:
 		return DIV_ROUND_UP(abs(old_volt - new_volt), 5000);
 	}
