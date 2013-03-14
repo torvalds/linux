@@ -71,7 +71,6 @@ config MTD_DATAFLASH_WRITE_VERIFY
 config MTD_DATAFLASH_OTP
 	bool "DataFlash OTP support (Security Register)"
 	depends on MTD_DATAFLASH
-	select HAVE_MTD_OTP
 	help
 	  Newer DataFlash chips (revisions C and D) support 128 bytes of
 	  one-time-programmable (OTP) data.  The first half may be written

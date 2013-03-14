@@ -41,6 +41,7 @@
 #include <linux/mtd/partitions.h>
 
 #include "mtdcore.h"
+
 /*
  * backing device capabilities for non-mappable devices (such as NAND flash)
  * - permits private mappings, copies are taken of the data
@@ -96,11 +97,7 @@ EXPORT_SYMBOL_GPL(__mtd_next_device);
 static LIST_HEAD(mtd_notifiers);
 
 
-#if defined(CONFIG_MTD_CHAR) || defined(CONFIG_MTD_CHAR_MODULE)
 #define MTD_DEVT(index) MKDEV(MTD_CHAR_MAJOR, (index)*2)
-#else
-#define MTD_DEVT(index) 0
-#endif
 
 /* REVISIT once MTD uses the driver model better, whoever allocates
  * the mtd_info will probably want to use the release() hook...
@@ -1185,8 +1182,15 @@ static int __init init_mtd(void)
 
 	proc_mtd = proc_create("mtd", 0, NULL, &mtd_proc_ops);
 
+	ret = init_mtdchar();
+	if (ret)
+		goto out_procfs;
+
 	return 0;
 
+out_procfs:
+	if (proc_mtd)
+		remove_proc_entry("mtd", NULL);
 err_bdi3:
 	bdi_destroy(&mtd_bdi_ro_mappable);
 err_bdi2:
@@ -1200,6 +1204,7 @@ err_reg:
 
 static void __exit cleanup_mtd(void)
 {
+	cleanup_mtdchar();
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
 	class_unregister(&mtd_class);
