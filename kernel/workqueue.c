@@ -248,6 +248,21 @@ struct workqueue_struct {
 
 static struct kmem_cache *pwq_cache;
 
+/* Serializes the accesses to the list of workqueues. */
+static DEFINE_SPINLOCK(workqueue_lock);
+static LIST_HEAD(workqueues);
+static bool workqueue_freezing;		/* W: have wqs started freezing? */
+
+/* the per-cpu worker pools */
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct worker_pool [NR_STD_WORKER_POOLS],
+				     cpu_worker_pools);
+
+/*
+ * R: idr of all pools.  Modifications are protected by workqueue_lock.
+ * Read accesses are protected by sched-RCU protected.
+ */
+static DEFINE_IDR(worker_pool_idr);
+
 /* W: hash of all unbound pools keyed by pool->attrs */
 static DEFINE_HASHTABLE(unbound_pool_hash, UNBOUND_POOL_HASH_ORDER);
 
@@ -264,6 +279,10 @@ struct workqueue_struct *system_unbound_wq __read_mostly;
 EXPORT_SYMBOL_GPL(system_unbound_wq);
 struct workqueue_struct *system_freezable_wq __read_mostly;
 EXPORT_SYMBOL_GPL(system_freezable_wq);
+
+static int worker_thread(void *__worker);
+static void copy_workqueue_attrs(struct workqueue_attrs *to,
+				 const struct workqueue_attrs *from);
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/workqueue.h>
@@ -430,25 +449,6 @@ EXPORT_SYMBOL_GPL(destroy_work_on_stack);
 static inline void debug_work_activate(struct work_struct *work) { }
 static inline void debug_work_deactivate(struct work_struct *work) { }
 #endif
-
-/* Serializes the accesses to the list of workqueues. */
-static DEFINE_SPINLOCK(workqueue_lock);
-static LIST_HEAD(workqueues);
-static bool workqueue_freezing;		/* W: have wqs started freezing? */
-
-/* the per-cpu worker pools */
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct worker_pool [NR_STD_WORKER_POOLS],
-				     cpu_worker_pools);
-
-/*
- * R: idr of all pools.  Modifications are protected by workqueue_lock.
- * Read accesses are protected by sched-RCU protected.
- */
-static DEFINE_IDR(worker_pool_idr);
-
-static int worker_thread(void *__worker);
-static void copy_workqueue_attrs(struct workqueue_attrs *to,
-				 const struct workqueue_attrs *from);
 
 /* allocate ID and assign it to @pool */
 static int worker_pool_assign_id(struct worker_pool *pool)
