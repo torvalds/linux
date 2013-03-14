@@ -17,13 +17,27 @@
 
 #define STACK_TRACE_ENTRIES 500
 
+/*
+ * If fentry is used, then the function being traced will
+ * jump to fentry directly before it sets up its stack frame.
+ * We need to ignore that one and record the parent. Since
+ * the stack frame for the traced function wasn't set up yet,
+ * the stack_trace wont see the parent. That needs to be added
+ * manually to stack_dump_trace[] as the first element.
+ */
+#ifdef CC_USING_FENTRY
+# define add_func	1
+#else
+# define add_func	0
+#endif
+
 static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES+1] =
 	 { [0 ... (STACK_TRACE_ENTRIES)] = ULONG_MAX };
 static unsigned stack_dump_index[STACK_TRACE_ENTRIES];
 
 static struct stack_trace max_stack_trace = {
-	.max_entries		= STACK_TRACE_ENTRIES,
-	.entries		= stack_dump_trace,
+	.max_entries		= STACK_TRACE_ENTRIES - add_func,
+	.entries		= &stack_dump_trace[add_func],
 };
 
 static unsigned long max_stack_size;
@@ -38,7 +52,7 @@ int stack_tracer_enabled;
 static int last_stack_tracer_enabled;
 
 static inline void
-check_stack(unsigned long *stack)
+check_stack(unsigned long ip, unsigned long *stack)
 {
 	unsigned long this_size, flags;
 	unsigned long *p, *top, *start;
@@ -67,6 +81,17 @@ check_stack(unsigned long *stack)
 	max_stack_trace.skip		= 3;
 
 	save_stack_trace(&max_stack_trace);
+
+	/*
+	 * When fentry is used, the traced function does not get
+	 * its stack frame set up, and we lose the parent.
+	 * Add that one in manally. We set up save_stack_trace()
+	 * to not touch the first element in this case.
+	 */
+	if (add_func) {
+		stack_dump_trace[0] = ip;
+		max_stack_trace.nr_entries++;
+	}
 
 	/*
 	 * Now find where in the stack these are.
@@ -124,7 +149,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
 	if (per_cpu(trace_active, cpu)++ != 0)
 		goto out;
 
-	check_stack(&stack);
+	check_stack(parent_ip, &stack);
 
  out:
 	per_cpu(trace_active, cpu)--;
