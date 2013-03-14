@@ -737,10 +737,14 @@ retry:
 
 	while (!done && index <= end) {
 		struct ceph_osd_req_op ops[2];
+		int num_ops = do_sync ? 2 : 1;
+		struct ceph_vino vino;
 		unsigned i;
 		int first;
 		pgoff_t next;
 		int pvec_pages, locked_pages;
+		struct page **pages = NULL;
+		mempool_t *pool = NULL;	/* Becomes non-null if mempool used */
 		struct page *page;
 		int want;
 		u64 offset, len;
@@ -824,16 +828,19 @@ get_more_pages:
 				break;
 			}
 
-			/* ok */
+			/*
+			 * We have something to write.  If this is
+			 * the first locked page this time through,
+			 * allocate an osd request and a page array
+			 * that it will use.
+			 */
 			if (locked_pages == 0) {
-				struct ceph_vino vino;
-				int num_ops = do_sync ? 2 : 1;
 				size_t size;
-				struct page **pages;
-				mempool_t *pool = NULL;
+
+				BUG_ON(pages);
 
 				/* prepare async write request */
-				offset = (u64) page_offset(page);
+				offset = (u64)page_offset(page);
 				len = wsize;
 				req = ceph_writepages_osd_request(inode,
 							offset, &len, snapc,
@@ -845,11 +852,6 @@ get_more_pages:
 					break;
 				}
 
-				vino = ceph_vino(inode);
-				ceph_osdc_build_request(req, offset,
-					num_ops, ops, snapc, vino.snap,
-					&inode->i_mtime);
-
 				req->r_callback = writepages_finish;
 				req->r_inode = inode;
 
@@ -858,16 +860,9 @@ get_more_pages:
 				pages = kmalloc(size, GFP_NOFS);
 				if (!pages) {
 					pool = fsc->wb_pagevec_pool;
-
 					pages = mempool_alloc(pool, GFP_NOFS);
-					WARN_ON(!pages);
+					BUG_ON(!pages);
 				}
-
-				req->r_data_out.pages = pages;
-				req->r_data_out.pages_from_pool = !!pool;
-				req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGES;
-				req->r_data_out.length = len;
-				req->r_data_out.alignment = 0;
 			}
 
 			/* note position of first page in pvec */
@@ -885,7 +880,7 @@ get_more_pages:
 			}
 
 			set_page_writeback(page);
-			req->r_data_out.pages[locked_pages] = page;
+			pages[locked_pages] = page;
 			locked_pages++;
 			next = page->index + 1;
 		}
@@ -914,18 +909,30 @@ get_more_pages:
 			pvec.nr -= i-first;
 		}
 
-		/* submit the write */
-		offset = page_offset(req->r_data_out.pages[0]);
+		/* Format the osd request message and submit the write */
+
+		offset = page_offset(pages[0]);
 		len = min((snap_size ? snap_size : i_size_read(inode)) - offset,
 			  (u64)locked_pages << PAGE_CACHE_SHIFT);
 		dout("writepages got %d pages at %llu~%llu\n",
 		     locked_pages, offset, len);
 
-		/* revise final length, page count */
+		req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGES;
+		req->r_data_out.pages = pages;
 		req->r_data_out.length = len;
-		req->r_request_ops[0].extent.length = cpu_to_le64(len);
-		req->r_request_ops[0].payload_len = cpu_to_le32(len);
-		req->r_request->hdr.data_len = cpu_to_le32(len);
+		req->r_data_out.alignment = 0;
+		req->r_data_out.pages_from_pool = !!pool;
+
+		pages = NULL;	/* request message now owns the pages array */
+		pool = NULL;
+
+		/* Update the write op length in case we changed it */
+
+		osd_req_op_extent_update(&ops[0], len);
+
+		vino = ceph_vino(inode);
+		ceph_osdc_build_request(req, offset, num_ops, ops,
+					snapc, vino.snap, &inode->i_mtime);
 
 		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
 		BUG_ON(rc);

@@ -234,6 +234,7 @@ extern void osd_req_op_init(struct ceph_osd_req_op *op, u16 opcode);
 extern void osd_req_op_extent_init(struct ceph_osd_req_op *op, u16 opcode,
 					u64 offset, u64 length,
 					u64 truncate_size, u32 truncate_seq);
+extern void osd_req_op_extent_update(struct ceph_osd_req_op *op, u64 length);
 extern void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
 					const char *class, const char *method,
 					const void *request_data,

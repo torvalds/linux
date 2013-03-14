@@ -296,6 +296,19 @@ void osd_req_op_extent_init(struct ceph_osd_req_op *op, u16 opcode,
 }
 EXPORT_SYMBOL(osd_req_op_extent_init);
 
+void osd_req_op_extent_update(struct ceph_osd_req_op *op, u64 length)
+{
+	u64 previous = op->extent.length;
+
+	if (length == previous)
+		return;		/* Nothing to do */
+	BUG_ON(length > previous);
+
+	op->extent.length = length;
+	op->payload_len -= previous - length;
+}
+EXPORT_SYMBOL(osd_req_op_extent_update);
+
 void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
 			const char *class, const char *method,
 			const void *request_data, size_t request_data_size)
