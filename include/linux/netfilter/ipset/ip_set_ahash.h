@@ -854,6 +854,8 @@ type_pf_tresize(struct ip_set *set, bool retried)
 retry:
 	ret = 0;
 	htable_bits++;
+	pr_debug("attempt to resize set %s from %u to %u, t %p\n",
+		 set->name, orig->htable_bits, htable_bits, orig);
 	if (!htable_bits) {
 		/* In case we have plenty of memory :-) */
 		pr_warning("Cannot increase the hashsize of set %s further\n",
@@ -873,7 +875,7 @@ retry:
 			data = ahash_tdata(n, j);
 			m = hbucket(t, HKEY(data, h->initval, htable_bits));
 			ret = type_pf_elem_tadd(m, data, AHASH_MAX(h), 0,
-						type_pf_data_timeout(data));
+						ip_set_timeout_get(type_pf_data_timeout(data)));
 			if (ret < 0) {
 				read_unlock_bh(&set->lock);
 				ahash_destroy(t);

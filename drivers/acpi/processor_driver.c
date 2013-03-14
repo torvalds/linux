@@ -559,7 +559,7 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 		return 0;
 #endif
 
-	BUG_ON((pr->id >= nr_cpu_ids) || (pr->id < 0));
+	BUG_ON(pr->id >= nr_cpu_ids);
 
 	/*
 	 * Buggy BIOS check

@@ -545,6 +545,7 @@ static struct file_system_type sysv_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("sysv");
 
 static struct file_system_type v7_fs_type = {
 	.owner		= THIS_MODULE,
@@ -553,6 +554,7 @@ static struct file_system_type v7_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("v7");
 
 static int __init init_sysv_fs(void)
 {
@@ -586,5 +588,4 @@ static void __exit exit_sysv_fs(void)
 
 module_init(init_sysv_fs)
 module_exit(exit_sysv_fs)
-MODULE_ALIAS("v7");
 MODULE_LICENSE("GPL");

@@ -117,9 +117,6 @@ struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 	if (alen > DATALEN_MSG)
 		alen = DATALEN_MSG;
 
-	dst->next = NULL;
-	dst->security = NULL;
-
 	memcpy(dst + 1, src + 1, alen);
 
 	len -= alen;
