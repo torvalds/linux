@@ -54,6 +54,10 @@ MODULE_PARM_DESC(db_coalescing_threshold,
 		 "QP count/threshold that triggers"
 		 " disabling db coalescing (default = 0)");
 
+static int max_fr_immd = T4_MAX_FR_IMMD;
+module_param(max_fr_immd, int, 0644);
+MODULE_PARM_DESC(max_fr_immd, "fastreg threshold for using DSGL instead of immedate");
+
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
 	unsigned long flag;
@@ -539,7 +543,7 @@ static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
 }
 
 static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
-			 struct ib_send_wr *wr, u8 *len16)
+			 struct ib_send_wr *wr, u8 *len16, u8 t5dev)
 {
 
 	struct fw_ri_immd *imdp;
@@ -561,28 +565,51 @@ static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
 	wqe->fr.va_hi = cpu_to_be32(wr->wr.fast_reg.iova_start >> 32);
 	wqe->fr.va_lo_fbo = cpu_to_be32(wr->wr.fast_reg.iova_start &
 					0xffffffff);
-	WARN_ON(pbllen > T4_MAX_FR_IMMD);
-	imdp = (struct fw_ri_immd *)(&wqe->fr + 1);
-	imdp->op = FW_RI_DATA_IMMD;
-	imdp->r1 = 0;
-	imdp->r2 = 0;
-	imdp->immdlen = cpu_to_be32(pbllen);
-	p = (__be64 *)(imdp + 1);
-	rem = pbllen;
-	for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
-		*p = cpu_to_be64((u64)wr->wr.fast_reg.page_list->page_list[i]);
-		rem -= sizeof *p;
-		if (++p == (__be64 *)&sq->queue[sq->size])
-			p = (__be64 *)sq->queue;
+
+	if (t5dev && use_dsgl && (pbllen > max_fr_immd)) {
+		struct c4iw_fr_page_list *c4pl =
+			to_c4iw_fr_page_list(wr->wr.fast_reg.page_list);
+		struct fw_ri_dsgl *sglp;
+
+		for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
+			wr->wr.fast_reg.page_list->page_list[i] = (__force u64)
+				cpu_to_be64((u64)
+				wr->wr.fast_reg.page_list->page_list[i]);
+		}
+
+		sglp = (struct fw_ri_dsgl *)(&wqe->fr + 1);
+		sglp->op = FW_RI_DATA_DSGL;
+		sglp->r1 = 0;
+		sglp->nsge = cpu_to_be16(1);
+		sglp->addr0 = cpu_to_be64(c4pl->dma_addr);
+		sglp->len0 = cpu_to_be32(pbllen);
+
+		*len16 = DIV_ROUND_UP(sizeof(wqe->fr) + sizeof(*sglp), 16);
+	} else {
+		imdp = (struct fw_ri_immd *)(&wqe->fr + 1);
+		imdp->op = FW_RI_DATA_IMMD;
+		imdp->r1 = 0;
+		imdp->r2 = 0;
+		imdp->immdlen = cpu_to_be32(pbllen);
+		p = (__be64 *)(imdp + 1);
+		rem = pbllen;
+		for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
+			*p = cpu_to_be64(
+				(u64)wr->wr.fast_reg.page_list->page_list[i]);
+			rem -= sizeof(*p);
+			if (++p == (__be64 *)&sq->queue[sq->size])
+				p = (__be64 *)sq->queue;
+		}
+		BUG_ON(rem < 0);
+		while (rem) {
+			*p = 0;
+			rem -= sizeof(*p);
+			if (++p == (__be64 *)&sq->queue[sq->size])
+				p = (__be64 *)sq->queue;
+		}
+		*len16 = DIV_ROUND_UP(sizeof(wqe->fr) + sizeof(*imdp)
+				      + pbllen, 16);
 	}
-	BUG_ON(rem < 0);
-	while (rem) {
-		*p = 0;
-		rem -= sizeof *p;
-		if (++p == (__be64 *)&sq->queue[sq->size])
-			p = (__be64 *)sq->queue;
-	}
-	*len16 = DIV_ROUND_UP(sizeof wqe->fr + sizeof *imdp + pbllen, 16);
 	return 0;
 }
 
@@ -683,7 +710,10 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		case IB_WR_FAST_REG_MR:
 			fw_opcode = FW_RI_FR_NSMR_WR;
 			swsqe->opcode = FW_RI_FAST_REGISTER;
-			err = build_fastreg(&qhp->wq.sq, wqe, wr, &len16);
+			err = build_fastreg(&qhp->wq.sq, wqe, wr, &len16,
+					    is_t5(
+					    qhp->rhp->rdev.lldi.adapter_type) ?
+					    1 : 0);
 			break;
 		case IB_WR_LOCAL_INV:
 			if (wr->send_flags & IB_SEND_FENCE)

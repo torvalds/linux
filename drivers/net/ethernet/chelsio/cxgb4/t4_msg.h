@@ -787,4 +787,12 @@ struct ulp_mem_io {
 #define ULP_MEMIO_LOCK(x) ((x) << 31)
 };
 
+#define S_T5_ULP_MEMIO_IMM    23
+#define V_T5_ULP_MEMIO_IMM(x) ((x) << S_T5_ULP_MEMIO_IMM)
+#define F_T5_ULP_MEMIO_IMM    V_T5_ULP_MEMIO_IMM(1U)
+
+#define S_T5_ULP_MEMIO_ORDER    22
+#define V_T5_ULP_MEMIO_ORDER(x) ((x) << S_T5_ULP_MEMIO_ORDER)
+#define F_T5_ULP_MEMIO_ORDER    V_T5_ULP_MEMIO_ORDER(1U)
+
 #endif  /* __T4_MSG_H */
