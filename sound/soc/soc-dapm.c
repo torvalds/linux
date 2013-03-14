@@ -821,7 +821,6 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 		    (widget->id == snd_soc_dapm_line &&
 		     !list_empty(&widget->sources))) {
 			widget->outputs = snd_soc_dapm_suspend_check(widget);
-			path->walking = 0;
 			return widget->outputs;
 		}
 	}
