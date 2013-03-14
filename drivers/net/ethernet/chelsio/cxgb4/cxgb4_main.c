@@ -3397,6 +3397,25 @@ out:
 }
 EXPORT_SYMBOL(cxgb4_sync_txq_pidx);
 
+void cxgb4_disable_db_coalescing(struct net_device *dev)
+{
+	struct adapter *adap;
+
+	adap = netdev2adap(dev);
+	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_NOCOALESCE,
+			 F_NOCOALESCE);
+}
+EXPORT_SYMBOL(cxgb4_disable_db_coalescing);
+
+void cxgb4_enable_db_coalescing(struct net_device *dev)
+{
+	struct adapter *adap;
+
+	adap = netdev2adap(dev);
+	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_NOCOALESCE, 0);
+}
+EXPORT_SYMBOL(cxgb4_enable_db_coalescing);
+
 static struct pci_driver cxgb4_driver;
 
 static void check_neigh_update(struct neighbour *neigh)

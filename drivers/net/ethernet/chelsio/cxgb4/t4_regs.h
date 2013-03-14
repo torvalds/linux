@@ -241,6 +241,10 @@
 #define SGE_DOORBELL_CONTROL 0x10a8
 #define  ENABLE_DROP        (1 << 13)
 
+#define S_NOCOALESCE    26
+#define V_NOCOALESCE(x) ((x) << S_NOCOALESCE)
+#define F_NOCOALESCE    V_NOCOALESCE(1U)
+
 #define SGE_TIMER_VALUE_0_AND_1 0x10b8
 #define  TIMERVALUE0_MASK   0xffff0000U
 #define  TIMERVALUE0_SHIFT  16

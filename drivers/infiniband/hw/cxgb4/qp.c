@@ -42,10 +42,17 @@ static int ocqp_support = 1;
 module_param(ocqp_support, int, 0644);
 MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=1)");
 
-int db_fc_threshold = 2000;
+int db_fc_threshold = 1000;
 module_param(db_fc_threshold, int, 0644);
-MODULE_PARM_DESC(db_fc_threshold, "QP count/threshold that triggers automatic "
-		 "db flow control mode (default = 2000)");
+MODULE_PARM_DESC(db_fc_threshold,
+		 "QP count/threshold that triggers"
+		 " automatic db flow control mode (default = 1000)");
+
+int db_coalescing_threshold;
+module_param(db_coalescing_threshold, int, 0644);
+MODULE_PARM_DESC(db_coalescing_threshold,
+		 "QP count/threshold that triggers"
+		 " disabling db coalescing (default = 0)");
 
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
@@ -1448,6 +1455,8 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 		rhp->db_state = NORMAL;
 		idr_for_each(&rhp->qpidr, enable_qp_db, NULL);
 	}
+	if (rhp->qpcnt <= db_coalescing_threshold)
+		cxgb4_enable_db_coalescing(rhp->rdev.lldi.ports[0]);
 	spin_unlock_irq(&rhp->lock);
 	atomic_dec(&qhp->refcnt);
 	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
@@ -1559,11 +1568,14 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	spin_lock_irq(&rhp->lock);
 	if (rhp->db_state != NORMAL)
 		t4_disable_wq_db(&qhp->wq);
-	if (++rhp->qpcnt > db_fc_threshold && rhp->db_state == NORMAL) {
+	rhp->qpcnt++;
+	if (rhp->qpcnt > db_fc_threshold && rhp->db_state == NORMAL) {
 		rhp->rdev.stats.db_state_transitions++;
 		rhp->db_state = FLOW_CONTROL;
 		idr_for_each(&rhp->qpidr, disable_qp_db, NULL);
 	}
+	if (rhp->qpcnt > db_coalescing_threshold)
+		cxgb4_disable_db_coalescing(rhp->rdev.lldi.ports[0]);
 	ret = insert_handle_nolock(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
 	spin_unlock_irq(&rhp->lock);
 	if (ret)
