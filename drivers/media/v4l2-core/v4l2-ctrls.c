@@ -234,6 +234,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Average",
 		"Center Weighted",
 		"Spot",
+		"Matrix",
 		NULL
 	};
 	static const char * const camera_auto_focus_range[] = {
