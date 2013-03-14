@@ -43,12 +43,14 @@
 #include <linux/kernel.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <video/of_display_timing.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/mxsfb.h>
+#include <video/videomode.h>
 
 #define REG_SET	4
 #define REG_CLR	8
@@ -678,6 +680,97 @@ static int mxsfb_restore_mode(struct mxsfb_info *host)
 	return 0;
 }
 
+static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host)
+{
+	struct fb_info *fb_info = &host->fb_info;
+	struct fb_var_screeninfo *var = &fb_info->var;
+	struct device *dev = &host->pdev->dev;
+	struct device_node *np = host->pdev->dev.of_node;
+	struct device_node *display_np;
+	struct device_node *timings_np;
+	struct display_timings *timings;
+	u32 width;
+	int i;
+	int ret = 0;
+
+	display_np = of_parse_phandle(np, "display", 0);
+	if (!display_np) {
+		dev_err(dev, "failed to find display phandle\n");
+		return -ENOENT;
+	}
+
+	ret = of_property_read_u32(display_np, "bus-width", &width);
+	if (ret < 0) {
+		dev_err(dev, "failed to get property bus-width\n");
+		goto put_display_node;
+	}
+
+	switch (width) {
+	case 8:
+		host->ld_intf_width = STMLCDIF_8BIT;
+		break;
+	case 16:
+		host->ld_intf_width = STMLCDIF_16BIT;
+		break;
+	case 18:
+		host->ld_intf_width = STMLCDIF_18BIT;
+		break;
+	case 24:
+		host->ld_intf_width = STMLCDIF_24BIT;
+		break;
+	default:
+		dev_err(dev, "invalid bus-width value\n");
+		ret = -EINVAL;
+		goto put_display_node;
+	}
+
+	ret = of_property_read_u32(display_np, "bits-per-pixel",
+				   &var->bits_per_pixel);
+	if (ret < 0) {
+		dev_err(dev, "failed to get property bits-per-pixel\n");
+		goto put_display_node;
+	}
+
+	timings = of_get_display_timings(display_np);
+	if (!timings) {
+		dev_err(dev, "failed to get display timings\n");
+		ret = -ENOENT;
+		goto put_display_node;
+	}
+
+	timings_np = of_find_node_by_name(display_np,
+					  "display-timings");
+	if (!timings_np) {
+		dev_err(dev, "failed to find display-timings node\n");
+		ret = -ENOENT;
+		goto put_display_node;
+	}
+
+	for (i = 0; i < of_get_child_count(timings_np); i++) {
+		struct videomode vm;
+		struct fb_videomode fb_vm;
+
+		ret = videomode_from_timing(timings, &vm, i);
+		if (ret < 0)
+			goto put_timings_node;
+		ret = fb_videomode_from_videomode(&vm, &fb_vm);
+		if (ret < 0)
+			goto put_timings_node;
+
+		if (vm.data_flags & DISPLAY_FLAGS_DE_HIGH)
+			host->sync |= MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
+		if (vm.data_flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+			host->sync |= MXSFB_SYNC_DOTCLK_FAILING_ACT;
+		fb_add_videomode(&fb_vm, &fb_info->modelist);
+	}
+
+put_timings_node:
+	of_node_put(timings_np);
+put_display_node:
+	of_node_put(display_np);
+	return ret;
+}
+
 static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 {
 	struct fb_info *fb_info = &host->fb_info;
@@ -686,6 +779,7 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	dma_addr_t fb_phys;
 	void *fb_virt;
 	unsigned fb_size;
+	int ret;
 
 	fb_info->fbops = &mxsfb_ops;
 	fb_info->flags = FBINFO_FLAG_DEFAULT | FBINFO_READS_FAST;
@@ -695,13 +789,20 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	fb_info->fix.visual = FB_VISUAL_TRUECOLOR,
 	fb_info->fix.accel = FB_ACCEL_NONE;
 
-	var->bits_per_pixel = pdata->default_bpp ? pdata->default_bpp : 16;
+	if (pdata) {
+		host->ld_intf_width = pdata->ld_intf_width;
+		var->bits_per_pixel =
+			pdata->default_bpp ? pdata->default_bpp : 16;
+	} else {
+		ret = mxsfb_init_fbinfo_dt(host);
+		if (ret)
+			return ret;
+	}
+
 	var->nonstd = 0;
 	var->activate = FB_ACTIVATE_NOW;
 	var->accel_flags = 0;
 	var->vmode = FB_VMODE_NONINTERLACED;
-
-	host->ld_intf_width = pdata->ld_intf_width;
 
 	/* Memory allocation for framebuffer */
 	fb_size = SZ_2M;
@@ -764,11 +865,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 
 	if (of_id)
 		pdev->id_entry = of_id->data;
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "No platformdata. Giving up\n");
-		return -ENODEV;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -833,14 +929,16 @@ static int mxsfb_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&fb_info->modelist);
 
-	host->sync = pdata->sync;
-
 	ret = mxsfb_init_fbinfo(host);
 	if (ret != 0)
 		goto fb_release;
 
-	for (i = 0; i < pdata->mode_count; i++)
-		fb_add_videomode(&pdata->mode_list[i], &fb_info->modelist);
+	if (pdata) {
+		host->sync = pdata->sync;
+		for (i = 0; i < pdata->mode_count; i++)
+			fb_add_videomode(&pdata->mode_list[i],
+					 &fb_info->modelist);
+	}
 
 	modelist = list_first_entry(&fb_info->modelist,
 			struct fb_modelist, list);
