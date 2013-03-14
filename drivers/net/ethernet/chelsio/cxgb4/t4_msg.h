@@ -74,6 +74,7 @@ enum {
 	CPL_PASS_ESTABLISH    = 0x41,
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
+	CPL_TRACE_PKT_T5      = 0x48,
 
 	CPL_RDMA_READ_REQ     = 0x60,
 
@@ -285,6 +286,23 @@ struct cpl_act_open_req {
 	__be64 opt0;
 	__be32 params;
 	__be32 opt2;
+};
+
+#define S_FILTER_TUPLE  24
+#define M_FILTER_TUPLE  0xFFFFFFFFFF
+#define V_FILTER_TUPLE(x) ((x) << S_FILTER_TUPLE)
+#define G_FILTER_TUPLE(x) (((x) >> S_FILTER_TUPLE) & M_FILTER_TUPLE)
+struct cpl_t5_act_open_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be32 local_ip;
+	__be32 peer_ip;
+	__be64 opt0;
+	__be32 rsvd;
+	__be32 opt2;
+	__be64 params;
 };
 
 struct cpl_act_open_req6 {
@@ -566,6 +584,11 @@ struct cpl_rx_pkt {
 #define V_RX_ETHHDR_LEN(x) ((x) << S_RX_ETHHDR_LEN)
 #define G_RX_ETHHDR_LEN(x) (((x) >> S_RX_ETHHDR_LEN) & M_RX_ETHHDR_LEN)
 
+#define S_RX_T5_ETHHDR_LEN    0
+#define M_RX_T5_ETHHDR_LEN    0x3F
+#define V_RX_T5_ETHHDR_LEN(x) ((x) << S_RX_T5_ETHHDR_LEN)
+#define G_RX_T5_ETHHDR_LEN(x) (((x) >> S_RX_T5_ETHHDR_LEN) & M_RX_T5_ETHHDR_LEN)
+
 #define S_RX_MACIDX    8
 #define M_RX_MACIDX    0x1FF
 #define V_RX_MACIDX(x) ((x) << S_RX_MACIDX)
@@ -610,6 +633,28 @@ struct cpl_trace_pkt {
 	__be16 rsvd;
 	__be16 len;
 	__be64 tstamp;
+};
+
+struct cpl_t5_trace_pkt {
+	__u8 opcode;
+	__u8 intf;
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8 runt:4;
+	__u8 filter_hit:4;
+	__u8:6;
+	__u8 err:1;
+	__u8 trunc:1;
+#else
+	__u8 filter_hit:4;
+	__u8 runt:4;
+	__u8 trunc:1;
+	__u8 err:1;
+	__u8:6;
+#endif
+	__be16 rsvd;
+	__be16 len;
+	__be64 tstamp;
+	__be64 rsvd1;
 };
 
 struct cpl_l2t_write_req {

@@ -54,6 +54,10 @@
 #define FW_VERSION_MINOR 1
 #define FW_VERSION_MICRO 0
 
+#define FW_VERSION_MAJOR_T5 0
+#define FW_VERSION_MINOR_T5 0
+#define FW_VERSION_MICRO_T5 0
+
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
 
 enum {
@@ -66,7 +70,9 @@ enum {
 enum {
 	MEM_EDC0,
 	MEM_EDC1,
-	MEM_MC
+	MEM_MC,
+	MEM_MC0 = MEM_MC,
+	MEM_MC1
 };
 
 enum {
@@ -74,8 +80,10 @@ enum {
 	MEMWIN0_BASE     = 0x1b800,
 	MEMWIN1_APERTURE = 32768,
 	MEMWIN1_BASE     = 0x28000,
+	MEMWIN1_BASE_T5  = 0x52000,
 	MEMWIN2_APERTURE = 65536,
 	MEMWIN2_BASE     = 0x30000,
+	MEMWIN2_BASE_T5  = 0x54000,
 };
 
 enum dev_master {
@@ -504,6 +512,35 @@ struct sge {
 
 struct l2t_data;
 
+#define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
+#define CHELSIO_CHIP_VERSION(code) ((code) >> 4)
+#define CHELSIO_CHIP_RELEASE(code) ((code) & 0xf)
+
+#define CHELSIO_T4		0x4
+#define CHELSIO_T5		0x5
+
+enum chip_type {
+	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 0),
+	T4_A2 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
+	T4_A3 = CHELSIO_CHIP_CODE(CHELSIO_T4, 2),
+	T4_FIRST_REV	= T4_A1,
+	T4_LAST_REV	= T4_A3,
+
+	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
+	T5_FIRST_REV	= T5_A1,
+	T5_LAST_REV	= T5_A1,
+};
+
+#ifdef CONFIG_PCI_IOV
+
+/* T4 - 4 PFs support SRIOV
+ * T5 - 8 PFs support SRIOV
+ */
+#define NUM_OF_PF_WITH_SRIOV_T4 4
+#define NUM_OF_PF_WITH_SRIOV_T5 8
+
+#endif
+
 struct adapter {
 	void __iomem *regs;
 	struct pci_dev *pdev;
@@ -511,6 +548,7 @@ struct adapter {
 	unsigned int mbox;
 	unsigned int fn;
 	unsigned int flags;
+	enum chip_type chip;
 
 	int msg_enable;
 
@@ -672,6 +710,16 @@ enum {
 	VLAN_INSERT,
 	VLAN_REWRITE
 };
+
+static inline int is_t5(enum chip_type chip)
+{
+	return (chip >= T5_FIRST_REV && chip <= T5_LAST_REV);
+}
+
+static inline int is_t4(enum chip_type chip)
+{
+	return (chip >= T4_FIRST_REV && chip <= T4_LAST_REV);
+}
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)
 {

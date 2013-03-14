@@ -574,7 +574,7 @@ struct fw_eth_tx_pkt_vm_wr {
 	__be16 vlantci;
 };
 
-#define FW_CMD_MAX_TIMEOUT 3000
+#define FW_CMD_MAX_TIMEOUT 10000
 
 /*
  * If a host driver does a HELLO and discovers that there's already a MASTER
