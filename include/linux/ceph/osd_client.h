@@ -202,14 +202,6 @@ struct ceph_osd_req_op {
 			u32 truncate_seq;
 		} extent;
 		struct {
-			const char *name;
-			const void *val;
-			u32 name_len;
-			u32 value_len;
-			__u8 cmp_op;       /* CEPH_OSD_CMPXATTR_OP_* */
-			__u8 cmp_mode;     /* CEPH_OSD_CMPXATTR_MODE_* */
-		} xattr;
-		struct {
 			const char *class_name;
 			const char *method_name;
 			const void *indata;
@@ -218,13 +210,6 @@ struct ceph_osd_req_op {
 			__u8 method_len;
 			__u8 argc;
 		} cls;
-		struct {
-			u64 cookie;
-			u64 count;
-		} pgls;
-	        struct {
-		        u64 snapid;
-	        } snap;
 		struct {
 			u64 cookie;
 			u64 ver;
@@ -243,6 +228,17 @@ extern void ceph_osdc_handle_reply(struct ceph_osd_client *osdc,
 				   struct ceph_msg *msg);
 extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 				 struct ceph_msg *msg);
+
+extern void osd_req_op_init(struct ceph_osd_req_op *op, u16 opcode);
+extern void osd_req_op_extent_init(struct ceph_osd_req_op *op, u16 opcode,
+					u64 offset, u64 length,
+					u64 truncate_size, u32 truncate_seq);
+extern void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
+					const char *class, const char *method,
+					const void *request_data,
+					size_t request_data_size);
+extern void osd_req_op_watch_init(struct ceph_osd_req_op *op, u16 opcode,
+					u64 cookie, u64 version, int flag);
 
 extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 					       struct ceph_snap_context *snapc,

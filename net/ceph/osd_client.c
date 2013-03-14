@@ -289,6 +289,90 @@ static bool osd_req_opcode_valid(u16 opcode)
 	}
 }
 
+/*
+ * This is an osd op init function for opcodes that have no data or
+ * other information associated with them.  It also serves as a
+ * common init routine for all the other init functions, below.
+ */
+void osd_req_op_init(struct ceph_osd_req_op *op, u16 opcode)
+{
+	BUG_ON(!osd_req_opcode_valid(opcode));
+
+	memset(op, 0, sizeof (*op));
+
+	op->op = opcode;
+}
+
+void osd_req_op_extent_init(struct ceph_osd_req_op *op, u16 opcode,
+				u64 offset, u64 length,
+				u64 truncate_size, u32 truncate_seq)
+{
+	size_t payload_len = 0;
+
+	BUG_ON(opcode != CEPH_OSD_OP_READ && opcode != CEPH_OSD_OP_WRITE);
+
+	osd_req_op_init(op, opcode);
+
+	op->extent.offset = offset;
+	op->extent.length = length;
+	op->extent.truncate_size = truncate_size;
+	op->extent.truncate_seq = truncate_seq;
+	if (opcode == CEPH_OSD_OP_WRITE)
+		payload_len += length;
+
+	op->payload_len = payload_len;
+}
+EXPORT_SYMBOL(osd_req_op_extent_init);
+
+void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
+			const char *class, const char *method,
+			const void *request_data, size_t request_data_size)
+{
+	size_t payload_len = 0;
+	size_t size;
+
+	BUG_ON(opcode != CEPH_OSD_OP_CALL);
+
+	osd_req_op_init(op, opcode);
+
+	op->cls.class_name = class;
+	size = strlen(class);
+	BUG_ON(size > (size_t) U8_MAX);
+	op->cls.class_len = size;
+	payload_len += size;
+
+	op->cls.method_name = method;
+	size = strlen(method);
+	BUG_ON(size > (size_t) U8_MAX);
+	op->cls.method_len = size;
+	payload_len += size;
+
+	op->cls.indata = request_data;
+	BUG_ON(request_data_size > (size_t) U32_MAX);
+	op->cls.indata_len = (u32) request_data_size;
+	payload_len += request_data_size;
+
+	op->cls.argc = 0;	/* currently unused */
+
+	op->payload_len = payload_len;
+}
+EXPORT_SYMBOL(osd_req_op_cls_init);
+
+void osd_req_op_watch_init(struct ceph_osd_req_op *op, u16 opcode,
+				u64 cookie, u64 version, int flag)
+{
+	BUG_ON(opcode != CEPH_OSD_OP_NOTIFY_ACK && opcode != CEPH_OSD_OP_WATCH);
+
+	osd_req_op_init(op, opcode);
+
+	op->watch.cookie = cookie;
+	/* op->watch.ver = version; */	/* XXX 3847 */
+	op->watch.ver = cpu_to_le64(version);
+	if (opcode == CEPH_OSD_OP_WATCH && flag)
+		op->watch.flag = (u8) 1;
+}
+EXPORT_SYMBOL(osd_req_op_watch_init);
+
 static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			      struct ceph_osd_op *dst,
 			      struct ceph_osd_req_op *src)

@@ -1134,76 +1134,6 @@ static bool obj_request_type_valid(enum obj_request_type type)
 	}
 }
 
-static struct ceph_osd_req_op *rbd_osd_req_op_create(u16 opcode, ...)
-{
-	struct ceph_osd_req_op *op;
-	va_list args;
-	size_t size;
-
-	op = kzalloc(sizeof (*op), GFP_NOIO);
-	if (!op)
-		return NULL;
-	op->op = opcode;
-	va_start(args, opcode);
-	switch (opcode) {
-	case CEPH_OSD_OP_READ:
-	case CEPH_OSD_OP_WRITE:
-		/* rbd_osd_req_op_create(READ, offset, length) */
-		/* rbd_osd_req_op_create(WRITE, offset, length) */
-		op->extent.offset = va_arg(args, u64);
-		op->extent.length = va_arg(args, u64);
-		if (opcode == CEPH_OSD_OP_WRITE)
-			op->payload_len = op->extent.length;
-		break;
-	case CEPH_OSD_OP_STAT:
-		break;
-	case CEPH_OSD_OP_CALL:
-		/* rbd_osd_req_op_create(CALL, class, method, data, datalen) */
-		op->cls.class_name = va_arg(args, char *);
-		size = strlen(op->cls.class_name);
-		rbd_assert(size <= (size_t) U8_MAX);
-		op->cls.class_len = size;
-		op->payload_len = size;
-
-		op->cls.method_name = va_arg(args, char *);
-		size = strlen(op->cls.method_name);
-		rbd_assert(size <= (size_t) U8_MAX);
-		op->cls.method_len = size;
-		op->payload_len += size;
-
-		op->cls.argc = 0;
-		op->cls.indata = va_arg(args, void *);
-		size = va_arg(args, size_t);
-		rbd_assert(size <= (size_t) U32_MAX);
-		op->cls.indata_len = (u32) size;
-		op->payload_len += size;
-		break;
-	case CEPH_OSD_OP_NOTIFY_ACK:
-	case CEPH_OSD_OP_WATCH:
-		/* rbd_osd_req_op_create(NOTIFY_ACK, cookie, version) */
-		/* rbd_osd_req_op_create(WATCH, cookie, version, flag) */
-		op->watch.cookie = va_arg(args, u64);
-		op->watch.ver = va_arg(args, u64);
-		op->watch.ver = cpu_to_le64(op->watch.ver);
-		if (opcode == CEPH_OSD_OP_WATCH && va_arg(args, int))
-			op->watch.flag = (u8) 1;
-		break;
-	default:
-		rbd_warn(NULL, "unsupported opcode %hu\n", opcode);
-		kfree(op);
-		op = NULL;
-		break;
-	}
-	va_end(args);
-
-	return op;
-}
-
-static void rbd_osd_req_op_destroy(struct ceph_osd_req_op *op)
-{
-	kfree(op);
-}
-
 static int rbd_obj_request_submit(struct ceph_osd_client *osdc,
 				struct rbd_obj_request *obj_request)
 {
@@ -1628,7 +1558,7 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 	while (resid) {
 		const char *object_name;
 		unsigned int clone_size;
-		struct ceph_osd_req_op *op;
+		struct ceph_osd_req_op op;
 		u64 offset;
 		u64 length;
 
@@ -1657,13 +1587,10 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 		 * request.  Note that the contents of the op are
 		 * copied by rbd_osd_req_create().
 		 */
-		op = rbd_osd_req_op_create(opcode, offset, length);
-		if (!op)
-			goto out_partial;
+		osd_req_op_extent_init(&op, opcode, offset, length, 0, 0);
 		obj_request->osd_req = rbd_osd_req_create(rbd_dev,
 						img_request->write_request,
-						obj_request, op);
-		rbd_osd_req_op_destroy(op);
+						obj_request, &op);
 		if (!obj_request->osd_req)
 			goto out_partial;
 		/* status and version are initially zero-filled */
@@ -1766,7 +1693,7 @@ static int rbd_obj_notify_ack(struct rbd_device *rbd_dev,
 				   u64 ver, u64 notify_id)
 {
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_req_op *op;
+	struct ceph_osd_req_op op;
 	struct ceph_osd_client *osdc;
 	int ret;
 
@@ -1776,12 +1703,9 @@ static int rbd_obj_notify_ack(struct rbd_device *rbd_dev,
 		return -ENOMEM;
 
 	ret = -ENOMEM;
-	op = rbd_osd_req_op_create(CEPH_OSD_OP_NOTIFY_ACK, notify_id, ver);
-	if (!op)
-		goto out;
+	osd_req_op_watch_init(&op, CEPH_OSD_OP_NOTIFY_ACK, notify_id, ver, 0);
 	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false,
-						obj_request, op);
-	rbd_osd_req_op_destroy(op);
+						obj_request, &op);
 	if (!obj_request->osd_req)
 		goto out;
 
@@ -1823,7 +1747,7 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_req_op *op;
+	struct ceph_osd_req_op op;
 	int ret;
 
 	rbd_assert(start ^ !!rbd_dev->watch_event);
@@ -1843,14 +1767,11 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 	if (!obj_request)
 		goto out_cancel;
 
-	op = rbd_osd_req_op_create(CEPH_OSD_OP_WATCH,
+	osd_req_op_watch_init(&op, CEPH_OSD_OP_WATCH,
 				rbd_dev->watch_event->cookie,
 				rbd_dev->header.obj_version, start);
-	if (!op)
-		goto out_cancel;
 	obj_request->osd_req = rbd_osd_req_create(rbd_dev, true,
-							obj_request, op);
-	rbd_osd_req_op_destroy(op);
+							obj_request, &op);
 	if (!obj_request->osd_req)
 		goto out_cancel;
 
@@ -1912,7 +1833,7 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 {
 	struct rbd_obj_request *obj_request;
 	struct ceph_osd_client *osdc;
-	struct ceph_osd_req_op *op;
+	struct ceph_osd_req_op op;
 	struct page **pages;
 	u32 page_count;
 	int ret;
@@ -1939,13 +1860,10 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	obj_request->pages = pages;
 	obj_request->page_count = page_count;
 
-	op = rbd_osd_req_op_create(CEPH_OSD_OP_CALL, class_name,
-					method_name, outbound, outbound_size);
-	if (!op)
-		goto out;
+	osd_req_op_cls_init(&op, CEPH_OSD_OP_CALL, class_name, method_name,
+					outbound, outbound_size);
 	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false,
-						obj_request, op);
-	rbd_osd_req_op_destroy(op);
+						obj_request, &op);
 	if (!obj_request->osd_req)
 		goto out;
 
@@ -2125,7 +2043,7 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 				char *buf, u64 *version)
 
 {
-	struct ceph_osd_req_op *op;
+	struct ceph_osd_req_op op;
 	struct rbd_obj_request *obj_request;
 	struct ceph_osd_client *osdc;
 	struct page **pages = NULL;
@@ -2147,12 +2065,9 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	obj_request->pages = pages;
 	obj_request->page_count = page_count;
 
-	op = rbd_osd_req_op_create(CEPH_OSD_OP_READ, offset, length);
-	if (!op)
-		goto out;
+	osd_req_op_extent_init(&op, CEPH_OSD_OP_READ, offset, length, 0, 0);
 	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false,
-						obj_request, op);
-	rbd_osd_req_op_destroy(op);
+						obj_request, &op);
 	if (!obj_request->osd_req)
 		goto out;
 
