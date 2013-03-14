@@ -9,6 +9,7 @@
 #include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <linux/ipv6.h>
+#include <net/checksum.h>
 
 #include "qlcnic.h"
 
@@ -1132,9 +1133,8 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 		iph = (struct iphdr *)skb->data;
 		th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
 		length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
+		csum_replace2(&iph->check, iph->tot_len, htons(length));
 		iph->tot_len = htons(length);
-		iph->check = 0;
-		iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
 	}
 
 	th->psh = push;
@@ -1595,9 +1595,8 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 		iph = (struct iphdr *)skb->data;
 		th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
 		length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
+		csum_replace2(&iph->check, iph->tot_len, htons(length));
 		iph->tot_len = htons(length);
-		iph->check = 0;
-		iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
 	}
 
 	th->psh = push;
