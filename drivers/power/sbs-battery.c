@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 
 #include <linux/power/sbs-battery.h>
 
@@ -667,7 +668,6 @@ of_out:
 	return pdata;
 }
 #else
-#define sbs_dt_ids NULL
 static struct sbs_platform_data *sbs_of_populate_pdata(
 	struct i2c_client *client)
 {
@@ -859,7 +859,7 @@ static struct i2c_driver sbs_battery_driver = {
 	.id_table	= sbs_id,
 	.driver = {
 		.name	= "sbs-battery",
-		.of_match_table = sbs_dt_ids,
+		.of_match_table = of_match_ptr(sbs_dt_ids),
 	},
 };
 module_i2c_driver(sbs_battery_driver);
