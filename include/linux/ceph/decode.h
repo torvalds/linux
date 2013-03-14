@@ -8,6 +8,13 @@
 
 #include <linux/ceph/types.h>
 
+/* This seemed to be the easiest place to define these */
+
+#define	U8_MAX	((u8)  (~0U))
+#define	U16_MAX	((u16) (~0U))
+#define	U32_MAX	((u32) (~0U))
+#define	U64_MAX	((u64) (~0ULL))
+
 /*
  * in all cases,
  *   void **p     pointer to position pointer

@@ -52,13 +52,6 @@
 #define	SECTOR_SHIFT	9
 #define	SECTOR_SIZE	(1ULL << SECTOR_SHIFT)
 
-/* It might be useful to have these defined elsewhere */
-
-#define	U8_MAX	((u8)	(~0U))
-#define	U16_MAX	((u16)	(~0U))
-#define	U32_MAX	((u32)	(~0U))
-#define	U64_MAX	((u64)	(~0ULL))
-
 #define RBD_DRV_NAME "rbd"
 #define RBD_DRV_NAME_LONG "rbd (rados block device)"
 
