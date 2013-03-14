@@ -390,6 +390,7 @@ config ARCH_CNS3XXX
 	select MIGHT_HAVE_CACHE_L2X0
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
+	select SPARSE_IRQ
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
