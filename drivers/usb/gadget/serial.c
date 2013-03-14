@@ -37,8 +37,6 @@
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #include "f_obex.c"
-#define USB_FSERIAL_INCLUDED
-#include "f_serial.c"
 
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();
@@ -139,16 +137,6 @@ static int __init serial_bind_obex_config(struct usb_configuration *c)
 	return status;
 }
 
-static int __init serial_bind_gser_config(struct usb_configuration *c)
-{
-	unsigned i;
-	int status = 0;
-
-	for (i = 0; i < n_ports && status == 0; i++)
-		status = gser_bind_config(c, tty_lines[i]);
-	return status;
-}
-
 static struct usb_configuration serial_config_driver = {
 	/* .label = f(use_acm) */
 	/* .bConfigurationValue = f(use_acm) */
@@ -212,7 +200,7 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	int			status;
 	int			cur_line = 0;
 
-	if (!use_acm) {
+	if (use_obex) {
 		for (cur_line = 0; cur_line < n_ports; cur_line++) {
 			status = gserial_alloc_line(&tty_lines[cur_line]);
 			if (status)
@@ -245,9 +233,10 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	} else if (use_obex)
 		status = usb_add_config(cdev, &serial_config_driver,
 				serial_bind_obex_config);
-	else
-		status = usb_add_config(cdev, &serial_config_driver,
-				serial_bind_gser_config);
+	else {
+		status = serial_register_ports(cdev, &serial_config_driver,
+				"gser");
+	}
 	if (status < 0)
 		goto fail;
 
@@ -258,7 +247,7 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 
 fail:
 	cur_line--;
-	while (cur_line >= 0 && !use_acm)
+	while (cur_line >= 0 && use_obex)
 		gserial_free_line(tty_lines[cur_line--]);
 	return status;
 }
@@ -270,7 +259,7 @@ static int gs_unbind(struct usb_composite_dev *cdev)
 	for (i = 0; i < n_ports; i++) {
 		usb_put_function(f_serial[i]);
 		usb_put_function_instance(fi_serial[i]);
-		if (!use_acm)
+		if (use_obex)
 			gserial_free_line(tty_lines[i]);
 	}
 	return 0;

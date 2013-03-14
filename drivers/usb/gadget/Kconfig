@@ -762,6 +762,7 @@ config USB_G_SERIAL
 	depends on TTY
 	select USB_U_SERIAL
 	select USB_F_ACM
+	select USB_F_SERIAL
 	select USB_LIBCOMPOSITE
 	help
 	  The Serial Gadget talks to the Linux-USB generic serial driver.
