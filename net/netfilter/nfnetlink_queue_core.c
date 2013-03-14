@@ -73,7 +73,7 @@ static struct hlist_head instance_table[INSTANCE_BUCKETS] __read_mostly;
 
 static inline u_int8_t instance_hashfn(u_int16_t queue_num)
 {
-	return ((queue_num >> 8) | queue_num) % INSTANCE_BUCKETS;
+	return ((queue_num >> 8) ^ queue_num) % INSTANCE_BUCKETS;
 }
 
 static struct nfqnl_instance *
