@@ -1841,18 +1841,8 @@ static struct platform_driver emif_driver = {
 	},
 };
 
-static int __init_or_module emif_register(void)
-{
-	return platform_driver_probe(&emif_driver, emif_probe);
-}
+module_platform_driver_probe(emif_driver, emif_probe);
 
-static void __exit emif_unregister(void)
-{
-	platform_driver_unregister(&emif_driver);
-}
-
-module_init(emif_register);
-module_exit(emif_unregister);
 MODULE_DESCRIPTION("TI EMIF SDRAM Controller Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:emif");
