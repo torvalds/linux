@@ -89,6 +89,7 @@ static __inline__ bool ceph_msg_data_type_valid(enum ceph_msg_data_type type)
 }
 
 struct ceph_msg_data {
+	struct list_head		links;	/* ceph_msg->data */
 	enum ceph_msg_data_type		type;
 	union {
 #ifdef CONFIG_BLOCK
@@ -143,7 +144,7 @@ struct ceph_msg {
 	struct ceph_buffer *middle;
 
 	size_t				data_length;
-	struct ceph_msg_data		*data;
+	struct list_head		data;
 	struct ceph_msg_data_cursor	cursor;
 
 	struct ceph_connection *con;
