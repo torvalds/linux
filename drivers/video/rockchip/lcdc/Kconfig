@@ -6,7 +6,7 @@ config LCDC_RK2928
 
 config LCDC_RK30
         tristate "rk30 lcdc support"
-        depends on FB_ROCKCHIP && ARCH_RK30
+        depends on FB_ROCKCHIP && SOC_RK3066
         help
           Driver for rk30 lcdc .There are two lcd controllers on rk30
 
