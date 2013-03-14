@@ -284,6 +284,7 @@ static void __init parse_da_table(const struct dmi_header *dm)
 {
 	/* Final token is a terminator, so we don't want to copy it */
 	int tokens = (dm->length-11)/sizeof(struct calling_interface_token)-1;
+	struct calling_interface_token *new_da_tokens;
 	struct calling_interface_structure *table =
 		container_of(dm, struct calling_interface_structure, header);
 
@@ -296,12 +297,13 @@ static void __init parse_da_table(const struct dmi_header *dm)
 	da_command_address = table->cmdIOAddress;
 	da_command_code = table->cmdIOCode;
 
-	da_tokens = krealloc(da_tokens, (da_num_tokens + tokens) *
-			     sizeof(struct calling_interface_token),
-			     GFP_KERNEL);
+	new_da_tokens = krealloc(da_tokens, (da_num_tokens + tokens) *
+				 sizeof(struct calling_interface_token),
+				 GFP_KERNEL);
 
-	if (!da_tokens)
+	if (!new_da_tokens)
 		return;
+	da_tokens = new_da_tokens;
 
 	memcpy(da_tokens+da_num_tokens, table->tokens,
 	       sizeof(struct calling_interface_token) * tokens);
