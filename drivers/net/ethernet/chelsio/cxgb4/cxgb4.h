@@ -908,7 +908,8 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 			int start, int n, const u16 *rspq, unsigned int nrspq);
 int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 		       unsigned int flags);
-int t4_mc_read(struct adapter *adap, u32 addr, __be32 *data, u64 *parity);
+int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
+	       u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 		u64 *parity);
 

@@ -2843,8 +2843,8 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 		int ret, ofst;
 		__be32 data[16];
 
-		if (mem == MEM_MC)
-			ret = t4_mc_read(adap, pos, data, NULL);
+		if ((mem == MEM_MC) || (mem == MEM_MC1))
+			ret = t4_mc_read(adap, mem % MEM_MC, pos, data, NULL);
 		else
 			ret = t4_edc_read(adap, mem, pos, data, NULL);
 		if (ret)
@@ -2885,18 +2885,37 @@ static void add_debugfs_mem(struct adapter *adap, const char *name,
 static int setup_debugfs(struct adapter *adap)
 {
 	int i;
+	u32 size;
 
 	if (IS_ERR_OR_NULL(adap->debugfs_root))
 		return -1;
 
 	i = t4_read_reg(adap, MA_TARGET_MEM_ENABLE);
-	if (i & EDRAM0_ENABLE)
-		add_debugfs_mem(adap, "edc0", MEM_EDC0, 5);
-	if (i & EDRAM1_ENABLE)
-		add_debugfs_mem(adap, "edc1", MEM_EDC1, 5);
-	if (i & EXT_MEM_ENABLE)
-		add_debugfs_mem(adap, "mc", MEM_MC,
-			EXT_MEM_SIZE_GET(t4_read_reg(adap, MA_EXT_MEMORY_BAR)));
+	if (i & EDRAM0_ENABLE) {
+		size = t4_read_reg(adap, MA_EDRAM0_BAR);
+		add_debugfs_mem(adap, "edc0", MEM_EDC0,	EDRAM_SIZE_GET(size));
+	}
+	if (i & EDRAM1_ENABLE) {
+		size = t4_read_reg(adap, MA_EDRAM1_BAR);
+		add_debugfs_mem(adap, "edc1", MEM_EDC1, EDRAM_SIZE_GET(size));
+	}
+	if (is_t4(adap->chip)) {
+		size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
+		if (i & EXT_MEM_ENABLE)
+			add_debugfs_mem(adap, "mc", MEM_MC,
+					EXT_MEM_SIZE_GET(size));
+	} else {
+		if (i & EXT_MEM_ENABLE) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY_BAR);
+			add_debugfs_mem(adap, "mc0", MEM_MC0,
+					EXT_MEM_SIZE_GET(size));
+		}
+		if (i & EXT_MEM1_ENABLE) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR);
+			add_debugfs_mem(adap, "mc1", MEM_MC1,
+					EXT_MEM_SIZE_GET(size));
+		}
+	}
 	if (adap->l2t)
 		debugfs_create_file("l2t", S_IRUSR, adap->debugfs_root, adap,
 				    &t4_l2t_fops);
@@ -4101,17 +4120,27 @@ void t4_fatal_err(struct adapter *adap)
 
 static void setup_memwin(struct adapter *adap)
 {
-	u32 bar0;
+	u32 bar0, mem_win0_base, mem_win1_base, mem_win2_base;
 
 	bar0 = pci_resource_start(adap->pdev, 0);  /* truncation intentional */
+	if (is_t4(adap->chip)) {
+		mem_win0_base = bar0 + MEMWIN0_BASE;
+		mem_win1_base = bar0 + MEMWIN1_BASE;
+		mem_win2_base = bar0 + MEMWIN2_BASE;
+	} else {
+		/* For T5, only relative offset inside the PCIe BAR is passed */
+		mem_win0_base = MEMWIN0_BASE;
+		mem_win1_base = MEMWIN1_BASE_T5;
+		mem_win2_base = MEMWIN2_BASE_T5;
+	}
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 0),
-		     (bar0 + MEMWIN0_BASE) | BIR(0) |
+		     mem_win0_base | BIR(0) |
 		     WINDOW(ilog2(MEMWIN0_APERTURE) - 10));
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 1),
-		     (bar0 + MEMWIN1_BASE) | BIR(0) |
+		     mem_win1_base | BIR(0) |
 		     WINDOW(ilog2(MEMWIN1_APERTURE) - 10));
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 2),
-		     (bar0 + MEMWIN2_BASE) | BIR(0) |
+		     mem_win2_base | BIR(0) |
 		     WINDOW(ilog2(MEMWIN2_APERTURE) - 10));
 }
 
