@@ -2155,11 +2155,6 @@ static long __video_do_ioctl(struct file *file,
 	}
 
 	write_only = _IOC_DIR(cmd) == _IOC_WRITE;
-	if (write_only && debug > V4L2_DEBUG_IOCTL) {
-		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
-		pr_cont(": ");
-		info->debug(arg, write_only);
-	}
 	if (info->flags & INFO_FL_STD) {
 		typedef int (*vidioc_op)(struct file *file, void *fh, void *p);
 		const void *p = vfd->ioctl_ops;
@@ -2178,16 +2173,10 @@ static long __video_do_ioctl(struct file *file,
 
 done:
 	if (debug) {
-		if (write_only && debug > V4L2_DEBUG_IOCTL) {
-			if (ret < 0)
-				printk(KERN_DEBUG "%s: error %ld\n",
-					video_device_node_name(vfd), ret);
-			return ret;
-		}
 		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
 		if (ret < 0)
-			pr_cont(": error %ld\n", ret);
-		else if (debug == V4L2_DEBUG_IOCTL)
+			pr_cont(": error %ld", ret);
+		if (debug == V4L2_DEBUG_IOCTL)
 			pr_cont("\n");
 		else if (_IOC_DIR(cmd) == _IOC_NONE)
 			info->debug(arg, write_only);
