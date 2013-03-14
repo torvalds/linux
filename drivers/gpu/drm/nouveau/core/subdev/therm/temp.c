@@ -34,10 +34,6 @@ nouveau_therm_temp_set_defaults(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 
-	priv->bios_sensor.slope_mult = 1;
-	priv->bios_sensor.slope_div = 1;
-	priv->bios_sensor.offset_num = 0;
-	priv->bios_sensor.offset_den = 1;
 	priv->bios_sensor.offset_constant = 0;
 
 	priv->bios_sensor.thrs_fan_boost.temp = 90;
@@ -59,11 +55,6 @@ nouveau_therm_temp_safety_checks(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 	struct nvbios_therm_sensor *s = &priv->bios_sensor;
-
-	if (!priv->bios_sensor.slope_div)
-		priv->bios_sensor.slope_div = 1;
-	if (!priv->bios_sensor.offset_den)
-		priv->bios_sensor.offset_den = 1;
 
 	/* enforce a minimum hysteresis on thresholds */
 	s->thrs_fan_boost.hysteresis = max_t(u8, s->thrs_fan_boost.hysteresis, 2);

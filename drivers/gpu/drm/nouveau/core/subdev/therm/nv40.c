@@ -93,12 +93,10 @@ nv40_temp_get(struct nouveau_therm *therm)
 	} else
 		return -ENODEV;
 
-	if (sensor->slope_div == 0)
-		sensor->slope_div = 1;
-	if (sensor->offset_den == 0)
-		sensor->offset_den = 1;
-	if (sensor->slope_mult < 1)
-		sensor->slope_mult = 1;
+	/* if the slope or the offset is unset, do no use the sensor */
+	if (!sensor->slope_div || !sensor->slope_mult ||
+	    !sensor->offset_num || !sensor->offset_den)
+	    return -ENODEV;
 
 	core_temp = core_temp * sensor->slope_mult / sensor->slope_div;
 	core_temp = core_temp + sensor->offset_num / sensor->offset_den;
