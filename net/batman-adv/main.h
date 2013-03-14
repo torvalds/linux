@@ -105,6 +105,8 @@
 #define BATADV_RESET_PROTECTION_MS 30000
 #define BATADV_EXPECTED_SEQNO_RANGE	65536
 
+#define BATADV_NC_NODE_TIMEOUT 10000 /* Milliseconds */
+
 enum batadv_mesh_state {
 	BATADV_MESH_INACTIVE,
 	BATADV_MESH_ACTIVE,
@@ -185,6 +187,7 @@ __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr);
  * @BATADV_DBG_TT: translation table messages
  * @BATADV_DBG_BLA: bridge loop avoidance messages
  * @BATADV_DBG_DAT: ARP snooping and DAT related messages
+ * @BATADV_DBG_NC: network coding related messages
  * @BATADV_DBG_ALL: the union of all the above log levels
  */
 enum batadv_dbg_level {
@@ -193,7 +196,8 @@ enum batadv_dbg_level {
 	BATADV_DBG_TT	  = BIT(2),
 	BATADV_DBG_BLA    = BIT(3),
 	BATADV_DBG_DAT    = BIT(4),
-	BATADV_DBG_ALL    = 31,
+	BATADV_DBG_NC	  = BIT(5),
+	BATADV_DBG_ALL    = 63,
 };
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
@@ -297,5 +301,11 @@ static inline uint64_t batadv_sum_counter(struct batadv_priv *bat_priv,
 
 	return sum;
 }
+
+/* Define a macro to reach the control buffer of the skb. The members of the
+ * control buffer are defined in struct batadv_skb_cb in types.h.
+ * The macro is inspired by the similar macro TCP_SKB_CB() in tcp.h.
+ */
+#define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *)&((__skb)->cb[0]))
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

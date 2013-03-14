@@ -27,6 +27,7 @@
 #include "hard-interface.h"
 #include "send.h"
 #include "bat_algo.h"
+#include "network-coding.h"
 
 static struct batadv_neigh_node *
 batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
@@ -1184,6 +1185,10 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 
 	if (!orig_neigh_node)
 		goto out;
+
+	/* Update nc_nodes of the originator */
+	batadv_nc_update_nc_node(bat_priv, orig_node, orig_neigh_node,
+				 batadv_ogm_packet, is_single_hop_neigh);
 
 	orig_neigh_router = batadv_orig_node_get_router(orig_neigh_node);
 
