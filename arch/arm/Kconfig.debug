@@ -103,6 +103,13 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
 
+	config DEBUG_CNS3XXX
+		bool "Kernel Kernel low-level debugging on Cavium Networks CNS3xxx"
+		depends on ARCH_CNS3XXX
+		help
+		  Say Y here if you want the debug print routines to direct
+                  their output to the CNS3xxx UART0.
+
 	config DEBUG_DAVINCI_DA8XX_UART1
 		bool "Kernel low-level debugging on DaVinci DA8XX using UART1"
 		depends on ARCH_DAVINCI_DA8XX
@@ -579,6 +586,7 @@ endchoice
 
 config DEBUG_LL_INCLUDE
 	string
+	default "debug/cns3xxx.S" if DEBUG_CNS3XXX
 	default "debug/icedcc.S" if DEBUG_ICEDCC
 	default "debug/imx.S" if DEBUG_IMX1_UART || \
 				 DEBUG_IMX25_UART || \
