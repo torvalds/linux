@@ -293,10 +293,8 @@ static netdev_tx_t xlr_net_start_xmit(struct sk_buff *skb,
 	struct nlm_fmn_msg msg;
 	struct xlr_net_priv *priv = netdev_priv(ndev);
 	int ret;
-	u16 qmap;
 	u32 flags;
 
-	qmap = skb->queue_mapping;
 	xlr_make_tx_desc(&msg, virt_to_phys(skb->data), skb);
 	flags = nlm_cop2_enable();
 	ret = nlm_fmn_send(2, 0, priv->nd->tx_stnid, &msg);
