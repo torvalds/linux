@@ -393,8 +393,6 @@ static const struct of_device_id tiny_spi_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, tiny_spi_match);
-#else /* CONFIG_OF */
-#define tiny_spi_match NULL
 #endif /* CONFIG_OF */
 
 static struct platform_driver tiny_spi_driver = {
@@ -404,7 +402,7 @@ static struct platform_driver tiny_spi_driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 		.pm = NULL,
-		.of_match_table = tiny_spi_match,
+		.of_match_table = of_match_ptr(tiny_spi_match),
 	},
 };
 module_platform_driver(tiny_spi_driver);
