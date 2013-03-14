@@ -877,13 +877,6 @@ config AB3100_OTP
 	  programmable memory) support. This exposes a sysfs file to read
 	  out OTP values.
 
-config EZX_PCAP
-	bool "PCAP Support"
-	depends on GENERIC_HARDIRQS && SPI_MASTER
-	help
-	  This enables the PCAP ASIC present on EZX Phones. This is
-	  needed for MMC, TouchScreen, Sound, USB, etc..
-
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
 	depends on GENERIC_HARDIRQS && ABX500_CORE && MFD_DB8500_PRCMU
@@ -911,6 +904,13 @@ config AB8500_GPADC
 	default y
 	help
 	  AB8500 GPADC driver used to convert Acc and battery/ac/usb voltage
+
+config EZX_PCAP
+	bool "PCAP Support"
+	depends on GENERIC_HARDIRQS && SPI_MASTER
+	help
+	  This enables the PCAP ASIC present on EZX Phones. This is
+	  needed for MMC, TouchScreen, Sound, USB, etc..
 
 config MFD_DB8500_PRCMU
 	bool "ST-Ericsson DB8500 Power Reset Control Management Unit"
