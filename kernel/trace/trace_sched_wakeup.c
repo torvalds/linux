@@ -37,6 +37,7 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace);
 static void wakeup_graph_return(struct ftrace_graph_ret *trace);
 
 static int save_flags;
+static bool function_enabled;
 
 #define TRACE_DISPLAY_GRAPH     1
 
@@ -134,15 +135,60 @@ static struct ftrace_ops trace_ops __read_mostly =
 };
 #endif /* CONFIG_FUNCTION_TRACER */
 
+static int register_wakeup_function(int graph, int set)
+{
+	int ret;
+
+	/* 'set' is set if TRACE_ITER_FUNCTION is about to be set */
+	if (function_enabled || (!set && !(trace_flags & TRACE_ITER_FUNCTION)))
+		return 0;
+
+	if (graph)
+		ret = register_ftrace_graph(&wakeup_graph_return,
+					    &wakeup_graph_entry);
+	else
+		ret = register_ftrace_function(&trace_ops);
+
+	if (!ret)
+		function_enabled = true;
+
+	return ret;
+}
+
+static void unregister_wakeup_function(int graph)
+{
+	if (!function_enabled)
+		return;
+
+	if (graph)
+		unregister_ftrace_graph();
+	else
+		unregister_ftrace_function(&trace_ops);
+
+	function_enabled = false;
+}
+
+static void wakeup_function_set(int set)
+{
+	if (set)
+		register_wakeup_function(is_graph(), 1);
+	else
+		unregister_wakeup_function(is_graph());
+}
+
+static int wakeup_flag_changed(struct tracer *tracer, u32 mask, int set)
+{
+	if (mask & TRACE_ITER_FUNCTION)
+		wakeup_function_set(set);
+
+	return trace_keep_overwrite(tracer, mask, set);
+}
+
 static int start_func_tracer(int graph)
 {
 	int ret;
 
-	if (!graph)
-		ret = register_ftrace_function(&trace_ops);
-	else
-		ret = register_ftrace_graph(&wakeup_graph_return,
-					    &wakeup_graph_entry);
+	ret = register_wakeup_function(graph, 0);
 
 	if (!ret && tracing_is_enabled())
 		tracer_enabled = 1;
@@ -156,10 +202,7 @@ static void stop_func_tracer(int graph)
 {
 	tracer_enabled = 0;
 
-	if (!graph)
-		unregister_ftrace_function(&trace_ops);
-	else
-		unregister_ftrace_graph();
+	unregister_wakeup_function(graph);
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -600,7 +643,7 @@ static struct tracer wakeup_tracer __read_mostly =
 	.print_line	= wakeup_print_line,
 	.flags		= &tracer_flags,
 	.set_flag	= wakeup_set_flag,
-	.flag_changed	= trace_keep_overwrite,
+	.flag_changed	= wakeup_flag_changed,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,
 #endif
@@ -622,7 +665,7 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 	.print_line	= wakeup_print_line,
 	.flags		= &tracer_flags,
 	.set_flag	= wakeup_set_flag,
-	.flag_changed	= trace_keep_overwrite,
+	.flag_changed	= wakeup_flag_changed,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,
 #endif

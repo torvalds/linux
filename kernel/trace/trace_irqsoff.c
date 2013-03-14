@@ -33,6 +33,7 @@ enum {
 static int trace_type __read_mostly;
 
 static int save_flags;
+static bool function_enabled;
 
 static void stop_irqsoff_tracer(struct trace_array *tr, int graph);
 static int start_irqsoff_tracer(struct trace_array *tr, int graph);
@@ -528,15 +529,60 @@ void trace_preempt_off(unsigned long a0, unsigned long a1)
 }
 #endif /* CONFIG_PREEMPT_TRACER */
 
-static int start_irqsoff_tracer(struct trace_array *tr, int graph)
+static int register_irqsoff_function(int graph, int set)
 {
-	int ret = 0;
+	int ret;
 
-	if (!graph)
-		ret = register_ftrace_function(&trace_ops);
-	else
+	/* 'set' is set if TRACE_ITER_FUNCTION is about to be set */
+	if (function_enabled || (!set && !(trace_flags & TRACE_ITER_FUNCTION)))
+		return 0;
+
+	if (graph)
 		ret = register_ftrace_graph(&irqsoff_graph_return,
 					    &irqsoff_graph_entry);
+	else
+		ret = register_ftrace_function(&trace_ops);
+
+	if (!ret)
+		function_enabled = true;
+
+	return ret;
+}
+
+static void unregister_irqsoff_function(int graph)
+{
+	if (!function_enabled)
+		return;
+
+	if (graph)
+		unregister_ftrace_graph();
+	else
+		unregister_ftrace_function(&trace_ops);
+
+	function_enabled = false;
+}
+
+static void irqsoff_function_set(int set)
+{
+	if (set)
+		register_irqsoff_function(is_graph(), 1);
+	else
+		unregister_irqsoff_function(is_graph());
+}
+
+static int irqsoff_flag_changed(struct tracer *tracer, u32 mask, int set)
+{
+	if (mask & TRACE_ITER_FUNCTION)
+		irqsoff_function_set(set);
+
+	return trace_keep_overwrite(tracer, mask, set);
+}
+
+static int start_irqsoff_tracer(struct trace_array *tr, int graph)
+{
+	int ret;
+
+	ret = register_irqsoff_function(graph, 0);
 
 	if (!ret && tracing_is_enabled())
 		tracer_enabled = 1;
@@ -550,10 +596,7 @@ static void stop_irqsoff_tracer(struct trace_array *tr, int graph)
 {
 	tracer_enabled = 0;
 
-	if (!graph)
-		unregister_ftrace_function(&trace_ops);
-	else
-		unregister_ftrace_graph();
+	unregister_irqsoff_function(graph);
 }
 
 static void __irqsoff_tracer_init(struct trace_array *tr)
@@ -615,7 +658,7 @@ static struct tracer irqsoff_tracer __read_mostly =
 	.print_line     = irqsoff_print_line,
 	.flags		= &tracer_flags,
 	.set_flag	= irqsoff_set_flag,
-	.flag_changed	= trace_keep_overwrite,
+	.flag_changed	= irqsoff_flag_changed,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_irqsoff,
 #endif
@@ -649,7 +692,7 @@ static struct tracer preemptoff_tracer __read_mostly =
 	.print_line     = irqsoff_print_line,
 	.flags		= &tracer_flags,
 	.set_flag	= irqsoff_set_flag,
-	.flag_changed	= trace_keep_overwrite,
+	.flag_changed	= irqsoff_flag_changed,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_preemptoff,
 #endif
@@ -685,7 +728,7 @@ static struct tracer preemptirqsoff_tracer __read_mostly =
 	.print_line     = irqsoff_print_line,
 	.flags		= &tracer_flags,
 	.set_flag	= irqsoff_set_flag,
-	.flag_changed	= trace_keep_overwrite,
+	.flag_changed	= irqsoff_flag_changed,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_preemptirqsoff,
 #endif
