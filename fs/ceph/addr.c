@@ -631,29 +631,6 @@ static void writepages_finish(struct ceph_osd_request *req,
 	ceph_osdc_put_request(req);
 }
 
-/*
- * allocate a page vec, either directly, or if necessary, via a the
- * mempool.  we avoid the mempool if we can because req->r_data_out.length
- * may be less than the maximum write size.
- */
-static void alloc_page_vec(struct ceph_fs_client *fsc,
-			   struct ceph_osd_request *req)
-{
-	size_t size;
-	int num_pages;
-
-	num_pages = calc_pages_for((u64)req->r_data_out.alignment,
-					(u64)req->r_data_out.length);
-	size = sizeof (struct page *) * num_pages;
-	req->r_data_out.pages = kmalloc(size, GFP_NOFS);
-	if (!req->r_data_out.pages) {
-		req->r_data_out.pages = mempool_alloc(fsc->wb_pagevec_pool,
-							GFP_NOFS);
-		req->r_data_out.pages_from_pool = 1;
-		WARN_ON(!req->r_data_out.pages);
-	}
-}
-
 static struct ceph_osd_request *
 ceph_writepages_osd_request(struct inode *inode, u64 offset, u64 *len,
 				struct ceph_snap_context *snapc,
@@ -851,6 +828,9 @@ get_more_pages:
 			if (locked_pages == 0) {
 				struct ceph_vino vino;
 				int num_ops = do_sync ? 2 : 1;
+				size_t size;
+				struct page **pages;
+				mempool_t *pool = NULL;
 
 				/* prepare async write request */
 				offset = (u64) page_offset(page);
@@ -870,13 +850,24 @@ get_more_pages:
 					num_ops, ops, snapc, vino.snap,
 					&inode->i_mtime);
 
+				req->r_callback = writepages_finish;
+				req->r_inode = inode;
+
+				max_pages = calc_pages_for(0, (u64)len);
+				size = max_pages * sizeof (*pages);
+				pages = kmalloc(size, GFP_NOFS);
+				if (!pages) {
+					pool = fsc->wb_pagevec_pool;
+
+					pages = mempool_alloc(pool, GFP_NOFS);
+					WARN_ON(!pages);
+				}
+
+				req->r_data_out.pages = pages;
+				req->r_data_out.pages_from_pool = !!pool;
 				req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGES;
 				req->r_data_out.length = len;
 				req->r_data_out.alignment = 0;
-				max_pages = calc_pages_for(0, (u64)len);
-				alloc_page_vec(fsc, req);
-				req->r_callback = writepages_finish;
-				req->r_inode = inode;
 			}
 
 			/* note position of first page in pvec */
