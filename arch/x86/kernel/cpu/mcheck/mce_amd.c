@@ -58,11 +58,6 @@ static const char * const th_names[] = {
 };
 
 static DEFINE_PER_CPU(struct threshold_bank * [NR_BANKS], threshold_banks);
-
-static unsigned char shared_bank[NR_BANKS] = {
-	0, 0, 0, 0, 1
-};
-
 static DEFINE_PER_CPU(unsigned char, bank_map);	/* see which banks are on */
 
 static void amd_threshold_interrupt(void);
@@ -78,6 +73,12 @@ struct thresh_restart {
 	int			lvt_off;
 	u16			old_limit;
 };
+
+static inline bool is_shared_bank(int bank)
+{
+	/* Bank 4 is for northbridge reporting and is thus shared */
+	return (bank == 4);
+}
 
 static const char * const bank4_names(struct threshold_block *b)
 {
@@ -575,7 +576,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	const char *name = th_names[bank];
 	int err = 0;
 
-	if (shared_bank[bank]) {
+	if (is_shared_bank(bank)) {
 		nb = node_to_amd_nb(amd_get_nb_id(cpu));
 
 		/* threshold descriptor already initialized on this node? */
@@ -609,7 +610,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 	per_cpu(threshold_banks, cpu)[bank] = b;
 
-	if (shared_bank[bank]) {
+	if (is_shared_bank(bank)) {
 		atomic_set(&b->cpus, 1);
 
 		/* nb is already initialized, see above */
@@ -691,7 +692,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 	if (!b->blocks)
 		goto free_out;
 
-	if (shared_bank[bank]) {
+	if (is_shared_bank(bank)) {
 		if (!atomic_dec_and_test(&b->cpus)) {
 			__threshold_remove_blocks(b);
 			per_cpu(threshold_banks, cpu)[bank] = NULL;
