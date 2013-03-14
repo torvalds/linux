@@ -58,7 +58,6 @@ static const char * const ep_name[] = {
 	"ep-a", "ep-b", "ep-c",
 };
 
-#define DMA_ADDR_INVALID	(~(dma_addr_t)0)
 #ifdef CONFIG_USB_GADGET_NET2272_DMA
 /*
  * use_dma: the NET2272 can use an external DMA controller.
@@ -341,7 +340,6 @@ net2272_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	if (!req)
 		return NULL;
 
-	req->req.dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&req->queue);
 
 	return &req->req;
