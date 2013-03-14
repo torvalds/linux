@@ -1380,12 +1380,12 @@ move_to_confirmed(struct nfs4_client *clp)
 }
 
 static struct nfs4_client *
-find_confirmed_client(clientid_t *clid, bool sessions, struct nfsd_net *nn)
+find_client_in_id_table(struct list_head *tbl, clientid_t *clid, bool sessions)
 {
 	struct nfs4_client *clp;
 	unsigned int idhashval = clientid_hashval(clid->cl_id);
 
-	list_for_each_entry(clp, &nn->conf_id_hashtbl[idhashval], cl_idhash) {
+	list_for_each_entry(clp, &tbl[idhashval], cl_idhash) {
 		if (same_clid(&clp->cl_clientid, clid)) {
 			if ((bool)clp->cl_minorversion != sessions)
 				return NULL;
@@ -1397,19 +1397,19 @@ find_confirmed_client(clientid_t *clid, bool sessions, struct nfsd_net *nn)
 }
 
 static struct nfs4_client *
+find_confirmed_client(clientid_t *clid, bool sessions, struct nfsd_net *nn)
+{
+	struct list_head *tbl = nn->conf_id_hashtbl;
+
+	return find_client_in_id_table(tbl, clid, sessions);
+}
+
+static struct nfs4_client *
 find_unconfirmed_client(clientid_t *clid, bool sessions, struct nfsd_net *nn)
 {
-	struct nfs4_client *clp;
-	unsigned int idhashval = clientid_hashval(clid->cl_id);
+	struct list_head *tbl = nn->unconf_id_hashtbl;
 
-	list_for_each_entry(clp, &nn->unconf_id_hashtbl[idhashval], cl_idhash) {
-		if (same_clid(&clp->cl_clientid, clid)) {
-			if ((bool)clp->cl_minorversion != sessions)
-				return NULL;
-			return clp;
-		}
-	}
-	return NULL;
+	return find_client_in_id_table(tbl, clid, sessions);
 }
 
 static bool clp_used_exchangeid(struct nfs4_client *clp)
