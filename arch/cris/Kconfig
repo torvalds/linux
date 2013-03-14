@@ -264,7 +264,6 @@ config ETRAX_AXISFLASHMAP
 	select MTD_CFI
 	select MTD_CFI_AMDSTD
 	select MTD_JEDECPROBE if ETRAX_ARCH_V32
-	select MTD_CHAR
 	select MTD_BLOCK
 	select MTD_COMPLEX_MAPPINGS
 	help
