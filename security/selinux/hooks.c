@@ -1862,7 +1862,7 @@ static int selinux_binder_transfer_file(struct task_struct *from, struct task_st
 	struct selinux_audit_data sad = {0,};
 	int rc;
 
-	COMMON_AUDIT_DATA_INIT(&ad, PATH);
+	ad.type = LSM_AUDIT_DATA_PATH;
 	ad.u.path = file->f_path;
 	ad.selinux_audit_data = &sad;
 
