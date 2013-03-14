@@ -816,6 +816,22 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		*end = 0;
 }
 
+/* This function copies 64 byte coalesced work request to
+ * memory mapped BAR2 space(user space writes).
+ * For coalesced WR SGE, fetches data from the FIFO instead of from Host.
+ */
+static void cxgb_pio_copy(u64 __iomem *dst, u64 *src)
+{
+	int count = 8;
+
+	while (count) {
+		writeq(*src, dst);
+		src++;
+		dst++;
+		count--;
+	}
+}
+
 /**
  *	ring_tx_db - check and potentially ring a Tx queue's doorbell
  *	@adap: the adapter
@@ -826,11 +842,25 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
  */
 static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 {
+	unsigned int *wr, index;
+
 	wmb();            /* write descriptors before telling HW */
 	spin_lock(&q->db_lock);
 	if (!q->db_disabled) {
-		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
-			     QID(q->cntxt_id) | PIDX(n));
+		if (is_t4(adap->chip)) {
+			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
+				     QID(q->cntxt_id) | PIDX(n));
+		} else {
+			if (n == 1) {
+				index = q->pidx ? (q->pidx - 1) : (q->size - 1);
+				wr = (unsigned int *)&q->desc[index];
+				cxgb_pio_copy((u64 __iomem *)
+					      (adap->bar2 + q->udb + 64),
+					      (u64 *)wr);
+			} else
+				writel(n,  adap->bar2 + q->udb + 8);
+			wmb();
+		}
 	}
 	q->db_pidx = q->pidx;
 	spin_unlock(&q->db_lock);
@@ -2151,11 +2181,27 @@ err:
 
 static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
 {
+	q->cntxt_id = id;
+	if (!is_t4(adap->chip)) {
+		unsigned int s_qpp;
+		unsigned short udb_density;
+		unsigned long qpshift;
+		int page;
+
+		s_qpp = QUEUESPERPAGEPF1 * adap->fn;
+		udb_density = 1 << QUEUESPERPAGEPF0_GET((t4_read_reg(adap,
+				SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp));
+		qpshift = PAGE_SHIFT - ilog2(udb_density);
+		q->udb = q->cntxt_id << qpshift;
+		q->udb &= PAGE_MASK;
+		page = q->udb / PAGE_SIZE;
+		q->udb += (q->cntxt_id - (page * udb_density)) * 128;
+	}
+
 	q->in_use = 0;
 	q->cidx = q->pidx = 0;
 	q->stops = q->restarts = 0;
 	q->stat = (void *)&q->desc[q->size];
-	q->cntxt_id = id;
 	spin_lock_init(&q->db_lock);
 	adap->sge.egr_map[id - adap->sge.egr_start] = q;
 }

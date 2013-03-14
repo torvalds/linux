@@ -1327,6 +1327,8 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"VLANinsertions     ",
 	"GROpackets         ",
 	"GROmerged          ",
+	"WriteCoalSuccess   ",
+	"WriteCoalFail      ",
 };
 
 static int get_sset_count(struct net_device *dev, int sset)
@@ -1422,11 +1424,25 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
+	u32 val1, val2;
 
 	t4_get_port_stats(adapter, pi->tx_chan, (struct port_stats *)data);
 
 	data += sizeof(struct port_stats) / sizeof(u64);
 	collect_sge_port_stats(adapter, pi, (struct queue_port_stats *)data);
+	data += sizeof(struct queue_port_stats) / sizeof(u64);
+	if (!is_t4(adapter->chip)) {
+		t4_write_reg(adapter, SGE_STAT_CFG, STATSOURCE_T5(7));
+		val1 = t4_read_reg(adapter, SGE_STAT_TOTAL);
+		val2 = t4_read_reg(adapter, SGE_STAT_MATCH);
+		*data = val1 - val2;
+		data++;
+		*data = val2;
+		data++;
+	} else {
+		memset(data, 0, 2 * sizeof(u64));
+		*data += 2;
+	}
 }
 
 /*
@@ -5337,10 +5353,11 @@ static void free_some_resources(struct adapter *adapter)
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
+#define SEGMENT_SIZE 128
 
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	int func, i, err;
+	int func, i, err, s_qpp, qpp, num_seg;
 	struct port_info *pi;
 	bool highdma = false;
 	struct adapter *adapter = NULL;
@@ -5420,7 +5437,34 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = t4_prep_adapter(adapter);
 	if (err)
-		goto out_unmap_bar;
+		goto out_unmap_bar0;
+
+	if (!is_t4(adapter->chip)) {
+		s_qpp = QUEUESPERPAGEPF1 * adapter->fn;
+		qpp = 1 << QUEUESPERPAGEPF0_GET(t4_read_reg(adapter,
+		      SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp);
+		num_seg = PAGE_SIZE / SEGMENT_SIZE;
+
+		/* Each segment size is 128B. Write coalescing is enabled only
+		 * when SGE_EGRESS_QUEUES_PER_PAGE_PF reg value for the
+		 * queue is less no of segments that can be accommodated in
+		 * a page size.
+		 */
+		if (qpp > num_seg) {
+			dev_err(&pdev->dev,
+				"Incorrect number of egress queues per page\n");
+			err = -EINVAL;
+			goto out_unmap_bar0;
+		}
+		adapter->bar2 = ioremap_wc(pci_resource_start(pdev, 2),
+		pci_resource_len(pdev, 2));
+		if (!adapter->bar2) {
+			dev_err(&pdev->dev, "cannot map device bar2 region\n");
+			err = -ENOMEM;
+			goto out_unmap_bar0;
+		}
+	}
+
 	setup_memwin(adapter);
 	err = adap_init0(adapter);
 	setup_memwin_rdma(adapter);
@@ -5552,6 +5596,9 @@ sriov:
  out_free_dev:
 	free_some_resources(adapter);
  out_unmap_bar:
+	if (!is_t4(adapter->chip))
+		iounmap(adapter->bar2);
+ out_unmap_bar0:
 	iounmap(adapter->regs);
  out_free_adapter:
 	kfree(adapter);
@@ -5602,6 +5649,8 @@ static void remove_one(struct pci_dev *pdev)
 
 		free_some_resources(adapter);
 		iounmap(adapter->regs);
+		if (!is_t4(adapter->chip))
+			iounmap(adapter->bar2);
 		kfree(adapter);
 		pci_disable_pcie_error_reporting(pdev);
 		pci_disable_device(pdev);
