@@ -100,7 +100,7 @@ void usb20otg_hw_init(void)
     *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.
 #endif
     // usb phy config init
-    *(unsigned int *)(USBGRF_UOC0_CON0) = 0x07e70350;
+    *(unsigned int *)(USBGRF_UOC0_CON0) = 0xe7e7a350;
 
     // other hardware init
 #ifdef CONFIG_RK_CONFIG
