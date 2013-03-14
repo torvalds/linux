@@ -15,6 +15,7 @@ config ARCH_SOCFPGA
 	select MIGHT_HAVE_CACHE_L2X0
 	select SPARSE_IRQ
 	select USE_OF
+	select SOC_BUS
 
 config FPGA_SDRAM
 	bool "Enables FPGA SDRAM"

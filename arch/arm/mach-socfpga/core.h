@@ -29,6 +29,11 @@
 #define RSTMGR_CTRL_SWWARMRSTREQ	0x2	/* Warm Reset */
 
 extern void socfpga_secondary_startup(void);
+#define SOCFPGA_SYSID_DEFAULT		0x1
+#define SOCFPGA_REVISION_DEFAULT	0x1
+
+/* Sysid register map */
+#define SYSID_ID_REG			0x0
 
 #define SOCFPGA_RSTMGR_CTRL	0x04
 #define SOCFPGA_RSTMGR_MODPERRST	0x14
@@ -52,7 +57,6 @@ extern void socfpga_secondary_startup(void);
 
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_MASK 0x00000003
 
-extern void secondary_startup(void);
 extern void __iomem *socfpga_scu_base_addr;
 extern void __iomem *sys_manager_base_addr;
 extern void __iomem *rst_manager_base_addr;
