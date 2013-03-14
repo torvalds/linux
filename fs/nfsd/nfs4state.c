@@ -1843,15 +1843,13 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	/* cache solo and embedded create sessions under the state lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
 	nfs4_unlock_state();
-out:
-	dprintk("%s returns %d\n", __func__, ntohl(status));
 	return status;
 out_free_conn:
 	nfs4_unlock_state();
 	free_conn(conn);
 out_free_session:
 	__free_session(new);
-	goto out;
+	return status;
 }
 
 static __be32 nfsd4_map_bcts_dir(u32 *dir)
@@ -1963,7 +1961,6 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	spin_unlock(&nn->client_lock);
 	status = nfs_ok;
 out:
-	dprintk("%s returns %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -2116,7 +2113,6 @@ out:
 	}
 	kfree(conn);
 	spin_unlock(&nn->client_lock);
-	dprintk("%s: return %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -2155,7 +2151,6 @@ nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 	expire_client(clp);
 out:
 	nfs4_unlock_state();
-	dprintk("%s return %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -2531,8 +2526,6 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 	struct nfs4_file *fp;
 	struct nfs4_ol_stateid *stp;
 	__be32 ret;
-
-	dprintk("NFSD: nfs4_share_conflict\n");
 
 	fp = find_file(ino);
 	if (!fp)
