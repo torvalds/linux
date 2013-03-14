@@ -68,8 +68,8 @@
 #include "t4fw_api.h"
 #include "l2t.h"
 
-#define DRV_VERSION "1.3.0-ko"
-#define DRV_DESC "Chelsio T4 Network Driver"
+#define DRV_VERSION "2.0.0-ko"
+#define DRV_DESC "Chelsio T4/T5 Network Driver"
 
 /*
  * Max interrupt hold-off timer value in us.  Queues fall back to this value
