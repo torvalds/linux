@@ -546,6 +546,9 @@ struct nand_chip {
 #define NAND_MFR_MACRONIX	0xc2
 #define NAND_MFR_EON		0x92
 
+/* The maximum expected count of bytes in the NAND ID sequence */
+#define NAND_MAX_ID_LEN 8
+
 /*
  * A helper for defining older NAND chips where the second ID byte fully
  * defined the chip, including the geometry (chip size, eraseblock size, page
@@ -593,7 +596,7 @@ struct nand_flash_dev {
 			uint8_t mfr_id;
 			uint8_t dev_id;
 		};
-		uint8_t id[8];
+		uint8_t id[NAND_MAX_ID_LEN];
 	};
 	unsigned int pagesize;
 	unsigned int chipsize;
