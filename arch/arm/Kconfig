@@ -382,18 +382,6 @@ config ARCH_BCM2835
 	  This enables support for the Broadcom BCM2835 SoC. This SoC is
 	  use in the Raspberry Pi, and Roku 2 devices.
 
-config ARCH_CNS3XXX
-	bool "Cavium Networks CNS3XXX family"
-	select ARM_GIC
-	select CPU_V6K
-	select GENERIC_CLOCKEVENTS
-	select MIGHT_HAVE_CACHE_L2X0
-	select MIGHT_HAVE_PCI
-	select PCI_DOMAINS if PCI
-	select SPARSE_IRQ
-	help
-	  Support for Cavium Networks CNS3XXX platform.
-
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select ARCH_REQUIRE_GPIOLIB
