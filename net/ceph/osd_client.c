@@ -581,17 +581,10 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 			truncate_size = object_size;
 	}
 
-	memset(&ops, 0, sizeof ops);
-	ops[0].op = opcode;
-	ops[0].extent.offset = objoff;
-	ops[0].extent.length = objlen;
-	ops[0].extent.truncate_size = truncate_size;
-	ops[0].extent.truncate_seq = truncate_seq;
-	if (ops[0].op == CEPH_OSD_OP_WRITE)
-		ops[0].payload_len = *plen;
-
+	osd_req_op_extent_init(&ops[0], opcode, objoff, objlen,
+				truncate_size, truncate_seq);
 	if (do_sync)
-		ops[1].op = CEPH_OSD_OP_STARTSYNC;
+		osd_req_op_init(&ops[1], CEPH_OSD_OP_STARTSYNC);
 
 	req->r_file_layout = *layout;  /* keep a copy */
 
