@@ -49,7 +49,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/mxsfb.h>
+#include <linux/fb.h>
 #include <video/videomode.h>
 
 #define REG_SET	4
@@ -109,7 +109,7 @@
 #define VDCTRL0_ENABLE_PRESENT		(1 << 28)
 #define VDCTRL0_VSYNC_ACT_HIGH		(1 << 27)
 #define VDCTRL0_HSYNC_ACT_HIGH		(1 << 26)
-#define VDCTRL0_DOTCLK_ACT_FAILING	(1 << 25)
+#define VDCTRL0_DOTCLK_ACT_FALLING	(1 << 25)
 #define VDCTRL0_ENABLE_ACT_HIGH		(1 << 24)
 #define VDCTRL0_VSYNC_PERIOD_UNIT	(1 << 21)
 #define VDCTRL0_VSYNC_PULSE_WIDTH_UNIT	(1 << 20)
@@ -143,6 +143,14 @@
 #define GREEN 1
 #define BLUE 2
 #define TRANSP 3
+
+#define STMLCDIF_8BIT  1 /** pixel data bus to the display is of 8 bit width */
+#define STMLCDIF_16BIT 0 /** pixel data bus to the display is of 16 bit width */
+#define STMLCDIF_18BIT 2 /** pixel data bus to the display is of 18 bit width */
+#define STMLCDIF_24BIT 3 /** pixel data bus to the display is of 24 bit width */
+
+#define MXSFB_SYNC_DATA_ENABLE_HIGH_ACT	(1 << 6)
+#define MXSFB_SYNC_DOTCLK_FALLING_ACT	(1 << 7) /* negtive edge sampling */
 
 enum mxsfb_devtype {
 	MXSFB_V3,
@@ -460,8 +468,8 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 		vdctrl0 |= VDCTRL0_VSYNC_ACT_HIGH;
 	if (host->sync & MXSFB_SYNC_DATA_ENABLE_HIGH_ACT)
 		vdctrl0 |= VDCTRL0_ENABLE_ACT_HIGH;
-	if (host->sync & MXSFB_SYNC_DOTCLK_FAILING_ACT)
-		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FAILING;
+	if (host->sync & MXSFB_SYNC_DOTCLK_FALLING_ACT)
+		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FALLING;
 
 	writel(vdctrl0, host->base + LCDC_VDCTRL0);
 
@@ -760,7 +768,7 @@ static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host)
 		if (vm.data_flags & DISPLAY_FLAGS_DE_HIGH)
 			host->sync |= MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
 		if (vm.data_flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
-			host->sync |= MXSFB_SYNC_DOTCLK_FAILING_ACT;
+			host->sync |= MXSFB_SYNC_DOTCLK_FALLING_ACT;
 		fb_add_videomode(&fb_vm, &fb_info->modelist);
 	}
 
@@ -775,7 +783,6 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 {
 	struct fb_info *fb_info = &host->fb_info;
 	struct fb_var_screeninfo *var = &fb_info->var;
-	struct mxsfb_platform_data *pdata = host->pdev->dev.platform_data;
 	dma_addr_t fb_phys;
 	void *fb_virt;
 	unsigned fb_size;
@@ -789,15 +796,9 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	fb_info->fix.visual = FB_VISUAL_TRUECOLOR,
 	fb_info->fix.accel = FB_ACCEL_NONE;
 
-	if (pdata) {
-		host->ld_intf_width = pdata->ld_intf_width;
-		var->bits_per_pixel =
-			pdata->default_bpp ? pdata->default_bpp : 16;
-	} else {
-		ret = mxsfb_init_fbinfo_dt(host);
-		if (ret)
-			return ret;
-	}
+	ret = mxsfb_init_fbinfo_dt(host);
+	if (ret)
+		return ret;
 
 	var->nonstd = 0;
 	var->activate = FB_ACTIVATE_NOW;
@@ -853,7 +854,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxsfb_dt_ids, &pdev->dev);
-	struct mxsfb_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
 	struct mxsfb_info *host;
 	struct fb_info *fb_info;
@@ -861,7 +861,7 @@ static int mxsfb_probe(struct platform_device *pdev)
 	struct pinctrl *pinctrl;
 	int panel_enable;
 	enum of_gpio_flags flags;
-	int i, ret;
+	int ret;
 
 	if (of_id)
 		pdev->id_entry = of_id->data;
@@ -932,13 +932,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 	ret = mxsfb_init_fbinfo(host);
 	if (ret != 0)
 		goto fb_release;
-
-	if (pdata) {
-		host->sync = pdata->sync;
-		for (i = 0; i < pdata->mode_count; i++)
-			fb_add_videomode(&pdata->mode_list[i],
-					 &fb_info->modelist);
-	}
 
 	modelist = list_first_entry(&fb_info->modelist,
 			struct fb_modelist, list);
