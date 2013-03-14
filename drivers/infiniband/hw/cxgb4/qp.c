@@ -76,7 +76,7 @@ static void dealloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 
 static int alloc_oc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 {
-	if (!ocqp_support || !t4_ocqp_supported())
+	if (!ocqp_support || !ocqp_supported(&rdev->lldi))
 		return -ENOSYS;
 	sq->dma_addr = c4iw_ocqp_pool_alloc(rdev, sq->memsize);
 	if (!sq->dma_addr)

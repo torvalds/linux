@@ -817,6 +817,15 @@ static inline int compute_wscale(int win)
 	return wscale;
 }
 
+static inline int ocqp_supported(const struct cxgb4_lld_info *infop)
+{
+#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
+	return infop->vr->ocq.size > 0;
+#else
+	return 0;
+#endif
+}
+
 u32 c4iw_id_alloc(struct c4iw_id_table *alloc);
 void c4iw_id_free(struct c4iw_id_table *alloc, u32 obj);
 int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,

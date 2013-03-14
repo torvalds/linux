@@ -280,15 +280,6 @@ static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
 #endif
 }
 
-static inline int t4_ocqp_supported(void)
-{
-#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
-	return 1;
-#else
-	return 0;
-#endif
-}
-
 enum {
 	T4_SQ_ONCHIP = (1<<0),
 };
