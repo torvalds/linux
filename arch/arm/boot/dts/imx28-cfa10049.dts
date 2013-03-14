@@ -126,7 +126,32 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_18bit_pins_cfa10049
 					     &lcdif_pins_cfa10049>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <32>;
+					bus-width = <18>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <9216000>;
+							hactive = <320>;
+							vactive = <480>;
+							hback-porch = <2>;
+							hfront-porch = <2>;
+							vback-porch = <2>;
+							vfront-porch = <2>;
+							hsync-len = <15>;
+							vsync-len = <15>;
+							hsync-active = <0>;
+							vsync-active = <0>;
+							de-active = <1>;
+							pixelclk-active = <1>;
+						};
+					};
+				};
 			};
 		};
 

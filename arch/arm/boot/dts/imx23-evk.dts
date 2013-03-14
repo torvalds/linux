@@ -60,7 +60,32 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a>;
 				panel-enable-gpios = <&gpio1 18 0>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <32>;
+					bus-width = <24>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <9200000>;
+							hactive = <480>;
+							vactive = <272>;
+							hback-porch = <15>;
+							hfront-porch = <8>;
+							vback-porch = <12>;
+							vfront-porch = <4>;
+							hsync-len = <1>;
+							vsync-len = <1>;
+							hsync-active = <0>;
+							vsync-active = <0>;
+							de-active = <1>;
+							pixelclk-active = <0>;
+						};
+					};
+				};
 			};
 		};
 
