@@ -197,29 +197,29 @@ extern int usb_bind_phy(const char *dev_name, u8 index,
 #else
 static inline struct usb_phy *usb_get_phy(enum usb_phy_type type)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline struct usb_phy *devm_usb_get_phy(struct device *dev,
 	enum usb_phy_type type)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline struct usb_phy *usb_get_phy_dev(struct device *dev, u8 index)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline struct usb_phy *devm_usb_get_phy_dev(struct device *dev, u8 index)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 	const char *phandle, u8 index)
 {
-	return NULL;
+	return ERR_PTR(-ENXIO);
 }
 
 static inline void usb_put_phy(struct usb_phy *x)
