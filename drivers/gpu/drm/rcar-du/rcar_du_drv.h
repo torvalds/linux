@@ -23,6 +23,7 @@
 struct clk;
 struct device;
 struct drm_device;
+struct drm_fbdev_cma;
 struct rcar_du_device;
 struct rcar_du_lvdsenc;
 
@@ -66,6 +67,7 @@ struct rcar_du_device {
 	void __iomem *mmio;
 
 	struct drm_device *ddev;
+	struct drm_fbdev_cma *fbdev;
 
 	struct rcar_du_crtc crtcs[3];
 	unsigned int num_crtcs;
