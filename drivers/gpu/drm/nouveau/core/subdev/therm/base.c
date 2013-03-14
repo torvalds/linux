@@ -149,6 +149,11 @@ nouveau_therm_fan_mode(struct nouveau_therm *therm, int mode)
 	    (mode != NOUVEAU_THERM_CTRL_NONE && device->card_type >= NV_C0))
 		return -EINVAL;
 
+	/* do not allow automatic fan management if the thermal sensor is
+	 * not available */
+	if (priv->mode == 2 && therm->temp_get(therm) < 0)
+		return -EINVAL;
+
 	if (priv->mode == mode)
 		return 0;
 
