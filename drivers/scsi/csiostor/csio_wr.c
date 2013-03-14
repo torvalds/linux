@@ -85,8 +85,8 @@ csio_wr_ring_fldb(struct csio_hw *hw, struct csio_q *flq)
 	 */
 	if (flq->inc_idx >= 8) {
 		csio_wr_reg32(hw, DBPRIO(1) | QID(flq->un.fl.flid) |
-			      PIDX(flq->inc_idx / 8),
-			      MYPF_REG(SGE_PF_KDOORBELL));
+				  CSIO_HW_PIDX(hw, flq->inc_idx / 8),
+				  MYPF_REG(SGE_PF_KDOORBELL));
 		flq->inc_idx &= 7;
 	}
 }
@@ -989,7 +989,8 @@ csio_wr_issue(struct csio_hw *hw, int qidx, bool prio)
 	wmb();
 	/* Ring SGE Doorbell writing q->pidx into it */
 	csio_wr_reg32(hw, DBPRIO(prio) | QID(q->un.eq.physeqid) |
-		      PIDX(q->inc_idx), MYPF_REG(SGE_PF_KDOORBELL));
+			  CSIO_HW_PIDX(hw, q->inc_idx),
+			  MYPF_REG(SGE_PF_KDOORBELL));
 	q->inc_idx = 0;
 
 	return 0;
@@ -1352,6 +1353,9 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 	/* default value of rx_dma_offset of the NIC driver */
 	csio_set_reg_field(hw, SGE_CONTROL, PKTSHIFT_MASK,
 			   PKTSHIFT(CSIO_SGE_RX_DMA_OFFSET));
+
+	csio_hw_tp_wr_bits_indirect(hw, TP_INGRESS_CONFIG,
+				    CSUM_HAS_PSEUDO_HDR, 0);
 }
 
 static void
@@ -1467,10 +1471,11 @@ csio_wr_set_sge(struct csio_hw *hw)
 	 * and generate an interrupt when this occurs so we can recover.
 	 */
 	csio_set_reg_field(hw, SGE_DBFIFO_STATUS,
-			   HP_INT_THRESH(HP_INT_THRESH_MASK) |
-			   LP_INT_THRESH(LP_INT_THRESH_MASK),
-			   HP_INT_THRESH(CSIO_SGE_DBFIFO_INT_THRESH) |
-			   LP_INT_THRESH(CSIO_SGE_DBFIFO_INT_THRESH));
+		   HP_INT_THRESH(HP_INT_THRESH_MASK) |
+		   CSIO_HW_LP_INT_THRESH(hw, CSIO_HW_M_LP_INT_THRESH(hw)),
+		   HP_INT_THRESH(CSIO_SGE_DBFIFO_INT_THRESH) |
+		   CSIO_HW_LP_INT_THRESH(hw, CSIO_SGE_DBFIFO_INT_THRESH));
+
 	csio_set_reg_field(hw, SGE_DOORBELL_CONTROL, ENABLE_DROP,
 			   ENABLE_DROP);
 
