@@ -848,6 +848,7 @@ struct snd_soc_platform {
 };
 
 struct snd_soc_component_driver {
+	const char *name;
 };
 
 struct snd_soc_component {
