@@ -534,11 +534,11 @@ enum chip_type {
 
 #ifdef CONFIG_PCI_IOV
 
-/* T4 - 4 PFs support SRIOV
- * T5 - 8 PFs support SRIOV
+/* T4 supports SRIOV on PF0-3 and T5 on PF0-7.  However, the Serial
+ * Configuration initialization for T5 only has SR-IOV functionality enabled
+ * on PF0-3 in order to simplify everything.
  */
-#define NUM_OF_PF_WITH_SRIOV_T4 4
-#define NUM_OF_PF_WITH_SRIOV_T5 8
+#define NUM_OF_PF_WITH_SRIOV 4
 
 #endif
 

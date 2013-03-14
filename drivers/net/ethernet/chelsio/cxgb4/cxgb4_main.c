@@ -360,14 +360,13 @@ static bool vf_acls;
 module_param(vf_acls, bool, 0644);
 MODULE_PARM_DESC(vf_acls, "if set enable virtualization L2 ACL enforcement");
 
-/* Since T5 has more num of PFs, using NUM_OF_PF_WITH_SRIOV_T5
- * macro as num_vf array size
+/* Configure the number of PCI-E Virtual Function which are to be instantiated
+ * on SR-IOV Capable Physical Functions.
  */
-static unsigned int num_vf[NUM_OF_PF_WITH_SRIOV_T5];
+static unsigned int num_vf[NUM_OF_PF_WITH_SRIOV];
 
 module_param_array(num_vf, uint, NULL, 0644);
-MODULE_PARM_DESC(num_vf,
-		 "number of VFs for each of PFs 0-3 for T4 and PFs 0-7 for T5");
+MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3");
 #endif
 
 /*
@@ -4633,10 +4632,8 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	 */
 	{
 		int pf, vf;
-		int max_no_pf = is_t4(adapter->chip) ? NUM_OF_PF_WITH_SRIOV_T4 :
-				NUM_OF_PF_WITH_SRIOV_T5;
 
-		for (pf = 0; pf < max_no_pf; pf++) {
+		for (pf = 0; pf < ARRAY_SIZE(num_vf); pf++) {
 			if (num_vf[pf] <= 0)
 				continue;
 
@@ -5483,9 +5480,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct port_info *pi;
 	bool highdma = false;
 	struct adapter *adapter = NULL;
-#ifdef CONFIG_PCI_IOV
-	int max_no_pf;
-#endif
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -5704,10 +5698,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 sriov:
 #ifdef CONFIG_PCI_IOV
-	max_no_pf = is_t4(adapter->chip) ? NUM_OF_PF_WITH_SRIOV_T4 :
-			NUM_OF_PF_WITH_SRIOV_T5;
-
-	if (func < max_no_pf && num_vf[func] > 0)
+	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0)
 		if (pci_enable_sriov(pdev, num_vf[func]) == 0)
 			dev_info(&pdev->dev,
 				 "instantiated %u virtual functions\n",
