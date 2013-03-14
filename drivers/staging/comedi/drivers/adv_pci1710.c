@@ -59,9 +59,6 @@ Configuration options:
 #define TYPE_PCI1713	2
 #define TYPE_PCI1720	3
 
-#define IORANGE_171x	32
-#define IORANGE_1720	16
-
 #define PCI171x_AD_DATA	 0	/* R:   A/D data */
 #define PCI171x_SOFTTRG	 0	/* W:   soft trigger for A/D */
 #define PCI171x_RANGE	 2	/* W:   A/D gain/range register */
@@ -189,7 +186,6 @@ enum pci1710_boardid {
 
 struct boardtype {
 	const char *name;	/*  board name */
-	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
 	char cardtype;		/*  0=1710& co. 2=1713, ... */
 	int n_aichan;		/*  num of A/D chans */
@@ -210,7 +206,6 @@ struct boardtype {
 static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1710] = {
 		.name		= "pci1710",
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
@@ -229,7 +224,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
@@ -248,7 +242,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1711] = {
 		.name		= "pci1711",
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
@@ -266,7 +259,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1713] = {
 		.name		= "pci1713",
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI1713,
 		.n_aichan	= 32,
@@ -279,7 +271,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1720] = {
 		.name		= "pci1720",
-		.iorange	= IORANGE_1720,
 		.cardtype	= TYPE_PCI1720,
 		.n_aochan	= 4,
 		.ao_maxdata	= 0x0fff,
@@ -287,7 +278,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
-		.iorange	= IORANGE_171x,
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
