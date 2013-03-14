@@ -162,7 +162,7 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 	return min((int)T4_MAX_NUM_STAG, (int)(rdev->lldi.vr->stag.size >> 5));
 }
 
-#define C4IW_WR_TO (10*HZ)
+#define C4IW_WR_TO (30*HZ)
 
 struct c4iw_wr_wait {
 	struct completion completion;

@@ -1693,9 +1693,9 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	case CPL_ERR_CONN_TIMEDOUT:
 		break;
 	case CPL_ERR_TCAM_FULL:
+		dev->rdev.stats.tcam_full++;
 		if (dev->rdev.lldi.enable_fw_ofld_conn) {
 			mutex_lock(&dev->rdev.stats.lock);
-			dev->rdev.stats.tcam_full++;
 			mutex_unlock(&dev->rdev.stats.lock);
 			send_fw_act_open_req(ep,
 					     GET_TID_TID(GET_AOPEN_ATID(
