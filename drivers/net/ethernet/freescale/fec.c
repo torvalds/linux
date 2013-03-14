@@ -934,24 +934,28 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 		goto spin_unlock;
 	}
 
-	/* Duplex link change */
 	if (phy_dev->link) {
-		if (fep->full_duplex != phy_dev->duplex) {
-			fec_restart(ndev, phy_dev->duplex);
-			/* prevent unnecessary second fec_restart() below */
+		if (!fep->link) {
 			fep->link = phy_dev->link;
 			status_change = 1;
 		}
-	}
 
-	/* Link on or off change */
-	if (phy_dev->link != fep->link) {
-		fep->link = phy_dev->link;
-		if (phy_dev->link)
+		if (fep->full_duplex != phy_dev->duplex)
+			status_change = 1;
+
+		if (phy_dev->speed != fep->speed) {
+			fep->speed = phy_dev->speed;
+			status_change = 1;
+		}
+
+		/* if any of the above changed restart the FEC */
+		if (status_change)
 			fec_restart(ndev, phy_dev->duplex);
-		else
+	} else {
+		if (fep->link) {
 			fec_stop(ndev);
-		status_change = 1;
+			status_change = 1;
+		}
 	}
 
 spin_unlock:
