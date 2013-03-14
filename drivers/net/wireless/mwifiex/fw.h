@@ -230,39 +230,11 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define ISSUPP_11ACENABLED(fw_cap_info) (fw_cap_info & (BIT(13)|BIT(14)))
 
-#define GET_VHTCAP_MAXMPDULEN(vht_cap_info) (vht_cap_info & 0x3)
 #define GET_VHTCAP_CHWDSET(vht_cap_info)    ((vht_cap_info >> 2) & 0x3)
 #define GET_VHTNSSMCS(mcs_mapset, nss) ((mcs_mapset >> (2 * (nss - 1))) & 0x3)
 #define SET_VHTNSSMCS(mcs_mapset, nss, value) (mcs_mapset |= (value & 0x3) << \
 					      (2 * (nss - 1)))
 #define NO_NSS_SUPPORT		0x3
-
-/* HW_SPEC: HTC-VHT supported */
-#define ISSUPP_11ACVHTHTCVHT(Dot11acDevCap) (Dot11acDevCap & BIT(22))
-/* HW_SPEC: VHT TXOP PS support */
-#define ISSUPP_11ACVHTTXOPPS(Dot11acDevCap) (Dot11acDevCap & BIT(21))
-/* HW_SPEC: MU RX beamformee support */
-#define ISSUPP_11ACMURXBEAMFORMEE(Dot11acDevCap) (Dot11acDevCap & BIT(20))
-/* HW_SPEC: MU TX beamformee support */
-#define ISSUPP_11ACMUTXBEAMFORMEE(Dot11acDevCap) (Dot11acDevCap & BIT(19))
-/* HW_SPEC: SU Beamformee support */
-#define ISSUPP_11ACSUBEAMFORMEE(Dot11acDevCap) (Dot11acDevCap & BIT(10))
-/* HW_SPEC: SU Beamformer support */
-#define ISSUPP_11ACSUBEAMFORMER(Dot11acDevCap) (Dot11acDevCap & BIT(9))
-/* HW_SPEC: Rx STBC support */
-#define ISSUPP_11ACRXSTBC(Dot11acDevCap) (Dot11acDevCap & BIT(8))
-/* HW_SPEC: Tx STBC support */
-#define ISSUPP_11ACTXSTBC(Dot11acDevCap) (Dot11acDevCap & BIT(7))
-/* HW_SPEC: Short GI support for 160MHz BW */
-#define ISSUPP_11ACSGI160(Dot11acDevCap) (Dot11acDevCap & BIT(6))
-/* HW_SPEC: Short GI support for 80MHz BW */
-#define ISSUPP_11ACSGI80(Dot11acDevCap) (Dot11acDevCap & BIT(5))
-/* HW_SPEC: LDPC coding support */
-#define ISSUPP_11ACLDPC(Dot11acDevCap) (Dot11acDevCap & BIT(4))
-/* HW_SPEC: Channel BW 20/40/80/160/80+80 MHz support */
-#define ISSUPP_11ACBW8080(Dot11acDevCap) (Dot11acDevCap & BIT(3))
-/* HW_SPEC: Channel BW 20/40/80/160 MHz support */
-#define ISSUPP_11ACBW160(Dot11acDevCap) (Dot11acDevCap & BIT(2))
 
 #define GET_DEVTXMCSMAP(dev_mcs_map)      (dev_mcs_map >> 16)
 #define GET_DEVRXMCSMAP(dev_mcs_map)      (dev_mcs_map & 0xFFFF)
