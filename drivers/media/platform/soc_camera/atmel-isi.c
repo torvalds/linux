@@ -1074,7 +1074,6 @@ err_clk_prepare_pclk:
 }
 
 static struct platform_driver atmel_isi_driver = {
-	.probe		= atmel_isi_probe,
 	.remove		= atmel_isi_remove,
 	.driver		= {
 		.name = "atmel_isi",
@@ -1082,17 +1081,7 @@ static struct platform_driver atmel_isi_driver = {
 	},
 };
 
-static int __init atmel_isi_init_module(void)
-{
-	return  platform_driver_probe(&atmel_isi_driver, &atmel_isi_probe);
-}
-
-static void __exit atmel_isi_exit(void)
-{
-	platform_driver_unregister(&atmel_isi_driver);
-}
-module_init(atmel_isi_init_module);
-module_exit(atmel_isi_exit);
+module_platform_driver_probe(atmel_isi_driver, atmel_isi_probe);
 
 MODULE_AUTHOR("Josh Wu <josh.wu@atmel.com>");
 MODULE_DESCRIPTION("The V4L2 driver for Atmel Linux");
