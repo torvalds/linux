@@ -295,7 +295,9 @@ static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struc
 			}
 			if (state == NULL)
 				break;
-			nfs4_schedule_stateid_recovery(server, state);
+			ret = nfs4_schedule_stateid_recovery(server, state);
+			if (ret < 0)
+				break;
 			goto wait_on_recovery;
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
@@ -303,11 +305,16 @@ static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struc
 			if (state == NULL)
 				break;
 			nfs_remove_bad_delegation(state->inode);
-			nfs4_schedule_stateid_recovery(server, state);
+			ret = nfs4_schedule_stateid_recovery(server, state);
+			if (ret < 0)
+				break;
 			goto wait_on_recovery;
 		case -NFS4ERR_EXPIRED:
-			if (state != NULL)
-				nfs4_schedule_stateid_recovery(server, state);
+			if (state != NULL) {
+				ret = nfs4_schedule_stateid_recovery(server, state);
+				if (ret < 0)
+					break;
+			}
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_STALE_CLIENTID:
 			nfs4_schedule_lease_recovery(clp);
@@ -2053,7 +2060,7 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 
 	nfs_fattr_init(fattr);
 
-	if (state != NULL) {
+	if (state != NULL && nfs4_valid_open_stateid(state)) {
 		struct nfs_lockowner lockowner = {
 			.l_owner = current->files,
 			.l_pid = current->tgid,
@@ -2201,6 +2208,8 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 			calldata->arg.fmode &= ~FMODE_WRITE;
 		}
 	}
+	if (!nfs4_valid_open_stateid(state))
+		call_close = 0;
 	spin_unlock(&state->owner->so_lock);
 
 	if (!call_close) {
@@ -3980,11 +3989,14 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 		case -NFS4ERR_OPENMODE:
 			if (state == NULL)
 				break;
-			nfs4_schedule_stateid_recovery(server, state);
+			if (nfs4_schedule_stateid_recovery(server, state) < 0)
+				goto stateid_invalid;
 			goto wait_on_recovery;
 		case -NFS4ERR_EXPIRED:
-			if (state != NULL)
-				nfs4_schedule_stateid_recovery(server, state);
+			if (state != NULL) {
+				if (nfs4_schedule_stateid_recovery(server, state) < 0)
+					goto stateid_invalid;
+			}
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_STALE_CLIENTID:
 			nfs4_schedule_lease_recovery(clp);
@@ -4015,6 +4027,9 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 			return -EAGAIN;
 	}
 	task->tk_status = nfs4_map_errors(task->tk_status);
+	return 0;
+stateid_invalid:
+	task->tk_status = -EIO;
 	return 0;
 wait_on_recovery:
 	rpc_sleep_on(&clp->cl_rpcwaitq, task, NULL);
@@ -4632,12 +4647,18 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 		data->res.open_seqid = data->arg.open_seqid;
 	} else
 		data->arg.new_lock_owner = 0;
+	if (!nfs4_valid_open_stateid(state)) {
+		data->rpc_status = -EBADF;
+		task->tk_action = NULL;
+		goto out_release_open_seqid;
+	}
 	data->timestamp = jiffies;
 	if (nfs4_setup_sequence(data->server,
 				&data->arg.seq_args,
 				&data->res.seq_res,
 				task) == 0)
 		return;
+out_release_open_seqid:
 	nfs_release_seqid(data->arg.open_seqid);
 out_release_lock_seqid:
 	nfs_release_seqid(data->arg.lock_seqid);

@@ -699,6 +699,8 @@ __nfs4_find_state_byowner(struct inode *inode, struct nfs4_state_owner *owner)
 	list_for_each_entry(state, &nfsi->open_states, inode_states) {
 		if (state->owner != owner)
 			continue;
+		if (!nfs4_valid_open_stateid(state))
+			continue;
 		if (atomic_inc_not_zero(&state->count))
 			return state;
 	}
@@ -1286,14 +1288,17 @@ static int nfs4_state_mark_reclaim_nograce(struct nfs_client *clp, struct nfs4_s
 	return 1;
 }
 
-void nfs4_schedule_stateid_recovery(const struct nfs_server *server, struct nfs4_state *state)
+int nfs4_schedule_stateid_recovery(const struct nfs_server *server, struct nfs4_state *state)
 {
 	struct nfs_client *clp = server->nfs_client;
 
+	if (!nfs4_valid_open_stateid(state))
+		return -EBADF;
 	nfs4_state_mark_reclaim_nograce(clp, state);
 	dprintk("%s: scheduling stateid recovery for server %s\n", __func__,
 			clp->cl_hostname);
 	nfs4_schedule_state_manager(clp);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_stateid_recovery);
 
@@ -1321,6 +1326,11 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 	spin_unlock(&inode->i_lock);
 	if (found)
 		nfs4_schedule_state_manager(clp);
+}
+
+static void nfs4_state_mark_recovery_failed(struct nfs4_state *state, int error)
+{
+	set_bit(NFS_STATE_RECOVERY_FAILED, &state->flags);
 }
 
 
@@ -1398,6 +1408,8 @@ restart:
 	list_for_each_entry(state, &sp->so_states, open_states) {
 		if (!test_and_clear_bit(ops->state_flag_bit, &state->flags))
 			continue;
+		if (!nfs4_valid_open_stateid(state))
+			continue;
 		if (state->state == 0)
 			continue;
 		atomic_inc(&state->count);
@@ -1430,10 +1442,7 @@ restart:
 				 * Open state on this file cannot be recovered
 				 * All we can do is revert to using the zero stateid.
 				 */
-				memset(&state->stateid, 0,
-					sizeof(state->stateid));
-				/* Mark the file as being 'closed' */
-				state->state = 0;
+				nfs4_state_mark_recovery_failed(state, status);
 				break;
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_STALE_STATEID:

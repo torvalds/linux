@@ -158,11 +158,14 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -NFS4ERR_OPENMODE:
 		if (state == NULL)
 			break;
-		nfs4_schedule_stateid_recovery(mds_server, state);
+		if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
+			goto out_bad_stateid;
 		goto wait_on_recovery;
 	case -NFS4ERR_EXPIRED:
-		if (state != NULL)
-			nfs4_schedule_stateid_recovery(mds_server, state);
+		if (state != NULL) {
+			if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
+				goto out_bad_stateid;
+		}
 		nfs4_schedule_lease_recovery(mds_client);
 		goto wait_on_recovery;
 	/* DS session errors */
@@ -226,6 +229,9 @@ reset:
 out:
 	task->tk_status = 0;
 	return -EAGAIN;
+out_bad_stateid:
+	task->tk_status = -EIO;
+	return 0;
 wait_on_recovery:
 	rpc_sleep_on(&mds_client->cl_rpcwaitq, task, NULL);
 	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &mds_client->cl_state) == 0)
