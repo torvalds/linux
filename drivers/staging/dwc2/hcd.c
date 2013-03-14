@@ -1890,8 +1890,9 @@ void dwc2_hcd_dump_state(struct dwc2_hsotg *hsotg)
 				dev_dbg(hsotg->dev,
 					"      transfer_buffer: %p\n",
 					urb->buf);
-				dev_dbg(hsotg->dev, "      transfer_dma: %p\n",
-					(void *)urb->dma);
+				dev_dbg(hsotg->dev,
+					"      transfer_dma: %08lx\n",
+					(unsigned long)urb->dma);
 				dev_dbg(hsotg->dev,
 					"      transfer_buffer_length: %d\n",
 					urb->length);
@@ -2296,10 +2297,10 @@ static void dwc2_dump_urb_info(struct usb_hcd *hcd, struct urb *urb,
 		 usb_maxpacket(urb->dev, urb->pipe, usb_pipeout(urb->pipe)));
 	dev_vdbg(hsotg->dev, "  Data buffer length: %d\n",
 		 urb->transfer_buffer_length);
-	dev_vdbg(hsotg->dev, "  Transfer buffer: %p, Transfer DMA: %p\n",
-		 urb->transfer_buffer, (void *)urb->transfer_dma);
-	dev_vdbg(hsotg->dev, "  Setup buffer: %p, Setup DMA: %p\n",
-		 urb->setup_packet, (void *)urb->setup_dma);
+	dev_vdbg(hsotg->dev, "  Transfer buffer: %p, Transfer DMA: %08lx\n",
+		 urb->transfer_buffer, (unsigned long)urb->transfer_dma);
+	dev_vdbg(hsotg->dev, "  Setup buffer: %p, Setup DMA: %08lx\n",
+		 urb->setup_packet, (unsigned long)urb->setup_dma);
 	dev_vdbg(hsotg->dev, "  Interval: %d\n", urb->interval);
 
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {

@@ -1535,10 +1535,10 @@ static void dwc2_hc_ahberr_intr(struct dwc2_hsotg *hsotg,
 	dev_err(hsotg->dev, "  Max packet size: %d\n",
 		dwc2_hcd_get_mps(&urb->pipe_info));
 	dev_err(hsotg->dev, "  Data buffer length: %d\n", urb->length);
-	dev_err(hsotg->dev, "  Transfer buffer: %p, Transfer DMA: %p\n",
-		urb->buf, (void *)urb->dma);
-	dev_err(hsotg->dev, "  Setup buffer: %p, Setup DMA: %p\n",
-		urb->setup_packet, (void *)urb->setup_dma);
+	dev_err(hsotg->dev, "  Transfer buffer: %p, Transfer DMA: %08lx\n",
+		urb->buf, (unsigned long)urb->dma);
+	dev_err(hsotg->dev, "  Setup buffer: %p, Setup DMA: %08lx\n",
+		urb->setup_packet, (unsigned long)urb->setup_dma);
 	dev_err(hsotg->dev, "  Interval: %d\n", urb->interval);
 
 	/* Core halts the channel for Descriptor DMA mode */
