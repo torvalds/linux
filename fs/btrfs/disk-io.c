@@ -3426,20 +3426,7 @@ int close_ctree(struct btrfs_root *root)
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
-	free_extent_buffer(fs_info->extent_root->node);
-	free_extent_buffer(fs_info->extent_root->commit_root);
-	free_extent_buffer(fs_info->tree_root->node);
-	free_extent_buffer(fs_info->tree_root->commit_root);
-	free_extent_buffer(fs_info->chunk_root->node);
-	free_extent_buffer(fs_info->chunk_root->commit_root);
-	free_extent_buffer(fs_info->dev_root->node);
-	free_extent_buffer(fs_info->dev_root->commit_root);
-	free_extent_buffer(fs_info->csum_root->node);
-	free_extent_buffer(fs_info->csum_root->commit_root);
-	if (fs_info->quota_root) {
-		free_extent_buffer(fs_info->quota_root->node);
-		free_extent_buffer(fs_info->quota_root->commit_root);
-	}
+	free_root_pointers(fs_info, 1);
 
 	btrfs_free_block_groups(fs_info);
 
