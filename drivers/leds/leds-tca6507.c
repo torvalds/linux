@@ -85,6 +85,7 @@
 #include <linux/gpio.h>
 #include <linux/workqueue.h>
 #include <linux/leds-tca6507.h>
+#include <linux/of.h>
 
 /* LED select registers determine the source that drives LED outputs */
 #define TCA6507_LS_LED_OFF	0x0	/* Output HI-Z (off) */
@@ -724,7 +725,6 @@ tca6507_led_dt_init(struct i2c_client *client)
 	return ERR_PTR(-ENODEV);
 }
 
-#define of_tca6507_leds_match NULL
 #endif
 
 static int tca6507_probe(struct i2c_client *client,
@@ -813,7 +813,7 @@ static struct i2c_driver tca6507_driver = {
 	.driver   = {
 		.name    = "leds-tca6507",
 		.owner   = THIS_MODULE,
-		.of_match_table = of_tca6507_leds_match,
+		.of_match_table = of_match_ptr(of_tca6507_leds_match),
 	},
 	.probe    = tca6507_probe,
 	.remove   = tca6507_remove,
