@@ -14,6 +14,7 @@ menu "CNS3XXX platform type"
 
 config MACH_CNS3420VB
 	bool "Support for CNS3420 Validation Board"
+	depends on ATAGS
 	help
 	  Include support for the Cavium Networks CNS3420 MPCore Platform
 	  Baseboard.
