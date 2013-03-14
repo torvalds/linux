@@ -654,7 +654,7 @@ static bool batadv_can_nc_with_orig(struct batadv_priv *bat_priv,
 				    struct batadv_orig_node *orig_node,
 				    struct batadv_ogm_packet *ogm_packet)
 {
-	if (orig_node->last_real_seqno != ogm_packet->seqno)
+	if (orig_node->last_real_seqno != ntohl(ogm_packet->seqno))
 		return false;
 	if (orig_node->last_ttl != ogm_packet->header.ttl + 1)
 		return false;
