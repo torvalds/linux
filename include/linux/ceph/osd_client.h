@@ -71,7 +71,10 @@ struct ceph_osd_data {
 		};
 		struct ceph_pagelist	*pagelist;
 #ifdef CONFIG_BLOCK
-		struct bio       	*bio;
+		struct {
+			struct bio	*bio;		/* list of bios */
+			size_t		bio_length;	/* total in list */
+		};
 #endif /* CONFIG_BLOCK */
 	};
 };

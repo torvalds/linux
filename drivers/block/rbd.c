@@ -1352,6 +1352,7 @@ static struct ceph_osd_request *rbd_osd_req_create(
 		rbd_assert(obj_request->bio_list != NULL);
 		osd_data->type = CEPH_OSD_DATA_TYPE_BIO;
 		osd_data->bio = obj_request->bio_list;
+		osd_data->bio_length = obj_request->length;
 		break;
 	case OBJ_REQUEST_PAGES:
 		osd_data->type = CEPH_OSD_DATA_TYPE_PAGES;
