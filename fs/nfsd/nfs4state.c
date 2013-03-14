@@ -2131,13 +2131,7 @@ nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 	if (conf) {
 		clp = conf;
 
-		if (!is_client_expired(conf) && client_has_state(conf)) {
-			status = nfserr_clientid_busy;
-			goto out;
-		}
-
-		/* rfc5661 18.50.3 */
-		if (cstate->session && conf == cstate->session->se_client) {
+		if (client_has_state(conf)) {
 			status = nfserr_clientid_busy;
 			goto out;
 		}
