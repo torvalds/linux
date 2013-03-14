@@ -1169,11 +1169,9 @@ void ieee80211_sched_scan_stopped_work(struct work_struct *work);
 bool ieee80211_cfg_on_oper_channel(struct ieee80211_local *local);
 void ieee80211_offchannel_enable_all_ps(struct ieee80211_local *local,
 					bool tell_ap);
-void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local,
-				    bool offchannel_ps_enable);
+void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local);
 void ieee80211_offchannel_return(struct ieee80211_local *local,
-				 bool enable_beaconing,
-				 bool offchannel_ps_disable);
+				 bool enable_beaconing);
 void ieee80211_hw_roc_setup(struct ieee80211_local *local);
 
 /* interface handling */
