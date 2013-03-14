@@ -431,7 +431,7 @@ static void io_ctl_set_crc(struct io_ctl *io_ctl, int index)
 	if (index == 0)
 		offset = sizeof(u32) * io_ctl->num_pages;
 
-	crc = btrfs_csum_data(io_ctl->root, io_ctl->orig + offset, crc,
+	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
 			      PAGE_CACHE_SIZE - offset);
 	btrfs_csum_final(crc, (char *)&crc);
 	io_ctl_unmap_page(io_ctl);
@@ -461,7 +461,7 @@ static int io_ctl_check_crc(struct io_ctl *io_ctl, int index)
 	kunmap(io_ctl->pages[0]);
 
 	io_ctl_map_page(io_ctl, 0);
-	crc = btrfs_csum_data(io_ctl->root, io_ctl->orig + offset, crc,
+	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
 			      PAGE_CACHE_SIZE - offset);
 	btrfs_csum_final(crc, (char *)&crc);
 	if (val != crc) {

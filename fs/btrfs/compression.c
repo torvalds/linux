@@ -106,7 +106,6 @@ static int check_compressed_csum(struct inode *inode,
 				 u64 disk_start)
 {
 	int ret;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
@@ -121,7 +120,7 @@ static int check_compressed_csum(struct inode *inode,
 		csum = ~(u32)0;
 
 		kaddr = kmap_atomic(page);
-		csum = btrfs_csum_data(root, kaddr, csum, PAGE_CACHE_SIZE);
+		csum = btrfs_csum_data(kaddr, csum, PAGE_CACHE_SIZE);
 		btrfs_csum_final(csum, (char *)&csum);
 		kunmap_atomic(kaddr);
 

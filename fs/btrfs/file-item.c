@@ -484,8 +484,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 
 		data = kmap_atomic(bvec->bv_page);
 		sector_sum->sum = ~(u32)0;
-		sector_sum->sum = btrfs_csum_data(root,
-						  data + bvec->bv_offset,
+		sector_sum->sum = btrfs_csum_data(data + bvec->bv_offset,
 						  sector_sum->sum,
 						  bvec->bv_len);
 		kunmap_atomic(data);

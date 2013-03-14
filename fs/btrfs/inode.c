@@ -2819,7 +2819,7 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	if (ret)
 		goto zeroit;
 
-	csum = btrfs_csum_data(root, kaddr + offset, csum,  end - start + 1);
+	csum = btrfs_csum_data(kaddr + offset, csum,  end - start + 1);
 	btrfs_csum_final(csum, (char *)&csum);
 	if (csum != private)
 		goto zeroit;
@@ -6919,7 +6919,6 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 	struct bio_vec *bvec_end = bio->bi_io_vec + bio->bi_vcnt - 1;
 	struct bio_vec *bvec = bio->bi_io_vec;
 	struct inode *inode = dip->inode;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 start;
 
 	start = dip->logical_offset;
@@ -6936,7 +6935,7 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 				goto failed;
 			local_irq_save(flags);
 			kaddr = kmap_atomic(page);
-			csum = btrfs_csum_data(root, kaddr + bvec->bv_offset,
+			csum = btrfs_csum_data(kaddr + bvec->bv_offset,
 					       csum, bvec->bv_len);
 			btrfs_csum_final(csum, (char *)&csum);
 			kunmap_atomic(kaddr);
