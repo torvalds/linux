@@ -64,32 +64,31 @@ static int op_has_extent(int op)
  * fill osd op in request message.
  */
 static int calc_layout(struct ceph_file_layout *layout, u64 off, u64 *plen,
-		       struct ceph_osd_req_op *op, u64 *bno)
+		       struct ceph_osd_req_op *op, u64 *objnum,
+		       u64 *objoff, u64 *objlen)
 {
 	u64 orig_len = *plen;
-	u64 objoff = 0;
-	u64 objlen = 0;
 	int r;
 
 	/* object extent? */
-	r = ceph_calc_file_object_mapping(layout, off, orig_len, bno,
-					  &objoff, &objlen);
+	r = ceph_calc_file_object_mapping(layout, off, orig_len, objnum,
+					  objoff, objlen);
 	if (r < 0)
 		return r;
-	if (objlen < orig_len) {
-		*plen = objlen;
+	if (*objlen < orig_len) {
+		*plen = *objlen;
 		dout(" skipping last %llu, final file extent %llu~%llu\n",
 		     orig_len - *plen, off, *plen);
 	}
 
 	if (op_has_extent(op->op)) {
 		u32 osize = le32_to_cpu(layout->fl_object_size);
-		op->extent.offset = objoff;
-		op->extent.length = objlen;
-		if (op->extent.truncate_size <= off - objoff) {
+		op->extent.offset = *objoff;
+		op->extent.length = *objlen;
+		if (op->extent.truncate_size <= off - *objoff) {
 			op->extent.truncate_size = 0;
 		} else {
-			op->extent.truncate_size -= off - objoff;
+			op->extent.truncate_size -= off - *objoff;
 			if (op->extent.truncate_size > osize)
 				op->extent.truncate_size = osize;
 		}
@@ -97,7 +96,7 @@ static int calc_layout(struct ceph_file_layout *layout, u64 off, u64 *plen,
 	if (op->op == CEPH_OSD_OP_WRITE)
 		op->payload_len = *plen;
 
-	dout("calc_layout bno=%llx %llu~%llu\n", *bno, objoff, objlen);
+	dout("calc_layout objnum=%llx %llu~%llu\n", *objnum, *objoff, *objlen);
 
 	return 0;
 }
@@ -572,7 +571,9 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	struct ceph_osd_req_op ops[2];
 	struct ceph_osd_request *req;
 	unsigned int num_op = 1;
-	u64 bno = 0;
+	u64 objnum = 0;
+	u64 objoff = 0;
+	u64 objlen = 0;
 	int r;
 
 	memset(&ops, 0, sizeof ops);
@@ -593,14 +594,15 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	req->r_flags = flags;
 
 	/* calculate max write size */
-	r = calc_layout(layout, off, plen, ops, &bno);
+	r = calc_layout(layout, off, plen, ops, &objnum, &objoff, &objlen);
 	if (r < 0) {
 		ceph_osdc_put_request(req);
 		return ERR_PTR(r);
 	}
 	req->r_file_layout = *layout;  /* keep a copy */
 
-	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
+	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx",
+		vino.ino, objnum);
 	req->r_oid_len = strlen(req->r_oid);
 
 	ceph_osdc_build_request(req, off, num_op, ops,
