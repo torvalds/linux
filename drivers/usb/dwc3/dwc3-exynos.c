@@ -138,7 +138,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	exynos->dev	= dev;
 	exynos->clk	= clk;
 
-	clk_enable(exynos->clk);
+	clk_prepare_enable(exynos->clk);
 
 	if (node) {
 		ret = of_platform_populate(node, NULL, NULL, dev);
@@ -155,7 +155,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	return 0;
 
 err2:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 err1:
 	return ret;
 }
@@ -168,7 +168,7 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 	platform_device_unregister(exynos->usb3_phy);
 	device_for_each_child(&pdev->dev, NULL, dwc3_exynos_remove_child);
 
-	clk_disable(exynos->clk);
+	clk_disable_unprepare(exynos->clk);
 
 	return 0;
 }
