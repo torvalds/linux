@@ -61,6 +61,8 @@
 
 #include "events_internal.h"
 
+const struct evtchn_ops *evtchn_ops;
+
 /*
  * This lock protects updates to the following mapping and reference-count
  * arrays. The lock does not need to be acquired to read the mapping tables.
@@ -1522,6 +1524,8 @@ void xen_callback_vector(void) {}
 void __init xen_init_IRQ(void)
 {
 	int i;
+
+	xen_evtchn_2l_init();
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
 				    GFP_KERNEL);

@@ -54,21 +54,68 @@ struct irq_info {
 #define PIRQ_NEEDS_EOI	(1 << 0)
 #define PIRQ_SHAREABLE	(1 << 1)
 
+struct evtchn_ops {
+	void (*bind_to_cpu)(struct irq_info *info, unsigned cpu);
+
+	void (*clear_pending)(unsigned port);
+	void (*set_pending)(unsigned port);
+	bool (*is_pending)(unsigned port);
+	bool (*test_and_set_mask)(unsigned port);
+	void (*mask)(unsigned port);
+	void (*unmask)(unsigned port);
+
+	void (*handle_events)(unsigned cpu);
+};
+
+extern const struct evtchn_ops *evtchn_ops;
+
 extern int *evtchn_to_irq;
 
 struct irq_info *info_for_irq(unsigned irq);
 unsigned cpu_from_irq(unsigned irq);
 unsigned cpu_from_evtchn(unsigned int evtchn);
 
-void xen_evtchn_port_bind_to_cpu(struct irq_info *info, int cpu);
+static inline void xen_evtchn_port_bind_to_cpu(struct irq_info *info,
+					       unsigned cpu)
+{
+	evtchn_ops->bind_to_cpu(info, cpu);
+}
 
-void clear_evtchn(int port);
-void set_evtchn(int port);
-int test_evtchn(int port);
-int test_and_set_mask(int port);
-void mask_evtchn(int port);
-void unmask_evtchn(int port);
+static inline void clear_evtchn(unsigned port)
+{
+	evtchn_ops->clear_pending(port);
+}
 
-void xen_evtchn_handle_events(int cpu);
+static inline void set_evtchn(unsigned port)
+{
+	evtchn_ops->set_pending(port);
+}
+
+static inline bool test_evtchn(unsigned port)
+{
+	return evtchn_ops->is_pending(port);
+}
+
+static inline bool test_and_set_mask(unsigned port)
+{
+	return evtchn_ops->test_and_set_mask(port);
+}
+
+static inline void mask_evtchn(unsigned port)
+{
+	return evtchn_ops->mask(port);
+}
+
+static inline void unmask_evtchn(unsigned port)
+{
+	return evtchn_ops->unmask(port);
+}
+
+static inline void xen_evtchn_handle_events(unsigned cpu)
+{
+	return evtchn_ops->handle_events(cpu);
+}
+
+void xen_evtchn_2l_init(void);
 
 #endif /* #ifndef __EVENTS_INTERNAL_H__ */

@@ -41,43 +41,43 @@
 static DEFINE_PER_CPU(xen_ulong_t [NR_EVENT_CHANNELS/BITS_PER_EVTCHN_WORD],
 		      cpu_evtchn_mask);
 
-void xen_evtchn_port_bind_to_cpu(struct irq_info *info, int cpu)
+static void evtchn_2l_bind_to_cpu(struct irq_info *info, unsigned cpu)
 {
 	clear_bit(info->evtchn, BM(per_cpu(cpu_evtchn_mask, info->cpu)));
 	set_bit(info->evtchn, BM(per_cpu(cpu_evtchn_mask, cpu)));
 }
 
-void clear_evtchn(int port)
+static void evtchn_2l_clear_pending(unsigned port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	sync_clear_bit(port, BM(&s->evtchn_pending[0]));
 }
 
-void set_evtchn(int port)
+static void evtchn_2l_set_pending(unsigned port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	sync_set_bit(port, BM(&s->evtchn_pending[0]));
 }
 
-int test_evtchn(int port)
+static bool evtchn_2l_is_pending(unsigned port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	return sync_test_bit(port, BM(&s->evtchn_pending[0]));
 }
 
-int test_and_set_mask(int port)
+static bool evtchn_2l_test_and_set_mask(unsigned port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	return sync_test_and_set_bit(port, BM(&s->evtchn_mask[0]));
 }
 
-void mask_evtchn(int port)
+static void evtchn_2l_mask(unsigned port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	sync_set_bit(port, BM(&s->evtchn_mask[0]));
 }
 
-void unmask_evtchn(int port)
+static void evtchn_2l_unmask(unsigned port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	unsigned int cpu = get_cpu();
@@ -153,7 +153,7 @@ static inline xen_ulong_t active_evtchns(unsigned int cpu,
  * a bitset of words which contain pending event bits.  The second
  * level is a bitset of pending events themselves.
  */
-void xen_evtchn_handle_events(int cpu)
+static void evtchn_2l_handle_events(unsigned cpu)
 {
 	int irq;
 	xen_ulong_t pending_words;
@@ -345,4 +345,21 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 	spin_unlock_irqrestore(&debug_lock, flags);
 
 	return IRQ_HANDLED;
+}
+
+static const struct evtchn_ops evtchn_ops_2l = {
+	.bind_to_cpu       = evtchn_2l_bind_to_cpu,
+	.clear_pending     = evtchn_2l_clear_pending,
+	.set_pending       = evtchn_2l_set_pending,
+	.is_pending        = evtchn_2l_is_pending,
+	.test_and_set_mask = evtchn_2l_test_and_set_mask,
+	.mask              = evtchn_2l_mask,
+	.unmask            = evtchn_2l_unmask,
+	.handle_events     = evtchn_2l_handle_events,
+};
+
+void __init xen_evtchn_2l_init(void)
+{
+	pr_info("Using 2-level ABI\n");
+	evtchn_ops = &evtchn_ops_2l;
 }
