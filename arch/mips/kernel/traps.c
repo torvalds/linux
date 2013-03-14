@@ -1390,9 +1390,8 @@ unsigned long vi_handlers[64];
 void __init *set_except_vector(int n, void *addr)
 {
 	unsigned long handler = (unsigned long) addr;
-	unsigned long old_handler = exception_handlers[n];
+	unsigned long old_handler = xchg(&exception_handlers[n], handler);
 
-	exception_handlers[n] = handler;
 	if (n == 0 && cpu_has_divec) {
 		unsigned long jump_mask = ~((1 << 28) - 1);
 		u32 *buf = (u32 *)(ebase + 0x200);
