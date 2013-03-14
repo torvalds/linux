@@ -245,7 +245,6 @@ uvc_video_alloc_requests(struct uvc_video *video)
 
 		video->req[i]->buf = video->req_buffer[i];
 		video->req[i]->length = 0;
-		video->req[i]->dma = DMA_ADDR_INVALID;
 		video->req[i]->complete = uvc_video_complete;
 		video->req[i]->context = video;
 

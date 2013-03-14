@@ -41,7 +41,6 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
 
 	req->length = min_t(unsigned int, uvc->event_length, data->length);
 	req->zero = data->length < uvc->event_length;
-	req->dma = DMA_ADDR_INVALID;
 
 	memcpy(req->buf, data->data, data->length);
 
