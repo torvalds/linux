@@ -1081,7 +1081,6 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 	return pdata;
 }
 #else /* CONFIG_OF */
-#define of_flctl_match NULL
 static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 {
 	return NULL;
@@ -1219,7 +1218,7 @@ static struct platform_driver flctl_driver = {
 	.driver = {
 		.name	= "sh_flctl",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_flctl_match,
+		.of_match_table = of_match_ptr(of_flctl_match),
 	},
 };
 
