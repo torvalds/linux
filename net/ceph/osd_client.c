@@ -64,8 +64,7 @@ static int op_has_extent(int op)
  * fill osd op in request message.
  */
 static int calc_layout(struct ceph_file_layout *layout, u64 off, u64 *plen,
-		       struct ceph_osd_req_op *op, u64 *objnum,
-		       u64 *objoff, u64 *objlen)
+			u64 *objnum, u64 *objoff, u64 *objlen)
 {
 	u64 orig_len = *plen;
 	int r;
@@ -80,21 +79,6 @@ static int calc_layout(struct ceph_file_layout *layout, u64 off, u64 *plen,
 		dout(" skipping last %llu, final file extent %llu~%llu\n",
 		     orig_len - *plen, off, *plen);
 	}
-
-	if (op_has_extent(op->op)) {
-		u32 osize = le32_to_cpu(layout->fl_object_size);
-		op->extent.offset = *objoff;
-		op->extent.length = *objlen;
-		if (op->extent.truncate_size <= off - *objoff) {
-			op->extent.truncate_size = 0;
-		} else {
-			op->extent.truncate_size -= off - *objoff;
-			if (op->extent.truncate_size > osize)
-				op->extent.truncate_size = osize;
-		}
-	}
-	if (op->op == CEPH_OSD_OP_WRITE)
-		op->payload_len = *plen;
 
 	dout("calc_layout objnum=%llx %llu~%llu\n", *objnum, *objoff, *objlen);
 
@@ -594,11 +578,27 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	req->r_flags = flags;
 
 	/* calculate max write size */
-	r = calc_layout(layout, off, plen, ops, &objnum, &objoff, &objlen);
+	r = calc_layout(layout, off, plen, &objnum, &objoff, &objlen);
 	if (r < 0) {
 		ceph_osdc_put_request(req);
 		return ERR_PTR(r);
 	}
+
+	if (op_has_extent(ops[0].op)) {
+		u32 osize = le32_to_cpu(layout->fl_object_size);
+		ops[0].extent.offset = objoff;
+		ops[0].extent.length = objlen;
+		if (ops[0].extent.truncate_size <= off - objoff) {
+			ops[0].extent.truncate_size = 0;
+		} else {
+			ops[0].extent.truncate_size -= off - objoff;
+			if (ops[0].extent.truncate_size > osize)
+				ops[0].extent.truncate_size = osize;
+		}
+	}
+	if (ops[0].op == CEPH_OSD_OP_WRITE)
+		ops[0].payload_len = *plen;
+
 	req->r_file_layout = *layout;  /* keep a copy */
 
 	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx",
