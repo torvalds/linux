@@ -1516,8 +1516,6 @@ static int e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	if (!txdr->desc) {
 setup_tx_desc_die:
 		vfree(txdr->buffer_info);
-		e_err(probe, "Unable to allocate memory for the Tx descriptor "
-		      "ring\n");
 		return -ENOMEM;
 	}
 
@@ -1707,10 +1705,7 @@ static int e1000_setup_rx_resources(struct e1000_adapter *adapter,
 
 	rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
 					GFP_KERNEL);
-
 	if (!rxdr->desc) {
-		e_err(probe, "Unable to allocate memory for the Rx descriptor "
-		      "ring\n");
 setup_rx_desc_die:
 		vfree(rxdr->buffer_info);
 		return -ENOMEM;
@@ -1729,8 +1724,6 @@ setup_rx_desc_die:
 		if (!rxdr->desc) {
 			dma_free_coherent(&pdev->dev, rxdr->size, olddesc,
 					  olddma);
-			e_err(probe, "Unable to allocate memory for the Rx "
-			      "descriptor ring\n");
 			goto setup_rx_desc_die;
 		}
 

@@ -47,22 +47,19 @@ static int at91ether_start(struct net_device *dev)
 	int i;
 
 	lp->rx_ring = dma_alloc_coherent(&lp->pdev->dev,
-					MAX_RX_DESCR * sizeof(struct macb_dma_desc),
-					&lp->rx_ring_dma, GFP_KERNEL);
-	if (!lp->rx_ring) {
-		netdev_err(dev, "unable to alloc rx ring DMA buffer\n");
+					 (MAX_RX_DESCR *
+					  sizeof(struct macb_dma_desc)),
+					 &lp->rx_ring_dma, GFP_KERNEL);
+	if (!lp->rx_ring)
 		return -ENOMEM;
-	}
 
 	lp->rx_buffers = dma_alloc_coherent(&lp->pdev->dev,
-					MAX_RX_DESCR * MAX_RBUFF_SZ,
-					&lp->rx_buffers_dma, GFP_KERNEL);
+					    MAX_RX_DESCR * MAX_RBUFF_SZ,
+					    &lp->rx_buffers_dma, GFP_KERNEL);
 	if (!lp->rx_buffers) {
-		netdev_err(dev, "unable to alloc rx data DMA buffer\n");
-
 		dma_free_coherent(&lp->pdev->dev,
-					MAX_RX_DESCR * sizeof(struct macb_dma_desc),
-					lp->rx_ring, lp->rx_ring_dma);
+				  MAX_RX_DESCR * sizeof(struct macb_dma_desc),
+				  lp->rx_ring, lp->rx_ring_dma);
 		lp->rx_ring = NULL;
 		return -ENOMEM;
 	}

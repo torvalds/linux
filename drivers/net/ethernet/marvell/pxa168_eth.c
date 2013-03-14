@@ -1024,11 +1024,9 @@ static int rxq_init(struct net_device *dev)
 	pep->rx_desc_area_size = size;
 	pep->p_rx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
 						&pep->rx_desc_dma, GFP_KERNEL);
-	if (!pep->p_rx_desc_area) {
-		printk(KERN_ERR "%s: Cannot alloc RX ring (size %d bytes)\n",
-		       dev->name, size);
+	if (!pep->p_rx_desc_area)
 		goto out;
-	}
+
 	memset((void *)pep->p_rx_desc_area, 0, size);
 	/* initialize the next_desc_ptr links in the Rx descriptors ring */
 	p_rx_desc = pep->p_rx_desc_area;
@@ -1087,11 +1085,8 @@ static int txq_init(struct net_device *dev)
 	pep->tx_desc_area_size = size;
 	pep->p_tx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
 						&pep->tx_desc_dma, GFP_KERNEL);
-	if (!pep->p_tx_desc_area) {
-		printk(KERN_ERR "%s: Cannot allocate Tx Ring (size %d bytes)\n",
-		       dev->name, size);
+	if (!pep->p_tx_desc_area)
 		goto out;
-	}
 	memset((void *)pep->p_tx_desc_area, 0, pep->tx_desc_area_size);
 	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
 	p_tx_desc = pep->p_tx_desc_area;

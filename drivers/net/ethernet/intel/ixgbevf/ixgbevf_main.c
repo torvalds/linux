@@ -2423,9 +2423,6 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
 					   &rx_ring->dma, GFP_KERNEL);
 
 	if (!rx_ring->desc) {
-		hw_dbg(&adapter->hw,
-		       "Unable to allocate memory for "
-		       "the receive descriptor ring\n");
 		vfree(rx_ring->rx_buffer_info);
 		rx_ring->rx_buffer_info = NULL;
 		goto alloc_failed;

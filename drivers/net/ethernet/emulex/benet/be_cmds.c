@@ -2667,10 +2667,8 @@ int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 	cmd.size = sizeof(struct be_cmd_req_set_mac_list);
 	cmd.va = dma_alloc_coherent(&adapter->pdev->dev, cmd.size,
 			&cmd.dma, GFP_KERNEL);
-	if (!cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+	if (!cmd.va)
 		return -ENOMEM;
-	}
 
 	spin_lock_bh(&adapter->mcc_lock);
 

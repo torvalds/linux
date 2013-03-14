@@ -1837,10 +1837,8 @@ int mlx4_cmd_init(struct mlx4_dev *dev)
 		priv->mfunc.vhcr = dma_alloc_coherent(&(dev->pdev->dev), PAGE_SIZE,
 						      &priv->mfunc.vhcr_dma,
 						      GFP_KERNEL);
-		if (!priv->mfunc.vhcr) {
-			mlx4_err(dev, "Couldn't allocate VHCR.\n");
+		if (!priv->mfunc.vhcr)
 			goto err_hcr;
-		}
 	}
 
 	priv->cmd.pool = pci_pool_create("mlx4_cmd", dev->pdev,

@@ -1409,9 +1409,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 			dma_alloc_coherent(&pldat->pdev->dev,
 					   pldat->dma_buff_size, &dma_handle,
 					   GFP_KERNEL);
-
 		if (pldat->dma_buff_base_v == NULL) {
-			dev_err(&pdev->dev, "error getting DMA region.\n");
 			ret = -ENOMEM;
 			goto err_out_free_irq;
 		}

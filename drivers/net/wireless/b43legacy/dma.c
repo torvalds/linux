@@ -335,11 +335,8 @@ static int alloc_ringmemory(struct b43legacy_dmaring *ring)
 					    B43legacy_DMA_RINGMEMSIZE,
 					    &(ring->dmabase),
 					    GFP_KERNEL);
-	if (!ring->descbase) {
-		b43legacyerr(ring->dev->wl, "DMA ringmemory allocation"
-			     " failed\n");
+	if (!ring->descbase)
 		return -ENOMEM;
-	}
 	memset(ring->descbase, 0, B43legacy_DMA_RINGMEMSIZE);
 
 	return 0;

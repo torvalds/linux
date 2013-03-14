@@ -720,8 +720,6 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 					GFP_KERNEL);
 	if (!txdr->desc) {
 		vfree(txdr->buffer_info);
-		netif_err(adapter, probe, adapter->netdev,
-			  "Unable to allocate transmit descriptor memory\n");
 		return -ENOMEM;
 	}
 	memset(txdr->desc, 0, txdr->size);
@@ -807,8 +805,6 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 
 	if (!rxdr->desc) {
 		vfree(rxdr->buffer_info);
-		netif_err(adapter, probe, adapter->netdev,
-			  "Unable to allocate receive descriptors\n");
 		return -ENOMEM;
 	}
 	memset(rxdr->desc, 0, rxdr->size);

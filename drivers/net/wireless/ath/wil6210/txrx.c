@@ -83,8 +83,6 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	 */
 	vring->va = dma_alloc_coherent(dev, sz, &vring->pa, GFP_KERNEL);
 	if (!vring->va) {
-		wil_err(wil, "vring_alloc [%d] failed to alloc DMA mem\n",
-			vring->size);
 		kfree(vring->ctx);
 		vring->ctx = NULL;
 		return -ENOMEM;

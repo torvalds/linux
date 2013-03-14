@@ -246,19 +246,14 @@ static int temac_dma_bd_init(struct net_device *ndev)
 	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
 					 sizeof(*lp->tx_bd_v) * TX_BD_NUM,
 					 &lp->tx_bd_p, GFP_KERNEL);
-	if (!lp->tx_bd_v) {
-		dev_err(&ndev->dev,
-				"unable to allocate DMA TX buffer descriptors");
+	if (!lp->tx_bd_v)
 		goto out;
-	}
+
 	lp->rx_bd_v = dma_alloc_coherent(ndev->dev.parent,
 					 sizeof(*lp->rx_bd_v) * RX_BD_NUM,
 					 &lp->rx_bd_p, GFP_KERNEL);
-	if (!lp->rx_bd_v) {
-		dev_err(&ndev->dev,
-				"unable to allocate DMA RX buffer descriptors");
+	if (!lp->rx_bd_v)
 		goto out;
-	}
 
 	memset(lp->tx_bd_v, 0, sizeof(*lp->tx_bd_v) * TX_BD_NUM);
 	for (i = 0; i < TX_BD_NUM; i++) {

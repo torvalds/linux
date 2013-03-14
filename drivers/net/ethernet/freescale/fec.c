@@ -1594,11 +1594,9 @@ static int fec_enet_init(struct net_device *ndev)
 
 	/* Allocate memory for buffer descriptors. */
 	cbd_base = dma_alloc_coherent(NULL, PAGE_SIZE, &fep->bd_dma,
-			GFP_KERNEL);
-	if (!cbd_base) {
-		printk("FEC: allocate descriptor memory failed?\n");
+				      GFP_KERNEL);
+	if (!cbd_base)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&fep->hw_lock);
 

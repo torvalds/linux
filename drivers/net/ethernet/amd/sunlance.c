@@ -1373,10 +1373,9 @@ static int sparc_lance_probe_one(struct platform_device *op,
 			dma_alloc_coherent(&op->dev,
 					   sizeof(struct lance_init_block),
 					   &lp->init_block_dvma, GFP_ATOMIC);
-		if (!lp->init_block_mem) {
-			printk(KERN_ERR "SunLance: Cannot allocate consistent DMA memory.\n");
+		if (!lp->init_block_mem)
 			goto fail;
-		}
+
 		lp->pio_buffer = 0;
 		lp->init_ring = lance_init_ring_dvma;
 		lp->rx = lance_rx_dvma;

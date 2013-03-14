@@ -2752,10 +2752,8 @@ static int happy_meal_sbus_probe_one(struct platform_device *op, int is_qfe)
 					     &hp->hblock_dvma,
 					     GFP_ATOMIC);
 	err = -ENOMEM;
-	if (!hp->happy_block) {
-		printk(KERN_ERR "happymeal: Cannot allocate descriptors.\n");
+	if (!hp->happy_block)
 		goto err_out_iounmap;
-	}
 
 	/* Force check of the link first time we are brought up. */
 	hp->linkcheck = 0;
@@ -3068,14 +3066,11 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	hp->happy_bursts = DMA_BURSTBITS;
 #endif
 
-	hp->happy_block = (struct hmeal_init_block *)
-		dma_alloc_coherent(&pdev->dev, PAGE_SIZE, &hp->hblock_dvma, GFP_KERNEL);
-
+	hp->happy_block = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
+					     &hp->hblock_dvma, GFP_KERNEL);
 	err = -ENODEV;
-	if (!hp->happy_block) {
-		printk(KERN_ERR "happymeal(PCI): Cannot get hme init block.\n");
+	if (!hp->happy_block)
 		goto err_out_iounmap;
-	}
 
 	hp->linkcheck = 0;
 	hp->timer_state = asleep;

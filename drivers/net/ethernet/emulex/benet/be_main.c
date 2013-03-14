@@ -3464,11 +3464,9 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	flash_cmd.size = sizeof(struct lancer_cmd_req_write_object)
 				+ LANCER_FW_DOWNLOAD_CHUNK;
 	flash_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, flash_cmd.size,
-						&flash_cmd.dma, GFP_KERNEL);
+					  &flash_cmd.dma, GFP_KERNEL);
 	if (!flash_cmd.va) {
 		status = -ENOMEM;
-		dev_err(&adapter->pdev->dev,
-			"Memory allocation failure while flashing\n");
 		goto lancer_fw_exit;
 	}
 
@@ -3570,8 +3568,6 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 					  &flash_cmd.dma, GFP_KERNEL);
 	if (!flash_cmd.va) {
 		status = -ENOMEM;
-		dev_err(&adapter->pdev->dev,
-			"Memory allocation failure while flashing\n");
 		goto be_fw_exit;
 	}
 

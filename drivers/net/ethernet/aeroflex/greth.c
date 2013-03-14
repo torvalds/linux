@@ -1464,14 +1464,10 @@ static int greth_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Allocate TX descriptor ring in coherent memory */
-	greth->tx_bd_base = (struct greth_bd *) dma_alloc_coherent(greth->dev,
-								   1024,
-								   &greth->tx_bd_base_phys,
-								   GFP_KERNEL);
-
+	greth->tx_bd_base = dma_alloc_coherent(greth->dev, 1024,
+					       &greth->tx_bd_base_phys,
+					       GFP_KERNEL);
 	if (!greth->tx_bd_base) {
-		if (netif_msg_probe(greth))
-			dev_err(&dev->dev, "could not allocate descriptor memory.\n");
 		err = -ENOMEM;
 		goto error3;
 	}
@@ -1479,14 +1475,10 @@ static int greth_of_probe(struct platform_device *ofdev)
 	memset(greth->tx_bd_base, 0, 1024);
 
 	/* Allocate RX descriptor ring in coherent memory */
-	greth->rx_bd_base = (struct greth_bd *) dma_alloc_coherent(greth->dev,
-								   1024,
-								   &greth->rx_bd_base_phys,
-								   GFP_KERNEL);
-
+	greth->rx_bd_base = dma_alloc_coherent(greth->dev, 1024,
+					       &greth->rx_bd_base_phys,
+					       GFP_KERNEL);
 	if (!greth->rx_bd_base) {
-		if (netif_msg_probe(greth))
-			dev_err(greth->dev, "could not allocate descriptor memory.\n");
 		err = -ENOMEM;
 		goto error4;
 	}

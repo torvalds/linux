@@ -1309,22 +1309,16 @@ static int tsi108_open(struct net_device *dev)
 	}
 
 	data->rxring = dma_alloc_coherent(NULL, rxring_size,
-			&data->rxdma, GFP_KERNEL);
-
+					  &data->rxdma, GFP_KERNEL);
 	if (!data->rxring) {
-		printk(KERN_DEBUG
-		       "TSI108_ETH: failed to allocate memory for rxring!\n");
 		return -ENOMEM;
 	} else {
 		memset(data->rxring, 0, rxring_size);
 	}
 
 	data->txring = dma_alloc_coherent(NULL, txring_size,
-			&data->txdma, GFP_KERNEL);
-
+					  &data->txdma, GFP_KERNEL);
 	if (!data->txring) {
-		printk(KERN_DEBUG
-		       "TSI108_ETH: failed to allocate memory for txring!\n");
 		pci_free_consistent(0, rxring_size, data->rxring, data->rxdma);
 		return -ENOMEM;
 	} else {

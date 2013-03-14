@@ -2379,10 +2379,8 @@ il3945_hw_set_hw_params(struct il_priv *il)
 	il->_3945.shared_virt =
 	    dma_alloc_coherent(&il->pci_dev->dev, sizeof(struct il3945_shared),
 			       &il->_3945.shared_phys, GFP_KERNEL);
-	if (!il->_3945.shared_virt) {
-		IL_ERR("failed to allocate pci memory\n");
+	if (!il->_3945.shared_virt)
 		return -ENOMEM;
-	}
 
 	il->hw_params.bcast_id = IL3945_BROADCAST_ID;
 

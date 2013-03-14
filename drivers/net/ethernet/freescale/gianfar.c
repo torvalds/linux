@@ -245,14 +245,13 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 
 	/* Allocate memory for the buffer descriptors */
 	vaddr = dma_alloc_coherent(dev,
-			sizeof(struct txbd8) * priv->total_tx_ring_size +
-			sizeof(struct rxbd8) * priv->total_rx_ring_size,
-			&addr, GFP_KERNEL);
-	if (!vaddr) {
-		netif_err(priv, ifup, ndev,
-			  "Could not allocate buffer descriptors!\n");
+				   (priv->total_tx_ring_size *
+				    sizeof(struct txbd8)) +
+				   (priv->total_rx_ring_size *
+				    sizeof(struct rxbd8)),
+				   &addr, GFP_KERNEL);
+	if (!vaddr)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		tx_queue = priv->tx_queue[i];

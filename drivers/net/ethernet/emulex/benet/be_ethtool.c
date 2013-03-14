@@ -719,10 +719,8 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
 	ddrdma_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, ddrdma_cmd.size,
 					   &ddrdma_cmd.dma, GFP_KERNEL);
-	if (!ddrdma_cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory allocation failure\n");
+	if (!ddrdma_cmd.va)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < 2; i++) {
 		ret = be_cmd_ddr_dma_test(adapter, pattern[i],
@@ -845,11 +843,8 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	eeprom_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, eeprom_cmd.size,
 					   &eeprom_cmd.dma, GFP_KERNEL);
 
-	if (!eeprom_cmd.va) {
-		dev_err(&adapter->pdev->dev,
-			"Memory allocation failure. Could not read eeprom\n");
+	if (!eeprom_cmd.va)
 		return -ENOMEM;
-	}
 
 	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
 

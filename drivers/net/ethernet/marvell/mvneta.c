@@ -1969,13 +1969,8 @@ static int mvneta_rxq_init(struct mvneta_port *pp,
 	rxq->descs = dma_alloc_coherent(pp->dev->dev.parent,
 					rxq->size * MVNETA_DESC_ALIGNED_SIZE,
 					&rxq->descs_phys, GFP_KERNEL);
-	if (rxq->descs == NULL) {
-		netdev_err(pp->dev,
-			   "rxq=%d: Can't allocate %d bytes for %d RX descr\n",
-			   rxq->id, rxq->size * MVNETA_DESC_ALIGNED_SIZE,
-			   rxq->size);
+	if (rxq->descs == NULL)
 		return -ENOMEM;
-	}
 
 	BUG_ON(rxq->descs !=
 	       PTR_ALIGN(rxq->descs, MVNETA_CPU_D_CACHE_LINE_SIZE));
@@ -2029,13 +2024,8 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 	txq->descs = dma_alloc_coherent(pp->dev->dev.parent,
 					txq->size * MVNETA_DESC_ALIGNED_SIZE,
 					&txq->descs_phys, GFP_KERNEL);
-	if (txq->descs == NULL) {
-		netdev_err(pp->dev,
-			   "txQ=%d: Can't allocate %d bytes for %d TX descr\n",
-			   txq->id, txq->size * MVNETA_DESC_ALIGNED_SIZE,
-			   txq->size);
+	if (txq->descs == NULL)
 		return -ENOMEM;
-	}
 
 	/* Make sure descriptor address is cache line size aligned  */
 	BUG_ON(txq->descs !=

@@ -2941,10 +2941,9 @@ il_tx_queue_alloc(struct il_priv *il, struct il_tx_queue *txq, u32 id)
 	 * shared with device */
 	txq->tfds =
 	    dma_alloc_coherent(dev, tfd_sz, &txq->q.dma_addr, GFP_KERNEL);
-	if (!txq->tfds) {
-		IL_ERR("Fail to alloc TFDs\n");
+	if (!txq->tfds)
 		goto error;
-	}
+
 	txq->q.id = id;
 
 	return 0;

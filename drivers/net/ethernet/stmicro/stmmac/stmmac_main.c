@@ -534,25 +534,17 @@ static void init_dma_desc_rings(struct net_device *dev)
 					    GFP_KERNEL);
 	priv->rx_skbuff = kmalloc_array(rxsize, sizeof(struct sk_buff *),
 					GFP_KERNEL);
-	priv->dma_rx =
-	    (struct dma_desc *)dma_alloc_coherent(priv->device,
-						  rxsize *
-						  sizeof(struct dma_desc),
-						  &priv->dma_rx_phy,
-						  GFP_KERNEL);
+	priv->dma_rx = dma_alloc_coherent(priv->device,
+					  rxsize * sizeof(struct dma_desc),
+					  &priv->dma_rx_phy, GFP_KERNEL);
 	priv->tx_skbuff = kmalloc_array(txsize, sizeof(struct sk_buff *),
 					GFP_KERNEL);
-	priv->dma_tx =
-	    (struct dma_desc *)dma_alloc_coherent(priv->device,
-						  txsize *
-						  sizeof(struct dma_desc),
-						  &priv->dma_tx_phy,
-						  GFP_KERNEL);
+	priv->dma_tx = dma_alloc_coherent(priv->device,
+					  txsize * sizeof(struct dma_desc),
+					  &priv->dma_tx_phy, GFP_KERNEL);
 
-	if ((priv->dma_rx == NULL) || (priv->dma_tx == NULL)) {
-		pr_err("%s:ERROR allocating the DMA Tx/Rx desc\n", __func__);
+	if ((priv->dma_rx == NULL) || (priv->dma_tx == NULL))
 		return;
-	}
 
 	DBG(probe, INFO, "stmmac (%s) DMA desc: virt addr (Rx %p, "
 	    "Tx %p)\n\tDMA phy addr (Rx 0x%08x, Tx 0x%08x)\n",
