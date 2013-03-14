@@ -34,6 +34,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
+#include <linux/of.h>
 
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
@@ -577,7 +578,6 @@ static struct davinci_nand_pdata
 	return pdev->dev.platform_data;
 }
 #else
-#define davinci_nand_of_match NULL
 static struct davinci_nand_pdata
 	*nand_davinci_get_pdata(struct platform_device *pdev)
 {
@@ -878,7 +878,7 @@ static struct platform_driver nand_davinci_driver = {
 	.driver		= {
 		.name	= "davinci_nand",
 		.owner	= THIS_MODULE,
-		.of_match_table = davinci_nand_of_match,
+		.of_match_table = of_match_ptr(davinci_nand_of_match),
 	},
 };
 MODULE_ALIAS("platform:davinci_nand");
