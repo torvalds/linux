@@ -866,16 +866,17 @@ static int omap_venchw_probe(struct platform_device *pdev)
 
 	venc_init_output(pdev);
 
-	r = venc_probe_pdata(pdev);
-	if (r) {
-		venc_panel_exit();
-		venc_uninit_output(pdev);
-		pm_runtime_disable(&pdev->dev);
-		return r;
+	if (pdev->dev.platform_data) {
+		r = venc_probe_pdata(pdev);
+		if (r)
+			goto err_probe;
 	}
 
 	return 0;
 
+err_probe:
+	venc_panel_exit();
+	venc_uninit_output(pdev);
 err_panel_init:
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);

@@ -365,13 +365,17 @@ static int omap_sdi_probe(struct platform_device *pdev)
 
 	sdi_init_output(pdev);
 
-	r = sdi_probe_pdata(pdev);
-	if (r) {
-		sdi_uninit_output(pdev);
-		return r;
+	if (pdev->dev.platform_data) {
+		r = sdi_probe_pdata(pdev);
+		if (r)
+			goto err_probe;
 	}
 
 	return 0;
+
+err_probe:
+	sdi_uninit_output(pdev);
+	return r;
 }
 
 static int __exit omap_sdi_remove(struct platform_device *pdev)

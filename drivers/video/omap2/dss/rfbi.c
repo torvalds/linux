@@ -1093,15 +1093,16 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 
 	rfbi_init_output(pdev);
 
-	r = rfbi_probe_pdata(pdev);
-	if (r) {
-		rfbi_uninit_output(pdev);
-		pm_runtime_disable(&pdev->dev);
-		return r;
+	if (pdev->dev.platform_data) {
+		r = rfbi_probe_pdata(pdev);
+		if (r)
+			goto err_probe;
 	}
 
 	return 0;
 
+err_probe:
+	rfbi_uninit_output(pdev);
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 	return r;

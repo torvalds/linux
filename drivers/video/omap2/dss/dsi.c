@@ -5563,12 +5563,10 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	dsi_init_output(dsidev);
 
-	r = dsi_probe_pdata(dsidev);
-	if (r) {
-		dsi_runtime_put(dsidev);
-		dsi_uninit_output(dsidev);
-		pm_runtime_disable(&dsidev->dev);
-		return r;
+	if (dsidev->dev.platform_data) {
+		r = dsi_probe_pdata(dsidev);
+		if (r)
+			goto err_probe;
 	}
 
 	dsi_runtime_put(dsidev);
@@ -5586,6 +5584,9 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 #endif
 	return 0;
 
+err_probe:
+	dsi_runtime_put(dsidev);
+	dsi_uninit_output(dsidev);
 err_runtime_get:
 	pm_runtime_disable(&dsidev->dev);
 	return r;

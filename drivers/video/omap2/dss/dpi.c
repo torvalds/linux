@@ -706,13 +706,17 @@ static int omap_dpi_probe(struct platform_device *pdev)
 
 	dpi_init_output(pdev);
 
-	r = dpi_probe_pdata(pdev);
-	if (r) {
-		dpi_uninit_output(pdev);
-		return r;
+	if (pdev->dev.platform_data) {
+		r = dpi_probe_pdata(pdev);
+		if (r)
+			goto err_probe;
 	}
 
 	return 0;
+
+err_probe:
+	dpi_uninit_output(pdev);
+	return r;
 }
 
 static int __exit omap_dpi_remove(struct platform_device *pdev)

@@ -1094,15 +1094,19 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
-	r = hdmi_probe_pdata(pdev);
-	if (r) {
-		hdmi_panel_exit();
-		hdmi_uninit_output(pdev);
-		pm_runtime_disable(&pdev->dev);
-		return r;
+	if (pdev->dev.platform_data) {
+		r = hdmi_probe_pdata(pdev);
+		if (r)
+			goto err_probe;
 	}
 
 	return 0;
+
+err_probe:
+	hdmi_panel_exit();
+	hdmi_uninit_output(pdev);
+	pm_runtime_disable(&pdev->dev);
+	return r;
 }
 
 static int __exit hdmi_remove_child(struct device *dev, void *data)
