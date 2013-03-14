@@ -22,9 +22,6 @@
 
 #define MMC_QUEUE_BOUNCESZ	65536
 
-
-#define MMC_REQ_SPECIAL_MASK	(REQ_DISCARD | REQ_FLUSH)
-
 /*
  * Prepare a MMC request. This just filters out odd stuff.
  */
