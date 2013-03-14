@@ -69,18 +69,24 @@
 				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
 				reg = <0x10003000 0x1000>;
 				interrupts = <26>;
+				clocks = <&clks 46>, <&clks 61>;
+				clock-names = "ipg", "per";
 			};
 
 			gpt2: timer@10004000 {
 				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
 				reg = <0x10004000 0x1000>;
 				interrupts = <25>;
+				clocks = <&clks 45>, <&clks 61>;
+				clock-names = "ipg", "per";
 			};
 
 			gpt3: timer@10005000 {
 				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
 				reg = <0x10005000 0x1000>;
 				interrupts = <24>;
+				clocks = <&clks 44>, <&clks 61>;
+				clock-names = "ipg", "per";
 			};
 
 			uart1: serial@1000a000 {
@@ -226,12 +232,16 @@
 				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
 				reg = <0x10019000 0x1000>;
 				interrupts = <4>;
+				clocks = <&clks 43>, <&clks 61>;
+				clock-names = "ipg", "per";
 			};
 
 			gpt5: timer@1001a000 {
 				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
 				reg = <0x1001a000 0x1000>;
 				interrupts = <3>;
+				clocks = <&clks 42>, <&clks 61>;
+				clock-names = "ipg", "per";
 			};
 
 			uart5: serial@1001b000 {
@@ -266,6 +276,8 @@
 				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
 				reg = <0x1001f000 0x1000>;
 				interrupts = <2>;
+				clocks = <&clks 41>, <&clks 61>;
+				clock-names = "ipg", "per";
 			};
 		};
 
