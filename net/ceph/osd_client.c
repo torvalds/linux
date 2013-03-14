@@ -1848,7 +1848,7 @@ static void ceph_osdc_msg_data_set(struct ceph_msg *msg,
 		ceph_msg_data_set_pagelist(msg, osd_data->pagelist);
 #ifdef CONFIG_BLOCK
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
-		ceph_msg_data_set_bio(msg, osd_data->bio);
+		ceph_msg_data_set_bio(msg, osd_data->bio, osd_data->bio_length);
 #endif
 	} else {
 		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);

@@ -139,6 +139,7 @@ struct ceph_msg {
 	struct kvec front;              /* unaligned blobs of message */
 	struct ceph_buffer *middle;
 
+	size_t			data_length;
 	struct ceph_msg_data	*data;	/* data payload */
 
 	struct ceph_connection *con;
@@ -270,7 +271,8 @@ extern void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
 				size_t length, size_t alignment);
 extern void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist);
-extern void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio);
+extern void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio,
+				size_t length);
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
