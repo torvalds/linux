@@ -5148,7 +5148,7 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 		ipr_trace;
 	}
 
-	list_add_tail(&ipr_cmd->queue, &hrrq->hrrq_free_q);
+	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
 	if (!ipr_is_naca_model(res))
 		res->needs_sync_complete = 1;
 
