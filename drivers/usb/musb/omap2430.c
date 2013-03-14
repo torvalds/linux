@@ -391,6 +391,8 @@ static int omap2430_musb_init(struct musb *musb)
 	if (glue->status != OMAP_MUSB_UNKNOWN)
 		omap_musb_set_mailbox(glue);
 
+	usb_phy_init(musb->xceiv);
+
 	pm_runtime_put_noidle(musb->controller);
 	return 0;
 
