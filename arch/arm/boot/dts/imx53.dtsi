@@ -243,6 +243,14 @@
 				status = "disabled";
 			};
 
+			gpt: timer@53fa0000 {
+				compatible = "fsl,imx53-gpt", "fsl,imx31-gpt";
+				reg = <0x53fa0000 0x4000>;
+				interrupts = <39>;
+				clocks = <&clks 36>, <&clks 41>;
+				clock-names = "ipg", "per";
+			};
+
 			iomuxc: iomuxc@53fa8000 {
 				compatible = "fsl,imx53-iomuxc";
 				reg = <0x53fa8000 0x4000>;
