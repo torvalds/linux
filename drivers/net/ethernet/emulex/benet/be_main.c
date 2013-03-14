@@ -153,16 +153,9 @@ static int be_queue_alloc(struct be_adapter *adapter, struct be_queue_info *q,
 	return 0;
 }
 
-static void be_intr_set(struct be_adapter *adapter, bool enable)
+static void be_reg_intr_set(struct be_adapter *adapter, bool enable)
 {
 	u32 reg, enabled;
-
-	/* On lancer interrupts can't be controlled via this register */
-	if (lancer_chip(adapter))
-		return;
-
-	if (adapter->eeh_error)
-		return;
 
 	pci_read_config_dword(adapter->pdev, PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET,
 				&reg);
@@ -177,6 +170,22 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 
 	pci_write_config_dword(adapter->pdev,
 			PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET, reg);
+}
+
+static void be_intr_set(struct be_adapter *adapter, bool enable)
+{
+	int status = 0;
+
+	/* On lancer interrupts can't be controlled via this register */
+	if (lancer_chip(adapter))
+		return;
+
+	if (adapter->eeh_error)
+		return;
+
+	status = be_cmd_intr_set(adapter, enable);
+	if (status)
+		be_reg_intr_set(adapter, enable);
 }
 
 static void be_rxq_notify(struct be_adapter *adapter, u16 qid, u16 posted)

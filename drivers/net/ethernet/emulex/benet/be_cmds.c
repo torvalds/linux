@@ -3202,6 +3202,31 @@ err:
 	return status;
 }
 
+int be_cmd_intr_set(struct be_adapter *adapter, bool intr_enable)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_intr_set *req;
+	int status;
+
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+
+	wrb = wrb_from_mbox(adapter);
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_SET_INTERRUPT_ENABLE, sizeof(*req),
+			       wrb, NULL);
+
+	req->intr_enabled = intr_enable;
+
+	status = be_mbox_notify_wait(adapter);
+
+	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
 int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
 			int wrb_payload_size, u16 *cmd_status, u16 *ext_status)
 {
