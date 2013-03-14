@@ -1565,8 +1565,8 @@ static int nmk_dt_add_map_configs(struct pinctrl_map **map,
 	return 0;
 }
 
-#define NMK_CONFIG_PIN(x,y) { .property = x, .config = y, }
-#define NMK_CONFIG_PIN_ARRAY(x,y) { .property = x, .choice = y, \
+#define NMK_CONFIG_PIN(x, y) { .property = x, .config = y, }
+#define NMK_CONFIG_PIN_ARRAY(x, y) { .property = x, .choice = y, \
 	.size = ARRAY_SIZE(y), }
 
 static const unsigned long nmk_pin_input_modes[] = {
@@ -2068,7 +2068,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 		pin, cfg, pullnames[pull], slpmnames[slpm],
 		output ? "output " : "input",
 		output ? (val ? "high" : "low") : "",
-		lowemi ? "on" : "off" );
+		lowemi ? "on" : "off");
 
 	clk_enable(nmk_chip->clk);
 	bit = pin % NMK_GPIO_PER_CHIP;
