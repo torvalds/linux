@@ -129,7 +129,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	struct vm_area_struct *vma;
 	int err = -EINVAL;
 	int has_write_lock = 0;
-	vm_flags_t vm_flags;
+	vm_flags_t vm_flags = 0;
 
 	if (prot)
 		return err;
@@ -163,8 +163,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	 * and that the remapped range is valid and fully within
 	 * the single existing vma.
 	 */
-	vm_flags = vma->vm_flags;
-	if (!vma || !(vm_flags & VM_SHARED))
+	if (!vma || !(vma->vm_flags & VM_SHARED))
 		goto out;
 
 	if (!vma->vm_ops || !vma->vm_ops->remap_pages)
