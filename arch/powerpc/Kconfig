@@ -773,11 +773,6 @@ config PCI_8260
 	select PPC_INDIRECT_PCI
 	default y
 
-config 8260_PCI9
-	bool "Enable workaround for MPC826x erratum PCI 9"
-	depends on PCI_8260 && !8272
-	default y
-
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
