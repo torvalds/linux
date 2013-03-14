@@ -259,8 +259,6 @@ static int gpio_nand_remove(struct platform_device *dev)
 	if (gpio_is_valid(gpiomtd->plat.gpio_rdy))
 		gpio_free(gpiomtd->plat.gpio_rdy);
 
-	kfree(gpiomtd);
-
 	return 0;
 }
 
@@ -297,7 +295,7 @@ static int gpio_nand_probe(struct platform_device *dev)
 	if (!res0)
 		return -EINVAL;
 
-	gpiomtd = kzalloc(sizeof(*gpiomtd), GFP_KERNEL);
+	gpiomtd = devm_kzalloc(&dev->dev, sizeof(*gpiomtd), GFP_KERNEL);
 	if (gpiomtd == NULL) {
 		dev_err(&dev->dev, "failed to create NAND MTD\n");
 		return -ENOMEM;
@@ -412,7 +410,6 @@ err_sync:
 	iounmap(gpiomtd->nand_chip.IO_ADDR_R);
 	release_mem_region(res0->start, resource_size(res0));
 err_map:
-	kfree(gpiomtd);
 	return ret;
 }
 
