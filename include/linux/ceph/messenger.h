@@ -88,6 +88,25 @@ static __inline__ bool ceph_msg_data_type_valid(enum ceph_msg_data_type type)
 	}
 }
 
+struct ceph_msg_data {
+	enum ceph_msg_data_type		type;
+	union {
+#ifdef CONFIG_BLOCK
+		struct {
+			struct bio	*bio;
+			size_t		bio_length;
+		};
+#endif /* CONFIG_BLOCK */
+		struct {
+			struct page	**pages;	/* NOT OWNER. */
+			size_t		length;		/* total # bytes */
+			unsigned int	alignment;	/* first page */
+		};
+		struct ceph_pagelist	*pagelist;
+	};
+	struct ceph_msg_data_cursor	*cursor;
+};
+
 struct ceph_msg_data_cursor {
 	size_t		resid;		/* bytes not yet consumed */
 	bool		last_piece;	/* now at last piece of data item */
@@ -112,25 +131,6 @@ struct ceph_msg_data_cursor {
 	};
 };
 
-struct ceph_msg_data {
-	enum ceph_msg_data_type		type;
-	union {
-#ifdef CONFIG_BLOCK
-		struct {
-			struct bio	*bio;
-			size_t		bio_length;
-		};
-#endif /* CONFIG_BLOCK */
-		struct {
-			struct page	**pages;	/* NOT OWNER. */
-			size_t		length;		/* total # bytes */
-			unsigned int	alignment;	/* first page */
-		};
-		struct ceph_pagelist	*pagelist;
-	};
-	struct ceph_msg_data_cursor	cursor;		/* pagelist only */
-};
-
 /*
  * a single message.  it contains a header (src, dest, message type, etc.),
  * footer (crc values, mainly), a "front" message body, and possibly a
@@ -142,8 +142,9 @@ struct ceph_msg {
 	struct kvec front;              /* unaligned blobs of message */
 	struct ceph_buffer *middle;
 
-	size_t			data_length;
-	struct ceph_msg_data	*data;	/* data payload */
+	size_t				data_length;
+	struct ceph_msg_data		*data;
+	struct ceph_msg_data_cursor	cursor;
 
 	struct ceph_connection *con;
 	struct list_head list_head;	/* links for connection lists */
