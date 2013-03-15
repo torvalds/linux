@@ -1137,6 +1137,11 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 
 	serial->suspending = 1;
 
+	/*
+	 * serial->type->suspend() MUST return 0 in system sleep context,
+	 * otherwise, the resume callback has to recover device from
+	 * previous suspend failure.
+	 */
 	if (serial->type->suspend) {
 		r = serial->type->suspend(serial, message);
 		if (r < 0) {
