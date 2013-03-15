@@ -505,6 +505,7 @@ struct spi_transfer {
 	unsigned	cs_change:1;
 	u8		bits_per_word;
 	u16		delay_usecs;
+	u16		interbyte_usecs;
 	u32		speed_hz;
 
 	struct list_head transfer_list;

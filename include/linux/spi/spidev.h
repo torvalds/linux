@@ -90,6 +90,7 @@ struct spi_ioc_transfer {
 	__u32		speed_hz;
 
 	__u16		delay_usecs;
+	__u16		interbyte_usecs;
 	__u8		bits_per_word;
 	__u8		cs_change;
 	__u32		pad;
