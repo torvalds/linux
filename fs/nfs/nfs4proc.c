@@ -782,6 +782,7 @@ static void nfs4_init_opendata_res(struct nfs4_opendata *p)
 static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 		struct nfs4_state_owner *sp, fmode_t fmode, int flags,
 		const struct iattr *attrs,
+		enum open_claim_type4 claim,
 		gfp_t gfp_mask)
 {
 	struct dentry *parent = dget_parent(dentry);
@@ -800,7 +801,6 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	p->dir = parent;
 	p->owner = sp;
 	atomic_inc(&sp->so_count);
-	p->o_arg.fh = NFS_FH(dir);
 	p->o_arg.open_flags = flags;
 	p->o_arg.fmode = fmode & (FMODE_READ|FMODE_WRITE);
 	/* don't put an ACCESS op in OPEN compound if O_EXCL, because ACCESS
@@ -818,7 +818,19 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	p->o_arg.server = server;
 	p->o_arg.bitmask = server->attr_bitmask;
 	p->o_arg.open_bitmap = &nfs4_fattr_bitmap[0];
-	p->o_arg.claim = NFS4_OPEN_CLAIM_NULL;
+	p->o_arg.claim = claim;
+	switch (claim) {
+	case NFS4_OPEN_CLAIM_NULL:
+	case NFS4_OPEN_CLAIM_DELEGATE_CUR:
+	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
+		p->o_arg.fh = NFS_FH(dir);
+		break;
+	case NFS4_OPEN_CLAIM_PREVIOUS:
+	case NFS4_OPEN_CLAIM_FH:
+	case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
+	case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
+		p->o_arg.fh = NFS_FH(dentry->d_inode);
+	}
 	if (attrs != NULL && attrs->ia_valid != 0) {
 		__be32 verf[2];
 
@@ -1200,11 +1212,13 @@ static struct nfs_open_context *nfs4_state_find_open_context(struct nfs4_state *
 	return ERR_PTR(-ENOENT);
 }
 
-static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context *ctx, struct nfs4_state *state)
+static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context *ctx,
+		struct nfs4_state *state, enum open_claim_type4 claim)
 {
 	struct nfs4_opendata *opendata;
 
-	opendata = nfs4_opendata_alloc(ctx->dentry, state->owner, 0, 0, NULL, GFP_NOFS);
+	opendata = nfs4_opendata_alloc(ctx->dentry, state->owner, 0, 0,
+			NULL, claim, GFP_NOFS);
 	if (opendata == NULL)
 		return ERR_PTR(-ENOMEM);
 	opendata->state = state;
@@ -1290,11 +1304,10 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 	fmode_t delegation_type = 0;
 	int status;
 
-	opendata = nfs4_open_recoverdata_alloc(ctx, state);
+	opendata = nfs4_open_recoverdata_alloc(ctx, state,
+			NFS4_OPEN_CLAIM_PREVIOUS);
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
-	opendata->o_arg.claim = NFS4_OPEN_CLAIM_PREVIOUS;
-	opendata->o_arg.fh = NFS_FH(state->inode);
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
 	if (delegation != NULL && test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags) != 0)
@@ -1338,10 +1351,10 @@ static int _nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs
 	struct nfs4_opendata *opendata;
 	int ret;
 
-	opendata = nfs4_open_recoverdata_alloc(ctx, state);
+	opendata = nfs4_open_recoverdata_alloc(ctx, state,
+			NFS4_OPEN_CLAIM_DELEGATE_CUR);
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
-	opendata->o_arg.claim = NFS4_OPEN_CLAIM_DELEGATE_CUR;
 	nfs4_stateid_copy(&opendata->o_arg.u.delegation, stateid);
 	ret = nfs4_open_recover(opendata, state);
 	nfs4_opendata_put(opendata);
@@ -1727,7 +1740,8 @@ static int _nfs4_open_expired(struct nfs_open_context *ctx, struct nfs4_state *s
 	struct nfs4_opendata *opendata;
 	int ret;
 
-	opendata = nfs4_open_recoverdata_alloc(ctx, state);
+	opendata = nfs4_open_recoverdata_alloc(ctx, state,
+			NFS4_OPEN_CLAIM_NULL);
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
 	ret = nfs4_open_recover(opendata, state);
@@ -1927,7 +1941,9 @@ static int _nfs4_do_open(struct inode *dir,
 	if (dentry->d_inode != NULL)
 		nfs4_return_incompatible_delegation(dentry->d_inode, fmode);
 	status = -ENOMEM;
-	opendata = nfs4_opendata_alloc(dentry, sp, fmode, flags, sattr, GFP_KERNEL);
+	opendata = nfs4_opendata_alloc(dentry, sp, fmode, flags, sattr,
+			NFS4_OPEN_CLAIM_NULL,
+			GFP_KERNEL);
 	if (opendata == NULL)
 		goto err_put_state_owner;
 
