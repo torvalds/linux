@@ -916,23 +916,6 @@ config ARCH_U8500
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
-config ARCH_NOMADIK
-	bool "STMicroelectronics Nomadik"
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_AMBA
-	select ARM_VIC
-	select CLKSRC_NOMADIK_MTU
-	select COMMON_CLK
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select MIGHT_HAVE_CACHE_L2X0
-	select USE_OF
-	select PINCTRL
-	select PINCTRL_STN8815
-	select SPARSE_IRQ
-	help
-	  Support for the Nomadik platform by ST-Ericsson
-
 config PLAT_SPEAR
 	bool "ST SPEAr"
 	select ARCH_HAS_CPUFREQ
