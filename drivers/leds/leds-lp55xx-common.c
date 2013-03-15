@@ -80,7 +80,7 @@ static ssize_t lp55xx_show_current(struct device *dev,
 {
 	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
 
-	return sprintf(buf, "%d\n", led->led_current);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", led->led_current);
 }
 
 static ssize_t lp55xx_store_current(struct device *dev,
@@ -113,7 +113,7 @@ static ssize_t lp55xx_show_max_current(struct device *dev,
 {
 	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
 
-	return sprintf(buf, "%d\n", led->max_current);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", led->max_current);
 }
 
 static DEVICE_ATTR(led_current, S_IRUGO | S_IWUSR, lp55xx_show_current,
