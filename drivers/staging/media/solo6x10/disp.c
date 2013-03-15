@@ -181,7 +181,7 @@ static int solo_dma_vin_region(struct solo_dev *solo_dev, u32 off,
 	int ret = 0;
 
 	for (i = 0; i < sizeof(buf) >> 1; i++)
-		buf[i] = val;
+		buf[i] = cpu_to_le16(val);
 
 	for (i = 0; i < reg_size; i += sizeof(buf))
 		ret |= solo_p2m_dma(solo_dev, 1, buf,
