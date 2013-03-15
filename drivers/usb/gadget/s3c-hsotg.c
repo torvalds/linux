@@ -3467,7 +3467,7 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	}
 
 	phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(phy)) {
+	if (IS_ERR(phy)) {
 		/* Fallback for pdata */
 		plat = pdev->dev.platform_data;
 		if (!plat) {
