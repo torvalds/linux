@@ -1139,6 +1139,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	/* Clear flags */
 	hdev->flags = 0;
+	hdev->dev_flags &= ~HCI_PERSISTENT_MASK;
 
 	/* Controller radio is available but is currently powered down */
 	hdev->amp_status = 0;
