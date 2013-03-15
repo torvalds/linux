@@ -52,3 +52,14 @@ config BTRFS_FS_CHECK_INTEGRITY
 	  In most cases, unless you are a btrfs developer who needs
 	  to verify the integrity of (super)-block write requests
 	  during the run of a regression test, say N
+
+config BTRFS_FS_RUN_SANITY_TESTS
+	bool "Btrfs will run sanity tests upon loading"
+	depends on BTRFS_FS
+	help
+	  This will run some basic sanity tests on the free space cache
+	  code to make sure it is acting as it should.  These are mostly
+	  regression tests and are only really interesting to btrfs devlopers.
+
+	  If unsure, say N.
+
