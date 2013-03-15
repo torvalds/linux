@@ -91,12 +91,13 @@ static int omap_bandgap_power(struct omap_bandgap *bg_ptr, bool on)
 	int i;
 
 	if (!OMAP_BANDGAP_HAS(bg_ptr, POWER_SWITCH))
-		return 0;
+		goto exit;
 
 	for (i = 0; i < bg_ptr->conf->sensor_count; i++)
 		/* active on 0 */
 		RMW_BITS(bg_ptr, i, temp_sensor_ctrl, bgap_tempsoff_mask, !on);
 
+exit:
 	return 0;
 }
 
