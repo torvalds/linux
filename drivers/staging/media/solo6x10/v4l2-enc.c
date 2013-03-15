@@ -1326,7 +1326,7 @@ static int solo_enc_streamoff(struct file *file, void *priv,
 	return videobuf_streamoff(&fh->vidq);
 }
 
-static int solo_enc_s_std(struct file *file, void *priv, v4l2_std_id *i)
+static int solo_enc_s_std(struct file *file, void *priv, v4l2_std_id i)
 {
 	return 0;
 }

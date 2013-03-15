@@ -1294,7 +1294,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id i)
 {
 	struct s2255_fh *fh = priv;
 	struct s2255_mode mode;
@@ -1314,7 +1314,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 		goto out_s_std;
 	}
 	mode = fh->channel->mode;
-	if (*i & V4L2_STD_525_60) {
+	if (i & V4L2_STD_525_60) {
 		dprintk(4, "%s 60 Hz\n", __func__);
 		/* if changing format, reset frame decimation/intervals */
 		if (mode.format != FORMAT_NTSC) {
@@ -1324,7 +1324,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 			channel->width = LINE_SZ_4CIFS_NTSC;
 			channel->height = NUM_LINES_4CIFS_NTSC * 2;
 		}
-	} else if (*i & V4L2_STD_625_50) {
+	} else if (i & V4L2_STD_625_50) {
 		dprintk(4, "%s 50 Hz\n", __func__);
 		if (mode.format != FORMAT_PAL) {
 			mode.restart = 1;
@@ -1337,7 +1337,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 		ret = -EINVAL;
 		goto out_s_std;
 	}
-	fh->channel->std = *i;
+	fh->channel->std = i;
 	if (mode.restart)
 		s2255_set_mode(fh->channel, &mode);
 out_s_std:

@@ -1492,14 +1492,14 @@ static int vidioc_g_std(struct file *file, void *fh0, v4l2_std_id *norm)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct cx231xx_fh  *fh  = file->private_data;
 	struct cx231xx *dev = fh->dev;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(cx231xx_tvnorms); i++)
-		if (*id & cx231xx_tvnorms[i].id)
+		if (id & cx231xx_tvnorms[i].id)
 			break;
 	if (i == ARRAY_SIZE(cx231xx_tvnorms))
 		return -EINVAL;

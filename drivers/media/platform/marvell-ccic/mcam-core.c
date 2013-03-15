@@ -1357,7 +1357,7 @@ static int mcam_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 }
 
 /* from vivi.c */
-static int mcam_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id *a)
+static int mcam_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id a)
 {
 	return 0;
 }

@@ -633,7 +633,7 @@ static int bcap_g_std(struct file *file, void *priv, v4l2_std_id *std)
 	return 0;
 }
 
-static int bcap_s_std(struct file *file, void *priv, v4l2_std_id *std)
+static int bcap_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 	int ret;
@@ -641,11 +641,11 @@ static int bcap_s_std(struct file *file, void *priv, v4l2_std_id *std)
 	if (vb2_is_busy(&bcap_dev->buffer_queue))
 		return -EBUSY;
 
-	ret = v4l2_subdev_call(bcap_dev->sd, core, s_std, *std);
+	ret = v4l2_subdev_call(bcap_dev->sd, core, s_std, std);
 	if (ret < 0)
 		return ret;
 
-	bcap_dev->std = *std;
+	bcap_dev->std = std;
 	return 0;
 }
 

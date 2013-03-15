@@ -801,7 +801,7 @@ static int vidioc_g_fmt_vbi(struct file *file, void *fh,
 	return 0;
 }
 
-static int set_std(struct poseidon *pd, v4l2_std_id *norm)
+static int set_std(struct poseidon *pd, v4l2_std_id norm)
 {
 	struct video_data *video = &pd->video_data;
 	struct vbi_data *vbi	= &pd->vbi_data;
@@ -811,7 +811,7 @@ static int set_std(struct poseidon *pd, v4l2_std_id *norm)
 	int height;
 
 	for (i = 0; i < POSEIDON_TVNORMS; i++) {
-		if (*norm & poseidon_tvnorms[i].v4l2_id) {
+		if (norm & poseidon_tvnorms[i].v4l2_id) {
 			param = poseidon_tvnorms[i].tlg_tvnorm;
 			log("name : %s", poseidon_tvnorms[i].name);
 			goto found;
@@ -846,7 +846,7 @@ out:
 	return ret;
 }
 
-static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id norm)
 {
 	struct front_face *front = fh;
 
@@ -1270,7 +1270,7 @@ static int restore_v4l2_context(struct poseidon *pd,
 
 	pd_video_checkmode(pd);
 
-	set_std(pd, &context->tvnormid);
+	set_std(pd, context->tvnormid);
 	vidioc_s_input(NULL, front, context->sig_index);
 	pd_vidioc_s_tuner(pd, context->audio_idx);
 	pd_vidioc_s_fmt(pd, &context->pix);

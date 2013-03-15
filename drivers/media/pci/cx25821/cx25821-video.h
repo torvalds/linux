@@ -135,7 +135,7 @@ extern int cx25821_vidioc_querybuf(struct file *file, void *priv,
 extern int cx25821_vidioc_qbuf(struct file *file, void *priv,
 			       struct v4l2_buffer *p);
 extern int cx25821_vidioc_s_std(struct file *file, void *priv,
-				v4l2_std_id *tvnorms);
+				v4l2_std_id tvnorms);
 extern int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i);
 extern int cx25821_vidioc_enum_input(struct file *file, void *priv,
 				     struct v4l2_input *i);

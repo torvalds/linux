@@ -996,23 +996,23 @@ static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 	struct v4l2_format f;
 
-	if (*norm == dev->norm)
+	if (norm == dev->norm)
 		return 0;
 
 	if (dev->streaming_users > 0)
 		return -EBUSY;
 
-	dev->norm = *norm;
+	dev->norm = norm;
 
 	/* Adjusts width/height, if needed */
 	f.fmt.pix.width = 720;
-	f.fmt.pix.height = (*norm & V4L2_STD_525_60) ? 480 : 576;
+	f.fmt.pix.height = (norm & V4L2_STD_525_60) ? 480 : 576;
 	vidioc_try_fmt_vid_cap(file, priv, &f);
 
 	/* set new image size */

@@ -376,7 +376,7 @@ static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe_dev)
  * values in ccdc
  */
 static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
-				    const v4l2_std_id *std_id)
+				    v4l2_std_id std_id)
 {
 	struct vpfe_subdev_info *sdinfo = vpfe_dev->current_subdev;
 	struct v4l2_mbus_framefmt mbus_fmt;
@@ -384,7 +384,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(vpfe_standards); i++) {
-		if (vpfe_standards[i].std_id & *std_id) {
+		if (vpfe_standards[i].std_id & std_id) {
 			vpfe_dev->std_info.active_pixels =
 					vpfe_standards[i].width;
 			vpfe_dev->std_info.active_lines =
@@ -461,7 +461,7 @@ static int vpfe_initialize_device(struct vpfe_device *vpfe_dev)
 
 	/* Configure the default format information */
 	ret = vpfe_config_image_format(vpfe_dev,
-				&vpfe_standards[vpfe_dev->std_index].std_id);
+				vpfe_standards[vpfe_dev->std_index].std_id);
 	if (ret)
 		return ret;
 
@@ -1168,7 +1168,7 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 
 	/* set the default image parameters in the device */
 	ret = vpfe_config_image_format(vpfe_dev,
-				&vpfe_standards[vpfe_dev->std_index].std_id);
+				vpfe_standards[vpfe_dev->std_index].std_id);
 unlock_out:
 	mutex_unlock(&vpfe_dev->lock);
 	return ret;
@@ -1193,7 +1193,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 	return ret;
 }
 
-static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	struct vpfe_subdev_info *sdinfo;
@@ -1215,7 +1215,7 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	}
 
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_std, *std_id);
+					 core, s_std, std_id);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Failed to set standard\n");
 		goto unlock_out;

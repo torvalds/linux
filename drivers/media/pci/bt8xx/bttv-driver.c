@@ -1713,7 +1713,7 @@ static void radio_enable(struct bttv *btv)
 	}
 }
 
-static int bttv_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int bttv_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
@@ -1721,14 +1721,14 @@ static int bttv_s_std(struct file *file, void *priv, v4l2_std_id *id)
 	int err = 0;
 
 	for (i = 0; i < BTTV_TVNORMS; i++)
-		if (*id & bttv_tvnorms[i].v4l2_id)
+		if (id & bttv_tvnorms[i].v4l2_id)
 			break;
 	if (i == BTTV_TVNORMS) {
 		err = -EINVAL;
 		goto err;
 	}
 
-	btv->std = *id;
+	btv->std = id;
 	set_tvnorm(btv, i);
 
 err:

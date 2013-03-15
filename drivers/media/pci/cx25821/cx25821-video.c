@@ -1203,7 +1203,7 @@ int cx25821_vidioc_s_priority(struct file *file, void *f,
 }
 
 #ifdef TUNER_FLAG
-int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id * tvnorms)
+int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 {
 	struct cx25821_fh *fh = priv;
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
@@ -1218,11 +1218,11 @@ int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id * tvnorms)
 			return err;
 	}
 
-	if (dev->tvnorm == *tvnorms)
+	if (dev->tvnorm == tvnorms)
 		return 0;
 
 	mutex_lock(&dev->lock);
-	cx25821_set_tvnorm(dev, *tvnorms);
+	cx25821_set_tvnorm(dev, tvnorms);
 	mutex_unlock(&dev->lock);
 
 	medusa_set_videostandard(dev);

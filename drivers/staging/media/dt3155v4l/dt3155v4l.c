@@ -612,9 +612,9 @@ dt3155_ioc_g_std(struct file *filp, void *p, v4l2_std_id *norm)
 }
 
 static int
-dt3155_ioc_s_std(struct file *filp, void *p, v4l2_std_id *norm)
+dt3155_ioc_s_std(struct file *filp, void *p, v4l2_std_id norm)
 {
-	if (*norm & DT3155_CURRENT_NORM)
+	if (norm & DT3155_CURRENT_NORM)
 		return 0;
 	return -EINVAL;
 }

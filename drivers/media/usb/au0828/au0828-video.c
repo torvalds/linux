@@ -1320,7 +1320,7 @@ out:
 	return rc;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
@@ -1332,7 +1332,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 	   have to make the au0828 bridge adjust the size of its capture
 	   buffer, which is currently hardcoded at 720x480 */
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, *norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, norm);
 	dev->std_set_in_tuner_core = 1;
 
 	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)

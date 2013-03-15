@@ -1259,13 +1259,13 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *tvnorms)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 	dprintk(1, "%s()\n", __func__);
 
 	mutex_lock(&dev->lock);
-	cx23885_set_tvnorm(dev, *tvnorms);
+	cx23885_set_tvnorm(dev, tvnorms);
 	mutex_unlock(&dev->lock);
 
 	return 0;

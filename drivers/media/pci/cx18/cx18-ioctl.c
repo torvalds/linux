@@ -637,15 +637,15 @@ static int cx18_g_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
+int cx18_s_std(struct file *file, void *fh, v4l2_std_id std)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 
-	if ((*std & V4L2_STD_ALL) == 0)
+	if ((std & V4L2_STD_ALL) == 0)
 		return -EINVAL;
 
-	if (*std == cx->std)
+	if (std == cx->std)
 		return 0;
 
 	if (test_bit(CX18_F_I_RADIO_USER, &cx->i_flags) ||
@@ -656,8 +656,8 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 		return -EBUSY;
 	}
 
-	cx->std = *std;
-	cx->is_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
+	cx->std = std;
+	cx->is_60hz = (std & V4L2_STD_525_60) ? 1 : 0;
 	cx->is_50hz = !cx->is_60hz;
 	cx2341x_handler_set_50hz(&cx->cxhdl, cx->is_50hz);
 	cx->cxhdl.width = 720;

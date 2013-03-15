@@ -1828,7 +1828,7 @@ static int saa7134_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_std_id *id)
+int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_std_id id)
 {
 	unsigned long flags;
 	unsigned int i;
@@ -1849,17 +1849,17 @@ int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_
 	}
 
 	for (i = 0; i < TVNORMS; i++)
-		if (*id == tvnorms[i].id)
+		if (id == tvnorms[i].id)
 			break;
 
 	if (i == TVNORMS)
 		for (i = 0; i < TVNORMS; i++)
-			if (*id & tvnorms[i].id)
+			if (id & tvnorms[i].id)
 				break;
 	if (i == TVNORMS)
 		return -EINVAL;
 
-	if ((*id & V4L2_STD_SECAM) && (secam[0] != '-')) {
+	if ((id & V4L2_STD_SECAM) && (secam[0] != '-')) {
 		if (secam[0] == 'L' || secam[0] == 'l') {
 			if (secam[1] == 'C' || secam[1] == 'c')
 				fixup = V4L2_STD_SECAM_LC;
@@ -1879,7 +1879,7 @@ int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_
 			return -EINVAL;
 	}
 
-	*id = tvnorms[i].id;
+	id = tvnorms[i].id;
 
 	mutex_lock(&dev->lock);
 	if (fh && res_check(fh, RESOURCE_OVERLAY)) {
@@ -1901,7 +1901,7 @@ int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_
 }
 EXPORT_SYMBOL_GPL(saa7134_s_std_internal);
 
-static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7134_fh *fh = priv;
 
@@ -2396,7 +2396,7 @@ static int radio_s_input(struct file *filp, void *priv, unsigned int i)
 	return 0;
 }
 
-static int radio_s_std(struct file *file, void *fh, v4l2_std_id *norm)
+static int radio_s_std(struct file *file, void *fh, v4l2_std_id norm)
 {
 	return 0;
 }

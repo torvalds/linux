@@ -939,12 +939,12 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorm)
 	return 0;
 }
 
-static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
 
 	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,*id);
+	cx88_set_tvnorm(core, id);
 	mutex_unlock(&core->lock);
 	return 0;
 }

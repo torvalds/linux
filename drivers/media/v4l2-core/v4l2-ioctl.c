@@ -1383,15 +1383,15 @@ static int v4l_s_std(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
-	v4l2_std_id *id = arg, norm;
+	v4l2_std_id id = *(v4l2_std_id *)arg, norm;
 	int ret;
 
-	norm = (*id) & vfd->tvnorms;
+	norm = id & vfd->tvnorms;
 	if (vfd->tvnorms && !norm)	/* Check if std is supported */
 		return -EINVAL;
 
 	/* Calls the specific handler */
-	ret = ops->vidioc_s_std(file, fh, &norm);
+	ret = ops->vidioc_s_std(file, fh, norm);
 
 	/* Updates standard information */
 	if (ret >= 0)

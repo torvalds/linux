@@ -375,7 +375,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 {
 	struct stk1160 *dev = video_drvdata(file);
 	struct vb2_queue *q = &dev->vb_vidq;
@@ -388,7 +388,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 		return -ENODEV;
 
 	/* We need to set this now, before we call stk1160_set_std */
-	dev->norm = *norm;
+	dev->norm = norm;
 
 	/* This is taken from saa7115 video decoder */
 	if (dev->norm & V4L2_STD_525_60) {

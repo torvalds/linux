@@ -987,7 +987,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
@@ -998,13 +998,13 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	if (rc < 0)
 		return rc;
 
-	if (dev->norm == *norm)
+	if (dev->norm == norm)
 		return 0;
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq))
 		return -EBUSY;
 
-	dev->norm = *norm;
+	dev->norm = norm;
 
 	/* Adjusts width/height, if needed */
 	dev->width = 720;

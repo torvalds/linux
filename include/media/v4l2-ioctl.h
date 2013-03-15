@@ -132,7 +132,7 @@ struct v4l2_ioctl_ops {
 			ENUMSTD is handled by videodev.c
 		 */
 	int (*vidioc_g_std) (struct file *file, void *fh, v4l2_std_id *norm);
-	int (*vidioc_s_std) (struct file *file, void *fh, v4l2_std_id *norm);
+	int (*vidioc_s_std) (struct file *file, void *fh, v4l2_std_id norm);
 	int (*vidioc_querystd) (struct file *file, void *fh, v4l2_std_id *a);
 
 		/* Input handling */

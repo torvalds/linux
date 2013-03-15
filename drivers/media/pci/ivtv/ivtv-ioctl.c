@@ -1103,10 +1103,10 @@ static int ivtv_g_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-void ivtv_s_std_enc(struct ivtv *itv, v4l2_std_id *std)
+void ivtv_s_std_enc(struct ivtv *itv, v4l2_std_id std)
 {
-	itv->std = *std;
-	itv->is_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
+	itv->std = std;
+	itv->is_60hz = (std & V4L2_STD_525_60) ? 1 : 0;
 	itv->is_50hz = !itv->is_60hz;
 	cx2341x_handler_set_50hz(&itv->cxhdl, itv->is_50hz);
 	itv->cxhdl.width = 720;
@@ -1122,15 +1122,15 @@ void ivtv_s_std_enc(struct ivtv *itv, v4l2_std_id *std)
 	ivtv_call_all(itv, core, s_std, itv->std);
 }
 
-void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id *std)
+void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id std)
 {
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	DEFINE_WAIT(wait);
 	int f;
 
 	/* set display standard */
-	itv->std_out = *std;
-	itv->is_out_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
+	itv->std_out = std;
+	itv->is_out_60hz = (std & V4L2_STD_525_60) ? 1 : 0;
 	itv->is_out_50hz = !itv->is_out_60hz;
 	ivtv_call_all(itv, video, s_std_output, itv->std_out);
 
@@ -1168,14 +1168,14 @@ void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id *std)
 	}
 }
 
-static int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
+static int ivtv_s_std(struct file *file, void *fh, v4l2_std_id std)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	if ((*std & V4L2_STD_ALL) == 0)
+	if ((std & V4L2_STD_ALL) == 0)
 		return -EINVAL;
 
-	if (*std == itv->std)
+	if (std == itv->std)
 		return 0;
 
 	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ||

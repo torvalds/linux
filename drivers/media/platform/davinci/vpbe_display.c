@@ -983,7 +983,7 @@ static int vpbe_display_try_fmt(struct file *file, void *priv,
  * 0 - success & -EINVAL on error
  */
 static int vpbe_display_s_std(struct file *file, void *priv,
-				v4l2_std_id *std_id)
+				v4l2_std_id std_id)
 {
 	struct vpbe_fh *fh = priv;
 	struct vpbe_layer *layer = fh->layer;

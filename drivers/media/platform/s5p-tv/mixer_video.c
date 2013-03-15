@@ -574,7 +574,7 @@ static int mxr_dv_timings_cap(struct file *file, void *fh,
 	return ret ? -EINVAL : 0;
 }
 
-static int mxr_s_std(struct file *file, void *fh, v4l2_std_id *norm)
+static int mxr_s_std(struct file *file, void *fh, v4l2_std_id norm)
 {
 	struct mxr_layer *layer = video_drvdata(file);
 	struct mxr_device *mdev = layer->mdev;
@@ -591,7 +591,7 @@ static int mxr_s_std(struct file *file, void *fh, v4l2_std_id *norm)
 		return -EBUSY;
 	}
 
-	ret = v4l2_subdev_call(to_outsd(mdev), video, s_std_output, *norm);
+	ret = v4l2_subdev_call(to_outsd(mdev), video, s_std_output, norm);
 
 	mutex_unlock(&mdev->mutex);
 

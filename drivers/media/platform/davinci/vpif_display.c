@@ -1059,14 +1059,14 @@ static int vpif_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	return vb2_qbuf(&common->buffer_queue, buf);
 }
 
-static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	int ret = 0;
 
-	if (!(*std_id & VPIF_V4L2_STD))
+	if (!(std_id & VPIF_V4L2_STD))
 		return -EINVAL;
 
 	if (common->started) {
@@ -1075,7 +1075,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	}
 
 	/* Call encoder subdevice function to set the standard */
-	ch->video.stdid = *std_id;
+	ch->video.stdid = std_id;
 	memset(&ch->video.dv_timings, 0, sizeof(ch->video.dv_timings));
 	/* Get the information about the standard */
 	if (vpif_update_resolution(ch))
@@ -1093,14 +1093,14 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	vpif_config_format(ch);
 
 	ret = v4l2_device_call_until_err(&vpif_obj.v4l2_dev, 1, video,
-						s_std_output, *std_id);
+						s_std_output, std_id);
 	if (ret < 0) {
 		vpif_err("Failed to set output standard\n");
 		return ret;
 	}
 
 	ret = v4l2_device_call_until_err(&vpif_obj.v4l2_dev, 1, core,
-							s_std, *std_id);
+							s_std, std_id);
 	if (ret < 0)
 		vpif_err("Failed to set standard for sub devices\n");
 	return ret;

@@ -1117,40 +1117,40 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *std)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (go->streaming)
 		return -EBUSY;
 
-	if (!(go->board_info->sensor_flags & GO7007_SENSOR_TV) && *std != 0)
+	if (!(go->board_info->sensor_flags & GO7007_SENSOR_TV) && std != 0)
 		return -EINVAL;
 
-	if (*std == 0)
+	if (std == 0)
 		return -EINVAL;
 
 	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
 			go->input == go->board_info->num_inputs - 1) {
 		if (!go->i2c_adapter_online)
 			return -EIO;
-		if (call_all(&go->v4l2_dev, core, s_std, *std) < 0)
+		if (call_all(&go->v4l2_dev, core, s_std, std) < 0)
 			return -EINVAL;
 	}
 
-	if (*std & V4L2_STD_NTSC) {
+	if (std & V4L2_STD_NTSC) {
 		go->standard = GO7007_STD_NTSC;
 		go->sensor_framerate = 30000;
-	} else if (*std & V4L2_STD_PAL) {
+	} else if (std & V4L2_STD_PAL) {
 		go->standard = GO7007_STD_PAL;
 		go->sensor_framerate = 25025;
-	} else if (*std & V4L2_STD_SECAM) {
+	} else if (std & V4L2_STD_SECAM) {
 		go->standard = GO7007_STD_PAL;
 		go->sensor_framerate = 25025;
 	} else
 		return -EINVAL;
 
-	call_all(&go->v4l2_dev, core, s_std, *std);
+	call_all(&go->v4l2_dev, core, s_std, std);
 	set_capture_size(go, NULL, 0);
 
 	return 0;

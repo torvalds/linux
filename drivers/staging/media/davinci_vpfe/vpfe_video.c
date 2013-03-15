@@ -924,7 +924,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
  *
  * Return 0 on success, error code otherwise
  */
-static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpfe_video_device *video = video_drvdata(file);
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
@@ -945,13 +945,13 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		goto unlock_out;
 	}
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_std, *std_id);
+					 core, s_std, std_id);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Failed to set standard\n");
 		video->stdid = V4L2_STD_UNKNOWN;
 		goto unlock_out;
 	}
-	video->stdid = *std_id;
+	video->stdid = std_id;
 unlock_out:
 	mutex_unlock(&video->lock);
 	return ret;
