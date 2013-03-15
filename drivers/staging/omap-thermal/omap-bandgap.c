@@ -42,17 +42,38 @@
 
 #include "omap-bandgap.h"
 
+/**
+ * omap_bandgap_readl() - simple read helper function
+ * @bg_ptr: pointer to omap_bandgap structure
+ * @reg: desired register (offset) to be read
+ *
+ * Helper function to read bandgap registers. It uses the io remapped area.
+ * Returns the register value.
+ */
 static u32 omap_bandgap_readl(struct omap_bandgap *bg_ptr, u32 reg)
 {
 	return readl(bg_ptr->base + reg);
 }
 
+/**
+ * omap_bandgap_writel() - simple write helper function
+ * @bg_ptr: pointer to omap_bandgap structure
+ * @val: desired register value to be written
+ * @reg: desired register (offset) to be written
+ *
+ * Helper function to write bandgap registers. It uses the io remapped area.
+ */
 static void omap_bandgap_writel(struct omap_bandgap *bg_ptr, u32 val, u32 reg)
 {
 	writel(val, bg_ptr->base + reg);
 }
 
-/* update bits, value will be shifted */
+/**
+ * DOC: macro to update bits.
+ *
+ * RMW_BITS() - used to read, modify and update bandgap bitfields.
+ *            The value passed will be shifted.
+ */
 #define RMW_BITS(bg_ptr, id, reg, mask, val)			\
 do {								\
 	struct temp_sensor_registers *t;			\
