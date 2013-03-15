@@ -70,5 +70,16 @@
 		usb@d0051000 {
 			status = "okay";
 		};
+
+		i2c@d0011000 {
+			status = "okay";
+			clock-frequency = <100000>;
+			pca9505: pca9505@25 {
+				compatible = "nxp,pca9505";
+				gpio-controller;
+				#gpio-cells = <2>;
+				reg = <0x25>;
+			};
+		};
 	};
 };
