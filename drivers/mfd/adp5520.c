@@ -360,17 +360,7 @@ static struct i2c_driver adp5520_driver = {
 	.id_table 	= adp5520_id,
 };
 
-static int __init adp5520_init(void)
-{
-	return i2c_add_driver(&adp5520_driver);
-}
-module_init(adp5520_init);
-
-static void __exit adp5520_exit(void)
-{
-	i2c_del_driver(&adp5520_driver);
-}
-module_exit(adp5520_exit);
+module_i2c_driver(adp5520_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("ADP5520(01) PMIC-MFD Driver");
