@@ -798,6 +798,18 @@ static int omap_bandgap_set_continuous_mode(struct omap_bandgap *bg_ptr)
 	return 0;
 }
 
+/**
+ * omap_bandgap_tshut_init() - setup and initialize tshut handling
+ * @bg_ptr: pointer to struct omap_bandgap
+ * @pdev: pointer to device struct platform_device
+ *
+ * Call this function only in case the bandgap features HAS(TSHUT).
+ * In this case, the driver needs to handle the TSHUT signal as an IRQ.
+ * The IRQ is wired as a GPIO, and for this purpose, it is required
+ * to specify which GPIO line is used. TSHUT IRQ is fired anytime
+ * one of the bandgap sensors violates the TSHUT high/hot threshold.
+ * And in that case, the system must go off.
+ */
 static int omap_bandgap_tshut_init(struct omap_bandgap *bg_ptr,
 				   struct platform_device *pdev)
 {
