@@ -589,7 +589,7 @@ MACHINE_START(NEO1973_GTA02, "GTA02")
 	/* Maintainer: Nelson Castillo <arhuaco@freaks-unidos.net> */
 	.atag_offset	= 0x100,
 	.map_io		= gta02_map_io,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2442_init_irq,
 	.init_machine	= gta02_machine_init,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,

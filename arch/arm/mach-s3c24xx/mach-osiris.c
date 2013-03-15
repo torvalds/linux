@@ -426,7 +426,7 @@ MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
 	.atag_offset	= 0x100,
 	.map_io		= osiris_map_io,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2440_init_irq,
 	.init_machine	= osiris_init,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,

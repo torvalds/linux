@@ -152,7 +152,7 @@ MACHINE_START(NEXCODER_2440, "NexVision - Nexcoder 2440")
 	.atag_offset	= 0x100,
 	.map_io		= nexcoder_map_io,
 	.init_machine	= nexcoder_init,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2440_init_irq,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,
 MACHINE_END

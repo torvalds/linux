@@ -342,7 +342,10 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 	case S3C_IRQTYPE_NONE:
 		return 0;
 	case S3C_IRQTYPE_EINT:
-		if (irq_data->parent_irq)
+		/* On the S3C2412, the EINT0to3 have a parent irq
+		 * but need the s3c_irq_eint0t4 chip
+		 */
+		if (irq_data->parent_irq && (!soc_is_s3c2412() || hw >= 4))
 			irq_set_chip_and_handler(virq, &s3c_irqext_chip,
 						 handle_edge_irq);
 		else
@@ -450,7 +453,6 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 	void __iomem *base = (void *)0xf6000000; /* static mapping */
 	int irq_num;
 	int irq_start;
-	int irq_offset;
 	int ret;
 
 	intc = kzalloc(sizeof(struct s3c_irq_intc), GFP_KERNEL);
@@ -474,7 +476,6 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 		intc->reg_intpnd = base + 0x10;
 		irq_num = 32;
 		irq_start = S3C2410_IRQ(0);
-		irq_offset = 0;
 		break;
 	case 0x4a000018:
 		pr_debug("irq: found subintc\n");
@@ -482,7 +483,6 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 		intc->reg_mask = base + 0x1c;
 		irq_num = 29;
 		irq_start = S3C2410_IRQSUB(0);
-		irq_offset = 0;
 		break;
 	case 0x4a000040:
 		pr_debug("irq: found intc2\n");
@@ -491,7 +491,6 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 		intc->reg_intpnd = base + 0x50;
 		irq_num = 8;
 		irq_start = S3C2416_IRQ(0);
-		irq_offset = 0;
 		break;
 	case 0x560000a4:
 		pr_debug("irq: found eintc\n");
@@ -499,9 +498,8 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 
 		intc->reg_mask = base + 0xa4;
 		intc->reg_pending = base + 0x08;
-		irq_num = 20;
+		irq_num = 24;
 		irq_start = S3C2410_IRQ(32);
-		irq_offset = 4;
 		break;
 	default:
 		pr_err("irq: unsupported controller address\n");
@@ -512,7 +510,7 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 	/* now that all the data is complete, init the irq-domain */
 	s3c24xx_clear_intc(intc);
 	intc->domain = irq_domain_add_legacy(np, irq_num, irq_start,
-					     irq_offset, &s3c24xx_irq_ops,
+					     0, &s3c24xx_irq_ops,
 					     intc);
 	if (!intc->domain) {
 		pr_err("irq: could not create irq-domain\n");
@@ -626,6 +624,108 @@ void __init s3c24xx_init_irq(void)
 	s3c24xx_init_intc(NULL, &init_eint[0], main_intc, 0x560000a4);
 }
 
+#ifdef CONFIG_CPU_S3C2412
+static struct s3c_irq_data init_s3c2412base[32] = {
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT0 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT1 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT2 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT3 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT4to7 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT8to23 */
+	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* nBATT_FLT */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TICK */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* WDT */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER3 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER4 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* LCD */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA3 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* SDI/CF */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* SPI0 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART1 */
+	{ .type = S3C_IRQTYPE_NONE, }, /* reserved */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* USBD */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* USBH */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* IIC */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* SPI1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* RTC */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* ADCPARENT */
+};
+
+static struct s3c_irq_data init_s3c2412eint[32] = {
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 0 }, /* EINT0 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 1 }, /* EINT1 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 2 }, /* EINT2 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 3 }, /* EINT3 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT4 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT5 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT6 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 4 }, /* EINT7 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT8 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT9 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT10 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT11 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT12 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT13 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT14 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT15 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT16 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT17 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT18 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT19 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT20 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT21 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT22 */
+	{ .type = S3C_IRQTYPE_EINT, .parent_irq = 5 }, /* EINT23 */
+};
+
+static struct s3c_irq_data init_s3c2412subint[32] = {
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-ERR */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-ERR */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-ERR */
+	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* TC */
+	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* ADC */
+	{ .type = S3C_IRQTYPE_NONE, },
+	{ .type = S3C_IRQTYPE_NONE, },
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 21 }, /* SDI */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 21 }, /* CF */
+};
+
+void s3c2412_init_irq(void)
+{
+	struct s3c_irq_intc *main_intc;
+
+	pr_info("S3C2412: IRQ Support\n");
+
+#ifdef CONFIG_FIQ
+	init_FIQ(FIQ_START);
+#endif
+
+	main_intc = s3c24xx_init_intc(NULL, &init_s3c2412base[0], NULL, 0x4a000000);
+	if (IS_ERR(main_intc)) {
+		pr_err("irq: could not create main interrupt controller\n");
+		return;
+	}
+
+	s3c24xx_init_intc(NULL, &init_s3c2412eint[0], main_intc, 0x560000a4);
+	s3c24xx_init_intc(NULL, &init_s3c2412subint[0], main_intc, 0x4a000018);
+}
+#endif
+
 #ifdef CONFIG_CPU_S3C2416
 static struct s3c_irq_data init_s3c2416base[32] = {
 	{ .type = S3C_IRQTYPE_EINT, }, /* EINT0 */
@@ -727,6 +827,154 @@ void __init s3c2416_init_irq(void)
 	s3c24xx_init_intc(NULL, &init_s3c2416_second[0], NULL, 0x4a000040);
 }
 
+#endif
+
+#ifdef CONFIG_CPU_S3C2440
+static struct s3c_irq_data init_s3c2440base[32] = {
+	{ .type = S3C_IRQTYPE_EINT, }, /* EINT0 */
+	{ .type = S3C_IRQTYPE_EINT, }, /* EINT1 */
+	{ .type = S3C_IRQTYPE_EINT, }, /* EINT2 */
+	{ .type = S3C_IRQTYPE_EINT, }, /* EINT3 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT4to7 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT8to23 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* CAM */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* nBATT_FLT */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TICK */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* WDT/AC97 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER3 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER4 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* LCD */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA3 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* SDI */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* SPI0 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART1 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* NFCON */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* USBD */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* USBH */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* IIC */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* SPI1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* RTC */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* ADCPARENT */
+};
+
+static struct s3c_irq_data init_s3c2440subint[32] = {
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-ERR */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-ERR */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-ERR */
+	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* TC */
+	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* ADC */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* TC */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* ADC */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 9 }, /* WDT */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 9 }, /* AC97 */
+};
+
+void __init s3c2440_init_irq(void)
+{
+	struct s3c_irq_intc *main_intc;
+
+	pr_info("S3C2440: IRQ Support\n");
+
+#ifdef CONFIG_FIQ
+	init_FIQ(FIQ_START);
+#endif
+
+	main_intc = s3c24xx_init_intc(NULL, &init_s3c2440base[0], NULL, 0x4a000000);
+	if (IS_ERR(main_intc)) {
+		pr_err("irq: could not create main interrupt controller\n");
+		return;
+	}
+
+	s3c24xx_init_intc(NULL, &init_eint[0], main_intc, 0x560000a4);
+	s3c24xx_init_intc(NULL, &init_s3c2440subint[0], main_intc, 0x4a000018);
+}
+#endif
+
+#ifdef CONFIG_CPU_S3C2442
+static struct s3c_irq_data init_s3c2442base[32] = {
+	{ .type = S3C_IRQTYPE_EINT, }, /* EINT0 */
+	{ .type = S3C_IRQTYPE_EINT, }, /* EINT1 */
+	{ .type = S3C_IRQTYPE_EINT, }, /* EINT2 */
+	{ .type = S3C_IRQTYPE_EINT, }, /* EINT3 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT4to7 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* EINT8to23 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* CAM */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* nBATT_FLT */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TICK */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* WDT */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER3 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* TIMER4 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* LCD */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA2 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* DMA3 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* SDI */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* SPI0 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART1 */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* NFCON */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* USBD */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* USBH */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* IIC */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* UART0 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* SPI1 */
+	{ .type = S3C_IRQTYPE_EDGE, }, /* RTC */
+	{ .type = S3C_IRQTYPE_LEVEL, }, /* ADCPARENT */
+};
+
+static struct s3c_irq_data init_s3c2442subint[32] = {
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 28 }, /* UART0-ERR */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 23 }, /* UART1-ERR */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-RX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-TX */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-ERR */
+	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* TC */
+	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* ADC */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* TC */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* ADC */
+};
+
+void __init s3c2442_init_irq(void)
+{
+	struct s3c_irq_intc *main_intc;
+
+	pr_info("S3C2442: IRQ Support\n");
+
+#ifdef CONFIG_FIQ
+	init_FIQ(FIQ_START);
+#endif
+
+	main_intc = s3c24xx_init_intc(NULL, &init_s3c2442base[0], NULL, 0x4a000000);
+	if (IS_ERR(main_intc)) {
+		pr_err("irq: could not create main interrupt controller\n");
+		return;
+	}
+
+	s3c24xx_init_intc(NULL, &init_eint[0], main_intc, 0x560000a4);
+	s3c24xx_init_intc(NULL, &init_s3c2442subint[0], main_intc, 0x4a000018);
+}
 #endif
 
 #ifdef CONFIG_CPU_S3C2443

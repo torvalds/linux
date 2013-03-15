@@ -158,7 +158,7 @@ MACHINE_START(VSTMS, "VSTMS")
 	.atag_offset	= 0x100,
 
 	.fixup		= vstms_fixup,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2412_init_irq,
 	.init_machine	= vstms_init,
 	.map_io		= vstms_map_io,
 	.init_time	= samsung_timer_init,

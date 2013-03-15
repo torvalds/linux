@@ -407,6 +407,7 @@ config S3C2412_DMA
 config S3C2412_PM
 	bool
 	select S3C2412_PM_SLEEP
+	select SAMSUNG_WAKEMASK
 	help
 	  Internal config node to apply S3C2412 power management
 
