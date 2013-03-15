@@ -86,6 +86,10 @@ static struct test {
 		.func = test__bp_signal_overflow,
 	},
 	{
+		.desc = "Test number of exit event of a simple workload",
+		.func = test__task_exit,
+	},
+	{
 		.func = NULL,
 	},
 };
