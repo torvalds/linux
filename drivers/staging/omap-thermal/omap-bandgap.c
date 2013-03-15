@@ -303,6 +303,28 @@ exit:
 	return ret;
 }
 
+static
+int omap_bandgap_add_hyst(struct omap_bandgap *bg_ptr, int adc_val,
+			  int hyst_val, u32 *sum)
+{
+	int temp, ret;
+
+	/*
+	 * Need to add in the mcelsius domain, so we have a temperature
+	 * the conv_table range
+	 */
+	ret = omap_bandgap_adc_to_mcelsius(bg_ptr, adc_val, &temp);
+	if (ret < 0)
+		goto exit;
+
+	temp += hyst_val;
+
+	ret = omap_bandgap_mcelsius_to_adc(bg_ptr, temp, sum);
+
+exit:
+	return ret;
+}
+
 /* Talert masks. Call it only if HAS(TALERT) is set */
 static int temp_sensor_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
 					 u32 t_hot, u32 t_cold)
@@ -330,20 +352,6 @@ static int temp_sensor_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
 	return 0;
 }
 
-static
-int add_hyst(int adc_val, int hyst_val, struct omap_bandgap *bg_ptr, u32 *sum)
-{
-	int temp, ret;
-
-	ret = omap_bandgap_adc_to_mcelsius(bg_ptr, adc_val, &temp);
-	if (ret < 0)
-		return ret;
-
-	temp += hyst_val;
-
-	return omap_bandgap_mcelsius_to_adc(bg_ptr, temp, sum);
-}
-
 /* Talert Thot threshold. Call it only if HAS(TALERT) is set */
 static
 int temp_sensor_configure_thot(struct omap_bandgap *bg_ptr, int id, int t_hot)
@@ -361,7 +369,8 @@ int temp_sensor_configure_thot(struct omap_bandgap *bg_ptr, int id, int t_hot)
 	    __ffs(tsr->threshold_tcold_mask);
 	if (t_hot <= cold) {
 		/* change the t_cold to t_hot - 5000 millidegrees */
-		err |= add_hyst(t_hot, -ts_data->hyst_val, bg_ptr, &cold);
+		err |= omap_bandgap_add_hyst(bg_ptr, t_hot,
+					     -ts_data->hyst_val, &cold);
 		/* write the new t_cold value */
 		reg_val = thresh_val & (~tsr->threshold_tcold_mask);
 		reg_val |= cold << __ffs(tsr->threshold_tcold_mask);
@@ -399,7 +408,8 @@ int temp_sensor_configure_tcold(struct omap_bandgap *bg_ptr, int id,
 
 	if (t_cold >= hot) {
 		/* change the t_hot to t_cold + 5000 millidegrees */
-		err |= add_hyst(t_cold, ts_data->hyst_val, bg_ptr, &hot);
+		err |= omap_bandgap_add_hyst(bg_ptr, t_cold,
+					     ts_data->hyst_val, &hot);
 		/* write the new t_hot value */
 		reg_val = thresh_val & (~tsr->threshold_thot_mask);
 		reg_val |= hot << __ffs(tsr->threshold_thot_mask);
