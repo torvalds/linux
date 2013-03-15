@@ -412,6 +412,11 @@ struct dm_info_msg {
  * End protocol definitions.
  */
 
+struct balloon_state {
+	__u32 num_pages;
+	struct work_struct wrk;
+};
+
 static bool hot_add;
 static bool do_hot_add;
 /*
@@ -459,7 +464,12 @@ struct hv_dynmem_device {
 	unsigned int num_pages_ballooned;
 
 	/*
-	 * This thread handles both balloon/hot-add
+	 * State to manage the ballooning (up) operation.
+	 */
+	struct balloon_state balloon_wrk;
+
+	/*
+	 * This thread handles hot-add
 	 * requests from the host as well as notifying
 	 * the host with regards to memory pressure in
 	 * the guest.
@@ -657,9 +667,9 @@ static int  alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
 
 
 
-static void balloon_up(struct hv_dynmem_device *dm, struct dm_balloon *req)
+static void balloon_up(struct work_struct *dummy)
 {
-	int num_pages = req->num_pages;
+	int num_pages = dm_device.balloon_wrk.num_pages;
 	int num_ballooned = 0;
 	struct dm_balloon_response *bl_resp;
 	int alloc_unit;
@@ -684,14 +694,14 @@ static void balloon_up(struct hv_dynmem_device *dm, struct dm_balloon *req)
 
 
 		num_pages -= num_ballooned;
-		num_ballooned = alloc_balloon_pages(dm, num_pages,
+		num_ballooned = alloc_balloon_pages(&dm_device, num_pages,
 						bl_resp, alloc_unit,
 						 &alloc_error);
 
 		if ((alloc_error) || (num_ballooned == num_pages)) {
 			bl_resp->more_pages = 0;
 			done = true;
-			dm->state = DM_INITIALIZED;
+			dm_device.state = DM_INITIALIZED;
 		}
 
 		/*
@@ -719,7 +729,7 @@ static void balloon_up(struct hv_dynmem_device *dm, struct dm_balloon *req)
 			pr_info("Balloon response failed\n");
 
 			for (i = 0; i < bl_resp->range_count; i++)
-				free_balloon_pages(dm,
+				free_balloon_pages(&dm_device,
 						 &bl_resp->range_array[i]);
 
 			done = true;
@@ -775,9 +785,6 @@ static int dm_thread_func(void *dm_dev)
 
 		scan_start = jiffies;
 		switch (dm->state) {
-		case DM_BALLOON_UP:
-			balloon_up(dm, (struct dm_balloon *)recv_buffer);
-			break;
 
 		case DM_HOT_ADD:
 			hot_add_req(dm, (struct dm_hot_add *)recv_buffer);
@@ -861,6 +868,7 @@ static void balloon_onchannelcallback(void *context)
 	struct dm_message *dm_msg;
 	struct dm_header *dm_hdr;
 	struct hv_dynmem_device *dm = hv_get_drvdata(dev);
+	struct dm_balloon *bal_msg;
 
 	memset(recv_buffer, 0, sizeof(recv_buffer));
 	vmbus_recvpacket(dev->channel, recv_buffer,
@@ -882,8 +890,12 @@ static void balloon_onchannelcallback(void *context)
 			break;
 
 		case DM_BALLOON_REQUEST:
+			if (dm->state == DM_BALLOON_UP)
+				pr_warn("Currently ballooning\n");
+			bal_msg = (struct dm_balloon *)recv_buffer;
 			dm->state = DM_BALLOON_UP;
-			complete(&dm->config_event);
+			dm_device.balloon_wrk.num_pages = bal_msg->num_pages;
+			schedule_work(&dm_device.balloon_wrk.wrk);
 			break;
 
 		case DM_UNBALLOON_REQUEST:
@@ -937,6 +949,7 @@ static int balloon_probe(struct hv_device *dev,
 	dm_device.next_version = DYNMEM_PROTOCOL_VERSION_WIN7;
 	init_completion(&dm_device.host_event);
 	init_completion(&dm_device.config_event);
+	INIT_WORK(&dm_device.balloon_wrk.wrk, balloon_up);
 
 	dm_device.thread =
 		 kthread_run(dm_thread_func, &dm_device, "hv_balloon");
@@ -1048,6 +1061,7 @@ static int balloon_remove(struct hv_device *dev)
 	if (dm->num_pages_ballooned != 0)
 		pr_warn("Ballooned pages: %d\n", dm->num_pages_ballooned);
 
+	cancel_work_sync(&dm->balloon_wrk.wrk);
 	vmbus_close(dev->channel);
 	kthread_stop(dm->thread);
 	kfree(send_buffer);
