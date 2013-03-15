@@ -262,6 +262,16 @@ exit:
 	return ret;
 }
 
+/**
+ * omap_bandgap_mcelsius_to_adc() - converts a mCelsius value to ADC scale
+ * @bg_ptr: struct omap_bandgap pointer
+ * @temp: value in mCelsius
+ * @adc: address where to write the resulting temperature in ADC representation
+ *
+ * Simple conversion from mCelsius to ADC values. In case the temp value
+ * is out of the ADC conv table range, it returns -ERANGE, 0 on success.
+ * The conversion table is indexed by the ADC values.
+ */
 static
 int omap_bandgap_mcelsius_to_adc(struct omap_bandgap *bg_ptr, long temp,
 				 int *adc)
