@@ -40,6 +40,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/videobuf-core.h>
+#include <media/videobuf2-core.h>
 
 #include "registers.h"
 
@@ -135,6 +136,11 @@ struct solo_p2m_dev {
 
 #define OSD_TEXT_MAX		44
 
+struct solo_vb2_buf {
+	struct vb2_buffer vb;
+	struct list_head list;
+};
+
 enum solo_enc_types {
 	SOLO_ENC_TYPE_STD,
 	SOLO_ENC_TYPE_EXT,
@@ -146,10 +152,8 @@ struct solo_enc_dev {
 	struct v4l2_ctrl_handler hdl;
 	struct video_device	*vfd;
 	/* General accounting */
-	struct mutex		enable_lock;
+	struct mutex		lock;
 	spinlock_t		motion_lock;
-	atomic_t		readers;
-	atomic_t		mpeg_readers;
 	u8			ch;
 	u8			mode, gop, qp, interlaced, interval;
 	u8			bw_weight;
@@ -169,9 +173,8 @@ struct solo_enc_dev {
 	int			jpeg_len;
 
 	u32			fmt;
-	u8			enc_on;
 	enum solo_enc_types	type;
-	struct videobuf_queue	vidq;
+	struct vb2_queue	vidq;
 	struct list_head	vidq_active;
 	int			desc_count;
 	int			desc_nelts;
