@@ -2953,6 +2953,12 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
+	if (mgmt_pending_find(MGMT_OP_SET_FAST_CONNECTABLE, hdev)) {
+		err = cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
+				 MGMT_STATUS_BUSY);
+		goto unlock;
+	}
+
 	if (cp->val) {
 		type = PAGE_SCAN_TYPE_INTERLACED;
 
