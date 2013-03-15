@@ -310,7 +310,6 @@ config COBRA5282
 config SOM5282EM
 	bool "EMAC.Inc SOM5282EM board support"
 	depends on M528x
-	select EMAC_INC
 	help
 	  Support for the EMAC.Inc SOM5282EM module.
 

@@ -1557,6 +1557,7 @@ static struct file_system_type iso9660_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("iso9660");
+MODULE_ALIAS("iso9660");
 
 static int __init init_iso9660_fs(void)
 {
