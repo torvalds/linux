@@ -426,12 +426,7 @@ static int solo_enum_input(struct file *file, void *priv,
 	}
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-
-	if (solo_dev->video_type == SOLO_VO_FMT_TYPE_NTSC)
-		input->std = V4L2_STD_NTSC_M;
-	else
-		input->std = V4L2_STD_PAL_B;
-
+	input->std = solo_dev->vfd->tvnorms;
 	return 0;
 }
 
@@ -520,9 +515,42 @@ static int solo_get_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int solo_s_std(struct file *file, void *priv, v4l2_std_id i)
+static int solo_g_std(struct file *file, void *priv, v4l2_std_id *i)
 {
+	struct solo_dev *solo_dev = video_drvdata(file);
+
+	if (solo_dev->video_type == SOLO_VO_FMT_TYPE_NTSC)
+		*i = V4L2_STD_NTSC_M;
+	else
+		*i = V4L2_STD_PAL;
 	return 0;
+}
+
+int solo_set_video_type(struct solo_dev *solo_dev, bool type)
+{
+	int i;
+
+	/* Make sure all video nodes are idle */
+	if (vb2_is_busy(&solo_dev->vidq))
+		return -EBUSY;
+	for (i = 0; i < solo_dev->nr_chans; i++)
+		if (vb2_is_busy(&solo_dev->v4l2_enc[i]->vidq))
+			return -EBUSY;
+	solo_dev->video_type = type;
+	/* Reconfigure for the new standard */
+	solo_disp_init(solo_dev);
+	solo_enc_init(solo_dev);
+	solo_tw28_init(solo_dev);
+	for (i = 0; i < solo_dev->nr_chans; i++)
+		solo_update_mode(solo_dev->v4l2_enc[i]);
+	return solo_v4l2_set_ch(solo_dev, solo_dev->cur_disp_ch);
+}
+
+static int solo_s_std(struct file *file, void *priv, v4l2_std_id std)
+{
+	struct solo_dev *solo_dev = video_drvdata(file);
+
+	return solo_set_video_type(solo_dev, std & V4L2_STD_PAL);
 }
 
 static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -567,6 +595,7 @@ static const struct v4l2_file_operations solo_v4l2_fops = {
 static const struct v4l2_ioctl_ops solo_v4l2_ioctl_ops = {
 	.vidioc_querycap		= solo_querycap,
 	.vidioc_s_std			= solo_s_std,
+	.vidioc_g_std			= solo_g_std,
 	/* Input callbacks */
 	.vidioc_enum_input		= solo_enum_input,
 	.vidioc_s_input			= solo_set_input,
@@ -595,9 +624,7 @@ static struct video_device solo_v4l2_template = {
 	.ioctl_ops		= &solo_v4l2_ioctl_ops,
 	.minor			= -1,
 	.release		= video_device_release,
-
-	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL_B,
-	.current_norm		= V4L2_STD_NTSC_M,
+	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
 };
 
 static const struct v4l2_ctrl_ops solo_ctrl_ops = {

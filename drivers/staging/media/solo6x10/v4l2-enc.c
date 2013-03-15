@@ -176,7 +176,7 @@ static void solo_motion_toggle(struct solo_enc_dev *solo_enc, int on)
 	spin_unlock_irqrestore(&solo_enc->motion_lock, flags);
 }
 
-static void solo_update_mode(struct solo_enc_dev *solo_enc)
+void solo_update_mode(struct solo_enc_dev *solo_enc)
 {
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 	int vop_len;
@@ -749,11 +749,7 @@ static int solo_enc_enum_input(struct file *file, void *priv,
 	snprintf(input->name, sizeof(input->name), "Encoder %d",
 		 solo_enc->ch + 1);
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-
-	if (solo_dev->video_type == SOLO_VO_FMT_TYPE_NTSC)
-		input->std = V4L2_STD_NTSC_M;
-	else
-		input->std = V4L2_STD_PAL_B;
+	input->std = solo_enc->vfd->tvnorms;
 
 	if (!tw28_get_video_status(solo_dev, solo_enc->ch))
 		input->status = V4L2_IN_ST_NO_SIGNAL;
@@ -886,9 +882,23 @@ static int solo_enc_get_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int solo_enc_s_std(struct file *file, void *priv, v4l2_std_id i)
+static int solo_enc_g_std(struct file *file, void *priv, v4l2_std_id *i)
 {
+	struct solo_enc_dev *solo_enc = video_drvdata(file);
+	struct solo_dev *solo_dev = solo_enc->solo_dev;
+
+	if (solo_dev->video_type == SOLO_VO_FMT_TYPE_NTSC)
+		*i = V4L2_STD_NTSC_M;
+	else
+		*i = V4L2_STD_PAL;
 	return 0;
+}
+
+static int solo_enc_s_std(struct file *file, void *priv, v4l2_std_id std)
+{
+	struct solo_enc_dev *solo_enc = video_drvdata(file);
+
+	return solo_set_video_type(solo_enc->solo_dev, std & V4L2_STD_PAL);
 }
 
 static int solo_enum_framesizes(struct file *file, void *priv,
@@ -938,14 +948,14 @@ static int solo_enum_frameintervals(struct file *file, void *priv,
 
 	fintv->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 
+	fintv->stepwise.min.numerator = 1;
 	fintv->stepwise.min.denominator = solo_dev->fps;
-	fintv->stepwise.min.numerator = 15;
 
+	fintv->stepwise.max.numerator = 15;
 	fintv->stepwise.max.denominator = solo_dev->fps;
-	fintv->stepwise.max.numerator = 1;
 
 	fintv->stepwise.step.numerator = 1;
-	fintv->stepwise.step.denominator = 1;
+	fintv->stepwise.step.denominator = solo_dev->fps;
 
 	return 0;
 }
@@ -1067,6 +1077,7 @@ static const struct v4l2_file_operations solo_enc_fops = {
 static const struct v4l2_ioctl_ops solo_enc_ioctl_ops = {
 	.vidioc_querycap		= solo_enc_querycap,
 	.vidioc_s_std			= solo_enc_s_std,
+	.vidioc_g_std			= solo_enc_g_std,
 	/* Input callbacks */
 	.vidioc_enum_input		= solo_enc_enum_input,
 	.vidioc_s_input			= solo_enc_set_input,
@@ -1101,9 +1112,7 @@ static const struct video_device solo_enc_template = {
 	.ioctl_ops		= &solo_enc_ioctl_ops,
 	.minor			= -1,
 	.release		= video_device_release,
-
-	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL_B,
-	.current_norm		= V4L2_STD_NTSC_M,
+	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
 };
 
 static const struct v4l2_ctrl_ops solo_ctrl_ops = {
@@ -1203,9 +1212,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	ret = vb2_queue_init(&solo_enc->vidq);
 	if (ret)
 		goto hdl_free;
-	spin_lock(&solo_enc->av_lock);
 	solo_update_mode(solo_enc);
-	spin_unlock(&solo_enc->av_lock);
 
 	spin_lock_init(&solo_enc->motion_lock);
 

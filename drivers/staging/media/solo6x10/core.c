@@ -232,24 +232,6 @@ static ssize_t eeprom_show(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t video_type_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	return -EPERM;
-}
-
-static ssize_t video_type_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
-{
-	struct solo_dev *solo_dev =
-		container_of(dev, struct solo_dev, dev);
-
-	return sprintf(buf, "%s", solo_dev->video_type ==
-		       SOLO_VO_FMT_TYPE_NTSC ? "NTSC" : "PAL");
-}
-
 static ssize_t p2m_timeouts_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
@@ -436,7 +418,6 @@ static ssize_t sdram_show(struct file *file, struct kobject *kobj,
 
 static const struct device_attribute solo_dev_attrs[] = {
 	__ATTR(eeprom, 0640, eeprom_show, eeprom_store),
-	__ATTR(video_type, 0644, video_type_show, video_type_store),
 	__ATTR(p2m_timeout, 0644, p2m_timeout_show, p2m_timeout_store),
 	__ATTR_RO(p2m_timeouts),
 	__ATTR_RO(sdram_size),

@@ -39,10 +39,6 @@
 #define SOLO_MOT_FLAG_SIZE		1024
 #define SOLO_MOT_FLAG_AREA		(SOLO_MOT_FLAG_SIZE * 16)
 
-static unsigned video_type;
-module_param(video_type, uint, 0644);
-MODULE_PARM_DESC(video_type, "video_type (0 = NTSC/Default, 1 = PAL)");
-
 static void solo_vin_config(struct solo_dev *solo_dev)
 {
 	solo_dev->vin_hstart = 8;
@@ -273,12 +269,10 @@ int solo_disp_init(struct solo_dev *solo_dev)
 	int i;
 
 	solo_dev->video_hsize = 704;
-	if (video_type == 0) {
-		solo_dev->video_type = SOLO_VO_FMT_TYPE_NTSC;
+	if (solo_dev->video_type == SOLO_VO_FMT_TYPE_NTSC) {
 		solo_dev->video_vsize = 240;
 		solo_dev->fps = 30;
 	} else {
-		solo_dev->video_type = SOLO_VO_FMT_TYPE_PAL;
 		solo_dev->video_vsize = 288;
 		solo_dev->fps = 25;
 	}

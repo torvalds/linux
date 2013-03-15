@@ -320,7 +320,7 @@ static inline void solo_irq_off(struct solo_dev *dev, u32 mask)
 	solo_reg_write(dev, SOLO_IRQ_MASK, dev->irq_mask);
 }
 
-/* Init/exit routeines for subsystems */
+/* Init/exit routines for subsystems */
 int solo_disp_init(struct solo_dev *solo_dev);
 void solo_disp_exit(struct solo_dev *solo_dev);
 
@@ -372,6 +372,10 @@ void solo_p2m_fill_desc(struct solo_p2m_desc *desc, int wr,
 int solo_p2m_dma_desc(struct solo_dev *solo_dev,
 		      struct solo_p2m_desc *desc, dma_addr_t desc_dma,
 		      int desc_cnt);
+
+/* Global s_std ioctl */
+int solo_set_video_type(struct solo_dev *solo_dev, bool type);
+void solo_update_mode(struct solo_enc_dev *solo_enc);
 
 /* Set the threshold for motion detection */
 int solo_set_motion_threshold(struct solo_dev *solo_dev, u8 ch, u16 val);
