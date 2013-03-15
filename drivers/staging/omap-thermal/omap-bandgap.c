@@ -86,6 +86,14 @@ do {								\
 	omap_bandgap_writel(bg_ptr, r, t->reg);			\
 } while (0)
 
+/**
+ * omap_bandgap_power() - controls the power state of a bandgap device
+ * @bg_ptr: pointer to omap_bandgap structure
+ * @on: desired power state (1 - on, 0 - off)
+ *
+ * Used to power on/off a bandgap device instance. Only used on those
+ * that features tempsoff bit.
+ */
 static int omap_bandgap_power(struct omap_bandgap *bg_ptr, bool on)
 {
 	int i;
