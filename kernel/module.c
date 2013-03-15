@@ -1209,7 +1209,7 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 
 	/* Since this should be found in kernel (which can't be removed),
 	 * no locking is necessary. */
-	if (!find_symbol(MODULE_SYMBOL_PREFIX "module_layout", NULL,
+	if (!find_symbol(VMLINUX_SYMBOL_STR(module_layout), NULL,
 			 &crc, true, false))
 		BUG();
 	return check_version(sechdrs, versindex, "module_layout", mod, crc,

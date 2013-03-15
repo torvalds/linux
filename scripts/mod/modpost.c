@@ -18,14 +18,7 @@
 #include "modpost.h"
 #include "../../include/generated/autoconf.h"
 #include "../../include/linux/license.h"
-
-/* Some toolchains use a `_' prefix for all user symbols. */
-#ifdef CONFIG_SYMBOL_PREFIX
-#define MODULE_SYMBOL_PREFIX CONFIG_SYMBOL_PREFIX
-#else
-#define MODULE_SYMBOL_PREFIX ""
-#endif
-
+#include "../../include/linux/export.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
 int modversions = 0;
@@ -562,7 +555,7 @@ static void parse_elf_finish(struct elf_info *info)
 static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 {
 	/* ignore __this_module, it will be resolved shortly */
-	if (strcmp(symname, MODULE_SYMBOL_PREFIX "__this_module") == 0)
+	if (strcmp(symname, VMLINUX_SYMBOL_STR(__this_module)) == 0)
 		return 1;
 	/* ignore global offset table */
 	if (strcmp(symname, "_GLOBAL_OFFSET_TABLE_") == 0)
@@ -583,8 +576,8 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 	return 0;
 }
 
-#define CRC_PFX     MODULE_SYMBOL_PREFIX "__crc_"
-#define KSYMTAB_PFX MODULE_SYMBOL_PREFIX "__ksymtab_"
+#define CRC_PFX     VMLINUX_SYMBOL_STR(__crc_)
+#define KSYMTAB_PFX VMLINUX_SYMBOL_STR(__ksymtab_)
 
 static void handle_modversions(struct module *mod, struct elf_info *info,
 			       Elf_Sym *sym, const char *symname)
@@ -637,14 +630,15 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 		}
 #endif
 
-		if (memcmp(symname, MODULE_SYMBOL_PREFIX,
-			   strlen(MODULE_SYMBOL_PREFIX)) == 0) {
-			mod->unres =
-			  alloc_symbol(symname +
-			               strlen(MODULE_SYMBOL_PREFIX),
-			               ELF_ST_BIND(sym->st_info) == STB_WEAK,
-			               mod->unres);
-		}
+#ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
+		if (symname[0] != '_')
+			break;
+		else
+			symname++;
+#endif
+		mod->unres = alloc_symbol(symname,
+					  ELF_ST_BIND(sym->st_info) == STB_WEAK,
+					  mod->unres);
 		break;
 	default:
 		/* All exported symbols */
@@ -652,9 +646,9 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 			sym_add_exported(symname + strlen(KSYMTAB_PFX), mod,
 					export);
 		}
-		if (strcmp(symname, MODULE_SYMBOL_PREFIX "init_module") == 0)
+		if (strcmp(symname, VMLINUX_SYMBOL_STR(init_module)) == 0)
 			mod->has_init = 1;
-		if (strcmp(symname, MODULE_SYMBOL_PREFIX "cleanup_module") == 0)
+		if (strcmp(symname, VMLINUX_SYMBOL_STR(cleanup_module)) == 0)
 			mod->has_cleanup = 1;
 		break;
 	}

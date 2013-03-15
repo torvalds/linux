@@ -1,7 +1,3 @@
-config SYMBOL_PREFIX
-	string
-	default "_"
-
 config METAG
 	def_bool y
 	select EMBEDDED
@@ -27,6 +23,7 @@ config METAG
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_PERF_EVENTS
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_UNDERSCORE_SYMBOL_PREFIX
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
 	select OF
