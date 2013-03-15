@@ -2898,22 +2898,6 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	vmx->cpl = 0;
 }
 
-static gva_t rmode_tss_base(struct kvm *kvm)
-{
-	if (!kvm->arch.tss_addr) {
-		struct kvm_memslots *slots;
-		struct kvm_memory_slot *slot;
-		gfn_t base_gfn;
-
-		slots = kvm_memslots(kvm);
-		slot = id_to_memslot(slots, 0);
-		base_gfn = slot->base_gfn + slot->npages - 3;
-
-		return base_gfn << PAGE_SHIFT;
-	}
-	return kvm->arch.tss_addr;
-}
-
 static void fix_rmode_seg(int seg, struct kvm_segment *save)
 {
 	const struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
@@ -2964,19 +2948,15 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Very old userspace does not call KVM_SET_TSS_ADDR before entering
-	 * vcpu. Call it here with phys address pointing 16M below 4G.
+	 * vcpu. Warn the user that an update is overdue.
 	 */
-	if (!vcpu->kvm->arch.tss_addr) {
+	if (!vcpu->kvm->arch.tss_addr)
 		printk_once(KERN_WARNING "kvm: KVM_SET_TSS_ADDR need to be "
 			     "called before entering vcpu\n");
-		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-		vmx_set_tss_addr(vcpu->kvm, 0xfeffd000);
-		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-	}
 
 	vmx_segment_cache_clear(vmx);
 
-	vmcs_writel(GUEST_TR_BASE, rmode_tss_base(vcpu->kvm));
+	vmcs_writel(GUEST_TR_BASE, vcpu->kvm->arch.tss_addr);
 	vmcs_write32(GUEST_TR_LIMIT, RMODE_TSS_SIZE - 1);
 	vmcs_write32(GUEST_TR_AR_BYTES, 0x008b);
 
@@ -3623,7 +3603,7 @@ static int init_rmode_tss(struct kvm *kvm)
 	int r, idx, ret = 0;
 
 	idx = srcu_read_lock(&kvm->srcu);
-	fn = rmode_tss_base(kvm) >> PAGE_SHIFT;
+	fn = kvm->arch.tss_addr >> PAGE_SHIFT;
 	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
 	if (r < 0)
 		goto out;
@@ -4190,9 +4170,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
 
 	vmx->vcpu.arch.cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
-	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	vmx_set_cr0(&vmx->vcpu, kvm_read_cr0(vcpu)); /* enter rmode */
-	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	vmx_set_cr4(&vmx->vcpu, 0);
 	vmx_set_efer(&vmx->vcpu, 0);
 	vmx_fpu_activate(&vmx->vcpu);
