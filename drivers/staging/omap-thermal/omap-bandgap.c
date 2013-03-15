@@ -337,7 +337,15 @@ exit:
 
 /***   Helper functions handling device Alert/Shutdown signals   ***/
 
-/* Talert masks. Call it only if HAS(TALERT) is set */
+/**
+ * omap_bandgap_unmask_interrupts() - unmasks the events of thot & tcold
+ * @bg_ptr: struct omap_bandgap pointer
+ * @t_hot: hot temperature value to trigger alert signal
+ * @t_cold: cold temperature value to trigger alert signal
+ *
+ * Checks the requested t_hot and t_cold values and configures the IRQ event
+ * masks accordingly. Call this function only if bandgap features HAS(TALERT).
+ */
 static void omap_bandgap_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
 					   u32 t_hot, u32 t_cold)
 {
