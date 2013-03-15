@@ -238,14 +238,19 @@ int omap_bandgap_adc_to_mcelsius(struct omap_bandgap *bg_ptr, int id,
 				 int adc_val, int *t)
 {
 	struct temp_sensor_data *ts_data = bg_ptr->conf->sensors[id].ts_data;
+	int ret = 0;
 
 	/* look up for temperature in the table and return the temperature */
-	if (adc_val < ts_data->adc_start_val || adc_val > ts_data->adc_end_val)
-		return -ERANGE;
+	if (adc_val < ts_data->adc_start_val ||
+	    adc_val > ts_data->adc_end_val) {
+		ret = -ERANGE;
+		goto exit;
+	}
 
 	*t = bg_ptr->conf->conv_table[adc_val - ts_data->adc_start_val];
 
-	return 0;
+exit:
+	return ret;
 }
 
 static int temp_to_adc_conversion(long temp, struct omap_bandgap *bg_ptr, int i,
