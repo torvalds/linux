@@ -303,8 +303,7 @@ error:
 
 
 
-#define NB_SYSFS_BIN_FILES 6
-static struct bin_attribute w1_f29_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
+static struct bin_attribute w1_f29_sysfs_bin_files[] = {
 	{
 		.attr =	{
 			.name = "state",
@@ -363,7 +362,7 @@ static int w1_f29_add_slave(struct w1_slave *sl)
 	int err = 0;
 	int i;
 
-	for (i = 0; i < NB_SYSFS_BIN_FILES && !err; ++i)
+	for (i = 0; i < ARRAY_SIZE(w1_f29_sysfs_bin_files) && !err; ++i)
 		err = sysfs_create_bin_file(
 			&sl->dev.kobj,
 			&(w1_f29_sysfs_bin_files[i]));
@@ -377,7 +376,7 @@ static int w1_f29_add_slave(struct w1_slave *sl)
 static void w1_f29_remove_slave(struct w1_slave *sl)
 {
 	int i;
-	for (i = NB_SYSFS_BIN_FILES - 1; i >= 0; --i)
+	for (i = ARRAY_SIZE(w1_f29_sysfs_bin_files) - 1; i >= 0; --i)
 		sysfs_remove_bin_file(&sl->dev.kobj,
 			&(w1_f29_sysfs_bin_files[i]));
 }
