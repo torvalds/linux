@@ -37,13 +37,6 @@ Configuration options:
 #include "8255.h"
 #include "8253.h"
 
-/*
- * The pci1753 and pci1753e have the same vendor/device id!
- *
- * These boards are quite different. #define this if your card is a pci1753e.
- */
-#undef USE_PCI1753E_BOARDINFO
-
 /* hardware types of the cards */
 enum hw_cards_id {
 	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734, TYPE_PCI1735, TYPE_PCI1736,
@@ -233,23 +226,6 @@ enum hw_io_access {
 
 #define OMBCMD_RETRY	0x03	/* 3 times try request before error */
 
-enum dio_boardid {
-	BOARD_PCI1730,
-	BOARD_PCI1733,
-	BOARD_PCI1734,
-	BOARD_PCI1735,
-	BOARD_PCI1736,
-	BOARD_PCI1739,
-	BOARD_PCI1750,
-	BOARD_PCI1751,
-	BOARD_PCI1752,
-	BOARD_PCI1753,
-	BOARD_PCI1754,
-	BOARD_PCI1756,
-	BOARD_PCI1760,
-	BOARD_PCI1762,
-};
-
 struct diosubd_data {
 	int chans;		/*  num of chans */
 	int addr;		/*  PCI address ofset */
@@ -272,7 +248,7 @@ struct dio_boardtype {
 };
 
 static const struct dio_boardtype boardtypes[] = {
-	[BOARD_PCI1730] = {
+	[TYPE_PCI1730] = {
 		.name		= "pci1730",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1730,
@@ -284,7 +260,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.boardid	= { 4, PCI173x_BOARDID, 1, SDF_INTERNAL, },
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1733] = {
+	[TYPE_PCI1733] = {
 		.name		= "pci1733",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1733,
@@ -293,7 +269,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.boardid	= { 4, PCI173x_BOARDID, 1, SDF_INTERNAL, },
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1734] = {
+	[TYPE_PCI1734] = {
 		.name		= "pci1734",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1734,
@@ -302,7 +278,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.boardid	= { 4, PCI173x_BOARDID, 1, SDF_INTERNAL, },
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1735] = {
+	[TYPE_PCI1735] = {
 		.name		= "pci1735",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1735,
@@ -313,7 +289,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.s8254[0]	= { 3, PCI1735_C8254, 1, 0, },
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1736] = {
+	[TYPE_PCI1736] = {
 		.name		= "pci1736",
 		.main_pci_region = PCI1736_MAINREG,
 		.cardtype	= TYPE_PCI1736,
@@ -323,7 +299,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.boardid	= { 4, PCI1736_BOARDID, 1, SDF_INTERNAL, },
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1739] = {
+	[TYPE_PCI1739] = {
 		.name		= "pci1739",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1739,
@@ -331,7 +307,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdio[0]	= { 48, PCI1739_DIO, 2, 0, },
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1750] = {
+	[TYPE_PCI1750] = {
 		.name		= "pci1750",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1750,
@@ -340,7 +316,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdo[1]		= { 16, PCI1750_IDO, 2, 0, },
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1751] = {
+	[TYPE_PCI1751] = {
 		.name		= "pci1751",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1751,
@@ -349,7 +325,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.s8254[0]	= { 3, PCI1751_CNT, 1, 0, },
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1752] = {
+	[TYPE_PCI1752] = {
 		.name		= "pci1752",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1752,
@@ -359,15 +335,15 @@ static const struct dio_boardtype boardtypes[] = {
 		.boardid	= { 4, PCI175x_BOARDID, 1, SDF_INTERNAL, },
 		.io_access	= IO_16b,
 	},
-	[BOARD_PCI1753] = {
-#ifndef USE_PCI1753E_BOARDINFO
+	[TYPE_PCI1753] = {
 		.name		= "pci1753",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1753,
 		.nsubdevs	= 4,
 		.sdio[0]	= { 96, PCI1753_DIO, 4, 0, },
 		.io_access	= IO_8b,
-#else
+	},
+	[TYPE_PCI1753E] = {
 		.name		= "pci1753e",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1753E,
@@ -375,9 +351,8 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdio[0]	= { 96, PCI1753_DIO, 4, 0, },
 		.sdio[1]	= { 96, PCI1753E_DIO, 4, 0, },
 		.io_access	= IO_8b,
-#endif
 	},
-	[BOARD_PCI1754] = {
+	[TYPE_PCI1754] = {
 		.name		= "pci1754",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1754,
@@ -387,7 +362,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.boardid	= { 4, PCI175x_BOARDID, 1, SDF_INTERNAL, },
 		.io_access	= IO_16b,
 	},
-	[BOARD_PCI1756] = {
+	[TYPE_PCI1756] = {
 		.name		= "pci1756",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1756,
@@ -397,7 +372,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.boardid	= { 4, PCI175x_BOARDID, 1, SDF_INTERNAL, },
 		.io_access	= IO_16b,
 	},
-	[BOARD_PCI1760] = {
+	[TYPE_PCI1760] = {
 		/* This card has its own 'attach' */
 		.name		= "pci1760",
 		.main_pci_region = 0,
@@ -405,7 +380,7 @@ static const struct dio_boardtype boardtypes[] = {
 		.nsubdevs	= 4,
 		.io_access	= IO_8b,
 	},
-	[BOARD_PCI1762] = {
+	[TYPE_PCI1762] = {
 		.name		= "pci1762",
 		.main_pci_region = PCIDIO_MAINREG,
 		.cardtype	= TYPE_PCI1762,
@@ -1083,6 +1058,39 @@ static int pci_dio_add_8254(struct comedi_device *dev,
 	return 0;
 }
 
+static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
+					       unsigned long cardtype)
+{
+	/*
+	 * Change cardtype from TYPE_PCI1753 to TYPE_PCI1753E if expansion
+	 * board available.  Need to enable PCI device and request the main
+	 * registers PCI BAR temporarily to perform the test.
+	 */
+	if (cardtype != TYPE_PCI1753)
+		return cardtype;
+	if (pci_enable_device(pcidev) < 0)
+		return cardtype;
+	if (pci_request_region(pcidev, PCIDIO_MAINREG, "adv_pci_dio") == 0) {
+		/*
+		 * This test is based on Advantech's "advdaq" driver source
+		 * (which declares its module licence as "GPL" although the
+		 * driver source does not include a "COPYING" file).
+		 */
+		unsigned long reg =
+			pci_resource_start(pcidev, PCIDIO_MAINREG) + 53;
+
+		outb(0x05, reg);
+		if ((inb(reg) & 0x07) == 0x02) {
+			outb(0x02, reg);
+			if ((inb(reg) & 0x07) == 0x05)
+				cardtype = TYPE_PCI1753E;
+		}
+		pci_release_region(pcidev, PCIDIO_MAINREG);
+	}
+	pci_disable_device(pcidev);
+	return cardtype;
+}
+
 static int pci_dio_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
@@ -1193,25 +1201,27 @@ static struct comedi_driver adv_pci_dio_driver = {
 static int adv_pci_dio_pci_probe(struct pci_dev *dev,
 				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adv_pci_dio_driver,
-				      id->driver_data);
+	unsigned long cardtype;
+
+	cardtype = pci_dio_override_cardtype(dev, id->driver_data);
+	return comedi_pci_auto_config(dev, &adv_pci_dio_driver, cardtype);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adv_pci_dio_pci_table) = {
-	{ PCI_VDEVICE(ADVANTECH, 0x1730), BOARD_PCI1730 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1733), BOARD_PCI1733 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1734), BOARD_PCI1734 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1735), BOARD_PCI1735 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1736), BOARD_PCI1736 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1739), BOARD_PCI1739 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1750), BOARD_PCI1750 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1751), BOARD_PCI1751 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1752), BOARD_PCI1752 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1753), BOARD_PCI1753 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1754), BOARD_PCI1754 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1756), BOARD_PCI1756 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1760), BOARD_PCI1760 },
-	{ PCI_VDEVICE(ADVANTECH, 0x1762), BOARD_PCI1762 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1730), TYPE_PCI1730 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1733), TYPE_PCI1733 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1734), TYPE_PCI1734 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1735), TYPE_PCI1735 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1736), TYPE_PCI1736 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1739), TYPE_PCI1739 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1750), TYPE_PCI1750 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1751), TYPE_PCI1751 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1752), TYPE_PCI1752 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1753), TYPE_PCI1753 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1754), TYPE_PCI1754 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1756), TYPE_PCI1756 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1760), TYPE_PCI1760 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1762), TYPE_PCI1762 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adv_pci_dio_pci_table);
