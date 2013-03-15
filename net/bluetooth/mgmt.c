@@ -2433,8 +2433,15 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 	memcpy(hdev->dev_name, cp->name, sizeof(hdev->dev_name));
 
 	hci_req_init(&req, hdev);
-	update_name(&req);
-	update_eir(&req);
+
+	if (lmp_bredr_capable(hdev)) {
+		update_name(&req);
+		update_eir(&req);
+	}
+
+	if (lmp_le_capable(hdev))
+		hci_update_ad(&req);
+
 	err = hci_req_run(&req, set_name_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
