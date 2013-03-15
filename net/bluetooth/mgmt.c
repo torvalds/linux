@@ -1002,6 +1002,7 @@ failed:
 
 static void write_fast_connectable(struct hci_request *req, bool enable)
 {
+	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_write_page_scan_activity acp;
 	u8 type;
 
@@ -1019,8 +1020,13 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 
 	acp.window = __constant_cpu_to_le16(0x0012);
 
-	hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_ACTIVITY, sizeof(acp), &acp);
-	hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
+	if (__cpu_to_le16(hdev->page_scan_interval) != acp.interval ||
+	    __cpu_to_le16(hdev->page_scan_window) != acp.window)
+		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_ACTIVITY,
+			    sizeof(acp), &acp);
+
+	if (hdev->page_scan_type != type)
+		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
 }
 
 static void set_connectable_complete(struct hci_dev *hdev, u8 status)
