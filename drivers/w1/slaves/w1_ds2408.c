@@ -178,6 +178,15 @@ static ssize_t w1_f29_write_output(
 		w1_write_block(sl->master, w1_buf, 3);
 
 		readBack = w1_read_8(sl->master);
+
+		if (readBack != W1_F29_SUCCESS_CONFIRM_BYTE) {
+			if (w1_reset_resume_command(sl->master))
+				goto error;
+			/* try again, the slave is ready for a command */
+			continue;
+		}
+
+#ifdef CONFIG_W1_SLAVE_DS2408_READBACK
 		/* here the master could read another byte which
 		   would be the PIO reg (the actual pin logic state)
 		   since in this driver we don't know which pins are
@@ -186,11 +195,6 @@ static ssize_t w1_f29_write_output(
 		if (w1_reset_resume_command(sl->master))
 			goto error;
 
-		if (readBack != 0xAA) {
-			/* try again, the slave is ready for a command */
-			continue;
-		}
-
 		/* go read back the output latches */
 		/* (the direct effect of the write above) */
 		w1_buf[0] = W1_F29_FUNC_READ_PIO_REGS;
@@ -198,7 +202,9 @@ static ssize_t w1_f29_write_output(
 		w1_buf[2] = 0;
 		w1_write_block(sl->master, w1_buf, 3);
 		/* read the result of the READ_PIO_REGS command */
-		if (w1_read_8(sl->master) == *buf) {
+		if (w1_read_8(sl->master) == *buf)
+#endif
+		{
 			/* success! */
 			mutex_unlock(&sl->master->bus_mutex);
 			dev_dbg(&sl->dev,
