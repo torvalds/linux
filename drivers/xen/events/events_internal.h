@@ -69,6 +69,7 @@ struct evtchn_ops {
 	void (*unmask)(unsigned port);
 
 	void (*handle_events)(unsigned cpu);
+	void (*resume)(void);
 };
 
 extern const struct evtchn_ops *evtchn_ops;
@@ -137,6 +138,13 @@ static inline void xen_evtchn_handle_events(unsigned cpu)
 	return evtchn_ops->handle_events(cpu);
 }
 
+static inline void xen_evtchn_resume(void)
+{
+	if (evtchn_ops->resume)
+		evtchn_ops->resume();
+}
+
 void xen_evtchn_2l_init(void);
+int xen_evtchn_fifo_init(void);
 
 #endif /* #ifndef __EVENTS_INTERNAL_H__ */

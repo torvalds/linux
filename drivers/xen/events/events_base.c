@@ -1563,6 +1563,7 @@ void xen_irq_resume(void)
 
 	/* New event-channel space is not 'live' yet. */
 	xen_evtchn_mask_all();
+	xen_evtchn_resume();
 
 	/* No IRQ <-> event-channel mappings. */
 	list_for_each_entry(info, &xen_irq_list_head, list)
@@ -1659,9 +1660,20 @@ void xen_callback_vector(void)
 void xen_callback_vector(void) {}
 #endif
 
+#undef MODULE_PARAM_PREFIX
+#define MODULE_PARAM_PREFIX "xen."
+
+static bool fifo_events = true;
+module_param(fifo_events, bool, 0);
+
 void __init xen_init_IRQ(void)
 {
-	xen_evtchn_2l_init();
+	int ret = -EINVAL;
+
+	if (fifo_events)
+		ret = xen_evtchn_fifo_init();
+	if (ret < 0)
+		xen_evtchn_2l_init();
 
 	evtchn_to_irq = kcalloc(EVTCHN_ROW(xen_evtchn_max_channels()),
 				sizeof(*evtchn_to_irq), GFP_KERNEL);
