@@ -73,12 +73,6 @@ config MTD_NAND_DENALI_SCRATCH_REG_ADDR
           scratch register here to enable this feature. On Intel Moorestown
           boards, the scratch register is at 0xFF108018.
 
-config MTD_NAND_H1900
-	tristate "iPAQ H1900 flash"
-	depends on ARCH_PXA && BROKEN
-	help
-	  This enables the driver for the iPAQ h1900 flash.
-
 config MTD_NAND_GPIO
 	tristate "GPIO NAND Flash driver"
 	depends on GENERIC_GPIO && ARM
