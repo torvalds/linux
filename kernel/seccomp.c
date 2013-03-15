@@ -160,6 +160,8 @@ static int seccomp_check_filter(struct sock_filter *filter, unsigned int flen)
 		case BPF_S_ALU_AND_X:
 		case BPF_S_ALU_OR_K:
 		case BPF_S_ALU_OR_X:
+		case BPF_S_ALU_XOR_K:
+		case BPF_S_ALU_XOR_X:
 		case BPF_S_ALU_LSH_K:
 		case BPF_S_ALU_LSH_X:
 		case BPF_S_ALU_RSH_K:
