@@ -335,6 +335,8 @@ exit:
 	return ret;
 }
 
+/***   Helper functions handling device Alert/Shutdown signals   ***/
+
 /* Talert masks. Call it only if HAS(TALERT) is set */
 static int temp_sensor_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
 					 u32 t_hot, u32 t_cold)
