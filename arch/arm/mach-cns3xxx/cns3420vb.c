@@ -31,9 +31,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/cns3xxx.h>
-#include <mach/irqs.h>
-#include <mach/pm.h>
+#include "cns3xxx.h"
+#include "pm.h"
 #include "core.h"
 #include "devices.h"
 
@@ -247,6 +246,7 @@ static void __init cns3420_map_io(void)
 
 MACHINE_START(CNS3420VB, "Cavium Networks CNS3420 Validation Board")
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_CNS3XXX,
 	.map_io		= cns3420_map_io,
 	.init_irq	= cns3xxx_init_irq,
 	.init_time	= cns3xxx_timer_init,

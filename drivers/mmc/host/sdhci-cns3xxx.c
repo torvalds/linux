@@ -16,7 +16,6 @@
 #include <linux/device.h>
 #include <linux/mmc/host.h>
 #include <linux/module.h>
-#include <mach/cns3xxx.h>
 #include "sdhci-pltfm.h"
 
 static unsigned int sdhci_cns3xxx_get_max_clk(struct sdhci_host *host)
