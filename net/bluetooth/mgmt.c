@@ -1000,6 +1000,29 @@ failed:
 	return err;
 }
 
+static void write_fast_connectable(struct hci_request *req, bool enable)
+{
+	struct hci_cp_write_page_scan_activity acp;
+	u8 type;
+
+	if (enable) {
+		type = PAGE_SCAN_TYPE_INTERLACED;
+
+		/* 160 msec page scan interval */
+		acp.interval = __constant_cpu_to_le16(0x0100);
+	} else {
+		type = PAGE_SCAN_TYPE_STANDARD;	/* default */
+
+		/* default 1.28 sec page scan */
+		acp.interval = __constant_cpu_to_le16(0x0800);
+	}
+
+	acp.window = __constant_cpu_to_le16(0x0012);
+
+	hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_ACTIVITY, sizeof(acp), &acp);
+	hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
+}
+
 static void set_connectable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
@@ -2937,10 +2960,8 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 				void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
-	struct hci_cp_write_page_scan_activity acp;
 	struct pending_cmd *cmd;
 	struct hci_request req;
-	u8 type;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -2975,21 +2996,6 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (cp->val) {
-		type = PAGE_SCAN_TYPE_INTERLACED;
-
-		/* 160 msec page scan interval */
-		acp.interval = __constant_cpu_to_le16(0x0100);
-	} else {
-		type = PAGE_SCAN_TYPE_STANDARD;	/* default */
-
-		/* default 1.28 sec page scan */
-		acp.interval = __constant_cpu_to_le16(0x0800);
-	}
-
-	/* default 11.25 msec page scan window */
-	acp.window = __constant_cpu_to_le16(0x0012);
-
 	cmd = mgmt_pending_add(sk, MGMT_OP_SET_FAST_CONNECTABLE, hdev,
 			       data, len);
 	if (!cmd) {
@@ -2999,8 +3005,7 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 
 	hci_req_init(&req, hdev);
 
-	hci_req_add(&req, HCI_OP_WRITE_PAGE_SCAN_ACTIVITY, sizeof(acp), &acp);
-	hci_req_add(&req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
+	write_fast_connectable(&req, cp->val);
 
 	err = hci_req_run(&req, fast_connectable_complete);
 	if (err < 0) {
