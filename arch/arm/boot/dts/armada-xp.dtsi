@@ -46,7 +46,7 @@
 				reg = <0xd0012200 0x100>;
 				reg-shift = <2>;
 				interrupts = <43>;
-				reg-io-width = <4>;
+				reg-io-width = <1>;
 				status = "disabled";
 		};
 		serial@d0012300 {
@@ -54,7 +54,7 @@
 				reg = <0xd0012300 0x100>;
 				reg-shift = <2>;
 				interrupts = <44>;
-				reg-io-width = <4>;
+				reg-io-width = <1>;
 				status = "disabled";
 		};
 
