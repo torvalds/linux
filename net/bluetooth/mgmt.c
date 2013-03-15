@@ -2408,6 +2408,17 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_dev_lock(hdev);
 
+	/* If the old values are the same as the new ones just return a
+	 * direct command complete event.
+	 */
+	if (!memcmp(hdev->dev_name, cp->name, sizeof(hdev->dev_name)) &&
+	    !memcmp(hdev->short_name, cp->short_name,
+		    sizeof(hdev->short_name))) {
+		err = cmd_complete(sk, hdev->id, MGMT_OP_SET_LOCAL_NAME, 0,
+				   data, len);
+		goto failed;
+	}
+
 	memcpy(hdev->short_name, cp->short_name, sizeof(hdev->short_name));
 
 	if (!hdev_is_powered(hdev)) {
