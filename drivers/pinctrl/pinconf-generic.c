@@ -34,7 +34,7 @@ struct pin_config_item {
 
 #define PCONFDUMP(a, b, c) { .param = a, .display = b, .format = c }
 
-struct pin_config_item conf_items[] = {
+static struct pin_config_item conf_items[] = {
 	PCONFDUMP(PIN_CONFIG_BIAS_DISABLE, "input bias disabled", NULL),
 	PCONFDUMP(PIN_CONFIG_BIAS_HIGH_IMPEDANCE, "input bias high impedance", NULL),
 	PCONFDUMP(PIN_CONFIG_BIAS_PULL_UP, "input bias pull up", NULL),
