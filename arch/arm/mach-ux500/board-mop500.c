@@ -24,6 +24,8 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/ab8500.h>
 #include <linux/regulator/fixed.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/gpio-regulator.h>
 #include <linux/mfd/tc3589x.h>
 #include <linux/mfd/tps6105x.h>
 #include <linux/mfd/abx500/ab8500-gpio.h>
@@ -87,6 +89,37 @@ static struct platform_device snowball_gpio_en_3v3_regulator_dev = {
        .dev    = {
                .platform_data  = &snowball_gpio_en_3v3_data,
        },
+};
+
+/* Dynamically populated. */
+static struct gpio sdi0_reg_gpios[] = {
+	{ 0, GPIOF_OUT_INIT_LOW, "mmci_vsel" },
+};
+
+static struct gpio_regulator_state sdi0_reg_states[] = {
+	{ .value = 2900000, .gpios = (0 << 0) },
+	{ .value = 1800000, .gpios = (1 << 0) },
+};
+
+static struct gpio_regulator_config sdi0_reg_info = {
+	.supply_name		= "ext-mmc-level-shifter",
+	.gpios			= sdi0_reg_gpios,
+	.nr_gpios		= ARRAY_SIZE(sdi0_reg_gpios),
+	.states			= sdi0_reg_states,
+	.nr_states		= ARRAY_SIZE(sdi0_reg_states),
+	.type			= REGULATOR_VOLTAGE,
+	.enable_high		= 1,
+	.enabled_at_boot	= 0,
+	.init_data		= &sdi0_reg_init_data,
+	.startup_delay		= 100,
+};
+
+static struct platform_device sdi0_regulator = {
+	.name = "gpio-regulator",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &sdi0_reg_info,
+	},
 };
 
 static struct abx500_gpio_platform_data ab8500_gpio_pdata = {
@@ -481,6 +514,7 @@ static struct hash_platform_data u8500_hash1_platform_data = {
 /* add any platform devices here - TODO */
 static struct platform_device *mop500_platform_devs[] __initdata = {
 	&mop500_gpio_keys_device,
+	&sdi0_regulator,
 };
 
 #ifdef CONFIG_STE_DMA40
@@ -624,6 +658,7 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_gpio_en_3v3_regulator_dev,
 	&u8500_thsens_device,
 	&u8500_cpufreq_cooling_device,
+	&sdi0_regulator,
 };
 
 static void __init mop500_init_machine(void)
@@ -634,6 +669,9 @@ static void __init mop500_init_machine(void)
 
 	platform_device_register(&db8500_prcmu_device);
 	mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
+
+	sdi0_reg_info.enable_gpio = GPIO_SDMMC_EN;
+	sdi0_reg_info.gpios[0].gpio = GPIO_SDMMC_1V8_3V_SEL;
 
 	mop500_pinmaps_init();
 	parent = u8500_init_devices(&ab8500_platdata);
@@ -668,6 +706,10 @@ static void __init snowball_init_machine(void)
 	int i;
 
 	platform_device_register(&db8500_prcmu_device);
+
+	sdi0_reg_info.enable_gpio = SNOWBALL_SDMMC_EN_GPIO;
+	sdi0_reg_info.gpios[0].gpio = SNOWBALL_SDMMC_1V8_3V_GPIO;
+
 	snowball_pinmaps_init();
 	parent = u8500_init_devices(&ab8500_platdata);
 
@@ -700,6 +742,9 @@ static void __init hrefv60_init_machine(void)
 	 * instead.
 	 */
 	mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
+
+	sdi0_reg_info.enable_gpio = HREFV60_SDMMC_EN_GPIO;
+	sdi0_reg_info.gpios[0].gpio = HREFV60_SDMMC_1V8_3V_GPIO;
 
 	hrefv60_pinmaps_init();
 	parent = u8500_init_devices(&ab8500_platdata);
