@@ -410,6 +410,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_CONNECTABLE;
 
+	if (test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
+		settings |= MGMT_SETTING_FAST_CONNECTABLE;
+
 	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_DISCOVERABLE;
 
@@ -2913,6 +2916,13 @@ static void fast_connectable_complete(struct hci_dev *hdev, u8 status)
 		cmd_status(cmd->sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
 			   mgmt_status(status));
 	} else {
+		struct mgmt_mode *cp = cmd->param;
+
+		if (cp->val)
+			set_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
+		else
+			clear_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
+
 		send_settings_rsp(cmd->sk, MGMT_OP_SET_FAST_CONNECTABLE, hdev);
 		new_settings(hdev, cmd->sk);
 	}
@@ -2956,6 +2966,12 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 	if (mgmt_pending_find(MGMT_OP_SET_FAST_CONNECTABLE, hdev)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
 				 MGMT_STATUS_BUSY);
+		goto unlock;
+	}
+
+	if (!!cp->val == test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags)) {
+		err = send_settings_rsp(sk, MGMT_OP_SET_FAST_CONNECTABLE,
+					hdev);
 		goto unlock;
 	}
 
