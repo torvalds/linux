@@ -60,7 +60,7 @@ void pinconf_generic_dump_pin(struct pinctrl_dev *pctldev,
 	if (!ops->is_generic)
 		return;
 
-	for(i = 0; i < ARRAY_SIZE(conf_items); i++) {
+	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
 		unsigned long config;
 		int ret;
 
@@ -95,7 +95,7 @@ void pinconf_generic_dump_group(struct pinctrl_dev *pctldev,
 	if (!ops->is_generic)
 		return;
 
-	for(i = 0; i < ARRAY_SIZE(conf_items); i++) {
+	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
 		unsigned long config;
 		int ret;
 
@@ -126,7 +126,7 @@ void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
 {
 	int i;
 
-	for(i = 0; i < ARRAY_SIZE(conf_items); i++) {
+	for (i = 0; i < ARRAY_SIZE(conf_items); i++) {
 		if (pinconf_to_config_param(config) != conf_items[i].param)
 			continue;
 		seq_printf(s, "%s: 0x%x", conf_items[i].display,
