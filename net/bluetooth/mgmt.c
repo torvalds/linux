@@ -1006,6 +1006,9 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 	struct hci_cp_write_page_scan_activity acp;
 	u8 type;
 
+	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
+		return;
+
 	if (enable) {
 		type = PAGE_SCAN_TYPE_INTERLACED;
 
@@ -1125,7 +1128,13 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 
-	if (!cp->val && test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
+	/* If we're going from non-connectable to connectable or
+	 * vice-versa when fast connectable is enabled ensure that fast
+	 * connectable gets disabled. write_fast_connectable won't do
+	 * anything if the page scan parameters are already what they
+	 * should be.
+	 */
+	if (cp->val || test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
 		write_fast_connectable(&req, false);
 
 	err = hci_req_run(&req, set_connectable_complete);
@@ -3286,6 +3295,12 @@ static void set_bredr_scan(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 	u8 scan = 0;
+
+	/* Ensure that fast connectable is disabled. This function will
+	 * not do anything if the page scan parameters are already what
+	 * they should be.
+	 */
+	write_fast_connectable(req, false);
 
 	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
 		scan |= SCAN_PAGE;
