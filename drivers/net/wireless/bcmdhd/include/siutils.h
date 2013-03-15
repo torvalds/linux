@@ -2,7 +2,7 @@
  * Misc utility routines for accessing the SOC Interconnects
  * of Broadcom HNBU chips.
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,89 +22,100 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.h 347614 2012-07-27 10:24:51Z $
+ * $Id: siutils.h 385510 2013-02-15 21:02:07Z $
  */
 
 #ifndef	_siutils_h_
 #define	_siutils_h_
 
-
+/*
+ * Data structure to export all chip specific common variables
+ *   public (read-only) portion of siutils handle returned by si_attach()/si_kattach()
+ */
 struct si_pub {
-	uint	socitype;		
+	uint	socitype;		/* SOCI_SB, SOCI_AI */
 
-	uint	bustype;		
-	uint	buscoretype;		
-	uint	buscorerev;		
-	uint	buscoreidx;		
-	int	ccrev;			
-	uint32	cccaps;			
-	uint32  cccaps_ext;			
-	int	pmurev;			
-	uint32	pmucaps;		
-	uint	boardtype;		
-	uint    boardrev;               
-	uint	boardvendor;		
-	uint	boardflags;		
-	uint	boardflags2;		
-	uint	chip;			
-	uint	chiprev;		
-	uint	chippkg;		
-	uint32	chipst;			
-	bool	issim;			
-	uint    socirev;		
+	uint	bustype;		/* SI_BUS, PCI_BUS */
+	uint	buscoretype;		/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
+	uint	buscorerev;		/* buscore rev */
+	uint	buscoreidx;		/* buscore index */
+	int	ccrev;			/* chip common core rev */
+	uint32	cccaps;			/* chip common capabilities */
+	uint32  cccaps_ext;			/* chip common capabilities extension */
+	int	pmurev;			/* pmu core rev */
+	uint32	pmucaps;		/* pmu capabilities */
+	uint	boardtype;		/* board type */
+	uint    boardrev;               /* board rev */
+	uint	boardvendor;		/* board vendor */
+	uint	boardflags;		/* board flags */
+	uint	boardflags2;		/* board flags2 */
+	uint	chip;			/* chip number */
+	uint	chiprev;		/* chip revision */
+	uint	chippkg;		/* chip package option */
+	uint32	chipst;			/* chip status */
+	bool	issim;			/* chip is in simulation or emulation */
+	uint    socirev;		/* SOC interconnect rev */
 	bool	pci_pr32414;
 
 };
 
-
+/* for HIGH_ONLY driver, the si_t must be writable to allow states sync from BMAC to HIGH driver
+ * for monolithic driver, it is readonly to prevent accident change
+ */
 typedef const struct si_pub si_t;
 
 
-
-#define	SI_OSH		NULL	
+/*
+ * Many of the routines below take an 'sih' handle as their first arg.
+ * Allocate this by calling si_attach().  Free it by calling si_detach().
+ * At any one time, the sih is logically focused on one particular si core
+ * (the "current core").
+ * Use si_setcore() or si_setcoreidx() to change the association to another core.
+ */
+#define	SI_OSH		NULL	/* Use for si_kattach when no osh is available */
 
 #define	BADIDX		(SI_MAXCORES + 1)
 
+/* clkctl xtal what flags */
+#define	XTAL			0x1	/* primary crystal oscillator (2050) */
+#define	PLL			0x2	/* main chip pll */
 
-#define	XTAL			0x1	
-#define	PLL			0x2	
+/* clkctl clk mode */
+#define	CLK_FAST		0	/* force fast (pll) clock */
+#define	CLK_DYNAMIC		2	/* enable dynamic clock control */
 
+/* GPIO usage priorities */
+#define GPIO_DRV_PRIORITY	0	/* Driver */
+#define GPIO_APP_PRIORITY	1	/* Application */
+#define GPIO_HI_PRIORITY	2	/* Highest priority. Ignore GPIO reservation */
 
-#define	CLK_FAST		0	
-#define	CLK_DYNAMIC		2	
-
-
-#define GPIO_DRV_PRIORITY	0	
-#define GPIO_APP_PRIORITY	1	
-#define GPIO_HI_PRIORITY	2	
-
-
+/* GPIO pull up/down */
 #define GPIO_PULLUP		0
 #define GPIO_PULLDN		1
 
+/* GPIO event regtype */
+#define GPIO_REGEVT		0	/* GPIO register event */
+#define GPIO_REGEVT_INTMSK	1	/* GPIO register event int mask */
+#define GPIO_REGEVT_INTPOL	2	/* GPIO register event int polarity */
 
-#define GPIO_REGEVT		0	
-#define GPIO_REGEVT_INTMSK	1	
-#define GPIO_REGEVT_INTPOL	2	
+/* device path */
+#define SI_DEVPATH_BUFSZ	16	/* min buffer size in bytes */
 
-
-#define SI_DEVPATH_BUFSZ	16	
-
-
+/* SI routine enumeration: to be used by update function with multiple hooks */
 #define	SI_DOATTACH	1
 #define SI_PCIDOWN	2
 #define SI_PCIUP	3
 
 #define	ISSIM_ENAB(sih)	0
 
-
+/* PMU clock/power control */
 #if defined(BCMPMUCTL)
 #define PMUCTL_ENAB(sih)	(BCMPMUCTL)
 #else
 #define PMUCTL_ENAB(sih)	((sih)->cccaps & CC_CAP_PMU)
 #endif
 
-
+/* chipcommon clock/power control (exclusive with PMU's) */
 #if defined(BCMPMUCTL) && BCMPMUCTL
 #define CCCTL_ENAB(sih)		(0)
 #define CCPLL_ENAB(sih)		(0)
@@ -114,17 +125,17 @@ typedef const struct si_pub si_t;
 #endif
 
 typedef void (*gpio_handler_t)(uint32 stat, void *arg);
-
+/* External BT Coex enable mask */
 #define CC_BTCOEX_EN_MASK  0x01
-
+/* External PA enable mask */
 #define GPIO_CTRL_EPA_EN_MASK 0x40
-
+/* WL/BT control enable mask */
 #define GPIO_CTRL_5_6_EN_MASK 0x60
 #define GPIO_CTRL_7_6_EN_MASK 0xC0
 #define GPIO_OUT_7_EN_MASK 0x80
 
 
-
+/* CR4 specific defines used by the host driver */
 #define SI_CR4_CAP			(0x04)
 #define SI_CR4_BANKIDX		(0x40)
 #define SI_CR4_BANKINFO		(0x44)
@@ -139,7 +150,7 @@ typedef void (*gpio_handler_t)(uint32 stat, void *arg);
 #define	ARMCR4_BSZ_MULT		8192
 
 
-
+/* === exported functions === */
 extern si_t *si_attach(uint pcidev, osl_t *osh, void *regs, uint bustype,
                        void *sdh, char **vars, uint *varsz);
 extern si_t *si_kattach(osl_t *osh);
@@ -149,6 +160,7 @@ extern bool si_pci_war16165(si_t *sih);
 extern uint si_corelist(si_t *sih, uint coreid[]);
 extern uint si_coreid(si_t *sih);
 extern uint si_flag(si_t *sih);
+extern uint si_flag_alt(si_t *sih);
 extern uint si_intflag(si_t *sih);
 extern uint si_coreidx(si_t *sih);
 extern uint si_coreunit(si_t *sih);
@@ -159,6 +171,8 @@ extern void si_setosh(si_t *sih, osl_t *osh);
 extern uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val);
 extern void *si_coreregs(si_t *sih);
 extern uint si_wrapperreg(si_t *sih, uint32 offset, uint32 mask, uint32 val);
+extern uint si_core_wrapperreg(si_t *sih, uint32 coreidx, uint32 offset, uint32 mask, uint32 val);
+extern void *si_wrapperregs(si_t *sih);
 extern uint32 si_core_cflags(si_t *sih, uint32 mask, uint32 val);
 extern void si_core_cflags_wo(si_t *sih, uint32 mask, uint32 val);
 extern uint32 si_core_sflags(si_t *sih, uint32 mask, uint32 val);
@@ -176,6 +190,7 @@ extern int si_corebist(si_t *sih);
 extern void si_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 extern void si_core_disable(si_t *sih, uint32 bits);
 extern uint32 si_clock_rate(uint32 pll_type, uint32 n, uint32 m);
+extern uint si_chip_hostif(si_t *sih);
 extern bool si_read_pmu_autopll(si_t *sih);
 extern uint32 si_clock(si_t *sih);
 extern uint32 si_alp_clock(si_t *sih);
@@ -219,12 +234,12 @@ extern uint32 si_gpiopull(si_t *sih, bool updown, uint32 mask, uint32 val);
 extern uint32 si_gpioevent(si_t *sih, uint regtype, uint32 mask, uint32 val);
 extern uint32 si_gpio_int_enable(si_t *sih, bool enable);
 
-
+/* GPIO event handlers */
 extern void *si_gpio_handler_register(si_t *sih, uint32 e, bool lev, gpio_handler_t cb, void *arg);
 extern void si_gpio_handler_unregister(si_t *sih, void* gpioh);
 extern void si_gpio_handler_process(si_t *sih);
 
-
+/* Wake-on-wireless-LAN (WOWL) */
 extern bool si_pci_pmecap(si_t *sih);
 struct osl_info;
 extern bool si_pci_fastpmecap(struct osl_info *osh);
@@ -247,34 +262,40 @@ static INLINE void * si_eci_init(si_t *sih) {return NULL;}
 #define si_seci_upd(sih, a)	do {} while (0)
 static INLINE void * si_seci_init(si_t *sih, uint8 use_seci) {return NULL;}
 #define si_seci_down(sih) do {} while (0)
+#define si_gci(sih) 0
+static INLINE void * si_gci_init(si_t *sih) {return NULL;}
 
-
+/* OTP status */
 extern bool si_is_otp_disabled(si_t *sih);
 extern bool si_is_otp_powered(si_t *sih);
 extern void si_otp_power(si_t *sih, bool on);
 
-
+/* SPROM availability */
 extern bool si_is_sprom_available(si_t *sih);
 extern bool si_is_sprom_enabled(si_t *sih);
 extern void si_sprom_enable(si_t *sih, bool enable);
 
-
+/* OTP/SROM CIS stuff */
 extern int si_cis_source(si_t *sih);
 #define CIS_DEFAULT	0
 #define CIS_SROM	1
 #define CIS_OTP		2
 
-
-#define	DEFAULT_FAB	0x0	
-#define	CSM_FAB7	0x1	
-#define	TSMC_FAB12	0x2	
-#define	SMIC_FAB4	0x3	
+/* Fab-id information */
+#define	DEFAULT_FAB	0x0	/* Original/first fab used for this chip */
+#define	CSM_FAB7	0x1	/* CSM Fab7 chip */
+#define	TSMC_FAB12	0x2	/* TSMC Fab12/Fab14 chip */
+#define	SMIC_FAB4	0x3	/* SMIC Fab4 chip */
 extern int si_otp_fabid(si_t *sih, uint16 *fabid, bool rw);
 extern uint16 si_fabid(si_t *sih);
 
-
+/*
+ * Build device path. Path size must be >= SI_DEVPATH_BUFSZ.
+ * The returned path is NULL terminated and has trailing '/'.
+ * Return 0 on success, nonzero otherwise.
+ */
 extern int si_devpath(si_t *sih, char *path, int size);
-
+/* Read variable with prepending the devpath to the name */
 extern char *si_getdevpathvar(si_t *sih, const char *name);
 extern int si_getdevpathintvar(si_t *sih, const char *name);
 extern char *si_coded_devpathvar(si_t *sih, char *varname, int var_len, const char *name);
@@ -282,6 +303,8 @@ extern char *si_coded_devpathvar(si_t *sih, char *varname, int var_len, const ch
 
 extern uint8 si_pcieclkreq(si_t *sih, uint32 mask, uint32 val);
 extern uint32 si_pcielcreg(si_t *sih, uint32 mask, uint32 val);
+extern uint8 si_pcieltrenable(si_t *sih, uint32 mask, uint32 val);
+extern void si_pcie_set_error_injection(si_t *sih, uint32 mode);
 extern void si_war42780_clkreq(si_t *sih, bool clkreq);
 extern void si_pci_down(si_t *sih);
 extern void si_pci_up(si_t *sih);
@@ -298,24 +321,28 @@ extern uint32 si_chipcontrl_read(si_t *sih);
 extern void si_chipcontrl_epa4331(si_t *sih, bool on);
 extern void si_chipcontrl_epa4331_wowl(si_t *sih, bool enter_wowl);
 extern void si_chipcontrl_srom4360(si_t *sih, bool on);
-
+/* Enable BT-COEX & Ex-PA for 4313 */
 extern void si_epa_4313war(si_t *sih);
 extern void si_btc_enable_chipcontrol(si_t *sih);
-
+/* BT/WL selection for 4313 bt combo >= P250 boards */
 extern void si_btcombo_p250_4313_war(si_t *sih);
 extern void si_btcombo_43228_war(si_t *sih);
 extern void si_clk_pmu_htavail_set(si_t *sih, bool set_clear);
+extern void si_pmu_synth_pwrsw_4313_war(si_t *sih);
 extern uint si_pll_reset(si_t *sih);
-
+/* === debug routines === */
 
 extern bool si_taclear(si_t *sih, bool details);
 
 
 
+extern uint32 si_ccreg(si_t *sih, uint32 offset, uint32 mask, uint32 val);
 extern uint32 si_pciereg(si_t *sih, uint32 offset, uint32 mask, uint32 val, uint type);
 extern uint32 si_pcieserdesreg(si_t *sih, uint32 mdioslave, uint32 offset, uint32 mask, uint32 val);
 extern void si_pcie_set_request_size(si_t *sih, uint16 size);
 extern uint16 si_pcie_get_request_size(si_t *sih);
+extern void si_pcie_set_maxpayload_size(si_t *sih, uint16 size);
+extern uint16 si_pcie_get_maxpayload_size(si_t *sih);
 extern uint16 si_pcie_get_ssid(si_t *sih);
 extern uint32 si_pcie_get_bar0(si_t *sih);
 extern int si_pcie_configspace_cache(si_t *sih);
@@ -329,4 +356,27 @@ extern uint32 si_tcm_size(si_t *sih);
 
 extern int si_set_sromctl(si_t *sih, uint32 value);
 extern uint32 si_get_sromctl(si_t *sih);
-#endif	
+
+extern uint32 si_gci_direct(si_t *sih, uint offset, uint32 mask, uint32 val);
+extern void si_gci_reset(si_t *sih);
+extern void si_gci_set_functionsel(si_t *sih, uint32 pin, uint8 fnsel);
+extern uint8 si_gci_get_chipctrlreg_idx(uint32 pin, uint32 *regidx, uint32 *pos);
+extern uint32 si_gci_chipcontrol(si_t *sih, uint reg, uint32 mask, uint32 val);
+
+#define CHIPCTRLREG2 0x2
+#define CHIPCTRLREG3 0x3
+#define CHIPCTRLREG4 0x4
+#define MINRESMASKREG 0x618
+#define CHIPCTRLADDR 0x650
+#define CHIPCTRLDATA 0x654
+#define RSRCTABLEADDR 0x620
+#define RSRCUPDWNTIME 0x628
+#define PMUREG_RESREQ_MASK 0x68c
+
+void
+si_update_masks(si_t *sih);
+
+void
+si_force_islanding(si_t *sih, bool enable);
+
+#endif	/* _siutils_h_ */

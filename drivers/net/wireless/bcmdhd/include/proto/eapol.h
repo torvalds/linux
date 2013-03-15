@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2002 Broadcom Corporation
  *
- * $Id: eapol.h 241182 2011-02-17 21:50:03Z $
+ * $Id: eapol.h 382882 2013-02-04 23:24:31Z $
  */
 
 #ifndef _eapol_h_

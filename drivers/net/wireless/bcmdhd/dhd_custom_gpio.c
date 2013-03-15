@@ -1,6 +1,6 @@
 /*
 * Customer code to add GPIO control during WLAN start/stop
-* Copyright (C) 1999-2012, Broadcom Corporation
+* Copyright (C) 1999-2013, Broadcom Corporation
 * 
 *      Unless you and Broadcom execute a separate written software license
 * agreement governing use of this software, this software is licensed to you
@@ -20,7 +20,7 @@
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
 *
-* $Id: dhd_custom_gpio.c 345514 2012-07-18 07:47:36Z $
+* $Id: dhd_custom_gpio.c 389250 2013-03-06 02:05:03Z $
 */
 
 #include <typedefs.h>
@@ -42,6 +42,8 @@ extern  void bcm_wlan_power_off(int);
 extern  void bcm_wlan_power_on(int);
 #endif /* CUSTOMER_HW */
 #if defined(CUSTOMER_HW2)
+
+
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 int wifi_set_power(int on, unsigned long msec);
 int wifi_get_irq_number(unsigned long *irq_flags_ptr);
@@ -53,7 +55,7 @@ int wifi_get_irq_number(unsigned long *irq_flags_ptr) { return -1; }
 int wifi_get_mac_addr(unsigned char *buf) { return -1; }
 void *wifi_get_country_code(char *ccode) { return NULL; }
 #endif /* CONFIG_WIFI_CONTROL_FUNC */
-#endif /* CUSTOMER_HW2 */
+#endif 
 
 #if defined(OOB_INTR_ONLY)
 
@@ -61,7 +63,7 @@ void *wifi_get_country_code(char *ccode) { return NULL; }
 extern int sdioh_mmc_irq(int irq);
 #endif /* (BCMLXSDMMC)  */
 
-#ifdef CUSTOMER_HW3
+#if defined(CUSTOMER_HW3)
 #include <mach/gpio.h>
 #endif
 
@@ -112,11 +114,11 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 	host_oob_irq = gpio_to_irq(dhd_oob_gpio_num);
 	gpio_direction_input(dhd_oob_gpio_num);
 #endif /* CUSTOMER_HW */
-#endif /* CUSTOMER_HW2 */
+#endif 
 
 	return (host_oob_irq);
 }
-#endif /* defined(OOB_INTR_ONLY) */
+#endif 
 
 /* Customer function to control hw specific wlan gpios */
 void

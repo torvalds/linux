@@ -10,10 +10,10 @@
 #
 # Copyright 2005, Broadcom, Inc.
 #
-# $Id: Makefile 241686 2011-02-19 00:22:45Z $
+# $Id: Makefile 347587 2012-07-27 09:13:31Z prakashd $
 #
 
-SRCBASE := ..
+export SRCBASE:=..
 
 TARGETS := epivers.h
 
@@ -23,11 +23,11 @@ endif
 
 all release: epivers compvers
 
-# Generate epivers.h for native branch version
+# Generate epivers.h for native branch url
 epivers:
 	bash epivers.sh
 
-# Generate epivers.h for native branch version
+# Generate component versions based on component url
 compvers:
 	@if [ -s "compvers.sh" ]; then \
 		echo "Generating component versions, if any"; \
@@ -51,3 +51,4 @@ clean:
 clean_all: clean clean_compvers
 
 .PHONY: all release clean epivers compvers clean_compvers
+

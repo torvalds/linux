@@ -2,7 +2,7 @@
  * SDIO Host Controller Spec header file
  * Register map and definitions for the Standard Host Controller
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sdioh.h 347633 2012-07-27 11:02:02Z $
+ * $Id: sdioh.h 345499 2012-07-18 06:59:05Z $
  */
 
 #ifndef	_SDIOH_H
@@ -90,8 +90,8 @@
 #define SD3_PresetVal_SDR104	0x06c
 #define SD3_PresetVal_DDR50		0x06e
 /* SDIO3.0 Revx specific Registers */
-#define SD3_Tuning_Info_Register	0x0EC
-#define SD3_WL_BT_reset_register	0x0F0
+#define SD3_Tuning_Info_Register 0x0EC
+#define SD3_WL_BT_reset_register 0x0F0
 
 
 /* preset value indices */

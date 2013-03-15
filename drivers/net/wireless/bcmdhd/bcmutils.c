@@ -1,7 +1,7 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -20,7 +20,7 @@
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
- * $Id: bcmutils.c 312855 2012-02-04 02:01:18Z $
+ * $Id: bcmutils.c 380908 2013-01-24 12:26:18Z $
  */
 
 #include <bcm_cfg.h>
@@ -192,7 +192,7 @@ pktsegcnt_war(osl_t *osh, void *p)
 }
 
 uint8 * BCMFASTPATH
-pktoffset(osl_t *osh, void *p,  uint offset)
+pktdataoffset(osl_t *osh, void *p,  uint offset)
 {
 	uint total = pkttotlen(osh, p);
 	uint pkt_off = 0, len = 0;
@@ -209,6 +209,25 @@ pktoffset(osl_t *osh, void *p,  uint offset)
 			break;
 	}
 	return (uint8*) (pdata+pkt_off);
+}
+
+
+/* given a offset in pdata, find the pkt seg hdr */
+void *
+pktoffset(osl_t *osh, void *p,  uint offset)
+{
+	uint total = pkttotlen(osh, p);
+	uint len = 0;
+
+	if (offset > total)
+		return NULL;
+
+	for (; p; p = PKTNEXT(osh, p)) {
+		len += PKTLEN(osh, p);
+		if (len > offset)
+			break;
+	}
+	return p;
 }
 
 /*
@@ -318,6 +337,44 @@ pktq_pdeq_prev(struct pktq *pq, int prec, void *prev_p)
 	pq->len--;
 
 	PKTSETLINK(prev_p, PKTLINK(p));
+	PKTSETLINK(p, NULL);
+
+	return p;
+}
+
+void * BCMFASTPATH
+pktq_pdeq_with_fn(struct pktq *pq, int prec, ifpkt_cb_t fn, int arg)
+{
+	struct pktq_prec *q;
+	void *p, *prev = NULL;
+
+	ASSERT(prec >= 0 && prec < pq->num_prec);
+
+	q = &pq->q[prec];
+	p = q->head;
+
+	while (p) {
+		if (fn == NULL || (*fn)(p, arg)) {
+			break;
+		} else {
+			prev = p;
+			p = PKTLINK(p);
+		}
+	}
+	if (p == NULL)
+		return NULL;
+
+	if (prev == NULL) {
+		if ((q->head = PKTLINK(p)) == NULL)
+			q->tail = NULL;
+	} else {
+		PKTSETLINK(prev, PKTLINK(p));
+	}
+
+	q->len--;
+
+	pq->len--;
+
 	PKTSETLINK(p, NULL);
 
 	return p;
@@ -654,6 +711,7 @@ pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 
 #endif /* BCMDRIVER */
 
+#if !defined(BCMROMOFFLOAD_EXCLUDE_BCMUTILS_FUNCS)
 const unsigned char bcm_ctype[] = {
 
 	_BCM_C,_BCM_C,_BCM_C,_BCM_C,_BCM_C,_BCM_C,_BCM_C,_BCM_C,			/* 0-7 */
@@ -967,6 +1025,7 @@ bcm_ether_atoe(const char *p, struct ether_addr *ea)
 
 	return (i == 6);
 }
+#endif	/* !BCMROMOFFLOAD_EXCLUDE_BCMUTILS_FUNCS */
 
 
 #if defined(CONFIG_USBRNDIS_RETAIL) || defined(NDIS_MINIPORT_DRIVER)
@@ -1078,7 +1137,7 @@ pktsetprio(void *pkt, bool update_vtag)
 
 	eh = (struct ether_header *) pktdata;
 
-	if (ntoh16(eh->ether_type) == ETHER_TYPE_8021Q) {
+	if (eh->ether_type == hton16(ETHER_TYPE_8021Q)) {
 		uint16 vlan_tag;
 		int vlan_prio, dscp_prio = 0;
 
@@ -1087,7 +1146,7 @@ pktsetprio(void *pkt, bool update_vtag)
 		vlan_tag = ntoh16(evh->vlan_tag);
 		vlan_prio = (int) (vlan_tag >> VLAN_PRI_SHIFT) & VLAN_PRI_MASK;
 
-		if (ntoh16(evh->ether_type) == ETHER_TYPE_IP) {
+		if (evh->ether_type == hton16(ETHER_TYPE_IP)) {
 			uint8 *ip_body = pktdata + sizeof(struct ethervlan_header);
 			uint8 tos_tc = IP_TOS46(ip_body);
 			dscp_prio = (int)(tos_tc >> IPV4_TOS_PREC_SHIFT);
@@ -1114,7 +1173,7 @@ pktsetprio(void *pkt, bool update_vtag)
 			evh->vlan_tag = hton16(vlan_tag);
 			rc |= PKTPRIO_UPD;
 		}
-	} else if (ntoh16(eh->ether_type) == ETHER_TYPE_IP) {
+	} else if (eh->ether_type == hton16(ETHER_TYPE_IP)) {
 		uint8 *ip_body = pktdata + sizeof(struct ether_header);
 		uint8 tos_tc = IP_TOS46(ip_body);
 		priority = (int)(tos_tc >> IPV4_TOS_PREC_SHIFT);
@@ -1223,6 +1282,7 @@ bcm_iovar_lencheck(const bcm_iovar_t *vi, void *arg, int len, bool set)
 #endif	/* BCMDRIVER */
 
 
+#if !defined(BCMROMOFFLOAD_EXCLUDE_BCMUTILS_FUNCS)
 /*******************************************************************************
  * crc8
  *
@@ -1579,9 +1639,35 @@ bcm_parse_ordered_tlvs(void *buf, int buflen, uint key)
 	}
 	return NULL;
 }
+#endif	/* !BCMROMOFFLOAD_EXCLUDE_BCMUTILS_FUNCS */
 
 #if defined(WLMSG_PRHDRS) || defined(WLMSG_PRPKT) || defined(WLMSG_ASSOC) || \
 	defined(DHD_DEBUG)
+int
+bcm_format_field(const bcm_bit_desc_ex_t *bd, uint32 flags, char* buf, int len)
+{
+	int i, slen = 0;
+	uint32 bit, mask;
+	const char *name;
+	mask = bd->mask;
+	if (len < 2 || !buf)
+		return 0;
+
+	buf[0] = '\0';
+
+	for (i = 0;  (name = bd->bitfield[i].name) != NULL; i++) {
+		bit = bd->bitfield[i].bit;
+		if ((flags & mask) == bit) {
+			if (len > (int)strlen(name)) {
+				slen = strlen(name);
+				strncpy(buf, name, slen+1);
+			}
+			break;
+		}
+	}
+	return slen;
+}
+
 int
 bcm_format_flags(const bcm_bit_desc_t *bd, uint32 flags, char* buf, int len)
 {
@@ -2001,6 +2087,39 @@ bcm_print_bytes(const char *name, const uchar *data, int len)
 	}
 	printf("\n");
 }
+
+/* Look for vendor-specific IE with specified OUI and optional type */
+bcm_tlv_t *
+find_vendor_ie(void *tlvs, int tlvs_len, const char *voui, uint8 *type, int type_len)
+{
+	bcm_tlv_t *ie;
+	uint8 ie_len;
+
+	ie = (bcm_tlv_t*)tlvs;
+
+	/* make sure we are looking at a valid IE */
+	if (ie == NULL ||
+	    !bcm_valid_tlv(ie, tlvs_len))
+		return NULL;
+
+	/* Walk through the IEs looking for an OUI match */
+	do {
+		ie_len = ie->len;
+		if ((ie->id == DOT11_MNG_PROPR_ID) &&
+		    (ie_len >= (DOT11_OUI_LEN + type_len)) &&
+		    !bcmp(ie->data, voui, DOT11_OUI_LEN))
+		{
+			/* compare optional type */
+			if (type_len == 0 ||
+			    !bcmp(&ie->data[DOT11_OUI_LEN], type, type_len)) {
+				return (ie);		/* a match */
+			}
+		}
+	} while ((ie = bcm_next_tlv(ie, &tlvs_len)) != NULL);
+
+	return NULL;
+}
+
 #if defined(WLTINYDUMP) || defined(WLMSG_INFORM) || defined(WLMSG_ASSOC) || \
 	defined(WLMSG_PRPKT) || defined(WLMSG_WSEC)
 #define SSID_FMT_BUF_LEN	((4 * DOT11_MAX_SSID_LEN) + 1)
@@ -2088,3 +2207,93 @@ process_nvram_vars(char *varbuf, unsigned int len)
 
 	return buf_len;
 }
+
+/* calculate a * b + c */
+void
+bcm_uint64_multiple_add(uint32* r_high, uint32* r_low, uint32 a, uint32 b, uint32 c)
+{
+#define FORMALIZE(var) {cc += (var & 0x80000000) ? 1 : 0; var &= 0x7fffffff;}
+	uint32 r1, r0;
+	uint32 a1, a0, b1, b0, t, cc = 0;
+
+	a1 = a >> 16;
+	a0 = a & 0xffff;
+	b1 = b >> 16;
+	b0 = b & 0xffff;
+
+	r0 = a0 * b0;
+	FORMALIZE(r0);
+
+	t = (a1 * b0) << 16;
+	FORMALIZE(t);
+
+	r0 += t;
+	FORMALIZE(r0);
+
+	t = (a0 * b1) << 16;
+	FORMALIZE(t);
+
+	r0 += t;
+	FORMALIZE(r0);
+
+	FORMALIZE(c);
+
+	r0 += c;
+	FORMALIZE(r0);
+
+	r0 |= (cc % 2) ? 0x80000000 : 0;
+	r1 = a1 * b1 + ((a1 * b0) >> 16) + ((b1 * a0) >> 16) + (cc / 2);
+
+	*r_high = r1;
+	*r_low = r0;
+}
+
+/* calculate a / b */
+void
+bcm_uint64_divide(uint32* r, uint32 a_high, uint32 a_low, uint32 b)
+{
+	uint32 a1 = a_high, a0 = a_low, r0 = 0;
+
+	if (b < 2)
+		return;
+
+	while (a1 != 0) {
+		r0 += (0xffffffff / b) * a1;
+		bcm_uint64_multiple_add(&a1, &a0, ((0xffffffff % b) + 1) % b, a1, a0);
+	}
+
+	r0 += a0 / b;
+	*r = r0;
+}
+
+#ifndef setbit     /* As in the header file */
+#ifdef BCMUTILS_BIT_MACROS_USE_FUNCS
+/* Set bit in byte array. */
+void
+setbit(void *array, uint bit)
+{
+	((uint8 *)array)[bit / NBBY] |= 1 << (bit % NBBY);
+}
+
+/* Clear bit in byte array. */
+void
+clrbit(void *array, uint bit)
+{
+	((uint8 *)array)[bit / NBBY] &= ~(1 << (bit % NBBY));
+}
+
+/* Test if bit is set in byte array. */
+bool
+isset(const void *array, uint bit)
+{
+	return (((const uint8 *)array)[bit / NBBY] & (1 << (bit % NBBY)));
+}
+
+/* Test if bit is clear in byte array. */
+bool
+isclr(const void *array, uint bit)
+{
+	return ((((const uint8 *)array)[bit / NBBY] & (1 << (bit % NBBY))) == 0);
+}
+#endif /* BCMUTILS_BIT_MACROS_USE_FUNCS */
+#endif /* setbit */
