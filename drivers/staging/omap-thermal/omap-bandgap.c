@@ -455,6 +455,19 @@ exit:
 	return ret;
 }
 
+/**
+ * _omap_bandgap_write_threshold() - helper to update TALERT t_cold or t_hot
+ * @bg_ptr: struct omap_bandgap pointer
+ * @id: bandgap sensor id
+ * @val: value (mCelsius) of a new threshold
+ * @hot: desired threshold to be updated. true if threshold hot, false if
+ *       threshold cold
+ *
+ * It will update the required thresholds (hot and cold) for TALERT signal.
+ * This function can be used to update t_hot or t_cold, depending on @hot value.
+ * Validates the mCelsius range and update the requested threshold.
+ * Call this function only if bandgap features HAS(TALERT).
+ */
 int _omap_bandgap_write_threshold(struct omap_bandgap *bg_ptr, int id, int val,
 				  bool hot)
 {
