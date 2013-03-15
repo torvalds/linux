@@ -25,6 +25,7 @@ config METAG
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HAVE_SYSCALL_TRACEPOINTS
 	select IRQ_DOMAIN
@@ -208,6 +209,9 @@ config METAG_PERFCOUNTER_IRQS
 
 	  When disabled, Performance Counters information will be collected
 	  based on Timer Interrupt.
+
+config HW_PERF_EVENTS
+	def_bool METAG_PERFCOUNTER_IRQS && PERF_EVENTS
 
 config METAG_DA
 	bool "DA support"

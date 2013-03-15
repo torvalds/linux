@@ -49,6 +49,8 @@ core-y					+= arch/metag/mm/
 libs-y					+= arch/metag/lib/
 libs-y					+= arch/metag/tbx/
 
+drivers-$(CONFIG_OPROFILE)		+= arch/metag/oprofile/
+
 boot					:= arch/metag/boot
 
 boot_targets				+= uImage
