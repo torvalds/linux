@@ -1924,7 +1924,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 err_func:
 	device_remove_file (&dev->pdev->dev, &dev_attr_function);
 err_unbind:
-	driver->unbind (&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 	return retval;
