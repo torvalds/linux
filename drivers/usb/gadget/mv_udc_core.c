@@ -2127,16 +2127,19 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	udc->dev = pdev;
 
-#if IS_ENABLED(CONFIG_USB_PHY)
 	if (pdata->mode == MV_USB_MODE_OTG) {
 		udc->transceiver = devm_usb_get_phy(&pdev->dev,
 					USB_PHY_TYPE_USB2);
-		if (IS_ERR_OR_NULL(udc->transceiver)) {
+		if (IS_ERR(udc->transceiver)) {
+			retval = PTR_ERR(udc->transceiver);
+
+			if (retval == -ENXIO)
+				return retval;
+
 			udc->transceiver = NULL;
-			return -ENODEV;
+			return -EPROBE_DEFER;
 		}
 	}
-#endif
 
 	udc->clknum = pdata->clknum;
 	for (clk_i = 0; clk_i < udc->clknum; clk_i++) {
