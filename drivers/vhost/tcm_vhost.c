@@ -941,6 +941,7 @@ static void vhost_scsi_flush(struct vhost_scsi *vs)
 
 	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
 		vhost_scsi_flush_vq(vs, i);
+	vhost_work_flush(&vs->dev, &vs->vs_completion_work);
 }
 
 static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
