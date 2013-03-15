@@ -2310,8 +2310,9 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
-		err = cmd_status(sk, hdev->id, mgmt_op,
-				 MGMT_STATUS_NOT_POWERED);
+		err = cmd_complete(sk, hdev->id, mgmt_op,
+				   MGMT_STATUS_NOT_POWERED, addr,
+				   sizeof(*addr));
 		goto done;
 	}
 
@@ -2321,8 +2322,9 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &addr->bdaddr);
 
 	if (!conn) {
-		err = cmd_status(sk, hdev->id, mgmt_op,
-				 MGMT_STATUS_NOT_CONNECTED);
+		err = cmd_complete(sk, hdev->id, mgmt_op,
+				   MGMT_STATUS_NOT_CONNECTED, addr,
+				   sizeof(*addr));
 		goto done;
 	}
 
@@ -2331,11 +2333,13 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 		err = smp_user_confirm_reply(conn, mgmt_op, passkey);
 
 		if (!err)
-			err = cmd_status(sk, hdev->id, mgmt_op,
-					 MGMT_STATUS_SUCCESS);
+			err = cmd_complete(sk, hdev->id, mgmt_op,
+					   MGMT_STATUS_SUCCESS, addr,
+					   sizeof(*addr));
 		else
-			err = cmd_status(sk, hdev->id, mgmt_op,
-					 MGMT_STATUS_FAILED);
+			err = cmd_complete(sk, hdev->id, mgmt_op,
+					   MGMT_STATUS_FAILED, addr,
+					   sizeof(*addr));
 
 		goto done;
 	}
