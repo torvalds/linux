@@ -492,8 +492,10 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
 
-	if (lmp_le_capable(hdev))
+	if (lmp_le_capable(hdev)) {
 		hci_set_le_support(req);
+		hci_update_ad(req);
+	}
 }
 
 static int __hci_init(struct hci_dev *hdev)
@@ -936,39 +938,29 @@ static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
 	return ad_len;
 }
 
-int hci_update_ad(struct hci_dev *hdev)
+void hci_update_ad(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_le_set_adv_data cp;
 	u8 len;
-	int err;
 
-	hci_dev_lock(hdev);
-
-	if (!lmp_le_capable(hdev)) {
-		err = -EINVAL;
-		goto unlock;
-	}
+	if (!lmp_le_capable(hdev))
+		return;
 
 	memset(&cp, 0, sizeof(cp));
 
 	len = create_ad(hdev, cp.data);
 
 	if (hdev->adv_data_len == len &&
-	    memcmp(cp.data, hdev->adv_data, len) == 0) {
-		err = 0;
-		goto unlock;
-	}
+	    memcmp(cp.data, hdev->adv_data, len) == 0)
+		return;
 
 	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
 	hdev->adv_data_len = len;
 
 	cp.length = len;
-	err = hci_send_cmd(hdev, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 
-unlock:
-	hci_dev_unlock(hdev);
-
-	return err;
+	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 }
 
 /* ---- HCI ioctl helpers ---- */
@@ -1025,7 +1017,6 @@ int hci_dev_open(__u16 dev)
 		hci_dev_hold(hdev);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
-		hci_update_ad(hdev);
 		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
 		    mgmt_valid_hdev(hdev)) {
 			hci_dev_lock(hdev);
