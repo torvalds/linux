@@ -735,7 +735,7 @@ omap_bandgap_force_single_read(struct omap_bandgap *bg_ptr, int id)
  *
  * Call this function only if HAS(MODE_CONFIG) is set
  */
-static int enable_continuous_mode(struct omap_bandgap *bg_ptr)
+static int omap_bandgap_set_continuous_mode(struct omap_bandgap *bg_ptr)
 {
 	int i;
 
@@ -973,7 +973,7 @@ int omap_bandgap_probe(struct platform_device *pdev)
 	}
 
 	if (OMAP_BANDGAP_HAS(bg_ptr, MODE_CONFIG))
-		enable_continuous_mode(bg_ptr);
+		omap_bandgap_set_continuous_mode(bg_ptr);
 
 	/* Set .250 seconds time as default counter */
 	if (OMAP_BANDGAP_HAS(bg_ptr, COUNTER))
