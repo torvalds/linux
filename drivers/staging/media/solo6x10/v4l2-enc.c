@@ -516,7 +516,7 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 			vb->v4l2_buf.flags |= V4L2_BUF_FLAG_MOTION_DETECTED;
 	}
 
-	if (solo_enc->fmt == V4L2_PIX_FMT_MPEG)
+	if (solo_enc->fmt == V4L2_PIX_FMT_MPEG4)
 		ret = solo_fill_mpeg(solo_enc, vb, vh);
 	else
 		ret = solo_fill_jpeg(solo_enc, vb, vh);
@@ -779,7 +779,7 @@ static int solo_enc_enum_fmt_cap(struct file *file, void *priv,
 {
 	switch (f->index) {
 	case 0:
-		f->pixelformat = V4L2_PIX_FMT_MPEG;
+		f->pixelformat = V4L2_PIX_FMT_MPEG4;
 		strcpy(f->description, "MPEG-4 AVC");
 		break;
 	case 1:
@@ -802,7 +802,7 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	if (pix->pixelformat != V4L2_PIX_FMT_MPEG &&
+	if (pix->pixelformat != V4L2_PIX_FMT_MPEG4 &&
 	    pix->pixelformat != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
 
@@ -907,7 +907,7 @@ static int solo_enum_framesizes(struct file *file, void *priv,
 	struct solo_enc_dev *solo_enc = video_drvdata(file);
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 
-	if (fsize->pixel_format != V4L2_PIX_FMT_MPEG &&
+	if (fsize->pixel_format != V4L2_PIX_FMT_MPEG4 &&
 	    fsize->pixel_format != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
 
@@ -935,7 +935,7 @@ static int solo_enum_frameintervals(struct file *file, void *priv,
 	struct solo_enc_dev *solo_enc = video_drvdata(file);
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 
-	if (fintv->pixel_format != V4L2_PIX_FMT_MPEG &&
+	if (fintv->pixel_format != V4L2_PIX_FMT_MPEG4 &&
 	    fintv->pixel_format != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
 	if (fintv->index)
@@ -1024,8 +1024,6 @@ static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_SHARPNESS:
 		return tw28_set_ctrl_val(solo_dev, ctrl->id, solo_enc->ch,
 					 ctrl->val);
-	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		return 0;
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
 		solo_enc->gop = ctrl->val;
 		return 0;
@@ -1172,10 +1170,6 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	if (tw28_has_sharpness(solo_dev, ch))
 		v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
 			V4L2_CID_SHARPNESS, 0, 15, 1, 0);
-	v4l2_ctrl_new_std_menu(hdl, &solo_ctrl_ops,
-			V4L2_CID_MPEG_VIDEO_ENCODING,
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 3,
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC);
 	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
 			V4L2_CID_MPEG_VIDEO_GOP_SIZE, 1, 255, 1, solo_dev->fps);
 	v4l2_ctrl_new_custom(hdl, &solo_motion_threshold_ctrl, NULL);
@@ -1191,7 +1185,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	mutex_init(&solo_enc->lock);
 	spin_lock_init(&solo_enc->av_lock);
 	INIT_LIST_HEAD(&solo_enc->vidq_active);
-	solo_enc->fmt = V4L2_PIX_FMT_MPEG;
+	solo_enc->fmt = V4L2_PIX_FMT_MPEG4;
 	solo_enc->type = SOLO_ENC_TYPE_STD;
 
 	solo_enc->qp = SOLO_DEFAULT_QP;
