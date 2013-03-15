@@ -730,10 +730,13 @@ omap_bandgap_force_single_read(struct omap_bandgap *bg_ptr, int id)
 }
 
 /**
- * enable_continuous_mode() - One time enabling of continuous conversion mode
- * @bg_ptr - pointer to scm instance
+ * omap_bandgap_set_continous_mode() - One time enabling of continuous mode
+ * @bg_ptr: pointer to struct omap_bandgap
  *
- * Call this function only if HAS(MODE_CONFIG) is set
+ * Call this function only if HAS(MODE_CONFIG) is set. As this driver may
+ * be used for junction temperature monitoring, it is desirable that the
+ * sensors are operational all the time, so that alerts are generated
+ * properly.
  */
 static int omap_bandgap_set_continuous_mode(struct omap_bandgap *bg_ptr)
 {
