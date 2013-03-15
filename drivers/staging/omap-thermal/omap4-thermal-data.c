@@ -18,6 +18,7 @@
 
 #include "omap-thermal.h"
 #include "omap-bandgap.h"
+#include "omap4xxx-bandgap.h"
 
 /*
  * OMAP4430 has one instance of thermal sensor for MPU
