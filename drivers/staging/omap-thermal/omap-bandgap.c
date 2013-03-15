@@ -842,7 +842,17 @@ static int omap_bandgap_tshut_init(struct omap_bandgap *bg_ptr,
 	return 0;
 }
 
-/* Initialization of Talert. Call it only if HAS(TALERT) is set */
+/**
+ * omap_bandgap_alert_init() - setup and initialize talert handling
+ * @bg_ptr: pointer to struct omap_bandgap
+ * @pdev: pointer to device struct platform_device
+ *
+ * Call this function only in case the bandgap features HAS(TALERT).
+ * In this case, the driver needs to handle the TALERT signals as an IRQs.
+ * TALERT is a normal IRQ and it is fired any time thresholds (hot or cold)
+ * are violated. In these situation, the driver must reprogram the thresholds,
+ * accordingly to specified policy.
+ */
 static int omap_bandgap_talert_init(struct omap_bandgap *bg_ptr,
 				    struct platform_device *pdev)
 {
