@@ -2023,7 +2023,7 @@ static int saa7134_g_tuner(struct file *file, void *priv,
 }
 
 static int saa7134_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *t)
+					const struct v4l2_tuner *t)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
@@ -2347,7 +2347,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 	return 0;
 }
 static int radio_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *t)
+					const struct v4l2_tuner *t)
 {
 	struct saa7134_fh *fh = file->private_data;
 	struct saa7134_dev *dev = fh->dev;

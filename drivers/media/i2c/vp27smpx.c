@@ -90,7 +90,7 @@ static int vp27smpx_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	return 0;
 }
 
-static int vp27smpx_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int vp27smpx_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct vp27smpx_state *state = to_state(sd);
 

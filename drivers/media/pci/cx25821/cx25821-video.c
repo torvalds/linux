@@ -1397,7 +1397,7 @@ int cx25821_vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	return 0;
 }
 
-int cx25821_vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
+int cx25821_vidioc_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *t)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 	struct cx25821_fh *fh = priv;

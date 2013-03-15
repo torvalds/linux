@@ -1031,7 +1031,7 @@ static int pd_vidioc_s_tuner(struct poseidon *pd, int index)
 	return ret;
 }
 
-static int vidioc_s_tuner(struct file *file, void *fh, struct v4l2_tuner *a)
+static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *a)
 {
 	struct front_face *front	= fh;
 	struct poseidon *pd		= front->pd;

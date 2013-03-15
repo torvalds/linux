@@ -192,7 +192,7 @@ static int subdev_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int subdev_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int subdev_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct ivtv *itv = sd_to_ivtv(sd);
 	u16 mask, data;

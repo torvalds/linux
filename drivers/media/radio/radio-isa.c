@@ -87,7 +87,7 @@ static int radio_isa_g_tuner(struct file *file, void *priv,
 }
 
 static int radio_isa_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	struct radio_isa_card *isa = video_drvdata(file);
 	const struct radio_isa_ops *ops = isa->drv->ops;

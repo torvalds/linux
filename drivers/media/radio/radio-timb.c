@@ -56,7 +56,7 @@ static int timbradio_vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int timbradio_vidioc_s_tuner(struct file *file, void *priv,
-	struct v4l2_tuner *v)
+	const struct v4l2_tuner *v)
 {
 	struct timbradio *tr = video_drvdata(file);
 	return v4l2_subdev_call(tr->sd_tuner, tuner, s_tuner, v);

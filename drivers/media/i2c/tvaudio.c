@@ -1761,7 +1761,7 @@ static int tvaudio_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int tvaudio_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct CHIPSTATE *chip = to_state(sd);
 	struct CHIPDESC *desc = chip->desc;

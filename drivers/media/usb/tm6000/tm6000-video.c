@@ -1215,7 +1215,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct tm6000_fh   *fh  = priv;
 	struct tm6000_core *dev = fh->dev;
@@ -1293,18 +1293,14 @@ static int radio_g_tuner(struct file *file, void *priv,
 }
 
 static int radio_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *t)
+					const struct v4l2_tuner *t)
 {
 	struct tm6000_fh *fh = file->private_data;
 	struct tm6000_core *dev = fh->dev;
 
 	if (0 != t->index)
 		return -EINVAL;
-	if (t->audmode > V4L2_TUNER_MODE_STEREO)
-		t->audmode = V4L2_TUNER_MODE_STEREO;
-
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
-
 	return 0;
 }
 

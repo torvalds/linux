@@ -936,7 +936,7 @@ void cx231xx_close_extension(struct cx231xx *dev);
 int cx231xx_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap);
 int cx231xx_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t);
-int cx231xx_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t);
+int cx231xx_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *t);
 int cx231xx_g_frequency(struct file *file, void *priv,
 			      struct v4l2_frequency *f);
 int cx231xx_s_frequency(struct file *file, void *priv,

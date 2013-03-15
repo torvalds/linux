@@ -306,7 +306,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *v)
+					const struct v4l2_tuner *v)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 	u32 orig_val = tea->val;

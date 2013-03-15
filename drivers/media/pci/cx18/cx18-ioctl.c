@@ -673,7 +673,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
+static int cx18_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *vt)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;

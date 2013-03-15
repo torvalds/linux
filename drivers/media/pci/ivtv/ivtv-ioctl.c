@@ -1196,7 +1196,7 @@ static int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-static int ivtv_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
+static int ivtv_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *vt)
 {
 	struct ivtv_open_id *id = fh2id(fh);
 	struct ivtv *itv = id->itv;

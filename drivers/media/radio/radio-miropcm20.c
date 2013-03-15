@@ -103,16 +103,18 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	struct pcm20 *dev = video_drvdata(file);
 
 	if (v->index)
 		return -EINVAL;
 	if (v->audmode > V4L2_TUNER_MODE_STEREO)
-		v->audmode = V4L2_TUNER_MODE_STEREO;
+		dev->audmode = V4L2_TUNER_MODE_STEREO;
+	else
+		dev->audmode = v->audmode;
 	snd_aci_cmd(dev->aci, ACI_SET_TUNERMONO,
-			v->audmode == V4L2_TUNER_MODE_MONO, -1);
+			dev->audmode == V4L2_TUNER_MODE_MONO, -1);
 	return 0;
 }
 

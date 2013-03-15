@@ -1508,15 +1508,13 @@ static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 
 	if (t->index != 0)
 		return -EINVAL;
-
-	t->type = V4L2_TUNER_ANALOG_TV;
 
 	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
 		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 1);

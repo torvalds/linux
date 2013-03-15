@@ -1195,7 +1195,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
@@ -1493,7 +1493,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 }
 
 static int radio_s_tuner(struct file *file, void *priv,
-			 struct v4l2_tuner *t)
+			 const struct v4l2_tuner *t)
 {
 	struct em28xx *dev = ((struct em28xx_fh *)priv)->dev;
 

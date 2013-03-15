@@ -1289,7 +1289,7 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner (struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 
@@ -1409,20 +1409,15 @@ static int radio_g_tuner (struct file *file, void *priv,
 	return 0;
 }
 
-/* FIXME: Should add a standard for radio */
-
 static int radio_s_tuner (struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 
 	if (0 != t->index)
 		return -EINVAL;
-	if (t->audmode > V4L2_TUNER_MODE_STEREO)
-		t->audmode = V4L2_TUNER_MODE_STEREO;
 
 	call_all(core, tuner, s_tuner, t);
-
 	return 0;
 }
 

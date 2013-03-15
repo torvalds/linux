@@ -1820,7 +1820,7 @@ static int bttv_s_input(struct file *file, void *priv, unsigned int i)
 }
 
 static int bttv_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *t)
+					const struct v4l2_tuner *t)
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
@@ -1830,8 +1830,11 @@ static int bttv_s_tuner(struct file *file, void *priv,
 
 	bttv_call_all(btv, tuner, s_tuner, t);
 
-	if (btv->audio_mode_gpio)
-		btv->audio_mode_gpio(btv, t, 1);
+	if (btv->audio_mode_gpio) {
+		struct v4l2_tuner copy = *t;
+
+		btv->audio_mode_gpio(btv, &copy, 1);
+	}
 	return 0;
 }
 
@@ -3279,7 +3282,7 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 }
 
 static int radio_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *t)
+					const struct v4l2_tuner *t)
 {
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;

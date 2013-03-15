@@ -918,7 +918,7 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner (struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
 
