@@ -860,8 +860,16 @@ static int solo_enc_set_fmt_cap(struct file *file, void *priv,
 	/* This does not change the encoder at all */
 	solo_enc->fmt = pix->pixelformat;
 
+	/*
+	 * More information is needed about these 'extended' types. As far
+	 * as I can tell these are basically additional video streams with
+	 * different MPEG encoding attributes that can run in parallel with
+	 * the main stream. If so, then this should be implemented as a
+	 * second video node. Abusing priv like this is certainly not the
+	 * right approach.
 	if (pix->priv)
 		solo_enc->type = SOLO_ENC_TYPE_EXT;
+	 */
 	return 0;
 }
 
