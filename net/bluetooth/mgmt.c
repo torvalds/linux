@@ -384,7 +384,8 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 
 	if (lmp_bredr_capable(hdev)) {
 		settings |= MGMT_SETTING_CONNECTABLE;
-		settings |= MGMT_SETTING_FAST_CONNECTABLE;
+		if (hdev->hci_ver >= BLUETOOTH_VER_1_2)
+			settings |= MGMT_SETTING_FAST_CONNECTABLE;
 		settings |= MGMT_SETTING_DISCOVERABLE;
 		settings |= MGMT_SETTING_BREDR;
 		settings |= MGMT_SETTING_LINK_SECURITY;
@@ -2934,7 +2935,7 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 
 	BT_DBG("%s", hdev->name);
 
-	if (!lmp_bredr_capable(hdev))
+	if (!lmp_bredr_capable(hdev) || hdev->hci_ver < BLUETOOTH_VER_1_2)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
