@@ -3058,6 +3058,47 @@ static int set_bredr_scan(struct hci_dev *hdev)
 	return hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 }
 
+static int powered_update_hci(struct hci_dev *hdev)
+{
+	u8 link_sec;
+
+	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
+	    !lmp_host_ssp_capable(hdev)) {
+		u8 ssp = 1;
+
+		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
+	}
+
+	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+		struct hci_cp_write_le_host_supported cp;
+
+		cp.le = 1;
+		cp.simul = lmp_le_br_capable(hdev);
+
+		/* Check first if we already have the right
+		 * host state (host features set)
+		 */
+		if (cp.le != lmp_host_le_capable(hdev) ||
+		    cp.simul != lmp_host_le_br_capable(hdev))
+			hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
+				     sizeof(cp), &cp);
+	}
+
+	link_sec = test_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
+	if (link_sec != test_bit(HCI_AUTH, &hdev->flags))
+		hci_send_cmd(hdev, HCI_OP_WRITE_AUTH_ENABLE,
+			     sizeof(link_sec), &link_sec);
+
+	if (lmp_bredr_capable(hdev)) {
+		set_bredr_scan(hdev);
+		update_class(hdev);
+		update_name(hdev, hdev->dev_name);
+		update_eir(hdev);
+	}
+
+	return 0;
+}
+
 int mgmt_powered(struct hci_dev *hdev, u8 powered)
 {
 	struct cmd_lookup match = { NULL, hdev };
@@ -3069,42 +3110,7 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
 	if (powered) {
-		u8 link_sec;
-
-		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
-		    !lmp_host_ssp_capable(hdev)) {
-			u8 ssp = 1;
-
-			hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
-		}
-
-		if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
-			struct hci_cp_write_le_host_supported cp;
-
-			cp.le = 1;
-			cp.simul = lmp_le_br_capable(hdev);
-
-			/* Check first if we already have the right
-			 * host state (host features set)
-			 */
-			if (cp.le != lmp_host_le_capable(hdev) ||
-			    cp.simul != lmp_host_le_br_capable(hdev))
-				hci_send_cmd(hdev,
-					     HCI_OP_WRITE_LE_HOST_SUPPORTED,
-					     sizeof(cp), &cp);
-		}
-
-		link_sec = test_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
-		if (link_sec != test_bit(HCI_AUTH, &hdev->flags))
-			hci_send_cmd(hdev, HCI_OP_WRITE_AUTH_ENABLE,
-				     sizeof(link_sec), &link_sec);
-
-		if (lmp_bredr_capable(hdev)) {
-			set_bredr_scan(hdev);
-			update_class(hdev);
-			update_name(hdev, hdev->dev_name);
-			update_eir(hdev);
-		}
+		powered_update_hci(hdev);
 	} else {
 		u8 status = MGMT_STATUS_NOT_POWERED;
 		u8 zero_cod[] = { 0, 0, 0 };
