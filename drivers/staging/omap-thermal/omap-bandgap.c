@@ -705,6 +705,14 @@ void *omap_bandgap_get_sensor_data(struct omap_bandgap *bg_ptr, int id)
 
 /***   Helper functions used during device initialization   ***/
 
+/**
+ * omap_bandgap_force_single_read() - executes 1 single ADC conversion
+ * @bg_ptr: pointer to struct omap_bandgap
+ * @id: sensor id which it is desired to read 1 temperature
+ *
+ * Used to initialize the conversion state machine and set it to a valid
+ * state. Called during device initialization and context restore events.
+ */
 static int
 omap_bandgap_force_single_read(struct omap_bandgap *bg_ptr, int id)
 {
