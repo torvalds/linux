@@ -217,7 +217,7 @@ static struct mount *get_source(struct mount *dest,
  * @source_mnt: source mount.
  * @tree_list : list of heads of trees to be attached.
  */
-int propagate_mnt(struct mount *dest_mnt, struct dentry *dest_dentry,
+int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		    struct mount *source_mnt, struct list_head *tree_list)
 {
 	struct mount *m, *child;
@@ -244,8 +244,8 @@ int propagate_mnt(struct mount *dest_mnt, struct dentry *dest_dentry,
 			goto out;
 		}
 
-		if (is_subdir(dest_dentry, m->mnt.mnt_root)) {
-			mnt_set_mountpoint(m, dest_dentry, child);
+		if (is_subdir(dest_mp->m_dentry, m->mnt.mnt_root)) {
+			mnt_set_mountpoint(m, dest_mp, child);
 			list_add_tail(&child->mnt_hash, tree_list);
 		} else {
 			/*
