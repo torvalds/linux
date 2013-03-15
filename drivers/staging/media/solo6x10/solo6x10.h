@@ -250,6 +250,13 @@ struct solo_dev {
 	void                    *vh_buf;
 	dma_addr_t		vh_dma;
 	int			vh_size;
+
+	/* Buffer handling */
+	struct videobuf_queue	vidq;
+	struct task_struct      *kthread;
+	spinlock_t		slock;
+	int			old_write;
+	struct list_head	vidq_active;
 };
 
 static inline u32 solo_reg_read(struct solo_dev *solo_dev, int reg)
