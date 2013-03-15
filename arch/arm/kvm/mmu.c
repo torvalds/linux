@@ -20,7 +20,6 @@
 #include <linux/kvm_host.h>
 #include <linux/io.h>
 #include <trace/events/kvm.h>
-#include <asm/idmap.h>
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
 #include <asm/kvm_arm.h>
@@ -28,8 +27,6 @@
 #include <asm/kvm_mmio.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
-#include <asm/mach/map.h>
-#include <trace/events/kvm.h>
 
 #include "trace.h"
 
@@ -37,19 +34,9 @@ extern char  __hyp_idmap_text_start[], __hyp_idmap_text_end[];
 
 static DEFINE_MUTEX(kvm_hyp_pgd_mutex);
 
-static void kvm_tlb_flush_vmid(struct kvm *kvm)
+static void kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
-	kvm_call_hyp(__kvm_tlb_flush_vmid, kvm);
-}
-
-static void kvm_set_pte(pte_t *pte, pte_t new_pte)
-{
-	pte_val(*pte) = new_pte;
-	/*
-	 * flush_pmd_entry just takes a void pointer and cleans the necessary
-	 * cache entries, so we can reuse the function for ptes.
-	 */
-	flush_pmd_entry(pte);
+	kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, kvm, ipa);
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
@@ -98,33 +85,42 @@ static void free_ptes(pmd_t *pmd, unsigned long addr)
 	}
 }
 
-/**
- * free_hyp_pmds - free a Hyp-mode level-2 tables and child level-3 tables
- *
- * Assumes this is a page table used strictly in Hyp-mode and therefore contains
- * only mappings in the kernel memory area, which is above PAGE_OFFSET.
- */
-void free_hyp_pmds(void)
+static void free_hyp_pgd_entry(unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
+	unsigned long hyp_addr = KERN_TO_HYP(addr);
+
+	pgd = hyp_pgd + pgd_index(hyp_addr);
+	pud = pud_offset(pgd, hyp_addr);
+
+	if (pud_none(*pud))
+		return;
+	BUG_ON(pud_bad(*pud));
+
+	pmd = pmd_offset(pud, hyp_addr);
+	free_ptes(pmd, addr);
+	pmd_free(NULL, pmd);
+	pud_clear(pud);
+}
+
+/**
+ * free_hyp_pmds - free a Hyp-mode level-2 tables and child level-3 tables
+ *
+ * Assumes this is a page table used strictly in Hyp-mode and therefore contains
+ * either mappings in the kernel memory area (above PAGE_OFFSET), or
+ * device mappings in the vmalloc range (from VMALLOC_START to VMALLOC_END).
+ */
+void free_hyp_pmds(void)
+{
 	unsigned long addr;
 
 	mutex_lock(&kvm_hyp_pgd_mutex);
-	for (addr = PAGE_OFFSET; addr != 0; addr += PGDIR_SIZE) {
-		pgd = hyp_pgd + pgd_index(addr);
-		pud = pud_offset(pgd, addr);
-
-		if (pud_none(*pud))
-			continue;
-		BUG_ON(pud_bad(*pud));
-
-		pmd = pmd_offset(pud, addr);
-		free_ptes(pmd, addr);
-		pmd_free(NULL, pmd);
-		pud_clear(pud);
-	}
+	for (addr = PAGE_OFFSET; virt_addr_valid(addr); addr += PGDIR_SIZE)
+		free_hyp_pgd_entry(addr);
+	for (addr = VMALLOC_START; is_vmalloc_addr((void*)addr); addr += PGDIR_SIZE)
+		free_hyp_pgd_entry(addr);
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 }
 
@@ -136,7 +132,9 @@ static void create_hyp_pte_mappings(pmd_t *pmd, unsigned long start,
 	struct page *page;
 
 	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-		pte = pte_offset_kernel(pmd, addr);
+		unsigned long hyp_addr = KERN_TO_HYP(addr);
+
+		pte = pte_offset_kernel(pmd, hyp_addr);
 		BUG_ON(!virt_addr_valid(addr));
 		page = virt_to_page(addr);
 		kvm_set_pte(pte, mk_pte(page, PAGE_HYP));
@@ -151,7 +149,9 @@ static void create_hyp_io_pte_mappings(pmd_t *pmd, unsigned long start,
 	unsigned long addr;
 
 	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-		pte = pte_offset_kernel(pmd, addr);
+		unsigned long hyp_addr = KERN_TO_HYP(addr);
+
+		pte = pte_offset_kernel(pmd, hyp_addr);
 		BUG_ON(pfn_valid(*pfn_base));
 		kvm_set_pte(pte, pfn_pte(*pfn_base, PAGE_HYP_DEVICE));
 		(*pfn_base)++;
@@ -166,12 +166,13 @@ static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
 	unsigned long addr, next;
 
 	for (addr = start; addr < end; addr = next) {
-		pmd = pmd_offset(pud, addr);
+		unsigned long hyp_addr = KERN_TO_HYP(addr);
+		pmd = pmd_offset(pud, hyp_addr);
 
 		BUG_ON(pmd_sect(*pmd));
 
 		if (pmd_none(*pmd)) {
-			pte = pte_alloc_one_kernel(NULL, addr);
+			pte = pte_alloc_one_kernel(NULL, hyp_addr);
 			if (!pte) {
 				kvm_err("Cannot allocate Hyp pte\n");
 				return -ENOMEM;
@@ -206,17 +207,23 @@ static int __create_hyp_mappings(void *from, void *to, unsigned long *pfn_base)
 	unsigned long addr, next;
 	int err = 0;
 
-	BUG_ON(start > end);
-	if (start < PAGE_OFFSET)
+	if (start >= end)
+		return -EINVAL;
+	/* Check for a valid kernel memory mapping */
+	if (!pfn_base && (!virt_addr_valid(from) || !virt_addr_valid(to - 1)))
+		return -EINVAL;
+	/* Check for a valid kernel IO mapping */
+	if (pfn_base && (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1)))
 		return -EINVAL;
 
 	mutex_lock(&kvm_hyp_pgd_mutex);
 	for (addr = start; addr < end; addr = next) {
-		pgd = hyp_pgd + pgd_index(addr);
-		pud = pud_offset(pgd, addr);
+		unsigned long hyp_addr = KERN_TO_HYP(addr);
+		pgd = hyp_pgd + pgd_index(hyp_addr);
+		pud = pud_offset(pgd, hyp_addr);
 
 		if (pud_none_or_clear_bad(pud)) {
-			pmd = pmd_alloc_one(NULL, addr);
+			pmd = pmd_alloc_one(NULL, hyp_addr);
 			if (!pmd) {
 				kvm_err("Cannot allocate Hyp pmd\n");
 				err = -ENOMEM;
@@ -236,12 +243,13 @@ out:
 }
 
 /**
- * create_hyp_mappings - map a kernel virtual address range in Hyp mode
+ * create_hyp_mappings - duplicate a kernel virtual address range in Hyp mode
  * @from:	The virtual kernel start address of the range
  * @to:		The virtual kernel end address of the range (exclusive)
  *
- * The same virtual address as the kernel virtual address is also used in
- * Hyp-mode mapping to the same underlying physical pages.
+ * The same virtual address as the kernel virtual address is also used
+ * in Hyp-mode mapping (modulo HYP_PAGE_OFFSET) to the same underlying
+ * physical pages.
  *
  * Note: Wrapping around zero in the "to" address is not supported.
  */
@@ -251,10 +259,13 @@ int create_hyp_mappings(void *from, void *to)
 }
 
 /**
- * create_hyp_io_mappings - map a physical IO range in Hyp mode
- * @from:	The virtual HYP start address of the range
- * @to:		The virtual HYP end address of the range (exclusive)
+ * create_hyp_io_mappings - duplicate a kernel IO mapping into Hyp mode
+ * @from:	The kernel start VA of the range
+ * @to:		The kernel end VA of the range (exclusive)
  * @addr:	The physical start address which gets mapped
+ *
+ * The resulting HYP VA is the same as the kernel VA, modulo
+ * HYP_PAGE_OFFSET.
  */
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t addr)
 {
@@ -290,7 +301,7 @@ int kvm_alloc_stage2_pgd(struct kvm *kvm)
 	VM_BUG_ON((unsigned long)pgd & (S2_PGD_SIZE - 1));
 
 	memset(pgd, 0, PTRS_PER_S2_PGD * sizeof(pgd_t));
-	clean_dcache_area(pgd, PTRS_PER_S2_PGD * sizeof(pgd_t));
+	kvm_clean_pgd(pgd);
 	kvm->arch.pgd = pgd;
 
 	return 0;
@@ -422,22 +433,22 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 			return 0; /* ignore calls from kvm_set_spte_hva */
 		pmd = mmu_memory_cache_alloc(cache);
 		pud_populate(NULL, pud, pmd);
-		pmd += pmd_index(addr);
 		get_page(virt_to_page(pud));
-	} else
-		pmd = pmd_offset(pud, addr);
+	}
+
+	pmd = pmd_offset(pud, addr);
 
 	/* Create 2nd stage page table mapping - Level 2 */
 	if (pmd_none(*pmd)) {
 		if (!cache)
 			return 0; /* ignore calls from kvm_set_spte_hva */
 		pte = mmu_memory_cache_alloc(cache);
-		clean_pte_table(pte);
+		kvm_clean_pte(pte);
 		pmd_populate_kernel(NULL, pmd, pte);
-		pte += pte_index(addr);
 		get_page(virt_to_page(pmd));
-	} else
-		pte = pte_offset_kernel(pmd, addr);
+	}
+
+	pte = pte_offset_kernel(pmd, addr);
 
 	if (iomap && pte_present(*pte))
 		return -EFAULT;
@@ -446,7 +457,7 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 	old_pte = *pte;
 	kvm_set_pte(pte, *new_pte);
 	if (pte_present(old_pte))
-		kvm_tlb_flush_vmid(kvm);
+		kvm_tlb_flush_vmid_ipa(kvm, addr);
 	else
 		get_page(virt_to_page(pte));
 
@@ -473,7 +484,8 @@ int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 	pfn = __phys_to_pfn(pa);
 
 	for (addr = guest_ipa; addr < end; addr += PAGE_SIZE) {
-		pte_t pte = pfn_pte(pfn, PAGE_S2_DEVICE | L_PTE_S2_RDWR);
+		pte_t pte = pfn_pte(pfn, PAGE_S2_DEVICE);
+		kvm_set_s2pte_writable(&pte);
 
 		ret = mmu_topup_memory_cache(&cache, 2, 2);
 		if (ret)
@@ -492,29 +504,6 @@ out:
 	return ret;
 }
 
-static void coherent_icache_guest_page(struct kvm *kvm, gfn_t gfn)
-{
-	/*
-	 * If we are going to insert an instruction page and the icache is
-	 * either VIPT or PIPT, there is a potential problem where the host
-	 * (or another VM) may have used the same page as this guest, and we
-	 * read incorrect data from the icache.  If we're using a PIPT cache,
-	 * we can invalidate just that page, but if we are using a VIPT cache
-	 * we need to invalidate the entire icache - damn shame - as written
-	 * in the ARM ARM (DDI 0406C.b - Page B3-1393).
-	 *
-	 * VIVT caches are tagged using both the ASID and the VMID and doesn't
-	 * need any kind of flushing (DDI 0406C.b - Page B3-1392).
-	 */
-	if (icache_is_pipt()) {
-		unsigned long hva = gfn_to_hva(kvm, gfn);
-		__cpuc_coherent_user_range(hva, hva + PAGE_SIZE);
-	} else if (!icache_is_vivt_asid_tagged()) {
-		/* any kind of VIPT cache */
-		__flush_icache_all();
-	}
-}
-
 static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			  gfn_t gfn, struct kvm_memory_slot *memslot,
 			  unsigned long fault_status)
@@ -526,7 +515,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	unsigned long mmu_seq;
 	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
 
-	write_fault = kvm_is_write_fault(vcpu->arch.hsr);
+	write_fault = kvm_is_write_fault(kvm_vcpu_get_hsr(vcpu));
 	if (fault_status == FSC_PERM && !write_fault) {
 		kvm_err("Unexpected L2 read permission error\n");
 		return -EFAULT;
@@ -560,7 +549,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
 	if (writable) {
-		pte_val(new_pte) |= L_PTE_S2_RDWR;
+		kvm_set_s2pte_writable(&new_pte);
 		kvm_set_pfn_dirty(pfn);
 	}
 	stage2_set_pte(vcpu->kvm, memcache, fault_ipa, &new_pte, false);
@@ -585,7 +574,6 @@ out_unlock:
  */
 int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	unsigned long hsr_ec;
 	unsigned long fault_status;
 	phys_addr_t fault_ipa;
 	struct kvm_memory_slot *memslot;
@@ -593,18 +581,17 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	gfn_t gfn;
 	int ret, idx;
 
-	hsr_ec = vcpu->arch.hsr >> HSR_EC_SHIFT;
-	is_iabt = (hsr_ec == HSR_EC_IABT);
-	fault_ipa = ((phys_addr_t)vcpu->arch.hpfar & HPFAR_MASK) << 8;
+	is_iabt = kvm_vcpu_trap_is_iabt(vcpu);
+	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
 
-	trace_kvm_guest_fault(*vcpu_pc(vcpu), vcpu->arch.hsr,
-			      vcpu->arch.hxfar, fault_ipa);
+	trace_kvm_guest_fault(*vcpu_pc(vcpu), kvm_vcpu_get_hsr(vcpu),
+			      kvm_vcpu_get_hfar(vcpu), fault_ipa);
 
 	/* Check the stage-2 fault is trans. fault or write fault */
-	fault_status = (vcpu->arch.hsr & HSR_FSC_TYPE);
+	fault_status = kvm_vcpu_trap_get_fault(vcpu);
 	if (fault_status != FSC_FAULT && fault_status != FSC_PERM) {
-		kvm_err("Unsupported fault status: EC=%#lx DFCS=%#lx\n",
-			hsr_ec, fault_status);
+		kvm_err("Unsupported fault status: EC=%#x DFCS=%#lx\n",
+			kvm_vcpu_trap_get_class(vcpu), fault_status);
 		return -EFAULT;
 	}
 
@@ -614,7 +601,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	if (!kvm_is_visible_gfn(vcpu->kvm, gfn)) {
 		if (is_iabt) {
 			/* Prefetch Abort on I/O address */
-			kvm_inject_pabt(vcpu, vcpu->arch.hxfar);
+			kvm_inject_pabt(vcpu, kvm_vcpu_get_hfar(vcpu));
 			ret = 1;
 			goto out_unlock;
 		}
@@ -626,8 +613,13 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			goto out_unlock;
 		}
 
-		/* Adjust page offset */
-		fault_ipa |= vcpu->arch.hxfar & ~PAGE_MASK;
+		/*
+		 * The IPA is reported as [MAX:12], so we need to
+		 * complement it with the bottom 12 bits from the
+		 * faulting VA. This is always 12 bits, irrespective
+		 * of the page size.
+		 */
+		fault_ipa |= kvm_vcpu_get_hfar(vcpu) & ((1 << 12) - 1);
 		ret = io_mem_abort(vcpu, run, fault_ipa);
 		goto out_unlock;
 	}
@@ -682,7 +674,7 @@ static void handle_hva_to_gpa(struct kvm *kvm,
 static void kvm_unmap_hva_handler(struct kvm *kvm, gpa_t gpa, void *data)
 {
 	unmap_stage2_range(kvm, gpa, PAGE_SIZE);
-	kvm_tlb_flush_vmid(kvm);
+	kvm_tlb_flush_vmid_ipa(kvm, gpa);
 }
 
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
@@ -776,7 +768,7 @@ void kvm_clear_hyp_idmap(void)
 		pmd = pmd_offset(pud, addr);
 
 		pud_clear(pud);
-		clean_pmd_entry(pmd);
+		kvm_clean_pmd_entry(pmd);
 		pmd_free(NULL, (pmd_t *)((unsigned long)pmd & PAGE_MASK));
 	} while (pgd++, addr = next, addr < end);
 }
