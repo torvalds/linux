@@ -147,7 +147,7 @@ static u32 omap_bandgap_read_temp(struct omap_bandgap *bg_ptr, int id)
 }
 
 /* This is the Talert handler. Call it only if HAS(TALERT) is set */
-static irqreturn_t talert_irq_handler(int irq, void *data)
+static irqreturn_t omap_bandgap_talert_irq_handler(int irq, void *data)
 {
 	struct omap_bandgap *bg_ptr = data;
 	struct temp_sensor_registers *tsr;
@@ -750,7 +750,7 @@ static int omap_bandgap_talert_init(struct omap_bandgap *bg_ptr,
 		return bg_ptr->irq;
 	}
 	ret = request_threaded_irq(bg_ptr->irq, NULL,
-				   talert_irq_handler,
+				   omap_bandgap_talert_irq_handler,
 				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 				   "talert", bg_ptr);
 	if (ret) {
