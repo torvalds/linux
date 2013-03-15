@@ -1493,7 +1493,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct hid_device *hid = usb_get_intfdata(intf);
 	struct usbhid_device *usbhid = hid->driver_data;
-	int status;
+	int status = 0;
 	bool driver_suspended = false;
 
 	if (PMSG_IS_AUTO(message)) {
@@ -1520,19 +1520,15 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 		}
 
 	} else {
-		if (hid->driver && hid->driver->suspend) {
+		/* TODO: resume() might need to handle suspend failure */
+		if (hid->driver && hid->driver->suspend)
 			status = hid->driver->suspend(hid, message);
-			if (status < 0)
-				return status;
-		}
 		driver_suspended = true;
 		spin_lock_irq(&usbhid->lock);
 		set_bit(HID_SUSPENDED, &usbhid->iofl);
 		spin_unlock_irq(&usbhid->lock);
-		if (usbhid_wait_io(hid) < 0) {
+		if (usbhid_wait_io(hid) < 0)
 			status = -EIO;
-			goto failed;
-		}
 	}
 
 	hid_cancel_delayed_stuff(usbhid);
@@ -1544,7 +1540,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 		goto failed;
 	}
 	dev_dbg(&intf->dev, "suspend\n");
-	return 0;
+	return status;
 
  failed:
 	hid_resume_common(hid, driver_suspended);
