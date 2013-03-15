@@ -12,6 +12,8 @@
  *
  ******************************************************************************************/
 
+#define DS1006H_V1_2_SUPPORT  0
+
 /*
 ** If you select the macro of CONFIG_SDMMC0_RK29_WRITE_PROTECT, You must define the following values.
 ** Otherwise, there is no need to define the following values¡£
@@ -89,11 +91,16 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
     	//#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH
 
 	#else
+	#if DS1006H_V1_2_SUPPORT
+      #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0
+    	#define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
+	#else
     	#define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN0_PA5
     	#define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
 
     	#define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN3_PD1
     	#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH	
+    	#endif
 	#endif
 
 #elif defined(CONFIG_MT6620)

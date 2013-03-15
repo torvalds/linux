@@ -418,10 +418,18 @@ static struct sensor_platform_data cm3217_info = {
 
 #ifdef CONFIG_FB_ROCKCHIP
 
+#if DS1006H_V1_2_SUPPORT
+#define LCD_CS_PIN         RK30_PIN0_PB0
+#else
 #define LCD_CS_PIN         INVALID_GPIO
+#endif
 #define LCD_CS_VALUE       GPIO_HIGH
 
+#if DS1006H_V1_2_SUPPORT
+#define LCD_EN_PIN         RK30_PIN0_PB1
+#else
 #define LCD_EN_PIN         RK30_PIN0_PB0
+#endif
 #define LCD_EN_VALUE       GPIO_LOW
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
@@ -1197,7 +1205,11 @@ struct platform_device rk_device_gps = {
 #if defined(CONFIG_MT5931_MT6622)
 static struct mt6622_platform_data mt6622_platdata = {
 		    .power_gpio         = { // BT_REG_ON
+		      #if DS1006H_V1_2_SUPPORT
+                    .io             = RK30_PIN3_PC7, // set io to INVALID_GPIO for disable it
+		      #else
 		    	.io             = RK30_PIN3_PD5, // set io to INVALID_GPIO for disable it
+		    	#endif
 			    .enable         = GPIO_HIGH,
 			    .iomux          = {
 				    .name       = NULL,
@@ -1205,7 +1217,11 @@ static struct mt6622_platform_data mt6622_platdata = {
 		    },
 
 		    .reset_gpio         = { // BT_RST
+		        #if DS1006H_V1_2_SUPPORT
+                    .io             = RK30_PIN3_PD1,
+		        #else
 		        .io             = RK30_PIN0_PD7,
+		        #endif
 		        .enable         = GPIO_HIGH,
 		        .iomux          = {
 		            .name       = NULL,
@@ -1213,7 +1229,11 @@ static struct mt6622_platform_data mt6622_platdata = {
 		    },
 
 		    .irq_gpio           = {
+		          #if DS1006H_V1_2_SUPPORT
+                       .io             = RK30_PIN0_PA5,
+		          #else
 			    .io             = RK30_PIN3_PD2,
+			    #endif
 			    .enable         = GPIO_HIGH,
 			    .iomux          = {
 				    .name       = NULL,
@@ -1304,13 +1324,6 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &mma8452_info,
 	},
 #endif
-#if defined (CONFIG_LS_US5151)
-        {    
-                .type           = "us5151",
-                .addr           = 0x10,
-                .flags          = 0, 
-        },   
-#endif
 
 #if defined (CONFIG_GS_LIS3DH)
 	{
@@ -1372,13 +1385,6 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.addr          = 0x40,
 		.flags         = 0,
 	},
-#endif
-#if defined (CONFIG_SND_SOC_RT5631)
-        {
-                .type                   = "rt5631",
-                .addr                   = 0x1a,
-                .flags                  = 0,
-        },
 #endif
 };
 #endif
@@ -1801,6 +1807,14 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.platform_data = &cm3217_info,
 	},
 #endif
+#if defined (CONFIG_LS_US5151)
+        {    
+                .type           = "us5151",
+                .addr           = 0x10,
+                .flags          = 0, 
+        },   
+#endif
+
 #if defined(CONFIG_HDMI_CAT66121)
 	{
 		.type		= "cat66121_hdmi",
@@ -1850,6 +1864,14 @@ static struct i2c_board_info __initdata i2c4_info[] = {
 			.platform_data		= &rk610_codec_pdata,			
 		},
 #endif
+#endif
+
+#if defined (CONFIG_SND_SOC_RT5631)
+        {
+                .type                   = "rt5631",
+                .addr                   = 0x1a,
+                .flags                  = 0,
+        },
 #endif
 
 };
