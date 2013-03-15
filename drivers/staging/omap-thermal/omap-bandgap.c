@@ -303,6 +303,16 @@ exit:
 	return ret;
 }
 
+/**
+ * omap_bandgap_add_hyst() - add hysteresis (in mCelsius) to an ADC value
+ * @bg_ptr: struct omap_bandgap pointer
+ * @adc_val: temperature value in ADC representation
+ * @hyst_val: hysteresis value in mCelsius
+ * @sum: address where to write the resulting temperature (in ADC scale)
+ *
+ * Adds an hysteresis value (in mCelsius) to a ADC temperature value.
+ * Returns 0 on success, -ERANGE otherwise.
+ */
 static
 int omap_bandgap_add_hyst(struct omap_bandgap *bg_ptr, int adc_val,
 			  int hyst_val, u32 *sum)
