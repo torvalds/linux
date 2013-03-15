@@ -72,6 +72,13 @@ static int pl061_gpio_request(struct gpio_chip *chip, unsigned offset)
 	return pinctrl_request_gpio(gpio);
 }
 
+static void pl061_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	int gpio = chip->base + offset;
+
+	pinctrl_free_gpio(gpio);
+}
+
 static int pl061_direction_input(struct gpio_chip *gc, unsigned offset)
 {
 	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
@@ -287,6 +294,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	spin_lock_init(&chip->lock);
 
 	chip->gc.request = pl061_gpio_request;
+	chip->gc.free = pl061_gpio_free;
 	chip->gc.direction_input = pl061_direction_input;
 	chip->gc.direction_output = pl061_direction_output;
 	chip->gc.get = pl061_get_value;
