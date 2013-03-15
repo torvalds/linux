@@ -54,6 +54,9 @@ struct smsdvb_client_t {
 
 	unsigned long		get_stats_jiffies;
 
+	int			feed_users;
+	bool			has_tuned;
+
 	/* Stats debugfs data */
 	struct dentry		*debugfs;
 

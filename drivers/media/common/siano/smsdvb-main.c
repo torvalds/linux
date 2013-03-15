@@ -512,8 +512,13 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 
 	switch (phdr->msgType) {
 	case MSG_SMS_DVBT_BDA_DATA:
-		dvb_dmx_swfilter(&client->demux, p,
-				 cb->size - sizeof(struct SmsMsgHdr_ST));
+		/*
+		 * Only feed data to dvb demux if are there any feed listening
+		 * to it and if the device has tuned
+		 */
+		if (client->feed_users && client->has_tuned)
+			dvb_dmx_swfilter(&client->demux, p,
+					 cb->size - sizeof(struct SmsMsgHdr_ST));
 		break;
 
 	case MSG_SMS_RF_TUNE_RES:
@@ -579,9 +584,10 @@ static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
 				sms_board_dvb3_event(client, DVB3_EVENT_UNC_OK);
 			else
 				sms_board_dvb3_event(client, DVB3_EVENT_UNC_ERR);
+			client->has_tuned = true;
 		} else {
 			smsdvb_stats_not_ready(fe);
-
+			client->has_tuned = false;
 			sms_board_dvb3_event(client, DVB3_EVENT_FE_UNLOCK);
 		}
 		complete(&client->stats_done);
@@ -623,6 +629,8 @@ static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 	sms_debug("add pid %d(%x)",
 		  feed->pid, feed->pid);
 
+	client->feed_users++;
+
 	PidMsg.xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
 	PidMsg.xMsgHeader.msgDstId = HIF_TASK;
 	PidMsg.xMsgHeader.msgFlags = 0;
@@ -642,6 +650,8 @@ static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 
 	sms_debug("remove pid %d(%x)",
 		  feed->pid, feed->pid);
+
+	client->feed_users--;
 
 	PidMsg.xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
 	PidMsg.xMsgHeader.msgDstId = HIF_TASK;
@@ -962,6 +972,8 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe)
 	smsdvb_stats_not_ready(fe);
 	c->strength.stat[0].uvalue = 0;
 	c->cnr.stat[0].uvalue = 0;
+
+	client->has_tuned = false;
 
 	switch (smscore_get_device_mode(coredev)) {
 	case DEVICE_MODE_DVBT:
