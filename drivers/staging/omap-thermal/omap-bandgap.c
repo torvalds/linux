@@ -88,6 +88,8 @@ do {								\
 	omap_bandgap_writel(bg_ptr, r, t->reg);			\
 } while (0)
 
+/***   Basic helper functions   ***/
+
 /**
  * omap_bandgap_power() - controls the power state of a bandgap device
  * @bg_ptr: pointer to omap_bandgap structure
