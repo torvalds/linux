@@ -240,12 +240,16 @@ static int mv_ehci_probe(struct platform_device *pdev)
 
 	ehci_mv->mode = pdata->mode;
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
-#if IS_ENABLED(CONFIG_USB_PHY)
 		ehci_mv->otg = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-		if (IS_ERR_OR_NULL(ehci_mv->otg)) {
-			dev_err(&pdev->dev,
-				"unable to find transceiver\n");
-			retval = -ENODEV;
+		if (IS_ERR(ehci_mv->otg)) {
+			retval = PTR_ERR(ehci_mv->otg);
+
+			if (retval == -ENXIO)
+				dev_info(&pdev->dev, "MV_USB_MODE_OTG "
+						"must have CONFIG_USB_PHY enabled\n");
+			else
+				dev_err(&pdev->dev,
+						"unable to find transceiver\n");
 			goto err_disable_clk;
 		}
 
@@ -258,11 +262,6 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		}
 		/* otg will enable clock before use as host */
 		mv_ehci_disable(ehci_mv);
-#else
-		dev_info(&pdev->dev, "MV_USB_MODE_OTG "
-			 "must have CONFIG_USB_PHY enabled\n");
-		goto err_disable_clk;
-#endif
 	} else {
 		if (pdata->set_vbus)
 			pdata->set_vbus(1);
