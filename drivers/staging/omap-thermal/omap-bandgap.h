@@ -23,7 +23,7 @@
 #ifndef __OMAP_BANDGAP_H
 #define __OMAP_BANDGAP_H
 
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/err.h>
 
@@ -211,7 +211,7 @@ struct omap_bandgap {
 	struct omap_bandgap_data	*conf;
 	struct clk			*fclock;
 	struct clk			*div_clk;
-	struct mutex			bg_mutex; /* shields this struct */
+	spinlock_t			lock; /* shields this struct */
 	int				irq;
 	int				tshut_gpio;
 	u32				clk_rate;

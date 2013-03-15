@@ -33,7 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/types.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/reboot.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
@@ -170,6 +170,7 @@ static irqreturn_t omap_bandgap_talert_irq_handler(int irq, void *data)
 	u32 t_hot = 0, t_cold = 0, ctrl;
 	int i;
 
+	spin_lock(&bg_ptr->lock);
 	for (i = 0; i < bg_ptr->conf->sensor_count; i++) {
 		tsr = bg_ptr->conf->sensors[i].registers;
 		ctrl = omap_bandgap_readl(bg_ptr, tsr->bgap_status);
@@ -208,6 +209,7 @@ static irqreturn_t omap_bandgap_talert_irq_handler(int irq, void *data)
 		if (bg_ptr->conf->report_temperature)
 			bg_ptr->conf->report_temperature(bg_ptr, i);
 	}
+	spin_unlock(&bg_ptr->lock);
 
 	return IRQ_HANDLED;
 }
@@ -502,9 +504,9 @@ int _omap_bandgap_write_threshold(struct omap_bandgap *bg_ptr, int id, int val,
 	if (ret < 0)
 		goto exit;
 
-	mutex_lock(&bg_ptr->bg_mutex);
+	spin_lock(&bg_ptr->lock);
 	omap_bandgap_update_alert_threshold(bg_ptr, id, adc_val, hot);
-	mutex_unlock(&bg_ptr->bg_mutex);
+	spin_unlock(&bg_ptr->lock);
 
 exit:
 	return ret;
@@ -666,9 +668,9 @@ int omap_bandgap_write_update_interval(struct omap_bandgap *bg_ptr,
 		return -ENOTSUPP;
 
 	interval = interval * bg_ptr->clk_rate / 1000;
-	mutex_lock(&bg_ptr->bg_mutex);
+	spin_lock(&bg_ptr->lock);
 	RMW_BITS(bg_ptr, id, bgap_counter, counter_mask, interval);
-	mutex_unlock(&bg_ptr->bg_mutex);
+	spin_unlock(&bg_ptr->lock);
 
 	return 0;
 }
@@ -691,9 +693,9 @@ int omap_bandgap_read_temperature(struct omap_bandgap *bg_ptr, int id,
 	if (ret)
 		return ret;
 
-	mutex_lock(&bg_ptr->bg_mutex);
+	spin_lock(&bg_ptr->lock);
 	temp = omap_bandgap_read_temp(bg_ptr, id);
-	mutex_unlock(&bg_ptr->bg_mutex);
+	spin_unlock(&bg_ptr->lock);
 
 	ret |= omap_bandgap_adc_to_mcelsius(bg_ptr, temp, &temp);
 	if (ret)
@@ -1016,7 +1018,7 @@ int omap_bandgap_probe(struct platform_device *pdev)
 		clk_prepare_enable(bg_ptr->fclock);
 
 
-	mutex_init(&bg_ptr->bg_mutex);
+	spin_lock_init(&bg_ptr->lock);
 	bg_ptr->dev = &pdev->dev;
 	platform_set_drvdata(pdev, bg_ptr);
 
