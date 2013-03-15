@@ -38,12 +38,12 @@
 /* Find the first set bit in a evtchn mask */
 #define EVTCHN_FIRST_BIT(w) find_first_bit(BM(&(w)), BITS_PER_EVTCHN_WORD)
 
-static DEFINE_PER_CPU(xen_ulong_t [NR_EVENT_CHANNELS/BITS_PER_EVTCHN_WORD],
+static DEFINE_PER_CPU(xen_ulong_t [EVTCHN_2L_NR_CHANNELS/BITS_PER_EVTCHN_WORD],
 		      cpu_evtchn_mask);
 
 static unsigned evtchn_2l_max_channels(void)
 {
-	return NR_EVENT_CHANNELS;
+	return EVTCHN_2L_NR_CHANNELS;
 }
 
 static void evtchn_2l_bind_to_cpu(struct irq_info *info, unsigned cpu)
@@ -316,7 +316,7 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 		       i % 8 == 0 ? "\n   " : " ");
 
 	printk("\nlocal cpu%d mask:\n   ", cpu);
-	for (i = (NR_EVENT_CHANNELS/BITS_PER_EVTCHN_WORD)-1; i >= 0; i--)
+	for (i = (EVTCHN_2L_NR_CHANNELS/BITS_PER_EVTCHN_WORD)-1; i >= 0; i--)
 		printk("%0*"PRI_xen_ulong"%s", (int)(sizeof(cpu_evtchn[0])*2),
 		       cpu_evtchn[i],
 		       i % 8 == 0 ? "\n   " : " ");
@@ -332,7 +332,7 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 	}
 
 	printk("\npending list:\n");
-	for (i = 0; i < NR_EVENT_CHANNELS; i++) {
+	for (i = 0; i < EVTCHN_2L_NR_CHANNELS; i++) {
 		if (sync_test_bit(i, BM(sh->evtchn_pending))) {
 			int word_idx = i / BITS_PER_EVTCHN_WORD;
 			printk("  %d: event %d -> irq %d%s%s%s\n",

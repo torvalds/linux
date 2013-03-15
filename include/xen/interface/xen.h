@@ -281,12 +281,6 @@ struct multicall_entry {
 };
 DEFINE_GUEST_HANDLE_STRUCT(multicall_entry);
 
-/*
- * Event channel endpoints per domain:
- *  1024 if a long is 32 bits; 4096 if a long is 64 bits.
- */
-#define NR_EVENT_CHANNELS (sizeof(xen_ulong_t) * sizeof(xen_ulong_t) * 64)
-
 struct vcpu_time_info {
 	/*
 	 * Updates to the following values are preceded and followed
