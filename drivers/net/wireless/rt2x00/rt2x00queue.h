@@ -359,6 +359,7 @@ enum queue_entry_flags {
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED,
 	ENTRY_DATA_STATUS_PENDING,
+	ENTRY_DATA_STATUS_SET,
 };
 
 /**
@@ -372,6 +373,7 @@ enum queue_entry_flags {
  * @entry_idx: The entry index number.
  * @priv_data: Private data belonging to this queue entry. The pointer
  *	points to data specific to a particular driver and queue type.
+ * @status: Device specific status
  */
 struct queue_entry {
 	unsigned long flags;
@@ -382,6 +384,8 @@ struct queue_entry {
 	struct sk_buff *skb;
 
 	unsigned int entry_idx;
+
+	u32 status;
 
 	void *priv_data;
 };
