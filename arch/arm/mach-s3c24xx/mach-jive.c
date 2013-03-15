@@ -46,7 +46,6 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
-#include <plat/s3c2412.h>
 #include <plat/gpio-cfg.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
@@ -54,6 +53,7 @@
 #include <plat/pm.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 
+#include "common.h"
 #include "s3c2412-power.h"
 
 static struct map_desc jive_iodesc[] __initdata = {

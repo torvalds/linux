@@ -29,7 +29,6 @@
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/s3c2412.h>
 
 #include "regs-dsc.h"
 #include "s3c2412-power.h"

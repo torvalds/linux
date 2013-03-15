@@ -55,13 +55,13 @@
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
-#include <plat/common-smdk.h>
 #include <plat/gpio-cfg.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
 
 #include "common.h"
+#include "common-smdk.h"
 
 static struct map_desc qt2410_iodesc[] __initdata = {
 	{ 0xe0000000, __phys_to_pfn(S3C2410_CS3+0x01000000), SZ_1M, MT_DEVICE }
