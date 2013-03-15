@@ -2067,12 +2067,12 @@ static int comedi_open(struct inode *inode, struct file *file)
 	/* This is slightly hacky, but we want module autoloading
 	 * to work for root.
 	 * case: user opens device, attached -> ok
-	 * case: user opens device, unattached, in_request_module=0 -> autoload
-	 * case: user opens device, unattached, in_request_module=1 -> fail
+	 * case: user opens device, unattached, !in_request_module -> autoload
+	 * case: user opens device, unattached, in_request_module -> fail
 	 * case: root opens device, attached -> ok
-	 * case: root opens device, unattached, in_request_module=1 -> ok
+	 * case: root opens device, unattached, in_request_module -> ok
 	 *   (typically called from modprobe)
-	 * case: root opens device, unattached, in_request_module=0 -> autoload
+	 * case: root opens device, unattached, !in_request_module -> autoload
 	 *
 	 * The last could be changed to "-> ok", which would deny root
 	 * autoloading.
@@ -2088,7 +2088,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 	if (capable(CAP_NET_ADMIN) && dev->in_request_module)
 		goto ok;
 
-	dev->in_request_module = 1;
+	dev->in_request_module = true;
 
 #ifdef CONFIG_KMOD
 	mutex_unlock(&dev->mutex);
@@ -2096,7 +2096,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 	mutex_lock(&dev->mutex);
 #endif
 
-	dev->in_request_module = 0;
+	dev->in_request_module = false;
 
 	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
 		DPRINTK("not attached and not CAP_NET_ADMIN\n");
