@@ -804,7 +804,8 @@ void labpc_common_detach(struct comedi_device *dev)
 		mite_unsetup(devpriv->mite);
 		mite_free(devpriv->mite);
 	}
-	comedi_pci_disable(dev);
+	if (thisboard->bustype == pci_bustype)
+		comedi_pci_disable(dev);
 #endif
 };
 EXPORT_SYMBOL_GPL(labpc_common_detach);
