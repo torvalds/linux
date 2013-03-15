@@ -1458,7 +1458,6 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = 1;
 
 	devpriv->s5933_config = pci_resource_start(pcidev, 0);
 	devpriv->control_status = pci_resource_start(pcidev, 1);

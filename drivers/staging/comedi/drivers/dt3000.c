@@ -738,7 +738,6 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret < 0)
 		return ret;
-	dev->iobase = 1;	/* the "detach" needs this */
 
 	pci_base  = pci_resource_start(pcidev, 0);
 	devpriv->io_addr = ioremap(pci_base, DT3000_SIZE);

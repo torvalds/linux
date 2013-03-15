@@ -1286,7 +1286,6 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = 1;	/* the "detach" needs this */
 
 	devpriv->las0 = ioremap_nocache(pci_resource_start(pcidev, 2),
 					pci_resource_len(pcidev, 2));

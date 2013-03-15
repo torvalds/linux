@@ -1180,7 +1180,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = 1;
 
 	ret = ni_660x_allocate_private(dev);
 	if (ret < 0)

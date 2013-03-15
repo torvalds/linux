@@ -1491,7 +1491,6 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = 1;
 
 	ret = ni_alloc_private(dev);
 	if (ret)

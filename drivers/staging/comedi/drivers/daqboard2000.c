@@ -712,7 +712,6 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	result = comedi_pci_enable(dev);
 	if (result)
 		return result;
-	dev->iobase = 1;	/* the "detach" needs this */
 
 	devpriv->plx = ioremap(pci_resource_start(pcidev, 0),
 			       pci_resource_len(pcidev, 0));

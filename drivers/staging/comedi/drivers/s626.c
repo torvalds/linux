@@ -2676,7 +2676,6 @@ static int s626_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = 1;	/* detach needs this */
 
 	devpriv->base_addr = ioremap(pci_resource_start(pcidev, 0),
 				     pci_resource_len(pcidev, 0));

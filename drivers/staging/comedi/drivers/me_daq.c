@@ -514,7 +514,6 @@ static int me_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	dev->iobase = 1;	/* detach needs this */
 
 	dev_private->plx_regbase = ioremap(pci_resource_start(pcidev, 0),
 					   pci_resource_len(pcidev, 0));

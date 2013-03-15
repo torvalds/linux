@@ -502,7 +502,6 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	retval = comedi_pci_enable(dev);
 	if (retval)
 		return retval;
-	dev->iobase = 1;	/* the "detach" needs this */
 	pci_set_master(pcidev);
 
 	devpriv->plx9080_iobase =
