@@ -102,6 +102,10 @@ nv40_temp_get(struct nouveau_therm *therm)
 	core_temp = core_temp + sensor->offset_num / sensor->offset_den;
 	core_temp = core_temp + sensor->offset_constant - 8;
 
+	/* reserve negative temperatures for errors */
+	if (core_temp < 0)
+		core_temp = 0;
+
 	return core_temp;
 }
 
