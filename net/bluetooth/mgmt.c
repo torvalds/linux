@@ -3082,6 +3082,24 @@ static void set_bredr_scan(struct hci_request *req)
 		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 }
 
+static void powered_complete(struct hci_dev *hdev, u8 status)
+{
+	struct cmd_lookup match = { NULL, hdev };
+
+	BT_DBG("status 0x%02x", status);
+
+	hci_dev_lock(hdev);
+
+	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
+
+	new_settings(hdev, match.sk);
+
+	hci_dev_unlock(hdev);
+
+	if (match.sk)
+		sock_put(match.sk);
+}
+
 static int powered_update_hci(struct hci_dev *hdev)
 {
 	struct hci_request req;
@@ -3123,32 +3141,36 @@ static int powered_update_hci(struct hci_dev *hdev)
 		update_eir(&req);
 	}
 
-	return hci_req_run(&req, NULL);
+	return hci_req_run(&req, powered_complete);
 }
 
 int mgmt_powered(struct hci_dev *hdev, u8 powered)
 {
 	struct cmd_lookup match = { NULL, hdev };
+	u8 status_not_powered = MGMT_STATUS_NOT_POWERED;
+	u8 zero_cod[] = { 0, 0, 0 };
 	int err;
 
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		return 0;
 
-	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
-
 	if (powered) {
-		powered_update_hci(hdev);
-	} else {
-		u8 status = MGMT_STATUS_NOT_POWERED;
-		u8 zero_cod[] = { 0, 0, 0 };
+		if (powered_update_hci(hdev) == 0)
+			return 0;
 
-		mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
-
-		if (memcmp(hdev->dev_class, zero_cod, sizeof(zero_cod)) != 0)
-			mgmt_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev,
-				   zero_cod, sizeof(zero_cod), NULL);
+		mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp,
+				     &match);
+		goto new_settings;
 	}
 
+	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
+	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status_not_powered);
+
+	if (memcmp(hdev->dev_class, zero_cod, sizeof(zero_cod)) != 0)
+		mgmt_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev,
+			   zero_cod, sizeof(zero_cod), NULL);
+
+new_settings:
 	err = new_settings(hdev, match.sk);
 
 	if (match.sk)
