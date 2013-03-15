@@ -862,6 +862,8 @@ static struct omap_bandgap *omap_bandgap_build(struct platform_device *pdev)
 	return bg_ptr;
 }
 
+/***   Device driver call backs   ***/
+
 static
 int omap_bandgap_probe(struct platform_device *pdev)
 {
