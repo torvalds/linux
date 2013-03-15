@@ -465,6 +465,7 @@ static const struct x86_cpu_id intel_idle_ids[] = {
 	ICPU(0x3c, idle_cpu_hsw),
 	ICPU(0x3f, idle_cpu_hsw),
 	ICPU(0x45, idle_cpu_hsw),
+	ICPU(0x46, idle_cpu_hsw),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
