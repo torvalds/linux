@@ -41,11 +41,6 @@
 #define MP4_QS			16
 #define DMA_ALIGN		4096
 
-struct solo_videobuf {
-	struct videobuf_buffer	vb;
-	unsigned int		flags;
-};
-
 /* 6010 M4V */
 static unsigned char vop_6010_ntsc_d1[] = {
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x20,
@@ -672,9 +667,6 @@ static void solo_enc_buf_queue(struct vb2_buffer *vb)
 
 static int solo_ring_start(struct solo_dev *solo_dev)
 {
-	if (atomic_inc_return(&solo_dev->enc_users) > 1)
-		return 0;
-
 	solo_dev->ring_thread = kthread_run(solo_ring_thread, solo_dev,
 					    SOLO6X10_NAME "_ring");
 	if (IS_ERR(solo_dev->ring_thread)) {
@@ -690,9 +682,6 @@ static int solo_ring_start(struct solo_dev *solo_dev)
 
 static void solo_ring_stop(struct solo_dev *solo_dev)
 {
-	if (atomic_dec_return(&solo_dev->enc_users) > 0)
-		return;
-
 	if (solo_dev->ring_thread) {
 		kthread_stop(solo_dev->ring_thread);
 		solo_dev->ring_thread = NULL;
@@ -1279,7 +1268,6 @@ int solo_enc_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 {
 	int i;
 
-	atomic_set(&solo_dev->enc_users, 0);
 	init_waitqueue_head(&solo_dev->ring_thread_wait);
 
 	solo_dev->vh_size = sizeof(struct vop_header);

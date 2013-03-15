@@ -39,7 +39,6 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/videobuf-core.h>
 #include <media/videobuf2-core.h>
 
 #include "registers.h"
@@ -259,8 +258,6 @@ struct solo_dev {
 	/* Ring thread */
 	struct task_struct	*ring_thread;
 	wait_queue_head_t	ring_thread_wait;
-	atomic_t		enc_users;
-	atomic_t		disp_users;
 
 	/* VOP_HEADER handling */
 	void                    *vh_buf;
@@ -268,8 +265,10 @@ struct solo_dev {
 	int			vh_size;
 
 	/* Buffer handling */
-	struct videobuf_queue	vidq;
+	struct vb2_queue	vidq;
+	struct vb2_alloc_ctx	*alloc_ctx;
 	struct task_struct      *kthread;
+	struct mutex		lock;
 	spinlock_t		slock;
 	int			old_write;
 	struct list_head	vidq_active;
