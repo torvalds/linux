@@ -264,8 +264,9 @@ exit:
 	return ret;
 }
 
-static int temp_to_adc_conversion(long temp, struct omap_bandgap *bg_ptr, int i,
-				  int *adc)
+static
+int omap_bandgap_mcelsius_to_adc(struct omap_bandgap *bg_ptr, int i, long temp,
+				 int *adc)
 {
 	struct temp_sensor_data *ts_data = bg_ptr->conf->sensors[i].ts_data;
 	const int *conv_table = bg_ptr->conf->conv_table;
@@ -330,7 +331,7 @@ int add_hyst(int adc_val, int hyst_val, struct omap_bandgap *bg_ptr, int i,
 
 	temp += hyst_val;
 
-	return temp_to_adc_conversion(temp, bg_ptr, i, sum);
+	return omap_bandgap_mcelsius_to_adc(bg_ptr, i, temp, sum);
 }
 
 /* Talert Thot threshold. Call it only if HAS(TALERT) is set */
@@ -493,7 +494,7 @@ int omap_bandgap_write_thot(struct omap_bandgap *bg_ptr, int id, int val)
 
 	if (val < ts_data->min_temp + ts_data->hyst_val)
 		return -EINVAL;
-	ret = temp_to_adc_conversion(val, bg_ptr, id, &t_hot);
+	ret = omap_bandgap_mcelsius_to_adc(bg_ptr, id, val, &t_hot);
 	if (ret < 0)
 		return ret;
 
@@ -566,7 +567,7 @@ int omap_bandgap_write_tcold(struct omap_bandgap *bg_ptr, int id, int val)
 	if (val > ts_data->max_temp + ts_data->hyst_val)
 		return -EINVAL;
 
-	ret = temp_to_adc_conversion(val, bg_ptr, id, &t_cold);
+	ret = omap_bandgap_mcelsius_to_adc(bg_ptr, id, val, &t_cold);
 	if (ret < 0)
 		return ret;
 
