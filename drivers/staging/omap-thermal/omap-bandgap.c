@@ -370,6 +370,20 @@ static void omap_bandgap_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
 	omap_bandgap_writel(bg_ptr, reg_val, tsr->bgap_mask_ctrl);
 }
 
+/**
+ * omap_bandgap_update_alert_threshold() - sequence to update thresholds
+ * @bg_ptr: struct omap_bandgap pointer
+ * @id: bandgap sensor id
+ * @val: value (ADC) of a new threshold
+ * @hot: desired threshold to be updated. true if threshold hot, false if
+ *       threshold cold
+ *
+ * It will program the required thresholds (hot and cold) for TALERT signal.
+ * This function can be used to update t_hot or t_cold, depending on @hot value.
+ * It checks the resulting t_hot and t_cold values, based on the new passed @val
+ * and configures the thresholds so that t_hot is always greater than t_cold.
+ * Call this function only if bandgap features HAS(TALERT).
+ */
 static
 int omap_bandgap_update_alert_threshold(struct omap_bandgap *bg_ptr, int id,
 					int val, bool hot)
