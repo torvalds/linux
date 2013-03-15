@@ -101,7 +101,7 @@ static int mc33880_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	mc = kzalloc(sizeof(struct mc33880), GFP_KERNEL);
+	mc = devm_kzalloc(&spi->dev, sizeof(struct mc33880), GFP_KERNEL);
 	if (!mc)
 		return -ENOMEM;
 
@@ -143,7 +143,6 @@ static int mc33880_probe(struct spi_device *spi)
 exit_destroy:
 	dev_set_drvdata(&spi->dev, NULL);
 	mutex_destroy(&mc->lock);
-	kfree(mc);
 	return ret;
 }
 
@@ -159,10 +158,9 @@ static int mc33880_remove(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, NULL);
 
 	ret = gpiochip_remove(&mc->chip);
-	if (!ret) {
+	if (!ret)
 		mutex_destroy(&mc->lock);
-		kfree(mc);
-	} else
+	else
 		dev_err(&spi->dev, "Failed to remove the GPIO controller: %d\n",
 			ret);
 
