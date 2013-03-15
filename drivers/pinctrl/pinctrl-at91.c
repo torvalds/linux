@@ -812,7 +812,7 @@ static int at91_pinctrl_mux_mask(struct at91_pinctrl *info,
 {
 	int ret = 0;
 	int size;
-	const const __be32 *list;
+	const __be32 *list;
 
 	list = of_get_property(np, "atmel,mux-mask", &size);
 	if (!list) {
@@ -846,7 +846,7 @@ static int at91_pinctrl_parse_groups(struct device_node *np,
 {
 	struct at91_pmx_pin *pin;
 	int size;
-	const const __be32 *list;
+	const __be32 *list;
 	int i, j;
 
 	dev_dbg(info->dev, "group(%d): %s\n", index, np->name);
