@@ -164,15 +164,15 @@ static irqreturn_t omap_bandgap_talert_irq_handler(int irq, void *data)
 	u32 t_hot = 0, t_cold = 0, ctrl;
 	int i;
 
-	/* Read the status of t_hot */
 	for (i = 0; i < bg_ptr->conf->sensor_count; i++) {
 		tsr = bg_ptr->conf->sensors[i].registers;
-		t_hot = omap_bandgap_readl(bg_ptr, tsr->bgap_status);
-		t_hot &= tsr->status_hot_mask;
+		ctrl = omap_bandgap_readl(bg_ptr, tsr->bgap_status);
+
+		/* Read the status of t_hot */
+		t_hot = ctrl & tsr->status_hot_mask;
 
 		/* Read the status of t_cold */
-		t_cold = omap_bandgap_readl(bg_ptr, tsr->bgap_status);
-		t_cold &= tsr->status_cold_mask;
+		t_cold = ctrl & tsr->status_cold_mask;
 
 		if (!t_cold && !t_hot)
 			continue;
