@@ -146,7 +146,17 @@ static u32 omap_bandgap_read_temp(struct omap_bandgap *bg_ptr, int id)
 	return temp;
 }
 
-/* This is the Talert handler. Call it only if HAS(TALERT) is set */
+/**
+ * omap_bandgap_talert_irq_handler() - handles Temperature alert IRQs
+ * @irq: IRQ number
+ * @data: private data (struct omap_bandgap *)
+ *
+ * This is the Talert handler. Use it only if bandgap device features
+ * HAS(TALERT). This handler goes over all sensors and checks their
+ * conditions and acts accordingly. In case there are events pending,
+ * it will reset the event mask to wait for the opposite event (next event).
+ * Every time there is a new event, it will be reported to thermal layer.
+ */
 static irqreturn_t omap_bandgap_talert_irq_handler(int irq, void *data)
 {
 	struct omap_bandgap *bg_ptr = data;
