@@ -150,6 +150,8 @@ static u32 omap_bandgap_read_temp(struct omap_bandgap *bg_ptr, int id)
 	return temp;
 }
 
+/***   IRQ handlers   ***/
+
 /**
  * omap_bandgap_talert_irq_handler() - handles Temperature alert IRQs
  * @irq: IRQ number
