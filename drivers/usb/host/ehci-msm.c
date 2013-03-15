@@ -145,7 +145,7 @@ static int ehci_msm_probe(struct platform_device *pdev)
 	 * management.
 	 */
 	phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(phy)) {
+	if (IS_ERR(phy)) {
 		dev_err(&pdev->dev, "unable to find transceiver\n");
 		ret = -ENODEV;
 		goto put_hcd;
