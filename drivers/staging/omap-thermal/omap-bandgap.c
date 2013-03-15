@@ -231,6 +231,8 @@ static irqreturn_t omap_bandgap_tshut_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/***   Helper functions which manipulate conversion ADC <-> mi Celsius   ***/
+
 static
 int adc_to_temp_conversion(struct omap_bandgap *bg_ptr, int id, int adc_val,
 			   int *t)
