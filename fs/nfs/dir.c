@@ -1486,6 +1486,8 @@ static int nfs4_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 		goto no_open;
 	if (d_mountpoint(dentry))
 		goto no_open;
+	if (NFS_SB(dentry->d_sb)->caps & NFS_CAP_ATOMIC_OPEN_V1)
+		goto no_open;
 
 	inode = dentry->d_inode;
 	parent = dget_parent(dentry);

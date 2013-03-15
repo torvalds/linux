@@ -767,6 +767,35 @@ struct nfs4_opendata {
 	int cancelled;
 };
 
+static bool nfs4_clear_cap_atomic_open_v1(struct nfs_server *server,
+		int err, struct nfs4_exception *exception)
+{
+	if (err != -EINVAL)
+		return false;
+	if (!(server->caps & NFS_CAP_ATOMIC_OPEN_V1))
+		return false;
+	server->caps &= ~NFS_CAP_ATOMIC_OPEN_V1;
+	exception->retry = 1;
+	return true;
+}
+
+static enum open_claim_type4
+nfs4_map_atomic_open_claim(struct nfs_server *server,
+		enum open_claim_type4 claim)
+{
+	if (server->caps & NFS_CAP_ATOMIC_OPEN_V1)
+		return claim;
+	switch (claim) {
+	default:
+		return claim;
+	case NFS4_OPEN_CLAIM_FH:
+		return NFS4_OPEN_CLAIM_NULL;
+	case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
+		return NFS4_OPEN_CLAIM_DELEGATE_CUR;
+	case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
+		return NFS4_OPEN_CLAIM_DELEGATE_PREV;
+	}
+}
 
 static void nfs4_init_opendata_res(struct nfs4_opendata *p)
 {
@@ -818,8 +847,8 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	p->o_arg.server = server;
 	p->o_arg.bitmask = server->attr_bitmask;
 	p->o_arg.open_bitmap = &nfs4_fattr_bitmap[0];
-	p->o_arg.claim = claim;
-	switch (claim) {
+	p->o_arg.claim = nfs4_map_atomic_open_claim(server, claim);
+	switch (p->o_arg.claim) {
 	case NFS4_OPEN_CLAIM_NULL:
 	case NFS4_OPEN_CLAIM_DELEGATE_CUR:
 	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
@@ -1326,6 +1355,8 @@ static int nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state 
 	int err;
 	do {
 		err = _nfs4_do_open_reclaim(ctx, state);
+		if (nfs4_clear_cap_atomic_open_v1(server, err, &exception))
+			continue;
 		if (err != -NFS4ERR_DELAY)
 			break;
 		nfs4_handle_exception(server, err, &exception);
@@ -1741,7 +1772,7 @@ static int _nfs4_open_expired(struct nfs_open_context *ctx, struct nfs4_state *s
 	int ret;
 
 	opendata = nfs4_open_recoverdata_alloc(ctx, state,
-			NFS4_OPEN_CLAIM_NULL);
+			NFS4_OPEN_CLAIM_FH);
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
 	ret = nfs4_open_recover(opendata, state);
@@ -1759,6 +1790,8 @@ static int nfs4_do_open_expired(struct nfs_open_context *ctx, struct nfs4_state 
 
 	do {
 		err = _nfs4_open_expired(ctx, state);
+		if (nfs4_clear_cap_atomic_open_v1(server, err, &exception))
+			continue;
 		switch (err) {
 		default:
 			goto out;
@@ -1926,6 +1959,7 @@ static int _nfs4_do_open(struct inode *dir,
 	struct nfs4_state     *state = NULL;
 	struct nfs_server       *server = NFS_SERVER(dir);
 	struct nfs4_opendata *opendata;
+	enum open_claim_type4 claim = NFS4_OPEN_CLAIM_NULL;
 	int status;
 
 	/* Protect against reboot recovery conflicts */
@@ -1941,9 +1975,10 @@ static int _nfs4_do_open(struct inode *dir,
 	if (dentry->d_inode != NULL)
 		nfs4_return_incompatible_delegation(dentry->d_inode, fmode);
 	status = -ENOMEM;
+	if (dentry->d_inode)
+		claim = NFS4_OPEN_CLAIM_FH;
 	opendata = nfs4_opendata_alloc(dentry, sp, fmode, flags, sattr,
-			NFS4_OPEN_CLAIM_NULL,
-			GFP_KERNEL);
+			claim, GFP_KERNEL);
 	if (opendata == NULL)
 		goto err_put_state_owner;
 
@@ -2001,6 +2036,7 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 					struct rpc_cred *cred,
 					struct nfs4_threshold **ctx_th)
 {
+	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs4_exception exception = { };
 	struct nfs4_state *res;
 	int status;
@@ -2044,7 +2080,9 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 			exception.retry = 1;
 			continue;
 		}
-		res = ERR_PTR(nfs4_handle_exception(NFS_SERVER(dir),
+		if (nfs4_clear_cap_atomic_open_v1(server, status, &exception))
+			continue;
+		res = ERR_PTR(nfs4_handle_exception(server,
 					status, &exception));
 	} while (exception.retry);
 	return res;
@@ -6858,7 +6896,8 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 		| NFS_CAP_ATOMIC_OPEN
 		| NFS_CAP_CHANGE_ATTR
 		| NFS_CAP_POSIX_LOCK
-		| NFS_CAP_STATEID_NFSV41,
+		| NFS_CAP_STATEID_NFSV41
+		| NFS_CAP_ATOMIC_OPEN_V1,
 	.call_sync = nfs4_call_sync_sequence,
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,
