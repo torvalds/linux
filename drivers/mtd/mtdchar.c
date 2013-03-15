@@ -1249,16 +1249,18 @@ static int __init init_mtdchar(void)
 	ret = __register_chrdev(MTD_CHAR_MAJOR, 0, 1 << MINORBITS,
 				   "mtd", &mtd_fops);
 	if (ret < 0) {
-		pr_notice("Can't allocate major number %d for "
-				"Memory Technology Devices.\n", MTD_CHAR_MAJOR);
+		pr_err("Can't allocate major number %d for MTD\n",
+		       MTD_CHAR_MAJOR);
 		return ret;
 	}
 
 	ret = register_filesystem(&mtd_inodefs_type);
 	if (ret) {
-		pr_notice("Can't register mtd_inodefs filesystem: %d\n", ret);
+		pr_err("Can't register mtd_inodefs filesystem, error %d\n",
+		       ret);
 		goto err_unregister_chdev;
 	}
+
 	return ret;
 
 err_unregister_chdev:
