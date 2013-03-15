@@ -452,7 +452,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = trace__symbols_init(trace, evlist);
 	if (err < 0) {
 		printf("Problems initializing symbol libraries!\n");
-		goto out_delete_evlist;
+		goto out_delete_maps;
 	}
 
 	perf_evlist__config(evlist, &trace->opts);
@@ -465,20 +465,20 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 						    argv, false, false);
 		if (err < 0) {
 			printf("Couldn't run the workload!\n");
-			goto out_delete_evlist;
+			goto out_delete_maps;
 		}
 	}
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		printf("Couldn't create the events: %s\n", strerror(errno));
-		goto out_delete_evlist;
+		goto out_delete_maps;
 	}
 
 	err = perf_evlist__mmap(evlist, UINT_MAX, false);
 	if (err < 0) {
 		printf("Couldn't mmap the events: %s\n", strerror(errno));
-		goto out_delete_evlist;
+		goto out_close_evlist;
 	}
 
 	perf_evlist__enable(evlist);
@@ -534,7 +534,7 @@ again:
 
 	if (trace->nr_events == before) {
 		if (done)
-			goto out_delete_evlist;
+			goto out_unmap_evlist;
 
 		poll(evlist->pollfd, evlist->nr_fds, -1);
 	}
@@ -544,6 +544,12 @@ again:
 
 	goto again;
 
+out_unmap_evlist:
+	perf_evlist__munmap(evlist);
+out_close_evlist:
+	perf_evlist__close(evlist);
+out_delete_maps:
+	perf_evlist__delete_maps(evlist);
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:
