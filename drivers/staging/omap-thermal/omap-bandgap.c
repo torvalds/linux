@@ -875,6 +875,15 @@ static int omap_bandgap_talert_init(struct omap_bandgap *bg_ptr,
 	return 0;
 }
 
+/**
+ * omap_bandgap_build() - parse DT and setup a struct omap_bandgap
+ * @bg_ptr: pointer to struct omap_bandgap
+ * @pdev: pointer to device struct platform_device
+ *
+ * Used to read the device tree properties accordingly to the bandgap
+ * matching version. Based on bandgap version and its capabilities it
+ * will build a struct omap_bandgap out of the required DT entries.
+ */
 static const struct of_device_id of_omap_bandgap_match[];
 static struct omap_bandgap *omap_bandgap_build(struct platform_device *pdev)
 {
