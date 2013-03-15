@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 ROCKCHIP, Inc.
- *
+ * drivers/video/display/transmitter/tc358768.c
  * author: hhb@rock-chips.com
  * create date: 2012-10-26
  * This software is licensed under the terms of the GNU General Public
@@ -103,9 +103,11 @@ int tc358768_gpio_init(void *data) {
 			//gpio_free(reset->reset_pin);
 			printk("%s: request TC358768_RST_PIN error\n", __func__);
 		} else {
+#if OLD_RK_IOMUX		
 			if(reset->mux_name)
 				rk30_mux_api_set(reset->mux_name, reset->mux_mode);
-			gpio_direction_output(reset->reset_pin, reset->effect_value);
+#endif
+			gpio_direction_output(reset->reset_pin, !reset->effect_value);
 		}
 	}
 	
@@ -115,8 +117,10 @@ int tc358768_gpio_init(void *data) {
 			//gpio_free(vdd->enable_pin);
 			printk("%s: request TC358768_vddc_PIN error\n", __func__);
 		} else {
+#if OLD_RK_IOMUX		
 			if(vdd->mux_name)
 				rk30_mux_api_set(vdd->mux_name, vdd->mux_mode);	
+#endif
 			gpio_direction_output(vdd->enable_pin, !vdd->effect_value);
 		}
 	}
@@ -128,8 +132,10 @@ int tc358768_gpio_init(void *data) {
 			//gpio_free(vdd->enable_pin);
 			printk("%s: request TC358768_vddio_PIN error\n", __func__);
 		} else {
+#if OLD_RK_IOMUX		
 			if(vdd->mux_name)
 				rk30_mux_api_set(vdd->mux_name, vdd->mux_mode);	
+#endif
 			gpio_direction_output(vdd->enable_pin, !vdd->effect_value);	
 		}
 	}
@@ -141,8 +147,10 @@ int tc358768_gpio_init(void *data) {
 			//gpio_free(vdd->enable_pin);
 			printk("%s: request TC358768_vdd_mipi_PIN error\n", __func__);
 		} else {
+#if OLD_RK_IOMUX		
 			if(vdd->mux_name)
 				rk30_mux_api_set(vdd->mux_name, vdd->mux_mode);	
+#endif
 			gpio_direction_output(vdd->enable_pin, !vdd->effect_value);	
 		}
 	}
@@ -217,7 +225,6 @@ int tc358768_power_up(void) {
 	int ret = 0;
 	struct tc358768_t *tc = (struct tc358768_t *)tc358768;
 	
-	tc358768_gpio_init(NULL);
 	tc->vddc.enable(&tc->vddc);
 	tc->vdd_mipi.enable(&tc->vdd_mipi);
 	tc->vddio.enable(&tc->vddio);
@@ -234,7 +241,6 @@ int tc358768_power_down(void) {
 	tc->vddio.disable(&tc->vddio);
 	tc->vdd_mipi.disable(&tc->vdd_mipi);
 	tc->vddc.disable(&tc->vddc);
-	tc358768_gpio_deinit(NULL);
 	
 	return ret;
 }
@@ -293,11 +299,14 @@ static int tc358768_probe(struct i2c_client *client,
     	tc358768->vdd_mipi.enable = tc358768_vdd_enable;    
     if(!tc358768->vdd_mipi.disable)
     	tc358768->vdd_mipi.disable = tc358768_vdd_disable;
-   
+    	
+    tc358768_gpio_init(NULL);
+    
     return ret;
 }
 static int tc358768_remove(struct i2c_client *client)
 {
+    tc358768_gpio_deinit(NULL);
     tc358768_client = NULL;
     tc358768 = NULL;
     return 0;

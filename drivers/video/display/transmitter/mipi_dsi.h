@@ -1,4 +1,6 @@
 
+//drivers/video/display/transmitter/mipi_dsi.h
+
 #ifndef MIPI_DSI_H_
 #define MIPI_DSI_H_
 
@@ -17,6 +19,10 @@
 #define DTYPE_GEN_SWRITE_2P		0X23 
 #define DTYPE_GEN_SWRITE_1P		0X13
 #define DTYPE_GEN_SWRITE_0P		0X03
+
+
+//iomux
+#define OLD_RK_IOMUX 0
 
 struct spi_t {
 	int cs;

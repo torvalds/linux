@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 ROCKCHIP, Inc.
- *
+ * drivers/video/display/transmitter/mipi_dsi.c
  * author: hhb@rock-chips.com
  * create date: 2013-01-17
  * This software is licensed under the terms of the GNU General Public
@@ -63,7 +63,8 @@ int dsi_probe_current_chip(void) {
 
 	int i = 0, id;
 	struct mipi_dsi_ops *ops = NULL;
-
+	if(cur_dsi_ops)
+		return 0;
 	for(i = 0; i < MAX_DSI_CHIPS; i++) {
 		if(dsi_ops[i]) {
 			ops = dsi_ops[i];
