@@ -4372,16 +4372,13 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 #ifndef CONFIG_SND_HDA_CODEC_CA0132_DSP
 	return; /* NOP */
 #endif
-	spec->dsp_state = DSP_DOWNLOAD_INIT;
 
-	if (spec->dsp_state == DSP_DOWNLOAD_INIT) {
-		chipio_enable_clocks(codec);
-		spec->dsp_state = DSP_DOWNLOADING;
-		if (!ca0132_download_dsp_images(codec))
-			spec->dsp_state = DSP_DOWNLOAD_FAILED;
-		else
-			spec->dsp_state = DSP_DOWNLOADED;
-	}
+	chipio_enable_clocks(codec);
+	spec->dsp_state = DSP_DOWNLOADING;
+	if (!ca0132_download_dsp_images(codec))
+		spec->dsp_state = DSP_DOWNLOAD_FAILED;
+	else
+		spec->dsp_state = DSP_DOWNLOADED;
 
 	if (spec->dsp_state == DSP_DOWNLOADED)
 		ca0132_set_dsp_msr(codec, true);
