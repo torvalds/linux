@@ -166,8 +166,6 @@ struct temp_sensor_registers {
  * @max_temp: sensor maximum temperature
  * @min_temp: sensor minimum temperature
  * @hyst_val: temperature hysteresis considered while converting ADC values
- * @adc_start_val: ADC conversion table starting value
- * @adc_end_val: ADC conversion table ending value
  * @update_int1: update interval
  * @update_int2: update interval
  *
@@ -185,8 +183,6 @@ struct temp_sensor_data {
 	int     max_temp;
 	int     min_temp;
 	int     hyst_val;
-	u32     adc_start_val;
-	u32     adc_end_val;
 	u32     update_int1; /* not used */
 	u32     update_int2; /* not used */
 };
@@ -325,6 +321,8 @@ struct omap_temp_sensor {
  * struct omap_bandgap_data - omap bandgap data configuration structure
  * @features: a bitwise flag set to describe the device features
  * @conv_table: Pointer to ADC to temperature conversion table
+ * @adc_start_val: ADC conversion table starting value
+ * @adc_end_val: ADC conversion table ending value
  * @fclock_name: clock name of the functional clock
  * @div_ck_name: clock name of the clock divisor
  * @sensor_count: count of temperature sensor within this bandgap device
@@ -342,6 +340,8 @@ struct omap_temp_sensor {
 struct omap_bandgap_data {
 	unsigned int			features;
 	const int			*conv_table;
+	u32				adc_start_val;
+	u32				adc_end_val;
 	char				*fclock_name;
 	char				*div_ck_name;
 	int				sensor_count;

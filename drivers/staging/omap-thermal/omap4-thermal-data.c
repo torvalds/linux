@@ -45,8 +45,6 @@ static struct temp_sensor_data omap4430_mpu_temp_sensor_data = {
 	.max_temp = OMAP4430_MAX_TEMP,
 	.min_temp = OMAP4430_MIN_TEMP,
 	.hyst_val = OMAP4430_HYST_VAL,
-	.adc_start_val = OMAP4430_ADC_START_VALUE,
-	.adc_end_val = OMAP4430_ADC_END_VALUE,
 };
 
 /*
@@ -75,6 +73,8 @@ const struct omap_bandgap_data omap4430_data = {
 	.fclock_name = "bandgap_fclk",
 	.div_ck_name = "bandgap_fclk",
 	.conv_table = omap4430_adc_to_temp,
+	.adc_start_val = OMAP4430_ADC_START_VALUE,
+	.adc_end_val = OMAP4430_ADC_END_VALUE,
 	.expose_sensor = omap_thermal_expose_sensor,
 	.remove_sensor = omap_thermal_remove_sensor,
 	.sensors = {
@@ -142,8 +142,6 @@ static struct temp_sensor_data omap4460_mpu_temp_sensor_data = {
 	.max_temp = OMAP4460_MAX_TEMP,
 	.min_temp = OMAP4460_MIN_TEMP,
 	.hyst_val = OMAP4460_HYST_VAL,
-	.adc_start_val = OMAP4460_ADC_START_VALUE,
-	.adc_end_val = OMAP4460_ADC_END_VALUE,
 	.update_int1 = 1000,
 	.update_int2 = 2000,
 };
@@ -214,6 +212,8 @@ const struct omap_bandgap_data omap4460_data = {
 	.fclock_name = "bandgap_ts_fclk",
 	.div_ck_name = "div_ts_ck",
 	.conv_table = omap4460_adc_to_temp,
+	.adc_start_val = OMAP4460_ADC_START_VALUE,
+	.adc_end_val = OMAP4460_ADC_END_VALUE,
 	.expose_sensor = omap_thermal_expose_sensor,
 	.remove_sensor = omap_thermal_remove_sensor,
 	.sensors = {
@@ -244,6 +244,8 @@ const struct omap_bandgap_data omap4470_data = {
 	.fclock_name = "bandgap_ts_fclk",
 	.div_ck_name = "div_ts_ck",
 	.conv_table = omap4460_adc_to_temp,
+	.adc_start_val = OMAP4460_ADC_START_VALUE,
+	.adc_end_val = OMAP4460_ADC_END_VALUE,
 	.expose_sensor = omap_thermal_expose_sensor,
 	.remove_sensor = omap_thermal_remove_sensor,
 	.sensors = {

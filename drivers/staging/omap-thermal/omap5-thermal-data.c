@@ -171,8 +171,6 @@ static struct temp_sensor_data omap5430_mpu_temp_sensor_data = {
 	.max_temp = OMAP5430_MPU_MAX_TEMP,
 	.min_temp = OMAP5430_MPU_MIN_TEMP,
 	.hyst_val = OMAP5430_MPU_HYST_VAL,
-	.adc_start_val = OMAP5430_ADC_START_VALUE,
-	.adc_end_val = OMAP5430_ADC_END_VALUE,
 	.update_int1 = 1000,
 	.update_int2 = 2000,
 };
@@ -188,8 +186,6 @@ static struct temp_sensor_data omap5430_gpu_temp_sensor_data = {
 	.max_temp = OMAP5430_GPU_MAX_TEMP,
 	.min_temp = OMAP5430_GPU_MIN_TEMP,
 	.hyst_val = OMAP5430_GPU_HYST_VAL,
-	.adc_start_val = OMAP5430_ADC_START_VALUE,
-	.adc_end_val = OMAP5430_ADC_END_VALUE,
 	.update_int1 = 1000,
 	.update_int2 = 2000,
 };
@@ -205,8 +201,6 @@ static struct temp_sensor_data omap5430_core_temp_sensor_data = {
 	.max_temp = OMAP5430_CORE_MAX_TEMP,
 	.min_temp = OMAP5430_CORE_MIN_TEMP,
 	.hyst_val = OMAP5430_CORE_HYST_VAL,
-	.adc_start_val = OMAP5430_ADC_START_VALUE,
-	.adc_end_val = OMAP5430_ADC_END_VALUE,
 	.update_int1 = 1000,
 	.update_int2 = 2000,
 };
@@ -325,6 +319,8 @@ const struct omap_bandgap_data omap5430_data = {
 	.fclock_name = "l3instr_ts_gclk_div",
 	.div_ck_name = "l3instr_ts_gclk_div",
 	.conv_table = omap5430_adc_to_temp,
+	.adc_start_val = OMAP5430_ADC_START_VALUE,
+	.adc_end_val = OMAP5430_ADC_END_VALUE,
 	.expose_sensor = omap_thermal_expose_sensor,
 	.remove_sensor = omap_thermal_remove_sensor,
 	.sensors = {

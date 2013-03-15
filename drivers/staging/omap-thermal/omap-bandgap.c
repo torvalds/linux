@@ -236,7 +236,6 @@ static irqreturn_t omap_bandgap_tshut_irq_handler(int irq, void *data)
 /**
  * omap_bandgap_adc_to_mcelsius() - converts an ADC value to mCelsius scale
  * @bg_ptr: struct omap_bandgap pointer
- * @id: sensor id
  * @adc_val: value in ADC representation
  * @t: address where to write the resulting temperature in mCelsius
  *
@@ -245,35 +244,34 @@ static irqreturn_t omap_bandgap_tshut_irq_handler(int irq, void *data)
  * The conversion table is indexed by the ADC values.
  */
 static
-int omap_bandgap_adc_to_mcelsius(struct omap_bandgap *bg_ptr, int id,
+int omap_bandgap_adc_to_mcelsius(struct omap_bandgap *bg_ptr,
 				 int adc_val, int *t)
 {
-	struct temp_sensor_data *ts_data = bg_ptr->conf->sensors[id].ts_data;
+	struct omap_bandgap_data *conf = bg_ptr->conf;
 	int ret = 0;
 
 	/* look up for temperature in the table and return the temperature */
-	if (adc_val < ts_data->adc_start_val ||
-	    adc_val > ts_data->adc_end_val) {
+	if (adc_val < conf->adc_start_val || adc_val > conf->adc_end_val) {
 		ret = -ERANGE;
 		goto exit;
 	}
 
-	*t = bg_ptr->conf->conv_table[adc_val - ts_data->adc_start_val];
+	*t = bg_ptr->conf->conv_table[adc_val - conf->adc_start_val];
 
 exit:
 	return ret;
 }
 
 static
-int omap_bandgap_mcelsius_to_adc(struct omap_bandgap *bg_ptr, int i, long temp,
+int omap_bandgap_mcelsius_to_adc(struct omap_bandgap *bg_ptr, long temp,
 				 int *adc)
 {
-	struct temp_sensor_data *ts_data = bg_ptr->conf->sensors[i].ts_data;
+	struct omap_bandgap_data *conf = bg_ptr->conf;
 	const int *conv_table = bg_ptr->conf->conv_table;
 	int high, low, mid, ret = 0;
 
 	low = 0;
-	high = ts_data->adc_end_val - ts_data->adc_start_val;
+	high = conf->adc_end_val - conf->adc_start_val;
 	mid = (high + low) / 2;
 
 	if (temp < conv_table[low] || temp > conv_table[high]) {
@@ -289,7 +287,7 @@ int omap_bandgap_mcelsius_to_adc(struct omap_bandgap *bg_ptr, int i, long temp,
 		mid = (low + high) / 2;
 	}
 
-	*adc = ts_data->adc_start_val + low;
+	*adc = conf->adc_start_val + low;
 
 exit:
 	return ret;
@@ -323,18 +321,17 @@ static int temp_sensor_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
 }
 
 static
-int add_hyst(int adc_val, int hyst_val, struct omap_bandgap *bg_ptr, int i,
-	     u32 *sum)
+int add_hyst(int adc_val, int hyst_val, struct omap_bandgap *bg_ptr, u32 *sum)
 {
 	int temp, ret;
 
-	ret = omap_bandgap_adc_to_mcelsius(bg_ptr, i, adc_val, &temp);
+	ret = omap_bandgap_adc_to_mcelsius(bg_ptr, adc_val, &temp);
 	if (ret < 0)
 		return ret;
 
 	temp += hyst_val;
 
-	return omap_bandgap_mcelsius_to_adc(bg_ptr, i, temp, sum);
+	return omap_bandgap_mcelsius_to_adc(bg_ptr, temp, sum);
 }
 
 /* Talert Thot threshold. Call it only if HAS(TALERT) is set */
@@ -354,7 +351,7 @@ int temp_sensor_configure_thot(struct omap_bandgap *bg_ptr, int id, int t_hot)
 	    __ffs(tsr->threshold_tcold_mask);
 	if (t_hot <= cold) {
 		/* change the t_cold to t_hot - 5000 millidegrees */
-		err |= add_hyst(t_hot, -ts_data->hyst_val, bg_ptr, id, &cold);
+		err |= add_hyst(t_hot, -ts_data->hyst_val, bg_ptr, &cold);
 		/* write the new t_cold value */
 		reg_val = thresh_val & (~tsr->threshold_tcold_mask);
 		reg_val |= cold << __ffs(tsr->threshold_tcold_mask);
@@ -392,7 +389,7 @@ int temp_sensor_configure_tcold(struct omap_bandgap *bg_ptr, int id,
 
 	if (t_cold >= hot) {
 		/* change the t_hot to t_cold + 5000 millidegrees */
-		err |= add_hyst(t_cold, ts_data->hyst_val, bg_ptr, id, &hot);
+		err |= add_hyst(t_cold, ts_data->hyst_val, bg_ptr, &hot);
 		/* write the new t_hot value */
 		reg_val = thresh_val & (~tsr->threshold_thot_mask);
 		reg_val |= hot << __ffs(tsr->threshold_thot_mask);
@@ -459,7 +456,7 @@ int omap_bandgap_read_thot(struct omap_bandgap *bg_ptr, int id,
 	temp = omap_bandgap_readl(bg_ptr, tsr->bgap_threshold);
 	temp = (temp & tsr->threshold_thot_mask) >>
 		__ffs(tsr->threshold_thot_mask);
-	ret |= omap_bandgap_adc_to_mcelsius(bg_ptr, id, temp, &temp);
+	ret |= omap_bandgap_adc_to_mcelsius(bg_ptr, temp, &temp);
 	if (ret) {
 		dev_err(bg_ptr->dev, "failed to read thot\n");
 		return -EIO;
@@ -497,7 +494,7 @@ int omap_bandgap_write_thot(struct omap_bandgap *bg_ptr, int id, int val)
 
 	if (val < ts_data->min_temp + ts_data->hyst_val)
 		return -EINVAL;
-	ret = omap_bandgap_mcelsius_to_adc(bg_ptr, id, val, &t_hot);
+	ret = omap_bandgap_mcelsius_to_adc(bg_ptr, val, &t_hot);
 	if (ret < 0)
 		return ret;
 
@@ -534,7 +531,7 @@ int omap_bandgap_read_tcold(struct omap_bandgap *bg_ptr, int id,
 	temp = omap_bandgap_readl(bg_ptr, tsr->bgap_threshold);
 	temp = (temp & tsr->threshold_tcold_mask)
 	    >> __ffs(tsr->threshold_tcold_mask);
-	ret |= omap_bandgap_adc_to_mcelsius(bg_ptr, id, temp, &temp);
+	ret |= omap_bandgap_adc_to_mcelsius(bg_ptr, temp, &temp);
 	if (ret)
 		return -EIO;
 
@@ -570,7 +567,7 @@ int omap_bandgap_write_tcold(struct omap_bandgap *bg_ptr, int id, int val)
 	if (val > ts_data->max_temp + ts_data->hyst_val)
 		return -EINVAL;
 
-	ret = omap_bandgap_mcelsius_to_adc(bg_ptr, id, val, &t_cold);
+	ret = omap_bandgap_mcelsius_to_adc(bg_ptr, val, &t_cold);
 	if (ret < 0)
 		return ret;
 
@@ -661,7 +658,7 @@ int omap_bandgap_read_temperature(struct omap_bandgap *bg_ptr, int id,
 	temp = omap_bandgap_read_temp(bg_ptr, id);
 	mutex_unlock(&bg_ptr->bg_mutex);
 
-	ret |= omap_bandgap_adc_to_mcelsius(bg_ptr, id, temp, &temp);
+	ret |= omap_bandgap_adc_to_mcelsius(bg_ptr, temp, &temp);
 	if (ret)
 		return -EIO;
 
