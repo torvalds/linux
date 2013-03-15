@@ -1921,8 +1921,8 @@ drop_unlock:
 static inline int
 il4965_alloc_dma_ptr(struct il_priv *il, struct il_dma_ptr *ptr, size_t size)
 {
-	ptr->addr =
-	    dma_alloc_coherent(&il->pci_dev->dev, size, &ptr->dma, GFP_KERNEL);
+	ptr->addr = dma_alloc_coherent(&il->pci_dev->dev, size, &ptr->dma,
+				       GFP_KERNEL);
 	if (!ptr->addr)
 		return -ENOMEM;
 	ptr->size = size;

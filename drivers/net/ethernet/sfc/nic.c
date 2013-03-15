@@ -305,11 +305,11 @@ int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 			 unsigned int len)
 {
 	buffer->addr = dma_alloc_coherent(&efx->pci_dev->dev, len,
-					  &buffer->dma_addr, GFP_ATOMIC);
+					  &buffer->dma_addr,
+					  GFP_ATOMIC | __GFP_ZERO);
 	if (!buffer->addr)
 		return -ENOMEM;
 	buffer->len = len;
-	memset(buffer->addr, 0, len);
 	return 0;
 }
 

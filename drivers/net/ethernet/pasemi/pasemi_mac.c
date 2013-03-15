@@ -441,11 +441,10 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 
 	ring->buffers = dma_alloc_coherent(&mac->dma_pdev->dev,
 					   RX_RING_SIZE * sizeof(u64),
-					   &ring->buf_dma, GFP_KERNEL);
+					   &ring->buf_dma,
+					   GFP_KERNEL | __GFP_ZERO);
 	if (!ring->buffers)
 		goto out_ring_desc;
-
-	memset(ring->buffers, 0, RX_RING_SIZE * sizeof(u64));
 
 	write_dma_reg(PAS_DMA_RXCHAN_BASEL(chno),
 		      PAS_DMA_RXCHAN_BASEL_BRBL(ring->chan.ring_dma));

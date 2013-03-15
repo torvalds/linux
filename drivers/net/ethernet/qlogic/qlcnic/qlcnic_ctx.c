@@ -422,22 +422,20 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 
 	rq_size = SIZEOF_HOSTRQ_TX(struct qlcnic_hostrq_tx_ctx);
 	rq_addr = dma_alloc_coherent(&adapter->pdev->dev, rq_size,
-			&rq_phys_addr, GFP_KERNEL);
+				     &rq_phys_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!rq_addr)
 		return -ENOMEM;
 
 	rsp_size = SIZEOF_CARDRSP_TX(struct qlcnic_cardrsp_tx_ctx);
 	rsp_addr = dma_alloc_coherent(&adapter->pdev->dev, rsp_size,
-			&rsp_phys_addr, GFP_KERNEL);
+				      &rsp_phys_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!rsp_addr) {
 		err = -ENOMEM;
 		goto out_free_rq;
 	}
 
-	memset(rq_addr, 0, rq_size);
 	prq = rq_addr;
 
-	memset(rsp_addr, 0, rsp_size);
 	prsp = rsp_addr;
 
 	prq->host_rsp_dma_addr = cpu_to_le64(rsp_phys_addr);
@@ -744,10 +742,9 @@ int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *adapter,
 	size_t  nic_size = sizeof(struct qlcnic_info_le);
 
 	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
-					   &nic_dma_t, GFP_KERNEL);
+					   &nic_dma_t, GFP_KERNEL | __GFP_ZERO);
 	if (!nic_info_addr)
 		return -ENOMEM;
-	memset(nic_info_addr, 0, nic_size);
 
 	nic_info = nic_info_addr;
 
@@ -795,11 +792,10 @@ int qlcnic_82xx_set_nic_info(struct qlcnic_adapter *adapter,
 		return err;
 
 	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
-					   &nic_dma_t, GFP_KERNEL);
+					   &nic_dma_t, GFP_KERNEL | __GFP_ZERO);
 	if (!nic_info_addr)
 		return -ENOMEM;
 
-	memset(nic_info_addr, 0, nic_size);
 	nic_info = nic_info_addr;
 
 	nic_info->pci_func = cpu_to_le16(nic->pci_func);
@@ -845,10 +841,10 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 	size_t pci_size = npar_size * QLCNIC_MAX_PCI_FUNC;
 
 	pci_info_addr = dma_alloc_coherent(&adapter->pdev->dev, pci_size,
-			&pci_info_dma_t, GFP_KERNEL);
+					   &pci_info_dma_t,
+					   GFP_KERNEL | __GFP_ZERO);
 	if (!pci_info_addr)
 		return -ENOMEM;
-	memset(pci_info_addr, 0, pci_size);
 
 	npar = pci_info_addr;
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_PCI_INFO);
@@ -940,11 +936,9 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 	}
 
 	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
-					&stats_dma_t, GFP_KERNEL);
+					&stats_dma_t, GFP_KERNEL | __GFP_ZERO);
 	if (!stats_addr)
 		return -ENOMEM;
-
-	memset(stats_addr, 0, stats_size);
 
 	arg1 = func | QLCNIC_STATS_VERSION << 8 | QLCNIC_STATS_PORT << 12;
 	arg1 |= rx_tx << 15 | stats_size << 16;
@@ -993,11 +987,10 @@ int qlcnic_get_mac_stats(struct qlcnic_adapter *adapter,
 		return -ENOMEM;
 
 	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
-					&stats_dma_t, GFP_KERNEL);
+					&stats_dma_t, GFP_KERNEL | __GFP_ZERO);
 	if (!stats_addr)
 		return -ENOMEM;
 
-	memset(stats_addr, 0, stats_size);
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_MAC_STATS);
 	cmd.req.arg[1] = stats_size << 16;
 	cmd.req.arg[2] = MSD(stats_dma_t);

@@ -638,12 +638,11 @@ static int mal_probe(struct platform_device *ofdev)
 		(NUM_TX_BUFF * mal->num_tx_chans +
 		 NUM_RX_BUFF * mal->num_rx_chans);
 	mal->bd_virt = dma_alloc_coherent(&ofdev->dev, bd_size, &mal->bd_dma,
-					  GFP_KERNEL);
+					  GFP_KERNEL | __GFP_ZERO);
 	if (mal->bd_virt == NULL) {
 		err = -ENOMEM;
 		goto fail_unmap;
 	}
-	memset(mal->bd_virt, 0, bd_size);
 
 	for (i = 0; i < mal->num_tx_chans; ++i)
 		set_mal_dcrn(mal, MAL_TXCTPR(i), mal->bd_dma +

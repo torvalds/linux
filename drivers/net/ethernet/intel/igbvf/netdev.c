@@ -447,7 +447,6 @@ int igbvf_setup_tx_resources(struct igbvf_adapter *adapter,
 
 	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
 					   &tx_ring->dma, GFP_KERNEL);
-
 	if (!tx_ring->desc)
 		goto err;
 
@@ -488,7 +487,6 @@ int igbvf_setup_rx_resources(struct igbvf_adapter *adapter,
 
 	rx_ring->desc = dma_alloc_coherent(&pdev->dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);
-
 	if (!rx_ring->desc)
 		goto err;
 

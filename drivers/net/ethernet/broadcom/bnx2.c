@@ -854,11 +854,10 @@ bnx2_alloc_mem(struct bnx2 *bp)
 				sizeof(struct statistics_block);
 
 	status_blk = dma_alloc_coherent(&bp->pdev->dev, bp->status_stats_size,
-					&bp->status_blk_mapping, GFP_KERNEL);
+					&bp->status_blk_mapping,
+					GFP_KERNEL | __GFP_ZERO);
 	if (status_blk == NULL)
 		goto alloc_mem_err;
-
-	memset(status_blk, 0, bp->status_stats_size);
 
 	bnapi = &bp->bnx2_napi[0];
 	bnapi->status_blk.msi = status_blk;

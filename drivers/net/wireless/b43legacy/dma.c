@@ -334,10 +334,9 @@ static int alloc_ringmemory(struct b43legacy_dmaring *ring)
 	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
 					    B43legacy_DMA_RINGMEMSIZE,
 					    &(ring->dmabase),
-					    GFP_KERNEL);
+					    GFP_KERNEL | __GFP_ZERO);
 	if (!ring->descbase)
 		return -ENOMEM;
-	memset(ring->descbase, 0, B43legacy_DMA_RINGMEMSIZE);
 
 	return 0;
 }

@@ -2235,9 +2235,8 @@ il_alloc_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc)
 		return -EINVAL;
 	}
 
-	desc->v_addr =
-	    dma_alloc_coherent(&pci_dev->dev, desc->len, &desc->p_addr,
-			       GFP_KERNEL);
+	desc->v_addr = dma_alloc_coherent(&pci_dev->dev, desc->len,
+					  &desc->p_addr, GFP_KERNEL);
 	return (desc->v_addr != NULL) ? 0 : -ENOMEM;
 }
 

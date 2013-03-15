@@ -2566,15 +2566,13 @@ il_rx_queue_alloc(struct il_priv *il)
 	INIT_LIST_HEAD(&rxq->rx_used);
 
 	/* Alloc the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd =
-	    dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->bd_dma,
-			       GFP_KERNEL);
+	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->bd_dma,
+				     GFP_KERNEL);
 	if (!rxq->bd)
 		goto err_bd;
 
-	rxq->rb_stts =
-	    dma_alloc_coherent(dev, sizeof(struct il_rb_status),
-			       &rxq->rb_stts_dma, GFP_KERNEL);
+	rxq->rb_stts = dma_alloc_coherent(dev, sizeof(struct il_rb_status),
+					  &rxq->rb_stts_dma, GFP_KERNEL);
 	if (!rxq->rb_stts)
 		goto err_rb;
 

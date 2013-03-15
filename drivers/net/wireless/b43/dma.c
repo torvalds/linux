@@ -419,8 +419,6 @@ static inline
 
 static int alloc_ringmemory(struct b43_dmaring *ring)
 {
-	gfp_t flags = GFP_KERNEL;
-
 	/* The specs call for 4K buffers for 30- and 32-bit DMA with 4K
 	 * alignment and 8K buffers for 64-bit DMA with 8K alignment.
 	 * In practice we could use smaller buffers for the latter, but the
@@ -435,12 +433,9 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 
 	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
 					    ring_mem_size, &(ring->dmabase),
-					    flags);
-	if (!ring->descbase) {
-		b43err(ring->dev->wl, "DMA ringmemory allocation failed\n");
+					    GFP_KERNEL | __GFP_ZERO);
+	if (!ring->descbase)
 		return -ENOMEM;
-	}
-	memset(ring->descbase, 0, ring_mem_size);
 
 	return 0;
 }

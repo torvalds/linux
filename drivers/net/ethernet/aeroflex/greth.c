@@ -1466,24 +1466,20 @@ static int greth_of_probe(struct platform_device *ofdev)
 	/* Allocate TX descriptor ring in coherent memory */
 	greth->tx_bd_base = dma_alloc_coherent(greth->dev, 1024,
 					       &greth->tx_bd_base_phys,
-					       GFP_KERNEL);
+					       GFP_KERNEL | __GFP_ZERO);
 	if (!greth->tx_bd_base) {
 		err = -ENOMEM;
 		goto error3;
 	}
 
-	memset(greth->tx_bd_base, 0, 1024);
-
 	/* Allocate RX descriptor ring in coherent memory */
 	greth->rx_bd_base = dma_alloc_coherent(greth->dev, 1024,
 					       &greth->rx_bd_base_phys,
-					       GFP_KERNEL);
+					       GFP_KERNEL | __GFP_ZERO);
 	if (!greth->rx_bd_base) {
 		err = -ENOMEM;
 		goto error4;
 	}
-
-	memset(greth->rx_bd_base, 0, 1024);
 
 	/* Get MAC address from: module param, OF property or ID prom */
 	for (i = 0; i < 6; i++) {

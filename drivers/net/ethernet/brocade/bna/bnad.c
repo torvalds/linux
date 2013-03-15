@@ -1264,9 +1264,8 @@ bnad_mem_alloc(struct bnad *bnad,
 			mem_info->mdl[i].len = mem_info->len;
 			mem_info->mdl[i].kva =
 				dma_alloc_coherent(&bnad->pcidev->dev,
-						mem_info->len, &dma_pa,
-						GFP_KERNEL);
-
+						   mem_info->len, &dma_pa,
+						   GFP_KERNEL);
 			if (mem_info->mdl[i].kva == NULL)
 				goto err_return;
 

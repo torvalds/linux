@@ -124,11 +124,9 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	 */
 	addr = dma_alloc_coherent(rt2x00dev->dev,
 				  queue->limit * queue->desc_size,
-				  &dma, GFP_KERNEL);
+				  &dma, GFP_KERNEL | __GFP_ZERO);
 	if (!addr)
 		return -ENOMEM;
-
-	memset(addr, 0, queue->limit * queue->desc_size);
 
 	/*
 	 * Initialize all queue entries to contain valid addresses.

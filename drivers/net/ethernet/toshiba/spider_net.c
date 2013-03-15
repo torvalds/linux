@@ -352,8 +352,7 @@ spider_net_init_chain(struct spider_net_card *card,
 	alloc_size = chain->num_desc * sizeof(struct spider_net_hw_descr);
 
 	chain->hwring = dma_alloc_coherent(&card->pdev->dev, alloc_size,
-		&chain->dma_addr, GFP_KERNEL);
-
+					   &chain->dma_addr, GFP_KERNEL);
 	if (!chain->hwring)
 		return -ENOMEM;
 

@@ -3592,10 +3592,9 @@ static int myri10ge_alloc_slices(struct myri10ge_priv *mgp)
 		bytes = mgp->max_intr_slots * sizeof(*ss->rx_done.entry);
 		ss->rx_done.entry = dma_alloc_coherent(&pdev->dev, bytes,
 						       &ss->rx_done.bus,
-						       GFP_KERNEL);
+						       GFP_KERNEL | __GFP_ZERO);
 		if (ss->rx_done.entry == NULL)
 			goto abort;
-		memset(ss->rx_done.entry, 0, bytes);
 		bytes = sizeof(*ss->fw_stats);
 		ss->fw_stats = dma_alloc_coherent(&pdev->dev, bytes,
 						  &ss->fw_stats_bus,

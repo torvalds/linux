@@ -8172,11 +8172,9 @@ static int tg3_mem_rx_acquire(struct tg3 *tp)
 		tnapi->rx_rcb = dma_alloc_coherent(&tp->pdev->dev,
 						   TG3_RX_RCB_RING_BYTES(tp),
 						   &tnapi->rx_rcb_mapping,
-						   GFP_KERNEL);
+						   GFP_KERNEL | __GFP_ZERO);
 		if (!tnapi->rx_rcb)
 			goto err_out;
-
-		memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
 	}
 
 	return 0;
@@ -8226,11 +8224,9 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 	tp->hw_stats = dma_alloc_coherent(&tp->pdev->dev,
 					  sizeof(struct tg3_hw_stats),
 					  &tp->stats_mapping,
-					  GFP_KERNEL);
+					  GFP_KERNEL | __GFP_ZERO);
 	if (!tp->hw_stats)
 		goto err_out;
-
-	memset(tp->hw_stats, 0, sizeof(struct tg3_hw_stats));
 
 	for (i = 0; i < tp->irq_cnt; i++) {
 		struct tg3_napi *tnapi = &tp->napi[i];
@@ -8239,11 +8235,10 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		tnapi->hw_status = dma_alloc_coherent(&tp->pdev->dev,
 						      TG3_HW_STATUS_SIZE,
 						      &tnapi->status_mapping,
-						      GFP_KERNEL);
+						      GFP_KERNEL | __GFP_ZERO);
 		if (!tnapi->hw_status)
 			goto err_out;
 
-		memset(tnapi->hw_status, 0, TG3_HW_STATUS_SIZE);
 		sblk = tnapi->hw_status;
 
 		if (tg3_flag(tp, ENABLE_RSS)) {

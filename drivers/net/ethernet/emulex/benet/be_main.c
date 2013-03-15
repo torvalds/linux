@@ -146,10 +146,9 @@ static int be_queue_alloc(struct be_adapter *adapter, struct be_queue_info *q,
 	q->entry_size = entry_size;
 	mem->size = len * entry_size;
 	mem->va = dma_alloc_coherent(&adapter->pdev->dev, mem->size, &mem->dma,
-				     GFP_KERNEL);
+				     GFP_KERNEL | __GFP_ZERO);
 	if (!mem->va)
 		return -ENOMEM;
-	memset(mem->va, 0, mem->size);
 	return 0;
 }
 
@@ -2569,10 +2568,9 @@ static int be_setup_wol(struct be_adapter *adapter, bool enable)
 
 	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
 	cmd.va = dma_alloc_coherent(&adapter->pdev->dev, cmd.size, &cmd.dma,
-				    GFP_KERNEL);
+				    GFP_KERNEL | __GFP_ZERO);
 	if (cmd.va == NULL)
 		return -1;
-	memset(cmd.va, 0, cmd.size);
 
 	if (enable) {
 		status = pci_write_config_dword(adapter->pdev,
@@ -3794,12 +3792,13 @@ static int be_ctrl_init(struct be_adapter *adapter)
 
 	rx_filter->size = sizeof(struct be_cmd_req_rx_filter);
 	rx_filter->va = dma_alloc_coherent(&adapter->pdev->dev, rx_filter->size,
-					&rx_filter->dma, GFP_KERNEL);
+					   &rx_filter->dma,
+					   GFP_KERNEL | __GFP_ZERO);
 	if (rx_filter->va == NULL) {
 		status = -ENOMEM;
 		goto free_mbox;
 	}
-	memset(rx_filter->va, 0, rx_filter->size);
+
 	mutex_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
@@ -3841,10 +3840,9 @@ static int be_stats_init(struct be_adapter *adapter)
 		cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
 
 	cmd->va = dma_alloc_coherent(&adapter->pdev->dev, cmd->size, &cmd->dma,
-				     GFP_KERNEL);
+				     GFP_KERNEL | __GFP_ZERO);
 	if (cmd->va == NULL)
 		return -1;
-	memset(cmd->va, 0, cmd->size);
 	return 0;
 }
 
