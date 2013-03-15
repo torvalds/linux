@@ -216,6 +216,17 @@ nouveau_therm_program_alarms_polling(struct nouveau_therm *therm)
 	alarm_timer_callback(&priv->sensor.therm_poll_alarm);
 }
 
+void
+nouveau_therm_sensor_preinit(struct nouveau_therm *therm)
+{
+	const char *sensor_avail = "yes";
+
+	if (therm->temp_get(therm) < 0)
+		sensor_avail = "no";
+
+	nv_info(therm, "internal sensor: %s\n", sensor_avail);
+}
+
 int
 nouveau_therm_sensor_ctor(struct nouveau_therm *therm)
 {

@@ -122,6 +122,7 @@ int nouveau_therm_fan_sense(struct nouveau_therm *therm);
 
 int nouveau_therm_preinit(struct nouveau_therm *);
 
+void nouveau_therm_sensor_preinit(struct nouveau_therm *);
 void nouveau_therm_sensor_set_threshold_state(struct nouveau_therm *therm,
 					     enum nouveau_therm_thrs thrs,
 					     enum nouveau_therm_thrs_state st);
