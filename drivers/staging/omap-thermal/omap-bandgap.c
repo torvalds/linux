@@ -42,6 +42,8 @@
 
 #include "omap-bandgap.h"
 
+/***   Helper functions to access registers and their bitfields   ***/
+
 /**
  * omap_bandgap_readl() - simple read helper function
  * @bg_ptr: pointer to omap_bandgap structure
