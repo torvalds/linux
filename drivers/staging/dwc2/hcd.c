@@ -2940,7 +2940,6 @@ void dwc2_hcd_remove(struct device *dev, struct dwc2_hsotg *hsotg)
 	usb_remove_hcd(hcd);
 	hsotg->priv = NULL;
 	dwc2_hcd_release(hsotg);
-	kfree(hsotg->core_params);
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 	kfree(hsotg->last_frame_num_array);
