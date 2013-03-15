@@ -20,7 +20,6 @@ on omap5-thermal.c
 - Add support for GPU cooling
 
 generally:
-- write Kconfig dependencies so that omap variants are covered
 - make checkpatch.pl and sparse happy
 - make sure this code works on OMAP4430, OMAP4460 and OMAP5430
 - update documentation
