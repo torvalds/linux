@@ -30,20 +30,22 @@
 
 #include "common.h"
 
-#define TIMER_MATCH_VAL         0x0000
-#define TIMER_COUNT_VAL         0x0004
-#define TIMER_ENABLE            0x0008
-#define TIMER_ENABLE_CLR_ON_MATCH_EN    BIT(1)
-#define TIMER_ENABLE_EN                 BIT(0)
-#define TIMER_CLEAR             0x000C
-#define DGT_CLK_CTL		0x10
-#define DGT_CLK_CTL_DIV_4	0x3
+#define TIMER_MATCH_VAL			0x0000
+#define TIMER_COUNT_VAL			0x0004
+#define TIMER_ENABLE			0x0008
+#define TIMER_ENABLE_CLR_ON_MATCH_EN	BIT(1)
+#define TIMER_ENABLE_EN			BIT(0)
+#define TIMER_CLEAR			0x000C
+#define DGT_CLK_CTL			0x10
+#define DGT_CLK_CTL_DIV_4		0x3
+#define TIMER_STS_GPT0_CLR_PEND		BIT(10)
 
 #define GPT_HZ 32768
 
 #define MSM_DGT_SHIFT 5
 
 static void __iomem *event_base;
+static void __iomem *sts_base;
 
 static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 {
@@ -65,6 +67,11 @@ static int msm_timer_set_next_event(unsigned long cycles,
 
 	writel_relaxed(0, event_base + TIMER_CLEAR);
 	writel_relaxed(cycles, event_base + TIMER_MATCH_VAL);
+
+	if (sts_base)
+		while (readl_relaxed(sts_base) & TIMER_STS_GPT0_CLR_PEND)
+			cpu_relax();
+
 	writel_relaxed(ctrl | TIMER_ENABLE_EN, event_base + TIMER_ENABLE);
 	return 0;
 }
@@ -135,9 +142,6 @@ static int __cpuinit msm_local_timer_setup(struct clock_event_device *evt)
 	if (!smp_processor_id())
 		return 0;
 
-	writel_relaxed(0, event_base + TIMER_ENABLE);
-	writel_relaxed(0, event_base + TIMER_CLEAR);
-	writel_relaxed(~0, event_base + TIMER_MATCH_VAL);
 	evt->irq = msm_clockevent.irq;
 	evt->name = "local_timer";
 	evt->features = msm_clockevent.features;
@@ -175,9 +179,6 @@ static void __init msm_timer_init(u32 dgt_hz, int sched_bits, int irq,
 	struct clocksource *cs = &msm_clocksource;
 	int res;
 
-	writel_relaxed(0, event_base + TIMER_ENABLE);
-	writel_relaxed(0, event_base + TIMER_CLEAR);
-	writel_relaxed(~0, event_base + TIMER_MATCH_VAL);
 	ce->cpumask = cpumask_of(0);
 	ce->irq = irq;
 
@@ -272,6 +273,7 @@ void __init msm_dt_timer_init(void)
 	of_node_put(np);
 
 	event_base = base + 0x4;
+	sts_base = base + 0x88;
 	source_base = cpu0_base + 0x24;
 	freq /= 4;
 	writel_relaxed(DGT_CLK_CTL_DIV_4, source_base + DGT_CLK_CTL);
@@ -280,7 +282,8 @@ void __init msm_dt_timer_init(void)
 }
 #endif
 
-static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source)
+static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,
+				u32 sts)
 {
 	void __iomem *base;
 
@@ -291,6 +294,8 @@ static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source)
 	}
 	event_base = base + event;
 	source_base = base + source;
+	if (sts)
+		sts_base = base + sts;
 
 	return 0;
 }
@@ -299,7 +304,7 @@ void __init msm7x01_timer_init(void)
 {
 	struct clocksource *cs = &msm_clocksource;
 
-	if (msm_timer_map(0xc0100000, 0x0, 0x10))
+	if (msm_timer_map(0xc0100000, 0x0, 0x10, 0x0))
 		return;
 	cs->read = msm_read_timer_count_shift;
 	cs->mask = CLOCKSOURCE_MASK((32 - MSM_DGT_SHIFT));
@@ -310,14 +315,14 @@ void __init msm7x01_timer_init(void)
 
 void __init msm7x30_timer_init(void)
 {
-	if (msm_timer_map(0xc0100000, 0x4, 0x24))
+	if (msm_timer_map(0xc0100000, 0x4, 0x24, 0x80))
 		return;
 	msm_timer_init(24576000 / 4, 32, 1, false);
 }
 
 void __init qsd8x50_timer_init(void)
 {
-	if (msm_timer_map(0xAC100000, 0x0, 0x10))
+	if (msm_timer_map(0xAC100000, 0x0, 0x10, 0x34))
 		return;
 	msm_timer_init(19200000 / 4, 32, 7, false);
 }
