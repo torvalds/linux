@@ -1023,9 +1023,9 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	int status, state = this->state;
 
 	if (state == FL_ERASING)
-		timeo += (HZ * 400) / 1000;
+		timeo += msecs_to_jiffies(400);
 	else
-		timeo += (HZ * 20) / 1000;
+		timeo += msecs_to_jiffies(20);
 
 	writeb(NAND_CMD_STATUS & 0xFF, info->reg.gpmc_nand_command);
 	while (time_before(jiffies, timeo)) {
