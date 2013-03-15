@@ -510,8 +510,9 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 	return IRQ_HANDLED;
 }
 
-static void twl4030_usb_phy_init(struct twl4030_usb *twl)
+static int twl4030_usb_phy_init(struct usb_phy *phy)
 {
+	struct twl4030_usb *twl = phy_to_twl(phy);
 	enum omap_musb_vbus_id_status status;
 
 	status = twl4030_usb_linkstat(twl);
@@ -528,6 +529,7 @@ static void twl4030_usb_phy_init(struct twl4030_usb *twl)
 		omap_musb_mailbox(twl->linkstat);
 	}
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
+	return 0;
 }
 
 static int twl4030_set_suspend(struct usb_phy *x, int suspend)
@@ -604,6 +606,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	twl->phy.otg		= otg;
 	twl->phy.type		= USB_PHY_TYPE_USB2;
 	twl->phy.set_suspend	= twl4030_set_suspend;
+	twl->phy.init		= twl4030_usb_phy_init;
 
 	otg->phy		= &twl->phy;
 	otg->set_host		= twl4030_set_host;
@@ -640,11 +643,6 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 			twl->irq, status);
 		return status;
 	}
-
-	/* Power down phy or make it work according to
-	 * current link state.
-	 */
-	twl4030_usb_phy_init(twl);
 
 	dev_info(&pdev->dev, "Initialized TWL4030 USB module\n");
 	return 0;
