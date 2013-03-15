@@ -1119,6 +1119,9 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 
+	if (!cp->val && test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
+		write_fast_connectable(&req, false);
+
 	err = hci_req_run(&req, set_connectable_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
