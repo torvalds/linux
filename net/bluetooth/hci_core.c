@@ -272,6 +272,12 @@ static void bredr_setup(struct hci_request *req)
 	bacpy(&cp.bdaddr, BDADDR_ANY);
 	cp.delete_all = 0x01;
 	hci_req_add(req, HCI_OP_DELETE_STORED_LINK_KEY, sizeof(cp), &cp);
+
+	/* Read page scan parameters */
+	if (req->hdev->hci_ver > BLUETOOTH_VER_1_1) {
+		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_ACTIVITY, 0, NULL);
+		hci_req_add(req, HCI_OP_READ_PAGE_SCAN_TYPE, 0, NULL);
+	}
 }
 
 static void le_setup(struct hci_request *req)

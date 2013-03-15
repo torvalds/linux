@@ -601,6 +601,30 @@ static void hci_cc_read_bd_addr(struct hci_dev *hdev, struct sk_buff *skb)
 		bacpy(&hdev->bdaddr, &rp->bdaddr);
 }
 
+static void hci_cc_read_page_scan_activity(struct hci_dev *hdev,
+					   struct sk_buff *skb)
+{
+	struct hci_rp_read_page_scan_activity *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (test_bit(HCI_INIT, &hdev->flags) && !rp->status) {
+		hdev->page_scan_interval = __le16_to_cpu(rp->interval);
+		hdev->page_scan_window = __le16_to_cpu(rp->window);
+	}
+}
+
+static void hci_cc_read_page_scan_type(struct hci_dev *hdev,
+					   struct sk_buff *skb)
+{
+	struct hci_rp_read_page_scan_type *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (test_bit(HCI_INIT, &hdev->flags) && !rp->status)
+		hdev->page_scan_type = rp->type;
+}
+
 static void hci_cc_read_data_block_size(struct hci_dev *hdev,
 					struct sk_buff *skb)
 {
@@ -2202,6 +2226,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_READ_BD_ADDR:
 		hci_cc_read_bd_addr(hdev, skb);
+		break;
+
+	case HCI_OP_READ_PAGE_SCAN_ACTIVITY:
+		hci_cc_read_page_scan_activity(hdev, skb);
+		break;
+
+	case HCI_OP_READ_PAGE_SCAN_TYPE:
+		hci_cc_read_page_scan_type(hdev, skb);
 		break;
 
 	case HCI_OP_READ_DATA_BLOCK_SIZE:

@@ -165,6 +165,10 @@ struct hci_dev {
 	__u16		voice_setting;
 	__u8		io_capability;
 	__s8		inq_tx_power;
+	__u16		page_scan_interval;
+	__u16		page_scan_window;
+	__u8		page_scan_type;
+
 	__u16		devid_source;
 	__u16		devid_vendor;
 	__u16		devid_product;
