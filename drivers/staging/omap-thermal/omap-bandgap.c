@@ -703,6 +703,8 @@ void *omap_bandgap_get_sensor_data(struct omap_bandgap *bg_ptr, int id)
 	return bg_ptr->conf->sensors[id].data;
 }
 
+/***   Helper functions used during device initialization   ***/
+
 static int
 omap_bandgap_force_single_read(struct omap_bandgap *bg_ptr, int id)
 {
