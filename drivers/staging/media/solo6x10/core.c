@@ -481,6 +481,7 @@ static int solo_sysfs_init(struct solo_dev *solo_dev)
 		}
 	}
 
+	sysfs_attr_init(&sdram_attr->attr);
 	sdram_attr->attr.name = "sdram";
 	sdram_attr->attr.mode = 0440;
 	sdram_attr->read = sdram_show;
