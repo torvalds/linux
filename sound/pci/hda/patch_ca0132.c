@@ -3239,7 +3239,7 @@ static int ca0132_set_vipsource(struct hda_codec *codec, int val)
 	struct ca0132_spec *spec = codec->spec;
 	unsigned int tmp;
 
-	if (!dspload_is_loaded(codec))
+	if (spec->dsp_state != DSP_DOWNLOADED)
 		return 0;
 
 	/* if CrystalVoice if off, vipsource should be 0 */
@@ -4267,11 +4267,12 @@ static void ca0132_refresh_widget_caps(struct hda_codec *codec)
  */
 static void ca0132_setup_defaults(struct hda_codec *codec)
 {
+	struct ca0132_spec *spec = codec->spec;
 	unsigned int tmp;
 	int num_fx;
 	int idx, i;
 
-	if (!dspload_is_loaded(codec))
+	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
 	/* out, in effects + voicefx */
