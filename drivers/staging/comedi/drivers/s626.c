@@ -758,7 +758,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 	uint8_t group;
 	uint16_t irqbit;
 
-	if (dev->attached == 0)
+	if (!dev->attached)
 		return IRQ_NONE;
 	/*  lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&dev->spinlock, flags);

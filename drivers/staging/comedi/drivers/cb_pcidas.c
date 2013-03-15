@@ -1341,7 +1341,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	static const int timeout = 10000;
 	unsigned long flags;
 
-	if (dev->attached == 0)
+	if (!dev->attached)
 		return IRQ_NONE;
 
 	async = s->async;

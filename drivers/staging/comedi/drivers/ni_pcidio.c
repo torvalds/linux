@@ -420,7 +420,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	unsigned int m_status = 0;
 
 	/* interrupcions parasites */
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		/* assume it's from another card */
 		return IRQ_NONE;
 	}

@@ -207,7 +207,7 @@ struct comedi_device {
 
 	const char *board_name;
 	const void *board_ptr;
-	int attached;
+	bool attached:1;
 	spinlock_t spinlock;
 	struct mutex mutex;
 	int in_request_module;

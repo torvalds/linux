@@ -876,7 +876,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	int num_bytes, residue;
 	int buffer_index;
 
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
 		return;
 	}

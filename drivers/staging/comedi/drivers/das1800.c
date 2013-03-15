@@ -731,7 +731,7 @@ static irqreturn_t das1800_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	unsigned int status;
 
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
 		return IRQ_HANDLED;
 	}

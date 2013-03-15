@@ -204,7 +204,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	short dpnt;
 	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
 		return IRQ_HANDLED;
 	}

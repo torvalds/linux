@@ -3113,7 +3113,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	/* an interrupt before all the postconfig stuff gets done could
 	 * cause a NULL dereference if we continue through the
 	 * interrupt handler */
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		DEBUG_PRINT("premature interrupt, ignoring\n");
 		return IRQ_HANDLED;
 	}

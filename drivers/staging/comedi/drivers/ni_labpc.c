@@ -1367,7 +1367,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	struct comedi_async *async;
 	struct comedi_cmd *cmd;
 
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
 		return IRQ_HANDLED;
 	}

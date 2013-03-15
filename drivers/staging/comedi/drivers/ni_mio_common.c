@@ -847,7 +847,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	struct mite_struct *mite = devpriv->mite;
 #endif
 
-	if (dev->attached == 0)
+	if (!dev->attached)
 		return IRQ_NONE;
 	smp_mb();		/*  make sure dev->attached is checked before handler does anything else. */
 

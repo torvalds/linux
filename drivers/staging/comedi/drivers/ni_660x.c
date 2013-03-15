@@ -887,7 +887,7 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	unsigned i;
 	unsigned long flags;
 
-	if (dev->attached == 0)
+	if (!dev->attached)
 		return IRQ_NONE;
 	/* lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&devpriv->interrupt_lock, flags);
