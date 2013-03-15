@@ -233,6 +233,17 @@ static irqreturn_t omap_bandgap_tshut_irq_handler(int irq, void *data)
 
 /***   Helper functions which manipulate conversion ADC <-> mi Celsius   ***/
 
+/**
+ * omap_bandgap_adc_to_mcelsius() - converts an ADC value to mCelsius scale
+ * @bg_ptr: struct omap_bandgap pointer
+ * @id: sensor id
+ * @adc_val: value in ADC representation
+ * @t: address where to write the resulting temperature in mCelsius
+ *
+ * Simple conversion from ADC representation to mCelsius. In case the ADC value
+ * is out of the ADC conv table range, it returns -ERANGE, 0 on success.
+ * The conversion table is indexed by the ADC values.
+ */
 static
 int omap_bandgap_adc_to_mcelsius(struct omap_bandgap *bg_ptr, int id,
 				 int adc_val, int *t)
