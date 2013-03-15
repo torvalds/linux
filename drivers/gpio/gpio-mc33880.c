@@ -107,7 +107,7 @@ static int mc33880_probe(struct spi_device *spi)
 
 	mutex_init(&mc->lock);
 
-	dev_set_drvdata(&spi->dev, mc);
+	spi_set_drvdata(spi, mc);
 
 	mc->spi = spi;
 
@@ -142,7 +142,7 @@ static int mc33880_probe(struct spi_device *spi)
 	return ret;
 
 exit_destroy:
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&mc->lock);
 	return ret;
 }
@@ -152,11 +152,11 @@ static int mc33880_remove(struct spi_device *spi)
 	struct mc33880 *mc;
 	int ret;
 
-	mc = dev_get_drvdata(&spi->dev);
+	mc = spi_get_drvdata(spi);
 	if (mc == NULL)
 		return -ENODEV;
 
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 
 	ret = gpiochip_remove(&mc->chip);
 	if (!ret)
