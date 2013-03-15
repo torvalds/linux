@@ -53,6 +53,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
@@ -136,6 +137,7 @@ static void __init tct_hammer_map_io(void)
 	s3c24xx_init_io(tct_hammer_iodesc, ARRAY_SIZE(tct_hammer_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(tct_hammer_uartcfgs, ARRAY_SIZE(tct_hammer_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init tct_hammer_init(void)
@@ -149,6 +151,6 @@ MACHINE_START(TCT_HAMMER, "TCT_HAMMER")
 	.map_io		= tct_hammer_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= tct_hammer_init,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

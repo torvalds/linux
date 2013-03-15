@@ -51,10 +51,10 @@
 
 #include <plat/devs.h>
 #include <plat/cpu.h>
-
-#include <plat/common-smdk.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
+#include "common-smdk.h"
 
 static struct map_desc smdk2410_iodesc[] __initdata = {
   /* nothing here yet */
@@ -101,6 +101,7 @@ static void __init smdk2410_map_io(void)
 	s3c24xx_init_io(smdk2410_iodesc, ARRAY_SIZE(smdk2410_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(smdk2410_uartcfgs, ARRAY_SIZE(smdk2410_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init smdk2410_init(void)
@@ -117,6 +118,6 @@ MACHINE_START(SMDK2410, "SMDK2410") /* @TODO: request a new identifier and switc
 	.map_io		= smdk2410_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= smdk2410_init,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

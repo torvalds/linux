@@ -45,6 +45,7 @@
 #include <plat/devs.h>
 #include <plat/gpio-cfg.h>
 #include <plat/regs-serial.h>
+#include <plat/samsung-time.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
@@ -384,6 +385,7 @@ static void __init osiris_map_io(void)
 	s3c24xx_init_io(osiris_iodesc, ARRAY_SIZE(osiris_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(osiris_uartcfgs, ARRAY_SIZE(osiris_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* check for the newer revision boards with large page nand */
 
@@ -426,6 +428,6 @@ MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	.map_io		= osiris_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= osiris_init,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,
 MACHINE_END

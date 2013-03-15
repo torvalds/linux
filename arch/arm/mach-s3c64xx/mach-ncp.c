@@ -43,6 +43,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 
@@ -87,6 +88,7 @@ static void __init ncp_map_io(void)
 	s3c64xx_init_io(ncp_iodesc, ARRAY_SIZE(ncp_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(ncp_uartcfgs, ARRAY_SIZE(ncp_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init ncp_machine_init(void)
@@ -103,6 +105,6 @@ MACHINE_START(NCP, "NCP")
 	.map_io		= ncp_map_io,
 	.init_machine	= ncp_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

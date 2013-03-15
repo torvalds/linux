@@ -276,8 +276,8 @@ config MACH_UNIVERSAL_C210
 	select S5P_DEV_ONENAND
 	select S5P_DEV_TV
 	select S5P_GPIO_INT
-	select S5P_HRT
 	select S5P_SETUP_MIPIPHY
+	select SAMSUNG_HRT
 	help
 	  Machine support for Samsung Mobile Universal S5PC210 Reference
 	  Board.

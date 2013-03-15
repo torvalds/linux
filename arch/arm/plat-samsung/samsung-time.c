@@ -2,7 +2,7 @@
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
- * S5P - Common hr-timer support
+ * samsung - Common hr-timer support (s3c and s5p)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,41 +25,41 @@
 #include <mach/map.h>
 #include <plat/devs.h>
 #include <plat/regs-timer.h>
-#include <plat/s5p-time.h>
+#include <plat/samsung-time.h>
 
 static struct clk *tin_event;
 static struct clk *tin_source;
 static struct clk *tdiv_event;
 static struct clk *tdiv_source;
 static struct clk *timerclk;
-static struct s5p_timer_source timer_source;
+static struct samsung_timer_source timer_source;
 static unsigned long clock_count_per_tick;
-static void s5p_timer_resume(void);
+static void samsung_timer_resume(void);
 
-static void s5p_time_stop(enum s5p_timer_mode mode)
+static void samsung_time_stop(enum samsung_timer_mode mode)
 {
 	unsigned long tcon;
 
 	tcon = __raw_readl(S3C2410_TCON);
 
 	switch (mode) {
-	case S5P_PWM0:
+	case SAMSUNG_PWM0:
 		tcon &= ~S3C2410_TCON_T0START;
 		break;
 
-	case S5P_PWM1:
+	case SAMSUNG_PWM1:
 		tcon &= ~S3C2410_TCON_T1START;
 		break;
 
-	case S5P_PWM2:
+	case SAMSUNG_PWM2:
 		tcon &= ~S3C2410_TCON_T2START;
 		break;
 
-	case S5P_PWM3:
+	case SAMSUNG_PWM3:
 		tcon &= ~S3C2410_TCON_T3START;
 		break;
 
-	case S5P_PWM4:
+	case SAMSUNG_PWM4:
 		tcon &= ~S3C2410_TCON_T4START;
 		break;
 
@@ -70,7 +70,7 @@ static void s5p_time_stop(enum s5p_timer_mode mode)
 	__raw_writel(tcon, S3C2410_TCON);
 }
 
-static void s5p_time_setup(enum s5p_timer_mode mode, unsigned long tcnt)
+static void samsung_time_setup(enum samsung_timer_mode mode, unsigned long tcnt)
 {
 	unsigned long tcon;
 
@@ -79,27 +79,27 @@ static void s5p_time_setup(enum s5p_timer_mode mode, unsigned long tcnt)
 	tcnt--;
 
 	switch (mode) {
-	case S5P_PWM0:
+	case SAMSUNG_PWM0:
 		tcon &= ~(0x0f << 0);
 		tcon |= S3C2410_TCON_T0MANUALUPD;
 		break;
 
-	case S5P_PWM1:
+	case SAMSUNG_PWM1:
 		tcon &= ~(0x0f << 8);
 		tcon |= S3C2410_TCON_T1MANUALUPD;
 		break;
 
-	case S5P_PWM2:
+	case SAMSUNG_PWM2:
 		tcon &= ~(0x0f << 12);
 		tcon |= S3C2410_TCON_T2MANUALUPD;
 		break;
 
-	case S5P_PWM3:
+	case SAMSUNG_PWM3:
 		tcon &= ~(0x0f << 16);
 		tcon |= S3C2410_TCON_T3MANUALUPD;
 		break;
 
-	case S5P_PWM4:
+	case SAMSUNG_PWM4:
 		tcon &= ~(0x07 << 20);
 		tcon |= S3C2410_TCON_T4MANUALUPD;
 		break;
@@ -114,14 +114,14 @@ static void s5p_time_setup(enum s5p_timer_mode mode, unsigned long tcnt)
 	__raw_writel(tcon, S3C2410_TCON);
 }
 
-static void s5p_time_start(enum s5p_timer_mode mode, bool periodic)
+static void samsung_time_start(enum samsung_timer_mode mode, bool periodic)
 {
 	unsigned long tcon;
 
 	tcon  = __raw_readl(S3C2410_TCON);
 
 	switch (mode) {
-	case S5P_PWM0:
+	case SAMSUNG_PWM0:
 		tcon |= S3C2410_TCON_T0START;
 		tcon &= ~S3C2410_TCON_T0MANUALUPD;
 
@@ -131,7 +131,7 @@ static void s5p_time_start(enum s5p_timer_mode mode, bool periodic)
 			tcon &= ~S3C2410_TCON_T0RELOAD;
 		break;
 
-	case S5P_PWM1:
+	case SAMSUNG_PWM1:
 		tcon |= S3C2410_TCON_T1START;
 		tcon &= ~S3C2410_TCON_T1MANUALUPD;
 
@@ -141,7 +141,7 @@ static void s5p_time_start(enum s5p_timer_mode mode, bool periodic)
 			tcon &= ~S3C2410_TCON_T1RELOAD;
 		break;
 
-	case S5P_PWM2:
+	case SAMSUNG_PWM2:
 		tcon |= S3C2410_TCON_T2START;
 		tcon &= ~S3C2410_TCON_T2MANUALUPD;
 
@@ -151,7 +151,7 @@ static void s5p_time_start(enum s5p_timer_mode mode, bool periodic)
 			tcon &= ~S3C2410_TCON_T2RELOAD;
 		break;
 
-	case S5P_PWM3:
+	case SAMSUNG_PWM3:
 		tcon |= S3C2410_TCON_T3START;
 		tcon &= ~S3C2410_TCON_T3MANUALUPD;
 
@@ -161,7 +161,7 @@ static void s5p_time_start(enum s5p_timer_mode mode, bool periodic)
 			tcon &= ~S3C2410_TCON_T3RELOAD;
 		break;
 
-	case S5P_PWM4:
+	case SAMSUNG_PWM4:
 		tcon |= S3C2410_TCON_T4START;
 		tcon &= ~S3C2410_TCON_T4MANUALUPD;
 
@@ -178,24 +178,24 @@ static void s5p_time_start(enum s5p_timer_mode mode, bool periodic)
 	__raw_writel(tcon, S3C2410_TCON);
 }
 
-static int s5p_set_next_event(unsigned long cycles,
+static int samsung_set_next_event(unsigned long cycles,
 				struct clock_event_device *evt)
 {
-	s5p_time_setup(timer_source.event_id, cycles);
-	s5p_time_start(timer_source.event_id, NON_PERIODIC);
+	samsung_time_setup(timer_source.event_id, cycles);
+	samsung_time_start(timer_source.event_id, NON_PERIODIC);
 
 	return 0;
 }
 
-static void s5p_set_mode(enum clock_event_mode mode,
+static void samsung_set_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
-	s5p_time_stop(timer_source.event_id);
+	samsung_time_stop(timer_source.event_id);
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		s5p_time_setup(timer_source.event_id, clock_count_per_tick);
-		s5p_time_start(timer_source.event_id, PERIODIC);
+		samsung_time_setup(timer_source.event_id, clock_count_per_tick);
+		samsung_time_start(timer_source.event_id, PERIODIC);
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -206,24 +206,24 @@ static void s5p_set_mode(enum clock_event_mode mode,
 		break;
 
 	case CLOCK_EVT_MODE_RESUME:
-		s5p_timer_resume();
+		samsung_timer_resume();
 		break;
 	}
 }
 
-static void s5p_timer_resume(void)
+static void samsung_timer_resume(void)
 {
 	/* event timer restart */
-	s5p_time_setup(timer_source.event_id, clock_count_per_tick);
-	s5p_time_start(timer_source.event_id, PERIODIC);
+	samsung_time_setup(timer_source.event_id, clock_count_per_tick);
+	samsung_time_start(timer_source.event_id, PERIODIC);
 
 	/* source timer restart */
-	s5p_time_setup(timer_source.source_id, TCNT_MAX);
-	s5p_time_start(timer_source.source_id, PERIODIC);
+	samsung_time_setup(timer_source.source_id, TCNT_MAX);
+	samsung_time_start(timer_source.source_id, PERIODIC);
 }
 
-void __init s5p_set_timer_source(enum s5p_timer_mode event,
-				 enum s5p_timer_mode source)
+void __init samsung_set_timer_source(enum samsung_timer_mode event,
+				 enum samsung_timer_mode source)
 {
 	s3c_device_timer[event].dev.bus = &platform_bus_type;
 	s3c_device_timer[source].dev.bus = &platform_bus_type;
@@ -233,14 +233,14 @@ void __init s5p_set_timer_source(enum s5p_timer_mode event,
 }
 
 static struct clock_event_device time_event_device = {
-	.name		= "s5p_event_timer",
+	.name		= "samsung_event_timer",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 200,
-	.set_next_event	= s5p_set_next_event,
-	.set_mode	= s5p_set_mode,
+	.set_next_event	= samsung_set_next_event,
+	.set_mode	= samsung_set_mode,
 };
 
-static irqreturn_t s5p_clock_event_isr(int irq, void *dev_id)
+static irqreturn_t samsung_clock_event_isr(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 
@@ -249,14 +249,14 @@ static irqreturn_t s5p_clock_event_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction s5p_clock_event_irq = {
-	.name		= "s5p_time_irq",
+static struct irqaction samsung_clock_event_irq = {
+	.name		= "samsung_time_irq",
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= s5p_clock_event_isr,
+	.handler	= samsung_clock_event_isr,
 	.dev_id		= &time_event_device,
 };
 
-static void __init s5p_clockevent_init(void)
+static void __init samsung_clockevent_init(void)
 {
 	unsigned long pclk;
 	unsigned long clock_rate;
@@ -267,8 +267,8 @@ static void __init s5p_clockevent_init(void)
 
 	tscaler = clk_get_parent(tdiv_event);
 
-	clk_set_rate(tscaler, pclk / 2);
-	clk_set_rate(tdiv_event, pclk / 2);
+	clk_set_rate(tscaler, pclk / TSCALER_DIV);
+	clk_set_rate(tdiv_event, pclk / TDIV);
 	clk_set_parent(tin_event, tdiv_event);
 
 	clock_rate = clk_get_rate(tin_event);
@@ -278,22 +278,22 @@ static void __init s5p_clockevent_init(void)
 	clockevents_config_and_register(&time_event_device, clock_rate, 1, -1);
 
 	irq_number = timer_source.event_id + IRQ_TIMER0;
-	setup_irq(irq_number, &s5p_clock_event_irq);
+	setup_irq(irq_number, &samsung_clock_event_irq);
 }
 
-static void __iomem *s5p_timer_reg(void)
+static void __iomem *samsung_timer_reg(void)
 {
 	unsigned long offset = 0;
 
 	switch (timer_source.source_id) {
-	case S5P_PWM0:
-	case S5P_PWM1:
-	case S5P_PWM2:
-	case S5P_PWM3:
+	case SAMSUNG_PWM0:
+	case SAMSUNG_PWM1:
+	case SAMSUNG_PWM2:
+	case SAMSUNG_PWM3:
 		offset = (timer_source.source_id * 0x0c) + 0x14;
 		break;
 
-	case S5P_PWM4:
+	case SAMSUNG_PWM4:
 		offset = 0x40;
 		break;
 
@@ -312,9 +312,9 @@ static void __iomem *s5p_timer_reg(void)
  * this wraps around for now, since it is just a relative time
  * stamp. (Inspired by U300 implementation.)
  */
-static u32 notrace s5p_read_sched_clock(void)
+static u32 notrace samsung_read_sched_clock(void)
 {
-	void __iomem *reg = s5p_timer_reg();
+	void __iomem *reg = samsung_timer_reg();
 
 	if (!reg)
 		return 0;
@@ -322,29 +322,29 @@ static u32 notrace s5p_read_sched_clock(void)
 	return ~__raw_readl(reg);
 }
 
-static void __init s5p_clocksource_init(void)
+static void __init samsung_clocksource_init(void)
 {
 	unsigned long pclk;
 	unsigned long clock_rate;
 
 	pclk = clk_get_rate(timerclk);
 
-	clk_set_rate(tdiv_source, pclk / 2);
+	clk_set_rate(tdiv_source, pclk / TDIV);
 	clk_set_parent(tin_source, tdiv_source);
 
 	clock_rate = clk_get_rate(tin_source);
 
-	s5p_time_setup(timer_source.source_id, TCNT_MAX);
-	s5p_time_start(timer_source.source_id, PERIODIC);
+	samsung_time_setup(timer_source.source_id, TCNT_MAX);
+	samsung_time_start(timer_source.source_id, PERIODIC);
 
-	setup_sched_clock(s5p_read_sched_clock, 32, clock_rate);
+	setup_sched_clock(samsung_read_sched_clock, TSIZE, clock_rate);
 
-	if (clocksource_mmio_init(s5p_timer_reg(), "s5p_clocksource_timer",
-			clock_rate, 250, 32, clocksource_mmio_readl_down))
-		panic("s5p_clocksource_timer: can't register clocksource\n");
+	if (clocksource_mmio_init(samsung_timer_reg(), "samsung_clocksource_timer",
+			clock_rate, 250, TSIZE, clocksource_mmio_readl_down))
+		panic("samsung_clocksource_timer: can't register clocksource\n");
 }
 
-static void __init s5p_timer_resources(void)
+static void __init samsung_timer_resources(void)
 {
 
 	unsigned long event_id = timer_source.event_id;
@@ -386,9 +386,9 @@ static void __init s5p_timer_resources(void)
 	clk_enable(tin_source);
 }
 
-void __init s5p_timer_init(void)
+void __init samsung_timer_init(void)
 {
-	s5p_timer_resources();
-	s5p_clockevent_init();
-	s5p_clocksource_init();
+	samsung_timer_resources();
+	samsung_clockevent_init();
+	samsung_clocksource_init();
 }

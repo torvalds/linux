@@ -81,6 +81,7 @@
 #include <plat/gpio-cfg.h>
 #include <plat/pm.h>
 #include <plat/regs-serial.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "gta02.h"
@@ -501,6 +502,7 @@ static void __init gta02_map_io(void)
 	s3c24xx_init_io(gta02_iodesc, ARRAY_SIZE(gta02_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(gta02_uartcfgs, ARRAY_SIZE(gta02_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 
@@ -589,6 +591,6 @@ MACHINE_START(NEO1973_GTA02, "GTA02")
 	.map_io		= gta02_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= gta02_machine_init,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,
 MACHINE_END

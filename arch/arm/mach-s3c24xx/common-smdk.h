@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-samsung/include/plat/common-smdk.h
- *
+/*
  * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *

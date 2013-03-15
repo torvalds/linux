@@ -38,6 +38,7 @@
 #include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <video/platform_lcd.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "regs-modem.h"
@@ -378,6 +379,7 @@ void __init smartq_map_io(void)
 	s3c64xx_init_io(smartq_iodesc, ARRAY_SIZE(smartq_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smartq_uartcfgs, ARRAY_SIZE(smartq_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	smartq_lcd_mode_set();
 }

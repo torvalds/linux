@@ -62,7 +62,7 @@
 #include <plat/pll.h>
 #include <plat/pm.h>
 #include <plat/regs-serial.h>
-
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "h1940.h"
@@ -646,6 +646,7 @@ static void __init h1940_map_io(void)
 	s3c24xx_init_io(h1940_iodesc, ARRAY_SIZE(h1940_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(h1940_uartcfgs, ARRAY_SIZE(h1940_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* setup PM */
 
@@ -741,6 +742,6 @@ MACHINE_START(H1940, "IPAQ-H1940")
 	.reserve	= h1940_reserve,
 	.init_irq	= h1940_init_irq,
 	.init_machine	= h1940_init,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END
