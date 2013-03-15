@@ -93,6 +93,15 @@ config INPUT_BMA150
 	  To compile this driver as a module, choose M here: the
 	  module will be called bma150.
 
+config INPUT_HI6421_ONKEY
+	tristate "Hisilicon Hi6421 PMIC ONKEY support"
+	depends on MFD_HI6421_PMIC
+	help
+	  Say Y to enable support for Hi6421 PMIC ONKEY.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hi6421_pwrkey.
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
