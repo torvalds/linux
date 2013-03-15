@@ -40,9 +40,9 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
-enum chips { tmp401, tmp411 };
+enum chips { tmp401, tmp411, tmp431 };
 
 /*
  * The TMP401 registers, note some registers have different addresses for
@@ -90,6 +90,7 @@ static const u8 TMP411_TEMP_HIGHEST_LSB[2]		= { 0x33, 0x37 };
 #define TMP401_MANUFACTURER_ID			0x55
 #define TMP401_DEVICE_ID			0x11
 #define TMP411_DEVICE_ID			0x12
+#define TMP431_DEVICE_ID			0x31
 
 /*
  * Driver data (common to all clients)
@@ -98,6 +99,7 @@ static const u8 TMP411_TEMP_HIGHEST_LSB[2]		= { 0x33, 0x37 };
 static const struct i2c_device_id tmp401_id[] = {
 	{ "tmp401", tmp401 },
 	{ "tmp411", tmp411 },
+	{ "tmp431", tmp431 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp401_id);
@@ -555,10 +557,17 @@ static int tmp401_detect(struct i2c_client *client,
 
 	switch (reg) {
 	case TMP401_DEVICE_ID:
+		if (client->addr != 0x4c)
+			return -ENODEV;
 		kind = tmp401;
 		break;
 	case TMP411_DEVICE_ID:
 		kind = tmp411;
+		break;
+	case TMP431_DEVICE_ID:
+		if (client->addr == 0x4e)
+			return -ENODEV;
+		kind = tmp431;
 		break;
 	default:
 		return -ENODEV;
@@ -603,7 +612,7 @@ static int tmp401_probe(struct i2c_client *client,
 {
 	int i, err = 0;
 	struct tmp401_data *data;
-	const char *names[] = { "TMP401", "TMP411" };
+	const char *names[] = { "TMP401", "TMP411", "TMP431" };
 
 	data = devm_kzalloc(&client->dev, sizeof(struct tmp401_data),
 			    GFP_KERNEL);
