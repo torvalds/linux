@@ -92,20 +92,21 @@ static void s5p_ehci_phy_disable(struct s5p_ehci_hcd *s5p_ehci)
 
 static void s5p_setup_vbus_gpio(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int err;
 	int gpio;
 
-	if (!pdev->dev.of_node)
+	if (!dev->of_node)
 		return;
 
-	gpio = of_get_named_gpio(pdev->dev.of_node,
-			"samsung,vbus-gpio", 0);
+	gpio = of_get_named_gpio(dev->of_node, "samsung,vbus-gpio", 0);
 	if (!gpio_is_valid(gpio))
 		return;
 
-	err = gpio_request_one(gpio, GPIOF_OUT_INIT_HIGH, "ehci_vbus_gpio");
+	err = devm_gpio_request_one(dev, gpio, GPIOF_OUT_INIT_HIGH,
+				    "ehci_vbus_gpio");
 	if (err)
-		dev_err(&pdev->dev, "can't request ehci vbus gpio %d", gpio);
+		dev_err(dev, "can't request ehci vbus gpio %d", gpio);
 }
 
 static u64 ehci_s5p_dma_mask = DMA_BIT_MASK(32);
