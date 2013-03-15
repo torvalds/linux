@@ -18,27 +18,25 @@
 */
 
 /*
-Driver: ni_660x
-Description: National Instruments 660x counter/timer boards
-Devices:
-[National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602,
-	PXI-6608
-Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
-	Herman.Bruyninckx@mech.kuleuven.ac.be,
-	Wim.Meeussen@mech.kuleuven.ac.be,
-	Klaas.Gadeyne@mech.kuleuven.ac.be,
-	Frank Mori Hess <fmhess@users.sourceforge.net>
-Updated: Thu Oct 18 12:56:06 EDT 2007
-Status: experimental
-
-Encoders work.  PulseGeneration (both single pulse and pulse train)
-works. Buffered commands work for input but not output.
-
-References:
-DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
-DAQ 6601/6602 User Manual (NI 322137B-01)
-
-*/
+ * Driver: ni_660x
+ * Description: National Instruments 660x counter/timer boards
+ * Devices: [National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602,
+ *   PXI-6608
+ * Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
+ *   Herman.Bruyninckx@mech.kuleuven.ac.be,
+ *   Wim.Meeussen@mech.kuleuven.ac.be,
+ *   Klaas.Gadeyne@mech.kuleuven.ac.be,
+ *   Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Updated: Thu Oct 18 12:56:06 EDT 2007
+ * Status: experimental
+ *
+ * Encoders work.  PulseGeneration (both single pulse and pulse train)
+ * works.  Buffered commands work for input but not output.
+ * 
+ * References:
+ * DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
+ * DAQ 6601/6602 User Manual (NI 322137B-01)
+ */
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
