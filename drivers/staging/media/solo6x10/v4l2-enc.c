@@ -269,6 +269,7 @@ static int solo_enc_on(struct solo_enc_dev *solo_enc)
 	/* Make sure to do a bandwidth check */
 	if (solo_enc->bw_weight > solo_dev->enc_bw_remain)
 		return -EBUSY;
+	solo_enc->sequence = 0;
 	solo_dev->enc_bw_remain -= solo_enc->bw_weight;
 
 	if (solo_enc->type == SOLO_ENC_TYPE_EXT)
@@ -522,7 +523,7 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 		ret = solo_fill_jpeg(solo_enc, vb, vh);
 
 	if (!ret) {
-		vb->v4l2_buf.sequence++;
+		vb->v4l2_buf.sequence = solo_enc->sequence++;
 		vb->v4l2_buf.timestamp.tv_sec = vh->sec;
 		vb->v4l2_buf.timestamp.tv_usec = vh->usec;
 	}

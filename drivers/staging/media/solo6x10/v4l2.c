@@ -224,7 +224,7 @@ finish_buf:
 	if (!error) {
 		vb2_set_plane_payload(vb, 0,
 			solo_vlines(solo_dev) * solo_bytesperline(solo_dev));
-		vb->v4l2_buf.sequence++;
+		vb->v4l2_buf.sequence = solo_dev->sequence++;
 		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 	}
 
@@ -332,6 +332,7 @@ static int solo_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct solo_dev *solo_dev = vb2_get_drv_priv(q);
 
+	solo_dev->sequence = 0;
 	return solo_start_thread(solo_dev);
 }
 
