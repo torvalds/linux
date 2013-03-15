@@ -207,7 +207,15 @@ static irqreturn_t omap_bandgap_talert_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* This is the Tshut handler. Call it only if HAS(TSHUT) is set */
+/**
+ * omap_bandgap_tshut_irq_handler() - handles Temperature shutdown signal
+ * @irq: IRQ number
+ * @data: private data (unused)
+ *
+ * This is the Tshut handler. Use it only if bandgap device features
+ * HAS(TSHUT). If any sensor fires the Tshut signal, we simply shutdown
+ * the system.
+ */
 static irqreturn_t omap_bandgap_tshut_irq_handler(int irq, void *data)
 {
 	pr_emerg("%s: TSHUT temperature reached. Needs shut down...\n",
