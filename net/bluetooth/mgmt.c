@@ -591,32 +591,33 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 	ptr = create_uuid128_list(hdev, ptr, HCI_MAX_EIR_LENGTH - (ptr - data));
 }
 
-static int update_eir(struct hci_dev *hdev)
+static void update_eir(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_write_eir cp;
 
 	if (!hdev_is_powered(hdev))
-		return 0;
+		return;
 
 	if (!lmp_ext_inq_capable(hdev))
-		return 0;
+		return;
 
 	if (!test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
-		return 0;
+		return;
 
 	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
-		return 0;
+		return;
 
 	memset(&cp, 0, sizeof(cp));
 
 	create_eir(hdev, cp.data);
 
 	if (memcmp(cp.data, hdev->eir, sizeof(cp.data)) == 0)
-		return 0;
+		return;
 
 	memcpy(hdev->eir, cp.data, sizeof(cp.data));
 
-	return hci_send_cmd(hdev, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
+	hci_req_add(req, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
 }
 
 static u8 get_service_classes(struct hci_dev *hdev)
@@ -630,47 +631,50 @@ static u8 get_service_classes(struct hci_dev *hdev)
 	return val;
 }
 
-static int update_class(struct hci_dev *hdev)
+static void update_class(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
 	u8 cod[3];
-	int err;
 
 	BT_DBG("%s", hdev->name);
 
 	if (!hdev_is_powered(hdev))
-		return 0;
+		return;
 
 	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
-		return 0;
+		return;
 
 	cod[0] = hdev->minor_class;
 	cod[1] = hdev->major_class;
 	cod[2] = get_service_classes(hdev);
 
 	if (memcmp(cod, hdev->dev_class, 3) == 0)
-		return 0;
+		return;
 
-	err = hci_send_cmd(hdev, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
-	if (err == 0)
-		set_bit(HCI_PENDING_CLASS, &hdev->dev_flags);
+	hci_req_add(req, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
 
-	return err;
+	set_bit(HCI_PENDING_CLASS, &hdev->dev_flags);
 }
 
 static void service_cache_off(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    service_cache.work);
+	struct hci_request req;
 
 	if (!test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		return;
 
+	hci_req_init(&req, hdev);
+
 	hci_dev_lock(hdev);
 
-	update_eir(hdev);
-	update_class(hdev);
+	update_eir(&req);
+	update_class(&req);
 
 	hci_dev_unlock(hdev);
+
+	hci_req_run(&req, NULL);
 }
 
 static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
@@ -1355,6 +1359,7 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 {
 	struct mgmt_cp_add_uuid *cp = data;
 	struct pending_cmd *cmd;
+	struct hci_request req;
 	struct bt_uuid *uuid;
 	int err;
 
@@ -1380,13 +1385,12 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	list_add_tail(&uuid->list, &hdev->uuids);
 
-	err = update_class(hdev);
-	if (err < 0)
-		goto failed;
+	hci_req_init(&req, hdev);
 
-	err = update_eir(hdev);
-	if (err < 0)
-		goto failed;
+	update_class(&req);
+	update_eir(&req);
+
+	hci_req_run(&req, NULL);
 
 	if (!test_bit(HCI_PENDING_CLASS, &hdev->dev_flags)) {
 		err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_UUID, 0,
@@ -1395,8 +1399,12 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_ADD_UUID, hdev, data, len);
-	if (!cmd)
+	if (!cmd) {
 		err = -ENOMEM;
+		goto failed;
+	}
+
+	err = 0;
 
 failed:
 	hci_dev_unlock(hdev);
@@ -1424,6 +1432,7 @@ static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct pending_cmd *cmd;
 	struct bt_uuid *match, *tmp;
 	u8 bt_uuid_any[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	struct hci_request req;
 	int err, found;
 
 	BT_DBG("request for %s", hdev->name);
@@ -1466,13 +1475,12 @@ static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 update_class:
-	err = update_class(hdev);
-	if (err < 0)
-		goto unlock;
+	hci_req_init(&req, hdev);
 
-	err = update_eir(hdev);
-	if (err < 0)
-		goto unlock;
+	update_class(&req);
+	update_eir(&req);
+
+	hci_req_run(&req, NULL);
 
 	if (!test_bit(HCI_PENDING_CLASS, &hdev->dev_flags)) {
 		err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_UUID, 0,
@@ -1481,8 +1489,12 @@ update_class:
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_REMOVE_UUID, hdev, data, len);
-	if (!cmd)
+	if (!cmd) {
 		err = -ENOMEM;
+		goto unlock;
+	}
+
+	err = 0;
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -1494,6 +1506,7 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_set_dev_class *cp = data;
 	struct pending_cmd *cmd;
+	struct hci_request req;
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
@@ -1521,16 +1534,18 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
+	hci_req_init(&req, hdev);
+
 	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags)) {
 		hci_dev_unlock(hdev);
 		cancel_delayed_work_sync(&hdev->service_cache);
 		hci_dev_lock(hdev);
-		update_eir(hdev);
+		update_eir(&req);
 	}
 
-	err = update_class(hdev);
-	if (err < 0)
-		goto unlock;
+	update_class(&req);
+
+	hci_req_run(&req, NULL);
 
 	if (!test_bit(HCI_PENDING_CLASS, &hdev->dev_flags)) {
 		err = cmd_complete(sk, hdev->id, MGMT_OP_SET_DEV_CLASS, 0,
@@ -1539,8 +1554,12 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_SET_DEV_CLASS, hdev, data, len);
-	if (!cmd)
+	if (!cmd) {
 		err = -ENOMEM;
+		goto unlock;
+	}
+
+	err = 0;
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -2268,13 +2287,13 @@ static int user_passkey_neg_reply(struct sock *sk, struct hci_dev *hdev,
 				 HCI_OP_USER_PASSKEY_NEG_REPLY, 0);
 }
 
-static int update_name(struct hci_dev *hdev, const char *name)
+static void update_name(struct hci_request *req, const char *name)
 {
 	struct hci_cp_write_local_name cp;
 
 	memcpy(cp.name, name, sizeof(cp.name));
 
-	return hci_send_cmd(hdev, HCI_OP_WRITE_LOCAL_NAME, sizeof(cp), &cp);
+	hci_req_add(req, HCI_OP_WRITE_LOCAL_NAME, sizeof(cp), &cp);
 }
 
 static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
@@ -2282,6 +2301,7 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_set_local_name *cp = data;
 	struct pending_cmd *cmd;
+	struct hci_request req;
 	int err;
 
 	BT_DBG("");
@@ -2310,7 +2330,9 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	err = update_name(hdev, cp->name);
+	hci_req_init(&req, hdev);
+	update_name(&req, cp->name);
+	err = hci_req_run(&req, NULL);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
@@ -2698,6 +2720,7 @@ static int set_device_id(struct sock *sk, struct hci_dev *hdev, void *data,
 			 u16 len)
 {
 	struct mgmt_cp_set_device_id *cp = data;
+	struct hci_request req;
 	int err;
 	__u16 source;
 
@@ -2718,7 +2741,9 @@ static int set_device_id(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	err = cmd_complete(sk, hdev->id, MGMT_OP_SET_DEVICE_ID, 0, NULL, 0);
 
-	update_eir(hdev);
+	hci_req_init(&req, hdev);
+	update_eir(&req);
+	hci_req_run(&req, NULL);
 
 	hci_dev_unlock(hdev);
 
@@ -3043,8 +3068,9 @@ static void settings_rsp(struct pending_cmd *cmd, void *data)
 	mgmt_pending_free(cmd);
 }
 
-static int set_bredr_scan(struct hci_dev *hdev)
+static void set_bredr_scan(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
 	u8 scan = 0;
 
 	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
@@ -3052,21 +3078,22 @@ static int set_bredr_scan(struct hci_dev *hdev)
 	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 		scan |= SCAN_INQUIRY;
 
-	if (!scan)
-		return 0;
-
-	return hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	if (scan)
+		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 }
 
 static int powered_update_hci(struct hci_dev *hdev)
 {
+	struct hci_request req;
 	u8 link_sec;
+
+	hci_req_init(&req, hdev);
 
 	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 	    !lmp_host_ssp_capable(hdev)) {
 		u8 ssp = 1;
 
-		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
+		hci_req_add(&req, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
 	}
 
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
@@ -3080,23 +3107,23 @@ static int powered_update_hci(struct hci_dev *hdev)
 		 */
 		if (cp.le != lmp_host_le_capable(hdev) ||
 		    cp.simul != lmp_host_le_br_capable(hdev))
-			hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
-				     sizeof(cp), &cp);
+			hci_req_add(&req, HCI_OP_WRITE_LE_HOST_SUPPORTED,
+				    sizeof(cp), &cp);
 	}
 
 	link_sec = test_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
 	if (link_sec != test_bit(HCI_AUTH, &hdev->flags))
-		hci_send_cmd(hdev, HCI_OP_WRITE_AUTH_ENABLE,
-			     sizeof(link_sec), &link_sec);
+		hci_req_add(&req, HCI_OP_WRITE_AUTH_ENABLE,
+			    sizeof(link_sec), &link_sec);
 
 	if (lmp_bredr_capable(hdev)) {
-		set_bredr_scan(hdev);
-		update_class(hdev);
-		update_name(hdev, hdev->dev_name);
-		update_eir(hdev);
+		set_bredr_scan(&req);
+		update_class(&req);
+		update_name(&req, hdev->dev_name);
+		update_eir(&req);
 	}
 
-	return 0;
+	return hci_req_run(&req, NULL);
 }
 
 int mgmt_powered(struct hci_dev *hdev, u8 powered)
@@ -3561,23 +3588,25 @@ int mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
 	return err;
 }
 
-static int clear_eir(struct hci_dev *hdev)
+static void clear_eir(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_write_eir cp;
 
 	if (!lmp_ext_inq_capable(hdev))
-		return 0;
+		return;
 
 	memset(hdev->eir, 0, sizeof(hdev->eir));
 
 	memset(&cp, 0, sizeof(cp));
 
-	return hci_send_cmd(hdev, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
+	hci_req_add(req, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
 }
 
 int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
+	struct hci_request req;
 	bool changed = false;
 	int err = 0;
 
@@ -3610,10 +3639,14 @@ int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 	if (match.sk)
 		sock_put(match.sk);
 
+	hci_req_init(&req, hdev);
+
 	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
-		update_eir(hdev);
+		update_eir(&req);
 	else
-		clear_eir(hdev);
+		clear_eir(&req);
+
+	hci_req_run(&req, NULL);
 
 	return err;
 }
@@ -3701,8 +3734,12 @@ send_event:
 	 * adapter so only update them here if this is a name change
 	 * unrelated to power on.
 	 */
-	if (!test_bit(HCI_INIT, &hdev->flags))
-		update_eir(hdev);
+	if (!test_bit(HCI_INIT, &hdev->flags)) {
+		struct hci_request req;
+		hci_req_init(&req, hdev);
+		update_eir(&req);
+		hci_req_run(&req, NULL);
+	}
 
 failed:
 	if (cmd)
