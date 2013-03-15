@@ -754,6 +754,14 @@ static void intel_ds_init(void)
 	}
 }
 
+void perf_restore_debug_store(void)
+{
+	if (!x86_pmu.bts && !x86_pmu.pebs)
+		return;
+
+	init_debug_store_on_cpu(smp_processor_id());
+}
+
 #else /* CONFIG_CPU_SUP_INTEL */
 
 static void reserve_ds_buffers(void)
