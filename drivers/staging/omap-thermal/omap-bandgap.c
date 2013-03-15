@@ -338,8 +338,8 @@ exit:
 /***   Helper functions handling device Alert/Shutdown signals   ***/
 
 /* Talert masks. Call it only if HAS(TALERT) is set */
-static int temp_sensor_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
-					 u32 t_hot, u32 t_cold)
+static void omap_bandgap_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
+					   u32 t_hot, u32 t_cold)
 {
 	struct temp_sensor_registers *tsr;
 	u32 temp, reg_val;
@@ -360,8 +360,6 @@ static int temp_sensor_unmask_interrupts(struct omap_bandgap *bg_ptr, int id,
 	else
 		reg_val &= ~tsr->mask_cold_mask;
 	omap_bandgap_writel(bg_ptr, reg_val, tsr->bgap_mask_ctrl);
-
-	return 0;
 }
 
 /* Talert Thot threshold. Call it only if HAS(TALERT) is set */
@@ -399,7 +397,9 @@ int temp_sensor_configure_thot(struct omap_bandgap *bg_ptr, int id, int t_hot)
 		return -EIO;
 	}
 
-	return temp_sensor_unmask_interrupts(bg_ptr, id, t_hot, cold);
+	omap_bandgap_unmask_interrupts(bg_ptr, id, t_hot, cold);
+
+	return 0;
 }
 
 /* Talert Tcold threshold. Call it only if HAS(TALERT) is set */
@@ -438,7 +438,9 @@ int temp_sensor_configure_tcold(struct omap_bandgap *bg_ptr, int id,
 		return -EIO;
 	}
 
-	return temp_sensor_unmask_interrupts(bg_ptr, id, hot, t_cold);
+	omap_bandgap_unmask_interrupts(bg_ptr, id, hot, t_cold);
+
+	return 0;
 }
 
 #define bandgap_is_valid(b)						\
