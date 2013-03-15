@@ -905,18 +905,6 @@ config ARCH_U8500
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
-config PLAT_SPEAR
-	bool "ST SPEAr"
-	select ARCH_HAS_CPUFREQ
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_AMBA
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
-	help
-	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
 
 config ARCH_DAVINCI
 	bool "TI DaVinci"
@@ -1076,7 +1064,7 @@ source "arch/arm/plat-samsung/Kconfig"
 
 source "arch/arm/mach-socfpga/Kconfig"
 
-source "arch/arm/plat-spear/Kconfig"
+source "arch/arm/mach-spear/Kconfig"
 
 source "arch/arm/mach-s3c24xx/Kconfig"
 

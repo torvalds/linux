@@ -15,21 +15,20 @@
 #include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/spinlock_types.h>
-#include <mach/misc_regs.h>
 #include "clk.h"
 
 static DEFINE_SPINLOCK(_lock);
 
-#define PLL1_CTR			(MISC_BASE + 0x008)
-#define PLL1_FRQ			(MISC_BASE + 0x00C)
-#define PLL2_CTR			(MISC_BASE + 0x014)
-#define PLL2_FRQ			(MISC_BASE + 0x018)
-#define PLL_CLK_CFG			(MISC_BASE + 0x020)
+#define PLL1_CTR			(misc_base + 0x008)
+#define PLL1_FRQ			(misc_base + 0x00C)
+#define PLL2_CTR			(misc_base + 0x014)
+#define PLL2_FRQ			(misc_base + 0x018)
+#define PLL_CLK_CFG			(misc_base + 0x020)
 	/* PLL_CLK_CFG register masks */
 	#define MCTR_CLK_SHIFT		28
 	#define MCTR_CLK_MASK		3
 
-#define CORE_CLK_CFG			(MISC_BASE + 0x024)
+#define CORE_CLK_CFG			(misc_base + 0x024)
 	/* CORE CLK CFG register masks */
 	#define GEN_SYNTH2_3_CLK_SHIFT	18
 	#define GEN_SYNTH2_3_CLK_MASK	1
@@ -39,7 +38,7 @@ static DEFINE_SPINLOCK(_lock);
 	#define PCLK_RATIO_SHIFT	8
 	#define PCLK_RATIO_MASK		2
 
-#define PERIP_CLK_CFG			(MISC_BASE + 0x028)
+#define PERIP_CLK_CFG			(misc_base + 0x028)
 	/* PERIP_CLK_CFG register masks */
 	#define UART_CLK_SHIFT		4
 	#define UART_CLK_MASK		1
@@ -50,7 +49,7 @@ static DEFINE_SPINLOCK(_lock);
 	#define GPT2_CLK_SHIFT		12
 	#define GPT_CLK_MASK		1
 
-#define PERIP1_CLK_ENB			(MISC_BASE + 0x02C)
+#define PERIP1_CLK_ENB			(misc_base + 0x02C)
 	/* PERIP1_CLK_ENB register masks */
 	#define UART_CLK_ENB		3
 	#define SSP_CLK_ENB		5
@@ -69,7 +68,7 @@ static DEFINE_SPINLOCK(_lock);
 	#define USBH_CLK_ENB		25
 	#define C3_CLK_ENB		31
 
-#define RAS_CLK_ENB			(MISC_BASE + 0x034)
+#define RAS_CLK_ENB			(misc_base + 0x034)
 	#define RAS_AHB_CLK_ENB		0
 	#define RAS_PLL1_CLK_ENB	1
 	#define RAS_APB_CLK_ENB		2
@@ -82,20 +81,20 @@ static DEFINE_SPINLOCK(_lock);
 	#define RAS_SYNT2_CLK_ENB	10
 	#define RAS_SYNT3_CLK_ENB	11
 
-#define PRSC0_CLK_CFG			(MISC_BASE + 0x044)
-#define PRSC1_CLK_CFG			(MISC_BASE + 0x048)
-#define PRSC2_CLK_CFG			(MISC_BASE + 0x04C)
-#define AMEM_CLK_CFG			(MISC_BASE + 0x050)
+#define PRSC0_CLK_CFG			(misc_base + 0x044)
+#define PRSC1_CLK_CFG			(misc_base + 0x048)
+#define PRSC2_CLK_CFG			(misc_base + 0x04C)
+#define AMEM_CLK_CFG			(misc_base + 0x050)
 	#define AMEM_CLK_ENB		0
 
-#define CLCD_CLK_SYNT			(MISC_BASE + 0x05C)
-#define FIRDA_CLK_SYNT			(MISC_BASE + 0x060)
-#define UART_CLK_SYNT			(MISC_BASE + 0x064)
-#define GMAC_CLK_SYNT			(MISC_BASE + 0x068)
-#define GEN0_CLK_SYNT			(MISC_BASE + 0x06C)
-#define GEN1_CLK_SYNT			(MISC_BASE + 0x070)
-#define GEN2_CLK_SYNT			(MISC_BASE + 0x074)
-#define GEN3_CLK_SYNT			(MISC_BASE + 0x078)
+#define CLCD_CLK_SYNT			(misc_base + 0x05C)
+#define FIRDA_CLK_SYNT			(misc_base + 0x060)
+#define UART_CLK_SYNT			(misc_base + 0x064)
+#define GMAC_CLK_SYNT			(misc_base + 0x068)
+#define GEN0_CLK_SYNT			(misc_base + 0x06C)
+#define GEN1_CLK_SYNT			(misc_base + 0x070)
+#define GEN2_CLK_SYNT			(misc_base + 0x074)
+#define GEN3_CLK_SYNT			(misc_base + 0x078)
 
 /* pll rate configuration table, in ascending order of rates */
 static struct pll_rate_tbl pll_rtbl[] = {
@@ -211,6 +210,17 @@ static inline void spear310_clk_init(void) { }
 
 /* array of all spear 320 clock lookups */
 #ifdef CONFIG_MACH_SPEAR320
+
+#define SPEAR320_CONTROL_REG		(soc_config_base + 0x0000)
+#define SPEAR320_EXT_CTRL_REG		(soc_config_base + 0x0018)
+
+	#define SPEAR320_UARTX_PCLK_MASK		0x1
+	#define SPEAR320_UART2_PCLK_SHIFT		8
+	#define SPEAR320_UART3_PCLK_SHIFT		9
+	#define SPEAR320_UART4_PCLK_SHIFT		10
+	#define SPEAR320_UART5_PCLK_SHIFT		11
+	#define SPEAR320_UART6_PCLK_SHIFT		12
+	#define SPEAR320_RS485_PCLK_SHIFT		13
 	#define SMII_PCLK_SHIFT				18
 	#define SMII_PCLK_MASK				2
 	#define SMII_PCLK_VAL_PAD			0x0
@@ -235,7 +245,7 @@ static const char *smii0_parents[] = { "smii_125m_pad", "ras_pll2_clk",
 	"ras_syn0_gclk", };
 static const char *uartx_parents[] = { "ras_syn1_gclk", "ras_apb_clk", };
 
-static void __init spear320_clk_init(void)
+static void __init spear320_clk_init(void __iomem *soc_config_base)
 {
 	struct clk *clk;
 
@@ -362,7 +372,7 @@ static void __init spear320_clk_init(void)
 static inline void spear320_clk_init(void) { }
 #endif
 
-void __init spear3xx_clk_init(void)
+void __init spear3xx_clk_init(void __iomem *misc_base, void __iomem *soc_config_base)
 {
 	struct clk *clk, *clk1;
 
@@ -634,5 +644,5 @@ void __init spear3xx_clk_init(void)
 	else if (of_machine_is_compatible("st,spear310"))
 		spear310_clk_init();
 	else if (of_machine_is_compatible("st,spear320"))
-		spear320_clk_init();
+		spear320_clk_init(soc_config_base);
 }
