@@ -270,14 +270,16 @@ int omap_bandgap_mcelsius_to_adc(struct omap_bandgap *bg_ptr, int i, long temp,
 {
 	struct temp_sensor_data *ts_data = bg_ptr->conf->sensors[i].ts_data;
 	const int *conv_table = bg_ptr->conf->conv_table;
-	int high, low, mid;
+	int high, low, mid, ret = 0;
 
 	low = 0;
 	high = ts_data->adc_end_val - ts_data->adc_start_val;
 	mid = (high + low) / 2;
 
-	if (temp < conv_table[low] || temp > conv_table[high])
-		return -EINVAL;
+	if (temp < conv_table[low] || temp > conv_table[high]) {
+		ret = -ERANGE;
+		goto exit;
+	}
 
 	while (low < high) {
 		if (temp < conv_table[mid])
@@ -289,7 +291,8 @@ int omap_bandgap_mcelsius_to_adc(struct omap_bandgap *bg_ptr, int i, long temp,
 
 	*adc = ts_data->adc_start_val + low;
 
-	return 0;
+exit:
+	return ret;
 }
 
 /* Talert masks. Call it only if HAS(TALERT) is set */
