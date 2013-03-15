@@ -1,7 +1,6 @@
 List of TODOs (by Eduardo Valentin)
 
 on omap-bandgap.c:
-- Improve driver code by adding usage of regmap-mmio
 - Test every exposed API to userland
 - Add support to hwmon
 - Review and revisit all API exposed
