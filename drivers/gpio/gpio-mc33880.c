@@ -130,7 +130,8 @@ static int mc33880_probe(struct spi_device *spi)
 		ret = mc33880_write_config(mc);
 
 	if (ret) {
-		printk(KERN_ERR "Failed writing to " DRIVER_NAME ": %d\n", ret);
+		dev_err(&spi->dev, "Failed writing to " DRIVER_NAME ": %d\n",
+			ret);
 		goto exit_destroy;
 	}
 
