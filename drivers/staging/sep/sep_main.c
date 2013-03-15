@@ -1986,7 +1986,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 					dma_ctx,
 					sep_lli_entries);
 		if (error)
-			return error;
+			goto end_function_error;
 		lli_table_alloc_addr = *dmatables_region;
 	}
 
