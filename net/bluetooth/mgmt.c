@@ -652,8 +652,6 @@ static void update_class(struct hci_request *req)
 		return;
 
 	hci_req_add(req, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
-
-	set_bit(HCI_PENDING_CLASS, &hdev->dev_flags);
 }
 
 static void service_cache_off(struct work_struct *work)
@@ -3761,8 +3759,6 @@ int mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 {
 	struct cmd_lookup match = { NULL, hdev, mgmt_status(status) };
 	int err = 0;
-
-	clear_bit(HCI_PENDING_CLASS, &hdev->dev_flags);
 
 	mgmt_pending_foreach(MGMT_OP_SET_DEV_CLASS, hdev, sk_lookup, &match);
 	mgmt_pending_foreach(MGMT_OP_ADD_UUID, hdev, sk_lookup, &match);
