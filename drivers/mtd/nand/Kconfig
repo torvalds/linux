@@ -193,12 +193,6 @@ config MTD_NAND_BF5XX_BOOTROM_ECC
 
 	  If unsure, say N.
 
-config MTD_NAND_PPCHAMELEONEVB
-	tristate "NAND Flash device on PPChameleonEVB board"
-	depends on PPCHAMELEONEVB && BROKEN
-	help
-	  This enables the NAND flash driver on the PPChameleon EVB Board.
-
 config MTD_NAND_S3C2410
 	tristate "NAND Flash support for Samsung S3C SoCs"
 	depends on ARCH_S3C24XX || ARCH_S3C64XX
