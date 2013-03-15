@@ -1453,7 +1453,7 @@ static struct resource atmel_lcdfb0_resource[] = {
 	},
 };
 DEFINE_DEV_DATA(atmel_lcdfb, 0);
-DEV_CLK(hck1, atmel_lcdfb0, hsb, 7);
+DEV_CLK(hclk, atmel_lcdfb0, hsb, 7);
 static struct clk atmel_lcdfb0_pixclk = {
 	.name		= "lcdc_clk",
 	.dev		= &atmel_lcdfb0_device.dev,
@@ -1529,6 +1529,8 @@ at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 	info = pdev->dev.platform_data;
 	memcpy(info, data, sizeof(struct atmel_lcdfb_info));
 	info->default_monspecs = monspecs;
+
+	pdev->name = "at32ap-lcdfb";
 
 	platform_device_register(pdev);
 	return pdev;
@@ -2246,7 +2248,7 @@ static __initdata struct clk *init_clocks[] = {
 	&atmel_twi0_pclk,
 	&atmel_mci0_pclk,
 #if defined(CONFIG_CPU_AT32AP7000) || defined(CONFIG_CPU_AT32AP7002)
-	&atmel_lcdfb0_hck1,
+	&atmel_lcdfb0_hclk,
 	&atmel_lcdfb0_pixclk,
 #endif
 	&ssc0_pclk,
