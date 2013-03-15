@@ -788,6 +788,10 @@ static int spi_sunxi_xfer_setup(struct spi_device *spi, struct spi_transfer *t)
      *  set bit width-default: 8 bits
      */
     aw_spi_config(1, spi->mode, base_addr);
+	/*
+	 * setup inter-byte delay; used for slow slaves
+	 */
+	aw_spi_set_waitclk_cnt((t && t->interbyte_usecs) ? t->interbyte_usecs*config->max_speed_hz/1000000 : 0, base_addr);
 	return 0;
 }
 
@@ -967,7 +971,7 @@ static void spi_sunxi_work(struct work_struct *work)
 		status = -1;
 		/* search the spi transfer in this message, deal with it alone. */
 		list_for_each_entry (t, &msg->transfers, transfer_list) {
-			if ((status == -1) || t->bits_per_word || t->speed_hz) { /* xfer_setup if first transfer or overrides provided. */
+			if ((status == -1) || t->bits_per_word || t->speed_hz || t->interbyte_usecs) { /* xfer_setup if first transfer or overrides provided. */
 				status = spi_sunxi_xfer_setup(spi, t);/* set the value every spi transfer */
 				spi_msg(" xfer setup \n");
 				if (status < 0)
