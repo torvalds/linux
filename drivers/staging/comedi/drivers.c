@@ -110,6 +110,7 @@ static void cleanup_device(struct comedi_device *dev)
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
 	dev->iobase = 0;
+	dev->ioenabled = false;
 	dev->irq = 0;
 	dev->read_subdev = NULL;
 	dev->write_subdev = NULL;
