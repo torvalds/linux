@@ -977,6 +977,8 @@ static int acm_probe(struct usb_interface *intf,
 	int num_rx_buf;
 	int i;
 	int combined_interfaces = 0;
+	struct device *tty_dev;
+	int rv = -ENOMEM;
 
 	/* normal quirks */
 	quirks = (unsigned long)id->driver_info;
@@ -1339,11 +1341,24 @@ skip_countries:
 	usb_set_intfdata(data_interface, acm);
 
 	usb_get_intf(control_interface);
-	tty_port_register_device(&acm->port, acm_tty_driver, minor,
+	tty_dev = tty_port_register_device(&acm->port, acm_tty_driver, minor,
 			&control_interface->dev);
+	if (IS_ERR(tty_dev)) {
+		rv = PTR_ERR(tty_dev);
+		goto alloc_fail8;
+	}
 
 	return 0;
+alloc_fail8:
+	if (acm->country_codes) {
+		device_remove_file(&acm->control->dev,
+				&dev_attr_wCountryCodes);
+		device_remove_file(&acm->control->dev,
+				&dev_attr_iCountryCodeRelDate);
+	}
+	device_remove_file(&acm->control->dev, &dev_attr_bmCapabilities);
 alloc_fail7:
+	usb_set_intfdata(intf, NULL);
 	for (i = 0; i < ACM_NW; i++)
 		usb_free_urb(acm->wb[i].urb);
 alloc_fail6:
@@ -1359,7 +1374,7 @@ alloc_fail2:
 	acm_release_minor(acm);
 	kfree(acm);
 alloc_fail:
-	return -ENOMEM;
+	return rv;
 }
 
 static void stop_data_traffic(struct acm *acm)
