@@ -198,7 +198,7 @@ void solo_p2m_error_isr(struct solo_dev *solo_dev)
 	struct solo_p2m_dev *p2m_dev;
 	int i;
 
-	if (!(err & SOLO_PCI_ERR_P2M))
+	if (!(err & (SOLO_PCI_ERR_P2M | SOLO_PCI_ERR_P2M_DESC)))
 		return;
 
 	for (i = 0; i < SOLO_NR_P2M; i++) {
