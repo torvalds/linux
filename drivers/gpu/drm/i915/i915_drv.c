@@ -248,63 +248,49 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_force_wake = 1,
 };
 
+#define GEN7_FEATURES  \
+	.gen = 7, .num_pipes = 3, \
+	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.has_bsd_ring = 1, \
+	.has_blt_ring = 1, \
+	.has_llc = 1, \
+	.has_force_wake = 1
+
 static const struct intel_device_info intel_ivybridge_d_info = {
-	.is_ivybridge = 1, .gen = 7, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
-	.has_llc = 1,
-	.has_force_wake = 1,
+	GEN7_FEATURES,
+	.is_ivybridge = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_m_info = {
-	.is_ivybridge = 1, .gen = 7, .is_mobile = 1, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 0,	/* FBC is not enabled on Ivybridge mobile yet */
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
-	.has_llc = 1,
-	.has_force_wake = 1,
+	GEN7_FEATURES,
+	.is_ivybridge = 1,
+	.is_mobile = 1,
 };
 
 static const struct intel_device_info intel_valleyview_m_info = {
-	.gen = 7, .is_mobile = 1, .num_pipes = 2,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 0,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
+	GEN7_FEATURES,
+	.is_mobile = 1,
+	.num_pipes = 2,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
-	.has_force_wake = 1,
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
-	.gen = 7, .num_pipes = 2,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 0,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
+	GEN7_FEATURES,
+	.num_pipes = 2,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
-	.has_force_wake = 1,
 };
 
 static const struct intel_device_info intel_haswell_d_info = {
-	.is_haswell = 1, .gen = 7, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
-	.has_llc = 1,
-	.has_force_wake = 1,
+	GEN7_FEATURES,
+	.is_haswell = 1,
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
-	.is_haswell = 1, .gen = 7, .is_mobile = 1, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
-	.has_llc = 1,
-	.has_force_wake = 1,
+	GEN7_FEATURES,
+	.is_haswell = 1,
+	.is_mobile = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
