@@ -437,6 +437,14 @@ exit:
 	return err;
 }
 
+/**
+ * omap_bandgap_validate() - helper to check the sanity of a struct omap_bandgap
+ * @bg_ptr: struct omap_bandgap pointer
+ * @id: bandgap sensor id
+ *
+ * Checks if the bandgap pointer is valid and if the sensor id is also
+ * applicable.
+ */
 static inline int omap_bandgap_validate(struct omap_bandgap *bg_ptr, int id)
 {
 	int ret = 0;
