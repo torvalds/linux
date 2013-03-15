@@ -109,6 +109,16 @@ exit:
 	return 0;
 }
 
+/**
+ * omap_bandgap_read_temp() - helper function to read sensor temperature
+ * @bg_ptr: pointer to omap_bandgap structure
+ * @id: bandgap sensor id
+ *
+ * Function to concentrate the steps to read sensor temperature register.
+ * This function is desired because, depending on bandgap device version,
+ * it might be needed to freeze the bandgap state machine, before fetching
+ * the register value.
+ */
 static u32 omap_bandgap_read_temp(struct omap_bandgap *bg_ptr, int id)
 {
 	struct temp_sensor_registers *tsr;
