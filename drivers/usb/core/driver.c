@@ -1196,9 +1196,14 @@ done:
  *
  * This is the central routine for suspending USB devices.  It calls the
  * suspend methods for all the interface drivers in @udev and then calls
- * the suspend method for @udev itself.  If an error occurs at any stage,
- * all the interfaces which were suspended are resumed so that they remain
- * in the same state as the device.
+ * the suspend method for @udev itself.  When the routine is called in
+ * autosuspend, if an error occurs at any stage, all the interfaces
+ * which were suspended are resumed so that they remain in the same
+ * state as the device, but when called from system sleep, all error
+ * from suspend methods of interfaces and the non-root-hub device itself
+ * are simply ignored, so all suspended interfaces are only resumed
+ * to the device's state when @udev is root-hub and its suspend method
+ * returns failure.
  *
  * Autosuspend requests originating from a child device or an interface
  * driver may be made without the protection of @udev's device lock, but

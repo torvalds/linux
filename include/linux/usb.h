@@ -976,7 +976,12 @@ struct usbdrv_wrap {
  *	the "usbfs" filesystem.  This lets devices provide ways to
  *	expose information to user space regardless of where they
  *	do (or don't) show up otherwise in the filesystem.
- * @suspend: Called when the device is going to be suspended by the system.
+ * @suspend: Called when the device is going to be suspended by the
+ *	system either from system sleep or runtime suspend context. The
+ *	return value will be ignored in system sleep context, so do NOT
+ *	try to continue using the device if suspend fails in this case.
+ *	Instead, let the resume or reset-resume routine recover from
+ *	the failure.
  * @resume: Called when the device is being resumed by the system.
  * @reset_resume: Called when the suspended device has been reset instead
  *	of being resumed.
