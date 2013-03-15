@@ -591,6 +591,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		}
 		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+		clear_bit(EXTENT_FLAG_LOGGING, &flags);
 		remove_extent_mapping(em_tree, em);
 		if (no_splits)
 			goto next;
