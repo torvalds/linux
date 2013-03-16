@@ -103,8 +103,13 @@ out:
 	return status;
 }
 
-int
-gss_mech_register(struct gss_api_mech *gm)
+/**
+ * gss_mech_register - register a GSS mechanism
+ * @gm: GSS mechanism handle
+ *
+ * Returns zero if successful, or a negative errno.
+ */
+int gss_mech_register(struct gss_api_mech *gm)
 {
 	int status;
 
@@ -117,11 +122,14 @@ gss_mech_register(struct gss_api_mech *gm)
 	dprintk("RPC:       registered gss mechanism %s\n", gm->gm_name);
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(gss_mech_register);
 
-void
-gss_mech_unregister(struct gss_api_mech *gm)
+/**
+ * gss_mech_unregister - release a GSS mechanism
+ * @gm: GSS mechanism handle
+ *
+ */
+void gss_mech_unregister(struct gss_api_mech *gm)
 {
 	spin_lock(&registered_mechs_lock);
 	list_del(&gm->gm_list);
@@ -129,7 +137,6 @@ gss_mech_unregister(struct gss_api_mech *gm)
 	dprintk("RPC:       unregistered gss mechanism %s\n", gm->gm_name);
 	gss_mech_free(gm);
 }
-
 EXPORT_SYMBOL_GPL(gss_mech_unregister);
 
 static struct gss_api_mech *gss_mech_get(struct gss_api_mech *gm)
@@ -167,7 +174,6 @@ struct gss_api_mech * gss_mech_get_by_name(const char *name)
 	}
 	return gm;
 }
-EXPORT_SYMBOL_GPL(gss_mech_get_by_name);
 
 static struct gss_api_mech *gss_mech_get_by_OID(struct rpcsec_gss_oid *obj)
 {
@@ -355,8 +361,6 @@ gss_pseudoflavor_to_service(struct gss_api_mech *gm, u32 pseudoflavor)
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(gss_pseudoflavor_to_service);
-
 char *
 gss_service_to_auth_domain_name(struct gss_api_mech *gm, u32 service)
 {
@@ -369,16 +373,12 @@ gss_service_to_auth_domain_name(struct gss_api_mech *gm, u32 service)
 	return NULL;
 }
 
-EXPORT_SYMBOL_GPL(gss_service_to_auth_domain_name);
-
 void
 gss_mech_put(struct gss_api_mech * gm)
 {
 	if (gm)
 		module_put(gm->gm_owner);
 }
-
-EXPORT_SYMBOL_GPL(gss_mech_put);
 
 /* The mech could probably be determined from the token instead, but it's just
  * as easy for now to pass it in. */
