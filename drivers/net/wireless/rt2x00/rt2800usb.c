@@ -1247,6 +1247,15 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x148f, 0x5372) },
 #endif
 #ifdef CONFIG_RT2800USB_RT55XX
+	/* Arcadyan */
+	{ USB_DEVICE(0x043e, 0x7a32), .driver_info = 5592 },
+	/* AVM GmbH */
+	{ USB_DEVICE(0x057c, 0x8501), .driver_info = 5592 },
+	/* D-Link DWA-160-B2 */
+	{ USB_DEVICE(0x2001, 0x3c1a), .driver_info = 5592 },
+	/* Proware */
+	{ USB_DEVICE(0x043e, 0x7a13), .driver_info = 5592 },
+	/* Ralink */
 	{ USB_DEVICE(0x148f, 0x5572), .driver_info = 5592 },
 #endif
 #ifdef CONFIG_RT2800USB_UNKNOWN
