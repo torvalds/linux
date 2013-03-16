@@ -4691,6 +4691,7 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rt(rt2x00dev, RT5390) &&
 	    !rt2x00_rt(rt2x00dev, RT5392) &&
 	    !rt2x00_rt(rt2x00dev, RT5392) &&
+	    !rt2x00_rt(rt2x00dev, RT5592) &&
 	    !rt2800_is_305x_soc(rt2x00dev))
 		return 0;
 
