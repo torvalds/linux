@@ -271,19 +271,27 @@ int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr, int size)
 	return i;
 }
 
-u32
-gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 service)
+/**
+ * gss_svc_to_pseudoflavor - map a GSS service number to a pseudoflavor
+ * @gm: GSS mechanism handle
+ * @qop: GSS quality-of-protection value
+ * @service: GSS service value
+ *
+ * Returns a matching security flavor, or RPC_AUTH_MAXFLAVOR if none is found.
+ */
+rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 qop,
+					 u32 service)
 {
 	int i;
 
 	for (i = 0; i < gm->gm_pf_num; i++) {
-		if (gm->gm_pfs[i].service == service) {
+		if (gm->gm_pfs[i].qop == qop &&
+		    gm->gm_pfs[i].service == service) {
 			return gm->gm_pfs[i].pseudoflavor;
 		}
 	}
-	return RPC_AUTH_MAXFLAVOR; /* illegal value */
+	return RPC_AUTH_MAXFLAVOR;
 }
-EXPORT_SYMBOL_GPL(gss_svc_to_pseudoflavor);
 
 /**
  * gss_mech_info2flavor - look up a pseudoflavor given a GSS tuple
@@ -301,7 +309,7 @@ rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
 	if (gm == NULL)
 		return RPC_AUTH_MAXFLAVOR;
 
-	pseudoflavor = gss_svc_to_pseudoflavor(gm, info->service);
+	pseudoflavor = gss_svc_to_pseudoflavor(gm, info->qop, info->service);
 
 	gss_mech_put(gm);
 	return pseudoflavor;

@@ -1216,7 +1216,9 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 		svcdata->rsci = rsci;
 		cache_get(&rsci->h);
 		rqstp->rq_cred.cr_flavor = gss_svc_to_pseudoflavor(
-					rsci->mechctx->mech_type, gc->gc_svc);
+					rsci->mechctx->mech_type,
+					GSS_C_QOP_DEFAULT,
+					gc->gc_svc);
 		ret = SVC_OK;
 		goto out;
 	}

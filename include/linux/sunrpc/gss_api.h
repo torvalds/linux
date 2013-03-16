@@ -25,6 +25,7 @@ struct gss_ctx {
 
 #define GSS_C_NO_BUFFER		((struct xdr_netobj) 0)
 #define GSS_C_NO_CONTEXT	((struct gss_ctx *) 0)
+#define GSS_C_QOP_DEFAULT	(0)
 
 /*XXX  arbitrary length - is this set somewhere? */
 #define GSS_OID_MAX_LEN 32
@@ -68,12 +69,14 @@ u32 gss_unwrap(
 u32 gss_delete_sec_context(
 		struct gss_ctx		**ctx_id);
 
-u32 gss_svc_to_pseudoflavor(struct gss_api_mech *, u32 service);
+rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *, u32 qop,
+					u32 service);
 u32 gss_pseudoflavor_to_service(struct gss_api_mech *, u32 pseudoflavor);
 char *gss_service_to_auth_domain_name(struct gss_api_mech *, u32 service);
 
 struct pf_desc {
 	u32	pseudoflavor;
+	u32	qop;
 	u32	service;
 	char	*name;
 	char	*auth_domain_name;
