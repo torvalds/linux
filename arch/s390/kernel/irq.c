@@ -33,7 +33,7 @@ struct irq_class {
 };
 
 /*
- * The list of "main" irq classes on s390. This is the list of interrrupts
+ * The list of "main" irq classes on s390. This is the list of interrupts
  * that appear both in /proc/stat ("intr" line) and /proc/interrupts.
  * Historically only external and I/O interrupts have been part of /proc/stat.
  * We can't add the split external and I/O sub classes since the first field

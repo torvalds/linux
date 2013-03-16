@@ -2089,7 +2089,7 @@ static int qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
 
 	if (r_addr & 0xf) {
 		DEBUG2(ql4_printk(KERN_INFO, ha,
-				  "[%s]: Read addr 0x%x not 16 bytes alligned\n",
+				  "[%s]: Read addr 0x%x not 16 bytes aligned\n",
 				  __func__, r_addr));
 		return QLA_ERROR;
 	}
