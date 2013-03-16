@@ -2030,9 +2030,18 @@ struct mac_iveiv_entry {
 #define RFCSR7_BITS67			FIELD8(0xc0)
 
 /*
+ * RFCSR 9:
+ */
+#define RFCSR9_K			FIELD8(0x0f)
+#define RFCSR9_N			FIELD8(0x10)
+#define RFCSR9_UNKNOWN			FIELD8(0x60)
+#define RFCSR9_MOD			FIELD8(0x80)
+
+/*
  * RFCSR 11:
  */
 #define RFCSR11_R			FIELD8(0x03)
+#define RFCSR11_MOD			FIELD8(0xc0)
 
 /*
  * RFCSR 12:
@@ -2138,11 +2147,13 @@ struct mac_iveiv_entry {
  * RFCSR 49:
  */
 #define RFCSR49_TX			FIELD8(0x3f)
+#define RFCSR49_EP			FIELD8(0xc0)
 
 /*
  * RFCSR 50:
  */
 #define RFCSR50_TX			FIELD8(0x3f)
+#define RFCSR50_EP			FIELD8(0xc0)
 
 /*
  * RF registers
