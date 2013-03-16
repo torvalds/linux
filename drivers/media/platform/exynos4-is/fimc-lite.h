@@ -48,16 +48,12 @@ enum {
 #define FLITE_SD_PAD_SOURCE_ISP	2
 #define FLITE_SD_PADS_NUM	3
 
-struct flite_variant {
+struct flite_drvdata {
 	unsigned short max_width;
 	unsigned short max_height;
 	unsigned short out_width_align;
 	unsigned short win_hor_offs_align;
 	unsigned short out_hor_offs_align;
-};
-
-struct flite_drvdata {
-	struct flite_variant *variant[FIMC_LITE_MAX_DEVS];
 };
 
 #define fimc_lite_get_drvdata(_pdev) \
@@ -96,7 +92,7 @@ struct flite_buffer {
 /**
  * struct fimc_lite - fimc lite structure
  * @pdev: pointer to FIMC-LITE platform device
- * @variant: variant information for this IP
+ * @dd: SoC specific driver data structure
  * @v4l2_dev: pointer to top the level v4l2_device
  * @vfd: video device node
  * @fh: v4l2 file handle
@@ -132,7 +128,7 @@ struct flite_buffer {
  */
 struct fimc_lite {
 	struct platform_device	*pdev;
-	struct flite_variant	*variant;
+	struct flite_drvdata	*dd;
 	struct v4l2_device	*v4l2_dev;
 	struct video_device	vfd;
 	struct v4l2_fh		fh;

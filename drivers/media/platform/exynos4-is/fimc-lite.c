@@ -528,7 +528,7 @@ static const struct fimc_fmt *fimc_lite_try_format(struct fimc_lite *fimc,
 					u32 *width, u32 *height,
 					u32 *code, u32 *fourcc, int pad)
 {
-	struct flite_variant *variant = fimc->variant;
+	struct flite_drvdata *dd = fimc->dd;
 	const struct fimc_fmt *fmt;
 
 	fmt = fimc_lite_find_format(fourcc, code, 0);
@@ -541,12 +541,12 @@ static const struct fimc_fmt *fimc_lite_try_format(struct fimc_lite *fimc,
 		*fourcc = fmt->fourcc;
 
 	if (pad == FLITE_SD_PAD_SINK) {
-		v4l_bound_align_image(width, 8, variant->max_width,
-				      ffs(variant->out_width_align) - 1,
-				      height, 0, variant->max_height, 0, 0);
+		v4l_bound_align_image(width, 8, dd->max_width,
+				      ffs(dd->out_width_align) - 1,
+				      height, 0, dd->max_height, 0, 0);
 	} else {
 		v4l_bound_align_image(width, 8, fimc->inp_frame.rect.width,
-				      ffs(variant->out_width_align) - 1,
+				      ffs(dd->out_width_align) - 1,
 				      height, 0, fimc->inp_frame.rect.height,
 				      0, 0);
 	}
@@ -566,7 +566,7 @@ static void fimc_lite_try_crop(struct fimc_lite *fimc, struct v4l2_rect *r)
 
 	/* Adjust left/top if cropping rectangle got out of bounds */
 	r->left = clamp_t(u32, r->left, 0, frame->f_width - r->width);
-	r->left = round_down(r->left, fimc->variant->win_hor_offs_align);
+	r->left = round_down(r->left, fimc->dd->win_hor_offs_align);
 	r->top  = clamp_t(u32, r->top, 0, frame->f_height - r->height);
 
 	v4l2_dbg(1, debug, &fimc->subdev, "(%d,%d)/%dx%d, sink fmt: %dx%d\n",
@@ -586,7 +586,7 @@ static void fimc_lite_try_compose(struct fimc_lite *fimc, struct v4l2_rect *r)
 
 	/* Adjust left/top if the composing rectangle got out of bounds */
 	r->left = clamp_t(u32, r->left, 0, frame->f_width - r->width);
-	r->left = round_down(r->left, fimc->variant->out_hor_offs_align);
+	r->left = round_down(r->left, fimc->dd->out_hor_offs_align);
 	r->top  = clamp_t(u32, r->top, 0, fimc->out_frame.f_height - r->height);
 
 	v4l2_dbg(1, debug, &fimc->subdev, "(%d,%d)/%dx%d, source fmt: %dx%d\n",
@@ -647,8 +647,8 @@ static int fimc_lite_try_fmt(struct fimc_lite *fimc,
 			     struct v4l2_pix_format_mplane *pixm,
 			     const struct fimc_fmt **ffmt)
 {
-	struct flite_variant *variant = fimc->variant;
 	u32 bpl = pixm->plane_fmt[0].bytesperline;
+	struct flite_drvdata *dd = fimc->dd;
 	const struct fimc_fmt *fmt;
 
 	fmt = fimc_lite_find_format(&pixm->pixelformat, NULL, 0);
@@ -656,9 +656,9 @@ static int fimc_lite_try_fmt(struct fimc_lite *fimc,
 		return -EINVAL;
 	if (ffmt)
 		*ffmt = fmt;
-	v4l_bound_align_image(&pixm->width, 8, variant->max_width,
-			      ffs(variant->out_width_align) - 1,
-			      &pixm->height, 0, variant->max_height, 0, 0);
+	v4l_bound_align_image(&pixm->width, 8, dd->max_width,
+			      ffs(dd->out_width_align) - 1,
+			      &pixm->height, 0, dd->max_height, 0, 0);
 
 	if ((bpl == 0 || ((bpl * 8) / fmt->depth[0]) < pixm->width))
 		pixm->plane_fmt[0].bytesperline = (pixm->width *
@@ -1429,7 +1429,7 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	if (!drv_data || fimc->index < 0 || fimc->index >= FIMC_LITE_MAX_DEVS)
 		return -EINVAL;
 
-	fimc->variant = drv_data->variant[fimc->index];
+	fimc->dd = drv_data;
 	fimc->pdev = pdev;
 
 	init_waitqueue_head(&fimc->irq_queue);
@@ -1577,20 +1577,13 @@ static const struct dev_pm_ops fimc_lite_pm_ops = {
 			   NULL)
 };
 
-static struct flite_variant fimc_lite0_variant_exynos4 = {
+/* EXYNOS4212, EXYNOS4412 */
+static struct flite_drvdata fimc_lite_drvdata_exynos4 = {
 	.max_width		= 8192,
 	.max_height		= 8192,
 	.out_width_align	= 8,
 	.win_hor_offs_align	= 2,
 	.out_hor_offs_align	= 8,
-};
-
-/* EXYNOS4212, EXYNOS4412 */
-static struct flite_drvdata fimc_lite_drvdata_exynos4 = {
-	.variant = {
-		[0] = &fimc_lite0_variant_exynos4,
-		[1] = &fimc_lite0_variant_exynos4,
-	},
 };
 
 static struct platform_device_id fimc_lite_driver_ids[] = {
