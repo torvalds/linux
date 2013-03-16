@@ -2187,12 +2187,17 @@ static void rt2800_config_channel_rf55xx(struct rt2x00_dev *rt2x00dev,
 					 struct channel_info *info)
 {
 	u8 rfcsr, ep_reg;
+	u32 reg;
 	int power_bound;
 
 	/* TODO */
 	const bool is_11b = false;
 	const bool is_type_ep = false;
 
+	rt2800_register_read(rt2x00dev, LDO_CFG0, &reg);
+	rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL,
+			   (rf->channel > 14 || conf_is_ht40(conf)) ? 5 : 0);
+	rt2800_register_write(rt2x00dev, LDO_CFG0, reg);
 
 	/* Order of values on rf_channel entry: N, K, mod, R */
 	rt2800_rfcsr_write(rt2x00dev, 8, rf->rf1 & 0xff);
