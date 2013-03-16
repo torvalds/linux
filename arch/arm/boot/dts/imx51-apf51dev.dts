@@ -37,6 +37,22 @@
 	};
 };
 
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1_1>;
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio4 24 0>, <&gpio4 25 0>;
+	status = "okay";
+};
+
+&ecspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2_1>;
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio3 28 1>, <&gpio3 27 1>;
+	status = "okay";
+};
+
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1_1>;
@@ -50,6 +66,12 @@
 	pinctrl-0 = <&pinctrl_esdhc2_1>;
 	bus-width = <4>;
 	non-removable;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2_2>;
 	status = "okay";
 };
 
