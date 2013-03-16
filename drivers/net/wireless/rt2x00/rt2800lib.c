@@ -5213,6 +5213,9 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		spec->channels = rf_vals_3x;
 	}
 
+	if (WARN_ON_ONCE(!spec->channels))
+		return -ENODEV;
+
 	/*
 	 * Initialize HT information.
 	 */
