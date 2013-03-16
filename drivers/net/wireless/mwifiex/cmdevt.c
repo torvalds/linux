@@ -484,8 +484,6 @@ int mwifiex_send_cmd_sync(struct mwifiex_private *priv, uint16_t cmd_no,
 
 	ret = mwifiex_send_cmd_async(priv, cmd_no, cmd_action, cmd_oid,
 				     data_buf);
-	if (!ret)
-		ret = mwifiex_wait_queue_complete(adapter);
 
 	return ret;
 }
@@ -588,9 +586,10 @@ int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 	if (cmd_no == HostCmd_CMD_802_11_SCAN) {
 		mwifiex_queue_scan_cmd(priv, cmd_node);
 	} else {
-		adapter->cmd_queued = cmd_node;
 		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
 		queue_work(adapter->workqueue, &adapter->main_work);
+		if (cmd_node->wait_q_enabled)
+			ret = mwifiex_wait_queue_complete(adapter, cmd_node);
 	}
 
 	return ret;
