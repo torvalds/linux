@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/types.h>
+#include <linux/ioport.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>
@@ -882,12 +883,12 @@ static int au1k_irda_probe(struct platform_device *pdev)
 		goto out;
 
 	err = -EBUSY;
-	aup->ioarea = request_mem_region(r->start, r->end - r->start + 1,
+	aup->ioarea = request_mem_region(r->start, resource_size(r),
 					 pdev->name);
 	if (!aup->ioarea)
 		goto out;
 
-	aup->iobase = ioremap_nocache(r->start, r->end - r->start + 1);
+	aup->iobase = ioremap_nocache(r->start, resource_size(r));
 	if (!aup->iobase)
 		goto out2;
 
