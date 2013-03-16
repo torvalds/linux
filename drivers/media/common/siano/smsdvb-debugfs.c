@@ -166,6 +166,11 @@ void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
 	buf = debug_data->stats_data;
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
+		      "StatisticsType = %d\t", p->StatisticsType);
+	n += snprintf(&buf[n], PAGE_SIZE - n,
+		      "FullSize = %d\n", p->FullSize);
+
+	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "IsRfLocked = %d\t\t", p->IsRfLocked);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "IsDemodLocked = %d\t", p->IsDemodLocked);
@@ -249,6 +254,11 @@ void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
 	}
 
 	buf = debug_data->stats_data;
+
+	n += snprintf(&buf[n], PAGE_SIZE - n,
+		      "StatisticsType = %d\t", p->StatisticsType);
+	n += snprintf(&buf[n], PAGE_SIZE - n,
+		      "FullSize = %d\n", p->FullSize);
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "IsRfLocked = %d\t\t", p->IsRfLocked);
