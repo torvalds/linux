@@ -3774,11 +3774,33 @@ static void rt2800_init_bbp_5592_glrt(struct rt2x00_dev *rt2x00dev)
 	}
 };
 
+static void rt2800_init_bbb_early(struct rt2x00_dev *rt2x00dev)
+{
+	rt2800_bbp_write(rt2x00dev, 65, 0x2C);
+	rt2800_bbp_write(rt2x00dev, 66, 0x38);
+	rt2800_bbp_write(rt2x00dev, 68, 0x0B);
+	rt2800_bbp_write(rt2x00dev, 69, 0x12);
+	rt2800_bbp_write(rt2x00dev, 70, 0x0a);
+	rt2800_bbp_write(rt2x00dev, 73, 0x10);
+	rt2800_bbp_write(rt2x00dev, 81, 0x37);
+	rt2800_bbp_write(rt2x00dev, 82, 0x62);
+	rt2800_bbp_write(rt2x00dev, 83, 0x6A);
+	rt2800_bbp_write(rt2x00dev, 84, 0x99);
+	rt2800_bbp_write(rt2x00dev, 86, 0x00);
+	rt2800_bbp_write(rt2x00dev, 91, 0x04);
+	rt2800_bbp_write(rt2x00dev, 92, 0x00);
+	rt2800_bbp_write(rt2x00dev, 103, 0x00);
+	rt2800_bbp_write(rt2x00dev, 105, 0x05);
+	rt2800_bbp_write(rt2x00dev, 106, 0x35);
+}
+
 static void rt2800_init_bbp_5592(struct rt2x00_dev *rt2x00dev)
 {
 	int ant, div_mode;
 	u16 eeprom;
 	u8 value;
+
+	rt2800_init_bbb_early(rt2x00dev);
 
 	rt2800_bbp_read(rt2x00dev, 105, &value);
 	rt2x00_set_field8(&value, BBP105_MLD,
