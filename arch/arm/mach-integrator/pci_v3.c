@@ -260,15 +260,17 @@
  * the mappings into PCI memory.
  */
 
+static void __iomem *pci_v3_base;
+
 // V3 access routines
-#define v3_writeb(o,v) __raw_writeb(v, PCI_V3_VADDR + (unsigned int)(o))
-#define v3_readb(o)    (__raw_readb(PCI_V3_VADDR + (unsigned int)(o)))
+#define v3_writeb(o,v) __raw_writeb(v, pci_v3_base + (unsigned int)(o))
+#define v3_readb(o)    (__raw_readb(pci_v3_base + (unsigned int)(o)))
 
-#define v3_writew(o,v) __raw_writew(v, PCI_V3_VADDR + (unsigned int)(o))
-#define v3_readw(o)    (__raw_readw(PCI_V3_VADDR + (unsigned int)(o)))
+#define v3_writew(o,v) __raw_writew(v, pci_v3_base + (unsigned int)(o))
+#define v3_readw(o)    (__raw_readw(pci_v3_base + (unsigned int)(o)))
 
-#define v3_writel(o,v) __raw_writel(v, PCI_V3_VADDR + (unsigned int)(o))
-#define v3_readl(o)    (__raw_readl(PCI_V3_VADDR + (unsigned int)(o)))
+#define v3_writel(o,v) __raw_writel(v, pci_v3_base + (unsigned int)(o))
+#define v3_readl(o)    (__raw_readl(pci_v3_base + (unsigned int)(o)))
 
 /*============================================================================
  *
@@ -832,6 +834,12 @@ static int __init pci_v3_probe(struct platform_device *pdev)
 	ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
 	if (!ap_syscon_base) {
 		dev_err(&pdev->dev, "unable to remap the AP syscon for PCIv3\n");
+		return -ENODEV;
+	}
+
+	pci_v3_base = devm_ioremap(&pdev->dev, PHYS_PCI_V3_BASE, SZ_64K);
+	if (!pci_v3_base) {
+		dev_err(&pdev->dev, "unable to remap PCIv3 base\n");
 		return -ENODEV;
 	}
 

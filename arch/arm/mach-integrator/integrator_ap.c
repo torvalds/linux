@@ -80,7 +80,6 @@ void __iomem *ap_syscon_base;
  * Logical      Physical
  * e8000000	40000000	PCI memory		PHYS_PCI_MEM_BASE	(max 512M)
  * ec000000	61000000	PCI config space	PHYS_PCI_CONFIG_BASE	(max 16M)
- * ed000000	62000000	PCI V3 regs		PHYS_PCI_V3_BASE	(max 64k)
  * fee00000	60000000	PCI IO			PHYS_PCI_IO_BASE	(max 16M)
  * ef000000			Cache flush
  * f1000000	10000000	Core module registers
@@ -139,11 +138,6 @@ static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 		.virtual	= (unsigned long)PCI_CONFIG_VADDR,
 		.pfn		= __phys_to_pfn(PHYS_PCI_CONFIG_BASE),
 		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_V3_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_V3_BASE),
-		.length		= SZ_64K,
 		.type		= MT_DEVICE
 	}
 };
