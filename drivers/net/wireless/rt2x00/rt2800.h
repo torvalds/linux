@@ -90,11 +90,8 @@
 #define REV_RT3390E			0x0211
 #define REV_RT5390F			0x0502
 #define REV_RT5390R			0x1502
+#define REV_RT5592C			0x0221
 
-/*
- * Signal information.
- * Default offset is required for RSSI <-> dBm conversion.
- */
 #define DEFAULT_RSSI_OFFSET		120
 
 /*
@@ -1956,6 +1953,20 @@ struct mac_iveiv_entry {
 #define BBP49_UPDATE_FLAG		FIELD8(0x01)
 
 /*
+ * BBP 105:
+ * - bit0: detect SIG on primary channel only (on 40MHz bandwidth)
+ * - bit1: FEQ (Feed Forward Compensation) for independend streams
+ * - bit2: MLD (Maximum Likehood Detection) for 2 streams (reserved on single
+ *	   stream)
+ * - bit4: channel estimation updates based on remodulation of
+ *	   L-SIG and HT-SIG symbols
+ */
+#define BBP105_DETECT_SIG_ON_PRIMARY	FIELD8(0x01)
+#define BBP105_FEQ			FIELD8(0x02)
+#define BBP105_MLD			FIELD8(0x04)
+#define BBP105_SIG_REMODULATION		FIELD8(0x08)
+
+/*
  * BBP 109
  */
 #define BBP109_TX0_POWER		FIELD8(0x0f)
@@ -1973,6 +1984,11 @@ struct mac_iveiv_entry {
  * BBP 152: Rx Ant
  */
 #define BBP152_RX_DEFAULT_ANT		FIELD8(0x80)
+
+/*
+ * BBP 254: unknown
+ */
+#define BBP254_BIT7			FIELD8(0x80)
 
 /*
  * RFCSR registers
