@@ -2628,6 +2628,8 @@ struct mac_iveiv_entry {
 #define TXWI_DESC_SIZE			(4 * sizeof(__le32))
 #define RXWI_DESC_SIZE			(4 * sizeof(__le32))
 
+#define TXWI_DESC_SIZE_5592		(5 * sizeof(__le32))
+#define RXWI_DESC_SIZE_5592		(6 * sizeof(__le32))
 /*
  * TX WI structure
  */

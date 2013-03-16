@@ -729,6 +729,11 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	 * Process the RXWI structure that is at the start of the buffer.
 	 */
 	rt2800_process_rxwi(entry, rxdesc);
+
+	/*
+	 * Remove RXWI descriptor from start of buffer.
+	 */
+	skb_pull(entry->skb, RXWI_DESC_SIZE);
 }
 
 /*
