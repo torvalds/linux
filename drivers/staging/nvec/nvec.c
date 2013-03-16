@@ -352,10 +352,10 @@ static void nvec_toggle_global_events(struct nvec_chip *nvec, bool state)
  */
 static void nvec_event_mask(char *ev, u32 mask)
 {
-	ev[3] = mask >> 16 && 0xff;
-	ev[4] = mask >> 24 && 0xff;
-	ev[5] = mask >> 0  && 0xff;
-	ev[6] = mask >> 8  && 0xff;
+	ev[3] = mask >> 16 & 0xff;
+	ev[4] = mask >> 24 & 0xff;
+	ev[5] = mask >> 0  & 0xff;
+	ev[6] = mask >> 8  & 0xff;
 }
 
 /**
