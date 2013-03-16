@@ -3853,6 +3853,8 @@ static void rt2800_init_bbp_5592(struct rt2x00_dev *rt2x00dev)
 	}
 
 	rt2800_bbp_write(rt2x00dev, 84, 0x19);
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5592, REV_RT5592C))
+		rt2800_bbp_write(rt2x00dev, 103, 0xc0);
 }
 
 static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
