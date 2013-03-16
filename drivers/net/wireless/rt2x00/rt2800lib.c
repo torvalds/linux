@@ -3744,6 +3744,12 @@ static void rt2800_bbp4_mac_if_ctrl(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 4, value);
 }
 
+static void rt2800_init_freq_calibration(struct rt2x00_dev *rt2x00dev)
+{
+	rt2800_bbp_write(rt2x00dev, 142, 1);
+	rt2800_bbp_write(rt2x00dev, 143, 57);
+}
+
 static void rt2800_init_bbp_5592_glrt(struct rt2x00_dev *rt2x00dev)
 {
 	const u8 glrt_table[] = {
@@ -3851,6 +3857,8 @@ static void rt2800_init_bbp_5592(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field8(&value, BBP254_BIT7, 1);
 		rt2800_bbp_write(rt2x00dev, 254, value);
 	}
+
+	rt2800_init_freq_calibration(rt2x00dev);
 
 	rt2800_bbp_write(rt2x00dev, 84, 0x19);
 	if (rt2x00_rt_rev_gte(rt2x00dev, RT5592, REV_RT5592C))
@@ -4155,9 +4163,7 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 			rt2x00_set_field8(&value, BBP152_RX_DEFAULT_ANT, 0);
 		rt2800_bbp_write(rt2x00dev, 152, value);
 
-		/* Init frequency calibration */
-		rt2800_bbp_write(rt2x00dev, 142, 1);
-		rt2800_bbp_write(rt2x00dev, 143, 57);
+		rt2800_init_freq_calibration(rt2x00dev);
 	}
 
 	for (i = 0; i < EEPROM_BBP_SIZE; i++) {
