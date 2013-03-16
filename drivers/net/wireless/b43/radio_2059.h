@@ -5,9 +5,9 @@
 
 #include "phy_ht.h"
 
-#define R2059_SYN			0x000
-#define R2059_TXRX0			0x400
-#define R2059_RXRX1			0x800
+#define R2059_C1			0x000
+#define R2059_C2			0x400
+#define R2059_C3			0x800
 #define R2059_ALL			0xC00
 
 /* Values for various registers uploaded on channel switching */
