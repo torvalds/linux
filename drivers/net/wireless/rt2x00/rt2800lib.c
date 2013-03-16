@@ -527,8 +527,10 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
-	if (rt2x00_is_usb(rt2x00dev))
+	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_register_write(rt2x00dev, H2M_INT_SRC, 0);
+		rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
+	}
 	msleep(1);
 
 	return 0;
@@ -2456,6 +2458,41 @@ static void rt2800_config_channel_rf55xx(struct rt2x00_dev *rt2x00dev,
 	rt2800_bbp_write(rt2x00dev, 196, (rf->channel <= 14) ? 0x19 : 0x7F);
 }
 
+static void rt2800_iq_calibrate(struct rt2x00_dev *rt2x00dev, int channel)
+{
+	u8 cal;
+
+	/* TODO */
+	if (WARN_ON_ONCE(channel > 14))
+		return;
+
+	rt2800_bbp_write(rt2x00dev, 158, 0x2c);
+	cal = rt2x00_eeprom_byte(rt2x00dev, EEPROM_IQ_GAIN_CAL_TX0_2G);
+	rt2800_bbp_write(rt2x00dev, 159, cal);
+
+	rt2800_bbp_write(rt2x00dev, 158, 0x2d);
+	cal = rt2x00_eeprom_byte(rt2x00dev, EEPROM_IQ_PHASE_CAL_TX0_2G);
+	rt2800_bbp_write(rt2x00dev, 159, cal);
+
+	rt2800_bbp_write(rt2x00dev, 158, 0x4a);
+	cal = rt2x00_eeprom_byte(rt2x00dev, EEPROM_IQ_GAIN_CAL_TX1_2G);
+	rt2800_bbp_write(rt2x00dev, 159, cal);
+
+	rt2800_bbp_write(rt2x00dev, 158, 0x4b);
+	cal = rt2x00_eeprom_byte(rt2x00dev, EEPROM_IQ_PHASE_CAL_TX1_2G);
+	rt2800_bbp_write(rt2x00dev, 159, cal);
+
+	/* RF IQ compensation control */
+	rt2800_bbp_write(rt2x00dev, 158, 0x04);
+	cal = rt2x00_eeprom_byte(rt2x00dev, EEPROM_RF_IQ_COMPENSATION_CONTROL);
+	rt2800_bbp_write(rt2x00dev, 159, cal != 0xff ? cal : 0);
+
+	/* RF IQ imbalance compensation control */
+	rt2800_bbp_write(rt2x00dev, 158, 0x03);
+	cal = rt2x00_eeprom_byte(rt2x00dev, EEPROM_RF_IQ_IMBALANCE_COMPENSATION_CONTROL);
+	rt2800_bbp_write(rt2x00dev, 159, cal != 0xff ? cal : 0);
+}
+
 static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 				  struct ieee80211_conf *conf,
 				  struct rf_channel *rf,
@@ -2606,7 +2643,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		rt2800_bbp_write(rt2x00dev, 196, conf_is_ht40(conf) ? 0x10 : 0x1a);
 
 		/* TODO AGC adjust */
-		/* TODO IQ calibration */
+		rt2800_iq_calibrate(rt2x00dev, rf->channel);
 	}
 
 	rt2800_bbp_read(rt2x00dev, 4, &bbp);
