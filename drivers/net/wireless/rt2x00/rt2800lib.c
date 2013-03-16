@@ -4859,7 +4859,8 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 17, rfcsr);
 	}
 
-	if (rt2x00_rt(rt2x00dev, RT3090)) {
+	if (rt2x00_rt(rt2x00dev, RT3090) ||
+	    rt2x00_rt(rt2x00dev, RT5592)) {
 		rt2800_bbp_read(rt2x00dev, 138, &bbp);
 
 		/*  Turn off unused DAC1 and ADC1 to reduce power consumption */
