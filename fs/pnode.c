@@ -225,7 +225,6 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 	struct mount *prev_dest_mnt = dest_mnt;
 	struct mount *prev_src_mnt  = source_mnt;
 	LIST_HEAD(tmp_list);
-	LIST_HEAD(umount_list);
 
 	for (m = propagation_next(dest_mnt, dest_mnt); m;
 			m = propagation_next(m, dest_mnt)) {
@@ -261,10 +260,9 @@ out:
 	br_write_lock(&vfsmount_lock);
 	while (!list_empty(&tmp_list)) {
 		child = list_first_entry(&tmp_list, struct mount, mnt_hash);
-		umount_tree(child, 0, &umount_list);
+		umount_tree(child, 0);
 	}
 	br_write_unlock(&vfsmount_lock);
-	release_mounts(&umount_list);
 	return ret;
 }
 

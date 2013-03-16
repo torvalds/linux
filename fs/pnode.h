@@ -40,8 +40,7 @@ int get_dominating_id(struct mount *mnt, const struct path *root);
 unsigned int mnt_get_count(struct mount *mnt);
 void mnt_set_mountpoint(struct mount *, struct mountpoint *,
 			struct mount *);
-void release_mounts(struct list_head *);
-void umount_tree(struct mount *, int, struct list_head *);
+void umount_tree(struct mount *, int);
 struct mount *copy_tree(struct mount *, struct dentry *, int);
 bool is_path_reachable(struct mount *, struct dentry *,
 			 const struct path *root);

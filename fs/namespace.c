@@ -1121,7 +1121,7 @@ EXPORT_SYMBOL(may_umount);
 
 static LIST_HEAD(unmounted);	/* protected by namespace_sem */
 
-void release_mounts(struct list_head *head)
+static void release_mounts(struct list_head *head)
 {
 	struct mount *mnt;
 	while (!list_empty(head)) {
@@ -1157,7 +1157,7 @@ static void namespace_unlock(void)
  * vfsmount lock must be held for write
  * namespace_sem must be held for write
  */
-void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
+void umount_tree(struct mount *mnt, int propagate)
 {
 	LIST_HEAD(tmp_list);
 	struct mount *p;
@@ -1181,7 +1181,7 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
-	list_splice(&tmp_list, kill);
+	list_splice(&tmp_list, &unmounted);
 }
 
 static void shrink_submounts(struct mount *mnt);
@@ -1190,7 +1190,6 @@ static int do_umount(struct mount *mnt, int flags)
 {
 	struct super_block *sb = mnt->mnt.mnt_sb;
 	int retval;
-	LIST_HEAD(umount_list);
 
 	retval = security_sb_umount(&mnt->mnt, flags);
 	if (retval)
@@ -1267,7 +1266,7 @@ static int do_umount(struct mount *mnt, int flags)
 	retval = -EBUSY;
 	if (flags & MNT_DETACH || !propagate_mount_busy(mnt, 2)) {
 		if (!list_empty(&mnt->mnt_list))
-			umount_tree(mnt, 1, &unmounted);
+			umount_tree(mnt, 1);
 		retval = 0;
 	}
 	br_write_unlock(&vfsmount_lock);
@@ -1401,11 +1400,9 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 	return res;
 out:
 	if (res) {
-		LIST_HEAD(umount_list);
 		br_write_lock(&vfsmount_lock);
-		umount_tree(res, 0, &umount_list);
+		umount_tree(res, 0);
 		br_write_unlock(&vfsmount_lock);
-		release_mounts(&umount_list);
 	}
 	return q;
 }
@@ -1418,7 +1415,7 @@ struct vfsmount *collect_mounts(struct path *path)
 	down_write(&namespace_sem);
 	tree = copy_tree(real_mount(path->mnt), path->dentry,
 			 CL_COPY_ALL | CL_PRIVATE);
-	up_write(&namespace_sem);
+	namespace_unlock();
 	if (IS_ERR(tree))
 		return NULL;
 	return &tree->mnt;
@@ -1428,7 +1425,7 @@ void drop_collected_mounts(struct vfsmount *mnt)
 {
 	down_write(&namespace_sem);
 	br_write_lock(&vfsmount_lock);
-	umount_tree(real_mount(mnt), 0, &unmounted);
+	umount_tree(real_mount(mnt), 0);
 	br_write_unlock(&vfsmount_lock);
 	namespace_unlock();
 }
@@ -1619,7 +1616,7 @@ static void unlock_mount(struct mountpoint *where)
 {
 	struct dentry *dentry = where->m_dentry;
 	put_mountpoint(where);
-	up_write(&namespace_sem);
+	namespace_unlock();
 	mutex_unlock(&dentry->d_inode->i_mutex);
 }
 
@@ -1693,7 +1690,6 @@ static int do_change_type(struct path *path, int flag)
 static int do_loopback(struct path *path, const char *old_name,
 				int recurse)
 {
-	LIST_HEAD(umount_list);
 	struct path old_path;
 	struct mount *mnt = NULL, *old, *parent;
 	struct mountpoint *mp;
@@ -1736,12 +1732,11 @@ static int do_loopback(struct path *path, const char *old_name,
 	err = graft_tree(mnt, parent, mp);
 	if (err) {
 		br_write_lock(&vfsmount_lock);
-		umount_tree(mnt, 0, &umount_list);
+		umount_tree(mnt, 0);
 		br_write_unlock(&vfsmount_lock);
 	}
 out2:
 	unlock_mount(mp);
-	release_mounts(&umount_list);
 out:
 	path_put(&old_path);
 	return err;
@@ -2080,7 +2075,7 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	while (!list_empty(&graveyard)) {
 		mnt = list_first_entry(&graveyard, struct mount, mnt_expire);
 		touch_mnt_namespace(mnt->mnt_ns);
-		umount_tree(mnt, 1, &unmounted);
+		umount_tree(mnt, 1);
 	}
 	br_write_unlock(&vfsmount_lock);
 	namespace_unlock();
@@ -2151,7 +2146,7 @@ static void shrink_submounts(struct mount *mnt)
 			m = list_first_entry(&graveyard, struct mount,
 						mnt_expire);
 			touch_mnt_namespace(m->mnt_ns);
-			umount_tree(m, 1, &unmounted);
+			umount_tree(m, 1);
 		}
 	}
 }
@@ -2385,7 +2380,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 		copy_flags |= CL_SHARED_TO_SLAVE;
 	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
 	if (IS_ERR(new)) {
-		up_write(&namespace_sem);
+		namespace_unlock();
 		free_mnt_ns(new_ns);
 		return ERR_CAST(new);
 	}
@@ -2416,7 +2411,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 		p = next_mnt(p, old);
 		q = next_mnt(q, new);
 	}
-	up_write(&namespace_sem);
+	namespace_unlock();
 
 	if (rootmnt)
 		mntput(rootmnt);
@@ -2740,7 +2735,7 @@ void put_mnt_ns(struct mnt_namespace *ns)
 		return;
 	down_write(&namespace_sem);
 	br_write_lock(&vfsmount_lock);
-	umount_tree(ns->root, 0, &unmounted);
+	umount_tree(ns->root, 0);
 	br_write_unlock(&vfsmount_lock);
 	namespace_unlock();
 	free_mnt_ns(ns);
