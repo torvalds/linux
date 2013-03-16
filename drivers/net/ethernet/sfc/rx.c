@@ -666,8 +666,8 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 	return rc;
 }
 
-void efx_init_rx_recycle_ring(struct efx_nic *efx,
-			      struct efx_rx_queue *rx_queue)
+static void efx_init_rx_recycle_ring(struct efx_nic *efx,
+				     struct efx_rx_queue *rx_queue)
 {
 	unsigned int bufs_in_recycle_ring, page_ring_size;
 

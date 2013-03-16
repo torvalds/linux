@@ -2950,8 +2950,8 @@ static const struct dev_pm_ops efx_pm_ops = {
  * At this point MMIO and DMA may be disabled.
  * Stop the software path and request a slot reset.
  */
-pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
-				       enum pci_channel_state state)
+static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
+					      enum pci_channel_state state)
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
 	struct efx_nic *efx = pci_get_drvdata(pdev);
@@ -2986,7 +2986,7 @@ pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
 }
 
 /* Fake a successfull reset, which will be performed later in efx_io_resume. */
-pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
+static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
 {
 	struct efx_nic *efx = pci_get_drvdata(pdev);
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
