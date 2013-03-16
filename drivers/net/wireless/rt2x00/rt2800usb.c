@@ -1200,6 +1200,9 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x148f, 0x5370) },
 	{ USB_DEVICE(0x148f, 0x5372) },
 #endif
+#ifdef CONFIG_RT2800USB_RT55XX
+	{ USB_DEVICE(0x148f, 0x5572) },
+#endif
 #ifdef CONFIG_RT2800USB_UNKNOWN
 	/*
 	 * Unclear what kind of devices these are (they aren't supported by the
