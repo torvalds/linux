@@ -692,6 +692,12 @@
 #define GPIO_SWITCH_7			FIELD32(0x00000080)
 
 /*
+ * FIXME: where the DEBUG_INDEX name come from?
+ */
+#define MAC_DEBUG_INDEX			0x05e8
+#define MAC_DEBUG_INDEX_XTAL		FIELD32(0x80000000)
+
+/*
  * MAC Control/Status Registers(CSR).
  * Some values are set in TU, whereas 1 TU == 1024 us.
  */
