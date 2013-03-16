@@ -41,7 +41,6 @@
 #include <linux/stat.h>
 #include <linux/sys_soc.h>
 #include <linux/termios.h>
-#include <video/vga.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -145,7 +144,6 @@ static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 static void __init ap_map_io(void)
 {
 	iotable_init(ap_io_desc, ARRAY_SIZE(ap_io_desc));
-	vga_base = (unsigned long)PCI_MEMORY_VADDR;
 	pci_map_io_early(__phys_to_pfn(PHYS_PCI_IO_BASE));
 }
 

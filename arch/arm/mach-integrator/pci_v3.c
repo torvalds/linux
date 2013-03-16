@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <video/vga.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -850,6 +851,7 @@ static int __init pci_v3_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	vga_base = (unsigned long)PCI_MEMORY_VADDR;
 	pci_common_init(&pci_v3);
 
 	return 0;
