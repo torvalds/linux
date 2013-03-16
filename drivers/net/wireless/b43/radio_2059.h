@@ -28,14 +28,6 @@ struct b43_phy_ht_channeltab_e_radio2059 {
 	u8 radio_syn41;
 	u8 radio_syn43;
 	u8 radio_syn47;
-	u8 radio_syn4a;
-	u8 radio_syn58;
-	u8 radio_syn5a;
-	u8 radio_syn6a;
-	u8 radio_syn6d;
-	u8 radio_syn6e;
-	u8 radio_syn92;
-	u8 radio_syn98;
 	u8 radio_rxtx4a;
 	u8 radio_rxtx58;
 	u8 radio_rxtx5a;

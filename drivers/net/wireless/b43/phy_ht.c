@@ -37,8 +37,9 @@
 static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 			const struct b43_phy_ht_channeltab_e_radio2059 *e)
 {
-	u8 i;
-	u16 routing;
+	static const u16 routing[] = { R2059_C1, R2059_C2, R2059_C3, };
+	u16 r;
+	int core;
 
 	b43_radio_write(dev, 0x16, e->radio_syn16);
 	b43_radio_write(dev, 0x17, e->radio_syn17);
@@ -53,25 +54,17 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 	b43_radio_write(dev, 0x41, e->radio_syn41);
 	b43_radio_write(dev, 0x43, e->radio_syn43);
 	b43_radio_write(dev, 0x47, e->radio_syn47);
-	b43_radio_write(dev, 0x4a, e->radio_syn4a);
-	b43_radio_write(dev, 0x58, e->radio_syn58);
-	b43_radio_write(dev, 0x5a, e->radio_syn5a);
-	b43_radio_write(dev, 0x6a, e->radio_syn6a);
-	b43_radio_write(dev, 0x6d, e->radio_syn6d);
-	b43_radio_write(dev, 0x6e, e->radio_syn6e);
-	b43_radio_write(dev, 0x92, e->radio_syn92);
-	b43_radio_write(dev, 0x98, e->radio_syn98);
 
-	for (i = 0; i < 2; i++) {
-		routing = i ? R2059_C3 : R2059_C2;
-		b43_radio_write(dev, routing | 0x4a, e->radio_rxtx4a);
-		b43_radio_write(dev, routing | 0x58, e->radio_rxtx58);
-		b43_radio_write(dev, routing | 0x5a, e->radio_rxtx5a);
-		b43_radio_write(dev, routing | 0x6a, e->radio_rxtx6a);
-		b43_radio_write(dev, routing | 0x6d, e->radio_rxtx6d);
-		b43_radio_write(dev, routing | 0x6e, e->radio_rxtx6e);
-		b43_radio_write(dev, routing | 0x92, e->radio_rxtx92);
-		b43_radio_write(dev, routing | 0x98, e->radio_rxtx98);
+	for (core = 0; core < 3; core++) {
+		r = routing[core];
+		b43_radio_write(dev, r | 0x4a, e->radio_rxtx4a);
+		b43_radio_write(dev, r | 0x58, e->radio_rxtx58);
+		b43_radio_write(dev, r | 0x5a, e->radio_rxtx5a);
+		b43_radio_write(dev, r | 0x6a, e->radio_rxtx6a);
+		b43_radio_write(dev, r | 0x6d, e->radio_rxtx6d);
+		b43_radio_write(dev, r | 0x6e, e->radio_rxtx6e);
+		b43_radio_write(dev, r | 0x92, e->radio_rxtx92);
+		b43_radio_write(dev, r | 0x98, e->radio_rxtx98);
 	}
 
 	udelay(50);
