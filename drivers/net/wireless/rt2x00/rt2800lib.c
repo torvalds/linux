@@ -4832,7 +4832,8 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F) ||
 	    rt2x00_rt_rev_lt(rt2x00dev, RT3071, REV_RT3071E) ||
 	    rt2x00_rt_rev_lt(rt2x00dev, RT3090, REV_RT3090E) ||
-	    rt2x00_rt_rev_lt(rt2x00dev, RT3390, REV_RT3390E))
+	    rt2x00_rt_rev_lt(rt2x00dev, RT3390, REV_RT3390E) ||
+	    rt2x00_rt_rev_lt(rt2x00dev, RT5592, REV_RT5592C))
 		rt2800_rfcsr_write(rt2x00dev, 27, 0x03);
 
 	rt2800_register_read(rt2x00dev, OPT_14_CSR, &reg);
