@@ -3277,13 +3277,16 @@ static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 		    rt2x00_rt(rt2x00dev, RT3390) ||
 		    rt2x00_rt(rt2x00dev, RT3572) ||
 		    rt2x00_rt(rt2x00dev, RT5390) ||
-		    rt2x00_rt(rt2x00dev, RT5392))
+		    rt2x00_rt(rt2x00dev, RT5392) ||
+		    rt2x00_rt(rt2x00dev, RT5592))
 			vgc = 0x1c + (2 * rt2x00dev->lna_gain);
 		else
 			vgc = 0x2e + rt2x00dev->lna_gain;
 	} else { /* 5GHZ band */
 		if (rt2x00_rt(rt2x00dev, RT3572))
 			vgc = 0x22 + (rt2x00dev->lna_gain * 5) / 3;
+		else if (rt2x00_rt(rt2x00dev, RT5592))
+			vgc = 0x24 + (2 * rt2x00dev->lna_gain);
 		else {
 			if (!test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
 				vgc = 0x32 + (rt2x00dev->lna_gain * 5) / 3;
@@ -3299,7 +3302,11 @@ static inline void rt2800_set_vgc(struct rt2x00_dev *rt2x00dev,
 				  struct link_qual *qual, u8 vgc_level)
 {
 	if (qual->vgc_level != vgc_level) {
-		rt2800_bbp_write(rt2x00dev, 66, vgc_level);
+		if (rt2x00_rt(rt2x00dev, RT5592)) {
+			rt2800_bbp_write(rt2x00dev, 83, qual->rssi > -65 ? 0x4a : 0x7a);
+			rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, vgc_level);
+		} else
+			rt2800_bbp_write(rt2x00dev, 66, vgc_level);
 		qual->vgc_level = vgc_level;
 		qual->vgc_level_reg = vgc_level;
 	}
@@ -3314,15 +3321,23 @@ EXPORT_SYMBOL_GPL(rt2800_reset_tuner);
 void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 		       const u32 count)
 {
+	u8 vgc;
+
 	if (rt2x00_rt_rev(rt2x00dev, RT2860, REV_RT2860C))
 		return;
-
 	/*
-	 * When RSSI is better then -80 increase VGC level with 0x10
+	 * When RSSI is better then -80 increase VGC level with 0x10, except
+	 * for rt5592 chip.
 	 */
-	rt2800_set_vgc(rt2x00dev, qual,
-		       rt2800_get_default_vgc(rt2x00dev) +
-		       ((qual->rssi > -80) * 0x10));
+
+	vgc = rt2800_get_default_vgc(rt2x00dev);
+
+	if (rt2x00_rt(rt2x00dev, RT5592) && qual->rssi > -65)
+		vgc += 0x20;
+	else if (qual->rssi > -80)
+		vgc += 0x10;
+
+	rt2800_set_vgc(rt2x00dev, qual, vgc);
 }
 EXPORT_SYMBOL_GPL(rt2800_link_tuner);
 
