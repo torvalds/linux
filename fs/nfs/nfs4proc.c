@@ -2506,7 +2506,7 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
 
 	auth = rpcauth_create(flavor, server->client);
 	if (IS_ERR(auth)) {
-		ret = -EIO;
+		ret = -EACCES;
 		goto out;
 	}
 	ret = nfs4_lookup_root(server, fhandle, info);
