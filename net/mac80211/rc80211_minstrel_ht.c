@@ -653,10 +653,10 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (sample_idx == mi->max_tp_rate)
 		return -1;
 	/*
-	 * When not using MRR, do not sample if the probability is already
-	 * higher than 95% to avoid wasting airtime
+	 * Do not sample if the probability is already higher than 95%
+	 * to avoid wasting airtime.
 	 */
-	if (!mp->has_mrr && (mr->probability > MINSTREL_FRAC(95, 100)))
+	if (mr->probability > MINSTREL_FRAC(95, 100))
 		return -1;
 
 	/*
