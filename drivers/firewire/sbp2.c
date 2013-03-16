@@ -1636,9 +1636,7 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(ieee1394, sbp2_id_table);
 
 /* Provide a module alias so root-on-sbp2 initrds don't break. */
-#ifndef CONFIG_IEEE1394_SBP2_MODULE
 MODULE_ALIAS("sbp2");
-#endif
 
 static int __init sbp2_init(void)
 {
