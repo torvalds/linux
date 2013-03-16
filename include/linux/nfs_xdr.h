@@ -1049,25 +1049,14 @@ struct nfs4_fs_locations_res {
 	struct nfs4_fs_locations       *fs_locations;
 };
 
-struct nfs4_secinfo_oid {
-	unsigned int len;
-	char data[GSS_OID_MAX_LEN];
-};
-
-struct nfs4_secinfo_gss {
-	struct nfs4_secinfo_oid sec_oid4;
-	unsigned int qop4;
-	unsigned int service;
-};
-
-struct nfs4_secinfo_flavor {
-	unsigned int 		flavor;
-	struct nfs4_secinfo_gss	gss;
+struct nfs4_secinfo4 {
+	u32			flavor;
+	struct rpcsec_gss_info	flavor_info;
 };
 
 struct nfs4_secinfo_flavors {
-	unsigned int num_flavors;
-	struct nfs4_secinfo_flavor flavors[0];
+	unsigned int		num_flavors;
+	struct nfs4_secinfo4	flavors[0];
 };
 
 struct nfs4_secinfo_arg {

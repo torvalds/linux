@@ -25,10 +25,20 @@ struct gss_ctx {
 
 #define GSS_C_NO_BUFFER		((struct xdr_netobj) 0)
 #define GSS_C_NO_CONTEXT	((struct gss_ctx *) 0)
-#define GSS_C_NULL_OID		((struct xdr_netobj) 0)
 
 /*XXX  arbitrary length - is this set somewhere? */
 #define GSS_OID_MAX_LEN 32
+struct rpcsec_gss_oid {
+	unsigned int	len;
+	u8		data[GSS_OID_MAX_LEN];
+};
+
+/* From RFC 3530 */
+struct rpcsec_gss_info {
+	struct rpcsec_gss_oid	oid;
+	u32			qop;
+	u32			service;
+};
 
 /* gss-api prototypes; note that these are somewhat simplified versions of
  * the prototypes specified in RFC 2744. */
@@ -76,7 +86,7 @@ struct pf_desc {
 struct gss_api_mech {
 	struct list_head	gm_list;
 	struct module		*gm_owner;
-	struct xdr_netobj	gm_oid;
+	struct rpcsec_gss_oid	gm_oid;
 	char			*gm_name;
 	const struct gss_api_ops *gm_ops;
 	/* pseudoflavors supported by this mechanism: */
