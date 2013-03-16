@@ -132,14 +132,11 @@ gss_mech_unregister(struct gss_api_mech *gm)
 
 EXPORT_SYMBOL_GPL(gss_mech_unregister);
 
-struct gss_api_mech *
-gss_mech_get(struct gss_api_mech *gm)
+static struct gss_api_mech *gss_mech_get(struct gss_api_mech *gm)
 {
 	__module_get(gm->gm_owner);
 	return gm;
 }
-
-EXPORT_SYMBOL_GPL(gss_mech_get);
 
 static struct gss_api_mech *
 _gss_mech_get_by_name(const char *name)
