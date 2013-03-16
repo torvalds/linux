@@ -562,6 +562,18 @@ static void b43_phy_ht_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 	}
 }
 
+static void b43_phy_ht_tssi_setup(struct b43_wldev *dev)
+{
+	static const u16 routing[] = { R2059_C1, R2059_C2, R2059_C3, };
+	int core;
+
+	/* 0x159 is probably TX_SSI_MUX or TSSIG (by comparing to N-PHY) */
+	for (core = 0; core < 3; core++) {
+		b43_radio_set(dev, 0x8bf, 0x1);
+		b43_radio_write(dev, routing[core] | 0x0159, 0x0011);
+	}
+}
+
 static void b43_phy_ht_tx_power_ctl_setup(struct b43_wldev *dev)
 {
 	struct b43_phy_ht *phy_ht = dev->phy.ht;
@@ -955,6 +967,7 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	b43_phy_ht_tx_power_ctl(dev, false);
 	b43_phy_ht_tx_power_ctl_idle_tssi(dev);
 	b43_phy_ht_tx_power_ctl_setup(dev);
+	b43_phy_ht_tssi_setup(dev);
 	b43_phy_ht_tx_power_ctl(dev, saved_tx_pwr_ctl);
 
 	return 0;
