@@ -1059,6 +1059,7 @@ int rsxx_eeh_remap_dmas(struct rsxx_cardinfo *card)
 					PCI_DMA_TODEVICE :
 					PCI_DMA_FROMDEVICE);
 			if (!dma->dma_addr) {
+				spin_unlock(&card->ctrl[i].queue_lock);
 				kmem_cache_free(rsxx_dma_pool, dma);
 				return -ENOMEM;
 			}
