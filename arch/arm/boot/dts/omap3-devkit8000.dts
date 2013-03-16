@@ -1,0 +1,102 @@
+/*
+ * Author: Anil Kumar <anilk4.v@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+/include/ "omap3.dtsi"
+/ {
+	model = "TimLL OMAP3 Devkit8000";
+	compatible = "timll,omap3-devkit8000", "ti,omap3";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>;	/* 256 MB */
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		heartbeat {
+			label = "devkit8000::led1";
+			gpios = <&gpio6 26 0>;	/* 186 -> LED1 */
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+
+		mmc {
+			label = "devkit8000::led2";
+			gpios = <&gpio6 3 0>;	/* 163 -> LED2 */
+			default-state = "on";
+			linux,default-trigger = "none";
+		};
+
+		usr {
+			label = "devkit8000::led3";
+			gpios = <&gpio6 4 0>;	/* 164 -> LED3 */
+			default-state = "on";
+			linux,default-trigger = "usr";
+                };
+
+	};
+};
+
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>;	/* SYS_NIRQ cascaded to intc */
+	};
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&i2c3 {
+	status = "disabled";
+};
+
+/include/ "twl4030.dtsi"
+
+&mmc1 {
+	vmmc-supply = <&vmmc1>;
+	vmmc_aux-supply = <&vsim>;
+	bus-width = <8>;
+};
+
+&mmc2 {
+	status = "disabled";
+};
+
+&mmc3 {
+	status = "disabled";
+};
+
+&wdt2 {
+	status = "disabled";
+};
+
+&mcbsp1 {
+	status = "disabled";
+};
+
+&mcbsp2 {
+	status = "disabled";
+};
+
+&mcbsp3 {
+	status = "disabled";
+};
+
+&mcbsp4 {
+	status = "disabled";
+};
+
+&mcbsp5 {
+	status = "disabled";
+};
