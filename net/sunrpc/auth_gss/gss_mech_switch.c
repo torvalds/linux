@@ -171,8 +171,7 @@ struct gss_api_mech * gss_mech_get_by_name(const char *name)
 }
 EXPORT_SYMBOL_GPL(gss_mech_get_by_name);
 
-struct gss_api_mech *
-gss_mech_get_by_OID(struct xdr_netobj *obj)
+static struct gss_api_mech *gss_mech_get_by_OID(struct rpcsec_gss_oid *obj)
 {
 	struct gss_api_mech	*pos, *gm = NULL;
 
@@ -188,10 +187,7 @@ gss_mech_get_by_OID(struct xdr_netobj *obj)
 	}
 	spin_unlock(&registered_mechs_lock);
 	return gm;
-
 }
-
-EXPORT_SYMBOL_GPL(gss_mech_get_by_OID);
 
 static inline int
 mech_supports_pseudoflavor(struct gss_api_mech *gm, u32 pseudoflavor)
@@ -281,6 +277,28 @@ gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 service)
 	return RPC_AUTH_MAXFLAVOR; /* illegal value */
 }
 EXPORT_SYMBOL_GPL(gss_svc_to_pseudoflavor);
+
+/**
+ * gss_mech_info2flavor - look up a pseudoflavor given a GSS tuple
+ * @info: a GSS mech OID, quality of protection, and service value
+ *
+ * Returns a matching pseudoflavor, or RPC_AUTH_MAXFLAVOR if the tuple is
+ * not supported.
+ */
+rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
+{
+	rpc_authflavor_t pseudoflavor;
+	struct gss_api_mech *gm;
+
+	gm = gss_mech_get_by_OID(&info->oid);
+	if (gm == NULL)
+		return RPC_AUTH_MAXFLAVOR;
+
+	pseudoflavor = gss_svc_to_pseudoflavor(gm, info->service);
+
+	gss_mech_put(gm);
+	return pseudoflavor;
+}
 
 u32
 gss_pseudoflavor_to_service(struct gss_api_mech *gm, u32 pseudoflavor)

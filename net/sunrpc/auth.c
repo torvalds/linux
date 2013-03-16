@@ -124,6 +124,41 @@ rpcauth_unregister(const struct rpc_authops *ops)
 EXPORT_SYMBOL_GPL(rpcauth_unregister);
 
 /**
+ * rpcauth_get_pseudoflavor - check if security flavor is supported
+ * @flavor: a security flavor
+ * @info: a GSS mech OID, quality of protection, and service value
+ *
+ * Verifies that an appropriate kernel module is available or already loaded.
+ * Returns an equivalent pseudoflavor, or RPC_AUTH_MAXFLAVOR if "flavor" is
+ * not supported locally.
+ */
+rpc_authflavor_t
+rpcauth_get_pseudoflavor(rpc_authflavor_t flavor, struct rpcsec_gss_info *info)
+{
+	const struct rpc_authops *ops;
+	rpc_authflavor_t pseudoflavor;
+
+	ops = auth_flavors[flavor];
+	if (ops == NULL)
+		request_module("rpc-auth-%u", flavor);
+	spin_lock(&rpc_authflavor_lock);
+	ops = auth_flavors[flavor];
+	if (ops == NULL || !try_module_get(ops->owner)) {
+		spin_unlock(&rpc_authflavor_lock);
+		return RPC_AUTH_MAXFLAVOR;
+	}
+	spin_unlock(&rpc_authflavor_lock);
+
+	pseudoflavor = flavor;
+	if (ops->info2flavor != NULL)
+		pseudoflavor = ops->info2flavor(info);
+
+	module_put(ops->owner);
+	return pseudoflavor;
+}
+EXPORT_SYMBOL_GPL(rpcauth_get_pseudoflavor);
+
+/**
  * rpcauth_list_flavors - discover registered flavors and pseudoflavors
  * @array: array to fill in
  * @size: size of "array"

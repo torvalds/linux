@@ -127,9 +127,8 @@ struct gss_api_ops {
 int gss_mech_register(struct gss_api_mech *);
 void gss_mech_unregister(struct gss_api_mech *);
 
-/* returns a mechanism descriptor given an OID, and increments the mechanism's
- * reference count. */
-struct gss_api_mech * gss_mech_get_by_OID(struct xdr_netobj *);
+/* Given a GSS security tuple, look up a pseudoflavor */
+rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *);
 
 /* Returns a reference to a mechanism, given a name like "krb5" etc. */
 struct gss_api_mech *gss_mech_get_by_name(const char *);
