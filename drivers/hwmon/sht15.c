@@ -930,7 +930,7 @@ static int __devinit sht15_probe(struct platform_device *pdev)
 		if (ret != 0) {
 			dev_err(&pdev->dev,
 				"failed to enable regulator: %d\n", ret);
-			return ret;
+			goto err_free_data;
 		}
 
 		/*
