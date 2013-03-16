@@ -3377,7 +3377,8 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000400);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00080606);
 	} else if (rt2x00_rt(rt2x00dev, RT5390) ||
-		   rt2x00_rt(rt2x00dev, RT5392)) {
+		   rt2x00_rt(rt2x00dev, RT5392) ||
+		   rt2x00_rt(rt2x00dev, RT5592)) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000404);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00080606);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000000);
@@ -3557,7 +3558,8 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_EXT_CWMIN, 0);
 	rt2800_register_write(rt2x00dev, TXOP_CTRL_CFG, reg);
 
-	rt2800_register_write(rt2x00dev, TXOP_HLDR_ET, 0x00000002);
+	reg = rt2x00_rt(rt2x00dev, RT5592) ? 0x00000082 : 0x00000002;
+	rt2800_register_write(rt2x00dev, TXOP_HLDR_ET, reg);
 
 	rt2800_register_read(rt2x00dev, TX_RTS_CFG, &reg);
 	rt2x00_set_field32(&reg, TX_RTS_CFG_AUTO_RTS_RETRY_LIMIT, 32);
