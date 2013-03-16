@@ -1939,6 +1939,9 @@ struct mac_iveiv_entry {
 #define BBP4_BANDWIDTH			FIELD8(0x18)
 #define BBP4_MAC_IF_CTRL		FIELD8(0x40)
 
+/* BBP27 */
+#define BBP27_RX_CHAIN_SEL		FIELD8(0x60)
+
 /*
  * BBP 47: Bandwidth
  */

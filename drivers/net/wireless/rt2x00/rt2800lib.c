@@ -2458,6 +2458,22 @@ static void rt2800_config_channel_rf55xx(struct rt2x00_dev *rt2x00dev,
 	rt2800_bbp_write(rt2x00dev, 196, (rf->channel <= 14) ? 0x19 : 0x7F);
 }
 
+static void rt2800_bbp_write_with_rx_chain(struct rt2x00_dev *rt2x00dev,
+					   const unsigned int word,
+					   const u8 value)
+{
+	u8 chain, reg;
+
+	for (chain = 0; chain < rt2x00dev->default_ant.rx_chain_num; chain++) {
+		rt2800_bbp_read(rt2x00dev, 27, &reg);
+		rt2x00_set_field8(&reg,  BBP27_RX_CHAIN_SEL, chain);
+		rt2800_bbp_write(rt2x00dev, 27, reg);
+
+		rt2800_bbp_write(rt2x00dev, word, value);
+	}
+}
+
+
 static void rt2800_iq_calibrate(struct rt2x00_dev *rt2x00dev, int channel)
 {
 	u8 cal;
