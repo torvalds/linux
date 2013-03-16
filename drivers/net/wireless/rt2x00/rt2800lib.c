@@ -4713,6 +4713,9 @@ static void rt2800_init_rfcsr_5392(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_rfcsr_5592(struct rt2x00_dev *rt2x00dev)
 {
+	u8 reg;
+	u16 eeprom;
+
 	rt2800_rfcsr_write(rt2x00dev, 1, 0x3F);
 	rt2800_rfcsr_write(rt2x00dev, 3, 0x08);
 	rt2800_rfcsr_write(rt2x00dev, 3, 0x08);
@@ -4740,6 +4743,35 @@ static void rt2800_init_rfcsr_5592(struct rt2x00_dev *rt2x00dev)
 	msleep(1);
 
 	rt2800_adjust_freq_offset(rt2x00dev);
+
+	rt2800_bbp_read(rt2x00dev, 138, &reg);
+
+	/*  Turn off unused DAC1 and ADC1 to reduce power consumption */
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
+	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH) == 1)
+		rt2x00_set_field8(&reg, BBP138_RX_ADC1, 0);
+	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) == 1)
+		rt2x00_set_field8(&reg, BBP138_TX_DAC1, 1);
+
+	rt2800_bbp_write(rt2x00dev, 138, reg);
+
+	/* Enable DC filter */
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5592, REV_RT5592C))
+		rt2800_bbp_write(rt2x00dev, 103, 0xc0);
+
+	rt2800_rfcsr_read(rt2x00dev, 38, &reg);
+	rt2x00_set_field8(&reg, RFCSR38_RX_LO1_EN, 0);
+	rt2800_rfcsr_write(rt2x00dev, 38, reg);
+
+	rt2800_rfcsr_read(rt2x00dev, 39, &reg);
+	rt2x00_set_field8(&reg, RFCSR39_RX_LO2_EN, 0);
+	rt2800_rfcsr_write(rt2x00dev, 39, reg);
+
+	rt2800_bbp4_mac_if_ctrl(rt2x00dev);
+
+	rt2800_rfcsr_read(rt2x00dev, 30, &reg);
+	rt2x00_set_field8(&reg, RFCSR30_RX_VCM, 2);
+	rt2800_rfcsr_write(rt2x00dev, 30, reg);
 }
 
 static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
@@ -4817,7 +4849,7 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		break;
 	case RT5592:
 		rt2800_init_rfcsr_5592(rt2x00dev);
-		break;
+		return 0;
 	}
 
 	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F)) {
@@ -5024,15 +5056,23 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Initialize all registers.
 	 */
 	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
-		     rt2800_init_registers(rt2x00dev) ||
-		     rt2800_init_bbp(rt2x00dev) ||
-		     rt2800_init_rfcsr(rt2x00dev)))
+		     rt2800_init_registers(rt2x00dev)))
 		return -EIO;
 
 	/*
 	 * Send signal to firmware during boot time.
 	 */
-	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
+	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
+	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
+	if (rt2x00_is_usb(rt2x00dev)) {
+		rt2800_register_write(rt2x00dev, H2M_INT_SRC, 0);
+		rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
+	}
+	msleep(1);
+
+	if (unlikely(rt2800_init_bbp(rt2x00dev) ||
+		     rt2800_init_rfcsr(rt2x00dev)))
+		return -EIO;
 
 	if (rt2x00_is_usb(rt2x00dev) &&
 	    (rt2x00_rt(rt2x00dev, RT3070) ||
