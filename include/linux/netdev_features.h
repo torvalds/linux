@@ -102,8 +102,8 @@ enum {
 #define NETIF_F_VLAN_CHALLENGED	__NETIF_F(VLAN_CHALLENGED)
 #define NETIF_F_RXFCS		__NETIF_F(RXFCS)
 #define NETIF_F_RXALL		__NETIF_F(RXALL)
-#define NETIF_F_GRE_GSO		__NETIF_F(GSO_GRE)
-#define NETIF_F_UDP_TUNNEL	__NETIF_F(UDP_TUNNEL)
+#define NETIF_F_GSO_GRE		__NETIF_F(GSO_GRE)
+#define NETIF_F_GSO_UDP_TUNNEL	__NETIF_F(GSO_UDP_TUNNEL)
 
 /* Features valid for ethtool to change */
 /* = all defined minus driver/device-class-related */
