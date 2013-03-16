@@ -2430,6 +2430,30 @@ static void rt2800_config_channel_rf55xx(struct rt2x00_dev *rt2x00dev,
 	rt2800_rfcsr_read(rt2x00dev, 3, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR3_VCOCAL_EN, 1);
 	rt2800_rfcsr_write(rt2x00dev, 3, rfcsr);
+
+	/* BBP settings */
+	rt2800_bbp_write(rt2x00dev, 62, 0x37 - rt2x00dev->lna_gain);
+	rt2800_bbp_write(rt2x00dev, 63, 0x37 - rt2x00dev->lna_gain);
+	rt2800_bbp_write(rt2x00dev, 64, 0x37 - rt2x00dev->lna_gain);
+
+	rt2800_bbp_write(rt2x00dev, 79, (rf->channel <= 14) ? 0x1C : 0x18);
+	rt2800_bbp_write(rt2x00dev, 80, (rf->channel <= 14) ? 0x0E : 0x08);
+	rt2800_bbp_write(rt2x00dev, 81, (rf->channel <= 14) ? 0x3A : 0x38);
+	rt2800_bbp_write(rt2x00dev, 82, (rf->channel <= 14) ? 0x62 : 0x92);
+
+	/* GLRT band configuration */
+	rt2800_bbp_write(rt2x00dev, 195, 128);
+	rt2800_bbp_write(rt2x00dev, 196, (rf->channel <= 14) ? 0xE0 : 0xF0);
+	rt2800_bbp_write(rt2x00dev, 195, 129);
+	rt2800_bbp_write(rt2x00dev, 196, (rf->channel <= 14) ? 0x1F : 0x1E);
+	rt2800_bbp_write(rt2x00dev, 195, 130);
+	rt2800_bbp_write(rt2x00dev, 196, (rf->channel <= 14) ? 0x38 : 0x28);
+	rt2800_bbp_write(rt2x00dev, 195, 131);
+	rt2800_bbp_write(rt2x00dev, 196, (rf->channel <= 14) ? 0x32 : 0x20);
+	rt2800_bbp_write(rt2x00dev, 195, 133);
+	rt2800_bbp_write(rt2x00dev, 196, (rf->channel <= 14) ? 0x28 : 0x7F);
+	rt2800_bbp_write(rt2x00dev, 195, 124);
+	rt2800_bbp_write(rt2x00dev, 196, (rf->channel <= 14) ? 0x19 : 0x7F);
 }
 
 static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
@@ -2576,6 +2600,14 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	if (rt2x00_rt(rt2x00dev, RT3572))
 		rt2800_rfcsr_write(rt2x00dev, 8, 0x80);
+
+	if (rt2x00_rt(rt2x00dev, RT5592)) {
+		rt2800_bbp_write(rt2x00dev, 195, 141);
+		rt2800_bbp_write(rt2x00dev, 196, conf_is_ht40(conf) ? 0x10 : 0x1a);
+
+		/* TODO AGC adjust */
+		/* TODO IQ calibration */
+	}
 
 	rt2800_bbp_read(rt2x00dev, 4, &bbp);
 	rt2x00_set_field8(&bbp, BBP4_BANDWIDTH, 2 * conf_is_ht40(conf));
