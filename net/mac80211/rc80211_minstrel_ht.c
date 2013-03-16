@@ -202,13 +202,22 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 	struct minstrel_rate_stats *mr;
 	unsigned int nsecs = 0;
 	unsigned int tp;
+	unsigned int prob;
 
 	mr = &mi->groups[group].rates[rate];
+	prob = mr->probability;
 
-	if (mr->probability < MINSTREL_FRAC(1, 10)) {
+	if (prob < MINSTREL_FRAC(1, 10)) {
 		mr->cur_tp = 0;
 		return;
 	}
+
+	/*
+	 * For the throughput calculation, limit the probability value to 90% to
+	 * account for collision related packet error rate fluctuation
+	 */
+	if (prob > MINSTREL_FRAC(9, 10))
+		prob = MINSTREL_FRAC(9, 10);
 
 	if (group != MINSTREL_CCK_GROUP)
 		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
