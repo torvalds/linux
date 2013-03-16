@@ -2514,27 +2514,35 @@ out:
 	return ret;
 }
 
+/*
+ * Retry pseudoroot lookup with various security flavors.  We do this when:
+ *
+ *   NFSv4.0: the PUTROOTFH operation returns NFS4ERR_WRONGSEC
+ *   NFSv4.1: the server does not support the SECINFO_NO_NAME operation
+ *
+ * Returns zero on success, or a negative NFS4ERR value, or a
+ * negative errno value.
+ */
 static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
-	int i, len, status = 0;
-	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS];
+	/* Per 3530bis 15.33.5 */
+	static const rpc_authflavor_t flav_array[] = {
+		RPC_AUTH_GSS_KRB5P,
+		RPC_AUTH_GSS_KRB5I,
+		RPC_AUTH_GSS_KRB5,
+		RPC_AUTH_NULL,
+	};
+	int status = -EPERM;
+	size_t i;
 
-	len = rpcauth_list_flavors(flav_array, ARRAY_SIZE(flav_array));
-	if (len < 0)
-		return len;
-
-	for (i = 0; i < len; i++) {
-		/* AUTH_UNIX is the default flavor if none was specified,
-		 * thus has already been tried. */
-		if (flav_array[i] == RPC_AUTH_UNIX)
-			continue;
-
+	for (i = 0; i < ARRAY_SIZE(flav_array); i++) {
 		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
 		if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 			continue;
 		break;
 	}
+
 	/*
 	 * -EACCESS could mean that the user doesn't have correct permissions
 	 * to access the mount.  It could also mean that we tried to mount
