@@ -2531,6 +2531,7 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 		RPC_AUTH_GSS_KRB5P,
 		RPC_AUTH_GSS_KRB5I,
 		RPC_AUTH_GSS_KRB5,
+		RPC_AUTH_UNIX,			/* courtesy */
 		RPC_AUTH_NULL,
 	};
 	int status = -EPERM;
