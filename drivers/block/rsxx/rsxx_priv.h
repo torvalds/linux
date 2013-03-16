@@ -64,6 +64,9 @@ struct proc_cmd;
 #define RSXX_MAX_OUTSTANDING_CMDS	255
 #define RSXX_CS_IDX_MASK		0xff
 
+#define STATUS_BUFFER_SIZE8     4096
+#define COMMAND_BUFFER_SIZE8    4096
+
 #define RSXX_MAX_TARGETS	8
 
 struct dma_tracker_list;
@@ -88,6 +91,9 @@ struct rsxx_dma_stats {
 	u32 discards_failed;
 	u32 done_rescheduled;
 	u32 issue_rescheduled;
+	u32 dma_sw_err;
+	u32 dma_hw_fault;
+	u32 dma_cancelled;
 	u32 sw_q_depth;		/* Number of DMAs on the SW queue. */
 	atomic_t hw_q_depth;	/* Number of DMAs queued to HW. */
 };
@@ -113,6 +119,7 @@ struct rsxx_dma_ctrl {
 struct rsxx_cardinfo {
 	struct pci_dev		*dev;
 	unsigned int		halt;
+	unsigned int		eeh_state;
 
 	void			__iomem *regmap;
 	spinlock_t		irq_lock;
@@ -221,6 +228,7 @@ enum rsxx_pci_regmap {
 	PERF_RD512_HI	= 0xac,
 	PERF_WR512_LO	= 0xb0,
 	PERF_WR512_HI	= 0xb4,
+	PCI_RECONFIG	= 0xb8,
 };
 
 enum rsxx_intr {
@@ -234,6 +242,8 @@ enum rsxx_intr {
 	CR_INTR_DMA5	= 0x00000080,
 	CR_INTR_DMA6	= 0x00000100,
 	CR_INTR_DMA7	= 0x00000200,
+	CR_INTR_ALL_C	= 0x0000003f,
+	CR_INTR_ALL_G	= 0x000003ff,
 	CR_INTR_DMA_ALL = 0x000003f5,
 	CR_INTR_ALL	= 0xffffffff,
 };
@@ -250,8 +260,14 @@ enum rsxx_pci_reset {
 	DMA_QUEUE_RESET		= 0x00000001,
 };
 
+enum rsxx_hw_fifo_flush {
+	RSXX_FLUSH_BUSY		= 0x00000002,
+	RSXX_FLUSH_TIMEOUT	= 0x00000004,
+};
+
 enum rsxx_pci_revision {
 	RSXX_DISCARD_SUPPORT = 2,
+	RSXX_EEH_SUPPORT     = 3,
 };
 
 enum rsxx_creg_cmd {
@@ -357,11 +373,17 @@ int rsxx_dma_setup(struct rsxx_cardinfo *card);
 void rsxx_dma_destroy(struct rsxx_cardinfo *card);
 int rsxx_dma_init(void);
 void rsxx_dma_cleanup(void);
+void rsxx_dma_queue_reset(struct rsxx_cardinfo *card);
+int rsxx_dma_configure(struct rsxx_cardinfo *card);
 int rsxx_dma_queue_bio(struct rsxx_cardinfo *card,
 			   struct bio *bio,
 			   atomic_t *n_dmas,
 			   rsxx_dma_cb cb,
 			   void *cb_data);
+int rsxx_hw_buffers_init(struct pci_dev *dev, struct rsxx_dma_ctrl *ctrl);
+void rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card);
+void rsxx_eeh_cancel_dmas(struct rsxx_cardinfo *card);
+int rsxx_eeh_remap_dmas(struct rsxx_cardinfo *card);
 
 /***** cregs.c *****/
 int rsxx_creg_write(struct rsxx_cardinfo *card, u32 addr,
@@ -386,10 +408,11 @@ int rsxx_creg_setup(struct rsxx_cardinfo *card);
 void rsxx_creg_destroy(struct rsxx_cardinfo *card);
 int rsxx_creg_init(void);
 void rsxx_creg_cleanup(void);
-
 int rsxx_reg_access(struct rsxx_cardinfo *card,
 			struct rsxx_reg_access __user *ucmd,
 			int read);
+void rsxx_eeh_save_issued_creg(struct rsxx_cardinfo *card);
+void rsxx_kick_creg_queue(struct rsxx_cardinfo *card);
 
 
 

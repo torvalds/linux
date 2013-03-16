@@ -58,13 +58,16 @@ static struct kmem_cache *creg_cmd_pool;
 #error Unknown endianess!!! Aborting...
 #endif
 
-static void copy_to_creg_data(struct rsxx_cardinfo *card,
+static int copy_to_creg_data(struct rsxx_cardinfo *card,
 			      int cnt8,
 			      void *buf,
 			      unsigned int stream)
 {
 	int i = 0;
 	u32 *data = buf;
+
+	if (unlikely(card->eeh_state))
+		return -EIO;
 
 	for (i = 0; cnt8 > 0; i++, cnt8 -= 4) {
 		/*
@@ -76,16 +79,21 @@ static void copy_to_creg_data(struct rsxx_cardinfo *card,
 		else
 			iowrite32(data[i], card->regmap + CREG_DATA(i));
 	}
+
+	return 0;
 }
 
 
-static void copy_from_creg_data(struct rsxx_cardinfo *card,
+static int copy_from_creg_data(struct rsxx_cardinfo *card,
 				int cnt8,
 				void *buf,
 				unsigned int stream)
 {
 	int i = 0;
 	u32 *data = buf;
+
+	if (unlikely(card->eeh_state))
+		return -EIO;
 
 	for (i = 0; cnt8 > 0; i++, cnt8 -= 4) {
 		/*
@@ -97,18 +105,31 @@ static void copy_from_creg_data(struct rsxx_cardinfo *card,
 		else
 			data[i] = ioread32(card->regmap + CREG_DATA(i));
 	}
+
+	return 0;
 }
 
 static void creg_issue_cmd(struct rsxx_cardinfo *card, struct creg_cmd *cmd)
 {
+	int st;
+
+	if (unlikely(card->eeh_state))
+		return;
+
 	iowrite32(cmd->addr, card->regmap + CREG_ADD);
 	iowrite32(cmd->cnt8, card->regmap + CREG_CNT);
 
 	if (cmd->op == CREG_OP_WRITE) {
-		if (cmd->buf)
-			copy_to_creg_data(card, cmd->cnt8,
-					  cmd->buf, cmd->stream);
+		if (cmd->buf) {
+			st = copy_to_creg_data(card, cmd->cnt8,
+					       cmd->buf, cmd->stream);
+			if (st)
+				return;
+		}
 	}
+
+	if (unlikely(card->eeh_state))
+		return;
 
 	/* Setting the valid bit will kick off the command. */
 	iowrite32(cmd->op, card->regmap + CREG_CMD);
@@ -272,7 +293,7 @@ static void creg_cmd_done(struct work_struct *work)
 			goto creg_done;
 		}
 
-		copy_from_creg_data(card, cnt8, cmd->buf, cmd->stream);
+		st = copy_from_creg_data(card, cnt8, cmd->buf, cmd->stream);
 	}
 
 creg_done:
@@ -673,6 +694,32 @@ int rsxx_reg_access(struct rsxx_cardinfo *card,
 	}
 
 	return 0;
+}
+
+void rsxx_eeh_save_issued_creg(struct rsxx_cardinfo *card)
+{
+	struct creg_cmd *cmd = NULL;
+
+	cmd = card->creg_ctrl.active_cmd;
+	card->creg_ctrl.active_cmd = NULL;
+
+	if (cmd) {
+		del_timer_sync(&card->creg_ctrl.cmd_timer);
+
+		spin_lock_bh(&card->creg_ctrl.lock);
+		list_add(&cmd->list, &card->creg_ctrl.queue);
+		card->creg_ctrl.q_depth++;
+		card->creg_ctrl.active = 0;
+		spin_unlock_bh(&card->creg_ctrl.lock);
+	}
+}
+
+void rsxx_kick_creg_queue(struct rsxx_cardinfo *card)
+{
+	spin_lock_bh(&card->creg_ctrl.lock);
+	if (!list_empty(&card->creg_ctrl.queue))
+		creg_kick_queue(card);
+	spin_unlock_bh(&card->creg_ctrl.lock);
 }
 
 /*------------ Initialization & Setup --------------*/
