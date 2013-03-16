@@ -648,10 +648,13 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	/*
 	 * Sampling might add some overhead (RTS, no aggregation)
 	 * to the frame. Hence, don't use sampling for the currently
-	 * used max TP rate.
+	 * used rates.
 	 */
-	if (sample_idx == mi->max_tp_rate)
+	if (sample_idx == mi->max_tp_rate ||
+	    sample_idx == mi->max_tp_rate2 ||
+	    sample_idx == mi->max_prob_rate)
 		return -1;
+
 	/*
 	 * Do not sample if the probability is already higher than 95%
 	 * to avoid wasting airtime.
