@@ -133,6 +133,9 @@ void gss_mech_unregister(struct gss_api_mech *);
 /* Given a GSS security tuple, look up a pseudoflavor */
 rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *);
 
+/* Given a pseudoflavor, look up a GSS security tuple */
+int gss_mech_flavor2info(rpc_authflavor_t, struct rpcsec_gss_info *);
+
 /* Returns a reference to a mechanism, given a name like "krb5" etc. */
 struct gss_api_mech *gss_mech_get_by_name(const char *);
 

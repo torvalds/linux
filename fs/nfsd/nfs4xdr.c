@@ -3138,10 +3138,9 @@ nfsd4_encode_rename(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 
 static __be32
 nfsd4_do_encode_secinfo(struct nfsd4_compoundres *resp,
-			 __be32 nfserr,struct svc_export *exp)
+			 __be32 nfserr, struct svc_export *exp)
 {
-	int i = 0;
-	u32 nflavs;
+	u32 i, nflavs;
 	struct exp_flavor_info *flavs;
 	struct exp_flavor_info def_flavs[2];
 	__be32 *p;
@@ -3172,30 +3171,29 @@ nfsd4_do_encode_secinfo(struct nfsd4_compoundres *resp,
 	WRITE32(nflavs);
 	ADJUST_ARGS();
 	for (i = 0; i < nflavs; i++) {
-		u32 flav = flavs[i].pseudoflavor;
-		struct gss_api_mech *gm = gss_mech_get_by_pseudoflavor(flav);
+		struct rpcsec_gss_info info;
 
-		if (gm) {
+		if (rpcauth_get_gssinfo(flavs[i].pseudoflavor, &info) == 0) {
 			RESERVE_SPACE(4);
 			WRITE32(RPC_AUTH_GSS);
 			ADJUST_ARGS();
-			RESERVE_SPACE(4 + gm->gm_oid.len);
-			WRITE32(gm->gm_oid.len);
-			WRITEMEM(gm->gm_oid.data, gm->gm_oid.len);
+			RESERVE_SPACE(4 + info.oid.len);
+			WRITE32(info.oid.len);
+			WRITEMEM(info.oid.data, info.oid.len);
 			ADJUST_ARGS();
 			RESERVE_SPACE(4);
-			WRITE32(0); /* qop */
+			WRITE32(info.qop);
 			ADJUST_ARGS();
 			RESERVE_SPACE(4);
-			WRITE32(gss_pseudoflavor_to_service(gm, flav));
+			WRITE32(info.service);
 			ADJUST_ARGS();
-			gss_mech_put(gm);
 		} else {
 			RESERVE_SPACE(4);
-			WRITE32(flav);
+			WRITE32(flavs[i].pseudoflavor);
 			ADJUST_ARGS();
 		}
 	}
+
 out:
 	if (exp)
 		exp_put(exp);

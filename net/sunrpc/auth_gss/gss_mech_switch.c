@@ -240,8 +240,6 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 	return gm;
 }
 
-EXPORT_SYMBOL_GPL(gss_mech_get_by_pseudoflavor);
-
 /**
  * gss_mech_list_pseudoflavors - Discover registered GSS pseudoflavors
  * @array: array to fill in
@@ -313,6 +311,39 @@ rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
 
 	gss_mech_put(gm);
 	return pseudoflavor;
+}
+
+/**
+ * gss_mech_flavor2info - look up a GSS tuple for a given pseudoflavor
+ * @pseudoflavor: GSS pseudoflavor to match
+ * @info: rpcsec_gss_info structure to fill in
+ *
+ * Returns zero and fills in "info" if pseudoflavor matches a
+ * supported mechanism.  Otherwise a negative errno is returned.
+ */
+int gss_mech_flavor2info(rpc_authflavor_t pseudoflavor,
+			 struct rpcsec_gss_info *info)
+{
+	struct gss_api_mech *gm;
+	int i;
+
+	gm = gss_mech_get_by_pseudoflavor(pseudoflavor);
+	if (gm == NULL)
+		return -ENOENT;
+
+	for (i = 0; i < gm->gm_pf_num; i++) {
+		if (gm->gm_pfs[i].pseudoflavor == pseudoflavor) {
+			memcpy(info->oid.data, gm->gm_oid.data, gm->gm_oid.len);
+			info->oid.len = gm->gm_oid.len;
+			info->qop = gm->gm_pfs[i].qop;
+			info->service = gm->gm_pfs[i].service;
+			gss_mech_put(gm);
+			return 0;
+		}
+	}
+
+	gss_mech_put(gm);
+	return -ENOENT;
 }
 
 u32
