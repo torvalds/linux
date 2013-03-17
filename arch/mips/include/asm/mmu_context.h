@@ -133,7 +133,7 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int i;
 
-	for_each_online_cpu(i)
+	for_each_possible_cpu(i)
 		cpu_context(i, mm) = 0;
 
 	return 0;
