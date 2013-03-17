@@ -166,15 +166,24 @@ static int go7007_init_encoder(struct go7007 *go)
 		go7007_write_addr(go, 0x1000, 0x0811);
 		go7007_write_addr(go, 0x1000, 0x0c11);
 	}
-	if (go->board_id == GO7007_BOARDID_MATRIX_REV) {
+	switch (go->board_id) {
+	case GO7007_BOARDID_MATRIX_REV:
 		/* Set GPIO pin 0 to be an output (audio clock control) */
 		go7007_write_addr(go, 0x3c82, 0x0001);
 		go7007_write_addr(go, 0x3c80, 0x00fe);
-	}
-	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24) {
+		break;
+	case GO7007_BOARDID_ADLINK_MPG24:
 		/* set GPIO5 to be an output, currently low */
 		go7007_write_addr(go, 0x3c82, 0x0000);
 		go7007_write_addr(go, 0x3c80, 0x00df);
+		break;
+	case GO7007_BOARDID_ADS_USBAV_709:
+		/* GPIO pin 0: audio clock control */
+		/*      pin 2: TW9906 reset */
+		/*      pin 3: capture LED */
+		go7007_write_addr(go, 0x3c82, 0x000d);
+		go7007_write_addr(go, 0x3c80, 0x00f2);
+		break;
 	}
 	return 0;
 }
@@ -282,6 +291,12 @@ int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs)
 		go->i2c_adapter_online = 1;
 	}
 	if (go->i2c_adapter_online) {
+		if (go->board_id == GO7007_BOARDID_ADS_USBAV_709) {
+			/* Reset the TW9906 */
+			go7007_write_addr(go, 0x3c82, 0x0009);
+			msleep(50);
+			go7007_write_addr(go, 0x3c82, 0x000d);
+		}
 		for (i = 0; i < num_i2c_devs; ++i)
 			init_i2c_module(&go->i2c_adapter, &go->board_info->i2c_devs[i]);
 

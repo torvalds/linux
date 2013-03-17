@@ -476,6 +476,43 @@ static const struct go7007_usb_board board_sensoray_2250 = {
 	},
 };
 
+static const struct go7007_usb_board board_ads_usbav_709 = {
+	.flags		= GO7007_USB_EZUSB,
+	.main_info	= {
+		.flags		 = GO7007_BOARD_HAS_AUDIO |
+					GO7007_BOARD_USE_ONBOARD_I2C,
+		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
+					GO7007_AUDIO_I2S_MASTER |
+					GO7007_AUDIO_WORD_16,
+		.audio_rate	 = 48000,
+		.audio_bclk_div	 = 8,
+		.audio_main_div	 = 2,
+		.hpi_buffer_cap  = 7,
+		.sensor_flags	 = GO7007_SENSOR_656 |
+					GO7007_SENSOR_TV |
+					GO7007_SENSOR_VBI,
+		.num_i2c_devs	 = 1,
+		.i2c_devs	 = {
+			{
+				.type	= "tw9906",
+				.is_video = 1,
+				.addr	= 0x44,
+			},
+		},
+		.num_inputs	 = 2,
+		.inputs		 = {
+			{
+				.video_input	= 0,
+				.name		= "Composite",
+			},
+			{
+				.video_input	= 10,
+				.name		= "S-Video",
+			},
+		},
+	},
+};
+
 static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
@@ -576,6 +613,14 @@ static const struct usb_device_id go7007_usb_id_table[] = {
 		.bcdDevice_lo	= 0x1,
 		.bcdDevice_hi	= 0x1,
 		.driver_info	= (kernel_ulong_t)GO7007_BOARDID_SENSORAY_2250,
+	},
+	{
+		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
+		.idVendor	= 0x06e1,  /* Vendor ID of ADS Technologies */
+		.idProduct	= 0x0709,  /* Product ID of DVD Xpress DX2 */
+		.bcdDevice_lo	= 0x204,
+		.bcdDevice_hi	= 0x204,
+		.driver_info	= (kernel_ulong_t)GO7007_BOARDID_ADS_USBAV_709,
 	},
 	{ }					/* Terminating entry */
 };
@@ -1085,6 +1130,10 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		printk(KERN_INFO "Sensoray 2250 found\n");
 		name = "Sensoray 2250/2251";
 		board = &board_sensoray_2250;
+		break;
+	case GO7007_BOARDID_ADS_USBAV_709:
+		name = "ADS Tech DVD Xpress DX2";
+		board = &board_ads_usbav_709;
 		break;
 	default:
 		printk(KERN_ERR "go7007-usb: unknown board ID %d!\n",

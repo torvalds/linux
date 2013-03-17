@@ -43,6 +43,7 @@ struct go7007;
 #define GO7007_BOARDID_ENDURA		11
 #define GO7007_BOARDID_ADLINK_MPG24	12
 #define GO7007_BOARDID_SENSORAY_2250	13 /* Sensoray 2250/2251 */
+#define GO7007_BOARDID_ADS_USBAV_709    14
 
 /* Various characteristics of each board */
 #define GO7007_BOARD_HAS_AUDIO		(1<<0)

@@ -512,6 +512,9 @@ static int go7007_start_streaming(struct vb2_queue *q, unsigned int count)
 	v4l2_ctrl_grab(go->mpeg_video_gop_closure, true);
 	v4l2_ctrl_grab(go->mpeg_video_bitrate, true);
 	v4l2_ctrl_grab(go->mpeg_video_aspect_ratio, true);
+	/* Turn on Capture LED */
+	if (go->board_id == GO7007_BOARDID_ADS_USBAV_709)
+		go7007_write_addr(go, 0x3c82, 0x0005);
 	return ret;
 }
 
@@ -534,6 +537,9 @@ static int go7007_stop_streaming(struct vb2_queue *q)
 	v4l2_ctrl_grab(go->mpeg_video_gop_closure, false);
 	v4l2_ctrl_grab(go->mpeg_video_bitrate, false);
 	v4l2_ctrl_grab(go->mpeg_video_aspect_ratio, false);
+	/* Turn on Capture LED */
+	if (go->board_id == GO7007_BOARDID_ADS_USBAV_709)
+		go7007_write_addr(go, 0x3c82, 0x000d);
 	return 0;
 }
 
