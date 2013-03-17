@@ -435,16 +435,18 @@ static void write_bitmap_word(struct go7007 *go)
 void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 {
 	struct go7007_buffer *vb = go->active_buf;
-	int i, seq_start_code = -1, frame_start_code = -1;
+	int i, seq_start_code = -1, gop_start_code = -1, frame_start_code = -1;
 
 	switch (go->format) {
 	case V4L2_PIX_FMT_MPEG4:
 		seq_start_code = 0xB0;
+		gop_start_code = 0xB3;
 		frame_start_code = 0xB6;
 		break;
 	case V4L2_PIX_FMT_MPEG1:
 	case V4L2_PIX_FMT_MPEG2:
 		seq_start_code = 0xB3;
+		gop_start_code = 0xB8;
 		frame_start_code = 0x00;
 		break;
 	}
@@ -526,7 +528,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 			     go->format == V4L2_PIX_FMT_MPEG2 ||
 			     go->format == V4L2_PIX_FMT_MPEG4) &&
 			    (buf[i] == seq_start_code ||
-			     buf[i] == 0xB8 || /* GOP code */
+			     buf[i] == gop_start_code ||
 			     buf[i] == frame_start_code)) {
 				if (vb == NULL || go->seen_frame)
 					vb = frame_boundary(go, vb);
