@@ -989,13 +989,14 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
 	return 0;
 }
 
-static bool nfs4_copy_lock_stateid(nfs4_stateid *dst, struct nfs4_state *state,
+static int nfs4_copy_lock_stateid(nfs4_stateid *dst,
+		struct nfs4_state *state,
 		const struct nfs_lockowner *lockowner)
 {
 	struct nfs4_lock_state *lsp;
 	fl_owner_t fl_owner;
 	pid_t fl_pid;
-	bool ret = false;
+	int ret = -ENOENT;
 
 
 	if (lockowner == NULL)
@@ -1010,7 +1011,10 @@ static bool nfs4_copy_lock_stateid(nfs4_stateid *dst, struct nfs4_state *state,
 	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
 	if (lsp != NULL && test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) != 0) {
 		nfs4_stateid_copy(dst, &lsp->ls_stateid);
-		ret = true;
+		ret = 0;
+		smp_rmb();
+		if (!list_empty(&lsp->ls_seqid.list))
+			ret = -EWOULDBLOCK;
 	}
 	spin_unlock(&state->state_lock);
 	nfs4_put_lock_state(lsp);
@@ -1018,28 +1022,38 @@ out:
 	return ret;
 }
 
-static void nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
+static int nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
 {
+	int ret;
 	int seq;
 
 	do {
 		seq = read_seqbegin(&state->seqlock);
 		nfs4_stateid_copy(dst, &state->stateid);
+		ret = 0;
+		smp_rmb();
+		if (!list_empty(&state->owner->so_seqid.list))
+			ret = -EWOULDBLOCK;
 	} while (read_seqretry(&state->seqlock, seq));
+	return ret;
 }
 
 /*
  * Byte-range lock aware utility to initialize the stateid of read/write
  * requests.
  */
-void nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
+int nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
 		fmode_t fmode, const struct nfs_lockowner *lockowner)
 {
+	int ret = 0;
 	if (nfs4_copy_delegation_stateid(dst, state->inode, fmode))
-		return;
-	if (nfs4_copy_lock_stateid(dst, state, lockowner))
-		return;
-	nfs4_copy_open_stateid(dst, state);
+		goto out;
+	ret = nfs4_copy_lock_stateid(dst, state, lockowner);
+	if (ret != -ENOENT)
+		goto out;
+	ret = nfs4_copy_open_stateid(dst, state);
+out:
+	return ret;
 }
 
 struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_mask)
