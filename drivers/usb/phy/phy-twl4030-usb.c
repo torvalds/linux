@@ -483,9 +483,10 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 {
 	struct twl4030_usb *twl = _twl;
 	enum omap_musb_vbus_id_status status;
+	enum omap_musb_vbus_id_status status_prev = twl->linkstat;
 
 	status = twl4030_usb_linkstat(twl);
-	if (status > 0) {
+	if (status > 0 && status != status_prev) {
 		/* FIXME add a set_power() method so that B-devices can
 		 * configure the charger appropriately.  It's not always
 		 * correct to consume VBUS power, and how much current to
@@ -523,7 +524,7 @@ static int twl4030_usb_phy_init(struct usb_phy *phy)
 	twl->asleep = 1;
 
 	status = twl4030_usb_linkstat(twl);
-	if (status > 0)
+	if (status == OMAP_MUSB_ID_GROUND || status == OMAP_MUSB_VBUS_VALID)
 		omap_musb_mailbox(twl->linkstat);
 
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
