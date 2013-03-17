@@ -569,6 +569,37 @@ static void _rtl_rx_work(unsigned long param)
 	}
 }
 
+static unsigned int _rtl_rx_get_padding(struct ieee80211_hdr *hdr,
+					unsigned int len)
+{
+	unsigned int padding = 0;
+
+	/* make function no-op when possible */
+	if (NET_IP_ALIGN == 0 || len < sizeof(*hdr))
+		return 0;
+
+	/* alignment calculation as in lbtf_rx() / carl9170_rx_copy_data() */
+	/* TODO: deduplicate common code, define helper function instead? */
+
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		u8 *qc = ieee80211_get_qos_ctl(hdr);
+
+		padding ^= NET_IP_ALIGN;
+
+		/* Input might be invalid, avoid accessing memory outside
+		 * the buffer.
+		 */
+		if ((unsigned long)qc - (unsigned long)hdr < len &&
+		    *qc & IEEE80211_QOS_CTL_A_MSDU_PRESENT)
+			padding ^= NET_IP_ALIGN;
+	}
+
+	if (ieee80211_has_a4(hdr->frame_control))
+		padding ^= NET_IP_ALIGN;
+
+	return padding;
+}
+
 #define __RADIO_TAP_SIZE_RSV	32
 
 static void _rtl_rx_completed(struct urb *_urb)
@@ -582,9 +613,11 @@ static void _rtl_rx_completed(struct urb *_urb)
 		goto free;
 
 	if (likely(0 == _urb->status)) {
+		unsigned int padding;
 		struct sk_buff *skb;
 		unsigned int qlen;
 		unsigned int size = _urb->actual_length;
+		struct ieee80211_hdr *hdr;
 
 		if (size < RTL_RX_DESC_SIZE + sizeof(struct ieee80211_hdr)) {
 			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
@@ -601,7 +634,10 @@ static void _rtl_rx_completed(struct urb *_urb)
 			goto resubmit;
 		}
 
-		skb = dev_alloc_skb(size + __RADIO_TAP_SIZE_RSV);
+		hdr = (void *)(_urb->transfer_buffer + RTL_RX_DESC_SIZE);
+		padding = _rtl_rx_get_padding(hdr, size - RTL_RX_DESC_SIZE);
+
+		skb = dev_alloc_skb(size + __RADIO_TAP_SIZE_RSV + padding);
 		if (!skb) {
 			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
 				 "Can't allocate skb for bulk IN!\n");
@@ -609,6 +645,9 @@ static void _rtl_rx_completed(struct urb *_urb)
 		}
 
 		_rtl_install_trx_info(rtlusb, skb, rtlusb->in_ep);
+
+		/* Make sure the payload data is 4 byte aligned. */
+		skb_reserve(skb, padding);
 
 		/* reserve some space for mac80211's radiotap */
 		skb_reserve(skb, __RADIO_TAP_SIZE_RSV);
