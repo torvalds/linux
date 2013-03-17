@@ -2235,11 +2235,6 @@ static int sw_hcd_suspend(struct device *dev)
 		return 0;
 	}
 
-	if(!sw_hcd->sw_hcd_io->clk_is_open){
-		DMSG_INFO("wrn: sw_hcd_suspend, usb clock is close, can't close again\n");
-		return 0;
-	}
-
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd->suspend = 1;
 	sw_hcd_port_suspend_ex(sw_hcd);
@@ -2282,11 +2277,6 @@ static int sw_hcd_resume(struct device *dev)
 
 	if(!sw_hcd->enable){
 		DMSG_INFO("wrn: hcd is disable, need not resume\n");
-		return 0;
-	}
-
-	if(sw_hcd->sw_hcd_io->clk_is_open){
-		DMSG_INFO("wrn: sw_hcd_suspend, usb clock is open, can't open again\n");
 		return 0;
 	}
 
