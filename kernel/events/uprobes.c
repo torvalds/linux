@@ -758,7 +758,7 @@ register_for_each_vma(struct uprobe *uprobe, struct uprobe_consumer *new)
 		down_write(&mm->mmap_sem);
 		vma = find_vma(mm, info->vaddr);
 		if (!vma || !valid_vma(vma, is_register) ||
-		    vma->vm_file->f_mapping->host != uprobe->inode)
+		    file_inode(vma->vm_file) != uprobe->inode)
 			goto unlock;
 
 		if (vma->vm_start > info->vaddr ||
@@ -917,7 +917,7 @@ static int unapply_uprobe(struct uprobe *uprobe, struct mm_struct *mm)
 		loff_t offset;
 
 		if (!valid_vma(vma, false) ||
-		    vma->vm_file->f_mapping->host != uprobe->inode)
+		    file_inode(vma->vm_file) != uprobe->inode)
 			continue;
 
 		offset = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
@@ -1010,7 +1010,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	if (no_uprobe_events() || !valid_vma(vma, true))
 		return 0;
 
-	inode = vma->vm_file->f_mapping->host;
+	inode = file_inode(vma->vm_file);
 	if (!inode)
 		return 0;
 
@@ -1041,7 +1041,7 @@ vma_has_uprobes(struct vm_area_struct *vma, unsigned long start, unsigned long e
 	struct inode *inode;
 	struct rb_node *n;
 
-	inode = vma->vm_file->f_mapping->host;
+	inode = file_inode(vma->vm_file);
 
 	min = vaddr_to_offset(vma, start);
 	max = min + (end - start) - 1;
@@ -1465,7 +1465,7 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	vma = find_vma(mm, bp_vaddr);
 	if (vma && vma->vm_start <= bp_vaddr) {
 		if (valid_vma(vma, false)) {
-			struct inode *inode = vma->vm_file->f_mapping->host;
+			struct inode *inode = file_inode(vma->vm_file);
 			loff_t offset = vaddr_to_offset(vma, bp_vaddr);
 
 			uprobe = find_uprobe(inode, offset);
