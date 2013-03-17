@@ -454,9 +454,22 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 
 	printk(KERN_DEBUG "saa7134-go7007: probing new SAA713X board\n");
 
-	saa = kzalloc(sizeof(struct saa7134_go7007), GFP_KERNEL);
-	if (saa == NULL)
+	go = go7007_alloc(&board_voyager, &dev->pci->dev);
+	if (go == NULL)
 		return -ENOMEM;
+
+	saa = kzalloc(sizeof(struct saa7134_go7007), GFP_KERNEL);
+	if (saa == NULL) {
+		kfree(go);
+		return -ENOMEM;
+	}
+
+	go->board_id = GO7007_BOARDID_PCI_VOYAGER;
+	snprintf(go->bus_info, sizeof(go->bus_info), "PCI:%s", pci_name(dev->pci));
+	strncpy(go->name, saa7134_boards[dev->board].name, sizeof(go->name));
+	go->hpi_ops = &saa7134_go7007_hpi_ops;
+	go->hpi_context = saa;
+	saa->dev = dev;
 
 	/* Init the subdevice interface */
 	sd = &saa->sd;
@@ -472,25 +485,15 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 	if (!saa->bottom)
 		goto allocfail;
 
-	go = go7007_alloc(&board_voyager, &dev->pci->dev);
-	if (go == NULL)
-		goto allocfail;
-	go->board_id = GO7007_BOARDID_PCI_VOYAGER;
-	snprintf(go->bus_info, sizeof(go->bus_info), "PCI:%s", pci_name(dev->pci));
-	strncpy(go->name, saa7134_boards[dev->board].name, sizeof(go->name));
-	go->hpi_ops = &saa7134_go7007_hpi_ops;
-	go->hpi_context = saa;
-	saa->dev = dev;
-
 	/* Boot the GO7007 */
 	if (go7007_boot_encoder(go, go->board_info->flags &
 					GO7007_BOARD_USE_ONBOARD_I2C) < 0)
-		goto initfail;
+		goto allocfail;
 
 	/* Do any final GO7007 initialization, then register the
 	 * V4L2 and ALSA interfaces */
 	if (go7007_register_encoder(go, go->board_info->num_i2c_devs) < 0)
-		goto initfail;
+		goto allocfail;
 
 	/* Register the subdevice interface with the go7007 device */
 	if (v4l2_device_register_subdev(&go->v4l2_dev, sd) < 0)
@@ -501,16 +504,13 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 	go->status = STATUS_ONLINE;
 	return 0;
 
-initfail:
-	go->status = STATUS_SHUTDOWN;
-	return 0;
-
 allocfail:
 	if (saa->top)
 		free_page((unsigned long)saa->top);
 	if (saa->bottom)
 		free_page((unsigned long)saa->bottom);
 	kfree(saa);
+	kfree(go);
 	return -ENOMEM;
 }
 

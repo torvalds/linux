@@ -930,7 +930,11 @@ static void go7007_usb_release(struct go7007 *go)
 	struct urb *vurb, *aurb;
 	int i;
 
-	usb_kill_urb(usb->intr_urb);
+	if (usb->intr_urb) {
+		usb_kill_urb(usb->intr_urb);
+		kfree(usb->intr_urb->transfer_buffer);
+		usb_free_urb(usb->intr_urb);
+	}
 
 	/* Free USB-related structs */
 	for (i = 0; i < 8; ++i) {
@@ -947,8 +951,6 @@ static void go7007_usb_release(struct go7007 *go)
 			usb_free_urb(aurb);
 		}
 	}
-	kfree(usb->intr_urb->transfer_buffer);
-	usb_free_urb(usb->intr_urb);
 
 	kfree(go->hpi_context);
 }
@@ -1141,21 +1143,16 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		return 0;
 	}
 
-	usb = kzalloc(sizeof(struct go7007_usb), GFP_KERNEL);
-	if (usb == NULL)
-		return -ENOMEM;
-
-	/* Allocate the URB and buffer for receiving incoming interrupts */
-	usb->intr_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (usb->intr_urb == NULL)
-		goto allocfail;
-	usb->intr_urb->transfer_buffer = kmalloc(2*sizeof(u16), GFP_KERNEL);
-	if (usb->intr_urb->transfer_buffer == NULL)
-		goto allocfail;
-
 	go = go7007_alloc(&board->main_info, &intf->dev);
 	if (go == NULL)
-		goto allocfail;
+		return -ENOMEM;
+
+	usb = kzalloc(sizeof(struct go7007_usb), GFP_KERNEL);
+	if (usb == NULL) {
+		kfree(go);
+		return -ENOMEM;
+	}
+
 	usb->board = board;
 	usb->usbdev = usbdev;
 	usb_make_path(usbdev, go->bus_info, sizeof(go->bus_info));
@@ -1166,6 +1163,15 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	else
 		go->hpi_ops = &go7007_usb_onboard_hpi_ops;
 	go->hpi_context = usb;
+
+	/* Allocate the URB and buffer for receiving incoming interrupts */
+	usb->intr_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (usb->intr_urb == NULL)
+		goto allocfail;
+	usb->intr_urb->transfer_buffer = kmalloc(2*sizeof(u16), GFP_KERNEL);
+	if (usb->intr_urb->transfer_buffer == NULL)
+		goto allocfail;
+
 	if (go->board_id == GO7007_BOARDID_SENSORAY_2250)
 		usb_fill_bulk_urb(usb->intr_urb, usb->usbdev,
 			usb_rcvbulkpipe(usb->usbdev, 4),
@@ -1181,7 +1187,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	/* Boot the GO7007 */
 	if (go7007_boot_encoder(go, go->board_info->flags &
 					GO7007_BOARD_USE_ONBOARD_I2C) < 0)
-		goto initfail;
+		goto allocfail;
 
 	/* Register the EZ-USB I2C adapter, if we're using it */
 	if (board->flags & GO7007_USB_EZUSB_I2C) {
@@ -1193,7 +1199,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		if (i2c_add_adapter(&go->i2c_adapter) < 0) {
 			printk(KERN_ERR
 				"go7007-usb: error: i2c_add_adapter failed\n");
-			goto initfail;
+			goto allocfail;
 		}
 		go->i2c_adapter_online = 1;
 	}
@@ -1244,7 +1250,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		/* Board strapping indicates tuner model */
 		if (go7007_usb_vendor_request(go, 0x41, 0, 0, go->usb_buf, 3, 1) < 0) {
 			printk(KERN_ERR "go7007-usb: GPIO read failed!\n");
-			goto initfail;
+			goto allocfail;
 		}
 		switch (go->usb_buf[0] >> 6) {
 		case 1:
@@ -1276,7 +1282,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		if (go7007_usb_vendor_request(go, 0x40, 0x7f02, 0,
 					NULL, 0, 0) < 0) {
 			printk(KERN_ERR "go7007-usb: GPIO write failed!\n");
-			goto initfail;
+			goto allocfail;
 		}
 	}
 
@@ -1290,11 +1296,6 @@ static int go7007_usb_probe(struct usb_interface *intf,
 				"port will result in stream corruption, even "
 				"at low bitrates!\n");
 
-	/* Do any final GO7007 initialization, then register the
-	 * V4L2 and ALSA interfaces */
-	if (go7007_register_encoder(go, num_i2c_devs) < 0)
-		goto initfail;
-
 	/* Allocate the URBs and buffers for receiving the video stream */
 	if (board->flags & GO7007_USB_EZUSB) {
 		v_urb_len = 1024;
@@ -1306,46 +1307,45 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	for (i = 0; i < 8; ++i) {
 		usb->video_urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (usb->video_urbs[i] == NULL)
-			goto initfail;
+			goto allocfail;
 		usb->video_urbs[i]->transfer_buffer =
 						kmalloc(v_urb_len, GFP_KERNEL);
 		if (usb->video_urbs[i]->transfer_buffer == NULL)
-			goto initfail;
+			goto allocfail;
 		usb_fill_bulk_urb(usb->video_urbs[i], usb->usbdev, video_pipe,
 				usb->video_urbs[i]->transfer_buffer, v_urb_len,
 				go7007_usb_read_video_pipe_complete, go);
 	}
 
 	/* Allocate the URBs and buffers for receiving the audio stream */
-	if ((board->flags & GO7007_USB_EZUSB) && go->audio_enabled)
+	if ((board->flags & GO7007_USB_EZUSB) &&
+	    (board->flags & GO7007_BOARD_HAS_AUDIO)) {
 		for (i = 0; i < 8; ++i) {
 			usb->audio_urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
 			if (usb->audio_urbs[i] == NULL)
-				goto initfail;
+				goto allocfail;
 			usb->audio_urbs[i]->transfer_buffer = kmalloc(4096,
 								GFP_KERNEL);
 			if (usb->audio_urbs[i]->transfer_buffer == NULL)
-				goto initfail;
+				goto allocfail;
 			usb_fill_bulk_urb(usb->audio_urbs[i], usb->usbdev,
 				usb_rcvbulkpipe(usb->usbdev, 8),
 				usb->audio_urbs[i]->transfer_buffer, 4096,
 				go7007_usb_read_audio_pipe_complete, go);
 		}
+	}
 
+	/* Do any final GO7007 initialization, then register the
+	 * V4L2 and ALSA interfaces */
+	if (go7007_register_encoder(go, num_i2c_devs) < 0)
+		goto allocfail;
 
 	go->status = STATUS_ONLINE;
 	return 0;
 
-initfail:
-	go->status = STATUS_SHUTDOWN;
-	return 0;
-
 allocfail:
-	if (usb->intr_urb) {
-		kfree(usb->intr_urb->transfer_buffer);
-		usb_free_urb(usb->intr_urb);
-	}
-	kfree(usb);
+	go7007_usb_release(go);
+	kfree(go);
 	return -ENOMEM;
 }
 
