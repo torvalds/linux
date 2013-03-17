@@ -310,12 +310,13 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 
 	if (name == NULL)
 		return -EINVAL;
-	name_len = strlen(name);
 
 	if (value == NULL)
 		value_len = 0;
 
-	if (name_len > 255 || value_len > MAX_VALUE_LEN)
+	name_len = strlen(name);
+
+	if (name_len > F2FS_NAME_LEN || value_len > MAX_VALUE_LEN)
 		return -ERANGE;
 
 	f2fs_balance_fs(sbi);
@@ -326,8 +327,8 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 		struct dnode_of_data dn;
 
 		if (!alloc_nid(sbi, &fi->i_xattr_nid)) {
-			mutex_unlock_op(sbi, NODE_NEW);
-			return -ENOSPC;
+			error = -ENOSPC;
+			goto exit;
 		}
 		set_new_dnode(&dn, inode, NULL, NULL, fi->i_xattr_nid);
 		mark_inode_dirty(inode);
@@ -336,8 +337,8 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 		if (IS_ERR(page)) {
 			alloc_nid_failed(sbi, fi->i_xattr_nid);
 			fi->i_xattr_nid = 0;
-			mutex_unlock_op(sbi, NODE_NEW);
-			return PTR_ERR(page);
+			error = PTR_ERR(page);
+			goto exit;
 		}
 
 		alloc_nid_done(sbi, fi->i_xattr_nid);
@@ -349,8 +350,8 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 		/* The inode already has an extended attribute block. */
 		page = get_node_page(sbi, fi->i_xattr_nid);
 		if (IS_ERR(page)) {
-			mutex_unlock_op(sbi, NODE_NEW);
-			return PTR_ERR(page);
+			error = PTR_ERR(page);
+			goto exit;
 		}
 
 		base_addr = page_address(page);
@@ -438,6 +439,7 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	return 0;
 cleanup:
 	f2fs_put_page(page, 1);
+exit:
 	mutex_unlock_op(sbi, NODE_NEW);
 	return error;
 }
