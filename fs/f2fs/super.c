@@ -474,7 +474,7 @@ static int validate_superblock(struct super_block *sb,
 	if (!*raw_super_buf) {
 		f2fs_msg(sb, KERN_ERR, "unable to read %s superblock",
 				super);
-		return 1;
+		return -EIO;
 	}
 
 	*raw_super = (struct f2fs_super_block *)
@@ -486,7 +486,7 @@ static int validate_superblock(struct super_block *sb,
 
 	f2fs_msg(sb, KERN_ERR, "Can't find a valid F2FS filesystem "
 				"in %s superblock", super);
-	return 1;
+	return -EINVAL;
 }
 
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
@@ -509,9 +509,12 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
-	if (validate_superblock(sb, &raw_super, &raw_super_buf, 0)) {
+	err = validate_superblock(sb, &raw_super, &raw_super_buf, 0);
+	if (err) {
 		brelse(raw_super_buf);
-		if (validate_superblock(sb, &raw_super, &raw_super_buf, 1))
+		/* check secondary superblock when primary failed */
+		err = validate_superblock(sb, &raw_super, &raw_super_buf, 1);
+		if (err)
 			goto free_sb_buf;
 	}
 	/* init some FS parameters */
