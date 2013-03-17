@@ -2300,6 +2300,12 @@ Possible values are:</entry>
 	      </row>
 	      <row><entry></entry></row>
 	      <row>
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER</constant>&nbsp;</entry>
+		<entry>boolean</entry>
+	      </row><row><entry spanname="descr">Repeat the video sequence headers. Repeating these
+headers makes random access to the video stream easier. Applicable to the MPEG1, 2 and 4 encoder.</entry>
+	      </row>
+	      <row>
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER</constant>&nbsp;</entry>
 		<entry>boolean</entry>
 	      </row><row><entry spanname="descr">Enabled the deblocking post processing filter for MPEG4 decoder.
