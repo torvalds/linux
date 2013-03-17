@@ -119,7 +119,7 @@ struct ovs_skb_cb {
  * struct dp_upcall - metadata to include with a packet to send to userspace
  * @cmd: One of %OVS_PACKET_CMD_*.
  * @key: Becomes %OVS_PACKET_ATTR_KEY.  Must be nonnull.
- * @userdata: If nonnull, its u64 value is extracted and passed to userspace as
+ * @userdata: If nonnull, its variable-length value is passed to userspace as
  * %OVS_PACKET_ATTR_USERDATA.
  * @pid: Netlink PID to which packet should be sent.  If @pid is 0 then no
  * packet is sent and the packet is accounted in the datapath's @n_lost

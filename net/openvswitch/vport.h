@@ -68,10 +68,10 @@ struct vport_err_stats {
 /**
  * struct vport - one port within a datapath
  * @rcu: RCU callback head for deferred destruction.
- * @port_no: Index into @dp's @ports array.
  * @dp: Datapath to which this port belongs.
  * @upcall_portid: The Netlink port to use for packets received on this port that
  * miss the flow table.
+ * @port_no: Index into @dp's @ports array.
  * @hash_node: Element in @dev_table hash table in vport.c.
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
@@ -81,9 +81,9 @@ struct vport_err_stats {
  */
 struct vport {
 	struct rcu_head rcu;
-	u16 port_no;
 	struct datapath	*dp;
 	u32 upcall_portid;
+	u16 port_no;
 
 	struct hlist_node hash_node;
 	struct hlist_node dp_hash_node;
