@@ -320,6 +320,16 @@ config VIDEO_TW9903
 	  To compile this driver as a module, choose M here: the
 	  module will be called tw9903.
 
+config VIDEO_TW9906
+	tristate "Techwell TW9906 video decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Techwell tw9906 enhanced multi-standard comb filter
+	  video decoder with YCbCr input support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw9906.
+
 config VIDEO_VPX3220
 	tristate "vpx3220a, vpx3216b & vpx3214c video decoders"
 	depends on VIDEO_V4L2 && I2C
