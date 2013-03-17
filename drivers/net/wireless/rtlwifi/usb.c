@@ -308,6 +308,8 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 	return 0;
 }
 
+static void _rtl_rx_work(unsigned long param);
+
 static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -325,6 +327,11 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 		rtlusb->rx_max_size, rtlusb->rx_urb_num, rtlusb->in_ep);
 	init_usb_anchor(&rtlusb->rx_submitted);
 	init_usb_anchor(&rtlusb->rx_cleanup_urbs);
+
+	skb_queue_head_init(&rtlusb->rx_queue);
+	rtlusb->rx_work_tasklet.func = _rtl_rx_work;
+	rtlusb->rx_work_tasklet.data = (unsigned long)rtlusb;
+
 	return 0;
 }
 
@@ -515,7 +522,7 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 		}
 
 		if (likely(rtl_action_proc(hw, skb, false)))
-			ieee80211_rx_irqsafe(hw, skb);
+			ieee80211_rx(hw, skb);
 		else
 			dev_kfree_skb_any(skb);
 	}
@@ -534,7 +541,31 @@ static void _rtl_rx_pre_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	while (!skb_queue_empty(&rx_queue)) {
 		_skb = skb_dequeue(&rx_queue);
 		_rtl_usb_rx_process_agg(hw, _skb);
-		ieee80211_rx_irqsafe(hw, _skb);
+		ieee80211_rx(hw, _skb);
+	}
+}
+
+#define __RX_SKB_MAX_QUEUED	32
+
+static void _rtl_rx_work(unsigned long param)
+{
+	struct rtl_usb *rtlusb = (struct rtl_usb *)param;
+	struct ieee80211_hw *hw = usb_get_intfdata(rtlusb->intf);
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(&rtlusb->rx_queue))) {
+		if (unlikely(IS_USB_STOP(rtlusb))) {
+			dev_kfree_skb_any(skb);
+			continue;
+		}
+
+		if (likely(!rtlusb->usb_rx_segregate_hdl)) {
+			_rtl_usb_rx_process_noagg(hw, skb);
+		} else {
+			/* TO DO */
+			_rtl_rx_pre_process(hw, skb);
+			pr_err("rx agg not supported\n");
+		}
 	}
 }
 
@@ -552,12 +583,21 @@ static void _rtl_rx_completed(struct urb *_urb)
 
 	if (likely(0 == _urb->status)) {
 		struct sk_buff *skb;
+		unsigned int qlen;
 		unsigned int size = _urb->actual_length;
 
 		if (size < RTL_RX_DESC_SIZE + sizeof(struct ieee80211_hdr)) {
 			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
 				 "Too short packet from bulk IN! (len: %d)\n",
 				 size);
+			goto resubmit;
+		}
+
+		qlen = skb_queue_len(&rtlusb->rx_queue);
+		if (qlen >= __RX_SKB_MAX_QUEUED) {
+			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
+				 "Pending RX skbuff queue full! (qlen: %d)\n",
+				 qlen);
 			goto resubmit;
 		}
 
@@ -575,17 +615,8 @@ static void _rtl_rx_completed(struct urb *_urb)
 
 		memcpy(skb_put(skb, size), _urb->transfer_buffer, size);
 
-		/* TODO: Do further processing in tasklet (queue skbs,
-		 * schedule tasklet)
-		 */
-
-		if (likely(!rtlusb->usb_rx_segregate_hdl)) {
-			_rtl_usb_rx_process_noagg(hw, skb);
-		} else {
-			/* TO DO */
-			_rtl_rx_pre_process(hw, skb);
-			pr_err("rx agg not supported\n");
-		}
+		skb_queue_tail(&rtlusb->rx_queue, skb);
+		tasklet_schedule(&rtlusb->rx_work_tasklet);
 
 		goto resubmit;
 	}
@@ -625,6 +656,9 @@ static void _rtl_usb_cleanup_rx(struct ieee80211_hw *hw)
 	struct urb *urb;
 
 	usb_kill_anchored_urbs(&rtlusb->rx_submitted);
+
+	tasklet_kill(&rtlusb->rx_work_tasklet);
+	skb_queue_purge(&rtlusb->rx_queue);
 
 	while ((urb = usb_get_from_anchor(&rtlusb->rx_cleanup_urbs))) {
 		usb_free_coherent(urb->dev, urb->transfer_buffer_length,
