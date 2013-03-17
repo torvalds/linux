@@ -2162,8 +2162,11 @@ void __cpuinit build_tlb_refill_handler(void)
 	case CPU_TX3922:
 	case CPU_TX3927:
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
-		build_r3000_tlb_refill_handler();
+		if (cpu_has_local_ebase)
+			build_r3000_tlb_refill_handler();
 		if (!run_once) {
+			if (!cpu_has_local_ebase)
+				build_r3000_tlb_refill_handler();
 			build_r3000_tlb_load_handler();
 			build_r3000_tlb_store_handler();
 			build_r3000_tlb_modify_handler();
@@ -2192,9 +2195,12 @@ void __cpuinit build_tlb_refill_handler(void)
 			build_r4000_tlb_load_handler();
 			build_r4000_tlb_store_handler();
 			build_r4000_tlb_modify_handler();
+			if (!cpu_has_local_ebase)
+				build_r4000_tlb_refill_handler();
 			run_once++;
 		}
-		build_r4000_tlb_refill_handler();
+		if (cpu_has_local_ebase)
+			build_r4000_tlb_refill_handler();
 	}
 }
 
