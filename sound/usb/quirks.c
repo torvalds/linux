@@ -446,6 +446,17 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 }
 
 /*
+ * Novation Twitch DJ controller
+ */
+static int snd_usb_twitch_boot_quirk(struct usb_device *dev)
+{
+	/* preemptively set up the device because otherwise the
+	 * raw MIDI endpoints are not active */
+	usb_set_interface(dev, 0, 1);
+	return 0;
+}
+
+/*
  * This call will put the synth in "USB send" mode, i.e it will send MIDI
  * messages through USB (this is disabled at startup). The synth will
  * acknowledge by sending a sysex on endpoint 0x85 and by displaying a USB
@@ -745,6 +756,10 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 	case USB_ID(0x0dba, 0x3000):
 		/* Digidesign Mbox 2 */
 		return snd_usb_mbox2_boot_quirk(dev);
+
+	case USB_ID(0x1235, 0x0018):
+		/* Focusrite Novation Twitch */
+		return snd_usb_twitch_boot_quirk(dev);
 
 	case USB_ID(0x133e, 0x0815):
 		/* Access Music VirusTI Desktop */
