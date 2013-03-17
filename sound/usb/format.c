@@ -43,7 +43,7 @@
  */
 static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 				     struct audioformat *fp,
-				     int format, void *_fmt,
+				     unsigned int format, void *_fmt,
 				     int protocol)
 {
 	int sample_width, sample_bytes;
@@ -353,7 +353,7 @@ err:
  * parse the format type I and III descriptors
  */
 static int parse_audio_format_i(struct snd_usb_audio *chip,
-				struct audioformat *fp, int format,
+				struct audioformat *fp, unsigned int format,
 				struct uac_format_type_i_continuous_descriptor *fmt,
 				struct usb_host_interface *iface)
 {
@@ -473,8 +473,9 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 	return ret;
 }
 
-int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp,
-			       int format, struct uac_format_type_i_continuous_descriptor *fmt,
+int snd_usb_parse_audio_format(struct snd_usb_audio *chip,
+			       struct audioformat *fp, unsigned int format,
+			       struct uac_format_type_i_continuous_descriptor *fmt,
 			       int stream, struct usb_host_interface *iface)
 {
 	int err;
