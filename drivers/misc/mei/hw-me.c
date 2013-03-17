@@ -456,8 +456,6 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 {
 	struct mei_device *dev = (struct mei_device *) dev_id;
 	struct mei_cl_cb complete_list;
-	struct mei_cl_cb *cb_pos = NULL, *cb_next = NULL;
-	struct mei_cl *cl;
 	s32 slots;
 	int rets;
 	bool  bus_message_received;
@@ -527,23 +525,9 @@ end:
 		wake_up_interruptible(&dev->wait_recvd_msg);
 		bus_message_received = false;
 	}
-	if (list_empty(&complete_list.list))
-		return IRQ_HANDLED;
 
+	mei_irq_compl_handler(dev, &complete_list);
 
-	list_for_each_entry_safe(cb_pos, cb_next, &complete_list.list, list) {
-		cl = cb_pos->cl;
-		list_del(&cb_pos->list);
-		if (cl) {
-			if (cl != &dev->iamthif_cl) {
-				dev_dbg(&dev->pdev->dev, "completing call back.\n");
-				mei_irq_complete_handler(cl, cb_pos);
-				cb_pos = NULL;
-			} else if (cl == &dev->iamthif_cl) {
-				mei_amthif_complete(dev, cb_pos);
-			}
-		}
-	}
 	return IRQ_HANDLED;
 }
 static const struct mei_hw_ops mei_me_hw_ops = {

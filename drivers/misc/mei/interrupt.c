@@ -30,21 +30,21 @@
 
 
 /**
- * mei_complete_handler - processes completed operation.
+ * mei_cl_complete_handler - processes completed operation for a client
  *
  * @cl: private data of the file object.
- * @cb_pos: callback block.
+ * @cb: callback block.
  */
-void mei_irq_complete_handler(struct mei_cl *cl, struct mei_cl_cb *cb_pos)
+static void mei_cl_complete_handler(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
-	if (cb_pos->fop_type == MEI_FOP_WRITE) {
-		mei_io_cb_free(cb_pos);
-		cb_pos = NULL;
+	if (cb->fop_type == MEI_FOP_WRITE) {
+		mei_io_cb_free(cb);
+		cb = NULL;
 		cl->writing_state = MEI_WRITE_COMPLETE;
 		if (waitqueue_active(&cl->tx_wait))
 			wake_up_interruptible(&cl->tx_wait);
 
-	} else if (cb_pos->fop_type == MEI_FOP_READ &&
+	} else if (cb->fop_type == MEI_FOP_READ &&
 			MEI_READING == cl->reading_state) {
 		cl->reading_state = MEI_READ_COMPLETE;
 		if (waitqueue_active(&cl->rx_wait))
@@ -53,6 +53,31 @@ void mei_irq_complete_handler(struct mei_cl *cl, struct mei_cl_cb *cb_pos)
 	}
 }
 
+/**
+ * mei_irq_compl_handler - dispatch complete handelers
+ *	for the completed callbacks
+ *
+ * @dev - mei device
+ * @compl_list - list of completed cbs
+ */
+void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *compl_list)
+{
+	struct mei_cl_cb *cb, *next;
+	struct mei_cl *cl;
+
+	list_for_each_entry_safe(cb, next, &compl_list->list, list) {
+		cl = cb->cl;
+		list_del(&cb->list);
+		if (!cl)
+			continue;
+
+		dev_dbg(&dev->pdev->dev, "completing call back.\n");
+		if (cl == &dev->iamthif_cl)
+			mei_amthif_complete(dev, cb);
+		else
+			mei_cl_complete_handler(cl, cb);
+	}
+}
 /**
  * _mei_irq_thread_state_ok - checks if mei header matches file private data
  *

@@ -405,8 +405,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 		struct mei_cl_cb *cmpl_list, s32 *slots);
 
 int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
-
-void mei_irq_complete_handler(struct mei_cl *cl, struct mei_cl_cb *cb_pos);
+void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
 
 /*
  * AMTHIF - AMT Host Interface Functions
