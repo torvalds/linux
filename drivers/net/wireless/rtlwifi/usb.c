@@ -513,22 +513,11 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 			if (unicast)
 				rtlpriv->link_info.num_rx_inperiod++;
 		}
-		if (likely(rtl_action_proc(hw, skb, false))) {
-			struct sk_buff *uskb = NULL;
-			u8 *pdata;
 
-			uskb = dev_alloc_skb(skb->len + 128);
-			if (uskb) {	/* drop packet on allocation failure */
-				memcpy(IEEE80211_SKB_RXCB(uskb), &rx_status,
-				       sizeof(rx_status));
-				pdata = (u8 *)skb_put(uskb, skb->len);
-				memcpy(pdata, skb->data, skb->len);
-				ieee80211_rx_irqsafe(hw, uskb);
-			}
+		if (likely(rtl_action_proc(hw, skb, false)))
+			ieee80211_rx_irqsafe(hw, skb);
+		else
 			dev_kfree_skb_any(skb);
-		} else {
-			dev_kfree_skb_any(skb);
-		}
 	}
 }
 
