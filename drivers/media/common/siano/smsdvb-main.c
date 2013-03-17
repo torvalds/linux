@@ -339,9 +339,21 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 	if (client->prt_isdb_stats)
 		client->prt_isdb_stats(client->debug_data, p);
 
+	client->fe_status = sms_to_status(p->IsDemodLocked, p->IsRfLocked);
+
+	/*
+	 * Firmware 2.1 seems to report only lock status and
+	 * Signal strength. The signal strength indicator is at the
+	 * wrong field.
+	 */
+	if (p->StatisticsType == 0) {
+		c->strength.stat[0].uvalue = ((s32)p->TransmissionMode) * 1000;
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
 	/* Update ISDB-T transmission parameters */
 	c->frequency = p->Frequency;
-	client->fe_status = sms_to_status(p->IsDemodLocked, 0);
 	c->bandwidth_hz = sms_to_bw(p->Bandwidth);
 	c->transmission_mode = sms_to_mode(p->TransmissionMode);
 	c->guard_interval = sms_to_guard_interval(p->GuardInterval);
