@@ -32,7 +32,6 @@
 #include "dev_disp.h"
 #include "disp_lcd.h"
 #include "dev_fb.h"
-#include "../hdmi/hdmi_cec.h"
 
 
 struct info_mm {
@@ -586,15 +585,11 @@ int disp_resume(int clk, int status)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void backlight_early_suspend(struct early_suspend *h)
 {
-	cec_standby = 1;
-	cec_count = 30;
 	disp_suspend(2, 1);
 }
 
 static void backlight_late_resume(struct early_suspend *h)
 {
-	cec_standby = 0;
-	cec_count = 30;
 	disp_resume(2, 1);
 }
 
