@@ -3191,11 +3191,17 @@ static int cx_auto_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
+static void cx_auto_free(struct hda_codec *codec)
+{
+	snd_hda_detach_beep_device(codec);
+	snd_hda_gen_free(codec);
+}
+
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = snd_hda_gen_init,
-	.free = snd_hda_gen_free,
+	.free = cx_auto_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.check_power_status = snd_hda_gen_check_power_status,
