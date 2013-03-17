@@ -498,12 +498,6 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
 		 * starts to handle softconnect right.
 		 */
-		if (status == OMAP_MUSB_VBUS_OFF ||
-				status == OMAP_MUSB_ID_FLOAT)
-			twl4030_phy_suspend(twl, 0);
-		else
-			twl4030_phy_resume(twl);
-
 		omap_musb_mailbox(twl->linkstat);
 	}
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
