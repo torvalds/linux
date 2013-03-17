@@ -21,6 +21,7 @@
 #include <mach/aw_ccu.h>
 #include "hdmi_core.h"
 #include "../disp/sunxi_disp_regs.h"
+#include "hdmi_cec.h"
 
 static char *audio;
 module_param(audio, charp, 0444);
@@ -101,7 +102,7 @@ main_Hpd_Check(void)
 	times = 0;
 
 	for (i = 0; i < 3; i++) {
-		hdmi_delay_ms(1);
+		hdmi_delay_ms(10);
 		if (readl(HDMI_HPD) & 0x01)
 			times++;
 	}
@@ -118,6 +119,8 @@ __s32 hdmi_main_task_loop(void)
 		__inf("plugout\n");
 		hdmi_state = HDMI_State_Wait_Hpd;
 	}
+
+	hdmi_cec_task_loop();
 
 	/* ? where did all the breaks run off to? --libv */
 	switch (hdmi_state) {
@@ -144,6 +147,9 @@ __s32 hdmi_main_task_loop(void)
 
 		ParseEDID();
 		readl(HDMI_I2C_UNKNOWN_1);
+
+		if (!cec_standby)
+			cec_count = 100;
 
 		if (audio_edid && Device_Support_VIC[HDMI_EDID]) {
 			if (audio_info.supported_rates)

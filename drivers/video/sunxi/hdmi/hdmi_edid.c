@@ -22,6 +22,8 @@
 #include "hdmi_core.h"
 #include "../disp/dev_disp.h"
 #include "../disp/sunxi_disp_regs.h"
+#include "hdmi_cec.h"
+
 
 /*
  * ParseEDID()
@@ -284,6 +286,8 @@ Parse_HDMI_VSDB(__u8 *pbuf, __u8 size)
 	else
 		return 0;
 
+	cec_phy_addr = (((__u32)pbuf[3]) << 8) | pbuf[4];
+	__inf("my phy addr is %x\n", cec_phy_addr);
 	if (size <= 8)
 		return 0;
 

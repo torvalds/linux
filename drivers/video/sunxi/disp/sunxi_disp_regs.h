@@ -46,6 +46,7 @@
 #define HDMI_AUDIO_INFOFRAME		(hdmi_base + 0x0a0)
 #define HDMI_QCP_PACKET			(hdmi_base + 0x0e0)
 #define HDMI_TX_DRIVER			(hdmi_base + 0x200)
+#define HDMI_CEC			(hdmi_base + 0x214)
 #define HDMI_VENDOR_INFOFRAME		(hdmi_base + 0x240)
 #define HDMI_PACKET_CONFIG		(hdmi_base + 0x2f0)
 #define HDMI_UNKNOWN			(hdmi_base + 0x300) /* Unknown */
