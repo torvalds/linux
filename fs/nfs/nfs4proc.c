@@ -6841,7 +6841,8 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.init_caps = NFS_CAP_READDIRPLUS
 		| NFS_CAP_ATOMIC_OPEN
 		| NFS_CAP_CHANGE_ATTR
-		| NFS_CAP_POSIX_LOCK,
+		| NFS_CAP_POSIX_LOCK
+		| NFS_CAP_STATEID_NFSV41,
 	.call_sync = nfs4_call_sync_sequence,
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,

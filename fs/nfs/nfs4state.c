@@ -1053,6 +1053,8 @@ int nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
 		goto out;
 	ret = nfs4_copy_open_stateid(dst, state);
 out:
+	if (nfs_server_capable(state->inode, NFS_CAP_STATEID_NFSV41))
+		dst->seqid = 0;
 	return ret;
 }
 
