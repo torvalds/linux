@@ -47,7 +47,7 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 				     int protocol)
 {
 	int sample_width, sample_bytes;
-	u64 pcm_formats;
+	u64 pcm_formats = 0;
 
 	switch (protocol) {
 	case UAC_VERSION_1:
@@ -63,14 +63,17 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		struct uac_format_type_i_ext_descriptor *fmt = _fmt;
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubslotSize;
+
+		if (format & UAC2_FORMAT_TYPE_I_RAW_DATA)
+			pcm_formats |= SNDRV_PCM_FMTBIT_SPECIAL;
+
 		format <<= 1;
 		break;
 	}
 	}
 
-	pcm_formats = 0;
-
-	if (format == 0 || format == (1 << UAC_FORMAT_TYPE_I_UNDEFINED)) {
+	if ((pcm_formats == 0) &&
+	    (format == 0 || format == (1 << UAC_FORMAT_TYPE_I_UNDEFINED))) {
 		/* some devices don't define this correctly... */
 		snd_printdd(KERN_INFO "%d:%u:%d : format type 0 is detected, processed as PCM\n",
 			    chip->dev->devnum, fp->iface, fp->altsetting);
