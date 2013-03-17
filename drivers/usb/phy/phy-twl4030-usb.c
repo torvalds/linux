@@ -515,19 +515,17 @@ static int twl4030_usb_phy_init(struct usb_phy *phy)
 	struct twl4030_usb *twl = phy_to_twl(phy);
 	enum omap_musb_vbus_id_status status;
 
-	status = twl4030_usb_linkstat(twl);
-	if (status > 0) {
-		if (status == OMAP_MUSB_VBUS_OFF ||
-				status == OMAP_MUSB_ID_FLOAT) {
-			__twl4030_phy_power(twl, 0);
-			twl->asleep = 1;
-		} else {
-			__twl4030_phy_resume(twl);
-			twl->asleep = 0;
-		}
+	/*
+	 * Start in sleep state, we'll get called through set_suspend()
+	 * callback when musb is runtime resumed and it's time to start.
+	 */
+	__twl4030_phy_power(twl, 0);
+	twl->asleep = 1;
 
+	status = twl4030_usb_linkstat(twl);
+	if (status > 0)
 		omap_musb_mailbox(twl->linkstat);
-	}
+
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
 	return 0;
 }
