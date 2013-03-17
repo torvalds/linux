@@ -1935,6 +1935,27 @@ static noinline int next_root_backup(struct btrfs_fs_info *info,
 	return 0;
 }
 
+/* helper to cleanup workers */
+static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
+{
+	btrfs_stop_workers(&fs_info->generic_worker);
+	btrfs_stop_workers(&fs_info->fixup_workers);
+	btrfs_stop_workers(&fs_info->delalloc_workers);
+	btrfs_stop_workers(&fs_info->workers);
+	btrfs_stop_workers(&fs_info->endio_workers);
+	btrfs_stop_workers(&fs_info->endio_meta_workers);
+	btrfs_stop_workers(&fs_info->endio_raid56_workers);
+	btrfs_stop_workers(&fs_info->rmw_workers);
+	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
+	btrfs_stop_workers(&fs_info->endio_write_workers);
+	btrfs_stop_workers(&fs_info->endio_freespace_worker);
+	btrfs_stop_workers(&fs_info->submit_workers);
+	btrfs_stop_workers(&fs_info->delayed_workers);
+	btrfs_stop_workers(&fs_info->caching_workers);
+	btrfs_stop_workers(&fs_info->readahead_workers);
+	btrfs_stop_workers(&fs_info->flush_workers);
+}
+
 /* helper to cleanup tree roots */
 static void free_root_pointers(struct btrfs_fs_info *info, int chunk_root)
 {
@@ -2760,22 +2781,7 @@ fail_tree_roots:
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 
 fail_sb_buffer:
-	btrfs_stop_workers(&fs_info->generic_worker);
-	btrfs_stop_workers(&fs_info->readahead_workers);
-	btrfs_stop_workers(&fs_info->fixup_workers);
-	btrfs_stop_workers(&fs_info->delalloc_workers);
-	btrfs_stop_workers(&fs_info->workers);
-	btrfs_stop_workers(&fs_info->endio_workers);
-	btrfs_stop_workers(&fs_info->endio_meta_workers);
-	btrfs_stop_workers(&fs_info->endio_raid56_workers);
-	btrfs_stop_workers(&fs_info->rmw_workers);
-	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
-	btrfs_stop_workers(&fs_info->endio_write_workers);
-	btrfs_stop_workers(&fs_info->endio_freespace_worker);
-	btrfs_stop_workers(&fs_info->submit_workers);
-	btrfs_stop_workers(&fs_info->delayed_workers);
-	btrfs_stop_workers(&fs_info->caching_workers);
-	btrfs_stop_workers(&fs_info->flush_workers);
+	btrfs_stop_all_workers(fs_info);
 fail_alloc:
 fail_iput:
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
@@ -3437,22 +3443,7 @@ int close_ctree(struct btrfs_root *root)
 
 	iput(fs_info->btree_inode);
 
-	btrfs_stop_workers(&fs_info->generic_worker);
-	btrfs_stop_workers(&fs_info->fixup_workers);
-	btrfs_stop_workers(&fs_info->delalloc_workers);
-	btrfs_stop_workers(&fs_info->workers);
-	btrfs_stop_workers(&fs_info->endio_workers);
-	btrfs_stop_workers(&fs_info->endio_meta_workers);
-	btrfs_stop_workers(&fs_info->endio_raid56_workers);
-	btrfs_stop_workers(&fs_info->rmw_workers);
-	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
-	btrfs_stop_workers(&fs_info->endio_write_workers);
-	btrfs_stop_workers(&fs_info->endio_freespace_worker);
-	btrfs_stop_workers(&fs_info->submit_workers);
-	btrfs_stop_workers(&fs_info->delayed_workers);
-	btrfs_stop_workers(&fs_info->caching_workers);
-	btrfs_stop_workers(&fs_info->readahead_workers);
-	btrfs_stop_workers(&fs_info->flush_workers);
+	btrfs_stop_all_workers(fs_info);
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_test_opt(root, CHECK_INTEGRITY))
