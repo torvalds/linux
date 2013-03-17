@@ -452,7 +452,7 @@ int cec_attach_host(struct cec_driver *drv)
 int cec_detach_host(struct cec_driver *drv)
 {
 	mutex_lock(&drv->lock);
-	if (drv->ops->detach(drv))
+	if (drv->ops->detach)
 		drv->ops->detach(drv);
 	drv->attached = false;
 	mutex_unlock(&drv->lock);
