@@ -175,14 +175,6 @@ tcp_congestion_control - STRING
 	is inherited.
 	[see setsockopt(listenfd, SOL_TCP, TCP_CONGESTION, "name" ...) ]
 
-tcp_cookie_size - INTEGER
-	Default size of TCP Cookie Transactions (TCPCT) option, that may be
-	overridden on a per socket basis by the TCPCT socket option.
-	Values greater than the maximum (16) are interpreted as the maximum.
-	Values greater than zero and less than the minimum (8) are interpreted
-	as the minimum.  Odd values are interpreted as the next even value.
-	Default: 0 (off).
-
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 

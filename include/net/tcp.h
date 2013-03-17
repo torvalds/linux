@@ -179,7 +179,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCPOPT_SACK             5       /* SACK Block */
 #define TCPOPT_TIMESTAMP	8	/* Better RTT estimations/PAWS */
 #define TCPOPT_MD5SIG		19	/* MD5 Signature (RFC2385) */
-#define TCPOPT_COOKIE		253	/* Cookie extension (experimental) */
 #define TCPOPT_EXP		254	/* Experimental */
 /* Magic number to be after the option value for sharing TCP
  * experimental options. See draft-ietf-tcpm-experimental-options-00.txt
@@ -454,7 +453,7 @@ extern void tcp_syn_ack_timeout(struct sock *sk, struct request_sock *req);
 extern int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		       size_t len, int nonblock, int flags, int *addr_len);
 extern void tcp_parse_options(const struct sk_buff *skb,
-			      struct tcp_options_received *opt_rx, const u8 **hvpp,
+			      struct tcp_options_received *opt_rx,
 			      int estab, struct tcp_fastopen_cookie *foc);
 extern const u8 *tcp_parse_md5sig_option(const struct tcphdr *th);
 
@@ -476,7 +475,6 @@ extern int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 extern int tcp_connect(struct sock *sk);
 extern struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 					struct request_sock *req,
-					struct request_values *rvp,
 					struct tcp_fastopen_cookie *foc);
 extern int tcp_disconnect(struct sock *sk, int flags);
 
@@ -1588,91 +1586,6 @@ struct tcp_request_sock_ops {
 						  const struct sk_buff *skb);
 #endif
 };
-
-/* Using SHA1 for now, define some constants.
- */
-#define COOKIE_DIGEST_WORDS (SHA_DIGEST_WORDS)
-#define COOKIE_MESSAGE_WORDS (SHA_MESSAGE_BYTES / 4)
-#define COOKIE_WORKSPACE_WORDS (COOKIE_DIGEST_WORDS + COOKIE_MESSAGE_WORDS)
-
-extern int tcp_cookie_generator(u32 *bakery);
-
-/**
- *	struct tcp_cookie_values - each socket needs extra space for the
- *	cookies, together with (optional) space for any SYN data.
- *
- *	A tcp_sock contains a pointer to the current value, and this is
- *	cloned to the tcp_timewait_sock.
- *
- * @cookie_pair:	variable data from the option exchange.
- *
- * @cookie_desired:	user specified tcpct_cookie_desired.  Zero
- *			indicates default (sysctl_tcp_cookie_size).
- *			After cookie sent, remembers size of cookie.
- *			Range 0, TCP_COOKIE_MIN to TCP_COOKIE_MAX.
- *
- * @s_data_desired:	user specified tcpct_s_data_desired.  When the
- *			constant payload is specified (@s_data_constant),
- *			holds its length instead.
- *			Range 0 to TCP_MSS_DESIRED.
- *
- * @s_data_payload:	constant data that is to be included in the
- *			payload of SYN or SYNACK segments when the
- *			cookie option is present.
- */
-struct tcp_cookie_values {
-	struct kref	kref;
-	u8		cookie_pair[TCP_COOKIE_PAIR_SIZE];
-	u8		cookie_pair_size;
-	u8		cookie_desired;
-	u16		s_data_desired:11,
-			s_data_constant:1,
-			s_data_in:1,
-			s_data_out:1,
-			s_data_unused:2;
-	u8		s_data_payload[0];
-};
-
-static inline void tcp_cookie_values_release(struct kref *kref)
-{
-	kfree(container_of(kref, struct tcp_cookie_values, kref));
-}
-
-/* The length of constant payload data.  Note that s_data_desired is
- * overloaded, depending on s_data_constant: either the length of constant
- * data (returned here) or the limit on variable data.
- */
-static inline int tcp_s_data_size(const struct tcp_sock *tp)
-{
-	return (tp->cookie_values != NULL && tp->cookie_values->s_data_constant)
-		? tp->cookie_values->s_data_desired
-		: 0;
-}
-
-/**
- *	struct tcp_extend_values - tcp_ipv?.c to tcp_output.c workspace.
- *
- *	As tcp_request_sock has already been extended in other places, the
- *	only remaining method is to pass stack values along as function
- *	parameters.  These parameters are not needed after sending SYNACK.
- *
- * @cookie_bakery:	cryptographic secret and message workspace.
- *
- * @cookie_plus:	bytes in authenticator/cookie option, copied from
- *			struct tcp_options_received (above).
- */
-struct tcp_extend_values {
-	struct request_values		rv;
-	u32				cookie_bakery[COOKIE_WORKSPACE_WORDS];
-	u8				cookie_plus:6,
-					cookie_out_never:1,
-					cookie_in_always:1;
-};
-
-static inline struct tcp_extend_values *tcp_xv(struct request_values *rvp)
-{
-	return (struct tcp_extend_values *)rvp;
-}
 
 extern void tcp_v4_init(void);
 extern void tcp_init(void);
