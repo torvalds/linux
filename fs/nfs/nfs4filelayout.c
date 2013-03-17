@@ -317,10 +317,13 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 	}
 	rdata->read_done_cb = filelayout_read_done_cb;
 
-	nfs41_setup_sequence(rdata->ds_clp->cl_session,
+	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
 			&rdata->args.seq_args,
 			&rdata->res.seq_res,
-			task);
+			task))
+		return;
+	nfs4_set_rw_stateid(&rdata->args.stateid, rdata->args.context,
+			rdata->args.lock_context, FMODE_READ);
 }
 
 static void filelayout_read_call_done(struct rpc_task *task, void *data)
@@ -421,10 +424,13 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 		rpc_exit(task, 0);
 		return;
 	}
-	nfs41_setup_sequence(wdata->ds_clp->cl_session,
+	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
 			&wdata->args.seq_args,
 			&wdata->res.seq_res,
-			task);
+			task))
+		return;
+	nfs4_set_rw_stateid(&wdata->args.stateid, wdata->args.context,
+			wdata->args.lock_context, FMODE_WRITE);
 }
 
 static void filelayout_write_call_done(struct rpc_task *task, void *data)

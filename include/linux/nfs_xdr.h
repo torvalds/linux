@@ -486,6 +486,7 @@ struct nfs_readargs {
 	struct nfs_fh *		fh;
 	struct nfs_open_context *context;
 	struct nfs_lock_context *lock_context;
+	nfs4_stateid		stateid;
 	__u64			offset;
 	__u32			count;
 	unsigned int		pgbase;
@@ -507,6 +508,7 @@ struct nfs_writeargs {
 	struct nfs_fh *		fh;
 	struct nfs_open_context *context;
 	struct nfs_lock_context *lock_context;
+	nfs4_stateid		stateid;
 	__u64			offset;
 	__u32			count;
 	enum nfs3_stable_how	stable;
