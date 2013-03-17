@@ -166,6 +166,7 @@ struct go7007 {
 	struct v4l2_ctrl *mpeg_video_gop_closure;
 	struct v4l2_ctrl *mpeg_video_bitrate;
 	struct v4l2_ctrl *mpeg_video_aspect_ratio;
+	struct v4l2_ctrl *mpeg_video_b_frames;
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;
 	spinlock_t spinlock;
 	struct mutex hw_lock;

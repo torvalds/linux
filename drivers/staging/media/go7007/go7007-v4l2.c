@@ -161,6 +161,7 @@ static void set_formatting(struct go7007 *go)
 	}
 	go->gop_size = v4l2_ctrl_g_ctrl(go->mpeg_video_gop_size);
 	go->closed_gop = v4l2_ctrl_g_ctrl(go->mpeg_video_gop_closure);
+	go->ipb = v4l2_ctrl_g_ctrl(go->mpeg_video_b_frames) != 0;
 	go->bitrate = v4l2_ctrl_g_ctrl(go->mpeg_video_bitrate);
 	go->gop_header_enable = 1;
 	go->dvd_mode = 0;
@@ -168,9 +169,9 @@ static void set_formatting(struct go7007 *go)
 		go->dvd_mode =
 			go->bitrate == 9800000 &&
 			go->gop_size == 15 &&
+			go->ipb == 0 &&
 			go->closed_gop;
 	go->repeat_seqhead = go->dvd_mode;
-	go->ipb = 0;
 
 	switch (v4l2_ctrl_g_ctrl(go->mpeg_video_aspect_ratio)) {
 	default:
@@ -935,7 +936,7 @@ int go7007_v4l2_ctrl_init(struct go7007 *go)
 	struct v4l2_ctrl_handler *hdl = &go->hdl;
 	struct v4l2_ctrl *ctrl;
 
-	v4l2_ctrl_handler_init(hdl, 12);
+	v4l2_ctrl_handler_init(hdl, 13);
 	go->mpeg_video_gop_size = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_MPEG_VIDEO_GOP_SIZE, 0, 34, 1, 15);
 	go->mpeg_video_gop_closure = v4l2_ctrl_new_std(hdl, NULL,
@@ -943,6 +944,9 @@ int go7007_v4l2_ctrl_init(struct go7007 *go)
 	go->mpeg_video_bitrate = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_MPEG_VIDEO_BITRATE,
 			64000, 10000000, 1, 9800000);
+	go->mpeg_video_b_frames = v4l2_ctrl_new_std(hdl, NULL,
+			V4L2_CID_MPEG_VIDEO_B_FRAMES, 0, 2, 2, 0);
+
 	go->mpeg_video_aspect_ratio = v4l2_ctrl_new_std_menu(hdl, NULL,
 			V4L2_CID_MPEG_VIDEO_ASPECT,
 			V4L2_MPEG_VIDEO_ASPECT_16x9, 0,
