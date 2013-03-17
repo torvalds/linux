@@ -497,15 +497,17 @@ static void b43_phy_ht_tx_power_ctl(struct b43_wldev *dev, bool enable)
 	static const u16 cmd_regs[3] = { B43_PHY_HT_TXPCTL_CMD_C1,
 					 B43_PHY_HT_TXPCTL_CMD_C2,
 					 B43_PHY_HT_TXPCTL_CMD_C3 };
+	static const u16 status_regs[3] = { B43_PHY_HT_TX_PCTL_STATUS_C1,
+					    B43_PHY_HT_TX_PCTL_STATUS_C2,
+					    B43_PHY_HT_TX_PCTL_STATUS_C3 };
 	int i;
 
 	if (!enable) {
 		if (b43_phy_read(dev, B43_PHY_HT_TXPCTL_CMD_C1) & en_bits) {
 			/* We disable enabled TX pwr ctl, save it's state */
-			/*
-			 * TODO: find the registers. On N-PHY they were 0x1ed
-			 * and 0x1ee, we need 3 such a registers for HT-PHY
-			 */
+			for (i = 0; i < 3; i++)
+				phy_ht->tx_pwr_idx[i] =
+					b43_phy_read(dev, status_regs[i]);
 		}
 		b43_phy_mask(dev, B43_PHY_HT_TXPCTL_CMD_C1, ~en_bits);
 	} else {
