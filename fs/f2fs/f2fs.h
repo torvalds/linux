@@ -515,9 +515,12 @@ static inline void mutex_unlock_op(struct f2fs_sb_info *sbi, enum lock_type t)
 /*
  * Check whether the given nid is within node id range.
  */
-static inline void check_nid_range(struct f2fs_sb_info *sbi, nid_t nid)
+static inline int check_nid_range(struct f2fs_sb_info *sbi, nid_t nid)
 {
-	BUG_ON((nid >= NM_I(sbi)->max_nid));
+	WARN_ON((nid >= NM_I(sbi)->max_nid));
+	if (nid >= NM_I(sbi)->max_nid)
+		return -EINVAL;
+	return 0;
 }
 
 #define F2FS_DEFAULT_ALLOCATED_BLOCKS	1

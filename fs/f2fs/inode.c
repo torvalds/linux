@@ -44,7 +44,11 @@ static int do_read_inode(struct inode *inode)
 	struct f2fs_inode *ri;
 
 	/* Check if ino is within scope */
-	check_nid_range(sbi, inode->i_ino);
+	if (check_nid_range(sbi, inode->i_ino)) {
+		f2fs_msg(inode->i_sb, KERN_ERR, "bad inode number: %lu",
+			 (unsigned long) inode->i_ino);
+		return -EINVAL;
+	}
 
 	node_page = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(node_page))
