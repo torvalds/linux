@@ -26,6 +26,12 @@
 		bootargs = "console=ttyS0,57600";
 	};
 
+	memory {
+                name = "memory";
+                device_type = "memory";
+                reg = <0x0 0x40000000>; /* 1 GB */
+        };
+
 	soc {
 		clkmgr@ffd04000 {
 			clocks {

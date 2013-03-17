@@ -301,7 +301,7 @@ static int cadence_qspi_of_get_pdata(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit cadence_qspi_probe(struct platform_device *pdev)
+static int cadence_qspi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct struct_cqspi *cadence_qspi;
@@ -455,7 +455,7 @@ err_iomem:
 	return status;
 }
 
-static int __devexit cadence_qspi_remove(struct platform_device *pdev)
+static int cadence_qspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct struct_cqspi *cadence_qspi = spi_master_get_devdata(master);
@@ -522,7 +522,7 @@ static struct dev_pm_ops cadence_qspi__dev_pm_ops =
 #endif
 
 #ifdef CONFIG_OF
-static struct of_device_id cadence_qspi_of_match[] __devinitdata = {
+static struct of_device_id cadence_qspi_of_match[] = {
 	{ .compatible = "cadence,qspi",},
 	{ /* end of table */}
 };
@@ -535,7 +535,7 @@ MODULE_DEVICE_TABLE(of, cadence_qspi_of_match);
 static struct platform_driver cadence_qspi_platform_driver =
 {
 	.probe		= cadence_qspi_probe,
-	.remove		= __devexit_p(cadence_qspi_remove),
+	.remove		= cadence_qspi_remove,
 	.driver = {
 		.name	= CADENCE_QSPI_NAME,
 		.owner	= THIS_MODULE,

@@ -97,7 +97,7 @@ static irqreturn_t dwc_otg_externalchgpump_irq(int _irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int __devexit dwc_otg_driver_remove(struct platform_device *ofdev)
+static int dwc_otg_driver_remove(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct dwc_otg_device *dwc_dev = dev_get_drvdata(dev);
@@ -142,7 +142,7 @@ static int __devexit dwc_otg_driver_remove(struct platform_device *ofdev)
 
 static u64 dwc_otg_dma_mask;
 
-static int __devinit dwc_otg_driver_probe(struct platform_device *ofdev)
+static int dwc_otg_driver_probe(struct platform_device *ofdev)
 {
 	int retval;
 	struct dwc_otg_device *dwc_dev;
@@ -395,7 +395,7 @@ MODULE_DEVICE_TABLE(of, dwc_otg_match);
 
 static struct platform_driver dwc_otg_driver = {
 	.probe = dwc_otg_driver_probe,
-	.remove = __devexit_p(dwc_otg_driver_remove),
+	.remove = dwc_otg_driver_remove,
 	.driver = {
 			.name = "dwc_otg",
 			.owner = THIS_MODULE,

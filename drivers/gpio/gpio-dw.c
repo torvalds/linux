@@ -117,7 +117,7 @@ static int dw_gpio_direction_output(struct gpio_chip *gc,
  * driver data structure. It returns 0, if the driver is bound to the GPIO
  * device, or a negative value if there is an error.
  */
-static int __devinit dw_gpio_probe(struct platform_device *pdev)
+static int dw_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct dw_gpio_instance *chip;

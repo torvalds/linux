@@ -1383,7 +1383,7 @@ static struct tasklet_struct start_xfer_tasklet = {
  * This function initialized the pcd Dp structures to there default
  * state.
  */
-static void __devinit dwc_otg_pcd_reinit(struct dwc_pcd *pcd)
+static void dwc_otg_pcd_reinit(struct dwc_pcd *pcd)
 {
 	static const char *names[] = {
 		"ep0", "ep1in", "ep2in", "ep3in", "ep4in", "ep5in",
@@ -1545,7 +1545,7 @@ static void dwc_otg_pcd_gadget_release(struct device *dev)
  * Allocates the buffers for the setup packets when the PCD portion of the
  * driver is first initialized.
  */
-static int __devinit init_pkt_buffs(struct device *dev, struct dwc_pcd *pcd)
+static int init_pkt_buffs(struct device *dev, struct dwc_pcd *pcd)
 {
 	if (pcd->otg_dev->core_if->dma_enable) {
 		pcd->dwc_pool = dma_pool_create("dwc_otg_pcd", dev,
@@ -1584,7 +1584,7 @@ error:
 /**
  * This function initializes the PCD portion of the driver.
  */
-int __devinit dwc_otg_pcd_init(struct device *dev)
+int dwc_otg_pcd_init(struct device *dev)
 {
 	static const char pcd_name[] = "dwc_otg_pcd";
 	struct dwc_pcd *pcd;

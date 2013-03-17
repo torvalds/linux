@@ -211,7 +211,7 @@ static struct irq_domain_ops altera_gpio_irq_ops = {
 	.xlate = irq_domain_xlate_twocell,
 };
 
-int __devinit altera_gpio_probe(struct platform_device *pdev)
+int altera_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	int id, reg, ret;
@@ -328,7 +328,7 @@ static int altera_gpio_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id altera_gpio_of_match[] __devinitdata = {
+static struct of_device_id altera_gpio_of_match[] = {
 	{ .compatible = "altr,pio-1.0", },
 	{},
 };

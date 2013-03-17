@@ -159,7 +159,7 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id dw_spi_mmio_of_match[] __devinitdata = {
+static struct of_device_id dw_spi_mmio_of_match[] = {
 	{ .compatible = "snps,dw-spi-mmio", },
 	{ /* end of table */}
 };

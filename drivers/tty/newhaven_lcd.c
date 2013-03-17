@@ -379,7 +379,7 @@ static const struct tty_operations lcd_ops = {
 	.write_room      = lcd_write_room,
 };
 
-static int __devinit lcd_probe(struct i2c_client *client,
+static int lcd_probe(struct i2c_client *client,
 			const struct i2c_device_id *i2c_id)
 {
 	struct device_node *np = client->dev.of_node;
@@ -496,7 +496,7 @@ static struct i2c_driver lcd_i2c_driver = {
 		.of_match_table = lcd_of_match,
 	},
 	.probe = lcd_probe,
-	.remove = __devexit_p(lcd_remove),
+	.remove = lcd_remove,
 	.id_table = lcd_id,
 };
 

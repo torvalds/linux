@@ -104,7 +104,7 @@ static int set_valid_tx_fifo_sizes(struct core_if *core_if)
  * This function is called during module intialization to verify that
  * the module parameters are in a valid state.
  */
-int __devinit check_parameters(struct core_if *core_if)
+int check_parameters(struct core_if *core_if)
 {
 	struct core_params *dwc_otg_module_params = core_if->core_params;
 	/* Default values */

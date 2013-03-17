@@ -660,7 +660,7 @@ void dwc_otg_flush_rx_fifo(struct core_if *core_if)
  * Register HCD callbacks.
  * The callbacks are used to start and stop the HCD for interrupt processing.
  */
-void __devinit dwc_otg_cil_register_hcd_callbacks(struct core_if *c_if,
+void dwc_otg_cil_register_hcd_callbacks(struct core_if *c_if,
 						  struct cil_callbacks *cb,
 						  void *p)
 {
@@ -672,7 +672,7 @@ void __devinit dwc_otg_cil_register_hcd_callbacks(struct core_if *c_if,
  * Register PCD callbacks.
  * The callbacks are used to start and stop the PCD for interrupt processing.
  */
-void __devinit dwc_otg_cil_register_pcd_callbacks(struct core_if *c_if,
+void dwc_otg_cil_register_pcd_callbacks(struct core_if *c_if,
 						  struct cil_callbacks *cb,
 						  void *p)
 {
@@ -690,7 +690,7 @@ void __devinit dwc_otg_cil_register_pcd_callbacks(struct core_if *c_if,
  * The params argument holds the parameters that specify how the core should be
  * configured.
  */
-struct core_if __devinit *dwc_otg_cil_init(const __iomem u32 * base,
+struct core_if *dwc_otg_cil_init(const __iomem u32 *base,
 					   struct core_params *params)
 {
 	struct core_if *core_if;

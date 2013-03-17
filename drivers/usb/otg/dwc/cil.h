@@ -71,7 +71,8 @@ static inline void dwc_reg_write(ulong reg, u32 offset, const u32 value)
 static inline
 	void dwc_reg_modify(ulong reg, u32 offset, const u32 _clear_mask, const u32 _set_mask)
 {
-	writel( (readl((unsigned __iomem *)(reg + offset)) & ~_clear_mask) | _set_mask, reg + offset);
+	writel((readl((unsigned __iomem *)(reg + offset)) & ~_clear_mask) | _set_mask,
+		(unsigned __iomem *)(reg + offset));
 };
 
 static inline void dwc_write_fifo32(ulong reg, const u32 _value)
@@ -1037,7 +1038,7 @@ extern int __init dwc_otg_pcd_init(struct device *dev);
 #endif
 
 extern void dwc_otg_cil_remove(struct core_if *core_if);
-extern struct core_if __devinit *dwc_otg_cil_init(const __iomem u32 * base,
+extern struct core_if *dwc_otg_cil_init(const __iomem u32 *base,
 						  struct core_params *params);
 
 static inline void dwc_set_feature(struct core_if *core_if)
@@ -1051,5 +1052,5 @@ static inline int dwc_has_feature(struct core_if *core_if,
 	return core_if->features & feature;
 }
 extern struct core_params dwc_otg_module_params;
-extern int __devinit check_parameters(struct core_if *core_if);
+extern int check_parameters(struct core_if *core_if);
 #endif

@@ -280,7 +280,7 @@ static void __init socfpga_sysmgr_init(void)
 static void __init socfpga_map_io(void)
 {
 	socfpga_scu_map_io();
-	iotable_init(&uart_io_desc, 1);
+	debug_ll_io_init();
 	early_printk("Early printk initialized\n");
 }
 
@@ -303,7 +303,7 @@ void __init socfpga_sysmgr_init(void)
 	clk_mgr_base_addr = of_iomap(np, 0);
 }
 
-static void __init socfpga_init_irq(void)
+static void __init gic_init_irq(void)
 {
 	irqchip_init();
 	socfpga_sysmgr_init();

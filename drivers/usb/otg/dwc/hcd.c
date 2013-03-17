@@ -1249,7 +1249,7 @@ static void dwc_otg_hcd_free(struct usb_hcd *hcd)
  * USB bus with the core and calls the hc_driver->start() function. It returns
  * a negative error on failure.
  */
-int __devinit dwc_otg_hcd_init(struct device *_dev,
+int dwc_otg_hcd_init(struct device *_dev,
 			       struct dwc_otg_device *dwc_otg_device)
 {
 	struct usb_hcd *hcd;
@@ -1394,7 +1394,7 @@ error1:
  * Removes the HCD.
  * Frees memory and resources associated with the HCD and deregisters the bus.
  */
-void __devexit dwc_otg_hcd_remove(struct device *_dev)
+void dwc_otg_hcd_remove(struct device *_dev)
 {
 	struct dwc_otg_device *otg_dev = dev_get_drvdata(_dev);
 	struct dwc_hcd *dwc_hcd = otg_dev->hcd;
