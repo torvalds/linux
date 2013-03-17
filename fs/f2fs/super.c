@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/random.h>
 #include <linux/exportfs.h>
+#include <linux/blkdev.h>
 #include <linux/f2fs_fs.h>
 
 #include "f2fs.h"
@@ -649,6 +650,14 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	err = f2fs_build_stats(sbi);
 	if (err)
 		goto fail;
+
+	if (test_opt(sbi, DISCARD)) {
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
+		if (!blk_queue_discard(q))
+			f2fs_msg(sb, KERN_WARNING,
+					"mounting with \"discard\" option, but "
+					"the device does not support discard");
+	}
 
 	return 0;
 fail:
