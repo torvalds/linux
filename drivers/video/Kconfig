@@ -317,6 +317,9 @@ config FB_SUNXI_HDMI
         ---help---
         default m
 
+config HDMI_CEC
+	tristate "Consumer Electronics Control (CEC)"
+
 config FB_CIRRUS
 	tristate "Cirrus Logic support"
 	depends on FB && (ZORRO || PCI)
