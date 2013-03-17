@@ -63,7 +63,7 @@ struct go7007_usb_board {
 };
 
 struct go7007_usb {
-	struct go7007_usb_board *board;
+	const struct go7007_usb_board *board;
 	struct mutex i2c_lock;
 	struct usb_device *usbdev;
 	struct urb *video_urbs[8];
@@ -73,10 +73,9 @@ struct go7007_usb {
 
 /*********************** Product specification data ***********************/
 
-static struct go7007_usb_board board_matrix_ii = {
+static const struct go7007_usb_board board_matrix_ii = {
 	.flags		= GO7007_USB_EZUSB,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.flags		 = GO7007_BOARD_HAS_AUDIO |
 					GO7007_BOARD_USE_ONBOARD_I2C,
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
@@ -114,10 +113,9 @@ static struct go7007_usb_board board_matrix_ii = {
 	},
 };
 
-static struct go7007_usb_board board_matrix_reload = {
+static const struct go7007_usb_board board_matrix_reload = {
 	.flags		= GO7007_USB_EZUSB,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.flags		 = GO7007_BOARD_HAS_AUDIO |
 					GO7007_BOARD_USE_ONBOARD_I2C,
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
@@ -152,10 +150,9 @@ static struct go7007_usb_board board_matrix_reload = {
 	},
 };
 
-static struct go7007_usb_board board_star_trek = {
+static const struct go7007_usb_board board_star_trek = {
 	.flags		= GO7007_USB_EZUSB | GO7007_USB_EZUSB_I2C,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.flags		 = GO7007_BOARD_HAS_AUDIO, /* |
 					GO7007_BOARD_HAS_TUNER, */
 		.sensor_flags	 = GO7007_SENSOR_656 |
@@ -200,10 +197,9 @@ static struct go7007_usb_board board_star_trek = {
 	},
 };
 
-static struct go7007_usb_board board_px_tv402u = {
+static const struct go7007_usb_board board_px_tv402u = {
 	.flags		= GO7007_USB_EZUSB | GO7007_USB_EZUSB_I2C,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.flags		 = GO7007_BOARD_HAS_AUDIO |
 					GO7007_BOARD_HAS_TUNER,
 		.sensor_flags	 = GO7007_SENSOR_656 |
@@ -275,10 +271,9 @@ static struct go7007_usb_board board_px_tv402u = {
 	},
 };
 
-static struct go7007_usb_board board_xmen = {
+static const struct go7007_usb_board board_xmen = {
 	.flags		= 0,
 	.main_info	= {
-		.firmware	  = "go7007/go7007tv.bin",
 		.flags		  = GO7007_BOARD_USE_ONBOARD_I2C,
 		.hpi_buffer_cap   = 0,
 		.sensor_flags	  = GO7007_SENSOR_VREF_POLAR,
@@ -310,10 +305,9 @@ static struct go7007_usb_board board_xmen = {
 	},
 };
 
-static struct go7007_usb_board board_matrix_revolution = {
+static const struct go7007_usb_board board_matrix_revolution = {
 	.flags		= GO7007_USB_EZUSB,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.flags		 = GO7007_BOARD_HAS_AUDIO |
 					GO7007_BOARD_USE_ONBOARD_I2C,
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
@@ -348,10 +342,9 @@ static struct go7007_usb_board board_matrix_revolution = {
 	},
 };
 
-static struct go7007_usb_board board_lifeview_lr192 = {
+static const struct go7007_usb_board board_lifeview_lr192 = {
 	.flags		= GO7007_USB_EZUSB,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.flags		 = GO7007_BOARD_HAS_AUDIO |
 					GO7007_BOARD_USE_ONBOARD_I2C,
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
@@ -376,10 +369,9 @@ static struct go7007_usb_board board_lifeview_lr192 = {
 	},
 };
 
-static struct go7007_usb_board board_endura = {
+static const struct go7007_usb_board board_endura = {
 	.flags		= 0,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.flags		 = 0,
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
 					GO7007_AUDIO_I2S_MASTER |
@@ -401,10 +393,9 @@ static struct go7007_usb_board board_endura = {
 	},
 };
 
-static struct go7007_usb_board board_adlink_mpg24 = {
+static const struct go7007_usb_board board_adlink_mpg24 = {
 	.flags		= 0,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.flags		 = GO7007_BOARD_USE_ONBOARD_I2C,
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
 					GO7007_AUDIO_I2S_MASTER |
@@ -434,10 +425,9 @@ static struct go7007_usb_board board_adlink_mpg24 = {
 	},
 };
 
-static struct go7007_usb_board board_sensoray_2250 = {
+static const struct go7007_usb_board board_sensoray_2250 = {
 	.flags		= GO7007_USB_EZUSB | GO7007_USB_EZUSB_I2C,
 	.main_info	= {
-		.firmware	 = "go7007/go7007tv.bin",
 		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
 					GO7007_AUDIO_I2S_MASTER |
 					GO7007_AUDIO_WORD_16,
@@ -485,8 +475,6 @@ static struct go7007_usb_board board_sensoray_2250 = {
 		},
 	},
 };
-
-MODULE_FIRMWARE("go7007/go7007tv.bin");
 
 static const struct usb_device_id go7007_usb_id_table[] = {
 	{
@@ -1041,7 +1029,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 {
 	struct go7007 *go;
 	struct go7007_usb *usb;
-	struct go7007_usb_board *board;
+	const struct go7007_usb_board *board;
 	struct usb_device *usbdev = interface_to_usbdev(intf);
 	unsigned num_i2c_devs;
 	char *name;

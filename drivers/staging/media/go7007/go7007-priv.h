@@ -75,7 +75,6 @@ struct go7007;
 #define GO7007_AUDIO_OKI_MODE		(1<<17)
 
 struct go7007_board_info {
-	char *firmware;
 	unsigned int flags;
 	int hpi_buffer_cap;
 	unsigned int sensor_flags;
@@ -151,7 +150,7 @@ enum go7007_parser_state {
 struct go7007 {
 	struct device *dev;
 	u8 bus_info[32];
-	struct go7007_board_info *board_info;
+	const struct go7007_board_info *board_info;
 	unsigned int board_id;
 	int tuner_type;
 	int channel_number; /* for multi-channel boards like Adlink PCI-MPG24 */
@@ -273,7 +272,7 @@ int go7007_reset_encoder(struct go7007 *go);
 int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs);
 int go7007_start_encoder(struct go7007 *go);
 void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length);
-struct go7007 *go7007_alloc(struct go7007_board_info *board,
+struct go7007 *go7007_alloc(const struct go7007_board_info *board,
 					struct device *dev);
 void go7007_update_board(struct go7007 *go);
 

@@ -36,6 +36,8 @@
 
 #include "go7007-priv.h"
 
+#define GO7007_FW_NAME "go7007/go7007tv.bin"
+
 /* Constants used in the source firmware image to describe code segments */
 
 #define	FLAG_MODE_MJPEG		(1)
@@ -1568,10 +1570,10 @@ int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen)
 	default:
 		return -1;
 	}
-	if (request_firmware(&fw_entry, go->board_info->firmware, go->dev)) {
+	if (request_firmware(&fw_entry, GO7007_FW_NAME, go->dev)) {
 		dev_err(go->dev,
 			"unable to load firmware from file \"%s\"\n",
-			go->board_info->firmware);
+			GO7007_FW_NAME);
 		return -1;
 	}
 	code = kzalloc(codespace * 2, GFP_KERNEL);
@@ -1586,7 +1588,7 @@ int go7007_construct_fw_image(struct go7007 *go, u8 **fw, int *fwlen)
 		if (chunk_len + 2 > srclen) {
 			dev_err(go->dev,
 				"firmware file \"%s\" appears to be corrupted\n",
-				go->board_info->firmware);
+				GO7007_FW_NAME);
 			goto fw_failed;
 		}
 		if (chunk_flags & mode_flag) {
@@ -1622,3 +1624,5 @@ fw_failed:
 	release_firmware(fw_entry);
 	return -1;
 }
+
+MODULE_FIRMWARE(GO7007_FW_NAME);

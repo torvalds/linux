@@ -624,7 +624,8 @@ EXPORT_SYMBOL(go7007_parse_video_stream);
 /*
  * Allocate a new go7007 struct.  Used by the hardware-specific probe.
  */
-struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
+struct go7007 *go7007_alloc(const struct go7007_board_info *board,
+						struct device *dev)
 {
 	struct go7007 *go;
 	int i;
@@ -677,7 +678,7 @@ EXPORT_SYMBOL(go7007_alloc);
 
 void go7007_update_board(struct go7007 *go)
 {
-	struct go7007_board_info *board = go->board_info;
+	const struct go7007_board_info *board = go->board_info;
 
 	if (board->sensor_flags & GO7007_SENSOR_TV) {
 		go->standard = GO7007_STD_NTSC;

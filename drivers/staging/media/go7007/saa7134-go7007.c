@@ -64,8 +64,7 @@ struct saa7134_go7007 {
 	dma_addr_t bottom_dma;
 };
 
-static struct go7007_board_info board_voyager = {
-	.firmware	 = "go7007/go7007tv.bin",
+static const struct go7007_board_info board_voyager = {
 	.flags		 = 0,
 	.sensor_flags	 = GO7007_SENSOR_656 |
 				GO7007_SENSOR_VALID_ENABLE |
