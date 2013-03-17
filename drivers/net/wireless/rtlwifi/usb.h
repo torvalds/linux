@@ -141,6 +141,7 @@ struct rtl_usb {
 	u32 rx_max_size;	/* Bulk IN max buffer size */
 	u32 rx_urb_num;		/* How many Bulk INs are submitted to host. */
 	struct usb_anchor	rx_submitted;
+	struct usb_anchor	rx_cleanup_urbs;
 	void (*usb_rx_segregate_hdl)(struct ieee80211_hw *, struct sk_buff *,
 				     struct sk_buff_head *);
 	void (*usb_rx_hdl)(struct ieee80211_hw *, struct sk_buff *);
