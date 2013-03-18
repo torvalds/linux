@@ -1349,22 +1349,7 @@ static struct platform_driver ftgmac100_driver = {
 	},
 };
 
-/******************************************************************************
- * initialization / finalization
- *****************************************************************************/
-static int __init ftgmac100_init(void)
-{
-	pr_info("Loading version " DRV_VERSION " ...\n");
-	return platform_driver_register(&ftgmac100_driver);
-}
-
-static void __exit ftgmac100_exit(void)
-{
-	platform_driver_unregister(&ftgmac100_driver);
-}
-
-module_init(ftgmac100_init);
-module_exit(ftgmac100_exit);
+module_platform_driver(ftgmac100_driver);
 
 MODULE_AUTHOR("Po-Yu Chuang <ratbert@faraday-tech.com>");
 MODULE_DESCRIPTION("FTGMAC100 driver");
