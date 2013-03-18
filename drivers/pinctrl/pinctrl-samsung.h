@@ -117,7 +117,9 @@ struct samsung_pin_bank_type {
  * @pctl_offset: starting offset of the pin-bank registers.
  * @pin_base: starting pin number of the bank.
  * @nr_pins: number of pins included in this bank.
+ * @eint_func: function to set in CON register to configure pin as EINT.
  * @eint_type: type of the external interrupt supported by the bank.
+ * @eint_mask: bit mask of pins which support EINT function.
  * @name: name to be prefixed for each pin in this pin bank.
  * @of_node: OF node of the bank.
  * @drvdata: link to controller driver data
@@ -131,7 +133,9 @@ struct samsung_pin_bank {
 	u32		pctl_offset;
 	u32		pin_base;
 	u8		nr_pins;
+	u8		eint_func;
 	enum eint_type	eint_type;
+	u32		eint_mask;
 	u32		eint_offset;
 	char		*name;
 	struct device_node *of_node;
@@ -240,5 +244,6 @@ struct samsung_pmx_func {
 /* list of all exported SoC specific data */
 extern struct samsung_pin_ctrl exynos4210_pin_ctrl[];
 extern struct samsung_pin_ctrl exynos4x12_pin_ctrl[];
+extern struct samsung_pin_ctrl s3c64xx_pin_ctrl[];
 
 #endif /* __PINCTRL_SAMSUNG_H */

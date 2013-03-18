@@ -971,6 +971,10 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 	{ .compatible = "samsung,exynos4x12-pinctrl",
 		.data = (void *)exynos4x12_pin_ctrl },
 #endif
+#ifdef CONFIG_PINCTRL_S3C64XX
+	{ .compatible = "samsung,s3c64xx-pinctrl",
+		.data = s3c64xx_pin_ctrl },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_pinctrl_dt_match);

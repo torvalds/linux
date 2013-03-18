@@ -7,6 +7,7 @@ on-chip controllers onto these pads.
 
 Required Properties:
 - compatible: should be one of the following.
+  - "samsung,s3c64xx-pinctrl": for S3C64xx-compatible pin-controller,
   - "samsung,exynos4210-pinctrl": for Exynos4210 compatible pin-controller.
   - "samsung,exynos4x12-pinctrl": for Exynos4x12 compatible pin-controller.
   - "samsung,exynos5250-pinctrl": for Exynos5250 compatible pin-controller.
@@ -105,6 +106,8 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
 
    - compatible: identifies the type of the external wakeup interrupt controller
      The possible values are:
+     - samsung,s3c64xx-wakeup-eint: represents wakeup interrupt controller
+       found on Samsung S3C64xx SoCs,
      - samsung,exynos4210-wakeup-eint: represents wakeup interrupt controller
        found on Samsung Exynos4210 SoC.
    - interrupt-parent: phandle of the interrupt parent to which the external
