@@ -486,8 +486,10 @@ static int __devinit hym8563_probe(struct i2c_client *client, const struct i2c_d
 exit:
 	if (rtc)
 		rtc_device_unregister(rtc);
-	if (hym8563)
+	if (hym8563) {
+		wake_lock_destroy(&hym8563->wake_lock);
 		kfree(hym8563);
+	}
 	return rc;
 }
 
