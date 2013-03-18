@@ -378,14 +378,12 @@ struct dio200_region {
 
 enum dio200_bustype { isa_bustype, pci_bustype };
 
-enum dio200_model {
-	pc212e_model,
-	pc214e_model,
-	pc215e_model, pci215_model, pcie215_model,
-	pc218e_model,
+enum dio200_pci_model {
+	pci215_model,
+	pci272_model,
+	pcie215_model,
 	pcie236_model,
-	pc272e_model, pci272_model,
-	pcie296_model,
+	pcie296_model
 };
 
 enum dio200_layout_idx {
@@ -407,9 +405,7 @@ enum dio200_layout_idx {
 
 struct dio200_board {
 	const char *name;
-	unsigned short devid;
 	enum dio200_bustype bustype;
-	enum dio200_model model;
 	enum dio200_layout_idx layout;
 	unsigned char mainbar;
 	unsigned char mainshift;
@@ -421,35 +417,30 @@ static const struct dio200_board dio200_isa_boards[] = {
 	{
 		.name = "pc212e",
 		.bustype = isa_bustype,
-		.model = pc212e_model,
 		.layout = pc212_layout,
 		.mainsize = DIO200_IO_SIZE,
 	},
 	{
 		.name = "pc214e",
 		.bustype = isa_bustype,
-		.model = pc214e_model,
 		.layout = pc214_layout,
 		.mainsize = DIO200_IO_SIZE,
 	},
 	{
 		.name = "pc215e",
 		.bustype = isa_bustype,
-		.model = pc215e_model,
 		.layout = pc215_layout,
 		.mainsize = DIO200_IO_SIZE,
 	},
 	{
 		.name = "pc218e",
 		.bustype = isa_bustype,
-		.model = pc218e_model,
 		.layout = pc218_layout,
 		.mainsize = DIO200_IO_SIZE,
 	},
 	{
 		.name = "pc272e",
 		.bustype = isa_bustype,
-		.model = pc272e_model,
 		.layout = pc272_layout,
 		.mainsize = DIO200_IO_SIZE,
 	},
@@ -458,49 +449,39 @@ static const struct dio200_board dio200_isa_boards[] = {
 
 #if DO_PCI
 static const struct dio200_board dio200_pci_boards[] = {
-	{
+	[pci215_model] {
 		.name = "pci215",
-		.devid = PCI_DEVICE_ID_AMPLICON_PCI215,
 		.bustype = pci_bustype,
-		.model = pci215_model,
 		.layout = pc215_layout,
 		.mainbar = 2,
 		.mainsize = DIO200_IO_SIZE,
 	},
-	{
+	[pci272_model] {
 		.name = "pci272",
-		.devid = PCI_DEVICE_ID_AMPLICON_PCI272,
 		.bustype = pci_bustype,
-		.model = pci272_model,
 		.layout = pc272_layout,
 		.mainbar = 2,
 		.mainsize = DIO200_IO_SIZE,
 	},
-	{
+	[pcie215_model] {
 		.name = "pcie215",
-		.devid = PCI_DEVICE_ID_AMPLICON_PCIE215,
 		.bustype = pci_bustype,
-		.model = pcie215_model,
 		.layout = pcie215_layout,
 		.mainbar = 1,
 		.mainshift = 3,
 		.mainsize = DIO200_PCIE_IO_SIZE,
 	},
-	{
+	[pcie236_model] {
 		.name = "pcie236",
-		.devid = PCI_DEVICE_ID_AMPLICON_PCIE236,
 		.bustype = pci_bustype,
-		.model = pcie236_model,
 		.layout = pcie236_layout,
 		.mainbar = 1,
 		.mainshift = 3,
 		.mainsize = DIO200_PCIE_IO_SIZE,
 	},
-	{
+	[pcie296_model] {
 		.name = "pcie296",
-		.devid = PCI_DEVICE_ID_AMPLICON_PCIE296,
 		.bustype = pci_bustype,
-		.model = pcie296_model,
 		.layout = pcie296_layout,
 		.mainbar = 1,
 		.mainshift = 3,
@@ -730,20 +711,6 @@ static void dio200_write32(struct comedi_device *dev, unsigned int offset,
 		outl(val, devpriv->io.u.iobase + offset);
 	else
 		writel(val, devpriv->io.u.membase + offset);
-}
-
-/*
- * This function looks for a board matching the supplied PCI device.
- */
-static const struct dio200_board *
-dio200_find_pci_board(struct pci_dev *pci_dev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(dio200_pci_boards); i++)
-		if (pci_dev->device == dio200_pci_boards[i].devid)
-			return &dio200_pci_boards[i];
-	return NULL;
 }
 
 /*
@@ -1908,13 +1875,13 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 /*
  * The auto_attach hook is called at PCI probe time via
  * comedi_pci_auto_config().  dev->board_ptr is NULL on entry.
- * There should be a board entry matching the supplied PCI device.
+ * The context should be an index into dio200_pci_boards[].
  */
 static int dio200_auto_attach(struct comedi_device *dev,
-					unsigned long context_unused)
+			      unsigned long context_model)
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
-	const struct dio200_board *thisboard;
+	const struct dio200_board *thisboard = NULL;
 	struct dio200_private *devpriv;
 	resource_size_t base, len;
 	unsigned int bar;
@@ -1923,6 +1890,13 @@ static int dio200_auto_attach(struct comedi_device *dev,
 	if (!DO_PCI)
 		return -EINVAL;
 
+	if (context_model < ARRAY_SIZE(dio200_pci_boards))
+		thisboard = &dio200_pci_boards[context_model];
+	if (!thisboard)
+		return -EINVAL;
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
+
 	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 
@@ -1930,13 +1904,6 @@ static int dio200_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
-
-	dev->board_ptr = dio200_find_pci_board(pci_dev);
-	if (dev->board_ptr == NULL) {
-		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
-		return -EINVAL;
-	}
-	thisboard = comedi_board(dev);
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -1961,7 +1928,7 @@ static int dio200_auto_attach(struct comedi_device *dev,
 		devpriv->io.u.iobase = (unsigned long)base;
 		devpriv->io.regtype = io_regtype;
 	}
-	switch (thisboard->model) {
+	switch (context_model) {
 	case pcie215_model:
 	case pcie236_model:
 	case pcie296_model:
@@ -2042,11 +2009,22 @@ static struct comedi_driver amplc_dio200_driver = {
 
 #if DO_PCI
 static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE236) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE215) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE296) },
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215),
+		pci215_model
+	}, {
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272),
+		pci272_model
+	}, {
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE236),
+		pcie236_model
+	}, {
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE215),
+		pcie215_model
+	}, {
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE296),
+		pcie296_model
+	},
 	{0}
 };
 
@@ -2063,7 +2041,7 @@ static struct pci_driver amplc_dio200_pci_driver = {
 	.name = DIO200_DRIVER_NAME,
 	.id_table = dio200_pci_table,
 	.probe = &amplc_dio200_pci_probe,
-	.remove		= comedi_pci_auto_unconfig,
+	.remove	= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(amplc_dio200_driver, amplc_dio200_pci_driver);
 #else
