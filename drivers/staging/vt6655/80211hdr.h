@@ -288,42 +288,42 @@
 #define IEEE_ADDR_GROUP             0x01
 
 typedef struct {
-    unsigned char abyAddr[6];
+	unsigned char abyAddr[6];
 } IEEE_ADDR, *PIEEE_ADDR;
 
 /* 802.11 Header Format */
 
 typedef struct tagWLAN_80211HDR_A2 {
 
-    unsigned short wFrameCtl;
-    unsigned short wDurationID;
-    unsigned char abyAddr1[WLAN_ADDR_LEN];
-    unsigned char abyAddr2[WLAN_ADDR_LEN];
+	unsigned short wFrameCtl;
+	unsigned short wDurationID;
+	unsigned char abyAddr1[WLAN_ADDR_LEN];
+	unsigned char abyAddr2[WLAN_ADDR_LEN];
 
 } __attribute__ ((__packed__))
 WLAN_80211HDR_A2, *PWLAN_80211HDR_A2;
 
 typedef struct tagWLAN_80211HDR_A3 {
 
-    unsigned short wFrameCtl;
-    unsigned short wDurationID;
-    unsigned char abyAddr1[WLAN_ADDR_LEN];
-    unsigned char abyAddr2[WLAN_ADDR_LEN];
-    unsigned char abyAddr3[WLAN_ADDR_LEN];
-    unsigned short wSeqCtl;
+	unsigned short wFrameCtl;
+	unsigned short wDurationID;
+	unsigned char abyAddr1[WLAN_ADDR_LEN];
+	unsigned char abyAddr2[WLAN_ADDR_LEN];
+	unsigned char abyAddr3[WLAN_ADDR_LEN];
+	unsigned short wSeqCtl;
 
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 WLAN_80211HDR_A3, *PWLAN_80211HDR_A3;
 
 typedef struct tagWLAN_80211HDR_A4 {
 
-    unsigned short wFrameCtl;
-    unsigned short wDurationID;
-    unsigned char abyAddr1[WLAN_ADDR_LEN];
-    unsigned char abyAddr2[WLAN_ADDR_LEN];
-    unsigned char abyAddr3[WLAN_ADDR_LEN];
-    unsigned short wSeqCtl;
-    unsigned char abyAddr4[WLAN_ADDR_LEN];
+	unsigned short wFrameCtl;
+	unsigned short wDurationID;
+	unsigned char abyAddr1[WLAN_ADDR_LEN];
+	unsigned char abyAddr2[WLAN_ADDR_LEN];
+	unsigned char abyAddr3[WLAN_ADDR_LEN];
+	unsigned short wSeqCtl;
+	unsigned char abyAddr4[WLAN_ADDR_LEN];
 
 } __attribute__ ((__packed__))
 WLAN_80211HDR_A4, *PWLAN_80211HDR_A4;
@@ -331,9 +331,9 @@ WLAN_80211HDR_A4, *PWLAN_80211HDR_A4;
 
 typedef union tagUWLAN_80211HDR {
 
-    WLAN_80211HDR_A2        sA2;
-    WLAN_80211HDR_A3        sA3;
-    WLAN_80211HDR_A4        sA4;
+	WLAN_80211HDR_A2        sA2;
+	WLAN_80211HDR_A3        sA3;
+	WLAN_80211HDR_A4        sA4;
 
 } UWLAN_80211HDR, *PUWLAN_80211HDR;
 
