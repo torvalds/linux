@@ -3473,6 +3473,7 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"gpt1_fck",	&gpt1_fck),
 	CLK(NULL,	"wkup_32k_fck",	&wkup_32k_fck),
 	CLK(NULL,	"gpio1_dbck",	&gpio1_dbck),
+	CLK(NULL,	"sha12_ick",	&sha12_ick),
 	CLK(NULL,	"wdt2_fck",		&wdt2_fck),
 	CLK("omap_wdt",	"ick",		&wdt2_ick),
 	CLK(NULL,	"wdt2_ick",	&wdt2_ick),

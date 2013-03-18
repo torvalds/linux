@@ -504,38 +504,9 @@ static void omap_init_rng(void)
 	WARN(IS_ERR(pdev), "Can't build omap_device for omap_rng\n");
 }
 
-#if defined(CONFIG_CRYPTO_DEV_OMAP_SHAM) || defined(CONFIG_CRYPTO_DEV_OMAP_SHAM_MODULE)
-
-#ifdef CONFIG_ARCH_OMAP3
-static struct resource omap3_sham_resources[] = {
-	{
-		.start	= OMAP34XX_SEC_SHA1MD5_BASE,
-		.end	= OMAP34XX_SEC_SHA1MD5_BASE + 0x64,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= 49 + OMAP_INTC_START,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.start	= OMAP34XX_DMA_SHA1MD5_RX,
-		.flags	= IORESOURCE_DMA,
-	}
-};
-static int omap3_sham_resources_sz = ARRAY_SIZE(omap3_sham_resources);
-#else
-#define omap3_sham_resources		NULL
-#define omap3_sham_resources_sz		0
-#endif
-
-static struct platform_device sham_device = {
-	.name		= "omap-sham",
-	.id		= -1,
-};
-
-static void omap_init_sham(void)
+static void __init omap_init_sham(void)
 {
-	if (cpu_is_omap24xx()) {
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		struct omap_hwmod *oh;
 		struct platform_device *pdev;
 
@@ -545,18 +516,10 @@ static void omap_init_sham(void)
 
 		pdev = omap_device_build("omap-sham", -1, oh, NULL, 0);
 		WARN(IS_ERR(pdev), "Can't build omap_device for omap-sham\n");
-	} else if (cpu_is_omap34xx()) {
-		sham_device.resource = omap3_sham_resources;
-		sham_device.num_resources = omap3_sham_resources_sz;
-		platform_device_register(&sham_device);
 	} else {
 		pr_err("%s: platform not supported\n", __func__);
-		return;
 	}
 }
-#else
-static inline void omap_init_sham(void) { }
-#endif
 
 #if defined(CONFIG_CRYPTO_DEV_OMAP_AES) || defined(CONFIG_CRYPTO_DEV_OMAP_AES_MODULE)
 
