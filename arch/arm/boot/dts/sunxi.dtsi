@@ -136,7 +136,7 @@
 			#interrupt-cells = <1>;
 		};
 
-		uart0: uart@01c28000 {
+		uart0: serial@01c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
 			interrupts = <1>;
@@ -146,7 +146,7 @@
 			status = "disabled";
 		};
 
-		uart1: uart@01c28400 {
+		uart1: serial@01c28400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28400 0x400>;
 			interrupts = <2>;
