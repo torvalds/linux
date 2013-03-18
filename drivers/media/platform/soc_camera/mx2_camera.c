@@ -1620,10 +1620,9 @@ static struct platform_driver mx2_camera_driver = {
 	},
 	.id_table	= mx2_camera_devtype,
 	.remove		= mx2_camera_remove,
-	.probe		= mx2_camera_probe,
 };
 
-module_platform_driver(mx2_camera_driver);
+module_platform_driver_probe(mx2_camera_driver, mx2_camera_probe);
 
 MODULE_DESCRIPTION("i.MX27 SoC Camera Host driver");
 MODULE_AUTHOR("Sascha Hauer <sha@pengutronix.de>");
