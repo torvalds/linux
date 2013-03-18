@@ -54,6 +54,10 @@
 #include <linux/mfd/rk610_core.h>
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_GT82X_IIC
+#include <linux/goodix_touch_82x.h>
+#endif
+
 #if defined(CONFIG_RK_HDMI)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -196,6 +200,73 @@ static struct goodix_platform_data gt811_info = {
 
 };
 #endif
+
+#ifdef  CONFIG_TOUCHSCREEN_GT82X_IIC
+#define TOUCH_ENABLE_PIN	INVALID_GPIO
+#define TOUCH_RESET_PIN  RK30_PIN0_PB6//RK30_PIN4_PD0
+#define TOUCH_INT_PIN    RK30_PIN1_PB7//RK30_PIN4_PC2
+int goodix_init_platform_hw(void)
+{
+	int ret;
+	
+	//rk30_mux_api_set(GPIO4D0_SMCDATA8_TRACEDATA8_NAME, GPIO4D_GPIO4D0);  //hjc
+	//rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, GPIO4C_GPIO4C2);   //hjc
+	//printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO4D0_SMCDATA8_TRACEDATA8_NAME),rk30_mux_api_get(GPIO4C2_SMCDATA2_TRACEDATA2_NAME));
+	if (TOUCH_ENABLE_PIN != INVALID_GPIO) {
+		ret = gpio_request(TOUCH_ENABLE_PIN, "goodix power pin");
+		if (ret != 0) {
+			gpio_free(TOUCH_ENABLE_PIN);
+			printk("goodix power error\n");
+			return -EIO;
+		}
+		gpio_direction_output(TOUCH_ENABLE_PIN, 0);
+		gpio_set_value(TOUCH_ENABLE_PIN, GPIO_LOW);
+		msleep(100);
+	}
+
+	if (TOUCH_RESET_PIN != INVALID_GPIO) {
+		ret = gpio_request(TOUCH_RESET_PIN, "goodix reset pin");
+		if (ret != 0) {
+			gpio_free(TOUCH_RESET_PIN);
+			printk("goodix gpio_request error\n");
+			return -EIO;
+		}
+		gpio_direction_output(TOUCH_RESET_PIN, 0);
+		gpio_set_value(TOUCH_RESET_PIN, GPIO_LOW);
+		msleep(10);
+		gpio_set_value(TOUCH_RESET_PIN, GPIO_HIGH);
+		msleep(500);
+	}
+	return 0;
+}
+u8 ts82x_config_data[] = {
+	0x65,0x00,0x04,0x00,0x03,0x00,0x0A,0x0D,0x1E,0xE7,
+	0x32,0x03,0x08,0x10,0x48,0x42,0x42,0x20,0x00,0x01,
+	0x60,0x60,0x4B,0x6E,0x0E,0x0D,0x0C,0x0B,0x0A,0x09,
+	0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,0x00,0x1D,
+	0x1C,0x1B,0x1A,0x19,0x18,0x17,0x16,0x15,0x14,0x13,
+	0x12,0x11,0x10,0x0F,0x50,0x00,0x00,0x00,0x00,0x00,
+	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x2B,0x00,0x00,
+	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	0x00,0x00,0x00,0x00
+};
+static struct goodix_i2c_rmi_platform_data ts82x_pdata = {
+    .gpio_shutdown = TOUCH_ENABLE_PIN,
+    .gpio_irq = TOUCH_INT_PIN,
+    .gpio_reset = TOUCH_RESET_PIN,
+    .irq_edge = 1, /* 0:rising edge, 1:falling edge */
+
+    .ypol = 1,
+	.swap_xy = 1,
+	.xpol = 0,
+	.xmax = 800,
+    .ymax = 600,
+    .config_info_len =ARRAY_SIZE(ts82x_config_data),
+    .config_info = ts82x_config_data,
+	.init_platform_hw= goodix_init_platform_hw,
+};
+#endif
+
 static struct spi_board_info board_spi_devices[] = {
 };
 
@@ -503,11 +574,18 @@ static int rk_fb_io_enable(void)
 
 #if defined(CONFIG_LCDC0_RK3066B)
 struct rk29fb_info lcdc0_screen_info = {
+#if 0
 	.prop	   = EXTEND,		//primary display device
 	.io_init   = NULL,
 	.io_disable = NULL,
 	.io_enable = NULL,
 	.set_screen_info = NULL,
+#endif
+	.prop	   = PRMRY,		//primary display device
+	.io_init   = rk_fb_io_init,
+	.io_disable = rk_fb_io_disable,
+	.io_enable = rk_fb_io_enable,
+	.set_screen_info = set_lcd_info,
 };
 #endif
 
@@ -1281,6 +1359,13 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 .flags                  = 0,
         },
 #endif
+#if defined (CONFIG_SND_SOC_RT5616)
+        {
+                .type                   = "rt5616",
+                .addr                   = 0x1b,
+                .flags                  = 0,
+        },
+#endif
 };
 #endif
 
@@ -1697,6 +1782,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 	.platform_data = &gt811_info,	
 },
 #endif
+#if defined(CONFIG_TOUCHSCREEN_GT82X_IIC)
+	{
+		.type          = "Goodix-TS-82X",
+		.addr          = 0x5D,
+		.flags         = 0,
+		.irq           = RK30_PIN1_PB7,
+		.platform_data = &ts82x_pdata,
+	},
+#endif
 };
 #endif
 
@@ -1738,7 +1832,13 @@ static struct i2c_board_info __initdata i2c4_info[] = {
 		},
 #endif
 #endif
-
+#if defined (CONFIG_SND_RK29_SOC_ES8323)
+				{
+                .type                   = "es8323",//"es8323",
+                .addr                   = 0x10,
+                .flags                  = 0,
+        },
+#endif
 };
 #endif
 

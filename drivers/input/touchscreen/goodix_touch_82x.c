@@ -390,7 +390,7 @@ COORDINATE_POLL:
 					Y_value = pdata->ymax - Y_value;
 				
 				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, X_value);  //can change x-y!!!
-				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, Y_value);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, 600-Y_value);
 				//input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR,15);
 				//input_mt_sync(ts->input_dev);
 				i += 5;

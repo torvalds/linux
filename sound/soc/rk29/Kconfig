@@ -60,6 +60,16 @@ config SND_RK29_SOC_SPDIF
 	depends on SND_RK29_SOC_I2S
 	help
 		This supports the use of SPDIF interface on rk29 processors
+config SND_RK29_SOC_ES8323
+	tristate "SoC I2S Audio support for rockchip - ES8323"
+	depends on SND_RK29_SOC
+	select SND_RK29_SOC_I2S
+	select SND_SOC_ES8323
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the ES8323.
+
+
 config SND_RK29_SOC_WM8988
 	tristate "SoC I2S Audio support for rockchip - WM8988"
 	depends on SND_RK29_SOC
@@ -243,7 +253,7 @@ config SND_RK_SOC_RK2928
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK2928 internal codec.
 
-if SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH
+if SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH || SND_RK29_SOC_ES8323 
 choice
   bool "Set i2s type"
   default SND_RK29_CODEC_SOC_SLAVE

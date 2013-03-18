@@ -206,6 +206,8 @@ config SND_SOC_DFBMCS320
 config SND_SOC_DMIC
 	tristate
 
+config SND_SOC_ES8323
+	tristate
 config SND_SOC_MAX98088
        tristate
 
