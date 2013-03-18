@@ -25,6 +25,11 @@ static inline unsigned int ath6kl_get_wmi_id(void *buf, size_t buf_len)
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
 static inline void trace_ ## name(proto) {}
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(...)
+#undef DEFINE_EVENT
+#define DEFINE_EVENT(evt_class, name, proto, ...) \
+static inline void trace_ ## name(proto) {}
 #endif /* !CONFIG_ATH6KL_TRACING || __CHECKER__ */
 
 #undef TRACE_SYSTEM
@@ -239,6 +244,38 @@ TRACE_EVENT(ath6kl_htc_tx,
 		__entry->endpoint,
 		__entry->buf_len
 	)
+);
+
+#define ATH6KL_MSG_MAX 200
+
+DECLARE_EVENT_CLASS(ath6kl_log_event,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf),
+	TP_STRUCT__entry(
+		__dynamic_array(char, msg, ATH6KL_MSG_MAX)
+	),
+	TP_fast_assign(
+		WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
+				       ATH6KL_MSG_MAX,
+				       vaf->fmt,
+				       *vaf->va) >= ATH6KL_MSG_MAX);
+	),
+	TP_printk("%s", __get_str(msg))
+);
+
+DEFINE_EVENT(ath6kl_log_event, ath6kl_log_err,
+	     TP_PROTO(struct va_format *vaf),
+	     TP_ARGS(vaf)
+);
+
+DEFINE_EVENT(ath6kl_log_event, ath6kl_log_warn,
+	     TP_PROTO(struct va_format *vaf),
+	     TP_ARGS(vaf)
+);
+
+DEFINE_EVENT(ath6kl_log_event, ath6kl_log_info,
+	     TP_PROTO(struct va_format *vaf),
+	     TP_ARGS(vaf)
 );
 
 #endif /* _ ATH6KL_TRACE_H || TRACE_HEADER_MULTI_READ*/

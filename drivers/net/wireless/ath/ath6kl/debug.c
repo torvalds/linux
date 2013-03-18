@@ -67,6 +67,7 @@ int ath6kl_info(const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	ret = ath6kl_printk(KERN_INFO, "%pV", &vaf);
+	trace_ath6kl_log_info(&vaf);
 	va_end(args);
 
 	return ret;
@@ -84,6 +85,7 @@ int ath6kl_err(const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	ret = ath6kl_printk(KERN_ERR, "%pV", &vaf);
+	trace_ath6kl_log_err(&vaf);
 	va_end(args);
 
 	return ret;
@@ -101,6 +103,7 @@ int ath6kl_warn(const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	ret = ath6kl_printk(KERN_WARNING, "%pV", &vaf);
+	trace_ath6kl_log_warn(&vaf);
 	va_end(args);
 
 	return ret;

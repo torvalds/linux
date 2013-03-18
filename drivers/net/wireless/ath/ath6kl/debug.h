@@ -19,6 +19,7 @@
 #define DEBUG_H
 
 #include "hif.h"
+#include "trace.h"
 
 enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_CREDIT	= BIT(0),
