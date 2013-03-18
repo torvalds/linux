@@ -416,95 +416,98 @@ struct dio200_board {
 	unsigned int mainsize;
 };
 
-static const struct dio200_board dio200_boards[] = {
 #if DO_ISA
+static const struct dio200_board dio200_isa_boards[] = {
 	{
-	 .name = "pc212e",
-	 .bustype = isa_bustype,
-	 .model = pc212e_model,
-	 .layout = pc212_layout,
-	 .mainsize = DIO200_IO_SIZE,
-	 },
+		.name = "pc212e",
+		.bustype = isa_bustype,
+		.model = pc212e_model,
+		.layout = pc212_layout,
+		.mainsize = DIO200_IO_SIZE,
+	},
 	{
-	 .name = "pc214e",
-	 .bustype = isa_bustype,
-	 .model = pc214e_model,
-	 .layout = pc214_layout,
-	 .mainsize = DIO200_IO_SIZE,
-	 },
+		.name = "pc214e",
+		.bustype = isa_bustype,
+		.model = pc214e_model,
+		.layout = pc214_layout,
+		.mainsize = DIO200_IO_SIZE,
+	},
 	{
-	 .name = "pc215e",
-	 .bustype = isa_bustype,
-	 .model = pc215e_model,
-	 .layout = pc215_layout,
-	 .mainsize = DIO200_IO_SIZE,
-	 },
+		.name = "pc215e",
+		.bustype = isa_bustype,
+		.model = pc215e_model,
+		.layout = pc215_layout,
+		.mainsize = DIO200_IO_SIZE,
+	},
 	{
-	 .name = "pc218e",
-	 .bustype = isa_bustype,
-	 .model = pc218e_model,
-	 .layout = pc218_layout,
-	 .mainsize = DIO200_IO_SIZE,
-	 },
+		.name = "pc218e",
+		.bustype = isa_bustype,
+		.model = pc218e_model,
+		.layout = pc218_layout,
+		.mainsize = DIO200_IO_SIZE,
+	},
 	{
-	 .name = "pc272e",
-	 .bustype = isa_bustype,
-	 .model = pc272e_model,
-	 .layout = pc272_layout,
-	 .mainsize = DIO200_IO_SIZE,
-	 },
-#endif
-#if DO_PCI
-	{
-	 .name = "pci215",
-	 .devid = PCI_DEVICE_ID_AMPLICON_PCI215,
-	 .bustype = pci_bustype,
-	 .model = pci215_model,
-	 .layout = pc215_layout,
-	 .mainbar = 2,
-	 .mainsize = DIO200_IO_SIZE,
-	 },
-	{
-	 .name = "pci272",
-	 .devid = PCI_DEVICE_ID_AMPLICON_PCI272,
-	 .bustype = pci_bustype,
-	 .model = pci272_model,
-	 .layout = pc272_layout,
-	 .mainbar = 2,
-	 .mainsize = DIO200_IO_SIZE,
-	 },
-	{
-	 .name = "pcie215",
-	 .devid = PCI_DEVICE_ID_AMPLICON_PCIE215,
-	 .bustype = pci_bustype,
-	 .model = pcie215_model,
-	 .layout = pcie215_layout,
-	 .mainbar = 1,
-	 .mainshift = 3,
-	 .mainsize = DIO200_PCIE_IO_SIZE,
-	 },
-	{
-	 .name = "pcie236",
-	 .devid = PCI_DEVICE_ID_AMPLICON_PCIE236,
-	 .bustype = pci_bustype,
-	 .model = pcie236_model,
-	 .layout = pcie236_layout,
-	 .mainbar = 1,
-	 .mainshift = 3,
-	 .mainsize = DIO200_PCIE_IO_SIZE,
-	 },
-	{
-	 .name = "pcie296",
-	 .devid = PCI_DEVICE_ID_AMPLICON_PCIE296,
-	 .bustype = pci_bustype,
-	 .model = pcie296_model,
-	 .layout = pcie296_layout,
-	 .mainbar = 1,
-	 .mainshift = 3,
-	 .mainsize = DIO200_PCIE_IO_SIZE,
-	 },
-#endif
+		.name = "pc272e",
+		.bustype = isa_bustype,
+		.model = pc272e_model,
+		.layout = pc272_layout,
+		.mainsize = DIO200_IO_SIZE,
+	},
 };
+#endif
+
+#if DO_PCI
+static const struct dio200_board dio200_pci_boards[] = {
+	{
+		.name = "pci215",
+		.devid = PCI_DEVICE_ID_AMPLICON_PCI215,
+		.bustype = pci_bustype,
+		.model = pci215_model,
+		.layout = pc215_layout,
+		.mainbar = 2,
+		.mainsize = DIO200_IO_SIZE,
+	},
+	{
+		.name = "pci272",
+		.devid = PCI_DEVICE_ID_AMPLICON_PCI272,
+		.bustype = pci_bustype,
+		.model = pci272_model,
+		.layout = pc272_layout,
+		.mainbar = 2,
+		.mainsize = DIO200_IO_SIZE,
+	},
+	{
+		.name = "pcie215",
+		.devid = PCI_DEVICE_ID_AMPLICON_PCIE215,
+		.bustype = pci_bustype,
+		.model = pcie215_model,
+		.layout = pcie215_layout,
+		.mainbar = 1,
+		.mainshift = 3,
+		.mainsize = DIO200_PCIE_IO_SIZE,
+	},
+	{
+		.name = "pcie236",
+		.devid = PCI_DEVICE_ID_AMPLICON_PCIE236,
+		.bustype = pci_bustype,
+		.model = pcie236_model,
+		.layout = pcie236_layout,
+		.mainbar = 1,
+		.mainshift = 3,
+		.mainsize = DIO200_PCIE_IO_SIZE,
+	},
+	{
+		.name = "pcie296",
+		.devid = PCI_DEVICE_ID_AMPLICON_PCIE296,
+		.bustype = pci_bustype,
+		.model = pcie296_model,
+		.layout = pcie296_layout,
+		.mainbar = 1,
+		.mainshift = 3,
+		.mainsize = DIO200_PCIE_IO_SIZE,
+	},
+};
+#endif
 
 /*
  * Layout descriptions - some ISA and PCI board descriptions share the same
@@ -737,10 +740,10 @@ dio200_find_pci_board(struct pci_dev *pci_dev)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(dio200_boards); i++)
-		if (is_pci_board(&dio200_boards[i]) &&
-		    pci_dev->device == dio200_boards[i].devid)
-			return &dio200_boards[i];
+	for (i = 0; i < ARRAY_SIZE(dio200_pci_boards); i++)
+		if (is_pci_board(&dio200_pci_boards[i]) &&
+		    pci_dev->device == dio200_pci_boards[i].devid)
+			return &dio200_pci_boards[i];
 	return NULL;
 }
 
@@ -2046,9 +2049,11 @@ static struct comedi_driver amplc_dio200_driver = {
 	.attach = dio200_attach,
 	.auto_attach = dio200_auto_attach,
 	.detach = dio200_detach,
-	.board_name = &dio200_boards[0].name,
+#if DO_ISA
+	.board_name = &dio200_isa_boards[0].name,
 	.offset = sizeof(struct dio200_board),
-	.num_names = ARRAY_SIZE(dio200_boards),
+	.num_names = ARRAY_SIZE(dio200_isa_boards),
+#endif
 };
 
 #if DO_PCI
