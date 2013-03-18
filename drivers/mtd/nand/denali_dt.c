@@ -42,7 +42,7 @@ static void __iomem *request_and_map(struct device *dev,
 	}
 
 	ptr = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (!res)
+	if (!ptr)
 		dev_err(dev, "ioremap_nocache of %s failed!", res->name);
 
 	return ptr;
