@@ -85,6 +85,8 @@ typedef __u16 u16;
 typedef enum {
 	GFP_KERNEL,
 	GFP_ATOMIC,
+	__GFP_HIGHMEM,
+	__GFP_HIGH
 } gfp_t;
 typedef enum {
 	IRQ_NONE,
@@ -163,6 +165,8 @@ struct virtqueue {
 	void (*callback)(struct virtqueue *vq);
 	const char *name;
 	struct virtio_device *vdev;
+        unsigned int index;
+        unsigned int num_free;
 	void *priv;
 };
 
@@ -206,7 +210,8 @@ bool virtqueue_enable_cb(struct virtqueue *vq);
 bool virtqueue_enable_cb_delayed(struct virtqueue *vq);
 
 void *virtqueue_detach_unused_buf(struct virtqueue *vq);
-struct virtqueue *vring_new_virtqueue(unsigned int num,
+struct virtqueue *vring_new_virtqueue(unsigned int index,
+				      unsigned int num,
 				      unsigned int vring_align,
 				      struct virtio_device *vdev,
 				      bool weak_barriers,

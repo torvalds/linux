@@ -275,7 +275,9 @@ static long vhost_test_ioctl(struct file *f, unsigned int ioctl,
 		return vhost_test_reset_owner(n);
 	default:
 		mutex_lock(&n->dev.mutex);
-		r = vhost_dev_ioctl(&n->dev, ioctl, arg);
+		r = vhost_dev_ioctl(&n->dev, ioctl, argp);
+                if (r == -ENOIOCTLCMD)
+                        r = vhost_vring_ioctl(&n->dev, ioctl, argp);
 		vhost_test_flush(n);
 		mutex_unlock(&n->dev.mutex);
 		return r;

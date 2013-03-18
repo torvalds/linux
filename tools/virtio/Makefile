@@ -1,7 +1,7 @@
 all: test mod
 test: virtio_test
 virtio_test: virtio_ring.o virtio_test.o
-CFLAGS += -g -O2 -Wall -I. -I ../../usr/include/ -Wno-pointer-sign -fno-strict-overflow  -MMD
+CFLAGS += -g -O2 -Wall -I. -I ../../usr/include/ -Wno-pointer-sign -fno-strict-overflow -fno-strict-aliasing -fno-common -MMD
 vpath %.c ../../drivers/virtio
 mod:
 	${MAKE} -C `pwd`/../.. M=`pwd`/vhost_test
