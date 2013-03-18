@@ -79,6 +79,9 @@ static int tegra_plane_disable(struct drm_plane *plane)
 	struct tegra_plane *p = to_tegra_plane(plane);
 	unsigned long value;
 
+	if (!plane->crtc)
+		return 0;
+
 	value = WINDOW_A_SELECT << p->index;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
 
