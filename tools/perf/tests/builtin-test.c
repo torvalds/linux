@@ -90,6 +90,10 @@ static struct test {
 		.func = test__task_exit,
 	},
 	{
+		.desc = "Test software clock events have valid period values",
+		.func = test__sw_clock_freq,
+	},
+	{
 		.func = NULL,
 	},
 };
