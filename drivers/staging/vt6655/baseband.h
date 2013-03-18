@@ -71,15 +71,15 @@
 
 /*---------------------  Export Macros ------------------------------*/
 
-#define BBvClearFOE(dwIoBase)                               \
-{                                                           \
-    BBbWriteEmbedded(dwIoBase, 0xB1, 0);                     \
-}
+#define BBvClearFOE(dwIoBase)				\
+	{						\
+		BBbWriteEmbedded(dwIoBase, 0xB1, 0);	\
+	}
 
-#define BBvSetFOE(dwIoBase)                                 \
-{                                                           \
-    BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C);                  \
-}
+#define BBvSetFOE(dwIoBase)				\
+	{						\
+		BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C);	\
+	}
 
 
 /*---------------------  Export Classes  ----------------------------*/
@@ -90,22 +90,22 @@
 
 unsigned int
 BBuGetFrameTime(
-    unsigned char byPreambleType,
-    unsigned char byPktType,
-    unsigned int cbFrameLength,
-    unsigned short wRate
-    );
+	unsigned char byPreambleType,
+	unsigned char byPktType,
+	unsigned int cbFrameLength,
+	unsigned short wRate
+);
 
 void
-BBvCalculateParameter (
-    PSDevice pDevice,
-    unsigned int cbFrameLength,
-    unsigned short wRate,
-    unsigned char byPacketType,
-    unsigned short *pwPhyLen,
-    unsigned char *pbyPhySrv,
-    unsigned char *pbyPhySgn
-    );
+BBvCalculateParameter(
+	PSDevice pDevice,
+	unsigned int cbFrameLength,
+	unsigned short wRate,
+	unsigned char byPacketType,
+	unsigned short *pwPhyLen,
+	unsigned char *pbyPhySrv,
+	unsigned char *pbyPhySgn
+);
 
 bool BBbReadEmbedded(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char *pbyData);
 bool BBbWriteEmbedded(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byData);
@@ -131,17 +131,17 @@ void BBvExitDeepSleep(unsigned long dwIoBase, unsigned char byLocalID);
 // timer for antenna diversity
 
 void
-TimerSQ3CallBack (
-    void *hDeviceContext
-    );
+TimerSQ3CallBack(
+	void *hDeviceContext
+);
 
 void
 TimerState1CallBack(
-    void *hDeviceContext
-    );
+	void *hDeviceContext
+);
 
 void BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ3);
 void
-BBvClearAntDivSQ3Value (PSDevice pDevice);
+BBvClearAntDivSQ3Value(PSDevice pDevice);
 
 #endif // __BASEBAND_H__
