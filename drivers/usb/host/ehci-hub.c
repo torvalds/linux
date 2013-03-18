@@ -464,7 +464,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	while (i--) {
 		temp = ehci_readl(ehci, &ehci->regs->port_status [i]);
 		if (test_bit(i, &resume_needed)) {
-			temp &= ~(PORT_RWC_BITS | PORT_RESUME);
+			temp &= ~(PORT_RWC_BITS | PORT_SUSPEND | PORT_RESUME);
 			ehci_writel(ehci, temp, &ehci->regs->port_status [i]);
 			ehci_vdbg (ehci, "resumed port %d\n", i + 1);
 		}
@@ -871,10 +871,9 @@ static int ehci_hub_control (
 				usb_hcd_end_port_resume(&hcd->self, wIndex);
 
 				/* stop resume signaling */
-				temp = ehci_readl(ehci, status_reg);
-				ehci_writel(ehci,
-					temp & ~(PORT_RWC_BITS | PORT_RESUME),
-					status_reg);
+				temp &= ~(PORT_RWC_BITS |
+						PORT_SUSPEND | PORT_RESUME);
+				ehci_writel(ehci, temp, status_reg);
 				clear_bit(wIndex, &ehci->resuming_ports);
 				retval = handshake(ehci, status_reg,
 					   PORT_RESUME, 0, 2000 /* 2msec */);
@@ -884,7 +883,7 @@ static int ehci_hub_control (
 						wIndex + 1, retval);
 					goto error;
 				}
-				temp &= ~(PORT_SUSPEND|PORT_RESUME|(3<<10));
+				temp = ehci_readl(ehci, status_reg);
 			}
 		}
 
