@@ -76,14 +76,14 @@ void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 	}
 #endif
 
-	if (!np)
-		return;
-
-#ifdef CONFIG_OF
 	clk_table = kzalloc(sizeof(struct clk *) * nr_clks, GFP_KERNEL);
 	if (!clk_table)
 		panic("could not allocate clock lookup table\n");
 
+	if (!np)
+		return;
+
+#ifdef CONFIG_OF
 	clk_data.clks = clk_table;
 	clk_data.clk_num = nr_clks;
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
