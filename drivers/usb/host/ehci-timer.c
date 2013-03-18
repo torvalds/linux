@@ -113,8 +113,8 @@ static void ehci_poll_ASS(struct ehci_hcd *ehci)
 
 	if (want != actual) {
 
-		/* Poll again later, but give up after about 20 ms */
-		if (ehci->ASS_poll_count++ < 20) {
+		/* Poll again later, but give up after about 2-4 ms */
+		if (ehci->ASS_poll_count++ < 2) {
 			ehci_enable_event(ehci, EHCI_HRTIMER_POLL_ASS, true);
 			return;
 		}
@@ -159,8 +159,8 @@ static void ehci_poll_PSS(struct ehci_hcd *ehci)
 
 	if (want != actual) {
 
-		/* Poll again later, but give up after about 20 ms */
-		if (ehci->PSS_poll_count++ < 20) {
+		/* Poll again later, but give up after about 2-4 ms */
+		if (ehci->PSS_poll_count++ < 2) {
 			ehci_enable_event(ehci, EHCI_HRTIMER_POLL_PSS, true);
 			return;
 		}
