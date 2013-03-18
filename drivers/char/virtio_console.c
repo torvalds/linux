@@ -1436,7 +1436,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 		 * rproc_serial does not want the console port, only
 		 * the generic port implementation.
 		 */
-		port->host_connected = port->guest_connected = true;
+		port->host_connected = true;
 	else if (!use_multiport(port->portdev)) {
 		/*
 		 * If we're not using multiport support,
@@ -1752,13 +1752,23 @@ static void in_intr(struct virtqueue *vq)
 	port->inbuf = get_inbuf(port);
 
 	/*
-	 * Don't queue up data when port is closed.  This condition
+	 * Normally the port should not accept data when the port is
+	 * closed. For generic serial ports, the host won't (shouldn't)
+	 * send data till the guest is connected. But this condition
 	 * can be reached when a console port is not yet connected (no
-	 * tty is spawned) and the host sends out data to console
-	 * ports.  For generic serial ports, the host won't
-	 * (shouldn't) send data till the guest is connected.
+	 * tty is spawned) and the other side sends out data over the
+	 * vring, or when a remote devices start sending data before
+	 * the ports are opened.
+	 *
+	 * A generic serial port will discard data if not connected,
+	 * while console ports and rproc-serial ports accepts data at
+	 * any time. rproc-serial is initiated with guest_connected to
+	 * false because port_fops_open expects this. Console ports are
+	 * hooked up with an HVC console and is initialized with
+	 * guest_connected to true.
 	 */
-	if (!port->guest_connected)
+
+	if (!port->guest_connected && !is_rproc_serial(port->portdev->vdev))
 		discard_port_data(port);
 
 	spin_unlock_irqrestore(&port->inbuf_lock, flags);
