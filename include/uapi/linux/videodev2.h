@@ -1807,10 +1807,13 @@ struct v4l2_event_subscription {
 
 /* VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER */
 
-#define V4L2_CHIP_MATCH_HOST       0  /* Match against chip ID on host (0 for the host) */
-#define V4L2_CHIP_MATCH_I2C_DRIVER 1  /* Match against I2C driver name */
-#define V4L2_CHIP_MATCH_I2C_ADDR   2  /* Match against I2C 7-bit address */
-#define V4L2_CHIP_MATCH_AC97       3  /* Match against anciliary AC97 chip */
+#define V4L2_CHIP_MATCH_BRIDGE      0  /* Match against chip ID on the bridge (0 for the bridge) */
+#define V4L2_CHIP_MATCH_HOST V4L2_CHIP_MATCH_BRIDGE
+#define V4L2_CHIP_MATCH_I2C_DRIVER  1  /* Match against I2C driver name */
+#define V4L2_CHIP_MATCH_I2C_ADDR    2  /* Match against I2C 7-bit address */
+#define V4L2_CHIP_MATCH_AC97        3  /* Match against anciliary AC97 chip */
+#define V4L2_CHIP_MATCH_SUBDEV_NAME 4  /* Match against subdev name */
+#define V4L2_CHIP_MATCH_SUBDEV_IDX  5  /* Match against subdev index */
 
 struct v4l2_dbg_match {
 	__u32 type; /* Match type */
@@ -1832,6 +1835,17 @@ struct v4l2_dbg_chip_ident {
 	struct v4l2_dbg_match match;
 	__u32 ident;       /* chip identifier as specified in <media/v4l2-chip-ident.h> */
 	__u32 revision;    /* chip revision, chip specific */
+} __attribute__ ((packed));
+
+#define V4L2_CHIP_FL_READABLE (1 << 0)
+#define V4L2_CHIP_FL_WRITABLE (1 << 1)
+
+/* VIDIOC_DBG_G_CHIP_NAME */
+struct v4l2_dbg_chip_name {
+	struct v4l2_dbg_match match;
+	char name[32];
+	__u32 flags;
+	__u32 reserved[8];
 } __attribute__ ((packed));
 
 /**
@@ -1911,15 +1925,12 @@ struct v4l2_create_buffers {
 #define VIDIOC_G_EXT_CTRLS	_IOWR('V', 71, struct v4l2_ext_controls)
 #define VIDIOC_S_EXT_CTRLS	_IOWR('V', 72, struct v4l2_ext_controls)
 #define VIDIOC_TRY_EXT_CTRLS	_IOWR('V', 73, struct v4l2_ext_controls)
-#if 1
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS _IOWR('V', 75, struct v4l2_frmivalenum)
 #define VIDIOC_G_ENC_INDEX       _IOR('V', 76, struct v4l2_enc_idx)
 #define VIDIOC_ENCODER_CMD      _IOWR('V', 77, struct v4l2_encoder_cmd)
 #define VIDIOC_TRY_ENCODER_CMD  _IOWR('V', 78, struct v4l2_encoder_cmd)
-#endif
 
-#if 1
 /* Experimental, meant for debugging, testing and internal use.
    Only implemented if CONFIG_VIDEO_ADV_DEBUG is defined.
    You must be root to use these ioctls. Never use these in applications! */
@@ -1927,9 +1938,10 @@ struct v4l2_create_buffers {
 #define	VIDIOC_DBG_G_REGISTER 	_IOWR('V', 80, struct v4l2_dbg_register)
 
 /* Experimental, meant for debugging, testing and internal use.
-   Never use this ioctl in applications! */
+   Never use this ioctl in applications!
+   Note: this ioctl is deprecated in favor of VIDIOC_DBG_G_CHIP_NAME and
+   will go away in the future. */
 #define VIDIOC_DBG_G_CHIP_IDENT _IOWR('V', 81, struct v4l2_dbg_chip_ident)
-#endif
 
 #define VIDIOC_S_HW_FREQ_SEEK	 _IOW('V', 82, struct v4l2_hw_freq_seek)
 
@@ -1962,6 +1974,10 @@ struct v4l2_create_buffers {
 /* Experimental, this ioctl may change over the next couple of kernel
    versions. */
 #define VIDIOC_ENUM_FREQ_BANDS	_IOWR('V', 101, struct v4l2_frequency_band)
+
+/* Experimental, meant for debugging, testing and internal use.
+   Never use these in applications! */
+#define VIDIOC_DBG_G_CHIP_NAME  _IOWR('V', 102, struct v4l2_dbg_chip_name)
 
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */
