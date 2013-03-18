@@ -90,7 +90,7 @@ static int denali_dt_probe(struct platform_device *ofdev)
 	denali->irq = platform_get_irq(ofdev, 0);
 	if (denali->irq < 0) {
 		dev_err(&ofdev->dev, "no irq defined\n");
-		return -ENXIO;
+		return denali->irq;
 	}
 
 	denali->flash_reg = request_and_map(&ofdev->dev, denali_reg);
