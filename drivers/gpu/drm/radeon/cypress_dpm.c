@@ -344,7 +344,7 @@ void cypress_advertise_gen2_capability(struct radeon_device *rdev)
 
 }
 
-static u32 cypress_get_maximum_link_speed(struct radeon_ps *radeon_state)
+static enum radeon_pcie_gen cypress_get_maximum_link_speed(struct radeon_ps *radeon_state)
 {
 	struct rv7xx_ps *state = rv770_get_ps(radeon_state);
 
@@ -357,14 +357,16 @@ void cypress_notify_link_speed_change_after_state_change(struct radeon_device *r
 							 struct radeon_ps *radeon_new_state,
 							 struct radeon_ps *radeon_current_state)
 {
-	u32 pcie_link_speed_target =  cypress_get_maximum_link_speed(radeon_new_state);
-	u32 pcie_link_speed_current = cypress_get_maximum_link_speed(radeon_current_state);
+	enum radeon_pcie_gen pcie_link_speed_target =
+		cypress_get_maximum_link_speed(radeon_new_state);
+	enum radeon_pcie_gen pcie_link_speed_current =
+		cypress_get_maximum_link_speed(radeon_current_state);
 	u8 request;
 
 	if (pcie_link_speed_target < pcie_link_speed_current) {
-		if (pcie_link_speed_target == 0)
+		if (pcie_link_speed_target == RADEON_PCIE_GEN1)
 			request = PCIE_PERF_REQ_PECI_GEN1;
-		else if (pcie_link_speed_target == 1)
+		else if (pcie_link_speed_target == RADEON_PCIE_GEN2)
 			request = PCIE_PERF_REQ_PECI_GEN2;
 		else
 			request = PCIE_PERF_REQ_PECI_GEN3;
@@ -377,14 +379,16 @@ void cypress_notify_link_speed_change_before_state_change(struct radeon_device *
 							  struct radeon_ps *radeon_new_state,
 							  struct radeon_ps *radeon_current_state)
 {
-	u32 pcie_link_speed_target =  cypress_get_maximum_link_speed(radeon_new_state);
-	u32 pcie_link_speed_current = cypress_get_maximum_link_speed(radeon_current_state);
+	enum radeon_pcie_gen pcie_link_speed_target =
+		cypress_get_maximum_link_speed(radeon_new_state);
+	enum radeon_pcie_gen pcie_link_speed_current =
+		cypress_get_maximum_link_speed(radeon_current_state);
 	u8 request;
 
 	if (pcie_link_speed_target > pcie_link_speed_current) {
-		if (pcie_link_speed_target == 0)
+		if (pcie_link_speed_target == RADEON_PCIE_GEN1)
 			request = PCIE_PERF_REQ_PECI_GEN1;
-		else if (pcie_link_speed_target == 1)
+		else if (pcie_link_speed_target == RADEON_PCIE_GEN2)
 			request = PCIE_PERF_REQ_PECI_GEN2;
 		else
 			request = PCIE_PERF_REQ_PECI_GEN3;

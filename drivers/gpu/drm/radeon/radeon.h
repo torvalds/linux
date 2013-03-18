@@ -1298,6 +1298,13 @@ struct radeon_dpm_fan {
 	bool ucode_fan_control;
 };
 
+enum radeon_pcie_gen {
+	RADEON_PCIE_GEN1 = 0,
+	RADEON_PCIE_GEN2 = 1,
+	RADEON_PCIE_GEN3 = 2,
+	RADEON_PCIE_GEN_INVALID = 0xffff
+};
+
 struct radeon_dpm {
 	struct radeon_ps        *ps;
 	/* number of valid power states */
