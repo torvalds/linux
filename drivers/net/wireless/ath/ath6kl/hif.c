@@ -22,6 +22,7 @@
 #include "target.h"
 #include "hif-ops.h"
 #include "debug.h"
+#include "trace.h"
 
 #define MAILBOX_FOR_BLOCK_SIZE          1
 
@@ -436,6 +437,8 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 
 		ath6kl_dump_registers(dev, &dev->irq_proc_reg,
 				      &dev->irq_en_reg);
+		trace_ath6kl_sdio_irq(&dev->irq_en_reg,
+				      sizeof(dev->irq_en_reg));
 
 		/* Update only those registers that are enabled */
 		host_int_status = dev->irq_proc_reg.host_int_status &

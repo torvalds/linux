@@ -1167,8 +1167,8 @@ static int htc_wait_recv_ctrl_message(struct htc_target *target)
 	}
 
 	if (count <= 0) {
-		ath6kl_dbg(ATH6KL_DBG_HTC, "%s: Timeout!\n", __func__);
-		return -ECOMM;
+		ath6kl_warn("htc pipe control receive timeout!\n");
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -1581,16 +1581,16 @@ static int ath6kl_htc_pipe_wait_target(struct htc_target *target)
 		return status;
 
 	if (target->pipe.ctrl_response_len < sizeof(*ready_msg)) {
-		ath6kl_dbg(ATH6KL_DBG_HTC, "invalid htc ready msg len:%d!\n",
-			   target->pipe.ctrl_response_len);
+		ath6kl_warn("invalid htc pipe ready msg len: %d\n",
+			    target->pipe.ctrl_response_len);
 		return -ECOMM;
 	}
 
 	ready_msg = (struct htc_ready_ext_msg *) target->pipe.ctrl_response_buf;
 
 	if (ready_msg->ver2_0_info.msg_id != cpu_to_le16(HTC_MSG_READY_ID)) {
-		ath6kl_dbg(ATH6KL_DBG_HTC, "invalid htc ready msg : 0x%X !\n",
-			   ready_msg->ver2_0_info.msg_id);
+		ath6kl_warn("invalid htc pipe ready msg: 0x%x\n",
+			    ready_msg->ver2_0_info.msg_id);
 		return -ECOMM;
 	}
 
