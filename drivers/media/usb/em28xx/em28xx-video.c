@@ -1245,9 +1245,9 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
-	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
-		if (v4l2_chip_match_host(&chip->match))
-			chip->ident = V4L2_IDENT_NONE;
+	if (chip->match.type == V4L2_CHIP_MATCH_BRIDGE) {
+		if (chip->match.addr > 1)
+			return -EINVAL;
 		return 0;
 	}
 	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
@@ -1256,6 +1256,21 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_chip_ident, chip);
 
+	return 0;
+}
+
+static int vidioc_g_chip_name(struct file *file, void *priv,
+	       struct v4l2_dbg_chip_name *chip)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	if (chip->match.addr > 1)
+		return -EINVAL;
+	if (chip->match.addr == 1)
+		strlcpy(chip->name, "ac97", sizeof(chip->name));
+	else
+		strlcpy(chip->name, dev->v4l2_dev.name, sizeof(chip->name));
 	return 0;
 }
 
@@ -1280,6 +1295,12 @@ static int vidioc_g_register(struct file *file, void *priv,
 	int ret;
 
 	switch (reg->match.type) {
+	case V4L2_CHIP_MATCH_BRIDGE:
+		if (reg->match.addr > 1)
+			return -EINVAL;
+		if (!reg->match.addr)
+			break;
+		/* fall-through */
 	case V4L2_CHIP_MATCH_AC97:
 		ret = em28xx_read_ac97(dev, reg->reg);
 		if (ret < 0)
@@ -1296,8 +1317,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
 	default:
-		if (!v4l2_chip_match_host(&reg->match))
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	/* Match host */
@@ -1330,6 +1350,12 @@ static int vidioc_s_register(struct file *file, void *priv,
 	__le16 buf;
 
 	switch (reg->match.type) {
+	case V4L2_CHIP_MATCH_BRIDGE:
+		if (reg->match.addr > 1)
+			return -EINVAL;
+		if (!reg->match.addr)
+			break;
+		/* fall-through */
 	case V4L2_CHIP_MATCH_AC97:
 		return em28xx_write_ac97(dev, reg->reg, reg->val);
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
@@ -1340,8 +1366,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
 	default:
-		if (!v4l2_chip_match_host(&reg->match))
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	/* Match host */
@@ -1699,6 +1724,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
+	.vidioc_g_chip_name         = vidioc_g_chip_name,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register          = vidioc_g_register,
 	.vidioc_s_register          = vidioc_s_register,
@@ -1729,6 +1755,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 	.vidioc_g_chip_ident  = vidioc_g_chip_ident,
+	.vidioc_g_chip_name   = vidioc_g_chip_name,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
