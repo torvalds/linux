@@ -1806,14 +1806,13 @@ fec_probe(struct platform_device *pdev)
 	fep->bufdesc_ex =
 		pdev->id_entry->driver_data & FEC_QUIRK_HAS_BUFDESC_EX;
 	if (IS_ERR(fep->clk_ptp)) {
-		ret = PTR_ERR(fep->clk_ptp);
+		fep->clk_ptp = NULL;
 		fep->bufdesc_ex = 0;
 	}
 
 	clk_prepare_enable(fep->clk_ahb);
 	clk_prepare_enable(fep->clk_ipg);
-	if (!IS_ERR(fep->clk_ptp))
-		clk_prepare_enable(fep->clk_ptp);
+	clk_prepare_enable(fep->clk_ptp);
 
 	reg_phy = devm_regulator_get(&pdev->dev, "phy");
 	if (!IS_ERR(reg_phy)) {
@@ -1878,8 +1877,7 @@ failed_irq:
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
-	if (!IS_ERR(fep->clk_ptp))
-		clk_disable_unprepare(fep->clk_ptp);
+	clk_disable_unprepare(fep->clk_ptp);
 failed_pin:
 failed_clk:
 	iounmap(fep->hwp);
