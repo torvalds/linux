@@ -5679,17 +5679,18 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	memset(rdata, 0, sizeof(*rdata));
 
 	/* Fill the ramrod data with provided parameters */
-	rdata->function_mode    = (u8)start_params->mf_mode;
-	rdata->sd_vlan_tag      = cpu_to_le16(start_params->sd_vlan_tag);
-	rdata->path_id          = BP_PATH(bp);
-	rdata->network_cos_mode = start_params->network_cos_mode;
+	rdata->function_mode	= (u8)start_params->mf_mode;
+	rdata->sd_vlan_tag	= cpu_to_le16(start_params->sd_vlan_tag);
+	rdata->path_id		= BP_PATH(bp);
+	rdata->network_cos_mode	= start_params->network_cos_mode;
+	rdata->gre_tunnel_mode	= start_params->gre_tunnel_mode;
+	rdata->gre_tunnel_rss	= start_params->gre_tunnel_rss;
 
-	/*
-	 *  No need for an explicit memory barrier here as long we would
-	 *  need to ensure the ordering of writing to the SPQ element
-	 *  and updating of the SPQ producer which involves a memory
-	 *  read and we will have to put a full memory barrier there
-	 *  (inside bnx2x_sp_post()).
+	/* No need for an explicit memory barrier here as long we would
+	 * need to ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read and we will have to put a full memory barrier there
+	 * (inside bnx2x_sp_post()).
 	 */
 
 	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_FUNCTION_START, 0,

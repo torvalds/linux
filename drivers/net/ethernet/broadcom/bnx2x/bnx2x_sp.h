@@ -1123,6 +1123,15 @@ struct bnx2x_func_start_params {
 
 	/* Function cos mode */
 	u8 network_cos_mode;
+
+	/* NVGRE classification enablement */
+	u8 nvgre_clss_en;
+
+	/* NO_GRE_TUNNEL/NVGRE_TUNNEL/L2GRE_TUNNEL/IPGRE_TUNNEL */
+	u8 gre_tunnel_mode;
+
+	/* GRE_OUTER_HEADERS_RSS/GRE_INNER_HEADERS_RSS/NVGRE_KEY_ENTROPY_RSS */
+	u8 gre_tunnel_rss;
 };
 
 struct bnx2x_func_switch_update_params {
