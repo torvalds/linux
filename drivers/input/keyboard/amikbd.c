@@ -260,18 +260,6 @@ static struct platform_driver amikbd_driver = {
 	},
 };
 
-static int __init amikbd_init(void)
-{
-	return platform_driver_probe(&amikbd_driver, amikbd_probe);
-}
-
-module_init(amikbd_init);
-
-static void __exit amikbd_exit(void)
-{
-	platform_driver_unregister(&amikbd_driver);
-}
-
-module_exit(amikbd_exit);
+module_platform_driver_probe(amikbd_driver, amikbd_probe);
 
 MODULE_ALIAS("platform:amiga-keyboard");
