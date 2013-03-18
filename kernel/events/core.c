@@ -245,7 +245,7 @@ struct perf_cgroup_info {
 
 struct perf_cgroup {
 	struct cgroup_subsys_state	css;
-	struct perf_cgroup_info		*info;
+	struct perf_cgroup_info	__percpu *info;
 };
 
 /*
