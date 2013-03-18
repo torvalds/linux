@@ -57,18 +57,6 @@ void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 		unsigned long nr_rdump)
 {
 	reg_base = base;
-	if (!np)
-		return;
-
-#ifdef CONFIG_OF
-	clk_table = kzalloc(sizeof(struct clk *) * nr_clks, GFP_KERNEL);
-	if (!clk_table)
-		panic("could not allocate clock lookup table\n");
-
-	clk_data.clks = clk_table;
-	clk_data.clk_num = nr_clks;
-	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-#endif
 
 #ifdef CONFIG_PM_SLEEP
 	if (rdump && nr_rdump) {
@@ -86,6 +74,19 @@ void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 		nr_reg_dump = nr_rdump;
 		register_syscore_ops(&samsung_clk_syscore_ops);
 	}
+#endif
+
+	if (!np)
+		return;
+
+#ifdef CONFIG_OF
+	clk_table = kzalloc(sizeof(struct clk *) * nr_clks, GFP_KERNEL);
+	if (!clk_table)
+		panic("could not allocate clock lookup table\n");
+
+	clk_data.clks = clk_table;
+	clk_data.clk_num = nr_clks;
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 #endif
 }
 
