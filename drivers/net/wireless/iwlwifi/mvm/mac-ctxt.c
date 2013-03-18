@@ -692,7 +692,12 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 	WARN_ON(vif->type != NL80211_IFTYPE_MONITOR);
 
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
-	/* No other data to be filled */
+
+	cmd.filter_flags = cpu_to_le32(MAC_FILTER_IN_PROMISC |
+				       MAC_FILTER_IN_CONTROL_AND_MGMT |
+				       MAC_FILTER_IN_BEACON |
+				       MAC_FILTER_IN_PROBE_REQUEST);
+
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
 
