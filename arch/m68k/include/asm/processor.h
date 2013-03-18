@@ -130,7 +130,6 @@ extern int handle_kernel_fault(struct pt_regs *regs);
 #define start_thread(_regs, _pc, _usp)                  \
 do {                                                    \
 	(_regs)->pc = (_pc);                            \
-	((struct switch_stack *)(_regs))[-1].a6 = 0;    \
 	setframeformat(_regs);                          \
 	if (current->mm)                                \
 		(_regs)->d5 = current->mm->start_data;  \

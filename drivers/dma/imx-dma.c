@@ -14,6 +14,7 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -1010,9 +1011,9 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	imxdma->devtype = pdev->id_entry->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	imxdma->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!imxdma->base)
-		return -EADDRNOTAVAIL;
+	imxdma->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(imxdma->base))
+		return PTR_ERR(imxdma->base);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

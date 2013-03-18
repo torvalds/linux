@@ -664,10 +664,9 @@ static int myri10ge_adopt_running_firmware(struct myri10ge_priv *mgp)
 	/* copy header of running firmware from SRAM to host memory to
 	 * validate firmware */
 	hdr = kmalloc(bytes, GFP_KERNEL);
-	if (hdr == NULL) {
-		dev_err(dev, "could not malloc firmware hdr\n");
+	if (hdr == NULL)
 		return -ENOMEM;
-	}
+
 	memcpy_fromio(hdr, mgp->sram + hdr_offset, bytes);
 	status = myri10ge_validate_firmware(mgp, hdr);
 	kfree(hdr);

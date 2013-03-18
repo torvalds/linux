@@ -202,7 +202,7 @@ out:
 static int do_vm86_irq_handling(int subfunction, int irqnumber);
 static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk);
 
-int sys_vm86old(struct vm86_struct __user *v86, struct pt_regs *regs)
+int sys_vm86old(struct vm86_struct __user *v86)
 {
 	struct kernel_vm86_struct info; /* declare this _on top_,
 					 * this avoids wasting of stack space.
@@ -222,7 +222,7 @@ int sys_vm86old(struct vm86_struct __user *v86, struct pt_regs *regs)
 	if (tmp)
 		goto out;
 	memset(&info.vm86plus, 0, (int)&info.regs32 - (int)&info.vm86plus);
-	info.regs32 = regs;
+	info.regs32 = current_pt_regs();
 	tsk->thread.vm86_info = v86;
 	do_sys_vm86(&info, tsk);
 	ret = 0;	/* we never return here */
@@ -231,7 +231,7 @@ out:
 }
 
 
-int sys_vm86(unsigned long cmd, unsigned long arg, struct pt_regs *regs)
+int sys_vm86(unsigned long cmd, unsigned long arg)
 {
 	struct kernel_vm86_struct info; /* declare this _on top_,
 					 * this avoids wasting of stack space.
@@ -272,7 +272,7 @@ int sys_vm86(unsigned long cmd, unsigned long arg, struct pt_regs *regs)
 	ret = -EFAULT;
 	if (tmp)
 		goto out;
-	info.regs32 = regs;
+	info.regs32 = current_pt_regs();
 	info.vm86plus.is_vm86pus = 1;
 	tsk->thread.vm86_info = (struct vm86_struct __user *)v86;
 	do_sys_vm86(&info, tsk);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -307,7 +307,7 @@ struct acpi_object_addr_handler {
 	struct acpi_namespace_node *node;	/* Parent device */
 	void *context;
 	acpi_adr_space_setup setup;
-	union acpi_operand_object *region_list;	/* regions using this handler */
+	union acpi_operand_object *region_list;	/* Regions using this handler */
 	union acpi_operand_object *next;
 };
 

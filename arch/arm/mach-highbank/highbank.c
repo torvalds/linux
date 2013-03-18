@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -25,14 +26,15 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/amba/bus.h>
+#include <linux/clk-provider.h>
 
 #include <asm/arch_timer.h>
 #include <asm/cacheflush.h>
+#include <asm/cputype.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -59,18 +61,12 @@ static void __init highbank_scu_map_io(void)
 
 void highbank_set_cpu_jump(int cpu, void *jump_addr)
 {
-	cpu = cpu_logical_map(cpu);
+	cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 0);
 	writel(virt_to_phys(jump_addr), HB_JUMP_TABLE_VIRT(cpu));
 	__cpuc_flush_dcache_area(HB_JUMP_TABLE_VIRT(cpu), 16);
 	outer_clean_range(HB_JUMP_TABLE_PHYS(cpu),
 			  HB_JUMP_TABLE_PHYS(cpu) + 15);
 }
-
-const static struct of_device_id irq_match[] = {
-	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{}
-};
 
 #ifdef CONFIG_CACHE_L2X0
 static void highbank_l2x0_disable(void)
@@ -82,7 +78,7 @@ static void highbank_l2x0_disable(void)
 
 static void __init highbank_init_irq(void)
 {
-	of_irq_init(irq_match);
+	irqchip_init();
 
 	if (of_find_compatible_node(NULL, NULL, "arm,cortex-a9"))
 		highbank_scu_map_io();
@@ -116,7 +112,7 @@ static void __init highbank_timer_init(void)
 	WARN_ON(!timer_base);
 	irq = irq_of_parse_and_map(np, 0);
 
-	highbank_clocks_init();
+	of_clk_init(NULL);
 	lookup.clk = of_clk_get(np, 0);
 	clkdev_add(&lookup);
 
@@ -128,10 +124,6 @@ static void __init highbank_timer_init(void)
 	arch_timer_of_register();
 	arch_timer_sched_clock_init();
 }
-
-static struct sys_timer highbank_timer = {
-	.init = highbank_timer_init,
-};
 
 static void highbank_power_off(void)
 {
@@ -209,8 +201,7 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 	.smp		= smp_ops(highbank_smp_ops),
 	.map_io		= debug_ll_io_init,
 	.init_irq	= highbank_init_irq,
-	.timer		= &highbank_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= highbank_timer_init,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,
 	.restart	= highbank_restart,

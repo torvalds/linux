@@ -85,11 +85,7 @@ static void uart_clps711x_enable_ms(struct uart_port *port)
 static irqreturn_t uart_clps711x_int_rx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
 	unsigned int status, ch, flg;
-
-	if (!tty)
-		return IRQ_HANDLED;
 
 	for (;;) {
 		status = clps_readl(SYSFLG(port));
@@ -130,9 +126,7 @@ static irqreturn_t uart_clps711x_int_rx(int irq, void *dev_id)
 		uart_insert_char(port, status, UARTDR_OVERR, ch, flg);
 	}
 
-	tty_flip_buffer_push(tty);
-
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->state->port);
 
 	return IRQ_HANDLED;
 }

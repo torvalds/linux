@@ -1078,9 +1078,9 @@ static int u300_pmx_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENOENT;
 
-	upmx->virtbase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!upmx->virtbase)
-		return -ENOMEM;
+	upmx->virtbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(upmx->virtbase))
+		return PTR_ERR(upmx->virtbase);
 
 	upmx->pctl = pinctrl_register(&u300_pmx_desc, &pdev->dev, upmx);
 	if (!upmx->pctl) {

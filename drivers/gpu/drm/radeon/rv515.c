@@ -336,6 +336,8 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 				WREG32(R600_CITF_CNTL, blackout);
 		}
 	}
+	/* wait for the MC to settle */
+	udelay(100);
 }
 
 void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)

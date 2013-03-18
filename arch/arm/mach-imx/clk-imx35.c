@@ -67,13 +67,13 @@ enum mx35_clks {
 
 static struct clk *clk[clk_max];
 
-int __init mx35_clocks_init()
+int __init mx35_clocks_init(void)
 {
 	void __iomem *base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
 	u32 pdr0, consumer_sel, hsp_sel;
 	struct arm_ahb_div *aad;
 	unsigned char *hsp_div;
-	int i;
+	u32 i;
 
 	pdr0 = __raw_readl(base + MXC_CCM_PDR0);
 	consumer_sel = (pdr0 >> 16) & 0xf;

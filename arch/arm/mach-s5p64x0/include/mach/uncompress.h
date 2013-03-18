@@ -116,33 +116,6 @@ static inline void flush(void)
 		*((volatile unsigned int __force *)(ad)) = (d); \
 	} while (0)
 
-/*
- * CONFIG_S3C_BOOT_WATCHDOG
- *
- * Simple boot-time watchdog setup, to reboot the system if there is
- * any problem with the boot process
- */
-
-#ifdef CONFIG_S3C_BOOT_WATCHDOG
-
-#define WDOG_COUNT (0xff00)
-
-static inline void arch_decomp_wdog(void)
-{
-	__raw_writel(WDOG_COUNT, S3C2410_WTCNT);
-}
-
-static void arch_decomp_wdog_start(void)
-{
-	__raw_writel(WDOG_COUNT, S3C2410_WTDAT);
-	__raw_writel(WDOG_COUNT, S3C2410_WTCNT);
-	__raw_writel(S3C2410_WTCON_ENABLE | S3C2410_WTCON_DIV128 | S3C2410_WTCON_RSTEN | S3C2410_WTCON_PRESCALE(0x80), S3C2410_WTCON);
-}
-
-#else
-#define arch_decomp_wdog_start()
-#define arch_decomp_wdog()
-#endif
 
 #ifdef CONFIG_S3C_BOOT_ERROR_RESET
 
@@ -192,7 +165,6 @@ static void arch_decomp_setup(void)
 	 */
 
 	arch_detect_cpu();
-	arch_decomp_wdog_start();
 
 	/*
 	 * Enable the UART FIFOs if they where not enabled and our

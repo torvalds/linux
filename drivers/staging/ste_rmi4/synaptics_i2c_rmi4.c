@@ -742,13 +742,9 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
 			case SYNAPTICS_RMI4_TOUCHPAD_FUNC_NUM:
 				if (rmi_fd.intr_src_count) {
 					rfi = kmalloc(sizeof(*rfi),
-								GFP_KERNEL);
-					if (!rfi) {
-						dev_err(&client->dev,
-							"%s:kmalloc failed\n",
-								__func__);
-							return -ENOMEM;
-					}
+						      GFP_KERNEL);
+					if (!rfi)
+						return -ENOMEM;
 					retval = synpatics_rmi4_touchpad_detect
 								(pdata,	rfi,
 								&rmi_fd,
@@ -900,12 +896,10 @@ static int synaptics_rmi4_probe
 	}
 
 	/* Allocate and initialize the instance data for this client */
-	rmi4_data = kzalloc(sizeof(struct synaptics_rmi4_data) * 2,
-							GFP_KERNEL);
-	if (!rmi4_data) {
-		dev_err(&client->dev, "%s: no memory allocated\n", __func__);
+	rmi4_data = kcalloc(2, sizeof(struct synaptics_rmi4_data),
+			    GFP_KERNEL);
+	if (!rmi4_data)
 		return -ENOMEM;
-	}
 
 	rmi4_data->input_dev = input_allocate_device();
 	if (rmi4_data->input_dev == NULL) {

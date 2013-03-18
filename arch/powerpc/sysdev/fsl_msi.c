@@ -28,7 +28,7 @@
 #include "fsl_msi.h"
 #include "fsl_pci.h"
 
-LIST_HEAD(msi_head);
+static LIST_HEAD(msi_head);
 
 struct fsl_msi_feature {
 	u32 fsl_pic_ip;
@@ -130,7 +130,7 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	u64 address; /* Physical address of the MSIIR */
 	int len;
-	const u64 *reg;
+	const __be64 *reg;
 
 	/* If the msi-address-64 property exists, then use it */
 	reg = of_get_property(hose->dn, "msi-address-64", &len);

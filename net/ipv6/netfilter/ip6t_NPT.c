@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
+#include <net/ipv6.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_ipv6/ip6t_NPT.h>
@@ -18,9 +19,18 @@ static int ip6t_npt_checkentry(const struct xt_tgchk_param *par)
 {
 	struct ip6t_npt_tginfo *npt = par->targinfo;
 	__wsum src_sum = 0, dst_sum = 0;
+	struct in6_addr pfx;
 	unsigned int i;
 
 	if (npt->src_pfx_len > 64 || npt->dst_pfx_len > 64)
+		return -EINVAL;
+
+	/* Ensure that LSB of prefix is zero */
+	ipv6_addr_prefix(&pfx, &npt->src_pfx.in6, npt->src_pfx_len);
+	if (!ipv6_addr_equal(&pfx, &npt->src_pfx.in6))
+		return -EINVAL;
+	ipv6_addr_prefix(&pfx, &npt->dst_pfx.in6, npt->dst_pfx_len);
+	if (!ipv6_addr_equal(&pfx, &npt->dst_pfx.in6))
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(npt->src_pfx.in6.s6_addr16); i++) {
@@ -30,7 +40,7 @@ static int ip6t_npt_checkentry(const struct xt_tgchk_param *par)
 				(__force __wsum)npt->dst_pfx.in6.s6_addr16[i]);
 	}
 
-	npt->adjustment = (__force __sum16) csum_sub(src_sum, dst_sum);
+	npt->adjustment = ~csum_fold(csum_sub(src_sum, dst_sum));
 	return 0;
 }
 
@@ -51,7 +61,7 @@ static bool ip6t_npt_map_pfx(const struct ip6t_npt_tginfo *npt,
 
 		idx = i / 32;
 		addr->s6_addr32[idx] &= mask;
-		addr->s6_addr32[idx] |= npt->dst_pfx.in6.s6_addr32[idx];
+		addr->s6_addr32[idx] |= ~mask & npt->dst_pfx.in6.s6_addr32[idx];
 	}
 
 	if (pfx_len <= 48)
@@ -66,8 +76,8 @@ static bool ip6t_npt_map_pfx(const struct ip6t_npt_tginfo *npt,
 			return false;
 	}
 
-	sum = (__force __sum16) csum_add((__force __wsum)addr->s6_addr16[idx],
-			 npt->adjustment);
+	sum = ~csum_fold(csum_add(csum_unfold((__force __sum16)addr->s6_addr16[idx]),
+				  csum_unfold(npt->adjustment)));
 	if (sum == CSUM_MANGLED_0)
 		sum = 0;
 	*(__force __sum16 *)&addr->s6_addr16[idx] = sum;

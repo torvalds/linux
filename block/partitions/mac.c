@@ -63,6 +63,10 @@ int mac_partition(struct parsed_partitions *state)
 		put_dev_sector(sect);
 		return 0;
 	}
+
+	if (blocks_in_map >= state->limit)
+		blocks_in_map = state->limit - 1;
+
 	strlcat(state->pp_buf, " [mac]", PAGE_SIZE);
 	for (slot = 1; slot <= blocks_in_map; ++slot) {
 		int pos = slot * secsize;

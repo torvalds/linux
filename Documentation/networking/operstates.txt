@@ -88,6 +88,10 @@ set this flag. On netif_carrier_off(), the scheduler stops sending
 packets. The name 'carrier' and the inversion are historical, think of
 it as lower layer.
 
+Note that for certain kind of soft-devices, which are not managing any
+real hardware, there is possible to set this bit from userpsace.
+One should use TVL IFLA_CARRIER to do so.
+
 netif_carrier_ok() can be used to query that bit.
 
 __LINK_STATE_DORMANT, maps to IFF_DORMANT:

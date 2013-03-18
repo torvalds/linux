@@ -331,18 +331,6 @@ static void core_tmr_drain_state_list(
 
 		fe_count = atomic_read(&cmd->t_fe_count);
 
-		if (!(cmd->transport_state & CMD_T_ACTIVE)) {
-			pr_debug("LUN_RESET: got CMD_T_ACTIVE for"
-				" cdb: %p, t_fe_count: %d dev: %p\n", cmd,
-				fe_count, dev);
-			cmd->transport_state |= CMD_T_ABORTED;
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-			core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
-			continue;
-		}
-		pr_debug("LUN_RESET: Got !CMD_T_ACTIVE for cdb: %p,"
-			" t_fe_count: %d dev: %p\n", cmd, fe_count, dev);
 		cmd->transport_state |= CMD_T_ABORTED;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 

@@ -42,7 +42,7 @@ struct isl6423_config {
 	u8 mod_extern;
 };
 
-#if defined(CONFIG_DVB_ISL6423) || (defined(CONFIG_DVB_ISL6423_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_ISL6423)
 
 
 extern struct dvb_frontend *isl6423_attach(struct dvb_frontend *fe,

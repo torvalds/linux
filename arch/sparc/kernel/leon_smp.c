@@ -69,31 +69,19 @@ static inline unsigned long do_swap(volatile unsigned long *ptr,
 	return val;
 }
 
-void __cpuinit leon_callin(void)
+void __cpuinit leon_cpu_pre_starting(void *arg)
+{
+	leon_configure_cache_smp();
+}
+
+void __cpuinit leon_cpu_pre_online(void *arg)
 {
 	int cpuid = hard_smp_processor_id();
 
-	local_ops->cache_all();
-	local_ops->tlb_all();
-	leon_configure_cache_smp();
-
-	notify_cpu_starting(cpuid);
-
-	/* Get our local ticker going. */
-	register_percpu_ce(cpuid);
-
-	calibrate_delay();
-	smp_store_cpu_info(cpuid);
-
-	local_ops->cache_all();
-	local_ops->tlb_all();
-
-	/*
-	 * Unblock the master CPU _only_ when the scheduler state
-	 * of all secondary CPUs will be up-to-date, so after
-	 * the SMP initialization the master will be just allowed
-	 * to call the scheduler code.
-	 * Allow master to continue.
+	/* Allow master to continue. The master will then give us the
+	 * go-ahead by setting the smp_commenced_mask and will wait without
+	 * timeouts until our setup is completed fully (signified by
+	 * our bit being set in the cpu_online_mask).
 	 */
 	do_swap(&cpu_callin_map[cpuid], 1);
 
@@ -110,9 +98,6 @@ void __cpuinit leon_callin(void)
 
 	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		mb();
-
-	local_irq_enable();
-	set_cpu_online(cpuid, true);
 }
 
 /*

@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2007 by Tensilica Inc.
+ * Copyright (C) 2004 - 2008 by Tensilica Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -129,6 +129,11 @@ _user_exception:
 	xsr	a2, icountlevel
 	s32i	a3, a1, PT_SAR
 	s32i	a2, a1, PT_ICOUNTLEVEL
+
+#if XCHAL_HAVE_THREADPTR
+	rur	a2, threadptr
+	s32i	a2, a1, PT_THREADPTR
+#endif
 
 	/* Rotate ws so that the current windowbase is at bit0. */
 	/* Assume ws = xxwww1yyyy. Rotate ws right, so that a2 = yyyyxxwww1 */
@@ -349,15 +354,16 @@ common_exception:
 	 * so we can allow exceptions and interrupts (*) again.
 	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
 	 *
-	 * (*) We only allow interrupts if PS.INTLEVEL was not set to 1 before
-	 *     (interrupts disabled) and if this exception is not an interrupt.
+	 * (*) We only allow interrupts of higher priority than current IRQ
 	 */
 
 	rsr	a3, ps
 	addi	a0, a0, -4
 	movi	a2, 1
-	extui	a3, a3, 0, 1		# a3 = PS.INTLEVEL[0]
-	moveqz	a3, a2, a0		# a3 = 1 iff interrupt exception
+	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+					# a3 = PS.INTLEVEL
+	movnez	a2, a3, a3		# a2 = 1: level-1, > 1: high priority
+	moveqz	a3, a2, a0		# a3 = IRQ level iff interrupt
 	movi	a2, 1 << PS_WOE_BIT
 	or	a3, a3, a2
 	rsr	a0, exccause
@@ -398,7 +404,7 @@ common_exception:
 	callx4	a4
 
 	/* Jump here for exception exit */
-
+	.global common_exception_return
 common_exception_return:
 
 	/* Jump if we are returning from kernel exceptions. */
@@ -508,6 +514,11 @@ user_exception_exit:
 	 *	 frame where we had loaded a2), or at least the lower 4 bits
 	 *	 (if we have restored WSBITS-1 frames).
 	 */
+
+#if XCHAL_HAVE_THREADPTR
+	l32i	a3, a1, PT_THREADPTR
+	wur	a3, threadptr
+#endif
 
 2:	j	common_exception_exit
 
@@ -641,19 +652,51 @@ common_exception_exit:
 
 	l32i	a0, a1, PT_DEPC
 	l32i	a3, a1, PT_AREG3
-	l32i	a2, a1, PT_AREG2
-	_bgeui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
+	_bltui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
 
+	wsr	a0, depc
+	l32i	a2, a1, PT_AREG2
+	l32i	a0, a1, PT_AREG0
+	l32i	a1, a1, PT_AREG1
+	rfde
+
+1:
 	/* Restore a0...a3 and return */
 
+	rsr	a0, ps
+	extui	a2, a0, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	movi	a0, 2f
+	slli	a2, a2, 4
+	add	a0, a2, a0
+	l32i	a2, a1, PT_AREG2
+	jx	a0
+
+	.macro	irq_exit_level level
+	.align	16
+	.if	XCHAL_EXCM_LEVEL >= \level
+	l32i	a0, a1, PT_PC
+	wsr	a0, epc\level
+	l32i	a0, a1, PT_AREG0
+	l32i	a1, a1, PT_AREG1
+	rfi	\level
+	.endif
+	.endm
+
+	.align	16
+2:
 	l32i	a0, a1, PT_AREG0
 	l32i	a1, a1, PT_AREG1
 	rfe
 
-1:	wsr	a0, depc
-	l32i	a0, a1, PT_AREG0
-	l32i	a1, a1, PT_AREG1
-	rfde
+	.align	16
+	/* no rfi for level-1 irq, handled by rfe above*/
+	nop
+
+	irq_exit_level 2
+	irq_exit_level 3
+	irq_exit_level 4
+	irq_exit_level 5
+	irq_exit_level 6
 
 ENDPROC(kernel_exception)
 
@@ -753,7 +796,7 @@ ENTRY(unrecoverable_exception)
 	wsr	a1, windowbase
 	rsync
 
-	movi	a1, (1 << PS_WOE_BIT) | 1
+	movi	a1, (1 << PS_WOE_BIT) | LOCKLEVEL
 	wsr	a1, ps
 	rsync
 
@@ -1474,7 +1517,7 @@ ENTRY(_spill_registers)
 	l32i	a1, a3, EXC_TABLE_KSTK
 	wsr	a3, excsave1
 
-	movi	a4, (1 << PS_WOE_BIT) | 1
+	movi	a4, (1 << PS_WOE_BIT) | LOCKLEVEL
 	wsr	a4, ps
 	rsync
 
@@ -1922,7 +1965,7 @@ ENTRY(_switch_to)
 	s32i	a6, a3, EXC_TABLE_FIXUP
 	s32i	a7, a3, EXC_TABLE_KSTK
 
-	/* restore context of the task that 'next' addresses */
+	/* restore context of the task 'next' */
 
 	l32i	a0, a13, THREAD_RA	# restore return address
 	l32i	a1, a13, THREAD_SP	# restore stack pointer

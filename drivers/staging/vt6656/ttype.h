@@ -33,32 +33,11 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-typedef int             BOOL;
-
-#if !defined(TRUE)
-#define TRUE            1
-#endif
-#if !defined(FALSE)
-#define FALSE           0
-#endif
-
 /****** Simple typedefs  ***************************************************/
 
 typedef u8 BYTE;
 typedef u16 WORD;
 typedef u32 DWORD;
-
-// QWORD is for those situation that we want
-// an 8-byte-aligned 8 byte long structure
-// which is NOT really a floating point number.
-typedef union tagUQuadWord {
-    struct {
-	u32 dwLowDword;
-	u32 dwHighDword;
-    } u;
-    double      DoNotUseThisField;
-} UQuadWord;
-typedef UQuadWord       QWORD;          // 64-bit
 
 /****** Common pointer types ***********************************************/
 
@@ -72,7 +51,5 @@ typedef BYTE *           PBYTE;
 typedef WORD *           PWORD;
 
 typedef DWORD *          PDWORD;
-
-typedef QWORD *          PQWORD;
 
 #endif /* __TTYPE_H__ */

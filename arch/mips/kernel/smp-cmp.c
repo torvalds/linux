@@ -172,7 +172,7 @@ void __init cmp_smp_setup(void)
 		if (amon_cpu_avail(i)) {
 			set_cpu_possible(i, true);
 			__cpu_number_map[i]	= ++ncpu;
-			__cpu_logical_map[ncpu]	= i;
+			__cpu_logical_map[ncpu] = i;
 		}
 	}
 

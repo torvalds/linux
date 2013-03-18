@@ -165,8 +165,10 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 				    struct pm860x_backlight_data *data,
 				    char *name)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	struct device_node *nproot, *np;
 	int iset = 0;
+
+	nproot = of_node_get(pdev->dev.parent->of_node);
 	if (!nproot)
 		return -ENODEV;
 	nproot = of_find_node_by_name(nproot, "backlights");
@@ -184,6 +186,7 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 			break;
 		}
 	}
+	of_node_put(nproot);
 	return 0;
 }
 #else

@@ -46,7 +46,7 @@ void  __init prom_init_cmdline(void)
 
 	cp = &(arcs_cmdline[0]);
 	while(actr < prom_argc) {
-	        strcpy(cp, prom_argv(actr));
+		strcpy(cp, prom_argv(actr));
 		cp += strlen(prom_argv(actr));
 		*cp++ = ' ';
 		actr++;

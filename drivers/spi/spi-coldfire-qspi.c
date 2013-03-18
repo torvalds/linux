@@ -329,8 +329,7 @@ static int mcfqspi_transfer_one_message(struct spi_master *master,
 		mcfqspi_cs_select(mcfqspi, spi->chip_select, cs_high);
 
 		mcfqspi_wr_qir(mcfqspi, MCFQSPI_QIR_SPIFE);
-		if ((t->bits_per_word ? t->bits_per_word :
-					spi->bits_per_word) == 8)
+		if (t->bits_per_word == 8)
 			mcfqspi_transfer_msg8(mcfqspi, t->len, t->tx_buf,
 					t->rx_buf);
 		else

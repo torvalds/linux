@@ -19,6 +19,7 @@
 #endif
 
 #include <linux/fb.h>
+#include <linux/irqreturn.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>

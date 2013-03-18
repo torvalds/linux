@@ -1,4 +1,4 @@
-Where:		/dev/pstore/...
+Where:		/sys/fs/pstore/... (or /dev/pstore/...)
 Date:		March 2011
 Kernel Version: 2.6.39
 Contact:	tony.luck@intel.com
@@ -11,9 +11,9 @@ Description:	Generic interface to platform dependent persistent storage.
 		of the console log is captured, but other interesting
 		data can also be saved.
 
-		# mount -t pstore -o kmsg_bytes=8000 - /dev/pstore
+		# mount -t pstore -o kmsg_bytes=8000 - /sys/fs/pstore
 
-		$ ls -l /dev/pstore
+		$ ls -l /sys/fs/pstore/
 		total 0
 		-r--r--r-- 1 root root 7896 Nov 30 15:38 dmesg-erst-1
 
@@ -27,9 +27,9 @@ Description:	Generic interface to platform dependent persistent storage.
 		the file will signal to the underlying persistent storage
 		device that it can reclaim the space for later re-use.
 
-		$ rm /dev/pstore/dmesg-erst-1
+		$ rm /sys/fs/pstore/dmesg-erst-1
 
-		The expectation is that all files in /dev/pstore
+		The expectation is that all files in /sys/fs/pstore/
 		will be saved elsewhere and erased from persistent store
 		soon after boot to free up space ready for the next
 		catastrophe.

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -28,16 +28,12 @@
 
 #include "e1000.h"
 
-static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw);
-static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw);
-static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active);
 static s32 e1000_wait_autoneg(struct e1000_hw *hw);
-static u32 e1000_get_phy_addr_for_bm_page(u32 page, u32 reg);
 static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 					  u16 *data, bool read, bool page_set);
 static u32 e1000_get_phy_addr_for_hv_page(u32 page);
 static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
-                                          u16 *data, bool read);
+					  u16 *data, bool read);
 
 /* Cable length tables */
 static const u16 e1000_m88_cable_length_table[] = {
@@ -56,48 +52,6 @@ static const u16 e1000_igp_2_cable_length_table[] = {
 	124};
 #define IGP02E1000_CABLE_LENGTH_TABLE_SIZE \
 		ARRAY_SIZE(e1000_igp_2_cable_length_table)
-
-#define BM_PHY_REG_PAGE(offset) \
-	((u16)(((offset) >> PHY_PAGE_SHIFT) & 0xFFFF))
-#define BM_PHY_REG_NUM(offset) \
-	((u16)(((offset) & MAX_PHY_REG_ADDRESS) |\
-	 (((offset) >> (PHY_UPPER_SHIFT - PHY_PAGE_SHIFT)) &\
-		~MAX_PHY_REG_ADDRESS)))
-
-#define HV_INTC_FC_PAGE_START             768
-#define I82578_ADDR_REG                   29
-#define I82577_ADDR_REG                   16
-#define I82577_CFG_REG                    22
-#define I82577_CFG_ASSERT_CRS_ON_TX       (1 << 15)
-#define I82577_CFG_ENABLE_DOWNSHIFT       (3 << 10) /* auto downshift 100/10 */
-#define I82577_CTRL_REG                   23
-
-/* 82577 specific PHY registers */
-#define I82577_PHY_CTRL_2            18
-#define I82577_PHY_STATUS_2          26
-#define I82577_PHY_DIAG_STATUS       31
-
-/* I82577 PHY Status 2 */
-#define I82577_PHY_STATUS2_REV_POLARITY   0x0400
-#define I82577_PHY_STATUS2_MDIX           0x0800
-#define I82577_PHY_STATUS2_SPEED_MASK     0x0300
-#define I82577_PHY_STATUS2_SPEED_1000MBPS 0x0200
-
-/* I82577 PHY Control 2 */
-#define I82577_PHY_CTRL2_MANUAL_MDIX      0x0200
-#define I82577_PHY_CTRL2_AUTO_MDI_MDIX    0x0400
-#define I82577_PHY_CTRL2_MDIX_CFG_MASK    0x0600
-
-/* I82577 PHY Diagnostics Status */
-#define I82577_DSTATUS_CABLE_LENGTH       0x03FC
-#define I82577_DSTATUS_CABLE_LENGTH_SHIFT 2
-
-/* BM PHY Copper Specific Control 1 */
-#define BM_CS_CTRL1                       16
-
-#define HV_MUX_DATA_CTRL               PHY_REG(776, 16)
-#define HV_MUX_DATA_CTRL_GEN_TO_MAC    0x0400
-#define HV_MUX_DATA_CTRL_FORCE_SPEED   0x0004
 
 /**
  *  e1000e_check_reset_block_generic - Check if PHY reset is blocked
@@ -135,13 +89,13 @@ s32 e1000e_get_phy_id(struct e1000_hw *hw)
 		return 0;
 
 	while (retry_count < 2) {
-		ret_val = e1e_rphy(hw, PHY_ID1, &phy_id);
+		ret_val = e1e_rphy(hw, MII_PHYSID1, &phy_id);
 		if (ret_val)
 			return ret_val;
 
 		phy->id = (u32)(phy_id << 16);
 		udelay(20);
-		ret_val = e1e_rphy(hw, PHY_ID2, &phy_id);
+		ret_val = e1e_rphy(hw, MII_PHYSID2, &phy_id);
 		if (ret_val)
 			return ret_val;
 
@@ -645,31 +599,31 @@ static s32 e1000_set_master_slave_mode(struct e1000_hw *hw)
 	u16 phy_data;
 
 	/* Resolve Master/Slave mode */
-	ret_val = e1e_rphy(hw, PHY_1000T_CTRL, &phy_data);
+	ret_val = e1e_rphy(hw, MII_CTRL1000, &phy_data);
 	if (ret_val)
 		return ret_val;
 
 	/* load defaults for future use */
-	hw->phy.original_ms_type = (phy_data & CR_1000T_MS_ENABLE) ?
-	    ((phy_data & CR_1000T_MS_VALUE) ?
+	hw->phy.original_ms_type = (phy_data & CTL1000_ENABLE_MASTER) ?
+	    ((phy_data & CTL1000_AS_MASTER) ?
 	     e1000_ms_force_master : e1000_ms_force_slave) : e1000_ms_auto;
 
 	switch (hw->phy.ms_type) {
 	case e1000_ms_force_master:
-		phy_data |= (CR_1000T_MS_ENABLE | CR_1000T_MS_VALUE);
+		phy_data |= (CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER);
 		break;
 	case e1000_ms_force_slave:
-		phy_data |= CR_1000T_MS_ENABLE;
-		phy_data &= ~(CR_1000T_MS_VALUE);
+		phy_data |= CTL1000_ENABLE_MASTER;
+		phy_data &= ~(CTL1000_AS_MASTER);
 		break;
 	case e1000_ms_auto:
-		phy_data &= ~CR_1000T_MS_ENABLE;
+		phy_data &= ~CTL1000_ENABLE_MASTER;
 		/* fall-through */
 	default:
 		break;
 	}
 
-	return e1e_wphy(hw, PHY_1000T_CTRL, phy_data);
+	return e1e_wphy(hw, MII_CTRL1000, phy_data);
 }
 
 /**
@@ -792,7 +746,7 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 			if (ret_val)
 				return ret_val;
 			/* Commit the changes. */
-			ret_val = e1000e_commit_phy(hw);
+			ret_val = phy->ops.commit(hw);
 			if (ret_val) {
 				e_dbg("Error committing the PHY changes\n");
 				return ret_val;
@@ -848,10 +802,12 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	}
 
 	/* Commit the changes. */
-	ret_val = e1000e_commit_phy(hw);
-	if (ret_val) {
-		e_dbg("Error committing the PHY changes\n");
-		return ret_val;
+	if (phy->ops.commit) {
+		ret_val = phy->ops.commit(hw);
+		if (ret_val) {
+			e_dbg("Error committing the PHY changes\n");
+			return ret_val;
+		}
 	}
 
 	if (phy->type == e1000_phy_82578) {
@@ -895,10 +851,12 @@ s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw)
 	msleep(100);
 
 	/* disable lplu d0 during driver init */
-	ret_val = e1000_set_d0_lplu_state(hw, false);
-	if (ret_val) {
-		e_dbg("Error Disabling LPLU D0\n");
-		return ret_val;
+	if (hw->phy.ops.set_d0_lplu_state) {
+		ret_val = hw->phy.ops.set_d0_lplu_state(hw, false);
+		if (ret_val) {
+			e_dbg("Error Disabling LPLU D0\n");
+			return ret_val;
+		}
 	}
 	/* Configure mdi-mdix settings */
 	ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CTRL, &data);
@@ -943,12 +901,12 @@ s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw)
 				return ret_val;
 
 			/* Set auto Master/Slave resolution process */
-			ret_val = e1e_rphy(hw, PHY_1000T_CTRL, &data);
+			ret_val = e1e_rphy(hw, MII_CTRL1000, &data);
 			if (ret_val)
 				return ret_val;
 
-			data &= ~CR_1000T_MS_ENABLE;
-			ret_val = e1e_wphy(hw, PHY_1000T_CTRL, data);
+			data &= ~CTL1000_ENABLE_MASTER;
+			ret_val = e1e_wphy(hw, MII_CTRL1000, data);
 			if (ret_val)
 				return ret_val;
 		}
@@ -978,13 +936,13 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	phy->autoneg_advertised &= phy->autoneg_mask;
 
 	/* Read the MII Auto-Neg Advertisement Register (Address 4). */
-	ret_val = e1e_rphy(hw, PHY_AUTONEG_ADV, &mii_autoneg_adv_reg);
+	ret_val = e1e_rphy(hw, MII_ADVERTISE, &mii_autoneg_adv_reg);
 	if (ret_val)
 		return ret_val;
 
 	if (phy->autoneg_mask & ADVERTISE_1000_FULL) {
 		/* Read the MII 1000Base-T Control Register (Address 9). */
-		ret_val = e1e_rphy(hw, PHY_1000T_CTRL, &mii_1000t_ctrl_reg);
+		ret_val = e1e_rphy(hw, MII_CTRL1000, &mii_1000t_ctrl_reg);
 		if (ret_val)
 			return ret_val;
 	}
@@ -1000,36 +958,35 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	 * Advertisement Register (Address 4) and the 1000 mb speed bits in
 	 * the  1000Base-T Control Register (Address 9).
 	 */
-	mii_autoneg_adv_reg &= ~(NWAY_AR_100TX_FD_CAPS |
-				 NWAY_AR_100TX_HD_CAPS |
-				 NWAY_AR_10T_FD_CAPS   |
-				 NWAY_AR_10T_HD_CAPS);
-	mii_1000t_ctrl_reg &= ~(CR_1000T_HD_CAPS | CR_1000T_FD_CAPS);
+	mii_autoneg_adv_reg &= ~(ADVERTISE_100FULL |
+				 ADVERTISE_100HALF |
+				 ADVERTISE_10FULL | ADVERTISE_10HALF);
+	mii_1000t_ctrl_reg &= ~(ADVERTISE_1000HALF | ADVERTISE_1000FULL);
 
 	e_dbg("autoneg_advertised %x\n", phy->autoneg_advertised);
 
 	/* Do we want to advertise 10 Mb Half Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_10_HALF) {
 		e_dbg("Advertise 10mb Half duplex\n");
-		mii_autoneg_adv_reg |= NWAY_AR_10T_HD_CAPS;
+		mii_autoneg_adv_reg |= ADVERTISE_10HALF;
 	}
 
 	/* Do we want to advertise 10 Mb Full Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_10_FULL) {
 		e_dbg("Advertise 10mb Full duplex\n");
-		mii_autoneg_adv_reg |= NWAY_AR_10T_FD_CAPS;
+		mii_autoneg_adv_reg |= ADVERTISE_10FULL;
 	}
 
 	/* Do we want to advertise 100 Mb Half Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_100_HALF) {
 		e_dbg("Advertise 100mb Half duplex\n");
-		mii_autoneg_adv_reg |= NWAY_AR_100TX_HD_CAPS;
+		mii_autoneg_adv_reg |= ADVERTISE_100HALF;
 	}
 
 	/* Do we want to advertise 100 Mb Full Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_100_FULL) {
 		e_dbg("Advertise 100mb Full duplex\n");
-		mii_autoneg_adv_reg |= NWAY_AR_100TX_FD_CAPS;
+		mii_autoneg_adv_reg |= ADVERTISE_100FULL;
 	}
 
 	/* We do not allow the Phy to advertise 1000 Mb Half Duplex */
@@ -1039,14 +996,14 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	/* Do we want to advertise 1000 Mb Full Duplex? */
 	if (phy->autoneg_advertised & ADVERTISE_1000_FULL) {
 		e_dbg("Advertise 1000mb Full duplex\n");
-		mii_1000t_ctrl_reg |= CR_1000T_FD_CAPS;
+		mii_1000t_ctrl_reg |= ADVERTISE_1000FULL;
 	}
 
 	/* Check for a software override of the flow control settings, and
 	 * setup the PHY advertisement registers accordingly.  If
 	 * auto-negotiation is enabled, then software will have to set the
 	 * "PAUSE" bits to the correct value in the Auto-Negotiation
-	 * Advertisement Register (PHY_AUTONEG_ADV) and re-start auto-
+	 * Advertisement Register (MII_ADVERTISE) and re-start auto-
 	 * negotiation.
 	 *
 	 * The possible values of the "fc" parameter are:
@@ -1064,7 +1021,8 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		/* Flow control (Rx & Tx) is completely disabled by a
 		 * software over-ride.
 		 */
-		mii_autoneg_adv_reg &= ~(NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
+		mii_autoneg_adv_reg &=
+		    ~(ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP);
 		break;
 	case e1000_fc_rx_pause:
 		/* Rx Flow control is enabled, and Tx Flow control is
@@ -1076,34 +1034,36 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		 * (in e1000e_config_fc_after_link_up) we will disable the
 		 * hw's ability to send PAUSE frames.
 		 */
-		mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
+		mii_autoneg_adv_reg |=
+		    (ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP);
 		break;
 	case e1000_fc_tx_pause:
 		/* Tx Flow control is enabled, and Rx Flow control is
 		 * disabled, by a software over-ride.
 		 */
-		mii_autoneg_adv_reg |= NWAY_AR_ASM_DIR;
-		mii_autoneg_adv_reg &= ~NWAY_AR_PAUSE;
+		mii_autoneg_adv_reg |= ADVERTISE_PAUSE_ASYM;
+		mii_autoneg_adv_reg &= ~ADVERTISE_PAUSE_CAP;
 		break;
 	case e1000_fc_full:
 		/* Flow control (both Rx and Tx) is enabled by a software
 		 * over-ride.
 		 */
-		mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
+		mii_autoneg_adv_reg |=
+		    (ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP);
 		break;
 	default:
 		e_dbg("Flow control param set incorrectly\n");
 		return -E1000_ERR_CONFIG;
 	}
 
-	ret_val = e1e_wphy(hw, PHY_AUTONEG_ADV, mii_autoneg_adv_reg);
+	ret_val = e1e_wphy(hw, MII_ADVERTISE, mii_autoneg_adv_reg);
 	if (ret_val)
 		return ret_val;
 
 	e_dbg("Auto-Neg Advertising %x\n", mii_autoneg_adv_reg);
 
 	if (phy->autoneg_mask & ADVERTISE_1000_FULL)
-		ret_val = e1e_wphy(hw, PHY_1000T_CTRL, mii_1000t_ctrl_reg);
+		ret_val = e1e_wphy(hw, MII_CTRL1000, mii_1000t_ctrl_reg);
 
 	return ret_val;
 }
@@ -1145,12 +1105,12 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	/* Restart auto-negotiation by setting the Auto Neg Enable bit and
 	 * the Auto Neg Restart bit in the PHY control register.
 	 */
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_ctrl);
+	ret_val = e1e_rphy(hw, MII_BMCR, &phy_ctrl);
 	if (ret_val)
 		return ret_val;
 
-	phy_ctrl |= (MII_CR_AUTO_NEG_EN | MII_CR_RESTART_AUTO_NEG);
-	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_ctrl);
+	phy_ctrl |= (BMCR_ANENABLE | BMCR_ANRESTART);
+	ret_val = e1e_wphy(hw, MII_BMCR, phy_ctrl);
 	if (ret_val)
 		return ret_val;
 
@@ -1196,7 +1156,7 @@ s32 e1000e_setup_copper_link(struct e1000_hw *hw)
 		 * depending on user settings.
 		 */
 		e_dbg("Forcing Speed and Duplex\n");
-		ret_val = e1000_phy_force_speed_duplex(hw);
+		ret_val = hw->phy.ops.force_speed_duplex(hw);
 		if (ret_val) {
 			e_dbg("Error Forcing Speed and Duplex\n");
 			return ret_val;
@@ -1237,13 +1197,13 @@ s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_data);
+	ret_val = e1e_rphy(hw, MII_BMCR, &phy_data);
 	if (ret_val)
 		return ret_val;
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
-	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
+	ret_val = e1e_wphy(hw, MII_BMCR, phy_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1315,20 +1275,22 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 
 	e_dbg("M88E1000 PSCR: %X\n", phy_data);
 
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_data);
+	ret_val = e1e_rphy(hw, MII_BMCR, &phy_data);
 	if (ret_val)
 		return ret_val;
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
-	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
+	ret_val = e1e_wphy(hw, MII_BMCR, phy_data);
 	if (ret_val)
 		return ret_val;
 
 	/* Reset the phy to commit changes. */
-	ret_val = e1000e_commit_phy(hw);
-	if (ret_val)
-		return ret_val;
+	if (hw->phy.ops.commit) {
+		ret_val = hw->phy.ops.commit(hw);
+		if (ret_val)
+			return ret_val;
+	}
 
 	if (phy->autoneg_wait_to_complete) {
 		e_dbg("Waiting for forced speed/duplex link on M88 phy.\n");
@@ -1406,13 +1368,13 @@ s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw)
 	u16 data;
 	bool link;
 
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &data);
+	ret_val = e1e_rphy(hw, MII_BMCR, &data);
 	if (ret_val)
 		return ret_val;
 
 	e1000e_phy_force_speed_duplex_setup(hw, &data);
 
-	ret_val = e1e_wphy(hw, PHY_CONTROL, data);
+	ret_val = e1e_wphy(hw, MII_BMCR, data);
 	if (ret_val)
 		return ret_val;
 
@@ -1456,13 +1418,13 @@ s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw)
 /**
  *  e1000e_phy_force_speed_duplex_setup - Configure forced PHY speed/duplex
  *  @hw: pointer to the HW structure
- *  @phy_ctrl: pointer to current value of PHY_CONTROL
+ *  @phy_ctrl: pointer to current value of MII_BMCR
  *
  *  Forces speed and duplex on the PHY by doing the following: disable flow
  *  control, force speed/duplex on the MAC, disable auto speed detection,
  *  disable auto-negotiation, configure duplex, configure speed, configure
  *  the collision distance, write configuration to CTRL register.  The
- *  caller must write to the PHY_CONTROL register for these settings to
+ *  caller must write to the MII_BMCR register for these settings to
  *  take affect.
  **/
 void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
@@ -1482,29 +1444,28 @@ void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
 	ctrl &= ~E1000_CTRL_ASDE;
 
 	/* Disable autoneg on the phy */
-	*phy_ctrl &= ~MII_CR_AUTO_NEG_EN;
+	*phy_ctrl &= ~BMCR_ANENABLE;
 
 	/* Forcing Full or Half Duplex? */
 	if (mac->forced_speed_duplex & E1000_ALL_HALF_DUPLEX) {
 		ctrl &= ~E1000_CTRL_FD;
-		*phy_ctrl &= ~MII_CR_FULL_DUPLEX;
+		*phy_ctrl &= ~BMCR_FULLDPLX;
 		e_dbg("Half Duplex\n");
 	} else {
 		ctrl |= E1000_CTRL_FD;
-		*phy_ctrl |= MII_CR_FULL_DUPLEX;
+		*phy_ctrl |= BMCR_FULLDPLX;
 		e_dbg("Full Duplex\n");
 	}
 
 	/* Forcing 10mb or 100mb? */
 	if (mac->forced_speed_duplex & E1000_ALL_100_SPEED) {
 		ctrl |= E1000_CTRL_SPD_100;
-		*phy_ctrl |= MII_CR_SPEED_100;
-		*phy_ctrl &= ~(MII_CR_SPEED_1000 | MII_CR_SPEED_10);
+		*phy_ctrl |= BMCR_SPEED100;
+		*phy_ctrl &= ~BMCR_SPEED1000;
 		e_dbg("Forcing 100mb\n");
 	} else {
 		ctrl &= ~(E1000_CTRL_SPD_1000 | E1000_CTRL_SPD_100);
-		*phy_ctrl |= MII_CR_SPEED_10;
-		*phy_ctrl &= ~(MII_CR_SPEED_1000 | MII_CR_SPEED_100);
+		*phy_ctrl &= ~(BMCR_SPEED1000 | BMCR_SPEED100);
 		e_dbg("Forcing 10mb\n");
 	}
 
@@ -1745,13 +1706,13 @@ static s32 e1000_wait_autoneg(struct e1000_hw *hw)
 
 	/* Break after autoneg completes or PHY_AUTO_NEG_LIMIT expires. */
 	for (i = PHY_AUTO_NEG_LIMIT; i > 0; i--) {
-		ret_val = e1e_rphy(hw, PHY_STATUS, &phy_status);
+		ret_val = e1e_rphy(hw, MII_BMSR, &phy_status);
 		if (ret_val)
 			break;
-		ret_val = e1e_rphy(hw, PHY_STATUS, &phy_status);
+		ret_val = e1e_rphy(hw, MII_BMSR, &phy_status);
 		if (ret_val)
 			break;
-		if (phy_status & MII_SR_AUTONEG_COMPLETE)
+		if (phy_status & BMSR_ANEGCOMPLETE)
 			break;
 		msleep(100);
 	}
@@ -1778,21 +1739,21 @@ s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 	u16 i, phy_status;
 
 	for (i = 0; i < iterations; i++) {
-		/* Some PHYs require the PHY_STATUS register to be read
+		/* Some PHYs require the MII_BMSR register to be read
 		 * twice due to the link bit being sticky.  No harm doing
 		 * it across the board.
 		 */
-		ret_val = e1e_rphy(hw, PHY_STATUS, &phy_status);
+		ret_val = e1e_rphy(hw, MII_BMSR, &phy_status);
 		if (ret_val)
 			/* If the first read fails, another entity may have
 			 * ownership of the resources, wait and try again to
 			 * see if they have relinquished the resources yet.
 			 */
 			udelay(usec_interval);
-		ret_val = e1e_rphy(hw, PHY_STATUS, &phy_status);
+		ret_val = e1e_rphy(hw, MII_BMSR, &phy_status);
 		if (ret_val)
 			break;
-		if (phy_status & MII_SR_LINK_STATUS)
+		if (phy_status & BMSR_LSTATUS)
 			break;
 		if (usec_interval >= 1000)
 			mdelay(usec_interval/1000);
@@ -1962,21 +1923,19 @@ s32 e1000e_get_phy_info_m88(struct e1000_hw *hw)
 	phy->is_mdix = !!(phy_data & M88E1000_PSSR_MDIX);
 
 	if ((phy_data & M88E1000_PSSR_SPEED) == M88E1000_PSSR_1000MBS) {
-		ret_val = e1000_get_cable_length(hw);
+		ret_val = hw->phy.ops.get_cable_length(hw);
 		if (ret_val)
 			return ret_val;
 
-		ret_val = e1e_rphy(hw, PHY_1000T_STATUS, &phy_data);
+		ret_val = e1e_rphy(hw, MII_STAT1000, &phy_data);
 		if (ret_val)
 			return ret_val;
 
-		phy->local_rx = (phy_data & SR_1000T_LOCAL_RX_STATUS)
-				? e1000_1000t_rx_status_ok
-				: e1000_1000t_rx_status_not_ok;
+		phy->local_rx = (phy_data & LPA_1000LOCALRXOK)
+		    ? e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 
-		phy->remote_rx = (phy_data & SR_1000T_REMOTE_RX_STATUS)
-				 ? e1000_1000t_rx_status_ok
-				 : e1000_1000t_rx_status_not_ok;
+		phy->remote_rx = (phy_data & LPA_1000REMRXOK)
+		    ? e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 	} else {
 		/* Set values to "undefined" */
 		phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
@@ -2026,21 +1985,19 @@ s32 e1000e_get_phy_info_igp(struct e1000_hw *hw)
 
 	if ((data & IGP01E1000_PSSR_SPEED_MASK) ==
 	    IGP01E1000_PSSR_SPEED_1000MBPS) {
-		ret_val = e1000_get_cable_length(hw);
+		ret_val = phy->ops.get_cable_length(hw);
 		if (ret_val)
 			return ret_val;
 
-		ret_val = e1e_rphy(hw, PHY_1000T_STATUS, &data);
+		ret_val = e1e_rphy(hw, MII_STAT1000, &data);
 		if (ret_val)
 			return ret_val;
 
-		phy->local_rx = (data & SR_1000T_LOCAL_RX_STATUS)
-				? e1000_1000t_rx_status_ok
-				: e1000_1000t_rx_status_not_ok;
+		phy->local_rx = (data & LPA_1000LOCALRXOK)
+		    ? e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 
-		phy->remote_rx = (data & SR_1000T_REMOTE_RX_STATUS)
-				 ? e1000_1000t_rx_status_ok
-				 : e1000_1000t_rx_status_not_ok;
+		phy->remote_rx = (data & LPA_1000REMRXOK)
+		    ? e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 	} else {
 		phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
 		phy->local_rx = e1000_1000t_rx_status_undefined;
@@ -2114,12 +2071,12 @@ s32 e1000e_phy_sw_reset(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_ctrl;
 
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_ctrl);
+	ret_val = e1e_rphy(hw, MII_BMCR, &phy_ctrl);
 	if (ret_val)
 		return ret_val;
 
-	phy_ctrl |= MII_CR_RESET;
-	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_ctrl);
+	phy_ctrl |= BMCR_RESET;
+	ret_val = e1e_wphy(hw, MII_BMCR, phy_ctrl);
 	if (ret_val)
 		return ret_val;
 
@@ -2166,17 +2123,17 @@ s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
 
 	phy->ops.release(hw);
 
-	return e1000_get_phy_cfg_done(hw);
+	return phy->ops.get_cfg_done(hw);
 }
 
 /**
- *  e1000e_get_cfg_done - Generic configuration done
+ *  e1000e_get_cfg_done_generic - Generic configuration done
  *  @hw: pointer to the HW structure
  *
  *  Generic function to wait 10 milli-seconds for configuration to complete
  *  and return success.
  **/
-s32 e1000e_get_cfg_done(struct e1000_hw *hw)
+s32 e1000e_get_cfg_done_generic(struct e1000_hw __always_unused *hw)
 {
 	mdelay(10);
 
@@ -2262,38 +2219,6 @@ s32 e1000e_phy_init_script_igp3(struct e1000_hw *hw)
 	e1e_wphy(hw, 0x0014, 0x0045);
 	/* Restart AN, Speed selection is 1000 */
 	e1e_wphy(hw, 0x0000, 0x1340);
-
-	return 0;
-}
-
-/* Internal function pointers */
-
-/**
- *  e1000_get_phy_cfg_done - Generic PHY configuration done
- *  @hw: pointer to the HW structure
- *
- *  Return success if silicon family did not implement a family specific
- *  get_cfg_done function.
- **/
-static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw)
-{
-	if (hw->phy.ops.get_cfg_done)
-		return hw->phy.ops.get_cfg_done(hw);
-
-	return 0;
-}
-
-/**
- *  e1000_phy_force_speed_duplex - Generic force PHY speed/duplex
- *  @hw: pointer to the HW structure
- *
- *  When the silicon family has not implemented a forced speed/duplex
- *  function for the PHY, simply return 0.
- **/
-static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
-{
-	if (hw->phy.ops.force_speed_duplex)
-		return hw->phy.ops.force_speed_duplex(hw);
 
 	return 0;
 }
@@ -2549,7 +2474,6 @@ s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data)
 	hw->phy.addr = 1;
 
 	if (offset > MAX_PHY_MULTI_PAGE_REG) {
-
 		/* Page is shifted left, PHY expects (page x 32) */
 		ret_val = e1000e_write_phy_reg_mdic(hw, BM_PHY_PAGE_SELECT,
 						    page);
@@ -2672,7 +2596,7 @@ s32 e1000_enable_phy_wakeup_reg_access_bm(struct e1000_hw *hw, u16 *phy_reg)
  **/
 s32 e1000_disable_phy_wakeup_reg_access_bm(struct e1000_hw *hw, u16 *phy_reg)
 {
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	/* Select Port Control Registers page */
 	ret_val = e1000_set_page_igp(hw, (BM_PORT_CTRL_PAGE << IGP_PAGE_SHIFT));
@@ -2781,9 +2705,9 @@ void e1000_power_up_phy_copper(struct e1000_hw *hw)
 	u16 mii_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
-	e1e_rphy(hw, PHY_CONTROL, &mii_reg);
-	mii_reg &= ~MII_CR_POWER_DOWN;
-	e1e_wphy(hw, PHY_CONTROL, mii_reg);
+	e1e_rphy(hw, MII_BMCR, &mii_reg);
+	mii_reg &= ~BMCR_PDOWN;
+	e1e_wphy(hw, MII_BMCR, mii_reg);
 }
 
 /**
@@ -2799,47 +2723,10 @@ void e1000_power_down_phy_copper(struct e1000_hw *hw)
 	u16 mii_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
-	e1e_rphy(hw, PHY_CONTROL, &mii_reg);
-	mii_reg |= MII_CR_POWER_DOWN;
-	e1e_wphy(hw, PHY_CONTROL, mii_reg);
+	e1e_rphy(hw, MII_BMCR, &mii_reg);
+	mii_reg |= BMCR_PDOWN;
+	e1e_wphy(hw, MII_BMCR, mii_reg);
 	usleep_range(1000, 2000);
-}
-
-/**
- *  e1000e_commit_phy - Soft PHY reset
- *  @hw: pointer to the HW structure
- *
- *  Performs a soft PHY reset on those that apply. This is a function pointer
- *  entry point called by drivers.
- **/
-s32 e1000e_commit_phy(struct e1000_hw *hw)
-{
-	if (hw->phy.ops.commit)
-		return hw->phy.ops.commit(hw);
-
-	return 0;
-}
-
-/**
- *  e1000_set_d0_lplu_state - Sets low power link up state for D0
- *  @hw: pointer to the HW structure
- *  @active: boolean used to enable/disable lplu
- *
- *  Success returns 0, Failure returns 1
- *
- *  The low power link up (lplu) state is set to the power management level D0
- *  and SmartSpeed is disabled when active is true, else clear lplu for D0
- *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
- *  is used during Dx states where the power conservation is most important.
- *  During driver activity, SmartSpeed should be enabled so performance is
- *  maintained.  This is a function pointer entry point called by drivers.
- **/
-static s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
-{
-	if (hw->phy.ops.set_d0_lplu_state)
-		return hw->phy.ops.set_d0_lplu_state(hw, active);
-
-	return 0;
 }
 
 /**
@@ -3104,8 +2991,8 @@ static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
                                           u16 *data, bool read)
 {
 	s32 ret_val;
-	u32 addr_reg = 0;
-	u32 data_reg = 0;
+	u32 addr_reg;
+	u32 data_reg;
 
 	/* This takes care of the difference with desktop vs mobile phy */
 	addr_reg = (hw->phy.type == e1000_phy_82578) ?
@@ -3154,8 +3041,8 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 		return 0;
 
 	/* Do not apply workaround if in PHY loopback bit 14 set */
-	e1e_rphy(hw, PHY_CONTROL, &data);
-	if (data & PHY_CONTROL_LB)
+	e1e_rphy(hw, MII_BMCR, &data);
+	if (data & BMCR_LOOPBACK)
 		return 0;
 
 	/* check if link is up and at 1Gbps */
@@ -3173,8 +3060,9 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 	msleep(200);
 
 	/* flush the packets in the fifo buffer */
-	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL, HV_MUX_DATA_CTRL_GEN_TO_MAC |
-			   HV_MUX_DATA_CTRL_FORCE_SPEED);
+	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL,
+			   (HV_MUX_DATA_CTRL_GEN_TO_MAC |
+			    HV_MUX_DATA_CTRL_FORCE_SPEED));
 	if (ret_val)
 		return ret_val;
 
@@ -3218,13 +3106,13 @@ s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_data);
+	ret_val = e1e_rphy(hw, MII_BMCR, &phy_data);
 	if (ret_val)
 		return ret_val;
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
-	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
+	ret_val = e1e_wphy(hw, MII_BMCR, phy_data);
 	if (ret_val)
 		return ret_val;
 
@@ -3292,17 +3180,15 @@ s32 e1000_get_phy_info_82577(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		ret_val = e1e_rphy(hw, PHY_1000T_STATUS, &data);
+		ret_val = e1e_rphy(hw, MII_STAT1000, &data);
 		if (ret_val)
 			return ret_val;
 
-		phy->local_rx = (data & SR_1000T_LOCAL_RX_STATUS)
-		                ? e1000_1000t_rx_status_ok
-		                : e1000_1000t_rx_status_not_ok;
+		phy->local_rx = (data & LPA_1000LOCALRXOK)
+		    ? e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 
-		phy->remote_rx = (data & SR_1000T_REMOTE_RX_STATUS)
-		                 ? e1000_1000t_rx_status_ok
-		                 : e1000_1000t_rx_status_not_ok;
+		phy->remote_rx = (data & LPA_1000REMRXOK)
+		    ? e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 	} else {
 		phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
 		phy->local_rx = e1000_1000t_rx_status_undefined;
@@ -3333,7 +3219,7 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw)
 	         I82577_DSTATUS_CABLE_LENGTH_SHIFT;
 
 	if (length == E1000_CABLE_LENGTH_UNDEFINED)
-		ret_val = -E1000_ERR_PHY;
+		return -E1000_ERR_PHY;
 
 	phy->cable_length = length;
 

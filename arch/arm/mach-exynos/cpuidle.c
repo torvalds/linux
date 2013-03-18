@@ -23,9 +23,10 @@
 #include <asm/cpuidle.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-pmu.h>
-#include <mach/pmu.h>
 
 #include <plat/cpu.h>
+
+#include "common.h"
 
 #define REG_DIRECTGO_ADDR	(samsung_rev() == EXYNOS4210_REV_1_1 ? \
 			S5P_INFORM7 : (samsung_rev() == EXYNOS4210_REV_1_0 ? \

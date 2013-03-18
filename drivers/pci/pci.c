@@ -450,7 +450,7 @@ static struct pci_platform_pm_ops *pci_platform_pm;
 int pci_set_platform_pm(struct pci_platform_pm_ops *ops)
 {
 	if (!ops->is_manageable || !ops->set_state || !ops->choose_state
-	    || !ops->sleep_wake || !ops->can_wakeup)
+	    || !ops->sleep_wake)
 		return -EINVAL;
 	pci_platform_pm = ops;
 	return 0;
@@ -471,11 +471,6 @@ static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
 {
 	return pci_platform_pm ?
 			pci_platform_pm->choose_state(dev) : PCI_POWER_ERROR;
-}
-
-static inline bool platform_pci_can_wakeup(struct pci_dev *dev)
-{
-	return pci_platform_pm ? pci_platform_pm->can_wakeup(dev) : false;
 }
 
 static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
@@ -847,9 +842,8 @@ static struct pci_cap_saved_state *pci_find_saved_cap(
 	struct pci_dev *pci_dev, char cap)
 {
 	struct pci_cap_saved_state *tmp;
-	struct hlist_node *pos;
 
-	hlist_for_each_entry(tmp, pos, &pci_dev->saved_cap_space, next) {
+	hlist_for_each_entry(tmp, &pci_dev->saved_cap_space, next) {
 		if (tmp->cap.cap_nr == cap)
 			return tmp;
 	}
@@ -1046,7 +1040,6 @@ struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev)
 	struct pci_saved_state *state;
 	struct pci_cap_saved_state *tmp;
 	struct pci_cap_saved_data *cap;
-	struct hlist_node *pos;
 	size_t size;
 
 	if (!dev->state_saved)
@@ -1054,7 +1047,7 @@ struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev)
 
 	size = sizeof(*state) + sizeof(struct pci_cap_saved_data);
 
-	hlist_for_each_entry(tmp, pos, &dev->saved_cap_space, next)
+	hlist_for_each_entry(tmp, &dev->saved_cap_space, next)
 		size += sizeof(struct pci_cap_saved_data) + tmp->cap.size;
 
 	state = kzalloc(size, GFP_KERNEL);
@@ -1065,7 +1058,7 @@ struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev)
 	       sizeof(state->config_space));
 
 	cap = state->cap;
-	hlist_for_each_entry(tmp, pos, &dev->saved_cap_space, next) {
+	hlist_for_each_entry(tmp, &dev->saved_cap_space, next) {
 		size_t len = sizeof(struct pci_cap_saved_data) + tmp->cap.size;
 		memcpy(cap, &tmp->cap, len);
 		cap = (struct pci_cap_saved_data *)((u8 *)cap + len);
@@ -1156,8 +1149,7 @@ int pci_reenable_device(struct pci_dev *dev)
 	return 0;
 }
 
-static int __pci_enable_device_flags(struct pci_dev *dev,
-				     resource_size_t flags)
+static int pci_enable_device_flags(struct pci_dev *dev, unsigned long flags)
 {
 	int err;
 	int i, bars = 0;
@@ -1174,7 +1166,7 @@ static int __pci_enable_device_flags(struct pci_dev *dev,
 		dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
 	}
 
-	if (atomic_add_return(1, &dev->enable_cnt) > 1)
+	if (atomic_inc_return(&dev->enable_cnt) > 1)
 		return 0;		/* already enabled */
 
 	/* only skip sriov related */
@@ -1201,7 +1193,7 @@ static int __pci_enable_device_flags(struct pci_dev *dev,
  */
 int pci_enable_device_io(struct pci_dev *dev)
 {
-	return __pci_enable_device_flags(dev, IORESOURCE_IO);
+	return pci_enable_device_flags(dev, IORESOURCE_IO);
 }
 
 /**
@@ -1214,7 +1206,7 @@ int pci_enable_device_io(struct pci_dev *dev)
  */
 int pci_enable_device_mem(struct pci_dev *dev)
 {
-	return __pci_enable_device_flags(dev, IORESOURCE_MEM);
+	return pci_enable_device_flags(dev, IORESOURCE_MEM);
 }
 
 /**
@@ -1230,7 +1222,7 @@ int pci_enable_device_mem(struct pci_dev *dev)
  */
 int pci_enable_device(struct pci_dev *dev)
 {
-	return __pci_enable_device_flags(dev, IORESOURCE_MEM | IORESOURCE_IO);
+	return pci_enable_device_flags(dev, IORESOURCE_MEM | IORESOURCE_IO);
 }
 
 /*
@@ -1401,7 +1393,10 @@ pci_disable_device(struct pci_dev *dev)
 	if (dr)
 		dr->enabled = 0;
 
-	if (atomic_sub_return(1, &dev->enable_cnt) != 0)
+	dev_WARN_ONCE(&dev->dev, atomic_read(&dev->enable_cnt) <= 0,
+		      "disabling already-disabled device");
+
+	if (atomic_dec_return(&dev->enable_cnt) != 0)
 		return;
 
 	do_pci_disable_device(dev);
@@ -1985,25 +1980,6 @@ void pci_pm_init(struct pci_dev *dev)
 	}
 }
 
-/**
- * platform_pci_wakeup_init - init platform wakeup if present
- * @dev: PCI device
- *
- * Some devices don't have PCI PM caps but can still generate wakeup
- * events through platform methods (like ACPI events).  If @dev supports
- * platform wakeup events, set the device flag to indicate as much.  This
- * may be redundant if the device also supports PCI PM caps, but double
- * initialization should be safe in that case.
- */
-void platform_pci_wakeup_init(struct pci_dev *dev)
-{
-	if (!platform_pci_can_wakeup(dev))
-		return;
-
-	device_set_wakeup_capable(&dev->dev, true);
-	platform_pci_sleep_wake(dev, false);
-}
-
 static void pci_add_saved_cap(struct pci_dev *pci_dev,
 	struct pci_cap_saved_state *new_cap)
 {
@@ -2060,25 +2036,25 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 void pci_free_cap_save_buffers(struct pci_dev *dev)
 {
 	struct pci_cap_saved_state *tmp;
-	struct hlist_node *pos, *n;
+	struct hlist_node *n;
 
-	hlist_for_each_entry_safe(tmp, pos, n, &dev->saved_cap_space, next)
+	hlist_for_each_entry_safe(tmp, n, &dev->saved_cap_space, next)
 		kfree(tmp);
 }
 
 /**
- * pci_enable_ari - enable ARI forwarding if hardware support it
+ * pci_configure_ari - enable or disable ARI forwarding
  * @dev: the PCI device
+ *
+ * If @dev and its upstream bridge both support ARI, enable ARI in the
+ * bridge.  Otherwise, disable ARI in the bridge.
  */
-void pci_enable_ari(struct pci_dev *dev)
+void pci_configure_ari(struct pci_dev *dev)
 {
 	u32 cap;
 	struct pci_dev *bridge;
 
 	if (pcie_ari_disabled || !pci_is_pcie(dev) || dev->devfn)
-		return;
-
-	if (!pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI))
 		return;
 
 	bridge = dev->bus->self;
@@ -2089,8 +2065,15 @@ void pci_enable_ari(struct pci_dev *dev)
 	if (!(cap & PCI_EXP_DEVCAP2_ARI))
 		return;
 
-	pcie_capability_set_word(bridge, PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_ARI);
-	bridge->ari_enabled = 1;
+	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI)) {
+		pcie_capability_set_word(bridge, PCI_EXP_DEVCTL2,
+					 PCI_EXP_DEVCTL2_ARI);
+		bridge->ari_enabled = 1;
+	} else {
+		pcie_capability_clear_word(bridge, PCI_EXP_DEVCTL2,
+					   PCI_EXP_DEVCTL2_ARI);
+		bridge->ari_enabled = 0;
+	}
 }
 
 /**
@@ -3766,18 +3749,6 @@ resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 	return align;
 }
 
-/**
- * pci_is_reassigndev - check if specified PCI is target device to reassign
- * @dev: the PCI device to check
- *
- * RETURNS: non-zero for PCI device is a target device to reassign,
- *          or zero is not.
- */
-int pci_is_reassigndev(struct pci_dev *dev)
-{
-	return (pci_specified_resource_alignment(dev) != 0);
-}
-
 /*
  * This function disables memory decoding and releases memory resources
  * of the device specified by kernel's boot parameter 'pci=resource_alignment='.
@@ -3792,7 +3763,9 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 	resource_size_t align, size;
 	u16 command;
 
-	if (!pci_is_reassigndev(dev))
+	/* check if specified PCI is target device to reassign */
+	align = pci_specified_resource_alignment(dev);
+	if (!align)
 		return;
 
 	if (dev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
@@ -3808,7 +3781,6 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 	command &= ~PCI_COMMAND_MEMORY;
 	pci_write_config_word(dev, PCI_COMMAND, command);
 
-	align = pci_specified_resource_alignment(dev);
 	for (i = 0; i < PCI_BRIDGE_RESOURCES; i++) {
 		r = &dev->resource[i];
 		if (!(r->flags & IORESOURCE_MEM))

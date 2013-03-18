@@ -91,16 +91,16 @@ static void timbuart_flush_buffer(struct uart_port *port)
 
 static void timbuart_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 
 	while (ioread32(port->membase + TIMBUART_ISR) & RXDP) {
 		u8 ch = ioread8(port->membase + TIMBUART_RXFIFO);
 		port->icount.rx++;
-		tty_insert_flip_char(tty, ch, TTY_NORMAL);
+		tty_insert_flip_char(tport, ch, TTY_NORMAL);
 	}
 
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(port->state->port.tty);
+	tty_flip_buffer_push(tport);
 	spin_lock(&port->lock);
 
 	dev_dbg(port->dev, "%s - total read %d bytes\n",

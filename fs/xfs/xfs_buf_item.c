@@ -37,109 +37,6 @@ static inline struct xfs_buf_log_item *BUF_ITEM(struct xfs_log_item *lip)
 	return container_of(lip, struct xfs_buf_log_item, bli_item);
 }
 
-
-#ifdef XFS_TRANS_DEBUG
-/*
- * This function uses an alternate strategy for tracking the bytes
- * that the user requests to be logged.  This can then be used
- * in conjunction with the bli_orig array in the buf log item to
- * catch bugs in our callers' code.
- *
- * We also double check the bits set in xfs_buf_item_log using a
- * simple algorithm to check that every byte is accounted for.
- */
-STATIC void
-xfs_buf_item_log_debug(
-	xfs_buf_log_item_t	*bip,
-	uint			first,
-	uint			last)
-{
-	uint	x;
-	uint	byte;
-	uint	nbytes;
-	uint	chunk_num;
-	uint	word_num;
-	uint	bit_num;
-	uint	bit_set;
-	uint	*wordp;
-
-	ASSERT(bip->bli_logged != NULL);
-	byte = first;
-	nbytes = last - first + 1;
-	bfset(bip->bli_logged, first, nbytes);
-	for (x = 0; x < nbytes; x++) {
-		chunk_num = byte >> XFS_BLF_SHIFT;
-		word_num = chunk_num >> BIT_TO_WORD_SHIFT;
-		bit_num = chunk_num & (NBWORD - 1);
-		wordp = &(bip->__bli_format.blf_data_map[word_num]);
-		bit_set = *wordp & (1 << bit_num);
-		ASSERT(bit_set);
-		byte++;
-	}
-}
-
-/*
- * This function is called when we flush something into a buffer without
- * logging it.  This happens for things like inodes which are logged
- * separately from the buffer.
- */
-void
-xfs_buf_item_flush_log_debug(
-	xfs_buf_t	*bp,
-	uint		first,
-	uint		last)
-{
-	xfs_buf_log_item_t	*bip = bp->b_fspriv;
-	uint			nbytes;
-
-	if (bip == NULL || (bip->bli_item.li_type != XFS_LI_BUF))
-		return;
-
-	ASSERT(bip->bli_logged != NULL);
-	nbytes = last - first + 1;
-	bfset(bip->bli_logged, first, nbytes);
-}
-
-/*
- * This function is called to verify that our callers have logged
- * all the bytes that they changed.
- *
- * It does this by comparing the original copy of the buffer stored in
- * the buf log item's bli_orig array to the current copy of the buffer
- * and ensuring that all bytes which mismatch are set in the bli_logged
- * array of the buf log item.
- */
-STATIC void
-xfs_buf_item_log_check(
-	xfs_buf_log_item_t	*bip)
-{
-	char		*orig;
-	char		*buffer;
-	int		x;
-	xfs_buf_t	*bp;
-
-	ASSERT(bip->bli_orig != NULL);
-	ASSERT(bip->bli_logged != NULL);
-
-	bp = bip->bli_buf;
-	ASSERT(bp->b_length > 0);
-	ASSERT(bp->b_addr != NULL);
-	orig = bip->bli_orig;
-	buffer = bp->b_addr;
-	for (x = 0; x < BBTOB(bp->b_length); x++) {
-		if (orig[x] != buffer[x] && !btst(bip->bli_logged, x)) {
-			xfs_emerg(bp->b_mount,
-				"%s: bip %x buffer %x orig %x index %d",
-				__func__, bip, bp, orig, x);
-			ASSERT(0);
-		}
-	}
-}
-#else
-#define		xfs_buf_item_log_debug(x,y,z)
-#define		xfs_buf_item_log_check(x)
-#endif
-
 STATIC void	xfs_buf_do_callbacks(struct xfs_buf *bp);
 
 /*
@@ -429,7 +326,6 @@ xfs_buf_item_format(
 	 * Check to make sure everything is consistent.
 	 */
 	trace_xfs_buf_item_format(bip);
-	xfs_buf_item_log_check(bip);
 }
 
 /*
@@ -573,8 +469,18 @@ xfs_buf_item_push(
 
 	if (xfs_buf_ispinned(bp))
 		return XFS_ITEM_PINNED;
-	if (!xfs_buf_trylock(bp))
+	if (!xfs_buf_trylock(bp)) {
+		/*
+		 * If we have just raced with a buffer being pinned and it has
+		 * been marked stale, we could end up stalling until someone else
+		 * issues a log force to unpin the stale buffer. Check for the
+		 * race condition here so xfsaild recognizes the buffer is pinned
+		 * and queues a log force to move it along.
+		 */
+		if (xfs_buf_ispinned(bp))
+			return XFS_ITEM_PINNED;
 		return XFS_ITEM_LOCKED;
+	}
 
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
 
@@ -652,7 +558,10 @@ xfs_buf_item_unlock(
 
 	/*
 	 * If the buf item isn't tracking any data, free it, otherwise drop the
-	 * reference we hold to it.
+	 * reference we hold to it. If we are aborting the transaction, this may
+	 * be the only reference to the buf item, so we free it anyway
+	 * regardless of whether it is dirty or not. A dirty abort implies a
+	 * shutdown, anyway.
 	 */
 	clean = 1;
 	for (i = 0; i < bip->bli_format_count; i++) {
@@ -664,7 +573,12 @@ xfs_buf_item_unlock(
 	}
 	if (clean)
 		xfs_buf_item_relse(bp);
-	else
+	else if (aborted) {
+		if (atomic_dec_and_test(&bip->bli_refcount)) {
+			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
+			xfs_buf_item_relse(bp);
+		}
+	} else
 		atomic_dec(&bip->bli_refcount);
 
 	if (!hold)
@@ -915,8 +829,6 @@ xfs_buf_item_log_segment(
 		mask = (1 << end_bit) - 1;
 		*wordp |= mask;
 	}
-
-	xfs_buf_item_log_debug(bip, first, last);
 }
 
 /*

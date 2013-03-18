@@ -41,4 +41,8 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 
 extern const struct vm_operations_struct drm_gem_cma_vm_ops;
 
+#ifdef CONFIG_DEBUG_FS
+void drm_gem_cma_describe(struct drm_gem_cma_object *obj, struct seq_file *m);
+#endif
+
 #endif /* __DRM_GEM_CMA_HELPER_H__ */

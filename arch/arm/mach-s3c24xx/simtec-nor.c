@@ -27,9 +27,8 @@
 #include <asm/mach/irq.h>
 
 #include <mach/map.h>
-#include <mach/bast-map.h>
-#include <mach/bast-cpld.h>
 
+#include "bast.h"
 #include "simtec.h"
 
 static void simtec_nor_vpp(struct platform_device *pdev, int vpp)

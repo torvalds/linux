@@ -207,9 +207,9 @@ void seccalctkipmic(
 	u8  *Miccode,
 	u8   priority);
 
-void r8712_secmicsetkey(struct mic_data *pmicdata, u8 * key);
-void r8712_secmicappend(struct mic_data *pmicdata, u8 * src, u32 nBytes);
-void r8712_secgetmic(struct mic_data *pmicdata, u8 * dst);
+void r8712_secmicsetkey(struct mic_data *pmicdata, u8 *key);
+void r8712_secmicappend(struct mic_data *pmicdata, u8 *src, u32 nBytes);
+void r8712_secgetmic(struct mic_data *pmicdata, u8 *dst);
 u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe);
 u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe);
 void r8712_wep_encrypt(struct _adapter *padapter, u8  *pxmitframe);

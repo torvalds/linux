@@ -1621,11 +1621,8 @@ static void set_multicast_list(struct usbnet *usbdev)
 	} else if (mc_count) {
 		int i = 0;
 
-		mc_addrs = kmalloc(mc_count * ETH_ALEN, GFP_ATOMIC);
+		mc_addrs = kmalloc_array(mc_count, ETH_ALEN, GFP_ATOMIC);
 		if (!mc_addrs) {
-			netdev_warn(usbdev->net,
-				    "couldn't alloc %d bytes of memory\n",
-				    mc_count * ETH_ALEN);
 			netif_addr_unlock_bh(usbdev->net);
 			return;
 		}
@@ -2029,7 +2026,7 @@ static bool rndis_bss_info_update(struct usbnet *usbdev,
 	bss = cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid->mac,
 		timestamp, capability, beacon_interval, ie, ie_len, signal,
 		GFP_KERNEL);
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(priv->wdev.wiphy, bss);
 
 	return (bss != NULL);
 }
@@ -2718,7 +2715,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	bss = cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid,
 		timestamp, capability, beacon_period, ie_buf, ie_len,
 		signal, GFP_KERNEL);
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(priv->wdev.wiphy, bss);
 }
 
 /*

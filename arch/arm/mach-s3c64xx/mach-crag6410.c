@@ -42,7 +42,6 @@
 
 #include <sound/wm1250-ev1.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
@@ -50,12 +49,7 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 
-#include <mach/regs-sys.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
-#include <mach/crag6410.h>
-
-#include <mach/regs-gpio-memport.h>
 
 #include <plat/regs-serial.h>
 #include <plat/fb.h>
@@ -72,6 +66,10 @@
 #include <plat/pm.h>
 
 #include "common.h"
+#include "crag6410.h"
+#include "regs-gpio-memport.h"
+#include "regs-modem.h"
+#include "regs-sys.h"
 
 /* serial port setup */
 
@@ -867,10 +865,9 @@ MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	/* Maintainer: Mark Brown <broonie@opensource.wolfsonmicro.com> */
 	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

@@ -19,10 +19,10 @@
 #include <linux/gpio.h>
 #include <linux/rfkill.h>
 
-#include <mach/regs-gpio.h>
 #include <mach/hardware.h>
-#include <mach/h1940-latch.h>
-#include <mach/h1940.h>
+#include <mach/regs-gpio.h>
+
+#include "h1940.h"
 
 #define DRV_NAME "h1940-bt"
 

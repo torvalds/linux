@@ -58,6 +58,7 @@
 #include "stb6100.h"
 #include "stb6100_proc.h"
 #include "mb86a16.h"
+#include "ts2020.h"
 #include "ds3000.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
@@ -264,7 +265,7 @@ static struct mb86a16_config twinhan_vp1027 = {
 	.demod_address  = 0x08,
 };
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_VIDEO_CX88_VP3054)
 static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
 {
 	static const u8 clock_config []  = { 0x89, 0x38, 0x38 };
@@ -700,6 +701,11 @@ static struct ds3000_config tevii_ds3000_config = {
 	.set_ts_params = ds3000_set_ts_param,
 };
 
+static struct ts2020_config tevii_ts2020_config  = {
+	.tuner_address = 0x60,
+	.clk_out_div = 1,
+};
+
 static const struct stv0900_config prof_7301_stv0900_config = {
 	.demod_address = 0x6a,
 /*	demod_mode = 0,*/
@@ -1121,7 +1127,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
-#if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_VIDEO_CX88_VP3054)
 		/* MT352 is on a secondary I2C bus made from some GPIO lines */
 		fe0->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
 					       &dev->vp3054->adap);
@@ -1466,9 +1472,12 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(ds3000_attach,
 						&tevii_ds3000_config,
 						&core->i2c_adap);
-		if (fe0->dvb.frontend != NULL)
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(ts2020_attach, fe0->dvb.frontend,
+				&tevii_ts2020_config, &core->i2c_adap);
 			fe0->dvb.frontend->ops.set_voltage =
 							tevii_dvbs_set_voltage;
+		}
 		break;
 	case CX88_BOARD_OMICOM_SS4_PCI:
 	case CX88_BOARD_TBS_8920:

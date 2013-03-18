@@ -1066,7 +1066,7 @@ check_device:
 		goto fail;
 	}
 
-	memcpy(&priv->cur_fw, &new_fw, sizeof(priv->cur_fw));
+	priv->cur_fw = new_fw;
 
 	/*
 	 * By setting BASE in cur_fw.type only after successfully loading all

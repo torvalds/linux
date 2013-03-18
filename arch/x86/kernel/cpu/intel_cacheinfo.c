@@ -298,8 +298,7 @@ struct _cache_attr {
 			 unsigned int);
 };
 
-#ifdef CONFIG_AMD_NB
-
+#if defined(CONFIG_AMD_NB) && defined(CONFIG_SYSFS)
 /*
  * L3 cache descriptors
  */
@@ -524,9 +523,9 @@ store_subcaches(struct _cpuid4_info *this_leaf, const char *buf, size_t count,
 static struct _cache_attr subcaches =
 	__ATTR(subcaches, 0644, show_subcaches, store_subcaches);
 
-#else	/* CONFIG_AMD_NB */
+#else
 #define amd_init_l3_cache(x, y)
-#endif /* CONFIG_AMD_NB */
+#endif  /* CONFIG_AMD_NB && CONFIG_SYSFS */
 
 static int
 __cpuinit cpuid4_cache_lookup_regs(int index,
@@ -1227,7 +1226,7 @@ static struct notifier_block __cpuinitdata cacheinfo_cpu_notifier = {
 	.notifier_call = cacheinfo_cpu_callback,
 };
 
-static int __cpuinit cache_sysfs_init(void)
+static int __init cache_sysfs_init(void)
 {
 	int i;
 

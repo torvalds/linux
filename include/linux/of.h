@@ -92,7 +92,7 @@ static inline void of_node_put(struct device_node *node) { }
 extern struct device_node *of_allnodes;
 extern struct device_node *of_chosen;
 extern struct device_node *of_aliases;
-extern rwlock_t devtree_lock;
+extern raw_spinlock_t devtree_lock;
 
 static inline bool of_have_populated_dt(void)
 {
@@ -160,7 +160,7 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 
 #define OF_BAD_ADDR	((u64)-1)
 
-static inline const char* of_node_full_name(struct device_node *np)
+static inline const char *of_node_full_name(const struct device_node *np)
 {
 	return np ? np->full_name : "<no-node>";
 }
@@ -277,6 +277,8 @@ extern struct device_node *of_parse_phandle(const struct device_node *np,
 extern int of_parse_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name, int index,
 	struct of_phandle_args *out_args);
+extern int of_count_phandle_with_args(const struct device_node *np,
+	const char *list_name, const char *cells_name);
 
 extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
 extern int of_alias_get_id(struct device_node *np, const char *stem);
@@ -463,6 +465,13 @@ static inline int of_parse_phandle_with_args(struct device_node *np,
 					     const char *cells_name,
 					     int index,
 					     struct of_phandle_args *out_args)
+{
+	return -ENOSYS;
+}
+
+static inline int of_count_phandle_with_args(struct device_node *np,
+					     const char *list_name,
+					     const char *cells_name)
 {
 	return -ENOSYS;
 }

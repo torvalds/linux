@@ -84,11 +84,12 @@ void ima_fs_cleanup(void);
 int ima_inode_alloc(struct inode *inode);
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode);
-int ima_calc_hash(struct file *file, char *digest);
-int ima_calc_template_hash(int template_len, void *template, char *digest);
+int ima_calc_file_hash(struct file *file, char *digest);
+int ima_calc_buffer_hash(const void *data, int len, char *digest);
 int ima_calc_boot_aggregate(char *digest);
 void ima_add_violation(struct inode *inode, const unsigned char *filename,
 		       const char *op, const char *cause);
+int ima_init_crypto(void);
 
 /*
  * used to protect h_table and sha_table
@@ -119,6 +120,7 @@ void ima_audit_measurement(struct integrity_iint_cache *iint,
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode);
 void ima_template_show(struct seq_file *m, void *e, enum ima_show_type show);
+const char *ima_d_path(struct path *path, char **pathbuf);
 
 /* rbtree tree calls to lookup, insert, delete
  * integrity data associated with an inode.
@@ -127,7 +129,7 @@ struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
 /* IMA policy related functions */
-enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK, MODULE_CHECK, POST_SETATTR };
+enum ima_hooks { FILE_CHECK = 1, MMAP_CHECK, BPRM_CHECK, MODULE_CHECK, POST_SETATTR };
 
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		     int flags);
@@ -142,13 +144,16 @@ void ima_delete_rules(void);
 #define IMA_APPRAISE_MODULES	0x04
 
 #ifdef CONFIG_IMA_APPRAISE
-int ima_appraise_measurement(struct integrity_iint_cache *iint,
+int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			     struct file *file, const unsigned char *filename);
 int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func);
 void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file);
+enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
+					   int func);
 
 #else
-static inline int ima_appraise_measurement(struct integrity_iint_cache *iint,
+static inline int ima_appraise_measurement(int func,
+					   struct integrity_iint_cache *iint,
 					   struct file *file,
 					   const unsigned char *filename)
 {
@@ -164,6 +169,12 @@ static inline int ima_must_appraise(struct inode *inode, int mask,
 static inline void ima_update_xattr(struct integrity_iint_cache *iint,
 				    struct file *file)
 {
+}
+
+static inline enum integrity_status ima_get_cache_status(struct integrity_iint_cache
+							 *iint, int func)
+{
+	return INTEGRITY_UNKNOWN;
 }
 #endif
 

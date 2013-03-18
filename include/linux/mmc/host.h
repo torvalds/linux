@@ -131,9 +131,11 @@ struct mmc_host_ops {
 
 	int	(*start_signal_voltage_switch)(struct mmc_host *host, struct mmc_ios *ios);
 
+	/* Check if the card is pulling dat[0:3] low */
+	int	(*card_busy)(struct mmc_host *host);
+
 	/* The tuning command opcode value is different for SD and eMMC cards */
 	int	(*execute_tuning)(struct mmc_host *host, u32 opcode);
-	void	(*enable_preset_value)(struct mmc_host *host, bool enable);
 	int	(*select_drive_strength)(unsigned int max_dtr, int host_drv, int card_drv);
 	void	(*hw_reset)(struct mmc_host *host);
 	void	(*card_event)(struct mmc_host *host);
@@ -168,6 +170,22 @@ struct mmc_slot {
 	int cd_irq;
 	struct mutex lock;
 	void *handler_priv;
+};
+
+/**
+ * mmc_context_info - synchronization details for mmc context
+ * @is_done_rcv		wake up reason was done request
+ * @is_new_req		wake up reason was new request
+ * @is_waiting_last_req	mmc context waiting for single running request
+ * @wait		wait queue
+ * @lock		lock to protect data fields
+ */
+struct mmc_context_info {
+	bool			is_done_rcv;
+	bool			is_new_req;
+	bool			is_waiting_last_req;
+	wait_queue_head_t	wait;
+	spinlock_t		lock;
 };
 
 struct regulator;
@@ -258,6 +276,10 @@ struct mmc_host {
 #define MMC_CAP2_HC_ERASE_SZ	(1 << 9)	/* High-capacity erase size */
 #define MMC_CAP2_CD_ACTIVE_HIGH	(1 << 10)	/* Card-detect signal active high */
 #define MMC_CAP2_RO_ACTIVE_HIGH	(1 << 11)	/* Write-protect signal active high */
+#define MMC_CAP2_PACKED_RD	(1 << 12)	/* Allow packed read */
+#define MMC_CAP2_PACKED_WR	(1 << 13)	/* Allow packed write */
+#define MMC_CAP2_PACKED_CMD	(MMC_CAP2_PACKED_RD | \
+				 MMC_CAP2_PACKED_WR)
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -331,6 +353,7 @@ struct mmc_host {
 	struct dentry		*debugfs_root;
 
 	struct mmc_async_req	*areq;		/* active async req */
+	struct mmc_context_info	context_info;	/* async synchronization info */
 
 #ifdef CONFIG_FAIL_MMC_REQUEST
 	struct fault_attr	fail_mmc_request;
@@ -341,10 +364,11 @@ struct mmc_host {
 	unsigned long		private[0] ____cacheline_aligned;
 };
 
-extern struct mmc_host *mmc_alloc_host(int extra, struct device *);
-extern int mmc_add_host(struct mmc_host *);
-extern void mmc_remove_host(struct mmc_host *);
-extern void mmc_free_host(struct mmc_host *);
+struct mmc_host *mmc_alloc_host(int extra, struct device *);
+int mmc_add_host(struct mmc_host *);
+void mmc_remove_host(struct mmc_host *);
+void mmc_free_host(struct mmc_host *);
+void mmc_of_parse(struct mmc_host *host);
 
 static inline void *mmc_priv(struct mmc_host *host)
 {
@@ -357,16 +381,16 @@ static inline void *mmc_priv(struct mmc_host *host)
 #define mmc_classdev(x)	(&(x)->class_dev)
 #define mmc_hostname(x)	(dev_name(&(x)->class_dev))
 
-extern int mmc_suspend_host(struct mmc_host *);
-extern int mmc_resume_host(struct mmc_host *);
+int mmc_suspend_host(struct mmc_host *);
+int mmc_resume_host(struct mmc_host *);
 
-extern int mmc_power_save_host(struct mmc_host *host);
-extern int mmc_power_restore_host(struct mmc_host *host);
+int mmc_power_save_host(struct mmc_host *host);
+int mmc_power_restore_host(struct mmc_host *host);
 
-extern void mmc_detect_change(struct mmc_host *, unsigned long delay);
-extern void mmc_request_done(struct mmc_host *, struct mmc_request *);
+void mmc_detect_change(struct mmc_host *, unsigned long delay);
+void mmc_request_done(struct mmc_host *, struct mmc_request *);
 
-extern int mmc_cache_ctrl(struct mmc_host *, u8);
+int mmc_cache_ctrl(struct mmc_host *, u8);
 
 static inline void mmc_signal_sdio_irq(struct mmc_host *host)
 {
@@ -432,6 +456,19 @@ static inline int mmc_host_cmd23(struct mmc_host *host)
 static inline int mmc_boot_partition_access(struct mmc_host *host)
 {
 	return !(host->caps2 & MMC_CAP2_BOOTPART_NOACC);
+}
+
+static inline int mmc_host_uhs(struct mmc_host *host)
+{
+	return host->caps &
+		(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+		 MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 |
+		 MMC_CAP_UHS_DDR50);
+}
+
+static inline int mmc_host_packed_wr(struct mmc_host *host)
+{
+	return host->caps2 & MMC_CAP2_PACKED_WR;
 }
 
 #ifdef CONFIG_MMC_CLKGATE

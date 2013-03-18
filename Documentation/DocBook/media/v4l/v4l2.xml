@@ -140,6 +140,16 @@ structs, ioctls) must be noted in more detail in the history chapter
 applications. -->
 
       <revision>
+	<revnumber>3.9</revnumber>
+	<date>2012-12-03</date>
+	<authorinitials>sa, sn</authorinitials>
+	<revremark>Added timestamp types to v4l2_buffer.
+	Added <constant>V4L2_EVENT_CTRL_CH_RANGE</constant> control
+	event changes flag, see <xref linkend="changes-flags"/>.
+	</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>3.6</revnumber>
 	<date>2012-07-02</date>
 	<authorinitials>hv</authorinitials>
@@ -472,7 +482,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.6</subtitle>
+ <subtitle>Revision 3.9</subtitle>
 
   <chapter id="common">
     &sub-common;

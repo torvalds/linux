@@ -27,7 +27,7 @@ static inline bool kvm_check_and_clear_guest_paused(void)
  *
  * Up to four arguments may be passed in rbx, rcx, rdx, and rsi respectively.
  * The hypercall number should be placed in rax and the return value will be
- * placed in rax.  No other registers will be clobbered unless explicited
+ * placed in rax.  No other registers will be clobbered unless explicitly
  * noted by the particular hypercall.
  */
 
@@ -85,13 +85,13 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 	return ret;
 }
 
-static inline int kvm_para_available(void)
+static inline bool kvm_para_available(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 	char signature[13];
 
 	if (boot_cpu_data.cpuid_level < 0)
-		return 0;	/* So we don't blow up on old processors */
+		return false;	/* So we don't blow up on old processors */
 
 	if (cpu_has_hypervisor) {
 		cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
@@ -101,10 +101,10 @@ static inline int kvm_para_available(void)
 		signature[12] = 0;
 
 		if (strcmp(signature, "KVMKVMKVM") == 0)
-			return 1;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 static inline unsigned int kvm_arch_para_features(void)

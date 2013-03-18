@@ -78,6 +78,7 @@ enum {
 	INTUOS5L,
 	WACOM_21UX2,
 	WACOM_22HD,
+	DTK,
 	WACOM_24HD,
 	CINTIQ,
 	WACOM_BEE,
@@ -135,7 +136,6 @@ struct wacom_wac {
 	int pid;
 	int battery_capacity;
 	int num_contacts_left;
-	int *slots;
 };
 
 #endif

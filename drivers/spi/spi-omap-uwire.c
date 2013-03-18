@@ -476,7 +476,7 @@ static void uwire_off(struct uwire_spi *uwire)
 	spi_master_put(uwire->bitbang.master);
 }
 
-static int __init uwire_probe(struct platform_device *pdev)
+static int uwire_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct uwire_spi	*uwire;
@@ -536,7 +536,7 @@ static int __init uwire_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int __exit uwire_remove(struct platform_device *pdev)
+static int uwire_remove(struct platform_device *pdev)
 {
 	struct uwire_spi	*uwire = dev_get_drvdata(&pdev->dev);
 	int			status;
@@ -557,7 +557,7 @@ static struct platform_driver uwire_driver = {
 		.name		= "omap_uwire",
 		.owner		= THIS_MODULE,
 	},
-	.remove		= __exit_p(uwire_remove),
+	.remove		= uwire_remove,
 	// suspend ... unuse ck
 	// resume ... use ck
 };

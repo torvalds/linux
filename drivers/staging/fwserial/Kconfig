@@ -1,6 +1,6 @@
 config FIREWIRE_SERIAL
        tristate "TTY over Firewire"
-       depends on FIREWIRE
+       depends on FIREWIRE && TTY
        help
           This enables TTY over IEEE 1394, providing high-speed serial
 	  connectivity to cabled peers. This driver implements a

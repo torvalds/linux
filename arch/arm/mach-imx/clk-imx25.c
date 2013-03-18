@@ -224,6 +224,9 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 
 	clk_prepare_enable(clk[emi_ahb]);
 
+	/* Clock source for gpt must be derived from AHB */
+	clk_set_parent(clk[per5_sel], clk[ahb]);
+
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 

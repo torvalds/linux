@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -145,14 +145,13 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
-		    IEEE80211_HW_NEED_DTIM_PERIOD |
+		    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
 		    IEEE80211_HW_SPECTRUM_MGMT |
 		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		    IEEE80211_HW_QUEUE_CONTROL |
 		    IEEE80211_HW_SUPPORTS_PS |
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		    IEEE80211_HW_WANT_MONITOR_VIF |
-		    IEEE80211_HW_SCAN_WHILE_IDLE;
+		    IEEE80211_HW_WANT_MONITOR_VIF;
 
 	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FMT;
@@ -206,7 +205,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
-	    priv->trans->ops->wowlan_suspend &&
+	    priv->trans->ops->d3_suspend &&
+	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
@@ -426,7 +426,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto error;
 
-	iwl_trans_wowlan_suspend(priv->trans);
+	iwl_trans_d3_suspend(priv->trans);
 
 	goto out;
 
@@ -441,54 +441,154 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	return ret;
 }
 
+struct iwl_resume_data {
+	struct iwl_priv *priv;
+	struct iwlagn_wowlan_status *cmd;
+	bool valid;
+};
+
+static bool iwl_resume_status_fn(struct iwl_notif_wait_data *notif_wait,
+				 struct iwl_rx_packet *pkt, void *data)
+{
+	struct iwl_resume_data *resume_data = data;
+	struct iwl_priv *priv = resume_data->priv;
+	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+
+	if (len - 4 != sizeof(*resume_data->cmd)) {
+		IWL_ERR(priv, "rx wrong size data\n");
+		return true;
+	}
+	memcpy(resume_data->cmd, pkt->data, sizeof(*resume_data->cmd));
+	resume_data->valid = true;
+
+	return true;
+}
+
 static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct ieee80211_vif *vif;
-	unsigned long flags;
-	u32 base, status = 0xffffffff;
-	int ret = -EIO;
+	u32 base;
+	int ret;
+	enum iwl_d3_status d3_status;
+	struct error_table_start {
+		/* cf. struct iwl_error_event_table */
+		u32 valid;
+		u32 error_id;
+	} err_info;
+	struct iwl_notification_wait status_wait;
+	static const u8 status_cmd[] = {
+		REPLY_WOWLAN_GET_STATUS,
+	};
+	struct iwlagn_wowlan_status status_data = {};
+	struct iwl_resume_data resume_data = {
+		.priv = priv,
+		.cmd = &status_data,
+		.valid = false,
+	};
+	struct cfg80211_wowlan_wakeup wakeup = {
+		.pattern_idx = -1,
+	};
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	const struct fw_img *img;
+#endif
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
 
-	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
-			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
-
-	base = priv->device_pointers.error_event_table;
-	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		spin_lock_irqsave(&priv->trans->reg_lock, flags);
-		ret = iwl_grab_nic_access_silent(priv->trans);
-		if (likely(ret == 0)) {
-			iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, base);
-			status = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
-			iwl_release_nic_access(priv->trans);
-		}
-		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		if (ret == 0) {
-			const struct fw_img *img;
-
-			img = &(priv->fw->img[IWL_UCODE_WOWLAN]);
-			if (!priv->wowlan_sram) {
-				priv->wowlan_sram =
-				   kzalloc(img->sec[IWL_UCODE_SECTION_DATA].len,
-						GFP_KERNEL);
-			}
-
-			if (priv->wowlan_sram)
-				_iwl_read_targ_mem_dwords(
-				      priv->trans, 0x800000,
-				      priv->wowlan_sram,
-				      img->sec[IWL_UCODE_SECTION_DATA].len / 4);
-		}
-#endif
-	}
-
 	/* we'll clear ctx->vif during iwlagn_prepare_restart() */
 	vif = ctx->vif;
+
+	ret = iwl_trans_d3_resume(priv->trans, &d3_status);
+	if (ret)
+		goto out_unlock;
+
+	if (d3_status != IWL_D3_STATUS_ALIVE) {
+		IWL_INFO(priv, "Device was reset during suspend\n");
+		goto out_unlock;
+	}
+
+	base = priv->device_pointers.error_event_table;
+	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
+		IWL_WARN(priv, "Invalid error table during resume!\n");
+		goto out_unlock;
+	}
+
+	iwl_trans_read_mem_bytes(priv->trans, base,
+				 &err_info, sizeof(err_info));
+
+	if (err_info.valid) {
+		IWL_INFO(priv, "error table is valid (%d, 0x%x)\n",
+			 err_info.valid, err_info.error_id);
+		if (err_info.error_id == RF_KILL_INDICATOR_FOR_WOWLAN) {
+			wakeup.rfkill_release = true;
+			ieee80211_report_wowlan_wakeup(vif, &wakeup,
+						       GFP_KERNEL);
+		}
+		goto out_unlock;
+	}
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	img = &priv->fw->img[IWL_UCODE_WOWLAN];
+	if (!priv->wowlan_sram)
+		priv->wowlan_sram =
+			kzalloc(img->sec[IWL_UCODE_SECTION_DATA].len,
+				GFP_KERNEL);
+
+	if (priv->wowlan_sram)
+		iwl_trans_read_mem(priv->trans, 0x800000,
+				   priv->wowlan_sram,
+				   img->sec[IWL_UCODE_SECTION_DATA].len / 4);
+#endif
+
+	/*
+	 * This is very strange. The GET_STATUS command is sent but the device
+	 * doesn't reply properly, it seems it doesn't close the RBD so one is
+	 * always left open ... As a result, we need to send another command
+	 * and have to reset the driver afterwards. As we need to switch to
+	 * runtime firmware again that'll happen.
+	 */
+
+	iwl_init_notification_wait(&priv->notif_wait, &status_wait, status_cmd,
+				   ARRAY_SIZE(status_cmd), iwl_resume_status_fn,
+				   &resume_data);
+
+	iwl_dvm_send_cmd_pdu(priv, REPLY_WOWLAN_GET_STATUS, CMD_ASYNC, 0, NULL);
+	iwl_dvm_send_cmd_pdu(priv, REPLY_ECHO, CMD_ASYNC, 0, NULL);
+	/* an RBD is left open in the firmware now! */
+
+	ret = iwl_wait_notification(&priv->notif_wait, &status_wait, HZ/5);
+	if (ret)
+		goto out_unlock;
+
+	if (resume_data.valid && priv->contexts[IWL_RXON_CTX_BSS].vif) {
+		u32 reasons = le32_to_cpu(status_data.wakeup_reason);
+		struct cfg80211_wowlan_wakeup *wakeup_report;
+
+		IWL_INFO(priv, "WoWLAN wakeup reason(s): 0x%.8x\n", reasons);
+
+		if (reasons) {
+			if (reasons & IWLAGN_WOWLAN_WAKEUP_MAGIC_PACKET)
+				wakeup.magic_pkt = true;
+			if (reasons & IWLAGN_WOWLAN_WAKEUP_PATTERN_MATCH)
+				wakeup.pattern_idx = status_data.pattern_number;
+			if (reasons & (IWLAGN_WOWLAN_WAKEUP_BEACON_MISS |
+				       IWLAGN_WOWLAN_WAKEUP_LINK_CHANGE))
+				wakeup.disconnect = true;
+			if (reasons & IWLAGN_WOWLAN_WAKEUP_GTK_REKEY_FAIL)
+				wakeup.gtk_rekey_failure = true;
+			if (reasons & IWLAGN_WOWLAN_WAKEUP_EAP_IDENT_REQ)
+				wakeup.eap_identity_req = true;
+			if (reasons & IWLAGN_WOWLAN_WAKEUP_4WAY_HANDSHAKE)
+				wakeup.four_way_handshake = true;
+			wakeup_report = &wakeup;
+		} else {
+			wakeup_report = NULL;
+		}
+
+		ieee80211_report_wowlan_wakeup(vif, wakeup_report, GFP_KERNEL);
+	}
 
 	priv->wowlan = false;
 
@@ -498,6 +598,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	iwl_connection_init_rx_config(priv, ctx);
 	iwlagn_set_rxon_chain(priv, ctx);
 
+ out_unlock:
 	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
@@ -519,9 +620,6 @@ static void iwlagn_mac_tx(struct ieee80211_hw *hw,
 			  struct sk_buff *skb)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-
-	IWL_DEBUG_TX(priv, "dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
-		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
 	if (iwlagn_tx_skb(priv, control->sta, skb))
 		ieee80211_free_txskb(hw, skb);
@@ -679,7 +777,9 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwlagn_tx_agg_stop(priv, vif, sta, tid);
 		if ((ret == 0) && (priv->agg_tids_count > 0)) {
@@ -1154,6 +1254,7 @@ static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 }
 
 static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
 				     enum ieee80211_rssi_event rssi_event)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);

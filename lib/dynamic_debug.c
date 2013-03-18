@@ -59,7 +59,7 @@ struct ddebug_iter {
 
 static DEFINE_MUTEX(ddebug_lock);
 static LIST_HEAD(ddebug_tables);
-static int verbose = 0;
+static int verbose;
 module_param(verbose, int, 0644);
 
 /* Return the path relative to source root */
@@ -100,23 +100,31 @@ static char *ddebug_describe_flags(struct _ddebug *dp, char *buf,
 	return buf;
 }
 
-#define vpr_info(fmt, ...) \
-	if (verbose) do { pr_info(fmt, ##__VA_ARGS__); } while (0)
-
-#define vpr_info_dq(q, msg)					\
+#define vpr_info(fmt, ...)					\
 do {								\
-	/* trim last char off format print */			\
-	vpr_info("%s: func=\"%s\" file=\"%s\" "			\
-		"module=\"%s\" format=\"%.*s\" "		\
-		"lineno=%u-%u",					\
-		msg,						\
-		q->function ? q->function : "",			\
-		q->filename ? q->filename : "",			\
-		q->module ? q->module : "",			\
-		(int)(q->format ? strlen(q->format) - 1 : 0),	\
-		q->format ? q->format : "",			\
-		q->first_lineno, q->last_lineno);		\
+	if (verbose)						\
+		pr_info(fmt, ##__VA_ARGS__);			\
 } while (0)
+
+static void vpr_info_dq(const struct ddebug_query *query, const char *msg)
+{
+	/* trim any trailing newlines */
+	int fmtlen = 0;
+
+	if (query->format) {
+		fmtlen = strlen(query->format);
+		while (fmtlen && query->format[fmtlen - 1] == '\n')
+			fmtlen--;
+	}
+
+	vpr_info("%s: func=\"%s\" file=\"%s\" module=\"%s\" format=\"%.*s\" lineno=%u-%u\n",
+		 msg,
+		 query->function ? query->function : "",
+		 query->filename ? query->filename : "",
+		 query->module ? query->module : "",
+		 fmtlen, query->format ? query->format : "",
+		 query->first_lineno, query->last_lineno);
+}
 
 /*
  * Search the tables for _ddebug's which match the given `query' and
@@ -141,7 +149,7 @@ static int ddebug_change(const struct ddebug_query *query,
 		if (query->module && strcmp(query->module, dt->mod_name))
 			continue;
 
-		for (i = 0 ; i < dt->num_ddebugs ; i++) {
+		for (i = 0; i < dt->num_ddebugs; i++) {
 			struct _ddebug *dp = &dt->ddebugs[i];
 
 			/* match against the source filename */
@@ -176,10 +184,10 @@ static int ddebug_change(const struct ddebug_query *query,
 				continue;
 			dp->flags = newflags;
 			vpr_info("changed %s:%d [%s]%s =%s\n",
-				trim_prefix(dp->filename), dp->lineno,
-				dt->mod_name, dp->function,
-				ddebug_describe_flags(dp, flagbuf,
-						sizeof(flagbuf)));
+				 trim_prefix(dp->filename), dp->lineno,
+				 dt->mod_name, dp->function,
+				 ddebug_describe_flags(dp, flagbuf,
+						       sizeof(flagbuf)));
 		}
 	}
 	mutex_unlock(&ddebug_lock);
@@ -213,19 +221,23 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 		/* find `end' of word, whitespace separated or quoted */
 		if (*buf == '"' || *buf == '\'') {
 			int quote = *buf++;
-			for (end = buf ; *end && *end != quote ; end++)
+			for (end = buf; *end && *end != quote; end++)
 				;
-			if (!*end)
+			if (!*end) {
+				pr_err("unclosed quote: %s\n", buf);
 				return -EINVAL;	/* unclosed quote */
+			}
 		} else {
-			for (end = buf ; *end && !isspace(*end) ; end++)
+			for (end = buf; *end && !isspace(*end); end++)
 				;
 			BUG_ON(end == buf);
 		}
 
 		/* `buf' is start of word, `end' is one past its end */
-		if (nwords == maxwords)
+		if (nwords == maxwords) {
+			pr_err("too many words, legal max <=%d\n", maxwords);
 			return -EINVAL;	/* ran out of words[] before bytes */
+		}
 		if (*end)
 			*end++ = '\0';	/* terminate the word */
 		words[nwords++] = buf;
@@ -235,7 +247,7 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 	if (verbose) {
 		int i;
 		pr_info("split into words:");
-		for (i = 0 ; i < nwords ; i++)
+		for (i = 0; i < nwords; i++)
 			pr_cont(" \"%s\"", words[i]);
 		pr_cont("\n");
 	}
@@ -257,7 +269,11 @@ static inline int parse_lineno(const char *str, unsigned int *val)
 		return 0;
 	}
 	*val = simple_strtoul(str, &end, 10);
-	return end == NULL || end == str || *end != '\0' ? -EINVAL : 0;
+	if (end == NULL || end == str || *end != '\0') {
+		pr_err("bad line-number: %s\n", str);
+		return -EINVAL;
+	}
+	return 0;
 }
 
 /*
@@ -286,11 +302,11 @@ static char *unescape(char *str)
 				in += 2;
 				continue;
 			} else if (isodigit(in[1]) &&
-			         isodigit(in[2]) &&
-			         isodigit(in[3])) {
-				*out++ = ((in[1] - '0')<<6) |
-				          ((in[2] - '0')<<3) |
-				          (in[3] - '0');
+				   isodigit(in[2]) &&
+				   isodigit(in[3])) {
+				*out++ = (((in[1] - '0') << 6) |
+					  ((in[2] - '0') << 3) |
+					  (in[3] - '0'));
 				in += 4;
 				continue;
 			}
@@ -308,8 +324,8 @@ static int check_set(const char **dest, char *src, char *name)
 
 	if (*dest) {
 		rc = -EINVAL;
-		pr_err("match-spec:%s val:%s overridden by %s",
-			name, *dest, src);
+		pr_err("match-spec:%s val:%s overridden by %s\n",
+		       name, *dest, src);
 	}
 	*dest = src;
 	return rc;
@@ -337,40 +353,46 @@ static int ddebug_parse_query(char *words[], int nwords,
 	int rc;
 
 	/* check we have an even number of words */
-	if (nwords % 2 != 0)
+	if (nwords % 2 != 0) {
+		pr_err("expecting pairs of match-spec <value>\n");
 		return -EINVAL;
+	}
 	memset(query, 0, sizeof(*query));
 
 	if (modname)
 		/* support $modname.dyndbg=<multiple queries> */
 		query->module = modname;
 
-	for (i = 0 ; i < nwords ; i += 2) {
-		if (!strcmp(words[i], "func"))
+	for (i = 0; i < nwords; i += 2) {
+		if (!strcmp(words[i], "func")) {
 			rc = check_set(&query->function, words[i+1], "func");
-		else if (!strcmp(words[i], "file"))
+		} else if (!strcmp(words[i], "file")) {
 			rc = check_set(&query->filename, words[i+1], "file");
-		else if (!strcmp(words[i], "module"))
+		} else if (!strcmp(words[i], "module")) {
 			rc = check_set(&query->module, words[i+1], "module");
-		else if (!strcmp(words[i], "format"))
+		} else if (!strcmp(words[i], "format")) {
 			rc = check_set(&query->format, unescape(words[i+1]),
-				"format");
-		else if (!strcmp(words[i], "line")) {
+				       "format");
+		} else if (!strcmp(words[i], "line")) {
 			char *first = words[i+1];
 			char *last = strchr(first, '-');
 			if (query->first_lineno || query->last_lineno) {
-				pr_err("match-spec:line given 2 times\n");
+				pr_err("match-spec: line used 2x\n");
 				return -EINVAL;
 			}
 			if (last)
 				*last++ = '\0';
-			if (parse_lineno(first, &query->first_lineno) < 0)
+			if (parse_lineno(first, &query->first_lineno) < 0) {
+				pr_err("line-number is <0\n");
 				return -EINVAL;
+			}
 			if (last) {
 				/* range <first>-<last> */
 				if (parse_lineno(last, &query->last_lineno)
 				    < query->first_lineno) {
-					pr_err("last-line < 1st-line\n");
+					pr_err("last-line:%d < 1st-line:%d\n",
+						query->last_lineno,
+						query->first_lineno);
 					return -EINVAL;
 				}
 			} else {
@@ -406,19 +428,22 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 		op = *str++;
 		break;
 	default:
+		pr_err("bad flag-op %c, at start of %s\n", *str, str);
 		return -EINVAL;
 	}
 	vpr_info("op='%c'\n", op);
 
-	for ( ; *str ; ++str) {
+	for (; *str ; ++str) {
 		for (i = ARRAY_SIZE(opt_array) - 1; i >= 0; i--) {
 			if (*str == opt_array[i].opt_char) {
 				flags |= opt_array[i].flag;
 				break;
 			}
 		}
-		if (i < 0)
+		if (i < 0) {
+			pr_err("unknown flag '%c' in \"%s\"\n", *str, str);
 			return -EINVAL;
+		}
 	}
 	vpr_info("flags=0x%x\n", flags);
 
@@ -450,16 +475,22 @@ static int ddebug_exec_query(char *query_string, const char *modname)
 	char *words[MAXWORDS];
 
 	nwords = ddebug_tokenize(query_string, words, MAXWORDS);
-	if (nwords <= 0)
+	if (nwords <= 0) {
+		pr_err("tokenize failed\n");
 		return -EINVAL;
-	if (ddebug_parse_query(words, nwords-1, &query, modname))
+	}
+	/* check flags 1st (last arg) so query is pairs of spec,val */
+	if (ddebug_parse_flags(words[nwords-1], &flags, &mask)) {
+		pr_err("flags parse failed\n");
 		return -EINVAL;
-	if (ddebug_parse_flags(words[nwords-1], &flags, &mask))
+	}
+	if (ddebug_parse_query(words, nwords-1, &query, modname)) {
+		pr_err("query parse failed\n");
 		return -EINVAL;
-
+	}
 	/* actually go and implement the change */
 	nfound = ddebug_change(&query, flags, mask);
-	vpr_info_dq((&query), (nfound) ? "applied" : "no-match");
+	vpr_info_dq(&query, nfound ? "applied" : "no-match");
 
 	return nfound;
 }
@@ -488,8 +519,9 @@ static int ddebug_exec_queries(char *query, const char *modname)
 		if (rc < 0) {
 			errs++;
 			exitcode = rc;
-		} else
+		} else {
 			nfound += rc;
+		}
 		i++;
 	}
 	vpr_info("processed %d queries, with %d matches, %d errs\n",
@@ -765,7 +797,7 @@ static void *ddebug_proc_next(struct seq_file *m, void *p, loff_t *pos)
 	struct _ddebug *dp;
 
 	vpr_info("called m=%p p=%p *pos=%lld\n",
-		m, p, (unsigned long long)*pos);
+		 m, p, (unsigned long long)*pos);
 
 	if (p == SEQ_START_TOKEN)
 		dp = ddebug_iter_first(iter);
@@ -791,14 +823,14 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 
 	if (p == SEQ_START_TOKEN) {
 		seq_puts(m,
-			"# filename:lineno [module]function flags format\n");
+			 "# filename:lineno [module]function flags format\n");
 		return 0;
 	}
 
 	seq_printf(m, "%s:%u [%s]%s =%s \"",
-		trim_prefix(dp->filename), dp->lineno,
-		iter->table->mod_name, dp->function,
-		ddebug_describe_flags(dp, flagsbuf, sizeof(flagsbuf)));
+		   trim_prefix(dp->filename), dp->lineno,
+		   iter->table->mod_name, dp->function,
+		   ddebug_describe_flags(dp, flagsbuf, sizeof(flagsbuf)));
 	seq_escape(m, dp->format, "\t\r\n\"");
 	seq_puts(m, "\"\n");
 
@@ -845,7 +877,7 @@ static int ddebug_proc_open(struct inode *inode, struct file *file)
 		kfree(iter);
 		return err;
 	}
-	((struct seq_file *) file->private_data)->private = iter;
+	((struct seq_file *)file->private_data)->private = iter;
 	return 0;
 }
 
@@ -1002,8 +1034,7 @@ static int __init dynamic_debug_init(void)
 	int verbose_bytes = 0;
 
 	if (__start___verbose == __stop___verbose) {
-		pr_warn("_ddebug table is empty in a "
-			"CONFIG_DYNAMIC_DEBUG build");
+		pr_warn("_ddebug table is empty in a CONFIG_DYNAMIC_DEBUG build\n");
 		return 1;
 	}
 	iter = __start___verbose;
@@ -1030,18 +1061,16 @@ static int __init dynamic_debug_init(void)
 		goto out_err;
 
 	ddebug_init_success = 1;
-	vpr_info("%d modules, %d entries and %d bytes in ddebug tables,"
-		" %d bytes in (readonly) verbose section\n",
-		modct, entries, (int)( modct * sizeof(struct ddebug_table)),
-		verbose_bytes + (int)(__stop___verbose - __start___verbose));
+	vpr_info("%d modules, %d entries and %d bytes in ddebug tables, %d bytes in (readonly) verbose section\n",
+		 modct, entries, (int)(modct * sizeof(struct ddebug_table)),
+		 verbose_bytes + (int)(__stop___verbose - __start___verbose));
 
 	/* apply ddebug_query boot param, dont unload tables on err */
 	if (ddebug_setup_string[0] != '\0') {
-		pr_warn("ddebug_query param name is deprecated,"
-			" change it to dyndbg\n");
+		pr_warn("ddebug_query param name is deprecated, change it to dyndbg\n");
 		ret = ddebug_exec_queries(ddebug_setup_string, NULL);
 		if (ret < 0)
-			pr_warn("Invalid ddebug boot param %s",
+			pr_warn("Invalid ddebug boot param %s\n",
 				ddebug_setup_string);
 		else
 			pr_info("%d changes by ddebug_query\n", ret);

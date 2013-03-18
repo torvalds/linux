@@ -57,4 +57,18 @@ static inline struct microcode_ops * __init init_amd_microcode(void)
 static inline void __exit exit_amd_microcode(void) {}
 #endif
 
+#ifdef CONFIG_MICROCODE_EARLY
+#define MAX_UCODE_COUNT 128
+extern void __init load_ucode_bsp(void);
+extern __init void load_ucode_ap(void);
+extern int __init save_microcode_in_initrd(void);
+#else
+static inline void __init load_ucode_bsp(void) {}
+static inline __init void load_ucode_ap(void) {}
+static inline int __init save_microcode_in_initrd(void)
+{
+	return 0;
+}
+#endif
+
 #endif /* _ASM_X86_MICROCODE_H */

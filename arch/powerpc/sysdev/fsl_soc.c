@@ -58,10 +58,10 @@ phys_addr_t get_immrbase(void)
 	if (soc) {
 		int size;
 		u32 naddr;
-		const u32 *prop = of_get_property(soc, "#address-cells", &size);
+		const __be32 *prop = of_get_property(soc, "#address-cells", &size);
 
 		if (prop && size == 4)
-			naddr = *prop;
+			naddr = be32_to_cpup(prop);
 		else
 			naddr = 2;
 

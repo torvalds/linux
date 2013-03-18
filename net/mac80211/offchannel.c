@@ -113,6 +113,15 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 	 * notify the AP about us leaving the channel and stop all
 	 * STA interfaces.
 	 */
+
+	/*
+	 * Stop queues and transmit all frames queued by the driver
+	 * before sending nullfunc to enable powersave at the AP.
+	 */
+	ieee80211_stop_queues_by_reason(&local->hw,
+					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL);
+	drv_flush(local, false);
+
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
@@ -125,18 +134,17 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 			set_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
 
 		/* Check to see if we should disable beaconing. */
-		if (sdata->vif.type == NL80211_IFTYPE_AP ||
-		    sdata->vif.type == NL80211_IFTYPE_ADHOC ||
-		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+		if (sdata->vif.bss_conf.enable_beacon) {
+			set_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
+				&sdata->state);
+			sdata->vif.bss_conf.enable_beacon = false;
 			ieee80211_bss_info_change_notify(
 				sdata, BSS_CHANGED_BEACON_ENABLED);
-
-		if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
-			netif_tx_stop_all_queues(sdata->dev);
-			if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-			    sdata->u.mgd.associated)
-				ieee80211_offchannel_ps_enable(sdata);
 		}
+
+		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+		    sdata->u.mgd.associated)
+			ieee80211_offchannel_ps_enable(sdata);
 	}
 	mutex_unlock(&local->iflist_mtx);
 }
@@ -164,27 +172,17 @@ void ieee80211_offchannel_return(struct ieee80211_local *local)
 		    sdata->u.mgd.associated)
 			ieee80211_offchannel_ps_disable(sdata);
 
-		if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
-			/*
-			 * This may wake up queues even though the driver
-			 * currently has them stopped. This is not very
-			 * likely, since the driver won't have gotten any
-			 * (or hardly any) new packets while we weren't
-			 * on the right channel, and even if it happens
-			 * it will at most lead to queueing up one more
-			 * packet per queue in mac80211 rather than on
-			 * the interface qdisc.
-			 */
-			netif_tx_wake_all_queues(sdata->dev);
-		}
-
-		if (sdata->vif.type == NL80211_IFTYPE_AP ||
-		    sdata->vif.type == NL80211_IFTYPE_ADHOC ||
-		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+		if (test_and_clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
+				       &sdata->state)) {
+			sdata->vif.bss_conf.enable_beacon = true;
 			ieee80211_bss_info_change_notify(
 				sdata, BSS_CHANGED_BEACON_ENABLED);
+		}
 	}
 	mutex_unlock(&local->iflist_mtx);
+
+	ieee80211_wake_queues_by_reason(&local->hw,
+					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL);
 }
 
 void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc)

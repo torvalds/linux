@@ -278,6 +278,6 @@ MACHINE_START(CSB726, "Cogent CSB726")
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
 	.init_machine   = csb726_init,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END

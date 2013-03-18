@@ -26,6 +26,11 @@ route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
 
+neigh/default/gc_thresh1 - INTEGER
+	Minimum number of entries to keep.  Garbage collector will not
+	purge entries if there are fewer than this number.
+	Default: 256
+
 neigh/default/gc_thresh3 - INTEGER
 	Maximum number of neighbor entries allowed.  Increase this
 	when using large numbers of interfaces and when communicating
@@ -125,17 +130,6 @@ somaxconn - INTEGER
 	Defaults to 128.  See also tcp_max_syn_backlog for additional tuning
 	for TCP sockets.
 
-tcp_abc - INTEGER
-	Controls Appropriate Byte Count (ABC) defined in RFC3465.
-	ABC is a way of increasing congestion window (cwnd) more slowly
-	in response to partial acknowledgments.
-	Possible values are:
-		0 increase cwnd once per acknowledgment (no ABC)
-		1 increase cwnd once per acknowledgment of full sized segment
-		2 allow increase cwnd by two if acknowledgment is
-		  of two segments to compensate for delayed acknowledgments.
-	Default: 0 (off)
-
 tcp_abort_on_overflow - BOOLEAN
 	If listening service is too slow to accept new connections,
 	reset them. Default state is FALSE. It means that if overflow
@@ -214,7 +208,8 @@ tcp_ecn - INTEGER
 	congestion before having to drop packets.
 	Possible values are:
 		0 Disable ECN.  Neither initiate nor accept ECN.
-		1 Always request ECN on outgoing connection attempts.
+		1 Enable ECN when requested by incoming connections and
+		  also request ECN on outgoing connection attempts.
 		2 Enable ECN when requested by incoming connections
 		  but do not request ECN on outgoing connections.
 	Default: 2

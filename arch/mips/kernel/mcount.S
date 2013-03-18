@@ -46,9 +46,8 @@
 	PTR_L	a5, PT_R9(sp)
 	PTR_L	a6, PT_R10(sp)
 	PTR_L	a7, PT_R11(sp)
-	PTR_ADDIU	sp, PT_SIZE
 #else
-	PTR_ADDIU	sp, (PT_SIZE + 8)
+	PTR_ADDIU	sp, PT_SIZE
 #endif
 .endm
 
@@ -69,7 +68,9 @@ NESTED(ftrace_caller, PT_SIZE, ra)
 	.globl _mcount
 _mcount:
 	b	ftrace_stub
-	 nop
+	addiu sp,sp,8
+
+	/* When tracing is activated, it calls ftrace_caller+8 (aka here) */
 	lw	t1, function_trace_stop
 	bnez	t1, ftrace_stub
 	 nop

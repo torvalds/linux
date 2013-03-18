@@ -22,7 +22,7 @@ static inline void remap_area_pte(pte_t * pte, unsigned long address,
 	phys_t end;
 	unsigned long pfn;
 	pgprot_t pgprot = __pgprot(_PAGE_GLOBAL | _PAGE_PRESENT | __READABLE
-	                           | __WRITEABLE | flags);
+				   | __WRITEABLE | flags);
 
 	address &= ~PMD_MASK;
 	end = address + size;
@@ -185,14 +185,8 @@ void __iounmap(const volatile void __iomem *addr)
 	if (!p)
 		printk(KERN_ERR "iounmap: bad address %p\n", addr);
 
-        kfree(p);
+	kfree(p);
 }
 
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(__iounmap);
-
-int __virt_addr_valid(const volatile void *kaddr)
-{
-	return pfn_valid(PFN_DOWN(virt_to_phys(kaddr)));
-}
-EXPORT_SYMBOL_GPL(__virt_addr_valid);

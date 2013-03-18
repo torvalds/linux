@@ -34,12 +34,12 @@
 /* CPU measurement facility support */
 static inline int cpum_cf_avail(void)
 {
-	return MACHINE_HAS_SPP && test_facility(67);
+	return MACHINE_HAS_LPP && test_facility(67);
 }
 
 static inline int cpum_sf_avail(void)
 {
-	return MACHINE_HAS_SPP && test_facility(68);
+	return MACHINE_HAS_LPP && test_facility(68);
 }
 
 

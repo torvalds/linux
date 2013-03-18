@@ -23,13 +23,13 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/btrfs.h>
 
 #include "ctree.h"
 #include "transaction.h"
 #include "disk-io.h"
 #include "locking.h"
 #include "ulist.h"
-#include "ioctl.h"
 #include "backref.h"
 
 /* TODO XXX FIXME
@@ -620,7 +620,9 @@ static int update_qgroup_limit_item(struct btrfs_trans_handle *trans,
 	key.offset = qgroupid;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
+
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret > 0)
 		ret = -ENOENT;
@@ -661,7 +663,9 @@ static int update_qgroup_info_item(struct btrfs_trans_handle *trans,
 	key.offset = qgroup->qgroupid;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
+
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret > 0)
 		ret = -ENOENT;
@@ -702,7 +706,9 @@ static int update_qgroup_status_item(struct btrfs_trans_handle *trans,
 	key.offset = 0;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
+
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret > 0)
 		ret = -ENOENT;
@@ -732,33 +738,38 @@ static int btrfs_clean_quota_tree(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_path *path;
 	struct btrfs_key key;
+	struct extent_buffer *leaf = NULL;
 	int ret;
-
-	if (!root)
-		return -EINVAL;
+	int nr = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
+	path->leave_spinning = 1;
+
+	key.objectid = 0;
+	key.offset = 0;
+	key.type = 0;
+
 	while (1) {
-		key.objectid = 0;
-		key.offset = 0;
-		key.type = 0;
-
-		path->leave_spinning = 1;
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-		if (ret > 0) {
-			if (path->slots[0] == 0)
-				break;
-			path->slots[0]--;
-		} else if (ret < 0) {
+		if (ret < 0)
+			goto out;
+		leaf = path->nodes[0];
+		nr = btrfs_header_nritems(leaf);
+		if (!nr)
 			break;
-		}
-
-		ret = btrfs_del_item(trans, root, path);
+		/*
+		 * delete the leaf one by one
+		 * since the whole tree is going
+		 * to be deleted.
+		 */
+		path->slots[0] = 0;
+		ret = btrfs_del_items(trans, root, path, 0, nr);
 		if (ret)
 			goto out;
+
 		btrfs_release_path(path);
 	}
 	ret = 0;
@@ -847,6 +858,10 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	spin_lock(&fs_info->qgroup_lock);
+	if (!fs_info->quota_root) {
+		spin_unlock(&fs_info->qgroup_lock);
+		return 0;
+	}
 	fs_info->quota_enabled = 0;
 	fs_info->pending_quota_state = 0;
 	quota_root = fs_info->quota_root;

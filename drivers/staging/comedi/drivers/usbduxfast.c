@@ -1490,7 +1490,7 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 		goto out;
 	}
 
-	comedi_usb_auto_config(uinterf, &usbduxfast_driver);
+	comedi_usb_auto_config(uinterf, &usbduxfast_driver, 0);
  out:
 	release_firmware(fw);
 }
@@ -1556,8 +1556,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	usbduxfastsub[index].dux_commands = kmalloc(SIZEOFDUXBUFFER,
 						    GFP_KERNEL);
 	if (!usbduxfastsub[index].dux_commands) {
-		dev_err(&uinterf->dev,
-			"error alloc space for dac commands\n");
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -1565,8 +1563,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	/* create space of the instruction buffer */
 	usbduxfastsub[index].insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
 	if (!usbduxfastsub[index].insnBuffer) {
-		dev_err(&uinterf->dev,
-			"could not alloc space for insnBuffer\n");
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -1592,8 +1588,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	}
 	usbduxfastsub[index].transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
 	if (!usbduxfastsub[index].transfer_buffer) {
-		dev_err(&uinterf->dev,
-			"usbduxfast%d: could not alloc. transb.\n", index);
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;

@@ -1,6 +1,6 @@
 /*
  *
- * Description:  Defines the platform resources for Gaia-based settops.
+ * Description:	 Defines the platform resources for Gaia-based settops.
  *
  * Copyright (C) 2005-2009 Scientific-Atlanta, Inc.
  *
@@ -90,12 +90,12 @@ struct resource asic_resource = {
 
 /*
  * Allow override of bootloader-specified model
- * Returns zero on success, a negative errno value on failure.  This parameter
+ * Returns zero on success, a negative errno value on failure.	This parameter
  * allows overriding of the bootloader-specified model.
  */
 static char __initdata cmdline[COMMAND_LINE_SIZE];
 
-#define	FORCEFAMILY_PARAM	"forcefamily"
+#define FORCEFAMILY_PARAM	"forcefamily"
 
 /*
  * check_forcefamily - check for, and parse, forcefamily command line parameter
@@ -486,7 +486,7 @@ static void __init pmem_setup_resource(void)
 		resource->start = phys_to_dma(pmemaddr - 0x80000000);
 		resource->end = resource->start + pmemlen - 1;
 
-		pr_info("persistent memory: start=0x%x  end=0x%x\n",
+		pr_info("persistent memory: start=0x%x	end=0x%x\n",
 			resource->start, resource->end);
 	}
 }

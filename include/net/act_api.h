@@ -35,21 +35,6 @@ struct tcf_common {
 #define tcf_lock	common.tcfc_lock
 #define tcf_rcu		common.tcfc_rcu
 
-struct tcf_police {
-	struct tcf_common	common;
-	int			tcfp_result;
-	u32			tcfp_ewma_rate;
-	u32			tcfp_burst;
-	u32			tcfp_mtu;
-	u32			tcfp_toks;
-	u32			tcfp_ptoks;
-	psched_time_t		tcfp_t_c;
-	struct qdisc_rate_table	*tcfp_R_tab;
-	struct qdisc_rate_table	*tcfp_P_tab;
-};
-#define to_police(pc)	\
-	container_of(pc, struct tcf_police, common)
-
 struct tcf_hashinfo {
 	struct tcf_common	**htab;
 	unsigned int		hmask;
@@ -91,7 +76,9 @@ struct tc_action_ops {
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	int     (*cleanup)(struct tc_action *, int bind);
 	int     (*lookup)(struct tc_action *, u32);
-	int     (*init)(struct nlattr *, struct nlattr *, struct tc_action *, int , int);
+	int     (*init)(struct net *net, struct nlattr *nla,
+			struct nlattr *est, struct tc_action *act, int ovr,
+			int bind);
 	int     (*walk)(struct sk_buff *, struct netlink_callback *, int, struct tc_action *);
 };
 
@@ -116,8 +103,12 @@ extern int tcf_register_action(struct tc_action_ops *a);
 extern int tcf_unregister_action(struct tc_action_ops *a);
 extern void tcf_action_destroy(struct tc_action *a, int bind);
 extern int tcf_action_exec(struct sk_buff *skb, const struct tc_action *a, struct tcf_result *res);
-extern struct tc_action *tcf_action_init(struct nlattr *nla, struct nlattr *est, char *n, int ovr, int bind);
-extern struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est, char *n, int ovr, int bind);
+extern struct tc_action *tcf_action_init(struct net *net, struct nlattr *nla,
+					 struct nlattr *est, char *n, int ovr,
+					 int bind);
+extern struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
+					   struct nlattr *est, char *n, int ovr,
+					   int bind);
 extern int tcf_action_dump(struct sk_buff *skb, struct tc_action *a, int, int);
 extern int tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int, int);
 extern int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);

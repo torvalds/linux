@@ -79,31 +79,6 @@ nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 		priv->sor.lvdsconf = data & NV50_DISP_SOR_LVDS_SCRIPT_ID;
 		ret = 0;
 		break;
-	case NV94_DISP_SOR_DP_TRAIN:
-		switch (data & NV94_DISP_SOR_DP_TRAIN_OP) {
-		case NV94_DISP_SOR_DP_TRAIN_OP_PATTERN:
-			ret = priv->sor.dp_train(priv, or, link, type, mask, data, &outp);
-			break;
-		case NV94_DISP_SOR_DP_TRAIN_OP_INIT:
-			ret = priv->sor.dp_train_init(priv, or, link, head, type, mask, data, &outp);
-			break;
-		case NV94_DISP_SOR_DP_TRAIN_OP_FINI:
-			ret = priv->sor.dp_train_fini(priv, or, link, head, type, mask, data, &outp);
-			break;
-		default:
-			break;
-		}
-		break;
-	case NV94_DISP_SOR_DP_LNKCTL:
-		ret = priv->sor.dp_lnkctl(priv, or, link, head, type, mask, data, &outp);
-		break;
-	case NV94_DISP_SOR_DP_DRVCTL(0):
-	case NV94_DISP_SOR_DP_DRVCTL(1):
-	case NV94_DISP_SOR_DP_DRVCTL(2):
-	case NV94_DISP_SOR_DP_DRVCTL(3):
-		ret = priv->sor.dp_drvctl(priv, or, link, (mthd & 0xc0) >> 6,
-				          type, mask, data, &outp);
-		break;
 	default:
 		BUG_ON(1);
 	}

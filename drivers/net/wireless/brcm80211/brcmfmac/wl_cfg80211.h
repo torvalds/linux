@@ -41,6 +41,38 @@
 #define WL_AUTH_SHARED_KEY		1	/* d11 shared authentication */
 #define IE_MAX_LEN			512
 
+/* IE TLV processing */
+#define TLV_LEN_OFF			1	/* length offset */
+#define TLV_HDR_LEN			2	/* header length */
+#define TLV_BODY_OFF			2	/* body offset */
+#define TLV_OUI_LEN			3	/* oui id length */
+
+/* 802.11 Mgmt Packet flags */
+#define BRCMF_VNDR_IE_BEACON_FLAG	0x1
+#define BRCMF_VNDR_IE_PRBRSP_FLAG	0x2
+#define BRCMF_VNDR_IE_ASSOCRSP_FLAG	0x4
+#define BRCMF_VNDR_IE_AUTHRSP_FLAG	0x8
+#define BRCMF_VNDR_IE_PRBREQ_FLAG	0x10
+#define BRCMF_VNDR_IE_ASSOCREQ_FLAG	0x20
+/* vendor IE in IW advertisement protocol ID field */
+#define BRCMF_VNDR_IE_IWAPID_FLAG	0x40
+/* allow custom IE id */
+#define BRCMF_VNDR_IE_CUSTOM_FLAG	0x100
+
+/* P2P Action Frames flags (spec ordered) */
+#define BRCMF_VNDR_IE_GONREQ_FLAG     0x001000
+#define BRCMF_VNDR_IE_GONRSP_FLAG     0x002000
+#define BRCMF_VNDR_IE_GONCFM_FLAG     0x004000
+#define BRCMF_VNDR_IE_INVREQ_FLAG     0x008000
+#define BRCMF_VNDR_IE_INVRSP_FLAG     0x010000
+#define BRCMF_VNDR_IE_DISREQ_FLAG     0x020000
+#define BRCMF_VNDR_IE_DISRSP_FLAG     0x040000
+#define BRCMF_VNDR_IE_PRDREQ_FLAG     0x080000
+#define BRCMF_VNDR_IE_PRDRSP_FLAG     0x100000
+
+#define BRCMF_VNDR_IE_P2PAF_SHIFT	12
+
+
 /**
  * enum brcmf_scan_status - dongle scan status
  *
@@ -52,11 +84,19 @@ enum brcmf_scan_status {
 	BRCMF_SCAN_STATUS_ABORT,
 };
 
-/* wi-fi mode */
+/**
+ * enum wl_mode - driver mode of virtual interface.
+ *
+ * @WL_MODE_BSS: connects to BSS.
+ * @WL_MODE_IBSS: operate as ad-hoc.
+ * @WL_MODE_AP: operate as access-point.
+ * @WL_MODE_P2P: provide P2P discovery.
+ */
 enum wl_mode {
 	WL_MODE_BSS,
 	WL_MODE_IBSS,
-	WL_MODE_AP
+	WL_MODE_AP,
+	WL_MODE_P2P
 };
 
 /* dongle configuration */
@@ -108,6 +148,7 @@ struct brcmf_cfg80211_profile {
  * @BRCMF_VIF_STATUS_READY: ready for operation.
  * @BRCMF_VIF_STATUS_CONNECTING: connect/join in progress.
  * @BRCMF_VIF_STATUS_CONNECTED: connected/joined succesfully.
+ * @BRCMF_VIF_STATUS_DISCONNECTING: disconnect/disable in progress.
  * @BRCMF_VIF_STATUS_AP_CREATING: interface configured for AP operation.
  * @BRCMF_VIF_STATUS_AP_CREATED: AP operation started.
  */
@@ -115,6 +156,7 @@ enum brcmf_vif_status {
 	BRCMF_VIF_STATUS_READY,
 	BRCMF_VIF_STATUS_CONNECTING,
 	BRCMF_VIF_STATUS_CONNECTED,
+	BRCMF_VIF_STATUS_DISCONNECTING,
 	BRCMF_VIF_STATUS_AP_CREATING,
 	BRCMF_VIF_STATUS_AP_CREATED
 };
@@ -122,16 +164,22 @@ enum brcmf_vif_status {
 /**
  * struct vif_saved_ie - holds saved IEs for a virtual interface.
  *
+ * @probe_req_ie: IE info for probe request.
  * @probe_res_ie: IE info for probe response.
  * @beacon_ie: IE info for beacon frame.
+ * @probe_req_ie_len: IE info length for probe request.
  * @probe_res_ie_len: IE info length for probe response.
  * @beacon_ie_len: IE info length for beacon frame.
  */
 struct vif_saved_ie {
+	u8  probe_req_ie[IE_MAX_LEN];
 	u8  probe_res_ie[IE_MAX_LEN];
 	u8  beacon_ie[IE_MAX_LEN];
+	u8  assoc_req_ie[IE_MAX_LEN];
+	u32 probe_req_ie_len;
 	u32 probe_res_ie_len;
 	u32 beacon_ie_len;
+	u32 assoc_req_ie_len;
 };
 
 /**
@@ -145,6 +193,7 @@ struct vif_saved_ie {
  * @sme_state: SME state using enum brcmf_vif_status bits.
  * @pm_block: power-management blocked.
  * @list: linked list.
+ * @mgmt_rx_reg: registered rx mgmt frame types.
  */
 struct brcmf_cfg80211_vif {
 	struct brcmf_if *ifp;
@@ -156,6 +205,7 @@ struct brcmf_cfg80211_vif {
 	bool pm_block;
 	struct vif_saved_ie saved_ie;
 	struct list_head list;
+	u16 mgmt_rx_reg;
 };
 
 /* association inform */
@@ -189,6 +239,9 @@ struct escan_info {
 	u8 escan_buf[WL_ESCAN_BUF_SIZE];
 	struct wiphy *wiphy;
 	struct net_device *ndev;
+	s32 (*run)(struct brcmf_cfg80211_info *cfg,
+		   struct net_device *ndev,
+		   struct cfg80211_scan_request *request, u16 action);
 };
 
 /**
@@ -273,10 +326,27 @@ struct brcmf_pno_scanresults_le {
 };
 
 /**
+ * struct brcmf_cfg80211_vif_event - virtual interface event information.
+ *
+ * @vif_wq: waitqueue awaiting interface event from firmware.
+ * @vif_event_lock: protects other members in this structure.
+ * @vif_complete: completion for net attach.
+ * @action: either add, change, or delete.
+ * @vif: virtual interface object related to the event.
+ */
+struct brcmf_cfg80211_vif_event {
+	wait_queue_head_t vif_wq;
+	struct mutex vif_event_lock;
+	u8 action;
+	struct brcmf_cfg80211_vif *vif;
+};
+
+/**
  * struct brcmf_cfg80211_info - dongle private data of cfg80211 interface
  *
  * @wiphy: wiphy object for cfg80211 interface.
  * @conf: dongle configuration.
+ * @p2p: peer-to-peer specific information.
  * @scan_request: cfg80211 scan request object.
  * @usr_sync: mainly for dongle up/down synchronization.
  * @bss_list: bss_list holding scanned ap information.
@@ -304,10 +374,12 @@ struct brcmf_pno_scanresults_le {
  * @escan_ioctl_buf: dongle command buffer for escan commands.
  * @vif_list: linked list of vif instances.
  * @vif_cnt: number of vif instances.
+ * @vif_event: vif event signalling.
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
 	struct brcmf_cfg80211_conf *conf;
+	struct brcmf_p2p_info p2p;
 	struct cfg80211_scan_request *scan_request;
 	struct mutex usr_sync;
 	struct brcmf_scan_results *bss_list;
@@ -335,6 +407,21 @@ struct brcmf_cfg80211_info {
 	u8 *escan_ioctl_buf;
 	struct list_head vif_list;
 	u8 vif_cnt;
+	struct brcmf_cfg80211_vif_event vif_event;
+	struct completion vif_disabled;
+};
+
+/**
+ * struct brcmf_tlv - tag_ID/length/value_buffer tuple.
+ *
+ * @id: tag identifier.
+ * @len: number of bytes in value buffer.
+ * @data: value buffer.
+ */
+struct brcmf_tlv {
+	u8 id;
+	u8 len;
+	u8 data[1];
 };
 
 static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_info *cfg)
@@ -388,5 +475,27 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg);
 s32 brcmf_cfg80211_up(struct net_device *ndev);
 s32 brcmf_cfg80211_down(struct net_device *ndev);
+
+struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
+					   enum nl80211_iftype type,
+					   bool pm_block);
+void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
+
+s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
+			  const u8 *vndr_ie_buf, u32 vndr_ie_len);
+s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif);
+struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key);
+u16 channel_to_chanspec(struct ieee80211_channel *ch);
+u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state);
+void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
+				  struct brcmf_cfg80211_vif *vif);
+bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
+int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
+					  u8 action, ulong timeout);
+s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
+				struct net_device *ndev,
+				bool aborted, bool fw_abort);
+void brcmf_set_mpc(struct net_device *ndev, int mpc);
+void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
 
 #endif				/* _wl_cfg80211_h_ */

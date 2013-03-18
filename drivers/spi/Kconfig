@@ -88,7 +88,7 @@ config SPI_BFIN_SPORT
 
 config SPI_AU1550
 	tristate "Au1550/Au1200/Au1300 SPI Controller"
-	depends on MIPS_ALCHEMY && EXPERIMENTAL
+	depends on MIPS_ALCHEMY
 	select SPI_BITBANG
 	help
 	  If you say yes to this option, support will be included for the
@@ -188,7 +188,7 @@ config SPI_IMX
 
 config SPI_LM70_LLP
 	tristate "Parallel port adapter for LM70 eval board (DEVELOPMENT)"
-	depends on PARPORT && EXPERIMENTAL
+	depends on PARPORT
 	select SPI_BITBANG
 	help
 	  This driver supports the NS LM70 LLP Evaluation Board,
@@ -204,7 +204,7 @@ config SPI_MPC52xx
 
 config SPI_MPC52xx_PSC
 	tristate "Freescale MPC52xx PSC SPI controller"
-	depends on PPC_MPC52xx && EXPERIMENTAL
+	depends on PPC_MPC52xx
 	help
 	  This enables using the Freescale MPC52xx Programmable Serial
 	  Controller in master SPI mode.
@@ -273,8 +273,8 @@ config SPI_OMAP_100K
 	  OMAP SPI 100K master controller for omap7xx boards.
 
 config SPI_ORION
-	tristate "Orion SPI master (EXPERIMENTAL)"
-	depends on PLAT_ORION && EXPERIMENTAL
+	tristate "Orion SPI master"
+	depends on PLAT_ORION
 	help
 	  This enables using the SPI master controller on the Orion chips.
 
@@ -297,9 +297,20 @@ config SPI_PPC4xx
 	help
 	  This selects a driver for the PPC4xx SPI Controller.
 
+config SPI_PXA2XX_PXADMA
+	bool "PXA2xx SSP legacy PXA DMA API support"
+	depends on SPI_PXA2XX && ARCH_PXA
+	help
+	  Enable PXA private legacy DMA API support. Note that this is
+	  deprecated in favor of generic DMA engine API.
+
+config SPI_PXA2XX_DMA
+	def_bool y
+	depends on SPI_PXA2XX && !SPI_PXA2XX_PXADMA
+
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on (ARCH_PXA || (X86_32 && PCI)) && EXPERIMENTAL
+	depends on ARCH_PXA || PCI || ACPI
 	select PXA_SSP if ARCH_PXA
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
@@ -307,7 +318,7 @@ config SPI_PXA2XX
 	  additional documentation can be found a Documentation/spi/pxa2xx.
 
 config SPI_PXA2XX_PCI
-	def_bool SPI_PXA2XX && X86_32 && PCI
+	def_tristate SPI_PXA2XX && PCI
 
 config SPI_RSPI
 	tristate "Renesas RSPI controller"
@@ -317,7 +328,7 @@ config SPI_RSPI
 
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"
-	depends on ARCH_S3C24XX && EXPERIMENTAL
+	depends on ARCH_S3C24XX
 	select SPI_BITBANG
 	help
 	  SPI driver for Samsung S3C24XX series ARM SoCs
@@ -432,7 +443,7 @@ config SPI_XCOMM
 
 config SPI_XILINX
 	tristate "Xilinx SPI controller common module"
-	depends on HAS_IOMEM && EXPERIMENTAL
+	depends on HAS_IOMEM
 	select SPI_BITBANG
 	help
 	  This exposes the SPI controller IP from the Xilinx EDK.
@@ -444,7 +455,7 @@ config SPI_XILINX
 
 config SPI_NUC900
 	tristate "Nuvoton NUC900 series SPI"
-	depends on ARCH_W90X900 && EXPERIMENTAL
+	depends on ARCH_W90X900
 	select SPI_BITBANG
 	help
 	  SPI driver for Nuvoton NUC900 series ARM SoCs
@@ -478,7 +489,6 @@ comment "SPI Protocol Masters"
 
 config SPI_SPIDEV
 	tristate "User mode SPI device driver support"
-	depends on EXPERIMENTAL
 	help
 	  This supports user mode SPI protocol drivers.
 

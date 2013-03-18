@@ -60,14 +60,38 @@ void __init r8a7779_map_io(void)
 	iotable_init(r8a7779_io_desc, ARRAY_SIZE(r8a7779_io_desc));
 }
 
+static struct resource r8a7779_pfc_resources[] = {
+	[0] = {
+		.start	= 0xfffc0000,
+		.end	= 0xfffc023b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 0xffc40000,
+		.end	= 0xffc46fff,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device r8a7779_pfc_device = {
+	.name		= "pfc-r8a7779",
+	.id		= -1,
+	.resource	= r8a7779_pfc_resources,
+	.num_resources	= ARRAY_SIZE(r8a7779_pfc_resources),
+};
+
+void __init r8a7779_pinmux_init(void)
+{
+	platform_device_register(&r8a7779_pfc_device);
+}
+
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xffe40000,
 	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(88), gic_spi(88),
-			    gic_spi(88), gic_spi(88) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(88)),
 };
 
 static struct platform_device scif0_device = {
@@ -84,8 +108,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(89), gic_spi(89),
-			    gic_spi(89), gic_spi(89) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(89)),
 };
 
 static struct platform_device scif1_device = {
@@ -102,8 +125,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(90), gic_spi(90),
-			    gic_spi(90), gic_spi(90) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(90)),
 };
 
 static struct platform_device scif2_device = {
@@ -120,8 +142,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(91), gic_spi(91),
-			    gic_spi(91), gic_spi(91) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(91)),
 };
 
 static struct platform_device scif3_device = {
@@ -138,8 +159,7 @@ static struct plat_sci_port scif4_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(92), gic_spi(92),
-			    gic_spi(92), gic_spi(92) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(92)),
 };
 
 static struct platform_device scif4_device = {
@@ -156,8 +176,7 @@ static struct plat_sci_port scif5_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { gic_spi(93), gic_spi(93),
-			    gic_spi(93), gic_spi(93) },
+	.irqs		= SCIx_IRQ_MUXED(gic_spi(93)),
 };
 
 static struct platform_device scif5_device = {
@@ -339,7 +358,7 @@ void __init r8a7779_add_standard_devices(void)
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
 void __init __weak r8a7779_register_twd(void) { }
 
-static void __init r8a7779_earlytimer_init(void)
+void __init r8a7779_earlytimer_init(void)
 {
 	r8a7779_clock_init();
 	shmobile_earlytimer_init();
@@ -366,7 +385,4 @@ void __init r8a7779_add_early_devices(void)
 	 * As a final step pass earlyprint=sh-sci.2,115200 on the kernel
 	 * command line in case of the marzen board.
 	 */
-
-	/* override timer setup with soc-specific code */
-	shmobile_timer.init = r8a7779_earlytimer_init;
 }

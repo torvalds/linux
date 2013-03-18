@@ -14,7 +14,7 @@
  * Limitations:
  * 	 - We blindly assume that control connections are always
  * 	   established in PNS->PAC direction.  This is a violation
- * 	   of RFFC2673
+ *	   of RFC 2637
  * 	 - We can only support one single call within each session
  * TODO:
  *	 - testing of incoming PPTP calls

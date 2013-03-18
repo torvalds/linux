@@ -13,6 +13,7 @@
 #define _LINUX_NFS4_H
 
 #include <linux/list.h>
+#include <linux/uidgid.h>
 #include <uapi/linux/nfs4.h>
 
 struct nfs4_ace {
@@ -20,7 +21,10 @@ struct nfs4_ace {
 	uint32_t	flag;
 	uint32_t	access_mask;
 	int		whotype;
-	uid_t		who;
+	union {
+		kuid_t	who_uid;
+		kgid_t	who_gid;
+	};
 };
 
 struct nfs4_acl {

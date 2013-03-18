@@ -134,8 +134,8 @@ config CRYPTO_NULL
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
 
 config CRYPTO_PCRYPT
-	tristate "Parallel crypto engine (EXPERIMENTAL)"
-	depends on SMP && EXPERIMENTAL
+	tristate "Parallel crypto engine"
+	depends on SMP
 	select PADATA
 	select CRYPTO_MANAGER
 	select CRYPTO_AEAD
@@ -292,7 +292,6 @@ config CRYPTO_HMAC
 
 config CRYPTO_XCBC
 	tristate "XCBC support"
-	depends on EXPERIMENTAL
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
 	help
@@ -303,7 +302,6 @@ config CRYPTO_XCBC
 
 config CRYPTO_VMAC
 	tristate "VMAC support"
-	depends on EXPERIMENTAL
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
 	help
@@ -354,6 +352,27 @@ config CRYPTO_CRC32C_SPARC64
 	help
 	  CRC32c CRC algorithm implemented using sparc64 crypto instructions,
 	  when available.
+
+config CRYPTO_CRC32
+	tristate "CRC32 CRC algorithm"
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC-32-IEEE 802.3 cyclic redundancy-check algorithm.
+	  Shash crypto api wrappers to crc32_le function.
+
+config CRYPTO_CRC32_PCLMUL
+	tristate "CRC32 PCLMULQDQ hardware acceleration"
+	depends on X86
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  From Intel Westmere and AMD Bulldozer processor with SSE4.2
+	  and PCLMULQDQ supported, the processor will support
+	  CRC32 PCLMULQDQ implementation using hardware accelerated PCLMULQDQ
+	  instruction. This option will create 'crc32-plcmul' module,
+	  which will enable any routine to use the CRC-32-IEEE 802.3 checksum
+	  and gain better performance as compared with the table implementation.
 
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
@@ -478,6 +497,13 @@ config CRYPTO_SHA1_ARM
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
 	  using optimized ARM assembler.
+
+config CRYPTO_SHA1_PPC
+	tristate "SHA1 digest algorithm (powerpc)"
+	depends on PPC
+	help
+	  This is the powerpc hardware accelerated implementation of the
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
@@ -932,8 +958,7 @@ config CRYPTO_KHAZAD
 	  <http://www.larc.usp.br/~pbarreto/KhazadPage.html>
 
 config CRYPTO_SALSA20
-	tristate "Salsa20 stream cipher algorithm (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Salsa20 stream cipher algorithm"
 	select CRYPTO_BLKCIPHER
 	help
 	  Salsa20 stream cipher algorithm.
@@ -945,9 +970,8 @@ config CRYPTO_SALSA20
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
 config CRYPTO_SALSA20_586
-	tristate "Salsa20 stream cipher algorithm (i586) (EXPERIMENTAL)"
+	tristate "Salsa20 stream cipher algorithm (i586)"
 	depends on (X86 || UML_X86) && !64BIT
-	depends on EXPERIMENTAL
 	select CRYPTO_BLKCIPHER
 	help
 	  Salsa20 stream cipher algorithm.
@@ -959,9 +983,8 @@ config CRYPTO_SALSA20_586
 	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
 config CRYPTO_SALSA20_X86_64
-	tristate "Salsa20 stream cipher algorithm (x86_64) (EXPERIMENTAL)"
+	tristate "Salsa20 stream cipher algorithm (x86_64)"
 	depends on (X86 || UML_X86) && 64BIT
-	depends on EXPERIMENTAL
 	select CRYPTO_BLKCIPHER
 	help
 	  Salsa20 stream cipher algorithm.

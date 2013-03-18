@@ -32,8 +32,6 @@ struct cpuidle_driver;
  ****************************/
 
 struct cpuidle_state_usage {
-	void		*driver_data;
-
 	unsigned long long	disable;
 	unsigned long long	usage;
 	unsigned long long	time; /* in US */
@@ -61,26 +59,6 @@ struct cpuidle_state {
 #define CPUIDLE_FLAG_COUPLED	(0x02) /* state applies to multiple cpus */
 
 #define CPUIDLE_DRIVER_FLAGS_MASK (0xFFFF0000)
-
-/**
- * cpuidle_get_statedata - retrieves private driver state data
- * @st_usage: the state usage statistics
- */
-static inline void *cpuidle_get_statedata(struct cpuidle_state_usage *st_usage)
-{
-	return st_usage->driver_data;
-}
-
-/**
- * cpuidle_set_statedata - stores private driver state data
- * @st_usage: the state usage statistics
- * @data: the private data
- */
-static inline void
-cpuidle_set_statedata(struct cpuidle_state_usage *st_usage, void *data)
-{
-	st_usage->driver_data = data;
-}
 
 struct cpuidle_device {
 	unsigned int		registered:1;

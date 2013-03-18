@@ -27,7 +27,7 @@
 #define   BCMA_CC_FLASHT_NONE		0x00000000	/* No flash */
 #define   BCMA_CC_FLASHT_STSER		0x00000100	/* ST serial flash */
 #define   BCMA_CC_FLASHT_ATSER		0x00000200	/* Atmel serial flash */
-#define   BCMA_CC_FLASHT_NFLASH		0x00000200	/* NAND flash */
+#define   BCMA_CC_FLASHT_NAND		0x00000300	/* NAND flash */
 #define	  BCMA_CC_FLASHT_PARA		0x00000700	/* Parallel flash */
 #define  BCMA_CC_CAP_PLLT		0x00038000	/* PLL Type */
 #define   BCMA_PLLTYPE_NONE		0x00000000
@@ -528,6 +528,7 @@ struct bcma_sflash {
 	u32 size;
 
 	struct mtd_info *mtd;
+	void *priv;
 };
 #endif
 
@@ -633,5 +634,7 @@ extern void bcma_chipco_chipctl_maskset(struct bcma_drv_cc *cc,
 extern void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc,
 				       u32 offset, u32 mask, u32 set);
 extern void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid);
+
+extern u32 bcma_pmu_get_bus_clock(struct bcma_drv_cc *cc);
 
 #endif /* LINUX_BCMA_DRIVER_CC_H_ */

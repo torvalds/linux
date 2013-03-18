@@ -398,7 +398,7 @@ static irqreturn_t lm8323_irq(int irq, void *_lm)
 			lm8323_configure(lm);
 		}
 		for (i = 0; i < LM8323_NUM_PWMS; i++) {
-			if (ints & (1 << (INT_PWM1 + i))) {
+			if (ints & (INT_PWM1 << i)) {
 				dev_vdbg(&lm->client->dev,
 					 "pwm%d engine completed\n", i);
 				pwm_done(&lm->pwm[i]);

@@ -453,12 +453,10 @@ int cvm_oct_common_init(struct net_device *dev)
 	if (priv->of_node)
 		mac = of_get_mac_address(priv->of_node);
 
-	if (mac && is_valid_ether_addr(mac)) {
+	if (mac && is_valid_ether_addr(mac))
 		memcpy(dev->dev_addr, mac, ETH_ALEN);
-		dev->addr_assign_type &= ~NET_ADDR_RANDOM;
-	} else {
+	else
 		eth_hw_addr_random(dev);
-	}
 
 	/*
 	 * Force the interface to use the POW send if always_use_pow

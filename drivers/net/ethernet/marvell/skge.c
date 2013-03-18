@@ -3855,7 +3855,6 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	return dev;
 }
@@ -3917,10 +3916,9 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* space for skge@pci:0000:04:00.0 */
 	hw = kzalloc(sizeof(*hw) + strlen(DRV_NAME "@pci:")
 		     + strlen(pci_name(pdev)) + 1, GFP_KERNEL);
-	if (!hw) {
-		dev_err(&pdev->dev, "cannot allocate hardware struct\n");
+	if (!hw)
 		goto err_out_free_regions;
-	}
+
 	sprintf(hw->irq_name, DRV_NAME "@pci:%s", pci_name(pdev));
 
 	hw->pdev = pdev;

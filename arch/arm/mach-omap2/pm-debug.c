@@ -83,10 +83,8 @@ static int clkdm_dbg_show_counter(struct clockdomain *clkdm, void *user)
 		strncmp(clkdm->name, "dpll", 4) == 0)
 		return 0;
 
-	seq_printf(s, "%s->%s (%d)", clkdm->name,
-			clkdm->pwrdm.ptr->name,
-			atomic_read(&clkdm->usecount));
-	seq_printf(s, "\n");
+	seq_printf(s, "%s->%s (%d)\n", clkdm->name, clkdm->pwrdm.ptr->name,
+		   clkdm->usecount);
 
 	return 0;
 }
@@ -279,6 +277,6 @@ static int __init pm_dbg_init(void)
 
 	return 0;
 }
-arch_initcall(pm_dbg_init);
+omap_arch_initcall(pm_dbg_init);
 
 #endif

@@ -352,7 +352,7 @@ static int ubifs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	struct qstr nm;
 	union ubifs_key key;
 	struct ubifs_dent_node *dent;
-	struct inode *dir = file->f_path.dentry->d_inode;
+	struct inode *dir = file_inode(file);
 	struct ubifs_info *c = dir->i_sb->s_fs_info;
 
 	dbg_gen("dir ino %lu, f_pos %#llx", dir->i_ino, file->f_pos);

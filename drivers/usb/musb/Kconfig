@@ -11,6 +11,7 @@ config USB_MUSB_HDRC
 	select NOP_USB_XCEIV if (SOC_TI81XX || SOC_AM33XX)
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	select TWL6030_USB if MACH_OMAP_4430SDP || MACH_OMAP4_PANDA
+	select OMAP_CONTROL_USB if MACH_OMAP_4430SDP || MACH_OMAP4_PANDA
 	select USB_OTG_UTILS
 	help
 	  Say Y here if your system has a dual role high speed USB
@@ -45,6 +46,7 @@ config USB_MUSB_DA8XX
 
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
+	depends on GENERIC_HARDIRQS
 
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"

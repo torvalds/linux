@@ -72,15 +72,15 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
  * Fixing this is just not worth it.
  */
 
-#define IN_TO_REG(val)		(SENSORS_LIMIT(((val) + 5) / 10, 0, 255))
+#define IN_TO_REG(val)		(clamp_val(((val) + 5) / 10, 0, 255))
 #define IN_FROM_REG(val)	((val) * 10)
 
 static inline unsigned char FAN_TO_REG(unsigned rpm, unsigned div)
 {
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 #define FAN_FROM_REG(val, div)	((val) == 0 ? -1 : \
@@ -102,7 +102,7 @@ static inline long TEMP_FROM_REG(u16 temp)
 #define TEMP_LIMIT_FROM_REG(val)	(((val) > 0x80 ? \
 	(val) - 0x100 : (val)) * 1000)
 
-#define TEMP_LIMIT_TO_REG(val)		SENSORS_LIMIT((val) < 0 ? \
+#define TEMP_LIMIT_TO_REG(val)		clamp_val((val) < 0 ? \
 	((val) - 500) / 1000 : ((val) + 500) / 1000, 0, 255)
 
 #define DIV_FROM_REG(val)		(1 << (val))

@@ -72,6 +72,8 @@ MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
 static int ipip6_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_setup(struct net_device *dev);
 static void ipip6_dev_free(struct net_device *dev);
+static bool check_6rd(struct ip_tunnel *tunnel, const struct in6_addr *v6dst,
+		      __be32 *v4dst);
 static struct rtnl_link_ops sit_link_ops __read_mostly;
 
 static int sit_net_id __read_mostly;
@@ -590,16 +592,20 @@ out:
 	return err;
 }
 
+static inline bool is_spoofed_6rd(struct ip_tunnel *tunnel, const __be32 v4addr,
+				  const struct in6_addr *v6addr)
+{
+	__be32 v4embed = 0;
+	if (check_6rd(tunnel, v6addr, &v4embed) && v4addr != v4embed)
+		return true;
+	return false;
+}
+
 static int ipip6_rcv(struct sk_buff *skb)
 {
-	const struct iphdr *iph;
+	const struct iphdr *iph = ip_hdr(skb);
 	struct ip_tunnel *tunnel;
 	int err;
-
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-		goto out;
-
-	iph = ip_hdr(skb);
 
 	tunnel = ipip6_tunnel_lookup(dev_net(skb->dev), skb->dev,
 				     iph->saddr, iph->daddr);
@@ -613,10 +619,19 @@ static int ipip6_rcv(struct sk_buff *skb)
 		skb->protocol = htons(ETH_P_IPV6);
 		skb->pkt_type = PACKET_HOST;
 
-		if ((tunnel->dev->priv_flags & IFF_ISATAP) &&
-		    !isatap_chksrc(skb, iph, tunnel)) {
-			tunnel->dev->stats.rx_errors++;
-			goto out;
+		if (tunnel->dev->priv_flags & IFF_ISATAP) {
+			if (!isatap_chksrc(skb, iph, tunnel)) {
+				tunnel->dev->stats.rx_errors++;
+				goto out;
+			}
+		} else {
+			if (is_spoofed_6rd(tunnel, iph->saddr,
+					   &ipv6_hdr(skb)->saddr) ||
+			    is_spoofed_6rd(tunnel, iph->daddr,
+					   &ipv6_hdr(skb)->daddr)) {
+				tunnel->dev->stats.rx_errors++;
+				goto out;
+			}
 		}
 
 		__skb_tunnel_rx(skb, tunnel->dev);
@@ -650,14 +665,12 @@ out:
 }
 
 /*
- * Returns the embedded IPv4 address if the IPv6 address
- * comes from 6rd / 6to4 (RFC 3056) addr space.
+ * If the IPv6 address comes from 6rd / 6to4 (RFC 3056) addr space this function
+ * stores the embedded IPv4 address in v4dst and returns true.
  */
-static inline
-__be32 try_6rd(const struct in6_addr *v6dst, struct ip_tunnel *tunnel)
+static bool check_6rd(struct ip_tunnel *tunnel, const struct in6_addr *v6dst,
+		      __be32 *v4dst)
 {
-	__be32 dst = 0;
-
 #ifdef CONFIG_IPV6_SIT_6RD
 	if (ipv6_prefix_equal(v6dst, &tunnel->ip6rd.prefix,
 			      tunnel->ip6rd.prefixlen)) {
@@ -676,14 +689,24 @@ __be32 try_6rd(const struct in6_addr *v6dst, struct ip_tunnel *tunnel)
 			d |= ntohl(v6dst->s6_addr32[pbw0 + 1]) >>
 			     (32 - pbi1);
 
-		dst = tunnel->ip6rd.relay_prefix | htonl(d);
+		*v4dst = tunnel->ip6rd.relay_prefix | htonl(d);
+		return true;
 	}
 #else
 	if (v6dst->s6_addr16[0] == htons(0x2002)) {
 		/* 6to4 v6 addr has 16 bits prefix, 32 v4addr, 16 SLA, ... */
-		memcpy(&dst, &v6dst->s6_addr16[1], 4);
+		memcpy(v4dst, &v6dst->s6_addr16[1], 4);
+		return true;
 	}
 #endif
+	return false;
+}
+
+static inline __be32 try_6rd(struct ip_tunnel *tunnel,
+			     const struct in6_addr *v6dst)
+{
+	__be32 dst = 0;
+	check_6rd(tunnel, v6dst, &dst);
 	return dst;
 }
 
@@ -744,7 +767,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	if (!dst)
-		dst = try_6rd(&iph6->daddr, tunnel);
+		dst = try_6rd(tunnel, &iph6->daddr);
 
 	if (!dst) {
 		struct neighbour *neigh = NULL;

@@ -246,18 +246,14 @@
  *
  * This macro is intended for forcing the CPU into SVC mode at boot time.
  * you cannot return to the original mode.
- *
- * Beware, it also clobers LR.
  */
 .macro safe_svcmode_maskall reg:req
 #if __LINUX_ARM_ARCH__ >= 6
 	mrs	\reg , cpsr
-	mov	lr , \reg
-	and	lr , lr , #MODE_MASK
-	cmp	lr , #HYP_MODE
-	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT
+	eor	\reg, \reg, #HYP_MODE
+	tst	\reg, #MODE_MASK
 	bic	\reg , \reg , #MODE_MASK
-	orr	\reg , \reg , #SVC_MODE
+	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE
 THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	bne	1f
 	orr	\reg, \reg, #PSR_A_BIT

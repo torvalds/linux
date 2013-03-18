@@ -292,6 +292,7 @@ static void perl_process_tracepoint(union perf_event *perf_event __maybe_unused,
 	ns = nsecs - s * NSECS_PER_SEC;
 
 	scripting_context->event_data = data;
+	scripting_context->pevent = evsel->tp_format->pevent;
 
 	ENTER;
 	SAVETMPS;

@@ -10,7 +10,7 @@
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
-#define DEBUG 
+#define DEBUG
 
 #include <linux/fs.h>
 #include <linux/mount.h>

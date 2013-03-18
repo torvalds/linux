@@ -38,12 +38,6 @@ Author: H Hartley Sweeten <hsweeten@visionengravers.com>
 Updated: Thu, 02 Aug 2012 14:27:46 -0700
 Status: untested
 
-This driver only attaches using the PCI PnP auto config support
-in the comedi core. The module parameter 'comedi_autoconfig'
-must be 1 (default) to enable this feature. The COMEDI_DEVCONFIG
-ioctl, used by the comedi_config utility, is not supported by
-this driver.
-
 The PCI-7230, PCI-7432 and PCI-7433 boards also support external
 interrupt signals on digital input channels 0 and 1. The PCI-7233
 has dual-interrupt sources for change-of-state (COS) on any 16
@@ -51,8 +45,10 @@ digital input channels of LSB and for COS on any 16 digital input
 lines of MSB. Interrupts are not currently supported by this
 driver.
 
-Configuration Options: not applicable
+Configuration Options: not applicable, uses comedi PCI auto config
 */
+
+#include <linux/pci.h>
 
 #include "../comedidev.h"
 
@@ -302,11 +298,6 @@ static int adl_pci7x3x_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adl_pci7x3x_driver);
 }
 
-static void adl_pci7x3x_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(adl_pci7x3x_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7230) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7233) },
@@ -322,7 +313,7 @@ static struct pci_driver adl_pci7x3x_pci_driver = {
 	.name		= "adl_pci7x3x",
 	.id_table	= adl_pci7x3x_pci_table,
 	.probe		= adl_pci7x3x_pci_probe,
-	.remove		= adl_pci7x3x_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adl_pci7x3x_driver, adl_pci7x3x_pci_driver);
 

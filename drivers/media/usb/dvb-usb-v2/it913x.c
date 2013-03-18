@@ -308,7 +308,7 @@ static struct i2c_algorithm it913x_i2c_algo = {
 };
 
 /* Callbacks for DVB USB */
-#define IT913X_POLL 250
+#if IS_ENABLED(CONFIG_RC_CORE)
 static int it913x_rc_query(struct dvb_usb_device *d)
 {
 	u8 ibuf[4];
@@ -333,6 +333,25 @@ static int it913x_rc_query(struct dvb_usb_device *d)
 
 	return ret;
 }
+
+static int it913x_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
+{
+	struct it913x_state *st = d->priv;
+
+	if (st->proprietary_ir == false) {
+		rc->map_name = NULL;
+		return 0;
+	}
+
+	rc->allowed_protos = RC_BIT_NEC;
+	rc->query = it913x_rc_query;
+	rc->interval = 250;
+
+	return 0;
+}
+#else
+	#define it913x_get_rc_config NULL
+#endif
 
 /* Firmware sets raw */
 static const char fw_it9135_v1[] = FW_IT9135_V1;
@@ -643,7 +662,8 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 	struct it913x_state *st = d->priv;
 	int ret = 0;
 	u8 adap_addr = I2C_BASE_ADDR + (adap->id << 5);
-	u16 ep_size = adap->stream.buf_size / 4;
+	u16 ep_size = (adap->pid_filtering) ? TS_BUFFER_SIZE_PID / 4 :
+		TS_BUFFER_SIZE_MAX / 4;
 	u8 pkt_size = 0x80;
 
 	if (d->udev->speed != USB_SPEED_HIGH)
@@ -695,22 +715,6 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 }
 
 /* DVB USB Driver */
-static int it913x_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
-{
-	struct it913x_state *st = d->priv;
-
-	if (st->proprietary_ir == false) {
-		rc->map_name = NULL;
-		return 0;
-	}
-
-	rc->allowed_protos = RC_BIT_NEC;
-	rc->query = it913x_rc_query;
-	rc->interval = 250;
-
-	return 0;
-}
-
 static int it913x_get_adapter_count(struct dvb_usb_device *d)
 {
 	struct it913x_state *st = d->priv;
@@ -779,6 +783,18 @@ static const struct usb_device_id it913x_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135_9006,
 		&it913x_properties, "ITE 9135(9006) Generic",
 			RC_MAP_IT913X_V1) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_1835,
+		&it913x_properties, "Avermedia A835B(1835)",
+			RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_2835,
+		&it913x_properties, "Avermedia A835B(2835)",
+			RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_3835,
+		&it913x_properties, "Avermedia A835B(3835)",
+			RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_4835,
+		&it913x_properties, "Avermedia A835B(4835)",
+			RC_MAP_IT913X_V2) },
 	{}		/* Terminating entry */
 };
 
@@ -797,7 +813,7 @@ module_usb_driver(it913x_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.32");
+MODULE_VERSION("1.33");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FW_IT9135_V1);
 MODULE_FIRMWARE(FW_IT9135_V2);

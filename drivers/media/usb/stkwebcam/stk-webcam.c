@@ -28,6 +28,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
+#include <linux/dmi.h>
 #include <linux/usb.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -38,12 +39,12 @@
 #include "stk-webcam.h"
 
 
-static bool hflip;
-module_param(hflip, bool, 0444);
+static int hflip = -1;
+module_param(hflip, int, 0444);
 MODULE_PARM_DESC(hflip, "Horizontal image flip (mirror). Defaults to 0");
 
-static bool vflip;
-module_param(vflip, bool, 0444);
+static int vflip = -1;
+module_param(vflip, int, 0444);
 MODULE_PARM_DESC(vflip, "Vertical image flip. Defaults to 0");
 
 static int debug;
@@ -61,6 +62,19 @@ static struct usb_device_id stkwebcam_table[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, stkwebcam_table);
+
+/* The stk webcam laptop module is mounted upside down in some laptops :( */
+static const struct dmi_system_id stk_upside_down_dmi_table[] = {
+	{
+		.ident = "ASUS G1",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "G1")
+		}
+	},
+	{}
+};
+
 
 /*
  * Basic stuff
@@ -466,6 +480,7 @@ static int stk_setup_siobuf(struct stk_camera *dev, int index)
 	buf->dev = dev;
 	buf->v4lbuf.index = index;
 	buf->v4lbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	buf->v4lbuf.flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	buf->v4lbuf.field = V4L2_FIELD_NONE;
 	buf->v4lbuf.memory = V4L2_MEMORY_MMAP;
 	buf->v4lbuf.m.offset = 2*index*buf->v4lbuf.length;
@@ -816,10 +831,16 @@ static int stk_vidioc_g_ctrl(struct file *filp,
 		c->value = dev->vsettings.brightness;
 		break;
 	case V4L2_CID_HFLIP:
-		c->value = dev->vsettings.hflip;
+		if (dmi_check_system(stk_upside_down_dmi_table))
+			c->value = !dev->vsettings.hflip;
+		else
+			c->value = dev->vsettings.hflip;
 		break;
 	case V4L2_CID_VFLIP:
-		c->value = dev->vsettings.vflip;
+		if (dmi_check_system(stk_upside_down_dmi_table))
+			c->value = !dev->vsettings.vflip;
+		else
+			c->value = dev->vsettings.vflip;
 		break;
 	default:
 		return -EINVAL;
@@ -836,10 +857,16 @@ static int stk_vidioc_s_ctrl(struct file *filp,
 		dev->vsettings.brightness = c->value;
 		return stk_sensor_set_brightness(dev, c->value >> 8);
 	case V4L2_CID_HFLIP:
-		dev->vsettings.hflip = c->value;
+		if (dmi_check_system(stk_upside_down_dmi_table))
+			dev->vsettings.hflip = !c->value;
+		else
+			dev->vsettings.hflip = c->value;
 		return 0;
 	case V4L2_CID_VFLIP:
-		dev->vsettings.vflip = c->value;
+		if (dmi_check_system(stk_upside_down_dmi_table))
+			dev->vsettings.vflip = !c->value;
+		else
+			dev->vsettings.vflip = c->value;
 		return 0;
 	default:
 		return -EINVAL;
@@ -1113,7 +1140,7 @@ static int stk_vidioc_dqbuf(struct file *filp,
 	sbuf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 	sbuf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
 	sbuf->v4lbuf.sequence = ++dev->sequence;
-	do_gettimeofday(&sbuf->v4lbuf.timestamp);
+	v4l2_get_timestamp(&sbuf->v4lbuf.timestamp);
 
 	*buf = sbuf->v4lbuf;
 	return 0;
@@ -1275,8 +1302,18 @@ static int stk_camera_probe(struct usb_interface *interface,
 	dev->interface = interface;
 	usb_get_intf(interface);
 
-	dev->vsettings.vflip = vflip;
-	dev->vsettings.hflip = hflip;
+	if (hflip != -1)
+		dev->vsettings.hflip = hflip;
+	else if (dmi_check_system(stk_upside_down_dmi_table))
+		dev->vsettings.hflip = 1;
+	else
+		dev->vsettings.hflip = 0;
+	if (vflip != -1)
+		dev->vsettings.vflip = vflip;
+	else if (dmi_check_system(stk_upside_down_dmi_table))
+		dev->vsettings.vflip = 1;
+	else
+		dev->vsettings.vflip = 0;
 	dev->n_sbufs = 0;
 	set_present(dev);
 

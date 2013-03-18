@@ -408,6 +408,7 @@ void homecache_change_page_home(struct page *page, int order, int home)
 		__set_pte(ptep, pte_set_home(pteval, home));
 	}
 }
+EXPORT_SYMBOL(homecache_change_page_home);
 
 struct page *homecache_alloc_pages(gfp_t gfp_mask,
 				   unsigned int order, int home)

@@ -906,8 +906,8 @@ struct snd_soc_dai_link {
 			struct snd_pcm_hw_params *params);
 
 	/* machine stream operations */
-	struct snd_soc_ops *ops;
-	struct snd_soc_compr_ops *compr_ops;
+	const struct snd_soc_ops *ops;
+	const struct snd_soc_compr_ops *compr_ops;
 };
 
 struct snd_soc_codec_conf {
@@ -1171,6 +1171,8 @@ int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 			       const char *propname);
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname);
+unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
+				     const char *prefix);
 
 #include <sound/soc-dai.h>
 

@@ -31,6 +31,7 @@
 #include <linux/timex.h>
 #include <linux/hugetlb.h>
 #include <linux/start_kernel.h>
+#include <linux/screen_info.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -48,6 +49,10 @@ static inline int ABS(int x) { return x >= 0 ? x : -x; }
 
 /* Chip information */
 char chip_model[64] __write_once;
+
+#ifdef CONFIG_VT
+struct screen_info screen_info;
+#endif
 
 struct pglist_data node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);

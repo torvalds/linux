@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/usb/phy.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -300,20 +301,20 @@ static struct omap2_hsmmc_info mmc[] = {
 
 static struct gpio_led igep_gpio_leds[] = {
 	[0] = {
-		.name			= "gpio-led:red:d0",
-		.default_trigger	= "default-off"
+		.name			= "omap3:red:user0",
+		.default_state		= 0,
 	},
 	[1] = {
-		.name			= "gpio-led:green:d0",
-		.default_trigger	= "default-off",
+		.name			= "omap3:green:boot",
+		.default_state		= 1,
 	},
 	[2] = {
-		.name			= "gpio-led:red:d1",
-		.default_trigger	= "default-off",
+		.name			= "omap3:red:user1",
+		.default_state		= 0,
 	},
 	[3] = {
-		.name			= "gpio-led:green:d1",
-		.default_trigger	= "heartbeat",
+		.name			= "omap3:green:user1",
+		.default_state		= 0,
 		.gpio			= -EINVAL, /* gets replaced */
 		.active_low		= 1,
 	},
@@ -526,7 +527,7 @@ static void __init igep_i2c_init(void)
 	omap3_pmic_init("twl4030", &igep_twldata);
 }
 
-static const struct usbhs_omap_board_data igep2_usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data igep2_usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -537,7 +538,7 @@ static const struct usbhs_omap_board_data igep2_usbhs_bdata __initconst = {
 	.reset_gpio_port[2] = -EINVAL,
 };
 
-static const struct usbhs_omap_board_data igep3_usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data igep3_usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -625,11 +626,12 @@ static void __init igep_init(void)
 	omap_serial_init();
 	omap_sdrc_init(m65kxxxxam_sdrc_params,
 				  m65kxxxxam_sdrc_params);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 
 	igep_flash_init();
 	igep_leds_init();
-	omap_twl4030_audio_init("igep2");
+	omap_twl4030_audio_init("igep2", NULL);
 
 	/*
 	 * WLAN-BT combo module from MuRata which has a Marvell WLAN
@@ -655,7 +657,7 @@ MACHINE_START(IGEP0020, "IGEP v2 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= igep_init,
 	.init_late	= omap35xx_init_late,
-	.timer		= &omap3_timer,
+	.init_time	= omap3_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END
 
@@ -668,6 +670,6 @@ MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= igep_init,
 	.init_late	= omap35xx_init_late,
-	.timer		= &omap3_timer,
+	.init_time	= omap3_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END

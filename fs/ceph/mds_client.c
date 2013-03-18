@@ -233,6 +233,30 @@ bad:
 }
 
 /*
+ * parse create results
+ */
+static int parse_reply_info_create(void **p, void *end,
+				  struct ceph_mds_reply_info_parsed *info,
+				  int features)
+{
+	if (features & CEPH_FEATURE_REPLY_CREATE_INODE) {
+		if (*p == end) {
+			info->has_create_ino = false;
+		} else {
+			info->has_create_ino = true;
+			info->ino = ceph_decode_64(p);
+		}
+	}
+
+	if (unlikely(*p != end))
+		goto bad;
+	return 0;
+
+bad:
+	return -EIO;
+}
+
+/*
  * parse extra results
  */
 static int parse_reply_info_extra(void **p, void *end,
@@ -241,8 +265,12 @@ static int parse_reply_info_extra(void **p, void *end,
 {
 	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
 		return parse_reply_info_filelock(p, end, info, features);
-	else
+	else if (info->head->op == CEPH_MDS_OP_READDIR)
 		return parse_reply_info_dir(p, end, info, features);
+	else if (info->head->op == CEPH_MDS_OP_CREATE)
+		return parse_reply_info_create(p, end, info, features);
+	else
+		return -EIO;
 }
 
 /*
@@ -1658,8 +1686,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 
 	head->mdsmap_epoch = cpu_to_le32(mdsc->mdsmap->m_epoch);
 	head->op = cpu_to_le32(req->r_op);
-	head->caller_uid = cpu_to_le32(req->r_uid);
-	head->caller_gid = cpu_to_le32(req->r_gid);
+	head->caller_uid = cpu_to_le32(from_kuid(&init_user_ns, req->r_uid));
+	head->caller_gid = cpu_to_le32(from_kgid(&init_user_ns, req->r_gid));
 	head->args = req->r_args;
 
 	ceph_encode_filepath(&p, end, ino1, path1);
@@ -2170,7 +2198,8 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	mutex_lock(&req->r_fill_mutex);
 	err = ceph_fill_trace(mdsc->fsc->sb, req, req->r_session);
 	if (err == 0) {
-		if (result == 0 && req->r_op != CEPH_MDS_OP_GETFILELOCK &&
+		if (result == 0 && (req->r_op == CEPH_MDS_OP_READDIR ||
+				    req->r_op == CEPH_MDS_OP_LSSNAP) &&
 		    rinfo->dir_nr)
 			ceph_readdir_prepopulate(req, req->r_session);
 		ceph_unreserve_caps(mdsc, &req->r_caps_reservation);

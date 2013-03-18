@@ -180,11 +180,11 @@ config SENSORS_ADM9240
 	  will be called adm9240.
 
 config SENSORS_ADT7410
-	tristate "Analog Devices ADT7410"
+	tristate "Analog Devices ADT7410/ADT7420"
 	depends on I2C
 	help
 	  If you say yes here you get support for the Analog Devices
-	  ADT7410 temperature monitoring chip.
+	  ADT7410 and ADT7420 temperature monitoring chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7410.
@@ -506,7 +506,8 @@ config SENSORS_IT87
 	help
 	  If you say yes here you get support for ITE IT8705F, IT8712F,
 	  IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E,
-	  IT8782F, and IT8783E/F sensor chips, and the SiS950 clone.
+	  IT8771E, IT8772E, IT8782F, and IT8783E/F sensor chips, and the
+	  SiS950 clone.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
@@ -529,8 +530,8 @@ config SENSORS_JC42
 	  temperature sensors, which are used on many DDR3 memory modules for
 	  mobile devices and servers.  Support will include, but not be limited
 	  to, ADT7408, AT30TS00, CAT34TS02, CAT6095, MAX6604, MCP9804, MCP9805,
-	  MCP98242, MCP98243, MCP9843, SE97, SE98, STTS424(E), STTS2002,
-	  STTS3000, TSE2002B3, TSE2002GB2, TS3000B3, and TS3000GB2.
+	  MCP98242, MCP98243, MCP98244, MCP9843, SE97, SE98, STTS424(E),
+	  STTS2002, STTS3000, TSE2002B3, TSE2002GB2, TS3000B3, and TS3000GB2.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called jc42.
@@ -854,6 +855,17 @@ config SENSORS_MAX6650
 	  This driver can also be built as a module.  If so, the module
 	  will be called max6650.
 
+config SENSORS_MAX6697
+	tristate "Maxim MAX6697 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for MAX6581, MAX6602, MAX6622,
+	  MAX6636, MAX6689, MAX6693, MAX6694, MAX6697, MAX6698, and MAX6699
+	  temperature sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max6697.
+
 config SENSORS_MCP3021
 	tristate "Microchip MCP3021 and compatibles"
 	depends on I2C
@@ -1144,6 +1156,16 @@ config SENSORS_AMC6821
 
 	  This driver can also be build as a module.  If so, the module
 	  will be called amc6821.
+
+config SENSORS_INA209
+	tristate "TI / Burr Brown INA209"
+	depends on I2C
+	help
+	  If you say yes here you get support for the TI / Burr Brown INA209
+	  voltage / current / power monitor I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ina209.
 
 config SENSORS_INA2XX
 	tristate "Texas Instruments INA219 and compatibles"

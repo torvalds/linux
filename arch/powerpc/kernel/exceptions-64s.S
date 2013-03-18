@@ -104,7 +104,7 @@ __start_interrupts:
 
 	.globl system_reset_pSeries;
 system_reset_pSeries:
-	HMT_MEDIUM;
+	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 #ifdef CONFIG_PPC_P7_NAP
 BEGIN_FTR_SECTION
@@ -153,12 +153,15 @@ machine_check_pSeries_1:
 	 * some code path might still want to branch into the original
 	 * vector
 	 */
-	b	machine_check_pSeries
+	HMT_MEDIUM_PPR_DISCARD
+	SET_SCRATCH0(r13)		/* save r13 */
+	EXCEPTION_PROLOG_0(PACA_EXMC)
+	b	machine_check_pSeries_0
 
 	. = 0x300
 	.globl data_access_pSeries
 data_access_pSeries:
-	HMT_MEDIUM
+	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
 BEGIN_FTR_SECTION
 	b	data_access_check_stab
@@ -170,8 +173,9 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	. = 0x380
 	.globl data_access_slb_pSeries
 data_access_slb_pSeries:
-	HMT_MEDIUM
+	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST, 0x380)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
@@ -201,8 +205,9 @@ data_access_slb_pSeries:
 	. = 0x480
 	.globl instruction_access_slb_pSeries
 instruction_access_slb_pSeries:
-	HMT_MEDIUM
+	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x480)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
@@ -252,7 +257,7 @@ hardware_interrupt_hv:
 	MASKABLE_EXCEPTION_PSERIES(0x900, 0x900, decrementer)
 	STD_EXCEPTION_HV(0x980, 0x982, hdecrementer)
 
-	STD_EXCEPTION_PSERIES(0xa00, 0xa00, trap_0a)
+	MASKABLE_EXCEPTION_PSERIES(0xa00, 0xa00, doorbell_super)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xa00)
 
 	STD_EXCEPTION_PSERIES(0xb00, 0xb00, trap_0b)
@@ -284,15 +289,29 @@ system_call_pSeries:
 	 */
 	. = 0xe00
 hv_exception_trampoline:
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_data_storage_hv
+
 	. = 0xe20
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_instr_storage_hv
+
 	. = 0xe40
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	emulation_assist_hv
-	. = 0xe50
-	b	hmi_exception_hv
+
 	. = 0xe60
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	hmi_exception_hv
+
+	. = 0xe80
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	h_doorbell_hv
 
 	/* We need to deal with the Altivec unavailable exception
 	 * here which is at 0xf20, thus in the middle of the
@@ -301,15 +320,26 @@ hv_exception_trampoline:
 	 */
 performance_monitor_pSeries_1:
 	. = 0xf00
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	performance_monitor_pSeries
 
 altivec_unavailable_pSeries_1:
 	. = 0xf20
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	altivec_unavailable_pSeries
 
 vsx_unavailable_pSeries_1:
 	. = 0xf40
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_pSeries
+
+	. = 0xf60
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	tm_unavailable_pSeries
 
 #ifdef CONFIG_CBE_RAS
 	STD_EXCEPTION_HV(0x1200, 0x1202, cbe_system_error)
@@ -322,11 +352,9 @@ vsx_unavailable_pSeries_1:
 	. = 0x1500
 	.global denorm_exception_hv
 denorm_exception_hv:
-	HMT_MEDIUM
+	HMT_MEDIUM_PPR_DISCARD
 	mtspr	SPRN_SPRG_HSCRATCH0,r13
-	mfspr	r13,SPRN_SPRG_HPACA
-	std	r9,PACA_EXGEN+EX_R9(r13)
-	std	r10,PACA_EXGEN+EX_R10(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	std	r11,PACA_EXGEN+EX_R11(r13)
 	std	r12,PACA_EXGEN+EX_R12(r13)
 	mfspr	r9,SPRN_SPRG_HSCRATCH0
@@ -367,10 +395,12 @@ denorm_exception_hv:
 machine_check_pSeries:
 	.globl machine_check_fwnmi
 machine_check_fwnmi:
-	HMT_MEDIUM
+	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common,
-				 EXC_STD, KVMTEST, 0x200)
+	EXCEPTION_PROLOG_0(PACA_EXMC)
+machine_check_pSeries_0:
+	EXCEPTION_PROLOG_1(PACA_EXMC, KVMTEST, 0x200)
+	EXCEPTION_PROLOG_PSERIES_1(machine_check_common, EXC_STD)
 	KVM_HANDLER_SKIP(PACA_EXMC, EXC_STD, 0x200)
 
 	/* moved from 0x300 */
@@ -496,6 +526,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
 	mtspr	SPRN_HSRR0,r11
 	mtcrf	0x80,r9
 	ld	r9,PACA_EXGEN+EX_R9(r13)
+	RESTORE_PPR_PACA(PACA_EXGEN, r10)
 	ld	r10,PACA_EXGEN+EX_R10(r13)
 	ld	r11,PACA_EXGEN+EX_R11(r13)
 	ld	r12,PACA_EXGEN+EX_R12(r13)
@@ -506,28 +537,34 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
 
 	.align	7
 	/* moved from 0xe00 */
-	STD_EXCEPTION_HV(., 0xe02, h_data_storage)
+	STD_EXCEPTION_HV_OOL(0xe02, h_data_storage)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0xe02)
-	STD_EXCEPTION_HV(., 0xe22, h_instr_storage)
+	STD_EXCEPTION_HV_OOL(0xe22, h_instr_storage)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe22)
-	STD_EXCEPTION_HV(., 0xe42, emulation_assist)
+	STD_EXCEPTION_HV_OOL(0xe42, emulation_assist)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe42)
-	STD_EXCEPTION_HV(., 0xe62, hmi_exception) /* need to flush cache ? */
+	STD_EXCEPTION_HV_OOL(0xe62, hmi_exception) /* need to flush cache ? */
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe62)
+	MASKABLE_EXCEPTION_HV_OOL(0xe82, h_doorbell)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe82)
 
 	/* moved from 0xf00 */
-	STD_EXCEPTION_PSERIES(., 0xf00, performance_monitor)
+	STD_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf00)
-	STD_EXCEPTION_PSERIES(., 0xf20, altivec_unavailable)
+	STD_EXCEPTION_PSERIES_OOL(0xf20, altivec_unavailable)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf20)
-	STD_EXCEPTION_PSERIES(., 0xf40, vsx_unavailable)
+	STD_EXCEPTION_PSERIES_OOL(0xf40, vsx_unavailable)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf40)
+	STD_EXCEPTION_PSERIES_OOL(0xf60, tm_unavailable)
+	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf60)
 
 /*
- * An interrupt came in while soft-disabled. We set paca->irq_happened,
- * then, if it was a decrementer interrupt, we bump the dec to max and
- * and return, else we hard disable and return. This is called with
- * r10 containing the value to OR to the paca field.
+ * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
+ * - If it was a decrementer interrupt, we bump the dec to max and and return.
+ * - If it was a doorbell we return immediately since doorbells are edge
+ *   triggered and won't automatically refire.
+ * - else we hard disable and return.
+ * This is called with r10 containing the value to OR to the paca field.
  */
 #define MASKED_INTERRUPT(_H)				\
 masked_##_H##interrupt:					\
@@ -535,13 +572,15 @@ masked_##_H##interrupt:					\
 	lbz	r11,PACAIRQHAPPENED(r13);		\
 	or	r11,r11,r10;				\
 	stb	r11,PACAIRQHAPPENED(r13);		\
-	andi.	r10,r10,PACA_IRQ_DEC;			\
-	beq	1f;					\
+	cmpwi	r10,PACA_IRQ_DEC;			\
+	bne	1f;					\
 	lis	r10,0x7fff;				\
 	ori	r10,r10,0xffff;				\
 	mtspr	SPRN_DEC,r10;				\
 	b	2f;					\
-1:	mfspr	r10,SPRN_##_H##SRR1;			\
+1:	cmpwi	r10,PACA_IRQ_DBELL;			\
+	beq	2f;					\
+	mfspr	r10,SPRN_##_H##SRR1;			\
 	rldicl	r10,r10,48,1; /* clear MSR_EE */	\
 	rotldi	r10,r10,16;				\
 	mtspr	SPRN_##_H##SRR1,r10;			\
@@ -558,8 +597,8 @@ masked_##_H##interrupt:					\
 
 /*
  * Called from arch_local_irq_enable when an interrupt needs
- * to be resent. r3 contains 0x500 or 0x900 to indicate which
- * kind of interrupt. MSR:EE is already off. We generate a
+ * to be resent. r3 contains 0x500, 0x900, 0xa00 or 0xe80 to indicate
+ * which kind of interrupt. MSR:EE is already off. We generate a
  * stackframe like if a real interrupt had happened.
  *
  * Note: While MSR:EE is off, we need to make sure that _MSR
@@ -575,9 +614,18 @@ _GLOBAL(__replay_interrupt)
 	mflr	r11
 	mfcr	r9
 	ori	r12,r12,MSR_EE
-	andi.	r3,r3,0x0800
-	bne	decrementer_common
-	b	hardware_interrupt_common
+	cmpwi	r3,0x900
+	beq	decrementer_common
+	cmpwi	r3,0x500
+	beq	hardware_interrupt_common
+BEGIN_FTR_SECTION
+	cmpwi	r3,0xe80
+	beq	h_doorbell_common
+FTR_SECTION_ELSE
+	cmpwi	r3,0xa00
+	beq	doorbell_super_common
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+	blr
 
 #ifdef CONFIG_PPC_PSERIES
 /*
@@ -586,7 +634,7 @@ _GLOBAL(__replay_interrupt)
 	.globl system_reset_fwnmi
       .align 7
 system_reset_fwnmi:
-	HMT_MEDIUM
+	HMT_MEDIUM_PPR_DISCARD
 	SET_SCRATCH0(r13)		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
 				 NOTEST, 0x100)
@@ -651,12 +699,21 @@ machine_check_common:
 	STD_EXCEPTION_COMMON_ASYNC(0x500, hardware_interrupt, do_IRQ)
 	STD_EXCEPTION_COMMON_ASYNC(0x900, decrementer, .timer_interrupt)
 	STD_EXCEPTION_COMMON(0x980, hdecrementer, .hdec_interrupt)
-	STD_EXCEPTION_COMMON(0xa00, trap_0a, .unknown_exception)
+#ifdef CONFIG_PPC_DOORBELL
+	STD_EXCEPTION_COMMON_ASYNC(0xa00, doorbell_super, .doorbell_exception)
+#else
+	STD_EXCEPTION_COMMON_ASYNC(0xa00, doorbell_super, .unknown_exception)
+#endif
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xe40, emulation_assist, .program_check_exception)
 	STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
+#ifdef CONFIG_PPC_DOORBELL
+	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, .doorbell_exception)
+#else
+	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, .unknown_exception)
+#endif
 	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, .performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
 	STD_EXCEPTION_COMMON(0x1502, denorm, .unknown_exception)
@@ -690,8 +747,8 @@ machine_check_common:
 	. = 0x4380
 	.globl data_access_slb_relon_pSeries
 data_access_slb_relon_pSeries:
-	HMT_MEDIUM
 	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
@@ -715,8 +772,8 @@ data_access_slb_relon_pSeries:
 	. = 0x4480
 	.globl instruction_access_slb_relon_pSeries
 instruction_access_slb_relon_pSeries:
-	HMT_MEDIUM
 	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXSLB)
 	EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x480)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
@@ -746,6 +803,7 @@ hardware_interrupt_relon_hv:
 	STD_RELON_EXCEPTION_PSERIES(0x4800, 0x800, fp_unavailable)
 	MASKABLE_RELON_EXCEPTION_PSERIES(0x4900, 0x900, decrementer)
 	STD_RELON_EXCEPTION_HV(0x4980, 0x982, hdecrementer)
+	MASKABLE_RELON_EXCEPTION_PSERIES(0x4a00, 0xa00, doorbell_super)
 	STD_RELON_EXCEPTION_PSERIES(0x4b00, 0xb00, trap_0b)
 
 	. = 0x4c00
@@ -759,56 +817,64 @@ system_call_relon_pSeries:
 	STD_RELON_EXCEPTION_PSERIES(0x4d00, 0xd00, single_step)
 
 	. = 0x4e00
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_data_storage_relon_hv
 
 	. = 0x4e20
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_instr_storage_relon_hv
 
 	. = 0x4e40
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	emulation_assist_relon_hv
 
-	. = 0x4e50
-	b	hmi_exception_relon_hv
-
 	. = 0x4e60
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	hmi_exception_relon_hv
 
-	/* For when we support the doorbell interrupt:
-	STD_RELON_EXCEPTION_HYPERVISOR(0x4e80, 0xe80, doorbell_hyper)
-	*/
+	. = 0x4e80
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	h_doorbell_relon_hv
 
 performance_monitor_relon_pSeries_1:
 	. = 0x4f00
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	performance_monitor_relon_pSeries
 
 altivec_unavailable_relon_pSeries_1:
 	. = 0x4f20
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	altivec_unavailable_relon_pSeries
 
 vsx_unavailable_relon_pSeries_1:
 	. = 0x4f40
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_relon_pSeries
 
-#ifdef CONFIG_CBE_RAS
-	STD_RELON_EXCEPTION_HV(0x5200, 0x1202, cbe_system_error)
-#endif /* CONFIG_CBE_RAS */
+tm_unavailable_relon_pSeries_1:
+	. = 0x4f60
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	tm_unavailable_relon_pSeries
+
 	STD_RELON_EXCEPTION_PSERIES(0x5300, 0x1300, instruction_breakpoint)
 #ifdef CONFIG_PPC_DENORMALISATION
 	. = 0x5500
 	b	denorm_exception_hv
 #endif
-#ifdef CONFIG_CBE_RAS
-	STD_RELON_EXCEPTION_HV(0x5600, 0x1602, cbe_maintenance)
-#else
 #ifdef CONFIG_HVC_SCOM
 	STD_RELON_EXCEPTION_HV(0x5600, 0x1600, maintence_interrupt)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1600)
 #endif /* CONFIG_HVC_SCOM */
-#endif /* CONFIG_CBE_RAS */
 	STD_RELON_EXCEPTION_PSERIES(0x5700, 0x1700, altivec_assist)
-#ifdef CONFIG_CBE_RAS
-	STD_RELON_EXCEPTION_HV(0x5800, 0x1802, cbe_thermal)
-#endif /* CONFIG_CBE_RAS */
 
 	/* Other future vectors */
 	.align	7
@@ -1036,6 +1102,7 @@ _GLOBAL(slb_miss_realmode)
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
 .machine	pop
 
+	RESTORE_PPR_PACA(PACA_EXSLB, r9)
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
 	ld	r11,PACA_EXSLB+EX_R11(r13)
@@ -1109,9 +1176,26 @@ fp_unavailable_common:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
-1:	bl	.load_up_fpu
+1:
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+BEGIN_FTR_SECTION
+	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	 * transaction), go do TM stuff
+	 */
+	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
+	bne-	2f
+END_FTR_SECTION_IFSET(CPU_FTR_TM)
+#endif
+	bl	.load_up_fpu
 	b	fast_exception_return
-
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+2:	/* User process was in a transaction */
+	bl	.save_nvgprs
+	DISABLE_INTS
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.fp_unavailable_tm
+	b	.ret_from_except
+#endif
 	.align	7
 	.globl altivec_unavailable_common
 altivec_unavailable_common:
@@ -1119,8 +1203,25 @@ altivec_unavailable_common:
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
 	beq	1f
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+  BEGIN_FTR_SECTION_NESTED(69)
+	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	 * transaction), go do TM stuff
+	 */
+	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
+	bne-	2f
+  END_FTR_SECTION_NESTED(CPU_FTR_TM, CPU_FTR_TM, 69)
+#endif
 	bl	.load_up_altivec
 	b	fast_exception_return
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+2:	/* User process was in a transaction */
+	bl	.save_nvgprs
+	DISABLE_INTS
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.altivec_unavailable_tm
+	b	.ret_from_except
+#endif
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
@@ -1137,7 +1238,24 @@ vsx_unavailable_common:
 #ifdef CONFIG_VSX
 BEGIN_FTR_SECTION
 	beq	1f
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+  BEGIN_FTR_SECTION_NESTED(69)
+	/* Test if 2 TM state bits are zero.  If non-zero (ie. userspace was in
+	 * transaction), go do TM stuff
+	 */
+	rldicl.	r0, r12, (64-MSR_TS_LG), (64-2)
+	bne-	2f
+  END_FTR_SECTION_NESTED(CPU_FTR_TM, CPU_FTR_TM, 69)
+#endif
 	b	.load_up_vsx
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+2:	/* User process was in a transaction */
+	bl	.save_nvgprs
+	DISABLE_INTS
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.vsx_unavailable_tm
+	b	.ret_from_except
+#endif
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
@@ -1148,8 +1266,74 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	b	.ret_from_except
 
 	.align	7
+	.globl tm_unavailable_common
+tm_unavailable_common:
+	EXCEPTION_PROLOG_COMMON(0xf60, PACA_EXGEN)
+	bl	.save_nvgprs
+	DISABLE_INTS
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.tm_unavailable_exception
+	b	.ret_from_except
+
+	.align	7
 	.globl	__end_handlers
 __end_handlers:
+
+	/* Equivalents to the above handlers for relocation-on interrupt vectors */
+	STD_RELON_EXCEPTION_HV_OOL(0xe00, h_data_storage)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe00)
+	STD_RELON_EXCEPTION_HV_OOL(0xe20, h_instr_storage)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe20)
+	STD_RELON_EXCEPTION_HV_OOL(0xe40, emulation_assist)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe40)
+	STD_RELON_EXCEPTION_HV_OOL(0xe60, hmi_exception)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe60)
+	MASKABLE_RELON_EXCEPTION_HV_OOL(0xe80, h_doorbell)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe80)
+
+	STD_RELON_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
+	STD_RELON_EXCEPTION_PSERIES_OOL(0xf20, altivec_unavailable)
+	STD_RELON_EXCEPTION_PSERIES_OOL(0xf40, vsx_unavailable)
+	STD_RELON_EXCEPTION_PSERIES_OOL(0xf60, tm_unavailable)
+
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
+/*
+ * Data area reserved for FWNMI option.
+ * This address (0x7000) is fixed by the RPA.
+ */
+	.= 0x7000
+	.globl fwnmi_data_area
+fwnmi_data_area:
+
+	/* pseries and powernv need to keep the whole page from
+	 * 0x7000 to 0x8000 free for use by the firmware
+	 */
+	. = 0x8000
+#endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
+
+/* Space for CPU0's segment table */
+	.balign 4096
+	.globl initial_stab
+initial_stab:
+	.space	4096
+
+#ifdef CONFIG_PPC_POWERNV
+_GLOBAL(opal_mc_secondary_handler)
+	HMT_MEDIUM_PPR_DISCARD
+	SET_SCRATCH0(r13)
+	GET_PACA(r13)
+	clrldi	r3,r3,2
+	tovirt(r3,r3)
+	std	r3,PACA_OPAL_MC_EVT(r13)
+	ld	r13,OPAL_MC_SRR0(r3)
+	mtspr	SPRN_SRR0,r13
+	ld	r13,OPAL_MC_SRR1(r3)
+	mtspr	SPRN_SRR1,r13
+	ld	r3,OPAL_MC_GPR3(r3)
+	GET_SCRATCH0(r13)
+	b	machine_check_pSeries
+#endif /* CONFIG_PPC_POWERNV */
+
 
 /*
  * Hash table stuff
@@ -1222,7 +1406,7 @@ handle_dabr_fault:
 	ld      r4,_DAR(r1)
 	ld      r5,_DSISR(r1)
 	addi    r3,r1,STACK_FRAME_OVERHEAD
-	bl      .do_dabr
+	bl      .do_break
 12:	b       .ret_from_except_lite
 
 
@@ -1344,56 +1528,3 @@ _GLOBAL(do_stab_bolted)
 	ld	r13,PACA_EXSLB+EX_R13(r13)
 	rfid
 	b	.	/* prevent speculative execution */
-
-
-	/* Equivalents to the above handlers for relocation-on interrupt vectors */
-	STD_RELON_EXCEPTION_HV(., 0xe00, h_data_storage)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe00)
-	STD_RELON_EXCEPTION_HV(., 0xe20, h_instr_storage)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe20)
-	STD_RELON_EXCEPTION_HV(., 0xe40, emulation_assist)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe40)
-	STD_RELON_EXCEPTION_HV(., 0xe60, hmi_exception)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe60)
-
-	STD_RELON_EXCEPTION_PSERIES(., 0xf00, performance_monitor)
-	STD_RELON_EXCEPTION_PSERIES(., 0xf20, altivec_unavailable)
-	STD_RELON_EXCEPTION_PSERIES(., 0xf40, vsx_unavailable)
-
-#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
-/*
- * Data area reserved for FWNMI option.
- * This address (0x7000) is fixed by the RPA.
- */
-	.= 0x7000
-	.globl fwnmi_data_area
-fwnmi_data_area:
-
-	/* pseries and powernv need to keep the whole page from
-	 * 0x7000 to 0x8000 free for use by the firmware
-	 */
-	. = 0x8000
-#endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
-
-/* Space for CPU0's segment table */
-	.balign 4096
-	.globl initial_stab
-initial_stab:
-	.space	4096
-
-#ifdef CONFIG_PPC_POWERNV
-_GLOBAL(opal_mc_secondary_handler)
-	HMT_MEDIUM
-	SET_SCRATCH0(r13)
-	GET_PACA(r13)
-	clrldi	r3,r3,2
-	tovirt(r3,r3)
-	std	r3,PACA_OPAL_MC_EVT(r13)
-	ld	r13,OPAL_MC_SRR0(r3)
-	mtspr	SPRN_SRR0,r13
-	ld	r13,OPAL_MC_SRR1(r3)
-	mtspr	SPRN_SRR1,r13
-	ld	r3,OPAL_MC_GPR3(r3)
-	GET_SCRATCH0(r13)
-	b	machine_check_pSeries
-#endif /* CONFIG_PPC_POWERNV */

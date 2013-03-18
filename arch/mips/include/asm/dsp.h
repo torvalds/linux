@@ -16,7 +16,7 @@
 #include <asm/mipsregs.h>
 
 #define DSP_DEFAULT	0x00000000
-#define DSP_MASK	0x3ff
+#define DSP_MASK	0x3f
 
 #define __enable_dsp_hazard()						\
 do {									\

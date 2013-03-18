@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -222,8 +222,6 @@ struct iwl_txq {
  * @rx_replenish: work that will be called when buffers need to be allocated
  * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
- * @irq - the irq number for the device
- * @irq_requested: true when the irq has been requested
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
  * @kw: keep warm address
@@ -234,8 +232,10 @@ struct iwl_txq {
  * @status - transport specific status flags
  * @cmd_queue - command queue number
  * @rx_buf_size_8k: 8 kB RX buffer size
+ * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @rx_page_order: page order for receive buffer size
  * @wd_timeout: queue watchdog timeout (jiffies)
+ * @reg_lock: protect hw register access
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq rxq;
@@ -249,11 +249,8 @@ struct iwl_trans_pcie {
 	int ict_index;
 	u32 inta;
 	bool use_ict;
-	bool irq_requested;
-	struct tasklet_struct irq_tasklet;
 	struct isr_statistics isr_stats;
 
-	unsigned int irq;
 	spinlock_t irq_lock;
 	u32 inta_mask;
 	u32 scd_base_addr;
@@ -279,12 +276,16 @@ struct iwl_trans_pcie {
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 
 	bool rx_buf_size_8k;
+	bool bc_table_dword;
 	u32 rx_page_order;
 
 	const char **command_names;
 
 	/* queue watchdog */
 	unsigned long wd_timeout;
+
+	/*protect hw register */
+	spinlock_t reg_lock;
 };
 
 /**
@@ -328,7 +329,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans);
 * RX
 ******************************************************/
 int iwl_pcie_rx_init(struct iwl_trans *trans);
-void iwl_pcie_tasklet(struct iwl_trans *trans);
+irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id);
 int iwl_pcie_rx_stop(struct iwl_trans *trans);
 void iwl_pcie_rx_free(struct iwl_trans *trans);
 
@@ -359,6 +360,8 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb, int handler_status);
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
+void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
+
 /*****************************************************
 * Error handling
 ******************************************************/

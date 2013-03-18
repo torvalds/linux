@@ -26,8 +26,16 @@ Required Properties:
 	* bus-width: as documented in mmc core bindings.
 
 	* wp-gpios: specifies the write protect gpio line. The format of the
-	  gpio specifier depends on the gpio controller. If the write-protect
-	  line is not available, this property is optional.
+	  gpio specifier depends on the gpio controller. If a GPIO is not used
+	  for write-protect, this property is optional.
+
+	* disable-wp: If the wp-gpios property isn't present then (by default)
+	  we'd assume that the write protect is hooked up directly to the
+	  controller's special purpose write protect line (accessible via
+	  the WRTPRT register).  However, it's possible that we simply don't
+	  want write protect.  In that case specify 'disable-wp'.
+	  NOTE: This property is not required for slots known to always
+	  connect to eMMC or SDIO cards.
 
 Optional properties:
 

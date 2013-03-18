@@ -113,7 +113,7 @@ extern void __split_huge_page_pmd(struct vm_area_struct *vma,
 	do {								\
 		pmd_t *____pmd = (__pmd);				\
 		anon_vma_lock_write(__anon_vma);			\
-		anon_vma_unlock(__anon_vma);				\
+		anon_vma_unlock_write(__anon_vma);			\
 		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
 		       pmd_trans_huge(*____pmd));			\
 	} while (0)

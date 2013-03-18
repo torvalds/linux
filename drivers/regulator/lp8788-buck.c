@@ -103,16 +103,6 @@ static const int lp8788_buck_vtbl[] = {
 	1950000, 2000000,
 };
 
-static const u8 buck1_vout_addr[] = {
-	LP8788_BUCK1_VOUT0, LP8788_BUCK1_VOUT1,
-	LP8788_BUCK1_VOUT2, LP8788_BUCK1_VOUT3,
-};
-
-static const u8 buck2_vout_addr[] = {
-	LP8788_BUCK2_VOUT0, LP8788_BUCK2_VOUT1,
-	LP8788_BUCK2_VOUT2, LP8788_BUCK2_VOUT3,
-};
-
 static void lp8788_buck1_set_dvs(struct lp8788_buck *buck)
 {
 	struct lp8788_buck1_dvs *dvs = (struct lp8788_buck1_dvs *)buck->dvs;
@@ -235,7 +225,7 @@ static u8 lp8788_select_buck_vout_addr(struct lp8788_buck *buck,
 			lp8788_read_byte(buck->lp, LP8788_BUCK_DVS_SEL, &val);
 			idx = (val & LP8788_BUCK1_DVS_M) >> LP8788_BUCK1_DVS_S;
 		}
-		addr = buck1_vout_addr[idx];
+		addr = LP8788_BUCK1_VOUT0 + idx;
 		break;
 	case BUCK2:
 		if (mode == EXTPIN) {
@@ -258,7 +248,7 @@ static u8 lp8788_select_buck_vout_addr(struct lp8788_buck *buck,
 			lp8788_read_byte(buck->lp, LP8788_BUCK_DVS_SEL, &val);
 			idx = (val & LP8788_BUCK2_DVS_M) >> LP8788_BUCK2_DVS_S;
 		}
-		addr = buck2_vout_addr[idx];
+		addr = LP8788_BUCK2_VOUT0 + idx;
 		break;
 	default:
 		goto err;
@@ -429,7 +419,8 @@ static struct regulator_desc lp8788_buck_desc[] = {
 	},
 };
 
-static int lp8788_dvs_gpio_request(struct lp8788_buck *buck,
+static int lp8788_dvs_gpio_request(struct platform_device *pdev,
+				struct lp8788_buck *buck,
 				enum lp8788_buck_id id)
 {
 	struct lp8788_platform_data *pdata = buck->lp->pdata;
@@ -440,7 +431,7 @@ static int lp8788_dvs_gpio_request(struct lp8788_buck *buck,
 	switch (id) {
 	case BUCK1:
 		gpio = pdata->buck1_dvs->gpio;
-		ret = devm_gpio_request_one(buck->lp->dev, gpio, DVS_LOW,
+		ret = devm_gpio_request_one(&pdev->dev, gpio, DVS_LOW,
 					    b1_name);
 		if (ret)
 			return ret;
@@ -448,9 +439,9 @@ static int lp8788_dvs_gpio_request(struct lp8788_buck *buck,
 		buck->dvs = pdata->buck1_dvs;
 		break;
 	case BUCK2:
-		for (i = 0 ; i < LP8788_NUM_BUCK2_DVS ; i++) {
+		for (i = 0; i < LP8788_NUM_BUCK2_DVS; i++) {
 			gpio = pdata->buck2_dvs->gpio[i];
-			ret = devm_gpio_request_one(buck->lp->dev, gpio,
+			ret = devm_gpio_request_one(&pdev->dev, gpio,
 						    DVS_LOW, b2_name[i]);
 			if (ret)
 				return ret;
@@ -464,7 +455,8 @@ static int lp8788_dvs_gpio_request(struct lp8788_buck *buck,
 	return 0;
 }
 
-static int lp8788_init_dvs(struct lp8788_buck *buck, enum lp8788_buck_id id)
+static int lp8788_init_dvs(struct platform_device *pdev,
+			struct lp8788_buck *buck, enum lp8788_buck_id id)
 {
 	struct lp8788_platform_data *pdata = buck->lp->pdata;
 	u8 mask[] = { LP8788_BUCK1_DVS_SEL_M, LP8788_BUCK2_DVS_SEL_M };
@@ -472,7 +464,7 @@ static int lp8788_init_dvs(struct lp8788_buck *buck, enum lp8788_buck_id id)
 	u8 default_dvs_mode[] = { LP8788_BUCK1_DVS_I2C, LP8788_BUCK2_DVS_I2C };
 
 	/* no dvs for buck3, 4 */
-	if (id == BUCK3 || id == BUCK4)
+	if (id > BUCK2)
 		return 0;
 
 	/* no dvs platform data, then dvs will be selected by I2C registers */
@@ -483,7 +475,7 @@ static int lp8788_init_dvs(struct lp8788_buck *buck, enum lp8788_buck_id id)
 		(id == BUCK2 && !pdata->buck2_dvs))
 		goto set_default_dvs_mode;
 
-	if (lp8788_dvs_gpio_request(buck, id))
+	if (lp8788_dvs_gpio_request(pdev, buck, id))
 		goto set_default_dvs_mode;
 
 	return lp8788_update_bits(buck->lp, LP8788_BUCK_DVS_SEL, mask[id],
@@ -503,17 +495,20 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	buck = devm_kzalloc(lp->dev, sizeof(struct lp8788_buck), GFP_KERNEL);
+	if (id >= LP8788_NUM_BUCKS)
+		return -EINVAL;
+
+	buck = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_buck), GFP_KERNEL);
 	if (!buck)
 		return -ENOMEM;
 
 	buck->lp = lp;
 
-	ret = lp8788_init_dvs(buck, id);
+	ret = lp8788_init_dvs(pdev, buck, id);
 	if (ret)
 		return ret;
 
-	cfg.dev = lp->dev;
+	cfg.dev = pdev->dev.parent;
 	cfg.init_data = lp->pdata ? lp->pdata->buck_data[id] : NULL;
 	cfg.driver_data = buck;
 	cfg.regmap = lp->regmap;
@@ -521,7 +516,7 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	rdev = regulator_register(&lp8788_buck_desc[id], &cfg);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(lp->dev, "BUCK%d regulator register err = %d\n",
+		dev_err(&pdev->dev, "BUCK%d regulator register err = %d\n",
 				id + 1, ret);
 		return ret;
 	}

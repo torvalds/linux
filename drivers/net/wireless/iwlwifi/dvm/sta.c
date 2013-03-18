@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -77,7 +77,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 	IWL_DEBUG_INFO(priv, "Processing response for adding station %u\n",
 		       sta_id);
 
-	spin_lock(&priv->sta_lock);
+	spin_lock_bh(&priv->sta_lock);
 
 	switch (add_sta_resp->status) {
 	case ADD_STA_SUCCESS_MSK:
@@ -119,7 +119,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 		       priv->stations[sta_id].sta.mode ==
 		       STA_CONTROL_MODIFY_MSK ? "Modified" : "Added",
 		       addsta->sta.addr);
-	spin_unlock(&priv->sta_lock);
+	spin_unlock_bh(&priv->sta_lock);
 
 	return ret;
 }
@@ -173,7 +173,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 
 bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
-			    struct ieee80211_sta_ht_cap *ht_cap)
+			    struct ieee80211_sta *sta)
 {
 	if (!ctx->ht.enabled || !ctx->ht.is_40mhz)
 		return false;
@@ -183,20 +183,11 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 		return false;
 #endif
 
-	/*
-	 * Remainder of this function checks ht_cap, but if it's
-	 * NULL then we can do HT40 (special case for RXON)
-	 */
-	if (!ht_cap)
+	/* special case for RXON */
+	if (!sta)
 		return true;
 
-	if (!ht_cap->ht_supported)
-		return false;
-
-	if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
-		return false;
-
-	return true;
+	return sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 }
 
 static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
@@ -205,7 +196,6 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 				  __le32 *flags, __le32 *mask)
 {
 	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->ht_cap;
-	u8 mimo_ps_mode;
 
 	*mask = STA_FLG_RTS_MIMO_PROT_MSK |
 		STA_FLG_MIMO_DIS_MSK |
@@ -217,26 +207,24 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 	if (!sta || !sta_ht_inf->ht_supported)
 		return;
 
-	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_SM_PS) >> 2;
-
 	IWL_DEBUG_INFO(priv, "STA %pM SM PS mode: %s\n",
 			sta->addr,
-			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_STATIC) ?
+			(sta->smps_mode == IEEE80211_SMPS_STATIC) ?
 			"static" :
-			(mimo_ps_mode == WLAN_HT_CAP_SM_PS_DYNAMIC) ?
+			(sta->smps_mode == IEEE80211_SMPS_DYNAMIC) ?
 			"dynamic" : "disabled");
 
-	switch (mimo_ps_mode) {
-	case WLAN_HT_CAP_SM_PS_STATIC:
+	switch (sta->smps_mode) {
+	case IEEE80211_SMPS_STATIC:
 		*flags |= STA_FLG_MIMO_DIS_MSK;
 		break;
-	case WLAN_HT_CAP_SM_PS_DYNAMIC:
+	case IEEE80211_SMPS_DYNAMIC:
 		*flags |= STA_FLG_RTS_MIMO_PROT_MSK;
 		break;
-	case WLAN_HT_CAP_SM_PS_DISABLED:
+	case IEEE80211_SMPS_OFF:
 		break;
 	default:
-		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", mimo_ps_mode);
+		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", sta->smps_mode);
 		break;
 	}
 
@@ -246,7 +234,7 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 	*flags |= cpu_to_le32(
 		(u32)sta_ht_inf->ampdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
 
-	if (iwl_is_ht40_tx_allowed(priv, ctx, &sta->ht_cap))
+	if (iwl_is_ht40_tx_allowed(priv, ctx, sta))
 		*flags |= STA_FLG_HT40_EN_MSK;
 }
 

@@ -1458,12 +1458,12 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mac0 = ioread32(port_base + MAC0);
 	mac1 = ioread32(port_base + MAC0 + 4);
-	dev->dev_addr[0] = dev->perm_addr[0] = mac0 >> 24;
-	dev->dev_addr[1] = dev->perm_addr[1] = mac0 >> 16;
-	dev->dev_addr[2] = dev->perm_addr[2] = mac0 >> 8;
-	dev->dev_addr[3] = dev->perm_addr[3] = mac0;
-	dev->dev_addr[4] = dev->perm_addr[4] = mac1 >> 8;
-	dev->dev_addr[5] = dev->perm_addr[5] = mac1;
+	dev->dev_addr[0] = mac0 >> 24;
+	dev->dev_addr[1] = mac0 >> 16;
+	dev->dev_addr[2] = mac0 >> 8;
+	dev->dev_addr[3] = mac0;
+	dev->dev_addr[4] = mac1 >> 8;
+	dev->dev_addr[5] = mac1;
 
 	err = register_netdev(dev);
 	if (err < 0)

@@ -32,6 +32,7 @@
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
 #include <mach/map.h>
@@ -133,7 +134,9 @@ struct s3c_hsotg_ep {
  * struct s3c_hsotg - driver state.
  * @dev: The parent device supplied to the probe function
  * @driver: USB gadget driver
- * @plat: The platform specific configuration data.
+ * @phy: The otg phy transceiver structure for phy control.
+ * @plat: The platform specific configuration data. This can be removed once
+ * all SoCs support usb transceiver.
  * @regs: The memory area mapped for accessing registers.
  * @irq: The IRQ number we are using
  * @supplies: Definition of USB power supplies
@@ -153,6 +156,7 @@ struct s3c_hsotg_ep {
 struct s3c_hsotg {
 	struct device		 *dev;
 	struct usb_gadget_driver *driver;
+	struct usb_phy		*phy;
 	struct s3c_hsotg_plat	 *plat;
 
 	spinlock_t              lock;
@@ -2854,7 +2858,10 @@ static void s3c_hsotg_phy_enable(struct s3c_hsotg *hsotg)
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 
 	dev_dbg(hsotg->dev, "pdev 0x%p\n", pdev);
-	if (hsotg->plat->phy_init)
+
+	if (hsotg->phy)
+		usb_phy_init(hsotg->phy);
+	else if (hsotg->plat->phy_init)
 		hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
 }
 
@@ -2869,7 +2876,9 @@ static void s3c_hsotg_phy_disable(struct s3c_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 
-	if (hsotg->plat->phy_exit)
+	if (hsotg->phy)
+		usb_phy_shutdown(hsotg->phy);
+	else if (hsotg->plat->phy_exit)
 		hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
 }
 
@@ -3055,7 +3064,7 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static struct usb_gadget_ops s3c_hsotg_gadget_ops = {
+static const struct usb_gadget_ops s3c_hsotg_gadget_ops = {
 	.get_frame	= s3c_hsotg_gadget_getframe,
 	.udc_start		= s3c_hsotg_udc_start,
 	.udc_stop		= s3c_hsotg_udc_stop,
@@ -3492,6 +3501,7 @@ static void s3c_hsotg_release(struct device *dev)
 static int s3c_hsotg_probe(struct platform_device *pdev)
 {
 	struct s3c_hsotg_plat *plat = pdev->dev.platform_data;
+	struct usb_phy *phy;
 	struct device *dev = &pdev->dev;
 	struct s3c_hsotg_ep *eps;
 	struct s3c_hsotg *hsotg;
@@ -3500,20 +3510,27 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	plat = pdev->dev.platform_data;
-	if (!plat) {
-		dev_err(&pdev->dev, "no platform data defined\n");
-		return -EINVAL;
-	}
-
 	hsotg = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsotg), GFP_KERNEL);
 	if (!hsotg) {
 		dev_err(dev, "cannot get memory\n");
 		return -ENOMEM;
 	}
 
+	phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (IS_ERR_OR_NULL(phy)) {
+		/* Fallback for pdata */
+		plat = pdev->dev.platform_data;
+		if (!plat) {
+			dev_err(&pdev->dev, "no platform data or transceiver defined\n");
+			return -EPROBE_DEFER;
+		} else {
+			hsotg->plat = plat;
+		}
+	} else {
+		hsotg->phy = phy;
+	}
+
 	hsotg->dev = dev;
-	hsotg->plat = plat;
 
 	hsotg->clk = devm_clk_get(&pdev->dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
@@ -3525,10 +3542,9 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	hsotg->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hsotg->regs) {
-		dev_err(dev, "cannot map registers\n");
-		ret = -ENXIO;
+	hsotg->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hsotg->regs)) {
+		ret = PTR_ERR(hsotg->regs);
 		goto err_clk;
 	}
 
@@ -3572,7 +3588,7 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(hsotg->supplies); i++)
 		hsotg->supplies[i].supply = s3c_hsotg_supply_names[i];
 
-	ret = regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
 				 hsotg->supplies);
 	if (ret) {
 		dev_err(dev, "failed to request supplies: %d\n", ret);
@@ -3662,8 +3678,6 @@ err_ep_mem:
 	kfree(eps);
 err_supplies:
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
-
 err_clk:
 	clk_disable_unprepare(hsotg->clk);
 
@@ -3688,7 +3702,6 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 	}
 
 	s3c_hsotg_phy_disable(hsotg);
-	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	clk_disable_unprepare(hsotg->clk);
 

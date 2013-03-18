@@ -237,7 +237,7 @@ vxfs_lookup(struct inode *dip, struct dentry *dp, unsigned int flags)
 static int
 vxfs_readdir(struct file *fp, void *retp, filldir_t filler)
 {
-	struct inode		*ip = fp->f_path.dentry->d_inode;
+	struct inode		*ip = file_inode(fp);
 	struct super_block	*sbp = ip->i_sb;
 	u_long			bsize = sbp->s_blocksize;
 	u_long			page, npages, block, pblocks, nblocks, offset;

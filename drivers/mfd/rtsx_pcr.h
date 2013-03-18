@@ -25,8 +25,12 @@
 
 #include <linux/mfd/rtsx_pci.h>
 
+#define MIN_DIV_N_PCR		80
+#define MAX_DIV_N_PCR		208
+
 void rts5209_init_params(struct rtsx_pcr *pcr);
 void rts5229_init_params(struct rtsx_pcr *pcr);
 void rtl8411_init_params(struct rtsx_pcr *pcr);
+void rts5227_init_params(struct rtsx_pcr *pcr);
 
 #endif

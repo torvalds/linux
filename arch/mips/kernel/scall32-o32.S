@@ -24,7 +24,7 @@
 /* Highest syscall used of any syscall flavour */
 #define MAX_SYSCALL_NO	__NR_O32_Linux + __NR_O32_Linux_syscalls
 
-	.align  5
+	.align	5
 NESTED(handle_sys, PT_SIZE, sp)
 	.set	noat
 	SAVE_SOME
@@ -54,7 +54,7 @@ stack_done:
 	lw	t0, TI_FLAGS($28)	# syscall tracing enabled?
 	li	t1, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
 	and	t0, t1
-	bnez	t0, syscall_trace_entry	# -> yes
+	bnez	t0, syscall_trace_entry # -> yes
 
 	jalr	t2			# Do The Real Thing (TM)
 
@@ -126,8 +126,8 @@ stackargs:
 	la	t1, 5f			# load up to 3 arguments
 	subu	t1, t3
 1:	lw	t5, 16(t0)		# argument #5 from usp
-	.set    push
-	.set    noreorder
+	.set	push
+	.set	noreorder
 	.set	nomacro
 	jr	t1
 	 addiu	t1, 6f - 5f
@@ -205,7 +205,7 @@ illegal_syscall:
 	jr	t2
 	/* Unreached */
 
-einval:	li	v0, -ENOSYS
+einval: li	v0, -ENOSYS
 	jr	ra
 	END(sys_syscall)
 
@@ -226,7 +226,7 @@ einval:	li	v0, -ENOSYS
 	.macro	syscalltable
 	sys	sys_syscall		8	/* 4000 */
 	sys	sys_exit		1
-	sys	sys_fork		0
+	sys	__sys_fork		0
 	sys	sys_read		3
 	sys	sys_write		3
 	sys	sys_open		3	/* 4005 */
@@ -344,7 +344,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_ipc			6
 	sys	sys_fsync		1
 	sys	sys_sigreturn		0
-	sys	sys_clone		0	/* 4120 */
+	sys	__sys_clone		6	/* 4120 */
 	sys	sys_setdomainname	2
 	sys	sys_newuname		1
 	sys	sys_ni_syscall		0	/* sys_modify_ldt */
@@ -354,7 +354,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_ni_syscall		0	/* was create_module */
 	sys	sys_init_module		5
 	sys	sys_delete_module	1
-	sys	sys_ni_syscall		0	/* 4130	was get_kernel_syms */
+	sys	sys_ni_syscall		0	/* 4130 was get_kernel_syms */
 	sys	sys_quotactl		4
 	sys	sys_getpgid		1
 	sys	sys_fchdir		1
@@ -589,7 +589,7 @@ einval:	li	v0, -ENOSYS
 	/* We pre-compute the number of _instruction_ bytes needed to
 	   load or store the arguments 6-8. Negative values are ignored. */
 
-	.macro  sys function, nargs
+	.macro	sys function, nargs
 	PTR	\function
 	LONG	(\nargs << 2) - (5 << 2)
 	.endm

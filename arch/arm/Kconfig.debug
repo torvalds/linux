@@ -32,7 +32,7 @@ config FRAME_POINTER
 
 config ARM_UNWIND
 	bool "Enable stack unwinding support (EXPERIMENTAL)"
-	depends on AEABI && EXPERIMENTAL
+	depends on AEABI
 	default y
 	help
 	  This option enables stack unwinding support in the kernel
@@ -205,12 +205,19 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX28.
 
-	config DEBUG_IMX31_IMX35_UART
-		bool "i.MX31 and i.MX35 Debug UART"
-		depends on SOC_IMX31 || SOC_IMX35
+	config DEBUG_IMX31_UART
+		bool "i.MX31 Debug UART"
+		depends on SOC_IMX31
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX31 or i.MX35.
+		  on i.MX31.
+
+	config DEBUG_IMX35_UART
+		bool "i.MX35 Debug UART"
+		depends on SOC_IMX35
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX35.
 
 	config DEBUG_IMX51_UART
 		bool "i.MX51 Debug UART"
@@ -219,12 +226,12 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX51.
 
-	config DEBUG_IMX50_IMX53_UART
-		bool "i.MX50 and i.MX53 Debug UART"
-		depends on SOC_IMX50 || SOC_IMX53
+	config DEBUG_IMX53_UART
+		bool "i.MX53 Debug UART"
+		depends on SOC_IMX53
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX50 or i.MX53.
+		  on i.MX53.
 
 	config DEBUG_IMX6Q_UART
 		bool "i.MX6Q Debug UART"
@@ -290,6 +297,13 @@ choice
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on MVEBU based platforms.
+
+	config DEBUG_OMAP2PLUS_UART
+		bool "Kernel low-level debugging messages via OMAP2PLUS UART"
+		depends on ARCH_OMAP2PLUS
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on OMAP2PLUS based platforms.
 
 	config DEBUG_PICOXCELL_UART
 		depends on ARCH_PICOXCELL
@@ -386,6 +400,20 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on Tegra based platforms.
 
+	config DEBUG_SIRFPRIMA2_UART1
+		bool "Kernel low-level debugging messages via SiRFprimaII UART1"
+		depends on ARCH_PRIMA2
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the uart1 port on SiRFprimaII devices.
+
+	config DEBUG_SIRFMARCO_UART1
+		bool "Kernel low-level debugging messages via SiRFmarco UART1"
+		depends on ARCH_MARCO
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the uart1 port on SiRFmarco devices.
+
 	config DEBUG_VEXPRESS_UART0_DETECT
 		bool "Autodetect UART0 on Versatile Express Cortex-A core tiles"
 		depends on ARCH_VEXPRESS && CPU_CP15_MMU
@@ -411,6 +439,13 @@ choice
 		  This option selects UART0 at 0x1c090000. This applies to most
 		  of the tiles using the RS1 memory map, including all new A-class
 		  core tiles, FPGA-based SMMs and software models.
+
+	config DEBUG_VT8500_UART0
+		bool "Use UART0 on VIA/Wondermedia SoCs"
+		depends on ARCH_VT8500
+		help
+		  This option selects UART0 on VIA/Wondermedia System-on-a-chip
+		  devices, including VT8500, WM8505, WM8650 and WM8850.
 
 	config DEBUG_LL_UART_NONE
 		bool "No low-level debugging UART"
@@ -450,14 +485,67 @@ choice
 
 endchoice
 
-config DEBUG_IMX6Q_UART_PORT
-	int "i.MX6Q Debug UART Port (1-5)" if DEBUG_IMX6Q_UART
-	range 1 5
+config DEBUG_IMX_UART_PORT
+	int "i.MX Debug UART Port Selection" if DEBUG_IMX1_UART || \
+						DEBUG_IMX25_UART || \
+						DEBUG_IMX21_IMX27_UART || \
+						DEBUG_IMX31_UART || \
+						DEBUG_IMX35_UART || \
+						DEBUG_IMX51_UART || \
+						DEBUG_IMX50_IMX53_UART || \
+						DEBUG_IMX6Q_UART
 	default 1
-	depends on SOC_IMX6Q
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
+
+choice
+	prompt "Low-level debug console UART"
+	depends on DEBUG_OMAP2PLUS_UART
+
+	config DEBUG_OMAP2UART1
+		bool "OMAP2/3/4 UART1 (omap2/3 sdp boards and some omap3 boards)"
+		help
+		  This covers at least h4, 2430sdp, 3430sdp, 3630sdp,
+		  omap3 torpedo and 3530 lv som.
+
+	config DEBUG_OMAP2UART2
+		bool "OMAP2/3/4 UART2"
+
+	config DEBUG_OMAP2UART3
+		bool "OMAP2 UART3 (n8x0)"
+
+	config DEBUG_OMAP3UART3
+		bool "OMAP3 UART3 (most omap3 boards)"
+		help
+		  This covers at least cm_t3x, beagle, crane, devkit8000,
+		  igep00x0, ldp, n900, n9(50), pandora, overo, touchbook,
+		  and 3517evm.
+
+	config DEBUG_OMAP4UART3
+		bool "OMAP4/5 UART3 (omap4 blaze, panda, omap5 sevm)"
+
+	config DEBUG_OMAP3UART4
+		bool "OMAP36XX UART4"
+
+	config DEBUG_OMAP4UART4
+		bool "OMAP4/5 UART4"
+
+	config DEBUG_TI81XXUART1
+		bool "TI81XX UART1 (ti8148evm)"
+
+	config DEBUG_TI81XXUART2
+		bool "TI81XX UART2"
+
+	config DEBUG_TI81XXUART3
+		bool "TI81XX UART3 (ti8168evm)"
+
+	config DEBUG_AM33XXUART1
+		bool "AM33XX UART1"
+
+	config DEBUG_ZOOM_UART
+		bool "Zoom2/3 UART"
+endchoice
 
 choice
 	prompt "Low-level debug console UART"
@@ -495,17 +583,20 @@ config DEBUG_LL_INCLUDE
 	default "debug/imx.S" if DEBUG_IMX1_UART || \
 				 DEBUG_IMX25_UART || \
 				 DEBUG_IMX21_IMX27_UART || \
-				 DEBUG_IMX31_IMX35_UART || \
+				 DEBUG_IMX31_UART || \
+				 DEBUG_IMX35_UART || \
 				 DEBUG_IMX51_UART || \
-				 DEBUG_IMX50_IMX53_UART ||\
+				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART
 	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART
+	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
 	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
 	default "debug/sunxi.S" if DEBUG_SUNXI_UART0 || DEBUG_SUNXI_UART1
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
 		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
+	default "debug/vt8500.S" if DEBUG_VT8500_UART0
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"

@@ -48,7 +48,7 @@ config PS3_HTAB_SIZE
 	  system will have optimal runtime performance.
 
 config PS3_DYNAMIC_DMA
-	depends on PPC_PS3 && EXPERIMENTAL
+	depends on PPC_PS3
 	bool "PS3 Platform dynamic DMA page table management"
 	default n
 	help

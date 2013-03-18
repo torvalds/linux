@@ -808,11 +808,9 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 		return  -ENOMEM;
 	}
 
-	timer->io_base = devm_request_and_ioremap(dev, mem);
-	if (!timer->io_base) {
-		dev_err(dev, "%s: region already claimed.\n", __func__);
-		return -ENOMEM;
-	}
+	timer->io_base = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(timer->io_base))
+		return PTR_ERR(timer->io_base);
 
 	if (dev->of_node) {
 		if (of_find_property(dev->of_node, "ti,timer-alwon", NULL))

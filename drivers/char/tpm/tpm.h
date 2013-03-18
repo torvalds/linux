@@ -47,6 +47,7 @@ enum tpm_addr {
 #define TPM_WARN_DOING_SELFTEST 0x802
 #define TPM_ERR_DEACTIVATED     0x6
 #define TPM_ERR_DISABLED        0x7
+#define TPM_ERR_INVALID_POSTINIT 38
 
 #define TPM_HEADER_SIZE		10
 extern ssize_t tpm_show_pubek(struct device *, struct device_attribute *attr,
@@ -77,7 +78,7 @@ struct tpm_chip;
 struct tpm_vendor_specific {
 	const u8 req_complete_mask;
 	const u8 req_complete_val;
-	const u8 req_canceled;
+	bool (*req_canceled)(struct tpm_chip *chip, u8 status);
 	void __iomem *iobase;		/* ioremapped address */
 	unsigned long base;		/* TPM base address */
 
@@ -100,13 +101,19 @@ struct tpm_vendor_specific {
 	bool timeout_adjusted;
 	unsigned long duration[3]; /* jiffies */
 	bool duration_adjusted;
-	void *data;
+	void *priv;
 
 	wait_queue_head_t read_queue;
 	wait_queue_head_t int_queue;
+
+	u16 manufacturer_id;
 };
 
+#define TPM_VPRIV(c)	(c)->vendor.priv
+
 #define TPM_VID_INTEL    0x8086
+#define TPM_VID_WINBOND  0x1050
+#define TPM_VID_STM      0x104A
 
 struct tpm_chip {
 	struct device *dev;	/* Device stuff */
@@ -154,13 +161,13 @@ struct tpm_input_header {
 	__be16	tag;
 	__be32	length;
 	__be32	ordinal;
-}__attribute__((packed));
+} __packed;
 
 struct tpm_output_header {
 	__be16	tag;
 	__be32	length;
 	__be32	return_code;
-}__attribute__((packed));
+} __packed;
 
 struct	stclear_flags_t {
 	__be16	tag;
@@ -169,14 +176,14 @@ struct	stclear_flags_t {
 	u8	physicalPresence;
 	u8	physicalPresenceLock;
 	u8	bGlobalLock;
-}__attribute__((packed));
+} __packed;
 
 struct	tpm_version_t {
 	u8	Major;
 	u8	Minor;
 	u8	revMajor;
 	u8	revMinor;
-}__attribute__((packed));
+} __packed;
 
 struct	tpm_version_1_2_t {
 	__be16	tag;
@@ -184,20 +191,20 @@ struct	tpm_version_1_2_t {
 	u8	Minor;
 	u8	revMajor;
 	u8	revMinor;
-}__attribute__((packed));
+} __packed;
 
 struct	timeout_t {
 	__be32	a;
 	__be32	b;
 	__be32	c;
 	__be32	d;
-}__attribute__((packed));
+} __packed;
 
 struct duration_t {
 	__be32	tpm_short;
 	__be32	tpm_medium;
 	__be32	tpm_long;
-}__attribute__((packed));
+} __packed;
 
 struct permanent_flags_t {
 	__be16	tag;
@@ -221,7 +228,7 @@ struct permanent_flags_t {
 	u8	tpmEstablished;
 	u8	maintenanceDone;
 	u8	disableFullDALogicInfo;
-}__attribute__((packed));
+} __packed;
 
 typedef union {
 	struct	permanent_flags_t perm_flags;
@@ -239,12 +246,12 @@ struct	tpm_getcap_params_in {
 	__be32	cap;
 	__be32	subcap_size;
 	__be32	subcap;
-}__attribute__((packed));
+} __packed;
 
 struct	tpm_getcap_params_out {
 	__be32	cap_size;
 	cap_t	cap;
-}__attribute__((packed));
+} __packed;
 
 struct	tpm_readpubek_params_out {
 	u8	algorithm[4];
@@ -255,7 +262,7 @@ struct	tpm_readpubek_params_out {
 	__be32	keysize;
 	u8	modulus[256];
 	u8	checksum[20];
-}__attribute__((packed));
+} __packed;
 
 typedef union {
 	struct	tpm_input_header in;
@@ -265,16 +272,16 @@ typedef union {
 #define TPM_DIGEST_SIZE 20
 struct tpm_pcrread_out {
 	u8	pcr_result[TPM_DIGEST_SIZE];
-}__attribute__((packed));
+} __packed;
 
 struct tpm_pcrread_in {
 	__be32	pcr_idx;
-}__attribute__((packed));
+} __packed;
 
 struct tpm_pcrextend_in {
 	__be32	pcr_idx;
 	u8	hash[TPM_DIGEST_SIZE];
-}__attribute__((packed));
+} __packed;
 
 /* 128 bytes is an arbitrary cap. This could be as large as TPM_BUFSIZE - 18
  * bytes, but 128 is still a relatively large number of random bytes and
@@ -285,11 +292,15 @@ struct tpm_pcrextend_in {
 struct tpm_getrandom_out {
 	__be32 rng_data_len;
 	u8     rng_data[TPM_MAX_RNG_DATA];
-}__attribute__((packed));
+} __packed;
 
 struct tpm_getrandom_in {
 	__be32 num_bytes;
-}__attribute__((packed));
+} __packed;
+
+struct tpm_startup_in {
+	__be16	startup_type;
+} __packed;
 
 typedef union {
 	struct	tpm_getcap_params_out getcap_out;
@@ -301,12 +312,13 @@ typedef union {
 	struct	tpm_pcrextend_in pcrextend_in;
 	struct	tpm_getrandom_in getrandom_in;
 	struct	tpm_getrandom_out getrandom_out;
+	struct tpm_startup_in startup_in;
 } tpm_cmd_params;
 
 struct tpm_cmd_t {
 	tpm_cmd_header	header;
 	tpm_cmd_params	params;
-}__attribute__((packed));
+} __packed;
 
 ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
 
@@ -326,7 +338,7 @@ extern void tpm_remove_hardware(struct device *);
 extern int tpm_pm_suspend(struct device *);
 extern int tpm_pm_resume(struct device *);
 extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
-			     wait_queue_head_t *);
+			     wait_queue_head_t *, bool);
 
 #ifdef CONFIG_ACPI
 extern int tpm_add_ppi(struct kobject *);

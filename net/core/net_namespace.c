@@ -344,7 +344,7 @@ struct net *get_net_ns_by_fd(int fd)
 	if (IS_ERR(file))
 		return ERR_CAST(file);
 
-	ei = PROC_I(file->f_dentry->d_inode);
+	ei = PROC_I(file_inode(file));
 	if (ei->ns_ops == &netns_operations)
 		net = get_net(ei->ns);
 	else

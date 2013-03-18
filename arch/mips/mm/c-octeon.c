@@ -106,7 +106,7 @@ static void octeon_flush_icache_all(void)
  * Called to flush all memory associated with a memory
  * context.
  *
- * @mm:     Memory context to flush
+ * @mm:	    Memory context to flush
  */
 static void octeon_flush_cache_mm(struct mm_struct *mm)
 {

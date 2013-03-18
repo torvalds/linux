@@ -72,7 +72,7 @@ config SENSORS_MAX34440
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for Maxim
-	  MAX34440, MAX34441, and MAX34446.
+	  MAX34440, MAX34441, MAX34446, MAX34460, and MAX34461.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max34440.

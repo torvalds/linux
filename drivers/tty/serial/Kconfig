@@ -2,8 +2,10 @@
 # Serial device configuration
 #
 
+if TTY
+
 menu "Serial drivers"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && GENERIC_HARDIRQS
 
 source "drivers/tty/serial/8250/Kconfig"
 
@@ -268,6 +270,17 @@ config SERIAL_SIRFSOC_CONSOLE
           "console=ttySiRFx". (Try "man bootparam" or see the documentation of
           your boot loader about how to pass options to the kernel at
           boot time.)
+
+config SERIAL_TEGRA
+	tristate "NVIDIA Tegra20/30 SoC serial controller"
+	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	select SERIAL_CORE
+	help
+	  Support for the on-chip UARTs on the NVIDIA Tegra series SOCs
+	  providing /dev/ttyHS0, 1, 2, 3 and 4 (note, some machines may not
+	  provide all of these ports, depending on how the serial port
+	  are enabled). This driver uses the APB DMA to achieve higher baudrate
+	  and better performance.
 
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
@@ -716,19 +729,19 @@ config SERIAL_SH_SCI_DMA
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
-	depends on SOC_PNX8550 || SOC_PNX833X
+	depends on SOC_PNX833X
 	select SERIAL_CORE
 	help
-	  If you have a MIPS-based Philips SoC such as PNX8550 or PNX8330
-	  and you want to use serial ports, say Y.  Otherwise, say N.
+	  If you have a MIPS-based Philips SoC such as PNX8330 and you want
+	  to use serial ports, say Y.  Otherwise, say N.
 
 config SERIAL_PNX8XXX_CONSOLE
 	bool "Enable PNX8XX0 serial console"
 	depends on SERIAL_PNX8XXX
 	select SERIAL_CORE_CONSOLE
 	help
-	  If you have a MIPS-based Philips SoC such as PNX8550 or PNX8330
-	  and you want to use serial console, say Y. Otherwise, say N.
+	  If you have a MIPS-based Philips SoC such as PNX8330 and you want
+	  to use serial console, say Y. Otherwise, say N.
 
 config SERIAL_HS_LPC32XX
 	tristate "LPC32XX high speed serial port support"
@@ -1447,4 +1460,30 @@ config SERIAL_ARC_NR_PORTS
 	  Set this to the number of serial ports you want the driver
 	  to support.
 
+config SERIAL_RP2
+	tristate "Comtrol RocketPort EXPRESS/INFINITY support"
+	depends on PCI
+	select SERIAL_CORE
+	help
+	  This driver supports the Comtrol RocketPort EXPRESS and
+	  RocketPort INFINITY families of PCI/PCIe multiport serial adapters.
+	  These adapters use a "RocketPort 2" ASIC that is not compatible
+	  with the original RocketPort driver (CONFIG_ROCKETPORT).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rp2.
+
+	  If you want to compile this driver into the kernel, say Y here.  If
+	  you don't have a suitable RocketPort card installed, say N.
+
+config SERIAL_RP2_NR_UARTS
+	int "Maximum number of RocketPort EXPRESS/INFINITY ports"
+	depends on SERIAL_RP2
+	default "32"
+	help
+	  If multiple cards are present, the default limit of 32 ports may
+	  need to be increased.
+
 endmenu
+
+endif # TTY

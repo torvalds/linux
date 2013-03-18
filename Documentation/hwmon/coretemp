@@ -66,6 +66,7 @@ Process		Processor					TjMax(C)
 		i5 3470T					91
 
 32nm		Core i3/i5/i7 Processors
+		i7 2600						98
 		i7 660UM/640/620, 640LM/620, 620M, 610E		105
 		i5 540UM/520/430, 540M/520/450/430		105
 		i3 330E, 370M/350/330				90 rPGA, 105 BGA
@@ -79,7 +80,10 @@ Process		Processor					TjMax(C)
 		P4505/P4500 					90
 
 32nm		Atom Processors
+		S1260/1220					95
+		S1240						102
 		Z2460						90
+		Z2760						90
 		D2700/2550/2500					100
 		N2850/2800/2650/2600				100
 
@@ -98,6 +102,7 @@ Process		Processor					TjMax(C)
 
 45nm		Atom Processors
 		D525/510/425/410				100
+		K525/510/425/410				100
 		Z670/650					90
 		Z560/550/540/530P/530/520PT/520/515/510PT/510P	90
 		Z510/500					90
@@ -107,7 +112,11 @@ Process		Processor					TjMax(C)
 		330/230						125
 		E680/660/640/620				90
 		E680T/660T/640T/620T				110
+		E665C/645C					90
+		E665CT/645CT					110
 		CE4170/4150/4110				110
+		CE4200 series					unknown
+		CE5300 series					unknown
 
 45nm		Core2 Processors
 		Solo ULV SU3500/3300				100

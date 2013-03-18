@@ -19,6 +19,11 @@
  * permissions. All the event text files are stored there.
  */
 
+/*
+ * Powerpc needs __SANE_USERSPACE_TYPES__ before <linux/types.h> to select
+ * 'int-ll64.h' and avoid compile warnings when printing __u64 with %llu.
+ */
+#define __SANE_USERSPACE_TYPES__
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
@@ -32,8 +37,6 @@
 #define ENV "PERF_TEST_ATTR"
 
 extern int verbose;
-
-bool test_attr__enabled;
 
 static char *dir;
 
@@ -146,7 +149,7 @@ static int run_dir(const char *d, const char *perf)
 {
 	char cmd[3*PATH_MAX];
 
-	snprintf(cmd, 3*PATH_MAX, "python %s/attr.py -d %s/attr/ -p %s %s",
+	snprintf(cmd, 3*PATH_MAX, PYTHON " %s/attr.py -d %s/attr/ -p %s %s",
 		 d, d, perf, verbose ? "-v" : "");
 
 	return system(cmd);

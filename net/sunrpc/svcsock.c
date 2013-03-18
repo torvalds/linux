@@ -465,7 +465,7 @@ static int svc_udp_get_dest_address4(struct svc_rqst *rqstp,
 }
 
 /*
- * See net/ipv6/datagram.c : datagram_recv_ctl
+ * See net/ipv6/datagram.c : ip6_datagram_recv_ctl
  */
 static int svc_udp_get_dest_address6(struct svc_rqst *rqstp,
 				     struct cmsghdr *cmh)

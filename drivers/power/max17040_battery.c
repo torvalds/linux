@@ -207,7 +207,7 @@ static int max17040_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -225,7 +225,6 @@ static int max17040_probe(struct i2c_client *client,
 	ret = power_supply_register(&client->dev, &chip->battery);
 	if (ret) {
 		dev_err(&client->dev, "failed: power supply register\n");
-		kfree(chip);
 		return ret;
 	}
 
@@ -244,7 +243,6 @@ static int max17040_remove(struct i2c_client *client)
 
 	power_supply_unregister(&chip->battery);
 	cancel_delayed_work(&chip->work);
-	kfree(chip);
 	return 0;
 }
 

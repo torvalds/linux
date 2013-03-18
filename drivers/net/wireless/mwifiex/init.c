@@ -39,11 +39,8 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	unsigned long flags;
 
 	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_node), GFP_KERNEL);
-	if (!bss_prio) {
-		dev_err(adapter->dev, "%s: failed to alloc bss_prio\n",
-			__func__);
+	if (!bss_prio)
 		return -ENOMEM;
-	}
 
 	bss_prio->priv = priv;
 	INIT_LIST_HEAD(&bss_prio->list);
@@ -317,7 +314,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 
 	adapter->pm_wakeup_fw_try = false;
 
-	adapter->max_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 	adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 	adapter->curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 
@@ -591,6 +587,12 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 				return -1;
 		}
 	}
+
+	if (adapter->if_ops.init_fw_port) {
+		if (adapter->if_ops.init_fw_port(adapter))
+			return -1;
+	}
+
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
 			ret = mwifiex_sta_init_cmd(adapter->priv[i], first_sta);

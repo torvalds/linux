@@ -181,10 +181,11 @@ struct neigh_table {
 };
 
 #define NEIGH_PRIV_ALIGN	sizeof(long long)
+#define NEIGH_ENTRY_SIZE(size)	ALIGN((size), NEIGH_PRIV_ALIGN)
 
 static inline void *neighbour_priv(const struct neighbour *n)
 {
-	return (char *)n + ALIGN(sizeof(*n) + n->tbl->key_len, NEIGH_PRIV_ALIGN);
+	return (char *)n + n->tbl->entry_size;
 }
 
 /* flags for neigh_update() */

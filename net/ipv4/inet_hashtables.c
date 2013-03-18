@@ -39,6 +39,7 @@ struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 		write_pnet(&tb->ib_net, hold_net(net));
 		tb->port      = snum;
 		tb->fastreuse = 0;
+		tb->fastreuseport = 0;
 		tb->num_owners = 0;
 		INIT_HLIST_HEAD(&tb->owners);
 		hlist_add_head(&tb->node, &head->chain);
@@ -119,13 +120,12 @@ int __inet_inherit_port(struct sock *sk, struct sock *child)
 		 * that the listener socket's icsk_bind_hash is the same
 		 * as that of the child socket. We have to look up or
 		 * create a new bind bucket for the child here. */
-		struct hlist_node *node;
-		inet_bind_bucket_for_each(tb, node, &head->chain) {
+		inet_bind_bucket_for_each(tb, &head->chain) {
 			if (net_eq(ib_net(tb), sock_net(sk)) &&
 			    tb->port == port)
 				break;
 		}
-		if (!node) {
+		if (!tb) {
 			tb = inet_bind_bucket_create(table->bind_bucket_cachep,
 						     sock_net(sk), head, port);
 			if (!tb) {
@@ -151,16 +151,16 @@ static inline int compute_score(struct sock *sk, struct net *net,
 	if (net_eq(sock_net(sk), net) && inet->inet_num == hnum &&
 			!ipv6_only_sock(sk)) {
 		__be32 rcv_saddr = inet->inet_rcv_saddr;
-		score = sk->sk_family == PF_INET ? 1 : 0;
+		score = sk->sk_family == PF_INET ? 2 : 1;
 		if (rcv_saddr) {
 			if (rcv_saddr != daddr)
 				return -1;
-			score += 2;
+			score += 4;
 		}
 		if (sk->sk_bound_dev_if) {
 			if (sk->sk_bound_dev_if != dif)
 				return -1;
-			score += 2;
+			score += 4;
 		}
 	}
 	return score;
@@ -176,6 +176,7 @@ static inline int compute_score(struct sock *sk, struct net *net,
 
 struct sock *__inet_lookup_listener(struct net *net,
 				    struct inet_hashinfo *hashinfo,
+				    const __be32 saddr, __be16 sport,
 				    const __be32 daddr, const unsigned short hnum,
 				    const int dif)
 {
@@ -183,17 +184,29 @@ struct sock *__inet_lookup_listener(struct net *net,
 	struct hlist_nulls_node *node;
 	unsigned int hash = inet_lhashfn(net, hnum);
 	struct inet_listen_hashbucket *ilb = &hashinfo->listening_hash[hash];
-	int score, hiscore;
+	int score, hiscore, matches = 0, reuseport = 0;
+	u32 phash = 0;
 
 	rcu_read_lock();
 begin:
 	result = NULL;
-	hiscore = -1;
+	hiscore = 0;
 	sk_nulls_for_each_rcu(sk, node, &ilb->head) {
 		score = compute_score(sk, net, hnum, daddr, dif);
 		if (score > hiscore) {
 			result = sk;
 			hiscore = score;
+			reuseport = sk->sk_reuseport;
+			if (reuseport) {
+				phash = inet_ehashfn(net, daddr, hnum,
+						     saddr, sport);
+				matches = 1;
+			}
+		} else if (score == hiscore && reuseport) {
+			matches++;
+			if (((u64)phash * matches) >> 32 == 0)
+				result = sk;
+			phash = next_pseudo_random32(phash);
 		}
 	}
 	/*
@@ -479,7 +492,6 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		int i, remaining, low, high, port;
 		static u32 hint;
 		u32 offset = hint + port_offset;
-		struct hlist_node *node;
 		struct inet_timewait_sock *tw = NULL;
 
 		inet_get_local_port_range(&low, &high);
@@ -498,10 +510,11 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			 * because the established check is already
 			 * unique enough.
 			 */
-			inet_bind_bucket_for_each(tb, node, &head->chain) {
+			inet_bind_bucket_for_each(tb, &head->chain) {
 				if (net_eq(ib_net(tb), net) &&
 				    tb->port == port) {
-					if (tb->fastreuse >= 0)
+					if (tb->fastreuse >= 0 ||
+					    tb->fastreuseport >= 0)
 						goto next_port;
 					WARN_ON(hlist_empty(&tb->owners));
 					if (!check_established(death_row, sk,
@@ -518,6 +531,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 				break;
 			}
 			tb->fastreuse = -1;
+			tb->fastreuseport = -1;
 			goto ok;
 
 		next_port:

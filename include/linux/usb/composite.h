@@ -77,6 +77,8 @@ struct usb_configuration;
  *	in interface or class descriptors; endpoints; I/O buffers; and so on.
  * @unbind: Reverses @bind; called as a side effect of unregistering the
  *	driver which added this function.
+ * @free_func: free the struct usb_function.
+ * @mod: (internal) points to the module that created this structure.
  * @set_alt: (REQUIRED) Reconfigures altsettings; function drivers may
  *	initialize usb_ep.driver data at this time (when it is used).
  *	Note that setting an interface to its current altsetting resets
@@ -116,6 +118,7 @@ struct usb_configuration;
  * two or more distinct instances within the same configuration, providing
  * several independent logical data links to a USB host.
  */
+
 struct usb_function {
 	const char			*name;
 	struct usb_gadget_strings	**strings;
@@ -136,6 +139,8 @@ struct usb_function {
 					struct usb_function *);
 	void			(*unbind)(struct usb_configuration *,
 					struct usb_function *);
+	void			(*free_func)(struct usb_function *f);
+	struct module		*mod;
 
 	/* runtime state management */
 	int			(*set_alt)(struct usb_function *,
@@ -156,6 +161,7 @@ struct usb_function {
 	/* internals */
 	struct list_head		list;
 	DECLARE_BITMAP(endpoints, 32);
+	const struct usb_function_instance *fi;
 };
 
 int usb_add_function(struct usb_configuration *, struct usb_function *);
@@ -184,7 +190,8 @@ int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
  * @bConfigurationValue: Copied into configuration descriptor.
  * @iConfiguration: Copied into configuration descriptor.
  * @bmAttributes: Copied into configuration descriptor.
- * @bMaxPower: Copied into configuration descriptor.
+ * @MaxPower: Power consumtion in mA. Used to compute bMaxPower in the
+ *	configuration descriptor after considering the bus speed.
  * @cdev: assigned by @usb_add_config() before calling @bind(); this is
  *	the device associated with this configuration.
  *
@@ -230,7 +237,7 @@ struct usb_configuration {
 	u8			bConfigurationValue;
 	u8			iConfiguration;
 	u8			bmAttributes;
-	u8			bMaxPower;
+	u16			MaxPower;
 
 	struct usb_composite_dev	*cdev;
 
@@ -316,7 +323,15 @@ struct usb_composite_driver {
 extern int usb_composite_probe(struct usb_composite_driver *driver);
 extern void usb_composite_unregister(struct usb_composite_driver *driver);
 extern void usb_composite_setup_continue(struct usb_composite_dev *cdev);
+extern int composite_dev_prepare(struct usb_composite_driver *composite,
+		struct usb_composite_dev *cdev);
+void composite_dev_cleanup(struct usb_composite_dev *cdev);
 
+static inline struct usb_composite_driver *to_cdriver(
+		struct usb_gadget_driver *gdrv)
+{
+	return container_of(gdrv, struct usb_composite_driver, gadget_driver);
+}
 
 /**
  * struct usb_composite_device - represents one composite usb gadget
@@ -360,6 +375,7 @@ struct usb_composite_dev {
 	unsigned int			suspended:1;
 	struct usb_device_descriptor	desc;
 	struct list_head		configs;
+	struct list_head		gstrings;
 	struct usb_composite_driver	*driver;
 	u8				next_string_id;
 	char				*def_manufacturer;
@@ -381,7 +397,14 @@ struct usb_composite_dev {
 extern int usb_string_id(struct usb_composite_dev *c);
 extern int usb_string_ids_tab(struct usb_composite_dev *c,
 			      struct usb_string *str);
+extern struct usb_string *usb_gstrings_attach(struct usb_composite_dev *cdev,
+		struct usb_gadget_strings **sp, unsigned n_strings);
+
 extern int usb_string_ids_n(struct usb_composite_dev *c, unsigned n);
+
+extern void composite_disconnect(struct usb_gadget *gadget);
+extern int composite_setup(struct usb_gadget *gadget,
+		const struct usb_ctrlrequest *ctrl);
 
 /*
  * Some systems will need runtime overrides for the  product identifiers
@@ -430,6 +453,54 @@ static inline u16 get_default_bcdDevice(void)
 	bcdDevice |= bin2bcd((LINUX_VERSION_CODE >> 8 & 0xff));
 	return bcdDevice;
 }
+
+struct usb_function_driver {
+	const char *name;
+	struct module *mod;
+	struct list_head list;
+	struct usb_function_instance *(*alloc_inst)(void);
+	struct usb_function *(*alloc_func)(struct usb_function_instance *inst);
+};
+
+struct usb_function_instance {
+	struct usb_function_driver *fd;
+	void (*free_func_inst)(struct usb_function_instance *inst);
+};
+
+void usb_function_unregister(struct usb_function_driver *f);
+int usb_function_register(struct usb_function_driver *newf);
+void usb_put_function_instance(struct usb_function_instance *fi);
+void usb_put_function(struct usb_function *f);
+struct usb_function_instance *usb_get_function_instance(const char *name);
+struct usb_function *usb_get_function(struct usb_function_instance *fi);
+
+struct usb_configuration *usb_get_config(struct usb_composite_dev *cdev,
+		int val);
+int usb_add_config_only(struct usb_composite_dev *cdev,
+		struct usb_configuration *config);
+void usb_remove_function(struct usb_configuration *c, struct usb_function *f);
+
+#define DECLARE_USB_FUNCTION(_name, _inst_alloc, _func_alloc)		\
+	static struct usb_function_driver _name ## usb_func = {		\
+		.name = __stringify(_name),				\
+		.mod  = THIS_MODULE,					\
+		.alloc_inst = _inst_alloc,				\
+		.alloc_func = _func_alloc,				\
+	};								\
+	MODULE_ALIAS("usbfunc:"__stringify(_name));
+
+#define DECLARE_USB_FUNCTION_INIT(_name, _inst_alloc, _func_alloc)	\
+	DECLARE_USB_FUNCTION(_name, _inst_alloc, _func_alloc)		\
+	static int __init _name ## mod_init(void)			\
+	{								\
+		return usb_function_register(&_name ## usb_func);	\
+	}								\
+	static void __exit _name ## mod_exit(void)			\
+	{								\
+		usb_function_unregister(&_name ## usb_func);		\
+	}								\
+	module_init(_name ## mod_init);					\
+	module_exit(_name ## mod_exit)
 
 /* messaging utils */
 #define DBG(d, fmt, args...) \

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -345,9 +345,8 @@ void batadv_recv_handler_unregister(uint8_t packet_type)
 static struct batadv_algo_ops *batadv_algo_get(char *name)
 {
 	struct batadv_algo_ops *bat_algo_ops = NULL, *bat_algo_ops_tmp;
-	struct hlist_node *node;
 
-	hlist_for_each_entry(bat_algo_ops_tmp, node, &batadv_algo_list, list) {
+	hlist_for_each_entry(bat_algo_ops_tmp, &batadv_algo_list, list) {
 		if (strcmp(bat_algo_ops_tmp->name, name) != 0)
 			continue;
 
@@ -411,11 +410,10 @@ out:
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct batadv_algo_ops *bat_algo_ops;
-	struct hlist_node *node;
 
 	seq_printf(seq, "Available routing algorithms:\n");
 
-	hlist_for_each_entry(bat_algo_ops, node, &batadv_algo_list, list) {
+	hlist_for_each_entry(bat_algo_ops, &batadv_algo_list, list) {
 		seq_printf(seq, "%s\n", bat_algo_ops->name);
 	}
 

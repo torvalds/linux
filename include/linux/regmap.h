@@ -28,7 +28,8 @@ struct regmap_range_cfg;
 enum regcache_type {
 	REGCACHE_NONE,
 	REGCACHE_RBTREE,
-	REGCACHE_COMPRESSED
+	REGCACHE_COMPRESSED,
+	REGCACHE_FLAT,
 };
 
 /**
@@ -127,7 +128,18 @@ typedef void (*regmap_unlock)(void *);
  * @lock_arg:	  this field is passed as the only argument of lock/unlock
  *		  functions (ignored in case regular lock/unlock functions
  *		  are not overridden).
- *
+ * @reg_read:	  Optional callback that if filled will be used to perform
+ *           	  all the reads from the registers. Should only be provided for
+ *		  devices whos read operation cannot be represented as a simple read
+ *		  operation on a bus such as SPI, I2C, etc. Most of the devices do
+ * 		  not need this.
+ * @reg_write:	  Same as above for writing.
+ * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
+ *	     	  to perform locking. This field is ignored if custom lock/unlock
+ *	     	  functions are used (see fields lock/unlock of struct regmap_config).
+ *		  This field is a duplicate of a similar file in
+ *		  'struct regmap_bus' and serves exact same purpose.
+ *		   Use it only for "no-bus" cases.
  * @max_register: Optional, specifies the maximum valid register index.
  * @wr_table:     Optional, points to a struct regmap_access_table specifying
  *                valid ranges for write access.
@@ -176,6 +188,11 @@ struct regmap_config {
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg;
+
+	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
+	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
+
+	bool fast_io;
 
 	unsigned int max_register;
 	const struct regmap_access_table *wr_table;
@@ -235,14 +252,21 @@ struct regmap_range_cfg {
 	unsigned int window_len;
 };
 
+struct regmap_async;
+
 typedef int (*regmap_hw_write)(void *context, const void *data,
 			       size_t count);
 typedef int (*regmap_hw_gather_write)(void *context,
 				      const void *reg, size_t reg_len,
 				      const void *val, size_t val_len);
+typedef int (*regmap_hw_async_write)(void *context,
+				     const void *reg, size_t reg_len,
+				     const void *val, size_t val_len,
+				     struct regmap_async *async);
 typedef int (*regmap_hw_read)(void *context,
 			      const void *reg_buf, size_t reg_size,
 			      void *val_buf, size_t val_size);
+typedef struct regmap_async *(*regmap_hw_async_alloc)(void);
 typedef void (*regmap_hw_free_context)(void *context);
 
 /**
@@ -255,8 +279,11 @@ typedef void (*regmap_hw_free_context)(void *context);
  * @write: Write operation.
  * @gather_write: Write operation with split register/value, return -ENOTSUPP
  *                if not implemented  on a given device.
+ * @async_write: Write operation which completes asynchronously, optional and
+ *               must serialise with respect to non-async I/O.
  * @read: Read operation.  Data is returned in the buffer used to transmit
  *         data.
+ * @async_alloc: Allocate a regmap_async() structure.
  * @read_flag_mask: Mask to be set in the top byte of the register when doing
  *                  a read.
  * @reg_format_endian_default: Default endianness for formatted register
@@ -265,13 +292,16 @@ typedef void (*regmap_hw_free_context)(void *context);
  * @val_format_endian_default: Default endianness for formatted register
  *     values. Used when the regmap_config specifies DEFAULT. If this is
  *     DEFAULT, BIG is assumed.
+ * @async_size: Size of struct used for async work.
  */
 struct regmap_bus {
 	bool fast_io;
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
+	regmap_hw_async_write async_write;
 	regmap_hw_read read;
 	regmap_hw_free_context free_context;
+	regmap_hw_async_alloc async_alloc;
 	u8 read_flag_mask;
 	enum regmap_endian reg_format_endian_default;
 	enum regmap_endian val_format_endian_default;
@@ -285,9 +315,9 @@ struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 			       const struct regmap_config *config);
 struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
-struct regmap *regmap_init_mmio(struct device *dev,
-				void __iomem *regs,
-				const struct regmap_config *config);
+struct regmap *regmap_init_mmio_clk(struct device *dev, const char *clk_id,
+				    void __iomem *regs,
+				    const struct regmap_config *config);
 
 struct regmap *devm_regmap_init(struct device *dev,
 				const struct regmap_bus *bus,
@@ -297,9 +327,44 @@ struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
 				    const struct regmap_config *config);
 struct regmap *devm_regmap_init_spi(struct spi_device *dev,
 				    const struct regmap_config *config);
-struct regmap *devm_regmap_init_mmio(struct device *dev,
-				     void __iomem *regs,
-				     const struct regmap_config *config);
+struct regmap *devm_regmap_init_mmio_clk(struct device *dev, const char *clk_id,
+					 void __iomem *regs,
+					 const struct regmap_config *config);
+
+/**
+ * regmap_init_mmio(): Initialise register map
+ *
+ * @dev: Device that will be interacted with
+ * @regs: Pointer to memory-mapped IO region
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
+static inline struct regmap *regmap_init_mmio(struct device *dev,
+					void __iomem *regs,
+					const struct regmap_config *config)
+{
+	return regmap_init_mmio_clk(dev, NULL, regs, config);
+}
+
+/**
+ * devm_regmap_init_mmio(): Initialise managed register map
+ *
+ * @dev: Device that will be interacted with
+ * @regs: Pointer to memory-mapped IO region
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap.  The regmap will be automatically freed by the
+ * device management code.
+ */
+static inline struct regmap *devm_regmap_init_mmio(struct device *dev,
+					void __iomem *regs,
+					const struct regmap_config *config)
+{
+	return devm_regmap_init_mmio_clk(dev, NULL, regs, config);
+}
 
 void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,
@@ -310,6 +375,8 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
 int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			size_t val_count);
+int regmap_raw_write_async(struct regmap *map, unsigned int reg,
+			   const void *val, size_t val_len);
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);
 int regmap_raw_read(struct regmap *map, unsigned int reg,
 		    void *val, size_t val_len);
@@ -321,6 +388,7 @@ int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 			     unsigned int mask, unsigned int val,
 			     bool *change);
 int regmap_get_val_bytes(struct regmap *map);
+int regmap_async_complete(struct regmap *map);
 
 int regcache_sync(struct regmap *map);
 int regcache_sync_region(struct regmap *map, unsigned int min,
@@ -381,6 +449,7 @@ struct regmap_irq_chip {
 	unsigned int wake_base;
 	unsigned int irq_reg_stride;
 	unsigned int mask_invert;
+	unsigned int wake_invert;
 	bool runtime_pm;
 
 	int num_regs;
@@ -417,6 +486,13 @@ static inline int regmap_write(struct regmap *map, unsigned int reg,
 
 static inline int regmap_raw_write(struct regmap *map, unsigned int reg,
 				   const void *val, size_t val_len)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_raw_write_async(struct regmap *map, unsigned int reg,
+					 const void *val, size_t val_len)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;
@@ -496,6 +572,11 @@ static inline void regcache_cache_bypass(struct regmap *map, bool enable)
 }
 
 static inline void regcache_mark_dirty(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+static inline void regmap_async_complete(struct regmap *map)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 }

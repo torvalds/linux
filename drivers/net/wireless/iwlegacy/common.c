@@ -1830,32 +1830,30 @@ il_set_ht_add_station(struct il_priv *il, u8 idx, struct ieee80211_sta *sta)
 {
 	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->ht_cap;
 	__le32 sta_flags;
-	u8 mimo_ps_mode;
 
 	if (!sta || !sta_ht_inf->ht_supported)
 		goto done;
 
-	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_SM_PS) >> 2;
 	D_ASSOC("spatial multiplexing power save mode: %s\n",
-		(mimo_ps_mode == WLAN_HT_CAP_SM_PS_STATIC) ? "static" :
-		(mimo_ps_mode == WLAN_HT_CAP_SM_PS_DYNAMIC) ? "dynamic" :
+		(sta->smps_mode == IEEE80211_SMPS_STATIC) ? "static" :
+		(sta->smps_mode == IEEE80211_SMPS_DYNAMIC) ? "dynamic" :
 		"disabled");
 
 	sta_flags = il->stations[idx].sta.station_flags;
 
 	sta_flags &= ~(STA_FLG_RTS_MIMO_PROT_MSK | STA_FLG_MIMO_DIS_MSK);
 
-	switch (mimo_ps_mode) {
-	case WLAN_HT_CAP_SM_PS_STATIC:
+	switch (sta->smps_mode) {
+	case IEEE80211_SMPS_STATIC:
 		sta_flags |= STA_FLG_MIMO_DIS_MSK;
 		break;
-	case WLAN_HT_CAP_SM_PS_DYNAMIC:
+	case IEEE80211_SMPS_DYNAMIC:
 		sta_flags |= STA_FLG_RTS_MIMO_PROT_MSK;
 		break;
-	case WLAN_HT_CAP_SM_PS_DISABLED:
+	case IEEE80211_SMPS_OFF:
 		break;
 	default:
-		IL_WARN("Invalid MIMO PS mode %d\n", mimo_ps_mode);
+		IL_WARN("Invalid MIMO PS mode %d\n", sta->smps_mode);
 		break;
 	}
 
@@ -3162,17 +3160,22 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 		     idx, il->cmd_queue);
 	}
 #endif
+
+	phys_addr =
+	    pci_map_single(il->pci_dev, &out_cmd->hdr, fix_size,
+			   PCI_DMA_BIDIRECTIONAL);
+	if (unlikely(pci_dma_mapping_error(il->pci_dev, phys_addr))) {
+		idx = -ENOMEM;
+		goto out;
+	}
+	dma_unmap_addr_set(out_meta, mapping, phys_addr);
+	dma_unmap_len_set(out_meta, len, fix_size);
+
 	txq->need_update = 1;
 
 	if (il->ops->txq_update_byte_cnt_tbl)
 		/* Set up entry in queue's byte count circular buffer */
 		il->ops->txq_update_byte_cnt_tbl(il, txq, 0);
-
-	phys_addr =
-	    pci_map_single(il->pci_dev, &out_cmd->hdr, fix_size,
-			   PCI_DMA_BIDIRECTIONAL);
-	dma_unmap_addr_set(out_meta, mapping, phys_addr);
-	dma_unmap_len_set(out_meta, len, fix_size);
 
 	il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, fix_size, 1,
 					    U32_PAD(cmd->len));
@@ -3181,6 +3184,7 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
 	il_txq_update_write_ptr(il, txq);
 
+out:
 	spin_unlock_irqrestore(&il->hcmd_lock, flags);
 	return idx;
 }
@@ -4699,6 +4703,42 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(il_mac_change_interface);
+
+void
+il_mac_flush(struct ieee80211_hw *hw, bool drop)
+{
+	struct il_priv *il = hw->priv;
+	unsigned long timeout = jiffies + msecs_to_jiffies(500);
+	int i;
+
+	mutex_lock(&il->mutex);
+	D_MAC80211("enter\n");
+
+	if (il->txq == NULL)
+		goto out;
+
+	for (i = 0; i < il->hw_params.max_txq_num; i++) {
+		struct il_queue *q;
+
+		if (i == il->cmd_queue)
+			continue;
+
+		q = &il->txq[i].q;
+		if (q->read_ptr == q->write_ptr)
+			continue;
+
+		if (time_after(jiffies, timeout)) {
+			IL_ERR("Failed to flush queue %d\n", q->id);
+			break;
+		}
+
+		msleep(20);
+	}
+out:
+	D_MAC80211("leave\n");
+	mutex_unlock(&il->mutex);
+}
+EXPORT_SYMBOL(il_mac_flush);
 
 /*
  * On every watchdog tick we check (latest) time stamp. If it does not

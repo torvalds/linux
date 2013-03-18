@@ -61,7 +61,6 @@
 #define MEGASAS_SCSI_ADDL_CDB_LEN                   0x18
 #define MEGASAS_RD_WR_PROTECT_CHECK_ALL		    0x20
 #define MEGASAS_RD_WR_PROTECT_CHECK_NONE	    0x60
-#define MEGASAS_EEDPBLOCKSIZE			    512
 
 /*
  * Raid context flags

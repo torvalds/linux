@@ -282,7 +282,8 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 		goto fail_rtc_register;
 	}
 
-	ret = request_threaded_irq(rtc->irq, NULL, tps6586x_rtc_irq,
+	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
+				tps6586x_rtc_irq,
 				IRQF_ONESHOT | IRQF_EARLY_RESUME,
 				dev_name(&pdev->dev), rtc);
 	if (ret < 0) {
@@ -311,7 +312,6 @@ static int tps6586x_rtc_remove(struct platform_device *pdev)
 	tps6586x_update(tps_dev, RTC_CTRL, 0,
 		RTC_ENABLE | OSC_SRC_SEL | PRE_BYPASS | CL_SEL_MASK);
 	rtc_device_unregister(rtc->rtc);
-	free_irq(rtc->irq, rtc);
 	return 0;
 }
 

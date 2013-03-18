@@ -657,7 +657,7 @@ static int clusterip_proc_release(struct inode *inode, struct file *file)
 static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 				size_t size, loff_t *ofs)
 {
-	struct clusterip_config *c = PDE(file->f_path.dentry->d_inode)->data;
+	struct clusterip_config *c = PDE(file_inode(file))->data;
 #define PROC_WRITELEN	10
 	char buffer[PROC_WRITELEN+1];
 	unsigned long nodenum;

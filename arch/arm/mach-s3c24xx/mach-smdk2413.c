@@ -37,7 +37,6 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 
-#include <mach/idle.h>
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <mach/fb.h>
@@ -133,7 +132,7 @@ MACHINE_START(S3C2413, "S3C2413")
 	.init_irq	= s3c24xx_init_irq,
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c2412_restart,
 MACHINE_END
 
@@ -145,7 +144,7 @@ MACHINE_START(SMDK2412, "SMDK2412")
 	.init_irq	= s3c24xx_init_irq,
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c2412_restart,
 MACHINE_END
 
@@ -157,6 +156,6 @@ MACHINE_START(SMDK2413, "SMDK2413")
 	.init_irq	= s3c24xx_init_irq,
 	.map_io		= smdk2413_map_io,
 	.init_machine	= smdk2413_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c2412_restart,
 MACHINE_END

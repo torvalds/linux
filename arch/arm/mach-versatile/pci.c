@@ -23,6 +23,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 
@@ -327,12 +328,12 @@ static int __init versatile_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	int irq;
 
 	/* slot,  pin,	irq
-	 *  24     1     27
-	 *  25     1     28
-	 *  26     1     29
-	 *  27     1     30
+	 *  24     1     IRQ_SIC_PCI0
+	 *  25     1     IRQ_SIC_PCI1
+	 *  26     1     IRQ_SIC_PCI2
+	 *  27     1     IRQ_SIC_PCI3
 	 */
-	irq = 27 + ((slot - 24 + pin - 1) & 3);
+	irq = IRQ_SIC_PCI0 + ((slot - 24 + pin - 1) & 3);
 
 	return irq;
 }

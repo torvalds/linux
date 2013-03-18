@@ -938,7 +938,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	}
 
 	if (ret > 0) {
-		struct inode *inode = file->f_path.dentry->d_inode;
+		struct inode *inode = file_inode(file);
 		inode->i_atime = current_fs_time(inode->i_sb);
 	}
 
@@ -1142,7 +1142,7 @@ static int sonypi_acpi_add(struct acpi_device *device)
 	return 0;
 }
 
-static int sonypi_acpi_remove(struct acpi_device *device, int type)
+static int sonypi_acpi_remove(struct acpi_device *device)
 {
 	sonypi_acpi_device = NULL;
 	return 0;

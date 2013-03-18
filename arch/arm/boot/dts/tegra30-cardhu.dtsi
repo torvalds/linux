@@ -106,12 +106,25 @@
 				nvidia,slew-rate-rising = <1>;
 				nvidia,slew-rate-falling = <1>;
 			};
+			uart3_txd_pw6 {
+				nvidia,pins =	"uart3_txd_pw6",
+						"uart3_cts_n_pa1",
+						"uart3_rts_n_pc0",
+						"uart3_rxd_pw7";
+				nvidia,function = "uartc";
+				nvidia,pull = <0>;
+				nvidia,tristate = <0>;
+			};
 		};
 	};
 
 	serial@70006000 {
 		status = "okay";
-		clock-frequency = <408000000>;
+	};
+
+	serial@70006200 {
+		compatible = "nvidia,tegra30-hsuart";
+		status = "okay";
 	};
 
 	i2c@7000c000 {

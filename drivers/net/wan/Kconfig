@@ -356,63 +356,9 @@ config SDLA
 	  To compile this driver as a module, choose M here: the
 	  module will be called sdla.
 
-# Wan router core.
-config WAN_ROUTER_DRIVERS
-	tristate "WAN router drivers"
-	depends on WAN_ROUTER
-	---help---
-	  Connect LAN to WAN via Linux box.
-
-	  Select driver your card and remember to say Y to "Wan Router."
-	  You will need the wan-tools package which is available from
-	  <ftp://ftp.sangoma.com/>.
-
-	  Note that the answer to this question won't directly affect the
-	  kernel except for how subordinate drivers may be built:
-	  saying N will just cause the configurator to skip all
-	  the questions about WAN router drivers.
-
-	  If unsure, say N.
-
-config CYCLADES_SYNC
-	tristate "Cyclom 2X(tm) cards (EXPERIMENTAL)"
-	depends on WAN_ROUTER_DRIVERS && (PCI || ISA)
-	---help---
-	  Cyclom 2X from Cyclades Corporation <http://www.avocent.com/> is an
-	  intelligent multiprotocol WAN adapter with data transfer rates up to
-	  512 Kbps. These cards support the X.25 and SNA related protocols.
-
-	  While no documentation is available at this time please grab the
-	  wanconfig tarball in
-	  <http://www.conectiva.com.br/~acme/cycsyn-devel/> (with minor changes
-	  to make it compile with the current wanrouter include files; efforts
-	  are being made to use the original package available at
-	  <ftp://ftp.sangoma.com/>).
-
-	  Feel free to contact me or the cycsyn-devel mailing list at
-	  <acme@conectiva.com.br> and <cycsyn-devel@bazar.conectiva.com.br> for
-	  additional details, I hope to have documentation available as soon as
-	  possible. (Cyclades Brazil is writing the Documentation).
-
-	  The next questions will ask you about the protocols you want the
-	  driver to support (for now only X.25 is supported).
-
-	  If you have one or more of these cards, say Y to this option.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cyclomx.
-
-config CYCLOMX_X25
-	bool "Cyclom 2X X.25 support (EXPERIMENTAL)"
-	depends on CYCLADES_SYNC
-	help
-	  Connect a Cyclom 2X card to an X.25 network.
-
-	  Enabling X.25 support will enlarge your kernel by about 11 kB.
-
 # X.25 network drivers
 config LAPBETHER
-	tristate "LAPB over Ethernet driver (EXPERIMENTAL)"
+	tristate "LAPB over Ethernet driver"
 	depends on LAPB && X25
 	---help---
 	  Driver for a pseudo device (typically called /dev/lapb0) which allows
@@ -428,8 +374,8 @@ config LAPBETHER
 	  If unsure, say N.
 
 config X25_ASY
-	tristate "X.25 async driver (EXPERIMENTAL)"
-	depends on LAPB && X25
+	tristate "X.25 async driver"
+	depends on LAPB && X25 && TTY
 	---help---
 	  Send and receive X.25 frames over regular asynchronous serial
 	  lines such as telephone lines equipped with ordinary modems.

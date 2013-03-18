@@ -1376,6 +1376,7 @@ static int __vme_register_driver_bus(struct vme_driver *drv,
 	return 0;
 
 err_reg:
+	put_device(&vdev->dev);
 	kfree(vdev);
 err_devalloc:
 	list_for_each_entry_safe(vdev, tmp, &drv->devices, drv_list) {

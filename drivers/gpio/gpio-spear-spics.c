@@ -140,11 +140,9 @@ static int spics_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	spics->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!spics->base) {
-		dev_err(&pdev->dev, "request and ioremap fail\n");
-		return -ENOMEM;
-	}
+	spics->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(spics->base))
+		return PTR_ERR(spics->base);
 
 	if (of_property_read_u32(np, "st-spics,peripcfg-reg",
 				&spics->perip_cfg))

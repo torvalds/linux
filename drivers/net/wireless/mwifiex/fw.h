@@ -49,13 +49,23 @@ struct tx_packet_hdr {
 #define A_SUPPORTED_RATES               9
 #define HOSTCMD_SUPPORTED_RATES         14
 #define N_SUPPORTED_RATES               3
-#define ALL_802_11_BANDS           (BAND_A | BAND_B | BAND_G | BAND_GN)
+#define ALL_802_11_BANDS           (BAND_A | BAND_B | BAND_G | BAND_GN | \
+				    BAND_AN | BAND_GAC | BAND_AAC)
 
-#define FW_MULTI_BANDS_SUPPORT  (BIT(8) | BIT(9) | BIT(10) | BIT(11))
+#define FW_MULTI_BANDS_SUPPORT  (BIT(8) | BIT(9) | BIT(10) | BIT(11) | \
+				 BIT(12) | BIT(13))
 #define IS_SUPPORT_MULTI_BANDS(adapter)        \
 	(adapter->fw_cap_info & FW_MULTI_BANDS_SUPPORT)
+
+/* shift bit 12 and bit 13 in fw_cap_info from the firmware to bit 13 and 14
+ * for 11ac so that bit 11 is for GN, bit 12 for AN, bit 13 for GAC, and bit
+ * bit 14 for AAC, in order to be compatible with the band capability
+ * defined in the driver after right shift of 8 bits.
+ */
 #define GET_FW_DEFAULT_BANDS(adapter)  \
-	((adapter->fw_cap_info >> 8) & ALL_802_11_BANDS)
+	    (((((adapter->fw_cap_info & 0x3000) << 1) | \
+	       (adapter->fw_cap_info & ~0xF000)) >> 8) & \
+	     ALL_802_11_BANDS)
 
 #define HostCmd_WEP_KEY_INDEX_MASK              0x3fff
 
@@ -216,6 +226,47 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define LLC_SNAP_LEN    8
 
+/* HW_SPEC fw_cap_info */
+
+#define ISSUPP_11ACENABLED(fw_cap_info) (fw_cap_info & (BIT(13)|BIT(14)))
+
+#define GET_VHTCAP_MAXMPDULEN(vht_cap_info) (vht_cap_info & 0x3)
+#define GET_VHTCAP_CHWDSET(vht_cap_info)    ((vht_cap_info >> 2) & 0x3)
+#define GET_VHTNSSMCS(mcs_mapset, nss) ((mcs_mapset >> (2 * (nss - 1))) & 0x3)
+#define SET_VHTNSSMCS(mcs_mapset, nss, value) (mcs_mapset |= (value & 0x3) << \
+					      (2 * (nss - 1)))
+#define NO_NSS_SUPPORT		0x3
+
+/* HW_SPEC: HTC-VHT supported */
+#define ISSUPP_11ACVHTHTCVHT(Dot11acDevCap) (Dot11acDevCap & BIT(22))
+/* HW_SPEC: VHT TXOP PS support */
+#define ISSUPP_11ACVHTTXOPPS(Dot11acDevCap) (Dot11acDevCap & BIT(21))
+/* HW_SPEC: MU RX beamformee support */
+#define ISSUPP_11ACMURXBEAMFORMEE(Dot11acDevCap) (Dot11acDevCap & BIT(20))
+/* HW_SPEC: MU TX beamformee support */
+#define ISSUPP_11ACMUTXBEAMFORMEE(Dot11acDevCap) (Dot11acDevCap & BIT(19))
+/* HW_SPEC: SU Beamformee support */
+#define ISSUPP_11ACSUBEAMFORMEE(Dot11acDevCap) (Dot11acDevCap & BIT(10))
+/* HW_SPEC: SU Beamformer support */
+#define ISSUPP_11ACSUBEAMFORMER(Dot11acDevCap) (Dot11acDevCap & BIT(9))
+/* HW_SPEC: Rx STBC support */
+#define ISSUPP_11ACRXSTBC(Dot11acDevCap) (Dot11acDevCap & BIT(8))
+/* HW_SPEC: Tx STBC support */
+#define ISSUPP_11ACTXSTBC(Dot11acDevCap) (Dot11acDevCap & BIT(7))
+/* HW_SPEC: Short GI support for 160MHz BW */
+#define ISSUPP_11ACSGI160(Dot11acDevCap) (Dot11acDevCap & BIT(6))
+/* HW_SPEC: Short GI support for 80MHz BW */
+#define ISSUPP_11ACSGI80(Dot11acDevCap) (Dot11acDevCap & BIT(5))
+/* HW_SPEC: LDPC coding support */
+#define ISSUPP_11ACLDPC(Dot11acDevCap) (Dot11acDevCap & BIT(4))
+/* HW_SPEC: Channel BW 20/40/80/160/80+80 MHz support */
+#define ISSUPP_11ACBW8080(Dot11acDevCap) (Dot11acDevCap & BIT(3))
+/* HW_SPEC: Channel BW 20/40/80/160 MHz support */
+#define ISSUPP_11ACBW160(Dot11acDevCap) (Dot11acDevCap & BIT(2))
+
+#define GET_DEVTXMCSMAP(dev_mcs_map)      (dev_mcs_map >> 16)
+#define GET_DEVRXMCSMAP(dev_mcs_map)      (dev_mcs_map & 0xFFFF)
+
 #define MOD_CLASS_HR_DSSS       0x03
 #define MOD_CLASS_OFDM          0x07
 #define MOD_CLASS_HT            0x08
@@ -329,6 +380,9 @@ enum P2P_MODES {
 #define HOST_SLEEP_CFG_COND_DEF		0x00000000
 #define HOST_SLEEP_CFG_GPIO_DEF		0xff
 #define HOST_SLEEP_CFG_GAP_DEF		0
+
+#define MWIFIEX_TIMEOUT_FOR_AP_RESP		0xfffc
+#define MWIFIEX_STATUS_CODE_AUTH_TIMEOUT	2
 
 #define CMD_F_HOSTCMD           (1 << 0)
 #define CMD_F_CANCELED          (1 << 1)
@@ -452,9 +506,22 @@ struct rxpd {
 	u8 rx_rate;
 	s8 snr;
 	s8 nf;
-	/* Ht Info [Bit 0] RxRate format: LG=0, HT=1
+
+	/* For: Non-802.11 AC cards
+	 *
+	 * Ht Info [Bit 0] RxRate format: LG=0, HT=1
 	 * [Bit 1]  HT Bandwidth: BW20 = 0, BW40 = 1
-	 * [Bit 2]  HT Guard Interval: LGI = 0, SGI = 1 */
+	 * [Bit 2]  HT Guard Interval: LGI = 0, SGI = 1
+	 *
+	 * For: 802.11 AC cards
+	 * [Bit 1] [Bit 0] RxRate format: legacy rate = 00 HT = 01 VHT = 10
+	 * [Bit 3] [Bit 2] HT/VHT Bandwidth BW20 = 00 BW40 = 01
+	 *						BW80 = 10  BW160 = 11
+	 * [Bit 4] HT/VHT Guard interval LGI = 0 SGI = 1
+	 * [Bit 5] STBC support Enabled = 1
+	 * [Bit 6] LDPC support Enabled = 1
+	 * [Bit 7] Reserved
+	 */
 	u8 ht_info;
 	u8 reserved;
 } __packed;
@@ -677,7 +744,11 @@ struct host_cmd_ds_get_hw_spec {
 	__le32 dot_11n_dev_cap;
 	u8 dev_mcs_support;
 	__le16 mp_end_port;	/* SDIO only, reserved for other interfacces */
-	__le16 reserved_4;
+	__le16 mgmt_buf_count;	/* mgmt IE buffer count */
+	__le32 reserved_5;
+	__le32 reserved_6;
+	__le32 dot_11ac_dev_cap;
+	__le32 dot_11ac_mcs_support;
 } __packed;
 
 struct host_cmd_ds_802_11_rssi_info {
@@ -783,6 +854,12 @@ union ieee_types_phy_param_set {
 	struct ieee_types_ds_param_set ds_param_set;
 } __packed;
 
+struct ieee_types_oper_mode_ntf {
+	u8 element_id;
+	u8 len;
+	u8 oper_mode;
+} __packed;
+
 struct host_cmd_ds_802_11_ad_hoc_start {
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 bss_mode;
@@ -843,11 +920,27 @@ struct host_cmd_ds_802_11_get_log {
 	__le32 wep_icv_err_cnt[4];
 };
 
+/* Enumeration for rate format */
+enum _mwifiex_rate_format {
+	MWIFIEX_RATE_FORMAT_LG = 0,
+	MWIFIEX_RATE_FORMAT_HT,
+	MWIFIEX_RATE_FORMAT_VHT,
+	MWIFIEX_RATE_FORMAT_AUTO = 0xFF,
+};
+
 struct host_cmd_ds_tx_rate_query {
 	u8 tx_rate;
-	/* Ht Info [Bit 0] RxRate format: LG=0, HT=1
+	/* Tx Rate Info: For 802.11 AC cards
+	 *
+	 * [Bit 0-1] tx rate formate: LG = 0, HT = 1, VHT = 2
+	 * [Bit 2-3] HT/VHT Bandwidth: BW20 = 0, BW40 = 1, BW80 = 2, BW160 = 3
+	 * [Bit 4]   HT/VHT Guard Interval: LGI = 0, SGI = 1
+	 *
+	 * For non-802.11 AC cards
+	 * Ht Info [Bit 0] RxRate format: LG=0, HT=1
 	 * [Bit 1]  HT Bandwidth: BW20 = 0, BW40 = 1
-	 * [Bit 2]  HT Guard Interval: LGI = 0, SGI = 1 */
+	 * [Bit 2]  HT Guard Interval: LGI = 0, SGI = 1
+	 */
 	u8 ht_info;
 } __packed;
 
@@ -1093,6 +1186,7 @@ struct host_cmd_ds_11n_cfg {
 	__le16 action;
 	__le16 ht_tx_cap;
 	__le16 ht_tx_info;
+	__le16 misc_config;	/* Needed for 802.11AC cards only */
 } __packed;
 
 struct host_cmd_ds_txbuf_cfg {
@@ -1129,12 +1223,6 @@ struct ieee_types_vendor_header {
 	u8 oui[4];	/* 0~2: oui, 3: oui_type */
 	u8 oui_subtype;
 	u8 version;
-} __packed;
-
-struct ieee_types_wmm_ac_parameters {
-	u8 aci_aifsn_bitmap;
-	u8 ecw_bitmap;
-	__le16 tx_op_limit;
 } __packed;
 
 struct ieee_types_wmm_parameter {
@@ -1184,6 +1272,31 @@ struct mwifiex_wmm_ac_status {
 struct mwifiex_ie_types_htcap {
 	struct mwifiex_ie_types_header header;
 	struct ieee80211_ht_cap ht_cap;
+} __packed;
+
+struct mwifiex_ie_types_vhtcap {
+	struct mwifiex_ie_types_header header;
+	struct ieee80211_vht_cap vht_cap;
+} __packed;
+
+struct mwifiex_ie_types_oper_mode_ntf {
+	struct mwifiex_ie_types_header header;
+	u8 oper_mode;
+} __packed;
+
+/* VHT Operations IE */
+struct mwifiex_ie_types_vht_oper {
+	struct mwifiex_ie_types_header header;
+	u8 chan_width;
+	u8 chan_center_freq_1;
+	u8 chan_center_freq_2;
+	/* Basic MCS set map, each 2 bits stands for a NSS */
+	u16 basic_mcs_map;
+} __packed;
+
+struct mwifiex_ie_types_wmmcap {
+	struct mwifiex_ie_types_header header;
+	struct mwifiex_types_wmm_info wmm_info;
 } __packed;
 
 struct mwifiex_ie_types_htinfo {

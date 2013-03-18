@@ -657,7 +657,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 					capa, intvl, ie, ielen,
 					LBS_SCAN_RSSI_TO_MBM(rssi),
 					GFP_KERNEL);
-				cfg80211_put_bss(bss);
+				cfg80211_put_bss(wiphy, bss);
 			}
 		} else
 			lbs_deb_scan("scan response: missing BSS channel IE\n");
@@ -1444,7 +1444,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 
  done:
 	if (bss)
-		cfg80211_put_bss(bss);
+		cfg80211_put_bss(wiphy, bss);
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
 	return ret;
 }
@@ -1766,7 +1766,7 @@ static void lbs_join_post(struct lbs_private *priv,
 				  params->beacon_interval,
 				  fake_ie, fake - fake_ie,
 				  0, GFP_KERNEL);
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(priv->wdev->wiphy, bss);
 
 	memcpy(priv->wdev->ssid, params->ssid, params->ssid_len);
 	priv->wdev->ssid_len = params->ssid_len;
@@ -2011,7 +2011,7 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 	if (bss) {
 		ret = lbs_ibss_join_existing(priv, params, bss);
-		cfg80211_put_bss(bss);
+		cfg80211_put_bss(wiphy, bss);
 	} else
 		ret = lbs_ibss_start_new(priv, params);
 
@@ -2081,10 +2081,8 @@ struct wireless_dev *lbs_cfg_alloc(struct device *dev)
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
-	if (!wdev) {
-		dev_err(dev, "cannot allocate wireless device\n");
+	if (!wdev)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	wdev->wiphy = wiphy_new(&lbs_cfg80211_ops, sizeof(struct lbs_private));
 	if (!wdev->wiphy) {
@@ -2132,6 +2130,21 @@ static void lbs_cfg_set_regulatory_hint(struct lbs_private *priv)
 	lbs_deb_leave(LBS_DEB_CFG80211);
 }
 
+static void lbs_reg_notifier(struct wiphy *wiphy,
+			     struct regulatory_request *request)
+{
+	struct lbs_private *priv = wiphy_priv(wiphy);
+
+	lbs_deb_enter_args(LBS_DEB_CFG80211, "cfg80211 regulatory domain "
+			"callback for domain %c%c\n", request->alpha2[0],
+			request->alpha2[1]);
+
+	memcpy(priv->country_code, request->alpha2, sizeof(request->alpha2));
+	if (lbs_iface_active(priv))
+		lbs_set_11d_domain_info(priv);
+
+	lbs_deb_leave(LBS_DEB_CFG80211);
+}
 
 /*
  * This function get's called after lbs_setup_firmware() determined the
@@ -2181,24 +2194,6 @@ int lbs_cfg_register(struct lbs_private *priv)
 	lbs_cfg_set_regulatory_hint(priv);
 
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
-	return ret;
-}
-
-int lbs_reg_notifier(struct wiphy *wiphy,
-		struct regulatory_request *request)
-{
-	struct lbs_private *priv = wiphy_priv(wiphy);
-	int ret = 0;
-
-	lbs_deb_enter_args(LBS_DEB_CFG80211, "cfg80211 regulatory domain "
-			"callback for domain %c%c\n", request->alpha2[0],
-			request->alpha2[1]);
-
-	memcpy(priv->country_code, request->alpha2, sizeof(request->alpha2));
-	if (lbs_iface_active(priv))
-		ret = lbs_set_11d_domain_info(priv);
-
-	lbs_deb_leave(LBS_DEB_CFG80211);
 	return ret;
 }
 

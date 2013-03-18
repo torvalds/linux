@@ -8,8 +8,7 @@ menu "USB Network Adapters"
 	depends on USB && NET
 
 config USB_CATC
-	tristate "USB CATC NetMate-based Ethernet device support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "USB CATC NetMate-based Ethernet device support"
 	select CRC32
 	---help---
 	  Say Y if you want to use one of the following 10Mbps USB Ethernet
@@ -83,8 +82,7 @@ config USB_PEGASUS
 	  module will be called pegasus.
 
 config USB_RTL8150
-	tristate "USB RTL8150 based ethernet device support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "USB RTL8150 based ethernet device support"
 	select NET_CORE
 	select MII
 	help
@@ -188,7 +186,7 @@ config USB_NET_CDCETHER
 
 config USB_NET_CDC_EEM
 	tristate "CDC EEM support"
-	depends on USB_USBNET && EXPERIMENTAL
+	depends on USB_USBNET
 	help
 	  This option supports devices conforming to the Communication Device
 	  Class (CDC) Ethernet Emulation Model, a specification that's easy to
@@ -287,7 +285,7 @@ config USB_NET_PLUSB
 	tristate "Prolific PL-2301/2302/25A1 based cables"
 	# if the handshake/init/reset problems, from original 'plusb',
 	# are ever resolved ... then remove "experimental"
-	depends on USB_USBNET && EXPERIMENTAL
+	depends on USB_USBNET
 	help
 	  Choose this option if you're using a host-to-host cable
 	  with one of these chips.
@@ -301,8 +299,8 @@ config USB_NET_MCS7830
 	  adapters marketed under the DeLOCK brand.
 
 config USB_NET_RNDIS_HOST
-	tristate "Host for RNDIS and ActiveSync devices (EXPERIMENTAL)"
-	depends on USB_USBNET && EXPERIMENTAL
+	tristate "Host for RNDIS and ActiveSync devices"
+	depends on USB_USBNET
 	select USB_NET_CDCETHER
 	help
 	  This option enables hosting "Remote NDIS" USB networking links,
@@ -380,7 +378,7 @@ config USB_EPSON2888
 
 config USB_KC2190
 	boolean "KT Technology KC2190 based cables (InstaNet)"
-	depends on USB_NET_CDC_SUBSET && EXPERIMENTAL
+	depends on USB_NET_CDC_SUBSET
 	help
 	  Choose this option if you're using a host-to-host cable
 	  with one of these chips.
@@ -445,7 +443,7 @@ config USB_NET_QMI_WWAN
 
 config USB_HSO
 	tristate "Option USB High Speed Mobile Devices"
-	depends on USB && RFKILL
+	depends on USB && RFKILL && TTY
 	default n
 	help
 	  Choose this option if you have an Option HSDPA/HSUPA card.
@@ -493,7 +491,7 @@ config USB_SIERRA_NET
 
 config USB_VL600
 	tristate "LG VL600 modem dongle"
-	depends on USB_NET_CDCETHER
+	depends on USB_NET_CDCETHER && TTY
 	select USB_ACM
 	help
 	  Select this if you want to use an LG Electronics 4G/LTE usb modem

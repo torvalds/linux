@@ -33,23 +33,23 @@ static int midibuf_message_length(unsigned char code)
 	}
 }
 
-static int midibuf_is_empty(struct MidiBuffer *this)
+static int midibuf_is_empty(struct midi_buffer *this)
 {
 	return (this->pos_read == this->pos_write) && !this->full;
 }
 
-static int midibuf_is_full(struct MidiBuffer *this)
+static int midibuf_is_full(struct midi_buffer *this)
 {
 	return this->full;
 }
 
-void line6_midibuf_reset(struct MidiBuffer *this)
+void line6_midibuf_reset(struct midi_buffer *this)
 {
 	this->pos_read = this->pos_write = this->full = 0;
 	this->command_prev = -1;
 }
 
-int line6_midibuf_init(struct MidiBuffer *this, int size, int split)
+int line6_midibuf_init(struct midi_buffer *this, int size, int split)
 {
 	this->buf = kmalloc(size, GFP_KERNEL);
 
@@ -62,14 +62,14 @@ int line6_midibuf_init(struct MidiBuffer *this, int size, int split)
 	return 0;
 }
 
-void line6_midibuf_status(struct MidiBuffer *this)
+void line6_midibuf_status(struct midi_buffer *this)
 {
 	pr_debug("midibuf size=%d split=%d pos_read=%d pos_write=%d full=%d command_prev=%02x\n",
 		 this->size, this->split, this->pos_read, this->pos_write,
 		 this->full, this->command_prev);
 }
 
-int line6_midibuf_bytes_free(struct MidiBuffer *this)
+int line6_midibuf_bytes_free(struct midi_buffer *this)
 {
 	return
 	    midibuf_is_full(this) ?
@@ -78,7 +78,7 @@ int line6_midibuf_bytes_free(struct MidiBuffer *this)
 	    1;
 }
 
-int line6_midibuf_bytes_used(struct MidiBuffer *this)
+int line6_midibuf_bytes_used(struct midi_buffer *this)
 {
 	return
 	    midibuf_is_empty(this) ?
@@ -87,7 +87,7 @@ int line6_midibuf_bytes_used(struct MidiBuffer *this)
 	    1;
 }
 
-int line6_midibuf_write(struct MidiBuffer *this, unsigned char *data,
+int line6_midibuf_write(struct midi_buffer *this, unsigned char *data,
 			int length)
 {
 	int bytes_free;
@@ -130,7 +130,8 @@ int line6_midibuf_write(struct MidiBuffer *this, unsigned char *data,
 	return length + skip_active_sense;
 }
 
-int line6_midibuf_read(struct MidiBuffer *this, unsigned char *data, int length)
+int line6_midibuf_read(struct midi_buffer *this, unsigned char *data,
+		       int length)
 {
 	int bytes_used;
 	int length1, length2;
@@ -234,7 +235,7 @@ int line6_midibuf_read(struct MidiBuffer *this, unsigned char *data, int length)
 	return length + repeat;
 }
 
-int line6_midibuf_ignore(struct MidiBuffer *this, int length)
+int line6_midibuf_ignore(struct midi_buffer *this, int length)
 {
 	int bytes_used = line6_midibuf_bytes_used(this);
 
@@ -246,7 +247,7 @@ int line6_midibuf_ignore(struct MidiBuffer *this, int length)
 	return length;
 }
 
-int line6_midibuf_skip_message(struct MidiBuffer *this, unsigned short mask)
+int line6_midibuf_skip_message(struct midi_buffer *this, unsigned short mask)
 {
 	int cmd = this->command_prev;
 
@@ -257,7 +258,7 @@ int line6_midibuf_skip_message(struct MidiBuffer *this, unsigned short mask)
 	return 0;
 }
 
-void line6_midibuf_destroy(struct MidiBuffer *this)
+void line6_midibuf_destroy(struct midi_buffer *this)
 {
 	kfree(this->buf);
 	this->buf = NULL;

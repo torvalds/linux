@@ -93,18 +93,6 @@
 
 /*-------------------------------------------------------------------------*/
 
-/* CBI Interrupt data structure */
-struct interrupt_data {
-	u8	bType;
-	u8	bValue;
-};
-
-#define CBI_INTERRUPT_DATA_LEN		2
-
-/* CBI Accept Device-Specific Command request */
-#define USB_CBI_ADSC_REQUEST		0x00
-
-
 /* Length of a SCSI Command Data Block */
 #define MAX_COMMAND_SIZE	16
 
@@ -385,41 +373,6 @@ static struct usb_ss_ep_comp_descriptor fsg_ss_bulk_out_comp_desc = {
 	/*.bMaxBurst =		DYNAMIC, */
 };
 
-static __maybe_unused struct usb_ext_cap_descriptor fsg_ext_cap_desc = {
-	.bLength =		USB_DT_USB_EXT_CAP_SIZE,
-	.bDescriptorType =	USB_DT_DEVICE_CAPABILITY,
-	.bDevCapabilityType =	USB_CAP_TYPE_EXT,
-
-	.bmAttributes =		cpu_to_le32(USB_LPM_SUPPORT),
-};
-
-static __maybe_unused struct usb_ss_cap_descriptor fsg_ss_cap_desc = {
-	.bLength =		USB_DT_USB_SS_CAP_SIZE,
-	.bDescriptorType =	USB_DT_DEVICE_CAPABILITY,
-	.bDevCapabilityType =	USB_SS_CAP_TYPE,
-
-	/* .bmAttributes = LTM is not supported yet */
-
-	.wSpeedSupported =	cpu_to_le16(USB_LOW_SPEED_OPERATION
-		| USB_FULL_SPEED_OPERATION
-		| USB_HIGH_SPEED_OPERATION
-		| USB_5GBPS_OPERATION),
-	.bFunctionalitySupport = USB_LOW_SPEED_OPERATION,
-	.bU1devExitLat =	USB_DEFAULT_U1_DEV_EXIT_LAT,
-	.bU2DevExitLat =	cpu_to_le16(USB_DEFAULT_U2_DEV_EXIT_LAT),
-};
-
-static __maybe_unused struct usb_bos_descriptor fsg_bos_desc = {
-	.bLength =		USB_DT_BOS_SIZE,
-	.bDescriptorType =	USB_DT_BOS,
-
-	.wTotalLength =		cpu_to_le16(USB_DT_BOS_SIZE
-				+ USB_DT_USB_EXT_CAP_SIZE
-				+ USB_DT_USB_SS_CAP_SIZE),
-
-	.bNumDeviceCaps =	2,
-};
-
 static struct usb_descriptor_header *fsg_ss_function[] = {
 	(struct usb_descriptor_header *) &fsg_intf_desc,
 	(struct usb_descriptor_header *) &fsg_ss_bulk_in_desc,
@@ -428,20 +381,6 @@ static struct usb_descriptor_header *fsg_ss_function[] = {
 	(struct usb_descriptor_header *) &fsg_ss_bulk_out_comp_desc,
 	NULL,
 };
-
-/* Maxpacket and other transfer characteristics vary by speed. */
-static __maybe_unused struct usb_endpoint_descriptor *
-fsg_ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
-		struct usb_endpoint_descriptor *hs,
-		struct usb_endpoint_descriptor *ss)
-{
-	if (gadget_is_superspeed(g) && g->speed == USB_SPEED_SUPER)
-		return ss;
-	else if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
-		return hs;
-	return fs;
-}
-
 
 /* Static strings, in UTF-8 (for simplicity we use only ASCII characters) */
 static struct usb_string		fsg_strings[] = {
@@ -501,7 +440,7 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	if (!(filp->f_mode & FMODE_WRITE))
 		ro = 1;
 
-	inode = filp->f_path.dentry->d_inode;
+	inode = file_inode(filp);
 	if ((!S_ISREG(inode->i_mode) && !S_ISBLK(inode->i_mode))) {
 		LINFO(curlun, "invalid file type: %s\n", filename);
 		goto out;

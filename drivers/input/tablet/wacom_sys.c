@@ -553,10 +553,10 @@ static int wacom_set_device_mode(struct usb_interface *intf, int report_id, int 
 	if (!rep_data)
 		return error;
 
-	rep_data[0] = report_id;
-	rep_data[1] = mode;
-
 	do {
+		rep_data[0] = report_id;
+		rep_data[1] = mode;
+
 		error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
 		                         report_id, rep_data, length, 1);
 		if (error >= 0)

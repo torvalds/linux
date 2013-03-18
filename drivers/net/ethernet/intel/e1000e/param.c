@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -53,8 +53,7 @@ MODULE_PARM_DESC(copybreak,
  */
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
 #define E1000_PARAM(X, desc)					\
-	static int X[E1000_MAX_NIC+1]		\
-		= E1000_PARAM_INIT;				\
+	static int X[E1000_MAX_NIC+1] = E1000_PARAM_INIT;	\
 	static unsigned int num_##X;				\
 	module_param_array_named(X, X, int, &num_##X, 0);	\
 	MODULE_PARM_DESC(X, desc);
@@ -447,8 +446,7 @@ void e1000e_check_options(struct e1000_adapter *adapter)
 		if (num_SmartPowerDownEnable > bd) {
 			unsigned int spd = SmartPowerDownEnable[bd];
 			e1000_validate_option(&spd, &opt, adapter);
-			if ((adapter->flags & FLAG_HAS_SMART_POWER_DOWN)
-			    && spd)
+			if ((adapter->flags & FLAG_HAS_SMART_POWER_DOWN) && spd)
 				adapter->flags |= FLAG_SMART_POWER_DOWN;
 		}
 	}

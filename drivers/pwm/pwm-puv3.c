@@ -123,9 +123,9 @@ static int pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	puv3->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (puv3->base == NULL)
-		return -EADDRNOTAVAIL;
+	puv3->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(puv3->base))
+		return PTR_ERR(puv3->base);
 
 	puv3->chip.dev = &pdev->dev;
 	puv3->chip.ops = &puv3_pwm_ops;

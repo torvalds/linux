@@ -354,8 +354,8 @@ static inline unsigned int step_time_from_reg(u8 reg, u8 mode)
 
 static inline u8 step_time_to_reg(unsigned int msec, u8 mode)
 {
-	return SENSORS_LIMIT((mode ? (msec + 50) / 100 :
-						(msec + 200) / 400), 1, 255);
+	return clamp_val((mode ? (msec + 50) / 100 : (msec + 200) / 400),
+			 1, 255);
 }
 
 static unsigned int fan_from_reg8(u16 reg, unsigned int divreg)
@@ -414,8 +414,7 @@ static inline long in_from_reg(u8 reg, u8 nr, const u16 *scale_in)
 
 static inline u8 in_to_reg(u32 val, u8 nr, const u16 *scale_in)
 {
-	return SENSORS_LIMIT(DIV_ROUND_CLOSEST(val * 100, scale_in[nr]), 0,
-			     255);
+	return clamp_val(DIV_ROUND_CLOSEST(val * 100, scale_in[nr]), 0, 255);
 }
 
 /*
@@ -1267,7 +1266,7 @@ store_temp_offset(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(DIV_ROUND_CLOSEST(val, 1000), -128, 127);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), -128, 127);
 
 	mutex_lock(&data->update_lock);
 	data->temp_offset[nr] = val;
@@ -1435,7 +1434,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm[nr] = val;
@@ -1514,7 +1513,7 @@ store_target_temp(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(DIV_ROUND_CLOSEST(val, 1000), 0, 127);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 0, 127);
 
 	mutex_lock(&data->update_lock);
 	data->target_temp[nr] = val;
@@ -1540,7 +1539,7 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	/* Limit the temp to 0C - 15C */
-	val = SENSORS_LIMIT(DIV_ROUND_CLOSEST(val, 1000), 0, 15);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 0, 15);
 
 	mutex_lock(&data->update_lock);
 	if (sio_data->kind == nct6775 || sio_data->kind == nct6776) {
@@ -1639,7 +1638,7 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	err = kstrtoul(buf, 10, &val); \
 	if (err < 0) \
 		return err; \
-	val = SENSORS_LIMIT(val, 1, 255); \
+	val = clamp_val(val, 1, 255); \
 	mutex_lock(&data->update_lock); \
 	data->reg[nr] = val; \
 	w83627ehf_write_value(data, data->REG_##REG[nr], val); \

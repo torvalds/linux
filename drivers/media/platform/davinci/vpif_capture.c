@@ -411,7 +411,7 @@ static struct vb2_ops video_qops = {
  */
 static void vpif_process_buffer_complete(struct common_obj *common)
 {
-	do_gettimeofday(&common->cur_frm->vb.v4l2_buf.timestamp);
+	v4l2_get_timestamp(&common->cur_frm->vb.v4l2_buf.timestamp);
 	vb2_buffer_done(&common->cur_frm->vb,
 					    VB2_BUF_STATE_DONE);
 	/* Make curFrm pointing to nextFrm */

@@ -24,6 +24,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 #include <linux/clockchips.h>
+#include <linux/clk/tegra.h>
 
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
@@ -32,7 +33,6 @@
 
 #include "pm.h"
 #include "sleep.h"
-#include "tegra_cpu_car.h"
 
 #ifdef CONFIG_PM_SLEEP
 static int tegra30_idle_lp2(struct cpuidle_device *dev,
@@ -121,9 +121,9 @@ static inline bool tegra30_cpu_core_power_down(struct cpuidle_device *dev,
 }
 #endif
 
-static int __cpuinit tegra30_idle_lp2(struct cpuidle_device *dev,
-				      struct cpuidle_driver *drv,
-				      int index)
+static int tegra30_idle_lp2(struct cpuidle_device *dev,
+			    struct cpuidle_driver *drv,
+			    int index)
 {
 	u32 cpu = is_smp() ? cpu_logical_map(dev->cpu) : dev->cpu;
 	bool entered_lp2 = false;

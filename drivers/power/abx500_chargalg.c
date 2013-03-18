@@ -33,9 +33,6 @@
 /* End-of-charge criteria counter */
 #define EOC_COND_CNT			10
 
-/* Recharge criteria counter */
-#define RCH_COND_CNT			3
-
 #define to_abx500_chargalg_device_info(x) container_of((x), \
 	struct abx500_chargalg, chargalg_psy);
 
@@ -196,7 +193,6 @@ enum maxim_ret {
  * @dev:		pointer to the structure device
  * @charge_status:	battery operating status
  * @eoc_cnt:		counter used to determine end-of_charge
- * @rch_cnt:		counter used to determine start of recharge
  * @maintenance_chg:	indicate if maintenance charge is active
  * @t_hyst_norm		temperature hysteresis when the temperature has been
  *			over or under normal limits
@@ -207,7 +203,7 @@ enum maxim_ret {
  * @chg_info:		information about connected charger types
  * @batt_data:		data of the battery
  * @susp_status:	current charger suspension status
- * @bat:		pointer to the abx500_bm platform data
+ * @bm:           	Platform specific battery management information
  * @chargalg_psy:	structure that holds the battery properties exposed by
  *			the charging algorithm
  * @events:		structure for information about events triggered
@@ -223,7 +219,6 @@ struct abx500_chargalg {
 	struct device *dev;
 	int charge_status;
 	int eoc_cnt;
-	int rch_cnt;
 	bool maintenance_chg;
 	int t_hyst_norm;
 	int t_hyst_lowhigh;
@@ -232,7 +227,7 @@ struct abx500_chargalg {
 	struct abx500_chargalg_charger_info chg_info;
 	struct abx500_chargalg_battery_data batt_data;
 	struct abx500_chargalg_suspension_status susp_status;
-	struct abx500_bm_data *bat;
+	struct abx500_bm_data *bm;
 	struct power_supply chargalg_psy;
 	struct ux500_charger *ac_chg;
 	struct ux500_charger *usb_chg;
@@ -367,13 +362,13 @@ static void abx500_chargalg_start_safety_timer(struct abx500_chargalg *di)
 	case AC_CHG:
 		timer_expiration =
 		round_jiffies(jiffies +
-			(di->bat->main_safety_tmr_h * 3600 * HZ));
+			(di->bm->main_safety_tmr_h * 3600 * HZ));
 		break;
 
 	case USB_CHG:
 		timer_expiration =
 		round_jiffies(jiffies +
-			(di->bat->usb_safety_tmr_h * 3600 * HZ));
+			(di->bm->usb_safety_tmr_h * 3600 * HZ));
 		break;
 
 	default:
@@ -450,8 +445,18 @@ static int abx500_chargalg_kick_watchdog(struct abx500_chargalg *di)
 {
 	/* Check if charger exists and kick watchdog if charging */
 	if (di->ac_chg && di->ac_chg->ops.kick_wd &&
-			di->chg_info.online_chg & AC_CHG)
+	    di->chg_info.online_chg & AC_CHG) {
+		/*
+		 * If AB charger watchdog expired, pm2xxx charging
+		 * gets disabled. To be safe, kick both AB charger watchdog
+		 * and pm2xxx watchdog.
+		 */
+		if (di->ac_chg->external &&
+		    di->usb_chg && di->usb_chg->ops.kick_wd)
+			di->usb_chg->ops.kick_wd(di->usb_chg);
+
 		return di->ac_chg->ops.kick_wd(di->ac_chg);
+	}
 	else if (di->usb_chg && di->usb_chg->ops.kick_wd &&
 			di->chg_info.online_chg & USB_CHG)
 		return di->usb_chg->ops.kick_wd(di->usb_chg);
@@ -608,6 +613,8 @@ static void abx500_chargalg_hold_charging(struct abx500_chargalg *di)
 static void abx500_chargalg_start_charging(struct abx500_chargalg *di,
 	int vset, int iset)
 {
+	bool start_chargalg_wd = true;
+
 	switch (di->chg_info.charger_type) {
 	case AC_CHG:
 		dev_dbg(di->dev,
@@ -625,8 +632,12 @@ static void abx500_chargalg_start_charging(struct abx500_chargalg *di,
 
 	default:
 		dev_err(di->dev, "Unknown charger to charge from\n");
+		start_chargalg_wd = false;
 		break;
 	}
+
+	if (start_chargalg_wd && !delayed_work_pending(&di->chargalg_wd_work))
+		queue_delayed_work(di->chargalg_wq, &di->chargalg_wd_work, 0);
 }
 
 /**
@@ -638,32 +649,32 @@ static void abx500_chargalg_start_charging(struct abx500_chargalg *di,
  */
 static void abx500_chargalg_check_temp(struct abx500_chargalg *di)
 {
-	if (di->batt_data.temp > (di->bat->temp_low + di->t_hyst_norm) &&
-		di->batt_data.temp < (di->bat->temp_high - di->t_hyst_norm)) {
+	if (di->batt_data.temp > (di->bm->temp_low + di->t_hyst_norm) &&
+		di->batt_data.temp < (di->bm->temp_high - di->t_hyst_norm)) {
 		/* Temp OK! */
 		di->events.btemp_underover = false;
 		di->events.btemp_lowhigh = false;
 		di->t_hyst_norm = 0;
 		di->t_hyst_lowhigh = 0;
 	} else {
-		if (((di->batt_data.temp >= di->bat->temp_high) &&
+		if (((di->batt_data.temp >= di->bm->temp_high) &&
 			(di->batt_data.temp <
-				(di->bat->temp_over - di->t_hyst_lowhigh))) ||
+				(di->bm->temp_over - di->t_hyst_lowhigh))) ||
 			((di->batt_data.temp >
-				(di->bat->temp_under + di->t_hyst_lowhigh)) &&
-			(di->batt_data.temp <= di->bat->temp_low))) {
+				(di->bm->temp_under + di->t_hyst_lowhigh)) &&
+			(di->batt_data.temp <= di->bm->temp_low))) {
 			/* TEMP minor!!!!! */
 			di->events.btemp_underover = false;
 			di->events.btemp_lowhigh = true;
-			di->t_hyst_norm = di->bat->temp_hysteresis;
+			di->t_hyst_norm = di->bm->temp_hysteresis;
 			di->t_hyst_lowhigh = 0;
-		} else if (di->batt_data.temp <= di->bat->temp_under ||
-			di->batt_data.temp >= di->bat->temp_over) {
+		} else if (di->batt_data.temp <= di->bm->temp_under ||
+			di->batt_data.temp >= di->bm->temp_over) {
 			/* TEMP major!!!!! */
 			di->events.btemp_underover = true;
 			di->events.btemp_lowhigh = false;
 			di->t_hyst_norm = 0;
-			di->t_hyst_lowhigh = di->bat->temp_hysteresis;
+			di->t_hyst_lowhigh = di->bm->temp_hysteresis;
 		} else {
 		/* Within hysteresis */
 		dev_dbg(di->dev, "Within hysteresis limit temp: %d "
@@ -682,12 +693,12 @@ static void abx500_chargalg_check_temp(struct abx500_chargalg *di)
  */
 static void abx500_chargalg_check_charger_voltage(struct abx500_chargalg *di)
 {
-	if (di->chg_info.usb_volt > di->bat->chg_params->usb_volt_max)
+	if (di->chg_info.usb_volt > di->bm->chg_params->usb_volt_max)
 		di->chg_info.usb_chg_ok = false;
 	else
 		di->chg_info.usb_chg_ok = true;
 
-	if (di->chg_info.ac_volt > di->bat->chg_params->ac_volt_max)
+	if (di->chg_info.ac_volt > di->bm->chg_params->ac_volt_max)
 		di->chg_info.ac_chg_ok = false;
 	else
 		di->chg_info.ac_chg_ok = true;
@@ -707,10 +718,10 @@ static void abx500_chargalg_end_of_charge(struct abx500_chargalg *di)
 	if (di->charge_status == POWER_SUPPLY_STATUS_CHARGING &&
 		di->charge_state == STATE_NORMAL &&
 		!di->maintenance_chg && (di->batt_data.volt >=
-		di->bat->bat_type[di->bat->batt_id].termination_vol ||
+		di->bm->bat_type[di->bm->batt_id].termination_vol ||
 		di->events.usb_cv_active || di->events.ac_cv_active) &&
 		di->batt_data.avg_curr <
-		di->bat->bat_type[di->bat->batt_id].termination_curr &&
+		di->bm->bat_type[di->bm->batt_id].termination_curr &&
 		di->batt_data.avg_curr > 0) {
 		if (++di->eoc_cnt >= EOC_COND_CNT) {
 			di->eoc_cnt = 0;
@@ -733,12 +744,12 @@ static void abx500_chargalg_end_of_charge(struct abx500_chargalg *di)
 static void init_maxim_chg_curr(struct abx500_chargalg *di)
 {
 	di->ccm.original_iset =
-		di->bat->bat_type[di->bat->batt_id].normal_cur_lvl;
+		di->bm->bat_type[di->bm->batt_id].normal_cur_lvl;
 	di->ccm.current_iset =
-		di->bat->bat_type[di->bat->batt_id].normal_cur_lvl;
-	di->ccm.test_delta_i = di->bat->maxi->charger_curr_step;
-	di->ccm.max_current = di->bat->maxi->chg_curr;
-	di->ccm.condition_cnt = di->bat->maxi->wait_cycles;
+		di->bm->bat_type[di->bm->batt_id].normal_cur_lvl;
+	di->ccm.test_delta_i = di->bm->maxi->charger_curr_step;
+	di->ccm.max_current = di->bm->maxi->chg_curr;
+	di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
 	di->ccm.level = 0;
 }
 
@@ -755,7 +766,7 @@ static enum maxim_ret abx500_chargalg_chg_curr_maxim(struct abx500_chargalg *di)
 {
 	int delta_i;
 
-	if (!di->bat->maxi->ena_maxi)
+	if (!di->bm->maxi->ena_maxi)
 		return MAXIM_RET_NOACTION;
 
 	delta_i = di->ccm.original_iset - di->batt_data.inst_curr;
@@ -766,7 +777,7 @@ static enum maxim_ret abx500_chargalg_chg_curr_maxim(struct abx500_chargalg *di)
 		if (di->ccm.wait_cnt == 0) {
 			dev_dbg(di->dev, "lowering current\n");
 			di->ccm.wait_cnt++;
-			di->ccm.condition_cnt = di->bat->maxi->wait_cycles;
+			di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
 			di->ccm.max_current =
 				di->ccm.current_iset - di->ccm.test_delta_i;
 			di->ccm.current_iset = di->ccm.max_current;
@@ -791,7 +802,7 @@ static enum maxim_ret abx500_chargalg_chg_curr_maxim(struct abx500_chargalg *di)
 		if (di->ccm.current_iset == di->ccm.original_iset)
 			return MAXIM_RET_NOACTION;
 
-		di->ccm.condition_cnt = di->bat->maxi->wait_cycles;
+		di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
 		di->ccm.current_iset = di->ccm.original_iset;
 		di->ccm.level = 0;
 
@@ -803,7 +814,7 @@ static enum maxim_ret abx500_chargalg_chg_curr_maxim(struct abx500_chargalg *di)
 		di->ccm.max_current) {
 		if (di->ccm.condition_cnt-- == 0) {
 			/* Increse the iset with cco.test_delta_i */
-			di->ccm.condition_cnt = di->bat->maxi->wait_cycles;
+			di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
 			di->ccm.current_iset += di->ccm.test_delta_i;
 			di->ccm.level++;
 			dev_dbg(di->dev, " Maximization needed, increase"
@@ -818,7 +829,7 @@ static enum maxim_ret abx500_chargalg_chg_curr_maxim(struct abx500_chargalg *di)
 			return MAXIM_RET_NOACTION;
 		}
 	}  else {
-		di->ccm.condition_cnt = di->bat->maxi->wait_cycles;
+		di->ccm.condition_cnt = di->bm->maxi->wait_cycles;
 		return MAXIM_RET_NOACTION;
 	}
 }
@@ -838,7 +849,7 @@ static void handle_maxim_chg_curr(struct abx500_chargalg *di)
 		break;
 	case MAXIM_RET_IBAT_TOO_HIGH:
 		result = abx500_chargalg_update_chg_curr(di,
-			di->bat->bat_type[di->bat->batt_id].normal_cur_lvl);
+			di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
 		if (result)
 			dev_err(di->dev, "failed to set chg curr\n");
 		break;
@@ -858,6 +869,7 @@ static int abx500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 	union power_supply_propval ret;
 	int i, j;
 	bool psy_found = false;
+	bool capacity_updated = false;
 
 	psy = (struct power_supply *)data;
 	ext = dev_get_drvdata(dev);
@@ -869,6 +881,16 @@ static int abx500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 	}
 	if (!psy_found)
 		return 0;
+
+	/*
+	 *  If external is not registering 'POWER_SUPPLY_PROP_CAPACITY' to its
+	 * property because of handling that sysfs entry on its own, this is
+	 * the place to get the battery capacity.
+	 */
+	if (!ext->get_property(ext, POWER_SUPPLY_PROP_CAPACITY, &ret)) {
+		di->batt_data.percent = ret.intval;
+		capacity_updated = true;
+	}
 
 	/* Go through all properties for the psy */
 	for (j = 0; j < ext->num_properties; j++) {
@@ -1154,7 +1176,8 @@ static int abx500_chargalg_get_ext_psy_data(struct device *dev, void *data)
 			}
 			break;
 		case POWER_SUPPLY_PROP_CAPACITY:
-			di->batt_data.percent = ret.intval;
+			if (!capacity_updated)
+				di->batt_data.percent = ret.intval;
 			break;
 		default:
 			break;
@@ -1210,7 +1233,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	 * this way
 	 */
 	if (!charger_status ||
-		(di->events.batt_unknown && !di->bat->chg_unknown_bat)) {
+		(di->events.batt_unknown && !di->bm->chg_unknown_bat)) {
 		if (di->charge_state != STATE_HANDHELD) {
 			di->events.safety_timer_expired = false;
 			abx500_chargalg_state_to(di, STATE_HANDHELD_INIT);
@@ -1394,8 +1417,8 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 
 	case STATE_NORMAL_INIT:
 		abx500_chargalg_start_charging(di,
-			di->bat->bat_type[di->bat->batt_id].normal_vol_lvl,
-			di->bat->bat_type[di->bat->batt_id].normal_cur_lvl);
+			di->bm->bat_type[di->bm->batt_id].normal_vol_lvl,
+			di->bm->bat_type[di->bm->batt_id].normal_cur_lvl);
 		abx500_chargalg_state_to(di, STATE_NORMAL);
 		abx500_chargalg_start_safety_timer(di);
 		abx500_chargalg_stop_maintenance_timer(di);
@@ -1411,7 +1434,7 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 		handle_maxim_chg_curr(di);
 		if (di->charge_status == POWER_SUPPLY_STATUS_FULL &&
 			di->maintenance_chg) {
-			if (di->bat->no_maintenance)
+			if (di->bm->no_maintenance)
 				abx500_chargalg_state_to(di,
 					STATE_WAIT_FOR_RECHARGE_INIT);
 			else
@@ -1424,28 +1447,25 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 	case STATE_WAIT_FOR_RECHARGE_INIT:
 		abx500_chargalg_hold_charging(di);
 		abx500_chargalg_state_to(di, STATE_WAIT_FOR_RECHARGE);
-		di->rch_cnt = RCH_COND_CNT;
 		/* Intentional fallthrough */
 
 	case STATE_WAIT_FOR_RECHARGE:
-		if (di->batt_data.volt <=
-			di->bat->bat_type[di->bat->batt_id].recharge_vol) {
-			if (di->rch_cnt-- == 0)
-				abx500_chargalg_state_to(di, STATE_NORMAL_INIT);
-		} else
-			di->rch_cnt = RCH_COND_CNT;
+		if (di->batt_data.percent <=
+		    di->bm->bat_type[di->bm->batt_id].
+		    recharge_cap)
+			abx500_chargalg_state_to(di, STATE_NORMAL_INIT);
 		break;
 
 	case STATE_MAINTENANCE_A_INIT:
 		abx500_chargalg_stop_safety_timer(di);
 		abx500_chargalg_start_maintenance_timer(di,
-			di->bat->bat_type[
-				di->bat->batt_id].maint_a_chg_timer_h);
+			di->bm->bat_type[
+				di->bm->batt_id].maint_a_chg_timer_h);
 		abx500_chargalg_start_charging(di,
-			di->bat->bat_type[
-				di->bat->batt_id].maint_a_vol_lvl,
-			di->bat->bat_type[
-				di->bat->batt_id].maint_a_cur_lvl);
+			di->bm->bat_type[
+				di->bm->batt_id].maint_a_vol_lvl,
+			di->bm->bat_type[
+				di->bm->batt_id].maint_a_cur_lvl);
 		abx500_chargalg_state_to(di, STATE_MAINTENANCE_A);
 		power_supply_changed(&di->chargalg_psy);
 		/* Intentional fallthrough*/
@@ -1459,13 +1479,13 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 
 	case STATE_MAINTENANCE_B_INIT:
 		abx500_chargalg_start_maintenance_timer(di,
-			di->bat->bat_type[
-				di->bat->batt_id].maint_b_chg_timer_h);
+			di->bm->bat_type[
+				di->bm->batt_id].maint_b_chg_timer_h);
 		abx500_chargalg_start_charging(di,
-			di->bat->bat_type[
-				di->bat->batt_id].maint_b_vol_lvl,
-			di->bat->bat_type[
-				di->bat->batt_id].maint_b_cur_lvl);
+			di->bm->bat_type[
+				di->bm->batt_id].maint_b_vol_lvl,
+			di->bm->bat_type[
+				di->bm->batt_id].maint_b_cur_lvl);
 		abx500_chargalg_state_to(di, STATE_MAINTENANCE_B);
 		power_supply_changed(&di->chargalg_psy);
 		/* Intentional fallthrough*/
@@ -1479,10 +1499,10 @@ static void abx500_chargalg_algorithm(struct abx500_chargalg *di)
 
 	case STATE_TEMP_LOWHIGH_INIT:
 		abx500_chargalg_start_charging(di,
-			di->bat->bat_type[
-				di->bat->batt_id].low_high_vol_lvl,
-			di->bat->bat_type[
-				di->bat->batt_id].low_high_cur_lvl);
+			di->bm->bat_type[
+				di->bm->batt_id].low_high_vol_lvl,
+			di->bm->bat_type[
+				di->bm->batt_id].low_high_cur_lvl);
 		abx500_chargalg_stop_maintenance_timer(di);
 		di->charge_status = POWER_SUPPLY_STATUS_CHARGING;
 		abx500_chargalg_state_to(di, STATE_TEMP_LOWHIGH);
@@ -1543,11 +1563,11 @@ static void abx500_chargalg_periodic_work(struct work_struct *work)
 	if (di->chg_info.conn_chg)
 		queue_delayed_work(di->chargalg_wq,
 			&di->chargalg_periodic_work,
-			di->bat->interval_charging * HZ);
+			di->bm->interval_charging * HZ);
 	else
 		queue_delayed_work(di->chargalg_wq,
 			&di->chargalg_periodic_work,
-			di->bat->interval_not_charging * HZ);
+			di->bm->interval_not_charging * HZ);
 }
 
 /**
@@ -1614,10 +1634,13 @@ static int abx500_chargalg_get_property(struct power_supply *psy,
 		if (di->events.batt_ovv) {
 			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
 		} else if (di->events.btemp_underover) {
-			if (di->batt_data.temp <= di->bat->temp_under)
+			if (di->batt_data.temp <= di->bm->temp_under)
 				val->intval = POWER_SUPPLY_HEALTH_COLD;
 			else
 				val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+		} else if (di->charge_state == STATE_SAFETY_TIMER_EXPIRED ||
+			   di->charge_state == STATE_SAFETY_TIMER_EXPIRED_INIT) {
+			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 		} else {
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		}
@@ -1629,6 +1652,25 @@ static int abx500_chargalg_get_property(struct power_supply *psy,
 }
 
 /* Exposure to the sysfs interface */
+
+/**
+ * abx500_chargalg_sysfs_show() - sysfs show operations
+ * @kobj:      pointer to the struct kobject
+ * @attr:      pointer to the struct attribute
+ * @buf:       buffer that holds the parameter to send to userspace
+ *
+ * Returns a buffer to be displayed in user space
+ */
+static ssize_t abx500_chargalg_sysfs_show(struct kobject *kobj,
+					  struct attribute *attr, char *buf)
+{
+	struct abx500_chargalg *di = container_of(kobj,
+               struct abx500_chargalg, chargalg_kobject);
+
+	return sprintf(buf, "%d\n",
+		       di->susp_status.ac_suspended &&
+		       di->susp_status.usb_suspended);
+}
 
 /**
  * abx500_chargalg_sysfs_charger() - sysfs store operations
@@ -1698,7 +1740,7 @@ static ssize_t abx500_chargalg_sysfs_charger(struct kobject *kobj,
 static struct attribute abx500_chargalg_en_charger = \
 {
 	.name = "chargalg",
-	.mode = S_IWUGO,
+	.mode = S_IRUGO | S_IWUSR,
 };
 
 static struct attribute *abx500_chargalg_chg[] = {
@@ -1707,6 +1749,7 @@ static struct attribute *abx500_chargalg_chg[] = {
 };
 
 static const struct sysfs_ops abx500_chargalg_sysfs_ops = {
+	.show = abx500_chargalg_sysfs_show,
 	.store = abx500_chargalg_sysfs_charger,
 };
 
@@ -1806,6 +1849,7 @@ static char *supply_interface[] = {
 static int abx500_chargalg_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	struct abx500_bm_data *plat = pdev->dev.platform_data;
 	struct abx500_chargalg *di;
 	int ret = 0;
 
@@ -1814,21 +1858,19 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s no mem for ab8500_chargalg\n", __func__);
 		return -ENOMEM;
 	}
-	di->bat = pdev->mfd_cell->platform_data;
-	if (!di->bat) {
-		if (np) {
-			ret = bmdevs_of_probe(&pdev->dev, np, &di->bat);
-			if (ret) {
-				dev_err(&pdev->dev,
-					"failed to get battery information\n");
-				return ret;
-			}
-		} else {
-			dev_err(&pdev->dev, "missing dt node for ab8500_chargalg\n");
-			return -EINVAL;
+
+	if (!plat) {
+		dev_err(&pdev->dev, "no battery management data supplied\n");
+		return -EINVAL;
+	}
+	di->bm = plat;
+
+	if (np) {
+		ret = ab8500_bm_of_probe(&pdev->dev, np, di->bm);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get battery information\n");
+			return ret;
 		}
-	} else {
-		dev_info(&pdev->dev, "falling back to legacy platform data\n");
 	}
 
 	/* get device struct */

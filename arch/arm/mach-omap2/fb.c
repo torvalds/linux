@@ -89,7 +89,7 @@ static int __init omap_init_vrfb(void)
 		return 0;
 }
 
-arch_initcall(omap_init_vrfb);
+omap_arch_initcall(omap_init_vrfb);
 #endif
 
 #if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
@@ -113,6 +113,6 @@ static int __init omap_init_fb(void)
 	return platform_device_register(&omap_fb_device);
 }
 
-arch_initcall(omap_init_fb);
+omap_arch_initcall(omap_init_fb);
 
 #endif

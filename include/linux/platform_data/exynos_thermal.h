@@ -53,6 +53,8 @@ struct freq_clip_table {
  * struct exynos_tmu_platform_data
  * @threshold: basic temperature for generating interrupt
  *	       25 <= threshold <= 125 [unit: degree Celsius]
+ * @threshold_falling: differntial value for setting threshold
+ *		       of temperature falling interrupt.
  * @trigger_levels: array for each interrupt levels
  *	[unit: degree Celsius]
  *	0: temperature for trigger_level0 interrupt
@@ -97,6 +99,7 @@ struct freq_clip_table {
  */
 struct exynos_tmu_platform_data {
 	u8 threshold;
+	u8 threshold_falling;
 	u8 trigger_levels[4];
 	bool trigger_level0_en;
 	bool trigger_level1_en;

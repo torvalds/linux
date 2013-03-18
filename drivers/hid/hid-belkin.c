@@ -86,17 +86,6 @@ static struct hid_driver belkin_driver = {
 	.input_mapping = belkin_input_mapping,
 	.probe = belkin_probe,
 };
+module_hid_driver(belkin_driver);
 
-static int __init belkin_init(void)
-{
-	return hid_register_driver(&belkin_driver);
-}
-
-static void __exit belkin_exit(void)
-{
-	hid_unregister_driver(&belkin_driver);
-}
-
-module_init(belkin_init);
-module_exit(belkin_exit);
 MODULE_LICENSE("GPL");

@@ -217,17 +217,13 @@ int __init orion5x_find_tclk(void)
 	return 166666667;
 }
 
-static void __init orion5x_timer_init(void)
+void __init orion5x_timer_init(void)
 {
 	orion5x_tclk = orion5x_find_tclk();
 
 	orion_time_init(ORION5X_BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_ORION5X_BRIDGE, orion5x_tclk);
 }
-
-struct sys_timer orion5x_timer = {
-	.init = orion5x_timer_init,
-};
 
 
 /*****************************************************************************

@@ -21,7 +21,7 @@ static unsigned int max_display_count;
 #define LCD_SETDDRAM			0x80
 #define LCD_IR_BF			0x80
 
-const char display_string[] = "               LINUX ON SEAD3               ";
+const char display_string[] = "		      LINUX ON SEAD3		   ";
 
 static void scroll_display_message(unsigned long data);
 static DEFINE_TIMER(mips_scroll_timer, scroll_display_message, HZ, 0);

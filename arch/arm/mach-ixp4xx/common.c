@@ -307,10 +307,6 @@ void __init ixp4xx_timer_init(void)
 	ixp4xx_clockevent_init();
 }
 
-struct sys_timer ixp4xx_timer = {
-	.init		= ixp4xx_timer_init,
-};
-
 static struct pxa2xx_udc_mach_info ixp4xx_udc_info;
 
 void __init ixp4xx_set_udc_info(struct pxa2xx_udc_mach_info *info)
@@ -523,22 +519,15 @@ static struct clock_event_device clockevent_ixp4xx = {
 	.name		= "ixp4xx timer1",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.rating         = 200,
-	.shift		= 24,
 	.set_mode	= ixp4xx_set_mode,
 	.set_next_event	= ixp4xx_set_next_event,
 };
 
 static void __init ixp4xx_clockevent_init(void)
 {
-	clockevent_ixp4xx.mult = div_sc(IXP4XX_TIMER_FREQ, NSEC_PER_SEC,
-					clockevent_ixp4xx.shift);
-	clockevent_ixp4xx.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &clockevent_ixp4xx);
-	clockevent_ixp4xx.min_delta_ns =
-		clockevent_delta2ns(0xf, &clockevent_ixp4xx);
 	clockevent_ixp4xx.cpumask = cpumask_of(0);
-
-	clockevents_register_device(&clockevent_ixp4xx);
+	clockevents_config_and_register(&clockevent_ixp4xx, IXP4XX_TIMER_FREQ,
+					0xf, 0xfffffffe);
 }
 
 void ixp4xx_restart(char mode, const char *cmd)

@@ -51,11 +51,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include "mite.h"
+#include <linux/pci.h>
 
-#include "comedi_fc.h"
 #include "../comedidev.h"
 
+#include "comedi_fc.h"
+#include "mite.h"
 
 #define PCI_MITE_SIZE		4096
 #define PCI_DAQ_SIZE		4096

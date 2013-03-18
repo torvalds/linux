@@ -1178,20 +1178,6 @@ static void xen_exit_mmap(struct mm_struct *mm)
 
 static void xen_post_allocator_init(void);
 
-static __init void xen_mapping_pagetable_reserve(u64 start, u64 end)
-{
-	/* reserve the range used */
-	native_pagetable_reserve(start, end);
-
-	/* set as RW the rest */
-	printk(KERN_DEBUG "xen: setting RW the range %llx - %llx\n", end,
-			PFN_PHYS(pgt_buf_top));
-	while (end < PFN_PHYS(pgt_buf_top)) {
-		make_lowmem_page_readwrite(__va(end));
-		end += PAGE_SIZE;
-	}
-}
-
 #ifdef CONFIG_X86_64
 static void __init xen_cleanhighmap(unsigned long vaddr,
 				    unsigned long vaddr_end)
@@ -1422,7 +1408,6 @@ static void __xen_write_cr3(bool kernel, unsigned long cr3)
 		xen_mc_callback(set_current_cr3, (void *)cr3);
 	}
 }
-
 static void xen_write_cr3(unsigned long cr3)
 {
 	BUG_ON(preemptible());
@@ -1447,6 +1432,45 @@ static void xen_write_cr3(unsigned long cr3)
 
 	xen_mc_issue(PARAVIRT_LAZY_CPU);  /* interrupts restored */
 }
+
+#ifdef CONFIG_X86_64
+/*
+ * At the start of the day - when Xen launches a guest, it has already
+ * built pagetables for the guest. We diligently look over them
+ * in xen_setup_kernel_pagetable and graft as appropiate them in the
+ * init_level4_pgt and its friends. Then when we are happy we load
+ * the new init_level4_pgt - and continue on.
+ *
+ * The generic code starts (start_kernel) and 'init_mem_mapping' sets
+ * up the rest of the pagetables. When it has completed it loads the cr3.
+ * N.B. that baremetal would start at 'start_kernel' (and the early
+ * #PF handler would create bootstrap pagetables) - so we are running
+ * with the same assumptions as what to do when write_cr3 is executed
+ * at this point.
+ *
+ * Since there are no user-page tables at all, we have two variants
+ * of xen_write_cr3 - the early bootup (this one), and the late one
+ * (xen_write_cr3). The reason we have to do that is that in 64-bit
+ * the Linux kernel and user-space are both in ring 3 while the
+ * hypervisor is in ring 0.
+ */
+static void __init xen_write_cr3_init(unsigned long cr3)
+{
+	BUG_ON(preemptible());
+
+	xen_mc_batch();  /* disables interrupts */
+
+	/* Update while interrupts are disabled, so its atomic with
+	   respect to ipis */
+	this_cpu_write(xen_cr3, cr3);
+
+	__xen_write_cr3(true, cr3);
+
+	xen_mc_issue(PARAVIRT_LAZY_CPU);  /* interrupts restored */
+
+	pv_mmu_ops.write_cr3 = &xen_write_cr3;
+}
+#endif
 
 static int xen_pgd_alloc(struct mm_struct *mm)
 {
@@ -1503,19 +1527,6 @@ static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
 #else /* CONFIG_X86_64 */
 static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
 {
-	unsigned long pfn = pte_pfn(pte);
-
-	/*
-	 * If the new pfn is within the range of the newly allocated
-	 * kernel pagetable, and it isn't being mapped into an
-	 * early_ioremap fixmap slot as a freshly allocated page, make sure
-	 * it is RO.
-	 */
-	if (((!is_early_ioremap_ptep(ptep) &&
-			pfn >= pgt_buf_start && pfn < pgt_buf_top)) ||
-			(is_early_ioremap_ptep(ptep) && pfn != (pgt_buf_end - 1)))
-		pte = pte_wrprotect(pte);
-
 	return pte;
 }
 #endif /* CONFIG_X86_64 */
@@ -2129,11 +2140,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.write_cr2 = xen_write_cr2,
 
 	.read_cr3 = xen_read_cr3,
-#ifdef CONFIG_X86_32
 	.write_cr3 = xen_write_cr3_init,
-#else
-	.write_cr3 = xen_write_cr3,
-#endif
 
 	.flush_tlb_user = xen_flush_tlb,
 	.flush_tlb_kernel = xen_flush_tlb,
@@ -2197,7 +2204,6 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 
 void __init xen_init_mmu_ops(void)
 {
-	x86_init.mapping.pagetable_reserve = xen_mapping_pagetable_reserve;
 	x86_init.paging.pagetable_init = xen_pagetable_init;
 	pv_mmu_ops = xen_mmu_ops;
 

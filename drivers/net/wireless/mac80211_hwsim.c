@@ -48,6 +48,10 @@ static int channels = 1;
 module_param(channels, int, 0444);
 MODULE_PARM_DESC(channels, "Number of concurrent channels");
 
+static bool paged_rx = false;
+module_param(paged_rx, bool, 0644);
+MODULE_PARM_DESC(paged_rx, "Use paged SKBs for RX instead of linear ones");
+
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer
  *
@@ -333,11 +337,11 @@ struct mac80211_hwsim_data {
 	int scan_chan_idx;
 
 	struct ieee80211_channel *channel;
-	unsigned long beacon_int; /* in jiffies unit */
+	u64 beacon_int	/* beacon interval in us */;
 	unsigned int rx_filter;
 	bool started, idle, scanning;
 	struct mutex mutex;
-	struct timer_list beacon_timer;
+	struct tasklet_hrtimer beacon_timer;
 	enum ps_mode {
 		PS_DISABLED, PS_ENABLED, PS_AUTO_POLL, PS_MANUAL_POLL
 	} ps;
@@ -357,7 +361,10 @@ struct mac80211_hwsim_data {
 	int power_level;
 
 	/* difference between this hw's clock and the real clock, in usecs */
-	u64 tsf_offset;
+	s64 tsf_offset;
+	s64 bcn_delta;
+	/* absolute beacon transmission time. Used to cover up "tx" delay. */
+	u64 abs_bcn_ts;
 };
 
 
@@ -405,15 +412,19 @@ static netdev_tx_t hwsim_mon_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+static inline u64 mac80211_hwsim_get_tsf_raw(void)
+{
+	return ktime_to_us(ktime_get_real());
+}
+
 static __le64 __mac80211_hwsim_get_tsf(struct mac80211_hwsim_data *data)
 {
-	struct timeval tv = ktime_to_timeval(ktime_get_real());
-	u64 now = tv.tv_sec * USEC_PER_SEC + tv.tv_usec;
+	u64 now = mac80211_hwsim_get_tsf_raw();
 	return cpu_to_le64(now + data->tsf_offset);
 }
 
 static u64 mac80211_hwsim_get_tsf(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif)
+				  struct ieee80211_vif *vif)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	return le64_to_cpu(__mac80211_hwsim_get_tsf(data));
@@ -423,9 +434,13 @@ static void mac80211_hwsim_set_tsf(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif, u64 tsf)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
-	struct timeval tv = ktime_to_timeval(ktime_get_real());
-	u64 now = tv.tv_sec * USEC_PER_SEC + tv.tv_usec;
-	data->tsf_offset = tsf - now;
+	u64 now = mac80211_hwsim_get_tsf(hw, vif);
+	u32 bcn_int = data->beacon_int;
+	s64 delta = tsf - now;
+
+	data->tsf_offset += delta;
+	/* adjust after beaconing with new timestamp at old TBTT */
+	data->bcn_delta = do_div(delta, bcn_int);
 }
 
 static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
@@ -696,7 +711,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
-	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
+	u64 now;
 
 	memset(&rx_status, 0, sizeof(rx_status));
 	rx_status.flag |= RX_FLAG_MACTIME_START;
@@ -722,11 +737,23 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	secpath_reset(skb);
 	nf_reset(skb);
 
+	/*
+	 * Get absolute mactime here so all HWs RX at the "same time", and
+	 * absolute TX time for beacon mactime so the timestamp matches.
+	 * Giving beacons a different mactime than non-beacons looks messy, but
+	 * it helps the Toffset be exact and a ~10us mactime discrepancy
+	 * probably doesn't really matter.
+	 */
+	if (ieee80211_is_beacon(hdr->frame_control) ||
+	    ieee80211_is_probe_resp(hdr->frame_control))
+		now = data->abs_bcn_ts;
+	else
+		now = mac80211_hwsim_get_tsf_raw();
+
 	/* Copy skb to all enabled radios that are on the current frequency */
 	spin_lock(&hwsim_radio_lock);
 	list_for_each_entry(data2, &hwsim_radios, list) {
 		struct sk_buff *nskb;
-		struct ieee80211_mgmt *mgmt;
 		struct tx_iter_data tx_iter_data = {
 			.receive = false,
 			.channel = chan,
@@ -755,24 +782,30 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 		 * reserve some space for our vendor and the normal
 		 * radiotap header, since we're copying anyway
 		 */
-		nskb = skb_copy_expand(skb, 64, 0, GFP_ATOMIC);
-		if (nskb == NULL)
-			continue;
+		if (skb->len < PAGE_SIZE && paged_rx) {
+			struct page *page = alloc_page(GFP_ATOMIC);
+
+			if (!page)
+				continue;
+
+			nskb = dev_alloc_skb(128);
+			if (!nskb) {
+				__free_page(page);
+				continue;
+			}
+
+			memcpy(page_address(page), skb->data, skb->len);
+			skb_add_rx_frag(nskb, 0, page, 0, skb->len, skb->len);
+		} else {
+			nskb = skb_copy(skb, GFP_ATOMIC);
+			if (!nskb)
+				continue;
+		}
 
 		if (mac80211_hwsim_addr_match(data2, hdr->addr1))
 			ack = true;
 
-		/* set bcn timestamp relative to receiver mactime */
-		rx_status.mactime =
-				le64_to_cpu(__mac80211_hwsim_get_tsf(data2));
-		mgmt = (struct ieee80211_mgmt *) nskb->data;
-		if (ieee80211_is_beacon(mgmt->frame_control) ||
-		    ieee80211_is_probe_resp(mgmt->frame_control))
-			mgmt->u.beacon.timestamp = cpu_to_le64(
-				rx_status.mactime +
-				(data->tsf_offset - data2->tsf_offset) +
-				24 * 8 * 10 / txrate->bitrate);
-
+		rx_status.mactime = now + data2->tsf_offset;
 #if 0
 		/*
 		 * Don't enable this code by default as the OUI 00:00:00
@@ -896,7 +929,7 @@ static void mac80211_hwsim_stop(struct ieee80211_hw *hw)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	data->started = false;
-	del_timer(&data->beacon_timer);
+	tasklet_hrtimer_cancel(&data->beacon_timer);
 	wiphy_debug(hw->wiphy, "%s\n", __func__);
 }
 
@@ -962,7 +995,11 @@ static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
-	struct ieee80211_hw *hw = arg;
+	struct mac80211_hwsim_data *data = arg;
+	struct ieee80211_hw *hw = data->hw;
+	struct ieee80211_tx_info *info;
+	struct ieee80211_rate *txrate;
+	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
 
 	hwsim_check_magic(vif);
@@ -975,26 +1012,48 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	skb = ieee80211_beacon_get(hw, vif);
 	if (skb == NULL)
 		return;
+	info = IEEE80211_SKB_CB(skb);
+	txrate = ieee80211_get_tx_rate(hw, info);
+
+	mgmt = (struct ieee80211_mgmt *) skb->data;
+	/* fake header transmission time */
+	data->abs_bcn_ts = mac80211_hwsim_get_tsf_raw();
+	mgmt->u.beacon.timestamp = cpu_to_le64(data->abs_bcn_ts +
+					       data->tsf_offset +
+					       24 * 8 * 10 / txrate->bitrate);
 
 	mac80211_hwsim_tx_frame(hw, skb,
 				rcu_dereference(vif->chanctx_conf)->def.chan);
 }
 
-
-static void mac80211_hwsim_beacon(unsigned long arg)
+static enum hrtimer_restart
+mac80211_hwsim_beacon(struct hrtimer *timer)
 {
-	struct ieee80211_hw *hw = (struct ieee80211_hw *) arg;
-	struct mac80211_hwsim_data *data = hw->priv;
+	struct mac80211_hwsim_data *data =
+		container_of(timer, struct mac80211_hwsim_data,
+			     beacon_timer.timer);
+	struct ieee80211_hw *hw = data->hw;
+	u64 bcn_int = data->beacon_int;
+	ktime_t next_bcn;
 
 	if (!data->started)
-		return;
+		goto out;
 
 	ieee80211_iterate_active_interfaces_atomic(
 		hw, IEEE80211_IFACE_ITER_NORMAL,
-		mac80211_hwsim_beacon_tx, hw);
+		mac80211_hwsim_beacon_tx, data);
 
-	data->beacon_timer.expires = jiffies + data->beacon_int;
-	add_timer(&data->beacon_timer);
+	/* beacon at new TBTT + beacon interval */
+	if (data->bcn_delta) {
+		bcn_int -= data->bcn_delta;
+		data->bcn_delta = 0;
+	}
+
+	next_bcn = ktime_add(hrtimer_get_expires(timer),
+			     ns_to_ktime(bcn_int * 1000));
+	tasklet_hrtimer_start(&data->beacon_timer, next_bcn, HRTIMER_MODE_ABS);
+out:
+	return HRTIMER_NORESTART;
 }
 
 static const char *hwsim_chantypes[] = {
@@ -1032,9 +1091,16 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 
 	data->power_level = conf->power_level;
 	if (!data->started || !data->beacon_int)
-		del_timer(&data->beacon_timer);
-	else
-		mod_timer(&data->beacon_timer, jiffies + data->beacon_int);
+		tasklet_hrtimer_cancel(&data->beacon_timer);
+	else if (!hrtimer_is_queued(&data->beacon_timer.timer)) {
+		u64 tsf = mac80211_hwsim_get_tsf(hw, NULL);
+		u32 bcn_int = data->beacon_int;
+		u64 until_tbtt = bcn_int - do_div(tsf, bcn_int);
+
+		tasklet_hrtimer_start(&data->beacon_timer,
+				      ns_to_ktime(until_tbtt * 1000),
+				      HRTIMER_MODE_REL);
+	}
 
 	return 0;
 }
@@ -1084,12 +1150,26 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		wiphy_debug(hw->wiphy, "  BCNINT: %d\n", info->beacon_int);
-		data->beacon_int = 1024 * info->beacon_int / 1000 * HZ / 1000;
-		if (WARN_ON(!data->beacon_int))
-			data->beacon_int = 1;
-		if (data->started)
-			mod_timer(&data->beacon_timer,
-				  jiffies + data->beacon_int);
+		data->beacon_int = info->beacon_int * 1024;
+	}
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		wiphy_debug(hw->wiphy, "  BCN EN: %d\n", info->enable_beacon);
+		if (data->started &&
+		    !hrtimer_is_queued(&data->beacon_timer.timer) &&
+		    info->enable_beacon) {
+			u64 tsf, until_tbtt;
+			u32 bcn_int;
+			if (WARN_ON(!data->beacon_int))
+				data->beacon_int = 1000 * 1024;
+			tsf = mac80211_hwsim_get_tsf(hw, vif);
+			bcn_int = data->beacon_int;
+			until_tbtt = bcn_int - do_div(tsf, bcn_int);
+			tasklet_hrtimer_start(&data->beacon_timer,
+					      ns_to_ktime(until_tbtt * 1000),
+					      HRTIMER_MODE_REL);
+		} else if (!info->enable_beacon)
+			tasklet_hrtimer_cancel(&data->beacon_timer);
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
@@ -1292,7 +1372,9 @@ static int mac80211_hwsim_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
@@ -2165,6 +2247,7 @@ static int __init init_mac80211_hwsim(void)
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);
 		hw->sta_data_size = sizeof(struct hwsim_sta_priv);
+		hw->chanctx_data_size = sizeof(struct hwsim_chanctx_priv);
 
 		memcpy(data->channels_2ghz, hwsim_channels_2ghz,
 			sizeof(hwsim_channels_2ghz));
@@ -2370,8 +2453,9 @@ static int __init init_mac80211_hwsim(void)
 							data->debugfs, data,
 							&hwsim_fops_group);
 
-		setup_timer(&data->beacon_timer, mac80211_hwsim_beacon,
-			    (unsigned long) hw);
+		tasklet_hrtimer_init(&data->beacon_timer,
+				     mac80211_hwsim_beacon,
+				     CLOCK_REALTIME, HRTIMER_MODE_ABS);
 
 		list_add_tail(&data->list, &hwsim_radios);
 	}

@@ -451,17 +451,7 @@ static struct platform_driver coh901327_driver = {
 	.resume		= coh901327_resume,
 };
 
-static int __init coh901327_init(void)
-{
-	return platform_driver_probe(&coh901327_driver, coh901327_probe);
-}
-module_init(coh901327_init);
-
-static void __exit coh901327_exit(void)
-{
-	platform_driver_unregister(&coh901327_driver);
-}
-module_exit(coh901327_exit);
+module_platform_driver_probe(coh901327_driver, coh901327_probe);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
 MODULE_DESCRIPTION("COH 901 327 Watchdog");

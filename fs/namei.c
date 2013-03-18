@@ -451,7 +451,7 @@ int inode_permission(struct inode *inode, int mask)
  *
  * Given a path increment the reference count to the dentry and the vfsmount.
  */
-void path_get(struct path *path)
+void path_get(const struct path *path)
 {
 	mntget(path->mnt);
 	dget(path->dentry);
@@ -464,7 +464,7 @@ EXPORT_SYMBOL(path_get);
  *
  * Given a path decrement the reference count to the dentry and the vfsmount.
  */
-void path_put(struct path *path)
+void path_put(const struct path *path)
 {
 	dput(path->dentry);
 	mntput(path->mnt);
@@ -600,14 +600,10 @@ static int complete_walk(struct nameidata *nd)
 	if (likely(!(nd->flags & LOOKUP_JUMPED)))
 		return 0;
 
-	if (likely(!(dentry->d_flags & DCACHE_OP_REVALIDATE)))
+	if (likely(!(dentry->d_flags & DCACHE_OP_WEAK_REVALIDATE)))
 		return 0;
 
-	if (likely(!(dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT)))
-		return 0;
-
-	/* Note: we do not d_invalidate() */
-	status = d_revalidate(dentry, nd->flags);
+	status = dentry->d_op->d_weak_revalidate(dentry, nd->flags);
 	if (status > 0)
 		return 0;
 
@@ -1342,7 +1338,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
  *  small and for now I'd prefer to have fast path as straight as possible.
  *  It _is_ time-critical.
  */
-static int lookup_fast(struct nameidata *nd, struct qstr *name,
+static int lookup_fast(struct nameidata *nd,
 		       struct path *path, struct inode **inode)
 {
 	struct vfsmount *mnt = nd->path.mnt;
@@ -1358,7 +1354,7 @@ static int lookup_fast(struct nameidata *nd, struct qstr *name,
 	 */
 	if (nd->flags & LOOKUP_RCU) {
 		unsigned seq;
-		dentry = __d_lookup_rcu(parent, name, &seq, nd->inode);
+		dentry = __d_lookup_rcu(parent, &nd->last, &seq, nd->inode);
 		if (!dentry)
 			goto unlazy;
 
@@ -1400,7 +1396,7 @@ unlazy:
 		if (unlazy_walk(nd, dentry))
 			return -ECHILD;
 	} else {
-		dentry = __d_lookup(parent, name);
+		dentry = __d_lookup(parent, &nd->last);
 	}
 
 	if (unlikely(!dentry))
@@ -1436,8 +1432,7 @@ need_lookup:
 }
 
 /* Fast lookup failed, do it the slow way */
-static int lookup_slow(struct nameidata *nd, struct qstr *name,
-		       struct path *path)
+static int lookup_slow(struct nameidata *nd, struct path *path)
 {
 	struct dentry *dentry, *parent;
 	int err;
@@ -1446,7 +1441,7 @@ static int lookup_slow(struct nameidata *nd, struct qstr *name,
 	BUG_ON(nd->inode != parent->d_inode);
 
 	mutex_lock(&parent->d_inode->i_mutex);
-	dentry = __lookup_hash(name, parent, nd->flags);
+	dentry = __lookup_hash(&nd->last, parent, nd->flags);
 	mutex_unlock(&parent->d_inode->i_mutex);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
@@ -1519,7 +1514,7 @@ static inline int should_follow_link(struct inode *inode, int follow)
 }
 
 static inline int walk_component(struct nameidata *nd, struct path *path,
-		struct qstr *name, int type, int follow)
+		int follow)
 {
 	struct inode *inode;
 	int err;
@@ -1528,14 +1523,14 @@ static inline int walk_component(struct nameidata *nd, struct path *path,
 	 * to be able to know about the current root directory and
 	 * parent relationships.
 	 */
-	if (unlikely(type != LAST_NORM))
-		return handle_dots(nd, type);
-	err = lookup_fast(nd, name, path, &inode);
+	if (unlikely(nd->last_type != LAST_NORM))
+		return handle_dots(nd, nd->last_type);
+	err = lookup_fast(nd, path, &inode);
 	if (unlikely(err)) {
 		if (err < 0)
 			goto out_err;
 
-		err = lookup_slow(nd, name, path);
+		err = lookup_slow(nd, path);
 		if (err < 0)
 			goto out_err;
 
@@ -1594,8 +1589,7 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
 		res = follow_link(&link, nd, &cookie);
 		if (res)
 			break;
-		res = walk_component(nd, path, &nd->last,
-				     nd->last_type, LOOKUP_FOLLOW);
+		res = walk_component(nd, path, LOOKUP_FOLLOW);
 		put_link(nd, &link, cookie);
 	} while (res > 0);
 
@@ -1802,8 +1796,11 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			}
 		}
 
+		nd->last = this;
+		nd->last_type = type;
+
 		if (!name[len])
-			goto last_component;
+			return 0;
 		/*
 		 * If it wasn't NUL, we know it was '/'. Skip that
 		 * slash, and continue until no more slashes.
@@ -1812,10 +1809,11 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			len++;
 		} while (unlikely(name[len] == '/'));
 		if (!name[len])
-			goto last_component;
+			return 0;
+
 		name += len;
 
-		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
+		err = walk_component(nd, &next, LOOKUP_FOLLOW);
 		if (err < 0)
 			return err;
 
@@ -1824,16 +1822,10 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			if (err)
 				return err;
 		}
-		if (can_lookup(nd->inode))
-			continue;
-		err = -ENOTDIR; 
-		break;
-		/* here ends the main loop */
-
-last_component:
-		nd->last = this;
-		nd->last_type = type;
-		return 0;
+		if (!can_lookup(nd->inode)) {
+			err = -ENOTDIR; 
+			break;
+		}
 	}
 	terminate_walk(nd);
 	return err;
@@ -1932,8 +1924,7 @@ static inline int lookup_last(struct nameidata *nd, struct path *path)
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
 	nd->flags &= ~LOOKUP_PARENT;
-	return walk_component(nd, path, &nd->last, nd->last_type,
-					nd->flags & LOOKUP_FOLLOW);
+	return walk_component(nd, path, nd->flags & LOOKUP_FOLLOW);
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
@@ -2732,7 +2723,7 @@ static int do_last(struct nameidata *nd, struct path *path,
 		if (open_flag & O_PATH && !(nd->flags & LOOKUP_FOLLOW))
 			symlink_ok = true;
 		/* we _can_ be in RCU mode here */
-		error = lookup_fast(nd, &nd->last, path, &inode);
+		error = lookup_fast(nd, path, &inode);
 		if (likely(!error))
 			goto finish_lookup;
 
@@ -2778,7 +2769,7 @@ retry_lookup:
 			goto out;
 
 		if ((*opened & FILE_CREATED) ||
-		    !S_ISREG(file->f_path.dentry->d_inode->i_mode))
+		    !S_ISREG(file_inode(file)->i_mode))
 			will_truncate = false;
 
 		audit_inode(name, file->f_path.dentry, 0);
@@ -2941,8 +2932,8 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 	int error;
 
 	file = get_empty_filp();
-	if (!file)
-		return ERR_PTR(-ENFILE);
+	if (IS_ERR(file))
+		return file;
 
 	file->f_flags = op->open_flag;
 

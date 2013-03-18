@@ -499,7 +499,7 @@
 			reg = <0x80000000 0x3b002000>;
 			ranges;
 
-			nand@bb000000 {
+			nfc: nand@bb000000 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 

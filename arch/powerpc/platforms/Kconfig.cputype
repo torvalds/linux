@@ -76,6 +76,7 @@ config PPC_BOOK3E_64
 	bool "Embedded processors"
 	select PPC_FPU # Make it a choice ?
 	select PPC_SMP_MUXED_IPI
+	select PPC_DOORBELL
 
 endchoice
 
@@ -208,6 +209,7 @@ config PPC_FSL_BOOK3E
 	select FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
 	select SYS_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
+	select PPC_DOORBELL
 	default y if FSL_BOOKE
 
 config PTE_64BIT
@@ -381,5 +383,9 @@ config NOT_COHERENT_CACHE
 
 config CHECK_CACHE_COHERENCY
 	bool
+
+config PPC_DOORBELL
+	bool
+	default n
 
 endmenu

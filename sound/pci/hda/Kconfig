@@ -15,6 +15,9 @@ menuconfig SND_HDA_INTEL
 
 if SND_HDA_INTEL
 
+config SND_HDA_DSP_LOADER
+	bool
+
 config SND_HDA_PREALLOC_SIZE
 	int "Pre-allocated buffer size for HD-audio driver"
 	range 0 32768
@@ -86,6 +89,7 @@ config SND_HDA_PATCH_LOADER
 config SND_HDA_CODEC_REALTEK
 	bool "Build Realtek HD-audio codec support"
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include Realtek HD-audio codec support in
 	  snd-hda-intel driver, such as ALC880.
@@ -98,6 +102,7 @@ config SND_HDA_CODEC_REALTEK
 config SND_HDA_CODEC_ANALOG
 	bool "Build Analog Device HD-audio codec support"
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include Analog Device HD-audio codec support in
 	  snd-hda-intel driver, such as AD1986A.
@@ -110,6 +115,7 @@ config SND_HDA_CODEC_ANALOG
 config SND_HDA_CODEC_SIGMATEL
 	bool "Build IDT/Sigmatel HD-audio codec support"
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include IDT (Sigmatel) HD-audio codec support in
 	  snd-hda-intel driver, such as STAC9200.
@@ -122,6 +128,7 @@ config SND_HDA_CODEC_SIGMATEL
 config SND_HDA_CODEC_VIA
 	bool "Build VIA HD-audio codec support"
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include VIA HD-audio codec support in
 	  snd-hda-intel driver, such as VT1708.
@@ -147,8 +154,8 @@ config SND_HDA_CODEC_HDMI
 
 config SND_HDA_CODEC_CIRRUS
 	bool "Build Cirrus Logic codec support"
-	depends on SND_HDA_INTEL
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include Cirrus Logic codec support in
 	  snd-hda-intel driver, such as CS4206.
@@ -161,6 +168,7 @@ config SND_HDA_CODEC_CIRRUS
 config SND_HDA_CODEC_CONEXANT
 	bool "Build Conexant HD-audio codec support"
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include Conexant HD-audio codec support in
 	  snd-hda-intel driver, such as CX20549.
@@ -172,8 +180,8 @@ config SND_HDA_CODEC_CONEXANT
 
 config SND_HDA_CODEC_CA0110
 	bool "Build Creative CA0110-IBG codec support"
-	depends on SND_HDA_INTEL
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include Creative CA0110-IBG codec support in
 	  snd-hda-intel driver, found on some Creative X-Fi cards.
@@ -185,7 +193,6 @@ config SND_HDA_CODEC_CA0110
 
 config SND_HDA_CODEC_CA0132
 	bool "Build Creative CA0132 codec support"
-	depends on SND_HDA_INTEL
 	default y
 	help
 	  Say Y here to include Creative CA0132 codec support in
@@ -196,9 +203,21 @@ config SND_HDA_CODEC_CA0132
 	  snd-hda-codec-ca0132.
 	  This module is automatically loaded at probing.
 
+config SND_HDA_CODEC_CA0132_DSP
+	bool "Support new DSP code for CA0132 codec"
+	depends on SND_HDA_CODEC_CA0132 && FW_LOADER
+	select SND_HDA_DSP_LOADER
+	help
+	  Say Y here to enable the DSP for Creative CA0132 for extended
+	  features like equalizer or echo cancellation.
+
+	  Note that this option requires the external firmware file
+	  (ctefx.bin).
+
 config SND_HDA_CODEC_CMEDIA
 	bool "Build C-Media HD-audio codec support"
 	default y
+	select SND_HDA_GENERIC
 	help
 	  Say Y here to include C-Media HD-audio codec support in
 	  snd-hda-intel driver, such as CMI9880.

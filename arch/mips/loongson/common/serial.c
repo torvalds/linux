@@ -39,15 +39,15 @@
 }
 
 static struct plat_serial8250_port uart8250_data[][2] = {
-	[MACH_LOONGSON_UNKNOWN]         {},
-	[MACH_LEMOTE_FL2E]              {PORT(4), {} },
-	[MACH_LEMOTE_FL2F]              {PORT(3), {} },
-	[MACH_LEMOTE_ML2F7]             {PORT_M(3), {} },
-	[MACH_LEMOTE_YL2F89]            {PORT_M(3), {} },
-	[MACH_DEXXON_GDIUM2F10]         {PORT_M(3), {} },
-	[MACH_LEMOTE_NAS]               {PORT_M(3), {} },
-	[MACH_LEMOTE_LL2F]              {PORT(3), {} },
-	[MACH_LOONGSON_END]             {},
+	[MACH_LOONGSON_UNKNOWN]		{},
+	[MACH_LEMOTE_FL2E]		{PORT(4), {} },
+	[MACH_LEMOTE_FL2F]		{PORT(3), {} },
+	[MACH_LEMOTE_ML2F7]		{PORT_M(3), {} },
+	[MACH_LEMOTE_YL2F89]		{PORT_M(3), {} },
+	[MACH_DEXXON_GDIUM2F10]		{PORT_M(3), {} },
+	[MACH_LEMOTE_NAS]		{PORT_M(3), {} },
+	[MACH_LEMOTE_LL2F]		{PORT(3), {} },
+	[MACH_LOONGSON_END]		{},
 };
 
 static struct platform_device uart8250_device = {

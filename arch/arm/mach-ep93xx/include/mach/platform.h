@@ -53,7 +53,7 @@ int ep93xx_ide_acquire_gpio(struct platform_device *pdev);
 void ep93xx_ide_release_gpio(struct platform_device *pdev);
 
 void ep93xx_init_devices(void);
-extern struct sys_timer ep93xx_timer;
+extern void ep93xx_timer_init(void);
 
 void ep93xx_restart(char, const char *);
 void ep93xx_init_late(void);

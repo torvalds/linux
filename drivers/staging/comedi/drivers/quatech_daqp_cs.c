@@ -47,8 +47,6 @@ Status: works
 Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "../comedidev.h"
 #include <linux/semaphore.h>
 
@@ -60,27 +58,15 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 
 #include "comedi_fc.h"
 
-/* Maximum number of separate DAQP devices we'll allow */
-#define MAX_DEV         4
-
-struct local_info_t {
-	struct pcmcia_device *link;
+struct daqp_private {
 	int stop;
-	int table_index;
-	char board_name[32];
 
 	enum { semaphore, buffer } interrupt_mode;
 
 	struct completion eos;
 
-	struct comedi_device *dev;
-	struct comedi_subdevice *s;
 	int count;
 };
-
-/* A list of "instances" of the device. */
-
-static struct local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
 
 /* The DAQP communicates with the system through a 16 byte I/O window. */
 
@@ -165,84 +151,38 @@ static struct local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
 #define DAQP_AUX_FIFO_NEARFULL		0x02
 #define DAQP_AUX_FIFO_EMPTY		0x01
 
-/* These range structures tell COMEDI how the sample values map to
- * voltages.  The A/D converter has four	.ranges = +/- 10V through
- * +/- 1.25V, and the D/A converter has only	.one = +/- 5V.
- */
-
-static const struct comedi_lrange range_daqp_ai = { 4, {
-							BIP_RANGE(10),
-							BIP_RANGE(5),
-							BIP_RANGE(2.5),
-							BIP_RANGE(1.25)
-							}
-};
-
-static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
-
-/*====================================================================*/
-
-/* comedi interface code */
-
-static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static void daqp_detach(struct comedi_device *dev);
-static struct comedi_driver driver_daqp = {
-	.driver_name = "quatech_daqp_cs",
-	.module = THIS_MODULE,
-	.attach = daqp_attach,
-	.detach = daqp_detach,
-};
-
-#ifdef DAQP_DEBUG
-
-static void daqp_dump(struct comedi_device *dev)
-{
-	dev_info(dev->class_dev, "status %02x; aux status %02x\n",
-		 inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
-}
-
-static void hex_dump(char *str, void *ptr, int len)
-{
-	unsigned char *cptr = ptr;
-	int i;
-
-	printk(str);
-
-	for (i = 0; i < len; i++) {
-		if (i % 16 == 0)
-			printk("\n%p:", cptr);
-
-		printk(" %02x", *(cptr++));
+static const struct comedi_lrange range_daqp_ai = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25)
 	}
-	printk("\n");
-}
-
-#endif
+};
 
 /* Cancel a running acquisition */
 
 static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct daqp_private *devpriv = dev->private;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
-
 
 	outb(DAQP_COMMAND_STOP, dev->iobase + DAQP_COMMAND);
 
 	/* flush any linguring data in FIFO - superfluous here */
 	/* outb(DAQP_COMMAND_RSTF, dev->iobase+DAQP_COMMAND); */
 
-	local->interrupt_mode = semaphore;
+	devpriv->interrupt_mode = semaphore;
 
 	return 0;
 }
 
 /* Interrupt handler
  *
- * Operates in one of two modes.  If local->interrupt_mode is
- * 'semaphore', just signal the local->eos completion and return
+ * Operates in one of two modes.  If devpriv->interrupt_mode is
+ * 'semaphore', just signal the devpriv->eos completion and return
  * (one-shot mode).  Otherwise (continuous mode), read data in from
  * the card, transfer it to the buffer provided by the higher-level
  * comedi kernel module, and signal various comedi callback routines,
@@ -250,48 +190,21 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
  */
 static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 {
-	struct local_info_t *local = (struct local_info_t *)dev_id;
-	struct comedi_device *dev;
-	struct comedi_subdevice *s;
+	struct comedi_device *dev = dev_id;
+	struct daqp_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	int loop_limit = 10000;
 	int status;
 
-	if (local == NULL) {
-		pr_warn("irq %d for unknown device.\n", irq);
+	if (!dev->attached)
 		return IRQ_NONE;
-	}
 
-	dev = local->dev;
-	if (dev == NULL) {
-		pr_warn("NULL comedi_device.\n");
-		return IRQ_NONE;
-	}
-
-	if (!dev->attached) {
-		pr_warn("struct comedi_device not yet attached.\n");
-		return IRQ_NONE;
-	}
-
-	s = local->s;
-	if (s == NULL) {
-		pr_warn("NULL comedi_subdevice.\n");
-		return IRQ_NONE;
-	}
-
-	if ((struct local_info_t *)s->private != local) {
-		pr_warn("invalid comedi_subdevice.\n");
-		return IRQ_NONE;
-	}
-
-	switch (local->interrupt_mode) {
-
+	switch (devpriv->interrupt_mode) {
 	case semaphore:
-
-		complete(&local->eos);
+		complete(&devpriv->eos);
 		break;
 
 	case buffer:
-
 		while (!((status = inb(dev->iobase + DAQP_STATUS))
 			 & DAQP_STATUS_FIFO_EMPTY)) {
 
@@ -315,9 +228,9 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			 * and stop conversion if zero
 			 */
 
-			if (local->count > 0) {
-				local->count--;
-				if (local->count == 0) {
+			if (devpriv->count > 0) {
+				devpriv->count--;
+				if (devpriv->count == 0) {
 					daqp_ai_cancel(dev, s);
 					s->async->events |= COMEDI_CB_EOA;
 					break;
@@ -342,20 +255,40 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void daqp_ai_set_one_scanlist_entry(struct comedi_device *dev,
+					   unsigned int chanspec,
+					   int start)
+{
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+	unsigned int val;
+
+	val = DAQP_SCANLIST_CHANNEL(chan) | DAQP_SCANLIST_GAIN(range);
+
+	if (aref == AREF_DIFF)
+		val |= DAQP_SCANLIST_DIFFERENTIAL;
+
+	if (start)
+		val |= DAQP_SCANLIST_START;
+
+	outb(val & 0xff, dev->iobase + DAQP_SCANLIST);
+	outb((val >> 8) & 0xff, dev->iobase + DAQP_SCANLIST);
+}
+
 /* One-shot analog data acquisition routine */
 
 static int daqp_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct daqp_private *devpriv = dev->private;
 	int i;
 	int v;
 	int counter = 10000;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
-
 
 	/* Stop any running conversion */
 	daqp_ai_cancel(dev, s);
@@ -366,18 +299,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_COMMAND);
 
 	/* Program one scan list entry */
-
-	v = DAQP_SCANLIST_CHANNEL(CR_CHAN(insn->chanspec))
-	    | DAQP_SCANLIST_GAIN(CR_RANGE(insn->chanspec));
-
-	if (CR_AREF(insn->chanspec) == AREF_DIFF)
-		v |= DAQP_SCANLIST_DIFFERENTIAL;
-
-
-	v |= DAQP_SCANLIST_START;
-
-	outb(v & 0xff, dev->iobase + DAQP_SCANLIST);
-	outb(v >> 8, dev->iobase + DAQP_SCANLIST);
+	daqp_ai_set_one_scanlist_entry(dev, insn->chanspec, 1);
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 
@@ -403,10 +325,8 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 		return -1;
 	}
 
-	init_completion(&local->eos);
-	local->interrupt_mode = semaphore;
-	local->dev = dev;
-	local->s = s;
+	init_completion(&devpriv->eos);
+	devpriv->interrupt_mode = semaphore;
 
 	for (i = 0; i < insn->n; i++) {
 
@@ -416,7 +336,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 
 		/* Wait for interrupt service routine to unblock completion */
 		/* Maybe could use a timeout here, but it's interruptible */
-		if (wait_for_completion_interruptible(&local->eos))
+		if (wait_for_completion_interruptible(&devpriv->eos))
 			return -EINTR;
 
 		data[i] = inb(dev->iobase + DAQP_FIFO);
@@ -541,7 +461,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct daqp_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int counter;
 	int scanlist_start_on_every_entry;
@@ -550,9 +470,8 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int i;
 	int v;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
-
 
 	/* Stop any running conversion */
 	daqp_ai_cancel(dev, s);
@@ -592,24 +511,10 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* Program scan list */
-
 	for (i = 0; i < cmd->chanlist_len; i++) {
+		int start = (i == 0 || scanlist_start_on_every_entry);
 
-		int chanspec = cmd->chanlist[i];
-
-		/* Program one scan list entry */
-
-		v = DAQP_SCANLIST_CHANNEL(CR_CHAN(chanspec))
-		    | DAQP_SCANLIST_GAIN(CR_RANGE(chanspec));
-
-		if (CR_AREF(chanspec) == AREF_DIFF)
-			v |= DAQP_SCANLIST_DIFFERENTIAL;
-
-		if (i == 0 || scanlist_start_on_every_entry)
-			v |= DAQP_SCANLIST_START;
-
-		outb(v & 0xff, dev->iobase + DAQP_SCANLIST);
-		outb(v >> 8, dev->iobase + DAQP_SCANLIST);
+		daqp_ai_set_one_scanlist_entry(dev, cmd->chanlist[i], start);
 	}
 
 	/* Now it's time to program the FIFO threshold, basically the
@@ -675,16 +580,16 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* Save away the number of conversions we should perform, and
 	 * compute the FIFO threshold (in bytes, not samples - that's
-	 * why we multiple local->count by 2 = sizeof(sample))
+	 * why we multiple devpriv->count by 2 = sizeof(sample))
 	 */
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		local->count = cmd->stop_arg * cmd->scan_end_arg;
-		threshold = 2 * local->count;
+		devpriv->count = cmd->stop_arg * cmd->scan_end_arg;
+		threshold = 2 * devpriv->count;
 		while (threshold > DAQP_FIFO_SIZE * 3 / 4)
 			threshold /= 2;
 	} else {
-		local->count = -1;
+		devpriv->count = -1;
 		threshold = DAQP_FIFO_SIZE / 2;
 	}
 
@@ -726,9 +631,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -1;
 	}
 
-	local->interrupt_mode = buffer;
-	local->dev = dev;
-	local->s = s;
+	devpriv->interrupt_mode = buffer;
 
 	/* Start conversion */
 	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
@@ -737,341 +640,193 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/* Single-shot analog output routine */
-
 static int daqp_ao_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
-	int d;
-	unsigned int chan;
+	struct daqp_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
-
-	chan = CR_CHAN(insn->chanspec);
-	d = data[0];
-	d &= 0x0fff;
-	d ^= 0x0800;		/* Flip the sign */
-	d |= chan << 12;
 
 	/* Make sure D/A update mode is direct update */
 	outb(0, dev->iobase + DAQP_AUX);
 
-	outw(d, dev->iobase + DAQP_DA);
+	for (i = 0; i > insn->n; i++) {
+		val = data[0];
+		val &= 0x0fff;
+		val ^= 0x0800;		/* Flip the sign */
+		val |= (chan << 12);
 
-	return 1;
+		outw(val, dev->iobase + DAQP_DA);
+	}
+
+	return insn->n;
 }
 
-/* Digital input routine */
-
-static int daqp_di_insn_read(struct comedi_device *dev,
+static int daqp_di_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct daqp_private *devpriv = dev->private;
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
 
 	data[0] = inb(dev->iobase + DAQP_DIGITAL_IO);
 
-	return 1;
+	return insn->n;
 }
 
-/* Digital output routine */
-
-static int daqp_do_insn_write(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+static int daqp_do_insn_bits(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
-	struct local_info_t *local = (struct local_info_t *)s->private;
+	struct daqp_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	if (local->stop)
+	if (devpriv->stop)
 		return -EIO;
 
-	outw(data[0] & 0xf, dev->iobase + DAQP_DIGITAL_IO);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-	return 1;
+		outb(s->state, dev->iobase + DAQP_DIGITAL_IO);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
 }
 
-/* daqp_attach is called via comedi_config to attach a comedi device
- * to a /dev/comedi*.  Note that this is different from daqp_cs_attach()
- * which is called by the pcmcia subsystem to attach the PCMCIA card
- * when it is inserted.
- */
-
-static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int daqp_auto_attach(struct comedi_device *dev,
+			    unsigned long context)
 {
-	int ret;
-	struct local_info_t *local = dev_table[it->options[0]];
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+	struct daqp_private *devpriv;
 	struct comedi_subdevice *s;
+	int ret;
 
-	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
-		dev_err(dev->class_dev, "No such daqp device %d\n",
-			it->options[0]);
-		return -EIO;
-	}
+	dev->board_name = dev->driver->driver_name;
 
-	/* Typically brittle code that I don't completely understand,
-	 * but "it works on my card".  The intent is to pull the model
-	 * number of the card out the PCMCIA CIS and stash it away as
-	 * the COMEDI board_name.  Looks like the third field in
-	 * CISTPL_VERS_1 (offset 2) holds what we're looking for.  If
-	 * it doesn't work, who cares, just leave it as "DAQP".
-	 */
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
-	strcpy(local->board_name, "DAQP");
-	dev->board_name = local->board_name;
-	if (local->link->prod_id[2]) {
-		if (strncmp(local->link->prod_id[2], "DAQP", 4) == 0) {
-			strncpy(local->board_name, local->link->prod_id[2],
-				sizeof(local->board_name));
-		}
-	}
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	ret = comedi_pcmcia_enable(dev, NULL);
+	if (ret)
+		return ret;
+	dev->iobase = link->resource[0]->start;
 
-	dev->iobase = local->link->resource[0]->start;
+	link->priv = dev;
+	ret = pcmcia_request_irq(link, daqp_interrupt);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
-	dev_info(dev->class_dev, "attaching daqp%d (io 0x%04lx)\n",
-		 it->options[0], dev->iobase);
-
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
-	s->private = local;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = 8;
-	s->len_chanlist = 2048;
-	s->maxdata = 0xffff;
-	s->range_table = &range_daqp_ai;
-	s->insn_read = daqp_ai_insn_read;
-	s->do_cmdtest = daqp_ai_cmdtest;
-	s->do_cmd = daqp_ai_cmd;
-	s->cancel = daqp_ai_cancel;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->n_chan	= 8;
+	s->len_chanlist	= 2048;
+	s->maxdata	= 0xffff;
+	s->range_table	= &range_daqp_ai;
+	s->insn_read	= daqp_ai_insn_read;
+	s->do_cmdtest	= daqp_ai_cmdtest;
+	s->do_cmd	= daqp_ai_cmd;
+	s->cancel	= daqp_ai_cancel;
 
 	s = &dev->subdevices[1];
-	dev->write_subdev = s;
-	s->private = local;
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 2;
-	s->len_chanlist = 1;
-	s->maxdata = 0x0fff;
-	s->range_table = &range_daqp_ao;
-	s->insn_write = daqp_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &range_bipolar5;
+	s->insn_write	= daqp_ao_insn_write;
 
 	s = &dev->subdevices[2];
-	s->private = local;
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 1;
-	s->len_chanlist = 1;
-	s->insn_read = daqp_di_insn_read;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 1;
+	s->maxdata	= 1;
+	s->insn_bits	= daqp_di_insn_bits;
 
 	s = &dev->subdevices[3];
-	s->private = local;
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 1;
-	s->len_chanlist = 1;
-	s->insn_write = daqp_do_insn_write;
-
-	return 1;
-}
-
-static void daqp_detach(struct comedi_device *dev)
-{
-	/* Nothing to cleanup */
-}
-
-/*====================================================================
-
-    PCMCIA interface code
-
-    The rest of the code in this file is based on dummy_cs.c v1.24
-    from the Linux pcmcia_cs distribution v3.1.8 and is subject
-    to the following license agreement.
-
-    The remaining contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
-    except in compliance with the License. You may obtain a copy of
-    the License at http://www.mozilla.org/MPL/
-
-    Software distributed under the License is distributed on an "AS
-    IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-    implied. See the License for the specific language governing
-    rights and limitations under the License.
-
-    The initial developer of the original code is David A. Hinds
-    <dhinds@pcmcia.sourceforge.org>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-
-    Alternatively, the contents of this file may be used under the
-    terms of the GNU Public License version 2 (the "GPL"), in which
-    case the provisions of the GPL are applicable instead of the
-    above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
-    your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
-    the provisions above, a recipient may use your version of this
-    file under either the MPL or the GPL.
-
-======================================================================*/
-
-static void daqp_cs_config(struct pcmcia_device *link);
-static void daqp_cs_release(struct pcmcia_device *link);
-static int daqp_cs_suspend(struct pcmcia_device *p_dev);
-static int daqp_cs_resume(struct pcmcia_device *p_dev);
-
-static int daqp_cs_attach(struct pcmcia_device *);
-static void daqp_cs_detach(struct pcmcia_device *);
-
-static int daqp_cs_attach(struct pcmcia_device *link)
-{
-	struct local_info_t *local;
-	int i;
-
-	dev_dbg(&link->dev, "daqp_cs_attach()\n");
-
-	for (i = 0; i < MAX_DEV; i++)
-		if (dev_table[i] == NULL)
-			break;
-	if (i == MAX_DEV) {
-		dev_notice(&link->dev, "no devices available\n");
-		return -ENODEV;
-	}
-
-	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
-	if (!local)
-		return -ENOMEM;
-
-	local->table_index = i;
-	dev_table[i] = local;
-	local->link = link;
-	link->priv = local;
-
-	daqp_cs_config(link);
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 1;
+	s->maxdata	= 1;
+	s->insn_bits	= daqp_do_insn_bits;
 
 	return 0;
-}				/* daqp_cs_attach */
-
-static void daqp_cs_detach(struct pcmcia_device *link)
-{
-	struct local_info_t *dev = link->priv;
-
-	dev->stop = 1;
-	daqp_cs_release(link);
-
-	/* Unlink device structure, and free it */
-	dev_table[dev->table_index] = NULL;
-	kfree(dev);
-
 }
 
-static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
-
-static void daqp_cs_config(struct pcmcia_device *link)
-{
-	int ret;
-
-	dev_dbg(&link->dev, "daqp_cs_config\n");
-
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
-	if (ret) {
-		dev_warn(&link->dev, "no configuration found\n");
-		goto failed;
-	}
-
-	ret = pcmcia_request_irq(link, daqp_interrupt);
-	if (ret)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	return;
-
-failed:
-	daqp_cs_release(link);
-
-}				/* daqp_cs_config */
-
-static void daqp_cs_release(struct pcmcia_device *link)
-{
-	dev_dbg(&link->dev, "daqp_cs_release\n");
-
-	pcmcia_disable_device(link);
-}				/* daqp_cs_release */
+static struct comedi_driver driver_daqp = {
+	.driver_name	= "quatech_daqp_cs",
+	.module		= THIS_MODULE,
+	.auto_attach	= daqp_auto_attach,
+	.detach		= comedi_pcmcia_disable,
+};
 
 static int daqp_cs_suspend(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
+	struct comedi_device *dev = link->priv;
+	struct daqp_private *devpriv = dev ? dev->private : NULL;
 
 	/* Mark the device as stopped, to block IO until later */
-	local->stop = 1;
+	if (devpriv)
+		devpriv->stop = 1;
+
 	return 0;
 }
 
 static int daqp_cs_resume(struct pcmcia_device *link)
 {
-	struct local_info_t *local = link->priv;
+	struct comedi_device *dev = link->priv;
+	struct daqp_private *devpriv = dev ? dev->private : NULL;
 
-	local->stop = 0;
+	if (devpriv)
+		devpriv->stop = 0;
 
 	return 0;
 }
 
-/*====================================================================*/
-
-#ifdef MODULE
+static int daqp_cs_attach(struct pcmcia_device *link)
+{
+	return comedi_pcmcia_auto_config(link, &driver_daqp);
+}
 
 static const struct pcmcia_device_id daqp_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0027),
 	PCMCIA_DEVICE_NULL
 };
-
 MODULE_DEVICE_TABLE(pcmcia, daqp_cs_id_table);
-MODULE_AUTHOR("Brent Baccala <baccala@freesoft.org>");
-MODULE_DESCRIPTION("Comedi driver for Quatech DAQP PCMCIA data capture cards");
-MODULE_LICENSE("GPL");
 
 static struct pcmcia_driver daqp_cs_driver = {
-	.probe = daqp_cs_attach,
-	.remove = daqp_cs_detach,
-	.suspend = daqp_cs_suspend,
-	.resume = daqp_cs_resume,
-	.id_table = daqp_cs_id_table,
-	.owner = THIS_MODULE,
-	.name = "quatech_daqp_cs",
+	.name		= "quatech_daqp_cs",
+	.owner		= THIS_MODULE,
+	.id_table	= daqp_cs_id_table,
+	.probe		= daqp_cs_attach,
+	.remove		= comedi_pcmcia_auto_unconfig,
+	.suspend	= daqp_cs_suspend,
+	.resume		= daqp_cs_resume,
 };
+module_comedi_pcmcia_driver(driver_daqp, daqp_cs_driver);
 
-int __init init_module(void)
-{
-	pcmcia_register_driver(&daqp_cs_driver);
-	comedi_driver_register(&driver_daqp);
-	return 0;
-}
-
-void __exit cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_daqp);
-	pcmcia_unregister_driver(&daqp_cs_driver);
-}
-
-#endif
+MODULE_DESCRIPTION("Comedi driver for Quatech DAQP PCMCIA data capture cards");
+MODULE_AUTHOR("Brent Baccala <baccala@freesoft.org>");
+MODULE_LICENSE("GPL");

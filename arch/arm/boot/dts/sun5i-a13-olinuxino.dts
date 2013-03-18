@@ -24,6 +24,8 @@
 
 	soc {
 		uart1: uart@01c28400 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_pins_b>;
 			status = "okay";
 		};
 	};

@@ -217,6 +217,21 @@ extern u32 ssb_chipco_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt,
 					     u32 ticks);
 extern u32 ssb_chipco_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms);
 
+/* driver_chipcommon_sflash.c */
+#ifdef CONFIG_SSB_SFLASH
+int ssb_sflash_init(struct ssb_chipcommon *cc);
+#else
+static inline int ssb_sflash_init(struct ssb_chipcommon *cc)
+{
+	pr_err("Serial flash not supported\n");
+	return 0;
+}
+#endif /* CONFIG_SSB_SFLASH */
+
+#ifdef CONFIG_SSB_DRIVER_MIPS
+extern struct platform_device ssb_pflash_dev;
+#endif
+
 #ifdef CONFIG_SSB_DRIVER_EXTIF
 extern u32 ssb_extif_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt, u32 ticks);
 extern u32 ssb_extif_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms);
@@ -252,10 +267,15 @@ static inline void ssb_extif_init(struct ssb_extif *extif)
 
 #ifdef CONFIG_SSB_DRIVER_GPIO
 extern int ssb_gpio_init(struct ssb_bus *bus);
+extern int ssb_gpio_unregister(struct ssb_bus *bus);
 #else /* CONFIG_SSB_DRIVER_GPIO */
 static inline int ssb_gpio_init(struct ssb_bus *bus)
 {
 	return -ENOTSUPP;
+}
+static inline int ssb_gpio_unregister(struct ssb_bus *bus)
+{
+	return 0;
 }
 #endif /* CONFIG_SSB_DRIVER_GPIO */
 

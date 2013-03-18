@@ -20,7 +20,6 @@ static int ade7854_spi_write_reg_8(struct device *dev,
 		u8 value)
 {
 	int ret;
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfer = {
@@ -35,9 +34,7 @@ static int ade7854_spi_write_reg_8(struct device *dev,
 	st->tx[2] = reg_address & 0xFF;
 	st->tx[3] = value & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -48,7 +45,6 @@ static int ade7854_spi_write_reg_16(struct device *dev,
 		u16 value)
 {
 	int ret;
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfer = {
@@ -64,9 +60,7 @@ static int ade7854_spi_write_reg_16(struct device *dev,
 	st->tx[3] = (value >> 8) & 0xFF;
 	st->tx[4] = value & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -77,7 +71,6 @@ static int ade7854_spi_write_reg_24(struct device *dev,
 		u32 value)
 {
 	int ret;
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfer = {
@@ -94,9 +87,7 @@ static int ade7854_spi_write_reg_24(struct device *dev,
 	st->tx[4] = (value >> 8) & 0xFF;
 	st->tx[5] = value & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -107,7 +98,6 @@ static int ade7854_spi_write_reg_32(struct device *dev,
 		u32 value)
 {
 	int ret;
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfer = {
@@ -125,9 +115,7 @@ static int ade7854_spi_write_reg_32(struct device *dev,
 	st->tx[5] = (value >> 8) & 0xFF;
 	st->tx[6] = value & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -137,7 +125,6 @@ static int ade7854_spi_read_reg_8(struct device *dev,
 		u16 reg_address,
 		u8 *val)
 {
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
 	int ret;
@@ -159,10 +146,7 @@ static int ade7854_spi_read_reg_8(struct device *dev,
 	st->tx[1] = (reg_address >> 8) & 0xFF;
 	st->tx[2] = reg_address & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->spi->dev, "problem when reading 8 bit register 0x%02X",
 				reg_address);
@@ -179,7 +163,6 @@ static int ade7854_spi_read_reg_16(struct device *dev,
 		u16 reg_address,
 		u16 *val)
 {
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
 	int ret;
@@ -200,10 +183,7 @@ static int ade7854_spi_read_reg_16(struct device *dev,
 	st->tx[1] = (reg_address >> 8) & 0xFF;
 	st->tx[2] = reg_address & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->spi->dev, "problem when reading 16 bit register 0x%02X",
 				reg_address);
@@ -220,7 +200,6 @@ static int ade7854_spi_read_reg_24(struct device *dev,
 		u16 reg_address,
 		u32 *val)
 {
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
 	int ret;
@@ -242,10 +221,7 @@ static int ade7854_spi_read_reg_24(struct device *dev,
 	st->tx[1] = (reg_address >> 8) & 0xFF;
 	st->tx[2] = reg_address & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->spi->dev, "problem when reading 24 bit register 0x%02X",
 				reg_address);
@@ -262,7 +238,6 @@ static int ade7854_spi_read_reg_32(struct device *dev,
 		u16 reg_address,
 		u32 *val)
 {
-	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
 	int ret;
@@ -284,10 +259,7 @@ static int ade7854_spi_read_reg_32(struct device *dev,
 	st->tx[1] = (reg_address >> 8) & 0xFF;
 	st->tx[2] = reg_address & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->spi, &msg);
+	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->spi->dev, "problem when reading 32 bit register 0x%02X",
 				reg_address);

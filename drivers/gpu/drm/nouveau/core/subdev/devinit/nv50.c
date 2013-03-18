@@ -78,12 +78,13 @@ nv50_devinit_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	/* if we ran the init tables, execute first script pointer for each
-	 * display table output entry that has a matching dcb entry.
+	/* if we ran the init tables, we have to execute the first script
+	 * pointer of each dcb entry's display encoder table in order
+	 * to properly initialise each encoder.
 	 */
-	while (priv->base.post && ver) {
-		u16 data = nvbios_outp_parse(bios, i++, &ver, &hdr, &cnt, &len, &info);
-		if (data && dcb_outp_match(bios, info.type, info.mask, &ver, &len, &outp)) {
+	while (priv->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
+		if (nvbios_outp_match(bios, outp.hasht, outp.hashm,
+				     &ver, &hdr, &cnt, &len, &info)) {
 			struct nvbios_init init = {
 				.subdev = nv_subdev(priv),
 				.bios = bios,
@@ -95,7 +96,8 @@ nv50_devinit_init(struct nouveau_object *object)
 
 			nvbios_exec(&init);
 		}
-	};
+		i++;
+	}
 
 	return 0;
 }

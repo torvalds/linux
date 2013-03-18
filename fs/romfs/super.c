@@ -147,7 +147,7 @@ static const struct address_space_operations romfs_aops = {
  */
 static int romfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *i = filp->f_dentry->d_inode;
+	struct inode *i = file_inode(filp);
 	struct romfs_inode ri;
 	unsigned long offset, maxoff;
 	int j, ino, nextfh;

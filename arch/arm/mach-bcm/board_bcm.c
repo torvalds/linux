@@ -11,34 +11,19 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/irqchip.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
-
 #include <asm/mach/time.h>
-
-static const struct of_device_id irq_match[] = {
-	{.compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{}
-};
 
 static void timer_init(void)
 {
 }
 
-static struct sys_timer timer = {
-	.init = timer_init,
-};
-
-static void __init init_irq(void)
-{
-	of_irq_init(irq_match);
-}
 
 static void __init board_init(void)
 {
@@ -49,9 +34,8 @@ static void __init board_init(void)
 static const char * const bcm11351_dt_compat[] = { "bcm,bcm11351", NULL, };
 
 DT_MACHINE_START(BCM11351_DT, "Broadcom Application Processor")
-	.init_irq = init_irq,
-	.timer = &timer,
+	.init_irq = irqchip_init,
+	.init_time = timer_init,
 	.init_machine = board_init,
 	.dt_compat = bcm11351_dt_compat,
-	.handle_irq = gic_handle_irq,
 MACHINE_END

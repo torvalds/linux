@@ -170,7 +170,7 @@ static const unsigned pins_ntr[] = {GPIO4};
 static const unsigned pins_ntr8k[] = {GPIO5};
 static const unsigned pins_hrst[] = {GPIO6};
 static const unsigned pins_mdio[] = {GPIO7, GPIO8};
-static const unsigned pins_bled[] = {GPIO7, GPIO10, GPIO11,
+static const unsigned pins_bled[] = {GPIO9, GPIO10, GPIO11,
 					GPIO12, GPIO13, GPIO14};
 static const unsigned pins_asc0[] = {GPIO32, GPIO33};
 static const unsigned pins_spi[] = {GPIO34, GPIO35, GPIO36};
@@ -315,6 +315,37 @@ static int falcon_pinconf_set(struct pinctrl_dev *pctrldev,
 static void falcon_pinconf_dbg_show(struct pinctrl_dev *pctrldev,
 			struct seq_file *s, unsigned offset)
 {
+	unsigned long config;
+	struct pin_desc *desc;
+
+	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctrldev);
+	int port = PORT(offset);
+
+	seq_printf(s, " (port %d) mux %d -- ", port,
+		pad_r32(info->membase[port], LTQ_PADC_MUX(PORT_PIN(offset))));
+
+	config = LTQ_PINCONF_PACK(LTQ_PINCONF_PARAM_PULL, 0);
+	if (!falcon_pinconf_get(pctrldev, offset, &config))
+		seq_printf(s, "pull %d ",
+			(int)LTQ_PINCONF_UNPACK_ARG(config));
+
+	config = LTQ_PINCONF_PACK(LTQ_PINCONF_PARAM_DRIVE_CURRENT, 0);
+	if (!falcon_pinconf_get(pctrldev, offset, &config))
+		seq_printf(s, "drive-current %d ",
+			(int)LTQ_PINCONF_UNPACK_ARG(config));
+
+	config = LTQ_PINCONF_PACK(LTQ_PINCONF_PARAM_SLEW_RATE, 0);
+	if (!falcon_pinconf_get(pctrldev, offset, &config))
+		seq_printf(s, "slew-rate %d ",
+			(int)LTQ_PINCONF_UNPACK_ARG(config));
+
+	desc = pin_desc_get(pctrldev, offset);
+	if (desc) {
+		if (desc->gpio_owner)
+			seq_printf(s, " owner: %s", desc->gpio_owner);
+	} else {
+		seq_printf(s, " not registered");
+	}
 }
 
 static void falcon_pinconf_group_dbg_show(struct pinctrl_dev *pctrldev,
@@ -360,6 +391,8 @@ static const struct ltq_cfg_param falcon_cfg_params[] = {
 static struct ltq_pinmux_info falcon_info = {
 	.desc		= &falcon_pctrl_desc,
 	.apply_mux	= falcon_mux_apply,
+	.params		= falcon_cfg_params,
+	.num_params	= ARRAY_SIZE(falcon_cfg_params),
 };
 
 
@@ -398,6 +431,9 @@ static int pinctrl_falcon_probe(struct platform_device *pdev)
 		u32 avail;
 		int pins;
 
+		if (!of_device_is_available(np))
+			continue;
+
 		if (!ppdev) {
 			dev_err(&pdev->dev, "failed to find pad pdev\n");
 			continue;
@@ -411,14 +447,11 @@ static int pinctrl_falcon_probe(struct platform_device *pdev)
 			dev_err(&ppdev->dev, "failed to get clock\n");
 			return PTR_ERR(falcon_info.clk[*bank]);
 		}
-		falcon_info.membase[*bank] =
-				devm_request_and_ioremap(&pdev->dev, &res);
-		if (!falcon_info.membase[*bank]) {
-			dev_err(&pdev->dev,
-				"Failed to remap memory for bank %d\n",
-				*bank);
-			return -ENOMEM;
-		}
+		falcon_info.membase[*bank] = devm_ioremap_resource(&pdev->dev,
+								   &res);
+		if (IS_ERR(falcon_info.membase[*bank]))
+			return PTR_ERR(falcon_info.membase[*bank]);
+		
 		avail = pad_r32(falcon_info.membase[*bank],
 					LTQ_PADC_AVAIL);
 		pins = fls(avail);

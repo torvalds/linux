@@ -41,13 +41,6 @@
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
 
-asmlinkage long
-sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-		struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->r1);
-}
-
 /*
  * Do a signal return; undo the signal stack.
  */
@@ -109,9 +102,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &rval))
 		goto badframe;
 
-	/* It is more difficult to avoid calling this function than to
-	 call it and ignore errors. */
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->r1) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return rval;
@@ -194,11 +185,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext. */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(NULL, &frame->uc.uc_link);
-	err |= __put_user((void __user *)current->sas_ss_sp,
-			&frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->r1),
-			&frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->r1);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext,
 			regs, set->sig[0]);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
@@ -255,7 +242,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	set_fs(USER_DS);
 
 #ifdef DEBUG_SIG
-	printk(KERN_INFO "SIG deliver (%s:%d): sp=%p pc=%08lx\n",
+	pr_info("SIG deliver (%s:%d): sp=%p pc=%08lx\n",
 		current->comm, current->pid, frame, regs->pc);
 #endif
 
@@ -330,8 +317,8 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 	int signr;
 	struct k_sigaction ka;
 #ifdef DEBUG_SIG
-	printk(KERN_INFO "do signal: %p %d\n", regs, in_syscall);
-	printk(KERN_INFO "do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
+	pr_info("do signal: %p %d\n", regs, in_syscall);
+	pr_info("do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
 			regs->r12, current_thread_info()->flags);
 #endif
 
@@ -356,15 +343,6 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
 {
-	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (kernel_mode(regs))
-		return;
-
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs, in_syscall);
 

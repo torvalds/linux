@@ -14,18 +14,21 @@
  *along with this program; if not, write to the Free Software
  *Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
+#if defined(CONFIG_SERIAL_PCH_UART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#define SUPPORT_SYSRQ
+#endif
 #include <linux/kernel.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/console.h>
 #include <linux/serial_core.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/dmi.h>
-#include <linux/console.h>
 #include <linux/nmi.h>
 #include <linux/delay.h>
 
@@ -553,12 +556,26 @@ static int pch_uart_hal_read(struct eg20t_port *priv, unsigned char *buf,
 {
 	int i;
 	u8 rbr, lsr;
+	struct uart_port *port = &priv->port;
 
 	lsr = ioread8(priv->membase + UART_LSR);
 	for (i = 0, lsr = ioread8(priv->membase + UART_LSR);
-	     i < rx_size && lsr & UART_LSR_DR;
+	     i < rx_size && lsr & (UART_LSR_DR | UART_LSR_BI);
 	     lsr = ioread8(priv->membase + UART_LSR)) {
 		rbr = ioread8(priv->membase + PCH_UART_RBR);
+
+		if (lsr & UART_LSR_BI) {
+			port->icount.brk++;
+			if (uart_handle_break(port))
+				continue;
+		}
+#ifdef SUPPORT_SYSRQ
+		if (port->sysrq) {
+			if (uart_handle_sysrq_char(port, rbr))
+				continue;
+		}
+#endif
+
 		buf[i++] = rbr;
 	}
 	return i;
@@ -591,19 +608,11 @@ static void pch_uart_hal_set_break(struct eg20t_port *priv, int on)
 static int push_rx(struct eg20t_port *priv, const unsigned char *buf,
 		   int size)
 {
-	struct uart_port *port;
-	struct tty_struct *tty;
+	struct uart_port *port = &priv->port;
+	struct tty_port *tport = &port->state->port;
 
-	port = &priv->port;
-	tty = tty_port_tty_get(&port->state->port);
-	if (!tty) {
-		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
-		return -EBUSY;
-	}
-
-	tty_insert_flip_string(tty, buf, size);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(tport, buf, size);
+	tty_flip_buffer_push(tport);
 
 	return 0;
 }
@@ -629,15 +638,16 @@ static int dma_push_rx(struct eg20t_port *priv, int size)
 	struct tty_struct *tty;
 	int room;
 	struct uart_port *port = &priv->port;
+	struct tty_port *tport = &port->state->port;
 
 	port = &priv->port;
-	tty = tty_port_tty_get(&port->state->port);
+	tty = tty_port_tty_get(tport);
 	if (!tty) {
 		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
 		return 0;
 	}
 
-	room = tty_buffer_request_room(tty, size);
+	room = tty_buffer_request_room(tport, size);
 
 	if (room < size)
 		dev_warn(port->dev, "Rx overrun: dropping %u bytes\n",
@@ -645,7 +655,7 @@ static int dma_push_rx(struct eg20t_port *priv, int size)
 	if (!room)
 		return room;
 
-	tty_insert_flip_string(tty, sg_virt(&priv->sg_rx), size);
+	tty_insert_flip_string(tport, sg_virt(&priv->sg_rx), size);
 
 	port->icount.rx += room;
 	tty_kref_put(tty);
@@ -743,19 +753,12 @@ static void pch_dma_rx_complete(void *arg)
 {
 	struct eg20t_port *priv = arg;
 	struct uart_port *port = &priv->port;
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
 	int count;
-
-	if (!tty) {
-		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
-		return;
-	}
 
 	dma_sync_sg_for_cpu(port->dev, &priv->sg_rx, 1, DMA_FROM_DEVICE);
 	count = dma_push_rx(priv, priv->trigger_level);
 	if (count)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+		tty_flip_buffer_push(&port->state->port);
 	async_tx_ack(priv->desc_rx);
 	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_RX_INT |
 					    PCH_UART_HAL_RX_ERR_INT);
@@ -1037,23 +1040,33 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 
 static void pch_uart_err_ir(struct eg20t_port *priv, unsigned int lsr)
 {
-	u8 fcr = ioread8(priv->membase + UART_FCR);
-
-	/* Reset FIFO */
-	fcr |= UART_FCR_CLEAR_RCVR;
-	iowrite8(fcr, priv->membase + UART_FCR);
+	struct uart_port *port = &priv->port;
+	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
+	char   *error_msg[5] = {};
+	int    i = 0;
 
 	if (lsr & PCH_UART_LSR_ERR)
-		dev_err(&priv->pdev->dev, "Error data in FIFO\n");
+		error_msg[i++] = "Error data in FIFO\n";
 
-	if (lsr & UART_LSR_FE)
-		dev_err(&priv->pdev->dev, "Framing Error\n");
+	if (lsr & UART_LSR_FE) {
+		port->icount.frame++;
+		error_msg[i++] = "  Framing Error\n";
+	}
 
-	if (lsr & UART_LSR_PE)
-		dev_err(&priv->pdev->dev, "Parity Error\n");
+	if (lsr & UART_LSR_PE) {
+		port->icount.parity++;
+		error_msg[i++] = "  Parity Error\n";
+	}
 
-	if (lsr & UART_LSR_OE)
-		dev_err(&priv->pdev->dev, "Overrun Error\n");
+	if (lsr & UART_LSR_OE) {
+		port->icount.overrun++;
+		error_msg[i++] = "  Overrun Error\n";
+	}
+
+	if (tty == NULL) {
+		for (i = 0; error_msg[i] != NULL; i++)
+			dev_err(&priv->pdev->dev, error_msg[i]);
+	}
 }
 
 static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
@@ -1564,7 +1577,8 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 
 	local_irq_save(flags);
 	if (priv->port.sysrq) {
-		spin_lock(&priv->lock);
+		/* call to uart_handle_sysrq_char already took the priv lock */
+		priv_locked = 0;
 		/* serial8250_handle_port() already took the port lock */
 		port_locked = 0;
 	} else if (oops_in_progress) {

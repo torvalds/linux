@@ -109,6 +109,25 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 }
 
 /**
+ * radeon_ib_sync_to - sync to fence before executing the IB
+ *
+ * @ib: IB object to add fence to
+ * @fence: fence to sync to
+ *
+ * Sync to the fence before executing the IB
+ */
+void radeon_ib_sync_to(struct radeon_ib *ib, struct radeon_fence *fence)
+{
+	struct radeon_fence *other;
+
+	if (!fence)
+		return;
+
+	other = ib->sync_to[fence->ring];
+	ib->sync_to[fence->ring] = radeon_fence_later(fence, other);
+}
+
+/**
  * radeon_ib_schedule - schedule an IB (Indirect Buffer) on the ring
  *
  * @rdev: radeon_device pointer
@@ -377,6 +396,9 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 {
 	int r;
 
+	/* make sure we aren't trying to allocate more space than there is on the ring */
+	if (ndw > (ring->ring_size / 4))
+		return -ENOMEM;
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
 	ndw = (ndw + ring->align_mask) & ~ring->align_mask;

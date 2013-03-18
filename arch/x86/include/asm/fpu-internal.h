@@ -26,9 +26,10 @@
 #ifdef CONFIG_X86_64
 # include <asm/sigcontext32.h>
 # include <asm/user32.h>
-int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+struct ksignal;
+int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 			compat_sigset_t *set, struct pt_regs *regs);
-int ia32_setup_frame(int sig, struct k_sigaction *ka,
+int ia32_setup_frame(int sig, struct ksignal *ksig,
 		     compat_sigset_t *set, struct pt_regs *regs);
 #else
 # define user_i387_ia32_struct	user_i387_struct

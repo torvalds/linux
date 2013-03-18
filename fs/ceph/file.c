@@ -243,6 +243,9 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	err = ceph_mdsc_do_request(mdsc,
 				   (flags & (O_CREAT|O_TRUNC)) ? dir : NULL,
 				   req);
+	if (err)
+		goto out_err;
+
 	err = ceph_handle_snapdir(req, dentry, err);
 	if (err == 0 && (flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
@@ -263,6 +266,9 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		err = finish_no_open(file, dn);
 	} else {
 		dout("atomic_open finish_open on dn %p\n", dn);
+		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_ino) {
+			*opened |= FILE_CREATED;
+		}
 		err = finish_open(file, dentry, ceph_open, opened);
 	}
 
@@ -393,7 +399,7 @@ more:
 static ssize_t ceph_sync_read(struct file *file, char __user *data,
 			      unsigned len, loff_t *poff, int *checkeof)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct page **pages;
 	u64 off = *poff;
 	int num_pages, ret;
@@ -466,7 +472,7 @@ static void sync_write_commit(struct ceph_osd_request *req,
 static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 			       size_t left, loff_t *offset)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_osd_request *req;
@@ -483,7 +489,7 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
 
-	if (ceph_snap(file->f_dentry->d_inode) != CEPH_NOSNAP)
+	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
 
 	dout("sync_write on file %p %lld~%u %s\n", file, *offset,
@@ -535,7 +541,7 @@ more:
 				    ci->i_snap_realm->cached_context,
 				    do_sync,
 				    ci->i_truncate_seq, ci->i_truncate_size,
-				    &mtime, false, 2, page_align);
+				    &mtime, false, page_align);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -637,7 +643,7 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	struct ceph_file_info *fi = filp->private_data;
 	loff_t *ppos = &iocb->ki_pos;
 	size_t len = iov->iov_len;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	void __user *base = iov->iov_base;
 	ssize_t ret;
@@ -707,7 +713,7 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct ceph_file_info *fi = file->private_data;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;

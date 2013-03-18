@@ -438,18 +438,18 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		if (q->rate) {
 			struct sk_buff_head *list = &sch->q;
 
-			delay += packet_len_2_sched_time(skb->len, q);
-
 			if (!skb_queue_empty(list)) {
 				/*
-				 * Last packet in queue is reference point (now).
-				 * First packet in queue is already in flight,
-				 * calculate this time bonus and substract
+				 * Last packet in queue is reference point (now),
+				 * calculate this time bonus and subtract
 				 * from delay.
 				 */
-				delay -= now - netem_skb_cb(skb_peek(list))->time_to_send;
+				delay -= netem_skb_cb(skb_peek_tail(list))->time_to_send - now;
+				delay = max_t(psched_tdiff_t, 0, delay);
 				now = netem_skb_cb(skb_peek_tail(list))->time_to_send;
 			}
+
+			delay += packet_len_2_sched_time(skb->len, q);
 		}
 
 		cb->time_to_send = now + delay;

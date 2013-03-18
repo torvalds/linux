@@ -18,7 +18,7 @@
  * kernel or user mode? (CP0_STATUS)
  */
 #define KU_MASK 0x08
-#define	KU_USER 0x08
+#define KU_USER 0x08
 #define KU_KERN 0x00
 
 #else
@@ -26,7 +26,7 @@
  * kernel or user mode?
  */
 #define KU_MASK 0x18
-#define	KU_USER 0x10
+#define KU_USER 0x10
 #define KU_KERN 0x00
 
 #endif

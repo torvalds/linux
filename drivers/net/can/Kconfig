@@ -1,9 +1,7 @@
 menu "CAN Device Drivers"
-	depends on CAN
 
 config CAN_VCAN
 	tristate "Virtual Local CAN Interface (vcan)"
-	depends on CAN
 	---help---
 	  Similar to the network loopback devices, vcan offers a
 	  virtual local CAN interface.
@@ -13,7 +11,7 @@ config CAN_VCAN
 
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"
-	depends on CAN
+	depends on TTY
 	---help---
 	  CAN driver for several 'low cost' CAN interfaces that are attached
 	  via serial lines or via USB-to-serial adapters using the LAWICEL
@@ -33,16 +31,16 @@ config CAN_SLCAN
 
 config CAN_DEV
 	tristate "Platform CAN drivers with Netlink support"
-	depends on CAN
 	default y
 	---help---
 	  Enables the common framework for platform CAN drivers with Netlink
 	  support. This is the standard library for CAN drivers.
 	  If unsure, say Y.
 
+if CAN_DEV
+
 config CAN_CALC_BITTIMING
 	bool "CAN bit-timing calculation"
-	depends on CAN_DEV
 	default y
 	---help---
 	  If enabled, CAN bit-timing parameters will be calculated for the
@@ -54,15 +52,26 @@ config CAN_CALC_BITTIMING
 	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
 	  If unsure, say Y.
 
+config CAN_LEDS
+	bool "Enable LED triggers for Netlink based drivers"
+	depends on LEDS_CLASS
+	select LEDS_TRIGGERS
+	---help---
+	  This option adds two LED triggers for packet receive and transmit
+	  events on each supported CAN device.
+
+	  Say Y here if you are working on a system with led-class supported
+	  LEDs and you want to use them as canbus activity indicators.
+
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
-	depends on CAN_DEV && (ARCH_AT91SAM9263 || ARCH_AT91SAM9X5)
+	depends on ARCH_AT91SAM9263 || ARCH_AT91SAM9X5
 	---help---
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
 
 config CAN_TI_HECC
-	depends on CAN_DEV && ARCH_OMAP3
+	depends on ARCH_OMAP3
 	tristate "TI High End CAN Controller"
 	---help---
 	  Driver for TI HECC (High End CAN Controller) module found on many
@@ -70,12 +79,12 @@ config CAN_TI_HECC
 
 config CAN_MCP251X
 	tristate "Microchip MCP251x SPI CAN controllers"
-	depends on CAN_DEV && SPI && HAS_DMA
+	depends on SPI && HAS_DMA
 	---help---
 	  Driver for the Microchip MCP251x SPI CAN controllers.
 
 config CAN_BFIN
-	depends on CAN_DEV && (BF534 || BF536 || BF537 || BF538 || BF539 || BF54x)
+	depends on BF534 || BF536 || BF537 || BF538 || BF539 || BF54x
 	tristate "Analog Devices Blackfin on-chip CAN"
 	---help---
 	  Driver for the Analog Devices Blackfin on-chip CAN controllers
@@ -85,7 +94,7 @@ config CAN_BFIN
 
 config CAN_JANZ_ICAN3
 	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
-	depends on CAN_DEV && MFD_JANZ_CMODIO
+	depends on MFD_JANZ_CMODIO
 	---help---
 	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
 	  connects to a MODULbus carrier board.
@@ -98,13 +107,13 @@ config HAVE_CAN_FLEXCAN
 
 config CAN_FLEXCAN
 	tristate "Support for Freescale FLEXCAN based chips"
-	depends on CAN_DEV && HAVE_CAN_FLEXCAN
+	depends on HAVE_CAN_FLEXCAN
 	---help---
 	  Say Y here if you want to support for Freescale FlexCAN.
 
 config PCH_CAN
 	tristate "Intel EG20T PCH CAN controller"
-	depends on CAN_DEV && PCI
+	depends on PCI
 	---help---
 	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
 	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
@@ -112,7 +121,7 @@ config PCH_CAN
 
 config CAN_GRCAN
 	tristate "Aeroflex Gaisler GRCAN and GRHCAN CAN devices"
-	depends on CAN_DEV && OF
+	depends on OF
 	---help---
 	  Say Y here if you want to use Aeroflex Gaisler GRCAN or GRHCAN.
 	  Note that the driver supports little endian, even though little
@@ -131,9 +140,10 @@ source "drivers/net/can/usb/Kconfig"
 
 source "drivers/net/can/softing/Kconfig"
 
+endif
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
-	depends on CAN
 	---help---
 	  Say Y here if you want the CAN device drivers to produce a bunch of
 	  debug messages to the system log.  Select this if you are having

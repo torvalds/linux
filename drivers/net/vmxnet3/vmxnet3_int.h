@@ -276,8 +276,6 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_rx_ctx     rx_ctx;
 	u32 qid;            /* rqID in RCD for buffer from 1st ring */
 	u32 qid2;           /* rqID in RCD for buffer from 2nd ring */
-	u32 uncommitted[2]; /* # of buffers allocated since last RXPROD
-				* update */
 	struct vmxnet3_rx_buf_info     *buf_info[2];
 	struct Vmxnet3_RxQueueCtrl            *shared;
 	struct vmxnet3_rq_driver_stats  stats;
@@ -354,7 +352,6 @@ struct vmxnet3_adapter {
 
 	unsigned long  state;    /* VMXNET3_STATE_BIT_xxx */
 
-	int dev_number;
 	int share_intr;
 };
 

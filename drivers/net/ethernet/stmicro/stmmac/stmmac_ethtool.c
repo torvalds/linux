@@ -210,8 +210,7 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 		strlcpy(info->driver, MAC100_ETHTOOL_NAME,
 			sizeof(info->driver));
 
-	strcpy(info->version, DRV_MODULE_VERSION);
-	info->fw_version[0] = '\0';
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static int stmmac_ethtool_getsettings(struct net_device *dev,

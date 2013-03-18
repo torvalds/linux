@@ -223,7 +223,6 @@ static int puv3_i2c_probe(struct platform_device *pdev)
 	return 0;
 
 fail_add_adapter:
-	platform_set_drvdata(pdev, NULL);
 	kfree(adapter);
 fail_nomem:
 	release_mem_region(mem->start, resource_size(mem));
@@ -245,7 +244,6 @@ static int puv3_i2c_remove(struct platform_device *pdev)
 	}
 
 	put_device(&pdev->dev);
-	platform_set_drvdata(pdev, NULL);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));

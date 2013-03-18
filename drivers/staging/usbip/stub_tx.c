@@ -42,7 +42,6 @@ void stub_enqueue_ret_unlink(struct stub_device *sdev, __u32 seqnum,
 
 	unlink = kzalloc(sizeof(struct stub_unlink), GFP_ATOMIC);
 	if (!unlink) {
-		dev_err(&sdev->interface->dev, "alloc stub_unlink\n");
 		usbip_event_add(&sdev->ud, VDEV_EVENT_ERROR_MALLOC);
 		return;
 	}

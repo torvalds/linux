@@ -312,11 +312,9 @@ static int tegra_emc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	emc_regbase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!emc_regbase) {
-		dev_err(&pdev->dev, "failed to remap registers\n");
-		return -ENOMEM;
-	}
+	emc_regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(emc_regbase))
+		return PTR_ERR(emc_regbase);
 
 	pdata = pdev->dev.platform_data;
 

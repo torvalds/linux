@@ -252,7 +252,7 @@ static int max8925_regulator_dt_init(struct platform_device *pdev,
 {
 	struct device_node *nproot, *np;
 	int rcount;
-	nproot = pdev->dev.parent->of_node;
+	nproot = of_node_get(pdev->dev.parent->of_node);
 	if (!nproot)
 		return -ENODEV;
 	np = of_find_node_by_name(nproot, "regulators");
@@ -263,6 +263,7 @@ static int max8925_regulator_dt_init(struct platform_device *pdev,
 
 	rcount = of_regulator_match(&pdev->dev, np,
 				&max8925_regulator_matches[ridx], 1);
+	of_node_put(np);
 	if (rcount < 0)
 		return -ENODEV;
 	config->init_data =	max8925_regulator_matches[ridx].init_data;

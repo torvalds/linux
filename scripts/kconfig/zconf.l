@@ -40,7 +40,7 @@ static void zconf_endfile(void);
 
 static void new_string(void)
 {
-	text = malloc(START_STRSIZE);
+	text = xmalloc(START_STRSIZE);
 	text_asize = START_STRSIZE;
 	text_size = 0;
 	*text = 0;
@@ -62,7 +62,7 @@ static void append_string(const char *str, int size)
 
 static void alloc_string(const char *str, int size)
 {
-	text = malloc(size + 1);
+	text = xmalloc(size + 1);
 	memcpy(text, str, size);
 	text[size] = 0;
 }
@@ -288,7 +288,7 @@ void zconf_initscan(const char *name)
 		exit(1);
 	}
 
-	current_buf = malloc(sizeof(*current_buf));
+	current_buf = xmalloc(sizeof(*current_buf));
 	memset(current_buf, 0, sizeof(*current_buf));
 
 	current_file = file_lookup(name);
@@ -299,7 +299,7 @@ void zconf_nextfile(const char *name)
 {
 	struct file *iter;
 	struct file *file = file_lookup(name);
-	struct buffer *buf = malloc(sizeof(*buf));
+	struct buffer *buf = xmalloc(sizeof(*buf));
 	memset(buf, 0, sizeof(*buf));
 
 	current_buf->state = YY_CURRENT_BUFFER;

@@ -164,6 +164,14 @@ static const unsigned int mc13892_sw1[] = {
 	1350000, 1375000
 };
 
+/*
+ * Note: this table is used to derive SWxVSEL by index into
+ * the array. Offset the values by the index of 1100000uV
+ * to get the actual register value for that voltage selector
+ * if the HI bit is to be set as well.
+ */
+#define MC13892_SWxHI_SEL_OFFSET		20
+
 static const unsigned int mc13892_sw[] = {
 	600000,   625000,  650000,  675000,  700000,  725000,
 	750000,   775000,  800000,  825000,  850000,  875000,
@@ -239,7 +247,6 @@ static const unsigned int mc13892_pwgtdrv[] = {
 };
 
 static struct regulator_ops mc13892_gpo_regulator_ops;
-/* sw regulators need special care due to the "hi bit" */
 static struct regulator_ops mc13892_sw_regulator_ops;
 
 
@@ -396,7 +403,7 @@ static int mc13892_sw_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct mc13xxx_regulator_priv *priv = rdev_get_drvdata(rdev);
 	int ret, id = rdev_get_id(rdev);
-	unsigned int val;
+	unsigned int val, selector;
 
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d\n", __func__, id);
 
@@ -407,12 +414,28 @@ static int mc13892_sw_regulator_get_voltage_sel(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	val = (val & mc13892_regulators[id].vsel_mask)
-		>> mc13892_regulators[id].vsel_shift;
+	/*
+	 * Figure out if the HI bit is set inside the switcher mode register
+	 * since this means the selector value we return is at a different
+	 * offset into the selector table.
+	 *
+	 * According to the MC13892 documentation note 59 (Table 47) the SW1
+	 * buck switcher does not support output range programming therefore
+	 * the HI bit must always remain 0. So do not do anything strange if
+	 * our register is MC13892_SWITCHERS0.
+	 */
 
-	dev_dbg(rdev_get_dev(rdev), "%s id: %d val: %d\n", __func__, id, val);
+	selector = val & mc13892_regulators[id].vsel_mask;
 
-	return val;
+	if ((mc13892_regulators[id].vsel_reg != MC13892_SWITCHERS0) &&
+	    (val & MC13892_SWITCHERS0_SWxHI)) {
+		selector += MC13892_SWxHI_SEL_OFFSET;
+	}
+
+	dev_dbg(rdev_get_dev(rdev), "%s id: %d val: 0x%08x selector: %d\n",
+			__func__, id, val, selector);
+
+	return selector;
 }
 
 static int mc13892_sw_regulator_set_voltage_sel(struct regulator_dev *rdev,
@@ -425,18 +448,35 @@ static int mc13892_sw_regulator_set_voltage_sel(struct regulator_dev *rdev,
 
 	volt = rdev->desc->volt_table[selector];
 	mask = mc13892_regulators[id].vsel_mask;
-	reg_value = selector << mc13892_regulators[id].vsel_shift;
+	reg_value = selector;
 
-	if (volt > 1375000) {
-		mask |= MC13892_SWITCHERS0_SWxHI;
-		reg_value |= MC13892_SWITCHERS0_SWxHI;
-	} else if (volt < 1100000) {
-		mask |= MC13892_SWITCHERS0_SWxHI;
-		reg_value &= ~MC13892_SWITCHERS0_SWxHI;
+	/*
+	 * Don't mess with the HI bit or support HI voltage offsets for SW1.
+	 *
+	 * Since the get_voltage_sel callback has given a fudged value for
+	 * the selector offset, we need to back out that offset if HI is
+	 * to be set so we write the correct value to the register.
+	 *
+	 * The HI bit addition and selector offset handling COULD be more
+	 * complicated by shifting and masking off the voltage selector part
+	 * of the register then logical OR it back in, but since the selector
+	 * is at bits 4:0 there is very little point. This makes the whole
+	 * thing more readable and we do far less work.
+	 */
+
+	if (mc13892_regulators[id].vsel_reg != MC13892_SWITCHERS0) {
+		if (volt > 1375000) {
+			reg_value -= MC13892_SWxHI_SEL_OFFSET;
+			reg_value |= MC13892_SWITCHERS0_SWxHI;
+			mask |= MC13892_SWITCHERS0_SWxHI;
+		} else if (volt < 1100000) {
+			reg_value &= ~MC13892_SWITCHERS0_SWxHI;
+			mask |= MC13892_SWITCHERS0_SWxHI;
+		}
 	}
 
 	mc13xxx_lock(priv->mc13xxx);
-	ret = mc13xxx_reg_rmw(priv->mc13xxx, mc13892_regulators[id].reg, mask,
+	ret = mc13xxx_reg_rmw(priv->mc13xxx, mc13892_regulators[id].vsel_reg, mask,
 			      reg_value);
 	mc13xxx_unlock(priv->mc13xxx);
 
@@ -495,14 +535,17 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 	struct mc13xxx_regulator_init_data *mc13xxx_data;
 	struct regulator_config config = { };
 	int i, ret;
-	int num_regulators = 0;
+	int num_regulators = 0, num_parsed;
 	u32 val;
 
 	num_regulators = mc13xxx_get_num_regulators_dt(pdev);
+
 	if (num_regulators <= 0 && pdata)
 		num_regulators = pdata->num_regulators;
 	if (num_regulators <= 0)
 		return -EINVAL;
+
+	num_parsed = num_regulators;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv) +
 		num_regulators * sizeof(priv->regulators[0]),
@@ -520,7 +563,7 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unlock;
 
-	/* enable switch auto mode */
+	/* enable switch auto mode (on 2.0A silicon only) */
 	if ((val & 0x0000FFFF) == 0x45d0) {
 		ret = mc13xxx_reg_rmw(mc13892, MC13892_SWITCHERS4,
 			MC13892_SWITCHERS4_SW1MODE_M |
@@ -546,7 +589,39 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 		= mc13892_vcam_get_mode;
 
 	mc13xxx_data = mc13xxx_parse_regulators_dt(pdev, mc13892_regulators,
-					ARRAY_SIZE(mc13892_regulators));
+					ARRAY_SIZE(mc13892_regulators),
+					&num_parsed);
+
+	/*
+	 * Perform a little sanity check on the regulator tree - if we found
+	 * a number of regulators from mc13xxx_get_num_regulators_dt and
+	 * then parsed a smaller number in mc13xxx_parse_regulators_dt then
+	 * there is a regulator defined in the regulators node which has
+	 * not matched any usable regulator in the driver. In this case,
+	 * there is one missing and what will happen is the first regulator
+	 * will get registered again.
+	 *
+	 * Fix this by basically making our number of registerable regulators
+	 * equal to the number of regulators we parsed. We are allocating
+	 * too much memory for priv, but this is unavoidable at this point.
+	 *
+	 * As an example of how this can happen, try making a typo in your
+	 * regulators node (vviohi {} instead of viohi {}) so that the name
+	 * does not match..
+	 *
+	 * The check will basically pass for platform data (non-DT) because
+	 * mc13xxx_parse_regulators_dt for !CONFIG_OF will not touch num_parsed.
+	 *
+	 */
+	if (num_parsed != num_regulators) {
+		dev_warn(&pdev->dev,
+		"parsed %d != regulators %d - check your device tree!\n",
+			num_parsed, num_regulators);
+
+		num_regulators = num_parsed;
+		priv->num_regulators = num_regulators;
+	}
+
 	for (i = 0; i < num_regulators; i++) {
 		struct regulator_init_data *init_data;
 		struct regulator_desc *desc;

@@ -284,7 +284,7 @@ out:
 static ssize_t
 rpc_pipe_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct rpc_pipe *pipe;
 	struct rpc_pipe_msg *msg;
 	int res = 0;
@@ -328,7 +328,7 @@ out_unlock:
 static ssize_t
 rpc_pipe_write(struct file *filp, const char __user *buf, size_t len, loff_t *offset)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int res;
 
 	mutex_lock(&inode->i_mutex);
@@ -342,7 +342,7 @@ rpc_pipe_write(struct file *filp, const char __user *buf, size_t len, loff_t *of
 static unsigned int
 rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct rpc_inode *rpci = RPC_I(inode);
 	unsigned int mask = POLLOUT | POLLWRNORM;
 
@@ -360,7 +360,7 @@ rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 static long
 rpc_pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct rpc_pipe *pipe;
 	int len;
 
@@ -830,7 +830,7 @@ static int rpc_rmdir_depopulate(struct dentry *dentry,
  * responses to upcalls.  They will result in calls to @msg->downcall.
  *
  * The @private argument passed here will be available to all these methods
- * from the file pointer, via RPC_I(file->f_dentry->d_inode)->private.
+ * from the file pointer, via RPC_I(file_inode(file))->private.
  */
 struct dentry *rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 				 void *private, struct rpc_pipe *pipe)

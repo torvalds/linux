@@ -208,13 +208,6 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 		if (ipprot != NULL) {
 			int ret;
 
-			if (!net_eq(net, &init_net) && !ipprot->netns_ok) {
-				net_info_ratelimited("%s: proto %d isn't netns-ready\n",
-						     __func__, protocol);
-				kfree_skb(skb);
-				goto out;
-			}
-
 			if (!ipprot->no_policy) {
 				if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 					kfree_skb(skb);

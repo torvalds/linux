@@ -112,7 +112,7 @@ static void f2fs_put_super(struct super_block *sb)
 	f2fs_destroy_stats(sbi);
 	stop_gc_thread(sbi);
 
-	write_checkpoint(sbi, false, true);
+	write_checkpoint(sbi, true);
 
 	iput(sbi->node_inode);
 	iput(sbi->meta_inode);
@@ -136,10 +136,26 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 		return 0;
 
 	if (sync)
-		write_checkpoint(sbi, false, false);
+		write_checkpoint(sbi, false);
 	else
 		f2fs_balance_fs(sbi);
 
+	return 0;
+}
+
+static int f2fs_freeze(struct super_block *sb)
+{
+	int err;
+
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	err = f2fs_sync_fs(sb, 1);
+	return err;
+}
+
+static int f2fs_unfreeze(struct super_block *sb)
+{
 	return 0;
 }
 
@@ -198,7 +214,7 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noacl");
 #endif
 	if (test_opt(sbi, DISABLE_EXT_IDENTIFY))
-		seq_puts(seq, ",disable_ext_indentify");
+		seq_puts(seq, ",disable_ext_identify");
 
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
@@ -213,6 +229,8 @@ static struct super_operations f2fs_sops = {
 	.evict_inode	= f2fs_evict_inode,
 	.put_super	= f2fs_put_super,
 	.sync_fs	= f2fs_sync_fs,
+	.freeze_fs	= f2fs_freeze,
+	.unfreeze_fs	= f2fs_unfreeze,
 	.statfs		= f2fs_statfs,
 };
 
@@ -366,14 +384,23 @@ static int sanity_check_raw_super(struct super_block *sb,
 		return 1;
 	}
 
+	/* Currently, support only 4KB page cache size */
+	if (F2FS_BLKSIZE != PAGE_CACHE_SIZE) {
+		f2fs_msg(sb, KERN_INFO,
+			"Invalid page_cache_size (%lu), supports only 4KB\n",
+			PAGE_CACHE_SIZE);
+		return 1;
+	}
+
 	/* Currently, support only 4KB block size */
 	blocksize = 1 << le32_to_cpu(raw_super->log_blocksize);
-	if (blocksize != PAGE_CACHE_SIZE) {
+	if (blocksize != F2FS_BLKSIZE) {
 		f2fs_msg(sb, KERN_INFO,
 			"Invalid blocksize (%u), supports only 4KB\n",
 			blocksize);
 		return 1;
 	}
+
 	if (le32_to_cpu(raw_super->log_sectorsize) !=
 					F2FS_LOG_SECTOR_SIZE) {
 		f2fs_msg(sb, KERN_INFO, "Invalid log sectorsize");
@@ -387,10 +414,11 @@ static int sanity_check_raw_super(struct super_block *sb,
 	return 0;
 }
 
-static int sanity_check_ckpt(struct f2fs_super_block *raw_super,
-				struct f2fs_checkpoint *ckpt)
+static int sanity_check_ckpt(struct f2fs_sb_info *sbi)
 {
 	unsigned int total, fsmeta;
+	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 
 	total = le32_to_cpu(raw_super->segment_count);
 	fsmeta = le32_to_cpu(raw_super->segment_count_ckpt);
@@ -401,6 +429,11 @@ static int sanity_check_ckpt(struct f2fs_super_block *raw_super,
 
 	if (fsmeta >= total)
 		return 1;
+
+	if (is_set_ckpt_flags(ckpt, CP_ERROR_FLAG)) {
+		f2fs_msg(sbi->sb, KERN_ERR, "A bug case: need to run fsck");
+		return 1;
+	}
 	return 0;
 }
 
@@ -429,6 +462,32 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 		atomic_set(&sbi->nr_pages[i], 0);
 }
 
+static int validate_superblock(struct super_block *sb,
+		struct f2fs_super_block **raw_super,
+		struct buffer_head **raw_super_buf, sector_t block)
+{
+	const char *super = (block == 0 ? "first" : "second");
+
+	/* read f2fs raw super block */
+	*raw_super_buf = sb_bread(sb, block);
+	if (!*raw_super_buf) {
+		f2fs_msg(sb, KERN_ERR, "unable to read %s superblock",
+				super);
+		return 1;
+	}
+
+	*raw_super = (struct f2fs_super_block *)
+		((char *)(*raw_super_buf)->b_data + F2FS_SUPER_OFFSET);
+
+	/* sanity checking of raw super */
+	if (!sanity_check_raw_super(sb, *raw_super))
+		return 0;
+
+	f2fs_msg(sb, KERN_ERR, "Can't find a valid F2FS filesystem "
+				"in %s superblock", super);
+	return 1;
+}
+
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct f2fs_sb_info *sbi;
@@ -449,16 +508,11 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
-	/* read f2fs raw super block */
-	raw_super_buf = sb_bread(sb, 0);
-	if (!raw_super_buf) {
-		err = -EIO;
-		f2fs_msg(sb, KERN_ERR, "unable to read superblock");
-		goto free_sbi;
+	if (validate_superblock(sb, &raw_super, &raw_super_buf, 0)) {
+		brelse(raw_super_buf);
+		if (validate_superblock(sb, &raw_super, &raw_super_buf, 1))
+			goto free_sb_buf;
 	}
-	raw_super = (struct f2fs_super_block *)
-			((char *)raw_super_buf->b_data + F2FS_SUPER_OFFSET);
-
 	/* init some FS parameters */
 	sbi->active_logs = NR_CURSEG_TYPE;
 
@@ -473,12 +527,6 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	/* parse mount options */
 	if (parse_options(sb, sbi, (char *)data))
 		goto free_sb_buf;
-
-	/* sanity checking of raw super */
-	if (sanity_check_raw_super(sb, raw_super)) {
-		f2fs_msg(sb, KERN_ERR, "Can't find a valid F2FS filesystem");
-		goto free_sb_buf;
-	}
 
 	sb->s_maxbytes = max_file_size(le32_to_cpu(raw_super->log_blocksize));
 	sb->s_max_links = F2FS_LINK_MAX;
@@ -525,7 +573,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* sanity checking of checkpoint */
 	err = -EINVAL;
-	if (sanity_check_ckpt(raw_super, sbi->ckpt)) {
+	if (sanity_check_ckpt(sbi)) {
 		f2fs_msg(sb, KERN_ERR, "Invalid F2FS checkpoint");
 		goto free_cp;
 	}

@@ -302,9 +302,9 @@ ltq_etop_hw_init(struct net_device *dev)
 static void
 ltq_etop_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "Lantiq ETOP");
-	strcpy(info->bus_info, "internal");
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, "Lantiq ETOP", sizeof(info->driver));
+	strlcpy(info->bus_info, "internal", sizeof(info->bus_info));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static int
@@ -393,8 +393,8 @@ ltq_etop_mdio_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev), &ltq_etop_mdio_link,
-			0, priv->pldata->mii_mode);
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
+			     &ltq_etop_mdio_link, priv->pldata->mii_mode);
 
 	if (IS_ERR(phydev)) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -655,7 +655,7 @@ ltq_etop_init(struct net_device *dev)
 
 	/* Set addr_assign_type here, ltq_etop_set_mac_address would reset it. */
 	if (random_mac)
-		dev->addr_assign_type |= NET_ADDR_RANDOM;
+		dev->addr_assign_type = NET_ADDR_RANDOM;
 
 	ltq_etop_set_multicast_list(dev);
 	err = ltq_etop_mdio_init(dev);

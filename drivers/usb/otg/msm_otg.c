@@ -1756,18 +1756,7 @@ static struct platform_driver msm_otg_driver = {
 	},
 };
 
-static int __init msm_otg_init(void)
-{
-	return platform_driver_probe(&msm_otg_driver, msm_otg_probe);
-}
-
-static void __exit msm_otg_exit(void)
-{
-	platform_driver_unregister(&msm_otg_driver);
-}
-
-module_init(msm_otg_init);
-module_exit(msm_otg_exit);
+module_platform_driver_probe(msm_otg_driver, msm_otg_probe);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MSM USB transceiver driver");

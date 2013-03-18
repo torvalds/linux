@@ -1221,7 +1221,7 @@ static u32 imon_panel_key_lookup(u64 code)
 static bool imon_mouse_event(struct imon_context *ictx,
 			     unsigned char *buf, int len)
 {
-	char rel_x = 0x00, rel_y = 0x00;
+	signed char rel_x = 0x00, rel_y = 0x00;
 	u8 right_shift = 1;
 	bool mouse_input = true;
 	int dir = 0;
@@ -1297,7 +1297,7 @@ static void imon_touch_event(struct imon_context *ictx, unsigned char *buf)
 static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 {
 	int dir = 0;
-	char rel_x = 0x00, rel_y = 0x00;
+	signed char rel_x = 0x00, rel_y = 0x00;
 	u16 timeout, threshold;
 	u32 scancode = KEY_RESERVED;
 	unsigned long flags;

@@ -90,6 +90,8 @@ struct  intel_ring_buffer {
 	 */
 	u32		(*get_seqno)(struct intel_ring_buffer *ring,
 				     bool lazy_coherency);
+	void		(*set_seqno)(struct intel_ring_buffer *ring,
+				     u32 seqno);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
 					       u32 offset, u32 length,
 					       unsigned flags);
@@ -178,6 +180,13 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 	return ring->status_page.page_addr[reg];
 }
 
+static inline void
+intel_write_status_page(struct intel_ring_buffer *ring,
+			int reg, u32 value)
+{
+	ring->status_page.page_addr[reg] = value;
+}
+
 /**
  * Reads a dword out of the status page, which is written to from the command
  * queue by automatic updates, MI_REPORT_HEAD, MI_STORE_DATA_INDEX, or
@@ -208,7 +217,7 @@ static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 }
 void intel_ring_advance(struct intel_ring_buffer *ring);
 int __must_check intel_ring_idle(struct intel_ring_buffer *ring);
-
+void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_ring_buffer *ring);
 int intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring);
 

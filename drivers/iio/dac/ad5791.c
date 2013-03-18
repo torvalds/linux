@@ -125,7 +125,6 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 		u8 d8[4];
 	} data[3];
 	int ret;
-	struct spi_message msg;
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = &data[0].d8[1],
@@ -144,10 +143,7 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 			      AD5791_ADDR(addr));
 	data[1].d32 = cpu_to_be32(AD5791_ADDR(AD5791_ADDR_NOOP));
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(spi, &msg);
+	ret = spi_sync_transfer(spi, xfers, ARRAY_SIZE(xfers));
 
 	*val = be32_to_cpu(data[2].d32);
 

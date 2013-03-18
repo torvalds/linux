@@ -305,8 +305,8 @@ static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
 	if (!regs)
 		return NULL;
 
-	count = of_regulator_match(pdev->dev.parent, regs,
-				reg_matches, TPS65217_NUM_REGULATOR);
+	count = of_regulator_match(&pdev->dev, regs, reg_matches,
+				   TPS65217_NUM_REGULATOR);
 	of_node_put(regs);
 	if ((count < 0) || (count > TPS65217_NUM_REGULATOR))
 		return NULL;

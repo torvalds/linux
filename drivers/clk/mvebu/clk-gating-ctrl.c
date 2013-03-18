@@ -193,6 +193,7 @@ static const struct mvebu_soc_descr __initconst kirkwood_gating_descr[] = {
 	{ "runit", NULL, 7 },
 	{ "xor0", NULL, 8 },
 	{ "audio", NULL, 9 },
+	{ "powersave", "cpuclk", 11 },
 	{ "sata0", NULL, 14 },
 	{ "sata1", NULL, 15 },
 	{ "xor1", NULL, 16 },

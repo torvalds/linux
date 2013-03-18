@@ -39,7 +39,6 @@
 #include <media/v4l2-mediabus.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <plat/adc.h>
@@ -1209,25 +1208,25 @@ static struct i2c_board_info m5mols_board_info = {
 	.platform_data	= &m5mols_platdata,
 };
 
-static struct s5p_fimc_isp_info nuri_camera_sensors[] = {
+static struct fimc_source_info nuri_camera_sensors[] = {
 	{
 		.flags		= V4L2_MBUS_PCLK_SAMPLE_RISING |
 				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
-		.bus_type	= FIMC_ITU_601,
+		.fimc_bus_type	= FIMC_BUS_TYPE_ITU_601,
 		.board_info	= &s5k6aa_board_info,
 		.clk_frequency	= 24000000UL,
 		.i2c_bus_num	= 6,
 	}, {
 		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING |
 				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
-		.bus_type	= FIMC_MIPI_CSI2,
+		.fimc_bus_type	= FIMC_BUS_TYPE_MIPI_CSI2,
 		.board_info	= &m5mols_board_info,
 		.clk_frequency	= 24000000UL,
 	},
 };
 
 static struct s5p_platform_fimc fimc_md_platdata = {
-	.isp_info	= nuri_camera_sensors,
+	.source_info	= nuri_camera_sensors,
 	.num_clients	= ARRAY_SIZE(nuri_camera_sensors),
 };
 
@@ -1379,10 +1378,9 @@ MACHINE_START(NURI, "NURI")
 	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= nuri_map_io,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= nuri_machine_init,
 	.init_late	= exynos_init_late,
-	.timer		= &exynos4_timer,
+	.init_time	= exynos4_timer_init,
 	.reserve        = &nuri_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

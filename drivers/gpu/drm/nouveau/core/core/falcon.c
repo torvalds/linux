@@ -73,8 +73,11 @@ _nouveau_falcon_init(struct nouveau_object *object)
 	nv_debug(falcon, "data limit: %d\n", falcon->data.limit);
 
 	/* wait for 'uc halted' to be signalled before continuing */
-	if (falcon->secret) {
-		nv_wait(falcon, 0x008, 0x00000010, 0x00000010);
+	if (falcon->secret && falcon->version < 4) {
+		if (!falcon->version)
+			nv_wait(falcon, 0x008, 0x00000010, 0x00000010);
+		else
+			nv_wait(falcon, 0x180, 0x80000000, 0);
 		nv_wo32(falcon, 0x004, 0x00000010);
 	}
 

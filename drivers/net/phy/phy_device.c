@@ -416,16 +416,15 @@ static void phy_prepare_link(struct phy_device *phydev,
  * @dev: the network device to connect
  * @phydev: the pointer to the phy device
  * @handler: callback function for state change notifications
- * @flags: PHY device's dev_flags
  * @interface: PHY device's interface
  */
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
-		       void (*handler)(struct net_device *), u32 flags,
+		       void (*handler)(struct net_device *),
 		       phy_interface_t interface)
 {
 	int rc;
 
-	rc = phy_attach_direct(dev, phydev, flags, interface);
+	rc = phy_attach_direct(dev, phydev, phydev->dev_flags, interface);
 	if (rc)
 		return rc;
 
@@ -443,7 +442,6 @@ EXPORT_SYMBOL(phy_connect_direct);
  * @dev: the network device to connect
  * @bus_id: the id string of the PHY device to connect
  * @handler: callback function for state change notifications
- * @flags: PHY device's dev_flags
  * @interface: PHY device's interface
  *
  * Description: Convenience function for connecting ethernet
@@ -455,7 +453,7 @@ EXPORT_SYMBOL(phy_connect_direct);
  *   the desired functionality.
  */
 struct phy_device * phy_connect(struct net_device *dev, const char *bus_id,
-		void (*handler)(struct net_device *), u32 flags,
+		void (*handler)(struct net_device *),
 		phy_interface_t interface)
 {
 	struct phy_device *phydev;
@@ -471,7 +469,7 @@ struct phy_device * phy_connect(struct net_device *dev, const char *bus_id,
 	}
 	phydev = to_phy_device(d);
 
-	rc = phy_connect_direct(dev, phydev, handler, flags, interface);
+	rc = phy_connect_direct(dev, phydev, handler, interface);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -576,14 +574,13 @@ static int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
  * phy_attach - attach a network device to a particular PHY device
  * @dev: network device to attach
  * @bus_id: Bus ID of PHY device to attach
- * @flags: PHY device's dev_flags
  * @interface: PHY device's interface
  *
  * Description: Same as phy_attach_direct() except that a PHY bus_id
  *     string is passed instead of a pointer to a struct phy_device.
  */
 struct phy_device *phy_attach(struct net_device *dev,
-		const char *bus_id, u32 flags, phy_interface_t interface)
+		const char *bus_id, phy_interface_t interface)
 {
 	struct bus_type *bus = &mdio_bus_type;
 	struct phy_device *phydev;
@@ -599,7 +596,7 @@ struct phy_device *phy_attach(struct net_device *dev,
 	}
 	phydev = to_phy_device(d);
 
-	rc = phy_attach_direct(dev, phydev, flags, interface);
+	rc = phy_attach_direct(dev, phydev, phydev->dev_flags, interface);
 	if (rc)
 		return ERR_PTR(rc);
 

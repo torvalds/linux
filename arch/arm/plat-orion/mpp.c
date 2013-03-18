@@ -49,7 +49,7 @@ void __init orion_mpp_conf(unsigned int *mpp_list, unsigned int variant_mask,
 					"number (%u)\n", num);
 			continue;
 		}
-		if (variant_mask & !(*mpp_list & variant_mask)) {
+		if (variant_mask && !(*mpp_list & variant_mask)) {
 			printk(KERN_WARNING
 			       "orion_mpp_conf: requested MPP%u config "
 			       "unavailable on this hardware\n", num);

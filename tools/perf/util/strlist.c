@@ -35,11 +35,11 @@ out_delete:
 	return NULL;
 }
 
-static void str_node__delete(struct str_node *self, bool dupstr)
+static void str_node__delete(struct str_node *snode, bool dupstr)
 {
 	if (dupstr)
-		free((void *)self->s);
-	free(self);
+		free((void *)snode->s);
+	free(snode);
 }
 
 static
@@ -59,12 +59,12 @@ static int strlist__node_cmp(struct rb_node *rb_node, const void *entry)
 	return strcmp(snode->s, str);
 }
 
-int strlist__add(struct strlist *self, const char *new_entry)
+int strlist__add(struct strlist *slist, const char *new_entry)
 {
-	return rblist__add_node(&self->rblist, new_entry);
+	return rblist__add_node(&slist->rblist, new_entry);
 }
 
-int strlist__load(struct strlist *self, const char *filename)
+int strlist__load(struct strlist *slist, const char *filename)
 {
 	char entry[1024];
 	int err;
@@ -80,7 +80,7 @@ int strlist__load(struct strlist *self, const char *filename)
 			continue;
 		entry[len - 1] = '\0';
 
-		err = strlist__add(self, entry);
+		err = strlist__add(slist, entry);
 		if (err != 0)
 			goto out;
 	}
@@ -107,56 +107,56 @@ struct str_node *strlist__find(struct strlist *slist, const char *entry)
 	return snode;
 }
 
-static int strlist__parse_list_entry(struct strlist *self, const char *s)
+static int strlist__parse_list_entry(struct strlist *slist, const char *s)
 {
 	if (strncmp(s, "file://", 7) == 0)
-		return strlist__load(self, s + 7);
+		return strlist__load(slist, s + 7);
 
-	return strlist__add(self, s);
+	return strlist__add(slist, s);
 }
 
-int strlist__parse_list(struct strlist *self, const char *s)
+int strlist__parse_list(struct strlist *slist, const char *s)
 {
 	char *sep;
 	int err;
 
 	while ((sep = strchr(s, ',')) != NULL) {
 		*sep = '\0';
-		err = strlist__parse_list_entry(self, s);
+		err = strlist__parse_list_entry(slist, s);
 		*sep = ',';
 		if (err != 0)
 			return err;
 		s = sep + 1;
 	}
 
-	return *s ? strlist__parse_list_entry(self, s) : 0;
+	return *s ? strlist__parse_list_entry(slist, s) : 0;
 }
 
-struct strlist *strlist__new(bool dupstr, const char *slist)
+struct strlist *strlist__new(bool dupstr, const char *list)
 {
-	struct strlist *self = malloc(sizeof(*self));
+	struct strlist *slist = malloc(sizeof(*slist));
 
-	if (self != NULL) {
-		rblist__init(&self->rblist);
-		self->rblist.node_cmp    = strlist__node_cmp;
-		self->rblist.node_new    = strlist__node_new;
-		self->rblist.node_delete = strlist__node_delete;
+	if (slist != NULL) {
+		rblist__init(&slist->rblist);
+		slist->rblist.node_cmp    = strlist__node_cmp;
+		slist->rblist.node_new    = strlist__node_new;
+		slist->rblist.node_delete = strlist__node_delete;
 
-		self->dupstr	 = dupstr;
-		if (slist && strlist__parse_list(self, slist) != 0)
+		slist->dupstr	 = dupstr;
+		if (slist && strlist__parse_list(slist, list) != 0)
 			goto out_error;
 	}
 
-	return self;
+	return slist;
 out_error:
-	free(self);
+	free(slist);
 	return NULL;
 }
 
-void strlist__delete(struct strlist *self)
+void strlist__delete(struct strlist *slist)
 {
-	if (self != NULL)
-		rblist__delete(&self->rblist);
+	if (slist != NULL)
+		rblist__delete(&slist->rblist);
 }
 
 struct str_node *strlist__entry(const struct strlist *slist, unsigned int idx)

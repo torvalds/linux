@@ -23,7 +23,7 @@ config NET_9P_VIRTIO
 	  guest partitions and a host partition.
 
 config NET_9P_RDMA
-	depends on INET && INFINIBAND && INFINIBAND_ADDR_TRANS && EXPERIMENTAL
+	depends on INET && INFINIBAND && INFINIBAND_ADDR_TRANS
 	tristate "9P RDMA Transport (Experimental)"
 	help
 	  This builds support for an RDMA transport.

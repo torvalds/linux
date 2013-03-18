@@ -6,6 +6,16 @@ config SND_SOC_TEGRA
 	help
 	  Say Y or M here if you want support for SoC audio on Tegra.
 
+config SND_SOC_TEGRA20_AC97
+	tristate
+	depends on SND_SOC_TEGRA && ARCH_TEGRA_2x_SOC
+	select SND_SOC_AC97_BUS
+	select SND_SOC_TEGRA20_DAS
+	help
+	  Say Y or M if you want to add support for codecs attached to the
+	  Tegra20 AC97 interface. You will also need to select the individual
+	  machine drivers to support below.
+
 config SND_SOC_TEGRA20_DAS
 	tristate
 	depends on SND_SOC_TEGRA && ARCH_TEGRA_2x_SOC
@@ -69,6 +79,15 @@ config SND_SOC_TEGRA_WM8903
 	  Say Y or M here if you want to add support for SoC audio on Tegra
 	  boards using the WM8093 codec. Currently, the supported boards are
 	  Harmony, Ventana, Seaboard, Kaen, and Aebl.
+
+config SND_SOC_TEGRA_WM9712
+	tristate "SoC Audio support for Tegra boards using a WM9712 codec"
+	depends on SND_SOC_TEGRA && ARCH_TEGRA_2x_SOC
+	select SND_SOC_TEGRA20_AC97
+	select SND_SOC_WM9712
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the WM9712 (or compatible) codec.
 
 config SND_SOC_TEGRA_TRIMSLICE
 	tristate "SoC Audio support for TrimSlice board"

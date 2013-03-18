@@ -1204,7 +1204,7 @@ static u8 ath_rc_build_ht_caps(struct ath_softc *sc, struct ieee80211_sta *sta)
 			caps |= WLAN_RC_TS_FLAG | WLAN_RC_DS_FLAG;
 		else if (sta->ht_cap.mcs.rx_mask[1])
 			caps |= WLAN_RC_DS_FLAG;
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
+		if (sta->bandwidth >= IEEE80211_STA_RX_BW_40) {
 			caps |= WLAN_RC_40_FLAG;
 			if (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40)
 				caps |= WLAN_RC_SGI_FLAG;
@@ -1452,17 +1452,7 @@ static void ath_rate_free(void *priv)
 
 static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
-	struct ath_softc *sc = priv;
-	struct ath_rate_priv *rate_priv;
-
-	rate_priv = kzalloc(sizeof(struct ath_rate_priv), gfp);
-	if (!rate_priv) {
-		ath_err(ath9k_hw_common(sc->sc_ah),
-			"Unable to allocate private rc structure\n");
-		return NULL;
-	}
-
-	return rate_priv;
+	return kzalloc(sizeof(struct ath_rate_priv), gfp);
 }
 
 static void ath_rate_free_sta(void *priv, struct ieee80211_sta *sta,

@@ -64,7 +64,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 
-	wil_dbg(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	wil_link_off(wil);
 	clear_bit(wil_status_fwconnected, &wil->status);
@@ -80,11 +80,13 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 					GFP_KERNEL);
 		break;
 	default:
-		;
+		break;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++)
 		wil_vring_fini_tx(wil, i);
+
+	clear_bit(wil_status_dontscan, &wil->status);
 }
 
 static void wil_disconnect_worker(struct work_struct *work)
@@ -99,7 +101,7 @@ static void wil_connect_timer_fn(ulong x)
 {
 	struct wil6210_priv *wil = (void *)x;
 
-	wil_dbg(wil, "Connect timeout\n");
+	wil_dbg_misc(wil, "Connect timeout\n");
 
 	/* reschedule to thread context - disconnect won't
 	 * run from atomic context
@@ -107,9 +109,18 @@ static void wil_connect_timer_fn(ulong x)
 	schedule_work(&wil->disconnect_worker);
 }
 
+static void wil_cache_mbox_regs(struct wil6210_priv *wil)
+{
+	/* make shadow copy of registers that should not change on run time */
+	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
+			     sizeof(struct wil6210_mbox_ctl));
+	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
+	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
+}
+
 int wil_priv_init(struct wil6210_priv *wil)
 {
-	wil_dbg(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->wmi_mutex);
@@ -136,11 +147,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 		return -EAGAIN;
 	}
 
-	/* make shadow copy of registers that should not change on run time */
-	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
-			     sizeof(struct wil6210_mbox_ctl));
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
+	wil_cache_mbox_regs(wil);
 
 	return 0;
 }
@@ -162,7 +169,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 
 static void wil_target_reset(struct wil6210_priv *wil)
 {
-	wil_dbg(wil, "Resetting...\n");
+	wil_dbg_misc(wil, "Resetting...\n");
 
 	/* register write */
 #define W(a, v) iowrite32(v, wil->csr + HOSTADDR(a))
@@ -202,7 +209,7 @@ static void wil_target_reset(struct wil6210_priv *wil)
 
 	msleep(2000);
 
-	wil_dbg(wil, "Reset completed\n");
+	wil_dbg_misc(wil, "Reset completed\n");
 
 #undef W
 #undef S
@@ -225,8 +232,8 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 		wil_err(wil, "Firmware not ready\n");
 		return -ETIME;
 	} else {
-		wil_dbg(wil, "FW ready after %d ms\n",
-			jiffies_to_msecs(to-left));
+		wil_dbg_misc(wil, "FW ready after %d ms\n",
+			     jiffies_to_msecs(to-left));
 	}
 	return 0;
 }
@@ -243,13 +250,13 @@ int wil_reset(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL);
 
-	wmi_event_flush(wil);
-
-	flush_workqueue(wil->wmi_wq);
-	flush_workqueue(wil->wmi_wq_conn);
-
 	wil6210_disable_irq(wil);
 	wil->status = 0;
+
+	wmi_event_flush(wil);
+
+	flush_workqueue(wil->wmi_wq_conn);
+	flush_workqueue(wil->wmi_wq);
 
 	/* TODO: put MAC in reset */
 	wil_target_reset(wil);
@@ -258,11 +265,7 @@ int wil_reset(struct wil6210_priv *wil)
 	wil->pending_connect_cid = -1;
 	INIT_COMPLETION(wil->wmi_ready);
 
-	/* make shadow copy of registers that should not change on run time */
-	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
-			     sizeof(struct wil6210_mbox_ctl));
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
-	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
+	wil_cache_mbox_regs(wil);
 
 	/* TODO: release MAC reset */
 	wil6210_enable_irq(wil);
@@ -278,7 +281,7 @@ void wil_link_on(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 
-	wil_dbg(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	netif_carrier_on(ndev);
 	netif_tx_wake_all_queues(ndev);
@@ -288,7 +291,7 @@ void wil_link_off(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 
-	wil_dbg(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	netif_tx_stop_all_queues(ndev);
 	netif_carrier_off(ndev);
@@ -311,27 +314,27 @@ static int __wil_up(struct wil6210_priv *wil)
 	wmi_nettype = wil_iftype_nl2wmi(NL80211_IFTYPE_ADHOC);
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
-		wil_dbg(wil, "type: STATION\n");
+		wil_dbg_misc(wil, "type: STATION\n");
 		bi = 0;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_AP:
-		wil_dbg(wil, "type: AP\n");
+		wil_dbg_misc(wil, "type: AP\n");
 		bi = 100;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
-		wil_dbg(wil, "type: P2P_CLIENT\n");
+		wil_dbg_misc(wil, "type: P2P_CLIENT\n");
 		bi = 0;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
-		wil_dbg(wil, "type: P2P_GO\n");
+		wil_dbg_misc(wil, "type: P2P_GO\n");
 		bi = 100;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_MONITOR:
-		wil_dbg(wil, "type: Monitor\n");
+		wil_dbg_misc(wil, "type: Monitor\n");
 		bi = 0;
 		ndev->type = ARPHRD_IEEE80211_RADIOTAP;
 		/* ARPHRD_IEEE80211 or ARPHRD_IEEE80211_RADIOTAP ? */
@@ -354,7 +357,7 @@ static int __wil_up(struct wil6210_priv *wil)
 			wmi_set_channel(wil, channel->hw_value);
 		break;
 	default:
-		;
+		break;
 	}
 
 	/* MAC address - pre-requisite for other commands */

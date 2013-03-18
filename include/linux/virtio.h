@@ -78,7 +78,7 @@ struct virtio_device {
 	int index;
 	struct device dev;
 	struct virtio_device_id id;
-	struct virtio_config_ops *config;
+	const struct virtio_config_ops *config;
 	struct list_head vqs;
 	/* Note that this is a Linux set_bit-style bitmap. */
 	unsigned long features[1];
@@ -126,4 +126,13 @@ static inline struct virtio_driver *drv_to_virtio(struct device_driver *drv)
 
 int register_virtio_driver(struct virtio_driver *drv);
 void unregister_virtio_driver(struct virtio_driver *drv);
+
+/* module_virtio_driver() - Helper macro for drivers that don't do
+ * anything special in module init/exit.  This eliminates a lot of
+ * boilerplate.  Each module may only use this macro once, and
+ * calling it replaces module_init() and module_exit()
+ */
+#define module_virtio_driver(__virtio_driver) \
+	module_driver(__virtio_driver, register_virtio_driver, \
+			unregister_virtio_driver)
 #endif /* _LINUX_VIRTIO_H */

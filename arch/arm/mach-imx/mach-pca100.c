@@ -416,10 +416,6 @@ static void __init pca100_timer_init(void)
 	mx27_clocks_init(26000000);
 }
 
-static struct sys_timer pca100_timer = {
-	.init = pca100_timer_init,
-};
-
 MACHINE_START(PCA100, "phyCARD-i.MX27")
 	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
@@ -427,6 +423,6 @@ MACHINE_START(PCA100, "phyCARD-i.MX27")
 	.init_irq = mx27_init_irq,
 	.handle_irq = imx27_handle_irq,
 	.init_machine = pca100_init,
-	.timer = &pca100_timer,
+	.init_time	= pca100_timer_init,
 	.restart	= mxc_restart,
 MACHINE_END

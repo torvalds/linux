@@ -15,6 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -41,6 +42,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/uaccess.h>
+#include <linux/moduleparam.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
@@ -577,7 +579,70 @@ struct sysrq_state {
 	bool active;
 	bool need_reinject;
 	bool reinjecting;
+
+	/* reset sequence handling */
+	bool reset_canceled;
+	unsigned long reset_keybit[BITS_TO_LONGS(KEY_CNT)];
+	int reset_seq_len;
+	int reset_seq_cnt;
+	int reset_seq_version;
 };
+
+#define SYSRQ_KEY_RESET_MAX	20 /* Should be plenty */
+static unsigned short sysrq_reset_seq[SYSRQ_KEY_RESET_MAX];
+static unsigned int sysrq_reset_seq_len;
+static unsigned int sysrq_reset_seq_version = 1;
+
+static void sysrq_parse_reset_sequence(struct sysrq_state *state)
+{
+	int i;
+	unsigned short key;
+
+	state->reset_seq_cnt = 0;
+
+	for (i = 0; i < sysrq_reset_seq_len; i++) {
+		key = sysrq_reset_seq[i];
+
+		if (key == KEY_RESERVED || key > KEY_MAX)
+			break;
+
+		__set_bit(key, state->reset_keybit);
+		state->reset_seq_len++;
+
+		if (test_bit(key, state->key_down))
+			state->reset_seq_cnt++;
+	}
+
+	/* Disable reset until old keys are not released */
+	state->reset_canceled = state->reset_seq_cnt != 0;
+
+	state->reset_seq_version = sysrq_reset_seq_version;
+}
+
+static bool sysrq_detect_reset_sequence(struct sysrq_state *state,
+					unsigned int code, int value)
+{
+	if (!test_bit(code, state->reset_keybit)) {
+		/*
+		 * Pressing any key _not_ in reset sequence cancels
+		 * the reset sequence.
+		 */
+		if (value && state->reset_seq_cnt)
+			state->reset_canceled = true;
+	} else if (value == 0) {
+		/* key release */
+		if (--state->reset_seq_cnt == 0)
+			state->reset_canceled = false;
+	} else if (value == 1) {
+		/* key press, not autorepeat */
+		if (++state->reset_seq_cnt == state->reset_seq_len &&
+		    !state->reset_canceled) {
+			return true;
+		}
+	}
+
+	return false;
+}
 
 static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 {
@@ -605,11 +670,104 @@ static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 	}
 }
 
+static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
+				  unsigned int code, int value)
+{
+	bool was_active = sysrq->active;
+	bool suppress;
+
+	switch (code) {
+
+	case KEY_LEFTALT:
+	case KEY_RIGHTALT:
+		if (!value) {
+			/* One of ALTs is being released */
+			if (sysrq->active && code == sysrq->alt_use)
+				sysrq->active = false;
+
+			sysrq->alt = KEY_RESERVED;
+
+		} else if (value != 2) {
+			sysrq->alt = code;
+			sysrq->need_reinject = false;
+		}
+		break;
+
+	case KEY_SYSRQ:
+		if (value == 1 && sysrq->alt != KEY_RESERVED) {
+			sysrq->active = true;
+			sysrq->alt_use = sysrq->alt;
+			/*
+			 * If nothing else will be pressed we'll need
+			 * to re-inject Alt-SysRq keysroke.
+			 */
+			sysrq->need_reinject = true;
+		}
+
+		/*
+		 * Pretend that sysrq was never pressed at all. This
+		 * is needed to properly handle KGDB which will try
+		 * to release all keys after exiting debugger. If we
+		 * do not clear key bit it KGDB will end up sending
+		 * release events for Alt and SysRq, potentially
+		 * triggering print screen function.
+		 */
+		if (sysrq->active)
+			clear_bit(KEY_SYSRQ, sysrq->handle.dev->key);
+
+		break;
+
+	default:
+		if (sysrq->active && value && value != 2) {
+			sysrq->need_reinject = false;
+			__handle_sysrq(sysrq_xlate[code], true);
+		}
+		break;
+	}
+
+	suppress = sysrq->active;
+
+	if (!sysrq->active) {
+
+		/*
+		 * See if reset sequence has changed since the last time.
+		 */
+		if (sysrq->reset_seq_version != sysrq_reset_seq_version)
+			sysrq_parse_reset_sequence(sysrq);
+
+		/*
+		 * If we are not suppressing key presses keep track of
+		 * keyboard state so we can release keys that have been
+		 * pressed before entering SysRq mode.
+		 */
+		if (value)
+			set_bit(code, sysrq->key_down);
+		else
+			clear_bit(code, sysrq->key_down);
+
+		if (was_active)
+			schedule_work(&sysrq->reinject_work);
+
+		if (sysrq_detect_reset_sequence(sysrq, code, value)) {
+			/* Force emergency reboot */
+			__handle_sysrq(sysrq_xlate[KEY_B], false);
+		}
+
+	} else if (value == 0 && test_and_clear_bit(code, sysrq->key_down)) {
+		/*
+		 * Pass on release events for keys that was pressed before
+		 * entering SysRq mode.
+		 */
+		suppress = false;
+	}
+
+	return suppress;
+}
+
 static bool sysrq_filter(struct input_handle *handle,
 			 unsigned int type, unsigned int code, int value)
 {
 	struct sysrq_state *sysrq = handle->private;
-	bool was_active = sysrq->active;
 	bool suppress;
 
 	/*
@@ -626,79 +784,7 @@ static bool sysrq_filter(struct input_handle *handle,
 		break;
 
 	case EV_KEY:
-		switch (code) {
-
-		case KEY_LEFTALT:
-		case KEY_RIGHTALT:
-			if (!value) {
-				/* One of ALTs is being released */
-				if (sysrq->active && code == sysrq->alt_use)
-					sysrq->active = false;
-
-				sysrq->alt = KEY_RESERVED;
-
-			} else if (value != 2) {
-				sysrq->alt = code;
-				sysrq->need_reinject = false;
-			}
-			break;
-
-		case KEY_SYSRQ:
-			if (value == 1 && sysrq->alt != KEY_RESERVED) {
-				sysrq->active = true;
-				sysrq->alt_use = sysrq->alt;
-				/*
-				 * If nothing else will be pressed we'll need
-				 * to re-inject Alt-SysRq keysroke.
-				 */
-				sysrq->need_reinject = true;
-			}
-
-			/*
-			 * Pretend that sysrq was never pressed at all. This
-			 * is needed to properly handle KGDB which will try
-			 * to release all keys after exiting debugger. If we
-			 * do not clear key bit it KGDB will end up sending
-			 * release events for Alt and SysRq, potentially
-			 * triggering print screen function.
-			 */
-			if (sysrq->active)
-				clear_bit(KEY_SYSRQ, handle->dev->key);
-
-			break;
-
-		default:
-			if (sysrq->active && value && value != 2) {
-				sysrq->need_reinject = false;
-				__handle_sysrq(sysrq_xlate[code], true);
-			}
-			break;
-		}
-
-		suppress = sysrq->active;
-
-		if (!sysrq->active) {
-			/*
-			 * If we are not suppressing key presses keep track of
-			 * keyboard state so we can release keys that have been
-			 * pressed before entering SysRq mode.
-			 */
-			if (value)
-				set_bit(code, sysrq->key_down);
-			else
-				clear_bit(code, sysrq->key_down);
-
-			if (was_active)
-				schedule_work(&sysrq->reinject_work);
-
-		} else if (value == 0 &&
-			   test_and_clear_bit(code, sysrq->key_down)) {
-			/*
-			 * Pass on release events for keys that was pressed before
-			 * entering SysRq mode.
-			 */
-			suppress = false;
-		}
+		suppress = sysrq_handle_keypress(sysrq, code, value);
 		break;
 
 	default:
@@ -784,9 +870,21 @@ static struct input_handler sysrq_handler = {
 
 static bool sysrq_handler_registered;
 
+unsigned short platform_sysrq_reset_seq[] __weak = { KEY_RESERVED };
+
 static inline void sysrq_register_handler(void)
 {
+	unsigned short key;
 	int error;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sysrq_reset_seq); i++) {
+		key = platform_sysrq_reset_seq[i];
+		if (key == KEY_RESERVED || key > KEY_MAX)
+			break;
+
+		sysrq_reset_seq[sysrq_reset_seq_len++] = key;
+	}
 
 	error = input_register_handler(&sysrq_handler);
 	if (error)
@@ -802,6 +900,36 @@ static inline void sysrq_unregister_handler(void)
 		sysrq_handler_registered = false;
 	}
 }
+
+static int sysrq_reset_seq_param_set(const char *buffer,
+				     const struct kernel_param *kp)
+{
+	unsigned long val;
+	int error;
+
+	error = strict_strtoul(buffer, 0, &val);
+	if (error < 0)
+		return error;
+
+	if (val > KEY_MAX)
+		return -EINVAL;
+
+	*((unsigned short *)kp->arg) = val;
+	sysrq_reset_seq_version++;
+
+	return 0;
+}
+
+static struct kernel_param_ops param_ops_sysrq_reset_seq = {
+	.get	= param_get_ushort,
+	.set	= sysrq_reset_seq_param_set,
+};
+
+#define param_check_sysrq_reset_seq(name, p)	\
+	__param_check(name, p, unsigned short)
+
+module_param_array_named(reset_seq, sysrq_reset_seq, sysrq_reset_seq,
+			 &sysrq_reset_seq_len, 0644);
 
 #else
 

@@ -22,10 +22,6 @@
 extern void __init mmp_dt_irq_init(void);
 extern void __init mmp_dt_init_timer(void);
 
-static struct sys_timer mmp_dt_timer = {
-	.init	= mmp_dt_init_timer,
-};
-
 static const struct of_dev_auxdata pxa168_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("mrvl,mmp-uart", 0xd4017000, "pxa2xx-uart.0", NULL),
 	OF_DEV_AUXDATA("mrvl,mmp-uart", 0xd4018000, "pxa2xx-uart.1", NULL),
@@ -69,7 +65,7 @@ static const char *mmp_dt_board_compat[] __initdata = {
 DT_MACHINE_START(PXA168_DT, "Marvell PXA168 (Device Tree Support)")
 	.map_io		= mmp_map_io,
 	.init_irq	= mmp_dt_irq_init,
-	.timer		= &mmp_dt_timer,
+	.init_time	= mmp_dt_init_timer,
 	.init_machine	= pxa168_dt_init,
 	.dt_compat	= mmp_dt_board_compat,
 MACHINE_END
@@ -77,7 +73,7 @@ MACHINE_END
 DT_MACHINE_START(PXA910_DT, "Marvell PXA910 (Device Tree Support)")
 	.map_io		= mmp_map_io,
 	.init_irq	= mmp_dt_irq_init,
-	.timer		= &mmp_dt_timer,
+	.init_time	= mmp_dt_init_timer,
 	.init_machine	= pxa910_dt_init,
 	.dt_compat	= mmp_dt_board_compat,
 MACHINE_END

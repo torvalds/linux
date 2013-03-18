@@ -54,13 +54,11 @@ static inline int numa_cpu_node(int cpu)
 
 #ifdef CONFIG_X86_32
 # include <asm/numa_32.h>
-#else
-# include <asm/numa_64.h>
 #endif
 
 #ifdef CONFIG_NUMA
-extern void __cpuinit numa_set_node(int cpu, int node);
-extern void __cpuinit numa_clear_node(int cpu);
+extern void numa_set_node(int cpu, int node);
+extern void numa_clear_node(int cpu);
 extern void __init init_cpu_to_node(void);
 extern void __cpuinit numa_add_cpu(int cpu);
 extern void __cpuinit numa_remove_cpu(int cpu);

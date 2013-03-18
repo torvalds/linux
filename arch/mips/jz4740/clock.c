@@ -3,7 +3,7 @@
  *  JZ4740 SoC clock support
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
+ *  under  the terms of the GNU General	 Public License as published by the
  *  Free Software Foundation;  either version 2 of the License, or (at your
  *  option) any later version.
  *
@@ -31,7 +31,7 @@
 #define JZ_REG_CLOCK_LOW_POWER	0x04
 #define JZ_REG_CLOCK_PLL	0x10
 #define JZ_REG_CLOCK_GATE	0x20
-#define JZ_REG_CLOCK_SLEEP_CTRL	0x24
+#define JZ_REG_CLOCK_SLEEP_CTRL 0x24
 #define JZ_REG_CLOCK_I2S	0x60
 #define JZ_REG_CLOCK_LCD	0x64
 #define JZ_REG_CLOCK_MMC	0x68

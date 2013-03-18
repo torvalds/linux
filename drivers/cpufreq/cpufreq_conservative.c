@@ -25,7 +25,7 @@
 
 #include "cpufreq_governor.h"
 
-/* Conservative governor macors */
+/* Conservative governor macros */
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
@@ -113,17 +113,20 @@ static void cs_check_cpu(int cpu, unsigned int load)
 
 static void cs_dbs_timer(struct work_struct *work)
 {
+	struct delayed_work *dw = to_delayed_work(work);
 	struct cs_cpu_dbs_info_s *dbs_info = container_of(work,
 			struct cs_cpu_dbs_info_s, cdbs.work.work);
-	unsigned int cpu = dbs_info->cdbs.cpu;
+	unsigned int cpu = dbs_info->cdbs.cur_policy->cpu;
+	struct cs_cpu_dbs_info_s *core_dbs_info = &per_cpu(cs_cpu_dbs_info,
+			cpu);
 	int delay = delay_for_sampling_rate(cs_tuners.sampling_rate);
 
-	mutex_lock(&dbs_info->cdbs.timer_mutex);
+	mutex_lock(&core_dbs_info->cdbs.timer_mutex);
+	if (need_load_eval(&core_dbs_info->cdbs, cs_tuners.sampling_rate))
+		dbs_check_cpu(&cs_dbs_data, cpu);
 
-	dbs_check_cpu(&cs_dbs_data, cpu);
-
-	schedule_delayed_work_on(cpu, &dbs_info->cdbs.work, delay);
-	mutex_unlock(&dbs_info->cdbs.timer_mutex);
+	schedule_delayed_work_on(smp_processor_id(), dw, delay);
+	mutex_unlock(&core_dbs_info->cdbs.timer_mutex);
 }
 
 static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
@@ -141,7 +144,7 @@ static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 
 	/*
 	 * we only care if our internally tracked freq moves outside the 'valid'
-	 * ranges of freqency available to us otherwise we do not change it
+	 * ranges of frequency available to us otherwise we do not change it
 	*/
 	if (dbs_info->requested_freq > policy->max
 			|| dbs_info->requested_freq < policy->min)

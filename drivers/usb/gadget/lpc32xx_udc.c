@@ -3458,17 +3458,7 @@ static struct platform_driver lpc32xx_udc_driver = {
 	},
 };
 
-static int __init udc_init_module(void)
-{
-	return platform_driver_probe(&lpc32xx_udc_driver, lpc32xx_udc_probe);
-}
-module_init(udc_init_module);
-
-static void __exit udc_exit_module(void)
-{
-	platform_driver_unregister(&lpc32xx_udc_driver);
-}
-module_exit(udc_exit_module);
+module_platform_driver_probe(lpc32xx_udc_driver, lpc32xx_udc_probe);
 
 MODULE_DESCRIPTION("LPC32XX udc driver");
 MODULE_AUTHOR("Kevin Wells <kevin.wells@nxp.com>");

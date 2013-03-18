@@ -183,8 +183,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	unsigned int i, vco_retries;
 	u32 freq = p->frequency / 1000;
 	u32 bandwidth = p->bandwidth_hz / 1000;
-	u32 fvco, xin, xdiv, xdivr;
-	u16 frac;
+	u32 fvco, xin, frac, xdiv, xdivr;
 	u8 fa, fp, vco_sel, vco_cal;
 	u8 regs[FC11_NR_REGS] = { };
 
@@ -221,18 +220,15 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 
 	/* Calc XIN. The PLL reference frequency is 18 MHz. */
 	xdiv = fvco / 18000;
+	WARN_ON(xdiv > 0xFF);
 	frac = fvco - xdiv * 18000;
 	frac = (frac << 15) / 18000;
 	if (frac >= 16384)
 		frac += 32786;
 	if (!frac)
 		xin = 0;
-	else if (frac < 511)
-		xin = 512;
-	else if (frac < 65026)
-		xin = frac;
 	else
-		xin = 65024;
+		xin = clamp_t(u32, frac, 512, 65024);
 	regs[FC11_REG_XINHI] = xin >> 8;
 	regs[FC11_REG_XINLO] = xin;
 
@@ -247,8 +243,8 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 		fa += 8;
 	}
 	if (fp > 0x1F) {
-		fp &= 0x1F;
-		fa &= 0xF;
+		fp = 0x1F;
+		fa = 0xF;
 	}
 	if (fa >= fp) {
 		dev_warn(&priv->i2c->dev,
@@ -351,6 +347,8 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	vco_cal &= FC11_VCOCAL_VALUEMASK;
 
 	switch (vco_sel) {
+	default:
+		WARN_ON(1);
 	case 0:
 		if (vco_cal < 8) {
 			regs[FC11_REG_VCOSEL] &= ~(FC11_VCOSEL_1 | FC11_VCOSEL_2);
@@ -432,7 +430,8 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	err = fc0011_writereg(priv, FC11_REG_RCCAL, regs[FC11_REG_RCCAL]);
 	if (err)
 		return err;
-	err = fc0011_writereg(priv, FC11_REG_16, 0xB);
+	regs[FC11_REG_16] = 0xB;
+	err = fc0011_writereg(priv, FC11_REG_16, regs[FC11_REG_16]);
 	if (err)
 		return err;
 

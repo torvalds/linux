@@ -25,7 +25,6 @@
 #include <linux/input.h>
 #include <linux/pwm_backlight.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
@@ -254,9 +253,8 @@ MACHINE_START(SMDKC100, "SMDKC100")
 	/* Maintainer: Byungho Min <bhmin@samsung.com> */
 	.atag_offset	= 0x100,
 	.init_irq	= s5pc100_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= smdkc100_map_io,
 	.init_machine	= smdkc100_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s5pc100_restart,
 MACHINE_END

@@ -130,7 +130,7 @@ static inline int au1300_gpio_getinitlvl(unsigned int gpio)
 *	A gpiochip for the 75 GPIOs is registered.
 *
 *(3) GPIOLIB=n, ALCHEMY_GPIO_INDIRECT=y:
-*	the boards' gpio.h must provide	the linux gpio wrapper functions,
+*	the boards' gpio.h must provide the linux gpio wrapper functions,
 *
 *(4) GPIOLIB=n, ALCHEMY_GPIO_INDIRECT=n:
 *	inlinable gpio functions are provided which enable access to the

@@ -88,11 +88,6 @@
 #define ENABLE				GPIOF_OUT_INIT_HIGH
 #define DISABLE				GPIOF_OUT_INIT_LOW
 
-enum lp8788_enable_mode {
-	REGISTER,
-	EXTPIN,
-};
-
 enum lp8788_ldo_id {
 	DLDO1,
 	DLDO2,
@@ -189,114 +184,38 @@ static enum lp8788_ldo_id lp8788_aldo_id[] = {
 	ALDO10,
 };
 
-/* DLDO 7, 9 and 11, ALDO 1 ~ 5 and 7
-   : can be enabled either by external pin or by i2c register */
-static enum lp8788_enable_mode
-lp8788_get_ldo_enable_mode(struct lp8788_ldo *ldo, enum lp8788_ldo_id id)
-{
-	int ret;
-	u8 val, mask;
-
-	ret = lp8788_read_byte(ldo->lp, LP8788_EN_SEL, &val);
-	if (ret)
-		return ret;
-
-	switch (id) {
-	case DLDO7:
-		mask =  LP8788_EN_SEL_DLDO7_M;
-		break;
-	case DLDO9:
-	case DLDO11:
-		mask =  LP8788_EN_SEL_DLDO911_M;
-		break;
-	case ALDO1:
-		mask =  LP8788_EN_SEL_ALDO1_M;
-		break;
-	case ALDO2 ... ALDO4:
-		mask =  LP8788_EN_SEL_ALDO234_M;
-		break;
-	case ALDO5:
-		mask =  LP8788_EN_SEL_ALDO5_M;
-		break;
-	case ALDO7:
-		mask =  LP8788_EN_SEL_ALDO7_M;
-		break;
-	default:
-		return REGISTER;
-	}
-
-	return val & mask ? EXTPIN : REGISTER;
-}
-
-static int lp8788_ldo_ctrl_by_extern_pin(struct lp8788_ldo *ldo, int pinstate)
-{
-	struct lp8788_ldo_enable_pin *pin = ldo->en_pin;
-
-	if (!pin)
-		return -EINVAL;
-
-	if (gpio_is_valid(pin->gpio))
-		gpio_set_value(pin->gpio, pinstate);
-
-	return 0;
-}
-
-static int lp8788_ldo_is_enabled_by_extern_pin(struct lp8788_ldo *ldo)
-{
-	struct lp8788_ldo_enable_pin *pin = ldo->en_pin;
-
-	if (!pin)
-		return -EINVAL;
-
-	return gpio_get_value(pin->gpio) ? 1 : 0;
-}
-
 static int lp8788_ldo_enable(struct regulator_dev *rdev)
 {
 	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
-	enum lp8788_ldo_id id = rdev_get_id(rdev);
-	enum lp8788_enable_mode mode = lp8788_get_ldo_enable_mode(ldo, id);
 
-	switch (mode) {
-	case EXTPIN:
-		return lp8788_ldo_ctrl_by_extern_pin(ldo, ENABLE);
-	case REGISTER:
+	if (ldo->en_pin) {
+		gpio_set_value(ldo->en_pin->gpio, ENABLE);
+		return 0;
+	} else {
 		return regulator_enable_regmap(rdev);
-	default:
-		return -EINVAL;
 	}
 }
 
 static int lp8788_ldo_disable(struct regulator_dev *rdev)
 {
 	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
-	enum lp8788_ldo_id id = rdev_get_id(rdev);
-	enum lp8788_enable_mode mode = lp8788_get_ldo_enable_mode(ldo, id);
 
-	switch (mode) {
-	case EXTPIN:
-		return lp8788_ldo_ctrl_by_extern_pin(ldo, DISABLE);
-	case REGISTER:
+	if (ldo->en_pin) {
+		gpio_set_value(ldo->en_pin->gpio, DISABLE);
+		return 0;
+	} else {
 		return regulator_disable_regmap(rdev);
-	default:
-		return -EINVAL;
 	}
 }
 
 static int lp8788_ldo_is_enabled(struct regulator_dev *rdev)
 {
 	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
-	enum lp8788_ldo_id id = rdev_get_id(rdev);
-	enum lp8788_enable_mode mode = lp8788_get_ldo_enable_mode(ldo, id);
 
-	switch (mode) {
-	case EXTPIN:
-		return lp8788_ldo_is_enabled_by_extern_pin(ldo);
-	case REGISTER:
+	if (ldo->en_pin)
+		return gpio_get_value(ldo->en_pin->gpio) ? 1 : 0;
+	else
 		return regulator_is_enabled_regmap(rdev);
-	default:
-		return -EINVAL;
-	}
 }
 
 static int lp8788_ldo_enable_time(struct regulator_dev *rdev)
@@ -616,10 +535,11 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 	},
 };
 
-static int lp8788_gpio_request_ldo_en(struct lp8788_ldo *ldo,
+static int lp8788_gpio_request_ldo_en(struct platform_device *pdev,
+				struct lp8788_ldo *ldo,
 				enum lp8788_ext_ldo_en_id id)
 {
-	struct device *dev = ldo->lp->dev;
+	struct device *dev = &pdev->dev;
 	struct lp8788_ldo_enable_pin *pin = ldo->en_pin;
 	int ret, gpio, pinstate;
 	char *name[] = {
@@ -647,7 +567,8 @@ static int lp8788_gpio_request_ldo_en(struct lp8788_ldo *ldo,
 	return ret;
 }
 
-static int lp8788_config_ldo_enable_mode(struct lp8788_ldo *ldo,
+static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
+					struct lp8788_ldo *ldo,
 					enum lp8788_ldo_id id)
 {
 	int ret;
@@ -693,9 +614,11 @@ static int lp8788_config_ldo_enable_mode(struct lp8788_ldo *ldo,
 
 	ldo->en_pin = pdata->ldo_pin[enable_id];
 
-	ret = lp8788_gpio_request_ldo_en(ldo, enable_id);
-	if (ret)
+	ret = lp8788_gpio_request_ldo_en(pdev, ldo, enable_id);
+	if (ret) {
+		ldo->en_pin = NULL;
 		goto set_default_ldo_enable_mode;
+	}
 
 	return ret;
 
@@ -712,16 +635,16 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	ldo = devm_kzalloc(lp->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
 	if (!ldo)
 		return -ENOMEM;
 
 	ldo->lp = lp;
-	ret = lp8788_config_ldo_enable_mode(ldo, lp8788_dldo_id[id]);
+	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_dldo_id[id]);
 	if (ret)
 		return ret;
 
-	cfg.dev = lp->dev;
+	cfg.dev = pdev->dev.parent;
 	cfg.init_data = lp->pdata ? lp->pdata->dldo_data[id] : NULL;
 	cfg.driver_data = ldo;
 	cfg.regmap = lp->regmap;
@@ -729,7 +652,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 	rdev = regulator_register(&lp8788_dldo_desc[id], &cfg);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(lp->dev, "DLDO%d regulator register err = %d\n",
+		dev_err(&pdev->dev, "DLDO%d regulator register err = %d\n",
 				id + 1, ret);
 		return ret;
 	}
@@ -768,16 +691,16 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	int ret;
 
-	ldo = devm_kzalloc(lp->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc(&pdev->dev, sizeof(struct lp8788_ldo), GFP_KERNEL);
 	if (!ldo)
 		return -ENOMEM;
 
 	ldo->lp = lp;
-	ret = lp8788_config_ldo_enable_mode(ldo, lp8788_aldo_id[id]);
+	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_aldo_id[id]);
 	if (ret)
 		return ret;
 
-	cfg.dev = lp->dev;
+	cfg.dev = pdev->dev.parent;
 	cfg.init_data = lp->pdata ? lp->pdata->aldo_data[id] : NULL;
 	cfg.driver_data = ldo;
 	cfg.regmap = lp->regmap;
@@ -785,7 +708,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 	rdev = regulator_register(&lp8788_aldo_desc[id], &cfg);
 	if (IS_ERR(rdev)) {
 		ret = PTR_ERR(rdev);
-		dev_err(lp->dev, "ALDO%d regulator register err = %d\n",
+		dev_err(&pdev->dev, "ALDO%d regulator register err = %d\n",
 				id + 1, ret);
 		return ret;
 	}

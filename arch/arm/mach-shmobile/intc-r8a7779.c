@@ -22,10 +22,10 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
 #include <mach/intc.h>
 #include <mach/r8a7779.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 

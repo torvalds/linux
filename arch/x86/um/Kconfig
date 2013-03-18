@@ -13,7 +13,6 @@ endmenu
 config UML_X86
 	def_bool y
 	select GENERIC_FIND_FIRST_BIT
-	select GENERIC_SIGALTSTACK
 
 config 64BIT
 	bool "64-bit kernel" if SUBARCH = "x86"
@@ -25,6 +24,8 @@ config X86_32
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select MODULES_USE_ELF_REL
 	select CLONE_BACKWARDS
+	select OLD_SIGSUSPEND3
+	select OLD_SIGACTION
 
 config X86_64
 	def_bool 64BIT
@@ -37,9 +38,8 @@ config RWSEM_GENERIC_SPINLOCK
 	def_bool !RWSEM_XCHGADD_ALGORITHM
 
 config 3_LEVEL_PGTABLES
-	bool "Three-level pagetables (EXPERIMENTAL)" if !64BIT
+	bool "Three-level pagetables" if !64BIT
 	default 64BIT
-	depends on EXPERIMENTAL
 	help
 	Three-level pagetables will let UML have more than 4G of physical
 	memory.  All the memory that can't be mapped directly will be treated

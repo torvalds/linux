@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/smpboot.h>
+#include <linux/sched/rt.h>
 
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
@@ -112,9 +113,9 @@ static int get_softlockup_thresh(void)
  * resolution, and we don't need to waste time with a big divide when
  * 2^30ns == 1.074s.
  */
-static unsigned long get_timestamp(int this_cpu)
+static unsigned long get_timestamp(void)
 {
-	return cpu_clock(this_cpu) >> 30LL;  /* 2^30 ~= 10^9 */
+	return local_clock() >> 30LL;  /* 2^30 ~= 10^9 */
 }
 
 static void set_sample_period(void)
@@ -132,9 +133,7 @@ static void set_sample_period(void)
 /* Commands for resetting the watchdog */
 static void __touch_watchdog(void)
 {
-	int this_cpu = smp_processor_id();
-
-	__this_cpu_write(watchdog_touch_ts, get_timestamp(this_cpu));
+	__this_cpu_write(watchdog_touch_ts, get_timestamp());
 }
 
 void touch_softlockup_watchdog(void)
@@ -195,7 +194,7 @@ static int is_hardlockup(void)
 
 static int is_softlockup(unsigned long touch_ts)
 {
-	unsigned long now = get_timestamp(smp_processor_id());
+	unsigned long now = get_timestamp();
 
 	/* Warn about unreasonable delays: */
 	if (time_after(now, touch_ts + get_softlockup_thresh()))

@@ -66,9 +66,9 @@ static int osdmap_show(struct seq_file *s, void *p)
 	for (n = rb_first(&client->osdc.osdmap->pg_pools); n; n = rb_next(n)) {
 		struct ceph_pg_pool_info *pool =
 			rb_entry(n, struct ceph_pg_pool_info, node);
-		seq_printf(s, "pg_pool %d pg_num %d / %d, lpg_num %d / %d\n",
-			   pool->id, pool->v.pg_num, pool->pg_num_mask,
-			   pool->v.lpg_num, pool->lpg_num_mask);
+		seq_printf(s, "pg_pool %llu pg_num %d / %d\n",
+			   (unsigned long long)pool->id, pool->pg_num,
+			   pool->pg_num_mask);
 	}
 	for (i = 0; i < client->osdc.osdmap->max_osd; i++) {
 		struct ceph_entity_addr *addr =
@@ -123,26 +123,16 @@ static int osdc_show(struct seq_file *s, void *pp)
 	mutex_lock(&osdc->request_mutex);
 	for (p = rb_first(&osdc->requests); p; p = rb_next(p)) {
 		struct ceph_osd_request *req;
-		struct ceph_osd_request_head *head;
-		struct ceph_osd_op *op;
-		int num_ops;
-		int opcode, olen;
+		int opcode;
 		int i;
 
 		req = rb_entry(p, struct ceph_osd_request, r_node);
 
-		seq_printf(s, "%lld\tosd%d\t%d.%x\t", req->r_tid,
+		seq_printf(s, "%lld\tosd%d\t%lld.%x\t", req->r_tid,
 			   req->r_osd ? req->r_osd->o_osd : -1,
-			   le32_to_cpu(req->r_pgid.pool),
-			   le16_to_cpu(req->r_pgid.ps));
+			   req->r_pgid.pool, req->r_pgid.seed);
 
-		head = req->r_request->front.iov_base;
-		op = (void *)(head + 1);
-
-		num_ops = le16_to_cpu(head->num_ops);
-		olen = le32_to_cpu(head->object_len);
-		seq_printf(s, "%.*s", olen,
-			   (const char *)(head->ops + num_ops));
+		seq_printf(s, "%.*s", req->r_oid_len, req->r_oid);
 
 		if (req->r_reassert_version.epoch)
 			seq_printf(s, "\t%u'%llu",
@@ -151,10 +141,9 @@ static int osdc_show(struct seq_file *s, void *pp)
 		else
 			seq_printf(s, "\t");
 
-		for (i = 0; i < num_ops; i++) {
-			opcode = le16_to_cpu(op->op);
+		for (i = 0; i < req->r_num_ops; i++) {
+			opcode = le16_to_cpu(req->r_request_ops[i].op);
 			seq_printf(s, "\t%s", ceph_osd_op_name(opcode));
-			op++;
 		}
 
 		seq_printf(s, "\n");

@@ -31,6 +31,7 @@ static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
 {
 	return (((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
+		br_allowed_egress(p->br, nbp_get_vlan_info(p), skb) &&
 		p->state == BR_STATE_FORWARDING);
 }
 
@@ -63,6 +64,10 @@ int br_forward_finish(struct sk_buff *skb)
 
 static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
+	skb = br_handle_vlan(to->br, nbp_get_vlan_info(to), skb);
+	if (!skb)
+		return;
+
 	skb->dev = to->dev;
 
 	if (unlikely(netpoll_tx_running(to->br->dev))) {
@@ -87,6 +92,10 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 		kfree_skb(skb);
 		return;
 	}
+
+	skb = br_handle_vlan(to->br, nbp_get_vlan_info(to), skb);
+	if (!skb)
+		return;
 
 	indev = skb->dev;
 	skb->dev = to->dev;
