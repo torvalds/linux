@@ -1014,13 +1014,6 @@ static int i2c_sunxi_probe(struct platform_device *dev)
 	i2c_dbg(KERN_INFO "I2C: %s: AW16XX I2C adapter\n",
 	       dev_name(&i2c->adap.dev));
 
-	i2c_dbg("**********start************\n");
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x0c));
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x10));
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x14));
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x18));
-	i2c_dbg("0x%x \n",readl(i2c->base_addr + 0x1c));
-	i2c_dbg("**********end************\n");
 
 	return 0;
 
