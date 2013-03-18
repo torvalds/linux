@@ -100,10 +100,6 @@ choice
 	prompt "Select the wifi module"
 	default RK903
 	
-#	config BCM4329
-#		bool "BCM4329"
-#		depends on RKWIFI && WLAN_80211
-
 	config BCM4330 
     	bool "BCM4330"
     	depends on RKWIFI && WLAN_80211
@@ -115,21 +111,41 @@ choice
 	config RK901
     	bool "RK901"
 	    depends on RKWIFI && WLAN_80211
+	
+	config AP6181
+		bool "AP6181"
+		depends on RKWIFI && WLAN_80211
+
+	config AP6210
+		bool "AP6210"
+		depends on RKWIFI && WLAN_80211
+
+	config AP6330
+		bool "AP6330"
+		depends on RKWIFI && WLAN_80211
+
+	config AP6476
+		bool "AP6476"
+		depends on RKWIFI && WLAN_80211
+
+	config AP6494
+		bool "AP6493"
+		depends on RKWIFI && WLAN_80211
 
 endchoice
 
 choice	
-	depends on RKWIFI && WLAN_80211
+	depends on RKWIFI && WLAN_80211 && RK903
 	prompt "Select the wifi module crystal freq"
 	default RKWIFI_37_4M
 
 	config RKWIFI_37_4M
     	bool "37_4M"
-	    depends on RKWIFI && WLAN_80211
+	    depends on RKWIFI && WLAN_80211 && RK903
 
 	config RKWIFI_26M
     	bool "26M"
-	    depends on RKWIFI && WLAN_80211
+	    depends on RKWIFI && WLAN_80211 && RK903
 
 endchoice
 

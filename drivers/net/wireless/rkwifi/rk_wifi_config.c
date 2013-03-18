@@ -51,6 +51,35 @@ int rkwifi_set_firmware(char *fw, char *nvram)
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_4330.txt");
 #endif
 
+#ifdef CONFIG_AP6181
+    sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6181.txt");
+#endif
+
+#ifdef CONFIG_AP6210
+    sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6210.txt");
+#endif
+
+#ifdef CONFIG_AP6476
+    sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6476.txt");
+#endif
+
+#ifdef CONFIG_AP6493
+    sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903.bin");
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6493.txt");
+#endif
+
+#ifdef CONFIG_AP6330
+    sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903_ag.bin");
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6330.txt");
+#endif
+
+#ifdef CONFIG_GB86302I
+    sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903_ag.bin");
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_GB86302I.txt");
+#endif
 	return 0;
 }
 
