@@ -1803,7 +1803,7 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 		}
 	}
 	dio200_report_attach(dev, irq);
-	return 1;
+	return 0;
 }
 
 /* Only called for ISA boards. */
