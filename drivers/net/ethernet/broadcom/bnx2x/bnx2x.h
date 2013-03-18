@@ -612,9 +612,10 @@ struct bnx2x_fastpath {
  * START_BD		- describes packed
  * START_BD(splitted)	- includes unpaged data segment for GSO
  * PARSING_BD		- for TSO and CSUM data
+ * PARSING_BD2		- for encapsulation data
  * Frag BDs		- decribes pages for frags
  */
-#define BDS_PER_TX_PKT		3
+#define BDS_PER_TX_PKT		4
 #define MAX_BDS_PER_TX_PKT	(MAX_SKB_FRAGS + BDS_PER_TX_PKT)
 /* max BDs per tx packet including next pages */
 #define MAX_DESC_PER_TX_PKT	(MAX_BDS_PER_TX_PKT + \
@@ -731,16 +732,22 @@ struct bnx2x_fastpath {
 
 #define pbd_tcp_flags(tcp_hdr)	(ntohl(tcp_flag_word(tcp_hdr))>>16 & 0xff)
 
-#define XMIT_PLAIN			0
-#define XMIT_CSUM_V4			0x1
-#define XMIT_CSUM_V6			0x2
-#define XMIT_CSUM_TCP			0x4
-#define XMIT_GSO_V4			0x8
-#define XMIT_GSO_V6			0x10
+#define XMIT_PLAIN		0
+#define XMIT_CSUM_V4		(1 << 0)
+#define XMIT_CSUM_V6		(1 << 1)
+#define XMIT_CSUM_TCP		(1 << 2)
+#define XMIT_GSO_V4		(1 << 3)
+#define XMIT_GSO_V6		(1 << 4)
+#define XMIT_CSUM_ENC_V4	(1 << 5)
+#define XMIT_CSUM_ENC_V6	(1 << 6)
+#define XMIT_GSO_ENC_V4		(1 << 7)
+#define XMIT_GSO_ENC_V6		(1 << 8)
 
-#define XMIT_CSUM			(XMIT_CSUM_V4 | XMIT_CSUM_V6)
-#define XMIT_GSO			(XMIT_GSO_V4 | XMIT_GSO_V6)
+#define XMIT_CSUM_ENC		(XMIT_CSUM_ENC_V4 | XMIT_CSUM_ENC_V6)
+#define XMIT_GSO_ENC		(XMIT_GSO_ENC_V4 | XMIT_GSO_ENC_V6)
 
+#define XMIT_CSUM		(XMIT_CSUM_V4 | XMIT_CSUM_V6 | XMIT_CSUM_ENC)
+#define XMIT_GSO		(XMIT_GSO_V4 | XMIT_GSO_V6 | XMIT_GSO_ENC)
 
 /* stuff added to make the code fit 80Col */
 #define CQE_TYPE(cqe_fp_flags)	 ((cqe_fp_flags) & ETH_FAST_PATH_RX_CQE_TYPE)
