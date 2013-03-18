@@ -44,7 +44,8 @@ static int cpu0_set_target(struct cpufreq_policy *policy,
 {
 	struct cpufreq_freqs freqs;
 	struct opp *opp;
-	unsigned long freq_Hz, volt = 0, volt_old = 0, tol = 0;
+	unsigned long volt = 0, volt_old = 0, tol = 0;
+	long freq_Hz;
 	unsigned int index, cpu;
 	int ret;
 
