@@ -458,7 +458,7 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 	       struct v4l2_dbg_chip_ident *chip)
 {
 	switch (chip->match.type) {
-	case V4L2_CHIP_MATCH_HOST:
+	case V4L2_CHIP_MATCH_BRIDGE:
 		chip->ident = V4L2_IDENT_NONE;
 		chip->revision = 0;
 		return 0;
@@ -476,9 +476,6 @@ static int vidioc_g_register(struct file *file, void *priv,
 	u8 val;
 
 	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_AC97:
-		/* TODO: Support me please :-( */
-		return -EINVAL;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
@@ -505,8 +502,6 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct stk1160 *dev = video_drvdata(file);
 
 	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_AC97:
-		return -EINVAL;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
