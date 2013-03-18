@@ -7,6 +7,7 @@
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
 	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU
+	select HDMI
 	select I2C
 	select I2C_ALGOBIT
 	select DMA_SHARED_BUFFER
@@ -69,6 +70,8 @@ config DRM_KMS_CMA_HELPER
 	help
 	  Choose this if you need the KMS CMA helper functions
 
+source "drivers/gpu/drm/i2c/Kconfig"
+
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
 	depends on DRM && PCI
@@ -96,6 +99,7 @@ config DRM_RADEON
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
@@ -212,3 +216,7 @@ source "drivers/gpu/drm/cirrus/Kconfig"
 source "drivers/gpu/drm/shmobile/Kconfig"
 
 source "drivers/gpu/drm/tegra/Kconfig"
+
+source "drivers/gpu/drm/omapdrm/Kconfig"
+
+source "drivers/gpu/drm/tilcdc/Kconfig"

@@ -615,10 +615,11 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
 }
 static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 {
-	return; /* XXX: Not implemented yet */
+	vmemmap_free(memmap, nr_pages);
 }
 static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
 {
+	vmemmap_free(memmap, nr_pages);
 }
 #else
 static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
@@ -697,7 +698,7 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
 	/*
 	 * Check to see if allocation came from hot-plug-add
 	 */
-	if (PageSlab(usemap_page)) {
+	if (PageSlab(usemap_page) || PageCompound(usemap_page)) {
 		kfree(usemap);
 		if (memmap)
 			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
@@ -782,7 +783,7 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 
 	for (i = 0; i < PAGES_PER_SECTION; i++) {
 		if (PageHWPoison(&memmap[i])) {
-			atomic_long_sub(1, &mce_bad_pages);
+			atomic_long_sub(1, &num_poisoned_pages);
 			ClearPageHWPoison(&memmap[i]);
 		}
 	}
@@ -796,8 +797,10 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
 {
 	struct page *memmap = NULL;
-	unsigned long *usemap = NULL;
+	unsigned long *usemap = NULL, flags;
+	struct pglist_data *pgdat = zone->zone_pgdat;
 
+	pgdat_resize_lock(pgdat, &flags);
 	if (ms->section_mem_map) {
 		usemap = ms->pageblock_flags;
 		memmap = sparse_decode_mem_map(ms->section_mem_map,
@@ -805,6 +808,7 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
 		ms->section_mem_map = 0;
 		ms->pageblock_flags = NULL;
 	}
+	pgdat_resize_unlock(pgdat, &flags);
 
 	clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
 	free_section_usemap(memmap, usemap);

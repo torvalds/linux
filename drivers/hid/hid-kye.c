@@ -419,17 +419,6 @@ static struct hid_driver kye_driver = {
 	.probe = kye_probe,
 	.report_fixup = kye_report_fixup,
 };
+module_hid_driver(kye_driver);
 
-static int __init kye_init(void)
-{
-	return hid_register_driver(&kye_driver);
-}
-
-static void __exit kye_exit(void)
-{
-	hid_unregister_driver(&kye_driver);
-}
-
-module_init(kye_init);
-module_exit(kye_exit);
 MODULE_LICENSE("GPL");

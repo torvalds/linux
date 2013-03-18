@@ -50,21 +50,14 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
 */
 
+#include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
-
 #include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-
-static struct pcmcia_device *pcmcia_cur_dev;
-
-struct daq700_board {
-	const char *name;
-};
 
 /* daqcard700 registers */
 #define DIO_W		0x04	/* WO 8bit */
@@ -202,24 +195,20 @@ static void daq700_ai_config(struct comedi_device *dev,
 	inw(iobase + ADFIFO_R);		/* read 16bit junk from FIFO to clear */
 }
 
-static int daq700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int daq700_auto_attach(struct comedi_device *dev,
+			      unsigned long context)
 {
-	const struct daq700_board *thisboard = comedi_board(dev);
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
 	struct comedi_subdevice *s;
-	struct pcmcia_device *link;
 	int ret;
 
-	link = pcmcia_cur_dev;	/* XXX hack */
-	if (!link)
-		return -EIO;
+	dev->board_name = dev->driver->driver_name;
 
+	link->config_flags |= CONF_AUTO_SET_IO;
+	ret = comedi_pcmcia_enable(dev, NULL);
+	if (ret)
+		return ret;
 	dev->iobase = link->resource[0]->start;
-	if (!dev->iobase) {
-		dev_err(dev->class_dev, "io base address is zero!\n");
-		return -EINVAL;
-	}
-
-	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -256,68 +245,16 @@ static int daq700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void daq700_detach(struct comedi_device *dev)
-{
-	/* nothing to cleanup */
-}
-
-static const struct daq700_board daq700_boards[] = {
-	{
-		.name		= "daqcard-700",
-	}, {
-		.name		= "ni_daq_700",
-	},
-};
-
 static struct comedi_driver daq700_driver = {
 	.driver_name	= "ni_daq_700",
 	.module		= THIS_MODULE,
-	.attach		= daq700_attach,
-	.detach		= daq700_detach,
-	.board_name	= &daq700_boards[0].name,
-	.num_names	= ARRAY_SIZE(daq700_boards),
-	.offset		= sizeof(struct daq700_board),
+	.auto_attach	= daq700_auto_attach,
+	.detach		= comedi_pcmcia_disable,
 };
-
-static int daq700_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
 
 static int daq700_cs_attach(struct pcmcia_device *link)
 {
-	int ret;
-
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
-		CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, daq700_pcmcia_config_loop, NULL);
-	if (ret)
-		goto failed;
-
-	if (!link->irq)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	pcmcia_cur_dev = link;
-	return 0;
-
-failed:
-	pcmcia_disable_device(link);
-	return ret;
-}
-
-static void daq700_cs_detach(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-	pcmcia_cur_dev = NULL;
+	return comedi_pcmcia_auto_config(link, &daq700_driver);
 }
 
 static const struct pcmcia_device_id daq700_cs_ids[] = {
@@ -329,35 +266,11 @@ MODULE_DEVICE_TABLE(pcmcia, daq700_cs_ids);
 static struct pcmcia_driver daq700_cs_driver = {
 	.name		= "ni_daq_700",
 	.owner		= THIS_MODULE,
-	.probe		= daq700_cs_attach,
-	.remove		= daq700_cs_detach,
 	.id_table	= daq700_cs_ids,
+	.probe		= daq700_cs_attach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 };
-
-static int __init daq700_cs_init(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&daq700_driver);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&daq700_cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&daq700_driver);
-		return ret;
-	}
-
-	return 0;
-}
-module_init(daq700_cs_init);
-
-static void __exit daq700_cs_exit(void)
-{
-	pcmcia_unregister_driver(&daq700_cs_driver);
-	comedi_driver_unregister(&daq700_driver);
-}
-module_exit(daq700_cs_exit);
+module_comedi_pcmcia_driver(daq700_driver, daq700_cs_driver);
 
 MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
 MODULE_DESCRIPTION(

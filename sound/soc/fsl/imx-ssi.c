@@ -550,10 +550,9 @@ static int imx_ssi_probe(struct platform_device *pdev)
 		goto failed_get_resource;
 	}
 
-	ssi->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ssi->base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENODEV;
+	ssi->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ssi->base)) {
+		ret = PTR_ERR(ssi->base);
 		goto failed_register;
 	}
 

@@ -1,6 +1,6 @@
 /* bpf_jit_comp.c : BPF JIT compiler
  *
- * Copyright (C) 2011 Eric Dumazet (eric.dumazet@gmail.com)
+ * Copyright (C) 2011-2013 Eric Dumazet (eric.dumazet@gmail.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -124,6 +124,26 @@ static inline void bpf_flush_icache(void *start, void *end)
 #define CHOOSE_LOAD_FUNC(K, func) \
 	((int)K < 0 ? ((int)K >= SKF_LL_OFF ? func##_negative_offset : func) : func##_positive_offset)
 
+/* Helper to find the offset of pkt_type in sk_buff
+ * We want to make sure its still a 3bit field starting at a byte boundary.
+ */
+#define PKT_TYPE_MAX 7
+static int pkt_type_offset(void)
+{
+	struct sk_buff skb_probe = {
+		.pkt_type = ~0,
+	};
+	char *ct = (char *)&skb_probe;
+	unsigned int off;
+
+	for (off = 0; off < sizeof(struct sk_buff); off++) {
+		if (ct[off] == PKT_TYPE_MAX)
+			return off;
+	}
+	pr_err_once("Please fix pkt_type_offset(), as pkt_type couldn't be found\n");
+	return -1;
+}
+
 void bpf_jit_compile(struct sk_filter *fp)
 {
 	u8 temp[64];
@@ -216,6 +236,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 		case BPF_S_ANC_VLAN_TAG:
 		case BPF_S_ANC_VLAN_TAG_PRESENT:
 		case BPF_S_ANC_QUEUE:
+		case BPF_S_ANC_PKTTYPE:
 		case BPF_S_LD_W_ABS:
 		case BPF_S_LD_H_ABS:
 		case BPF_S_LD_B_ABS:
@@ -536,6 +557,23 @@ void bpf_jit_compile(struct sk_filter *fp)
 					EMIT3(0x83, 0xe0, 0x01); /* and    $0x1,%eax */
 				}
 				break;
+			case BPF_S_ANC_PKTTYPE:
+			{
+				int off = pkt_type_offset();
+
+				if (off < 0)
+					goto out;
+				if (is_imm8(off)) {
+					/* movzbl off8(%rdi),%eax */
+					EMIT4(0x0f, 0xb6, 0x47, off);
+				} else {
+					/* movbl off32(%rdi),%eax */
+					EMIT3(0x0f, 0xb6, 0x87);
+					EMIT(off, 4);
+				}
+				EMIT3(0x83, 0xe0, PKT_TYPE_MAX); /* and    $0x7,%eax */
+				break;
+			}
 			case BPF_S_LD_W_ABS:
 				func = CHOOSE_LOAD_FUNC(K, sk_load_word);
 common_load:			seen |= SEEN_DATAREF;

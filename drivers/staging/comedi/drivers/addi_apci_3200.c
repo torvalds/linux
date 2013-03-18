@@ -1,3 +1,5 @@
+#include <linux/pci.h>
+
 #include <asm/i387.h>
 
 #include "../comedidev.h"
@@ -106,15 +108,10 @@ static int apci3200_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci3200_driver);
 }
 
-static void apci3200_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver apci3200_pci_driver = {
 	.name		= "addi_apci_3200",
 	.id_table	= apci3200_pci_table,
 	.probe		= apci3200_pci_probe,
-	.remove		= apci3200_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci3200_driver, apci3200_pci_driver);

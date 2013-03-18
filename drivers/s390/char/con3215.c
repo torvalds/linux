@@ -44,6 +44,7 @@
 #define RAW3215_NR_CCWS	    3
 #define RAW3215_TIMEOUT	    HZ/10     /* time for delayed output */
 
+#define RAW3215_FIXED	    1	      /* 3215 console device is not be freed */
 #define RAW3215_WORKING	    4	      /* set if a request is being worked on */
 #define RAW3215_THROTTLED   8	      /* set if reading is disabled */
 #define RAW3215_STOPPED	    16	      /* set if writing is disabled */
@@ -411,8 +412,9 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 				break;
 
 			case CTRLCHAR_CTRL:
-				tty_insert_flip_char(tty, cchar, TTY_NORMAL);
-				tty_flip_buffer_push(tty);
+				tty_insert_flip_char(&raw->port, cchar,
+						TTY_NORMAL);
+				tty_flip_buffer_push(&raw->port);
 				break;
 
 			case CTRLCHAR_NONE:
@@ -424,8 +426,9 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 					count++;
 				} else
 					count -= 2;
-				tty_insert_flip_string(tty, raw->inbuf, count);
-				tty_flip_buffer_push(tty);
+				tty_insert_flip_string(&raw->port, raw->inbuf,
+						count);
+				tty_flip_buffer_push(&raw->port);
 				break;
 			}
 		} else if (req->type == RAW3215_WRITE) {
@@ -630,7 +633,8 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long flags;
 
-	if (!(raw->port.flags & ASYNC_INITIALIZED))
+	if (!(raw->port.flags & ASYNC_INITIALIZED) ||
+	    (raw->flags & RAW3215_FIXED))
 		return;
 	/* Wait for outstanding requests, then free irq */
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
@@ -805,7 +809,7 @@ static struct ccw_driver raw3215_ccw_driver = {
 	.freeze		= &raw3215_pm_stop,
 	.thaw		= &raw3215_pm_start,
 	.restore	= &raw3215_pm_start,
-	.int_class	= IOINT_C15,
+	.int_class	= IRQIO_C15,
 };
 
 #ifdef CONFIG_TN3215_CONSOLE
@@ -927,6 +931,8 @@ static int __init con3215_init(void)
 	dev_set_drvdata(&cdev->dev, raw);
 	cdev->handler = raw3215_irq;
 
+	raw->flags |= RAW3215_FIXED;
+
 	/* Request the console irq */
 	if (raw3215_startup(raw) != 0) {
 		raw3215_free_info(raw);
@@ -966,7 +972,7 @@ static int tty3215_open(struct tty_struct *tty, struct file * filp)
 
 	tty_port_tty_set(&raw->port, tty);
 
-	tty->low_latency = 0;  /* don't use bottom half for pushing chars */
+	raw->port.low_latency = 0; /* don't use bottom half for pushing chars */
 	/*
 	 * Start up 3215 device
 	 */

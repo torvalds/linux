@@ -96,8 +96,10 @@ void hists__decay_entries_threaded(struct hists *hists, bool zap_user,
 				   bool zap_kernel);
 void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 
+void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h);
 void hists__inc_nr_events(struct hists *self, u32 type);
-size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
+void events_stats__inc(struct events_stats *stats, u32 type);
+size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
 size_t hists__fprintf(struct hists *self, bool show_header, int max_rows,
 		      int max_cols, FILE *fp);
@@ -126,12 +128,18 @@ struct perf_hpp {
 };
 
 struct perf_hpp_fmt {
-	bool cond;
 	int (*header)(struct perf_hpp *hpp);
 	int (*width)(struct perf_hpp *hpp);
 	int (*color)(struct perf_hpp *hpp, struct hist_entry *he);
 	int (*entry)(struct perf_hpp *hpp, struct hist_entry *he);
+
+	struct list_head list;
 };
+
+extern struct list_head perf_hpp__list;
+
+#define perf_hpp__for_each_format(format) \
+	list_for_each_entry(format, &perf_hpp__list, list)
 
 extern struct perf_hpp_fmt perf_hpp__format[];
 
@@ -148,14 +156,14 @@ enum {
 	PERF_HPP__DELTA,
 	PERF_HPP__RATIO,
 	PERF_HPP__WEIGHTED_DIFF,
-	PERF_HPP__DISPL,
 	PERF_HPP__FORMULA,
 
 	PERF_HPP__MAX_INDEX
 };
 
 void perf_hpp__init(void);
-void perf_hpp__column_enable(unsigned col, bool enable);
+void perf_hpp__column_register(struct perf_hpp_fmt *format);
+void perf_hpp__column_enable(unsigned col);
 int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
 				bool color);
 
@@ -219,8 +227,10 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
 
 unsigned int hists__sort_list_width(struct hists *self);
 
-double perf_diff__compute_delta(struct hist_entry *he);
-double perf_diff__compute_ratio(struct hist_entry *he);
-s64 perf_diff__compute_wdiff(struct hist_entry *he);
-int perf_diff__formula(char *buf, size_t size, struct hist_entry *he);
+double perf_diff__compute_delta(struct hist_entry *he, struct hist_entry *pair);
+double perf_diff__compute_ratio(struct hist_entry *he, struct hist_entry *pair);
+s64 perf_diff__compute_wdiff(struct hist_entry *he, struct hist_entry *pair);
+int perf_diff__formula(struct hist_entry *he, struct hist_entry *pair,
+		       char *buf, size_t size);
+double perf_diff__period_percent(struct hist_entry *he, u64 period);
 #endif	/* __PERF_HIST_H */

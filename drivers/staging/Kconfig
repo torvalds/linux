@@ -74,8 +74,6 @@ source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/zram/Kconfig"
 
-source "drivers/staging/zcache/Kconfig"
-
 source "drivers/staging/zsmalloc/Kconfig"
 
 source "drivers/staging/wlags49_h2/Kconfig"
@@ -114,8 +112,6 @@ source "drivers/staging/media/Kconfig"
 
 source "drivers/staging/net/Kconfig"
 
-source "drivers/staging/omapdrm/Kconfig"
-
 source "drivers/staging/android/Kconfig"
 
 source "drivers/staging/ozwpan/Kconfig"
@@ -128,8 +124,6 @@ source "drivers/staging/csr/Kconfig"
 
 source "drivers/staging/omap-thermal/Kconfig"
 
-source "drivers/staging/ramster/Kconfig"
-
 source "drivers/staging/silicom/Kconfig"
 
 source "drivers/staging/ced1401/Kconfig"
@@ -141,5 +135,9 @@ source "drivers/staging/dgrp/Kconfig"
 source "drivers/staging/sb105x/Kconfig"
 
 source "drivers/staging/fwserial/Kconfig"
+
+source "drivers/staging/zcache/Kconfig"
+
+source "drivers/staging/goldfish/Kconfig"
 
 endif # STAGING

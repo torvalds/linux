@@ -56,7 +56,6 @@ int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
  */
 int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 {
-	bool cancel_flag = false;
 	int status;
 	struct cmd_ctrl_node *cmd_queued;
 
@@ -70,14 +69,11 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 	atomic_inc(&adapter->cmd_pending);
 
 	/* Wait for completion */
-	wait_event_interruptible(adapter->cmd_wait_q.wait,
-				 *(cmd_queued->condition));
-	if (!*(cmd_queued->condition))
-		cancel_flag = true;
-
-	if (cancel_flag) {
-		mwifiex_cancel_pending_ioctl(adapter);
-		dev_dbg(adapter->dev, "cmd cancel\n");
+	status = wait_event_interruptible(adapter->cmd_wait_q.wait,
+					  *(cmd_queued->condition));
+	if (status) {
+		dev_err(adapter->dev, "cmd_wait_q terminated: %d\n", status);
+		return status;
 	}
 
 	status = adapter->cmd_wait_q.status;
@@ -166,13 +162,9 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 
 	rcu_read_lock();
 	ies = rcu_dereference(bss->ies);
-	if (WARN_ON(!ies)) {
-		/* should never happen */
-		rcu_read_unlock();
-		return -EINVAL;
-	}
 	beacon_ie = kmemdup(ies->data, ies->len, GFP_ATOMIC);
 	beacon_ie_len = ies->len;
+	bss_desc->timestamp = ies->tsf;
 	rcu_read_unlock();
 
 	if (!beacon_ie) {
@@ -188,7 +180,6 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	bss_desc->cap_info_bitmap = bss->capability;
 	bss_desc->bss_band = bss_priv->band;
 	bss_desc->fw_tsf = bss_priv->fw_tsf;
-	bss_desc->timestamp = bss->tsf;
 	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_PRIVACY) {
 		dev_dbg(priv->adapter->dev, "info: InterpretIE: AP WEP enabled\n");
 		bss_desc->privacy = MWIFIEX_802_11_PRIV_FILTER_8021X_WEP;
@@ -270,11 +261,9 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 		/* Allocate and fill new bss descriptor */
 		bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
-				GFP_KERNEL);
-		if (!bss_desc) {
-			dev_err(priv->adapter->dev, " failed to alloc bss_desc\n");
+				   GFP_KERNEL);
+		if (!bss_desc)
 			return -ENOMEM;
-		}
 
 		ret = mwifiex_fill_new_bss_desc(priv, bss, bss_desc);
 		if (ret)
@@ -286,6 +275,21 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		ret = mwifiex_deauthenticate(priv, NULL);
 		if (ret)
 			goto done;
+
+		if (bss_desc) {
+			u8 config_bands = 0;
+
+			if (mwifiex_band_to_radio_type((u8) bss_desc->bss_band)
+			    == HostCmd_SCAN_RADIO_TYPE_BG)
+				config_bands = BAND_B | BAND_G | BAND_GN |
+					       BAND_GAC;
+			else
+				config_bands = BAND_A | BAND_AN | BAND_AAC;
+
+			if (!((config_bands | adapter->fw_bands) &
+			      ~adapter->fw_bands))
+				adapter->config_bands = config_bands;
+		}
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 		if (ret)
@@ -314,7 +318,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		}
 
 		if (bss)
-			cfg80211_put_bss(bss);
+			cfg80211_put_bss(priv->adapter->wiphy, bss);
 	} else {
 		/* Adhoc mode */
 		/* If the requested SSID matches current SSID, return */
@@ -344,7 +348,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 							" list. Joining...\n");
 			ret = mwifiex_adhoc_join(priv, bss_desc);
 			if (bss)
-				cfg80211_put_bss(bss);
+				cfg80211_put_bss(priv->adapter->wiphy, bss);
 		} else {
 			dev_dbg(adapter->dev, "info: Network not found in "
 				"the list, creating adhoc with ssid = %s\n",
@@ -496,8 +500,11 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 		return false;
 	}
 
-	wait_event_interruptible(adapter->hs_activate_wait_q,
-				 adapter->hs_activate_wait_q_woken);
+	if (wait_event_interruptible(adapter->hs_activate_wait_q,
+				     adapter->hs_activate_wait_q_woken)) {
+		dev_err(adapter->dev, "hs_activate_wait_q terminated\n");
+		return false;
+	}
 
 	return true;
 }
@@ -623,11 +630,8 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 		}
 	}
 	buf = kzalloc(MWIFIEX_SIZE_OF_CMD_BUFFER, GFP_KERNEL);
-	if (!buf) {
-		dev_err(priv->adapter->dev, "%s: failed to alloc cmd buffer\n",
-			__func__);
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	txp_cfg = (struct host_cmd_ds_txpwr_cfg *) buf;
 	txp_cfg->action = cpu_to_le16(HostCmd_ACT_GEN_SET);

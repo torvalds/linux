@@ -190,9 +190,9 @@ static int usbbcm_device_probe(struct usb_interface *intf, const struct usb_devi
 	}
 
 	/* Allocate interface adapter structure */
-	psIntfAdapter = kzalloc(sizeof(struct bcm_interface_adapter), GFP_KERNEL);
+	psIntfAdapter = kzalloc(sizeof(struct bcm_interface_adapter),
+				GFP_KERNEL);
 	if (psIntfAdapter == NULL) {
-		dev_err(&udev->dev, DRV_NAME ": no memory for Interface adapter\n");
 		AdapterFree(psAdapter);
 		return -ENOMEM;
 	}
@@ -564,11 +564,8 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 			psIntfAdapter->sIntrIn.int_in_interval = endpoint->bInterval;
 			psIntfAdapter->sIntrIn.int_in_buffer =
 						kmalloc(buffer_size, GFP_KERNEL);
-			if (!psIntfAdapter->sIntrIn.int_in_buffer) {
-				dev_err(&psIntfAdapter->udev->dev,
-					"could not allocate interrupt_in_buffer\n");
+			if (!psIntfAdapter->sIntrIn.int_in_buffer)
 				return -EINVAL;
-			}
 		}
 
 		if (!psIntfAdapter->sIntrOut.int_out_endpointAddr && bcm_usb_endpoint_is_int_out(endpoint)) {
@@ -587,11 +584,8 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 				psIntfAdapter->sIntrOut.int_out_endpointAddr = endpoint->bEndpointAddress;
 				psIntfAdapter->sIntrOut.int_out_interval = endpoint->bInterval;
 				psIntfAdapter->sIntrOut.int_out_buffer = kmalloc(buffer_size, GFP_KERNEL);
-				if (!psIntfAdapter->sIntrOut.int_out_buffer) {
-					dev_err(&psIntfAdapter->udev->dev,
-						"could not allocate interrupt_out_buffer\n");
+				if (!psIntfAdapter->sIntrOut.int_out_buffer)
 					return -EINVAL;
-				}
 			}
 		}
 	}

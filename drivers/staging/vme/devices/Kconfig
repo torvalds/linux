@@ -6,7 +6,7 @@ config VME_USER
 	help
 	  If you say Y here you want to be able to access a limited number of
 	  VME windows in a manner at least semi-compatible with the interface
-	  provided with the original driver at http://vmelinux.org/.
+	  provided with the original driver at <http://www.vmelinux.org/>.
 
 config VME_PIO2
 	tristate "GE PIO2 VME"

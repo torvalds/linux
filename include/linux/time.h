@@ -115,8 +115,20 @@ static inline bool timespec_valid_strict(const struct timespec *ts)
 	return true;
 }
 
+extern bool persistent_clock_exist;
+
+#ifdef ALWAYS_USE_PERSISTENT_CLOCK
+#define has_persistent_clock()	true
+#else
+static inline bool has_persistent_clock(void)
+{
+	return persistent_clock_exist;
+}
+#endif
+
 extern void read_persistent_clock(struct timespec *ts);
 extern void read_boot_clock(struct timespec *ts);
+extern int persistent_clock_is_local;
 extern int update_persistent_clock(struct timespec now);
 void timekeeping_init(void);
 extern int timekeeping_suspended;
@@ -142,9 +154,7 @@ void timekeeping_inject_sleeptime(struct timespec *delta);
  * finer then tick granular time.
  */
 #ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-extern u32 arch_gettimeoffset(void);
-#else
-static inline u32 arch_gettimeoffset(void) { return 0; }
+extern u32 (*arch_gettimeoffset)(void);
 #endif
 
 extern void do_gettimeofday(struct timeval *tv);
@@ -158,6 +168,7 @@ extern int do_setitimer(int which, struct itimerval *value,
 			struct itimerval *ovalue);
 extern unsigned int alarm_setitimer(unsigned int seconds);
 extern int do_getitimer(int which, struct itimerval *value);
+extern int __getnstimeofday(struct timespec *tv);
 extern void getnstimeofday(struct timespec *tv);
 extern void getrawmonotonic(struct timespec *ts);
 extern void getnstime_raw_and_real(struct timespec *ts_raw,

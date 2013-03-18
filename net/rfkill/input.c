@@ -148,11 +148,9 @@ static unsigned long rfkill_ratelimit(const unsigned long last)
 
 static void rfkill_schedule_ratelimited(void)
 {
-	if (delayed_work_pending(&rfkill_op_work))
-		return;
-	schedule_delayed_work(&rfkill_op_work,
-			      rfkill_ratelimit(rfkill_last_scheduled));
-	rfkill_last_scheduled = jiffies;
+	if (schedule_delayed_work(&rfkill_op_work,
+				  rfkill_ratelimit(rfkill_last_scheduled)))
+		rfkill_last_scheduled = jiffies;
 }
 
 static void rfkill_schedule_global_op(enum rfkill_sched_op op)

@@ -27,3 +27,14 @@ config VLAN_8021Q_GVRP
 	  automatic propagation of registered VLANs to switches.
 
 	  If unsure, say N.
+
+config VLAN_8021Q_MVRP
+	bool "MVRP (Multiple VLAN Registration Protocol) support"
+	depends on VLAN_8021Q
+	select MRP
+	help
+	  Select this to enable MVRP end-system support. MVRP is used for
+	  automatic propagation of registered VLANs to switches; it
+	  supersedes GVRP and is not backwards-compatible.
+
+	  If unsure, say N.

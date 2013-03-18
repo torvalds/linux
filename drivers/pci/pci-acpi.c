@@ -283,7 +283,6 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.choose_state = acpi_pci_choose_state,
-	.can_wakeup = acpi_pci_can_wakeup,
 	.sleep_wake = acpi_pci_sleep_wake,
 	.run_wake = acpi_pci_run_wake,
 };
@@ -303,28 +302,46 @@ static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 	return 0;
 }
 
-static int acpi_pci_find_root_bridge(struct device *dev, acpi_handle *handle)
+static void pci_acpi_setup(struct device *dev)
 {
-	int num;
-	unsigned int seg, bus;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
+	struct acpi_device *adev;
 
-	/*
-	 * The string should be the same as root bridge's name
-	 * Please look at 'pci_scan_bus_parented'
-	 */
-	num = sscanf(dev_name(dev), "pci%04x:%02x", &seg, &bus);
-	if (num != 2)
-		return -ENODEV;
-	*handle = acpi_get_pci_rootbridge_handle(seg, bus);
-	if (!*handle)
-		return -ENODEV;
-	return 0;
+	if (acpi_bus_get_device(handle, &adev) || !adev->wakeup.flags.valid)
+		return;
+
+	device_set_wakeup_capable(dev, true);
+	acpi_pci_sleep_wake(pci_dev, false);
+
+	pci_acpi_add_pm_notifier(adev, pci_dev);
+	if (adev->wakeup.flags.run_wake)
+		device_set_run_wake(dev, true);
+}
+
+static void pci_acpi_cleanup(struct device *dev)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+	struct acpi_device *adev;
+
+	if (!acpi_bus_get_device(handle, &adev) && adev->wakeup.flags.valid) {
+		device_set_wakeup_capable(dev, false);
+		device_set_run_wake(dev, false);
+		pci_acpi_remove_pm_notifier(adev);
+	}
+}
+
+static bool pci_acpi_bus_match(struct device *dev)
+{
+	return dev->bus == &pci_bus_type;
 }
 
 static struct acpi_bus_type acpi_pci_bus = {
-	.bus = &pci_bus_type,
+	.name = "PCI",
+	.match = pci_acpi_bus_match,
 	.find_device = acpi_pci_find_device,
-	.find_bridge = acpi_pci_find_root_bridge,
+	.setup = pci_acpi_setup,
+	.cleanup = pci_acpi_cleanup,
 };
 
 static int __init acpi_pci_init(void)

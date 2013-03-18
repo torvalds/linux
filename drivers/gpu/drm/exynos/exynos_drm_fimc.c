@@ -1785,11 +1785,9 @@ static int fimc_probe(struct platform_device *pdev)
 
 	/* resource memory */
 	ctx->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->regs = devm_request_and_ioremap(dev, ctx->regs_res);
-	if (!ctx->regs) {
-		dev_err(dev, "failed to map registers.\n");
-		return -ENXIO;
-	}
+	ctx->regs = devm_ioremap_resource(dev, ctx->regs_res);
+	if (IS_ERR(ctx->regs))
+		return PTR_ERR(ctx->regs);
 
 	/* resource irq */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);

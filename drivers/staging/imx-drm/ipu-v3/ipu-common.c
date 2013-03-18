@@ -1104,7 +1104,9 @@ static int ipu_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_failed_irq;
 
-	ipu_reset(ipu);
+	ret = ipu_reset(ipu);
+	if (ret)
+		goto out_failed_reset;
 
 	/* Set MCU_T to divide MCU access window into 2 */
 	ipu_cm_write(ipu, 0x00400000L | (IPU_MCU_T_DEFAULT << 18),
@@ -1129,6 +1131,7 @@ failed_add_clients:
 	ipu_submodules_exit(ipu);
 failed_submodules_init:
 	ipu_irq_exit(ipu);
+out_failed_reset:
 out_failed_irq:
 	clk_disable_unprepare(ipu->clk);
 failed_clk_get:
@@ -1139,9 +1142,6 @@ failed_ioremap:
 static int ipu_remove(struct platform_device *pdev)
 {
 	struct ipu_soc *ipu = platform_get_drvdata(pdev);
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	platform_device_unregister_children(pdev);
 	ipu_submodules_exit(ipu);

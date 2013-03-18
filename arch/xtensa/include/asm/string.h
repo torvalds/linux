@@ -74,7 +74,7 @@ static inline int strcmp(const char *__cs, const char *__ct)
 		"beqz	%2, 2f\n\t"
 		"beq	%2, %3, 1b\n"
 		"2:\n\t"
-		"sub	%2, %3, %2"
+		"sub	%2, %2, %3"
 		: "=r" (__cs), "=r" (__ct), "=&r" (__res), "=&r" (__dummy)
 		: "0" (__cs), "1" (__ct));
 
@@ -99,7 +99,7 @@ static inline int strncmp(const char *__cs, const char *__ct, size_t __n)
 		"beqz	%3, 2f\n\t"
 		"beq	%2, %3, 1b\n"
 		"2:\n\t"
-		"sub	%2, %3, %2"
+		"sub	%2, %2, %3"
 		: "=r" (__cs), "=r" (__ct), "=&r" (__res), "=&r" (__dummy)
 		: "0" (__cs), "1" (__ct), "r" (__cs+__n));
 

@@ -25,10 +25,9 @@ static DEFINE_SPINLOCK(msi_map_lock);
 
 struct msi_desc *__irq_get_msi_desc(unsigned int irq)
 {
-	struct hlist_node *entry;
 	struct msi_map *map;
 
-	hlist_for_each_entry_rcu(map, entry,
+	hlist_for_each_entry_rcu(map,
 			&msi_hash[msi_hashfn(irq)], msi_chain)
 		if (map->irq == irq)
 			return map->msi;

@@ -282,7 +282,7 @@ static struct ccw_driver claw_ccw_driver = {
 	.ids	= claw_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,
-	.int_class = IOINT_CLW,
+	.int_class = IRQIO_CLW,
 };
 
 static ssize_t claw_driver_group_store(struct device_driver *ddrv,

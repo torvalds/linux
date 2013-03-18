@@ -28,19 +28,12 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/cpufreq.h>
-#include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
-#include <linux/moduleparam.h>
-#include <linux/sched.h>	/* need_resched() */
-#include <linux/pm_qos.h>
+#include <linux/sched.h>       /* need_resched() */
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
-#include <linux/irqflags.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -52,22 +45,14 @@
 #include <asm/apic.h>
 #endif
 
-#include <asm/io.h>
-#include <asm/uaccess.h>
-
 #include <acpi/acpi_bus.h>
 #include <acpi/processor.h>
-#include <asm/processor.h>
 
 #define PREFIX "ACPI: "
 
 #define ACPI_PROCESSOR_CLASS            "processor"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_idle");
-#define PM_TIMER_TICK_NS		(1000000000ULL/PM_TIMER_FREQUENCY)
-#define C2_OVERHEAD			1	/* 1us */
-#define C3_OVERHEAD			1	/* 1us */
-#define PM_TIMER_TICKS_TO_US(p)		(((p) * 1000)/(PM_TIMER_FREQUENCY/1000))
 
 static unsigned int max_cstate __read_mostly = ACPI_PROCESSOR_MAX_POWER;
 module_param(max_cstate, uint, 0000);
@@ -81,10 +66,11 @@ module_param(latency_factor, uint, 0644);
 
 static DEFINE_PER_CPU(struct cpuidle_device *, acpi_cpuidle_device);
 
+static struct acpi_processor_cx *acpi_cstate[CPUIDLE_STATE_MAX];
+
 static int disabled_by_idle_boot_param(void)
 {
 	return boot_option_idle_override == IDLE_POLL ||
-		boot_option_idle_override == IDLE_FORCE_MWAIT ||
 		boot_option_idle_override == IDLE_HALT;
 }
 
@@ -736,8 +722,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct cpuidle_state_usage *state_usage = &dev->states_usage[index];
-	struct acpi_processor_cx *cx = cpuidle_get_statedata(state_usage);
+	struct acpi_processor_cx *cx = acpi_cstate[index];
 
 	pr = __this_cpu_read(processors);
 
@@ -760,8 +745,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
  */
 static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 {
-	struct cpuidle_state_usage *state_usage = &dev->states_usage[index];
-	struct acpi_processor_cx *cx = cpuidle_get_statedata(state_usage);
+	struct acpi_processor_cx *cx = acpi_cstate[index];
 
 	ACPI_FLUSH_CPU_CACHE();
 
@@ -791,8 +775,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct cpuidle_state_usage *state_usage = &dev->states_usage[index];
-	struct acpi_processor_cx *cx = cpuidle_get_statedata(state_usage);
+	struct acpi_processor_cx *cx = acpi_cstate[index];
 
 	pr = __this_cpu_read(processors);
 
@@ -850,8 +833,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct cpuidle_state_usage *state_usage = &dev->states_usage[index];
-	struct acpi_processor_cx *cx = cpuidle_get_statedata(state_usage);
+	struct acpi_processor_cx *cx = acpi_cstate[index];
 
 	pr = __this_cpu_read(processors);
 
@@ -943,13 +925,13 @@ struct cpuidle_driver acpi_idle_driver = {
  * device i.e. per-cpu data
  *
  * @pr: the ACPI processor
+ * @dev : the cpuidle device
  */
-static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
+static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
+					   struct cpuidle_device *dev)
 {
 	int i, count = CPUIDLE_DRIVER_STATE_START;
 	struct acpi_processor_cx *cx;
-	struct cpuidle_state_usage *state_usage;
-	struct cpuidle_device *dev = per_cpu(acpi_cpuidle_device, pr->id);
 
 	if (!pr->flags.power_setup_done)
 		return -EINVAL;
@@ -958,6 +940,9 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
 		return -EINVAL;
 	}
 
+	if (!dev)
+		return -EINVAL;
+
 	dev->cpu = pr->id;
 
 	if (max_cstate == 0)
@@ -965,7 +950,6 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
 
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
 		cx = &pr->power.states[i];
-		state_usage = &dev->states_usage[count];
 
 		if (!cx->valid)
 			continue;
@@ -976,8 +960,7 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr)
 		    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
 			continue;
 #endif
-
-		cpuidle_set_statedata(state_usage, cx);
+		acpi_cstate[count] = cx;
 
 		count++;
 		if (count == CPUIDLE_STATE_MAX)
@@ -1101,7 +1084,7 @@ int acpi_processor_hotplug(struct acpi_processor *pr)
 	cpuidle_disable_device(dev);
 	acpi_processor_get_power_info(pr);
 	if (pr->flags.power) {
-		acpi_processor_setup_cpuidle_cx(pr);
+		acpi_processor_setup_cpuidle_cx(pr, dev);
 		ret = cpuidle_enable_device(dev);
 	}
 	cpuidle_resume_and_unlock();
@@ -1149,6 +1132,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 		}
 
 		/* Populate Updated C-state information */
+		acpi_processor_get_power_info(pr);
 		acpi_processor_setup_cpuidle_states(pr);
 
 		/* Enable all cpuidle devices */
@@ -1158,8 +1142,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 				continue;
 			acpi_processor_get_power_info(_pr);
 			if (_pr->flags.power) {
-				acpi_processor_setup_cpuidle_cx(_pr);
 				dev = per_cpu(acpi_cpuidle_device, cpu);
+				acpi_processor_setup_cpuidle_cx(_pr, dev);
 				cpuidle_enable_device(dev);
 			}
 		}
@@ -1228,7 +1212,7 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr)
 			return -ENOMEM;
 		per_cpu(acpi_cpuidle_device, pr->id) = dev;
 
-		acpi_processor_setup_cpuidle_cx(pr);
+		acpi_processor_setup_cpuidle_cx(pr, dev);
 
 		/* Register per-cpu cpuidle_device. Cpuidle driver
 		 * must already be registered before registering device

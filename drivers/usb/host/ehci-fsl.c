@@ -230,7 +230,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 
 	switch (phy_mode) {
 	case FSL_USB2_PHY_ULPI:
-		if (pdata->controller_ver) {
+		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
 			setbits32(non_ehci + FSL_SOC_USB_CTRL,
 					ULPI_PHY_CLK_SEL);
@@ -251,7 +251,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		portsc |= PORT_PTS_PTW;
 		/* fall through */
 	case FSL_USB2_PHY_UTMI:
-		if (pdata->controller_ver) {
+		if (pdata->have_sysif_regs && pdata->controller_ver) {
 			/* controller version 1.6 or above */
 			setbits32(non_ehci + FSL_SOC_USB_CTRL, UTMI_PHY_EN);
 			mdelay(FSL_UTMI_PHY_DLY);  /* Delay for UTMI PHY CLK to
@@ -267,7 +267,8 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 		break;
 	}
 
-	if (pdata->controller_ver && (phy_mode == FSL_USB2_PHY_ULPI)) {
+	if (pdata->have_sysif_regs && pdata->controller_ver &&
+	    (phy_mode == FSL_USB2_PHY_ULPI)) {
 		/* check PHY_CLK_VALID to get phy clk valid */
 		if (!spin_event_timeout(in_be32(non_ehci + FSL_SOC_USB_CTRL) &
 				PHY_CLK_VALID, FSL_USB_PHY_CLK_TIMEOUT, 0)) {
@@ -278,7 +279,7 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 
 	ehci_writel(ehci, portsc, &ehci->regs->port_status[port_offset]);
 
-	if (phy_mode != FSL_USB2_PHY_ULPI)
+	if (phy_mode != FSL_USB2_PHY_ULPI && pdata->have_sysif_regs)
 		setbits32(non_ehci + FSL_SOC_USB_CTRL, USB_CTRL_USB_EN);
 
 	return 0;

@@ -91,7 +91,7 @@ static struct class wpan_phy_class = {
 static DEFINE_MUTEX(wpan_phy_mutex);
 static int wpan_phy_idx;
 
-static int wpan_phy_match(struct device *dev, void *data)
+static int wpan_phy_match(struct device *dev, const void *data)
 {
 	return !strcmp(dev_name(dev), (const char *)data);
 }
@@ -103,8 +103,7 @@ struct wpan_phy *wpan_phy_find(const char *str)
 	if (WARN_ON(!str))
 		return NULL;
 
-	dev = class_find_device(&wpan_phy_class, NULL,
-			(void *)str, wpan_phy_match);
+	dev = class_find_device(&wpan_phy_class, NULL, str, wpan_phy_match);
 	if (!dev)
 		return NULL;
 

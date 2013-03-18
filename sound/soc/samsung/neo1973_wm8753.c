@@ -237,7 +237,7 @@ static int lm4853_set_spk(struct snd_kcontrol *kcontrol,
 {
 	gta02_speaker_enabled = ucontrol->value.integer.value[0];
 
-	gpio_set_value(GTA02_GPIO_HP_IN, !gta02_speaker_enabled);
+	gpio_set_value(S3C2410_GPJ(2), !gta02_speaker_enabled);
 
 	return 0;
 }
@@ -252,7 +252,7 @@ static int lm4853_get_spk(struct snd_kcontrol *kcontrol,
 static int lm4853_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
-	gpio_set_value(GTA02_GPIO_AMP_SHUT, SND_SOC_DAPM_EVENT_OFF(event));
+	gpio_set_value(S3C2410_GPJ(1), SND_SOC_DAPM_EVENT_OFF(event));
 
 	return 0;
 }
@@ -396,8 +396,8 @@ static struct snd_soc_codec_conf neo1973_codec_conf[] = {
 };
 
 static const struct gpio neo1973_gta02_gpios[] = {
-	{ GTA02_GPIO_HP_IN, GPIOF_OUT_INIT_HIGH, "GTA02_HP_IN" },
-	{ GTA02_GPIO_AMP_SHUT, GPIOF_OUT_INIT_HIGH, "GTA02_AMP_SHUT" },
+	{ S3C2410_GPJ(2), GPIOF_OUT_INIT_HIGH, "GTA02_HP_IN" },
+	{ S3C2410_GPJ(1), GPIOF_OUT_INIT_HIGH, "GTA02_AMP_SHUT" },
 };
 
 static struct snd_soc_card neo1973 = {

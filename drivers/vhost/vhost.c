@@ -77,26 +77,38 @@ void vhost_poll_init(struct vhost_poll *poll, vhost_work_fn_t fn,
 	init_poll_funcptr(&poll->table, vhost_poll_func);
 	poll->mask = mask;
 	poll->dev = dev;
+	poll->wqh = NULL;
 
 	vhost_work_init(&poll->work, fn);
 }
 
 /* Start polling a file. We add ourselves to file's wait queue. The caller must
  * keep a reference to a file until after vhost_poll_stop is called. */
-void vhost_poll_start(struct vhost_poll *poll, struct file *file)
+int vhost_poll_start(struct vhost_poll *poll, struct file *file)
 {
 	unsigned long mask;
+	int ret = 0;
 
 	mask = file->f_op->poll(file, &poll->table);
 	if (mask)
 		vhost_poll_wakeup(&poll->wait, 0, 0, (void *)mask);
+	if (mask & POLLERR) {
+		if (poll->wqh)
+			remove_wait_queue(poll->wqh, &poll->wait);
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 /* Stop polling a file. After this function returns, it becomes safe to drop the
  * file reference. You must also flush afterwards. */
 void vhost_poll_stop(struct vhost_poll *poll)
 {
-	remove_wait_queue(poll->wqh, &poll->wait);
+	if (poll->wqh) {
+		remove_wait_queue(poll->wqh, &poll->wait);
+		poll->wqh = NULL;
+	}
 }
 
 static bool vhost_work_seq_done(struct vhost_dev *dev, struct vhost_work *work,
@@ -792,7 +804,7 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 		fput(filep);
 
 	if (pollstart && vq->handle_kick)
-		vhost_poll_start(&vq->poll, vq->kick);
+		r = vhost_poll_start(&vq->poll, vq->kick);
 
 	mutex_unlock(&vq->mutex);
 

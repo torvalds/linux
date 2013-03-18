@@ -165,12 +165,16 @@ static void tx_poll_stop(struct vhost_net *net)
 }
 
 /* Caller must have TX VQ lock */
-static void tx_poll_start(struct vhost_net *net, struct socket *sock)
+static int tx_poll_start(struct vhost_net *net, struct socket *sock)
 {
+	int ret;
+
 	if (unlikely(net->tx_poll_state != VHOST_NET_POLL_STOPPED))
-		return;
-	vhost_poll_start(net->poll + VHOST_NET_VQ_TX, sock->file);
-	net->tx_poll_state = VHOST_NET_POLL_STARTED;
+		return 0;
+	ret = vhost_poll_start(net->poll + VHOST_NET_VQ_TX, sock->file);
+	if (!ret)
+		net->tx_poll_state = VHOST_NET_POLL_STARTED;
+	return ret;
 }
 
 /* In case of DMA done not in order in lower device driver for some reason.
@@ -642,20 +646,23 @@ static void vhost_net_disable_vq(struct vhost_net *n,
 		vhost_poll_stop(n->poll + VHOST_NET_VQ_RX);
 }
 
-static void vhost_net_enable_vq(struct vhost_net *n,
+static int vhost_net_enable_vq(struct vhost_net *n,
 				struct vhost_virtqueue *vq)
 {
 	struct socket *sock;
+	int ret;
 
 	sock = rcu_dereference_protected(vq->private_data,
 					 lockdep_is_held(&vq->mutex));
 	if (!sock)
-		return;
+		return 0;
 	if (vq == n->vqs + VHOST_NET_VQ_TX) {
 		n->tx_poll_state = VHOST_NET_POLL_STOPPED;
-		tx_poll_start(n, sock);
+		ret = tx_poll_start(n, sock);
 	} else
-		vhost_poll_start(n->poll + VHOST_NET_VQ_RX, sock->file);
+		ret = vhost_poll_start(n->poll + VHOST_NET_VQ_RX, sock->file);
+
+	return ret;
 }
 
 static struct socket *vhost_net_stop_vq(struct vhost_net *n,
@@ -827,15 +834,18 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 			r = PTR_ERR(ubufs);
 			goto err_ubufs;
 		}
-		oldubufs = vq->ubufs;
-		vq->ubufs = ubufs;
+
 		vhost_net_disable_vq(n, vq);
 		rcu_assign_pointer(vq->private_data, sock);
-		vhost_net_enable_vq(n, vq);
-
 		r = vhost_init_used(vq);
 		if (r)
-			goto err_vq;
+			goto err_used;
+		r = vhost_net_enable_vq(n, vq);
+		if (r)
+			goto err_used;
+
+		oldubufs = vq->ubufs;
+		vq->ubufs = ubufs;
 
 		n->tx_packets = 0;
 		n->tx_zcopy_err = 0;
@@ -859,6 +869,11 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	mutex_unlock(&n->dev.mutex);
 	return 0;
 
+err_used:
+	rcu_assign_pointer(vq->private_data, oldsock);
+	vhost_net_enable_vq(n, vq);
+	if (ubufs)
+		vhost_ubuf_put_and_wait(ubufs);
 err_ubufs:
 	fput(sock->file);
 err_vq:

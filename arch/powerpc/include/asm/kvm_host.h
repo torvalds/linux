@@ -37,10 +37,8 @@
 
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
-#define KVM_MEMORY_SLOTS 32
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 4
-#define KVM_MEM_SLOTS_NUM (KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS)
+#define KVM_USER_MEM_SLOTS 32
+#define KVM_MEM_SLOTS_NUM KVM_USER_MEM_SLOTS
 
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
@@ -440,6 +438,7 @@ struct kvm_vcpu_arch {
 	ulong uamor;
 	u32 ctrl;
 	ulong dabr;
+	ulong cfar;
 #endif
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
@@ -522,6 +521,8 @@ struct kvm_vcpu_arch {
 	u8 sane;
 	u8 cpu_type;
 	u8 hcall_needed;
+	u8 epr_enabled;
+	u8 epr_needed;
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 

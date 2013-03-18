@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/of_i2c.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -308,10 +309,9 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	siic->base = devm_request_and_ioremap(&pdev->dev, mem_res);
-	if (siic->base == NULL) {
-		dev_err(&pdev->dev, "IO remap failed!\n");
-		err = -ENOMEM;
+	siic->base = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(siic->base)) {
+		err = PTR_ERR(siic->base);
 		goto out;
 	}
 
@@ -328,6 +328,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	adap->algo = &i2c_sirfsoc_algo;
 	adap->algo_data = siic;
 
+	adap->dev.of_node = pdev->dev.of_node;
 	adap->dev.parent = &pdev->dev;
 	adap->nr = pdev->id;
 
@@ -370,6 +371,8 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	}
 
 	clk_disable(clk);
+
+	of_i2c_register_devices(adap);
 
 	dev_info(&pdev->dev, " I2C adapter ready to operate\n");
 

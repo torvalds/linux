@@ -611,7 +611,7 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 	tpi_info = (struct tpi_info *)&S390_lowcore.subchannel_id;
 	irb = (struct irb *)&S390_lowcore.irb;
 	do {
-		kstat_cpu(smp_processor_id()).irqs[IO_INTERRUPT]++;
+		kstat_incr_irqs_this_cpu(IO_INTERRUPT, NULL);
 		if (tpi_info->adapter_IO) {
 			do_adapter_IO(tpi_info->isc);
 			continue;
@@ -619,7 +619,7 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 		sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
 		if (!sch) {
 			/* Clear pending interrupt condition. */
-			kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+			inc_irq_stat(IRQIO_CIO);
 			tsch(tpi_info->schid, irb);
 			continue;
 		}
@@ -633,9 +633,9 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 			if (sch->driver && sch->driver->irq)
 				sch->driver->irq(sch);
 			else
-				kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+				inc_irq_stat(IRQIO_CIO);
 		} else
-			kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+			inc_irq_stat(IRQIO_CIO);
 		spin_unlock(sch->lock);
 		/*
 		 * Are more interrupts pending?
@@ -678,7 +678,7 @@ static void cio_tsch(struct subchannel *sch)
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(sch);
 	else
-		kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+		inc_irq_stat(IRQIO_CIO);
 	if (!irq_context) {
 		irq_exit();
 		_local_bh_enable();
@@ -962,9 +962,9 @@ static void css_reset(void)
 			atomic_inc(&chpid_reset_count);
 	}
 	/* Wait for machine check for all channel paths. */
-	timeout = get_clock() + (RCHP_TIMEOUT << 12);
+	timeout = get_tod_clock() + (RCHP_TIMEOUT << 12);
 	while (atomic_read(&chpid_reset_count) != 0) {
-		if (get_clock() > timeout)
+		if (get_tod_clock() > timeout)
 			break;
 		cpu_relax();
 	}

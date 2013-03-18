@@ -284,13 +284,13 @@ static void mixer_cfg_scan(struct mixer_context *ctx, unsigned int height)
 				MXR_CFG_SCAN_PROGRASSIVE);
 
 	/* choosing between porper HD and SD mode */
-	if (height == 480)
+	if (height <= 480)
 		val |= MXR_CFG_SCAN_NTSC | MXR_CFG_SCAN_SD;
-	else if (height == 576)
+	else if (height <= 576)
 		val |= MXR_CFG_SCAN_PAL | MXR_CFG_SCAN_SD;
-	else if (height == 720)
+	else if (height <= 720)
 		val |= MXR_CFG_SCAN_HD_720 | MXR_CFG_SCAN_HD;
-	else if (height == 1080)
+	else if (height <= 1080)
 		val |= MXR_CFG_SCAN_HD_1080 | MXR_CFG_SCAN_HD;
 	else
 		val |= MXR_CFG_SCAN_HD_720 | MXR_CFG_SCAN_HD;
@@ -600,7 +600,7 @@ static void vp_win_reset(struct mixer_context *ctx)
 		/* waiting until VP_SRESET_PROCESSING is 0 */
 		if (~vp_reg_read(res, VP_SRESET) & VP_SRESET_PROCESSING)
 			break;
-		mdelay(10);
+		usleep_range(10000, 12000);
 	}
 	WARN(tries == 0, "failed to reset Video Processor\n");
 }
@@ -776,6 +776,13 @@ static void mixer_win_commit(void *ctx, int win)
 
 	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
 
+	mutex_lock(&mixer_ctx->mixer_mutex);
+	if (!mixer_ctx->powered) {
+		mutex_unlock(&mixer_ctx->mixer_mutex);
+		return;
+	}
+	mutex_unlock(&mixer_ctx->mixer_mutex);
+
 	if (win > 1 && mixer_ctx->vp_enabled)
 		vp_video_buffer(mixer_ctx, win);
 	else
@@ -811,6 +818,29 @@ static void mixer_win_disable(void *ctx, int win)
 	mixer_ctx->win_data[win].enabled = false;
 }
 
+int mixer_check_timing(void *ctx, struct fb_videomode *timing)
+{
+	struct mixer_context *mixer_ctx = ctx;
+	u32 w, h;
+
+	w = timing->xres;
+	h = timing->yres;
+
+	DRM_DEBUG_KMS("%s : xres=%d, yres=%d, refresh=%d, intl=%d\n",
+		__func__, timing->xres, timing->yres,
+		timing->refresh, (timing->vmode &
+		FB_VMODE_INTERLACED) ? true : false);
+
+	if (mixer_ctx->mxr_ver == MXR_VER_0_0_0_16)
+		return 0;
+
+	if ((w >= 464 && w <= 720 && h >= 261 && h <= 576) ||
+		(w >= 1024 && w <= 1280 && h >= 576 && h <= 720) ||
+		(w >= 1664 && w <= 1920 && h >= 936 && h <= 1080))
+		return 0;
+
+	return -EINVAL;
+}
 static void mixer_wait_for_vblank(void *ctx)
 {
 	struct mixer_context *mixer_ctx = ctx;
@@ -948,6 +978,9 @@ static struct exynos_mixer_ops mixer_ops = {
 	.win_mode_set		= mixer_win_mode_set,
 	.win_commit		= mixer_win_commit,
 	.win_disable		= mixer_win_disable,
+
+	/* display */
+	.check_timing		= mixer_check_timing,
 };
 
 static irqreturn_t mixer_irq_handler(int irq, void *arg)

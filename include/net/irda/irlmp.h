@@ -278,7 +278,7 @@ static inline int irlmp_lap_tx_queue_full(struct lsap_cb *self)
 }
 
 /* After doing a irlmp_dup(), this get one of the two socket back into
- * a state where it's waiting incomming connections.
+ * a state where it's waiting incoming connections.
  * Note : this can be used *only* if the socket is not yet connected
  * (i.e. NO irlmp_connect_response() done on this socket).
  * - Jean II */

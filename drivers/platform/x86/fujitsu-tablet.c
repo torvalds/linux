@@ -431,7 +431,7 @@ static int acpi_fujitsu_add(struct acpi_device *adev)
 	return 0;
 }
 
-static int acpi_fujitsu_remove(struct acpi_device *adev, int type)
+static int acpi_fujitsu_remove(struct acpi_device *adev)
 {
 	free_irq(fujitsu.irq, fujitsu_interrupt);
 	release_region(fujitsu.io_base, fujitsu.io_length);

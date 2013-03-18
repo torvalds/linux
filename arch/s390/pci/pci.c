@@ -51,8 +51,7 @@ EXPORT_SYMBOL_GPL(zpci_list);
 DEFINE_MUTEX(zpci_list_lock);
 EXPORT_SYMBOL_GPL(zpci_list_lock);
 
-struct pci_hp_callback_ops hotplug_ops;
-EXPORT_SYMBOL_GPL(hotplug_ops);
+static struct pci_hp_callback_ops *hotplug_ops;
 
 static DECLARE_BITMAP(zpci_domain, ZPCI_NR_DEVICES);
 static DEFINE_SPINLOCK(zpci_domain_lock);
@@ -159,35 +158,6 @@ int pci_proc_domain(struct pci_bus *bus)
 	return pci_domain_nr(bus);
 }
 EXPORT_SYMBOL_GPL(pci_proc_domain);
-
-/* Store PCI function information block */
-static int zpci_store_fib(struct zpci_dev *zdev, u8 *fc)
-{
-	struct zpci_fib *fib;
-	u8 status, cc;
-
-	fib = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!fib)
-		return -ENOMEM;
-
-	do {
-		cc = __stpcifc(zdev->fh, 0, fib, &status);
-		if (cc == 2) {
-			msleep(ZPCI_INSN_BUSY_DELAY);
-			memset(fib, 0, PAGE_SIZE);
-		}
-	} while (cc == 2);
-
-	if (cc)
-		pr_err_once("%s: cc: %u  status: %u\n",
-			    __func__, cc, status);
-
-	/* Return PCI function controls */
-	*fc = fib->fc;
-
-	free_page((unsigned long) fib);
-	return (cc) ? -EIO : 0;
-}
 
 /* Modify PCI: Register adapter interruptions */
 static int zpci_register_airq(struct zpci_dev *zdev, unsigned int aisb,
@@ -469,7 +439,7 @@ static void zpci_irq_handler(void *dont, void *need)
 	int rescan = 0, max = aisb_max;
 	struct zdev_irq_map *imap;
 
-	kstat_cpu(smp_processor_id()).irqs[IOINT_PCI]++;
+	inc_irq_stat(IRQIO_PCI);
 	sbit = start;
 
 scan:
@@ -481,7 +451,7 @@ scan:
 		/* find vector bit */
 		imap = bucket->imap[sbit];
 		for_each_set_bit_left(mbit, &imap->aibv, imap->msi_vecs) {
-			kstat_cpu(smp_processor_id()).irqs[IOINT_MSI]++;
+			inc_irq_stat(IRQIO_MSI);
 			clear_bit(63 - mbit, &imap->aibv);
 
 			spin_lock(&imap->lock);
@@ -1003,8 +973,8 @@ int zpci_create_device(struct zpci_dev *zdev)
 
 	mutex_lock(&zpci_list_lock);
 	list_add_tail(&zdev->entry, &zpci_list);
-	if (hotplug_ops.create_slot)
-		hotplug_ops.create_slot(zdev);
+	if (hotplug_ops)
+		hotplug_ops->create_slot(zdev);
 	mutex_unlock(&zpci_list_lock);
 
 	if (zdev->state == ZPCI_FN_STATE_STANDBY)
@@ -1018,8 +988,8 @@ int zpci_create_device(struct zpci_dev *zdev)
 out_start:
 	mutex_lock(&zpci_list_lock);
 	list_del(&zdev->entry);
-	if (hotplug_ops.remove_slot)
-		hotplug_ops.remove_slot(zdev);
+	if (hotplug_ops)
+		hotplug_ops->remove_slot(zdev);
 	mutex_unlock(&zpci_list_lock);
 out_bus:
 	zpci_free_domain(zdev);
@@ -1101,13 +1071,29 @@ static void zpci_mem_exit(void)
 	kmem_cache_destroy(zdev_fmb_cache);
 }
 
-unsigned int pci_probe = 1;
-EXPORT_SYMBOL_GPL(pci_probe);
+void zpci_register_hp_ops(struct pci_hp_callback_ops *ops)
+{
+	mutex_lock(&zpci_list_lock);
+	hotplug_ops = ops;
+	mutex_unlock(&zpci_list_lock);
+}
+EXPORT_SYMBOL_GPL(zpci_register_hp_ops);
+
+void zpci_deregister_hp_ops(void)
+{
+	mutex_lock(&zpci_list_lock);
+	hotplug_ops = NULL;
+	mutex_unlock(&zpci_list_lock);
+}
+EXPORT_SYMBOL_GPL(zpci_deregister_hp_ops);
+
+unsigned int s390_pci_probe = 1;
+EXPORT_SYMBOL_GPL(s390_pci_probe);
 
 char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
-		pci_probe = 0;
+		s390_pci_probe = 0;
 		return NULL;
 	}
 	return str;
@@ -1117,7 +1103,7 @@ static int __init pci_base_init(void)
 {
 	int rc;
 
-	if (!pci_probe)
+	if (!s390_pci_probe)
 		return 0;
 
 	if (!test_facility(2) || !test_facility(69)

@@ -201,8 +201,8 @@ static int closing_wait = EDGE_CLOSING_WAIT;
 static bool ignore_cpu_rev;
 static int default_uart_mode;		/* RS232 */
 
-static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
-			  unsigned char *data, int length);
+static void edge_tty_recv(struct usb_serial_port *port, unsigned char *data,
+		int length);
 
 static void stop_read(struct edgeport_port *edge_port);
 static int restart_read(struct edgeport_port *edge_port);
@@ -519,62 +519,6 @@ exit_is_tx_active:
 	kfree(lsr);
 	kfree(oedb);
 	return bytes_left;
-}
-
-static void chase_port(struct edgeport_port *port, unsigned long timeout,
-								int flush)
-{
-	int baud_rate;
-	struct tty_struct *tty = tty_port_tty_get(&port->port->port);
-	struct usb_serial *serial = port->port->serial;
-	wait_queue_t wait;
-	unsigned long flags;
-
-	if (!timeout)
-		timeout = (HZ * EDGE_CLOSING_WAIT)/100;
-
-	/* wait for data to drain from the buffer */
-	spin_lock_irqsave(&port->ep_lock, flags);
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&tty->write_wait, &wait);
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (kfifo_len(&port->write_fifo) == 0
-		|| timeout == 0 || signal_pending(current)
-		|| serial->disconnected)
-			/* disconnect */
-			break;
-		spin_unlock_irqrestore(&port->ep_lock, flags);
-		timeout = schedule_timeout(timeout);
-		spin_lock_irqsave(&port->ep_lock, flags);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&tty->write_wait, &wait);
-	if (flush)
-		kfifo_reset_out(&port->write_fifo);
-	spin_unlock_irqrestore(&port->ep_lock, flags);
-	tty_kref_put(tty);
-
-	/* wait for data to drain from the device */
-	timeout += jiffies;
-	while ((long)(jiffies - timeout) < 0 && !signal_pending(current)
-						&& !serial->disconnected) {
-		/* not disconnected */
-		if (!tx_active(port))
-			break;
-		msleep(10);
-	}
-
-	/* disconnected */
-	if (serial->disconnected)
-		return;
-
-	/* wait one more character time, based on baud rate */
-	/* (tx_active doesn't seem to wait for the last byte) */
-	baud_rate = port->baud_rate;
-	if (baud_rate == 0)
-		baud_rate = 50;
-	msleep(max(1, DIV_ROUND_UP(10000, baud_rate)));
 }
 
 static int choose_config(struct usb_device *dev)
@@ -1540,7 +1484,6 @@ static void handle_new_lsr(struct edgeport_port *edge_port, int lsr_data,
 	struct async_icount *icount;
 	__u8 new_lsr = (__u8)(lsr & (__u8)(LSR_OVER_ERR | LSR_PAR_ERR |
 						LSR_FRM_ERR | LSR_BREAK));
-	struct tty_struct *tty;
 
 	dev_dbg(&edge_port->port->dev, "%s - %02x\n", __func__, new_lsr);
 
@@ -1554,13 +1497,8 @@ static void handle_new_lsr(struct edgeport_port *edge_port, int lsr_data,
 		new_lsr &= (__u8)(LSR_OVER_ERR | LSR_BREAK);
 
 	/* Place LSR data byte into Rx buffer */
-	if (lsr_data) {
-		tty = tty_port_tty_get(&edge_port->port->port);
-		if (tty) {
-			edge_tty_recv(&edge_port->port->dev, tty, &data, 1);
-			tty_kref_put(tty);
-		}
-	}
+	if (lsr_data)
+		edge_tty_recv(edge_port->port, &data, 1);
 
 	/* update input line counters */
 	icount = &edge_port->icount;
@@ -1676,7 +1614,6 @@ static void edge_bulk_in_callback(struct urb *urb)
 	struct edgeport_port *edge_port = urb->context;
 	struct device *dev = &edge_port->port->dev;
 	unsigned char *data = urb->transfer_buffer;
-	struct tty_struct *tty;
 	int retval = 0;
 	int port_number;
 	int status = urb->status;
@@ -1715,17 +1652,16 @@ static void edge_bulk_in_callback(struct urb *urb)
 		++data;
 	}
 
-	tty = tty_port_tty_get(&edge_port->port->port);
-	if (tty && urb->actual_length) {
+	if (urb->actual_length) {
 		usb_serial_debug_data(dev, __func__, urb->actual_length, data);
 		if (edge_port->close_pending)
 			dev_dbg(dev, "%s - close pending, dropping data on the floor\n",
 								__func__);
 		else
-			edge_tty_recv(dev, tty, data, urb->actual_length);
+			edge_tty_recv(edge_port->port, data,
+					urb->actual_length);
 		edge_port->icount.rx += urb->actual_length;
 	}
-	tty_kref_put(tty);
 
 exit:
 	/* continue read unless stopped */
@@ -1740,16 +1676,16 @@ exit:
 		dev_err(dev, "%s - usb_submit_urb failed with result %d\n", __func__, retval);
 }
 
-static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
-					unsigned char *data, int length)
+static void edge_tty_recv(struct usb_serial_port *port, unsigned char *data,
+		int length)
 {
 	int queued;
 
-	queued = tty_insert_flip_string(tty, data, length);
+	queued = tty_insert_flip_string(&port->port, data, length);
 	if (queued < length)
-		dev_err(dev, "%s - dropping data, %d bytes lost\n",
+		dev_err(&port->dev, "%s - dropping data, %d bytes lost\n",
 			__func__, length - queued);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void edge_bulk_out_callback(struct urb *urb)
@@ -1941,6 +1877,8 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	++edge_serial->num_ports_open;
 
+	port->port.drain_delay = 1;
+
 	goto release_es_lock;
 
 unlink_int_urb:
@@ -1956,6 +1894,7 @@ static void edge_close(struct usb_serial_port *port)
 	struct edgeport_serial *edge_serial;
 	struct edgeport_port *edge_port;
 	struct usb_serial *serial = port->serial;
+	unsigned long flags;
 	int port_number;
 
 	edge_serial = usb_get_serial_data(port->serial);
@@ -1967,12 +1906,12 @@ static void edge_close(struct usb_serial_port *port)
 	 * this flag and dump add read data */
 	edge_port->close_pending = 1;
 
-	/* chase the port close and flush */
-	chase_port(edge_port, (HZ * closing_wait) / 100, 1);
-
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
 	edge_port->ep_write_urb_in_use = 0;
+	spin_lock_irqsave(&edge_port->ep_lock, flags);
+	kfifo_reset_out(&edge_port->write_fifo);
+	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	/* assuming we can still talk to the device,
 	 * send a close port command to it */
@@ -2098,15 +2037,20 @@ static int edge_chars_in_buffer(struct tty_struct *tty)
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	int chars = 0;
 	unsigned long flags;
+	int ret;
 
 	if (edge_port == NULL)
-		return 0;
-	if (edge_port->close_pending == 1)
 		return 0;
 
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
 	chars = kfifo_len(&edge_port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
+
+	if (!chars) {
+		ret = tx_active(edge_port);
+		if (ret > 0)
+			chars = ret;
+	}
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
 	return chars;
@@ -2445,9 +2389,14 @@ static int get_serial_info(struct edgeport_port *edge_port,
 				struct serial_struct __user *retinfo)
 {
 	struct serial_struct tmp;
+	unsigned cwait;
 
 	if (!retinfo)
 		return -EFAULT;
+
+	cwait = edge_port->port->port.closing_wait;
+	if (cwait != ASYNC_CLOSING_WAIT_NONE)
+		cwait = jiffies_to_msecs(closing_wait) / 10;
 
 	memset(&tmp, 0, sizeof(tmp));
 
@@ -2459,7 +2408,7 @@ static int get_serial_info(struct edgeport_port *edge_port,
 	tmp.xmit_fifo_size	= edge_port->port->bulk_out_size;
 	tmp.baud_base		= 9600;
 	tmp.close_delay		= 5*HZ;
-	tmp.closing_wait	= closing_wait;
+	tmp.closing_wait	= cwait;
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -2514,8 +2463,7 @@ static void edge_break(struct tty_struct *tty, int break_state)
 	int status;
 	int bv = 0;	/* Off */
 
-	/* chase the port close */
-	chase_port(edge_port, 0, 0);
+	tty_wait_until_sent(tty, 0);
 
 	if (break_state == -1)
 		bv = 1;	/* On */
@@ -2587,6 +2535,8 @@ static int edge_port_probe(struct usb_serial_port *port)
 		kfree(edge_port);
 		return ret;
 	}
+
+	port->port.closing_wait = msecs_to_jiffies(closing_wait * 10);
 
 	return 0;
 }

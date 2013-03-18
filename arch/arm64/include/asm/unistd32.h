@@ -40,7 +40,7 @@ __SYSCALL(15,  sys_chmod)
 __SYSCALL(16,  sys_lchown16)
 __SYSCALL(17,  sys_ni_syscall)			/* 17 was sys_break */
 __SYSCALL(18,  sys_ni_syscall)			/* 18 was sys_stat */
-__SYSCALL(19,  compat_sys_lseek_wrapper)
+__SYSCALL(19,  compat_sys_lseek)
 __SYSCALL(20,  sys_getpid)
 __SYSCALL(21,  compat_sys_mount)
 __SYSCALL(22,  sys_ni_syscall)			/* 22 was sys_umount */
@@ -93,7 +93,7 @@ __SYSCALL(68,  sys_ni_syscall)			/* 68 was sys_sgetmask */
 __SYSCALL(69,  sys_ni_syscall)			/* 69 was sys_ssetmask */
 __SYSCALL(70,  sys_setreuid16)
 __SYSCALL(71,  sys_setregid16)
-__SYSCALL(72,  compat_sys_sigsuspend)
+__SYSCALL(72,  sys_sigsuspend)
 __SYSCALL(73,  compat_sys_sigpending)
 __SYSCALL(74,  sys_sethostname)
 __SYSCALL(75,  compat_sys_setrlimit)
@@ -113,8 +113,8 @@ __SYSCALL(88,  sys_reboot)
 __SYSCALL(89,  sys_ni_syscall)			/* 89 was sys_readdir */
 __SYSCALL(90,  sys_ni_syscall)			/* 90 was sys_mmap */
 __SYSCALL(91,  sys_munmap)
-__SYSCALL(92,  sys_truncate)
-__SYSCALL(93,  sys_ftruncate)
+__SYSCALL(92,  compat_sys_truncate)
+__SYSCALL(93,  compat_sys_ftruncate)
 __SYSCALL(94,  sys_fchmod)
 __SYSCALL(95,  sys_fchown16)
 __SYSCALL(96,  sys_getpriority)
@@ -207,7 +207,7 @@ __SYSCALL(182, sys_chown16)
 __SYSCALL(183, sys_getcwd)
 __SYSCALL(184, sys_capget)
 __SYSCALL(185, sys_capset)
-__SYSCALL(186, compat_sys_sigaltstack_wrapper)
+__SYSCALL(186, compat_sys_sigaltstack)
 __SYSCALL(187, compat_sys_sendfile)
 __SYSCALL(188, sys_ni_syscall)			/* 188 reserved */
 __SYSCALL(189, sys_ni_syscall)			/* 189 reserved */
@@ -395,8 +395,13 @@ __SYSCALL(370, sys_name_to_handle_at)
 __SYSCALL(371, compat_sys_open_by_handle_at)
 __SYSCALL(372, compat_sys_clock_adjtime)
 __SYSCALL(373, sys_syncfs)
+__SYSCALL(374, compat_sys_sendmmsg)
+__SYSCALL(375, sys_setns)
+__SYSCALL(376, compat_sys_process_vm_readv)
+__SYSCALL(377, compat_sys_process_vm_writev)
+__SYSCALL(378, sys_ni_syscall)			/* 378 for kcmp */
 
-#define __NR_compat_syscalls		374
+#define __NR_compat_syscalls		379
 
 /*
  * Compat syscall numbers used by the AArch64 kernel.

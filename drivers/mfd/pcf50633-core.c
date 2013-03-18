@@ -208,6 +208,8 @@ static int pcf50633_probe(struct i2c_client *client,
 	if (!pcf)
 		return -ENOMEM;
 
+	i2c_set_clientdata(client, pcf);
+	pcf->dev = &client->dev;
 	pcf->pdata = pdata;
 
 	mutex_init(&pcf->lock);
@@ -218,9 +220,6 @@ static int pcf50633_probe(struct i2c_client *client,
 		dev_err(pcf->dev, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
-
-	i2c_set_clientdata(client, pcf);
-	pcf->dev = &client->dev;
 
 	version = pcf50633_reg_read(pcf, 0);
 	variant = pcf50633_reg_read(pcf, 1);

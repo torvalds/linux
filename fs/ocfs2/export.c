@@ -195,11 +195,11 @@ static int ocfs2_encode_fh(struct inode *inode, u32 *fh_in, int *max_len,
 
 	if (parent && (len < 6)) {
 		*max_len = 6;
-		type = 255;
+		type = FILEID_INVALID;
 		goto bail;
 	} else if (len < 3) {
 		*max_len = 3;
-		type = 255;
+		type = FILEID_INVALID;
 		goto bail;
 	}
 

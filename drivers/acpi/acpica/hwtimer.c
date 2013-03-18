@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -176,10 +176,11 @@ acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed)
 	/*
 	 * Compute Duration (Requires a 64-bit multiply and divide):
 	 *
-	 * time_elapsed = (delta_ticks * 1000000) / PM_TIMER_FREQUENCY;
+	 * time_elapsed (microseconds) =
+	 *  (delta_ticks * ACPI_USEC_PER_SEC) / ACPI_PM_TIMER_FREQUENCY;
 	 */
-	status = acpi_ut_short_divide(((u64) delta_ticks) * 1000000,
-				      PM_TIMER_FREQUENCY, &quotient, NULL);
+	status = acpi_ut_short_divide(((u64)delta_ticks) * ACPI_USEC_PER_SEC,
+				      ACPI_PM_TIMER_FREQUENCY, &quotient, NULL);
 
 	*time_elapsed = (u32) quotient;
 	return_ACPI_STATUS(status);

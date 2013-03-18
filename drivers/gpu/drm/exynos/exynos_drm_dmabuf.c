@@ -19,6 +19,7 @@
 struct exynos_drm_dmabuf_attachment {
 	struct sg_table sgt;
 	enum dma_data_direction dir;
+	bool is_mapped;
 };
 
 static int exynos_gem_attach_dma_buf(struct dma_buf *dmabuf,
@@ -72,16 +73,9 @@ static struct sg_table *
 
 	DRM_DEBUG_PRIME("%s\n", __FILE__);
 
-	if (WARN_ON(dir == DMA_NONE))
-		return ERR_PTR(-EINVAL);
-
 	/* just return current sgt if already requested. */
-	if (exynos_attach->dir == dir)
+	if (exynos_attach->dir == dir && exynos_attach->is_mapped)
 		return &exynos_attach->sgt;
-
-	/* reattaching is not allowed. */
-	if (WARN_ON(exynos_attach->dir != DMA_NONE))
-		return ERR_PTR(-EBUSY);
 
 	buf = gem_obj->buffer;
 	if (!buf) {
@@ -107,13 +101,17 @@ static struct sg_table *
 		wr = sg_next(wr);
 	}
 
-	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
-	if (!nents) {
-		DRM_ERROR("failed to map sgl with iommu.\n");
-		sgt = ERR_PTR(-EIO);
-		goto err_unlock;
+	if (dir != DMA_NONE) {
+		nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
+		if (!nents) {
+			DRM_ERROR("failed to map sgl with iommu.\n");
+			sg_free_table(sgt);
+			sgt = ERR_PTR(-EIO);
+			goto err_unlock;
+		}
 	}
 
+	exynos_attach->is_mapped = true;
 	exynos_attach->dir = dir;
 	attach->priv = exynos_attach;
 

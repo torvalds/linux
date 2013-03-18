@@ -28,10 +28,13 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/regulator/tps51632-regulator.h>
 #include <linux/slab.h>
 
@@ -85,48 +88,7 @@ struct tps51632_chip {
 	struct regulator_desc desc;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
-	bool enable_pwm_dvfs;
 };
-
-static int tps51632_dcdc_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct tps51632_chip *tps = rdev_get_drvdata(rdev);
-	unsigned int data;
-	int ret;
-	unsigned int reg = TPS51632_VOLTAGE_SELECT_REG;
-	int vsel;
-
-	if (tps->enable_pwm_dvfs)
-		reg = TPS51632_VOLTAGE_BASE_REG;
-
-	ret = regmap_read(tps->regmap, reg, &data);
-	if (ret < 0) {
-		dev_err(tps->dev, "reg read failed, err %d\n", ret);
-		return ret;
-	}
-
-	vsel = data & TPS51632_VOUT_MASK;
-	return vsel;
-}
-
-static int tps51632_dcdc_set_voltage_sel(struct regulator_dev *rdev,
-		unsigned selector)
-{
-	struct tps51632_chip *tps = rdev_get_drvdata(rdev);
-	int ret;
-	unsigned int reg = TPS51632_VOLTAGE_SELECT_REG;
-
-	if (tps->enable_pwm_dvfs)
-		reg = TPS51632_VOLTAGE_BASE_REG;
-
-	if (selector > TPS51632_MAX_VSEL)
-		return -EINVAL;
-
-	ret = regmap_write(tps->regmap, reg, selector);
-	if (ret < 0)
-		dev_err(tps->dev, "reg write failed, err %d\n", ret);
-	return ret;
-}
 
 static int tps51632_dcdc_set_ramp_delay(struct regulator_dev *rdev,
 		int ramp_delay)
@@ -144,8 +106,8 @@ static int tps51632_dcdc_set_ramp_delay(struct regulator_dev *rdev,
 }
 
 static struct regulator_ops tps51632_dcdc_ops = {
-	.get_voltage_sel	= tps51632_dcdc_get_voltage_sel,
-	.set_voltage_sel	= tps51632_dcdc_set_voltage_sel,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_ramp_delay		= tps51632_dcdc_set_ramp_delay,
@@ -162,7 +124,6 @@ static int tps51632_init_dcdc(struct tps51632_chip *tps,
 		goto skip_pwm_config;
 
 	control |= TPS51632_DVFS_PWMEN;
-	tps->enable_pwm_dvfs = pdata->enable_pwm_dvfs;
 	vsel = TPS51632_VOLT_VSEL(pdata->base_voltage_uV);
 	ret = regmap_write(tps->regmap, TPS51632_VOLTAGE_BASE_REG, vsel);
 	if (ret < 0) {
@@ -205,21 +166,95 @@ skip_pwm_config:
 	return ret;
 }
 
-static bool rd_wr_reg(struct device *dev, unsigned int reg)
+static bool is_volatile_reg(struct device *dev, unsigned int reg)
 {
-	if ((reg >= 0x8) && (reg <= 0x10))
+	switch (reg) {
+	case TPS51632_OFFSET_REG:
+	case TPS51632_FAULT_REG:
+	case TPS51632_IMON_REG:
+		return true;
+	default:
 		return false;
-	return true;
+	}
+}
+
+static bool is_read_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x08 ... 0x0F:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static bool is_write_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case TPS51632_VOLTAGE_SELECT_REG:
+	case TPS51632_VOLTAGE_BASE_REG:
+	case TPS51632_VMAX_REG:
+	case TPS51632_DVFS_CONTROL_REG:
+	case TPS51632_POWER_STATE_REG:
+	case TPS51632_SLEW_REGS:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static const struct regmap_config tps51632_regmap_config = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
-	.writeable_reg		= rd_wr_reg,
-	.readable_reg		= rd_wr_reg,
+	.writeable_reg		= is_write_reg,
+	.readable_reg		= is_read_reg,
+	.volatile_reg		= is_volatile_reg,
 	.max_register		= TPS51632_MAX_REG - 1,
 	.cache_type		= REGCACHE_RBTREE,
 };
+
+#if defined(CONFIG_OF)
+static const struct of_device_id tps51632_of_match[] = {
+	{ .compatible = "ti,tps51632",},
+	{},
+};
+MODULE_DEVICE_TABLE(of, tps51632_of_match);
+
+static struct tps51632_regulator_platform_data *
+	of_get_tps51632_platform_data(struct device *dev)
+{
+	struct tps51632_regulator_platform_data *pdata;
+	struct device_node *np = dev->of_node;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "Memory alloc failed for platform data\n");
+		return NULL;
+	}
+
+	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_node);
+	if (!pdata->reg_init_data) {
+		dev_err(dev, "Not able to get OF regulator init data\n");
+		return NULL;
+	}
+
+	pdata->enable_pwm_dvfs =
+			of_property_read_bool(np, "ti,enable-pwm-dvfs");
+	pdata->dvfs_step_20mV = of_property_read_bool(np, "ti,dvfs-step-20mV");
+
+	pdata->base_voltage_uV = pdata->reg_init_data->constraints.min_uV ? :
+					TPS51632_MIN_VOLATGE;
+	pdata->max_voltage_uV = pdata->reg_init_data->constraints.max_uV ? :
+					TPS51632_MAX_VOLATGE;
+	return pdata;
+}
+#else
+static struct tps51632_regulator_platform_data *
+	of_get_tps51632_platform_data(struct device *dev)
+{
+	return NULL;
+}
+#endif
 
 static int tps51632_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
@@ -230,7 +265,19 @@ static int tps51632_probe(struct i2c_client *client,
 	int ret;
 	struct regulator_config config = { };
 
+	if (client->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_device(of_match_ptr(tps51632_of_match),
+				&client->dev);
+		if (!match) {
+			dev_err(&client->dev, "Error: No device match found\n");
+			return -ENODEV;
+		}
+	}
+
 	pdata = client->dev.platform_data;
+	if (!pdata && client->dev.of_node)
+		pdata = of_get_tps51632_platform_data(&client->dev);
 	if (!pdata) {
 		dev_err(&client->dev, "No Platform data\n");
 		return -EINVAL;
@@ -268,6 +315,12 @@ static int tps51632_probe(struct i2c_client *client,
 	tps->desc.ops = &tps51632_dcdc_ops;
 	tps->desc.type = REGULATOR_VOLTAGE;
 	tps->desc.owner = THIS_MODULE;
+
+	if (pdata->enable_pwm_dvfs)
+		tps->desc.vsel_reg = TPS51632_VOLTAGE_BASE_REG;
+	else
+		tps->desc.vsel_reg = TPS51632_VOLTAGE_SELECT_REG;
+	tps->desc.vsel_mask = TPS51632_VOUT_MASK;
 
 	tps->regmap = devm_regmap_init_i2c(client, &tps51632_regmap_config);
 	if (IS_ERR(tps->regmap)) {
@@ -319,6 +372,7 @@ static struct i2c_driver tps51632_i2c_driver = {
 	.driver = {
 		.name = "tps51632",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(tps51632_of_match),
 	},
 	.probe = tps51632_probe,
 	.remove = tps51632_remove,

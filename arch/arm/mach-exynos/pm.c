@@ -34,7 +34,8 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-pmu.h>
 #include <mach/pm-core.h>
-#include <mach/pmu.h>
+
+#include "common.h"
 
 static struct sleep_save exynos4_set_clksrc[] = {
 	{ .reg = EXYNOS4_CLKSRC_MASK_TOP		, .val = 0x00000001, },
@@ -91,8 +92,8 @@ static int exynos_cpu_suspend(unsigned long arg)
 	/* issue the standby signal into the pm unit. */
 	cpu_do_idle();
 
-	/* we should never get past here */
-	panic("sleep resumed to originator?");
+	pr_info("Failed to suspend the system\n");
+	return 1; /* Aborting suspend */
 }
 
 static void exynos_pm_prepare(void)
@@ -282,6 +283,8 @@ static void exynos_pm_resume(void)
 	if (!(tmp & S5P_CENTRAL_LOWPWR_CFG)) {
 		tmp |= S5P_CENTRAL_LOWPWR_CFG;
 		__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+		/* clear the wakeup state register */
+		__raw_writel(0x0, S5P_WAKEUP_STAT);
 		/* No need to perform below restore code */
 		goto early_wakeup;
 	}

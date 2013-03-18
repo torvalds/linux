@@ -125,8 +125,11 @@ static const struct key_entry acer_wmi_keymap[] = {
 	{KE_IGNORE, 0x63, {KEY_BRIGHTNESSDOWN} },
 	{KE_KEY, 0x64, {KEY_SWITCHVIDEOMODE} },	/* Display Switch */
 	{KE_IGNORE, 0x81, {KEY_SLEEP} },
-	{KE_KEY, 0x82, {KEY_TOUCHPAD_TOGGLE} },	/* Touch Pad On/Off */
+	{KE_KEY, 0x82, {KEY_TOUCHPAD_TOGGLE} },	/* Touch Pad Toggle */
+	{KE_KEY, KEY_TOUCHPAD_ON, {KEY_TOUCHPAD_ON} },
+	{KE_KEY, KEY_TOUCHPAD_OFF, {KEY_TOUCHPAD_OFF} },
 	{KE_IGNORE, 0x83, {KEY_TOUCHPAD_TOGGLE} },
+	{KE_KEY, 0x85, {KEY_TOUCHPAD_TOGGLE} },
 	{KE_END, 0}
 };
 
@@ -147,6 +150,7 @@ struct event_return_value {
 #define ACER_WMID3_GDS_THREEG		(1<<6)	/* 3G */
 #define ACER_WMID3_GDS_WIMAX		(1<<7)	/* WiMAX */
 #define ACER_WMID3_GDS_BLUETOOTH	(1<<11)	/* BT */
+#define ACER_WMID3_GDS_TOUCHPAD		(1<<1)	/* Touchpad */
 
 struct lm_input_params {
 	u8 function_num;        /* Function Number */
@@ -506,6 +510,24 @@ static struct dmi_system_id acer_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "0687A31"),
 		},
 		.driver_data = &quirk_fujitsu_amilo_li_1718,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Lenovo Ideapad S205-10382JG",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "10382JG"),
+		},
+		.driver_data = &quirk_lenovo_ideapad_s205,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Lenovo Ideapad S205-1038DPG",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "1038DPG"),
+		},
+		.driver_data = &quirk_lenovo_ideapad_s205,
 	},
 	{}
 };
@@ -875,7 +897,7 @@ WMI_execute_u32(u32 method_id, u32 in, u32 *out)
 	struct acpi_buffer input = { (acpi_size) sizeof(u32), (void *)(&in) };
 	struct acpi_buffer result = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
-	u32 tmp;
+	u32 tmp = 0;
 	acpi_status status;
 
 	status = wmi_evaluate_method(WMID_GUID1, 1, method_id, &input, &result);
@@ -884,14 +906,14 @@ WMI_execute_u32(u32 method_id, u32 in, u32 *out)
 		return status;
 
 	obj = (union acpi_object *) result.pointer;
-	if (obj && obj->type == ACPI_TYPE_BUFFER &&
-		(obj->buffer.length == sizeof(u32) ||
-		obj->buffer.length == sizeof(u64))) {
-		tmp = *((u32 *) obj->buffer.pointer);
-	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		tmp = (u32) obj->integer.value;
-	} else {
-		tmp = 0;
+	if (obj) {
+		if (obj->type == ACPI_TYPE_BUFFER &&
+			(obj->buffer.length == sizeof(u32) ||
+			obj->buffer.length == sizeof(u64))) {
+			tmp = *((u32 *) obj->buffer.pointer);
+		} else if (obj->type == ACPI_TYPE_INTEGER) {
+			tmp = (u32) obj->integer.value;
+		}
 	}
 
 	if (out)
@@ -1193,12 +1215,17 @@ static acpi_status WMID_set_capabilities(void)
 		return status;
 
 	obj = (union acpi_object *) out.pointer;
-	if (obj && obj->type == ACPI_TYPE_BUFFER &&
-		(obj->buffer.length == sizeof(u32) ||
-		obj->buffer.length == sizeof(u64))) {
-		devices = *((u32 *) obj->buffer.pointer);
-	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		devices = (u32) obj->integer.value;
+	if (obj) {
+		if (obj->type == ACPI_TYPE_BUFFER &&
+			(obj->buffer.length == sizeof(u32) ||
+			obj->buffer.length == sizeof(u64))) {
+			devices = *((u32 *) obj->buffer.pointer);
+		} else if (obj->type == ACPI_TYPE_INTEGER) {
+			devices = (u32) obj->integer.value;
+		} else {
+			kfree(out.pointer);
+			return AE_ERROR;
+		}
 	} else {
 		kfree(out.pointer);
 		return AE_ERROR;
@@ -1676,6 +1703,7 @@ static void acer_wmi_notify(u32 value, void *context)
 	acpi_status status;
 	u16 device_state;
 	const struct key_entry *key;
+	u32 scancode;
 
 	status = wmi_get_event_data(value, &response);
 	if (status != AE_OK) {
@@ -1712,6 +1740,7 @@ static void acer_wmi_notify(u32 value, void *context)
 			pr_warn("Unknown key number - 0x%x\n",
 				return_value.key_num);
 		} else {
+			scancode = return_value.key_num;
 			switch (key->keycode) {
 			case KEY_WLAN:
 			case KEY_BLUETOOTH:
@@ -1725,9 +1754,11 @@ static void acer_wmi_notify(u32 value, void *context)
 					rfkill_set_sw_state(bluetooth_rfkill,
 						!(device_state & ACER_WMID3_GDS_BLUETOOTH));
 				break;
+			case KEY_TOUCHPAD_TOGGLE:
+				scancode = (device_state & ACER_WMID3_GDS_TOUCHPAD) ?
+						KEY_TOUCHPAD_ON : KEY_TOUCHPAD_OFF;
 			}
-			sparse_keymap_report_entry(acer_wmi_input_dev, key,
-						   1, true);
+			sparse_keymap_report_event(acer_wmi_input_dev, scancode, 1, true);
 		}
 		break;
 	case WMID_ACCEL_EVENT:
@@ -1946,12 +1977,14 @@ static u32 get_wmid_devices(void)
 		return 0;
 
 	obj = (union acpi_object *) out.pointer;
-	if (obj && obj->type == ACPI_TYPE_BUFFER &&
-		(obj->buffer.length == sizeof(u32) ||
-		obj->buffer.length == sizeof(u64))) {
-		devices = *((u32 *) obj->buffer.pointer);
-	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		devices = (u32) obj->integer.value;
+	if (obj) {
+		if (obj->type == ACPI_TYPE_BUFFER &&
+			(obj->buffer.length == sizeof(u32) ||
+			obj->buffer.length == sizeof(u64))) {
+			devices = *((u32 *) obj->buffer.pointer);
+		} else if (obj->type == ACPI_TYPE_INTEGER) {
+			devices = (u32) obj->integer.value;
+		}
 	}
 
 	kfree(out.pointer);

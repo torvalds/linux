@@ -18,7 +18,6 @@
 #include <linux/serial_reg.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_serial.h>
 #include <linux/of_platform.h>
 #include <linux/nwpserial.h>
 #include <linux/clk.h>
@@ -45,8 +44,10 @@ void tegra_serial_handle_break(struct uart_port *p)
 		udelay(1);
 	} while (1);
 }
-/* FIXME remove this export when tegra finishes conversion to open firmware */
-EXPORT_SYMBOL_GPL(tegra_serial_handle_break);
+#else
+static inline void tegra_serial_handle_break(struct uart_port *port)
+{
+}
 #endif
 
 /*
@@ -240,6 +241,12 @@ static struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns16850",  .data = (void *)PORT_16850, },
 	{ .compatible = "nvidia,tegra20-uart", .data = (void *)PORT_TEGRA, },
 	{ .compatible = "nxp,lpc3220-uart", .data = (void *)PORT_LPC3220, },
+	{ .compatible = "altr,16550-FIFO32",
+		.data = (void *)PORT_ALTR_16550_F32, },
+	{ .compatible = "altr,16550-FIFO64",
+		.data = (void *)PORT_ALTR_16550_F64, },
+	{ .compatible = "altr,16550-FIFO128",
+		.data = (void *)PORT_ALTR_16550_F128, },
 #ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
 	{ .compatible = "ibm,qpace-nwp-serial",
 		.data = (void *)PORT_NWPSERIAL, },

@@ -318,6 +318,8 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	if (name_len > 255 || value_len > MAX_VALUE_LEN)
 		return -ERANGE;
 
+	f2fs_balance_fs(sbi);
+
 	mutex_lock_op(sbi, NODE_NEW);
 	if (!fi->i_xattr_nid) {
 		/* Allocate new attribute block */

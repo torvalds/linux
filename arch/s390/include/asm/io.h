@@ -85,6 +85,11 @@ static inline void iounmap(volatile void __iomem *addr)
 #define __raw_writel	zpci_write_u32
 #define __raw_writeq	zpci_write_u64
 
+#define readb_relaxed	readb
+#define readw_relaxed	readw
+#define readl_relaxed	readl
+#define readq_relaxed	readq
+
 #endif /* CONFIG_PCI */
 
 #include <asm-generic/io.h>

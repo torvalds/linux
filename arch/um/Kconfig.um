@@ -45,8 +45,8 @@ config HOSTFS
           say Y or M here; otherwise say N.
 
 config HPPFS
-	tristate "HoneyPot ProcFS (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PROC_FS
+	tristate "HoneyPot ProcFS"
+	depends on PROC_FS
 	help
 	  hppfs (HoneyPot ProcFS) is a filesystem which allows UML /proc
 	  entries to be overridden, removed, or fabricated from the host.
@@ -96,7 +96,7 @@ config MAGIC_SYSRQ
 	  unless you really know what this hack does.
 
 config SMP
-	bool "Symmetric multi-processing support (EXPERIMENTAL)"
+	bool "Symmetric multi-processing support"
 	default n
 	depends on BROKEN
 	help
@@ -126,7 +126,7 @@ config NR_CPUS
 	default "32"
 
 config HIGHMEM
-	bool "Highmem support (EXPERIMENTAL)"
+	bool "Highmem support"
 	depends on !64BIT && BROKEN
 	default n
 	help

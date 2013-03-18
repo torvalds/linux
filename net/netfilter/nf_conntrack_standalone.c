@@ -366,7 +366,7 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 {
 	struct proc_dir_entry *pde;
 
-	pde = proc_net_fops_create(net, "nf_conntrack", 0440, &ct_file_ops);
+	pde = proc_create("nf_conntrack", 0440, net->proc_net, &ct_file_ops);
 	if (!pde)
 		goto out_nf_conntrack;
 
@@ -377,7 +377,7 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 	return 0;
 
 out_stat_nf_conntrack:
-	proc_net_remove(net, "nf_conntrack");
+	remove_proc_entry("nf_conntrack", net->proc_net);
 out_nf_conntrack:
 	return -ENOMEM;
 }
@@ -385,7 +385,7 @@ out_nf_conntrack:
 static void nf_conntrack_standalone_fini_proc(struct net *net)
 {
 	remove_proc_entry("nf_conntrack", net->proc_net_stat);
-	proc_net_remove(net, "nf_conntrack");
+	remove_proc_entry("nf_conntrack", net->proc_net);
 }
 #else
 static int nf_conntrack_standalone_init_proc(struct net *net)
@@ -472,13 +472,6 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 {
 	struct ctl_table *table;
 
-	if (net_eq(net, &init_net)) {
-		nf_ct_netfilter_header =
-		       register_net_sysctl(&init_net, "net", nf_ct_netfilter_table);
-		if (!nf_ct_netfilter_header)
-			goto out;
-	}
-
 	table = kmemdup(nf_ct_sysctl_table, sizeof(nf_ct_sysctl_table),
 			GFP_KERNEL);
 	if (!table)
@@ -502,10 +495,6 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 out_unregister_netfilter:
 	kfree(table);
 out_kmemdup:
-	if (net_eq(net, &init_net))
-		unregister_net_sysctl_table(nf_ct_netfilter_header);
-out:
-	printk(KERN_ERR "nf_conntrack: can't register to sysctl.\n");
 	return -ENOMEM;
 }
 
@@ -513,8 +502,6 @@ static void nf_conntrack_standalone_fini_sysctl(struct net *net)
 {
 	struct ctl_table *table;
 
-	if (net_eq(net, &init_net))
-		unregister_net_sysctl_table(nf_ct_netfilter_header);
 	table = net->ct.sysctl_header->ctl_table_arg;
 	unregister_net_sysctl_table(net->ct.sysctl_header);
 	kfree(table);
@@ -530,51 +517,86 @@ static void nf_conntrack_standalone_fini_sysctl(struct net *net)
 }
 #endif /* CONFIG_SYSCTL */
 
-static int nf_conntrack_net_init(struct net *net)
+static int nf_conntrack_pernet_init(struct net *net)
 {
 	int ret;
 
-	ret = nf_conntrack_init(net);
+	ret = nf_conntrack_init_net(net);
 	if (ret < 0)
 		goto out_init;
+
 	ret = nf_conntrack_standalone_init_proc(net);
 	if (ret < 0)
 		goto out_proc;
+
 	net->ct.sysctl_checksum = 1;
 	net->ct.sysctl_log_invalid = 0;
 	ret = nf_conntrack_standalone_init_sysctl(net);
 	if (ret < 0)
 		goto out_sysctl;
+
 	return 0;
 
 out_sysctl:
 	nf_conntrack_standalone_fini_proc(net);
 out_proc:
-	nf_conntrack_cleanup(net);
+	nf_conntrack_cleanup_net(net);
 out_init:
 	return ret;
 }
 
-static void nf_conntrack_net_exit(struct net *net)
+static void nf_conntrack_pernet_exit(struct net *net)
 {
 	nf_conntrack_standalone_fini_sysctl(net);
 	nf_conntrack_standalone_fini_proc(net);
-	nf_conntrack_cleanup(net);
+	nf_conntrack_cleanup_net(net);
 }
 
 static struct pernet_operations nf_conntrack_net_ops = {
-	.init = nf_conntrack_net_init,
-	.exit = nf_conntrack_net_exit,
+	.init = nf_conntrack_pernet_init,
+	.exit = nf_conntrack_pernet_exit,
 };
 
 static int __init nf_conntrack_standalone_init(void)
 {
-	return register_pernet_subsys(&nf_conntrack_net_ops);
+	int ret = nf_conntrack_init_start();
+	if (ret < 0)
+		goto out_start;
+
+#ifdef CONFIG_SYSCTL
+	nf_ct_netfilter_header =
+		register_net_sysctl(&init_net, "net", nf_ct_netfilter_table);
+	if (!nf_ct_netfilter_header) {
+		pr_err("nf_conntrack: can't register to sysctl.\n");
+		goto out_sysctl;
+	}
+#endif
+
+	ret = register_pernet_subsys(&nf_conntrack_net_ops);
+	if (ret < 0)
+		goto out_pernet;
+
+	nf_conntrack_init_end();
+	return 0;
+
+out_pernet:
+#ifdef CONFIG_SYSCTL
+	unregister_net_sysctl_table(nf_ct_netfilter_header);
+out_sysctl:
+#endif
+	nf_conntrack_cleanup_end();
+out_start:
+	return ret;
 }
 
 static void __exit nf_conntrack_standalone_fini(void)
 {
+	nf_conntrack_cleanup_start();
 	unregister_pernet_subsys(&nf_conntrack_net_ops);
+#ifdef CONFIG_SYSCTL
+	unregister_net_sysctl_table(nf_ct_netfilter_header);
+#endif
+	nf_conntrack_cleanup_end();
 }
 
 module_init(nf_conntrack_standalone_init);

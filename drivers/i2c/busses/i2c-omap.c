@@ -803,7 +803,7 @@ static int errata_omap3_i462(struct omap_i2c_dev *dev)
 			if (stat & OMAP_I2C_STAT_AL) {
 				dev_err(dev->dev, "Arbitration lost\n");
 				dev->cmd_err |= OMAP_I2C_STAT_AL;
-				omap_i2c_ack_stat(dev, OMAP_I2C_STAT_NACK);
+				omap_i2c_ack_stat(dev, OMAP_I2C_STAT_AL);
 			}
 
 			return -EIO;
@@ -963,7 +963,7 @@ omap_i2c_isr_thread(int this_irq, void *dev_id)
 				i2c_omap_errata_i207(dev, stat);
 
 			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_RDR);
-			break;
+			continue;
 		}
 
 		if (stat & OMAP_I2C_STAT_RRDY) {
@@ -989,7 +989,7 @@ omap_i2c_isr_thread(int this_irq, void *dev_id)
 				break;
 
 			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_XDR);
-			break;
+			continue;
 		}
 
 		if (stat & OMAP_I2C_STAT_XRDY) {
@@ -1103,11 +1103,9 @@ omap_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	dev->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!dev->base) {
-		dev_err(&pdev->dev, "I2C region already claimed\n");
-		return -ENOMEM;
-	}
+	dev->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dev->base))
+		return PTR_ERR(dev->base);
 
 	match = of_match_device(of_match_ptr(omap_i2c_of_match), &pdev->dev);
 	if (match) {
@@ -1262,7 +1260,6 @@ err_unuse_clocks:
 	pm_runtime_put(dev->dev);
 	pm_runtime_disable(&pdev->dev);
 err_free_mem:
-	platform_set_drvdata(pdev, NULL);
 
 	return r;
 }
@@ -1271,8 +1268,6 @@ static int omap_i2c_remove(struct platform_device *pdev)
 {
 	struct omap_i2c_dev	*dev = platform_get_drvdata(pdev);
 	int ret;
-
-	platform_set_drvdata(pdev, NULL);
 
 	i2c_del_adapter(&dev->adapter);
 	ret = pm_runtime_get_sync(&pdev->dev);

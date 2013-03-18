@@ -33,7 +33,7 @@ struct debugfs_reg32 {
 };
 
 struct debugfs_regset32 {
-	struct debugfs_reg32 *regs;
+	const struct debugfs_reg32 *regs;
 	int nregs;
 	void __iomem *base;
 };

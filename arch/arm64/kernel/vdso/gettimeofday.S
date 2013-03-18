@@ -73,8 +73,6 @@ ENTRY(__kernel_gettimeofday)
 	/* If tz is NULL, return 0. */
 	cbz	x1, 3f
 	ldp	w4, w5, [vdso_data, #VDSO_TZ_MINWEST]
-	seqcnt_read w9
-	seqcnt_check w9, 1b
 	stp	w4, w5, [x1, #TZ_MINWEST]
 3:
 	mov	x0, xzr

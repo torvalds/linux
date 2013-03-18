@@ -52,7 +52,7 @@ MPI mpi_read_raw_data(const void *xbuffer, size_t nbytes)
 	else
 		nbits = 0;
 
-	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
+	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
 	val = mpi_alloc(nlimbs);
 	if (!val)
 		return NULL;
@@ -96,8 +96,8 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 	buffer += 2;
 	nread = 2;
 
-	nbytes = (nbits + 7) / 8;
-	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
+	nbytes = DIV_ROUND_UP(nbits, 8);
+	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
 	val = mpi_alloc(nlimbs);
 	if (!val)
 		return NULL;
@@ -193,7 +193,7 @@ int mpi_set_buffer(MPI a, const void *xbuffer, unsigned nbytes, int sign)
 	int nlimbs;
 	int i;
 
-	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
+	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
 	if (RESIZE_IF_NEEDED(a, nlimbs) < 0)
 		return -ENOMEM;
 	a->sign = sign;

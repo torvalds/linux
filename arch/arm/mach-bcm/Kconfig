@@ -7,7 +7,6 @@ config ARCH_BCM
 	select ARM_GIC
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GPIO_BCM
 	select SPARSE_IRQ

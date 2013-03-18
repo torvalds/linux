@@ -80,7 +80,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 		*timestamp = pf->timestamp;
 	}
 
-	iio_push_to_buffers(indio_dev, (u8 *)st->buffer);
+	iio_push_to_buffers(idev, (u8 *)st->buffer);
 
 	iio_trigger_notify_done(idev->trig);
 
@@ -557,9 +557,9 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	st->reg_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!st->reg_base) {
-		ret = -ENOMEM;
+	st->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(st->reg_base)) {
+		ret = PTR_ERR(st->reg_base);
 		goto error_free_device;
 	}
 

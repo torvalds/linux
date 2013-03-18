@@ -34,15 +34,15 @@
 
 #define ARIZONA_FLL_SRC_MCLK1      0
 #define ARIZONA_FLL_SRC_MCLK2      1
-#define ARIZONA_FLL_SRC_SLIMCLK    2
-#define ARIZONA_FLL_SRC_FLL1       3
-#define ARIZONA_FLL_SRC_FLL2       4
-#define ARIZONA_FLL_SRC_AIF1BCLK   5
-#define ARIZONA_FLL_SRC_AIF2BCLK   6
-#define ARIZONA_FLL_SRC_AIF3BCLK   7
-#define ARIZONA_FLL_SRC_AIF1LRCLK  8
-#define ARIZONA_FLL_SRC_AIF2LRCLK  9
-#define ARIZONA_FLL_SRC_AIF3LRCLK 10
+#define ARIZONA_FLL_SRC_SLIMCLK    3
+#define ARIZONA_FLL_SRC_FLL1       4
+#define ARIZONA_FLL_SRC_FLL2       5
+#define ARIZONA_FLL_SRC_AIF1BCLK   8
+#define ARIZONA_FLL_SRC_AIF2BCLK   9
+#define ARIZONA_FLL_SRC_AIF3BCLK  10
+#define ARIZONA_FLL_SRC_AIF1LRCLK 12
+#define ARIZONA_FLL_SRC_AIF2LRCLK 13
+#define ARIZONA_FLL_SRC_AIF3LRCLK 14
 
 #define ARIZONA_MIXER_VOL_MASK             0x00FE
 #define ARIZONA_MIXER_VOL_SHIFT                 1
@@ -66,7 +66,7 @@ struct arizona_priv {
 	struct arizona_dai_priv dai[ARIZONA_MAX_DAI];
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 75
+#define ARIZONA_NUM_MIXER_INPUTS 99
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
@@ -176,6 +176,8 @@ extern const struct soc_enum arizona_lhpf2_mode;
 extern const struct soc_enum arizona_lhpf3_mode;
 extern const struct soc_enum arizona_lhpf4_mode;
 
+extern const struct soc_enum arizona_ng_hold;
+
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
@@ -195,7 +197,6 @@ struct arizona_fll {
 	int id;
 	unsigned int base;
 	unsigned int vco_mult;
-	struct completion lock;
 	struct completion ok;
 	unsigned int fref;
 	unsigned int fout;
@@ -210,5 +211,8 @@ extern int arizona_set_fll(struct arizona_fll *fll, int source,
 			   unsigned int Fref, unsigned int Fout);
 
 extern int arizona_init_dai(struct arizona_priv *priv, int dai);
+
+int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
+			    bool diff);
 
 #endif

@@ -426,6 +426,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       'power.runtime_error' is set or 'power.disable_depth' is greater than
       zero)
 
+  bool pm_runtime_active(struct device *dev);
+    - return true if the device's runtime PM status is 'active' or its
+      'power.disable_depth' field is not equal to zero, or false otherwise
+
   bool pm_runtime_suspended(struct device *dev);
     - return true if the device's runtime PM status is 'suspended' and its
       'power.disable_depth' field is equal to zero, or false otherwise

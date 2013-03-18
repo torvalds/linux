@@ -45,11 +45,6 @@ static const char * const processor_modes[] = {
 	"UK18", "UK19", "UK1A", "EXTN", "UK1C", "UK1D", "UK1E", "SUSR"
 };
 
-/*
- * The idle thread, has rather strange semantics for calling pm_idle,
- * but this is what x86 does and we need to do the same, so that
- * things like cpuidle get called in the same way.
- */
 void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */

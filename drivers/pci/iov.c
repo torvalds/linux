@@ -33,7 +33,6 @@ static inline u8 virtfn_devfn(struct pci_dev *dev, int id)
 
 static struct pci_bus *virtfn_add_bus(struct pci_bus *bus, int busnr)
 {
-	int rc;
 	struct pci_bus *child;
 
 	if (bus->number == busnr)
@@ -48,12 +47,7 @@ static struct pci_bus *virtfn_add_bus(struct pci_bus *bus, int busnr)
 		return NULL;
 
 	pci_bus_insert_busn_res(child, busnr, busnr);
-	child->dev.parent = bus->bridge;
-	rc = pci_bus_add_child(child);
-	if (rc) {
-		pci_remove_bus(child);
-		return NULL;
-	}
+	bus->is_added = 1;
 
 	return child;
 }
@@ -123,8 +117,6 @@ static int virtfn_add(struct pci_dev *dev, int id, int reset)
 	virtfn->is_virtfn = 1;
 
 	rc = pci_bus_add_device(virtfn);
-	if (rc)
-		goto failed1;
 	sprintf(buf, "virtfn%u", id);
 	rc = sysfs_create_link(&dev->dev.kobj, &virtfn->dev.kobj, buf);
 	if (rc)
@@ -739,7 +731,7 @@ EXPORT_SYMBOL_GPL(pci_num_vf);
 /**
  * pci_sriov_set_totalvfs -- reduce the TotalVFs available
  * @dev: the PCI PF device
- * numvfs: number that should be used for TotalVFs supported
+ * @numvfs: number that should be used for TotalVFs supported
  *
  * Should be called from PF driver's probe routine with
  * device's mutex held.

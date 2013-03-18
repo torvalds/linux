@@ -24,7 +24,6 @@
 #ifndef _DAS08_H
 #define _DAS08_H
 
-enum das08_bustype { isa, pci, pcmcia };
 /* different ways ai data is encoded in first two registers */
 enum das08_ai_encoding { das08_encode12, das08_encode16, das08_pcm_encode12 };
 enum das08_lrange { das08_pg_none, das08_bipolar5, das08_pgh, das08_pgl,
@@ -34,7 +33,6 @@ enum das08_lrange { das08_pg_none, das08_bipolar5, das08_pgh, das08_pgl,
 struct das08_board_struct {
 	const char *name;
 	unsigned int id;	/*  id for pci/pcmcia boards */
-	enum das08_bustype bustype;
 	bool is_jr;		/* true for 'JR' boards */
 	unsigned int ai_nbits;
 	enum das08_lrange ai_pg;

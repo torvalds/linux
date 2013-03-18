@@ -432,7 +432,7 @@ failed_sensitivity:
 	return error;
 }
 
-static int cmpc_accel_remove_v4(struct acpi_device *acpi, int type)
+static int cmpc_accel_remove_v4(struct acpi_device *acpi)
 {
 	struct input_dev *inputdev;
 	struct cmpc_accel *accel;
@@ -668,7 +668,7 @@ failed_file:
 	return error;
 }
 
-static int cmpc_accel_remove(struct acpi_device *acpi, int type)
+static int cmpc_accel_remove(struct acpi_device *acpi)
 {
 	struct input_dev *inputdev;
 	struct cmpc_accel *accel;
@@ -753,7 +753,7 @@ static int cmpc_tablet_add(struct acpi_device *acpi)
 					   cmpc_tablet_idev_init);
 }
 
-static int cmpc_tablet_remove(struct acpi_device *acpi, int type)
+static int cmpc_tablet_remove(struct acpi_device *acpi)
 {
 	return cmpc_remove_acpi_notify_device(acpi);
 }
@@ -1000,7 +1000,7 @@ out_bd:
 	return retval;
 }
 
-static int cmpc_ipml_remove(struct acpi_device *acpi, int type)
+static int cmpc_ipml_remove(struct acpi_device *acpi)
 {
 	struct ipml200_dev *ipml;
 
@@ -1079,7 +1079,7 @@ static int cmpc_keys_add(struct acpi_device *acpi)
 					   cmpc_keys_idev_init);
 }
 
-static int cmpc_keys_remove(struct acpi_device *acpi, int type)
+static int cmpc_keys_remove(struct acpi_device *acpi)
 {
 	return cmpc_remove_acpi_notify_device(acpi);
 }

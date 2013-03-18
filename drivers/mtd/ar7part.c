@@ -142,7 +142,13 @@ static int __init ar7_parser_init(void)
 	return register_mtd_parser(&ar7_parser);
 }
 
+static void __exit ar7_parser_exit(void)
+{
+	deregister_mtd_parser(&ar7_parser);
+}
+
 module_init(ar7_parser_init);
+module_exit(ar7_parser_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(	"Felix Fietkau <nbd@openwrt.org>, "

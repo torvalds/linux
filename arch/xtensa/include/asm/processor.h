@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  */
 
 #ifndef _XTENSA_PROCESSOR_H
@@ -68,7 +68,7 @@
 /* LOCKLEVEL defines the interrupt level that masks all
  * general-purpose interrupts.
  */
-#define LOCKLEVEL 1
+#define LOCKLEVEL XCHAL_EXCM_LEVEL
 
 /* WSBITS and WBBITS are the width of the WINDOWSTART and WINDOWBASE
  * registers

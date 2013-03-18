@@ -11,8 +11,7 @@ config 9P_FS
 
 if 9P_FS
 config 9P_FSCACHE
-	bool "Enable 9P client caching support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Enable 9P client caching support"
 	depends on 9P_FS=m && FSCACHE || 9P_FS=y && FSCACHE=y
 	help
 	  Choose Y here to enable persistent, read-only local

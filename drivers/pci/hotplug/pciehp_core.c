@@ -42,7 +42,6 @@ bool pciehp_debug;
 bool pciehp_poll_mode;
 int pciehp_poll_time;
 bool pciehp_force;
-struct workqueue_struct *pciehp_wq;
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -294,7 +293,6 @@ static void pciehp_remove(struct pcie_device *dev)
 #ifdef CONFIG_PM
 static int pciehp_suspend (struct pcie_device *dev)
 {
-	dev_info(&dev->device, "%s ENTRY\n", __func__);
 	return 0;
 }
 
@@ -304,7 +302,6 @@ static int pciehp_resume (struct pcie_device *dev)
 	struct slot *slot;
 	u8 status;
 
-	dev_info(&dev->device, "%s ENTRY\n", __func__);
 	ctrl = get_service_data(dev);
 
 	/* reinitialize the chipset's event detection logic */
@@ -340,18 +337,13 @@ static int __init pcied_init(void)
 {
 	int retval = 0;
 
-	pciehp_wq = alloc_workqueue("pciehp", 0, 0);
-	if (!pciehp_wq)
-		return -ENOMEM;
-
 	pciehp_firmware_init();
 	retval = pcie_port_service_register(&hpdriver_portdrv);
  	dbg("pcie_port_service_register = %d\n", retval);
   	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
- 	if (retval) {
-		destroy_workqueue(pciehp_wq);
+	if (retval)
 		dbg("Failure to register service\n");
-	}
+
 	return retval;
 }
 
@@ -359,7 +351,6 @@ static void __exit pcied_cleanup(void)
 {
 	dbg("unload_pciehpd()\n");
 	pcie_port_service_unregister(&hpdriver_portdrv);
-	destroy_workqueue(pciehp_wq);
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
 }
 

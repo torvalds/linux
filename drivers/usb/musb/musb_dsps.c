@@ -31,7 +31,6 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/of.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -133,6 +132,11 @@ static const resource_size_t dsps_control_module_phys[] = {
 	DSPS_AM33XX_CONTROL_MODULE_PHYS_0,
 	DSPS_AM33XX_CONTROL_MODULE_PHYS_1,
 };
+
+#define USBPHY_CM_PWRDN		(1 << 0)
+#define USBPHY_OTG_PWRDN	(1 << 1)
+#define USBPHY_OTGVDET_EN	(1 << 19)
+#define USBPHY_OTGSESSEND_EN	(1 << 20)
 
 /**
  * musb_dsps_phy_control - phy on/off
@@ -414,7 +418,7 @@ static int dsps_musb_init(struct musb *musb)
 	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv))
-		return -ENODEV;
+		return -EPROBE_DEFER;
 
 	/* Returns zero if e.g. not clocked */
 	rev = dsps_readl(reg_base, wrp->revision);
@@ -495,10 +499,9 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 	resources[0].end = resources[0].start + SZ_4 - 1;
 	resources[0].flags = IORESOURCE_MEM;
 
-	glue->usb_ctrl[id] = devm_request_and_ioremap(&pdev->dev, resources);
-	if (glue->usb_ctrl[id] == NULL) {
-		dev_err(dev, "Failed to obtain usb_ctrl%d memory\n", id);
-		ret = -ENODEV;
+	glue->usb_ctrl[id] = devm_ioremap_resource(&pdev->dev, resources);
+	if (IS_ERR(glue->usb_ctrl[id])) {
+		ret = PTR_ERR(glue->usb_ctrl[id]);
 		goto err0;
 	}
 

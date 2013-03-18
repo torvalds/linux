@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,14 +49,18 @@
  * get into potential aligment issues -- see the STORE macros below.
  * Use with care.
  */
-#define ACPI_GET8(ptr)                  *ACPI_CAST_PTR (u8, ptr)
-#define ACPI_GET16(ptr)                 *ACPI_CAST_PTR (u16, ptr)
-#define ACPI_GET32(ptr)                 *ACPI_CAST_PTR (u32, ptr)
-#define ACPI_GET64(ptr)                 *ACPI_CAST_PTR (u64, ptr)
-#define ACPI_SET8(ptr)                  *ACPI_CAST_PTR (u8, ptr)
-#define ACPI_SET16(ptr)                 *ACPI_CAST_PTR (u16, ptr)
-#define ACPI_SET32(ptr)                 *ACPI_CAST_PTR (u32, ptr)
-#define ACPI_SET64(ptr)                 *ACPI_CAST_PTR (u64, ptr)
+#define ACPI_CAST8(ptr)                 ACPI_CAST_PTR (u8, (ptr))
+#define ACPI_CAST16(ptr)                ACPI_CAST_PTR (u16, (ptr))
+#define ACPI_CAST32(ptr)                ACPI_CAST_PTR (u32, (ptr))
+#define ACPI_CAST64(ptr)                ACPI_CAST_PTR (u64, (ptr))
+#define ACPI_GET8(ptr)                  (*ACPI_CAST8 (ptr))
+#define ACPI_GET16(ptr)                 (*ACPI_CAST16 (ptr))
+#define ACPI_GET32(ptr)                 (*ACPI_CAST32 (ptr))
+#define ACPI_GET64(ptr)                 (*ACPI_CAST64 (ptr))
+#define ACPI_SET8(ptr, val)             (*ACPI_CAST8 (ptr) = (u8) (val))
+#define ACPI_SET16(ptr, val)            (*ACPI_CAST16 (ptr) = (u16) (val))
+#define ACPI_SET32(ptr, val)            (*ACPI_CAST32 (ptr) = (u32) (val))
+#define ACPI_SET64(ptr, val)            (*ACPI_CAST64 (ptr) = (u64) (val))
 
 /*
  * printf() format helpers
@@ -293,6 +297,26 @@
 #define ACPI_16BIT_MASK     0x0000FFFF
 #define ACPI_24BIT_MASK     0x00FFFFFF
 
+/* Macros to extract flag bits from position zero */
+
+#define ACPI_GET_1BIT_FLAG(value)                   ((value) & ACPI_1BIT_MASK)
+#define ACPI_GET_2BIT_FLAG(value)                   ((value) & ACPI_2BIT_MASK)
+#define ACPI_GET_3BIT_FLAG(value)                   ((value) & ACPI_3BIT_MASK)
+#define ACPI_GET_4BIT_FLAG(value)                   ((value) & ACPI_4BIT_MASK)
+
+/* Macros to extract flag bits from position one and above */
+
+#define ACPI_EXTRACT_1BIT_FLAG(field, position)     (ACPI_GET_1BIT_FLAG ((field) >> position))
+#define ACPI_EXTRACT_2BIT_FLAG(field, position)     (ACPI_GET_2BIT_FLAG ((field) >> position))
+#define ACPI_EXTRACT_3BIT_FLAG(field, position)     (ACPI_GET_3BIT_FLAG ((field) >> position))
+#define ACPI_EXTRACT_4BIT_FLAG(field, position)     (ACPI_GET_4BIT_FLAG ((field) >> position))
+
+/* ACPI Pathname helpers */
+
+#define ACPI_IS_ROOT_PREFIX(c)      ((c) == (u8) 0x5C)	/* Backslash */
+#define ACPI_IS_PARENT_PREFIX(c)    ((c) == (u8) 0x5E)	/* Carat */
+#define ACPI_IS_PATH_SEPARATOR(c)   ((c) == (u8) 0x2E)	/* Period (dot) */
+
 /*
  * An object of type struct acpi_namespace_node can appear in some contexts
  * where a pointer to an object of type union acpi_operand_object can also
@@ -363,137 +387,6 @@
 #define ACPI_INFO_PREDEFINED(plist)
 
 #endif				/* ACPI_NO_ERROR_MESSAGES */
-
-/*
- * Debug macros that are conditionally compiled
- */
-#ifdef ACPI_DEBUG_OUTPUT
-/*
- * Function entry tracing
- */
-#define ACPI_FUNCTION_TRACE(a)          ACPI_FUNCTION_NAME(a) \
-			  acpi_ut_trace(ACPI_DEBUG_PARAMETERS)
-#define ACPI_FUNCTION_TRACE_PTR(a, b)   ACPI_FUNCTION_NAME(a) \
-					   acpi_ut_trace_ptr(ACPI_DEBUG_PARAMETERS, (void *)b)
-#define ACPI_FUNCTION_TRACE_U32(a, b)   ACPI_FUNCTION_NAME(a) \
-							 acpi_ut_trace_u32(ACPI_DEBUG_PARAMETERS, (u32)b)
-#define ACPI_FUNCTION_TRACE_STR(a, b)   ACPI_FUNCTION_NAME(a) \
-									  acpi_ut_trace_str(ACPI_DEBUG_PARAMETERS, (char *)b)
-
-#define ACPI_FUNCTION_ENTRY()           acpi_ut_track_stack_ptr()
-
-/*
- * Function exit tracing.
- * WARNING: These macros include a return statement. This is usually considered
- * bad form, but having a separate exit macro is very ugly and difficult to maintain.
- * One of the FUNCTION_TRACE macros above must be used in conjunction with these macros
- * so that "_AcpiFunctionName" is defined.
- *
- * Note: the DO_WHILE0 macro is used to prevent some compilers from complaining
- * about these constructs.
- */
-#ifdef ACPI_USE_DO_WHILE_0
-#define ACPI_DO_WHILE0(a)               do a while(0)
-#else
-#define ACPI_DO_WHILE0(a)               a
-#endif
-
-#define return_VOID                     ACPI_DO_WHILE0 ({ \
-											acpi_ut_exit (ACPI_DEBUG_PARAMETERS); \
-											return;})
-/*
- * There are two versions of most of the return macros. The default version is
- * safer, since it avoids side-effects by guaranteeing that the argument will
- * not be evaluated twice.
- *
- * A less-safe version of the macros is provided for optional use if the
- * compiler uses excessive CPU stack (for example, this may happen in the
- * debug case if code optimzation is disabled.)
- */
-#ifndef ACPI_SIMPLE_RETURN_MACROS
-
-#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({ \
-											register acpi_status _s = (s); \
-											acpi_ut_status_exit (ACPI_DEBUG_PARAMETERS, _s); \
-											return (_s); })
-#define return_PTR(s)                   ACPI_DO_WHILE0 ({ \
-											register void *_s = (void *) (s); \
-											acpi_ut_ptr_exit (ACPI_DEBUG_PARAMETERS, (u8 *) _s); \
-											return (_s); })
-#define return_VALUE(s)                 ACPI_DO_WHILE0 ({ \
-											register u64 _s = (s); \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, _s); \
-											return (_s); })
-#define return_UINT8(s)                 ACPI_DO_WHILE0 ({ \
-											register u8 _s = (u8) (s); \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (u64) _s); \
-											return (_s); })
-#define return_UINT32(s)                ACPI_DO_WHILE0 ({ \
-											register u32 _s = (u32) (s); \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (u64) _s); \
-											return (_s); })
-#else				/* Use original less-safe macros */
-
-#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({ \
-											acpi_ut_status_exit (ACPI_DEBUG_PARAMETERS, (s)); \
-											return((s)); })
-#define return_PTR(s)                   ACPI_DO_WHILE0 ({ \
-											acpi_ut_ptr_exit (ACPI_DEBUG_PARAMETERS, (u8 *) (s)); \
-											return((s)); })
-#define return_VALUE(s)                 ACPI_DO_WHILE0 ({ \
-											acpi_ut_value_exit (ACPI_DEBUG_PARAMETERS, (u64) (s)); \
-											return((s)); })
-#define return_UINT8(s)                 return_VALUE(s)
-#define return_UINT32(s)                return_VALUE(s)
-
-#endif				/* ACPI_SIMPLE_RETURN_MACROS */
-
-/* Conditional execution */
-
-#define ACPI_DEBUG_EXEC(a)              a
-#define ACPI_DEBUG_ONLY_MEMBERS(a)      a;
-#define _VERBOSE_STRUCTURES
-
-/* Various object display routines for debug */
-
-#define ACPI_DUMP_STACK_ENTRY(a)        acpi_ex_dump_operand((a), 0)
-#define ACPI_DUMP_OPERANDS(a, b ,c)     acpi_ex_dump_operands(a, b, c)
-#define ACPI_DUMP_ENTRY(a, b)           acpi_ns_dump_entry (a, b)
-#define ACPI_DUMP_PATHNAME(a, b, c, d)  acpi_ns_dump_pathname(a, b, c, d)
-#define ACPI_DUMP_BUFFER(a, b)          acpi_ut_debug_dump_buffer((u8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
-
-#else
-/*
- * This is the non-debug case -- make everything go away,
- * leaving no executable debug code!
- */
-#define ACPI_DEBUG_EXEC(a)
-#define ACPI_DEBUG_ONLY_MEMBERS(a)
-#define ACPI_FUNCTION_TRACE(a)
-#define ACPI_FUNCTION_TRACE_PTR(a, b)
-#define ACPI_FUNCTION_TRACE_U32(a, b)
-#define ACPI_FUNCTION_TRACE_STR(a, b)
-#define ACPI_FUNCTION_EXIT
-#define ACPI_FUNCTION_STATUS_EXIT(s)
-#define ACPI_FUNCTION_VALUE_EXIT(s)
-#define ACPI_FUNCTION_ENTRY()
-#define ACPI_DUMP_STACK_ENTRY(a)
-#define ACPI_DUMP_OPERANDS(a, b, c)
-#define ACPI_DUMP_ENTRY(a, b)
-#define ACPI_DUMP_TABLES(a, b)
-#define ACPI_DUMP_PATHNAME(a, b, c, d)
-#define ACPI_DUMP_BUFFER(a, b)
-#define ACPI_DEBUG_PRINT(pl)
-#define ACPI_DEBUG_PRINT_RAW(pl)
-
-#define return_VOID                     return
-#define return_ACPI_STATUS(s)           return(s)
-#define return_VALUE(s)                 return(s)
-#define return_UINT8(s)                 return(s)
-#define return_UINT32(s)                return(s)
-#define return_PTR(s)                   return(s)
-
-#endif				/* ACPI_DEBUG_OUTPUT */
 
 #if (!ACPI_REDUCED_HARDWARE)
 #define ACPI_HW_OPTIONAL_FUNCTION(addr)     addr

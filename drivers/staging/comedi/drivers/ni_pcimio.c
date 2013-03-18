@@ -110,10 +110,12 @@ Bugs:
 
 */
 
+#include <linux/delay.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
 #include <asm/byteorder.h>
-#include <linux/delay.h>
 
 #include "ni_stc.h"
 #include "mite.h"
@@ -963,7 +965,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_range_table = &range_ni_M_625x_ao,
 	 .reg_type = ni_reg_625x,
 	 .ao_unipolar = 0,
-	 .ao_speed = 357,
+	 .ao_speed = 350,
 	 .num_p0_dio_channels = 8,
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
@@ -982,7 +984,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_range_table = &range_ni_M_625x_ao,
 	 .reg_type = ni_reg_625x,
 	 .ao_unipolar = 0,
-	 .ao_speed = 357,
+	 .ao_speed = 350,
 	 .num_p0_dio_channels = 8,
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
@@ -1001,7 +1003,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_range_table = &range_ni_M_625x_ao,
 	 .reg_type = ni_reg_625x,
 	 .ao_unipolar = 0,
-	 .ao_speed = 357,
+	 .ao_speed = 350,
 	 .num_p0_dio_channels = 8,
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
@@ -1037,7 +1039,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_range_table = &range_ni_M_625x_ao,
 	 .reg_type = ni_reg_625x,
 	 .ao_unipolar = 0,
-	 .ao_speed = 357,
+	 .ao_speed = 350,
 	 .num_p0_dio_channels = 32,
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
@@ -1056,7 +1058,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_range_table = &range_ni_M_625x_ao,
 	 .reg_type = ni_reg_625x,
 	 .ao_unipolar = 0,
-	 .ao_speed = 357,
+	 .ao_speed = 350,
 	 .num_p0_dio_channels = 32,
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
@@ -1092,7 +1094,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_range_table = &range_ni_M_628x_ao,
 	 .reg_type = ni_reg_628x,
 	 .ao_unipolar = 1,
-	 .ao_speed = 357,
+	 .ao_speed = 350,
 	 .num_p0_dio_channels = 8,
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
@@ -1111,7 +1113,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_range_table = &range_ni_M_628x_ao,
 	 .reg_type = ni_reg_628x,
 	 .ao_unipolar = 1,
-	 .ao_speed = 357,
+	 .ao_speed = 350,
 	 .num_p0_dio_channels = 8,
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
@@ -1147,7 +1149,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .ao_range_table = &range_ni_M_628x_ao,
 	 .reg_type = ni_reg_628x,
 	 .ao_unipolar = 1,
-	 .ao_speed = 357,
+	 .ao_speed = 350,
 	 .num_p0_dio_channels = 32,
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
@@ -1791,11 +1793,6 @@ static int ni_pcimio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_pcimio_driver);
 }
 
-static void ni_pcimio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(ni_pcimio_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0162) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1170) },
@@ -1858,7 +1855,7 @@ static struct pci_driver ni_pcimio_pci_driver = {
 	.name		= "ni_pcimio",
 	.id_table	= ni_pcimio_pci_table,
 	.probe		= ni_pcimio_pci_probe,
-	.remove		= ni_pcimio_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_pcimio_driver, ni_pcimio_pci_driver);
 

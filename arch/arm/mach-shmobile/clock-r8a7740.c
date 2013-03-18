@@ -581,10 +581,14 @@ static struct clk_lookup lookups[] = {
 
 	/* MSTP32 clocks */
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.0",	&mstp_clks[MSTP100]),
-	CLKDEV_DEV_ID("sh_tmu.1",		&mstp_clks[MSTP111]),
+	CLKDEV_DEV_ID("sh_tmu.3",		&mstp_clks[MSTP111]),
+	CLKDEV_DEV_ID("sh_tmu.4",		&mstp_clks[MSTP111]),
+	CLKDEV_DEV_ID("sh_tmu.5",		&mstp_clks[MSTP111]),
 	CLKDEV_DEV_ID("i2c-sh_mobile.0",	&mstp_clks[MSTP116]),
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.1",	&mstp_clks[MSTP117]),
 	CLKDEV_DEV_ID("sh_tmu.0",		&mstp_clks[MSTP125]),
+	CLKDEV_DEV_ID("sh_tmu.1",		&mstp_clks[MSTP125]),
+	CLKDEV_DEV_ID("sh_tmu.2",		&mstp_clks[MSTP125]),
 	CLKDEV_DEV_ID("sh_mobile_ceu.0",	&mstp_clks[MSTP127]),
 	CLKDEV_DEV_ID("sh_mobile_ceu.1",	&mstp_clks[MSTP128]),
 

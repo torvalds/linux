@@ -55,7 +55,7 @@ static irqreturn_t mailbox_interrupt(int irq, void *dev_id)
 
 /**
  * Cause the function described by call_data to be executed on the passed
- * cpu.  When the function has finished, increment the finished field of
+ * cpu.	 When the function has finished, increment the finished field of
  * call_data.
  */
 void octeon_send_ipi_single(int cpu, unsigned int action)
@@ -126,8 +126,8 @@ static void octeon_smp_setup(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	/*
-	 * The possible CPUs are all those present on the chip.  We
-	 * will assign CPU numbers for possible cores as well.  Cores
+	 * The possible CPUs are all those present on the chip.	 We
+	 * will assign CPU numbers for possible cores as well.	Cores
 	 * are always consecutively numberd from 0.
 	 */
 	for (id = 0; id < num_cores && id < NR_CPUS; id++) {
@@ -332,7 +332,7 @@ extern void kernel_entry(unsigned long arg1, ...);
 
 static void start_after_reset(void)
 {
-	kernel_entry(0, 0, 0);  /* set a2 = 0 for secondary core */
+	kernel_entry(0, 0, 0);	/* set a2 = 0 for secondary core */
 }
 
 static int octeon_update_boot_vector(unsigned int cpu)
@@ -401,7 +401,7 @@ static int __cpuinit register_cavium_notifier(void)
 }
 late_initcall(register_cavium_notifier);
 
-#endif  /* CONFIG_HOTPLUG_CPU */
+#endif	/* CONFIG_HOTPLUG_CPU */
 
 struct plat_smp_ops octeon_smp_ops = {
 	.send_ipi_single	= octeon_send_ipi_single,

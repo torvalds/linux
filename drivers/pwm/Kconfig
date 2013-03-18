@@ -37,6 +37,18 @@ config PWM_AB8500
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-ab8500.
 
+config PWM_ATMEL_TCB
+	tristate "Atmel TC Block PWM support"
+	depends on ATMEL_TCLIB && OF
+	help
+	  Generic PWM framework driver for Atmel Timer Counter Block.
+
+	  A Timer Counter Block provides 6 PWM devices grouped by 2.
+	  Devices in a given group must have the same period.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-atmel-tcb.
+
 config PWM_BFIN
 	tristate "Blackfin PWM support"
 	depends on BFIN_GPTIMERS
@@ -47,7 +59,7 @@ config PWM_BFIN
 	  will be called pwm-bfin.
 
 config PWM_IMX
-	tristate "i.MX pwm support"
+	tristate "i.MX PWM support"
 	depends on ARCH_MXC
 	help
 	  Generic PWM framework driver for i.MX.
@@ -104,7 +116,7 @@ config PWM_PXA
 	  will be called pwm-pxa.
 
 config PWM_SAMSUNG
-	tristate "Samsung pwm support"
+	tristate "Samsung PWM support"
 	depends on PLAT_SAMSUNG
 	help
 	  Generic PWM framework driver for Samsung.
@@ -183,7 +195,7 @@ config PWM_TWL_LED
 	  will be called pwm-twl-led.
 
 config PWM_VT8500
-	tristate "vt8500 pwm support"
+	tristate "vt8500 PWM support"
 	depends on ARCH_VT8500
 	help
 	  Generic PWM framework driver for vt8500.

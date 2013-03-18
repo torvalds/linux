@@ -55,9 +55,11 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 /* #define DEBUG 1 */
 /* #define DEBUG_FLAGS */
 
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/firmware.h>
+
 #include "../comedidev.h"
 
 #include "comedi_fc.h"
@@ -1224,11 +1226,6 @@ static int ni_pcidio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_pcidio_driver);
 }
 
-static void ni_pcidio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1150) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1320) },
@@ -1241,7 +1238,7 @@ static struct pci_driver ni_pcidio_pci_driver = {
 	.name		= "ni_pcidio",
 	.id_table	= ni_pcidio_pci_table,
 	.probe		= ni_pcidio_pci_probe,
-	.remove		= ni_pcidio_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_pcidio_driver, ni_pcidio_pci_driver);
 

@@ -54,11 +54,6 @@ static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
 	ath9k_hw_private_ops(ah)->init_cal_settings(ah);
 }
 
-static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
-{
-	ath9k_hw_private_ops(ah)->init_mode_regs(ah);
-}
-
 static u32 ath9k_hw_compute_pll_control(struct ath_hw *ah,
 					struct ath9k_channel *chan)
 {
@@ -208,7 +203,7 @@ void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
 	udelay(hw_delay + BASE_ACTIVATE_DELAY);
 }
 
-void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
+void ath9k_hw_write_array(struct ath_hw *ah, const struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt)
 {
 	int r;
@@ -554,28 +549,19 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		ah->eep_ops->get_eeprom_ver(ah),
 		ah->eep_ops->get_eeprom_rev(ah));
 
-	ecode = ath9k_hw_rf_alloc_ext_banks(ah);
-	if (ecode) {
-		ath_err(ath9k_hw_common(ah),
-			"Failed allocating banks for external radio\n");
-		ath9k_hw_rf_free_ext_banks(ah);
-		return ecode;
-	}
-
-	if (ah->config.enable_ani) {
-		ath9k_hw_ani_setup(ah);
+	if (ah->config.enable_ani)
 		ath9k_hw_ani_init(ah);
-	}
 
 	return 0;
 }
 
-static void ath9k_hw_attach_ops(struct ath_hw *ah)
+static int ath9k_hw_attach_ops(struct ath_hw *ah)
 {
-	if (AR_SREV_9300_20_OR_LATER(ah))
-		ar9003_hw_attach_ops(ah);
-	else
-		ar9002_hw_attach_ops(ah);
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		return ar9002_hw_attach_ops(ah);
+
+	ar9003_hw_attach_ops(ah);
+	return 0;
 }
 
 /* Called for all hardware families */
@@ -611,7 +597,9 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_defaults(ah);
 	ath9k_hw_init_config(ah);
 
-	ath9k_hw_attach_ops(ah);
+	r = ath9k_hw_attach_ops(ah);
+	if (r)
+		return r;
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
 		ath_err(common, "Couldn't wakeup chip\n");
@@ -674,8 +662,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
 	if (!AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
-
-	ath9k_hw_init_mode_regs(ah);
 
 	if (!ah->is_pciexpress)
 		ath9k_hw_disablepcie(ah);
@@ -1153,12 +1139,9 @@ void ath9k_hw_deinit(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (common->state < ATH_HW_INITIALIZED)
-		goto free_hw;
+		return;
 
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
-
-free_hw:
-	ath9k_hw_rf_free_ext_banks(ah);
 }
 EXPORT_SYMBOL(ath9k_hw_deinit);
 
@@ -1480,7 +1463,9 @@ static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 			reset_type = ATH9K_RESET_POWER_ON;
 		else
 			reset_type = ATH9K_RESET_COLD;
-	}
+	} else if (ah->chip_fullsleep || REG_READ(ah, AR_Q_TXE) ||
+		   (REG_READ(ah, AR_CR) & AR_CR_RXE))
+		reset_type = ATH9K_RESET_COLD;
 
 	if (!ath9k_hw_set_reset_reg(ah, reset_type))
 		return false;
@@ -2576,12 +2561,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		rx_chainmask >>= 1;
 	}
 
-	if (AR_SREV_9300_20_OR_LATER(ah)) {
-		ah->enabled_cals |= TX_IQ_CAL;
-		if (AR_SREV_9485_OR_LATER(ah))
-			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
-	}
-
 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		if (!(ah->ent_mode & AR_ENT_OTP_49GHZ_DISABLE))
 			pCap->hw_caps |= ATH9K_HW_CAP_MCI;
@@ -2589,7 +2568,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		if (AR_SREV_9462_20(ah))
 			pCap->hw_caps |= ATH9K_HW_CAP_RTT;
 	}
-
 
 	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		pCap->hw_caps |= ATH9K_HW_WOW_DEVICE_CAPABLE |
@@ -3005,13 +2983,8 @@ struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 	struct ath_gen_timer *timer;
 
 	timer = kzalloc(sizeof(struct ath_gen_timer), GFP_KERNEL);
-
-	if (timer == NULL) {
-		ath_err(ath9k_hw_common(ah),
-			"Failed to allocate memory for hw timer[%d]\n",
-			timer_index);
+	if (timer == NULL)
 		return NULL;
-	}
 
 	/* allocate a hardware generic timer slot */
 	timer_table->timers[timer_index] = timer;

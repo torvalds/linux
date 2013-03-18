@@ -1350,7 +1350,7 @@ static ssize_t store_fan_full_speed(struct device *dev,
 	if (err)
 		return err;
 
-	val = SENSORS_LIMIT(val, 23, 1500000);
+	val = clamp_val(val, 23, 1500000);
 	val = fan_to_reg(val);
 
 	mutex_lock(&data->update_lock);
@@ -1438,7 +1438,7 @@ static ssize_t store_in_max(struct device *dev, struct device_attribute
 		return err;
 
 	val /= 8;
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_IN1_HIGH, val);
@@ -1542,7 +1542,7 @@ static ssize_t store_temp_max(struct device *dev, struct device_attribute
 		return err;
 
 	val /= 1000;
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_TEMP_HIGH(nr), val);
@@ -1589,8 +1589,7 @@ static ssize_t store_temp_max_hyst(struct device *dev, struct device_attribute
 
 	/* convert abs to relative and check */
 	data->temp_high[nr] = f71882fg_read8(data, F71882FG_REG_TEMP_HIGH(nr));
-	val = SENSORS_LIMIT(val, data->temp_high[nr] - 15,
-			    data->temp_high[nr]);
+	val = clamp_val(val, data->temp_high[nr] - 15, data->temp_high[nr]);
 	val = data->temp_high[nr] - val;
 
 	/* convert value to register contents */
@@ -1627,7 +1626,7 @@ static ssize_t store_temp_crit(struct device *dev, struct device_attribute
 		return err;
 
 	val /= 1000;
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_TEMP_OVT(nr), val);
@@ -1754,7 +1753,7 @@ static ssize_t store_pwm(struct device *dev,
 	if (err)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
@@ -1805,7 +1804,7 @@ static ssize_t store_simple_pwm(struct device *dev,
 	if (err)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_PWM(nr), val);
@@ -1932,7 +1931,7 @@ static ssize_t store_pwm_auto_point_pwm(struct device *dev,
 	if (err)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
@@ -1991,8 +1990,8 @@ static ssize_t store_pwm_auto_point_temp_hyst(struct device *dev,
 	mutex_lock(&data->update_lock);
 	data->pwm_auto_point_temp[nr][point] =
 		f71882fg_read8(data, F71882FG_REG_POINT_TEMP(nr, point));
-	val = SENSORS_LIMIT(val, data->pwm_auto_point_temp[nr][point] - 15,
-				data->pwm_auto_point_temp[nr][point]);
+	val = clamp_val(val, data->pwm_auto_point_temp[nr][point] - 15,
+			data->pwm_auto_point_temp[nr][point]);
 	val = data->pwm_auto_point_temp[nr][point] - val;
 
 	reg = f71882fg_read8(data, F71882FG_REG_FAN_HYST(nr / 2));
@@ -2126,9 +2125,9 @@ static ssize_t store_pwm_auto_point_temp(struct device *dev,
 	val /= 1000;
 
 	if (data->auto_point_temp_signed)
-		val = SENSORS_LIMIT(val, -128, 127);
+		val = clamp_val(val, -128, 127);
 	else
-		val = SENSORS_LIMIT(val, 0, 127);
+		val = clamp_val(val, 0, 127);
 
 	mutex_lock(&data->update_lock);
 	f71882fg_write8(data, F71882FG_REG_POINT_TEMP(pwm, point), val);

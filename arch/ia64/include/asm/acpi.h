@@ -52,10 +52,6 @@
 
 /* Asm macros */
 
-#define ACPI_ASM_MACROS
-#define BREAKPOINT3
-#define ACPI_DISABLE_IRQS() local_irq_disable()
-#define ACPI_ENABLE_IRQS()  local_irq_enable()
 #define ACPI_FLUSH_CPU_CACHE()
 
 static inline int

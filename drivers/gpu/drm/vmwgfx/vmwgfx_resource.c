@@ -177,17 +177,16 @@ int vmw_resource_alloc_id(struct vmw_resource *res)
 
 	BUG_ON(res->id != -1);
 
-	do {
-		if (unlikely(idr_pre_get(idr, GFP_KERNEL) == 0))
-			return -ENOMEM;
+	idr_preload(GFP_KERNEL);
+	write_lock(&dev_priv->resource_lock);
 
-		write_lock(&dev_priv->resource_lock);
-		ret = idr_get_new_above(idr, res, 1, &res->id);
-		write_unlock(&dev_priv->resource_lock);
+	ret = idr_alloc(idr, res, 1, 0, GFP_NOWAIT);
+	if (ret >= 0)
+		res->id = ret;
 
-	} while (ret == -EAGAIN);
-
-	return ret;
+	write_unlock(&dev_priv->resource_lock);
+	idr_preload_end();
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -959,13 +958,13 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 	if (new_backup && new_backup != res->backup) {
 
 		if (res->backup) {
-			BUG_ON(atomic_read(&res->backup->base.reserved) == 0);
+			BUG_ON(!ttm_bo_is_reserved(&res->backup->base));
 			list_del_init(&res->mob_head);
 			vmw_dmabuf_unreference(&res->backup);
 		}
 
 		res->backup = vmw_dmabuf_reference(new_backup);
-		BUG_ON(atomic_read(&new_backup->base.reserved) == 0);
+		BUG_ON(!ttm_bo_is_reserved(&new_backup->base));
 		list_add_tail(&res->mob_head, &new_backup->res_list);
 	}
 	if (new_backup)

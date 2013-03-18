@@ -1751,7 +1751,7 @@ free_interfaces:
 			}
 		}
 
-		i = dev->bus_mA - cp->desc.bMaxPower * 2;
+		i = dev->bus_mA - usb_get_max_power(dev, cp);
 		if (i < 0)
 			dev_warn(&dev->dev, "new config #%d exceeds power "
 					"limit by %dmA\n",

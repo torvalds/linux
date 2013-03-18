@@ -20,10 +20,6 @@
 
 #define DRIVER_NAME "line6usb"
 
-#if defined(CONFIG_LINE6_USB_DUMP_PCM)
-#define CONFIG_LINE6_USB_DUMP_ANY
-#endif
-
 #define LINE6_TIMEOUT 1
 #define LINE6_BUFSIZE_LISTEN 32
 #define LINE6_MESSAGE_MAXLEN 256
@@ -53,7 +49,7 @@
 #define LINE6_CHANNEL_MASK 0x0f
 
 #define MISSING_CASE	\
-	printk(KERN_ERR "line6usb driver bug: missing case in %s:%d\n", \
+	pr_err("line6usb driver bug: missing case in %s:%d\n", \
 		__FILE__, __LINE__)
 
 #define CHECK_RETURN(x)		\
@@ -208,8 +204,6 @@ extern int line6_send_raw_message_async(struct usb_line6 *line6,
 					const char *buffer, int size);
 extern int line6_send_sysex_message(struct usb_line6 *line6,
 				    const char *buffer, int size);
-extern int line6_send_sysex_message_async(struct usb_line6 *line6,
-					  const char *buffer, int size);
 extern ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count);
 extern void line6_start_timer(struct timer_list *timer, unsigned int msecs,
@@ -220,10 +214,5 @@ extern int line6_transmit_parameter(struct usb_line6 *line6, int param,
 extern int line6_version_request_async(struct usb_line6 *line6);
 extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 			    size_t datalen);
-
-#ifdef CONFIG_LINE6_USB_DUMP_ANY
-extern void line6_write_hexdump(struct usb_line6 *line6, char dir,
-				const unsigned char *buffer, int size);
-#endif
 
 #endif

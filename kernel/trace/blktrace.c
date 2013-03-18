@@ -147,7 +147,7 @@ void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
 		return;
 
 	local_irq_save(flags);
-	buf = per_cpu_ptr(bt->msg_data, smp_processor_id());
+	buf = this_cpu_ptr(bt->msg_data);
 	va_start(args, fmt);
 	n = vscnprintf(buf, BLK_TN_MAX_MSG, fmt, args);
 	va_end(args);
@@ -739,6 +739,12 @@ static void blk_add_trace_rq_complete(void *ignore,
 				      struct request_queue *q,
 				      struct request *rq)
 {
+	struct blk_trace *bt = q->blk_trace;
+
+	/* if control ever passes through here, it's a request based driver */
+	if (unlikely(bt && !bt->rq_based))
+		bt->rq_based = true;
+
 	blk_add_trace_rq(q, rq, BLK_TA_COMPLETE);
 }
 
@@ -774,15 +780,30 @@ static void blk_add_trace_bio_bounce(void *ignore,
 	blk_add_trace_bio(q, bio, BLK_TA_BOUNCE, 0);
 }
 
-static void blk_add_trace_bio_complete(void *ignore,
-				       struct request_queue *q, struct bio *bio,
-				       int error)
+static void blk_add_trace_bio_complete(void *ignore, struct bio *bio, int error)
 {
+	struct request_queue *q;
+	struct blk_trace *bt;
+
+	if (!bio->bi_bdev)
+		return;
+
+	q = bdev_get_queue(bio->bi_bdev);
+	bt = q->blk_trace;
+
+	/*
+	 * Request based drivers will generate both rq and bio completions.
+	 * Ignore bio ones.
+	 */
+	if (likely(!bt) || bt->rq_based)
+		return;
+
 	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE, error);
 }
 
 static void blk_add_trace_bio_backmerge(void *ignore,
 					struct request_queue *q,
+					struct request *rq,
 					struct bio *bio)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE, 0);
@@ -790,6 +811,7 @@ static void blk_add_trace_bio_backmerge(void *ignore,
 
 static void blk_add_trace_bio_frontmerge(void *ignore,
 					 struct request_queue *q,
+					 struct request *rq,
 					 struct bio *bio)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE, 0);

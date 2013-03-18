@@ -681,6 +681,8 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 
 	depth = ext_depth(donor_inode);
 	dext = donor_path[depth].p_ext;
+	if (unlikely(!dext))
+		goto missing_donor_extent;
 	tmp_dext = *dext;
 
 	*err = mext_calc_swap_extents(&tmp_dext, &tmp_oext, orig_off,
@@ -691,7 +693,8 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	/* Loop for the donor extents */
 	while (1) {
 		/* The extent for donor must be found. */
-		if (!dext) {
+		if (unlikely(!dext)) {
+		missing_donor_extent:
 			EXT4_ERROR_INODE(donor_inode,
 				   "The extent for donor must be found");
 			*err = -EIO;
@@ -760,9 +763,6 @@ out:
 		ext4_ext_drop_refs(donor_path);
 		kfree(donor_path);
 	}
-
-	ext4_ext_invalidate_cache(orig_inode);
-	ext4_ext_invalidate_cache(donor_inode);
 
 	return replaced_count;
 }
@@ -900,7 +900,7 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 		  pgoff_t orig_page_offset, int data_offset_in_page,
 		  int block_len_in_page, int uninit, int *err)
 {
-	struct inode *orig_inode = o_filp->f_dentry->d_inode;
+	struct inode *orig_inode = file_inode(o_filp);
 	struct page *pagep[2] = {NULL, NULL};
 	handle_t *handle;
 	ext4_lblk_t orig_blk_offset;
@@ -920,7 +920,7 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 again:
 	*err = 0;
 	jblocks = ext4_writepage_trans_blocks(orig_inode) * 2;
-	handle = ext4_journal_start(orig_inode, jblocks);
+	handle = ext4_journal_start(orig_inode, EXT4_HT_MOVE_EXTENTS, jblocks);
 	if (IS_ERR(handle)) {
 		*err = PTR_ERR(handle);
 		return 0;
@@ -1279,8 +1279,8 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		 __u64 orig_start, __u64 donor_start, __u64 len,
 		 __u64 *moved_len)
 {
-	struct inode *orig_inode = o_filp->f_dentry->d_inode;
-	struct inode *donor_inode = d_filp->f_dentry->d_inode;
+	struct inode *orig_inode = file_inode(o_filp);
+	struct inode *donor_inode = file_inode(d_filp);
 	struct ext4_ext_path *orig_path = NULL, *holecheck_path = NULL;
 	struct ext4_extent *ext_prev, *ext_cur, *ext_dummy;
 	ext4_lblk_t block_start = orig_start;

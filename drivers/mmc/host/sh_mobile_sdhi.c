@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
@@ -31,6 +32,16 @@
 #include <linux/delay.h>
 
 #include "tmio_mmc.h"
+
+struct sh_mobile_sdhi_of_data {
+	unsigned long tmio_flags;
+};
+
+static const struct sh_mobile_sdhi_of_data sh_mobile_sdhi_of_cfg[] = {
+	{
+		.tmio_flags = TMIO_MMC_HAS_IDLE_WAIT,
+	},
+};
 
 struct sh_mobile_sdhi {
 	struct clk *clk;
@@ -117,8 +128,18 @@ static const struct sh_mobile_sdhi_ops sdhi_ops = {
 	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
 };
 
+static const struct of_device_id sh_mobile_sdhi_of_match[] = {
+	{ .compatible = "renesas,shmobile-sdhi" },
+	{ .compatible = "renesas,sh7372-sdhi" },
+	{ .compatible = "renesas,r8a7740-sdhi", .data = &sh_mobile_sdhi_of_cfg[0], },
+	{},
+};
+MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
+
 static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+		of_match_device(sh_mobile_sdhi_of_match, &pdev->dev);
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
@@ -126,7 +147,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	int irq, ret, i = 0;
 	bool multiplexed_isr = true;
 
-	priv = kzalloc(sizeof(struct sh_mobile_sdhi), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct sh_mobile_sdhi), GFP_KERNEL);
 	if (priv == NULL) {
 		dev_err(&pdev->dev, "kzalloc failed\n");
 		return -ENOMEM;
@@ -135,15 +156,14 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data = &priv->mmc_data;
 
 	if (p) {
-		p->pdata = mmc_data;
 		if (p->init) {
 			ret = p->init(pdev, &sdhi_ops);
 			if (ret)
-				goto einit;
+				return ret;
 		}
 	}
 
-	priv->clk = clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
 		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
@@ -153,10 +173,9 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data->clk_enable = sh_mobile_sdhi_clk_enable;
 	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
+	mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
-		if (mmc_data->flags & TMIO_MMC_HAS_IDLE_WAIT)
-			mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
 		mmc_data->capabilities2 |= p->tmio_caps2;
@@ -187,6 +206,11 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 */
 	mmc_data->flags |= TMIO_MMC_SDIO_IRQ;
 
+	if (of_id && of_id->data) {
+		const struct sh_mobile_sdhi_of_data *of_data = of_id->data;
+		mmc_data->flags |= of_data->tmio_flags;
+	}
+
 	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
 	if (ret < 0)
 		goto eprobe;
@@ -199,33 +223,33 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_CARD_DETECT);
 	if (irq >= 0) {
 		multiplexed_isr = false;
-		ret = request_irq(irq, tmio_mmc_card_detect_irq, 0,
+		ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_card_detect_irq, 0,
 				  dev_name(&pdev->dev), host);
 		if (ret)
-			goto eirq_card_detect;
+			goto eirq;
 	}
 
 	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_SDIO);
 	if (irq >= 0) {
 		multiplexed_isr = false;
-		ret = request_irq(irq, tmio_mmc_sdio_irq, 0,
+		ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_sdio_irq, 0,
 				  dev_name(&pdev->dev), host);
 		if (ret)
-			goto eirq_sdio;
+			goto eirq;
 	}
 
 	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_SDCARD);
 	if (irq >= 0) {
 		multiplexed_isr = false;
-		ret = request_irq(irq, tmio_mmc_sdcard_irq, 0,
+		ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_sdcard_irq, 0,
 				  dev_name(&pdev->dev), host);
 		if (ret)
-			goto eirq_sdcard;
+			goto eirq;
 	} else if (!multiplexed_isr) {
 		dev_err(&pdev->dev,
 			"Principal SD-card IRQ is missing among named interrupts\n");
 		ret = irq;
-		goto eirq_sdcard;
+		goto eirq;
 	}
 
 	if (multiplexed_isr) {
@@ -234,15 +258,15 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			if (irq < 0)
 				break;
 			i++;
-			ret = request_irq(irq, tmio_mmc_irq, 0,
+			ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_irq, 0,
 					  dev_name(&pdev->dev), host);
 			if (ret)
-				goto eirq_multiplexed;
+				goto eirq;
 		}
 
 		/* There must be at least one IRQ source */
 		if (!i)
-			goto eirq_multiplexed;
+			goto eirq;
 	}
 
 	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
@@ -252,28 +276,12 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	return ret;
 
-eirq_multiplexed:
-	while (i--) {
-		irq = platform_get_irq(pdev, i);
-		free_irq(irq, host);
-	}
-eirq_sdcard:
-	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_SDIO);
-	if (irq >= 0)
-		free_irq(irq, host);
-eirq_sdio:
-	irq = platform_get_irq_byname(pdev, SH_MOBILE_SDHI_IRQ_CARD_DETECT);
-	if (irq >= 0)
-		free_irq(irq, host);
-eirq_card_detect:
+eirq:
 	tmio_mmc_host_remove(host);
 eprobe:
-	clk_put(priv->clk);
 eclkget:
 	if (p && p->cleanup)
 		p->cleanup(pdev);
-einit:
-	kfree(priv);
 	return ret;
 }
 
@@ -281,28 +289,12 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
-	int i = 0, irq;
-
-	if (p)
-		p->pdata = NULL;
 
 	tmio_mmc_host_remove(host);
 
-	while (1) {
-		irq = platform_get_irq(pdev, i++);
-		if (irq < 0)
-			break;
-		free_irq(irq, host);
-	}
-
-	clk_put(priv->clk);
-
 	if (p && p->cleanup)
 		p->cleanup(pdev);
-
-	kfree(priv);
 
 	return 0;
 }
@@ -313,12 +305,6 @@ static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 	.runtime_suspend = tmio_mmc_host_runtime_suspend,
 	.runtime_resume = tmio_mmc_host_runtime_resume,
 };
-
-static const struct of_device_id sh_mobile_sdhi_of_match[] = {
-	{ .compatible = "renesas,shmobile-sdhi" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
 
 static struct platform_driver sh_mobile_sdhi_driver = {
 	.driver		= {

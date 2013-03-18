@@ -39,6 +39,9 @@ config HAVE_DYNAMIC_FTRACE
 	help
 	  See Documentation/trace/ftrace-design.txt
 
+config HAVE_DYNAMIC_FTRACE_WITH_REGS
+	bool
+
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 	help
@@ -77,21 +80,6 @@ config FTRACE_NMI_ENTER
 config EVENT_TRACING
 	select CONTEXT_SWITCH_TRACER
 	bool
-
-config EVENT_POWER_TRACING_DEPRECATED
-	depends on EVENT_TRACING
-	bool "Deprecated power event trace API, to be removed"
-	default y
-	help
-	  Provides old power event types:
-	  C-state/idle accounting events:
-	  power:power_start
-	  power:power_end
-	  and old cpufreq accounting event:
-	  power:power_frequency
-	  This is for userspace compatibility
-	  and will vanish after 5 kernel iterations,
-	  namely 3.1.
 
 config CONTEXT_SWITCH_TRACER
 	bool
@@ -249,6 +237,16 @@ config FTRACE_SYSCALLS
 	select KALLSYMS
 	help
 	  Basic tracer to catch the syscall entry and exit events.
+
+config TRACER_SNAPSHOT
+	bool "Create a snapshot trace buffer"
+	select TRACER_MAX_TRACE
+	help
+	  Allow tracing users to take snapshot of the current buffer using the
+	  ftrace interface, e.g.:
+
+	      echo 1 > /sys/kernel/debug/tracing/snapshot
+	      cat snapshot
 
 config TRACE_BRANCH_PROFILING
 	bool
@@ -416,23 +414,32 @@ config PROBE_EVENTS
 	def_bool n
 
 config DYNAMIC_FTRACE
-	bool "enable/disable ftrace tracepoints dynamically"
+	bool "enable/disable function tracing dynamically"
 	depends on FUNCTION_TRACER
 	depends on HAVE_DYNAMIC_FTRACE
 	default y
 	help
-          This option will modify all the calls to ftrace dynamically
-	  (will patch them out of the binary image and replace them
-	  with a No-Op instruction) as they are called. A table is
-	  created to dynamically enable them again.
+	  This option will modify all the calls to function tracing
+	  dynamically (will patch them out of the binary image and
+	  replace them with a No-Op instruction) on boot up. During
+	  compile time, a table is made of all the locations that ftrace
+	  can function trace, and this table is linked into the kernel
+	  image. When this is enabled, functions can be individually
+	  enabled, and the functions not enabled will not affect
+	  performance of the system.
+
+	  See the files in /sys/kernel/debug/tracing:
+	    available_filter_functions
+	    set_ftrace_filter
+	    set_ftrace_notrace
 
 	  This way a CONFIG_FUNCTION_TRACER kernel is slightly larger, but
 	  otherwise has native performance as long as no tracing is active.
 
-	  The changes to the code are done by a kernel thread that
-	  wakes up once a second and checks to see if any ftrace calls
-	  were made. If so, it runs stop_machine (stops all CPUS)
-	  and modifies the code to jump over the call to ftrace.
+config DYNAMIC_FTRACE_WITH_REGS
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_DYNAMIC_FTRACE_WITH_REGS
 
 config FUNCTION_PROFILER
 	bool "Kernel function profiler"

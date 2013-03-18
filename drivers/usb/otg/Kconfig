@@ -110,7 +110,7 @@ config AB8500_USB
 
 config FSL_USB2_OTG
 	bool "Freescale USB OTG Transceiver Driver"
-	depends on USB_EHCI_FSL && USB_GADGET_FSL_USB2 && USB_SUSPEND
+	depends on USB_EHCI_FSL && USB_FSL_USB2 && USB_SUSPEND
 	select USB_OTG
 	select USB_OTG_UTILS
 	help

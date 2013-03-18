@@ -139,17 +139,22 @@ static int __oprofilefs_create_file(struct super_block *sb,
 	struct dentry *dentry;
 	struct inode *inode;
 
+	mutex_lock(&root->d_inode->i_mutex);
 	dentry = d_alloc_name(root, name);
-	if (!dentry)
+	if (!dentry) {
+		mutex_unlock(&root->d_inode->i_mutex);
 		return -ENOMEM;
+	}
 	inode = oprofilefs_get_inode(sb, S_IFREG | perm);
 	if (!inode) {
 		dput(dentry);
+		mutex_unlock(&root->d_inode->i_mutex);
 		return -ENOMEM;
 	}
 	inode->i_fop = fops;
+	inode->i_private = priv;
 	d_add(dentry, inode);
-	dentry->d_inode->i_private = priv;
+	mutex_unlock(&root->d_inode->i_mutex);
 	return 0;
 }
 
@@ -212,17 +217,22 @@ struct dentry *oprofilefs_mkdir(struct super_block *sb,
 	struct dentry *dentry;
 	struct inode *inode;
 
+	mutex_lock(&root->d_inode->i_mutex);
 	dentry = d_alloc_name(root, name);
-	if (!dentry)
+	if (!dentry) {
+		mutex_unlock(&root->d_inode->i_mutex);
 		return NULL;
+	}
 	inode = oprofilefs_get_inode(sb, S_IFDIR | 0755);
 	if (!inode) {
 		dput(dentry);
+		mutex_unlock(&root->d_inode->i_mutex);
 		return NULL;
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	d_add(dentry, inode);
+	mutex_unlock(&root->d_inode->i_mutex);
 	return dentry;
 }
 
@@ -266,6 +276,7 @@ static struct file_system_type oprofilefs_type = {
 	.mount		= oprofilefs_mount,
 	.kill_sb	= kill_litter_super,
 };
+MODULE_ALIAS_FS("oprofilefs");
 
 
 int __init oprofilefs_register(void)

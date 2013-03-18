@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -39,6 +39,8 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 
 struct igb_adapter;
 
@@ -137,8 +139,6 @@ struct vf_data_storage {
 #define IGB_RX_HDR_LEN		IGB_RXBUFFER_256
 #define IGB_RX_BUFSZ		IGB_RXBUFFER_2048
 
-/* How many Tx Descriptors do we need to call netif_wake_queue ? */
-#define IGB_TX_QUEUE_WAKE	16
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IGB_RX_BUFFER_WRITE	16	/* Must be power of 2 */
 
@@ -166,6 +166,17 @@ enum igb_tx_flags {
 /* VLAN info */
 #define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
 #define IGB_TX_FLAGS_VLAN_SHIFT	16
+
+/*
+ * The largest size we can write to the descriptor is 65535.  In order to
+ * maintain a power of two alignment we have to limit ourselves to 32K.
+ */
+#define IGB_MAX_TXD_PWR	15
+#define IGB_MAX_DATA_PER_TXD	(1 << IGB_MAX_TXD_PWR)
+
+/* Tx Descriptors needed, worst case */
+#define TXD_USE_COUNT(S) DIV_ROUND_UP((S), IGB_MAX_DATA_PER_TXD)
+#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
@@ -219,6 +230,7 @@ struct igb_ring {
 		struct igb_tx_buffer *tx_buffer_info;
 		struct igb_rx_buffer *rx_buffer_info;
 	};
+	unsigned long last_rx_timestamp;
 	void *desc;			/* descriptor ring memory */
 	unsigned long flags;		/* ring specific flags */
 	void __iomem *tail;		/* pointer to ring tail register */
@@ -272,9 +284,17 @@ struct igb_q_vector {
 enum e1000_ring_flags_t {
 	IGB_RING_FLAG_RX_SCTP_CSUM,
 	IGB_RING_FLAG_RX_LB_VLAN_BSWAP,
+	IGB_RING_FLAG_RX_BUILD_SKB_ENABLED,
 	IGB_RING_FLAG_TX_CTX_IDX,
 	IGB_RING_FLAG_TX_DETECT_HANG
 };
+
+#define ring_uses_build_skb(ring) \
+	test_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
+#define set_ring_build_skb_enabled(ring) \
+	set_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
+#define clear_ring_build_skb_enabled(ring) \
+	clear_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
 
 #define IGB_TXD_DCMD (E1000_ADVTXD_DCMD_EOP | E1000_ADVTXD_DCMD_RS)
 
@@ -300,6 +320,32 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 
 	return ring->count + ring->next_to_clean - ring->next_to_use - 1;
 }
+
+struct igb_i2c_client_list {
+	struct i2c_client *client;
+	struct igb_i2c_client_list *next;
+};
+
+#ifdef CONFIG_IGB_HWMON
+
+#define IGB_HWMON_TYPE_LOC	0
+#define IGB_HWMON_TYPE_TEMP	1
+#define IGB_HWMON_TYPE_CAUTION	2
+#define IGB_HWMON_TYPE_MAX	3
+
+struct hwmon_attr {
+	struct device_attribute dev_attr;
+	struct e1000_hw *hw;
+	struct e1000_thermal_diode_data *sensor;
+	char name[12];
+	};
+
+struct hwmon_buff {
+	struct device *device;
+	struct hwmon_attr *hwmon_list;
+	unsigned int n_hwmon;
+	};
+#endif
 
 /* board specific private data structure */
 struct igb_adapter {
@@ -386,11 +432,22 @@ struct igb_adapter {
 	struct delayed_work ptp_overflow_work;
 	struct work_struct ptp_tx_work;
 	struct sk_buff *ptp_tx_skb;
+	unsigned long ptp_tx_start;
+	unsigned long last_rx_ptp_check;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
+	u32 tx_hwtstamp_timeouts;
+	u32 rx_hwtstamp_cleared;
 
 	char fw_version[32];
+#ifdef CONFIG_IGB_HWMON
+	struct hwmon_buff igb_hwmon_buff;
+	bool ets;
+#endif
+	struct i2c_algo_bit_data i2c_algo;
+	struct i2c_adapter i2c_adap;
+	struct i2c_client *i2c_client;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)
@@ -449,6 +506,7 @@ extern void igb_ptp_init(struct igb_adapter *adapter);
 extern void igb_ptp_stop(struct igb_adapter *adapter);
 extern void igb_ptp_reset(struct igb_adapter *adapter);
 extern void igb_ptp_tx_work(struct work_struct *work);
+extern void igb_ptp_rx_hang(struct igb_adapter *adapter);
 extern void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
 extern void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 				struct sk_buff *skb);
@@ -466,7 +524,10 @@ static inline void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
 
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
-
+#ifdef CONFIG_IGB_HWMON
+extern void igb_sysfs_exit(struct igb_adapter *adapter);
+extern int igb_sysfs_init(struct igb_adapter *adapter);
+#endif
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.reset)

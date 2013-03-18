@@ -422,14 +422,25 @@ static const struct net_device_ops ax88772_netdev_ops = {
 
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	int ret, embd_phy;
+	int ret, embd_phy, i;
 	u8 buf[ETH_ALEN];
 	u32 phyid;
 
 	usbnet_get_endpoints(dev,intf);
 
 	/* Get the MAC address */
-	ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf);
+	if (dev->driver_info->data & FLAG_EEPROM_MAC) {
+		for (i = 0; i < (ETH_ALEN >> 1); i++) {
+			ret = asix_read_cmd(dev, AX_CMD_READ_EEPROM, 0x04 + i,
+					0, 2, buf + i * 2);
+			if (ret < 0)
+				break;
+		}
+	} else {
+		ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID,
+				0, 0, ETH_ALEN, buf);
+	}
+
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
 		return ret;
@@ -484,7 +495,17 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->rx_urb_size = 2048;
 	}
 
+	dev->driver_priv = kzalloc(sizeof(struct asix_common_private), GFP_KERNEL);
+	if (!dev->driver_priv)
+		return -ENOMEM;
+
 	return 0;
+}
+
+static void ax88772_unbind(struct usbnet *dev, struct usb_interface *intf)
+{
+	if (dev->driver_priv)
+		kfree(dev->driver_priv);
 }
 
 static const struct ethtool_ops ax88178_ethtool_ops = {
@@ -818,6 +839,10 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->rx_urb_size = 2048;
 	}
 
+	dev->driver_priv = kzalloc(sizeof(struct asix_common_private), GFP_KERNEL);
+	if (!dev->driver_priv)
+			return -ENOMEM;
+
 	return 0;
 }
 
@@ -864,23 +889,62 @@ static const struct driver_info hawking_uf200_info = {
 static const struct driver_info ax88772_info = {
 	.description = "ASIX AX88772 USB 2.0 Ethernet",
 	.bind = ax88772_bind,
+	.unbind = ax88772_unbind,
 	.status = asix_status,
 	.link_reset = ax88772_link_reset,
 	.reset = ax88772_reset,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR | FLAG_MULTI_PACKET,
-	.rx_fixup = asix_rx_fixup,
+	.rx_fixup = asix_rx_fixup_common,
 	.tx_fixup = asix_tx_fixup,
+};
+
+static const struct driver_info ax88772b_info = {
+	.description = "ASIX AX88772B USB 2.0 Ethernet",
+	.bind = ax88772_bind,
+	.unbind = ax88772_unbind,
+	.status = asix_status,
+	.link_reset = ax88772_link_reset,
+	.reset = ax88772_reset,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
+	         FLAG_MULTI_PACKET,
+	.rx_fixup = asix_rx_fixup_common,
+	.tx_fixup = asix_tx_fixup,
+	.data = FLAG_EEPROM_MAC,
 };
 
 static const struct driver_info ax88178_info = {
 	.description = "ASIX AX88178 USB 2.0 Ethernet",
 	.bind = ax88178_bind,
+	.unbind = ax88772_unbind,
 	.status = asix_status,
 	.link_reset = ax88178_link_reset,
 	.reset = ax88178_reset,
 	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR,
-	.rx_fixup = asix_rx_fixup,
+	.rx_fixup = asix_rx_fixup_common,
 	.tx_fixup = asix_tx_fixup,
+};
+
+/*
+ * USBLINK 20F9 "USB 2.0 LAN" USB ethernet adapter, typically found in
+ * no-name packaging.
+ * USB device strings are:
+ *   1: Manufacturer: USBLINK
+ *   2: Product: HG20F9 USB2.0
+ *   3: Serial: 000003
+ * Appears to be compatible with Asix 88772B.
+ */
+static const struct driver_info hg20f9_info = {
+	.description = "HG20F9 USB 2.0 Ethernet",
+	.bind = ax88772_bind,
+	.unbind = ax88772_unbind,
+	.status = asix_status,
+	.link_reset = ax88772_link_reset,
+	.reset = ax88772_reset,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR |
+	         FLAG_MULTI_PACKET,
+	.rx_fixup = asix_rx_fixup_common,
+	.tx_fixup = asix_tx_fixup,
+	.data = FLAG_EEPROM_MAC,
 };
 
 extern const struct driver_info ax88172a_info;
@@ -953,7 +1017,7 @@ static const struct usb_device_id	products [] = {
 }, {
 	// ASIX AX88772B 10/100
 	USB_DEVICE (0x0b95, 0x772b),
-	.driver_info = (unsigned long) &ax88772_info,
+	.driver_info = (unsigned long) &ax88772b_info,
 }, {
 	// ASIX AX88772 10/100
 	USB_DEVICE (0x0b95, 0x7720),
@@ -1022,6 +1086,14 @@ static const struct usb_device_id	products [] = {
 	/* ASIX 88172a demo board */
 	USB_DEVICE(0x0b95, 0x172a),
 	.driver_info = (unsigned long) &ax88172a_info,
+}, {
+	/*
+	 * USBLINK HG20F9 "USB 2.0 LAN"
+	 * Appears to have gazumped Linksys's manufacturer ID but
+	 * doesn't (yet) conflict with any known Linksys product.
+	 */
+	USB_DEVICE(0x066b, 0x20f9),
+	.driver_info = (unsigned long) &hg20f9_info,
 },
 	{ },		// END
 };

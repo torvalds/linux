@@ -11,19 +11,42 @@ if ANDROID
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
 	default n
+	---help---
+	  Binder is used in Android for both communication between processes,
+	  and remote method invocation.
+
+	  This means one Android process can call a method/routine in another
+	  Android process, using Binder to identify, invoke and pass arguments
+	  between said processes.
 
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	default n
 	depends on SHMEM || TINY_SHMEM
-	help
+	---help---
 	  The ashmem subsystem is a new shared memory allocator, similar to
 	  POSIX SHM but with different behavior and sporting a simpler
 	  file-based API.
 
+	  It is, in theory, a good memory allocator for low-memory devices,
+	  because it can discard shared memory units when under memory pressure.
+
 config ANDROID_LOGGER
 	tristate "Android log driver"
 	default n
+	---help---
+	  This adds support for system-wide logging using four log buffers.
+
+	  These are:
+
+	      1: main
+	      2: events
+	      3: radio
+	      4: system
+
+	  Log reading and writing is performed via normal Linux reads and
+	  optimized writes. This optimization avoids logging having too
+	  much overhead in the system.
 
 config ANDROID_TIMED_OUTPUT
 	bool "Timed output class driver"
@@ -38,13 +61,13 @@ config ANDROID_LOW_MEMORY_KILLER
 	bool "Android Low Memory Killer"
 	default N
 	---help---
-	  Register processes to be killed when memory is low
+	  Registers processes to be killed when memory is low
 
 config ANDROID_INTF_ALARM_DEV
 	bool "Android alarm driver"
 	depends on RTC_CLASS
 	default n
-	help
+	---help---
 	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
 	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
 	  Also exports the alarm interface to user-space.

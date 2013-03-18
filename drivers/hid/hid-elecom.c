@@ -41,17 +41,6 @@ static struct hid_driver elecom_driver = {
 	.id_table = elecom_devices,
 	.report_fixup = elecom_report_fixup
 };
+module_hid_driver(elecom_driver);
 
-static int __init elecom_init(void)
-{
-	return hid_register_driver(&elecom_driver);
-}
-
-static void __exit elecom_exit(void)
-{
-	hid_unregister_driver(&elecom_driver);
-}
-
-module_init(elecom_init);
-module_exit(elecom_exit);
 MODULE_LICENSE("GPL");

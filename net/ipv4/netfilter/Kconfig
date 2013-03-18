@@ -241,8 +241,8 @@ config IP_NF_MANGLE
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_TARGET_CLUSTERIP
-	tristate "CLUSTERIP target support (EXPERIMENTAL)"
-	depends on IP_NF_MANGLE && EXPERIMENTAL
+	tristate "CLUSTERIP target support"
+	depends on IP_NF_MANGLE
 	depends on NF_CONNTRACK_IPV4
 	depends on NETFILTER_ADVANCED
 	select NF_CONNTRACK_MARK

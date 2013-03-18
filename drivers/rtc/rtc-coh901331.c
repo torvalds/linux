@@ -157,7 +157,6 @@ static int __exit coh901331_remove(struct platform_device *pdev)
 	if (rtap) {
 		rtc_device_unregister(rtap->rtc);
 		clk_unprepare(rtap->clk);
-		clk_put(rtap->clk);
 		platform_set_drvdata(pdev, NULL);
 	}
 
@@ -196,7 +195,7 @@ static int __init coh901331_probe(struct platform_device *pdev)
 			     "RTC COH 901 331 Alarm", rtap))
 		return -EIO;
 
-	rtap->clk = clk_get(&pdev->dev, NULL);
+	rtap->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rtap->clk)) {
 		ret = PTR_ERR(rtap->clk);
 		dev_err(&pdev->dev, "could not get clock\n");
@@ -207,7 +206,7 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(rtap->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "could not enable clock\n");
-		goto out_no_clk_prepenable;
+		return ret;
 	}
 	clk_disable(rtap->clk);
 
@@ -224,8 +223,6 @@ static int __init coh901331_probe(struct platform_device *pdev)
  out_no_rtc:
 	platform_set_drvdata(pdev, NULL);
 	clk_unprepare(rtap->clk);
- out_no_clk_prepenable:
-	clk_put(rtap->clk);
 	return ret;
 }
 

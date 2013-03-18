@@ -186,8 +186,6 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 	struct fastopen_queue *fastopenq =
 	    inet_csk(lsk)->icsk_accept_queue.fastopenq;
 
-	BUG_ON(!spin_is_locked(&sk->sk_lock.slock) && !sock_owned_by_user(sk));
-
 	tcp_sk(sk)->fastopen_rsk = NULL;
 	spin_lock_bh(&fastopenq->lock);
 	fastopenq->qlen--;

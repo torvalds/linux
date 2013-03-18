@@ -5,10 +5,10 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "bcma_private.h"
+
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
-
-#include "bcma_private.h"
 
 struct platform_device bcma_nflash_dev = {
 	.name		= "bcma_nflash",
@@ -21,7 +21,7 @@ int bcma_nflash_init(struct bcma_drv_cc *cc)
 	struct bcma_bus *bus = cc->core->bus;
 
 	if (bus->chipinfo.id != BCMA_CHIP_ID_BCM4706 &&
-	    cc->core->id.rev != 0x38) {
+	    cc->core->id.rev != 38) {
 		bcma_err(bus, "NAND flash on unsupported board!\n");
 		return -ENOTSUPP;
 	}

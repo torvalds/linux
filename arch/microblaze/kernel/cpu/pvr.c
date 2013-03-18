@@ -27,7 +27,7 @@
 	tmp = 0x0;	/* Prevent warning about unused */	\
 	__asm__ __volatile__ (					\
 			"mfs	%0, rpvr" #pvrid ";"		\
-			: "=r" (tmp) : : "memory"); 		\
+			: "=r" (tmp) : : "memory");		\
 	val = tmp;						\
 }
 

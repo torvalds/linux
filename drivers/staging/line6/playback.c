@@ -264,15 +264,6 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		}
 #endif
 	}
-#ifdef CONFIG_LINE6_USB_DUMP_PCM
-	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
-		struct usb_iso_packet_descriptor *fout =
-		    &urb_out->iso_frame_desc[i];
-		line6_write_hexdump(line6pcm->line6, 'P',
-				    urb_out->transfer_buffer + fout->offset,
-				    fout->length);
-	}
-#endif
 
 	ret = usb_submit_urb(urb_out, GFP_ATOMIC);
 

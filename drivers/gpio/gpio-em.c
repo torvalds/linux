@@ -299,8 +299,9 @@ static int em_gio_probe(struct platform_device *pdev)
 	irq_chip->irq_set_type = em_gio_irq_set_type;
 	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE;
 
-	p->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
+	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,
 					      pdata->number_of_pins,
+					      pdata->irq_base,
 					      &em_gio_irq_domain_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;

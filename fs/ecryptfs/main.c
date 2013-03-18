@@ -629,6 +629,7 @@ static struct file_system_type ecryptfs_fs_type = {
 	.kill_sb = ecryptfs_kill_block_super,
 	.fs_flags = 0
 };
+MODULE_ALIAS_FS("ecryptfs");
 
 /**
  * inode_info_init_once

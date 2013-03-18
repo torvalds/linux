@@ -1563,12 +1563,12 @@ static int mp_open(struct tty_struct *tty, struct file *filp)
 
 	state = uart_get(drv, line);
 
-	mtpt  = (struct mp_port *)state->port;
-
 	if (IS_ERR(state)) {
 		retval = PTR_ERR(state);
 		goto fail;
 	}
+
+	mtpt  = (struct mp_port *)state->port;
 
 	tty->driver_data = state;
 	tty->low_latency = (state->port->flags & UPF_LOW_LATENCY) ? 1 : 0;
@@ -2851,18 +2851,12 @@ static void __init multi_init_ports(void)
 				printk("IIR_RET = %x\n",b_ret);
 			}
 
-			if(IIR_RS232 == (b_ret & IIR_RS232))
-			{
-				mtpt->interface = RS232;
-			}
-			if(IIR_RS422 == (b_ret & IIR_RS422))
-			{
+			/* default to RS232 */
+			mtpt->interface = RS232;
+			if (IIR_RS422 == (b_ret & IIR_TYPE_MASK))
 				mtpt->interface = RS422PTP;
-			}
-			if(IIR_RS485 == (b_ret & IIR_RS485))
-			{
+			if (IIR_RS485 == (b_ret & IIR_TYPE_MASK))
 				mtpt->interface = RS485NE;
-			}
 		}
 	}
 }
@@ -3054,6 +3048,7 @@ static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 				sbdev->nr_ports = ((portnum_hex/16)*10) + (portnum_hex % 16);
 			}
 			break;
+#ifdef CONFIG_PARPORT_PC
 		case PCI_DEVICE_ID_MP2S1P :
 			sbdev->nr_ports = 2;
 
@@ -3073,6 +3068,7 @@ static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 			/* add PC compatible parallel port */
 			parport_pc_probe_port(pcidev->resource[2].start, pcidev->resource[3].start, PARPORT_IRQ_NONE, PARPORT_DMA_NONE, &pcidev->dev, 0);
 			break;
+#endif
 	}
 
 	ret = request_region(sbdev->uart_access_addr, (8*sbdev->nr_ports), sbdev->name);

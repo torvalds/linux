@@ -56,6 +56,7 @@ dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-dns320.dtb \
 	kirkwood-dockstar.dtb \
 	kirkwood-dreamplug.dtb \
 	kirkwood-goflexnet.dtb \
+	kirkwood-guruplug-server-plus.dtb \
 	kirkwood-ib62x0.dtb \
 	kirkwood-iconnect.dtb \
 	kirkwood-iomega_ix2_200.dtb \
@@ -73,15 +74,26 @@ dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-dns320.dtb \
 	kirkwood-ts219-6281.dtb \
 	kirkwood-ts219-6282.dtb \
 	kirkwood-openblocks_a6.dtb
+dtb-$(CONFIG_ARCH_MARCO) += marco-evb.dtb
 dtb-$(CONFIG_ARCH_MSM) += msm8660-surf.dtb \
 	msm8960-cdp.dtb
 dtb-$(CONFIG_ARCH_MVEBU) += armada-370-db.dtb \
 	armada-370-mirabox.dtb \
+	armada-370-rd.dtb \
 	armada-xp-db.dtb \
+	armada-xp-gp.dtb \
 	armada-xp-openblocks-ax3-4.dtb
-dtb-$(CONFIG_ARCH_MXC) += imx51-babbage.dtb \
+dtb-$(CONFIG_ARCH_MXC) += \
+	imx25-karo-tx25.dtb \
+	imx25-pdk.dtb \
+	imx27-apf27.dtb \
+	imx27-pdk.dtb \
+	imx31-bug.dtb \
+	imx51-apf51.dtb \
+	imx51-babbage.dtb \
 	imx53-ard.dtb \
 	imx53-evk.dtb \
+	imx53-mba53.dtb \
 	imx53-qsb.dtb \
 	imx53-smd.dtb \
 	imx6q-arm2.dtb \
@@ -95,11 +107,13 @@ dtb-$(CONFIG_ARCH_MXS) += imx23-evk.dtb \
 	imx28-apf28dev.dtb \
 	imx28-apx4devkit.dtb \
 	imx28-cfa10036.dtb \
+	imx28-cfa10037.dtb \
 	imx28-cfa10049.dtb \
 	imx28-evk.dtb \
 	imx28-m28evk.dtb \
 	imx28-sps1.dtb \
 	imx28-tx28.dtb
+dtb-$(CONFIG_ARCH_NOMADIK) += ste-nomadik-s8815.dtb
 dtb-$(CONFIG_ARCH_OMAP2PLUS) += omap2420-h4.dtb \
 	omap3-beagle.dtb \
 	omap3-beagle-xm.dtb \
@@ -124,6 +138,8 @@ dtb-$(CONFIG_ARCH_SHMOBILE) += emev2-kzm9d.dtb \
 	r8a7740-armadillo800eva.dtb \
 	sh73a0-kzm9g.dtb \
 	sh7372-mackerel.dtb
+dtb-$(CONFIG_ARCH_SOCFPGA) += socfpga_cyclone5.dtb \
+	socfpga_vt.dtb
 dtb-$(CONFIG_ARCH_SPEAR13XX) += spear1310-evb.dtb \
 	spear1340-evb.dtb
 dtb-$(CONFIG_ARCH_SPEAR3XX)+= spear300-evb.dtb \
@@ -132,8 +148,10 @@ dtb-$(CONFIG_ARCH_SPEAR3XX)+= spear300-evb.dtb \
 	spear320-hmi.dtb
 dtb-$(CONFIG_ARCH_SPEAR6XX)+= spear600-evb.dtb
 dtb-$(CONFIG_ARCH_SUNXI) += sun4i-a10-cubieboard.dtb \
+	sun4i-a10-hackberry.dtb \
 	sun5i-a13-olinuxino.dtb
 dtb-$(CONFIG_ARCH_TEGRA) += tegra20-harmony.dtb \
+	tegra20-iris-512.dtb \
 	tegra20-medcom-wide.dtb \
 	tegra20-paz00.dtb \
 	tegra20-plutux.dtb \
@@ -142,8 +160,11 @@ dtb-$(CONFIG_ARCH_TEGRA) += tegra20-harmony.dtb \
 	tegra20-trimslice.dtb \
 	tegra20-ventana.dtb \
 	tegra20-whistler.dtb \
+	tegra30-beaver.dtb \
 	tegra30-cardhu-a02.dtb \
-	tegra30-cardhu-a04.dtb
+	tegra30-cardhu-a04.dtb \
+	tegra114-dalmore.dtb \
+	tegra114-pluto.dtb
 dtb-$(CONFIG_ARCH_VEXPRESS) += vexpress-v2p-ca5s.dtb \
 	vexpress-v2p-ca9.dtb \
 	vexpress-v2p-ca15-tc1.dtb \
@@ -151,10 +172,12 @@ dtb-$(CONFIG_ARCH_VEXPRESS) += vexpress-v2p-ca5s.dtb \
 	xenvm-4.2.dtb
 dtb-$(CONFIG_ARCH_VT8500) += vt8500-bv07.dtb \
 	wm8505-ref.dtb \
-	wm8650-mid.dtb
+	wm8650-mid.dtb \
+	wm8850-w70v2.dtb
 dtb-$(CONFIG_ARCH_ZYNQ) += zynq-zc702.dtb
 
 targets += dtbs
+targets += $(dtb-y)
 endif
 
 # *.dtb used to be generated in the directory above. Clean out the

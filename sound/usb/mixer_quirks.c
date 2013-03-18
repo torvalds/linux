@@ -637,7 +637,7 @@ static int snd_nativeinstruments_create_mixer(struct usb_mixer_interface *mixer,
 }
 
 /* M-Audio FastTrack Ultra quirks */
-/* FTU Effect switch (also used by C400) */
+/* FTU Effect switch (also used by C400/C600) */
 struct snd_ftu_eff_switch_priv_val {
 	struct usb_mixer_interface *mixer;
 	int cached_value;
@@ -1029,32 +1029,45 @@ void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
 	}
 }
 
-/* M-Audio Fast Track C400 */
-/* C400 volume controls, this control needs a volume quirk, see mixer.c */
+/* M-Audio Fast Track C400/C600 */
+/* C400/C600 volume controls, this control needs a volume quirk, see mixer.c */
 static int snd_c400_create_vol_ctls(struct usb_mixer_interface *mixer)
 {
 	char name[64];
 	unsigned int cmask, offset;
 	int out, chan, err;
+	int num_outs = 0;
+	int num_ins = 0;
 
 	const unsigned int id = 0x40;
 	const int val_type = USB_MIXER_S16;
 	const int control = 1;
 
-	for (chan = 0; chan < 10; chan++) {
-		for (out = 0; out < 6; out++) {
-			if (chan < 6) {
+	switch (mixer->chip->usb_id) {
+	case USB_ID(0x0763, 0x2030):
+		num_outs = 6;
+		num_ins = 4;
+		break;
+	case USB_ID(0x0763, 0x2031):
+		num_outs = 8;
+		num_ins = 6;
+		break;
+	}
+
+	for (chan = 0; chan < num_outs + num_ins; chan++) {
+		for (out = 0; out < num_outs; out++) {
+			if (chan < num_outs) {
 				snprintf(name, sizeof(name),
 					"PCM%d-Out%d Playback Volume",
 					chan + 1, out + 1);
 			} else {
 				snprintf(name, sizeof(name),
 					"In%d-Out%d Playback Volume",
-					chan - 5, out + 1);
+					chan - num_outs + 1, out + 1);
 			}
 
 			cmask = (out == 0) ? 0 : 1 << (out - 1);
-			offset = chan * 6;
+			offset = chan * num_outs;
 			err = snd_create_std_mono_ctl_offset(mixer, id, control,
 						cmask, val_type, offset, name,
 						&snd_usb_mixer_vol_tlv);
@@ -1110,20 +1123,33 @@ static int snd_c400_create_effect_vol_ctls(struct usb_mixer_interface *mixer)
 	char name[64];
 	unsigned int cmask;
 	int chan, err;
+	int num_outs = 0;
+	int num_ins = 0;
 
 	const unsigned int id = 0x42;
 	const int val_type = USB_MIXER_S16;
 	const int control = 1;
 
-	for (chan = 0; chan < 10; chan++) {
-		if (chan < 6) {
+	switch (mixer->chip->usb_id) {
+	case USB_ID(0x0763, 0x2030):
+		num_outs = 6;
+		num_ins = 4;
+		break;
+	case USB_ID(0x0763, 0x2031):
+		num_outs = 8;
+		num_ins = 6;
+		break;
+	}
+
+	for (chan = 0; chan < num_outs + num_ins; chan++) {
+		if (chan < num_outs) {
 			snprintf(name, sizeof(name),
 				"Effect Send DOut%d",
 				chan + 1);
 		} else {
 			snprintf(name, sizeof(name),
 				"Effect Send AIn%d",
-				chan - 5);
+				chan - num_outs + 1);
 		}
 
 		cmask = (chan == 0) ? 0 : 1 << (chan - 1);
@@ -1142,20 +1168,33 @@ static int snd_c400_create_effect_ret_vol_ctls(struct usb_mixer_interface *mixer
 	char name[64];
 	unsigned int cmask;
 	int chan, err;
+	int num_outs = 0;
+	int offset = 0;
 
 	const unsigned int id = 0x40;
 	const int val_type = USB_MIXER_S16;
 	const int control = 1;
-	const int chan_id[6] = { 0, 7, 2, 9, 4, 0xb };
-	const unsigned int offset = 0x3c;
-				/* { 0x3c, 0x43, 0x3e, 0x45, 0x40, 0x47 } */
 
-	for (chan = 0; chan < 6; chan++) {
+	switch (mixer->chip->usb_id) {
+	case USB_ID(0x0763, 0x2030):
+		num_outs = 6;
+		offset = 0x3c;
+		/* { 0x3c, 0x43, 0x3e, 0x45, 0x40, 0x47 } */
+		break;
+	case USB_ID(0x0763, 0x2031):
+		num_outs = 8;
+		offset = 0x70;
+		/* { 0x70, 0x79, 0x72, 0x7b, 0x74, 0x7d, 0x76, 0x7f } */
+		break;
+	}
+
+	for (chan = 0; chan < num_outs; chan++) {
 		snprintf(name, sizeof(name),
 			"Effect Return %d",
 			chan + 1);
 
-		cmask = (chan_id[chan] == 0) ? 0 : 1 << (chan_id[chan] - 1);
+		cmask = (chan == 0) ? 0 :
+			1 << (chan + (chan % 2) * num_outs - 1);
 		err = snd_create_std_mono_ctl_offset(mixer, id, control,
 						cmask, val_type, offset, name,
 						&snd_usb_mixer_vol_tlv);
@@ -1206,7 +1245,7 @@ static int snd_c400_create_mixer(struct usb_mixer_interface *mixer)
  * are valid they presents mono controls as L and R channels of
  * stereo. So we provide a good mixer here.
  */
-struct std_mono_table ebox44_table[] = {
+static struct std_mono_table ebox44_table[] = {
 	{
 		.unitid = 4,
 		.control = 1,
@@ -1299,6 +1338,7 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		break;
 
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
+	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C400 */
 		err = snd_c400_create_mixer(mixer);
 		break;
 

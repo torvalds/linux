@@ -23,7 +23,6 @@ static char const *input_old = "perf.data.old",
 		  *input_new = "perf.data";
 static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
-static bool show_displacement;
 static bool show_period;
 static bool show_formula;
 static bool show_baseline_only;
@@ -146,58 +145,47 @@ static int setup_compute(const struct option *opt, const char *str,
 	return -EINVAL;
 }
 
-static double get_period_percent(struct hist_entry *he, u64 period)
+double perf_diff__period_percent(struct hist_entry *he, u64 period)
 {
 	u64 total = he->hists->stats.total_period;
 	return (period * 100.0) / total;
 }
 
-double perf_diff__compute_delta(struct hist_entry *he)
+double perf_diff__compute_delta(struct hist_entry *he, struct hist_entry *pair)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
-	double new_percent = get_period_percent(he, he->stat.period);
-	double old_percent = pair ? get_period_percent(pair, pair->stat.period) : 0.0;
+	double new_percent = perf_diff__period_percent(he, he->stat.period);
+	double old_percent = perf_diff__period_percent(pair, pair->stat.period);
 
 	he->diff.period_ratio_delta = new_percent - old_percent;
 	he->diff.computed = true;
 	return he->diff.period_ratio_delta;
 }
 
-double perf_diff__compute_ratio(struct hist_entry *he)
+double perf_diff__compute_ratio(struct hist_entry *he, struct hist_entry *pair)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
 	double new_period = he->stat.period;
-	double old_period = pair ? pair->stat.period : 0;
+	double old_period = pair->stat.period;
 
 	he->diff.computed = true;
-	he->diff.period_ratio = pair ? (new_period / old_period) : 0;
+	he->diff.period_ratio = new_period / old_period;
 	return he->diff.period_ratio;
 }
 
-s64 perf_diff__compute_wdiff(struct hist_entry *he)
+s64 perf_diff__compute_wdiff(struct hist_entry *he, struct hist_entry *pair)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
 	u64 new_period = he->stat.period;
-	u64 old_period = pair ? pair->stat.period : 0;
+	u64 old_period = pair->stat.period;
 
 	he->diff.computed = true;
-
-	if (!pair)
-		he->diff.wdiff = 0;
-	else
-		he->diff.wdiff = new_period * compute_wdiff_w2 -
-				 old_period * compute_wdiff_w1;
+	he->diff.wdiff = new_period * compute_wdiff_w2 -
+			 old_period * compute_wdiff_w1;
 
 	return he->diff.wdiff;
 }
 
-static int formula_delta(struct hist_entry *he, char *buf, size_t size)
+static int formula_delta(struct hist_entry *he, struct hist_entry *pair,
+			 char *buf, size_t size)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
-
-	if (!pair)
-		return -1;
-
 	return scnprintf(buf, size,
 			 "(%" PRIu64 " * 100 / %" PRIu64 ") - "
 			 "(%" PRIu64 " * 100 / %" PRIu64 ")",
@@ -205,41 +193,36 @@ static int formula_delta(struct hist_entry *he, char *buf, size_t size)
 			  pair->stat.period, pair->hists->stats.total_period);
 }
 
-static int formula_ratio(struct hist_entry *he, char *buf, size_t size)
+static int formula_ratio(struct hist_entry *he, struct hist_entry *pair,
+			 char *buf, size_t size)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
 	double new_period = he->stat.period;
-	double old_period = pair ? pair->stat.period : 0;
-
-	if (!pair)
-		return -1;
+	double old_period = pair->stat.period;
 
 	return scnprintf(buf, size, "%.0F / %.0F", new_period, old_period);
 }
 
-static int formula_wdiff(struct hist_entry *he, char *buf, size_t size)
+static int formula_wdiff(struct hist_entry *he, struct hist_entry *pair,
+			 char *buf, size_t size)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
 	u64 new_period = he->stat.period;
-	u64 old_period = pair ? pair->stat.period : 0;
-
-	if (!pair)
-		return -1;
+	u64 old_period = pair->stat.period;
 
 	return scnprintf(buf, size,
 		  "(%" PRIu64 " * " "%" PRId64 ") - (%" PRIu64 " * " "%" PRId64 ")",
 		  new_period, compute_wdiff_w2, old_period, compute_wdiff_w1);
 }
 
-int perf_diff__formula(char *buf, size_t size, struct hist_entry *he)
+int perf_diff__formula(struct hist_entry *he, struct hist_entry *pair,
+		       char *buf, size_t size)
 {
 	switch (compute) {
 	case COMPUTE_DELTA:
-		return formula_delta(he, buf, size);
+		return formula_delta(he, pair, buf, size);
 	case COMPUTE_RATIO:
-		return formula_ratio(he, buf, size);
+		return formula_ratio(he, pair, buf, size);
 	case COMPUTE_WEIGHTED_DIFF:
-		return formula_wdiff(he, buf, size);
+		return formula_wdiff(he, pair, buf, size);
 	default:
 		BUG_ON(1);
 	}
@@ -292,48 +275,6 @@ static struct perf_tool tool = {
 	.ordering_requires_timestamps = true,
 };
 
-static void insert_hist_entry_by_name(struct rb_root *root,
-				      struct hist_entry *he)
-{
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
-	struct hist_entry *iter;
-
-	while (*p != NULL) {
-		parent = *p;
-		iter = rb_entry(parent, struct hist_entry, rb_node);
-		if (hist_entry__cmp(he, iter) < 0)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	rb_link_node(&he->rb_node, parent, p);
-	rb_insert_color(&he->rb_node, root);
-}
-
-static void hists__name_resort(struct hists *self, bool sort)
-{
-	unsigned long position = 1;
-	struct rb_root tmp = RB_ROOT;
-	struct rb_node *next = rb_first(&self->entries);
-
-	while (next != NULL) {
-		struct hist_entry *n = rb_entry(next, struct hist_entry, rb_node);
-
-		next = rb_next(&n->rb_node);
-		n->position = position++;
-
-		if (sort) {
-			rb_erase(&n->rb_node, &self->entries);
-			insert_hist_entry_by_name(&tmp, n);
-		}
-	}
-
-	if (sort)
-		self->entries = tmp;
-}
-
 static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
 				      struct perf_evlist *evlist)
 {
@@ -346,34 +287,34 @@ static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
 	return NULL;
 }
 
-static void perf_evlist__resort_hists(struct perf_evlist *evlist, bool name)
+static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		struct hists *hists = &evsel->hists;
 
-		hists__output_resort(hists);
-
-		/*
-		 * The hists__name_resort only sets possition
-		 * if name is false.
-		 */
-		if (name || ((!name) && show_displacement))
-			hists__name_resort(hists, name);
+		hists__collapse_resort(hists);
 	}
 }
 
 static void hists__baseline_only(struct hists *hists)
 {
-	struct rb_node *next = rb_first(&hists->entries);
+	struct rb_root *root;
+	struct rb_node *next;
 
+	if (sort__need_collapse)
+		root = &hists->entries_collapsed;
+	else
+		root = hists->entries_in;
+
+	next = rb_first(root);
 	while (next != NULL) {
-		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node);
+		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node_in);
 
-		next = rb_next(&he->rb_node);
+		next = rb_next(&he->rb_node_in);
 		if (!hist_entry__next_pair(he)) {
-			rb_erase(&he->rb_node, &hists->entries);
+			rb_erase(&he->rb_node_in, root);
 			hist_entry__free(he);
 		}
 	}
@@ -385,18 +326,21 @@ static void hists__precompute(struct hists *hists)
 
 	while (next != NULL) {
 		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node);
+		struct hist_entry *pair = hist_entry__next_pair(he);
 
 		next = rb_next(&he->rb_node);
+		if (!pair)
+			continue;
 
 		switch (compute) {
 		case COMPUTE_DELTA:
-			perf_diff__compute_delta(he);
+			perf_diff__compute_delta(he, pair);
 			break;
 		case COMPUTE_RATIO:
-			perf_diff__compute_ratio(he);
+			perf_diff__compute_ratio(he, pair);
 			break;
 		case COMPUTE_WEIGHTED_DIFF:
-			perf_diff__compute_wdiff(he);
+			perf_diff__compute_wdiff(he, pair);
 			break;
 		default:
 			BUG_ON(1);
@@ -470,19 +414,30 @@ static void insert_hist_entry_by_compute(struct rb_root *root,
 
 static void hists__compute_resort(struct hists *hists)
 {
-	struct rb_root tmp = RB_ROOT;
-	struct rb_node *next = rb_first(&hists->entries);
+	struct rb_root *root;
+	struct rb_node *next;
+
+	if (sort__need_collapse)
+		root = &hists->entries_collapsed;
+	else
+		root = hists->entries_in;
+
+	hists->entries = RB_ROOT;
+	next = rb_first(root);
+
+	hists->nr_entries = 0;
+	hists->stats.total_period = 0;
+	hists__reset_col_len(hists);
 
 	while (next != NULL) {
-		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node);
+		struct hist_entry *he;
 
-		next = rb_next(&he->rb_node);
+		he = rb_entry(next, struct hist_entry, rb_node_in);
+		next = rb_next(&he->rb_node_in);
 
-		rb_erase(&he->rb_node, &hists->entries);
-		insert_hist_entry_by_compute(&tmp, he, compute);
+		insert_hist_entry_by_compute(&hists->entries, he, compute);
+		hists__inc_nr_entries(hists, he);
 	}
-
-	hists->entries = tmp;
 }
 
 static void hists__process(struct hists *old, struct hists *new)
@@ -497,6 +452,8 @@ static void hists__process(struct hists *old, struct hists *new)
 	if (sort_compute) {
 		hists__precompute(new);
 		hists__compute_resort(new);
+	} else {
+		hists__output_resort(new);
 	}
 
 	hists__fprintf(new, true, 0, 0, stdout);
@@ -528,8 +485,8 @@ static int __cmd_diff(void)
 	evlist_old = older->evlist;
 	evlist_new = newer->evlist;
 
-	perf_evlist__resort_hists(evlist_old, true);
-	perf_evlist__resort_hists(evlist_new, false);
+	perf_evlist__collapse_resort(evlist_old);
+	perf_evlist__collapse_resort(evlist_new);
 
 	list_for_each_entry(evsel, &evlist_new->entries, node) {
 		struct perf_evsel *evsel_old;
@@ -562,8 +519,6 @@ static const char * const diff_usage[] = {
 static const struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('M', "displacement", &show_displacement,
-		    "Show position displacement relative to baseline"),
 	OPT_BOOLEAN('b', "baseline-only", &show_baseline_only,
 		    "Show only items with match in baseline"),
 	OPT_CALLBACK('c', "compute", &compute,
@@ -597,40 +552,32 @@ static const struct option options[] = {
 
 static void ui_init(void)
 {
-	perf_hpp__init();
-
-	/* No overhead column. */
-	perf_hpp__column_enable(PERF_HPP__OVERHEAD, false);
-
 	/*
-	 * Display baseline/delta/ratio/displacement/
+	 * Display baseline/delta/ratio
 	 * formula/periods columns.
 	 */
-	perf_hpp__column_enable(PERF_HPP__BASELINE, true);
+	perf_hpp__column_enable(PERF_HPP__BASELINE);
 
 	switch (compute) {
 	case COMPUTE_DELTA:
-		perf_hpp__column_enable(PERF_HPP__DELTA, true);
+		perf_hpp__column_enable(PERF_HPP__DELTA);
 		break;
 	case COMPUTE_RATIO:
-		perf_hpp__column_enable(PERF_HPP__RATIO, true);
+		perf_hpp__column_enable(PERF_HPP__RATIO);
 		break;
 	case COMPUTE_WEIGHTED_DIFF:
-		perf_hpp__column_enable(PERF_HPP__WEIGHTED_DIFF, true);
+		perf_hpp__column_enable(PERF_HPP__WEIGHTED_DIFF);
 		break;
 	default:
 		BUG_ON(1);
 	};
 
-	if (show_displacement)
-		perf_hpp__column_enable(PERF_HPP__DISPL, true);
-
 	if (show_formula)
-		perf_hpp__column_enable(PERF_HPP__FORMULA, true);
+		perf_hpp__column_enable(PERF_HPP__FORMULA);
 
 	if (show_period) {
-		perf_hpp__column_enable(PERF_HPP__PERIOD, true);
-		perf_hpp__column_enable(PERF_HPP__PERIOD_BASELINE, true);
+		perf_hpp__column_enable(PERF_HPP__PERIOD);
+		perf_hpp__column_enable(PERF_HPP__PERIOD_BASELINE);
 	}
 }
 
@@ -658,7 +605,9 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	ui_init();
 
-	setup_sorting(diff_usage, options);
+	if (setup_sorting() < 0)
+		usage_with_options(diff_usage, options);
+
 	setup_pager();
 
 	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", NULL);

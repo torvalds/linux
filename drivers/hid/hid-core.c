@@ -729,7 +729,7 @@ static int hid_scan_report(struct hid_device *hid)
 			item.type == HID_ITEM_TYPE_MAIN &&
 			item.tag == HID_MAIN_ITEM_TAG_BEGIN_COLLECTION &&
 			(item_udata(&item) & 0xff) == HID_COLLECTION_PHYSICAL &&
-			hid->bus == BUS_USB)
+			(hid->bus == BUS_USB || hid->bus == BUS_I2C))
 			hid->group = HID_GROUP_SENSOR_HUB;
 	}
 
@@ -1195,6 +1195,7 @@ int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 {
 	struct hid_report_enum *report_enum = hid->report_enum + type;
 	struct hid_report *report;
+	struct hid_driver *hdrv;
 	unsigned int a;
 	int rsize, csize = size;
 	u8 *cdata = data;
@@ -1231,6 +1232,9 @@ int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 	if (hid->claimed != HID_CLAIMED_HIDRAW) {
 		for (a = 0; a < report->maxfield; a++)
 			hid_input_field(hid, report->field[a], cdata, interrupt);
+		hdrv = hid->driver;
+		if (hdrv && hdrv->report)
+			hdrv->report(hid, report);
 	}
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
@@ -1599,6 +1603,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GYRATION, USB_DEVICE_ID_GYRATION_REMOTE_3) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK, USB_DEVICE_ID_HOLTEK_ON_LINE_GRIP) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK_ALT, USB_DEVICE_ID_HOLTEK_ALT_KEYBOARD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_JESS2, USB_DEVICE_ID_JESS2_COLOR_RUMBLE_PAD) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_ION, USB_DEVICE_ID_ICADE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KENSINGTON, USB_DEVICE_ID_KS_SLIMBLADE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_KEYTOUCH, USB_DEVICE_ID_KEYTOUCH_IEC) },
@@ -1697,7 +1702,9 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_NAVIGATION_CONTROLLER) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS3_CONTROLLER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_VAIO_VGX_MOUSE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, USB_DEVICE_ID_STEELSERIES_SRWS1) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SUNPLUS, USB_DEVICE_ID_SUNPLUS_WDESKTOP) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THINGM, USB_DEVICE_ID_BLINK1) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb300) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb304) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb323) },
@@ -2227,6 +2234,14 @@ bool hid_ignore(struct hid_device *hdev)
 		if ((hdev->product == USB_DEVICE_ID_EGALAX_TOUCHCONTROLLER ||
 		     hdev->product == USB_DEVICE_ID_DWAV_TOUCHCONTROLLER) &&
 		    hdev->type != HID_TYPE_USBMOUSE)
+			return true;
+		break;
+	case USB_VENDOR_ID_VELLEMAN:
+		/* These are not HID devices.  They are handled by comedi. */
+		if ((hdev->product >= USB_DEVICE_ID_VELLEMAN_K8055_FIRST &&
+		     hdev->product <= USB_DEVICE_ID_VELLEMAN_K8055_LAST) ||
+		    (hdev->product >= USB_DEVICE_ID_VELLEMAN_K8061_FIRST &&
+		     hdev->product <= USB_DEVICE_ID_VELLEMAN_K8061_LAST))
 			return true;
 		break;
 	}

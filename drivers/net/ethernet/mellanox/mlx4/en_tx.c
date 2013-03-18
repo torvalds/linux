@@ -294,6 +294,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 		cnt++;
 	}
 
+	netdev_tx_reset_queue(ring->tx_queue);
+
 	if (cnt)
 		en_dbg(DRV, priv, "Freed %d uncompleted tx descriptors\n", cnt);
 
@@ -515,10 +517,6 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 		wmb();
 		inl->byte_count = cpu_to_be32(1 << 31 | (skb->len - spc));
 	}
-	tx_desc->ctrl.vlan_tag = cpu_to_be16(*vlan_tag);
-	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN *
-		(!!vlan_tx_tag_present(skb));
-	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
 }
 
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
@@ -592,7 +590,21 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_tx_stop_queue(ring->tx_queue);
 		priv->port_stats.queue_stopped++;
 
-		return NETDEV_TX_BUSY;
+		/* If queue was emptied after the if, and before the
+		 * stop_queue - need to wake the queue, or else it will remain
+		 * stopped forever.
+		 * Need a memory barrier to make sure ring->cons was not
+		 * updated before queue was stopped.
+		 */
+		wmb();
+
+		if (unlikely(((int)(ring->prod - ring->cons)) <=
+			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
+			netif_tx_wake_queue(ring->tx_queue);
+			priv->port_stats.wake_queue++;
+		} else {
+			return NETDEV_TX_BUSY;
+		}
 	}
 
 	/* Track current inflight packets for performance analysis */
@@ -630,10 +642,15 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->tx_csum++;
 	}
 
-	/* Copy dst mac address to wqe */
-	ethh = (struct ethhdr *)skb->data;
-	tx_desc->ctrl.srcrb_flags16[0] = get_unaligned((__be16 *)ethh->h_dest);
-	tx_desc->ctrl.imm = get_unaligned((__be32 *)(ethh->h_dest + 2));
+	if (priv->flags & MLX4_EN_FLAG_ENABLE_HW_LOOPBACK) {
+		/* Copy dst mac address to wqe. This allows loopback in eSwitch,
+		 * so that VFs and PF can communicate with each other
+		 */
+		ethh = (struct ethhdr *)skb->data;
+		tx_desc->ctrl.srcrb_flags16[0] = get_unaligned((__be16 *)ethh->h_dest);
+		tx_desc->ctrl.imm = get_unaligned((__be32 *)(ethh->h_dest + 2));
+	}
+
 	/* Handle LSO (TSO) packets */
 	if (lso_header_size) {
 		/* Mark opcode as LSO */

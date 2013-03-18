@@ -11,6 +11,7 @@ Required properties :
  - phy_type : Should be one of "ulpi" or "utmi".
  - nvidia,vbus-gpio : If present, specifies a gpio that needs to be
    activated for the bus to be powered.
+ - nvidia,phy : phandle of the PHY instance, the controller is connected to.
 
 Required properties for phy_type == ulpi:
   - nvidia,phy-reset-gpio : The GPIO used to reset the PHY.
@@ -27,3 +28,5 @@ Optional properties:
     registers are accessed through the APB_MISC base address instead of
     the USB controller. Since this is a legacy issue it probably does not
     warrant a compatible string of its own.
+  - nvidia,needs-double-reset : boolean is to be set for some of the Tegra2
+    USB ports, which need reset twice due to hardware issues.

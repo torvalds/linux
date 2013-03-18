@@ -94,7 +94,7 @@ void __iomem *ap_syscon_base;
  * f1b00000	1b000000	GPIO
  */
 
-static struct map_desc ap_io_desc[] __initdata = {
+static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 	{
 		.virtual	= IO_ADDRESS(INTEGRATOR_HDR_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_HDR_BASE),
@@ -425,7 +425,7 @@ void __init ap_init_early(void)
 
 #ifdef CONFIG_OF
 
-static void __init ap_init_timer_of(void)
+static void __init ap_of_timer_init(void)
 {
 	struct device_node *node;
 	const char *path;
@@ -463,10 +463,6 @@ static void __init ap_init_timer_of(void)
 	writel(0, base + TIMER_CTRL);
 	integrator_clockevent_init(rate, base, irq);
 }
-
-static struct sys_timer ap_of_timer = {
-	.init		= ap_init_timer_of,
-};
 
 static const struct of_device_id fpga_irq_of_match[] __initconst = {
 	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
@@ -586,7 +582,7 @@ DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq_of,
 	.handle_irq	= fpga_handle_irq,
-	.timer		= &ap_of_timer,
+	.init_time	= ap_of_timer_init,
 	.init_machine	= ap_init_of,
 	.restart	= integrator_restart,
 	.dt_compat      = ap_dt_board_compat,
@@ -613,7 +609,6 @@ static struct map_desc ap_io_desc_atag[] __initdata = {
 static void __init ap_map_io_atag(void)
 {
 	iotable_init(ap_io_desc_atag, ARRAY_SIZE(ap_io_desc_atag));
-	ap_syscon_base = __io_address(INTEGRATOR_SC_BASE);
 	ap_map_io();
 }
 
@@ -638,7 +633,7 @@ static struct platform_device cfi_flash_device = {
 	.resource	= &cfi_flash_resource,
 };
 
-static void __init ap_init_timer(void)
+static void __init ap_timer_init(void)
 {
 	struct clk *clk;
 	unsigned long rate;
@@ -656,10 +651,6 @@ static void __init ap_init_timer(void)
 	integrator_clockevent_init(rate, (void __iomem *)TIMER1_VA_BASE,
 				IRQ_TIMERINT1);
 }
-
-static struct sys_timer ap_timer = {
-	.init		= ap_init_timer,
-};
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
 
@@ -685,6 +676,7 @@ static void __init ap_init(void)
 
 	platform_device_register(&cfi_flash_device);
 
+	ap_syscon_base = __io_address(INTEGRATOR_SC_BASE);
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
 		struct lm_device *lmdev;
@@ -716,7 +708,7 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq,
 	.handle_irq	= fpga_handle_irq,
-	.timer		= &ap_timer,
+	.init_time	= ap_timer_init,
 	.init_machine	= ap_init,
 	.restart	= integrator_restart,
 MACHINE_END

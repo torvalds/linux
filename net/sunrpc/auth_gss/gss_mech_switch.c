@@ -140,7 +140,7 @@ gss_mech_get(struct gss_api_mech *gm)
 
 EXPORT_SYMBOL_GPL(gss_mech_get);
 
-struct gss_api_mech *
+static struct gss_api_mech *
 _gss_mech_get_by_name(const char *name)
 {
 	struct gss_api_mech	*pos, *gm = NULL;
@@ -205,7 +205,7 @@ mech_supports_pseudoflavor(struct gss_api_mech *gm, u32 pseudoflavor)
 	return 0;
 }
 
-struct gss_api_mech *_gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
+static struct gss_api_mech *_gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 {
 	struct gss_api_mech *gm = NULL, *pos;
 

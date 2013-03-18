@@ -67,8 +67,9 @@ static const struct nla_policy skbedit_policy[TCA_SKBEDIT_MAX + 1] = {
 	[TCA_SKBEDIT_MARK]		= { .len = sizeof(u32) },
 };
 
-static int tcf_skbedit_init(struct nlattr *nla, struct nlattr *est,
-			 struct tc_action *a, int ovr, int bind)
+static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
+			    struct nlattr *est, struct tc_action *a,
+			    int ovr, int bind)
 {
 	struct nlattr *tb[TCA_SKBEDIT_MAX + 1];
 	struct tc_skbedit *parm;

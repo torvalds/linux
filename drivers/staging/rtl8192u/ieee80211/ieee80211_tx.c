@@ -70,7 +70,7 @@ val  | 0  |  0  |  0  |  1  |  x  |  0  |  0  |  0  |  1  |  0  |  x  |  x  |  x
 desc | ^-ver-^  |  ^type-^  |  ^-----subtype-----^  | to  |from |more |retry| pwr |more |wep   |
      |          |           | x=0 data,x=1 data+ack | DS  | DS  |frag |     | mgm |data |      |
      '-----------------------------------------------------------------------------------------'
-		                                    /\
+                                                    /\
                                                     |
 802.11 Data Frame                                   |
            ,--------- 'ctrl' expands to >-----------'
@@ -283,22 +283,22 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
 	ip = ip_hdr(skb);
 	switch (ip->tos & 0xfc) {
-		case 0x20:
-			return 2;
-		case 0x40:
-			return 1;
-		case 0x60:
-			return 3;
-		case 0x80:
-			return 4;
-		case 0xa0:
-			return 5;
-		case 0xc0:
-			return 6;
-		case 0xe0:
-			return 7;
-		default:
-			return 0;
+	case 0x20:
+		return 2;
+	case 0x40:
+		return 1;
+	case 0x60:
+		return 3;
+	case 0x80:
+		return 4;
+	case 0xa0:
+		return 5;
+	case 0xc0:
+		return 6;
+	case 0xe0:
+		return 7;
+	default:
+		return 0;
 	}
 }
 
@@ -395,7 +395,7 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
 
-	tcb_desc->bUseShortGI 		= false;
+	tcb_desc->bUseShortGI		= false;
 
 	if(!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
 		return;
@@ -514,7 +514,7 @@ void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_
 			if(pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF)
 			{
 				tcb_desc->bCTSEnable	= true;
-				tcb_desc->rts_rate  = 	MGN_24M;
+				tcb_desc->rts_rate  =	MGN_24M;
 				tcb_desc->bRTSEnable = true;
 				break;
 			}
@@ -527,7 +527,7 @@ void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_
 	{
 		tcb_desc->bCTSEnable	= true;
 		tcb_desc->rts_rate = MGN_24M;
-		tcb_desc->bRTSEnable 	= true;
+		tcb_desc->bRTSEnable	= true;
 	}
 	if (ieee->current_network.capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
@@ -656,17 +656,17 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(&dest, skb->data, ETH_ALEN);
 		memcpy(&src, skb->data+ETH_ALEN, ETH_ALEN);
 
-                /* Advance the SKB to the start of the payload */
-                skb_pull(skb, sizeof(struct ethhdr));
+		/* Advance the SKB to the start of the payload */
+		skb_pull(skb, sizeof(struct ethhdr));
 
-                /* Determine total amount of storage required for TXB packets */
-                bytes = skb->len + SNAP_SIZE + sizeof(u16);
+		/* Determine total amount of storage required for TXB packets */
+		bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
 		if (encrypt)
 			fc = IEEE80211_FTYPE_DATA | IEEE80211_FCTL_WEP;
 		else
 
-                        fc = IEEE80211_FTYPE_DATA;
+			fc = IEEE80211_FTYPE_DATA;
 
 		//if(ieee->current_network.QoS_Enable)
 		if(qos_actived)
@@ -689,7 +689,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			memcpy(&header.addr3, ieee->current_network.bssid, ETH_ALEN);
 		}
 
-                header.frame_ctl = cpu_to_le16(fc);
+		header.frame_ctl = cpu_to_le16(fc);
 
 		/* Determine fragmentation size based on destination (multicast
 		* and broadcast are not fragmented) */
@@ -833,7 +833,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		  else
 			ieee->seq_ctrl[UP2AC(skb->priority) + 1]++;
 		} else {
-  		  if (ieee->seq_ctrl[0] == 0xFFF)
+		  if (ieee->seq_ctrl[0] == 0xFFF)
 			ieee->seq_ctrl[0] = 0;
 		  else
 			ieee->seq_ctrl[0]++;

@@ -417,6 +417,12 @@ enum chip_cmd_bits {
 	Cmd1NoTxPoll=0x08, Cmd1Reset=0x80,
 };
 
+struct rhine_stats {
+	u64		packets;
+	u64		bytes;
+	struct u64_stats_sync syncp;
+};
+
 struct rhine_private {
 	/* Bit mask for configured VLAN ids */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
@@ -458,6 +464,8 @@ struct rhine_private {
 	unsigned int cur_rx, dirty_rx;	/* Producer/consumer ring indices */
 	unsigned int cur_tx, dirty_tx;
 	unsigned int rx_buf_sz;		/* Based on MTU+slack. */
+	struct rhine_stats rx_stats;
+	struct rhine_stats tx_stats;
 	u8 wolopts;
 
 	u8 tx_thresh, rx_thresh;
@@ -495,7 +503,8 @@ static irqreturn_t rhine_interrupt(int irq, void *dev_instance);
 static void rhine_tx(struct net_device *dev);
 static int rhine_rx(struct net_device *dev, int limit);
 static void rhine_set_rx_mode(struct net_device *dev);
-static struct net_device_stats *rhine_get_stats(struct net_device *dev);
+static struct rtnl_link_stats64 *rhine_get_stats64(struct net_device *dev,
+	       struct rtnl_link_stats64 *stats);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
@@ -842,7 +851,7 @@ static const struct net_device_ops rhine_netdev_ops = {
 	.ndo_open		 = rhine_open,
 	.ndo_stop		 = rhine_close,
 	.ndo_start_xmit		 = rhine_start_tx,
-	.ndo_get_stats		 = rhine_get_stats,
+	.ndo_get_stats64	 = rhine_get_stats64,
 	.ndo_set_rx_mode	 = rhine_set_rx_mode,
 	.ndo_change_mtu		 = eth_change_mtu,
 	.ndo_validate_addr	 = eth_validate_addr,
@@ -990,7 +999,6 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev_info(dev, "Using random MAC address: %pM\n",
 			    dev->dev_addr);
 	}
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* For Rhine-I/II, phy_id is loaded from EEPROM */
 	if (!phy_id)
@@ -1791,8 +1799,11 @@ static void rhine_tx(struct net_device *dev)
 				dev->stats.collisions += txstatus & 0x0F;
 			netif_dbg(rp, tx_done, dev, "collisions: %1.1x:%1.1x\n",
 				  (txstatus >> 3) & 0xF, txstatus & 0xF);
-			dev->stats.tx_bytes += rp->tx_skbuff[entry]->len;
-			dev->stats.tx_packets++;
+
+			u64_stats_update_begin(&rp->tx_stats.syncp);
+			rp->tx_stats.bytes += rp->tx_skbuff[entry]->len;
+			rp->tx_stats.packets++;
+			u64_stats_update_end(&rp->tx_stats.syncp);
 		}
 		/* Free the original skb. */
 		if (rp->tx_skbuff_dma[entry]) {
@@ -1801,7 +1812,7 @@ static void rhine_tx(struct net_device *dev)
 					 rp->tx_skbuff[entry]->len,
 					 PCI_DMA_TODEVICE);
 		}
-		dev_kfree_skb_irq(rp->tx_skbuff[entry]);
+		dev_kfree_skb(rp->tx_skbuff[entry]);
 		rp->tx_skbuff[entry] = NULL;
 		entry = (++rp->dirty_tx) % TX_RING_SIZE;
 	}
@@ -1924,8 +1935,11 @@ static int rhine_rx(struct net_device *dev, int limit)
 			if (unlikely(desc_length & DescTag))
 				__vlan_hwaccel_put_tag(skb, vlan_tci);
 			netif_receive_skb(skb);
-			dev->stats.rx_bytes += pkt_len;
-			dev->stats.rx_packets++;
+
+			u64_stats_update_begin(&rp->rx_stats.syncp);
+			rp->rx_stats.bytes += pkt_len;
+			rp->rx_stats.packets++;
+			u64_stats_update_end(&rp->rx_stats.syncp);
 		}
 		entry = (++rp->cur_rx) % RX_RING_SIZE;
 		rp->rx_head_desc = &rp->rx_ring[entry];
@@ -2010,25 +2024,37 @@ static void rhine_slow_event_task(struct work_struct *work)
 	if (intr_status & IntrPCIErr)
 		netif_warn(rp, hw, dev, "PCI error\n");
 
-	napi_disable(&rp->napi);
-	rhine_irq_disable(rp);
-	/* Slow and safe. Consider __napi_schedule as a replacement ? */
-	napi_enable(&rp->napi);
-	napi_schedule(&rp->napi);
+	iowrite16(RHINE_EVENT & 0xffff, rp->base + IntrEnable);
 
 out_unlock:
 	mutex_unlock(&rp->task_lock);
 }
 
-static struct net_device_stats *rhine_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *
+rhine_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct rhine_private *rp = netdev_priv(dev);
+	unsigned int start;
 
 	spin_lock_bh(&rp->lock);
 	rhine_update_rx_crc_and_missed_errord(rp);
 	spin_unlock_bh(&rp->lock);
 
-	return &dev->stats;
+	netdev_stats_to_stats64(stats, &dev->stats);
+
+	do {
+		start = u64_stats_fetch_begin_bh(&rp->rx_stats.syncp);
+		stats->rx_packets = rp->rx_stats.packets;
+		stats->rx_bytes = rp->rx_stats.bytes;
+	} while (u64_stats_fetch_retry_bh(&rp->rx_stats.syncp, start));
+
+	do {
+		start = u64_stats_fetch_begin_bh(&rp->tx_stats.syncp);
+		stats->tx_packets = rp->tx_stats.packets;
+		stats->tx_bytes = rp->tx_stats.bytes;
+	} while (u64_stats_fetch_retry_bh(&rp->tx_stats.syncp, start));
+
+	return stats;
 }
 
 static void rhine_set_rx_mode(struct net_device *dev)

@@ -60,10 +60,15 @@ struct wireless_dev;
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
 
+extern void netdev_set_default_ethtool_ops(struct net_device *dev,
+					   const struct ethtool_ops *ops);
+
 /* hardware address assignment types */
 #define NET_ADDR_PERM		0	/* address is permanent (default) */
 #define NET_ADDR_RANDOM		1	/* address is generated randomly */
 #define NET_ADDR_STOLEN		2	/* address is stolen from other device */
+#define NET_ADDR_SET		3	/* address is set using
+					 * dev_set_mac_address() */
 
 /* Backlog congestion levels */
 #define NET_RX_SUCCESS		0	/* keep 'em coming, baby */
@@ -856,8 +861,7 @@ struct netdev_fcoe_hbainfo {
  *	flow_id is a flow ID to be passed to rps_may_expire_flow() later.
  *	Return the filter ID on success, or a negative error code.
  *
- *	Slave management functions (for bridge, bonding, etc). User should
- *	call netdev_set_master() to set dev->master properly.
+ *	Slave management functions (for bridge, bonding, etc).
  * int (*ndo_add_slave)(struct net_device *dev, struct net_device *slave_dev);
  *	Called to make another netdev an underling.
  *
@@ -880,7 +884,8 @@ struct netdev_fcoe_hbainfo {
  *		      struct net_device *dev,
  *		      const unsigned char *addr, u16 flags)
  *	Adds an FDB entry to dev for addr.
- * int (*ndo_fdb_del)(struct ndmsg *ndm, struct net_device *dev,
+ * int (*ndo_fdb_del)(struct ndmsg *ndm, struct nlattr *tb[],
+ *		      struct net_device *dev,
  *		      const unsigned char *addr)
  *	Deletes the FDB entry from dev coresponding to addr.
  * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
@@ -891,6 +896,14 @@ struct netdev_fcoe_hbainfo {
  * int (*ndo_bridge_setlink)(struct net_device *dev, struct nlmsghdr *nlh)
  * int (*ndo_bridge_getlink)(struct sk_buff *skb, u32 pid, u32 seq,
  *			     struct net_device *dev)
+ *
+ * int (*ndo_change_carrier)(struct net_device *dev, bool new_carrier);
+ *	Called to change device carrier. Soft-devices (like dummy, team, etc)
+ *	which do not represent real hardware may define this to allow their
+ *	userspace components to manage their virtual carrier state. Devices
+ *	that determine carrier state from physical hardware properties (eg
+ *	network cables) or protocol-dependent mechanisms (eg
+ *	USB_CDC_NOTIFY_NETWORK_CONNECTION) should NOT implement this function.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -996,6 +1009,7 @@ struct net_device_ops {
 					       const unsigned char *addr,
 					       u16 flags);
 	int			(*ndo_fdb_del)(struct ndmsg *ndm,
+					       struct nlattr *tb[],
 					       struct net_device *dev,
 					       const unsigned char *addr);
 	int			(*ndo_fdb_dump)(struct sk_buff *skb,
@@ -1007,7 +1021,12 @@ struct net_device_ops {
 						      struct nlmsghdr *nlh);
 	int			(*ndo_bridge_getlink)(struct sk_buff *skb,
 						      u32 pid, u32 seq,
-						      struct net_device *dev);
+						      struct net_device *dev,
+						      u32 filter_mask);
+	int			(*ndo_bridge_dellink)(struct net_device *dev,
+						      struct nlmsghdr *nlh);
+	int			(*ndo_change_carrier)(struct net_device *dev,
+						      bool new_carrier);
 };
 
 /*
@@ -1158,9 +1177,7 @@ struct net_device {
 						 * avoid dirtying this cache line.
 						 */
 
-	struct net_device	*master; /* Pointer to master device of a group,
-					  * which this device is member of.
-					  */
+	struct list_head	upper_dev_list; /* List of upper devices */
 
 	/* Interface address info used in eth_type_trans() */
 	unsigned char		*dev_addr;	/* hw address, (before bcast
@@ -1260,7 +1277,7 @@ struct net_device {
 	void (*destructor)(struct net_device *dev);
 
 #ifdef CONFIG_NETPOLL
-	struct netpoll_info	*npinfo;
+	struct netpoll_info __rcu	*npinfo;
 #endif
 
 #ifdef CONFIG_NET_NS
@@ -1274,9 +1291,12 @@ struct net_device {
 		struct pcpu_lstats __percpu	*lstats; /* loopback stats */
 		struct pcpu_tstats __percpu	*tstats; /* tunnel stats */
 		struct pcpu_dstats __percpu	*dstats; /* dummy stats */
+		struct pcpu_vstats __percpu	*vstats; /* veth stats */
 	};
 	/* GARP */
 	struct garp_port __rcu	*garp_port;
+	/* MRP */
+	struct mrp_port __rcu	*mrp_port;
 
 	/* class/net/name entry */
 	struct device		dev;
@@ -1393,6 +1413,7 @@ static inline void netdev_for_each_tx_queue(struct net_device *dev,
 
 extern struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 					   struct sk_buff *skb);
+extern u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb);
 
 /*
  * Net namespace inlines
@@ -2092,6 +2113,18 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 		__netif_schedule(txq->qdisc);
 }
 
+#ifdef CONFIG_XPS
+extern int netif_set_xps_queue(struct net_device *dev, struct cpumask *mask,
+			       u16 index);
+#else
+static inline int netif_set_xps_queue(struct net_device *dev,
+				      struct cpumask *mask,
+				      u16 index)
+{
+	return 0;
+}
+#endif
+
 /*
  * Returns a Tx hash for the given packet when dev->real_num_tx_queues is used
  * as a distribution range limit for the returned value.
@@ -2194,6 +2227,8 @@ extern int		dev_set_mtu(struct net_device *, int);
 extern void		dev_set_group(struct net_device *, int);
 extern int		dev_set_mac_address(struct net_device *,
 					    struct sockaddr *);
+extern int		dev_change_carrier(struct net_device *,
+					   bool new_carrier);
 extern int		dev_hard_start_xmit(struct sk_buff *skb,
 					    struct net_device *dev,
 					    struct netdev_queue *txq);
@@ -2611,7 +2646,6 @@ extern void		netdev_notify_peers(struct net_device *dev);
 extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(struct net *net, const char *name);
-extern void		dev_mcast_init(void);
 extern struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 					       struct rtnl_link_stats64 *storage);
 extern void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
@@ -2621,12 +2655,30 @@ extern int		netdev_max_backlog;
 extern int		netdev_tstamp_prequeue;
 extern int		weight_p;
 extern int		bpf_jit_enable;
-extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
-extern int netdev_set_bond_master(struct net_device *dev,
-				  struct net_device *master);
+
+extern bool netdev_has_upper_dev(struct net_device *dev,
+				 struct net_device *upper_dev);
+extern bool netdev_has_any_upper_dev(struct net_device *dev);
+extern struct net_device *netdev_master_upper_dev_get(struct net_device *dev);
+extern struct net_device *netdev_master_upper_dev_get_rcu(struct net_device *dev);
+extern int netdev_upper_dev_link(struct net_device *dev,
+				 struct net_device *upper_dev);
+extern int netdev_master_upper_dev_link(struct net_device *dev,
+					struct net_device *upper_dev);
+extern void netdev_upper_dev_unlink(struct net_device *dev,
+				    struct net_device *upper_dev);
 extern int skb_checksum_help(struct sk_buff *skb);
-extern struct sk_buff *skb_gso_segment(struct sk_buff *skb,
-	netdev_features_t features);
+extern struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
+	netdev_features_t features, bool tx_path);
+extern struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
+					  netdev_features_t features);
+
+static inline
+struct sk_buff *skb_gso_segment(struct sk_buff *skb, netdev_features_t features)
+{
+	return __skb_gso_segment(skb, features, true);
+}
+
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
 #else
@@ -2639,9 +2691,9 @@ extern void		net_enable_timestamp(void);
 extern void		net_disable_timestamp(void);
 
 #ifdef CONFIG_PROC_FS
-extern void *dev_seq_start(struct seq_file *seq, loff_t *pos);
-extern void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos);
-extern void dev_seq_stop(struct seq_file *seq, void *v);
+extern int __init dev_proc_init(void);
+#else
+#define dev_proc_init() 0
 #endif
 
 extern int netdev_class_create_file(struct class_attribute *class_attr);
@@ -2842,5 +2894,35 @@ do {								\
 	0;							\
 })
 #endif
+
+/*
+ *	The list of packet types we will receive (as opposed to discard)
+ *	and the routines to invoke.
+ *
+ *	Why 16. Because with 16 the only overlap we get on a hash of the
+ *	low nibble of the protocol value is RARP/SNAP/X.25.
+ *
+ *      NOTE:  That is no longer true with the addition of VLAN tags.  Not
+ *             sure which should go first, but I bet it won't make much
+ *             difference if we are running VLANs.  The good news is that
+ *             this protocol won't be in the list unless compiled in, so
+ *             the average user (w/out VLANs) will not be adversely affected.
+ *             --BLG
+ *
+ *		0800	IP
+ *		8100    802.1Q VLAN
+ *		0001	802.3
+ *		0002	AX.25
+ *		0004	802.2
+ *		8035	RARP
+ *		0005	SNAP
+ *		0805	X.25
+ *		0806	ARP
+ *		8137	IPX
+ *		0009	Localtalk
+ *		86DD	IPv6
+ */
+#define PTYPE_HASH_SIZE	(16)
+#define PTYPE_HASH_MASK	(PTYPE_HASH_SIZE - 1)
 
 #endif	/* _LINUX_NETDEVICE_H */

@@ -75,13 +75,14 @@ static int max77686_buck_set_suspend_disable(struct regulator_dev *rdev)
 {
 	unsigned int val;
 	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
+        int id = rdev_get_id(rdev);
 
-	if (rdev->desc->id == MAX77686_BUCK1)
+	if (id == MAX77686_BUCK1)
 		val = 0x1;
 	else
 		val = 0x1 << MAX77686_OPMODE_BUCK234_SHIFT;
 
-	max77686->opmode[rdev->desc->id] = val;
+	max77686->opmode[id] = val;
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask,
 				  val);
@@ -93,9 +94,10 @@ static int max77686_set_suspend_mode(struct regulator_dev *rdev,
 {
 	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
 	unsigned int val;
+        int id = rdev_get_id(rdev);
 
 	/* BUCK[5-9] doesn't support this feature */
-	if (rdev->desc->id >= MAX77686_BUCK5)
+	if (id >= MAX77686_BUCK5)
 		return 0;
 
 	switch (mode) {
@@ -111,7 +113,7 @@ static int max77686_set_suspend_mode(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	max77686->opmode[rdev->desc->id] = val;
+	max77686->opmode[id] = val;
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask,
 				  val);
@@ -140,7 +142,7 @@ static int max77686_ldo_set_suspend_mode(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	max77686->opmode[rdev->desc->id] = val;
+	max77686->opmode[rdev_get_id(rdev)] = val;
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask,
 				  val);
@@ -152,7 +154,7 @@ static int max77686_enable(struct regulator_dev *rdev)
 
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask,
-				  max77686->opmode[rdev->desc->id]);
+				  max77686->opmode[rdev_get_id(rdev)]);
 }
 
 static int max77686_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
@@ -379,9 +381,10 @@ static struct regulator_desc regulators[] = {
 };
 
 #ifdef CONFIG_OF
-static int max77686_pmic_dt_parse_pdata(struct max77686_dev *iodev,
+static int max77686_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct max77686_platform_data *pdata)
 {
+	struct max77686_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *pmic_np, *regulators_np;
 	struct max77686_regulator_data *rdata;
 	struct of_regulator_match rmatch;
@@ -390,15 +393,15 @@ static int max77686_pmic_dt_parse_pdata(struct max77686_dev *iodev,
 	pmic_np = iodev->dev->of_node;
 	regulators_np = of_find_node_by_name(pmic_np, "voltage-regulators");
 	if (!regulators_np) {
-		dev_err(iodev->dev, "could not find regulators sub-node\n");
+		dev_err(&pdev->dev, "could not find regulators sub-node\n");
 		return -EINVAL;
 	}
 
 	pdata->num_regulators = ARRAY_SIZE(regulators);
-	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
+	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
 			     pdata->num_regulators, GFP_KERNEL);
 	if (!rdata) {
-		dev_err(iodev->dev,
+		dev_err(&pdev->dev,
 			"could not allocate memory for regulator data\n");
 		return -ENOMEM;
 	}
@@ -407,7 +410,7 @@ static int max77686_pmic_dt_parse_pdata(struct max77686_dev *iodev,
 		rmatch.name = regulators[i].name;
 		rmatch.init_data = NULL;
 		rmatch.of_node = NULL;
-		of_regulator_match(iodev->dev, regulators_np, &rmatch, 1);
+		of_regulator_match(&pdev->dev, regulators_np, &rmatch, 1);
 		rdata[i].initdata = rmatch.init_data;
 		rdata[i].of_node = rmatch.of_node;
 	}
@@ -417,7 +420,7 @@ static int max77686_pmic_dt_parse_pdata(struct max77686_dev *iodev,
 	return 0;
 }
 #else
-static int max77686_pmic_dt_parse_pdata(struct max77686_dev *iodev,
+static int max77686_pmic_dt_parse_pdata(struct platform_device *pdev,
 					struct max77686_platform_data *pdata)
 {
 	return 0;
@@ -440,7 +443,7 @@ static int max77686_pmic_probe(struct platform_device *pdev)
 	}
 
 	if (iodev->dev->of_node) {
-		ret = max77686_pmic_dt_parse_pdata(iodev, pdata);
+		ret = max77686_pmic_dt_parse_pdata(pdev, pdata);
 		if (ret)
 			return ret;
 	}

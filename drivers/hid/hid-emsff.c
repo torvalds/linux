@@ -150,18 +150,7 @@ static struct hid_driver ems_driver = {
 	.id_table = ems_devices,
 	.probe = ems_probe,
 };
+module_hid_driver(ems_driver);
 
-static int ems_init(void)
-{
-	return hid_register_driver(&ems_driver);
-}
-
-static void ems_exit(void)
-{
-	hid_unregister_driver(&ems_driver);
-}
-
-module_init(ems_init);
-module_exit(ems_exit);
 MODULE_LICENSE("GPL");
 

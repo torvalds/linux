@@ -1132,6 +1132,7 @@ static void toss_rsb(struct kref *kref)
 	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[r->res_bucket].keep);
 	rsb_insert(r, &ls->ls_rsbtbl[r->res_bucket].toss);
 	r->res_toss_time = jiffies;
+	ls->ls_rsbtbl[r->res_bucket].flags |= DLM_RTF_SHRINK;
 	if (r->res_lvbptr) {
 		dlm_free_lvb(r->res_lvbptr);
 		r->res_lvbptr = NULL;
@@ -1182,7 +1183,7 @@ static void detach_lkb(struct dlm_lkb *lkb)
 static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 {
 	struct dlm_lkb *lkb;
-	int rv, id;
+	int rv;
 
 	lkb = dlm_allocate_lkb(ls);
 	if (!lkb)
@@ -1198,19 +1199,13 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	mutex_init(&lkb->lkb_cb_mutex);
 	INIT_WORK(&lkb->lkb_cb_work, dlm_callback_work);
 
- retry:
-	rv = idr_pre_get(&ls->ls_lkbidr, GFP_NOFS);
-	if (!rv)
-		return -ENOMEM;
-
+	idr_preload(GFP_NOFS);
 	spin_lock(&ls->ls_lkbidr_spin);
-	rv = idr_get_new_above(&ls->ls_lkbidr, lkb, 1, &id);
-	if (!rv)
-		lkb->lkb_id = id;
+	rv = idr_alloc(&ls->ls_lkbidr, lkb, 1, 0, GFP_NOWAIT);
+	if (rv >= 0)
+		lkb->lkb_id = rv;
 	spin_unlock(&ls->ls_lkbidr_spin);
-
-	if (rv == -EAGAIN)
-		goto retry;
+	idr_preload_end();
 
 	if (rv < 0) {
 		log_error(ls, "create_lkb idr error %d", rv);
@@ -1659,11 +1654,18 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 	char *name;
 	int our_nodeid = dlm_our_nodeid();
 	int remote_count = 0;
+	int need_shrink = 0;
 	int i, len, rv;
 
 	memset(&ls->ls_remove_lens, 0, sizeof(int) * DLM_REMOVE_NAMES_MAX);
 
 	spin_lock(&ls->ls_rsbtbl[b].lock);
+
+	if (!(ls->ls_rsbtbl[b].flags & DLM_RTF_SHRINK)) {
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		return;
+	}
+
 	for (n = rb_first(&ls->ls_rsbtbl[b].toss); n; n = next) {
 		next = rb_next(n);
 		r = rb_entry(n, struct dlm_rsb, res_hashnode);
@@ -1678,6 +1680,8 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		    (dlm_dir_nodeid(r) == our_nodeid)) {
 			continue;
 		}
+
+		need_shrink = 1;
 
 		if (!time_after_eq(jiffies, r->res_toss_time +
 				   dlm_config.ci_toss_secs * HZ)) {
@@ -1710,6 +1714,11 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
 		dlm_free_rsb(r);
 	}
+
+	if (need_shrink)
+		ls->ls_rsbtbl[b].flags |= DLM_RTF_SHRINK;
+	else
+		ls->ls_rsbtbl[b].flags &= ~DLM_RTF_SHRINK;
 	spin_unlock(&ls->ls_rsbtbl[b].lock);
 
 	/*

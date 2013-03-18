@@ -90,7 +90,7 @@ static void ri_tasklet(unsigned long dev)
 		u64_stats_update_end(&dp->tsync);
 
 		rcu_read_lock();
-		skb->dev = dev_get_by_index_rcu(&init_net, skb->skb_iif);
+		skb->dev = dev_get_by_index_rcu(dev_net(_dev), skb->skb_iif);
 		if (!skb->dev) {
 			rcu_read_unlock();
 			dev_kfree_skb(skb);

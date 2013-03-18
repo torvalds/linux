@@ -19,6 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
+#include <linux/mfd/abx500/ab8500-bm.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/regulator/ab8500.h>
 #include <linux/of.h>
@@ -319,6 +320,7 @@ static struct abx500_ops ab8500_ops = {
 	.mask_and_set_register = ab8500_mask_and_set_register,
 	.event_registers_startup_state_get = NULL,
 	.startup_irq_enabled = NULL,
+	.dump_all_banks = ab8500_dump_all_banks,
 };
 
 static void ab8500_irq_lock(struct irq_data *data)
@@ -367,16 +369,48 @@ static void ab8500_irq_mask(struct irq_data *data)
 	int mask = 1 << (offset % 8);
 
 	ab8500->mask[index] |= mask;
+
+	/* The AB8500 GPIOs have two interrupts each (rising & falling). */
+	if (offset >= AB8500_INT_GPIO6R && offset <= AB8500_INT_GPIO41R)
+		ab8500->mask[index + 2] |= mask;
+	if (offset >= AB9540_INT_GPIO50R && offset <= AB9540_INT_GPIO54R)
+		ab8500->mask[index + 1] |= mask;
+	if (offset == AB8540_INT_GPIO43R || offset == AB8540_INT_GPIO44R)
+		/* Here the falling IRQ is one bit lower */
+		ab8500->mask[index] |= (mask << 1);
 }
 
 static void ab8500_irq_unmask(struct irq_data *data)
 {
 	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
+	unsigned int type = irqd_get_trigger_type(data);
 	int offset = data->hwirq;
 	int index = offset / 8;
 	int mask = 1 << (offset % 8);
 
-	ab8500->mask[index] &= ~mask;
+	if (type & IRQ_TYPE_EDGE_RISING)
+		ab8500->mask[index] &= ~mask;
+
+	/* The AB8500 GPIOs have two interrupts each (rising & falling). */
+	if (type & IRQ_TYPE_EDGE_FALLING) {
+		if (offset >= AB8500_INT_GPIO6R && offset <= AB8500_INT_GPIO41R)
+			ab8500->mask[index + 2] &= ~mask;
+		else if (offset >= AB9540_INT_GPIO50R && offset <= AB9540_INT_GPIO54R)
+			ab8500->mask[index + 1] &= ~mask;
+		else if (offset == AB8540_INT_GPIO43R || offset == AB8540_INT_GPIO44R)
+			/* Here the falling IRQ is one bit lower */
+			ab8500->mask[index] &= ~(mask << 1);
+		else
+			ab8500->mask[index] &= ~mask;
+	} else {
+		/* Satisfies the case where type is not set. */
+		ab8500->mask[index] &= ~mask;
+	}
+}
+
+static int ab8500_irq_set_type(struct irq_data *data, unsigned int type)
+{
+	return 0;
 }
 
 static struct irq_chip ab8500_irq_chip = {
@@ -386,6 +420,7 @@ static struct irq_chip ab8500_irq_chip = {
 	.irq_mask		= ab8500_irq_mask,
 	.irq_disable		= ab8500_irq_mask,
 	.irq_unmask		= ab8500_irq_unmask,
+	.irq_set_type		= ab8500_irq_set_type,
 };
 
 static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
@@ -409,6 +444,19 @@ static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 
 		line = (i << 3) + int_bit;
 		latch_val &= ~(1 << int_bit);
+
+		/*
+		 * This handles the falling edge hwirqs from the GPIO
+		 * lines. Route them back to the line registered for the
+		 * rising IRQ, as this is merely a flag for the same IRQ
+		 * in linux terms.
+		 */
+		if (line >= AB8500_INT_GPIO6F && line <= AB8500_INT_GPIO41F)
+			line -= 16;
+		if (line >= AB9540_INT_GPIO50F && line <= AB9540_INT_GPIO54F)
+			line -= 8;
+		if (line == AB8540_INT_GPIO43F || line == AB8540_INT_GPIO44F)
+			line += 1;
 
 		handle_nested_irq(ab8500->irq_base + line);
 	} while (latch_val);
@@ -520,6 +568,7 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 			int virq = ab8500_irq_get_virq(ab8500, line);
 
 			handle_nested_irq(virq);
+			ab8500_debug_register_interrupt(line);
 			value &= ~(1 << bit);
 
 		} while (value);
@@ -749,6 +798,12 @@ static struct resource ab8500_charger_resources[] = {
 		.end = AB8500_INT_CH_WD_EXP,
 		.flags = IORESOURCE_IRQ,
 	},
+	{
+		.name = "VBUS_CH_DROP_END",
+		.start = AB8500_INT_VBUS_CH_DROP_END,
+		.end = AB8500_INT_VBUS_CH_DROP_END,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 static struct resource ab8500_btemp_resources[] = {
@@ -922,7 +977,7 @@ static struct resource ab8505_iddet_resources[] = {
 
 static struct resource ab8500_temp_resources[] = {
 	{
-		.name  = "AB8500_TEMP_WARM",
+		.name  = "ABX500_TEMP_WARM",
 		.start = AB8500_INT_TEMP_WARM,
 		.end   = AB8500_INT_TEMP_WARM,
 		.flags = IORESOURCE_IRQ,
@@ -998,8 +1053,8 @@ static struct mfd_cell abx500_common_devs[] = {
 		.of_compatible = "stericsson,ab8500-denc",
 	},
 	{
-		.name = "ab8500-temp",
-		.of_compatible = "stericsson,ab8500-temp",
+		.name = "abx500-temp",
+		.of_compatible = "stericsson,abx500-temp",
 		.num_resources = ARRAY_SIZE(ab8500_temp_resources),
 		.resources = ab8500_temp_resources,
 	},
@@ -1011,46 +1066,38 @@ static struct mfd_cell ab8500_bm_devs[] = {
 		.of_compatible = "stericsson,ab8500-charger",
 		.num_resources = ARRAY_SIZE(ab8500_charger_resources),
 		.resources = ab8500_charger_resources,
-#ifndef CONFIG_OF
 		.platform_data = &ab8500_bm_data,
 		.pdata_size = sizeof(ab8500_bm_data),
-#endif
 	},
 	{
 		.name = "ab8500-btemp",
 		.of_compatible = "stericsson,ab8500-btemp",
 		.num_resources = ARRAY_SIZE(ab8500_btemp_resources),
 		.resources = ab8500_btemp_resources,
-#ifndef CONFIG_OF
 		.platform_data = &ab8500_bm_data,
 		.pdata_size = sizeof(ab8500_bm_data),
-#endif
 	},
 	{
 		.name = "ab8500-fg",
 		.of_compatible = "stericsson,ab8500-fg",
 		.num_resources = ARRAY_SIZE(ab8500_fg_resources),
 		.resources = ab8500_fg_resources,
-#ifndef CONFIG_OF
 		.platform_data = &ab8500_bm_data,
 		.pdata_size = sizeof(ab8500_bm_data),
-#endif
 	},
 	{
 		.name = "ab8500-chargalg",
 		.of_compatible = "stericsson,ab8500-chargalg",
 		.num_resources = ARRAY_SIZE(ab8500_chargalg_resources),
 		.resources = ab8500_chargalg_resources,
-#ifndef CONFIG_OF
 		.platform_data = &ab8500_bm_data,
 		.pdata_size = sizeof(ab8500_bm_data),
-#endif
 	},
 };
 
 static struct mfd_cell ab8500_devs[] = {
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8500",
 		.of_compatible = "stericsson,ab8500-gpio",
 	},
 	{
@@ -1067,7 +1114,8 @@ static struct mfd_cell ab8500_devs[] = {
 
 static struct mfd_cell ab9540_devs[] = {
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab9540",
+		.of_compatible = "stericsson,ab9540-gpio",
 	},
 	{
 		.name = "ab9540-usb",

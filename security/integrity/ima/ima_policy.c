@@ -16,6 +16,7 @@
 #include <linux/magic.h>
 #include <linux/parser.h>
 #include <linux/slab.h>
+#include <linux/genhd.h>
 
 #include "ima.h"
 
@@ -25,6 +26,7 @@
 #define IMA_FSMAGIC	0x0004
 #define IMA_UID		0x0008
 #define IMA_FOWNER	0x0010
+#define IMA_FSUUID	0x0020
 
 #define UNKNOWN		0
 #define MEASURE		0x0001	/* same as IMA_MEASURE */
@@ -45,10 +47,12 @@ struct ima_rule_entry {
 	enum ima_hooks func;
 	int mask;
 	unsigned long fsmagic;
+	u8 fsuuid[16];
 	kuid_t uid;
 	kuid_t fowner;
 	struct {
 		void *rule;	/* LSM file metadata specific */
+		void *args_p;	/* audit value */
 		int type;	/* audit type */
 	} lsm[MAX_LSM_RULES];
 };
@@ -74,7 +78,7 @@ static struct ima_rule_entry default_rules[] = {
 	{.action = DONT_MEASURE,.fsmagic = BINFMTFS_MAGIC,.flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE,.fsmagic = SECURITYFS_MAGIC,.flags = IMA_FSMAGIC},
 	{.action = DONT_MEASURE,.fsmagic = SELINUX_MAGIC,.flags = IMA_FSMAGIC},
-	{.action = MEASURE,.func = FILE_MMAP,.mask = MAY_EXEC,
+	{.action = MEASURE,.func = MMAP_CHECK,.mask = MAY_EXEC,
 	 .flags = IMA_FUNC | IMA_MASK},
 	{.action = MEASURE,.func = BPRM_CHECK,.mask = MAY_EXEC,
 	 .flags = IMA_FUNC | IMA_MASK},
@@ -119,6 +123,35 @@ static int __init default_appraise_policy_setup(char *str)
 }
 __setup("ima_appraise_tcb", default_appraise_policy_setup);
 
+/* 
+ * Although the IMA policy does not change, the LSM policy can be
+ * reloaded, leaving the IMA LSM based rules referring to the old,
+ * stale LSM policy.
+ *
+ * Update the IMA LSM based rules to reflect the reloaded LSM policy. 
+ * We assume the rules still exist; and BUG_ON() if they don't.
+ */
+static void ima_lsm_update_rules(void)
+{
+	struct ima_rule_entry *entry, *tmp;
+	int result;
+	int i;
+
+	mutex_lock(&ima_rules_mutex);
+	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
+		for (i = 0; i < MAX_LSM_RULES; i++) {
+			if (!entry->lsm[i].rule)
+				continue;
+			result = security_filter_rule_init(entry->lsm[i].type,
+							   Audit_equal,
+							   entry->lsm[i].args_p,
+							   &entry->lsm[i].rule);
+			BUG_ON(!entry->lsm[i].rule);
+		}
+	}
+	mutex_unlock(&ima_rules_mutex);
+}
+
 /**
  * ima_match_rules - determine whether an inode matches the measure rule.
  * @rule: a pointer to a rule
@@ -142,6 +175,9 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 	if ((rule->flags & IMA_FSMAGIC)
 	    && rule->fsmagic != inode->i_sb->s_magic)
 		return false;
+	if ((rule->flags & IMA_FSUUID) &&
+	    memcmp(rule->fsuuid, inode->i_sb->s_uuid, sizeof(rule->fsuuid)))
+		return false;
 	if ((rule->flags & IMA_UID) && !uid_eq(rule->uid, cred->uid))
 		return false;
 	if ((rule->flags & IMA_FOWNER) && !uid_eq(rule->fowner, inode->i_uid))
@@ -149,10 +185,11 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		int rc = 0;
 		u32 osid, sid;
+		int retried = 0;
 
 		if (!rule->lsm[i].rule)
 			continue;
-
+retry:
 		switch (i) {
 		case LSM_OBJ_USER:
 		case LSM_OBJ_ROLE:
@@ -176,10 +213,37 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 		default:
 			break;
 		}
+		if ((rc < 0) && (!retried)) {
+			retried = 1;
+			ima_lsm_update_rules();
+			goto retry;
+		} 
 		if (!rc)
 			return false;
 	}
 	return true;
+}
+
+/*
+ * In addition to knowing that we need to appraise the file in general,
+ * we need to differentiate between calling hooks, for hook specific rules.
+ */
+static int get_subaction(struct ima_rule_entry *rule, int func)
+{
+	if (!(rule->flags & IMA_FUNC))
+		return IMA_FILE_APPRAISE;
+
+	switch(func) {
+	case MMAP_CHECK:
+		return IMA_MMAP_APPRAISE;
+	case BPRM_CHECK:
+		return IMA_BPRM_APPRAISE;
+	case MODULE_CHECK:
+		return IMA_MODULE_APPRAISE;
+	case FILE_CHECK:
+	default:
+		return IMA_FILE_APPRAISE;
+	}
 }
 
 /**
@@ -209,7 +273,12 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		if (!ima_match_rules(entry, inode, func, mask))
 			continue;
 
+		action |= entry->flags & IMA_ACTION_FLAGS;
+
 		action |= entry->action & IMA_DO_MASK;
+		if (entry->action & IMA_APPRAISE)
+			action |= get_subaction(entry, func);
+
 		if (entry->action & IMA_DO_MASK)
 			actmask &= ~(entry->action | entry->action << 1);
 		else
@@ -282,7 +351,8 @@ enum {
 	Opt_audit,
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
-	Opt_func, Opt_mask, Opt_fsmagic, Opt_uid, Opt_fowner
+	Opt_func, Opt_mask, Opt_fsmagic, Opt_uid, Opt_fowner,
+	Opt_appraise_type, Opt_fsuuid
 };
 
 static match_table_t policy_tokens = {
@@ -300,25 +370,35 @@ static match_table_t policy_tokens = {
 	{Opt_func, "func=%s"},
 	{Opt_mask, "mask=%s"},
 	{Opt_fsmagic, "fsmagic=%s"},
+	{Opt_fsuuid, "fsuuid=%s"},
 	{Opt_uid, "uid=%s"},
 	{Opt_fowner, "fowner=%s"},
+	{Opt_appraise_type, "appraise_type=%s"},
 	{Opt_err, NULL}
 };
 
 static int ima_lsm_rule_init(struct ima_rule_entry *entry,
-			     char *args, int lsm_rule, int audit_type)
+			     substring_t *args, int lsm_rule, int audit_type)
 {
 	int result;
 
 	if (entry->lsm[lsm_rule].rule)
 		return -EINVAL;
 
+	entry->lsm[lsm_rule].args_p = match_strdup(args);
+	if (!entry->lsm[lsm_rule].args_p)
+		return -ENOMEM;
+
 	entry->lsm[lsm_rule].type = audit_type;
 	result = security_filter_rule_init(entry->lsm[lsm_rule].type,
-					   Audit_equal, args,
+					   Audit_equal,
+					   entry->lsm[lsm_rule].args_p,
 					   &entry->lsm[lsm_rule].rule);
-	if (!entry->lsm[lsm_rule].rule)
+	if (!entry->lsm[lsm_rule].rule) {
+		kfree(entry->lsm[lsm_rule].args_p);
 		return -EINVAL;
+	}
+
 	return result;
 }
 
@@ -404,8 +484,9 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				entry->func = FILE_CHECK;
 			else if (strcmp(args[0].from, "MODULE_CHECK") == 0)
 				entry->func = MODULE_CHECK;
-			else if (strcmp(args[0].from, "FILE_MMAP") == 0)
-				entry->func = FILE_MMAP;
+			else if ((strcmp(args[0].from, "FILE_MMAP") == 0)
+				|| (strcmp(args[0].from, "MMAP_CHECK") == 0))
+				entry->func = MMAP_CHECK;
 			else if (strcmp(args[0].from, "BPRM_CHECK") == 0)
 				entry->func = BPRM_CHECK;
 			else
@@ -445,6 +526,20 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			if (!result)
 				entry->flags |= IMA_FSMAGIC;
 			break;
+		case Opt_fsuuid:
+			ima_log_string(ab, "fsuuid", args[0].from);
+
+			if (memchr_inv(entry->fsuuid, 0x00,
+				       sizeof(entry->fsuuid))) {
+				result = -EINVAL;
+				break;
+			}
+
+			result = blk_part_pack_uuid(args[0].from,
+						    entry->fsuuid);
+			if (!result)
+				entry->flags |= IMA_FSUUID;
+			break;
 		case Opt_uid:
 			ima_log_string(ab, "uid", args[0].from);
 
@@ -481,39 +576,51 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 			break;
 		case Opt_obj_user:
 			ima_log_string(ab, "obj_user", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_OBJ_USER,
 						   AUDIT_OBJ_USER);
 			break;
 		case Opt_obj_role:
 			ima_log_string(ab, "obj_role", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_OBJ_ROLE,
 						   AUDIT_OBJ_ROLE);
 			break;
 		case Opt_obj_type:
 			ima_log_string(ab, "obj_type", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_OBJ_TYPE,
 						   AUDIT_OBJ_TYPE);
 			break;
 		case Opt_subj_user:
 			ima_log_string(ab, "subj_user", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_SUBJ_USER,
 						   AUDIT_SUBJ_USER);
 			break;
 		case Opt_subj_role:
 			ima_log_string(ab, "subj_role", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_SUBJ_ROLE,
 						   AUDIT_SUBJ_ROLE);
 			break;
 		case Opt_subj_type:
 			ima_log_string(ab, "subj_type", args[0].from);
-			result = ima_lsm_rule_init(entry, args[0].from,
+			result = ima_lsm_rule_init(entry, args,
 						   LSM_SUBJ_TYPE,
 						   AUDIT_SUBJ_TYPE);
+			break;
+		case Opt_appraise_type:
+			if (entry->action != APPRAISE) {
+				result = -EINVAL;
+				break;
+			}
+
+			ima_log_string(ab, "appraise_type", args[0].from);
+			if ((strcmp(args[0].from, "imasig")) == 0)
+				entry->flags |= IMA_DIGSIG_REQUIRED;
+			else
+				result = -EINVAL;
 			break;
 		case Opt_err:
 			ima_log_string(ab, "UNKNOWN", p);
@@ -590,9 +697,13 @@ ssize_t ima_parse_add_rule(char *rule)
 void ima_delete_rules(void)
 {
 	struct ima_rule_entry *entry, *tmp;
+	int i;
 
 	mutex_lock(&ima_rules_mutex);
 	list_for_each_entry_safe(entry, tmp, &ima_policy_rules, list) {
+		for (i = 0; i < MAX_LSM_RULES; i++)
+			kfree(entry->lsm[i].args_p);
+
 		list_del(&entry->list);
 		kfree(entry);
 	}

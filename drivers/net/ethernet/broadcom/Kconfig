@@ -121,4 +121,22 @@ config BNX2X
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
 
+config BNX2X_SRIOV
+	bool "Broadcom 578xx and 57712 SR-IOV support"
+	depends on BNX2X && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support in the 578xx and 57712 products. This
+	  allows for virtual function acceleration in virtual environments.
+
+config BGMAC
+	tristate "BCMA bus GBit core support"
+	depends on BCMA_HOST_SOC && HAS_DMA
+	---help---
+	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BCMA bus.
+	  They can be found on BCM47xx SoCs and provide gigabit ethernet.
+	  In case of using this driver on BCM4706 it's also requires to enable
+	  BCMA_DRIVER_GMAC_CMN to make it work.
+
 endif # NET_VENDOR_BROADCOM

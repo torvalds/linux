@@ -71,10 +71,12 @@ struct lnw_gpio {
 	struct irq_domain		*domain;
 };
 
+#define to_lnw_priv(chip)	container_of(chip, struct lnw_gpio, chip)
+
 static void __iomem *gpio_reg(struct gpio_chip *chip, unsigned offset,
 			enum GPIO_REG reg_type)
 {
-	struct lnw_gpio *lnw = container_of(chip, struct lnw_gpio, chip);
+	struct lnw_gpio *lnw = to_lnw_priv(chip);
 	unsigned nreg = chip->ngpio / 32;
 	u8 reg = offset / 32;
 	void __iomem *ptr;
@@ -86,7 +88,7 @@ static void __iomem *gpio_reg(struct gpio_chip *chip, unsigned offset,
 static void __iomem *gpio_reg_2bit(struct gpio_chip *chip, unsigned offset,
 				   enum GPIO_REG reg_type)
 {
-	struct lnw_gpio *lnw = container_of(chip, struct lnw_gpio, chip);
+	struct lnw_gpio *lnw = to_lnw_priv(chip);
 	unsigned nreg = chip->ngpio / 32;
 	u8 reg = offset / 16;
 	void __iomem *ptr;
@@ -130,7 +132,7 @@ static void lnw_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int lnw_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct lnw_gpio *lnw = container_of(chip, struct lnw_gpio, chip);
+	struct lnw_gpio *lnw = to_lnw_priv(chip);
 	void __iomem *gpdr = gpio_reg(chip, offset, GPDR);
 	u32 value;
 	unsigned long flags;
@@ -153,7 +155,7 @@ static int lnw_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int lnw_gpio_direction_output(struct gpio_chip *chip,
 			unsigned offset, int value)
 {
-	struct lnw_gpio *lnw = container_of(chip, struct lnw_gpio, chip);
+	struct lnw_gpio *lnw = to_lnw_priv(chip);
 	void __iomem *gpdr = gpio_reg(chip, offset, GPDR);
 	unsigned long flags;
 
@@ -176,7 +178,7 @@ static int lnw_gpio_direction_output(struct gpio_chip *chip,
 
 static int lnw_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct lnw_gpio *lnw = container_of(chip, struct lnw_gpio, chip);
+	struct lnw_gpio *lnw = to_lnw_priv(chip);
 	return irq_create_mapping(lnw->domain, offset);
 }
 
@@ -234,6 +236,8 @@ static DEFINE_PCI_DEVICE_TABLE(lnw_gpio_ids) = {   /* pin number */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080f), .driver_data = 64 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x081f), .driver_data = 96 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x081a), .driver_data = 96 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x08eb), .driver_data = 96 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x08f7), .driver_data = 96 },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, lnw_gpio_ids);
@@ -299,17 +303,6 @@ static const struct irq_domain_ops lnw_gpio_irq_ops = {
 	.xlate = irq_domain_xlate_twocell,
 };
 
-#ifdef CONFIG_PM
-static int lnw_gpio_runtime_resume(struct device *dev)
-{
-	return 0;
-}
-
-static int lnw_gpio_runtime_suspend(struct device *dev)
-{
-	return 0;
-}
-
 static int lnw_gpio_runtime_idle(struct device *dev)
 {
 	int err = pm_schedule_suspend(dev, 500);
@@ -320,16 +313,8 @@ static int lnw_gpio_runtime_idle(struct device *dev)
 	return -EBUSY;
 }
 
-#else
-#define lnw_gpio_runtime_suspend	NULL
-#define lnw_gpio_runtime_resume		NULL
-#define lnw_gpio_runtime_idle		NULL
-#endif
-
 static const struct dev_pm_ops lnw_gpio_pm_ops = {
-	.runtime_suspend = lnw_gpio_runtime_suspend,
-	.runtime_resume = lnw_gpio_runtime_resume,
-	.runtime_idle = lnw_gpio_runtime_idle,
+	SET_RUNTIME_PM_OPS(NULL, NULL, lnw_gpio_runtime_idle)
 };
 
 static int lnw_gpio_probe(struct pci_dev *pdev,
@@ -349,7 +334,7 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 	retval = pci_request_regions(pdev, "langwell_gpio");
 	if (retval) {
 		dev_err(&pdev->dev, "error requesting resources\n");
-		goto err2;
+		goto err_pci_req_region;
 	}
 	/* get the gpio_base from bar1 */
 	start = pci_resource_start(pdev, 1);
@@ -358,7 +343,7 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 	if (!base) {
 		dev_err(&pdev->dev, "error mapping bar1\n");
 		retval = -EFAULT;
-		goto err3;
+		goto err_ioremap;
 	}
 	gpio_base = *((u32 *)base + 1);
 	/* release the IO mapping, since we already get the info from bar1 */
@@ -370,21 +355,21 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 	if (!base) {
 		dev_err(&pdev->dev, "error mapping bar0\n");
 		retval = -EFAULT;
-		goto err3;
+		goto err_ioremap;
 	}
 
-	lnw = devm_kzalloc(&pdev->dev, sizeof(struct lnw_gpio), GFP_KERNEL);
+	lnw = devm_kzalloc(&pdev->dev, sizeof(*lnw), GFP_KERNEL);
 	if (!lnw) {
 		dev_err(&pdev->dev, "can't allocate langwell_gpio chip data\n");
 		retval = -ENOMEM;
-		goto err3;
+		goto err_ioremap;
 	}
 
 	lnw->domain = irq_domain_add_linear(pdev->dev.of_node, ngpio,
 					    &lnw_gpio_irq_ops, lnw);
 	if (!lnw->domain) {
 		retval = -ENOMEM;
-		goto err3;
+		goto err_ioremap;
 	}
 
 	lnw->reg_base = base;
@@ -403,7 +388,7 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 	retval = gpiochip_add(&lnw->chip);
 	if (retval) {
 		dev_err(&pdev->dev, "langwell gpiochip_add error %d\n", retval);
-		goto err3;
+		goto err_ioremap;
 	}
 
 	lnw_irq_init_hw(lnw);
@@ -418,9 +403,9 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 
 	return 0;
 
-err3:
+err_ioremap:
 	pci_release_regions(pdev);
-err2:
+err_pci_req_region:
 	pci_disable_device(pdev);
 	return retval;
 }

@@ -18,6 +18,7 @@
 #include "gfs2.h"
 #include "incore.h"
 #include "glock.h"
+#include "inode.h"
 #include "log.h"
 #include "lops.h"
 #include "meta_io.h"
@@ -142,44 +143,143 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	sb_end_intwrite(sdp->sd_vfs);
 }
 
-/**
- * gfs2_trans_add_bh - Add a to-be-modified buffer to the current transaction
- * @gl: the glock the buffer belongs to
- * @bh: The buffer to add
- * @meta: True in the case of adding metadata
- *
- */
-
-void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
+static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
+					       struct buffer_head *bh,
+					       const struct gfs2_log_operations *lops)
 {
+	struct gfs2_bufdata *bd;
+
+	bd = kmem_cache_zalloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL);
+	bd->bd_bh = bh;
+	bd->bd_gl = gl;
+	bd->bd_ops = lops;
+	INIT_LIST_HEAD(&bd->bd_list);
+	bh->b_private = bd;
+	return bd;
+}
+
+/**
+ * gfs2_trans_add_data - Add a databuf to the transaction.
+ * @gl: The inode glock associated with the buffer
+ * @bh: The buffer to add
+ *
+ * This is used in two distinct cases:
+ * i) In ordered write mode
+ *    We put the data buffer on a list so that we can ensure that its
+ *    synced to disk at the right time
+ * ii) In journaled data mode
+ *    We need to journal the data block in the same way as metadata in
+ *    the functions above. The difference is that here we have a tag
+ *    which is two __be64's being the block number (as per meta data)
+ *    and a flag which says whether the data block needs escaping or
+ *    not. This means we need a new log entry for each 251 or so data
+ *    blocks, which isn't an enormous overhead but twice as much as
+ *    for normal metadata blocks.
+ */
+void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
+{
+	struct gfs2_trans *tr = current->journal_info;
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct address_space *mapping = bh->b_page->mapping;
+	struct gfs2_inode *ip = GFS2_I(mapping->host);
+	struct gfs2_bufdata *bd;
+
+	if (!gfs2_is_jdata(ip)) {
+		gfs2_ordered_add_inode(ip);
+		return;
+	}
+
+	lock_buffer(bh);
+	gfs2_log_lock(sdp);
+	bd = bh->b_private;
+	if (bd == NULL) {
+		gfs2_log_unlock(sdp);
+		unlock_buffer(bh);
+		if (bh->b_private == NULL)
+			bd = gfs2_alloc_bufdata(gl, bh, &gfs2_databuf_lops);
+		lock_buffer(bh);
+		gfs2_log_lock(sdp);
+	}
+	gfs2_assert(sdp, bd->bd_gl == gl);
+	tr->tr_touched = 1;
+	if (list_empty(&bd->bd_list)) {
+		set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
+		set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
+		gfs2_pin(sdp, bd->bd_bh);
+		tr->tr_num_databuf_new++;
+		sdp->sd_log_num_databuf++;
+		list_add_tail(&bd->bd_list, &sdp->sd_log_le_databuf);
+	}
+	gfs2_log_unlock(sdp);
+	unlock_buffer(bh);
+}
+
+static void meta_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
+{
+	struct gfs2_meta_header *mh;
+	struct gfs2_trans *tr;
+
+	tr = current->journal_info;
+	tr->tr_touched = 1;
+	if (!list_empty(&bd->bd_list))
+		return;
+	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
+	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
+	mh = (struct gfs2_meta_header *)bd->bd_bh->b_data;
+	if (unlikely(mh->mh_magic != cpu_to_be32(GFS2_MAGIC))) {
+		printk(KERN_ERR
+		       "Attempting to add uninitialised block to journal (inplace block=%lld)\n",
+		       (unsigned long long)bd->bd_bh->b_blocknr);
+		BUG();
+	}
+	gfs2_pin(sdp, bd->bd_bh);
+	mh->__pad0 = cpu_to_be64(0);
+	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
+	sdp->sd_log_num_buf++;
+	list_add(&bd->bd_list, &sdp->sd_log_le_buf);
+	tr->tr_num_buf_new++;
+}
+
+void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
+{
+
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_bufdata *bd;
 
 	lock_buffer(bh);
 	gfs2_log_lock(sdp);
 	bd = bh->b_private;
-	if (bd)
-		gfs2_assert(sdp, bd->bd_gl == gl);
-	else {
+	if (bd == NULL) {
 		gfs2_log_unlock(sdp);
 		unlock_buffer(bh);
-		gfs2_attach_bufdata(gl, bh, meta);
-		bd = bh->b_private;
+		lock_page(bh->b_page);
+		if (bh->b_private == NULL)
+			bd = gfs2_alloc_bufdata(gl, bh, &gfs2_buf_lops);
+		unlock_page(bh->b_page);
 		lock_buffer(bh);
 		gfs2_log_lock(sdp);
 	}
-	lops_add(sdp, bd);
+	gfs2_assert(sdp, bd->bd_gl == gl);
+	meta_lo_add(sdp, bd);
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
 }
 
 void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
+	struct gfs2_glock *gl = bd->bd_gl;
+	struct gfs2_trans *tr = current->journal_info;
+
 	BUG_ON(!list_empty(&bd->bd_list));
 	BUG_ON(!list_empty(&bd->bd_ail_st_list));
 	BUG_ON(!list_empty(&bd->bd_ail_gl_list));
-	lops_init_le(bd, &gfs2_revoke_lops);
-	lops_add(sdp, bd);
+	bd->bd_ops = &gfs2_revoke_lops;
+	tr->tr_touched = 1;
+	tr->tr_num_revoke++;
+	sdp->sd_log_num_revoke++;
+	atomic_inc(&gl->gl_revokes);
+	set_bit(GLF_LFLUSH, &gl->gl_flags);
+	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
 }
 
 void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)

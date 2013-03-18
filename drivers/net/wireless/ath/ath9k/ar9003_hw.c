@@ -507,28 +507,59 @@ static void ar9003_tx_gain_table_mode4(struct ath_hw *ah)
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9580_1p0_mixed_ob_db_tx_gain_table);
+	else
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9300Modes_mixed_ob_db_tx_gain_table_2p2);
 }
+
+static void ar9003_tx_gain_table_mode5(struct ath_hw *ah)
+{
+	if (AR_SREV_9485_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9485Modes_green_ob_db_tx_gain_1_1);
+	else if (AR_SREV_9340(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9340Modes_ub124_tx_gain_table_1p0);
+	else if (AR_SREV_9580(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9580_1p0_type5_tx_gain_table);
+	else if (AR_SREV_9300_22(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9300Modes_type5_tx_gain_table_2p2);
+}
+
+static void ar9003_tx_gain_table_mode6(struct ath_hw *ah)
+{
+	if (AR_SREV_9340(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9340Modes_low_ob_db_and_spur_tx_gain_table_1p0);
+	else if (AR_SREV_9485_11(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9485Modes_green_spur_ob_db_tx_gain_1_1);
+	else if (AR_SREV_9580(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			ar9580_1p0_type6_tx_gain_table);
+}
+
+typedef void (*ath_txgain_tab)(struct ath_hw *ah);
 
 static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 {
-	switch (ar9003_hw_get_tx_gain_idx(ah)) {
-	case 0:
-	default:
-		ar9003_tx_gain_table_mode0(ah);
-		break;
-	case 1:
-		ar9003_tx_gain_table_mode1(ah);
-		break;
-	case 2:
-		ar9003_tx_gain_table_mode2(ah);
-		break;
-	case 3:
-		ar9003_tx_gain_table_mode3(ah);
-		break;
-	case 4:
-		ar9003_tx_gain_table_mode4(ah);
-		break;
-	}
+	static const ath_txgain_tab modes[] = {
+		ar9003_tx_gain_table_mode0,
+		ar9003_tx_gain_table_mode1,
+		ar9003_tx_gain_table_mode2,
+		ar9003_tx_gain_table_mode3,
+		ar9003_tx_gain_table_mode4,
+		ar9003_tx_gain_table_mode5,
+		ar9003_tx_gain_table_mode6,
+	};
+	int idx = ar9003_hw_get_tx_gain_idx(ah);
+
+	if (idx >= ARRAY_SIZE(modes))
+		idx = 0;
+
+	modes[idx](ah);
 }
 
 static void ar9003_rx_gain_table_mode0(struct ath_hw *ah)
@@ -673,7 +704,7 @@ void ar9003_hw_attach_ops(struct ath_hw *ah)
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
-	priv_ops->init_mode_regs = ar9003_hw_init_mode_regs;
+	ar9003_hw_init_mode_regs(ah);
 	priv_ops->init_mode_gain_regs = ar9003_hw_init_mode_gain_regs;
 
 	ops->config_pci_powersave = ar9003_hw_configpcipowersave;

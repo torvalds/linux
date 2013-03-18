@@ -2190,11 +2190,10 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 
-	strcpy(info->driver, "ibm_emac");
-	strcpy(info->version, DRV_VERSION);
-	info->fw_version[0] = '\0';
-	sprintf(info->bus_info, "PPC 4xx EMAC-%d %s",
-		dev->cell_index, dev->ofdev->dev.of_node->full_name);
+	strlcpy(info->driver, "ibm_emac", sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info), "PPC 4xx EMAC-%d %s",
+		 dev->cell_index, dev->ofdev->dev.of_node->full_name);
 	info->regdump_len = emac_ethtool_get_regs_len(ndev);
 }
 

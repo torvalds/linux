@@ -224,7 +224,7 @@ static void cpu_device_release(struct device *dev)
 	 * by the cpu device.
 	 *
 	 * Never copy this way of doing things, or you too will be made fun of
-	 * on the linux-kerenl list, you have been warned.
+	 * on the linux-kernel list, you have been warned.
 	 */
 }
 

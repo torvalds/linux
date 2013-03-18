@@ -46,9 +46,11 @@ static inline void cpu_enter_lowpower(void)
 void imx_cpu_die(unsigned int cpu)
 {
 	cpu_enter_lowpower();
-	imx_enable_cpu(cpu, false);
+	cpu_do_idle();
+}
 
-	/* spin here until hardware takes it down */
-	while (1)
-		;
+int imx_cpu_kill(unsigned int cpu)
+{
+	imx_enable_cpu(cpu, false);
+	return 1;
 }

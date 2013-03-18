@@ -3,8 +3,8 @@
 #
 
 menuconfig IP_SCTP
-	tristate "The SCTP Protocol (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	tristate "The SCTP Protocol"
+	depends on INET
 	depends on IPV6 || IPV6=n
 	select CRYPTO
 	select CRYPTO_HMAC

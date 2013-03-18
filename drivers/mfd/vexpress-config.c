@@ -67,6 +67,7 @@ struct vexpress_config_bridge *vexpress_config_bridge_register(
 
 	return bridge;
 }
+EXPORT_SYMBOL(vexpress_config_bridge_register);
 
 void vexpress_config_bridge_unregister(struct vexpress_config_bridge *bridge)
 {
@@ -83,6 +84,7 @@ void vexpress_config_bridge_unregister(struct vexpress_config_bridge *bridge)
 	while (!list_empty(&__bridge.transactions))
 		cpu_relax();
 }
+EXPORT_SYMBOL(vexpress_config_bridge_unregister);
 
 
 struct vexpress_config_func {
@@ -142,6 +144,7 @@ struct vexpress_config_func *__vexpress_config_func_get(struct device *dev,
 
 	return func;
 }
+EXPORT_SYMBOL(__vexpress_config_func_get);
 
 void vexpress_config_func_put(struct vexpress_config_func *func)
 {
@@ -149,7 +152,7 @@ void vexpress_config_func_put(struct vexpress_config_func *func)
 	of_node_put(func->bridge->node);
 	kfree(func);
 }
-
+EXPORT_SYMBOL(vexpress_config_func_put);
 
 struct vexpress_config_trans {
 	struct vexpress_config_func *func;
@@ -229,6 +232,7 @@ void vexpress_config_complete(struct vexpress_config_bridge *bridge,
 
 	complete(&trans->completion);
 }
+EXPORT_SYMBOL(vexpress_config_complete);
 
 int vexpress_config_wait(struct vexpress_config_trans *trans)
 {
@@ -236,7 +240,7 @@ int vexpress_config_wait(struct vexpress_config_trans *trans)
 
 	return trans->status;
 }
-
+EXPORT_SYMBOL(vexpress_config_wait);
 
 int vexpress_config_read(struct vexpress_config_func *func, int offset,
 		u32 *data)

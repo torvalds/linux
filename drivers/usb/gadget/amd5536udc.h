@@ -563,6 +563,8 @@ struct udc {
 	u16				cur_alt;
 };
 
+#define to_amd5536_udc(g)	(container_of((g), struct udc, gadget))
+
 /* setup request data */
 union udc_setup_data {
 	u32			data[2];

@@ -778,11 +778,9 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 	host->io_base_dma = rc->start;
 
-	host->io_base = devm_request_and_ioremap(&pdev->dev, rc);
-	if (host->io_base == NULL) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->io_base = devm_ioremap_resource(&pdev->dev, rc);
+	if (IS_ERR(host->io_base))
+		return PTR_ERR(host->io_base);
 
 	if (pdev->dev.of_node)
 		host->ncfg = lpc32xx_parse_dt(&pdev->dev);

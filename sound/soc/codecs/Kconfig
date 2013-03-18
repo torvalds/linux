@@ -34,8 +34,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS42L73 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
-	select SND_SOC_CX20442
+	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if I2C
+	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
 	select SND_SOC_DFBMCS320
@@ -98,7 +99,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8782
 	select SND_SOC_WM8804 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
-	select SND_SOC_WM8903 if I2C
+	select SND_SOC_WM8903 if I2C && GENERIC_HARDIRQS
 	select SND_SOC_WM8904 if I2C
 	select SND_SOC_WM8940 if I2C
 	select SND_SOC_WM8955 if I2C
@@ -236,6 +237,7 @@ config SND_SOC_CS4271
 
 config SND_SOC_CX20442
 	tristate
+	depends on TTY
 
 config SND_SOC_JZ4740_CODEC
 	select REGMAP_MMIO
@@ -245,6 +247,9 @@ config SND_SOC_L3
        tristate
 
 config SND_SOC_DA7210
+        tristate
+
+config SND_SOC_DA7213
         tristate
 
 config SND_SOC_DA732X

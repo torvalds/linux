@@ -1399,9 +1399,7 @@ static void digi_read_bulk_callback(struct urb *urb)
 
 static int digi_read_inb_callback(struct urb *urb)
 {
-
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode = ((unsigned char *)urb->transfer_buffer)[0];
 	int len = ((unsigned char *)urb->transfer_buffer)[1];
@@ -1425,7 +1423,6 @@ static int digi_read_inb_callback(struct urb *urb)
 		return -1;
 	}
 
-	tty = tty_port_tty_get(&port->port);
 	spin_lock(&priv->dp_port_lock);
 
 	/* check for throttle; if set, do not resubmit read urb */
@@ -1435,13 +1432,13 @@ static int digi_read_inb_callback(struct urb *urb)
 		priv->dp_throttle_restart = 1;
 
 	/* receive data */
-	if (tty && opcode == DIGI_CMD_RECEIVE_DATA) {
+	if (opcode == DIGI_CMD_RECEIVE_DATA) {
 		/* get flag from port_status */
 		flag = 0;
 
 		/* overrun is special, not associated with a char */
 		if (port_status & DIGI_OVERRUN_ERROR)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 
 		/* break takes precedence over parity, */
 		/* which takes precedence over framing errors */
@@ -1455,13 +1452,12 @@ static int digi_read_inb_callback(struct urb *urb)
 		/* data length is len-1 (one byte of len is port_status) */
 		--len;
 		if (len > 0) {
-			tty_insert_flip_string_fixed_flag(tty, data, flag,
-									len);
-			tty_flip_buffer_push(tty);
+			tty_insert_flip_string_fixed_flag(&port->port, data,
+					flag, len);
+			tty_flip_buffer_push(&port->port);
 		}
 	}
 	spin_unlock(&priv->dp_port_lock);
-	tty_kref_put(tty);
 
 	if (opcode == DIGI_CMD_RECEIVE_DISABLE)
 		dev_dbg(&port->dev, "%s: got RECEIVE_DISABLE\n", __func__);

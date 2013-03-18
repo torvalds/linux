@@ -132,7 +132,7 @@ static struct regulator_ops gpio_regulator_voltage_ops = {
 	.list_voltage = gpio_regulator_list_voltage,
 };
 
-struct gpio_regulator_config *
+static struct gpio_regulator_config *
 of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 {
 	struct gpio_regulator_config *config;
@@ -163,10 +163,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 	config->enable_gpio = of_get_named_gpio(np, "enable-gpio", 0);
 
 	/* Fetch GPIOs. */
-	for (i = 0; ; i++)
-		if (of_get_named_gpio(np, "gpios", i) < 0)
-			break;
-	config->nr_gpios = i;
+	config->nr_gpios = of_gpio_count(np);
 
 	config->gpios = devm_kzalloc(dev,
 				sizeof(struct gpio) * config->nr_gpios,

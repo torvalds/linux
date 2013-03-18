@@ -54,7 +54,7 @@ void install_cpu_nmi_handler(int slice)
 void nmi_cpu_eframe_save(nasid_t nasid, int slice)
 {
 	struct reg_struct *nr;
-	int 		i;
+	int		i;
 
 	/* Get the pointer to the current cpu's register set. */
 	nr = (struct reg_struct *)
@@ -86,12 +86,12 @@ void nmi_cpu_eframe_save(nasid_t nasid, int slice)
 	printk("%s\n", print_tainted());
 	printk("ErrEPC: %016lx %pS\n", nr->error_epc, (void *) nr->error_epc);
 	printk("ra    : %016lx %pS\n", nr->gpr[31], (void *) nr->gpr[31]);
-	printk("Status: %08lx         ", nr->sr);
+	printk("Status: %08lx	      ", nr->sr);
 
 	if (nr->sr & ST0_KX)
 		printk("KX ");
 	if (nr->sr & ST0_SX)
-		printk("SX 	");
+		printk("SX	");
 	if (nr->sr & ST0_UX)
 		printk("UX ");
 

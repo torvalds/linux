@@ -320,7 +320,7 @@ static int lm3630_backlight_register(struct lm3630_chip_data *pchip,
 		    backlight_device_register(name, pchip->dev, pchip,
 					      &lm3630_bank_a_ops, &props);
 		if (IS_ERR(pchip->bled1))
-			return -EIO;
+			return PTR_ERR(pchip->bled1);
 		break;
 	case BLED_2:
 		props.brightness = pdata->init_brt_led2;
@@ -329,7 +329,7 @@ static int lm3630_backlight_register(struct lm3630_chip_data *pchip,
 		    backlight_device_register(name, pchip->dev, pchip,
 					      &lm3630_bank_b_ops, &props);
 		if (IS_ERR(pchip->bled2))
-			return -EIO;
+			return PTR_ERR(pchip->bled2);
 		break;
 	}
 	return 0;

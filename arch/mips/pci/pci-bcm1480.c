@@ -54,8 +54,8 @@
 
 static void *cfg_space;
 
-#define PCI_BUS_ENABLED	1
-#define PCI_DEVICE_MODE	2
+#define PCI_BUS_ENABLED 1
+#define PCI_DEVICE_MODE 2
 
 static int bcm1480_bus_status;
 
@@ -194,7 +194,7 @@ struct pci_controller bcm1480_controller = {
 	.pci_ops	= &bcm1480_pci_ops,
 	.mem_resource	= &bcm1480_mem_resource,
 	.io_resource	= &bcm1480_io_resource,
-	.io_offset      = A_BCM1480_PHYS_PCI_IO_MATCH_BYTES,
+	.io_offset	= A_BCM1480_PHYS_PCI_IO_MATCH_BYTES,
 };
 
 
@@ -227,7 +227,7 @@ static int __init bcm1480_pcibios_init(void)
 					     PCI_COMMAND));
 		if (!(cmdreg & PCI_COMMAND_MASTER)) {
 			printk
-			    ("PCI: Skipping PCI probe.  Bus is not initialized.\n");
+			    ("PCI: Skipping PCI probe.	Bus is not initialized.\n");
 			iounmap(cfg_space);
 			return 1; /* XXX */
 		}

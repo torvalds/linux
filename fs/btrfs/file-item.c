@@ -460,8 +460,8 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		if (!contig)
 			offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 
-		if (!contig && (offset >= ordered->file_offset + ordered->len ||
-		    offset < ordered->file_offset)) {
+		if (offset >= ordered->file_offset + ordered->len ||
+		    offset < ordered->file_offset) {
 			unsigned long bytes_left;
 			sums->len = this_sum_bytes;
 			this_sum_bytes = 0;
@@ -684,6 +684,24 @@ out:
 	return ret;
 }
 
+static u64 btrfs_sector_sum_left(struct btrfs_ordered_sum *sums,
+				 struct btrfs_sector_sum *sector_sum,
+				 u64 total_bytes, u64 sectorsize)
+{
+	u64 tmp = sectorsize;
+	u64 next_sector = sector_sum->bytenr;
+	struct btrfs_sector_sum *next = sector_sum + 1;
+
+	while ((tmp + total_bytes) < sums->len) {
+		if (next_sector + sectorsize != next->bytenr)
+			break;
+		tmp += sectorsize;
+		next_sector = next->bytenr;
+		next++;
+	}
+	return tmp;
+}
+
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   struct btrfs_ordered_sum *sums)
@@ -789,20 +807,32 @@ again:
 		goto insert;
 	}
 
-	if (csum_offset >= btrfs_item_size_nr(leaf, path->slots[0]) /
+	if (csum_offset == btrfs_item_size_nr(leaf, path->slots[0]) /
 	    csum_size) {
-		u32 diff = (csum_offset + 1) * csum_size;
+		int extend_nr;
+		u64 tmp;
+		u32 diff;
+		u32 free_space;
 
-		/*
-		 * is the item big enough already?  we dropped our lock
-		 * before and need to recheck
-		 */
-		if (diff < btrfs_item_size_nr(leaf, path->slots[0]))
-			goto csum;
+		if (btrfs_leaf_free_space(root, leaf) <
+				 sizeof(struct btrfs_item) + csum_size * 2)
+			goto insert;
+
+		free_space = btrfs_leaf_free_space(root, leaf) -
+					 sizeof(struct btrfs_item) - csum_size;
+		tmp = btrfs_sector_sum_left(sums, sector_sum, total_bytes,
+					    root->sectorsize);
+		tmp >>= root->fs_info->sb->s_blocksize_bits;
+		WARN_ON(tmp < 1);
+
+		extend_nr = max_t(int, 1, (int)tmp);
+		diff = (csum_offset + extend_nr) * csum_size;
+		diff = min(diff, MAX_CSUM_ITEMS(root, csum_size) * csum_size);
 
 		diff = diff - btrfs_item_size_nr(leaf, path->slots[0]);
-		if (diff != csum_size)
-			goto insert;
+		diff = min(free_space, diff);
+		diff /= csum_size;
+		diff *= csum_size;
 
 		btrfs_extend_item(trans, root, path, diff);
 		goto csum;
@@ -812,19 +842,14 @@ insert:
 	btrfs_release_path(path);
 	csum_offset = 0;
 	if (found_next) {
-		u64 tmp = total_bytes + root->sectorsize;
-		u64 next_sector = sector_sum->bytenr;
-		struct btrfs_sector_sum *next = sector_sum + 1;
+		u64 tmp;
 
-		while (tmp < sums->len) {
-			if (next_sector + root->sectorsize != next->bytenr)
-				break;
-			tmp += root->sectorsize;
-			next_sector = next->bytenr;
-			next++;
-		}
-		tmp = min(tmp, next_offset - file_key.offset);
+		tmp = btrfs_sector_sum_left(sums, sector_sum, total_bytes,
+					    root->sectorsize);
 		tmp >>= root->fs_info->sb->s_blocksize_bits;
+		tmp = min(tmp, (next_offset - file_key.offset) >>
+					 root->fs_info->sb->s_blocksize_bits);
+
 		tmp = max((u64)1, tmp);
 		tmp = min(tmp, (u64)MAX_CSUM_ITEMS(root, csum_size));
 		ins_size = csum_size * tmp;

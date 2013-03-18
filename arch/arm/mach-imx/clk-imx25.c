@@ -224,6 +224,9 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 
 	clk_prepare_enable(clk[emi_ahb]);
 
+	/* Clock source for gpt must be derived from AHB */
+	clk_set_parent(clk[per5_sel], clk[ahb]);
+
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 
@@ -254,9 +257,9 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.2");
 	clk_register_clkdev(clk[usbotg_ahb], "ahb", "mxc-ehci.2");
 	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.2");
-	clk_register_clkdev(clk[ipg], "ipg", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usbotg_ahb], "ahb", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usb_div], "per", "fsl-usb2-udc");
+	clk_register_clkdev(clk[ipg], "ipg", "imx-udc-mx27");
+	clk_register_clkdev(clk[usbotg_ahb], "ahb", "imx-udc-mx27");
+	clk_register_clkdev(clk[usb_div], "per", "imx-udc-mx27");
 	clk_register_clkdev(clk[nfc_ipg_per], NULL, "imx25-nand.0");
 	/* i.mx25 has the i.mx35 type cspi */
 	clk_register_clkdev(clk[cspi1_ipg], NULL, "imx35-cspi.0");

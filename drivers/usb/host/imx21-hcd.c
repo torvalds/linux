@@ -58,6 +58,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 
 #include "imx21-hcd.h"
 

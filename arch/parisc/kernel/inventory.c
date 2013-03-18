@@ -186,12 +186,14 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 
 	if (status != PDC_OK) {
 		/* no more cell modules or error */
+		kfree(pa_pdc_cell);
 		return status;
 	}
 
 	temp = pa_pdc_cell->cba;
 	dev = alloc_pa_dev(PAT_GET_CBA(temp), &(pa_pdc_cell->mod_path));
 	if (!dev) {
+		kfree(pa_pdc_cell);
 		return PDC_OK;
 	}
 

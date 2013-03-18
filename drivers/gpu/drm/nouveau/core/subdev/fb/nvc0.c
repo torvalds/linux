@@ -145,14 +145,14 @@ nvc0_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	mem->memtype = type;
 	mem->size = size;
 
-	mutex_lock(&mm->mutex);
+	mutex_lock(&pfb->base.mutex);
 	do {
 		if (back)
 			ret = nouveau_mm_tail(mm, 1, size, ncmin, align, &r);
 		else
 			ret = nouveau_mm_head(mm, 1, size, ncmin, align, &r);
 		if (ret) {
-			mutex_unlock(&mm->mutex);
+			mutex_unlock(&pfb->base.mutex);
 			pfb->ram.put(pfb, &mem);
 			return ret;
 		}
@@ -160,7 +160,7 @@ nvc0_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 		list_add_tail(&r->rl_entry, &mem->regions);
 		size -= r->length;
 	} while (size);
-	mutex_unlock(&mm->mutex);
+	mutex_unlock(&pfb->base.mutex);
 
 	r = list_first_entry(&mem->regions, struct nouveau_mm_node, rl_entry);
 	mem->offset = (u64)r->offset << 12;

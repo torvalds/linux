@@ -66,7 +66,6 @@
 #define TP_FLAG_TRACE		1
 #define TP_FLAG_PROFILE		2
 #define TP_FLAG_REGISTERED	4
-#define TP_FLAG_UPROBE		8
 
 
 /* data_rloc: data relative location, compatible with u32 */

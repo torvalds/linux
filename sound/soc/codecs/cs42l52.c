@@ -737,7 +737,7 @@ static const struct cs42l52_clk_para clk_map_table[] = {
 
 static int cs42l52_get_clk(int mclk, int rate)
 {
-	int i, ret = 0;
+	int i, ret = -EINVAL;
 	u_int mclk1, mclk2 = 0;
 
 	for (i = 0; i < ARRAY_SIZE(clk_map_table); i++) {
@@ -749,8 +749,6 @@ static int cs42l52_get_clk(int mclk, int rate)
 			}
 		}
 	}
-	if (ret > ARRAY_SIZE(clk_map_table))
-		return -EINVAL;
 	return ret;
 }
 
@@ -1040,7 +1038,7 @@ static void cs42l52_init_beep(struct snd_soc_codec *codec)
 	struct cs42l52_private *cs42l52 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	cs42l52->beep = input_allocate_device();
+	cs42l52->beep = devm_input_allocate_device(codec->dev);
 	if (!cs42l52->beep) {
 		dev_err(codec->dev, "Failed to allocate beep device\n");
 		return;
@@ -1061,7 +1059,6 @@ static void cs42l52_init_beep(struct snd_soc_codec *codec)
 
 	ret = input_register_device(cs42l52->beep);
 	if (ret != 0) {
-		input_free_device(cs42l52->beep);
 		cs42l52->beep = NULL;
 		dev_err(codec->dev, "Failed to register beep device\n");
 	}
@@ -1078,7 +1075,6 @@ static void cs42l52_free_beep(struct snd_soc_codec *codec)
 	struct cs42l52_private *cs42l52 = snd_soc_codec_get_drvdata(codec);
 
 	device_remove_file(codec->dev, &dev_attr_beep);
-	input_unregister_device(cs42l52->beep);
 	cancel_work_sync(&cs42l52->beep_work);
 	cs42l52->beep = NULL;
 

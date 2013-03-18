@@ -41,7 +41,7 @@ config KVM_BOOK3S_PR
 
 config KVM_BOOK3S_32
 	tristate "KVM support for PowerPC book3s_32 processors"
-	depends on EXPERIMENTAL && PPC_BOOK3S_32 && !SMP && !PTE_64BIT
+	depends on PPC_BOOK3S_32 && !SMP && !PTE_64BIT
 	select KVM
 	select KVM_BOOK3S_32_HANDLER
 	select KVM_BOOK3S_PR
@@ -56,7 +56,7 @@ config KVM_BOOK3S_32
 
 config KVM_BOOK3S_64
 	tristate "KVM support for PowerPC book3s_64 processors"
-	depends on EXPERIMENTAL && PPC_BOOK3S_64
+	depends on PPC_BOOK3S_64
 	select KVM_BOOK3S_64_HANDLER
 	select KVM
 	---help---
@@ -97,7 +97,7 @@ config KVM_BOOKE_HV
 
 config KVM_440
 	bool "KVM support for PowerPC 440 processors"
-	depends on EXPERIMENTAL && 44x
+	depends on 44x
 	select KVM
 	select KVM_MMIO
 	---help---
@@ -122,7 +122,7 @@ config KVM_EXIT_TIMING
 
 config KVM_E500V2
 	bool "KVM support for PowerPC E500v2 processors"
-	depends on EXPERIMENTAL && E500 && !PPC_E500MC
+	depends on E500 && !PPC_E500MC
 	select KVM
 	select KVM_MMIO
 	select MMU_NOTIFIER
@@ -137,7 +137,7 @@ config KVM_E500V2
 
 config KVM_E500MC
 	bool "KVM support for PowerPC E500MC/E5500 processors"
-	depends on EXPERIMENTAL && PPC_E500MC
+	depends on PPC_E500MC
 	select KVM
 	select KVM_MMIO
 	select KVM_BOOKE_HV

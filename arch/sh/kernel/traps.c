@@ -38,7 +38,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 	notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV);
 
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	spin_unlock_irq(&die_lock);
 	oops_exit();
 

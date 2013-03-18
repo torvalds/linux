@@ -226,7 +226,7 @@ void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 
 static void mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 {
-	u64 in_param;
+	u64 in_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {

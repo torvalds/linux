@@ -261,6 +261,22 @@ struct ib_uverbs_dereg_mr {
 	__u32 mr_handle;
 };
 
+struct ib_uverbs_alloc_mw {
+	__u64 response;
+	__u32 pd_handle;
+	__u8  mw_type;
+	__u8  reserved[3];
+};
+
+struct ib_uverbs_alloc_mw_resp {
+	__u32 mw_handle;
+	__u32 rkey;
+};
+
+struct ib_uverbs_dealloc_mw {
+	__u32 mw_handle;
+};
+
 struct ib_uverbs_create_comp_channel {
 	__u64 response;
 };

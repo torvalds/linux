@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/mach-otom.c
+/*
  *
  * Copyright (c) 2004 Nex Vision
  *   Guillaume GOURAT <guillaume.gourat@nexvision.fr>
@@ -6,7 +6,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -19,26 +18,25 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
+#include <linux/platform_data/i2c-s3c2410.h>
+
+#include <asm/irq.h>
+#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/otom-map.h>
-
 #include <mach/hardware.h>
-#include <asm/irq.h>
-#include <asm/mach-types.h>
-
-#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/s3c2410.h>
 #include <plat/clock.h>
-#include <plat/devs.h>
-#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/cpu.h>
+#include <plat/devs.h>
+#include <plat/regs-serial.h>
+#include <plat/s3c2410.h>
 
 #include "common.h"
+#include "otom.h"
 
 static struct map_desc otom11_iodesc[] __initdata = {
   /* Device area */
@@ -118,6 +116,6 @@ MACHINE_START(OTOM, "Nex Vision - Otom 1.1")
 	.map_io		= otom11_map_io,
 	.init_machine	= otom11_init,
 	.init_irq	= s3c24xx_init_irq,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

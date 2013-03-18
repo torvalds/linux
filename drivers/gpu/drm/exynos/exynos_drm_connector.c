@@ -18,7 +18,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 
-#define MAX_EDID 256
 #define to_exynos_connector(x)	container_of(x, struct exynos_drm_connector,\
 				drm_connector)
 
@@ -96,7 +95,9 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 					to_exynos_connector(connector);
 	struct exynos_drm_manager *manager = exynos_connector->manager;
 	struct exynos_drm_display_ops *display_ops = manager->display_ops;
-	unsigned int count;
+	struct edid *edid = NULL;
+	unsigned int count = 0;
+	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -114,27 +115,21 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 	 * because lcd panel has only one mode.
 	 */
 	if (display_ops->get_edid) {
-		int ret;
-		void *edid;
-
-		edid = kzalloc(MAX_EDID, GFP_KERNEL);
-		if (!edid) {
-			DRM_ERROR("failed to allocate edid\n");
-			return 0;
+		edid = display_ops->get_edid(manager->dev, connector);
+		if (IS_ERR_OR_NULL(edid)) {
+			ret = PTR_ERR(edid);
+			edid = NULL;
+			DRM_ERROR("Panel operation get_edid failed %d\n", ret);
+			goto out;
 		}
 
-		ret = display_ops->get_edid(manager->dev, connector,
-						edid, MAX_EDID);
-		if (ret < 0) {
-			DRM_ERROR("failed to get edid data.\n");
-			kfree(edid);
-			edid = NULL;
-			return 0;
+		count = drm_add_edid_modes(connector, edid);
+		if (count < 0) {
+			DRM_ERROR("Add edid modes failed %d\n", count);
+			goto out;
 		}
 
 		drm_mode_connector_update_edid_property(connector, edid);
-		count = drm_add_edid_modes(connector, edid);
-		kfree(edid);
 	} else {
 		struct exynos_drm_panel_info *panel;
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
@@ -161,6 +156,8 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 		count = 1;
 	}
 
+out:
+	kfree(edid);
 	return count;
 }
 

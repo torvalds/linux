@@ -36,6 +36,7 @@ enum input_mode {
 } input_mode = oldaskconfig;
 
 static int indent = 1;
+static int tty_stdio;
 static int valid_stdin = 1;
 static int sync_kconfig;
 static int conf_cnt;
@@ -108,6 +109,8 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 	case oldaskconfig:
 		fflush(stdout);
 		xfgets(line, 128, stdin);
+		if (!tty_stdio)
+			printf("\n");
 		return 1;
 	default:
 		break;
@@ -495,6 +498,8 @@ int main(int ac, char **av)
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
+	tty_stdio = isatty(0) && isatty(1) && isatty(2);
+
 	while ((opt = getopt_long(ac, av, "", long_opts, NULL)) != -1) {
 		input_mode = (enum input_mode)opt;
 		switch (opt) {
@@ -621,7 +626,7 @@ int main(int ac, char **av)
 				return 1;
 			}
 		}
-		valid_stdin = isatty(0) && isatty(1) && isatty(2);
+		valid_stdin = tty_stdio;
 	}
 
 	switch (input_mode) {

@@ -622,15 +622,10 @@ static struct clk_hw_omap gpios_fck_hw = {
 
 DEFINE_STRUCT_CLK(gpios_fck, gpios_fck_parent_names, aes_ick_ops);
 
-static struct clk wu_l4_ick;
-
-DEFINE_STRUCT_CLK_HW_OMAP(wu_l4_ick, "wkup_clkdm");
-DEFINE_STRUCT_CLK(wu_l4_ick, dpll_ck_parent_names, core_ck_ops);
-
 static struct clk gpios_ick;
 
 static const char *gpios_ick_parent_names[] = {
-	"wu_l4_ick",
+	"sys_ck",
 };
 
 static struct clk_hw_omap gpios_ick_hw = {
@@ -1682,13 +1677,6 @@ static struct clk_hw_omap wdt1_ick_hw = {
 
 DEFINE_STRUCT_CLK(wdt1_ick, gpios_ick_parent_names, aes_ick_ops);
 
-static struct clk wdt1_osc_ck;
-
-static const struct clk_ops wdt1_osc_ck_ops = {};
-
-DEFINE_STRUCT_CLK_HW_OMAP(wdt1_osc_ck, NULL);
-DEFINE_STRUCT_CLK(wdt1_osc_ck, sys_ck_parent_names, wdt1_osc_ck_ops);
-
 static struct clk wdt3_fck;
 
 static struct clk_hw_omap wdt3_fck_hw = {
@@ -1767,7 +1755,6 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"func_96m_ck",	&func_96m_ck,	CK_242X),
 	CLK(NULL,	"func_48m_ck",	&func_48m_ck,	CK_242X),
 	CLK(NULL,	"func_12m_ck",	&func_12m_ck,	CK_242X),
-	CLK(NULL,	"ck_wdt1_osc",	&wdt1_osc_ck,	CK_242X),
 	CLK(NULL,	"sys_clkout_src", &sys_clkout_src, CK_242X),
 	CLK(NULL,	"sys_clkout",	&sys_clkout,	CK_242X),
 	CLK(NULL,	"sys_clkout2_src", &sys_clkout2_src, CK_242X),
@@ -1797,7 +1784,6 @@ static struct omap_clk omap2420_clks[] = {
 	/* L4 domain clocks */
 	CLK(NULL,	"l4_ck",	&l4_ck,		CK_242X),
 	CLK(NULL,	"ssi_l4_ick",	&ssi_l4_ick,	CK_242X),
-	CLK(NULL,	"wu_l4_ick",	&wu_l4_ick,	CK_242X),
 	/* virtual meta-group clock */
 	CLK(NULL,	"virt_prcm_set", &virt_prcm_set, CK_242X),
 	/* general l4 interface ck, multi-parent functional clk */
@@ -1934,6 +1920,8 @@ int __init omap2420_clk_init(void)
 		if (!__clk_init(NULL, c->lk.clk))
 			omap2_init_clk_hw_omap_clocks(c->lk.clk);
 	}
+
+	omap2xxx_clkt_vps_late_init();
 
 	omap2_clk_disable_autoidle_all();
 

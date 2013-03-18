@@ -156,10 +156,8 @@ static int init_sdio(struct sdiowm_dev *sdev)
 	spin_lock_init(&tx->lock);
 
 	tx->sdu_buf = kmalloc(SDU_TX_BUF_SIZE, GFP_KERNEL);
-	if (tx->sdu_buf == NULL) {
-		dev_err(&sdev->func->dev, "Failed to allocate SDU tx buffer.\n");
+	if (tx->sdu_buf == NULL)
 		goto fail;
-	}
 
 	for (i = 0; i < MAX_NR_SDU_BUF; i++) {
 		t = alloc_tx_struct(tx);
@@ -185,10 +183,8 @@ static int init_sdio(struct sdiowm_dev *sdev)
 	}
 
 	rx->rx_buf = kmalloc(RX_BUF_SIZE, GFP_KERNEL);
-	if (rx->rx_buf == NULL) {
-		dev_err(&sdev->func->dev, "Failed to allocate rx buffer.\n");
+	if (rx->rx_buf == NULL)
 		goto fail;
-	}
 
 	return 0;
 

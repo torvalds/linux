@@ -499,19 +499,15 @@ static void mct_u232_dtr_rts(struct usb_serial_port *port, int on)
 	unsigned int control_state;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected) {
-		/* drop DTR and RTS */
-		spin_lock_irq(&priv->lock);
-		if (on)
-			priv->control_state |= TIOCM_DTR | TIOCM_RTS;
-		else
-			priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-		control_state = priv->control_state;
-		spin_unlock_irq(&priv->lock);
-		mct_u232_set_modem_ctrl(port, control_state);
-	}
-	mutex_unlock(&port->serial->disc_mutex);
+	spin_lock_irq(&priv->lock);
+	if (on)
+		priv->control_state |= TIOCM_DTR | TIOCM_RTS;
+	else
+		priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
+	control_state = priv->control_state;
+	spin_unlock_irq(&priv->lock);
+
+	mct_u232_set_modem_ctrl(port, control_state);
 }
 
 static void mct_u232_close(struct usb_serial_port *port)
@@ -531,7 +527,6 @@ static void mct_u232_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int retval;
 	int status = urb->status;
@@ -561,13 +556,9 @@ static void mct_u232_read_int_callback(struct urb *urb)
 	 */
 	if (urb->transfer_buffer_length > 2) {
 		if (urb->actual_length) {
-			tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				tty_insert_flip_string(tty, data,
-						urb->actual_length);
-				tty_flip_buffer_push(tty);
-			}
-			tty_kref_put(tty);
+			tty_insert_flip_string(&port->port, data,
+					urb->actual_length);
+			tty_flip_buffer_push(&port->port);
 		}
 		goto exit;
 	}

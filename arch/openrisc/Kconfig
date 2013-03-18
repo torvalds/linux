@@ -9,7 +9,7 @@ config OPENRISC
 	select OF_EARLY_FLATTREE
 	select IRQ_DOMAIN
 	select HAVE_MEMBLOCK
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
         select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_CHIP
@@ -25,10 +25,6 @@ config OPENRISC
 
 config MMU
 	def_bool y
-
-config SYMBOL_PREFIX
-        string
-        default ""
 
 config HAVE_DMA_ATTRS
 	def_bool y

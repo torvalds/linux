@@ -242,10 +242,12 @@ static void xfrm_replay_advance_bmp(struct xfrm_state *x, __be32 net_seq)
 	u32 diff;
 	struct xfrm_replay_state_esn *replay_esn = x->replay_esn;
 	u32 seq = ntohl(net_seq);
-	u32 pos = (replay_esn->seq - 1) % replay_esn->replay_window;
+	u32 pos;
 
 	if (!replay_esn->replay_window)
 		return;
+
+	pos = (replay_esn->seq - 1) % replay_esn->replay_window;
 
 	if (seq > replay_esn->seq) {
 		diff = seq - replay_esn->seq;

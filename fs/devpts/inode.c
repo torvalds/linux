@@ -243,6 +243,13 @@ static int mknod_ptmx(struct super_block *sb)
 	struct dentry *root = sb->s_root;
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
+	kuid_t root_uid;
+	kgid_t root_gid;
+
+	root_uid = make_kuid(current_user_ns(), 0);
+	root_gid = make_kgid(current_user_ns(), 0);
+	if (!uid_valid(root_uid) || !gid_valid(root_gid))
+		return -EINVAL;
 
 	mutex_lock(&root->d_inode->i_mutex);
 
@@ -273,6 +280,8 @@ static int mknod_ptmx(struct super_block *sb)
 
 	mode = S_IFCHR|opts->ptmxmode;
 	init_special_inode(inode, mode, MKDEV(TTYAUX_MAJOR, 2));
+	inode->i_uid = root_uid;
+	inode->i_gid = root_gid;
 
 	d_add(dentry, inode);
 
@@ -438,6 +447,12 @@ static struct dentry *devpts_mount(struct file_system_type *fs_type,
 	if (error)
 		return ERR_PTR(error);
 
+	/* Require newinstance for all user namespace mounts to ensure
+	 * the mount options are not changed.
+	 */
+	if ((current_user_ns() != &init_user_ns) && !opts.newinstance)
+		return ERR_PTR(-EINVAL);
+
 	if (opts.newinstance)
 		s = sget(fs_type, NULL, set_anon_super, flags, NULL);
 	else
@@ -491,6 +506,9 @@ static struct file_system_type devpts_fs_type = {
 	.name		= "devpts",
 	.mount		= devpts_mount,
 	.kill_sb	= devpts_kill_sb,
+#ifdef CONFIG_DEVPTS_MULTIPLE_INSTANCES
+	.fs_flags	= FS_USERNS_MOUNT | FS_USERNS_DEV_MOUNT,
+#endif
 };
 
 /*

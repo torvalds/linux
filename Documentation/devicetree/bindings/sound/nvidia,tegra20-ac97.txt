@@ -1,0 +1,22 @@
+NVIDIA Tegra 20 AC97 controller
+
+Required properties:
+- compatible : "nvidia,tegra20-ac97"
+- reg : Should contain AC97 controller registers location and length
+- interrupts : Should contain AC97 interrupt
+- nvidia,dma-request-selector : The Tegra DMA controller's phandle and
+  request selector for the AC97 controller
+- nvidia,codec-reset-gpio : The Tegra GPIO controller's phandle and the number
+  of the GPIO used to reset the external AC97 codec
+- nvidia,codec-sync-gpio : The Tegra GPIO controller's phandle and the number
+  of the GPIO corresponding with the AC97 DAP _FS line
+Example:
+
+ac97@70002000 {
+	compatible = "nvidia,tegra20-ac97";
+	reg = <0x70002000 0x200>;
+	interrupts = <0 81 0x04>;
+	nvidia,dma-request-selector = <&apbdma 12>;
+	nvidia,codec-reset-gpio = <&gpio 170 0>;
+	nvidia,codec-sync-gpio = <&gpio 120 0>;
+};

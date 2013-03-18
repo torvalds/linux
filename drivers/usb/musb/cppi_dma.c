@@ -105,7 +105,7 @@ static void cppi_reset_tx(struct cppi_tx_stateram __iomem *tx, u32 ptr)
 	musb_writel(&tx->tx_complete, 0, ptr);
 }
 
-static void __init cppi_pool_init(struct cppi *cppi, struct cppi_channel *c)
+static void cppi_pool_init(struct cppi *cppi, struct cppi_channel *c)
 {
 	int	j;
 
@@ -150,7 +150,7 @@ static void cppi_pool_free(struct cppi_channel *c)
 	c->last_processed = NULL;
 }
 
-static int __init cppi_controller_start(struct dma_controller *c)
+static int cppi_controller_start(struct dma_controller *c)
 {
 	struct cppi	*controller;
 	void __iomem	*tibase;

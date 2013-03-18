@@ -501,12 +501,11 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 	for (i = 0; i < 6; i++)
 		netdev->dev_addr[i] = *(p + 5 - i);
 
-	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 	memcpy(adapter->mac_addr, netdev->dev_addr, netdev->addr_len);
 
 	/* set station address */
 
-	if (!is_valid_ether_addr(netdev->perm_addr))
+	if (!is_valid_ether_addr(netdev->dev_addr))
 		dev_warn(&pdev->dev, "Bad MAC address %pM.\n", netdev->dev_addr);
 
 	return 0;
@@ -1963,10 +1962,12 @@ unwind:
 	while (--i >= 0) {
 		nf = &pbuf->frag_array[i+1];
 		pci_unmap_page(pdev, nf->dma, nf->length, PCI_DMA_TODEVICE);
+		nf->dma = 0ULL;
 	}
 
 	nf = &pbuf->frag_array[0];
 	pci_unmap_single(pdev, nf->dma, skb_headlen(skb), PCI_DMA_TODEVICE);
+	nf->dma = 0ULL;
 
 out_err:
 	return -ENOMEM;
@@ -3175,11 +3176,8 @@ netxen_list_config_vlan_ip(struct netxen_adapter *adapter,
 		}
 
 		cur = kzalloc(sizeof(struct nx_vlan_ip_list), GFP_ATOMIC);
-		if (cur == NULL) {
-			printk(KERN_ERR "%s: failed to add vlan ip to list\n",
-					adapter->netdev->name);
+		if (cur == NULL)
 			return;
-		}
 
 		cur->ip_addr = ifa->ifa_address;
 		list_add_tail(&cur->list, &adapter->vlan_ip_list);

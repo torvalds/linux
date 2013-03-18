@@ -69,7 +69,7 @@ config MMC_SDHCI_PCI
 	  If unsure, say N.
 
 config MMC_RICOH_MMC
-	bool "Ricoh MMC Controller Disabler  (EXPERIMENTAL)"
+	bool "Ricoh MMC Controller Disabler"
 	depends on MMC_SDHCI_PCI
 	help
 	  This adds a pci quirk to disable Ricoh MMC Controller. This
@@ -186,9 +186,6 @@ config MMC_SDHCI_S3C
 	  often referrered to as the HSMMC block in some of the Samsung S3C
 	  range of SoC.
 
-	  Note, due to the problems with DMA, the DMA support is only
-	  available with CONFIG_EXPERIMENTAL is selected.
-
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
@@ -233,13 +230,24 @@ config MMC_SDHCI_SPEAR
 
 config MMC_SDHCI_S3C_DMA
 	bool "DMA support on S3C SDHCI"
-	depends on MMC_SDHCI_S3C && EXPERIMENTAL
+	depends on MMC_SDHCI_S3C
 	help
 	  Enable DMA support on the Samsung S3C SDHCI glue. The DMA
 	  has proved to be problematic if the controller encounters
 	  certain errors, and thus should be treated with care.
 
 	  YMMV.
+
+config MMC_SDHCI_BCM2835
+	tristate "SDHCI platform support for the BCM2835 SD/MMC Controller"
+	depends on ARCH_BCM2835
+	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the BCM2835 SD/MMC controller. If you have a BCM2835
+	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
 
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
@@ -330,8 +338,8 @@ config MMC_MXS
 	  If unsure, say N.
 
 config MMC_TIFM_SD
-	tristate "TI Flash Media MMC/SD Interface support  (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI
+	tristate "TI Flash Media MMC/SD Interface support"
+	depends on PCI
 	select TIFM_CORE
 	help
 	  Say Y here if you want to be able to access MMC/SD cards with
@@ -363,6 +371,13 @@ config MMC_DAVINCI
           This selects the TI DAVINCI Multimedia card Interface.
           If you have an DAVINCI board with a Multimedia Card slot,
           say Y or M here.  If unsure, say N.
+
+config MMC_GOLDFISH
+	tristate "goldfish qemu Multimedia Card Interface support"
+	depends on GOLDFISH
+	help
+	  This selects the Goldfish Multimedia card Interface emulation
+	  found on the Goldfish Android virtual device emulation.
 
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
@@ -410,8 +425,7 @@ config MMC_S3C_PIO
 	  the S3C MCI driver.
 
 config MMC_S3C_DMA
-	bool "Use DMA transfers only (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Use DMA transfers only"
 	help
 	  Use DMA to transfer data between memory and the hardare.
 
@@ -420,7 +434,7 @@ config MMC_S3C_DMA
 	  option is useful.
 
 config MMC_S3C_PIODMA
-	bool "Support for both PIO and DMA (EXPERIMENTAL)"
+	bool "Support for both PIO and DMA"
 	help
 	  Compile both the PIO and DMA transfer routines into the
 	  driver and let the platform select at run-time which one
@@ -431,8 +445,8 @@ config MMC_S3C_PIODMA
 endchoice
 
 config MMC_SDRICOH_CS
-	tristate "MMC/SD driver for Ricoh Bay1Controllers (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI && PCMCIA
+	tristate "MMC/SD driver for Ricoh Bay1Controllers"
+	depends on PCI && PCMCIA
 	help
 	  Say Y here if your Notebook reports a Ricoh Bay1Controller PCMCIA
 	  card whenever you insert a MMC or SD card into the card slot.
@@ -461,7 +475,7 @@ config MMC_SDHI
 
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
-	depends on PCI
+	depends on PCI && GENERIC_HARDIRQS
 	select CB710_CORE
 	help
 	  This option enables support for MMC/SD part of ENE CB710/720 Flash

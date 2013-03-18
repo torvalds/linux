@@ -144,24 +144,24 @@ MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
 
 #define SLIC_GET_SLIC_HANDLE(_adapter, _pslic_handle)                   \
 {                                                                       \
-    spin_lock_irqsave(&_adapter->handle_lock.lock,                      \
+	spin_lock_irqsave(&_adapter->handle_lock.lock,                  \
 			_adapter->handle_lock.flags);                   \
-    _pslic_handle  =  _adapter->pfree_slic_handles;                     \
-    if (_pslic_handle) {                                                \
-	_adapter->pfree_slic_handles = _pslic_handle->next;             \
-    }                                                                   \
-    spin_unlock_irqrestore(&_adapter->handle_lock.lock,                 \
+	_pslic_handle  =  _adapter->pfree_slic_handles;                 \
+	if (_pslic_handle) {                                            \
+		_adapter->pfree_slic_handles = _pslic_handle->next;     \
+	}                                                               \
+	spin_unlock_irqrestore(&_adapter->handle_lock.lock,             \
 			_adapter->handle_lock.flags);                   \
 }
 
 #define SLIC_FREE_SLIC_HANDLE(_adapter, _pslic_handle)                  \
 {                                                                       \
-    _pslic_handle->type = SLIC_HANDLE_FREE;                             \
-    spin_lock_irqsave(&_adapter->handle_lock.lock,                      \
+	_pslic_handle->type = SLIC_HANDLE_FREE;                         \
+	spin_lock_irqsave(&_adapter->handle_lock.lock,                  \
 			_adapter->handle_lock.flags);                   \
-    _pslic_handle->next = _adapter->pfree_slic_handles;                 \
-    _adapter->pfree_slic_handles = _pslic_handle;                       \
-    spin_unlock_irqrestore(&_adapter->handle_lock.lock,                 \
+	_pslic_handle->next = _adapter->pfree_slic_handles;             \
+	_adapter->pfree_slic_handles = _pslic_handle;                   \
+	spin_unlock_irqrestore(&_adapter->handle_lock.lock,             \
 			_adapter->handle_lock.flags);                   \
 }
 
@@ -209,7 +209,7 @@ static u32 slic_crc_init;	/* Is table initialized */
  */
 static void slic_mcast_init_crc32(void)
 {
-	u32 c;		/*  CRC shit reg                 */
+	u32 c;			/*  CRC reg                      */
 	u32 e = 0;		/*  Poly X-or pattern            */
 	int i;			/*  counter                      */
 	int k;			/*  byte being shifted into crc  */
@@ -2930,11 +2930,14 @@ static int slic_if_init(struct adapter *adapter)
 	}
 
 	if (!adapter->queues_initialized) {
-		if ((rc = slic_rspqueue_init(adapter)))
+		rc = slic_rspqueue_init(adapter);
+		if (rc)
 			goto err;
-		if ((rc = slic_cmdq_init(adapter)))
+		rc = slic_cmdq_init(adapter);
+		if (rc)
 			goto err;
-		if ((rc = slic_rcvqueue_init(adapter)))
+		rc = slic_rcvqueue_init(adapter);
+		if (rc)
 			goto err;
 		adapter->queues_initialized = 1;
 	}
@@ -3437,7 +3440,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 					       (eecodesize - 2));
 			/*
 			    if the ucdoe chksum flag bit worked,
-			    we wouldn't need this shit
+			    we wouldn't need this
 			*/
 			if (ee_chksum == calc_chksum)
 				card->config.EepromValid = true;

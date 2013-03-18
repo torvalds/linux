@@ -7,6 +7,57 @@
 #include <asm/page.h>
 #include <asm/ptrace.h>
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+/*
+ * Wrapper to call load_up_altivec from C.
+ * void do_load_up_altivec(struct pt_regs *regs);
+ */
+_GLOBAL(do_load_up_altivec)
+	mflr	r0
+	std	r0, 16(r1)
+	stdu	r1, -112(r1)
+
+	subi	r6, r3, STACK_FRAME_OVERHEAD
+	/* load_up_altivec expects r12=MSR, r13=PACA, and returns
+	 * with r12 = new MSR.
+	 */
+	ld	r12,_MSR(r6)
+	GET_PACA(r13)
+	bl	load_up_altivec
+	std	r12,_MSR(r6)
+
+	ld	r0, 112+16(r1)
+	addi	r1, r1, 112
+	mtlr	r0
+	blr
+
+/* void do_load_up_transact_altivec(struct thread_struct *thread)
+ *
+ * This is similar to load_up_altivec but for the transactional version of the
+ * vector regs.  It doesn't mess with the task MSR or valid flags.
+ * Furthermore, VEC laziness is not supported with TM currently.
+ */
+_GLOBAL(do_load_up_transact_altivec)
+	mfmsr	r6
+	oris	r5,r6,MSR_VEC@h
+	MTMSRD(r5)
+	isync
+
+	li	r4,1
+	stw	r4,THREAD_USED_VR(r3)
+
+	li	r10,THREAD_TRANSACT_VSCR
+	lvx	vr0,r10,r3
+	mtvscr	vr0
+	REST_32VRS_TRANSACT(0,r4,r3)
+
+	/* Disable VEC again. */
+	MTMSRD(r6)
+	isync
+
+	blr
+#endif
+
 /*
  * load_up_altivec(unused, unused, tsk)
  * Disable VMX for the task which had it previously,

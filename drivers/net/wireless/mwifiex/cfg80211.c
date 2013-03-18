@@ -519,8 +519,8 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
  *      - Set by user
  *      - Set bt Country IE
  */
-static int mwifiex_reg_notifier(struct wiphy *wiphy,
-				struct regulatory_request *request)
+static void mwifiex_reg_notifier(struct wiphy *wiphy,
+				 struct regulatory_request *request)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 
@@ -540,8 +540,6 @@ static int mwifiex_reg_notifier(struct wiphy *wiphy,
 		break;
 	}
 	mwifiex_send_domain_info_cmd_fw(wiphy);
-
-	return 0;
 }
 
 /*
@@ -836,6 +834,66 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 	return ret;
 }
 
+static void
+mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 tx_htinfo,
+		     struct rate_info *rate)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	if (adapter->is_hw_11ac_capable) {
+		/* bit[1-0]: 00=LG 01=HT 10=VHT */
+		if (tx_htinfo & BIT(0)) {
+			/* HT */
+			rate->mcs = priv->tx_rate;
+			rate->flags |= RATE_INFO_FLAGS_MCS;
+		}
+		if (tx_htinfo & BIT(1)) {
+			/* VHT */
+			rate->mcs = priv->tx_rate & 0x0F;
+			rate->flags |= RATE_INFO_FLAGS_VHT_MCS;
+		}
+
+		if (tx_htinfo & (BIT(1) | BIT(0))) {
+			/* HT or VHT */
+			switch (tx_htinfo & (BIT(3) | BIT(2))) {
+			case 0:
+				/* This will be 20MHz */
+				break;
+			case (BIT(2)):
+				rate->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+				break;
+			case (BIT(3)):
+				rate->flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+				break;
+			case (BIT(3) | BIT(2)):
+				rate->flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
+				break;
+			}
+
+			if (tx_htinfo & BIT(4))
+				rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
+
+			if ((priv->tx_rate >> 4) == 1)
+				rate->nss = 2;
+			else
+				rate->nss = 1;
+		}
+	} else {
+		/*
+		 * Bit 0 in tx_htinfo indicates that current Tx rate
+		 * is 11n rate. Valid MCS index values for us are 0 to 15.
+		 */
+		if ((tx_htinfo & BIT(0)) && (priv->tx_rate < 16)) {
+			rate->mcs = priv->tx_rate;
+			rate->flags |= RATE_INFO_FLAGS_MCS;
+			if (tx_htinfo & BIT(1))
+				rate->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+			if (tx_htinfo & BIT(2))
+				rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
+		}
+	}
+}
+
 /*
  * This function dumps the station information on a buffer.
  *
@@ -875,20 +933,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			      HostCmd_ACT_GEN_GET, DTIM_PERIOD_I,
 			      &priv->dtim_period);
 
-	/*
-	 * Bit 0 in tx_htinfo indicates that current Tx rate is 11n rate. Valid
-	 * MCS index values for us are 0 to 15.
-	 */
-	if ((priv->tx_htinfo & BIT(0)) && (priv->tx_rate < 16)) {
-		sinfo->txrate.mcs = priv->tx_rate;
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
-		/* 40MHz rate */
-		if (priv->tx_htinfo & BIT(1))
-			sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
-		/* SGI enabled */
-		if (priv->tx_htinfo & BIT(2))
-			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	}
+	mwifiex_parse_htinfo(priv, priv->tx_htinfo, &sinfo->txrate);
 
 	sinfo->signal_avg = priv->bcn_rssi_avg;
 	sinfo->rx_bytes = priv->stats.rx_bytes;
@@ -1297,20 +1342,22 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	/* Set appropriate bands */
 	if (params->chandef.chan->band == IEEE80211_BAND_2GHZ) {
 		bss_cfg->band_cfg = BAND_CONFIG_BG;
+		config_bands = BAND_B | BAND_G;
 
-		if (cfg80211_get_chandef_type(&params->chandef) ==
-						NL80211_CHAN_NO_HT)
-			config_bands = BAND_B | BAND_G;
-		else
-			config_bands = BAND_B | BAND_G | BAND_GN;
+		if (params->chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+			config_bands |= BAND_GN;
+
+		if (params->chandef.width > NL80211_CHAN_WIDTH_40)
+			config_bands |= BAND_GAC;
 	} else {
 		bss_cfg->band_cfg = BAND_CONFIG_A;
+		config_bands = BAND_A;
 
-		if (cfg80211_get_chandef_type(&params->chandef) ==
-						NL80211_CHAN_NO_HT)
-			config_bands = BAND_A;
-		else
-			config_bands = BAND_AN | BAND_A;
+		if (params->chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+			config_bands |= BAND_AN;
+
+		if (params->chandef.width > NL80211_CHAN_WIDTH_40)
+			config_bands |= BAND_AAC;
 	}
 
 	if (!((config_bands | priv->adapter->fw_bands) &
@@ -1327,6 +1374,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	}
 
 	mwifiex_set_ht_params(priv, bss_cfg, params);
+	mwifiex_set_wmm_params(priv, bss_cfg, params);
 
 	if (params->inactivity_timeout > 0) {
 		/* sta_ao_timer/ps_sta_ao_timer is in unit of 100ms */
@@ -1431,7 +1479,7 @@ static int mwifiex_cfg80211_inform_ibss_bss(struct mwifiex_private *priv)
 	bss = cfg80211_inform_bss(priv->wdev->wiphy, chan,
 				  bss_info.bssid, 0, WLAN_CAPABILITY_IBSS,
 				  0, ie_buf, ie_len, 0, GFP_KERNEL);
-	cfg80211_put_bss(bss);
+	cfg80211_put_bss(priv->wdev->wiphy, bss);
 	memcpy(priv->cfg_bssid, bss_info.bssid, ETH_ALEN);
 
 	return 0;
@@ -1459,7 +1507,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	struct cfg80211_ssid req_ssid;
 	int ret, auth_type = 0;
 	struct cfg80211_bss *bss = NULL;
-	u8 is_scanning_required = 0, config_bands = 0;
+	u8 is_scanning_required = 0;
 
 	memset(&req_ssid, 0, sizeof(struct cfg80211_ssid));
 
@@ -1477,19 +1525,6 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 
 	/* disconnect before try to associate */
 	mwifiex_deauthenticate(priv, NULL);
-
-	if (channel) {
-		if (mode == NL80211_IFTYPE_STATION) {
-			if (channel->band == IEEE80211_BAND_2GHZ)
-				config_bands = BAND_B | BAND_G | BAND_GN;
-			else
-				config_bands = BAND_A | BAND_AN;
-
-			if (!((config_bands | priv->adapter->fw_bands) &
-			      ~priv->adapter->fw_bands))
-				priv->adapter->config_bands = config_bands;
-		}
-	}
 
 	/* As this is new association, clear locally stored
 	 * keys and security related flags */
@@ -1707,9 +1742,9 @@ static int mwifiex_set_ibss_params(struct mwifiex_private *priv,
 
 		if (cfg80211_get_chandef_type(&params->chandef) !=
 						NL80211_CHAN_NO_HT)
-			config_bands |= BAND_GN;
+			config_bands |= BAND_G | BAND_GN;
 	} else {
-		if (cfg80211_get_chandef_type(&params->chandef) !=
+		if (cfg80211_get_chandef_type(&params->chandef) ==
 						NL80211_CHAN_NO_HT)
 			config_bands = BAND_A;
 		else
@@ -1834,10 +1869,8 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 
 	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
 				      GFP_KERNEL);
-	if (!priv->user_scan_cfg) {
-		dev_err(priv->adapter->dev, "failed to alloc scan_req\n");
+	if (!priv->user_scan_cfg)
 		return -ENOMEM;
-	}
 
 	priv->scan_request = request;
 
@@ -1893,6 +1926,79 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		}
 	}
 	return 0;
+}
+
+static void mwifiex_setup_vht_caps(struct ieee80211_sta_vht_cap *vht_info,
+				   struct mwifiex_private *priv)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	u32 vht_cap = 0, cap = adapter->hw_dot_11ac_dev_cap;
+
+	vht_info->vht_supported = true;
+
+	switch (GET_VHTCAP_MAXMPDULEN(cap)) {
+	case 0x00:
+		vht_cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
+		break;
+	case 0x01:
+		vht_cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991;
+		break;
+	case 0x10:
+		vht_cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
+	    break;
+	default:
+	    dev_err(adapter->dev, "unsupported MAX MPDU len\n");
+	    break;
+	}
+
+	if (ISSUPP_11ACVHTHTCVHT(cap))
+		vht_cap |= IEEE80211_VHT_CAP_HTC_VHT;
+
+	if (ISSUPP_11ACVHTTXOPPS(cap))
+		vht_cap |= IEEE80211_VHT_CAP_VHT_TXOP_PS;
+
+	if (ISSUPP_11ACMURXBEAMFORMEE(cap))
+		vht_cap |= IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE;
+
+	if (ISSUPP_11ACMUTXBEAMFORMEE(cap))
+		vht_cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
+
+	if (ISSUPP_11ACSUBEAMFORMER(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
+
+	if (ISSUPP_11ACSUBEAMFORMEE(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
+
+	if (ISSUPP_11ACRXSTBC(cap))
+		vht_cap |= IEEE80211_VHT_CAP_RXSTBC_1;
+
+	if (ISSUPP_11ACTXSTBC(cap))
+		vht_cap |= IEEE80211_VHT_CAP_TXSTBC;
+
+	if (ISSUPP_11ACSGI160(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SHORT_GI_160;
+
+	if (ISSUPP_11ACSGI80(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SHORT_GI_80;
+
+	if (ISSUPP_11ACLDPC(cap))
+		vht_cap |= IEEE80211_VHT_CAP_RXLDPC;
+
+	if (ISSUPP_11ACBW8080(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
+
+	if (ISSUPP_11ACBW160(cap))
+		vht_cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
+
+	vht_info->cap = vht_cap;
+
+	/* Update MCS support for VHT */
+	vht_info->vht_mcs.rx_mcs_map = cpu_to_le16(
+				adapter->hw_dot_11ac_mcs_support & 0xFFFF);
+	vht_info->vht_mcs.rx_highest = 0;
+	vht_info->vht_mcs.tx_mcs_map = cpu_to_le16(
+				adapter->hw_dot_11ac_mcs_support >> 16);
+	vht_info->vht_mcs.tx_highest = 0;
 }
 
 /*
@@ -2108,16 +2214,22 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	priv->netdev = dev;
 
 	mwifiex_setup_ht_caps(&wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap, priv);
+	if (adapter->is_hw_11ac_capable)
+		mwifiex_setup_vht_caps(
+			&wiphy->bands[IEEE80211_BAND_2GHZ]->vht_cap, priv);
 
 	if (adapter->config_bands & BAND_A)
 		mwifiex_setup_ht_caps(
 			&wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap, priv);
 
+	if ((adapter->config_bands & BAND_A) && adapter->is_hw_11ac_capable)
+		mwifiex_setup_vht_caps(
+			&wiphy->bands[IEEE80211_BAND_5GHZ]->vht_cap, priv);
+
 	dev_net_set(dev, wiphy_net(wiphy));
 	dev->ieee80211_ptr = priv->wdev;
 	dev->ieee80211_ptr->iftype = priv->bss_mode;
 	memcpy(dev->dev_addr, wiphy->perm_addr, ETH_ALEN);
-	memcpy(dev->perm_addr, wiphy->perm_addr, ETH_ALEN);
 	SET_NETDEV_DEV(dev, wiphy_dev(wiphy));
 
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
@@ -2261,6 +2373,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
+			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_CUSTOM_REGULATORY |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 

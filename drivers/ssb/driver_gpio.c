@@ -74,6 +74,16 @@ static void ssb_gpio_chipco_free(struct gpio_chip *chip, unsigned gpio)
 	ssb_chipco_gpio_pullup(&bus->chipco, 1 << gpio, 0);
 }
 
+static int ssb_gpio_chipco_to_irq(struct gpio_chip *chip, unsigned gpio)
+{
+	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+
+	if (bus->bustype == SSB_BUSTYPE_SSB)
+		return ssb_mips_irq(bus->chipco.dev) + 2;
+	else
+		return -EINVAL;
+}
+
 static int ssb_gpio_chipco_init(struct ssb_bus *bus)
 {
 	struct gpio_chip *chip = &bus->gpio;
@@ -86,6 +96,7 @@ static int ssb_gpio_chipco_init(struct ssb_bus *bus)
 	chip->set		= ssb_gpio_chipco_set_value;
 	chip->direction_input	= ssb_gpio_chipco_direction_input;
 	chip->direction_output	= ssb_gpio_chipco_direction_output;
+	chip->to_irq		= ssb_gpio_chipco_to_irq;
 	chip->ngpio		= 16;
 	/* There is just one SoC in one device and its GPIO addresses should be
 	 * deterministic to address them more easily. The other buses could get
@@ -134,6 +145,16 @@ static int ssb_gpio_extif_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
+static int ssb_gpio_extif_to_irq(struct gpio_chip *chip, unsigned gpio)
+{
+	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+
+	if (bus->bustype == SSB_BUSTYPE_SSB)
+		return ssb_mips_irq(bus->extif.dev) + 2;
+	else
+		return -EINVAL;
+}
+
 static int ssb_gpio_extif_init(struct ssb_bus *bus)
 {
 	struct gpio_chip *chip = &bus->gpio;
@@ -144,6 +165,7 @@ static int ssb_gpio_extif_init(struct ssb_bus *bus)
 	chip->set		= ssb_gpio_extif_set_value;
 	chip->direction_input	= ssb_gpio_extif_direction_input;
 	chip->direction_output	= ssb_gpio_extif_direction_output;
+	chip->to_irq		= ssb_gpio_extif_to_irq;
 	chip->ngpio		= 5;
 	/* There is just one SoC in one device and its GPIO addresses should be
 	 * deterministic to address them more easily. The other buses could get
@@ -171,6 +193,18 @@ int ssb_gpio_init(struct ssb_bus *bus)
 		return ssb_gpio_extif_init(bus);
 	else
 		SSB_WARN_ON(1);
+
+	return -1;
+}
+
+int ssb_gpio_unregister(struct ssb_bus *bus)
+{
+	if (ssb_chipco_available(&bus->chipco) ||
+	    ssb_extif_available(&bus->extif)) {
+		return gpiochip_remove(&bus->gpio);
+	} else {
+		SSB_WARN_ON(1);
+	}
 
 	return -1;
 }

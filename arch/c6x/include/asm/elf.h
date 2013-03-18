@@ -77,9 +77,6 @@ do {								\
 
 #define ELF_PLATFORM  (NULL)
 
-#define SET_PERSONALITY(ex) \
-	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
-
 /* C6X specific section types */
 #define SHT_C6000_UNWIND	0x70000001
 #define SHT_C6000_PREEMPTMAP	0x70000002

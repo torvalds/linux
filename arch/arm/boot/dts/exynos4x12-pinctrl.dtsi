@@ -661,7 +661,7 @@
 
 		sd4_bus8: sd4-bus-width8 {
 			samsung,pins = "gpk1-3", "gpk1-4", "gpk1-5", "gpk1-6";
-			samsung,pin-function = <3>;
+			samsung,pin-function = <4>;
 			samsung,pin-pud = <4>;
 			samsung,pin-drv = <3>;
 		};

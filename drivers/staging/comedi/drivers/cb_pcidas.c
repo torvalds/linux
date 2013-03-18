@@ -67,9 +67,11 @@ TODO:
 analog triggering on 1602 series
 */
 
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "8253.h"
 #include "8255.h"
@@ -1632,11 +1634,6 @@ static int cb_pcidas_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &cb_pcidas_driver);
 }
 
-static void cb_pcidas_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0001) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x000f) },
@@ -1654,7 +1651,7 @@ static struct pci_driver cb_pcidas_pci_driver = {
 	.name		= "cb_pcidas",
 	.id_table	= cb_pcidas_pci_table,
 	.probe		= cb_pcidas_pci_probe,
-	.remove		= cb_pcidas_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(cb_pcidas_driver, cb_pcidas_pci_driver);
 

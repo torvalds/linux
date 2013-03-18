@@ -131,7 +131,7 @@ struct abx500_maxim_parameters {
  * @nominal_voltage:		Nominal voltage of the battery in mV
  * @termination_vol:		max voltage upto which battery can be charged
  * @termination_curr		battery charging termination current in mA
- * @recharge_vol		battery voltage limit that will trigger a new
+ * @recharge_cap		battery capacity limit that will trigger a new
  *				full charging cycle in the case where maintenan-
  *				-ce charging has been disabled
  * @normal_cur_lvl:		charger current in normal state in mA
@@ -160,7 +160,7 @@ struct abx500_battery_type {
 	int nominal_voltage;
 	int termination_vol;
 	int termination_curr;
-	int recharge_vol;
+	int recharge_cap;
 	int normal_cur_lvl;
 	int normal_vol_lvl;
 	int maint_a_cur_lvl;
@@ -224,6 +224,7 @@ struct abx500_bm_charger_parameters {
  * @bkup_bat_v		voltage which we charge the backup battery with
  * @bkup_bat_i		current which we charge the backup battery with
  * @no_maintenance	indicates that maintenance charging is disabled
+ * @capacity_scaling    indicates whether capacity scaling is to be used
  * @abx500_adc_therm	placement of thermistor, batctrl or battemp adc
  * @chg_unknown_bat	flag to enable charging of unknown batteries
  * @enable_overshoot	flag to enable VBAT overshoot control
@@ -253,7 +254,11 @@ struct abx500_bm_data {
 	int usb_safety_tmr_h;
 	int bkup_bat_v;
 	int bkup_bat_i;
+	bool autopower_cfg;
+	bool ac_enabled;
+	bool usb_enabled;
 	bool no_maintenance;
+	bool capacity_scaling;
 	bool chg_unknown_bat;
 	bool enable_overshoot;
 	bool auto_trig;
@@ -272,16 +277,14 @@ struct abx500_bm_data {
 	const struct abx500_fg_parameters *fg_params;
 };
 
-extern struct abx500_bm_data ab8500_bm_data;
-
 enum {
 	NTC_EXTERNAL = 0,
 	NTC_INTERNAL,
 };
 
-int bmdevs_of_probe(struct device *dev,
-		struct device_node *np,
-		struct abx500_bm_data **battery);
+int ab8500_bm_of_probe(struct device *dev,
+		       struct device_node *np,
+		       struct abx500_bm_data *bm);
 
 int abx500_set_register_interruptible(struct device *dev, u8 bank, u8 reg,
 	u8 value);
@@ -308,6 +311,7 @@ int abx500_mask_and_set_register_interruptible(struct device *dev, u8 bank,
 int abx500_get_chip_id(struct device *dev);
 int abx500_event_registers_startup_state_get(struct device *dev, u8 *event);
 int abx500_startup_irq_enabled(struct device *dev, unsigned int irq);
+void abx500_dump_all_banks(void);
 
 struct abx500_ops {
 	int (*get_chip_id) (struct device *);
@@ -318,6 +322,7 @@ struct abx500_ops {
 	int (*mask_and_set_register) (struct device *, u8, u8, u8, u8);
 	int (*event_registers_startup_state_get) (struct device *, u8 *);
 	int (*startup_irq_enabled) (struct device *, unsigned int);
+	void (*dump_all_banks) (struct device *);
 };
 
 int abx500_register_ops(struct device *core_dev, struct abx500_ops *ops);

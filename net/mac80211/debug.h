@@ -44,6 +44,12 @@
 #define MAC80211_MESH_SYNC_DEBUG 0
 #endif
 
+#ifdef CONFIG_MAC80211_MESH_PS_DEBUG
+#define MAC80211_MESH_PS_DEBUG 1
+#else
+#define MAC80211_MESH_PS_DEBUG 0
+#endif
+
 #ifdef CONFIG_MAC80211_TDLS_DEBUG
 #define MAC80211_TDLS_DEBUG 1
 #else
@@ -149,6 +155,10 @@ do {									\
 
 #define msync_dbg(sdata, fmt, ...)					\
 	_sdata_dbg(MAC80211_MESH_SYNC_DEBUG,				\
+		   sdata, fmt, ##__VA_ARGS__)
+
+#define mps_dbg(sdata, fmt, ...)					\
+	_sdata_dbg(MAC80211_MESH_PS_DEBUG,				\
 		   sdata, fmt, ##__VA_ARGS__)
 
 #define tdls_dbg(sdata, fmt, ...)					\

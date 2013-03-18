@@ -614,17 +614,11 @@ bool rtl8723ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int i;
-	bool rtstatus = true;
 	u32 *radioa_array_table;
-	u32 *radiob_array_table;
-	u16 radioa_arraylen, radiob_arraylen;
+	u16 radioa_arraylen;
 
 	radioa_arraylen = Rtl8723ERADIOA_1TARRAYLENGTH;
 	radioa_array_table = RTL8723E_RADIOA_1TARRAY;
-	radiob_arraylen = RTL8723E_RADIOB_1TARRAYLENGTH;
-	radiob_array_table = RTL8723E_RADIOB_1TARRAY;
-
-	rtstatus = true;
 
 	switch (rfpath) {
 	case RF90_PATH_A:
@@ -1106,7 +1100,7 @@ u8 rtl8723ae_phy_sw_chnl(struct ieee80211_hw *hw)
 	if (!(is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
 		rtl8723ae_phy_sw_chnl_callback(hw);
 		RT_TRACE(rtlpriv, COMP_CHAN, DBG_LOUD,
-			 "sw_chnl_inprogress false schdule workitem\n");
+			 "sw_chnl_inprogress false schedule workitem\n");
 		rtlphy->sw_chnl_inprogress = false;
 	} else {
 		RT_TRACE(rtlpriv, COMP_CHAN, DBG_LOUD,
@@ -1531,11 +1525,8 @@ static void _rtl8723ae_phy_iq_calibrate(struct ieee80211_hw *hw,
 		0x522, 0x550, 0x551, 0x040
 	};
 	const u32 retrycount = 2;
-	u32 bbvalue;
 
 	if (t == 0) {
-		bbvalue = rtl_get_bbreg(hw, 0x800, MASKDWORD);
-
 		phy_save_adda_regs(hw, adda_reg, rtlphy->adda_backup, 16);
 		phy_save_mac_regs(hw, iqk_mac_reg, rtlphy->iqk_mac_backup);
 	}
@@ -1712,8 +1703,7 @@ void rtl8723ae_phy_iq_calibrate(struct ieee80211_hw *hw, bool recovery)
 	long result[4][8];
 	u8 i, final_candidate;
 	bool patha_ok, pathb_ok;
-	long reg_e94, reg_e9c, reg_ea4, reg_eac, reg_eb4, reg_ebc, reg_ec4,
-	    reg_ecc, reg_tmp = 0;
+	long reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc, reg_tmp = 0;
 	bool is12simular, is13simular, is23simular;
 	bool start_conttx = false, singletone = false;
 	u32 iqk_bb_reg[10] = {
@@ -1780,21 +1770,15 @@ void rtl8723ae_phy_iq_calibrate(struct ieee80211_hw *hw, bool recovery)
 		reg_e94 = result[i][0];
 		reg_e9c = result[i][1];
 		reg_ea4 = result[i][2];
-		reg_eac = result[i][3];
 		reg_eb4 = result[i][4];
 		reg_ebc = result[i][5];
-		reg_ec4 = result[i][6];
-		reg_ecc = result[i][7];
 	}
 	if (final_candidate != 0xff) {
 		rtlphy->reg_e94 = reg_e94 = result[final_candidate][0];
 		rtlphy->reg_e9c = reg_e9c = result[final_candidate][1];
 		reg_ea4 = result[final_candidate][2];
-		reg_eac = result[final_candidate][3];
 		rtlphy->reg_eb4 = reg_eb4 = result[final_candidate][4];
 		rtlphy->reg_ebc = reg_ebc = result[final_candidate][5];
-		reg_ec4 = result[final_candidate][6];
-		reg_ecc = result[final_candidate][7];
 		patha_ok = pathb_ok = true;
 	} else {
 		rtlphy->reg_e94 = rtlphy->reg_eb4 = 0x100;

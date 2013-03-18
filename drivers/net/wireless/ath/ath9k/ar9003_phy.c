@@ -68,7 +68,7 @@ static const int m2ThreshExt_off = 127;
 static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	u16 bMode, fracMode = 0, aModeRefSel = 0;
-	u32 freq, channelSel = 0, reg32 = 0;
+	u32 freq, chan_frac, div, channelSel = 0, reg32 = 0;
 	struct chan_centers centers;
 	int loadSynthChannel;
 
@@ -77,9 +77,6 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	if (freq < 4800) {     /* 2 GHz, fractional mode */
 		if (AR_SREV_9330(ah)) {
-			u32 chan_frac;
-			u32 div;
-
 			if (ah->is_clk_25mhz)
 				div = 75;
 			else
@@ -89,34 +86,40 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			chan_frac = (((freq * 4) % div) * 0x20000) / div;
 			channelSel = (channelSel << 17) | chan_frac;
 		} else if (AR_SREV_9485(ah) || AR_SREV_9565(ah)) {
-			u32 chan_frac;
-
 			/*
-			 * freq_ref = 40 / (refdiva >> amoderefsel); where refdiva=1 and amoderefsel=0
+			 * freq_ref = 40 / (refdiva >> amoderefsel);
+			 * where refdiva=1 and amoderefsel=0
 			 * ndiv = ((chan_mhz * 4) / 3) / freq_ref;
 			 * chansel = int(ndiv), chanfrac = (ndiv - chansel) * 0x20000
 			 */
 			channelSel = (freq * 4) / 120;
 			chan_frac = (((freq * 4) % 120) * 0x20000) / 120;
 			channelSel = (channelSel << 17) | chan_frac;
-		} else if (AR_SREV_9340(ah) || AR_SREV_9550(ah)) {
+		} else if (AR_SREV_9340(ah)) {
 			if (ah->is_clk_25mhz) {
-				u32 chan_frac;
-
 				channelSel = (freq * 2) / 75;
 				chan_frac = (((freq * 2) % 75) * 0x20000) / 75;
 				channelSel = (channelSel << 17) | chan_frac;
-			} else
+			} else {
 				channelSel = CHANSEL_2G(freq) >> 1;
-		} else
+			}
+		} else if (AR_SREV_9550(ah)) {
+			if (ah->is_clk_25mhz)
+				div = 75;
+			else
+				div = 120;
+
+			channelSel = (freq * 4) / div;
+			chan_frac = (((freq * 4) % div) * 0x20000) / div;
+			channelSel = (channelSel << 17) | chan_frac;
+		} else {
 			channelSel = CHANSEL_2G(freq);
+		}
 		/* Set to 2G mode */
 		bMode = 1;
 	} else {
 		if ((AR_SREV_9340(ah) || AR_SREV_9550(ah)) &&
 		    ah->is_clk_25mhz) {
-			u32 chan_frac;
-
 			channelSel = freq / 75;
 			chan_frac = ((freq % 75) * 0x20000) / 75;
 			channelSel = (channelSel << 17) | chan_frac;
@@ -586,32 +589,19 @@ static void ar9003_hw_init_bb(struct ath_hw *ah,
 	ath9k_hw_synth_delay(ah, chan, synthDelay);
 }
 
-static void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
+void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
 {
-	switch (rx) {
-	case 0x5:
+	if (ah->caps.tx_chainmask == 5 || ah->caps.rx_chainmask == 5)
 		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
 			    AR_PHY_SWAP_ALT_CHAIN);
-	case 0x3:
-	case 0x1:
-	case 0x2:
-	case 0x7:
-		REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx);
-		REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx);
-		break;
-	default:
-		break;
-	}
+
+	REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx);
+	REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx);
 
 	if ((ah->caps.hw_caps & ATH9K_HW_CAP_APM) && (tx == 0x7))
-		REG_WRITE(ah, AR_SELFGEN_MASK, 0x3);
-	else
-		REG_WRITE(ah, AR_SELFGEN_MASK, tx);
+		tx = 3;
 
-	if (tx == 0x5) {
-		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
-			    AR_PHY_SWAP_ALT_CHAIN);
-	}
+	REG_WRITE(ah, AR_SELFGEN_MASK, tx);
 }
 
 /*
@@ -1450,6 +1440,67 @@ set_rfmode:
 	return 0;
 }
 
+static void ar9003_hw_spectral_scan_config(struct ath_hw *ah,
+					   struct ath_spec_scan *param)
+{
+	u8 count;
+
+	if (!param->enabled) {
+		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_ENABLE);
+		return;
+	}
+
+	REG_SET_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_FFT_ENA);
+	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, AR_PHY_SPECTRAL_SCAN_ENABLE);
+
+	/* on AR93xx and newer, count = 0 will make the the chip send
+	 * spectral samples endlessly. Check if this really was intended,
+	 * and fix otherwise.
+	 */
+	count = param->count;
+	if (param->endless)
+		count = 0;
+	else if (param->count == 0)
+		count = 1;
+
+	if (param->short_repeat)
+		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+	else
+		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_COUNT, count);
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_PERIOD, param->period);
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_FFT_PERIOD, param->fft_period);
+
+	return;
+}
+
+static void ar9003_hw_spectral_scan_trigger(struct ath_hw *ah)
+{
+	/* Activate spectral scan */
+	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+		    AR_PHY_SPECTRAL_SCAN_ACTIVE);
+}
+
+static void ar9003_hw_spectral_scan_wait(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	/* Poll for spectral scan complete */
+	if (!ath9k_hw_wait(ah, AR_PHY_SPECTRAL_SCAN,
+			   AR_PHY_SPECTRAL_SCAN_ACTIVE,
+			   0, AH_WAIT_TIMEOUT)) {
+		ath_err(common, "spectral scan wait failed\n");
+		return;
+	}
+}
+
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -1483,6 +1534,9 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	ops->antdiv_comb_conf_get = ar9003_hw_antdiv_comb_conf_get;
 	ops->antdiv_comb_conf_set = ar9003_hw_antdiv_comb_conf_set;
 	ops->antctrl_shared_chain_lnadiv = ar9003_hw_antctrl_shared_chain_lnadiv;
+	ops->spectral_scan_config = ar9003_hw_spectral_scan_config;
+	ops->spectral_scan_trigger = ar9003_hw_spectral_scan_trigger;
+	ops->spectral_scan_wait = ar9003_hw_spectral_scan_wait;
 
 	ar9003_hw_set_nf_limits(ah);
 	ar9003_hw_set_radar_conf(ah);

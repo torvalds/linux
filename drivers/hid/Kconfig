@@ -320,7 +320,7 @@ config HID_LOGITECH_DJ
 	Say Y if you want support for Logitech Unifying receivers and devices.
 	Unifying receivers are capable of pairing up to 6 Logitech compliant
 	devices to the same receiver. Without this driver it will be handled by
-	generic USB_HID driver and all incomming events will be multiplexed
+	generic USB_HID driver and all incoming events will be multiplexed
 	into a single mouse and a single keyboard device.
 
 config LOGITECH_FF
@@ -596,6 +596,12 @@ config HID_SPEEDLINK
 	---help---
 	Support for Speedlink Vicious and Divine Cezanne mouse.
 
+config HID_STEELSERIES
+	tristate "Steelseries SRW-S1 steering wheel support"
+	depends on USB_HID
+	---help---
+	Support for Steelseries SRW-S1 steering wheel
+
 config HID_SUNPLUS
 	tristate "Sunplus wireless desktop"
 	depends on USB_HID
@@ -654,6 +660,16 @@ config HID_TOPSEED
 	---help---
 	Say Y if you have a TopSeed Cyberlink or BTC Emprex or Conceptronic
 	CLLRCMCE remote control.
+
+config HID_THINGM
+	tristate "ThingM blink(1) USB RGB LED"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	---help---
+	Support for the ThingM blink(1) USB RGB LED. This driver registers a
+	Linux LED class instance, plus additional sysfs attributes to control
+	RGB colors, fade time and playing. The device is exposed through hidraw
+	to access other functions.
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"
@@ -719,7 +735,7 @@ config HID_ZYDACRON
 
 config HID_SENSOR_HUB
 	tristate "HID Sensors framework support"
-	depends on USB_HID
+	depends on USB_HID && GENERIC_HARDIRQS
 	select MFD_CORE
 	default n
 	-- help---

@@ -88,6 +88,8 @@ static int instance;
 static int mtip_major;
 static struct dentry *dfs_parent;
 
+static u32 cpu_use[NR_CPUS];
+
 static DEFINE_SPINLOCK(rssd_index_lock);
 static DEFINE_IDA(rssd_index_ida);
 
@@ -296,16 +298,17 @@ static int hba_reset_nosleep(struct driver_data *dd)
  */
 static inline void mtip_issue_ncq_command(struct mtip_port *port, int tag)
 {
+	int group = tag >> 5;
+
 	atomic_set(&port->commands[tag].active, 1);
 
-	spin_lock(&port->cmd_issue_lock);
-
+	/* guard SACT and CI registers */
+	spin_lock(&port->cmd_issue_lock[group]);
 	writel((1 << MTIP_TAG_BIT(tag)),
 			port->s_active[MTIP_TAG_INDEX(tag)]);
 	writel((1 << MTIP_TAG_BIT(tag)),
 			port->cmd_issue[MTIP_TAG_INDEX(tag)]);
-
-	spin_unlock(&port->cmd_issue_lock);
+	spin_unlock(&port->cmd_issue_lock[group]);
 
 	/* Set the command's timeout value.*/
 	port->commands[tag].comp_time = jiffies + msecs_to_jiffies(
@@ -626,12 +629,13 @@ static void mtip_timeout_function(unsigned long int data)
 		}
 	}
 
-	if (cmdto_cnt && !test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags)) {
+	if (cmdto_cnt) {
 		print_tags(port->dd, "timed out", tagaccum, cmdto_cnt);
-
-		mtip_restart_port(port);
+		if (!test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags)) {
+			mtip_restart_port(port);
+			wake_up_interruptible(&port->svc_wait);
+		}
 		clear_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
-		wake_up_interruptible(&port->svc_wait);
 	}
 
 	if (port->ic_pause_timer) {
@@ -963,56 +967,56 @@ handle_tfe_exit:
 /*
  * Handle a set device bits interrupt
  */
-static inline void mtip_process_sdbf(struct driver_data *dd)
+static inline void mtip_workq_sdbfx(struct mtip_port *port, int group,
+							u32 completed)
 {
-	struct mtip_port  *port = dd->port;
-	int group, tag, bit;
-	u32 completed;
+	struct driver_data *dd = port->dd;
+	int tag, bit;
 	struct mtip_cmd *command;
 
-	/* walk all bits in all slot groups */
-	for (group = 0; group < dd->slot_groups; group++) {
-		completed = readl(port->completed[group]);
-		if (!completed)
-			continue;
+	if (!completed) {
+		WARN_ON_ONCE(!completed);
+		return;
+	}
+	/* clear completed status register in the hardware.*/
+	writel(completed, port->completed[group]);
 
-		/* clear completed status register in the hardware.*/
-		writel(completed, port->completed[group]);
+	/* Process completed commands. */
+	for (bit = 0; (bit < 32) && completed; bit++) {
+		if (completed & 0x01) {
+			tag = (group << 5) | bit;
 
-		/* Process completed commands. */
-		for (bit = 0;
-		     (bit < 32) && completed;
-		     bit++, completed >>= 1) {
-			if (completed & 0x01) {
-				tag = (group << 5) | bit;
+			/* skip internal command slot. */
+			if (unlikely(tag == MTIP_TAG_INTERNAL))
+				continue;
 
-				/* skip internal command slot. */
-				if (unlikely(tag == MTIP_TAG_INTERNAL))
-					continue;
+			command = &port->commands[tag];
+			/* make internal callback */
+			if (likely(command->comp_func)) {
+				command->comp_func(
+					port,
+					tag,
+					command->comp_data,
+					0);
+			} else {
+				dev_warn(&dd->pdev->dev,
+					"Null completion "
+					"for tag %d",
+					tag);
 
-				command = &port->commands[tag];
-				/* make internal callback */
-				if (likely(command->comp_func)) {
-					command->comp_func(
-						port,
-						tag,
-						command->comp_data,
-						0);
-				} else {
-					dev_warn(&dd->pdev->dev,
-						"Null completion "
-						"for tag %d",
-						tag);
-
-					if (mtip_check_surprise_removal(
-						dd->pdev)) {
-						mtip_command_cleanup(dd);
-						return;
-					}
+				if (mtip_check_surprise_removal(
+					dd->pdev)) {
+					mtip_command_cleanup(dd);
+					return;
 				}
 			}
 		}
+		completed >>= 1;
 	}
+
+	/* If last, re-enable interrupts */
+	if (atomic_dec_return(&dd->irq_workers_active) == 0)
+		writel(0xffffffff, dd->mmio + HOST_IRQ_STAT);
 }
 
 /*
@@ -1071,6 +1075,8 @@ static inline irqreturn_t mtip_handle_irq(struct driver_data *data)
 	struct mtip_port *port = dd->port;
 	u32 hba_stat, port_stat;
 	int rv = IRQ_NONE;
+	int do_irq_enable = 1, i, workers;
+	struct mtip_work *twork;
 
 	hba_stat = readl(dd->mmio + HOST_IRQ_STAT);
 	if (hba_stat) {
@@ -1081,8 +1087,42 @@ static inline irqreturn_t mtip_handle_irq(struct driver_data *data)
 		writel(port_stat, port->mmio + PORT_IRQ_STAT);
 
 		/* Demux port status */
-		if (likely(port_stat & PORT_IRQ_SDB_FIS))
-			mtip_process_sdbf(dd);
+		if (likely(port_stat & PORT_IRQ_SDB_FIS)) {
+			do_irq_enable = 0;
+			WARN_ON_ONCE(atomic_read(&dd->irq_workers_active) != 0);
+
+			/* Start at 1: group zero is always local? */
+			for (i = 0, workers = 0; i < MTIP_MAX_SLOT_GROUPS;
+									i++) {
+				twork = &dd->work[i];
+				twork->completed = readl(port->completed[i]);
+				if (twork->completed)
+					workers++;
+			}
+
+			atomic_set(&dd->irq_workers_active, workers);
+			if (workers) {
+				for (i = 1; i < MTIP_MAX_SLOT_GROUPS; i++) {
+					twork = &dd->work[i];
+					if (twork->completed)
+						queue_work_on(
+							twork->cpu_binding,
+							dd->isr_workq,
+							&twork->work);
+				}
+
+				if (likely(dd->work[0].completed))
+					mtip_workq_sdbfx(port, 0,
+							dd->work[0].completed);
+
+			} else {
+				/*
+				 * Chip quirk: SDB interrupt but nothing
+				 * to complete
+				 */
+				do_irq_enable = 1;
+			}
+		}
 
 		if (unlikely(port_stat & PORT_IRQ_ERR)) {
 			if (unlikely(mtip_check_surprise_removal(dd->pdev))) {
@@ -1102,18 +1142,10 @@ static inline irqreturn_t mtip_handle_irq(struct driver_data *data)
 	}
 
 	/* acknowledge interrupt */
-	writel(hba_stat, dd->mmio + HOST_IRQ_STAT);
+	if (unlikely(do_irq_enable))
+		writel(hba_stat, dd->mmio + HOST_IRQ_STAT);
 
 	return rv;
-}
-
-/*
- * Wrapper for mtip_handle_irq
- * (ignores return code)
- */
-static void mtip_tasklet(unsigned long data)
-{
-	mtip_handle_irq((struct driver_data *) data);
 }
 
 /*
@@ -1129,8 +1161,8 @@ static void mtip_tasklet(unsigned long data)
 static irqreturn_t mtip_irq_handler(int irq, void *instance)
 {
 	struct driver_data *dd = instance;
-	tasklet_schedule(&dd->tasklet);
-	return IRQ_HANDLED;
+
+	return mtip_handle_irq(dd);
 }
 
 static void mtip_issue_non_ncq_command(struct mtip_port *port, int tag)
@@ -1488,6 +1520,12 @@ static int mtip_get_identify(struct mtip_port *port, void __user *user_buffer)
 	}
 #endif
 
+	/* Demux ID.DRAT & ID.RZAT to determine trim support */
+	if (port->identify[69] & (1 << 14) && port->identify[69] & (1 << 5))
+		port->dd->trim_supp = true;
+	else
+		port->dd->trim_supp = false;
+
 	/* Set the identify buffer as valid. */
 	port->identify_valid = 1;
 
@@ -1671,6 +1709,81 @@ static int mtip_get_smart_attr(struct mtip_port *port, unsigned int id,
 		rv = -EINVAL;
 	}
 
+	return rv;
+}
+
+/*
+ * Trim unused sectors
+ *
+ * @dd		pointer to driver_data structure
+ * @lba		starting lba
+ * @len		# of 512b sectors to trim
+ *
+ * return value
+ *      -ENOMEM		Out of dma memory
+ *      -EINVAL		Invalid parameters passed in, trim not supported
+ *      -EIO		Error submitting trim request to hw
+ */
+static int mtip_send_trim(struct driver_data *dd, unsigned int lba, unsigned int len)
+{
+	int i, rv = 0;
+	u64 tlba, tlen, sect_left;
+	struct mtip_trim_entry *buf;
+	dma_addr_t dma_addr;
+	struct host_to_dev_fis fis;
+
+	if (!len || dd->trim_supp == false)
+		return -EINVAL;
+
+	/* Trim request too big */
+	WARN_ON(len > (MTIP_MAX_TRIM_ENTRY_LEN * MTIP_MAX_TRIM_ENTRIES));
+
+	/* Trim request not aligned on 4k boundary */
+	WARN_ON(len % 8 != 0);
+
+	/* Warn if vu_trim structure is too big */
+	WARN_ON(sizeof(struct mtip_trim) > ATA_SECT_SIZE);
+
+	/* Allocate a DMA buffer for the trim structure */
+	buf = dmam_alloc_coherent(&dd->pdev->dev, ATA_SECT_SIZE, &dma_addr,
+								GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	memset(buf, 0, ATA_SECT_SIZE);
+
+	for (i = 0, sect_left = len, tlba = lba;
+			i < MTIP_MAX_TRIM_ENTRIES && sect_left;
+			i++) {
+		tlen = (sect_left >= MTIP_MAX_TRIM_ENTRY_LEN ?
+					MTIP_MAX_TRIM_ENTRY_LEN :
+					sect_left);
+		buf[i].lba = __force_bit2int cpu_to_le32(tlba);
+		buf[i].range = __force_bit2int cpu_to_le16(tlen);
+		tlba += tlen;
+		sect_left -= tlen;
+	}
+	WARN_ON(sect_left != 0);
+
+	/* Build the fis */
+	memset(&fis, 0, sizeof(struct host_to_dev_fis));
+	fis.type       = 0x27;
+	fis.opts       = 1 << 7;
+	fis.command    = 0xfb;
+	fis.features   = 0x60;
+	fis.sect_count = 1;
+	fis.device     = ATA_DEVICE_OBS;
+
+	if (mtip_exec_internal_command(dd->port,
+					&fis,
+					5,
+					dma_addr,
+					ATA_SECT_SIZE,
+					0,
+					GFP_KERNEL,
+					MTIP_TRIM_TIMEOUT_MS) < 0)
+		rv = -EIO;
+
+	dmam_free_coherent(&dd->pdev->dev, ATA_SECT_SIZE, buf, dma_addr);
 	return rv;
 }
 
@@ -3004,20 +3117,24 @@ static int mtip_hw_init(struct driver_data *dd)
 
 	hba_setup(dd);
 
-	tasklet_init(&dd->tasklet, mtip_tasklet, (unsigned long)dd);
-
-	dd->port = kzalloc(sizeof(struct mtip_port), GFP_KERNEL);
+	dd->port = kzalloc_node(sizeof(struct mtip_port), GFP_KERNEL,
+				dd->numa_node);
 	if (!dd->port) {
 		dev_err(&dd->pdev->dev,
 			"Memory allocation: port structure\n");
 		return -ENOMEM;
 	}
 
+	/* Continue workqueue setup */
+	for (i = 0; i < MTIP_MAX_SLOT_GROUPS; i++)
+		dd->work[i].port = dd->port;
+
 	/* Counting semaphore to track command slot usage */
 	sema_init(&dd->port->cmd_slot, num_command_slots - 1);
 
 	/* Spinlock to prevent concurrent issue */
-	spin_lock_init(&dd->port->cmd_issue_lock);
+	for (i = 0; i < MTIP_MAX_SLOT_GROUPS; i++)
+		spin_lock_init(&dd->port->cmd_issue_lock[i]);
 
 	/* Set the port mmio base address. */
 	dd->port->mmio	= dd->mmio + PORT_OFFSET;
@@ -3164,6 +3281,7 @@ static int mtip_hw_init(struct driver_data *dd)
 			"Unable to allocate IRQ %d\n", dd->pdev->irq);
 		goto out2;
 	}
+	irq_set_affinity_hint(dd->pdev->irq, get_cpu_mask(dd->isr_binding));
 
 	/* Enable interrupts on the HBA. */
 	writel(readl(dd->mmio + HOST_CTL) | HOST_IRQ_EN,
@@ -3240,7 +3358,8 @@ out3:
 	writel(readl(dd->mmio + HOST_CTL) & ~HOST_IRQ_EN,
 			dd->mmio + HOST_CTL);
 
-	/*Release the IRQ. */
+	/* Release the IRQ. */
+	irq_set_affinity_hint(dd->pdev->irq, NULL);
 	devm_free_irq(&dd->pdev->dev, dd->pdev->irq, dd);
 
 out2:
@@ -3290,10 +3409,8 @@ static int mtip_hw_exit(struct driver_data *dd)
 	del_timer_sync(&dd->port->cmd_timer);
 
 	/* Release the IRQ. */
+	irq_set_affinity_hint(dd->pdev->irq, NULL);
 	devm_free_irq(&dd->pdev->dev, dd->pdev->irq, dd);
-
-	/* Stop the bottom half tasklet. */
-	tasklet_kill(&dd->tasklet);
 
 	/* Free the command/command header memory. */
 	dmam_free_coherent(&dd->pdev->dev,
@@ -3640,6 +3757,12 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 		}
 	}
 
+	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+		bio_endio(bio, mtip_send_trim(dd, bio->bi_sector,
+						bio_sectors(bio)));
+		return;
+	}
+
 	if (unlikely(!bio_has_data(bio))) {
 		blk_queue_flush(queue, 0);
 		bio_endio(bio, 0);
@@ -3710,7 +3833,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 		goto protocol_init_error;
 	}
 
-	dd->disk = alloc_disk(MTIP_MAX_MINORS);
+	dd->disk = alloc_disk_node(MTIP_MAX_MINORS, dd->numa_node);
 	if (dd->disk  == NULL) {
 		dev_err(&dd->pdev->dev,
 			"Unable to allocate gendisk structure\n");
@@ -3754,7 +3877,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 
 skip_create_disk:
 	/* Allocate the request queue. */
-	dd->queue = blk_alloc_queue(GFP_KERNEL);
+	dd->queue = blk_alloc_queue_node(GFP_KERNEL, dd->numa_node);
 	if (dd->queue == NULL) {
 		dev_err(&dd->pdev->dev,
 			"Unable to allocate request queue\n");
@@ -3781,6 +3904,15 @@ skip_create_disk:
 	 * write back cache support, hence setting flush support to zero.
 	 */
 	blk_queue_flush(dd->queue, 0);
+
+	/* Signal trim support */
+	if (dd->trim_supp == true) {
+		set_bit(QUEUE_FLAG_DISCARD, &dd->queue->queue_flags);
+		dd->queue->limits.discard_granularity = 4096;
+		blk_queue_max_discard_sectors(dd->queue,
+			MTIP_MAX_TRIM_ENTRY_LEN * MTIP_MAX_TRIM_ENTRIES);
+		dd->queue->limits.discard_zeroes_data = 0;
+	}
 
 	/* Set the capacity of the device in 512 byte sectors. */
 	if (!(mtip_hw_get_capacity(dd, &capacity))) {
@@ -3812,9 +3944,8 @@ skip_create_disk:
 
 start_service_thread:
 	sprintf(thd_name, "mtip_svc_thd_%02d", index);
-
-	dd->mtip_svc_handler = kthread_run(mtip_service_thread,
-						dd, thd_name);
+	dd->mtip_svc_handler = kthread_create_on_node(mtip_service_thread,
+						dd, dd->numa_node, thd_name);
 
 	if (IS_ERR(dd->mtip_svc_handler)) {
 		dev_err(&dd->pdev->dev, "service thread failed to start\n");
@@ -3822,7 +3953,7 @@ start_service_thread:
 		rv = -EFAULT;
 		goto kthread_run_error;
 	}
-
+	wake_up_process(dd->mtip_svc_handler);
 	if (wait_for_rebuild == MTIP_FTL_REBUILD_MAGIC)
 		rv = wait_for_rebuild;
 
@@ -3887,7 +4018,12 @@ static int mtip_block_remove(struct driver_data *dd)
 	 * Delete our gendisk structure. This also removes the device
 	 * from /dev
 	 */
-	del_gendisk(dd->disk);
+	if (dd->disk) {
+		if (dd->disk->queue)
+			del_gendisk(dd->disk);
+		else
+			put_disk(dd->disk);
+	}
 
 	spin_lock(&rssd_index_lock);
 	ida_remove(&rssd_index_ida, dd->index);
@@ -3921,7 +4057,13 @@ static int mtip_block_shutdown(struct driver_data *dd)
 		"Shutting down %s ...\n", dd->disk->disk_name);
 
 	/* Delete our gendisk structure, and cleanup the blk queue. */
-	del_gendisk(dd->disk);
+	if (dd->disk) {
+		if (dd->disk->queue)
+			del_gendisk(dd->disk);
+		else
+			put_disk(dd->disk);
+	}
+
 
 	spin_lock(&rssd_index_lock);
 	ida_remove(&rssd_index_ida, dd->index);
@@ -3951,6 +4093,56 @@ static int mtip_block_resume(struct driver_data *dd)
 	return 0;
 }
 
+static void drop_cpu(int cpu)
+{
+	cpu_use[cpu]--;
+}
+
+static int get_least_used_cpu_on_node(int node)
+{
+	int cpu, least_used_cpu, least_cnt;
+	const struct cpumask *node_mask;
+
+	node_mask = cpumask_of_node(node);
+	least_used_cpu = cpumask_first(node_mask);
+	least_cnt = cpu_use[least_used_cpu];
+	cpu = least_used_cpu;
+
+	for_each_cpu(cpu, node_mask) {
+		if (cpu_use[cpu] < least_cnt) {
+			least_used_cpu = cpu;
+			least_cnt = cpu_use[cpu];
+		}
+	}
+	cpu_use[least_used_cpu]++;
+	return least_used_cpu;
+}
+
+/* Helper for selecting a node in round robin mode */
+static inline int mtip_get_next_rr_node(void)
+{
+	static int next_node = -1;
+
+	if (next_node == -1) {
+		next_node = first_online_node;
+		return next_node;
+	}
+
+	next_node = next_online_node(next_node);
+	if (next_node == MAX_NUMNODES)
+		next_node = first_online_node;
+	return next_node;
+}
+
+static DEFINE_HANDLER(0);
+static DEFINE_HANDLER(1);
+static DEFINE_HANDLER(2);
+static DEFINE_HANDLER(3);
+static DEFINE_HANDLER(4);
+static DEFINE_HANDLER(5);
+static DEFINE_HANDLER(6);
+static DEFINE_HANDLER(7);
+
 /*
  * Called for each supported PCI device detected.
  *
@@ -3965,9 +4157,25 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 {
 	int rv = 0;
 	struct driver_data *dd = NULL;
+	char cpu_list[256];
+	const struct cpumask *node_mask;
+	int cpu, i = 0, j = 0;
+	int my_node = NUMA_NO_NODE;
 
 	/* Allocate memory for this devices private data. */
-	dd = kzalloc(sizeof(struct driver_data), GFP_KERNEL);
+	my_node = pcibus_to_node(pdev->bus);
+	if (my_node != NUMA_NO_NODE) {
+		if (!node_online(my_node))
+			my_node = mtip_get_next_rr_node();
+	} else {
+		dev_info(&pdev->dev, "Kernel not reporting proximity, choosing a node\n");
+		my_node = mtip_get_next_rr_node();
+	}
+	dev_info(&pdev->dev, "NUMA node %d (closest: %d,%d, probe on %d:%d)\n",
+		my_node, pcibus_to_node(pdev->bus), dev_to_node(&pdev->dev),
+		cpu_to_node(smp_processor_id()), smp_processor_id());
+
+	dd = kzalloc_node(sizeof(struct driver_data), GFP_KERNEL, my_node);
 	if (dd == NULL) {
 		dev_err(&pdev->dev,
 			"Unable to allocate memory for driver data\n");
@@ -4004,18 +4212,81 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 		}
 	}
 
-	pci_set_master(pdev);
+	/* Copy the info we may need later into the private data structure. */
+	dd->major	= mtip_major;
+	dd->instance	= instance;
+	dd->pdev	= pdev;
+	dd->numa_node	= my_node;
 
+	memset(dd->workq_name, 0, 32);
+	snprintf(dd->workq_name, 31, "mtipq%d", dd->instance);
+
+	dd->isr_workq = create_workqueue(dd->workq_name);
+	if (!dd->isr_workq) {
+		dev_warn(&pdev->dev, "Can't create wq %d\n", dd->instance);
+		goto block_initialize_err;
+	}
+
+	memset(cpu_list, 0, sizeof(cpu_list));
+
+	node_mask = cpumask_of_node(dd->numa_node);
+	if (!cpumask_empty(node_mask)) {
+		for_each_cpu(cpu, node_mask)
+		{
+			snprintf(&cpu_list[j], 256 - j, "%d ", cpu);
+			j = strlen(cpu_list);
+		}
+
+		dev_info(&pdev->dev, "Node %d on package %d has %d cpu(s): %s\n",
+			dd->numa_node,
+			topology_physical_package_id(cpumask_first(node_mask)),
+			nr_cpus_node(dd->numa_node),
+			cpu_list);
+	} else
+		dev_dbg(&pdev->dev, "mtip32xx: node_mask empty\n");
+
+	dd->isr_binding = get_least_used_cpu_on_node(dd->numa_node);
+	dev_info(&pdev->dev, "Initial IRQ binding node:cpu %d:%d\n",
+		cpu_to_node(dd->isr_binding), dd->isr_binding);
+
+	/* first worker context always runs in ISR */
+	dd->work[0].cpu_binding = dd->isr_binding;
+	dd->work[1].cpu_binding = get_least_used_cpu_on_node(dd->numa_node);
+	dd->work[2].cpu_binding = get_least_used_cpu_on_node(dd->numa_node);
+	dd->work[3].cpu_binding = dd->work[0].cpu_binding;
+	dd->work[4].cpu_binding = dd->work[1].cpu_binding;
+	dd->work[5].cpu_binding = dd->work[2].cpu_binding;
+	dd->work[6].cpu_binding = dd->work[2].cpu_binding;
+	dd->work[7].cpu_binding = dd->work[1].cpu_binding;
+
+	/* Log the bindings */
+	for_each_present_cpu(cpu) {
+		memset(cpu_list, 0, sizeof(cpu_list));
+		for (i = 0, j = 0; i < MTIP_MAX_SLOT_GROUPS; i++) {
+			if (dd->work[i].cpu_binding == cpu) {
+				snprintf(&cpu_list[j], 256 - j, "%d ", i);
+				j = strlen(cpu_list);
+			}
+		}
+		if (j)
+			dev_info(&pdev->dev, "CPU %d: WQs %s\n", cpu, cpu_list);
+	}
+
+	INIT_WORK(&dd->work[0].work, mtip_workq_sdbf0);
+	INIT_WORK(&dd->work[1].work, mtip_workq_sdbf1);
+	INIT_WORK(&dd->work[2].work, mtip_workq_sdbf2);
+	INIT_WORK(&dd->work[3].work, mtip_workq_sdbf3);
+	INIT_WORK(&dd->work[4].work, mtip_workq_sdbf4);
+	INIT_WORK(&dd->work[5].work, mtip_workq_sdbf5);
+	INIT_WORK(&dd->work[6].work, mtip_workq_sdbf6);
+	INIT_WORK(&dd->work[7].work, mtip_workq_sdbf7);
+
+	pci_set_master(pdev);
 	if (pci_enable_msi(pdev)) {
 		dev_warn(&pdev->dev,
 			"Unable to enable MSI interrupt.\n");
 		goto block_initialize_err;
 	}
-
-	/* Copy the info we may need later into the private data structure. */
-	dd->major	= mtip_major;
-	dd->instance	= instance;
-	dd->pdev	= pdev;
 
 	/* Initialize the block layer. */
 	rv = mtip_block_initialize(dd);
@@ -4036,7 +4307,13 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 
 block_initialize_err:
 	pci_disable_msi(pdev);
-
+	if (dd->isr_workq) {
+		flush_workqueue(dd->isr_workq);
+		destroy_workqueue(dd->isr_workq);
+		drop_cpu(dd->work[0].cpu_binding);
+		drop_cpu(dd->work[1].cpu_binding);
+		drop_cpu(dd->work[2].cpu_binding);
+	}
 setmask_err:
 	pcim_iounmap_regions(pdev, 1 << MTIP_ABAR);
 
@@ -4076,6 +4353,14 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 
 	/* Clean up the block layer. */
 	mtip_block_remove(dd);
+
+	if (dd->isr_workq) {
+		flush_workqueue(dd->isr_workq);
+		destroy_workqueue(dd->isr_workq);
+		drop_cpu(dd->work[0].cpu_binding);
+		drop_cpu(dd->work[1].cpu_binding);
+		drop_cpu(dd->work[2].cpu_binding);
+	}
 
 	pci_disable_msi(pdev);
 

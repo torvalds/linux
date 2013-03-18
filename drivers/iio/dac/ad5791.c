@@ -125,7 +125,6 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 		u8 d8[4];
 	} data[3];
 	int ret;
-	struct spi_message msg;
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = &data[0].d8[1],
@@ -144,10 +143,7 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 			      AD5791_ADDR(addr));
 	data[1].d32 = cpu_to_be32(AD5791_ADDR(AD5791_ADDR_NOOP));
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(spi, &msg);
+	ret = spi_sync_transfer(spi, xfers, ARRAY_SIZE(xfers));
 
 	*val = be32_to_cpu(data[2].d32);
 
@@ -365,7 +361,11 @@ static int ad5791_probe(struct spi_device *spi)
 		if (ret)
 			goto error_put_reg_pos;
 
-		pos_voltage_uv = regulator_get_voltage(st->reg_vdd);
+		ret = regulator_get_voltage(st->reg_vdd);
+		if (ret < 0)
+			goto error_disable_reg_pos;
+
+		pos_voltage_uv = ret;
 	}
 
 	st->reg_vss = regulator_get(&spi->dev, "vss");
@@ -374,7 +374,11 @@ static int ad5791_probe(struct spi_device *spi)
 		if (ret)
 			goto error_put_reg_neg;
 
-		neg_voltage_uv = regulator_get_voltage(st->reg_vss);
+		ret = regulator_get_voltage(st->reg_vss);
+		if (ret < 0)
+			goto error_disable_reg_neg;
+
+		neg_voltage_uv = ret;
 	}
 
 	st->pwr_down = true;
@@ -428,6 +432,7 @@ error_put_reg_neg:
 	if (!IS_ERR(st->reg_vss))
 		regulator_put(st->reg_vss);
 
+error_disable_reg_pos:
 	if (!IS_ERR(st->reg_vdd))
 		regulator_disable(st->reg_vdd);
 error_put_reg_pos:

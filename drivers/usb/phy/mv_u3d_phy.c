@@ -283,11 +283,9 @@ static int mv_u3d_phy_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	phy_base = devm_request_and_ioremap(dev, res);
-	if (!phy_base) {
-		dev_err(dev, "%s: register mapping failed\n", __func__);
-		return -ENXIO;
-	}
+	phy_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(phy_base))
+		return PTR_ERR(phy_base);
 
 	mv_u3d_phy = devm_kzalloc(dev, sizeof(*mv_u3d_phy), GFP_KERNEL);
 	if (!mv_u3d_phy)

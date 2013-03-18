@@ -208,12 +208,11 @@ static int vgg2432a4_lcd_init(struct ili9320 *lcd,
 #ifdef CONFIG_PM
 static int vgg2432a4_suspend(struct spi_device *spi, pm_message_t state)
 {
-	return ili9320_suspend(dev_get_drvdata(&spi->dev), state);
+	return ili9320_suspend(spi_get_drvdata(spi), state);
 }
-
 static int vgg2432a4_resume(struct spi_device *spi)
 {
-	return ili9320_resume(dev_get_drvdata(&spi->dev));
+	return ili9320_resume(spi_get_drvdata(spi));
 }
 #else
 #define vgg2432a4_suspend	NULL
@@ -242,12 +241,12 @@ static int vgg2432a4_probe(struct spi_device *spi)
 
 static int vgg2432a4_remove(struct spi_device *spi)
 {
-	return ili9320_remove(dev_get_drvdata(&spi->dev));
+	return ili9320_remove(spi_get_drvdata(spi));
 }
 
 static void vgg2432a4_shutdown(struct spi_device *spi)
 {
-	ili9320_shutdown(dev_get_drvdata(&spi->dev));
+	ili9320_shutdown(spi_get_drvdata(spi));
 }
 
 static struct spi_driver vgg2432a4_driver = {

@@ -81,7 +81,8 @@ PA31	TXD4
 Required properties for pin configuration node:
 - atmel,pins: 4 integers array, represents a group of pins mux and config
   setting. The format is atmel,pins = <PIN_BANK PIN_BANK_NUM PERIPH CONFIG>.
-  The PERIPH 0 means gpio.
+  The PERIPH 0 means gpio, PERIPH 1 is periph A, PERIPH 2 is periph B...
+  PIN_BANK 0 is pioA, PIN_BANK 1 is pioB...
 
 Bits used for CONFIG:
 PULL_UP		(1 << 0): indicate this pin need a pull up.
@@ -126,7 +127,7 @@ pinctrl@fffff400 {
 		pinctrl_dbgu: dbgu-0 {
 			atmel,pins =
 				<1 14 0x1 0x0	/* PB14 periph A */
-				 1 15 0x1 0x1>;	/* PB15 periph with pullup */
+				 1 15 0x1 0x1>;	/* PB15 periph A with pullup */
 		};
 	};
 };

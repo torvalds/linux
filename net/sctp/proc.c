@@ -213,7 +213,6 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_endpoint *ep;
 	struct sock *sk;
-	struct hlist_node *node;
 	int    hash = *(loff_t *)v;
 
 	if (hash >= sctp_ep_hashsize)
@@ -222,7 +221,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	head = &sctp_ep_hashtable[hash];
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		ep = sctp_ep(epb);
 		sk = epb->sk;
 		if (!net_eq(sock_net(sk), seq_file_net(seq)))
@@ -321,7 +320,6 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	struct sctp_ep_common *epb;
 	struct sctp_association *assoc;
 	struct sock *sk;
-	struct hlist_node *node;
 	int    hash = *(loff_t *)v;
 
 	if (hash >= sctp_assoc_hashsize)
@@ -330,7 +328,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	head = &sctp_assoc_hashtable[hash];
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		assoc = sctp_assoc(epb);
 		sk = epb->sk;
 		if (!net_eq(sock_net(sk), seq_file_net(seq)))
@@ -436,7 +434,6 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
 	struct sctp_association *assoc;
-	struct hlist_node *node;
 	struct sctp_transport *tsp;
 	int    hash = *(loff_t *)v;
 
@@ -447,7 +444,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
 	rcu_read_lock();
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		if (!net_eq(sock_net(epb->sk), seq_file_net(seq)))
 			continue;
 		assoc = sctp_assoc(epb);

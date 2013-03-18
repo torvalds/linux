@@ -741,6 +741,9 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 
 	tx_req->mapping = addr;
 
+	skb_orphan(skb);
+	skb_dst_drop(skb);
+
 	rc = post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1),
 		       addr, skb->len);
 	if (unlikely(rc)) {
@@ -751,9 +754,6 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	} else {
 		dev->trans_start = jiffies;
 		++tx->tx_head;
-
-		skb_orphan(skb);
-		skb_dst_drop(skb);
 
 		if (++priv->tx_outstanding == ipoib_sendq_size) {
 			ipoib_dbg(priv, "TX ring 0x%x full, stopping kernel net queue\n",

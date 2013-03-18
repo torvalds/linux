@@ -784,8 +784,6 @@ static int xiic_i2c_remove(struct platform_device *pdev)
 
 	xiic_deinit(i2c);
 
-	platform_set_drvdata(pdev, NULL);
-
 	free_irq(platform_get_irq(pdev, 0), i2c);
 
 	iounmap(i2c->base);

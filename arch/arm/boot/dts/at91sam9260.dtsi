@@ -306,6 +306,22 @@
 					};
 				};
 
+				ssc0 {
+					pinctrl_ssc0_tx: ssc0_tx-0 {
+						atmel,pins =
+							<1 16 0x1 0x0	/* PB16 periph A */
+							 1 17 0x1 0x0	/* PB17 periph A */
+							 1 18 0x1 0x0>;	/* PB18 periph A */
+					};
+
+					pinctrl_ssc0_rx: ssc0_rx-0 {
+						atmel,pins =
+							<1 19 0x1 0x0	/* PB19 periph A */
+							 1 20 0x1 0x0	/* PB20 periph A */
+							 1 21 0x1 0x0>;	/* PB21 periph A */
+					};
+				};
+
 				pioA: gpio@fffff400 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;
@@ -450,6 +466,8 @@
 				compatible = "atmel,at91rm9200-ssc";
 				reg = <0xfffbc000 0x4000>;
 				interrupts = <14 4 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
 				status = "disabled";
 			};
 

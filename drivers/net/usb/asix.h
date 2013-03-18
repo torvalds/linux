@@ -167,6 +167,20 @@ struct asix_data {
 	u8 res;
 };
 
+struct asix_rx_fixup_info {
+	struct sk_buff *ax_skb;
+	u32 header;
+	u16 size;
+	bool split_head;
+};
+
+struct asix_common_private {
+	struct asix_rx_fixup_info rx_fixup_info;
+};
+
+/* ASIX specific flags */
+#define FLAG_EEPROM_MAC		(1UL << 0)  /* init device MAC from eeprom */
+
 int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		  u16 size, void *data);
 
@@ -176,7 +190,9 @@ int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 void asix_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value,
 			  u16 index, u16 size, void *data);
 
-int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb);
+int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
+			   struct asix_rx_fixup_info *rx);
+int asix_rx_fixup_common(struct usbnet *dev, struct sk_buff *skb);
 
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 			      gfp_t flags);

@@ -722,14 +722,14 @@ add/subtract if it has been divided before the add/subtract.
 What to do if a value is found to be invalid, depends on the type of the
 sysfs attribute that is being set. If it is a continuous setting like a
 tempX_max or inX_max attribute, then the value should be clamped to its
-limits using SENSORS_LIMIT(value, min_limit, max_limit). If it is not
-continuous like for example a tempX_type, then when an invalid value is
-written, -EINVAL should be returned.
+limits using clamp_val(value, min_limit, max_limit). If it is not continuous
+like for example a tempX_type, then when an invalid value is written,
+-EINVAL should be returned.
 
 Example1, temp1_max, register is a signed 8 bit value (-128 - 127 degrees):
 
 	long v = simple_strtol(buf, NULL, 10) / 1000;
-	v = SENSORS_LIMIT(v, -128, 127);
+	v = clamp_val(v, -128, 127);
 	/* write v to register */
 
 Example2, fan divider setting, valid values 2, 4 and 8:

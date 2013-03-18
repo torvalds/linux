@@ -30,16 +30,10 @@ struct ordered_samples {
 struct perf_session {
 	struct perf_header	header;
 	unsigned long		size;
-	unsigned long		mmap_window;
-	struct machine		host_machine;
-	struct rb_root		machines;
+	struct machines		machines;
 	struct perf_evlist	*evlist;
 	struct pevent		*pevent;
-	/*
-	 * FIXME: Need to split this up further, we need global
-	 *	  stats + per event stats.
-	 */
-	struct hists		hists;
+	struct events_stats	stats;
 	int			fd;
 	bool			fd_pipe;
 	bool			repipe;
@@ -54,7 +48,7 @@ struct perf_tool;
 struct perf_session *perf_session__new(const char *filename, int mode,
 				       bool force, bool repipe,
 				       struct perf_tool *tool);
-void perf_session__delete(struct perf_session *self);
+void perf_session__delete(struct perf_session *session);
 
 void perf_event_header__bswap(struct perf_event_header *self);
 
@@ -81,34 +75,15 @@ void perf_session__set_id_hdr_size(struct perf_session *session);
 void perf_session__remove_thread(struct perf_session *self, struct thread *th);
 
 static inline
-struct machine *perf_session__find_host_machine(struct perf_session *self)
-{
-	return &self->host_machine;
-}
-
-static inline
 struct machine *perf_session__find_machine(struct perf_session *self, pid_t pid)
 {
-	if (pid == HOST_KERNEL_ID)
-		return &self->host_machine;
 	return machines__find(&self->machines, pid);
 }
 
 static inline
 struct machine *perf_session__findnew_machine(struct perf_session *self, pid_t pid)
 {
-	if (pid == HOST_KERNEL_ID)
-		return &self->host_machine;
 	return machines__findnew(&self->machines, pid);
-}
-
-static inline
-void perf_session__process_machines(struct perf_session *self,
-				    struct perf_tool *tool,
-				    machine__process_t process)
-{
-	process(&self->host_machine, tool);
-	return machines__process(&self->machines, process, tool);
 }
 
 struct thread *perf_session__findnew(struct perf_session *self, pid_t pid);
@@ -116,8 +91,8 @@ size_t perf_session__fprintf(struct perf_session *self, FILE *fp);
 
 size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);
 
-size_t perf_session__fprintf_dsos_buildid(struct perf_session *self,
-					  FILE *fp, bool with_hits);
+size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp,
+					  bool (fn)(struct dso *dso, int parm), int parm);
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 

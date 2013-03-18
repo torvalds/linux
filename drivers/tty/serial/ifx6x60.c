@@ -481,7 +481,6 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 	unsigned char *tx_buffer;
 
 	tx_buffer = ifx_dev->tx_buffer;
-	memset(tx_buffer, 0, IFX_SPI_TRANSFER_SIZE);
 
 	/* make room for required SPI header */
 	tx_buffer += IFX_SPI_HEADER_OVERHEAD;
@@ -615,7 +614,7 @@ static int ifx_port_activate(struct tty_port *port, struct tty_struct *tty)
 	tty->driver_data = ifx_dev;
 
 	/* allows flip string push from int context */
-	tty->low_latency = 1;
+	port->low_latency = 1;
 
 	/* set flag to allows data transfer */
 	set_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);
@@ -637,6 +636,7 @@ static void ifx_port_shutdown(struct tty_port *port)
 
 	clear_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);
 	mrdy_set_low(ifx_dev);
+	del_timer(&ifx_dev->spi_timer);
 	clear_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags);
 	tasklet_kill(&ifx_dev->io_work_tasklet);
 }
@@ -669,12 +669,8 @@ static const struct tty_operations ifx_spi_serial_ops = {
 static void ifx_spi_insert_flip_string(struct ifx_spi_device *ifx_dev,
 				    unsigned char *chars, size_t size)
 {
-	struct tty_struct *tty = tty_port_tty_get(&ifx_dev->tty_port);
-	if (!tty)
-		return;
-	tty_insert_flip_string(tty, chars, size);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(&ifx_dev->tty_port, chars, size);
+	tty_flip_buffer_push(&ifx_dev->tty_port);
 }
 
 /**
@@ -810,7 +806,8 @@ static void ifx_spi_io(unsigned long data)
 		ifx_dev->spi_xfer.cs_change = 0;
 		ifx_dev->spi_xfer.speed_hz = ifx_dev->spi_dev->max_speed_hz;
 		/* ifx_dev->spi_xfer.speed_hz = 390625; */
-		ifx_dev->spi_xfer.bits_per_word = spi_bpw;
+		ifx_dev->spi_xfer.bits_per_word =
+			ifx_dev->spi_dev->bits_per_word;
 
 		ifx_dev->spi_xfer.tx_buf = ifx_dev->tx_buffer;
 		ifx_dev->spi_xfer.rx_buf = ifx_dev->rx_buffer;

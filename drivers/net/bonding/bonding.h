@@ -248,6 +248,7 @@ struct bonding {
 	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
+	bool	dev_addr_from_first;
 };
 
 static inline bool bond_vlan_used(struct bonding *bond)
@@ -257,6 +258,9 @@ static inline bool bond_vlan_used(struct bonding *bond)
 
 #define bond_slave_get_rcu(dev) \
 	((struct slave *) rcu_dereference(dev->rx_handler_data))
+
+#define bond_slave_get_rtnl(dev) \
+	((struct slave *) rtnl_dereference(dev->rx_handler_data))
 
 /**
  * Returns NULL if the net_device does not belong to any of the bond's slaves
@@ -280,11 +284,9 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond,
 
 static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 {
-	if (!slave || !slave->dev->master) {
+	if (!slave || !slave->bond)
 		return NULL;
-	}
-
-	return netdev_priv(slave->dev->master);
+	return slave->bond;
 }
 
 static inline bool bond_is_lb(const struct bonding *bond)
@@ -360,10 +362,9 @@ static inline void bond_netpoll_send_skb(const struct slave *slave,
 
 static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
-	struct bonding *bond = netdev_priv(slave->dev->master);
-	if (!bond_is_lb(bond))
+	if (!bond_is_lb(slave->bond))
 		bond_set_backup_slave(slave);
-	if (!bond->params.all_slaves_active)
+	if (!slave->bond->params.all_slaves_active)
 		slave->inactive = 1;
 }
 

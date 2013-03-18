@@ -91,15 +91,44 @@ static struct raid_type {
 	{"raid6_nc", "RAID6 (N continue)",		2, 4, 6, ALGORITHM_ROTATING_N_CONTINUE}
 };
 
+static char *raid10_md_layout_to_format(int layout)
+{
+	/*
+	 * Bit 16 and 17 stand for "offset" and "use_far_sets"
+	 * Refer to MD's raid10.c for details
+	 */
+	if ((layout & 0x10000) && (layout & 0x20000))
+		return "offset";
+
+	if ((layout & 0xFF) > 1)
+		return "near";
+
+	return "far";
+}
+
 static unsigned raid10_md_layout_to_copies(int layout)
 {
-	return layout & 0xFF;
+	if ((layout & 0xFF) > 1)
+		return layout & 0xFF;
+	return (layout >> 8) & 0xFF;
 }
 
 static int raid10_format_to_md_layout(char *format, unsigned copies)
 {
-	/* 1 "far" copy, and 'copies' "near" copies */
-	return (1 << 8) | (copies & 0xFF);
+	unsigned n = 1, f = 1;
+
+	if (!strcmp("near", format))
+		n = copies;
+	else
+		f = copies;
+
+	if (!strcmp("offset", format))
+		return 0x30000 | (f << 8) | n;
+
+	if (!strcmp("far", format))
+		return 0x20000 | (f << 8) | n;
+
+	return (f << 8) | n;
 }
 
 static struct raid_type *get_raid_type(char *name)
@@ -340,24 +369,23 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 }
 
 /*
- * validate_rebuild_devices
+ * validate_raid_redundancy
  * @rs
  *
- * Determine if the devices specified for rebuild can result in a valid
- * usable array that is capable of rebuilding the given devices.
+ * Determine if there are enough devices in the array that haven't
+ * failed (or are being rebuilt) to form a usable array.
  *
  * Returns: 0 on success, -EINVAL on failure.
  */
-static int validate_rebuild_devices(struct raid_set *rs)
+static int validate_raid_redundancy(struct raid_set *rs)
 {
 	unsigned i, rebuild_cnt = 0;
 	unsigned rebuilds_per_group, copies, d;
-
-	if (!(rs->print_flags & DMPF_REBUILD))
-		return 0;
+	unsigned group_size, last_group_start;
 
 	for (i = 0; i < rs->md.raid_disks; i++)
-		if (!test_bit(In_sync, &rs->dev[i].rdev.flags))
+		if (!test_bit(In_sync, &rs->dev[i].rdev.flags) ||
+		    !rs->dev[i].rdev.sb_page)
 			rebuild_cnt++;
 
 	switch (rs->raid_type->level) {
@@ -381,9 +409,6 @@ static int validate_rebuild_devices(struct raid_set *rs)
 		 * as long as the failed devices occur in different mirror
 		 * groups (i.e. different stripes).
 		 *
-		 * Right now, we only allow for "near" copies.  When other
-		 * formats are added, we will have to check those too.
-		 *
 		 * When checking "near" format, make sure no adjacent devices
 		 * have failed beyond what can be handled.  In addition to the
 		 * simple case where the number of devices is a multiple of the
@@ -393,27 +418,51 @@ static int validate_rebuild_devices(struct raid_set *rs)
 		 *          A    A    B    B    C
 		 *          C    D    D    E    E
 		 */
-		rebuilds_per_group = 0;
-		for (i = 0; i < rs->md.raid_disks * copies; i++) {
-			d = i % rs->md.raid_disks;
-			if (!test_bit(In_sync, &rs->dev[d].rdev.flags) &&
-			    (++rebuilds_per_group >= copies))
-				goto too_many;
-			if (!((i + 1) % copies))
+		if (!strcmp("near", raid10_md_layout_to_format(rs->md.layout))) {
+			for (i = 0; i < rs->md.raid_disks * copies; i++) {
+				if (!(i % copies))
+					rebuilds_per_group = 0;
+				d = i % rs->md.raid_disks;
+				if ((!rs->dev[d].rdev.sb_page ||
+				     !test_bit(In_sync, &rs->dev[d].rdev.flags)) &&
+				    (++rebuilds_per_group >= copies))
+					goto too_many;
+			}
+			break;
+		}
+
+		/*
+		 * When checking "far" and "offset" formats, we need to ensure
+		 * that the device that holds its copy is not also dead or
+		 * being rebuilt.  (Note that "far" and "offset" formats only
+		 * support two copies right now.  These formats also only ever
+		 * use the 'use_far_sets' variant.)
+		 *
+		 * This check is somewhat complicated by the need to account
+		 * for arrays that are not a multiple of (far) copies.  This
+		 * results in the need to treat the last (potentially larger)
+		 * set differently.
+		 */
+		group_size = (rs->md.raid_disks / copies);
+		last_group_start = (rs->md.raid_disks / group_size) - 1;
+		last_group_start *= group_size;
+		for (i = 0; i < rs->md.raid_disks; i++) {
+			if (!(i % copies) && !(i > last_group_start))
 				rebuilds_per_group = 0;
+			if ((!rs->dev[i].rdev.sb_page ||
+			     !test_bit(In_sync, &rs->dev[i].rdev.flags)) &&
+			    (++rebuilds_per_group >= copies))
+					goto too_many;
 		}
 		break;
 	default:
-		DMERR("The rebuild parameter is not supported for %s",
-		      rs->raid_type->name);
-		rs->ti->error = "Rebuild not supported for this RAID type";
-		return -EINVAL;
+		if (rebuild_cnt)
+			return -EINVAL;
 	}
 
 	return 0;
 
 too_many:
-	rs->ti->error = "Too many rebuild devices specified";
 	return -EINVAL;
 }
 
@@ -438,7 +487,7 @@ too_many:
  *
  * RAID10-only options:
  *    [raid10_copies <# copies>]        Number of copies.  (Default: 2)
- *    [raid10_format <near>]            Layout algorithm.  (Default: near)
+ *    [raid10_format <near|far|offset>] Layout algorithm.  (Default: near)
  */
 static int parse_raid_params(struct raid_set *rs, char **argv,
 			     unsigned num_raid_params)
@@ -525,7 +574,9 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				rs->ti->error = "'raid10_format' is an invalid parameter for this RAID type";
 				return -EINVAL;
 			}
-			if (strcmp("near", argv[i])) {
+			if (strcmp("near", argv[i]) &&
+			    strcmp("far", argv[i]) &&
+			    strcmp("offset", argv[i])) {
 				rs->ti->error = "Invalid 'raid10_format' value given";
 				return -EINVAL;
 			}
@@ -649,6 +700,15 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 			return -EINVAL;
 		}
 
+		/*
+		 * If the format is not "near", we only support
+		 * two copies at the moment.
+		 */
+		if (strcmp("near", raid10_format) && (raid10_copies > 2)) {
+			rs->ti->error = "Too many copies for given RAID10 format.";
+			return -EINVAL;
+		}
+
 		/* (Len * #mirrors) / #devices */
 		sectors_per_dev = rs->ti->len * raid10_copies;
 		sector_div(sectors_per_dev, rs->md.raid_disks);
@@ -663,9 +723,6 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 		return -EINVAL;
 	}
 	rs->md.dev_sectors = sectors_per_dev;
-
-	if (validate_rebuild_devices(rs))
-		return -EINVAL;
 
 	/* Assume there are no metadata devices until the drives are parsed */
 	rs->md.persistent = 0;
@@ -862,17 +919,30 @@ static int super_init_validation(struct mddev *mddev, struct md_rdev *rdev)
 	/*
 	 * Reshaping is not currently allowed
 	 */
-	if ((le32_to_cpu(sb->level) != mddev->level) ||
-	    (le32_to_cpu(sb->layout) != mddev->layout) ||
-	    (le32_to_cpu(sb->stripe_sectors) != mddev->chunk_sectors)) {
-		DMERR("Reshaping arrays not yet supported.");
+	if (le32_to_cpu(sb->level) != mddev->level) {
+		DMERR("Reshaping arrays not yet supported. (RAID level change)");
+		return -EINVAL;
+	}
+	if (le32_to_cpu(sb->layout) != mddev->layout) {
+		DMERR("Reshaping arrays not yet supported. (RAID layout change)");
+		DMERR("  0x%X vs 0x%X", le32_to_cpu(sb->layout), mddev->layout);
+		DMERR("  Old layout: %s w/ %d copies",
+		      raid10_md_layout_to_format(le32_to_cpu(sb->layout)),
+		      raid10_md_layout_to_copies(le32_to_cpu(sb->layout)));
+		DMERR("  New layout: %s w/ %d copies",
+		      raid10_md_layout_to_format(mddev->layout),
+		      raid10_md_layout_to_copies(mddev->layout));
+		return -EINVAL;
+	}
+	if (le32_to_cpu(sb->stripe_sectors) != mddev->chunk_sectors) {
+		DMERR("Reshaping arrays not yet supported. (stripe sectors change)");
 		return -EINVAL;
 	}
 
 	/* We can only change the number of devices in RAID1 right now */
 	if ((rs->raid_type->level != 1) &&
 	    (le32_to_cpu(sb->num_devices) != mddev->raid_disks)) {
-		DMERR("Reshaping arrays not yet supported.");
+		DMERR("Reshaping arrays not yet supported. (device count change)");
 		return -EINVAL;
 	}
 
@@ -995,27 +1065,9 @@ static int super_validate(struct mddev *mddev, struct md_rdev *rdev)
 static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 {
 	int ret;
-	unsigned redundancy = 0;
 	struct raid_dev *dev;
 	struct md_rdev *rdev, *tmp, *freshest;
 	struct mddev *mddev = &rs->md;
-
-	switch (rs->raid_type->level) {
-	case 1:
-		redundancy = rs->md.raid_disks - 1;
-		break;
-	case 4:
-	case 5:
-	case 6:
-		redundancy = rs->raid_type->parity_devs;
-		break;
-	case 10:
-		redundancy = raid10_md_layout_to_copies(mddev->layout) - 1;
-		break;
-	default:
-		ti->error = "Unknown RAID type";
-		return -EINVAL;
-	}
 
 	freshest = NULL;
 	rdev_for_each_safe(rdev, tmp, mddev) {
@@ -1045,43 +1097,42 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 			break;
 		default:
 			dev = container_of(rdev, struct raid_dev, rdev);
-			if (redundancy--) {
-				if (dev->meta_dev)
-					dm_put_device(ti, dev->meta_dev);
+			if (dev->meta_dev)
+				dm_put_device(ti, dev->meta_dev);
 
-				dev->meta_dev = NULL;
-				rdev->meta_bdev = NULL;
+			dev->meta_dev = NULL;
+			rdev->meta_bdev = NULL;
 
-				if (rdev->sb_page)
-					put_page(rdev->sb_page);
+			if (rdev->sb_page)
+				put_page(rdev->sb_page);
 
-				rdev->sb_page = NULL;
+			rdev->sb_page = NULL;
 
-				rdev->sb_loaded = 0;
+			rdev->sb_loaded = 0;
 
-				/*
-				 * We might be able to salvage the data device
-				 * even though the meta device has failed.  For
-				 * now, we behave as though '- -' had been
-				 * set for this device in the table.
-				 */
-				if (dev->data_dev)
-					dm_put_device(ti, dev->data_dev);
+			/*
+			 * We might be able to salvage the data device
+			 * even though the meta device has failed.  For
+			 * now, we behave as though '- -' had been
+			 * set for this device in the table.
+			 */
+			if (dev->data_dev)
+				dm_put_device(ti, dev->data_dev);
 
-				dev->data_dev = NULL;
-				rdev->bdev = NULL;
+			dev->data_dev = NULL;
+			rdev->bdev = NULL;
 
-				list_del(&rdev->same_set);
-
-				continue;
-			}
-			ti->error = "Failed to load superblock";
-			return ret;
+			list_del(&rdev->same_set);
 		}
 	}
 
 	if (!freshest)
 		return 0;
+
+	if (validate_raid_redundancy(rs)) {
+		rs->ti->error = "Insufficient redundancy to activate array";
+		return -EINVAL;
+	}
 
 	/*
 	 * Validation of the freshest device provides the source of
@@ -1178,7 +1229,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;
-	ti->num_flush_requests = 1;
+	ti->num_flush_bios = 1;
 
 	mutex_lock(&rs->md.reconfig_mutex);
 	ret = md_run(&rs->md);
@@ -1228,8 +1279,8 @@ static int raid_map(struct dm_target *ti, struct bio *bio)
 	return DM_MAPIO_SUBMITTED;
 }
 
-static int raid_status(struct dm_target *ti, status_type_t type,
-		       unsigned status_flags, char *result, unsigned maxlen)
+static void raid_status(struct dm_target *ti, status_type_t type,
+			unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct raid_set *rs = ti->private;
 	unsigned raid_param_cnt = 1; /* at least 1 for chunksize */
@@ -1356,7 +1407,8 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 			       raid10_md_layout_to_copies(rs->md.layout));
 
 		if (rs->print_flags & DMPF_RAID10_FORMAT)
-			DMEMIT(" raid10_format near");
+			DMEMIT(" raid10_format %s",
+			       raid10_md_layout_to_format(rs->md.layout));
 
 		DMEMIT(" %d", rs->md.raid_disks);
 		for (i = 0; i < rs->md.raid_disks; i++) {
@@ -1371,8 +1423,6 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(" -");
 		}
 	}
-
-	return 0;
 }
 
 static int raid_iterate_devices(struct dm_target *ti, iterate_devices_callout_fn fn, void *data)
@@ -1432,7 +1482,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 4, 0},
+	.version = {1, 4, 2},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
@@ -1447,6 +1497,10 @@ static struct target_type raid_target = {
 
 static int __init dm_raid_init(void)
 {
+	DMINFO("Loading target version %u.%u.%u",
+	       raid_target.version[0],
+	       raid_target.version[1],
+	       raid_target.version[2]);
 	return dm_register_target(&raid_target);
 }
 

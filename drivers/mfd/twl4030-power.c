@@ -159,7 +159,7 @@ out:
 static int twl4030_write_script(u8 address, struct twl4030_ins *script,
 				       int len)
 {
-	int err;
+	int err = -EINVAL;
 
 	for (; len; len--, address++, script++) {
 		if (len == 1) {

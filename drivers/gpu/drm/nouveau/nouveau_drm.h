@@ -13,6 +13,7 @@
 #define DRIVER_PATCHLEVEL	0
 
 #include <core/client.h>
+#include <core/event.h>
 
 #include <subdev/vm.h>
 
@@ -112,6 +113,7 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
+	struct nouveau_eventh vblank;
 
 	/* power management */
 	struct nouveau_pm *pm;

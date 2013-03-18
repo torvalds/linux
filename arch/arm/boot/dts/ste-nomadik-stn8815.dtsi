@@ -1,0 +1,256 @@
+/*
+ * Device Tree for the ST-Ericsson Nomadik 8815 STn8815 SoC
+ */
+/include/ "skeleton.dtsi"
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		reg = <0x00000000 0x04000000>,
+		    <0x08000000 0x04000000>;
+	};
+
+	L2: l2-cache {
+		compatible = "arm,l210-cache";
+		reg = <0x10210000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <30>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	mtu0 {
+		/* Nomadik system timer */
+		reg = <0x101e2000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <4>;
+	};
+
+	mtu1 {
+		/* Secondary timer */
+		reg = <0x101e3000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <5>;
+	};
+
+	gpio0: gpio@101e4000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e4000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <6>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <0>;
+	};
+
+	gpio1: gpio@101e5000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e5000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <7>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <1>;
+	};
+
+	gpio2: gpio@101e6000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e6000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <8>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <2>;
+	};
+
+	gpio3: gpio@101e7000 {
+		compatible = "st,nomadik-gpio";
+		reg =  <0x101e7000 0x80>;
+		interrupt-parent = <&vica>;
+		interrupts = <9>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-bank = <3>;
+	};
+
+	pinctrl {
+		compatible = "stericsson,nmk-pinctrl-stn8815";
+	};
+
+	/* A NAND flash of 128 MiB */
+	fsmc: flash@40000000 {
+		compatible = "stericsson,fsmc-nand";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x10100000 0x1000>,	/* FSMC Register*/
+			<0x40000000 0x2000>,	/* NAND Base DATA */
+			<0x41000000 0x2000>,	/* NAND Base ADDR */
+			<0x40800000 0x2000>;	/* NAND Base CMD */
+		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
+		status = "okay";
+
+		partition@0 {
+		label = "X-Loader(NAND)";
+			reg = <0x0 0x40000>;
+		};
+		partition@40000 {
+			label = "MemInit(NAND)";
+			reg = <0x40000 0x40000>;
+		};
+		partition@80000 {
+			label = "BootLoader(NAND)";
+			reg = <0x80000 0x200000>;
+		};
+		partition@280000 {
+			label = "Kernel zImage(NAND)";
+			reg = <0x280000 0x300000>;
+		};
+		partition@580000 {
+			label = "Root Filesystem(NAND)";
+			reg = <0x580000 0x1600000>;
+		};
+		partition@1b80000 {
+			label = "User Filesystem(NAND)";
+			reg = <0x1b80000 0x6480000>;
+		};
+	};
+
+	external-bus@34000000 {
+		compatible = "simple-bus";
+		reg = <0x34000000 0x1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x34000000 0x1000000>;
+		ethernet@300 {
+			compatible = "smsc,lan91c111";
+			reg = <0x300 0x0fd00>;
+		};
+	};
+
+	/* I2C0 connected to the STw4811 power management chip */
+	i2c0 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio1 31 0>, /* sda */
+			<&gpio1 30 0>; /* scl */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		stw4811@2d {
+			   compatible = "st,stw4811";
+			   reg = <0x2d>;
+		};
+	};
+
+	/* I2C1 connected to various sensors */
+	i2c1 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio1 22 0>, /* sda */
+			<&gpio1 21 0>; /* scl */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera@2d {
+			   compatible = "st,camera";
+			   reg = <0x10>;
+		};
+		stw5095@1a {
+			   compatible = "st,stw5095";
+			   reg = <0x1a>;
+		};
+		lis3lv02dl@1d {
+			   compatible = "st,lis3lv02dl";
+			   reg = <0x1d>;
+		};
+	};
+
+	/* I2C2 connected to the USB portions of the STw4811 only */
+	i2c2 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio2 10 0>, /* sda */
+			<&gpio2 9 0>; /* scl */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		stw4811@2d {
+			   compatible = "st,stw4811-usb";
+			   reg = <0x2d>;
+		};
+	};
+
+	amba {
+		compatible = "arm,amba-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		vica: intc@0x10140000 {
+			compatible = "arm,versatile-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x10140000 0x20>;
+		};
+
+		vicb: intc@0x10140020 {
+			compatible = "arm,versatile-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x10140020 0x20>;
+		};
+
+		uart0: uart@101fd000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101fd000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <12>;
+		};
+
+		uart1: uart@101fb000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101fb000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <17>;
+		};
+
+		uart2: uart@101f2000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x101f2000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <28>;
+			status = "disabled";
+		};
+
+		rng: rng@101b0000 {
+			compatible = "arm,primecell";
+			reg = <0x101b0000 0x1000>;
+		};
+
+		rtc: rtc@101e8000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0x101e8000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <10>;
+		};
+
+		mmcsd: sdi@101f6000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x101f6000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <22>;
+			max-frequency = <48000000>;
+			bus-width = <4>;
+			mmc-cap-mmc-highspeed;
+			mmc-cap-sd-highspeed;
+			cd-gpios = <&gpio3 15 0x1>;
+			cd-inverted;
+		};
+	};
+};

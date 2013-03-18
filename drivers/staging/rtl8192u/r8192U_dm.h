@@ -13,7 +13,7 @@
  *
  * History:
  *	Data		Who		Remark
- *	10/04/2007  MHC    	Create initial version.
+ *	10/04/2007  MHC		Create initial version.
  *
  *****************************************************************************/
  /* Check to see if the file has been included already.  */
@@ -55,20 +55,19 @@
 #define		TX_POWER_NEAR_FIELD_THRESH_LOW		62
 //added by amy for atheros AP
 #define         TX_POWER_ATHEROAP_THRESH_HIGH           78
-#define 	TX_POWER_ATHEROAP_THRESH_LOW		72
+#define		TX_POWER_ATHEROAP_THRESH_LOW		72
 
 //defined by vivi, for showing on UI
-#define 		Current_Tx_Rate_Reg         0x1b8
-#define 		Initial_Tx_Rate_Reg         	  0x1b9
-#define 		Tx_Retry_Count_Reg         0x1ac
+#define			Current_Tx_Rate_Reg         0x1b8
+#define			Initial_Tx_Rate_Reg		  0x1b9
+#define			Tx_Retry_Count_Reg         0x1ac
 #define		RegC38_TH				 20
 /*--------------------------Define Parameters-------------------------------*/
 
 
 /*------------------------------Define structure----------------------------*/
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
-typedef struct _dynamic_initial_gain_threshold_
-{
+typedef struct _dynamic_initial_gain_threshold_ {
 	u8		dig_enable_flag;
 	u8		dig_algorithm;
 	u8		dbg_mode;
@@ -132,8 +131,8 @@ typedef enum tag_dynamic_init_gain_operation_type_definition
 	DIG_TYPE_PWDB_FACTOR			= 8,
 	DIG_TYPE_RX_GAIN_MIN				= 9,
 	DIG_TYPE_RX_GAIN_MAX				= 10,
-	DIG_TYPE_ENABLE 		= 20,
-	DIG_TYPE_DISABLE 		= 30,
+	DIG_TYPE_ENABLE			= 20,
+	DIG_TYPE_DISABLE		= 30,
 	DIG_OP_TYPE_MAX
 }dm_dig_op_e;
 
@@ -172,8 +171,7 @@ typedef enum tag_dig_cck_cs_ratio_state_definition
 	DIG_CS_RATIO_HIGHER = 1,
 	DIG_CS_MAX
 }dm_dig_cs_ratio_e;
-typedef struct _Dynamic_Rx_Path_Selection_
-{
+typedef struct _Dynamic_Rx_Path_Selection_ {
 	u8		Enable;
 	u8		DbgMode;
 	u8		cck_method;
@@ -203,8 +201,7 @@ typedef enum tag_DM_DbgMode_Definition
 	DM_DBG_MAX
 }DM_DBG_E;
 
-typedef struct tag_Tx_Config_Cmd_Format
-{
+typedef struct tag_Tx_Config_Cmd_Format {
 	u32	Op;										/* Command packet type. */
 	u32	Length;									/* Command packet length. */
 	u32	Value;
@@ -251,4 +248,3 @@ extern void dm_initialize_txpower_tracking(struct net_device *dev);
 
 
 /* End of r8192U_dm.h */
-

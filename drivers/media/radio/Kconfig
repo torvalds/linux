@@ -192,7 +192,7 @@ config RADIO_TIMBERDALE
 
 config RADIO_WL1273
 	tristate "Texas Instruments WL1273 I2C FM Radio"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_V4L2 && GENERIC_HARDIRQS
 	select MFD_CORE
 	select MFD_WL1273_CORE
 	select FW_LOADER

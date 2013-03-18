@@ -371,8 +371,8 @@ static unsigned LM93_IN_FROM_REG(int nr, u8 reg)
 static u8 LM93_IN_TO_REG(int nr, unsigned val)
 {
 	/* range limit */
-	const long mV = SENSORS_LIMIT(val,
-		lm93_vin_val_min[nr], lm93_vin_val_max[nr]);
+	const long mV = clamp_val(val,
+				  lm93_vin_val_min[nr], lm93_vin_val_max[nr]);
 
 	/* try not to lose too much precision here */
 	const long uV = mV * 1000;
@@ -385,8 +385,8 @@ static u8 LM93_IN_TO_REG(int nr, unsigned val)
 	const long intercept = uV_min - slope * lm93_vin_reg_min[nr];
 
 	u8 result = ((uV - intercept + (slope/2)) / slope);
-	result = SENSORS_LIMIT(result,
-			lm93_vin_reg_min[nr], lm93_vin_reg_max[nr]);
+	result = clamp_val(result,
+			   lm93_vin_reg_min[nr], lm93_vin_reg_max[nr]);
 	return result;
 }
 
@@ -411,10 +411,10 @@ static u8 LM93_IN_REL_TO_REG(unsigned val, int upper, int vid)
 {
 	long uV_offset = vid * 1000 - val * 10000;
 	if (upper) {
-		uV_offset = SENSORS_LIMIT(uV_offset, 12500, 200000);
+		uV_offset = clamp_val(uV_offset, 12500, 200000);
 		return (u8)((uV_offset /  12500 - 1) << 4);
 	} else {
-		uV_offset = SENSORS_LIMIT(uV_offset, -400000, -25000);
+		uV_offset = clamp_val(uV_offset, -400000, -25000);
 		return (u8)((uV_offset / -25000 - 1) << 0);
 	}
 }
@@ -437,7 +437,7 @@ static int LM93_TEMP_FROM_REG(u8 reg)
  */
 static u8 LM93_TEMP_TO_REG(long temp)
 {
-	int ntemp = SENSORS_LIMIT(temp, LM93_TEMP_MIN, LM93_TEMP_MAX);
+	int ntemp = clamp_val(temp, LM93_TEMP_MIN, LM93_TEMP_MAX);
 	ntemp += (ntemp < 0 ? -500 : 500);
 	return (u8)(ntemp / 1000);
 }
@@ -472,7 +472,7 @@ static u8 LM93_TEMP_OFFSET_TO_REG(int off, int mode)
 {
 	int factor = mode ? 5 : 10;
 
-	off = SENSORS_LIMIT(off, LM93_TEMP_OFFSET_MIN,
+	off = clamp_val(off, LM93_TEMP_OFFSET_MIN,
 		mode ? LM93_TEMP_OFFSET_MAX1 : LM93_TEMP_OFFSET_MAX0);
 	return (u8)((off + factor/2) / factor);
 }
@@ -620,8 +620,8 @@ static u16 LM93_FAN_TO_REG(long rpm)
 	if (rpm == 0) {
 		count = 0x3fff;
 	} else {
-		rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-		count = SENSORS_LIMIT((1350000 + rpm) / rpm, 1, 0x3ffe);
+		rpm = clamp_val(rpm, 1, 1000000);
+		count = clamp_val((1350000 + rpm) / rpm, 1, 0x3ffe);
 	}
 
 	regs = count << 2;
@@ -692,7 +692,7 @@ static int LM93_RAMP_FROM_REG(u8 reg)
  */
 static u8 LM93_RAMP_TO_REG(int ramp)
 {
-	ramp = SENSORS_LIMIT(ramp, LM93_RAMP_MIN, LM93_RAMP_MAX);
+	ramp = clamp_val(ramp, LM93_RAMP_MIN, LM93_RAMP_MAX);
 	return (u8)((ramp + 2) / 5);
 }
 
@@ -702,7 +702,7 @@ static u8 LM93_RAMP_TO_REG(int ramp)
  */
 static u8 LM93_PROCHOT_TO_REG(long prochot)
 {
-	prochot = SENSORS_LIMIT(prochot, 0, 255);
+	prochot = clamp_val(prochot, 0, 255);
 	return (u8)prochot;
 }
 
@@ -2052,7 +2052,7 @@ static ssize_t store_pwm_auto_channels(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->block9[nr][LM93_PWM_CTL1] = SENSORS_LIMIT(val, 0, 255);
+	data->block9[nr][LM93_PWM_CTL1] = clamp_val(val, 0, 255);
 	lm93_write_byte(client, LM93_REG_PWM_CTL(nr, LM93_PWM_CTL1),
 				data->block9[nr][LM93_PWM_CTL1]);
 	mutex_unlock(&data->update_lock);
@@ -2397,7 +2397,7 @@ static ssize_t store_prochot_override_duty_cycle(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	data->prochot_override = (data->prochot_override & 0xf0) |
-					SENSORS_LIMIT(val, 0, 15);
+					clamp_val(val, 0, 15);
 	lm93_write_byte(client, LM93_REG_PROCHOT_OVERRIDE,
 			data->prochot_override);
 	mutex_unlock(&data->update_lock);

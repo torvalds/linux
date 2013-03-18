@@ -250,3 +250,9 @@ config USB_EZUSB_FX2
 	help
 	  Say Y here if you need EZUSB device support.
 	  (Cypress FX/FX2/FX2LP microcontrollers)
+
+config USB_HSIC_USB3503
+       tristate "USB3503 HSIC to USB20 Driver"
+       depends on I2C
+       help
+         This option enables support for SMSC USB3503 HSIC to USB 2.0 Driver.

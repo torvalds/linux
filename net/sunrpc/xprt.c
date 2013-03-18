@@ -430,21 +430,23 @@ __xprt_put_cong(struct rpc_xprt *xprt, struct rpc_rqst *req)
  */
 void xprt_release_rqst_cong(struct rpc_task *task)
 {
-	__xprt_put_cong(task->tk_xprt, task->tk_rqstp);
+	struct rpc_rqst *req = task->tk_rqstp;
+
+	__xprt_put_cong(req->rq_xprt, req);
 }
 EXPORT_SYMBOL_GPL(xprt_release_rqst_cong);
 
 /**
  * xprt_adjust_cwnd - adjust transport congestion window
+ * @xprt: pointer to xprt
  * @task: recently completed RPC request used to adjust window
  * @result: result code of completed RPC request
  *
  * We use a time-smoothed congestion estimator to avoid heavy oscillation.
  */
-void xprt_adjust_cwnd(struct rpc_task *task, int result)
+void xprt_adjust_cwnd(struct rpc_xprt *xprt, struct rpc_task *task, int result)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_xprt *xprt = task->tk_xprt;
 	unsigned long cwnd = xprt->cwnd;
 
 	if (result >= 0 && cwnd <= xprt->cong) {
@@ -485,13 +487,17 @@ EXPORT_SYMBOL_GPL(xprt_wake_pending_tasks);
  * xprt_wait_for_buffer_space - wait for transport output buffer to clear
  * @task: task to be put to sleep
  * @action: function pointer to be executed after wait
+ *
+ * Note that we only set the timer for the case of RPC_IS_SOFT(), since
+ * we don't in general want to force a socket disconnection due to
+ * an incomplete RPC call transmission.
  */
 void xprt_wait_for_buffer_space(struct rpc_task *task, rpc_action action)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 
-	task->tk_timeout = req->rq_timeout;
+	task->tk_timeout = RPC_IS_SOFT(task) ? req->rq_timeout : 0;
 	rpc_sleep_on(&xprt->pending, task, action);
 }
 EXPORT_SYMBOL_GPL(xprt_wait_for_buffer_space);
@@ -695,7 +701,7 @@ out_abort:
  */
 void xprt_connect(struct rpc_task *task)
 {
-	struct rpc_xprt	*xprt = task->tk_xprt;
+	struct rpc_xprt	*xprt = task->tk_rqstp->rq_xprt;
 
 	dprintk("RPC: %5u xprt_connect xprt %p %s connected\n", task->tk_pid,
 			xprt, (xprt_connected(xprt) ? "is" : "is not"));
@@ -722,13 +728,13 @@ void xprt_connect(struct rpc_task *task)
 		if (xprt_test_and_set_connecting(xprt))
 			return;
 		xprt->stat.connect_start = jiffies;
-		xprt->ops->connect(task);
+		xprt->ops->connect(xprt, task);
 	}
 }
 
 static void xprt_connect_status(struct rpc_task *task)
 {
-	struct rpc_xprt	*xprt = task->tk_xprt;
+	struct rpc_xprt	*xprt = task->tk_rqstp->rq_xprt;
 
 	if (task->tk_status == 0) {
 		xprt->stat.connect_count++;
@@ -832,7 +838,7 @@ static void xprt_timer(struct rpc_task *task)
 	spin_lock_bh(&xprt->transport_lock);
 	if (!req->rq_reply_bytes_recvd) {
 		if (xprt->ops->timer)
-			xprt->ops->timer(task);
+			xprt->ops->timer(xprt, task);
 	} else
 		task->tk_status = 0;
 	spin_unlock_bh(&xprt->transport_lock);
@@ -1091,7 +1097,7 @@ EXPORT_SYMBOL_GPL(xprt_free);
  */
 void xprt_reserve(struct rpc_task *task)
 {
-	struct rpc_xprt	*xprt = task->tk_xprt;
+	struct rpc_xprt	*xprt;
 
 	task->tk_status = 0;
 	if (task->tk_rqstp != NULL)
@@ -1099,7 +1105,10 @@ void xprt_reserve(struct rpc_task *task)
 
 	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
+	rcu_read_lock();
+	xprt = rcu_dereference(task->tk_client->cl_xprt);
 	xprt->ops->alloc_slot(xprt, task);
+	rcu_read_unlock();
 }
 
 static inline __be32 xprt_alloc_xid(struct rpc_xprt *xprt)
@@ -1136,10 +1145,18 @@ static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 void xprt_release(struct rpc_task *task)
 {
 	struct rpc_xprt	*xprt;
-	struct rpc_rqst	*req;
+	struct rpc_rqst	*req = task->tk_rqstp;
 
-	if (!(req = task->tk_rqstp))
+	if (req == NULL) {
+		if (task->tk_client) {
+			rcu_read_lock();
+			xprt = rcu_dereference(task->tk_client->cl_xprt);
+			if (xprt->snd_task == task)
+				xprt_release_write(xprt, task);
+			rcu_read_unlock();
+		}
 		return;
+	}
 
 	xprt = req->rq_xprt;
 	if (task->tk_ops->rpc_count_stats != NULL)

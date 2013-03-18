@@ -67,13 +67,13 @@ enum mx35_clks {
 
 static struct clk *clk[clk_max];
 
-int __init mx35_clocks_init()
+int __init mx35_clocks_init(void)
 {
 	void __iomem *base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
 	u32 pdr0, consumer_sel, hsp_sel;
 	struct arm_ahb_div *aad;
 	unsigned char *hsp_div;
-	int i;
+	u32 i;
 
 	pdr0 = __raw_readl(base + MXC_CCM_PDR0);
 	consumer_sel = (pdr0 >> 16) & 0xf;
@@ -251,9 +251,9 @@ int __init mx35_clocks_init()
 	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.2");
 	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.2");
 	clk_register_clkdev(clk[usbotg_gate], "ahb", "mxc-ehci.2");
-	clk_register_clkdev(clk[usb_div], "per", "fsl-usb2-udc");
-	clk_register_clkdev(clk[ipg], "ipg", "fsl-usb2-udc");
-	clk_register_clkdev(clk[usbotg_gate], "ahb", "fsl-usb2-udc");
+	clk_register_clkdev(clk[usb_div], "per", "imx-udc-mx27");
+	clk_register_clkdev(clk[ipg], "ipg", "imx-udc-mx27");
+	clk_register_clkdev(clk[usbotg_gate], "ahb", "imx-udc-mx27");
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[nfc_div], NULL, "imx25-nand.0");
 	clk_register_clkdev(clk[csi_gate], NULL, "mx3-camera.0");

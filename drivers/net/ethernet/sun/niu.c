@@ -4342,7 +4342,7 @@ static int niu_alloc_rx_ring_info(struct niu *np,
 {
 	BUILD_BUG_ON(sizeof(struct rxdma_mailbox) != 64);
 
-	rp->rxhash = kzalloc(MAX_RBR_RING_SIZE * sizeof(struct page *),
+	rp->rxhash = kcalloc(MAX_RBR_RING_SIZE, sizeof(struct page *),
 			     GFP_KERNEL);
 	if (!rp->rxhash)
 		return -ENOMEM;
@@ -8366,14 +8366,12 @@ static void niu_pci_vpd_validate(struct niu *np)
 		return;
 	}
 
-	memcpy(dev->perm_addr, vpd->local_mac, ETH_ALEN);
+	memcpy(dev->dev_addr, vpd->local_mac, ETH_ALEN);
 
-	val8 = dev->perm_addr[5];
-	dev->perm_addr[5] += np->port;
-	if (dev->perm_addr[5] < val8)
-		dev->perm_addr[4]++;
-
-	memcpy(dev->dev_addr, dev->perm_addr, dev->addr_len);
+	val8 = dev->dev_addr[5];
+	dev->dev_addr[5] += np->port;
+	if (dev->dev_addr[5] < val8)
+		dev->dev_addr[4]++;
 }
 
 static int niu_pci_probe_sprom(struct niu *np)
@@ -8470,29 +8468,27 @@ static int niu_pci_probe_sprom(struct niu *np)
 	val = nr64(ESPC_MAC_ADDR0);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
 		     "SPROM: MAC_ADDR0[%08llx]\n", (unsigned long long)val);
-	dev->perm_addr[0] = (val >>  0) & 0xff;
-	dev->perm_addr[1] = (val >>  8) & 0xff;
-	dev->perm_addr[2] = (val >> 16) & 0xff;
-	dev->perm_addr[3] = (val >> 24) & 0xff;
+	dev->dev_addr[0] = (val >>  0) & 0xff;
+	dev->dev_addr[1] = (val >>  8) & 0xff;
+	dev->dev_addr[2] = (val >> 16) & 0xff;
+	dev->dev_addr[3] = (val >> 24) & 0xff;
 
 	val = nr64(ESPC_MAC_ADDR1);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
 		     "SPROM: MAC_ADDR1[%08llx]\n", (unsigned long long)val);
-	dev->perm_addr[4] = (val >>  0) & 0xff;
-	dev->perm_addr[5] = (val >>  8) & 0xff;
+	dev->dev_addr[4] = (val >>  0) & 0xff;
+	dev->dev_addr[5] = (val >>  8) & 0xff;
 
-	if (!is_valid_ether_addr(&dev->perm_addr[0])) {
+	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
 		dev_err(np->device, "SPROM MAC address invalid [ %pM ]\n",
-			dev->perm_addr);
+			dev->dev_addr);
 		return -EINVAL;
 	}
 
-	val8 = dev->perm_addr[5];
-	dev->perm_addr[5] += np->port;
-	if (dev->perm_addr[5] < val8)
-		dev->perm_addr[4]++;
-
-	memcpy(dev->dev_addr, dev->perm_addr, dev->addr_len);
+	val8 = dev->dev_addr[5];
+	dev->dev_addr[5] += np->port;
+	if (dev->dev_addr[5] < val8)
+		dev->dev_addr[4]++;
 
 	val = nr64(ESPC_MOD_STR_LEN);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
@@ -9267,15 +9263,13 @@ static int niu_get_of_props(struct niu *np)
 		netdev_err(dev, "%s: OF MAC address prop len (%d) is wrong\n",
 			   dp->full_name, prop_len);
 	}
-	memcpy(dev->perm_addr, mac_addr, dev->addr_len);
-	if (!is_valid_ether_addr(&dev->perm_addr[0])) {
+	memcpy(dev->dev_addr, mac_addr, dev->addr_len);
+	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
 		netdev_err(dev, "%s: OF MAC address is invalid\n",
 			   dp->full_name);
-		netdev_err(dev, "%s: [ %pM ]\n", dp->full_name, dev->perm_addr);
+		netdev_err(dev, "%s: [ %pM ]\n", dp->full_name, dev->dev_addr);
 		return -EINVAL;
 	}
-
-	memcpy(dev->dev_addr, dev->perm_addr, dev->addr_len);
 
 	model = of_get_property(dp, "model", &prop_len);
 

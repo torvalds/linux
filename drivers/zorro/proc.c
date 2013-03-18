@@ -22,7 +22,7 @@ static loff_t
 proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 {
 	loff_t new = -1;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	mutex_lock(&inode->i_mutex);
 	switch (whence) {
@@ -47,7 +47,7 @@ proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 static ssize_t
 proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	struct inode *ino = file->f_path.dentry->d_inode;
+	struct inode *ino = file_inode(file);
 	struct proc_dir_entry *dp = PDE(ino);
 	struct zorro_dev *z = dp->data;
 	struct ConfigDev cd;

@@ -16,6 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/serial_core.h>
+#include <linux/platform_device.h>
 #include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -621,7 +622,7 @@ MACHINE_START(ASSABET, "Intel-Assabet")
 	.map_io		= assabet_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine	= assabet_init,
 	.init_late	= sa11x0_init_late,
 #ifdef CONFIG_SA1111

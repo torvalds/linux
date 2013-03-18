@@ -399,8 +399,18 @@ void __init omap3xxx_check_revision(void)
 		}
 		break;
 	case 0xb944:
-		omap_revision = AM335X_REV_ES1_0;
-		cpu_rev = "1.0";
+		switch (rev) {
+		case 0:
+			omap_revision = AM335X_REV_ES1_0;
+			cpu_rev = "1.0";
+			break;
+		case 1:
+		/* FALLTHROUGH */
+		default:
+			omap_revision = AM335X_REV_ES2_0;
+			cpu_rev = "2.0";
+			break;
+		}
 		break;
 	case 0xb8f2:
 		switch (rev) {

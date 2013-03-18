@@ -94,7 +94,7 @@
 
 					/* support up to 512KB in one RDMA */
 #define ISCSI_ISER_SG_TABLESIZE         (0x80000 >> SHIFT_4K)
-#define ISER_DEF_CMD_PER_LUN		128
+#define ISER_DEF_CMD_PER_LUN		ISCSI_DEF_XMIT_CMDS_MAX
 
 /* QP settings */
 /* Maximal bounds on received asynchronous PDUs */

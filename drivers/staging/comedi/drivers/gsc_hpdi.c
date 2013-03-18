@@ -47,9 +47,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/interrupt.h>
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "plx9080.h"
 #include "comedi_fc.h"
@@ -946,11 +948,6 @@ static int gsc_hpdi_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &gsc_hpdi_driver);
 }
 
-static void gsc_hpdi_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(gsc_hpdi_pci_table) = {
 	{ PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080, PCI_VENDOR_ID_PLX,
 		    0x2400, 0, 0, 0},
@@ -962,7 +959,7 @@ static struct pci_driver gsc_hpdi_pci_driver = {
 	.name		= "gsc_hpdi",
 	.id_table	= gsc_hpdi_pci_table,
 	.probe		= gsc_hpdi_pci_probe,
-	.remove		= gsc_hpdi_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(gsc_hpdi_driver, gsc_hpdi_pci_driver);
 

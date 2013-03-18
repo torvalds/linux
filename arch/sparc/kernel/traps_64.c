@@ -2383,7 +2383,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	notify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
 	__asm__ __volatile__("flushw");
 	show_regs(regs);
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	if (regs->tstate & TSTATE_PRIV) {
 		struct thread_info *tp = current_thread_info();
 		struct reg_window *rw = (struct reg_window *)

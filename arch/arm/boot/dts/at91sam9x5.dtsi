@@ -88,13 +88,6 @@
 				interrupts = <1 4 7>;
 			};
 
-			ssc0: ssc@f0010000 {
-				compatible = "atmel,at91sam9g45-ssc";
-				reg = <0xf0010000 0x4000>;
-				interrupts = <28 4 5>;
-				status = "disabled";
-			};
-
 			tcb0: timer@f8008000 {
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xf8008000 0x100>;
@@ -150,6 +143,11 @@
 						atmel,pins =
 							<0 3 0x1 0x0>;	/* PA3 periph A */
 					};
+
+					pinctrl_usart0_sck: usart0_sck-0 {
+						atmel,pins =
+							<0 4 0x1 0x0>;	/* PA4 periph A */
+					};
 				};
 
 				usart1 {
@@ -161,12 +159,17 @@
 
 					pinctrl_usart1_rts: usart1_rts-0 {
 						atmel,pins =
-							<3 27 0x3 0x0>;	/* PC27 periph C */
+							<2 27 0x3 0x0>;	/* PC27 periph C */
 					};
 
 					pinctrl_usart1_cts: usart1_cts-0 {
 						atmel,pins =
-							<3 28 0x3 0x0>;	/* PC28 periph C */
+							<2 28 0x3 0x0>;	/* PC28 periph C */
+					};
+
+					pinctrl_usart1_sck: usart1_sck-0 {
+						atmel,pins =
+							<2 28 0x3 0x0>;	/* PC29 periph C */
 					};
 				};
 
@@ -179,46 +182,56 @@
 
 					pinctrl_uart2_rts: uart2_rts-0 {
 						atmel,pins =
-							<0 0 0x2 0x0>;	/* PB0 periph B */
+							<1 0 0x2 0x0>;	/* PB0 periph B */
 					};
 
 					pinctrl_uart2_cts: uart2_cts-0 {
 						atmel,pins =
-							<0 1 0x2 0x0>;	/* PB1 periph B */
+							<1 1 0x2 0x0>;	/* PB1 periph B */
+					};
+
+					pinctrl_usart2_sck: usart2_sck-0 {
+						atmel,pins =
+							<1 2 0x2 0x0>;	/* PB2 periph B */
 					};
 				};
 
 				usart3 {
-					pinctrl_uart3: usart3-0 {
+					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<3 23 0x2 0x1	/* PC22 periph B with pullup */
-							 3 23 0x2 0x0>;	/* PC23 periph B */
+							<2 22 0x2 0x1	/* PC22 periph B with pullup */
+							 2 23 0x2 0x0>;	/* PC23 periph B */
 					};
 
 					pinctrl_usart3_rts: usart3_rts-0 {
 						atmel,pins =
-							<3 24 0x2 0x0>;	/* PC24 periph B */
+							<2 24 0x2 0x0>;	/* PC24 periph B */
 					};
 
 					pinctrl_usart3_cts: usart3_cts-0 {
 						atmel,pins =
-							<3 25 0x2 0x0>;	/* PC25 periph B */
+							<2 25 0x2 0x0>;	/* PC25 periph B */
+					};
+
+					pinctrl_usart3_sck: usart3_sck-0 {
+						atmel,pins =
+							<2 26 0x2 0x0>;	/* PC26 periph B */
 					};
 				};
 
 				uart0 {
 					pinctrl_uart0: uart0-0 {
 						atmel,pins =
-							<3 8 0x3 0x0	/* PC8 periph C */
-							 3 9 0x3 0x1>;	/* PC9 periph C with pullup */
+							<2 8 0x3 0x0	/* PC8 periph C */
+							 2 9 0x3 0x1>;	/* PC9 periph C with pullup */
 					};
 				};
 
 				uart1 {
 					pinctrl_uart1: uart1-0 {
 						atmel,pins =
-							<3 16 0x3 0x0	/* PC16 periph C */
-							 3 17 0x3 0x1>;	/* PC17 periph C with pullup */
+							<2 16 0x3 0x0	/* PC16 periph C */
+							 2 17 0x3 0x1>;	/* PC17 periph C with pullup */
 					};
 				};
 
@@ -247,14 +260,14 @@
 
 					pinctrl_macb0_rmii_mii: macb0_rmii_mii-0 {
 						atmel,pins =
-							<1 8 0x1 0x0	/* PA8 periph A */
-							 1 11 0x1 0x0	/* PA11 periph A */
-							 1 12 0x1 0x0	/* PA12 periph A */
-							 1 13 0x1 0x0	/* PA13 periph A */
-							 1 14 0x1 0x0	/* PA14 periph A */
-							 1 15 0x1 0x0	/* PA15 periph A */
-							 1 16 0x1 0x0	/* PA16 periph A */
-							 1 17 0x1 0x0>;	/* PA17 periph A */
+							<1 8 0x1 0x0	/* PB8 periph A */
+							 1 11 0x1 0x0	/* PB11 periph A */
+							 1 12 0x1 0x0	/* PB12 periph A */
+							 1 13 0x1 0x0	/* PB13 periph A */
+							 1 14 0x1 0x0	/* PB14 periph A */
+							 1 15 0x1 0x0	/* PB15 periph A */
+							 1 16 0x1 0x0	/* PB16 periph A */
+							 1 17 0x1 0x0>;	/* PB17 periph A */
 					};
 				};
 
@@ -287,6 +300,22 @@
 							<0 2 0x2 0x1	/* PA2 periph B with pullup */
 							 0 3 0x2 0x1	/* PA3 periph B with pullup */
 							 0 4 0x2 0x1>;	/* PA4 periph B with pullup */
+					};
+				};
+
+				ssc0 {
+					pinctrl_ssc0_tx: ssc0_tx-0 {
+						atmel,pins =
+							<0 24 0x2 0x0	/* PA24 periph B */
+							 0 25 0x2 0x0	/* PA25 periph B */
+							 0 26 0x2 0x0>;	/* PA26 periph B */
+					};
+
+					pinctrl_ssc0_rx: ssc0_rx-0 {
+						atmel,pins =
+							<0 27 0x2 0x0	/* PA27 periph B */
+							 0 28 0x2 0x0	/* PA28 periph B */
+							 0 29 0x2 0x0>;	/* PA29 periph B */
 					};
 				};
 
@@ -333,6 +362,15 @@
 				};
 			};
 
+			ssc0: ssc@f0010000 {
+				compatible = "atmel,at91sam9g45-ssc";
+				reg = <0xf0010000 0x4000>;
+				interrupts = <28 4 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
+				status = "disabled";
+			};
+
 			mmc0: mmc@f0008000 {
 				compatible = "atmel,hsmci";
 				reg = <0xf0008000 0x600>;
@@ -364,8 +402,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf801c000 0x200>;
 				interrupts = <5 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart0>;
 				status = "disabled";
@@ -375,8 +411,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8020000 0x200>;
 				interrupts = <6 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart1>;
 				status = "disabled";
@@ -386,8 +420,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8024000 0x200>;
 				interrupts = <7 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart2>;
 				status = "disabled";
@@ -480,7 +512,11 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x40000000 0x10000000
+			       0xffffe000 0x600		/* PMECC Registers */
+			       0xffffe600 0x200		/* PMECC Error Location Registers */
+			       0x00108000 0x18000	/* PMECC looup table in ROM code  */
 			      >;
+			atmel,pmecc-lookup-table-offset = <0x0 0x8000>;
 			atmel,nand-addr-offset = <21>;
 			atmel,nand-cmd-offset = <22>;
 			pinctrl-names = "default";

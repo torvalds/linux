@@ -629,8 +629,9 @@ config ARM_THUMBEE
 	  make use of it. Say N for code that can run on CPUs without ThumbEE.
 
 config ARM_VIRT_EXT
-	bool "Native support for the ARM Virtualization Extensions"
-	depends on MMU && CPU_V7
+	bool
+	depends on MMU
+	default y if CPU_V7
 	help
 	  Enable the kernel to make use of the ARM Virtualization
 	  Extensions to install hypervisors without run-time firmware
@@ -639,11 +640,6 @@ config ARM_VIRT_EXT
 	  A compliant bootloader is required in order to make maximum
 	  use of this feature.  Refer to Documentation/arm/Booting for
 	  details.
-
-	  It is safe to enable this option even if the kernel may not be
-	  booted in HYP mode, may not have support for the
-	  virtualization extensions, or may be booted with a
-	  non-compliant bootloader.
 
 config SWP_EMULATE
 	bool "Emulate SWP/SWPB instructions"

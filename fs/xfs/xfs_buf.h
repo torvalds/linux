@@ -151,7 +151,7 @@ typedef struct xfs_buf {
 	struct page		**b_pages;	/* array of page pointers */
 	struct page		*b_page_array[XB_PAGES]; /* inline pages */
 	struct xfs_buf_map	*b_maps;	/* compound buffer map */
-	struct xfs_buf_map	b_map;		/* inline compound buffer map */
+	struct xfs_buf_map	__b_map;	/* inline compound buffer map */
 	int			b_map_count;
 	int			b_io_length;	/* IO size in BBs */
 	atomic_t		b_pin_count;	/* pin count */
@@ -330,8 +330,8 @@ void xfs_buf_stale(struct xfs_buf *bp);
  * In future, uncached buffers will pass the block number directly to the io
  * request function and hence these macros will go away at that point.
  */
-#define XFS_BUF_ADDR(bp)		((bp)->b_map.bm_bn)
-#define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_map.bm_bn = (xfs_daddr_t)(bno))
+#define XFS_BUF_ADDR(bp)		((bp)->b_maps[0].bm_bn)
+#define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_maps[0].bm_bn = (xfs_daddr_t)(bno))
 
 static inline void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 {

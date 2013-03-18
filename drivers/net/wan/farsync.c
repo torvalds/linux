@@ -2448,11 +2448,9 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Allocate driver private data */
-	card = kzalloc(sizeof (struct fst_card_info), GFP_KERNEL);
-	if (card == NULL) {
-		pr_err("FarSync card found but insufficient memory for driver storage\n");
+	card = kzalloc(sizeof(struct fst_card_info), GFP_KERNEL);
+	if (card == NULL)
 		return -ENOMEM;
-	}
 
 	/* Try to enable the device */
 	if ((err = pci_enable_device(pdev)) != 0) {

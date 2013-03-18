@@ -31,7 +31,7 @@ static ssize_t wiidebug_eeprom_read(struct file *f, char __user *u, size_t s,
 	unsigned long flags;
 	ssize_t ret;
 	char buf[16];
-	__u16 size;
+	__u16 size = 0;
 
 	if (s == 0)
 		return -EINVAL;

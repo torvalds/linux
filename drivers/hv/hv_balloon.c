@@ -29,7 +29,6 @@
 #include <linux/memory_hotplug.h>
 #include <linux/memory.h>
 #include <linux/notifier.h>
-#include <linux/mman.h>
 #include <linux/percpu_counter.h>
 
 #include <linux/hyperv.h>
@@ -403,7 +402,7 @@ struct dm_info_header {
  */
 
 struct dm_info_msg {
-	struct dm_info_header header;
+	struct dm_header hdr;
 	__u32 reserved;
 	__u32 info_size;
 	__u8  info[];
@@ -415,10 +414,17 @@ struct dm_info_msg {
 
 static bool hot_add;
 static bool do_hot_add;
+/*
+ * Delay reporting memory pressure by
+ * the specified number of seconds.
+ */
+static uint pressure_report_delay = 30;
 
 module_param(hot_add, bool, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(hot_add, "If set attempt memory hot_add");
 
+module_param(pressure_report_delay, uint, (S_IRUGO | S_IWUSR));
+MODULE_PARM_DESC(pressure_report_delay, "Delay in secs in reporting pressure");
 static atomic_t trans_id = ATOMIC_INIT(0);
 
 static int dm_ring_size = (5 * PAGE_SIZE);
@@ -503,14 +509,46 @@ static void hot_add_req(struct hv_dynmem_device *dm, struct dm_hot_add *msg)
 
 static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 {
-	switch (msg->header.type) {
+	struct dm_info_header *info_hdr;
+
+	info_hdr = (struct dm_info_header *)msg->info;
+
+	switch (info_hdr->type) {
 	case INFO_TYPE_MAX_PAGE_CNT:
 		pr_info("Received INFO_TYPE_MAX_PAGE_CNT\n");
-		pr_info("Data Size is %d\n", msg->header.data_size);
+		pr_info("Data Size is %d\n", info_hdr->data_size);
 		break;
 	default:
-		pr_info("Received Unknown type: %d\n", msg->header.type);
+		pr_info("Received Unknown type: %d\n", info_hdr->type);
 	}
+}
+
+unsigned long compute_balloon_floor(void)
+{
+	unsigned long min_pages;
+#define MB2PAGES(mb) ((mb) << (20 - PAGE_SHIFT))
+	/* Simple continuous piecewiese linear function:
+	 *  max MiB -> min MiB  gradient
+	 *       0         0
+	 *      16        16
+	 *      32        24
+	 *     128        72    (1/2)
+	 *     512       168    (1/4)
+	 *    2048       360    (1/8)
+	 *    8192       552    (1/32)
+	 *   32768      1320
+	 *  131072      4392
+	 */
+	if (totalram_pages < MB2PAGES(128))
+		min_pages = MB2PAGES(8) + (totalram_pages >> 1);
+	else if (totalram_pages < MB2PAGES(512))
+		min_pages = MB2PAGES(40) + (totalram_pages >> 2);
+	else if (totalram_pages < MB2PAGES(2048))
+		min_pages = MB2PAGES(104) + (totalram_pages >> 3);
+	else
+		min_pages = MB2PAGES(296) + (totalram_pages >> 5);
+#undef MB2PAGES
+	return min_pages;
 }
 
 /*
@@ -526,15 +564,30 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 static void post_status(struct hv_dynmem_device *dm)
 {
 	struct dm_status status;
+	struct sysinfo val;
 
-
+	if (pressure_report_delay > 0) {
+		--pressure_report_delay;
+		return;
+	}
+	si_meminfo(&val);
 	memset(&status, 0, sizeof(struct dm_status));
 	status.hdr.type = DM_STATUS_REPORT;
 	status.hdr.size = sizeof(struct dm_status);
 	status.hdr.trans_id = atomic_inc_return(&trans_id);
 
-
-	status.num_committed = vm_memory_committed();
+	/*
+	 * The host expects the guest to report free memory.
+	 * Further, the host expects the pressure information to
+	 * include the ballooned out pages.
+	 * For a given amount of memory that we are managing, we
+	 * need to compute a floor below which we should not balloon.
+	 * Compute this and add it to the pressure report.
+	 */
+	status.num_avail = val.freeram;
+	status.num_committed = vm_memory_committed() +
+				dm->num_pages_ballooned +
+				compute_balloon_floor();
 
 	vmbus_sendpacket(dm->dev->channel, &status,
 				sizeof(struct dm_status),
@@ -542,8 +595,6 @@ static void post_status(struct hv_dynmem_device *dm)
 				VM_PKT_DATA_INBAND, 0);
 
 }
-
-
 
 static void free_balloon_pages(struct hv_dynmem_device *dm,
 			 union dm_mem_page_range *range_array)
@@ -879,7 +930,7 @@ static int balloon_probe(struct hv_device *dev,
 			balloon_onchannelcallback, dev);
 
 	if (ret)
-		return ret;
+		goto probe_error0;
 
 	dm_device.dev = dev;
 	dm_device.state = DM_INITIALIZING;
@@ -891,7 +942,7 @@ static int balloon_probe(struct hv_device *dev,
 		 kthread_run(dm_thread_func, &dm_device, "hv_balloon");
 	if (IS_ERR(dm_device.thread)) {
 		ret = PTR_ERR(dm_device.thread);
-		goto probe_error0;
+		goto probe_error1;
 	}
 
 	hv_set_drvdata(dev, &dm_device);
@@ -914,12 +965,12 @@ static int balloon_probe(struct hv_device *dev,
 				VM_PKT_DATA_INBAND,
 				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret)
-		goto probe_error1;
+		goto probe_error2;
 
 	t = wait_for_completion_timeout(&dm_device.host_event, 5*HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
-		goto probe_error1;
+		goto probe_error2;
 	}
 
 	/*
@@ -928,7 +979,7 @@ static int balloon_probe(struct hv_device *dev,
 	 */
 	if (dm_device.state == DM_INIT_ERROR) {
 		ret = -ETIMEDOUT;
-		goto probe_error1;
+		goto probe_error2;
 	}
 	/*
 	 * Now submit our capabilities to the host.
@@ -961,12 +1012,12 @@ static int balloon_probe(struct hv_device *dev,
 				VM_PKT_DATA_INBAND,
 				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret)
-		goto probe_error1;
+		goto probe_error2;
 
 	t = wait_for_completion_timeout(&dm_device.host_event, 5*HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
-		goto probe_error1;
+		goto probe_error2;
 	}
 
 	/*
@@ -975,18 +1026,20 @@ static int balloon_probe(struct hv_device *dev,
 	 */
 	if (dm_device.state == DM_INIT_ERROR) {
 		ret = -ETIMEDOUT;
-		goto probe_error1;
+		goto probe_error2;
 	}
 
 	dm_device.state = DM_INITIALIZED;
 
 	return 0;
 
-probe_error1:
+probe_error2:
 	kthread_stop(dm_device.thread);
 
-probe_error0:
+probe_error1:
 	vmbus_close(dev->channel);
+probe_error0:
+	kfree(send_buffer);
 	return ret;
 }
 
@@ -999,6 +1052,7 @@ static int balloon_remove(struct hv_device *dev)
 
 	vmbus_close(dev->channel);
 	kthread_stop(dm->thread);
+	kfree(send_buffer);
 
 	return 0;
 }
@@ -1006,9 +1060,7 @@ static int balloon_remove(struct hv_device *dev)
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Dynamic Memory Class ID */
 	/* 525074DC-8985-46e2-8057-A307DC18A502 */
-	{ VMBUS_DEVICE(0xdc, 0x74, 0x50, 0X52, 0x85, 0x89, 0xe2, 0x46,
-		       0x80, 0x57, 0xa3, 0x07, 0xdc, 0x18, 0xa5, 0x02)
-	},
+	{ HV_DM_GUID, },
 	{ },
 };
 

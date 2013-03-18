@@ -42,6 +42,9 @@
 #undef MULTI_OMAP2
 #undef OMAP_NAME
 
+#ifdef CONFIG_ARCH_MULTIPLATFORM
+#define MULTI_OMAP2
+#endif
 #ifdef CONFIG_SOC_OMAP2420
 # ifdef OMAP_NAME
 #  undef  MULTI_OMAP2
@@ -111,6 +114,11 @@ int omap_type(void);
  * CPU class bits (15xx, 16xx, 24xx, 34xx...)	[07:00]
  */
 unsigned int omap_rev(void);
+
+static inline int soc_is_omap(void)
+{
+	return omap_rev() != 0;
+}
 
 /*
  * Get the CPU revision for OMAP devices
@@ -387,6 +395,7 @@ IS_OMAP_TYPE(3430, 0x3430)
 
 #define AM335X_CLASS		0x33500033
 #define AM335X_REV_ES1_0	AM335X_CLASS
+#define AM335X_REV_ES2_0	(AM335X_CLASS | (0x1 << 8))
 
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	(OMAP443X_CLASS | (0x10 << 8))
@@ -464,6 +473,27 @@ static inline unsigned int omap4_has_ ##feat(void)	\
 }							\
 
 OMAP4_HAS_FEATURE(perf_silicon, PERF_SILICON)
+
+/*
+ * We need to make sure omap initcalls don't run when
+ * multiplatform kernels are booted on other SoCs.
+ */
+#define omap_initcall(level, fn)		\
+static int __init __used __##fn(void)		\
+{						\
+	if (!soc_is_omap())			\
+		return 0;			\
+	return fn();				\
+}						\
+level(__##fn);
+
+#define omap_early_initcall(fn)		omap_initcall(early_initcall, fn)
+#define omap_core_initcall(fn)		omap_initcall(core_initcall, fn)
+#define omap_postcore_initcall(fn)	omap_initcall(postcore_initcall, fn)
+#define omap_arch_initcall(fn)		omap_initcall(arch_initcall, fn)
+#define omap_subsys_initcall(fn)	omap_initcall(subsys_initcall, fn)
+#define omap_device_initcall(fn)	omap_initcall(device_initcall, fn)
+#define omap_late_initcall(fn)		omap_initcall(late_initcall, fn)
 
 #endif	/* __ASSEMBLY__ */
 

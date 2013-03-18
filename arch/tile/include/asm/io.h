@@ -250,7 +250,9 @@ static inline void writeq(u64 val, unsigned long addr)
 #define iowrite32 writel
 #define iowrite64 writeq
 
-static inline void memset_io(void *dst, int val, size_t len)
+#if CHIP_HAS_MMIO() || defined(CONFIG_PCI)
+
+static inline void memset_io(volatile void *dst, int val, size_t len)
 {
 	int x;
 	BUG_ON((unsigned long)dst & 0x3);
@@ -276,6 +278,8 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 	for (x = 0; x < len; x += 4)
 		writel(*(u32 *)(src + x), dst + x);
 }
+
+#endif
 
 /*
  * The Tile architecture does not support IOPORT, even with PCI.

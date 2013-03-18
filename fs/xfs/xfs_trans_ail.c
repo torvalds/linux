@@ -55,20 +55,6 @@ xfs_ail_check(
 		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) >= 0);
 
 
-#ifdef XFS_TRANS_DEBUG
-	/*
-	 * Walk the list checking lsn ordering, and that every entry has the
-	 * XFS_LI_IN_AIL flag set. This is really expensive, so only do it
-	 * when specifically debugging the transaction subsystem.
-	 */
-	prev_lip = list_entry(&ailp->xa_ail, xfs_log_item_t, li_ail);
-	list_for_each_entry(lip, &ailp->xa_ail, li_ail) {
-		if (&prev_lip->li_ail != &ailp->xa_ail)
-			ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) <= 0);
-		ASSERT((lip->li_flags & XFS_LI_IN_AIL) != 0);
-		prev_lip = lip;
-	}
-#endif /* XFS_TRANS_DEBUG */
 }
 #else /* !DEBUG */
 #define	xfs_ail_check(a,l)

@@ -307,12 +307,12 @@ static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 	int valid = 0;
 
 	if (pdu->base.devid == sdev->devid) {
-		spin_lock(&ud->lock);
+		spin_lock_irq(&ud->lock);
 		if (ud->status == SDEV_ST_USED) {
 			/* A request is valid. */
 			valid = 1;
 		}
-		spin_unlock(&ud->lock);
+		spin_unlock_irq(&ud->lock);
 	}
 
 	return valid;
@@ -485,7 +485,6 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 			kzalloc(pdu->u.cmd_submit.transfer_buffer_length,
 				GFP_KERNEL);
 		if (!priv->urb->transfer_buffer) {
-			dev_err(&sdev->interface->dev, "malloc x_buff\n");
 			usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 			return;
 		}

@@ -85,6 +85,7 @@ struct send_ctx {
 	u32 send_max_size;
 	u64 total_send_size;
 	u64 cmd_send_size[BTRFS_SEND_C_MAX + 1];
+	u64 flags;	/* 'flags' member of btrfs_ioctl_send_args is u64 */
 
 	struct vfsmount *mnt;
 
@@ -1814,8 +1815,10 @@ static int name_cache_insert(struct send_ctx *sctx,
 			(unsigned long)nce->ino);
 	if (!nce_head) {
 		nce_head = kmalloc(sizeof(*nce_head), GFP_NOFS);
-		if (!nce_head)
+		if (!nce_head) {
+			kfree(nce);
 			return -ENOMEM;
+		}
 		INIT_LIST_HEAD(nce_head);
 
 		ret = radix_tree_insert(&sctx->name_cache, nce->ino, nce_head);
@@ -3707,6 +3710,39 @@ out:
 	return ret;
 }
 
+/*
+ * Send an update extent command to user space.
+ */
+static int send_update_extent(struct send_ctx *sctx,
+			      u64 offset, u32 len)
+{
+	int ret = 0;
+	struct fs_path *p;
+
+	p = fs_path_alloc(sctx);
+	if (!p)
+		return -ENOMEM;
+
+	ret = begin_cmd(sctx, BTRFS_SEND_C_UPDATE_EXTENT);
+	if (ret < 0)
+		goto out;
+
+	ret = get_cur_path(sctx, sctx->cur_ino, sctx->cur_inode_gen, p);
+	if (ret < 0)
+		goto out;
+
+	TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, p);
+	TLV_PUT_U64(sctx, BTRFS_SEND_A_FILE_OFFSET, offset);
+	TLV_PUT_U64(sctx, BTRFS_SEND_A_SIZE, len);
+
+	ret = send_cmd(sctx);
+
+tlv_put_failure:
+out:
+	fs_path_free(sctx, p);
+	return ret;
+}
+
 static int send_write_or_clone(struct send_ctx *sctx,
 			       struct btrfs_path *path,
 			       struct btrfs_key *key,
@@ -3742,7 +3778,11 @@ static int send_write_or_clone(struct send_ctx *sctx,
 		goto out;
 	}
 
-	if (!clone_root) {
+	if (clone_root) {
+		ret = send_clone(sctx, offset, len, clone_root);
+	} else if (sctx->flags & BTRFS_SEND_FLAG_NO_FILE_DATA) {
+		ret = send_update_extent(sctx, offset, len);
+	} else {
 		while (pos < len) {
 			l = len - pos;
 			if (l > BTRFS_SEND_READ_SIZE)
@@ -3755,10 +3795,7 @@ static int send_write_or_clone(struct send_ctx *sctx,
 			pos += ret;
 		}
 		ret = 0;
-	} else {
-		ret = send_clone(sctx, offset, len, clone_root);
 	}
-
 out:
 	return ret;
 }
@@ -4534,7 +4571,6 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_ioctl_send_args *arg = NULL;
 	struct btrfs_key key;
-	struct file *filp = NULL;
 	struct send_ctx *sctx = NULL;
 	u32 i;
 	u64 *clone_sources_tmp = NULL;
@@ -4542,7 +4578,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	send_root = BTRFS_I(fdentry(mnt_file)->d_inode)->root;
+	send_root = BTRFS_I(file_inode(mnt_file))->root;
 	fs_info = send_root->fs_info;
 
 	arg = memdup_user(arg_, sizeof(*arg));
@@ -4559,6 +4595,11 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		goto out;
 	}
 
+	if (arg->flags & ~BTRFS_SEND_FLAG_NO_FILE_DATA) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	sctx = kzalloc(sizeof(struct send_ctx), GFP_NOFS);
 	if (!sctx) {
 		ret = -ENOMEM;
@@ -4569,6 +4610,8 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	INIT_LIST_HEAD(&sctx->deleted_refs);
 	INIT_RADIX_TREE(&sctx->name_cache, GFP_NOFS);
 	INIT_LIST_HEAD(&sctx->name_cache_list);
+
+	sctx->flags = arg->flags;
 
 	sctx->send_filp = fget(arg->send_fd);
 	if (IS_ERR(sctx->send_filp)) {
@@ -4671,8 +4714,6 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		goto out;
 
 out:
-	if (filp)
-		fput(filp);
 	kfree(arg);
 	vfree(clone_sources_tmp);
 

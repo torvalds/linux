@@ -518,6 +518,16 @@ static struct video_device fm_viddev_template = {
 	.ioctl_ops = &fm_drv_ioctl_ops,
 	.name = FM_DRV_NAME,
 	.release = video_device_release,
+	/*
+	 * To ensure both the tuner and modulator ioctls are accessible we
+	 * set the vfl_dir to M2M to indicate this.
+	 *
+	 * It is not really a mem2mem device of course, but it can both receive
+	 * and transmit using the same radio device. It's the only radio driver
+	 * that does this and it should really be split in two radio devices,
+	 * but that would affect applications using this driver.
+	 */
+	.vfl_dir = VFL_DIR_M2M,
 };
 
 int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)

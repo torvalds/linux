@@ -182,206 +182,206 @@ static struct batres_vs_temp temp_to_batres_tbl_9100[] = {
 };
 
 static struct abx500_battery_type bat_type_thermistor[] = {
-[BATTERY_UNKNOWN] = {
-	/* First element always represent the UNKNOWN battery */
-	.name = POWER_SUPPLY_TECHNOLOGY_UNKNOWN,
-	.resis_high = 0,
-	.resis_low = 0,
-	.battery_resistance = 300,
-	.charge_full_design = 612,
-	.nominal_voltage = 3700,
-	.termination_vol = 4050,
-	.termination_curr = 200,
-	.recharge_vol = 3990,
-	.normal_cur_lvl = 400,
-	.normal_vol_lvl = 4100,
-	.maint_a_cur_lvl = 400,
-	.maint_a_vol_lvl = 4050,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 400,
-	.maint_b_vol_lvl = 4000,
-	.maint_b_chg_timer_h = 200,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-	.r_to_t_tbl = temp_tbl,
-	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-	.v_to_cap_tbl = cap_tbl,
-	.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-	.batres_tbl = temp_to_batres_tbl_thermistor,
-},
-{
-	.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
-	.resis_high = 53407,
-	.resis_low = 12500,
-	.battery_resistance = 300,
-	.charge_full_design = 900,
-	.nominal_voltage = 3600,
-	.termination_vol = 4150,
-	.termination_curr = 80,
-	.recharge_vol = 4130,
-	.normal_cur_lvl = 700,
-	.normal_vol_lvl = 4200,
-	.maint_a_cur_lvl = 600,
-	.maint_a_vol_lvl = 4150,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 600,
-	.maint_b_vol_lvl = 4100,
-	.maint_b_chg_timer_h = 200,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl_A_thermistor),
-	.r_to_t_tbl = temp_tbl_A_thermistor,
-	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_A_thermistor),
-	.v_to_cap_tbl = cap_tbl_A_thermistor,
-	.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-	.batres_tbl = temp_to_batres_tbl_thermistor,
+	[BATTERY_UNKNOWN] = {
+		/* First element always represent the UNKNOWN battery */
+		.name = POWER_SUPPLY_TECHNOLOGY_UNKNOWN,
+		.resis_high = 0,
+		.resis_low = 0,
+		.battery_resistance = 300,
+		.charge_full_design = 612,
+		.nominal_voltage = 3700,
+		.termination_vol = 4050,
+		.termination_curr = 200,
+		.recharge_cap = 95,
+		.normal_cur_lvl = 400,
+		.normal_vol_lvl = 4100,
+		.maint_a_cur_lvl = 400,
+		.maint_a_vol_lvl = 4050,
+		.maint_a_chg_timer_h = 60,
+		.maint_b_cur_lvl = 400,
+		.maint_b_vol_lvl = 4000,
+		.maint_b_chg_timer_h = 200,
+		.low_high_cur_lvl = 300,
+		.low_high_vol_lvl = 4000,
+		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
+		.r_to_t_tbl = temp_tbl,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
+		.v_to_cap_tbl = cap_tbl,
+		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
+		.batres_tbl = temp_to_batres_tbl_thermistor,
+	},
+	{
+		.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
+		.resis_high = 53407,
+		.resis_low = 12500,
+		.battery_resistance = 300,
+		.charge_full_design = 900,
+		.nominal_voltage = 3600,
+		.termination_vol = 4150,
+		.termination_curr = 80,
+		.recharge_cap = 95,
+		.normal_cur_lvl = 700,
+		.normal_vol_lvl = 4200,
+		.maint_a_cur_lvl = 600,
+		.maint_a_vol_lvl = 4150,
+		.maint_a_chg_timer_h = 60,
+		.maint_b_cur_lvl = 600,
+		.maint_b_vol_lvl = 4100,
+		.maint_b_chg_timer_h = 200,
+		.low_high_cur_lvl = 300,
+		.low_high_vol_lvl = 4000,
+		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl_A_thermistor),
+		.r_to_t_tbl = temp_tbl_A_thermistor,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_A_thermistor),
+		.v_to_cap_tbl = cap_tbl_A_thermistor,
+		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
+		.batres_tbl = temp_to_batres_tbl_thermistor,
 
-},
-{
-	.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
-	.resis_high = 200000,
-	.resis_low = 82869,
-	.battery_resistance = 300,
-	.charge_full_design = 900,
-	.nominal_voltage = 3600,
-	.termination_vol = 4150,
-	.termination_curr = 80,
-	.recharge_vol = 4130,
-	.normal_cur_lvl = 700,
-	.normal_vol_lvl = 4200,
-	.maint_a_cur_lvl = 600,
-	.maint_a_vol_lvl = 4150,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 600,
-	.maint_b_vol_lvl = 4100,
-	.maint_b_chg_timer_h = 200,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl_B_thermistor),
-	.r_to_t_tbl = temp_tbl_B_thermistor,
-	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_B_thermistor),
-	.v_to_cap_tbl = cap_tbl_B_thermistor,
-	.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-	.batres_tbl = temp_to_batres_tbl_thermistor,
-},
+	},
+	{
+		.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
+		.resis_high = 200000,
+		.resis_low = 82869,
+		.battery_resistance = 300,
+		.charge_full_design = 900,
+		.nominal_voltage = 3600,
+		.termination_vol = 4150,
+		.termination_curr = 80,
+		.recharge_cap = 95,
+		.normal_cur_lvl = 700,
+		.normal_vol_lvl = 4200,
+		.maint_a_cur_lvl = 600,
+		.maint_a_vol_lvl = 4150,
+		.maint_a_chg_timer_h = 60,
+		.maint_b_cur_lvl = 600,
+		.maint_b_vol_lvl = 4100,
+		.maint_b_chg_timer_h = 200,
+		.low_high_cur_lvl = 300,
+		.low_high_vol_lvl = 4000,
+		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl_B_thermistor),
+		.r_to_t_tbl = temp_tbl_B_thermistor,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_B_thermistor),
+		.v_to_cap_tbl = cap_tbl_B_thermistor,
+		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
+		.batres_tbl = temp_to_batres_tbl_thermistor,
+	},
 };
 
 static struct abx500_battery_type bat_type_ext_thermistor[] = {
-[BATTERY_UNKNOWN] = {
-	/* First element always represent the UNKNOWN battery */
-	.name = POWER_SUPPLY_TECHNOLOGY_UNKNOWN,
-	.resis_high = 0,
-	.resis_low = 0,
-	.battery_resistance = 300,
-	.charge_full_design = 612,
-	.nominal_voltage = 3700,
-	.termination_vol = 4050,
-	.termination_curr = 200,
-	.recharge_vol = 3990,
-	.normal_cur_lvl = 400,
-	.normal_vol_lvl = 4100,
-	.maint_a_cur_lvl = 400,
-	.maint_a_vol_lvl = 4050,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 400,
-	.maint_b_vol_lvl = 4000,
-	.maint_b_chg_timer_h = 200,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-	.r_to_t_tbl = temp_tbl,
-	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-	.v_to_cap_tbl = cap_tbl,
-	.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-	.batres_tbl = temp_to_batres_tbl_thermistor,
-},
+	[BATTERY_UNKNOWN] = {
+		/* First element always represent the UNKNOWN battery */
+		.name = POWER_SUPPLY_TECHNOLOGY_UNKNOWN,
+		.resis_high = 0,
+		.resis_low = 0,
+		.battery_resistance = 300,
+		.charge_full_design = 612,
+		.nominal_voltage = 3700,
+		.termination_vol = 4050,
+		.termination_curr = 200,
+		.recharge_cap = 95,
+		.normal_cur_lvl = 400,
+		.normal_vol_lvl = 4100,
+		.maint_a_cur_lvl = 400,
+		.maint_a_vol_lvl = 4050,
+		.maint_a_chg_timer_h = 60,
+		.maint_b_cur_lvl = 400,
+		.maint_b_vol_lvl = 4000,
+		.maint_b_chg_timer_h = 200,
+		.low_high_cur_lvl = 300,
+		.low_high_vol_lvl = 4000,
+		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
+		.r_to_t_tbl = temp_tbl,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
+		.v_to_cap_tbl = cap_tbl,
+		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
+		.batres_tbl = temp_to_batres_tbl_thermistor,
+	},
 /*
  * These are the batteries that doesn't have an internal NTC resistor to measure
  * its temperature. The temperature in this case is measure with a NTC placed
  * near the battery but on the PCB.
  */
-{
-	.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
-	.resis_high = 76000,
-	.resis_low = 53000,
-	.battery_resistance = 300,
-	.charge_full_design = 900,
-	.nominal_voltage = 3700,
-	.termination_vol = 4150,
-	.termination_curr = 100,
-	.recharge_vol = 4130,
-	.normal_cur_lvl = 700,
-	.normal_vol_lvl = 4200,
-	.maint_a_cur_lvl = 600,
-	.maint_a_vol_lvl = 4150,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 600,
-	.maint_b_vol_lvl = 4100,
-	.maint_b_chg_timer_h = 200,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-	.r_to_t_tbl = temp_tbl,
-	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-	.v_to_cap_tbl = cap_tbl,
-	.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-	.batres_tbl = temp_to_batres_tbl_thermistor,
-},
-{
-	.name = POWER_SUPPLY_TECHNOLOGY_LION,
-	.resis_high = 30000,
-	.resis_low = 10000,
-	.battery_resistance = 300,
-	.charge_full_design = 950,
-	.nominal_voltage = 3700,
-	.termination_vol = 4150,
-	.termination_curr = 100,
-	.recharge_vol = 4130,
-	.normal_cur_lvl = 700,
-	.normal_vol_lvl = 4200,
-	.maint_a_cur_lvl = 600,
-	.maint_a_vol_lvl = 4150,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 600,
-	.maint_b_vol_lvl = 4100,
-	.maint_b_chg_timer_h = 200,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-	.r_to_t_tbl = temp_tbl,
-	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-	.v_to_cap_tbl = cap_tbl,
-	.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-	.batres_tbl = temp_to_batres_tbl_thermistor,
-},
-{
-	.name = POWER_SUPPLY_TECHNOLOGY_LION,
-	.resis_high = 95000,
-	.resis_low = 76001,
-	.battery_resistance = 300,
-	.charge_full_design = 950,
-	.nominal_voltage = 3700,
-	.termination_vol = 4150,
-	.termination_curr = 100,
-	.recharge_vol = 4130,
-	.normal_cur_lvl = 700,
-	.normal_vol_lvl = 4200,
-	.maint_a_cur_lvl = 600,
-	.maint_a_vol_lvl = 4150,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 600,
-	.maint_b_vol_lvl = 4100,
-	.maint_b_chg_timer_h = 200,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-	.r_to_t_tbl = temp_tbl,
-	.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
-	.v_to_cap_tbl = cap_tbl,
-	.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
-	.batres_tbl = temp_to_batres_tbl_thermistor,
-},
+	{
+		.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
+		.resis_high = 76000,
+		.resis_low = 53000,
+		.battery_resistance = 300,
+		.charge_full_design = 900,
+		.nominal_voltage = 3700,
+		.termination_vol = 4150,
+		.termination_curr = 100,
+		.recharge_cap = 95,
+		.normal_cur_lvl = 700,
+		.normal_vol_lvl = 4200,
+		.maint_a_cur_lvl = 600,
+		.maint_a_vol_lvl = 4150,
+		.maint_a_chg_timer_h = 60,
+		.maint_b_cur_lvl = 600,
+		.maint_b_vol_lvl = 4100,
+		.maint_b_chg_timer_h = 200,
+		.low_high_cur_lvl = 300,
+		.low_high_vol_lvl = 4000,
+		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
+		.r_to_t_tbl = temp_tbl,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
+		.v_to_cap_tbl = cap_tbl,
+		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
+		.batres_tbl = temp_to_batres_tbl_thermistor,
+	},
+	{
+		.name = POWER_SUPPLY_TECHNOLOGY_LION,
+		.resis_high = 30000,
+		.resis_low = 10000,
+		.battery_resistance = 300,
+		.charge_full_design = 950,
+		.nominal_voltage = 3700,
+		.termination_vol = 4150,
+		.termination_curr = 100,
+		.recharge_cap = 95,
+		.normal_cur_lvl = 700,
+		.normal_vol_lvl = 4200,
+		.maint_a_cur_lvl = 600,
+		.maint_a_vol_lvl = 4150,
+		.maint_a_chg_timer_h = 60,
+		.maint_b_cur_lvl = 600,
+		.maint_b_vol_lvl = 4100,
+		.maint_b_chg_timer_h = 200,
+		.low_high_cur_lvl = 300,
+		.low_high_vol_lvl = 4000,
+		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
+		.r_to_t_tbl = temp_tbl,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
+		.v_to_cap_tbl = cap_tbl,
+		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
+		.batres_tbl = temp_to_batres_tbl_thermistor,
+	},
+	{
+		.name = POWER_SUPPLY_TECHNOLOGY_LION,
+		.resis_high = 95000,
+		.resis_low = 76001,
+		.battery_resistance = 300,
+		.charge_full_design = 950,
+		.nominal_voltage = 3700,
+		.termination_vol = 4150,
+		.termination_curr = 100,
+		.recharge_cap = 95,
+		.normal_cur_lvl = 700,
+		.normal_vol_lvl = 4200,
+		.maint_a_cur_lvl = 600,
+		.maint_a_vol_lvl = 4150,
+		.maint_a_chg_timer_h = 60,
+		.maint_b_cur_lvl = 600,
+		.maint_b_vol_lvl = 4100,
+		.maint_b_chg_timer_h = 200,
+		.low_high_cur_lvl = 300,
+		.low_high_vol_lvl = 4000,
+		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
+		.r_to_t_tbl = temp_tbl,
+		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl),
+		.v_to_cap_tbl = cap_tbl,
+		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
+		.batres_tbl = temp_to_batres_tbl_thermistor,
+	},
 };
 
 static const struct abx500_bm_capacity_levels cap_levels = {
@@ -405,8 +405,8 @@ static const struct abx500_fg_parameters fg = {
 	.lowbat_threshold = 3100,
 	.battok_falling_th_sel0 = 2860,
 	.battok_raising_th_sel1 = 2860,
+	.maint_thres = 95,
 	.user_cap_limit = 15,
-	.maint_thres = 97,
 };
 
 static const struct abx500_maxim_parameters maxi_params = {
@@ -424,96 +424,84 @@ static const struct abx500_bm_charger_parameters chg = {
 };
 
 struct abx500_bm_data ab8500_bm_data = {
-	.temp_under		= 3,
-	.temp_low		= 8,
-	.temp_high		= 43,
-	.temp_over		= 48,
-	.main_safety_tmr_h	= 4,
-	.temp_interval_chg	= 20,
-	.temp_interval_nochg	= 120,
-	.usb_safety_tmr_h	= 4,
-	.bkup_bat_v		= BUP_VCH_SEL_2P6V,
-	.bkup_bat_i		= BUP_ICH_SEL_150UA,
-	.no_maintenance		= false,
-	.adc_therm		= ABx500_ADC_THERM_BATCTRL,
-	.chg_unknown_bat	= false,
-	.enable_overshoot	= false,
-	.fg_res			= 100,
-	.cap_levels		= &cap_levels,
-	.bat_type		= bat_type_thermistor,
-	.n_btypes		= 3,
-	.batt_id		= 0,
-	.interval_charging	= 5,
-	.interval_not_charging	= 120,
-	.temp_hysteresis	= 3,
-	.gnd_lift_resistance	= 34,
-	.maxi			= &maxi_params,
-	.chg_params		= &chg,
-	.fg_params		= &fg,
+	.temp_under             = 3,
+	.temp_low               = 8,
+	.temp_high              = 43,
+	.temp_over              = 48,
+	.main_safety_tmr_h      = 4,
+	.temp_interval_chg      = 20,
+	.temp_interval_nochg    = 120,
+	.usb_safety_tmr_h       = 4,
+	.bkup_bat_v             = BUP_VCH_SEL_2P6V,
+	.bkup_bat_i             = BUP_ICH_SEL_150UA,
+	.no_maintenance         = false,
+	.capacity_scaling       = false,
+	.adc_therm              = ABx500_ADC_THERM_BATCTRL,
+	.chg_unknown_bat        = false,
+	.enable_overshoot       = false,
+	.fg_res                 = 100,
+	.cap_levels             = &cap_levels,
+	.bat_type               = bat_type_thermistor,
+	.n_btypes               = 3,
+	.batt_id                = 0,
+	.interval_charging      = 5,
+	.interval_not_charging  = 120,
+	.temp_hysteresis        = 3,
+	.gnd_lift_resistance    = 34,
+	.maxi                   = &maxi_params,
+	.chg_params             = &chg,
+	.fg_params              = &fg,
 };
 
-int bmdevs_of_probe(struct device *dev, struct device_node *np,
-		    struct abx500_bm_data **battery)
+int ab8500_bm_of_probe(struct device *dev,
+		       struct device_node *np,
+		       struct abx500_bm_data *bm)
 {
-	struct	abx500_battery_type *btype;
-	struct  device_node *np_bat_supply;
-	struct	abx500_bm_data *bat;
+	struct batres_vs_temp *tmp_batres_tbl;
+	struct device_node *battery_node;
 	const char *btech;
-	char bat_tech[8];
-	int i, thermistor;
-
-	*battery = &ab8500_bm_data;
+	int i;
 
 	/* get phandle to 'battery-info' node */
-	np_bat_supply = of_parse_phandle(np, "battery", 0);
-	if (!np_bat_supply) {
-		dev_err(dev, "missing property battery\n");
+	battery_node = of_parse_phandle(np, "battery", 0);
+	if (!battery_node) {
+		dev_err(dev, "battery node or reference missing\n");
 		return -EINVAL;
 	}
-	if (of_property_read_bool(np_bat_supply,
-			"thermistor-on-batctrl"))
-		thermistor = NTC_INTERNAL;
-	else
-		thermistor = NTC_EXTERNAL;
 
-	bat = *battery;
-	if (thermistor == NTC_EXTERNAL) {
-		bat->n_btypes  = 4;
-		bat->bat_type  = bat_type_ext_thermistor;
-		bat->adc_therm = ABx500_ADC_THERM_BATTEMP;
-	}
-	btech = of_get_property(np_bat_supply,
-		"stericsson,battery-type", NULL);
+	btech = of_get_property(battery_node, "stericsson,battery-type", NULL);
 	if (!btech) {
 		dev_warn(dev, "missing property battery-name/type\n");
-		strcpy(bat_tech, "UNKNOWN");
-	} else {
-		strcpy(bat_tech, btech);
+		return -EINVAL;
 	}
 
-	if (strncmp(bat_tech, "LION", 4) == 0) {
-		bat->no_maintenance  = true;
-		bat->chg_unknown_bat = true;
-		bat->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
-		bat->bat_type[BATTERY_UNKNOWN].termination_vol    = 4150;
-		bat->bat_type[BATTERY_UNKNOWN].recharge_vol	  = 4130;
-		bat->bat_type[BATTERY_UNKNOWN].normal_cur_lvl	  = 520;
-		bat->bat_type[BATTERY_UNKNOWN].normal_vol_lvl	  = 4200;
+	if (strncmp(btech, "LION", 4) == 0) {
+		bm->no_maintenance  = true;
+		bm->chg_unknown_bat = true;
+		bm->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
+		bm->bat_type[BATTERY_UNKNOWN].termination_vol    = 4150;
+		bm->bat_type[BATTERY_UNKNOWN].recharge_cap       = 95;
+		bm->bat_type[BATTERY_UNKNOWN].normal_cur_lvl     = 520;
+		bm->bat_type[BATTERY_UNKNOWN].normal_vol_lvl     = 4200;
 	}
+
+	if (of_property_read_bool(battery_node, "thermistor-on-batctrl")) {
+		if (strncmp(btech, "LION", 4) == 0)
+			tmp_batres_tbl = temp_to_batres_tbl_9100;
+		else
+			tmp_batres_tbl = temp_to_batres_tbl_thermistor;
+	} else {
+		bm->n_btypes   = 4;
+		bm->bat_type   = bat_type_ext_thermistor;
+		bm->adc_therm  = ABx500_ADC_THERM_BATTEMP;
+		tmp_batres_tbl = temp_to_batres_tbl_ext_thermistor;
+	}
+
 	/* select the battery resolution table */
-	for (i = 0; i < bat->n_btypes; ++i) {
-		btype = (bat->bat_type + i);
-		if (thermistor == NTC_EXTERNAL) {
-			btype->batres_tbl =
-				temp_to_batres_tbl_ext_thermistor;
-		} else if (strncmp(bat_tech, "LION", 4) == 0) {
-			btype->batres_tbl =
-				temp_to_batres_tbl_9100;
-		} else {
-			btype->batres_tbl =
-				temp_to_batres_tbl_thermistor;
-		}
-	}
-	of_node_put(np_bat_supply);
+	for (i = 0; i < bm->n_btypes; ++i)
+		bm->bat_type[i].batres_tbl = tmp_batres_tbl;
+
+	of_node_put(battery_node);
+
 	return 0;
 }

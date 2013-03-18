@@ -1,6 +1,6 @@
 /* bnx2x_dcb.h: Broadcom Everest network driver.
  *
- * Copyright 2009-2012 Broadcom Corporation
+ * Copyright 2009-2013 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you

@@ -751,16 +751,6 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	return 0;
 }
 
-static int at86rf230_suspend(struct spi_device *spi, pm_message_t message)
-{
-	return 0;
-}
-
-static int at86rf230_resume(struct spi_device *spi)
-{
-	return 0;
-}
-
 static int at86rf230_fill_data(struct spi_device *spi)
 {
 	struct at86rf230_local *lp = spi_get_drvdata(spi);
@@ -948,8 +938,6 @@ static struct spi_driver at86rf230_driver = {
 	},
 	.probe      = at86rf230_probe,
 	.remove     = at86rf230_remove,
-	.suspend    = at86rf230_suspend,
-	.resume     = at86rf230_resume,
 };
 
 module_spi_driver(at86rf230_driver);

@@ -48,54 +48,6 @@ typedef struct
 	struct ucontext uc;
 } rt_sigframe;
 
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-SYSCALL_DEFINE3(sigsuspend, int, history0, int, history1, old_sigset_t, mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-SYSCALL_DEFINE3(sigaction, int, sig, const struct old_sigaction __user *, act,
-		struct old_sigaction __user *, oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	if (act) {
-		old_sigset_t mask;
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
-SYSCALL_DEFINE2(sigaltstack, const stack_t __user *, uss,
-		stack_t __user *, uoss)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	return do_sigaltstack(uss, uoss, regs->gprs[15]);
-}
-
 /* Returns non-zero on fault. */
 static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
@@ -164,8 +116,6 @@ SYSCALL_DEFINE0(sigreturn)
 	sigframe __user *frame = (sigframe __user *)regs->gprs[15];
 	sigset_t set;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE))
 		goto badframe;
 	set_current_blocked(&set);
@@ -183,15 +133,12 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	rt_sigframe __user *frame = (rt_sigframe __user *)regs->gprs[15];
 	sigset_t set;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 	set_current_blocked(&set);
 	if (restore_sigregs(regs, &frame->uc.uc_mcontext))
 		goto badframe;
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL,
-			   regs->gprs[15]) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 	return regs->gprs[2];
 badframe:
@@ -244,8 +191,6 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	sigframe __user *frame;
 
 	frame = get_sigframe(ka, regs, sizeof(sigframe));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(sigframe)))
-		goto give_sigsegv;
 
 	if (frame == (void __user *) -1UL)
 		goto give_sigsegv;
@@ -313,8 +258,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	rt_sigframe __user *frame;
 
 	frame = get_sigframe(ka, regs, sizeof(rt_sigframe));
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(rt_sigframe)))
-		goto give_sigsegv;
 
 	if (frame == (void __user *) -1UL)
 		goto give_sigsegv;
@@ -325,10 +268,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(NULL, &frame->uc.uc_link);
-	err |= __put_user((void __user *)current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->gprs[15]),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->gprs[15]);
 	err |= save_sigregs(regs, &frame->uc.uc_mcontext);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)

@@ -44,7 +44,6 @@ static ssize_t ad5930_set_parameter(struct device *dev,
 					const char *buf,
 					size_t len)
 {
-	struct spi_message msg;
 	struct spi_transfer xfer;
 	int ret;
 	struct ad5903_config *config = (struct ad5903_config *)buf;
@@ -64,9 +63,7 @@ static ssize_t ad5930_set_parameter(struct device *dev,
 	xfer.tx_buf = config;
 	mutex_lock(&st->lock);
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 error_ret:

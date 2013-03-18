@@ -109,6 +109,25 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 }
 
 /**
+ * radeon_ib_sync_to - sync to fence before executing the IB
+ *
+ * @ib: IB object to add fence to
+ * @fence: fence to sync to
+ *
+ * Sync to the fence before executing the IB
+ */
+void radeon_ib_sync_to(struct radeon_ib *ib, struct radeon_fence *fence)
+{
+	struct radeon_fence *other;
+
+	if (!fence)
+		return;
+
+	other = ib->sync_to[fence->ring];
+	ib->sync_to[fence->ring] = radeon_fence_later(fence, other);
+}
+
+/**
  * radeon_ib_schedule - schedule an IB (Indirect Buffer) on the ring
  *
  * @rdev: radeon_device pointer
@@ -377,6 +396,9 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 {
 	int r;
 
+	/* make sure we aren't trying to allocate more space than there is on the ring */
+	if (ndw > (ring->ring_size / 4))
+		return -ENOMEM;
 	/* Align requested size with padding so unlock_commit can
 	 * pad safely */
 	ndw = (ndw + ring->align_mask) & ~ring->align_mask;
@@ -784,6 +806,8 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	}
 	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n", ring->wptr, ring->wptr);
 	seq_printf(m, "driver's copy of the rptr: 0x%08x [%5d]\n", ring->rptr, ring->rptr);
+	seq_printf(m, "last semaphore signal addr : 0x%016llx\n", ring->last_semaphore_signal_addr);
+	seq_printf(m, "last semaphore wait addr   : 0x%016llx\n", ring->last_semaphore_wait_addr);
 	seq_printf(m, "%u free dwords in ring\n", ring->ring_free_dw);
 	seq_printf(m, "%u dwords in ring\n", count);
 	/* print 8 dw before current rptr as often it's the last executed

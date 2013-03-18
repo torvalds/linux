@@ -8,9 +8,48 @@ config HID_SENSOR_ACCEL_3D
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID Accelerometers 3D"
 	help
 	  Say yes here to build support for the HID SENSOR
 	  accelerometers 3D.
+
+config KXSD9
+	tristate "Kionix KXSD9 Accelerometer Driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Kionix KXSD9 accelerometer.
+	  Currently this only supports the device via an SPI interface.
+
+config IIO_ST_ACCEL_3AXIS
+	tristate "STMicroelectronics accelerometers 3-Axis Driver"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_ST_SENSORS_CORE
+	select IIO_ST_ACCEL_I2C_3AXIS if (I2C)
+	select IIO_ST_ACCEL_SPI_3AXIS if (SPI_MASTER)
+	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
+	select IIO_ST_ACCEL_BUFFER if (IIO_TRIGGERED_BUFFER)
+	help
+	  Say yes here to build support for STMicroelectronics accelerometers:
+	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
+	  LIS331DLH, LSM303DL, LSM303DLM, LSM330.
+
+	  This driver can also be built as a module. If so, will be created
+	  these modules:
+	  - st_accel (core functions for the driver [it is mandatory]);
+	  - st_accel_i2c (necessary for the I2C devices [optional*]);
+	  - st_accel_spi (necessary for the SPI devices [optional*]);
+
+	  (*) one of these is necessary to do something.
+
+config IIO_ST_ACCEL_I2C_3AXIS
+	tristate
+	depends on IIO_ST_ACCEL_3AXIS
+	depends on IIO_ST_SENSORS_I2C
+
+config IIO_ST_ACCEL_SPI_3AXIS
+	tristate
+	depends on IIO_ST_ACCEL_3AXIS
+	depends on IIO_ST_SENSORS_SPI
 
 endmenu

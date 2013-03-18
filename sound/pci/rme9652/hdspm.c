@@ -441,6 +441,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 */
 /* status */
 #define HDSPM_AES32_wcLock	0x0200000
+#define HDSPM_AES32_wcSync	0x0100000
 #define HDSPM_AES32_wcFreq_bit  22
 /* (status >> HDSPM_AES32_wcFreq_bit) & 0xF gives WC frequency (cf function
   HDSPM_bit2freq */
@@ -3467,10 +3468,12 @@ static int hdspm_wc_sync_check(struct hdspm *hdspm)
 	switch (hdspm->io_type) {
 	case AES32:
 		status = hdspm_read(hdspm, HDSPM_statusRegister);
-		if (status & HDSPM_wcSync)
-			return 2;
-		else if (status & HDSPM_wcLock)
-			return 1;
+		if (status & HDSPM_AES32_wcLock) {
+			if (status & HDSPM_AES32_wcSync)
+				return 2;
+			else
+				return 1;
+		}
 		return 0;
 		break;
 
@@ -4658,6 +4661,7 @@ snd_hdspm_proc_read_aes32(struct snd_info_entry * entry,
 	unsigned int status;
 	unsigned int status2;
 	unsigned int timecode;
+	unsigned int wcLock, wcSync;
 	int pref_syncref;
 	char *autosync_ref;
 	int x;
@@ -4751,8 +4755,11 @@ snd_hdspm_proc_read_aes32(struct snd_info_entry * entry,
 
 	snd_iprintf(buffer, "--- Status:\n");
 
+	wcLock = status & HDSPM_AES32_wcLock;
+	wcSync = wcLock && (status & HDSPM_AES32_wcSync);
+
 	snd_iprintf(buffer, "Word: %s  Frequency: %d\n",
-		    (status & HDSPM_AES32_wcLock) ? "Sync   " : "No Lock",
+		    (wcLock) ? (wcSync ? "Sync   " : "Lock   ") : "No Lock",
 		    HDSPM_bit2freq((status >> HDSPM_AES32_wcFreq_bit) & 0xF));
 
 	for (x = 0; x < 8; x++) {

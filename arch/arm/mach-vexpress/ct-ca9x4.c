@@ -10,10 +10,10 @@
 #include <linux/amba/clcd.h>
 #include <linux/clkdev.h>
 #include <linux/vexpress.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 
@@ -182,8 +182,6 @@ static void __init ct_ca9x4_init_cpu_map(void)
 
 	for (i = 0; i < ncores; ++i)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init ct_ca9x4_smp_enable(unsigned int max_cpus)

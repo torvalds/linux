@@ -12,7 +12,6 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 
 static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
 {
-	hugetlb_setup(mm);
 }
 
 static inline int is_hugepage_only_range(struct mm_struct *mm,

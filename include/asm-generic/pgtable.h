@@ -197,16 +197,6 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
 
-#ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
-#define page_test_and_clear_dirty(pfn, mapped)	(0)
-#endif
-
-#ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
-#define pte_maybe_dirty(pte)		pte_dirty(pte)
-#else
-#define pte_maybe_dirty(pte)		(1)
-#endif
-
 #ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
 #define page_test_and_clear_young(pfn) (0)
 #endif
@@ -461,10 +451,8 @@ static inline int is_zero_pfn(unsigned long pfn)
 	return offset_from_zero_pfn <= (zero_page_mask >> PAGE_SHIFT);
 }
 
-static inline unsigned long my_zero_pfn(unsigned long addr)
-{
-	return page_to_pfn(ZERO_PAGE(addr));
-}
+#define my_zero_pfn(addr)	page_to_pfn(ZERO_PAGE(addr))
+
 #else
 static inline int is_zero_pfn(unsigned long pfn)
 {

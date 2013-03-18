@@ -20,7 +20,7 @@
 #define PCI_SLOT_MAXNR	32 /* Each PCI bus has 32 physical slots */
 
 static char pci_irq_tab[PCI_SLOT_MAXNR][5] __initdata = {
-	/* 0    INTA   INTB   INTC   INTD */
+	/* 0	INTA   INTB   INTC   INTD */
 	[0] = {0, 0, 0, 0, 0},		/* Slot 0: GT64120 PCI bridge */
 	[6] = {0, WRPPMC_PCI_INTA_IRQ, 0, 0, 0},
 };

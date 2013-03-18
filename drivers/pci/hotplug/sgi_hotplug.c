@@ -334,7 +334,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	struct slot *slot = bss_hotplug_slot->private;
 	struct pci_bus *new_bus = NULL;
 	struct pci_dev *dev;
-	int func, num_funcs;
+	int num_funcs;
 	int new_ppb = 0;
 	int rc;
 	char *ssdt = NULL;
@@ -381,29 +381,26 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	 * to the Linux PCI interface and tell the drivers
 	 * about them.
 	 */
-	for (func = 0; func < num_funcs;  func++) {
-		dev = pci_get_slot(slot->pci_bus,
-				   PCI_DEVFN(slot->device_num + 1,
-					     PCI_FUNC(func)));
-		if (dev) {
-			/* Need to do slot fixup on PPB before fixup of children
-			 * (PPB's pcidev_info needs to be in pcidev_info list
-			 * before child's SN_PCIDEV_INFO() call to setup
-			 * pdi_host_pcidev_info).
-			 */
-			pcibios_fixup_device_resources(dev);
-			if (SN_ACPI_BASE_SUPPORT())
-				sn_acpi_slot_fixup(dev);
-			else
-				sn_io_slot_fixup(dev);
-			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-				pci_hp_add_bridge(dev);
-				if (dev->subordinate) {
-					new_bus = dev->subordinate;
-					new_ppb = 1;
-				}
+	list_for_each_entry(dev, &slot->pci_bus->devices, bus_list) {
+		if (PCI_SLOT(dev->devfn) != slot->device_num + 1)
+			continue;
+
+		/* Need to do slot fixup on PPB before fixup of children
+		 * (PPB's pcidev_info needs to be in pcidev_info list
+		 * before child's SN_PCIDEV_INFO() call to setup
+		 * pdi_host_pcidev_info).
+		 */
+		pcibios_fixup_device_resources(dev);
+		if (SN_ACPI_BASE_SUPPORT())
+			sn_acpi_slot_fixup(dev);
+		else
+			sn_io_slot_fixup(dev);
+		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
+			pci_hp_add_bridge(dev);
+			if (dev->subordinate) {
+				new_bus = dev->subordinate;
+				new_ppb = 1;
 			}
-			pci_dev_put(dev);
 		}
 	}
 
@@ -412,7 +409,6 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	if (SN_ACPI_BASE_SUPPORT() && ssdt) {
 		unsigned long long adr;
 		struct acpi_device *pdevice;
-		struct acpi_device *device;
 		acpi_handle phandle;
 		acpi_handle chandle = NULL;
 		acpi_handle rethandle;
@@ -426,6 +422,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 			pdevice = NULL;
 		}
 
+		acpi_scan_lock_acquire();
 		/*
 		 * Walk the rootbus node's immediate children looking for
 		 * the slot's device node(s). There can be more than
@@ -448,20 +445,18 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 			if (ACPI_SUCCESS(ret) &&
 			    (adr>>16) == (slot->device_num + 1)) {
 
-				ret = acpi_bus_add(&device, pdevice, chandle,
-						   ACPI_BUS_TYPE_DEVICE);
+				ret = acpi_bus_scan(chandle);
 				if (ACPI_FAILURE(ret)) {
-					printk(KERN_ERR "%s: acpi_bus_add "
+					printk(KERN_ERR "%s: acpi_bus_scan "
 					       "failed (0x%x) for slot %d "
 					       "func %d\n", __func__,
 					       ret, (int)(adr>>16),
 					       (int)(adr&0xffff));
 					/* try to continue on */
-				} else {
-					acpi_bus_start(device);
 				}
 			}
 		}
+		acpi_scan_lock_release();
 	}
 
 	/* Call the driver for the new device */
@@ -485,8 +480,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 {
 	struct slot *slot = bss_hotplug_slot->private;
-	struct pci_dev *dev;
-	int func;
+	struct pci_dev *dev, *temp;
 	int rc;
 	acpi_owner_id ssdt_id = 0;
 
@@ -512,6 +506,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 		/* Get the rootbus node pointer */
 		phandle = PCI_CONTROLLER(slot->pci_bus)->acpi_handle;
 
+		acpi_scan_lock_acquire();
 		/*
 		 * Walk the rootbus node's immediate children looking for
 		 * the slot's device node(s). There can be more than
@@ -539,22 +534,21 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 				ret = acpi_bus_get_device(chandle,
 							  &device);
 				if (ACPI_SUCCESS(ret))
-					acpi_bus_trim(device, 1);
+					acpi_bus_trim(device);
 			}
 		}
-
+		acpi_scan_lock_release();
 	}
 
 	/* Free the SN resources assigned to the Linux device.*/
-	for (func = 0; func < 8;  func++) {
-		dev = pci_get_slot(slot->pci_bus,
-				   PCI_DEVFN(slot->device_num + 1,
-				   	     PCI_FUNC(func)));
-		if (dev) {
-			sn_bus_free_data(dev);
-			pci_stop_and_remove_bus_device(dev);
-			pci_dev_put(dev);
-		}
+	list_for_each_entry_safe(dev, temp, &slot->pci_bus->devices, bus_list) {
+		if (PCI_SLOT(dev->devfn) != slot->device_num + 1)
+			continue;
+
+		pci_dev_get(dev);
+		sn_bus_free_data(dev);
+		pci_stop_and_remove_bus_device(dev);
+		pci_dev_put(dev);
 	}
 
 	/* Remove the SSDT for the slot from the ACPI namespace */

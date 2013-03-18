@@ -58,7 +58,8 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	tty->port = &serial_port;
 	spin_lock(&timer_lock);
 	if (tty->count == 1) {
-		setup_timer(&serial_timer, rs_poll, (unsigned long)tty);
+		setup_timer(&serial_timer, rs_poll,
+				(unsigned long)&serial_port);
 		mod_timer(&serial_timer, jiffies + SERIAL_TIMER_VALUE);
 	}
 	spin_unlock(&timer_lock);
@@ -97,8 +98,7 @@ static int rs_write(struct tty_struct * tty,
 
 static void rs_poll(unsigned long priv)
 {
-	struct tty_struct* tty = (struct tty_struct*) priv;
-
+	struct tty_port *port = (struct tty_port *)priv;
 	struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
 	int i = 0;
 	unsigned char c;
@@ -107,12 +107,12 @@ static void rs_poll(unsigned long priv)
 
 	while (__simc(SYS_select_one, 0, XTISS_SELECT_ONE_READ, (int)&tv,0,0)){
 		__simc (SYS_read, 0, (unsigned long)&c, 1, 0, 0);
-		tty_insert_flip_char(tty, c, TTY_NORMAL);
+		tty_insert_flip_char(port, c, TTY_NORMAL);
 		i++;
 	}
 
 	if (i)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(port);
 
 
 	mod_timer(&serial_timer, jiffies + SERIAL_TIMER_VALUE);

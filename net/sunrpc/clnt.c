@@ -33,6 +33,7 @@
 #include <linux/rcupdate.h>
 
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/sunrpc/metrics.h>
 #include <linux/sunrpc/bc_xprt.h>
@@ -555,7 +556,7 @@ EXPORT_SYMBOL_GPL(rpc_clone_client);
  * rpc_clone_client_set_auth - Clone an RPC client structure and set its auth
  *
  * @clnt: RPC client whose parameters are copied
- * @auth: security flavor for new client
+ * @flavor: security flavor for new client
  *
  * Returns a fresh RPC client or an ERR_PTR.
  */
@@ -1196,6 +1197,21 @@ size_t rpc_max_payload(struct rpc_clnt *clnt)
 EXPORT_SYMBOL_GPL(rpc_max_payload);
 
 /**
+ * rpc_get_timeout - Get timeout for transport in units of HZ
+ * @clnt: RPC client to query
+ */
+unsigned long rpc_get_timeout(struct rpc_clnt *clnt)
+{
+	unsigned long ret;
+
+	rcu_read_lock();
+	ret = rcu_dereference(clnt->cl_xprt)->timeout->to_initval;
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rpc_get_timeout);
+
+/**
  * rpc_force_rebind - force transport to check that remote port is unchanged
  * @clnt: client to rebind
  *
@@ -1400,7 +1416,7 @@ call_allocate(struct rpc_task *task)
 {
 	unsigned int slack = task->tk_rqstp->rq_cred->cr_auth->au_cslack;
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt = req->rq_xprt;
 	struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
 
 	dprint_status(task);
@@ -1508,7 +1524,7 @@ rpc_xdr_encode(struct rpc_task *task)
 static void
 call_bind(struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt = task->tk_rqstp->rq_xprt;
 
 	dprint_status(task);
 
@@ -1602,7 +1618,7 @@ retry_timeout:
 static void
 call_connect(struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = task->tk_xprt;
+	struct rpc_xprt *xprt = task->tk_rqstp->rq_xprt;
 
 	dprintk("RPC: %5u call_connect xprt %p %s connected\n",
 			task->tk_pid, xprt,
@@ -1685,7 +1701,7 @@ call_transmit(struct rpc_task *task)
 	if (rpc_reply_expected(task))
 		return;
 	task->tk_action = rpc_exit_task;
-	rpc_wake_up_queued_task(&task->tk_xprt->pending, task);
+	rpc_wake_up_queued_task(&task->tk_rqstp->rq_xprt->pending, task);
 }
 
 /*
@@ -1784,7 +1800,7 @@ call_bc_transmit(struct rpc_task *task)
 		 */
 		printk(KERN_NOTICE "RPC: Could not send backchannel reply "
 			"error: %d\n", task->tk_status);
-		xprt_conditional_disconnect(task->tk_xprt,
+		xprt_conditional_disconnect(req->rq_xprt,
 			req->rq_connect_cookie);
 		break;
 	default:
@@ -1836,7 +1852,7 @@ call_status(struct rpc_task *task)
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
 		if (task->tk_client->cl_discrtry)
-			xprt_conditional_disconnect(task->tk_xprt,
+			xprt_conditional_disconnect(req->rq_xprt,
 					req->rq_connect_cookie);
 		break;
 	case -ECONNRESET:
@@ -1991,7 +2007,7 @@ out_retry:
 	if (task->tk_rqstp == req) {
 		req->rq_reply_bytes_recvd = req->rq_rcv_buf.len = 0;
 		if (task->tk_client->cl_discrtry)
-			xprt_conditional_disconnect(task->tk_xprt,
+			xprt_conditional_disconnect(req->rq_xprt,
 					req->rq_connect_cookie);
 	}
 }
@@ -2005,7 +2021,7 @@ rpc_encode_header(struct rpc_task *task)
 
 	/* FIXME: check buffer size? */
 
-	p = xprt_skip_transport_header(task->tk_xprt, p);
+	p = xprt_skip_transport_header(req->rq_xprt, p);
 	*p++ = req->rq_xid;		/* XID */
 	*p++ = htonl(RPC_CALL);		/* CALL */
 	*p++ = htonl(RPC_VERSION);	/* RPC version */

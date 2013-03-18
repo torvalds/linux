@@ -95,18 +95,16 @@ bfin_jc_emudat_manager(void *arg)
 
 		/* if incoming data is ready, eat it */
 		if (bfin_read_DBGSTAT() & EMUDIF) {
-			if (tty != NULL) {
-				uint32_t emudat = bfin_read_emudat();
-				if (inbound_len == 0) {
-					pr_debug("incoming length: 0x%08x\n", emudat);
-					inbound_len = emudat;
-				} else {
-					size_t num_chars = (4 <= inbound_len ? 4 : inbound_len);
-					pr_debug("  incoming data: 0x%08x (pushing %zu)\n", emudat, num_chars);
-					inbound_len -= num_chars;
-					tty_insert_flip_string(tty, (unsigned char *)&emudat, num_chars);
-					tty_flip_buffer_push(tty);
-				}
+			uint32_t emudat = bfin_read_emudat();
+			if (inbound_len == 0) {
+				pr_debug("incoming length: 0x%08x\n", emudat);
+				inbound_len = emudat;
+			} else {
+				size_t num_chars = (4 <= inbound_len ? 4 : inbound_len);
+				pr_debug("  incoming data: 0x%08x (pushing %zu)\n", emudat, num_chars);
+				inbound_len -= num_chars;
+				tty_insert_flip_string(&port, (unsigned char *)&emudat, num_chars);
+				tty_flip_buffer_push(&port);
 			}
 		}
 

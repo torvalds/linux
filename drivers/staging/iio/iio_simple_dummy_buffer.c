@@ -155,7 +155,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev,
 	 * occurs, this function is run. Typically this grabs data
 	 * from the device.
 	 *
-	 * NULL for the top half. This is normally implemented only if we
+	 * NULL for the bottom half. This is normally implemented only if we
 	 * either want to ping a capture now pin (no sleeping) or grab
 	 * a timestamp as close as possible to a data ready trigger firing.
 	 *

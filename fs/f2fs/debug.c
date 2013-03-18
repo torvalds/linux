@@ -26,6 +26,7 @@
 
 static LIST_HEAD(f2fs_stat_list);
 static struct dentry *debugfs_root;
+static DEFINE_MUTEX(f2fs_stat_mutex);
 
 static void update_general_status(struct f2fs_sb_info *sbi)
 {
@@ -180,18 +181,16 @@ static int stat_show(struct seq_file *s, void *v)
 	int i = 0;
 	int j;
 
+	mutex_lock(&f2fs_stat_mutex);
 	list_for_each_entry_safe(si, next, &f2fs_stat_list, stat_list) {
+		char devname[BDEVNAME_SIZE];
 
-		mutex_lock(&si->stat_lock);
-		if (!si->sbi) {
-			mutex_unlock(&si->stat_lock);
-			continue;
-		}
 		update_general_status(si->sbi);
 
-		seq_printf(s, "\n=====[ partition info. #%d ]=====\n", i++);
-		seq_printf(s, "[SB: 1] [CP: 2] [NAT: %d] [SIT: %d] ",
-			   si->nat_area_segs, si->sit_area_segs);
+		seq_printf(s, "\n=====[ partition info(%s). #%d ]=====\n",
+			bdevname(si->sbi->sb->s_bdev, devname), i++);
+		seq_printf(s, "[SB: 1] [CP: 2] [SIT: %d] [NAT: %d] ",
+			   si->sit_area_segs, si->nat_area_segs);
 		seq_printf(s, "[SSA: %d] [MAIN: %d",
 			   si->ssa_area_segs, si->main_area_segs);
 		seq_printf(s, "(OverProv:%d Resv:%d)]\n\n",
@@ -286,8 +285,8 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "\nMemory: %u KB = static: %u + cached: %u\n",
 				(si->base_mem + si->cache_mem) >> 10,
 				si->base_mem >> 10, si->cache_mem >> 10);
-		mutex_unlock(&si->stat_lock);
 	}
+	mutex_unlock(&f2fs_stat_mutex);
 	return 0;
 }
 
@@ -303,7 +302,7 @@ static const struct file_operations stat_fops = {
 	.release = single_release,
 };
 
-static int init_stats(struct f2fs_sb_info *sbi)
+int f2fs_build_stats(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
 	struct f2fs_stat_info *si;
@@ -313,9 +312,6 @@ static int init_stats(struct f2fs_sb_info *sbi)
 		return -ENOMEM;
 
 	si = sbi->stat_info;
-	mutex_init(&si->stat_lock);
-	list_add_tail(&si->stat_list, &f2fs_stat_list);
-
 	si->all_area_segs = le32_to_cpu(raw_super->segment_count);
 	si->sit_area_segs = le32_to_cpu(raw_super->segment_count_sit);
 	si->nat_area_segs = le32_to_cpu(raw_super->segment_count_nat);
@@ -325,21 +321,11 @@ static int init_stats(struct f2fs_sb_info *sbi)
 	si->main_area_zones = si->main_area_sections /
 				le32_to_cpu(raw_super->secs_per_zone);
 	si->sbi = sbi;
-	return 0;
-}
 
-int f2fs_build_stats(struct f2fs_sb_info *sbi)
-{
-	int retval;
+	mutex_lock(&f2fs_stat_mutex);
+	list_add_tail(&si->stat_list, &f2fs_stat_list);
+	mutex_unlock(&f2fs_stat_mutex);
 
-	retval = init_stats(sbi);
-	if (retval)
-		return retval;
-
-	if (!debugfs_root)
-		debugfs_root = debugfs_create_dir("f2fs", NULL);
-
-	debugfs_create_file("status", S_IRUGO, debugfs_root, NULL, &stat_fops);
 	return 0;
 }
 
@@ -347,14 +333,22 @@ void f2fs_destroy_stats(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_stat_info *si = sbi->stat_info;
 
+	mutex_lock(&f2fs_stat_mutex);
 	list_del(&si->stat_list);
-	mutex_lock(&si->stat_lock);
-	si->sbi = NULL;
-	mutex_unlock(&si->stat_lock);
+	mutex_unlock(&f2fs_stat_mutex);
+
 	kfree(sbi->stat_info);
 }
 
-void destroy_root_stats(void)
+void __init f2fs_create_root_stats(void)
+{
+	debugfs_root = debugfs_create_dir("f2fs", NULL);
+	if (debugfs_root)
+		debugfs_create_file("status", S_IRUGO, debugfs_root,
+					 NULL, &stat_fops);
+}
+
+void f2fs_destroy_root_stats(void)
 {
 	debugfs_remove_recursive(debugfs_root);
 	debugfs_root = NULL;

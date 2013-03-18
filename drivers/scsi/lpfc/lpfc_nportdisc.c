@@ -1115,6 +1115,13 @@ out:
 				 "0261 Cannot Register NameServer login\n");
 	}
 
+	/*
+	** In case the node reference counter does not go to zero, ensure that
+	** the stale state for the node is not processed.
+	*/
+
+	ndlp->nlp_prev_state = ndlp->nlp_state;
+	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_DEFER_RM;
 	spin_unlock_irq(shost->host_lock);
@@ -2159,13 +2166,16 @@ lpfc_cmpl_plogi_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb, *rspiocb;
 	IOCB_t *irsp;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 	rspiocb = cmdiocb->context_un.rsp_iocb;
 
 	irsp = &rspiocb->iocb;
 	if (irsp->ulpStatus) {
+		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_DEFER_RM;
+		spin_unlock_irq(shost->host_lock);
 		return NLP_STE_FREED_NODE;
 	}
 	return ndlp->nlp_state;

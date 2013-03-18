@@ -70,15 +70,6 @@ config SND_OMAP_SOC_AM3517EVM
 	  Say Y if you want to add support for SoC audio on the OMAP3517 / AM3517
 	  EVM.
 
-config SND_OMAP_SOC_SDP3430
-	tristate "SoC Audio support for Texas Instruments SDP3430"
-	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OMAP_3430SDP
-	select SND_OMAP_SOC_MCBSP
-	select SND_SOC_TWL4030
-	help
-	  Say Y if you want to add support for SoC audio on Texas Instruments
-	  SDP3430.
-
 config SND_OMAP_SOC_OMAP_TWL4030
 	tristate "SoC Audio support for TI SoC based boards with twl4030 codec"
 	depends on TWL4030_CORE && SND_OMAP_SOC
@@ -91,6 +82,8 @@ config SND_OMAP_SOC_OMAP_TWL4030
 	  - Gumstix Overo or CompuLab CM-T35/CM-T3730
 	  - IGEP v2
 	  - OMAP3EVM
+	  - SDP3430
+	  - Zoom2
 
 config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	tristate "SoC Audio support for OMAP boards using ABE and twl6040 codec"
@@ -123,11 +116,3 @@ config SND_OMAP_SOC_OMAP3_PANDORA
 	select SND_SOC_TWL4030
 	help
 	  Say Y if you want to add support for SoC audio on the OMAP3 Pandora.
-
-config SND_OMAP_SOC_ZOOM2
-	tristate "SoC Audio support for Zoom2"
-	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OMAP_ZOOM2
-	select SND_OMAP_SOC_MCBSP
-	select SND_SOC_TWL4030
-	help
-	  Say Y if you want to add support for Soc audio on Zoom2 board.

@@ -139,9 +139,9 @@ static int tegra_host1x_probe(struct platform_device *pdev)
 
 	host1x->irq = err;
 
-	host1x->regs = devm_request_and_ioremap(&pdev->dev, regs);
-	if (!host1x->regs) {
-		err = -EADDRNOTAVAIL;
+	host1x->regs = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(host1x->regs)) {
+		err = PTR_ERR(host1x->regs);
 		goto err;
 	}
 

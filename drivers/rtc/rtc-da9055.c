@@ -227,7 +227,7 @@ static const struct rtc_class_ops da9055_rtc_ops = {
 	.alarm_irq_enable = da9055_rtc_alarm_irq_enable,
 };
 
-static int __init da9055_rtc_device_init(struct da9055 *da9055,
+static int da9055_rtc_device_init(struct da9055 *da9055,
 					struct da9055_pdata *pdata)
 {
 	int ret;

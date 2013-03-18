@@ -30,7 +30,7 @@
 
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
-	struct inode *inode = filep->f_dentry->d_inode;
+	struct inode *inode = file_inode(filep);
 	int rc = -ENOTTY; /* strange error - but the precedent */
 	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;

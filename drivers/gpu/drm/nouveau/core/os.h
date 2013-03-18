@@ -16,6 +16,7 @@
 #include <linux/vmalloc.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/reboot.h>
 
 #include <asm/unaligned.h>
 

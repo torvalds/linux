@@ -225,3 +225,14 @@ int main(void)
 	return on_exit(NULL, NULL);
 }
 endef
+
+define SOURCE_LIBNUMA
+#include <numa.h>
+#include <numaif.h>
+
+int main(void)
+{
+	numa_available();
+	return 0;
+}
+endef

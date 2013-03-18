@@ -152,8 +152,8 @@ struct nfsd4_channel_attrs {
 
 struct nfsd4_cb_sec {
 	u32	flavor; /* (u32)(-1) used to mean "no valid flavor" */
-	u32	uid;
-	u32	gid;
+	kuid_t	uid;
+	kgid_t	gid;
 };
 
 struct nfsd4_create_session {

@@ -4,7 +4,7 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2007-2012 Broadcom Corporation.
+ * Copyright (C) 2007-2013 Broadcom Corporation.
  */
 
 #ifndef _T3_H
@@ -65,6 +65,9 @@
 #define  TG3PCI_DEVICE_TIGON3_57766	 0x1686
 #define  TG3PCI_DEVICE_TIGON3_57786	 0x16b3
 #define  TG3PCI_DEVICE_TIGON3_57782	 0x16b7
+#define  TG3PCI_DEVICE_TIGON3_5762	 0x1687
+#define  TG3PCI_DEVICE_TIGON3_5725	 0x1643
+#define  TG3PCI_DEVICE_TIGON3_5727	 0x16f3
 /* 0x04 --> 0x2c unused */
 #define TG3PCI_SUBVENDOR_ID_BROADCOM		PCI_VENDOR_ID_BROADCOM
 #define TG3PCI_SUBDEVICE_ID_BROADCOM_95700A6	0x1644
@@ -117,9 +120,7 @@
 #define  MISC_HOST_CTRL_TAGGED_STATUS	 0x00000200
 #define  MISC_HOST_CTRL_CHIPREV		 0xffff0000
 #define  MISC_HOST_CTRL_CHIPREV_SHIFT	 16
-#define  GET_CHIP_REV_ID(MISC_HOST_CTRL) \
-	 (((MISC_HOST_CTRL) & MISC_HOST_CTRL_CHIPREV) >> \
-	  MISC_HOST_CTRL_CHIPREV_SHIFT)
+
 #define  CHIPREV_ID_5700_A0		 0x7000
 #define  CHIPREV_ID_5700_A1		 0x7001
 #define  CHIPREV_ID_5700_B0		 0x7100
@@ -159,7 +160,8 @@
 #define  CHIPREV_ID_57765_A0		 0x57785000
 #define  CHIPREV_ID_5719_A0		 0x05719000
 #define  CHIPREV_ID_5720_A0		 0x05720000
-#define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
+#define  CHIPREV_ID_5762_A0		 0x05762000
+
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
 #define   ASIC_REV_5703			 0x01
@@ -182,7 +184,7 @@
 #define   ASIC_REV_5719			 0x5719
 #define   ASIC_REV_5720			 0x5720
 #define   ASIC_REV_57766		 0x57766
-#define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
+#define   ASIC_REV_5762			 0x5762
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
 #define   CHIPREV_5700_CX		 0x72
@@ -195,7 +197,6 @@
 #define   CHIPREV_5784_AX		 0x57840
 #define   CHIPREV_5761_AX		 0x57610
 #define   CHIPREV_57765_AX		 0x577650
-#define  GET_METAL_REV(CHIP_REV_ID)	((CHIP_REV_ID) & 0xff)
 #define   METAL_REV_A0			 0x00
 #define   METAL_REV_A1			 0x01
 #define   METAL_REV_B0			 0x00
@@ -774,7 +775,7 @@
 #define  SG_DIG_AUTONEG_ERROR		 0x00000001
 #define TG3_TX_TSTAMP_LSB		0x000005c0
 #define TG3_TX_TSTAMP_MSB		0x000005c4
-#define  TG3_TSTAMP_MASK		 0x7fffffffffffffff
+#define  TG3_TSTAMP_MASK		 0x7fffffffffffffffLL
 /* 0x5c8 --> 0x600 unused */
 #define MAC_TX_MAC_STATE_BASE		0x00000600 /* 16 bytes */
 #define MAC_RX_MAC_STATE_BASE		0x00000610 /* 20 bytes */
@@ -1159,6 +1160,8 @@
 #define  CPMU_MUTEX_GNT_DRIVER		 0x00001000
 #define TG3_CPMU_PHY_STRAP		0x00003664
 #define TG3_CPMU_PHY_STRAP_IS_SERDES	 0x00000020
+#define TG3_CPMU_PADRNG_CTL		0x00003668
+#define  TG3_CPMU_PADRNG_CTL_RDIV2	 0x00040000
 /* 0x3664 --> 0x36b0 unused */
 
 #define TG3_CPMU_EEE_MODE		0x000036b0
@@ -1178,6 +1181,7 @@
 #define TG3_CPMU_EEE_LNKIDL_CTRL	0x000036bc
 #define  TG3_CPMU_EEE_LNKIDL_PCIE_NL0	 0x01000000
 #define  TG3_CPMU_EEE_LNKIDL_UART_IDL	 0x00000004
+#define  TG3_CPMU_EEE_LNKIDL_APE_TX_MT	 0x00000002
 /* 0x36c0 --> 0x36d0 unused */
 
 #define TG3_CPMU_EEE_CTRL		0x000036d0
@@ -1400,7 +1404,10 @@
 #define  RDMAC_STATUS_FIFOURUN		 0x00000080
 #define  RDMAC_STATUS_FIFOOREAD		 0x00000100
 #define  RDMAC_STATUS_LNGREAD		 0x00000200
-/* 0x4808 --> 0x4900 unused */
+/* 0x4808 --> 0x4890 unused */
+
+#define TG3_RDMA_RSRVCTRL_REG2		0x00004890
+#define TG3_LSO_RD_DMA_CRPTEN_CTRL2	0x000048a0
 
 #define TG3_RDMA_RSRVCTRL_REG		0x00004900
 #define TG3_RDMA_RSRVCTRL_FIFO_OFLW_FIX	 0x00000004
@@ -1850,6 +1857,7 @@
 #define  FLASH_VENDOR_SST_SMALL		 0x00000001
 #define  FLASH_VENDOR_SST_LARGE		 0x02000001
 #define  NVRAM_CFG1_5752VENDOR_MASK	 0x03c00003
+#define  NVRAM_CFG1_5762VENDOR_MASK	 0x03e00003
 #define  FLASH_5752VENDOR_ATMEL_EEPROM_64KHZ	 0x00000000
 #define  FLASH_5752VENDOR_ATMEL_EEPROM_376KHZ	 0x02000000
 #define  FLASH_5752VENDOR_ATMEL_FLASH_BUFFERED	 0x02000003
@@ -1910,6 +1918,8 @@
 #define  FLASH_5717VENDOR_ST_45USPT	 0x03400001
 #define  FLASH_5720_EEPROM_HD		 0x00000001
 #define  FLASH_5720_EEPROM_LD		 0x00000003
+#define  FLASH_5762_EEPROM_HD		 0x02000001
+#define  FLASH_5762_EEPROM_LD		 0x02000003
 #define  FLASH_5720VENDOR_M_ATMEL_DB011D 0x01000000
 #define  FLASH_5720VENDOR_M_ATMEL_DB021D 0x01000002
 #define  FLASH_5720VENDOR_M_ATMEL_DB041D 0x01000001
@@ -2365,6 +2375,20 @@
 #define  APE_LOCK_REQ_DRIVER		 0x00001000
 #define TG3_APE_LOCK_GRANT		0x004c
 #define  APE_LOCK_GRANT_DRIVER		 0x00001000
+#define TG3_APE_OTP_CTRL		0x00e8
+#define  APE_OTP_CTRL_PROG_EN		 0x200000
+#define  APE_OTP_CTRL_CMD_RD		 0x000000
+#define  APE_OTP_CTRL_START		 0x000001
+#define TG3_APE_OTP_STATUS		0x00ec
+#define  APE_OTP_STATUS_CMD_DONE	 0x000001
+#define TG3_APE_OTP_ADDR		0x00f0
+#define  APE_OTP_ADDR_CPU_ENABLE	 0x80000000
+#define TG3_APE_OTP_RD_DATA		0x00f8
+
+#define OTP_ADDRESS_MAGIC0		 0x00000050
+#define TG3_OTP_MAGIC0_VALID(val)		\
+	((((val) & 0xf0000000) == 0xa0000000) ||\
+	 (((val) & 0x0f000000) == 0x0a000000))
 
 /* APE shared memory.  Accessible through BAR1 */
 #define TG3_APE_SHMEM_BASE		0x4000
@@ -3030,6 +3054,11 @@ enum TG3_FLAGS {
 	TG3_FLAG_57765_PLUS,
 	TG3_FLAG_57765_CLASS,
 	TG3_FLAG_5717_PLUS,
+	TG3_FLAG_IS_SSB_CORE,
+	TG3_FLAG_FLUSH_POSTED_WRITES,
+	TG3_FLAG_ROBOSWITCH,
+	TG3_FLAG_ONE_DMA_AT_ONCE,
+	TG3_FLAG_RGMII_MODE,
 
 	/* Add new flags before this comment and TG3_FLAG_NUMBER_OF_FLAGS */
 	TG3_FLAG_NUMBER_OF_FLAGS,	/* Last entry in enum TG3_FLAGS */
@@ -3206,6 +3235,7 @@ struct tg3 {
 #define TG3_PHY_ID_BCM57765		0x5c0d8a40
 #define TG3_PHY_ID_BCM5719C		0x5c0d8a20
 #define TG3_PHY_ID_BCM5720C		0x5c0d8b60
+#define TG3_PHY_ID_BCM5762		0x85803780
 #define TG3_PHY_ID_BCM5906		0xdc00ac40
 #define TG3_PHY_ID_BCM8002		0x60010140
 #define TG3_PHY_ID_INVALID		0xffffffff
@@ -3230,6 +3260,7 @@ struct tg3 {
 	 (X) == TG3_PHY_ID_BCM5906 || (X) == TG3_PHY_ID_BCM5761 || \
 	 (X) == TG3_PHY_ID_BCM5718C || (X) == TG3_PHY_ID_BCM5718S || \
 	 (X) == TG3_PHY_ID_BCM57765 || (X) == TG3_PHY_ID_BCM5719C || \
+	 (X) == TG3_PHY_ID_BCM5720C || (X) == TG3_PHY_ID_BCM5762 || \
 	 (X) == TG3_PHY_ID_BCM8002)
 
 	u32				phy_flags;
@@ -3320,10 +3351,22 @@ struct tg3 {
 	const struct firmware		*fw;
 	u32				fw_len; /* includes BSS */
 
-#if IS_ENABLED(CONFIG_HWMON)
 	struct device			*hwmon_dev;
-#endif
 	bool				link_up;
 };
+
+/* Accessor macros for chip and asic attributes
+ *
+ * nb: Using static inlines equivalent to the accessor macros generates
+ *     larger object code with gcc 4.7.
+ *     Using statement expression macros to check tp with
+ *     typecheck(struct tg3 *, tp) also creates larger objects.
+ */
+#define tg3_chip_rev_id(tp)					\
+	((tp)->pci_chip_rev_id)
+#define tg3_asic_rev(tp)					\
+	((tp)->pci_chip_rev_id >> 12)
+#define tg3_chip_rev(tp)					\
+	((tp)->pci_chip_rev_id >> 8)
 
 #endif /* !(_T3_H) */

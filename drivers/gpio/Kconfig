@@ -30,6 +30,9 @@ config ARCH_REQUIRE_GPIOLIB
 	  Selecting this from the architecture code will cause the gpiolib
 	  code to always get built in.
 
+config GPIO_DEVRES
+	def_bool y
+	depends on HAS_IOMEM
 
 
 menuconfig GPIOLIB
@@ -66,7 +69,7 @@ config DEBUG_GPIO
 
 config GPIO_SYSFS
 	bool "/sys/class/gpio/... (sysfs interface)"
-	depends on SYSFS && EXPERIMENTAL
+	depends on SYSFS
 	help
 	  Say Y here to add a sysfs interface for GPIOs.
 
@@ -277,7 +280,7 @@ config GPIO_ICH
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
-	depends on PCI
+	depends on PCI && GENERIC_HARDIRQS
 	select MFD_CORE
 	select MFD_VX855
 	help
@@ -297,6 +300,14 @@ config GPIO_GE_FPGA
 	  This driver provides basic support (configure as input or output, read
 	  and write pin state) for GPIO implemented in a number of GE single
 	  board computers.
+
+config GPIO_LYNXPOINT
+	bool "Intel Lynxpoint GPIO support"
+	depends on ACPI
+	select IRQ_DOMAIN
+	help
+	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
+	  Requires ACPI device enumeration code to set up a platform device.
 
 comment "I2C GPIO expanders:"
 
@@ -599,7 +610,7 @@ config GPIO_TIMBERDALE
 
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"
-	depends on PCI
+	depends on PCI && GENERIC_HARDIRQS
 	select MFD_CORE
 	select MFD_RDC321X
 	help
@@ -657,11 +668,12 @@ config GPIO_JANZ_TTL
 	  This driver provides support for driving the pins in output
 	  mode only. Input mode is not supported.
 
-config GPIO_AB8500
-	bool "ST-Ericsson AB8500 Mixed Signal Circuit gpio functions"
-	depends on AB8500_CORE && BROKEN
+config GPIO_PALMAS
+	bool "TI PALMAS series PMICs GPIO"
+	depends on MFD_PALMAS
 	help
-	  Select this to enable the AB8500 IC GPIO driver
+	  Select this option to enable GPIO driver for the TI PALMAS
+	  series chip family.
 
 config GPIO_TPS6586X
 	bool "TPS6586X GPIO"

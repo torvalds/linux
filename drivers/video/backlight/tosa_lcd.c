@@ -193,7 +193,7 @@ static int tosa_lcd_probe(struct spi_device *spi)
 		return ret;
 
 	data->spi = spi;
-	dev_set_drvdata(&spi->dev, data);
+	spi_set_drvdata(spi, data);
 
 	ret = devm_gpio_request_one(&spi->dev, TOSA_GPIO_TG_ON,
 				GPIOF_OUT_INIT_LOW, "tg #pwr");
@@ -220,13 +220,13 @@ static int tosa_lcd_probe(struct spi_device *spi)
 err_register:
 	tosa_lcd_tg_off(data);
 err_gpio_tg:
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	return ret;
 }
 
 static int tosa_lcd_remove(struct spi_device *spi)
 {
-	struct tosa_lcd_data *data = dev_get_drvdata(&spi->dev);
+	struct tosa_lcd_data *data = spi_get_drvdata(spi);
 
 	lcd_device_unregister(data->lcd);
 
@@ -235,7 +235,7 @@ static int tosa_lcd_remove(struct spi_device *spi)
 
 	tosa_lcd_tg_off(data);
 
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 
 	return 0;
 }
@@ -243,7 +243,7 @@ static int tosa_lcd_remove(struct spi_device *spi)
 #ifdef CONFIG_PM
 static int tosa_lcd_suspend(struct spi_device *spi, pm_message_t state)
 {
-	struct tosa_lcd_data *data = dev_get_drvdata(&spi->dev);
+	struct tosa_lcd_data *data = spi_get_drvdata(spi);
 
 	tosa_lcd_tg_off(data);
 
@@ -252,7 +252,7 @@ static int tosa_lcd_suspend(struct spi_device *spi, pm_message_t state)
 
 static int tosa_lcd_resume(struct spi_device *spi)
 {
-	struct tosa_lcd_data *data = dev_get_drvdata(&spi->dev);
+	struct tosa_lcd_data *data = spi_get_drvdata(spi);
 
 	tosa_lcd_tg_init(data);
 	if (POWER_IS_ON(data->lcd_power))

@@ -5,7 +5,7 @@
 config NET_VENDOR_DLINK
 	bool "D-Link devices"
 	default y
-	depends on PCI || PARPORT
+	depends on PCI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -17,36 +17,6 @@ config NET_VENDOR_DLINK
 	  your specific card in the following questions.
 
 if NET_VENDOR_DLINK
-
-config DE600
-	tristate "D-Link DE600 pocket adapter support"
-	depends on PARPORT
-	---help---
-	  This is a network (Ethernet) device which attaches to your parallel
-	  port. Read <file:Documentation/networking/DLINK.txt> as well as the
-	  Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, if you want to use
-	  this. It is possible to have several devices share a single parallel
-	  port and it is safe to compile the corresponding drivers into the
-	  kernel.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called de600.
-
-config DE620
-	tristate "D-Link DE620 pocket adapter support"
-	depends on PARPORT
-	---help---
-	  This is a network (Ethernet) device which attaches to your parallel
-	  port. Read <file:Documentation/networking/DLINK.txt> as well as the
-	  Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, if you want to use
-	  this. It is possible to have several devices share a single parallel
-	  port and it is safe to compile the corresponding drivers into the
-	  kernel.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called de620.
 
 config DL2K
 	tristate "DL2000/TC902x-based Gigabit Ethernet support"

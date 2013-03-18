@@ -76,17 +76,6 @@ static struct hid_driver ts_driver = {
 	.id_table = ts_devices,
 	.input_mapping = ts_input_mapping,
 };
+module_hid_driver(ts_driver);
 
-static int __init ts_init(void)
-{
-	return hid_register_driver(&ts_driver);
-}
-
-static void __exit ts_exit(void)
-{
-	hid_unregister_driver(&ts_driver);
-}
-
-module_init(ts_init);
-module_exit(ts_exit);
 MODULE_LICENSE("GPL");

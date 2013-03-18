@@ -26,27 +26,20 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16) +
-			((vcpu->arch.sie_block->ipb & 0xff00) << 4);
 	u64 useraddr;
 	int reg, rc;
 
 	vcpu->stat.instruction_lctlg++;
-	if ((vcpu->arch.sie_block->ipb & 0xff) != 0x2f)
-		return -EOPNOTSUPP;
 
-	useraddr = disp2;
-	if (base2)
-		useraddr += vcpu->run->s.regs.gprs[base2];
+	useraddr = kvm_s390_get_base_disp_rsy(vcpu);
 
 	if (useraddr & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	reg = reg1;
 
-	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
-		   disp2);
+	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x, addr:%llx", reg1, reg3,
+		   useraddr);
 	trace_kvm_s390_handle_lctl(vcpu, 1, reg1, reg3, useraddr);
 
 	do {
@@ -68,23 +61,19 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	int base2 = vcpu->arch.sie_block->ipb >> 28;
-	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u64 useraddr;
 	u32 val = 0;
 	int reg, rc;
 
 	vcpu->stat.instruction_lctl++;
 
-	useraddr = disp2;
-	if (base2)
-		useraddr += vcpu->run->s.regs.gprs[base2];
+	useraddr = kvm_s390_get_base_disp_rs(vcpu);
 
 	if (useraddr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
-		   disp2);
+	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x, addr:%llx", reg1, reg3,
+		   useraddr);
 	trace_kvm_s390_handle_lctl(vcpu, 0, reg1, reg3, useraddr);
 
 	reg = reg1;
@@ -104,14 +93,31 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static intercept_handler_t instruction_handlers[256] = {
+static const intercept_handler_t eb_handlers[256] = {
+	[0x2f] = handle_lctlg,
+	[0x8a] = kvm_s390_handle_priv_eb,
+};
+
+static int handle_eb(struct kvm_vcpu *vcpu)
+{
+	intercept_handler_t handler;
+
+	handler = eb_handlers[vcpu->arch.sie_block->ipb & 0xff];
+	if (handler)
+		return handler(vcpu);
+	return -EOPNOTSUPP;
+}
+
+static const intercept_handler_t instruction_handlers[256] = {
 	[0x01] = kvm_s390_handle_01,
+	[0x82] = kvm_s390_handle_lpsw,
 	[0x83] = kvm_s390_handle_diag,
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_b2,
 	[0xb7] = handle_lctl,
+	[0xb9] = kvm_s390_handle_b9,
 	[0xe5] = kvm_s390_handle_e5,
-	[0xeb] = handle_lctlg,
+	[0xeb] = handle_eb,
 };
 
 static int handle_noop(struct kvm_vcpu *vcpu)
@@ -258,6 +264,7 @@ static const intercept_handler_t intercept_funcs[] = {
 	[0x0C >> 2] = handle_instruction_and_prog,
 	[0x10 >> 2] = handle_noop,
 	[0x14 >> 2] = handle_noop,
+	[0x18 >> 2] = handle_noop,
 	[0x1C >> 2] = kvm_s390_handle_wait,
 	[0x20 >> 2] = handle_validity,
 	[0x28 >> 2] = handle_stop,

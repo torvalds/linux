@@ -1994,9 +1994,20 @@ static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
+	struct sge_rspq *q;
+	int i;
+	int r = 0;
 
-	return set_rxq_intr_params(adap, &adap->sge.ethrxq[pi->first_qset].rspq,
-			c->rx_coalesce_usecs, c->rx_max_coalesced_frames);
+	for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++) {
+		q = &adap->sge.ethrxq[i].rspq;
+		r = set_rxq_intr_params(adap, q, c->rx_coalesce_usecs,
+			c->rx_max_coalesced_frames);
+		if (r) {
+			dev_err(&dev->dev, "failed to set coalesce %d\n", r);
+			break;
+		}
+	}
+	return r;
 }
 
 static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
@@ -2336,7 +2347,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
 	loff_t pos = *ppos;
-	loff_t avail = file->f_path.dentry->d_inode->i_size;
+	loff_t avail = file_inode(file)->i_size;
 	unsigned int mem = (uintptr_t)file->private_data & 3;
 	struct adapter *adap = file->private_data - mem;
 
@@ -4016,8 +4027,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 						  VFRES_NEQ, VFRES_NETHCTRL,
 						  VFRES_NIQFLINT, VFRES_NIQ,
 						  VFRES_TC, VFRES_NVI,
-						  FW_PFVF_CMD_CMASK_GET(
-						  FW_PFVF_CMD_CMASK_MASK),
+						  FW_PFVF_CMD_CMASK_MASK,
 						  pfvfres_pmask(
 						  adapter, pf, vf),
 						  VFRES_NEXACTF,
@@ -5131,7 +5141,7 @@ static int __init cxgb4_init_module(void)
 	/* Debugfs support is optional, just warn if this fails */
 	cxgb4_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
 	if (!cxgb4_debugfs_root)
-		pr_warning("could not create debugfs entry, continuing\n");
+		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4_driver);
 	if (ret < 0)

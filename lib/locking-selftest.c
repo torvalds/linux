@@ -47,10 +47,10 @@ __setup("debug_locks_verbose=", setup_debug_locks_verbose);
  * Normal standalone locks, for the circular and irq-context
  * dependency tests:
  */
-static DEFINE_SPINLOCK(lock_A);
-static DEFINE_SPINLOCK(lock_B);
-static DEFINE_SPINLOCK(lock_C);
-static DEFINE_SPINLOCK(lock_D);
+static DEFINE_RAW_SPINLOCK(lock_A);
+static DEFINE_RAW_SPINLOCK(lock_B);
+static DEFINE_RAW_SPINLOCK(lock_C);
+static DEFINE_RAW_SPINLOCK(lock_D);
 
 static DEFINE_RWLOCK(rwlock_A);
 static DEFINE_RWLOCK(rwlock_B);
@@ -73,12 +73,12 @@ static DECLARE_RWSEM(rwsem_D);
  * but X* and Y* are different classes. We do this so that
  * we do not trigger a real lockup:
  */
-static DEFINE_SPINLOCK(lock_X1);
-static DEFINE_SPINLOCK(lock_X2);
-static DEFINE_SPINLOCK(lock_Y1);
-static DEFINE_SPINLOCK(lock_Y2);
-static DEFINE_SPINLOCK(lock_Z1);
-static DEFINE_SPINLOCK(lock_Z2);
+static DEFINE_RAW_SPINLOCK(lock_X1);
+static DEFINE_RAW_SPINLOCK(lock_X2);
+static DEFINE_RAW_SPINLOCK(lock_Y1);
+static DEFINE_RAW_SPINLOCK(lock_Y2);
+static DEFINE_RAW_SPINLOCK(lock_Z1);
+static DEFINE_RAW_SPINLOCK(lock_Z2);
 
 static DEFINE_RWLOCK(rwlock_X1);
 static DEFINE_RWLOCK(rwlock_X2);
@@ -107,10 +107,10 @@ static DECLARE_RWSEM(rwsem_Z2);
  */
 #define INIT_CLASS_FUNC(class) 				\
 static noinline void					\
-init_class_##class(spinlock_t *lock, rwlock_t *rwlock, struct mutex *mutex, \
-		 struct rw_semaphore *rwsem)		\
+init_class_##class(raw_spinlock_t *lock, rwlock_t *rwlock, \
+	struct mutex *mutex, struct rw_semaphore *rwsem)\
 {							\
-	spin_lock_init(lock);				\
+	raw_spin_lock_init(lock);			\
 	rwlock_init(rwlock);				\
 	mutex_init(mutex);				\
 	init_rwsem(rwsem);				\
@@ -168,10 +168,10 @@ static void init_shared_classes(void)
  * Shortcuts for lock/unlock API variants, to keep
  * the testcases compact:
  */
-#define L(x)			spin_lock(&lock_##x)
-#define U(x)			spin_unlock(&lock_##x)
+#define L(x)			raw_spin_lock(&lock_##x)
+#define U(x)			raw_spin_unlock(&lock_##x)
 #define LU(x)			L(x); U(x)
-#define SI(x)			spin_lock_init(&lock_##x)
+#define SI(x)			raw_spin_lock_init(&lock_##x)
 
 #define WL(x)			write_lock(&rwlock_##x)
 #define WU(x)			write_unlock(&rwlock_##x)
@@ -911,7 +911,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
 
 #define I2(x)					\
 	do {					\
-		spin_lock_init(&lock_##x);	\
+		raw_spin_lock_init(&lock_##x);	\
 		rwlock_init(&rwlock_##x);	\
 		mutex_init(&mutex_##x);		\
 		init_rwsem(&rwsem_##x);		\

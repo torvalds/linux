@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -37,7 +37,6 @@ void batadv_slide_own_bcast_window(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
-	struct hlist_node *node;
 	struct hlist_head *head;
 	struct batadv_orig_node *orig_node;
 	unsigned long *word;
@@ -49,7 +48,7 @@ void batadv_slide_own_bcast_window(struct batadv_hard_iface *hard_iface)
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
+		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
 			spin_lock_bh(&orig_node->ogm_cnt_lock);
 			word_index = hard_iface->if_num * BATADV_NUM_WORDS;
 			word = &(orig_node->bcast_own[word_index]);
@@ -80,7 +79,6 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 
 	/* route added */
 	} else if ((!curr_router) && (neigh_node)) {
-
 		batadv_dbg(BATADV_DBG_ROUTES, bat_priv,
 			   "Adding route towards: %pM (via %pM)\n",
 			   orig_node->orig, neigh_node->addr);
@@ -147,7 +145,6 @@ out:
 void batadv_bonding_candidate_add(struct batadv_orig_node *orig_node,
 				  struct batadv_neigh_node *neigh_node)
 {
-	struct hlist_node *node;
 	struct batadv_neigh_node *tmp_neigh_node, *router = NULL;
 	uint8_t interference_candidate = 0;
 
@@ -170,9 +167,8 @@ void batadv_bonding_candidate_add(struct batadv_orig_node *orig_node,
 	 * interface. If we do, we won't select this candidate because of
 	 * possible interference.
 	 */
-	hlist_for_each_entry_rcu(tmp_neigh_node, node,
+	hlist_for_each_entry_rcu(tmp_neigh_node,
 				 &orig_node->neigh_list, list) {
-
 		if (tmp_neigh_node == neigh_node)
 			continue;
 
@@ -836,7 +832,6 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	if (unicast_packet->header.packet_type == BATADV_UNICAST_FRAG &&
 	    batadv_frag_can_reassemble(skb,
 				       neigh_node->if_incoming->net_dev->mtu)) {
-
 		ret = batadv_frag_reassemble_skb(skb, bat_priv, &new_skb);
 
 		if (ret == NET_RX_DROP)
@@ -1103,7 +1098,6 @@ int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
 
 	/* packet for me */
 	if (batadv_is_my_mac(unicast_packet->dest)) {
-
 		ret = batadv_frag_reassemble_skb(skb, bat_priv, &new_skb);
 
 		if (ret == NET_RX_DROP)

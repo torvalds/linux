@@ -290,8 +290,8 @@ static inline long put_compat_itimerval(struct compat_itimerval __user *o,
 		 __put_user(i->it_value.tv_usec, &o->it_value.tv_usec)));
 }
 
-asmlinkage long compat_sys_getitimer(int which,
-		struct compat_itimerval __user *it)
+COMPAT_SYSCALL_DEFINE2(getitimer, int, which,
+		struct compat_itimerval __user *, it)
 {
 	struct itimerval kit;
 	int error;
@@ -302,9 +302,9 @@ asmlinkage long compat_sys_getitimer(int which,
 	return error;
 }
 
-asmlinkage long compat_sys_setitimer(int which,
-		struct compat_itimerval __user *in,
-		struct compat_itimerval __user *out)
+COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
+		struct compat_itimerval __user *, in,
+		struct compat_itimerval __user *, out)
 {
 	struct itimerval kin, kout;
 	int error;
@@ -381,9 +381,9 @@ static inline void compat_sig_setmask(sigset_t *blocked, compat_sigset_word set)
 	memcpy(blocked->sig, &set, sizeof(set));
 }
 
-asmlinkage long compat_sys_sigprocmask(int how,
-				       compat_old_sigset_t __user *nset,
-				       compat_old_sigset_t __user *oset)
+COMPAT_SYSCALL_DEFINE3(sigprocmask, int, how,
+		       compat_old_sigset_t __user *, nset,
+		       compat_old_sigset_t __user *, oset)
 {
 	old_sigset_t old_set, new_set;
 	sigset_t new_blocked;
@@ -535,9 +535,11 @@ asmlinkage long compat_sys_getrusage(int who, struct compat_rusage __user *ru)
 	return 0;
 }
 
-asmlinkage long
-compat_sys_wait4(compat_pid_t pid, compat_uint_t __user *stat_addr, int options,
-	struct compat_rusage __user *ru)
+COMPAT_SYSCALL_DEFINE4(wait4,
+	compat_pid_t, pid,
+	compat_uint_t __user *, stat_addr,
+	int, options,
+	struct compat_rusage __user *, ru)
 {
 	if (!ru) {
 		return sys_wait4(pid, stat_addr, options, NULL);
@@ -564,9 +566,10 @@ compat_sys_wait4(compat_pid_t pid, compat_uint_t __user *stat_addr, int options,
 	}
 }
 
-asmlinkage long compat_sys_waitid(int which, compat_pid_t pid,
-		struct compat_siginfo __user *uinfo, int options,
-		struct compat_rusage __user *uru)
+COMPAT_SYSCALL_DEFINE5(waitid,
+		int, which, compat_pid_t, pid,
+		struct compat_siginfo __user *, uinfo, int, options,
+		struct compat_rusage __user *, uru)
 {
 	siginfo_t info;
 	struct rusage ru;
@@ -584,9 +587,13 @@ asmlinkage long compat_sys_waitid(int which, compat_pid_t pid,
 		return ret;
 
 	if (uru) {
-		ret = put_compat_rusage(&ru, uru);
+		/* sys_waitid() overwrites everything in ru */
+		if (COMPAT_USE_64BIT_TIME)
+			ret = copy_to_user(uru, &ru, sizeof(ru));
+		else
+			ret = put_compat_rusage(&ru, uru);
 		if (ret)
-			return ret;
+			return -EFAULT;
 	}
 
 	BUG_ON(info.si_code & __SI_MASK);
@@ -964,7 +971,7 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 }
 
 void
-sigset_from_compat (sigset_t *set, compat_sigset_t *compat)
+sigset_from_compat(sigset_t *set, const compat_sigset_t *compat)
 {
 	switch (_NSIG_WORDS) {
 	case 4: set->sig[3] = compat->sig[6] | (((long)compat->sig[7]) << 32 );
@@ -975,10 +982,20 @@ sigset_from_compat (sigset_t *set, compat_sigset_t *compat)
 }
 EXPORT_SYMBOL_GPL(sigset_from_compat);
 
-asmlinkage long
-compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
-		struct compat_siginfo __user *uinfo,
-		struct compat_timespec __user *uts, compat_size_t sigsetsize)
+void
+sigset_to_compat(compat_sigset_t *compat, const sigset_t *set)
+{
+	switch (_NSIG_WORDS) {
+	case 4: compat->sig[7] = (set->sig[3] >> 32); compat->sig[6] = set->sig[3];
+	case 3: compat->sig[5] = (set->sig[2] >> 32); compat->sig[4] = set->sig[2];
+	case 2: compat->sig[3] = (set->sig[1] >> 32); compat->sig[2] = set->sig[1];
+	case 1: compat->sig[1] = (set->sig[0] >> 32); compat->sig[0] = set->sig[0];
+	}
+}
+
+COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
+		struct compat_siginfo __user *, uinfo,
+		struct compat_timespec __user *, uts, compat_size_t, sigsetsize)
 {
 	compat_sigset_t s32;
 	sigset_t s;
@@ -994,7 +1011,7 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 	sigset_from_compat(&s, &s32);
 
 	if (uts) {
-		if (get_compat_timespec(&t, uts))
+		if (compat_get_timespec(&t, uts))
 			return -EFAULT;
 	}
 
@@ -1006,18 +1023,6 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 	}
 
 	return ret;
-
-}
-
-asmlinkage long
-compat_sys_rt_tgsigqueueinfo(compat_pid_t tgid, compat_pid_t pid, int sig,
-			     struct compat_siginfo __user *uinfo)
-{
-	siginfo_t info;
-
-	if (copy_siginfo_from_user32(&info, uinfo))
-		return -EFAULT;
-	return do_rt_tgsigqueueinfo(tgid, pid, sig, &info);
 }
 
 #ifdef __ARCH_WANT_COMPAT_SYS_TIME
@@ -1059,23 +1064,6 @@ asmlinkage long compat_sys_stime(compat_time_t __user *tptr)
 }
 
 #endif /* __ARCH_WANT_COMPAT_SYS_TIME */
-
-#ifdef __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
-asmlinkage long compat_sys_rt_sigsuspend(compat_sigset_t __user *unewset, compat_size_t sigsetsize)
-{
-	sigset_t newset;
-	compat_sigset_t newset32;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset32, unewset, sizeof(compat_sigset_t)))
-		return -EFAULT;
-	sigset_from_compat(&newset, &newset32);
-	return sigsuspend(&newset);
-}
-#endif /* __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND */
 
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
 {
@@ -1215,9 +1203,9 @@ compat_sys_sysinfo(struct compat_sysinfo __user *info)
 	return 0;
 }
 
-#ifdef __ARCH_WANT_COMPAT_SYS_SCHED_RR_GET_INTERVAL
-asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
-						 struct compat_timespec __user *interval)
+COMPAT_SYSCALL_DEFINE2(sched_rr_get_interval,
+		       compat_pid_t, pid,
+		       struct compat_timespec __user *, interval)
 {
 	struct timespec t;
 	int ret;
@@ -1230,7 +1218,6 @@ asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 		return -EFAULT;
 	return ret;
 }
-#endif /* __ARCH_WANT_COMPAT_SYS_SCHED_RR_GET_INTERVAL */
 
 /*
  * Allocate user-space memory for the duration of a single system call,

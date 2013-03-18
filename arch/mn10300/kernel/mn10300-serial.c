@@ -524,7 +524,7 @@ static int mask_test_and_clear(volatile u8 *ptr, u8 mask)
 static void mn10300_serial_receive_interrupt(struct mn10300_serial_port *port)
 {
 	struct uart_icount *icount = &port->uart.icount;
-	struct tty_struct *tty = port->uart.state->port.tty;
+	struct tty_port *tport = &port->uart.state->port;
 	unsigned ix;
 	int count;
 	u8 st, ch, push, status, overrun;
@@ -534,10 +534,10 @@ static void mn10300_serial_receive_interrupt(struct mn10300_serial_port *port)
 	push = 0;
 
 	count = CIRC_CNT(port->rx_inp, port->rx_outp, MNSC_BUFFER_SIZE);
-	count = tty_buffer_request_room(tty, count);
+	count = tty_buffer_request_room(tport, count);
 	if (count == 0) {
-		if (!tty->low_latency)
-			tty_flip_buffer_push(tty);
+		if (!tport->low_latency)
+			tty_flip_buffer_push(tport);
 		return;
 	}
 
@@ -545,8 +545,8 @@ try_again:
 	/* pull chars out of the hat */
 	ix = ACCESS_ONCE(port->rx_outp);
 	if (CIRC_CNT(port->rx_inp, ix, MNSC_BUFFER_SIZE) == 0) {
-		if (push && !tty->low_latency)
-			tty_flip_buffer_push(tty);
+		if (push && !tport->low_latency)
+			tty_flip_buffer_push(tport);
 		return;
 	}
 
@@ -666,19 +666,19 @@ insert:
 		else
 			flag = TTY_NORMAL;
 
-		tty_insert_flip_char(tty, ch, flag);
+		tty_insert_flip_char(tport, ch, flag);
 	}
 
 	/* overrun is special, since it's reported immediately, and doesn't
 	 * affect the current character
 	 */
 	if (overrun)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 
 	count--;
 	if (count <= 0) {
-		if (!tty->low_latency)
-			tty_flip_buffer_push(tty);
+		if (!tport->low_latency)
+			tty_flip_buffer_push(tport);
 		return;
 	}
 

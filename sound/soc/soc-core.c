@@ -251,7 +251,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 		return -EINVAL;
 
 	/* Userspace has been fiddling around behind the kernel's back */
-	add_taint(TAINT_USER);
+	add_taint(TAINT_USER, LOCKDEP_NOW_UNRELIABLE);
 
 	snd_soc_write(codec, reg, value);
 	return buf_size;
@@ -1107,6 +1107,10 @@ static int soc_probe_codec(struct snd_soc_card *card,
 				"ASoC: failed to probe CODEC %d\n", ret);
 			goto err_probe;
 		}
+		WARN(codec->dapm.idle_bias_off &&
+			codec->dapm.bias_level != SND_SOC_BIAS_OFF,
+			"codec %s can not start from non-off bias"
+			" with idle_bias_off==1\n", codec->name);
 	}
 
 	/* If the driver didn't set I/O up try regmap */
@@ -1255,6 +1259,8 @@ static int soc_post_component_init(struct snd_soc_card *card,
 	INIT_LIST_HEAD(&rtd->dpcm[SNDRV_PCM_STREAM_CAPTURE].fe_clients);
 	ret = device_add(rtd->dev);
 	if (ret < 0) {
+		/* calling put_device() here to free the rtd->dev */
+		put_device(rtd->dev);
 		dev_err(card->dev,
 			"ASoC: failed to register runtime device: %d\n", ret);
 		return ret;
@@ -1554,7 +1560,7 @@ static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
 	/* unregister the rtd device */
 	if (rtd->dev_registered) {
 		device_remove_file(rtd->dev, &dev_attr_codec_reg);
-		device_del(rtd->dev);
+		device_unregister(rtd->dev);
 		rtd->dev_registered = 0;
 	}
 
@@ -2917,7 +2923,7 @@ int snd_soc_info_volsw_range(struct snd_kcontrol *kcontrol,
 	platform_max = mc->platform_max;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
+	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = platform_max - min;
 
@@ -2941,12 +2947,14 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int reg = mc->reg;
+	unsigned int rreg = mc->rreg;
 	unsigned int shift = mc->shift;
 	int min = mc->min;
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	unsigned int val, val_mask;
+	int ret;
 
 	val = ((ucontrol->value.integer.value[0] + min) & mask);
 	if (invert)
@@ -2954,7 +2962,21 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	val_mask = mask << shift;
 	val = val << shift;
 
-	return snd_soc_update_bits_locked(codec, reg, val_mask, val);
+	ret = snd_soc_update_bits_locked(codec, reg, val_mask, val);
+	if (ret != 0)
+		return ret;
+
+	if (snd_soc_volsw_is_stereo(mc)) {
+		val = ((ucontrol->value.integer.value[1] + min) & mask);
+		if (invert)
+			val = max - val;
+		val_mask = mask << shift;
+		val = val << shift;
+
+		ret = snd_soc_update_bits_locked(codec, rreg, val_mask, val);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_range);
 
@@ -2974,6 +2996,7 @@ int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int reg = mc->reg;
+	unsigned int rreg = mc->rreg;
 	unsigned int shift = mc->shift;
 	int min = mc->min;
 	int max = mc->max;
@@ -2987,6 +3010,16 @@ int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
 			max - ucontrol->value.integer.value[0];
 	ucontrol->value.integer.value[0] =
 		ucontrol->value.integer.value[0] - min;
+
+	if (snd_soc_volsw_is_stereo(mc)) {
+		ucontrol->value.integer.value[1] =
+			(snd_soc_read(codec, rreg) >> shift) & mask;
+		if (invert)
+			ucontrol->value.integer.value[1] =
+				max - ucontrol->value.integer.value[1];
+		ucontrol->value.integer.value[1] =
+			ucontrol->value.integer.value[1] - min;
+	}
 
 	return 0;
 }
@@ -3093,8 +3126,11 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 	if (!codec->using_regmap)
 		return -EINVAL;
 
-	data = ucontrol->value.bytes.data;
 	len = params->num_regs * codec->val_bytes;
+
+	data = kmemdup(ucontrol->value.bytes.data, len, GFP_KERNEL | GFP_DMA);
+	if (!data)
+		return -ENOMEM;
 
 	/*
 	 * If we've got a mask then we need to preserve the register
@@ -3107,10 +3143,6 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 			return ret;
 
 		val &= params->mask;
-
-		data = kmemdup(data, len, GFP_KERNEL);
-		if (!data)
-			return -ENOMEM;
 
 		switch (codec->val_bytes) {
 		case 1:
@@ -3133,8 +3165,7 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 	ret = regmap_raw_write(codec->control_data, params->base,
 			       data, len);
 
-	if (params->mask)
-		kfree(data);
+	kfree(data);
 
 	return ret;
 }
@@ -3511,12 +3542,20 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tristate);
  * snd_soc_dai_digital_mute - configure DAI system or master clock.
  * @dai: DAI
  * @mute: mute enable
+ * @direction: stream to mute
  *
  * Mutes the DAI DAC.
  */
-int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute)
+int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
+			     int direction)
 {
-	if (dai->driver && dai->driver->ops->digital_mute)
+	if (!dai->driver)
+		return -ENOTSUPP;
+
+	if (dai->driver->ops->mute_stream)
+		return dai->driver->ops->mute_stream(dai, mute, direction);
+	else if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
+		 dai->driver->ops->digital_mute)
 		return dai->driver->ops->digital_mute(dai, mute);
 	else
 		return -ENOTSUPP;
@@ -4178,6 +4217,113 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_routing);
+
+unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
+				     const char *prefix)
+{
+	int ret, i;
+	char prop[128];
+	unsigned int format = 0;
+	int bit, frame;
+	const char *str;
+	struct {
+		char *name;
+		unsigned int val;
+	} of_fmt_table[] = {
+		{ "i2s",	SND_SOC_DAIFMT_I2S },
+		{ "right_j",	SND_SOC_DAIFMT_RIGHT_J },
+		{ "left_j",	SND_SOC_DAIFMT_LEFT_J },
+		{ "dsp_a",	SND_SOC_DAIFMT_DSP_A },
+		{ "dsp_b",	SND_SOC_DAIFMT_DSP_B },
+		{ "ac97",	SND_SOC_DAIFMT_AC97 },
+		{ "pdm",	SND_SOC_DAIFMT_PDM},
+		{ "msb",	SND_SOC_DAIFMT_MSB },
+		{ "lsb",	SND_SOC_DAIFMT_LSB },
+	};
+
+	if (!prefix)
+		prefix = "";
+
+	/*
+	 * check "[prefix]format = xxx"
+	 * SND_SOC_DAIFMT_FORMAT_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%sformat", prefix);
+	ret = of_property_read_string(np, prop, &str);
+	if (ret == 0) {
+		for (i = 0; i < ARRAY_SIZE(of_fmt_table); i++) {
+			if (strcmp(str, of_fmt_table[i].name) == 0) {
+				format |= of_fmt_table[i].val;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * check "[prefix]continuous-clock"
+	 * SND_SOC_DAIFMT_CLOCK_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%scontinuous-clock", prefix);
+	if (of_get_property(np, prop, NULL))
+		format |= SND_SOC_DAIFMT_CONT;
+	else
+		format |= SND_SOC_DAIFMT_GATED;
+
+	/*
+	 * check "[prefix]bitclock-inversion"
+	 * check "[prefix]frame-inversion"
+	 * SND_SOC_DAIFMT_INV_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%sbitclock-inversion", prefix);
+	bit = !!of_get_property(np, prop, NULL);
+
+	snprintf(prop, sizeof(prop), "%sframe-inversion", prefix);
+	frame = !!of_get_property(np, prop, NULL);
+
+	switch ((bit << 4) + frame) {
+	case 0x11:
+		format |= SND_SOC_DAIFMT_IB_IF;
+		break;
+	case 0x10:
+		format |= SND_SOC_DAIFMT_IB_NF;
+		break;
+	case 0x01:
+		format |= SND_SOC_DAIFMT_NB_IF;
+		break;
+	default:
+		/* SND_SOC_DAIFMT_NB_NF is default */
+		break;
+	}
+
+	/*
+	 * check "[prefix]bitclock-master"
+	 * check "[prefix]frame-master"
+	 * SND_SOC_DAIFMT_MASTER_MASK area
+	 */
+	snprintf(prop, sizeof(prop), "%sbitclock-master", prefix);
+	bit = !!of_get_property(np, prop, NULL);
+
+	snprintf(prop, sizeof(prop), "%sframe-master", prefix);
+	frame = !!of_get_property(np, prop, NULL);
+
+	switch ((bit << 4) + frame) {
+	case 0x11:
+		format |= SND_SOC_DAIFMT_CBM_CFM;
+		break;
+	case 0x10:
+		format |= SND_SOC_DAIFMT_CBM_CFS;
+		break;
+	case 0x01:
+		format |= SND_SOC_DAIFMT_CBS_CFM;
+		break;
+	default:
+		format |= SND_SOC_DAIFMT_CBS_CFS;
+		break;
+	}
+
+	return format;
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_daifmt);
 
 static int __init snd_soc_init(void)
 {

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -419,7 +419,7 @@ void acpi_ut_delete_object_desc(union acpi_operand_object *object)
 {
 	ACPI_FUNCTION_TRACE_PTR(ut_delete_object_desc, object);
 
-	/* Object must be a union acpi_operand_object */
+	/* Object must be of type union acpi_operand_object */
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND) {
 		ACPI_ERROR((AE_INFO,

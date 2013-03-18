@@ -18,7 +18,7 @@
 #include <asm/mach/time.h>
 
 /* Add spear13xx structure declarations here */
-extern struct sys_timer spear13xx_timer;
+extern void spear13xx_timer_init(void);
 extern struct pl022_ssp_controller pl022_plat_data;
 extern struct dw_dma_platform_data dmac_plat_data;
 extern struct dw_dma_slave cf_dma_priv;
@@ -28,7 +28,6 @@ extern struct dw_dma_slave nand_write_dma_priv;
 /* Add spear13xx family function declarations here */
 void __init spear_setup_of_timer(void);
 void __init spear13xx_map_io(void);
-void __init spear13xx_dt_init_irq(void);
 void __init spear13xx_l2x0_init(void);
 bool dw_dma_filter(struct dma_chan *chan, void *slave);
 void spear_restart(char, const char *);

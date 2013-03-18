@@ -171,6 +171,22 @@ static inline int vlan_gvrp_init(void) { return 0; }
 static inline void vlan_gvrp_uninit(void) {}
 #endif
 
+#ifdef CONFIG_VLAN_8021Q_MVRP
+extern int vlan_mvrp_request_join(const struct net_device *dev);
+extern void vlan_mvrp_request_leave(const struct net_device *dev);
+extern int vlan_mvrp_init_applicant(struct net_device *dev);
+extern void vlan_mvrp_uninit_applicant(struct net_device *dev);
+extern int vlan_mvrp_init(void);
+extern void vlan_mvrp_uninit(void);
+#else
+static inline int vlan_mvrp_request_join(const struct net_device *dev) { return 0; }
+static inline void vlan_mvrp_request_leave(const struct net_device *dev) {}
+static inline int vlan_mvrp_init_applicant(struct net_device *dev) { return 0; }
+static inline void vlan_mvrp_uninit_applicant(struct net_device *dev) {}
+static inline int vlan_mvrp_init(void) { return 0; }
+static inline void vlan_mvrp_uninit(void) {}
+#endif
+
 extern const char vlan_fullname[];
 extern const char vlan_version[];
 extern int vlan_netlink_init(void);

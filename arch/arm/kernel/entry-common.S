@@ -514,11 +514,6 @@ sys_rt_sigreturn_wrapper:
 		b	sys_rt_sigreturn
 ENDPROC(sys_rt_sigreturn_wrapper)
 
-sys_sigaltstack_wrapper:
-		ldr	r2, [sp, #S_OFF + S_SP]
-		b	do_sigaltstack
-ENDPROC(sys_sigaltstack_wrapper)
-
 sys_statfs64_wrapper:
 		teq	r1, #88
 		moveq	r1, #84

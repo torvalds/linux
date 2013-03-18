@@ -46,6 +46,8 @@
 #define CPU_BLOCKID_FPU		9
 #define CPU_BLOCKID_MAP		10
 
+#define ICU_DEFEATURE		0x100
+
 #define LSU_DEFEATURE		0x304
 #define LSU_DEBUG_ADDR		0x305
 #define LSU_DEBUG_DATA0		0x306

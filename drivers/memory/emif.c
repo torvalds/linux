@@ -10,6 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/platform_data/emif_plat.h>
@@ -1468,12 +1469,9 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	emif->base = devm_request_and_ioremap(emif->dev, res);
-	if (!emif->base) {
-		dev_err(emif->dev, "%s: devm_request_and_ioremap() failed\n",
-			__func__);
+	emif->base = devm_ioremap_resource(emif->dev, res);
+	if (IS_ERR(emif->base))
 		goto error;
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {

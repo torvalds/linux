@@ -72,7 +72,10 @@ static void iint_free(struct integrity_iint_cache *iint)
 {
 	iint->version = 0;
 	iint->flags = 0UL;
-	iint->ima_status = INTEGRITY_UNKNOWN;
+	iint->ima_file_status = INTEGRITY_UNKNOWN;
+	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
+	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
+	iint->ima_module_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
 	kmem_cache_free(iint_cache, iint);
 }
@@ -149,7 +152,10 @@ static void init_once(void *foo)
 	memset(iint, 0, sizeof *iint);
 	iint->version = 0;
 	iint->flags = 0UL;
-	iint->ima_status = INTEGRITY_UNKNOWN;
+	iint->ima_file_status = INTEGRITY_UNKNOWN;
+	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
+	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
+	iint->ima_module_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
 }
 

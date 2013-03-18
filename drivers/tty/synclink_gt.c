@@ -317,8 +317,7 @@ struct slgt_info {
 	unsigned char *tx_buf;
 	int tx_count;
 
-	char flag_buf[MAX_ASYNC_BUFFER_SIZE];
-	char char_buf[MAX_ASYNC_BUFFER_SIZE];
+	char *flag_buf;
 	bool drop_rts_on_tx_done;
 	struct	_input_signal_events	input_signal_events;
 
@@ -683,7 +682,7 @@ static int open(struct tty_struct *tty, struct file *filp)
 	}
 
 	mutex_lock(&info->port.mutex);
-	info->port.tty->low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
 	if (info->netcount) {
@@ -786,7 +785,7 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
 	    !(tty->termios.c_cflag & CBAUD)) {
-		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		spin_lock_irqsave(&info->lock,flags);
 		set_signals(info);
 		spin_unlock_irqrestore(&info->lock,flags);
@@ -1561,8 +1560,8 @@ static int hdlcdev_open(struct net_device *dev)
 		return rc;
 	}
 
-	/* assert DTR and RTS, apply hardware settings */
-	info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+	/* assert RTS and DTR, apply hardware settings */
+	info->signals |= SerialSignal_RTS | SerialSignal_DTR;
 	program_hw(info);
 
 	/* enable network layer transmit */
@@ -1855,7 +1854,6 @@ static void hdlcdev_exit(struct slgt_info *info)
  */
 static void rx_async(struct slgt_info *info)
 {
- 	struct tty_struct *tty = info->port.tty;
  	struct mgsl_icount *icount = &info->icount;
 	unsigned int start, end;
 	unsigned char *p;
@@ -1894,10 +1892,8 @@ static void rx_async(struct slgt_info *info)
 				else if (status & BIT0)
 					stat = TTY_FRAME;
 			}
-			if (tty) {
-				tty_insert_flip_char(tty, ch, stat);
-				chars++;
-			}
+			tty_insert_flip_char(&info->port, ch, stat);
+			chars++;
 		}
 
 		if (i < count) {
@@ -1918,8 +1914,8 @@ static void rx_async(struct slgt_info *info)
 			break;
 	}
 
-	if (tty && chars)
-		tty_flip_buffer_push(tty);
+	if (chars)
+		tty_flip_buffer_push(&info->port);
 }
 
 /*
@@ -1961,8 +1957,6 @@ static void bh_handler(struct work_struct *work)
 	struct slgt_info *info = container_of(work, struct slgt_info, task);
 	int action;
 
-	if (!info)
-		return;
 	info->bh_running = true;
 
 	while((action = bh_action(info))) {
@@ -2183,7 +2177,7 @@ static void isr_serial(struct slgt_info *info)
 			if (info->port.tty) {
 				if (!(status & info->ignore_status_mask)) {
 					if (info->read_status_mask & MASK_BREAK) {
-						tty_insert_flip_char(info->port.tty, 0, TTY_BREAK);
+						tty_insert_flip_char(&info->port, 0, TTY_BREAK);
 						if (info->port.flags & ASYNC_SAK)
 							do_SAK(info->port.tty);
 					}
@@ -2494,7 +2488,7 @@ static void shutdown(struct slgt_info *info)
 	slgt_irq_off(info, IRQ_ALL | IRQ_MASTER);
 
  	if (!info->port.tty || info->port.tty->termios.c_cflag & HUPCL) {
- 		info->signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+		info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		set_signals(info);
 	}
 
@@ -2554,12 +2548,12 @@ static void change_params(struct slgt_info *info)
 
 	cflag = info->port.tty->termios.c_cflag;
 
-	/* if B0 rate (hangup) specified then negate DTR and RTS */
-	/* otherwise assert DTR and RTS */
+	/* if B0 rate (hangup) specified then negate RTS and DTR */
+	/* otherwise assert RTS and DTR */
  	if (cflag & CBAUD)
-		info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 
 	/* byte size and parity */
 
@@ -3262,9 +3256,9 @@ static void dtr_rts(struct tty_port *port, int on)
 
 	spin_lock_irqsave(&info->lock,flags);
 	if (on)
-		info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
  	set_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 }
@@ -3355,11 +3349,24 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	return retval;
 }
 
+/*
+ * allocate buffers used for calling line discipline receive_buf
+ * directly in synchronous mode
+ * note: add 5 bytes to max frame size to allow appending
+ * 32-bit CRC and status byte when configured to do so
+ */
 static int alloc_tmp_rbuf(struct slgt_info *info)
 {
 	info->tmp_rbuf = kmalloc(info->max_frame_size + 5, GFP_KERNEL);
 	if (info->tmp_rbuf == NULL)
 		return -ENOMEM;
+	/* unused flag buffer to satisfy receive_buf calling interface */
+	info->flag_buf = kzalloc(info->max_frame_size + 5, GFP_KERNEL);
+	if (!info->flag_buf) {
+		kfree(info->tmp_rbuf);
+		info->tmp_rbuf = NULL;
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -3367,6 +3374,8 @@ static void free_tmp_rbuf(struct slgt_info *info)
 {
 	kfree(info->tmp_rbuf);
 	info->tmp_rbuf = NULL;
+	kfree(info->flag_buf);
+	info->flag_buf = NULL;
 }
 
 /*
@@ -4110,7 +4119,7 @@ static void reset_port(struct slgt_info *info)
 	tx_stop(info);
 	rx_stop(info);
 
-	info->signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+	info->signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 	set_signals(info);
 
 	slgt_irq_off(info, IRQ_ALL | IRQ_MASTER);
@@ -4537,8 +4546,8 @@ static void get_signals(struct slgt_info *info)
 {
 	unsigned short status = rd_reg16(info, SSR);
 
-	/* clear all serial signals except DTR and RTS */
-	info->signals &= SerialSignal_DTR + SerialSignal_RTS;
+	/* clear all serial signals except RTS and DTR */
+	info->signals &= SerialSignal_RTS | SerialSignal_DTR;
 
 	if (status & BIT3)
 		info->signals |= SerialSignal_DSR;

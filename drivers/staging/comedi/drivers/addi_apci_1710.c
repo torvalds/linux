@@ -1,3 +1,5 @@
+#include <linux/pci.h>
+
 #include <asm/i387.h>
 
 #include "../comedidev.h"
@@ -128,11 +130,6 @@ static int apci1710_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci1710_driver);
 }
 
-static void apci1710_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(apci1710_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, APCI1710_BOARD_DEVICE_ID) },
 	{ 0 }
@@ -143,7 +140,7 @@ static struct pci_driver apci1710_pci_driver = {
 	.name		= "addi_apci_1710",
 	.id_table	= apci1710_pci_table,
 	.probe		= apci1710_pci_probe,
-	.remove		= apci1710_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci1710_driver, apci1710_pci_driver);
 

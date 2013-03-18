@@ -1,4 +1,4 @@
-/* Copyright (C) 2006-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2013 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -89,7 +89,7 @@ static inline void batadv_hash_delete(struct batadv_hashtable *hash,
  *
  *	Returns the new hash value.
  */
-static inline uint32_t batadv_hash_bytes(uint32_t hash, void *data,
+static inline uint32_t batadv_hash_bytes(uint32_t hash, const void *data,
 					 uint32_t size)
 {
 	const unsigned char *key = data;

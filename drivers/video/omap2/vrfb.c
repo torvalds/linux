@@ -20,6 +20,7 @@
 
 /*#define DEBUG*/
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -357,11 +358,9 @@ static int __init vrfb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	vrfb_base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!vrfb_base) {
-		dev_err(&pdev->dev, "can't ioremap vrfb memory\n");
-		return -ENOMEM;
-	}
+	vrfb_base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(vrfb_base))
+		return PTR_ERR(vrfb_base);
 
 	num_ctxs = pdev->num_resources - 1;
 

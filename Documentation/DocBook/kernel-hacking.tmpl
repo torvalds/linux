@@ -945,7 +945,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
 
   <sect1 id="sym-exportsymbols">
    <title><function>EXPORT_SYMBOL()</function>
-    <filename class="headerfile">include/linux/module.h</filename></title>
+    <filename class="headerfile">include/linux/export.h</filename></title>
 
    <para>
     This is the classic method of exporting a symbol: dynamically
@@ -955,7 +955,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
 
   <sect1 id="sym-exportsymbols-gpl">
    <title><function>EXPORT_SYMBOL_GPL()</function>
-    <filename class="headerfile">include/linux/module.h</filename></title>
+    <filename class="headerfile">include/linux/export.h</filename></title>
 
    <para>
     Similar to <function>EXPORT_SYMBOL()</function> except that the
@@ -1182,13 +1182,6 @@ static struct block_device_operations opt_fops = {
      The Config language is simple to use by cut and paste, and there's
      complete documentation in
      <filename>Documentation/kbuild/kconfig-language.txt</filename>.
-    </para>
-
-    <para>
-     You may well want to make your CONFIG option only visible if
-     <symbol>CONFIG_EXPERIMENTAL</symbol> is enabled: this serves as a
-     warning to users.  There many other fancy things you can do: see
-     the various <filename>Kconfig</filename> files for ideas.
     </para>
 
     <para>

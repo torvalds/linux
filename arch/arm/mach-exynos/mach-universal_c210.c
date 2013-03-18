@@ -29,7 +29,6 @@
 #include <drm/exynos_drm.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <video/samsung_fimd.h>
@@ -1151,10 +1150,9 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= universal_map_io,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= universal_machine_init,
 	.init_late	= exynos_init_late,
-	.timer		= &s5p_timer,
+	.init_time	= s5p_timer_init,
 	.reserve        = &universal_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

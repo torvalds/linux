@@ -95,7 +95,7 @@ struct bcm_classifier_rule {
 	UCHAR		ucDirection;
 	BOOLEAN		bIpv6Protocol;
 	UINT32		u32PHSRuleID;
-	S_PHS_RULE	sPhsRule;
+	struct bcm_phs_rule sPhsRule;
 	UCHAR		u8AssociatedPHSI;
 
 	/* Classification fields for ETH CS */
@@ -288,7 +288,7 @@ struct bcm_mini_adapter {
 	wait_queue_head_t	ioctl_fw_dnld_wait_queue;
 	BOOLEAN			waiting_to_fw_download_done;
 	pid_t			fw_download_process_pid;
-	PSTARGETPARAMS		pstargetparams;
+	struct bcm_target_params *pstargetparams;
 	BOOLEAN			device_removed;
 	BOOLEAN			DeviceAccess;
 	BOOLEAN			bIsAutoCorrectEnabled;
@@ -303,10 +303,10 @@ struct bcm_mini_adapter {
 	struct task_struct	*transmit_packet_thread;
 
 	/* LED Related Structures */
-	LED_INFO_STRUCT		LEDInfo;
+	struct bcm_led_info	LEDInfo;
 
 	/* Driver State for LED Blinking */
-	LedEventInfo_t		DriverState;
+	enum bcm_led_events	DriverState;
 	/* Interface Specific */
 	PVOID			pvInterfaceAdapter;
 	int (*bcm_file_download)(PVOID,
@@ -333,7 +333,7 @@ struct bcm_mini_adapter {
 	/* BOOLEAN			bTriedToWakeUpFromShutdown; */
 	BOOLEAN			bLinkDownRequested;
 	int			downloadDDR;
-	PHS_DEVICE_EXTENSION	stBCMPhsContext;
+	struct bcm_phs_extension stBCMPhsContext;
 	struct bcm_hdr_suppression_contextinfo stPhsTxContextInfo;
 	uint8_t			ucaPHSPktRestoreBuf[2048];
 	uint8_t			bPHSEnabled;
@@ -345,7 +345,7 @@ struct bcm_mini_adapter {
 	struct bcm_fragmented_packet_info astFragmentedPktClassifierTable[MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES];
 	atomic_t		uiMBupdate;
 	UINT32			PmuMode;
-	NVM_TYPE		eNVMType;
+	enum bcm_nvm_type	eNVMType;
 	UINT			uiSectorSize;
 	UINT			uiSectorSizeInCFG;
 	BOOLEAN			bSectorSizeOverride;
@@ -366,9 +366,9 @@ struct bcm_mini_adapter {
 	struct device		*pstCreatedClassDevice;
 
 	/*	BOOLEAN				InterfaceUpStatus; */
-	PFLASH2X_CS_INFO	psFlash2xCSInfo;
-	PFLASH_CS_INFO		psFlashCSInfo;
-	PFLASH2X_VENDORSPECIFIC_INFO psFlash2xVendorInfo;
+	struct bcm_flash2x_cs_info *psFlash2xCSInfo;
+	struct bcm_flash_cs_info *psFlashCSInfo;
+	struct bcm_flash2x_vendor_info *psFlash2xVendorInfo;
 	UINT			uiFlashBaseAdd; /* Flash start address */
 	UINT			uiActiveISOOffset; /* Active ISO offset chosen before f/w download */
 	enum bcm_flash2x_section_val eActiveISO; /* Active ISO section val */
@@ -392,7 +392,7 @@ struct bcm_mini_adapter {
 	struct semaphore	LowPowerModeSync;
 	ULONG			liDrainCalculated;
 	UINT			gpioBitMap;
-	S_BCM_DEBUG_STATE	stDebugState;
+	struct bcm_debug_state	stDebugState;
 };
 
 #define GET_BCM_ADAPTER(net_dev) netdev_priv(net_dev)

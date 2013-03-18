@@ -26,10 +26,31 @@
 
 static DEFINE_MUTEX(blkcg_pol_mutex);
 
-struct blkcg blkcg_root = { .cfq_weight = 2 * CFQ_WEIGHT_DEFAULT };
+struct blkcg blkcg_root = { .cfq_weight = 2 * CFQ_WEIGHT_DEFAULT,
+			    .cfq_leaf_weight = 2 * CFQ_WEIGHT_DEFAULT, };
 EXPORT_SYMBOL_GPL(blkcg_root);
 
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
+
+static struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
+				      struct request_queue *q, bool update_hint);
+
+/**
+ * blkg_for_each_descendant_pre - pre-order walk of a blkg's descendants
+ * @d_blkg: loop cursor pointing to the current descendant
+ * @pos_cgrp: used for iteration
+ * @p_blkg: target blkg to walk descendants of
+ *
+ * Walk @c_blkg through the descendants of @p_blkg.  Must be used with RCU
+ * read locked.  If called under either blkcg or queue lock, the iteration
+ * is guaranteed to include all and only online blkgs.  The caller may
+ * update @pos_cgrp by calling cgroup_rightmost_descendant() to skip
+ * subtree.
+ */
+#define blkg_for_each_descendant_pre(d_blkg, pos_cgrp, p_blkg)		\
+	cgroup_for_each_descendant_pre((pos_cgrp), (p_blkg)->blkcg->css.cgroup) \
+		if (((d_blkg) = __blkg_lookup(cgroup_to_blkcg(pos_cgrp), \
+					      (p_blkg)->q, false)))
 
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
@@ -112,9 +133,10 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 
 		blkg->pd[i] = pd;
 		pd->blkg = blkg;
+		pd->plid = i;
 
 		/* invoke per-policy init */
-		if (blkcg_policy_enabled(blkg->q, pol))
+		if (pol->pd_init_fn)
 			pol->pd_init_fn(blkg);
 	}
 
@@ -125,8 +147,19 @@ err_free:
 	return NULL;
 }
 
+/**
+ * __blkg_lookup - internal version of blkg_lookup()
+ * @blkcg: blkcg of interest
+ * @q: request_queue of interest
+ * @update_hint: whether to update lookup hint with the result or not
+ *
+ * This is internal version and shouldn't be used by policy
+ * implementations.  Looks up blkgs for the @blkcg - @q pair regardless of
+ * @q's bypass state.  If @update_hint is %true, the caller should be
+ * holding @q->queue_lock and lookup hint is updated on success.
+ */
 static struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
-				      struct request_queue *q)
+				      struct request_queue *q, bool update_hint)
 {
 	struct blkcg_gq *blkg;
 
@@ -135,14 +168,19 @@ static struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
 		return blkg;
 
 	/*
-	 * Hint didn't match.  Look up from the radix tree.  Note that we
-	 * may not be holding queue_lock and thus are not sure whether
-	 * @blkg from blkg_tree has already been removed or not, so we
-	 * can't update hint to the lookup result.  Leave it to the caller.
+	 * Hint didn't match.  Look up from the radix tree.  Note that the
+	 * hint can only be updated under queue_lock as otherwise @blkg
+	 * could have already been removed from blkg_tree.  The caller is
+	 * responsible for grabbing queue_lock if @update_hint.
 	 */
 	blkg = radix_tree_lookup(&blkcg->blkg_tree, q->id);
-	if (blkg && blkg->q == q)
+	if (blkg && blkg->q == q) {
+		if (update_hint) {
+			lockdep_assert_held(q->queue_lock);
+			rcu_assign_pointer(blkcg->blkg_hint, blkg);
+		}
 		return blkg;
+	}
 
 	return NULL;
 }
@@ -162,7 +200,7 @@ struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, struct request_queue *q)
 
 	if (unlikely(blk_queue_bypass(q)))
 		return NULL;
-	return __blkg_lookup(blkcg, q);
+	return __blkg_lookup(blkcg, q, false);
 }
 EXPORT_SYMBOL_GPL(blkg_lookup);
 
@@ -170,75 +208,129 @@ EXPORT_SYMBOL_GPL(blkg_lookup);
  * If @new_blkg is %NULL, this function tries to allocate a new one as
  * necessary using %GFP_ATOMIC.  @new_blkg is always consumed on return.
  */
-static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
-					     struct request_queue *q,
-					     struct blkcg_gq *new_blkg)
+static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
+				    struct request_queue *q,
+				    struct blkcg_gq *new_blkg)
 {
 	struct blkcg_gq *blkg;
-	int ret;
+	int i, ret;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	lockdep_assert_held(q->queue_lock);
 
-	/* lookup and update hint on success, see __blkg_lookup() for details */
-	blkg = __blkg_lookup(blkcg, q);
-	if (blkg) {
-		rcu_assign_pointer(blkcg->blkg_hint, blkg);
-		goto out_free;
-	}
-
 	/* blkg holds a reference to blkcg */
 	if (!css_tryget(&blkcg->css)) {
-		blkg = ERR_PTR(-EINVAL);
-		goto out_free;
+		ret = -EINVAL;
+		goto err_free_blkg;
 	}
 
 	/* allocate */
 	if (!new_blkg) {
 		new_blkg = blkg_alloc(blkcg, q, GFP_ATOMIC);
 		if (unlikely(!new_blkg)) {
-			blkg = ERR_PTR(-ENOMEM);
-			goto out_put;
+			ret = -ENOMEM;
+			goto err_put_css;
 		}
 	}
 	blkg = new_blkg;
 
-	/* insert */
+	/* link parent and insert */
+	if (blkcg_parent(blkcg)) {
+		blkg->parent = __blkg_lookup(blkcg_parent(blkcg), q, false);
+		if (WARN_ON_ONCE(!blkg->parent)) {
+			blkg = ERR_PTR(-EINVAL);
+			goto err_put_css;
+		}
+		blkg_get(blkg->parent);
+	}
+
 	spin_lock(&blkcg->lock);
 	ret = radix_tree_insert(&blkcg->blkg_tree, q->id, blkg);
 	if (likely(!ret)) {
 		hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
 		list_add(&blkg->q_node, &q->blkg_list);
+
+		for (i = 0; i < BLKCG_MAX_POLS; i++) {
+			struct blkcg_policy *pol = blkcg_policy[i];
+
+			if (blkg->pd[i] && pol->pd_online_fn)
+				pol->pd_online_fn(blkg);
+		}
 	}
+	blkg->online = true;
 	spin_unlock(&blkcg->lock);
 
 	if (!ret)
 		return blkg;
 
-	blkg = ERR_PTR(ret);
-out_put:
+	/* @blkg failed fully initialized, use the usual release path */
+	blkg_put(blkg);
+	return ERR_PTR(ret);
+
+err_put_css:
 	css_put(&blkcg->css);
-out_free:
+err_free_blkg:
 	blkg_free(new_blkg);
-	return blkg;
+	return ERR_PTR(ret);
 }
 
+/**
+ * blkg_lookup_create - lookup blkg, try to create one if not there
+ * @blkcg: blkcg of interest
+ * @q: request_queue of interest
+ *
+ * Lookup blkg for the @blkcg - @q pair.  If it doesn't exist, try to
+ * create one.  blkg creation is performed recursively from blkcg_root such
+ * that all non-root blkg's have access to the parent blkg.  This function
+ * should be called under RCU read lock and @q->queue_lock.
+ *
+ * Returns pointer to the looked up or created blkg on success, ERR_PTR()
+ * value on error.  If @q is dead, returns ERR_PTR(-EINVAL).  If @q is not
+ * dead and bypassing, returns ERR_PTR(-EBUSY).
+ */
 struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 				    struct request_queue *q)
 {
+	struct blkcg_gq *blkg;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+	lockdep_assert_held(q->queue_lock);
+
 	/*
 	 * This could be the first entry point of blkcg implementation and
 	 * we shouldn't allow anything to go through for a bypassing queue.
 	 */
 	if (unlikely(blk_queue_bypass(q)))
 		return ERR_PTR(blk_queue_dying(q) ? -EINVAL : -EBUSY);
-	return __blkg_lookup_create(blkcg, q, NULL);
+
+	blkg = __blkg_lookup(blkcg, q, true);
+	if (blkg)
+		return blkg;
+
+	/*
+	 * Create blkgs walking down from blkcg_root to @blkcg, so that all
+	 * non-root blkgs have access to their parents.
+	 */
+	while (true) {
+		struct blkcg *pos = blkcg;
+		struct blkcg *parent = blkcg_parent(blkcg);
+
+		while (parent && !__blkg_lookup(parent, q, false)) {
+			pos = parent;
+			parent = blkcg_parent(parent);
+		}
+
+		blkg = blkg_create(pos, q, NULL);
+		if (pos == blkcg || IS_ERR(blkg))
+			return blkg;
+	}
 }
 EXPORT_SYMBOL_GPL(blkg_lookup_create);
 
 static void blkg_destroy(struct blkcg_gq *blkg)
 {
 	struct blkcg *blkcg = blkg->blkcg;
+	int i;
 
 	lockdep_assert_held(blkg->q->queue_lock);
 	lockdep_assert_held(&blkcg->lock);
@@ -246,6 +338,14 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	/* Something wrong if we are trying to remove same group twice */
 	WARN_ON_ONCE(list_empty(&blkg->q_node));
 	WARN_ON_ONCE(hlist_unhashed(&blkg->blkcg_node));
+
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+
+		if (blkg->pd[i] && pol->pd_offline_fn)
+			pol->pd_offline_fn(blkg);
+	}
+	blkg->online = false;
 
 	radix_tree_delete(&blkcg->blkg_tree, blkg->q->id);
 	list_del_init(&blkg->q_node);
@@ -301,8 +401,10 @@ static void blkg_rcu_free(struct rcu_head *rcu_head)
 
 void __blkg_release(struct blkcg_gq *blkg)
 {
-	/* release the extra blkcg reference this blkg has been holding */
+	/* release the blkcg and parent blkg refs this blkg has been holding */
 	css_put(&blkg->blkcg->css);
+	if (blkg->parent)
+		blkg_put(blkg->parent);
 
 	/*
 	 * A group is freed in rcu manner. But having an rcu lock does not
@@ -357,7 +459,6 @@ static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
 {
 	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
 	struct blkcg_gq *blkg;
-	struct hlist_node *n;
 	int i;
 
 	mutex_lock(&blkcg_pol_mutex);
@@ -368,7 +469,7 @@ static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
 	 * stat updates.  This is a debug feature which shouldn't exist
 	 * anyway.  If you get hit by a race, retry.
 	 */
-	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
+	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
 		for (i = 0; i < BLKCG_MAX_POLS; i++) {
 			struct blkcg_policy *pol = blkcg_policy[i];
 
@@ -402,8 +503,9 @@ static const char *blkg_dev_name(struct blkcg_gq *blkg)
  *
  * This function invokes @prfill on each blkg of @blkcg if pd for the
  * policy specified by @pol exists.  @prfill is invoked with @sf, the
- * policy data and @data.  If @show_total is %true, the sum of the return
- * values from @prfill is printed with "Total" label at the end.
+ * policy data and @data and the matching queue lock held.  If @show_total
+ * is %true, the sum of the return values from @prfill is printed with
+ * "Total" label at the end.
  *
  * This is to be used to construct print functions for
  * cftype->read_seq_string method.
@@ -415,14 +517,16 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 		       bool show_total)
 {
 	struct blkcg_gq *blkg;
-	struct hlist_node *n;
 	u64 total = 0;
 
-	spin_lock_irq(&blkcg->lock);
-	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node)
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
+		spin_lock_irq(blkg->q->queue_lock);
 		if (blkcg_policy_enabled(blkg->q, pol))
 			total += prfill(sf, blkg->pd[pol->plid], data);
-	spin_unlock_irq(&blkcg->lock);
+		spin_unlock_irq(blkg->q->queue_lock);
+	}
+	rcu_read_unlock();
 
 	if (show_total)
 		seq_printf(sf, "Total %llu\n", (unsigned long long)total);
@@ -481,6 +585,7 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 	seq_printf(sf, "%s Total %llu\n", dname, (unsigned long long)v);
 	return v;
 }
+EXPORT_SYMBOL_GPL(__blkg_prfill_rwstat);
 
 /**
  * blkg_prfill_stat - prfill callback for blkg_stat
@@ -512,6 +617,82 @@ u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 	return __blkg_prfill_rwstat(sf, pd, &rwstat);
 }
 EXPORT_SYMBOL_GPL(blkg_prfill_rwstat);
+
+/**
+ * blkg_stat_recursive_sum - collect hierarchical blkg_stat
+ * @pd: policy private data of interest
+ * @off: offset to the blkg_stat in @pd
+ *
+ * Collect the blkg_stat specified by @off from @pd and all its online
+ * descendants and return the sum.  The caller must be holding the queue
+ * lock for online tests.
+ */
+u64 blkg_stat_recursive_sum(struct blkg_policy_data *pd, int off)
+{
+	struct blkcg_policy *pol = blkcg_policy[pd->plid];
+	struct blkcg_gq *pos_blkg;
+	struct cgroup *pos_cgrp;
+	u64 sum;
+
+	lockdep_assert_held(pd->blkg->q->queue_lock);
+
+	sum = blkg_stat_read((void *)pd + off);
+
+	rcu_read_lock();
+	blkg_for_each_descendant_pre(pos_blkg, pos_cgrp, pd_to_blkg(pd)) {
+		struct blkg_policy_data *pos_pd = blkg_to_pd(pos_blkg, pol);
+		struct blkg_stat *stat = (void *)pos_pd + off;
+
+		if (pos_blkg->online)
+			sum += blkg_stat_read(stat);
+	}
+	rcu_read_unlock();
+
+	return sum;
+}
+EXPORT_SYMBOL_GPL(blkg_stat_recursive_sum);
+
+/**
+ * blkg_rwstat_recursive_sum - collect hierarchical blkg_rwstat
+ * @pd: policy private data of interest
+ * @off: offset to the blkg_stat in @pd
+ *
+ * Collect the blkg_rwstat specified by @off from @pd and all its online
+ * descendants and return the sum.  The caller must be holding the queue
+ * lock for online tests.
+ */
+struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkg_policy_data *pd,
+					     int off)
+{
+	struct blkcg_policy *pol = blkcg_policy[pd->plid];
+	struct blkcg_gq *pos_blkg;
+	struct cgroup *pos_cgrp;
+	struct blkg_rwstat sum;
+	int i;
+
+	lockdep_assert_held(pd->blkg->q->queue_lock);
+
+	sum = blkg_rwstat_read((void *)pd + off);
+
+	rcu_read_lock();
+	blkg_for_each_descendant_pre(pos_blkg, pos_cgrp, pd_to_blkg(pd)) {
+		struct blkg_policy_data *pos_pd = blkg_to_pd(pos_blkg, pol);
+		struct blkg_rwstat *rwstat = (void *)pos_pd + off;
+		struct blkg_rwstat tmp;
+
+		if (!pos_blkg->online)
+			continue;
+
+		tmp = blkg_rwstat_read(rwstat);
+
+		for (i = 0; i < BLKG_RWSTAT_NR; i++)
+			sum.cnt[i] += tmp.cnt[i];
+	}
+	rcu_read_unlock();
+
+	return sum;
+}
+EXPORT_SYMBOL_GPL(blkg_rwstat_recursive_sum);
 
 /**
  * blkg_conf_prep - parse and prepare for per-blkg config update
@@ -658,6 +839,7 @@ static struct cgroup_subsys_state *blkcg_css_alloc(struct cgroup *cgroup)
 		return ERR_PTR(-ENOMEM);
 
 	blkcg->cfq_weight = CFQ_WEIGHT_DEFAULT;
+	blkcg->cfq_leaf_weight = CFQ_WEIGHT_DEFAULT;
 	blkcg->id = atomic64_inc_return(&id_seq); /* root is 0, start from 1 */
 done:
 	spin_lock_init(&blkcg->lock);
@@ -777,7 +959,7 @@ int blkcg_activate_policy(struct request_queue *q,
 			  const struct blkcg_policy *pol)
 {
 	LIST_HEAD(pds);
-	struct blkcg_gq *blkg;
+	struct blkcg_gq *blkg, *new_blkg;
 	struct blkg_policy_data *pd, *n;
 	int cnt = 0, ret;
 	bool preloaded;
@@ -786,19 +968,27 @@ int blkcg_activate_policy(struct request_queue *q,
 		return 0;
 
 	/* preallocations for root blkg */
-	blkg = blkg_alloc(&blkcg_root, q, GFP_KERNEL);
-	if (!blkg)
+	new_blkg = blkg_alloc(&blkcg_root, q, GFP_KERNEL);
+	if (!new_blkg)
 		return -ENOMEM;
 
 	preloaded = !radix_tree_preload(GFP_KERNEL);
 
 	blk_queue_bypass_start(q);
 
-	/* make sure the root blkg exists and count the existing blkgs */
+	/*
+	 * Make sure the root blkg exists and count the existing blkgs.  As
+	 * @q is bypassing at this point, blkg_lookup_create() can't be
+	 * used.  Open code it.
+	 */
 	spin_lock_irq(q->queue_lock);
 
 	rcu_read_lock();
-	blkg = __blkg_lookup_create(&blkcg_root, q, blkg);
+	blkg = __blkg_lookup(&blkcg_root, q, false);
+	if (blkg)
+		blkg_free(new_blkg);
+	else
+		blkg = blkg_create(&blkcg_root, q, new_blkg);
 	rcu_read_unlock();
 
 	if (preloaded)
@@ -846,6 +1036,7 @@ int blkcg_activate_policy(struct request_queue *q,
 
 		blkg->pd[pol->plid] = pd;
 		pd->blkg = blkg;
+		pd->plid = pol->plid;
 		pol->pd_init_fn(blkg);
 
 		spin_unlock(&blkg->blkcg->lock);
@@ -892,6 +1083,8 @@ void blkcg_deactivate_policy(struct request_queue *q,
 		/* grab blkcg lock too while removing @pd from @blkg */
 		spin_lock(&blkg->blkcg->lock);
 
+		if (pol->pd_offline_fn)
+			pol->pd_offline_fn(blkg);
 		if (pol->pd_exit_fn)
 			pol->pd_exit_fn(blkg);
 

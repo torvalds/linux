@@ -18,6 +18,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -134,6 +135,7 @@ static void __init rm680_init(void)
 	sdrc_params = nokia_get_sdram_timings();
 	omap_sdrc_init(sdrc_params, sdrc_params);
 
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	rm680_peripherals_init();
 }
@@ -147,7 +149,7 @@ MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rm680_init,
 	.init_late	= omap3630_init_late,
-	.timer		= &omap3_timer,
+	.init_time	= omap3_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END
 
@@ -160,6 +162,6 @@ MACHINE_START(NOKIA_RM696, "Nokia RM-696 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rm680_init,
 	.init_late	= omap3630_init_late,
-	.timer		= &omap3_timer,
+	.init_time	= omap3_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END

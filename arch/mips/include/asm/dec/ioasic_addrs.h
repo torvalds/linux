@@ -25,22 +25,22 @@
  */
 #define IOASIC_SYS_ROM	(0*IOASIC_SLOT_SIZE)	/* system board ROM */
 #define IOASIC_IOCTL	(1*IOASIC_SLOT_SIZE)	/* I/O ASIC */
-#define IOASIC_ESAR 	(2*IOASIC_SLOT_SIZE)	/* LANCE MAC address chip */
-#define IOASIC_LANCE 	(3*IOASIC_SLOT_SIZE)	/* LANCE Ethernet */
-#define IOASIC_SCC0 	(4*IOASIC_SLOT_SIZE)	/* SCC #0 */
+#define IOASIC_ESAR	(2*IOASIC_SLOT_SIZE)	/* LANCE MAC address chip */
+#define IOASIC_LANCE	(3*IOASIC_SLOT_SIZE)	/* LANCE Ethernet */
+#define IOASIC_SCC0	(4*IOASIC_SLOT_SIZE)	/* SCC #0 */
 #define IOASIC_VDAC_HI	(5*IOASIC_SLOT_SIZE)	/* VDAC (maxine) */
-#define IOASIC_SCC1 	(6*IOASIC_SLOT_SIZE)	/* SCC #1 (3min, 3max+) */
+#define IOASIC_SCC1	(6*IOASIC_SLOT_SIZE)	/* SCC #1 (3min, 3max+) */
 #define IOASIC_VDAC_LO	(7*IOASIC_SLOT_SIZE)	/* VDAC (maxine) */
-#define IOASIC_TOY 	(8*IOASIC_SLOT_SIZE)	/* RTC */
-#define IOASIC_ISDN 	(9*IOASIC_SLOT_SIZE)	/* ISDN (maxine) */
+#define IOASIC_TOY	(8*IOASIC_SLOT_SIZE)	/* RTC */
+#define IOASIC_ISDN	(9*IOASIC_SLOT_SIZE)	/* ISDN (maxine) */
 #define IOASIC_ERRADDR	(9*IOASIC_SLOT_SIZE)	/* bus error address (3max+) */
-#define IOASIC_CHKSYN 	(10*IOASIC_SLOT_SIZE)	/* ECC syndrome (3max+) */
+#define IOASIC_CHKSYN	(10*IOASIC_SLOT_SIZE)	/* ECC syndrome (3max+) */
 #define IOASIC_ACC_BUS	(10*IOASIC_SLOT_SIZE)	/* ACCESS.bus (maxine) */
-#define IOASIC_MCR 	(11*IOASIC_SLOT_SIZE)	/* memory control (3max+) */
-#define IOASIC_FLOPPY 	(11*IOASIC_SLOT_SIZE)	/* FDC (maxine) */
-#define IOASIC_SCSI 	(12*IOASIC_SLOT_SIZE)	/* ASC SCSI */
+#define IOASIC_MCR	(11*IOASIC_SLOT_SIZE)	/* memory control (3max+) */
+#define IOASIC_FLOPPY	(11*IOASIC_SLOT_SIZE)	/* FDC (maxine) */
+#define IOASIC_SCSI	(12*IOASIC_SLOT_SIZE)	/* ASC SCSI */
 #define IOASIC_FDC_DMA	(13*IOASIC_SLOT_SIZE)	/* FDC DMA (maxine) */
-#define IOASIC_SCSI_DMA	(14*IOASIC_SLOT_SIZE)	/* ??? */
+#define IOASIC_SCSI_DMA (14*IOASIC_SLOT_SIZE)	/* ??? */
 #define IOASIC_RES_15	(15*IOASIC_SLOT_SIZE)	/* unused? */
 
 

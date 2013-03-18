@@ -12,13 +12,15 @@
 
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <linux/irqchip/arm-gic.h>
 #include <asm/page.h>
 #include <asm/smp_scu.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 
 #include "common.h"
 #include "hardware.h"
+
+#define SCU_STANDBY_ENABLE	(1 << 5)
 
 static void __iomem *scu_base;
 
@@ -40,6 +42,14 @@ void __init imx_scu_map_io(void)
 	iotable_init(&scu_io_desc, 1);
 
 	scu_base = IMX_IO_ADDRESS(base);
+}
+
+void imx_scu_standby_enable(void)
+{
+	u32 val = readl_relaxed(scu_base);
+
+	val |= SCU_STANDBY_ENABLE;
+	writel_relaxed(val, scu_base);
 }
 
 static void __cpuinit imx_secondary_init(unsigned int cpu)
@@ -71,8 +81,6 @@ static void __init imx_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 void imx_smp_prepare(void)
@@ -92,5 +100,6 @@ struct smp_operations  imx_smp_ops __initdata = {
 	.smp_boot_secondary	= imx_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= imx_cpu_die,
+	.cpu_kill		= imx_cpu_kill,
 #endif
 };

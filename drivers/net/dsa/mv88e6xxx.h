@@ -16,16 +16,14 @@
 #define REG_GLOBAL2		0x1c
 
 struct mv88e6xxx_priv_state {
-	/*
-	 * When using multi-chip addressing, this mutex protects
+	/* When using multi-chip addressing, this mutex protects
 	 * access to the indirect access registers.  (In single-chip
 	 * mode, this mutex is effectively useless.)
 	 */
 	struct mutex	smi_mutex;
 
 #ifdef CONFIG_NET_DSA_MV88E6XXX_NEED_PPU
-	/*
-	 * Handles automatic disabling and re-enabling of the PHY
+	/* Handles automatic disabling and re-enabling of the PHY
 	 * polling unit.
 	 */
 	struct mutex		ppu_mutex;
@@ -34,8 +32,7 @@ struct mv88e6xxx_priv_state {
 	struct timer_list	ppu_timer;
 #endif
 
-	/*
-	 * This mutex serialises access to the statistics unit.
+	/* This mutex serialises access to the statistics unit.
 	 * Hold this mutex over snapshot + dump sequences.
 	 */
 	struct mutex	stats_mutex;
@@ -52,7 +49,7 @@ struct mv88e6xxx_hw_stat {
 int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr, int reg);
 int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg);
 int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
-                          int reg, u16 val);
+			  int reg, u16 val);
 int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val);
 int mv88e6xxx_config_prio(struct dsa_switch *ds);
 int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr);

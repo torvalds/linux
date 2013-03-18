@@ -395,9 +395,6 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 		/* power down the PLL before reprogramming it */
 		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
 
-		if (!freq_in || !freq_out)
-			return 0;
-
 		/* set PLLN and PRESCALE */
 		snd_soc_update_bits(codec, WM8804_PLL4, 0xf | 0x10,
 				    pll_div.n | (pll_div.prescale << 4));

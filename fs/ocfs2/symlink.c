@@ -57,7 +57,7 @@
 static int ocfs2_fast_symlink_readpage(struct file *unused, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-	struct buffer_head *bh;
+	struct buffer_head *bh = NULL;
 	int status = ocfs2_read_inode_block(inode, &bh);
 	struct ocfs2_dinode *fe;
 	const char *link;

@@ -1408,40 +1408,32 @@ static void clear_memalloc(int memalloc)
 		current->flags &= ~PF_MEMALLOC;
 }
 
-static ssize_t read_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t *pos)
+static ssize_t read_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t pos)
 {
-	mm_segment_t old_fs;
 	ssize_t tx;
 	int err, memalloc;
 
-	err = get_pages(ns, file, count, *pos);
+	err = get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	old_fs = get_fs();
-	set_fs(get_ds());
 	memalloc = set_memalloc();
-	tx = vfs_read(file, (char __user *)buf, count, pos);
+	tx = kernel_read(file, pos, buf, count);
 	clear_memalloc(memalloc);
-	set_fs(old_fs);
 	put_pages(ns);
 	return tx;
 }
 
-static ssize_t write_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t *pos)
+static ssize_t write_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t pos)
 {
-	mm_segment_t old_fs;
 	ssize_t tx;
 	int err, memalloc;
 
-	err = get_pages(ns, file, count, *pos);
+	err = get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	old_fs = get_fs();
-	set_fs(get_ds());
 	memalloc = set_memalloc();
-	tx = vfs_write(file, (char __user *)buf, count, pos);
+	tx = kernel_write(file, buf, count, pos);
 	clear_memalloc(memalloc);
-	set_fs(old_fs);
 	put_pages(ns);
 	return tx;
 }
@@ -1476,12 +1468,12 @@ int do_read_error(struct nandsim *ns, int num)
 
 void do_bit_flips(struct nandsim *ns, int num)
 {
-	if (bitflips && random32() < (1 << 22)) {
+	if (bitflips && prandom_u32() < (1 << 22)) {
 		int flips = 1;
 		if (bitflips > 1)
-			flips = (random32() % (int) bitflips) + 1;
+			flips = (prandom_u32() % (int) bitflips) + 1;
 		while (flips--) {
-			int pos = random32() % (num * 8);
+			int pos = prandom_u32() % (num * 8);
 			ns->buf.byte[pos / 8] ^= (1 << (pos % 8));
 			NS_WARN("read_page: flipping bit %d in page %d "
 				"reading from %d ecc: corrected=%u failed=%u\n",
@@ -1511,7 +1503,7 @@ static void read_page(struct nandsim *ns, int num)
 			if (do_read_error(ns, num))
 				return;
 			pos = (loff_t)ns->regs.row * ns->geom.pgszoob + ns->regs.column + ns->regs.off;
-			tx = read_file(ns, ns->cfile, ns->buf.byte, num, &pos);
+			tx = read_file(ns, ns->cfile, ns->buf.byte, num, pos);
 			if (tx != num) {
 				NS_ERR("read_page: read error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return;
@@ -1573,7 +1565,7 @@ static int prog_page(struct nandsim *ns, int num)
 	u_char *pg_off;
 
 	if (ns->cfile) {
-		loff_t off, pos;
+		loff_t off;
 		ssize_t tx;
 		int all;
 
@@ -1585,8 +1577,7 @@ static int prog_page(struct nandsim *ns, int num)
 			memset(ns->file_buf, 0xff, ns->geom.pgszoob);
 		} else {
 			all = 0;
-			pos = off;
-			tx = read_file(ns, ns->cfile, pg_off, num, &pos);
+			tx = read_file(ns, ns->cfile, pg_off, num, off);
 			if (tx != num) {
 				NS_ERR("prog_page: read error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return -1;
@@ -1595,16 +1586,15 @@ static int prog_page(struct nandsim *ns, int num)
 		for (i = 0; i < num; i++)
 			pg_off[i] &= ns->buf.byte[i];
 		if (all) {
-			pos = (loff_t)ns->regs.row * ns->geom.pgszoob;
-			tx = write_file(ns, ns->cfile, ns->file_buf, ns->geom.pgszoob, &pos);
+			loff_t pos = (loff_t)ns->regs.row * ns->geom.pgszoob;
+			tx = write_file(ns, ns->cfile, ns->file_buf, ns->geom.pgszoob, pos);
 			if (tx != ns->geom.pgszoob) {
 				NS_ERR("prog_page: write error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return -1;
 			}
 			ns->pages_written[ns->regs.row] = 1;
 		} else {
-			pos = off;
-			tx = write_file(ns, ns->cfile, pg_off, num, &pos);
+			tx = write_file(ns, ns->cfile, pg_off, num, off);
 			if (tx != num) {
 				NS_ERR("prog_page: write error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return -1;

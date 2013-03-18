@@ -45,6 +45,7 @@ struct cpu_rmap *alloc_cpu_rmap(unsigned int size, gfp_t flags)
 	if (!rmap)
 		return NULL;
 
+	kref_init(&rmap->refcount);
 	rmap->obj = (void **)((char *)rmap + obj_offset);
 
 	/* Initially assign CPUs to objects on a rota, since we have
@@ -62,6 +63,35 @@ struct cpu_rmap *alloc_cpu_rmap(unsigned int size, gfp_t flags)
 	return rmap;
 }
 EXPORT_SYMBOL(alloc_cpu_rmap);
+
+/**
+ * cpu_rmap_release - internal reclaiming helper called from kref_put
+ * @ref: kref to struct cpu_rmap
+ */
+static void cpu_rmap_release(struct kref *ref)
+{
+	struct cpu_rmap *rmap = container_of(ref, struct cpu_rmap, refcount);
+	kfree(rmap);
+}
+
+/**
+ * cpu_rmap_get - internal helper to get new ref on a cpu_rmap
+ * @rmap: reverse-map allocated with alloc_cpu_rmap()
+ */
+static inline void cpu_rmap_get(struct cpu_rmap *rmap)
+{
+	kref_get(&rmap->refcount);
+}
+
+/**
+ * cpu_rmap_put - release ref on a cpu_rmap
+ * @rmap: reverse-map allocated with alloc_cpu_rmap()
+ */
+int cpu_rmap_put(struct cpu_rmap *rmap)
+{
+	return kref_put(&rmap->refcount, cpu_rmap_release);
+}
+EXPORT_SYMBOL(cpu_rmap_put);
 
 /* Reevaluate nearest object for given CPU, comparing with the given
  * neighbours at the given distance.
@@ -197,8 +227,7 @@ struct irq_glue {
  * free_irq_cpu_rmap - free a CPU affinity reverse-map used for IRQs
  * @rmap: Reverse-map allocated with alloc_irq_cpu_map(), or %NULL
  *
- * Must be called in process context, before freeing the IRQs, and
- * without holding any locks required by global workqueue items.
+ * Must be called in process context, before freeing the IRQs.
  */
 void free_irq_cpu_rmap(struct cpu_rmap *rmap)
 {
@@ -212,12 +241,18 @@ void free_irq_cpu_rmap(struct cpu_rmap *rmap)
 		glue = rmap->obj[index];
 		irq_set_affinity_notifier(glue->notify.irq, NULL);
 	}
-	irq_run_affinity_notifiers();
 
-	kfree(rmap);
+	cpu_rmap_put(rmap);
 }
 EXPORT_SYMBOL(free_irq_cpu_rmap);
 
+/**
+ * irq_cpu_rmap_notify - callback for IRQ subsystem when IRQ affinity updated
+ * @notify: struct irq_affinity_notify passed by irq/manage.c
+ * @mask: cpu mask for new SMP affinity
+ *
+ * This is executed in workqueue context.
+ */
 static void
 irq_cpu_rmap_notify(struct irq_affinity_notify *notify, const cpumask_t *mask)
 {
@@ -230,10 +265,16 @@ irq_cpu_rmap_notify(struct irq_affinity_notify *notify, const cpumask_t *mask)
 		pr_warning("irq_cpu_rmap_notify: update failed: %d\n", rc);
 }
 
+/**
+ * irq_cpu_rmap_release - reclaiming callback for IRQ subsystem
+ * @ref: kref to struct irq_affinity_notify passed by irq/manage.c
+ */
 static void irq_cpu_rmap_release(struct kref *ref)
 {
 	struct irq_glue *glue =
 		container_of(ref, struct irq_glue, notify.kref);
+
+	cpu_rmap_put(glue->rmap);
 	kfree(glue);
 }
 
@@ -258,10 +299,13 @@ int irq_cpu_rmap_add(struct cpu_rmap *rmap, int irq)
 	glue->notify.notify = irq_cpu_rmap_notify;
 	glue->notify.release = irq_cpu_rmap_release;
 	glue->rmap = rmap;
+	cpu_rmap_get(rmap);
 	glue->index = cpu_rmap_add(rmap, glue);
 	rc = irq_set_affinity_notifier(irq, &glue->notify);
-	if (rc)
+	if (rc) {
+		cpu_rmap_put(glue->rmap);
 		kfree(glue);
+	}
 	return rc;
 }
 EXPORT_SYMBOL(irq_cpu_rmap_add);

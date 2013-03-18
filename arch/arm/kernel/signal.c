@@ -45,48 +45,6 @@ const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
 };
 
-/*
- * atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int sys_sigsuspend(int restart, unsigned long oldmask, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-asmlinkage int 
-sys_sigaction(int sig, const struct old_sigaction __user *act,
-	      struct old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	if (act) {
-		old_sigset_t mask;
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
 #ifdef CONFIG_CRUNCH
 static int preserve_crunch_context(struct crunch_sigframe __user *frame)
 {
@@ -300,7 +258,7 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigframe(regs, &frame->sig))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->sig.uc.uc_stack, NULL, regs->ARM_sp) == -EFAULT)
+	if (restore_altstack(&frame->sig.uc.uc_stack))
 		goto badframe;
 
 	return regs->ARM_r0;
@@ -360,16 +318,10 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 }
 
 static inline void __user *
-get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, int framesize)
+get_sigframe(struct ksignal *ksig, struct pt_regs *regs, int framesize)
 {
-	unsigned long sp = regs->ARM_sp;
+	unsigned long sp = sigsp(regs->ARM_sp, ksig);
 	void __user *frame;
-
-	/*
-	 * This is the X/Open sanctioned signal stack switching.
-	 */
-	if ((ka->sa.sa_flags & SA_ONSTACK) && !sas_ss_flags(sp))
-		sp = current->sas_ss_sp + current->sas_ss_size;
 
 	/*
 	 * ATPCS B01 mandates 8-byte alignment
@@ -385,11 +337,22 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, int framesize)
 	return frame;
 }
 
-static int
-setup_return(struct pt_regs *regs, struct k_sigaction *ka,
-	     unsigned long __user *rc, void __user *frame, int usig)
+/*
+ * translate the signal
+ */
+static inline int map_sig(int sig)
 {
-	unsigned long handler = (unsigned long)ka->sa.sa_handler;
+	struct thread_info *thread = current_thread_info();
+	if (sig < 32 && thread->exec_domain && thread->exec_domain->signal_invmap)
+		sig = thread->exec_domain->signal_invmap[sig];
+	return sig;
+}
+
+static int
+setup_return(struct pt_regs *regs, struct ksignal *ksig,
+	     unsigned long __user *rc, void __user *frame)
+{
+	unsigned long handler = (unsigned long)ksig->ka.sa.sa_handler;
 	unsigned long retcode;
 	int thumb = 0;
 	unsigned long cpsr = regs->ARM_cpsr & ~(PSR_f | PSR_E_BIT);
@@ -399,7 +362,7 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	/*
 	 * Maybe we need to deliver a 32-bit signal to a 26-bit task.
 	 */
-	if (ka->sa.sa_flags & SA_THIRTYTWO)
+	if (ksig->ka.sa.sa_flags & SA_THIRTYTWO)
 		cpsr = (cpsr & ~MODE_MASK) | USR_MODE;
 
 #ifdef CONFIG_ARM_THUMB
@@ -421,12 +384,12 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	}
 #endif
 
-	if (ka->sa.sa_flags & SA_RESTORER) {
-		retcode = (unsigned long)ka->sa.sa_restorer;
+	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
+		retcode = (unsigned long)ksig->ka.sa.sa_restorer;
 	} else {
 		unsigned int idx = thumb << 1;
 
-		if (ka->sa.sa_flags & SA_SIGINFO)
+		if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 			idx += 3;
 
 		if (__put_user(sigreturn_codes[idx],   rc) ||
@@ -451,7 +414,7 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 		}
 	}
 
-	regs->ARM_r0 = usig;
+	regs->ARM_r0 = map_sig(ksig->sig);
 	regs->ARM_sp = (unsigned long)frame;
 	regs->ARM_lr = retcode;
 	regs->ARM_pc = handler;
@@ -461,9 +424,9 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 }
 
 static int
-setup_frame(int usig, struct k_sigaction *ka, sigset_t *set, struct pt_regs *regs)
+setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 {
-	struct sigframe __user *frame = get_sigframe(ka, regs, sizeof(*frame));
+	struct sigframe __user *frame = get_sigframe(ksig, regs, sizeof(*frame));
 	int err = 0;
 
 	if (!frame)
@@ -476,36 +439,29 @@ setup_frame(int usig, struct k_sigaction *ka, sigset_t *set, struct pt_regs *reg
 
 	err |= setup_sigframe(frame, regs, set);
 	if (err == 0)
-		err = setup_return(regs, ka, frame->retcode, frame, usig);
+		err = setup_return(regs, ksig, frame->retcode, frame);
 
 	return err;
 }
 
 static int
-setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
-	       sigset_t *set, struct pt_regs *regs)
+setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 {
-	struct rt_sigframe __user *frame = get_sigframe(ka, regs, sizeof(*frame));
-	stack_t stack;
+	struct rt_sigframe __user *frame = get_sigframe(ksig, regs, sizeof(*frame));
 	int err = 0;
 
 	if (!frame)
 		return 1;
 
-	err |= copy_siginfo_to_user(&frame->info, info);
+	err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 
 	__put_user_error(0, &frame->sig.uc.uc_flags, err);
 	__put_user_error(NULL, &frame->sig.uc.uc_link, err);
 
-	memset(&stack, 0, sizeof(stack));
-	stack.ss_sp = (void __user *)current->sas_ss_sp;
-	stack.ss_flags = sas_ss_flags(regs->ARM_sp);
-	stack.ss_size = current->sas_ss_size;
-	err |= __copy_to_user(&frame->sig.uc.uc_stack, &stack, sizeof(stack));
-
+	err |= __save_altstack(&frame->sig.uc.uc_stack, regs->ARM_sp);
 	err |= setup_sigframe(&frame->sig, regs, set);
 	if (err == 0)
-		err = setup_return(regs, ka, frame->sig.retcode, frame, usig);
+		err = setup_return(regs, ksig, frame->sig.retcode, frame);
 
 	if (err == 0) {
 		/*
@@ -523,40 +479,25 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 /*
  * OK, we're invoking a handler
  */	
-static void
-handle_signal(unsigned long sig, struct k_sigaction *ka,
-	      siginfo_t *info, struct pt_regs *regs)
+static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
-	struct thread_info *thread = current_thread_info();
-	struct task_struct *tsk = current;
 	sigset_t *oldset = sigmask_to_save();
-	int usig = sig;
 	int ret;
-
-	/*
-	 * translate the signal
-	 */
-	if (usig < 32 && thread->exec_domain && thread->exec_domain->signal_invmap)
-		usig = thread->exec_domain->signal_invmap[usig];
 
 	/*
 	 * Set up the stack frame
 	 */
-	if (ka->sa.sa_flags & SA_SIGINFO)
-		ret = setup_rt_frame(usig, ka, info, oldset, regs);
+	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
+		ret = setup_rt_frame(ksig, oldset, regs);
 	else
-		ret = setup_frame(usig, ka, oldset, regs);
+		ret = setup_frame(ksig, oldset, regs);
 
 	/*
 	 * Check that the resulting registers are actually sane.
 	 */
 	ret |= !valid_user_regs(regs);
 
-	if (ret != 0) {
-		force_sigsegv(sig, tsk);
-		return;
-	}
-	signal_delivered(sig, info, ka, regs, 0);
+	signal_setup_done(ret, ksig, 0);
 }
 
 /*
@@ -571,9 +512,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 static int do_signal(struct pt_regs *regs, int syscall)
 {
 	unsigned int retval = 0, continue_addr = 0, restart_addr = 0;
-	struct k_sigaction ka;
-	siginfo_t info;
-	int signr;
+	struct ksignal ksig;
 	int restart = 0;
 
 	/*
@@ -605,33 +544,32 @@ static int do_signal(struct pt_regs *regs, int syscall)
 	 * Get the signal to deliver.  When running under ptrace, at this
 	 * point the debugger may change all our registers ...
 	 */
-	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	/*
 	 * Depending on the signal settings we may need to revert the
 	 * decision to restart the system call.  But skip this if a
 	 * debugger has chosen to restart at a different PC.
 	 */
-	if (regs->ARM_pc != restart_addr)
-		restart = 0;
-	if (signr > 0) {
-		if (unlikely(restart)) {
+	if (get_signal(&ksig)) {
+		/* handler */
+		if (unlikely(restart) && regs->ARM_pc == restart_addr) {
 			if (retval == -ERESTARTNOHAND ||
 			    retval == -ERESTART_RESTARTBLOCK
 			    || (retval == -ERESTARTSYS
-				&& !(ka.sa.sa_flags & SA_RESTART))) {
+				&& !(ksig.ka.sa.sa_flags & SA_RESTART))) {
 				regs->ARM_r0 = -EINTR;
 				regs->ARM_pc = continue_addr;
 			}
 		}
-
-		handle_signal(signr, &ka, &info, regs);
-		return 0;
+		handle_signal(&ksig, regs);
+	} else {
+		/* no handler */
+		restore_saved_sigmask();
+		if (unlikely(restart) && regs->ARM_pc == restart_addr) {
+			regs->ARM_pc = continue_addr;
+			return restart;
+		}
 	}
-
-	restore_saved_sigmask();
-	if (unlikely(restart))
-		regs->ARM_pc = continue_addr;
-	return restart;
+	return 0;
 }
 
 asmlinkage int

@@ -22,6 +22,9 @@
  * Author: Ben Skeggs
  */
 
+#include <core/object.h>
+#include <core/class.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -30,6 +33,8 @@
 #include "nouveau_hw.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
+
+#include <subdev/i2c.h>
 
 int
 nv04_display_early_init(struct drm_device *dev)
@@ -53,6 +58,7 @@ int
 nv04_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
@@ -70,6 +76,11 @@ nv04_display_create(struct drm_device *dev)
 	nouveau_display(dev)->fini = nv04_display_fini;
 
 	nouveau_hw_save_vga_fonts(dev, 1);
+
+	ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE, 0xd1500000,
+				 NV04_DISP_CLASS, NULL, 0, &disp->core);
+	if (ret)
+		return ret;
 
 	nv04_crtc_create(dev, 0);
 	if (nv_two_heads(dev))
@@ -114,6 +125,11 @@ nv04_display_create(struct drm_device *dev)
 		}
 	}
 
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+		nv_encoder->i2c = i2c->find(i2c, nv_encoder->dcb->i2c_index);
+	}
+
 	/* Save previous state */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		crtc->funcs->save(crtc);
@@ -140,7 +156,7 @@ nv04_display_destroy(struct drm_device *dev)
 			.crtc = crtc,
 		};
 
-		crtc->funcs->set_config(&modeset);
+		drm_mode_set_config_internal(&modeset);
 	}
 
 	/* Restore state */

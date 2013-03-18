@@ -98,10 +98,12 @@ static bool vidi_display_is_connected(struct device *dev)
 	return ctx->connected ? true : false;
 }
 
-static int vidi_get_edid(struct device *dev, struct drm_connector *connector,
-				u8 *edid, int len)
+static struct edid *vidi_get_edid(struct device *dev,
+			struct drm_connector *connector)
 {
 	struct vidi_context *ctx = get_vidi_context(dev);
+	struct edid *edid;
+	int edid_len;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -111,13 +113,18 @@ static int vidi_get_edid(struct device *dev, struct drm_connector *connector,
 	 */
 	if (!ctx->raw_edid) {
 		DRM_DEBUG_KMS("raw_edid is null.\n");
-		return -EFAULT;
+		return ERR_PTR(-EFAULT);
 	}
 
-	memcpy(edid, ctx->raw_edid, min((1 + ctx->raw_edid->extensions)
-					* EDID_LENGTH, len));
+	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
+	edid = kzalloc(edid_len, GFP_KERNEL);
+	if (!edid) {
+		DRM_DEBUG_KMS("failed to allocate edid\n");
+		return ERR_PTR(-ENOMEM);
+	}
 
-	return 0;
+	memcpy(edid, ctx->raw_edid, edid_len);
+	return edid;
 }
 
 static void *vidi_get_panel(struct device *dev)
@@ -514,7 +521,6 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	struct exynos_drm_manager *manager;
 	struct exynos_drm_display_ops *display_ops;
 	struct drm_exynos_vidi_connection *vidi = data;
-	struct edid *raw_edid;
 	int edid_len;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -551,11 +557,11 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	}
 
 	if (vidi->connection) {
-		if (!vidi->edid) {
-			DRM_DEBUG_KMS("edid data is null.\n");
+		struct edid *raw_edid  = (struct edid *)(uint32_t)vidi->edid;
+		if (!drm_edid_is_valid(raw_edid)) {
+			DRM_DEBUG_KMS("edid data is invalid.\n");
 			return -EINVAL;
 		}
-		raw_edid = (struct edid *)(uint32_t)vidi->edid;
 		edid_len = (1 + raw_edid->extensions) * EDID_LENGTH;
 		ctx->raw_edid = kzalloc(edid_len, GFP_KERNEL);
 		if (!ctx->raw_edid) {

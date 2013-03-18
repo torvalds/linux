@@ -533,7 +533,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	PDBG("udb len 0x%x udb base %p db_reg %p gts_reg %p qpshift %lu "
 	     "qpmask 0x%x cqshift %lu cqmask 0x%x\n",
 	     (unsigned)pci_resource_len(rdev->lldi.pdev, 2),
-	     (void *)pci_resource_start(rdev->lldi.pdev, 2),
+	     (void *)(unsigned long)pci_resource_start(rdev->lldi.pdev, 2),
 	     rdev->lldi.db_reg,
 	     rdev->lldi.gts_reg,
 	     rdev->qpshift, rdev->qpmask,
@@ -797,7 +797,8 @@ static int c4iw_uld_rx_handler(void *handle, const __be64 *rsp,
 		       "RSS %#llx, FL %#llx, len %u\n",
 		       pci_name(ctx->lldi.pdev), gl->va,
 		       (unsigned long long)be64_to_cpu(*rsp),
-		       (unsigned long long)be64_to_cpu(*(u64 *)gl->va),
+		       (unsigned long long)be64_to_cpu(
+		       *(__force __be64 *)gl->va),
 		       gl->tot_len);
 
 		return 0;

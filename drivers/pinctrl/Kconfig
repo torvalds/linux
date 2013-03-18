@@ -26,6 +26,29 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
+config PINCTRL_ABX500
+	bool "ST-Ericsson ABx500 family Mixed Signal Circuit gpio functions"
+	depends on AB8500_CORE
+	select GENERIC_PINCONF
+	help
+	  Select this to enable the ABx500 family IC GPIO driver
+
+config PINCTRL_AB8500
+	bool "AB8500 pin controller driver"
+	depends on PINCTRL_ABX500 && ARCH_U8500
+
+config PINCTRL_AB8540
+	bool "AB8540 pin controller driver"
+	depends on PINCTRL_ABX500 && ARCH_U8500
+
+config PINCTRL_AB9540
+	bool "AB9540 pin controller driver"
+	depends on PINCTRL_ABX500 && ARCH_U8500
+
+config PINCTRL_AB8505
+	bool "AB8505 pin controller driver"
+	depends on PINCTRL_ABX500 && ARCH_U8500
+
 config PINCTRL_AT91
 	bool "AT91 pinctrl driver"
 	depends on OF
@@ -151,6 +174,11 @@ config PINCTRL_SIRF
 	depends on ARCH_SIRF
 	select PINMUX
 
+config PINCTRL_SUNXI
+	bool
+	select PINMUX
+	select GENERIC_PINCONF
+
 config PINCTRL_TEGRA
 	bool
 	select PINMUX
@@ -161,6 +189,10 @@ config PINCTRL_TEGRA20
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA30
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA114
 	bool
 	select PINCTRL_TEGRA
 
@@ -181,12 +213,11 @@ config PINCTRL_COH901
 
 config PINCTRL_SAMSUNG
 	bool
-	depends on OF && GPIOLIB
 	select PINMUX
 	select PINCONF
 
-config PINCTRL_EXYNOS4
-	bool "Pinctrl driver data for Exynos4 SoC"
+config PINCTRL_EXYNOS
+	bool "Pinctrl driver data for Samsung EXYNOS SoCs"
 	depends on OF && GPIOLIB
 	select PINCTRL_SAMSUNG
 
@@ -196,7 +227,7 @@ config PINCTRL_EXYNOS5440
 	select PINCONF
 
 source "drivers/pinctrl/mvebu/Kconfig"
-
+source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 
 config PINCTRL_XWAY

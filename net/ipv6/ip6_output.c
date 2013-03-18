@@ -56,8 +56,6 @@
 #include <net/checksum.h>
 #include <linux/mroute6.h>
 
-int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
-
 int __ip6_local_out(struct sk_buff *skb)
 {
 	int len;
@@ -88,7 +86,8 @@ static int ip6_finish_output2(struct sk_buff *skb)
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *dev = dst->dev;
 	struct neighbour *neigh;
-	struct rt6_info *rt;
+	struct in6_addr *nexthop;
+	int ret;
 
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
@@ -121,12 +120,26 @@ static int ip6_finish_output2(struct sk_buff *skb)
 
 		IP6_UPD_PO_STATS(dev_net(dev), idev, IPSTATS_MIB_OUTMCAST,
 				skb->len);
+
+		if (IPV6_ADDR_MC_SCOPE(&ipv6_hdr(skb)->daddr) <=
+		    IPV6_ADDR_SCOPE_NODELOCAL &&
+		    !(dev->flags & IFF_LOOPBACK)) {
+			kfree_skb(skb);
+			return 0;
+		}
 	}
 
-	rt = (struct rt6_info *) dst;
-	neigh = rt->n;
-	if (neigh)
-		return dst_neigh_output(dst, neigh, skb);
+	rcu_read_lock_bh();
+	nexthop = rt6_nexthop((struct rt6_info *)dst, &ipv6_hdr(skb)->daddr);
+	neigh = __ipv6_neigh_lookup_noref(dst->dev, nexthop);
+	if (unlikely(!neigh))
+		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
+	if (!IS_ERR(neigh)) {
+		ret = dst_neigh_output(dst, neigh, skb);
+		rcu_read_unlock_bh();
+		return ret;
+	}
+	rcu_read_unlock_bh();
 
 	IP6_INC_STATS_BH(dev_net(dst->dev),
 			 ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
@@ -216,7 +229,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
 
-	*(__be32 *)hdr = htonl(0x60000000 | (tclass << 20)) | fl6->flowlabel;
+	ip6_flow_hdr(hdr, tclass, fl6->flowlabel);
 
 	hdr->payload_len = htons(seg_len);
 	hdr->nexthdr = proto;
@@ -236,48 +249,14 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 			       dst->dev, dst_output);
 	}
 
-	net_dbg_ratelimited("IPv6: sending pkt_too_big to self\n");
 	skb->dev = dst->dev;
-	icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+	ipv6_local_error(sk, EMSGSIZE, fl6, mtu);
 	IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_FRAGFAILS);
 	kfree_skb(skb);
 	return -EMSGSIZE;
 }
 
 EXPORT_SYMBOL(ip6_xmit);
-
-/*
- *	To avoid extra problems ND packets are send through this
- *	routine. It's code duplication but I really want to avoid
- *	extra checks since ipv6_build_header is used by TCP (which
- *	is for us performance critical)
- */
-
-int ip6_nd_hdr(struct sock *sk, struct sk_buff *skb, struct net_device *dev,
-	       const struct in6_addr *saddr, const struct in6_addr *daddr,
-	       int proto, int len)
-{
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct ipv6hdr *hdr;
-
-	skb->protocol = htons(ETH_P_IPV6);
-	skb->dev = dev;
-
-	skb_reset_network_header(skb);
-	skb_put(skb, sizeof(struct ipv6hdr));
-	hdr = ipv6_hdr(skb);
-
-	*(__be32*)hdr = htonl(0x60000000);
-
-	hdr->payload_len = htons(len);
-	hdr->nexthdr = proto;
-	hdr->hop_limit = np->hop_limit;
-
-	hdr->saddr = *saddr;
-	hdr->daddr = *daddr;
-
-	return 0;
-}
 
 static int ip6_call_ra_chain(struct sk_buff *skb, int sel)
 {
@@ -913,8 +892,12 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 	 * dst entry of the nexthop router
 	 */
 	rt = (struct rt6_info *) *dst;
-	n = rt->n;
-	if (n && !(n->nud_state & NUD_VALID)) {
+	rcu_read_lock_bh();
+	n = __ipv6_neigh_lookup_noref(rt->dst.dev, rt6_nexthop(rt, &fl6->daddr));
+	err = n && !(n->nud_state & NUD_VALID) ? -EINVAL : 0;
+	rcu_read_unlock_bh();
+
+	if (err) {
 		struct inet6_ifaddr *ifp;
 		struct flowi6 fl_gw6;
 		int redirect;
@@ -1213,10 +1196,10 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		if (dst_allfrag(rt->dst.path))
 			cork->flags |= IPCORK_ALLFRAG;
 		cork->length = 0;
-		exthdrlen = (opt ? opt->opt_flen : 0) - rt->rt6i_nfheader_len;
+		exthdrlen = (opt ? opt->opt_flen : 0);
 		length += exthdrlen;
 		transhdrlen += exthdrlen;
-		dst_exthdrlen = rt->dst.header_len;
+		dst_exthdrlen = rt->dst.header_len - rt->rt6i_nfheader_len;
 	} else {
 		rt = (struct rt6_info *)cork->dst;
 		fl6 = &inet->cork.fl.u.ip6;
@@ -1548,9 +1531,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	skb_reset_network_header(skb);
 	hdr = ipv6_hdr(skb);
 
-	*(__be32*)hdr = fl6->flowlabel |
-		     htonl(0x60000000 | ((int)np->cork.tclass << 20));
-
+	ip6_flow_hdr(hdr, np->cork.tclass, fl6->flowlabel);
 	hdr->hop_limit = np->cork.hop_limit;
 	hdr->nexthdr = proto;
 	hdr->saddr = fl6->saddr;

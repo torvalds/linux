@@ -446,7 +446,7 @@ static inline int bits_per_word(const struct ep93xx_spi *espi)
 	struct spi_message *msg = espi->current_msg;
 	struct spi_transfer *t = msg->state;
 
-	return t->bits_per_word ? t->bits_per_word : msg->spi->bits_per_word;
+	return t->bits_per_word;
 }
 
 static void ep93xx_do_write(struct ep93xx_spi *espi, struct spi_transfer *t)
@@ -1085,10 +1085,9 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 
 	espi->sspdr_phys = res->start + SSPDR;
 
-	espi->regs_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!espi->regs_base) {
-		dev_err(&pdev->dev, "failed to map resources\n");
-		error = -ENODEV;
+	espi->regs_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(espi->regs_base)) {
+		error = PTR_ERR(espi->regs_base);
 		goto fail_put_clock;
 	}
 

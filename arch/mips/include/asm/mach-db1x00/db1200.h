@@ -63,7 +63,7 @@
  * the interrupt define and subtracting the DB1200_INT_BEGIN value.
  *
  *   Example: IDE bis pos is  = 64 - 64
- *            ETH bit pos is  = 65 - 64
+ *	      ETH bit pos is  = 65 - 64
  */
 enum external_db1200_ints {
 	DB1200_INT_BEGIN	= AU1000_MAX_INTR + 1,

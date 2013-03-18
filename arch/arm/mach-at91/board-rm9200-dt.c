@@ -47,7 +47,7 @@ static const char *at91rm9200_dt_board_compat[] __initdata = {
 };
 
 DT_MACHINE_START(at91rm9200_dt, "Atmel AT91RM9200 (Device Tree)")
-	.timer		= &at91rm9200_timer,
+	.init_time      = at91rm9200_timer_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= at91rm9200_dt_initialize,

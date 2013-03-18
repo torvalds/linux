@@ -104,6 +104,7 @@ static int exynos_read(struct hwrng *rng, void *buf,
 static int exynos_rng_probe(struct platform_device *pdev)
 {
 	struct exynos_rng *exynos_rng;
+	struct resource *res;
 
 	exynos_rng = devm_kzalloc(&pdev->dev, sizeof(struct exynos_rng),
 					GFP_KERNEL);
@@ -120,10 +121,10 @@ static int exynos_rng_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	exynos_rng->mem = devm_request_and_ioremap(&pdev->dev,
-			platform_get_resource(pdev, IORESOURCE_MEM, 0));
-	if (!exynos_rng->mem)
-		return -EBUSY;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	exynos_rng->mem = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(exynos_rng->mem))
+		return PTR_ERR(exynos_rng->mem);
 
 	platform_set_drvdata(pdev, exynos_rng);
 
@@ -162,7 +163,7 @@ static int exynos_rng_runtime_resume(struct device *dev)
 }
 
 
-UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
+static UNIVERSAL_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_runtime_suspend,
 					exynos_rng_runtime_resume, NULL);
 
 static struct platform_driver exynos_rng_driver = {

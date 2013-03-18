@@ -452,7 +452,7 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 	int ret;
 
 	ipu_crtc->ipu_ch = ipu_idmac_get(ipu, pdata->dma[0]);
-	if (IS_ERR_OR_NULL(ipu_crtc->ipu_ch)) {
+	if (IS_ERR(ipu_crtc->ipu_ch)) {
 		ret = PTR_ERR(ipu_crtc->ipu_ch);
 		goto err_out;
 	}
@@ -472,7 +472,7 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 	if (pdata->dp >= 0) {
 		ipu_crtc->dp = ipu_dp_get(ipu, pdata->dp);
 		if (IS_ERR(ipu_crtc->dp)) {
-			ret = PTR_ERR(ipu_crtc->ipu_ch);
+			ret = PTR_ERR(ipu_crtc->dp);
 			goto err_out;
 		}
 	}
@@ -482,17 +482,6 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 		ret = PTR_ERR(ipu_crtc->di);
 		goto err_out;
 	}
-
-	ipu_crtc->irq = ipu_idmac_channel_irq(ipu, ipu_crtc->ipu_ch,
-			IPU_IRQ_EOF);
-	ret = devm_request_irq(ipu_crtc->dev, ipu_crtc->irq, ipu_irq_handler, 0,
-			"imx_drm", ipu_crtc);
-	if (ret < 0) {
-		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
-		goto err_out;
-	}
-
-	disable_irq(ipu_crtc->irq);
 
 	return 0;
 err_out:
@@ -504,6 +493,7 @@ err_out:
 static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		struct ipu_client_platformdata *pdata)
 {
+	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 	int ret;
 
 	ret = ipu_get_resources(ipu_crtc, pdata);
@@ -521,6 +511,17 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		dev_err(ipu_crtc->dev, "adding crtc failed with %d.\n", ret);
 		goto err_put_resources;
 	}
+
+	ipu_crtc->irq = ipu_idmac_channel_irq(ipu, ipu_crtc->ipu_ch,
+			IPU_IRQ_EOF);
+	ret = devm_request_irq(ipu_crtc->dev, ipu_crtc->irq, ipu_irq_handler, 0,
+			"imx_drm", ipu_crtc);
+	if (ret < 0) {
+		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
+		goto err_put_resources;
+	}
+
+	disable_irq(ipu_crtc->irq);
 
 	return 0;
 
@@ -548,6 +549,8 @@ static int ipu_drm_probe(struct platform_device *pdev)
 	ipu_crtc->dev = &pdev->dev;
 
 	ret = ipu_crtc_init(ipu_crtc, pdata);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, ipu_crtc);
 

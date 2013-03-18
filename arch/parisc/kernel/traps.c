@@ -282,7 +282,7 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 
 	show_regs(regs);
 	dump_stack();
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");

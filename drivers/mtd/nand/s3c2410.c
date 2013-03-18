@@ -952,10 +952,9 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	info->platform	= plat;
 	info->cpu_type	= cpu_type;
 
-	info->regs	= devm_request_and_ioremap(&pdev->dev, res);
-	if (info->regs == NULL) {
-		dev_err(&pdev->dev, "cannot reserve register region\n");
-		err = -EIO;
+	info->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->regs)) {
+		err = PTR_ERR(info->regs);
 		goto exit_error;
 	}
 

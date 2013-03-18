@@ -144,3 +144,4 @@ error:
 		vexpress_config_func_put(osc->func);
 	kfree(osc);
 }
+CLK_OF_DECLARE(vexpress_soc, "arm,vexpress-osc", vexpress_osc_of_setup);

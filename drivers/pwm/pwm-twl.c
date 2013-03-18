@@ -200,8 +200,7 @@ out:
 
 static void twl4030_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct twl_pwm_chip *twl = container_of(chip, struct twl_pwm_chip,
-						chip);
+	struct twl_pwm_chip *twl = to_twl(chip);
 	int ret;
 	u8 val, mask;
 
@@ -231,8 +230,7 @@ out:
 
 static int twl6030_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct twl_pwm_chip *twl = container_of(chip, struct twl_pwm_chip,
-						chip);
+	struct twl_pwm_chip *twl = to_twl(chip);
 	int ret;
 	u8 val;
 
@@ -255,8 +253,7 @@ out:
 
 static void twl6030_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct twl_pwm_chip *twl = container_of(chip, struct twl_pwm_chip,
-						chip);
+	struct twl_pwm_chip *twl = to_twl(chip);
 	int ret;
 	u8 val;
 
@@ -315,6 +312,7 @@ static int twl_pwm_probe(struct platform_device *pdev)
 	twl->chip.dev = &pdev->dev;
 	twl->chip.base = -1;
 	twl->chip.npwm = 2;
+	twl->chip.can_sleep = true;
 
 	mutex_init(&twl->mutex);
 

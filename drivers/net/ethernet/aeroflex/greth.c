@@ -1127,10 +1127,11 @@ static void greth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *in
 {
 	struct greth_private *greth = netdev_priv(dev);
 
-	strncpy(info->driver, dev_driver_string(greth->dev), 32);
-	strncpy(info->version, "revision: 1.0", 32);
-	strncpy(info->bus_info, greth->dev->bus->name, 32);
-	strncpy(info->fw_version, "N/A", 32);
+	strlcpy(info->driver, dev_driver_string(greth->dev),
+		sizeof(info->driver));
+	strlcpy(info->version, "revision: 1.0", sizeof(info->version));
+	strlcpy(info->bus_info, greth->dev->bus->name, sizeof(info->bus_info));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 	info->eedump_len = 0;
 	info->regdump_len = sizeof(struct greth_regs);
 }
@@ -1287,9 +1288,7 @@ static int greth_mdio_probe(struct net_device *dev)
 	}
 
 	ret = phy_connect_direct(dev, phy, &greth_link_change,
-			0, greth->gbit_mac ?
-			PHY_INTERFACE_MODE_GMII :
-			PHY_INTERFACE_MODE_MII);
+				 greth->gbit_mac ? PHY_INTERFACE_MODE_GMII : PHY_INTERFACE_MODE_MII);
 	if (ret) {
 		if (netif_msg_ifup(greth))
 			dev_err(&dev->dev, "could not attach to PHY\n");

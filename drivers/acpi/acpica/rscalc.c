@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ static u8 acpi_rs_count_set_bits(u16 bit_field)
 		bit_field &= (u16) (bit_field - 1);
 	}
 
-	return bits_set;
+	return (bits_set);
 }
 
 /*******************************************************************************
@@ -407,7 +407,9 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 
 		/* Validate the Resource Type and Resource Length */
 
-		status = acpi_ut_validate_resource(aml_buffer, &resource_index);
+		status =
+		    acpi_ut_validate_resource(NULL, aml_buffer,
+					      &resource_index);
 		if (ACPI_FAILURE(status)) {
 			/*
 			 * Exit on failure. Cannot continue because the descriptor length

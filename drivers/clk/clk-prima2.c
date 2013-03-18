@@ -1025,20 +1025,67 @@ static struct of_device_id rsc_ids[] = {
 	{},
 };
 
+enum prima2_clk_index {
+	/* 0    1     2      3      4      5      6       7         8      9 */
+	rtc,    osc,   pll1,  pll2,  pll3,  mem,   sys,   security, dsp,   gps,
+	mf,     io,    cpu,   uart0, uart1, uart2, tsc,   i2c0,     i2c1,  spi0,
+	spi1,   pwmc,  efuse, pulse, dmac0, dmac1, nand,  audio,    usp0,  usp1,
+	usp2,   vip,   gfx,   mm,    lcd,   vpp,   mmc01, mmc23,    mmc45, usbpll,
+	usb0,  usb1,  maxclk,
+};
+
+static __initdata struct clk_hw* prima2_clk_hw_array[maxclk] = {
+	NULL, /* dummy */
+	NULL,
+	&clk_pll1.hw,
+	&clk_pll2.hw,
+	&clk_pll3.hw,
+	&clk_mem.hw,
+	&clk_sys.hw,
+	&clk_security.hw,
+	&clk_dsp.hw,
+	&clk_gps.hw,
+	&clk_mf.hw,
+	&clk_io.hw,
+	&clk_cpu.hw,
+	&clk_uart0.hw,
+	&clk_uart1.hw,
+	&clk_uart2.hw,
+	&clk_tsc.hw,
+	&clk_i2c0.hw,
+	&clk_i2c1.hw,
+	&clk_spi0.hw,
+	&clk_spi1.hw,
+	&clk_pwmc.hw,
+	&clk_efuse.hw,
+	&clk_pulse.hw,
+	&clk_dmac0.hw,
+	&clk_dmac1.hw,
+	&clk_nand.hw,
+	&clk_audio.hw,
+	&clk_usp0.hw,
+	&clk_usp1.hw,
+	&clk_usp2.hw,
+	&clk_vip.hw,
+	&clk_gfx.hw,
+	&clk_mm.hw,
+	&clk_lcd.hw,
+	&clk_vpp.hw,
+	&clk_mmc01.hw,
+	&clk_mmc23.hw,
+	&clk_mmc45.hw,
+	&usb_pll_clk_hw,
+	&clk_usb0.hw,
+	&clk_usb1.hw,
+};
+
+static struct clk *prima2_clks[maxclk];
+static struct clk_onecell_data clk_data;
+
 void __init sirfsoc_of_clk_init(void)
 {
-	struct clk *clk;
 	struct device_node *np;
-
-	np = of_find_matching_node(NULL, clkc_ids);
-	if (!np)
-		panic("unable to find compatible clkc node in dtb\n");
-
-	sirfsoc_clk_vbase = of_iomap(np, 0);
-	if (!sirfsoc_clk_vbase)
-		panic("unable to map clkc registers\n");
-
-	of_node_put(np);
+	int i;
 
 	np = of_find_matching_node(NULL, rsc_ids);
 	if (!np)
@@ -1050,122 +1097,30 @@ void __init sirfsoc_of_clk_init(void)
 
 	of_node_put(np);
 
+	np = of_find_matching_node(NULL, clkc_ids);
+	if (!np)
+		return;
+
+	sirfsoc_clk_vbase = of_iomap(np, 0);
+	if (!sirfsoc_clk_vbase)
+		panic("unable to map clkc registers\n");
 
 	/* These are always available (RTC and 26MHz OSC)*/
-	clk = clk_register_fixed_rate(NULL, "rtc", NULL,
+	prima2_clks[rtc] = clk_register_fixed_rate(NULL, "rtc", NULL,
 		CLK_IS_ROOT, 32768);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register_fixed_rate(NULL, "osc", NULL,
+	prima2_clks[osc]= clk_register_fixed_rate(NULL, "osc", NULL,
 		CLK_IS_ROOT, 26000000);
-	BUG_ON(IS_ERR(clk));
 
-	clk = clk_register(NULL, &clk_pll1.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_pll2.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_pll3.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_mem.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_sys.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_security.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b8030000.security");
-	clk = clk_register(NULL, &clk_dsp.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_gps.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "a8010000.gps");
-	clk = clk_register(NULL, &clk_mf.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_io.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "io");
-	clk = clk_register(NULL, &clk_cpu.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "cpu");
-	clk = clk_register(NULL, &clk_uart0.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0050000.uart");
-	clk = clk_register(NULL, &clk_uart1.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0060000.uart");
-	clk = clk_register(NULL, &clk_uart2.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0070000.uart");
-	clk = clk_register(NULL, &clk_tsc.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0110000.tsc");
-	clk = clk_register(NULL, &clk_i2c0.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b00e0000.i2c");
-	clk = clk_register(NULL, &clk_i2c1.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b00f0000.i2c");
-	clk = clk_register(NULL, &clk_spi0.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b00d0000.spi");
-	clk = clk_register(NULL, &clk_spi1.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0170000.spi");
-	clk = clk_register(NULL, &clk_pwmc.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0130000.pwm");
-	clk = clk_register(NULL, &clk_efuse.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0140000.efusesys");
-	clk = clk_register(NULL, &clk_pulse.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0150000.pulsec");
-	clk = clk_register(NULL, &clk_dmac0.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b00b0000.dma-controller");
-	clk = clk_register(NULL, &clk_dmac1.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0160000.dma-controller");
-	clk = clk_register(NULL, &clk_nand.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0030000.nand");
-	clk = clk_register(NULL, &clk_audio.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0040000.audio");
-	clk = clk_register(NULL, &clk_usp0.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0080000.usp");
-	clk = clk_register(NULL, &clk_usp1.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b0090000.usp");
-	clk = clk_register(NULL, &clk_usp2.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b00a0000.usp");
-	clk = clk_register(NULL, &clk_vip.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b00c0000.vip");
-	clk = clk_register(NULL, &clk_gfx.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "98000000.graphics");
-	clk = clk_register(NULL, &clk_mm.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "a0000000.multimedia");
-	clk = clk_register(NULL, &clk_lcd.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "90010000.display");
-	clk = clk_register(NULL, &clk_vpp.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "90020000.vpp");
-	clk = clk_register(NULL, &clk_mmc01.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_mmc23.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_mmc45.hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &usb_pll_clk_hw);
-	BUG_ON(IS_ERR(clk));
-	clk = clk_register(NULL, &clk_usb0.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b00e0000.usb");
-	clk = clk_register(NULL, &clk_usb1.hw);
-	BUG_ON(IS_ERR(clk));
-	clk_register_clkdev(clk, NULL, "b00f0000.usb");
+	for (i = pll1; i < maxclk; i++) {
+		prima2_clks[i] = clk_register(NULL, prima2_clk_hw_array[i]);
+		BUG_ON(!prima2_clks[i]);
+	}
+	clk_register_clkdev(prima2_clks[cpu], NULL, "cpu");
+	clk_register_clkdev(prima2_clks[io],  NULL, "io");
+	clk_register_clkdev(prima2_clks[mem],  NULL, "mem");
+
+	clk_data.clks = prima2_clks;
+	clk_data.clk_num = maxclk;
+
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 }

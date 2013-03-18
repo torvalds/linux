@@ -68,7 +68,7 @@ __setup("i2c_bus=", omap_i2c_bus_setup);
  * Register busses defined in command line but that are not registered with
  * omap_register_i2c_bus from board initialization code.
  */
-static int __init omap_register_i2c_bus_cmdline(void)
+int __init omap_register_i2c_bus_cmdline(void)
 {
 	int i, err = 0;
 
@@ -83,7 +83,6 @@ static int __init omap_register_i2c_bus_cmdline(void)
 out:
 	return err;
 }
-subsys_initcall(omap_register_i2c_bus_cmdline);
 
 /**
  * omap_register_i2c_bus - register I2C bus with device descriptors

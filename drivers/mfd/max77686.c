@@ -93,15 +93,6 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	if (max77686 == NULL)
 		return -ENOMEM;
 
-	max77686->regmap = regmap_init_i2c(i2c, &max77686_regmap_config);
-	if (IS_ERR(max77686->regmap)) {
-		ret = PTR_ERR(max77686->regmap);
-		dev_err(max77686->dev, "Failed to allocate register map: %d\n",
-				ret);
-		kfree(max77686);
-		return ret;
-	}
-
 	i2c_set_clientdata(i2c, max77686);
 	max77686->dev = &i2c->dev;
 	max77686->i2c = i2c;
@@ -110,6 +101,15 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 	max77686->wakeup = pdata->wakeup;
 	max77686->irq_gpio = pdata->irq_gpio;
 	max77686->irq = i2c->irq;
+
+	max77686->regmap = regmap_init_i2c(i2c, &max77686_regmap_config);
+	if (IS_ERR(max77686->regmap)) {
+		ret = PTR_ERR(max77686->regmap);
+		dev_err(max77686->dev, "Failed to allocate register map: %d\n",
+				ret);
+		kfree(max77686);
+		return ret;
+	}
 
 	if (regmap_read(max77686->regmap,
 			 MAX77686_REG_DEVICE_ID, &data) < 0) {

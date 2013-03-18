@@ -22,6 +22,9 @@ struct omap2_mcspi_dev_attr {
 
 struct omap2_mcspi_device_config {
 	unsigned turbo_mode:1;
+
+	/* toggle chip select after every word */
+	unsigned cs_per_word:1;
 };
 
 #endif

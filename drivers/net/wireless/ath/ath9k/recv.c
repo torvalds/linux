@@ -15,6 +15,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/relay.h>
 #include "ath9k.h"
 #include "ar9003_mac.h"
 
@@ -180,11 +181,6 @@ static void ath_rx_edma_cleanup(struct ath_softc *sc)
 			bf->bf_mpdu = NULL;
 		}
 	}
-
-	INIT_LIST_HEAD(&sc->rx.rxbuf);
-
-	kfree(sc->rx.rx_bufptr);
-	sc->rx.rx_bufptr = NULL;
 }
 
 static void ath_rx_edma_init_queue(struct ath_rx_edma *rx_edma, int size)
@@ -211,12 +207,11 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 			       ah->caps.rx_hp_qdepth);
 
 	size = sizeof(struct ath_buf) * nbufs;
-	bf = kzalloc(size, GFP_KERNEL);
+	bf = devm_kzalloc(sc->dev, size, GFP_KERNEL);
 	if (!bf)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&sc->rx.rxbuf);
-	sc->rx.rx_bufptr = bf;
 
 	for (i = 0; i < nbufs; i++, bf++) {
 		skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_KERNEL);
@@ -254,8 +249,6 @@ rx_init_fail:
 
 static void ath_edma_start_recv(struct ath_softc *sc)
 {
-	spin_lock_bh(&sc->rx.rxbuflock);
-
 	ath9k_hw_rxena(sc->sc_ah);
 
 	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_HP,
@@ -267,8 +260,6 @@ static void ath_edma_start_recv(struct ath_softc *sc)
 	ath_opmode_init(sc);
 
 	ath9k_hw_startpcureceive(sc->sc_ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
-
-	spin_unlock_bh(&sc->rx.rxbuflock);
 }
 
 static void ath_edma_stop_recv(struct ath_softc *sc)
@@ -285,8 +276,6 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	int error = 0;
 
 	spin_lock_init(&sc->sc_pcu_lock);
-	spin_lock_init(&sc->rx.rxbuflock);
-	clear_bit(SC_OP_RXFLUSH, &sc->sc_flags);
 
 	common->rx_bufsize = IEEE80211_MAX_MPDU_LEN / 2 +
 			     sc->sc_ah->caps.rx_status_len;
@@ -363,9 +352,6 @@ void ath_rx_cleanup(struct ath_softc *sc)
 				bf->bf_mpdu = NULL;
 			}
 		}
-
-		if (sc->rx.rxdma.dd_desc_len != 0)
-			ath_descdma_cleanup(sc, &sc->rx.rxdma, &sc->rx.rxbuf);
 	}
 }
 
@@ -447,7 +433,6 @@ int ath_startrecv(struct ath_softc *sc)
 		return 0;
 	}
 
-	spin_lock_bh(&sc->rx.rxbuflock);
 	if (list_empty(&sc->rx.rxbuf))
 		goto start_recv;
 
@@ -468,9 +453,14 @@ start_recv:
 	ath_opmode_init(sc);
 	ath9k_hw_startpcureceive(ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
 
-	spin_unlock_bh(&sc->rx.rxbuflock);
-
 	return 0;
+}
+
+static void ath_flushrecv(struct ath_softc *sc)
+{
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		ath_rx_tasklet(sc, 1, true);
+	ath_rx_tasklet(sc, 1, false);
 }
 
 bool ath_stoprecv(struct ath_softc *sc)
@@ -478,16 +468,16 @@ bool ath_stoprecv(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	bool stopped, reset = false;
 
-	spin_lock_bh(&sc->rx.rxbuflock);
 	ath9k_hw_abortpcurecv(ah);
 	ath9k_hw_setrxfilter(ah, 0);
 	stopped = ath9k_hw_stopdmarecv(ah, &reset);
+
+	ath_flushrecv(sc);
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		ath_edma_stop_recv(sc);
 	else
 		sc->rx.rxlink = NULL;
-	spin_unlock_bh(&sc->rx.rxbuflock);
 
 	if (!(ah->ah_flags & AH_UNPLUGGED) &&
 	    unlikely(!stopped)) {
@@ -497,15 +487,6 @@ bool ath_stoprecv(struct ath_softc *sc)
 		ATH_DBG_WARN_ON_ONCE(!stopped);
 	}
 	return stopped && !reset;
-}
-
-void ath_flushrecv(struct ath_softc *sc)
-{
-	set_bit(SC_OP_RXFLUSH, &sc->sc_flags);
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
-		ath_rx_tasklet(sc, 1, true);
-	ath_rx_tasklet(sc, 1, false);
-	clear_bit(SC_OP_RXFLUSH, &sc->sc_flags);
 }
 
 static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
@@ -552,7 +533,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 	if (sc->ps_flags & PS_BEACON_SYNC) {
 		sc->ps_flags &= ~PS_BEACON_SYNC;
 		ath_dbg(common, PS,
-			"Reconfigure Beacon timers based on timestamp from the AP\n");
+			"Reconfigure beacon timers based on synchronized timestamp\n");
 		ath9k_set_beacon(sc);
 	}
 
@@ -744,6 +725,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 			return NULL;
 	}
 
+	list_del(&bf->list);
 	if (!bf->bf_mpdu)
 		return bf;
 
@@ -1034,6 +1016,134 @@ static void ath9k_rx_skb_postprocess(struct ath_common *common,
 		rxs->flag &= ~RX_FLAG_DECRYPTED;
 }
 
+#ifdef CONFIG_ATH9K_DEBUGFS
+static s8 fix_rssi_inv_only(u8 rssi_val)
+{
+	if (rssi_val == 128)
+		rssi_val = 0;
+	return (s8) rssi_val;
+}
+#endif
+
+/* returns 1 if this was a spectral frame, even if not handled. */
+static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
+			   struct ath_rx_status *rs, u64 tsf)
+{
+#ifdef CONFIG_ATH9K_DEBUGFS
+	struct ath_hw *ah = sc->sc_ah;
+	u8 bins[SPECTRAL_HT20_NUM_BINS];
+	u8 *vdata = (u8 *)hdr;
+	struct fft_sample_ht20 fft_sample;
+	struct ath_radar_info *radar_info;
+	struct ath_ht20_mag_info *mag_info;
+	int len = rs->rs_datalen;
+	int dc_pos;
+	u16 length, max_magnitude;
+
+	/* AR9280 and before report via ATH9K_PHYERR_RADAR, AR93xx and newer
+	 * via ATH9K_PHYERR_SPECTRAL. Haven't seen ATH9K_PHYERR_FALSE_RADAR_EXT
+	 * yet, but this is supposed to be possible as well.
+	 */
+	if (rs->rs_phyerr != ATH9K_PHYERR_RADAR &&
+	    rs->rs_phyerr != ATH9K_PHYERR_FALSE_RADAR_EXT &&
+	    rs->rs_phyerr != ATH9K_PHYERR_SPECTRAL)
+		return 0;
+
+	/* check if spectral scan bit is set. This does not have to be checked
+	 * if received through a SPECTRAL phy error, but shouldn't hurt.
+	 */
+	radar_info = ((struct ath_radar_info *)&vdata[len]) - 1;
+	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
+		return 0;
+
+	/* Variation in the data length is possible and will be fixed later.
+	 * Note that we only support HT20 for now.
+	 *
+	 * TODO: add HT20_40 support as well.
+	 */
+	if ((len > SPECTRAL_HT20_TOTAL_DATA_LEN + 2) ||
+	    (len < SPECTRAL_HT20_TOTAL_DATA_LEN - 1))
+		return 1;
+
+	fft_sample.tlv.type = ATH_FFT_SAMPLE_HT20;
+	length = sizeof(fft_sample) - sizeof(fft_sample.tlv);
+	fft_sample.tlv.length = __cpu_to_be16(length);
+
+	fft_sample.freq = __cpu_to_be16(ah->curchan->chan->center_freq);
+	fft_sample.rssi = fix_rssi_inv_only(rs->rs_rssi_ctl0);
+	fft_sample.noise = ah->noise;
+
+	switch (len - SPECTRAL_HT20_TOTAL_DATA_LEN) {
+	case 0:
+		/* length correct, nothing to do. */
+		memcpy(bins, vdata, SPECTRAL_HT20_NUM_BINS);
+		break;
+	case -1:
+		/* first byte missing, duplicate it. */
+		memcpy(&bins[1], vdata, SPECTRAL_HT20_NUM_BINS - 1);
+		bins[0] = vdata[0];
+		break;
+	case 2:
+		/* MAC added 2 extra bytes at bin 30 and 32, remove them. */
+		memcpy(bins, vdata, 30);
+		bins[30] = vdata[31];
+		memcpy(&bins[31], &vdata[33], SPECTRAL_HT20_NUM_BINS - 31);
+		break;
+	case 1:
+		/* MAC added 2 extra bytes AND first byte is missing. */
+		bins[0] = vdata[0];
+		memcpy(&bins[0], vdata, 30);
+		bins[31] = vdata[31];
+		memcpy(&bins[32], &vdata[33], SPECTRAL_HT20_NUM_BINS - 32);
+		break;
+	default:
+		return 1;
+	}
+
+	/* DC value (value in the middle) is the blind spot of the spectral
+	 * sample and invalid, interpolate it.
+	 */
+	dc_pos = SPECTRAL_HT20_NUM_BINS / 2;
+	bins[dc_pos] = (bins[dc_pos + 1] + bins[dc_pos - 1]) / 2;
+
+	/* mag data is at the end of the frame, in front of radar_info */
+	mag_info = ((struct ath_ht20_mag_info *)radar_info) - 1;
+
+	/* copy raw bins without scaling them */
+	memcpy(fft_sample.data, bins, SPECTRAL_HT20_NUM_BINS);
+	fft_sample.max_exp = mag_info->max_exp & 0xf;
+
+	max_magnitude = spectral_max_magnitude(mag_info->all_bins);
+	fft_sample.max_magnitude = __cpu_to_be16(max_magnitude);
+	fft_sample.max_index = spectral_max_index(mag_info->all_bins);
+	fft_sample.bitmap_weight = spectral_bitmap_weight(mag_info->all_bins);
+	fft_sample.tsf = __cpu_to_be64(tsf);
+
+	ath_debug_send_fft_sample(sc, &fft_sample.tlv);
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+static void ath9k_apply_ampdu_details(struct ath_softc *sc,
+	struct ath_rx_status *rs, struct ieee80211_rx_status *rxs)
+{
+	if (rs->rs_isaggr) {
+		rxs->flag |= RX_FLAG_AMPDU_DETAILS | RX_FLAG_AMPDU_LAST_KNOWN;
+
+		rxs->ampdu_reference = sc->rx.ampdu_ref;
+
+		if (!rs->rs_moreaggr) {
+			rxs->flag |= RX_FLAG_AMPDU_IS_LAST;
+			sc->rx.ampdu_ref++;
+		}
+
+		if (rs->rs_flags & ATH9K_RX_DELIM_CRC_PRE)
+			rxs->flag |= RX_FLAG_AMPDU_DELIM_CRC_ERROR;
+	}
+}
+
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
 	struct ath_buf *bf;
@@ -1059,16 +1169,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		dma_type = DMA_FROM_DEVICE;
 
 	qtype = hp ? ATH9K_RX_QUEUE_HP : ATH9K_RX_QUEUE_LP;
-	spin_lock_bh(&sc->rx.rxbuflock);
 
 	tsf = ath9k_hw_gettsf64(ah);
 	tsf_lower = tsf & 0xffffffff;
 
 	do {
 		bool decrypt_error = false;
-		/* If handling rx interrupt and flush is in progress => exit */
-		if (test_bit(SC_OP_RXFLUSH, &sc->sc_flags) && (flush == 0))
-			break;
 
 		memset(&rs, 0, sizeof(rs));
 		if (edma)
@@ -1111,15 +1217,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		ath_debug_stat_rx(sc, &rs);
 
-		/*
-		 * If we're asked to flush receive queue, directly
-		 * chain it back at the queue without processing it.
-		 */
-		if (test_bit(SC_OP_RXFLUSH, &sc->sc_flags)) {
-			RX_STAT_INC(rx_drop_rxflush);
-			goto requeue_drop_frag;
-		}
-
 		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
 
 		rxs->mactime = (tsf & ~0xffffffffULL) | rs.rs_tstamp;
@@ -1130,6 +1227,13 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (rs.rs_tstamp < tsf_lower &&
 		    unlikely(tsf_lower - rs.rs_tstamp > 0x10000000))
 			rxs->mactime += 0x100000000ULL;
+
+		if (rs.rs_status & ATH9K_RXERR_PHY) {
+			if (ath_process_fft(sc, hdr, &rs, rxs->mactime)) {
+				RX_STAT_INC(rx_spectral);
+				goto requeue_drop_frag;
+			}
+		}
 
 		retval = ath9k_rx_skb_preprocess(common, hw, hdr, &rs,
 						 rxs, &decrypt_error);
@@ -1246,6 +1350,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx == 3)
 			ath_ant_comb_scan(sc, &rs);
 
+		ath9k_apply_ampdu_details(sc, &rs, rxs);
+
 		ieee80211_rx(hw, skb);
 
 requeue_drop_frag:
@@ -1254,18 +1360,17 @@ requeue_drop_frag:
 			sc->rx.frag = NULL;
 		}
 requeue:
+		list_add_tail(&bf->list, &sc->rx.rxbuf);
+		if (flush)
+			continue;
+
 		if (edma) {
-			list_add_tail(&bf->list, &sc->rx.rxbuf);
 			ath_rx_edma_buf_link(sc, qtype);
 		} else {
-			list_move_tail(&bf->list, &sc->rx.rxbuf);
 			ath_rx_buf_link(sc, bf);
-			if (!flush)
-				ath9k_hw_rxena(ah);
+			ath9k_hw_rxena(ah);
 		}
 	} while (1);
-
-	spin_unlock_bh(&sc->rx.rxbuflock);
 
 	if (!(ah->imask & ATH9K_INT_RXEOL)) {
 		ah->imask |= (ATH9K_INT_RXEOL | ATH9K_INT_RXORN);

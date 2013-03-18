@@ -374,6 +374,21 @@ static const struct driver_info cdc_mbim_info = {
 	.tx_fixup = cdc_mbim_tx_fixup,
 };
 
+/* MBIM and NCM devices should not need a ZLP after NTBs with
+ * dwNtbOutMaxSize length. This driver_info is for the exceptional
+ * devices requiring it anyway, allowing them to be supported without
+ * forcing the performance penalty on all the sane devices.
+ */
+static const struct driver_info cdc_mbim_info_zlp = {
+	.description = "CDC MBIM",
+	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN | FLAG_SEND_ZLP,
+	.bind = cdc_mbim_bind,
+	.unbind = cdc_mbim_unbind,
+	.manage_power = cdc_mbim_manage_power,
+	.rx_fixup = cdc_mbim_rx_fixup,
+	.tx_fixup = cdc_mbim_tx_fixup,
+};
+
 static const struct usb_device_id mbim_devs[] = {
 	/* This duplicate NCM entry is intentional. MBIM devices can
 	 * be disguised as NCM by default, and this is necessary to
@@ -384,6 +399,10 @@ static const struct usb_device_id mbim_devs[] = {
 	 */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,
+	},
+	/* Sierra Wireless MC7710 need ZLPs */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x68a2, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
 	},
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,

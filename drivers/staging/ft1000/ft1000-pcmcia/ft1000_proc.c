@@ -175,8 +175,8 @@ static int ft1000NotifyProc(struct notifier_block *this, unsigned long event,
 
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		remove_proc_entry(info->netdevname, info->proc_ft1000);
-		create_proc_read_entry(dev->name, 0644, info->proc_ft1000,
+		remove_proc_entry(info->netdevname, info->ft1000_proc_dir);
+		create_proc_read_entry(dev->name, 0644, info->ft1000_proc_dir,
 					   ft1000ReadProc, dev);
 		snprintf(info->netdevname, IFNAMSIZ, "%s", dev->name);
 		break;
@@ -194,8 +194,8 @@ void ft1000InitProc(struct net_device *dev)
 
 	info = netdev_priv(dev);
 
-	info->proc_ft1000 = proc_mkdir(FT1000_PROC, init_net.proc_net);
-	create_proc_read_entry(dev->name, 0644, info->proc_ft1000,
+	info->ft1000_proc_dir = proc_mkdir(FT1000_PROC, init_net.proc_net);
+	create_proc_read_entry(dev->name, 0644, info->ft1000_proc_dir,
 				   ft1000ReadProc, dev);
 	snprintf(info->netdevname, IFNAMSIZ, "%s", dev->name);
 	register_netdevice_notifier(&ft1000_netdev_notifier);
@@ -207,7 +207,7 @@ void ft1000CleanupProc(struct net_device *dev)
 
 	info = netdev_priv(dev);
 
-	remove_proc_entry(dev->name, info->proc_ft1000);
+	remove_proc_entry(dev->name, info->ft1000_proc_dir);
 	remove_proc_entry(FT1000_PROC, init_net.proc_net);
 	unregister_netdevice_notifier(&ft1000_netdev_notifier);
 }

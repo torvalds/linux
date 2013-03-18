@@ -23,7 +23,7 @@ struct stat {
 	__u32		st_nlink;
 	uid_t		st_uid;
 	gid_t		st_gid;
-	unsigned 	st_rdev;
+	unsigned	st_rdev;
 	long		st_pad2[2];
 	off_t		st_size;
 	long		st_pad3;

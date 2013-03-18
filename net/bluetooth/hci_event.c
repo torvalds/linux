@@ -609,8 +609,17 @@ static void le_setup(struct hci_dev *hdev)
 	/* Read LE Buffer Size */
 	hci_send_cmd(hdev, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
 
+	/* Read LE Local Supported Features */
+	hci_send_cmd(hdev, HCI_OP_LE_READ_LOCAL_FEATURES, 0, NULL);
+
 	/* Read LE Advertising Channel TX Power */
 	hci_send_cmd(hdev, HCI_OP_LE_READ_ADV_TX_POWER, 0, NULL);
+
+	/* Read LE White List Size */
+	hci_send_cmd(hdev, HCI_OP_LE_READ_WHITE_LIST_SIZE, 0, NULL);
+
+	/* Read LE Supported States */
+	hci_send_cmd(hdev, HCI_OP_LE_READ_SUPPORTED_STATES, 0, NULL);
 }
 
 static void hci_setup(struct hci_dev *hdev)
@@ -1090,6 +1099,19 @@ static void hci_cc_le_read_buffer_size(struct hci_dev *hdev,
 	hci_req_complete(hdev, HCI_OP_LE_READ_BUFFER_SIZE, rp->status);
 }
 
+static void hci_cc_le_read_local_features(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_rp_le_read_local_features *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (!rp->status)
+		memcpy(hdev->le_features, rp->features, 8);
+
+	hci_req_complete(hdev, HCI_OP_LE_READ_LOCAL_FEATURES, rp->status);
+}
+
 static void hci_cc_le_read_adv_tx_power(struct hci_dev *hdev,
 					struct sk_buff *skb)
 {
@@ -1290,6 +1312,19 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	}
 }
 
+static void hci_cc_le_read_white_list_size(struct hci_dev *hdev,
+					   struct sk_buff *skb)
+{
+	struct hci_rp_le_read_white_list_size *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x size %u", hdev->name, rp->status, rp->size);
+
+	if (!rp->status)
+		hdev->le_white_list_size = rp->size;
+
+	hci_req_complete(hdev, HCI_OP_LE_READ_WHITE_LIST_SIZE, rp->status);
+}
+
 static void hci_cc_le_ltk_reply(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_rp_le_ltk_reply *rp = (void *) skb->data;
@@ -1312,6 +1347,19 @@ static void hci_cc_le_ltk_neg_reply(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 
 	hci_req_complete(hdev, HCI_OP_LE_LTK_NEG_REPLY, rp->status);
+}
+
+static void hci_cc_le_read_supported_states(struct hci_dev *hdev,
+					    struct sk_buff *skb)
+{
+	struct hci_rp_le_read_supported_states *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (!rp->status)
+		memcpy(hdev->le_states, rp->le_states, 8);
+
+	hci_req_complete(hdev, HCI_OP_LE_READ_SUPPORTED_STATES, rp->status);
 }
 
 static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
@@ -2628,6 +2676,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_cc_le_read_buffer_size(hdev, skb);
 		break;
 
+	case HCI_OP_LE_READ_LOCAL_FEATURES:
+		hci_cc_le_read_local_features(hdev, skb);
+		break;
+
 	case HCI_OP_LE_READ_ADV_TX_POWER:
 		hci_cc_le_read_adv_tx_power(hdev, skb);
 		break;
@@ -2664,12 +2716,20 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_cc_le_set_scan_enable(hdev, skb);
 		break;
 
+	case HCI_OP_LE_READ_WHITE_LIST_SIZE:
+		hci_cc_le_read_white_list_size(hdev, skb);
+		break;
+
 	case HCI_OP_LE_LTK_REPLY:
 		hci_cc_le_ltk_reply(hdev, skb);
 		break;
 
 	case HCI_OP_LE_LTK_NEG_REPLY:
 		hci_cc_le_ltk_neg_reply(hdev, skb);
+		break;
+
+	case HCI_OP_LE_READ_SUPPORTED_STATES:
+		hci_cc_le_read_supported_states(hdev, skb);
 		break;
 
 	case HCI_OP_WRITE_LE_HOST_SUPPORTED:
@@ -2688,7 +2748,7 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (ev->opcode != HCI_OP_NOP)
 		del_timer(&hdev->cmd_timer);
 
-	if (ev->ncmd) {
+	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
 		atomic_set(&hdev->cmd_cnt, 1);
 		if (!skb_queue_empty(&hdev->cmd_q))
 			queue_work(hdev->workqueue, &hdev->cmd_work);
@@ -3928,8 +3988,6 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	void *ptr = &skb->data[1];
 	s8 rssi;
 
-	hci_dev_lock(hdev);
-
 	while (num_reports--) {
 		struct hci_ev_le_advertising_info *ev = ptr;
 
@@ -3939,8 +3997,6 @@ static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}
-
-	hci_dev_unlock(hdev);
 }
 
 static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)

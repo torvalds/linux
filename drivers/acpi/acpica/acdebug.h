@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,6 +115,21 @@ ACPI_HW_DEPENDENT_RETURN_VOID(void
 						   char *block_arg))
 
 /*
+ * dbconvert - miscellaneous conversion routines
+ */
+ acpi_status acpi_db_hex_char_to_value(int hex_char, u8 *return_value);
+
+acpi_status acpi_db_convert_to_package(char *string, union acpi_object *object);
+
+acpi_status
+acpi_db_convert_to_object(acpi_object_type type,
+			  char *string, union acpi_object *object);
+
+u8 *acpi_db_encode_pld_buffer(struct acpi_pld_info *pld_info);
+
+void acpi_db_dump_pld_buffer(union acpi_object *obj_desc);
+
+/*
  * dbmethod - control method commands
  */
 void
@@ -190,6 +205,8 @@ acpi_db_execute(char *name, char **args, acpi_object_type * types, u32 flags);
 void
 acpi_db_create_execution_threads(char *num_threads_arg,
 				 char *num_loops_arg, char *method_name_arg);
+
+void acpi_db_delete_objects(u32 count, union acpi_object *objects);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 u32 acpi_db_get_cache_info(struct acpi_memory_list *cache);

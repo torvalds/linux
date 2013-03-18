@@ -165,6 +165,10 @@
 				"Intel(R) Integrated RAID Module RMS25KB080"
 #define MPT2SAS_INTEL_RMS25KB040_BRANDING    \
 				"Intel(R) Integrated RAID Module RMS25KB040"
+#define MPT2SAS_INTEL_RMS25LB040_BRANDING	\
+				"Intel(R) Integrated RAID Module RMS25LB040"
+#define MPT2SAS_INTEL_RMS25LB080_BRANDING	\
+				"Intel(R) Integrated RAID Module RMS25LB080"
 #define MPT2SAS_INTEL_RMS2LL080_BRANDING	\
 				"Intel Integrated RAID Module RMS2LL080"
 #define MPT2SAS_INTEL_RMS2LL040_BRANDING	\
@@ -180,6 +184,8 @@
 #define MPT2SAS_INTEL_RMS25JB040_SSDID         0x3517
 #define MPT2SAS_INTEL_RMS25KB080_SSDID         0x3518
 #define MPT2SAS_INTEL_RMS25KB040_SSDID         0x3519
+#define MPT2SAS_INTEL_RMS25LB040_SSDID         0x351A
+#define MPT2SAS_INTEL_RMS25LB080_SSDID         0x351B
 #define MPT2SAS_INTEL_RMS2LL080_SSDID          0x350E
 #define MPT2SAS_INTEL_RMS2LL040_SSDID          0x350F
 #define MPT2SAS_INTEL_RS25GB008_SSDID          0x3000
@@ -835,6 +841,7 @@ struct MPT2SAS_ADAPTER {
 	u16		cpu_msix_table_sz;
 	u32		ioc_reset_count;
 	MPT2SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
+	u32             non_operational_loop;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;

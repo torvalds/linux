@@ -291,30 +291,6 @@ static struct panel_config generic_dpi_panels[] = {
 		.name			= "h4",
 	},
 
-	/* Unknown panel used in Samsung OMAP2 Apollon */
-	{
-		{
-			.x_res		= 480,
-			.y_res		= 272,
-
-			.pixel_clock	= 6250,
-
-			.hsw		= 41,
-			.hfp		= 2,
-			.hbp		= 2,
-
-			.vsw		= 10,
-			.vfp		= 2,
-			.vbp		= 2,
-
-			.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-			.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-			.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
-			.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-			.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
-		},
-		.name			= "apollon",
-	},
 	/* FocalTech ETM070003DH6 */
 	{
 		{

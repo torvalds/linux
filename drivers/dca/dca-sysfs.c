@@ -53,22 +53,19 @@ void dca_sysfs_remove_req(struct dca_provider *dca, int slot)
 int dca_sysfs_add_provider(struct dca_provider *dca, struct device *dev)
 {
 	struct device *cd;
-	int err = 0;
+	int ret;
 
-idr_try_again:
-	if (!idr_pre_get(&dca_idr, GFP_KERNEL))
-		return -ENOMEM;
+	idr_preload(GFP_KERNEL);
 	spin_lock(&dca_idr_lock);
-	err = idr_get_new(&dca_idr, dca, &dca->id);
+
+	ret = idr_alloc(&dca_idr, dca, 0, 0, GFP_NOWAIT);
+	if (ret >= 0)
+		dca->id = ret;
+
 	spin_unlock(&dca_idr_lock);
-	switch (err) {
-	case 0:
-		break;
-	case -EAGAIN:
-		goto idr_try_again;
-	default:
-		return err;
-	}
+	idr_preload_end();
+	if (ret < 0)
+		return ret;
 
 	cd = device_create(dca_class, dev, MKDEV(0, 0), NULL, "dca%d", dca->id);
 	if (IS_ERR(cd)) {

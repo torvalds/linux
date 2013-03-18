@@ -3,6 +3,7 @@
 #include "../../util/util.h"
 #include "../../util/hist.h"
 #include "../../util/sort.h"
+#include "../../util/evsel.h"
 
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
@@ -335,17 +336,19 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, FILE *fp)
 {
+	struct perf_hpp_fmt *fmt;
 	struct sort_entry *se;
 	struct rb_node *nd;
 	size_t ret = 0;
 	unsigned int width;
 	const char *sep = symbol_conf.field_sep;
 	const char *col_width = symbol_conf.col_width_list_str;
-	int idx, nr_rows = 0;
+	int nr_rows = 0;
 	char bf[96];
 	struct perf_hpp dummy_hpp = {
 		.buf	= bf,
 		.size	= sizeof(bf),
+		.ptr	= hists_to_evsel(hists),
 	};
 	bool first = true;
 
@@ -355,16 +358,14 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		goto print_entries;
 
 	fprintf(fp, "# ");
-	for (idx = 0; idx < PERF_HPP__MAX_INDEX; idx++) {
-		if (!perf_hpp__format[idx].cond)
-			continue;
 
+	perf_hpp__for_each_format(fmt) {
 		if (!first)
 			fprintf(fp, "%s", sep ?: "  ");
 		else
 			first = false;
 
-		perf_hpp__format[idx].header(&dummy_hpp);
+		fmt->header(&dummy_hpp);
 		fprintf(fp, "%s", bf);
 	}
 
@@ -400,18 +401,16 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	first = true;
 
 	fprintf(fp, "# ");
-	for (idx = 0; idx < PERF_HPP__MAX_INDEX; idx++) {
-		unsigned int i;
 
-		if (!perf_hpp__format[idx].cond)
-			continue;
+	perf_hpp__for_each_format(fmt) {
+		unsigned int i;
 
 		if (!first)
 			fprintf(fp, "%s", sep ?: "  ");
 		else
 			first = false;
 
-		width = perf_hpp__format[idx].width(&dummy_hpp);
+		width = fmt->width(&dummy_hpp);
 		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
@@ -462,7 +461,7 @@ out:
 	return ret;
 }
 
-size_t hists__fprintf_nr_events(struct hists *hists, FILE *fp)
+size_t events_stats__fprintf(struct events_stats *stats, FILE *fp)
 {
 	int i;
 	size_t ret = 0;
@@ -470,7 +469,7 @@ size_t hists__fprintf_nr_events(struct hists *hists, FILE *fp)
 	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
 		const char *name;
 
-		if (hists->stats.nr_events[i] == 0)
+		if (stats->nr_events[i] == 0)
 			continue;
 
 		name = perf_event__name(i);
@@ -478,7 +477,7 @@ size_t hists__fprintf_nr_events(struct hists *hists, FILE *fp)
 			continue;
 
 		ret += fprintf(fp, "%16s events: %10d\n", name,
-			       hists->stats.nr_events[i]);
+			       stats->nr_events[i]);
 	}
 
 	return ret;

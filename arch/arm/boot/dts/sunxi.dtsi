@@ -60,19 +60,21 @@
 		};
 
 		uart0: uart@01c28000 {
-			compatible = "ns8250";
+			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
 			interrupts = <1>;
 			reg-shift = <2>;
+			reg-io-width = <4>;
 			clock-frequency = <24000000>;
 			status = "disabled";
 		};
 
 		uart1: uart@01c28400 {
-			compatible = "ns8250";
+			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28400 0x400>;
 			interrupts = <2>;
 			reg-shift = <2>;
+			reg-io-width = <4>;
 			clock-frequency = <24000000>;
 			status = "disabled";
 		};

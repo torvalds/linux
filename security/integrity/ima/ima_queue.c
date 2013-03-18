@@ -45,12 +45,11 @@ static struct ima_queue_entry *ima_lookup_digest_entry(u8 *digest_value)
 {
 	struct ima_queue_entry *qe, *ret = NULL;
 	unsigned int key;
-	struct hlist_node *pos;
 	int rc;
 
 	key = ima_hash_key(digest_value);
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(qe, pos, &ima_htable.queue[key], hnext) {
+	hlist_for_each_entry_rcu(qe, &ima_htable.queue[key], hnext) {
 		rc = memcmp(qe->entry->digest, digest_value, IMA_DIGEST_SIZE);
 		if (rc == 0) {
 			ret = qe;

@@ -127,8 +127,8 @@ static __init void prom_meminit(void)
 				if ((initrd_pstart > addr) &&
 				    (initrd_pstart < (addr + size))) {
 					add_memory_region(addr,
-					                  initrd_pstart - addr,
-					                  BOOT_MEM_RAM);
+							  initrd_pstart - addr,
+							  BOOT_MEM_RAM);
 					rd_flag = 1;
 				}
 				if ((initrd_pend > addr) &&
@@ -195,7 +195,7 @@ static int __init initrd_setup(char *str)
 
 	/*
 	 *Initrd location comes in the form "<hex size of ramdisk in bytes>@<location in memory>"
-	 *  e.g. initrd=3abfd@80010000.  This is set up by the loader.
+	 *  e.g. initrd=3abfd@80010000.	 This is set up by the loader.
 	 */
 	for (tmp = str; *tmp != '@'; tmp++) {
 		if (!*tmp) {
@@ -244,7 +244,7 @@ void __init prom_init(void)
 	int *prom_vec = (int *) fw_arg3;
 
 	_machine_restart   = cfe_linux_restart;
-	_machine_halt      = cfe_linux_halt;
+	_machine_halt	   = cfe_linux_halt;
 	pm_power_off = cfe_linux_halt;
 
 	/*
@@ -299,7 +299,7 @@ void __init prom_init(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	{
 		char *ptr;
-		/* Need to find out early whether we've got an initrd.  So scan
+		/* Need to find out early whether we've got an initrd.	So scan
 		   the list looking now */
 		for (ptr = arcs_cmdline; *ptr; ptr++) {
 			while (*ptr == ' ') {

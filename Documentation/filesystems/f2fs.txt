@@ -175,9 +175,9 @@ consists of multiple segments as described below.
                                             align with the zone size <-|
                  |-> align with the segment size
      _________________________________________________________________________
-    |            |            |    Node     |   Segment   |   Segment  |      |
-    | Superblock | Checkpoint |   Address   |    Info.    |   Summary  | Main |
-    |    (SB)    |   (CP)     | Table (NAT) | Table (SIT) | Area (SSA) |      |
+    |            |            |   Segment   |    Node     |   Segment  |      |
+    | Superblock | Checkpoint |    Info.    |   Address   |   Summary  | Main |
+    |    (SB)    |   (CP)     | Table (SIT) | Table (NAT) | Area (SSA) |      |
     |____________|_____2______|______N______|______N______|______N_____|__N___|
                                                                        .      .
                                                              .                .
@@ -200,13 +200,13 @@ consists of multiple segments as described below.
  : It contains file system information, bitmaps for valid NAT/SIT sets, orphan
    inode lists, and summary entries of current active segments.
 
-- Node Address Table (NAT)
- : It is composed of a block address table for all the node blocks stored in
-   Main area.
-
 - Segment Information Table (SIT)
  : It contains segment information such as valid block count and bitmap for the
    validity of all the blocks.
+
+- Node Address Table (NAT)
+ : It is composed of a block address table for all the node blocks stored in
+   Main area.
 
 - Segment Summary Area (SSA)
  : It contains summary entries which contains the owner information of all the
@@ -236,13 +236,13 @@ For file system consistency, each CP points to which NAT and SIT copies are
 valid, as shown as below.
 
   +--------+----------+---------+
-  |   CP   |    NAT   |   SIT   |
+  |   CP   |    SIT   |   NAT   |
   +--------+----------+---------+
   .         .          .          .
   .            .              .              .
   .               .                 .                 .
   +-------+-------+--------+--------+--------+--------+
-  | CP #0 | CP #1 | NAT #0 | NAT #1 | SIT #0 | SIT #1 |
+  | CP #0 | CP #1 | SIT #0 | SIT #1 | NAT #0 | NAT #1 |
   +-------+-------+--------+--------+--------+--------+
      |             ^                          ^
      |             |                          |
