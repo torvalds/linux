@@ -1887,30 +1887,30 @@ __be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
 {
 	__be32 status;
 	struct nfsd4_conn *conn;
+	struct nfsd4_session *session;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	if (!nfsd4_last_compound_op(rqstp))
 		return nfserr_not_only_op;
+	nfs4_lock_state();
 	spin_lock(&nn->client_lock);
-	cstate->session = find_in_sessionid_hashtbl(&bcts->sessionid, SVC_NET(rqstp));
-	/* Sorta weird: we only need the refcnt'ing because new_conn acquires
-	 * client_lock iself: */
-	if (cstate->session) {
-		nfsd4_get_session(cstate->session);
-		atomic_inc(&cstate->session->se_client->cl_refcount);
-	}
+	session = find_in_sessionid_hashtbl(&bcts->sessionid, SVC_NET(rqstp));
 	spin_unlock(&nn->client_lock);
-	if (!cstate->session)
-		return nfserr_badsession;
-
+	status = nfserr_badsession;
+	if (!session)
+		goto out;
 	status = nfsd4_map_bcts_dir(&bcts->dir);
 	if (status)
-		return status;
+		goto out;
 	conn = alloc_conn(rqstp, bcts->dir);
+	status = nfserr_jukebox;
 	if (!conn)
-		return nfserr_jukebox;
-	nfsd4_init_conn(rqstp, conn, cstate->session);
-	return nfs_ok;
+		goto out;
+	nfsd4_init_conn(rqstp, conn, session);
+	status = nfs_ok;
+out:
+	nfs4_unlock_state();
+	return status;
 }
 
 static bool nfsd4_compound_in_session(struct nfsd4_session *session, struct nfs4_sessionid *sid)
