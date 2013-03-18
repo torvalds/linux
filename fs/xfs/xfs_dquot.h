@@ -145,8 +145,8 @@ extern int		xfs_qm_dqflush(struct xfs_dquot *, struct xfs_buf **);
 extern void		xfs_qm_dqunpin_wait(xfs_dquot_t *);
 extern void		xfs_qm_adjust_dqtimers(xfs_mount_t *,
 					xfs_disk_dquot_t *);
-extern void		xfs_qm_adjust_dqlimits(xfs_mount_t *,
-					xfs_disk_dquot_t *);
+extern void		xfs_qm_adjust_dqlimits(struct xfs_mount *,
+					       struct xfs_dquot *);
 extern int		xfs_qm_dqget(xfs_mount_t *, xfs_inode_t *,
 					xfs_dqid_t, uint, uint, xfs_dquot_t **);
 extern void		xfs_qm_dqput(xfs_dquot_t *);

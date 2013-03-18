@@ -85,10 +85,11 @@ xfs_qm_dqdestroy(
  */
 void
 xfs_qm_adjust_dqlimits(
-	xfs_mount_t		*mp,
-	xfs_disk_dquot_t	*d)
+	struct xfs_mount	*mp,
+	struct xfs_dquot	*dq)
 {
-	xfs_quotainfo_t		*q = mp->m_quotainfo;
+	struct xfs_quotainfo	*q = mp->m_quotainfo;
+	struct xfs_disk_dquot	*d = &dq->q_core;
 
 	ASSERT(d->d_id);
 
