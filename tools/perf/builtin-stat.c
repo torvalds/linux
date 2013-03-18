@@ -166,6 +166,35 @@ static void perf_evsel__free_prev_raw_counts(struct perf_evsel *evsel)
 	evsel->prev_raw_counts = NULL;
 }
 
+static void perf_evlist__free_stats(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		perf_evsel__free_stat_priv(evsel);
+		perf_evsel__free_counts(evsel);
+		perf_evsel__free_prev_raw_counts(evsel);
+	}
+}
+
+static int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if (perf_evsel__alloc_stat_priv(evsel) < 0 ||
+		    perf_evsel__alloc_counts(evsel, perf_evsel__nr_cpus(evsel)) < 0 ||
+		    (alloc_raw && perf_evsel__alloc_prev_raw_counts(evsel) < 0))
+			goto out_free;
+	}
+
+	return 0;
+
+out_free:
+	perf_evlist__free_stats(evlist);
+	return -1;
+}
+
 static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
 static struct stats runtime_cycles_stats[MAX_NR_CPUS];
 static struct stats runtime_stalled_cycles_front_stats[MAX_NR_CPUS];
@@ -179,8 +208,15 @@ static struct stats runtime_itlb_cache_stats[MAX_NR_CPUS];
 static struct stats runtime_dtlb_cache_stats[MAX_NR_CPUS];
 static struct stats walltime_nsecs_stats;
 
-static void reset_stats(void)
+static void perf_stat__reset_stats(struct perf_evlist *evlist)
 {
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		perf_evsel__reset_stat_priv(evsel);
+		perf_evsel__reset_counts(evsel, perf_evsel__nr_cpus(evsel));
+	}
+
 	memset(runtime_nsecs_stats, 0, sizeof(runtime_nsecs_stats));
 	memset(runtime_cycles_stats, 0, sizeof(runtime_cycles_stats));
 	memset(runtime_stalled_cycles_front_stats, 0, sizeof(runtime_stalled_cycles_front_stats));
@@ -1308,7 +1344,6 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf stat [<options>] [<command>]",
 		NULL
 	};
-	struct perf_evsel *pos;
 	int status = -ENOMEM, run_idx;
 	const char *mode;
 
@@ -1420,17 +1455,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -1;
 	}
 
-	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_evsel__alloc_stat_priv(pos) < 0 ||
-		    perf_evsel__alloc_counts(pos, perf_evsel__nr_cpus(pos)) < 0)
-			goto out_free_fd;
-	}
-	if (interval) {
-		list_for_each_entry(pos, &evsel_list->entries, node) {
-			if (perf_evsel__alloc_prev_raw_counts(pos) < 0)
-				goto out_free_fd;
-		}
-	}
+	if (perf_evlist__alloc_stats(evsel_list, interval))
+		goto out_free_maps;
 
 	/*
 	 * We dont want to block the signals - that would cause
@@ -1454,22 +1480,15 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		status = run_perf_stat(argc, argv);
 		if (forever && status != -1) {
 			print_stat(argc, argv);
-			list_for_each_entry(pos, &evsel_list->entries, node) {
-				perf_evsel__reset_stat_priv(pos);
-				perf_evsel__reset_counts(pos, perf_evsel__nr_cpus(pos));
-			}
-			reset_stats();
+			perf_stat__reset_stats(evsel_list);
 		}
 	}
 
 	if (!forever && status != -1 && !interval)
 		print_stat(argc, argv);
-out_free_fd:
-	list_for_each_entry(pos, &evsel_list->entries, node) {
-		perf_evsel__free_stat_priv(pos);
-		perf_evsel__free_counts(pos);
-		perf_evsel__free_prev_raw_counts(pos);
-	}
+
+	perf_evlist__free_stats(evsel_list);
+out_free_maps:
 	perf_evlist__delete_maps(evsel_list);
 out:
 	perf_evlist__delete(evsel_list);
