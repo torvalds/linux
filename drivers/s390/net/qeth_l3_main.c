@@ -623,7 +623,7 @@ static int qeth_l3_send_setrouting(struct qeth_card *card,
 	return rc;
 }
 
-static void qeth_l3_correct_routing_type(struct qeth_card *card,
+static int qeth_l3_correct_routing_type(struct qeth_card *card,
 		enum qeth_routing_types *type, enum qeth_prot_versions prot)
 {
 	if (card->info.type == QETH_CARD_TYPE_IQD) {
@@ -632,7 +632,7 @@ static void qeth_l3_correct_routing_type(struct qeth_card *card,
 		case PRIMARY_CONNECTOR:
 		case SECONDARY_CONNECTOR:
 		case MULTICAST_ROUTER:
-			return;
+			return 0;
 		default:
 			goto out_inval;
 		}
@@ -641,17 +641,18 @@ static void qeth_l3_correct_routing_type(struct qeth_card *card,
 		case NO_ROUTER:
 		case PRIMARY_ROUTER:
 		case SECONDARY_ROUTER:
-			return;
+			return 0;
 		case MULTICAST_ROUTER:
 			if (qeth_is_ipafunc_supported(card, prot,
 						      IPA_OSA_MC_ROUTER))
-				return;
+				return 0;
 		default:
 			goto out_inval;
 		}
 	}
 out_inval:
 	*type = NO_ROUTER;
+	return -EINVAL;
 }
 
 int qeth_l3_setrouting_v4(struct qeth_card *card)
@@ -660,8 +661,10 @@ int qeth_l3_setrouting_v4(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 3, "setrtg4");
 
-	qeth_l3_correct_routing_type(card, &card->options.route4.type,
+	rc = qeth_l3_correct_routing_type(card, &card->options.route4.type,
 				  QETH_PROT_IPV4);
+	if (rc)
+		return rc;
 
 	rc = qeth_l3_send_setrouting(card, card->options.route4.type,
 				  QETH_PROT_IPV4);
@@ -683,8 +686,10 @@ int qeth_l3_setrouting_v6(struct qeth_card *card)
 
 	if (!qeth_is_supported(card, IPA_IPV6))
 		return 0;
-	qeth_l3_correct_routing_type(card, &card->options.route6.type,
+	rc = qeth_l3_correct_routing_type(card, &card->options.route6.type,
 				  QETH_PROT_IPV6);
+	if (rc)
+		return rc;
 
 	rc = qeth_l3_send_setrouting(card, card->options.route6.type,
 				  QETH_PROT_IPV6);
