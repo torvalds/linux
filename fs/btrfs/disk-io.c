@@ -62,7 +62,7 @@ static void btrfs_destroy_ordered_operations(struct btrfs_transaction *t,
 static void btrfs_destroy_ordered_extents(struct btrfs_root *root);
 static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 				      struct btrfs_root *root);
-static void btrfs_destroy_pending_snapshots(struct btrfs_transaction *t);
+static void btrfs_evict_pending_snapshots(struct btrfs_transaction *t);
 static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root);
 static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 					struct extent_io_tree *dirty_pages,
@@ -3687,7 +3687,7 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 	return ret;
 }
 
-static void btrfs_destroy_pending_snapshots(struct btrfs_transaction *t)
+static void btrfs_evict_pending_snapshots(struct btrfs_transaction *t)
 {
 	struct btrfs_pending_snapshot *snapshot;
 	struct list_head splice;
@@ -3700,10 +3700,8 @@ static void btrfs_destroy_pending_snapshots(struct btrfs_transaction *t)
 		snapshot = list_entry(splice.next,
 				      struct btrfs_pending_snapshot,
 				      list);
-
+		snapshot->error = -ECANCELED;
 		list_del_init(&snapshot->list);
-
-		kfree(snapshot);
 	}
 }
 
@@ -3840,6 +3838,8 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 	cur_trans->blocked = 1;
 	wake_up(&root->fs_info->transaction_blocked_wait);
 
+	btrfs_evict_pending_snapshots(cur_trans);
+
 	cur_trans->blocked = 0;
 	wake_up(&root->fs_info->transaction_wait);
 
@@ -3848,8 +3848,6 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 
 	btrfs_destroy_delayed_inodes(root);
 	btrfs_assert_delayed_root_empty(root);
-
-	btrfs_destroy_pending_snapshots(cur_trans);
 
 	btrfs_destroy_marked_extents(root, &cur_trans->dirty_pages,
 				     EXTENT_DIRTY);
@@ -3894,6 +3892,8 @@ int btrfs_cleanup_transaction(struct btrfs_root *root)
 		if (waitqueue_active(&root->fs_info->transaction_blocked_wait))
 			wake_up(&root->fs_info->transaction_blocked_wait);
 
+		btrfs_evict_pending_snapshots(t);
+
 		t->blocked = 0;
 		smp_mb();
 		if (waitqueue_active(&root->fs_info->transaction_wait))
@@ -3906,8 +3906,6 @@ int btrfs_cleanup_transaction(struct btrfs_root *root)
 
 		btrfs_destroy_delayed_inodes(root);
 		btrfs_assert_delayed_root_empty(root);
-
-		btrfs_destroy_pending_snapshots(t);
 
 		btrfs_destroy_delalloc_inodes(root);
 

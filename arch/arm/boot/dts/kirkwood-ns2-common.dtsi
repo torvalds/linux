@@ -23,7 +23,6 @@
 		};
 
 		serial@12000 {
-			clock-frequency = <166666667>;
 			status = "okay";
 		};
 

@@ -637,22 +637,14 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = get_cmd_index(&txq->q, index);
 
-		if (reclaim) {
-			struct iwl_pcie_txq_entry *ent;
-			ent = &txq->entries[cmd_index];
-			cmd = ent->copy_cmd;
-			WARN_ON_ONCE(!cmd && ent->meta.flags & CMD_WANT_HCMD);
-		} else {
+		if (reclaim)
+			cmd = txq->entries[cmd_index].cmd;
+		else
 			cmd = NULL;
-		}
 
 		err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
 
 		if (reclaim) {
-			/* The original command isn't needed any more */
-			kfree(txq->entries[cmd_index].copy_cmd);
-			txq->entries[cmd_index].copy_cmd = NULL;
-			/* nor is the duplicated part of the command */
 			kfree(txq->entries[cmd_index].free_buf);
 			txq->entries[cmd_index].free_buf = NULL;
 		}

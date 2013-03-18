@@ -74,13 +74,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	mflr	r10 ;						\
 	ld	r12,PACAKBASE(r13) ; 				\
 	LOAD_HANDLER(r12, system_call_entry_direct) ;		\
-	mtlr	r12 ;						\
+	mtctr	r12 ;						\
 	mfspr	r12,SPRN_SRR1 ;					\
 	/* Re-use of r13... No spare regs to do this */	\
 	li	r13,MSR_RI ;					\
 	mtmsrd 	r13,1 ;						\
 	GET_PACA(r13) ;	/* get r13 back */			\
-	blr ;
+	bctr ;
 #else
 	/* We can branch directly */
 #define SYSCALL_PSERIES_2_DIRECT				\

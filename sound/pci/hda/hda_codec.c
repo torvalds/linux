@@ -494,7 +494,7 @@ static unsigned int get_num_conns(struct hda_codec *codec, hda_nid_t nid)
 
 int snd_hda_get_num_raw_conns(struct hda_codec *codec, hda_nid_t nid)
 {
-	return get_num_conns(codec, nid) & AC_CLIST_LENGTH;
+	return snd_hda_get_raw_connections(codec, nid, NULL, 0);
 }
 
 /**
@@ -516,9 +516,6 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int shift, num_elems, mask;
 	hda_nid_t prev_nid;
 	int null_count = 0;
-
-	if (snd_BUG_ON(!conn_list || max_conns <= 0))
-		return -EINVAL;
 
 	parm = get_num_conns(codec, nid);
 	if (!parm)
@@ -545,7 +542,8 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 					  AC_VERB_GET_CONNECT_LIST, 0);
 		if (parm == -1 && codec->bus->rirb_error)
 			return -EIO;
-		conn_list[0] = parm & mask;
+		if (conn_list)
+			conn_list[0] = parm & mask;
 		return 1;
 	}
 
@@ -580,14 +578,20 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 				continue;
 			}
 			for (n = prev_nid + 1; n <= val; n++) {
-				if (conns >= max_conns)
-					return -ENOSPC;
-				conn_list[conns++] = n;
+				if (conn_list) {
+					if (conns >= max_conns)
+						return -ENOSPC;
+					conn_list[conns] = n;
+				}
+				conns++;
 			}
 		} else {
-			if (conns >= max_conns)
-				return -ENOSPC;
-			conn_list[conns++] = val;
+			if (conn_list) {
+				if (conns >= max_conns)
+					return -ENOSPC;
+				conn_list[conns] = val;
+			}
+			conns++;
 		}
 		prev_nid = val;
 	}
@@ -3334,6 +3338,8 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 		return -EBUSY;
 	}
 	spdif = snd_array_new(&codec->spdif_out);
+	if (!spdif)
+		return -ENOMEM;
 	for (dig_mix = dig_mixes; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
 		if (!kctl)
@@ -3431,11 +3437,16 @@ static struct snd_kcontrol_new spdif_share_sw = {
 int snd_hda_create_spdif_share_sw(struct hda_codec *codec,
 				  struct hda_multi_out *mout)
 {
+	struct snd_kcontrol *kctl;
+
 	if (!mout->dig_out_nid)
 		return 0;
+
+	kctl = snd_ctl_new1(&spdif_share_sw, mout);
+	if (!kctl)
+		return -ENOMEM;
 	/* ATTENTION: here mout is passed as private_data, instead of codec */
-	return snd_hda_ctl_add(codec, mout->dig_out_nid,
-			      snd_ctl_new1(&spdif_share_sw, mout));
+	return snd_hda_ctl_add(codec, mout->dig_out_nid, kctl);
 }
 EXPORT_SYMBOL_HDA(snd_hda_create_spdif_share_sw);
 

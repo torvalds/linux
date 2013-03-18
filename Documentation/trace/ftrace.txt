@@ -1873,7 +1873,7 @@ feature:
 
 	status\input  |     0      |     1      |    else    |
 	--------------+------------+------------+------------+
-	not allocated |(do nothing)| alloc+swap |   EINVAL   |
+	not allocated |(do nothing)| alloc+swap |(do nothing)|
 	--------------+------------+------------+------------+
 	allocated     |    free    |    swap    |   clear    |
 	--------------+------------+------------+------------+

@@ -151,7 +151,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		       sta_id, sta->sta.addr, flags & CMD_ASYNC ?  "a" : "");
 
 	if (!(flags & CMD_ASYNC)) {
-		cmd.flags |= CMD_WANT_SKB | CMD_WANT_HCMD;
+		cmd.flags |= CMD_WANT_SKB;
 		might_sleep();
 	}
 

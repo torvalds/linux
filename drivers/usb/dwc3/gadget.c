@@ -2159,15 +2159,12 @@ static void dwc3_gadget_phy_suspend(struct dwc3 *dwc, u8 speed)
 
 static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 {
-	struct dwc3_gadget_ep_cmd_params params;
 	struct dwc3_ep		*dep;
 	int			ret;
 	u32			reg;
 	u8			speed;
 
 	dev_vdbg(dwc->dev, "%s\n", __func__);
-
-	memset(&params, 0x00, sizeof(params));
 
 	reg = dwc3_readl(dwc->regs, DWC3_DSTS);
 	speed = reg & DWC3_DSTS_CONNECTSPD;
