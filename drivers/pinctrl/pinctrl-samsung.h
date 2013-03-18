@@ -25,13 +25,6 @@
 
 #include <linux/gpio.h>
 
-/* register offsets within a pin bank */
-#define DAT_REG		0x4
-#define PUD_REG		0x8
-#define DRV_REG		0xC
-#define CONPDN_REG	0x10
-#define PUDPDN_REG	0x14
-
 /* pinmux function number for pin as gpio output line */
 #define FUNC_OUTPUT	0x1
 
@@ -111,9 +104,11 @@ struct samsung_pinctrl_drv_data;
 /**
  * struct samsung_pin_bank_type: pin bank type description
  * @fld_width: widths of configuration bitfields (0 if unavailable)
+ * @reg_offset: offsets of configuration registers (don't care of width is 0)
  */
 struct samsung_pin_bank_type {
 	u8 fld_width[PINCFG_TYPE_NUM];
+	u8 reg_offset[PINCFG_TYPE_NUM];
 };
 
 /**

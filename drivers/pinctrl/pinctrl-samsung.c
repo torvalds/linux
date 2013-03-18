@@ -275,10 +275,6 @@ static void pin_to_reg_bank(struct samsung_pinctrl_drv_data *drvdata,
 	*offset = pin - b->pin_base;
 	if (bank)
 		*bank = b;
-
-	/* some banks have two config registers in a single bank */
-	if (*offset * b->func_width > BITS_PER_LONG)
-		*reg += 4;
 }
 
 /* enable or disable a pinmux function */
@@ -310,11 +306,11 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 
 		spin_lock_irqsave(&bank->slock, flags);
 
-		data = readl(reg);
+		data = readl(reg + type->reg_offset[PINCFG_TYPE_FUNC]);
 		data &= ~(mask << shift);
 		if (enable)
 			data |= drvdata->pin_groups[group].func << shift;
-		writel(data, reg);
+		writel(data, reg + type->reg_offset[PINCFG_TYPE_FUNC]);
 
 		spin_unlock_irqrestore(&bank->slock, flags);
 	}
@@ -355,7 +351,8 @@ static int samsung_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
 
 	pin_offset = offset - bank->pin_base;
-	reg = drvdata->virt_base + bank->pctl_offset;
+	reg = drvdata->virt_base + bank->pctl_offset +
+					type->reg_offset[PINCFG_TYPE_FUNC];
 
 	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
 	shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
@@ -401,28 +398,11 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 					&pin_offset, &bank);
 	type = bank->type;
 
-	switch (cfg_type) {
-	case PINCFG_TYPE_PUD:
-		cfg_reg = PUD_REG;
-		break;
-	case PINCFG_TYPE_DRV:
-		cfg_reg = DRV_REG;
-		break;
-	case PINCFG_TYPE_CON_PDN:
-		cfg_reg = CONPDN_REG;
-		break;
-	case PINCFG_TYPE_PUD_PDN:
-		cfg_reg = PUDPDN_REG;
-		break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
 	if (cfg_type >= PINCFG_TYPE_NUM || !type->fld_width[cfg_type])
 		return -EINVAL;
 
 	width = type->fld_width[cfg_type];
+	cfg_reg = type->reg_offset[cfg_type];
 
 	spin_lock_irqsave(&bank->slock, flags);
 
@@ -511,11 +491,11 @@ static void samsung_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 
 	spin_lock_irqsave(&bank->slock, flags);
 
-	data = readl(reg + DAT_REG);
+	data = readl(reg + type->reg_offset[PINCFG_TYPE_DAT]);
 	data &= ~(1 << offset);
 	if (value)
 		data |= 1 << offset;
-	writel(data, reg + DAT_REG);
+	writel(data, reg + type->reg_offset[PINCFG_TYPE_DAT]);
 
 	spin_unlock_irqrestore(&bank->slock, flags);
 }
@@ -526,10 +506,11 @@ static int samsung_gpio_get(struct gpio_chip *gc, unsigned offset)
 	void __iomem *reg;
 	u32 data;
 	struct samsung_pin_bank *bank = gc_to_pin_bank(gc);
+	struct samsung_pin_bank_type *type = bank->type;
 
 	reg = bank->drvdata->virt_base + bank->pctl_offset;
 
-	data = readl(reg + DAT_REG);
+	data = readl(reg + type->reg_offset[PINCFG_TYPE_DAT]);
 	data >>= offset;
 	data &= 1;
 	return data;
