@@ -3348,7 +3348,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		rc = -ENODEV;
 		goto out_remove;
 	}
-	qeth_trace_features(card);
 
 	if (!card->dev && qeth_l3_setup_netdev(card)) {
 		rc = -ENODEV;
@@ -3425,6 +3424,7 @@ contin:
 		qeth_l3_set_multicast_list(card->dev);
 		rtnl_unlock();
 	}
+	qeth_trace_features(card);
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
 	mutex_unlock(&card->conf_mutex);
