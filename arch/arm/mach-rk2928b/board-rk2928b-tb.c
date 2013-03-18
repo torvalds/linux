@@ -82,7 +82,7 @@
 #include "../mach-rk30/board-rk3168-tb-camera.c"
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
-#define TOUCH_RESET_PIN  RK30_PIN0_PB6
+#define TOUCH_RESET_PIN  RK30_PIN0_PC1//RK30_PIN0_PB6
 #define TOUCH_PWR_PIN    INVALID_GPIO//RK30_PIN0_PC5   // need to fly line by hardware engineer
 static int goodix_init_platform_hw(void)
 {
@@ -119,7 +119,7 @@ static int goodix_init_platform_hw(void)
 
 struct goodix_platform_data goodix_info = {
 	.model = 8105,
-	.irq_pin = RK30_PIN1_PB7,
+	.irq_pin = RK30_PIN0_PB4,
 	.rest_pin = TOUCH_RESET_PIN,
 	.init_platform_hw = goodix_init_platform_hw,
 };
@@ -132,14 +132,14 @@ static struct spi_board_info board_spi_devices[] = {
 *	rk30  backlight
 ************************************************************/
 #ifdef CONFIG_BACKLIGHT_RK29_BL
-#define PWM_ID            3
-#define PWM_MODE          PWM3
+#define PWM_ID           0//   3
+#define PWM_MODE      PWM0//    PWM3
 #define PWM_EFFECT_VALUE  1
 
 #define LCD_DISP_ON_PIN
 
 #ifdef  LCD_DISP_ON_PIN
-#define BL_EN_PIN         RK30_PIN0_PA2
+#define BL_EN_PIN         RK30_PIN0_PC0
 #define BL_EN_VALUE       GPIO_HIGH
 #endif
 static int rk29_backlight_io_init(void)
@@ -458,7 +458,7 @@ static struct sensor_platform_data cm3217_info = {
 #define LCD_CS_PIN         INVALID_GPIO
 #define LCD_CS_VALUE       GPIO_HIGH
 
-#define LCD_EN_PIN         RK30_PIN0_PB0
+#define LCD_EN_PIN         RK30_PIN0_PB6
 #define LCD_EN_VALUE       GPIO_HIGH
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
@@ -700,7 +700,7 @@ static int rk610_codec_io_init(void)
 }
 
 static struct rk610_codec_platform_data rk610_codec_pdata = {
-	.spk_ctl_io = RK30_PIN2_PD7,
+	.spk_ctl_io = RK30_PIN3_PC7,//RK30_PIN2_PD7,
 	.io_init = rk610_codec_io_init,
 };
 #endif
@@ -1063,11 +1063,13 @@ static struct platform_device rk30_device_adc_battery = {
 #endif
 #ifdef CONFIG_RK30_PWM_REGULATOR
 static int pwm_voltage_map[] = {
-	800000,825000,850000, 875000,900000, 925000 ,950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000,1375000
+   /*
+	800000,825000,850000, 875000,900000, 925000 ,950000, 975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000,1375000*/
+          950000,975000,1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
 };
 static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
 	{
-		.supply = "vdd_cpu",
+		.supply = "vdd_core",
 	}
 };
 
@@ -1088,15 +1090,23 @@ struct regulator_init_data pwm_regulator_init_dcdc[1] =
 
 static struct pwm_platform_data pwm_regulator_info[1] = {
 	{
+	#if defined (CONFIG_MACH_RK2928B_TB)	
+		.pwm_id = 2,
+		.pwm_gpio = RK30_PIN3_PD5,
+		.pwm_iomux_pwm = PWM2,
+		.pwm_iomux_gpio = GPIO3_D5,
+	#else		
 		.pwm_id = 1,
 		.pwm_gpio = RK30_PIN3_PD4,
 		.pwm_iomux_pwm = PWM1,
 		.pwm_iomux_gpio = GPIO3_D4,
+
+	#endif
 		.pwm_voltage = 1100000,
 		.suspend_voltage = 1000000,
-		.min_uV = 800000,
-		.max_uV	= 1375000,
-		.coefficient = 575,	//57.5%
+		.min_uV = 950000,
+		.max_uV	= 1400000,
+		.coefficient = 504,	//57.5%
 		.pwm_voltage_map = pwm_voltage_map,
 		.init_data	= &pwm_regulator_init_dcdc[0],
 	},
@@ -1522,15 +1532,15 @@ static struct pmu_info  wm8326_ldo_info[] = {
 #endif
 
 #ifdef CONFIG_MFD_TPS65910
-#define TPS65910_HOST_IRQ        RK30_PIN0_PB3
+#define TPS65910_HOST_IRQ        RK30_PIN0_PB5//RK30_PIN0_PB3
 
-#define PMU_POWER_SLEEP RK30_PIN0_PA1
+#define PMU_POWER_SLEEP RK30_PIN1_PB5
 
 static struct pmu_info  tps65910_dcdc_info[] = {
 	{
-		.name          = "vdd_core",   //logic
-		.min_uv          = 1100000,
-		.max_uv         = 1100000,
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
 	},
 	{
 		.name          = "vdd2",    //ddr
@@ -1539,16 +1549,16 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 	},
 	{
 		.name          = "vio",   //vcc_io
-		.min_uv          = 2500000,
-		.max_uv         = 2500000,
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
 	},
 	
 };
 static  struct pmu_info  tps65910_ldo_info[] = {
 	{
 		.name          = "vpll",   //vdd10
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
 	},
 	{
 		.name          = "vdig1",    //vcc18_cif
@@ -1557,8 +1567,8 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 	},
 	{
 		.name          = "vdig2",   //vdd_jetta
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
 	},
 	{
 		.name          = "vaux1",   //vcc28_cif
@@ -1924,49 +1934,48 @@ static struct rk29_keys_button key_button[] = {
         {
                 .desc   = "vol-",
                 .code   = KEY_VOLUMEDOWN,
-		.adc_value      = 747,
-                .gpio   = INVALID_GPIO,
+                .gpio   = RK30_PIN0_PD6,
                 .active_low = PRESS_LEV_LOW,
         },
         {
                 .desc   = "play",
                 .code   = KEY_POWER,
-                .gpio   = RK30_PIN0_PA4,
+                .gpio   = RK30_PIN1_PB4,
                 .active_low = PRESS_LEV_LOW,
                 .wakeup = 1,
         },
         {
                 .desc   = "vol+",
                 .code   = KEY_VOLUMEUP,
-                .adc_value      = 559,//133
+                .adc_value      = 1,//133
                 .gpio = INVALID_GPIO,
                 .active_low = PRESS_LEV_LOW,
         },
 	{
                 .desc   = "menu",
                 .code   = EV_MENU,
-                .adc_value      = 1,
+                .adc_value      = 135,
                 .gpio = INVALID_GPIO,
                 .active_low = PRESS_LEV_LOW,
         },
         {
                 .desc   = "home",
                 .code   = KEY_HOME,
-                .adc_value      = 355,//550
+                .adc_value      = 550,//550
                 .gpio = INVALID_GPIO,
                 .active_low = PRESS_LEV_LOW,
         },
         {
                 .desc   = "esc",
                 .code   = KEY_BACK,
-                .adc_value      = 171,//333
+                .adc_value      = 334,//333
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "camera",
 		.code	= KEY_CAMERA,
-		.adc_value	= 742,
+		.adc_value	= 700,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
