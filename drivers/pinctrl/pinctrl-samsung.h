@@ -37,16 +37,22 @@
 
 /**
  * enum pincfg_type - possible pin configuration types supported.
+ * @PINCFG_TYPE_FUNC: Function configuration.
+ * @PINCFG_TYPE_DAT: Pin value configuration.
  * @PINCFG_TYPE_PUD: Pull up/down configuration.
  * @PINCFG_TYPE_DRV: Drive strength configuration.
  * @PINCFG_TYPE_CON_PDN: Pin function in power down mode.
  * @PINCFG_TYPE_PUD_PDN: Pull up/down configuration in power down mode.
  */
 enum pincfg_type {
+	PINCFG_TYPE_FUNC,
+	PINCFG_TYPE_DAT,
 	PINCFG_TYPE_PUD,
 	PINCFG_TYPE_DRV,
 	PINCFG_TYPE_CON_PDN,
 	PINCFG_TYPE_PUD_PDN,
+
+	PINCFG_TYPE_NUM
 };
 
 /*
@@ -103,15 +109,19 @@ enum eint_type {
 struct samsung_pinctrl_drv_data;
 
 /**
+ * struct samsung_pin_bank_type: pin bank type description
+ * @fld_width: widths of configuration bitfields (0 if unavailable)
+ */
+struct samsung_pin_bank_type {
+	u8 fld_width[PINCFG_TYPE_NUM];
+};
+
+/**
  * struct samsung_pin_bank: represent a controller pin-bank.
+ * @type: type of the bank (register offsets and bitfield widths)
  * @pctl_offset: starting offset of the pin-bank registers.
  * @pin_base: starting pin number of the bank.
  * @nr_pins: number of pins included in this bank.
- * @func_width: width of the function selector bit field.
- * @pud_width: width of the pin pull up/down selector bit field.
- * @drv_width: width of the pin driver strength selector bit field.
- * @conpdn_width: width of the sleep mode function selector bin field.
- * @pudpdn_width: width of the sleep mode pull up/down selector bit field.
  * @eint_type: type of the external interrupt supported by the bank.
  * @name: name to be prefixed for each pin in this pin bank.
  * @of_node: OF node of the bank.
@@ -122,14 +132,10 @@ struct samsung_pinctrl_drv_data;
  * @slock: spinlock protecting bank registers
  */
 struct samsung_pin_bank {
+	struct samsung_pin_bank_type *type;
 	u32		pctl_offset;
 	u32		pin_base;
 	u8		nr_pins;
-	u8		func_width;
-	u8		pud_width;
-	u8		drv_width;
-	u8		conpdn_width;
-	u8		pudpdn_width;
 	enum eint_type	eint_type;
 	u32		eint_offset;
 	char		*name;

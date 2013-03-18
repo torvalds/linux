@@ -300,10 +300,13 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 	 * pin function number in the config register.
 	 */
 	for (cnt = 0; cnt < drvdata->pin_groups[group].num_pins; cnt++) {
+		struct samsung_pin_bank_type *type;
+
 		pin_to_reg_bank(drvdata, pins[cnt] - drvdata->ctrl->base,
 				&reg, &pin_offset, &bank);
-		mask = (1 << bank->func_width) - 1;
-		shift = pin_offset * bank->func_width;
+		type = bank->type;
+		mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
+		shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
 
 		spin_lock_irqsave(&bank->slock, flags);
 
@@ -340,6 +343,7 @@ static void samsung_pinmux_disable(struct pinctrl_dev *pctldev,
 static int samsung_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 		struct pinctrl_gpio_range *range, unsigned offset, bool input)
 {
+	struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
 	struct samsung_pinctrl_drv_data *drvdata;
 	void __iomem *reg;
@@ -347,13 +351,14 @@ static int samsung_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 
 	bank = gc_to_pin_bank(range->gc);
+	type = bank->type;
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
 
 	pin_offset = offset - bank->pin_base;
 	reg = drvdata->virt_base + bank->pctl_offset;
 
-	mask = (1 << bank->func_width) - 1;
-	shift = pin_offset * bank->func_width;
+	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
+	shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
 
 	spin_lock_irqsave(&bank->slock, flags);
 
@@ -383,6 +388,7 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 				unsigned long *config, bool set)
 {
 	struct samsung_pinctrl_drv_data *drvdata;
+	struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
 	void __iomem *reg_base;
 	enum pincfg_type cfg_type = PINCFG_UNPACK_TYPE(*config);
@@ -393,22 +399,19 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
 	pin_to_reg_bank(drvdata, pin - drvdata->ctrl->base, &reg_base,
 					&pin_offset, &bank);
+	type = bank->type;
 
 	switch (cfg_type) {
 	case PINCFG_TYPE_PUD:
-		width = bank->pud_width;
 		cfg_reg = PUD_REG;
 		break;
 	case PINCFG_TYPE_DRV:
-		width = bank->drv_width;
 		cfg_reg = DRV_REG;
 		break;
 	case PINCFG_TYPE_CON_PDN:
-		width = bank->conpdn_width;
 		cfg_reg = CONPDN_REG;
 		break;
 	case PINCFG_TYPE_PUD_PDN:
-		width = bank->pudpdn_width;
 		cfg_reg = PUDPDN_REG;
 		break;
 	default:
@@ -416,8 +419,10 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 		return -EINVAL;
 	}
 
-	if (!width)
+	if (cfg_type >= PINCFG_TYPE_NUM || !type->fld_width[cfg_type])
 		return -EINVAL;
+
+	width = type->fld_width[cfg_type];
 
 	spin_lock_irqsave(&bank->slock, flags);
 
@@ -497,6 +502,7 @@ static const struct pinconf_ops samsung_pinconf_ops = {
 static void samsung_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 {
 	struct samsung_pin_bank *bank = gc_to_pin_bank(gc);
+	struct samsung_pin_bank_type *type = bank->type;
 	unsigned long flags;
 	void __iomem *reg;
 	u32 data;
