@@ -420,7 +420,7 @@ __v7_pj4b_proc_info:
 __v7_ca7mp_proc_info:
 	.long	0x410fc070
 	.long	0xff0ffff0
-	__v7_proc __v7_ca7mp_setup, hwcaps = HWCAP_IDIV
+	__v7_proc __v7_ca7mp_setup
 	.size	__v7_ca7mp_proc_info, . - __v7_ca7mp_proc_info
 
 	/*
@@ -430,7 +430,7 @@ __v7_ca7mp_proc_info:
 __v7_ca15mp_proc_info:
 	.long	0x410fc0f0
 	.long	0xff0ffff0
-	__v7_proc __v7_ca15mp_setup, hwcaps = HWCAP_IDIV
+	__v7_proc __v7_ca15mp_setup
 	.size	__v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
 
 	/*
