@@ -1202,7 +1202,7 @@ struct platform_device rk_device_gps = {
 #if defined(CONFIG_MT5931_MT6622)
 static struct mt6622_platform_data mt6622_platdata = {
 		    .power_gpio         = { // BT_REG_ON
-		    	.io             = RK30_PIN3_PD5, // set io to INVALID_GPIO for disable it
+		    	.io             = RK30_PIN3_PC7, // set io to INVALID_GPIO for disable it
 			    .enable         = GPIO_HIGH,
 			    .iomux          = {
 				    .name       = NULL,
@@ -1210,7 +1210,7 @@ static struct mt6622_platform_data mt6622_platdata = {
 		    },
 
 		    .reset_gpio         = { // BT_RST
-		        .io             = RK30_PIN0_PD7,
+		        .io             = RK30_PIN3_PD1,
 		        .enable         = GPIO_HIGH,
 		        .iomux          = {
 		            .name       = NULL,
@@ -1218,7 +1218,7 @@ static struct mt6622_platform_data mt6622_platdata = {
 		    },
 
 		    .irq_gpio           = {
-			    .io             = RK30_PIN3_PD2,
+			    .io             = RK30_PIN0_PA5,
 			    .enable         = GPIO_HIGH,
 			    .iomux          = {
 				    .name       = NULL,
