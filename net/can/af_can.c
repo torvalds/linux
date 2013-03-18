@@ -546,16 +546,13 @@ void can_rx_unregister(struct net_device *dev, canid_t can_id, canid_t mask,
 	}
 
 	/*
-	 * Check for bugs in CAN protocol implementations:
-	 * If no matching list item was found, the list cursor variable next
-	 * will be NULL, while r will point to the last item of the list.
+	 * Check for bugs in CAN protocol implementations using af_can.c:
+	 * 'r' will be NULL if no matching list item was found for removal.
 	 */
 
 	if (!r) {
-		pr_err("BUG: receive list entry not found for "
-		       "dev %s, id %03X, mask %03X\n",
-		       DNAME(dev), can_id, mask);
-		r = NULL;
+		WARN(1, "BUG: receive list entry not found for dev %s, "
+		     "id %03X, mask %03X\n", DNAME(dev), can_id, mask);
 		goto out;
 	}
 
