@@ -340,7 +340,7 @@ static struct pcmcia_driver softingcs_driver = {
 	.remove		= softingcs_remove,
 };
 
-module_pcmcia_driver(&softingcs_driver);
+module_pcmcia_driver(softingcs_driver);
 
 MODULE_DESCRIPTION("softing CANcard driver"
 		", links PCMCIA card to softing driver");
