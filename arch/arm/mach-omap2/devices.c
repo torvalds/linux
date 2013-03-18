@@ -506,19 +506,15 @@ static void omap_init_rng(void)
 
 static void __init omap_init_sham(void)
 {
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
-		struct omap_hwmod *oh;
-		struct platform_device *pdev;
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
 
-		oh = omap_hwmod_lookup("sham");
-		if (!oh)
-			return;
+	oh = omap_hwmod_lookup("sham");
+	if (!oh)
+		return;
 
-		pdev = omap_device_build("omap-sham", -1, oh, NULL, 0);
-		WARN(IS_ERR(pdev), "Can't build omap_device for omap-sham\n");
-	} else {
-		pr_err("%s: platform not supported\n", __func__);
-	}
+	pdev = omap_device_build("omap-sham", -1, oh, NULL, 0);
+	WARN(IS_ERR(pdev), "Can't build omap_device for omap-sham\n");
 }
 
 #if defined(CONFIG_CRYPTO_DEV_OMAP_AES) || defined(CONFIG_CRYPTO_DEV_OMAP_AES_MODULE)
