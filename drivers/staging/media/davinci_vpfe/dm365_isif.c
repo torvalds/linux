@@ -1953,7 +1953,7 @@ static void isif_remove(struct vpfe_isif_device *isif,
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (res)
 			release_mem_region(res->start,
-					   res->end - res->start + 1);
+					   resource_size(res));
 		i++;
 	}
 }
@@ -2003,7 +2003,7 @@ int vpfe_isif_init(struct vpfe_isif_device *isif, struct platform_device *pdev)
 			status = -ENOENT;
 			goto fail_nobase_res;
 		}
-		res_len = res->end - res->start + 1;
+		res_len = resource_size(res);
 		res = request_mem_region(res->start, res_len, res->name);
 		if (!res) {
 			status = -EBUSY;
