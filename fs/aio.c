@@ -705,8 +705,6 @@ static void kiocb_free(struct kiocb *req)
 		fput(req->ki_filp);
 	if (req->ki_eventfd != NULL)
 		eventfd_ctx_put(req->ki_eventfd);
-	if (req->ki_dtor)
-		req->ki_dtor(req);
 	kmem_cache_free(kiocb_cachep, req);
 }
 
