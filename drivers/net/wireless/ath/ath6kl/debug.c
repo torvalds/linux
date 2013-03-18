@@ -56,6 +56,57 @@ int ath6kl_printk(const char *level, const char *fmt, ...)
 }
 EXPORT_SYMBOL(ath6kl_printk);
 
+int ath6kl_info(const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	ret = ath6kl_printk(KERN_INFO, "%pV", &vaf);
+	va_end(args);
+
+	return ret;
+}
+EXPORT_SYMBOL(ath6kl_info);
+
+int ath6kl_err(const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	ret = ath6kl_printk(KERN_ERR, "%pV", &vaf);
+	va_end(args);
+
+	return ret;
+}
+EXPORT_SYMBOL(ath6kl_err);
+
+int ath6kl_warn(const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	ret = ath6kl_printk(KERN_WARNING, "%pV", &vaf);
+	va_end(args);
+
+	return ret;
+}
+EXPORT_SYMBOL(ath6kl_warn);
+
 #ifdef CONFIG_ATH6KL_DEBUG
 
 void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...)
