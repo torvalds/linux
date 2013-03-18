@@ -187,7 +187,6 @@ struct persistent_gnt {
 	struct page *page;
 	grant_ref_t gnt;
 	grant_handle_t handle;
-	uint64_t dev_bus_addr;
 	struct rb_node node;
 };
 

@@ -442,7 +442,7 @@ int xen_blkif_schedule(void *arg)
 }
 
 struct seg_buf {
-	unsigned long buf;
+	unsigned int offset;
 	unsigned int nsec;
 };
 /*
@@ -621,30 +621,21 @@ static int xen_blkbk_map(struct blkif_request *req,
 				 * If this is a new persistent grant
 				 * save the handler
 				 */
-				persistent_gnts[i]->handle = map[j].handle;
-				persistent_gnts[i]->dev_bus_addr =
-					map[j++].dev_bus_addr;
+				persistent_gnts[i]->handle = map[j++].handle;
 			}
 			pending_handle(pending_req, i) =
 				persistent_gnts[i]->handle;
 
 			if (ret)
 				continue;
-
-			seg[i].buf = persistent_gnts[i]->dev_bus_addr |
-				(req->u.rw.seg[i].first_sect << 9);
 		} else {
-			pending_handle(pending_req, i) = map[j].handle;
+			pending_handle(pending_req, i) = map[j++].handle;
 			bitmap_set(pending_req->unmap_seg, i, 1);
 
-			if (ret) {
-				j++;
+			if (ret)
 				continue;
-			}
-
-			seg[i].buf = map[j++].dev_bus_addr |
-				(req->u.rw.seg[i].first_sect << 9);
 		}
+		seg[i].offset = (req->u.rw.seg[i].first_sect << 9);
 	}
 	return ret;
 }
@@ -971,7 +962,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		       (bio_add_page(bio,
 				     pages[i],
 				     seg[i].nsec << 9,
-				     seg[i].buf & ~PAGE_MASK) == 0)) {
+				     seg[i].offset) == 0)) {
 
 			bio = bio_alloc(GFP_KERNEL, nseg-i);
 			if (unlikely(bio == NULL))
