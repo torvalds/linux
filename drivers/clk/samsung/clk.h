@@ -23,6 +23,25 @@
 #include <mach/map.h>
 
 /**
+ * struct samsung_clock_alias: information about mux clock
+ * @id: platform specific id of the clock.
+ * @dev_name: name of the device to which this clock belongs.
+ * @alias: optional clock alias name to be assigned to this clock.
+ */
+struct samsung_clock_alias {
+	unsigned int		id;
+	const char		*dev_name;
+	const char		*alias;
+};
+
+#define ALIAS(_id, dname, a)	\
+	{							\
+		.id		= _id,				\
+		.dev_name	= dname,			\
+		.alias		= a,				\
+	}
+
+/**
  * struct samsung_fixed_rate_clock: information about fixed-rate clock
  * @id: platform specific id of the clock.
  * @name: name of this fixed-rate clock.
@@ -251,6 +270,8 @@ extern void __init samsung_clk_of_register_fixed_ext(
 
 extern void samsung_clk_add_lookup(struct clk *clk, unsigned int id);
 
+extern void samsung_clk_register_alias(struct samsung_clock_alias *list,
+		unsigned int nr_clk);
 extern void __init samsung_clk_register_fixed_rate(
 		struct samsung_fixed_rate_clock *clk_list, unsigned int nr_clk);
 extern void __init samsung_clk_register_fixed_factor(

@@ -97,6 +97,39 @@ void samsung_clk_add_lookup(struct clk *clk, unsigned int id)
 		clk_table[id] = clk;
 }
 
+/* register a list of aliases */
+void __init samsung_clk_register_alias(struct samsung_clock_alias *list,
+					unsigned int nr_clk)
+{
+	struct clk *clk;
+	unsigned int idx, ret;
+
+	if (!clk_table) {
+		pr_err("%s: clock table missing\n", __func__);
+		return;
+	}
+
+	for (idx = 0; idx < nr_clk; idx++, list++) {
+		if (!list->id) {
+			pr_err("%s: clock id missing for index %d\n", __func__,
+				idx);
+			continue;
+		}
+
+		clk = clk_table[list->id];
+		if (!clk) {
+			pr_err("%s: failed to find clock %d\n", __func__,
+				list->id);
+			continue;
+		}
+
+		ret = clk_register_clkdev(clk, list->alias, list->dev_name);
+		if (ret)
+			pr_err("%s: failed to register lookup %s\n",
+					__func__, list->alias);
+	}
+}
+
 /* register a list of fixed clocks */
 void __init samsung_clk_register_fixed_rate(
 		struct samsung_fixed_rate_clock *list, unsigned int nr_clk)
