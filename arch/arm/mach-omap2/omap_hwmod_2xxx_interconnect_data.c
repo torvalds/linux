@@ -405,5 +405,5 @@ struct omap_hwmod_ocp_if omap2xxx_l4_core__sham = {
 	.slave		= &omap2xxx_sham_hwmod,
 	.clk		= "sha_ick",
 	.addr		= omap2xxx_sham_addrs,
-	.user		= OCP_USER_MPU,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };

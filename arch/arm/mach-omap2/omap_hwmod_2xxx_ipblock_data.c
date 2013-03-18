@@ -886,9 +886,15 @@ static struct omap_hwmod_irq_info omap2_sham_mpu_irqs[] = {
 	{ .irq = -1 }
 };
 
+static struct omap_hwmod_dma_info omap2_sham_sdma_chs[] = {
+	{ .name = "rx", .dma_req = 13 },
+	{ .dma_req = -1 }
+};
+
 struct omap_hwmod omap2xxx_sham_hwmod = {
 	.name		= "sham",
 	.mpu_irqs	= omap2_sham_mpu_irqs,
+	.sdma_reqs	= omap2_sham_sdma_chs,
 	.main_clk	= "l4_ck",
 	.prcm		= {
 		.omap2 = {
