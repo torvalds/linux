@@ -146,7 +146,7 @@ static struct platform_driver denali_dt_driver = {
 	.driver		= {
 		.name	= "denali-nand-dt",
 		.owner	= THIS_MODULE,
-		.of_match_table	= of_match_ptr(denali_nand_dt_ids),
+		.of_match_table	= denali_nand_dt_ids,
 	},
 };
 
