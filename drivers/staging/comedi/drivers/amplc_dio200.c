@@ -741,8 +741,7 @@ dio200_find_pci_board(struct pci_dev *pci_dev)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(dio200_pci_boards); i++)
-		if (is_pci_board(&dio200_pci_boards[i]) &&
-		    pci_dev->device == dio200_pci_boards[i].devid)
+		if (pci_dev->device == dio200_pci_boards[i].devid)
 			return &dio200_pci_boards[i];
 	return NULL;
 }
@@ -1877,17 +1876,17 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 	return 1;
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
+/* Only called for ISA boards. */
 static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv;
+	unsigned long iobase;
+	unsigned int irq;
 	int ret;
+
+	if (!DO_ISA)
+		return -EINVAL;
 
 	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach\n");
 
@@ -1896,29 +1895,14 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	/* Process options and reserve resources according to bus type. */
-	if (is_isa_board(thisboard)) {
-		unsigned long iobase;
-		unsigned int irq;
-
-		iobase = it->options[0];
-		irq = it->options[1];
-		ret = dio200_request_region(dev, iobase, thisboard->mainsize);
-		if (ret < 0)
-			return ret;
-		devpriv->io.u.iobase = iobase;
-		devpriv->io.regtype = io_regtype;
-		return dio200_common_attach(dev, irq, 0);
-	} else if (is_pci_board(thisboard)) {
-		dev_err(dev->class_dev,
-			"Manual configuration of PCI board '%s' is not supported\n",
-			thisboard->name);
-		return -EIO;
-	} else {
-		dev_err(dev->class_dev, DIO200_DRIVER_NAME
-			": BUG! cannot determine board type!\n");
-		return -EINVAL;
-	}
+	iobase = it->options[0];
+	irq = it->options[1];
+	ret = dio200_request_region(dev, iobase, thisboard->mainsize);
+	if (ret < 0)
+		return ret;
+	devpriv->io.u.iobase = iobase;
+	devpriv->io.regtype = io_regtype;
+	return dio200_common_attach(dev, irq, 0);
 }
 
 /*
