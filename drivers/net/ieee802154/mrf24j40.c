@@ -92,9 +92,8 @@ struct mrf24j40 {
 #define MRF24J40_READLONG(reg) (1 << 15 | (reg) << 5)
 #define MRF24J40_WRITELONG(reg) (1 << 15 | (reg) << 5 | 1 << 4)
 
-/* Maximum speed to run the device at. TODO: Get the real max value from
- * someone at Microchip since it isn't in the datasheet. */
-#define MAX_SPI_SPEED_HZ 1000000
+/* The datasheet indicates the theoretical maximum for SCK to be 10MHz */
+#define MAX_SPI_SPEED_HZ 10000000
 
 #define printdev(X) (&X->spi->dev)
 
