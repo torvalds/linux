@@ -478,7 +478,7 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 		int i;
 		for (i = 0; i < 8; i++)
 			write_short_reg(devrec, REG_EADR0+i,
-					filt->ieee_addr[i]);
+					filt->ieee_addr[7-i]);
 
 #ifdef DEBUG
 		printk(KERN_DEBUG "Set long addr to: ");
