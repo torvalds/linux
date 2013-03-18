@@ -1004,6 +1004,14 @@ static int  alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
 
 		dm->num_pages_ballooned += alloc_unit;
 
+		/*
+		 * If we allocatted 2M pages; split them so we
+		 * can free them in any order we get.
+		 */
+
+		if (alloc_unit != 1)
+			split_page(pg, get_order(alloc_unit << PAGE_SHIFT));
+
 		bl_resp->range_count++;
 		bl_resp->range_array[i].finfo.start_page =
 			page_to_pfn(pg);
@@ -1030,9 +1038,10 @@ static void balloon_up(struct work_struct *dummy)
 
 
 	/*
-	 * Currently, we only support 4k allocations.
+	 * We will attempt 2M allocations. However, if we fail to
+	 * allocate 2M chunks, we will go back to 4k allocations.
 	 */
-	alloc_unit = 1;
+	alloc_unit = 512;
 
 	while (!done) {
 		bl_resp = (struct dm_balloon_response *)send_buffer;
@@ -1047,6 +1056,11 @@ static void balloon_up(struct work_struct *dummy)
 		num_ballooned = alloc_balloon_pages(&dm_device, num_pages,
 						bl_resp, alloc_unit,
 						 &alloc_error);
+
+		if ((alloc_error) && (alloc_unit != 1)) {
+			alloc_unit = 1;
+			continue;
+		}
 
 		if ((alloc_error) || (num_ballooned == num_pages)) {
 			bl_resp->more_pages = 0;
