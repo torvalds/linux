@@ -201,31 +201,22 @@ int solo_set_motion_threshold(struct solo_dev *solo_dev, u8 ch, u16 val)
 				   val, SOLO_MOT_THRESH_SIZE);
 }
 
-int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch, u16 val,
-			   u16 block)
+int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
+		const struct solo_motion_thresholds *thresholds)
 {
-	u16 buf[64];
-	u32 addr;
-	int re;
+	u32 off = SOLO_MOT_FLAG_AREA + ch * SOLO_MOT_THRESH_SIZE * 2;
+	u16 buf[SOLO_MOTION_SZ];
+	int x, y;
+	int ret = 0;
 
-	addr = SOLO_MOTION_EXT_ADDR(solo_dev) +
-		SOLO_MOT_FLAG_AREA +
-		(SOLO_MOT_THRESH_SIZE * 2 * ch) +
-		(block * 2);
-
-	/* Read and write only on a 128-byte boundary; 4-byte writes with
-	   solo_p2m_dma silently failed. Bluecherry bug #908. */
-	re = solo_p2m_dma(solo_dev, 0, &buf, addr & ~0x7f, sizeof(buf), 0, 0);
-	if (re)
-		return re;
-
-	buf[(addr & 0x7f) / 2] = val;
-
-	re = solo_p2m_dma(solo_dev, 1, &buf, addr & ~0x7f, sizeof(buf), 0, 0);
-	if (re)
-		return re;
-
-	return 0;
+	for (y = 0; y < SOLO_MOTION_SZ; y++) {
+		for (x = 0; x < SOLO_MOTION_SZ; x++)
+			buf[x] = cpu_to_le16(thresholds->thresholds[y][x]);
+		ret |= solo_p2m_dma(solo_dev, 1, buf,
+			SOLO_MOTION_EXT_ADDR(solo_dev) + off + y * sizeof(buf),
+			sizeof(buf), 0, 0);
+	}
+	return ret;
 }
 
 /* First 8k is motion flag (512 bytes * 16). Following that is an 8k+8k

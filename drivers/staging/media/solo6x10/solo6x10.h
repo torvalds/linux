@@ -98,15 +98,29 @@
 #define SOLO_DEFAULT_QP			3
 
 #ifndef V4L2_BUF_FLAG_MOTION_ON
-#define V4L2_BUF_FLAG_MOTION_ON		0x0400
-#define V4L2_BUF_FLAG_MOTION_DETECTED	0x0800
+#define V4L2_BUF_FLAG_MOTION_ON		0x10000
+#define V4L2_BUF_FLAG_MOTION_DETECTED	0x20000
 #endif
 
 #define SOLO_CID_CUSTOM_BASE		(V4L2_CID_USER_BASE | 0xf000)
-#define V4L2_CID_MOTION_ENABLE		(SOLO_CID_CUSTOM_BASE+0)
+#define V4L2_CID_MOTION_MODE		(SOLO_CID_CUSTOM_BASE+0)
 #define V4L2_CID_MOTION_THRESHOLD	(SOLO_CID_CUSTOM_BASE+1)
 #define V4L2_CID_MOTION_TRACE		(SOLO_CID_CUSTOM_BASE+2)
 #define V4L2_CID_OSD_TEXT		(SOLO_CID_CUSTOM_BASE+3)
+
+/*
+ * Motion thresholds are in a table of 64x64 samples, with
+ * each sample representing 16x16 pixels of the source. In
+ * effect, 44x30 samples are used for NTSC, and 44x36 for PAL.
+ * The 5th sample on the 10th row is (10*64)+5 = 645.
+ */
+#define SOLO_MOTION_SZ (64)
+struct solo_motion_thresholds {
+	__u16	thresholds[SOLO_MOTION_SZ][SOLO_MOTION_SZ];
+};
+
+#define SOLO_IOC_G_MOTION_THRESHOLDS	_IOR('V', BASE_VIDIOC_PRIVATE+0, struct solo_motion_thresholds)
+#define SOLO_IOC_S_MOTION_THRESHOLDS	_IOW('V', BASE_VIDIOC_PRIVATE+1, struct solo_motion_thresholds)
 
 enum SOLO_I2C_STATE {
 	IIC_STATE_IDLE,
@@ -157,6 +171,9 @@ struct solo_enc_dev {
 	u8			mode, gop, qp, interlaced, interval;
 	u8			bw_weight;
 	u16			motion_thresh;
+	struct solo_motion_thresholds motion_thresholds;
+	bool			motion_global;
+	bool			motion_enabled;
 	u16			width;
 	u16			height;
 
@@ -381,8 +398,8 @@ void solo_update_mode(struct solo_enc_dev *solo_enc);
 
 /* Set the threshold for motion detection */
 int solo_set_motion_threshold(struct solo_dev *solo_dev, u8 ch, u16 val);
-int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch, u16 val,
-			   u16 block);
+int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
+		const struct solo_motion_thresholds *thresholds);
 #define SOLO_DEF_MOT_THRESH		0x0300
 
 /* Write text on OSD */
