@@ -521,18 +521,36 @@ void account_idle_ticks(unsigned long ticks)
 	account_idle_time(jiffies_to_cputime(ticks));
 }
 
-static cputime_t scale_stime(cputime_t stime, cputime_t rtime, cputime_t total)
+/*
+ * Perform (stime * rtime) / total with reduced chances
+ * of multiplication overflows by using smaller factors
+ * like quotient and remainders of divisions between
+ * rtime and total.
+ */
+static cputime_t scale_stime(u64 stime, u64 rtime, u64 total)
 {
-	u64 temp = (__force u64) rtime;
+	u64 rem, res, scaled;
 
-	temp *= (__force u64) stime;
+	if (rtime >= total) {
+		/*
+		 * Scale up to rtime / total then add
+		 * the remainder scaled to stime / total.
+		 */
+		res = div64_u64_rem(rtime, total, &rem);
+		scaled = stime * res;
+		scaled += div64_u64(stime * rem, total);
+	} else {
+		/*
+		 * Same in reverse: scale down to total / rtime
+		 * then substract that result scaled to
+		 * to the remaining part.
+		 */
+		res = div64_u64_rem(total, rtime, &rem);
+		scaled = div64_u64(stime, res);
+		scaled -= div64_u64(scaled * rem, total);
+	}
 
-	if (sizeof(cputime_t) == 4)
-		temp = div_u64(temp, (__force u32) total);
-	else
-		temp = div64_u64(temp, (__force u64) total);
-
-	return (__force cputime_t) temp;
+	return (__force cputime_t) scaled;
 }
 
 /*
@@ -566,10 +584,14 @@ static void cputime_adjust(struct task_cputime *curr,
 	 */
 	rtime = nsecs_to_cputime(curr->sum_exec_runtime);
 
-	if (total)
-		stime = scale_stime(stime, rtime, total);
-	else
+	if (!rtime) {
+		stime = 0;
+	} else if (!total) {
 		stime = rtime;
+	} else {
+		stime = scale_stime((__force u64)stime,
+				    (__force u64)rtime, (__force u64)total);
+	}
 
 	/*
 	 * If the tick based count grows faster than the scheduler one,
