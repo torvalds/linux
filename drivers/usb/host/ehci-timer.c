@@ -295,8 +295,7 @@ static void end_free_itds(struct ehci_hcd *ehci)
 /* Handle lost (or very late) IAA interrupts */
 static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 {
-	if (ehci->rh_state != EHCI_RH_RUNNING)
-		return;
+	u32 cmd, status;
 
 	/*
 	 * Lost IAA irqs wedge things badly; seen first with a vt8235.
@@ -304,34 +303,32 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 	 * (a) SMP races against real IAA firing and retriggering, and
 	 * (b) clean HC shutdown, when IAA watchdog was pending.
 	 */
-	if (ehci->async_iaa) {
-		u32 cmd, status;
+	if (!ehci->async_iaa || ehci->rh_state != EHCI_RH_RUNNING)
+		return;
 
-		/* If we get here, IAA is *REALLY* late.  It's barely
-		 * conceivable that the system is so busy that CMD_IAAD
-		 * is still legitimately set, so let's be sure it's
-		 * clear before we read STS_IAA.  (The HC should clear
-		 * CMD_IAAD when it sets STS_IAA.)
-		 */
-		cmd = ehci_readl(ehci, &ehci->regs->command);
+	/* If we get here, IAA is *REALLY* late.  It's barely
+	 * conceivable that the system is so busy that CMD_IAAD
+	 * is still legitimately set, so let's be sure it's
+	 * clear before we read STS_IAA.  (The HC should clear
+	 * CMD_IAAD when it sets STS_IAA.)
+	 */
+	cmd = ehci_readl(ehci, &ehci->regs->command);
 
-		/*
-		 * If IAA is set here it either legitimately triggered
-		 * after the watchdog timer expired (_way_ late, so we'll
-		 * still count it as lost) ... or a silicon erratum:
-		 * - VIA seems to set IAA without triggering the IRQ;
-		 * - IAAD potentially cleared without setting IAA.
-		 */
-		status = ehci_readl(ehci, &ehci->regs->status);
-		if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
-			COUNT(ehci->stats.lost_iaa);
-			ehci_writel(ehci, STS_IAA, &ehci->regs->status);
-		}
-
-		ehci_vdbg(ehci, "IAA watchdog: status %x cmd %x\n",
-				status, cmd);
-		end_unlink_async(ehci);
+	/*
+	 * If IAA is set here it either legitimately triggered
+	 * after the watchdog timer expired (_way_ late, so we'll
+	 * still count it as lost) ... or a silicon erratum:
+	 * - VIA seems to set IAA without triggering the IRQ;
+	 * - IAAD potentially cleared without setting IAA.
+	 */
+	status = ehci_readl(ehci, &ehci->regs->status);
+	if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
+		COUNT(ehci->stats.lost_iaa);
+		ehci_writel(ehci, STS_IAA, &ehci->regs->status);
 	}
+
+	ehci_dbg(ehci, "IAA watchdog: status %x cmd %x\n", status, cmd);
+	end_unlink_async(ehci);
 }
 
 
