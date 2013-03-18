@@ -1747,14 +1747,9 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 			}
 			break;
 		case sd_timer:
-			/* Only on PCIe boards. */
-			if (DO_PCI) {
-				ret = dio200_subdev_timer_init(dev, s);
-				if (ret < 0)
-					return ret;
-			} else {
-				s->type = COMEDI_SUBD_UNUSED;
-			}
+			ret = dio200_subdev_timer_init(dev, s);
+			if (ret < 0)
+				return ret;
 			break;
 		default:
 			s->type = COMEDI_SUBD_UNUSED;
@@ -1904,9 +1899,7 @@ static void dio200_detach(struct comedi_device *dev)
 				dio200_subdev_intr_cleanup(dev, s);
 				break;
 			case sd_timer:
-				/* Only on PCIe boards. */
-				if (DO_PCI)
-					dio200_subdev_timer_cleanup(dev, s);
+				dio200_subdev_timer_cleanup(dev, s);
 				break;
 			default:
 				break;
