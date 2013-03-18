@@ -389,8 +389,15 @@ xfs_iomap_prealloc_size(
 	if (!alloc_blocks)
 		goto check_writeio;
 
-	alloc_blocks = XFS_FILEOFF_MIN(MAXEXTLEN,
-				rounddown_pow_of_two(alloc_blocks));
+	/*
+	 * MAXEXTLEN is not a power of two value but we round the prealloc down
+	 * to the nearest power of two value after throttling. To prevent the
+	 * round down from unconditionally reducing the maximum supported prealloc
+	 * size, we round up first, apply appropriate throttling, round down and
+	 * cap the value to MAXEXTLEN.
+	 */
+	alloc_blocks = XFS_FILEOFF_MIN(roundup_pow_of_two(MAXEXTLEN),
+				       alloc_blocks);
 
 	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
 	freesp = mp->m_sb.sb_fdblocks;
@@ -407,6 +414,14 @@ xfs_iomap_prealloc_size(
 	}
 	if (shift)
 		alloc_blocks >>= shift;
+	/*
+	 * rounddown_pow_of_two() returns an undefined result if we pass in
+	 * alloc_blocks = 0.
+	 */
+	if (alloc_blocks)
+		alloc_blocks = rounddown_pow_of_two(alloc_blocks);
+	if (alloc_blocks > MAXEXTLEN)
+		alloc_blocks = MAXEXTLEN;
 
 	/*
 	 * If we are still trying to allocate more space than is
