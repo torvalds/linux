@@ -26,6 +26,7 @@
 #include <linux/of_irq.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/err.h>
 
 #include <asm/mach/irq.h>
@@ -81,6 +82,7 @@ static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	unsigned int shift = EXYNOS_EINT_CON_LEN * pin;
 	unsigned int con, trig_type;
 	unsigned long reg_con = ctrl->geint_con + bank->eint_offset;
+	unsigned long flags;
 	unsigned int mask;
 
 	switch (type) {
@@ -118,10 +120,14 @@ static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	shift = pin * bank->func_width;
 	mask = (1 << bank->func_width) - 1;
 
+	spin_lock_irqsave(&bank->slock, flags);
+
 	con = readl(d->virt_base + reg_con);
 	con &= ~(mask << shift);
 	con |= EXYNOS_EINT_FUNC << shift;
 	writel(con, d->virt_base + reg_con);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
 
 	return 0;
 }
@@ -258,6 +264,7 @@ static int exynos_wkup_irq_set_type(struct irq_data *irqd, unsigned int type)
 	unsigned long reg_con = d->ctrl->weint_con + bank->eint_offset;
 	unsigned long shift = EXYNOS_EINT_CON_LEN * pin;
 	unsigned long con, trig_type;
+	unsigned long flags;
 	unsigned int mask;
 
 	switch (type) {
@@ -295,10 +302,14 @@ static int exynos_wkup_irq_set_type(struct irq_data *irqd, unsigned int type)
 	shift = pin * bank->func_width;
 	mask = (1 << bank->func_width) - 1;
 
+	spin_lock_irqsave(&bank->slock, flags);
+
 	con = readl(d->virt_base + reg_con);
 	con &= ~(mask << shift);
 	con |= EXYNOS_EINT_FUNC << shift;
 	writel(con, d->virt_base + reg_con);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
 
 	return 0;
 }

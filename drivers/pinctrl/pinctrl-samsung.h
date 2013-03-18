@@ -119,6 +119,7 @@ struct samsung_pinctrl_drv_data;
  * @irq_domain: IRQ domain of the bank.
  * @gpio_chip: GPIO chip of the bank.
  * @grange: linux gpio pin range supported by this bank.
+ * @slock: spinlock protecting bank registers
  */
 struct samsung_pin_bank {
 	u32		pctl_offset;
@@ -137,6 +138,7 @@ struct samsung_pin_bank {
 	struct irq_domain *irq_domain;
 	struct gpio_chip gpio_chip;
 	struct pinctrl_gpio_range grange;
+	spinlock_t slock;
 };
 
 /**
