@@ -226,6 +226,9 @@ struct hda_gen_spec {
 	/* loopback mixing mode */
 	bool aamix_mode;
 
+	/* digital beep */
+	hda_nid_t beep_nid;
+
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
 	unsigned int vmaster_tlv[4];

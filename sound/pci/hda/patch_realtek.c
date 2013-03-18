@@ -34,7 +34,6 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_auto_parser.h"
-#include "hda_beep.h"
 #include "hda_jack.h"
 #include "hda_generic.h"
 
@@ -805,17 +804,7 @@ static inline void alc_shutup(struct hda_codec *codec)
 	snd_hda_shutup_pins(codec);
 }
 
-static void alc_free(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	if (!spec)
-		return;
-
-	snd_hda_gen_spec_free(&spec->gen);
-	snd_hda_detach_beep_device(codec);
-	kfree(spec);
-}
+#define alc_free	snd_hda_gen_free
 
 #ifdef CONFIG_PM
 static void alc_power_eapd(struct hda_codec *codec)
@@ -1401,6 +1390,7 @@ static int patch_alc880(struct hda_codec *codec)
 
 	spec = codec->spec;
 	spec->gen.need_dac_fix = 1;
+	spec->gen.beep_nid = 0x01;
 
 	snd_hda_pick_fixup(codec, alc880_fixup_models, alc880_fixup_tbl,
 		       alc880_fixups);
@@ -1411,12 +1401,8 @@ static int patch_alc880(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog) {
-		err = snd_hda_attach_beep_device(codec, 0x1);
-		if (err < 0)
-			goto error;
+	if (!spec->gen.no_analog)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
-	}
 
 	codec->patch_ops = alc_patch_ops;
 	codec->patch_ops.unsol_event = alc880_unsol_event;
@@ -1637,6 +1623,7 @@ static int patch_alc260(struct hda_codec *codec)
 	 * it's almost harmless.
 	 */
 	spec->gen.prefer_hp_amp = 1;
+	spec->gen.beep_nid = 0x01;
 
 	snd_hda_pick_fixup(codec, alc260_fixup_models, alc260_fixup_tbl,
 			   alc260_fixups);
@@ -1647,12 +1634,8 @@ static int patch_alc260(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog) {
-		err = snd_hda_attach_beep_device(codec, 0x1);
-		if (err < 0)
-			goto error;
+	if (!spec->gen.no_analog)
 		set_beep_amp(spec, 0x07, 0x05, HDA_INPUT);
-	}
 
 	codec->patch_ops = alc_patch_ops;
 	spec->shutup = alc_eapd_shutup;
@@ -2151,17 +2134,16 @@ static int patch_alc882(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
+	if (has_cdefine_beep(codec))
+		spec->gen.beep_nid = 0x01;
+
 	/* automatic parse from the BIOS config */
 	err = alc882_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && has_cdefine_beep(codec)) {
-		err = snd_hda_attach_beep_device(codec, 0x1);
-		if (err < 0)
-			goto error;
+	if (!spec->gen.no_analog && spec->gen.beep_nid)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
-	}
 
 	codec->patch_ops = alc_patch_ops;
 
@@ -2314,17 +2296,16 @@ static int patch_alc262(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
+	if (has_cdefine_beep(codec))
+		spec->gen.beep_nid = 0x01;
+
 	/* automatic parse from the BIOS config */
 	err = alc262_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && has_cdefine_beep(codec)) {
-		err = snd_hda_attach_beep_device(codec, 0x1);
-		if (err < 0)
-			goto error;
+	if (!spec->gen.no_analog && spec->gen.beep_nid)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
-	}
 
 	codec->patch_ops = alc_patch_ops;
 	spec->shutup = alc_eapd_shutup;
@@ -2405,16 +2386,7 @@ static const struct snd_pci_quirk alc268_fixup_tbl[] = {
 static int alc268_parse_auto_config(struct hda_codec *codec)
 {
 	static const hda_nid_t alc268_ssids[] = { 0x15, 0x1b, 0x14, 0 };
-	struct alc_spec *spec = codec->spec;
-	int err = alc_parse_auto_config(codec, NULL, alc268_ssids);
-	if (err > 0) {
-		if (!spec->gen.no_analog &&
-		    spec->gen.autocfg.speaker_pins[0] != 0x1d) {
-			add_mixer(spec, alc268_beep_mixer);
-			snd_hda_add_verbs(codec, alc268_beep_init_verbs);
-		}
-	}
-	return err;
+	return alc_parse_auto_config(codec, NULL, alc268_ssids);
 }
 
 /*
@@ -2422,7 +2394,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 static int patch_alc268(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int i, has_beep, err;
+	int err;
 
 	/* ALC268 has no aa-loopback mixer */
 	err = alc_alloc_spec(codec, 0);
@@ -2430,6 +2402,7 @@ static int patch_alc268(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	spec->gen.beep_nid = 0x01;
 
 	snd_hda_pick_fixup(codec, alc268_fixup_models, alc268_fixup_tbl, alc268_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -2439,18 +2412,10 @@ static int patch_alc268(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	has_beep = 0;
-	for (i = 0; i < spec->num_mixers; i++) {
-		if (spec->mixers[i] == alc268_beep_mixer) {
-			has_beep = 1;
-			break;
-		}
-	}
-
-	if (has_beep) {
-		err = snd_hda_attach_beep_device(codec, 0x1);
-		if (err < 0)
-			goto error;
+	if (err > 0 && !spec->gen.no_analog &&
+	    spec->gen.autocfg.speaker_pins[0] != 0x1d) {
+		add_mixer(spec, alc268_beep_mixer);
+		snd_hda_add_verbs(codec, alc268_beep_init_verbs);
 		if (!query_amp_caps(codec, 0x1d, HDA_INPUT))
 			/* override the amp caps for beep generator */
 			snd_hda_override_amp_caps(codec, 0x1d, HDA_INPUT,
@@ -3150,6 +3115,9 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
+	if (has_cdefine_beep(codec))
+		spec->gen.beep_nid = 0x01;
+
 	switch (codec->vendor_id) {
 	case 0x10ec0269:
 		spec->codec_variant = ALC269_TYPE_ALC269VA;
@@ -3198,12 +3166,8 @@ static int patch_alc269(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && has_cdefine_beep(codec)) {
-		err = snd_hda_attach_beep_device(codec, 0x1);
-		if (err < 0)
-			goto error;
+	if (!spec->gen.no_analog && spec->gen.beep_nid)
 		set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
-	}
 
 	codec->patch_ops = alc_patch_ops;
 #ifdef CONFIG_PM
@@ -3311,6 +3275,7 @@ static int patch_alc861(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	spec->gen.beep_nid = 0x23;
 
 	snd_hda_pick_fixup(codec, NULL, alc861_fixup_tbl, alc861_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -3320,12 +3285,8 @@ static int patch_alc861(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog) {
-		err = snd_hda_attach_beep_device(codec, 0x23);
-		if (err < 0)
-			goto error;
+	if (!spec->gen.no_analog)
 		set_beep_amp(spec, 0x23, 0, HDA_OUTPUT);
-	}
 
 	codec->patch_ops = alc_patch_ops;
 #ifdef CONFIG_PM
@@ -3406,6 +3367,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	spec->gen.beep_nid = 0x23;
 
 	snd_hda_pick_fixup(codec, NULL, alc861vd_fixup_tbl, alc861vd_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -3415,12 +3377,8 @@ static int patch_alc861vd(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog) {
-		err = snd_hda_attach_beep_device(codec, 0x23);
-		if (err < 0)
-			goto error;
+	if (!spec->gen.no_analog)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
-	}
 
 	codec->patch_ops = alc_patch_ops;
 
@@ -3802,6 +3760,9 @@ static int patch_alc662(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
+	if (has_cdefine_beep(codec))
+		spec->gen.beep_nid = 0x01;
+
 	if ((alc_get_coef0(codec) & (1 << 14)) &&
 	    codec->bus->pci->subsystem_vendor == 0x1025 &&
 	    spec->cdefine.platform_type == 1) {
@@ -3814,10 +3775,7 @@ static int patch_alc662(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->gen.no_analog && has_cdefine_beep(codec)) {
-		err = snd_hda_attach_beep_device(codec, 0x1);
-		if (err < 0)
-			goto error;
+	if (!spec->gen.no_analog && spec->gen.beep_nid) {
 		switch (codec->vendor_id) {
 		case 0x10ec0662:
 			set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);

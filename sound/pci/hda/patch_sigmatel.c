@@ -211,7 +211,6 @@ struct sigmatel_spec {
 
 	/* beep widgets */
 	hda_nid_t anabeep_nid;
-	hda_nid_t digbeep_nid;
 
 	/* SPDIF-out mux */
 	const char * const *spdif_labels;
@@ -3560,14 +3559,11 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 
 	/* setup digital beep controls and input device */
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
-	if (spec->digbeep_nid > 0) {
-		hda_nid_t nid = spec->digbeep_nid;
+	if (spec->gen.beep_nid) {
+		hda_nid_t nid = spec->gen.beep_nid;
 		unsigned int caps;
 
 		err = stac_auto_create_beep_ctls(codec, nid);
-		if (err < 0)
-			return err;
-		err = snd_hda_attach_beep_device(codec, nid);
 		if (err < 0)
 			return err;
 		if (codec->beep) {
@@ -3657,17 +3653,7 @@ static void stac_shutup(struct hda_codec *codec)
 				~spec->eapd_mask);
 }
 
-static void stac_free(struct hda_codec *codec)
-{
-	struct sigmatel_spec *spec = codec->spec;
-
-	if (!spec)
-		return;
-
-	snd_hda_gen_spec_free(&spec->gen);
-	kfree(spec);
-	snd_hda_detach_beep_device(codec);
-}
+#define stac_free	snd_hda_gen_free
 
 #ifdef CONFIG_PROC_FS
 static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
@@ -3885,7 +3871,7 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 	spec->aloopback_mask = 0x01;
 	spec->aloopback_shift = 8;
 
-	spec->digbeep_nid = 0x1c;
+	spec->gen.beep_nid = 0x1c; /* digital beep */
 
 	/* GPIO0 High = Enable EAPD */
 	spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
@@ -3969,7 +3955,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->gen.power_down_unused = 1;
 	spec->gen.mixer_nid = 0x1b;
 
-	spec->digbeep_nid = 0x21;
+	spec->gen.beep_nid = 0x21; /* digital beep */
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->default_polarity = -1; /* no default cfg */
@@ -4017,7 +4003,7 @@ static int patch_stac92hd95(struct hda_codec *codec)
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
 
-	spec->digbeep_nid = 0x19;
+	spec->gen.beep_nid = 0x19; /* digital beep */
 	spec->pwr_nids = stac92hd95_pwr_nids;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd95_pwr_nids);
 	spec->default_polarity = -1; /* no default cfg */
@@ -4092,7 +4078,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	spec->aloopback_shift = 0;
 
 	spec->powerdown_adcs = 1;
-	spec->digbeep_nid = 0x26;
+	spec->gen.beep_nid = 0x26; /* digital beep */
 	spec->num_pwrs = ARRAY_SIZE(stac92hd71bxx_pwr_nids);
 	spec->pwr_nids = stac92hd71bxx_pwr_nids;
 
@@ -4174,7 +4160,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->have_spdif_mux = 1;
 	spec->spdif_labels = stac927x_spdif_labels;
 
-	spec->digbeep_nid = 0x23;
+	spec->gen.beep_nid = 0x23; /* digital beep */
 
 	/* GPIO0 High = Enable EAPD */
 	spec->eapd_mask = spec->gpio_mask = 0x01;
@@ -4233,7 +4219,7 @@ static int patch_stac9205(struct hda_codec *codec)
 	spec->gen.own_eapd_ctl = 1;
 	spec->have_spdif_mux = 1;
 
-	spec->digbeep_nid = 0x23;
+	spec->gen.beep_nid = 0x23; /* digital beep */
 
 	snd_hda_add_verbs(codec, stac9205_core_init);
 	spec->aloopback_ctl = &stac9205_loopback;

@@ -34,6 +34,7 @@
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
+#include "hda_beep.h"
 #include "hda_generic.h"
 
 
@@ -4238,6 +4239,12 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	if (spec->power_down_unused)
 		codec->power_filter = snd_hda_gen_path_power_filter;
 
+	if (!spec->no_analog && spec->beep_nid) {
+		err = snd_hda_attach_beep_device(codec, spec->beep_nid);
+		if (err < 0)
+			return err;
+	}
+
 	return 1;
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_parse_auto_config);
@@ -5063,6 +5070,7 @@ EXPORT_SYMBOL_HDA(snd_hda_gen_init);
  */
 void snd_hda_gen_free(struct hda_codec *codec)
 {
+	snd_hda_detach_beep_device(codec);
 	snd_hda_gen_spec_free(codec->spec);
 	kfree(codec->spec);
 	codec->spec = NULL;
