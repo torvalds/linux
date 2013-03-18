@@ -964,6 +964,12 @@ static int mac80211_hwsim_change_interface(struct ieee80211_hw *hw,
 		    newtype, vif->addr);
 	hwsim_check_magic(vif);
 
+	/*
+	 * interface may change from non-AP to AP in
+	 * which case this needs to be set up again
+	 */
+	vif->cab_queue = 0;
+
 	return 0;
 }
 
