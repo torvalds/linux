@@ -1928,7 +1928,8 @@ static int add_versions(struct buffer *b, struct module *mod)
 				s->name, mod->name);
 			continue;
 		}
-		buf_printf(b, "\t{ %#8x, \"%s\" },\n", s->crc, s->name);
+		buf_printf(b, "\t{ %#8x, VMLINUX_SYMBOL_STR(%s) },\n",
+			   s->crc, s->name);
 	}
 
 	buf_printf(b, "};\n");
