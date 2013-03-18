@@ -156,8 +156,7 @@ applications. -->
 	<date>2012-12-03</date>
 	<authorinitials>sa, sn</authorinitials>
 	<revremark>Added timestamp types to v4l2_buffer.
-	Added <constant>V4L2_EVENT_CTRL_CH_RANGE</constant> control
-	event changes flag, see <xref linkend="changes-flags"/>.
+	Added V4L2_EVENT_CTRL_CH_RANGE control event changes flag.
 	</revremark>
       </revision>
 
@@ -549,6 +548,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-create-bufs;
     &sub-cropcap;
     &sub-dbg-g-chip-ident;
+    &sub-dbg-g-chip-name;
     &sub-dbg-g-register;
     &sub-decoder-cmd;
     &sub-dqevent;
