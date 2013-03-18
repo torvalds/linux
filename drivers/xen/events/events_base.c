@@ -99,7 +99,7 @@ struct irq_info *info_for_irq(unsigned irq)
 }
 
 /* Constructors for packed IRQ information. */
-static void xen_irq_info_common_init(struct irq_info *info,
+static int xen_irq_info_common_setup(struct irq_info *info,
 				     unsigned irq,
 				     enum xen_irq_type type,
 				     unsigned short evtchn,
@@ -116,45 +116,47 @@ static void xen_irq_info_common_init(struct irq_info *info,
 	evtchn_to_irq[evtchn] = irq;
 
 	irq_clear_status_flags(irq, IRQ_NOREQUEST|IRQ_NOAUTOEN);
+
+	return 0;
 }
 
-static void xen_irq_info_evtchn_init(unsigned irq,
+static int xen_irq_info_evtchn_setup(unsigned irq,
 				     unsigned short evtchn)
 {
 	struct irq_info *info = info_for_irq(irq);
 
-	xen_irq_info_common_init(info, irq, IRQT_EVTCHN, evtchn, 0);
+	return xen_irq_info_common_setup(info, irq, IRQT_EVTCHN, evtchn, 0);
 }
 
-static void xen_irq_info_ipi_init(unsigned cpu,
+static int xen_irq_info_ipi_setup(unsigned cpu,
 				  unsigned irq,
 				  unsigned short evtchn,
 				  enum ipi_vector ipi)
 {
 	struct irq_info *info = info_for_irq(irq);
 
-	xen_irq_info_common_init(info, irq, IRQT_IPI, evtchn, 0);
-
 	info->u.ipi = ipi;
 
 	per_cpu(ipi_to_irq, cpu)[ipi] = irq;
+
+	return xen_irq_info_common_setup(info, irq, IRQT_IPI, evtchn, 0);
 }
 
-static void xen_irq_info_virq_init(unsigned cpu,
+static int xen_irq_info_virq_setup(unsigned cpu,
 				   unsigned irq,
 				   unsigned short evtchn,
 				   unsigned short virq)
 {
 	struct irq_info *info = info_for_irq(irq);
 
-	xen_irq_info_common_init(info, irq, IRQT_VIRQ, evtchn, 0);
-
 	info->u.virq = virq;
 
 	per_cpu(virq_to_irq, cpu)[virq] = irq;
+
+	return xen_irq_info_common_setup(info, irq, IRQT_VIRQ, evtchn, 0);
 }
 
-static void xen_irq_info_pirq_init(unsigned irq,
+static int xen_irq_info_pirq_setup(unsigned irq,
 				   unsigned short evtchn,
 				   unsigned short pirq,
 				   unsigned short gsi,
@@ -163,12 +165,12 @@ static void xen_irq_info_pirq_init(unsigned irq,
 {
 	struct irq_info *info = info_for_irq(irq);
 
-	xen_irq_info_common_init(info, irq, IRQT_PIRQ, evtchn, 0);
-
 	info->u.pirq.pirq = pirq;
 	info->u.pirq.gsi = gsi;
 	info->u.pirq.domid = domid;
 	info->u.pirq.flags = flags;
+
+	return xen_irq_info_common_setup(info, irq, IRQT_PIRQ, evtchn, 0);
 }
 
 /*
@@ -521,6 +523,47 @@ int xen_irq_from_gsi(unsigned gsi)
 }
 EXPORT_SYMBOL_GPL(xen_irq_from_gsi);
 
+static void __unbind_from_irq(unsigned int irq)
+{
+	struct evtchn_close close;
+	int evtchn = evtchn_from_irq(irq);
+	struct irq_info *info = irq_get_handler_data(irq);
+
+	if (info->refcnt > 0) {
+		info->refcnt--;
+		if (info->refcnt != 0)
+			return;
+	}
+
+	if (VALID_EVTCHN(evtchn)) {
+		close.port = evtchn;
+		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
+			BUG();
+
+		switch (type_from_irq(irq)) {
+		case IRQT_VIRQ:
+			per_cpu(virq_to_irq, cpu_from_evtchn(evtchn))
+				[virq_from_irq(irq)] = -1;
+			break;
+		case IRQT_IPI:
+			per_cpu(ipi_to_irq, cpu_from_evtchn(evtchn))
+				[ipi_from_irq(irq)] = -1;
+			break;
+		default:
+			break;
+		}
+
+		/* Closed ports are implicitly re-bound to VCPU0. */
+		bind_evtchn_to_cpu(evtchn, 0);
+
+		evtchn_to_irq[evtchn] = -1;
+	}
+
+	BUG_ON(info_for_irq(irq)->type == IRQT_UNBOUND);
+
+	xen_free_irq(irq);
+}
+
 /*
  * Do not make any assumptions regarding the relationship between the
  * IRQ number returned here and the Xen pirq argument.
@@ -536,6 +579,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 {
 	int irq = -1;
 	struct physdev_irq irq_op;
+	int ret;
 
 	mutex_lock(&irq_mapping_update_lock);
 
@@ -563,8 +607,13 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 		goto out;
 	}
 
-	xen_irq_info_pirq_init(irq, 0, pirq, gsi, DOMID_SELF,
+	ret = xen_irq_info_pirq_setup(irq, 0, pirq, gsi, DOMID_SELF,
 			       shareable ? PIRQ_SHAREABLE : 0);
+	if (ret < 0) {
+		__unbind_from_irq(irq);
+		irq = ret;
+		goto out;
+	}
 
 	pirq_query_unmask(irq);
 	/* We try to use the handler with the appropriate semantic for the
@@ -624,7 +673,9 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_edge_irq,
 			name);
 
-	xen_irq_info_pirq_init(irq, 0, pirq, 0, domid, 0);
+	ret = xen_irq_info_pirq_setup(irq, 0, pirq, 0, domid, 0);
+	if (ret < 0)
+		goto error_irq;
 	ret = irq_set_msi_desc(irq, msidesc);
 	if (ret < 0)
 		goto error_irq;
@@ -632,8 +683,8 @@ out:
 	mutex_unlock(&irq_mapping_update_lock);
 	return irq;
 error_irq:
+	__unbind_from_irq(irq);
 	mutex_unlock(&irq_mapping_update_lock);
-	xen_free_irq(irq);
 	return ret;
 }
 #endif
@@ -703,9 +754,11 @@ int xen_pirq_from_irq(unsigned irq)
 	return pirq_from_irq(irq);
 }
 EXPORT_SYMBOL_GPL(xen_pirq_from_irq);
+
 int bind_evtchn_to_irq(unsigned int evtchn)
 {
 	int irq;
+	int ret;
 
 	mutex_lock(&irq_mapping_update_lock);
 
@@ -719,7 +772,12 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		irq_set_chip_and_handler_name(irq, &xen_dynamic_chip,
 					      handle_edge_irq, "event");
 
-		xen_irq_info_evtchn_init(irq, evtchn);
+		ret = xen_irq_info_evtchn_setup(irq, evtchn);
+		if (ret < 0) {
+			__unbind_from_irq(irq);
+			irq = ret;
+			goto out;
+		}
 	} else {
 		struct irq_info *info = info_for_irq(irq);
 		WARN_ON(info == NULL || info->type != IRQT_EVTCHN);
@@ -736,6 +794,7 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 {
 	struct evtchn_bind_ipi bind_ipi;
 	int evtchn, irq;
+	int ret;
 
 	mutex_lock(&irq_mapping_update_lock);
 
@@ -755,8 +814,12 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 			BUG();
 		evtchn = bind_ipi.port;
 
-		xen_irq_info_ipi_init(cpu, irq, evtchn, ipi);
-
+		ret = xen_irq_info_ipi_setup(cpu, irq, evtchn, ipi);
+		if (ret < 0) {
+			__unbind_from_irq(irq);
+			irq = ret;
+			goto out;
+		}
 		bind_evtchn_to_cpu(evtchn, cpu);
 	} else {
 		struct irq_info *info = info_for_irq(irq);
@@ -835,7 +898,12 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 			evtchn = ret;
 		}
 
-		xen_irq_info_virq_init(cpu, irq, evtchn, virq);
+		ret = xen_irq_info_virq_setup(cpu, irq, evtchn, virq);
+		if (ret < 0) {
+			__unbind_from_irq(irq);
+			irq = ret;
+			goto out;
+		}
 
 		bind_evtchn_to_cpu(evtchn, cpu);
 	} else {
@@ -851,50 +919,8 @@ out:
 
 static void unbind_from_irq(unsigned int irq)
 {
-	struct evtchn_close close;
-	int evtchn = evtchn_from_irq(irq);
-	struct irq_info *info = irq_get_handler_data(irq);
-
-	if (WARN_ON(!info))
-		return;
-
 	mutex_lock(&irq_mapping_update_lock);
-
-	if (info->refcnt > 0) {
-		info->refcnt--;
-		if (info->refcnt != 0)
-			goto done;
-	}
-
-	if (VALID_EVTCHN(evtchn)) {
-		close.port = evtchn;
-		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
-			BUG();
-
-		switch (type_from_irq(irq)) {
-		case IRQT_VIRQ:
-			per_cpu(virq_to_irq, cpu_from_evtchn(evtchn))
-				[virq_from_irq(irq)] = -1;
-			break;
-		case IRQT_IPI:
-			per_cpu(ipi_to_irq, cpu_from_evtchn(evtchn))
-				[ipi_from_irq(irq)] = -1;
-			break;
-		default:
-			break;
-		}
-
-		/* Closed ports are implicitly re-bound to VCPU0. */
-		bind_evtchn_to_cpu(evtchn, 0);
-
-		evtchn_to_irq[evtchn] = -1;
-	}
-
-	BUG_ON(info_for_irq(irq)->type == IRQT_UNBOUND);
-
-	xen_free_irq(irq);
-
- done:
+	__unbind_from_irq(irq);
 	mutex_unlock(&irq_mapping_update_lock);
 }
 
@@ -1142,7 +1168,7 @@ void rebind_evtchn_irq(int evtchn, int irq)
 	   so there should be a proper type */
 	BUG_ON(info->type == IRQT_UNBOUND);
 
-	xen_irq_info_evtchn_init(irq, evtchn);
+	(void)xen_irq_info_evtchn_setup(irq, evtchn);
 
 	mutex_unlock(&irq_mapping_update_lock);
 
@@ -1317,7 +1343,7 @@ static void restore_cpu_virqs(unsigned int cpu)
 		evtchn = bind_virq.port;
 
 		/* Record the new mapping. */
-		xen_irq_info_virq_init(cpu, irq, evtchn, virq);
+		(void)xen_irq_info_virq_setup(cpu, irq, evtchn, virq);
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 }
@@ -1341,7 +1367,7 @@ static void restore_cpu_ipis(unsigned int cpu)
 		evtchn = bind_ipi.port;
 
 		/* Record the new mapping. */
-		xen_irq_info_ipi_init(cpu, irq, evtchn, ipi);
+		(void)xen_irq_info_ipi_setup(cpu, irq, evtchn, ipi);
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 }
