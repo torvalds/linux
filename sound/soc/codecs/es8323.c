@@ -1424,7 +1424,7 @@ static DEVICE_ATTR(es8323, 0664, es8323_show, es8323_store);
 static __devinit int es8323_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
-	printk("hjc:@es8323.c>>>>%s\n",__func__);
+	
 	struct es8323_priv *es8323;
 	int ret = -1;
 	struct i2c_adapter *adapter = to_i2c_adapter(i2c->dev.parent);
@@ -1457,23 +1457,19 @@ static __devinit int es8323_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_es8323, &es8323_dai, 1);
-	printk("hjc:@es8323.c,snd_soc_register_codec  %s,ret=%d\n",__func__,ret);
 	if (ret < 0) {
 		kfree(es8323);
 		return ret;
 	}
-	printk("hjc:@es8323.c  1 %s,\n",__func__);
 	es8323_class = class_create(THIS_MODULE, "es8323");
-	printk("hjc:@es8323.c  2 %s,\n",__func__);
 	if (IS_ERR(es8323_class))
 	{
 		printk("Create class audio_es8323.\n");
 		return -ENOMEM;
 	}
-	printk("hjc:@es8323.c  3 %s,\n",__func__);
 	es8323_dev = device_create(es8323_class, NULL, MKDEV(0, 1), NULL, "dev");
 	device_create_file(es8323_dev, &dev_attr_es8323);
-	printk("hjc:@es8323.c  4 %s,\n",__func__);
+
 	return ret;
 }
 
@@ -1640,7 +1636,6 @@ static int __init es8323_modinit(void)
     //set_sound_card_exist(0x8323);
     //set_codec_set_spk(es8323_codec_set_spk);
 #endif
-	printk("hjc:@es8323.c>>>>%s\n",__func__);
 	return i2c_add_driver(&es8323_i2c_driver);
 }
 module_init(es8323_modinit);

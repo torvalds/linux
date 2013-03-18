@@ -204,20 +204,15 @@ static int __init audio_card_init(void)
 #endif
 //leaf	if(0 == tcsi_get_value(TCSI_CODEC_ES8323))
 //leaf2012-7-26		return;
-    DBG("XXXXEnter::%s--1--%d\n",__FUNCTION__,__LINE__);
+    DBG("XXXXEnter::%s----%d\n",__FUNCTION__,__LINE__);
 	rk29_snd_device = platform_device_alloc("soc-audio", -1);
-	DBG("XXXXEnter::%s--2--%d\n",__FUNCTION__,__LINE__);
 	if (!rk29_snd_device) {
-		DBG("XXXXEnter::%s--3--%d\n",__FUNCTION__,__LINE__);
 		  DBG("platform device allocation failed\n");
 		  ret = -ENOMEM;
 		  return ret;
 	}
-	DBG("XXXXEnter::%s--4--%d\n",__FUNCTION__,__LINE__);
 	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
-	DBG("XXXXEnter::%s--5--%d\n",__FUNCTION__,__LINE__);
 	ret = platform_device_add(rk29_snd_device);
-	DBG("XXXXEnter::%s--6--%d\n",__FUNCTION__,__LINE__);
 	if (ret) {
 	    DBG("platform device add failed\n");
 	    platform_device_put(rk29_snd_device);
