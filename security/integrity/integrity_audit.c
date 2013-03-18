@@ -13,20 +13,20 @@
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/audit.h>
-#include "ima.h"
+#include "integrity.h"
 
-static int ima_audit;
+static int integrity_audit_info;
 
 /* ima_audit_setup - enable informational auditing messages */
-static int __init ima_audit_setup(char *str)
+static int __init integrity_audit_setup(char *str)
 {
 	unsigned long audit;
 
 	if (!strict_strtoul(str, 0, &audit))
-		ima_audit = audit ? 1 : 0;
+		integrity_audit_info = audit ? 1 : 0;
 	return 1;
 }
-__setup("ima_audit=", ima_audit_setup);
+__setup("integrity_audit=", integrity_audit_setup);
 
 void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const unsigned char *fname, const char *op,
@@ -34,7 +34,7 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 {
 	struct audit_buffer *ab;
 
-	if (!ima_audit && audit_info == 1) /* Skip informational messages */
+	if (!integrity_audit_info && audit_info == 1)	/* Skip info messages */
 		return;
 
 	ab = audit_log_start(current->audit_context, GFP_KERNEL, audit_msgno);
