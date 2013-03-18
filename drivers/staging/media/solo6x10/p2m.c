@@ -52,6 +52,8 @@ int solo_p2m_dma(struct solo_dev *solo_dev, int wr,
 
 	dma_addr = pci_map_single(solo_dev->pdev, sys_addr, size,
 				  wr ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
+	if (pci_dma_mapping_error(solo_dev->pdev, dma_addr))
+		return -ENOMEM;
 
 	ret = solo_p2m_dma_t(solo_dev, wr, dma_addr, ext_addr, size,
 			     repeat, ext_size);
