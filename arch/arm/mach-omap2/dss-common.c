@@ -33,6 +33,7 @@
 #include "soc.h"
 #include "dss-common.h"
 #include "mux.h"
+#include "display.h"
 
 #define HDMI_GPIO_CT_CP_HPD 60 /* HPD mode enable/disable */
 #define HDMI_GPIO_LS_OE 41 /* Level shifter for HDMI */
@@ -101,6 +102,12 @@ static struct omap_dss_board_info omap4_panda_dss_data = {
 
 void __init omap4_panda_display_init_of(void)
 {
+	struct device_node *node;
+
+	node = omapdss_find_dss_of_node();
+	if (node && of_device_is_available(node))
+		return;
+
 	omap_display_init(&omap4_panda_dss_data);
 
 	platform_device_register(&omap4_panda_tfp410_device);
@@ -194,6 +201,11 @@ static struct omap_dss_board_info sdp4430_dss_data = {
 void __init omap_4430sdp_display_init_of(void)
 {
 	int r;
+	struct device_node *node;
+
+	node = omapdss_find_dss_of_node();
+	if (node && of_device_is_available(node))
+		return;
 
 	r = gpio_request_one(DISPLAY_SEL_GPIO, GPIOF_OUT_INIT_HIGH,
 			"display_sel");
@@ -252,6 +264,12 @@ static struct omap_dss_board_info igep2_dss_data = {
 
 void __init omap3_igep2_display_init_of(void)
 {
+	struct device_node *node;
+
+	node = omapdss_find_dss_of_node();
+	if (node && of_device_is_available(node))
+		return;
+
 	omap_display_init(&igep2_dss_data);
 
 	platform_device_register(&omap3_igep2_tfp410_device);
