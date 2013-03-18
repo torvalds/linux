@@ -791,6 +791,44 @@ dio200_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 1;
 }
 
+static void dio200_read_scan_intr(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  unsigned int triggered)
+{
+	struct dio200_subdev_intr *subpriv = s->private;
+	unsigned short val;
+	unsigned int n, ch, len;
+
+	val = 0;
+	len = s->async->cmd.chanlist_len;
+	for (n = 0; n < len; n++) {
+		ch = CR_CHAN(s->async->cmd.chanlist[n]);
+		if (triggered & (1U << ch))
+			val |= (1U << n);
+	}
+	/* Write the scan to the buffer. */
+	if (comedi_buf_put(s->async, val)) {
+		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+	} else {
+		/* Error!  Stop acquisition.  */
+		dio200_stop_intr(dev, s);
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
+		comedi_error(dev, "buffer overflow");
+	}
+
+	/* Check for end of acquisition. */
+	if (!subpriv->continuous) {
+		/* stop_src == TRIG_COUNT */
+		if (subpriv->stopcount > 0) {
+			subpriv->stopcount--;
+			if (subpriv->stopcount == 0) {
+				s->async->events |= COMEDI_CB_EOA;
+				dio200_stop_intr(dev, s);
+			}
+		}
+	}
+}
+
 /*
  * This is called from the interrupt service routine to handle a read
  * scan on an 'INTERRUPT' subdevice.
@@ -855,44 +893,9 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 			 * interested in (just in case there's a race
 			 * condition).
 			 */
-			if (triggered & subpriv->enabled_isns) {
+			if (triggered & subpriv->enabled_isns)
 				/* Collect scan data. */
-				short val;
-				unsigned int n, ch, len;
-
-				val = 0;
-				len = s->async->cmd.chanlist_len;
-				for (n = 0; n < len; n++) {
-					ch = CR_CHAN(s->async->cmd.chanlist[n]);
-					if (triggered & (1U << ch))
-						val |= (1U << n);
-				}
-				/* Write the scan to the buffer. */
-				if (comedi_buf_put(s->async, val)) {
-					s->async->events |= (COMEDI_CB_BLOCK |
-							     COMEDI_CB_EOS);
-				} else {
-					/* Error!  Stop acquisition.  */
-					dio200_stop_intr(dev, s);
-					s->async->events |= COMEDI_CB_ERROR
-					    | COMEDI_CB_OVERFLOW;
-					comedi_error(dev, "buffer overflow");
-				}
-
-				/* Check for end of acquisition. */
-				if (!subpriv->continuous) {
-					/* stop_src == TRIG_COUNT */
-					if (subpriv->stopcount > 0) {
-						subpriv->stopcount--;
-						if (subpriv->stopcount == 0) {
-							s->async->events |=
-							    COMEDI_CB_EOA;
-							dio200_stop_intr(dev,
-									 s);
-						}
-					}
-				}
-			}
+				dio200_read_scan_intr(dev, s, triggered);
 		}
 	}
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
