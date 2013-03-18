@@ -961,6 +961,8 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	iph->ttl	= ttl ? : ip4_dst_hoplimit(&rt->dst);
 	tunnel_ip_select_ident(skb, old_iph, &rt->dst);
 
+	nf_reset(skb);
+
 	vxlan_set_owner(dev, skb);
 
 	/* See iptunnel_xmit() */
