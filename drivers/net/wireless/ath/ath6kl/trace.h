@@ -278,6 +278,48 @@ DEFINE_EVENT(ath6kl_log_event, ath6kl_log_info,
 	     TP_ARGS(vaf)
 );
 
+TRACE_EVENT(ath6kl_log_dbg,
+	TP_PROTO(unsigned int level, struct va_format *vaf),
+	TP_ARGS(level, vaf),
+	TP_STRUCT__entry(
+		__field(unsigned int, level)
+		__dynamic_array(char, msg, ATH6KL_MSG_MAX)
+	),
+	TP_fast_assign(
+		__entry->level = level;
+		WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
+				       ATH6KL_MSG_MAX,
+				       vaf->fmt,
+				       *vaf->va) >= ATH6KL_MSG_MAX);
+	),
+	TP_printk("%s", __get_str(msg))
+);
+
+TRACE_EVENT(ath6kl_log_dbg_dump,
+	TP_PROTO(const char *msg, const char *prefix,
+		 const void *buf, size_t buf_len),
+
+	TP_ARGS(msg, prefix, buf, buf_len),
+
+	TP_STRUCT__entry(
+		__string(msg, msg)
+		__string(prefix, prefix)
+		__field(size_t, buf_len)
+		__dynamic_array(u8, buf, buf_len)
+	),
+
+	TP_fast_assign(
+		__assign_str(msg, msg);
+		__assign_str(prefix, prefix);
+		__entry->buf_len = buf_len;
+		memcpy(__get_dynamic_array(buf), buf, buf_len);
+	),
+
+	TP_printk(
+		"%s/%s\n", __get_str(prefix), __get_str(msg)
+	)
+);
+
 #endif /* _ ATH6KL_TRACE_H || TRACE_HEADER_MULTI_READ*/
 
 /* we don't want to use include/trace/events */

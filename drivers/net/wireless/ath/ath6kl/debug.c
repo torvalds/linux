@@ -117,15 +117,15 @@ void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...)
 	struct va_format vaf;
 	va_list args;
 
-	if (!(debug_mask & mask))
-		return;
-
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	ath6kl_printk(KERN_DEBUG, "%pV", &vaf);
+	if (debug_mask & mask)
+		ath6kl_printk(KERN_DEBUG, "%pV", &vaf);
+
+	trace_ath6kl_log_dbg(mask, &vaf);
 
 	va_end(args);
 }
@@ -141,6 +141,10 @@ void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
 
 		print_hex_dump_bytes(prefix, DUMP_PREFIX_OFFSET, buf, len);
 	}
+
+	/* tracing code doesn't like null strings :/ */
+	trace_ath6kl_log_dbg_dump(msg ? msg : "", prefix ? prefix : "",
+				  buf, len);
 }
 EXPORT_SYMBOL(ath6kl_dbg_dump);
 
