@@ -391,7 +391,7 @@ int da9055_device_init(struct da9055 *da9055)
 		da9055->irq_base = pdata->irq_base;
 
 	ret = regmap_add_irq_chip(da9055->regmap, da9055->chip_irq,
-				  IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				  IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				  da9055->irq_base, &da9055_regmap_irq_chip,
 				  &da9055->irq_data);
 	if (ret < 0)
