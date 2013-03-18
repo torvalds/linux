@@ -267,8 +267,6 @@
 #include "comedi_fc.h"
 #include "8253.h"
 
-#define DIO200_DRIVER_NAME	"amplc_dio200"
-
 #define DO_ISA	IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_ISA)
 #define DO_PCI	IS_ENABLED(CONFIG_COMEDI_AMPLC_DIO200_PCI)
 
@@ -684,7 +682,7 @@ static int
 dio200_request_region(struct comedi_device *dev,
 		      unsigned long from, unsigned long extent)
 {
-	if (!from || !request_region(from, extent, DIO200_DRIVER_NAME)) {
+	if (!from || !request_region(from, extent, dev->board_name)) {
 		dev_err(dev->class_dev, "I/O port conflict (%#lx,%lu)!\n",
 			from, extent);
 		return -EIO;
@@ -1794,7 +1792,7 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 		dev->read_subdev = &dev->subdevices[sdx];
 	if (irq) {
 		if (request_irq(irq, dio200_interrupt, req_irq_flags,
-				DIO200_DRIVER_NAME, dev) >= 0) {
+				dev->board_name, dev) >= 0) {
 			dev->irq = irq;
 		} else {
 			dev_warn(dev->class_dev,
@@ -1818,7 +1816,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 
 	dev->board_name = thisboard->name;
-	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach\n");
+	dev_info(dev->class_dev, "%s: attach\n", dev->driver->driver_name);
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1860,8 +1858,8 @@ static int dio200_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
-	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach pci %s\n",
-		 pci_name(pci_dev));
+	dev_info(dev->class_dev, "%s: attach pci %s\n",
+		 dev->driver->driver_name, pci_name(pci_dev));
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1958,7 +1956,7 @@ static void dio200_detach(struct comedi_device *dev)
  * the device code.
  */
 static struct comedi_driver amplc_dio200_driver = {
-	.driver_name = DIO200_DRIVER_NAME,
+	.driver_name = "amplc_dio200",
 	.module = THIS_MODULE,
 	.attach = dio200_attach,
 	.auto_attach = dio200_auto_attach,
@@ -2001,7 +1999,7 @@ static int amplc_dio200_pci_probe(struct pci_dev *dev,
 }
 
 static struct pci_driver amplc_dio200_pci_driver = {
-	.name = DIO200_DRIVER_NAME,
+	.name = "amplc_dio200",
 	.id_table = dio200_pci_table,
 	.probe = &amplc_dio200_pci_probe,
 	.remove	= comedi_pci_auto_unconfig,
