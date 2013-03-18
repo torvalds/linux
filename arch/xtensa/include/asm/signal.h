@@ -15,19 +15,9 @@
 #include <uapi/asm/signal.h>
 
 #ifndef __ASSEMBLY__
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	void (*sa_restorer)(void);
-	sigset_t sa_mask;		/* mask last for extensibility */
-};
-
-struct k_sigaction {
-	struct sigaction sa;
-};
+#define __ARCH_HAS_SA_RESTORER
 
 #include <asm/sigcontext.h>
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* _XTENSA_SIGNAL_H */

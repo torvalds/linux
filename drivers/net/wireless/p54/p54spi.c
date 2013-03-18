@@ -595,7 +595,7 @@ static void p54spi_op_stop(struct ieee80211_hw *dev)
 	cancel_work_sync(&priv->work);
 }
 
-static int __devinit p54spi_probe(struct spi_device *spi)
+static int p54spi_probe(struct spi_device *spi)
 {
 	struct p54s_priv *priv = NULL;
 	struct ieee80211_hw *hw;
@@ -683,7 +683,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit p54spi_remove(struct spi_device *spi)
+static int p54spi_remove(struct spi_device *spi)
 {
 	struct p54s_priv *priv = dev_get_drvdata(&spi->dev);
 
@@ -710,7 +710,7 @@ static struct spi_driver p54spi_driver = {
 	},
 
 	.probe		= p54spi_probe,
-	.remove		= __devexit_p(p54spi_remove),
+	.remove		= p54spi_remove,
 };
 
 static int __init p54spi_init(void)

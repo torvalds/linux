@@ -82,7 +82,7 @@ static const struct of_device_id usbmisc_imx6q_dt_ids[] = {
 	{ /* sentinel */ }
 };
 
-static int __devinit usbmisc_imx6q_probe(struct platform_device *pdev)
+static int usbmisc_imx6q_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
 	struct imx6q_usbmisc *data;
@@ -98,9 +98,9 @@ static int __devinit usbmisc_imx6q_probe(struct platform_device *pdev)
 	spin_lock_init(&data->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!data->base)
-		return -EADDRNOTAVAIL;
+	data->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->base))
+		return PTR_ERR(data->base);
 
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk)) {
@@ -127,7 +127,7 @@ static int __devinit usbmisc_imx6q_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit usbmisc_imx6q_remove(struct platform_device *pdev)
+static int usbmisc_imx6q_remove(struct platform_device *pdev)
 {
 	usbmisc_unset_ops(&imx6q_usbmisc_ops);
 	clk_disable_unprepare(usbmisc->clk);
@@ -136,7 +136,7 @@ static int __devexit usbmisc_imx6q_remove(struct platform_device *pdev)
 
 static struct platform_driver usbmisc_imx6q_driver = {
 	.probe = usbmisc_imx6q_probe,
-	.remove = __devexit_p(usbmisc_imx6q_remove),
+	.remove = usbmisc_imx6q_remove,
 	.driver = {
 		.name = "usbmisc_imx6q",
 		.owner = THIS_MODULE,

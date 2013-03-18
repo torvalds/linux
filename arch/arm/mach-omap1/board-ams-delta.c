@@ -160,7 +160,7 @@ static struct omap_lcd_config ams_delta_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_usb_config ams_delta_usb_config = {
+static struct omap_usb_config ams_delta_usb_config __initdata = {
 	.register_host	= 1,
 	.hmc_mode	= 16,
 	.pins[0]	= 2,
@@ -625,10 +625,9 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.atag_offset	= 0x100,
 	.map_io		= ams_delta_map_io,
 	.init_early	= omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= ams_delta_init,
 	.init_late	= ams_delta_init_late,
-	.timer		= &omap1_timer,
+	.init_time	= omap1_timer_init,
 	.restart	= omap1_restart,
 MACHINE_END

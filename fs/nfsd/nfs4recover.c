@@ -58,13 +58,11 @@ struct nfsd4_client_tracking_ops {
 	void (*create)(struct nfs4_client *);
 	void (*remove)(struct nfs4_client *);
 	int (*check)(struct nfs4_client *);
-	void (*grace_done)(struct net *, time_t);
+	void (*grace_done)(struct nfsd_net *, time_t);
 };
 
 /* Globals */
-static struct file *rec_file;
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
-static struct nfsd4_client_tracking_ops *client_tracking_ops;
 
 static int
 nfs4_save_creds(const struct cred **original_creds)
@@ -75,8 +73,8 @@ nfs4_save_creds(const struct cred **original_creds)
 	if (!new)
 		return -ENOMEM;
 
-	new->fsuid = 0;
-	new->fsgid = 0;
+	new->fsuid = GLOBAL_ROOT_UID;
+	new->fsgid = GLOBAL_ROOT_GID;
 	*original_creds = override_creds(new);
 	put_cred(new);
 	return 0;
@@ -102,33 +100,39 @@ md5_to_hex(char *out, char *md5)
 	*out = '\0';
 }
 
-__be32
-nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
+static int
+nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
 {
 	struct xdr_netobj cksum;
 	struct hash_desc desc;
 	struct scatterlist sg;
-	__be32 status = nfserr_jukebox;
+	int status;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);
 	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	desc.tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(desc.tfm))
+	if (IS_ERR(desc.tfm)) {
+		status = PTR_ERR(desc.tfm);
 		goto out_no_tfm;
+	}
+
 	cksum.len = crypto_hash_digestsize(desc.tfm);
 	cksum.data = kmalloc(cksum.len, GFP_KERNEL);
-	if (cksum.data == NULL)
+	if (cksum.data == NULL) {
+		status = -ENOMEM;
  		goto out;
+	}
 
 	sg_init_one(&sg, clname->data, clname->len);
 
-	if (crypto_hash_digest(&desc, &sg, sg.length, cksum.data))
+	status = crypto_hash_digest(&desc, &sg, sg.length, cksum.data);
+	if (status)
 		goto out;
 
 	md5_to_hex(dname, cksum.data);
 
-	status = nfs_ok;
+	status = 0;
 out:
 	kfree(cksum.data);
 	crypto_free_hash(desc.tfm);
@@ -136,29 +140,61 @@ out_no_tfm:
 	return status;
 }
 
+/*
+ * If we had an error generating the recdir name for the legacy tracker
+ * then warn the admin. If the error doesn't appear to be transient,
+ * then disable recovery tracking.
+ */
+static void
+legacy_recdir_name_error(int error)
+{
+	printk(KERN_ERR "NFSD: unable to generate recoverydir "
+			"name (%d).\n", error);
+
+	/*
+	 * if the algorithm just doesn't exist, then disable the recovery
+	 * tracker altogether. The crypto libs will generally return this if
+	 * FIPS is enabled as well.
+	 */
+	if (error == -ENOENT) {
+		printk(KERN_ERR "NFSD: disabling legacy clientid tracking. "
+			"Reboot recovery will not function correctly!\n");
+
+		/* the argument is ignored by the legacy exit function */
+		nfsd4_client_tracking_exit(NULL);
+	}
+}
+
 static void
 nfsd4_create_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
-	char *dname = clp->cl_recdir;
+	char dname[HEXDIR_LEN];
 	struct dentry *dir, *dentry;
+	struct nfs4_client_reclaim *crp;
 	int status;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
 	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
 
 	if (test_and_set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
-	if (!rec_file)
+	if (!nn->rec_file)
 		return;
+
+	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
+	if (status)
+		return legacy_recdir_name_error(status);
+
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
 		return;
 
-	status = mnt_want_write_file(rec_file);
+	status = mnt_want_write_file(nn->rec_file);
 	if (status)
 		return;
 
-	dir = rec_file->f_path.dentry;
+	dir = nn->rec_file->f_path.dentry;
 	/* lock the parent */
 	mutex_lock(&dir->d_inode->i_mutex);
 
@@ -182,18 +218,24 @@ out_put:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
-	if (status == 0)
-		vfs_fsync(rec_file, 0);
-	else
+	if (status == 0) {
+		if (nn->in_grace) {
+			crp = nfs4_client_to_reclaim(dname, nn);
+			if (crp)
+				crp->cr_clp = clp;
+		}
+		vfs_fsync(nn->rec_file, 0);
+	} else {
 		printk(KERN_ERR "NFSD: failed to write recovery record"
 				" (err %d); please check that %s exists"
 				" and is writeable", status,
 				user_recovery_dirname);
-	mnt_drop_write_file(rec_file);
+	}
+	mnt_drop_write_file(nn->rec_file);
 	nfs4_reset_creds(original_cred);
 }
 
-typedef int (recdir_func)(struct dentry *, struct dentry *);
+typedef int (recdir_func)(struct dentry *, struct dentry *, struct nfsd_net *);
 
 struct name_list {
 	char name[HEXDIR_LEN];
@@ -219,10 +261,10 @@ nfsd4_build_namelist(void *arg, const char *name, int namlen,
 }
 
 static int
-nfsd4_list_rec_dir(recdir_func *f)
+nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 {
 	const struct cred *original_cred;
-	struct dentry *dir = rec_file->f_path.dentry;
+	struct dentry *dir = nn->rec_file->f_path.dentry;
 	LIST_HEAD(names);
 	int status;
 
@@ -230,13 +272,13 @@ nfsd4_list_rec_dir(recdir_func *f)
 	if (status < 0)
 		return status;
 
-	status = vfs_llseek(rec_file, 0, SEEK_SET);
+	status = vfs_llseek(nn->rec_file, 0, SEEK_SET);
 	if (status < 0) {
 		nfs4_reset_creds(original_cred);
 		return status;
 	}
 
-	status = vfs_readdir(rec_file, nfsd4_build_namelist, &names);
+	status = vfs_readdir(nn->rec_file, nfsd4_build_namelist, &names);
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 	while (!list_empty(&names)) {
 		struct name_list *entry;
@@ -248,7 +290,7 @@ nfsd4_list_rec_dir(recdir_func *f)
 				status = PTR_ERR(dentry);
 				break;
 			}
-			status = f(dir, dentry);
+			status = f(dir, dentry, nn);
 			dput(dentry);
 		}
 		list_del(&entry->list);
@@ -260,14 +302,14 @@ nfsd4_list_rec_dir(recdir_func *f)
 }
 
 static int
-nfsd4_unlink_clid_dir(char *name, int namlen)
+nfsd4_unlink_clid_dir(char *name, int namlen, struct nfsd_net *nn)
 {
 	struct dentry *dir, *dentry;
 	int status;
 
 	dprintk("NFSD: nfsd4_unlink_clid_dir. name %.*s\n", namlen, name);
 
-	dir = rec_file->f_path.dentry;
+	dir = nn->rec_file->f_path.dentry;
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_one_len(name, dir, namlen);
 	if (IS_ERR(dentry)) {
@@ -289,37 +331,52 @@ static void
 nfsd4_remove_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
+	struct nfs4_client_reclaim *crp;
+	char dname[HEXDIR_LEN];
 	int status;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
-	if (!rec_file || !test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+	if (!nn->rec_file || !test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
 
-	status = mnt_want_write_file(rec_file);
+	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
+	if (status)
+		return legacy_recdir_name_error(status);
+
+	status = mnt_want_write_file(nn->rec_file);
 	if (status)
 		goto out;
 	clear_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
-		goto out;
+		goto out_drop_write;
 
-	status = nfsd4_unlink_clid_dir(clp->cl_recdir, HEXDIR_LEN-1);
+	status = nfsd4_unlink_clid_dir(dname, HEXDIR_LEN-1, nn);
 	nfs4_reset_creds(original_cred);
-	if (status == 0)
-		vfs_fsync(rec_file, 0);
-	mnt_drop_write_file(rec_file);
+	if (status == 0) {
+		vfs_fsync(nn->rec_file, 0);
+		if (nn->in_grace) {
+			/* remove reclaim record */
+			crp = nfsd4_find_reclaim_client(dname, nn);
+			if (crp)
+				nfs4_remove_reclaim_record(crp, nn);
+		}
+	}
+out_drop_write:
+	mnt_drop_write_file(nn->rec_file);
 out:
 	if (status)
 		printk("NFSD: Failed to remove expired client state directory"
-				" %.*s\n", HEXDIR_LEN, clp->cl_recdir);
+				" %.*s\n", HEXDIR_LEN, dname);
 }
 
 static int
-purge_old(struct dentry *parent, struct dentry *child)
+purge_old(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
 	int status;
 
-	if (nfs4_has_reclaimed_state(child->d_name.name, false))
+	if (nfs4_has_reclaimed_state(child->d_name.name, nn))
 		return 0;
 
 	status = vfs_rmdir(parent->d_inode, child);
@@ -331,27 +388,29 @@ purge_old(struct dentry *parent, struct dentry *child)
 }
 
 static void
-nfsd4_recdir_purge_old(struct net *net, time_t boot_time)
+nfsd4_recdir_purge_old(struct nfsd_net *nn, time_t boot_time)
 {
 	int status;
 
-	if (!rec_file)
+	nn->in_grace = false;
+	if (!nn->rec_file)
 		return;
-	status = mnt_want_write_file(rec_file);
+	status = mnt_want_write_file(nn->rec_file);
 	if (status)
 		goto out;
-	status = nfsd4_list_rec_dir(purge_old);
+	status = nfsd4_list_rec_dir(purge_old, nn);
 	if (status == 0)
-		vfs_fsync(rec_file, 0);
-	mnt_drop_write_file(rec_file);
+		vfs_fsync(nn->rec_file, 0);
+	mnt_drop_write_file(nn->rec_file);
 out:
+	nfs4_release_reclaim(nn);
 	if (status)
 		printk("nfsd4: failed to purge old clients from recovery"
-			" directory %s\n", rec_file->f_path.dentry->d_name.name);
+			" directory %s\n", nn->rec_file->f_path.dentry->d_name.name);
 }
 
 static int
-load_recdir(struct dentry *parent, struct dentry *child)
+load_recdir(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
 	if (child->d_name.len != HEXDIR_LEN - 1) {
 		printk("nfsd4: illegal name %s in recovery directory\n",
@@ -359,21 +418,22 @@ load_recdir(struct dentry *parent, struct dentry *child)
 		/* Keep trying; maybe the others are OK: */
 		return 0;
 	}
-	nfs4_client_to_reclaim(child->d_name.name);
+	nfs4_client_to_reclaim(child->d_name.name, nn);
 	return 0;
 }
 
 static int
-nfsd4_recdir_load(void) {
+nfsd4_recdir_load(struct net *net) {
 	int status;
+	struct nfsd_net *nn =  net_generic(net, nfsd_net_id);
 
-	if (!rec_file)
+	if (!nn->rec_file)
 		return 0;
 
-	status = nfsd4_list_rec_dir(load_recdir);
+	status = nfsd4_list_rec_dir(load_recdir, nn);
 	if (status)
 		printk("nfsd4: failed loading clients from recovery"
-			" directory %s\n", rec_file->f_path.dentry->d_name.name);
+			" directory %s\n", nn->rec_file->f_path.dentry->d_name.name);
 	return status;
 }
 
@@ -382,15 +442,16 @@ nfsd4_recdir_load(void) {
  */
 
 static int
-nfsd4_init_recdir(void)
+nfsd4_init_recdir(struct net *net)
 {
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	const struct cred *original_cred;
 	int status;
 
 	printk("NFSD: Using %s as the NFSv4 state recovery directory\n",
 			user_recovery_dirname);
 
-	BUG_ON(rec_file);
+	BUG_ON(nn->rec_file);
 
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0) {
@@ -400,20 +461,62 @@ nfsd4_init_recdir(void)
 		return status;
 	}
 
-	rec_file = filp_open(user_recovery_dirname, O_RDONLY | O_DIRECTORY, 0);
-	if (IS_ERR(rec_file)) {
+	nn->rec_file = filp_open(user_recovery_dirname, O_RDONLY | O_DIRECTORY, 0);
+	if (IS_ERR(nn->rec_file)) {
 		printk("NFSD: unable to find recovery directory %s\n",
 				user_recovery_dirname);
-		status = PTR_ERR(rec_file);
-		rec_file = NULL;
+		status = PTR_ERR(nn->rec_file);
+		nn->rec_file = NULL;
 	}
 
 	nfs4_reset_creds(original_cred);
+	if (!status)
+		nn->in_grace = true;
 	return status;
+}
+
+
+static int
+nfs4_legacy_state_init(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	int i;
+
+	nn->reclaim_str_hashtbl = kmalloc(sizeof(struct list_head) *
+					  CLIENT_HASH_SIZE, GFP_KERNEL);
+	if (!nn->reclaim_str_hashtbl)
+		return -ENOMEM;
+
+	for (i = 0; i < CLIENT_HASH_SIZE; i++)
+		INIT_LIST_HEAD(&nn->reclaim_str_hashtbl[i]);
+	nn->reclaim_str_hashtbl_size = 0;
+
+	return 0;
+}
+
+static void
+nfs4_legacy_state_shutdown(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	kfree(nn->reclaim_str_hashtbl);
 }
 
 static int
 nfsd4_load_reboot_recovery_data(struct net *net)
+{
+	int status;
+
+	status = nfsd4_init_recdir(net);
+	if (!status)
+		status = nfsd4_recdir_load(net);
+	if (status)
+		printk(KERN_ERR "NFSD: Failure reading reboot recovery data\n");
+	return status;
+}
+
+static int
+nfsd4_legacy_tracking_init(struct net *net)
 {
 	int status;
 
@@ -424,30 +527,37 @@ nfsd4_load_reboot_recovery_data(struct net *net)
 		return -EINVAL;
 	}
 
-	nfs4_lock_state();
-	status = nfsd4_init_recdir();
-	if (!status)
-		status = nfsd4_recdir_load();
-	nfs4_unlock_state();
+	status = nfs4_legacy_state_init(net);
 	if (status)
-		printk(KERN_ERR "NFSD: Failure reading reboot recovery data\n");
+		return status;
+
+	status = nfsd4_load_reboot_recovery_data(net);
+	if (status)
+		goto err;
+	return 0;
+
+err:
+	nfs4_legacy_state_shutdown(net);
 	return status;
 }
 
 static void
-nfsd4_shutdown_recdir(void)
+nfsd4_shutdown_recdir(struct nfsd_net *nn)
 {
-	if (!rec_file)
+	if (!nn->rec_file)
 		return;
-	fput(rec_file);
-	rec_file = NULL;
+	fput(nn->rec_file);
+	nn->rec_file = NULL;
 }
 
 static void
 nfsd4_legacy_tracking_exit(struct net *net)
 {
-	nfs4_release_reclaim();
-	nfsd4_shutdown_recdir();
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	nfs4_release_reclaim(nn);
+	nfsd4_shutdown_recdir(nn);
+	nfs4_legacy_state_shutdown(net);
 }
 
 /*
@@ -480,13 +590,26 @@ nfs4_recoverydir(void)
 static int
 nfsd4_check_legacy_client(struct nfs4_client *clp)
 {
+	int status;
+	char dname[HEXDIR_LEN];
+	struct nfs4_client_reclaim *crp;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+
 	/* did we already find that this client is stable? */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return 0;
 
+	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
+	if (status) {
+		legacy_recdir_name_error(status);
+		return status;
+	}
+
 	/* look for it in the reclaim hashtable otherwise */
-	if (nfsd4_find_reclaim_client(clp)) {
+	crp = nfsd4_find_reclaim_client(dname, nn);
+	if (crp) {
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
+		crp->cr_clp = clp;
 		return 0;
 	}
 
@@ -494,7 +617,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 }
 
 static struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
-	.init		= nfsd4_load_reboot_recovery_data,
+	.init		= nfsd4_legacy_tracking_init,
 	.exit		= nfsd4_legacy_tracking_exit,
 	.create		= nfsd4_create_clid_dir,
 	.remove		= nfsd4_remove_clid_dir,
@@ -785,8 +908,7 @@ nfsd4_cld_create(struct nfs4_client *clp)
 {
 	int ret;
 	struct cld_upcall *cup;
-	/* FIXME: determine net from clp */
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	/* Don't upcall if it's already stored */
@@ -823,8 +945,7 @@ nfsd4_cld_remove(struct nfs4_client *clp)
 {
 	int ret;
 	struct cld_upcall *cup;
-	/* FIXME: determine net from clp */
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	/* Don't upcall if it's already removed */
@@ -861,8 +982,7 @@ nfsd4_cld_check(struct nfs4_client *clp)
 {
 	int ret;
 	struct cld_upcall *cup;
-	/* FIXME: determine net from clp */
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	/* Don't upcall if one was already stored during this grace pd */
@@ -892,11 +1012,10 @@ nfsd4_cld_check(struct nfs4_client *clp)
 }
 
 static void
-nfsd4_cld_grace_done(struct net *net, time_t boot_time)
+nfsd4_cld_grace_done(struct nfsd_net *nn, time_t boot_time)
 {
 	int ret;
 	struct cld_upcall *cup;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	cup = alloc_cld_upcall(cn);
@@ -926,28 +1045,267 @@ static struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops = {
 	.grace_done	= nfsd4_cld_grace_done,
 };
 
+/* upcall via usermodehelper */
+static char cltrack_prog[PATH_MAX] = "/sbin/nfsdcltrack";
+module_param_string(cltrack_prog, cltrack_prog, sizeof(cltrack_prog),
+			S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(cltrack_prog, "Path to the nfsdcltrack upcall program");
+
+static bool cltrack_legacy_disable;
+module_param(cltrack_legacy_disable, bool, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(cltrack_legacy_disable,
+		"Disable legacy recoverydir conversion. Default: false");
+
+#define LEGACY_TOPDIR_ENV_PREFIX "NFSDCLTRACK_LEGACY_TOPDIR="
+#define LEGACY_RECDIR_ENV_PREFIX "NFSDCLTRACK_LEGACY_RECDIR="
+
+static char *
+nfsd4_cltrack_legacy_topdir(void)
+{
+	int copied;
+	size_t len;
+	char *result;
+
+	if (cltrack_legacy_disable)
+		return NULL;
+
+	len = strlen(LEGACY_TOPDIR_ENV_PREFIX) +
+		strlen(nfs4_recoverydir()) + 1;
+
+	result = kmalloc(len, GFP_KERNEL);
+	if (!result)
+		return result;
+
+	copied = snprintf(result, len, LEGACY_TOPDIR_ENV_PREFIX "%s",
+				nfs4_recoverydir());
+	if (copied >= len) {
+		/* just return nothing if output was truncated */
+		kfree(result);
+		return NULL;
+	}
+
+	return result;
+}
+
+static char *
+nfsd4_cltrack_legacy_recdir(const struct xdr_netobj *name)
+{
+	int copied;
+	size_t len;
+	char *result;
+
+	if (cltrack_legacy_disable)
+		return NULL;
+
+	/* +1 is for '/' between "topdir" and "recdir" */
+	len = strlen(LEGACY_RECDIR_ENV_PREFIX) +
+		strlen(nfs4_recoverydir()) + 1 + HEXDIR_LEN;
+
+	result = kmalloc(len, GFP_KERNEL);
+	if (!result)
+		return result;
+
+	copied = snprintf(result, len, LEGACY_RECDIR_ENV_PREFIX "%s/",
+				nfs4_recoverydir());
+	if (copied > (len - HEXDIR_LEN)) {
+		/* just return nothing if output will be truncated */
+		kfree(result);
+		return NULL;
+	}
+
+	copied = nfs4_make_rec_clidname(result + copied, name);
+	if (copied) {
+		kfree(result);
+		return NULL;
+	}
+
+	return result;
+}
+
+static int
+nfsd4_umh_cltrack_upcall(char *cmd, char *arg, char *legacy)
+{
+	char *envp[2];
+	char *argv[4];
+	int ret;
+
+	if (unlikely(!cltrack_prog[0])) {
+		dprintk("%s: cltrack_prog is disabled\n", __func__);
+		return -EACCES;
+	}
+
+	dprintk("%s: cmd: %s\n", __func__, cmd);
+	dprintk("%s: arg: %s\n", __func__, arg ? arg : "(null)");
+	dprintk("%s: legacy: %s\n", __func__, legacy ? legacy : "(null)");
+
+	envp[0] = legacy;
+	envp[1] = NULL;
+
+	argv[0] = (char *)cltrack_prog;
+	argv[1] = cmd;
+	argv[2] = arg;
+	argv[3] = NULL;
+
+	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	/*
+	 * Disable the upcall mechanism if we're getting an ENOENT or EACCES
+	 * error. The admin can re-enable it on the fly by using sysfs
+	 * once the problem has been fixed.
+	 */
+	if (ret == -ENOENT || ret == -EACCES) {
+		dprintk("NFSD: %s was not found or isn't executable (%d). "
+			"Setting cltrack_prog to blank string!",
+			cltrack_prog, ret);
+		cltrack_prog[0] = '\0';
+	}
+	dprintk("%s: %s return value: %d\n", __func__, cltrack_prog, ret);
+
+	return ret;
+}
+
+static char *
+bin_to_hex_dup(const unsigned char *src, int srclen)
+{
+	int i;
+	char *buf, *hex;
+
+	/* +1 for terminating NULL */
+	buf = kmalloc((srclen * 2) + 1, GFP_KERNEL);
+	if (!buf)
+		return buf;
+
+	hex = buf;
+	for (i = 0; i < srclen; i++) {
+		sprintf(hex, "%2.2x", *src++);
+		hex += 2;
+	}
+	return buf;
+}
+
+static int
+nfsd4_umh_cltrack_init(struct net __attribute__((unused)) *net)
+{
+	/* XXX: The usermode helper s not working in container yet. */
+	if (net != &init_net) {
+		WARN(1, KERN_ERR "NFSD: attempt to initialize umh client "
+			"tracking in a container!\n");
+		return -EINVAL;
+	}
+	return nfsd4_umh_cltrack_upcall("init", NULL, NULL);
+}
+
+static void
+nfsd4_umh_cltrack_create(struct nfs4_client *clp)
+{
+	char *hexid;
+
+	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
+	if (!hexid) {
+		dprintk("%s: can't allocate memory for upcall!\n", __func__);
+		return;
+	}
+	nfsd4_umh_cltrack_upcall("create", hexid, NULL);
+	kfree(hexid);
+}
+
+static void
+nfsd4_umh_cltrack_remove(struct nfs4_client *clp)
+{
+	char *hexid;
+
+	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
+	if (!hexid) {
+		dprintk("%s: can't allocate memory for upcall!\n", __func__);
+		return;
+	}
+	nfsd4_umh_cltrack_upcall("remove", hexid, NULL);
+	kfree(hexid);
+}
+
+static int
+nfsd4_umh_cltrack_check(struct nfs4_client *clp)
+{
+	int ret;
+	char *hexid, *legacy;
+
+	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
+	if (!hexid) {
+		dprintk("%s: can't allocate memory for upcall!\n", __func__);
+		return -ENOMEM;
+	}
+	legacy = nfsd4_cltrack_legacy_recdir(&clp->cl_name);
+	ret = nfsd4_umh_cltrack_upcall("check", hexid, legacy);
+	kfree(legacy);
+	kfree(hexid);
+	return ret;
+}
+
+static void
+nfsd4_umh_cltrack_grace_done(struct nfsd_net __attribute__((unused)) *nn,
+				time_t boot_time)
+{
+	char *legacy;
+	char timestr[22]; /* FIXME: better way to determine max size? */
+
+	sprintf(timestr, "%ld", boot_time);
+	legacy = nfsd4_cltrack_legacy_topdir();
+	nfsd4_umh_cltrack_upcall("gracedone", timestr, legacy);
+	kfree(legacy);
+}
+
+static struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
+	.init		= nfsd4_umh_cltrack_init,
+	.exit		= NULL,
+	.create		= nfsd4_umh_cltrack_create,
+	.remove		= nfsd4_umh_cltrack_remove,
+	.check		= nfsd4_umh_cltrack_check,
+	.grace_done	= nfsd4_umh_cltrack_grace_done,
+};
+
 int
 nfsd4_client_tracking_init(struct net *net)
 {
 	int status;
 	struct path path;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	if (!client_tracking_ops) {
-		client_tracking_ops = &nfsd4_cld_tracking_ops;
-		status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
-		if (!status) {
-			if (S_ISDIR(path.dentry->d_inode->i_mode))
-				client_tracking_ops =
-						&nfsd4_legacy_tracking_ops;
-			path_put(&path);
-		}
+	/* just run the init if it the method is already decided */
+	if (nn->client_tracking_ops)
+		goto do_init;
+
+	/*
+	 * First, try a UMH upcall. It should succeed or fail quickly, so
+	 * there's little harm in trying that first.
+	 */
+	nn->client_tracking_ops = &nfsd4_umh_tracking_ops;
+	status = nn->client_tracking_ops->init(net);
+	if (!status)
+		return status;
+
+	/*
+	 * See if the recoverydir exists and is a directory. If it is,
+	 * then use the legacy ops.
+	 */
+	nn->client_tracking_ops = &nfsd4_legacy_tracking_ops;
+	status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
+	if (!status) {
+		status = S_ISDIR(path.dentry->d_inode->i_mode);
+		path_put(&path);
+		if (status)
+			goto do_init;
 	}
 
-	status = client_tracking_ops->init(net);
+	/* Finally, try to use nfsdcld */
+	nn->client_tracking_ops = &nfsd4_cld_tracking_ops;
+	printk(KERN_WARNING "NFSD: the nfsdcld client tracking upcall will be "
+			"removed in 3.10. Please transition to using "
+			"nfsdcltrack.\n");
+do_init:
+	status = nn->client_tracking_ops->init(net);
 	if (status) {
 		printk(KERN_WARNING "NFSD: Unable to initialize client "
 				    "recovery tracking! (%d)\n", status);
-		client_tracking_ops = NULL;
+		nn->client_tracking_ops = NULL;
 	}
 	return status;
 }
@@ -955,40 +1313,49 @@ nfsd4_client_tracking_init(struct net *net)
 void
 nfsd4_client_tracking_exit(struct net *net)
 {
-	if (client_tracking_ops) {
-		client_tracking_ops->exit(net);
-		client_tracking_ops = NULL;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	if (nn->client_tracking_ops) {
+		if (nn->client_tracking_ops->exit)
+			nn->client_tracking_ops->exit(net);
+		nn->client_tracking_ops = NULL;
 	}
 }
 
 void
 nfsd4_client_record_create(struct nfs4_client *clp)
 {
-	if (client_tracking_ops)
-		client_tracking_ops->create(clp);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+
+	if (nn->client_tracking_ops)
+		nn->client_tracking_ops->create(clp);
 }
 
 void
 nfsd4_client_record_remove(struct nfs4_client *clp)
 {
-	if (client_tracking_ops)
-		client_tracking_ops->remove(clp);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+
+	if (nn->client_tracking_ops)
+		nn->client_tracking_ops->remove(clp);
 }
 
 int
 nfsd4_client_record_check(struct nfs4_client *clp)
 {
-	if (client_tracking_ops)
-		return client_tracking_ops->check(clp);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+
+	if (nn->client_tracking_ops)
+		return nn->client_tracking_ops->check(clp);
 
 	return -EOPNOTSUPP;
 }
 
 void
-nfsd4_record_grace_done(struct net *net, time_t boot_time)
+nfsd4_record_grace_done(struct nfsd_net *nn, time_t boot_time)
 {
-	if (client_tracking_ops)
-		client_tracking_ops->grace_done(net, boot_time);
+	if (nn->client_tracking_ops)
+		nn->client_tracking_ops->grace_done(nn, boot_time);
 }
 
 static int

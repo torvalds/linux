@@ -57,11 +57,44 @@ OPTIONS
 
 -s::
 --sort=::
-	Sort by key(s): pid, comm, dso, symbol, parent, srcline.
+	Sort histogram entries by given key(s) - multiple keys can be specified
+	in CSV format.  Following sort keys are available:
+	pid, comm, dso, symbol, parent, cpu, srcline.
+
+	Each key has following meaning:
+
+	- comm: command (name) of the task which can be read via /proc/<pid>/comm
+	- pid: command and tid of the task
+	- dso: name of library or module executed at the time of sample
+	- symbol: name of function executed at the time of sample
+	- parent: name of function matched to the parent regex filter. Unmatched
+	entries are displayed as "[other]".
+	- cpu: cpu number the task ran at the time of sample
+	- srcline: filename and line number executed at the time of sample.  The
+	DWARF debuggin info must be provided.
+
+	By default, comm, dso and symbol keys are used.
+	(i.e. --sort comm,dso,symbol)
+
+	If --branch-stack option is used, following sort keys are also
+	available:
+	dso_from, dso_to, symbol_from, symbol_to, mispredict.
+
+	- dso_from: name of library or module branched from
+	- dso_to: name of library or module branched to
+	- symbol_from: name of function branched from
+	- symbol_to: name of function branched to
+	- mispredict: "N" for predicted branch, "Y" for mispredicted branch
+
+	And default sort keys are changed to comm, dso_from, symbol_from, dso_to
+	and symbol_to, see '--branch-stack'.
 
 -p::
 --parent=<regex>::
-        regex filter to identify parent, see: '--sort parent'
+        A regex filter to identify parent. The parent is a caller of this
+	function and searched through the callchain, thus it requires callchain
+	information recorded. The pattern is in the exteneded regex format and
+	defaults to "\^sys_|^do_page_fault", see '--sort parent'.
 
 -x::
 --exclude-other::
@@ -74,7 +107,6 @@ OPTIONS
 
 -t::
 --field-separator=::
-
 	Use a special separator character and don't pad with spaces, replacing
 	all occurrences of this separator in symbol names (and other output)
 	with a '.' character, that thus it's the only non valid separator.
@@ -170,6 +202,9 @@ OPTIONS
 
 --objdump=<path>::
         Path to objdump binary.
+
+--group::
+	Show event group information together.
 
 SEE ALSO
 --------

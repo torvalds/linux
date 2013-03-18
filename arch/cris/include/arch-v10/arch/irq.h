@@ -142,7 +142,7 @@ __asm__ ( \
  * it here, we would not get the multiple_irq at all.
  *
  * The non-blocking here is based on the knowledge that the timer interrupt is 
- * registred as a fast interrupt (IRQF_DISABLED) so that we _know_ there will not
+ * registered as a fast interrupt (IRQF_DISABLED) so that we _know_ there will not
  * be an sti() before the timer irq handler is run to acknowledge the interrupt.
  */
 

@@ -1,6 +1,7 @@
 #include <asm/asm-offsets.h>
-#include <asm/page.h>
 #include <asm/thread_info.h>
+
+#define PAGE_SIZE _PAGE_SIZE
 
 /*
  * Put .bss..swapper_pg_dir as the first thing in .bss. This will
@@ -21,12 +22,12 @@ PHDRS {
 
 #ifdef CONFIG_32BIT
 	#ifdef CONFIG_CPU_LITTLE_ENDIAN
-		jiffies  = jiffies_64;
+		jiffies	 = jiffies_64;
 	#else
-		jiffies  = jiffies_64 + 4;
+		jiffies	 = jiffies_64 + 4;
 	#endif
 #else
-	jiffies  = jiffies_64;
+	jiffies	 = jiffies_64;
 #endif
 
 SECTIONS
@@ -138,7 +139,7 @@ SECTIONS
 
 	/*
 	 * Force .bss to 64K alignment so that .bss..swapper_pg_dir
-	 * gets that alignment.  .sbss should be empty, so there will be
+	 * gets that alignment.	 .sbss should be empty, so there will be
 	 * no holes after __init_end. */
 	BSS_SECTION(0, 0x10000, 0)
 

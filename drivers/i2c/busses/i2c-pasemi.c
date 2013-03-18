@@ -340,7 +340,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= pasemi_smb_func,
 };
 
-static int __devinit pasemi_smb_probe(struct pci_dev *dev,
+static int pasemi_smb_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
 	struct pasemi_smbus *smbus;
@@ -392,7 +392,7 @@ static int __devinit pasemi_smb_probe(struct pci_dev *dev,
 	return error;
 }
 
-static void __devexit pasemi_smb_remove(struct pci_dev *dev)
+static void pasemi_smb_remove(struct pci_dev *dev)
 {
 	struct pasemi_smbus *smbus = pci_get_drvdata(dev);
 
@@ -412,7 +412,7 @@ static struct pci_driver pasemi_smb_driver = {
 	.name		= "i2c-pasemi",
 	.id_table	= pasemi_smb_ids,
 	.probe		= pasemi_smb_probe,
-	.remove		= __devexit_p(pasemi_smb_remove),
+	.remove		= pasemi_smb_remove,
 };
 
 module_pci_driver(pasemi_smb_driver);

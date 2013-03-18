@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap2/board-rx51.c
+ * Board support file for Nokia N900 (aka RX-51).
  *
  * Copyright (C) 2007, 2008 Nokia
  *
@@ -17,24 +17,23 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/usb/phy.h>
+#include <linux/usb/musb.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "common.h"
-#include <plat/dma.h>
-#include <plat/gpmc.h>
-#include <plat/usb.h>
+#include <linux/omap-dma.h>
 
+#include "common.h"
 #include "mux.h"
+#include "gpmc.h"
 #include "pm.h"
 #include "sdram-nokia.h"
 
 #define RX51_GPIO_SLEEP_IND 162
-
-extern void rx51_video_mem_init(void);
 
 static struct gpio_led gpio_leds[] = {
 	{
@@ -100,6 +99,7 @@ static void __init rx51_init(void)
 	sdrc_params = nokia_get_sdram_timings();
 	omap_sdrc_init(sdrc_params, sdrc_params);
 
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(&musb_board_data);
 	rx51_peripherals_init();
 
@@ -112,7 +112,6 @@ static void __init rx51_init(void)
 
 static void __init rx51_reserve(void)
 {
-	rx51_video_mem_init();
 	omap_reserve();
 }
 
@@ -126,6 +125,6 @@ MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rx51_init,
 	.init_late	= omap3430_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

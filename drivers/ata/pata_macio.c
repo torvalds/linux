@@ -935,7 +935,7 @@ static struct ata_port_operations pata_macio_ops = {
 	.sff_irq_clear		= pata_macio_irq_clear,
 };
 
-static void __devinit pata_macio_invariants(struct pata_macio_priv *priv)
+static void pata_macio_invariants(struct pata_macio_priv *priv)
 {
 	const int *bidp;
 
@@ -976,9 +976,8 @@ static void __devinit pata_macio_invariants(struct pata_macio_priv *priv)
 		priv->aapl_bus_id = 1;
 }
 
-static void __devinit pata_macio_setup_ios(struct ata_ioports *ioaddr,
-					   void __iomem * base,
-					   void __iomem * dma)
+static void pata_macio_setup_ios(struct ata_ioports *ioaddr,
+				 void __iomem * base, void __iomem * dma)
 {
 	/* cmd_addr is the base of regs for that port */
 	ioaddr->cmd_addr	= base;
@@ -999,8 +998,8 @@ static void __devinit pata_macio_setup_ios(struct ata_ioports *ioaddr,
 	ioaddr->bmdma_addr	= dma;
 }
 
-static void __devinit pmac_macio_calc_timing_masks(struct pata_macio_priv *priv,
-						   struct ata_port_info   *pinfo)
+static void pmac_macio_calc_timing_masks(struct pata_macio_priv *priv,
+					 struct ata_port_info *pinfo)
 {
 	int i = 0;
 
@@ -1027,11 +1026,11 @@ static void __devinit pmac_macio_calc_timing_masks(struct pata_macio_priv *priv,
 		pinfo->pio_mask, pinfo->mwdma_mask, pinfo->udma_mask);
 }
 
-static int __devinit pata_macio_common_init(struct pata_macio_priv	*priv,
-					    resource_size_t		tfregs,
-					    resource_size_t		dmaregs,
-					    resource_size_t		fcregs,
-					    unsigned long		irq)
+static int pata_macio_common_init(struct pata_macio_priv *priv,
+				  resource_size_t tfregs,
+				  resource_size_t dmaregs,
+				  resource_size_t fcregs,
+				  unsigned long irq)
 {
 	struct ata_port_info		pinfo;
 	const struct ata_port_info	*ppi[] = { &pinfo, NULL };
@@ -1113,8 +1112,8 @@ static int __devinit pata_macio_common_init(struct pata_macio_priv	*priv,
 				 &pata_macio_sht);
 }
 
-static int __devinit pata_macio_attach(struct macio_dev *mdev,
-				       const struct of_device_id *match)
+static int pata_macio_attach(struct macio_dev *mdev,
+			     const struct of_device_id *match)
 {
 	struct pata_macio_priv	*priv;
 	resource_size_t		tfregs, dmaregs = 0;
@@ -1190,7 +1189,7 @@ static int __devinit pata_macio_attach(struct macio_dev *mdev,
 	return rc;
 }
 
-static int __devexit pata_macio_detach(struct macio_dev *mdev)
+static int pata_macio_detach(struct macio_dev *mdev)
 {
 	struct ata_host *host = macio_get_drvdata(mdev);
 	struct pata_macio_priv *priv = host->private_data;
@@ -1257,8 +1256,8 @@ static void pata_macio_mb_event(struct macio_dev* mdev, int mb_state)
 #endif /* CONFIG_PMAC_MEDIABAY */
 
 
-static int __devinit pata_macio_pci_attach(struct pci_dev *pdev,
-					   const struct pci_device_id *id)
+static int pata_macio_pci_attach(struct pci_dev *pdev,
+				 const struct pci_device_id *id)
 {
 	struct pata_macio_priv	*priv;
 	struct device_node	*np;
@@ -1310,7 +1309,7 @@ static int __devinit pata_macio_pci_attach(struct pci_dev *pdev,
 	return 0;
 }
 
-static void __devexit pata_macio_pci_detach(struct pci_dev *pdev)
+static void pata_macio_pci_detach(struct pci_dev *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 

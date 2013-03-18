@@ -81,6 +81,7 @@ struct xfs_mount;
 #define XFS_SB_VERSION2_ATTR2BIT	0x00000008	/* Inline attr rework */
 #define XFS_SB_VERSION2_PARENTBIT	0x00000010	/* parent pointers */
 #define XFS_SB_VERSION2_PROJID32BIT	0x00000080	/* 32 bit project id */
+#define XFS_SB_VERSION2_CRCBIT		0x00000100	/* metadata CRCs */
 
 #define	XFS_SB_VERSION2_OKREALFBITS	\
 	(XFS_SB_VERSION2_LAZYSBCOUNTBIT	| \
@@ -501,6 +502,12 @@ static inline int xfs_sb_version_hasprojid32bit(xfs_sb_t *sbp)
 {
 	return xfs_sb_version_hasmorebits(sbp) &&
 		(sbp->sb_features2 & XFS_SB_VERSION2_PROJID32BIT);
+}
+
+static inline int xfs_sb_version_hascrc(xfs_sb_t *sbp)
+{
+	return (xfs_sb_version_hasmorebits(sbp) &&
+		(sbp->sb_features2 & XFS_SB_VERSION2_CRCBIT));
 }
 
 /*

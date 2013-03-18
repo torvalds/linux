@@ -256,7 +256,7 @@ static void msic_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	chip->irq_eoi(data);
 }
 
-static int __devinit platform_msic_gpio_probe(struct platform_device *pdev)
+static int platform_msic_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct intel_msic_gpio_pdata *pdata = dev->platform_data;

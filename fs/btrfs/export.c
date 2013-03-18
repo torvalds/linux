@@ -22,10 +22,10 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 
 	if (parent && (len < BTRFS_FID_SIZE_CONNECTABLE)) {
 		*max_len = BTRFS_FID_SIZE_CONNECTABLE;
-		return 255;
+		return FILEID_INVALID;
 	} else if (len < BTRFS_FID_SIZE_NON_CONNECTABLE) {
 		*max_len = BTRFS_FID_SIZE_NON_CONNECTABLE;
-		return 255;
+		return FILEID_INVALID;
 	}
 
 	len  = BTRFS_FID_SIZE_NON_CONNECTABLE;

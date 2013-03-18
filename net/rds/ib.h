@@ -50,7 +50,7 @@ struct rds_ib_cache_head {
 };
 
 struct rds_ib_refill_cache {
-	struct rds_ib_cache_head *percpu;
+	struct rds_ib_cache_head __percpu *percpu;
 	struct list_head	 *xfer;
 	struct list_head	 *ready;
 };

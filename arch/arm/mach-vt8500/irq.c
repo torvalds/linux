@@ -36,7 +36,7 @@
 #include <linux/of_address.h>
 
 #include <asm/irq.h>
-
+#include <asm/exception.h>
 
 #define VT8500_ICPC_IRQ		0x20
 #define VT8500_ICPC_FIQ		0x24
@@ -66,30 +66,34 @@
 #define VT8500_EDGE		( VT8500_TRIGGER_RISING \
 				| VT8500_TRIGGER_FALLING)
 
-static int irq_cnt;
+/* vt8500 has 1 intc, wm8505 and wm8650 have 2 */
+#define VT8500_INTC_MAX		2
 
-struct vt8500_irq_priv {
-	void __iomem *base;
+struct vt8500_irq_data {
+	void __iomem 		*base;		/* IO Memory base address */
+	struct irq_domain	*domain;	/* Domain for this controller */
 };
+
+/* Global variable for accessing io-mem addresses */
+static struct vt8500_irq_data intc[VT8500_INTC_MAX];
+static u32 active_cnt = 0;
 
 static void vt8500_irq_mask(struct irq_data *d)
 {
-	struct vt8500_irq_priv *priv =
-			(struct vt8500_irq_priv *)(d->domain->host_data);
+	struct vt8500_irq_data *priv = d->domain->host_data;
 	void __iomem *base = priv->base;
-	u8 edge;
+	void __iomem *stat_reg = base + VT8500_ICIS + (d->hwirq < 32 ? 0 : 4);
+	u8 edge, dctr;
+	u32 status;
 
 	edge = readb(base + VT8500_ICDC + d->hwirq) & VT8500_EDGE;
 	if (edge) {
-		void __iomem *stat_reg = base + VT8500_ICIS
-						+ (d->hwirq < 32 ? 0 : 4);
-		unsigned status = readl(stat_reg);
+		status = readl(stat_reg);
 
 		status |= (1 << (d->hwirq & 0x1f));
 		writel(status, stat_reg);
 	} else {
-		u8 dctr = readb(base + VT8500_ICDC + d->hwirq);
-
+		dctr = readb(base + VT8500_ICDC + d->hwirq);
 		dctr &= ~VT8500_INT_ENABLE;
 		writeb(dctr, base + VT8500_ICDC + d->hwirq);
 	}
@@ -97,8 +101,7 @@ static void vt8500_irq_mask(struct irq_data *d)
 
 static void vt8500_irq_unmask(struct irq_data *d)
 {
-	struct vt8500_irq_priv *priv =
-			(struct vt8500_irq_priv *)(d->domain->host_data);
+	struct vt8500_irq_data *priv = d->domain->host_data;
 	void __iomem *base = priv->base;
 	u8 dctr;
 
@@ -109,8 +112,7 @@ static void vt8500_irq_unmask(struct irq_data *d)
 
 static int vt8500_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct vt8500_irq_priv *priv =
-			(struct vt8500_irq_priv *)(d->domain->host_data);
+	struct vt8500_irq_data *priv = d->domain->host_data;
 	void __iomem *base = priv->base;
 	u8 dctr;
 
@@ -148,17 +150,15 @@ static struct irq_chip vt8500_irq_chip = {
 
 static void __init vt8500_init_irq_hw(void __iomem *base)
 {
-	unsigned int i;
+	u32 i;
 
 	/* Enable rotating priority for IRQ */
 	writel(ICPC_ROTATE, base + VT8500_ICPC_IRQ);
 	writel(0x00, base + VT8500_ICPC_FIQ);
 
-	for (i = 0; i < 64; i++) {
-		/* Disable all interrupts and route them to IRQ */
-		writeb(VT8500_INT_DISABLE | ICDC_IRQ,
-						base + VT8500_ICDC + i);
-	}
+	/* Disable all interrupts and route them to IRQ */
+	for (i = 0; i < 64; i++)
+		writeb(VT8500_INT_DISABLE | ICDC_IRQ, base + VT8500_ICDC + i);
 }
 
 static int vt8500_irq_map(struct irq_domain *h, unsigned int virq,
@@ -175,33 +175,67 @@ static struct irq_domain_ops vt8500_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
+asmlinkage void __exception_irq_entry vt8500_handle_irq(struct pt_regs *regs)
+{
+	u32 stat, i;
+	int irqnr, virq;
+	void __iomem *base;
+
+	/* Loop through each active controller */
+	for (i=0; i<active_cnt; i++) {
+		base = intc[i].base;
+		irqnr = readl_relaxed(base) & 0x3F;
+		/*
+		  Highest Priority register default = 63, so check that this
+		  is a real interrupt by checking the status register
+		*/
+		if (irqnr == 63) {
+			stat = readl_relaxed(base + VT8500_ICIS + 4);
+			if (!(stat & BIT(31)))
+				continue;
+		}
+
+		virq = irq_find_mapping(intc[i].domain, irqnr);
+		handle_IRQ(virq, regs);
+	}
+}
+
 int __init vt8500_irq_init(struct device_node *node, struct device_node *parent)
 {
-	struct irq_domain *vt8500_irq_domain;
-	struct vt8500_irq_priv *priv;
 	int irq, i;
 	struct device_node *np = node;
 
-	priv = kzalloc(sizeof(struct vt8500_irq_priv), GFP_KERNEL);
-	priv->base = of_iomap(np, 0);
+	if (active_cnt == VT8500_INTC_MAX) {
+		pr_err("%s: Interrupt controllers > VT8500_INTC_MAX\n",
+								__func__);
+		goto out;
+	}
 
-	vt8500_irq_domain = irq_domain_add_legacy(node, 64, irq_cnt, 0,
-				&vt8500_irq_domain_ops, priv);
-	if (!vt8500_irq_domain)
-		pr_err("%s: Unable to add wmt irq domain!\n", __func__);
+	intc[active_cnt].base = of_iomap(np, 0);
+	intc[active_cnt].domain = irq_domain_add_linear(node, 64,
+			&vt8500_irq_domain_ops,	&intc[active_cnt]);
 
-	irq_set_default_host(vt8500_irq_domain);
+	if (!intc[active_cnt].base) {
+		pr_err("%s: Unable to map IO memory\n", __func__);
+		goto out;
+	}
 
-	vt8500_init_irq_hw(priv->base);
+	if (!intc[active_cnt].domain) {
+		pr_err("%s: Unable to add irq domain!\n", __func__);
+		goto out;
+	}
 
-	pr_info("Added IRQ Controller @ %x [virq_base = %d]\n",
-						(u32)(priv->base), irq_cnt);
+	vt8500_init_irq_hw(intc[active_cnt].base);
+
+	pr_info("vt8500-irq: Added interrupt controller\n");
+
+	active_cnt++;
 
 	/* check if this is a slaved controller */
 	if (of_irq_count(np) != 0) {
 		/* check that we have the correct number of interrupts */
 		if (of_irq_count(np) != 8) {
-			pr_err("%s: Incorrect IRQ map for slave controller\n",
+			pr_err("%s: Incorrect IRQ map for slaved controller\n",
 					__func__);
 			return -EINVAL;
 		}
@@ -213,9 +247,7 @@ int __init vt8500_irq_init(struct device_node *node, struct device_node *parent)
 
 		pr_info("vt8500-irq: Enabled slave->parent interrupts\n");
 	}
-
-	irq_cnt += 64;
-
+out:
 	return 0;
 }
 

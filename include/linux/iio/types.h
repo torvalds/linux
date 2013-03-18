@@ -28,6 +28,7 @@ enum iio_chan_type {
 	IIO_CAPACITANCE,
 	IIO_ALTVOLTAGE,
 	IIO_CCT,
+	IIO_PRESSURE,
 };
 
 enum iio_modifier {
@@ -58,5 +59,6 @@ enum iio_modifier {
 #define IIO_VAL_INT_PLUS_NANO 3
 #define IIO_VAL_INT_PLUS_MICRO_DB 4
 #define IIO_VAL_FRACTIONAL 10
+#define IIO_VAL_FRACTIONAL_LOG2 11
 
 #endif /* _IIO_TYPES_H_ */

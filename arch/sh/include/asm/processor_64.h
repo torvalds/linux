@@ -47,7 +47,7 @@ pc; })
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#define TASK_UNMAPPED_BASE	(TASK_SIZE / 3)
+#define TASK_UNMAPPED_BASE	PAGE_ALIGN(TASK_SIZE / 3)
 
 /*
  * Bit of SR register
@@ -159,11 +159,6 @@ struct mm_struct;
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-/*
- * create a kernel thread without removing it from tasklists
- */
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-
 
 /* Copy and release all segment info associated with a VM */
 #define copy_segments(p, mm)	do { } while (0)

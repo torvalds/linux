@@ -13,17 +13,16 @@
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/notifier.h>
-#include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include "offline_states.h"
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/uaccess.h>
 #include <asm/rtas.h>
-#include <asm/pSeries_reconfig.h>
 
 struct cc_workarea {
 	u32	drc_index;
@@ -255,9 +254,6 @@ static struct device_node *derive_parent(const char *path)
 
 int dlpar_attach_node(struct device_node *dn)
 {
-#ifdef CONFIG_PROC_DEVICETREE
-	struct proc_dir_entry *ent;
-#endif
 	int rc;
 
 	of_node_set_flag(dn, OF_DYNAMIC);
@@ -266,20 +262,12 @@ int dlpar_attach_node(struct device_node *dn)
 	if (!dn->parent)
 		return -ENOMEM;
 
-	rc = pSeries_reconfig_notify(PSERIES_RECONFIG_ADD, dn);
+	rc = of_attach_node(dn);
 	if (rc) {
 		printk(KERN_ERR "Failed to add device node %s\n",
 		       dn->full_name);
 		return rc;
 	}
-
-	of_attach_node(dn);
-
-#ifdef CONFIG_PROC_DEVICETREE
-	ent = proc_mkdir(strrchr(dn->full_name, '/') + 1, dn->parent->pde);
-	if (ent)
-		proc_device_tree_add_node(dn, ent);
-#endif
 
 	of_node_put(dn->parent);
 	return 0;
@@ -287,23 +275,13 @@ int dlpar_attach_node(struct device_node *dn)
 
 int dlpar_detach_node(struct device_node *dn)
 {
-#ifdef CONFIG_PROC_DEVICETREE
-	struct device_node *parent = dn->parent;
-	struct property *prop = dn->properties;
+	int rc;
 
-	while (prop) {
-		remove_proc_entry(prop->name, dn->pde);
-		prop = prop->next;
-	}
+	rc = of_detach_node(dn);
+	if (rc)
+		return rc;
 
-	if (dn->pde)
-		remove_proc_entry(dn->pde->name, parent->pde);
-#endif
-
-	pSeries_reconfig_notify(PSERIES_RECONFIG_REMOVE, dn);
-	of_detach_node(dn);
 	of_node_put(dn); /* Must decrement the refcount */
-
 	return 0;
 }
 

@@ -213,7 +213,7 @@ static int adp8860_led_setup(struct adp8860_led *led)
 	return ret;
 }
 
-static int __devinit adp8860_led_probe(struct i2c_client *client)
+static int adp8860_led_probe(struct i2c_client *client)
 {
 	struct adp8860_backlight_platform_data *pdata =
 		client->dev.platform_data;
@@ -295,7 +295,7 @@ static int __devinit adp8860_led_probe(struct i2c_client *client)
 	return ret;
 }
 
-static int __devexit adp8860_led_remove(struct i2c_client *client)
+static int adp8860_led_remove(struct i2c_client *client)
 {
 	struct adp8860_backlight_platform_data *pdata =
 		client->dev.platform_data;
@@ -310,12 +310,12 @@ static int __devexit adp8860_led_remove(struct i2c_client *client)
 	return 0;
 }
 #else
-static int __devinit adp8860_led_probe(struct i2c_client *client)
+static int adp8860_led_probe(struct i2c_client *client)
 {
 	return 0;
 }
 
-static int __devexit adp8860_led_remove(struct i2c_client *client)
+static int adp8860_led_remove(struct i2c_client *client)
 {
 	return 0;
 }
@@ -650,7 +650,7 @@ static const struct attribute_group adp8860_bl_attr_group = {
 	.attrs = adp8860_bl_attributes,
 };
 
-static int __devinit adp8860_probe(struct i2c_client *client,
+static int adp8860_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct backlight_device *bl;
@@ -755,7 +755,7 @@ out1:
 	return ret;
 }
 
-static int __devexit adp8860_remove(struct i2c_client *client)
+static int adp8860_remove(struct i2c_client *client)
 {
 	struct adp8860_bl *data = i2c_get_clientdata(client);
 
@@ -783,7 +783,7 @@ static int adp8860_i2c_suspend(struct i2c_client *client, pm_message_t message)
 
 static int adp8860_i2c_resume(struct i2c_client *client)
 {
-	adp8860_set_bits(client, ADP8860_MDCR, NSTBY);
+	adp8860_set_bits(client, ADP8860_MDCR, NSTBY | BLEN);
 
 	return 0;
 }
@@ -805,7 +805,7 @@ static struct i2c_driver adp8860_driver = {
 		.name = KBUILD_MODNAME,
 	},
 	.probe    = adp8860_probe,
-	.remove   = __devexit_p(adp8860_remove),
+	.remove   = adp8860_remove,
 	.suspend = adp8860_i2c_suspend,
 	.resume  = adp8860_i2c_resume,
 	.id_table = adp8860_id,

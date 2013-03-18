@@ -107,31 +107,15 @@ struct nvbios {
 	bool old_style_init;
 	uint16_t init_script_tbls_ptr;
 	uint16_t extra_init_script_tbl_ptr;
-	uint16_t macro_index_tbl_ptr;
-	uint16_t macro_tbl_ptr;
-	uint16_t condition_tbl_ptr;
-	uint16_t io_condition_tbl_ptr;
-	uint16_t io_flag_condition_tbl_ptr;
-	uint16_t init_function_tbl_ptr;
 
-	uint16_t pll_limit_tbl_ptr;
 	uint16_t ram_restrict_tbl_ptr;
 	uint8_t ram_restrict_group_count;
-
-	uint16_t some_script_ptr; /* BIT I + 14 */
-	uint16_t init96_tbl_ptr; /* BIT I + 16 */
 
 	struct dcb_table dcb;
 
 	struct {
 		int crtchead;
 	} state;
-
-	struct {
-		struct dcb_output *output;
-		int crtc;
-		uint16_t script_table_ptr;
-	} display;
 
 	struct {
 		uint16_t fptablepointer;	/* also used by tmds */
@@ -185,8 +169,6 @@ void nouveau_bios_takedown(struct drm_device *dev);
 int nouveau_run_vbios_init(struct drm_device *);
 struct dcb_connector_table_entry *
 nouveau_bios_connector_entry(struct drm_device *, int index);
-int nouveau_bios_run_display_table(struct drm_device *, u16 id, int clk,
-					  struct dcb_output *, int crtc);
 bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
 uint8_t *nouveau_bios_embedded_edid(struct drm_device *);
 int nouveau_bios_parse_lvds_table(struct drm_device *, int pxclk,
@@ -195,6 +177,5 @@ int run_tmds_table(struct drm_device *, struct dcb_output *,
 			  int head, int pxclk);
 int call_lvds_script(struct drm_device *, struct dcb_output *, int head,
 			    enum LVDS_script, int pxclk);
-bool bios_encoder_match(struct dcb_output *, u32 hash);
 
 #endif

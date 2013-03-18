@@ -1,6 +1,6 @@
 /*
  *  Kevin D. Kissell, kevink@mips and Carsten Langgaard, carstenl@mips.com
- *  Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ *  Copyright (C) 2000 MIPS Technologies, Inc.	All rights reserved.
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as

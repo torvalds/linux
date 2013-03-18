@@ -99,7 +99,7 @@ ENTRY(__hyp_stub_install_secondary)
 	 * immediately.
 	 */
 	compare_cpu_mode_with_primary	r4, r5, r6, r7
-	bxne	lr
+	movne	pc, lr
 
 	/*
 	 * Once we have given up on one CPU, we do not try to install the
@@ -111,7 +111,7 @@ ENTRY(__hyp_stub_install_secondary)
 	 */
 
 	cmp	r4, #HYP_MODE
-	bxne	lr			@ give up if the CPU is not in HYP mode
+	movne	pc, lr			@ give up if the CPU is not in HYP mode
 
 /*
  * Configure HSCTLR to set correct exception endianness/instruction set
@@ -120,7 +120,8 @@ ENTRY(__hyp_stub_install_secondary)
  * Eventually, CPU-specific code might be needed -- assume not for now
  *
  * This code relies on the "eret" instruction to synchronize the
- * various coprocessor accesses.
+ * various coprocessor accesses. This is done when we switch to SVC
+ * (see safe_svcmode_maskall).
  */
 	@ Now install the hypervisor stub:
 	adr	r7, __hyp_stub_vectors
@@ -155,14 +156,7 @@ THUMB(	orr	r7, #(1 << 30)	)	@ HSCTLR.TE
 1:
 #endif
 
-	bic	r7, r4, #MODE_MASK
-	orr	r7, r7, #SVC_MODE
-THUMB(	orr	r7, r7, #PSR_T_BIT	)
-	msr	spsr_cxsf, r7		@ This is SPSR_hyp.
-
-	__MSR_ELR_HYP(14)		@ msr elr_hyp, lr
-	__ERET				@ return, switching to SVC mode
-					@ The boot CPU mode is left in r4.
+	bx	lr			@ The boot CPU mode is left in r4.
 ENDPROC(__hyp_stub_install_secondary)
 
 __hyp_stub_do_trap:
@@ -200,7 +194,7 @@ ENDPROC(__hyp_get_vectors)
 	@ fall through
 ENTRY(__hyp_set_vectors)
 	__HVC(0)
-	bx	lr
+	mov	pc, lr
 ENDPROC(__hyp_set_vectors)
 
 #ifndef ZIMAGE

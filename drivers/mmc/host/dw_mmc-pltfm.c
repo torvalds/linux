@@ -10,6 +10,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -24,7 +25,7 @@
 #include "dw_mmc.h"
 
 int dw_mci_pltfm_register(struct platform_device *pdev,
-				struct dw_mci_drv_data *drv_data)
+				const struct dw_mci_drv_data *drv_data)
 {
 	struct dw_mci *host;
 	struct resource	*regs;
@@ -46,12 +47,12 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	host->dev = &pdev->dev;
 	host->irq_flags = 0;
 	host->pdata = pdev->dev.platform_data;
-	host->regs = devm_request_and_ioremap(&pdev->dev, regs);
-	if (!host->regs)
-		return -ENOMEM;
+	host->regs = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(host->regs))
+		return PTR_ERR(host->regs);
 
-	if (host->drv_data->init) {
-		ret = host->drv_data->init(host);
+	if (drv_data && drv_data->init) {
+		ret = drv_data->init(host);
 		if (ret)
 			return ret;
 	}
@@ -62,12 +63,12 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(dw_mci_pltfm_register);
 
-static int __devinit dw_mci_pltfm_probe(struct platform_device *pdev)
+static int dw_mci_pltfm_probe(struct platform_device *pdev)
 {
 	return dw_mci_pltfm_register(pdev, NULL);
 }
 
-static int __devexit dw_mci_pltfm_remove(struct platform_device *pdev)
+static int dw_mci_pltfm_remove(struct platform_device *pdev)
 {
 	struct dw_mci *host = platform_get_drvdata(pdev);
 
@@ -119,7 +120,8 @@ static const struct of_device_id dw_mci_pltfm_match[] = {
 MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
 
 static struct platform_driver dw_mci_pltfm_driver = {
-	.remove		= __exit_p(dw_mci_pltfm_remove),
+	.probe		= dw_mci_pltfm_probe,
+	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dw_mmc",
 		.of_match_table	= of_match_ptr(dw_mci_pltfm_match),
@@ -127,18 +129,7 @@ static struct platform_driver dw_mci_pltfm_driver = {
 	},
 };
 
-static int __init dw_mci_init(void)
-{
-	return platform_driver_probe(&dw_mci_pltfm_driver, dw_mci_pltfm_probe);
-}
-
-static void __exit dw_mci_exit(void)
-{
-	platform_driver_unregister(&dw_mci_pltfm_driver);
-}
-
-module_init(dw_mci_init);
-module_exit(dw_mci_exit);
+module_platform_driver(dw_mci_pltfm_driver);
 
 MODULE_DESCRIPTION("DW Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");

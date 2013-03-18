@@ -55,7 +55,6 @@ struct dm_verity {
 	unsigned shash_descsize;/* the size of temporary space for crypto */
 	int hash_failed;	/* set to 1 if hash of any block failed */
 
-	mempool_t *io_mempool;	/* mempool of struct dm_verity_io */
 	mempool_t *vec_mempool;	/* mempool of bio vector */
 
 	struct workqueue_struct *verify_wq;
@@ -66,7 +65,6 @@ struct dm_verity {
 
 struct dm_verity_io {
 	struct dm_verity *v;
-	struct bio *bio;
 
 	/* original values of bio->bi_end_io and bio->bi_private */
 	bio_end_io_t *orig_bi_end_io;
@@ -389,16 +387,14 @@ test_block_hash:
  */
 static void verity_finish_io(struct dm_verity_io *io, int error)
 {
-	struct bio *bio = io->bio;
 	struct dm_verity *v = io->v;
+	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_bio_data_size);
 
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_private = io->orig_bi_private;
 
 	if (io->io_vec != io->io_vec_inline)
 		mempool_free(io->io_vec, v->vec_mempool);
-
-	mempool_free(io, v->io_mempool);
 
 	bio_endio(bio, error);
 }
@@ -462,8 +458,7 @@ no_prefetch_cluster:
  * Bio map function. It allocates dm_verity_io structure and bio vector and
  * fills them. Then it issues prefetches and the I/O.
  */
-static int verity_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int verity_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_verity *v = ti->private;
 	struct dm_verity_io *io;
@@ -486,9 +481,8 @@ static int verity_map(struct dm_target *ti, struct bio *bio,
 	if (bio_data_dir(bio) == WRITE)
 		return -EIO;
 
-	io = mempool_alloc(v->io_mempool, GFP_NOIO);
+	io = dm_per_bio_data(bio, ti->per_bio_data_size);
 	io->v = v;
-	io->bio = bio;
 	io->orig_bi_end_io = bio->bi_end_io;
 	io->orig_bi_private = bio->bi_private;
 	io->block = bio->bi_sector >> (v->data_dev_block_bits - SECTOR_SHIFT);
@@ -514,8 +508,8 @@ static int verity_map(struct dm_target *ti, struct bio *bio,
 /*
  * Status: V (valid) or C (corruption found)
  */
-static int verity_status(struct dm_target *ti, status_type_t type,
-			 unsigned status_flags, char *result, unsigned maxlen)
+static void verity_status(struct dm_target *ti, status_type_t type,
+			  unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct dm_verity *v = ti->private;
 	unsigned sz = 0;
@@ -546,8 +540,6 @@ static int verity_status(struct dm_target *ti, status_type_t type,
 				DMEMIT("%02x", v->salt[x]);
 		break;
 	}
-
-	return 0;
 }
 
 static int verity_ioctl(struct dm_target *ti, unsigned cmd,
@@ -609,9 +601,6 @@ static void verity_dtr(struct dm_target *ti)
 
 	if (v->vec_mempool)
 		mempool_destroy(v->vec_mempool);
-
-	if (v->io_mempool)
-		mempool_destroy(v->io_mempool);
 
 	if (v->bufio)
 		dm_bufio_client_destroy(v->bufio);
@@ -841,13 +830,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 
-	v->io_mempool = mempool_create_kmalloc_pool(DM_VERITY_MEMPOOL_SIZE,
-	  sizeof(struct dm_verity_io) + v->shash_descsize + v->digest_size * 2);
-	if (!v->io_mempool) {
-		ti->error = "Cannot allocate io mempool";
-		r = -ENOMEM;
-		goto bad;
-	}
+	ti->per_bio_data_size = roundup(sizeof(struct dm_verity_io) + v->shash_descsize + v->digest_size * 2, __alignof__(struct dm_verity_io));
 
 	v->vec_mempool = mempool_create_kmalloc_pool(DM_VERITY_MEMPOOL_SIZE,
 					BIO_MAX_PAGES * sizeof(struct bio_vec));
@@ -875,7 +858,7 @@ bad:
 
 static struct target_type verity_target = {
 	.name		= "verity",
-	.version	= {1, 0, 0},
+	.version	= {1, 1, 1},
 	.module		= THIS_MODULE,
 	.ctr		= verity_ctr,
 	.dtr		= verity_dtr,

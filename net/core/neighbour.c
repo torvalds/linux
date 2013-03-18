@@ -290,15 +290,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device 
 			goto out_entries;
 	}
 
-	if (tbl->entry_size)
-		n = kzalloc(tbl->entry_size, GFP_ATOMIC);
-	else {
-		int sz = sizeof(*n) + tbl->key_len;
-
-		sz = ALIGN(sz, NEIGH_PRIV_ALIGN);
-		sz += dev->neigh_priv_len;
-		n = kzalloc(sz, GFP_ATOMIC);
-	}
+	n = kzalloc(tbl->entry_size + dev->neigh_priv_len, GFP_ATOMIC);
 	if (!n)
 		goto out_entries;
 
@@ -778,6 +770,9 @@ static void neigh_periodic_work(struct work_struct *work)
 	nht = rcu_dereference_protected(tbl->nht,
 					lockdep_is_held(&tbl->lock));
 
+	if (atomic_read(&tbl->entries) < tbl->gc_thresh1)
+		goto out;
+
 	/*
 	 *	periodically recompute ReachableTime from random function
 	 */
@@ -832,6 +827,7 @@ next_elt:
 		nht = rcu_dereference_protected(tbl->nht,
 						lockdep_is_held(&tbl->lock));
 	}
+out:
 	/* Cycle through all hash buckets every base_reachable_time/2 ticks.
 	 * ARP entry timeouts range from 1/2 base_reachable_time to 3/2
 	 * base_reachable_time.
@@ -1542,6 +1538,12 @@ static void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	if (!tbl->nht || !tbl->phash_buckets)
 		panic("cannot allocate neighbour cache hashes");
 
+	if (!tbl->entry_size)
+		tbl->entry_size = ALIGN(offsetof(struct neighbour, primary_key) +
+					tbl->key_len, NEIGH_PRIV_ALIGN);
+	else
+		WARN_ON(tbl->entry_size % NEIGH_PRIV_ALIGN);
+
 	rwlock_init(&tbl->lock);
 	INIT_DEFERRABLE_WORK(&tbl->gc_work, neigh_periodic_work);
 	schedule_delayed_work(&tbl->gc_work, tbl->parms.reachable_time);
@@ -1787,8 +1789,7 @@ static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 	    nla_put_u32(skb, NDTPA_QUEUE_LENBYTES, parms->queue_len_bytes) ||
 	    /* approximative value for deprecated QUEUE_LEN (in packets) */
 	    nla_put_u32(skb, NDTPA_QUEUE_LEN,
-			DIV_ROUND_UP(parms->queue_len_bytes,
-				     SKB_TRUESIZE(ETH_FRAME_LEN))) ||
+			parms->queue_len_bytes / SKB_TRUESIZE(ETH_FRAME_LEN)) ||
 	    nla_put_u32(skb, NDTPA_PROXY_QLEN, parms->proxy_qlen) ||
 	    nla_put_u32(skb, NDTPA_APP_PROBES, parms->app_probes) ||
 	    nla_put_u32(skb, NDTPA_UCAST_PROBES, parms->ucast_probes) ||
@@ -2770,6 +2771,8 @@ EXPORT_SYMBOL(neigh_app_ns);
 #endif /* CONFIG_ARPD */
 
 #ifdef CONFIG_SYSCTL
+static int zero;
+static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
 
 static int proc_unres_qlen(ctl_table *ctl, int write, void __user *buffer,
 			   size_t *lenp, loff_t *ppos)
@@ -2777,9 +2780,13 @@ static int proc_unres_qlen(ctl_table *ctl, int write, void __user *buffer,
 	int size, ret;
 	ctl_table tmp = *ctl;
 
+	tmp.extra1 = &zero;
+	tmp.extra2 = &unres_qlen_max;
 	tmp.data = &size;
-	size = DIV_ROUND_UP(*(int *)ctl->data, SKB_TRUESIZE(ETH_FRAME_LEN));
-	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+
+	size = *(int *)ctl->data / SKB_TRUESIZE(ETH_FRAME_LEN);
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+
 	if (write && !ret)
 		*(int *)ctl->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
 	return ret;
@@ -2865,7 +2872,8 @@ static struct neigh_sysctl_table {
 			.procname	= "unres_qlen_bytes",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1		= &zero,
+			.proc_handler   = proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_PROXY_QLEN] = {
 			.procname	= "proxy_qlen",
@@ -2986,6 +2994,10 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler = handler;
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].extra1 = dev;
 	}
+
+	/* Don't export sysctls to unprivileged users */
+	if (neigh_parms_net(p)->user_ns != &init_user_ns)
+		t->neigh_vars[0].procname = NULL;
 
 	snprintf(neigh_path, sizeof(neigh_path), "net/%s/neigh/%s",
 		p_name, dev_name_source);

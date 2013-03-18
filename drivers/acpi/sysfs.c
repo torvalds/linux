@@ -476,7 +476,7 @@ static void fixed_event_count(u32 event_number)
 	return;
 }
 
-static void acpi_gbl_event_handler(u32 event_type, acpi_handle device,
+static void acpi_global_event_handler(u32 event_type, acpi_handle device,
 	u32 event_number, void *context)
 {
 	if (event_type == ACPI_EVENT_TYPE_GPE)
@@ -498,7 +498,7 @@ static int get_status(u32 index, acpi_event_status *status,
 		result = acpi_get_gpe_device(index, handle);
 		if (result) {
 			ACPI_EXCEPTION((AE_INFO, AE_NOT_FOUND,
-					"Invalid GPE 0x%x\n", index));
+					"Invalid GPE 0x%x", index));
 			goto end;
 		}
 		result = acpi_get_gpe_status(*handle, index, status);
@@ -638,7 +638,7 @@ void acpi_irq_stats_init(void)
 	if (all_counters == NULL)
 		goto fail;
 
-	status = acpi_install_global_event_handler(acpi_gbl_event_handler, NULL);
+	status = acpi_install_global_event_handler(acpi_global_event_handler, NULL);
 	if (ACPI_FAILURE(status))
 		goto fail;
 

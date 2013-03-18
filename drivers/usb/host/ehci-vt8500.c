@@ -16,24 +16,9 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-
-static int ehci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int rc = 0;
-
-	if (!udev->parent) /* udev is root hub itself, impossible */
-		rc = -1;
-	/* we only support lpm device connected to root hub yet */
-	if (ehci->has_lpm && !udev->parent->parent) {
-		rc = ehci_lpm_set_da(ehci, udev->devnum, udev->portnum);
-		if (!rc)
-			rc = ehci_lpm_check(ehci, udev->portnum);
-	}
-	return rc;
-}
 
 static const struct hc_driver vt8500_ehci_hc_driver = {
 	.description		= hcd_name,
@@ -77,11 +62,6 @@ static const struct hc_driver vt8500_ehci_hc_driver = {
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
 
-	/*
-	 * call back when device connected and addressed
-	 */
-	.update_device =	ehci_update_device,
-
 	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
@@ -117,10 +97,9 @@ static int vt8500_ehci_drv_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
-	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hcd->regs) {
-		pr_debug("ioremap failed");
-		ret = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		ret = PTR_ERR(hcd->regs);
 		goto err1;
 	}
 

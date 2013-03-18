@@ -412,7 +412,6 @@ static const struct of_device_id mic_of_match[] __initconst = {
 void __init lpc32xx_init_irq(void)
 {
 	unsigned int i;
-	int irq_base;
 
 	/* Setup MIC */
 	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_MIC_BASE));
@@ -443,15 +442,6 @@ void __init lpc32xx_init_irq(void)
 	lpc32xx_set_default_mappings(SIC1_APR_DEFAULT, SIC1_ATR_DEFAULT, 32);
 	lpc32xx_set_default_mappings(SIC2_APR_DEFAULT, SIC2_ATR_DEFAULT, 64);
 
-	/* mask all interrupts except SUBIRQ */
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_MIC_BASE));
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC1_BASE));
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC2_BASE));
-
-	/* MIC SUBIRQx interrupts will route handling to the chain handlers */
-	irq_set_chained_handler(IRQ_LPC32XX_SUB1IRQ, lpc32xx_sic1_handler);
-	irq_set_chained_handler(IRQ_LPC32XX_SUB2IRQ, lpc32xx_sic2_handler);
-
 	/* Initially disable all wake events */
 	__raw_writel(0, LPC32XX_CLKPWR_P01_ER);
 	__raw_writel(0, LPC32XX_CLKPWR_INT_ER);
@@ -475,16 +465,13 @@ void __init lpc32xx_init_irq(void)
 
 	of_irq_init(mic_of_match);
 
-	irq_base = irq_alloc_descs(-1, 0, NR_IRQS, 0);
-	if (irq_base < 0) {
-		pr_warn("Cannot allocate irq_descs, assuming pre-allocated\n");
-		irq_base = 0;
-	}
-
 	lpc32xx_mic_domain = irq_domain_add_legacy(lpc32xx_mic_np, NR_IRQS,
-						   irq_base, 0,
-						   &irq_domain_simple_ops,
+						   0, 0, &irq_domain_simple_ops,
 						   NULL);
 	if (!lpc32xx_mic_domain)
 		panic("Unable to add MIC irq domain\n");
+
+	/* MIC SUBIRQx interrupts will route handling to the chain handlers */
+	irq_set_chained_handler(IRQ_LPC32XX_SUB1IRQ, lpc32xx_sic1_handler);
+	irq_set_chained_handler(IRQ_LPC32XX_SUB2IRQ, lpc32xx_sic2_handler);
 }

@@ -32,7 +32,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/saif.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/mxs.h>
@@ -229,6 +228,7 @@ int mxs_saif_put_mclk(unsigned int saif_id)
 	saif->mclk_in_use = 0;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mxs_saif_put_mclk);
 
 /*
  * Get MCLK and set clock rate, then enable it
@@ -282,6 +282,7 @@ int mxs_saif_get_mclk(unsigned int saif_id, unsigned int mclk,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mxs_saif_get_mclk);
 
 /*
  * SAIF DAI format configuration.
@@ -523,15 +524,23 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/*
-			 * write a data to saif data register to trigger
-			 * the transfer
+			 * write data to saif data register to trigger
+			 * the transfer.
+			 * For 24-bit format the 32-bit FIFO register stores
+			 * only one channel, so we need to write twice.
+			 * This is also safe for the other non 24-bit formats.
 			 */
+			__raw_writel(0, saif->base + SAIF_DATA);
 			__raw_writel(0, saif->base + SAIF_DATA);
 		} else {
 			/*
-			 * read a data from saif data register to trigger
-			 * the receive
+			 * read data from saif data register to trigger
+			 * the receive.
+			 * For 24-bit format the 32-bit FIFO register stores
+			 * only one channel, so we need to read twice.
+			 * This is also safe for the other non 24-bit formats.
 			 */
+			__raw_readl(saif->base + SAIF_DATA);
 			__raw_readl(saif->base + SAIF_DATA);
 		}
 
@@ -647,51 +656,45 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mxs_saif_probe(struct platform_device *pdev)
+static int mxs_saif_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *iores, *dmares;
 	struct mxs_saif *saif;
-	struct mxs_saif_platform_data *pdata;
 	struct pinctrl *pinctrl;
 	int ret = 0;
+	struct device_node *master;
 
-
-	if (!np && pdev->id >= ARRAY_SIZE(mxs_saif))
+	if (!np)
 		return -EINVAL;
 
 	saif = devm_kzalloc(&pdev->dev, sizeof(*saif), GFP_KERNEL);
 	if (!saif)
 		return -ENOMEM;
 
-	if (np) {
-		struct device_node *master;
-		saif->id = of_alias_get_id(np, "saif");
-		if (saif->id < 0)
-			return saif->id;
-		/*
-		 * If there is no "fsl,saif-master" phandle, it's a saif
-		 * master.  Otherwise, it's a slave and its phandle points
-		 * to the master.
-		 */
-		master = of_parse_phandle(np, "fsl,saif-master", 0);
-		if (!master) {
-			saif->master_id = saif->id;
-		} else {
-			saif->master_id = of_alias_get_id(master, "saif");
-			if (saif->master_id < 0)
-				return saif->master_id;
-		}
+	ret = of_alias_get_id(np, "saif");
+	if (ret < 0)
+		return ret;
+	else
+		saif->id = ret;
+
+	/*
+	 * If there is no "fsl,saif-master" phandle, it's a saif
+	 * master.  Otherwise, it's a slave and its phandle points
+	 * to the master.
+	 */
+	master = of_parse_phandle(np, "fsl,saif-master", 0);
+	if (!master) {
+		saif->master_id = saif->id;
 	} else {
-		saif->id = pdev->id;
-		pdata = pdev->dev.platform_data;
-		if (pdata && !pdata->master_mode)
-			saif->master_id = pdata->master_id;
+		ret = of_alias_get_id(master, "saif");
+		if (ret < 0)
+			return ret;
 		else
-			saif->master_id = saif->id;
+			saif->master_id = ret;
 	}
 
-	if (saif->master_id < 0 || saif->master_id >= ARRAY_SIZE(mxs_saif)) {
+	if (saif->master_id >= ARRAY_SIZE(mxs_saif)) {
 		dev_err(&pdev->dev, "get wrong master id\n");
 		return -EINVAL;
 	}
@@ -714,11 +717,9 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	saif->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!saif->base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENODEV;
-	}
+	saif->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(saif->base))
+		return PTR_ERR(saif->base);
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!dmares) {
@@ -782,7 +783,7 @@ failed_pdev_alloc:
 	return ret;
 }
 
-static int __devexit mxs_saif_remove(struct platform_device *pdev)
+static int mxs_saif_remove(struct platform_device *pdev)
 {
 	mxs_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
@@ -798,7 +799,7 @@ MODULE_DEVICE_TABLE(of, mxs_saif_dt_ids);
 
 static struct platform_driver mxs_saif_driver = {
 	.probe = mxs_saif_probe,
-	.remove = __devexit_p(mxs_saif_remove),
+	.remove = mxs_saif_remove,
 
 	.driver = {
 		.name = "mxs-saif",
@@ -812,3 +813,4 @@ module_platform_driver(mxs_saif_driver);
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXS ASoC SAIF driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mxs-saif");

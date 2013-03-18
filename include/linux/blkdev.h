@@ -19,6 +19,7 @@
 #include <linux/gfp.h>
 #include <linux/bsg.h>
 #include <linux/smp.h>
+#include <linux/rcupdate.h>
 
 #include <asm/scatterlist.h>
 
@@ -378,6 +379,12 @@ struct request_queue {
 
 	unsigned int		nr_sorted;
 	unsigned int		in_flight[2];
+	/*
+	 * Number of active block driver functions for which blk_drain_queue()
+	 * must wait. Must be incremented around functions that unlock the
+	 * queue_lock internally, e.g. scsi_request_fn().
+	 */
+	unsigned int		request_fn_active;
 
 	unsigned int		rq_timeout;
 	struct timer_list	timeout;
@@ -431,13 +438,14 @@ struct request_queue {
 	/* Throttle data */
 	struct throtl_data *td;
 #endif
+	struct rcu_head		rcu_head;
 };
 
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
 #define QUEUE_FLAG_STOPPED	2	/* queue is stopped */
 #define	QUEUE_FLAG_SYNCFULL	3	/* read queue has been filled */
 #define QUEUE_FLAG_ASYNCFULL	4	/* write queue has been filled */
-#define QUEUE_FLAG_DEAD		5	/* queue being torn down */
+#define QUEUE_FLAG_DYING	5	/* queue being torn down */
 #define QUEUE_FLAG_BYPASS	6	/* act as dumb FIFO queue */
 #define QUEUE_FLAG_BIDI		7	/* queue supports bidi requests */
 #define QUEUE_FLAG_NOMERGES     8	/* disable merge attempts */
@@ -452,6 +460,7 @@ struct request_queue {
 #define QUEUE_FLAG_ADD_RANDOM  16	/* Contributes to random pool */
 #define QUEUE_FLAG_SECDISCARD  17	/* supports SECDISCARD */
 #define QUEUE_FLAG_SAME_FORCE  18	/* force complete on same CPU */
+#define QUEUE_FLAG_DEAD        19	/* queue tear-down finished */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
@@ -521,6 +530,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
+#define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
 #define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
 #define blk_queue_bypass(q)	test_bit(QUEUE_FLAG_BYPASS, &(q)->queue_flags)
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
@@ -966,7 +976,6 @@ struct blk_plug {
 	unsigned long magic; /* detect uninitialized use-cases */
 	struct list_head list; /* requests */
 	struct list_head cb_list; /* md requires an unplug callback */
-	unsigned int should_sort; /* list to be sorted before flushing? */
 };
 #define BLK_MAX_REQUEST_COUNT 16
 
@@ -1180,13 +1189,25 @@ static inline int queue_discard_alignment(struct request_queue *q)
 
 static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector_t sector)
 {
-	unsigned int alignment = (sector << 9) & (lim->discard_granularity - 1);
+	unsigned int alignment, granularity, offset;
 
 	if (!lim->max_discard_sectors)
 		return 0;
 
-	return (lim->discard_granularity + lim->discard_alignment - alignment)
-		& (lim->discard_granularity - 1);
+	/* Why are these in bytes, not sectors? */
+	alignment = lim->discard_alignment >> 9;
+	granularity = lim->discard_granularity >> 9;
+	if (!granularity)
+		return 0;
+
+	/* Offset of the partition start in 'granularity' sectors */
+	offset = sector_div(sector, granularity);
+
+	/* And why do we do this modulus *again* in blkdev_issue_discard()? */
+	offset = (granularity + alignment - offset) % granularity;
+
+	/* Turn it back into bytes, gaah */
+	return offset << 9;
 }
 
 static inline int bdev_discard_alignment(struct block_device *bdev)

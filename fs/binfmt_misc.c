@@ -104,7 +104,7 @@ static Node *check_file(struct linux_binprm *bprm)
 /*
  * the loader itself
  */
-static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+static int load_misc_binary(struct linux_binprm *bprm)
 {
 	Node *fmt;
 	struct file * interp_file = NULL;
@@ -115,10 +115,6 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	retval = -ENOEXEC;
 	if (!enabled)
-		goto _ret;
-
-	retval = -ENOEXEC;
-	if (bprm->recursion_depth > BINPRM_MAX_RECURSION)
 		goto _ret;
 
 	/* to keep locking time low, we copy the interpreter string */
@@ -176,7 +172,10 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 		goto _error;
 	bprm->argc ++;
 
-	bprm->interp = iname;	/* for binfmt_script */
+	/* Update interp in case binfmt_script needs it. */
+	retval = bprm_change_interp(iname, bprm);
+	if (retval < 0)
+		goto _error;
 
 	interp_file = open_exec (iname);
 	retval = PTR_ERR (interp_file);
@@ -197,9 +196,7 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	if (retval < 0)
 		goto _error;
 
-	bprm->recursion_depth++;
-
-	retval = search_binary_handler (bprm, regs);
+	retval = search_binary_handler(bprm);
 	if (retval < 0)
 		goto _error;
 
@@ -534,7 +531,7 @@ static void kill_node(Node *e)
 static ssize_t
 bm_entry_read(struct file * file, char __user * buf, size_t nbytes, loff_t *ppos)
 {
-	Node *e = file->f_path.dentry->d_inode->i_private;
+	Node *e = file_inode(file)->i_private;
 	ssize_t res;
 	char *page;
 
@@ -553,7 +550,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
 	struct dentry *root;
-	Node *e = file->f_path.dentry->d_inode->i_private;
+	Node *e = file_inode(file)->i_private;
 	int res = parse_command(buffer, count);
 
 	switch (res) {
@@ -723,6 +720,7 @@ static struct file_system_type bm_fs_type = {
 	.mount		= bm_mount,
 	.kill_sb	= kill_litter_super,
 };
+MODULE_ALIAS_FS("binfmt_misc");
 
 static int __init init_misc_binfmt(void)
 {

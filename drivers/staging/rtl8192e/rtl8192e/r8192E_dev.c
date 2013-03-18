@@ -1183,6 +1183,8 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 						pTxFwInfo->TxRate,
 						cb_desc);
 
+	if (pci_dma_mapping_error(priv->pdev, mapping))
+		RT_TRACE(COMP_ERR, "DMA Mapping error\n");;
 	if (cb_desc->bAMPDUEnable) {
 		pTxFwInfo->AllowAggregation = 1;
 		pTxFwInfo->RxMF = cb_desc->ampdu_factor;
@@ -1280,6 +1282,8 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
 			 PCI_DMA_TODEVICE);
 
+	if (pci_dma_mapping_error(priv->pdev, mapping))
+		RT_TRACE(COMP_ERR, "DMA Mapping error\n");;
 	memset(entry, 0, 12);
 	entry->LINIP = cb_desc->bLastIniPkt;
 	entry->FirstSeg = 1;

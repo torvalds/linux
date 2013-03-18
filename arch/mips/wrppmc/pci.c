@@ -38,10 +38,8 @@ static struct pci_controller hose_0 = {
 
 static int __init gt64120_pci_init(void)
 {
-	u32 tmp;
-
-	tmp = GT_READ(GT_PCI0_CMD_OFS);		/* Huh??? -- Ralf  */
-	tmp = GT_READ(GT_PCI0_BARE_OFS);
+	(void) GT_READ(GT_PCI0_CMD_OFS);	/* Huh??? -- Ralf  */
+	(void) GT_READ(GT_PCI0_BARE_OFS);
 
 	/* reset the whole PCI I/O space range */
 	ioport_resource.start = GT_PCI_IO_BASE;

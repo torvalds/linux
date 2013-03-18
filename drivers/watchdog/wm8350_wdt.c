@@ -140,7 +140,7 @@ static struct watchdog_device wm8350_wdt = {
 	.max_timeout = 4,
 };
 
-static int __devinit wm8350_wdt_probe(struct platform_device *pdev)
+static int wm8350_wdt_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 
@@ -158,7 +158,7 @@ static int __devinit wm8350_wdt_probe(struct platform_device *pdev)
 	return watchdog_register_device(&wm8350_wdt);
 }
 
-static int __devexit wm8350_wdt_remove(struct platform_device *pdev)
+static int wm8350_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&wm8350_wdt);
 	return 0;
@@ -166,7 +166,7 @@ static int __devexit wm8350_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8350_wdt_driver = {
 	.probe = wm8350_wdt_probe,
-	.remove = __devexit_p(wm8350_wdt_remove),
+	.remove = wm8350_wdt_remove,
 	.driver = {
 		.name = "wm8350-wdt",
 	},

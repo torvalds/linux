@@ -29,39 +29,20 @@
 #ifndef __TTYPE_H__
 #define __TTYPE_H__
 
+#include <linux/types.h>
+
 /******* Common definitions and typedefs ***********************************/
-
-typedef int             BOOL;
-
-#if !defined(TRUE)
-#define TRUE            1
-#endif
-#if !defined(FALSE)
-#define FALSE           0
-#endif
 
 /****** Simple typedefs  ***************************************************/
 
-typedef unsigned char   BYTE;           //  8-bit
-typedef unsigned short  WORD;           // 16-bit
-typedef unsigned long   DWORD;          // 32-bit
-
-// QWORD is for those situation that we want
-// an 8-byte-aligned 8 byte long structure
-// which is NOT really a floating point number.
-typedef union tagUQuadWord {
-    struct {
-        DWORD   dwLowDword;
-        DWORD   dwHighDword;
-    } u;
-    double      DoNotUseThisField;
-} UQuadWord;
-typedef UQuadWord       QWORD;          // 64-bit
+typedef u8 BYTE;
+typedef u16 WORD;
+typedef u32 DWORD;
 
 /****** Common pointer types ***********************************************/
 
-typedef unsigned long   ULONG_PTR;      // 32-bit
-typedef unsigned long   DWORD_PTR;      // 32-bit
+typedef u32 ULONG_PTR;
+typedef u32 DWORD_PTR;
 
 // boolean pointer
 
@@ -70,7 +51,5 @@ typedef BYTE *           PBYTE;
 typedef WORD *           PWORD;
 
 typedef DWORD *          PDWORD;
-
-typedef QWORD *          PQWORD;
 
 #endif /* __TTYPE_H__ */

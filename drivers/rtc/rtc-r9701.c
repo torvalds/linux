@@ -119,7 +119,7 @@ static const struct rtc_class_ops r9701_rtc_ops = {
 	.set_time	= r9701_set_datetime,
 };
 
-static int __devinit r9701_probe(struct spi_device *spi)
+static int r9701_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
 	struct rtc_time dt;
@@ -164,7 +164,7 @@ static int __devinit r9701_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit r9701_remove(struct spi_device *spi)
+static int r9701_remove(struct spi_device *spi)
 {
 	struct rtc_device *rtc = dev_get_drvdata(&spi->dev);
 
@@ -178,7 +178,7 @@ static struct spi_driver r9701_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= r9701_probe,
-	.remove = __devexit_p(r9701_remove),
+	.remove = r9701_remove,
 };
 
 module_spi_driver(r9701_driver);

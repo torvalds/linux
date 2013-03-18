@@ -601,7 +601,7 @@ static struct bin_attribute nvram = {
  * Interface to SPI stack
  */
 
-static int __devinit ds1305_probe(struct spi_device *spi)
+static int ds1305_probe(struct spi_device *spi)
 {
 	struct ds1305			*ds1305;
 	int				status;
@@ -635,9 +635,7 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 		goto fail0;
 	}
 
-	dev_dbg(&spi->dev, "ctrl %s: %02x %02x %02x\n",
-			"read", ds1305->ctrl[0],
-			ds1305->ctrl[1], ds1305->ctrl[2]);
+	dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "read", ds1305->ctrl);
 
 	/* Sanity check register values ... partially compensating for the
 	 * fact that SPI has no device handshake.  A pullup on MISO would
@@ -723,9 +721,7 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 			goto fail0;
 		}
 
-		dev_dbg(&spi->dev, "ctrl %s: %02x %02x %02x\n",
-				"write", ds1305->ctrl[0],
-				ds1305->ctrl[1], ds1305->ctrl[2]);
+		dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "write", ds1305->ctrl);
 	}
 
 	/* see if non-Linux software set up AM/PM mode */
@@ -787,7 +783,7 @@ fail0:
 	return status;
 }
 
-static int __devexit ds1305_remove(struct spi_device *spi)
+static int ds1305_remove(struct spi_device *spi)
 {
 	struct ds1305 *ds1305 = spi_get_drvdata(spi);
 
@@ -810,7 +806,7 @@ static struct spi_driver ds1305_driver = {
 	.driver.name	= "rtc-ds1305",
 	.driver.owner	= THIS_MODULE,
 	.probe		= ds1305_probe,
-	.remove		= __devexit_p(ds1305_remove),
+	.remove		= ds1305_remove,
 	/* REVISIT add suspend/resume */
 };
 

@@ -119,7 +119,16 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 	 * channel we disconnected above and reconnect below.
 	 */
 	if (chan && !wdev->wext.connect.ssid_len) {
-		err = cfg80211_set_monitor_channel(rdev, freq, NL80211_CHAN_NO_HT);
+		struct cfg80211_chan_def chandef = {
+			.width = NL80211_CHAN_WIDTH_20_NOHT,
+			.center_freq1 = freq,
+		};
+
+		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
+		if (chandef.chan)
+			err = cfg80211_set_monitor_channel(rdev, &chandef);
+		else
+			err = -EINVAL;
 		goto out;
 	}
 
@@ -233,13 +242,17 @@ int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 
 	wdev_lock(wdev);
 	if (wdev->current_bss) {
-		const u8 *ie = ieee80211_bss_get_ie(&wdev->current_bss->pub,
-						    WLAN_EID_SSID);
+		const u8 *ie;
+
+		rcu_read_lock();
+		ie = ieee80211_bss_get_ie(&wdev->current_bss->pub,
+					  WLAN_EID_SSID);
 		if (ie) {
 			data->flags = 1;
 			data->length = ie[1];
 			memcpy(ssid, ie + 2, data->length);
 		}
+		rcu_read_unlock();
 	} else if (wdev->wext.connect.ssid && wdev->wext.connect.ssid_len) {
 		data->flags = 1;
 		data->length = wdev->wext.connect.ssid_len;

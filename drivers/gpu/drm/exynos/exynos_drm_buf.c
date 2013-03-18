@@ -3,24 +3,10 @@
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Author: Inki Dae <inki.dae@samsung.com>
  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -29,93 +15,103 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_buf.h"
+#include "exynos_drm_iommu.h"
 
 static int lowlevel_buffer_allocate(struct drm_device *dev,
 		unsigned int flags, struct exynos_drm_gem_buf *buf)
 {
-	dma_addr_t start_addr;
-	unsigned int npages, i = 0;
-	struct scatterlist *sgl;
 	int ret = 0;
+	enum dma_attr attr;
+	unsigned int nr_pages;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	if (IS_NONCONTIG_BUFFER(flags)) {
-		DRM_DEBUG_KMS("not support allocation type.\n");
-		return -EINVAL;
-	}
 
 	if (buf->dma_addr) {
 		DRM_DEBUG_KMS("already allocated.\n");
 		return 0;
 	}
 
-	if (buf->size >= SZ_1M) {
-		npages = buf->size >> SECTION_SHIFT;
-		buf->page_size = SECTION_SIZE;
-	} else if (buf->size >= SZ_64K) {
-		npages = buf->size >> 16;
-		buf->page_size = SZ_64K;
+	init_dma_attrs(&buf->dma_attrs);
+
+	/*
+	 * if EXYNOS_BO_CONTIG, fully physically contiguous memory
+	 * region will be allocated else physically contiguous
+	 * as possible.
+	 */
+	if (!(flags & EXYNOS_BO_NONCONTIG))
+		dma_set_attr(DMA_ATTR_FORCE_CONTIGUOUS, &buf->dma_attrs);
+
+	/*
+	 * if EXYNOS_BO_WC or EXYNOS_BO_NONCACHABLE, writecombine mapping
+	 * else cachable mapping.
+	 */
+	if (flags & EXYNOS_BO_WC || !(flags & EXYNOS_BO_CACHABLE))
+		attr = DMA_ATTR_WRITE_COMBINE;
+	else
+		attr = DMA_ATTR_NON_CONSISTENT;
+
+	dma_set_attr(attr, &buf->dma_attrs);
+	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &buf->dma_attrs);
+
+	nr_pages = buf->size >> PAGE_SHIFT;
+
+	if (!is_drm_iommu_supported(dev)) {
+		dma_addr_t start_addr;
+		unsigned int i = 0;
+
+		buf->pages = kzalloc(sizeof(struct page) * nr_pages,
+					GFP_KERNEL);
+		if (!buf->pages) {
+			DRM_ERROR("failed to allocate pages.\n");
+			return -ENOMEM;
+		}
+
+		buf->kvaddr = dma_alloc_attrs(dev->dev, buf->size,
+					&buf->dma_addr, GFP_KERNEL,
+					&buf->dma_attrs);
+		if (!buf->kvaddr) {
+			DRM_ERROR("failed to allocate buffer.\n");
+			kfree(buf->pages);
+			return -ENOMEM;
+		}
+
+		start_addr = buf->dma_addr;
+		while (i < nr_pages) {
+			buf->pages[i] = phys_to_page(start_addr);
+			start_addr += PAGE_SIZE;
+			i++;
+		}
 	} else {
-		npages = buf->size >> PAGE_SHIFT;
-		buf->page_size = PAGE_SIZE;
+
+		buf->pages = dma_alloc_attrs(dev->dev, buf->size,
+					&buf->dma_addr, GFP_KERNEL,
+					&buf->dma_attrs);
+		if (!buf->pages) {
+			DRM_ERROR("failed to allocate buffer.\n");
+			return -ENOMEM;
+		}
 	}
 
-	buf->sgt = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	buf->sgt = drm_prime_pages_to_sg(buf->pages, nr_pages);
 	if (!buf->sgt) {
-		DRM_ERROR("failed to allocate sg table.\n");
-		return -ENOMEM;
-	}
-
-	ret = sg_alloc_table(buf->sgt, npages, GFP_KERNEL);
-	if (ret < 0) {
-		DRM_ERROR("failed to initialize sg table.\n");
-		kfree(buf->sgt);
-		buf->sgt = NULL;
-		return -ENOMEM;
-	}
-
-	buf->kvaddr = dma_alloc_writecombine(dev->dev, buf->size,
-			&buf->dma_addr, GFP_KERNEL);
-	if (!buf->kvaddr) {
-		DRM_ERROR("failed to allocate buffer.\n");
+		DRM_ERROR("failed to get sg table.\n");
 		ret = -ENOMEM;
-		goto err1;
+		goto err_free_attrs;
 	}
 
-	buf->pages = kzalloc(sizeof(struct page) * npages, GFP_KERNEL);
-	if (!buf->pages) {
-		DRM_ERROR("failed to allocate pages.\n");
-		ret = -ENOMEM;
-		goto err2;
-	}
-
-	sgl = buf->sgt->sgl;
-	start_addr = buf->dma_addr;
-
-	while (i < npages) {
-		buf->pages[i] = phys_to_page(start_addr);
-		sg_set_page(sgl, buf->pages[i], buf->page_size, 0);
-		sg_dma_address(sgl) = start_addr;
-		start_addr += buf->page_size;
-		sgl = sg_next(sgl);
-		i++;
-	}
-
-	DRM_DEBUG_KMS("vaddr(0x%lx), dma_addr(0x%lx), size(0x%lx)\n",
-			(unsigned long)buf->kvaddr,
+	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)buf->dma_addr,
 			buf->size);
 
 	return ret;
-err2:
-	dma_free_writecombine(dev->dev, buf->size, buf->kvaddr,
-			(dma_addr_t)buf->dma_addr);
+
+err_free_attrs:
+	dma_free_attrs(dev->dev, buf->size, buf->pages,
+			(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
 	buf->dma_addr = (dma_addr_t)NULL;
-err1:
-	sg_free_table(buf->sgt);
-	kfree(buf->sgt);
-	buf->sgt = NULL;
+
+	if (!is_drm_iommu_supported(dev))
+		kfree(buf->pages);
 
 	return ret;
 }
@@ -125,23 +121,12 @@ static void lowlevel_buffer_deallocate(struct drm_device *dev,
 {
 	DRM_DEBUG_KMS("%s.\n", __FILE__);
 
-	/*
-	 * release only physically continuous memory and
-	 * non-continuous memory would be released by exynos
-	 * gem framework.
-	 */
-	if (IS_NONCONTIG_BUFFER(flags)) {
-		DRM_DEBUG_KMS("not support allocation type.\n");
-		return;
-	}
-
 	if (!buf->dma_addr) {
 		DRM_DEBUG_KMS("dma_addr is invalid.\n");
 		return;
 	}
 
-	DRM_DEBUG_KMS("vaddr(0x%lx), dma_addr(0x%lx), size(0x%lx)\n",
-			(unsigned long)buf->kvaddr,
+	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)buf->dma_addr,
 			buf->size);
 
@@ -150,11 +135,14 @@ static void lowlevel_buffer_deallocate(struct drm_device *dev,
 	kfree(buf->sgt);
 	buf->sgt = NULL;
 
-	kfree(buf->pages);
-	buf->pages = NULL;
+	if (!is_drm_iommu_supported(dev)) {
+		dma_free_attrs(dev->dev, buf->size, buf->kvaddr,
+				(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
+		kfree(buf->pages);
+	} else
+		dma_free_attrs(dev->dev, buf->size, buf->pages,
+				(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
 
-	dma_free_writecombine(dev->dev, buf->size, buf->kvaddr,
-				(dma_addr_t)buf->dma_addr);
 	buf->dma_addr = (dma_addr_t)NULL;
 }
 

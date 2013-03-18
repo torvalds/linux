@@ -45,8 +45,9 @@ enum {
 };
 
 #define FLITE_SD_PAD_SINK	0
-#define FLITE_SD_PAD_SOURCE	1
-#define FLITE_SD_PADS_NUM	2
+#define FLITE_SD_PAD_SOURCE_DMA	1
+#define FLITE_SD_PAD_SOURCE_ISP	2
+#define FLITE_SD_PADS_NUM	3
 
 struct flite_variant {
 	unsigned short max_width;
@@ -104,6 +105,7 @@ struct flite_buffer {
  * @subdev: FIMC-LITE subdev
  * @vd_pad: media (sink) pad for the capture video node
  * @subdev_pads: the subdev media pads
+ * @sensor: sensor subdev attached to FIMC-LITE directly or through MIPI-CSIS
  * @ctrl_handler: v4l2 control handler
  * @test_pattern: test pattern controls
  * @index: FIMC-LITE platform device index
@@ -139,6 +141,7 @@ struct fimc_lite {
 	struct v4l2_subdev	subdev;
 	struct media_pad	vd_pad;
 	struct media_pad	subdev_pads[FLITE_SD_PADS_NUM];
+	struct v4l2_subdev	*sensor;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl	*test_pattern;
 	u32			index;
@@ -156,7 +159,7 @@ struct fimc_lite {
 	unsigned long		payload[FLITE_MAX_PLANES];
 	struct flite_frame	inp_frame;
 	struct flite_frame	out_frame;
-	enum fimc_datapath	out_path;
+	atomic_t		out_path;
 	unsigned int		source_subdev_grp_id;
 
 	unsigned long		state;

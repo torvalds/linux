@@ -425,7 +425,7 @@ static struct snd_soc_dai_driver jz4740_i2s_dai = {
 	.resume = jz4740_i2s_resume,
 };
 
-static int __devinit jz4740_i2s_dev_probe(struct platform_device *pdev)
+static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 {
 	struct jz4740_i2s *i2s;
 	int ret;
@@ -492,7 +492,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit jz4740_i2s_dev_remove(struct platform_device *pdev)
+static int jz4740_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct jz4740_i2s *i2s = platform_get_drvdata(pdev);
 
@@ -512,7 +512,7 @@ static int __devexit jz4740_i2s_dev_remove(struct platform_device *pdev)
 
 static struct platform_driver jz4740_i2s_driver = {
 	.probe = jz4740_i2s_dev_probe,
-	.remove = __devexit_p(jz4740_i2s_dev_remove),
+	.remove = jz4740_i2s_dev_remove,
 	.driver = {
 		.name = "jz4740-i2s",
 		.owner = THIS_MODULE,

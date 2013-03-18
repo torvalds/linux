@@ -1185,7 +1185,7 @@ int ps3_lpm_close(void)
 }
 EXPORT_SYMBOL_GPL(ps3_lpm_close);
 
-static int __devinit ps3_lpm_probe(struct ps3_system_bus_device *dev)
+static int ps3_lpm_probe(struct ps3_system_bus_device *dev)
 {
 	dev_dbg(&dev->core, " -> %s:%u\n", __func__, __LINE__);
 

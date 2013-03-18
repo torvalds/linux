@@ -33,13 +33,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include <mach/board-pcm038.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx27.h>
-#include <mach/ulpi.h>
-
+#include "board-pcm038.h"
+#include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
+#include "iomux-mx27.h"
+#include "ulpi.h"
 
 static const int pcm038_pins[] __initconst = {
 	/* UART1 */
@@ -212,7 +211,7 @@ static const struct spi_imx_master pcm038_spi0_data __initconst = {
 
 static struct regulator_consumer_supply sdhc1_consumers[] = {
 	{
-		.dev_name = "mxc-mmc.1",
+		.dev_name = "imx21-mmc.1",
 		.supply	= "sdhc_vcc",
 	},
 };
@@ -347,17 +346,13 @@ static void __init pcm038_timer_init(void)
 	mx27_clocks_init(26000000);
 }
 
-static struct sys_timer pcm038_timer = {
-	.init = pcm038_timer_init,
-};
-
 MACHINE_START(PCM038, "phyCORE-i.MX27")
 	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
 	.handle_irq = imx27_handle_irq,
-	.timer = &pcm038_timer,
+	.init_time	= pcm038_timer_init,
 	.init_machine = pcm038_init,
 	.restart	= mxc_restart,
 MACHINE_END

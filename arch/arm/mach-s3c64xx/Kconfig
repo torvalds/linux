@@ -294,6 +294,7 @@ config MACH_WLF_CRAGG_6410
 	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_SPI
 	select S3C64XX_SETUP_USB_PHY
+	select S3C_DEV_FB
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
@@ -304,6 +305,7 @@ config MACH_WLF_CRAGG_6410
 	select S3C_DEV_WDT
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_KEYPAD
+	select SAMSUNG_DEV_PWM
 	select SAMSUNG_GPIO_EXTRA128
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.

@@ -60,17 +60,14 @@ void drm_ht_verbose_list(struct drm_open_hash *ht, unsigned long key)
 {
 	struct drm_hash_item *entry;
 	struct hlist_head *h_list;
-	struct hlist_node *list;
 	unsigned int hashed_key;
 	int count = 0;
 
 	hashed_key = hash_long(key, ht->order);
 	DRM_DEBUG("Key is 0x%08lx, Hashed key is 0x%08x\n", key, hashed_key);
 	h_list = &ht->table[hashed_key];
-	hlist_for_each(list, h_list) {
-		entry = hlist_entry(list, struct drm_hash_item, head);
+	hlist_for_each_entry(entry, h_list, head)
 		DRM_DEBUG("count %d, key: 0x%08lx\n", count++, entry->key);
-	}
 }
 
 static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
@@ -78,45 +75,59 @@ static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
 {
 	struct drm_hash_item *entry;
 	struct hlist_head *h_list;
-	struct hlist_node *list;
 	unsigned int hashed_key;
 
 	hashed_key = hash_long(key, ht->order);
 	h_list = &ht->table[hashed_key];
-	hlist_for_each(list, h_list) {
-		entry = hlist_entry(list, struct drm_hash_item, head);
+	hlist_for_each_entry(entry, h_list, head) {
 		if (entry->key == key)
-			return list;
+			return &entry->head;
 		if (entry->key > key)
 			break;
 	}
 	return NULL;
 }
 
+static struct hlist_node *drm_ht_find_key_rcu(struct drm_open_hash *ht,
+					      unsigned long key)
+{
+	struct drm_hash_item *entry;
+	struct hlist_head *h_list;
+	unsigned int hashed_key;
+
+	hashed_key = hash_long(key, ht->order);
+	h_list = &ht->table[hashed_key];
+	hlist_for_each_entry_rcu(entry, h_list, head) {
+		if (entry->key == key)
+			return &entry->head;
+		if (entry->key > key)
+			break;
+	}
+	return NULL;
+}
 
 int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 {
 	struct drm_hash_item *entry;
 	struct hlist_head *h_list;
-	struct hlist_node *list, *parent;
+	struct hlist_node *parent;
 	unsigned int hashed_key;
 	unsigned long key = item->key;
 
 	hashed_key = hash_long(key, ht->order);
 	h_list = &ht->table[hashed_key];
 	parent = NULL;
-	hlist_for_each(list, h_list) {
-		entry = hlist_entry(list, struct drm_hash_item, head);
+	hlist_for_each_entry(entry, h_list, head) {
 		if (entry->key == key)
 			return -EINVAL;
 		if (entry->key > key)
 			break;
-		parent = list;
+		parent = &entry->head;
 	}
 	if (parent) {
-		hlist_add_after(parent, &item->head);
+		hlist_add_after_rcu(parent, &item->head);
 	} else {
-		hlist_add_head(&item->head, h_list);
+		hlist_add_head_rcu(&item->head, h_list);
 	}
 	return 0;
 }
@@ -156,7 +167,7 @@ int drm_ht_find_item(struct drm_open_hash *ht, unsigned long key,
 {
 	struct hlist_node *list;
 
-	list = drm_ht_find_key(ht, key);
+	list = drm_ht_find_key_rcu(ht, key);
 	if (!list)
 		return -EINVAL;
 
@@ -171,7 +182,7 @@ int drm_ht_remove_key(struct drm_open_hash *ht, unsigned long key)
 
 	list = drm_ht_find_key(ht, key);
 	if (list) {
-		hlist_del_init(list);
+		hlist_del_init_rcu(list);
 		return 0;
 	}
 	return -EINVAL;
@@ -179,7 +190,7 @@ int drm_ht_remove_key(struct drm_open_hash *ht, unsigned long key)
 
 int drm_ht_remove_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 {
-	hlist_del_init(&item->head);
+	hlist_del_init_rcu(&item->head);
 	return 0;
 }
 EXPORT_SYMBOL(drm_ht_remove_item);

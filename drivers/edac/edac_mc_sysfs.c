@@ -7,7 +7,7 @@
  *
  * Written Doug Thompson <norsk5@xmission.com> www.softwarebitmaker.com
  *
- * (c) 2012 - Mauro Carvalho Chehab <mchehab@redhat.com>
+ * (c) 2012-2013 - Mauro Carvalho Chehab <mchehab@redhat.com>
  *	The entire API were re-written, and ported to use struct device
  *
  */
@@ -179,6 +179,9 @@ static ssize_t csrow_size_show(struct device *dev,
 	struct csrow_info *csrow = to_csrow(dev);
 	int i;
 	u32 nr_pages = 0;
+
+	if (csrow->mci->csbased)
+		return sprintf(data, "%u\n", PAGES_TO_MiB(csrow->nr_pages));
 
 	for (i = 0; i < csrow->nr_channels; i++)
 		nr_pages += csrow->channels[i]->dimm->nr_pages;
@@ -373,6 +376,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	csrow->dev.bus = &mci->bus;
 	device_initialize(&csrow->dev);
 	csrow->dev.parent = &mci->dev;
+	csrow->mci = mci;
 	dev_set_name(&csrow->dev, "csrow%d", index);
 	dev_set_drvdata(&csrow->dev, csrow);
 
@@ -425,8 +429,12 @@ static int edac_create_csrow_objects(struct mem_ctl_info *mci)
 		if (!nr_pages_per_csrow(csrow))
 			continue;
 		err = edac_create_csrow_object(mci, mci->csrows[i], i);
-		if (err < 0)
+		if (err < 0) {
+			edac_dbg(1,
+				 "failure: create csrow objects for csrow %d\n",
+				 i);
 			goto error;
+		}
 	}
 	return 0;
 
@@ -468,8 +476,7 @@ static void edac_delete_csrow_objects(struct mem_ctl_info *mci)
 			device_remove_file(&csrow->dev,
 						dynamic_csrow_ce_count_attr[chan]);
 		}
-		put_device(&mci->csrows[i]->dev);
-		device_del(&mci->csrows[i]->dev);
+		device_unregister(&mci->csrows[i]->dev);
 	}
 }
 #endif
@@ -674,9 +681,6 @@ static ssize_t mci_sdram_scrub_rate_store(struct device *dev,
 	unsigned long bandwidth = 0;
 	int new_bw = 0;
 
-	if (!mci->set_sdram_scrub_rate)
-		return -ENODEV;
-
 	if (strict_strtoul(data, 10, &bandwidth) < 0)
 		return -EINVAL;
 
@@ -699,9 +703,6 @@ static ssize_t mci_sdram_scrub_rate_show(struct device *dev,
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 	int bandwidth = 0;
-
-	if (!mci->get_sdram_scrub_rate)
-		return -ENODEV;
 
 	bandwidth = mci->get_sdram_scrub_rate(mci);
 	if (bandwidth < 0) {
@@ -777,10 +778,14 @@ static ssize_t mci_size_mb_show(struct device *dev,
 	for (csrow_idx = 0; csrow_idx < mci->nr_csrows; csrow_idx++) {
 		struct csrow_info *csrow = mci->csrows[csrow_idx];
 
-		for (j = 0; j < csrow->nr_channels; j++) {
-			struct dimm_info *dimm = csrow->channels[j]->dimm;
+		if (csrow->mci->csbased) {
+			total_pages += csrow->nr_pages;
+		} else {
+			for (j = 0; j < csrow->nr_channels; j++) {
+				struct dimm_info *dimm = csrow->channels[j]->dimm;
 
-			total_pages += dimm->nr_pages;
+				total_pages += dimm->nr_pages;
+			}
 		}
 	}
 
@@ -838,14 +843,8 @@ static ssize_t edac_fake_inject_write(struct file *file,
 	return count;
 }
 
-static int debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static const struct file_operations debug_fake_inject_fops = {
-	.open = debugfs_open,
+	.open = simple_open,
 	.write = edac_fake_inject_write,
 	.llseek = generic_file_llseek,
 };
@@ -865,8 +864,7 @@ DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
 DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
 
 /* memory scrubber attribute file */
-DEVICE_ATTR(sdram_scrub_rate, S_IRUGO | S_IWUSR, mci_sdram_scrub_rate_show,
-	mci_sdram_scrub_rate_store);
+DEVICE_ATTR(sdram_scrub_rate, 0, NULL, NULL);
 
 static struct attribute *mci_attrs[] = {
 	&dev_attr_reset_counters.attr,
@@ -877,7 +875,6 @@ static struct attribute *mci_attrs[] = {
 	&dev_attr_ce_noinfo_count.attr,
 	&dev_attr_ue_count.attr,
 	&dev_attr_ce_count.attr,
-	&dev_attr_sdram_scrub_rate.attr,
 	&dev_attr_max_location.attr,
 	NULL
 };
@@ -1006,11 +1003,28 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	edac_dbg(0, "creating device %s\n", dev_name(&mci->dev));
 	err = device_add(&mci->dev);
 	if (err < 0) {
+		edac_dbg(1, "failure: create device %s\n", dev_name(&mci->dev));
 		bus_unregister(&mci->bus);
 		kfree(mci->bus.name);
 		return err;
 	}
 
+	if (mci->set_sdram_scrub_rate || mci->get_sdram_scrub_rate) {
+		if (mci->get_sdram_scrub_rate) {
+			dev_attr_sdram_scrub_rate.attr.mode |= S_IRUGO;
+			dev_attr_sdram_scrub_rate.show = &mci_sdram_scrub_rate_show;
+		}
+		if (mci->set_sdram_scrub_rate) {
+			dev_attr_sdram_scrub_rate.attr.mode |= S_IWUSR;
+			dev_attr_sdram_scrub_rate.store = &mci_sdram_scrub_rate_store;
+		}
+		err = device_create_file(&mci->dev,
+					 &dev_attr_sdram_scrub_rate);
+		if (err) {
+			edac_dbg(1, "failure: create sdram_scrub_rate\n");
+			goto fail2;
+		}
+	}
 	/*
 	 * Create the dimm/rank devices
 	 */
@@ -1053,11 +1067,10 @@ fail:
 		struct dimm_info *dimm = mci->dimms[i];
 		if (dimm->nr_pages == 0)
 			continue;
-		put_device(&dimm->dev);
-		device_del(&dimm->dev);
+		device_unregister(&dimm->dev);
 	}
-	put_device(&mci->dev);
-	device_del(&mci->dev);
+fail2:
+	device_unregister(&mci->dev);
 	bus_unregister(&mci->bus);
 	kfree(mci->bus.name);
 	return err;
@@ -1084,16 +1097,14 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 		if (dimm->nr_pages == 0)
 			continue;
 		edac_dbg(0, "removing device %s\n", dev_name(&dimm->dev));
-		put_device(&dimm->dev);
-		device_del(&dimm->dev);
+		device_unregister(&dimm->dev);
 	}
 }
 
 void edac_unregister_sysfs(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "Unregistering device %s\n", dev_name(&mci->dev));
-	put_device(&mci->dev);
-	device_del(&mci->dev);
+	device_unregister(&mci->dev);
 	bus_unregister(&mci->bus);
 	kfree(mci->bus.name);
 }
@@ -1124,10 +1135,15 @@ int __init edac_mc_sysfs_init(void)
 	edac_subsys = edac_get_sysfs_subsys();
 	if (edac_subsys == NULL) {
 		edac_dbg(1, "no edac_subsys\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
 	mci_pdev = kzalloc(sizeof(*mci_pdev), GFP_KERNEL);
+	if (!mci_pdev) {
+		err = -ENOMEM;
+		goto out_put_sysfs;
+	}
 
 	mci_pdev->bus = edac_subsys;
 	mci_pdev->type = &mc_attr_type;
@@ -1136,16 +1152,22 @@ int __init edac_mc_sysfs_init(void)
 
 	err = device_add(mci_pdev);
 	if (err < 0)
-		return err;
+		goto out_dev_free;
 
 	edac_dbg(0, "device %s created\n", dev_name(mci_pdev));
 
 	return 0;
+
+ out_dev_free:
+	kfree(mci_pdev);
+ out_put_sysfs:
+	edac_put_sysfs_subsys();
+ out:
+	return err;
 }
 
 void __exit edac_mc_sysfs_exit(void)
 {
-	put_device(mci_pdev);
-	device_del(mci_pdev);
+	device_unregister(mci_pdev);
 	edac_put_sysfs_subsys();
 }

@@ -145,8 +145,6 @@ cflags-$(CONFIG_CPU_NEVADA)	+= $(call cc-option,-march=rm5200,-march=r5000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_RM7000)	+= $(call cc-option,-march=rm7000,-march=r5000) \
 			-Wa,--trap
-cflags-$(CONFIG_CPU_RM9000)	+= $(call cc-option,-march=rm9000,-march=r5000) \
-			-Wa,--trap
 cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-march=sb1,-march=r5000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_R8000)	+= -march=r8000 -Wa,--trap
@@ -173,9 +171,9 @@ endif
 #
 # Firmware support
 #
-libs-$(CONFIG_ARC)		+= arch/mips/fw/arc/
-libs-$(CONFIG_CFE)		+= arch/mips/fw/cfe/
-libs-$(CONFIG_SNIPROM)		+= arch/mips/fw/sni/
+libs-$(CONFIG_FW_ARC)		+= arch/mips/fw/arc/
+libs-$(CONFIG_FW_CFE)		+= arch/mips/fw/cfe/
+libs-$(CONFIG_FW_SNIPROM)	+= arch/mips/fw/sni/
 libs-y				+= arch/mips/fw/lib/
 
 #
@@ -191,6 +189,10 @@ endif
 # Board-dependent options and extra files
 #
 include $(srctree)/arch/mips/Kbuild.platforms
+
+ifdef CONFIG_PHYSICAL_START
+load-y					= $(CONFIG_PHYSICAL_START)
+endif
 
 cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/

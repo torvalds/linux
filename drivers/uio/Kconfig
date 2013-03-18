@@ -1,6 +1,5 @@
 menuconfig UIO
 	tristate "Userspace I/O drivers"
-	depends on !S390
 	help
 	  Enable this to allow the userspace driver core code to be
 	  built.  This code allows userspace programs easy access to
@@ -41,6 +40,22 @@ config UIO_PDRV_GENIRQ
 	  handles interrupts in a special way. Userspace is responsible
 	  for acknowledging the hardware device if needed, and re-enabling
 	  interrupts in the interrupt controller using the write() syscall.
+
+	  If you don't know what to do here, say N.
+
+config UIO_DMEM_GENIRQ
+	tristate "Userspace platform driver with generic irq and dynamic memory"
+	help
+	  Platform driver for Userspace I/O devices, including generic
+	  interrupt handling code. Shared interrupts are not supported.
+
+	  Memory regions can be specified with the same platform device
+	  resources as the UIO_PDRV drivers, but dynamic regions can also
+	  be specified.
+	  The number and size of these regions is static,
+	  but the memory allocation is not performed until
+	  the associated device file is opened. The
+	  memory is freed once the uio device is closed.
 
 	  If you don't know what to do here, say N.
 
@@ -97,6 +112,7 @@ config UIO_NETX
 config UIO_PRUSS
 	tristate "Texas Instruments PRUSS driver"
 	depends on ARCH_DAVINCI_DA850
+	select GENERIC_ALLOCATOR
 	help
 	  PRUSS driver for OMAPL138/DA850/AM18XX devices
 	  PRUSS driver requires user space components, examples and user space

@@ -33,11 +33,11 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/platform_data/atmel.h>
 
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-
-#include <mach/board.h>
+#include <linux/can/led.h>
 
 #define AT91_MB_MASK(i)		((1 << (i)) - 1)
 
@@ -155,7 +155,7 @@ struct at91_priv {
 	canid_t mb0_id;
 };
 
-static const struct at91_devtype_data at91_devtype_data[] __devinitconst = {
+static const struct at91_devtype_data at91_devtype_data[] = {
 	[AT91_DEVTYPE_SAM9263] = {
 		.rx_first = 1,
 		.rx_split = 8,
@@ -642,6 +642,8 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+
+	can_led_event(dev, CAN_LED_EVENT_RX);
 }
 
 /**
@@ -876,6 +878,7 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 			/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
 			can_get_echo_skb(dev, mb - get_mb_tx_first(priv));
 			dev->stats.tx_packets++;
+			can_led_event(dev, CAN_LED_EVENT_TX);
 		}
 	}
 
@@ -1129,6 +1132,8 @@ static int at91_open(struct net_device *dev)
 		goto out_close;
 	}
 
+	can_led_event(dev, CAN_LED_EVENT_OPEN);
+
 	/* start chip and queuing */
 	at91_chip_start(dev);
 	napi_enable(&priv->napi);
@@ -1159,6 +1164,8 @@ static int at91_close(struct net_device *dev)
 	clk_disable(priv->clk);
 
 	close_candev(dev);
+
+	can_led_event(dev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -1242,7 +1249,7 @@ static struct attribute_group at91_sysfs_attr_group = {
 	.attrs = at91_sysfs_attrs,
 };
 
-static int __devinit at91_can_probe(struct platform_device *pdev)
+static int at91_can_probe(struct platform_device *pdev)
 {
 	const struct at91_devtype_data *devtype_data;
 	enum at91_devtype devtype;
@@ -1322,6 +1329,8 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 		goto exit_free;
 	}
 
+	devm_can_led_init(dev);
+
 	dev_info(&pdev->dev, "device registered (reg_base=%p, irq=%d)\n",
 		 priv->reg_base, dev->irq);
 
@@ -1339,7 +1348,7 @@ static int __devinit at91_can_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit at91_can_remove(struct platform_device *pdev)
+static int at91_can_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct at91_priv *priv = netdev_priv(dev);
@@ -1372,10 +1381,11 @@ static const struct platform_device_id at91_can_id_table[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(platform, at91_can_id_table);
 
 static struct platform_driver at91_can_driver = {
 	.probe = at91_can_probe,
-	.remove = __devexit_p(at91_can_remove),
+	.remove = at91_can_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,

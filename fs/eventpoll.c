@@ -38,6 +38,8 @@
 #include <asm/io.h>
 #include <asm/mman.h>
 #include <linux/atomic.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 /*
  * LOCKING:
@@ -346,7 +348,7 @@ static inline struct epitem *ep_item_from_epqueue(poll_table *p)
 /* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
 static inline int ep_op_has_event(int op)
 {
-	return op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD;
+	return op != EPOLL_CTL_DEL;
 }
 
 /* Initialize the poll safe wake up structure */
@@ -676,34 +678,6 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 	return 0;
 }
 
-/*
- * Disables a "struct epitem" in the eventpoll set. Returns -EBUSY if the item
- * had no event flags set, indicating that another thread may be currently
- * handling that item's events (in the case that EPOLLONESHOT was being
- * used). Otherwise a zero result indicates that the item has been disabled
- * from receiving events. A disabled item may be re-enabled via
- * EPOLL_CTL_MOD. Must be called with "mtx" held.
- */
-static int ep_disable(struct eventpoll *ep, struct epitem *epi)
-{
-	int result = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ep->lock, flags);
-	if (epi->event.events & ~EP_PRIVATE_BITS) {
-		if (ep_is_linked(&epi->rdllink))
-			list_del_init(&epi->rdllink);
-		/* Ensure ep_poll_callback will not add epi back onto ready
-		   list: */
-		epi->event.events &= EP_PRIVATE_BITS;
-		}
-	else
-		result = -EBUSY;
-	spin_unlock_irqrestore(&ep->lock, flags);
-
-	return result;
-}
-
 static void ep_free(struct eventpoll *ep)
 {
 	struct rb_node *rbp;
@@ -811,8 +785,34 @@ static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait)
 	return pollflags != -1 ? pollflags : 0;
 }
 
+#ifdef CONFIG_PROC_FS
+static int ep_show_fdinfo(struct seq_file *m, struct file *f)
+{
+	struct eventpoll *ep = f->private_data;
+	struct rb_node *rbp;
+	int ret = 0;
+
+	mutex_lock(&ep->mtx);
+	for (rbp = rb_first(&ep->rbr); rbp; rbp = rb_next(rbp)) {
+		struct epitem *epi = rb_entry(rbp, struct epitem, rbn);
+
+		ret = seq_printf(m, "tfd: %8d events: %8x data: %16llx\n",
+				 epi->ffd.fd, epi->event.events,
+				 (long long)epi->event.data);
+		if (ret)
+			break;
+	}
+	mutex_unlock(&ep->mtx);
+
+	return ret;
+}
+#endif
+
 /* File callbacks that implement the eventpoll file behaviour */
 static const struct file_operations eventpoll_fops = {
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo	= ep_show_fdinfo,
+#endif
 	.release	= ep_eventpoll_release,
 	.poll		= ep_eventpoll_poll,
 	.llseek		= noop_llseek,
@@ -1047,6 +1047,8 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 	rb_link_node(&epi->rbn, parent, p);
 	rb_insert_color(&epi->rbn, &ep->rbr);
 }
+
+
 
 #define PATH_ARR_SIZE 5
 /*
@@ -1311,7 +1313,7 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_even
 	 * otherwise we might miss an event that happens between the
 	 * f_op->poll() call and the new event set registering.
 	 */
-	epi->event.events = event->events;
+	epi->event.events = event->events; /* need barrier below */
 	pt._key = event->events;
 	epi->event.data = event->data; /* protected by mtx */
 	if (epi->event.events & EPOLLWAKEUP) {
@@ -1320,6 +1322,26 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_even
 	} else if (epi->ws) {
 		ep_destroy_wakeup_source(epi);
 	}
+
+	/*
+	 * The following barrier has two effects:
+	 *
+	 * 1) Flush epi changes above to other CPUs.  This ensures
+	 *    we do not miss events from ep_poll_callback if an
+	 *    event occurs immediately after we call f_op->poll().
+	 *    We need this because we did not take ep->lock while
+	 *    changing epi above (but ep_poll_callback does take
+	 *    ep->lock).
+	 *
+	 * 2) We also need to ensure we do not miss _past_ events
+	 *    when calling f_op->poll().  This barrier also
+	 *    pairs with the barrier in wq_has_sleeper (see
+	 *    comments for wq_has_sleeper).
+	 *
+	 * This barrier will now guarantee ep_poll_callback or f_op->poll
+	 * (or both) will notice the readiness of an item.
+	 */
+	smp_mb();
 
 	/*
 	 * Get current event bits. We can safely use the file* here because
@@ -1811,12 +1833,6 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 			epds.events |= POLLERR | POLLHUP;
 			error = ep_modify(ep, epi, &epds);
 		} else
-			error = -ENOENT;
-		break;
-	case EPOLL_CTL_DISABLE:
-		if (epi)
-			error = ep_disable(ep, epi);
-		else
 			error = -ENOENT;
 		break;
 	}

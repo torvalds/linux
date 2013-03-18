@@ -1,6 +1,6 @@
 config MAC802154
 	tristate "Generic IEEE 802.15.4 Soft Networking Stack (mac802154)"
-	depends on IEEE802154 && EXPERIMENTAL
+	depends on IEEE802154
 	select CRC_CCITT
 	---help---
 	  This option enables the hardware independent IEEE 802.15.4

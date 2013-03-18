@@ -356,7 +356,7 @@ END {
 		exit 1
 	# print escape opcode map's array
 	print "/* Escape opcode map array */"
-	print "const insn_attr_t const *inat_escape_tables[INAT_ESC_MAX + 1]" \
+	print "const insn_attr_t * const inat_escape_tables[INAT_ESC_MAX + 1]" \
 	      "[INAT_LSTPFX_MAX + 1] = {"
 	for (i = 0; i < geid; i++)
 		for (j = 0; j < max_lprefix; j++)
@@ -365,7 +365,7 @@ END {
 	print "};\n"
 	# print group opcode map's array
 	print "/* Group opcode map array */"
-	print "const insn_attr_t const *inat_group_tables[INAT_GRP_MAX + 1]"\
+	print "const insn_attr_t * const inat_group_tables[INAT_GRP_MAX + 1]"\
 	      "[INAT_LSTPFX_MAX + 1] = {"
 	for (i = 0; i < ggid; i++)
 		for (j = 0; j < max_lprefix; j++)
@@ -374,7 +374,7 @@ END {
 	print "};\n"
 	# print AVX opcode map's array
 	print "/* AVX opcode map array */"
-	print "const insn_attr_t const *inat_avx_tables[X86_VEX_M_MAX + 1]"\
+	print "const insn_attr_t * const inat_avx_tables[X86_VEX_M_MAX + 1]"\
 	      "[INAT_LSTPFX_MAX + 1] = {"
 	for (i = 0; i < gaid; i++)
 		for (j = 0; j < max_lprefix; j++)

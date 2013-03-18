@@ -85,17 +85,12 @@ typedef struct {
 
 #define SA_RESTORER	0x04000000U
 
-/*
- * sigaltstack controls
- */
-#define SS_ONSTACK	1
-#define SS_DISABLE	2
-
 #define MINSIGSTKSZ	2048
 #define SIGSTKSZ	8192
 
 #include <asm-generic/signal-defs.h>
 
+#ifndef __KERNEL__
 struct old_sigaction {
 	__sighandler_t sa_handler;
 	old_sigset_t sa_mask;
@@ -109,10 +104,7 @@ struct sigaction {
 	__sigrestore_t sa_restorer;
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
-
-struct k_sigaction {
-	struct sigaction sa;
-};
+#endif
 
 typedef struct sigaltstack {
 	void __user *ss_sp;

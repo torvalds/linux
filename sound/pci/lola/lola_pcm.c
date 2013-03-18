@@ -597,7 +597,7 @@ static struct snd_pcm_ops lola_pcm_ops = {
 	.page = snd_pcm_sgbuf_ops_page,
 };
 
-int __devinit lola_create_pcm(struct lola *chip)
+int lola_create_pcm(struct lola *chip)
 {
 	struct snd_pcm *pcm;
 	int i, err;
@@ -690,7 +690,7 @@ static int lola_init_stream(struct lola *chip, struct lola_stream *str,
 	return 0;
 }
 
-int __devinit lola_init_pcm(struct lola *chip, int dir, int *nidp)
+int lola_init_pcm(struct lola *chip, int dir, int *nidp)
 {
 	struct lola_pcm *pcm = &chip->pcm[dir];
 	int i, nid, err;

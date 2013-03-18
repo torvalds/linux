@@ -47,7 +47,7 @@ static int ad73311_probe(struct platform_device *pdev)
 			&soc_codec_dev_ad73311, &ad73311_dai, 1);
 }
 
-static int __devexit ad73311_remove(struct platform_device *pdev)
+static int ad73311_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -60,7 +60,7 @@ static struct platform_driver ad73311_codec_driver = {
 	},
 
 	.probe = ad73311_probe,
-	.remove = __devexit_p(ad73311_remove),
+	.remove = ad73311_remove,
 };
 
 module_platform_driver(ad73311_codec_driver);

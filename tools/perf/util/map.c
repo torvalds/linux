@@ -10,6 +10,8 @@
 #include "thread.h"
 #include "strlist.h"
 #include "vdso.h"
+#include "build-id.h"
+#include <linux/string.h>
 
 const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__FUNCTION] = "Functions",
@@ -18,38 +20,39 @@ const char *map_type__name[MAP__NR_TYPES] = {
 
 static inline int is_anon_memory(const char *filename)
 {
-	return strcmp(filename, "//anon") == 0;
+	return !strcmp(filename, "//anon") ||
+	       !strcmp(filename, "/anon_hugepage (deleted)");
 }
 
 static inline int is_no_dso_memory(const char *filename)
 {
-	return !strcmp(filename, "[stack]") ||
+	return !strncmp(filename, "[stack", 6) ||
 	       !strcmp(filename, "[heap]");
 }
 
-void map__init(struct map *self, enum map_type type,
+void map__init(struct map *map, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso)
 {
-	self->type     = type;
-	self->start    = start;
-	self->end      = end;
-	self->pgoff    = pgoff;
-	self->dso      = dso;
-	self->map_ip   = map__map_ip;
-	self->unmap_ip = map__unmap_ip;
-	RB_CLEAR_NODE(&self->rb_node);
-	self->groups   = NULL;
-	self->referenced = false;
-	self->erange_warned = false;
+	map->type     = type;
+	map->start    = start;
+	map->end      = end;
+	map->pgoff    = pgoff;
+	map->dso      = dso;
+	map->map_ip   = map__map_ip;
+	map->unmap_ip = map__unmap_ip;
+	RB_CLEAR_NODE(&map->rb_node);
+	map->groups   = NULL;
+	map->referenced = false;
+	map->erange_warned = false;
 }
 
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		     u64 pgoff, u32 pid, char *filename,
 		     enum map_type type)
 {
-	struct map *self = malloc(sizeof(*self));
+	struct map *map = malloc(sizeof(*map));
 
-	if (self != NULL) {
+	if (map != NULL) {
 		char newfilename[PATH_MAX];
 		struct dso *dso;
 		int anon, no_dso, vdso;
@@ -72,10 +75,10 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		if (dso == NULL)
 			goto out_delete;
 
-		map__init(self, type, start, start + len, pgoff, dso);
+		map__init(map, type, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
-			self->map_ip = self->unmap_ip = identity__map_ip;
+			map->map_ip = map->unmap_ip = identity__map_ip;
 
 			/*
 			 * Set memory without DSO as loaded. All map__find_*
@@ -83,12 +86,12 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 			 * unnecessary map__load warning.
 			 */
 			if (no_dso)
-				dso__set_loaded(dso, self->type);
+				dso__set_loaded(dso, map->type);
 		}
 	}
-	return self;
+	return map;
 out_delete:
-	free(self);
+	free(map);
 	return NULL;
 }
 
@@ -111,48 +114,48 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 	return map;
 }
 
-void map__delete(struct map *self)
+void map__delete(struct map *map)
 {
-	free(self);
+	free(map);
 }
 
-void map__fixup_start(struct map *self)
+void map__fixup_start(struct map *map)
 {
-	struct rb_root *symbols = &self->dso->symbols[self->type];
+	struct rb_root *symbols = &map->dso->symbols[map->type];
 	struct rb_node *nd = rb_first(symbols);
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
-		self->start = sym->start;
+		map->start = sym->start;
 	}
 }
 
-void map__fixup_end(struct map *self)
+void map__fixup_end(struct map *map)
 {
-	struct rb_root *symbols = &self->dso->symbols[self->type];
+	struct rb_root *symbols = &map->dso->symbols[map->type];
 	struct rb_node *nd = rb_last(symbols);
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
-		self->end = sym->end;
+		map->end = sym->end;
 	}
 }
 
 #define DSO__DELETED "(deleted)"
 
-int map__load(struct map *self, symbol_filter_t filter)
+int map__load(struct map *map, symbol_filter_t filter)
 {
-	const char *name = self->dso->long_name;
+	const char *name = map->dso->long_name;
 	int nr;
 
-	if (dso__loaded(self->dso, self->type))
+	if (dso__loaded(map->dso, map->type))
 		return 0;
 
-	nr = dso__load(self->dso, self, filter);
+	nr = dso__load(map->dso, map, filter);
 	if (nr < 0) {
-		if (self->dso->has_build_id) {
+		if (map->dso->has_build_id) {
 			char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
-			build_id__sprintf(self->dso->build_id,
-					  sizeof(self->dso->build_id),
+			build_id__sprintf(map->dso->build_id,
+					  sizeof(map->dso->build_id),
 					  sbuild_id);
 			pr_warning("%s with build id %s not found",
 				   name, sbuild_id);
@@ -182,43 +185,36 @@ int map__load(struct map *self, symbol_filter_t filter)
 	 * Only applies to the kernel, as its symtabs aren't relative like the
 	 * module ones.
 	 */
-	if (self->dso->kernel)
-		map__reloc_vmlinux(self);
+	if (map->dso->kernel)
+		map__reloc_vmlinux(map);
 
 	return 0;
 }
 
-struct symbol *map__find_symbol(struct map *self, u64 addr,
+struct symbol *map__find_symbol(struct map *map, u64 addr,
 				symbol_filter_t filter)
 {
-	if (map__load(self, filter) < 0)
+	if (map__load(map, filter) < 0)
 		return NULL;
 
-	return dso__find_symbol(self->dso, self->type, addr);
+	return dso__find_symbol(map->dso, map->type, addr);
 }
 
-struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
+struct symbol *map__find_symbol_by_name(struct map *map, const char *name,
 					symbol_filter_t filter)
 {
-	if (map__load(self, filter) < 0)
+	if (map__load(map, filter) < 0)
 		return NULL;
 
-	if (!dso__sorted_by_name(self->dso, self->type))
-		dso__sort_by_name(self->dso, self->type);
+	if (!dso__sorted_by_name(map->dso, map->type))
+		dso__sort_by_name(map->dso, map->type);
 
-	return dso__find_symbol_by_name(self->dso, self->type, name);
+	return dso__find_symbol_by_name(map->dso, map->type, name);
 }
 
-struct map *map__clone(struct map *self)
+struct map *map__clone(struct map *map)
 {
-	struct map *map = malloc(sizeof(*self));
-
-	if (!map)
-		return NULL;
-
-	memcpy(map, self, sizeof(*self));
-
-	return map;
+	return memdup(map, sizeof(*map));
 }
 
 int map__overlap(struct map *l, struct map *r)
@@ -235,10 +231,10 @@ int map__overlap(struct map *l, struct map *r)
 	return 0;
 }
 
-size_t map__fprintf(struct map *self, FILE *fp)
+size_t map__fprintf(struct map *map, FILE *fp)
 {
 	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s\n",
-		       self->start, self->end, self->pgoff, self->dso->name);
+		       map->start, map->end, map->pgoff, map->dso->name);
 }
 
 size_t map__fprintf_dsoname(struct map *map, FILE *fp)
@@ -526,9 +522,9 @@ static u64 map__reloc_unmap_ip(struct map *map, u64 ip)
 	return ip - (s64)map->pgoff;
 }
 
-void map__reloc_vmlinux(struct map *self)
+void map__reloc_vmlinux(struct map *map)
 {
-	struct kmap *kmap = map__kmap(self);
+	struct kmap *kmap = map__kmap(map);
 	s64 reloc;
 
 	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->unrelocated_addr)
@@ -540,9 +536,9 @@ void map__reloc_vmlinux(struct map *self)
 	if (!reloc)
 		return;
 
-	self->map_ip   = map__reloc_map_ip;
-	self->unmap_ip = map__reloc_unmap_ip;
-	self->pgoff    = reloc;
+	map->map_ip   = map__reloc_map_ip;
+	map->unmap_ip = map__reloc_unmap_ip;
+	map->pgoff    = reloc;
 }
 
 void maps__insert(struct rb_root *maps, struct map *map)
@@ -565,9 +561,9 @@ void maps__insert(struct rb_root *maps, struct map *map)
 	rb_insert_color(&map->rb_node, maps);
 }
 
-void maps__remove(struct rb_root *self, struct map *map)
+void maps__remove(struct rb_root *maps, struct map *map)
 {
-	rb_erase(&map->rb_node, self);
+	rb_erase(&map->rb_node, maps);
 }
 
 struct map *maps__find(struct rb_root *maps, u64 ip)
@@ -588,183 +584,4 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 	}
 
 	return NULL;
-}
-
-int machine__init(struct machine *self, const char *root_dir, pid_t pid)
-{
-	map_groups__init(&self->kmaps);
-	RB_CLEAR_NODE(&self->rb_node);
-	INIT_LIST_HEAD(&self->user_dsos);
-	INIT_LIST_HEAD(&self->kernel_dsos);
-
-	self->threads = RB_ROOT;
-	INIT_LIST_HEAD(&self->dead_threads);
-	self->last_match = NULL;
-
-	self->kmaps.machine = self;
-	self->pid	    = pid;
-	self->root_dir      = strdup(root_dir);
-	if (self->root_dir == NULL)
-		return -ENOMEM;
-
-	if (pid != HOST_KERNEL_ID) {
-		struct thread *thread = machine__findnew_thread(self, pid);
-		char comm[64];
-
-		if (thread == NULL)
-			return -ENOMEM;
-
-		snprintf(comm, sizeof(comm), "[guest/%d]", pid);
-		thread__set_comm(thread, comm);
-	}
-
-	return 0;
-}
-
-static void dsos__delete(struct list_head *self)
-{
-	struct dso *pos, *n;
-
-	list_for_each_entry_safe(pos, n, self, node) {
-		list_del(&pos->node);
-		dso__delete(pos);
-	}
-}
-
-void machine__exit(struct machine *self)
-{
-	map_groups__exit(&self->kmaps);
-	dsos__delete(&self->user_dsos);
-	dsos__delete(&self->kernel_dsos);
-	free(self->root_dir);
-	self->root_dir = NULL;
-}
-
-void machine__delete(struct machine *self)
-{
-	machine__exit(self);
-	free(self);
-}
-
-struct machine *machines__add(struct rb_root *self, pid_t pid,
-			      const char *root_dir)
-{
-	struct rb_node **p = &self->rb_node;
-	struct rb_node *parent = NULL;
-	struct machine *pos, *machine = malloc(sizeof(*machine));
-
-	if (!machine)
-		return NULL;
-
-	if (machine__init(machine, root_dir, pid) != 0) {
-		free(machine);
-		return NULL;
-	}
-
-	while (*p != NULL) {
-		parent = *p;
-		pos = rb_entry(parent, struct machine, rb_node);
-		if (pid < pos->pid)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	rb_link_node(&machine->rb_node, parent, p);
-	rb_insert_color(&machine->rb_node, self);
-
-	return machine;
-}
-
-struct machine *machines__find(struct rb_root *self, pid_t pid)
-{
-	struct rb_node **p = &self->rb_node;
-	struct rb_node *parent = NULL;
-	struct machine *machine;
-	struct machine *default_machine = NULL;
-
-	while (*p != NULL) {
-		parent = *p;
-		machine = rb_entry(parent, struct machine, rb_node);
-		if (pid < machine->pid)
-			p = &(*p)->rb_left;
-		else if (pid > machine->pid)
-			p = &(*p)->rb_right;
-		else
-			return machine;
-		if (!machine->pid)
-			default_machine = machine;
-	}
-
-	return default_machine;
-}
-
-struct machine *machines__findnew(struct rb_root *self, pid_t pid)
-{
-	char path[PATH_MAX];
-	const char *root_dir = "";
-	struct machine *machine = machines__find(self, pid);
-
-	if (machine && (machine->pid == pid))
-		goto out;
-
-	if ((pid != HOST_KERNEL_ID) &&
-	    (pid != DEFAULT_GUEST_KERNEL_ID) &&
-	    (symbol_conf.guestmount)) {
-		sprintf(path, "%s/%d", symbol_conf.guestmount, pid);
-		if (access(path, R_OK)) {
-			static struct strlist *seen;
-
-			if (!seen)
-				seen = strlist__new(true, NULL);
-
-			if (!strlist__has_entry(seen, path)) {
-				pr_err("Can't access file %s\n", path);
-				strlist__add(seen, path);
-			}
-			machine = NULL;
-			goto out;
-		}
-		root_dir = path;
-	}
-
-	machine = machines__add(self, pid, root_dir);
-
-out:
-	return machine;
-}
-
-void machines__process(struct rb_root *self, machine__process_t process, void *data)
-{
-	struct rb_node *nd;
-
-	for (nd = rb_first(self); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		process(pos, data);
-	}
-}
-
-char *machine__mmap_name(struct machine *self, char *bf, size_t size)
-{
-	if (machine__is_host(self))
-		snprintf(bf, size, "[%s]", "kernel.kallsyms");
-	else if (machine__is_default_guest(self))
-		snprintf(bf, size, "[%s]", "guest.kernel.kallsyms");
-	else
-		snprintf(bf, size, "[%s.%d]", "guest.kernel.kallsyms", self->pid);
-
-	return bf;
-}
-
-void machines__set_id_hdr_size(struct rb_root *machines, u16 id_hdr_size)
-{
-	struct rb_node *node;
-	struct machine *machine;
-
-	for (node = rb_first(machines); node; node = rb_next(node)) {
-		machine = rb_entry(node, struct machine, rb_node);
-		machine->id_hdr_size = id_hdr_size;
-	}
-
-	return;
 }

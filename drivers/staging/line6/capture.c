@@ -216,16 +216,6 @@ static void audio_in_callback(struct urb *urb)
 		if (urb == line6pcm->urb_audio_in[index])
 			break;
 
-#ifdef CONFIG_LINE6_USB_DUMP_PCM
-	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
-		struct usb_iso_packet_descriptor *fout =
-		    &urb->iso_frame_desc[i];
-		line6_write_hexdump(line6pcm->line6, 'C',
-				    urb->transfer_buffer + fout->offset,
-				    fout->length);
-	}
-#endif
-
 	spin_lock_irqsave(&line6pcm->lock_audio_in, flags);
 
 	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
@@ -256,8 +246,8 @@ static void audio_in_callback(struct urb *urb)
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 		if (!(line6pcm->flags & LINE6_BITS_PCM_IMPULSE))
 #endif
-			if (test_bit(LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM, &line6pcm->flags)
-			    && (fsize > 0))
+			if (test_bit(LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM,
+				     &line6pcm->flags) && (fsize > 0))
 				line6_capture_copy(line6pcm, fbuf, fsize);
 	}
 
@@ -274,7 +264,8 @@ static void audio_in_callback(struct urb *urb)
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 		if (!(line6pcm->flags & LINE6_BITS_PCM_IMPULSE))
 #endif
-			if (test_bit(LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM, &line6pcm->flags))
+			if (test_bit(LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM,
+				     &line6pcm->flags))
 				line6_capture_check_period(line6pcm, length);
 	}
 }
@@ -356,7 +347,8 @@ int snd_line6_capture_trigger(struct snd_line6_pcm *line6pcm, int cmd)
 #ifdef CONFIG_PM
 	case SNDRV_PCM_TRIGGER_RESUME:
 #endif
-		err = line6_pcm_acquire(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_STREAM);
+		err = line6_pcm_acquire(line6pcm,
+					LINE6_BIT_PCM_ALSA_CAPTURE_STREAM);
 
 		if (err < 0)
 			return err;
@@ -367,7 +359,8 @@ int snd_line6_capture_trigger(struct snd_line6_pcm *line6pcm, int cmd)
 #ifdef CONFIG_PM
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 #endif
-		err = line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_STREAM);
+		err = line6_pcm_release(line6pcm,
+					LINE6_BIT_PCM_ALSA_CAPTURE_STREAM);
 
 		if (err < 0)
 			return err;

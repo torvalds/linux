@@ -872,7 +872,7 @@ static struct regmap_config wm8988_regmap = {
 };
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8988_spi_probe(struct spi_device *spi)
+static int wm8988_spi_probe(struct spi_device *spi)
 {
 	struct wm8988_priv *wm8988;
 	int ret;
@@ -882,7 +882,7 @@ static int __devinit wm8988_spi_probe(struct spi_device *spi)
 	if (wm8988 == NULL)
 		return -ENOMEM;
 
-	wm8988->regmap = regmap_init_spi(spi, &wm8988_regmap);
+	wm8988->regmap = devm_regmap_init_spi(spi, &wm8988_regmap);
 	if (IS_ERR(wm8988->regmap)) {
 		ret = PTR_ERR(wm8988->regmap);
 		dev_err(&spi->dev, "Failed to init regmap: %d\n", ret);
@@ -893,17 +893,12 @@ static int __devinit wm8988_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_wm8988, &wm8988_dai, 1);
-	if (ret != 0)
-		regmap_exit(wm8988->regmap);
-
 	return ret;
 }
 
-static int __devexit wm8988_spi_remove(struct spi_device *spi)
+static int wm8988_spi_remove(struct spi_device *spi)
 {
-	struct wm8988_priv *wm8988 = spi_get_drvdata(spi);
 	snd_soc_unregister_codec(&spi->dev);
-	regmap_exit(wm8988->regmap);
 	return 0;
 }
 
@@ -913,13 +908,13 @@ static struct spi_driver wm8988_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8988_spi_probe,
-	.remove		= __devexit_p(wm8988_spi_remove),
+	.remove		= wm8988_spi_remove,
 };
 #endif /* CONFIG_SPI_MASTER */
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int wm8988_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8988_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8988_priv *wm8988;
 	int ret;
@@ -931,7 +926,7 @@ static __devinit int wm8988_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8988);
 
-	wm8988->regmap = regmap_init_i2c(i2c, &wm8988_regmap);
+	wm8988->regmap = devm_regmap_init_i2c(i2c, &wm8988_regmap);
 	if (IS_ERR(wm8988->regmap)) {
 		ret = PTR_ERR(wm8988->regmap);
 		dev_err(&i2c->dev, "Failed to init regmap: %d\n", ret);
@@ -940,17 +935,12 @@ static __devinit int wm8988_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8988, &wm8988_dai, 1);
-	if (ret != 0)
-		regmap_exit(wm8988->regmap);
-
 	return ret;
 }
 
-static __devexit int wm8988_i2c_remove(struct i2c_client *client)
+static int wm8988_i2c_remove(struct i2c_client *client)
 {
-	struct wm8988_priv *wm8988 = i2c_get_clientdata(client);
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(wm8988->regmap);
 	return 0;
 }
 
@@ -966,7 +956,7 @@ static struct i2c_driver wm8988_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8988_i2c_probe,
-	.remove =   __devexit_p(wm8988_i2c_remove),
+	.remove =   wm8988_i2c_remove,
 	.id_table = wm8988_i2c_id,
 };
 #endif

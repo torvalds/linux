@@ -9,9 +9,6 @@
 
 #include <mach-common/irq.h>
 
-#undef BFIN_IRQ
-#define BFIN_IRQ(x) ((x) + IVG15)
-
 #define NR_PERI_INTS		(5 * 32)
 
 #define IRQ_SEC_ERR		BFIN_IRQ(0)	/* SEC Error */

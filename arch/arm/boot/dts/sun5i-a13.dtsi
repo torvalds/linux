@@ -1,0 +1,43 @@
+/*
+ * Copyright 2012 Maxime Ripard
+ *
+ * Maxime Ripard <maxime.ripard@free-electrons.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "sunxi.dtsi"
+
+/ {
+	memory {
+		reg = <0x40000000 0x20000000>;
+	};
+
+	soc {
+		pinctrl@01c20800 {
+			compatible = "allwinner,sun5i-a13-pinctrl";
+			reg = <0x01c20800 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			uart1_pins_a: uart1@0 {
+				allwinner,pins = "PE10", "PE11";
+				allwinner,function = "uart1";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			uart1_pins_b: uart1@1 {
+				allwinner,pins = "PG3", "PG4";
+				allwinner,function = "uart1";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+		};
+	};
+};

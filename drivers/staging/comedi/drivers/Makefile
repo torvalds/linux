@@ -2,7 +2,6 @@
 #
 
 # Comedi "helper" modules
-obj-$(CONFIG_COMEDI)			+= pcm_common.o
 
 # Comedi misc drivers
 obj-$(CONFIG_COMEDI_BOND)		+= comedi_bond.o
@@ -26,6 +25,7 @@ obj-$(CONFIG_COMEDI_PCM3730)		+= pcm3730.o
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
 obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
 obj-$(CONFIG_COMEDI_DAS16M1)		+= das16m1.o
+obj-$(CONFIG_COMEDI_DAS08_ISA)		+= das08_isa.o
 obj-$(CONFIG_COMEDI_DAS16)		+= das16.o
 obj-$(CONFIG_COMEDI_DAS800)		+= das800.o
 obj-$(CONFIG_COMEDI_DAS1800)		+= das1800.o
@@ -56,16 +56,15 @@ obj-$(CONFIG_COMEDI_POC)		+= poc.o
 
 # Comedi PCI drivers
 obj-$(CONFIG_COMEDI_8255_PCI)		+= 8255_pci.o
+obj-$(CONFIG_COMEDI_ADDI_WATCHDOG)	+= addi_watchdog.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_035)	+= addi_apci_035.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1032)	+= addi_apci_1032.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1500)	+= addi_apci_1500.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1516)	+= addi_apci_1516.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1564)	+= addi_apci_1564.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_16XX)	+= addi_apci_16xx.o
-obj-$(CONFIG_COMEDI_ADDI_APCI_2016)	+= addi_apci_2016.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_2032)	+= addi_apci_2032.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_2200)	+= addi_apci_2200.o
-obj-$(CONFIG_COMEDI_ADDI_APCI_3001)	+= addi_apci_3001.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_3120)	+= addi_apci_3120.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_3501)	+= addi_apci_3501.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_3XXX)	+= addi_apci_3xxx.o
@@ -83,6 +82,7 @@ obj-$(CONFIG_COMEDI_AMPLC_PC263)	+= amplc_pc263.o
 obj-$(CONFIG_COMEDI_AMPLC_PCI224)	+= amplc_pci224.o
 obj-$(CONFIG_COMEDI_AMPLC_PCI230)	+= amplc_pci230.o
 obj-$(CONFIG_COMEDI_CONTEC_PCI_DIO)	+= contec_pci_dio.o
+obj-$(CONFIG_COMEDI_DAS08_PCI)		+= das08_pci.o
 obj-$(CONFIG_COMEDI_DT3000)		+= dt3000.o
 obj-$(CONFIG_COMEDI_DYNA_PCI10XX)	+= dyna_pci10xx.o
 obj-$(CONFIG_COMEDI_UNIOXX5)		+= unioxx5.o

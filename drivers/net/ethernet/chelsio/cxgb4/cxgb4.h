@@ -35,6 +35,8 @@
 #ifndef __CXGB4_H__
 #define __CXGB4_H__
 
+#include "t4_hw.h"
+
 #include <linux/bitops.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>
@@ -212,6 +214,8 @@ struct tp_err_stats {
 struct tp_params {
 	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
+	unsigned short tx_modq_map;  /* TX modulation scheduler queue to */
+				     /* channel map */
 
 	uint32_t dack_re;            /* DACK timer resolution */
 	unsigned short tx_modq[NCHAN];	/* channel to modulation queue map */
@@ -526,6 +530,7 @@ struct adapter {
 	struct net_device *port[MAX_NPORTS];
 	u8 chan_map[NCHAN];                   /* channel -> port map */
 
+	u32 filter_mode;
 	unsigned int l2t_start;
 	unsigned int l2t_end;
 	struct l2t_data *l2t;
@@ -543,6 +548,129 @@ struct adapter {
 	struct dentry *debugfs_root;
 
 	spinlock_t stats_lock;
+};
+
+/* Defined bit width of user definable filter tuples
+ */
+#define ETHTYPE_BITWIDTH 16
+#define FRAG_BITWIDTH 1
+#define MACIDX_BITWIDTH 9
+#define FCOE_BITWIDTH 1
+#define IPORT_BITWIDTH 3
+#define MATCHTYPE_BITWIDTH 3
+#define PROTO_BITWIDTH 8
+#define TOS_BITWIDTH 8
+#define PF_BITWIDTH 8
+#define VF_BITWIDTH 8
+#define IVLAN_BITWIDTH 16
+#define OVLAN_BITWIDTH 16
+
+/* Filter matching rules.  These consist of a set of ingress packet field
+ * (value, mask) tuples.  The associated ingress packet field matches the
+ * tuple when ((field & mask) == value).  (Thus a wildcard "don't care" field
+ * rule can be constructed by specifying a tuple of (0, 0).)  A filter rule
+ * matches an ingress packet when all of the individual individual field
+ * matching rules are true.
+ *
+ * Partial field masks are always valid, however, while it may be easy to
+ * understand their meanings for some fields (e.g. IP address to match a
+ * subnet), for others making sensible partial masks is less intuitive (e.g.
+ * MPS match type) ...
+ *
+ * Most of the following data structures are modeled on T4 capabilities.
+ * Drivers for earlier chips use the subsets which make sense for those chips.
+ * We really need to come up with a hardware-independent mechanism to
+ * represent hardware filter capabilities ...
+ */
+struct ch_filter_tuple {
+	/* Compressed header matching field rules.  The TP_VLAN_PRI_MAP
+	 * register selects which of these fields will participate in the
+	 * filter match rules -- up to a maximum of 36 bits.  Because
+	 * TP_VLAN_PRI_MAP is a global register, all filters must use the same
+	 * set of fields.
+	 */
+	uint32_t ethtype:ETHTYPE_BITWIDTH;      /* Ethernet type */
+	uint32_t frag:FRAG_BITWIDTH;            /* IP fragmentation header */
+	uint32_t ivlan_vld:1;                   /* inner VLAN valid */
+	uint32_t ovlan_vld:1;                   /* outer VLAN valid */
+	uint32_t pfvf_vld:1;                    /* PF/VF valid */
+	uint32_t macidx:MACIDX_BITWIDTH;        /* exact match MAC index */
+	uint32_t fcoe:FCOE_BITWIDTH;            /* FCoE packet */
+	uint32_t iport:IPORT_BITWIDTH;          /* ingress port */
+	uint32_t matchtype:MATCHTYPE_BITWIDTH;  /* MPS match type */
+	uint32_t proto:PROTO_BITWIDTH;          /* protocol type */
+	uint32_t tos:TOS_BITWIDTH;              /* TOS/Traffic Type */
+	uint32_t pf:PF_BITWIDTH;                /* PCI-E PF ID */
+	uint32_t vf:VF_BITWIDTH;                /* PCI-E VF ID */
+	uint32_t ivlan:IVLAN_BITWIDTH;          /* inner VLAN */
+	uint32_t ovlan:OVLAN_BITWIDTH;          /* outer VLAN */
+
+	/* Uncompressed header matching field rules.  These are always
+	 * available for field rules.
+	 */
+	uint8_t lip[16];        /* local IP address (IPv4 in [3:0]) */
+	uint8_t fip[16];        /* foreign IP address (IPv4 in [3:0]) */
+	uint16_t lport;         /* local port */
+	uint16_t fport;         /* foreign port */
+};
+
+/* A filter ioctl command.
+ */
+struct ch_filter_specification {
+	/* Administrative fields for filter.
+	 */
+	uint32_t hitcnts:1;     /* count filter hits in TCB */
+	uint32_t prio:1;        /* filter has priority over active/server */
+
+	/* Fundamental filter typing.  This is the one element of filter
+	 * matching that doesn't exist as a (value, mask) tuple.
+	 */
+	uint32_t type:1;        /* 0 => IPv4, 1 => IPv6 */
+
+	/* Packet dispatch information.  Ingress packets which match the
+	 * filter rules will be dropped, passed to the host or switched back
+	 * out as egress packets.
+	 */
+	uint32_t action:2;      /* drop, pass, switch */
+
+	uint32_t rpttid:1;      /* report TID in RSS hash field */
+
+	uint32_t dirsteer:1;    /* 0 => RSS, 1 => steer to iq */
+	uint32_t iq:10;         /* ingress queue */
+
+	uint32_t maskhash:1;    /* dirsteer=0: store RSS hash in TCB */
+	uint32_t dirsteerhash:1;/* dirsteer=1: 0 => TCB contains RSS hash */
+				/*             1 => TCB contains IQ ID */
+
+	/* Switch proxy/rewrite fields.  An ingress packet which matches a
+	 * filter with "switch" set will be looped back out as an egress
+	 * packet -- potentially with some Ethernet header rewriting.
+	 */
+	uint32_t eport:2;       /* egress port to switch packet out */
+	uint32_t newdmac:1;     /* rewrite destination MAC address */
+	uint32_t newsmac:1;     /* rewrite source MAC address */
+	uint32_t newvlan:2;     /* rewrite VLAN Tag */
+	uint8_t dmac[ETH_ALEN]; /* new destination MAC address */
+	uint8_t smac[ETH_ALEN]; /* new source MAC address */
+	uint16_t vlan;          /* VLAN Tag to insert */
+
+	/* Filter rule value/mask pairs.
+	 */
+	struct ch_filter_tuple val;
+	struct ch_filter_tuple mask;
+};
+
+enum {
+	FILTER_PASS = 0,        /* default */
+	FILTER_DROP,
+	FILTER_SWITCH
+};
+
+enum {
+	VLAN_NOCHANGE = 0,      /* default */
+	VLAN_REMOVE,
+	VLAN_INSERT,
+	VLAN_REWRITE
 };
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)
@@ -701,6 +829,12 @@ static inline int t4_wr_mbox_ns(struct adapter *adap, int mbox, const void *cmd,
 void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
 		       unsigned int data_reg, const u32 *vals,
 		       unsigned int nregs, unsigned int start_idx);
+void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
+		      unsigned int data_reg, u32 *vals, unsigned int nregs,
+		      unsigned int start_idx);
+
+struct fw_filter_wr;
+
 void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
@@ -736,6 +870,8 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6);
 void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 		  const unsigned short *alpha, const unsigned short *beta);
+
+void t4_mk_filtdelwr(unsigned int ftid, struct fw_filter_wr *wr, int qid);
 
 void t4_wol_magic_enable(struct adapter *adap, unsigned int port,
 			 const u8 *addr);

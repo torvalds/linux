@@ -9,7 +9,6 @@
 /*                                                                            */
 /*                                                                            */
 /******************************************************************************/
-#include <linux/version.h>
 
 #include <linux/kernel.h>	/* We're doing kernel work */
 #include <linux/module.h>	/* Specifically, a module */
@@ -4319,16 +4318,6 @@ void remove_bypass_wd_auto(bpctl_dev_t *pbpctl_dev)
 		del_timer_sync(&pbpctl_dev->bp_timer);
 #ifdef BP_SELF_TEST
 		pbpctl_dev_sl = get_status_port_fn(pbpctl_dev);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31))
-		if (pbpctl_dev_sl && (pbpctl_dev_sl->ndev)
-		    && (pbpctl_dev_sl->ndev->hard_start_xmit)
-		    && (pbpctl_dev_sl->hard_start_xmit_save)) {
-			rtnl_lock();
-			pbpctl_dev_sl->ndev->hard_start_xmit =
-			    pbpctl_dev_sl->hard_start_xmit_save;
-			rtnl_unlock();
-		}
-#else
 		if (pbpctl_dev_sl && (pbpctl_dev_sl->ndev)) {
 			if ((pbpctl_dev_sl->ndev->netdev_ops)
 			    && (pbpctl_dev_sl->old_ops)) {
@@ -4342,8 +4331,6 @@ void remove_bypass_wd_auto(bpctl_dev_t *pbpctl_dev)
 			}
 
 		}
-
-#endif
 #endif
 	}
 
@@ -4433,23 +4420,7 @@ int set_bp_self_test(bpctl_dev_t *pbpctl_dev, unsigned int param)
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
 		pbpctl_dev->bp_self_test_flag = param == 0 ? 0 : 1;
 		pbpctl_dev_sl = get_status_port_fn(pbpctl_dev);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31))
-		if ((pbpctl_dev_sl->ndev) &&
-		    (pbpctl_dev_sl->ndev->hard_start_xmit)) {
-			rtnl_lock();
-			if (pbpctl_dev->bp_self_test_flag == 1) {
 
-				pbpctl_dev_sl->hard_start_xmit_save =
-				    pbpctl_dev_sl->ndev->hard_start_xmit;
-				pbpctl_dev_sl->ndev->hard_start_xmit =
-				    bp_hard_start_xmit;
-			} else if (pbpctl_dev_sl->hard_start_xmit_save) {
-				pbpctl_dev_sl->ndev->hard_start_xmit =
-				    pbpctl_dev_sl->hard_start_xmit_save;
-			}
-			rtnl_unlock();
-		}
-#else
 		if ((pbpctl_dev_sl->ndev) && (pbpctl_dev_sl->ndev->netdev_ops)) {
 			rtnl_lock();
 			if (pbpctl_dev->bp_self_test_flag == 1) {
@@ -4470,7 +4441,6 @@ int set_bp_self_test(bpctl_dev_t *pbpctl_dev, unsigned int param)
 			}
 			rtnl_unlock();
 		}
-#endif
 
 		set_bypass_wd_auto(pbpctl_dev, param);
 		return 0;
@@ -5428,15 +5398,8 @@ static void if_scan_init(void)
 	/* rcu_read_lock(); */
 	/* rtnl_lock();     */
 	/* rcu_read_lock(); */
-#if 1
-#if (LINUX_VERSION_CODE >= 0x020618)
-	for_each_netdev(&init_net, dev)
-#elif (LINUX_VERSION_CODE >= 0x20616)
-	for_each_netdev(dev)
-#else
-	for (dev = dev_base; dev; dev = dev->next)
-#endif
-	{
+
+	for_each_netdev(&init_net, dev) {
 
 		struct ethtool_drvinfo drvinfo;
 		char cbuf[32];
@@ -5453,8 +5416,6 @@ static void if_scan_init(void)
 			memset(&drvinfo, 0, sizeof(drvinfo));
 			dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
 		} else
-			continue;
-		if (!drvinfo.bus_info)
 			continue;
 		if (!strcmp(drvinfo.bus_info, "N/A"))
 			continue;
@@ -5491,22 +5452,14 @@ static void if_scan_init(void)
 		}
 
 	}
-#endif
 	/* rtnl_unlock();     */
 	/* rcu_read_unlock(); */
 
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30))
-static int device_ioctl(struct inode *inode,	/* see include/linux/fs.h */
-			struct file *file,	/* ditto */
-			unsigned int ioctl_num,	/* number and param for ioctl */
-			unsigned long ioctl_param)
-#else
-static long device_ioctl(struct file *file,	/* ditto */
+static long device_ioctl(struct file *file,	/* see include/linux/fs.h */
 			 unsigned int ioctl_num,	/* number and param for ioctl */
 			 unsigned long ioctl_param)
-#endif
 {
 	struct bpctl_cmd bpctl_cmd;
 	int dev_idx = 0;
@@ -5517,9 +5470,7 @@ static long device_ioctl(struct file *file,	/* ditto */
 
 	static bpctl_dev_t *pbpctl_dev;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
 	/* lock_kernel(); */
-#endif
 	lock_bpctl();
 	/* local_irq_save(flags); */
 	/* if(!spin_trylock_irqsave(&bpvm_lock)){
@@ -5900,9 +5851,7 @@ static long device_ioctl(struct file *file,	/* ditto */
 		ret = -EFAULT;
 	ret = SUCCESS;
  bp_exit:
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
 	/* unlock_kernel(); */
-#endif
 	/* spin_unlock_irqrestore(&bpvm_lock, flags); */
 	unlock_bpctl();
 	/* unlock_kernel(); */
@@ -5911,12 +5860,7 @@ static long device_ioctl(struct file *file,	/* ditto */
 
 struct file_operations Fops = {
 	.owner = THIS_MODULE,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30))
-	.ioctl = device_ioctl,
-#else
 	.unlocked_ioctl = device_ioctl,
-#endif
-
 	.open = device_open,
 	.release = device_release,	/* a.k.a. close */
 };
@@ -6952,15 +6896,8 @@ static int __init bypass_init_module(void)
 				memset(bpctl_dev_arr[idx_dev].bp_tx_data + 7,
 				       0xaa, 5);
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
-				bpctl_dev_arr[idx_dev].bp_tx_data[12] =
-				    (ETH_P_BPTEST >> 8) & 0xff;
-				bpctl_dev_arr[idx_dev].bp_tx_data[13] =
-				    ETH_P_BPTEST & 0xff;
-#else
 				*(__be16 *) (bpctl_dev_arr[idx_dev].bp_tx_data +
 					     12) = htons(ETH_P_BPTEST);
-#endif
 
 			} else
 				printk("bp_ctl: Memory allocation error!\n");
@@ -7009,83 +6946,6 @@ static int __init bypass_init_module(void)
 		}
 	}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0))
-	inter_module_register("is_bypass_sd", THIS_MODULE, &is_bypass_sd);
-	inter_module_register("get_bypass_slave_sd", THIS_MODULE,
-			      &get_bypass_slave_sd);
-	inter_module_register("get_bypass_caps_sd", THIS_MODULE,
-			      &get_bypass_caps_sd);
-	inter_module_register("get_wd_set_caps_sd", THIS_MODULE,
-			      &get_wd_set_caps_sd);
-	inter_module_register("set_bypass_sd", THIS_MODULE, &set_bypass_sd);
-	inter_module_register("get_bypass_sd", THIS_MODULE, &get_bypass_sd);
-	inter_module_register("get_bypass_change_sd", THIS_MODULE,
-			      &get_bypass_change_sd);
-	inter_module_register("set_dis_bypass_sd", THIS_MODULE,
-			      &set_dis_bypass_sd);
-	inter_module_register("get_dis_bypass_sd", THIS_MODULE,
-			      &get_dis_bypass_sd);
-	inter_module_register("set_bypass_pwoff_sd", THIS_MODULE,
-			      &set_bypass_pwoff_sd);
-	inter_module_register("get_bypass_pwoff_sd", THIS_MODULE,
-			      &get_bypass_pwoff_sd);
-	inter_module_register("set_bypass_pwup_sd", THIS_MODULE,
-			      &set_bypass_pwup_sd);
-	inter_module_register("get_bypass_pwup_sd", THIS_MODULE,
-			      &get_bypass_pwup_sd);
-	inter_module_register("get_bypass_wd_sd", THIS_MODULE,
-			      &get_bypass_wd_sd);
-	inter_module_register("set_bypass_wd_sd", THIS_MODULE,
-			      &set_bypass_wd_sd);
-	inter_module_register("get_wd_expire_time_sd", THIS_MODULE,
-			      &get_wd_expire_time_sd);
-	inter_module_register("reset_bypass_wd_timer_sd", THIS_MODULE,
-			      &reset_bypass_wd_timer_sd);
-	inter_module_register("set_std_nic_sd", THIS_MODULE, &set_std_nic_sd);
-	inter_module_register("get_std_nic_sd", THIS_MODULE, &get_std_nic_sd);
-	inter_module_register("set_tx_sd", THIS_MODULE, &set_tx_sd);
-	inter_module_register("get_tx_sd", THIS_MODULE, &get_tx_sd);
-	inter_module_register("set_tpl_sd", THIS_MODULE, &set_tpl_sd);
-	inter_module_register("get_tpl_sd", THIS_MODULE, &get_tpl_sd);
-
-	inter_module_register("set_bp_hw_reset_sd", THIS_MODULE,
-			      &set_bp_hw_reset_sd);
-	inter_module_register("get_bp_hw_reset_sd", THIS_MODULE,
-			      &get_bp_hw_reset_sd);
-
-	inter_module_register("set_tap_sd", THIS_MODULE, &set_tap_sd);
-	inter_module_register("get_tap_sd", THIS_MODULE, &get_tap_sd);
-	inter_module_register("get_tap_change_sd", THIS_MODULE,
-			      &get_tap_change_sd);
-	inter_module_register("set_dis_tap_sd", THIS_MODULE, &set_dis_tap_sd);
-	inter_module_register("get_dis_tap_sd", THIS_MODULE, &get_dis_tap_sd);
-	inter_module_register("set_tap_pwup_sd", THIS_MODULE, &set_tap_pwup_sd);
-	inter_module_register("get_tap_pwup_sd", THIS_MODULE, &get_tap_pwup_sd);
-	inter_module_register("set_bp_disc_sd", THIS_MODULE, &set_bp_disc_sd);
-	inter_module_register("get_bp_disc_sd", THIS_MODULE, &get_bp_disc_sd);
-	inter_module_register("get_bp_disc_change_sd", THIS_MODULE,
-			      &get_bp_disc_change_sd);
-	inter_module_register("set_bp_dis_disc_sd", THIS_MODULE,
-			      &set_bp_dis_disc_sd);
-	inter_module_register("get_bp_dis_disc_sd", THIS_MODULE,
-			      &get_bp_dis_disc_sd);
-	inter_module_register("set_bp_disc_pwup_sd", THIS_MODULE,
-			      &set_bp_disc_pwup_sd);
-	inter_module_register("get_bp_disc_pwup_sd", THIS_MODULE,
-			      &get_bp_disc_pwup_sd);
-	inter_module_register("set_wd_exp_mode_sd", THIS_MODULE,
-			      &set_wd_exp_mode_sd);
-	inter_module_register("get_wd_exp_mode_sd", THIS_MODULE,
-			      &get_wd_exp_mode_sd);
-	inter_module_register("set_wd_autoreset_sd", THIS_MODULE,
-			      &set_wd_autoreset_sd);
-	inter_module_register("get_wd_autoreset_sd", THIS_MODULE,
-			      &get_wd_autoreset_sd);
-	inter_module_register("get_bypass_info_sd", THIS_MODULE,
-			      &get_bypass_info_sd);
-	inter_module_register("bp_if_scan_sd", THIS_MODULE, &bp_if_scan_sd);
-
-#endif
 	register_netdevice_notifier(&bp_notifier_block);
 #ifdef BP_PROC_SUPPORT
 	{
@@ -7115,57 +6975,7 @@ static int __init bypass_init_module(void)
 static void __exit bypass_cleanup_module(void)
 {
 	int i;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23))
-	int ret;
-#endif
 	unregister_netdevice_notifier(&bp_notifier_block);
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0))
-	inter_module_unregister("is_bypass_sd");
-	inter_module_unregister("get_bypass_slave_sd");
-	inter_module_unregister("get_bypass_caps_sd");
-	inter_module_unregister("get_wd_set_caps_sd");
-	inter_module_unregister("set_bypass_sd");
-	inter_module_unregister("get_bypass_sd");
-	inter_module_unregister("get_bypass_change_sd");
-	inter_module_unregister("set_dis_bypass_sd");
-	inter_module_unregister("get_dis_bypass_sd");
-	inter_module_unregister("set_bypass_pwoff_sd");
-	inter_module_unregister("get_bypass_pwoff_sd");
-	inter_module_unregister("set_bypass_pwup_sd");
-	inter_module_unregister("get_bypass_pwup_sd");
-	inter_module_unregister("set_bypass_wd_sd");
-	inter_module_unregister("get_bypass_wd_sd");
-	inter_module_unregister("get_wd_expire_time_sd");
-	inter_module_unregister("reset_bypass_wd_timer_sd");
-	inter_module_unregister("set_std_nic_sd");
-	inter_module_unregister("get_std_nic_sd");
-	inter_module_unregister("set_tx_sd");
-	inter_module_unregister("get_tx_sd");
-	inter_module_unregister("set_tpl_sd");
-	inter_module_unregister("get_tpl_sd");
-	inter_module_unregister("set_tap_sd");
-	inter_module_unregister("get_tap_sd");
-	inter_module_unregister("get_tap_change_sd");
-	inter_module_unregister("set_dis_tap_sd");
-	inter_module_unregister("get_dis_tap_sd");
-	inter_module_unregister("set_tap_pwup_sd");
-	inter_module_unregister("get_tap_pwup_sd");
-	inter_module_unregister("set_bp_disc_sd");
-	inter_module_unregister("get_bp_disc_sd");
-	inter_module_unregister("get_bp_disc_change_sd");
-	inter_module_unregister("set_bp_dis_disc_sd");
-	inter_module_unregister("get_bp_dis_disc_sd");
-	inter_module_unregister("set_bp_disc_pwup_sd");
-	inter_module_unregister("get_bp_disc_pwup_sd");
-	inter_module_unregister("set_wd_exp_mode_sd");
-	inter_module_unregister("get_wd_exp_mode_sd");
-	inter_module_unregister("set_wd_autoreset_sd");
-	inter_module_unregister("get_wd_autoreset_sd");
-	inter_module_unregister("get_bypass_info_sd");
-	inter_module_unregister("bp_if_scan_sd");
-
-#endif
 
 	for (i = 0; i < device_num; i++) {
 		/* unsigned long flags; */
@@ -7198,17 +7008,7 @@ static void __exit bypass_cleanup_module(void)
 /*
 * Unregister the device                             
 */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23))
-	ret = unregister_chrdev(major_num, DEVICE_NAME);
-/*
-* If there's an error, report it
-*/
-	if (ret < 0)
-		printk("Error in module_unregister_chrdev: %d\n", ret);
-#else
 	unregister_chrdev(major_num, DEVICE_NAME);
-
-#endif
 }
 
 module_init(bypass_init_module);
@@ -7597,11 +7397,7 @@ static struct proc_dir_entry *proc_getdir(char *name,
 	}
 	if (pde == (struct proc_dir_entry *)0) {
 		/* create the directory */
-#if (LINUX_VERSION_CODE > 0x20300)
 		pde = proc_mkdir(name, proc_dir);
-#else
-		pde = create_proc_entry(name, S_IFDIR, proc_dir);
-#endif
 		if (pde == (struct proc_dir_entry *)0) {
 
 			return pde;
@@ -7703,13 +7499,8 @@ get_bypass_slave_pfs(char *page, char **start, off_t off, int count,
 		return len;
 	}
 	net_slave_dev = pbp_device_block_slave->ndev;
-	if (net_slave_dev) {
-		if (net_slave_dev)
-			len = sprintf(page, "%s\n", net_slave_dev->name);
-		else
-			len = sprintf(page, "fail\n");
-
-	}
+	if (net_slave_dev)
+		len = sprintf(page, "%s\n", net_slave_dev->name);
 
 	*eof = 1;
 	return len;

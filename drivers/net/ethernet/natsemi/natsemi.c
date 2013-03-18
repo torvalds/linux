@@ -127,7 +127,7 @@ static int full_duplex[MAX_UNITS];
 #define NATSEMI_RX_LIMIT	2046	/* maximum supported by hardware */
 
 /* These identify the driver base version and may not be removed. */
-static const char version[] __devinitconst =
+static const char version[] =
   KERN_INFO DRV_NAME " dp8381x driver, version "
       DRV_VERSION ", " DRV_RELDATE "\n"
   "  originally by Donald Becker <becker@scyld.com>\n"
@@ -242,7 +242,7 @@ static struct {
 	const char *name;
 	unsigned long flags;
 	unsigned int eeprom_size;
-} natsemi_pci_info[] __devinitdata = {
+} natsemi_pci_info[] = {
 	{ "Aculab E1/T1 PMXc cPCI carrier card", NATSEMI_FLAG_IGNORE_PHY, 128 },
 	{ "NatSemi DP8381[56]", 0, 24 },
 };
@@ -742,7 +742,7 @@ static void move_int_phy(struct net_device *dev, int addr)
 	udelay(1);
 }
 
-static void __devinit natsemi_init_media (struct net_device *dev)
+static void natsemi_init_media(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	u32 tmp;
@@ -797,8 +797,7 @@ static const struct net_device_ops natsemi_netdev_ops = {
 #endif
 };
 
-static int __devinit natsemi_probe1 (struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct netdev_private *np;
@@ -862,9 +861,6 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 		dev->dev_addr[i*2+1] = eedata >> 7;
 		prev_eedata = eedata;
 	}
-
-	/* Store MAC Address in perm_addr */
-	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 	np = netdev_priv(dev);
 	np->ioaddr = ioaddr;
@@ -3214,7 +3210,7 @@ static int netdev_close(struct net_device *dev)
 }
 
 
-static void __devexit natsemi_remove1 (struct pci_dev *pdev)
+static void natsemi_remove1(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	void __iomem * ioaddr = ns_ioaddr(dev);
@@ -3353,7 +3349,7 @@ static struct pci_driver natsemi_driver = {
 	.name		= DRV_NAME,
 	.id_table	= natsemi_pci_tbl,
 	.probe		= natsemi_probe1,
-	.remove		= __devexit_p(natsemi_remove1),
+	.remove		= natsemi_remove1,
 #ifdef CONFIG_PM
 	.suspend	= natsemi_suspend,
 	.resume		= natsemi_resume,

@@ -92,8 +92,10 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		rdpr	%wstate, %g2
 		wrpr	%g0, 0, %canrestore
 		sll	%g2, 3, %g2
+
+		/* Set TI_SYS_FPDEPTH to 1 and clear TI_SYS_NOERROR.  */
 		mov	1, %l5
-		stb	%l5, [%l6 + TI_FPDEPTH]
+		sth	%l5, [%l6 + TI_SYS_NOERROR]
 
 		wrpr	%g3, 0, %otherwin
 		wrpr	%g2, 0, %wstate
@@ -152,7 +154,9 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		add	%l6, TI_FPSAVED + 1, %l4
 		srl	%l5, 1, %l3
 		add	%l5, 2, %l5
-		stb	%l5, [%l6 + TI_FPDEPTH]
+
+		/* Set TI_SYS_FPDEPTH to %l5 and clear TI_SYS_NOERROR.  */
+		sth	%l5, [%l6 + TI_SYS_NOERROR]
 		ba,pt	%xcc, 2b
 		 stb	%g0, [%l4 + %l3]
 		nop

@@ -28,10 +28,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.3"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Gary Brubaker <xavyer@ix.netcom.com>"
 #define DRIVER_DESC "USB Empeg Mark I/II Driver"
 

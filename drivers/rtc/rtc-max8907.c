@@ -176,7 +176,7 @@ static const struct rtc_class_ops max8907_rtc_ops = {
 	.set_alarm	= max8907_rtc_set_alarm,
 };
 
-static int __devinit max8907_rtc_probe(struct platform_device *pdev)
+static int max8907_rtc_probe(struct platform_device *pdev)
 {
 	struct max8907 *max8907 = dev_get_drvdata(pdev->dev.parent);
 	struct max8907_rtc *rtc;
@@ -205,8 +205,9 @@ static int __devinit max8907_rtc_probe(struct platform_device *pdev)
 		goto err_unregister;
 	}
 
-	ret = request_threaded_irq(rtc->irq, NULL, max8907_irq_handler,
-				   IRQF_ONESHOT, "max8907-alarm0", rtc);
+	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
+				max8907_irq_handler,
+				IRQF_ONESHOT, "max8907-alarm0", rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request IRQ%d: %d\n",
 			rtc->irq, ret);
@@ -220,11 +221,10 @@ err_unregister:
 	return ret;
 }
 
-static int __devexit max8907_rtc_remove(struct platform_device *pdev)
+static int max8907_rtc_remove(struct platform_device *pdev)
 {
 	struct max8907_rtc *rtc = platform_get_drvdata(pdev);
 
-	free_irq(rtc->irq, rtc);
 	rtc_device_unregister(rtc->rtc_dev);
 
 	return 0;
@@ -236,7 +236,7 @@ static struct platform_driver max8907_rtc_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8907_rtc_probe,
-	.remove = __devexit_p(max8907_rtc_remove),
+	.remove = max8907_rtc_remove,
 };
 module_platform_driver(max8907_rtc_driver);
 

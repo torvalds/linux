@@ -43,7 +43,6 @@ static __be32
 nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 					   struct nfsd3_attrstat *resp)
 {
-	int	err;
 	__be32	nfserr;
 
 	dprintk("nfsd: GETATTR(3)  %s\n",
@@ -55,9 +54,7 @@ nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
-	err = vfs_getattr(resp->fh.fh_export->ex_path.mnt,
-			  resp->fh.fh_dentry, &resp->stat);
-	nfserr = nfserrno(err);
+	nfserr = fh_getattr(&resp->fh, &resp->stat);
 
 	RETURN_STATUS(nfserr);
 }
@@ -460,7 +457,7 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp, struct nfsd3_readdirargs *argp,
 	__be32	nfserr;
 	int	count = 0;
 	loff_t	offset;
-	int	i;
+	struct page **p;
 	caddr_t	page_addr = NULL;
 
 	dprintk("nfsd: READDIR+(3) %s %d bytes at %d\n",
@@ -484,8 +481,8 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp, struct nfsd3_readdirargs *argp,
 				     &resp->common,
 				     nfs3svc_encode_entry_plus);
 	memcpy(resp->verf, argp->verf, 8);
-	for (i=1; i<rqstp->rq_resused ; i++) {
-		page_addr = page_address(rqstp->rq_respages[i]);
+	for (p = rqstp->rq_respages + 1; p < rqstp->rq_next_page; p++) {
+		page_addr = page_address(*p);
 
 		if (((caddr_t)resp->buffer >= page_addr) &&
 		    ((caddr_t)resp->buffer < page_addr + PAGE_SIZE)) {

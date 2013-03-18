@@ -137,7 +137,7 @@ static int lq035q1_control(struct spi_device *spi, unsigned char reg, unsigned s
 	return ret;
 }
 
-static int __devinit lq035q1_spidev_probe(struct spi_device *spi)
+static int lq035q1_spidev_probe(struct spi_device *spi)
 {
 	int ret;
 	struct spi_control *ctl;
@@ -358,8 +358,8 @@ static inline void bfin_lq035q1_free_ports(unsigned ppi16)
 		gpio_free(P_IDENT(P_PPI0_FS3));
 }
 
-static int __devinit bfin_lq035q1_request_ports(struct platform_device *pdev,
-						unsigned ppi16)
+static int bfin_lq035q1_request_ports(struct platform_device *pdev,
+				      unsigned ppi16)
 {
 	int ret;
 	/* ANOMALY_05000400 - PPI Does Not Start Properly In Specific Mode:
@@ -555,7 +555,7 @@ static irqreturn_t bfin_lq035q1_irq_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit bfin_lq035q1_probe(struct platform_device *pdev)
+static int bfin_lq035q1_probe(struct platform_device *pdev)
 {
 	struct bfin_lq035q1fb_info *info;
 	struct fb_info *fbinfo;
@@ -706,7 +706,7 @@ static int __devinit bfin_lq035q1_probe(struct platform_device *pdev)
 
 	info->spidrv.driver.name = DRIVER_NAME"-spi";
 	info->spidrv.probe    = lq035q1_spidev_probe;
-	info->spidrv.remove   = __devexit_p(lq035q1_spidev_remove);
+	info->spidrv.remove   = lq035q1_spidev_remove;
 	info->spidrv.shutdown = lq035q1_spidev_shutdown;
 	info->spidrv.suspend  = lq035q1_spidev_suspend;
 	info->spidrv.resume   = lq035q1_spidev_resume;
@@ -764,7 +764,7 @@ static int __devinit bfin_lq035q1_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit bfin_lq035q1_remove(struct platform_device *pdev)
+static int bfin_lq035q1_remove(struct platform_device *pdev)
 {
 	struct fb_info *fbinfo = platform_get_drvdata(pdev);
 	struct bfin_lq035q1fb_info *info = fbinfo->par;
@@ -845,7 +845,7 @@ static struct dev_pm_ops bfin_lq035q1_dev_pm_ops = {
 
 static struct platform_driver bfin_lq035q1_driver = {
 	.probe   = bfin_lq035q1_probe,
-	.remove  = __devexit_p(bfin_lq035q1_remove),
+	.remove  = bfin_lq035q1_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 #ifdef CONFIG_PM

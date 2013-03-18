@@ -619,7 +619,7 @@ static SIMPLE_DEV_PM_OPS(i2c_pnx_pm,
 #define PNX_I2C_PM	NULL
 #endif
 
-static int __devinit i2c_pnx_probe(struct platform_device *pdev)
+static int i2c_pnx_probe(struct platform_device *pdev)
 {
 	unsigned long tmp;
 	int ret = 0;
@@ -761,11 +761,10 @@ out_clkget:
 out_drvdata:
 	kfree(alg_data);
 err_kzalloc:
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
-static int __devexit i2c_pnx_remove(struct platform_device *pdev)
+static int i2c_pnx_remove(struct platform_device *pdev)
 {
 	struct i2c_pnx_algo_data *alg_data = platform_get_drvdata(pdev);
 
@@ -776,7 +775,6 @@ static int __devexit i2c_pnx_remove(struct platform_device *pdev)
 	release_mem_region(alg_data->base, I2C_PNX_REGION_SIZE);
 	clk_put(alg_data->clk);
 	kfree(alg_data);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -797,7 +795,7 @@ static struct platform_driver i2c_pnx_driver = {
 		.pm = PNX_I2C_PM,
 	},
 	.probe = i2c_pnx_probe,
-	.remove = __devexit_p(i2c_pnx_remove),
+	.remove = i2c_pnx_remove,
 };
 
 static int __init i2c_adap_pnx_init(void)

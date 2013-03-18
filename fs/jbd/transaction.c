@@ -1259,7 +1259,7 @@ int journal_forget (handle_t *handle, struct buffer_head *bh)
 		goto not_jbd;
 	}
 
-	/* keep track of wether or not this transaction modified us */
+	/* keep track of whether or not this transaction modified us */
 	was_modified = jh->b_modified;
 
 	/*
@@ -1961,7 +1961,9 @@ retry:
 			spin_unlock(&journal->j_list_lock);
 			jbd_unlock_bh_state(bh);
 			spin_unlock(&journal->j_state_lock);
+			unlock_buffer(bh);
 			log_wait_commit(journal, tid);
+			lock_buffer(bh);
 			goto retry;
 		}
 		/*

@@ -114,7 +114,7 @@ static void jlj_write2(struct gspca_dev *gspca_dev, unsigned char *command)
 }
 
 /* Responses are one byte only */
-static void jlj_read1(struct gspca_dev *gspca_dev, unsigned char response)
+static void jlj_read1(struct gspca_dev *gspca_dev, unsigned char *response)
 {
 	int retval;
 
@@ -123,7 +123,7 @@ static void jlj_read1(struct gspca_dev *gspca_dev, unsigned char response)
 	retval = usb_bulk_msg(gspca_dev->dev,
 	usb_rcvbulkpipe(gspca_dev->dev, 0x84),
 				gspca_dev->usb_buf, 1, NULL, 500);
-	response = gspca_dev->usb_buf[0];
+	*response = gspca_dev->usb_buf[0];
 	if (retval < 0) {
 		pr_err("read command [%02x] error %d\n",
 		       gspca_dev->usb_buf[0], retval);
@@ -260,7 +260,7 @@ static int jlj_start(struct gspca_dev *gspca_dev)
 		if (start_commands[i].delay)
 			msleep(start_commands[i].delay);
 		if (start_commands[i].ack_wanted)
-			jlj_read1(gspca_dev, response);
+			jlj_read1(gspca_dev, &response);
 	}
 	setcamquality(gspca_dev, v4l2_ctrl_g_ctrl(sd->jpegqual));
 	msleep(2);

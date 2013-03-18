@@ -332,7 +332,7 @@ static int atmel_aes_crypt_cpu_start(struct atmel_aes_dev *dd)
 		return -EINVAL;
 
 	dd->nb_out_sg = atmel_aes_sg_length(dd->req, dd->out_sg);
-	if (!dd->nb_in_sg)
+	if (!dd->nb_out_sg)
 		return -EINVAL;
 
 	dd->bufcnt = sg_copy_to_buffer(dd->in_sg, dd->nb_in_sg,
@@ -1036,7 +1036,7 @@ err_aes_algs:
 	return err;
 }
 
-static int __devinit atmel_aes_probe(struct platform_device *pdev)
+static int atmel_aes_probe(struct platform_device *pdev)
 {
 	struct atmel_aes_dev *aes_dd;
 	struct aes_platform_data	*pdata;
@@ -1152,7 +1152,7 @@ aes_dd_err:
 	return err;
 }
 
-static int __devexit atmel_aes_remove(struct platform_device *pdev)
+static int atmel_aes_remove(struct platform_device *pdev)
 {
 	static struct atmel_aes_dev *aes_dd;
 
@@ -1185,7 +1185,7 @@ static int __devexit atmel_aes_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_aes_driver = {
 	.probe		= atmel_aes_probe,
-	.remove		= __devexit_p(atmel_aes_remove),
+	.remove		= atmel_aes_remove,
 	.driver		= {
 		.name	= "atmel_aes",
 		.owner	= THIS_MODULE,

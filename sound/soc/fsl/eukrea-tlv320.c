@@ -93,7 +93,7 @@ static struct snd_soc_card eukrea_tlv320 = {
 	.num_links	= 1,
 };
 
-static int __devinit eukrea_tlv320_probe(struct platform_device *pdev)
+static int eukrea_tlv320_probe(struct platform_device *pdev)
 {
 	int ret;
 	int int_port = 0, ext_port;
@@ -142,7 +142,7 @@ static int __devinit eukrea_tlv320_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit eukrea_tlv320_remove(struct platform_device *pdev)
+static int eukrea_tlv320_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_card(&eukrea_tlv320);
 
@@ -155,7 +155,7 @@ static struct platform_driver eukrea_tlv320_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = eukrea_tlv320_probe,
-	.remove = __devexit_p(eukrea_tlv320_remove),};
+	.remove = eukrea_tlv320_remove,};
 
 module_platform_driver(eukrea_tlv320_driver);
 

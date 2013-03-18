@@ -535,7 +535,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	}
 
 	/* Change volume table record */
-	memcpy(&vtbl_rec, &ubi->vtbl[vol_id], sizeof(struct ubi_vtbl_record));
+	vtbl_rec = ubi->vtbl[vol_id];
 	vtbl_rec.reserved_pebs = cpu_to_be32(reserved_pebs);
 	err = ubi_change_vtbl_record(ubi, vol_id, &vtbl_rec);
 	if (err)
@@ -847,7 +847,7 @@ static int self_check_volumes(struct ubi_device *ubi)
 {
 	int i, err = 0;
 
-	if (!ubi->dbg->chk_gen)
+	if (!ubi_dbg_chk_gen(ubi))
 		return 0;
 
 	for (i = 0; i < ubi->vtbl_slots; i++) {

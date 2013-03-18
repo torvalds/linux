@@ -339,8 +339,8 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	sge->length = sizeof(struct rds_header);
 
 	sge = &recv->r_sge[1];
-	sge->addr = sg_dma_address(&recv->r_frag->f_sg);
-	sge->length = sg_dma_len(&recv->r_frag->f_sg);
+	sge->addr = ib_sg_dma_address(ic->i_cm_id->device, &recv->r_frag->f_sg);
+	sge->length = ib_sg_dma_len(ic->i_cm_id->device, &recv->r_frag->f_sg);
 
 	ret = 0;
 out:
@@ -381,7 +381,10 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill)
 		ret = ib_post_recv(ic->i_cm_id->qp, &recv->r_wr, &failed_wr);
 		rdsdebug("recv %p ibinc %p page %p addr %lu ret %d\n", recv,
 			 recv->r_ibinc, sg_page(&recv->r_frag->f_sg),
-			 (long) sg_dma_address(&recv->r_frag->f_sg), ret);
+			 (long) ib_sg_dma_address(
+				ic->i_cm_id->device,
+				&recv->r_frag->f_sg),
+			ret);
 		if (ret) {
 			rds_ib_conn_error(conn, "recv post on "
 			       "%pI4 returned %d, disconnecting and "
@@ -418,20 +421,21 @@ static void rds_ib_recv_cache_put(struct list_head *new_item,
 				 struct rds_ib_refill_cache *cache)
 {
 	unsigned long flags;
-	struct rds_ib_cache_head *chp;
 	struct list_head *old;
+	struct list_head __percpu *chpfirst;
 
 	local_irq_save(flags);
 
-	chp = per_cpu_ptr(cache->percpu, smp_processor_id());
-	if (!chp->first)
+	chpfirst = __this_cpu_read(cache->percpu->first);
+	if (!chpfirst)
 		INIT_LIST_HEAD(new_item);
 	else /* put on front */
-		list_add_tail(new_item, chp->first);
-	chp->first = new_item;
-	chp->count++;
+		list_add_tail(new_item, chpfirst);
 
-	if (chp->count < RDS_IB_RECYCLE_BATCH_COUNT)
+	__this_cpu_write(chpfirst, new_item);
+	__this_cpu_inc(cache->percpu->count);
+
+	if (__this_cpu_read(cache->percpu->count) < RDS_IB_RECYCLE_BATCH_COUNT)
 		goto end;
 
 	/*
@@ -443,12 +447,13 @@ static void rds_ib_recv_cache_put(struct list_head *new_item,
 	do {
 		old = xchg(&cache->xfer, NULL);
 		if (old)
-			list_splice_entire_tail(old, chp->first);
-		old = cmpxchg(&cache->xfer, NULL, chp->first);
+			list_splice_entire_tail(old, chpfirst);
+		old = cmpxchg(&cache->xfer, NULL, chpfirst);
 	} while (old);
 
-	chp->first = NULL;
-	chp->count = 0;
+
+	__this_cpu_write(chpfirst, NULL);
+	__this_cpu_write(cache->percpu->count, 0);
 end:
 	local_irq_restore(flags);
 }

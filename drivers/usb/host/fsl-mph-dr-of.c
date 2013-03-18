@@ -24,7 +24,7 @@ struct fsl_usb2_dev_data {
 	enum fsl_usb2_operating_modes op_mode;	/* operating mode */
 };
 
-struct fsl_usb2_dev_data dr_mode_data[] __devinitdata = {
+struct fsl_usb2_dev_data dr_mode_data[] = {
 	{
 		.dr_mode = "host",
 		.drivers = { "fsl-ehci", NULL, NULL, },
@@ -42,7 +42,7 @@ struct fsl_usb2_dev_data dr_mode_data[] __devinitdata = {
 	},
 };
 
-struct fsl_usb2_dev_data * __devinit get_dr_mode_data(struct device_node *np)
+struct fsl_usb2_dev_data *get_dr_mode_data(struct device_node *np)
 {
 	const unsigned char *prop;
 	int i;
@@ -59,7 +59,7 @@ struct fsl_usb2_dev_data * __devinit get_dr_mode_data(struct device_node *np)
 	return &dr_mode_data[0]; /* mode not specified, use host */
 }
 
-static enum fsl_usb2_phy_modes __devinit determine_usb_phy(const char *phy_type)
+static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 {
 	if (!phy_type)
 		return FSL_USB2_PHY_NONE;
@@ -75,7 +75,7 @@ static enum fsl_usb2_phy_modes __devinit determine_usb_phy(const char *phy_type)
 	return FSL_USB2_PHY_NONE;
 }
 
-struct platform_device * __devinit fsl_usb2_device_register(
+struct platform_device *fsl_usb2_device_register(
 					struct platform_device *ofdev,
 					struct fsl_usb2_platform_data *pdata,
 					const char *name, int id)
@@ -142,6 +142,9 @@ static int usb_get_ver_info(struct device_node *np)
 			return ver;
 	}
 
+	if (of_device_is_compatible(np, "fsl,mpc5121-usb2-dr"))
+		return FSL_USB_VER_OLD;
+
 	if (of_device_is_compatible(np, "fsl-usb2-mph")) {
 		if (of_device_is_compatible(np, "fsl-usb2-mph-v1.6"))
 			ver = FSL_USB_VER_1_6;
@@ -154,7 +157,7 @@ static int usb_get_ver_info(struct device_node *np)
 	return ver;
 }
 
-static int __devinit fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
+static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct platform_device *usb_dev;
@@ -224,13 +227,13 @@ static int __devinit fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 	return 0;
 }
 
-static int __devexit __unregister_subdev(struct device *dev, void *d)
+static int __unregister_subdev(struct device *dev, void *d)
 {
 	platform_device_unregister(to_platform_device(dev));
 	return 0;
 }
 
-static int __devexit fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
+static int fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
 {
 	device_for_each_child(&ofdev->dev, NULL, __unregister_subdev);
 	return 0;
@@ -336,7 +339,7 @@ static struct platform_driver fsl_usb2_mph_dr_driver = {
 		.of_match_table = fsl_usb2_mph_dr_of_match,
 	},
 	.probe	= fsl_usb2_mph_dr_of_probe,
-	.remove	= __devexit_p(fsl_usb2_mph_dr_of_remove),
+	.remove	= fsl_usb2_mph_dr_of_remove,
 };
 
 module_platform_driver(fsl_usb2_mph_dr_driver);

@@ -132,7 +132,7 @@ static struct platform_device *pdev;
  */
 static inline u8 IN_TO_REG(unsigned long val)
 {
-	unsigned long nval = SENSORS_LIMIT(val, 0, 4080);
+	unsigned long nval = clamp_val(val, 0, 4080);
 	return (nval + 8) / 16;
 }
 #define IN_FROM_REG(val) ((val) *  16)
@@ -141,7 +141,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 {
 	if (rpm <= 0)
 		return 255;
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 static inline int FAN_FROM_REG(u8 val, int div)
@@ -159,7 +159,7 @@ static inline int TEMP_FROM_REG(s8 val)
 }
 static inline s8 TEMP_TO_REG(int val)
 {
-	int nval = SENSORS_LIMIT(val, -54120, 157530) ;
+	int nval = clamp_val(val, -54120, 157530) ;
 	return nval < 0 ? (nval - 5212 - 415) / 830 : (nval - 5212 + 415) / 830;
 }
 
@@ -204,7 +204,7 @@ struct sis5595_data {
 static struct pci_dev *s_bridge;	/* pointer to the (only) sis5595 */
 
 static int sis5595_probe(struct platform_device *pdev);
-static int __devexit sis5595_remove(struct platform_device *pdev);
+static int sis5595_remove(struct platform_device *pdev);
 
 static int sis5595_read_value(struct sis5595_data *data, u8 reg);
 static void sis5595_write_value(struct sis5595_data *data, u8 reg, u8 value);
@@ -217,7 +217,7 @@ static struct platform_driver sis5595_driver = {
 		.name	= "sis5595",
 	},
 	.probe		= sis5595_probe,
-	.remove		= __devexit_p(sis5595_remove),
+	.remove		= sis5595_remove,
 };
 
 /* 4 Voltages */
@@ -583,7 +583,7 @@ static const struct attribute_group sis5595_group_temp1 = {
 };
 
 /* This is called when the module is loaded */
-static int __devinit sis5595_probe(struct platform_device *pdev)
+static int sis5595_probe(struct platform_device *pdev)
 {
 	int err = 0;
 	int i;
@@ -659,7 +659,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit sis5595_remove(struct platform_device *pdev)
+static int sis5595_remove(struct platform_device *pdev)
 {
 	struct sis5595_data *data = platform_get_drvdata(pdev);
 
@@ -693,7 +693,7 @@ static void sis5595_write_value(struct sis5595_data *data, u8 reg, u8 value)
 }
 
 /* Called when we have found a new SIS5595. */
-static void __devinit sis5595_init_device(struct sis5595_data *data)
+static void sis5595_init_device(struct sis5595_data *data)
 {
 	u8 config = sis5595_read_value(data, SIS5595_REG_CONFIG);
 	if (!(config & 0x01))
@@ -758,7 +758,7 @@ static DEFINE_PCI_DEVICE_TABLE(sis5595_pci_ids) = {
 
 MODULE_DEVICE_TABLE(pci, sis5595_pci_ids);
 
-static int blacklist[] __devinitdata = {
+static int blacklist[] = {
 	PCI_DEVICE_ID_SI_540,
 	PCI_DEVICE_ID_SI_550,
 	PCI_DEVICE_ID_SI_630,
@@ -774,7 +774,7 @@ static int blacklist[] __devinitdata = {
 	PCI_DEVICE_ID_SI_5598,
 	0 };
 
-static int __devinit sis5595_device_add(unsigned short address)
+static int sis5595_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
@@ -815,7 +815,7 @@ exit:
 	return err;
 }
 
-static int __devinit sis5595_pci_probe(struct pci_dev *dev,
+static int sis5595_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
 	u16 address;

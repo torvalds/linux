@@ -4,7 +4,7 @@
 
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
-ccflags-$(CONFIG_PPC64)	:= -mno-minimal-toc
+ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
 
 obj-y				:= fault.o mem.o pgtable.o gup.o \
 				   init_$(CONFIG_WORD_SIZE).o \

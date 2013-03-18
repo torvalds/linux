@@ -903,8 +903,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 			switch (data->port) {
 			case EP93XX_DMA_SSP:
 			case EP93XX_DMA_IDE:
-				if (data->direction != DMA_MEM_TO_DEV &&
-				    data->direction != DMA_DEV_TO_MEM)
+				if (!is_slave_direction(data->direction))
 					return -EINVAL;
 				break;
 			default:

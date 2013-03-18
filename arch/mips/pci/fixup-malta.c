@@ -8,11 +8,11 @@
 #define PCID		4
 
 /* This table is filled in by interrogating the PIIX4 chip */
-static char pci_irq[5] __devinitdata = {
+static char pci_irq[5] = {
 };
 
 static char irq_tab[][5] __initdata = {
-	/*      INTA    INTB    INTC    INTD */
+	/*	INTA	INTB	INTC	INTD */
 	{0,	0,	0,	0,	0 },	/*  0: GT64120 PCI bridge */
 	{0,	0,	0,	0,	0 },	/*  1: Unused */
 	{0,	0,	0,	0,	0 },	/*  2: Unused */
@@ -23,7 +23,7 @@ static char irq_tab[][5] __initdata = {
 	{0,	0,	0,	0,	0 },	/*  7: Unused */
 	{0,	0,	0,	0,	0 },	/*  8: Unused */
 	{0,	0,	0,	0,	0 },	/*  9: Unused */
-	{0,	0,	0,	0,	PCID },	/* 10: PIIX4 USB */
+	{0,	0,	0,	0,	PCID }, /* 10: PIIX4 USB */
 	{0,	PCIB,	0,	0,	0 },	/* 11: AMD 79C973 Ethernet */
 	{0,	PCIC,	0,	0,	0 },	/* 12: Crystal 4281 Sound */
 	{0,	0,	0,	0,	0 },	/* 13: Unused */
@@ -31,9 +31,9 @@ static char irq_tab[][5] __initdata = {
 	{0,	0,	0,	0,	0 },	/* 15: Unused */
 	{0,	0,	0,	0,	0 },	/* 16: Unused */
 	{0,	0,	0,	0,	0 },	/* 17: Bonito/SOC-it PCI Bridge*/
-	{0,	PCIA,	PCIB,	PCIC,	PCID },	/* 18: PCI Slot 1 */
-	{0,	PCIB,	PCIC,	PCID,	PCIA },	/* 19: PCI Slot 2 */
-	{0,	PCIC,	PCID,	PCIA,	PCIB },	/* 20: PCI Slot 3 */
+	{0,	PCIA,	PCIB,	PCIC,	PCID }, /* 18: PCI Slot 1 */
+	{0,	PCIB,	PCIC,	PCID,	PCIA }, /* 19: PCI Slot 2 */
+	{0,	PCIC,	PCID,	PCIA,	PCIB }, /* 20: PCI Slot 3 */
 	{0,	PCID,	PCIA,	PCIB,	PCIC }	/* 21: PCI Slot 4 */
 };
 
@@ -50,12 +50,12 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
-static void __devinit malta_piix_func0_fixup(struct pci_dev *pdev)
+static void malta_piix_func0_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
-	static int piixirqmap[16] __devinitdata = {  /* PIIX PIRQC[A:D] irq mappings */
-		0,  0, 	0,  3,
-		4,  5,  6,  7,
+	static int piixirqmap[16] = {  /* PIIX PIRQC[A:D] irq mappings */
+		0,  0,	0,  3,
+		4,  5,	6,  7,
 		0,  9, 10, 11,
 		12, 0, 14, 15
 	};
@@ -84,7 +84,7 @@ static void __devinit malta_piix_func0_fixup(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,
 	 malta_piix_func0_fixup);
 
-static void __devinit malta_piix_func1_fixup(struct pci_dev *pdev)
+static void malta_piix_func1_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
 
@@ -104,7 +104,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB,
 	 malta_piix_func1_fixup);
 
 /* Enable PCI 2.1 compatibility in PIIX4 */
-static void __devinit quirk_dlcsetup(struct pci_dev *dev)
+static void quirk_dlcsetup(struct pci_dev *dev)
 {
 	u8 odlc, ndlc;
 

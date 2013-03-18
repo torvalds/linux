@@ -28,7 +28,7 @@ static struct s5p_mfc_pm *pm;
 static struct s5p_mfc_dev *p_dev;
 
 #ifdef CLK_DEBUG
-atomic_t clk_ref;
+static atomic_t clk_ref;
 #endif
 
 int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
@@ -46,7 +46,7 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 
 	ret = clk_prepare(pm->clock_gate);
 	if (ret) {
-		mfc_err("Failed to preapre clock-gating control\n");
+		mfc_err("Failed to prepare clock-gating control\n");
 		goto err_p_ip_clk;
 	}
 

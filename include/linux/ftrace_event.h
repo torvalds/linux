@@ -49,7 +49,6 @@ struct trace_entry {
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
-	int			padding;
 };
 
 #define FTRACE_MAX_EVENT						\
@@ -84,6 +83,15 @@ struct trace_iterator {
 	long			idx;
 
 	cpumask_var_t		started;
+
+	/* it's true when current open file is snapshot */
+	bool			snapshot;
+};
+
+enum trace_iter_flags {
+	TRACE_FILE_LAT_FMT	= 1,
+	TRACE_FILE_ANNOTATE	= 2,
+	TRACE_FILE_TIME_IN_NS	= 4,
 };
 
 
@@ -127,13 +135,13 @@ trace_current_buffer_lock_reserve(struct ring_buffer **current_buffer,
 void trace_current_buffer_unlock_commit(struct ring_buffer *buffer,
 					struct ring_buffer_event *event,
 					unsigned long flags, int pc);
-void trace_nowake_buffer_unlock_commit(struct ring_buffer *buffer,
-				       struct ring_buffer_event *event,
-					unsigned long flags, int pc);
-void trace_nowake_buffer_unlock_commit_regs(struct ring_buffer *buffer,
-					    struct ring_buffer_event *event,
-					    unsigned long flags, int pc,
-					    struct pt_regs *regs);
+void trace_buffer_unlock_commit(struct ring_buffer *buffer,
+				struct ring_buffer_event *event,
+				unsigned long flags, int pc);
+void trace_buffer_unlock_commit_regs(struct ring_buffer *buffer,
+				     struct ring_buffer_event *event,
+				     unsigned long flags, int pc,
+				     struct pt_regs *regs);
 void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
 					 struct ring_buffer_event *event);
 
@@ -266,7 +274,7 @@ extern int trace_define_field(struct ftrace_event_call *call, const char *type,
 extern int trace_add_event_call(struct ftrace_event_call *call);
 extern void trace_remove_event_call(struct ftrace_event_call *call);
 
-#define is_signed_type(type)	(((type)(-1)) < 0)
+#define is_signed_type(type)	(((type)(-1)) < (type)0)
 
 int trace_set_clr_event(const char *system, const char *event, int set);
 

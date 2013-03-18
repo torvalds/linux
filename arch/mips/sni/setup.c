@@ -15,12 +15,12 @@
 #include <linux/fb.h>
 #include <linux/screen_info.h>
 
-#ifdef CONFIG_ARC
+#ifdef CONFIG_FW_ARC
 #include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 #endif
 
-#ifdef CONFIG_SNIPROM
+#ifdef CONFIG_FW_SNIPROM
 #include <asm/mipsprom.h>
 #endif
 
@@ -37,7 +37,7 @@ extern void sni_machine_power_off(void);
 
 static void __init sni_display_setup(void)
 {
-#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE) && defined(CONFIG_ARC)
+#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE) && defined(CONFIG_FW_ARC)
 	struct screen_info *si = &screen_info;
 	DISPLAY_STATUS *di;
 
@@ -56,7 +56,7 @@ static void __init sni_display_setup(void)
 
 static void __init sni_console_setup(void)
 {
-#ifndef CONFIG_ARC
+#ifndef CONFIG_FW_ARC
 	char *ctype;
 	char *cdev;
 	char *baud;
@@ -204,23 +204,23 @@ void __init plat_mem_setup(void)
 	case SNI_BRD_10NEW:
 	case SNI_BRD_TOWER_OASIC:
 	case SNI_BRD_MINITOWER:
-	        sni_a20r_init();
-	        break;
+		sni_a20r_init();
+		break;
 
 	case SNI_BRD_PCI_TOWER:
 	case SNI_BRD_PCI_TOWER_CPLUS:
-	        sni_pcit_init();
+		sni_pcit_init();
 		break;
 
 	case SNI_BRD_RM200:
-	        sni_rm200_init();
-	        break;
+		sni_rm200_init();
+		break;
 
 	case SNI_BRD_PCI_MTOWER:
 	case SNI_BRD_PCI_DESKTOP:
 	case SNI_BRD_PCI_MTOWER_CPLUS:
-	        sni_pcimt_init();
-	        break;
+		sni_pcimt_init();
+		break;
 	}
 
 	_machine_restart = sni_machine_restart;
@@ -236,7 +236,7 @@ void __init plat_mem_setup(void)
 #include <video/vga.h>
 #include <video/cirrus.h>
 
-static void __devinit quirk_cirrus_ram_size(struct pci_dev *dev)
+static void quirk_cirrus_ram_size(struct pci_dev *dev)
 {
 	u16 cmd;
 
@@ -247,16 +247,16 @@ static void __devinit quirk_cirrus_ram_size(struct pci_dev *dev)
 	 */
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	if ((cmd & (PCI_COMMAND_IO|PCI_COMMAND_MEMORY))
-	        == (PCI_COMMAND_IO|PCI_COMMAND_MEMORY)) {
-		vga_wseq(NULL, CL_SEQR6, 0x12);	/* unlock all extension registers */
+		== (PCI_COMMAND_IO|PCI_COMMAND_MEMORY)) {
+		vga_wseq(NULL, CL_SEQR6, 0x12); /* unlock all extension registers */
 		vga_wseq(NULL, CL_SEQRF, 0x18);
 	}
 }
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5434_8,
-                        quirk_cirrus_ram_size);
+			quirk_cirrus_ram_size);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5436,
-                        quirk_cirrus_ram_size);
+			quirk_cirrus_ram_size);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_5446,
-                        quirk_cirrus_ram_size);
+			quirk_cirrus_ram_size);
 #endif

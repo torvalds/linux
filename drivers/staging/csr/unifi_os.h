@@ -61,26 +61,6 @@ extern int unifi_debug;
  * etc.
  */
 
-#define func_enter()                                    \
-    do {                                                \
-        if (unifi_debug >= 5) {                         \
-            printk("unifi: => %s\n", __FUNCTION__);     \
-        }                                               \
-    } while (0)
-#define func_exit()                                     \
-    do {                                                \
-        if (unifi_debug >= 5) {                         \
-            printk("unifi: <= %s\n", __FUNCTION__);     \
-        }                                               \
-    } while (0)
-#define func_exit_r(_rc)                                        \
-    do {                                                        \
-        if (unifi_debug >= 5) {                                 \
-            printk("unifi: <= %s %d\n", __FUNCTION__, (int)(_rc));   \
-        }                                                       \
-    } while (0)
-
-
 #define ASSERT(cond)                                            \
     do {                                                            \
         if (!(cond)) {                                              \
@@ -107,9 +87,6 @@ void unifi_trace(void* ospriv, int level, const char *fmt, ...);
 #else
 
 /* Stubs */
-#define func_enter()
-#define func_exit()
-#define func_exit_r(_rc)
 
 #define ASSERT(cond)
 

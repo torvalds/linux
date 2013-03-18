@@ -207,7 +207,7 @@ vmxnet3_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 		sizeof(drvinfo->version));
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
-		ETHTOOL_BUSINFO_LEN);
+		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = vmxnet3_get_sset_count(netdev, ETH_SS_STATS);
 	drvinfo->testinfo_len = 0;
 	drvinfo->eedump_len   = 0;
@@ -448,10 +448,8 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 	param->rx_mini_max_pending = 0;
 	param->rx_jumbo_max_pending = 0;
 
-	param->rx_pending = adapter->rx_queue[0].rx_ring[0].size *
-			    adapter->num_rx_queues;
-	param->tx_pending = adapter->tx_queue[0].tx_ring.size *
-			    adapter->num_tx_queues;
+	param->rx_pending = adapter->rx_queue[0].rx_ring[0].size;
+	param->tx_pending = adapter->tx_queue[0].tx_ring.size;
 	param->rx_mini_pending = 0;
 	param->rx_jumbo_pending = 0;
 }
@@ -474,6 +472,12 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 						VMXNET3_RX_RING_MAX_SIZE)
 		return -EINVAL;
 
+	/* if adapter not yet initialized, do nothing */
+	if (adapter->rx_buf_per_pkt == 0) {
+		netdev_err(netdev, "adapter not completely initialized, "
+			   "ring size cannot be changed yet\n");
+		return -EOPNOTSUPP;
+	}
 
 	/* round it up to a multiple of VMXNET3_RING_SIZE_ALIGN */
 	new_tx_ring_size = (param->tx_pending + VMXNET3_RING_SIZE_MASK) &
@@ -522,24 +526,23 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		if (err) {
 			/* failed, most likely because of OOM, try default
 			 * size */
-			printk(KERN_ERR "%s: failed to apply new sizes, try the"
-				" default ones\n", netdev->name);
+			netdev_err(netdev, "failed to apply new sizes, "
+				   "try the default ones\n");
 			err = vmxnet3_create_queues(adapter,
 						    VMXNET3_DEF_TX_RING_SIZE,
 						    VMXNET3_DEF_RX_RING_SIZE,
 						    VMXNET3_DEF_RX_RING_SIZE);
 			if (err) {
-				printk(KERN_ERR "%s: failed to create queues "
-					"with default sizes. Closing it\n",
-					netdev->name);
+				netdev_err(netdev, "failed to create queues "
+					   "with default sizes. Closing it\n");
 				goto out;
 			}
 		}
 
 		err = vmxnet3_activate_dev(adapter);
 		if (err)
-			printk(KERN_ERR "%s: failed to re-activate, error %d."
-				" Closing it\n", netdev->name, err);
+			netdev_err(netdev, "failed to re-activate, error %d."
+				   " Closing it\n", err);
 	}
 
 out:

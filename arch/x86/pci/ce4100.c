@@ -115,6 +115,16 @@ static void sata_revid_read(struct sim_dev_reg *reg, u32 *value)
 	reg_read(reg, value);
 }
 
+static void reg_noirq_read(struct sim_dev_reg *reg, u32 *value)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
+	/* force interrupt pin value to 0 */
+	*value = reg->sim_reg.value & 0xfff00ff;
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
+}
+
 static struct sim_dev_reg bus1_fixups[] = {
 	DEFINE_REG(2, 0, 0x10, (16*MB), reg_init, reg_read, reg_write)
 	DEFINE_REG(2, 0, 0x14, (256), reg_init, reg_read, reg_write)
@@ -144,6 +154,7 @@ static struct sim_dev_reg bus1_fixups[] = {
 	DEFINE_REG(11, 5, 0x10, (64*KB), reg_init, reg_read, reg_write)
 	DEFINE_REG(11, 6, 0x10, (256), reg_init, reg_read, reg_write)
 	DEFINE_REG(11, 7, 0x10, (64*KB), reg_init, reg_read, reg_write)
+	DEFINE_REG(11, 7, 0x3c, 256, reg_init, reg_noirq_read, reg_write)
 	DEFINE_REG(12, 0, 0x10, (128*KB), reg_init, reg_read, reg_write)
 	DEFINE_REG(12, 0, 0x14, (256), reg_init, reg_read, reg_write)
 	DEFINE_REG(12, 1, 0x10, (1024), reg_init, reg_read, reg_write)
@@ -161,8 +172,10 @@ static struct sim_dev_reg bus1_fixups[] = {
 	DEFINE_REG(16, 0, 0x10, (64*KB), reg_init, reg_read, reg_write)
 	DEFINE_REG(16, 0, 0x14, (64*MB), reg_init, reg_read, reg_write)
 	DEFINE_REG(16, 0, 0x18, (64*MB), reg_init, reg_read, reg_write)
+	DEFINE_REG(16, 0, 0x3c, 256, reg_init, reg_noirq_read, reg_write)
 	DEFINE_REG(17, 0, 0x10, (128*KB), reg_init, reg_read, reg_write)
 	DEFINE_REG(18, 0, 0x10, (1*KB), reg_init, reg_read, reg_write)
+	DEFINE_REG(18, 0, 0x3c, 256, reg_init, reg_noirq_read, reg_write)
 };
 
 static void __init init_sim_regs(void)

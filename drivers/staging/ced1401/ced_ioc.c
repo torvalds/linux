@@ -123,7 +123,7 @@ int SendString(DEVICE_EXTENSION * pdx, const char __user * pData,
 		iReturn = PutChars(pdx, buffer, n);
 	}
 
-	Allowi(pdx, false);	// make sure we have input int
+	Allowi(pdx);		// make sure we have input int
 	mutex_unlock(&pdx->io_mutex);
 
 	return iReturn;
@@ -140,7 +140,7 @@ int SendChar(DEVICE_EXTENSION * pdx, char c)
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
 	iReturn = PutChars(pdx, &c, 1);
 	dev_dbg(&pdx->interface->dev, "SendChar >%c< (0x%02x)", c, c);
-	Allowi(pdx, false);	// Make sure char reads are running
+	Allowi(pdx);	// Make sure char reads are running
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
 }
@@ -341,7 +341,7 @@ bool Is1401(DEVICE_EXTENSION * pdx)
 		}
 
 		if (iReturn == 0)	// if all is OK...
-			iReturn = state == 0;	// then sucess is that the state is 0
+			iReturn = state == 0;	// then success is that the state is 0
 	} else
 		iReturn = 0;	// we failed
 	pdx->bForceReset = false;	// Clear forced reset flag now
@@ -433,8 +433,8 @@ int GetChar(DEVICE_EXTENSION * pdx)
 
 	dev_dbg(&pdx->interface->dev, "GetChar");
 
-	Allowi(pdx, false);	// Make sure char reads are running
-	SendChars(pdx);		// and send any buffered chars
+	Allowi(pdx);	// Make sure char reads are running
+	SendChars(pdx);	// and send any buffered chars
 
 	spin_lock_irq(&pdx->charInLock);
 	if (pdx->dwNumInput > 0)	// worth looking
@@ -447,7 +447,7 @@ int GetChar(DEVICE_EXTENSION * pdx)
 		iReturn = U14ERR_NOIN;	// no input data to read
 	spin_unlock_irq(&pdx->charInLock);
 
-	Allowi(pdx, false);	// Make sure char reads are running
+	Allowi(pdx);	// Make sure char reads are running
 
 	mutex_unlock(&pdx->io_mutex);	// Protect disconnect from new i/o
 	return iReturn;
@@ -472,7 +472,7 @@ int GetString(DEVICE_EXTENSION * pdx, char __user * pUser, int n)
 		return -ENOMEM;
 
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
-	Allowi(pdx, false);	// Make sure char reads are running
+	Allowi(pdx);	// Make sure char reads are running
 	SendChars(pdx);		// and send any buffered chars
 
 	spin_lock_irq(&pdx->charInLock);
@@ -518,7 +518,7 @@ int GetString(DEVICE_EXTENSION * pdx, char __user * pUser, int n)
 	} else
 		spin_unlock_irq(&pdx->charInLock);
 
-	Allowi(pdx, false);	// Make sure char reads are running
+	Allowi(pdx);	// Make sure char reads are running
 	mutex_unlock(&pdx->io_mutex);	// Protect disconnect from new i/o
 
 	return iReturn;
@@ -531,7 +531,7 @@ int Stat1401(DEVICE_EXTENSION * pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
-	Allowi(pdx, false);	// make sure we allow pending chars
+	Allowi(pdx);		// make sure we allow pending chars
 	SendChars(pdx);		// in both directions
 	iReturn = pdx->dwNumInput;	// no lock as single read
 	mutex_unlock(&pdx->io_mutex);	// Protect disconnect from new i/o
@@ -550,7 +550,7 @@ int LineCount(DEVICE_EXTENSION * pdx)
 	int iReturn = 0;	// will be count of line ends
 
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
-	Allowi(pdx, false);	// Make sure char reads are running
+	Allowi(pdx);		// Make sure char reads are running
 	SendChars(pdx);		// and send any buffered chars
 	spin_lock_irq(&pdx->charInLock);	// Get protection
 
@@ -565,7 +565,7 @@ int LineCount(DEVICE_EXTENSION * pdx)
 			if (dwIndex >= INBUF_SZ)	// see if we fall off buff
 				dwIndex = 0;
 		}
-		while (dwIndex != dwEnd);	// go to last avaliable
+		while (dwIndex != dwEnd);	// go to last available
 	}
 
 	spin_unlock_irq(&pdx->charInLock);
@@ -697,8 +697,7 @@ static int SetArea(DEVICE_EXTENSION * pdx, int nArea, char __user * puBuf,
 		return -EFAULT;	// ...then we are done
 
 	// Now allocate space to hold the page pointer and virtual address pointer tables
-	pPages =
-	    (struct page **)kmalloc(len * sizeof(struct page *), GFP_KERNEL);
+	pPages = kmalloc(len * sizeof(struct page *), GFP_KERNEL);
 	if (!pPages) {
 		iReturn = U14ERR_NOMEMORY;
 		goto error;
@@ -913,18 +912,24 @@ int GetTransfer(DEVICE_EXTENSION * pdx, TGET_TX_BLOCK __user * pTX)
 		iReturn = U14ERR_BADAREA;
 	else {
 		// Return the best information we have - we don't have physical addresses
-		TGET_TX_BLOCK tx;
-		memset(&tx, 0, sizeof(tx));	// clean out local work structure
-		tx.size = pdx->rTransDef[dwIdent].dwLength;
-		tx.linear = (long long)((long)pdx->rTransDef[dwIdent].lpvBuff);
-		tx.avail = GET_TX_MAXENTRIES;	// how many blocks we could return
-		tx.used = 1;	// number we actually return
-		tx.entries[0].physical =
-		    (long long)(tx.linear + pdx->StagedOffset);
-		tx.entries[0].size = tx.size;
+		TGET_TX_BLOCK *tx;
 
-		if (copy_to_user(pTX, &tx, sizeof(tx)))
+		tx = kzalloc(sizeof(*tx), GFP_KERNEL);
+		if (!tx) {
+			mutex_unlock(&pdx->io_mutex);
+			return -ENOMEM;
+		}
+		tx->size = pdx->rTransDef[dwIdent].dwLength;
+		tx->linear = (long long)((long)pdx->rTransDef[dwIdent].lpvBuff);
+		tx->avail = GET_TX_MAXENTRIES;	// how many blocks we could return
+		tx->used = 1;	// number we actually return
+		tx->entries[0].physical =
+		    (long long)(tx->linear + pdx->StagedOffset);
+		tx->entries[0].size = tx->size;
+
+		if (copy_to_user(pTX, tx, sizeof(*tx)))
 			iReturn = -EFAULT;
+		kfree(tx);
 	}
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
@@ -1508,7 +1513,7 @@ int FreeCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
 		iReturn = U14ERR_BADAREA;
 
 	if (copy_to_user(pCB, &cb, sizeof(cb)))
-		return -EFAULT;
+		iReturn = -EFAULT;
 
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;

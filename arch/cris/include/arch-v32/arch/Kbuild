@@ -1,2 +1,1 @@
-header-y += user.h
-header-y += cryptocop.h
+# CRISv32 arch

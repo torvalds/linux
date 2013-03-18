@@ -24,11 +24,11 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
-#include <plat/common.h>
-#include <plat/prcm.h>
-
 #include "prm2xxx_3xxx.h"
+#include "prm2xxx.h"
+#include "prm3xxx.h"
 #include "prm44xx.h"
+#include "common.h"
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
@@ -52,6 +52,16 @@ static struct irq_chip_generic **prcm_irq_chips;
  * that calls omap_prcm_register_chain_handler().
  */
 static struct omap_prcm_irq_setup *prcm_irq_setup;
+
+/* prm_base: base virtual address of the PRM IP block */
+void __iomem *prm_base;
+
+/*
+ * prm_ll_data: function pointers to SoC-specific implementations of
+ * common PRM functions
+ */
+static struct prm_ll_data null_prm_ll_data;
+static struct prm_ll_data *prm_ll_data = &null_prm_ll_data;
 
 /* Private functions */
 
@@ -319,64 +329,127 @@ err:
 	return -ENOMEM;
 }
 
-/*
- * Stubbed functions so that common files continue to build when
- * custom builds are used
- * XXX These are temporary and should be removed at the earliest possible
- * opportunity
+/**
+ * omap2_set_globals_prm - set the PRM base address (for early use)
+ * @prm: PRM base virtual address
+ *
+ * XXX Will be replaced when the PRM/CM drivers are completed.
  */
-u32 __weak omap2_prm_read_mod_reg(s16 module, u16 idx)
+void __init omap2_set_globals_prm(void __iomem *prm)
 {
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	prm_base = prm;
+}
+
+/**
+ * prm_read_reset_sources - return the sources of the SoC's last reset
+ *
+ * Return a u32 bitmask representing the reset sources that caused the
+ * SoC to reset.  The low-level per-SoC functions called by this
+ * function remap the SoC-specific reset source bits into an
+ * OMAP-common set of reset source bits, defined in
+ * arch/arm/mach-omap2/prm.h.  Returns the standardized reset source
+ * u32 bitmask from the hardware upon success, or returns (1 <<
+ * OMAP_UNKNOWN_RST_SRC_ID_SHIFT) if no low-level read_reset_sources()
+ * function was registered.
+ */
+u32 prm_read_reset_sources(void)
+{
+	u32 ret = 1 << OMAP_UNKNOWN_RST_SRC_ID_SHIFT;
+
+	if (prm_ll_data->read_reset_sources)
+		ret = prm_ll_data->read_reset_sources();
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined for reset sources\n", __func__);
+
+	return ret;
+}
+
+/**
+ * prm_was_any_context_lost_old - was device context lost? (old API)
+ * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
+ * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
+ * @idx: CONTEXT register offset
+ *
+ * Return 1 if any bits were set in the *_CONTEXT_* register
+ * identified by (@part, @inst, @idx), which means that some context
+ * was lost for that module; otherwise, return 0.  XXX Deprecated;
+ * callers need to use a less-SoC-dependent way to identify hardware
+ * IP blocks.
+ */
+bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
+{
+	bool ret = true;
+
+	if (prm_ll_data->was_any_context_lost_old)
+		ret = prm_ll_data->was_any_context_lost_old(part, inst, idx);
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+
+	return ret;
+}
+
+/**
+ * prm_clear_context_lost_flags_old - clear context loss flags (old API)
+ * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
+ * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
+ * @idx: CONTEXT register offset
+ *
+ * Clear hardware context loss bits for the module identified by
+ * (@part, @inst, @idx).  No return value.  XXX Deprecated; callers
+ * need to use a less-SoC-dependent way to identify hardware IP
+ * blocks.
+ */
+void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
+{
+	if (prm_ll_data->clear_context_loss_flags_old)
+		prm_ll_data->clear_context_loss_flags_old(part, inst, idx);
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+}
+
+/**
+ * prm_register - register per-SoC low-level data with the PRM
+ * @pld: low-level per-SoC OMAP PRM data & function pointers to register
+ *
+ * Register per-SoC low-level OMAP PRM data and function pointers with
+ * the OMAP PRM common interface.  The caller must keep the data
+ * pointed to by @pld valid until it calls prm_unregister() and
+ * it returns successfully.  Returns 0 upon success, -EINVAL if @pld
+ * is NULL, or -EEXIST if prm_register() has already been called
+ * without an intervening prm_unregister().
+ */
+int prm_register(struct prm_ll_data *pld)
+{
+	if (!pld)
+		return -EINVAL;
+
+	if (prm_ll_data != &null_prm_ll_data)
+		return -EEXIST;
+
+	prm_ll_data = pld;
+
 	return 0;
 }
 
-void __weak omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx)
+/**
+ * prm_unregister - unregister per-SoC low-level data & function pointers
+ * @pld: low-level per-SoC OMAP PRM data & function pointers to unregister
+ *
+ * Unregister per-SoC low-level OMAP PRM data and function pointers
+ * that were previously registered with prm_register().  The
+ * caller may not destroy any of the data pointed to by @pld until
+ * this function returns successfully.  Returns 0 upon success, or
+ * -EINVAL if @pld is NULL or if @pld does not match the struct
+ * prm_ll_data * previously registered by prm_register().
+ */
+int prm_unregister(struct prm_ll_data *pld)
 {
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
-}
+	if (!pld || prm_ll_data != pld)
+		return -EINVAL;
 
-u32 __weak omap2_prm_rmw_mod_reg_bits(u32 mask, u32 bits,
-		s16 module, s16 idx)
-{
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
+	prm_ll_data = &null_prm_ll_data;
+
 	return 0;
 }
-
-u32 __weak omap2_prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
-{
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
-	return 0;
-}
-
-u32 __weak omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
-{
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
-	return 0;
-}
-
-u32 __weak omap2_prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
-{
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
-	return 0;
-}
-
-int __weak omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift)
-{
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
-	return 0;
-}
-
-int __weak omap2_prm_assert_hardreset(s16 prm_mod, u8 shift)
-{
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
-	return 0;
-}
-
-int __weak omap2_prm_deassert_hardreset(s16 prm_mod, u8 rst_shift,
-						u8 st_shift)
-{
-	WARN(1, "prm: omap2xxx/omap3xxx specific function called on non-omap2xxx/3xxx\n");
-	return 0;
-}
-

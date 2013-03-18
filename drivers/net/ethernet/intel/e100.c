@@ -2829,8 +2829,7 @@ static const struct net_device_ops e100_netdev_ops = {
 	.ndo_set_features	= e100_set_features,
 };
 
-static int __devinit e100_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int e100_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct nic *nic;
@@ -2929,8 +2928,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	e100_phy_init(nic);
 
 	memcpy(netdev->dev_addr, nic->eeprom, ETH_ALEN);
-	memcpy(netdev->perm_addr, nic->eeprom, ETH_ALEN);
-	if (!is_valid_ether_addr(netdev->perm_addr)) {
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		if (!eeprom_bad_csum_allow) {
 			netif_err(nic, probe, nic->netdev, "Invalid MAC address from EEPROM, aborting\n");
 			err = -EAGAIN;
@@ -2981,7 +2979,7 @@ err_out_free_dev:
 	return err;
 }
 
-static void __devexit e100_remove(struct pci_dev *pdev)
+static void e100_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 
@@ -3167,7 +3165,7 @@ static struct pci_driver e100_driver = {
 	.name =         DRV_NAME,
 	.id_table =     e100_id_table,
 	.probe =        e100_probe,
-	.remove =       __devexit_p(e100_remove),
+	.remove =       e100_remove,
 #ifdef CONFIG_PM
 	/* Power Management hooks */
 	.suspend =      e100_suspend,

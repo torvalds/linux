@@ -210,7 +210,7 @@ static int irtty_do_write(struct sir_dev *dev, const unsigned char *ptr, size_t 
  *    been received, which can now be decapsulated and delivered for
  *    further processing 
  *
- * calling context depends on underlying driver and tty->low_latency!
+ * calling context depends on underlying driver and tty->port->low_latency!
  * for example (low_latency: 1 / 0):
  * serial.c:	uart-interrupt / softint
  * usbserial:	urb-complete-interrupt / softint

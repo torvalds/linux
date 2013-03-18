@@ -109,6 +109,7 @@ struct packet_sock {
 	unsigned int		tp_hdrlen;
 	unsigned int		tp_reserve;
 	unsigned int		tp_loss:1;
+	unsigned int		tp_tx_has_off:1;
 	unsigned int		tp_tstamp;
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
 };

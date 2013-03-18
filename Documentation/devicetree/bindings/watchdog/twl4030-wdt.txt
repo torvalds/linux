@@ -1,0 +1,10 @@
+Device tree bindings for twl4030-wdt driver (TWL4030 watchdog)
+
+Required properties:
+	compatible = "ti,twl4030-wdt";
+
+Example:
+
+watchdog {
+	compatible = "ti,twl4030-wdt";
+};

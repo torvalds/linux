@@ -115,7 +115,7 @@ static struct ata_port_operations cs5520_port_ops = {
 	.set_piomode		= cs5520_set_piomode,
 };
 
-static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
+static int cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const unsigned int cmd_port[] = { 0x1F0, 0x170 };
 	static const unsigned int ctl_port[] = { 0x3F6, 0x376 };

@@ -287,7 +287,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct tx_ts_record *pTxTs = NULL;
-	struct rtllib_hdr_1addr* hdr = (struct rtllib_hdr_1addr *)skb->data;
+	struct rtllib_hdr_1addr *hdr = (struct rtllib_hdr_1addr *)skb->data;
 
 	if (rtllib_act_scanning(ieee, false))
 		return;

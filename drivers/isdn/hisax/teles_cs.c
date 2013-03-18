@@ -43,9 +43,9 @@ MODULE_LICENSE("GPL");
 static int protocol = 2;        /* EURO-ISDN Default */
 module_param(protocol, int, 0);
 
-static int teles_cs_config(struct pcmcia_device *link) __devinit;
+static int teles_cs_config(struct pcmcia_device *link);
 static void teles_cs_release(struct pcmcia_device *link);
-static void teles_detach(struct pcmcia_device *p_dev) __devexit;
+static void teles_detach(struct pcmcia_device *p_dev);
 
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
@@ -53,7 +53,7 @@ typedef struct local_info_t {
 	int			cardnr;
 } local_info_t;
 
-static int __devinit teles_probe(struct pcmcia_device *link)
+static int teles_probe(struct pcmcia_device *link)
 {
 	local_info_t *local;
 
@@ -72,7 +72,7 @@ static int __devinit teles_probe(struct pcmcia_device *link)
 	return teles_cs_config(link);
 } /* teles_attach */
 
-static void __devexit teles_detach(struct pcmcia_device *link)
+static void teles_detach(struct pcmcia_device *link)
 {
 	local_info_t *info = link->priv;
 
@@ -108,7 +108,7 @@ static int teles_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 	return -ENODEV;
 }
 
-static int __devinit teles_cs_config(struct pcmcia_device *link)
+static int teles_cs_config(struct pcmcia_device *link)
 {
 	int i;
 	IsdnCard_t icard;
@@ -192,7 +192,7 @@ static struct pcmcia_driver teles_cs_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "teles_cs",
 	.probe		= teles_probe,
-	.remove		= __devexit_p(teles_detach),
+	.remove		= teles_detach,
 	.id_table       = teles_ids,
 	.suspend	= teles_suspend,
 	.resume		= teles_resume,

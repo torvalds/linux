@@ -1045,7 +1045,7 @@ static int snd_cmipci_spdif_default_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_cmipci_spdif_default __devinitdata =
+static struct snd_kcontrol_new snd_cmipci_spdif_default =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -1072,7 +1072,7 @@ static int snd_cmipci_spdif_mask_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_cmipci_spdif_mask __devinitdata =
+static struct snd_kcontrol_new snd_cmipci_spdif_mask =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1119,7 +1119,7 @@ static int snd_cmipci_spdif_stream_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_cmipci_spdif_stream __devinitdata =
+static struct snd_kcontrol_new snd_cmipci_spdif_stream =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1897,7 +1897,7 @@ static struct snd_pcm_ops snd_cmipci_capture_spdif_ops = {
 /*
  */
 
-static int __devinit snd_cmipci_pcm_new(struct cmipci *cm, int device)
+static int snd_cmipci_pcm_new(struct cmipci *cm, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1920,7 +1920,7 @@ static int __devinit snd_cmipci_pcm_new(struct cmipci *cm, int device)
 	return 0;
 }
 
-static int __devinit snd_cmipci_pcm2_new(struct cmipci *cm, int device)
+static int snd_cmipci_pcm2_new(struct cmipci *cm, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1942,7 +1942,7 @@ static int __devinit snd_cmipci_pcm2_new(struct cmipci *cm, int device)
 	return 0;
 }
 
-static int __devinit snd_cmipci_pcm_spdif_new(struct cmipci *cm, int device)
+static int snd_cmipci_pcm_spdif_new(struct cmipci *cm, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -2290,7 +2290,7 @@ static int snd_cmipci_put_native_mixer_sensitive(struct snd_kcontrol *kcontrol,
 }
 
 
-static struct snd_kcontrol_new snd_cmipci_mixers[] __devinitdata = {
+static struct snd_kcontrol_new snd_cmipci_mixers[] = {
 	CMIPCI_SB_VOL_STEREO("Master Playback Volume", SB_DSP4_MASTER_DEV, 3, 31),
 	CMIPCI_MIXER_SW_MONO("3D Control - Switch", CM_REG_MIXER1, CM_X3DEN_SHIFT, 0),
 	CMIPCI_SB_VOL_STEREO("PCM Playback Volume", SB_DSP4_PCM_DEV, 3, 31),
@@ -2601,7 +2601,7 @@ static int snd_cmipci_mic_in_mode_put(struct snd_kcontrol *kcontrol,
 }
 
 /* both for CM8338/8738 */
-static struct snd_kcontrol_new snd_cmipci_mixer_switches[] __devinitdata = {
+static struct snd_kcontrol_new snd_cmipci_mixer_switches[] = {
 	DEFINE_MIXER_SWITCH("Four Channel Mode", fourch),
 	{
 		.name = "Line-In Mode",
@@ -2613,11 +2613,11 @@ static struct snd_kcontrol_new snd_cmipci_mixer_switches[] __devinitdata = {
 };
 
 /* for non-multichannel chips */
-static struct snd_kcontrol_new snd_cmipci_nomulti_switch __devinitdata =
+static struct snd_kcontrol_new snd_cmipci_nomulti_switch =
 DEFINE_MIXER_SWITCH("Exchange DAC", exchange_dac);
 
 /* only for CM8738 */
-static struct snd_kcontrol_new snd_cmipci_8738_mixer_switches[] __devinitdata = {
+static struct snd_kcontrol_new snd_cmipci_8738_mixer_switches[] = {
 #if 0 /* controlled in pcm device */
 	DEFINE_MIXER_SWITCH("IEC958 In Record", spdif_in),
 	DEFINE_MIXER_SWITCH("IEC958 Out", spdif_out),
@@ -2639,14 +2639,14 @@ static struct snd_kcontrol_new snd_cmipci_8738_mixer_switches[] __devinitdata = 
 };
 
 /* only for model 033/037 */
-static struct snd_kcontrol_new snd_cmipci_old_mixer_switches[] __devinitdata = {
+static struct snd_kcontrol_new snd_cmipci_old_mixer_switches[] = {
 	DEFINE_MIXER_SWITCH("IEC958 Mix Analog", spdif_dac_out),
 	DEFINE_MIXER_SWITCH("IEC958 In Phase Inverse", spdi_phase),
 	DEFINE_MIXER_SWITCH("IEC958 In Select", spdif_in_sel1),
 };
 
 /* only for model 039 or later */
-static struct snd_kcontrol_new snd_cmipci_extra_mixer_switches[] __devinitdata = {
+static struct snd_kcontrol_new snd_cmipci_extra_mixer_switches[] = {
 	DEFINE_MIXER_SWITCH("IEC958 In Select", spdif_in_sel2),
 	DEFINE_MIXER_SWITCH("IEC958 In Phase Inverse", spdi_phase2),
 	{
@@ -2659,11 +2659,11 @@ static struct snd_kcontrol_new snd_cmipci_extra_mixer_switches[] __devinitdata =
 };
 
 /* card control switches */
-static struct snd_kcontrol_new snd_cmipci_modem_switch __devinitdata =
+static struct snd_kcontrol_new snd_cmipci_modem_switch =
 DEFINE_CARD_SWITCH("Modem", modem);
 
 
-static int __devinit snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
+static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 {
 	struct snd_card *card;
 	struct snd_kcontrol_new *sw;
@@ -2791,7 +2791,7 @@ static void snd_cmipci_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "\n");
 }
 
-static void __devinit snd_cmipci_proc_init(struct cmipci *cm)
+static void snd_cmipci_proc_init(struct cmipci *cm)
 {
 	struct snd_info_entry *entry;
 
@@ -2817,7 +2817,7 @@ static DEFINE_PCI_DEVICE_TABLE(snd_cmipci_ids) = {
  * check chip version and capabilities
  * driver name is modified according to the chip model
  */
-static void __devinit query_chip(struct cmipci *cm)
+static void query_chip(struct cmipci *cm)
 {
 	unsigned int detect;
 
@@ -2866,7 +2866,7 @@ static void __devinit query_chip(struct cmipci *cm)
 }
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_cmipci_create_gameport(struct cmipci *cm, int dev)
+static int snd_cmipci_create_gameport(struct cmipci *cm, int dev)
 {
 	static int ports[] = { 0x201, 0x200, 0 }; /* FIXME: majority is 0x201? */
 	struct gameport *gp;
@@ -2959,7 +2959,7 @@ static int snd_cmipci_dev_free(struct snd_device *device)
 	return snd_cmipci_free(cm);
 }
 
-static int __devinit snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
+static int snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 {
 	long iosynth;
 	unsigned int val;
@@ -3012,8 +3012,8 @@ static int __devinit snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 	return 0;
 }
 
-static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
-				       int dev, struct cmipci **rcmipci)
+static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
+			     int dev, struct cmipci **rcmipci)
 {
 	struct cmipci *cm;
 	int err;
@@ -3265,8 +3265,8 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 
 MODULE_DEVICE_TABLE(pci, snd_cmipci_ids);
 
-static int __devinit snd_cmipci_probe(struct pci_dev *pci,
-				      const struct pci_device_id *pci_id)
+static int snd_cmipci_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -3314,7 +3314,7 @@ static int __devinit snd_cmipci_probe(struct pci_dev *pci,
 
 }
 
-static void __devexit snd_cmipci_remove(struct pci_dev *pci)
+static void snd_cmipci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -3415,7 +3415,7 @@ static struct pci_driver cmipci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_cmipci_ids,
 	.probe = snd_cmipci_probe,
-	.remove = __devexit_p(snd_cmipci_remove),
+	.remove = snd_cmipci_remove,
 	.driver = {
 		.pm = SND_CMIPCI_PM_OPS,
 	},

@@ -485,8 +485,9 @@ errout:
 	return err;
 }
 
-struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
-				    char *name, int ovr, int bind)
+struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
+				    struct nlattr *est, char *name, int ovr,
+				    int bind)
 {
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
@@ -542,9 +543,9 @@ struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
 
 	/* backward compatibility for policer */
 	if (name == NULL)
-		err = a_o->init(tb[TCA_ACT_OPTIONS], est, a, ovr, bind);
+		err = a_o->init(net, tb[TCA_ACT_OPTIONS], est, a, ovr, bind);
 	else
-		err = a_o->init(nla, est, a, ovr, bind);
+		err = a_o->init(net, nla, est, a, ovr, bind);
 	if (err < 0)
 		goto err_free;
 
@@ -566,8 +567,9 @@ err_out:
 	return ERR_PTR(err);
 }
 
-struct tc_action *tcf_action_init(struct nlattr *nla, struct nlattr *est,
-				  char *name, int ovr, int bind)
+struct tc_action *tcf_action_init(struct net *net, struct nlattr *nla,
+				  struct nlattr *est, char *name, int ovr,
+				  int bind)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
@@ -579,7 +581,7 @@ struct tc_action *tcf_action_init(struct nlattr *nla, struct nlattr *est,
 		return ERR_PTR(err);
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
-		act = tcf_action_init_1(tb[i], est, name, ovr, bind);
+		act = tcf_action_init_1(net, tb[i], est, name, ovr, bind);
 		if (IS_ERR(act))
 			goto err;
 		act->order = i;
@@ -960,7 +962,7 @@ tcf_action_add(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	struct tc_action *a;
 	u32 seq = n->nlmsg_seq;
 
-	act = tcf_action_init(nla, NULL, NULL, ovr, 0);
+	act = tcf_action_init(net, nla, NULL, NULL, ovr, 0);
 	if (act == NULL)
 		goto done;
 	if (IS_ERR(act)) {
@@ -986,6 +988,9 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	struct nlattr *tca[TCA_ACT_MAX + 1];
 	u32 portid = skb ? NETLINK_CB(skb).portid : 0;
 	int ret = 0, ovr = 0;
+
+	if ((n->nlmsg_type != RTM_GETACTION) && !capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	ret = nlmsg_parse(n, sizeof(struct tcamsg), tca, TCA_ACT_MAX, NULL);
 	if (ret < 0)

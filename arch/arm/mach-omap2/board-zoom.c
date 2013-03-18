@@ -22,9 +22,8 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include <plat/usb.h>
 
-#include <mach/board-zoom.h>
+#include "board-zoom.h"
 
 #include "board-flash.h"
 #include "mux.h"
@@ -93,7 +92,7 @@ static struct mtd_partition zoom_nand_partitions[] = {
 	},
 };
 
-static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 	.port_mode[0]		= OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1]		= OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[2]		= OMAP_USBHS_PORT_MODE_UNUSED,
@@ -113,8 +112,9 @@ static void __init omap_zoom_init(void)
 		usbhs_init(&usbhs_bdata);
 	}
 
-	board_nand_init(zoom_nand_partitions, ARRAY_SIZE(zoom_nand_partitions),
-						ZOOM_NAND_CS, NAND_BUSWIDTH_16);
+	board_nand_init(zoom_nand_partitions,
+			ARRAY_SIZE(zoom_nand_partitions), ZOOM_NAND_CS,
+			NAND_BUSWIDTH_16, nand_default_timings);
 	zoom_debugboard_init();
 	zoom_peripherals_init();
 
@@ -137,8 +137,8 @@ MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_zoom_init,
 	.init_late	= omap3430_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
@@ -150,6 +150,6 @@ MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_zoom_init,
 	.init_late	= omap3630_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

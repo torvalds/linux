@@ -262,23 +262,6 @@ smb2_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static char *
-smb2_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-			struct cifs_tcon *tcon)
-{
-	int pplen = vol->prepath ? strlen(vol->prepath) : 0;
-	char *full_path = NULL;
-
-	/* if no prefix path, simply set path to the root of share to "" */
-	if (pplen == 0) {
-		full_path = kzalloc(2, GFP_KERNEL);
-		return full_path;
-	}
-
-	cERROR(1, "prefixpath is not supported for SMB2 now");
-	return NULL;
-}
-
 static bool
 smb2_can_echo(struct TCP_Server_Info *server)
 {
@@ -613,7 +596,6 @@ struct smb_version_operations smb21_operations = {
 	.set_path_size = smb2_set_path_size,
 	.set_file_size = smb2_set_file_size,
 	.set_file_info = smb2_set_file_info,
-	.build_path_to_root = smb2_build_path_to_root,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,
 	.rmdir = smb2_rmdir,
@@ -641,6 +623,92 @@ struct smb_version_operations smb21_operations = {
 	.get_lease_key = smb2_get_lease_key,
 	.set_lease_key = smb2_set_lease_key,
 	.new_lease_key = smb2_new_lease_key,
+	.calc_signature = smb2_calc_signature,
+};
+
+
+struct smb_version_operations smb30_operations = {
+	.compare_fids = smb2_compare_fids,
+	.setup_request = smb2_setup_request,
+	.setup_async_request = smb2_setup_async_request,
+	.check_receive = smb2_check_receive,
+	.add_credits = smb2_add_credits,
+	.set_credits = smb2_set_credits,
+	.get_credits_field = smb2_get_credits_field,
+	.get_credits = smb2_get_credits,
+	.get_next_mid = smb2_get_next_mid,
+	.read_data_offset = smb2_read_data_offset,
+	.read_data_length = smb2_read_data_length,
+	.map_error = map_smb2_to_linux_error,
+	.find_mid = smb2_find_mid,
+	.check_message = smb2_check_message,
+	.dump_detail = smb2_dump_detail,
+	.clear_stats = smb2_clear_stats,
+	.print_stats = smb2_print_stats,
+	.is_oplock_break = smb2_is_valid_oplock_break,
+	.need_neg = smb2_need_neg,
+	.negotiate = smb2_negotiate,
+	.negotiate_wsize = smb2_negotiate_wsize,
+	.negotiate_rsize = smb2_negotiate_rsize,
+	.sess_setup = SMB2_sess_setup,
+	.logoff = SMB2_logoff,
+	.tree_connect = SMB2_tcon,
+	.tree_disconnect = SMB2_tdis,
+	.is_path_accessible = smb2_is_path_accessible,
+	.can_echo = smb2_can_echo,
+	.echo = SMB2_echo,
+	.query_path_info = smb2_query_path_info,
+	.get_srv_inum = smb2_get_srv_inum,
+	.query_file_info = smb2_query_file_info,
+	.set_path_size = smb2_set_path_size,
+	.set_file_size = smb2_set_file_size,
+	.set_file_info = smb2_set_file_info,
+	.mkdir = smb2_mkdir,
+	.mkdir_setinfo = smb2_mkdir_setinfo,
+	.rmdir = smb2_rmdir,
+	.unlink = smb2_unlink,
+	.rename = smb2_rename_path,
+	.create_hardlink = smb2_create_hardlink,
+	.open = smb2_open_file,
+	.set_fid = smb2_set_fid,
+	.close = smb2_close_file,
+	.flush = smb2_flush_file,
+	.async_readv = smb2_async_readv,
+	.async_writev = smb2_async_writev,
+	.sync_read = smb2_sync_read,
+	.sync_write = smb2_sync_write,
+	.query_dir_first = smb2_query_dir_first,
+	.query_dir_next = smb2_query_dir_next,
+	.close_dir = smb2_close_dir,
+	.calc_smb_size = smb2_calc_size,
+	.is_status_pending = smb2_is_status_pending,
+	.oplock_response = smb2_oplock_response,
+	.queryfs = smb2_queryfs,
+	.mand_lock = smb2_mand_lock,
+	.mand_unlock_range = smb2_unlock_range,
+	.push_mand_locks = smb2_push_mandatory_locks,
+	.get_lease_key = smb2_get_lease_key,
+	.set_lease_key = smb2_set_lease_key,
+	.new_lease_key = smb2_new_lease_key,
+	.calc_signature = smb3_calc_signature,
+};
+
+struct smb_version_values smb20_values = {
+	.version_string = SMB20_VERSION_STRING,
+	.protocol_id = SMB20_PROT_ID,
+	.req_capabilities = 0, /* MBZ */
+	.large_lock_type = 0,
+	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
+	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
+	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
+	.header_size = sizeof(struct smb2_hdr),
+	.max_header_size = MAX_SMB2_HDR_SIZE,
+	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
+	.lock_cmd = SMB2_LOCK,
+	.cap_unix = 0,
+	.cap_nt_find = SMB2_NT_FIND,
+	.cap_large_files = SMB2_LARGE_FILES,
+	.oplock_read = SMB2_OPLOCK_LEVEL_II,
 };
 
 struct smb_version_values smb21_values = {
@@ -658,6 +726,7 @@ struct smb_version_values smb21_values = {
 	.cap_unix = 0,
 	.cap_nt_find = SMB2_NT_FIND,
 	.cap_large_files = SMB2_LARGE_FILES,
+	.oplock_read = SMB2_OPLOCK_LEVEL_II,
 };
 
 struct smb_version_values smb30_values = {
@@ -675,4 +744,5 @@ struct smb_version_values smb30_values = {
 	.cap_unix = 0,
 	.cap_nt_find = SMB2_NT_FIND,
 	.cap_large_files = SMB2_LARGE_FILES,
+	.oplock_read = SMB2_OPLOCK_LEVEL_II,
 };

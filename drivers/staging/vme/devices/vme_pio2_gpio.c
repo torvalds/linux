@@ -186,16 +186,14 @@ int pio2_gpio_reset(struct pio2_card *card)
 	return 0;
 }
 
-int __devinit pio2_gpio_init(struct pio2_card *card)
+int pio2_gpio_init(struct pio2_card *card)
 {
 	int retval = 0;
 	char *label;
 
 	label = kmalloc(PIO2_NUM_CHANNELS, GFP_KERNEL);
-	if (label == NULL) {
-		dev_err(&card->vdev->dev, "Unable to allocate GPIO label\n");
+	if (label == NULL)
 		return -ENOMEM;
-	}
 
 	sprintf(label, "%s@%s", driver_name, dev_name(&card->vdev->dev));
 	card->gc.label = label;

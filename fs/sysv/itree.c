@@ -464,6 +464,16 @@ int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 	return __block_write_begin(page, pos, len, get_block);
 }
 
+static void sysv_write_failed(struct address_space *mapping, loff_t to)
+{
+	struct inode *inode = mapping->host;
+
+	if (to > inode->i_size) {
+		truncate_pagecache(inode, to, inode->i_size);
+		sysv_truncate(inode);
+	}
+}
+
 static int sysv_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
@@ -471,11 +481,8 @@ static int sysv_write_begin(struct file *file, struct address_space *mapping,
 	int ret;
 
 	ret = block_write_begin(mapping, pos, len, flags, pagep, get_block);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
+	if (unlikely(ret))
+		sysv_write_failed(mapping, pos + len);
 
 	return ret;
 }

@@ -123,7 +123,7 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	offset += size;
 	data += size;
 
-#if 0 /* not suppported yet */
+#if 0 /* not supported yet */
 	/* handle reverse (or bidirectional) loop */
 	if (sp->v.mode_flags & (SNDRV_SFNT_SAMPLE_BIDIR_LOOP|SNDRV_SFNT_SAMPLE_REVERSE_LOOP)) {
 		/* copy loop in reverse */

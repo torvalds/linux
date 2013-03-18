@@ -11,6 +11,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -352,7 +353,7 @@ static struct snd_soc_dai_driver ep93xx_ac97_dai = {
 	.ops			= &ep93xx_ac97_dai_ops,
 };
 
-static int __devinit ep93xx_ac97_probe(struct platform_device *pdev)
+static int ep93xx_ac97_probe(struct platform_device *pdev)
 {
 	struct ep93xx_ac97_info *info;
 	struct resource *res;
@@ -367,9 +368,9 @@ static int __devinit ep93xx_ac97_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	info->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!info->regs)
-		return -ENXIO;
+	info->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->regs))
+		return PTR_ERR(info->regs);
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq)
@@ -402,7 +403,7 @@ fail:
 	return ret;
 }
 
-static int __devexit ep93xx_ac97_remove(struct platform_device *pdev)
+static int ep93xx_ac97_remove(struct platform_device *pdev)
 {
 	struct ep93xx_ac97_info	*info = platform_get_drvdata(pdev);
 
@@ -420,7 +421,7 @@ static int __devexit ep93xx_ac97_remove(struct platform_device *pdev)
 
 static struct platform_driver ep93xx_ac97_driver = {
 	.probe	= ep93xx_ac97_probe,
-	.remove	= __devexit_p(ep93xx_ac97_remove),
+	.remove	= ep93xx_ac97_remove,
 	.driver = {
 		.name = "ep93xx-ac97",
 		.owner = THIS_MODULE,

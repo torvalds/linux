@@ -214,9 +214,25 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  * urb->interval is modified to reflect the actual transfer period used
  * (normally some power of two units).  And for isochronous urbs,
  * urb->start_frame is modified to reflect when the URB's transfers were
- * scheduled to start.  Not all isochronous transfer scheduling policies
- * will work, but most host controller drivers should easily handle ISO
- * queues going from now until 10-200 msec into the future.
+ * scheduled to start.
+ *
+ * Not all isochronous transfer scheduling policies will work, but most
+ * host controller drivers should easily handle ISO queues going from now
+ * until 10-200 msec into the future.  Drivers should try to keep at
+ * least one or two msec of data in the queue; many controllers require
+ * that new transfers start at least 1 msec in the future when they are
+ * added.  If the driver is unable to keep up and the queue empties out,
+ * the behavior for new submissions is governed by the URB_ISO_ASAP flag.
+ * If the flag is set, or if the queue is idle, then the URB is always
+ * assigned to the first available (and not yet expired) slot in the
+ * endpoint's schedule.  If the flag is not set and the queue is active
+ * then the URB is always assigned to the next slot in the schedule
+ * following the end of the endpoint's previous URB, even if that slot is
+ * in the past.  When a packet is assigned in this way to a slot that has
+ * already expired, the packet is not transmitted and the corresponding
+ * usb_iso_packet_descriptor's status field will return -EXDEV.  If this
+ * would happen to all the packets in the URB, submission fails with a
+ * -EXDEV error code.
  *
  * For control endpoints, the synchronous usb_control_msg() call is
  * often used (in non-interrupt context) instead of this call.
@@ -305,8 +321,13 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	struct usb_host_endpoint	*ep;
 	int				is_out;
 
-	if (!urb || urb->hcpriv || !urb->complete)
+	if (!urb || !urb->complete)
 		return -EINVAL;
+	if (urb->hcpriv) {
+		WARN_ONCE(1, "URB %p submitted while active\n", urb);
+		return -EBUSY;
+	}
+
 	dev = urb->dev;
 	if ((!dev) || (dev->state < USB_STATE_UNAUTHENTICATED))
 		return -ENODEV;

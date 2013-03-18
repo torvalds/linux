@@ -1092,7 +1092,7 @@ EXPORT_SYMBOL_GPL(smscore_onresponse);
  * @return pointer to descriptor on success, NULL on error.
  */
 
-struct smscore_buffer_t *get_entry(struct smscore_device_t *coredev)
+static struct smscore_buffer_t *get_entry(struct smscore_device_t *coredev)
 {
 	struct smscore_buffer_t *cb = NULL;
 	unsigned long flags;

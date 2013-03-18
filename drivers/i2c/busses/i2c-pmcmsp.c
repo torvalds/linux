@@ -270,7 +270,7 @@ static irqreturn_t pmcmsptwi_interrupt(int irq, void *ptr)
 /*
  * Probe for and register the device and return 0 if there is one.
  */
-static int __devinit pmcmsptwi_probe(struct platform_device *pldev)
+static int pmcmsptwi_probe(struct platform_device *pldev)
 {
 	struct resource *res;
 	int rc = -ENODEV;
@@ -349,7 +349,6 @@ static int __devinit pmcmsptwi_probe(struct platform_device *pldev)
 	return 0;
 
 ret_unmap:
-	platform_set_drvdata(pldev, NULL);
 	if (pmcmsptwi_data.irq) {
 		pmcmsptwi_writel(0,
 			pmcmsptwi_data.iobase + MSP_TWI_INT_MSK_REG_OFFSET);
@@ -368,13 +367,12 @@ ret_err:
 /*
  * Release the device and return 0 if there is one.
  */
-static int __devexit pmcmsptwi_remove(struct platform_device *pldev)
+static int pmcmsptwi_remove(struct platform_device *pldev)
 {
 	struct resource *res;
 
 	i2c_del_adapter(&pmcmsptwi_adapter);
 
-	platform_set_drvdata(pldev, NULL);
 	if (pmcmsptwi_data.irq) {
 		pmcmsptwi_writel(0,
 			pmcmsptwi_data.iobase + MSP_TWI_INT_MSK_REG_OFFSET);
@@ -628,7 +626,7 @@ static struct i2c_adapter pmcmsptwi_adapter = {
 
 static struct platform_driver pmcmsptwi_driver = {
 	.probe  = pmcmsptwi_probe,
-	.remove	= __devexit_p(pmcmsptwi_remove),
+	.remove	= pmcmsptwi_remove,
 	.driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

@@ -135,17 +135,14 @@ static inline u8 IN_TO_REG(long val, int inNum)
 	 * for the constants.
 	 */
 	if (inNum <= 1)
-		return (u8)
-		    SENSORS_LIMIT((val * 21024 - 1205000) / 250000, 0, 255);
+		return (u8) clamp_val((val * 21024 - 1205000) / 250000, 0, 255);
 	else if (inNum == 2)
-		return (u8)
-		    SENSORS_LIMIT((val * 15737 - 1205000) / 250000, 0, 255);
+		return (u8) clamp_val((val * 15737 - 1205000) / 250000, 0, 255);
 	else if (inNum == 3)
-		return (u8)
-		    SENSORS_LIMIT((val * 10108 - 1205000) / 250000, 0, 255);
+		return (u8) clamp_val((val * 10108 - 1205000) / 250000, 0, 255);
 	else
-		return (u8)
-		    SENSORS_LIMIT((val * 41714 - 12050000) / 2500000, 0, 255);
+		return (u8) clamp_val((val * 41714 - 12050000) / 2500000, 0,
+				      255);
 }
 
 static inline long IN_FROM_REG(u8 val, int inNum)
@@ -175,8 +172,8 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 0;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 255);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 255);
 }
 
 #define FAN_FROM_REG(val, div) ((val) == 0 ? 0 : (val) == 255 ? 0 : 1350000 / \
@@ -339,7 +336,7 @@ struct via686a_data {
 static struct pci_dev *s_bridge;	/* pointer to the (only) via686a */
 
 static int via686a_probe(struct platform_device *pdev);
-static int __devexit via686a_remove(struct platform_device *pdev);
+static int via686a_remove(struct platform_device *pdev);
 
 static inline int via686a_read_value(struct via686a_data *data, u8 reg)
 {
@@ -677,12 +674,12 @@ static struct platform_driver via686a_driver = {
 		.name	= "via686a",
 	},
 	.probe		= via686a_probe,
-	.remove		= __devexit_p(via686a_remove),
+	.remove		= via686a_remove,
 };
 
 
 /* This is called when the module is loaded */
-static int __devinit via686a_probe(struct platform_device *pdev)
+static int via686a_probe(struct platform_device *pdev)
 {
 	struct via686a_data *data;
 	struct resource *res;
@@ -728,7 +725,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit via686a_remove(struct platform_device *pdev)
+static int via686a_remove(struct platform_device *pdev)
 {
 	struct via686a_data *data = platform_get_drvdata(pdev);
 
@@ -745,7 +742,7 @@ static void via686a_update_fan_div(struct via686a_data *data)
 	data->fan_div[1] = reg >> 6;
 }
 
-static void __devinit via686a_init_device(struct via686a_data *data)
+static void via686a_init_device(struct via686a_data *data)
 {
 	u8 reg;
 
@@ -833,7 +830,7 @@ static DEFINE_PCI_DEVICE_TABLE(via686a_pci_ids) = {
 };
 MODULE_DEVICE_TABLE(pci, via686a_pci_ids);
 
-static int __devinit via686a_device_add(unsigned short address)
+static int via686a_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
@@ -874,7 +871,7 @@ exit:
 	return err;
 }
 
-static int __devinit via686a_pci_probe(struct pci_dev *dev,
+static int via686a_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
 	u16 address, val;

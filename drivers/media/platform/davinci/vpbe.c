@@ -558,9 +558,9 @@ static int platform_device_get(struct device *dev, void *data)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct vpbe_device *vpbe_dev = data;
 
-	if (strcmp("vpbe-osd", pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-osd") != NULL)
 		vpbe_dev->osd_device = platform_get_drvdata(pdev);
-	if (strcmp("vpbe-venc", pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-venc") != NULL)
 		vpbe_dev->venc_device = dev_get_platdata(&pdev->dev);
 
 	return 0;
@@ -584,7 +584,6 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	struct v4l2_subdev **enc_subdev;
 	struct osd_state *osd_device;
 	struct i2c_adapter *i2c_adap;
-	int output_index;
 	int num_encoders;
 	int ret = 0;
 	int err;
@@ -612,7 +611,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 			ret =  PTR_ERR(vpbe_dev->dac_clk);
 			goto fail_mutex_unlock;
 		}
-		if (clk_enable(vpbe_dev->dac_clk)) {
+		if (clk_prepare_enable(vpbe_dev->dac_clk)) {
 			ret =  -ENODEV;
 			goto fail_mutex_unlock;
 		}
@@ -632,8 +631,10 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 
 	err = bus_for_each_dev(&platform_bus_type, NULL, vpbe_dev,
 			       platform_device_get);
-	if (err < 0)
-		return err;
+	if (err < 0) {
+		ret = err;
+		goto fail_dev_unregister;
+	}
 
 	vpbe_dev->venc = venc_sub_dev_init(&vpbe_dev->v4l2_dev,
 					   vpbe_dev->cfg->venc.module_name);
@@ -731,7 +732,6 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	/* set the current encoder and output to that of venc by default */
 	vpbe_dev->current_sd_index = 0;
 	vpbe_dev->current_out_index = 0;
-	output_index = 0;
 
 	mutex_unlock(&vpbe_dev->lock);
 
@@ -759,8 +759,10 @@ fail_kfree_encoders:
 fail_dev_unregister:
 	v4l2_device_unregister(&vpbe_dev->v4l2_dev);
 fail_clk_put:
-	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0)
+	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0) {
+		clk_disable_unprepare(vpbe_dev->dac_clk);
 		clk_put(vpbe_dev->dac_clk);
+	}
 fail_mutex_unlock:
 	mutex_unlock(&vpbe_dev->lock);
 	return ret;
@@ -777,8 +779,10 @@ fail_mutex_unlock:
 static void vpbe_deinitialize(struct device *dev, struct vpbe_device *vpbe_dev)
 {
 	v4l2_device_unregister(&vpbe_dev->v4l2_dev);
-	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0)
+	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0) {
+		clk_disable_unprepare(vpbe_dev->dac_clk);
 		clk_put(vpbe_dev->dac_clk);
+	}
 
 	kfree(vpbe_dev->amp);
 	kfree(vpbe_dev->encoders);
@@ -803,7 +807,7 @@ static struct vpbe_device_ops vpbe_dev_ops = {
 	.set_mode = vpbe_set_mode,
 };
 
-static __devinit int vpbe_probe(struct platform_device *pdev)
+static int vpbe_probe(struct platform_device *pdev)
 {
 	struct vpbe_device *vpbe_dev;
 	struct vpbe_config *cfg;

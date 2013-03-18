@@ -280,17 +280,17 @@ ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
 	if (ih == NULL)
 		sprintf(buf, "TRUNCATED");
 	else if (ih->nexthdr == IPPROTO_FRAGMENT)
-		sprintf(buf, "%pI6->%pI6 frag",	&ih->saddr, &ih->daddr);
+		sprintf(buf, "%pI6c->%pI6c frag", &ih->saddr, &ih->daddr);
 	else {
 		__be16 _ports[2], *pptr;
 
 		pptr = skb_header_pointer(skb, offset + sizeof(struct ipv6hdr),
 					  sizeof(_ports), _ports);
 		if (pptr == NULL)
-			sprintf(buf, "TRUNCATED %pI6->%pI6",
+			sprintf(buf, "TRUNCATED %pI6c->%pI6c",
 				&ih->saddr, &ih->daddr);
 		else
-			sprintf(buf, "%pI6:%u->%pI6:%u",
+			sprintf(buf, "%pI6c:%u->%pI6c:%u",
 				&ih->saddr, ntohs(pptr[0]),
 				&ih->daddr, ntohs(pptr[1]));
 	}

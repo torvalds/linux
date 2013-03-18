@@ -21,9 +21,9 @@
  * maximum of a1 or 0 in case of error.
  *
  * Note: for performance reasons we deliberately accept that a user may
- *       make strlen_user and strnlen_user access the first few KSEG0
- *       bytes.  There's nothing secret there.  On 64-bit accessing beyond
- *       the maximum is a tad hairier ...
+ *	 make strlen_user and strnlen_user access the first few KSEG0
+ *	 bytes.	 There's nothing secret there.	On 64-bit accessing beyond
+ *	 the maximum is a tad hairier ...
  */
 LEAF(__strnlen_user_asm)
 	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?

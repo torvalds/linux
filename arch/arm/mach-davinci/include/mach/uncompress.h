@@ -32,6 +32,9 @@ u32 *uart;
 /* PORT_16C550A, in polled non-fifo mode */
 static void putc(char c)
 {
+	if (!uart)
+		return;
+
 	while (!(uart[UART_LSR] & UART_LSR_THRE))
 		barrier();
 	uart[UART_TX] = c;
@@ -39,6 +42,9 @@ static void putc(char c)
 
 static inline void flush(void)
 {
+	if (!uart)
+		return;
+
 	while (!(uart[UART_LSR] & UART_LSR_THRE))
 		barrier();
 }
@@ -95,4 +101,3 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 }
 
 #define arch_decomp_setup()	__arch_decomp_setup(arch_id)
-#define arch_decomp_wdog()

@@ -332,7 +332,7 @@ SYSCALL_DEFINE(sync_file_range)(int fd, loff_t offset, loff_t nbytes,
 	if (!f.file)
 		goto out;
 
-	i_mode = f.file->f_path.dentry->d_inode->i_mode;
+	i_mode = file_inode(f.file)->i_mode;
 	ret = -ESPIPE;
 	if (!S_ISREG(i_mode) && !S_ISBLK(i_mode) && !S_ISDIR(i_mode) &&
 			!S_ISLNK(i_mode))

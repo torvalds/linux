@@ -68,8 +68,7 @@ Structure of the framework
 The framework closely resembles the driver structure: it has a v4l2_device
 struct for the device instance data, a v4l2_subdev struct to refer to
 sub-device instances, the video_device struct stores V4L2 device node data
-and in the future a v4l2_fh struct will keep track of filehandle instances
-(this is not yet implemented).
+and the v4l2_fh struct keeps track of filehandle instances.
 
 The V4L2 framework also optionally integrates with the media framework. If a
 driver sets the struct v4l2_device mdev field, sub-devices and video nodes
@@ -174,8 +173,7 @@ The recommended approach is as follows:
 
 static atomic_t drv_instance = ATOMIC_INIT(0);
 
-static int __devinit drv_probe(struct pci_dev *pdev,
-				const struct pci_device_id *pci_id)
+static int drv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 {
 	...
 	state->instance = atomic_inc_return(&drv_instance) - 1;

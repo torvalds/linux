@@ -105,9 +105,6 @@
 #define AD7758_APP_PWR		4
 #define AD7758_WT(p, w)		(((w) << 2) | (p))
 
-#define DRIVER_NAME		"ade7758"
-
-
 /**
  * struct ade7758_state - device instance specific data
  * @us:			actual spi_device

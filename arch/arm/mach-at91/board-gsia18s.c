@@ -30,14 +30,14 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/gsia18s.h>
-#include <mach/stamp9g20.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "gsia18s.h"
+#include "stamp9g20.h"
 
 static void __init gsia18s_init_early(void)
 {
@@ -574,7 +574,7 @@ static void __init gsia18s_board_init(void)
 }
 
 MACHINE_START(GSIA18S, "GS_IA18_S")
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= gsia18s_init_early,

@@ -1887,9 +1887,15 @@ int logfs_truncate(struct inode *inode, u64 target)
 		logfs_put_wblocks(sb, NULL, 1);
 	}
 
-	if (!err)
-		err = vmtruncate(inode, target);
+	if (!err) {
+		err = inode_newsize_ok(inode, target);
+		if (err)
+			goto out;
 
+		truncate_setsize(inode, target);
+	}
+
+ out:
 	/* I don't trust error recovery yet. */
 	WARN_ON(err);
 	return err;

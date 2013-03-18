@@ -33,4 +33,17 @@ config SND_ISIGHT
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-isight.
 
+config SND_SCS1X
+	tristate "Stanton Control System 1 MIDI"
+	select SND_PCM
+	select SND_RAWMIDI
+	select SND_FIREWIRE_LIB
+	help
+	  Say Y here to include support for the MIDI ports of the Stanton
+	  SCS.1d/SCS.1m DJ controllers.  (SCS.1m audio is still handled
+	  by FFADO.)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-scs1x.
+
 endif # SND_FIREWIRE

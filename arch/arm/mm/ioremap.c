@@ -39,6 +39,70 @@
 #include <asm/mach/pci.h>
 #include "mm.h"
 
+
+LIST_HEAD(static_vmlist);
+
+static struct static_vm *find_static_vm_paddr(phys_addr_t paddr,
+			size_t size, unsigned int mtype)
+{
+	struct static_vm *svm;
+	struct vm_struct *vm;
+
+	list_for_each_entry(svm, &static_vmlist, list) {
+		vm = &svm->vm;
+		if (!(vm->flags & VM_ARM_STATIC_MAPPING))
+			continue;
+		if ((vm->flags & VM_ARM_MTYPE_MASK) != VM_ARM_MTYPE(mtype))
+			continue;
+
+		if (vm->phys_addr > paddr ||
+			paddr + size - 1 > vm->phys_addr + vm->size - 1)
+			continue;
+
+		return svm;
+	}
+
+	return NULL;
+}
+
+struct static_vm *find_static_vm_vaddr(void *vaddr)
+{
+	struct static_vm *svm;
+	struct vm_struct *vm;
+
+	list_for_each_entry(svm, &static_vmlist, list) {
+		vm = &svm->vm;
+
+		/* static_vmlist is ascending order */
+		if (vm->addr > vaddr)
+			break;
+
+		if (vm->addr <= vaddr && vm->addr + vm->size > vaddr)
+			return svm;
+	}
+
+	return NULL;
+}
+
+void __init add_static_vm_early(struct static_vm *svm)
+{
+	struct static_vm *curr_svm;
+	struct vm_struct *vm;
+	void *vaddr;
+
+	vm = &svm->vm;
+	vm_area_add_early(vm);
+	vaddr = vm->addr;
+
+	list_for_each_entry(curr_svm, &static_vmlist, list) {
+		vm = &curr_svm->vm;
+
+		if (vm->addr > vaddr)
+			break;
+	}
+	list_add_tail(&svm->list, &curr_svm->list);
+}
+
 int ioremap_page(unsigned long virt, unsigned long phys,
 		 const struct mem_type *mtype)
 {
@@ -47,18 +111,18 @@ int ioremap_page(unsigned long virt, unsigned long phys,
 }
 EXPORT_SYMBOL(ioremap_page);
 
-void __check_kvm_seq(struct mm_struct *mm)
+void __check_vmalloc_seq(struct mm_struct *mm)
 {
 	unsigned int seq;
 
 	do {
-		seq = init_mm.context.kvm_seq;
+		seq = init_mm.context.vmalloc_seq;
 		memcpy(pgd_offset(mm, VMALLOC_START),
 		       pgd_offset_k(VMALLOC_START),
 		       sizeof(pgd_t) * (pgd_index(VMALLOC_END) -
 					pgd_index(VMALLOC_START)));
-		mm->context.kvm_seq = seq;
-	} while (seq != init_mm.context.kvm_seq);
+		mm->context.vmalloc_seq = seq;
+	} while (seq != init_mm.context.vmalloc_seq);
 }
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
@@ -89,13 +153,13 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 		if (!pmd_none(pmd)) {
 			/*
 			 * Clear the PMD from the page table, and
-			 * increment the kvm sequence so others
+			 * increment the vmalloc sequence so others
 			 * notice this change.
 			 *
 			 * Note: this is still racy on SMP machines.
 			 */
 			pmd_clear(pmdp);
-			init_mm.context.kvm_seq++;
+			init_mm.context.vmalloc_seq++;
 
 			/*
 			 * Free the page table, if there was one.
@@ -112,8 +176,8 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 	 * Ensure that the active_mm is up to date - we want to
 	 * catch any use-after-iounmap cases.
 	 */
-	if (current->active_mm->context.kvm_seq != init_mm.context.kvm_seq)
-		__check_kvm_seq(current->active_mm);
+	if (current->active_mm->context.vmalloc_seq != init_mm.context.vmalloc_seq)
+		__check_vmalloc_seq(current->active_mm);
 
 	flush_tlb_kernel_range(virt, end);
 }
@@ -197,13 +261,14 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	const struct mem_type *type;
 	int err;
 	unsigned long addr;
- 	struct vm_struct * area;
+	struct vm_struct *area;
+	phys_addr_t paddr = __pfn_to_phys(pfn);
 
 #ifndef CONFIG_ARM_LPAE
 	/*
 	 * High mappings must be supersection aligned
 	 */
-	if (pfn >= 0x100000 && (__pfn_to_phys(pfn) & ~SUPERSECTION_MASK))
+	if (pfn >= 0x100000 && (paddr & ~SUPERSECTION_MASK))
 		return NULL;
 #endif
 
@@ -219,24 +284,16 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	/*
 	 * Try to reuse one of the static mapping whenever possible.
 	 */
-	read_lock(&vmlist_lock);
-	for (area = vmlist; area; area = area->next) {
-		if (!size || (sizeof(phys_addr_t) == 4 && pfn >= 0x100000))
-			break;
-		if (!(area->flags & VM_ARM_STATIC_MAPPING))
-			continue;
-		if ((area->flags & VM_ARM_MTYPE_MASK) != VM_ARM_MTYPE(mtype))
-			continue;
-		if (__phys_to_pfn(area->phys_addr) > pfn ||
-		    __pfn_to_phys(pfn) + size-1 > area->phys_addr + area->size-1)
-			continue;
-		/* we can drop the lock here as we know *area is static */
-		read_unlock(&vmlist_lock);
-		addr = (unsigned long)area->addr;
-		addr += __pfn_to_phys(pfn) - area->phys_addr;
-		return (void __iomem *) (offset + addr);
+	if (size && !(sizeof(phys_addr_t) == 4 && pfn >= 0x100000)) {
+		struct static_vm *svm;
+
+		svm = find_static_vm_paddr(paddr, size, mtype);
+		if (svm) {
+			addr = (unsigned long)svm->vm.addr;
+			addr += paddr - svm->vm.phys_addr;
+			return (void __iomem *) (offset + addr);
+		}
 	}
-	read_unlock(&vmlist_lock);
 
 	/*
 	 * Don't allow RAM to be mapped - this causes problems with ARMv6+
@@ -248,21 +305,21 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
  	if (!area)
  		return NULL;
  	addr = (unsigned long)area->addr;
-	area->phys_addr = __pfn_to_phys(pfn);
+	area->phys_addr = paddr;
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
 	if (DOMAIN_IO == 0 &&
 	    (((cpu_architecture() >= CPU_ARCH_ARMv6) && (get_cr() & CR_XP)) ||
 	       cpu_is_xsc3()) && pfn >= 0x100000 &&
-	       !((__pfn_to_phys(pfn) | size | addr) & ~SUPERSECTION_MASK)) {
+	       !((paddr | size | addr) & ~SUPERSECTION_MASK)) {
 		area->flags |= VM_ARM_SECTION_MAPPING;
 		err = remap_area_supersections(addr, pfn, size, type);
-	} else if (!((__pfn_to_phys(pfn) | size | addr) & ~PMD_MASK)) {
+	} else if (!((paddr | size | addr) & ~PMD_MASK)) {
 		area->flags |= VM_ARM_SECTION_MAPPING;
 		err = remap_area_sections(addr, pfn, size, type);
 	} else
 #endif
-		err = ioremap_page_range(addr, addr + size, __pfn_to_phys(pfn),
+		err = ioremap_page_range(addr, addr + size, paddr,
 					 __pgprot(type->prot_pte));
 
 	if (err) {
@@ -346,34 +403,28 @@ __arm_ioremap_exec(unsigned long phys_addr, size_t size, bool cached)
 void __iounmap(volatile void __iomem *io_addr)
 {
 	void *addr = (void *)(PAGE_MASK & (unsigned long)io_addr);
-	struct vm_struct *vm;
+	struct static_vm *svm;
 
-	read_lock(&vmlist_lock);
-	for (vm = vmlist; vm; vm = vm->next) {
-		if (vm->addr > addr)
-			break;
-		if (!(vm->flags & VM_IOREMAP))
-			continue;
-		/* If this is a static mapping we must leave it alone */
-		if ((vm->flags & VM_ARM_STATIC_MAPPING) &&
-		    (vm->addr <= addr) && (vm->addr + vm->size > addr)) {
-			read_unlock(&vmlist_lock);
-			return;
-		}
+	/* If this is a static mapping, we must leave it alone */
+	svm = find_static_vm_vaddr(addr);
+	if (svm)
+		return;
+
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
+	{
+		struct vm_struct *vm;
+
+		vm = find_vm_area(addr);
+
 		/*
 		 * If this is a section based mapping we need to handle it
 		 * specially as the VM subsystem does not know how to handle
 		 * such a beast.
 		 */
-		if ((vm->addr == addr) &&
-		    (vm->flags & VM_ARM_SECTION_MAPPING)) {
+		if (vm && (vm->flags & VM_ARM_SECTION_MAPPING))
 			unmap_area_sections((unsigned long)vm->addr, vm->size);
-			break;
-		}
-#endif
 	}
-	read_unlock(&vmlist_lock);
+#endif
 
 	vunmap(addr);
 }

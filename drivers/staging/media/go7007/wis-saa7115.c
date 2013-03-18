@@ -32,8 +32,7 @@ struct wis_saa7115 {
 	int hue;
 };
 
-static u8 initial_registers[] =
-{
+static u8 initial_registers[] = {
 	0x01, 0x08,
 	0x02, 0xc0,
 	0x03, 0x20,
@@ -415,12 +414,12 @@ static int wis_saa7115_probe(struct i2c_client *client,
 	dec->hue = 0;
 	i2c_set_clientdata(client, dec);
 
-	printk(KERN_DEBUG
+	dev_dbg(&client->dev,
 		"wis-saa7115: initializing SAA7115 at address %d on %s\n",
 		client->addr, adapter->name);
 
 	if (write_regs(client, initial_registers) < 0) {
-		printk(KERN_ERR
+		dev_err(&client->dev,
 			"wis-saa7115: error initializing SAA7115\n");
 		kfree(dec);
 		return -ENODEV;
@@ -453,17 +452,6 @@ static struct i2c_driver wis_saa7115_driver = {
 	.id_table	= wis_saa7115_id,
 };
 
-static int __init wis_saa7115_init(void)
-{
-	return i2c_add_driver(&wis_saa7115_driver);
-}
-
-static void __exit wis_saa7115_cleanup(void)
-{
-	i2c_del_driver(&wis_saa7115_driver);
-}
-
-module_init(wis_saa7115_init);
-module_exit(wis_saa7115_cleanup);
+module_i2c_driver(wis_saa7115_driver);
 
 MODULE_LICENSE("GPL v2");

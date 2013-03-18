@@ -130,6 +130,9 @@ struct c4iw_stats {
 	u64  db_empty;
 	u64  db_drop;
 	u64  db_state_transitions;
+	u64  tcam_full;
+	u64  act_ofld_conn_fails;
+	u64  pas_ofld_conn_fails;
 };
 
 struct c4iw_rdev {
@@ -223,6 +226,9 @@ struct c4iw_dev {
 	struct dentry *debugfs_root;
 	enum db_state db_state;
 	int qpcnt;
+	struct idr hwtid_idr;
+	struct idr atid_idr;
+	struct idr stid_idr;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -254,20 +260,21 @@ static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 				 void *handle, u32 id, int lock)
 {
 	int ret;
-	int newid;
 
-	do {
-		if (!idr_pre_get(idr, lock ? GFP_KERNEL : GFP_ATOMIC))
-			return -ENOMEM;
-		if (lock)
-			spin_lock_irq(&rhp->lock);
-		ret = idr_get_new_above(idr, handle, id, &newid);
-		BUG_ON(!ret && newid != id);
-		if (lock)
-			spin_unlock_irq(&rhp->lock);
-	} while (ret == -EAGAIN);
+	if (lock) {
+		idr_preload(GFP_KERNEL);
+		spin_lock_irq(&rhp->lock);
+	}
 
-	return ret;
+	ret = idr_alloc(idr, handle, id, id + 1, GFP_ATOMIC);
+
+	if (lock) {
+		spin_unlock_irq(&rhp->lock);
+		idr_preload_end();
+	}
+
+	BUG_ON(ret == -ENOSPC);
+	return ret < 0 ? ret : 0;
 }
 
 static inline int insert_handle(struct c4iw_dev *rhp, struct idr *idr,
@@ -710,6 +717,33 @@ enum c4iw_ep_flags {
 	ABORT_REQ_IN_PROGRESS	= 1,
 	RELEASE_RESOURCES	= 2,
 	CLOSE_SENT		= 3,
+	TIMEOUT                 = 4,
+	QP_REFERENCED           = 5,
+};
+
+enum c4iw_ep_history {
+	ACT_OPEN_REQ            = 0,
+	ACT_OFLD_CONN           = 1,
+	ACT_OPEN_RPL            = 2,
+	ACT_ESTAB               = 3,
+	PASS_ACCEPT_REQ         = 4,
+	PASS_ESTAB              = 5,
+	ABORT_UPCALL            = 6,
+	ESTAB_UPCALL            = 7,
+	CLOSE_UPCALL            = 8,
+	ULP_ACCEPT              = 9,
+	ULP_REJECT              = 10,
+	TIMEDOUT                = 11,
+	PEER_ABORT              = 12,
+	PEER_CLOSE              = 13,
+	CONNREQ_UPCALL          = 14,
+	ABORT_CONN              = 15,
+	DISCONN_UPCALL          = 16,
+	EP_DISC_CLOSE           = 17,
+	EP_DISC_ABORT           = 18,
+	CONN_RPL_UPCALL         = 19,
+	ACT_RETRY_NOMEM         = 20,
+	ACT_RETRY_INUSE         = 21
 };
 
 struct c4iw_ep_common {
@@ -723,6 +757,7 @@ struct c4iw_ep_common {
 	struct sockaddr_in remote_addr;
 	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
+	unsigned long history;
 };
 
 struct c4iw_listen_ep {
@@ -760,6 +795,7 @@ struct c4iw_ep {
 	u8 tos;
 	u8 retry_with_mpa_v1;
 	u8 tried_with_mpa_v1;
+	unsigned int retry_count;
 };
 
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
@@ -833,7 +869,7 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(
 					int page_list_len);
 struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth);
 int c4iw_dealloc_mw(struct ib_mw *mw);
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd);
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);

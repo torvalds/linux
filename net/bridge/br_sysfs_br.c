@@ -14,6 +14,7 @@
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
@@ -36,7 +37,7 @@ static ssize_t store_bridge_parm(struct device *d,
 	unsigned long val;
 	int err;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	val = simple_strtoul(buf, &endp, 0);
@@ -132,7 +133,7 @@ static ssize_t store_stp_state(struct device *d,
 	char *endp;
 	unsigned long val;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	val = simple_strtoul(buf, &endp, 0);
@@ -165,7 +166,7 @@ static ssize_t store_group_fwd_mask(struct device *d,
 	char *endp;
 	unsigned long val;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	val = simple_strtoul(buf, &endp, 0);
@@ -297,23 +298,18 @@ static ssize_t store_group_addr(struct device *d,
 				const char *buf, size_t len)
 {
 	struct net_bridge *br = to_bridge(d);
-	unsigned int new_addr[6];
+	u8 new_addr[6];
 	int i;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (sscanf(buf, "%x:%x:%x:%x:%x:%x",
+	if (sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 		   &new_addr[0], &new_addr[1], &new_addr[2],
 		   &new_addr[3], &new_addr[4], &new_addr[5]) != 6)
 		return -EINVAL;
 
-	/* Must be 01:80:c2:00:00:0X */
-	for (i = 0; i < 5; i++)
-		if (new_addr[i] != br_group_address[i])
-			return -EINVAL;
-
-	if (new_addr[5] & ~0xf)
+	if (!is_link_local_ether_addr(new_addr))
 		return -EINVAL;
 
 	if (new_addr[5] == 1 ||		/* 802.3x Pause address */
@@ -337,7 +333,7 @@ static ssize_t store_flush(struct device *d,
 {
 	struct net_bridge *br = to_bridge(d);
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(dev_net(br->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	br_fdb_flush(br);
@@ -695,6 +691,24 @@ static ssize_t store_nf_call_arptables(
 static DEVICE_ATTR(nf_call_arptables, S_IRUGO | S_IWUSR,
 		   show_nf_call_arptables, store_nf_call_arptables);
 #endif
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+static ssize_t show_vlan_filtering(struct device *d,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br->vlan_enabled);
+}
+
+static ssize_t store_vlan_filtering(struct device *d,
+				    struct device_attribute *attr,
+				    const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_vlan_filter_toggle);
+}
+static DEVICE_ATTR(vlan_filtering, S_IRUGO | S_IWUSR,
+		   show_vlan_filtering, store_vlan_filtering);
+#endif
 
 static struct attribute *bridge_attrs[] = {
 	&dev_attr_forward_delay.attr,
@@ -735,6 +749,9 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_nf_call_iptables.attr,
 	&dev_attr_nf_call_ip6tables.attr,
 	&dev_attr_nf_call_arptables.attr,
+#endif
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+	&dev_attr_vlan_filtering.attr,
 #endif
 	NULL
 };

@@ -164,8 +164,6 @@ static const struct kset_uevent_ops bus_uevent_ops = {
 
 static struct kset *bus_kset;
 
-
-#ifdef CONFIG_HOTPLUG
 /* Manually detach a device from its associated driver. */
 static ssize_t driver_unbind(struct device_driver *drv,
 			     const char *buf, size_t count)
@@ -252,7 +250,6 @@ static ssize_t store_drivers_probe(struct bus_type *bus,
 		return -EINVAL;
 	return count;
 }
-#endif
 
 static struct device *next_device(struct klist_iter *i)
 {
@@ -293,7 +290,7 @@ int bus_for_each_dev(struct bus_type *bus, struct device *start,
 	struct device *dev;
 	int error = 0;
 
-	if (!bus)
+	if (!bus || !bus->p)
 		return -EINVAL;
 
 	klist_iter_init_node(&bus->p->klist_devices, &i,
@@ -327,7 +324,7 @@ struct device *bus_find_device(struct bus_type *bus,
 	struct klist_iter i;
 	struct device *dev;
 
-	if (!bus)
+	if (!bus || !bus->p)
 		return NULL;
 
 	klist_iter_init_node(&bus->p->klist_devices, &i,
@@ -618,11 +615,6 @@ static void driver_remove_attrs(struct bus_type *bus,
 	}
 }
 
-#ifdef CONFIG_HOTPLUG
-/*
- * Thanks to drivers making their tables __devinit, we can't allow manual
- * bind and unbind from userspace unless CONFIG_HOTPLUG is enabled.
- */
 static int __must_check add_bind_files(struct device_driver *drv)
 {
 	int ret;
@@ -666,12 +658,6 @@ static void remove_probe_files(struct bus_type *bus)
 	bus_remove_file(bus, &bus_attr_drivers_autoprobe);
 	bus_remove_file(bus, &bus_attr_drivers_probe);
 }
-#else
-static inline int add_bind_files(struct device_driver *drv) { return 0; }
-static inline void remove_bind_files(struct device_driver *drv) {}
-static inline int add_probe_files(struct bus_type *bus) { return 0; }
-static inline void remove_probe_files(struct bus_type *bus) {}
-#endif
 
 static ssize_t driver_uevent_store(struct device_driver *drv,
 				   const char *buf, size_t count)
@@ -714,12 +700,12 @@ int bus_add_driver(struct device_driver *drv)
 	if (error)
 		goto out_unregister;
 
+	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
 	if (drv->bus->p->drivers_autoprobe) {
 		error = driver_attach(drv);
 		if (error)
 			goto out_unregister;
 	}
-	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
 	module_add_driver(drv->owner, drv);
 
 	error = driver_create_file(drv, &driver_attr_uevent);

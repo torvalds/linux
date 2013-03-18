@@ -24,10 +24,6 @@
 #include <linux/uaccess.h>
 #include <linux/usb/serial.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.09"
 #define DRIVER_DESC "Silicon Labs CP210x RS232 serial adaptor driver"
 
 /*
@@ -35,8 +31,7 @@
  */
 static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *);
 static void cp210x_close(struct usb_serial_port *);
-static void cp210x_get_termios(struct tty_struct *,
-	struct usb_serial_port *port);
+static void cp210x_get_termios(struct tty_struct *, struct usb_serial_port *);
 static void cp210x_get_termios_port(struct usb_serial_port *port,
 	unsigned int *cflagp, unsigned int *baudp);
 static void cp210x_change_speed(struct tty_struct *, struct usb_serial_port *,
@@ -65,6 +60,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0FCF, 0x1003) }, /* Dynastream ANT development board */
 	{ USB_DEVICE(0x0FCF, 0x1004) }, /* Dynastream ANT2USB */
 	{ USB_DEVICE(0x0FCF, 0x1006) }, /* Dynastream ANT development board */
+	{ USB_DEVICE(0x0FDE, 0xCA05) }, /* OWL Wireless Electricity Monitor CM-160 */
 	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Knock-off DCU-11 cable */
 	{ USB_DEVICE(0x10AB, 0x10C5) }, /* Siemens MC60 Cable */
 	{ USB_DEVICE(0x10B5, 0xAC70) }, /* Nokia CA-42 USB */
@@ -89,6 +85,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x813F) }, /* Tams Master Easy Control */
 	{ USB_DEVICE(0x10C4, 0x814A) }, /* West Mountain Radio RIGblaster P&P */
 	{ USB_DEVICE(0x10C4, 0x814B) }, /* West Mountain Radio RIGtalk */
+	{ USB_DEVICE(0x2405, 0x0003) }, /* West Mountain Radio RIGblaster Advantage */
 	{ USB_DEVICE(0x10C4, 0x8156) }, /* B&G H3000 link cable */
 	{ USB_DEVICE(0x10C4, 0x815E) }, /* Helicomm IP-Link 1220-DVM */
 	{ USB_DEVICE(0x10C4, 0x815F) }, /* Timewave HamLinkUSB */
@@ -118,6 +115,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x8477) }, /* Balluff RFID */
 	{ USB_DEVICE(0x10C4, 0x85EA) }, /* AC-Services IBUS-IF */
 	{ USB_DEVICE(0x10C4, 0x85EB) }, /* AC-Services CIS-IBUS */
+	{ USB_DEVICE(0x10C4, 0x85F8) }, /* Virtenio Preon32 */
 	{ USB_DEVICE(0x10C4, 0x8664) }, /* AC-Services CAN-IF */
 	{ USB_DEVICE(0x10C4, 0x8665) }, /* AC-Services OBD-IF */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
@@ -153,6 +151,25 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1BE3, 0x07A6) }, /* WAGO 750-923 USB Service Cable */
 	{ USB_DEVICE(0x1E29, 0x0102) }, /* Festo CPX-USB */
 	{ USB_DEVICE(0x1E29, 0x0501) }, /* Festo CMSP */
+	{ USB_DEVICE(0x1FB9, 0x0100) }, /* Lake Shore Model 121 Current Source */
+	{ USB_DEVICE(0x1FB9, 0x0200) }, /* Lake Shore Model 218A Temperature Monitor */
+	{ USB_DEVICE(0x1FB9, 0x0201) }, /* Lake Shore Model 219 Temperature Monitor */
+	{ USB_DEVICE(0x1FB9, 0x0202) }, /* Lake Shore Model 233 Temperature Transmitter */
+	{ USB_DEVICE(0x1FB9, 0x0203) }, /* Lake Shore Model 235 Temperature Transmitter */
+	{ USB_DEVICE(0x1FB9, 0x0300) }, /* Lake Shore Model 335 Temperature Controller */
+	{ USB_DEVICE(0x1FB9, 0x0301) }, /* Lake Shore Model 336 Temperature Controller */
+	{ USB_DEVICE(0x1FB9, 0x0302) }, /* Lake Shore Model 350 Temperature Controller */
+	{ USB_DEVICE(0x1FB9, 0x0303) }, /* Lake Shore Model 371 AC Bridge */
+	{ USB_DEVICE(0x1FB9, 0x0400) }, /* Lake Shore Model 411 Handheld Gaussmeter */
+	{ USB_DEVICE(0x1FB9, 0x0401) }, /* Lake Shore Model 425 Gaussmeter */
+	{ USB_DEVICE(0x1FB9, 0x0402) }, /* Lake Shore Model 455A Gaussmeter */
+	{ USB_DEVICE(0x1FB9, 0x0403) }, /* Lake Shore Model 475A Gaussmeter */
+	{ USB_DEVICE(0x1FB9, 0x0404) }, /* Lake Shore Model 465 Three Axis Gaussmeter */
+	{ USB_DEVICE(0x1FB9, 0x0600) }, /* Lake Shore Model 625A Superconducting MPS */
+	{ USB_DEVICE(0x1FB9, 0x0601) }, /* Lake Shore Model 642A Magnet Power Supply */
+	{ USB_DEVICE(0x1FB9, 0x0602) }, /* Lake Shore Model 648 Magnet Power Supply */
+	{ USB_DEVICE(0x1FB9, 0x0700) }, /* Lake Shore Model 737 VSM Controller */
+	{ USB_DEVICE(0x1FB9, 0x0701) }, /* Lake Shore Model 776 Hall Matrix */
 	{ USB_DEVICE(0x3195, 0xF190) }, /* Link Instruments MSO-19 */
 	{ USB_DEVICE(0x3195, 0xF280) }, /* Link Instruments MSO-28 */
 	{ USB_DEVICE(0x3195, 0xF281) }, /* Link Instruments MSO-28 */
@@ -169,7 +186,7 @@ struct cp210x_serial_private {
 static struct usb_serial_driver cp210x_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name = 	"cp210x",
+		.name =		"cp210x",
 	},
 	.id_table		= id_table,
 	.num_ports		= 1,
@@ -179,7 +196,7 @@ static struct usb_serial_driver cp210x_device = {
 	.close			= cp210x_close,
 	.break_ctl		= cp210x_break_ctl,
 	.set_termios		= cp210x_set_termios,
-	.tiocmget 		= cp210x_tiocmget,
+	.tiocmget		= cp210x_tiocmget,
 	.tiocmset		= cp210x_tiocmset,
 	.attach			= cp210x_startup,
 	.release		= cp210x_release,
@@ -281,7 +298,7 @@ static int cp210x_get_config(struct usb_serial_port *port, u8 request,
 	int result, i, length;
 
 	/* Number of integers required to contain the array */
-	length = (((size - 1) | 3) + 1)/4;
+	length = (((size - 1) | 3) + 1) / 4;
 
 	buf = kcalloc(length, sizeof(__le32), GFP_KERNEL);
 	if (!buf) {
@@ -328,12 +345,11 @@ static int cp210x_set_config(struct usb_serial_port *port, u8 request,
 	int result, i, length;
 
 	/* Number of integers required to contain the array */
-	length = (((size - 1) | 3) + 1)/4;
+	length = (((size - 1) | 3) + 1) / 4;
 
 	buf = kmalloc(length * sizeof(__le32), GFP_KERNEL);
 	if (!buf) {
-		dev_err(&port->dev, "%s - out of memory.\n",
-				__func__);
+		dev_err(&port->dev, "%s - out of memory.\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -384,7 +400,8 @@ static inline int cp210x_set_config_single(struct usb_serial_port *port,
  * cp210x_quantise_baudrate
  * Quantises the baud rate as per AN205 Table 1
  */
-static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
+static unsigned int cp210x_quantise_baudrate(unsigned int baud)
+{
 	if (baud <= 300)
 		baud = 300;
 	else if (baud <= 600)      baud = 600;
@@ -467,9 +484,7 @@ static void cp210x_get_termios(struct tty_struct *tty,
 		cp210x_get_termios_port(tty->driver_data,
 			&tty->termios.c_cflag, &baud);
 		tty_encode_baud_rate(tty, baud, baud);
-	}
-
-	else {
+	} else {
 		unsigned int cflag;
 		cflag = 0;
 		cp210x_get_termios_port(port, &cflag, &baud);
@@ -693,8 +708,8 @@ static void cp210x_set_termios(struct tty_struct *tty,
 			break;*/
 		default:
 			dev_dbg(dev, "cp210x driver does not support the number of bits requested, using 8 bit mode\n");
-				bits |= BITS_DATA_8;
-				break;
+			bits |= BITS_DATA_8;
+			break;
 		}
 		if (cp210x_set_config(port, CP210X_SET_LINE_CTL, &bits, 2))
 			dev_dbg(dev, "Number of data bits requested not supported by device\n");
@@ -767,7 +782,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 
 }
 
-static int cp210x_tiocmset (struct tty_struct *tty,
+static int cp210x_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -809,7 +824,7 @@ static void cp210x_dtr_rts(struct usb_serial_port *p, int on)
 		cp210x_tiocmset_port(p, 0, TIOCM_DTR|TIOCM_RTS);
 }
 
-static int cp210x_tiocmget (struct tty_struct *tty)
+static int cp210x_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned int control;
@@ -829,7 +844,7 @@ static int cp210x_tiocmget (struct tty_struct *tty)
 	return result;
 }
 
-static void cp210x_break_ctl (struct tty_struct *tty, int break_state)
+static void cp210x_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned int state;
@@ -874,5 +889,4 @@ static void cp210x_release(struct usb_serial *serial)
 module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

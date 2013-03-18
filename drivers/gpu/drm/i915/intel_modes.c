@@ -28,7 +28,6 @@
 #include <linux/fb.h>
 #include <drm/drm_edid.h>
 #include <drm/drmP.h>
-#include <drm/drm_edid.h>
 #include "intel_drv.h"
 #include "i915_drv.h"
 
@@ -45,7 +44,6 @@ int intel_connector_update_modes(struct drm_connector *connector,
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	drm_edid_to_eld(connector, edid);
-	kfree(edid);
 
 	return ret;
 }
@@ -61,12 +59,16 @@ int intel_ddc_get_modes(struct drm_connector *connector,
 			struct i2c_adapter *adapter)
 {
 	struct edid *edid;
+	int ret;
 
 	edid = drm_get_edid(connector, adapter);
 	if (!edid)
 		return 0;
 
-	return intel_connector_update_modes(connector, edid);
+	ret = intel_connector_update_modes(connector, edid);
+	kfree(edid);
+
+	return ret;
 }
 
 static const struct drm_prop_enum_list force_audio_names[] = {
@@ -94,12 +96,13 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 
 		dev_priv->force_audio_property = prop;
 	}
-	drm_connector_attach_property(connector, prop, 0);
+	drm_object_attach_property(&connector->base, prop, 0);
 }
 
 static const struct drm_prop_enum_list broadcast_rgb_names[] = {
-	{ 0, "Full" },
-	{ 1, "Limited 16:235" },
+	{ INTEL_BROADCAST_RGB_AUTO, "Automatic" },
+	{ INTEL_BROADCAST_RGB_FULL, "Full" },
+	{ INTEL_BROADCAST_RGB_LIMITED, "Limited 16:235" },
 };
 
 void
@@ -121,5 +124,5 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 		dev_priv->broadcast_rgb_property = prop;
 	}
 
-	drm_connector_attach_property(connector, prop, 0);
+	drm_object_attach_property(&connector->base, prop, 0);
 }

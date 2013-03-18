@@ -7,7 +7,6 @@
 #include <linux/export.h>
 
 #include <linux/iio/iio.h>
-#include "../ring_sw.h"
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
@@ -141,11 +140,8 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	char *data;
 
 	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (data == NULL) {
-		dev_err(indio_dev->dev.parent,
-			"memory alloc failed in buffer bh");
+	if (data == NULL)
 		goto done;
-	}
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		len = lis3l02dq_get_buffer_element(indio_dev, data);
@@ -154,7 +150,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
 			= pf->timestamp;
-	iio_push_to_buffer(indio_dev->buffer, (u8 *)data);
+	iio_push_to_buffers(indio_dev, (u8 *)data);
 
 	kfree(data);
 done:
@@ -237,7 +233,7 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	u8 t;
 
 	__lis3l02dq_write_data_ready_config(indio_dev, state);
-	if (state == false) {
+	if (!state) {
 		/*
 		 * A possible quirk with the handler is currently worked around
 		 * by ensuring outstanding read events are cleared.
@@ -263,7 +259,7 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 	/* If gpio still high (or high again)
 	 * In theory possible we will need to do this several times */
 	for (i = 0; i < 5; i++)
-		if (gpio_get_value(irq_to_gpio(st->us->irq)))
+		if (gpio_get_value(st->gpio))
 			lis3l02dq_read_all(indio_dev, NULL);
 		else
 			break;
@@ -318,7 +314,7 @@ void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 void lis3l02dq_unconfigure_buffer(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	lis3l02dq_free_buf(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }
 
 static int lis3l02dq_buffer_postenable(struct iio_dev *indio_dev)
@@ -401,7 +397,7 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 	int ret;
 	struct iio_buffer *buffer;
 
-	buffer = lis3l02dq_alloc_buf(indio_dev);
+	buffer = iio_kfifo_allocate(indio_dev);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -427,6 +423,6 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 	return 0;
 
 error_iio_sw_rb_free:
-	lis3l02dq_free_buf(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 	return ret;
 }

@@ -125,6 +125,15 @@
 	and	\reg, sp
 	.endm
 
+ENTRY(ret_from_kernel_thread)
+	pop	r0
+	bl	schedule_tail
+	GET_THREAD_INFO(r8)
+	ld	r0, R0(r8)
+	ld	r1, R1(r8)
+	jl	r1
+	bra	syscall_exit
+
 ENTRY(ret_from_fork)
 	pop	r0
 	bl	schedule_tail

@@ -79,7 +79,7 @@ static struct platform_device netspace_v2_gpio_buttons = {
 	.name		= "gpio-keys",
 	.id		= -1,
 	.dev		= {
-		.platform_data 	= &netspace_v2_button_data,
+		.platform_data	= &netspace_v2_button_data,
 	},
 };
 
@@ -211,7 +211,7 @@ static unsigned int netspace_v2_mpp_config[] __initdata = {
 	MPP29_GPIO,		/* Blue led (slow register) */
 	MPP30_GPIO,		/* Blue led (command register) */
 	MPP31_GPIO,		/* Board power off */
-	MPP32_GPIO, 		/* Power button (0 = Released, 1 = Pushed) */
+	MPP32_GPIO,		/* Power button (0 = Released, 1 = Pushed) */
 	MPP33_GPO,		/* Fan speed (bit 2) */
 	0
 };
@@ -263,7 +263,7 @@ MACHINE_START(NETSPACE_V2, "LaCie Network Space v2")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif
@@ -275,7 +275,7 @@ MACHINE_START(INETSPACE_V2, "LaCie Internet Space v2")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif
@@ -287,7 +287,7 @@ MACHINE_START(NETSPACE_MAX_V2, "LaCie Network Space Max v2")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif

@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/time.h>
 
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
@@ -269,6 +270,8 @@ struct av7110 {
 
 	struct dvb_frontend* fe;
 	fe_status_t fe_status;
+
+	struct mutex ioctl_mutex;
 
 	/* crash recovery */
 	void				(*recover)(struct av7110* av7110);

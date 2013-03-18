@@ -53,7 +53,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		return rc;
 
 	/* Loop over the child nodes and register a phy_device for each one */
-	for_each_child_of_node(np, child) {
+	for_each_available_child_of_node(np, child) {
 		const __be32 *paddr;
 		u32 addr;
 		int len;
@@ -157,7 +157,7 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 	if (!phy)
 		return NULL;
 
-	return phy_connect_direct(dev, phy, hndlr, flags, iface) ? NULL : phy;
+	return phy_connect_direct(dev, phy, hndlr, iface) ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_connect);
 
@@ -194,7 +194,7 @@ struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
 
 	sprintf(bus_id, PHY_ID_FMT, "fixed-0", be32_to_cpu(phy_id[0]));
 
-	phy = phy_connect(dev, bus_id, hndlr, 0, iface);
+	phy = phy_connect(dev, bus_id, hndlr, iface);
 	return IS_ERR(phy) ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_connect_fixed_link);

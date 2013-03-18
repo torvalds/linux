@@ -48,25 +48,44 @@ struct ip_tunnel_prl_entry {
 	struct rcu_head			rcu_head;
 };
 
-#define __IPTUNNEL_XMIT(stats1, stats2) do {				\
-	int err;							\
-	int pkt_len = skb->len - skb_transport_offset(skb);		\
-									\
-	skb->ip_summed = CHECKSUM_NONE;					\
-	ip_select_ident(iph, &rt->dst, NULL);				\
-									\
-	err = ip_local_out(skb);					\
-	if (likely(net_xmit_eval(err) == 0)) {				\
-		u64_stats_update_begin(&(stats1)->syncp);		\
-		(stats1)->tx_bytes += pkt_len;				\
-		(stats1)->tx_packets++;					\
-		u64_stats_update_end(&(stats1)->syncp);			\
-	} else {							\
-		(stats2)->tx_errors++;					\
-		(stats2)->tx_aborted_errors++;				\
-	}								\
-} while (0)
+static inline void iptunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	int err;
+	struct iphdr *iph = ip_hdr(skb);
+	int pkt_len = skb->len - skb_transport_offset(skb);
+	struct pcpu_tstats *tstats = this_cpu_ptr(dev->tstats);
 
-#define IPTUNNEL_XMIT() __IPTUNNEL_XMIT(txq, stats)
+	nf_reset(skb);
+	skb->ip_summed = CHECKSUM_NONE;
+	ip_select_ident(iph, skb_dst(skb), NULL);
 
+	err = ip_local_out(skb);
+	if (likely(net_xmit_eval(err) == 0)) {
+		u64_stats_update_begin(&tstats->syncp);
+		tstats->tx_bytes += pkt_len;
+		tstats->tx_packets++;
+		u64_stats_update_end(&tstats->syncp);
+	} else {
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
+	}
+}
+
+static inline void tunnel_ip_select_ident(struct sk_buff *skb,
+					  const struct iphdr  *old_iph,
+					  struct dst_entry *dst)
+{
+	struct iphdr *iph = ip_hdr(skb);
+
+	if (iph->frag_off & htons(IP_DF))
+		iph->id	= 0;
+	else {
+		/* Use inner packet iph-id if possible. */
+		if (skb->protocol == htons(ETH_P_IP) && old_iph->id)
+			iph->id	= old_iph->id;
+		else
+			__ip_select_ident(iph, dst,
+					  (skb_shinfo(skb)->gso_segs ?: 1) - 1);
+	}
+}
 #endif

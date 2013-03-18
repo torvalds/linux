@@ -256,13 +256,13 @@ struct timing_phase_path {
 	int len;
 };
 
-int sd_select_card(struct rts51x_chip *chip, int select);
-int reset_sd_card(struct rts51x_chip *chip);
-int sd_switch_clock(struct rts51x_chip *chip);
-int sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
+int rts51x_sd_select_card(struct rts51x_chip *chip, int select);
+int rts51x_reset_sd_card(struct rts51x_chip *chip);
+int rts51x_sd_switch_clock(struct rts51x_chip *chip);
+int rts51x_sd_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 	  u16 sector_cnt);
-void sd_cleanup_work(struct rts51x_chip *chip);
-int release_sd_card(struct rts51x_chip *chip);
+void rts51x_sd_cleanup_work(struct rts51x_chip *chip);
+int rts51x_release_sd_card(struct rts51x_chip *chip);
 
 #ifdef SUPPORT_CPRM
 extern int reset_sd(struct rts51x_chip *chip);

@@ -159,7 +159,7 @@ static struct autofs_sb_info *autofs_dev_ioctl_sbi(struct file *f)
 	struct inode *inode;
 
 	if (f) {
-		inode = f->f_path.dentry->d_inode;
+		inode = file_inode(f);
 		sbi = autofs4_sbi(inode->i_sb);
 	}
 	return sbi;
@@ -437,8 +437,8 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 		err = 0;
 		autofs4_expire_wait(path.dentry);
 		spin_lock(&sbi->fs_lock);
-		param->requester.uid = ino->uid;
-		param->requester.gid = ino->gid;
+		param->requester.uid = from_kuid_munged(current_user_ns(), ino->uid);
+		param->requester.gid = from_kgid_munged(current_user_ns(), ino->gid);
 		spin_unlock(&sbi->fs_lock);
 	}
 	path_put(&path);

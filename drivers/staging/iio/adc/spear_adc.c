@@ -291,7 +291,7 @@ static const struct iio_info spear_adc_iio_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit spear_adc_probe(struct platform_device *pdev)
+static int spear_adc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
@@ -401,7 +401,7 @@ errout1:
 	return ret;
 }
 
-static int __devexit spear_adc_remove(struct platform_device *pdev)
+static int spear_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *iodev = platform_get_drvdata(pdev);
 	struct spear_adc_info *info = iio_priv(iodev);
@@ -424,7 +424,7 @@ MODULE_DEVICE_TABLE(of, spear_adc_dt_ids);
 
 static struct platform_driver spear_adc_driver = {
 	.probe		= spear_adc_probe,
-	.remove		= __devexit_p(spear_adc_remove),
+	.remove		= spear_adc_remove,
 	.driver		= {
 		.name	= MOD_NAME,
 		.owner	= THIS_MODULE,

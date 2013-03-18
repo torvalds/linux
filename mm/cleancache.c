@@ -89,7 +89,7 @@ static int cleancache_get_key(struct inode *inode,
 		fhfn = sb->s_export_op->encode_fh;
 		if  (fhfn) {
 			len = (*fhfn)(inode, &key->u.fh[0], &maxlen, NULL);
-			if (len <= 0 || len == 255)
+			if (len <= FILEID_ROOT || len == FILEID_INVALID)
 				return -1;
 			if (maxlen > CLEANCACHE_KEY_MAX)
 				return -1;

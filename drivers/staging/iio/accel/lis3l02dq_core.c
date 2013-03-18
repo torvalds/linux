@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -52,7 +53,6 @@ int lis3l02dq_spi_read_reg_8(struct iio_dev *indio_dev,
 			     u8 reg_address, u8 *val)
 {
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
-	struct spi_message msg;
 	int ret;
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx,
@@ -65,9 +65,7 @@ int lis3l02dq_spi_read_reg_8(struct iio_dev *indio_dev,
 	st->tx[0] = LIS3L02DQ_READ_REG(reg_address);
 	st->tx[1] = 0;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync_transfer(st->us, &xfer, 1);
 	*val = st->rx[1];
 	mutex_unlock(&st->buf_lock);
 
@@ -108,7 +106,6 @@ static int lis3l02dq_spi_write_reg_s16(struct iio_dev *indio_dev,
 				       s16 value)
 {
 	int ret;
-	struct spi_message msg;
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = { {
 			.tx_buf = st->tx,
@@ -128,10 +125,7 @@ static int lis3l02dq_spi_write_reg_s16(struct iio_dev *indio_dev,
 	st->tx[2] = LIS3L02DQ_WRITE_REG(lower_reg_address + 1);
 	st->tx[3] = (value >> 8) & 0xFF;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -142,8 +136,6 @@ static int lis3l02dq_read_reg_s16(struct iio_dev *indio_dev,
 				  int *val)
 {
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
-
-	struct spi_message msg;
 	int ret;
 	s16 tempval;
 	struct spi_transfer xfers[] = { {
@@ -166,10 +158,7 @@ static int lis3l02dq_read_reg_s16(struct iio_dev *indio_dev,
 	st->tx[2] = LIS3L02DQ_READ_REG(lower_reg_address + 1);
 	st->tx[3] = 0;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->us->dev, "problem when reading 16 bit register");
 		goto error_ret;
@@ -674,7 +663,7 @@ static const struct iio_info lis3l02dq_info = {
 	.attrs = &lis3l02dq_attribute_group,
 };
 
-static int __devinit lis3l02dq_probe(struct spi_device *spi)
+static int lis3l02dq_probe(struct spi_device *spi)
 {
 	int ret;
 	struct lis3l02dq_state *st;
@@ -690,6 +679,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	st->us = spi;
+	st->gpio = of_get_gpio(spi->dev.of_node, 0);
 	mutex_init(&st->buf_lock);
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->dev.parent = &spi->dev;
@@ -711,7 +701,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 		goto error_unreg_buffer_funcs;
 	}
 
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
+	if (spi->irq) {
 		ret = request_threaded_irq(st->us->irq,
 					   &lis3l02dq_th,
 					   &lis3l02dq_event_handler,
@@ -738,10 +728,10 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)))
+	if (spi->irq)
 		lis3l02dq_remove_trigger(indio_dev);
 error_free_interrupt:
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
+	if (spi->irq)
 		free_irq(st->us->irq, indio_dev);
 error_uninitialize_buffer:
 	iio_buffer_unregister(indio_dev);
@@ -780,7 +770,7 @@ err_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int __devexit lis3l02dq_remove(struct spi_device *spi)
+static int lis3l02dq_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
@@ -790,7 +780,7 @@ static int __devexit lis3l02dq_remove(struct spi_device *spi)
 	lis3l02dq_disable_all_events(indio_dev);
 	lis3l02dq_stop_device(indio_dev);
 
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
+	if (spi->irq)
 		free_irq(st->us->irq, indio_dev);
 
 	lis3l02dq_remove_trigger(indio_dev);
@@ -808,7 +798,7 @@ static struct spi_driver lis3l02dq_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lis3l02dq_probe,
-	.remove = __devexit_p(lis3l02dq_remove),
+	.remove = lis3l02dq_remove,
 };
 module_spi_driver(lis3l02dq_driver);
 

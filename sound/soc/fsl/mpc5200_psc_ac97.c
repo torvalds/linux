@@ -277,7 +277,7 @@ static struct snd_soc_dai_driver psc_ac97_dai[] = {
  * - Probe/remove operations
  * - OF device match table
  */
-static int __devinit psc_ac97_of_probe(struct platform_device *op)
+static int psc_ac97_of_probe(struct platform_device *op)
 {
 	int rc;
 	struct snd_ac97 ac97;
@@ -310,7 +310,7 @@ static int __devinit psc_ac97_of_probe(struct platform_device *op)
 	return 0;
 }
 
-static int __devexit psc_ac97_of_remove(struct platform_device *op)
+static int psc_ac97_of_remove(struct platform_device *op)
 {
 	mpc5200_audio_dma_destroy(op);
 	snd_soc_unregister_dais(&op->dev, ARRAY_SIZE(psc_ac97_dai));
@@ -318,7 +318,7 @@ static int __devexit psc_ac97_of_remove(struct platform_device *op)
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id psc_ac97_match[] __devinitdata = {
+static struct of_device_id psc_ac97_match[] = {
 	{ .compatible = "fsl,mpc5200-psc-ac97", },
 	{ .compatible = "fsl,mpc5200b-psc-ac97", },
 	{}
@@ -327,7 +327,7 @@ MODULE_DEVICE_TABLE(of, psc_ac97_match);
 
 static struct platform_driver psc_ac97_driver = {
 	.probe = psc_ac97_of_probe,
-	.remove = __devexit_p(psc_ac97_of_remove),
+	.remove = psc_ac97_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-ac97",
 		.owner = THIS_MODULE,

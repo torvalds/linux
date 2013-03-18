@@ -389,7 +389,7 @@ static const struct i2c_algorithm scx200_acb_algorithm = {
 static struct scx200_acb_iface *scx200_acb_list;
 static DEFINE_MUTEX(scx200_acb_list_mutex);
 
-static __devinit int scx200_acb_probe(struct scx200_acb_iface *iface)
+static int scx200_acb_probe(struct scx200_acb_iface *iface)
 {
 	u8 val;
 
@@ -424,7 +424,7 @@ static __devinit int scx200_acb_probe(struct scx200_acb_iface *iface)
 	return 0;
 }
 
-static __devinit struct scx200_acb_iface *scx200_create_iface(const char *text,
+static struct scx200_acb_iface *scx200_create_iface(const char *text,
 		struct device *dev, int index)
 {
 	struct scx200_acb_iface *iface;
@@ -449,7 +449,7 @@ static __devinit struct scx200_acb_iface *scx200_create_iface(const char *text,
 	return iface;
 }
 
-static int __devinit scx200_acb_create(struct scx200_acb_iface *iface)
+static int scx200_acb_create(struct scx200_acb_iface *iface)
 {
 	struct i2c_adapter *adapter;
 	int rc;
@@ -480,7 +480,7 @@ static int __devinit scx200_acb_create(struct scx200_acb_iface *iface)
 	return 0;
 }
 
-static struct scx200_acb_iface * __devinit scx200_create_dev(const char *text,
+static struct scx200_acb_iface *scx200_create_dev(const char *text,
 		unsigned long base, int index, struct device *dev)
 {
 	struct scx200_acb_iface *iface;
@@ -508,7 +508,7 @@ static struct scx200_acb_iface * __devinit scx200_create_dev(const char *text,
 	return NULL;
 }
 
-static int __devinit scx200_probe(struct platform_device *pdev)
+static int scx200_probe(struct platform_device *pdev)
 {
 	struct scx200_acb_iface *iface;
 	struct resource *res;
@@ -530,19 +530,18 @@ static int __devinit scx200_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void __devexit scx200_cleanup_iface(struct scx200_acb_iface *iface)
+static void scx200_cleanup_iface(struct scx200_acb_iface *iface)
 {
 	i2c_del_adapter(&iface->adapter);
 	release_region(iface->base, 8);
 	kfree(iface);
 }
 
-static int __devexit scx200_remove(struct platform_device *pdev)
+static int scx200_remove(struct platform_device *pdev)
 {
 	struct scx200_acb_iface *iface;
 
 	iface = platform_get_drvdata(pdev);
-	platform_set_drvdata(pdev, NULL);
 	scx200_cleanup_iface(iface);
 
 	return 0;
@@ -554,7 +553,7 @@ static struct platform_driver scx200_pci_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = scx200_probe,
-	.remove = __devexit_p(scx200_remove),
+	.remove = scx200_remove,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(scx200_isa) = {

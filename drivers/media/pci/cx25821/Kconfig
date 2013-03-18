@@ -18,7 +18,7 @@ config VIDEO_CX25821
 
 config VIDEO_CX25821_ALSA
 	tristate "Conexant 25821 DMA audio support"
-	depends on VIDEO_CX25821 && SND && EXPERIMENTAL
+	depends on VIDEO_CX25821 && SND
 	select SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on

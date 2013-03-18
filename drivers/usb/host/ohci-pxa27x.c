@@ -284,7 +284,7 @@ MODULE_DEVICE_TABLE(of, pxa_ohci_dt_ids);
 
 static u64 pxa_ohci_dma_mask = DMA_BIT_MASK(32);
 
-static int __devinit ohci_pxa_of_init(struct platform_device *pdev)
+static int ohci_pxa_of_init(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct pxaohci_platform_data *pdata;
@@ -330,7 +330,7 @@ static int __devinit ohci_pxa_of_init(struct platform_device *pdev)
 	return 0;
 }
 #else
-static int __devinit ohci_pxa_of_init(struct platform_device *pdev)
+static int ohci_pxa_of_init(struct platform_device *pdev)
 {
 	return 0;
 }
@@ -471,7 +471,7 @@ void usb_hcd_pxa27x_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 
 /*-------------------------------------------------------------------------*/
 
-static int __devinit
+static int
 ohci_pxa27x_start (struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
@@ -591,7 +591,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 	/* Select Power Management Mode */
 	pxa27x_ohci_select_pmm(ohci, inf->port_mode);
 
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 	return 0;
 }
 

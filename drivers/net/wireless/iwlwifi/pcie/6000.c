@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -160,8 +160,8 @@ static const struct iwl_eeprom_params iwl6000_eeprom_params = {
 	.device_family = IWL_DEVICE_FAMILY_6005,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
-	.eeprom_ver = EEPROM_6005_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
+	.nvm_ver = EEPROM_6005_EEPROM_VERSION,		\
+	.nvm_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
 	.base_params = &iwl6000_g2_base_params,			\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.need_temp_offset_calib = true,				\
@@ -215,8 +215,8 @@ const struct iwl_cfg iwl6005_2agn_mow2_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6030,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
-	.eeprom_ver = EEPROM_6030_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
+	.nvm_ver = EEPROM_6030_EEPROM_VERSION,		\
+	.nvm_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
 	.base_params = &iwl6000_g2_base_params,			\
 	.bt_params = &iwl6000_bt_params,			\
 	.eeprom_params = &iwl6000_eeprom_params,		\
@@ -254,8 +254,8 @@ const struct iwl_cfg iwl6030_2bg_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6030,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
-	.eeprom_ver = EEPROM_6030_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
+	.nvm_ver = EEPROM_6030_EEPROM_VERSION,		\
+	.nvm_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
 	.base_params = &iwl6000_g2_base_params,			\
 	.bt_params = &iwl6000_bt_params,			\
 	.eeprom_params = &iwl6000_eeprom_params,		\
@@ -306,8 +306,8 @@ const struct iwl_cfg iwl130_bg_cfg = {
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.valid_tx_ant = ANT_BC,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_BC,		/* .cfg overwrite */	\
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
+	.nvm_ver = EEPROM_6000_EEPROM_VERSION,		\
+	.nvm_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
 	.base_params = &iwl6000_base_params,			\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK
@@ -337,8 +337,8 @@ const struct iwl_cfg iwl6000i_2bg_cfg = {
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.valid_tx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */	\
-	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
+	.nvm_ver = EEPROM_6050_EEPROM_VERSION,		\
+	.nvm_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
@@ -362,8 +362,8 @@ const struct iwl_cfg iwl6050_2abg_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6150,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
-	.eeprom_ver = EEPROM_6150_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_6150_TX_POWER_VERSION,	\
+	.nvm_ver = EEPROM_6150_EEPROM_VERSION,		\
+	.nvm_calib_ver = EEPROM_6150_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
@@ -389,8 +389,8 @@ const struct iwl_cfg iwl6000_3agn_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6000,
 	.max_inst_size = IWL60_RTC_INST_SIZE,
 	.max_data_size = IWL60_RTC_DATA_SIZE,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.nvm_ver = EEPROM_6000_EEPROM_VERSION,
+	.nvm_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.base_params = &iwl6000_base_params,
 	.eeprom_params = &iwl6000_eeprom_params,
 	.ht_params = &iwl6000_ht_params,

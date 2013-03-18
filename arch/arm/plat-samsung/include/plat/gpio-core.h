@@ -11,6 +11,9 @@
  * published by the Free Software Foundation.
 */
 
+#ifndef __PLAT_SAMSUNG_GPIO_CORE_H
+#define __PLAT_SAMSUNG_GPIO_CORE_H
+
 #define GPIOCON_OFF	(0x00)
 #define GPIODAT_OFF	(0x04)
 
@@ -48,6 +51,7 @@ struct samsung_gpio_cfg;
  * @config: special function and pull-resistor control information.
  * @lock: Lock for exclusive access to this gpio bank.
  * @pm_save: Save information for suspend/resume support.
+ * @bitmap_gpio_int: Bitmap for representing GPIO interrupt or not.
  *
  * This wrapper provides the necessary information for the Samsung
  * specific gpios being registered with gpiolib.
@@ -71,6 +75,7 @@ struct samsung_gpio_chip {
 #ifdef CONFIG_PM
 	u32			pm_save[4];
 #endif
+	u32			bitmap_gpio_int;
 };
 
 static inline struct samsung_gpio_chip *to_samsung_gpio(struct gpio_chip *gpc)
@@ -101,7 +106,18 @@ static inline struct samsung_gpio_chip *samsung_gpiolib_getchip(unsigned int chi
 #else
 /* machine specific code should provide samsung_gpiolib_getchip */
 
-#include <mach/gpio-track.h>
+extern struct samsung_gpio_chip s3c24xx_gpios[];
+
+static inline struct samsung_gpio_chip *samsung_gpiolib_getchip(unsigned int pin)
+{
+	struct samsung_gpio_chip *chip;
+
+	if (pin > S3C_GPIO_END)
+		return NULL;
+
+	chip = &s3c24xx_gpios[pin/32];
+	return ((pin - chip->chip.base) < chip->chip.ngpio) ? chip : NULL;
+}
 
 static inline void s3c_gpiolib_track(struct samsung_gpio_chip *chip) { }
 #endif
@@ -122,3 +138,5 @@ extern struct samsung_gpio_pm samsung_gpio_pm_4bit;
 /* locking wrappers to deal with multiple access to the same gpio bank */
 #define samsung_gpio_lock(_oc, _fl) spin_lock_irqsave(&(_oc)->lock, _fl)
 #define samsung_gpio_unlock(_oc, _fl) spin_unlock_irqrestore(&(_oc)->lock, _fl)
+
+#endif /* __PLAT_SAMSUNG_GPIO_CORE_H */

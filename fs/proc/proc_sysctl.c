@@ -5,6 +5,7 @@
 #include <linux/sysctl.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
+#include <linux/printk.h>
 #include <linux/security.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
@@ -57,7 +58,7 @@ static void sysctl_print_dir(struct ctl_dir *dir)
 {
 	if (dir->header.parent)
 		sysctl_print_dir(dir->header.parent);
-	printk(KERN_CONT "%s/", dir->header.ctl_table[0].procname);
+	pr_cont("%s/", dir->header.ctl_table[0].procname);
 }
 
 static int namecmp(const char *name1, int len1, const char *name2, int len2)
@@ -134,9 +135,9 @@ static int insert_entry(struct ctl_table_header *head, struct ctl_table *entry)
 		else if (cmp > 0)
 			p = &(*p)->rb_right;
 		else {
-			printk(KERN_ERR "sysctl duplicate entry: ");
+			pr_err("sysctl duplicate entry: ");
 			sysctl_print_dir(head->parent);
-			printk(KERN_CONT "/%s\n", entry->procname);
+			pr_cont("/%s\n", entry->procname);
 			return -EEXIST;
 		}
 	}
@@ -378,12 +379,13 @@ static int test_perm(int mode, int op)
 	return -EACCES;
 }
 
-static int sysctl_perm(struct ctl_table_root *root, struct ctl_table *table, int op)
+static int sysctl_perm(struct ctl_table_header *head, struct ctl_table *table, int op)
 {
+	struct ctl_table_root *root = head->root;
 	int mode;
 
 	if (root->permissions)
-		mode = root->permissions(root, current->nsproxy, table);
+		mode = root->permissions(head, table);
 	else
 		mode = table->mode;
 
@@ -477,7 +479,7 @@ out:
 static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 		size_t count, loff_t *ppos, int write)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	ssize_t error;
@@ -491,7 +493,7 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 	 * and won't be until we finish.
 	 */
 	error = -EPERM;
-	if (sysctl_perm(head->root, table, write ? MAY_WRITE : MAY_READ))
+	if (sysctl_perm(head, table, write ? MAY_WRITE : MAY_READ))
 		goto out;
 
 	/* if that can happen at all, it should be -EINVAL, not -EISDIR */
@@ -541,7 +543,7 @@ static int proc_sys_open(struct inode *inode, struct file *filp)
 
 static unsigned int proc_sys_poll(struct file *filp, poll_table *wait)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	unsigned int ret = DEFAULT_POLLMASK;
@@ -717,7 +719,7 @@ static int proc_sys_permission(struct inode *inode, int mask)
 	if (!table) /* global root - r-xr-xr-x */
 		error = mask & MAY_WRITE ? -EACCES : 0;
 	else /* Use the permissions on the sysctl table entry */
-		error = sysctl_perm(head->root, table, mask & ~MAY_NOT_BLOCK);
+		error = sysctl_perm(head, table, mask & ~MAY_NOT_BLOCK);
 
 	sysctl_head_finish(head);
 	return error;
@@ -734,13 +736,6 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 	error = inode_change_ok(inode, attr);
 	if (error)
 		return error;
-
-	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = vmtruncate(inode, attr->ia_size);
-		if (error)
-			return error;
-	}
 
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
@@ -933,9 +928,9 @@ found:
 	subdir->header.nreg++;
 failed:
 	if (unlikely(IS_ERR(subdir))) {
-		printk(KERN_ERR "sysctl could not get directory: ");
+		pr_err("sysctl could not get directory: ");
 		sysctl_print_dir(dir);
-		printk(KERN_CONT "/%*.*s %ld\n",
+		pr_cont("/%*.*s %ld\n",
 			namelen, namelen, name, PTR_ERR(subdir));
 	}
 	drop_sysctl_table(&dir->header);
@@ -1001,8 +996,8 @@ static int sysctl_err(const char *path, struct ctl_table *table, char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk(KERN_ERR "sysctl table check failed: %s/%s %pV\n",
-		path, table->procname, &vaf);
+	pr_err("sysctl table check failed: %s/%s %pV\n",
+	       path, table->procname, &vaf);
 
 	va_end(args);
 	return -EINVAL;
@@ -1516,9 +1511,9 @@ static void put_links(struct ctl_table_header *header)
 			drop_sysctl_table(link_head);
 		}
 		else {
-			printk(KERN_ERR "sysctl link missing during unregister: ");
+			pr_err("sysctl link missing during unregister: ");
 			sysctl_print_dir(parent);
-			printk(KERN_CONT "/%s\n", name);
+			pr_cont("/%s\n", name);
 		}
 	}
 }

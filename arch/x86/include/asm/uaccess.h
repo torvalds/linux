@@ -125,13 +125,12 @@ extern int __get_user_4(void);
 extern int __get_user_8(void);
 extern int __get_user_bad(void);
 
-#define __get_user_x(size, ret, x, ptr)		      \
-	asm volatile("call __get_user_" #size	      \
-		     : "=a" (ret), "=d" (x)	      \
-		     : "0" (ptr))		      \
-
-/* Careful: we have to cast the result to the type of the pointer
- * for sign reasons */
+/*
+ * This is a type: either unsigned long, if the argument fits into
+ * that type, or otherwise unsigned long long.
+ */
+#define __inttype(x) \
+__typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 
 /**
  * get_user: - Get a simple variable from user space.
@@ -150,38 +149,26 @@ extern int __get_user_bad(void);
  * Returns zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
  */
-#ifdef CONFIG_X86_32
-#define __get_user_8(__ret_gu, __val_gu, ptr)				\
-		__get_user_x(X, __ret_gu, __val_gu, ptr)
-#else
-#define __get_user_8(__ret_gu, __val_gu, ptr)				\
-		__get_user_x(8, __ret_gu, __val_gu, ptr)
-#endif
-
+/*
+ * Careful: we have to cast the result to the type of the pointer
+ * for sign reasons.
+ *
+ * The use of %edx as the register specifier is a bit of a
+ * simplification, as gcc only cares about it as the starting point
+ * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
+ * (%ecx being the next register in gcc's x86 register sequence), and
+ * %rdx on 64 bits.
+ */
 #define get_user(x, ptr)						\
 ({									\
 	int __ret_gu;							\
-	unsigned long __val_gu;						\
+	register __inttype(*(ptr)) __val_gu asm("%edx");		\
 	__chk_user_ptr(ptr);						\
 	might_fault();							\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-		__get_user_x(1, __ret_gu, __val_gu, ptr);		\
-		break;							\
-	case 2:								\
-		__get_user_x(2, __ret_gu, __val_gu, ptr);		\
-		break;							\
-	case 4:								\
-		__get_user_x(4, __ret_gu, __val_gu, ptr);		\
-		break;							\
-	case 8:								\
-		__get_user_8(__ret_gu, __val_gu, ptr);			\
-		break;							\
-	default:							\
-		__get_user_x(X, __ret_gu, __val_gu, ptr);		\
-		break;							\
-	}								\
-	(x) = (__typeof__(*(ptr)))__val_gu;				\
+	asm volatile("call __get_user_%P3"				\
+		     : "=a" (__ret_gu), "=r" (__val_gu)			\
+		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
+	(x) = (__typeof__(*(ptr))) __val_gu;				\
 	__ret_gu;							\
 })
 
@@ -236,8 +223,6 @@ extern void __put_user_1(void);
 extern void __put_user_2(void);
 extern void __put_user_4(void);
 extern void __put_user_8(void);
-
-#ifdef CONFIG_X86_WP_WORKS_OK
 
 /**
  * put_user: - Write a simple value into user space.
@@ -325,29 +310,6 @@ do {									\
 		__put_user_bad();					\
 	}								\
 } while (0)
-
-#else
-
-#define __put_user_size(x, ptr, size, retval, errret)			\
-do {									\
-	__typeof__(*(ptr))__pus_tmp = x;				\
-	retval = 0;							\
-									\
-	if (unlikely(__copy_to_user_ll(ptr, &__pus_tmp, size) != 0))	\
-		retval = errret;					\
-} while (0)
-
-#define put_user(x, ptr)					\
-({								\
-	int __ret_pu;						\
-	__typeof__(*(ptr))__pus_tmp = x;			\
-	__ret_pu = 0;						\
-	if (unlikely(__copy_to_user_ll(ptr, &__pus_tmp,		\
-				       sizeof(*(ptr))) != 0))	\
-		__ret_pu = -EFAULT;				\
-	__ret_pu;						\
-})
-#endif
 
 #ifdef CONFIG_X86_32
 #define __get_user_asm_u64(x, ptr, retval, errret)	(x) = __get_user_bad()
@@ -543,28 +505,11 @@ struct __large_struct { unsigned long buf[100]; };
 	(x) = (__force __typeof__(*(ptr)))__gue_val;			\
 } while (0)
 
-#ifdef CONFIG_X86_WP_WORKS_OK
-
 #define put_user_try		uaccess_try
 #define put_user_catch(err)	uaccess_catch(err)
 
 #define put_user_ex(x, ptr)						\
 	__put_user_size_ex((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
-
-#else /* !CONFIG_X86_WP_WORKS_OK */
-
-#define put_user_try		do {		\
-	int __uaccess_err = 0;
-
-#define put_user_catch(err)			\
-	(err) |= __uaccess_err;			\
-} while (0)
-
-#define put_user_ex(x, ptr)	do {		\
-	__uaccess_err |= __put_user(x, ptr);	\
-} while (0)
-
-#endif /* CONFIG_X86_WP_WORKS_OK */
 
 extern unsigned long
 copy_from_user_nmi(void *to, const void __user *from, unsigned long n);

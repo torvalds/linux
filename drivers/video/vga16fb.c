@@ -65,7 +65,7 @@ struct vga16fb_par {
 
 /* --------------------------------------------------------------------- */
 
-static struct fb_var_screeninfo vga16fb_defined __devinitdata = {
+static struct fb_var_screeninfo vga16fb_defined = {
 	.xres		= 640,
 	.yres		= 480,
 	.xres_virtual	= 640,
@@ -85,7 +85,7 @@ static struct fb_var_screeninfo vga16fb_defined __devinitdata = {
 };
 
 /* name should not depend on EGA/VGA */
-static struct fb_fix_screeninfo vga16fb_fix __devinitdata = {
+static struct fb_fix_screeninfo vga16fb_fix = {
 	.id		= "VGA16 VGA",
 	.smem_start	= VGA_FB_PHYS,
 	.smem_len	= VGA_FB_PHYS_LEN,
@@ -1303,7 +1303,7 @@ static int __init vga16fb_setup(char *options)
 }
 #endif
 
-static int __devinit vga16fb_probe(struct platform_device *dev)
+static int vga16fb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	struct vga16fb_par *par;
@@ -1395,7 +1395,7 @@ static int __devinit vga16fb_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int __devexit vga16fb_remove(struct platform_device *dev)
+static int vga16fb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -1407,7 +1407,7 @@ static int __devexit vga16fb_remove(struct platform_device *dev)
 
 static struct platform_driver vga16fb_driver = {
 	.probe = vga16fb_probe,
-	.remove = __devexit_p(vga16fb_remove),
+	.remove = vga16fb_remove,
 	.driver = {
 		.name = "vga16fb",
 	},

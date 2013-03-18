@@ -608,7 +608,7 @@ static int bcm5421_poll_link(struct mii_phy* phy)
 	if ( mode == BCM54XX_COPPER)
 		return genmii_poll_link(phy);
 
-	/* try to find out wether we have a link */
+	/* try to find out whether we have a link */
 	phy_write(phy, MII_NCONFIG, 0x2000);
 	phy_reg = phy_read(phy, MII_NCONFIG);
 
@@ -634,7 +634,7 @@ static int bcm5421_read_link(struct mii_phy* phy)
 
 	phy->speed = SPEED_1000;
 
-	/* find out wether we are running half- or full duplex */
+	/* find out whether we are running half- or full duplex */
 	phy_write(phy, MII_NCONFIG, 0x2000);
 	phy_reg = phy_read(phy, MII_NCONFIG);
 
@@ -681,7 +681,7 @@ static int bcm5461_poll_link(struct mii_phy* phy)
 	if ( mode == BCM54XX_COPPER)
 		return genmii_poll_link(phy);
 
-	/* find out wether we have a link */
+	/* find out whether we have a link */
 	phy_write(phy, MII_NCONFIG, 0x7000);
 	phy_reg = phy_read(phy, MII_NCONFIG);
 
@@ -710,7 +710,7 @@ static int bcm5461_read_link(struct mii_phy* phy)
 
 	phy->speed = SPEED_1000;
 
-	/* find out wether we are running half- or full duplex */
+	/* find out whether we are running half- or full duplex */
 	phy_write(phy, MII_NCONFIG, 0x7000);
 	phy_reg = phy_read(phy, MII_NCONFIG);
 

@@ -645,7 +645,7 @@ static struct pm860x_irq_desc {
 	{ "vchg", pm860x_vchg_handler },
 };
 
-static __devinit int pm860x_charger_probe(struct platform_device *pdev)
+static int pm860x_charger_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_charger_info *info;
@@ -718,7 +718,7 @@ out:
 	return ret;
 }
 
-static int __devexit pm860x_charger_remove(struct platform_device *pdev)
+static int pm860x_charger_remove(struct platform_device *pdev)
 {
 	struct pm860x_charger_info *info = platform_get_drvdata(pdev);
 	int i;
@@ -738,7 +738,7 @@ static struct platform_driver pm860x_charger_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = pm860x_charger_probe,
-	.remove = __devexit_p(pm860x_charger_remove),
+	.remove = pm860x_charger_remove,
 };
 module_platform_driver(pm860x_charger_driver);
 

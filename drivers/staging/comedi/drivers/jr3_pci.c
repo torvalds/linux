@@ -21,34 +21,38 @@
 
 */
 /*
-Driver: jr3_pci
-Description: JR3/PCI force sensor board
-Author: Anders Blomdell <anders.blomdell@control.lth.se>
-Status: works
-Devices: [JR3] PCI force sensor board (jr3_pci)
+ * Driver: jr3_pci
+ * Description: JR3/PCI force sensor board
+ * Author: Anders Blomdell <anders.blomdell@control.lth.se>
+ * Updated: Thu, 01 Nov 2012 17:34:55 +0000
+ * Status: works
+ * Devices: [JR3] PCI force sensor board (jr3_pci)
+ *
+ * Configuration options:
+ *   None
+ *
+ * Manual configuration of comedi devices is not supported by this
+ * driver; supported PCI devices are configured as comedi devices
+ * automatically.
+ *
+ * The DSP on the board requires initialization code, which can be
+ * loaded by placing it in /lib/firmware/comedi.  The initialization
+ * code should be somewhere on the media you got with your card.  One
+ * version is available from http://www.comedi.org in the
+ * comedi_nonfree_firmware tarball.  The file is called "jr3pci.idm".
+ */
 
-  The DSP on the board requires initialization code, which can
-  be loaded by placing it in /lib/firmware/comedi.
-  The initialization code should be somewhere on the media you got
-  with your card. One version is available from http://www.comedi.org
-  in the comedi_nonfree_firmware tarball.
-
-  Configuration options:
-  [0] - PCI bus number - if bus number and slot number are 0,
-                         then driver search for first unused card
-  [1] - PCI slot number
-
-*/
-
-#include "../comedidev.h"
-
+#include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
-#include <linux/kernel.h>
+
+#include "../comedidev.h"
+
 #include "jr3_pci.h"
 
 #define PCI_VENDOR_ID_JR3 0x1762
@@ -59,22 +63,18 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
 
 struct jr3_pci_dev_private {
-
-	struct pci_dev *pci_dev;
-	int pci_enabled;
-	volatile struct jr3_t *iobase;
+	struct jr3_t __iomem *iobase;
 	int n_channels;
 	struct timer_list timer;
 };
 
 struct poll_delay_t {
-
 	int min;
 	int max;
 };
 
 struct jr3_pci_subdev_private {
-	volatile struct jr3_channel *channel;
+	struct jr3_channel __iomem *channel;
 	unsigned long next_time_min;
 	unsigned long next_time_max;
 	enum { state_jr3_poll,
@@ -98,15 +98,15 @@ struct jr3_pci_subdev_private {
 };
 
 /* Hotplug firmware loading stuff */
-static int comedi_load_firmware(struct comedi_device *dev, char *name,
+static int comedi_load_firmware(struct comedi_device *dev, const char *name,
 				int (*cb)(struct comedi_device *dev,
 					const u8 *data, size_t size))
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int result = 0;
 	const struct firmware *fw;
 	char *firmware_path;
 	static const char *prefix = "comedi/";
-	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	firmware_path = kmalloc(strlen(prefix) + strlen(name) + 1, GFP_KERNEL);
 	if (!firmware_path) {
@@ -115,8 +115,7 @@ static int comedi_load_firmware(struct comedi_device *dev, char *name,
 		firmware_path[0] = '\0';
 		strcat(firmware_path, prefix);
 		strcat(firmware_path, name);
-		result = request_firmware(&fw, firmware_path,
-					  &devpriv->pci_dev->dev);
+		result = request_firmware(&fw, firmware_path, &pcidev->dev);
 		if (result == 0) {
 			if (!cb)
 				result = -EINVAL;
@@ -138,7 +137,7 @@ static struct poll_delay_t poll_delay_min_max(int min, int max)
 	return result;
 }
 
-static int is_complete(volatile struct jr3_channel *channel)
+static int is_complete(struct jr3_channel __iomem *channel)
 {
 	return get_s16(&channel->command_word0) == 0;
 }
@@ -150,14 +149,13 @@ struct transform_t {
 	} link[8];
 };
 
-static void set_transforms(volatile struct jr3_channel *channel,
+static void set_transforms(struct jr3_channel __iomem *channel,
 			   struct transform_t transf, short num)
 {
 	int i;
 
 	num &= 0x000f;		/*  Make sure that 0 <= num <= 15 */
 	for (i = 0; i < 8; i++) {
-
 		set_u16(&channel->transforms[num].link[i].link_type,
 			transf.link[i].link_type);
 		udelay(1);
@@ -169,18 +167,18 @@ static void set_transforms(volatile struct jr3_channel *channel,
 	}
 }
 
-static void use_transform(volatile struct jr3_channel *channel,
+static void use_transform(struct jr3_channel __iomem *channel,
 			  short transf_num)
 {
 	set_s16(&channel->command_word0, 0x0500 + (transf_num & 0x000f));
 }
 
-static void use_offset(volatile struct jr3_channel *channel, short offset_num)
+static void use_offset(struct jr3_channel __iomem *channel, short offset_num)
 {
 	set_s16(&channel->command_word0, 0x0600 + (offset_num & 0x000f));
 }
 
-static void set_offset(volatile struct jr3_channel *channel)
+static void set_offset(struct jr3_channel __iomem *channel)
 {
 	set_s16(&channel->command_word0, 0x0700);
 }
@@ -194,13 +192,9 @@ struct six_axis_t {
 	s16 mz;
 };
 
-static void set_full_scales(volatile struct jr3_channel *channel,
+static void set_full_scales(struct jr3_channel __iomem *channel,
 			    struct six_axis_t full_scale)
 {
-	printk("%d %d %d %d %d %d\n",
-	       full_scale.fx,
-	       full_scale.fy,
-	       full_scale.fz, full_scale.mx, full_scale.my, full_scale.mz);
 	set_s16(&channel->full_scale.fx, full_scale.fx);
 	set_s16(&channel->full_scale.fy, full_scale.fy);
 	set_s16(&channel->full_scale.fz, full_scale.fz);
@@ -210,7 +204,7 @@ static void set_full_scales(volatile struct jr3_channel *channel,
 	set_s16(&channel->command_word0, 0x0a00);
 }
 
-static struct six_axis_t get_min_full_scales(volatile struct jr3_channel
+static struct six_axis_t get_min_full_scales(struct jr3_channel __iomem
 					     *channel)
 {
 	struct six_axis_t result;
@@ -223,7 +217,7 @@ static struct six_axis_t get_min_full_scales(volatile struct jr3_channel
 	return result;
 }
 
-static struct six_axis_t get_max_full_scales(volatile struct jr3_channel
+static struct six_axis_t get_max_full_scales(struct jr3_channel __iomem
 					     *channel)
 {
 	struct six_axis_t result;
@@ -273,71 +267,53 @@ static int jr3_pci_ai_insn_read(struct comedi_device *dev,
 				} else {
 					int F = 0;
 					switch (axis) {
-					case 0:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].fx);
-						}
+					case 0:
+						F = get_s16(&p->channel->
+							    filter[filter].fx);
 						break;
-					case 1:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].fy);
-						}
+					case 1:
+						F = get_s16(&p->channel->
+							    filter[filter].fy);
 						break;
-					case 2:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].fz);
-						}
+					case 2:
+						F = get_s16(&p->channel->
+							    filter[filter].fz);
 						break;
-					case 3:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].mx);
-						}
+					case 3:
+						F = get_s16(&p->channel->
+							    filter[filter].mx);
 						break;
-					case 4:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].my);
-						}
+					case 4:
+						F = get_s16(&p->channel->
+							    filter[filter].my);
 						break;
-					case 5:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].mz);
-						}
+					case 5:
+						F = get_s16(&p->channel->
+							    filter[filter].mz);
 						break;
-					case 6:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].v1);
-						}
+					case 6:
+						F = get_s16(&p->channel->
+							    filter[filter].v1);
 						break;
-					case 7:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].v2);
-						}
+					case 7:
+						F = get_s16(&p->channel->
+							    filter[filter].v2);
 						break;
 					}
 					data[i] = F + 0x4000;
 				}
 			} else if (channel == 56) {
-				if (p->state != state_jr3_done) {
+				if (p->state != state_jr3_done)
 					data[i] = 0;
-				} else {
+				else
 					data[i] =
-					    get_u16(&p->channel->model_no);
-				}
+					get_u16(&p->channel->model_no);
 			} else if (channel == 57) {
-				if (p->state != state_jr3_done) {
+				if (p->state != state_jr3_done)
 					data[i] = 0;
-				} else {
+				else
 					data[i] =
-					    get_u16(&p->channel->serial_no);
-				}
+					get_u16(&p->channel->serial_no);
 			}
 		}
 	}
@@ -368,8 +344,8 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 	int result = 0;
 	if (pos && val) {
 		/*  Skip over non hex */
-		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++) {
-		}
+		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++)
+			;
 		/*  Collect value */
 		*val = 0;
 		for (; *pos < size; (*pos)++) {
@@ -378,14 +354,15 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 			if (value >= 0) {
 				result = 1;
 				*val = (*val << 4) + value;
-			} else
+			} else {
 				break;
+			}
 		}
 	}
 	return result;
 }
 
-static int jr3_download_firmware(struct comedi_device *dev, const u8 * data,
+static int jr3_download_firmware(struct comedi_device *dev, const u8 *data,
 				 size_t size)
 {
 	/*
@@ -429,37 +406,38 @@ static int jr3_download_firmware(struct comedi_device *dev, const u8 * data,
 			pos = 0;
 			while (more) {
 				unsigned int count, addr;
-				more = more
-				    && read_idm_word(data, size, &pos, &count);
+				more = more &&
+				       read_idm_word(data, size, &pos, &count);
 				if (more && count == 0xffff)
 					break;
-				more = more
-				    && read_idm_word(data, size, &pos, &addr);
+				more = more &&
+				       read_idm_word(data, size, &pos, &addr);
 				dev_dbg(dev->class_dev,
 					"Loading#%d %4.4x bytes at %4.4x\n",
 					i, count, addr);
 				while (more && count > 0) {
 					if (addr & 0x4000) {
-						/*  16 bit data, never seen in real life!! */
+						/*  16 bit data, never seen
+						 *  in real life!! */
 						unsigned int data1;
 
-						more = more
-						    && read_idm_word(data,
+						more = more &&
+						       read_idm_word(data,
 								     size, &pos,
 								     &data1);
 						count--;
-						/* printk("jr3_data, not tested\n"); */
-						/* jr3[addr + 0x20000 * pnum] = data1; */
+						/* jr3[addr + 0x20000 * pnum] =
+						   data1; */
 					} else {
 						/*   Download 24 bit program */
 						unsigned int data1, data2;
 
-						more = more
-						    && read_idm_word(data,
+						more = more &&
+						       read_idm_word(data,
 								     size, &pos,
 								     &data1);
-						more = more
-						    && read_idm_word(data, size,
+						more = more &&
+						       read_idm_word(data, size,
 								     &pos,
 								     &data2);
 						count -= 2;
@@ -474,7 +452,6 @@ static int jr3_download_firmware(struct comedi_device *dev, const u8 * data,
 								[i].program_high
 								[addr], data2);
 							udelay(1);
-
 						}
 					}
 					addr++;
@@ -492,213 +469,152 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 	int i;
 
 	if (p) {
-		volatile struct jr3_channel *channel = p->channel;
+		struct jr3_channel __iomem *channel = p->channel;
 		int errors = get_u16(&channel->errors);
 
-		if (errors != p->errors) {
-			printk("Errors: %x -> %x\n", p->errors, errors);
+		if (errors != p->errors)
 			p->errors = errors;
-		}
-		if (errors & (watch_dog | watch_dog2 | sensor_change)) {
+
+		if (errors & (watch_dog | watch_dog2 | sensor_change))
 			/*  Sensor communication lost, force poll mode */
 			p->state = state_jr3_poll;
 
-		}
 		switch (p->state) {
-		case state_jr3_poll:{
+		case state_jr3_poll: {
 				u16 model_no = get_u16(&channel->model_no);
 				u16 serial_no = get_u16(&channel->serial_no);
 				if ((errors & (watch_dog | watch_dog2)) ||
 				    model_no == 0 || serial_no == 0) {
-/*
- * Still no sensor, keep on polling. Since it takes up to 10 seconds
- * for offsets to stabilize, polling each second should suffice.
- */
+					/*
+					 * Still no sensor, keep on polling.
+					 * Since it takes up to 10 seconds
+					 * for offsets to stabilize, polling
+					 * each second should suffice.
+					 */
 					result = poll_delay_min_max(1000, 2000);
 				} else {
 					p->retries = 0;
 					p->state =
-					    state_jr3_init_wait_for_offset;
+						state_jr3_init_wait_for_offset;
 					result = poll_delay_min_max(1000, 2000);
 				}
 			}
 			break;
-		case state_jr3_init_wait_for_offset:{
-				p->retries++;
-				if (p->retries < 10) {
-					/*  Wait for offeset to stabilize (< 10 s according to manual) */
-					result = poll_delay_min_max(1000, 2000);
-				} else {
-					struct transform_t transf;
+		case state_jr3_init_wait_for_offset:
+			p->retries++;
+			if (p->retries < 10) {
+				/*  Wait for offeset to stabilize
+				 *  (< 10 s according to manual) */
+				result = poll_delay_min_max(1000, 2000);
+			} else {
+				struct transform_t transf;
 
-					p->model_no =
-					    get_u16(&channel->model_no);
-					p->serial_no =
-					    get_u16(&channel->serial_no);
+				p->model_no = get_u16(&channel->model_no);
+				p->serial_no = get_u16(&channel->serial_no);
 
-					printk
-					    ("Setting transform for channel %d\n",
-					     p->channel_no);
-					printk("Sensor Model     = %i\n",
-					       p->model_no);
-					printk("Sensor Serial    = %i\n",
-					       p->serial_no);
-
-					/*  Transformation all zeros */
-					for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
-						transf.link[i].link_type =
-							(enum link_types)0;
-						transf.link[i].link_amount = 0;
-					}
-
-					set_transforms(channel, transf, 0);
-					use_transform(channel, 0);
-					p->state =
-					    state_jr3_init_transform_complete;
-					result = poll_delay_min_max(20, 100);	/*  Allow 20 ms for completion */
+				/*  Transformation all zeros */
+				for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
+					transf.link[i].link_type =
+						(enum link_types)0;
+					transf.link[i].link_amount = 0;
 				}
-			} break;
-		case state_jr3_init_transform_complete:{
-				if (!is_complete(channel)) {
-					printk
-					    ("state_jr3_init_transform_complete complete = %d\n",
-					     is_complete(channel));
-					result = poll_delay_min_max(20, 100);
-				} else {
-					/*  Set full scale */
-					struct six_axis_t min_full_scale;
-					struct six_axis_t max_full_scale;
 
-					min_full_scale =
-					    get_min_full_scales(channel);
-					printk("Obtained Min. Full Scales:\n");
-					printk(KERN_DEBUG "%i ", (min_full_scale).fx);
-					printk(KERN_CONT "%i ", (min_full_scale).fy);
-					printk(KERN_CONT "%i ", (min_full_scale).fz);
-					printk(KERN_CONT "%i ", (min_full_scale).mx);
-					printk(KERN_CONT "%i ", (min_full_scale).my);
-					printk(KERN_CONT "%i ", (min_full_scale).mz);
-					printk(KERN_CONT "\n");
-
-					max_full_scale =
-					    get_max_full_scales(channel);
-					printk("Obtained Max. Full Scales:\n");
-					printk(KERN_DEBUG "%i ", (max_full_scale).fx);
-					printk(KERN_CONT "%i ", (max_full_scale).fy);
-					printk(KERN_CONT "%i ", (max_full_scale).fz);
-					printk(KERN_CONT "%i ", (max_full_scale).mx);
-					printk(KERN_CONT "%i ", (max_full_scale).my);
-					printk(KERN_CONT "%i ", (max_full_scale).mz);
-					printk(KERN_CONT "\n");
-
-					set_full_scales(channel,
-							max_full_scale);
-
-					p->state =
-					    state_jr3_init_set_full_scale_complete;
-					result = poll_delay_min_max(20, 100);	/*  Allow 20 ms for completion */
-				}
+				set_transforms(channel, transf, 0);
+				use_transform(channel, 0);
+				p->state = state_jr3_init_transform_complete;
+				/*  Allow 20 ms for completion */
+				result = poll_delay_min_max(20, 100);
 			}
 			break;
-		case state_jr3_init_set_full_scale_complete:{
-				if (!is_complete(channel)) {
-					printk
-					    ("state_jr3_init_set_full_scale_complete complete = %d\n",
-					     is_complete(channel));
-					result = poll_delay_min_max(20, 100);
-				} else {
-					volatile struct force_array *full_scale;
+		case state_jr3_init_transform_complete:
+			if (!is_complete(channel)) {
+				result = poll_delay_min_max(20, 100);
+			} else {
+				/*  Set full scale */
+				struct six_axis_t min_full_scale;
+				struct six_axis_t max_full_scale;
 
-					/*  Use ranges in kN or we will overflow arount 2000N! */
-					full_scale = &channel->full_scale;
-					p->range[0].range.min =
-					    -get_s16(&full_scale->fx) * 1000;
-					p->range[0].range.max =
-					    get_s16(&full_scale->fx) * 1000;
-					p->range[1].range.min =
-					    -get_s16(&full_scale->fy) * 1000;
-					p->range[1].range.max =
-					    get_s16(&full_scale->fy) * 1000;
-					p->range[2].range.min =
-					    -get_s16(&full_scale->fz) * 1000;
-					p->range[2].range.max =
-					    get_s16(&full_scale->fz) * 1000;
-					p->range[3].range.min =
-					    -get_s16(&full_scale->mx) * 100;
-					p->range[3].range.max =
-					    get_s16(&full_scale->mx) * 100;
-					p->range[4].range.min =
-					    -get_s16(&full_scale->my) * 100;
-					p->range[4].range.max =
-					    get_s16(&full_scale->my) * 100;
-					p->range[5].range.min =
-					    -get_s16(&full_scale->mz) * 100;
-					p->range[5].range.max =
-					    get_s16(&full_scale->mz) * 100;
-					p->range[6].range.min = -get_s16(&full_scale->v1) * 100;	/*  ?? */
-					p->range[6].range.max = get_s16(&full_scale->v1) * 100;	/*  ?? */
-					p->range[7].range.min = -get_s16(&full_scale->v2) * 100;	/*  ?? */
-					p->range[7].range.max = get_s16(&full_scale->v2) * 100;	/*  ?? */
-					p->range[8].range.min = 0;
-					p->range[8].range.max = 65535;
+				min_full_scale = get_min_full_scales(channel);
+				max_full_scale = get_max_full_scales(channel);
+				set_full_scales(channel, max_full_scale);
 
-					{
-						int i;
-						for (i = 0; i < 9; i++) {
-							printk("%d %d - %d\n",
-							       i,
-							       p->
-							       range[i].range.
-							       min,
-							       p->
-							       range[i].range.
-							       max);
-						}
-					}
-
-					use_offset(channel, 0);
-					p->state =
-					    state_jr3_init_use_offset_complete;
-					result = poll_delay_min_max(40, 100);	/*  Allow 40 ms for completion */
-				}
+				p->state =
+					state_jr3_init_set_full_scale_complete;
+				/*  Allow 20 ms for completion */
+				result = poll_delay_min_max(20, 100);
 			}
 			break;
-		case state_jr3_init_use_offset_complete:{
-				if (!is_complete(channel)) {
-					printk
-					    ("state_jr3_init_use_offset_complete complete = %d\n",
-					     is_complete(channel));
-					result = poll_delay_min_max(20, 100);
-				} else {
-					printk
-					    ("Default offsets %d %d %d %d %d %d\n",
-					     get_s16(&channel->offsets.fx),
-					     get_s16(&channel->offsets.fy),
-					     get_s16(&channel->offsets.fz),
-					     get_s16(&channel->offsets.mx),
-					     get_s16(&channel->offsets.my),
-					     get_s16(&channel->offsets.mz));
+		case state_jr3_init_set_full_scale_complete:
+			if (!is_complete(channel)) {
+				result = poll_delay_min_max(20, 100);
+			} else {
+				struct force_array __iomem *full_scale;
 
-					set_s16(&channel->offsets.fx, 0);
-					set_s16(&channel->offsets.fy, 0);
-					set_s16(&channel->offsets.fz, 0);
-					set_s16(&channel->offsets.mx, 0);
-					set_s16(&channel->offsets.my, 0);
-					set_s16(&channel->offsets.mz, 0);
+				/*  Use ranges in kN or we will
+				 *  overflow around 2000N! */
+				full_scale = &channel->full_scale;
+				p->range[0].range.min =
+					-get_s16(&full_scale->fx) * 1000;
+				p->range[0].range.max =
+					get_s16(&full_scale->fx) * 1000;
+				p->range[1].range.min =
+					-get_s16(&full_scale->fy) * 1000;
+				p->range[1].range.max =
+					get_s16(&full_scale->fy) * 1000;
+				p->range[2].range.min =
+					-get_s16(&full_scale->fz) * 1000;
+				p->range[2].range.max =
+					get_s16(&full_scale->fz) * 1000;
+				p->range[3].range.min =
+					-get_s16(&full_scale->mx) * 100;
+				p->range[3].range.max =
+					get_s16(&full_scale->mx) * 100;
+				p->range[4].range.min =
+					-get_s16(&full_scale->my) * 100;
+				p->range[4].range.max =
+					get_s16(&full_scale->my) * 100;
+				p->range[5].range.min =
+					-get_s16(&full_scale->mz) * 100;
+				p->range[5].range.max =
+					get_s16(&full_scale->mz) * 100;	/* ?? */
+				p->range[6].range.min =
+					-get_s16(&full_scale->v1) * 100;/* ?? */
+				p->range[6].range.max =
+					get_s16(&full_scale->v1) * 100;	/* ?? */
+				p->range[7].range.min =
+					-get_s16(&full_scale->v2) * 100;/* ?? */
+				p->range[7].range.max =
+					get_s16(&full_scale->v2) * 100;	/* ?? */
+				p->range[8].range.min = 0;
+				p->range[8].range.max = 65535;
 
-					set_offset(channel);
-
-					p->state = state_jr3_done;
-				}
+				use_offset(channel, 0);
+				p->state = state_jr3_init_use_offset_complete;
+				/*  Allow 40 ms for completion */
+				result = poll_delay_min_max(40, 100);
 			}
 			break;
-		case state_jr3_done:{
-				poll_delay_min_max(10000, 20000);
+		case state_jr3_init_use_offset_complete:
+			if (!is_complete(channel)) {
+				result = poll_delay_min_max(20, 100);
+			} else {
+				set_s16(&channel->offsets.fx, 0);
+				set_s16(&channel->offsets.fy, 0);
+				set_s16(&channel->offsets.fz, 0);
+				set_s16(&channel->offsets.mx, 0);
+				set_s16(&channel->offsets.my, 0);
+				set_s16(&channel->offsets.mz, 0);
+
+				set_offset(channel);
+
+				p->state = state_jr3_done;
 			}
 			break;
-		default:{
-				poll_delay_min_max(1000, 2000);
-			}
+		case state_jr3_done:
+			poll_delay_min_max(10000, 20000);
+			break;
+		default:
+			poll_delay_min_max(1000, 2000);
 			break;
 		}
 	}
@@ -720,22 +636,21 @@ static void jr3_pci_poll_dev(unsigned long data)
 	/*  Poll all channels that are ready to be polled */
 	for (i = 0; i < devpriv->n_channels; i++) {
 		struct jr3_pci_subdev_private *subdevpriv =
-		    dev->subdevices[i].private;
+			dev->subdevices[i].private;
 		if (now > subdevpriv->next_time_min) {
 			struct poll_delay_t sub_delay;
 
 			sub_delay = jr3_pci_poll_subdevice(&dev->subdevices[i]);
 			subdevpriv->next_time_min =
-			    jiffies + msecs_to_jiffies(sub_delay.min);
+				jiffies + msecs_to_jiffies(sub_delay.min);
 			subdevpriv->next_time_max =
-			    jiffies + msecs_to_jiffies(sub_delay.max);
-			if (sub_delay.max && sub_delay.max < delay) {
-/*
-* Wake up as late as possible -> poll as many channels as possible
-* at once
-*/
+				jiffies + msecs_to_jiffies(sub_delay.max);
+			if (sub_delay.max && sub_delay.max < delay)
+				/*
+				 * Wake up as late as possible ->
+				 * poll as many channels as possible at once.
+				 */
 				delay = sub_delay.max;
-			}
 		}
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -744,16 +659,13 @@ static void jr3_pci_poll_dev(unsigned long data)
 	add_timer(&devpriv->timer);
 }
 
-static int jr3_pci_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int jr3_pci_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
 {
-	int result = 0;
-	struct pci_dev *card = NULL;
-	int opt_bus, opt_slot, i;
+	int result;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int i;
 	struct jr3_pci_dev_private *devpriv;
-
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
 
 	if (sizeof(struct jr3_channel) != 0xc00) {
 		dev_err(dev->class_dev,
@@ -762,70 +674,42 @@ static int jr3_pci_attach(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	result = alloc_private(dev, sizeof(struct jr3_pci_dev_private));
-	if (result < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
-	card = NULL;
-	devpriv = dev->private;
+	dev->private = devpriv;
+
 	init_timer(&devpriv->timer);
-	while (1) {
-		card = pci_get_device(PCI_VENDOR_ID_JR3, PCI_ANY_ID, card);
-		if (card == NULL) {
-			/* No card found */
-			break;
-		} else {
-			switch (card->device) {
-			case PCI_DEVICE_ID_JR3_1_CHANNEL:{
-					devpriv->n_channels = 1;
-				}
-				break;
-			case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:{
-					devpriv->n_channels = 1;
-				}
-				break;
-			case PCI_DEVICE_ID_JR3_2_CHANNEL:{
-					devpriv->n_channels = 2;
-				}
-				break;
-			case PCI_DEVICE_ID_JR3_3_CHANNEL:{
-					devpriv->n_channels = 3;
-				}
-				break;
-			case PCI_DEVICE_ID_JR3_4_CHANNEL:{
-					devpriv->n_channels = 4;
-				}
-				break;
-			default:{
-					devpriv->n_channels = 0;
-				}
-			}
-			if (devpriv->n_channels >= 1) {
-				if (opt_bus == 0 && opt_slot == 0) {
-					/* Take first available card */
-					break;
-				} else if (opt_bus == card->bus->number &&
-					   opt_slot == PCI_SLOT(card->devfn)) {
-					/* Take requested card */
-					break;
-				}
-			}
-		}
+	switch (pcidev->device) {
+	case PCI_DEVICE_ID_JR3_1_CHANNEL:
+	case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:
+		devpriv->n_channels = 1;
+		break;
+	case PCI_DEVICE_ID_JR3_2_CHANNEL:
+		devpriv->n_channels = 2;
+		break;
+	case PCI_DEVICE_ID_JR3_3_CHANNEL:
+		devpriv->n_channels = 3;
+		break;
+	case PCI_DEVICE_ID_JR3_4_CHANNEL:
+		devpriv->n_channels = 4;
+		break;
+	default:
+		dev_err(dev->class_dev, "jr3_pci: pci %s not supported\n",
+			pci_name(pcidev));
+		return -EINVAL;
+		break;
 	}
-	if (!card) {
-		dev_err(dev->class_dev, "no jr3_pci found\n");
-		return -EIO;
-	} else {
-		devpriv->pci_dev = card;
-		dev->board_name = "jr3_pci";
-	}
+	dev->board_name = "jr3_pci";
 
-	result = comedi_pci_enable(card, "jr3_pci");
+	result = comedi_pci_enable(pcidev, "jr3_pci");
 	if (result < 0)
-		return -EIO;
+		return result;
 
-	devpriv->pci_enabled = 1;
-	devpriv->iobase = ioremap(pci_resource_start(card, 0),
-			offsetof(struct jr3_t, channel[devpriv->n_channels]));
+	dev->iobase = 1;	/* the "detach" needs this */
+	devpriv->iobase = ioremap(pci_resource_start(pcidev, 0),
+				  offsetof(struct jr3_t,
+					   channel[devpriv->n_channels]));
 	if (!devpriv->iobase)
 		return -ENOMEM;
 
@@ -840,7 +724,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 		dev->subdevices[i].n_chan = 8 * 7 + 2;
 		dev->subdevices[i].insn_read = jr3_pci_ai_insn_read;
 		dev->subdevices[i].private =
-		    kzalloc(sizeof(struct jr3_pci_subdev_private), GFP_KERNEL);
+			kzalloc(sizeof(struct jr3_pci_subdev_private),
+				GFP_KERNEL);
 		if (dev->subdevices[i].private) {
 			struct jr3_pci_subdev_private *p;
 			int j;
@@ -849,8 +734,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 			p->channel = &devpriv->iobase->channel[i].data;
 			dev_dbg(dev->class_dev, "p->channel %p %p (%tx)\n",
 				p->channel, devpriv->iobase,
-				((char *)(p->channel) -
-				 (char *)(devpriv->iobase)));
+				((char __iomem *)p->channel -
+				 (char __iomem *)devpriv->iobase));
 			p->channel_no = i;
 			for (j = 0; j < 8; j++) {
 				int k;
@@ -870,15 +755,15 @@ static int jr3_pci_attach(struct comedi_device *dev,
 			p->range[8].range.max = 65536;
 
 			p->range_table_list[56] =
-			    (struct comedi_lrange *)&p->range[8];
+				(struct comedi_lrange *)&p->range[8];
 			p->range_table_list[57] =
-			    (struct comedi_lrange *)&p->range[8];
+				(struct comedi_lrange *)&p->range[8];
 			p->maxdata_list[56] = 0xffff;
 			p->maxdata_list[57] = 0xffff;
 			/*  Channel specific range and maxdata */
 			dev->subdevices[i].range_table = NULL;
 			dev->subdevices[i].range_table_list =
-			    p->range_table_list;
+				p->range_table_list;
 			dev->subdevices[i].maxdata = 0;
 			dev->subdevices[i].maxdata_list = p->maxdata_list;
 		}
@@ -891,19 +776,20 @@ static int jr3_pci_attach(struct comedi_device *dev,
 	dev_dbg(dev->class_dev, "Firmare load %d\n", result);
 
 	if (result < 0)
-		goto out;
-/*
- * TODO: use firmware to load preferred offset tables. Suggested
- * format:
- *     model serial Fx Fy Fz Mx My Mz\n
- *
- *     comedi_load_firmware(dev, "jr3_offsets_table", jr3_download_firmware);
- */
+		return result;
+	/*
+	 * TODO: use firmware to load preferred offset tables. Suggested
+	 * format:
+	 *     model serial Fx Fy Fz Mx My Mz\n
+	 *
+	 *     comedi_load_firmware(dev, "jr3_offsets_table",
+	 *                          jr3_download_firmware);
+	 */
 
-/*
- * It takes a few milliseconds for software to settle as much as we
- * can read firmware version
- */
+	/*
+	 * It takes a few milliseconds for software to settle as much as we
+	 * can read firmware version
+	 */
 	msleep_interruptible(25);
 	for (i = 0; i < 0x18; i++) {
 		dev_dbg(dev->class_dev, "%c\n",
@@ -924,13 +810,13 @@ static int jr3_pci_attach(struct comedi_device *dev,
 	devpriv->timer.expires = jiffies + msecs_to_jiffies(1000);
 	add_timer(&devpriv->timer);
 
-out:
 	return result;
 }
 
 static void jr3_pci_detach(struct comedi_device *dev)
 {
 	int i;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -941,30 +827,23 @@ static void jr3_pci_detach(struct comedi_device *dev)
 				kfree(dev->subdevices[i].private);
 		}
 		if (devpriv->iobase)
-			iounmap((void *)devpriv->iobase);
-		if (devpriv->pci_enabled)
-			comedi_pci_disable(devpriv->pci_dev);
-		if (devpriv->pci_dev)
-			pci_dev_put(devpriv->pci_dev);
+			iounmap(devpriv->iobase);
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
 	}
 }
 
 static struct comedi_driver jr3_pci_driver = {
 	.driver_name	= "jr3_pci",
 	.module		= THIS_MODULE,
-	.attach		= jr3_pci_attach,
+	.auto_attach	= jr3_pci_auto_attach,
 	.detach		= jr3_pci_detach,
 };
 
-static int __devinit jr3_pci_pci_probe(struct pci_dev *dev,
+static int jr3_pci_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &jr3_pci_driver);
-}
-
-static void __devexit jr3_pci_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {
@@ -981,7 +860,7 @@ static struct pci_driver jr3_pci_pci_driver = {
 	.name		= "jr3_pci",
 	.id_table	= jr3_pci_pci_table,
 	.probe		= jr3_pci_pci_probe,
-	.remove		= __devexit_p(jr3_pci_pci_remove),
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(jr3_pci_driver, jr3_pci_pci_driver);
 

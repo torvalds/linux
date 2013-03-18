@@ -13,6 +13,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
 #include <linux/mutex.h>
@@ -32,15 +33,15 @@
 static struct hlist_head	nlm_server_hosts[NLM_HOST_NRHASH];
 static struct hlist_head	nlm_client_hosts[NLM_HOST_NRHASH];
 
-#define for_each_host(host, pos, chain, table) \
+#define for_each_host(host, chain, table) \
 	for ((chain) = (table); \
 	     (chain) < (table) + NLM_HOST_NRHASH; ++(chain)) \
-		hlist_for_each_entry((host), (pos), (chain), h_hash)
+		hlist_for_each_entry((host), (chain), h_hash)
 
-#define for_each_host_safe(host, pos, next, chain, table) \
+#define for_each_host_safe(host, next, chain, table) \
 	for ((chain) = (table); \
 	     (chain) < (table) + NLM_HOST_NRHASH; ++(chain)) \
-		hlist_for_each_entry_safe((host), (pos), (next), \
+		hlist_for_each_entry_safe((host), (next), \
 						(chain), h_hash)
 
 static unsigned long		nrhosts;
@@ -177,9 +178,6 @@ static void nlm_destroy_host_locked(struct nlm_host *host)
 
 	dprintk("lockd: destroy host %s\n", host->h_name);
 
-	BUG_ON(!list_empty(&host->h_lockowners));
-	BUG_ON(atomic_read(&host->h_count));
-
 	hlist_del_init(&host->h_hash);
 
 	nsm_unmonitor(host);
@@ -228,7 +226,6 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 		.net		= net,
 	};
 	struct hlist_head *chain;
-	struct hlist_node *pos;
 	struct nlm_host	*host;
 	struct nsm_handle *nsm = NULL;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
@@ -240,7 +237,7 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 	mutex_lock(&nlm_host_mutex);
 
 	chain = &nlm_client_hosts[nlm_hash_address(sap)];
-	hlist_for_each_entry(host, pos, chain, h_hash) {
+	hlist_for_each_entry(host, chain, h_hash) {
 		if (host->net != net)
 			continue;
 		if (!rpc_cmp_addr(nlm_addr(host), sap))
@@ -289,13 +286,12 @@ void nlmclnt_release_host(struct nlm_host *host)
 
 	dprintk("lockd: release client host %s\n", host->h_name);
 
-	BUG_ON(atomic_read(&host->h_count) < 0);
-	BUG_ON(host->h_server);
+	WARN_ON_ONCE(host->h_server);
 
 	if (atomic_dec_and_test(&host->h_count)) {
-		BUG_ON(!list_empty(&host->h_lockowners));
-		BUG_ON(!list_empty(&host->h_granted));
-		BUG_ON(!list_empty(&host->h_reclaim));
+		WARN_ON_ONCE(!list_empty(&host->h_lockowners));
+		WARN_ON_ONCE(!list_empty(&host->h_granted));
+		WARN_ON_ONCE(!list_empty(&host->h_reclaim));
 
 		mutex_lock(&nlm_host_mutex);
 		nlm_destroy_host_locked(host);
@@ -326,7 +322,6 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 				    const size_t hostname_len)
 {
 	struct hlist_head *chain;
-	struct hlist_node *pos;
 	struct nlm_host	*host = NULL;
 	struct nsm_handle *nsm = NULL;
 	struct sockaddr *src_sap = svc_daddr(rqstp);
@@ -354,7 +349,7 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 		nlm_gc_hosts(net);
 
 	chain = &nlm_server_hosts[nlm_hash_address(ni.sap)];
-	hlist_for_each_entry(host, pos, chain, h_hash) {
+	hlist_for_each_entry(host, chain, h_hash) {
 		if (host->net != net)
 			continue;
 		if (!rpc_cmp_addr(nlm_addr(host), ni.sap))
@@ -412,8 +407,7 @@ void nlmsvc_release_host(struct nlm_host *host)
 
 	dprintk("lockd: release server host %s\n", host->h_name);
 
-	BUG_ON(atomic_read(&host->h_count) < 0);
-	BUG_ON(!host->h_server);
+	WARN_ON_ONCE(!host->h_server);
 	atomic_dec(&host->h_count);
 }
 
@@ -520,10 +514,9 @@ static struct nlm_host *next_host_state(struct hlist_head *cache,
 {
 	struct nlm_host *host;
 	struct hlist_head *chain;
-	struct hlist_node *pos;
 
 	mutex_lock(&nlm_host_mutex);
-	for_each_host(host, pos, chain, cache) {
+	for_each_host(host, chain, cache) {
 		if (host->h_nsmhandle == nsm
 		    && host->h_nsmstate != info->state) {
 			host->h_nsmstate = info->state;
@@ -575,7 +568,6 @@ void nlm_host_rebooted(const struct nlm_reboot *info)
 static void nlm_complain_hosts(struct net *net)
 {
 	struct hlist_head *chain;
-	struct hlist_node *pos;
 	struct nlm_host	*host;
 
 	if (net) {
@@ -592,7 +584,7 @@ static void nlm_complain_hosts(struct net *net)
 		dprintk("lockd: %lu hosts left:\n", nrhosts);
 	}
 
-	for_each_host(host, pos, chain, nlm_server_hosts) {
+	for_each_host(host, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
 		dprintk("       %s (cnt %d use %d exp %ld net %p)\n",
@@ -605,14 +597,13 @@ void
 nlm_shutdown_hosts_net(struct net *net)
 {
 	struct hlist_head *chain;
-	struct hlist_node *pos;
 	struct nlm_host	*host;
 
 	mutex_lock(&nlm_host_mutex);
 
 	/* First, make all hosts eligible for gc */
 	dprintk("lockd: nuking all hosts in net %p...\n", net);
-	for_each_host(host, pos, chain, nlm_server_hosts) {
+	for_each_host(host, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
 		host->h_expires = jiffies - 1;
@@ -649,11 +640,11 @@ static void
 nlm_gc_hosts(struct net *net)
 {
 	struct hlist_head *chain;
-	struct hlist_node *pos, *next;
+	struct hlist_node *next;
 	struct nlm_host	*host;
 
 	dprintk("lockd: host garbage collection for net %p\n", net);
-	for_each_host(host, pos, chain, nlm_server_hosts) {
+	for_each_host(host, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
 		host->h_inuse = 0;
@@ -662,7 +653,7 @@ nlm_gc_hosts(struct net *net)
 	/* Mark all hosts that hold locks, blocks or shares */
 	nlmsvc_mark_resources(net);
 
-	for_each_host_safe(host, pos, next, chain, nlm_server_hosts) {
+	for_each_host_safe(host, next, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
 		if (atomic_read(&host->h_count) || host->h_inuse

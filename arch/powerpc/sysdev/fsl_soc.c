@@ -58,10 +58,10 @@ phys_addr_t get_immrbase(void)
 	if (soc) {
 		int size;
 		u32 naddr;
-		const u32 *prop = of_get_property(soc, "#address-cells", &size);
+		const __be32 *prop = of_get_property(soc, "#address-cells", &size);
 
 		if (prop && size == 4)
-			naddr = *prop;
+			naddr = be32_to_cpup(prop);
 		else
 			naddr = 2;
 
@@ -253,6 +253,7 @@ struct platform_diu_data_ops diu_ops;
 EXPORT_SYMBOL(diu_ops);
 #endif
 
+#ifdef CONFIG_EPAPR_PARAVIRT
 /*
  * Restart the current partition
  *
@@ -278,3 +279,4 @@ void fsl_hv_halt(void)
 	pr_info("hv exit\n");
 	fh_partition_stop(-1);
 }
+#endif

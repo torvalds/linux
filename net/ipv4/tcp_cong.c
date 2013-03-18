@@ -1,7 +1,7 @@
 /*
  * Plugable TCP congestion control support and newReno
  * congestion control.
- * Based on ideas from I/O scheduler suport and Web100.
+ * Based on ideas from I/O scheduler support and Web100.
  *
  * Copyright (C) 2005 Stephen Hemminger <shemminger@osdl.org>
  */
@@ -259,7 +259,8 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	if (!ca)
 		err = -ENOENT;
 
-	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) || capable(CAP_NET_ADMIN)))
+	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) ||
+		   ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)))
 		err = -EPERM;
 
 	else if (!try_module_get(ca->owner))
@@ -309,35 +310,24 @@ void tcp_slow_start(struct tcp_sock *tp)
 {
 	int cnt; /* increase in packets */
 	unsigned int delta = 0;
+	u32 snd_cwnd = tp->snd_cwnd;
 
-	/* RFC3465: ABC Slow start
-	 * Increase only after a full MSS of bytes is acked
-	 *
-	 * TCP sender SHOULD increase cwnd by the number of
-	 * previously unacknowledged bytes ACKed by each incoming
-	 * acknowledgment, provided the increase is not more than L
-	 */
-	if (sysctl_tcp_abc && tp->bytes_acked < tp->mss_cache)
-		return;
+	if (unlikely(!snd_cwnd)) {
+		pr_err_once("snd_cwnd is nul, please report this bug.\n");
+		snd_cwnd = 1U;
+	}
 
 	if (sysctl_tcp_max_ssthresh > 0 && tp->snd_cwnd > sysctl_tcp_max_ssthresh)
 		cnt = sysctl_tcp_max_ssthresh >> 1;	/* limited slow start */
 	else
-		cnt = tp->snd_cwnd;			/* exponential increase */
-
-	/* RFC3465: ABC
-	 * We MAY increase by 2 if discovered delayed ack
-	 */
-	if (sysctl_tcp_abc > 1 && tp->bytes_acked >= 2*tp->mss_cache)
-		cnt <<= 1;
-	tp->bytes_acked = 0;
+		cnt = snd_cwnd;				/* exponential increase */
 
 	tp->snd_cwnd_cnt += cnt;
-	while (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
-		tp->snd_cwnd_cnt -= tp->snd_cwnd;
+	while (tp->snd_cwnd_cnt >= snd_cwnd) {
+		tp->snd_cwnd_cnt -= snd_cwnd;
 		delta++;
 	}
-	tp->snd_cwnd = min(tp->snd_cwnd + delta, tp->snd_cwnd_clamp);
+	tp->snd_cwnd = min(snd_cwnd + delta, tp->snd_cwnd_clamp);
 }
 EXPORT_SYMBOL_GPL(tcp_slow_start);
 
@@ -371,20 +361,9 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 	/* In "safe" area, increase. */
 	if (tp->snd_cwnd <= tp->snd_ssthresh)
 		tcp_slow_start(tp);
-
 	/* In dangerous area, increase slowly. */
-	else if (sysctl_tcp_abc) {
-		/* RFC3465: Appropriate Byte Count
-		 * increase once for each full cwnd acked
-		 */
-		if (tp->bytes_acked >= tp->snd_cwnd*tp->mss_cache) {
-			tp->bytes_acked -= tp->snd_cwnd*tp->mss_cache;
-			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-				tp->snd_cwnd++;
-		}
-	} else {
+	else
 		tcp_cong_avoid_ai(tp, tp->snd_cwnd);
-	}
 }
 EXPORT_SYMBOL_GPL(tcp_reno_cong_avoid);
 

@@ -40,6 +40,9 @@
 int nfc_devlist_generation;
 DEFINE_MUTEX(nfc_devlist_mutex);
 
+/* NFC device ID bitmap */
+static DEFINE_IDA(nfc_index_ida);
+
 /**
  * nfc_dev_up - turn on the NFC device
  *
@@ -181,6 +184,7 @@ int nfc_stop_poll(struct nfc_dev *dev)
 
 	dev->ops->stop_poll(dev);
 	dev->polling = false;
+	dev->rf_mode = NFC_RF_NONE;
 
 error:
 	device_unlock(&dev->dev);
@@ -194,7 +198,7 @@ static struct nfc_target *nfc_find_target(struct nfc_dev *dev, u32 target_idx)
 	if (dev->n_targets == 0)
 		return NULL;
 
-	for (i = 0; i < dev->n_targets ; i++) {
+	for (i = 0; i < dev->n_targets; i++) {
 		if (dev->targets[i].idx == target_idx)
 			return &dev->targets[i];
 	}
@@ -274,12 +278,14 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 	if (!rc) {
 		dev->dep_link_up = false;
 		dev->active_target = NULL;
+		dev->rf_mode = NFC_RF_NONE;
 		nfc_llcp_mac_is_down(dev);
 		nfc_genl_dep_link_down_event(dev);
 	}
 
 error:
 	device_unlock(&dev->dev);
+
 	return rc;
 }
 
@@ -332,7 +338,7 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 		dev->active_target = target;
 		dev->rf_mode = NFC_RF_INITIATOR;
 
-		if (dev->ops->check_presence)
+		if (dev->ops->check_presence && !dev->shutting_down)
 			mod_timer(&dev->check_pres_timer, jiffies +
 				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
 	}
@@ -423,7 +429,7 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 		rc = dev->ops->im_transceive(dev, dev->active_target, skb, cb,
 					     cb_context);
 
-		if (!rc && dev->ops->check_presence)
+		if (!rc && dev->ops->check_presence && !dev->shutting_down)
 			mod_timer(&dev->check_pres_timer, jiffies +
 				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
 	} else if (dev->rf_mode == NFC_RF_TARGET && dev->ops->tm_send != NULL) {
@@ -503,6 +509,7 @@ EXPORT_SYMBOL(nfc_tm_activated);
 int nfc_tm_deactivated(struct nfc_dev *dev)
 {
 	dev->dep_link_up = false;
+	dev->rf_mode = NFC_RF_NONE;
 
 	return nfc_genl_tm_deactivated(dev);
 }
@@ -677,11 +684,6 @@ static void nfc_release(struct device *d)
 
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
-	if (dev->ops->check_presence) {
-		del_timer_sync(&dev->check_pres_timer);
-		cancel_work_sync(&dev->check_pres_work);
-	}
-
 	nfc_genl_data_exit(&dev->genl_data);
 	kfree(dev->targets);
 	kfree(dev);
@@ -697,17 +699,21 @@ static void nfc_check_pres_work(struct work_struct *work)
 
 	if (dev->active_target && timer_pending(&dev->check_pres_timer) == 0) {
 		rc = dev->ops->check_presence(dev, dev->active_target);
-		if (!rc) {
-			mod_timer(&dev->check_pres_timer, jiffies +
-				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
-		} else {
+		if (rc == -EOPNOTSUPP)
+			goto exit;
+		if (rc) {
 			u32 active_target_idx = dev->active_target->idx;
 			device_unlock(&dev->dev);
 			nfc_target_lost(dev, active_target_idx);
 			return;
 		}
+
+		if (!dev->shutting_down)
+			mod_timer(&dev->check_pres_timer, jiffies +
+				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
 	}
 
+exit:
 	device_unlock(&dev->dev);
 }
 
@@ -724,10 +730,10 @@ struct class nfc_class = {
 };
 EXPORT_SYMBOL(nfc_class);
 
-static int match_idx(struct device *d, void *data)
+static int match_idx(struct device *d, const void *data)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);
-	unsigned int *idx = data;
+	const unsigned int *idx = data;
 
 	return dev->idx == *idx;
 }
@@ -751,9 +757,9 @@ struct nfc_dev *nfc_get_device(unsigned int idx)
  */
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 				    u32 supported_protocols,
+				    u32 supported_se,
 				    int tx_headroom, int tx_tailroom)
 {
-	static atomic_t dev_no = ATOMIC_INIT(0);
 	struct nfc_dev *dev;
 
 	if (!ops->start_poll || !ops->stop_poll || !ops->activate_target ||
@@ -767,18 +773,16 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 	if (!dev)
 		return NULL;
 
-	dev->dev.class = &nfc_class;
-	dev->idx = atomic_inc_return(&dev_no) - 1;
-	dev_set_name(&dev->dev, "nfc%d", dev->idx);
-	device_initialize(&dev->dev);
-
 	dev->ops = ops;
 	dev->supported_protocols = supported_protocols;
+	dev->supported_se = supported_se;
+	dev->active_se = NFC_SE_NONE;
 	dev->tx_headroom = tx_headroom;
 	dev->tx_tailroom = tx_tailroom;
 
 	nfc_genl_data_init(&dev->genl_data);
 
+	dev->rf_mode = NFC_RF_NONE;
 
 	/* first generation must not be 0 */
 	dev->targets_generation = 1;
@@ -805,6 +809,14 @@ int nfc_register_device(struct nfc_dev *dev)
 	int rc;
 
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
+
+	dev->idx = ida_simple_get(&nfc_index_ida, 0, 0, GFP_KERNEL);
+	if (dev->idx < 0)
+		return dev->idx;
+
+	dev->dev.class = &nfc_class;
+	dev_set_name(&dev->dev, "nfc%d", dev->idx);
+	device_initialize(&dev->dev);
 
 	mutex_lock(&nfc_devlist_mutex);
 	nfc_devlist_generation++;
@@ -834,28 +846,33 @@ EXPORT_SYMBOL(nfc_register_device);
  */
 void nfc_unregister_device(struct nfc_dev *dev)
 {
-	int rc;
+	int rc, id;
 
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
-	mutex_lock(&nfc_devlist_mutex);
-	nfc_devlist_generation++;
+	id = dev->idx;
 
-	/* lock to avoid unregistering a device while an operation
-	   is in progress */
-	device_lock(&dev->dev);
-	device_del(&dev->dev);
-	device_unlock(&dev->dev);
-
-	mutex_unlock(&nfc_devlist_mutex);
-
-	nfc_llcp_unregister_device(dev);
+	if (dev->ops->check_presence) {
+		device_lock(&dev->dev);
+		dev->shutting_down = true;
+		device_unlock(&dev->dev);
+		del_timer_sync(&dev->check_pres_timer);
+		cancel_work_sync(&dev->check_pres_work);
+	}
 
 	rc = nfc_genl_device_removed(dev);
 	if (rc)
-		pr_debug("The userspace won't be notified that the device %s was removed\n",
-			 dev_name(&dev->dev));
+		pr_debug("The userspace won't be notified that the device %s "
+			 "was removed\n", dev_name(&dev->dev));
 
+	nfc_llcp_unregister_device(dev);
+
+	mutex_lock(&nfc_devlist_mutex);
+	nfc_devlist_generation++;
+	device_del(&dev->dev);
+	mutex_unlock(&nfc_devlist_mutex);
+
+	ida_simple_remove(&nfc_index_ida, id);
 }
 EXPORT_SYMBOL(nfc_unregister_device);
 

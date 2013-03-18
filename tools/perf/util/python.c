@@ -1015,6 +1015,8 @@ PyMODINIT_FUNC initperf(void)
 	    pyrf_cpu_map__setup_types() < 0)
 		return;
 
+	page_size = sysconf(_SC_PAGE_SIZE);
+
 	Py_INCREF(&pyrf_evlist__type);
 	PyModule_AddObject(module, "evlist", (PyObject*)&pyrf_evlist__type);
 
@@ -1042,4 +1044,13 @@ PyMODINIT_FUNC initperf(void)
 error:
 	if (PyErr_Occurred())
 		PyErr_SetString(PyExc_ImportError, "perf: Init failed!");
+}
+
+/*
+ * Dummy, to avoid dragging all the test_attr infrastructure in the python
+ * binding.
+ */
+void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
+                     int fd, int group_fd, unsigned long flags)
+{
 }

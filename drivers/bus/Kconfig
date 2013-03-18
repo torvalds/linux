@@ -6,6 +6,7 @@ menu "Bus devices"
 
 config OMAP_OCP2SCP
 	tristate "OMAP OCP2SCP DRIVER"
+	depends on ARCH_OMAP2PLUS
 	help
 	  Driver to enable ocp2scp module which transforms ocp interface
 	  protocol to scp protocol. In OMAP4, USB PHY is connected via

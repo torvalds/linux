@@ -34,7 +34,7 @@ struct op_system_config {
 	unsigned long mmcra;
 #ifdef CONFIG_OPROFILE_CELL
 	/* Register for oprofile user tool to check cell kernel profiling
-	 * suport.
+	 * support.
 	 */
 	unsigned long cell_support;
 #endif

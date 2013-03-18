@@ -262,7 +262,51 @@ static struct ctl_table xfrm4_policy_table[] = {
 	{ }
 };
 
-static struct ctl_table_header *sysctl_hdr;
+static int __net_init xfrm4_net_init(struct net *net)
+{
+	struct ctl_table *table;
+	struct ctl_table_header *hdr;
+
+	table = xfrm4_policy_table;
+	if (!net_eq(net, &init_net)) {
+		table = kmemdup(table, sizeof(xfrm4_policy_table), GFP_KERNEL);
+		if (!table)
+			goto err_alloc;
+
+		table[0].data = &net->xfrm.xfrm4_dst_ops.gc_thresh;
+	}
+
+	hdr = register_net_sysctl(net, "net/ipv4", table);
+	if (!hdr)
+		goto err_reg;
+
+	net->ipv4.xfrm4_hdr = hdr;
+	return 0;
+
+err_reg:
+	if (!net_eq(net, &init_net))
+		kfree(table);
+err_alloc:
+	return -ENOMEM;
+}
+
+static void __net_exit xfrm4_net_exit(struct net *net)
+{
+	struct ctl_table *table;
+
+	if (net->ipv4.xfrm4_hdr == NULL)
+		return;
+
+	table = net->ipv4.xfrm4_hdr->ctl_table_arg;
+	unregister_net_sysctl_table(net->ipv4.xfrm4_hdr);
+	if (!net_eq(net, &init_net))
+		kfree(table);
+}
+
+static struct pernet_operations __net_initdata xfrm4_net_ops = {
+	.init	= xfrm4_net_init,
+	.exit	= xfrm4_net_exit,
+};
 #endif
 
 static void __init xfrm4_policy_init(void)
@@ -270,35 +314,14 @@ static void __init xfrm4_policy_init(void)
 	xfrm_policy_register_afinfo(&xfrm4_policy_afinfo);
 }
 
-static void __exit xfrm4_policy_fini(void)
+void __init xfrm4_init(void)
 {
-#ifdef CONFIG_SYSCTL
-	if (sysctl_hdr)
-		unregister_net_sysctl_table(sysctl_hdr);
-#endif
-	xfrm_policy_unregister_afinfo(&xfrm4_policy_afinfo);
-}
-
-void __init xfrm4_init(int rt_max_size)
-{
-	/*
-	 * Select a default value for the gc_thresh based on the main route
-	 * table hash size.  It seems to me the worst case scenario is when
-	 * we have ipsec operating in transport mode, in which we create a
-	 * dst_entry per socket.  The xfrm gc algorithm starts trying to remove
-	 * entries at gc_thresh, and prevents new allocations as 2*gc_thresh
-	 * so lets set an initial xfrm gc_thresh value at the rt_max_size/2.
-	 * That will let us store an ipsec connection per route table entry,
-	 * and start cleaning when were 1/2 full
-	 */
-	xfrm4_dst_ops.gc_thresh = rt_max_size/2;
 	dst_entries_init(&xfrm4_dst_ops);
 
 	xfrm4_state_init();
 	xfrm4_policy_init();
 #ifdef CONFIG_SYSCTL
-	sysctl_hdr = register_net_sysctl(&init_net, "net/ipv4",
-					 xfrm4_policy_table);
+	register_pernet_subsys(&xfrm4_net_ops);
 #endif
 }
 

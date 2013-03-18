@@ -1090,10 +1090,13 @@ static const struct block_device_operations floppy_fops = {
 static void swim3_mb_event(struct macio_dev* mdev, int mb_state)
 {
 	struct floppy_state *fs = macio_get_drvdata(mdev);
-	struct swim3 __iomem *sw = fs->swim3;
+	struct swim3 __iomem *sw;
 
 	if (!fs)
 		return;
+
+	sw = fs->swim3;
+
 	if (mb_state != MB_FD)
 		return;
 
@@ -1194,7 +1197,8 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	return rc;
 }
 
-static int __devinit swim3_attach(struct macio_dev *mdev, const struct of_device_id *match)
+static int swim3_attach(struct macio_dev *mdev,
+			const struct of_device_id *match)
 {
 	struct gendisk *disk;
 	int index, rc;

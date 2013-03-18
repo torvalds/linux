@@ -23,6 +23,7 @@
 
 struct ath_txq;
 struct ath_buf;
+struct fft_sample_tlv;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 #define TX_STAT_INC(q, c) sc->debug.stats.txstats[q].c++
@@ -41,6 +42,7 @@ enum ath_reset_type {
 	RESET_TYPE_PLL_HANG,
 	RESET_TYPE_MAC_HANG,
 	RESET_TYPE_BEACON_STUCK,
+	RESET_TYPE_MCI,
 	__RESET_TYPE_MAX
 };
 
@@ -178,6 +180,21 @@ struct ath_tx_stats {
 	u32 txfailed;
 };
 
+/*
+ * Various utility macros to print TX/Queue counters.
+ */
+#define PR_QNUM(_n) sc->tx.txq_map[_n]->axq_qnum
+#define TXSTATS sc->debug.stats.txstats
+#define PR(str, elem)							\
+	do {								\
+		len += snprintf(buf + len, size - len,			\
+				"%s%13u%11u%10u%10u\n", str,		\
+				TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
+	} while(0)
+
 #define RX_STAT_INC(c) (sc->debug.stats.rxstats.c++)
 
 /**
@@ -200,9 +217,9 @@ struct ath_tx_stats {
  * @rx_oom_err:  No. of frames dropped due to OOM issues.
  * @rx_rate_err:  No. of frames dropped due to rate errors.
  * @rx_too_many_frags_err:  Frames dropped due to too-many-frags received.
- * @rx_drop_rxflush: No. of frames dropped due to RX-FLUSH.
  * @rx_beacons:  No. of beacons received.
  * @rx_frags:  No. of rx-fragements received.
+ * @rx_spectral: No of spectral packets received.
  */
 struct ath_rx_stats {
 	u32 rx_pkts_all;
@@ -219,9 +236,9 @@ struct ath_rx_stats {
 	u32 rx_oom_err;
 	u32 rx_rate_err;
 	u32 rx_too_many_frags_err;
-	u32 rx_drop_rxflush;
 	u32 rx_beacons;
 	u32 rx_frags;
+	u32 rx_spectral;
 };
 
 struct ath_stats {
@@ -291,6 +308,25 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq,
 		       unsigned int flags);
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
+int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif, int sset);
+void ath9k_get_et_stats(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
+			struct ethtool_stats *stats, u64 *data);
+void ath9k_get_et_strings(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
+			  u32 sset, u8 *data);
+void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   struct dentry *dir);
+void ath9k_sta_remove_debugfs(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      struct dentry *dir);
+
+void ath_debug_send_fft_sample(struct ath_softc *sc,
+			       struct fft_sample_tlv *fft_sample);
 
 #else
 

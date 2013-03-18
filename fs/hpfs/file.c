@@ -50,7 +50,7 @@ static secno hpfs_bmap(struct inode *inode, unsigned file_secno)
 	return disk_secno;
 }
 
-static void hpfs_truncate(struct inode *i)
+void hpfs_truncate(struct inode *i)
 {
 	if (IS_IMMUTABLE(i)) return /*-EPERM*/;
 	hpfs_lock_assert(i->i_sb);
@@ -105,6 +105,16 @@ static int hpfs_readpage(struct file *file, struct page *page)
 	return block_read_full_page(page,hpfs_get_block);
 }
 
+static void hpfs_write_failed(struct address_space *mapping, loff_t to)
+{
+	struct inode *inode = mapping->host;
+
+	if (to > inode->i_size) {
+		truncate_pagecache(inode, to, inode->i_size);
+		hpfs_truncate(inode);
+	}
+}
+
 static int hpfs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
@@ -115,11 +125,8 @@ static int hpfs_write_begin(struct file *file, struct address_space *mapping,
 	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
 				hpfs_get_block,
 				&hpfs_i(mapping->host)->mmu_private);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
+	if (unlikely(ret))
+		hpfs_write_failed(mapping, pos + len);
 
 	return ret;
 }
@@ -145,7 +152,7 @@ static ssize_t hpfs_file_write(struct file *file, const char __user *buf,
 	retval = do_sync_write(file, buf, count, ppos);
 	if (retval > 0) {
 		hpfs_lock(file->f_path.dentry->d_sb);
-		hpfs_i(file->f_path.dentry->d_inode)->i_dirty = 1;
+		hpfs_i(file_inode(file))->i_dirty = 1;
 		hpfs_unlock(file->f_path.dentry->d_sb);
 	}
 	return retval;
@@ -166,6 +173,5 @@ const struct file_operations hpfs_file_ops =
 
 const struct inode_operations hpfs_file_iops =
 {
-	.truncate	= hpfs_truncate,
 	.setattr	= hpfs_setattr,
 };

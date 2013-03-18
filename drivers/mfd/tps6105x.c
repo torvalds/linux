@@ -86,7 +86,7 @@ fail:
 }
 EXPORT_SYMBOL(tps6105x_mask_and_set);
 
-static int __devinit tps6105x_startup(struct tps6105x *tps6105x)
+static int tps6105x_startup(struct tps6105x *tps6105x)
 {
 	int ret;
 	u8 regval;
@@ -133,7 +133,7 @@ static struct mfd_cell tps6105x_cells[] = {
 	},
 };
 
-static int __devinit tps6105x_probe(struct i2c_client *client,
+static int tps6105x_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct tps6105x			*tps6105x;
@@ -199,7 +199,7 @@ fail:
 	return ret;
 }
 
-static int __devexit tps6105x_remove(struct i2c_client *client)
+static int tps6105x_remove(struct i2c_client *client)
 {
 	struct tps6105x *tps6105x = i2c_get_clientdata(client);
 
@@ -226,7 +226,7 @@ static struct i2c_driver tps6105x_driver = {
 		.name	= "tps6105x",
 	},
 	.probe		= tps6105x_probe,
-	.remove		= __devexit_p(tps6105x_remove),
+	.remove		= tps6105x_remove,
 	.id_table	= tps6105x_id,
 };
 

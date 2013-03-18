@@ -55,7 +55,7 @@ static int apply_r_mips_26_rela(struct module *me, u32 *location, Elf_Addr v)
 static int apply_r_mips_hi16_rela(struct module *me, u32 *location, Elf_Addr v)
 {
 	*location = (*location & 0xffff0000) |
-	            ((((long long) v + 0x8000LL) >> 16) & 0xffff);
+		    ((((long long) v + 0x8000LL) >> 16) & 0xffff);
 
 	return 0;
 }
@@ -78,7 +78,7 @@ static int apply_r_mips_higher_rela(struct module *me, u32 *location,
 				    Elf_Addr v)
 {
 	*location = (*location & 0xffff0000) |
-	            ((((long long) v + 0x80008000LL) >> 32) & 0xffff);
+		    ((((long long) v + 0x80008000LL) >> 32) & 0xffff);
 
 	return 0;
 }
@@ -87,7 +87,7 @@ static int apply_r_mips_highest_rela(struct module *me, u32 *location,
 				     Elf_Addr v)
 {
 	*location = (*location & 0xffff0000) |
-	            ((((long long) v + 0x800080008000LL) >> 48) & 0xffff);
+		    ((((long long) v + 0x800080008000LL) >> 48) & 0xffff);
 
 	return 0;
 }

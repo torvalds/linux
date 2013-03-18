@@ -22,11 +22,22 @@
  *
  * mtdparts=<mtddef>[;<mtddef]
  * <mtddef>  := <mtd-id>:<partdef>[,<partdef>]
- *              where <mtd-id> is the name from the "cat /proc/mtd" command
- * <partdef> := <size>[@offset][<name>][ro][lk]
+ * <partdef> := <size>[@<offset>][<name>][ro][lk]
  * <mtd-id>  := unique name used in mapping driver/device (mtd->name)
  * <size>    := standard linux memsize OR "-" to denote all remaining space
+ *              size is automatically truncated at end of device
+ *              if specified or trucated size is 0 the part is skipped
+ * <offset>  := standard linux memsize
+ *              if omitted the part will immediately follow the previous part
+ *              or 0 if the first part
  * <name>    := '(' NAME ')'
+ *              NAME will appear in /proc/mtd
+ *
+ * <size> and <offset> can be specified such that the parts are out of order
+ * in physical memory and may even overlap.
+ *
+ * The parts are assigned MTD numbers in the order they are specified in the
+ * command line regardless of their order in physical memory.
  *
  * Examples:
  *
@@ -56,8 +67,8 @@
 
 
 /* special size referring to all the remaining space in a partition */
-#define SIZE_REMAINING UINT_MAX
-#define OFFSET_CONTINUOUS UINT_MAX
+#define SIZE_REMAINING ULLONG_MAX
+#define OFFSET_CONTINUOUS ULLONG_MAX
 
 struct cmdline_mtd_partition {
 	struct cmdline_mtd_partition *next;
@@ -70,6 +81,7 @@ struct cmdline_mtd_partition {
 static struct cmdline_mtd_partition *partitions;
 
 /* the command line passed to mtdpart_setup() */
+static char *mtdparts;
 static char *cmdline;
 static int cmdline_parsed;
 
@@ -89,7 +101,7 @@ static struct mtd_partition * newpart(char *s,
 				      int extra_mem_size)
 {
 	struct mtd_partition *parts;
-	unsigned long size, offset = OFFSET_CONTINUOUS;
+	unsigned long long size, offset = OFFSET_CONTINUOUS;
 	char *name;
 	int name_len;
 	unsigned char *extra_mem;
@@ -104,7 +116,8 @@ static struct mtd_partition * newpart(char *s,
 	} else {
 		size = memparse(s, &s);
 		if (size < PAGE_SIZE) {
-			printk(KERN_ERR ERRP "partition size too small (%lx)\n", size);
+			printk(KERN_ERR ERRP "partition size too small (%llx)\n",
+			       size);
 			return ERR_PTR(-EINVAL);
 		}
 	}
@@ -296,7 +309,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 				    struct mtd_partition **pparts,
 				    struct mtd_part_parser_data *data)
 {
-	unsigned long offset;
+	unsigned long long offset;
 	int i, err;
 	struct cmdline_mtd_partition *part;
 	const char *mtd_id = master->name;
@@ -308,48 +321,52 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 			return err;
 	}
 
+	/*
+	 * Search for the partition definition matching master->name.
+	 * If master->name is not set, stop at first partition definition.
+	 */
 	for (part = partitions; part; part = part->next) {
-		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id))) {
-			for (i = 0, offset = 0; i < part->num_parts; i++) {
-				if (part->parts[i].offset == OFFSET_CONTINUOUS)
-					part->parts[i].offset = offset;
-				else
-					offset = part->parts[i].offset;
+		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id)))
+			break;
+	}
 
-				if (part->parts[i].size == SIZE_REMAINING)
-					part->parts[i].size = master->size - offset;
+	if (!part)
+		return 0;
 
-				if (part->parts[i].size == 0) {
-					printk(KERN_WARNING ERRP
-					       "%s: skipping zero sized partition\n",
-					       part->mtd_id);
-					part->num_parts--;
-					memmove(&part->parts[i],
-						&part->parts[i + 1],
-						sizeof(*part->parts) * (part->num_parts - i));
-					continue;
-				}
+	for (i = 0, offset = 0; i < part->num_parts; i++) {
+		if (part->parts[i].offset == OFFSET_CONTINUOUS)
+			part->parts[i].offset = offset;
+		else
+			offset = part->parts[i].offset;
 
-				if (offset + part->parts[i].size > master->size) {
-					printk(KERN_WARNING ERRP
-					       "%s: partitioning exceeds flash size, truncating\n",
-					       part->mtd_id);
-					part->parts[i].size = master->size - offset;
-				}
-				offset += part->parts[i].size;
-			}
+		if (part->parts[i].size == SIZE_REMAINING)
+			part->parts[i].size = master->size - offset;
 
-			*pparts = kmemdup(part->parts,
-					sizeof(*part->parts) * part->num_parts,
-					GFP_KERNEL);
-			if (!*pparts)
-				return -ENOMEM;
+		if (offset + part->parts[i].size > master->size) {
+			printk(KERN_WARNING ERRP
+			       "%s: partitioning exceeds flash size, truncating\n",
+			       part->mtd_id);
+			part->parts[i].size = master->size - offset;
+		}
+		offset += part->parts[i].size;
 
-			return part->num_parts;
+		if (part->parts[i].size == 0) {
+			printk(KERN_WARNING ERRP
+			       "%s: skipping zero sized partition\n",
+			       part->mtd_id);
+			part->num_parts--;
+			memmove(&part->parts[i], &part->parts[i + 1],
+				sizeof(*part->parts) * (part->num_parts - i));
+			i--;
 		}
 	}
 
-	return 0;
+	*pparts = kmemdup(part->parts, sizeof(*part->parts) * part->num_parts,
+			  GFP_KERNEL);
+	if (!*pparts)
+		return -ENOMEM;
+
+	return part->num_parts;
 }
 
 
@@ -360,7 +377,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
  *
  * This function needs to be visible for bootloaders.
  */
-static int mtdpart_setup(char *s)
+static int __init mtdpart_setup(char *s)
 {
 	cmdline = s;
 	return 1;
@@ -376,10 +393,21 @@ static struct mtd_part_parser cmdline_parser = {
 
 static int __init cmdline_parser_init(void)
 {
+	if (mtdparts)
+		mtdpart_setup(mtdparts);
 	return register_mtd_parser(&cmdline_parser);
 }
 
+static void __exit cmdline_parser_exit(void)
+{
+	deregister_mtd_parser(&cmdline_parser);
+}
+
 module_init(cmdline_parser_init);
+module_exit(cmdline_parser_exit);
+
+MODULE_PARM_DESC(mtdparts, "Partitioning specification");
+module_param(mtdparts, charp, 0);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marius Groeger <mag@sysgo.de>");

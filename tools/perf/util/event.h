@@ -6,6 +6,7 @@
 
 #include "../perf.h"
 #include "map.h"
+#include "build-id.h"
 
 /*
  * PERF_SAMPLE_IP | PERF_SAMPLE_TID | *
@@ -95,8 +96,6 @@ struct perf_sample {
 	struct regs_dump  user_regs;
 	struct stack_dump user_stack;
 };
-
-#define BUILD_ID_SIZE 20
 
 struct build_id_event {
 	struct perf_event_header header;
@@ -191,7 +190,11 @@ int perf_event__process_mmap(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_task(struct perf_tool *tool,
+int perf_event__process_fork(struct perf_tool *tool,
+			     union perf_event *event,
+			     struct perf_sample *sample,
+			     struct machine *machine);
+int perf_event__process_exit(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);

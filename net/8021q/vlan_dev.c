@@ -261,7 +261,7 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 	u32 old_flags = vlan->flags;
 
 	if (mask & ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP |
-		     VLAN_FLAG_LOOSE_BINDING))
+		     VLAN_FLAG_LOOSE_BINDING | VLAN_FLAG_MVRP))
 		return -EINVAL;
 
 	vlan->flags = (old_flags & ~mask) | (flags & mask);
@@ -271,6 +271,13 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flags, u32 mask)
 			vlan_gvrp_request_join(dev);
 		else
 			vlan_gvrp_request_leave(dev);
+	}
+
+	if (netif_running(dev) && (vlan->flags ^ old_flags) & VLAN_FLAG_MVRP) {
+		if (vlan->flags & VLAN_FLAG_MVRP)
+			vlan_mvrp_request_join(dev);
+		else
+			vlan_mvrp_request_leave(dev);
 	}
 	return 0;
 }
@@ -311,6 +318,9 @@ static int vlan_dev_open(struct net_device *dev)
 
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_join(dev);
+
+	if (vlan->flags & VLAN_FLAG_MVRP)
+		vlan_mvrp_request_join(dev);
 
 	if (netif_carrier_ok(real_dev))
 		netif_carrier_on(dev);
@@ -409,7 +419,7 @@ static int vlan_dev_neigh_setup(struct net_device *dev, struct neigh_parms *pa)
 	return err;
 }
 
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+#if IS_ENABLED(CONFIG_FCOE)
 static int vlan_dev_fcoe_ddp_setup(struct net_device *dev, u16 xid,
 				   struct scatterlist *sgl, unsigned int sgc)
 {
@@ -531,6 +541,10 @@ static const struct header_ops vlan_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
+static struct device_type vlan_type = {
+	.name	= "vlan",
+};
+
 static const struct net_device_ops vlan_netdev_ops;
 
 static int vlan_dev_init(struct net_device *dev)
@@ -564,7 +578,7 @@ static int vlan_dev_init(struct net_device *dev)
 	if (is_zero_ether_addr(dev->broadcast))
 		memcpy(dev->broadcast, real_dev->broadcast, dev->addr_len);
 
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+#if IS_ENABLED(CONFIG_FCOE)
 	dev->fcoe_ddp_xid = real_dev->fcoe_ddp_xid;
 #endif
 
@@ -578,6 +592,8 @@ static int vlan_dev_init(struct net_device *dev)
 	}
 
 	dev->netdev_ops = &vlan_netdev_ops;
+
+	SET_NETDEV_DEVTYPE(dev, &vlan_type);
 
 	if (is_vlan_dev(real_dev))
 		subclass = 1;
@@ -634,9 +650,9 @@ static int vlan_ethtool_get_settings(struct net_device *dev,
 static void vlan_ethtool_get_drvinfo(struct net_device *dev,
 				     struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, vlan_fullname);
-	strcpy(info->version, vlan_version);
-	strcpy(info->fw_version, "N/A");
+	strlcpy(info->driver, vlan_fullname, sizeof(info->driver));
+	strlcpy(info->version, vlan_version, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
 static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
@@ -717,7 +733,7 @@ static void vlan_dev_netpoll_cleanup(struct net_device *dev)
 
 	vlan->netpoll = NULL;
 
-	__netpoll_free_rcu(netpoll);
+	__netpoll_free_async(netpoll);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 
@@ -741,7 +757,7 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_do_ioctl		= vlan_dev_ioctl,
 	.ndo_neigh_setup	= vlan_dev_neigh_setup,
 	.ndo_get_stats64	= vlan_dev_get_stats64,
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+#if IS_ENABLED(CONFIG_FCOE)
 	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
 	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
 	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,

@@ -368,7 +368,7 @@ error_alloc:
  *
  * This function is called when the platform device is removed.
  */
-static int __devexit mpc8610_hpcd_remove(struct platform_device *pdev)
+static int mpc8610_hpcd_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct mpc8610_hpcd_data *machine_data =
@@ -382,7 +382,7 @@ static int __devexit mpc8610_hpcd_remove(struct platform_device *pdev)
 
 static struct platform_driver mpc8610_hpcd_driver = {
 	.probe = mpc8610_hpcd_probe,
-	.remove = __devexit_p(mpc8610_hpcd_remove),
+	.remove = mpc8610_hpcd_remove,
 	.driver = {
 		/* The name must match 'compatible' property in the device tree,
 		 * in lowercase letters.

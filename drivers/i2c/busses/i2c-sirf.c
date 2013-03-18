@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/of_i2c.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -258,7 +259,7 @@ static const struct i2c_algorithm i2c_sirfsoc_algo = {
 	.functionality = i2c_sirfsoc_func,
 };
 
-static int __devinit i2c_sirfsoc_probe(struct platform_device *pdev)
+static int i2c_sirfsoc_probe(struct platform_device *pdev)
 {
 	struct sirfsoc_i2c *siic;
 	struct i2c_adapter *adap;
@@ -308,10 +309,9 @@ static int __devinit i2c_sirfsoc_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	siic->base = devm_request_and_ioremap(&pdev->dev, mem_res);
-	if (siic->base == NULL) {
-		dev_err(&pdev->dev, "IO remap failed!\n");
-		err = -ENOMEM;
+	siic->base = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(siic->base)) {
+		err = PTR_ERR(siic->base);
 		goto out;
 	}
 
@@ -328,6 +328,7 @@ static int __devinit i2c_sirfsoc_probe(struct platform_device *pdev)
 	adap->algo = &i2c_sirfsoc_algo;
 	adap->algo_data = siic;
 
+	adap->dev.of_node = pdev->dev.of_node;
 	adap->dev.parent = &pdev->dev;
 	adap->nr = pdev->id;
 
@@ -371,6 +372,8 @@ static int __devinit i2c_sirfsoc_probe(struct platform_device *pdev)
 
 	clk_disable(clk);
 
+	of_i2c_register_devices(adap);
+
 	dev_info(&pdev->dev, " I2C adapter ready to operate\n");
 
 	return 0;
@@ -385,7 +388,7 @@ err_get_clk:
 	return err;
 }
 
-static int __devexit i2c_sirfsoc_remove(struct platform_device *pdev)
+static int i2c_sirfsoc_remove(struct platform_device *pdev)
 {
 	struct i2c_adapter *adapter = platform_get_drvdata(pdev);
 	struct sirfsoc_i2c *siic = adapter->algo_data;
@@ -433,7 +436,7 @@ static const struct dev_pm_ops i2c_sirfsoc_pm_ops = {
 };
 #endif
 
-static const struct of_device_id sirfsoc_i2c_of_match[] __devinitconst = {
+static const struct of_device_id sirfsoc_i2c_of_match[] = {
 	{ .compatible = "sirf,prima2-i2c", },
 	{},
 };
@@ -449,7 +452,7 @@ static struct platform_driver i2c_sirfsoc_driver = {
 		.of_match_table = sirfsoc_i2c_of_match,
 	},
 	.probe = i2c_sirfsoc_probe,
-	.remove = __devexit_p(i2c_sirfsoc_remove),
+	.remove = i2c_sirfsoc_remove,
 };
 module_platform_driver(i2c_sirfsoc_driver);
 

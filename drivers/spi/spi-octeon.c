@@ -266,7 +266,7 @@ static int octeon_spi_nop_transfer_hardware(struct spi_master *master)
 	return 0;
 }
 
-static int __devinit octeon_spi_probe(struct platform_device *pdev)
+static int octeon_spi_probe(struct platform_device *pdev)
 {
 
 	struct resource *res_mem;
@@ -326,7 +326,7 @@ fail:
 	return err;
 }
 
-static int __devexit octeon_spi_remove(struct platform_device *pdev)
+static int octeon_spi_remove(struct platform_device *pdev)
 {
 	struct octeon_spi *p = platform_get_drvdata(pdev);
 	u64 register_base = p->register_base;
@@ -352,7 +352,7 @@ static struct platform_driver octeon_spi_driver = {
 		.of_match_table = octeon_spi_match,
 	},
 	.probe		= octeon_spi_probe,
-	.remove		= __devexit_p(octeon_spi_remove),
+	.remove		= octeon_spi_remove,
 };
 
 module_platform_driver(octeon_spi_driver);

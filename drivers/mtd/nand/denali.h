@@ -466,6 +466,7 @@ struct nand_buf {
 
 #define INTEL_CE4100	1
 #define INTEL_MRST	2
+#define DT		3
 
 struct denali_nand_info {
 	struct mtd_info mtd;
@@ -487,6 +488,7 @@ struct denali_nand_info {
 	uint32_t irq_status;
 	int irq_debug_array[32];
 	int idx;
+	int irq;
 
 	uint32_t devnum;	/* represent how many nands connected */
 	uint32_t fwblks; /* represent how many blocks FW used */
@@ -495,5 +497,8 @@ struct denali_nand_info {
 	uint32_t bbtskipbytes;
 	uint32_t max_banks;
 };
+
+extern int denali_init(struct denali_nand_info *denali);
+extern void denali_remove(struct denali_nand_info *denali);
 
 #endif /*_LLD_NAND_*/

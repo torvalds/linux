@@ -25,7 +25,7 @@
 #include "media/tuner.h"
 #include "media/v4l2-common.h"
 
-void hvr950q_cs5340_audio(void *priv, int enable)
+static void hvr950q_cs5340_audio(void *priv, int enable)
 {
 	/* Because the HVR-950q shares an i2s bus between the cs5340 and the
 	   au8522, we need to hold cs5340 in reset when using the au8522 */
@@ -169,7 +169,9 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
 	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
 	case 72251: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and analog video */
-	case 72261: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
+	case 72261: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
+	case 72271: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
+	case 72281: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
 	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and analog video */
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
@@ -183,16 +185,15 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	       __func__, tv.model);
 }
 
+void au0828_card_analog_fe_setup(struct au0828_dev *dev);
+
 void au0828_card_setup(struct au0828_dev *dev)
 {
 	static u8 eeprom[256];
-	struct tuner_setup tun_setup;
-	struct v4l2_subdev *sd;
-	unsigned int mode_mask = T_ANALOG_TV;
 
 	dprintk(1, "%s()\n", __func__);
 
-	memcpy(&dev->board, &au0828_boards[dev->boardnr], sizeof(dev->board));
+	dev->board = au0828_boards[dev->boardnr];
 
 	if (dev->i2c_rc == 0) {
 		dev->i2c_client.addr = 0xa0 >> 1;
@@ -208,6 +209,16 @@ void au0828_card_setup(struct au0828_dev *dev)
 			hauppauge_eeprom(dev, eeprom+0xa0);
 		break;
 	}
+
+	au0828_card_analog_fe_setup(dev);
+}
+
+void au0828_card_analog_fe_setup(struct au0828_dev *dev)
+{
+#ifdef CONFIG_VIDEO_AU0828_V4L2
+	struct tuner_setup tun_setup;
+	struct v4l2_subdev *sd;
+	unsigned int mode_mask = T_ANALOG_TV;
 
 	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED) {
 		/* Load the analog demodulator driver (note this would need to
@@ -234,6 +245,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_type_addr,
 				     &tun_setup);
 	}
+#endif
 }
 
 /*
@@ -332,6 +344,8 @@ struct usb_device_id au0828_usb_id_table[] = {
 	{ USB_DEVICE(0x2040, 0x7260),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ USB_DEVICE(0x2040, 0x7213),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x7270),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ },
 };

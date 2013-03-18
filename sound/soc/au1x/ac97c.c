@@ -223,7 +223,7 @@ static struct snd_soc_dai_driver au1xac97c_dai_driver = {
 	.ops			= &alchemy_ac97c_ops,
 };
 
-static int __devinit au1xac97c_drvprobe(struct platform_device *pdev)
+static int au1xac97c_drvprobe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *iores, *dmares;
@@ -276,7 +276,7 @@ static int __devinit au1xac97c_drvprobe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit au1xac97c_drvremove(struct platform_device *pdev)
+static int au1xac97c_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *ctx = platform_get_drvdata(pdev);
 
@@ -330,7 +330,7 @@ static struct platform_driver au1xac97c_driver = {
 		.pm	= AU1XPSCAC97_PMOPS,
 	},
 	.probe		= au1xac97c_drvprobe,
-	.remove		= __devexit_p(au1xac97c_drvremove),
+	.remove		= au1xac97c_drvremove,
 };
 
 static int __init au1xac97c_load(void)

@@ -28,6 +28,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/mmc/host.h>
+#include <linux/usb/phy.h>
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/spi/spi.h>
@@ -44,12 +45,12 @@
 #include <asm/system_info.h>
 
 #include "common.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <plat/usb.h>
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "board-flash.h"
 #include "common-board-devices.h"
 
 #include <asm/setup.h>
@@ -58,6 +59,8 @@
 #define OMAP3_TS_GPIO		162
 #define TB_BL_PWM_TIMER		9
 #define TB_KILL_POWER_GPIO	168
+
+#define	NAND_CS			0
 
 static unsigned long touchbook_revision;
 
@@ -307,7 +310,7 @@ static struct platform_device *omap3_touchbook_devices[] __initdata = {
 	&keys_gpio,
 };
 
-static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
@@ -363,10 +366,12 @@ static void __init omap3_touchbook_init(void)
 
 	/* Touchscreen and accelerometer */
 	omap_ads7846_init(4, OMAP3_TS_GPIO, 310, &ads7846_pdata);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
-	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3touchbook_nand_partitions,
-			     ARRAY_SIZE(omap3touchbook_nand_partitions));
+	board_nand_init(omap3touchbook_nand_partitions,
+			ARRAY_SIZE(omap3touchbook_nand_partitions), NAND_CS,
+			NAND_BUSWIDTH_16, NULL);
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
@@ -383,6 +388,6 @@ MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3_touchbook_init,
 	.init_late	= omap3430_init_late,
-	.timer		= &omap3_secure_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_secure_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

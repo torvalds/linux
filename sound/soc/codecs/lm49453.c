@@ -111,9 +111,9 @@ static struct reg_default lm49453_reg_defs[] = {
 	{ 101, 0x00 },
 	{ 102, 0x00 },
 	{ 103, 0x01 },
-	{ 105, 0x01 },
-	{ 106, 0x00 },
-	{ 107, 0x01 },
+	{ 104, 0x01 },
+	{ 105, 0x00 },
+	{ 106, 0x01 },
 	{ 107, 0x00 },
 	{ 108, 0x00 },
 	{ 109, 0x00 },
@@ -163,56 +163,25 @@ static struct reg_default lm49453_reg_defs[] = {
 	{ 184, 0x00 },
 	{ 185, 0x00 },
 	{ 186, 0x00 },
-	{ 189, 0x00 },
+	{ 187, 0x00 },
 	{ 188, 0x00 },
-	{ 194, 0x00 },
-	{ 195, 0x00 },
-	{ 196, 0x00 },
-	{ 197, 0x00 },
-	{ 200, 0x00 },
-	{ 201, 0x00 },
-	{ 202, 0x00 },
-	{ 203, 0x00 },
-	{ 204, 0x00 },
-	{ 205, 0x00 },
-	{ 208, 0x00 },
+	{ 189, 0x00 },
+	{ 208, 0x06 },
 	{ 209, 0x00 },
-	{ 210, 0x00 },
-	{ 211, 0x00 },
-	{ 213, 0x00 },
-	{ 214, 0x00 },
-	{ 215, 0x00 },
-	{ 216, 0x00 },
-	{ 217, 0x00 },
-	{ 218, 0x00 },
-	{ 219, 0x00 },
+	{ 210, 0x08 },
+	{ 211, 0x54 },
+	{ 212, 0x14 },
+	{ 213, 0x0d },
+	{ 214, 0x0d },
+	{ 215, 0x14 },
+	{ 216, 0x60 },
 	{ 221, 0x00 },
 	{ 222, 0x00 },
+	{ 223, 0x00 },
 	{ 224, 0x00 },
-	{ 225, 0x00 },
-	{ 226, 0x00 },
-	{ 227, 0x00 },
-	{ 228, 0x00 },
-	{ 229, 0x00 },
-	{ 230, 0x13 },
-	{ 231, 0x00 },
-	{ 232, 0x80 },
-	{ 233, 0x0C },
-	{ 234, 0xDD },
-	{ 235, 0x00 },
-	{ 236, 0x04 },
-	{ 237, 0x00 },
-	{ 238, 0x00 },
-	{ 239, 0x00 },
-	{ 240, 0x00 },
-	{ 241, 0x00 },
-	{ 242, 0x00 },
-	{ 243, 0x00 },
-	{ 244, 0x00 },
-	{ 245, 0x00 },
 	{ 248, 0x00 },
 	{ 249, 0x00 },
-	{ 254, 0x00 },
+	{ 250, 0x00 },
 	{ 255, 0x00 },
 };
 
@@ -525,36 +494,41 @@ SOC_DAPM_SINGLE("Port2_2 Switch", LM49453_P0_PORT2_TX2_REG, 7, 1, 0),
 };
 
 /* TLV Declarations */
-static const DECLARE_TLV_DB_SCALE(digital_tlv, -7650, 150, 1);
-static const DECLARE_TLV_DB_SCALE(port_tlv, 0, 600, 0);
+static const DECLARE_TLV_DB_SCALE(adc_dac_tlv, -7650, 150, 1);
+static const DECLARE_TLV_DB_SCALE(mic_tlv, 0, 200, 1);
+static const DECLARE_TLV_DB_SCALE(port_tlv, -1800, 600, 0);
+static const DECLARE_TLV_DB_SCALE(stn_tlv, -7200, 150, 0);
 
 static const struct snd_kcontrol_new lm49453_sidetone_mixer_controls[] = {
 /* Sidetone supports mono only */
 SOC_DAPM_SINGLE_TLV("Sidetone ADCL Volume", LM49453_P0_STN_VOL_ADCL_REG,
-		     0, 0x3F, 0, digital_tlv),
+		     0, 0x3F, 0, stn_tlv),
 SOC_DAPM_SINGLE_TLV("Sidetone ADCR Volume", LM49453_P0_STN_VOL_ADCR_REG,
-		     0, 0x3F, 0, digital_tlv),
+		     0, 0x3F, 0, stn_tlv),
 SOC_DAPM_SINGLE_TLV("Sidetone DMIC1L Volume", LM49453_P0_STN_VOL_DMIC1L_REG,
-		     0, 0x3F, 0, digital_tlv),
+		     0, 0x3F, 0, stn_tlv),
 SOC_DAPM_SINGLE_TLV("Sidetone DMIC1R Volume", LM49453_P0_STN_VOL_DMIC1R_REG,
-		     0, 0x3F, 0, digital_tlv),
+		     0, 0x3F, 0, stn_tlv),
 SOC_DAPM_SINGLE_TLV("Sidetone DMIC2L Volume", LM49453_P0_STN_VOL_DMIC2L_REG,
-		     0, 0x3F, 0, digital_tlv),
+		     0, 0x3F, 0, stn_tlv),
 SOC_DAPM_SINGLE_TLV("Sidetone DMIC2R Volume", LM49453_P0_STN_VOL_DMIC2R_REG,
-		     0, 0x3F, 0, digital_tlv),
+		     0, 0x3F, 0, stn_tlv),
 };
 
 static const struct snd_kcontrol_new lm49453_snd_controls[] = {
 	/* mic1 and mic2 supports mono only */
-	SOC_SINGLE_TLV("Mic1 Volume", LM49453_P0_ADC_LEVELL_REG, 0, 6,
-			0, digital_tlv),
-	SOC_SINGLE_TLV("Mic2 Volume", LM49453_P0_ADC_LEVELR_REG, 0, 6,
-			0, digital_tlv),
+	SOC_SINGLE_TLV("Mic1 Volume", LM49453_P0_MICL_REG, 0, 15, 0, mic_tlv),
+	SOC_SINGLE_TLV("Mic2 Volume", LM49453_P0_MICR_REG, 0, 15, 0, mic_tlv),
+
+	SOC_SINGLE_TLV("ADCL Volume", LM49453_P0_ADC_LEVELL_REG, 0, 63,
+			0, adc_dac_tlv),
+	SOC_SINGLE_TLV("ADCR Volume", LM49453_P0_ADC_LEVELR_REG, 0, 63,
+			0, adc_dac_tlv),
 
 	SOC_DOUBLE_R_TLV("DMIC1 Volume", LM49453_P0_DMIC1_LEVELL_REG,
-			  LM49453_P0_DMIC1_LEVELR_REG, 0, 6, 0, digital_tlv),
+			  LM49453_P0_DMIC1_LEVELR_REG, 0, 63, 0, adc_dac_tlv),
 	SOC_DOUBLE_R_TLV("DMIC2 Volume", LM49453_P0_DMIC2_LEVELL_REG,
-			  LM49453_P0_DMIC2_LEVELR_REG, 0, 6, 0, digital_tlv),
+			  LM49453_P0_DMIC2_LEVELR_REG, 0, 63, 0, adc_dac_tlv),
 
 	SOC_DAPM_ENUM("Mic2Mode", lm49453_mic2mode_enum),
 	SOC_DAPM_ENUM("DMIC12 SRC", lm49453_dmic12_cfg_enum),
@@ -569,16 +543,16 @@ static const struct snd_kcontrol_new lm49453_snd_controls[] = {
 					  2, 1, 0),
 
 	SOC_DOUBLE_R_TLV("DAC HP Volume", LM49453_P0_DAC_HP_LEVELL_REG,
-			  LM49453_P0_DAC_HP_LEVELR_REG, 0, 6, 0, digital_tlv),
+			  LM49453_P0_DAC_HP_LEVELR_REG, 0, 63, 0, adc_dac_tlv),
 	SOC_DOUBLE_R_TLV("DAC LO Volume", LM49453_P0_DAC_LO_LEVELL_REG,
-			  LM49453_P0_DAC_LO_LEVELR_REG, 0, 6, 0, digital_tlv),
+			  LM49453_P0_DAC_LO_LEVELR_REG, 0, 63, 0, adc_dac_tlv),
 	SOC_DOUBLE_R_TLV("DAC LS Volume", LM49453_P0_DAC_LS_LEVELL_REG,
-			  LM49453_P0_DAC_LS_LEVELR_REG, 0, 6, 0, digital_tlv),
+			  LM49453_P0_DAC_LS_LEVELR_REG, 0, 63, 0, adc_dac_tlv),
 	SOC_DOUBLE_R_TLV("DAC HA Volume", LM49453_P0_DAC_HA_LEVELL_REG,
-			  LM49453_P0_DAC_HA_LEVELR_REG, 0, 6, 0, digital_tlv),
+			  LM49453_P0_DAC_HA_LEVELR_REG, 0, 63, 0, adc_dac_tlv),
 
 	SOC_SINGLE_TLV("EP Volume", LM49453_P0_DAC_LS_LEVELL_REG,
-			0, 6, 0, digital_tlv),
+			0, 63, 0, adc_dac_tlv),
 
 	SOC_SINGLE_TLV("PORT1_1_RX_LVL Volume", LM49453_P0_PORT1_RX_LVL1_REG,
 			0, 3, 0, port_tlv),
@@ -1218,7 +1192,7 @@ static int lm49453_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	}
 
 	snd_soc_update_bits(codec, LM49453_P0_AUDIO_PORT1_BASIC_REG,
-			    LM49453_AUDIO_PORT1_BASIC_FMT_MASK|BIT(1)|BIT(5),
+			    LM49453_AUDIO_PORT1_BASIC_FMT_MASK|BIT(0)|BIT(5),
 			    (aif_val | mode | clk_phase));
 
 	snd_soc_write(codec, LM49453_P0_AUDIO_PORT1_RX_MSB_REG, clk_shift);
@@ -1483,8 +1457,8 @@ static const struct regmap_config lm49453_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static __devinit int lm49453_i2c_probe(struct i2c_client *i2c,
-				       const struct i2c_device_id *id)
+static int lm49453_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
 {
 	struct lm49453_priv *lm49453;
 	int ret = 0;
@@ -1497,7 +1471,7 @@ static __devinit int lm49453_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, lm49453);
 
-	lm49453->regmap = regmap_init_i2c(i2c, &lm49453_regmap_config);
+	lm49453->regmap = devm_regmap_init_i2c(i2c, &lm49453_regmap_config);
 	if (IS_ERR(lm49453->regmap)) {
 		ret = PTR_ERR(lm49453->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -1508,21 +1482,15 @@ static __devinit int lm49453_i2c_probe(struct i2c_client *i2c,
 	ret =  snd_soc_register_codec(&i2c->dev,
 				      &soc_codec_dev_lm49453,
 				      lm49453_dai, ARRAY_SIZE(lm49453_dai));
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		regmap_exit(lm49453->regmap);
-		return ret;
-	}
 
 	return ret;
 }
 
-static int __devexit lm49453_i2c_remove(struct i2c_client *client)
+static int lm49453_i2c_remove(struct i2c_client *client)
 {
-	struct lm49453_priv *lm49453 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(lm49453->regmap);
 	return 0;
 }
 
@@ -1538,7 +1506,7 @@ static struct i2c_driver lm49453_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lm49453_i2c_probe,
-	.remove = __devexit_p(lm49453_i2c_remove),
+	.remove = lm49453_i2c_remove,
 	.id_table = lm49453_i2c_id,
 };
 

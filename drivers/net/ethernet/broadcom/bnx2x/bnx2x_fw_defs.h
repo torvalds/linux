@@ -1,6 +1,6 @@
 /* bnx2x_fw_defs.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2012 Broadcom Corporation
+ * Copyright (c) 2007-2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,11 @@
 	(IRO[159].base + ((funcId) * IRO[159].m1))
 #define CSTORM_FUNC_EN_OFFSET(funcId) \
 	(IRO[149].base + ((funcId) * IRO[149].m1))
+#define CSTORM_HC_SYNC_LINE_INDEX_E1X_OFFSET(hcIndex, sbId) \
+	(IRO[139].base + ((hcIndex) * IRO[139].m1) + ((sbId) * IRO[139].m2))
+#define CSTORM_HC_SYNC_LINE_INDEX_E2_OFFSET(hcIndex, sbId) \
+	(IRO[138].base + (((hcIndex)>>2) * IRO[138].m1) + (((hcIndex)&3) \
+	* IRO[138].m2) + ((sbId) * IRO[138].m3))
 #define CSTORM_IGU_MODE_OFFSET (IRO[157].base)
 #define CSTORM_ISCSI_CQ_SIZE_OFFSET(pfId) \
 	(IRO[316].base + ((pfId) * IRO[316].m1))
@@ -300,11 +305,9 @@
 #define MAX_VLAN_CREDIT_E1H 0 /* Per Chip */
 #define MAX_VLAN_CREDIT_E2 272 /* Per Path */
 
-
 /* Maximal aggregation queues supported */
 #define ETH_MAX_AGGREGATION_QUEUES_E1 32
 #define ETH_MAX_AGGREGATION_QUEUES_E1H_E2 64
-
 
 #define ETH_NUM_OF_MCAST_BINS 256
 #define ETH_NUM_OF_MCAST_ENGINES_E2 72
@@ -348,7 +351,6 @@
 /* max number of slow path commands per port */
 #define MAX_RAMRODS_PER_PORT 8
 
-
 /**** DEFINES FOR TIMERS/CLOCKS RESOLUTIONS ****/
 
 #define TIMERS_TICK_SIZE_CHIP (1e-3)
@@ -375,7 +377,6 @@
 	that is not mapped to priority*/
 #define LLFC_TRAFFIC_TYPE_TO_PRIORITY_UNMAPPED 0xFF
 
-
 #define C_ERES_PER_PAGE \
 	(PAGE_SIZE / BITS_TO_BYTES(STRUCT_SIZE(event_ring_elem)))
 #define C_ERE_PER_PAGE_MASK (C_ERES_PER_PAGE - 1)
@@ -386,8 +387,6 @@
 
 #define INVALID_VNIC_ID	0xFF
 
-
 #define UNDEF_IRO 0x80000000
-
 
 #endif /* BNX2X_FW_DEFS_H */

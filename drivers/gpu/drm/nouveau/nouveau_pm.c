@@ -409,6 +409,81 @@ static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, nouveau_hwmon_show_temp,
 						  NULL, 0);
 
 static ssize_t
+nouveau_hwmon_show_temp1_auto_point1_pwm(struct device *d,
+					 struct device_attribute *a, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", 100);
+}
+static SENSOR_DEVICE_ATTR(temp1_auto_point1_pwm, S_IRUGO,
+			  nouveau_hwmon_show_temp1_auto_point1_pwm, NULL, 0);
+
+static ssize_t
+nouveau_hwmon_temp1_auto_point1_temp(struct device *d,
+				     struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	      therm->attr_get(therm, NOUVEAU_THERM_ATTR_THRS_FAN_BOOST) * 1000);
+}
+static ssize_t
+nouveau_hwmon_set_temp1_auto_point1_temp(struct device *d,
+					 struct device_attribute *a,
+					 const char *buf, size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+	long value;
+
+	if (kstrtol(buf, 10, &value) == -EINVAL)
+		return count;
+
+	therm->attr_set(therm, NOUVEAU_THERM_ATTR_THRS_FAN_BOOST,
+			value / 1000);
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(temp1_auto_point1_temp, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_temp1_auto_point1_temp,
+			  nouveau_hwmon_set_temp1_auto_point1_temp, 0);
+
+static ssize_t
+nouveau_hwmon_temp1_auto_point1_temp_hyst(struct device *d,
+					  struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	 therm->attr_get(therm, NOUVEAU_THERM_ATTR_THRS_FAN_BOOST_HYST) * 1000);
+}
+static ssize_t
+nouveau_hwmon_set_temp1_auto_point1_temp_hyst(struct device *d,
+					      struct device_attribute *a,
+					      const char *buf, size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+	long value;
+
+	if (kstrtol(buf, 10, &value) == -EINVAL)
+		return count;
+
+	therm->attr_set(therm, NOUVEAU_THERM_ATTR_THRS_FAN_BOOST_HYST,
+			value / 1000);
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(temp1_auto_point1_temp_hyst, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_temp1_auto_point1_temp_hyst,
+			  nouveau_hwmon_set_temp1_auto_point1_temp_hyst, 0);
+
+static ssize_t
 nouveau_hwmon_max_temp(struct device *d, struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
@@ -437,6 +512,38 @@ nouveau_hwmon_set_max_temp(struct device *d, struct device_attribute *a,
 static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO | S_IWUSR, nouveau_hwmon_max_temp,
 						  nouveau_hwmon_set_max_temp,
 						  0);
+
+static ssize_t
+nouveau_hwmon_max_temp_hyst(struct device *d, struct device_attribute *a,
+			    char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	  therm->attr_get(therm, NOUVEAU_THERM_ATTR_THRS_DOWN_CLK_HYST) * 1000);
+}
+static ssize_t
+nouveau_hwmon_set_max_temp_hyst(struct device *d, struct device_attribute *a,
+						const char *buf, size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+	long value;
+
+	if (kstrtol(buf, 10, &value) == -EINVAL)
+		return count;
+
+	therm->attr_set(therm, NOUVEAU_THERM_ATTR_THRS_DOWN_CLK_HYST,
+			value / 1000);
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_max_temp_hyst,
+			  nouveau_hwmon_set_max_temp_hyst, 0);
 
 static ssize_t
 nouveau_hwmon_critical_temp(struct device *d, struct device_attribute *a,
@@ -471,6 +578,107 @@ static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO | S_IWUSR,
 						nouveau_hwmon_set_critical_temp,
 						0);
 
+static ssize_t
+nouveau_hwmon_critical_temp_hyst(struct device *d, struct device_attribute *a,
+							char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	  therm->attr_get(therm, NOUVEAU_THERM_ATTR_THRS_CRITICAL_HYST) * 1000);
+}
+static ssize_t
+nouveau_hwmon_set_critical_temp_hyst(struct device *d,
+				     struct device_attribute *a,
+				     const char *buf,
+				     size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+	long value;
+
+	if (kstrtol(buf, 10, &value) == -EINVAL)
+		return count;
+
+	therm->attr_set(therm, NOUVEAU_THERM_ATTR_THRS_CRITICAL_HYST,
+			value / 1000);
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_critical_temp_hyst,
+			  nouveau_hwmon_set_critical_temp_hyst, 0);
+static ssize_t
+nouveau_hwmon_emergency_temp(struct device *d, struct device_attribute *a,
+							char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	       therm->attr_get(therm, NOUVEAU_THERM_ATTR_THRS_SHUTDOWN) * 1000);
+}
+static ssize_t
+nouveau_hwmon_set_emergency_temp(struct device *d, struct device_attribute *a,
+							    const char *buf,
+								size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+	long value;
+
+	if (kstrtol(buf, 10, &value) == -EINVAL)
+		return count;
+
+	therm->attr_set(therm, NOUVEAU_THERM_ATTR_THRS_SHUTDOWN, value / 1000);
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(temp1_emergency, S_IRUGO | S_IWUSR,
+					nouveau_hwmon_emergency_temp,
+					nouveau_hwmon_set_emergency_temp,
+					0);
+
+static ssize_t
+nouveau_hwmon_emergency_temp_hyst(struct device *d, struct device_attribute *a,
+							char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	  therm->attr_get(therm, NOUVEAU_THERM_ATTR_THRS_SHUTDOWN_HYST) * 1000);
+}
+static ssize_t
+nouveau_hwmon_set_emergency_temp_hyst(struct device *d,
+				      struct device_attribute *a,
+				      const char *buf,
+				      size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+	long value;
+
+	if (kstrtol(buf, 10, &value) == -EINVAL)
+		return count;
+
+	therm->attr_set(therm, NOUVEAU_THERM_ATTR_THRS_SHUTDOWN_HYST,
+			value / 1000);
+
+	return count;
+}
+static SENSOR_DEVICE_ATTR(temp1_emergency_hyst, S_IRUGO | S_IWUSR,
+					nouveau_hwmon_emergency_temp_hyst,
+					nouveau_hwmon_set_emergency_temp_hyst,
+					0);
+
 static ssize_t nouveau_hwmon_show_name(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
@@ -490,7 +698,7 @@ static SENSOR_DEVICE_ATTR(update_rate, S_IRUGO,
 						NULL, 0);
 
 static ssize_t
-nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
+nouveau_hwmon_show_fan1_input(struct device *d, struct device_attribute *attr,
 			      char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
@@ -499,7 +707,7 @@ nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", therm->fan_sense(therm));
 }
-static SENSOR_DEVICE_ATTR(fan0_input, S_IRUGO, nouveau_hwmon_show_fan0_input,
+static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, nouveau_hwmon_show_fan1_input,
 			  NULL, 0);
 
  static ssize_t
@@ -665,14 +873,21 @@ static SENSOR_DEVICE_ATTR(pwm1_max, S_IRUGO | S_IWUSR,
 
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_temp1_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_temp1_auto_point1_temp_hyst.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp1_emergency.dev_attr.attr,
+	&sensor_dev_attr_temp1_emergency_hyst.dev_attr.attr,
 	&sensor_dev_attr_name.dev_attr.attr,
 	&sensor_dev_attr_update_rate.dev_attr.attr,
 	NULL
 };
 static struct attribute *hwmon_fan_rpm_attributes[] = {
-	&sensor_dev_attr_fan0_input.dev_attr.attr,
+	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	NULL
 };
 static struct attribute *hwmon_pwm_fan_attributes[] = {
@@ -698,10 +913,10 @@ static int
 nouveau_hwmon_init(struct drm_device *dev)
 {
 	struct nouveau_pm *pm = nouveau_pm(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_therm *therm = nouveau_therm(drm->device);
 
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
 	struct device *hwmon_dev;
 	int ret = 0;
 
@@ -717,7 +932,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	dev_set_drvdata(hwmon_dev, dev);
 
 	/* default sysfs entries */
-	ret = sysfs_create_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
+	ret = sysfs_create_group(&hwmon_dev->kobj, &hwmon_attrgroup);
 	if (ret) {
 		if (ret)
 			goto error;
@@ -728,7 +943,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	 *     the gpio entries for pwm fan control even when there's no
 	 *     actual fan connected to it... therm table? */
 	if (therm->fan_get && therm->fan_get(therm) >= 0) {
-		ret = sysfs_create_group(&dev->pdev->dev.kobj,
+		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_pwm_fan_attrgroup);
 		if (ret)
 			goto error;
@@ -736,7 +951,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 
 	/* if the card can read the fan rpm */
 	if (therm->fan_sense(therm) >= 0) {
-		ret = sysfs_create_group(&dev->pdev->dev.kobj,
+		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_fan_rpm_attrgroup);
 		if (ret)
 			goto error;
@@ -764,10 +979,10 @@ nouveau_hwmon_fini(struct drm_device *dev)
 	struct nouveau_pm *pm = nouveau_pm(dev);
 
 	if (pm->hwmon) {
-		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
-		sysfs_remove_group(&dev->pdev->dev.kobj,
+		sysfs_remove_group(&pm->hwmon->kobj, &hwmon_attrgroup);
+		sysfs_remove_group(&pm->hwmon->kobj,
 				   &hwmon_pwm_fan_attrgroup);
-		sysfs_remove_group(&dev->pdev->dev.kobj,
+		sysfs_remove_group(&pm->hwmon->kobj,
 				   &hwmon_fan_rpm_attrgroup);
 
 		hwmon_device_unregister(pm->hwmon);

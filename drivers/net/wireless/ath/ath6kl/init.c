@@ -42,7 +42,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.reserved_ram_size		= 6912,
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 8,
-		.flags				= 0,
+		.flags				= ATH6KL_HW_SDIO_CRC_ERROR_WAR,
 
 		/* hw2.0 needs override address hardcoded */
 		.app_start_override_addr	= 0x944C00,
@@ -68,7 +68,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 8,
 		.testscript_addr		= 0x57ef74,
-		.flags				= 0,
+		.flags				= ATH6KL_HW_SDIO_CRC_ERROR_WAR,
 
 		.fw = {
 			.dir		= AR6003_HW_2_1_1_FW_DIR,
@@ -93,7 +93,8 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x433900,
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_FLAG_64BIT_RATES,
+		.flags				= ATH6KL_HW_64BIT_RATES |
+						  ATH6KL_HW_AP_INACTIVITY_MINS,
 
 		.fw = {
 			.dir		= AR6004_HW_1_0_FW_DIR,
@@ -113,8 +114,8 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x43d400,
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_FLAG_64BIT_RATES,
-
+		.flags				= ATH6KL_HW_64BIT_RATES |
+						  ATH6KL_HW_AP_INACTIVITY_MINS,
 		.fw = {
 			.dir		= AR6004_HW_1_1_FW_DIR,
 			.fw		= AR6004_HW_1_1_FIRMWARE_FILE,
@@ -133,7 +134,8 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x435c00,
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_FLAG_64BIT_RATES,
+		.flags				= ATH6KL_HW_64BIT_RATES |
+						  ATH6KL_HW_AP_INACTIVITY_MINS,
 
 		.fw = {
 			.dir		= AR6004_HW_1_2_FW_DIR,
@@ -141,6 +143,28 @@ static const struct ath6kl_hw hw_list[] = {
 		},
 		.fw_board		= AR6004_HW_1_2_BOARD_DATA_FILE,
 		.fw_default_board	= AR6004_HW_1_2_DEFAULT_BOARD_DATA_FILE,
+	},
+	{
+		.id				= AR6004_HW_1_3_VERSION,
+		.name				= "ar6004 hw 1.3",
+		.dataset_patch_addr		= 0x437860,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0x437000,
+		.reserved_ram_size		= 7168,
+		.board_addr			= 0x436400,
+		.refclk_hz                      = 40000000,
+		.uarttx_pin                     = 11,
+		.flags				= ATH6KL_HW_64BIT_RATES |
+						  ATH6KL_HW_AP_INACTIVITY_MINS |
+						  ATH6KL_HW_MAP_LP_ENDPOINT,
+
+		.fw = {
+			.dir            = AR6004_HW_1_3_FW_DIR,
+			.fw             = AR6004_HW_1_3_FIRMWARE_FILE,
+		},
+
+		.fw_board               = AR6004_HW_1_3_BOARD_DATA_FILE,
+		.fw_default_board       = AR6004_HW_1_3_DEFAULT_BOARD_DATA_FILE,
 	},
 };
 
@@ -337,7 +361,7 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 	if (ath6kl_connectservice(ar, &connect, "WMI DATA BK"))
 		return -EIO;
 
-	/* connect to Video service, map this to to HI PRI */
+	/* connect to Video service, map this to HI PRI */
 	connect.svc_id = WMI_DATA_VI_SVC;
 	if (ath6kl_connectservice(ar, &connect, "WMI DATA VI"))
 		return -EIO;
@@ -1088,6 +1112,12 @@ int ath6kl_init_fetch_firmwares(struct ath6kl *ar)
 	if (ret)
 		return ret;
 
+	ret = ath6kl_fetch_fw_apin(ar, ATH6KL_FW_API4_FILE);
+	if (ret == 0) {
+		ar->fw_api = 4;
+		goto out;
+	}
+
 	ret = ath6kl_fetch_fw_apin(ar, ATH6KL_FW_API3_FILE);
 	if (ret == 0) {
 		ar->fw_api = 3;
@@ -1401,8 +1431,7 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 		return status;
 
 	/* WAR to avoid SDIO CRC err */
-	if (ar->version.target_ver == AR6003_HW_2_0_VERSION ||
-	    ar->version.target_ver == AR6003_HW_2_1_1_VERSION) {
+	if (ar->hw.flags & ATH6KL_HW_SDIO_CRC_ERROR_WAR) {
 		ath6kl_err("temporary war to avoid sdio crc error\n");
 
 		param = 0x28;
@@ -1520,7 +1549,7 @@ static const char *ath6kl_init_get_hif_name(enum ath6kl_hif_type type)
 	return NULL;
 }
 
-int ath6kl_init_hw_start(struct ath6kl *ar)
+static int __ath6kl_init_hw_start(struct ath6kl *ar)
 {
 	long timeleft;
 	int ret, i;
@@ -1616,8 +1645,6 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 			goto err_htc_stop;
 	}
 
-	ar->state = ATH6KL_STATE_ON;
-
 	return 0;
 
 err_htc_stop:
@@ -1630,7 +1657,18 @@ err_power_off:
 	return ret;
 }
 
-int ath6kl_init_hw_stop(struct ath6kl *ar)
+int ath6kl_init_hw_start(struct ath6kl *ar)
+{
+	int err;
+
+	err = __ath6kl_init_hw_start(ar);
+	if (err)
+		return err;
+	ar->state = ATH6KL_STATE_ON;
+	return 0;
+}
+
+static int __ath6kl_init_hw_stop(struct ath6kl *ar)
 {
 	int ret;
 
@@ -1646,41 +1684,35 @@ int ath6kl_init_hw_stop(struct ath6kl *ar)
 	if (ret)
 		ath6kl_warn("failed to power off hif: %d\n", ret);
 
-	ar->state = ATH6KL_STATE_OFF;
-
 	return 0;
 }
 
-/* FIXME: move this to cfg80211.c and rename to ath6kl_cfg80211_vif_stop() */
-void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
+int ath6kl_init_hw_stop(struct ath6kl *ar)
 {
-	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	bool discon_issued;
+	int err;
 
-	netif_stop_queue(vif->ndev);
+	err = __ath6kl_init_hw_stop(ar);
+	if (err)
+		return err;
+	ar->state = ATH6KL_STATE_OFF;
+	return 0;
+}
 
-	clear_bit(WLAN_ENABLED, &vif->flags);
+void ath6kl_init_hw_restart(struct ath6kl *ar)
+{
+	clear_bit(WMI_READY, &ar->flag);
 
-	if (wmi_ready) {
-		discon_issued = test_bit(CONNECTED, &vif->flags) ||
-				test_bit(CONNECT_PEND, &vif->flags);
-		ath6kl_disconnect(vif);
-		del_timer(&vif->disconnect_timer);
+	ath6kl_cfg80211_stop_all(ar);
 
-		if (discon_issued)
-			ath6kl_disconnect_event(vif, DISCONNECT_CMD,
-						(vif->nw_type & AP_NETWORK) ?
-						bcast_mac : vif->bssid,
-						0, NULL, 0);
+	if (__ath6kl_init_hw_stop(ar)) {
+		ath6kl_dbg(ATH6KL_DBG_RECOVERY, "Failed to stop during fw error recovery\n");
+		return;
 	}
 
-	if (vif->scan_req) {
-		cfg80211_scan_done(vif->scan_req, true);
-		vif->scan_req = NULL;
+	if (__ath6kl_init_hw_start(ar)) {
+		ath6kl_dbg(ATH6KL_DBG_RECOVERY, "Failed to restart during fw error recovery\n");
+		return;
 	}
-
-	/* need to clean up enhanced bmiss detection fw state */
-	ath6kl_cfg80211_sta_bmiss_enhance(vif, false);
 }
 
 void ath6kl_stop_txrx(struct ath6kl *ar)
@@ -1702,7 +1734,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	list_for_each_entry_safe(vif, tmp_vif, &ar->vif_list, list) {
 		list_del(&vif->list);
 		spin_unlock_bh(&ar->list_lock);
-		ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
+		ath6kl_cfg80211_vif_stop(vif, test_bit(WMI_READY, &ar->flag));
 		rtnl_lock();
 		ath6kl_cfg80211_vif_cleanup(vif);
 		rtnl_unlock();
@@ -1736,8 +1768,6 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	ath6kl_dbg(ATH6KL_DBG_TRC,
 		   "attempting to reset target on instance destroy\n");
 	ath6kl_reset_device(ar, ar->target_type, true, true);
-
-	clear_bit(WLAN_ENABLED, &ar->flag);
 
 	up(&ar->sem);
 }

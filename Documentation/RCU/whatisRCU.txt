@@ -499,6 +499,8 @@ The foo_reclaim() function might appear as follows:
 	{
 		struct foo *fp = container_of(rp, struct foo, rcu);
 
+		foo_cleanup(fp->a);
+
 		kfree(fp);
 	}
 
@@ -520,6 +522,12 @@ o	Use call_rcu() -after- removing a data element from an
 	function that will be invoked after the completion of all RCU
 	read-side critical sections that might be referencing that
 	data item.
+
+If the callback for call_rcu() is not doing anything more than calling
+kfree() on the structure, you can use kfree_rcu() instead of call_rcu()
+to avoid having to write your own callback:
+
+	kfree_rcu(old_fp, rcu);
 
 Again, see checklist.txt for additional rules governing the use of RCU.
 
@@ -773,8 +781,8 @@ a single atomic update, converting to RCU will require special care.
 
 Also, the presence of synchronize_rcu() means that the RCU version of
 delete() can now block.  If this is a problem, there is a callback-based
-mechanism that never blocks, namely call_rcu(), that can be used in
-place of synchronize_rcu().
+mechanism that never blocks, namely call_rcu() or kfree_rcu(), that can
+be used in place of synchronize_rcu().
 
 
 7.  FULL LIST OF RCU APIs
@@ -789,9 +797,7 @@ RCU list traversal:
 	list_for_each_entry_rcu
 	hlist_for_each_entry_rcu
 	hlist_nulls_for_each_entry_rcu
-
-	list_for_each_continue_rcu	(to be deprecated in favor of new
-					 list_for_each_entry_continue_rcu)
+	list_for_each_entry_continue_rcu
 
 RCU pointer/list update:
 
@@ -813,6 +819,7 @@ RCU:	Critical sections	Grace period		Barrier
 	rcu_read_unlock		synchronize_rcu
 	rcu_dereference		synchronize_rcu_expedited
 				call_rcu
+				kfree_rcu
 
 
 bh:	Critical sections	Grace period		Barrier

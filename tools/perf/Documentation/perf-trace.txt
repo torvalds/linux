@@ -48,6 +48,12 @@ comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-
 In per-thread mode with inheritance mode on (default), Events are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
+--duration:
+	Show only events that had a duration greater than N.M ms.
+
+--sched:
+	Accrue thread runtime and provide a summary at the end of the session.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script[1]

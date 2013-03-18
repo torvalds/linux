@@ -252,17 +252,19 @@ struct xfs_log_item_desc {
  * as long as SWRITE logs the entire inode core
  */
 #define XFS_FSYNC_TS_LOG_RES(mp)        ((mp)->m_reservations.tr_swrite)
-#define	XFS_WRITEID_LOG_RES(mp)	((mp)->m_reservations.tr_swrite)
+#define	XFS_WRITEID_LOG_RES(mp)		((mp)->m_reservations.tr_swrite)
 #define	XFS_ADDAFORK_LOG_RES(mp)	((mp)->m_reservations.tr_addafork)
 #define	XFS_ATTRINVAL_LOG_RES(mp)	((mp)->m_reservations.tr_attrinval)
-#define	XFS_ATTRSET_LOG_RES(mp, ext)	\
-	((mp)->m_reservations.tr_attrset + \
-	 (ext * (mp)->m_sb.sb_sectsize) + \
-	 (ext * XFS_FSB_TO_B((mp), XFS_BM_MAXLEVELS(mp, XFS_ATTR_FORK))) + \
-	 (128 * (ext + (ext * XFS_BM_MAXLEVELS(mp, XFS_ATTR_FORK)))))
-#define	XFS_ATTRRM_LOG_RES(mp)	((mp)->m_reservations.tr_attrrm)
+#define	XFS_ATTRSETM_LOG_RES(mp)	((mp)->m_reservations.tr_attrsetm)
+#define XFS_ATTRSETRT_LOG_RES(mp)	((mp)->m_reservations.tr_attrsetrt)
+#define	XFS_ATTRRM_LOG_RES(mp)		((mp)->m_reservations.tr_attrrm)
 #define	XFS_CLEAR_AGI_BUCKET_LOG_RES(mp)  ((mp)->m_reservations.tr_clearagi)
-
+#define XFS_QM_SBCHANGE_LOG_RES(mp)	((mp)->m_reservations.tr_qm_sbchange)
+#define XFS_QM_SETQLIM_LOG_RES(mp)	((mp)->m_reservations.tr_qm_setqlim)
+#define XFS_QM_DQALLOC_LOG_RES(mp)	((mp)->m_reservations.tr_qm_dqalloc)
+#define XFS_QM_QUOTAOFF_LOG_RES(mp)	((mp)->m_reservations.tr_qm_quotaoff)
+#define XFS_QM_QUOTAOFF_END_LOG_RES(mp)	((mp)->m_reservations.tr_qm_equotaoff)
+#define XFS_SB_LOG_RES(mp)		((mp)->m_reservations.tr_sb)
 
 /*
  * Various log count values.
@@ -464,10 +466,7 @@ xfs_trans_get_buf(
 	int			numblks,
 	uint			flags)
 {
-	struct xfs_buf_map	map = {
-		.bm_bn = blkno,
-		.bm_len = numblks,
-	};
+	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
 	return xfs_trans_get_buf_map(tp, target, &map, 1, flags);
 }
 
@@ -476,7 +475,8 @@ int		xfs_trans_read_buf_map(struct xfs_mount *mp,
 				       struct xfs_buftarg *target,
 				       struct xfs_buf_map *map, int nmaps,
 				       xfs_buf_flags_t flags,
-				       struct xfs_buf **bpp);
+				       struct xfs_buf **bpp,
+				       const struct xfs_buf_ops *ops);
 
 static inline int
 xfs_trans_read_buf(
@@ -486,13 +486,12 @@ xfs_trans_read_buf(
 	xfs_daddr_t		blkno,
 	int			numblks,
 	xfs_buf_flags_t		flags,
-	struct xfs_buf		**bpp)
+	struct xfs_buf		**bpp,
+	const struct xfs_buf_ops *ops)
 {
-	struct xfs_buf_map	map = {
-		.bm_bn = blkno,
-		.bm_len = numblks,
-	};
-	return xfs_trans_read_buf_map(mp, tp, target, &map, 1, flags, bpp);
+	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	return xfs_trans_read_buf_map(mp, tp, target, &map, 1,
+				      flags, bpp, ops);
 }
 
 struct xfs_buf	*xfs_trans_getsb(xfs_trans_t *, struct xfs_mount *, int);

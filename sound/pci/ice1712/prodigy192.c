@@ -54,7 +54,6 @@
  *
  */      
 
-#include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -283,7 +282,7 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 static int stac9460_mic_sw_info(struct snd_kcontrol *kcontrol,
 	       			struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "Line In", "Mic" };
+	static const char * const texts[2] = { "Line In", "Mic" };
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -369,7 +368,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
  * mixers
  */
 
-static struct snd_kcontrol_new stac_controls[] __devinitdata = {
+static struct snd_kcontrol_new stac_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -562,7 +561,7 @@ static unsigned char prodigy192_ak4114_read(void *private_data,
 static int ak4114_input_sw_info(struct snd_kcontrol *kcontrol,
 	       			struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = { "Toslink", "Coax" };
+	static const char * const texts[2] = { "Toslink", "Coax" };
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -607,7 +606,7 @@ static int ak4114_input_sw_put(struct snd_kcontrol *kcontrol,
 }
 
 
-static struct snd_kcontrol_new ak4114_controls[] __devinitdata = {
+static struct snd_kcontrol_new ak4114_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "MIODIO IEC958 Capture Input",
@@ -672,7 +671,7 @@ static void stac9460_proc_init(struct snd_ice1712 *ice)
 }
 
 
-static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
+static int prodigy192_add_controls(struct snd_ice1712 *ice)
 {
 	struct prodigy192_spec *spec = ice->spec;
 	unsigned int i;
@@ -728,7 +727,7 @@ static int prodigy192_miodio_exists(struct snd_ice1712 *ice)
 /*
  * initialize the chip
  */
-static int __devinit prodigy192_init(struct snd_ice1712 *ice)
+static int prodigy192_init(struct snd_ice1712 *ice)
 {
 	static const unsigned short stac_inits_prodigy[] = {
 		STAC946X_RESET, 0,
@@ -784,7 +783,7 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static unsigned char prodigy71_eeprom[] __devinitdata = {
+static unsigned char prodigy71_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x6a,	/* 49MHz crystal, mpu401,
 					 * spdif-in+ 1 stereo ADC,
 					 * 3 stereo DACs
@@ -808,7 +807,7 @@ static unsigned char prodigy71_eeprom[] __devinitdata = {
 
 
 /* entry point */
-struct snd_ice1712_card_info snd_vt1724_prodigy192_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_prodigy192_cards[] = {
 	{
 		.subvendor = VT1724_SUBDEVICE_PRODIGY192VE,
 		.name = "Audiotrak Prodigy 192",

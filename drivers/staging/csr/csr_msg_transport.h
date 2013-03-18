@@ -10,16 +10,8 @@
 
 *****************************************************************************/
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CsrMsgTransport
 #define CsrMsgTransport CsrSchedMessagePut
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif /* CSR_MSG_TRANSPORT */

@@ -9,31 +9,37 @@
  */
 #ifndef _IIO_INKERN_CONSUMER_H_
 #define _IIO_INKERN_CONSUMER_H_
+
+#include <linux/types.h>
 #include <linux/iio/types.h>
 
 struct iio_dev;
 struct iio_chan_spec;
+struct device;
 
 /**
  * struct iio_channel - everything needed for a consumer to use a channel
  * @indio_dev:		Device on which the channel exists.
  * @channel:		Full description of the channel.
+ * @data:		Data about the channel used by consumer.
  */
 struct iio_channel {
 	struct iio_dev *indio_dev;
 	const struct iio_chan_spec *channel;
+	void *data;
 };
 
 /**
  * iio_channel_get() - get description of all that is needed to access channel.
- * @name:		Unique name of the device as provided in the iio_map
+ * @dev:		Pointer to consumer device. Device name must match
+ *			the name of the device as provided in the iio_map
  *			with which the desired provider to consumer mapping
  *			was registered.
  * @consumer_channel:	Unique name to identify the channel on the consumer
  *			side. This typically describes the channels use within
  *			the consumer. E.g. 'battery_voltage'
  */
-struct iio_channel *iio_channel_get(const char *name,
+struct iio_channel *iio_channel_get(struct device *dev,
 				    const char *consumer_channel);
 
 /**
@@ -44,20 +50,66 @@ void iio_channel_release(struct iio_channel *chan);
 
 /**
  * iio_channel_get_all() - get all channels associated with a client
- * @name:		name of consumer device.
+ * @dev:		Pointer to consumer device.
  *
  * Returns an array of iio_channel structures terminated with one with
  * null iio_dev pointer.
  * This function is used by fairly generic consumers to get all the
  * channels registered as having this consumer.
  */
-struct iio_channel *iio_channel_get_all(const char *name);
+struct iio_channel *iio_channel_get_all(struct device *dev);
 
 /**
  * iio_channel_release_all() - reverse iio_channel_get_all
  * @chan:		Array of channels to be released.
  */
 void iio_channel_release_all(struct iio_channel *chan);
+
+struct iio_cb_buffer;
+/**
+ * iio_channel_get_all_cb() - register callback for triggered capture
+ * @dev:		Pointer to client device.
+ * @cb:			Callback function.
+ * @private:		Private data passed to callback.
+ *
+ * NB right now we have no ability to mux data from multiple devices.
+ * So if the channels requested come from different devices this will
+ * fail.
+ */
+struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
+					     int (*cb)(u8 *data,
+						       void *private),
+					     void *private);
+/**
+ * iio_channel_release_all_cb() - release and unregister the callback.
+ * @cb_buffer:		The callback buffer that was allocated.
+ */
+void iio_channel_release_all_cb(struct iio_cb_buffer *cb_buffer);
+
+/**
+ * iio_channel_start_all_cb() - start the flow of data through callback.
+ * @cb_buff:		The callback buffer we are starting.
+ */
+int iio_channel_start_all_cb(struct iio_cb_buffer *cb_buff);
+
+/**
+ * iio_channel_stop_all_cb() - stop the flow of data through the callback.
+ * @cb_buff:		The callback buffer we are stopping.
+ */
+void iio_channel_stop_all_cb(struct iio_cb_buffer *cb_buff);
+
+/**
+ * iio_channel_cb_get_channels() - get access to the underlying channels.
+ * @cb_buff:		The callback buffer from whom we want the channel
+ *			information.
+ *
+ * This function allows one to obtain information about the channels.
+ * Whilst this may allow direct reading if all buffers are disabled, the
+ * primary aim is to allow drivers that are consuming a channel to query
+ * things like scaling of the channel.
+ */
+struct iio_channel
+*iio_channel_cb_get_channels(const struct iio_cb_buffer *cb_buffer);
 
 /**
  * iio_read_channel_raw() - read from a given channel

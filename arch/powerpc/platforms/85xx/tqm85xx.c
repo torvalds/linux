@@ -85,7 +85,7 @@ static void tqm85xx_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
-static void __devinit tqm85xx_ti1520_fixup(struct pci_dev *pdev)
+static void tqm85xx_ti1520_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 

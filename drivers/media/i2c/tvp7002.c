@@ -1036,7 +1036,7 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 		return -ENODEV;
 	}
 
-	device = kzalloc(sizeof(struct tvp7002), GFP_KERNEL);
+	device = devm_kzalloc(&c->dev, sizeof(struct tvp7002), GFP_KERNEL);
 
 	if (!device)
 		return -ENOMEM;
@@ -1052,7 +1052,7 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 
 	error = tvp7002_read(sd, TVP7002_CHIP_REV, &revision);
 	if (error < 0)
-		goto found_error;
+		return error;
 
 	/* Get revision number */
 	v4l2_info(sd, "Rev. %02x detected.\n", revision);
@@ -1063,21 +1063,21 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 	error = tvp7002_write_inittab(sd, tvp7002_init_default);
 
 	if (error < 0)
-		goto found_error;
+		return error;
 
 	/* Set polarity information after registers have been set */
 	polarity_a = 0x20 | device->pdata->hs_polarity << 5
 			| device->pdata->vs_polarity << 2;
 	error = tvp7002_write(sd, TVP7002_SYNC_CTL_1, polarity_a);
 	if (error < 0)
-		goto found_error;
+		return error;
 
 	polarity_b = 0x01  | device->pdata->fid_polarity << 2
 			| device->pdata->sog_polarity << 1
 			| device->pdata->clk_polarity;
 	error = tvp7002_write(sd, TVP7002_MISC_CTL_3, polarity_b);
 	if (error < 0)
-		goto found_error;
+		return error;
 
 	/* Set registers according to default video mode */
 	preset.preset = device->current_preset->preset;
@@ -1091,16 +1091,11 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 		int err = device->hdl.error;
 
 		v4l2_ctrl_handler_free(&device->hdl);
-		kfree(device);
 		return err;
 	}
 	v4l2_ctrl_handler_setup(&device->hdl);
 
-found_error:
-	if (error < 0)
-		kfree(device);
-
-	return error;
+	return 0;
 }
 
 /*
@@ -1120,7 +1115,6 @@ static int tvp7002_remove(struct i2c_client *c)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&device->hdl);
-	kfree(device);
 	return 0;
 }
 

@@ -43,6 +43,7 @@
 #include <asm/setjmp.h>
 #include <asm/reg.h>
 #include <asm/debug.h>
+#include <asm/hw_breakpoint.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -51,9 +52,6 @@
 
 #include "nonstdio.h"
 #include "dis-asm.h"
-
-#define scanhex	xmon_scanhex
-#define skipbl	xmon_skipbl
 
 #ifdef CONFIG_SMP
 static cpumask_t cpus_in_xmon = CPU_MASK_NONE;
@@ -169,12 +167,8 @@ extern void xmon_leave(void);
 
 #ifdef CONFIG_PPC64
 #define REG		"%.16lx"
-#define REGS_PER_LINE	4
-#define LAST_VOLATILE	13
 #else
 #define REG		"%.8lx"
-#define REGS_PER_LINE	8
-#define LAST_VOLATILE	12
 #endif
 
 #define GETWORD(v)	(((v)[0] << 24) + ((v)[1] << 16) + ((v)[2] << 8) + (v)[3])
@@ -614,7 +608,7 @@ static int xmon_sstep(struct pt_regs *regs)
 	return 1;
 }
 
-static int xmon_dabr_match(struct pt_regs *regs)
+static int xmon_break_match(struct pt_regs *regs)
 {
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_64BIT)) != (MSR_IR|MSR_64BIT))
 		return 0;
@@ -747,8 +741,14 @@ static void insert_bpts(void)
 
 static void insert_cpu_bpts(void)
 {
-	if (dabr.enabled)
-		set_dabr(dabr.address | (dabr.enabled & 7), DABRX_ALL);
+	struct arch_hw_breakpoint brk;
+
+	if (dabr.enabled) {
+		brk.address = dabr.address;
+		brk.type = (dabr.enabled & HW_BRK_TYPE_DABR) | HW_BRK_TYPE_PRIV_ALL;
+		brk.len = 8;
+		set_breakpoint(&brk);
+	}
 	if (iabr && cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, iabr->address
 			 | (iabr->enabled & (BP_IABR|BP_IABR_TE)));
@@ -776,7 +776,7 @@ static void remove_bpts(void)
 
 static void remove_cpu_bpts(void)
 {
-	set_dabr(0, 0);
+	hw_breakpoint_disable();
 	if (cpu_has_feature(CPU_FTR_IABR))
 		mtspr(SPRN_IABR, 0);
 }
@@ -1145,7 +1145,7 @@ bpt_cmds(void)
 				printf(badaddr);
 				break;
 			}
-			dabr.address &= ~7;
+			dabr.address &= ~HW_BRK_TYPE_DABR;
 			dabr.enabled = mode | BP_DABR;
 		}
 		break;
@@ -1288,27 +1288,19 @@ static void get_function_bounds(unsigned long pc, unsigned long *startp,
 	catch_memory_errors = 0;
 }
 
-static int xmon_depth_to_print = 64;
-
 #define LRSAVE_OFFSET		(STACK_FRAME_LR_SAVE * sizeof(unsigned long))
 #define MARKER_OFFSET		(STACK_FRAME_MARKER * sizeof(unsigned long))
-
-#ifdef __powerpc64__
-#define REGS_OFFSET		0x70
-#else
-#define REGS_OFFSET		16
-#endif
 
 static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			    unsigned long pc)
 {
+	int max_to_print = 64;
 	unsigned long ip;
 	unsigned long newsp;
 	unsigned long marker;
-	int count = 0;
 	struct pt_regs regs;
 
-	do {
+	while (max_to_print--) {
 		if (sp < PAGE_OFFSET) {
 			if (sp != 0)
 				printf("SP (%lx) is in userspace\n", sp);
@@ -1362,10 +1354,10 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 		   an exception frame. */
 		if (mread(sp + MARKER_OFFSET, &marker, sizeof(unsigned long))
 		    && marker == STACK_FRAME_REGS_MARKER) {
-			if (mread(sp + REGS_OFFSET, &regs, sizeof(regs))
+			if (mread(sp + STACK_FRAME_OVERHEAD, &regs, sizeof(regs))
 			    != sizeof(regs)) {
 				printf("Couldn't read registers at %lx\n",
-				       sp + REGS_OFFSET);
+				       sp + STACK_FRAME_OVERHEAD);
 				break;
 			}
 			printf("--- Exception: %lx %s at ", regs.trap,
@@ -1379,7 +1371,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 			break;
 
 		sp = newsp;
-	} while (count++ < xmon_depth_to_print);
+	}
 }
 
 static void backtrace(struct pt_regs *excp)
@@ -2932,7 +2924,7 @@ static void xmon_init(int enable)
 		__debugger_bpt = xmon_bpt;
 		__debugger_sstep = xmon_sstep;
 		__debugger_iabr_match = xmon_iabr_match;
-		__debugger_dabr_match = xmon_dabr_match;
+		__debugger_break_match = xmon_break_match;
 		__debugger_fault_handler = xmon_fault_handler;
 	} else {
 		__debugger = NULL;
@@ -2940,10 +2932,9 @@ static void xmon_init(int enable)
 		__debugger_bpt = NULL;
 		__debugger_sstep = NULL;
 		__debugger_iabr_match = NULL;
-		__debugger_dabr_match = NULL;
+		__debugger_break_match = NULL;
 		__debugger_fault_handler = NULL;
 	}
-	xmon_map_scc();
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ

@@ -2383,7 +2383,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	notify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
 	__asm__ __volatile__("flushw");
 	show_regs(regs);
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	if (regs->tstate & TSTATE_PRIV) {
 		struct thread_info *tp = current_thread_info();
 		struct reg_window *rw = (struct reg_window *)
@@ -2688,8 +2688,8 @@ void __init trap_init(void)
 		     TI_PRE_COUNT != offsetof(struct thread_info,
 					      preempt_count) ||
 		     TI_NEW_CHILD != offsetof(struct thread_info, new_child) ||
-		     TI_SYS_NOERROR != offsetof(struct thread_info,
-						syscall_noerror) ||
+		     TI_CURRENT_DS != offsetof(struct thread_info,
+						current_ds) ||
 		     TI_RESTART_BLOCK != offsetof(struct thread_info,
 						  restart_block) ||
 		     TI_KUNA_REGS != offsetof(struct thread_info,

@@ -187,7 +187,7 @@ static const struct attribute_group sht21_attr_group = {
  * device's name.
  * Returns 0 on success.
  */
-static int __devinit sht21_probe(struct i2c_client *client,
+static int sht21_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	struct sht21 *sht21;
@@ -233,7 +233,7 @@ fail_remove_sysfs:
  * sht21_remove() - remove device
  * @client: I2C client device
  */
-static int __devexit sht21_remove(struct i2c_client *client)
+static int sht21_remove(struct i2c_client *client)
 {
 	struct sht21 *sht21 = i2c_get_clientdata(client);
 
@@ -253,7 +253,7 @@ MODULE_DEVICE_TABLE(i2c, sht21_id);
 static struct i2c_driver sht21_driver = {
 	.driver.name = "sht21",
 	.probe       = sht21_probe,
-	.remove      = __devexit_p(sht21_remove),
+	.remove      = sht21_remove,
 	.id_table    = sht21_id,
 };
 

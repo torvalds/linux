@@ -103,40 +103,27 @@ static u8 mxc_w1_ds2_touch_bit(void *data, u8 bit)
 	return ((__raw_readb(ctrl_addr)) >> 3) & 0x1;
 }
 
-static int __devinit mxc_w1_probe(struct platform_device *pdev)
+static int mxc_w1_probe(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev;
 	struct resource *res;
 	int err = 0;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	mdev = kzalloc(sizeof(struct mxc_w1_device), GFP_KERNEL);
+	mdev = devm_kzalloc(&pdev->dev, sizeof(struct mxc_w1_device),
+			    GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
 
-	mdev->clk = clk_get(&pdev->dev, "owire");
-	if (!mdev->clk) {
-		err = -ENODEV;
-		goto failed_clk;
-	}
+	mdev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mdev->clk))
+		return PTR_ERR(mdev->clk);
 
 	mdev->clkdiv = (clk_get_rate(mdev->clk) / 1000000) - 1;
 
-	res = request_mem_region(res->start, resource_size(res),
-				"mxc_w1");
-	if (!res) {
-		err = -EBUSY;
-		goto failed_req;
-	}
-
-	mdev->regs = ioremap(res->start, resource_size(res));
-	if (!mdev->regs) {
-		printk(KERN_ERR "Cannot map frame buffer registers\n");
-		goto failed_ioremap;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mdev->regs = devm_request_and_ioremap(&pdev->dev, res);
+	if (!mdev->regs)
+		return -EBUSY;
 
 	clk_prepare_enable(mdev->clk);
 	__raw_writeb(mdev->clkdiv, mdev->regs + MXC_W1_TIME_DIVIDER);
@@ -148,64 +135,43 @@ static int __devinit mxc_w1_probe(struct platform_device *pdev)
 	err = w1_add_master_device(&mdev->bus_master);
 
 	if (err)
-		goto failed_add;
+		return err;
 
 	platform_set_drvdata(pdev, mdev);
 	return 0;
-
-failed_add:
-	iounmap(mdev->regs);
-failed_ioremap:
-	release_mem_region(res->start, resource_size(res));
-failed_req:
-	clk_put(mdev->clk);
-failed_clk:
-	kfree(mdev);
-	return err;
 }
 
 /*
  * disassociate the w1 device from the driver
  */
-static int __devexit mxc_w1_remove(struct platform_device *pdev)
+static int mxc_w1_remove(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev = platform_get_drvdata(pdev);
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	w1_remove_master_device(&mdev->bus_master);
 
-	iounmap(mdev->regs);
-	release_mem_region(res->start, resource_size(res));
 	clk_disable_unprepare(mdev->clk);
-	clk_put(mdev->clk);
 
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
+static struct of_device_id mxc_w1_dt_ids[] = {
+	{ .compatible = "fsl,imx21-owire" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxc_w1_dt_ids);
+
 static struct platform_driver mxc_w1_driver = {
 	.driver = {
-		   .name = "mxc_w1",
+		.name = "mxc_w1",
+		.of_match_table = mxc_w1_dt_ids,
 	},
 	.probe = mxc_w1_probe,
 	.remove = mxc_w1_remove,
 };
-
-static int __init mxc_w1_init(void)
-{
-	return platform_driver_register(&mxc_w1_driver);
-}
-
-static void mxc_w1_exit(void)
-{
-	platform_driver_unregister(&mxc_w1_driver);
-}
-
-module_init(mxc_w1_init);
-module_exit(mxc_w1_exit);
+module_platform_driver(mxc_w1_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale Semiconductors Inc");

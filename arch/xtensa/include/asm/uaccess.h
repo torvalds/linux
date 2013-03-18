@@ -180,7 +180,8 @@
 #define segment_eq(a,b)	((a).seg == (b).seg)
 
 #define __kernel_ok (segment_eq(get_fs(), KERNEL_DS))
-#define __user_ok(addr,size) (((size) <= TASK_SIZE)&&((addr) <= TASK_SIZE-(size)))
+#define __user_ok(addr,size) \
+		(((size) <= TASK_SIZE)&&((addr) <= TASK_SIZE-(size)))
 #define __access_ok(addr,size) (__kernel_ok || __user_ok((addr),(size)))
 #define access_ok(type,addr,size) __access_ok((unsigned long)(addr),(size))
 
@@ -234,10 +235,10 @@ do {									\
 	int __cb;							\
 	retval = 0;							\
 	switch (size) {							\
-        case 1: __put_user_asm(x,ptr,retval,1,"s8i",__cb);  break;	\
-        case 2: __put_user_asm(x,ptr,retval,2,"s16i",__cb); break;	\
-        case 4: __put_user_asm(x,ptr,retval,4,"s32i",__cb); break;	\
-        case 8: {							\
+	case 1: __put_user_asm(x,ptr,retval,1,"s8i",__cb);  break;	\
+	case 2: __put_user_asm(x,ptr,retval,2,"s16i",__cb); break;	\
+	case 4: __put_user_asm(x,ptr,retval,4,"s32i",__cb); break;	\
+	case 8: {							\
 		     __typeof__(*ptr) __v64 = x;			\
 		     retval = __copy_to_user(ptr,&__v64,8);		\
 		     break;						\
@@ -291,7 +292,7 @@ do {									\
  * __check_align_* macros still work.
  */
 #define __put_user_asm(x, addr, err, align, insn, cb)	\
-   __asm__ __volatile__(				\
+__asm__ __volatile__(					\
 	__check_align_##align				\
 	"1: "insn"  %2, %3, 0		\n"		\
 	"2:				\n"		\
@@ -301,8 +302,8 @@ do {									\
 	"   .long  2b			\n"		\
 	"5:				\n"		\
 	"   l32r   %1, 4b		\n"		\
-        "   movi   %0, %4		\n"		\
-        "   jx     %1			\n"		\
+	"   movi   %0, %4		\n"		\
+	"   jx     %1			\n"		\
 	"   .previous			\n"		\
 	"   .section  __ex_table,\"a\"	\n"		\
 	"   .long	1b, 5b		\n"		\
@@ -334,13 +335,13 @@ extern long __get_user_bad(void);
 do {									\
 	int __cb;							\
 	retval = 0;							\
-        switch (size) {							\
-          case 1: __get_user_asm(x,ptr,retval,1,"l8ui",__cb);  break;	\
-          case 2: __get_user_asm(x,ptr,retval,2,"l16ui",__cb); break;	\
-          case 4: __get_user_asm(x,ptr,retval,4,"l32i",__cb);  break;	\
-          case 8: retval = __copy_from_user(&x,ptr,8);    break;	\
-          default: (x) = __get_user_bad();				\
-        }								\
+	switch (size) {							\
+	case 1: __get_user_asm(x,ptr,retval,1,"l8ui",__cb);  break;	\
+	case 2: __get_user_asm(x,ptr,retval,2,"l16ui",__cb); break;	\
+	case 4: __get_user_asm(x,ptr,retval,4,"l32i",__cb);  break;	\
+	case 8: retval = __copy_from_user(&x,ptr,8);    break;	\
+	default: (x) = __get_user_bad();				\
+	}								\
 } while (0)
 
 
@@ -349,7 +350,7 @@ do {									\
  * __check_align_* macros still work.
  */
 #define __get_user_asm(x, addr, err, align, insn, cb) \
-   __asm__ __volatile__(			\
+__asm__ __volatile__(			\
 	__check_align_##align			\
 	"1: "insn"  %2, %3, 0		\n"	\
 	"2:				\n"	\
@@ -360,8 +361,8 @@ do {									\
 	"5:				\n"	\
 	"   l32r   %1, 4b		\n"	\
 	"   movi   %2, 0		\n"	\
-        "   movi   %0, %4		\n"	\
-        "   jx     %1			\n"	\
+	"   movi   %0, %4		\n"	\
+	"   jx     %1			\n"	\
 	"   .previous			\n"	\
 	"   .section  __ex_table,\"a\"	\n"	\
 	"   .long	1b, 5b		\n"	\
@@ -421,8 +422,10 @@ __generic_copy_from_user(void *to, const void *from, unsigned long n)
 
 #define copy_to_user(to,from,n) __generic_copy_to_user((to),(from),(n))
 #define copy_from_user(to,from,n) __generic_copy_from_user((to),(from),(n))
-#define __copy_to_user(to,from,n) __generic_copy_to_user_nocheck((to),(from),(n))
-#define __copy_from_user(to,from,n) __generic_copy_from_user_nocheck((to),(from),(n))
+#define __copy_to_user(to,from,n) \
+	__generic_copy_to_user_nocheck((to),(from),(n))
+#define __copy_from_user(to,from,n) \
+	__generic_copy_from_user_nocheck((to),(from),(n))
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 

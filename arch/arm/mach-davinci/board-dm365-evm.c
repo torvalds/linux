@@ -478,7 +478,7 @@ static void __init evm_init_cpld(void)
 	aemif_clk = clk_get(NULL, "aemif");
 	if (IS_ERR(aemif_clk))
 		return;
-	clk_enable(aemif_clk);
+	clk_prepare_enable(aemif_clk);
 
 	if (request_mem_region(DM365_ASYNC_EMIF_DATA_CE1_BASE, SECTION_SIZE,
 			"cpld") == NULL)
@@ -489,7 +489,7 @@ static void __init evm_init_cpld(void)
 				SECTION_SIZE);
 fail:
 		pr_err("ERROR: can't map CPLD\n");
-		clk_disable(aemif_clk);
+		clk_disable_unprepare(aemif_clk);
 		return;
 	}
 
@@ -616,7 +616,7 @@ MACHINE_START(DAVINCI_DM365_EVM, "DaVinci DM365 EVM")
 	.atag_offset	= 0x100,
 	.map_io		= dm365_evm_map_io,
 	.init_irq	= davinci_irq_init,
-	.timer		= &davinci_timer,
+	.init_time	= davinci_timer_init,
 	.init_machine	= dm365_evm_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,

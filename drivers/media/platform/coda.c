@@ -23,8 +23,8 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/of.h>
+#include <linux/platform_data/imx-iram.h>
 
-#include <mach/iram.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -177,6 +177,10 @@ struct coda_ctx {
 	int				num_internal_frames;
 	int				idx;
 };
+
+static const u8 coda_filler_nal[14] = { 0x00, 0x00, 0x00, 0x01, 0x0c, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x80 };
+static const u8 coda_filler_size[8] = { 0, 7, 14, 13, 12, 11, 10, 9 };
 
 static inline void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
@@ -944,6 +948,24 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx, struct coda_q_data *q_d
 	return 0;
 }
 
+static int coda_h264_padding(int size, char *p)
+{
+	int nal_size;
+	int diff;
+
+	diff = size - (size & ~0x7);
+	if (diff == 0)
+		return 0;
+
+	nal_size = coda_filler_size[diff];
+	memcpy(p, coda_filler_nal, nal_size);
+
+	/* Add rbsp stop bit and trailing at the end */
+	*(p + nal_size - 1) = 0x80;
+
+	return nal_size;
+}
+
 static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct coda_ctx *ctx = vb2_get_drv_priv(q);
@@ -1171,7 +1193,15 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 				coda_read(dev, CODA_CMD_ENC_HEADER_BB_START);
 		memcpy(&ctx->vpu_header[1][0], vb2_plane_vaddr(buf, 0),
 		       ctx->vpu_header_size[1]);
-		ctx->vpu_header_size[2] = 0;
+		/*
+		 * Length of H.264 headers is variable and thus it might not be
+		 * aligned for the coda to append the encoded frame. In that is
+		 * the case a filler NAL must be added to header 2.
+		 */
+		ctx->vpu_header_size[2] = coda_h264_padding(
+					(ctx->vpu_header_size[0] +
+					 ctx->vpu_header_size[1]),
+					 ctx->vpu_header[2]);
 		break;
 	case V4L2_PIX_FMT_MPEG4:
 		/*
@@ -1540,7 +1570,7 @@ static irqreturn_t coda_irq_handler(int irq, void *data)
 	u32 wr_ptr, start_ptr;
 	struct coda_ctx *ctx;
 
-	__cancel_delayed_work(&dev->timeout);
+	cancel_delayed_work(&dev->timeout);
 
 	/* read status register to attend the IRQ */
 	coda_read(dev, CODA_REG_BIT_INT_STATUS);
@@ -1877,7 +1907,7 @@ static const struct coda_devtype coda_devdata[] = {
 
 static struct platform_device_id coda_platform_ids[] = {
 	{ .name = "coda-imx27", .driver_data = CODA_IMX27 },
-	{ .name = "coda-imx53", .driver_data = CODA_7541 },
+	{ .name = "coda-imx53", .driver_data = CODA_IMX53 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, coda_platform_ids);
@@ -1891,7 +1921,7 @@ static const struct of_device_id coda_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, coda_dt_ids);
 #endif
 
-static int __devinit coda_probe(struct platform_device *pdev)
+static int coda_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(of_match_ptr(coda_dt_ids), &pdev->dev);
@@ -2033,7 +2063,7 @@ static int coda_remove(struct platform_device *pdev)
 
 static struct platform_driver coda_driver = {
 	.probe	= coda_probe,
-	.remove	= __devexit_p(coda_remove),
+	.remove	= coda_remove,
 	.driver	= {
 		.name	= CODA_NAME,
 		.owner	= THIS_MODULE,

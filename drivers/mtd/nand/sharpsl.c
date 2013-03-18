@@ -106,7 +106,7 @@ static int sharpsl_nand_calculate_ecc(struct mtd_info *mtd, const u_char * dat, 
 /*
  * Main initialization routine
  */
-static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
+static int sharpsl_nand_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
 	struct resource *r;
@@ -205,7 +205,7 @@ err_get_res:
 /*
  * Clean up routine
  */
-static int __devexit sharpsl_nand_remove(struct platform_device *pdev)
+static int sharpsl_nand_remove(struct platform_device *pdev)
 {
 	struct sharpsl_nand *sharpsl = platform_get_drvdata(pdev);
 
@@ -228,7 +228,7 @@ static struct platform_driver sharpsl_nand_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sharpsl_nand_probe,
-	.remove		= __devexit_p(sharpsl_nand_remove),
+	.remove		= sharpsl_nand_remove,
 };
 
 module_platform_driver(sharpsl_nand_driver);

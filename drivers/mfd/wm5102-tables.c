@@ -43,6 +43,7 @@ static const struct reg_default wm5102_reva_patch[] = {
 	{ 0x479, 0x0A30 },
 	{ 0x47B, 0x0810 },
 	{ 0x47D, 0x0510 },
+	{ 0x4D1, 0x017F },
 	{ 0x500, 0x000D },
 	{ 0x507, 0x1820 },
 	{ 0x508, 0x1820 },
@@ -52,524 +53,19 @@ static const struct reg_default wm5102_reva_patch[] = {
 	{ 0x580, 0x000D },
 	{ 0x587, 0x1820 },
 	{ 0x588, 0x1820 },
-	{ 0x101, 0x8140 },
-	{ 0x3000, 0x2225 },
-	{ 0x3001, 0x3a03 },
-	{ 0x3002, 0x0225 },
-	{ 0x3003, 0x0801 },
-	{ 0x3004, 0x6249 },
-	{ 0x3005, 0x0c04 },
-	{ 0x3006, 0x0225 },
-	{ 0x3007, 0x5901 },
-	{ 0x3008, 0xe249 },
-	{ 0x3009, 0x030d },
-	{ 0x300a, 0x0249 },
-	{ 0x300b, 0x2c01 },
-	{ 0x300c, 0xe249 },
-	{ 0x300d, 0x4342 },
-	{ 0x300e, 0xe249 },
-	{ 0x300f, 0x73c0 },
-	{ 0x3010, 0x4249 },
-	{ 0x3011, 0x0c00 },
-	{ 0x3012, 0x0225 },
-	{ 0x3013, 0x1f01 },
-	{ 0x3014, 0x0225 },
-	{ 0x3015, 0x1e01 },
-	{ 0x3016, 0x0225 },
-	{ 0x3017, 0xfa00 },
-	{ 0x3018, 0x0000 },
-	{ 0x3019, 0xf000 },
-	{ 0x301a, 0x0000 },
-	{ 0x301b, 0xf000 },
-	{ 0x301c, 0x0000 },
-	{ 0x301d, 0xf000 },
-	{ 0x301e, 0x0000 },
-	{ 0x301f, 0xf000 },
-	{ 0x3020, 0x0000 },
-	{ 0x3021, 0xf000 },
-	{ 0x3022, 0x0000 },
-	{ 0x3023, 0xf000 },
-	{ 0x3024, 0x0000 },
-	{ 0x3025, 0xf000 },
-	{ 0x3026, 0x0000 },
-	{ 0x3027, 0xf000 },
-	{ 0x3028, 0x0000 },
-	{ 0x3029, 0xf000 },
-	{ 0x302a, 0x0000 },
-	{ 0x302b, 0xf000 },
-	{ 0x302c, 0x0000 },
-	{ 0x302d, 0xf000 },
-	{ 0x302e, 0x0000 },
-	{ 0x302f, 0xf000 },
-	{ 0x3030, 0x0225 },
-	{ 0x3031, 0x1a01 },
-	{ 0x3032, 0x0225 },
-	{ 0x3033, 0x1e00 },
-	{ 0x3034, 0x0225 },
-	{ 0x3035, 0x1f00 },
-	{ 0x3036, 0x6225 },
-	{ 0x3037, 0xf800 },
-	{ 0x3038, 0x0000 },
-	{ 0x3039, 0xf000 },
-	{ 0x303a, 0x0000 },
-	{ 0x303b, 0xf000 },
-	{ 0x303c, 0x0000 },
-	{ 0x303d, 0xf000 },
-	{ 0x303e, 0x0000 },
-	{ 0x303f, 0xf000 },
-	{ 0x3040, 0x2226 },
-	{ 0x3041, 0x3a03 },
-	{ 0x3042, 0x0226 },
-	{ 0x3043, 0x0801 },
-	{ 0x3044, 0x6249 },
-	{ 0x3045, 0x0c06 },
-	{ 0x3046, 0x0226 },
-	{ 0x3047, 0x5901 },
-	{ 0x3048, 0xe249 },
-	{ 0x3049, 0x030d },
-	{ 0x304a, 0x0249 },
-	{ 0x304b, 0x2c01 },
-	{ 0x304c, 0xe249 },
-	{ 0x304d, 0x4342 },
-	{ 0x304e, 0xe249 },
-	{ 0x304f, 0x73c0 },
-	{ 0x3050, 0x4249 },
-	{ 0x3051, 0x0c00 },
-	{ 0x3052, 0x0226 },
-	{ 0x3053, 0x1f01 },
-	{ 0x3054, 0x0226 },
-	{ 0x3055, 0x1e01 },
-	{ 0x3056, 0x0226 },
-	{ 0x3057, 0xfa00 },
-	{ 0x3058, 0x0000 },
-	{ 0x3059, 0xf000 },
-	{ 0x305a, 0x0000 },
-	{ 0x305b, 0xf000 },
-	{ 0x305c, 0x0000 },
-	{ 0x305d, 0xf000 },
-	{ 0x305e, 0x0000 },
-	{ 0x305f, 0xf000 },
-	{ 0x3060, 0x0000 },
-	{ 0x3061, 0xf000 },
-	{ 0x3062, 0x0000 },
-	{ 0x3063, 0xf000 },
-	{ 0x3064, 0x0000 },
-	{ 0x3065, 0xf000 },
-	{ 0x3066, 0x0000 },
-	{ 0x3067, 0xf000 },
-	{ 0x3068, 0x0000 },
-	{ 0x3069, 0xf000 },
-	{ 0x306a, 0x0000 },
-	{ 0x306b, 0xf000 },
-	{ 0x306c, 0x0000 },
-	{ 0x306d, 0xf000 },
-	{ 0x306e, 0x0000 },
-	{ 0x306f, 0xf000 },
-	{ 0x3070, 0x0226 },
-	{ 0x3071, 0x1a01 },
-	{ 0x3072, 0x0226 },
-	{ 0x3073, 0x1e00 },
-	{ 0x3074, 0x0226 },
-	{ 0x3075, 0x1f00 },
-	{ 0x3076, 0x6226 },
-	{ 0x3077, 0xf800 },
-	{ 0x3078, 0x0000 },
-	{ 0x3079, 0xf000 },
-	{ 0x307a, 0x0000 },
-	{ 0x307b, 0xf000 },
-	{ 0x307c, 0x0000 },
-	{ 0x307d, 0xf000 },
-	{ 0x307e, 0x0000 },
-	{ 0x307f, 0xf000 },
-	{ 0x3080, 0x2227 },
-	{ 0x3081, 0x3a03 },
-	{ 0x3082, 0x0227 },
-	{ 0x3083, 0x0801 },
-	{ 0x3084, 0x6255 },
-	{ 0x3085, 0x0c04 },
-	{ 0x3086, 0x0227 },
-	{ 0x3087, 0x5901 },
-	{ 0x3088, 0xe255 },
-	{ 0x3089, 0x030d },
-	{ 0x308a, 0x0255 },
-	{ 0x308b, 0x2c01 },
-	{ 0x308c, 0xe255 },
-	{ 0x308d, 0x4342 },
-	{ 0x308e, 0xe255 },
-	{ 0x308f, 0x73c0 },
-	{ 0x3090, 0x4255 },
-	{ 0x3091, 0x0c00 },
-	{ 0x3092, 0x0227 },
-	{ 0x3093, 0x1f01 },
-	{ 0x3094, 0x0227 },
-	{ 0x3095, 0x1e01 },
-	{ 0x3096, 0x0227 },
-	{ 0x3097, 0xfa00 },
-	{ 0x3098, 0x0000 },
-	{ 0x3099, 0xf000 },
-	{ 0x309a, 0x0000 },
-	{ 0x309b, 0xf000 },
-	{ 0x309c, 0x0000 },
-	{ 0x309d, 0xf000 },
-	{ 0x309e, 0x0000 },
-	{ 0x309f, 0xf000 },
-	{ 0x30a0, 0x0000 },
-	{ 0x30a1, 0xf000 },
-	{ 0x30a2, 0x0000 },
-	{ 0x30a3, 0xf000 },
-	{ 0x30a4, 0x0000 },
-	{ 0x30a5, 0xf000 },
-	{ 0x30a6, 0x0000 },
-	{ 0x30a7, 0xf000 },
-	{ 0x30a8, 0x0000 },
-	{ 0x30a9, 0xf000 },
-	{ 0x30aa, 0x0000 },
-	{ 0x30ab, 0xf000 },
-	{ 0x30ac, 0x0000 },
-	{ 0x30ad, 0xf000 },
-	{ 0x30ae, 0x0000 },
-	{ 0x30af, 0xf000 },
-	{ 0x30b0, 0x0227 },
-	{ 0x30b1, 0x1a01 },
-	{ 0x30b2, 0x0227 },
-	{ 0x30b3, 0x1e00 },
-	{ 0x30b4, 0x0227 },
-	{ 0x30b5, 0x1f00 },
-	{ 0x30b6, 0x6227 },
-	{ 0x30b7, 0xf800 },
-	{ 0x30b8, 0x0000 },
-	{ 0x30b9, 0xf000 },
-	{ 0x30ba, 0x0000 },
-	{ 0x30bb, 0xf000 },
-	{ 0x30bc, 0x0000 },
-	{ 0x30bd, 0xf000 },
-	{ 0x30be, 0x0000 },
-	{ 0x30bf, 0xf000 },
-	{ 0x30c0, 0x2228 },
-	{ 0x30c1, 0x3a03 },
-	{ 0x30c2, 0x0228 },
-	{ 0x30c3, 0x0801 },
-	{ 0x30c4, 0x6255 },
-	{ 0x30c5, 0x0c06 },
-	{ 0x30c6, 0x0228 },
-	{ 0x30c7, 0x5901 },
-	{ 0x30c8, 0xe255 },
-	{ 0x30c9, 0x030d },
-	{ 0x30ca, 0x0255 },
-	{ 0x30cb, 0x2c01 },
-	{ 0x30cc, 0xe255 },
-	{ 0x30cd, 0x4342 },
-	{ 0x30ce, 0xe255 },
-	{ 0x30cf, 0x73c0 },
-	{ 0x30d0, 0x4255 },
-	{ 0x30d1, 0x0c00 },
-	{ 0x30d2, 0x0228 },
-	{ 0x30d3, 0x1f01 },
-	{ 0x30d4, 0x0228 },
-	{ 0x30d5, 0x1e01 },
-	{ 0x30d6, 0x0228 },
-	{ 0x30d7, 0xfa00 },
-	{ 0x30d8, 0x0000 },
-	{ 0x30d9, 0xf000 },
-	{ 0x30da, 0x0000 },
-	{ 0x30db, 0xf000 },
-	{ 0x30dc, 0x0000 },
-	{ 0x30dd, 0xf000 },
-	{ 0x30de, 0x0000 },
-	{ 0x30df, 0xf000 },
-	{ 0x30e0, 0x0000 },
-	{ 0x30e1, 0xf000 },
-	{ 0x30e2, 0x0000 },
-	{ 0x30e3, 0xf000 },
-	{ 0x30e4, 0x0000 },
-	{ 0x30e5, 0xf000 },
-	{ 0x30e6, 0x0000 },
-	{ 0x30e7, 0xf000 },
-	{ 0x30e8, 0x0000 },
-	{ 0x30e9, 0xf000 },
-	{ 0x30ea, 0x0000 },
-	{ 0x30eb, 0xf000 },
-	{ 0x30ec, 0x0000 },
-	{ 0x30ed, 0xf000 },
-	{ 0x30ee, 0x0000 },
-	{ 0x30ef, 0xf000 },
-	{ 0x30f0, 0x0228 },
-	{ 0x30f1, 0x1a01 },
-	{ 0x30f2, 0x0228 },
-	{ 0x30f3, 0x1e00 },
-	{ 0x30f4, 0x0228 },
-	{ 0x30f5, 0x1f00 },
-	{ 0x30f6, 0x6228 },
-	{ 0x30f7, 0xf800 },
-	{ 0x30f8, 0x0000 },
-	{ 0x30f9, 0xf000 },
-	{ 0x30fa, 0x0000 },
-	{ 0x30fb, 0xf000 },
-	{ 0x30fc, 0x0000 },
-	{ 0x30fd, 0xf000 },
-	{ 0x30fe, 0x0000 },
-	{ 0x30ff, 0xf000 },
-	{ 0x3100, 0x222b },
-	{ 0x3101, 0x3a03 },
-	{ 0x3102, 0x222b },
-	{ 0x3103, 0x5803 },
-	{ 0x3104, 0xe26f },
-	{ 0x3105, 0x030d },
-	{ 0x3106, 0x626f },
-	{ 0x3107, 0x2c01 },
-	{ 0x3108, 0xe26f },
-	{ 0x3109, 0x4342 },
-	{ 0x310a, 0xe26f },
-	{ 0x310b, 0x73c0 },
-	{ 0x310c, 0x026f },
-	{ 0x310d, 0x0c00 },
-	{ 0x310e, 0x022b },
-	{ 0x310f, 0x1f01 },
-	{ 0x3110, 0x022b },
-	{ 0x3111, 0x1e01 },
-	{ 0x3112, 0x022b },
-	{ 0x3113, 0xfa00 },
-	{ 0x3114, 0x0000 },
-	{ 0x3115, 0xf000 },
-	{ 0x3116, 0x0000 },
-	{ 0x3117, 0xf000 },
-	{ 0x3118, 0x0000 },
-	{ 0x3119, 0xf000 },
-	{ 0x311a, 0x0000 },
-	{ 0x311b, 0xf000 },
-	{ 0x311c, 0x0000 },
-	{ 0x311d, 0xf000 },
-	{ 0x311e, 0x0000 },
-	{ 0x311f, 0xf000 },
-	{ 0x3120, 0x022b },
-	{ 0x3121, 0x0a01 },
-	{ 0x3122, 0x022b },
-	{ 0x3123, 0x1e00 },
-	{ 0x3124, 0x022b },
-	{ 0x3125, 0x1f00 },
-	{ 0x3126, 0x622b },
-	{ 0x3127, 0xf800 },
-	{ 0x3128, 0x0000 },
-	{ 0x3129, 0xf000 },
-	{ 0x312a, 0x0000 },
-	{ 0x312b, 0xf000 },
-	{ 0x312c, 0x0000 },
-	{ 0x312d, 0xf000 },
-	{ 0x312e, 0x0000 },
-	{ 0x312f, 0xf000 },
-	{ 0x3130, 0x0000 },
-	{ 0x3131, 0xf000 },
-	{ 0x3132, 0x0000 },
-	{ 0x3133, 0xf000 },
-	{ 0x3134, 0x0000 },
-	{ 0x3135, 0xf000 },
-	{ 0x3136, 0x0000 },
-	{ 0x3137, 0xf000 },
-	{ 0x3138, 0x0000 },
-	{ 0x3139, 0xf000 },
-	{ 0x313a, 0x0000 },
-	{ 0x313b, 0xf000 },
-	{ 0x313c, 0x0000 },
-	{ 0x313d, 0xf000 },
-	{ 0x313e, 0x0000 },
-	{ 0x313f, 0xf000 },
-	{ 0x3140, 0x0000 },
-	{ 0x3141, 0xf000 },
-	{ 0x3142, 0x0000 },
-	{ 0x3143, 0xf000 },
-	{ 0x3144, 0x0000 },
-	{ 0x3145, 0xf000 },
-	{ 0x3146, 0x0000 },
-	{ 0x3147, 0xf000 },
-	{ 0x3148, 0x0000 },
-	{ 0x3149, 0xf000 },
-	{ 0x314a, 0x0000 },
-	{ 0x314b, 0xf000 },
-	{ 0x314c, 0x0000 },
-	{ 0x314d, 0xf000 },
-	{ 0x314e, 0x0000 },
-	{ 0x314f, 0xf000 },
-	{ 0x3150, 0x0000 },
-	{ 0x3151, 0xf000 },
-	{ 0x3152, 0x0000 },
-	{ 0x3153, 0xf000 },
-	{ 0x3154, 0x0000 },
-	{ 0x3155, 0xf000 },
-	{ 0x3156, 0x0000 },
-	{ 0x3157, 0xf000 },
-	{ 0x3158, 0x0000 },
-	{ 0x3159, 0xf000 },
-	{ 0x315a, 0x0000 },
-	{ 0x315b, 0xf000 },
-	{ 0x315c, 0x0000 },
-	{ 0x315d, 0xf000 },
-	{ 0x315e, 0x0000 },
-	{ 0x315f, 0xf000 },
-	{ 0x3160, 0x0000 },
-	{ 0x3161, 0xf000 },
-	{ 0x3162, 0x0000 },
-	{ 0x3163, 0xf000 },
-	{ 0x3164, 0x0000 },
-	{ 0x3165, 0xf000 },
-	{ 0x3166, 0x0000 },
-	{ 0x3167, 0xf000 },
-	{ 0x3168, 0x0000 },
-	{ 0x3169, 0xf000 },
-	{ 0x316a, 0x0000 },
-	{ 0x316b, 0xf000 },
-	{ 0x316c, 0x0000 },
-	{ 0x316d, 0xf000 },
-	{ 0x316e, 0x0000 },
-	{ 0x316f, 0xf000 },
-	{ 0x3170, 0x0000 },
-	{ 0x3171, 0xf000 },
-	{ 0x3172, 0x0000 },
-	{ 0x3173, 0xf000 },
-	{ 0x3174, 0x0000 },
-	{ 0x3175, 0xf000 },
-	{ 0x3176, 0x0000 },
-	{ 0x3177, 0xf000 },
-	{ 0x3178, 0x0000 },
-	{ 0x3179, 0xf000 },
-	{ 0x317a, 0x0000 },
-	{ 0x317b, 0xf000 },
-	{ 0x317c, 0x0000 },
-	{ 0x317d, 0xf000 },
-	{ 0x317e, 0x0000 },
-	{ 0x317f, 0xf000 },
-	{ 0x3180, 0x2001 },
-	{ 0x3181, 0xf101 },
-	{ 0x3182, 0x0000 },
-	{ 0x3183, 0xf000 },
-	{ 0x3184, 0x0000 },
-	{ 0x3185, 0xf000 },
-	{ 0x3186, 0x0000 },
-	{ 0x3187, 0xf000 },
-	{ 0x3188, 0x0000 },
-	{ 0x3189, 0xf000 },
-	{ 0x318a, 0x0000 },
-	{ 0x318b, 0xf000 },
-	{ 0x318c, 0x0000 },
-	{ 0x318d, 0xf000 },
-	{ 0x318e, 0x0000 },
-	{ 0x318f, 0xf000 },
-	{ 0x3190, 0x0000 },
-	{ 0x3191, 0xf000 },
-	{ 0x3192, 0x0000 },
-	{ 0x3193, 0xf000 },
-	{ 0x3194, 0x0000 },
-	{ 0x3195, 0xf000 },
-	{ 0x3196, 0x0000 },
-	{ 0x3197, 0xf000 },
-	{ 0x3198, 0x0000 },
-	{ 0x3199, 0xf000 },
-	{ 0x319a, 0x0000 },
-	{ 0x319b, 0xf000 },
-	{ 0x319c, 0x0000 },
-	{ 0x319d, 0xf000 },
-	{ 0x319e, 0x0000 },
-	{ 0x319f, 0xf000 },
-	{ 0x31a0, 0x0000 },
-	{ 0x31a1, 0xf000 },
-	{ 0x31a2, 0x0000 },
-	{ 0x31a3, 0xf000 },
-	{ 0x31a4, 0x0000 },
-	{ 0x31a5, 0xf000 },
-	{ 0x31a6, 0x0000 },
-	{ 0x31a7, 0xf000 },
-	{ 0x31a8, 0x0000 },
-	{ 0x31a9, 0xf000 },
-	{ 0x31aa, 0x0000 },
-	{ 0x31ab, 0xf000 },
-	{ 0x31ac, 0x0000 },
-	{ 0x31ad, 0xf000 },
-	{ 0x31ae, 0x0000 },
-	{ 0x31af, 0xf000 },
-	{ 0x31b0, 0x0000 },
-	{ 0x31b1, 0xf000 },
-	{ 0x31b2, 0x0000 },
-	{ 0x31b3, 0xf000 },
-	{ 0x31b4, 0x0000 },
-	{ 0x31b5, 0xf000 },
-	{ 0x31b6, 0x0000 },
-	{ 0x31b7, 0xf000 },
-	{ 0x31b8, 0x0000 },
-	{ 0x31b9, 0xf000 },
-	{ 0x31ba, 0x0000 },
-	{ 0x31bb, 0xf000 },
-	{ 0x31bc, 0x0000 },
-	{ 0x31bd, 0xf000 },
-	{ 0x31be, 0x0000 },
-	{ 0x31bf, 0xf000 },
-	{ 0x31c0, 0x0000 },
-	{ 0x31c1, 0xf000 },
-	{ 0x31c2, 0x0000 },
-	{ 0x31c3, 0xf000 },
-	{ 0x31c4, 0x0000 },
-	{ 0x31c5, 0xf000 },
-	{ 0x31c6, 0x0000 },
-	{ 0x31c7, 0xf000 },
-	{ 0x31c8, 0x0000 },
-	{ 0x31c9, 0xf000 },
-	{ 0x31ca, 0x0000 },
-	{ 0x31cb, 0xf000 },
-	{ 0x31cc, 0x0000 },
-	{ 0x31cd, 0xf000 },
-	{ 0x31ce, 0x0000 },
-	{ 0x31cf, 0xf000 },
-	{ 0x31d0, 0x0000 },
-	{ 0x31d1, 0xf000 },
-	{ 0x31d2, 0x0000 },
-	{ 0x31d3, 0xf000 },
-	{ 0x31d4, 0x0000 },
-	{ 0x31d5, 0xf000 },
-	{ 0x31d6, 0x0000 },
-	{ 0x31d7, 0xf000 },
-	{ 0x31d8, 0x0000 },
-	{ 0x31d9, 0xf000 },
-	{ 0x31da, 0x0000 },
-	{ 0x31db, 0xf000 },
-	{ 0x31dc, 0x0000 },
-	{ 0x31dd, 0xf000 },
-	{ 0x31de, 0x0000 },
-	{ 0x31df, 0xf000 },
-	{ 0x31e0, 0x0000 },
-	{ 0x31e1, 0xf000 },
-	{ 0x31e2, 0x0000 },
-	{ 0x31e3, 0xf000 },
-	{ 0x31e4, 0x0000 },
-	{ 0x31e5, 0xf000 },
-	{ 0x31e6, 0x0000 },
-	{ 0x31e7, 0xf000 },
-	{ 0x31e8, 0x0000 },
-	{ 0x31e9, 0xf000 },
-	{ 0x31ea, 0x0000 },
-	{ 0x31eb, 0xf000 },
-	{ 0x31ec, 0x0000 },
-	{ 0x31ed, 0xf000 },
-	{ 0x31ee, 0x0000 },
-	{ 0x31ef, 0xf000 },
-	{ 0x31f0, 0x0000 },
-	{ 0x31f1, 0xf000 },
-	{ 0x31f2, 0x0000 },
-	{ 0x31f3, 0xf000 },
-	{ 0x31f4, 0x0000 },
-	{ 0x31f5, 0xf000 },
-	{ 0x31f6, 0x0000 },
-	{ 0x31f7, 0xf000 },
-	{ 0x31f8, 0x0000 },
-	{ 0x31f9, 0xf000 },
-	{ 0x31fa, 0x0000 },
-	{ 0x31fb, 0xf000 },
-	{ 0x31fc, 0x0000 },
-	{ 0x31fd, 0xf000 },
-	{ 0x31fe, 0x0000 },
-	{ 0x31ff, 0xf000 },
-	{ 0x024d, 0xff50 },
-	{ 0x0252, 0xff50 },
-	{ 0x0259, 0x0112 },
-	{ 0x025e, 0x0112 },
-	{ 0x101, 0x0304 },
+	{ 0x80, 0x0000 },
+};
+
+static const struct reg_default wm5102_revb_patch[] = {
+	{ 0x80, 0x0003 },
+	{ 0x081, 0xE022 },
+	{ 0x410, 0x4080 },
+	{ 0x418, 0x4080 },
+	{ 0x420, 0x4080 },
+	{ 0x428, 0xC000 },
+	{ 0x4B0, 0x0066 },
+	{ 0x458, 0x000b },
+	{ 0x212, 0x0000 },
 	{ 0x80, 0x0000 },
 };
 
@@ -582,11 +78,19 @@ int wm5102_patch(struct arizona *arizona)
 					     wm5102_reva_patch,
 					     ARRAY_SIZE(wm5102_reva_patch));
 	default:
-		return 0;
+		return regmap_register_patch(arizona->regmap,
+					     wm5102_revb_patch,
+					     ARRAY_SIZE(wm5102_revb_patch));
 	}
 }
 
 static const struct regmap_irq wm5102_aod_irqs[ARIZONA_NUM_IRQ] = {
+	[ARIZONA_IRQ_MICD_CLAMP_FALL] = {
+		.mask = ARIZONA_MICD_CLAMP_FALL_EINT1
+	},
+	[ARIZONA_IRQ_MICD_CLAMP_RISE] = {
+		.mask = ARIZONA_MICD_CLAMP_RISE_EINT1
+	},
 	[ARIZONA_IRQ_GP5_FALL] = { .mask = ARIZONA_GP5_FALL_EINT1 },
 	[ARIZONA_IRQ_GP5_RISE] = { .mask = ARIZONA_GP5_RISE_EINT1 },
 	[ARIZONA_IRQ_JD_FALL] = { .mask = ARIZONA_JD1_FALL_EINT1 },
@@ -599,6 +103,7 @@ const struct regmap_irq_chip wm5102_aod = {
 	.mask_base = ARIZONA_AOD_IRQ_MASK_IRQ1,
 	.ack_base = ARIZONA_AOD_IRQ1,
 	.wake_base = ARIZONA_WAKE_CONTROL,
+	.wake_invert = 1,
 	.num_regs = 1,
 	.irqs = wm5102_aod_irqs,
 	.num_irqs = ARRAY_SIZE(wm5102_aod_irqs),
@@ -727,11 +232,9 @@ const struct regmap_irq_chip wm5102_irq = {
 static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000008, 0x0019 },   /* R8     - Ctrl IF SPI CFG 1 */ 
 	{ 0x00000009, 0x0001 },   /* R9     - Ctrl IF I2C1 CFG 1 */ 
-	{ 0x0000000D, 0x0000 },   /* R13    - Ctrl IF Status 1 */ 
 	{ 0x00000016, 0x0000 },   /* R22    - Write Sequencer Ctrl 0 */ 
 	{ 0x00000017, 0x0000 },   /* R23    - Write Sequencer Ctrl 1 */ 
 	{ 0x00000018, 0x0000 },   /* R24    - Write Sequencer Ctrl 2 */ 
-	{ 0x0000001A, 0x0000 },   /* R26    - Write Sequencer PROM */ 
 	{ 0x00000020, 0x0000 },   /* R32    - Tone Generator 1 */ 
 	{ 0x00000021, 0x1000 },   /* R33    - Tone Generator 2 */ 
 	{ 0x00000022, 0x0000 },   /* R34    - Tone Generator 3 */ 
@@ -746,12 +249,14 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000062, 0x01FF },   /* R98    - Sample Rate Sequence Select 2 */ 
 	{ 0x00000063, 0x01FF },   /* R99    - Sample Rate Sequence Select 3 */ 
 	{ 0x00000064, 0x01FF },   /* R100   - Sample Rate Sequence Select 4 */ 
-	{ 0x00000068, 0x01FF },   /* R104   - Always On Triggers Sequence Select 1 */ 
-	{ 0x00000069, 0x01FF },   /* R105   - Always On Triggers Sequence Select 2 */ 
-	{ 0x0000006A, 0x01FF },   /* R106   - Always On Triggers Sequence Select 3 */ 
-	{ 0x0000006B, 0x01FF },   /* R107   - Always On Triggers Sequence Select 4 */ 
-	{ 0x0000006C, 0x01FF },   /* R108   - Always On Triggers Sequence Select 5 */ 
-	{ 0x0000006D, 0x01FF },   /* R109   - Always On Triggers Sequence Select 6 */ 
+	{ 0x00000066, 0x01FF },   /* R102   - Always On Triggers Sequence Select 1 */
+	{ 0x00000067, 0x01FF },   /* R103   - Always On Triggers Sequence Select 2 */
+	{ 0x00000068, 0x01FF },   /* R104   - Always On Triggers Sequence Select 3 */
+	{ 0x00000069, 0x01FF },   /* R105   - Always On Triggers Sequence Select 4 */
+	{ 0x0000006A, 0x01FF },   /* R106   - Always On Triggers Sequence Select 5 */
+	{ 0x0000006B, 0x01FF },   /* R107   - Always On Triggers Sequence Select 6 */
+	{ 0x0000006E, 0x01FF },   /* R110   - Trigger Sequence Select 32 */
+	{ 0x0000006F, 0x01FF },   /* R111   - Trigger Sequence Select 33 */
 	{ 0x00000070, 0x0000 },   /* R112   - Comfort Noise Generator */ 
 	{ 0x00000090, 0x0000 },   /* R144   - Haptics Control 1 */ 
 	{ 0x00000091, 0x7FFF },   /* R145   - Haptics Control 2 */ 
@@ -761,13 +266,14 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000095, 0x0000 },   /* R149   - Haptics phase 2 duration */ 
 	{ 0x00000096, 0x0000 },   /* R150   - Haptics phase 3 intensity */ 
 	{ 0x00000097, 0x0000 },   /* R151   - Haptics phase 3 duration */ 
-	{ 0x00000100, 0x0001 },   /* R256   - Clock 32k 1 */ 
+	{ 0x00000100, 0x0002 },   /* R256   - Clock 32k 1 */
 	{ 0x00000101, 0x0304 },   /* R257   - System Clock 1 */ 
 	{ 0x00000102, 0x0011 },   /* R258   - Sample rate 1 */ 
 	{ 0x00000103, 0x0011 },   /* R259   - Sample rate 2 */ 
 	{ 0x00000104, 0x0011 },   /* R260   - Sample rate 3 */ 
 	{ 0x00000112, 0x0305 },   /* R274   - Async clock 1 */ 
 	{ 0x00000113, 0x0011 },   /* R275   - Async sample rate 1 */ 
+	{ 0x00000114, 0x0011 },   /* R276   - Async sample rate 2 */
 	{ 0x00000149, 0x0000 },   /* R329   - Output system clock */ 
 	{ 0x0000014A, 0x0000 },   /* R330   - Output async clock */ 
 	{ 0x00000152, 0x0000 },   /* R338   - Rate Estimator 1 */ 
@@ -775,13 +281,15 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000154, 0x0000 },   /* R340   - Rate Estimator 3 */ 
 	{ 0x00000155, 0x0000 },   /* R341   - Rate Estimator 4 */ 
 	{ 0x00000156, 0x0000 },   /* R342   - Rate Estimator 5 */ 
-	{ 0x00000171, 0x0000 },   /* R369   - FLL1 Control 1 */ 
+	{ 0x00000161, 0x0000 },   /* R353   - Dynamic Frequency Scaling 1 */ 
+	{ 0x00000171, 0x0002 },   /* R369   - FLL1 Control 1 */
 	{ 0x00000172, 0x0008 },   /* R370   - FLL1 Control 2 */ 
 	{ 0x00000173, 0x0018 },   /* R371   - FLL1 Control 3 */ 
 	{ 0x00000174, 0x007D },   /* R372   - FLL1 Control 4 */ 
 	{ 0x00000175, 0x0004 },   /* R373   - FLL1 Control 5 */ 
 	{ 0x00000176, 0x0000 },   /* R374   - FLL1 Control 6 */ 
 	{ 0x00000177, 0x0181 },   /* R375   - FLL1 Loop Filter Test 1 */ 
+	{ 0x00000178, 0x0000 },   /* R376   - FLL1 NCO Test 0 */
 	{ 0x00000181, 0x0000 },   /* R385   - FLL1 Synchroniser 1 */ 
 	{ 0x00000182, 0x0000 },   /* R386   - FLL1 Synchroniser 2 */ 
 	{ 0x00000183, 0x0000 },   /* R387   - FLL1 Synchroniser 3 */ 
@@ -797,6 +305,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000195, 0x0004 },   /* R405   - FLL2 Control 5 */ 
 	{ 0x00000196, 0x0000 },   /* R406   - FLL2 Control 6 */ 
 	{ 0x00000197, 0x0000 },   /* R407   - FLL2 Loop Filter Test 1 */ 
+	{ 0x00000198, 0x0000 },   /* R408   - FLL2 NCO Test 0 */
 	{ 0x000001A1, 0x0000 },   /* R417   - FLL2 Synchroniser 1 */ 
 	{ 0x000001A2, 0x0000 },   /* R418   - FLL2 Synchroniser 2 */ 
 	{ 0x000001A3, 0x0000 },   /* R419   - FLL2 Synchroniser 3 */ 
@@ -807,12 +316,18 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x000001AA, 0x0004 },   /* R426   - FLL2 GPIO Clock */ 
 	{ 0x00000200, 0x0006 },   /* R512   - Mic Charge Pump 1 */ 
 	{ 0x00000210, 0x00D4 },   /* R528   - LDO1 Control 1 */ 
+	{ 0x00000212, 0x0001 },   /* R530   - LDO1 Control 2 */
 	{ 0x00000213, 0x0344 },   /* R531   - LDO2 Control 1 */ 
 	{ 0x00000218, 0x01A6 },   /* R536   - Mic Bias Ctrl 1 */ 
 	{ 0x00000219, 0x01A6 },   /* R537   - Mic Bias Ctrl 2 */ 
 	{ 0x0000021A, 0x01A6 },   /* R538   - Mic Bias Ctrl 3 */ 
+	{ 0x00000225, 0x0400 },   /* R549   - HP Ctrl 1L */
+	{ 0x00000226, 0x0400 },   /* R550   - HP Ctrl 1R */
 	{ 0x00000293, 0x0000 },   /* R659   - Accessory Detect Mode 1 */ 
 	{ 0x0000029B, 0x0020 },   /* R667   - Headphone Detect 1 */ 
+	{ 0x0000029C, 0x0000 },   /* R668   - Headphone Detect 2 */
+	{ 0x0000029F, 0x0000 },   /* R671   - Headphone Detect Test */
+	{ 0x000002A2, 0x0000 },   /* R674   - Micd clamp control */
 	{ 0x000002A3, 0x1102 },   /* R675   - Mic Detect 1 */ 
 	{ 0x000002A4, 0x009F },   /* R676   - Mic Detect 2 */ 
 	{ 0x000002A5, 0x0000 },   /* R677   - Mic Detect 3 */ 
@@ -843,53 +358,44 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000400, 0x0000 },   /* R1024  - Output Enables 1 */ 
 	{ 0x00000408, 0x0000 },   /* R1032  - Output Rate 1 */ 
 	{ 0x00000409, 0x0022 },   /* R1033  - Output Volume Ramp */ 
-	{ 0x00000410, 0x0080 },   /* R1040  - Output Path Config 1L */ 
+	{ 0x00000410, 0x4080 },   /* R1040  - Output Path Config 1L */
 	{ 0x00000411, 0x0180 },   /* R1041  - DAC Digital Volume 1L */ 
-	{ 0x00000412, 0x0080 },   /* R1042  - DAC Volume Limit 1L */ 
+	{ 0x00000412, 0x0081 },   /* R1042  - DAC Volume Limit 1L */
 	{ 0x00000413, 0x0001 },   /* R1043  - Noise Gate Select 1L */ 
 	{ 0x00000414, 0x0080 },   /* R1044  - Output Path Config 1R */ 
 	{ 0x00000415, 0x0180 },   /* R1045  - DAC Digital Volume 1R */ 
-	{ 0x00000416, 0x0080 },   /* R1046  - DAC Volume Limit 1R */ 
+	{ 0x00000416, 0x0081 },   /* R1046  - DAC Volume Limit 1R */
 	{ 0x00000417, 0x0002 },   /* R1047  - Noise Gate Select 1R */ 
-	{ 0x00000418, 0x0080 },   /* R1048  - Output Path Config 2L */ 
+	{ 0x00000418, 0x4080 },   /* R1048  - Output Path Config 2L */
 	{ 0x00000419, 0x0180 },   /* R1049  - DAC Digital Volume 2L */ 
-	{ 0x0000041A, 0x0080 },   /* R1050  - DAC Volume Limit 2L */ 
+	{ 0x0000041A, 0x0081 },   /* R1050  - DAC Volume Limit 2L */
 	{ 0x0000041B, 0x0004 },   /* R1051  - Noise Gate Select 2L */ 
 	{ 0x0000041C, 0x0080 },   /* R1052  - Output Path Config 2R */ 
 	{ 0x0000041D, 0x0180 },   /* R1053  - DAC Digital Volume 2R */ 
-	{ 0x0000041E, 0x0080 },   /* R1054  - DAC Volume Limit 2R */ 
+	{ 0x0000041E, 0x0081 },   /* R1054  - DAC Volume Limit 2R */
 	{ 0x0000041F, 0x0008 },   /* R1055  - Noise Gate Select 2R */ 
-	{ 0x00000420, 0x0080 },   /* R1056  - Output Path Config 3L */ 
+	{ 0x00000420, 0x4080 },   /* R1056  - Output Path Config 3L */
 	{ 0x00000421, 0x0180 },   /* R1057  - DAC Digital Volume 3L */ 
-	{ 0x00000422, 0x0080 },   /* R1058  - DAC Volume Limit 3L */ 
+	{ 0x00000422, 0x0081 },   /* R1058  - DAC Volume Limit 3L */
 	{ 0x00000423, 0x0010 },   /* R1059  - Noise Gate Select 3L */ 
-	{ 0x00000424, 0x0080 },   /* R1060  - Output Path Config 3R */ 
-	{ 0x00000425, 0x0180 },   /* R1061  - DAC Digital Volume 3R */ 
-	{ 0x00000426, 0x0080 },   /* R1062  - DAC Volume Limit 3R */ 
-	{ 0x00000428, 0x0000 },   /* R1064  - Output Path Config 4L */ 
+	{ 0x00000428, 0xC000 },   /* R1064  - Output Path Config 4L */
 	{ 0x00000429, 0x0180 },   /* R1065  - DAC Digital Volume 4L */ 
-	{ 0x0000042A, 0x0080 },   /* R1066  - Out Volume 4L */ 
+	{ 0x0000042A, 0x0081 },   /* R1066  - Out Volume 4L */
 	{ 0x0000042B, 0x0040 },   /* R1067  - Noise Gate Select 4L */ 
-	{ 0x0000042C, 0x0000 },   /* R1068  - Output Path Config 4R */ 
 	{ 0x0000042D, 0x0180 },   /* R1069  - DAC Digital Volume 4R */ 
-	{ 0x0000042E, 0x0080 },   /* R1070  - Out Volume 4R */ 
+	{ 0x0000042E, 0x0081 },   /* R1070  - Out Volume 4R */
 	{ 0x0000042F, 0x0080 },   /* R1071  - Noise Gate Select 4R */ 
 	{ 0x00000430, 0x0000 },   /* R1072  - Output Path Config 5L */ 
 	{ 0x00000431, 0x0180 },   /* R1073  - DAC Digital Volume 5L */ 
-	{ 0x00000432, 0x0080 },   /* R1074  - DAC Volume Limit 5L */ 
+	{ 0x00000432, 0x0081 },   /* R1074  - DAC Volume Limit 5L */
 	{ 0x00000433, 0x0100 },   /* R1075  - Noise Gate Select 5L */ 
-	{ 0x00000434, 0x0000 },   /* R1076  - Output Path Config 5R */ 
 	{ 0x00000435, 0x0180 },   /* R1077  - DAC Digital Volume 5R */ 
-	{ 0x00000436, 0x0080 },   /* R1078  - DAC Volume Limit 5R */ 
-	{ 0x00000437, 0x0200 },   /* R1079  - Noise Gate Select 5R */ 
+	{ 0x00000436, 0x0081 },   /* R1078  - DAC Volume Limit 5R */
+	{ 0x00000437, 0x0200 },   /* R1079  - Noise Gate Select 5R */
 	{ 0x00000450, 0x0000 },   /* R1104  - DAC AEC Control 1 */ 
 	{ 0x00000458, 0x0001 },   /* R1112  - Noise Gate Control */ 
 	{ 0x00000490, 0x0069 },   /* R1168  - PDM SPK1 CTRL 1 */ 
 	{ 0x00000491, 0x0000 },   /* R1169  - PDM SPK1 CTRL 2 */ 
-	{ 0x000004DC, 0x0000 },   /* R1244  - DAC comp 1 */ 
-	{ 0x000004DD, 0x0000 },   /* R1245  - DAC comp 2 */ 
-	{ 0x000004DE, 0x0000 },   /* R1246  - DAC comp 3 */ 
-	{ 0x000004DF, 0x0000 },   /* R1247  - DAC comp 4 */ 
 	{ 0x00000500, 0x000C },   /* R1280  - AIF1 BCLK Ctrl */ 
 	{ 0x00000501, 0x0008 },   /* R1281  - AIF1 Tx Pin Ctrl */ 
 	{ 0x00000502, 0x0000 },   /* R1282  - AIF1 Rx Pin Ctrl */ 
@@ -917,7 +423,6 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000518, 0x0007 },   /* R1304  - AIF1 Frame Ctrl 18 */ 
 	{ 0x00000519, 0x0000 },   /* R1305  - AIF1 Tx Enables */ 
 	{ 0x0000051A, 0x0000 },   /* R1306  - AIF1 Rx Enables */ 
-	{ 0x0000051B, 0x0000 },   /* R1307  - AIF1 Force Write */ 
 	{ 0x00000540, 0x000C },   /* R1344  - AIF2 BCLK Ctrl */ 
 	{ 0x00000541, 0x0008 },   /* R1345  - AIF2 Tx Pin Ctrl */ 
 	{ 0x00000542, 0x0000 },   /* R1346  - AIF2 Rx Pin Ctrl */ 
@@ -933,7 +438,6 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000552, 0x0001 },   /* R1362  - AIF2 Frame Ctrl 12 */ 
 	{ 0x00000559, 0x0000 },   /* R1369  - AIF2 Tx Enables */ 
 	{ 0x0000055A, 0x0000 },   /* R1370  - AIF2 Rx Enables */ 
-	{ 0x0000055B, 0x0000 },   /* R1371  - AIF2 Force Write */ 
 	{ 0x00000580, 0x000C },   /* R1408  - AIF3 BCLK Ctrl */ 
 	{ 0x00000581, 0x0008 },   /* R1409  - AIF3 Tx Pin Ctrl */ 
 	{ 0x00000582, 0x0000 },   /* R1410  - AIF3 Rx Pin Ctrl */ 
@@ -949,7 +453,6 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000592, 0x0001 },   /* R1426  - AIF3 Frame Ctrl 12 */ 
 	{ 0x00000599, 0x0000 },   /* R1433  - AIF3 Tx Enables */ 
 	{ 0x0000059A, 0x0000 },   /* R1434  - AIF3 Rx Enables */ 
-	{ 0x0000059B, 0x0000 },   /* R1435  - AIF3 Force Write */ 
 	{ 0x000005E3, 0x0004 },   /* R1507  - SLIMbus Framer Ref Gear */ 
 	{ 0x000005E5, 0x0000 },   /* R1509  - SLIMbus Rates 1 */ 
 	{ 0x000005E6, 0x0000 },   /* R1510  - SLIMbus Rates 2 */ 
@@ -1273,22 +776,6 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x000008CD, 0x0080 },   /* R2253  - DRC1RMIX Input 3 Volume */ 
 	{ 0x000008CE, 0x0000 },   /* R2254  - DRC1RMIX Input 4 Source */ 
 	{ 0x000008CF, 0x0080 },   /* R2255  - DRC1RMIX Input 4 Volume */ 
-	{ 0x000008D0, 0x0000 },   /* R2256  - DRC2LMIX Input 1 Source */ 
-	{ 0x000008D1, 0x0080 },   /* R2257  - DRC2LMIX Input 1 Volume */ 
-	{ 0x000008D2, 0x0000 },   /* R2258  - DRC2LMIX Input 2 Source */ 
-	{ 0x000008D3, 0x0080 },   /* R2259  - DRC2LMIX Input 2 Volume */ 
-	{ 0x000008D4, 0x0000 },   /* R2260  - DRC2LMIX Input 3 Source */ 
-	{ 0x000008D5, 0x0080 },   /* R2261  - DRC2LMIX Input 3 Volume */ 
-	{ 0x000008D6, 0x0000 },   /* R2262  - DRC2LMIX Input 4 Source */ 
-	{ 0x000008D7, 0x0080 },   /* R2263  - DRC2LMIX Input 4 Volume */ 
-	{ 0x000008D8, 0x0000 },   /* R2264  - DRC2RMIX Input 1 Source */ 
-	{ 0x000008D9, 0x0080 },   /* R2265  - DRC2RMIX Input 1 Volume */ 
-	{ 0x000008DA, 0x0000 },   /* R2266  - DRC2RMIX Input 2 Source */ 
-	{ 0x000008DB, 0x0080 },   /* R2267  - DRC2RMIX Input 2 Volume */ 
-	{ 0x000008DC, 0x0000 },   /* R2268  - DRC2RMIX Input 3 Source */ 
-	{ 0x000008DD, 0x0080 },   /* R2269  - DRC2RMIX Input 3 Volume */ 
-	{ 0x000008DE, 0x0000 },   /* R2270  - DRC2RMIX Input 4 Source */ 
-	{ 0x000008DF, 0x0080 },   /* R2271  - DRC2RMIX Input 4 Volume */ 
 	{ 0x00000900, 0x0000 },   /* R2304  - HPLP1MIX Input 1 Source */ 
 	{ 0x00000901, 0x0080 },   /* R2305  - HPLP1MIX Input 1 Volume */ 
 	{ 0x00000902, 0x0000 },   /* R2306  - HPLP1MIX Input 2 Source */ 
@@ -1380,7 +867,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000D1B, 0xFFFF },   /* R3355  - IRQ2 Status 4 Mask */ 
 	{ 0x00000D1C, 0xFFFF },   /* R3356  - IRQ2 Status 5 Mask */ 
 	{ 0x00000D1F, 0x0000 },   /* R3359  - IRQ2 Control */ 
-	{ 0x00000D41, 0x0000 },   /* R3393  - ADSP2 IRQ0 */ 
+	{ 0x00000D50, 0x0000 },   /* R3408  - AOD wkup and trig */
 	{ 0x00000D53, 0xFFFF },   /* R3411  - AOD IRQ Mask IRQ1 */ 
 	{ 0x00000D54, 0xFFFF },   /* R3412  - AOD IRQ Mask IRQ2 */ 
 	{ 0x00000D56, 0x0000 },   /* R3414  - Jack detect debounce */ 
@@ -1475,11 +962,6 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000E82, 0x0018 },   /* R3714  - DRC1 ctrl3 */ 
 	{ 0x00000E83, 0x0000 },   /* R3715  - DRC1 ctrl4 */ 
 	{ 0x00000E84, 0x0000 },   /* R3716  - DRC1 ctrl5 */ 
-	{ 0x00000E89, 0x0018 },   /* R3721  - DRC2 ctrl1 */ 
-	{ 0x00000E8A, 0x0933 },   /* R3722  - DRC2 ctrl2 */ 
-	{ 0x00000E8B, 0x0018 },   /* R3723  - DRC2 ctrl3 */ 
-	{ 0x00000E8C, 0x0000 },   /* R3724  - DRC2 ctrl4 */ 
-	{ 0x00000E8D, 0x0000 },   /* R3725  - DRC2 ctrl5 */ 
 	{ 0x00000EC0, 0x0000 },   /* R3776  - HPLPF1_1 */ 
 	{ 0x00000EC1, 0x0000 },   /* R3777  - HPLPF1_2 */ 
 	{ 0x00000EC4, 0x0000 },   /* R3780  - HPLPF2_1 */ 
@@ -1490,16 +972,12 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000ECD, 0x0000 },   /* R3789  - HPLPF4_2 */ 
 	{ 0x00000EE0, 0x0000 },   /* R3808  - ASRC_ENABLE */ 
 	{ 0x00000EE2, 0x0000 },   /* R3810  - ASRC_RATE1 */ 
-	{ 0x00000EE3, 0x4000 },   /* R3811  - ASRC_RATE2 */ 
 	{ 0x00000EF0, 0x0000 },   /* R3824  - ISRC 1 CTRL 1 */ 
 	{ 0x00000EF1, 0x0000 },   /* R3825  - ISRC 1 CTRL 2 */ 
 	{ 0x00000EF2, 0x0000 },   /* R3826  - ISRC 1 CTRL 3 */ 
 	{ 0x00000EF3, 0x0000 },   /* R3827  - ISRC 2 CTRL 1 */ 
 	{ 0x00000EF4, 0x0000 },   /* R3828  - ISRC 2 CTRL 2 */ 
 	{ 0x00000EF5, 0x0000 },   /* R3829  - ISRC 2 CTRL 3 */ 
-	{ 0x00000EF6, 0x0000 },   /* R3830  - ISRC 3 CTRL 1 */ 
-	{ 0x00000EF7, 0x0000 },   /* R3831  - ISRC 3 CTRL 2 */ 
-	{ 0x00000EF8, 0x0000 },   /* R3832  - ISRC 3 CTRL 3 */ 
 	{ 0x00001100, 0x0010 },   /* R4352  - DSP1 Control 1 */ 
 	{ 0x00001101, 0x0000 },   /* R4353  - DSP1 Clocking 1 */ 
 };
@@ -1564,6 +1042,7 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_RATE_ESTIMATOR_3:
 	case ARIZONA_RATE_ESTIMATOR_4:
 	case ARIZONA_RATE_ESTIMATOR_5:
+	case ARIZONA_DYNAMIC_FREQUENCY_SCALING_1:
 	case ARIZONA_FLL1_CONTROL_1:
 	case ARIZONA_FLL1_CONTROL_2:
 	case ARIZONA_FLL1_CONTROL_3:
@@ -1571,6 +1050,7 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL1_CONTROL_5:
 	case ARIZONA_FLL1_CONTROL_6:
 	case ARIZONA_FLL1_LOOP_FILTER_TEST_1:
+	case ARIZONA_FLL1_NCO_TEST_0:
 	case ARIZONA_FLL1_SYNCHRONISER_1:
 	case ARIZONA_FLL1_SYNCHRONISER_2:
 	case ARIZONA_FLL1_SYNCHRONISER_3:
@@ -1586,6 +1066,7 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_CONTROL_5:
 	case ARIZONA_FLL2_CONTROL_6:
 	case ARIZONA_FLL2_LOOP_FILTER_TEST_1:
+	case ARIZONA_FLL2_NCO_TEST_0:
 	case ARIZONA_FLL2_SYNCHRONISER_1:
 	case ARIZONA_FLL2_SYNCHRONISER_2:
 	case ARIZONA_FLL2_SYNCHRONISER_3:
@@ -1596,6 +1077,7 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_GPIO_CLOCK:
 	case ARIZONA_MIC_CHARGE_PUMP_1:
 	case ARIZONA_LDO1_CONTROL_1:
+	case ARIZONA_LDO1_CONTROL_2:
 	case ARIZONA_LDO2_CONTROL_1:
 	case ARIZONA_MIC_BIAS_CTRL_1:
 	case ARIZONA_MIC_BIAS_CTRL_2:
@@ -1603,6 +1085,8 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_ACCESSORY_DETECT_MODE_1:
 	case ARIZONA_HEADPHONE_DETECT_1:
 	case ARIZONA_HEADPHONE_DETECT_2:
+	case ARIZONA_HP_DACVAL:
+	case ARIZONA_MICD_CLAMP_CONTROL:
 	case ARIZONA_MIC_DETECT_1:
 	case ARIZONA_MIC_DETECT_2:
 	case ARIZONA_MIC_DETECT_3:
@@ -2319,9 +1803,20 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_DSP1_CLOCKING_1:
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
+	case ARIZONA_DSP1_STATUS_3:
+	case ARIZONA_DSP1_SCRATCH_0:
+	case ARIZONA_DSP1_SCRATCH_1:
+	case ARIZONA_DSP1_SCRATCH_2:
+	case ARIZONA_DSP1_SCRATCH_3:
 		return true;
 	default:
-		return false;
+		if ((reg >= 0x100000 && reg < 0x106000) ||
+		    (reg >= 0x180000 && reg < 0x180800) ||
+		    (reg >= 0x190000 && reg < 0x194800) ||
+		    (reg >= 0x1a8000 && reg < 0x1a9800))
+			return true;
+		else
+			return false;
 	}
 }
 
@@ -2331,11 +1826,16 @@ static bool wm5102_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_SOFTWARE_RESET:
 	case ARIZONA_DEVICE_REVISION:
 	case ARIZONA_OUTPUT_STATUS_1:
+	case ARIZONA_RAW_OUTPUT_STATUS_1:
+	case ARIZONA_SLIMBUS_RX_PORT_STATUS:
+	case ARIZONA_SLIMBUS_TX_PORT_STATUS:
 	case ARIZONA_SAMPLE_RATE_1_STATUS:
 	case ARIZONA_SAMPLE_RATE_2_STATUS:
 	case ARIZONA_SAMPLE_RATE_3_STATUS:
 	case ARIZONA_HAPTICS_STATUS:
 	case ARIZONA_ASYNC_SAMPLE_RATE_1_STATUS:
+	case ARIZONA_FLL1_NCO_TEST_0:
+	case ARIZONA_FLL2_NCO_TEST_0:
 	case ARIZONA_FX_CTRL2:
 	case ARIZONA_INTERRUPT_STATUS_1:
 	case ARIZONA_INTERRUPT_STATUS_2:
@@ -2361,20 +1861,34 @@ static bool wm5102_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AOD_IRQ_RAW_STATUS:
 	case ARIZONA_DSP1_STATUS_1:
 	case ARIZONA_DSP1_STATUS_2:
+	case ARIZONA_DSP1_STATUS_3:
+	case ARIZONA_DSP1_SCRATCH_0:
+	case ARIZONA_DSP1_SCRATCH_1:
+	case ARIZONA_DSP1_SCRATCH_2:
+	case ARIZONA_DSP1_SCRATCH_3:
 	case ARIZONA_HEADPHONE_DETECT_2:
+	case ARIZONA_HP_DACVAL:
 	case ARIZONA_MIC_DETECT_3:
 		return true;
 	default:
-		return false;
+		if ((reg >= 0x100000 && reg < 0x106000) ||
+		    (reg >= 0x180000 && reg < 0x180800) ||
+		    (reg >= 0x190000 && reg < 0x194800) ||
+		    (reg >= 0x1a8000 && reg < 0x1a9800))
+			return true;
+		else
+			return false;
 	}
 }
+
+#define WM5102_MAX_REGISTER 0x1a9800
 
 const struct regmap_config wm5102_spi_regmap = {
 	.reg_bits = 32,
 	.pad_bits = 16,
 	.val_bits = 16,
 
-	.max_register = ARIZONA_DSP1_STATUS_2,
+	.max_register = WM5102_MAX_REGISTER,
 	.readable_reg = wm5102_readable_register,
 	.volatile_reg = wm5102_volatile_register,
 
@@ -2388,7 +1902,7 @@ const struct regmap_config wm5102_i2c_regmap = {
 	.reg_bits = 32,
 	.val_bits = 16,
 
-	.max_register = ARIZONA_DSP1_STATUS_2,
+	.max_register = WM5102_MAX_REGISTER,
 	.readable_reg = wm5102_readable_register,
 	.volatile_reg = wm5102_volatile_register,
 

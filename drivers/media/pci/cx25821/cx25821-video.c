@@ -130,7 +130,7 @@ void cx25821_video_wakeup(struct cx25821_dev *dev, struct cx25821_dmaqueue *q,
 		if ((s16) (count - buf->count) < 0)
 			break;
 
-		do_gettimeofday(&buf->vb.ts);
+		v4l2_get_timestamp(&buf->vb.ts);
 		buf->vb.state = VIDEOBUF_DONE;
 		list_del(&buf->vb.queue);
 		wake_up(&buf->vb.done);
@@ -291,9 +291,9 @@ int cx25821_start_video_dma(struct cx25821_dev *dev,
 	return 0;
 }
 
-int cx25821_restart_video_queue(struct cx25821_dev *dev,
-				struct cx25821_dmaqueue *q,
-				struct sram_channel *channel)
+static int cx25821_restart_video_queue(struct cx25821_dev *dev,
+				       struct cx25821_dmaqueue *q,
+				       struct sram_channel *channel)
 {
 	struct cx25821_buffer *buf, *prev;
 	struct list_head *item;
@@ -342,7 +342,7 @@ int cx25821_restart_video_queue(struct cx25821_dev *dev,
 	}
 }
 
-void cx25821_vid_timeout(unsigned long data)
+static void cx25821_vid_timeout(unsigned long data)
 {
 	struct cx25821_data *timeout_data = (struct cx25821_data *)data;
 	struct cx25821_dev *dev = timeout_data->dev;

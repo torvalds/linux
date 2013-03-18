@@ -166,6 +166,19 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_trigger_set_default);
 
+void led_trigger_rename_static(const char *name, struct led_trigger *trig)
+{
+	/* new name must be on a temporary string to prevent races */
+	BUG_ON(name == trig->name);
+
+	down_write(&triggers_list_lock);
+	/* this assumes that trig->name was originaly allocated to
+	 * non constant storage */
+	strcpy((char *)trig->name, name);
+	up_write(&triggers_list_lock);
+}
+EXPORT_SYMBOL_GPL(led_trigger_rename_static);
+
 /* LED Trigger Interface */
 
 int led_trigger_register(struct led_trigger *trig)
@@ -300,13 +313,13 @@ void led_trigger_register_simple(const char *name, struct led_trigger **tp)
 		if (err < 0) {
 			kfree(trig);
 			trig = NULL;
-			printk(KERN_WARNING "LED trigger %s failed to register"
-				" (%d)\n", name, err);
+			pr_warn("LED trigger %s failed to register (%d)\n",
+				name, err);
 		}
-	} else
-		printk(KERN_WARNING "LED trigger %s failed to register"
-			" (no memory)\n", name);
-
+	} else {
+		pr_warn("LED trigger %s failed to register (no memory)\n",
+			name);
+	}
 	*tp = trig;
 }
 EXPORT_SYMBOL_GPL(led_trigger_register_simple);

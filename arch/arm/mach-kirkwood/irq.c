@@ -14,6 +14,7 @@
 #include <mach/bridge-regs.h>
 #include <plat/orion-gpio.h>
 #include <plat/irq.h>
+#include "common.h"
 
 static int __initdata gpio0_irqs[4] = {
 	IRQ_KIRKWOOD_GPIO_LOW_0_7,

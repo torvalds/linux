@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2012 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -22,6 +22,138 @@
 #include <scsi/scsi_bsg_iscsi.h>
 #include "be_mgmt.h"
 #include "be_iscsi.h"
+#include "be_main.h"
+
+/* UE Status Low CSR */
+static const char * const desc_ue_status_low[] = {
+	"CEV",
+	"CTX",
+	"DBUF",
+	"ERX",
+	"Host",
+	"MPU",
+	"NDMA",
+	"PTC ",
+	"RDMA ",
+	"RXF ",
+	"RXIPS ",
+	"RXULP0 ",
+	"RXULP1 ",
+	"RXULP2 ",
+	"TIM ",
+	"TPOST ",
+	"TPRE ",
+	"TXIPS ",
+	"TXULP0 ",
+	"TXULP1 ",
+	"UC ",
+	"WDMA ",
+	"TXULP2 ",
+	"HOST1 ",
+	"P0_OB_LINK ",
+	"P1_OB_LINK ",
+	"HOST_GPIO ",
+	"MBOX ",
+	"AXGMAC0",
+	"AXGMAC1",
+	"JTAG",
+	"MPU_INTPEND"
+};
+
+/* UE Status High CSR */
+static const char * const desc_ue_status_hi[] = {
+	"LPCMEMHOST",
+	"MGMT_MAC",
+	"PCS0ONLINE",
+	"MPU_IRAM",
+	"PCS1ONLINE",
+	"PCTL0",
+	"PCTL1",
+	"PMEM",
+	"RR",
+	"TXPB",
+	"RXPP",
+	"XAUI",
+	"TXP",
+	"ARM",
+	"IPC",
+	"HOST2",
+	"HOST3",
+	"HOST4",
+	"HOST5",
+	"HOST6",
+	"HOST7",
+	"HOST8",
+	"HOST9",
+	"NETC",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown"
+};
+
+/*
+ * beiscsi_ue_detec()- Detect Unrecoverable Error on adapter
+ * @phba: Driver priv structure
+ *
+ * Read registers linked to UE and check for the UE status
+ **/
+void beiscsi_ue_detect(struct beiscsi_hba *phba)
+{
+	uint32_t ue_hi = 0, ue_lo = 0;
+	uint32_t ue_mask_hi = 0, ue_mask_lo = 0;
+	uint8_t i = 0;
+
+	if (phba->ue_detected)
+		return;
+
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_LOW, &ue_lo);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_MASK_LOW,
+			      &ue_mask_lo);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_HIGH,
+			      &ue_hi);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_MASK_HI,
+			      &ue_mask_hi);
+
+	ue_lo = (ue_lo & ~ue_mask_lo);
+	ue_hi = (ue_hi & ~ue_mask_hi);
+
+
+	if (ue_lo || ue_hi) {
+		phba->ue_detected = true;
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BG_%d : Error detected on the adapter\n");
+	}
+
+	if (ue_lo) {
+		for (i = 0; ue_lo; ue_lo >>= 1, i++) {
+			if (ue_lo & 1)
+				beiscsi_log(phba, KERN_ERR,
+					    BEISCSI_LOG_CONFIG,
+					    "BG_%d : UE_LOW %s bit set\n",
+					    desc_ue_status_low[i]);
+		}
+	}
+
+	if (ue_hi) {
+		for (i = 0; ue_hi; ue_hi >>= 1, i++) {
+			if (ue_hi & 1)
+				beiscsi_log(phba, KERN_ERR,
+					    BEISCSI_LOG_CONFIG,
+					    "BG_%d : UE_HIGH %s bit set\n",
+					    desc_ue_status_hi[i]);
+		}
+	}
+}
 
 /**
  * mgmt_reopen_session()- Reopen a session based on reopen_type
@@ -575,13 +707,20 @@ unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba)
 	return status;
 }
 
+/*
+ * mgmt_exec_nonemb_cmd()- Execute Non Embedded MBX Cmd
+ * @phba: Driver priv structure
+ * @nonemb_cmd: Address of the MBX command issued
+ * @resp_buf: Buffer to copy the MBX cmd response
+ * @resp_buf_len: respone lenght to be copied
+ *
+ **/
 static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 				struct be_dma_mem *nonemb_cmd, void *resp_buf,
 				int resp_buf_len)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	unsigned short status, extd_status;
 	struct be_sge *sge;
 	unsigned int tag;
 	int rc = 0;
@@ -599,31 +738,25 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 
 	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false, 1);
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
-	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
+	sge->pa_lo = cpu_to_le32(lower_32_bits(nonemb_cmd->dma));
 	sge->len = cpu_to_le32(nonemb_cmd->size);
 
 	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
 
-	wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-				 phba->ctrl.mcc_numtag[tag]);
-
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-	if (status || extd_status) {
+	rc = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd->va);
+	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BG_%d : mgmt_exec_nonemb_cmd Failed status = %d"
-			    "extd_status = %d\n", status, extd_status);
+			    "BG_%d : mgmt_exec_nonemb_cmd Failed status\n");
+
 		rc = -EIO;
-		goto free_tag;
+		goto free_cmd;
 	}
 
 	if (resp_buf)
 		memcpy(resp_buf, nonemb_cmd->va, resp_buf_len);
 
-free_tag:
-	free_mcc_tag(&phba->ctrl, tag);
 free_cmd:
 	pci_free_consistent(ctrl->pdev, nonemb_cmd->size,
 			    nonemb_cmd->va, nonemb_cmd->dma);
@@ -1009,10 +1142,9 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 {
 	struct be_cmd_get_boot_target_resp *boot_resp;
 	struct be_mcc_wrb *wrb;
-	unsigned int tag, wrb_num;
+	unsigned int tag;
 	uint8_t boot_retry = 3;
-	unsigned short status, extd_status;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	int rc;
 
 	do {
 		/* Get the Boot Target Session Handle and Count*/
@@ -1022,24 +1154,16 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
 				    "BG_%d : Getting Boot Target Info Failed\n");
 			return -EAGAIN;
-		} else
-			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-						 phba->ctrl.mcc_numtag[tag]);
+		}
 
-		wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-		if (status || extd_status) {
+		rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+		if (rc) {
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-				    "BG_%d : mgmt_get_boot_target Failed"
-				    " status = %d extd_status = %d\n",
-				    status, extd_status);
-			free_mcc_tag(&phba->ctrl, tag);
+				    "BG_%d : MBX CMD get_boot_target Failed\n");
 			return -EBUSY;
 		}
-		wrb = queue_get_wrb(mccq, wrb_num);
-		free_mcc_tag(&phba->ctrl, tag);
+
 		boot_resp = embedded_payload(wrb);
 
 		/* Check if the there are any Boot targets configured */
@@ -1064,24 +1188,15 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
 				    "BG_%d : mgmt_reopen_session Failed\n");
 			return -EAGAIN;
-		} else
-			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-						 phba->ctrl.mcc_numtag[tag]);
+		}
 
-		wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-		if (status || extd_status) {
+		rc = beiscsi_mccq_compl(phba, tag, NULL, NULL);
+		if (rc) {
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-				    "BG_%d : mgmt_reopen_session Failed"
-				    " status = %d extd_status = %d\n",
-				    status, extd_status);
-			free_mcc_tag(&phba->ctrl, tag);
-			return -EBUSY;
+				    "BG_%d : mgmt_reopen_session Failed");
+			return rc;
 		}
-		free_mcc_tag(&phba->ctrl, tag);
-
 	} while (--boot_retry);
 
 	/* Couldn't log into the boot target */
@@ -1106,8 +1221,9 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 int mgmt_set_vlan(struct beiscsi_hba *phba,
 		   uint16_t vlan_tag)
 {
-	unsigned int tag, wrb_num;
-	unsigned short status, extd_status;
+	int rc;
+	unsigned int tag;
+	struct be_mcc_wrb *wrb = NULL;
 
 	tag = be_cmd_set_vlan(phba, vlan_tag);
 	if (!tag) {
@@ -1115,24 +1231,208 @@ int mgmt_set_vlan(struct beiscsi_hba *phba,
 			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
 			    "BG_%d : VLAN Setting Failed\n");
 		return -EBUSY;
-	} else
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
-
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-
-	if (status || extd_status) {
-		beiscsi_log(phba, KERN_ERR,
-			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
-			    "BS_%d : status : %d extd_status : %d\n",
-			    status, extd_status);
-
-		free_mcc_tag(&phba->ctrl, tag);
-		return -EAGAIN;
 	}
 
-	free_mcc_tag(&phba->ctrl, tag);
-	return 0;
+	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	if (rc) {
+		beiscsi_log(phba, KERN_ERR,
+			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
+			    "BS_%d : VLAN MBX Cmd Failed\n");
+		return rc;
+	}
+	return rc;
+}
+
+/**
+ * beiscsi_drvr_ver_disp()- Display the driver Name and Version
+ * @dev: ptr to device not used.
+ * @attr: device attribute, not used.
+ * @buf: contains formatted text driver name and version
+ *
+ * return
+ * size of the formatted string
+ **/
+ssize_t
+beiscsi_drvr_ver_disp(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, BE_NAME "\n");
+}
+
+/**
+ * beiscsi_adap_family_disp()- Display adapter family.
+ * @dev: ptr to device to get priv structure
+ * @attr: device attribute, not used.
+ * @buf: contains formatted text driver name and version
+ *
+ * return
+ * size of the formatted string
+ **/
+ssize_t
+beiscsi_adap_family_disp(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	uint16_t dev_id = 0;
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+
+	dev_id = phba->pcidev->device;
+	switch (dev_id) {
+	case BE_DEVICE_ID1:
+	case OC_DEVICE_ID1:
+	case OC_DEVICE_ID2:
+		return snprintf(buf, PAGE_SIZE, "BE2 Adapter Family\n");
+		break;
+	case BE_DEVICE_ID2:
+	case OC_DEVICE_ID3:
+		return snprintf(buf, PAGE_SIZE, "BE3-R Adapter Family\n");
+		break;
+	case OC_SKH_ID1:
+		return snprintf(buf, PAGE_SIZE, "Skyhawk-R Adapter Family\n");
+		break;
+	default:
+		return snprintf(buf, PAGE_SIZE,
+				"Unkown Adapter Family: 0x%x\n", dev_id);
+		break;
+	}
+}
+
+
+void beiscsi_offload_cxn_v0(struct beiscsi_offload_params *params,
+			     struct wrb_handle *pwrb_handle,
+			     struct be_mem_descriptor *mem_descr)
+{
+	struct iscsi_wrb *pwrb = pwrb_handle->pwrb;
+
+	memset(pwrb, 0, sizeof(*pwrb));
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      max_send_data_segment_length, pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      max_send_data_segment_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, type, pwrb,
+		      BE_TGT_CTX_UPDT_CMD);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      first_burst_length,
+		      pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      first_burst_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, erl, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      erl) / 32] & OFFLD_PARAMS_ERL));
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, dde, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		       dde) / 32] & OFFLD_PARAMS_DDE) >> 2);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, hde, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      hde) / 32] & OFFLD_PARAMS_HDE) >> 3);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, ir2t, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      ir2t) / 32] & OFFLD_PARAMS_IR2T) >> 4);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, imd, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      imd) / 32] & OFFLD_PARAMS_IMD) >> 5);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, stat_sn,
+		      pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      exp_statsn) / 32] + 1));
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, wrb_idx,
+		      pwrb, pwrb_handle->wrb_index);
+
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      max_burst_length, pwrb, params->dw[offsetof
+		      (struct amap_beiscsi_offload_params,
+		      max_burst_length) / 32]);
+
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, ptr2nextwrb,
+		      pwrb, pwrb_handle->nxt_wrb_index);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      session_state, pwrb, 0);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, compltonack,
+		      pwrb, 1);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, notpredblq,
+		      pwrb, 0);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb, mode, pwrb,
+		      0);
+
+	mem_descr += ISCSI_MEM_GLOBAL_HEADER;
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      pad_buffer_addr_hi, pwrb,
+		      mem_descr->mem_array[0].bus_address.u.a32.address_hi);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      pad_buffer_addr_lo, pwrb,
+		      mem_descr->mem_array[0].bus_address.u.a32.address_lo);
+}
+
+void beiscsi_offload_cxn_v2(struct beiscsi_offload_params *params,
+			     struct wrb_handle *pwrb_handle)
+{
+	struct iscsi_wrb *pwrb = pwrb_handle->pwrb;
+
+	memset(pwrb, 0, sizeof(*pwrb));
+
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb,
+		      max_burst_length, pwrb, params->dw[offsetof
+		      (struct amap_beiscsi_offload_params,
+		      max_burst_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      max_burst_length, pwrb, params->dw[offsetof
+		      (struct amap_beiscsi_offload_params,
+		      max_burst_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      type, pwrb,
+		      BE_TGT_CTX_UPDT_CMD);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      ptr2nextwrb,
+		      pwrb, pwrb_handle->nxt_wrb_index);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, wrb_idx,
+		      pwrb, pwrb_handle->wrb_index);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      max_send_data_segment_length, pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      max_send_data_segment_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      first_burst_length, pwrb,
+		      params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      first_burst_length) / 32]);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      max_recv_dataseg_len, pwrb, BEISCSI_MAX_RECV_DATASEG_LEN);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      max_cxns, pwrb, BEISCSI_MAX_CXNS);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, erl, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      erl) / 32] & OFFLD_PARAMS_ERL));
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, dde, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      dde) / 32] & OFFLD_PARAMS_DDE) >> 2);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, hde, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      hde) / 32] & OFFLD_PARAMS_HDE) >> 3);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      ir2t, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      ir2t) / 32] & OFFLD_PARAMS_IR2T) >> 4);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, imd, pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      imd) / 32] & OFFLD_PARAMS_IMD) >> 5);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      data_seq_inorder,
+		      pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      data_seq_inorder) / 32] &
+		      OFFLD_PARAMS_DATA_SEQ_INORDER) >> 6);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2,
+		      pdu_seq_inorder,
+		      pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      pdu_seq_inorder) / 32] &
+		      OFFLD_PARAMS_PDU_SEQ_INORDER) >> 7);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, max_r2t,
+		      pwrb,
+		      (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      max_r2t) / 32] &
+		      OFFLD_PARAMS_MAX_R2T) >> 8);
+	AMAP_SET_BITS(struct amap_iscsi_target_context_update_wrb_v2, stat_sn,
+		      pwrb,
+		     (params->dw[offsetof(struct amap_beiscsi_offload_params,
+		      exp_statsn) / 32] + 1));
 }

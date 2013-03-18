@@ -479,7 +479,7 @@
 
 #include "de4x5.h"
 
-static const char version[] __devinitconst =
+static const char version[] =
 	KERN_INFO "de4x5.c:V0.546 2001/02/22 davies@maniac.ultranet.com\n";
 
 #define c_char const char
@@ -1092,7 +1092,7 @@ static const struct net_device_ops de4x5_netdev_ops = {
 };
 
 
-static int __devinit
+static int
 de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
 {
     char name[DE4X5_NAME_LENGTH + 1];
@@ -2077,7 +2077,7 @@ static int __init de4x5_eisa_probe (struct device *gendev)
 	return status;
 }
 
-static int __devexit de4x5_eisa_remove (struct device *device)
+static int de4x5_eisa_remove(struct device *device)
 {
 	struct net_device *dev;
 	u_long iobase;
@@ -2104,7 +2104,7 @@ static struct eisa_driver de4x5_eisa_driver = {
         .driver   = {
                 .name    = "de4x5",
                 .probe   = de4x5_eisa_probe,
-                .remove  = __devexit_p (de4x5_eisa_remove),
+		.remove  = de4x5_eisa_remove,
         }
 };
 MODULE_DEVICE_TABLE(eisa, de4x5_eisa_ids);
@@ -2118,7 +2118,7 @@ MODULE_DEVICE_TABLE(eisa, de4x5_eisa_ids);
 ** DECchips, we can find the base SROM irrespective of the BIOS scan direction.
 ** For single port cards this is a time waster...
 */
-static void __devinit
+static void
 srom_search(struct net_device *dev, struct pci_dev *pdev)
 {
     u_char pb;
@@ -2192,8 +2192,8 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
 ** kernels use the V0.535[n] drivers.
 */
 
-static int __devinit de4x5_pci_probe (struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int de4x5_pci_probe(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	u_char pb, pbus = 0, dev_num, dnum = 0, timer;
 	u_short vendor, status;
@@ -2314,7 +2314,7 @@ static int __devinit de4x5_pci_probe (struct pci_dev *pdev,
 	return error;
 }
 
-static void __devexit de4x5_pci_remove (struct pci_dev *pdev)
+static void de4x5_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev;
 	u_long iobase;
@@ -2344,7 +2344,7 @@ static struct pci_driver de4x5_pci_driver = {
         .name           = "de4x5",
         .id_table       = de4x5_pci_tbl,
         .probe          = de4x5_pci_probe,
-	.remove         = __devexit_p (de4x5_pci_remove),
+	.remove         = de4x5_pci_remove,
 };
 
 #endif

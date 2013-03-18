@@ -255,12 +255,11 @@ static void ProcessModemStatus(struct quatech_port *qt_port,
 	wake_up_interruptible(&qt_port->wait);
 }
 
-static void ProcessRxChar(struct tty_struct *tty, struct usb_serial_port *port,
-						unsigned char data)
+static void ProcessRxChar(struct usb_serial_port *port, unsigned char data)
 {
 	struct urb *urb = port->read_urb;
 	if (urb->actual_length)
-		tty_insert_flip_char(tty, data, TTY_NORMAL);
+		tty_insert_flip_char(&port->port, data, TTY_NORMAL);
 }
 
 static void qt_write_bulk_callback(struct urb *urb)
@@ -272,7 +271,8 @@ static void qt_write_bulk_callback(struct urb *urb)
 	status = urb->status;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "nonzero write bulk status received:%d\n", status);
+		dev_dbg(&urb->dev->dev,
+			"nonzero write bulk status received:%d\n", status);
 		return;
 	}
 
@@ -290,52 +290,99 @@ static void qt_interrupt_callback(struct urb *urb)
 	/* FIXME */
 }
 
+static void qt_status_change_check(struct urb *urb,
+				   struct quatech_port *qt_port,
+				   struct usb_serial_port *port)
+{
+	int flag, i;
+	unsigned char *data = urb->transfer_buffer;
+	unsigned int RxCount = urb->actual_length;
+
+	for (i = 0; i < RxCount; ++i) {
+		/* Look ahead code here */
+		if ((i <= (RxCount - 3)) && (data[i] == 0x1b)
+		    && (data[i + 1] == 0x1b)) {
+			flag = 0;
+			switch (data[i + 2]) {
+			case 0x00:
+				if (i > (RxCount - 4)) {
+					dev_dbg(&port->dev,
+						"Illegal escape seuences in received data\n");
+					break;
+				}
+
+				ProcessLineStatus(qt_port, data[i + 3]);
+
+				i += 3;
+				flag = 1;
+				break;
+
+			case 0x01:
+				if (i > (RxCount - 4)) {
+					dev_dbg(&port->dev,
+						"Illegal escape seuences in received data\n");
+					break;
+				}
+
+				ProcessModemStatus(qt_port, data[i + 3]);
+
+				i += 3;
+				flag = 1;
+				break;
+
+			case 0xff:
+				dev_dbg(&port->dev, "No status sequence.\n");
+
+				ProcessRxChar(port, data[i]);
+				ProcessRxChar(port, data[i + 1]);
+
+				i += 2;
+				break;
+			}
+			if (flag == 1)
+				continue;
+		}
+
+		if (urb->actual_length)
+			tty_insert_flip_char(&port->port, data[i], TTY_NORMAL);
+
+	}
+	tty_flip_buffer_push(&port->port);
+}
+
 static void qt_read_bulk_callback(struct urb *urb)
 {
 
 	struct usb_serial_port *port = urb->context;
 	struct usb_serial *serial = get_usb_serial(port, __func__);
 	struct quatech_port *qt_port = qt_get_port_private(port);
-	unsigned char *data;
-	struct tty_struct *tty;
-	unsigned int index;
-	unsigned int RxCount;
-	int i, result;
-	int flag, flag_data;
+	int result;
 
 	if (urb->status) {
 		qt_port->ReadBulkStopped = 1;
-		dev_dbg(&urb->dev->dev, "%s - nonzero write bulk status received: %d\n",
+		dev_dbg(&urb->dev->dev,
+			"%s - nonzero write bulk status received: %d\n",
 			__func__, urb->status);
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
-	data = urb->transfer_buffer;
-
-	RxCount = urb->actual_length;
-
-	/* index = MINOR(port->tty->device) - serial->minor; */
-	index = tty->index - serial->minor;
-
-	dev_dbg(&port->dev, "%s - port->RxHolding = %d\n", __func__, qt_port->RxHolding);
+	dev_dbg(&port->dev,
+		"%s - port->RxHolding = %d\n", __func__, qt_port->RxHolding);
 
 	if (port_paranoia_check(port, __func__) != 0) {
 		qt_port->ReadBulkStopped = 1;
-		goto exit;
+		return;
 	}
 
 	if (!serial)
-		goto exit;
+		return;
 
 	if (qt_port->closePending == 1) {
 		/* Were closing , stop reading */
-		dev_dbg(&port->dev, "%s - (qt_port->closepending == 1\n", __func__);
+		dev_dbg(&port->dev,
+			"%s - (qt_port->closepending == 1\n", __func__);
 		qt_port->ReadBulkStopped = 1;
-		goto exit;
+		return;
 	}
 
 	/*
@@ -345,68 +392,20 @@ static void qt_read_bulk_callback(struct urb *urb)
 	 */
 	if (qt_port->RxHolding == 1) {
 		qt_port->ReadBulkStopped = 1;
-		goto exit;
+		return;
 	}
 
 	if (urb->status) {
 		qt_port->ReadBulkStopped = 1;
 
-		dev_dbg(&port->dev, "%s - nonzero read bulk status received: %d\n",
+		dev_dbg(&port->dev,
+			"%s - nonzero read bulk status received: %d\n",
 			__func__, urb->status);
-		goto exit;
+		return;
 	}
 
-	if (RxCount) {
-		flag_data = 0;
-		for (i = 0; i < RxCount; ++i) {
-			/* Look ahead code here */
-			if ((i <= (RxCount - 3)) && (data[i] == 0x1b)
-			    && (data[i + 1] == 0x1b)) {
-				flag = 0;
-				switch (data[i + 2]) {
-				case 0x00:
-					/* line status change 4th byte must follow */
-					if (i > (RxCount - 4)) {
-						dev_dbg(&port->dev, "Illegal escape seuences in received data\n");
-						break;
-					}
-					ProcessLineStatus(qt_port, data[i + 3]);
-					i += 3;
-					flag = 1;
-					break;
-
-				case 0x01:
-					/* Modem status status change 4th byte must follow */
-					dev_dbg(&port->dev, "Modem status status.\n");
-					if (i > (RxCount - 4)) {
-						dev_dbg(&port->dev, "Illegal escape sequences in received data\n");
-						break;
-					}
-					ProcessModemStatus(qt_port,
-							   data[i + 3]);
-					i += 3;
-					flag = 1;
-					break;
-				case 0xff:
-					dev_dbg(&port->dev, "No status sequence.\n");
-
-					if (tty) {
-						ProcessRxChar(tty, port, data[i]);
-						ProcessRxChar(tty, port, data[i + 1]);
-					}
-					i += 2;
-					break;
-				}
-				if (flag == 1)
-					continue;
-			}
-
-			if (tty && urb->actual_length)
-				tty_insert_flip_char(tty, data[i], TTY_NORMAL);
-
-		}
-		tty_flip_buffer_push(tty);
-	}
+	if (urb->actual_length)
+		qt_status_change_check(urb, qt_port, port);
 
 	/* Continue trying to always read  */
 	usb_fill_bulk_urb(port->read_urb, serial->dev,
@@ -417,18 +416,17 @@ static void qt_read_bulk_callback(struct urb *urb)
 			  qt_read_bulk_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	if (result)
-		dev_dbg(&port->dev, "%s - failed resubmitting read urb, error %d",
+		dev_dbg(&port->dev,
+			"%s - failed resubmitting read urb, error %d",
 			__func__, result);
 	else {
-		if (RxCount) {
-			tty_flip_buffer_push(tty);
-			tty_schedule_flip(tty);
+		if (urb->actual_length) {
+			tty_flip_buffer_push(&port->port);
+			tty_schedule_flip(&port->port);
 		}
 	}
 
 	schedule_work(&port->work);
-exit:
-	tty_kref_put(tty);
 }
 
 /*
@@ -824,6 +822,31 @@ static void qt_release(struct usb_serial *serial)
 
 }
 
+static void qt_submit_urb_from_open(struct usb_serial *serial,
+				    struct usb_serial_port *port)
+{
+	int result;
+	struct usb_serial_port *port0 = serial->port[0];
+
+	/* set up interrupt urb */
+	usb_fill_int_urb(port0->interrupt_in_urb,
+			 serial->dev,
+			 usb_rcvintpipe(serial->dev,
+					port0->interrupt_in_endpointAddress),
+			 port0->interrupt_in_buffer,
+			 port0->interrupt_in_urb->transfer_buffer_length,
+			 qt_interrupt_callback, serial,
+			 port0->interrupt_in_urb->interval);
+
+	result = usb_submit_urb(port0->interrupt_in_urb,
+				GFP_KERNEL);
+	if (result) {
+		dev_err(&port->dev,
+			"%s - Error %d submitting interrupt urb\n",
+			__func__, result);
+	}
+}
+
 static int qt_open(struct tty_struct *tty,
 		   struct usb_serial_port *port)
 {
@@ -884,38 +907,20 @@ static int qt_open(struct tty_struct *tty,
 
 	/*  Check to see if we've set up our endpoint info yet */
 	if (port0->open_ports == 1) {
-		if (serial->port[0]->interrupt_in_buffer == NULL) {
-			/* set up interrupt urb */
-			usb_fill_int_urb(serial->port[0]->interrupt_in_urb,
-					 serial->dev,
-					 usb_rcvintpipe(serial->dev,
-							serial->port[0]->interrupt_in_endpointAddress),
-					 serial->port[0]->interrupt_in_buffer,
-					 serial->port[0]->
-					 interrupt_in_urb->transfer_buffer_length,
-					 qt_interrupt_callback, serial,
-					 serial->port[0]->
-					 interrupt_in_urb->interval);
-
-			result =
-			    usb_submit_urb(serial->port[0]->interrupt_in_urb,
-					   GFP_KERNEL);
-			if (result) {
-				dev_err(&port->dev,
-					"%s - Error %d submitting "
-					"interrupt urb\n", __func__, result);
-			}
-
-		}
-
+		if (serial->port[0]->interrupt_in_buffer == NULL)
+			qt_submit_urb_from_open(serial, port);
 	}
 
 	dev_dbg(&port->dev, "port number is %d\n", port->number);
 	dev_dbg(&port->dev, "serial number is %d\n", port->serial->minor);
-	dev_dbg(&port->dev, "Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
-	dev_dbg(&port->dev, "BulkOut endpoint is %d\n", port->bulk_out_endpointAddress);
-	dev_dbg(&port->dev, "Interrupt endpoint is %d\n", port->interrupt_in_endpointAddress);
-	dev_dbg(&port->dev, "port's number in the device is %d\n", quatech_port->port_num);
+	dev_dbg(&port->dev,
+		"Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
+	dev_dbg(&port->dev,
+		"BulkOut endpoint is %d\n", port->bulk_out_endpointAddress);
+	dev_dbg(&port->dev, "Interrupt endpoint is %d\n",
+		port->interrupt_in_endpointAddress);
+	dev_dbg(&port->dev, "port's number in the device is %d\n",
+		quatech_port->port_num);
 	quatech_port->read_urb = port->read_urb;
 
 	/* set up our bulk in urb */
@@ -928,7 +933,8 @@ static int qt_open(struct tty_struct *tty,
 			  quatech_port->read_urb->transfer_buffer_length,
 			  qt_read_bulk_callback, quatech_port);
 
-	dev_dbg(&port->dev, "qt_open: bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
+	dev_dbg(&port->dev, "qt_open: bulkin endpoint is %d\n",
+		port->bulk_in_endpointAddress);
 	quatech_port->read_urb_busy = true;
 	result = usb_submit_urb(quatech_port->read_urb, GFP_KERNEL);
 	if (result) {
@@ -1021,15 +1027,18 @@ static void qt_close(struct usb_serial_port *port)
 	/* Close uart channel */
 	status = qt_close_channel(serial, index);
 	if (status < 0)
-		dev_dbg(&port->dev, "%s - port %d qt_close_channel failed.\n", __func__, port->number);
+		dev_dbg(&port->dev,
+			"%s - port %d qt_close_channel failed.\n",
+			__func__, port->number);
 
 	port0->open_ports--;
 
-	dev_dbg(&port->dev, "qt_num_open_ports in close%d:in port%d\n", port0->open_ports, port->number);
+	dev_dbg(&port->dev, "qt_num_open_ports in close%d:in port%d\n",
+		port0->open_ports, port->number);
 
 	if (port0->open_ports == 0) {
 		if (serial->port[0]->interrupt_in_urb) {
-			dev_dbg(&port->dev, "%s", "Shutdown interrupt_in_urb\n");
+			dev_dbg(&port->dev, "Shutdown interrupt_in_urb\n");
 			usb_kill_urb(serial->port[0]->interrupt_in_urb);
 		}
 
@@ -1053,7 +1062,8 @@ static int qt_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return -ENODEV;
 
 	if (count == 0) {
-		dev_dbg(&port->dev, "%s - write request of 0 bytes\n", __func__);
+		dev_dbg(&port->dev,
+			"%s - write request of 0 bytes\n", __func__);
 		return 0;
 	}
 
@@ -1080,7 +1090,8 @@ static int qt_write(struct tty_struct *tty, struct usb_serial_port *port,
 		/* send the data out the bulk port */
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result)
-			dev_dbg(&port->dev, "%s - failed submitting write urb, error %d\n",
+			dev_dbg(&port->dev,
+				"%s - failed submitting write urb, error %d\n",
 				__func__, result);
 		else
 			result = count;
@@ -1163,7 +1174,8 @@ static int qt_ioctl(struct tty_struct *tty,
 		return 0;
 	}
 
-	dev_dbg(&port->dev, "%s -No ioctl for that one.  port = %d\n", __func__, port->number);
+	dev_dbg(&port->dev, "%s -No ioctl for that one.  port = %d\n",
+		__func__, port->number);
 	return -ENOIOCTLCMD;
 }
 
@@ -1238,7 +1250,8 @@ static void qt_set_termios(struct tty_struct *tty,
 
 	/* Now determine flow control */
 	if (cflag & CRTSCTS) {
-		dev_dbg(&port->dev, "%s - Enabling HW flow control port %d\n", __func__, port->number);
+		dev_dbg(&port->dev, "%s - Enabling HW flow control port %d\n",
+			__func__, port->number);
 
 		/* Enable RTS/CTS flow control */
 		status = BoxSetHW_FlowCtrl(port->serial, index, 1);
@@ -1249,7 +1262,9 @@ static void qt_set_termios(struct tty_struct *tty,
 		}
 	} else {
 		/* Disable RTS/CTS flow control */
-		dev_dbg(&port->dev, "%s - disabling HW flow control port %d\n", __func__, port->number);
+		dev_dbg(&port->dev,
+			"%s - disabling HW flow control port %d\n",
+			__func__, port->number);
 
 		status = BoxSetHW_FlowCtrl(port->serial, index, 0);
 		if (status < 0) {
@@ -1268,17 +1283,21 @@ static void qt_set_termios(struct tty_struct *tty,
 		    BoxSetSW_FlowCtrl(port->serial, index, stop_char,
 				      start_char);
 		if (status < 0)
-			dev_dbg(&port->dev, "BoxSetSW_FlowCtrl (enabled) failed\n");
+			dev_dbg(&port->dev,
+				"BoxSetSW_FlowCtrl (enabled) failed\n");
 
 	} else {
 		/* disable SW flow control */
 		status = BoxDisable_SW_FlowCtrl(port->serial, index);
 		if (status < 0)
-			dev_dbg(&port->dev, "BoxSetSW_FlowCtrl (diabling) failed\n");
+			dev_dbg(&port->dev,
+				"BoxSetSW_FlowCtrl (diabling) failed\n");
 
 	}
 	termios->c_cflag &= ~CMSPAR;
-	/* FIXME: Error cases should be returning the actual bits changed only */
+	/* FIXME:
+	   Error cases should be returning the actual bits changed only
+	*/
 }
 
 static void qt_break(struct tty_struct *tty, int break_state)
@@ -1436,12 +1455,32 @@ static void qt_throttle(struct tty_struct *tty)
 	mutex_unlock(&qt_port->lock);
 }
 
+static void qt_submit_urb_from_unthrottle(struct usb_serial_port *port,
+					  struct usb_serial *serial)
+{
+	int result;
+
+	/* Start reading from the device */
+	usb_fill_bulk_urb(port->read_urb, serial->dev,
+			  usb_rcvbulkpipe(serial->dev,
+					  port->bulk_in_endpointAddress),
+			  port->read_urb->transfer_buffer,
+			  port->read_urb->transfer_buffer_length,
+			  qt_read_bulk_callback, port);
+
+	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+
+	if (result)
+		dev_err(&port->dev,
+			"%s - failed restarting read urb, error %d\n",
+			__func__, result);
+}
+
 static void qt_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = get_usb_serial(port, __func__);
 	struct quatech_port *qt_port;
-	unsigned int result;
 
 	if (!serial)
 		return;
@@ -1457,21 +1496,8 @@ static void qt_unthrottle(struct tty_struct *tty)
 		dev_dbg(&port->dev, "%s - qt_port->RxHolding = 0\n", __func__);
 
 		/* if we have a bulk endpoint, start it up */
-		if ((serial->num_bulk_in) && (qt_port->ReadBulkStopped == 1)) {
-			/* Start reading from the device */
-			usb_fill_bulk_urb(port->read_urb, serial->dev,
-					  usb_rcvbulkpipe(serial->dev,
-							  port->bulk_in_endpointAddress),
-					  port->read_urb->transfer_buffer,
-					  port->read_urb->
-					  transfer_buffer_length,
-					  qt_read_bulk_callback, port);
-			result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-			if (result)
-				dev_err(&port->dev,
-					"%s - failed restarting read urb, error %d\n",
-					__func__, result);
-		}
+		if ((serial->num_bulk_in) && (qt_port->ReadBulkStopped == 1))
+			qt_submit_urb_from_unthrottle(port, serial);
 	}
 	mutex_unlock(&qt_port->lock);
 }

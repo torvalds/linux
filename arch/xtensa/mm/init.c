@@ -75,15 +75,15 @@ int __init mem_reserve(unsigned long start, unsigned long end, int must_exist)
 			sysmem.nr_banks++;
 		}
 		sysmem.bank[i].end = start;
+
+	} else if (end < sysmem.bank[i].end) {
+		sysmem.bank[i].start = end;
+
 	} else {
-		if (end < sysmem.bank[i].end)
-			sysmem.bank[i].start = end;
-		else {
-			/* remove entry */
-			sysmem.nr_banks--;
-			sysmem.bank[i].start = sysmem.bank[sysmem.nr_banks].start;
-			sysmem.bank[i].end   = sysmem.bank[sysmem.nr_banks].end;
-		}
+		/* remove entry */
+		sysmem.nr_banks--;
+		sysmem.bank[i].start = sysmem.bank[sysmem.nr_banks].start;
+		sysmem.bank[i].end   = sysmem.bank[sysmem.nr_banks].end;
 	}
 	return -1;
 }

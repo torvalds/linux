@@ -240,3 +240,5 @@ void unmap_bin_file(struct sysfs_dirent *attr_sd);
  * symlink.c
  */
 extern const struct inode_operations sysfs_symlink_inode_operations;
+int sysfs_create_link_sd(struct sysfs_dirent *sd, struct kobject *target,
+			 const char *name);

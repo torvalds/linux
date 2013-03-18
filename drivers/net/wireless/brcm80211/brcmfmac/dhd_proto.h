@@ -27,11 +27,6 @@ extern int brcmf_proto_attach(struct brcmf_pub *drvr);
 /* Unlink, frees allocated protocol memory (including brcmf_proto) */
 extern void brcmf_proto_detach(struct brcmf_pub *drvr);
 
-/* Initialize protocol: sync w/dongle state.
- * Sets dongle media info (iswl, drv_version, mac address).
- */
-extern int brcmf_proto_init(struct brcmf_pub *drvr);
-
 /* Stop protocol: sync w/dongle state. */
 extern void brcmf_proto_stop(struct brcmf_pub *drvr);
 
@@ -41,13 +36,7 @@ extern void brcmf_proto_stop(struct brcmf_pub *drvr);
 extern void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx,
 				struct sk_buff *txp);
 
-/* Use protocol to issue command to dongle */
-extern int brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx,
-				struct brcmf_dcmd *dcmd, int len);
-
-extern int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr);
-
-extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx,
-				     uint cmd, void *buf, uint len);
+/* Sets dongle media info (drv_version, mac address). */
+extern int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
 
 #endif				/* _BRCMF_PROTO_H_ */

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -464,8 +464,8 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	ACPI_FUNCTION_NAME(ex_dump_operand)
 
-	    if (!((ACPI_LV_EXEC & acpi_dbg_level)
-		  && (_COMPONENT & acpi_dbg_layer))) {
+	    /* Check if debug output enabled */
+	    if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
 		return;
 	}
 
@@ -777,7 +777,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
  * PARAMETERS:  title               - Descriptive text
  *              value               - Value to be displayed
  *
- * DESCRIPTION: Object dump output formatting functions.  These functions
+ * DESCRIPTION: Object dump output formatting functions. These functions
  *              reduce the number of format strings required and keeps them
  *              all in one place for easy modification.
  *
@@ -810,8 +810,10 @@ void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
 	ACPI_FUNCTION_ENTRY();
 
 	if (!flags) {
-		if (!((ACPI_LV_OBJECTS & acpi_dbg_level)
-		      && (_COMPONENT & acpi_dbg_layer))) {
+
+		/* Check if debug output enabled */
+
+		if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_OBJECTS, _COMPONENT)) {
 			return;
 		}
 	}
@@ -940,10 +942,11 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 		acpi_os_printf("[Buffer] Length %.2X = ",
 			       obj_desc->buffer.length);
 		if (obj_desc->buffer.length) {
-			acpi_ut_dump_buffer(ACPI_CAST_PTR
-					    (u8, obj_desc->buffer.pointer),
-					    obj_desc->buffer.length,
-					    DB_DWORD_DISPLAY, _COMPONENT);
+			acpi_ut_debug_dump_buffer(ACPI_CAST_PTR
+						  (u8,
+						   obj_desc->buffer.pointer),
+						  obj_desc->buffer.length,
+						  DB_DWORD_DISPLAY, _COMPONENT);
 		} else {
 			acpi_os_printf("\n");
 		}
@@ -996,8 +999,10 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 	}
 
 	if (!flags) {
-		if (!((ACPI_LV_OBJECTS & acpi_dbg_level)
-		      && (_COMPONENT & acpi_dbg_layer))) {
+
+		/* Check if debug output enabled */
+
+		if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_OBJECTS, _COMPONENT)) {
 			return_VOID;
 		}
 	}

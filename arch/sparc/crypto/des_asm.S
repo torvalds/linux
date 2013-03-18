@@ -376,6 +376,7 @@ ENTRY(des3_ede_sparc64_ecb_crypt)
 1:	ldd	[%o1 + 0x00], %f60
 	DES3_LOOP_BODY(60)
 	std	%f60, [%o2 + 0x00]
+	add	%o1, 0x08, %o1
 	subcc	%o3, 0x08, %o3
 	bne,pt	%icc, 1b
 	 add	%o2, 0x08, %o2

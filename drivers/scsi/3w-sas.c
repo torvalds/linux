@@ -757,7 +757,7 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	dma_addr_t dma_handle;
 	int request_id = 0;
 	TW_Ioctl_Driver_Command driver_command;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	TW_Ioctl_Buf_Apache *tw_ioctl;
 	TW_Command_Full *full_command_packet;
 	TW_Device_Extension *tw_dev = twl_device_extension_list[iminor(inode)];
@@ -1604,7 +1604,7 @@ static struct scsi_host_template driver_template = {
 };
 
 /* This function will probe and initialize a card */
-static int __devinit twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
+static int twl_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 {
 	struct Scsi_Host *host = NULL;
 	TW_Device_Extension *tw_dev;
@@ -1893,7 +1893,7 @@ out_disable_device:
 #endif
 
 /* PCI Devices supported by this driver */
-static struct pci_device_id twl_pci_tbl[] __devinitdata = {
+static struct pci_device_id twl_pci_tbl[] = {
 	{ PCI_VDEVICE(3WARE, PCI_DEVICE_ID_3WARE_9750) },
 	{ }
 };

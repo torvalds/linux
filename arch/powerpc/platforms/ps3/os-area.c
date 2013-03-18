@@ -280,13 +280,13 @@ static void os_area_set_property(struct device_node *node,
 
 	if (tmp) {
 		pr_debug("%s:%d found %s\n", __func__, __LINE__, prop->name);
-		prom_remove_property(node, tmp);
+		of_remove_property(node, tmp);
 	}
 
-	result = prom_add_property(node, prop);
+	result = of_add_property(node, prop);
 
 	if (result)
-		pr_debug("%s:%d prom_set_property failed\n", __func__,
+		pr_debug("%s:%d of_set_property failed\n", __func__,
 			__LINE__);
 }
 

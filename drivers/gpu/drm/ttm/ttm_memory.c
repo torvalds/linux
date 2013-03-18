@@ -367,7 +367,6 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	spin_lock_init(&glob->lock);
 	glob->swap_queue = create_singlethread_workqueue("ttm_swap");
 	INIT_WORK(&glob->work, ttm_shrink_work);
-	init_waitqueue_head(&glob->queue);
 	ret = kobject_init_and_add(
 		&glob->kobj, &ttm_mem_glob_kobj_type, ttm_get_kobj(), "memory_accounting");
 	if (unlikely(ret != 0)) {

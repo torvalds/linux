@@ -58,7 +58,7 @@ static void chsc_subchannel_irq(struct subchannel *sch)
 
 	CHSC_LOG(4, "irb");
 	CHSC_LOG_HEX(4, irb, sizeof(*irb));
-	kstat_cpu(smp_processor_id()).irqs[IOINT_CSC]++;
+	inc_irq_stat(IRQIO_CSC);
 
 	/* Copy irb to provided request and set done. */
 	if (!request) {

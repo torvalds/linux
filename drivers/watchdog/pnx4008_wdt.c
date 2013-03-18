@@ -142,22 +142,22 @@ static const struct watchdog_ops pnx4008_wdt_ops = {
 static struct watchdog_device pnx4008_wdd = {
 	.info = &pnx4008_wdt_ident,
 	.ops = &pnx4008_wdt_ops,
+	.timeout = DEFAULT_HEARTBEAT,
 	.min_timeout = 1,
 	.max_timeout = MAX_HEARTBEAT,
 };
 
-static int __devinit pnx4008_wdt_probe(struct platform_device *pdev)
+static int pnx4008_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *r;
 	int ret = 0;
 
-	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
-		heartbeat = DEFAULT_HEARTBEAT;
+	watchdog_init_timeout(&pnx4008_wdd, heartbeat, &pdev->dev);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!wdt_base)
-		return -EADDRINUSE;
+	wdt_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(wdt_base))
+		return PTR_ERR(wdt_base);
 
 	wdt_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt_clk))
@@ -167,7 +167,6 @@ static int __devinit pnx4008_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	pnx4008_wdd.timeout = heartbeat;
 	pnx4008_wdd.bootstatus = (readl(WDTIM_RES(wdt_base)) & WDOG_RESET) ?
 			WDIOF_CARDRESET : 0;
 	watchdog_set_nowayout(&pnx4008_wdd, nowayout);
@@ -181,7 +180,7 @@ static int __devinit pnx4008_wdt_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "PNX4008 Watchdog Timer: heartbeat %d sec\n",
-			heartbeat);
+		 pnx4008_wdd.timeout);
 
 	return 0;
 
@@ -192,7 +191,7 @@ out:
 	return ret;
 }
 
-static int __devexit pnx4008_wdt_remove(struct platform_device *pdev)
+static int pnx4008_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&pnx4008_wdd);
 
@@ -217,7 +216,7 @@ static struct platform_driver platform_wdt_driver = {
 		.of_match_table = of_match_ptr(pnx4008_wdt_match),
 	},
 	.probe = pnx4008_wdt_probe,
-	.remove = __devexit_p(pnx4008_wdt_remove),
+	.remove = pnx4008_wdt_remove,
 };
 
 module_platform_driver(platform_wdt_driver);

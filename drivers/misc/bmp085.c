@@ -420,7 +420,7 @@ struct regmap_config bmp085_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(bmp085_regmap_config);
 
-__devinit int bmp085_probe(struct device *dev, struct regmap *regmap)
+int bmp085_probe(struct device *dev, struct regmap *regmap)
 {
 	struct bmp085_data *data;
 	int err = 0;

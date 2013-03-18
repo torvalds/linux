@@ -238,7 +238,7 @@ static int ohci_sm501_resume(struct platform_device *pdev)
 	ohci->next_statechange = jiffies;
 
 	sm501_unit_power(dev->parent, SM501_GATE_USB_HOST, 1);
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 	return 0;
 }
 #else

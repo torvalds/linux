@@ -39,6 +39,8 @@
  *	1.13	Nobuhiro Iwamatsu: Updata driver.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/rtc.h>
@@ -352,8 +354,7 @@ static void rs5c313_check_xstp_bit(void)
 		tm.tm_year 	= 2000 - 1900;
 
 		rs5c313_rtc_set_time(NULL, &tm);
-		printk(KERN_ERR "RICHO RS5C313: invalid value, resetting to "
-				"1 Jan 2000\n");
+		pr_err("invalid value, resetting to 1 Jan 2000\n");
 	}
 	RS5C313_CEDISABLE;
 	ndelay(700);		/* CE:L */
@@ -377,7 +378,7 @@ static int rs5c313_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit rs5c313_rtc_remove(struct platform_device *pdev)
+static int rs5c313_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata( pdev );
 
@@ -392,7 +393,7 @@ static struct platform_driver rs5c313_rtc_platform_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe 	= rs5c313_rtc_probe,
-	.remove = __devexit_p( rs5c313_rtc_remove ),
+	.remove = rs5c313_rtc_remove,
 };
 
 static int __init rs5c313_rtc_init(void)

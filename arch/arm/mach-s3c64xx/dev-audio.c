@@ -23,11 +23,6 @@
 #include <linux/platform_data/asoc-s3c.h>
 #include <plat/gpio-cfg.h>
 
-static const char *rclksrc[] = {
-	[0] = "iis",
-	[1] = "audio-bus",
-};
-
 static int s3c64xx_i2s_cfg_gpio(struct platform_device *pdev)
 {
 	unsigned int base;
@@ -64,11 +59,6 @@ static struct resource s3c64xx_iis0_resource[] = {
 
 static struct s3c_audio_pdata i2sv3_pdata = {
 	.cfg_gpio = s3c64xx_i2s_cfg_gpio,
-	.type = {
-		.i2s = {
-			.src_clk = rclksrc,
-		},
-	},
 };
 
 struct platform_device s3c64xx_device_iis0 = {
@@ -110,7 +100,6 @@ static struct s3c_audio_pdata i2sv4_pdata = {
 	.type = {
 		.i2s = {
 			.quirks = QUIRK_PRI_6CHAN,
-			.src_clk = rclksrc,
 		},
 	},
 };

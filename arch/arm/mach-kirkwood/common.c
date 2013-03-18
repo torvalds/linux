@@ -18,10 +18,10 @@
 #include <linux/clk-provider.h>
 #include <linux/spinlock.h>
 #include <linux/mv643xx_i2c.h>
+#include <linux/timex.h>
+#include <linux/kexec.h>
 #include <net/dsa.h>
 #include <asm/page.h>
-#include <asm/timex.h>
-#include <asm/kexec.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/kirkwood.h>
@@ -260,12 +260,13 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add(NULL, "orion_nand", runit);
 	orion_clkdev_add(NULL, "mvsdio", sdio);
 	orion_clkdev_add(NULL, "mv_crypto", crypto);
-	orion_clkdev_add(NULL, MV_XOR_SHARED_NAME ".0", xor0);
-	orion_clkdev_add(NULL, MV_XOR_SHARED_NAME ".1", xor1);
+	orion_clkdev_add(NULL, MV_XOR_NAME ".0", xor0);
+	orion_clkdev_add(NULL, MV_XOR_NAME ".1", xor1);
 	orion_clkdev_add("0", "pcie", pex0);
 	orion_clkdev_add("1", "pcie", pex1);
 	orion_clkdev_add(NULL, "kirkwood-i2s", audio);
 	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".0", runit);
+	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".1", runit);
 
 	/* Marvell says runit is used by SPI, UART, NAND, TWSI, ...,
 	 * so should never be gated.
@@ -425,7 +426,7 @@ void __init kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data)
 /*****************************************************************************
  * SPI
  ****************************************************************************/
-void __init kirkwood_spi_init()
+void __init kirkwood_spi_init(void)
 {
 	orion_spi_init(SPI_PHYS_BASE);
 }
@@ -498,6 +499,28 @@ void __init kirkwood_wdt_init(void)
 	orion_wdt_init();
 }
 
+/*****************************************************************************
+ * CPU idle
+ ****************************************************************************/
+static struct resource kirkwood_cpuidle_resource[] = {
+	{
+		.flags	= IORESOURCE_MEM,
+		.start	= DDR_OPERATION_BASE,
+		.end	= DDR_OPERATION_BASE + 3,
+	},
+};
+
+static struct platform_device kirkwood_cpuidle = {
+	.name		= "kirkwood_cpuidle",
+	.id		= -1,
+	.resource	= kirkwood_cpuidle_resource,
+	.num_resources	= 1,
+};
+
+void __init kirkwood_cpuidle_init(void)
+{
+	platform_device_register(&kirkwood_cpuidle);
+}
 
 /*****************************************************************************
  * Time handling
@@ -529,17 +552,13 @@ static int __init kirkwood_find_tclk(void)
 	return 166666667;
 }
 
-static void __init kirkwood_timer_init(void)
+void __init kirkwood_timer_init(void)
 {
 	kirkwood_tclk = kirkwood_find_tclk();
 
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
 }
-
-struct sys_timer kirkwood_timer = {
-	.init = kirkwood_timer_init,
-};
 
 /*****************************************************************************
  * Audio
@@ -646,8 +665,7 @@ void __init kirkwood_l2_init(void)
 
 void __init kirkwood_init(void)
 {
-	printk(KERN_INFO "Kirkwood: %s, TCLK=%d.\n",
-		kirkwood_id(), kirkwood_tclk);
+	pr_info("Kirkwood: %s, TCLK=%d.\n", kirkwood_id(), kirkwood_tclk);
 
 	/*
 	 * Disable propagation of mbus errors to the CPU local bus,
@@ -671,7 +689,8 @@ void __init kirkwood_init(void)
 	kirkwood_xor1_init();
 	kirkwood_crypto_init();
 
-#ifdef CONFIG_KEXEC 
+	kirkwood_cpuidle_init();
+#ifdef CONFIG_KEXEC
 	kexec_reinit = kirkwood_enable_pcie;
 #endif
 }

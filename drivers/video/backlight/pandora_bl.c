@@ -71,8 +71,7 @@ static int pandora_backlight_update_status(struct backlight_device *bl)
 		 * set PWM duty cycle to max. TPS61161 seems to use this
 		 * to calibrate it's PWM sensitivity when it starts.
 		 */
-		twl_i2c_write_u8(TWL4030_MODULE_PWM0, MAX_VALUE,
-					TWL_PWM0_OFF);
+		twl_i2c_write_u8(TWL_MODULE_PWM, MAX_VALUE, TWL_PWM0_OFF);
 
 		/* first enable clock, then PWM0 out */
 		twl_i2c_read_u8(TWL4030_MODULE_INTBR, &r, TWL_INTBR_GPBR1);
@@ -90,8 +89,7 @@ static int pandora_backlight_update_status(struct backlight_device *bl)
 		usleep_range(2000, 10000);
 	}
 
-	twl_i2c_write_u8(TWL4030_MODULE_PWM0, MIN_VALUE + brightness,
-				TWL_PWM0_OFF);
+	twl_i2c_write_u8(TWL_MODULE_PWM, MIN_VALUE + brightness, TWL_PWM0_OFF);
 
 done:
 	if (brightness != 0)
@@ -132,7 +130,7 @@ static int pandora_backlight_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bl);
 
 	/* 64 cycle period, ON position 0 */
-	twl_i2c_write_u8(TWL4030_MODULE_PWM0, 0x80, TWL_PWM0_ON);
+	twl_i2c_write_u8(TWL_MODULE_PWM, 0x80, TWL_PWM0_ON);
 
 	bl->props.state |= PANDORABL_WAS_OFF;
 	bl->props.brightness = MAX_USER_VALUE;

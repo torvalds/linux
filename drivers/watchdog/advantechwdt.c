@@ -238,7 +238,7 @@ static struct miscdevice advwdt_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit advwdt_probe(struct platform_device *dev)
+static int advwdt_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -282,7 +282,7 @@ unreg_stop:
 	goto out;
 }
 
-static int __devexit advwdt_remove(struct platform_device *dev)
+static int advwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&advwdt_miscdev);
 	release_region(wdt_start, 1);
@@ -300,7 +300,7 @@ static void advwdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver advwdt_driver = {
 	.probe		= advwdt_probe,
-	.remove		= __devexit_p(advwdt_remove),
+	.remove		= advwdt_remove,
 	.shutdown	= advwdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

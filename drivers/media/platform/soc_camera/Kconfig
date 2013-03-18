@@ -19,6 +19,7 @@ config MX1_VIDEO
 
 config VIDEO_MX1
 	tristate "i.MX1/i.MXL CMOS Sensor Interface driver"
+	depends on BROKEN
 	depends on VIDEO_DEV && ARCH_MX1 && SOC_CAMERA
 	select FIQ
 	select VIDEOBUF_DMA_CONTIG
@@ -69,13 +70,12 @@ config VIDEO_MX2_HOSTSUPPORT
 	bool
 
 config VIDEO_MX2
-	tristate "i.MX27/i.MX25 Camera Sensor Interface driver"
-	depends on VIDEO_DEV && SOC_CAMERA && (MACH_MX27 || (ARCH_MX25 && BROKEN))
+	tristate "i.MX27 Camera Sensor Interface driver"
+	depends on VIDEO_DEV && SOC_CAMERA && MACH_MX27
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_MX2_HOSTSUPPORT
 	---help---
-	  This is a v4l2 driver for the i.MX27 and the i.MX25 Camera Sensor
-	  Interface
+	  This is a v4l2 driver for the i.MX27 Camera Sensor Interface
 
 config VIDEO_ATMEL_ISI
 	tristate "ATMEL Image Sensor Interface (ISI) support"

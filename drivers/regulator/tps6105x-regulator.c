@@ -127,7 +127,7 @@ static const struct regulator_desc tps6105x_regulator_desc = {
 /*
  * Registers the chip as a voltage regulator
  */
-static int __devinit tps6105x_regulator_probe(struct platform_device *pdev)
+static int tps6105x_regulator_probe(struct platform_device *pdev)
 {
 	struct tps6105x *tps6105x = dev_get_platdata(&pdev->dev);
 	struct tps6105x_platform_data *pdata = tps6105x->pdata;
@@ -159,7 +159,7 @@ static int __devinit tps6105x_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tps6105x_regulator_remove(struct platform_device *pdev)
+static int tps6105x_regulator_remove(struct platform_device *pdev)
 {
 	struct tps6105x *tps6105x = dev_get_platdata(&pdev->dev);
 	regulator_unregister(tps6105x->regulator);
@@ -172,7 +172,7 @@ static struct platform_driver tps6105x_regulator_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps6105x_regulator_probe,
-	.remove = __devexit_p(tps6105x_regulator_remove),
+	.remove = tps6105x_regulator_remove,
 };
 
 static __init int tps6105x_regulator_init(void)

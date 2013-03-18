@@ -14,6 +14,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -130,6 +131,11 @@ void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable)
 	 * - D+ Line Pull-up
 	 */
 	usbhs_bset(priv, SYSCFG, mask, enable ? val : 0);
+}
+
+void usbhs_sys_function_pullup(struct usbhs_priv *priv, int enable)
+{
+	usbhs_bset(priv, SYSCFG, DPRPU, enable ? DPRPU : 0);
 }
 
 void usbhs_sys_set_test_mode(struct usbhs_priv *priv, u16 mode)
@@ -438,11 +444,9 @@ static int usbhs_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	priv->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!priv->base) {
-		dev_err(&pdev->dev, "ioremap error.\n");
-		return -ENOMEM;
-	}
+	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
 	/*
 	 * care platform info
@@ -551,7 +555,7 @@ probe_end_pipe_exit:
 	return ret;
 }
 
-static int __devexit usbhs_remove(struct platform_device *pdev)
+static int usbhs_remove(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 	struct renesas_usbhs_platform_info *info = pdev->dev.platform_data;
@@ -631,7 +635,7 @@ static struct platform_driver renesas_usbhs_driver = {
 		.pm	= &usbhsc_pm_ops,
 	},
 	.probe		= usbhs_probe,
-	.remove		= __devexit_p(usbhs_remove),
+	.remove		= usbhs_remove,
 };
 
 module_platform_driver(renesas_usbhs_driver);

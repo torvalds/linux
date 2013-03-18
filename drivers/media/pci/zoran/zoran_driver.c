@@ -1334,7 +1334,7 @@ static int zoran_v4l2_buffer_status(struct zoran_fh *fh,
 	struct zoran *zr = fh->zr;
 	unsigned long flags;
 
-	buf->flags = V4L2_BUF_FLAG_MAPPED;
+	buf->flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	switch (fh->map_mode) {
 	case ZORAN_MAP_MODE_RAW:
@@ -3080,7 +3080,7 @@ static const struct v4l2_file_operations zoran_fops = {
 	.poll = zoran_poll,
 };
 
-struct video_device zoran_template __devinitdata = {
+struct video_device zoran_template = {
 	.name = ZORAN_NAME,
 	.fops = &zoran_fops,
 	.ioctl_ops = &zoran_ioctl_ops,

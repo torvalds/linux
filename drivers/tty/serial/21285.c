@@ -85,7 +85,6 @@ static void serial21285_enable_ms(struct uart_port *port)
 static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned int status, ch, flag, rxs, max_count = 256;
 
 	status = *CSR_UARTFLG;
@@ -115,7 +114,7 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 
 		status = *CSR_UARTFLG;
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 
 	return IRQ_HANDLED;
 }

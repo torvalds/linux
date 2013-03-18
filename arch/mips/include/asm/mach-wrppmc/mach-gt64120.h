@@ -1,6 +1,6 @@
 /*
  * This is a direct copy of the ev96100.h file, with a global
- * search and replace.  The numbers are the same.
+ * search and replace.	The numbers are the same.
  *
  * The reason I'm duplicating this is so that the 64120/96100
  * defines won't be confusing in the source code.
@@ -11,11 +11,11 @@
 /*
  * This is the CPU physical memory map of PPMC Board:
  *
- *    0x00000000-0x03FFFFFF      - 64MB SDRAM (SCS[0]#)
- *    0x1C000000-0x1C000000      - LED (CS0)
- *    0x1C800000-0x1C800007      - UART 16550 port (CS1)
- *    0x1F000000-0x1F000000      - MailBox (CS3)
- *    0x1FC00000-0x20000000      - 4MB Flash (BOOT CS)
+ *    0x00000000-0x03FFFFFF	 - 64MB SDRAM (SCS[0]#)
+ *    0x1C000000-0x1C000000	 - LED (CS0)
+ *    0x1C800000-0x1C800007	 - UART 16550 port (CS1)
+ *    0x1F000000-0x1F000000	 - MailBox (CS3)
+ *    0x1FC00000-0x20000000	 - 4MB Flash (BOOT CS)
  */
 
 #define WRPPMC_SDRAM_SCS0_BASE	0x00000000
@@ -39,8 +39,8 @@
  *
  * NOTE: We only have PCI_0 hose interface
  */
-#define GT_PCI_MEM_BASE	0x13000000UL
-#define GT_PCI_MEM_SIZE	0x02000000UL
+#define GT_PCI_MEM_BASE 0x13000000UL
+#define GT_PCI_MEM_SIZE 0x02000000UL
 #define GT_PCI_IO_BASE	0x11000000UL
 #define GT_PCI_IO_SIZE	0x02000000UL
 

@@ -68,7 +68,7 @@ static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
-static int __devinit gpio_charger_probe(struct platform_device *pdev)
+static int gpio_charger_probe(struct platform_device *pdev)
 {
 	const struct gpio_charger_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_charger *gpio_charger;
@@ -144,7 +144,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit gpio_charger_remove(struct platform_device *pdev)
+static int gpio_charger_remove(struct platform_device *pdev)
 {
 	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
 
@@ -177,7 +177,7 @@ static SIMPLE_DEV_PM_OPS(gpio_charger_pm_ops, NULL, gpio_charger_resume);
 
 static struct platform_driver gpio_charger_driver = {
 	.probe = gpio_charger_probe,
-	.remove = __devexit_p(gpio_charger_remove),
+	.remove = gpio_charger_remove,
 	.driver = {
 		.name = "gpio-charger",
 		.owner = THIS_MODULE,

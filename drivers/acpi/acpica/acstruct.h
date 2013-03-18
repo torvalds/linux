@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@
  ****************************************************************************/
 
 /*
- * Walk state - current state of a parse tree walk.  Used for both a leisurely
+ * Walk state - current state of a parse tree walk. Used for both a leisurely
  * stroll through the tree (for whatever reason), and for control method
  * execution.
  */

@@ -47,7 +47,7 @@ static long do_spu_run(struct file *filp,
 	if (filp->f_op != &spufs_context_fops)
 		goto out;
 
-	i = SPUFS_I(filp->f_path.dentry->d_inode);
+	i = SPUFS_I(file_inode(filp));
 	ret = spufs_run_spu(i->i_ctx, &npc, &status);
 
 	if (put_user(npc, unpc))
@@ -66,7 +66,7 @@ static long do_spu_create(const char __user *pathname, unsigned int flags,
 	struct dentry *dentry;
 	int ret;
 
-	dentry = user_path_create(AT_FDCWD, pathname, &path, 1);
+	dentry = user_path_create(AT_FDCWD, pathname, &path, LOOKUP_DIRECTORY);
 	ret = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		ret = spufs_create(&path, dentry, flags, mode, neighbor);

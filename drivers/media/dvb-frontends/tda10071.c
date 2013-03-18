@@ -30,7 +30,7 @@ static int tda10071_wr_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 	u8 buf[len+1];
 	struct i2c_msg msg[1] = {
 		{
-			.addr = priv->cfg.i2c_address,
+			.addr = priv->cfg.demod_i2c_addr,
 			.flags = 0,
 			.len = sizeof(buf),
 			.buf = buf,
@@ -59,12 +59,12 @@ static int tda10071_rd_regs(struct tda10071_priv *priv, u8 reg, u8 *val,
 	u8 buf[len];
 	struct i2c_msg msg[2] = {
 		{
-			.addr = priv->cfg.i2c_address,
+			.addr = priv->cfg.demod_i2c_addr,
 			.flags = 0,
 			.len = 1,
 			.buf = &reg,
 		}, {
-			.addr = priv->cfg.i2c_address,
+			.addr = priv->cfg.demod_i2c_addr,
 			.flags = I2C_M_RD,
 			.len = sizeof(buf),
 			.buf = buf,
@@ -96,7 +96,8 @@ static int tda10071_rd_reg(struct tda10071_priv *priv, u8 reg, u8 *val)
 }
 
 /* write single register with mask */
-int tda10071_wr_reg_mask(struct tda10071_priv *priv, u8 reg, u8 val, u8 mask)
+static int tda10071_wr_reg_mask(struct tda10071_priv *priv,
+				u8 reg, u8 val, u8 mask)
 {
 	int ret;
 	u8 tmp;
@@ -116,7 +117,8 @@ int tda10071_wr_reg_mask(struct tda10071_priv *priv, u8 reg, u8 val, u8 mask)
 }
 
 /* read single register with mask */
-int tda10071_rd_reg_mask(struct tda10071_priv *priv, u8 reg, u8 *val, u8 mask)
+static int tda10071_rd_reg_mask(struct tda10071_priv *priv,
+				u8 reg, u8 *val, u8 mask)
 {
 	int ret, i;
 	u8 tmp;
@@ -1062,7 +1064,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 		cmd.args[2] = 0x00;
 		cmd.args[3] = 0x00;
 		cmd.args[4] = 0x00;
-		cmd.args[5] = 0x14;
+		cmd.args[5] = (priv->cfg.tuner_i2c_addr) ? priv->cfg.tuner_i2c_addr : 0x14;
 		cmd.args[6] = 0x00;
 		cmd.args[7] = 0x03;
 		cmd.args[8] = 0x02;
@@ -1197,6 +1199,20 @@ struct dvb_frontend *tda10071_attach(const struct tda10071_config *config,
 	priv = kzalloc(sizeof(struct tda10071_priv), GFP_KERNEL);
 	if (priv == NULL) {
 		ret = -ENOMEM;
+		goto error;
+	}
+
+	/* make sure demod i2c address is specified */
+	if (!config->demod_i2c_addr) {
+		dev_dbg(&i2c->dev, "%s: invalid demod i2c address!\n", __func__);
+		ret = -EINVAL;
+		goto error;
+	}
+
+	/* make sure tuner i2c address is specified */
+	if (!config->tuner_i2c_addr) {
+		dev_dbg(&i2c->dev, "%s: invalid tuner i2c address!\n", __func__);
+		ret = -EINVAL;
 		goto error;
 	}
 

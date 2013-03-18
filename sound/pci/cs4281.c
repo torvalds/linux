@@ -969,8 +969,8 @@ static struct snd_pcm_ops snd_cs4281_capture_ops = {
 	.pointer =	snd_cs4281_pointer,
 };
 
-static int __devinit snd_cs4281_pcm(struct cs4281 * chip, int device,
-				    struct snd_pcm ** rpcm)
+static int snd_cs4281_pcm(struct cs4281 *chip, int device,
+			  struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1093,7 +1093,7 @@ static void snd_cs4281_mixer_free_ac97(struct snd_ac97 *ac97)
 		chip->ac97 = NULL;
 }
 
-static int __devinit snd_cs4281_mixer(struct cs4281 * chip)
+static int snd_cs4281_mixer(struct cs4281 *chip)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ac97_template ac97;
@@ -1171,7 +1171,7 @@ static struct snd_info_entry_ops snd_cs4281_proc_ops_BA1 = {
 	.read = snd_cs4281_BA1_read,
 };
 
-static void __devinit snd_cs4281_proc_init(struct cs4281 * chip)
+static void snd_cs4281_proc_init(struct cs4281 *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1259,7 +1259,7 @@ static int snd_cs4281_gameport_open(struct gameport *gameport, int mode)
 	return 0;
 }
 
-static int __devinit snd_cs4281_create_gameport(struct cs4281 *chip)
+static int snd_cs4281_create_gameport(struct cs4281 *chip)
 {
 	struct gameport *gp;
 
@@ -1335,10 +1335,10 @@ static int snd_cs4281_dev_free(struct snd_device *device)
 
 static int snd_cs4281_chip_init(struct cs4281 *chip); /* defined below */
 
-static int __devinit snd_cs4281_create(struct snd_card *card,
-				       struct pci_dev *pci,
-				       struct cs4281 ** rchip,
-				       int dual_codec)
+static int snd_cs4281_create(struct snd_card *card,
+			     struct pci_dev *pci,
+			     struct cs4281 **rchip,
+			     int dual_codec)
 {
 	struct cs4281 *chip;
 	unsigned int tmp;
@@ -1779,8 +1779,8 @@ static struct snd_rawmidi_ops snd_cs4281_midi_input =
 	.trigger =	snd_cs4281_midi_input_trigger,
 };
 
-static int __devinit snd_cs4281_midi(struct cs4281 * chip, int device,
-				     struct snd_rawmidi **rrawmidi)
+static int snd_cs4281_midi(struct cs4281 *chip, int device,
+			   struct snd_rawmidi **rrawmidi)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
@@ -1901,8 +1901,8 @@ static void snd_cs4281_opl3_command(struct snd_opl3 *opl3, unsigned short cmd,
 	spin_unlock_irqrestore(&opl3->reg_lock, flags);
 }
 
-static int __devinit snd_cs4281_probe(struct pci_dev *pci,
-				      const struct pci_device_id *pci_id)
+static int snd_cs4281_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -1968,7 +1968,7 @@ static int __devinit snd_cs4281_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_cs4281_remove(struct pci_dev *pci)
+static void snd_cs4281_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -2095,7 +2095,7 @@ static struct pci_driver cs4281_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_cs4281_ids,
 	.probe = snd_cs4281_probe,
-	.remove = __devexit_p(snd_cs4281_remove),
+	.remove = snd_cs4281_remove,
 	.driver = {
 		.pm = CS4281_PM_OPS,
 	},

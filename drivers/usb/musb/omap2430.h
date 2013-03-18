@@ -10,7 +10,7 @@
 #ifndef __MUSB_OMAP243X_H__
 #define __MUSB_OMAP243X_H__
 
-#include <plat/usb.h>
+#include <linux/platform_data/usb-omap.h>
 
 /*
  * OMAP2430-specific definitions
@@ -49,13 +49,4 @@
 #define OTG_FORCESTDBY		0x414
 #	define	ENABLEFORCE		(1 << 0)
 
-/*
- * Control Module bit definitions
- * XXX: Will be removed once we have a driver for control module.
- */
-#define	AVALID				BIT(0)
-#define	BVALID				BIT(1)
-#define	VBUSVALID			BIT(2)
-#define	SESSEND				BIT(3)
-#define	IDDIG				BIT(4)
 #endif	/* __MUSB_OMAP243X_H__ */

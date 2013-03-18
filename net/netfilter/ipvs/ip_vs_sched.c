@@ -159,7 +159,7 @@ void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg)
 			     svc->fwmark, msg);
 #ifdef CONFIG_IP_VS_IPV6
 	} else if (svc->af == AF_INET6) {
-		IP_VS_ERR_RL("%s: %s [%pI6]:%d - %s\n",
+		IP_VS_ERR_RL("%s: %s [%pI6c]:%d - %s\n",
 			     svc->scheduler->name,
 			     ip_vs_proto_name(svc->protocol),
 			     &svc->addr.in6, ntohs(svc->port), msg);

@@ -142,18 +142,36 @@ enum {
 	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48,
 	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55,
 	MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV = 1LL << 59,
+	MLX4_DEV_CAP_FLAG_64B_EQE	= 1LL << 61,
+	MLX4_DEV_CAP_FLAG_64B_CQE	= 1LL << 62
 };
 
 enum {
 	MLX4_DEV_CAP_FLAG2_RSS			= 1LL <<  0,
 	MLX4_DEV_CAP_FLAG2_RSS_TOP		= 1LL <<  1,
 	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2,
-	MLX4_DEV_CAP_FLAG2_FS_EN		= 1LL <<  3
+	MLX4_DEV_CAP_FLAG2_FS_EN		= 1LL <<  3,
+	MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN	= 1LL <<  4
 };
+
+enum {
+	MLX4_DEV_CAP_64B_EQE_ENABLED	= 1LL << 0,
+	MLX4_DEV_CAP_64B_CQE_ENABLED	= 1LL << 1
+};
+
+enum {
+	MLX4_USER_DEV_CAP_64B_CQE	= 1L << 0
+};
+
+enum {
+	MLX4_FUNC_CAP_64B_EQE_CQE	= 1L << 0
+};
+
 
 #define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
 
 enum {
+	MLX4_BMME_FLAG_WIN_TYPE_2B	= 1 <<  1,
 	MLX4_BMME_FLAG_LOCAL_INV	= 1 <<  6,
 	MLX4_BMME_FLAG_REMOTE_INV	= 1 <<  7,
 	MLX4_BMME_FLAG_TYPE_2_WIN	= 1 <<  9,
@@ -221,7 +239,8 @@ enum {
 	MLX4_PERM_LOCAL_WRITE	= 1 << 11,
 	MLX4_PERM_REMOTE_READ	= 1 << 12,
 	MLX4_PERM_REMOTE_WRITE	= 1 << 13,
-	MLX4_PERM_ATOMIC	= 1 << 14
+	MLX4_PERM_ATOMIC	= 1 << 14,
+	MLX4_PERM_BIND_MW	= 1 << 15,
 };
 
 enum {
@@ -419,6 +438,11 @@ struct mlx4_caps {
 	u32			max_counters;
 	u8			port_ib_mtu[MLX4_MAX_PORTS + 1];
 	u16			sqp_demux;
+	u32			eqe_size;
+	u32			cqe_size;
+	u8			eqe_factor;
+	u32			userspace_caps; /* userspace must be aware of these */
+	u32			function_caps;  /* VFs must be aware of these */
 };
 
 struct mlx4_buf_list {
@@ -479,6 +503,18 @@ struct mlx4_mr {
 	u32			key;
 	u32			pd;
 	u32			access;
+	int			enabled;
+};
+
+enum mlx4_mw_type {
+	MLX4_MW_TYPE_1 = 1,
+	MLX4_MW_TYPE_2 = 2,
+};
+
+struct mlx4_mw {
+	u32			key;
+	u32			pd;
+	enum mlx4_mw_type	type;
 	int			enabled;
 };
 
@@ -604,6 +640,7 @@ struct mlx4_dev {
 	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
 	int			num_vfs;
+	int			oper_log_mgm_entry_size;
 	u64			regid_promisc_array[MLX4_MAX_PORTS + 1];
 	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
 };
@@ -779,8 +816,12 @@ u64 mlx4_mtt_addr(struct mlx4_dev *dev, struct mlx4_mtt *mtt);
 
 int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
 		  int npages, int page_shift, struct mlx4_mr *mr);
-void mlx4_mr_free(struct mlx4_dev *dev, struct mlx4_mr *mr);
+int mlx4_mr_free(struct mlx4_dev *dev, struct mlx4_mr *mr);
 int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr);
+int mlx4_mw_alloc(struct mlx4_dev *dev, u32 pd, enum mlx4_mw_type type,
+		  struct mlx4_mw *mw);
+void mlx4_mw_free(struct mlx4_dev *dev, struct mlx4_mw *mw);
+int mlx4_mw_enable(struct mlx4_dev *dev, struct mlx4_mw *mw);
 int mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		   int start_index, int npages, u64 *page_list);
 int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
@@ -933,9 +974,8 @@ int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port, u64 mac, u64 clear, u8 mo
 
 int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac);
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac);
-int mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
-int mlx4_get_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn);
-void mlx4_put_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int qpn);
+int mlx4_get_base_qpn(struct mlx4_dev *dev, u8 port);
+int __mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
 void mlx4_set_stats_bitmap(struct mlx4_dev *dev, u64 *stats_bitmap);
 int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx);

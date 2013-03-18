@@ -329,7 +329,7 @@ module_param_named(quirks, param_quirks, int, 0644);
 MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", nonatomic cycle timer = "	__stringify(QUIRK_CYCLE_TIMER)
 	", reset packet generation = "	__stringify(QUIRK_RESET_PACKET)
-	", AR/selfID endianess = "	__stringify(QUIRK_BE_HEADERS)
+	", AR/selfID endianness = "	__stringify(QUIRK_BE_HEADERS)
 	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
 	", disable MSI = "		__stringify(QUIRK_NO_MSI)
 	", TI SLLZ059 erratum = "	__stringify(QUIRK_TI_SLLZ059)
@@ -1281,7 +1281,7 @@ static int at_context_queue_packet(struct context *ctx,
 	d[0].res_count = cpu_to_le16(packet->timestamp);
 
 	/*
-	 * The DMA format for asyncronous link packets is different
+	 * The DMA format for asynchronous link packets is different
 	 * from the IEEE1394 layout, so shift the fields around
 	 * accordingly.
 	 */
@@ -3537,7 +3537,7 @@ static inline void pmac_ohci_on(struct pci_dev *dev) {}
 static inline void pmac_ohci_off(struct pci_dev *dev) {}
 #endif /* CONFIG_PPC_PMAC */
 
-static int __devinit pci_probe(struct pci_dev *dev,
+static int pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;

@@ -108,13 +108,15 @@ static ssize_t lcd_show_power(struct device *dev, struct device_attribute *attr,
 static ssize_t lcd_store_power(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	int rc = -ENXIO;
+	int rc;
 	struct lcd_device *ld = to_lcd_device(dev);
 	unsigned long power;
 
 	rc = kstrtoul(buf, 0, &power);
 	if (rc)
 		return rc;
+
+	rc = -ENXIO;
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->set_power) {
@@ -144,13 +146,15 @@ static ssize_t lcd_show_contrast(struct device *dev,
 static ssize_t lcd_store_contrast(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	int rc = -ENXIO;
+	int rc;
 	struct lcd_device *ld = to_lcd_device(dev);
 	unsigned long contrast;
 
 	rc = kstrtoul(buf, 0, &contrast);
 	if (rc)
 		return rc;
+
+	rc = -ENXIO;
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->set_contrast) {

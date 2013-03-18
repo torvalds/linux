@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -173,7 +174,6 @@ int pxa3xx_pinctrl_register(struct platform_device *pdev,
 {
 	struct pinctrl_desc *desc;
 	struct resource *res;
-	int ret = 0;
 
 	if (!info || !info->cputype)
 		return -EINVAL;
@@ -188,23 +188,17 @@ int pxa3xx_pinctrl_register(struct platform_device *pdev,
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENOENT;
-	info->phy_base = res->start;
-	info->phy_size = resource_size(res);
-	info->virt_base = ioremap(info->phy_base, info->phy_size);
-	if (!info->virt_base)
-		return -ENOMEM;
+	info->virt_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->virt_base))
+		return PTR_ERR(info->virt_base);
 	info->pctrl = pinctrl_register(desc, &pdev->dev, info);
 	if (!info->pctrl) {
 		dev_err(&pdev->dev, "failed to register PXA pinmux driver\n");
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 	pinctrl_add_gpio_range(info->pctrl, &pxa3xx_pinctrl_gpio_range);
 	platform_set_drvdata(pdev, info);
 	return 0;
-err:
-	iounmap(info->virt_base);
-	return ret;
 }
 
 int pxa3xx_pinctrl_unregister(struct platform_device *pdev)
@@ -212,7 +206,6 @@ int pxa3xx_pinctrl_unregister(struct platform_device *pdev)
 	struct pxa3xx_pinmux_info *info = platform_get_drvdata(pdev);
 
 	pinctrl_unregister(info->pctrl);
-	iounmap(info->virt_base);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }

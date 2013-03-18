@@ -31,25 +31,33 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 			    const struct inet_bind_bucket *tb, bool relax)
 {
 	const struct sock *sk2;
-	const struct hlist_node *node;
+	int reuse = sk->sk_reuse;
+	int reuseport = sk->sk_reuseport;
+	kuid_t uid = sock_i_uid((struct sock *)sk);
 
 	/* We must walk the whole port owner list in this case. -DaveM */
 	/*
 	 * See comment in inet_csk_bind_conflict about sock lookup
 	 * vs net namespaces issues.
 	 */
-	sk_for_each_bound(sk2, node, &tb->owners) {
+	sk_for_each_bound(sk2, &tb->owners) {
 		if (sk != sk2 &&
 		    (!sk->sk_bound_dev_if ||
 		     !sk2->sk_bound_dev_if ||
-		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if) &&
-		    (!sk->sk_reuse || !sk2->sk_reuse ||
-		     sk2->sk_state == TCP_LISTEN) &&
-		     ipv6_rcv_saddr_equal(sk, sk2))
-			break;
+		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
+			if ((!reuse || !sk2->sk_reuse ||
+			     sk2->sk_state == TCP_LISTEN) &&
+			    (!reuseport || !sk2->sk_reuseport ||
+			     (sk2->sk_state != TCP_TIME_WAIT &&
+			      !uid_eq(uid,
+				      sock_i_uid((struct sock *)sk2))))) {
+				if (ipv6_rcv_saddr_equal(sk, sk2))
+					break;
+			}
+		}
 	}
 
-	return node != NULL;
+	return sk2 != NULL;
 }
 
 EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
@@ -252,6 +260,7 @@ struct dst_entry *inet6_csk_update_pmtu(struct sock *sk, u32 mtu)
 		return NULL;
 	dst->ops->update_pmtu(dst, sk, NULL, mtu);
 
-	return inet6_csk_route_socket(sk, &fl6);
+	dst = inet6_csk_route_socket(sk, &fl6);
+	return IS_ERR(dst) ? NULL : dst;
 }
 EXPORT_SYMBOL_GPL(inet6_csk_update_pmtu);

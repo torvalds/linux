@@ -26,8 +26,8 @@ config STMMAC_PLATFORM
 	  If unsure, say N.
 
 config STMMAC_PCI
-	bool "STMMAC PCI bus support (EXPERIMENTAL)"
-	depends on STMMAC_ETH && PCI && EXPERIMENTAL
+	bool "STMMAC PCI bus support"
+	depends on STMMAC_ETH && PCI
 	---help---
 	  This is to select the Synopsys DWMAC available on PCI devices,
 	  if you have a controller with this interface, say Y or M here.
@@ -53,31 +53,6 @@ config STMMAC_DA
 	  Ethernet device).
 	  By default, the DMA arbitration scheme is based on Round-robin
 	  (rx:tx priority is 1:1).
-
-config STMMAC_TIMER
-	bool "STMMAC Timer optimisation"
-	default n
-	depends on RTC_HCTOSYS_DEVICE
-	---help---
-	  Use an external timer for mitigating the number of network
-	  interrupts. Currently, for SH architectures, it is possible
-	  to use the TMU channel 2 and the SH-RTC device.
-
-choice
-        prompt "Select Timer device"
-        depends on STMMAC_TIMER
-
-config STMMAC_TMU_TIMER
-        bool "TMU channel 2"
-        depends on CPU_SH4
-	---help---
-
-config STMMAC_RTC_TIMER
-        bool "Real time clock"
-        depends on RTC_CLASS
-	---help---
-
-endchoice
 
 choice
 	prompt "Select the DMA TX/RX descriptor operating modes"

@@ -28,6 +28,7 @@
 #include <linux/mfd/asic3.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/gpio-regulator.h>
@@ -556,7 +557,7 @@ static struct platform_device hx4700_lcd = {
  */
 
 static struct platform_pwm_backlight_data backlight_data = {
-	.pwm_id         = 1,
+	.pwm_id         = -1,	/* Superseded by pwm_lookup */
 	.max_brightness = 200,
 	.dft_brightness = 100,
 	.pwm_period_ns  = 30923,
@@ -569,6 +570,10 @@ static struct platform_device backlight = {
 		.parent        = &pxa27x_device_pwm1.dev,
 		.platform_data = &backlight_data,
 	},
+};
+
+static struct pwm_lookup hx4700_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.1", 0, "pwm-backlight", NULL),
 };
 
 /*
@@ -872,6 +877,7 @@ static void __init hx4700_init(void)
 	pxa_set_stuart_info(NULL);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pwm_add_table(hx4700_pwm_lookup, ARRAY_SIZE(hx4700_pwm_lookup));
 
 	pxa_set_ficp_info(&ficp_info);
 	pxa27x_set_i2c_power_info(NULL);
@@ -894,6 +900,6 @@ MACHINE_START(H4700, "HP iPAQ HX4700")
 	.init_irq     = pxa27x_init_irq,
 	.handle_irq     = pxa27x_handle_irq,
 	.init_machine = hx4700_init,
-	.timer        = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END

@@ -191,12 +191,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 #ifdef CONFIG_PPC_47x
 
 /*
- * 47x variant of icbt
- */
-# define ICBT(CT,RA,RB)	\
-	.long	0x7c00002c | ((CT) << 21) | ((RA) << 16) | ((RB) << 11)
-
-/*
  * _tlbivax_bcast is only on 47x. We don't bother doing a runtime
  * check though, it will blow up soon enough if we mistakenly try
  * to use it on a 440.
@@ -208,8 +202,7 @@ _GLOBAL(_tlbivax_bcast)
 	wrteei	0
 	mtspr	SPRN_MMUCR,r5
 	isync
-/*	tlbivax	0,r3 - use .long to avoid binutils deps */
-	.long 0x7c000624 | (r3 << 11)
+	PPC_TLBIVAX(0, R3)
 	isync
 	eieio
 	tlbsync
@@ -227,11 +220,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	bl	2f
 2:	mflr	r6
 	li	r7,32
-	ICBT(0,r6,r7)		/* touch next cache line */
+	PPC_ICBT(0,R6,R7)		/* touch next cache line */
 	add	r6,r6,r7
-	ICBT(0,r6,r7)		/* touch next cache line */
+	PPC_ICBT(0,R6,R7)		/* touch next cache line */
 	add	r6,r6,r7
-	ICBT(0,r6,r7)		/* touch next cache line */
+	PPC_ICBT(0,R6,R7)		/* touch next cache line */
 	sync
 	nop
 	nop

@@ -209,9 +209,9 @@ static inline int lut_temp_to_reg(struct lm63_data *data, long val)
 {
 	val -= data->temp2_offset;
 	if (data->lut_temp_highres)
-		return DIV_ROUND_CLOSEST(SENSORS_LIMIT(val, 0, 127500), 500);
+		return DIV_ROUND_CLOSEST(clamp_val(val, 0, 127500), 500);
 	else
-		return DIV_ROUND_CLOSEST(SENSORS_LIMIT(val, 0, 127000), 1000);
+		return DIV_ROUND_CLOSEST(clamp_val(val, 0, 127000), 1000);
 }
 
 /*
@@ -415,7 +415,7 @@ static ssize_t set_pwm1(struct device *dev, struct device_attribute *devattr,
 		return err;
 
 	reg = nr ? LM63_REG_LUT_PWM(nr - 1) : LM63_REG_PWM_VALUE;
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm1[nr] = data->pwm_highres ? val :
@@ -700,7 +700,7 @@ static ssize_t set_update_interval(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	lm63_set_convrate(client, data, SENSORS_LIMIT(val, 0, 100000));
+	lm63_set_convrate(client, data, clamp_val(val, 0, 100000));
 	mutex_unlock(&data->update_lock);
 
 	return count;

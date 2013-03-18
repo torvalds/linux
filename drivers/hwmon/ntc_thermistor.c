@@ -43,7 +43,7 @@ struct ntc_compensation {
  * The following compensation tables are from the specification of Murata NTC
  * Thermistors Datasheet
  */
-const struct ntc_compensation ncpXXwb473[] = {
+static const struct ntc_compensation ncpXXwb473[] = {
 	{ .temp_C	= -40, .ohm	= 1747920 },
 	{ .temp_C	= -35, .ohm	= 1245428 },
 	{ .temp_C	= -30, .ohm	= 898485 },
@@ -79,7 +79,7 @@ const struct ntc_compensation ncpXXwb473[] = {
 	{ .temp_C	= 120, .ohm	= 1615 },
 	{ .temp_C	= 125, .ohm	= 1406 },
 };
-const struct ntc_compensation ncpXXwl333[] = {
+static const struct ntc_compensation ncpXXwl333[] = {
 	{ .temp_C	= -40, .ohm	= 1610154 },
 	{ .temp_C	= -35, .ohm	= 1130850 },
 	{ .temp_C	= -30, .ohm	= 802609 },
@@ -309,7 +309,7 @@ static const struct attribute_group ntc_attr_group = {
 	.attrs = ntc_attributes,
 };
 
-static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
+static int ntc_thermistor_probe(struct platform_device *pdev)
 {
 	struct ntc_data *data;
 	struct ntc_thermistor_platform_data *pdata = pdev->dev.platform_data;
@@ -393,7 +393,7 @@ err_after_sysfs:
 	return ret;
 }
 
-static int __devexit ntc_thermistor_remove(struct platform_device *pdev)
+static int ntc_thermistor_remove(struct platform_device *pdev)
 {
 	struct ntc_data *data = platform_get_drvdata(pdev);
 
@@ -419,7 +419,7 @@ static struct platform_driver ntc_thermistor_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ntc_thermistor_probe,
-	.remove = __devexit_p(ntc_thermistor_remove),
+	.remove = ntc_thermistor_remove,
 	.id_table = ntc_thermistor_id,
 };
 

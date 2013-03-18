@@ -28,10 +28,11 @@ struct nouveau_bo {
 	struct nouveau_drm_tile *tile;
 
 	struct drm_gem_object *gem;
+
+	/* protect by the ttm reservation lock */
 	int pin_refcnt;
 
 	struct ttm_bo_kmap_obj dma_buf_vmap;
-	int vmapping_count;
 };
 
 static inline struct nouveau_bo *
@@ -76,7 +77,7 @@ u32  nouveau_bo_rd32(struct nouveau_bo *, unsigned index);
 void nouveau_bo_wr32(struct nouveau_bo *, unsigned index, u32 val);
 void nouveau_bo_fence(struct nouveau_bo *, struct nouveau_fence *);
 int  nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
-			 bool no_wait_reserve, bool no_wait_gpu);
+			 bool no_wait_gpu);
 
 struct nouveau_vma *
 nouveau_bo_vma_find(struct nouveau_bo *, struct nouveau_vm *);

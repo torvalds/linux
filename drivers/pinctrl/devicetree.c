@@ -106,6 +106,17 @@ static struct pinctrl_dev *find_pinctrl_by_of_node(struct device_node *np)
 	return NULL;
 }
 
+struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
+{
+	struct pinctrl_dev *pctldev;
+
+	pctldev = find_pinctrl_by_of_node(np);
+	if (!pctldev)
+		return NULL;
+
+	return pctldev;
+}
+
 static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
 				struct device_node *np_config)
 {
@@ -130,6 +141,11 @@ static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
 		pctldev = find_pinctrl_by_of_node(np_pctldev);
 		if (pctldev)
 			break;
+		/* Do not defer probing of hogs (circular loop) */
+		if (np_pctldev == p->dev->of_node) {
+			of_node_put(np_pctldev);
+			return -ENODEV;
+		}
 	}
 	of_node_put(np_pctldev);
 

@@ -117,7 +117,7 @@ static void cell_fixup_pcie_rootcomplex(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, cell_fixup_pcie_rootcomplex);
 
-static int __devinit cell_setup_phb(struct pci_controller *phb)
+static int cell_setup_phb(struct pci_controller *phb)
 {
 	const char *model;
 	struct device_node *np;

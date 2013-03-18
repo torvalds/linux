@@ -69,17 +69,6 @@ struct x86_init_oem {
 };
 
 /**
- * struct x86_init_mapping - platform specific initial kernel pagetable setup
- * @pagetable_reserve:	reserve a range of addresses for kernel pagetable usage
- *
- * For more details on the purpose of this hook, look in
- * init_memory_mapping and the commit that added it.
- */
-struct x86_init_mapping {
-	void (*pagetable_reserve)(u64 start, u64 end);
-};
-
-/**
  * struct x86_init_paging - platform specific paging functions
  * @pagetable_init:	platform specific paging initialization call to setup
  *			the kernel pagetables and prepare accessors functions.
@@ -136,7 +125,6 @@ struct x86_init_ops {
 	struct x86_init_mpparse		mpparse;
 	struct x86_init_irqs		irqs;
 	struct x86_init_oem		oem;
-	struct x86_init_mapping		mapping;
 	struct x86_init_paging		paging;
 	struct x86_init_timers		timers;
 	struct x86_init_iommu		iommu;
@@ -181,19 +169,38 @@ struct x86_platform_ops {
 };
 
 struct pci_dev;
+struct msi_msg;
 
 struct x86_msi_ops {
 	int (*setup_msi_irqs)(struct pci_dev *dev, int nvec, int type);
+	void (*compose_msi_msg)(struct pci_dev *dev, unsigned int irq,
+				unsigned int dest, struct msi_msg *msg,
+			       u8 hpet_id);
 	void (*teardown_msi_irq)(unsigned int irq);
 	void (*teardown_msi_irqs)(struct pci_dev *dev);
 	void (*restore_msi_irqs)(struct pci_dev *dev, int irq);
+	int  (*setup_hpet_msi)(unsigned int irq, unsigned int id);
 };
 
+struct IO_APIC_route_entry;
+struct io_apic_irq_attr;
+struct irq_data;
+struct cpumask;
+
 struct x86_io_apic_ops {
-	void		(*init)  (void);
-	unsigned int	(*read)  (unsigned int apic, unsigned int reg);
-	void		(*write) (unsigned int apic, unsigned int reg, unsigned int value);
-	void		(*modify)(unsigned int apic, unsigned int reg, unsigned int value);
+	void		(*init)   (void);
+	unsigned int	(*read)   (unsigned int apic, unsigned int reg);
+	void		(*write)  (unsigned int apic, unsigned int reg, unsigned int value);
+	void		(*modify) (unsigned int apic, unsigned int reg, unsigned int value);
+	void		(*disable)(void);
+	void		(*print_entries)(unsigned int apic, unsigned int nr_entries);
+	int		(*set_affinity)(struct irq_data *data,
+					const struct cpumask *mask,
+					bool force);
+	int		(*setup_entry)(int irq, struct IO_APIC_route_entry *entry,
+				       unsigned int destination, int vector,
+				       struct io_apic_irq_attr *attr);
+	void		(*eoi_ioapic_pin)(int apic, int pin, int vector);
 };
 
 extern struct x86_init_ops x86_init;

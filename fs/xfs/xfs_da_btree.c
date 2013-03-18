@@ -91,6 +91,84 @@ STATIC int	xfs_da_blk_unlink(xfs_da_state_t *state,
 				  xfs_da_state_blk_t *save_blk);
 STATIC void	xfs_da_state_kill_altpath(xfs_da_state_t *state);
 
+static void
+xfs_da_node_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_da_node_hdr *hdr = bp->b_addr;
+	int			block_ok = 0;
+
+	block_ok = hdr->info.magic == cpu_to_be16(XFS_DA_NODE_MAGIC);
+	block_ok = block_ok &&
+			be16_to_cpu(hdr->level) > 0 &&
+			be16_to_cpu(hdr->count) > 0 ;
+	if (!block_ok) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+
+}
+
+static void
+xfs_da_node_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_da_node_verify(bp);
+}
+
+/*
+ * leaf/node format detection on trees is sketchy, so a node read can be done on
+ * leaf level blocks when detection identifies the tree as a node format tree
+ * incorrectly. In this case, we need to swap the verifier to match the correct
+ * format of the block being read.
+ */
+static void
+xfs_da_node_read_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_da_blkinfo	*info = bp->b_addr;
+
+	switch (be16_to_cpu(info->magic)) {
+		case XFS_DA_NODE_MAGIC:
+			xfs_da_node_verify(bp);
+			break;
+		case XFS_ATTR_LEAF_MAGIC:
+			bp->b_ops = &xfs_attr_leaf_buf_ops;
+			bp->b_ops->verify_read(bp);
+			return;
+		case XFS_DIR2_LEAFN_MAGIC:
+			bp->b_ops = &xfs_dir2_leafn_buf_ops;
+			bp->b_ops->verify_read(bp);
+			return;
+		default:
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
+					     mp, info);
+			xfs_buf_ioerror(bp, EFSCORRUPTED);
+			break;
+	}
+}
+
+const struct xfs_buf_ops xfs_da_node_buf_ops = {
+	.verify_read = xfs_da_node_read_verify,
+	.verify_write = xfs_da_node_write_verify,
+};
+
+
+int
+xfs_da_node_read(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	xfs_dablk_t		bno,
+	xfs_daddr_t		mappedbno,
+	struct xfs_buf		**bpp,
+	int			which_fork)
+{
+	return xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
+					which_fork, &xfs_da_node_buf_ops);
+}
+
 /*========================================================================
  * Routines used for growing the Btree.
  *========================================================================*/
@@ -125,6 +203,7 @@ xfs_da_node_create(xfs_da_args_t *args, xfs_dablk_t blkno, int level,
 	xfs_trans_log_buf(tp, bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, sizeof(node->hdr)));
 
+	bp->b_ops = &xfs_da_node_buf_ops;
 	*bpp = bp;
 	return(0);
 }
@@ -324,6 +403,8 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	}
 	memcpy(node, oldroot, size);
 	xfs_trans_log_buf(tp, bp, 0, size - 1);
+
+	bp->b_ops = blk1->bp->b_ops;
 	blk1->bp = bp;
 	blk1->blkno = blkno;
 
@@ -746,7 +827,7 @@ xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 	 */
 	child = be32_to_cpu(oldroot->btree[0].before);
 	ASSERT(child != 0);
-	error = xfs_da_read_buf(args->trans, args->dp, child, -1, &bp,
+	error = xfs_da_node_read(args->trans, args->dp, child, -1, &bp,
 					     args->whichfork);
 	if (error)
 		return(error);
@@ -754,7 +835,14 @@ xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 	xfs_da_blkinfo_onlychild_validate(bp->b_addr,
 					be16_to_cpu(oldroot->hdr.level));
 
+	/*
+	 * This could be copying a leaf back into the root block in the case of
+	 * there only being a single leaf block left in the tree. Hence we have
+	 * to update the b_ops pointer as well to match the buffer type change
+	 * that could occur.
+	 */
 	memcpy(root_blk->bp->b_addr, bp->b_addr, state->blocksize);
+	root_blk->bp->b_ops = bp->b_ops;
 	xfs_trans_log_buf(args->trans, root_blk->bp, 0, state->blocksize - 1);
 	error = xfs_da_shrink_inode(args, child, bp);
 	return(error);
@@ -778,6 +866,8 @@ xfs_da_node_toosmall(xfs_da_state_t *state, int *action)
 	int count, forward, error, retval, i;
 	xfs_dablk_t blkno;
 	struct xfs_buf *bp;
+
+	trace_xfs_da_node_toosmall(state->args);
 
 	/*
 	 * Check for the degenerate case of the block being over 50% full.
@@ -835,7 +925,7 @@ xfs_da_node_toosmall(xfs_da_state_t *state, int *action)
 			blkno = be32_to_cpu(info->back);
 		if (blkno == 0)
 			continue;
-		error = xfs_da_read_buf(state->args->trans, state->args->dp,
+		error = xfs_da_node_read(state->args->trans, state->args->dp,
 					blkno, -1, &bp, state->args->whichfork);
 		if (error)
 			return(error);
@@ -899,6 +989,8 @@ xfs_da_fixhashpath(xfs_da_state_t *state, xfs_da_state_path_t *path)
 	xfs_da_node_entry_t *btree;
 	xfs_dahash_t lasthash=0;
 	int level, count;
+
+	trace_xfs_da_fixhashpath(state->args);
 
 	level = path->active-1;
 	blk = &path->blk[ level ];
@@ -1079,7 +1171,7 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 		 * Read the next node down in the tree.
 		 */
 		blk->blkno = blkno;
-		error = xfs_da_read_buf(args->trans, args->dp, blkno,
+		error = xfs_da_node_read(args->trans, args->dp, blkno,
 					-1, &blk->bp, args->whichfork);
 		if (error) {
 			blk->blkno = 0;
@@ -1241,7 +1333,7 @@ xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 		new_info->forw = cpu_to_be32(old_blk->blkno);
 		new_info->back = old_info->back;
 		if (old_info->back) {
-			error = xfs_da_read_buf(args->trans, args->dp,
+			error = xfs_da_node_read(args->trans, args->dp,
 						be32_to_cpu(old_info->back),
 						-1, &bp, args->whichfork);
 			if (error)
@@ -1262,7 +1354,7 @@ xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 		new_info->forw = old_info->forw;
 		new_info->back = cpu_to_be32(old_blk->blkno);
 		if (old_info->forw) {
-			error = xfs_da_read_buf(args->trans, args->dp,
+			error = xfs_da_node_read(args->trans, args->dp,
 						be32_to_cpu(old_info->forw),
 						-1, &bp, args->whichfork);
 			if (error)
@@ -1362,7 +1454,7 @@ xfs_da_blk_unlink(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 		trace_xfs_da_unlink_back(args);
 		save_info->back = drop_info->back;
 		if (drop_info->back) {
-			error = xfs_da_read_buf(args->trans, args->dp,
+			error = xfs_da_node_read(args->trans, args->dp,
 						be32_to_cpu(drop_info->back),
 						-1, &bp, args->whichfork);
 			if (error)
@@ -1379,7 +1471,7 @@ xfs_da_blk_unlink(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 		trace_xfs_da_unlink_forward(args);
 		save_info->forw = drop_info->forw;
 		if (drop_info->forw) {
-			error = xfs_da_read_buf(args->trans, args->dp,
+			error = xfs_da_node_read(args->trans, args->dp,
 						be32_to_cpu(drop_info->forw),
 						-1, &bp, args->whichfork);
 			if (error)
@@ -1416,6 +1508,8 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 	xfs_da_args_t *args;
 	xfs_dablk_t blkno=0;
 	int level, error;
+
+	trace_xfs_da_path_shift(state->args);
 
 	/*
 	 * Roll up the Btree looking for the first block where our
@@ -1463,8 +1557,8 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 		 * Read the next child block.
 		 */
 		blk->blkno = blkno;
-		error = xfs_da_read_buf(args->trans, args->dp, blkno, -1,
-						     &blk->bp, args->whichfork);
+		error = xfs_da_node_read(args->trans, args->dp, blkno, -1,
+					&blk->bp, args->whichfork);
 		if (error)
 			return(error);
 		ASSERT(blk->bp != NULL);
@@ -1727,7 +1821,8 @@ xfs_da_swap_lastblock(
 	 * Read the last block in the btree space.
 	 */
 	last_blkno = (xfs_dablk_t)lastoff - mp->m_dirblkfsbs;
-	if ((error = xfs_da_read_buf(tp, ip, last_blkno, -1, &last_buf, w)))
+	error = xfs_da_node_read(tp, ip, last_blkno, -1, &last_buf, w);
+	if (error)
 		return error;
 	/*
 	 * Copy the last block into the dead buffer and log it.
@@ -1753,7 +1848,8 @@ xfs_da_swap_lastblock(
 	 * If the moved block has a left sibling, fix up the pointers.
 	 */
 	if ((sib_blkno = be32_to_cpu(dead_info->back))) {
-		if ((error = xfs_da_read_buf(tp, ip, sib_blkno, -1, &sib_buf, w)))
+		error = xfs_da_node_read(tp, ip, sib_blkno, -1, &sib_buf, w);
+		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
 		if (unlikely(
@@ -1774,7 +1870,8 @@ xfs_da_swap_lastblock(
 	 * If the moved block has a right sibling, fix up the pointers.
 	 */
 	if ((sib_blkno = be32_to_cpu(dead_info->forw))) {
-		if ((error = xfs_da_read_buf(tp, ip, sib_blkno, -1, &sib_buf, w)))
+		error = xfs_da_node_read(tp, ip, sib_blkno, -1, &sib_buf, w);
+		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
 		if (unlikely(
@@ -1797,7 +1894,8 @@ xfs_da_swap_lastblock(
 	 * Walk down the tree looking for the parent of the moved block.
 	 */
 	for (;;) {
-		if ((error = xfs_da_read_buf(tp, ip, par_blkno, -1, &par_buf, w)))
+		error = xfs_da_node_read(tp, ip, par_blkno, -1, &par_buf, w);
+		if (error)
 			goto done;
 		par_node = par_buf->b_addr;
 		if (unlikely(par_node->hdr.info.magic !=
@@ -1847,7 +1945,8 @@ xfs_da_swap_lastblock(
 			error = XFS_ERROR(EFSCORRUPTED);
 			goto done;
 		}
-		if ((error = xfs_da_read_buf(tp, ip, par_blkno, -1, &par_buf, w)))
+		error = xfs_da_node_read(tp, ip, par_blkno, -1, &par_buf, w);
+		if (error)
 			goto done;
 		par_node = par_buf->b_addr;
 		if (unlikely(
@@ -2133,7 +2232,8 @@ xfs_da_read_buf(
 	xfs_dablk_t		bno,
 	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp,
-	int			whichfork)
+	int			whichfork,
+	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;
 	struct xfs_buf_map	map;
@@ -2155,7 +2255,7 @@ xfs_da_read_buf(
 
 	error = xfs_trans_read_buf_map(dp->i_mount, trans,
 					dp->i_mount->m_ddev_targp,
-					mapp, nmap, 0, &bp);
+					mapp, nmap, 0, &bp, ops);
 	if (error)
 		goto out_free;
 
@@ -2211,9 +2311,10 @@ xfs_da_reada_buf(
 	struct xfs_trans	*trans,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
-	int			whichfork)
+	xfs_daddr_t		mappedbno,
+	int			whichfork,
+	const struct xfs_buf_ops *ops)
 {
-	xfs_daddr_t		mappedbno = -1;
 	struct xfs_buf_map	map;
 	struct xfs_buf_map	*mapp;
 	int			nmap;
@@ -2221,7 +2322,7 @@ xfs_da_reada_buf(
 
 	mapp = &map;
 	nmap = 1;
-	error = xfs_dabuf_map(trans, dp, bno, -1, whichfork,
+	error = xfs_dabuf_map(trans, dp, bno, mappedbno, whichfork,
 				&mapp, &nmap);
 	if (error) {
 		/* mapping a hole is not an error, but we don't continue */
@@ -2231,7 +2332,7 @@ xfs_da_reada_buf(
 	}
 
 	mappedbno = mapp[0].bm_bn;
-	xfs_buf_readahead_map(dp->i_mount->m_ddev_targp, mapp, nmap);
+	xfs_buf_readahead_map(dp->i_mount->m_ddev_targp, mapp, nmap, ops);
 
 out_free:
 	if (mapp != &map)

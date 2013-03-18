@@ -131,7 +131,7 @@ static const struct regmap_config tegra20_das_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit tegra20_das_probe(struct platform_device *pdev)
+static int tegra20_das_probe(struct platform_device *pdev)
 {
 	struct resource *res, *region;
 	void __iomem *regs;
@@ -191,6 +191,19 @@ static int __devinit tegra20_das_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	ret = tegra20_das_connect_dap_to_dac(TEGRA20_DAS_DAP_ID_3,
+					     TEGRA20_DAS_DAP_SEL_DAC3);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't set up DAS DAP connection\n");
+		goto err;
+	}
+	ret = tegra20_das_connect_dac_to_dap(TEGRA20_DAS_DAC_ID_3,
+					     TEGRA20_DAS_DAC_SEL_DAP3);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't set up DAS DAC connection\n");
+		goto err;
+	}
+
 	platform_set_drvdata(pdev, das);
 
 	return 0;
@@ -200,7 +213,7 @@ err:
 	return ret;
 }
 
-static int __devexit tegra20_das_remove(struct platform_device *pdev)
+static int tegra20_das_remove(struct platform_device *pdev)
 {
 	if (!das)
 		return -ENODEV;
@@ -210,14 +223,14 @@ static int __devexit tegra20_das_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra20_das_of_match[] __devinitconst = {
+static const struct of_device_id tegra20_das_of_match[] = {
 	{ .compatible = "nvidia,tegra20-das", },
 	{},
 };
 
 static struct platform_driver tegra20_das_driver = {
 	.probe = tegra20_das_probe,
-	.remove = __devexit_p(tegra20_das_remove),
+	.remove = tegra20_das_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

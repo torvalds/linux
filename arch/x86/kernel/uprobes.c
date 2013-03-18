@@ -478,6 +478,11 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	regs->ip = current->utask->xol_vaddr;
 	pre_xol_rip_insn(auprobe, regs, autask);
 
+	autask->saved_tf = !!(regs->flags & X86_EFLAGS_TF);
+	regs->flags |= X86_EFLAGS_TF;
+	if (test_tsk_thread_flag(current, TIF_BLOCKSTEP))
+		set_task_blockstep(current, false);
+
 	return 0;
 }
 
@@ -603,6 +608,16 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	if (auprobe->fixups & UPROBE_FIX_CALL)
 		result = adjust_ret_addr(regs->sp, correction);
 
+	/*
+	 * arch_uprobe_pre_xol() doesn't save the state of TIF_BLOCKSTEP
+	 * so we can get an extra SIGTRAP if we do not clear TF. We need
+	 * to examine the opcode to make it right.
+	 */
+	if (utask->autask.saved_tf)
+		send_sig(SIGTRAP, current, 0);
+	else if (!(auprobe->fixups & UPROBE_FIX_SETF))
+		regs->flags &= ~X86_EFLAGS_TF;
+
 	return result;
 }
 
@@ -647,6 +662,10 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	current->thread.trap_nr = utask->autask.saved_trap_nr;
 	handle_riprel_post_xol(auprobe, regs, NULL);
 	instruction_pointer_set(regs, utask->vaddr);
+
+	/* clear TF if it was set by us in arch_uprobe_pre_xol() */
+	if (!utask->autask.saved_tf)
+		regs->flags &= ~X86_EFLAGS_TF;
 }
 
 /*
@@ -661,8 +680,10 @@ static bool __skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		if (auprobe->insn[i] == 0x66)
 			continue;
 
-		if (auprobe->insn[i] == 0x90)
+		if (auprobe->insn[i] == 0x90) {
+			regs->ip += i + 1;
 			return true;
+		}
 
 		break;
 	}
@@ -675,39 +696,4 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	if (ret && (regs->flags & X86_EFLAGS_TF))
 		send_sig(SIGTRAP, current, 0);
 	return ret;
-}
-
-void arch_uprobe_enable_step(struct arch_uprobe *auprobe)
-{
-	struct task_struct *task = current;
-	struct arch_uprobe_task	*autask	= &task->utask->autask;
-	struct pt_regs *regs = task_pt_regs(task);
-
-	autask->saved_tf = !!(regs->flags & X86_EFLAGS_TF);
-
-	regs->flags |= X86_EFLAGS_TF;
-	if (test_tsk_thread_flag(task, TIF_BLOCKSTEP))
-		set_task_blockstep(task, false);
-}
-
-void arch_uprobe_disable_step(struct arch_uprobe *auprobe)
-{
-	struct task_struct *task = current;
-	struct arch_uprobe_task	*autask	= &task->utask->autask;
-	bool trapped = (task->utask->state == UTASK_SSTEP_TRAPPED);
-	struct pt_regs *regs = task_pt_regs(task);
-	/*
-	 * The state of TIF_BLOCKSTEP was not saved so we can get an extra
-	 * SIGTRAP if we do not clear TF. We need to examine the opcode to
-	 * make it right.
-	 */
-	if (unlikely(trapped)) {
-		if (!autask->saved_tf)
-			regs->flags &= ~X86_EFLAGS_TF;
-	} else {
-		if (autask->saved_tf)
-			send_sig(SIGTRAP, task, 0);
-		else if (!(auprobe->fixups & UPROBE_FIX_SETF))
-			regs->flags &= ~X86_EFLAGS_TF;
-	}
 }

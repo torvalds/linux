@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
-#include <linux/nsproxy.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
@@ -324,7 +323,9 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	 * The caller checks for sv_nrpools > 1, which
 	 * implies that we've been initialized.
 	 */
-	BUG_ON(m->count == 0);
+	WARN_ON_ONCE(m->count == 0);
+	if (m->count == 0)
+		return;
 
 	switch (m->mode) {
 	case SVC_POOL_PERCPU:
@@ -514,15 +515,6 @@ EXPORT_SYMBOL_GPL(svc_create_pooled);
 
 void svc_shutdown_net(struct svc_serv *serv, struct net *net)
 {
-	/*
-	 * The set of xprts (contained in the sv_tempsocks and
-	 * sv_permsocks lists) is now constant, since it is modified
-	 * only by accepting new sockets (done by service threads in
-	 * svc_recv) or aging old ones (done by sv_temptimer), or
-	 * configuration changes (excluded by whatever locking the
-	 * caller is using--nfsd_mutex in the case of nfsd).  So it's
-	 * safe to traverse those lists and shut everything down:
-	 */
 	svc_close_net(serv, net);
 
 	if (serv->sv_shutdown)
@@ -585,7 +577,9 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size, int node)
 				       * We assume one is at most one page
 				       */
 	arghi = 0;
-	BUG_ON(pages > RPCSVC_MAXPAGES);
+	WARN_ON_ONCE(pages > RPCSVC_MAXPAGES);
+	if (pages > RPCSVC_MAXPAGES)
+		pages = RPCSVC_MAXPAGES;
 	while (pages) {
 		struct page *p = alloc_pages_node(node, GFP_KERNEL, 0);
 		if (!p)
@@ -946,7 +940,9 @@ int svc_register(const struct svc_serv *serv, struct net *net,
 	unsigned int		i;
 	int			error = 0;
 
-	BUG_ON(proto == 0 && port == 0);
+	WARN_ON_ONCE(proto == 0 && port == 0);
+	if (proto == 0 && port == 0)
+		return -EINVAL;
 
 	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
 		for (i = 0; i < progp->pg_nvers; i++) {
@@ -1035,8 +1031,9 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 }
 
 /*
- * Printk the given error with the address of the client that caused it.
+ * dprintk the given error with the address of the client that caused it.
  */
+#ifdef RPC_DEBUG
 static __printf(2, 3)
 void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 {
@@ -1049,11 +1046,13 @@ void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	net_warn_ratelimited("svc: %s: %pV",
-			     svc_print_addr(rqstp, buf, sizeof(buf)), &vaf);
+	dprintk("svc: %s: %pV", svc_print_addr(rqstp, buf, sizeof(buf)), &vaf);
 
 	va_end(args);
 }
+#else
+static __printf(2,3) void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...) {}
+#endif
 
 /*
  * Common routine for processing the RPC request.
@@ -1299,7 +1298,7 @@ svc_process(struct svc_rqst *rqstp)
 	 * Setup response xdr_buf.
 	 * Initially it has just one page
 	 */
-	rqstp->rq_resused = 1;
+	rqstp->rq_next_page = &rqstp->rq_respages[1];
 	resv->iov_base = page_address(rqstp->rq_respages[0]);
 	resv->iov_len = 0;
 	rqstp->rq_res.pages = rqstp->rq_respages + 1;

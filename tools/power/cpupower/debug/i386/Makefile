@@ -26,7 +26,10 @@ $(OUTPUT)powernow-k8-decode: powernow-k8-decode.c
 all: $(OUTPUT)centrino-decode $(OUTPUT)dump_psb $(OUTPUT)intel_gsic $(OUTPUT)powernow-k8-decode
 
 clean:
-	rm -rf $(OUTPUT){centrino-decode,dump_psb,intel_gsic,powernow-k8-decode}
+	rm -rf $(OUTPUT)centrino-decode
+	rm -rf $(OUTPUT)dump_psb
+	rm -rf $(OUTPUT)intel_gsic
+	rm -rf $(OUTPUT)powernow-k8-decode
 
 install:
 	$(INSTALL) -d $(DESTDIR)${bindir}

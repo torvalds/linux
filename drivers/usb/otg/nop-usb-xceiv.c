@@ -93,7 +93,7 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
-static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
+static int nop_usb_xceiv_probe(struct platform_device *pdev)
 {
 	struct nop_usb_xceiv_platform_data *pdata = pdev->dev.platform_data;
 	struct nop_usb_xceiv	*nop;
@@ -141,7 +141,7 @@ exit:
 	return err;
 }
 
-static int __devexit nop_usb_xceiv_remove(struct platform_device *pdev)
+static int nop_usb_xceiv_remove(struct platform_device *pdev)
 {
 	struct nop_usb_xceiv *nop = platform_get_drvdata(pdev);
 
@@ -156,7 +156,7 @@ static int __devexit nop_usb_xceiv_remove(struct platform_device *pdev)
 
 static struct platform_driver nop_usb_xceiv_driver = {
 	.probe		= nop_usb_xceiv_probe,
-	.remove		= __devexit_p(nop_usb_xceiv_remove),
+	.remove		= nop_usb_xceiv_remove,
 	.driver		= {
 		.name	= "nop_usb_xceiv",
 		.owner	= THIS_MODULE,

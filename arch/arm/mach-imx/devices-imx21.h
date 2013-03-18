@@ -6,8 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/mx21.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_imx21_hcd_data imx21_imx21_hcd_data;
 #define imx21_add_imx21_hcd(pdata)	\

@@ -277,7 +277,6 @@
 #define CIFS_NO_HANDLE        0xFFFF
 
 #define NO_CHANGE_64          0xFFFFFFFFFFFFFFFFULL
-#define NO_CHANGE_32          0xFFFFFFFFUL
 
 /* IPC$ in ASCII */
 #define CIFS_IPC_RESOURCE "\x49\x50\x43\x24"

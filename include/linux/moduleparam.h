@@ -16,17 +16,15 @@
 /* Chosen so that structs with an unsigned long line up. */
 #define MAX_PARAM_PREFIX_LEN (64 - sizeof(unsigned long))
 
-#define ___module_cat(a,b) __mod_ ## a ## b
-#define __module_cat(a,b) ___module_cat(a,b)
 #ifdef MODULE
 #define __MODULE_INFO(tag, name, info)					  \
-static const char __module_cat(name,__LINE__)[]				  \
+static const char __UNIQUE_ID(name)[]					  \
   __used __attribute__((section(".modinfo"), unused, aligned(1)))	  \
   = __stringify(tag) "=" info
 #else  /* !MODULE */
 /* This struct is here for syntactic coherency, it is not used */
 #define __MODULE_INFO(tag, name, info)					  \
-  struct __module_cat(name,__LINE__) {}
+  struct __UNIQUE_ID(name) {}
 #endif
 #define __MODULE_PARM_TYPE(name, _type)					  \
   __MODULE_INFO(parmtype, name##type, #name ":" _type)

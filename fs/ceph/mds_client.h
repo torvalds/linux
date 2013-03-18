@@ -74,6 +74,12 @@ struct ceph_mds_reply_info_parsed {
 			struct ceph_mds_reply_info_in *dir_in;
 			u8                            dir_complete, dir_end;
 		};
+
+		/* for create results */
+		struct {
+			bool has_create_ino;
+			u64 ino;
+		};
 	};
 
 	/* encoded blob describing snapshot contexts for certain
@@ -184,8 +190,8 @@ struct ceph_mds_request {
 
 	union ceph_mds_request_args r_args;
 	int r_fmode;        /* file mode, if expecting cap */
-	uid_t r_uid;
-	gid_t r_gid;
+	kuid_t r_uid;
+	kgid_t r_gid;
 
 	/* for choosing which mds to send this request to */
 	int r_direct_mode;

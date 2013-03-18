@@ -26,7 +26,7 @@
 #include <asm/asm-offsets.h>
 
 /* PSW bits we allow the debugger to modify */
-#define USER_PSW_BITS	(PSW_N | PSW_V | PSW_CB)
+#define USER_PSW_BITS	(PSW_N | PSW_B | PSW_V | PSW_CB)
 
 /*
  * Called by kernel/ptrace.c when detaching..

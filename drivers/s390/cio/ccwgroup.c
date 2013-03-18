@@ -65,10 +65,18 @@ static void __ccwgroup_remove_cdev_refs(struct ccwgroup_device *gdev)
 	}
 }
 
-static int ccwgroup_set_online(struct ccwgroup_device *gdev)
+/**
+ * ccwgroup_set_online() - enable a ccwgroup device
+ * @gdev: target ccwgroup device
+ *
+ * This function attempts to put the ccwgroup device into the online state.
+ * Returns:
+ *  %0 on success and a negative error value on failure.
+ */
+int ccwgroup_set_online(struct ccwgroup_device *gdev)
 {
 	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(gdev->dev.driver);
-	int ret = 0;
+	int ret = -EINVAL;
 
 	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
 		return -EAGAIN;
@@ -84,11 +92,20 @@ out:
 	atomic_set(&gdev->onoff, 0);
 	return ret;
 }
+EXPORT_SYMBOL(ccwgroup_set_online);
 
-static int ccwgroup_set_offline(struct ccwgroup_device *gdev)
+/**
+ * ccwgroup_set_offline() - disable a ccwgroup device
+ * @gdev: target ccwgroup device
+ *
+ * This function attempts to put the ccwgroup device into the offline state.
+ * Returns:
+ *  %0 on success and a negative error value on failure.
+ */
+int ccwgroup_set_offline(struct ccwgroup_device *gdev)
 {
 	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(gdev->dev.driver);
-	int ret = 0;
+	int ret = -EINVAL;
 
 	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
 		return -EAGAIN;
@@ -104,6 +121,7 @@ out:
 	atomic_set(&gdev->onoff, 0);
 	return ret;
 }
+EXPORT_SYMBOL(ccwgroup_set_offline);
 
 static ssize_t ccwgroup_online_store(struct device *dev,
 				     struct device_attribute *attr,

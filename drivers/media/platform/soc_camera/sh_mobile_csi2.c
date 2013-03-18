@@ -294,7 +294,7 @@ static struct v4l2_subdev_ops sh_csi2_subdev_ops = {
 	.video	= &sh_csi2_subdev_video_ops,
 };
 
-static __devinit int sh_csi2_probe(struct platform_device *pdev)
+static int sh_csi2_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	unsigned int irq;
@@ -318,23 +318,16 @@ static __devinit int sh_csi2_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(struct sh_csi2), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct sh_csi2), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->irq = irq;
 
-	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "CSI2 register region already claimed\n");
-		ret = -EBUSY;
-		goto ereqreg;
-	}
-
-	priv->base = ioremap(res->start, resource_size(res));
+	priv->base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!priv->base) {
-		ret = -ENXIO;
 		dev_err(&pdev->dev, "Unable to ioremap CSI2 registers.\n");
-		goto eremap;
+		return -ENXIO;
 	}
 
 	priv->pdev = pdev;
@@ -357,32 +350,24 @@ static __devinit int sh_csi2_probe(struct platform_device *pdev)
 	return 0;
 
 esdreg:
-	iounmap(priv->base);
-eremap:
-	release_mem_region(res->start, resource_size(res));
-ereqreg:
-	kfree(priv);
+	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
 
-static __devexit int sh_csi2_remove(struct platform_device *pdev)
+static int sh_csi2_remove(struct platform_device *pdev)
 {
 	struct sh_csi2 *priv = platform_get_drvdata(pdev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	v4l2_device_unregister_subdev(&priv->subdev);
 	pm_runtime_disable(&pdev->dev);
-	iounmap(priv->base);
-	release_mem_region(res->start, resource_size(res));
 	platform_set_drvdata(pdev, NULL);
-	kfree(priv);
 
 	return 0;
 }
 
 static struct platform_driver __refdata sh_csi2_pdrv = {
-	.remove	= __devexit_p(sh_csi2_remove),
+	.remove	= sh_csi2_remove,
 	.probe	= sh_csi2_probe,
 	.driver	= {
 		.name	= "sh-mobile-csi2",

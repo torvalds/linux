@@ -121,7 +121,6 @@ static int usb_serial_device_remove(struct device *dev)
 	return retval;
 }
 
-#ifdef CONFIG_HOTPLUG
 static ssize_t store_new_id(struct device_driver *driver,
 			    const char *buf, size_t count)
 {
@@ -158,15 +157,6 @@ static void free_dynids(struct usb_serial_driver *drv)
 	}
 	spin_unlock(&drv->dynids.lock);
 }
-
-#else
-static struct driver_attribute drv_attrs[] = {
-	__ATTR_NULL,
-};
-static inline void free_dynids(struct usb_serial_driver *drv)
-{
-}
-#endif
 
 struct bus_type usb_serial_bus_type = {
 	.name =		"usb-serial",

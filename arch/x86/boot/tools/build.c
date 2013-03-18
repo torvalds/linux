@@ -52,6 +52,10 @@ int is_big_kernel;
 
 #define PECOFF_RELOC_RESERVE 0x20
 
+unsigned long efi_stub_entry;
+unsigned long efi_pe_entry;
+unsigned long startup_64;
+
 /*----------------------------------------------------------------------*/
 
 static const u32 crctab32[] = {
@@ -132,7 +136,7 @@ static void die(const char * str, ...)
 
 static void usage(void)
 {
-	die("Usage: build setup system [> image]");
+	die("Usage: build setup system [zoffset.h] [> image]");
 }
 
 #ifdef CONFIG_EFI_STUB
@@ -206,29 +210,53 @@ static void update_pecoff_text(unsigned int text_start, unsigned int file_sz)
 	 */
 	put_unaligned_le32(file_sz - 512, &buf[pe_header + 0x1c]);
 
-#ifdef CONFIG_X86_32
 	/*
-	 * Address of entry point.
-	 *
-	 * The EFI stub entry point is +16 bytes from the start of
-	 * the .text section.
+	 * Address of entry point for PE/COFF executable
 	 */
-	put_unaligned_le32(text_start + 16, &buf[pe_header + 0x28]);
-#else
-	/*
-	 * Address of entry point. startup_32 is at the beginning and
-	 * the 64-bit entry point (startup_64) is always 512 bytes
-	 * after. The EFI stub entry point is 16 bytes after that, as
-	 * the first instruction allows legacy loaders to jump over
-	 * the EFI stub initialisation
-	 */
-	put_unaligned_le32(text_start + 528, &buf[pe_header + 0x28]);
-#endif /* CONFIG_X86_32 */
+	put_unaligned_le32(text_start + efi_pe_entry, &buf[pe_header + 0x28]);
 
 	update_pecoff_section_header(".text", text_start, text_sz);
 }
 
 #endif /* CONFIG_EFI_STUB */
+
+
+/*
+ * Parse zoffset.h and find the entry points. We could just #include zoffset.h
+ * but that would mean tools/build would have to be rebuilt every time. It's
+ * not as if parsing it is hard...
+ */
+#define PARSE_ZOFS(p, sym) do { \
+	if (!strncmp(p, "#define ZO_" #sym " ", 11+sizeof(#sym)))	\
+		sym = strtoul(p + 11 + sizeof(#sym), NULL, 16);		\
+} while (0)
+
+static void parse_zoffset(char *fname)
+{
+	FILE *file;
+	char *p;
+	int c;
+
+	file = fopen(fname, "r");
+	if (!file)
+		die("Unable to open `%s': %m", fname);
+	c = fread(buf, 1, sizeof(buf) - 1, file);
+	if (ferror(file))
+		die("read-error on `zoffset.h'");
+	buf[c] = 0;
+
+	p = (char *)buf;
+
+	while (p && *p) {
+		PARSE_ZOFS(p, efi_stub_entry);
+		PARSE_ZOFS(p, efi_pe_entry);
+		PARSE_ZOFS(p, startup_64);
+
+		p = strchr(p, '\n');
+		while (p && (*p == '\r' || *p == '\n'))
+			p++;
+	}
+}
 
 int main(int argc, char ** argv)
 {
@@ -241,7 +269,19 @@ int main(int argc, char ** argv)
 	void *kernel;
 	u32 crc = 0xffffffffUL;
 
-	if (argc != 3)
+	/* Defaults for old kernel */
+#ifdef CONFIG_X86_32
+	efi_pe_entry = 0x10;
+	efi_stub_entry = 0x30;
+#else
+	efi_pe_entry = 0x210;
+	efi_stub_entry = 0x230;
+	startup_64 = 0x200;
+#endif
+
+	if (argc == 4)
+		parse_zoffset(argv[3]);
+	else if (argc != 3)
 		usage();
 
 	/* Copy the setup code */
@@ -299,6 +339,11 @@ int main(int argc, char ** argv)
 
 #ifdef CONFIG_EFI_STUB
 	update_pecoff_text(setup_sectors * 512, sz + i + ((sys_size * 16) - sz));
+
+#ifdef CONFIG_X86_64 /* Yes, this is really how we defined it :( */
+	efi_stub_entry -= 0x200;
+#endif
+	put_unaligned_le32(efi_stub_entry, &buf[0x264]);
 #endif
 
 	crc = partial_crc32(buf, i, crc);

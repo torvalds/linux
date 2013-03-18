@@ -222,27 +222,29 @@ static int srp_new_cm_id(struct srp_target_port *target)
 static int srp_create_target_ib(struct srp_target_port *target)
 {
 	struct ib_qp_init_attr *init_attr;
+	struct ib_cq *recv_cq, *send_cq;
+	struct ib_qp *qp;
 	int ret;
 
 	init_attr = kzalloc(sizeof *init_attr, GFP_KERNEL);
 	if (!init_attr)
 		return -ENOMEM;
 
-	target->recv_cq = ib_create_cq(target->srp_host->srp_dev->dev,
-				       srp_recv_completion, NULL, target, SRP_RQ_SIZE, 0);
-	if (IS_ERR(target->recv_cq)) {
-		ret = PTR_ERR(target->recv_cq);
+	recv_cq = ib_create_cq(target->srp_host->srp_dev->dev,
+			       srp_recv_completion, NULL, target, SRP_RQ_SIZE, 0);
+	if (IS_ERR(recv_cq)) {
+		ret = PTR_ERR(recv_cq);
 		goto err;
 	}
 
-	target->send_cq = ib_create_cq(target->srp_host->srp_dev->dev,
-				       srp_send_completion, NULL, target, SRP_SQ_SIZE, 0);
-	if (IS_ERR(target->send_cq)) {
-		ret = PTR_ERR(target->send_cq);
+	send_cq = ib_create_cq(target->srp_host->srp_dev->dev,
+			       srp_send_completion, NULL, target, SRP_SQ_SIZE, 0);
+	if (IS_ERR(send_cq)) {
+		ret = PTR_ERR(send_cq);
 		goto err_recv_cq;
 	}
 
-	ib_req_notify_cq(target->recv_cq, IB_CQ_NEXT_COMP);
+	ib_req_notify_cq(recv_cq, IB_CQ_NEXT_COMP);
 
 	init_attr->event_handler       = srp_qp_event;
 	init_attr->cap.max_send_wr     = SRP_SQ_SIZE;
@@ -251,30 +253,41 @@ static int srp_create_target_ib(struct srp_target_port *target)
 	init_attr->cap.max_send_sge    = 1;
 	init_attr->sq_sig_type         = IB_SIGNAL_ALL_WR;
 	init_attr->qp_type             = IB_QPT_RC;
-	init_attr->send_cq             = target->send_cq;
-	init_attr->recv_cq             = target->recv_cq;
+	init_attr->send_cq             = send_cq;
+	init_attr->recv_cq             = recv_cq;
 
-	target->qp = ib_create_qp(target->srp_host->srp_dev->pd, init_attr);
-	if (IS_ERR(target->qp)) {
-		ret = PTR_ERR(target->qp);
+	qp = ib_create_qp(target->srp_host->srp_dev->pd, init_attr);
+	if (IS_ERR(qp)) {
+		ret = PTR_ERR(qp);
 		goto err_send_cq;
 	}
 
-	ret = srp_init_qp(target, target->qp);
+	ret = srp_init_qp(target, qp);
 	if (ret)
 		goto err_qp;
+
+	if (target->qp)
+		ib_destroy_qp(target->qp);
+	if (target->recv_cq)
+		ib_destroy_cq(target->recv_cq);
+	if (target->send_cq)
+		ib_destroy_cq(target->send_cq);
+
+	target->qp = qp;
+	target->recv_cq = recv_cq;
+	target->send_cq = send_cq;
 
 	kfree(init_attr);
 	return 0;
 
 err_qp:
-	ib_destroy_qp(target->qp);
+	ib_destroy_qp(qp);
 
 err_send_cq:
-	ib_destroy_cq(target->send_cq);
+	ib_destroy_cq(send_cq);
 
 err_recv_cq:
-	ib_destroy_cq(target->recv_cq);
+	ib_destroy_cq(recv_cq);
 
 err:
 	kfree(init_attr);
@@ -288,6 +301,9 @@ static void srp_free_target_ib(struct srp_target_port *target)
 	ib_destroy_qp(target->qp);
 	ib_destroy_cq(target->send_cq);
 	ib_destroy_cq(target->recv_cq);
+
+	target->qp = NULL;
+	target->send_cq = target->recv_cq = NULL;
 
 	for (i = 0; i < SRP_RQ_SIZE; ++i)
 		srp_free_iu(target->srp_host, target->rx_ring[i]);
@@ -428,32 +444,48 @@ static int srp_send_req(struct srp_target_port *target)
 	return status;
 }
 
-static void srp_disconnect_target(struct srp_target_port *target)
-{
-	/* XXX should send SRP_I_LOGOUT request */
-
-	init_completion(&target->done);
-	if (ib_send_cm_dreq(target->cm_id, NULL, 0)) {
-		shost_printk(KERN_DEBUG, target->scsi_host,
-			     PFX "Sending CM DREQ failed\n");
-		return;
-	}
-	wait_for_completion(&target->done);
-}
-
-static bool srp_change_state(struct srp_target_port *target,
-			    enum srp_target_state old,
-			    enum srp_target_state new)
+static bool srp_queue_remove_work(struct srp_target_port *target)
 {
 	bool changed = false;
 
 	spin_lock_irq(&target->lock);
-	if (target->state == old) {
-		target->state = new;
+	if (target->state != SRP_TARGET_REMOVED) {
+		target->state = SRP_TARGET_REMOVED;
 		changed = true;
 	}
 	spin_unlock_irq(&target->lock);
+
+	if (changed)
+		queue_work(system_long_wq, &target->remove_work);
+
 	return changed;
+}
+
+static bool srp_change_conn_state(struct srp_target_port *target,
+				  bool connected)
+{
+	bool changed = false;
+
+	spin_lock_irq(&target->lock);
+	if (target->connected != connected) {
+		target->connected = connected;
+		changed = true;
+	}
+	spin_unlock_irq(&target->lock);
+
+	return changed;
+}
+
+static void srp_disconnect_target(struct srp_target_port *target)
+{
+	if (srp_change_conn_state(target, false)) {
+		/* XXX should send SRP_I_LOGOUT request */
+
+		if (ib_send_cm_dreq(target->cm_id, NULL, 0)) {
+			shost_printk(KERN_DEBUG, target->scsi_host,
+				     PFX "Sending CM DREQ failed\n");
+		}
+	}
 }
 
 static void srp_free_req_data(struct srp_target_port *target)
@@ -489,31 +521,49 @@ static void srp_del_scsi_host_attr(struct Scsi_Host *shost)
 		device_remove_file(&shost->shost_dev, *attr);
 }
 
-static void srp_remove_work(struct work_struct *work)
+static void srp_remove_target(struct srp_target_port *target)
 {
-	struct srp_target_port *target =
-		container_of(work, struct srp_target_port, work);
-
-	if (!srp_change_state(target, SRP_TARGET_DEAD, SRP_TARGET_REMOVED))
-		return;
-
-	spin_lock(&target->srp_host->target_lock);
-	list_del(&target->list);
-	spin_unlock(&target->srp_host->target_lock);
+	WARN_ON_ONCE(target->state != SRP_TARGET_REMOVED);
 
 	srp_del_scsi_host_attr(target->scsi_host);
 	srp_remove_host(target->scsi_host);
 	scsi_remove_host(target->scsi_host);
+	srp_disconnect_target(target);
 	ib_destroy_cm_id(target->cm_id);
 	srp_free_target_ib(target);
 	srp_free_req_data(target);
 	scsi_host_put(target->scsi_host);
 }
 
+static void srp_remove_work(struct work_struct *work)
+{
+	struct srp_target_port *target =
+		container_of(work, struct srp_target_port, remove_work);
+
+	WARN_ON_ONCE(target->state != SRP_TARGET_REMOVED);
+
+	spin_lock(&target->srp_host->target_lock);
+	list_del(&target->list);
+	spin_unlock(&target->srp_host->target_lock);
+
+	srp_remove_target(target);
+}
+
+static void srp_rport_delete(struct srp_rport *rport)
+{
+	struct srp_target_port *target = rport->lld_data;
+
+	srp_queue_remove_work(target);
+}
+
 static int srp_connect_target(struct srp_target_port *target)
 {
 	int retries = 3;
 	int ret;
+
+	WARN_ON_ONCE(target->connected);
+
+	target->qp_in_error = false;
 
 	ret = srp_lookup_path(target);
 	if (ret)
@@ -534,6 +584,7 @@ static int srp_connect_target(struct srp_target_port *target)
 		 */
 		switch (target->status) {
 		case 0:
+			srp_change_conn_state(target, true);
 			return 0;
 
 		case SRP_PORT_REDIRECT:
@@ -646,35 +697,27 @@ static void srp_reset_req(struct srp_target_port *target, struct srp_request *re
 
 static int srp_reconnect_target(struct srp_target_port *target)
 {
-	struct ib_qp_attr qp_attr;
-	struct ib_wc wc;
+	struct Scsi_Host *shost = target->scsi_host;
 	int i, ret;
 
-	if (!srp_change_state(target, SRP_TARGET_LIVE, SRP_TARGET_CONNECTING))
-		return -EAGAIN;
+	scsi_target_block(&shost->shost_gendev);
 
 	srp_disconnect_target(target);
 	/*
-	 * Now get a new local CM ID so that we avoid confusing the
-	 * target in case things are really fouled up.
+	 * Now get a new local CM ID so that we avoid confusing the target in
+	 * case things are really fouled up. Doing so also ensures that all CM
+	 * callbacks will have finished before a new QP is allocated.
 	 */
 	ret = srp_new_cm_id(target);
-	if (ret)
-		goto err;
-
-	qp_attr.qp_state = IB_QPS_RESET;
-	ret = ib_modify_qp(target->qp, &qp_attr, IB_QP_STATE);
-	if (ret)
-		goto err;
-
-	ret = srp_init_qp(target, target->qp);
-	if (ret)
-		goto err;
-
-	while (ib_poll_cq(target->recv_cq, 1, &wc) > 0)
-		; /* nothing */
-	while (ib_poll_cq(target->send_cq, 1, &wc) > 0)
-		; /* nothing */
+	/*
+	 * Whether or not creating a new CM ID succeeded, create a new
+	 * QP. This guarantees that all completion callback function
+	 * invocations have finished before request resetting starts.
+	 */
+	if (ret == 0)
+		ret = srp_create_target_ib(target);
+	else
+		srp_create_target_ib(target);
 
 	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		struct srp_request *req = &target->req_ring[i];
@@ -686,13 +729,17 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	for (i = 0; i < SRP_SQ_SIZE; ++i)
 		list_add(&target->tx_ring[i]->list, &target->free_tx);
 
-	target->qp_in_error = 0;
-	ret = srp_connect_target(target);
+	if (ret == 0)
+		ret = srp_connect_target(target);
+
+	scsi_target_unblock(&shost->shost_gendev, ret == 0 ? SDEV_RUNNING :
+			    SDEV_TRANSPORT_OFFLINE);
+	target->transport_offline = !!ret;
+
 	if (ret)
 		goto err;
 
-	if (!srp_change_state(target, SRP_TARGET_CONNECTING, SRP_TARGET_LIVE))
-		ret = -EAGAIN;
+	shost_printk(KERN_INFO, target->scsi_host, PFX "reconnect succeeded\n");
 
 	return ret;
 
@@ -705,17 +752,8 @@ err:
 	 * However, we have to defer the real removal because we
 	 * are in the context of the SCSI error handler now, which
 	 * will deadlock if we call scsi_remove_host().
-	 *
-	 * Schedule our work inside the lock to avoid a race with
-	 * the flush_scheduled_work() in srp_remove_one().
 	 */
-	spin_lock_irq(&target->lock);
-	if (target->state == SRP_TARGET_CONNECTING) {
-		target->state = SRP_TARGET_DEAD;
-		INIT_WORK(&target->work, srp_remove_work);
-		queue_work(ib_wq, &target->work);
-	}
-	spin_unlock_irq(&target->lock);
+	srp_queue_remove_work(target);
 
 	return ret;
 }
@@ -1262,6 +1300,19 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 			     PFX "Recv failed with error code %d\n", res);
 }
 
+static void srp_handle_qp_err(enum ib_wc_status wc_status,
+			      enum ib_wc_opcode wc_opcode,
+			      struct srp_target_port *target)
+{
+	if (target->connected && !target->qp_in_error) {
+		shost_printk(KERN_ERR, target->scsi_host,
+			     PFX "failed %s status %d\n",
+			     wc_opcode & IB_WC_RECV ? "receive" : "send",
+			     wc_status);
+	}
+	target->qp_in_error = true;
+}
+
 static void srp_recv_completion(struct ib_cq *cq, void *target_ptr)
 {
 	struct srp_target_port *target = target_ptr;
@@ -1269,15 +1320,11 @@ static void srp_recv_completion(struct ib_cq *cq, void *target_ptr)
 
 	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 	while (ib_poll_cq(cq, 1, &wc) > 0) {
-		if (wc.status) {
-			shost_printk(KERN_ERR, target->scsi_host,
-				     PFX "failed receive status %d\n",
-				     wc.status);
-			target->qp_in_error = 1;
-			break;
+		if (likely(wc.status == IB_WC_SUCCESS)) {
+			srp_handle_recv(target, &wc);
+		} else {
+			srp_handle_qp_err(wc.status, wc.opcode, target);
 		}
-
-		srp_handle_recv(target, &wc);
 	}
 }
 
@@ -1288,16 +1335,12 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr)
 	struct srp_iu *iu;
 
 	while (ib_poll_cq(cq, 1, &wc) > 0) {
-		if (wc.status) {
-			shost_printk(KERN_ERR, target->scsi_host,
-				     PFX "failed send status %d\n",
-				     wc.status);
-			target->qp_in_error = 1;
-			break;
+		if (likely(wc.status == IB_WC_SUCCESS)) {
+			iu = (struct srp_iu *) (uintptr_t) wc.wr_id;
+			list_add(&iu->list, &target->free_tx);
+		} else {
+			srp_handle_qp_err(wc.status, wc.opcode, target);
 		}
-
-		iu = (struct srp_iu *) (uintptr_t) wc.wr_id;
-		list_add(&iu->list, &target->free_tx);
 	}
 }
 
@@ -1311,12 +1354,8 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 	unsigned long flags;
 	int len;
 
-	if (target->state == SRP_TARGET_CONNECTING)
-		goto err;
-
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED) {
-		scmnd->result = DID_BAD_TARGET << 16;
+	if (unlikely(target->transport_offline)) {
+		scmnd->result = DID_NO_CONNECT << 16;
 		scmnd->scsi_done(scmnd);
 		return 0;
 	}
@@ -1377,7 +1416,6 @@ err_iu:
 err_unlock:
 	spin_unlock_irqrestore(&target->lock, flags);
 
-err:
 	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
@@ -1417,6 +1455,33 @@ err:
 	}
 
 	return -ENOMEM;
+}
+
+static uint32_t srp_compute_rq_tmo(struct ib_qp_attr *qp_attr, int attr_mask)
+{
+	uint64_t T_tr_ns, max_compl_time_ms;
+	uint32_t rq_tmo_jiffies;
+
+	/*
+	 * According to section 11.2.4.2 in the IBTA spec (Modify Queue Pair,
+	 * table 91), both the QP timeout and the retry count have to be set
+	 * for RC QP's during the RTR to RTS transition.
+	 */
+	WARN_ON_ONCE((attr_mask & (IB_QP_TIMEOUT | IB_QP_RETRY_CNT)) !=
+		     (IB_QP_TIMEOUT | IB_QP_RETRY_CNT));
+
+	/*
+	 * Set target->rq_tmo_jiffies to one second more than the largest time
+	 * it can take before an error completion is generated. See also
+	 * C9-140..142 in the IBTA spec for more information about how to
+	 * convert the QP Local ACK Timeout value to nanoseconds.
+	 */
+	T_tr_ns = 4096 * (1ULL << qp_attr->timeout);
+	max_compl_time_ms = qp_attr->retry_cnt * 4 * T_tr_ns;
+	do_div(max_compl_time_ms, NSEC_PER_MSEC);
+	rq_tmo_jiffies = msecs_to_jiffies(max_compl_time_ms + 1000);
+
+	return rq_tmo_jiffies;
 }
 
 static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
@@ -1477,6 +1542,8 @@ static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
 	ret = ib_cm_init_qp_attr(cm_id, qp_attr, &attr_mask);
 	if (ret)
 		goto error_free;
+
+	target->rq_tmo_jiffies = srp_compute_rq_tmo(qp_attr, attr_mask);
 
 	ret = ib_modify_qp(target->qp, qp_attr, attr_mask);
 	if (ret)
@@ -1599,6 +1666,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 	case IB_CM_DREQ_RECEIVED:
 		shost_printk(KERN_WARNING, target->scsi_host,
 			     PFX "DREQ received - connection closed\n");
+		srp_change_conn_state(target, false);
 		if (ib_send_cm_drep(cm_id, NULL, 0))
 			shost_printk(KERN_ERR, target->scsi_host,
 				     PFX "Sending CM DREP failed\n");
@@ -1608,7 +1676,6 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "connection closed\n");
 
-		comp = 1;
 		target->status = 0;
 		break;
 
@@ -1636,8 +1703,7 @@ static int srp_send_tsk_mgmt(struct srp_target_port *target,
 	struct srp_iu *iu;
 	struct srp_tsk_mgmt *tsk_mgmt;
 
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
+	if (!target->connected || target->qp_in_error)
 		return -1;
 
 	init_completion(&target->tsk_mgmt_done);
@@ -1681,7 +1747,7 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP abort called\n");
 
-	if (!req || target->qp_in_error || !srp_claim_req(target, req, scmnd))
+	if (!req || !srp_claim_req(target, req, scmnd))
 		return FAILED;
 	srp_send_tsk_mgmt(target, req->index, scmnd->device->lun,
 			  SRP_TSK_ABORT_TASK);
@@ -1699,8 +1765,6 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP reset_device called\n");
 
-	if (target->qp_in_error)
-		return FAILED;
 	if (srp_send_tsk_mgmt(target, SRP_TAG_NO_REQ, scmnd->device->lun,
 			      SRP_TSK_LUN_RESET))
 		return FAILED;
@@ -1727,6 +1791,21 @@ static int srp_reset_host(struct scsi_cmnd *scmnd)
 		ret = SUCCESS;
 
 	return ret;
+}
+
+static int srp_slave_configure(struct scsi_device *sdev)
+{
+	struct Scsi_Host *shost = sdev->host;
+	struct srp_target_port *target = host_to_target(shost);
+	struct request_queue *q = sdev->request_queue;
+	unsigned long timeout;
+
+	if (sdev->type == TYPE_DISK) {
+		timeout = max_t(unsigned, 30 * HZ, target->rq_tmo_jiffies);
+		blk_queue_rq_timeout(q, timeout);
+	}
+
+	return 0;
 }
 
 static ssize_t show_id_ext(struct device *dev, struct device_attribute *attr,
@@ -1861,6 +1940,7 @@ static struct scsi_host_template srp_template = {
 	.module				= THIS_MODULE,
 	.name				= "InfiniBand SRP initiator",
 	.proc_name			= DRV_NAME,
+	.slave_configure		= srp_slave_configure,
 	.info				= srp_target_info,
 	.queuecommand			= srp_queuecommand,
 	.eh_abort_handler		= srp_abort,
@@ -1893,6 +1973,8 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 		scsi_remove_host(target->scsi_host);
 		return PTR_ERR(rport);
 	}
+
+	rport->lld_data = target;
 
 	spin_lock(&host->target_lock);
 	list_add_tail(&target->list, &host->target_list);
@@ -2188,6 +2270,7 @@ static ssize_t srp_create_target(struct device *dev,
 			     sizeof (struct srp_indirect_buf) +
 			     target->cmd_sg_cnt * sizeof (struct srp_direct_buf);
 
+	INIT_WORK(&target->remove_work, srp_remove_work);
 	spin_lock_init(&target->lock);
 	INIT_LIST_HEAD(&target->free_tx);
 	INIT_LIST_HEAD(&target->free_reqs);
@@ -2232,7 +2315,6 @@ static ssize_t srp_create_target(struct device *dev,
 	if (ret)
 		goto err_free_ib;
 
-	target->qp_in_error = 0;
 	ret = srp_connect_target(target);
 	if (ret) {
 		shost_printk(KERN_ERR, target->scsi_host,
@@ -2422,8 +2504,7 @@ static void srp_remove_one(struct ib_device *device)
 {
 	struct srp_device *srp_dev;
 	struct srp_host *host, *tmp_host;
-	LIST_HEAD(target_list);
-	struct srp_target_port *target, *tmp_target;
+	struct srp_target_port *target;
 
 	srp_dev = ib_get_client_data(device, &srp_client);
 
@@ -2436,35 +2517,17 @@ static void srp_remove_one(struct ib_device *device)
 		wait_for_completion(&host->released);
 
 		/*
-		 * Mark all target ports as removed, so we stop queueing
-		 * commands and don't try to reconnect.
+		 * Remove all target ports.
 		 */
 		spin_lock(&host->target_lock);
-		list_for_each_entry(target, &host->target_list, list) {
-			spin_lock_irq(&target->lock);
-			target->state = SRP_TARGET_REMOVED;
-			spin_unlock_irq(&target->lock);
-		}
+		list_for_each_entry(target, &host->target_list, list)
+			srp_queue_remove_work(target);
 		spin_unlock(&host->target_lock);
 
 		/*
-		 * Wait for any reconnection tasks that may have
-		 * started before we marked our target ports as
-		 * removed, and any target port removal tasks.
+		 * Wait for target port removal tasks.
 		 */
-		flush_workqueue(ib_wq);
-
-		list_for_each_entry_safe(target, tmp_target,
-					 &host->target_list, list) {
-			srp_del_scsi_host_attr(target->scsi_host);
-			srp_remove_host(target->scsi_host);
-			scsi_remove_host(target->scsi_host);
-			srp_disconnect_target(target);
-			ib_destroy_cm_id(target->cm_id);
-			srp_free_target_ib(target);
-			srp_free_req_data(target);
-			scsi_host_put(target->scsi_host);
-		}
+		flush_workqueue(system_long_wq);
 
 		kfree(host);
 	}
@@ -2478,6 +2541,7 @@ static void srp_remove_one(struct ib_device *device)
 }
 
 static struct srp_function_template ib_srp_transport_functions = {
+	.rport_delete		 = srp_rport_delete,
 };
 
 static int __init srp_init_module(void)

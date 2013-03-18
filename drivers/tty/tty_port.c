@@ -21,6 +21,7 @@
 void tty_port_init(struct tty_port *port)
 {
 	memset(port, 0, sizeof(*port));
+	tty_buffer_init(port);
 	init_waitqueue_head(&port->open_wait);
 	init_waitqueue_head(&port->close_wait);
 	init_waitqueue_head(&port->delta_msr_wait);
@@ -121,12 +122,27 @@ void tty_port_free_xmit_buf(struct tty_port *port)
 }
 EXPORT_SYMBOL(tty_port_free_xmit_buf);
 
+/**
+ * tty_port_destroy -- destroy inited port
+ * @port: tty port to be doestroyed
+ *
+ * When a port was initialized using tty_port_init, one has to destroy the
+ * port by this function. Either indirectly by using tty_port refcounting
+ * (tty_port_put) or directly if refcounting is not used.
+ */
+void tty_port_destroy(struct tty_port *port)
+{
+	tty_buffer_free_all(port);
+}
+EXPORT_SYMBOL(tty_port_destroy);
+
 static void tty_port_destructor(struct kref *kref)
 {
 	struct tty_port *port = container_of(kref, struct tty_port, kref);
 	if (port->xmit_buf)
 		free_page((unsigned long)port->xmit_buf);
-	if (port->ops->destruct)
+	tty_port_destroy(port);
+	if (port->ops && port->ops->destruct)
 		port->ops->destruct(port);
 	else
 		kfree(port);

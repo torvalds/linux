@@ -346,7 +346,7 @@ static void nuc900_init_spi(struct nuc900_spi *hw)
 	nuc900_enable_int(hw);
 }
 
-static int __devinit nuc900_spi_probe(struct platform_device *pdev)
+static int nuc900_spi_probe(struct platform_device *pdev)
 {
 	struct nuc900_spi *hw;
 	struct spi_master *master;
@@ -453,7 +453,7 @@ err_nomem:
 	return err;
 }
 
-static int __devexit nuc900_spi_remove(struct platform_device *dev)
+static int nuc900_spi_remove(struct platform_device *dev)
 {
 	struct nuc900_spi *hw = platform_get_drvdata(dev);
 
@@ -477,7 +477,7 @@ static int __devexit nuc900_spi_remove(struct platform_device *dev)
 
 static struct platform_driver nuc900_spi_driver = {
 	.probe		= nuc900_spi_probe,
-	.remove		= __devexit_p(nuc900_spi_remove),
+	.remove		= nuc900_spi_remove,
 	.driver		= {
 		.name	= "nuc900-spi",
 		.owner	= THIS_MODULE,

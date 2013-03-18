@@ -32,5 +32,8 @@ void omap_vout_new_format(struct v4l2_pix_format *pix,
 		struct v4l2_window *win);
 unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr);
 void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size);
+
+bool omap_vout_dss_omap24xx(void);
+bool omap_vout_dss_omap34xx(void);
 #endif	/* #ifndef OMAP_VOUTLIB_H */
 

@@ -42,7 +42,7 @@ static void ohci_octeon_hw_stop(void)
 	octeon2_usb_clocks_stop();
 }
 
-static int __devinit ohci_octeon_start(struct usb_hcd *hcd)
+static int ohci_octeon_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
 	int ret;

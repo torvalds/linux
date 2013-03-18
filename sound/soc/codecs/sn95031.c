@@ -896,14 +896,14 @@ struct snd_soc_codec_driver sn95031_codec = {
 	.num_dapm_routes	= ARRAY_SIZE(sn95031_audio_map),
 };
 
-static int __devinit sn95031_device_probe(struct platform_device *pdev)
+static int sn95031_device_probe(struct platform_device *pdev)
 {
 	pr_debug("codec device probe called for %s\n", dev_name(&pdev->dev));
 	return snd_soc_register_codec(&pdev->dev, &sn95031_codec,
 			sn95031_dais, ARRAY_SIZE(sn95031_dais));
 }
 
-static int __devexit sn95031_device_remove(struct platform_device *pdev)
+static int sn95031_device_remove(struct platform_device *pdev)
 {
 	pr_debug("codec device remove called\n");
 	snd_soc_unregister_codec(&pdev->dev);
@@ -916,7 +916,7 @@ static struct platform_driver sn95031_codec_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= sn95031_device_probe,
-	.remove		= __devexit_p(sn95031_device_remove),
+	.remove		= sn95031_device_remove,
 };
 
 module_platform_driver(sn95031_codec_driver);

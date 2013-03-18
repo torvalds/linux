@@ -56,6 +56,7 @@
 #define SPRN_SPRG7W	0x117	/* Special Purpose Register General 7 Write */
 #define SPRN_EPCR	0x133	/* Embedded Processor Control Register */
 #define SPRN_DBCR2	0x136	/* Debug Control Register 2 */
+#define SPRN_DBCR4	0x233	/* Debug Control Register 4 */
 #define SPRN_MSRP	0x137	/* MSR Protect Register */
 #define SPRN_IAC3	0x13A	/* Instruction Address Compare 3 */
 #define SPRN_IAC4	0x13B	/* Instruction Address Compare 4 */
@@ -538,6 +539,13 @@
 #define FP_2_21		3		/* 2^21 clocks */
 #define TCR_FIE		0x00800000	/* FIT Interrupt Enable */
 #define TCR_ARE		0x00400000	/* Auto Reload Enable */
+
+#ifdef CONFIG_E500
+#define TCR_GET_WP(tcr)  ((((tcr) & 0xC0000000) >> 30) | \
+			      (((tcr) & 0x1E0000) >> 15))
+#else
+#define TCR_GET_WP(tcr)  (((tcr) & 0xC0000000) >> 30)
+#endif
 
 /* Bit definitions for the TSR. */
 #define TSR_ENW		0x80000000	/* Enable Next Watchdog */

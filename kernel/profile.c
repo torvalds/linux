@@ -8,9 +8,10 @@
  *  Scheduler profiling support, Arjan van de Ven and Ingo Molnar,
  *	Red Hat, July 2004
  *  Consolidation of architecture support code for profiling,
- *	William Irwin, Oracle, July 2004
+ *	Nadia Yvette Chambers, Oracle, July 2004
  *  Amortized hit count accounting via per-cpu open-addressed hashtables
- *	to resolve timer interrupt livelocks, William Irwin, Oracle, 2004
+ *	to resolve timer interrupt livelocks, Nadia Yvette Chambers,
+ *	Oracle, 2004
  */
 
 #include <linux/export.h>
@@ -35,9 +36,6 @@ struct profile_hit {
 #define PROFILE_GRPSZ		(1 << PROFILE_GRPSHIFT)
 #define NR_PROFILE_HIT		(PAGE_SIZE/sizeof(struct profile_hit))
 #define NR_PROFILE_GRP		(NR_PROFILE_HIT/PROFILE_GRPSZ)
-
-/* Oprofile timer tick hook */
-static int (*timer_hook)(struct pt_regs *) __read_mostly;
 
 static atomic_t *prof_buffer;
 static unsigned long prof_len, prof_shift;
@@ -207,25 +205,6 @@ int profile_event_unregister(enum profile_type type, struct notifier_block *n)
 }
 EXPORT_SYMBOL_GPL(profile_event_unregister);
 
-int register_timer_hook(int (*hook)(struct pt_regs *))
-{
-	if (timer_hook)
-		return -EBUSY;
-	timer_hook = hook;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(register_timer_hook);
-
-void unregister_timer_hook(int (*hook)(struct pt_regs *))
-{
-	WARN_ON(hook != timer_hook);
-	timer_hook = NULL;
-	/* make sure all CPUs see the NULL hook */
-	synchronize_sched();  /* Allow ongoing interrupts to complete. */
-}
-EXPORT_SYMBOL_GPL(unregister_timer_hook);
-
-
 #ifdef CONFIG_SMP
 /*
  * Each cpu has a pair of open-addressed hashtables for pending
@@ -256,7 +235,7 @@ EXPORT_SYMBOL_GPL(unregister_timer_hook);
  * pagetable hash functions, but uses a full hashtable full of finite
  * collision chains, not just pairs of them.
  *
- * -- wli
+ * -- nyc
  */
 static void __profile_flip_buffers(void *unused)
 {
@@ -435,8 +414,6 @@ void profile_tick(int type)
 {
 	struct pt_regs *regs = get_irq_regs();
 
-	if (type == CPU_PROFILING && timer_hook)
-		timer_hook(regs);
 	if (!user_mode(regs) && prof_cpu_mask != NULL &&
 	    cpumask_test_cpu(smp_processor_id(), prof_cpu_mask))
 		profile_hit(type, (void *)profile_pc(regs));

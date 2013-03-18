@@ -13,7 +13,7 @@
 #define SO_BROADCAST	0x0020
 #define SO_LINGER	0x0080
 #define SO_OOBINLINE	0x0100
-/* To add :#define SO_REUSEPORT 0x0200 */
+#define SO_REUSEPORT	0x0200
 #define SO_SNDBUF	0x1001
 #define SO_RCVBUF	0x1002
 #define SO_SNDBUFFORCE	0x100a
@@ -48,6 +48,7 @@
 /* Socket filtering */
 #define SO_ATTACH_FILTER        0x401a
 #define SO_DETACH_FILTER        0x401b
+#define SO_GET_FILTER		SO_ATTACH_FILTER
 
 #define SO_ACCEPTCONN		0x401c
 
@@ -68,6 +69,7 @@
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define SO_NOFCS		0x4024
 
+#define SO_LOCK_FILTER		0x4025
 
 /* O_NONBLOCK clashes with the bits used for socket types.  Therefore we
  * have to define SOCK_NONBLOCK to a different value here.

@@ -66,10 +66,8 @@ nouveau_client_create_(const char *name, u64 devname, const char *cfg,
 
 	ret = nouveau_handle_create(nv_object(client), ~0, ~0,
 				    nv_object(client), &client->root);
-	if (ret) {
-		nouveau_namedb_destroy(&client->base);
+	if (ret)
 		return ret;
-	}
 
 	/* prevent init/fini being called, os in in charge of this */
 	atomic_set(&nv_object(client)->usecount, 2);
@@ -100,4 +98,14 @@ nouveau_client_fini(struct nouveau_client *client, bool suspend)
 	ret = nouveau_handle_fini(client->root, suspend);
 	nv_debug(client, "%s completed with %d\n", name[suspend], ret);
 	return ret;
+}
+
+const char *
+nouveau_client_name(void *obj)
+{
+	const char *client_name = "unknown";
+	struct nouveau_client *client = nouveau_client(obj);
+	if (client)
+		client_name = client->name;
+	return client_name;
 }

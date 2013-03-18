@@ -888,8 +888,8 @@ static struct net_device_stats *fs_enet_get_stats(struct net_device *dev)
 static void fs_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_MODULE_NAME);
-	strcpy(info->version, DRV_MODULE_VERSION);
+	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static int fs_get_regs_len(struct net_device *dev)
@@ -1004,7 +1004,7 @@ static const struct net_device_ops fs_enet_netdev_ops = {
 };
 
 static struct of_device_id fs_enet_match[];
-static int __devinit fs_enet_probe(struct platform_device *ofdev)
+static int fs_enet_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	struct net_device *ndev;

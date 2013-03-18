@@ -47,21 +47,21 @@
  *
  *  Address mapping for channels 0-3:
  *
- *   A23 ... A16 A15 ... A8  A7 ... A0    (Physical addresses)
- *    |  ...  |   |  ... |   |  ... |
- *    |  ...  |   |  ... |   |  ... |
- *    |  ...  |   |  ... |   |  ... |
- *   P7  ...  P0  A7 ... A0  A7 ... A0
- * |    Page    | Addr MSB | Addr LSB |   (DMA registers)
+ *   A23 ... A16 A15 ... A8  A7 ... A0	  (Physical addresses)
+ *    |	 ...  |	  |  ... |   |	... |
+ *    |	 ...  |	  |  ... |   |	... |
+ *    |	 ...  |	  |  ... |   |	... |
+ *   P7	 ...  P0  A7 ... A0  A7 ... A0
+ * |	Page	| Addr MSB | Addr LSB |	  (DMA registers)
  *
  *  Address mapping for channels 5-7:
  *
- *   A23 ... A17 A16 A15 ... A9 A8 A7 ... A1 A0    (Physical addresses)
- *    |  ...  |   \   \   ... \  \  \  ... \  \
- *    |  ...  |    \   \   ... \  \  \  ... \  (not used)
- *    |  ...  |     \   \   ... \  \  \  ... \
- *   P7  ...  P1 (0) A7 A6  ... A0 A7 A6 ... A0
- * |      Page      |  Addr MSB   |  Addr LSB  |   (DMA registers)
+ *   A23 ... A17 A16 A15 ... A9 A8 A7 ... A1 A0	   (Physical addresses)
+ *    |	 ...  |	  \   \	  ... \	 \  \  ... \  \
+ *    |	 ...  |	   \   \   ... \  \  \	... \  (not used)
+ *    |	 ...  |	    \	\   ... \  \  \	 ... \
+ *   P7	 ...  P1 (0) A7 A6  ... A0 A7 A6 ... A0
+ * |	  Page	    |  Addr MSB	  |  Addr LSB  |   (DMA registers)
  *
  * Again, channels 5-7 transfer _physical_ words (16 bits), so addresses
  * and counts _must_ be word-aligned (the lowest address bit is _ignored_ at
@@ -102,55 +102,55 @@
 /* DMA controller registers */
 #define DMA1_CMD_REG		0x08	/* command register (w) */
 #define DMA1_STAT_REG		0x08	/* status register (r) */
-#define DMA1_REQ_REG            0x09    /* request register (w) */
+#define DMA1_REQ_REG		0x09	/* request register (w) */
 #define DMA1_MASK_REG		0x0A	/* single-channel mask (w) */
 #define DMA1_MODE_REG		0x0B	/* mode register (w) */
 #define DMA1_CLEAR_FF_REG	0x0C	/* clear pointer flip-flop (w) */
-#define DMA1_TEMP_REG           0x0D    /* Temporary Register (r) */
+#define DMA1_TEMP_REG		0x0D	/* Temporary Register (r) */
 #define DMA1_RESET_REG		0x0D	/* Master Clear (w) */
-#define DMA1_CLR_MASK_REG       0x0E    /* Clear Mask */
-#define DMA1_MASK_ALL_REG       0x0F    /* all-channels mask (w) */
+#define DMA1_CLR_MASK_REG	0x0E	/* Clear Mask */
+#define DMA1_MASK_ALL_REG	0x0F	/* all-channels mask (w) */
 
 #define DMA2_CMD_REG		0xD0	/* command register (w) */
 #define DMA2_STAT_REG		0xD0	/* status register (r) */
-#define DMA2_REQ_REG            0xD2    /* request register (w) */
+#define DMA2_REQ_REG		0xD2	/* request register (w) */
 #define DMA2_MASK_REG		0xD4	/* single-channel mask (w) */
 #define DMA2_MODE_REG		0xD6	/* mode register (w) */
 #define DMA2_CLEAR_FF_REG	0xD8	/* clear pointer flip-flop (w) */
-#define DMA2_TEMP_REG           0xDA    /* Temporary Register (r) */
+#define DMA2_TEMP_REG		0xDA	/* Temporary Register (r) */
 #define DMA2_RESET_REG		0xDA	/* Master Clear (w) */
-#define DMA2_CLR_MASK_REG       0xDC    /* Clear Mask */
-#define DMA2_MASK_ALL_REG       0xDE    /* all-channels mask (w) */
+#define DMA2_CLR_MASK_REG	0xDC	/* Clear Mask */
+#define DMA2_MASK_ALL_REG	0xDE	/* all-channels mask (w) */
 
-#define DMA_ADDR_0              0x00    /* DMA address registers */
-#define DMA_ADDR_1              0x02
-#define DMA_ADDR_2              0x04
-#define DMA_ADDR_3              0x06
-#define DMA_ADDR_4              0xC0
-#define DMA_ADDR_5              0xC4
-#define DMA_ADDR_6              0xC8
-#define DMA_ADDR_7              0xCC
+#define DMA_ADDR_0		0x00	/* DMA address registers */
+#define DMA_ADDR_1		0x02
+#define DMA_ADDR_2		0x04
+#define DMA_ADDR_3		0x06
+#define DMA_ADDR_4		0xC0
+#define DMA_ADDR_5		0xC4
+#define DMA_ADDR_6		0xC8
+#define DMA_ADDR_7		0xCC
 
-#define DMA_CNT_0               0x01    /* DMA count registers */
-#define DMA_CNT_1               0x03
-#define DMA_CNT_2               0x05
-#define DMA_CNT_3               0x07
-#define DMA_CNT_4               0xC2
-#define DMA_CNT_5               0xC6
-#define DMA_CNT_6               0xCA
-#define DMA_CNT_7               0xCE
+#define DMA_CNT_0		0x01	/* DMA count registers */
+#define DMA_CNT_1		0x03
+#define DMA_CNT_2		0x05
+#define DMA_CNT_3		0x07
+#define DMA_CNT_4		0xC2
+#define DMA_CNT_5		0xC6
+#define DMA_CNT_6		0xCA
+#define DMA_CNT_7		0xCE
 
-#define DMA_PAGE_0              0x87    /* DMA page registers */
-#define DMA_PAGE_1              0x83
-#define DMA_PAGE_2              0x81
-#define DMA_PAGE_3              0x82
-#define DMA_PAGE_5              0x8B
-#define DMA_PAGE_6              0x89
-#define DMA_PAGE_7              0x8A
+#define DMA_PAGE_0		0x87	/* DMA page registers */
+#define DMA_PAGE_1		0x83
+#define DMA_PAGE_2		0x81
+#define DMA_PAGE_3		0x82
+#define DMA_PAGE_5		0x8B
+#define DMA_PAGE_6		0x89
+#define DMA_PAGE_7		0x8A
 
 #define DMA_MODE_READ	0x44	/* I/O to memory, no autoinit, increment, single mode */
 #define DMA_MODE_WRITE	0x48	/* memory to I/O, no autoinit, increment, single mode */
-#define DMA_MODE_CASCADE 0xC0   /* pass thru DREQ->HRQ, DACK<-HLDA only */
+#define DMA_MODE_CASCADE 0xC0	/* pass thru DREQ->HRQ, DACK<-HLDA only */
 
 #define DMA_AUTOINIT	0x10
 
@@ -172,7 +172,7 @@ static __inline__ void release_dma_lock(unsigned long flags)
 static __inline__ void enable_dma(unsigned int dmanr)
 {
 	if (dmanr<=3)
-		dma_outb(dmanr,  DMA1_MASK_REG);
+		dma_outb(dmanr,	 DMA1_MASK_REG);
 	else
 		dma_outb(dmanr & 3,  DMA2_MASK_REG);
 }
@@ -204,7 +204,7 @@ static __inline__ void clear_dma_ff(unsigned int dmanr)
 static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
 {
 	if (dmanr<=3)
-		dma_outb(mode | dmanr,  DMA1_MODE_REG);
+		dma_outb(mode | dmanr,	DMA1_MODE_REG);
 	else
 		dma_outb(mode | (dmanr&3),  DMA2_MODE_REG);
 }
@@ -248,10 +248,10 @@ static __inline__ void set_dma_page(unsigned int dmanr, char pagenr)
 static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
 {
 	set_dma_page(dmanr, a>>16);
-	if (dmanr <= 3)  {
+	if (dmanr <= 3)	 {
 	    dma_outb( a & 0xff, ((dmanr&3)<<1) + IO_DMA1_BASE );
-            dma_outb( (a>>8) & 0xff, ((dmanr&3)<<1) + IO_DMA1_BASE );
-	}  else  {
+	    dma_outb( (a>>8) & 0xff, ((dmanr&3)<<1) + IO_DMA1_BASE );
+	}  else	 {
 	    dma_outb( (a>>1) & 0xff, ((dmanr&3)<<2) + IO_DMA2_BASE );
 	    dma_outb( (a>>9) & 0xff, ((dmanr&3)<<2) + IO_DMA2_BASE );
 	}
@@ -268,14 +268,14 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
  */
 static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
 {
-        count--;
-	if (dmanr <= 3)  {
+	count--;
+	if (dmanr <= 3)	 {
 	    dma_outb( count & 0xff, ((dmanr&3)<<1) + 1 + IO_DMA1_BASE );
 	    dma_outb( (count>>8) & 0xff, ((dmanr&3)<<1) + 1 + IO_DMA1_BASE );
-        } else {
+	} else {
 	    dma_outb( (count>>1) & 0xff, ((dmanr&3)<<2) + 2 + IO_DMA2_BASE );
 	    dma_outb( (count>>9) & 0xff, ((dmanr&3)<<2) + 2 + IO_DMA2_BASE );
-        }
+	}
 }
 
 

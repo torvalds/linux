@@ -932,7 +932,7 @@ static int cpc925_mc_get_channels(void __iomem *vbase)
 	return dual;
 }
 
-static int __devinit cpc925_probe(struct platform_device *pdev)
+static int cpc925_probe(struct platform_device *pdev)
 {
 	static int edac_mc_idx;
 	struct mem_ctl_info *mci;

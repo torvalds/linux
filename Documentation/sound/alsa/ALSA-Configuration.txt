@@ -890,8 +890,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     enable_msi	- Enable Message Signaled Interrupt (MSI) (default = off)
     power_save	- Automatic power-saving timeout (in second, 0 =
 		disable)
-    power_save_controller - Reset HD-audio controller in power-saving mode
-		(default = on)
+    power_save_controller - Support runtime D3 of HD-audio controller
+		(-1 = on for supported chip (default), false = off,
+		 true = force to on even for unsupported hardware)
     align_buffer_size - Force rounding of buffer/period sizes to multiples
     		      of 128 bytes. This is more efficient in terms of memory
 		      access but isn't required by the HDA spec and prevents
@@ -1905,7 +1906,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     vid             - Vendor ID for the device (optional)
     pid             - Product ID for the device (optional)
     nrpacks	    - Max. number of packets per URB (default: 8)
-    async_unlink    - Use async unlink mode (default: yes)
     device_setup    - Device specific magic number (optional)
                     - Influence depends on the device
                     - Default: 0x0000 
@@ -1917,8 +1917,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     NB: nrpacks parameter can be modified dynamically via sysfs.
         Don't put the value over 20.  Changing via sysfs has no sanity
 	check.
-    NB: async_unlink=0 would cause Oops.  It remains just for
-        debugging purpose (if any).
     NB: ignore_ctl_error=1 may help when you get an error at accessing
         the mixer element such as URB error -22.  This happens on some
         buggy USB device or the controller.

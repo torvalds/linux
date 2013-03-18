@@ -219,12 +219,8 @@ static int sep_allocate_dmatables_region(struct sep_device *sep,
 	dev_dbg(&sep->pdev->dev, "[PID%d] oldlen = 0x%08X\n", current->pid,
 				dma_ctx->dmatables_len);
 	tmp_region = kzalloc(new_len + dma_ctx->dmatables_len, GFP_KERNEL);
-	if (!tmp_region) {
-		dev_warn(&sep->pdev->dev,
-			 "[PID%d] no mem for dma tables region\n",
-				current->pid);
+	if (!tmp_region)
 		return -ENOMEM;
-	}
 
 	/* Were there any previous tables that need to be preserved ? */
 	if (*dmatables_region) {
@@ -1245,27 +1241,23 @@ static int sep_lock_user_pages(struct sep_device *sep,
 					current->pid, num_pages);
 
 	/* Allocate array of pages structure pointers */
-	page_array = kmalloc(sizeof(struct page *) * num_pages, GFP_ATOMIC);
+	page_array = kmalloc_array(num_pages, sizeof(struct page *),
+				   GFP_ATOMIC);
 	if (!page_array) {
 		error = -ENOMEM;
 		goto end_function;
 	}
-	map_array = kmalloc(sizeof(struct sep_dma_map) * num_pages, GFP_ATOMIC);
+
+	map_array = kmalloc_array(num_pages, sizeof(struct sep_dma_map),
+				  GFP_ATOMIC);
 	if (!map_array) {
-		dev_warn(&sep->pdev->dev,
-			 "[PID%d] kmalloc for map_array failed\n",
-				current->pid);
 		error = -ENOMEM;
 		goto end_function_with_error1;
 	}
 
-	lli_array = kmalloc(sizeof(struct sep_lli_entry) * num_pages,
-		GFP_ATOMIC);
-
+	lli_array = kmalloc_array(num_pages, sizeof(struct sep_lli_entry),
+				  GFP_ATOMIC);
 	if (!lli_array) {
-		dev_warn(&sep->pdev->dev,
-			 "[PID%d] kmalloc for lli_array failed\n",
-				current->pid);
 		error = -ENOMEM;
 		goto end_function_with_error2;
 	}
@@ -1448,15 +1440,10 @@ static int sep_lli_table_secure_dma(struct sep_device *sep,
 	dev_dbg(&sep->pdev->dev, "[PID%d] num_pages is (hex) %x\n",
 		current->pid, num_pages);
 
-	lli_array = kmalloc(sizeof(struct sep_lli_entry) * num_pages,
-		GFP_ATOMIC);
-
-	if (!lli_array) {
-		dev_warn(&sep->pdev->dev,
-			"[PID%d] kmalloc for lli_array failed\n",
-			current->pid);
+	lli_array = kmalloc_array(num_pages, sizeof(struct sep_lli_entry),
+				  GFP_ATOMIC);
+	if (!lli_array)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Fill the lli_array
@@ -3419,11 +3406,9 @@ static ssize_t sep_create_dcb_dmatables_context(struct sep_device *sep,
 		goto end_function;
 	}
 
-	dcb_args = kzalloc(num_dcbs * sizeof(struct build_dcb_struct),
+	dcb_args = kcalloc(num_dcbs, sizeof(struct build_dcb_struct),
 			   GFP_KERNEL);
 	if (!dcb_args) {
-		dev_warn(&sep->pdev->dev, "[PID%d] no memory for dcb args\n",
-			 current->pid);
 		error = -ENOMEM;
 		goto end_function;
 	}
@@ -3431,7 +3416,7 @@ static ssize_t sep_create_dcb_dmatables_context(struct sep_device *sep,
 	if (copy_from_user(dcb_args,
 			user_dcb_args,
 			num_dcbs * sizeof(struct build_dcb_struct))) {
-		error = -EINVAL;
+		error = -EFAULT;
 		goto end_function;
 	}
 
@@ -3610,16 +3595,13 @@ static ssize_t sep_create_msgarea_context(struct sep_device *sep,
 	/* Allocate thread-specific memory for message buffer */
 	*msg_region = kzalloc(msg_len, GFP_KERNEL);
 	if (!(*msg_region)) {
-		dev_warn(&sep->pdev->dev,
-			 "[PID%d] no mem for msgarea context\n",
-			 current->pid);
 		error = -ENOMEM;
 		goto end_function;
 	}
 
 	/* Copy input data to write() to allocated message buffer */
 	if (copy_from_user(*msg_region, msg_user, msg_len)) {
-		error = -EINVAL;
+		error = -EFAULT;
 		goto end_function;
 	}
 
@@ -4112,7 +4094,7 @@ static int sep_register_driver_with_fs(struct sep_device *sep)
  *Attempt to set up and configure a SEP device that has been
  *discovered by the PCI layer. Allocates all required resources.
  */
-static int __devinit sep_probe(struct pci_dev *pdev,
+static int sep_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	int error = 0;
@@ -4133,8 +4115,6 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	/* Allocate the sep_device structure for this device */
 	sep_dev = kzalloc(sizeof(struct sep_device), GFP_ATOMIC);
 	if (sep_dev == NULL) {
-		dev_warn(&pdev->dev,
-			"can't kmalloc the sep_device structure\n");
 		error = -ENOMEM;
 		goto end_function_disable_device;
 	}

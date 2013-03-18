@@ -131,7 +131,7 @@ MODULE_PARM_DESC(force_addr,
 static struct pci_driver ali15x3_driver;
 static unsigned short ali15x3_smba;
 
-static int __devinit ali15x3_setup(struct pci_dev *ALI15X3_dev)
+static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 {
 	u16 a;
 	unsigned char temp;
@@ -484,7 +484,7 @@ static DEFINE_PCI_DEVICE_TABLE(ali15x3_ids) = {
 
 MODULE_DEVICE_TABLE (pci, ali15x3_ids);
 
-static int __devinit ali15x3_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int ali15x3_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	if (ali15x3_setup(dev)) {
 		dev_err(&dev->dev,
@@ -500,7 +500,7 @@ static int __devinit ali15x3_probe(struct pci_dev *dev, const struct pci_device_
 	return i2c_add_adapter(&ali15x3_adapter);
 }
 
-static void __devexit ali15x3_remove(struct pci_dev *dev)
+static void ali15x3_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&ali15x3_adapter);
 	release_region(ali15x3_smba, ALI15X3_SMB_IOSIZE);
@@ -510,7 +510,7 @@ static struct pci_driver ali15x3_driver = {
 	.name		= "ali15x3_smbus",
 	.id_table	= ali15x3_ids,
 	.probe		= ali15x3_probe,
-	.remove		= __devexit_p(ali15x3_remove),
+	.remove		= ali15x3_remove,
 };
 
 module_pci_driver(ali15x3_driver);

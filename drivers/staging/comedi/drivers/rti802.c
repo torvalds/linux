@@ -55,12 +55,11 @@ struct rti802_private {
 	unsigned int ao_readback[8];
 };
 
-#define devpriv ((struct rti802_private *)dev->private)
-
 static int rti802_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct rti802_private *devpriv = dev->private;
 	int i;
 
 	for (i = 0; i < insn->n; i++)
@@ -73,6 +72,7 @@ static int rti802_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct rti802_private *devpriv = dev->private;
 	int i, d;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -89,6 +89,7 @@ static int rti802_ao_insn_write(struct comedi_device *dev,
 
 static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct rti802_private *devpriv;
 	struct comedi_subdevice *s;
 	int i;
 	unsigned long iobase;
@@ -104,8 +105,10 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = "rti802";
 
-	if (alloc_private(dev, sizeof(struct rti802_private)))
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)

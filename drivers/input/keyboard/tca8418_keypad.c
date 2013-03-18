@@ -384,7 +384,7 @@ static const struct i2c_device_id tca8418_id[] = {
 MODULE_DEVICE_TABLE(i2c, tca8418_id);
 
 #ifdef CONFIG_OF
-static const struct of_device_id tca8418_dt_ids[] __devinitconst = {
+static const struct of_device_id tca8418_dt_ids[] = {
 	{ .compatible = "ti,tca8418", },
 	{ }
 };

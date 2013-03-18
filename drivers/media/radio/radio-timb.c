@@ -145,7 +145,7 @@ static const struct v4l2_file_operations timbradio_fops = {
 	.unlocked_ioctl	= video_ioctl2,
 };
 
-static int __devinit timbradio_probe(struct platform_device *pdev)
+static int timbradio_probe(struct platform_device *pdev)
 {
 	struct timb_radio_platform_data *pdata = pdev->dev.platform_data;
 	struct timbradio *tr;
@@ -201,7 +201,7 @@ err:
 	return err;
 }
 
-static int __devexit timbradio_remove(struct platform_device *pdev)
+static int timbradio_remove(struct platform_device *pdev)
 {
 	struct timbradio *tr = platform_get_drvdata(pdev);
 
@@ -219,7 +219,7 @@ static struct platform_driver timbradio_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= timbradio_probe,
-	.remove		= __devexit_p(timbradio_remove),
+	.remove		= timbradio_remove,
 };
 
 module_platform_driver(timbradio_platform_driver);

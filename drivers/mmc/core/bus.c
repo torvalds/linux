@@ -225,8 +225,7 @@ static void mmc_release_card(struct device *dev)
 
 	sdio_free_common_cis(card);
 
-	if (card->info)
-		kfree(card->info);
+	kfree(card->info);
 
 	kfree(card);
 }
@@ -322,6 +321,7 @@ int mmc_add_card(struct mmc_card *card)
 #ifdef CONFIG_DEBUG_FS
 	mmc_add_card_debugfs(card);
 #endif
+	mmc_init_context_info(card->host);
 
 	ret = device_add(&card->dev);
 	if (ret)

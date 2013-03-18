@@ -67,17 +67,16 @@ TODO:
 analog triggering on 1602 series
 */
 
-#include "../comedidev.h"
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "8253.h"
 #include "8255.h"
 #include "amcc_s5933.h"
 #include "comedi_fc.h"
-
-/* PCI vendor number of ComputerBoards/MeasurementComputing */
-#define PCI_VENDOR_ID_CB	0x1307
 
 #define TIMER_BASE		100	/* 10MHz master clock */
 #define AI_BUFFER_SIZE		1024	/* max ai fifo size */
@@ -843,49 +842,32 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 		/* External trigger, only CR_EDGE and CR_INVERT flags allowed */
 		if ((cmd->start_arg
 		     & (CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT))) != 0) {
-			cmd->start_arg &=
-			    ~(CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT));
-			err++;
+			cmd->start_arg &= ~(CR_FLAGS_MASK &
+						~(CR_EDGE | CR_INVERT));
+			err |= -EINVAL;
 		}
 		if (!thisboard->is_1602 && (cmd->start_arg & CR_INVERT)) {
 			cmd->start_arg &= (CR_FLAGS_MASK & ~CR_INVERT);
-			err++;
+			err |= -EINVAL;
 		}
 		break;
 	default:
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	}
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg <
-		    thisboard->ai_speed * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-			    thisboard->ai_speed * cmd->chanlist_len;
-			err++;
-		}
-	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+				thisboard->ai_speed * cmd->chanlist_len);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_NONE) {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 thisboard->ai_speed);
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_NONE)
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1078,31 +1060,18 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < thisboard->ao_scan_speed) {
-			cmd->scan_begin_arg = thisboard->ao_scan_speed;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 thisboard->ao_scan_speed);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_NONE) {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_NONE)
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1469,16 +1438,15 @@ static const void *cb_pcidas_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int cb_pcidas_attach_pci(struct comedi_device *dev,
-				struct pci_dev *pcidev)
+static int cb_pcidas_auto_attach(struct comedi_device *dev,
+					   unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct cb_pcidas_board *thisboard;
 	struct cb_pcidas_private *devpriv;
 	struct comedi_subdevice *s;
 	int i;
 	int ret;
-
-	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	thisboard = cb_pcidas_find_boardinfo(dev, pcidev);
 	if (!thisboard)
@@ -1486,10 +1454,10 @@ static int cb_pcidas_attach_pci(struct comedi_device *dev,
 	dev->board_ptr  = thisboard;
 	dev->board_name = thisboard->name;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -1656,19 +1624,14 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 static struct comedi_driver cb_pcidas_driver = {
 	.driver_name	= "cb_pcidas",
 	.module		= THIS_MODULE,
-	.attach_pci	= cb_pcidas_attach_pci,
+	.auto_attach	= cb_pcidas_auto_attach,
 	.detach		= cb_pcidas_detach,
 };
 
-static int __devinit cb_pcidas_pci_probe(struct pci_dev *dev,
+static int cb_pcidas_pci_probe(struct pci_dev *dev,
 					 const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &cb_pcidas_driver);
-}
-
-static void __devexit cb_pcidas_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
@@ -1688,7 +1651,7 @@ static struct pci_driver cb_pcidas_pci_driver = {
 	.name		= "cb_pcidas",
 	.id_table	= cb_pcidas_pci_table,
 	.probe		= cb_pcidas_pci_probe,
-	.remove		= __devexit_p(cb_pcidas_pci_remove)
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(cb_pcidas_driver, cb_pcidas_pci_driver);
 

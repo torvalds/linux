@@ -112,6 +112,11 @@ struct inet_timewait_sock {
 #define tw_net			__tw_common.skc_net
 #define tw_daddr        	__tw_common.skc_daddr
 #define tw_rcv_saddr    	__tw_common.skc_rcv_saddr
+#define tw_addrpair		__tw_common.skc_addrpair
+#define tw_dport		__tw_common.skc_dport
+#define tw_num			__tw_common.skc_num
+#define tw_portpair		__tw_common.skc_portpair
+
 	int			tw_timeout;
 	volatile unsigned char	tw_substate;
 	unsigned char		tw_rcv_wscale;
@@ -119,8 +124,6 @@ struct inet_timewait_sock {
 	/* Socket demultiplex comparisons on incoming packets. */
 	/* these three are in inet_sock */
 	__be16			tw_sport;
-	__be16			tw_dport;
-	__u16			tw_num;
 	kmemcheck_bitfield_begin(flags);
 	/* And these are ours. */
 	unsigned int		tw_ipv6only     : 1,
@@ -175,11 +178,11 @@ static inline int inet_twsk_del_dead_node(struct inet_timewait_sock *tw)
 #define inet_twsk_for_each(tw, node, head) \
 	hlist_nulls_for_each_entry(tw, node, head, tw_node)
 
-#define inet_twsk_for_each_inmate(tw, node, jail) \
-	hlist_for_each_entry(tw, node, jail, tw_death_node)
+#define inet_twsk_for_each_inmate(tw, jail) \
+	hlist_for_each_entry(tw, jail, tw_death_node)
 
-#define inet_twsk_for_each_inmate_safe(tw, node, safe, jail) \
-	hlist_for_each_entry_safe(tw, node, safe, jail, tw_death_node)
+#define inet_twsk_for_each_inmate_safe(tw, safe, jail) \
+	hlist_for_each_entry_safe(tw, safe, jail, tw_death_node)
 
 static inline struct inet_timewait_sock *inet_twsk(const struct sock *sk)
 {

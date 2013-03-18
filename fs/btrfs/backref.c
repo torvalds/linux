@@ -352,11 +352,8 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		err = __resolve_indirect_ref(fs_info, search_commit_root,
 					     time_seq, ref, parents,
 					     extent_item_pos);
-		if (err) {
-			if (ret == 0)
-				ret = err;
+		if (err)
 			continue;
-		}
 
 		/* we put the first parent into the ref at hand */
 		ULIST_ITER_INIT(&uiter);
@@ -461,6 +458,7 @@ static int __merge_refs(struct list_head *head, int mode)
 		     pos2 = n2, n2 = pos2->next) {
 			struct __prelim_ref *ref2;
 			struct __prelim_ref *xchg;
+			struct extent_inode_elem *eie;
 
 			ref2 = list_entry(pos2, struct __prelim_ref, list);
 
@@ -472,12 +470,20 @@ static int __merge_refs(struct list_head *head, int mode)
 					ref1 = ref2;
 					ref2 = xchg;
 				}
-				ref1->count += ref2->count;
 			} else {
 				if (ref1->parent != ref2->parent)
 					continue;
-				ref1->count += ref2->count;
 			}
+
+			eie = ref1->inode_list;
+			while (eie && eie->next)
+				eie = eie->next;
+			if (eie)
+				eie->next = ref2->inode_list;
+			else
+				ref1->inode_list = ref2->inode_list;
+			ref1->count += ref2->count;
+
 			list_del(&ref2->list);
 			kfree(ref2);
 		}
@@ -890,8 +896,7 @@ again:
 	while (!list_empty(&prefs)) {
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);
 		list_del(&ref->list);
-		if (ref->count < 0)
-			WARN_ON(1);
+		WARN_ON(ref->count < 0);
 		if (ref->count && ref->root_id && ref->parent == 0) {
 			/* no parent == root of tree */
 			ret = ulist_add(roots, ref->root_id, 0, GFP_NOFS);

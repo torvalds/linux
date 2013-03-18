@@ -175,16 +175,6 @@ static int dw_mci_exynos_setup_bus(struct dw_mci *host,
 		}
 	}
 
-	gpio = of_get_named_gpio(slot_np, "wp-gpios", 0);
-	if (gpio_is_valid(gpio)) {
-		if (devm_gpio_request(host->dev, gpio, "dw-mci-wp"))
-			dev_info(host->dev, "gpio [%d] request failed\n",
-						gpio);
-	} else {
-		dev_info(host->dev, "wp gpio not available");
-		host->pdata->quirks |= DW_MCI_QUIRK_NO_WRITE_PROTECT;
-	}
-
 	if (host->pdata->quirks & DW_MCI_QUIRK_BROKEN_CARD_DETECTION)
 		return 0;
 
@@ -208,7 +198,7 @@ static unsigned long exynos5250_dwmmc_caps[4] = {
 	MMC_CAP_CMD23,
 };
 
-static struct dw_mci_drv_data exynos5250_drv_data = {
+static const struct dw_mci_drv_data exynos5250_drv_data = {
 	.caps			= exynos5250_dwmmc_caps,
 	.init			= dw_mci_exynos_priv_init,
 	.setup_clock		= dw_mci_exynos_setup_clock,
@@ -220,14 +210,14 @@ static struct dw_mci_drv_data exynos5250_drv_data = {
 
 static const struct of_device_id dw_mci_exynos_match[] = {
 	{ .compatible = "samsung,exynos5250-dw-mshc",
-			.data = (void *)&exynos5250_drv_data, },
+			.data = &exynos5250_drv_data, },
 	{},
 };
-MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
+MODULE_DEVICE_TABLE(of, dw_mci_exynos_match);
 
 int dw_mci_exynos_probe(struct platform_device *pdev)
 {
-	struct dw_mci_drv_data *drv_data;
+	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
 
 	match = of_match_node(dw_mci_exynos_match, pdev->dev.of_node);

@@ -352,7 +352,7 @@ static int ubifs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	struct qstr nm;
 	union ubifs_key key;
 	struct ubifs_dent_node *dent;
-	struct inode *dir = file->f_path.dentry->d_inode;
+	struct inode *dir = file_inode(file);
 	struct ubifs_info *c = dir->i_sb->s_fs_info;
 
 	dbg_gen("dir ino %lu, f_pos %#llx", dir->i_ino, file->f_pos);
@@ -453,11 +453,11 @@ out:
 }
 
 /* If a directory is seeked, we have to free saved readdir() state */
-static loff_t ubifs_dir_llseek(struct file *file, loff_t offset, int origin)
+static loff_t ubifs_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	kfree(file->private_data);
 	file->private_data = NULL;
-	return generic_file_llseek(file, offset, origin);
+	return generic_file_llseek(file, offset, whence);
 }
 
 /* Free saved readdir() state when the directory is closed */

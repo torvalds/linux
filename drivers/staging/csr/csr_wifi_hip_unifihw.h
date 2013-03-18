@@ -20,10 +20,6 @@
 #ifndef __UNIFIHW_H__
 #define __UNIFIHW_H__ 1
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Symbol Look Up Table fingerprint. IDs are in sigs.h */
 #define SLUT_FINGERPRINT        0xD397
 
@@ -59,9 +55,5 @@ extern "C" {
 #define UNIFI_MAKE_GP(R, O)  (((UNIFI_ ## R) << 24) | (O))
 #define UNIFI_GP_OFFSET(GP)  ((GP) & 0xFFFFFF)
 #define UNIFI_GP_SPACE(GP)   (((GP) >> 24) & 0xFF)
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __UNIFIHW_H__ */

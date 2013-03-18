@@ -13,6 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/root_dev.h>
@@ -24,7 +25,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
 
 #include <mach/hardware.h>
 #include <mach/nanoengine.h>
@@ -110,7 +110,7 @@ MACHINE_START(NANOENGINE, "BSE nanoEngine")
 	.map_io		= nanoengine_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine	= nanoengine_init,
 	.init_late	= sa11x0_init_late,
 	.restart	= sa11x0_restart,

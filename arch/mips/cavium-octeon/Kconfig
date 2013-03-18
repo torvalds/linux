@@ -94,4 +94,13 @@ config SWIOTLB
 	select NEED_SG_DMA_LENGTH
 
 
+config OCTEON_ILM
+	tristate "Module to measure interrupt latency using Octeon CIU Timer"
+	help
+	  This driver is a module to measure interrupt latency using the
+	  the CIU Timers on Octeon.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called octeon-ilm
+
 endif # CPU_CAVIUM_OCTEON

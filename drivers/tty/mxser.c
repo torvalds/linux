@@ -487,7 +487,7 @@ static void mxser_disable_must_rx_software_flow_control(unsigned long baseio)
 }
 
 #ifdef CONFIG_PCI
-static int __devinit CheckIsMoxaMust(unsigned long io)
+static int CheckIsMoxaMust(unsigned long io)
 {
 	u8 oldmcr, hwid;
 	int i;
@@ -1264,7 +1264,7 @@ static int mxser_set_serial_info(struct tty_struct *tty,
 				(new_serial.flags & ASYNC_FLAGS));
 		port->close_delay = new_serial.close_delay * HZ / 100;
 		port->closing_wait = new_serial.closing_wait * HZ / 100;
-		tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+		port->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST &&
 				(new_serial.baud_base != info->baud_base ||
 				new_serial.custom_divisor !=
@@ -2079,7 +2079,7 @@ static void mxser_receive_chars(struct tty_struct *tty,
 		}
 		while (gdl--) {
 			ch = inb(port->ioaddr + UART_RX);
-			tty_insert_flip_char(tty, ch, 0);
+			tty_insert_flip_char(&port->port, ch, 0);
 			cnt++;
 		}
 		goto end_intr;
@@ -2118,7 +2118,7 @@ intr_old:
 				} else
 					flag = TTY_BREAK;
 			}
-			tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(&port->port, ch, flag);
 			cnt++;
 			if (cnt >= recv_room) {
 				if (!port->ldisc_stop_rx)
@@ -2145,7 +2145,7 @@ end_intr:
 	 * recursive locking.
 	 */
 	spin_unlock(&port->slock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->port);
 	spin_lock(&port->slock);
 }
 
@@ -2364,12 +2364,11 @@ static void mxser_release_vector(struct mxser_board *brd)
 
 static void mxser_release_ISA_res(struct mxser_board *brd)
 {
-	free_irq(brd->irq, brd);
 	release_region(brd->ports[0].ioaddr, 8 * brd->info->nports);
 	mxser_release_vector(brd);
 }
 
-static int __devinit mxser_initbrd(struct mxser_board *brd,
+static int mxser_initbrd(struct mxser_board *brd,
 		struct pci_dev *pdev)
 {
 	struct mxser_port *info;
@@ -2411,12 +2410,26 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 
 	retval = request_irq(brd->irq, mxser_interrupt, IRQF_SHARED, "mxser",
 			brd);
-	if (retval)
+	if (retval) {
+		for (i = 0; i < brd->info->nports; i++)
+			tty_port_destroy(&brd->ports[i].port);
 		printk(KERN_ERR "Board %s: Request irq failed, IRQ (%d) may "
 			"conflict with another device.\n",
 			brd->info->name, brd->irq);
+	}
 
 	return retval;
+}
+
+static void mxser_board_remove(struct mxser_board *brd)
+{
+	unsigned int i;
+
+	for (i = 0; i < brd->info->nports; i++) {
+		tty_unregister_device(mxvar_sdriver, brd->idx + i);
+		tty_port_destroy(&brd->ports[i].port);
+	}
+	free_irq(brd->irq, brd);
 }
 
 static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
@@ -2534,13 +2547,14 @@ err_irqconflict:
 	return -EIO;
 }
 
-static int __devinit mxser_probe(struct pci_dev *pdev,
+static int mxser_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 #ifdef CONFIG_PCI
 	struct mxser_board *brd;
 	unsigned int i, j;
 	unsigned long ioaddress;
+	struct device *tty_dev;
 	int retval = -EINVAL;
 
 	for (i = 0; i < MXSER_BOARDS; i++)
@@ -2624,13 +2638,25 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 	if (retval)
 		goto err_rel3;
 
-	for (i = 0; i < brd->info->nports; i++)
-		tty_port_register_device(&brd->ports[i].port, mxvar_sdriver,
-				brd->idx + i, &pdev->dev);
+	for (i = 0; i < brd->info->nports; i++) {
+		tty_dev = tty_port_register_device(&brd->ports[i].port,
+				mxvar_sdriver, brd->idx + i, &pdev->dev);
+		if (IS_ERR(tty_dev)) {
+			retval = PTR_ERR(tty_dev);
+			for (i--; i >= 0; i--)
+				tty_unregister_device(mxvar_sdriver,
+					brd->idx + i);
+			goto err_relbrd;
+		}
+	}
 
 	pci_set_drvdata(pdev, brd);
 
 	return 0;
+err_relbrd:
+	for (i = 0; i < brd->info->nports; i++)
+		tty_port_destroy(&brd->ports[i].port);
+	free_irq(brd->irq, brd);
 err_rel3:
 	pci_release_region(pdev, 3);
 err_zero:
@@ -2645,16 +2671,13 @@ err:
 #endif
 }
 
-static void __devexit mxser_remove(struct pci_dev *pdev)
+static void mxser_remove(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PCI
 	struct mxser_board *brd = pci_get_drvdata(pdev);
-	unsigned int i;
 
-	for (i = 0; i < brd->info->nports; i++)
-		tty_unregister_device(mxvar_sdriver, brd->idx + i);
+	mxser_board_remove(brd);
 
-	free_irq(pdev->irq, brd);
 	pci_release_region(pdev, 2);
 	pci_release_region(pdev, 3);
 	pci_disable_device(pdev);
@@ -2666,12 +2689,13 @@ static struct pci_driver mxser_driver = {
 	.name = "mxser",
 	.id_table = mxser_pcibrds,
 	.probe = mxser_probe,
-	.remove = __devexit_p(mxser_remove)
+	.remove = mxser_remove
 };
 
 static int __init mxser_module_init(void)
 {
 	struct mxser_board *brd;
+	struct device *tty_dev;
 	unsigned int b, i, m;
 	int retval;
 
@@ -2717,14 +2741,29 @@ static int __init mxser_module_init(void)
 
 		/* mxser_initbrd will hook ISR. */
 		if (mxser_initbrd(brd, NULL) < 0) {
+			mxser_release_ISA_res(brd);
 			brd->info = NULL;
 			continue;
 		}
 
 		brd->idx = m * MXSER_PORTS_PER_BOARD;
-		for (i = 0; i < brd->info->nports; i++)
-			tty_port_register_device(&brd->ports[i].port,
+		for (i = 0; i < brd->info->nports; i++) {
+			tty_dev = tty_port_register_device(&brd->ports[i].port,
 					mxvar_sdriver, brd->idx + i, NULL);
+			if (IS_ERR(tty_dev)) {
+				for (i--; i >= 0; i--)
+					tty_unregister_device(mxvar_sdriver,
+						brd->idx + i);
+				for (i = 0; i < brd->info->nports; i++)
+					tty_port_destroy(&brd->ports[i].port);
+				free_irq(brd->irq, brd);
+				mxser_release_ISA_res(brd);
+				brd->info = NULL;
+				break;
+			}
+		}
+		if (brd->info == NULL)
+			continue;
 
 		m++;
 	}
@@ -2748,15 +2787,13 @@ err_put:
 
 static void __exit mxser_module_exit(void)
 {
-	unsigned int i, j;
+	unsigned int i;
 
 	pci_unregister_driver(&mxser_driver);
 
 	for (i = 0; i < MXSER_BOARDS; i++) /* ISA remains */
 		if (mxser_boards[i].info != NULL)
-			for (j = 0; j < mxser_boards[i].info->nports; j++)
-				tty_unregister_device(mxvar_sdriver,
-						mxser_boards[i].idx + j);
+			mxser_board_remove(&mxser_boards[i]);
 	tty_unregister_driver(mxvar_sdriver);
 	put_tty_driver(mxvar_sdriver);
 

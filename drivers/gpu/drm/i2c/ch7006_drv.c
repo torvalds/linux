@@ -214,7 +214,7 @@ static enum drm_connector_status ch7006_encoder_detect(struct drm_encoder *encod
 	else
 		priv->subconnector = DRM_MODE_SUBCONNECTOR_Unknown;
 
-	drm_connector_property_set_value(connector,
+	drm_object_property_set_value(&connector->base,
 			encoder->dev->mode_config.tv_subconnector_property,
 							priv->subconnector);
 
@@ -254,23 +254,23 @@ static int ch7006_encoder_create_resources(struct drm_encoder *encoder,
 
 	priv->scale_property = drm_property_create_range(dev, 0, "scale", 0, 2);
 
-	drm_connector_attach_property(connector, conf->tv_select_subconnector_property,
+	drm_object_attach_property(&connector->base, conf->tv_select_subconnector_property,
 				      priv->select_subconnector);
-	drm_connector_attach_property(connector, conf->tv_subconnector_property,
+	drm_object_attach_property(&connector->base, conf->tv_subconnector_property,
 				      priv->subconnector);
-	drm_connector_attach_property(connector, conf->tv_left_margin_property,
+	drm_object_attach_property(&connector->base, conf->tv_left_margin_property,
 				      priv->hmargin);
-	drm_connector_attach_property(connector, conf->tv_bottom_margin_property,
+	drm_object_attach_property(&connector->base, conf->tv_bottom_margin_property,
 				      priv->vmargin);
-	drm_connector_attach_property(connector, conf->tv_mode_property,
+	drm_object_attach_property(&connector->base, conf->tv_mode_property,
 				      priv->norm);
-	drm_connector_attach_property(connector, conf->tv_brightness_property,
+	drm_object_attach_property(&connector->base, conf->tv_brightness_property,
 				      priv->brightness);
-	drm_connector_attach_property(connector, conf->tv_contrast_property,
+	drm_object_attach_property(&connector->base, conf->tv_contrast_property,
 				      priv->contrast);
-	drm_connector_attach_property(connector, conf->tv_flicker_reduction_property,
+	drm_object_attach_property(&connector->base, conf->tv_flicker_reduction_property,
 				      priv->flicker);
-	drm_connector_attach_property(connector, priv->scale_property,
+	drm_object_attach_property(&connector->base, priv->scale_property,
 				      priv->scale);
 
 	return 0;
@@ -364,7 +364,7 @@ static int ch7006_encoder_set_property(struct drm_encoder *encoder,
 				.crtc = crtc,
 			};
 
-			crtc->funcs->set_config(&modeset);
+			drm_mode_set_config_internal(&modeset);
 		}
 	}
 

@@ -30,20 +30,20 @@ nouveau_mc_intr(struct nouveau_subdev *subdev)
 	struct nouveau_mc *pmc = nouveau_mc(subdev);
 	const struct nouveau_mc_intr *map = pmc->intr_map;
 	struct nouveau_subdev *unit;
-	u32 stat;
+	u32 stat, intr;
 
-	stat = nv_rd32(pmc, 0x000100);
+	intr = stat = nv_rd32(pmc, 0x000100);
 	while (stat && map->stat) {
 		if (stat & map->stat) {
 			unit = nouveau_subdev(subdev, map->unit);
 			if (unit && unit->intr)
 				unit->intr(unit);
-			stat &= ~map->stat;
+			intr &= ~map->stat;
 		}
 		map++;
 	}
 
-	if (stat) {
+	if (intr) {
 		nv_error(pmc, "unknown intr 0x%08x\n", stat);
 	}
 }

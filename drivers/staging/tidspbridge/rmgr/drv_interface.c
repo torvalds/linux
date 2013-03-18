@@ -65,7 +65,6 @@ static struct class *bridge_class;
 static u32 driver_context;
 static s32 driver_major;
 static char *base_img;
-char *iva_img;
 static s32 shm_size = 0x500000;	/* 5 MB */
 static int tc_wordswapon;	/* Default value is always false */
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
@@ -471,7 +470,7 @@ err1:
 	return err;
 }
 
-static int __devinit omap34_xx_bridge_probe(struct platform_device *pdev)
+static int omap34_xx_bridge_probe(struct platform_device *pdev)
 {
 	int err;
 	dev_t dev = 0;
@@ -527,7 +526,7 @@ err1:
 	return err;
 }
 
-static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
+static int omap34_xx_bridge_remove(struct platform_device *pdev)
 {
 	dev_t devno;
 	int status = 0;
@@ -606,7 +605,7 @@ static struct platform_driver bridge_driver = {
 		   .name = "omap-dsp",
 		   },
 	.probe = omap34_xx_bridge_probe,
-	.remove = __devexit_p(omap34_xx_bridge_remove),
+	.remove = omap34_xx_bridge_remove,
 #ifdef CONFIG_PM
 	.suspend = bridge_suspend,
 	.resume = bridge_resume,

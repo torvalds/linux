@@ -39,6 +39,9 @@
 #define BTRFS_INODE_HAS_ORPHAN_ITEM		5
 #define BTRFS_INODE_HAS_ASYNC_EXTENT		6
 #define BTRFS_INODE_NEEDS_FULL_SYNC		7
+#define BTRFS_INODE_COPY_EVERYTHING		8
+#define BTRFS_INODE_IN_DELALLOC_LIST		9
+#define BTRFS_INODE_READDIO_NEED_LOCK		10
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -89,6 +92,9 @@ struct btrfs_inode {
 	struct rb_node rb_node;
 
 	unsigned long runtime_flags;
+
+	/* Keep track of who's O_SYNC/fsycing currently */
+	atomic_t sync_writers;
 
 	/* full 64 bit generation number, struct vfs_inode doesn't have a big
 	 * enough field for this.
@@ -210,6 +216,24 @@ static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 	    BTRFS_I(inode)->last_sub_trans <= BTRFS_I(inode)->last_log_commit)
 		return 1;
 	return 0;
+}
+
+/*
+ * Disable DIO read nolock optimization, so new dio readers will be forced
+ * to grab i_mutex. It is used to avoid the endless truncate due to
+ * nonlocked dio read.
+ */
+static inline void btrfs_inode_block_unlocked_dio(struct inode *inode)
+{
+	set_bit(BTRFS_INODE_READDIO_NEED_LOCK, &BTRFS_I(inode)->runtime_flags);
+	smp_mb();
+}
+
+static inline void btrfs_inode_resume_unlocked_dio(struct inode *inode)
+{
+	smp_mb__before_clear_bit();
+	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK,
+		  &BTRFS_I(inode)->runtime_flags);
 }
 
 #endif

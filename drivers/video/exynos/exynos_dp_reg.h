@@ -242,7 +242,8 @@
 
 /* EXYNOS_DP_INT_CTL */
 #define SOFT_INT_CTRL				(0x1 << 2)
-#define INT_POL					(0x1 << 0)
+#define INT_POL1				(0x1 << 1)
+#define INT_POL0				(0x1 << 0)
 
 /* EXYNOS_DP_SYS_CTL_1 */
 #define DET_STA					(0x1 << 2)

@@ -49,7 +49,7 @@
 #include "xfs_extfree_item.h"
 #include "xfs_mru_cache.h"
 #include "xfs_inode_item.h"
-#include "xfs_sync.h"
+#include "xfs_icache.h"
 #include "xfs_trace.h"
 
 #include <linux/namei.h>
@@ -139,9 +139,9 @@ static const match_table_t tokens = {
 
 
 STATIC unsigned long
-suffix_strtoul(char *s, char **endp, unsigned int base)
+suffix_kstrtoint(char *s, unsigned int base, int *res)
 {
-	int	last, shift_left_factor = 0;
+	int	last, shift_left_factor = 0, _res;
 	char	*value = s;
 
 	last = strlen(value) - 1;
@@ -158,7 +158,10 @@ suffix_strtoul(char *s, char **endp, unsigned int base)
 		value[last] = '\0';
 	}
 
-	return simple_strtoul((const char *)s, endp, base) << shift_left_factor;
+	if (kstrtoint(s, base, &_res))
+		return -EINVAL;
+	*res = _res << shift_left_factor;
+	return 0;
 }
 
 /*
@@ -174,7 +177,7 @@ xfs_parseargs(
 	char			*options)
 {
 	struct super_block	*sb = mp->m_super;
-	char			*this_char, *value, *eov;
+	char			*this_char, *value;
 	int			dsunit = 0;
 	int			dswidth = 0;
 	int			iosize = 0;
@@ -230,14 +233,16 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			mp->m_logbufs = simple_strtoul(value, &eov, 10);
+			if (kstrtoint(value, 10, &mp->m_logbufs))
+				return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_LOGBSIZE)) {
 			if (!value || !*value) {
 				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
-			mp->m_logbsize = suffix_strtoul(value, &eov, 10);
+			if (suffix_kstrtoint(value, 10, &mp->m_logbsize))
+				return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_LOGDEV)) {
 			if (!value || !*value) {
 				xfs_warn(mp, "%s option requires an argument",
@@ -266,7 +271,8 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			iosize = simple_strtoul(value, &eov, 10);
+			if (kstrtoint(value, 10, &iosize))
+				return EINVAL;
 			iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE)) {
 			if (!value || !*value) {
@@ -274,7 +280,8 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			iosize = suffix_strtoul(value, &eov, 10);
+			if (suffix_kstrtoint(value, 10, &iosize))
+				return EINVAL;
 			iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_GRPID) ||
 			   !strcmp(this_char, MNTOPT_BSDGROUPS)) {
@@ -296,14 +303,16 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			dsunit = simple_strtoul(value, &eov, 10);
+			if (kstrtoint(value, 10, &dsunit))
+				return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_SWIDTH)) {
 			if (!value || !*value) {
 				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
-			dswidth = simple_strtoul(value, &eov, 10);
+			if (kstrtoint(value, 10, &dswidth))
+				return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_32BITINODE)) {
 			mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
 		} else if (!strcmp(this_char, MNTOPT_64BITINODE)) {
@@ -863,8 +872,30 @@ xfs_init_mount_workqueues(
 			WQ_MEM_RECLAIM, 0, mp->m_fsname);
 	if (!mp->m_cil_workqueue)
 		goto out_destroy_unwritten;
+
+	mp->m_reclaim_workqueue = alloc_workqueue("xfs-reclaim/%s",
+			WQ_NON_REENTRANT, 0, mp->m_fsname);
+	if (!mp->m_reclaim_workqueue)
+		goto out_destroy_cil;
+
+	mp->m_log_workqueue = alloc_workqueue("xfs-log/%s",
+			WQ_NON_REENTRANT, 0, mp->m_fsname);
+	if (!mp->m_log_workqueue)
+		goto out_destroy_reclaim;
+
+	mp->m_eofblocks_workqueue = alloc_workqueue("xfs-eofblocks/%s",
+			WQ_NON_REENTRANT, 0, mp->m_fsname);
+	if (!mp->m_eofblocks_workqueue)
+		goto out_destroy_log;
+
 	return 0;
 
+out_destroy_log:
+	destroy_workqueue(mp->m_log_workqueue);
+out_destroy_reclaim:
+	destroy_workqueue(mp->m_reclaim_workqueue);
+out_destroy_cil:
+	destroy_workqueue(mp->m_cil_workqueue);
 out_destroy_unwritten:
 	destroy_workqueue(mp->m_unwritten_workqueue);
 out_destroy_data_iodone_queue:
@@ -877,9 +908,30 @@ STATIC void
 xfs_destroy_mount_workqueues(
 	struct xfs_mount	*mp)
 {
+	destroy_workqueue(mp->m_eofblocks_workqueue);
+	destroy_workqueue(mp->m_log_workqueue);
+	destroy_workqueue(mp->m_reclaim_workqueue);
 	destroy_workqueue(mp->m_cil_workqueue);
 	destroy_workqueue(mp->m_data_workqueue);
 	destroy_workqueue(mp->m_unwritten_workqueue);
+}
+
+/*
+ * Flush all dirty data to disk. Must not be called while holding an XFS_ILOCK
+ * or a page lock. We use sync_inodes_sb() here to ensure we block while waiting
+ * for IO to complete so that we effectively throttle multiple callers to the
+ * rate at which IO is completing.
+ */
+void
+xfs_flush_inodes(
+	struct xfs_mount	*mp)
+{
+	struct super_block	*sb = mp->m_super;
+
+	if (down_read_trylock(&sb->s_umount)) {
+		sync_inodes_sb(sb);
+		up_read(&sb->s_umount);
+	}
 }
 
 /* Catch misguided souls that try to use this interface on XFS */
@@ -1006,9 +1058,8 @@ xfs_fs_put_super(
 	struct xfs_mount	*mp = XFS_M(sb);
 
 	xfs_filestream_unmount(mp);
-	cancel_delayed_work_sync(&mp->m_sync_work);
 	xfs_unmountfs(mp);
-	xfs_syncd_stop(mp);
+
 	xfs_freesb(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_destroy_mount_workqueues(mp);
@@ -1023,7 +1074,6 @@ xfs_fs_sync_fs(
 	int			wait)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
-	int			error;
 
 	/*
 	 * Doing anything during the async pass would be counterproductive.
@@ -1031,17 +1081,14 @@ xfs_fs_sync_fs(
 	if (!wait)
 		return 0;
 
-	error = xfs_quiesce_data(mp);
-	if (error)
-		return -error;
-
+	xfs_log_force(mp, XFS_LOG_SYNC);
 	if (laptop_mode) {
 		/*
 		 * The disk must be active because we're syncing.
-		 * We schedule xfssyncd now (now that the disk is
+		 * We schedule log work now (now that the disk is
 		 * active) instead of later (when it might not be).
 		 */
-		flush_delayed_work(&mp->m_sync_work);
+		flush_delayed_work(&mp->m_log->l_work);
 	}
 
 	return 0;
@@ -1116,6 +1163,48 @@ xfs_restore_resvblks(struct xfs_mount *mp)
 		resblks = xfs_default_resblks(mp);
 
 	xfs_reserve_blocks(mp, &resblks, NULL);
+}
+
+/*
+ * Trigger writeback of all the dirty metadata in the file system.
+ *
+ * This ensures that the metadata is written to their location on disk rather
+ * than just existing in transactions in the log. This means after a quiesce
+ * there is no log replay required to write the inodes to disk - this is the
+ * primary difference between a sync and a quiesce.
+ *
+ * Note: xfs_log_quiesce() stops background log work - the callers must ensure
+ * it is started again when appropriate.
+ */
+void
+xfs_quiesce_attr(
+	struct xfs_mount	*mp)
+{
+	int	error = 0;
+
+	/* wait for all modifications to complete */
+	while (atomic_read(&mp->m_active_trans) > 0)
+		delay(100);
+
+	/* force the log to unpin objects from the now complete transactions */
+	xfs_log_force(mp, XFS_LOG_SYNC);
+
+	/* reclaim inodes to do any IO before the freeze completes */
+	xfs_reclaim_inodes(mp, 0);
+	xfs_reclaim_inodes(mp, SYNC_WAIT);
+
+	/* Push the superblock and write an unmount record */
+	error = xfs_log_sbcount(mp);
+	if (error)
+		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
+				"Frozen image may not be consistent.");
+	/*
+	 * Just warn here till VFS can correctly support
+	 * read-only remount without racing.
+	 */
+	WARN_ON(atomic_read(&mp->m_active_trans) != 0);
+
+	xfs_log_quiesce(mp);
 }
 
 STATIC int
@@ -1198,20 +1287,18 @@ xfs_fs_remount(
 		 * value if it is non-zero, otherwise go with the default.
 		 */
 		xfs_restore_resvblks(mp);
+		xfs_log_work_queue(mp);
 	}
 
 	/* rw -> ro */
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
 		/*
-		 * After we have synced the data but before we sync the
-		 * metadata, we need to free up the reserve block pool so that
-		 * the used block count in the superblock on disk is correct at
-		 * the end of the remount. Stash the current reserve pool size
-		 * so that if we get remounted rw, we can return it to the same
-		 * size.
+		 * Before we sync the metadata, we need to free up the reserve
+		 * block pool so that the used block count in the superblock on
+		 * disk is correct at the end of the remount. Stash the current
+		 * reserve pool size so that if we get remounted rw, we can
+		 * return it to the same size.
 		 */
-
-		xfs_quiesce_data(mp);
 		xfs_save_resvblks(mp);
 		xfs_quiesce_attr(mp);
 		mp->m_flags |= XFS_MOUNT_RDONLY;
@@ -1243,6 +1330,7 @@ xfs_fs_unfreeze(
 	struct xfs_mount	*mp = XFS_M(sb);
 
 	xfs_restore_resvblks(mp);
+	xfs_log_work_queue(mp);
 	return 0;
 }
 
@@ -1321,6 +1409,8 @@ xfs_fs_fill_super(
 	spin_lock_init(&mp->m_sb_lock);
 	mutex_init(&mp->m_growlock);
 	atomic_set(&mp->m_active_trans, 0);
+	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
+	INIT_DELAYED_WORK(&mp->m_eofblocks_work, xfs_eofblocks_worker);
 
 	mp->m_super = sb;
 	sb->s_fs_info = mp;
@@ -1371,10 +1461,6 @@ xfs_fs_fill_super(
 	/*
 	 * we must configure the block size in the superblock before we run the
 	 * full mount process as the mount process can lookup and cache inodes.
-	 * For the same reason we must also initialise the syncd and register
-	 * the inode cache shrinker so that inodes can be reclaimed during
-	 * operations like a quotacheck that iterate all inodes in the
-	 * filesystem.
 	 */
 	sb->s_magic = XFS_SB_MAGIC;
 	sb->s_blocksize = mp->m_sb.sb_blocksize;
@@ -1384,13 +1470,9 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
-	error = xfs_syncd_init(mp);
-	if (error)
-		goto out_filestream_unmount;
-
 	error = xfs_mountfs(mp);
 	if (error)
-		goto out_syncd_stop;
+		goto out_filestream_unmount;
 
 	root = igrab(VFS_I(mp->m_rootip));
 	if (!root) {
@@ -1408,8 +1490,7 @@ xfs_fs_fill_super(
 	}
 
 	return 0;
- out_syncd_stop:
-	xfs_syncd_stop(mp);
+
  out_filestream_unmount:
 	xfs_filestream_unmount(mp);
  out_free_sb:
@@ -1429,7 +1510,6 @@ out_destroy_workqueues:
  out_unmount:
 	xfs_filestream_unmount(mp);
 	xfs_unmountfs(mp);
-	xfs_syncd_stop(mp);
 	goto out_free_sb;
 }
 
@@ -1481,6 +1561,7 @@ static struct file_system_type xfs_fs_type = {
 	.kill_sb		= kill_block_super,
 	.fs_flags		= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("xfs");
 
 STATIC int __init
 xfs_init_zones(void)
@@ -1625,16 +1706,6 @@ STATIC int __init
 xfs_init_workqueues(void)
 {
 	/*
-	 * We never want to the same work item to run twice, reclaiming inodes
-	 * or idling the log is not going to get any faster by multiple CPUs
-	 * competing for ressources.  Use the default large max_active value
-	 * so that even lots of filesystems can perform these task in parallel.
-	 */
-	xfs_syncd_wq = alloc_workqueue("xfssyncd", WQ_NON_REENTRANT, 0);
-	if (!xfs_syncd_wq)
-		return -ENOMEM;
-
-	/*
 	 * The allocation workqueue can be used in memory reclaim situations
 	 * (writepage path), and parallelism is only limited by the number of
 	 * AGs in all the filesystems mounted. Hence use the default large
@@ -1642,20 +1713,15 @@ xfs_init_workqueues(void)
 	 */
 	xfs_alloc_wq = alloc_workqueue("xfsalloc", WQ_MEM_RECLAIM, 0);
 	if (!xfs_alloc_wq)
-		goto out_destroy_syncd;
+		return -ENOMEM;
 
 	return 0;
-
-out_destroy_syncd:
-	destroy_workqueue(xfs_syncd_wq);
-	return -ENOMEM;
 }
 
 STATIC void
 xfs_destroy_workqueues(void)
 {
 	destroy_workqueue(xfs_alloc_wq);
-	destroy_workqueue(xfs_syncd_wq);
 }
 
 STATIC int __init

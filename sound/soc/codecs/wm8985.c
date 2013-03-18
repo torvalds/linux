@@ -371,13 +371,13 @@ static const struct snd_kcontrol_new wm8985_snd_controls[] = {
 	SOC_ENUM_EXT("Equalizer Function", eqmode, eqmode_get, eqmode_put),
 	SOC_ENUM("EQ1 Cutoff", eq1_cutoff),
 	SOC_SINGLE_TLV("EQ1 Volume", WM8985_EQ1_LOW_SHELF,  0, 24, 1, eq_tlv),
-	SOC_ENUM("EQ2 Bandwith", eq2_bw),
+	SOC_ENUM("EQ2 Bandwidth", eq2_bw),
 	SOC_ENUM("EQ2 Cutoff", eq2_cutoff),
 	SOC_SINGLE_TLV("EQ2 Volume", WM8985_EQ2_PEAK_1, 0, 24, 1, eq_tlv),
-	SOC_ENUM("EQ3 Bandwith", eq3_bw),
+	SOC_ENUM("EQ3 Bandwidth", eq3_bw),
 	SOC_ENUM("EQ3 Cutoff", eq3_cutoff),
 	SOC_SINGLE_TLV("EQ3 Volume", WM8985_EQ3_PEAK_2, 0, 24, 1, eq_tlv),
-	SOC_ENUM("EQ4 Bandwith", eq4_bw),
+	SOC_ENUM("EQ4 Bandwidth", eq4_bw),
 	SOC_ENUM("EQ4 Cutoff", eq4_cutoff),
 	SOC_SINGLE_TLV("EQ4 Volume", WM8985_EQ4_PEAK_3, 0, 24, 1, eq_tlv),
 	SOC_ENUM("EQ5 Cutoff", eq5_cutoff),
@@ -830,33 +830,30 @@ static int wm8985_set_pll(struct snd_soc_dai *dai, int pll_id,
 	struct pll_div pll_div;
 
 	codec = dai->codec;
-	if (freq_in && freq_out) {
+	if (!freq_in || !freq_out) {
+		/* disable the PLL */
+		snd_soc_update_bits(codec, WM8985_POWER_MANAGEMENT_1,
+				    WM8985_PLLEN_MASK, 0);
+	} else {
 		ret = pll_factors(&pll_div, freq_out * 4 * 2, freq_in);
 		if (ret)
 			return ret;
+
+		/* set PLLN and PRESCALE */
+		snd_soc_write(codec, WM8985_PLL_N,
+			      (pll_div.div2 << WM8985_PLL_PRESCALE_SHIFT)
+			      | pll_div.n);
+		/* set PLLK */
+		snd_soc_write(codec, WM8985_PLL_K_3, pll_div.k & 0x1ff);
+		snd_soc_write(codec, WM8985_PLL_K_2, (pll_div.k >> 9) & 0x1ff);
+		snd_soc_write(codec, WM8985_PLL_K_1, (pll_div.k >> 18));
+		/* set the source of the clock to be the PLL */
+		snd_soc_update_bits(codec, WM8985_CLOCK_GEN_CONTROL,
+				    WM8985_CLKSEL_MASK, WM8985_CLKSEL);
+		/* enable the PLL */
+		snd_soc_update_bits(codec, WM8985_POWER_MANAGEMENT_1,
+				    WM8985_PLLEN_MASK, WM8985_PLLEN);
 	}
-
-	/* disable the PLL before reprogramming it */
-	snd_soc_update_bits(codec, WM8985_POWER_MANAGEMENT_1,
-			    WM8985_PLLEN_MASK, 0);
-	
-	if (!freq_in || !freq_out)
-		return 0;
-
-	/* set PLLN and PRESCALE */
-	snd_soc_write(codec, WM8985_PLL_N,
-		      (pll_div.div2 << WM8985_PLL_PRESCALE_SHIFT)
-		      | pll_div.n);
-	/* set PLLK */
-	snd_soc_write(codec, WM8985_PLL_K_3, pll_div.k & 0x1ff);
-	snd_soc_write(codec, WM8985_PLL_K_2, (pll_div.k >> 9) & 0x1ff);
-	snd_soc_write(codec, WM8985_PLL_K_1, (pll_div.k >> 18));
-	/* set the source of the clock to be the PLL */
-	snd_soc_update_bits(codec, WM8985_CLOCK_GEN_CONTROL,
-			    WM8985_CLKSEL_MASK, WM8985_CLKSEL);
-	/* enable the PLL */
-	snd_soc_update_bits(codec, WM8985_POWER_MANAGEMENT_1,
-			    WM8985_PLLEN_MASK, WM8985_PLLEN);
 	return 0;
 }
 
@@ -1111,7 +1108,7 @@ static const struct regmap_config wm8985_regmap = {
 };
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8985_spi_probe(struct spi_device *spi)
+static int wm8985_spi_probe(struct spi_device *spi)
 {
 	struct wm8985_priv *wm8985;
 	int ret;
@@ -1122,33 +1119,22 @@ static int __devinit wm8985_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, wm8985);
 
-	wm8985->regmap = regmap_init_spi(spi, &wm8985_regmap);
+	wm8985->regmap = devm_regmap_init_spi(spi, &wm8985_regmap);
 	if (IS_ERR(wm8985->regmap)) {
 		ret = PTR_ERR(wm8985->regmap);
 		dev_err(&spi->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&spi->dev,
 				     &soc_codec_dev_wm8985, &wm8985_dai, 1);
-	if (ret != 0)
-		goto err;
-
-	return 0;
-
-err:
-	regmap_exit(wm8985->regmap);
 	return ret;
 }
 
-static int __devexit wm8985_spi_remove(struct spi_device *spi)
+static int wm8985_spi_remove(struct spi_device *spi)
 {
-	struct wm8985_priv *wm8985 = spi_get_drvdata(spi);
-
 	snd_soc_unregister_codec(&spi->dev);
-	regmap_exit(wm8985->regmap);
-
 	return 0;
 }
 
@@ -1158,13 +1144,13 @@ static struct spi_driver wm8985_spi_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm8985_spi_probe,
-	.remove = __devexit_p(wm8985_spi_remove)
+	.remove = wm8985_spi_remove
 };
 #endif
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int wm8985_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8985_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8985_priv *wm8985;
 	int ret;
@@ -1175,33 +1161,22 @@ static __devinit int wm8985_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8985);
 
-	wm8985->regmap = regmap_init_i2c(i2c, &wm8985_regmap);
+	wm8985->regmap = devm_regmap_init_i2c(i2c, &wm8985_regmap);
 	if (IS_ERR(wm8985->regmap)) {
 		ret = PTR_ERR(wm8985->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8985, &wm8985_dai, 1);
-	if (ret != 0)
-		goto err;
-
-	return 0;
-
-err:
-	regmap_exit(wm8985->regmap);
 	return ret;
 }
 
-static __devexit int wm8985_i2c_remove(struct i2c_client *i2c)
+static int wm8985_i2c_remove(struct i2c_client *i2c)
 {
-	struct wm8985_priv *wm8985 = i2c_get_clientdata(i2c);
-
 	snd_soc_unregister_codec(&i2c->dev);
-	regmap_exit(wm8985->regmap);
-
 	return 0;
 }
 
@@ -1217,7 +1192,7 @@ static struct i2c_driver wm8985_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm8985_i2c_probe,
-	.remove = __devexit_p(wm8985_i2c_remove),
+	.remove = wm8985_i2c_remove,
 	.id_table = wm8985_i2c_id
 };
 #endif

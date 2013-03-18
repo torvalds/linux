@@ -495,8 +495,11 @@ static void iriap_getvaluebyclass_confirm(struct iriap_cb *self,
 /*		case CS_ISO_8859_9: */
 /*		case CS_UNICODE: */
 		default:
-			IRDA_DEBUG(0, "%s(), charset %s, not supported\n",
-				   __func__, ias_charset_types[charset]);
+			IRDA_DEBUG(0, "%s(), charset [%d] %s, not supported\n",
+				   __func__, charset,
+				   charset < ARRAY_SIZE(ias_charset_types) ?
+					ias_charset_types[charset] :
+					"(unknown)");
 
 			/* Aborting, close connection! */
 			iriap_disconnect_request(self);

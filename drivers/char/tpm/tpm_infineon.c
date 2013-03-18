@@ -415,7 +415,7 @@ static const struct pnp_device_id tpm_inf_pnp_tbl[] = {
 
 MODULE_DEVICE_TABLE(pnp, tpm_inf_pnp_tbl);
 
-static int __devinit tpm_inf_pnp_probe(struct pnp_dev *dev,
+static int tpm_inf_pnp_probe(struct pnp_dev *dev,
 				       const struct pnp_device_id *dev_id)
 {
 	int rc = 0;
@@ -594,7 +594,7 @@ err_last:
 	return rc;
 }
 
-static __devexit void tpm_inf_pnp_remove(struct pnp_dev *dev)
+static void tpm_inf_pnp_remove(struct pnp_dev *dev)
 {
 	struct tpm_chip *chip = pnp_get_drvdata(dev);
 
@@ -655,7 +655,7 @@ static struct pnp_driver tpm_inf_pnp_driver = {
 	.probe = tpm_inf_pnp_probe,
 	.suspend = tpm_inf_pnp_suspend,
 	.resume = tpm_inf_pnp_resume,
-	.remove = __devexit_p(tpm_inf_pnp_remove)
+	.remove = tpm_inf_pnp_remove
 };
 
 static int __init init_inf(void)

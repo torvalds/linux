@@ -87,11 +87,13 @@ struct sock *__inet6_lookup_established(struct net *net,
 	rcu_read_lock();
 begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
-		/* For IPV6 do the cheaper port and family tests first. */
-		if (INET6_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+		if (sk->sk_hash != hash)
+			continue;
+		if (likely(INET6_MATCH(sk, net, saddr, daddr, ports, dif))) {
 			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
 				goto begintw;
-			if (!INET6_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+			if (unlikely(!INET6_MATCH(sk, net, saddr, daddr,
+						  ports, dif))) {
 				sock_put(sk);
 				goto begin;
 			}
@@ -104,12 +106,16 @@ begin:
 begintw:
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
 	sk_nulls_for_each_rcu(sk, node, &head->twchain) {
-		if (INET6_TW_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+		if (sk->sk_hash != hash)
+			continue;
+		if (likely(INET6_TW_MATCH(sk, net, saddr, daddr,
+					  ports, dif))) {
 			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt))) {
 				sk = NULL;
 				goto out;
 			}
-			if (!INET6_TW_MATCH(sk, net, hash, saddr, daddr, ports, dif)) {
+			if (unlikely(!INET6_TW_MATCH(sk, net, saddr, daddr,
+						     ports, dif))) {
 				sock_put(sk);
 				goto begintw;
 			}
@@ -152,25 +158,38 @@ static inline int compute_score(struct sock *sk, struct net *net,
 }
 
 struct sock *inet6_lookup_listener(struct net *net,
-		struct inet_hashinfo *hashinfo, const struct in6_addr *daddr,
+		struct inet_hashinfo *hashinfo, const struct in6_addr *saddr,
+		const __be16 sport, const struct in6_addr *daddr,
 		const unsigned short hnum, const int dif)
 {
 	struct sock *sk;
 	const struct hlist_nulls_node *node;
 	struct sock *result;
-	int score, hiscore;
+	int score, hiscore, matches = 0, reuseport = 0;
+	u32 phash = 0;
 	unsigned int hash = inet_lhashfn(net, hnum);
 	struct inet_listen_hashbucket *ilb = &hashinfo->listening_hash[hash];
 
 	rcu_read_lock();
 begin:
 	result = NULL;
-	hiscore = -1;
+	hiscore = 0;
 	sk_nulls_for_each(sk, node, &ilb->head) {
 		score = compute_score(sk, net, hnum, daddr, dif);
 		if (score > hiscore) {
 			hiscore = score;
 			result = sk;
+			reuseport = sk->sk_reuseport;
+			if (reuseport) {
+				phash = inet6_ehashfn(net, daddr, hnum,
+						      saddr, sport);
+				matches = 1;
+			}
+		} else if (score == hiscore && reuseport) {
+			matches++;
+			if (((u64)phash * matches) >> 32 == 0)
+				result = sk;
+			phash = next_pseudo_random32(phash);
 		}
 	}
 	/*
@@ -236,9 +255,12 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 
 	/* Check TIME-WAIT sockets first. */
 	sk_nulls_for_each(sk2, node, &head->twchain) {
-		tw = inet_twsk(sk2);
+		if (sk2->sk_hash != hash)
+			continue;
 
-		if (INET6_TW_MATCH(sk2, net, hash, saddr, daddr, ports, dif)) {
+		if (likely(INET6_TW_MATCH(sk2, net, saddr, daddr,
+					  ports, dif))) {
+			tw = inet_twsk(sk2);
 			if (twsk_unique(sk, sk2, twp))
 				goto unique;
 			else
@@ -249,7 +271,9 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 
 	/* And established part... */
 	sk_nulls_for_each(sk2, node, &head->chain) {
-		if (INET6_MATCH(sk2, net, hash, saddr, daddr, ports, dif))
+		if (sk2->sk_hash != hash)
+			continue;
+		if (likely(INET6_MATCH(sk2, net, saddr, daddr, ports, dif)))
 			goto not_unique;
 	}
 

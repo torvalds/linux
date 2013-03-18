@@ -156,10 +156,8 @@ static int init_sdio(struct sdiowm_dev *sdev)
 	spin_lock_init(&tx->lock);
 
 	tx->sdu_buf = kmalloc(SDU_TX_BUF_SIZE, GFP_KERNEL);
-	if (tx->sdu_buf == NULL) {
-		printk(KERN_ERR "Failed to allocate SDU tx buffer.\n");
+	if (tx->sdu_buf == NULL)
 		goto fail;
-	}
 
 	for (i = 0; i < MAX_NR_SDU_BUF; i++) {
 		t = alloc_tx_struct(tx);
@@ -185,10 +183,8 @@ static int init_sdio(struct sdiowm_dev *sdev)
 	}
 
 	rx->rx_buf = kmalloc(RX_BUF_SIZE, GFP_KERNEL);
-	if (rx->rx_buf == NULL) {
-		printk(KERN_ERR "Failed to allocate rx buffer.\n");
+	if (rx->rx_buf == NULL)
 		goto fail;
-	}
 
 	return 0;
 
@@ -246,7 +242,8 @@ static void send_sdio_pkt(struct sdio_func *func, u8 *data, int len)
 		ret = sdio_memcpy_toio(func, 0, data, n);
 		if (ret < 0) {
 			if (ret != -ENOMEDIUM)
-				printk(KERN_ERR "gdmwms: %s error: ret = %d\n",
+				dev_err(&func->dev,
+					"gdmwms: %s error: ret = %d\n",
 					__func__, ret);
 			goto end_io;
 		}
@@ -259,7 +256,8 @@ static void send_sdio_pkt(struct sdio_func *func, u8 *data, int len)
 		ret = sdio_memcpy_toio(func, 0, data + n, remain);
 		if (ret < 0) {
 			if (ret != -ENOMEDIUM)
-				printk(KERN_ERR "gdmwms: %s error: ret = %d\n",
+				dev_err(&func->dev,
+					"gdmwms: %s error: ret = %d\n",
 					__func__, ret);
 			goto end_io;
 		}
@@ -522,13 +520,14 @@ static void gdm_sdio_irq(struct sdio_func *func)
 
 	ret = sdio_memcpy_fromio(func, hdr, 0x0, TYPE_A_LOOKAHEAD_SIZE);
 	if (ret) {
-		printk(KERN_ERR "Cannot read from function %d\n", func->num);
+		dev_err(&func->dev,
+			"Cannot read from function %d\n", func->num);
 		goto done;
 	}
 
 	len = (hdr[2] << 16) | (hdr[1] << 8) | hdr[0];
 	if (len > (RX_BUF_SIZE - TYPE_A_HEADER_SIZE)) {
-		printk(KERN_ERR "Too big Type-A size: %d\n", len);
+		dev_err(&func->dev, "Too big Type-A size: %d\n", len);
 		goto done;
 	}
 
@@ -562,8 +561,8 @@ static void gdm_sdio_irq(struct sdio_func *func)
 		n = blocks * func->cur_blksize;
 		ret = sdio_memcpy_fromio(func, buf, 0x0, n);
 		if (ret) {
-			printk(KERN_ERR "Cannot read from function %d\n",
-				func->num);
+			dev_err(&func->dev,
+				"Cannot read from function %d\n", func->num);
 			goto done;
 		}
 		buf += n;
@@ -573,8 +572,8 @@ static void gdm_sdio_irq(struct sdio_func *func)
 	if (remain) {
 		ret = sdio_memcpy_fromio(func, buf, 0x0, remain);
 		if (ret) {
-			printk(KERN_ERR "Cannot read from function %d\n",
-				func->num);
+			dev_err(&func->dev,
+				"Cannot read from function %d\n", func->num);
 			goto done;
 		}
 	}
@@ -637,9 +636,9 @@ static int sdio_wimax_probe(struct sdio_func *func,
 	struct phy_dev *phy_dev = NULL;
 	struct sdiowm_dev *sdev = NULL;
 
-	printk(KERN_INFO "Found GDM SDIO VID = 0x%04x PID = 0x%04x...\n",
-			func->vendor, func->device);
-	printk(KERN_INFO "GCT WiMax driver version %s\n", DRIVER_VERSION);
+	dev_info(&func->dev, "Found GDM SDIO VID = 0x%04x PID = 0x%04x...\n",
+		 func->vendor, func->device);
+	dev_info(&func->dev, "GCT WiMax driver version %s\n", DRIVER_VERSION);
 
 	sdio_claim_host(func);
 	sdio_enable_func(func);

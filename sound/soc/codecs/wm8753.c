@@ -1550,7 +1550,7 @@ static const struct regmap_config wm8753_regmap = {
 };
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8753_spi_probe(struct spi_device *spi)
+static int wm8753_spi_probe(struct spi_device *spi)
 {
 	struct wm8753_priv *wm8753;
 	int ret;
@@ -1562,36 +1562,25 @@ static int __devinit wm8753_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, wm8753);
 
-	wm8753->regmap = regmap_init_spi(spi, &wm8753_regmap);
+	wm8753->regmap = devm_regmap_init_spi(spi, &wm8753_regmap);
 	if (IS_ERR(wm8753->regmap)) {
 		ret = PTR_ERR(wm8753->regmap);
 		dev_err(&spi->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&spi->dev, &soc_codec_dev_wm8753,
 				     wm8753_dai, ARRAY_SIZE(wm8753_dai));
-	if (ret != 0) {
+	if (ret != 0)
 		dev_err(&spi->dev, "Failed to register CODEC: %d\n", ret);
-		goto err_regmap;
-	}
 
-	return 0;
-
-err_regmap:
-	regmap_exit(wm8753->regmap);
-err:
 	return ret;
 }
 
-static int __devexit wm8753_spi_remove(struct spi_device *spi)
+static int wm8753_spi_remove(struct spi_device *spi)
 {
-	struct wm8753_priv *wm8753 = spi_get_drvdata(spi);
-
 	snd_soc_unregister_codec(&spi->dev);
-	regmap_exit(wm8753->regmap);
-	kfree(wm8753);
 	return 0;
 }
 
@@ -1602,13 +1591,13 @@ static struct spi_driver wm8753_spi_driver = {
 		.of_match_table = wm8753_of_match,
 	},
 	.probe		= wm8753_spi_probe,
-	.remove		= __devexit_p(wm8753_spi_remove),
+	.remove		= wm8753_spi_remove,
 };
 #endif /* CONFIG_SPI_MASTER */
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int wm8753_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8753_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8753_priv *wm8753;
 	int ret;
@@ -1620,35 +1609,25 @@ static __devinit int wm8753_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8753);
 
-	wm8753->regmap = regmap_init_i2c(i2c, &wm8753_regmap);
+	wm8753->regmap = devm_regmap_init_i2c(i2c, &wm8753_regmap);
 	if (IS_ERR(wm8753->regmap)) {
 		ret = PTR_ERR(wm8753->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_wm8753,
 				     wm8753_dai, ARRAY_SIZE(wm8753_dai));
-	if (ret != 0) {
+	if (ret != 0)
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
-		goto err_regmap;
-	}
 
-	return 0;
-
-err_regmap:
-	regmap_exit(wm8753->regmap);
-err:
 	return ret;
 }
 
-static __devexit int wm8753_i2c_remove(struct i2c_client *client)
+static int wm8753_i2c_remove(struct i2c_client *client)
 {
-	struct wm8753_priv *wm8753 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(wm8753->regmap);
 	return 0;
 }
 
@@ -1665,7 +1644,7 @@ static struct i2c_driver wm8753_i2c_driver = {
 		.of_match_table = wm8753_of_match,
 	},
 	.probe =    wm8753_i2c_probe,
-	.remove =   __devexit_p(wm8753_i2c_remove),
+	.remove =   wm8753_i2c_remove,
 	.id_table = wm8753_i2c_id,
 };
 #endif

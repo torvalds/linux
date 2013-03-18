@@ -59,7 +59,7 @@
 #define MAS1_TSIZE_SHIFT	7
 #define MAS1_TSIZE(x)		(((x) << MAS1_TSIZE_SHIFT) & MAS1_TSIZE_MASK)
 
-#define MAS2_EPN		0xFFFFF000
+#define MAS2_EPN		(~0xFFFUL)
 #define MAS2_X0			0x00000040
 #define MAS2_X1			0x00000020
 #define MAS2_W			0x00000010

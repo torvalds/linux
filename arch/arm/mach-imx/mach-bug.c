@@ -19,15 +19,14 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <mach/iomux-mx3.h>
-#include <mach/hardware.h>
-#include <mach/common.h>
-
 #include <asm/mach/time.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -54,16 +53,12 @@ static void __init bug_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer bug_timer = {
-	.init = bug_timer_init,
-};
-
 MACHINE_START(BUG, "BugLabs BUGBase")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &bug_timer,
+	.init_time	= bug_timer_init,
 	.init_machine = bug_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

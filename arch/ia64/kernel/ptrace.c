@@ -672,33 +672,6 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 	read_unlock(&tasklist_lock);
 }
 
-static inline int
-thread_matches (struct task_struct *thread, unsigned long addr)
-{
-	unsigned long thread_rbs_end;
-	struct pt_regs *thread_regs;
-
-	if (ptrace_check_attach(thread, 0) < 0)
-		/*
-		 * If the thread is not in an attachable state, we'll
-		 * ignore it.  The net effect is that if ADDR happens
-		 * to overlap with the portion of the thread's
-		 * register backing store that is currently residing
-		 * on the thread's kernel stack, then ptrace() may end
-		 * up accessing a stale value.  But if the thread
-		 * isn't stopped, that's a problem anyhow, so we're
-		 * doing as well as we can...
-		 */
-		return 0;
-
-	thread_regs = task_pt_regs(thread);
-	thread_rbs_end = ia64_get_user_rbs_end(thread, thread_regs, NULL);
-	if (!on_kernel_rbs(addr, thread_regs->ar_bspstore, thread_rbs_end))
-		return 0;
-
-	return 1;	/* looks like we've got a winner */
-}
-
 /*
  * Write f32-f127 back to task->thread.fph if it has been modified.
  */

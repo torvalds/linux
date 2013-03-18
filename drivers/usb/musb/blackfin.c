@@ -406,7 +406,7 @@ static int bfin_musb_init(struct musb *musb)
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		gpio_free(musb->config->gpio_vrsel);
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 
 	bfin_musb_reg_init(musb);
@@ -448,14 +448,13 @@ static const struct musb_platform_ops bfin_ops = {
 
 static u64 bfin_dmamask = DMA_BIT_MASK(32);
 
-static int __devinit bfin_probe(struct platform_device *pdev)
+static int bfin_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
 	struct bfin_glue		*glue;
 
 	int				ret = -ENOMEM;
-	int				musbid;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -463,21 +462,12 @@ static int __devinit bfin_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	/* get the musb id */
-	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
-	if (musbid < 0) {
-		dev_err(&pdev->dev, "failed to allocate musb id\n");
-		ret = -ENOMEM;
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
+	if (!musb) {
+		dev_err(&pdev->dev, "failed to allocate musb device\n");
 		goto err1;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", musbid);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err2;
-	}
-
-	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &bfin_dmamask;
 	musb->dev.coherent_dma_mask	= bfin_dmamask;
@@ -513,9 +503,6 @@ static int __devinit bfin_probe(struct platform_device *pdev)
 err3:
 	platform_device_put(musb);
 
-err2:
-	musb_put_id(&pdev->dev, musbid);
-
 err1:
 	kfree(glue);
 
@@ -523,13 +510,11 @@ err0:
 	return ret;
 }
 
-static int __devexit bfin_remove(struct platform_device *pdev)
+static int bfin_remove(struct platform_device *pdev)
 {
 	struct bfin_glue		*glue = platform_get_drvdata(pdev);
 
-	musb_put_id(&pdev->dev, glue->musb->id);
-	platform_device_del(glue->musb);
-	platform_device_put(glue->musb);
+	platform_device_unregister(glue->musb);
 	kfree(glue);
 
 	return 0;
@@ -585,15 +570,4 @@ static struct platform_driver bfin_driver = {
 MODULE_DESCRIPTION("Blackfin MUSB Glue Layer");
 MODULE_AUTHOR("Bryan Wy <cooloney@kernel.org>");
 MODULE_LICENSE("GPL v2");
-
-static int __init bfin_init(void)
-{
-	return platform_driver_register(&bfin_driver);
-}
-module_init(bfin_init);
-
-static void __exit bfin_exit(void)
-{
-	platform_driver_unregister(&bfin_driver);
-}
-module_exit(bfin_exit);
+module_platform_driver(bfin_driver);

@@ -35,13 +35,20 @@ struct inode;
 # include <asm/uprobes.h>
 #endif
 
+#define UPROBE_HANDLER_REMOVE		1
+#define UPROBE_HANDLER_MASK		1
+
+enum uprobe_filter_ctx {
+	UPROBE_FILTER_REGISTER,
+	UPROBE_FILTER_UNREGISTER,
+	UPROBE_FILTER_MMAP,
+};
+
 struct uprobe_consumer {
 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
-	/*
-	 * filter is optional; If a filter exists, handler is run
-	 * if and only if filter returns true.
-	 */
-	bool (*filter)(struct uprobe_consumer *self, struct task_struct *task);
+	bool (*filter)(struct uprobe_consumer *self,
+				enum uprobe_filter_ctx ctx,
+				struct mm_struct *mm);
 
 	struct uprobe_consumer *next;
 };
@@ -94,15 +101,16 @@ extern int __weak set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsign
 extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
 extern bool __weak is_swbp_insn(uprobe_opcode_t *insn);
 extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
+extern int uprobe_apply(struct inode *inode, loff_t offset, struct uprobe_consumer *uc, bool);
 extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern int uprobe_mmap(struct vm_area_struct *vma);
 extern void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end);
+extern void uprobe_start_dup_mmap(void);
+extern void uprobe_end_dup_mmap(void);
 extern void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm);
 extern void uprobe_free_utask(struct task_struct *t);
 extern void uprobe_copy_process(struct task_struct *t);
 extern unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs);
-extern void __weak arch_uprobe_enable_step(struct arch_uprobe *arch);
-extern void __weak arch_uprobe_disable_step(struct arch_uprobe *arch);
 extern int uprobe_post_sstep_notifier(struct pt_regs *regs);
 extern int uprobe_pre_sstep_notifier(struct pt_regs *regs);
 extern void uprobe_notify_resume(struct pt_regs *regs);
@@ -117,6 +125,11 @@ uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
 {
 	return -ENOSYS;
 }
+static inline int
+uprobe_apply(struct inode *inode, loff_t offset, struct uprobe_consumer *uc, bool add)
+{
+	return -ENOSYS;
+}
 static inline void
 uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
 {
@@ -127,6 +140,12 @@ static inline int uprobe_mmap(struct vm_area_struct *vma)
 }
 static inline void
 uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+{
+}
+static inline void uprobe_start_dup_mmap(void)
+{
+}
+static inline void uprobe_end_dup_mmap(void)
 {
 }
 static inline void

@@ -28,6 +28,49 @@
 #include "wl18xx.h"
 #include "tx.h"
 
+static
+void wl18xx_get_last_tx_rate(struct wl1271 *wl, struct ieee80211_vif *vif,
+			     struct ieee80211_tx_rate *rate)
+{
+	u8 fw_rate = wl->fw_status_2->counters.tx_last_rate;
+
+	if (fw_rate > CONF_HW_RATE_INDEX_MAX) {
+		wl1271_error("last Tx rate invalid: %d", fw_rate);
+		rate->idx = 0;
+		rate->flags = 0;
+		return;
+	}
+
+	if (fw_rate <= CONF_HW_RATE_INDEX_54MBPS) {
+		rate->idx = fw_rate;
+		rate->flags = 0;
+	} else {
+		rate->flags = IEEE80211_TX_RC_MCS;
+		rate->idx = fw_rate - CONF_HW_RATE_INDEX_MCS0;
+
+		/* SGI modifier is counted as a separate rate */
+		if (fw_rate >= CONF_HW_RATE_INDEX_MCS7_SGI)
+			(rate->idx)--;
+		if (fw_rate == CONF_HW_RATE_INDEX_MCS15_SGI)
+			(rate->idx)--;
+
+		/* this also covers the 40Mhz SGI case (= MCS15) */
+		if (fw_rate == CONF_HW_RATE_INDEX_MCS7_SGI ||
+		    fw_rate == CONF_HW_RATE_INDEX_MCS15_SGI)
+			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
+
+		if (fw_rate > CONF_HW_RATE_INDEX_MCS7_SGI && vif) {
+			struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+			if (wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
+			    wlvif->channel_type == NL80211_CHAN_HT40PLUS) {
+				/* adjustment needed for range 0-7 */
+				rate->idx -= 8;
+				rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+			}
+		}
+	}
+}
+
 static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 {
 	struct ieee80211_tx_info *info;
@@ -44,7 +87,6 @@ static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 	/* a zero bit indicates Tx success */
 	tx_success = !(tx_stat_byte & BIT(WL18XX_TX_STATUS_STAT_BIT_IDX));
 
-
 	skb = wl->tx_frames[id];
 	info = IEEE80211_SKB_CB(skb);
 
@@ -56,11 +98,13 @@ static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 	/* update the TX status info */
 	if (tx_success && !(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		info->flags |= IEEE80211_TX_STAT_ACK;
+	/*
+	 * first pass info->control.vif while it's valid, and then fill out
+	 * the info->status structures
+	 */
+	wl18xx_get_last_tx_rate(wl, info->control.vif, &info->status.rates[0]);
 
-	/* no real data about Tx completion */
-	info->status.rates[0].idx = -1;
-	info->status.rates[0].count = 0;
-	info->status.rates[0].flags = 0;
+	info->status.rates[0].count = 1; /* no data about retries */
 	info->status.ack_signal = -1;
 
 	if (!tx_success)

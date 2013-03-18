@@ -390,7 +390,7 @@ static const struct i2c_algorithm sh7760_i2c_algo = {
  * iclk = mclk/(CDF + 1).  iclk must be < 20MHz.
  * scl = iclk/(SCGD*8 + 20).
  */
-static int __devinit calc_CCR(unsigned long scl_hz)
+static int calc_CCR(unsigned long scl_hz)
 {
 	struct clk *mclk;
 	unsigned long mck, m1, dff, odff, iclk;
@@ -430,7 +430,7 @@ static int __devinit calc_CCR(unsigned long scl_hz)
 	return ((scgdm << 2) | cdfm);
 }
 
-static int __devinit sh7760_i2c_probe(struct platform_device *pdev)
+static int sh7760_i2c_probe(struct platform_device *pdev)
 {
 	struct sh7760_i2c_platdata *pd;
 	struct resource *res;
@@ -536,7 +536,7 @@ out0:
 	return ret;
 }
 
-static int __devexit sh7760_i2c_remove(struct platform_device *pdev)
+static int sh7760_i2c_remove(struct platform_device *pdev)
 {
 	struct cami2c *id = platform_get_drvdata(pdev);
 
@@ -546,7 +546,6 @@ static int __devexit sh7760_i2c_remove(struct platform_device *pdev)
 	release_resource(id->ioarea);
 	kfree(id->ioarea);
 	kfree(id);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -557,7 +556,7 @@ static struct platform_driver sh7760_i2c_drv = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sh7760_i2c_probe,
-	.remove		= __devexit_p(sh7760_i2c_remove),
+	.remove		= sh7760_i2c_remove,
 };
 
 module_platform_driver(sh7760_i2c_drv);

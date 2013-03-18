@@ -446,7 +446,7 @@ static inline int bits_per_word(const struct ep93xx_spi *espi)
 	struct spi_message *msg = espi->current_msg;
 	struct spi_transfer *t = msg->state;
 
-	return t->bits_per_word ? t->bits_per_word : msg->spi->bits_per_word;
+	return t->bits_per_word;
 }
 
 static void ep93xx_do_write(struct ep93xx_spi *espi, struct spi_transfer *t)
@@ -1023,7 +1023,7 @@ static void ep93xx_spi_release_dma(struct ep93xx_spi *espi)
 		free_page((unsigned long)espi->zeropage);
 }
 
-static int __devinit ep93xx_spi_probe(struct platform_device *pdev)
+static int ep93xx_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct ep93xx_spi_info *info;
@@ -1085,10 +1085,9 @@ static int __devinit ep93xx_spi_probe(struct platform_device *pdev)
 
 	espi->sspdr_phys = res->start + SSPDR;
 
-	espi->regs_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!espi->regs_base) {
-		dev_err(&pdev->dev, "failed to map resources\n");
-		error = -ENODEV;
+	espi->regs_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(espi->regs_base)) {
+		error = PTR_ERR(espi->regs_base);
 		goto fail_put_clock;
 	}
 
@@ -1138,7 +1137,7 @@ fail_release_master:
 	return error;
 }
 
-static int __devexit ep93xx_spi_remove(struct platform_device *pdev)
+static int ep93xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
@@ -1180,7 +1179,7 @@ static struct platform_driver ep93xx_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ep93xx_spi_probe,
-	.remove		= __devexit_p(ep93xx_spi_remove),
+	.remove		= ep93xx_spi_remove,
 };
 module_platform_driver(ep93xx_spi_driver);
 

@@ -69,8 +69,11 @@ struct nouveau_fb {
 		} type;
 		u64 stolen;
 		u64 size;
-		int ranks;
 
+		int ranks;
+		int parts;
+
+		int  (*init)(struct nouveau_fb *);
 		int  (*get)(struct nouveau_fb *, u64 size, u32 align,
 			    u32 size_nc, u32 type, struct nouveau_mem **);
 		void (*put)(struct nouveau_fb *, struct nouveau_mem **);
@@ -84,6 +87,8 @@ struct nouveau_fb {
 		int regions;
 		void (*init)(struct nouveau_fb *, int i, u32 addr, u32 size,
 			     u32 pitch, u32 flags, struct nouveau_fb_tile *);
+		void (*comp)(struct nouveau_fb *, int i, u32 size, u32 flags,
+			     struct nouveau_fb_tile *);
 		void (*fini)(struct nouveau_fb *, int i,
 			     struct nouveau_fb_tile *);
 		void (*prog)(struct nouveau_fb *, int i,
@@ -99,7 +104,7 @@ nouveau_fb(void *obj)
 
 #define nouveau_fb_create(p,e,c,d)                                             \
 	nouveau_subdev_create((p), (e), (c), 0, "PFB", "fb", (d))
-int  nouveau_fb_created(struct nouveau_fb *);
+int  nouveau_fb_preinit(struct nouveau_fb *);
 void nouveau_fb_destroy(struct nouveau_fb *);
 int  nouveau_fb_init(struct nouveau_fb *);
 #define nouveau_fb_fini(p,s)                                                   \
@@ -111,9 +116,19 @@ int  _nouveau_fb_init(struct nouveau_object *);
 
 extern struct nouveau_oclass nv04_fb_oclass;
 extern struct nouveau_oclass nv10_fb_oclass;
+extern struct nouveau_oclass nv1a_fb_oclass;
 extern struct nouveau_oclass nv20_fb_oclass;
+extern struct nouveau_oclass nv25_fb_oclass;
 extern struct nouveau_oclass nv30_fb_oclass;
+extern struct nouveau_oclass nv35_fb_oclass;
+extern struct nouveau_oclass nv36_fb_oclass;
 extern struct nouveau_oclass nv40_fb_oclass;
+extern struct nouveau_oclass nv41_fb_oclass;
+extern struct nouveau_oclass nv44_fb_oclass;
+extern struct nouveau_oclass nv46_fb_oclass;
+extern struct nouveau_oclass nv47_fb_oclass;
+extern struct nouveau_oclass nv49_fb_oclass;
+extern struct nouveau_oclass nv4e_fb_oclass;
 extern struct nouveau_oclass nv50_fb_oclass;
 extern struct nouveau_oclass nvc0_fb_oclass;
 
@@ -122,13 +137,35 @@ int  nouveau_fb_bios_memtype(struct nouveau_bios *);
 
 bool nv04_fb_memtype_valid(struct nouveau_fb *, u32 memtype);
 
+void nv10_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
+		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
+void nv10_fb_tile_fini(struct nouveau_fb *, int i, struct nouveau_fb_tile *);
 void nv10_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
 
+int  nv20_fb_vram_init(struct nouveau_fb *);
+void nv20_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
+		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
+void nv20_fb_tile_fini(struct nouveau_fb *, int i, struct nouveau_fb_tile *);
+void nv20_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
+
+int  nv30_fb_init(struct nouveau_object *);
 void nv30_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
-void nv30_fb_tile_fini(struct nouveau_fb *, int i, struct nouveau_fb_tile *);
+
+void nv40_fb_tile_comp(struct nouveau_fb *, int i, u32 size, u32 flags,
+		       struct nouveau_fb_tile *);
+
+int  nv41_fb_vram_init(struct nouveau_fb *);
+int  nv41_fb_init(struct nouveau_object *);
+void nv41_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
+
+int  nv44_fb_vram_init(struct nouveau_fb *);
+int  nv44_fb_init(struct nouveau_object *);
+void nv44_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
+
+void nv46_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
+		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
 
 void nv50_fb_vram_del(struct nouveau_fb *, struct nouveau_mem **);
-void nv50_fb_trap(struct nouveau_fb *, int display);
 
 #endif

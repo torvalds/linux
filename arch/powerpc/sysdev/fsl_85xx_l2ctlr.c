@@ -69,7 +69,7 @@ static int __init get_offset_from_cmdline(char *str)
 __setup("cache-sram-size=", get_size_from_cmdline);
 __setup("cache-sram-offset=", get_offset_from_cmdline);
 
-static int __devinit mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
+static int mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
 {
 	long rval;
 	unsigned int rem;
@@ -160,7 +160,7 @@ static int __devinit mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit mpc85xx_l2ctlr_of_remove(struct platform_device *dev)
+static int mpc85xx_l2ctlr_of_remove(struct platform_device *dev)
 {
 	BUG_ON(!l2ctlr);
 
@@ -203,6 +203,7 @@ static struct of_device_id mpc85xx_l2ctlr_of_match[] = {
 	{	.compatible = "fsl,p1024-l2-cache-controller",},
 	{	.compatible = "fsl,p1015-l2-cache-controller",},
 	{	.compatible = "fsl,p1010-l2-cache-controller",},
+	{	.compatible = "fsl,bsc9131-l2-cache-controller",},
 	{},
 };
 
@@ -213,7 +214,7 @@ static struct platform_driver mpc85xx_l2ctlr_of_platform_driver = {
 		.of_match_table	= mpc85xx_l2ctlr_of_match,
 	},
 	.probe		= mpc85xx_l2ctlr_of_probe,
-	.remove		= __devexit_p(mpc85xx_l2ctlr_of_remove),
+	.remove		= mpc85xx_l2ctlr_of_remove,
 };
 
 static __init int mpc85xx_l2ctlr_of_init(void)

@@ -506,7 +506,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 /*****************************************************************************
  * General PCIe + PCI
  ****************************************************************************/
-static void __devinit rc_pci_fixup(struct pci_dev *dev)
+static void rc_pci_fixup(struct pci_dev *dev)
 {
 	/*
 	 * Prevent enumeration of root complex.

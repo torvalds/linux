@@ -33,6 +33,28 @@ static const u8 sixaxis_rdesc_fixup[] = {
 	0x03, 0x46, 0xFF, 0x03, 0x09, 0x01, 0x81, 0x02
 };
 
+static const u8 sixaxis_rdesc_fixup2[] = {
+	0x05, 0x01, 0x09, 0x04, 0xa1, 0x01, 0xa1, 0x02,
+	0x85, 0x01, 0x75, 0x08, 0x95, 0x01, 0x15, 0x00,
+	0x26, 0xff, 0x00, 0x81, 0x03, 0x75, 0x01, 0x95,
+	0x13, 0x15, 0x00, 0x25, 0x01, 0x35, 0x00, 0x45,
+	0x01, 0x05, 0x09, 0x19, 0x01, 0x29, 0x13, 0x81,
+	0x02, 0x75, 0x01, 0x95, 0x0d, 0x06, 0x00, 0xff,
+	0x81, 0x03, 0x15, 0x00, 0x26, 0xff, 0x00, 0x05,
+	0x01, 0x09, 0x01, 0xa1, 0x00, 0x75, 0x08, 0x95,
+	0x04, 0x35, 0x00, 0x46, 0xff, 0x00, 0x09, 0x30,
+	0x09, 0x31, 0x09, 0x32, 0x09, 0x35, 0x81, 0x02,
+	0xc0, 0x05, 0x01, 0x95, 0x13, 0x09, 0x01, 0x81,
+	0x02, 0x95, 0x0c, 0x81, 0x01, 0x75, 0x10, 0x95,
+	0x04, 0x26, 0xff, 0x03, 0x46, 0xff, 0x03, 0x09,
+	0x01, 0x81, 0x02, 0xc0, 0xa1, 0x02, 0x85, 0x02,
+	0x75, 0x08, 0x95, 0x30, 0x09, 0x01, 0xb1, 0x02,
+	0xc0, 0xa1, 0x02, 0x85, 0xee, 0x75, 0x08, 0x95,
+	0x30, 0x09, 0x01, 0xb1, 0x02, 0xc0, 0xa1, 0x02,
+	0x85, 0xef, 0x75, 0x08, 0x95, 0x30, 0x09, 0x01,
+	0xb1, 0x02, 0xc0, 0xc0,
+};
+
 struct sony_sc {
 	unsigned long quirks;
 };
@@ -43,9 +65,19 @@ static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 {
 	struct sony_sc *sc = hid_get_drvdata(hdev);
 
-	if ((sc->quirks & VAIO_RDESC_CONSTANT) &&
-			*rsize >= 56 && rdesc[54] == 0x81 && rdesc[55] == 0x07) {
-		hid_info(hdev, "Fixing up Sony Vaio VGX report descriptor\n");
+	/*
+	 * Some Sony RF receivers wrongly declare the mouse pointer as a
+	 * a constant non-data variable.
+	 */
+	if ((sc->quirks & VAIO_RDESC_CONSTANT) && *rsize >= 56 &&
+	    /* usage page: generic desktop controls */
+	    /* rdesc[0] == 0x05 && rdesc[1] == 0x01 && */
+	    /* usage: mouse */
+	    rdesc[2] == 0x09 && rdesc[3] == 0x02 &&
+	    /* input (usage page for x,y axes): constant, variable, relative */
+	    rdesc[54] == 0x81 && rdesc[55] == 0x07) {
+		hid_info(hdev, "Fixing up Sony RF Receiver report descriptor\n");
+		/* input: data, variable, relative */
 		rdesc[55] = 0x06;
 	}
 
@@ -56,6 +88,12 @@ static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "Fixing up Sony Sixaxis report descriptor\n");
 		memcpy((void *)&rdesc[83], (void *)&sixaxis_rdesc_fixup,
 			sizeof(sixaxis_rdesc_fixup));
+	} else if (sc->quirks & SIXAXIS_CONTROLLER_USB &&
+		   *rsize > sizeof(sixaxis_rdesc_fixup2)) {
+		hid_info(hdev, "Sony Sixaxis clone detected. Using original report descriptor (size: %d clone; %d new)\n",
+			 *rsize, (int)sizeof(sixaxis_rdesc_fixup2));
+		*rsize = sizeof(sixaxis_rdesc_fixup2);
+		memcpy(rdesc, &sixaxis_rdesc_fixup2, *rsize);
 	}
 	return rdesc;
 }
@@ -217,6 +255,8 @@ static const struct hid_device_id sony_devices[] = {
 		.driver_data = SIXAXIS_CONTROLLER_BT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_VAIO_VGX_MOUSE),
 		.driver_data = VAIO_RDESC_CONSTANT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_VAIO_VGP_MOUSE),
+		.driver_data = VAIO_RDESC_CONSTANT },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sony_devices);
@@ -229,17 +269,6 @@ static struct hid_driver sony_driver = {
 	.report_fixup = sony_report_fixup,
 	.raw_event = sony_raw_event
 };
+module_hid_driver(sony_driver);
 
-static int __init sony_init(void)
-{
-	return hid_register_driver(&sony_driver);
-}
-
-static void __exit sony_exit(void)
-{
-	hid_unregister_driver(&sony_driver);
-}
-
-module_init(sony_init);
-module_exit(sony_exit);
 MODULE_LICENSE("GPL");

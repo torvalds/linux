@@ -341,7 +341,7 @@ static const struct iio_info ad7816_info = {
  * device probe and remove
  */
 
-static int __devinit ad7816_probe(struct spi_device *spi_dev)
+static int ad7816_probe(struct spi_device *spi_dev)
 {
 	struct ad7816_chip_info *chip;
 	struct iio_dev *indio_dev;
@@ -431,7 +431,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7816_remove(struct spi_device *spi_dev)
+static int ad7816_remove(struct spi_device *spi_dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&spi_dev->dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
@@ -463,7 +463,7 @@ static struct spi_driver ad7816_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad7816_probe,
-	.remove = __devexit_p(ad7816_remove),
+	.remove = ad7816_remove,
 	.id_table = ad7816_id,
 };
 module_spi_driver(ad7816_driver);

@@ -3563,9 +3563,9 @@ void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *hdw,
 				     enum pvr2_v4l_type index,int v)
 {
 	switch (index) {
-	case pvr2_v4l_type_video: hdw->v4l_minor_number_video = v;
-	case pvr2_v4l_type_vbi: hdw->v4l_minor_number_vbi = v;
-	case pvr2_v4l_type_radio: hdw->v4l_minor_number_radio = v;
+	case pvr2_v4l_type_video: hdw->v4l_minor_number_video = v;break;
+	case pvr2_v4l_type_vbi: hdw->v4l_minor_number_vbi = v;break;
+	case pvr2_v4l_type_radio: hdw->v4l_minor_number_radio = v;break;
 	default: break;
 	}
 }

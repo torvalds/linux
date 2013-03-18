@@ -18,7 +18,7 @@
  History:
 	Data		Who		Remark
 
-	05/06/2008  amy    	Create initial version porting from windows driver.
+	05/06/2008  amy		Create initial version porting from windows driver.
 
 ******************************************************************************/
 #include "r8192U.h"
@@ -41,7 +41,7 @@
 rt_status
 SendTxCommandPacket(
 	struct net_device *dev,
-	void* 			pData,
+	void*			pData,
 	u32				DataLen
 	)
 {
@@ -106,7 +106,7 @@ SendTxCommandPacket(
 	u32	buffer_len)
 {
 
-	bool 	    rt_status = true;
+	bool	    rt_status = true;
 #ifdef RTL8192U
 	return rt_status;
 #else
@@ -188,7 +188,7 @@ SendTxCommandPacket(
  *
  * Overview:
  *
- * Input:       PADAPTER 	pAdapter		-	.
+ * Input:       PADAPTER	pAdapter		-	.
  *				CMPK_TXFB_T *psTx_FB	-	.
  *
  * Output:      NONE
@@ -197,7 +197,7 @@ SendTxCommandPacket(
  *
  * Revised History:
  *  When		Who		Remark
- *  05/12/2008	amy 	Create Version 0 porting from windows code.
+ *  05/12/2008	amy	Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
 static	void
@@ -289,7 +289,7 @@ cmpk_count_txstatistic(
  *				in the command packet.
  *
  * Input:       struct net_device *    dev
- *				u8 	*	pmsg		-	Msg Ptr of the command packet.
+ *				u8	*	pmsg		-	Msg Ptr of the command packet.
  *
  * Output:      NONE
  *
@@ -369,7 +369,7 @@ cmdpkt_beacontimerinterrupt_819xusb(
  * Overview:    The function is responsible for extract the message from
  *				firmware. It will contain dedicated info in
  *				ws-07-0063-v06-rtl819x-command-packet-specification-070315.doc.
- * 				Please refer to chapter "Interrupt Status Element".
+ *				Please refer to chapter "Interrupt Status Element".
  *
  * Input:       struct net_device *dev,
  *			u8*	pmsg		-	Message Pointer of the command packet.
@@ -400,8 +400,8 @@ cmpk_handle_interrupt_status(
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
-	//rx_bcn_state.Element_ID 	= pMsg[0];
-	//rx_bcn_state.Length 		= pMsg[1];
+	//rx_bcn_state.Element_ID	= pMsg[0];
+	//rx_bcn_state.Length		= pMsg[1];
 	rx_intr_status.length = pmsg[1];
 	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2))
 	{
@@ -478,16 +478,16 @@ cmpk_handle_query_config_rx(
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
-	//rx_query_cfg.Element_ID 	= pMsg[0];
-	//rx_query_cfg.Length 		= pMsg[1];
-	rx_query_cfg.cfg_action 	= (pmsg[4] & 0x80000000)>>31;
-	rx_query_cfg.cfg_type 		= (pmsg[4] & 0x60) >> 5;
-	rx_query_cfg.cfg_size 		= (pmsg[4] & 0x18) >> 3;
-	rx_query_cfg.cfg_page 		= (pmsg[6] & 0x0F) >> 0;
-	rx_query_cfg.cfg_offset 		= pmsg[7];
-	rx_query_cfg.value 			= (pmsg[8] << 24) | (pmsg[9] << 16) |
+	//rx_query_cfg.Element_ID	= pMsg[0];
+	//rx_query_cfg.Length		= pMsg[1];
+	rx_query_cfg.cfg_action		= (pmsg[4] & 0x80000000)>>31;
+	rx_query_cfg.cfg_type		= (pmsg[4] & 0x60) >> 5;
+	rx_query_cfg.cfg_size		= (pmsg[4] & 0x18) >> 3;
+	rx_query_cfg.cfg_page		= (pmsg[6] & 0x0F) >> 0;
+	rx_query_cfg.cfg_offset			= pmsg[7];
+	rx_query_cfg.value			= (pmsg[8] << 24) | (pmsg[9] << 16) |
 								  (pmsg[10] << 8) | (pmsg[11] << 0);
-	rx_query_cfg.mask 			= (pmsg[12] << 24) | (pmsg[13] << 16) |
+	rx_query_cfg.mask			= (pmsg[12] << 24) | (pmsg[13] << 16) |
 								  (pmsg[14] << 8) | (pmsg[15] << 0);
 
 }	/* cmpk_Handle_Query_Config_Rx */
@@ -511,7 +511,7 @@ cmpk_handle_query_config_rx(
  *
  *---------------------------------------------------------------------------*/
 static	void	cmpk_count_tx_status(	struct net_device *dev,
-									cmpk_tx_status_t 	*pstx_status)
+									cmpk_tx_status_t	*pstx_status)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 

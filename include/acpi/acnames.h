@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@
 #define METHOD_NAME__HID        "_HID"
 #define METHOD_NAME__CID        "_CID"
 #define METHOD_NAME__UID        "_UID"
+#define METHOD_NAME__SUB        "_SUB"
 #define METHOD_NAME__ADR        "_ADR"
 #define METHOD_NAME__INI        "_INI"
 #define METHOD_NAME__STA        "_STA"

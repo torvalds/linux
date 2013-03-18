@@ -220,7 +220,6 @@ struct mipi_dsim_config {
 struct mipi_dsim_device {
 	struct device			*dev;
 	int				id;
-	struct resource			*res;
 	struct clk			*clock;
 	unsigned int			irq;
 	void __iomem			*reg_base;

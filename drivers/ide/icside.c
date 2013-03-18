@@ -406,8 +406,8 @@ static const struct ide_port_info icside_v5_port_info = {
 	.chipset		= ide_acorn,
 };
 
-static int __devinit
-icside_register_v5(struct icside_state *state, struct expansion_card *ec)
+static int icside_register_v5(struct icside_state *state,
+			      struct expansion_card *ec)
 {
 	void __iomem *base;
 	struct ide_host *host;
@@ -460,8 +460,8 @@ static const struct ide_port_info icside_v6_port_info __initconst = {
 	.chipset		= ide_acorn,
 };
 
-static int __devinit
-icside_register_v6(struct icside_state *state, struct expansion_card *ec)
+static int icside_register_v6(struct icside_state *state,
+			      struct expansion_card *ec)
 {
 	void __iomem *ioc_base, *easi_base;
 	struct ide_host *host;
@@ -537,8 +537,7 @@ out:
 	return ret;
 }
 
-static int __devinit
-icside_probe(struct expansion_card *ec, const struct ecard_id *id)
+static int icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct icside_state *state;
 	void __iomem *idmem;
@@ -604,7 +603,7 @@ icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 	return ret;
 }
 
-static void __devexit icside_remove(struct expansion_card *ec)
+static void icside_remove(struct expansion_card *ec)
 {
 	struct icside_state *state = ecard_get_drvdata(ec);
 
@@ -666,7 +665,7 @@ static const struct ecard_id icside_ids[] = {
 
 static struct ecard_driver icside_driver = {
 	.probe		= icside_probe,
-	.remove		= __devexit_p(icside_remove),
+	.remove		= icside_remove,
 	.shutdown	= icside_shutdown,
 	.id_table	= icside_ids,
 	.drv = {

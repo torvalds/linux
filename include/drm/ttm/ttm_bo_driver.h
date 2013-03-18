@@ -394,7 +394,7 @@ struct ttm_bo_driver {
 	 */
 	int (*move) (struct ttm_buffer_object *bo,
 		     bool evict, bool interruptible,
-		     bool no_wait_reserve, bool no_wait_gpu,
+		     bool no_wait_gpu,
 		     struct ttm_mem_reg *new_mem);
 
 	/**
@@ -422,10 +422,10 @@ struct ttm_bo_driver {
 	 * documentation.
 	 */
 
-	bool (*sync_obj_signaled) (void *sync_obj, void *sync_arg);
-	int (*sync_obj_wait) (void *sync_obj, void *sync_arg,
+	bool (*sync_obj_signaled) (void *sync_obj);
+	int (*sync_obj_wait) (void *sync_obj,
 			      bool lazy, bool interruptible);
-	int (*sync_obj_flush) (void *sync_obj, void *sync_arg);
+	int (*sync_obj_flush) (void *sync_obj);
 	void (*sync_obj_unref) (void **sync_obj);
 	void *(*sync_obj_ref) (void *sync_obj);
 
@@ -521,8 +521,6 @@ struct ttm_bo_global {
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
  * @val_seq: Current validation sequence.
- * @nice_mode: Try nicely to wait for buffer idle when cleaning a manager.
- * If a GPU lockup has been detected, this is forced to 0.
  * @dev_mapping: A pointer to the struct address_space representing the
  * device address space.
  * @wq: Work queue structure for the delayed delete workqueue.
@@ -556,7 +554,6 @@ struct ttm_bo_device {
 	 * Protected by load / firstopen / lastclose /unload sync.
 	 */
 
-	bool nice_mode;
 	struct address_space *dev_mapping;
 
 	/*
@@ -706,7 +703,6 @@ extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
  * @proposed_placement: Proposed new placement for the buffer object.
  * @mem: A struct ttm_mem_reg.
  * @interruptible: Sleep interruptible when sliping.
- * @no_wait_reserve: Return immediately if other buffers are busy.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  *
  * Allocate memory space for the buffer object pointed to by @bo, using
@@ -722,26 +718,12 @@ extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement,
 				struct ttm_mem_reg *mem,
 				bool interruptible,
-				bool no_wait_reserve, bool no_wait_gpu);
+				bool no_wait_gpu);
 
 extern void ttm_bo_mem_put(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem);
 extern void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem);
-
-/**
- * ttm_bo_wait_for_cpu
- *
- * @bo: Pointer to a struct ttm_buffer_object.
- * @no_wait: Don't sleep while waiting.
- *
- * Wait until a buffer object is no longer sync'ed for CPU access.
- * Returns:
- * -EBUSY: Buffer object was sync'ed for CPU access. (only if no_wait == 1).
- * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
- */
-
-extern int ttm_bo_wait_cpu(struct ttm_buffer_object *bo, bool no_wait);
 
 extern void ttm_bo_global_release(struct drm_global_reference *ref);
 extern int ttm_bo_global_init(struct drm_global_reference *ref);
@@ -808,16 +790,7 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
  * to make room for a buffer already reserved. (Buffers are reserved before
  * they are evicted). The following algorithm prevents such deadlocks from
  * occurring:
- * 1) Buffers are reserved with the lru spinlock held. Upon successful
- * reservation they are removed from the lru list. This stops a reserved buffer
- * from being evicted. However the lru spinlock is released between the time
- * a buffer is selected for eviction and the time it is reserved.
- * Therefore a check is made when a buffer is reserved for eviction, that it
- * is still the first buffer in the lru list, before it is removed from the
- * list. @check_lru == 1 forces this check. If it fails, the function returns
- * -EINVAL, and the caller should then choose a new buffer to evict and repeat
- * the procedure.
- * 2) Processes attempting to reserve multiple buffers other than for eviction,
+ * Processes attempting to reserve multiple buffers other than for eviction,
  * (typically execbuf), should first obtain a unique 32-bit
  * validation sequence number,
  * and call this function with @use_sequence == 1 and @sequence == the unique
@@ -848,9 +821,39 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
 			  bool interruptible,
 			  bool no_wait, bool use_sequence, uint32_t sequence);
 
+/**
+ * ttm_bo_reserve_slowpath_nolru:
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @sequence: Set (@bo)->sequence to this value after lock
+ *
+ * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
+ * from all our other reservations. Because there are no other reservations
+ * held by us, this function cannot deadlock any more.
+ *
+ * Will not remove reserved buffers from the lru lists.
+ * Otherwise identical to ttm_bo_reserve_slowpath.
+ */
+extern int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
+					 bool interruptible,
+					 uint32_t sequence);
+
 
 /**
- * ttm_bo_reserve_locked:
+ * ttm_bo_reserve_slowpath:
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @sequence: Set (@bo)->sequence to this value after lock
+ *
+ * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
+ * from all our other reservations. Because there are no other reservations
+ * held by us, this function cannot deadlock any more.
+ */
+extern int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
+				   bool interruptible, uint32_t sequence);
+
+/**
+ * ttm_bo_reserve_nolru:
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
@@ -858,9 +861,7 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * @use_sequence: If @bo is already reserved, Only sleep waiting for
  * it to become unreserved if @sequence < (@bo)->sequence.
  *
- * Must be called with struct ttm_bo_global::lru_lock held,
- * and will not remove reserved buffers from the lru lists.
- * The function may release the LRU spinlock if it needs to sleep.
+ * Will not remove reserved buffers from the lru lists.
  * Otherwise identical to ttm_bo_reserve.
  *
  * Returns:
@@ -873,7 +874,7 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * -EDEADLK: Bo already reserved using @sequence. This error code will only
  * be returned if @use_sequence is set to true.
  */
-extern int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
+extern int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 				 bool interruptible,
 				 bool no_wait, bool use_sequence,
 				 uint32_t sequence);
@@ -897,18 +898,6 @@ extern void ttm_bo_unreserve(struct ttm_buffer_object *bo);
  */
 extern void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo);
 
-/**
- * ttm_bo_wait_unreserved
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Wait for a struct ttm_buffer_object to become unreserved.
- * This is typically used in the execbuf code to relax cpu-usage when
- * a potential deadlock condition backoff.
- */
-extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
-				  bool interruptible);
-
 /*
  * ttm_bo_util.c
  */
@@ -918,7 +907,6 @@ extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @evict: 1: This is an eviction. Don't try to pipeline.
- * @no_wait_reserve: Return immediately if other buffers are busy.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
@@ -933,15 +921,14 @@ extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
  */
 
 extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-			   bool evict, bool no_wait_reserve,
-			   bool no_wait_gpu, struct ttm_mem_reg *new_mem);
+			   bool evict, bool no_wait_gpu,
+			   struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_move_memcpy
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @evict: 1: This is an eviction. Don't try to pipeline.
- * @no_wait_reserve: Return immediately if other buffers are busy.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
@@ -956,8 +943,8 @@ extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  */
 
 extern int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-			      bool evict, bool no_wait_reserve,
-			      bool no_wait_gpu, struct ttm_mem_reg *new_mem);
+			      bool evict, bool no_wait_gpu,
+			      struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_free_old_node
@@ -973,10 +960,7 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @sync_obj: A sync object that signals when moving is complete.
- * @sync_obj_arg: An argument to pass to the sync object idle / wait
- * functions.
  * @evict: This is an evict move. Don't return until the buffer is idle.
- * @no_wait_reserve: Return immediately if other buffers are busy.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
  *
@@ -990,9 +974,7 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
 
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 				     void *sync_obj,
-				     void *sync_obj_arg,
-				     bool evict, bool no_wait_reserve,
-				     bool no_wait_gpu,
+				     bool evict, bool no_wait_gpu,
 				     struct ttm_mem_reg *new_mem);
 /**
  * ttm_io_prot

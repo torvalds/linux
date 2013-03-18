@@ -433,8 +433,7 @@ static bool genpd_abort_poweroff(struct generic_pm_domain *genpd)
  */
 void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
 {
-	if (!work_pending(&genpd->power_off_work))
-		queue_work(pm_wq, &genpd->power_off_work);
+	queue_work(pm_wq, &genpd->power_off_work);
 }
 
 /**
@@ -470,10 +469,19 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 		return -EBUSY;
 
 	not_suspended = 0;
-	list_for_each_entry(pdd, &genpd->dev_list, list_node)
+	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+		enum pm_qos_flags_status stat;
+
+		stat = dev_pm_qos_flags(pdd->dev,
+					PM_QOS_FLAG_NO_POWER_OFF
+						| PM_QOS_FLAG_REMOTE_WAKEUP);
+		if (stat > PM_QOS_FLAGS_NONE)
+			return -EBUSY;
+
 		if (pdd->dev->driver && (!pm_runtime_suspended(pdd->dev)
 		    || pdd->dev->power.irq_safe))
 			not_suspended++;
+	}
 
 	if (not_suspended > genpd->in_progress)
 		return -EBUSY;

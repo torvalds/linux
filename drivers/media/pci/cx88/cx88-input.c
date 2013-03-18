@@ -248,7 +248,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	struct cx88_IR *ir;
 	struct rc_dev *dev;
 	char *ir_codes = NULL;
-	u64 rc_type = RC_TYPE_OTHER;
+	u64 rc_type = RC_BIT_OTHER;
 	int err = -ENOMEM;
 	u32 hardware_mask = 0;	/* For devices with a hardware mask, when
 				 * used with a full-code IR table
@@ -416,7 +416,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_TWINHAN_VP1027_DVBS:
 		ir_codes         = RC_MAP_TWINHAN_VP1027_DVBS;
-		rc_type          = RC_TYPE_NEC;
+		rc_type          = RC_BIT_NEC;
 		ir->sampling     = 0xff00; /* address */
 		break;
 	}
@@ -592,7 +592,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 	case CX88_BOARD_LEADTEK_PVR2000:
 		addr_list = pvr2000_addr_list;
 		core->init_data.name = "cx88 Leadtek PVR 2000 remote";
-		core->init_data.type = RC_TYPE_UNKNOWN;
+		core->init_data.type = RC_BIT_UNKNOWN;
 		core->init_data.get_key = get_key_pvr2000;
 		core->init_data.ir_codes = RC_MAP_EMPTY;
 		break;
@@ -613,7 +613,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 			/* Hauppauge XVR */
 			core->init_data.name = "cx88 Hauppauge XVR remote";
 			core->init_data.ir_codes = RC_MAP_HAUPPAUGE;
-			core->init_data.type = RC_TYPE_RC5;
+			core->init_data.type = RC_BIT_RC5;
 			core->init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 
 			info.platform_data = &core->init_data;

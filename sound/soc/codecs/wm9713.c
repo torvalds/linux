@@ -1254,13 +1254,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 	.num_dapm_routes = ARRAY_SIZE(wm9713_audio_map),
 };
 
-static __devinit int wm9713_probe(struct platform_device *pdev)
+static int wm9713_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_wm9713, wm9713_dai, ARRAY_SIZE(wm9713_dai));
 }
 
-static int __devexit wm9713_remove(struct platform_device *pdev)
+static int wm9713_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -1273,7 +1273,7 @@ static struct platform_driver wm9713_codec_driver = {
 	},
 
 	.probe = wm9713_probe,
-	.remove = __devexit_p(wm9713_remove),
+	.remove = wm9713_remove,
 };
 
 module_platform_driver(wm9713_codec_driver);

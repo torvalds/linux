@@ -1382,7 +1382,7 @@ static int rt5631_hifi_pcm_params(struct snd_pcm_substream *substream,
 					timesofbclk);
 	if (coeff < 0) {
 		dev_err(codec->dev, "Fail to get coeff\n");
-		return -EINVAL;
+		return coeff;
 	}
 
 	switch (params_format(params)) {
@@ -1748,7 +1748,7 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int rt5631_i2c_remove(struct i2c_client *client)
+static int rt5631_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1760,7 +1760,7 @@ static struct i2c_driver rt5631_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = rt5631_i2c_probe,
-	.remove   = __devexit_p(rt5631_i2c_remove),
+	.remove   = rt5631_i2c_remove,
 	.id_table = rt5631_i2c_id,
 };
 

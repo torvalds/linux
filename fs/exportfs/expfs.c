@@ -44,14 +44,13 @@ find_acceptable_alias(struct dentry *result,
 {
 	struct dentry *dentry, *toput = NULL;
 	struct inode *inode;
-	struct hlist_node *p;
 
 	if (acceptable(context, result))
 		return result;
 
 	inode = result->d_inode;
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		dget(dentry);
 		spin_unlock(&inode->i_lock);
 		if (toput)
@@ -322,10 +321,10 @@ static int export_encode_fh(struct inode *inode, struct fid *fid,
 
 	if (parent && (len < 4)) {
 		*max_len = 4;
-		return 255;
+		return FILEID_INVALID;
 	} else if (len < 2) {
 		*max_len = 2;
-		return 255;
+		return FILEID_INVALID;
 	}
 
 	len = 2;
@@ -341,10 +340,21 @@ static int export_encode_fh(struct inode *inode, struct fid *fid,
 	return type;
 }
 
+int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
+			     int *max_len, struct inode *parent)
+{
+	const struct export_operations *nop = inode->i_sb->s_export_op;
+
+	if (nop && nop->encode_fh)
+		return nop->encode_fh(inode, fid->raw, max_len, parent);
+
+	return export_encode_fh(inode, fid, max_len, parent);
+}
+EXPORT_SYMBOL_GPL(exportfs_encode_inode_fh);
+
 int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 		int connectable)
 {
-	const struct export_operations *nop = dentry->d_sb->s_export_op;
 	int error;
 	struct dentry *p = NULL;
 	struct inode *inode = dentry->d_inode, *parent = NULL;
@@ -357,10 +367,8 @@ int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 		 */
 		parent = p->d_inode;
 	}
-	if (nop->encode_fh)
-		error = nop->encode_fh(inode, fid->raw, max_len, parent);
-	else
-		error = export_encode_fh(inode, fid, max_len, parent);
+
+	error = exportfs_encode_inode_fh(inode, fid, max_len, parent);
 	dput(p);
 
 	return error;

@@ -86,7 +86,7 @@ exit:
 }
 
 /* Read out the SERDES registers */
-static int ql_read_serdes_reg(struct ql_adapter *qdev, u32 reg, u32 * data)
+static int ql_read_serdes_reg(struct ql_adapter *qdev, u32 reg, u32 *data)
 {
 	int status;
 
@@ -364,7 +364,7 @@ exit:
 /* Read the 400 xgmac control/statistics registers
  * skipping unused locations.
  */
-static int ql_get_xgmac_regs(struct ql_adapter *qdev, u32 * buf,
+static int ql_get_xgmac_regs(struct ql_adapter *qdev, u32 *buf,
 					unsigned int other_function)
 {
 	int status = 0;
@@ -405,7 +405,7 @@ static int ql_get_xgmac_regs(struct ql_adapter *qdev, u32 * buf,
 	return status;
 }
 
-static int ql_get_ets_regs(struct ql_adapter *qdev, u32 * buf)
+static int ql_get_ets_regs(struct ql_adapter *qdev, u32 *buf)
 {
 	int status = 0;
 	int i;
@@ -423,7 +423,7 @@ static int ql_get_ets_regs(struct ql_adapter *qdev, u32 * buf)
 	return status;
 }
 
-static void ql_get_intr_states(struct ql_adapter *qdev, u32 * buf)
+static void ql_get_intr_states(struct ql_adapter *qdev, u32 *buf)
 {
 	int i;
 
@@ -434,7 +434,7 @@ static void ql_get_intr_states(struct ql_adapter *qdev, u32 * buf)
 	}
 }
 
-static int ql_get_cam_entries(struct ql_adapter *qdev, u32 * buf)
+static int ql_get_cam_entries(struct ql_adapter *qdev, u32 *buf)
 {
 	int i, status;
 	u32 value[3];
@@ -471,7 +471,7 @@ err:
 	return status;
 }
 
-static int ql_get_routing_entries(struct ql_adapter *qdev, u32 * buf)
+static int ql_get_routing_entries(struct ql_adapter *qdev, u32 *buf)
 {
 	int status;
 	u32 value, i;
@@ -496,7 +496,7 @@ err:
 }
 
 /* Read the MPI Processor shadow registers */
-static int ql_get_mpi_shadow_regs(struct ql_adapter *qdev, u32 * buf)
+static int ql_get_mpi_shadow_regs(struct ql_adapter *qdev, u32 *buf)
 {
 	u32 i;
 	int status;
@@ -515,7 +515,7 @@ end:
 }
 
 /* Read the MPI Processor core registers */
-static int ql_get_mpi_regs(struct ql_adapter *qdev, u32 * buf,
+static int ql_get_mpi_regs(struct ql_adapter *qdev, u32 *buf,
 				u32 offset, u32 count)
 {
 	int i, status = 0;

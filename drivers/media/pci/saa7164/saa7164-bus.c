@@ -81,7 +81,7 @@ void saa7164_bus_dump(struct saa7164_dev *dev)
 }
 
 /* Intensionally throw a BUG() if the state of the message bus looks corrupt */
-void saa7164_bus_verify(struct saa7164_dev *dev)
+static void saa7164_bus_verify(struct saa7164_dev *dev)
 {
 	struct tmComResBusInfo *b = &dev->bus;
 	int bug = 0;
@@ -106,8 +106,8 @@ void saa7164_bus_verify(struct saa7164_dev *dev)
 	}
 }
 
-void saa7164_bus_dumpmsg(struct saa7164_dev *dev, struct tmComResInfo* m,
-	void *buf)
+static void saa7164_bus_dumpmsg(struct saa7164_dev *dev, struct tmComResInfo *m,
+				void *buf)
 {
 	dprintk(DBGLVL_BUS, "Dumping msg structure:\n");
 	dprintk(DBGLVL_BUS, " .id               = %d\n",   m->id);

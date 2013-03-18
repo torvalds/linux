@@ -31,7 +31,7 @@
  * driver should read or write to PRM/CM registers directly; they
  * should rely on OMAP core code to do this.
  */
-#include <mach-omap2/cm2xxx_3xxx.h>
+#include <mach-omap2/cm3xxx.h>
 #include <mach-omap2/prm-regbits-34xx.h>
 #include <mach-omap2/cm-regbits-34xx.h>
 #include <dspbridge/devdefs.h>

@@ -367,7 +367,7 @@ static struct se_node_acl *tcm_qla2xxx_alloc_fabric_acl(
 
 	nacl = kzalloc(sizeof(struct tcm_qla2xxx_nacl), GFP_KERNEL);
 	if (!nacl) {
-		pr_err("Unable to alocate struct tcm_qla2xxx_nacl\n");
+		pr_err("Unable to allocate struct tcm_qla2xxx_nacl\n");
 		return NULL;
 	}
 
@@ -620,8 +620,8 @@ static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 			return;
 		}
 
-		cmd->se_cmd.scsi_sense_reason = TCM_CHECK_CONDITION_ABORT_CMD;
-		transport_generic_request_failure(&cmd->se_cmd);
+		transport_generic_request_failure(&cmd->se_cmd,
+						  TCM_CHECK_CONDITION_ABORT_CMD);
 		return;
 	}
 

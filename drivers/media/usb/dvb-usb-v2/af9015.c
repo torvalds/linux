@@ -1156,6 +1156,7 @@ error:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_RC_CORE)
 struct af9015_rc_setup {
 	unsigned int id;
 	char *rc_codes;
@@ -1306,12 +1307,15 @@ static int af9015_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 	if (!rc->map_name)
 		rc->map_name = RC_MAP_EMPTY;
 
-	rc->allowed_protos = RC_TYPE_NEC;
+	rc->allowed_protos = RC_BIT_NEC;
 	rc->query = af9015_rc_query;
 	rc->interval = 500;
 
 	return 0;
 }
+#else
+	#define af9015_get_rc_config NULL
+#endif
 
 /* interface 0 is used by DVB-T receiver and
    interface 1 is for remote controller (HID) */

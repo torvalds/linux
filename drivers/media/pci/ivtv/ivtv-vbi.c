@@ -224,7 +224,7 @@ static void copy_vbi_data(struct ivtv *itv, int lines, u32 pts_stamp)
 		   (the max size of the VBI data is 36 * 43 + 4 bytes).
 		   So in this case we use the magic number 'ITV0'. */
 		memcpy(dst + sd, "ITV0", 4);
-		memcpy(dst + sd + 4, dst + sd + 12, line * 43);
+		memmove(dst + sd + 4, dst + sd + 12, line * 43);
 		size = 4 + ((43 * line + 3) & ~3);
 	} else {
 		memcpy(dst + sd, "itv0", 4);
@@ -532,7 +532,7 @@ void ivtv_vbi_work_handler(struct ivtv *itv)
 		while (vi->cc_payload_idx) {
 			cc = vi->cc_payload[0];
 
-			memcpy(vi->cc_payload, vi->cc_payload + 1,
+			memmove(vi->cc_payload, vi->cc_payload + 1,
 					sizeof(vi->cc_payload) - sizeof(vi->cc_payload[0]));
 			vi->cc_payload_idx--;
 			if (vi->cc_payload_idx && cc.odd[0] == 0x80 && cc.odd[1] == 0x80)

@@ -99,7 +99,7 @@ static const struct regulator_desc wm8994_ldo_desc[] = {
 	},
 };
 
-static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
+static int wm8994_ldo_probe(struct platform_device *pdev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(pdev->dev.parent);
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
@@ -142,7 +142,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm8994_ldo_remove(struct platform_device *pdev)
+static int wm8994_ldo_remove(struct platform_device *pdev)
 {
 	struct wm8994_ldo *ldo = platform_get_drvdata(pdev);
 
@@ -155,7 +155,7 @@ static __devexit int wm8994_ldo_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8994_ldo_driver = {
 	.probe = wm8994_ldo_probe,
-	.remove = __devexit_p(wm8994_ldo_remove),
+	.remove = wm8994_ldo_remove,
 	.driver		= {
 		.name	= "wm8994-ldo",
 		.owner	= THIS_MODULE,

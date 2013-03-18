@@ -359,6 +359,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 
 		set_phys_to_machine(pfn, frame_list[i]);
 
+#ifdef CONFIG_XEN_HAVE_PVMMU
 		/* Link back into the page tables if not highmem. */
 		if (xen_pv_domain() && !PageHighMem(page)) {
 			int ret;
@@ -368,6 +369,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 				0);
 			BUG_ON(ret);
 		}
+#endif
 
 		/* Relinquish the page back to the allocator. */
 		ClearPageReserved(page);
@@ -416,13 +418,14 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 
 		scrub_page(page);
 
+#ifdef CONFIG_XEN_HAVE_PVMMU
 		if (xen_pv_domain() && !PageHighMem(page)) {
 			ret = HYPERVISOR_update_va_mapping(
 				(unsigned long)__va(pfn << PAGE_SHIFT),
 				__pte_ma(0), 0);
 			BUG_ON(ret);
 		}
-
+#endif
 	}
 
 	/* Ensure that ballooned highmem pages don't have kmaps. */

@@ -137,7 +137,7 @@ static ssize_t set_max_min(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	temp = SENSORS_LIMIT(temp, -40000, 85000);
+	temp = clamp_val(temp, -40000, 85000);
 	temp = (temp + (temp < 0 ? -500 : 500)) / 1000;
 
 	mutex_lock(&data->lock);
@@ -226,7 +226,7 @@ exit_remove:
 	return err;
 }
 
-static int __devexit ad7414_remove(struct i2c_client *client)
+static int ad7414_remove(struct i2c_client *client)
 {
 	struct ad7414_data *data = i2c_get_clientdata(client);
 
@@ -246,7 +246,7 @@ static struct i2c_driver ad7414_driver = {
 		.name	= "ad7414",
 	},
 	.probe	= ad7414_probe,
-	.remove	= __devexit_p(ad7414_remove),
+	.remove	= ad7414_remove,
 	.id_table = ad7414_id,
 };
 

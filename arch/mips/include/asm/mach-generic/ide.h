@@ -51,7 +51,7 @@ static inline void __ide_flush_dcache_range(unsigned long addr, unsigned long si
 /*
  * insw() and gang might be called with interrupts disabled, so we can't
  * send IPIs for flushing due to the potencial of deadlocks, see the comment
- * above smp_call_function() in arch/mips/kernel/smp.c.  We work around the
+ * above smp_call_function() in arch/mips/kernel/smp.c.	 We work around the
  * problem by disabling preemption so we know we actually perform the flush
  * on the processor that actually has the lines to be flushed which hopefully
  * is even better for performance anyway.
@@ -123,7 +123,7 @@ static inline void __ide_mm_outsl(void __iomem * port, void *addr, u32 count)
 	__ide_flush_epilogue();
 }
 
-/* ide_insw calls insw, not __ide_insw.  Why? */
+/* ide_insw calls insw, not __ide_insw.	 Why? */
 #undef insw
 #undef insl
 #undef outsw

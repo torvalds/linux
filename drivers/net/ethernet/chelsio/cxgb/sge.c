@@ -367,18 +367,6 @@ void t1_sched_set_drain_bits_per_us(struct sge *sge, unsigned int port,
 
 #endif  /*  0  */
 
-
-/*
- * get_clock() implements a ns clock (see ktime_get)
- */
-static inline ktime_t get_clock(void)
-{
-	struct timespec ts;
-
-	ktime_get_ts(&ts);
-	return timespec_to_ktime(ts);
-}
-
 /*
  * tx_sched_init() allocates resources and does basic initialization.
  */
@@ -411,7 +399,7 @@ static int tx_sched_init(struct sge *sge)
 static inline int sched_update_avail(struct sge *sge)
 {
 	struct sched *s = sge->tx_sched;
-	ktime_t now = get_clock();
+	ktime_t now = ktime_get();
 	unsigned int i;
 	long long delta_time_ns;
 
@@ -1834,8 +1822,8 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (unlikely(skb->len < ETH_HLEN ||
 			     skb->len > dev->mtu + eth_hdr_len(skb->data))) {
-			pr_debug("%s: packet size %d hdr %d mtu%d\n", dev->name,
-				 skb->len, eth_hdr_len(skb->data), dev->mtu);
+			netdev_dbg(dev, "packet size %d hdr %d mtu%d\n",
+				   skb->len, eth_hdr_len(skb->data), dev->mtu);
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
 		}
@@ -1843,7 +1831,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (skb->ip_summed == CHECKSUM_PARTIAL &&
 		    ip_hdr(skb)->protocol == IPPROTO_UDP) {
 			if (unlikely(skb_checksum_help(skb))) {
-				pr_debug("%s: unable to do udp checksum\n", dev->name);
+				netdev_dbg(dev, "unable to do udp checksum\n");
 				dev_kfree_skb_any(skb);
 				return NETDEV_TX_OK;
 			}
@@ -2071,8 +2059,7 @@ static void espibug_workaround(unsigned long data)
 /*
  * Creates a t1_sge structure and returns suggested resource parameters.
  */
-struct sge * __devinit t1_sge_create(struct adapter *adapter,
-				     struct sge_params *p)
+struct sge *t1_sge_create(struct adapter *adapter, struct sge_params *p)
 {
 	struct sge *sge = kzalloc(sizeof(*sge), GFP_KERNEL);
 	int i;

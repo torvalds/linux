@@ -73,7 +73,6 @@ static void put_indicator(u32 *addr)
 void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
 {
 	mutex_lock(&tiq_list_lock);
-	BUG_ON(irq_ptr->nr_input_qs < 1);
 	list_add_rcu(&irq_ptr->input_qs[0]->entry, &tiq_list);
 	mutex_unlock(&tiq_list_lock);
 	xchg(irq_ptr->dsci, 1 << 7);
@@ -83,7 +82,6 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
 
-	BUG_ON(irq_ptr->nr_input_qs < 1);
 	q = irq_ptr->input_qs[0];
 	/* if establish triggered an error */
 	if (!q || !q->entry.prev || !q->entry.next)
@@ -184,7 +182,7 @@ static void tiqdio_thinint_handler(void *alsi, void *data)
 	struct qdio_q *q;
 
 	last_ai_time = S390_lowcore.int_clock;
-	kstat_cpu(smp_processor_id()).irqs[IOINT_QAI]++;
+	inc_irq_stat(IRQIO_QAI);
 
 	/* protect tiq_list entries, only changed in activate or shutdown */
 	rcu_read_lock();

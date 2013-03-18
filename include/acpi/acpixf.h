@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: acpixf.h - External interfaces to the ACPI subsystem
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20120913
+#define ACPI_CA_VERSION                 0x20130117
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -57,11 +56,20 @@
 extern u8 acpi_gbl_permanent_mmap;
 
 /*
- * Globals that are publicly available, allowing for
- * run time configuration
+ * Globals that are publically available
  */
+extern u32 acpi_current_gpe_count;
+extern struct acpi_table_fadt acpi_gbl_FADT;
+extern u8 acpi_gbl_system_awake_and_running;
+extern u8 acpi_gbl_reduced_hardware;	/* ACPI 5.0 */
+
+/* Runtime configuration of debug print levels */
+
 extern u32 acpi_dbg_level;
 extern u32 acpi_dbg_layer;
+
+/* ACPICA runtime options */
+
 extern u8 acpi_gbl_enable_interpreter_slack;
 extern u8 acpi_gbl_all_methods_serialized;
 extern u8 acpi_gbl_create_osi_method;
@@ -100,14 +108,9 @@ extern u8 acpi_gbl_disable_auto_repair;
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
-extern u32 acpi_current_gpe_count;
-extern struct acpi_table_fadt acpi_gbl_FADT;
-extern u8 acpi_gbl_system_awake_and_running;
-extern u8 acpi_gbl_reduced_hardware;	/* ACPI 5.0 */
-
 extern u32 acpi_rsdt_forced;
 /*
- * Global interfaces
+ * Initialization
  */
 acpi_status
 acpi_initialize_tables(struct acpi_table_desc *initial_storage,
@@ -121,12 +124,14 @@ acpi_status acpi_initialize_objects(u32 flags);
 
 acpi_status acpi_terminate(void);
 
+/*
+ * Miscellaneous global interfaces
+ */
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable(void))
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable(void))
 #ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_subsystem_status(void);
 #endif
-
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable(void))
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable(void))
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_get_system_info(struct acpi_buffer *ret_buffer);
@@ -178,8 +183,7 @@ acpi_status acpi_unload_table_id(acpi_owner_id id);
 
 acpi_status
 acpi_get_table_header(acpi_string signature,
-		      u32 instance,
-		      struct acpi_table_header *out_table_header);
+		      u32 instance, struct acpi_table_header *out_table_header);
 
 acpi_status
 acpi_get_table_with_size(acpi_string signature,
@@ -190,13 +194,12 @@ acpi_get_table(acpi_string signature,
 	       u32 instance, struct acpi_table_header **out_table);
 
 acpi_status
-acpi_get_table_by_index(u32 table_index,
-			struct acpi_table_header **out_table);
+acpi_get_table_by_index(u32 table_index, struct acpi_table_header **out_table);
 
 acpi_status
-acpi_install_table_handler(acpi_tbl_handler handler, void *context);
+acpi_install_table_handler(acpi_table_handler handler, void *context);
 
-acpi_status acpi_remove_table_handler(acpi_tbl_handler handler);
+acpi_status acpi_remove_table_handler(acpi_table_handler handler);
 
 /*
  * Namespace and name interfaces
@@ -274,7 +277,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function);
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_install_global_event_handler
-				(ACPI_GBL_EVENT_HANDLER handler, void *context))
+				(acpi_gbl_event_handler handler, void *context))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				 acpi_install_fixed_event_handler(u32
@@ -300,10 +303,9 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 							 u32 gpe_number,
 							 acpi_gpe_handler
 							 address))
-acpi_status
-acpi_install_notify_handler(acpi_handle device,
-			    u32 handler_type,
-			    acpi_notify_handler handler, void *context);
+acpi_status acpi_install_notify_handler(acpi_handle device, u32 handler_type,
+					acpi_notify_handler handler,
+					void *context);
 
 acpi_status
 acpi_remove_notify_handler(acpi_handle device,
@@ -442,6 +444,11 @@ acpi_get_event_resources(acpi_handle device_handle,
 			 struct acpi_buffer *ret_buffer);
 
 acpi_status
+acpi_walk_resource_buffer(struct acpi_buffer *buffer,
+			  acpi_walk_resource_callback user_function,
+			  void *context);
+
+acpi_status
 acpi_walk_resources(acpi_handle device,
 		    char *name,
 		    acpi_walk_resource_callback user_function, void *context);
@@ -466,6 +473,10 @@ acpi_buffer_to_resource(u8 *aml_buffer,
  */
 acpi_status acpi_reset(void);
 
+acpi_status acpi_read(u64 *value, struct acpi_generic_address *reg);
+
+acpi_status acpi_write(u64 value, struct acpi_generic_address *reg);
+
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_read_bit_register(u32 register_id,
 						       u32 *return_value))
@@ -473,20 +484,6 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_write_bit_register(u32 register_id,
 							u32 value))
-
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vector(u32
-								physical_address))
-
-#if ACPI_MACHINE_WIDTH == 64
-ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
-				acpi_set_firmware_waking_vector64(u64
-								  physical_address))
-#endif
-
-acpi_status acpi_read(u64 *value, struct acpi_generic_address *reg);
-
-acpi_status acpi_write(u64 value, struct acpi_generic_address *reg);
 
 /*
  * Sleep/Wake interfaces
@@ -504,6 +501,15 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state);
 
 acpi_status acpi_leave_sleep_state(u8 sleep_state);
 
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_set_firmware_waking_vector(u32
+								physical_address))
+
+#if ACPI_MACHINE_WIDTH == 64
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_set_firmware_waking_vector64(u64
+								  physical_address))
+#endif
 /*
  * ACPI Timer interfaces
  */

@@ -43,6 +43,10 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	u16 cmd;
 	u8 msix_pos;
 
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+
 	vdev->reset_works = (pci_reset_function(pdev) == 0);
 	pci_save_state(pdev);
 	vdev->pci_saved_state = pci_store_saved_state(pdev);
@@ -51,8 +55,11 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 			 __func__, dev_name(&pdev->dev));
 
 	ret = vfio_config_init(vdev);
-	if (ret)
-		goto out;
+	if (ret) {
+		pci_load_and_free_saved_state(pdev, &vdev->pci_saved_state);
+		pci_disable_device(pdev);
+		return ret;
+	}
 
 	if (likely(!nointxmask))
 		vdev->pci_2_3 = pci_intx_mask_supported(pdev);
@@ -77,24 +84,20 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	} else
 		vdev->msix_bar = 0xFF;
 
-	ret = pci_enable_device(pdev);
-	if (ret)
-		goto out;
+#ifdef CONFIG_VFIO_PCI_VGA
+	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+		vdev->has_vga = true;
+#endif
 
-	return ret;
-
-out:
-	kfree(vdev->pci_saved_state);
-	vdev->pci_saved_state = NULL;
-	vfio_config_free(vdev);
-	return ret;
+	return 0;
 }
 
 static void vfio_pci_disable(struct vfio_pci_device *vdev)
 {
+	struct pci_dev *pdev = vdev->pdev;
 	int bar;
 
-	pci_disable_device(vdev->pdev);
+	pci_disable_device(pdev);
 
 	vfio_pci_set_irqs_ioctl(vdev, VFIO_IRQ_SET_DATA_NONE |
 				VFIO_IRQ_SET_ACTION_TRIGGER,
@@ -104,22 +107,40 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 
 	vfio_config_free(vdev);
 
-	pci_reset_function(vdev->pdev);
-
-	if (pci_load_and_free_saved_state(vdev->pdev,
-					  &vdev->pci_saved_state) == 0)
-		pci_restore_state(vdev->pdev);
-	else
-		pr_info("%s: Couldn't reload %s saved state\n",
-			__func__, dev_name(&vdev->pdev->dev));
-
 	for (bar = PCI_STD_RESOURCES; bar <= PCI_STD_RESOURCE_END; bar++) {
 		if (!vdev->barmap[bar])
 			continue;
-		pci_iounmap(vdev->pdev, vdev->barmap[bar]);
-		pci_release_selected_regions(vdev->pdev, 1 << bar);
+		pci_iounmap(pdev, vdev->barmap[bar]);
+		pci_release_selected_regions(pdev, 1 << bar);
 		vdev->barmap[bar] = NULL;
 	}
+
+	/*
+	 * If we have saved state, restore it.  If we can reset the device,
+	 * even better.  Resetting with current state seems better than
+	 * nothing, but saving and restoring current state without reset
+	 * is just busy work.
+	 */
+	if (pci_load_and_free_saved_state(pdev, &vdev->pci_saved_state)) {
+		pr_info("%s: Couldn't reload %s saved state\n",
+			__func__, dev_name(&pdev->dev));
+
+		if (!vdev->reset_works)
+			return;
+
+		pci_save_state(pdev);
+	}
+
+	/*
+	 * Disable INTx and MSI, presumably to avoid spurious interrupts
+	 * during reset.  Stolen from pci_reset_function()
+	 */
+	pci_write_config_word(pdev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
+
+	if (vdev->reset_works)
+		__pci_reset_function(pdev);
+
+	pci_restore_state(pdev);
 }
 
 static void vfio_pci_release(void *device_data)
@@ -269,6 +290,16 @@ static long vfio_pci_ioctl(void *device_data,
 			info.flags = VFIO_REGION_INFO_FLAG_READ;
 			break;
 		}
+		case VFIO_PCI_VGA_REGION_INDEX:
+			if (!vdev->has_vga)
+				return -EINVAL;
+
+			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
+			info.size = 0xc0000;
+			info.flags = VFIO_REGION_INFO_FLAG_READ |
+				     VFIO_REGION_INFO_FLAG_WRITE;
+
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -327,15 +358,10 @@ static long vfio_pci_ioctl(void *device_data,
 			    hdr.count > vfio_pci_get_irq_count(vdev, hdr.index))
 				return -EINVAL;
 
-			data = kmalloc(hdr.count * size, GFP_KERNEL);
-			if (!data)
-				return -ENOMEM;
-
-			if (copy_from_user(data, (void __user *)(arg + minsz),
-					   hdr.count * size)) {
-				kfree(data);
-				return -EFAULT;
-			}
+			data = memdup_user((void __user *)(arg + minsz),
+					   hdr.count * size);
+			if (IS_ERR(data))
+				return PTR_ERR(data);
 		}
 
 		mutex_lock(&vdev->igate);
@@ -355,52 +381,50 @@ static long vfio_pci_ioctl(void *device_data,
 	return -ENOTTY;
 }
 
-static ssize_t vfio_pci_read(void *device_data, char __user *buf,
-			     size_t count, loff_t *ppos)
+static ssize_t vfio_pci_rw(void *device_data, char __user *buf,
+			   size_t count, loff_t *ppos, bool iswrite)
 {
 	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
 	struct vfio_pci_device *vdev = device_data;
-	struct pci_dev *pdev = vdev->pdev;
 
 	if (index >= VFIO_PCI_NUM_REGIONS)
 		return -EINVAL;
 
-	if (index == VFIO_PCI_CONFIG_REGION_INDEX)
-		return vfio_pci_config_readwrite(vdev, buf, count, ppos, false);
-	else if (index == VFIO_PCI_ROM_REGION_INDEX)
-		return vfio_pci_mem_readwrite(vdev, buf, count, ppos, false);
-	else if (pci_resource_flags(pdev, index) & IORESOURCE_IO)
-		return vfio_pci_io_readwrite(vdev, buf, count, ppos, false);
-	else if (pci_resource_flags(pdev, index) & IORESOURCE_MEM)
-		return vfio_pci_mem_readwrite(vdev, buf, count, ppos, false);
+	switch (index) {
+	case VFIO_PCI_CONFIG_REGION_INDEX:
+		return vfio_pci_config_rw(vdev, buf, count, ppos, iswrite);
+
+	case VFIO_PCI_ROM_REGION_INDEX:
+		if (iswrite)
+			return -EINVAL;
+		return vfio_pci_bar_rw(vdev, buf, count, ppos, false);
+
+	case VFIO_PCI_BAR0_REGION_INDEX ... VFIO_PCI_BAR5_REGION_INDEX:
+		return vfio_pci_bar_rw(vdev, buf, count, ppos, iswrite);
+
+	case VFIO_PCI_VGA_REGION_INDEX:
+		return vfio_pci_vga_rw(vdev, buf, count, ppos, iswrite);
+	}
 
 	return -EINVAL;
+}
+
+static ssize_t vfio_pci_read(void *device_data, char __user *buf,
+			     size_t count, loff_t *ppos)
+{
+	if (!count)
+		return 0;
+
+	return vfio_pci_rw(device_data, buf, count, ppos, false);
 }
 
 static ssize_t vfio_pci_write(void *device_data, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
-	struct vfio_pci_device *vdev = device_data;
-	struct pci_dev *pdev = vdev->pdev;
+	if (!count)
+		return 0;
 
-	if (index >= VFIO_PCI_NUM_REGIONS)
-		return -EINVAL;
-
-	if (index == VFIO_PCI_CONFIG_REGION_INDEX)
-		return vfio_pci_config_readwrite(vdev, (char __user *)buf,
-						 count, ppos, true);
-	else if (index == VFIO_PCI_ROM_REGION_INDEX)
-		return -EINVAL;
-	else if (pci_resource_flags(pdev, index) & IORESOURCE_IO)
-		return vfio_pci_io_readwrite(vdev, (char __user *)buf,
-					     count, ppos, true);
-	else if (pci_resource_flags(pdev, index) & IORESOURCE_MEM) {
-		return vfio_pci_mem_readwrite(vdev, (char __user *)buf,
-					      count, ppos, true);
-	}
-
-	return -EINVAL;
+	return vfio_pci_rw(device_data, (char __user *)buf, count, ppos, true);
 }
 
 static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)
@@ -562,9 +586,9 @@ static int __init vfio_pci_init(void)
 
 	return 0;
 
-out_virqfd:
-	vfio_pci_virqfd_exit();
 out_driver:
+	vfio_pci_virqfd_exit();
+out_virqfd:
 	vfio_pci_uninit_perm_bits();
 	return ret;
 }

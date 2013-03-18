@@ -516,7 +516,7 @@ static void adnp_irq_teardown(struct adnp *adnp)
 	irq_domain_remove(adnp->domain);
 }
 
-static __devinit int adnp_i2c_probe(struct i2c_client *client,
+static int adnp_i2c_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
 	struct device_node *np = client->dev.of_node;
@@ -563,7 +563,7 @@ teardown:
 	return err;
 }
 
-static __devexit int adnp_i2c_remove(struct i2c_client *client)
+static int adnp_i2c_remove(struct i2c_client *client)
 {
 	struct adnp *adnp = i2c_get_clientdata(client);
 	struct device_node *np = client->dev.of_node;
@@ -582,13 +582,13 @@ static __devexit int adnp_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id adnp_i2c_id[] __devinitconst = {
+static const struct i2c_device_id adnp_i2c_id[] = {
 	{ "gpio-adnp" },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, adnp_i2c_id);
 
-static const struct of_device_id adnp_of_match[] __devinitconst = {
+static const struct of_device_id adnp_of_match[] = {
 	{ .compatible = "ad,gpio-adnp", },
 	{ },
 };
@@ -601,7 +601,7 @@ static struct i2c_driver adnp_i2c_driver = {
 		.of_match_table = of_match_ptr(adnp_of_match),
 	},
 	.probe = adnp_i2c_probe,
-	.remove = __devexit_p(adnp_i2c_remove),
+	.remove = adnp_i2c_remove,
 	.id_table = adnp_i2c_id,
 };
 module_i2c_driver(adnp_i2c_driver);

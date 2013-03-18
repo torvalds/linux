@@ -121,6 +121,8 @@ static int btrfs_set_acl(struct btrfs_trans_handle *trans,
 			ret = posix_acl_equiv_mode(acl, &inode->i_mode);
 			if (ret < 0)
 				return ret;
+			if (ret == 0)
+				acl = NULL;
 		}
 		ret = 0;
 		break;

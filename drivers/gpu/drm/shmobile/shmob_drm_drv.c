@@ -33,7 +33,7 @@
  * Hardware initialization
  */
 
-static int __devinit shmob_drm_init_interface(struct shmob_drm_device *sdev)
+static int shmob_drm_init_interface(struct shmob_drm_device *sdev)
 {
 	static const u32 ldmt1r[] = {
 		[SHMOB_DRM_IFACE_RGB8] = LDMT1R_MIFTYP_RGB8,
@@ -67,7 +67,7 @@ static int __devinit shmob_drm_init_interface(struct shmob_drm_device *sdev)
 	return 0;
 }
 
-static int __devinit shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
+static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
 					    enum shmob_drm_clk_source clksrc)
 {
 	struct clk *clk;
@@ -313,9 +313,9 @@ static int shmob_drm_pm_resume(struct device *dev)
 {
 	struct shmob_drm_device *sdev = dev_get_drvdata(dev);
 
-	mutex_lock(&sdev->ddev->mode_config.mutex);
+	drm_modeset_lock_all(sdev->ddev);
 	shmob_drm_crtc_resume(&sdev->crtc);
-	mutex_unlock(&sdev->ddev->mode_config.mutex);
+	drm_modeset_unlock_all(sdev->ddev);
 
 	drm_kms_helper_poll_enable(sdev->ddev);
 	return 0;
@@ -330,12 +330,12 @@ static const struct dev_pm_ops shmob_drm_pm_ops = {
  * Platform driver
  */
 
-static int __devinit shmob_drm_probe(struct platform_device *pdev)
+static int shmob_drm_probe(struct platform_device *pdev)
 {
 	return drm_platform_init(&shmob_drm_driver, pdev);
 }
 
-static int __devexit shmob_drm_remove(struct platform_device *pdev)
+static int shmob_drm_remove(struct platform_device *pdev)
 {
 	drm_platform_exit(&shmob_drm_driver, pdev);
 
@@ -344,7 +344,7 @@ static int __devexit shmob_drm_remove(struct platform_device *pdev)
 
 static struct platform_driver shmob_drm_platform_driver = {
 	.probe		= shmob_drm_probe,
-	.remove		= __devexit_p(shmob_drm_remove),
+	.remove		= shmob_drm_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "shmob-drm",

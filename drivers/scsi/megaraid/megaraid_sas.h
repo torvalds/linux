@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.504.01.00-rc1"
-#define MEGASAS_RELDATE				"Oct. 1, 2012"
-#define MEGASAS_EXT_VERSION			"Mon. Oct. 1 17:00:00 PDT 2012"
+#define MEGASAS_VERSION				"06.506.00.00-rc1"
+#define MEGASAS_RELDATE				"Feb. 9, 2013"
+#define MEGASAS_EXT_VERSION			"Sat. Feb. 9 17:00:00 PDT 2013"
 
 /*
  * Device IDs
@@ -1276,7 +1276,7 @@ struct megasas_evt_detail {
 } __attribute__ ((packed));
 
 struct megasas_aen_event {
-	struct work_struct hotplug_work;
+	struct delayed_work hotplug_work;
 	struct megasas_instance *instance;
 };
 

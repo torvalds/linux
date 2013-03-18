@@ -1,0 +1,23 @@
+What:		/sys/class/leds/blink1::<serial>/rgb
+Date:		January 2013
+Contact:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+Description:	The ThingM blink1 is an USB RGB LED. The color notation is
+		3-byte hexadecimal. Read this attribute to get the last set
+		color. Write the 24-bit hexadecimal color to change the current
+		LED color. The default color is full white (0xFFFFFF).
+		For instance, set the color to green with: echo 00FF00 > rgb
+
+What:		/sys/class/leds/blink1::<serial>/fade
+Date:		January 2013
+Contact:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+Description:	This attribute allows to set a fade time in milliseconds for
+		the next color change. Read the attribute to know the current
+		fade time. The default value is set to 0 (no fade time). For
+		instance, set a fade time of 2 seconds with: echo 2000 > fade
+
+What:		/sys/class/leds/blink1::<serial>/play
+Date:		January 2013
+Contact:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+Description:	This attribute is used to play/pause the light patterns. Write 1
+		to start playing, 0 to stop. Reading this attribute returns the
+		current playing status.

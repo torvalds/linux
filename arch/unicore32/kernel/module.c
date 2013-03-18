@@ -27,9 +27,6 @@ void *module_alloc(unsigned long size)
 	struct vm_struct *area;
 
 	size = PAGE_ALIGN(size);
-	if (!size)
-		return NULL;
-
 	area = __get_vm_area(size, VM_ALLOC, MODULES_VADDR, MODULES_END);
 	if (!area)
 		return NULL;

@@ -13,8 +13,7 @@
 #include <linux/linkage.h>
 #include <mach/hardware.h>
 #include <mach/at91_ramc.h>
-#include <mach/at91_rstc.h>
-
+#include "at91_rstc.h"
 			.arm
 
 			.globl	at91sam9g45_restart

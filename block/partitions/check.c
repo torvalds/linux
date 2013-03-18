@@ -14,6 +14,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>
 
@@ -106,18 +107,45 @@ static int (*check_part[])(struct parsed_partitions *) = {
 	NULL
 };
 
+static struct parsed_partitions *allocate_partitions(struct gendisk *hd)
+{
+	struct parsed_partitions *state;
+	int nr;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	nr = disk_max_parts(hd);
+	state->parts = vzalloc(nr * sizeof(state->parts[0]));
+	if (!state->parts) {
+		kfree(state);
+		return NULL;
+	}
+
+	state->limit = nr;
+
+	return state;
+}
+
+void free_partitions(struct parsed_partitions *state)
+{
+	vfree(state->parts);
+	kfree(state);
+}
+
 struct parsed_partitions *
 check_partition(struct gendisk *hd, struct block_device *bdev)
 {
 	struct parsed_partitions *state;
 	int i, res, err;
 
-	state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
+	state = allocate_partitions(hd);
 	if (!state)
 		return NULL;
 	state->pp_buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!state->pp_buf) {
-		kfree(state);
+		free_partitions(state);
 		return NULL;
 	}
 	state->pp_buf[0] = '\0';
@@ -128,10 +156,9 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	if (isdigit(state->name[strlen(state->name)-1]))
 		sprintf(state->name, "p");
 
-	state->limit = disk_max_parts(hd);
 	i = res = err = 0;
 	while (!res && check_part[i]) {
-		memset(&state->parts, 0, sizeof(state->parts));
+		memset(state->parts, 0, state->limit * sizeof(state->parts[0]));
 		res = check_part[i++](state);
 		if (res < 0) {
 			/* We have hit an I/O error which we don't report now.
@@ -161,6 +188,6 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	printk(KERN_INFO "%s", state->pp_buf);
 
 	free_page((unsigned long)state->pp_buf);
-	kfree(state);
+	free_partitions(state);
 	return ERR_PTR(res);
 }

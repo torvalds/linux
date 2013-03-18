@@ -37,6 +37,8 @@
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/pat.h>
+#include <asm/microcode.h>
+#include <asm/microcode_intel.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/uv/uv.h>
@@ -213,7 +215,7 @@ static inline int flag_is_changeable_p(u32 flag)
 }
 
 /* Probe for the CPUID instruction */
-static int __cpuinit have_cpuid_p(void)
+int __cpuinit have_cpuid_p(void)
 {
 	return flag_is_changeable_p(X86_EFLAGS_ID);
 }
@@ -246,11 +248,6 @@ static int __init x86_serial_nr_setup(char *s)
 __setup("serialnumber", x86_serial_nr_setup);
 #else
 static inline int flag_is_changeable_p(u32 flag)
-{
-	return 1;
-}
-/* Probe for the CPUID instruction */
-static inline int have_cpuid_p(void)
 {
 	return 1;
 }
@@ -1173,15 +1170,6 @@ DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
 #endif
 
-/* Make sure %fs and %gs are initialized properly in idle threads */
-struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
-{
-	memset(regs, 0, sizeof(struct pt_regs));
-	regs->fs = __KERNEL_PERCPU;
-	regs->gs = __KERNEL_STACK_CANARY;
-
-	return regs;
-}
 #endif	/* CONFIG_X86_64 */
 
 /*
@@ -1232,12 +1220,18 @@ void __cpuinit cpu_init(void)
 	int cpu;
 	int i;
 
+	/*
+	 * Load microcode on this cpu if a valid microcode is available.
+	 * This is early microcode loading procedure.
+	 */
+	load_ucode_ap();
+
 	cpu = stack_smp_processor_id();
 	t = &per_cpu(init_tss, cpu);
 	oist = &per_cpu(orig_ist, cpu);
 
 #ifdef CONFIG_NUMA
-	if (cpu != 0 && this_cpu_read(numa_node) == 0 &&
+	if (this_cpu_read(numa_node) == 0 &&
 	    early_cpu_to_node(cpu) != NUMA_NO_NODE)
 		set_numa_node(early_cpu_to_node(cpu));
 #endif
@@ -1269,8 +1263,7 @@ void __cpuinit cpu_init(void)
 	barrier();
 
 	x86_configure_nx();
-	if (cpu != 0)
-		enable_x2apic();
+	enable_x2apic();
 
 	/*
 	 * set up and load the per-CPU TSS
@@ -1323,6 +1316,8 @@ void __cpuinit cpu_init(void)
 	struct task_struct *curr = current;
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
 	struct thread_struct *thread = &curr->thread;
+
+	show_ucode_info_early();
 
 	if (cpumask_test_and_set_cpu(cpu, cpu_initialized_mask)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);

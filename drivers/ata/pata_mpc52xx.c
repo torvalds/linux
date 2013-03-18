@@ -26,9 +26,9 @@
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>
 
-#include <sysdev/bestcomm/bestcomm.h>
-#include <sysdev/bestcomm/bestcomm_priv.h>
-#include <sysdev/bestcomm/ata.h>
+#include <linux/fsl/bestcomm/bestcomm.h>
+#include <linux/fsl/bestcomm/bestcomm_priv.h>
+#include <linux/fsl/bestcomm/ata.h>
 
 #define DRV_NAME	"mpc52xx_ata"
 
@@ -621,9 +621,10 @@ static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.qc_prep		= ata_noop_qc_prep,
 };
 
-static int __devinit
-mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv,
-		     unsigned long raw_ata_regs, int mwdma_mask, int udma_mask)
+static int mpc52xx_ata_init_one(struct device *dev,
+				struct mpc52xx_ata_priv *priv,
+				unsigned long raw_ata_regs,
+				int mwdma_mask, int udma_mask)
 {
 	struct ata_host *host;
 	struct ata_port *ap;
@@ -663,24 +664,11 @@ mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv,
 				 &mpc52xx_ata_sht);
 }
 
-static struct mpc52xx_ata_priv *
-mpc52xx_ata_remove_one(struct device *dev)
-{
-	struct ata_host *host = dev_get_drvdata(dev);
-	struct mpc52xx_ata_priv *priv = host->private_data;
-
-	ata_host_detach(host);
-
-	return priv;
-}
-
-
 /* ======================================================================== */
 /* OF Platform driver                                                       */
 /* ======================================================================== */
 
-static int __devinit
-mpc52xx_ata_probe(struct platform_device *op)
+static int mpc52xx_ata_probe(struct platform_device *op)
 {
 	unsigned int ipb_freq;
 	struct resource res_mem;
@@ -815,11 +803,12 @@ mpc52xx_ata_probe(struct platform_device *op)
 static int
 mpc52xx_ata_remove(struct platform_device *op)
 {
-	struct mpc52xx_ata_priv *priv;
+	struct ata_host *host = platform_get_drvdata(op);
+	struct mpc52xx_ata_priv *priv = host->private_data;
 	int task_irq;
 
 	/* Deregister the ATA interface */
-	priv = mpc52xx_ata_remove_one(&op->dev);
+	ata_platform_remove_one(op);
 
 	/* Clean up DMA */
 	task_irq = bcom_get_task_irq(priv->dmatsk);

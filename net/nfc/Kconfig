@@ -3,8 +3,8 @@
 #
 
 menuconfig NFC
-	depends on NET && EXPERIMENTAL
-	tristate "NFC subsystem support (EXPERIMENTAL)"
+	depends on NET
+	tristate "NFC subsystem support"
 	default n
 	help
 	  Say Y here if you want to build support for NFC (Near field

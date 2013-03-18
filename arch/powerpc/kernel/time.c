@@ -143,7 +143,7 @@ EXPORT_SYMBOL_GPL(ppc_proc_freq);
 unsigned long ppc_tb_freq;
 EXPORT_SYMBOL_GPL(ppc_tb_freq);
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /*
  * Factors for converting from cputime_t (timebase ticks) to
  * jiffies, microseconds, seconds, and clock_t (1/USER_HZ seconds).
@@ -297,6 +297,8 @@ static u64 vtime_delta(struct task_struct *tsk,
 	u64 now, nowscaled, deltascaled;
 	u64 udelta, delta, user_scaled;
 
+	WARN_ON_ONCE(!irqs_disabled());
+
 	now = mftb();
 	nowscaled = read_spurr(now);
 	get_paca()->system_time += now - get_paca()->starttime;
@@ -345,6 +347,7 @@ void vtime_account_system(struct task_struct *tsk)
 	if (stolen)
 		account_steal_time(stolen);
 }
+EXPORT_SYMBOL_GPL(vtime_account_system);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
@@ -355,15 +358,15 @@ void vtime_account_idle(struct task_struct *tsk)
 }
 
 /*
- * Transfer the user and system times accumulated in the paca
- * by the exception entry and exit code to the generic process
- * user and system time records.
+ * Transfer the user time accumulated in the paca
+ * by the exception entry and exit code to the generic
+ * process user time records.
  * Must be called with interrupts disabled.
- * Assumes that vtime_account() has been called recently
- * (i.e. since the last entry from usermode) so that
+ * Assumes that vtime_account_system/idle() has been called
+ * recently (i.e. since the last entry from usermode) so that
  * get_paca()->user_time_scaled is up to date.
  */
-void account_process_tick(struct task_struct *tsk, int user_tick)
+void vtime_account_user(struct task_struct *tsk)
 {
 	cputime_t utime, utimescaled;
 
@@ -375,13 +378,7 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 	account_user_time(tsk, utime, utimescaled);
 }
 
-void vtime_task_switch(struct task_struct *prev)
-{
-	vtime_account(prev);
-	account_process_tick(prev, 0);
-}
-
-#else /* ! CONFIG_VIRT_CPU_ACCOUNTING */
+#else /* ! CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 #define calc_cputime_factors()
 #endif
 
@@ -498,10 +495,15 @@ void timer_interrupt(struct pt_regs * regs)
 	set_dec(DECREMENTER_MAX);
 
 	/* Some implementations of hotplug will get timer interrupts while
-	 * offline, just ignore these
+	 * offline, just ignore these and we also need to set
+	 * decrementers_next_tb as MAX to make sure __check_irq_replay
+	 * don't replay timer interrupt when return, otherwise we'll trap
+	 * here infinitely :(
 	 */
-	if (!cpu_online(smp_processor_id()))
+	if (!cpu_online(smp_processor_id())) {
+		*next_tb = ~(u64)0;
 		return;
+	}
 
 	/* Conditionally hard-enable interrupts now that the DEC has been
 	 * bumped to its maximum value
@@ -667,7 +669,7 @@ int update_persistent_clock(struct timespec now)
 	struct rtc_time tm;
 
 	if (!ppc_md.set_rtc_time)
-		return 0;
+		return -ENODEV;
 
 	to_tm(now.tv_sec + 1 + timezone_offset, &tm);
 	tm.tm_year -= 1900;
@@ -774,13 +776,8 @@ void update_vsyscall_old(struct timespec *wall_time, struct timespec *wtm,
 
 void update_vsyscall_tz(void)
 {
-	/* Make userspace gettimeofday spin until we're done. */
-	++vdso_data->tb_update_count;
-	smp_mb();
 	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
 	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
-	smp_mb();
-	++vdso_data->tb_update_count;
 }
 
 static void __init clocksource_init(void)

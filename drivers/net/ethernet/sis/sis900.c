@@ -81,7 +81,7 @@
 #define SIS900_MODULE_NAME "sis900"
 #define SIS900_DRV_VERSION "v1.08.10 Apr. 2 2006"
 
-static const char version[] __devinitconst =
+static const char version[] =
 	KERN_INFO "sis900.c: " SIS900_DRV_VERSION "\n";
 
 static int max_interrupt_work = 40;
@@ -247,11 +247,11 @@ static const struct ethtool_ops sis900_ethtool_ops;
  *	@net_dev: the net device to get address for
  *
  *	Older SiS900 and friends, use EEPROM to store MAC address.
- *	MAC address is read from read_eeprom() into @net_dev->dev_addr and
- *	@net_dev->perm_addr.
+ *	MAC address is read from read_eeprom() into @net_dev->dev_addr.
  */
 
-static int __devinit sis900_get_mac_addr(struct pci_dev * pci_dev, struct net_device *net_dev)
+static int sis900_get_mac_addr(struct pci_dev *pci_dev,
+			       struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
@@ -270,9 +270,6 @@ static int __devinit sis900_get_mac_addr(struct pci_dev * pci_dev, struct net_de
 	for (i = 0; i < 3; i++)
 	        ((u16 *)(net_dev->dev_addr))[i] = read_eeprom(ioaddr, i+EEPROMMACAddr);
 
-	/* Store MAC Address in perm_addr */
-	memcpy(net_dev->perm_addr, net_dev->dev_addr, ETH_ALEN);
-
 	return 1;
 }
 
@@ -283,12 +280,11 @@ static int __devinit sis900_get_mac_addr(struct pci_dev * pci_dev, struct net_de
  *
  *	SiS630E model, use APC CMOS RAM to store MAC address.
  *	APC CMOS RAM is accessed through ISA bridge.
- *	MAC address is read into @net_dev->dev_addr and
- *	@net_dev->perm_addr.
+ *	MAC address is read into @net_dev->dev_addr.
  */
 
-static int __devinit sis630e_get_mac_addr(struct pci_dev * pci_dev,
-					struct net_device *net_dev)
+static int sis630e_get_mac_addr(struct pci_dev *pci_dev,
+				struct net_device *net_dev)
 {
 	struct pci_dev *isa_bridge = NULL;
 	u8 reg;
@@ -310,9 +306,6 @@ static int __devinit sis630e_get_mac_addr(struct pci_dev * pci_dev,
 		((u8 *)(net_dev->dev_addr))[i] = inb(0x71);
 	}
 
-	/* Store MAC Address in perm_addr */
-	memcpy(net_dev->perm_addr, net_dev->dev_addr, ETH_ALEN);
-
 	pci_write_config_byte(isa_bridge, 0x48, reg & ~0x40);
 	pci_dev_put(isa_bridge);
 
@@ -327,11 +320,11 @@ static int __devinit sis630e_get_mac_addr(struct pci_dev * pci_dev,
  *
  *	SiS635 model, set MAC Reload Bit to load Mac address from APC
  *	to rfdr. rfdr is accessed through rfcr. MAC address is read into
- *	@net_dev->dev_addr and @net_dev->perm_addr.
+ *	@net_dev->dev_addr.
  */
 
-static int __devinit sis635_get_mac_addr(struct pci_dev * pci_dev,
-					struct net_device *net_dev)
+static int sis635_get_mac_addr(struct pci_dev *pci_dev,
+			       struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
@@ -352,9 +345,6 @@ static int __devinit sis635_get_mac_addr(struct pci_dev * pci_dev,
 		*( ((u16 *)net_dev->dev_addr) + i) = sr16(rfdr);
 	}
 
-	/* Store MAC Address in perm_addr */
-	memcpy(net_dev->perm_addr, net_dev->dev_addr, ETH_ALEN);
-
 	/* enable packet filtering */
 	sw32(rfcr, rfcrSave | RFEN);
 
@@ -374,11 +364,11 @@ static int __devinit sis635_get_mac_addr(struct pci_dev * pci_dev,
  *	EEDONE signal to refuse EEPROM access by LAN.
  *	The EEPROM map of SiS962 or SiS963 is different to SiS900.
  *	The signature field in SiS962 or SiS963 spec is meaningless.
- *	MAC address is read into @net_dev->dev_addr and @net_dev->perm_addr.
+ *	MAC address is read into @net_dev->dev_addr.
  */
 
-static int __devinit sis96x_get_mac_addr(struct pci_dev * pci_dev,
-					struct net_device *net_dev)
+static int sis96x_get_mac_addr(struct pci_dev *pci_dev,
+			       struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	void __iomem *ioaddr = sis_priv->ioaddr;
@@ -393,9 +383,6 @@ static int __devinit sis96x_get_mac_addr(struct pci_dev * pci_dev,
 			/* get MAC address from EEPROM */
 			for (i = 0; i < 3; i++)
 			        mac[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
-
-			/* Store MAC Address in perm_addr */
-			memcpy(net_dev->perm_addr, net_dev->dev_addr, ETH_ALEN);
 
 			rc = 1;
 			break;
@@ -433,8 +420,8 @@ static const struct net_device_ops sis900_netdev_ops = {
  *	ie: sis900_open(), sis900_start_xmit(), sis900_close(), etc.
  */
 
-static int __devinit sis900_probe(struct pci_dev *pci_dev,
-				const struct pci_device_id *pci_id)
+static int sis900_probe(struct pci_dev *pci_dev,
+			const struct pci_device_id *pci_id)
 {
 	struct sis900_private *sis_priv;
 	struct net_device *net_dev;
@@ -605,7 +592,7 @@ err_out_cleardev:
  *	return error if it failed to found.
  */
 
-static int __devinit sis900_mii_probe(struct net_device * net_dev)
+static int sis900_mii_probe(struct net_device *net_dev)
 {
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	const char *dev_name = pci_name(sis_priv->pci_dev);
@@ -824,7 +811,7 @@ static void sis900_set_capability(struct net_device *net_dev, struct mii_phy *ph
  *	Note that location is in word (16 bits) unit
  */
 
-static u16 __devinit read_eeprom(void __iomem *ioaddr, int location)
+static u16 read_eeprom(void __iomem *ioaddr, int location)
 {
 	u32 read_cmd = location | EEread;
 	int i;
@@ -2410,7 +2397,7 @@ static void sis900_reset(struct net_device *net_dev)
  *	remove and release SiS900 net device
  */
 
-static void __devexit sis900_remove(struct pci_dev *pci_dev)
+static void sis900_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *net_dev = pci_get_drvdata(pci_dev);
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
@@ -2479,7 +2466,7 @@ static int sis900_resume(struct pci_dev *pci_dev)
 	netif_start_queue(net_dev);
 
 	/* Workaround for EDB */
-	sis900_set_mode(ioaddr, HW_SPEED_10_MBPS, FDX_CAPABLE_HALF_SELECTED);
+	sis900_set_mode(sis_priv, HW_SPEED_10_MBPS, FDX_CAPABLE_HALF_SELECTED);
 
 	/* Enable all known interrupts by setting the interrupt mask. */
 	sw32(imr, RxSOVR | RxORN | RxERR | RxOK | TxURN | TxERR | TxIDLE);
@@ -2496,7 +2483,7 @@ static struct pci_driver sis900_pci_driver = {
 	.name		= SIS900_MODULE_NAME,
 	.id_table	= sis900_pci_tbl,
 	.probe		= sis900_probe,
-	.remove		= __devexit_p(sis900_remove),
+	.remove		= sis900_remove,
 #ifdef CONFIG_PM
 	.suspend	= sis900_suspend,
 	.resume		= sis900_resume,

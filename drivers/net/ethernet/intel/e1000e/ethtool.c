@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -35,6 +35,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
+#include <linux/mdio.h>
+#include <linux/pm_runtime.h>
 
 #include "e1000.h"
 
@@ -98,7 +100,6 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_STAT("rx_flow_control_xoff", stats.xoffrxc),
 	E1000_STAT("tx_flow_control_xon", stats.xontxc),
 	E1000_STAT("tx_flow_control_xoff", stats.xofftxc),
-	E1000_STAT("rx_long_byte_count", stats.gorc),
 	E1000_STAT("rx_csum_offload_good", hw_csum_good),
 	E1000_STAT("rx_csum_offload_errors", hw_csum_err),
 	E1000_STAT("rx_header_split", rx_hdr_split),
@@ -108,6 +109,9 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_STAT("dropped_smbus", stats.mgpdc),
 	E1000_STAT("rx_dma_failed", rx_dma_failed),
 	E1000_STAT("tx_dma_failed", tx_dma_failed),
+	E1000_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+	E1000_STAT("uncorr_ecc_errors", uncorr_errors),
+	E1000_STAT("corr_ecc_errors", corr_errors),
 };
 
 #define E1000_GLOBAL_STATS_LEN	ARRAY_SIZE(e1000_gstrings_stats)
@@ -127,7 +131,6 @@ static int e1000_get_settings(struct net_device *netdev,
 	u32 speed;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
-
 		ecmd->supported = (SUPPORTED_10baseT_Half |
 				   SUPPORTED_10baseT_Full |
 				   SUPPORTED_100baseT_Half |
@@ -214,7 +217,8 @@ static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 	mac->autoneg = 0;
 
 	/* Make sure dplx is at most 1 bit and lsb of speed is not set
-	 * for the switch() below to work */
+	 * for the switch() below to work
+	 */
 	if ((spd & 1) || (dplx & ~1))
 		goto err_inval;
 
@@ -263,8 +267,7 @@ static int e1000_set_settings(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	/*
-	 * When SoL/IDER sessions are active, autoneg/speed/duplex
+	/* When SoL/IDER sessions are active, autoneg/speed/duplex
 	 * cannot be changed
 	 */
 	if (hw->phy.ops.check_reset_block &&
@@ -273,8 +276,7 @@ static int e1000_set_settings(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	/*
-	 * MDI setting is only allowed when autoneg enabled because
+	/* MDI setting is only allowed when autoneg enabled because
 	 * some hardware doesn't allow MDI setting when speed or
 	 * duplex is forced.
 	 */
@@ -316,8 +318,7 @@ static int e1000_set_settings(struct net_device *netdev,
 
 	/* MDI-X => 2; MDI => 1; Auto => 3 */
 	if (ecmd->eth_tp_mdix_ctrl) {
-		/*
-		 * fix up the value for auto (3 => 0) as zero is mapped
+		/* fix up the value for auto (3 => 0) as zero is mapped
 		 * internally to auto
 		 */
 		if (ecmd->eth_tp_mdix_ctrl == ETH_TP_MDI_AUTO)
@@ -327,12 +328,12 @@ static int e1000_set_settings(struct net_device *netdev,
 	}
 
 	/* reset the link */
-
 	if (netif_running(adapter->netdev)) {
 		e1000e_down(adapter);
 		e1000e_up(adapter);
-	} else
+	} else {
 		e1000e_reset(adapter);
+	}
 
 	clear_bit(__E1000_RESETTING, &adapter->state);
 	return 0;
@@ -417,7 +418,7 @@ static void e1000_set_msglevel(struct net_device *netdev, u32 data)
 	adapter->msg_enable = data;
 }
 
-static int e1000_get_regs_len(struct net_device *netdev)
+static int e1000_get_regs_len(struct net_device __always_unused *netdev)
 {
 #define E1000_REGS_LEN 32 /* overestimate */
 	return E1000_REGS_LEN * sizeof(u32);
@@ -454,8 +455,8 @@ static void e1000_get_regs(struct net_device *netdev,
 	regs_buff[12] = adapter->hw.phy.type;  /* PHY type (IGP=1, M88=0) */
 
 	/* ethtool doesn't use anything past this point, so all this
-	 * code is likely legacy junk for apps that may or may not
-	 * exist */
+	 * code is likely legacy junk for apps that may or may not exist
+	 */
 	if (hw->phy.type == e1000_phy_m88) {
 		e1e_rphy(hw, M88E1000_PHY_SPEC_STATUS, &phy_data);
 		regs_buff[13] = (u32)phy_data; /* cable length */
@@ -471,10 +472,10 @@ static void e1000_get_regs(struct net_device *netdev,
 		regs_buff[22] = adapter->phy_stats.receive_errors;
 		regs_buff[23] = regs_buff[13]; /* mdix mode */
 	}
-	regs_buff[21] = 0; /* was idle_errors */
-	e1e_rphy(hw, PHY_1000T_STATUS, &phy_data);
-	regs_buff[24] = (u32)phy_data;  /* phy local receiver status */
-	regs_buff[25] = regs_buff[24];  /* phy remote receiver status */
+	regs_buff[21] = 0;	/* was idle_errors */
+	e1e_rphy(hw, MII_STAT1000, &phy_data);
+	regs_buff[24] = (u32)phy_data;	/* phy local receiver status */
+	regs_buff[25] = regs_buff[24];	/* phy remote receiver status */
 }
 
 static int e1000_get_eeprom_len(struct net_device *netdev)
@@ -598,8 +599,7 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	if (ret_val)
 		goto out;
 
-	/*
-	 * Update the checksum over the first part of the EEPROM if needed
+	/* Update the checksum over the first part of the EEPROM if needed
 	 * and flush shadow RAM for applicable controllers
 	 */
 	if ((first_word <= NVM_CHECKSUM_REG) ||
@@ -623,8 +623,7 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, e1000e_driver_version,
 		sizeof(drvinfo->version));
 
-	/*
-	 * EEPROM image version # is reported as firmware version # for
+	/* EEPROM image version # is reported as firmware version # for
 	 * PCI-E controllers
 	 */
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
@@ -708,8 +707,7 @@ static int e1000_set_ringparam(struct net_device *netdev,
 
 	e1000e_down(adapter);
 
-	/*
-	 * We can't just free everything and then setup again, because the
+	/* We can't just free everything and then setup again, because the
 	 * ISRs in MSI-X mode get passed pointers to the Tx and Rx ring
 	 * structs.  First, attempt to allocate new resources...
 	 */
@@ -764,8 +762,9 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
 				      (test[pat] & write));
 		val = E1000_READ_REG_ARRAY(&adapter->hw, reg, offset);
 		if (val != (test[pat] & write & mask)) {
-			e_err("pattern test reg %04X failed: got 0x%08X expected 0x%08X\n",
-			      reg + offset, val, (test[pat] & write & mask));
+			e_err("pattern test failed (reg 0x%05X): got 0x%08X expected 0x%08X\n",
+			      reg + (offset << 2), val,
+			      (test[pat] & write & mask));
 			*data = reg;
 			return 1;
 		}
@@ -780,7 +779,7 @@ static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
 	__ew32(&adapter->hw, reg, write & mask);
 	val = __er32(&adapter->hw, reg);
 	if ((write & mask) != (val & mask)) {
-		e_err("set/check reg %04X test failed: got 0x%08X expected 0x%08X\n",
+		e_err("set/check test failed (reg 0x%05X): got 0x%08X expected 0x%08X\n",
 		      reg, (val & mask), (write & mask));
 		*data = reg;
 		return 1;
@@ -813,8 +812,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	u32 mask;
 	u32 wlock_mac = 0;
 
-	/*
-	 * The status register is Read Only, so a write should fail.
+	/* The status register is Read Only, so a write should fail.
 	 * Some bits that get toggled are ignored.
 	 */
 	switch (mac->type) {
@@ -889,12 +887,20 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 		    E1000_FWSM_WLOCK_MAC_SHIFT;
 
 	for (i = 0; i < mac->rar_entry_count; i++) {
-		/* Cannot test write-protected SHRAL[n] registers */
-		if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
-			continue;
+		if (mac->type == e1000_pch_lpt) {
+			/* Cannot test write-protected SHRAL[n] registers */
+			if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
+				continue;
 
-		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1),
-				       mask, 0xFFFFFFFF);
+			/* SHRAH[9] different than the others */
+			if (i == 10)
+				mask |= (1 << 30);
+			else
+				mask &= ~(1 << 30);
+		}
+
+		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1), mask,
+				       0xFFFFFFFF);
 	}
 
 	for (i = 0; i < mac->mta_reg_count; i++)
@@ -928,7 +934,7 @@ static int e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 	return *data;
 }
 
-static irqreturn_t e1000_test_intr(int irq, void *data)
+static irqreturn_t e1000_test_intr(int __always_unused irq, void *data)
 {
 	struct net_device *netdev = (struct net_device *) data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -996,8 +1002,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		}
 
 		if (!shared_int) {
-			/*
-			 * Disable the interrupt to be reported in
+			/* Disable the interrupt to be reported in
 			 * the cause register and then force the same
 			 * interrupt and see if one gets posted.  If
 			 * an interrupt was posted to the bus, the
@@ -1015,8 +1020,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 			}
 		}
 
-		/*
-		 * Enable the interrupt to be reported in
+		/* Enable the interrupt to be reported in
 		 * the cause register and then force the same
 		 * interrupt and see if one gets posted.  If
 		 * an interrupt was not posted to the bus, the
@@ -1034,8 +1038,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		}
 
 		if (!shared_int) {
-			/*
-			 * Disable the other interrupts to be reported in
+			/* Disable the other interrupts to be reported in
 			 * the cause register and then force the other
 			 * interrupts and see if any get posted.  If
 			 * an interrupt was posted to the bus, the
@@ -1281,7 +1284,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 	if (hw->phy.type == e1000_phy_ife) {
 		/* force 100, set loopback */
-		e1e_wphy(hw, PHY_CONTROL, 0x6100);
+		e1e_wphy(hw, MII_BMCR, 0x6100);
 
 		/* Now set up the MAC to the same speed/duplex as the PHY. */
 		ctrl_reg = er32(CTRL);
@@ -1304,9 +1307,9 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		/* Auto-MDI/MDIX Off */
 		e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
 		/* reset to update Auto-MDI/MDIX */
-		e1e_wphy(hw, PHY_CONTROL, 0x9140);
+		e1e_wphy(hw, MII_BMCR, 0x9140);
 		/* autoneg off */
-		e1e_wphy(hw, PHY_CONTROL, 0x8140);
+		e1e_wphy(hw, MII_BMCR, 0x8140);
 		break;
 	case e1000_phy_gg82563:
 		e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, 0x1CC);
@@ -1318,7 +1321,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		phy_reg |= 0x006;
 		e1e_wphy(hw, PHY_REG(2, 21), phy_reg);
 		/* Assert SW reset for above settings to take effect */
-		e1000e_commit_phy(hw);
+		hw->phy.ops.commit(hw);
 		mdelay(1);
 		/* Force Full Duplex */
 		e1e_rphy(hw, PHY_REG(769, 16), &phy_reg);
@@ -1352,7 +1355,6 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		e1e_rphy(hw, PHY_REG(776, 18), &phy_reg);
 		e1e_wphy(hw, PHY_REG(776, 18), phy_reg | 1);
 		/* Enable loopback on the PHY */
-#define I82577_PHY_LBK_CTRL          19
 		e1e_wphy(hw, I82577_PHY_LBK_CTRL, 0x8001);
 		break;
 	default:
@@ -1360,7 +1362,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	}
 
 	/* force 1000, set loopback */
-	e1e_wphy(hw, PHY_CONTROL, 0x4140);
+	e1e_wphy(hw, MII_BMCR, 0x4140);
 	mdelay(250);
 
 	/* Now set up the MAC to the same speed/duplex as the PHY. */
@@ -1378,8 +1380,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	    hw->phy.type == e1000_phy_m88) {
 		ctrl_reg |= E1000_CTRL_ILOS; /* Invert Loss of Signal */
 	} else {
-		/*
-		 * Set the ILOS bit on the fiber Nic if half duplex link is
+		/* Set the ILOS bit on the fiber Nic if half duplex link is
 		 * detected.
 		 */
 		if ((er32(STATUS) & E1000_STATUS_FD) == 0)
@@ -1388,8 +1389,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 	ew32(CTRL, ctrl_reg);
 
-	/*
-	 * Disable the receiver on the PHY so when a cable is plugged in, the
+	/* Disable the receiver on the PHY so when a cable is plugged in, the
 	 * PHY does not begin to autoneg when a cable is reconnected to the NIC.
 	 */
 	if (hw->phy.type == e1000_phy_m88)
@@ -1404,12 +1404,11 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl = er32(CTRL);
-	int link = 0;
+	int link;
 
 	/* special requirements for 82571/82572 fiber adapters */
 
-	/*
-	 * jump through hoops to make sure link is up because serdes
+	/* jump through hoops to make sure link is up because serdes
 	 * link is hardwired up
 	 */
 	ctrl |= E1000_CTRL_SLU;
@@ -1429,8 +1428,7 @@ static int e1000_set_82571_fiber_loopback(struct e1000_adapter *adapter)
 		ew32(CTRL, ctrl);
 	}
 
-	/*
-	 * special write to serdes control register to enable SerDes analog
+	/* special write to serdes control register to enable SerDes analog
 	 * loopback
 	 */
 #define E1000_SERDES_LB_ON 0x410
@@ -1448,8 +1446,7 @@ static int e1000_set_es2lan_mac_loopback(struct e1000_adapter *adapter)
 	u32 ctrlext = er32(CTRL_EXT);
 	u32 ctrl = er32(CTRL);
 
-	/*
-	 * save CTRL_EXT to restore later, reuse an empty variable (unused
+	/* save CTRL_EXT to restore later, reuse an empty variable (unused
 	 * on mac_type 80003es2lan)
 	 */
 	adapter->tx_fifo_head = ctrlext;
@@ -1540,11 +1537,12 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 		hw->mac.autoneg = 1;
 		if (hw->phy.type == e1000_phy_gg82563)
 			e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, 0x180);
-		e1e_rphy(hw, PHY_CONTROL, &phy_reg);
-		if (phy_reg & MII_CR_LOOPBACK) {
-			phy_reg &= ~MII_CR_LOOPBACK;
-			e1e_wphy(hw, PHY_CONTROL, phy_reg);
-			e1000e_commit_phy(hw);
+		e1e_rphy(hw, MII_BMCR, &phy_reg);
+		if (phy_reg & BMCR_LOOPBACK) {
+			phy_reg &= ~BMCR_LOOPBACK;
+			e1e_wphy(hw, MII_BMCR, phy_reg);
+			if (hw->phy.ops.commit)
+				hw->phy.ops.commit(hw);
 		}
 		break;
 	}
@@ -1585,8 +1583,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 
 	ew32(RDT(0), rx_ring->count - 1);
 
-	/*
-	 * Calculate the loop count based on the largest descriptor ring
+	/* Calculate the loop count based on the largest descriptor ring
 	 * The idea is to wrap the largest ring a number of times using 64
 	 * send/receive pairs during each loop
 	 */
@@ -1627,8 +1624,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			l++;
 			if (l == rx_ring->count)
 				l = 0;
-			/*
-			 * time + 20 msecs (200 msecs on 2.4) is more than
+			/* time + 20 msecs (200 msecs on 2.4) is more than
 			 * enough time to complete the receives, if it's
 			 * exceeded, break and error off
 			 */
@@ -1649,10 +1645,7 @@ static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
-	/*
-	 * PHY loopback cannot be performed if SoL/IDER
-	 * sessions are active
-	 */
+	/* PHY loopback cannot be performed if SoL/IDER sessions are active */
 	if (hw->phy.ops.check_reset_block &&
 	    hw->phy.ops.check_reset_block(hw)) {
 		e_err("Cannot do PHY loopback test when SoL/IDER is active.\n");
@@ -1686,8 +1679,7 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 		int i = 0;
 		hw->mac.serdes_has_link = false;
 
-		/*
-		 * On some blade server designs, link establishment
+		/* On some blade server designs, link establishment
 		 * could take as long as 2-3 minutes
 		 */
 		do {
@@ -1701,8 +1693,7 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	} else {
 		hw->mac.ops.check_for_link(hw);
 		if (hw->mac.autoneg)
-			/*
-			 * On some Phy/switch combinations, link establishment
+			/* On some Phy/switch combinations, link establishment
 			 * can take a few seconds more than expected.
 			 */
 			msleep(5000);
@@ -1713,7 +1704,8 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	return *data;
 }
 
-static int e1000e_get_sset_count(struct net_device *netdev, int sset)
+static int e1000e_get_sset_count(struct net_device __always_unused *netdev,
+				 int sset)
 {
 	switch (sset) {
 	case ETH_SS_TEST:
@@ -1976,7 +1968,7 @@ static int e1000_nway_reset(struct net_device *netdev)
 }
 
 static void e1000_get_ethtool_stats(struct net_device *netdev,
-				    struct ethtool_stats *stats,
+				    struct ethtool_stats __always_unused *stats,
 				    u64 *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -2005,8 +1997,8 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
-static void e1000_get_strings(struct net_device *netdev, u32 stringset,
-			      u8 *data)
+static void e1000_get_strings(struct net_device __always_unused *netdev,
+			      u32 stringset, u8 *data)
 {
 	u8 *p = data;
 	int i;
@@ -2026,7 +2018,8 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 static int e1000_get_rxnfc(struct net_device *netdev,
-			   struct ethtool_rxnfc *info, u32 *rule_locs)
+			   struct ethtool_rxnfc *info,
+			   u32 __always_unused *rule_locs)
 {
 	info->data = 0;
 
@@ -2072,7 +2065,184 @@ static int e1000_get_rxnfc(struct net_device *netdev,
 	}
 }
 
+static int e1000e_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u16 cap_addr, adv_addr, lpa_addr, pcs_stat_addr, phy_data, lpi_ctrl;
+	u32 status, ret_val;
+
+	if (!(adapter->flags & FLAG_IS_ICH) ||
+	    !(adapter->flags2 & FLAG2_HAS_EEE))
+		return -EOPNOTSUPP;
+
+	switch (hw->phy.type) {
+	case e1000_phy_82579:
+		cap_addr = I82579_EEE_CAPABILITY;
+		adv_addr = I82579_EEE_ADVERTISEMENT;
+		lpa_addr = I82579_EEE_LP_ABILITY;
+		pcs_stat_addr = I82579_EEE_PCS_STATUS;
+		break;
+	case e1000_phy_i217:
+		cap_addr = I217_EEE_CAPABILITY;
+		adv_addr = I217_EEE_ADVERTISEMENT;
+		lpa_addr = I217_EEE_LP_ABILITY;
+		pcs_stat_addr = I217_EEE_PCS_STATUS;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		return -EBUSY;
+
+	/* EEE Capability */
+	ret_val = e1000_read_emi_reg_locked(hw, cap_addr, &phy_data);
+	if (ret_val)
+		goto release;
+	edata->supported = mmd_eee_cap_to_ethtool_sup_t(phy_data);
+
+	/* EEE Advertised */
+	ret_val = e1000_read_emi_reg_locked(hw, adv_addr, &phy_data);
+	if (ret_val)
+		goto release;
+	edata->advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+
+	/* EEE Link Partner Advertised */
+	ret_val = e1000_read_emi_reg_locked(hw, lpa_addr, &phy_data);
+	if (ret_val)
+		goto release;
+	edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+
+	/* EEE PCS Status */
+	ret_val = e1000_read_emi_reg_locked(hw, pcs_stat_addr, &phy_data);
+	if (hw->phy.type == e1000_phy_82579)
+		phy_data <<= 8;
+
+release:
+	hw->phy.ops.release(hw);
+	if (ret_val)
+		return -ENODATA;
+
+	e1e_rphy(hw, I82579_LPI_CTRL, &lpi_ctrl);
+	status = er32(STATUS);
+
+	/* Result of the EEE auto negotiation - there is no register that
+	 * has the status of the EEE negotiation so do a best-guess based
+	 * on whether both Tx and Rx LPI indications have been received or
+	 * base it on the link speed, the EEE advertised speeds on both ends
+	 * and the speeds on which EEE is enabled locally.
+	 */
+	if (((phy_data & E1000_EEE_TX_LPI_RCVD) &&
+	     (phy_data & E1000_EEE_RX_LPI_RCVD)) ||
+	    ((status & E1000_STATUS_SPEED_100) &&
+	     (edata->advertised & ADVERTISED_100baseT_Full) &&
+	     (edata->lp_advertised & ADVERTISED_100baseT_Full) &&
+	     (lpi_ctrl & I82579_LPI_CTRL_100_ENABLE)) ||
+	    ((status & E1000_STATUS_SPEED_1000) &&
+	     (edata->advertised & ADVERTISED_1000baseT_Full) &&
+	     (edata->lp_advertised & ADVERTISED_1000baseT_Full) &&
+	     (lpi_ctrl & I82579_LPI_CTRL_1000_ENABLE)))
+		edata->eee_active = true;
+
+	edata->eee_enabled = !hw->dev_spec.ich8lan.eee_disable;
+	edata->tx_lpi_enabled = true;
+	edata->tx_lpi_timer = er32(LPIC) >> E1000_LPIC_LPIET_SHIFT;
+
+	return 0;
+}
+
+static int e1000e_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	struct ethtool_eee eee_curr;
+	s32 ret_val;
+
+	if (!(adapter->flags & FLAG_IS_ICH) ||
+	    !(adapter->flags2 & FLAG2_HAS_EEE))
+		return -EOPNOTSUPP;
+
+	ret_val = e1000e_get_eee(netdev, &eee_curr);
+	if (ret_val)
+		return ret_val;
+
+	if (eee_curr.advertised != edata->advertised) {
+		e_err("Setting EEE advertisement is not supported\n");
+		return -EINVAL;
+	}
+
+	if (eee_curr.tx_lpi_enabled != edata->tx_lpi_enabled) {
+		e_err("Setting EEE tx-lpi is not supported\n");
+		return -EINVAL;
+	}
+
+	if (eee_curr.tx_lpi_timer != edata->tx_lpi_timer) {
+		e_err("Setting EEE Tx LPI timer is not supported\n");
+		return -EINVAL;
+	}
+
+	if (hw->dev_spec.ich8lan.eee_disable != !edata->eee_enabled) {
+		hw->dev_spec.ich8lan.eee_disable = !edata->eee_enabled;
+
+		/* reset the link */
+		if (netif_running(netdev))
+			e1000e_reinit_locked(adapter);
+		else
+			e1000e_reset(adapter);
+	}
+
+	return 0;
+}
+
+static int e1000e_get_ts_info(struct net_device *netdev,
+			      struct ethtool_ts_info *info)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	ethtool_op_get_ts_info(netdev, info);
+
+	if (!(adapter->flags & FLAG_HAS_HW_TIMESTAMP))
+		return 0;
+
+	info->so_timestamping |= (SOF_TIMESTAMPING_TX_HARDWARE |
+				  SOF_TIMESTAMPING_RX_HARDWARE |
+				  SOF_TIMESTAMPING_RAW_HARDWARE);
+
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+
+	info->rx_filters = ((1 << HWTSTAMP_FILTER_NONE) |
+			    (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+			    (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+			    (1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
+			    (1 << HWTSTAMP_FILTER_ALL));
+
+	if (adapter->ptp_clock)
+		info->phc_index = ptp_clock_index(adapter->ptp_clock);
+
+	return 0;
+}
+
+static int e1000e_ethtool_begin(struct net_device *netdev)
+{
+	return pm_runtime_get_sync(netdev->dev.parent);
+}
+
+static void e1000e_ethtool_complete(struct net_device *netdev)
+{
+	pm_runtime_put_sync(netdev->dev.parent);
+}
+
 static const struct ethtool_ops e1000_ethtool_ops = {
+	.begin			= e1000e_ethtool_begin,
+	.complete		= e1000e_ethtool_complete,
 	.get_settings		= e1000_get_settings,
 	.set_settings		= e1000_set_settings,
 	.get_drvinfo		= e1000_get_drvinfo,
@@ -2099,7 +2269,9 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
 	.get_rxnfc		= e1000_get_rxnfc,
-	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_ts_info		= e1000e_get_ts_info,
+	.get_eee		= e1000e_get_eee,
+	.set_eee		= e1000e_set_eee,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

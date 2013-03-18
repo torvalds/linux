@@ -118,7 +118,7 @@ void flush_dcache_page(struct page *page)
  * For now, flush the whole cache. FIXME??
  */
 
-void flush_cache_range(struct vm_area_struct* vma, 
+void flush_cache_range(struct vm_area_struct* vma,
 		       unsigned long start, unsigned long end)
 {
 	__flush_invalidate_dcache_all();
@@ -133,7 +133,7 @@ void flush_cache_range(struct vm_area_struct* vma,
  */
 
 void flush_cache_page(struct vm_area_struct* vma, unsigned long address,
-    		      unsigned long pfn)
+		      unsigned long pfn)
 {
 	/* Note that we have to use the 'alias' address to avoid multi-hit */
 
@@ -166,14 +166,14 @@ update_mmu_cache(struct vm_area_struct * vma, unsigned long addr, pte_t *ptep)
 
 	if (!PageReserved(page) && test_bit(PG_arch_1, &page->flags)) {
 
-		unsigned long vaddr = TLBTEMP_BASE_1 + (addr & DCACHE_ALIAS_MASK);
 		unsigned long paddr = (unsigned long) page_address(page);
 		unsigned long phys = page_to_phys(page);
+		unsigned long tmp = TLBTEMP_BASE_1 + (addr & DCACHE_ALIAS_MASK);
 
 		__flush_invalidate_dcache_page(paddr);
 
-		__flush_invalidate_dcache_page_alias(vaddr, phys);
-		__invalidate_icache_page_alias(vaddr, phys);
+		__flush_invalidate_dcache_page_alias(tmp, phys);
+		__invalidate_icache_page_alias(tmp, phys);
 
 		clear_bit(PG_arch_1, &page->flags);
 	}
@@ -195,7 +195,7 @@ update_mmu_cache(struct vm_area_struct * vma, unsigned long addr, pte_t *ptep)
 
 #if (DCACHE_WAY_SIZE > PAGE_SIZE) && XCHAL_DCACHE_IS_WRITEBACK
 
-void copy_to_user_page(struct vm_area_struct *vma, struct page *page, 
+void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		unsigned long vaddr, void *dst, const void *src,
 		unsigned long len)
 {
@@ -205,8 +205,8 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 	/* Flush and invalidate user page if aliased. */
 
 	if (alias) {
-		unsigned long temp = TLBTEMP_BASE_1 + (vaddr & DCACHE_ALIAS_MASK);
-		__flush_invalidate_dcache_page_alias(temp, phys);
+		unsigned long t = TLBTEMP_BASE_1 + (vaddr & DCACHE_ALIAS_MASK);
+		__flush_invalidate_dcache_page_alias(t, phys);
 	}
 
 	/* Copy data */
@@ -219,12 +219,11 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 	 */
 
 	if (alias) {
-		unsigned long temp = TLBTEMP_BASE_1 + (vaddr & DCACHE_ALIAS_MASK);
+		unsigned long t = TLBTEMP_BASE_1 + (vaddr & DCACHE_ALIAS_MASK);
 
 		__flush_invalidate_dcache_range((unsigned long) dst, len);
-		if ((vma->vm_flags & VM_EXEC) != 0) {
-			__invalidate_icache_page_alias(temp, phys);
-		}
+		if ((vma->vm_flags & VM_EXEC) != 0)
+			__invalidate_icache_page_alias(t, phys);
 
 	} else if ((vma->vm_flags & VM_EXEC) != 0) {
 		__flush_dcache_range((unsigned long)dst,len);
@@ -245,8 +244,8 @@ extern void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 	 */
 
 	if (alias) {
-		unsigned long temp = TLBTEMP_BASE_1 + (vaddr & DCACHE_ALIAS_MASK);
-		__flush_invalidate_dcache_page_alias(temp, phys);
+		unsigned long t = TLBTEMP_BASE_1 + (vaddr & DCACHE_ALIAS_MASK);
+		__flush_invalidate_dcache_page_alias(t, phys);
 	}
 
 	memcpy(dst, src, len);

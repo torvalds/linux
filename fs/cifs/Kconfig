@@ -122,9 +122,17 @@ config CIFS_ACL
 	    Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
 	    is handed over to the application/caller.
 
+config CIFS_DEBUG
+	bool "Enable CIFS debugging routines"
+	default y
+	depends on CIFS
+	help
+	   Enabling this option adds helpful debugging messages to
+	   the cifs code which increases the size of the cifs module.
+	   If unsure, say Y.
 config CIFS_DEBUG2
 	bool "Enable additional CIFS debugging routines"
-	depends on CIFS
+	depends on CIFS_DEBUG
 	help
 	   Enabling this option adds a few more debugging routines
 	   to the cifs code which slightly increases the size of
@@ -147,14 +155,14 @@ config CIFS_DFS_UPCALL
 	    points. If unsure, say N.
 
 config CIFS_NFSD_EXPORT
-	  bool "Allow nfsd to export CIFS file system (EXPERIMENTAL)"
-	  depends on CIFS && EXPERIMENTAL && BROKEN
+	  bool "Allow nfsd to export CIFS file system"
+	  depends on CIFS && BROKEN
 	  help
 	   Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
 config CIFS_SMB2
-	bool "SMB2 network file system support (EXPERIMENTAL)"
-	depends on CIFS && EXPERIMENTAL && INET
+	bool "SMB2 network file system support"
+	depends on CIFS && INET
 	select NLS
 	select KEYS
 	select FSCACHE

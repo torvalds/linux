@@ -121,7 +121,7 @@ typedef	union _HT_CAPABILITY_MACPARA{
 
 typedef enum _HT_ACTION{
 	ACT_RECOMMAND_WIDTH		= 0,
-	ACT_MIMO_PWR_SAVE 		= 1,
+	ACT_MIMO_PWR_SAVE		= 1,
 	ACT_PSMP					= 2,
 	ACT_SET_PCO_PHASE		= 3,
 	ACT_MIMO_CHL_MEASURE	= 4,
@@ -398,9 +398,9 @@ typedef struct _BSS_HT{
 typedef struct _MIMO_RSSI{
 	u32	EnableAntenna;
 	u32	AntennaA;
-	u32 	AntennaB;
-	u32 	AntennaC;
-	u32 	AntennaD;
+	u32	AntennaB;
+	u32	AntennaC;
+	u32	AntennaD;
 	u32	Average;
 }MIMO_RSSI, *PMIMO_RSSI;
 
@@ -436,11 +436,11 @@ extern u8 MCS_FILTER_1SS[16];
 
 
 // MCS Bw 40 {1~7, 12~15,32}
-#define	RATE_ADPT_1SS_MASK 		0xFF
+#define	RATE_ADPT_1SS_MASK		0xFF
 #define	RATE_ADPT_2SS_MASK		0xF0 //Skip MCS8~11 because mcs7 > mcs6, 9, 10, 11. 2007.01.16 by Emily
 #define	RATE_ADPT_MCS32_MASK		0x01
 
-#define 	IS_11N_MCS_RATE(rate)		(rate&0x80)
+#define		IS_11N_MCS_RATE(rate)		(rate&0x80)
 
 typedef enum _HT_AGGRE_SIZE{
 	HT_AGG_SIZE_8K = 0,
@@ -478,4 +478,3 @@ typedef enum _HT_IOT_ACTION{
 }HT_IOT_ACTION_E, *PHT_IOT_ACTION_E;
 
 #endif //_RTL819XU_HTTYPE_H_
-

@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2009--2010 Nokia Corporation.
  *
- * Contact: Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>
+ * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -311,3 +311,10 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_event_unsubscribe);
+
+int v4l2_event_subdev_unsubscribe(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				  struct v4l2_event_subscription *sub)
+{
+	return v4l2_event_unsubscribe(fh, sub);
+}
+EXPORT_SYMBOL_GPL(v4l2_event_subdev_unsubscribe);

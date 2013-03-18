@@ -27,6 +27,8 @@
  * Authors:
  *    Kevin E. Martin <martin@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
+ *
+ * ------------------------ This file is DEPRECATED! -------------------------
  */
 
 #include <linux/module.h>
@@ -114,20 +116,6 @@ u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index)
 		else
 			return RADEON_READ(RADEON_SCRATCH_REG0 + 4*index);
 	}
-}
-
-u32 RADEON_READ_MM(drm_radeon_private_t *dev_priv, int addr)
-{
-	u32 ret;
-
-	if (addr < 0x10000)
-		ret = DRM_READ32(dev_priv->mmio, addr);
-	else {
-		DRM_WRITE32(dev_priv->mmio, RADEON_MM_INDEX, addr);
-		ret = DRM_READ32(dev_priv->mmio, RADEON_MM_DATA);
-	}
-
-	return ret;
 }
 
 static u32 R500_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)

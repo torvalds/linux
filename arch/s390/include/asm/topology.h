@@ -8,28 +8,33 @@ struct cpu;
 
 #ifdef CONFIG_SCHED_BOOK
 
-extern unsigned char cpu_core_id[NR_CPUS];
-extern cpumask_t cpu_core_map[NR_CPUS];
+struct cpu_topology_s390 {
+	unsigned short core_id;
+	unsigned short socket_id;
+	unsigned short book_id;
+	cpumask_t core_mask;
+	cpumask_t book_mask;
+};
+
+extern struct cpu_topology_s390 cpu_topology[NR_CPUS];
+
+#define topology_physical_package_id(cpu)	(cpu_topology[cpu].socket_id)
+#define topology_core_id(cpu)			(cpu_topology[cpu].core_id)
+#define topology_core_cpumask(cpu)		(&cpu_topology[cpu].core_mask)
+#define topology_book_id(cpu)			(cpu_topology[cpu].book_id)
+#define topology_book_cpumask(cpu)		(&cpu_topology[cpu].book_mask)
+
+#define mc_capable() 1
 
 static inline const struct cpumask *cpu_coregroup_mask(int cpu)
 {
-	return &cpu_core_map[cpu];
+	return &cpu_topology[cpu].core_mask;
 }
-
-#define topology_core_id(cpu)		(cpu_core_id[cpu])
-#define topology_core_cpumask(cpu)	(&cpu_core_map[cpu])
-#define mc_capable()			(1)
-
-extern unsigned char cpu_book_id[NR_CPUS];
-extern cpumask_t cpu_book_map[NR_CPUS];
 
 static inline const struct cpumask *cpu_book_mask(int cpu)
 {
-	return &cpu_book_map[cpu];
+	return &cpu_topology[cpu].book_mask;
 }
-
-#define topology_book_id(cpu)		(cpu_book_id[cpu])
-#define topology_book_cpumask(cpu)	(&cpu_book_map[cpu])
 
 int topology_cpu_init(struct cpu *);
 int topology_set_cpu_management(int fc);

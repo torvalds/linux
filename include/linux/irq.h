@@ -10,9 +10,6 @@
  */
 
 #include <linux/smp.h>
-
-#ifndef CONFIG_S390
-
 #include <linux/linkage.h>
 #include <linux/cache.h>
 #include <linux/spinlock.h>
@@ -392,6 +389,15 @@ static inline void irq_move_masked_irq(struct irq_data *data) { }
 
 extern int no_irq_affinity;
 
+#ifdef CONFIG_HARDIRQS_SW_RESEND
+int irq_set_parent(int irq, int parent_irq);
+#else
+static inline int irq_set_parent(int irq, int parent_irq)
+{
+	return 0;
+}
+#endif
+
 /*
  * Built-in IRQ handlers for various IRQ types,
  * callable via desc->handle_irq()
@@ -503,8 +509,11 @@ static inline void irq_set_percpu_devid_flags(unsigned int irq)
 
 /* Handle dynamic irq creation and destruction */
 extern unsigned int create_irq_nr(unsigned int irq_want, int node);
+extern unsigned int __create_irqs(unsigned int from, unsigned int count,
+				  int node);
 extern int create_irq(void);
 extern void destroy_irq(unsigned int irq);
+extern void destroy_irqs(unsigned int irq, unsigned int count);
 
 /*
  * Dynamic irq helper functions. Obsolete. Use irq_alloc_desc* and
@@ -522,6 +531,8 @@ extern int irq_set_handler_data(unsigned int irq, void *data);
 extern int irq_set_chip_data(unsigned int irq, void *data);
 extern int irq_set_irq_type(unsigned int irq, unsigned int type);
 extern int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry);
+extern int irq_set_msi_desc_off(unsigned int irq_base, unsigned int irq_offset,
+				struct msi_desc *entry);
 extern struct irq_data *irq_get_irq_data(unsigned int irq);
 
 static inline struct irq_chip *irq_get_chip(unsigned int irq)
@@ -583,6 +594,9 @@ int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 
 #define irq_alloc_desc_from(from, node)		\
 	irq_alloc_descs(-1, from, 1, node)
+
+#define irq_alloc_descs_from(from, cnt, node)	\
+	irq_alloc_descs(-1, from, cnt, node)
 
 void irq_free_descs(unsigned int irq, unsigned int cnt);
 int irq_reserve_irqs(unsigned int from, unsigned int cnt);
@@ -737,8 +751,11 @@ static inline void irq_gc_lock(struct irq_chip_generic *gc) { }
 static inline void irq_gc_unlock(struct irq_chip_generic *gc) { }
 #endif
 
-#endif /* CONFIG_GENERIC_HARDIRQS */
+#else /* !CONFIG_GENERIC_HARDIRQS */
 
-#endif /* !CONFIG_S390 */
+extern struct msi_desc *irq_get_msi_desc(unsigned int irq);
+extern int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry);
+
+#endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* _LINUX_IRQ_H */

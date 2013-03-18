@@ -53,7 +53,6 @@ struct unix_sock {
 	struct path		path;
 	struct mutex		readlock;
 	struct sock		*peer;
-	struct sock		*other;
 	struct list_head	link;
 	atomic_long_t		inflight;
 	spinlock_t		lock;

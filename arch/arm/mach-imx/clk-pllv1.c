@@ -4,10 +4,10 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
 
 #include "clk.h"
+#include "common.h"
+#include "hardware.h"
 
 /**
  * pll v1

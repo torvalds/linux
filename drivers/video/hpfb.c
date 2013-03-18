@@ -206,8 +206,7 @@ static struct fb_ops hpfb_ops = {
 #define HPFB_FBOMSB	0x5d	/* Frame buffer offset		*/
 #define HPFB_FBOLSB	0x5f
 
-static int __devinit hpfb_init_one(unsigned long phys_base,
-				   unsigned long virt_base)
+static int hpfb_init_one(unsigned long phys_base, unsigned long virt_base)
 {
 	unsigned long fboff, fb_width, fb_height, fb_start;
 	int ret;
@@ -327,7 +326,7 @@ unmap_screen_base:
 /* 
  * Initialise the framebuffer
  */
-static int __devinit hpfb_dio_probe(struct dio_dev * d, const struct dio_device_id * ent)
+static int hpfb_dio_probe(struct dio_dev *d, const struct dio_device_id *ent)
 {
 	unsigned long paddr, vaddr;
 
@@ -350,7 +349,7 @@ static int __devinit hpfb_dio_probe(struct dio_dev * d, const struct dio_device_
 	return 0;
 }
 
-static void __devexit hpfb_remove_one(struct dio_dev *d)
+static void hpfb_remove_one(struct dio_dev *d)
 {
 	unregister_framebuffer(&fb_info);
 	if (d->scode >= DIOII_SCBASE)
@@ -373,7 +372,7 @@ static struct dio_driver hpfb_driver = {
     .name      = "hpfb",
     .id_table  = hpfb_dio_tbl,
     .probe     = hpfb_dio_probe,
-    .remove    = __devexit_p(hpfb_remove_one),
+    .remove    = hpfb_remove_one,
 };
 
 int __init hpfb_init(void)

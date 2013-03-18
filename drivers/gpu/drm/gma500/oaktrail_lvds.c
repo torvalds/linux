@@ -133,8 +133,8 @@ static void oaktrail_lvds_mode_set(struct drm_encoder *encoder,
 		return;
 	}
 
-	drm_connector_property_get_value(
-		connector,
+	drm_object_property_get_value(
+		&connector->base,
 		dev->mode_config.scaling_mode_property,
 		&v);
 
@@ -363,10 +363,10 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 					dev->mode_config.scaling_mode_property,
 					DRM_MODE_SCALE_FULLSCREEN);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 					dev_priv->backlight_property,
 					BRIGHTNESS_MAX_LEVEL);
 

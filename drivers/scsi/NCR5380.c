@@ -814,7 +814,7 @@ static char *lprint_opcode(int opcode, char *pos, char *buffer, int length)
  *	Locks: interrupts must be enabled when we are called 
  */
 
-static int __devinit NCR5380_init(struct Scsi_Host *instance, int flags)
+static int NCR5380_init(struct Scsi_Host *instance, int flags)
 {
 	NCR5380_local_declare();
 	int i, pass;

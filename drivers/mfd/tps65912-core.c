@@ -169,6 +169,7 @@ err:
 void tps65912_device_exit(struct tps65912 *tps65912)
 {
 	mfd_remove_devices(tps65912->dev);
+	tps65912_irq_exit(tps65912);
 	kfree(tps65912);
 }
 

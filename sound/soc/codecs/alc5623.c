@@ -991,8 +991,8 @@ static struct snd_soc_codec_driver soc_codec_device_alc5623 = {
  *    low  = 0x1a
  *    high = 0x1b
  */
-static __devinit int alc5623_i2c_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int alc5623_i2c_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id)
 {
 	struct alc5623_platform_data *pdata;
 	struct alc5623_priv *alc5623;
@@ -1058,7 +1058,7 @@ static __devinit int alc5623_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static __devexit int alc5623_i2c_remove(struct i2c_client *client)
+static int alc5623_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1079,7 +1079,7 @@ static struct i2c_driver alc5623_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = alc5623_i2c_probe,
-	.remove =  __devexit_p(alc5623_i2c_remove),
+	.remove =  alc5623_i2c_remove,
 	.id_table = alc5623_i2c_table,
 };
 

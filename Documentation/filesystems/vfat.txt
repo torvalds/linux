@@ -111,6 +111,15 @@ tz=UTC        -- Interpret timestamps as UTC rather than local time.
                  useful when mounting devices (like digital cameras)
                  that are set to UTC in order to avoid the pitfalls of
                  local time.
+time_offset=minutes
+	      -- Set offset for conversion of timestamps from local time
+		 used by FAT to UTC. I.e. <minutes> minutes will be subtracted
+		 from each timestamp to convert it to UTC used internally by
+		 Linux. This is useful when time zone set in sys_tz is
+		 not the time zone used by the filesystem. Note that this
+		 option still does not provide correct time stamps in all
+		 cases in presence of DST - time stamps in a different DST
+		 setting will be off by one hour.
 
 showexec      -- If set, the execute permission bits of the file will be
 		 allowed only if the extension part of the name is .EXE,

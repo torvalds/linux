@@ -50,15 +50,6 @@ Status: unknown
 #define PCMR  0xa3		/* Port C Mode Register                      */
 #define PCDR  0xa7		/* Port C Data Register                      */
 
-/* This data structure holds information about the supported boards -------- */
-
-struct dnp_board {
-	const char *name;
-	int ai_chans;
-	int ai_bits;
-	int have_dio;
-};
-
 /* ------------------------------------------------------------------------- */
 /* The insn_bits interface allows packed reading/writing of DIO channels.    */
 /* The comedi core can convert between insn_bits and insn_read/write, so you */
@@ -173,11 +164,10 @@ static int dnp_dio_insn_config(struct comedi_device *dev,
 
 static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct dnp_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = board->name;
+	dev->board_name = dev->driver->driver_name;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -219,23 +209,11 @@ static void dnp_detach(struct comedi_device *dev)
 	outb((inb(CSCDR) & 0xAA), CSCDR);
 }
 
-static const struct dnp_board dnp_boards[] = {
-	{
-		.name		= "dnp-1486",
-		.ai_chans	= 16,
-		.ai_bits	= 12,
-		.have_dio	= 1,
-	},
-};
-
 static struct comedi_driver dnp_driver = {
-	.driver_name	= "ssv_dnp",
+	.driver_name	= "dnp-1486",
 	.module		= THIS_MODULE,
 	.attach		= dnp_attach,
 	.detach		= dnp_detach,
-	.board_name	= &dnp_boards[0].name,
-	.offset		= sizeof(struct dnp_board),
-	.num_names	= ARRAY_SIZE(dnp_boards),
 };
 module_comedi_driver(dnp_driver);
 

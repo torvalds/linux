@@ -365,7 +365,7 @@ static int isl29003_init_client(struct i2c_client *client)
  * I2C layer
  */
 
-static int __devinit isl29003_probe(struct i2c_client *client,
+static int isl29003_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
@@ -401,7 +401,7 @@ exit_kfree:
 	return err;
 }
 
-static int __devexit isl29003_remove(struct i2c_client *client)
+static int isl29003_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &isl29003_attr_group);
 	isl29003_set_power_state(client, 0);
@@ -451,7 +451,7 @@ static struct i2c_driver isl29003_driver = {
 	.suspend = isl29003_suspend,
 	.resume	= isl29003_resume,
 	.probe	= isl29003_probe,
-	.remove	= __devexit_p(isl29003_remove),
+	.remove	= isl29003_remove,
 	.id_table = isl29003_id,
 };
 

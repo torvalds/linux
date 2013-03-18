@@ -145,7 +145,7 @@ struct tea5764_device {
 };
 
 /* I2C code related */
-int tea5764_i2c_read(struct tea5764_device *radio)
+static int tea5764_i2c_read(struct tea5764_device *radio)
 {
 	int i;
 	u16 *p = (u16 *) &radio->regs;
@@ -165,7 +165,7 @@ int tea5764_i2c_read(struct tea5764_device *radio)
 	return 0;
 }
 
-int tea5764_i2c_write(struct tea5764_device *radio)
+static int tea5764_i2c_write(struct tea5764_device *radio)
 {
 	struct tea5764_write_regs wr;
 	struct tea5764_regs *r = &radio->regs;
@@ -493,8 +493,8 @@ static struct video_device tea5764_radio_template = {
 };
 
 /* I2C probe: check if the device exists and register with v4l if it is */
-static int __devinit tea5764_i2c_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int tea5764_i2c_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id)
 {
 	struct tea5764_device *radio;
 	struct tea5764_regs *r;
@@ -552,7 +552,7 @@ errfr:
 	return ret;
 }
 
-static int __devexit tea5764_i2c_remove(struct i2c_client *client)
+static int tea5764_i2c_remove(struct i2c_client *client)
 {
 	struct tea5764_device *radio = i2c_get_clientdata(client);
 
@@ -578,7 +578,7 @@ static struct i2c_driver tea5764_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tea5764_i2c_probe,
-	.remove = __devexit_p(tea5764_i2c_remove),
+	.remove = tea5764_i2c_remove,
 	.id_table = tea5764_id,
 };
 

@@ -122,7 +122,7 @@ static ssize_t comp_threshold_show(struct device *dev,
 static DEVICE_ATTR(comp1_threshold, S_IRUGO, comp_threshold_show, NULL);
 static DEVICE_ATTR(comp2_threshold, S_IRUGO, comp_threshold_show, NULL);
 
-static __devinit int tps65911_comparator_probe(struct platform_device *pdev)
+static int tps65911_comparator_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
 	struct tps65910_board *pdata = dev_get_platdata(tps65910->dev);
@@ -152,7 +152,7 @@ static __devinit int tps65911_comparator_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static __devexit int tps65911_comparator_remove(struct platform_device *pdev)
+static int tps65911_comparator_remove(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910;
 
@@ -169,7 +169,7 @@ static struct platform_driver tps65911_comparator_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65911_comparator_probe,
-	.remove = __devexit_p(tps65911_comparator_remove),
+	.remove = tps65911_comparator_remove,
 };
 
 static int __init tps65911_comparator_init(void)

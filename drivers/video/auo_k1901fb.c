@@ -209,7 +209,7 @@ static bool auok1901fb_need_refresh(struct auok190xfb_par *par)
 	return (par->update_cnt > 10);
 }
 
-static int __devinit auok1901fb_probe(struct platform_device *pdev)
+static int auok1901fb_probe(struct platform_device *pdev)
 {
 	struct auok190x_init_data init;
 	struct auok190x_board *board;
@@ -230,14 +230,14 @@ static int __devinit auok1901fb_probe(struct platform_device *pdev)
 	return auok190x_common_probe(pdev, &init);
 }
 
-static int __devexit auok1901fb_remove(struct platform_device *pdev)
+static int auok1901fb_remove(struct platform_device *pdev)
 {
 	return auok190x_common_remove(pdev);
 }
 
 static struct platform_driver auok1901fb_driver = {
 	.probe	= auok1901fb_probe,
-	.remove = __devexit_p(auok1901fb_remove),
+	.remove = auok1901fb_remove,
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "auo_k1901fb",

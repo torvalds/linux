@@ -49,13 +49,49 @@ prevent the freeze/unfreeze cycle from becoming visible to the tasks
 being frozen. This allows the bash example above and gdb to run as
 expected.
 
-The freezer subsystem in the container filesystem defines a file named
-freezer.state. Writing "FROZEN" to the state file will freeze all tasks in the
-cgroup. Subsequently writing "THAWED" will unfreeze the tasks in the cgroup.
-Reading will return the current state.
+The cgroup freezer is hierarchical. Freezing a cgroup freezes all
+tasks beloning to the cgroup and all its descendant cgroups. Each
+cgroup has its own state (self-state) and the state inherited from the
+parent (parent-state). Iff both states are THAWED, the cgroup is
+THAWED.
 
-Note freezer.state doesn't exist in root cgroup, which means root cgroup
-is non-freezable.
+The following cgroupfs files are created by cgroup freezer.
+
+* freezer.state: Read-write.
+
+  When read, returns the effective state of the cgroup - "THAWED",
+  "FREEZING" or "FROZEN". This is the combined self and parent-states.
+  If any is freezing, the cgroup is freezing (FREEZING or FROZEN).
+
+  FREEZING cgroup transitions into FROZEN state when all tasks
+  belonging to the cgroup and its descendants become frozen. Note that
+  a cgroup reverts to FREEZING from FROZEN after a new task is added
+  to the cgroup or one of its descendant cgroups until the new task is
+  frozen.
+
+  When written, sets the self-state of the cgroup. Two values are
+  allowed - "FROZEN" and "THAWED". If FROZEN is written, the cgroup,
+  if not already freezing, enters FREEZING state along with all its
+  descendant cgroups.
+
+  If THAWED is written, the self-state of the cgroup is changed to
+  THAWED.  Note that the effective state may not change to THAWED if
+  the parent-state is still freezing. If a cgroup's effective state
+  becomes THAWED, all its descendants which are freezing because of
+  the cgroup also leave the freezing state.
+
+* freezer.self_freezing: Read only.
+
+  Shows the self-state. 0 if the self-state is THAWED; otherwise, 1.
+  This value is 1 iff the last write to freezer.state was "FROZEN".
+
+* freezer.parent_freezing: Read only.
+
+  Shows the parent-state.  0 if none of the cgroup's ancestors is
+  frozen; otherwise, 1.
+
+The root cgroup is non-freezable and the above interface files don't
+exist.
 
 * Examples of usage :
 
@@ -85,18 +121,3 @@ to unfreeze all tasks in the container :
 
 This is the basic mechanism which should do the right thing for user space task
 in a simple scenario.
-
-It's important to note that freezing can be incomplete. In that case we return
-EBUSY. This means that some tasks in the cgroup are busy doing something that
-prevents us from completely freezing the cgroup at this time. After EBUSY,
-the cgroup will remain partially frozen -- reflected by freezer.state reporting
-"FREEZING" when read. The state will remain "FREEZING" until one of these
-things happens:
-
-	1) Userspace cancels the freezing operation by writing "THAWED" to
-		the freezer.state file
-	2) Userspace retries the freezing operation by writing "FROZEN" to
-		the freezer.state file (writing "FREEZING" is not legal
-		and returns EINVAL)
-	3) The tasks that blocked the cgroup from entering the "FROZEN"
-		state disappear from the cgroup's set of tasks.

@@ -97,7 +97,7 @@ static struct rc_map_list rc6_mce_map = {
 	.map = {
 		.scan    = rc6_mce,
 		.size    = ARRAY_SIZE(rc6_mce),
-		.rc_type = RC_TYPE_RC6,
+		.rc_type = RC_TYPE_RC6_MCE,
 		.name    = RC_MAP_RC6_MCE,
 	}
 };

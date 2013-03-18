@@ -242,7 +242,7 @@ static struct miscdevice nuc900wdt_miscdev = {
 	.fops		= &nuc900wdt_fops,
 };
 
-static int __devinit nuc900wdt_probe(struct platform_device *pdev)
+static int nuc900wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
@@ -309,7 +309,7 @@ err_get:
 	return ret;
 }
 
-static int __devexit nuc900wdt_remove(struct platform_device *pdev)
+static int nuc900wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&nuc900wdt_miscdev);
 
@@ -328,7 +328,7 @@ static int __devexit nuc900wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver nuc900wdt_driver = {
 	.probe		= nuc900wdt_probe,
-	.remove		= __devexit_p(nuc900wdt_remove),
+	.remove		= nuc900wdt_remove,
 	.driver		= {
 		.name	= "nuc900-wdt",
 		.owner	= THIS_MODULE,

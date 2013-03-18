@@ -1993,8 +1993,10 @@ struct mac_iveiv_entry {
  */
 #define RFCSR3_K			FIELD8(0x0f)
 /* Bits [7-4] for RF3320 (RT3370/RT3390), on other chipsets reserved */
-#define RFCSR3_PA1_BIAS_CCK		FIELD8(0x70);
-#define RFCSR3_PA2_CASCODE_BIAS_CCKK	FIELD8(0x80);
+#define RFCSR3_PA1_BIAS_CCK		FIELD8(0x70)
+#define RFCSR3_PA2_CASCODE_BIAS_CCKK	FIELD8(0x80)
+/* Bits for RF3290/RF5360/RF5370/RF5372/RF5390/RF5392 */
+#define RFCSR3_VCOCAL_EN		FIELD8(0x80)
 
 /*
  * FRCSR 5:

@@ -70,7 +70,7 @@ enum cvmx_pow_tag_type {
 	 * The work queue entry from the order - NEVER tag switch from
 	 * NULL to NULL
 	 */
-	CVMX_POW_TAG_TYPE_NULL      = 2L,
+	CVMX_POW_TAG_TYPE_NULL	    = 2L,
 	/* A tag switch to NULL, and there is no space reserved in POW
 	 * - NEVER tag switch to NULL_NULL
 	 * - NEVER tag switch from NULL_NULL
@@ -90,7 +90,7 @@ typedef enum {
 } cvmx_pow_wait_t;
 
 /**
- *  POW tag operations.  These are used in the data stored to the POW.
+ *  POW tag operations.	 These are used in the data stored to the POW.
  */
 typedef enum {
 	/*
@@ -341,14 +341,14 @@ typedef union {
 		 * lists.  The two memory-input queue lists associated
 		 * with each QOS level are:
 		 *
-		 * - qosgrp = 0, qosgrp = 8:      QOS0
-		 * - qosgrp = 1, qosgrp = 9:      QOS1
-		 * - qosgrp = 2, qosgrp = 10:     QOS2
-		 * - qosgrp = 3, qosgrp = 11:     QOS3
-		 * - qosgrp = 4, qosgrp = 12:     QOS4
-		 * - qosgrp = 5, qosgrp = 13:     QOS5
-		 * - qosgrp = 6, qosgrp = 14:     QOS6
-		 * - qosgrp = 7, qosgrp = 15:     QOS7
+		 * - qosgrp = 0, qosgrp = 8:	  QOS0
+		 * - qosgrp = 1, qosgrp = 9:	  QOS1
+		 * - qosgrp = 2, qosgrp = 10:	  QOS2
+		 * - qosgrp = 3, qosgrp = 11:	  QOS3
+		 * - qosgrp = 4, qosgrp = 12:	  QOS4
+		 * - qosgrp = 5, qosgrp = 13:	  QOS5
+		 * - qosgrp = 6, qosgrp = 14:	  QOS6
+		 * - qosgrp = 7, qosgrp = 15:	  QOS7
 		 */
 		uint64_t qosgrp:4;
 		/*
@@ -942,11 +942,11 @@ typedef union {
  *  operations.
  *
  *  NOTE: The following is the behavior of the pending switch bit at the PP
- *       for POW stores (i.e. when did<7:3> == 0xc)
- *     - did<2:0> == 0      => pending switch bit is set
- *     - did<2:0> == 1      => no affect on the pending switch bit
- *     - did<2:0> == 3      => pending switch bit is cleared
- *     - did<2:0> == 7      => no affect on the pending switch bit
+ *	 for POW stores (i.e. when did<7:3> == 0xc)
+ *     - did<2:0> == 0	    => pending switch bit is set
+ *     - did<2:0> == 1	    => no affect on the pending switch bit
+ *     - did<2:0> == 3	    => pending switch bit is cleared
+ *     - did<2:0> == 7	    => no affect on the pending switch bit
  *     - did<2:0> == others => must not be used
  *     - No other loads/stores have an affect on the pending switch bit
  *     - The switch bus from POW can clear the pending switch bit
@@ -1053,7 +1053,7 @@ static inline cvmx_wqe_t *cvmx_pow_get_current_wqp(void)
 }
 
 #ifndef CVMX_MF_CHORD
-#define CVMX_MF_CHORD(dest)         CVMX_RDHWR(dest, 30)
+#define CVMX_MF_CHORD(dest)	    CVMX_RDHWR(dest, 30)
 #endif
 
 /**
@@ -1097,7 +1097,7 @@ static inline void cvmx_pow_tag_sw_wait(void)
  * so the caller must ensure that there is not a pending tag switch.
  *
  * @wait:   When set, call stalls until work becomes avaiable, or times out.
- *               If not set, returns immediately.
+ *		 If not set, returns immediately.
  *
  * Returns Returns the WQE pointer from POW. Returns NULL if no work
  * was available.
@@ -1131,7 +1131,7 @@ static inline cvmx_wqe_t *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_t
  * requesting the new work.
  *
  * @wait:   When set, call stalls until work becomes avaiable, or times out.
- *               If not set, returns immediately.
+ *		 If not set, returns immediately.
  *
  * Returns Returns the WQE pointer from POW. Returns NULL if no work
  * was available.
@@ -1148,7 +1148,7 @@ static inline cvmx_wqe_t *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
 }
 
 /**
- * Synchronous null_rd request.  Requests a switch out of NULL_NULL POW state.
+ * Synchronous null_rd request.	 Requests a switch out of NULL_NULL POW state.
  * This function waits for any previous tag switch to complete before
  * requesting the null_rd.
  *
@@ -1183,11 +1183,11 @@ static inline enum cvmx_pow_tag_type cvmx_pow_work_request_null_rd(void)
  * there is not a pending tag switch.
  *
  * @scr_addr: Scratch memory address that response will be returned
- *            to, which is either a valid WQE, or a response with the
- *            invalid bit set.  Byte address, must be 8 byte aligned.
+ *	      to, which is either a valid WQE, or a response with the
+ *	      invalid bit set.	Byte address, must be 8 byte aligned.
  *
  * @wait: 1 to cause response to wait for work to become available (or
- *        timeout), 0 to cause response to return immediately
+ *	  timeout), 0 to cause response to return immediately
  */
 static inline void cvmx_pow_work_request_async_nocheck(int scr_addr,
 						       cvmx_pow_wait_t wait)
@@ -1212,11 +1212,11 @@ static inline void cvmx_pow_work_request_async_nocheck(int scr_addr,
  * tag switch to complete before requesting the new work.
  *
  * @scr_addr: Scratch memory address that response will be returned
- *            to, which is either a valid WQE, or a response with the
- *            invalid bit set.  Byte address, must be 8 byte aligned.
+ *	      to, which is either a valid WQE, or a response with the
+ *	      invalid bit set.	Byte address, must be 8 byte aligned.
  *
  * @wait: 1 to cause response to wait for work to become available (or
- *                  timeout), 0 to cause response to return immediately
+ *		    timeout), 0 to cause response to return immediately
  */
 static inline void cvmx_pow_work_request_async(int scr_addr,
 					       cvmx_pow_wait_t wait)
@@ -1234,7 +1234,7 @@ static inline void cvmx_pow_work_request_async(int scr_addr,
  * to wait for the response.
  *
  * @scr_addr: Scratch memory address to get result from Byte address,
- *            must be 8 byte aligned.
+ *	      must be 8 byte aligned.
  *
  * Returns Returns the WQE from the scratch register, or NULL if no
  * work was available.
@@ -1260,7 +1260,7 @@ static inline cvmx_wqe_t *cvmx_pow_work_response_async(int scr_addr)
  * @wqe_ptr: pointer to a work queue entry returned by the POW
  *
  * Returns 0 if pointer is valid
- *         1 if invalid (no work was returned)
+ *	   1 if invalid (no work was returned)
  */
 static inline uint64_t cvmx_pow_work_invalid(cvmx_wqe_t *wqe_ptr)
 {
@@ -1314,7 +1314,7 @@ static inline void cvmx_pow_tag_sw_nocheck(uint32_t tag,
 	/*
 	 * Note that WQE in DRAM is not updated here, as the POW does
 	 * not read from DRAM once the WQE is in flight.  See hardware
-	 * manual for complete details.  It is the application's
+	 * manual for complete details.	 It is the application's
 	 * responsibility to keep track of the current tag value if
 	 * that is important.
 	 */
@@ -1361,7 +1361,7 @@ static inline void cvmx_pow_tag_sw(uint32_t tag,
 	/*
 	 * Note that WQE in DRAM is not updated here, as the POW does
 	 * not read from DRAM once the WQE is in flight.  See hardware
-	 * manual for complete details.  It is the application's
+	 * manual for complete details.	 It is the application's
 	 * responsibility to keep track of the current tag value if
 	 * that is important.
 	 */
@@ -1390,7 +1390,7 @@ static inline void cvmx_pow_tag_sw(uint32_t tag,
  * previous tag switch has completed.
  *
  * @wqp:      pointer to work queue entry to submit.  This entry is
- *            updated to match the other parameters
+ *	      updated to match the other parameters
  * @tag:      tag value to be assigned to work queue entry
  * @tag_type: type of tag
  * @group:    group value for the work queue entry.
@@ -1429,7 +1429,7 @@ static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag,
 	/*
 	 * Note that WQE in DRAM is not updated here, as the POW does
 	 * not read from DRAM once the WQE is in flight.  See hardware
-	 * manual for complete details.  It is the application's
+	 * manual for complete details.	 It is the application's
 	 * responsibility to keep track of the current tag value if
 	 * that is important.
 	 */
@@ -1468,10 +1468,10 @@ static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag,
  * before requesting the tag switch.
  *
  * @wqp:      pointer to work queue entry to submit.  This entry is updated
- *            to match the other parameters
+ *	      to match the other parameters
  * @tag:      tag value to be assigned to work queue entry
  * @tag_type: type of tag
- * @group:      group value for the work queue entry.
+ * @group:	group value for the work queue entry.
  */
 static inline void cvmx_pow_tag_sw_full(cvmx_wqe_t *wqp, uint32_t tag,
 					enum cvmx_pow_tag_type tag_type,
@@ -1560,7 +1560,7 @@ static inline void cvmx_pow_tag_sw_null(void)
  * unrelated to the tag that the core currently holds.
  *
  * @wqp:      pointer to work queue entry to submit.  This entry is
- *            updated to match the other parameters
+ *	      updated to match the other parameters
  * @tag:      tag value to be assigned to work queue entry
  * @tag_type: type of tag
  * @qos:      Input queue to add to.
@@ -1592,7 +1592,7 @@ static inline void cvmx_pow_work_submit(cvmx_wqe_t *wqp, uint32_t tag,
 	ptr.sio.offset = cvmx_ptr_to_phys(wqp);
 
 	/*
-	 * SYNC write to memory before the work submit.  This is
+	 * SYNC write to memory before the work submit.	 This is
 	 * necessary as POW may read values from DRAM at this time.
 	 */
 	CVMX_SYNCWS;
@@ -1604,11 +1604,11 @@ static inline void cvmx_pow_work_submit(cvmx_wqe_t *wqp, uint32_t tag,
  * indicates which groups each core will accept work from. There are
  * 16 groups.
  *
- * @core_num:   core to apply mask to
+ * @core_num:	core to apply mask to
  * @mask:   Group mask. There are 16 groups, so only bits 0-15 are valid,
- *               representing groups 0-15.
- *               Each 1 bit in the mask enables the core to accept work from
- *               the corresponding group.
+ *		 representing groups 0-15.
+ *		 Each 1 bit in the mask enables the core to accept work from
+ *		 the corresponding group.
  */
 static inline void cvmx_pow_set_group_mask(uint64_t core_num, uint64_t mask)
 {
@@ -1623,14 +1623,14 @@ static inline void cvmx_pow_set_group_mask(uint64_t core_num, uint64_t mask)
  * This function sets POW static priorities for a core. Each input queue has
  * an associated priority value.
  *
- * @core_num:   core to apply priorities to
- * @priority:   Vector of 8 priorities, one per POW Input Queue (0-7).
- *                   Highest priority is 0 and lowest is 7. A priority value
- *                   of 0xF instructs POW to skip the Input Queue when
- *                   scheduling to this specific core.
- *                   NOTE: priorities should not have gaps in values, meaning
- *                         {0,1,1,1,1,1,1,1} is a valid configuration while
- *                         {0,2,2,2,2,2,2,2} is not.
+ * @core_num:	core to apply priorities to
+ * @priority:	Vector of 8 priorities, one per POW Input Queue (0-7).
+ *		     Highest priority is 0 and lowest is 7. A priority value
+ *		     of 0xF instructs POW to skip the Input Queue when
+ *		     scheduling to this specific core.
+ *		     NOTE: priorities should not have gaps in values, meaning
+ *			   {0,1,1,1,1,1,1,1} is a valid configuration while
+ *			   {0,2,2,2,2,2,2,2} is not.
  */
 static inline void cvmx_pow_set_priority(uint64_t core_num,
 					 const uint8_t priority[])
@@ -1708,8 +1708,8 @@ static inline void cvmx_pow_set_priority(uint64_t core_num,
  * @tag_type: New tag type
  * @group:    New group value
  * @no_sched: Control whether this work queue entry will be rescheduled.
- *                 - 1 : don't schedule this work
- *                 - 0 : allow this work to be scheduled.
+ *		   - 1 : don't schedule this work
+ *		   - 0 : allow this work to be scheduled.
  */
 static inline void cvmx_pow_tag_sw_desched_nocheck(
 	uint32_t tag,
@@ -1794,8 +1794,8 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(
  * @tag_type: New tag type
  * @group:    New group value
  * @no_sched: Control whether this work queue entry will be rescheduled.
- *                 - 1 : don't schedule this work
- *                 - 0 : allow this work to be scheduled.
+ *		   - 1 : don't schedule this work
+ *		   - 0 : allow this work to be scheduled.
  */
 static inline void cvmx_pow_tag_sw_desched(uint32_t tag,
 					   enum cvmx_pow_tag_type tag_type,
@@ -1819,8 +1819,8 @@ static inline void cvmx_pow_tag_sw_desched(uint32_t tag,
  * Descchedules the current work queue entry.
  *
  * @no_sched: no schedule flag value to be set on the work queue
- *            entry.  If this is set the entry will not be
- *            rescheduled.
+ *	      entry.  If this is set the entry will not be
+ *	      rescheduled.
  */
 static inline void cvmx_pow_desched(uint64_t no_sched)
 {
@@ -1863,7 +1863,7 @@ static inline void cvmx_pow_desched(uint64_t no_sched)
 *****************************************************/
 
 /*
- * Number of bits of the tag used by software.  The SW bits are always
+ * Number of bits of the tag used by software.	The SW bits are always
  * a contiguous block of the high starting at bit 31.  The hardware
  * bits are always the low bits.  By default, the top 8 bits of the
  * tag are reserved for software, and the low 24 are set by the IPD
@@ -1890,7 +1890,7 @@ static inline void cvmx_pow_desched(uint64_t no_sched)
  * are defined here.
  */
 /* Mask for the value portion of the tag */
-#define CVMX_TAG_SUBGROUP_MASK  0xFFFF
+#define CVMX_TAG_SUBGROUP_MASK	0xFFFF
 #define CVMX_TAG_SUBGROUP_SHIFT 16
 #define CVMX_TAG_SUBGROUP_PKO  0x1
 
@@ -1905,12 +1905,12 @@ static inline void cvmx_pow_desched(uint64_t no_sched)
  * This function creates a 32 bit tag value from the two values provided.
  *
  * @sw_bits: The upper bits (number depends on configuration) are set
- *           to this value.  The remainder of bits are set by the
- *           hw_bits parameter.
+ *	     to this value.  The remainder of bits are set by the
+ *	     hw_bits parameter.
  *
  * @hw_bits: The lower bits (number depends on configuration) are set
- *           to this value.  The remainder of bits are set by the
- *           sw_bits parameter.
+ *	     to this value.  The remainder of bits are set by the
+ *	     sw_bits parameter.
  *
  * Returns 32 bit value of the combined hw and sw bits.
  */
@@ -1957,7 +1957,7 @@ static inline uint32_t cvmx_pow_tag_get_hw_bits(uint64_t tag)
  *
  * @buffer: Buffer to store capture into
  * @buffer_size:
- *               The size of the supplied buffer
+ *		 The size of the supplied buffer
  *
  * Returns Zero on success, negative on failure
  */
@@ -1968,7 +1968,7 @@ extern int cvmx_pow_capture(void *buffer, int buffer_size);
  *
  * @buffer: POW capture from cvmx_pow_capture()
  * @buffer_size:
- *               Size of the buffer
+ *		 Size of the buffer
  */
 extern void cvmx_pow_display(void *buffer, int buffer_size);
 

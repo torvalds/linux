@@ -14,21 +14,22 @@
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <mach/common.h>
-#include <mach/mx27.h>
+
+#include "common.h"
+#include "mx27.h"
 
 static const struct of_dev_auxdata imx27_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("fsl,imx27-uart", MX27_UART1_BASE_ADDR, "imx21-uart.0", NULL),
 	OF_DEV_AUXDATA("fsl,imx27-uart", MX27_UART2_BASE_ADDR, "imx21-uart.1", NULL),
 	OF_DEV_AUXDATA("fsl,imx27-uart", MX27_UART3_BASE_ADDR, "imx21-uart.2", NULL),
 	OF_DEV_AUXDATA("fsl,imx27-fec", MX27_FEC_BASE_ADDR, "imx27-fec.0", NULL),
-	OF_DEV_AUXDATA("fsl,imx27-i2c", MX27_I2C1_BASE_ADDR, "imx-i2c.0", NULL),
-	OF_DEV_AUXDATA("fsl,imx27-i2c", MX27_I2C2_BASE_ADDR, "imx-i2c.1", NULL),
+	OF_DEV_AUXDATA("fsl,imx27-i2c", MX27_I2C1_BASE_ADDR, "imx21-i2c.0", NULL),
+	OF_DEV_AUXDATA("fsl,imx27-i2c", MX27_I2C2_BASE_ADDR, "imx21-i2c.1", NULL),
 	OF_DEV_AUXDATA("fsl,imx27-cspi", MX27_CSPI1_BASE_ADDR, "imx27-cspi.0", NULL),
 	OF_DEV_AUXDATA("fsl,imx27-cspi", MX27_CSPI2_BASE_ADDR, "imx27-cspi.1", NULL),
 	OF_DEV_AUXDATA("fsl,imx27-cspi", MX27_CSPI3_BASE_ADDR, "imx27-cspi.2", NULL),
 	OF_DEV_AUXDATA("fsl,imx27-wdt", MX27_WDOG_BASE_ADDR, "imx2-wdt.0", NULL),
-	OF_DEV_AUXDATA("fsl,imx27-nand", MX27_NFC_BASE_ADDR, "mxc_nand.0", NULL),
+	OF_DEV_AUXDATA("fsl,imx27-nand", MX27_NFC_BASE_ADDR, "imx27-nand.0", NULL),
 	{ /* sentinel */ }
 };
 
@@ -38,26 +39,22 @@ static void __init imx27_dt_init(void)
 			     imx27_auxdata_lookup, NULL);
 }
 
-static void __init imx27_timer_init(void)
-{
-	mx27_clocks_init_dt();
-}
-
-static struct sys_timer imx27_timer = {
-	.init = imx27_timer_init,
-};
-
 static const char * const imx27_dt_board_compat[] __initconst = {
 	"fsl,imx27",
 	NULL
 };
+
+static void __init imx27_timer_init(void)
+{
+	mx27_clocks_init_dt();
+}
 
 DT_MACHINE_START(IMX27_DT, "Freescale i.MX27 (Device Tree Support)")
 	.map_io		= mx27_map_io,
 	.init_early	= imx27_init_early,
 	.init_irq	= mx27_init_irq,
 	.handle_irq	= imx27_handle_irq,
-	.timer		= &imx27_timer,
+	.init_time	= imx27_timer_init,
 	.init_machine	= imx27_dt_init,
 	.dt_compat	= imx27_dt_board_compat,
 	.restart	= mxc_restart,

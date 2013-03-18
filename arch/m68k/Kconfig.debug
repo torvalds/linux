@@ -41,7 +41,7 @@ config NO_KERNEL_MSG
 
 config BDM_DISABLE
 	bool "Disable BDM signals"
-	depends on (EXPERIMENTAL && COLDFIRE)
+	depends on COLDFIRE
 	help
 	  Disable the ColdFire CPU's BDM signals.
 

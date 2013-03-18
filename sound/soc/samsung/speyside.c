@@ -198,7 +198,7 @@ static struct snd_soc_dai_link speyside_dai[] = {
 		.stream_name = "CPU-DSP",
 		.cpu_dai_name = "samsung-i2s.0",
 		.codec_dai_name = "wm0010-sdi1",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-i2s.0",
 		.codec_name = "spi0.0",
 		.init = speyside_wm0010_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
@@ -320,7 +320,7 @@ static struct snd_soc_card speyside = {
 	.late_probe = speyside_late_probe,
 };
 
-static __devinit int speyside_probe(struct platform_device *pdev)
+static int speyside_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &speyside;
 	int ret;
@@ -337,7 +337,7 @@ static __devinit int speyside_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit speyside_remove(struct platform_device *pdev)
+static int speyside_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -353,7 +353,7 @@ static struct platform_driver speyside_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = speyside_probe,
-	.remove = __devexit_p(speyside_remove),
+	.remove = speyside_remove,
 };
 
 module_platform_driver(speyside_driver);

@@ -62,7 +62,7 @@ struct radar_detector_specs {
 /**
  * struct dfs_pattern_detector - DFS pattern detector
  * @exit(): destructor
- * @set_domain(): set DFS domain, resets detector lines upon domain changes
+ * @set_dfs_domain(): set DFS domain, resets detector lines upon domain changes
  * @add_pulse(): add radar pulse to detector, returns true on detection
  * @region: active DFS region, NL80211_DFS_UNSET until set
  * @num_radar_types: number of different radar types
@@ -72,7 +72,7 @@ struct radar_detector_specs {
  */
 struct dfs_pattern_detector {
 	void (*exit)(struct dfs_pattern_detector *dpd);
-	bool (*set_domain)(struct dfs_pattern_detector *dpd,
+	bool (*set_dfs_domain)(struct dfs_pattern_detector *dpd,
 			   enum nl80211_dfs_regions region);
 	bool (*add_pulse)(struct dfs_pattern_detector *dpd,
 			  struct pulse_event *pe);

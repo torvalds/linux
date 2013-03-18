@@ -39,7 +39,7 @@
 #include <asm/sizes.h>
 #ifndef __ASSEMBLER__
 #include <asm/types.h>
-#include <plat/cpu.h>
+#include <mach/soc.h>
 
 /*
  * NOTE: Please use ioremap + __raw_read/write where possible instead of these
@@ -51,7 +51,7 @@ extern void omap_writeb(u8 v, u32 pa);
 extern void omap_writew(u16 v, u32 pa);
 extern void omap_writel(u32 v, u32 pa);
 
-#include <plat/tc.h>
+#include <mach/tc.h>
 
 /* Almost all documentation for chip and board memory maps assumes
  * BM is clear.  Most devel boards have a switch to control booting
@@ -72,7 +72,10 @@ static inline u32 omap_cs3_phys(void)
 
 #endif	/* ifndef __ASSEMBLER__ */
 
-#include <plat/serial.h>
+#define OMAP1_IO_OFFSET		0x01000000	/* Virtual IO = 0xfefb0000 */
+#define OMAP1_IO_ADDRESS(pa)	IOMEM((pa) - OMAP1_IO_OFFSET)
+
+#include <mach/serial.h>
 
 /*
  * ---------------------------------------------------------------------------

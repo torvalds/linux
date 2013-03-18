@@ -550,6 +550,170 @@ do {									\
 	__ret;								\
 })
 
+
+#define __wait_event_lock_irq(wq, condition, lock, cmd)			\
+do {									\
+	DEFINE_WAIT(__wait);						\
+									\
+	for (;;) {							\
+		prepare_to_wait(&wq, &__wait, TASK_UNINTERRUPTIBLE);	\
+		if (condition)						\
+			break;						\
+		spin_unlock_irq(&lock);					\
+		cmd;							\
+		schedule();						\
+		spin_lock_irq(&lock);					\
+	}								\
+	finish_wait(&wq, &__wait);					\
+} while (0)
+
+/**
+ * wait_event_lock_irq_cmd - sleep until a condition gets true. The
+ *			     condition is checked under the lock. This
+ *			     is expected to be called with the lock
+ *			     taken.
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @lock: a locked spinlock_t, which will be released before cmd
+ *	  and schedule() and reacquired afterwards.
+ * @cmd: a command which is invoked outside the critical section before
+ *	 sleep
+ *
+ * The process is put to sleep (TASK_UNINTERRUPTIBLE) until the
+ * @condition evaluates to true. The @condition is checked each time
+ * the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * This is supposed to be called while holding the lock. The lock is
+ * dropped before invoking the cmd and going to sleep and is reacquired
+ * afterwards.
+ */
+#define wait_event_lock_irq_cmd(wq, condition, lock, cmd)		\
+do {									\
+	if (condition)							\
+		break;							\
+	__wait_event_lock_irq(wq, condition, lock, cmd);		\
+} while (0)
+
+/**
+ * wait_event_lock_irq - sleep until a condition gets true. The
+ *			 condition is checked under the lock. This
+ *			 is expected to be called with the lock
+ *			 taken.
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @lock: a locked spinlock_t, which will be released before schedule()
+ *	  and reacquired afterwards.
+ *
+ * The process is put to sleep (TASK_UNINTERRUPTIBLE) until the
+ * @condition evaluates to true. The @condition is checked each time
+ * the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * This is supposed to be called while holding the lock. The lock is
+ * dropped before going to sleep and is reacquired afterwards.
+ */
+#define wait_event_lock_irq(wq, condition, lock)			\
+do {									\
+	if (condition)							\
+		break;							\
+	__wait_event_lock_irq(wq, condition, lock, );			\
+} while (0)
+
+
+#define __wait_event_interruptible_lock_irq(wq, condition,		\
+					    lock, ret, cmd)		\
+do {									\
+	DEFINE_WAIT(__wait);						\
+									\
+	for (;;) {							\
+		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
+		if (condition)						\
+			break;						\
+		if (signal_pending(current)) {				\
+			ret = -ERESTARTSYS;				\
+			break;						\
+		}							\
+		spin_unlock_irq(&lock);					\
+		cmd;							\
+		schedule();						\
+		spin_lock_irq(&lock);					\
+	}								\
+	finish_wait(&wq, &__wait);					\
+} while (0)
+
+/**
+ * wait_event_interruptible_lock_irq_cmd - sleep until a condition gets true.
+ *		The condition is checked under the lock. This is expected to
+ *		be called with the lock taken.
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @lock: a locked spinlock_t, which will be released before cmd and
+ *	  schedule() and reacquired afterwards.
+ * @cmd: a command which is invoked outside the critical section before
+ *	 sleep
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE) until the
+ * @condition evaluates to true or a signal is received. The @condition is
+ * checked each time the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * This is supposed to be called while holding the lock. The lock is
+ * dropped before invoking the cmd and going to sleep and is reacquired
+ * afterwards.
+ *
+ * The macro will return -ERESTARTSYS if it was interrupted by a signal
+ * and 0 if @condition evaluated to true.
+ */
+#define wait_event_interruptible_lock_irq_cmd(wq, condition, lock, cmd)	\
+({									\
+	int __ret = 0;							\
+									\
+	if (!(condition))						\
+		__wait_event_interruptible_lock_irq(wq, condition,	\
+						    lock, __ret, cmd);	\
+	__ret;								\
+})
+
+/**
+ * wait_event_interruptible_lock_irq - sleep until a condition gets true.
+ *		The condition is checked under the lock. This is expected
+ *		to be called with the lock taken.
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @lock: a locked spinlock_t, which will be released before schedule()
+ *	  and reacquired afterwards.
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE) until the
+ * @condition evaluates to true or signal is received. The @condition is
+ * checked each time the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * This is supposed to be called while holding the lock. The lock is
+ * dropped before going to sleep and is reacquired afterwards.
+ *
+ * The macro will return -ERESTARTSYS if it was interrupted by a signal
+ * and 0 if @condition evaluated to true.
+ */
+#define wait_event_interruptible_lock_irq(wq, condition, lock)		\
+({									\
+	int __ret = 0;							\
+									\
+	if (!(condition))						\
+		__wait_event_interruptible_lock_irq(wq, condition,	\
+						    lock, __ret, );	\
+	__ret;								\
+})
+
+
 /*
  * These are the old interfaces to sleep waiting for an event.
  * They are racy.  DO NOT use them, use the wait_event* interfaces above.

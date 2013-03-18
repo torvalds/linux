@@ -88,10 +88,14 @@ struct disk_stats {
 };
 
 #define PARTITION_META_INFO_VOLNAMELTH	64
-#define PARTITION_META_INFO_UUIDLTH	16
+/*
+ * Enough for the string representation of any kind of UUID plus NULL.
+ * EFI UUID is 36 characters. MSDOS UUID is 11 characters.
+ */
+#define PARTITION_META_INFO_UUIDLTH	37
 
 struct partition_meta_info {
-	u8 uuid[PARTITION_META_INFO_UUIDLTH];	/* always big endian */
+	char uuid[PARTITION_META_INFO_UUIDLTH];
 	u8 volname[PARTITION_META_INFO_VOLNAMELTH];
 };
 
@@ -225,6 +229,12 @@ static inline void part_pack_uuid(const u8 *uuid_str, u8 *to)
 			continue;
 		}
 	}
+}
+
+static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
+{
+	part_pack_uuid(uuid_str, to);
+	return 0;
 }
 
 static inline int disk_max_parts(struct gendisk *disk)
@@ -714,6 +724,10 @@ static inline dev_t blk_lookup_devt(const char *name, int partno)
 	return devt;
 }
 
+static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
+{
+	return -EINVAL;
+}
 #endif /* CONFIG_BLOCK */
 
 #endif /* _LINUX_GENHD_H */

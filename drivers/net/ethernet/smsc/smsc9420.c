@@ -1179,7 +1179,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 		phydev->phy_id);
 
 	phydev = phy_connect(dev, dev_name(&phydev->dev),
-		smsc9420_phy_adjust_link, 0, PHY_INTERFACE_MODE_MII);
+			     smsc9420_phy_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		pr_err("%s: Could not attach to PHY\n", dev->name);
@@ -1250,12 +1250,11 @@ static int smsc9420_alloc_tx_ring(struct smsc9420_pdata *pd)
 
 	BUG_ON(!pd->tx_ring);
 
-	pd->tx_buffers = kmalloc((sizeof(struct smsc9420_ring_info) *
-		TX_RING_SIZE), GFP_KERNEL);
-	if (!pd->tx_buffers) {
-		smsc_warn(IFUP, "Failed to allocated tx_buffers");
+	pd->tx_buffers = kmalloc_array(TX_RING_SIZE,
+				       sizeof(struct smsc9420_ring_info),
+				       GFP_KERNEL);
+	if (!pd->tx_buffers)
 		return -ENOMEM;
-	}
 
 	/* Initialize the TX Ring */
 	for (i = 0; i < TX_RING_SIZE; i++) {
@@ -1577,7 +1576,7 @@ static const struct net_device_ops smsc9420_netdev_ops = {
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 };
 
-static int __devinit
+static int
 smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct net_device *dev;
@@ -1702,7 +1701,7 @@ out_0:
 	return -ENODEV;
 }
 
-static void __devexit smsc9420_remove(struct pci_dev *pdev)
+static void smsc9420_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev;
 	struct smsc9420_pdata *pd;
@@ -1736,7 +1735,7 @@ static struct pci_driver smsc9420_driver = {
 	.name = DRV_NAME,
 	.id_table = smsc9420_id_table,
 	.probe = smsc9420_probe,
-	.remove = __devexit_p(smsc9420_remove),
+	.remove = smsc9420_remove,
 #ifdef CONFIG_PM
 	.suspend = smsc9420_suspend,
 	.resume = smsc9420_resume,

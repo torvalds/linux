@@ -15,10 +15,9 @@
 
 #include <linux/amba/pl08x.h>
 #include <linux/amba/serial.h>
+#include <linux/irqchip.h>
 #include <linux/of_platform.h>
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
-#include <plat/shirq.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
 
@@ -27,176 +26,6 @@
 #define SPEAR310_UART3_BASE		UL(0xB2100000)
 #define SPEAR310_UART4_BASE		UL(0xB2180000)
 #define SPEAR310_UART5_BASE		UL(0xB2200000)
-#define SPEAR310_SOC_CONFIG_BASE	UL(0xB4000000)
-
-/* Interrupt registers offsets and masks */
-#define SPEAR310_INT_STS_MASK_REG	0x04
-#define SPEAR310_SMII0_IRQ_MASK		(1 << 0)
-#define SPEAR310_SMII1_IRQ_MASK		(1 << 1)
-#define SPEAR310_SMII2_IRQ_MASK		(1 << 2)
-#define SPEAR310_SMII3_IRQ_MASK		(1 << 3)
-#define SPEAR310_WAKEUP_SMII0_IRQ_MASK	(1 << 4)
-#define SPEAR310_WAKEUP_SMII1_IRQ_MASK	(1 << 5)
-#define SPEAR310_WAKEUP_SMII2_IRQ_MASK	(1 << 6)
-#define SPEAR310_WAKEUP_SMII3_IRQ_MASK	(1 << 7)
-#define SPEAR310_UART1_IRQ_MASK		(1 << 8)
-#define SPEAR310_UART2_IRQ_MASK		(1 << 9)
-#define SPEAR310_UART3_IRQ_MASK		(1 << 10)
-#define SPEAR310_UART4_IRQ_MASK		(1 << 11)
-#define SPEAR310_UART5_IRQ_MASK		(1 << 12)
-#define SPEAR310_EMI_IRQ_MASK		(1 << 13)
-#define SPEAR310_TDM_HDLC_IRQ_MASK	(1 << 14)
-#define SPEAR310_RS485_0_IRQ_MASK	(1 << 15)
-#define SPEAR310_RS485_1_IRQ_MASK	(1 << 16)
-
-#define SPEAR310_SHIRQ_RAS1_MASK	0x000FF
-#define SPEAR310_SHIRQ_RAS2_MASK	0x01F00
-#define SPEAR310_SHIRQ_RAS3_MASK	0x02000
-#define SPEAR310_SHIRQ_INTRCOMM_RAS_MASK	0x1C000
-
-/* SPEAr310 Virtual irq definitions */
-/* IRQs sharing IRQ_GEN_RAS_1 */
-#define SPEAR310_VIRQ_SMII0			(SPEAR3XX_VIRQ_START + 0)
-#define SPEAR310_VIRQ_SMII1			(SPEAR3XX_VIRQ_START + 1)
-#define SPEAR310_VIRQ_SMII2			(SPEAR3XX_VIRQ_START + 2)
-#define SPEAR310_VIRQ_SMII3			(SPEAR3XX_VIRQ_START + 3)
-#define SPEAR310_VIRQ_WAKEUP_SMII0		(SPEAR3XX_VIRQ_START + 4)
-#define SPEAR310_VIRQ_WAKEUP_SMII1		(SPEAR3XX_VIRQ_START + 5)
-#define SPEAR310_VIRQ_WAKEUP_SMII2		(SPEAR3XX_VIRQ_START + 6)
-#define SPEAR310_VIRQ_WAKEUP_SMII3		(SPEAR3XX_VIRQ_START + 7)
-
-/* IRQs sharing IRQ_GEN_RAS_2 */
-#define SPEAR310_VIRQ_UART1			(SPEAR3XX_VIRQ_START + 8)
-#define SPEAR310_VIRQ_UART2			(SPEAR3XX_VIRQ_START + 9)
-#define SPEAR310_VIRQ_UART3			(SPEAR3XX_VIRQ_START + 10)
-#define SPEAR310_VIRQ_UART4			(SPEAR3XX_VIRQ_START + 11)
-#define SPEAR310_VIRQ_UART5			(SPEAR3XX_VIRQ_START + 12)
-
-/* IRQs sharing IRQ_GEN_RAS_3 */
-#define SPEAR310_VIRQ_EMI			(SPEAR3XX_VIRQ_START + 13)
-#define SPEAR310_VIRQ_PLGPIO			(SPEAR3XX_VIRQ_START + 14)
-
-/* IRQs sharing IRQ_INTRCOMM_RAS_ARM */
-#define SPEAR310_VIRQ_TDM_HDLC			(SPEAR3XX_VIRQ_START + 15)
-#define SPEAR310_VIRQ_RS485_0			(SPEAR3XX_VIRQ_START + 16)
-#define SPEAR310_VIRQ_RS485_1			(SPEAR3XX_VIRQ_START + 17)
-
-
-/* spear3xx shared irq */
-static struct shirq_dev_config shirq_ras1_config[] = {
-	{
-		.virq = SPEAR310_VIRQ_SMII0,
-		.status_mask = SPEAR310_SMII0_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_SMII1,
-		.status_mask = SPEAR310_SMII1_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_SMII2,
-		.status_mask = SPEAR310_SMII2_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_SMII3,
-		.status_mask = SPEAR310_SMII3_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_WAKEUP_SMII0,
-		.status_mask = SPEAR310_WAKEUP_SMII0_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_WAKEUP_SMII1,
-		.status_mask = SPEAR310_WAKEUP_SMII1_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_WAKEUP_SMII2,
-		.status_mask = SPEAR310_WAKEUP_SMII2_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_WAKEUP_SMII3,
-		.status_mask = SPEAR310_WAKEUP_SMII3_IRQ_MASK,
-	},
-};
-
-static struct spear_shirq shirq_ras1 = {
-	.irq = SPEAR3XX_IRQ_GEN_RAS_1,
-	.dev_config = shirq_ras1_config,
-	.dev_count = ARRAY_SIZE(shirq_ras1_config),
-	.regs = {
-		.enb_reg = -1,
-		.status_reg = SPEAR310_INT_STS_MASK_REG,
-		.status_reg_mask = SPEAR310_SHIRQ_RAS1_MASK,
-		.clear_reg = -1,
-	},
-};
-
-static struct shirq_dev_config shirq_ras2_config[] = {
-	{
-		.virq = SPEAR310_VIRQ_UART1,
-		.status_mask = SPEAR310_UART1_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_UART2,
-		.status_mask = SPEAR310_UART2_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_UART3,
-		.status_mask = SPEAR310_UART3_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_UART4,
-		.status_mask = SPEAR310_UART4_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_UART5,
-		.status_mask = SPEAR310_UART5_IRQ_MASK,
-	},
-};
-
-static struct spear_shirq shirq_ras2 = {
-	.irq = SPEAR3XX_IRQ_GEN_RAS_2,
-	.dev_config = shirq_ras2_config,
-	.dev_count = ARRAY_SIZE(shirq_ras2_config),
-	.regs = {
-		.enb_reg = -1,
-		.status_reg = SPEAR310_INT_STS_MASK_REG,
-		.status_reg_mask = SPEAR310_SHIRQ_RAS2_MASK,
-		.clear_reg = -1,
-	},
-};
-
-static struct shirq_dev_config shirq_ras3_config[] = {
-	{
-		.virq = SPEAR310_VIRQ_EMI,
-		.status_mask = SPEAR310_EMI_IRQ_MASK,
-	},
-};
-
-static struct spear_shirq shirq_ras3 = {
-	.irq = SPEAR3XX_IRQ_GEN_RAS_3,
-	.dev_config = shirq_ras3_config,
-	.dev_count = ARRAY_SIZE(shirq_ras3_config),
-	.regs = {
-		.enb_reg = -1,
-		.status_reg = SPEAR310_INT_STS_MASK_REG,
-		.status_reg_mask = SPEAR310_SHIRQ_RAS3_MASK,
-		.clear_reg = -1,
-	},
-};
-
-static struct shirq_dev_config shirq_intrcomm_ras_config[] = {
-	{
-		.virq = SPEAR310_VIRQ_TDM_HDLC,
-		.status_mask = SPEAR310_TDM_HDLC_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_RS485_0,
-		.status_mask = SPEAR310_RS485_0_IRQ_MASK,
-	}, {
-		.virq = SPEAR310_VIRQ_RS485_1,
-		.status_mask = SPEAR310_RS485_1_IRQ_MASK,
-	},
-};
-
-static struct spear_shirq shirq_intrcomm_ras = {
-	.irq = SPEAR3XX_IRQ_INTRCOMM_RAS_ARM,
-	.dev_config = shirq_intrcomm_ras_config,
-	.dev_count = ARRAY_SIZE(shirq_intrcomm_ras_config),
-	.regs = {
-		.enb_reg = -1,
-		.status_reg = SPEAR310_INT_STS_MASK_REG,
-		.status_reg_mask = SPEAR310_SHIRQ_INTRCOMM_RAS_MASK,
-		.clear_reg = -1,
-	},
-};
 
 /* DMAC platform data's slave info */
 struct pl08x_channel_data spear310_dma_info[] = {
@@ -405,42 +234,11 @@ static struct of_dev_auxdata spear310_auxdata_lookup[] __initdata = {
 
 static void __init spear310_dt_init(void)
 {
-	void __iomem *base;
-	int ret;
-
 	pl080_plat_data.slave_channels = spear310_dma_info;
 	pl080_plat_data.num_slave_channels = ARRAY_SIZE(spear310_dma_info);
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			spear310_auxdata_lookup, NULL);
-
-	/* shared irq registration */
-	base = ioremap(SPEAR310_SOC_CONFIG_BASE, SZ_4K);
-	if (base) {
-		/* shirq 1 */
-		shirq_ras1.regs.base = base;
-		ret = spear_shirq_register(&shirq_ras1);
-		if (ret)
-			pr_err("Error registering Shared IRQ 1\n");
-
-		/* shirq 2 */
-		shirq_ras2.regs.base = base;
-		ret = spear_shirq_register(&shirq_ras2);
-		if (ret)
-			pr_err("Error registering Shared IRQ 2\n");
-
-		/* shirq 3 */
-		shirq_ras3.regs.base = base;
-		ret = spear_shirq_register(&shirq_ras3);
-		if (ret)
-			pr_err("Error registering Shared IRQ 3\n");
-
-		/* shirq 4 */
-		shirq_intrcomm_ras.regs.base = base;
-		ret = spear_shirq_register(&shirq_intrcomm_ras);
-		if (ret)
-			pr_err("Error registering Shared IRQ 4\n");
-	}
 }
 
 static const char * const spear310_dt_board_compat[] = {
@@ -456,9 +254,8 @@ static void __init spear310_map_io(void)
 
 DT_MACHINE_START(SPEAR310_DT, "ST SPEAr310 SoC with Flattened Device Tree")
 	.map_io		=	spear310_map_io,
-	.init_irq	=	spear3xx_dt_init_irq,
-	.handle_irq	=	vic_handle_irq,
-	.timer		=	&spear3xx_timer,
+	.init_irq	=	irqchip_init,
+	.init_time	=	spear3xx_timer_init,
 	.init_machine	=	spear310_dt_init,
 	.restart	=	spear_restart,
 	.dt_compat	=	spear310_dt_board_compat,

@@ -4,7 +4,7 @@ Kernel driver lp855x
 Backlight driver for LP855x ICs
 
 Supported chips:
-	Texas Instruments LP8550, LP8551, LP8552, LP8553 and LP8556
+	Texas Instruments LP8550, LP8551, LP8552, LP8553, LP8556 and LP8557
 
 Author: Milo(Woogyom) Kim <milo.kim@ti.com>
 
@@ -24,7 +24,7 @@ Value : pwm based or register based
 
 2) chip_id
 The lp855x chip id.
-Value : lp8550/lp8551/lp8552/lp8553/lp8556
+Value : lp8550/lp8551/lp8552/lp8553/lp8556/lp8557
 
 Platform data for lp855x
 ------------------------
@@ -35,11 +35,8 @@ For supporting platform specific data, the lp855x platform data can be used.
 * mode : Brightness control mode. PWM or register based.
 * device_control : Value of DEVICE CONTROL register.
 * initial_brightness : Initial value of backlight brightness.
-* pwm_data : Platform specific pwm generation functions.
+* period_ns : Platform specific PWM period value. unit is nano.
 	     Only valid when brightness is pwm input mode.
-	     Functions should be implemented by PWM driver.
-	     - pwm_set_intensity() : set duty of PWM
-	     - pwm_get_intensity() : get current duty of PWM
 * load_new_rom_data :
 	0 : use default configuration data
 	1 : update values of eeprom or eprom registers on loading driver
@@ -71,8 +68,5 @@ static struct lp855x_platform_data lp8556_pdata = {
 	.mode = PWM_BASED,
 	.device_control = PWM_CONFIG(LP8556),
 	.initial_brightness = INITIAL_BRT,
-	.pwm_data = {
-		     .pwm_set_intensity = platform_pwm_set_intensity,
-		     .pwm_get_intensity = platform_pwm_get_intensity,
-		     },
+	.period_ns = 1000000,
 };

@@ -343,7 +343,7 @@ static int s5k4ecgx_load_firmware(struct v4l2_subdev *sd)
 	}
 	regs_num = le32_to_cpu(get_unaligned_le32(fw->data));
 
-	v4l2_dbg(3, debug, sd, "FW: %s size %d register sets %d\n",
+	v4l2_dbg(3, debug, sd, "FW: %s size %zu register sets %d\n",
 		 S5K4ECGX_FIRMWARE, fw->size, regs_num);
 
 	regs_num++; /* Add header */

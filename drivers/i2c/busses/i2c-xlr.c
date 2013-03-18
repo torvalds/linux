@@ -7,6 +7,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -214,7 +215,7 @@ static struct i2c_algorithm xlr_i2c_algo = {
 	.functionality	= xlr_func,
 };
 
-static int __devinit xlr_i2c_probe(struct platform_device *pdev)
+static int xlr_i2c_probe(struct platform_device *pdev)
 {
 	struct xlr_i2c_private  *priv;
 	struct resource *res;
@@ -225,11 +226,9 @@ static int __devinit xlr_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->iobase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!priv->iobase) {
-		dev_err(&pdev->dev, "devm_request_and_ioremap failed\n");
-		return -EBUSY;
-	}
+	priv->iobase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->iobase))
+		return PTR_ERR(priv->iobase);
 
 	priv->adap.dev.parent = &pdev->dev;
 	priv->adap.owner	= THIS_MODULE;
@@ -251,19 +250,18 @@ static int __devinit xlr_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit xlr_i2c_remove(struct platform_device *pdev)
+static int xlr_i2c_remove(struct platform_device *pdev)
 {
 	struct xlr_i2c_private *priv;
 
 	priv = platform_get_drvdata(pdev);
 	i2c_del_adapter(&priv->adap);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
 static struct platform_driver xlr_i2c_driver = {
 	.probe  = xlr_i2c_probe,
-	.remove = __devexit_p(xlr_i2c_remove),
+	.remove = xlr_i2c_remove,
 	.driver = {
 		.name   = "xlr-i2cbus",
 		.owner  = THIS_MODULE,

@@ -23,14 +23,13 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/semaphore.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/ctr.h>
 #include <crypto/des.h>
 #include <crypto/scatterwalk.h>
-
-#include <plat/ste_dma40.h>
 
 #include <linux/platform_data/crypto-ux500.h>
 #include <mach/hardware.h>

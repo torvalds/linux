@@ -786,7 +786,7 @@ static int aaci_resume(struct amba_device *dev)
 #endif
 
 
-static struct ac97_pcm ac97_defs[] __devinitdata = {
+static struct ac97_pcm ac97_defs[] = {
 	[0] = {	/* Front PCM */
 		.exclusive = 1,
 		.r = {
@@ -832,7 +832,7 @@ static struct snd_ac97_bus_ops aaci_bus_ops = {
 	.read	= aaci_ac97_read,
 };
 
-static int __devinit aaci_probe_ac97(struct aaci *aaci)
+static int aaci_probe_ac97(struct aaci *aaci)
 {
 	struct snd_ac97_template ac97_template;
 	struct snd_ac97_bus *ac97_bus;
@@ -893,7 +893,7 @@ static void aaci_free_card(struct snd_card *card)
 		iounmap(aaci->base);
 }
 
-static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
+static struct aaci *aaci_init_card(struct amba_device *dev)
 {
 	struct aaci *aaci;
 	struct snd_card *card;
@@ -926,7 +926,7 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 	return aaci;
 }
 
-static int __devinit aaci_init_pcm(struct aaci *aaci)
+static int aaci_init_pcm(struct aaci *aaci)
 {
 	struct snd_pcm *pcm;
 	int ret;
@@ -948,7 +948,7 @@ static int __devinit aaci_init_pcm(struct aaci *aaci)
 	return ret;
 }
 
-static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
+static unsigned int aaci_size_fifo(struct aaci *aaci)
 {
 	struct aaci_runtime *aacirun = &aaci->playback;
 	int i;
@@ -984,8 +984,8 @@ static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 	return i;
 }
 
-static int __devinit aaci_probe(struct amba_device *dev,
-	const struct amba_id *id)
+static int aaci_probe(struct amba_device *dev,
+		      const struct amba_id *id)
 {
 	struct aaci *aaci;
 	int ret, i;
@@ -1072,7 +1072,7 @@ static int __devinit aaci_probe(struct amba_device *dev,
 	return ret;
 }
 
-static int __devexit aaci_remove(struct amba_device *dev)
+static int aaci_remove(struct amba_device *dev)
 {
 	struct snd_card *card = amba_get_drvdata(dev);
 
@@ -1104,7 +1104,7 @@ static struct amba_driver aaci_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= aaci_probe,
-	.remove		= __devexit_p(aaci_remove),
+	.remove		= aaci_remove,
 	.suspend	= aaci_suspend,
 	.resume		= aaci_resume,
 	.id_table	= aaci_ids,

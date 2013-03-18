@@ -254,9 +254,16 @@
 #define XGI330_SR1F 0
 #define XGI330_SR23 0xf6
 #define XGI330_SR24 0x0d
-#define XGI330_SR25 0
 #define XGI330_SR31 0xc0
 #define XGI330_SR32 0x11
 #define XGI330_SR33 0
+
+extern const struct XGI_ExtStruct XGI330_EModeIDTable[];
+extern const struct XGI_Ext2Struct XGI330_RefIndex[];
+extern const struct XGI_CRT1TableStruct XGI_CRT1Table[];
+extern const struct XGI_ECLKDataStruct XGI340_ECLKData[];
+extern const struct SiS_VCLKData XGI_VCLKData[];
+extern const unsigned char XGI340_CR6B[][4];
+extern const unsigned char XGI340_AGPReg[];
 
 #endif

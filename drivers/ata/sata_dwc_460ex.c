@@ -43,6 +43,7 @@
 /* These two are defined in "libata.h" */
 #undef	DRV_NAME
 #undef	DRV_VERSION
+
 #define DRV_NAME        "sata-dwc"
 #define DRV_VERSION     "1.3"
 

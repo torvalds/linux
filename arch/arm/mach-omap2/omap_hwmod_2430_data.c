@@ -12,21 +12,22 @@
  * XXX handle crossbar/shared link difference for L3?
  * XXX these should be marked initdata for multi-OMAP kernels
  */
+
+#include <linux/i2c-omap.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
-
-#include <plat/omap_hwmod.h>
-#include <plat/dma.h>
-#include <plat/serial.h>
-#include <plat/i2c.h>
+#include <linux/omap-dma.h>
 #include <plat/dmtimer.h>
-#include <plat/mmc.h>
+
+#include "omap_hwmod.h"
+#include "mmc.h"
 #include "l3_2xxx.h"
 
 #include "soc.h"
 #include "omap_hwmod_common_data.h"
 #include "prm-regbits-24xx.h"
 #include "cm-regbits-24xx.h"
+#include "i2c.h"
 #include "wd_timer.h"
 
 /*
@@ -76,8 +77,7 @@ static struct omap_hwmod_class i2c_class = {
 
 static struct omap_i2c_dev_attr i2c_dev_attr = {
 	.fifo_depth	= 8, /* bytes */
-	.flags		= OMAP_I2C_FLAG_APPLY_ERRATA_I207 |
-			  OMAP_I2C_FLAG_BUS_SHIFT_2 |
+	.flags		= OMAP_I2C_FLAG_BUS_SHIFT_2 |
 			  OMAP_I2C_FLAG_FORCE_19200_INT_CLK,
 };
 

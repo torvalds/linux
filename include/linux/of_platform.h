@@ -100,6 +100,7 @@ extern int of_platform_populate(struct device_node *root,
 
 #if !defined(CONFIG_OF_ADDRESS)
 struct of_dev_auxdata;
+struct device;
 static inline int of_platform_populate(struct device_node *root,
 					const struct of_device_id *matches,
 					const struct of_dev_auxdata *lookup,

@@ -45,9 +45,10 @@
 
 #include <asm/compat.h>
 #include <asm/cacheflush.h>
+#include <asm/fpsimd.h>
+#include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/stacktrace.h>
-#include <asm/fpsimd.h>
 
 static void setup_restart(void)
 {
@@ -97,14 +98,9 @@ static void default_idle(void)
 	local_irq_enable();
 }
 
-void (*pm_idle)(void) = default_idle;
-EXPORT_SYMBOL_GPL(pm_idle);
-
 /*
- * The idle thread, has rather strange semantics for calling pm_idle,
- * but this is what x86 does and we need to do the same, so that
- * things like cpuidle get called in the same way.  The only difference
- * is that we always respect 'hlt_counter' to prevent low power idle.
+ * The idle thread.
+ * We always respect 'hlt_counter' to prevent low power idle.
  */
 void cpu_idle(void)
 {
@@ -122,10 +118,10 @@ void cpu_idle(void)
 			local_irq_disable();
 			if (!need_resched()) {
 				stop_critical_timings();
-				pm_idle();
+				default_idle();
 				start_critical_timings();
 				/*
-				 * pm_idle functions should always return
+				 * default_idle functions should always return
 				 * with IRQs enabled.
 				 */
 				WARN_ON(irqs_disabled());
@@ -234,33 +230,46 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 asmlinkage void ret_from_fork(void) asm("ret_from_fork");
 
 int copy_thread(unsigned long clone_flags, unsigned long stack_start,
-		unsigned long stk_sz, struct task_struct *p,
-		struct pt_regs *regs)
+		unsigned long stk_sz, struct task_struct *p)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 	unsigned long tls = p->thread.tp_value;
 
-	*childregs = *regs;
-	childregs->regs[0] = 0;
-
-	if (is_compat_thread(task_thread_info(p)))
-		childregs->compat_sp = stack_start;
-	else {
-		/*
-		 * Read the current TLS pointer from tpidr_el0 as it may be
-		 * out-of-sync with the saved value.
-		 */
-		asm("mrs %0, tpidr_el0" : "=r" (tls));
-		childregs->sp = stack_start;
-	}
-
 	memset(&p->thread.cpu_context, 0, sizeof(struct cpu_context));
-	p->thread.cpu_context.sp = (unsigned long)childregs;
-	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 
-	/* If a TLS pointer was passed to clone, use that for the new thread. */
-	if (clone_flags & CLONE_SETTLS)
-		tls = regs->regs[3];
+	if (likely(!(p->flags & PF_KTHREAD))) {
+		*childregs = *current_pt_regs();
+		childregs->regs[0] = 0;
+		if (is_compat_thread(task_thread_info(p))) {
+			if (stack_start)
+				childregs->compat_sp = stack_start;
+		} else {
+			/*
+			 * Read the current TLS pointer from tpidr_el0 as it may be
+			 * out-of-sync with the saved value.
+			 */
+			asm("mrs %0, tpidr_el0" : "=r" (tls));
+			if (stack_start) {
+				/* 16-byte aligned stack mandatory on AArch64 */
+				if (stack_start & 15)
+					return -EINVAL;
+				childregs->sp = stack_start;
+			}
+		}
+		/*
+		 * If a TLS pointer was passed to clone (4th argument), use it
+		 * for the new thread.
+		 */
+		if (clone_flags & CLONE_SETTLS)
+			tls = childregs->regs[3];
+	} else {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		childregs->pstate = PSR_MODE_EL1h;
+		p->thread.cpu_context.x19 = stack_start;
+		p->thread.cpu_context.x20 = stk_sz;
+	}
+	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
+	p->thread.cpu_context.sp = (unsigned long)childregs;
 	p->thread.tp_value = tls;
 
 	ptrace_hw_copy_thread(p);
@@ -306,63 +315,9 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
 
+	contextidr_thread_switch(next);
 	return last;
 }
-
-/*
- * Fill in the task's elfregs structure for a core dump.
- */
-int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs)
-{
-	elf_core_copy_regs(elfregs, task_pt_regs(t));
-	return 1;
-}
-
-/*
- * fill in the fpe structure for a core dump...
- */
-int dump_fpu (struct pt_regs *regs, struct user_fp *fp)
-{
-	return 0;
-}
-EXPORT_SYMBOL(dump_fpu);
-
-/*
- * Shuffle the argument into the correct register before calling the
- * thread function.  x1 is the thread argument, x2 is the pointer to
- * the thread function, and x3 points to the exit function.
- */
-extern void kernel_thread_helper(void);
-asm(	".section .text\n"
-"	.align\n"
-"	.type	kernel_thread_helper, #function\n"
-"kernel_thread_helper:\n"
-"	mov	x0, x1\n"
-"	mov	x30, x3\n"
-"	br	x2\n"
-"	.size	kernel_thread_helper, . - kernel_thread_helper\n"
-"	.previous");
-
-#define kernel_thread_exit	do_exit
-
-/*
- * Create a kernel thread.
- */
-pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.regs[1] = (unsigned long)arg;
-	regs.regs[2] = (unsigned long)fn;
-	regs.regs[3] = (unsigned long)kernel_thread_exit;
-	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.pstate = PSR_MODE_EL1h;
-
-	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
 
 unsigned long get_wchan(struct task_struct *p)
 {

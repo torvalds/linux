@@ -136,7 +136,7 @@ static int tua9001_set_params(struct dvb_frontend *fe)
 {
 	struct tua9001_priv *priv = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i;
+	int ret = 0, i;
 	u16 val;
 	u32 frequency;
 	struct reg_val data[2];

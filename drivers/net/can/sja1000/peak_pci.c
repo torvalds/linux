@@ -339,8 +339,7 @@ static void peak_pciec_set_leds(struct peak_pciec_card *card, u8 led_mask, u8 s)
  */
 static void peak_pciec_start_led_work(struct peak_pciec_card *card)
 {
-	if (!delayed_work_pending(&card->led_work))
-		schedule_delayed_work(&card->led_work, HZ);
+	schedule_delayed_work(&card->led_work, HZ);
 }
 
 /*
@@ -451,11 +450,8 @@ static int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 	} else {
 		/* create the bit banging I2C adapter structure */
 		card = kzalloc(sizeof(struct peak_pciec_card), GFP_KERNEL);
-		if (!card) {
-			dev_err(&pdev->dev,
-				 "failed allocating memory for i2c chip\n");
+		if (!card)
 			return -ENOMEM;
-		}
 
 		card->cfg_base = chan->cfg_base;
 		card->reg_base = priv->reg_base;
@@ -551,8 +547,7 @@ static void peak_pci_post_irq(const struct sja1000_priv *priv)
 		writew(chan->icr_mask, chan->cfg_base + PITA_ICR);
 }
 
-static int __devinit peak_pci_probe(struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct sja1000_priv *priv;
 	struct peak_pci_chan *chan;
@@ -717,7 +712,7 @@ failure_disable_pci:
 	return err;
 }
 
-static void __devexit peak_pci_remove(struct pci_dev *pdev)
+static void peak_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev); /* Last device */
 	struct sja1000_priv *priv = netdev_priv(dev);
@@ -757,7 +752,7 @@ static struct pci_driver peak_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = peak_pci_tbl,
 	.probe = peak_pci_probe,
-	.remove = __devexit_p(peak_pci_remove),
+	.remove = peak_pci_remove,
 };
 
 module_pci_driver(peak_pci_driver);

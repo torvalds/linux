@@ -46,9 +46,9 @@ static __u8 *ms_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		rdesc[559] = 0x45;
 	}
 	/* the same as above (s/usage/physical/) */
-	if ((quirks & MS_RDESC_3K) && *rsize == 106 &&
-			!memcmp((char []){ 0x19, 0x00, 0x29, 0xff },
-				&rdesc[94], 4)) {
+	if ((quirks & MS_RDESC_3K) && *rsize == 106 && rdesc[94] == 0x19 &&
+			rdesc[95] == 0x00 && rdesc[96] == 0x29 &&
+			rdesc[97] == 0xff) {
 		rdesc[94] = 0x35;
 		rdesc[96] = 0x45;
 	}
@@ -221,17 +221,6 @@ static struct hid_driver ms_driver = {
 	.event = ms_event,
 	.probe = ms_probe,
 };
+module_hid_driver(ms_driver);
 
-static int __init ms_init(void)
-{
-	return hid_register_driver(&ms_driver);
-}
-
-static void __exit ms_exit(void)
-{
-	hid_unregister_driver(&ms_driver);
-}
-
-module_init(ms_init);
-module_exit(ms_exit);
 MODULE_LICENSE("GPL");

@@ -724,8 +724,6 @@ static int i2c_bfin_twi_remove(struct platform_device *pdev)
 {
 	struct bfin_twi_iface *iface = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	i2c_del_adapter(&(iface->adap));
 	free_irq(iface->irq, iface);
 	peripheral_free_list((unsigned short *)pdev->dev.platform_data);

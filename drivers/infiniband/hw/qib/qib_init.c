@@ -1060,22 +1060,23 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	struct qib_devdata *dd;
 	int ret;
 
-	if (!idr_pre_get(&qib_unit_table, GFP_KERNEL)) {
-		dd = ERR_PTR(-ENOMEM);
-		goto bail;
-	}
-
 	dd = (struct qib_devdata *) ib_alloc_device(sizeof(*dd) + extra);
 	if (!dd) {
 		dd = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
 
+	idr_preload(GFP_KERNEL);
 	spin_lock_irqsave(&qib_devs_lock, flags);
-	ret = idr_get_new(&qib_unit_table, dd, &dd->unit);
-	if (ret >= 0)
+
+	ret = idr_alloc(&qib_unit_table, dd, 0, 0, GFP_NOWAIT);
+	if (ret >= 0) {
+		dd->unit = ret;
 		list_add(&dd->list, &qib_dev_list);
+	}
+
 	spin_unlock_irqrestore(&qib_devs_lock, flags);
+	idr_preload_end();
 
 	if (ret < 0) {
 		qib_early_err(&pdev->dev,
@@ -1134,9 +1135,8 @@ void qib_disable_after_error(struct qib_devdata *dd)
 		*dd->devstatusp |= QIB_STATUS_HWERROR;
 }
 
-static void __devexit qib_remove_one(struct pci_dev *);
-static int __devinit qib_init_one(struct pci_dev *,
-				  const struct pci_device_id *);
+static void qib_remove_one(struct pci_dev *);
+static int qib_init_one(struct pci_dev *, const struct pci_device_id *);
 
 #define DRIVER_LOAD_MSG "QLogic " QIB_DRV_NAME " loaded: "
 #define PFX QIB_DRV_NAME ": "
@@ -1153,7 +1153,7 @@ MODULE_DEVICE_TABLE(pci, qib_pci_tbl);
 struct pci_driver qib_driver = {
 	.name = QIB_DRV_NAME,
 	.probe = qib_init_one,
-	.remove = __devexit_p(qib_remove_one),
+	.remove = qib_remove_one,
 	.id_table = qib_pci_tbl,
 	.err_handler = &qib_pci_err_handler,
 };
@@ -1181,11 +1181,6 @@ static int __init qlogic_ib_init(void)
 	 * the PCI subsystem.
 	 */
 	idr_init(&qib_unit_table);
-	if (!idr_pre_get(&qib_unit_table, GFP_KERNEL)) {
-		pr_err("idr_pre_get() failed\n");
-		ret = -ENOMEM;
-		goto bail_cq_wq;
-	}
 
 	ret = pci_register_driver(&qib_driver);
 	if (ret < 0) {
@@ -1200,7 +1195,6 @@ static int __init qlogic_ib_init(void)
 
 bail_unit:
 	idr_destroy(&qib_unit_table);
-bail_cq_wq:
 	destroy_workqueue(qib_cq_wq);
 bail_dev:
 	qib_dev_cleanup();
@@ -1342,8 +1336,7 @@ static void qib_postinit_cleanup(struct qib_devdata *dd)
 	qib_free_devdata(dd);
 }
 
-static int __devinit qib_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int qib_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret, j, pidx, initfail;
 	struct qib_devdata *dd = NULL;
@@ -1448,7 +1441,7 @@ bail:
 	return ret;
 }
 
-static void __devexit qib_remove_one(struct pci_dev *pdev)
+static void qib_remove_one(struct pci_dev *pdev)
 {
 	struct qib_devdata *dd = pci_get_drvdata(pdev);
 	int ret;

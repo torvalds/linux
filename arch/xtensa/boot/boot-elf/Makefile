@@ -4,9 +4,6 @@
 # for more details.
 #
 
-GZIP = gzip
-GZIP_FLAGS = -v9fc
-
 ifeq ($(BIG_ENDIAN),1)
 OBJCOPY_ARGS    := -O elf32-xtensa-be
 else
@@ -20,18 +17,17 @@ boot-y		:= bootstrap.o
 
 OBJS		:= $(addprefix $(obj)/,$(boot-y))
 
-vmlinux.tmp: vmlinux
-	$(OBJCOPY) --strip-all -R .comment -R .note.gnu.build-id -O binary \
-		$^ $@
-
-Image:	vmlinux.tmp $(OBJS) arch/$(ARCH)/boot/boot-elf/boot.lds
-	$(OBJCOPY) $(OBJCOPY_ARGS) -R .comment \
-		--add-section image=vmlinux.tmp \
+$(obj)/Image.o: vmlinux.bin $(OBJS)
+	$(Q)$(OBJCOPY) $(OBJCOPY_ARGS) -R .comment \
+		--add-section image=vmlinux.bin \
 		--set-section-flags image=contents,alloc,load,load,data \
-		$(OBJS) $@.tmp
-	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) \
-		-T arch/$(ARCH)/boot/boot-elf/boot.lds \
-		-o arch/$(ARCH)/boot/$@.elf $@.tmp
+		$(OBJS) $@
 
-zImage:	Image
+$(obj)/../Image.elf: $(obj)/Image.o $(obj)/boot.lds
+	$(Q)$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) \
+		-T $(obj)/boot.lds \
+		--build-id=none \
+		-o $@ $(obj)/Image.o
+	$(Q)$(kecho) '  Kernel: $@ is ready'
 
+zImage:	$(obj)/../Image.elf

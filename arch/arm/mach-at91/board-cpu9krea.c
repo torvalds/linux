@@ -40,12 +40,12 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91sam9260_matrix.h>
 #include <mach/at91_matrix.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -374,7 +374,7 @@ MACHINE_START(CPUAT9260, "Eukrea CPU9260")
 MACHINE_START(CPUAT9G20, "Eukrea CPU9G20")
 #endif
 	/* Maintainer: Eric Benard - EUKREA Electromatique */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= cpu9krea_init_early,

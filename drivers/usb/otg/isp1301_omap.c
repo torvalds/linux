@@ -1493,7 +1493,7 @@ isp1301_start_hnp(struct usb_otg *otg)
 
 /*-------------------------------------------------------------------------*/
 
-static int __devinit
+static int
 isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	int			status;

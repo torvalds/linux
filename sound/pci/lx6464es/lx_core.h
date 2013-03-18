@@ -109,7 +109,7 @@ struct lx_rmh {
 
 
 /* low-level dsp access */
-int __devinit lx_dsp_get_version(struct lx6464es *chip, u32 *rdsp_version);
+int lx_dsp_get_version(struct lx6464es *chip, u32 *rdsp_version);
 int lx_dsp_get_clock_frequency(struct lx6464es *chip, u32 *rfreq);
 int lx_dsp_set_granularity(struct lx6464es *chip, u32 gran);
 int lx_dsp_read_async_events(struct lx6464es *chip, u32 *data);

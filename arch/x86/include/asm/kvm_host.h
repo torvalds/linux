@@ -22,6 +22,8 @@
 #include <linux/kvm_para.h>
 #include <linux/kvm_types.h>
 #include <linux/perf_event.h>
+#include <linux/pvclock_gtod.h>
+#include <linux/clocksource.h>
 
 #include <asm/pvclock-abi.h>
 #include <asm/desc.h>
@@ -31,10 +33,10 @@
 
 #define KVM_MAX_VCPUS 254
 #define KVM_SOFT_MAX_VCPUS 160
-#define KVM_MEMORY_SLOTS 32
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 4
-#define KVM_MEM_SLOTS_NUM (KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS)
+#define KVM_USER_MEM_SLOTS 125
+/* memory slots that are not exposed to userspace */
+#define KVM_PRIVATE_MEM_SLOTS 3
+#define KVM_MEM_SLOTS_NUM (KVM_USER_MEM_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 
 #define KVM_MMIO_SIZE 16
 
@@ -217,11 +219,6 @@ struct kvm_mmu_page {
 	u64 *spt;
 	/* hold the gfn of each spte inside spt */
 	gfn_t *gfns;
-	/*
-	 * One bit set per slot which has memory
-	 * in this shadow page.
-	 */
-	DECLARE_BITMAP(slot_bitmap, KVM_MEM_SLOTS_NUM);
 	bool unsync;
 	int root_count;          /* Currently serving as active root */
 	unsigned int unsync_children;
@@ -442,6 +439,7 @@ struct kvm_vcpu_arch {
 	s8 virtual_tsc_shift;
 	u32 virtual_tsc_mult;
 	u32 virtual_tsc_khz;
+	s64 ia32_tsc_adjust_msr;
 
 	atomic_t nmi_queued;  /* unprocessed asynchronous NMIs */
 	unsigned nmi_pending; /* NMI queued after currently running handler */
@@ -499,6 +497,13 @@ struct kvm_vcpu_arch {
 		u64 msr_val;
 		struct gfn_to_hva_cache data;
 	} pv_eoi;
+
+	/*
+	 * Indicate whether the access faults on its page table in guest
+	 * which is set when fix page fault and used to detect unhandeable
+	 * instruction.
+	 */
+	bool write_fault_to_shadow_pgtable;
 };
 
 struct kvm_lpage_info {
@@ -559,6 +564,12 @@ struct kvm_arch {
 	u64 cur_tsc_write;
 	u64 cur_tsc_offset;
 	u8  cur_tsc_generation;
+	int nr_vcpus_matched_tsc;
+
+	spinlock_t pvclock_gtod_sync_lock;
+	bool use_master_clock;
+	u64 master_kernel_ns;
+	cycle_t master_cycle_now;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 
@@ -612,6 +623,12 @@ struct kvm_vcpu_stat {
 
 struct x86_instruction_info;
 
+struct msr_data {
+	bool host_initiated;
+	u32 index;
+	u64 data;
+};
+
 struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */
 	int (*disabled_by_bios)(void);             /* __init */
@@ -634,7 +651,7 @@ struct kvm_x86_ops {
 
 	void (*update_db_bp_intercept)(struct kvm_vcpu *vcpu);
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
-	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
+	int (*set_msr)(struct kvm_vcpu *vcpu, struct msr_data *msr);
 	u64 (*get_segment_base)(struct kvm_vcpu *vcpu, int seg);
 	void (*get_segment)(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
@@ -682,6 +699,11 @@ struct kvm_x86_ops {
 	void (*enable_nmi_window)(struct kvm_vcpu *vcpu);
 	void (*enable_irq_window)(struct kvm_vcpu *vcpu);
 	void (*update_cr8_intercept)(struct kvm_vcpu *vcpu, int tpr, int irr);
+	int (*vm_has_apicv)(struct kvm *kvm);
+	void (*hwapic_irr_update)(struct kvm_vcpu *vcpu, int max_irr);
+	void (*hwapic_isr_update)(struct kvm *kvm, int isr);
+	void (*load_eoi_exitmap)(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
+	void (*set_virtual_x2apic_mode)(struct kvm_vcpu *vcpu, bool set);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*get_tdp_level)(void);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
@@ -697,10 +719,11 @@ struct kvm_x86_ops {
 	bool (*has_wbinvd_exit)(void);
 
 	void (*set_tsc_khz)(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale);
+	u64 (*read_tsc_offset)(struct kvm_vcpu *vcpu);
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	u64 (*compute_tsc_offset)(struct kvm_vcpu *vcpu, u64 target_tsc);
-	u64 (*read_l1_tsc)(struct kvm_vcpu *vcpu);
+	u64 (*read_l1_tsc)(struct kvm_vcpu *vcpu, u64 host_tsc);
 
 	void (*get_exit_info)(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2);
 
@@ -785,7 +808,7 @@ static inline int emulate_instruction(struct kvm_vcpu *vcpu,
 
 void kvm_enable_efer_bits(u64);
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *data);
-int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
+int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr);
 
 struct x86_emulate_ctxt;
 
@@ -812,7 +835,7 @@ void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l);
 int kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr);
 
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
-int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data);
+int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr);
 
 unsigned long kvm_get_rflags(struct kvm_vcpu *vcpu);
 void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
@@ -975,6 +998,7 @@ int kvm_age_hva(struct kvm *kvm, unsigned long hva);
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
+int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v);
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v);

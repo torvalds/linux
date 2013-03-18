@@ -95,7 +95,7 @@ static struct class mdio_bus_class = {
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /* Helper function for of_mdio_find_bus */
-static int of_mdio_bus_match(struct device *dev, void *mdio_bus_np)
+static int of_mdio_bus_match(struct device *dev, const void *mdio_bus_np)
 {
 	return dev->of_node == mdio_bus_np;
 }
@@ -431,10 +431,24 @@ static struct dev_pm_ops mdio_bus_pm_ops = {
 
 #endif /* CONFIG_PM */
 
+static ssize_t
+phy_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+
+	return sprintf(buf, "0x%.8lx\n", (unsigned long)phydev->phy_id);
+}
+
+static struct device_attribute mdio_dev_attrs[] = {
+	__ATTR_RO(phy_id),
+	__ATTR_NULL
+};
+
 struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
 	.match		= mdio_bus_match,
 	.pm		= MDIO_BUS_PM_OPS,
+	.dev_attrs	= mdio_dev_attrs,
 };
 EXPORT_SYMBOL(mdio_bus_type);
 

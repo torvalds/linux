@@ -67,6 +67,16 @@ config AD5446
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5446.
 
+config AD5449
+	tristate "Analog Device AD5449 and similar DACs driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD5415, AD5426, AD5429,
+	  AD5432, AD5439, AD5443, AD5449 Digital to Analog Converters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5449.
+
 config AD5504
 	tristate "Analog Devices AD5504/AD5501 DAC SPI driver"
 	depends on SPI
@@ -122,7 +132,7 @@ config AD5686
 
 config MAX517
 	tristate "Maxim MAX517/518/519 DAC driver"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	help
 	  If you say yes here you get support for the Maxim chips MAX517,
 	  MAX518 and MAX519 (I2C 8-Bit DACs with rail-to-rail outputs).

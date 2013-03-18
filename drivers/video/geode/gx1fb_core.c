@@ -29,7 +29,7 @@ static int  crt_option = 1;
 static char panel_option[32] = "";
 
 /* Modes relevant to the GX1 (taken from modedb.c) */
-static const struct fb_videomode __devinitconst gx1_modedb[] = {
+static const struct fb_videomode gx1_modedb[] = {
 	/* 640x480-60 VESA */
 	{ NULL, 60, 640, 480, 39682,  48, 16, 33, 10, 96, 2,
 	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
@@ -195,7 +195,7 @@ static int gx1fb_blank(int blank_mode, struct fb_info *info)
 	return par->vid_ops->blank_display(info, blank_mode);
 }
 
-static int __devinit gx1fb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
+static int gx1fb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 {
 	struct geodefb_par *par = info->par;
 	unsigned gx_base;
@@ -268,7 +268,7 @@ static struct fb_ops gx1fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static struct fb_info * __devinit gx1fb_init_fbinfo(struct device *dev)
+static struct fb_info *gx1fb_init_fbinfo(struct device *dev)
 {
 	struct geodefb_par *par;
 	struct fb_info *info;
@@ -318,7 +318,7 @@ static struct fb_info * __devinit gx1fb_init_fbinfo(struct device *dev)
 	return info;
 }
 
-static int __devinit gx1fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int gx1fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct geodefb_par *par;
 	struct fb_info *info;
@@ -382,7 +382,7 @@ static int __devinit gx1fb_probe(struct pci_dev *pdev, const struct pci_device_i
 	return ret;
 }
 
-static void __devexit gx1fb_remove(struct pci_dev *pdev)
+static void gx1fb_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct geodefb_par *par = info->par;
@@ -441,7 +441,7 @@ static struct pci_driver gx1fb_driver = {
 	.name		= "gx1fb",
 	.id_table	= gx1fb_id_table,
 	.probe		= gx1fb_probe,
-	.remove		= __devexit_p(gx1fb_remove),
+	.remove		= gx1fb_remove,
 };
 
 static int __init gx1fb_init(void)
@@ -456,7 +456,7 @@ static int __init gx1fb_init(void)
 	return pci_register_driver(&gx1fb_driver);
 }
 
-static void __devexit gx1fb_cleanup(void)
+static void gx1fb_cleanup(void)
 {
 	pci_unregister_driver(&gx1fb_driver);
 }

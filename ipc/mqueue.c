@@ -477,7 +477,7 @@ static int mqueue_unlink(struct inode *dir, struct dentry *dentry)
 static ssize_t mqueue_read_file(struct file *filp, char __user *u_data,
 				size_t count, loff_t *off)
 {
-	struct mqueue_inode_info *info = MQUEUE_I(filp->f_path.dentry->d_inode);
+	struct mqueue_inode_info *info = MQUEUE_I(file_inode(filp));
 	char buffer[FILENT_SIZE];
 	ssize_t ret;
 
@@ -498,13 +498,13 @@ static ssize_t mqueue_read_file(struct file *filp, char __user *u_data,
 	if (ret <= 0)
 		return ret;
 
-	filp->f_path.dentry->d_inode->i_atime = filp->f_path.dentry->d_inode->i_ctime = CURRENT_TIME;
+	file_inode(filp)->i_atime = file_inode(filp)->i_ctime = CURRENT_TIME;
 	return ret;
 }
 
 static int mqueue_flush_file(struct file *filp, fl_owner_t id)
 {
-	struct mqueue_inode_info *info = MQUEUE_I(filp->f_path.dentry->d_inode);
+	struct mqueue_inode_info *info = MQUEUE_I(file_inode(filp));
 
 	spin_lock(&info->lock);
 	if (task_tgid(current) == info->notify_owner)
@@ -516,7 +516,7 @@ static int mqueue_flush_file(struct file *filp, fl_owner_t id)
 
 static unsigned int mqueue_poll_file(struct file *filp, struct poll_table_struct *poll_tab)
 {
-	struct mqueue_inode_info *info = MQUEUE_I(filp->f_path.dentry->d_inode);
+	struct mqueue_inode_info *info = MQUEUE_I(file_inode(filp));
 	int retval = 0;
 
 	poll_wait(filp, &info->wait_q, poll_tab);
@@ -973,7 +973,7 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 		goto out;
 	}
 
-	inode = f.file->f_path.dentry->d_inode;
+	inode = file_inode(f.file);
 	if (unlikely(f.file->f_op != &mqueue_file_operations)) {
 		ret = -EBADF;
 		goto out_fput;
@@ -1089,7 +1089,7 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
 		goto out;
 	}
 
-	inode = f.file->f_path.dentry->d_inode;
+	inode = file_inode(f.file);
 	if (unlikely(f.file->f_op != &mqueue_file_operations)) {
 		ret = -EBADF;
 		goto out_fput;
@@ -1249,7 +1249,7 @@ retry:
 		goto out;
 	}
 
-	inode = f.file->f_path.dentry->d_inode;
+	inode = file_inode(f.file);
 	if (unlikely(f.file->f_op != &mqueue_file_operations)) {
 		ret = -EBADF;
 		goto out_fput;
@@ -1323,7 +1323,7 @@ SYSCALL_DEFINE3(mq_getsetattr, mqd_t, mqdes,
 		goto out;
 	}
 
-	inode = f.file->f_path.dentry->d_inode;
+	inode = file_inode(f.file);
 	if (unlikely(f.file->f_op != &mqueue_file_operations)) {
 		ret = -EBADF;
 		goto out_fput;
@@ -1383,6 +1383,7 @@ static struct file_system_type mqueue_fs_type = {
 	.name = "mqueue",
 	.mount = mqueue_mount,
 	.kill_sb = kill_litter_super,
+	.fs_flags = FS_USERNS_MOUNT,
 };
 
 int mq_init_ns(struct ipc_namespace *ns)

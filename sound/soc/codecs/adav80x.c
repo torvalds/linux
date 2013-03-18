@@ -839,8 +839,8 @@ static struct snd_soc_codec_driver adav80x_codec_driver = {
 	.num_dapm_routes = ARRAY_SIZE(adav80x_dapm_routes),
 };
 
-static int __devinit adav80x_bus_probe(struct device *dev,
-		enum snd_soc_control_type control_type)
+static int adav80x_bus_probe(struct device *dev,
+			     enum snd_soc_control_type control_type)
 {
 	struct adav80x *adav80x;
 	int ret;
@@ -860,7 +860,7 @@ static int __devinit adav80x_bus_probe(struct device *dev,
 	return ret;
 }
 
-static int __devexit adav80x_bus_remove(struct device *dev)
+static int adav80x_bus_remove(struct device *dev)
 {
 	snd_soc_unregister_codec(dev);
 	kfree(dev_get_drvdata(dev));
@@ -868,12 +868,12 @@ static int __devexit adav80x_bus_remove(struct device *dev)
 }
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit adav80x_spi_probe(struct spi_device *spi)
+static int adav80x_spi_probe(struct spi_device *spi)
 {
 	return adav80x_bus_probe(&spi->dev, SND_SOC_SPI);
 }
 
-static int __devexit adav80x_spi_remove(struct spi_device *spi)
+static int adav80x_spi_remove(struct spi_device *spi)
 {
 	return adav80x_bus_remove(&spi->dev);
 }
@@ -884,7 +884,7 @@ static struct spi_driver adav80x_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= adav80x_spi_probe,
-	.remove		= __devexit_p(adav80x_spi_remove),
+	.remove		= adav80x_spi_remove,
 };
 #endif
 
@@ -895,13 +895,13 @@ static const struct i2c_device_id adav80x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adav80x_id);
 
-static int __devinit adav80x_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int adav80x_i2c_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id)
 {
 	return adav80x_bus_probe(&client->dev, SND_SOC_I2C);
 }
 
-static int __devexit adav80x_i2c_remove(struct i2c_client *client)
+static int adav80x_i2c_remove(struct i2c_client *client)
 {
 	return adav80x_bus_remove(&client->dev);
 }
@@ -912,7 +912,7 @@ static struct i2c_driver adav80x_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adav80x_i2c_probe,
-	.remove = __devexit_p(adav80x_i2c_remove),
+	.remove = adav80x_i2c_remove,
 	.id_table = adav80x_id,
 };
 #endif

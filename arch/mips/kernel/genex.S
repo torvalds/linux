@@ -19,7 +19,6 @@
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
 #include <asm/war.h>
-#include <asm/page.h>
 #include <asm/thread_info.h>
 
 #define PANIC_PIC(msg)					\
@@ -161,7 +160,7 @@ LEAF(r4k_wait)
 	.set pop
 	.endm
 
-	.align  5
+	.align	5
 BUILD_ROLLBACK_PROLOGUE handle_int
 NESTED(handle_int, PT_SIZE, sp)
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -363,7 +362,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	push
 	.set	noat
 	SAVE_ALL
- 	move	a0, sp
+	move	a0, sp
 	jal	nmi_exception_handler
 	RESTORE_ALL
 	.set	mips3
@@ -410,7 +409,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	   string escapes and emits bogus warnings if it believes to
 	   recognize an unknown escape code.  So make the arguments
 	   start with an n and gas will believe \n is ok ...  */
-	.macro	__BUILD_verbose	nexception
+	.macro	__BUILD_verbose nexception
 	LONG_L	a1, PT_EPC(sp)
 #ifdef CONFIG_32BIT
 	PRINT("Got \nexception at %08lx\012")
@@ -443,7 +442,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.endm
 
 	.macro	BUILD_HANDLER exception handler clear verbose
-	__BUILD_HANDLER	\exception \handler \clear \verbose _int
+	__BUILD_HANDLER \exception \handler \clear \verbose _int
 	.endm
 
 	BUILD_HANDLER adel ade ade silent		/* #4  */
@@ -457,7 +456,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER tr tr sti silent			/* #13 */
 	BUILD_HANDLER fpe fpe fpe silent		/* #15 */
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
-#ifdef 	CONFIG_HARDWARE_WATCHPOINTS
+#ifdef	CONFIG_HARDWARE_WATCHPOINTS
 	/*
 	 * For watch, interrupts will be enabled after the watch
 	 * registers are read.
@@ -483,8 +482,8 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	MFC0	k1, CP0_ENTRYHI
 	andi	k1, 0xff	/* ASID_MASK */
 	MFC0	k0, CP0_EPC
-	PTR_SRL	k0, PAGE_SHIFT + 1
-	PTR_SLL	k0, PAGE_SHIFT + 1
+	PTR_SRL k0, _PAGE_SHIFT + 1
+	PTR_SLL k0, _PAGE_SHIFT + 1
 	or	k1, k0
 	MTC0	k1, CP0_ENTRYHI
 	mtc0_tlbw_hazard

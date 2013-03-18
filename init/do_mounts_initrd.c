@@ -36,6 +36,10 @@ __setup("noinitrd", no_initrd);
 static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 {
 	sys_unshare(CLONE_FS | CLONE_FILES);
+	/* stdin/stdout/stderr for /linuxrc */
+	sys_open("/dev/console", O_RDWR, 0);
+	sys_dup(0);
+	sys_dup(0);
 	/* move initrd over / and chdir/chroot in initrd root */
 	sys_chdir("/root");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
@@ -56,6 +60,9 @@ static void __init handle_initrd(void)
 	mount_block_root("/dev/root.old", root_mountflags & ~MS_RDONLY);
 	sys_mkdir("/old", 0700);
 	sys_chdir("/old");
+
+	/* try loading default modules from initrd */
+	load_default_modules();
 
 	/*
 	 * In case that a resume from disk is carried out by linuxrc or one of

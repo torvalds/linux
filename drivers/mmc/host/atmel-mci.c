@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/types.h>
+#include <linux/platform_data/atmel.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio.h>
@@ -40,7 +41,6 @@
 #include <asm/unaligned.h>
 
 #include <mach/cpu.h>
-#include <mach/board.h>
 
 #include "atmel-mci-regs.h"
 
@@ -511,7 +511,7 @@ static const struct of_device_id atmci_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, atmci_dt_ids);
 
-static struct mci_platform_data __devinit*
+static struct mci_platform_data*
 atmci_of_init(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;

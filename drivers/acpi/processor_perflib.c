@@ -340,6 +340,13 @@ static void amd_fixup_frequency(struct acpi_processor_px *px, int i)
 	if ((boot_cpu_data.x86 == 0x10 && boot_cpu_data.x86_model < 10)
 	    || boot_cpu_data.x86 == 0x11) {
 		rdmsr(MSR_AMD_PSTATE_DEF_BASE + index, lo, hi);
+		/*
+		 * MSR C001_0064+:
+		 * Bit 63: PstateEn. Read-write. If set, the P-state is valid.
+		 */
+		if (!(hi & BIT(31)))
+			return;
+
 		fid = lo & 0x3f;
 		did = (lo >> 6) & 7;
 		if (boot_cpu_data.x86 == 0x10)
@@ -458,7 +465,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 	return result;
 }
 
-static int acpi_processor_get_performance_info(struct acpi_processor *pr)
+int acpi_processor_get_performance_info(struct acpi_processor *pr)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
@@ -502,7 +509,7 @@ static int acpi_processor_get_performance_info(struct acpi_processor *pr)
 #endif
 	return result;
 }
-
+EXPORT_SYMBOL_GPL(acpi_processor_get_performance_info);
 int acpi_processor_notify_smm(struct module *calling_module)
 {
 	acpi_status status;

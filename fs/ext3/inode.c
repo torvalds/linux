@@ -676,6 +676,10 @@ static int ext3_alloc_branch(handle_t *handle, struct inode *inode,
 		 * parent to disk.
 		 */
 		bh = sb_getblk(inode->i_sb, new_blocks[n-1]);
+		if (unlikely(!bh)) {
+			err = -ENOMEM;
+			goto failed;
+		}
 		branch[n].bh = bh;
 		lock_buffer(bh);
 		BUFFER_TRACE(bh, "call get_create_access");
@@ -717,7 +721,7 @@ failed:
 		BUFFER_TRACE(branch[i].bh, "call journal_forget");
 		ext3_journal_forget(handle, branch[i].bh);
 	}
-	for (i = 0; i <indirect_blks; i++)
+	for (i = 0; i < indirect_blks; i++)
 		ext3_free_blocks(handle, inode, new_blocks[i], 1);
 
 	ext3_free_blocks(handle, inode, new_blocks[i], num);
@@ -1071,16 +1075,15 @@ struct buffer_head *ext3_getblk(handle_t *handle, struct inode *inode,
 	 * mapped. 0 in case of a HOLE.
 	 */
 	if (err > 0) {
-		if (err > 1)
-			WARN_ON(1);
+		WARN_ON(err > 1);
 		err = 0;
 	}
 	*errp = err;
 	if (!err && buffer_mapped(&dummy)) {
 		struct buffer_head *bh;
 		bh = sb_getblk(inode->i_sb, dummy.b_blocknr);
-		if (!bh) {
-			*errp = -EIO;
+		if (unlikely(!bh)) {
+			*errp = -ENOMEM;
 			goto err;
 		}
 		if (buffer_new(&dummy)) {
@@ -2730,12 +2733,12 @@ static int __ext3_get_inode_loc(struct inode *inode,
 		return -EIO;
 
 	bh = sb_getblk(inode->i_sb, block);
-	if (!bh) {
+	if (unlikely(!bh)) {
 		ext3_error (inode->i_sb, "ext3_get_inode_loc",
 				"unable to read inode block - "
 				"inode=%lu, block="E3FSBLK,
 				 inode->i_ino, block);
-		return -EIO;
+		return -ENOMEM;
 	}
 	if (!buffer_uptodate(bh)) {
 		lock_buffer(bh);
@@ -2784,7 +2787,7 @@ static int __ext3_get_inode_loc(struct inode *inode,
 
 			bitmap_bh = sb_getblk(inode->i_sb,
 					le32_to_cpu(desc->bg_inode_bitmap));
-			if (!bitmap_bh)
+			if (unlikely(!bitmap_bh))
 				goto make_io;
 
 			/*

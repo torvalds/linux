@@ -536,7 +536,7 @@ static inline void ring_fl_db(struct adapter *adapter, struct sge_fl *fl)
 	if (fl->pend_cred >= FL_PER_EQ_UNIT) {
 		wmb();
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
-			     DBPRIO |
+			     DBPRIO(1) |
 			     QID(fl->cntxt_id) |
 			     PIDX(fl->pend_cred / FL_PER_EQ_UNIT));
 		fl->pend_cred %= FL_PER_EQ_UNIT;
@@ -952,7 +952,7 @@ static inline void ring_tx_db(struct adapter *adapter, struct sge_txq *tq,
 	 * Warn if we write doorbells with the wrong priority and write
 	 * descriptors before telling HW.
 	 */
-	WARN_ON((QID(tq->cntxt_id) | PIDX(n)) & DBPRIO);
+	WARN_ON((QID(tq->cntxt_id) | PIDX(n)) & DBPRIO(1));
 	wmb();
 	t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
 		     QID(tq->cntxt_id) | PIDX(n));
@@ -1477,8 +1477,10 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb_record_rx_queue(skb, rxq->rspq.idx);
 
-	if (pkt->vlan_ex)
+	if (pkt->vlan_ex) {
 		__vlan_hwaccel_put_tag(skb, be16_to_cpu(pkt->vlan));
+		rxq->stats.vlan_ex++;
+	}
 	ret = napi_gro_frags(&rxq->rspq.napi);
 
 	if (ret == GRO_HELD)
@@ -1501,7 +1503,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		       const struct pkt_gl *gl)
 {
 	struct sk_buff *skb;
-	const struct cpl_rx_pkt *pkt = (void *)&rsp[1];
+	const struct cpl_rx_pkt *pkt = (void *)rsp;
 	bool csum_ok = pkt->csum_calc && !pkt->err_vec;
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 
@@ -2126,8 +2128,8 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		cmd.iqns_to_fl0congen =
 			cpu_to_be32(
 				FW_IQ_CMD_FL0HOSTFCMODE(SGE_HOSTFCMODE_NONE) |
-				FW_IQ_CMD_FL0PACKEN |
-				FW_IQ_CMD_FL0PADEN);
+				FW_IQ_CMD_FL0PACKEN(1) |
+				FW_IQ_CMD_FL0PADEN(1));
 		cmd.fl0dcaen_to_fl0cidxfthresh =
 			cpu_to_be16(
 				FW_IQ_CMD_FL0FBMIN(SGE_FETCHBURSTMIN_64B) |

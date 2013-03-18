@@ -21,17 +21,17 @@
 #include <linux/mtd/nand.h>
 #include <linux/gpio.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-#include <mach/iomux-mx3.h>
 
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 /* FPGA defines */
 #define QONG_FPGA_VERSION(major, minor, rev)	\
@@ -260,10 +260,6 @@ static void __init qong_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer qong_timer = {
-	.init	= qong_timer_init,
-};
-
 MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	/* Maintainer: DENX Software Engineering GmbH */
 	.atag_offset = 0x100,
@@ -271,7 +267,7 @@ MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &qong_timer,
+	.init_time	= qong_timer_init,
 	.init_machine = qong_init,
 	.restart	= mxc_restart,
 MACHINE_END

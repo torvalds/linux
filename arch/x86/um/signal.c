@@ -342,9 +342,7 @@ static int copy_ucontext_to_user(struct ucontext __user *uc,
 {
 	int err = 0;
 
-	err |= put_user(current->sas_ss_sp, &uc->uc_stack.ss_sp);
-	err |= put_user(sas_ss_flags(sp), &uc->uc_stack.ss_flags);
-	err |= put_user(current->sas_ss_size, &uc->uc_stack.ss_size);
+	err |= __save_altstack(&uc->uc_stack, sp);
 	err |= copy_sc_to_user(&uc->uc_mcontext, fp, &current->thread.regs, 0);
 	err |= copy_to_user(&uc->uc_sigmask, set, sizeof(*set));
 	return err;
@@ -466,7 +464,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	return 0;
 }
 
-long sys_sigreturn(struct pt_regs *regs)
+long sys_sigreturn(void)
 {
 	unsigned long sp = PT_REGS_SP(&current->thread.regs);
 	struct sigframe __user *frame = (struct sigframe __user *)(sp - 8);
@@ -529,10 +527,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user(me->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(PT_REGS_SP(regs)),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(me->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, PT_REGS_SP(regs));
 	err |= copy_sc_to_user(&frame->uc.uc_mcontext, &frame->fpstate, regs,
 			       set->sig[0]);
 	err |= __put_user(&frame->fpstate, &frame->uc.uc_mcontext.fpstate);
@@ -582,7 +577,7 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 }
 #endif
 
-long sys_rt_sigreturn(struct pt_regs *regs)
+long sys_rt_sigreturn(void)
 {
 	unsigned long sp = PT_REGS_SP(&current->thread.regs);
 	struct rt_sigframe __user *frame =
@@ -606,14 +601,3 @@ long sys_rt_sigreturn(struct pt_regs *regs)
 	force_sig(SIGSEGV, current);
 	return 0;
 }
-
-#ifdef CONFIG_X86_32
-long ptregs_sigreturn(void)
-{
-	return sys_sigreturn(NULL);
-}
-long ptregs_rt_sigreturn(void)
-{
-	return sys_rt_sigreturn(NULL);
-}
-#endif

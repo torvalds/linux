@@ -21,10 +21,12 @@ static VOID UpdateTokenCount(register struct bcm_mini_adapter *Adapter)
 	INT 	i = 0;
 	struct timeval tv;
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "=====>\n");
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL,
+			"=====>\n");
 	if(NULL == Adapter)
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "Adapter found NULL!\n");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TOKEN_COUNTS, 
+				DBG_LVL_ALL, "Adapter found NULL!\n");
 		return;
 	}
 

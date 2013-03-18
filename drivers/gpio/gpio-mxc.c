@@ -356,7 +356,7 @@ static void __init mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
 			       IRQ_NOREQUEST, 0);
 }
 
-static void __devinit mxc_gpio_get_hw(struct platform_device *pdev)
+static void mxc_gpio_get_hw(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxc_gpio_dt_ids, &pdev->dev);
@@ -395,7 +395,7 @@ static int mxc_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 	return irq_find_mapping(port->domain, offset);
 }
 
-static int __devinit mxc_gpio_probe(struct platform_device *pdev)
+static int mxc_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct mxc_gpio_port *port;

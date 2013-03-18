@@ -43,6 +43,8 @@
 #else
 #define STACK_TOP		STACK_TOP_MAX
 #endif /* CONFIG_COMPAT */
+
+#define ARCH_LOW_ADDRESS_LIMIT	PHYS_MASK
 #endif /* __KERNEL__ */
 
 struct debug_info {
@@ -125,11 +127,6 @@ unsigned long get_wchan(struct task_struct *p);
 /* Thread switching */
 extern struct task_struct *cpu_switch_to(struct task_struct *prev,
 					 struct task_struct *next);
-
-/*
- * Create a new kernel thread
- */
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 #define task_pt_regs(p) \
 	((struct pt_regs *)(THREAD_START_SP + task_stack_page(p)) - 1)

@@ -40,23 +40,23 @@
 #include <asm/mipsregs.h>
 #include <asm/time.h>
 
+#include <asm/netlogic/common.h>
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/xlp-hal/iomap.h>
 #include <asm/netlogic/xlp-hal/xlp.h>
 #include <asm/netlogic/xlp-hal/pic.h>
 #include <asm/netlogic/xlp-hal/sys.h>
 
-/* These addresses are computed by the nlm_hal_init() */
-uint64_t nlm_io_base;
-uint64_t nlm_sys_base;
-uint64_t nlm_pic_base;
-
 /* Main initialization */
-void nlm_hal_init(void)
+void nlm_node_init(int node)
 {
-	nlm_io_base = CKSEG1ADDR(XLP_DEFAULT_IO_BASE);
-	nlm_sys_base = nlm_get_sys_regbase(0);	/* node 0 */
-	nlm_pic_base = nlm_get_pic_regbase(0);	/* node 0 */
+	struct nlm_soc_info *nodep;
+
+	nodep = nlm_get_node(node);
+	nodep->sysbase = nlm_get_sys_regbase(node);
+	nodep->picbase = nlm_get_pic_regbase(node);
+	nodep->ebase = read_c0_ebase() & (~((1 << 12) - 1));
+	spin_lock_init(&nodep->piclock);
 }
 
 int nlm_irq_to_irt(int irq)
@@ -100,56 +100,19 @@ int nlm_irq_to_irt(int irq)
 	}
 }
 
-int nlm_irt_to_irq(int irt)
-{
-	switch (irt) {
-	case PIC_IRT_UART_0_INDEX:
-		return PIC_UART_0_IRQ;
-	case PIC_IRT_UART_1_INDEX:
-		return PIC_UART_1_IRQ;
-	case PIC_IRT_PCIE_LINK_0_INDEX:
-	       return PIC_PCIE_LINK_0_IRQ;
-	case PIC_IRT_PCIE_LINK_1_INDEX:
-	       return PIC_PCIE_LINK_1_IRQ;
-	case PIC_IRT_PCIE_LINK_2_INDEX:
-	       return PIC_PCIE_LINK_2_IRQ;
-	case PIC_IRT_PCIE_LINK_3_INDEX:
-	       return PIC_PCIE_LINK_3_IRQ;
-	case PIC_IRT_EHCI_0_INDEX:
-		return PIC_EHCI_0_IRQ;
-	case PIC_IRT_EHCI_1_INDEX:
-		return PIC_EHCI_1_IRQ;
-	case PIC_IRT_OHCI_0_INDEX:
-		return PIC_OHCI_0_IRQ;
-	case PIC_IRT_OHCI_1_INDEX:
-		return PIC_OHCI_1_IRQ;
-	case PIC_IRT_OHCI_2_INDEX:
-		return PIC_OHCI_2_IRQ;
-	case PIC_IRT_OHCI_3_INDEX:
-		return PIC_OHCI_3_IRQ;
-	case PIC_IRT_MMC_INDEX:
-	       return PIC_MMC_IRQ;
-	case PIC_IRT_I2C_0_INDEX:
-		return PIC_I2C_0_IRQ;
-	case PIC_IRT_I2C_1_INDEX:
-		return PIC_I2C_1_IRQ;
-	default:
-		return -1;
-	}
-}
-
-unsigned int nlm_get_core_frequency(int core)
+unsigned int nlm_get_core_frequency(int node, int core)
 {
 	unsigned int pll_divf, pll_divr, dfs_div, ext_div;
 	unsigned int rstval, dfsval, denom;
-	uint64_t num;
+	uint64_t num, sysbase;
 
-	rstval = nlm_read_sys_reg(nlm_sys_base, SYS_POWER_ON_RESET_CFG);
-	dfsval = nlm_read_sys_reg(nlm_sys_base, SYS_CORE_DFS_DIV_VALUE);
+	sysbase = nlm_get_node(node)->sysbase;
+	rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
+	dfsval = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIV_VALUE);
 	pll_divf = ((rstval >> 10) & 0x7f) + 1;
 	pll_divr = ((rstval >> 8)  & 0x3) + 1;
-	ext_div  = ((rstval >> 30) & 0x3) + 1;
-	dfs_div  = ((dfsval >> (core * 4)) & 0xf) + 1;
+	ext_div	 = ((rstval >> 30) & 0x3) + 1;
+	dfs_div	 = ((dfsval >> (core * 4)) & 0xf) + 1;
 
 	num = 800000000ULL * pll_divf;
 	denom = 3 * pll_divr * ext_div * dfs_div;
@@ -159,5 +122,5 @@ unsigned int nlm_get_core_frequency(int core)
 
 unsigned int nlm_get_cpu_frequency(void)
 {
-	return nlm_get_core_frequency(0);
+	return nlm_get_core_frequency(0, 0);
 }

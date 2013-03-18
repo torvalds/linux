@@ -117,7 +117,7 @@ static void __init sheevaplug_init(void)
 
 	if (gpio_request(29, "USB Power Enable") != 0 ||
 	    gpio_direction_output(29, 1) != 0)
-		printk(KERN_ERR "can't set up GPIO 29 (USB Power Enable)\n");
+		pr_err("can't set up GPIO 29 (USB Power Enable)\n");
 	kirkwood_ehci_init();
 
 	kirkwood_ge00_init(&sheevaplug_ge00_data);
@@ -143,7 +143,7 @@ MACHINE_START(SHEEVAPLUG, "Marvell SheevaPlug Reference Board")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif
@@ -155,7 +155,7 @@ MACHINE_START(ESATA_SHEEVAPLUG, "Marvell eSATA SheevaPlug Reference Board")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif

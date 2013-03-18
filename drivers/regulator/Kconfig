@@ -91,6 +91,7 @@ config REGULATOR_AAT2870
 config REGULATOR_ARIZONA
 	tristate "Wolfson Arizona class devices"
 	depends on MFD_ARIZONA
+	depends on SND_SOC
 	help
 	  Support for the regulators found on Wolfson Arizona class
 	  devices.
@@ -108,6 +109,16 @@ config REGULATOR_DA9052
 	help
 	  This driver supports the voltage regulators of DA9052-BC and
 	  DA9053-AA/Bx PMIC.
+
+config REGULATOR_DA9055
+	tristate "Dialog Semiconductor DA9055 regulators"
+	depends on MFD_DA9055
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  Dialog Semiconductor DA9055 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9055-regulator.
 
 config REGULATOR_FAN53555
 	tristate "Fairchild FAN53555 Regulator"
@@ -204,6 +215,16 @@ config REGULATOR_MAX8952
 	  via I2C bus. Maxim 8952 has one voltage output and supports 4 DVS
 	  modes ranging from 0.77V to 1.40V by 0.01V steps.
 
+config REGULATOR_MAX8973
+	tristate "Maxim MAX8973 voltage regulator "
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  The MAXIM MAX8973 high-efficiency. three phase, DC-DC step-down
+	  switching regulator delievers up to 9A of output current. Each
+	  phase operates at a 2MHz fixed frequency with a 120 deg shift
+	  from the adjacent phase, allowing the use of small magnetic component.
+
 config REGULATOR_MAX8997
 	tristate "Maxim 8997/8966 regulator"
 	depends on MFD_MAX8997
@@ -256,6 +277,15 @@ config REGULATOR_LP872X
 	select REGMAP_I2C
 	help
 	  This driver supports LP8720/LP8725 PMIC
+
+config REGULATOR_LP8755
+	tristate "TI LP8755 High Performance PMU driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports LP8755 High Performance PMU driver. This
+	  chip contains six step-down DC/DC converters which can support
+	  9 mode multiphase configuration.
 
 config REGULATOR_LP8788
 	bool "TI LP8788 Power Regulators"
@@ -334,6 +364,17 @@ config REGULATOR_PALMAS
 	  The regulators available on Palmas series chips vary depending
 	  on the muxing. This is handled automatically in the driver by
 	  reading the mux info from OTP.
+
+config REGULATOR_TPS51632
+	tristate "TI TPS51632 Power Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports TPS51632 voltage regulator chip.
+	  The TPS51632 is 3-2-1 Phase D-Cap+ Step Down Driverless Controller
+	  with Serial VID control and DVFS.
+	  The voltage output can be configure through I2C interface or PWM
+	  interface.
 
 config REGULATOR_TPS6105X
 	tristate "TI TPS6105X Power regulators"
@@ -415,12 +456,28 @@ config REGULATOR_TPS65912
 	help
 	    This driver supports TPS65912 voltage regulator chip.
 
+config REGULATOR_TPS80031
+	tristate "TI TPS80031/TPS80032 power regualtor driver"
+	depends on MFD_TPS80031
+	help
+	  TPS80031/ TPS80032 Fully Integrated Power Management with Power
+	  Path and Battery Charger. It has 5 configurable step-down
+	  converters, 11 general purpose LDOs, VBUS generator and digital
+	  output to control regulators.
+
 config REGULATOR_TWL4030
 	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 PMIC"
 	depends on TWL4030_CORE
 	help
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
+
+config REGULATOR_VEXPRESS
+	tristate "Versatile Express regulators"
+	depends on VEXPRESS_CONFIG
+	help
+	  This driver provides support for voltage regulators available
+	  on the ARM Ltd's Versatile Express platform.
 
 config REGULATOR_WM831X
 	tristate "Wolfson Microelectronics WM831x PMIC regulators"
@@ -449,6 +506,13 @@ config REGULATOR_WM8994
 	help
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
+
+config REGULATOR_AS3711
+	tristate "AS3711 PMIC"
+	depends on MFD_AS3711
+	help
+	  This driver provides support for the voltage regulators on the
+	  AS3711 PMIC
 
 endif
 

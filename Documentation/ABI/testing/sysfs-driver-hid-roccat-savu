@@ -40,8 +40,8 @@ What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-
 Date:		Mai 2012
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns general data like firmware version.
+		When written, the device can be reset.
 		The data is 8 bytes long.
-		This file is readonly.
 Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/savu/roccatsavu<minor>/macro
@@ -74,4 +74,3 @@ Description:	The mouse has a Avago ADNS-3090 sensor.
 		This file allows reading and writing of the mouse sensors registers.
 		The data has to be 4 bytes long.
 Users:		http://roccat.sourceforge.net
-

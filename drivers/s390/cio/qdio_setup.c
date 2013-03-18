@@ -140,10 +140,8 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	q->sl = (struct sl *)((char *)q->slib + PAGE_SIZE / 2);
 
 	/* fill in sbal */
-	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++) {
+	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
 		q->sbal[j] = *sbals_array++;
-		BUG_ON((unsigned long)q->sbal[j] & 0xff);
-	}
 
 	/* fill in slib */
 	if (i > 0) {
@@ -434,9 +432,8 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->int_parm = init_data->int_parm;
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
 	irq_ptr->nr_output_qs = init_data->no_output_qs;
-
-	irq_ptr->schid = ccw_device_get_subchannel_id(init_data->cdev);
 	irq_ptr->cdev = init_data->cdev;
+	ccw_device_get_schid(irq_ptr->cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 
 	setup_qib(irq_ptr, init_data);
@@ -483,7 +480,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 	char s[80];
 
 	snprintf(s, 80, "qdio: %s %s on SC %x using "
-		 "AI:%d QEBSM:%d PCI:%d TDD:%d SIGA:%s%s%s%s%s\n",
+		 "AI:%d QEBSM:%d PRI:%d TDD:%d SIGA:%s%s%s%s%s\n",
 		 dev_name(&cdev->dev),
 		 (irq_ptr->qib.qfmt == QDIO_QETH_QFMT) ? "OSA" :
 			((irq_ptr->qib.qfmt == QDIO_ZFCP_QFMT) ? "ZFCP" : "HS"),

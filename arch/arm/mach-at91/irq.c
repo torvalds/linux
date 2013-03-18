@@ -42,7 +42,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <mach/at91_aic.h>
+#include "at91_aic.h"
 
 void __iomem *at91_aic_base;
 static struct irq_domain *at91_aic_domain;

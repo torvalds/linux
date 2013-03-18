@@ -174,7 +174,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 	ASSERT(dentry);
 	ASSERT(dentry->d_inode);
 
-	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, GFP_KERNEL);
+	auxbuf = kmalloc(sizeof(struct cachefiles_xattr) + 512, cachefiles_gfp);
 	if (!auxbuf) {
 		_leave(" = -ENOMEM");
 		return -ENOMEM;

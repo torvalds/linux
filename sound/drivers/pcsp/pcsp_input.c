@@ -77,7 +77,7 @@ static int pcspkr_input_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
-int __devinit pcspkr_input_init(struct input_dev **rdev, struct device *dev)
+int pcspkr_input_init(struct input_dev **rdev, struct device *dev)
 {
 	int err;
 

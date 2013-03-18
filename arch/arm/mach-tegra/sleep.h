@@ -17,7 +17,7 @@
 #ifndef __MACH_TEGRA_SLEEP_H
 #define __MACH_TEGRA_SLEEP_H
 
-#include <mach/iomap.h>
+#include "iomap.h"
 
 #define TEGRA_ARM_PERIF_VIRT (TEGRA_ARM_PERIF_BASE - IO_CPU_PHYS \
 					+ IO_CPU_VIRT)
@@ -25,6 +25,19 @@
 					+ IO_PPSB_VIRT)
 #define TEGRA_CLK_RESET_VIRT (TEGRA_CLK_RESET_BASE - IO_PPSB_PHYS \
 					+ IO_PPSB_VIRT)
+#define TEGRA_PMC_VIRT	(TEGRA_PMC_BASE - IO_APB_PHYS + IO_APB_VIRT)
+
+/* PMC_SCRATCH37-39 and 41 are used for tegra_pen_lock and idle */
+#define PMC_SCRATCH37	0x130
+#define PMC_SCRATCH38	0x134
+#define PMC_SCRATCH39	0x138
+#define PMC_SCRATCH41	0x140
+
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+#define CPU_RESETTABLE		2
+#define CPU_RESETTABLE_SOON	1
+#define CPU_NOT_RESETTABLE	0
+#endif
 
 #ifdef __ASSEMBLY__
 /* returns the offset of the flow controller halt register for a cpu */
@@ -71,7 +84,44 @@
 	str	\tmp2, [\tmp1]			@ invalidate SCU tags for CPU
 	dsb
 .endm
+
+/* Macro to resume & re-enable L2 cache */
+#ifndef L2X0_CTRL_EN
+#define L2X0_CTRL_EN	1
+#endif
+
+#ifdef CONFIG_CACHE_L2X0
+.macro l2_cache_resume, tmp1, tmp2, tmp3, phys_l2x0_saved_regs
+	adr	\tmp1, \phys_l2x0_saved_regs
+	ldr	\tmp1, [\tmp1]
+	ldr	\tmp2, [\tmp1, #L2X0_R_PHY_BASE]
+	ldr	\tmp3, [\tmp2, #L2X0_CTRL]
+	tst	\tmp3, #L2X0_CTRL_EN
+	bne	exit_l2_resume
+	ldr	\tmp3, [\tmp1, #L2X0_R_TAG_LATENCY]
+	str	\tmp3, [\tmp2, #L2X0_TAG_LATENCY_CTRL]
+	ldr	\tmp3, [\tmp1, #L2X0_R_DATA_LATENCY]
+	str	\tmp3, [\tmp2, #L2X0_DATA_LATENCY_CTRL]
+	ldr	\tmp3, [\tmp1, #L2X0_R_PREFETCH_CTRL]
+	str	\tmp3, [\tmp2, #L2X0_PREFETCH_CTRL]
+	ldr	\tmp3, [\tmp1, #L2X0_R_PWR_CTRL]
+	str	\tmp3, [\tmp2, #L2X0_POWER_CTRL]
+	ldr	\tmp3, [\tmp1, #L2X0_R_AUX_CTRL]
+	str	\tmp3, [\tmp2, #L2X0_AUX_CTRL]
+	mov	\tmp3, #L2X0_CTRL_EN
+	str	\tmp3, [\tmp2, #L2X0_CTRL]
+exit_l2_resume:
+.endm
+#else /* CONFIG_CACHE_L2X0 */
+.macro l2_cache_resume, tmp1, tmp2, tmp3, phys_l2x0_saved_regs
+.endm
+#endif /* CONFIG_CACHE_L2X0 */
 #else
+void tegra_pen_lock(void);
+void tegra_pen_unlock(void);
+void tegra_resume(void);
+int tegra_sleep_cpu_finish(unsigned long);
+void tegra_disable_clean_inv_dcache(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
 void tegra20_hotplug_init(void);
@@ -80,6 +130,20 @@ void tegra30_hotplug_init(void);
 static inline void tegra20_hotplug_init(void) {}
 static inline void tegra30_hotplug_init(void) {}
 #endif
+
+void tegra20_cpu_shutdown(int cpu);
+int tegra20_cpu_is_resettable_soon(void);
+void tegra20_cpu_clear_resettable(void);
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+void tegra20_cpu_set_resettable_soon(void);
+#else
+static inline void tegra20_cpu_set_resettable_soon(void) {}
+#endif
+
+int tegra20_sleep_cpu_secondary_finish(unsigned long);
+void tegra20_tear_down_cpu(void);
+int tegra30_sleep_cpu_secondary_finish(unsigned long);
+void tegra30_tear_down_cpu(void);
 
 #endif
 #endif

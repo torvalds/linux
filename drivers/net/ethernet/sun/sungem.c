@@ -77,7 +77,7 @@
 #define DRV_VERSION	"1.0"
 #define DRV_AUTHOR	"David S. Miller <davem@redhat.com>"
 
-static char version[] __devinitdata =
+static char version[] =
         DRV_NAME ".c:v" DRV_VERSION " " DRV_AUTHOR "\n";
 
 MODULE_AUTHOR(DRV_AUTHOR);
@@ -2763,7 +2763,7 @@ static void get_gem_mac_nonobp(struct pci_dev *pdev, unsigned char *dev_addr)
 }
 #endif /* not Sparc and not PPC */
 
-static int __devinit gem_get_device_address(struct gem *gp)
+static int gem_get_device_address(struct gem *gp)
 {
 #if defined(CONFIG_SPARC) || defined(CONFIG_PPC_PMAC)
 	struct net_device *dev = gp->dev;
@@ -2827,8 +2827,7 @@ static const struct net_device_ops gem_netdev_ops = {
 #endif
 };
 
-static int __devinit gem_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned long gemreg_base, gemreg_len;
 	struct net_device *dev;

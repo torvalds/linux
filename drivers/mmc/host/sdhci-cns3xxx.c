@@ -95,12 +95,12 @@ static struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 		  SDHCI_QUIRK_NONSTANDARD_CLOCK,
 };
 
-static int __devinit sdhci_cns3xxx_probe(struct platform_device *pdev)
+static int sdhci_cns3xxx_probe(struct platform_device *pdev)
 {
 	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata);
 }
 
-static int __devexit sdhci_cns3xxx_remove(struct platform_device *pdev)
+static int sdhci_cns3xxx_remove(struct platform_device *pdev)
 {
 	return sdhci_pltfm_unregister(pdev);
 }
@@ -112,7 +112,7 @@ static struct platform_driver sdhci_cns3xxx_driver = {
 		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_cns3xxx_probe,
-	.remove		= __devexit_p(sdhci_cns3xxx_remove),
+	.remove		= sdhci_cns3xxx_remove,
 };
 
 module_platform_driver(sdhci_cns3xxx_driver);

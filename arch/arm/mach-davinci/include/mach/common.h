@@ -15,9 +15,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-struct sys_timer;
-
-extern struct sys_timer davinci_timer;
+extern void davinci_timer_init(void);
 
 extern void davinci_irq_init(void);
 extern void __iomem *davinci_intc_base;
@@ -104,8 +102,6 @@ int davinci_pm_init(void);
 static inline int davinci_pm_init(void) { return 0; }
 #endif
 
-/* standard place to map on-chip SRAMs; they *may* support DMA */
-#define SRAM_VIRT	0xfffe0000
 #define SRAM_SIZE	SZ_128K
 
 #endif /* __ARCH_ARM_MACH_DAVINCI_COMMON_H */

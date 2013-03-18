@@ -71,7 +71,7 @@ static void runtime_instr_int_handler(struct ext_code ext_code,
 	if (!(param32 & CPU_MF_INT_RI_MASK))
 		return;
 
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_CMR]++;
+	inc_irq_stat(IRQEXT_CMR);
 
 	if (!current->thread.ri_cb)
 		return;

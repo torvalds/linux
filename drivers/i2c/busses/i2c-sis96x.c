@@ -252,7 +252,7 @@ static DEFINE_PCI_DEVICE_TABLE(sis96x_ids) = {
 
 MODULE_DEVICE_TABLE (pci, sis96x_ids);
 
-static int __devinit sis96x_probe(struct pci_dev *dev,
+static int sis96x_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	u16 ww = 0;
@@ -308,7 +308,7 @@ static int __devinit sis96x_probe(struct pci_dev *dev,
 	return retval;
 }
 
-static void __devexit sis96x_remove(struct pci_dev *dev)
+static void sis96x_remove(struct pci_dev *dev)
 {
 	if (sis96x_smbus_base) {
 		i2c_del_adapter(&sis96x_adapter);
@@ -321,7 +321,7 @@ static struct pci_driver sis96x_driver = {
 	.name		= "sis96x_smbus",
 	.id_table	= sis96x_ids,
 	.probe		= sis96x_probe,
-	.remove		= __devexit_p(sis96x_remove),
+	.remove		= sis96x_remove,
 };
 
 module_pci_driver(sis96x_driver);

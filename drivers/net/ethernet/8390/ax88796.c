@@ -109,7 +109,7 @@ static inline struct ax_device *to_ax_dev(struct net_device *dev)
 /*
  * ax_initial_check
  *
- * do an initial probe for the card to check wether it exists
+ * do an initial probe for the card to check whether it exists
  * and is functional
  */
 static int ax_initial_check(struct net_device *dev)
@@ -191,11 +191,11 @@ static void ax_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 	ei_outb(E8390_RREAD+E8390_START, nic_base + NE_CMD);
 
 	if (ei_local->word16)
-		readsw(nic_base + NE_DATAPORT, hdr,
-		       sizeof(struct e8390_pkt_hdr) >> 1);
+		ioread16_rep(nic_base + NE_DATAPORT, hdr,
+			     sizeof(struct e8390_pkt_hdr) >> 1);
 	else
-		readsb(nic_base + NE_DATAPORT, hdr,
-		       sizeof(struct e8390_pkt_hdr));
+		ioread8_rep(nic_base + NE_DATAPORT, hdr,
+			    sizeof(struct e8390_pkt_hdr));
 
 	ei_outb(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
 	ei_local->dmaing &= ~0x01;
@@ -237,12 +237,12 @@ static void ax_block_input(struct net_device *dev, int count,
 	ei_outb(E8390_RREAD+E8390_START, nic_base + NE_CMD);
 
 	if (ei_local->word16) {
-		readsw(nic_base + NE_DATAPORT, buf, count >> 1);
+		ioread16_rep(nic_base + NE_DATAPORT, buf, count >> 1);
 		if (count & 0x01)
 			buf[count-1] = ei_inb(nic_base + NE_DATAPORT);
 
 	} else {
-		readsb(nic_base + NE_DATAPORT, buf, count);
+		ioread8_rep(nic_base + NE_DATAPORT, buf, count);
 	}
 
 	ei_local->dmaing &= ~1;
@@ -286,9 +286,9 @@ static void ax_block_output(struct net_device *dev, int count,
 
 	ei_outb(E8390_RWRITE+E8390_START, nic_base + NE_CMD);
 	if (ei_local->word16)
-		writesw(nic_base + NE_DATAPORT, buf, count >> 1);
+		iowrite16_rep(nic_base + NE_DATAPORT, buf, count >> 1);
 	else
-		writesb(nic_base + NE_DATAPORT, buf, count);
+		iowrite8_rep(nic_base + NE_DATAPORT, buf, count);
 
 	dma_start = jiffies;
 
@@ -358,7 +358,7 @@ static int ax_mii_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change, 0,
+	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change,
 				 PHY_INTERFACE_MODE_MII);
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -469,9 +469,9 @@ static void ax_get_drvinfo(struct net_device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev->dev.parent);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pdev->name);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
 }
 
 static int ax_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)

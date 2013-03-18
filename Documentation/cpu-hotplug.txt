@@ -207,6 +207,30 @@ by making it not-removable.
 
 In such cases you will also notice that the online file is missing under cpu0.
 
+Q: Is CPU0 removable on X86?
+A: Yes. If kernel is compiled with CONFIG_BOOTPARAM_HOTPLUG_CPU0=y, CPU0 is
+removable by default. Otherwise, CPU0 is also removable by kernel option
+cpu0_hotplug.
+
+But some features depend on CPU0. Two known dependencies are:
+
+1. Resume from hibernate/suspend depends on CPU0. Hibernate/suspend will fail if
+CPU0 is offline and you need to online CPU0 before hibernate/suspend can
+continue.
+2. PIC interrupts also depend on CPU0. CPU0 can't be removed if a PIC interrupt
+is detected.
+
+It's said poweroff/reboot may depend on CPU0 on some machines although I haven't
+seen any poweroff/reboot failure so far after CPU0 is offline on a few tested
+machines.
+
+Please let me know if you know or see any other dependencies of CPU0.
+
+If the dependencies are under your control, you can turn on CPU0 hotplug feature
+either by CONFIG_BOOTPARAM_HOTPLUG_CPU0 or by kernel parameter cpu0_hotplug.
+
+--Fenghua Yu <fenghua.yu@intel.com>
+
 Q: How do i find out if a particular CPU is not removable?
 A: Depending on the implementation, some architectures may show this by the
 absence of the "online" file. This is done if it can be determined ahead of

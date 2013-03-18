@@ -4,9 +4,8 @@
 
 config MLX4_EN
 	tristate "Mellanox Technologies 10Gbit Ethernet support"
-	depends on PCI && INET
+	depends on PCI
 	select MLX4_CORE
-	select INET_LRO
 	---help---
 	  This driver supports Mellanox Technologies ConnectX Ethernet
 	  devices.

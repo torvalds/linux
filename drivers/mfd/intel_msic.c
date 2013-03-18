@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -306,7 +307,7 @@ int intel_msic_irq_read(struct intel_msic *msic, unsigned short reg, u8 *val)
 }
 EXPORT_SYMBOL_GPL(intel_msic_irq_read);
 
-static int __devinit intel_msic_init_devices(struct intel_msic *msic)
+static int intel_msic_init_devices(struct intel_msic *msic)
 {
 	struct platform_device *pdev = msic->pdev;
 	struct intel_msic_platform_data *pdata = pdev->dev.platform_data;
@@ -364,7 +365,7 @@ fail:
 	return ret;
 }
 
-static void __devexit intel_msic_remove_devices(struct intel_msic *msic)
+static void intel_msic_remove_devices(struct intel_msic *msic)
 {
 	struct platform_device *pdev = msic->pdev;
 	struct intel_msic_platform_data *pdata = pdev->dev.platform_data;
@@ -375,7 +376,7 @@ static void __devexit intel_msic_remove_devices(struct intel_msic *msic)
 		gpio_free(pdata->ocd->gpio);
 }
 
-static int __devinit intel_msic_probe(struct platform_device *pdev)
+static int intel_msic_probe(struct platform_device *pdev)
 {
 	struct intel_msic_platform_data *pdata = pdev->dev.platform_data;
 	struct intel_msic *msic;
@@ -424,11 +425,9 @@ static int __devinit intel_msic_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	msic->irq_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!msic->irq_base) {
-		dev_err(&pdev->dev, "failed to map SRAM memory\n");
-		return -ENOMEM;
-	}
+	msic->irq_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(msic->irq_base))
+		return PTR_ERR(msic->irq_base);
 
 	platform_set_drvdata(pdev, msic);
 
@@ -445,7 +444,7 @@ static int __devinit intel_msic_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit intel_msic_remove(struct platform_device *pdev)
+static int intel_msic_remove(struct platform_device *pdev)
 {
 	struct intel_msic *msic = platform_get_drvdata(pdev);
 
@@ -457,7 +456,7 @@ static int __devexit intel_msic_remove(struct platform_device *pdev)
 
 static struct platform_driver intel_msic_driver = {
 	.probe		= intel_msic_probe,
-	.remove		= __devexit_p(intel_msic_remove),
+	.remove		= intel_msic_remove,
 	.driver		= {
 		.name	= "intel_msic",
 		.owner	= THIS_MODULE,

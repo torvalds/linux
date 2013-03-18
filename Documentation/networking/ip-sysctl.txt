@@ -26,20 +26,33 @@ route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
 
+neigh/default/gc_thresh1 - INTEGER
+	Minimum number of entries to keep.  Garbage collector will not
+	purge entries if there are fewer than this number.
+	Default: 256
+
 neigh/default/gc_thresh3 - INTEGER
 	Maximum number of neighbor entries allowed.  Increase this
 	when using large numbers of interfaces and when communicating
 	with large numbers of directly-connected peers.
+	Default: 1024
 
 neigh/default/unres_qlen_bytes - INTEGER
 	The maximum number of bytes which may be used by packets
 	queued for each	unresolved address by other network layers.
 	(added in linux 3.3)
+	Setting negative value is meaningless and will return error.
+	Default: 65536 Bytes(64KB)
 
 neigh/default/unres_qlen - INTEGER
 	The maximum number of packets which may be queued for each
 	unresolved address by other network layers.
 	(deprecated in linux 3.3) : use unres_qlen_bytes instead.
+	Prior to linux 3.3, the default value is 3 which may cause
+	unexpected packet loss. The current default value is calculated
+	according to default value of unres_qlen_bytes and true size of
+	packet.
+	Default: 31
 
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
@@ -117,17 +130,6 @@ somaxconn - INTEGER
 	Defaults to 128.  See also tcp_max_syn_backlog for additional tuning
 	for TCP sockets.
 
-tcp_abc - INTEGER
-	Controls Appropriate Byte Count (ABC) defined in RFC3465.
-	ABC is a way of increasing congestion window (cwnd) more slowly
-	in response to partial acknowledgments.
-	Possible values are:
-		0 increase cwnd once per acknowledgment (no ABC)
-		1 increase cwnd once per acknowledgment of full sized segment
-		2 allow increase cwnd by two if acknowledgment is
-		  of two segments to compensate for delayed acknowledgments.
-	Default: 0 (off)
-
 tcp_abort_on_overflow - BOOLEAN
 	If listening service is too slow to accept new connections,
 	reset them. Default state is FALSE. It means that if overflow
@@ -199,15 +201,17 @@ tcp_early_retrans - INTEGER
 	Default: 2
 
 tcp_ecn - INTEGER
-	Enable Explicit Congestion Notification (ECN) in TCP. ECN is only
-	used when both ends of the TCP flow support it. It is useful to
-	avoid losses due to congestion (when the bottleneck router supports
-	ECN).
+	Control use of Explicit Congestion Notification (ECN) by TCP.
+	ECN is used only when both ends of the TCP connection indicate
+	support for it.  This feature is useful in avoiding losses due
+	to congestion by allowing supporting routers to signal
+	congestion before having to drop packets.
 	Possible values are:
-		0 disable ECN
-		1 ECN enabled
-		2 Only server-side ECN enabled. If the other end does
-		  not support ECN, behavior is like with ECN disabled.
+		0 Disable ECN.  Neither initiate nor accept ECN.
+		1 Enable ECN when requested by incoming connections and
+		  also request ECN on outgoing connection attempts.
+		2 Enable ECN when requested by incoming connections
+		  but do not request ECN on outgoing connections.
 	Default: 2
 
 tcp_fack - BOOLEAN
@@ -215,15 +219,14 @@ tcp_fack - BOOLEAN
 	The value is not used, if tcp_sack is not enabled.
 
 tcp_fin_timeout - INTEGER
-	Time to hold socket in state FIN-WAIT-2, if it was closed
-	by our side. Peer can be broken and never close its side,
-	or even died unexpectedly. Default value is 60sec.
-	Usual value used in 2.2 was 180 seconds, you may restore
-	it, but remember that if your machine is even underloaded WEB server,
-	you risk to overflow memory with kilotons of dead sockets,
-	FIN-WAIT-2 sockets are less dangerous than FIN-WAIT-1,
-	because they eat maximum 1.5K of memory, but they tend
-	to live longer.	Cf. tcp_max_orphans.
+	The length of time an orphaned (no longer referenced by any
+	application) connection will remain in the FIN_WAIT_2 state
+	before it is aborted at the local end.  While a perfectly
+	valid "receive only" state for an un-orphaned connection, an
+	orphaned connection in FIN_WAIT_2 state could otherwise wait
+	forever for the remote to close its end of the connection.
+	Cf. tcp_max_orphans
+	Default: 60 seconds
 
 tcp_frto - INTEGER
 	Enables Forward RTO-Recovery (F-RTO) defined in RFC4138.
@@ -495,7 +498,7 @@ tcp_fastopen - INTEGER
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 255. Default value
-	is 6, which corresponds to 63seconds till the last restransmission
+	is 6, which corresponds to 63seconds till the last retransmission
 	with the current initial RTO of 1second. With this the final timeout
 	for an active TCP connection attempt will happen after 127seconds.
 
@@ -1323,6 +1326,12 @@ force_tllao - BOOLEAN
 	race condition where the sender deletes the cached link-layer address
 	prior to receiving a response to a previous solicitation."
 
+ndisc_notify - BOOLEAN
+	Define mode for notification of address and device changes.
+	0 - (default): do nothing
+	1 - Generate unsolicited neighbour advertisements when device is brought
+	    up or hardware address changes.
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
@@ -1514,6 +1523,20 @@ cookie_preserve_enable - BOOLEAN
 
 	Default: 1
 
+cookie_hmac_alg - STRING
+	Select the hmac algorithm used when generating the cookie value sent by
+	a listening sctp socket to a connecting client in the INIT-ACK chunk.
+	Valid values are:
+	* md5
+	* sha1
+	* none
+	Ability to assign md5 or sha1 as the selected alg is predicated on the
+	configuration of those algorithms at build time (CONFIG_CRYPTO_MD5 and
+	CONFIG_CRYPTO_SHA1).
+
+	Default: Dependent on configuration.  MD5 if available, else SHA1 if
+	available, else none.
+
 rcvbuf_policy - INTEGER
 	Determines if the receive buffer is attributed to the socket or to
 	association.   SCTP supports the capability to create multiple
@@ -1526,7 +1549,7 @@ rcvbuf_policy - INTEGER
 	blocking.
 
 	1: rcvbuf space is per association
-	0: recbuf space is per socket
+	0: rcvbuf space is per socket
 
 	Default: 0
 

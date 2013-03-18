@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -56,6 +56,7 @@
 #define IXGBE_SUBDEV_ID_82599_SFP        0x11A9
 #define IXGBE_SUBDEV_ID_82599_RNDC       0x1F72
 #define IXGBE_SUBDEV_ID_82599_560FLR     0x17D0
+#define IXGBE_SUBDEV_ID_82599_ECNA_DP    0x0470
 #define IXGBE_DEV_ID_82599_SFP_EM        0x1507
 #define IXGBE_DEV_ID_82599_SFP_SF2       0x154D
 #define IXGBE_DEV_ID_82599EN_SFP         0x1557
@@ -1833,15 +1834,6 @@ enum {
 /* Number of 100 microseconds we wait for PCI Express master disable */
 #define IXGBE_PCI_MASTER_DISABLE_TIMEOUT 800
 
-/* Check whether address is multicast.  This is little-endian specific check.*/
-#define IXGBE_IS_MULTICAST(Address) \
-                (bool)(((u8 *)(Address))[0] & ((u8)0x01))
-
-/* Check whether an address is broadcast. */
-#define IXGBE_IS_BROADCAST(Address)                      \
-                ((((u8 *)(Address))[0] == ((u8)0xff)) && \
-                (((u8 *)(Address))[1] == ((u8)0xff)))
-
 /* RAH */
 #define IXGBE_RAH_VIND_MASK     0x003C0000
 #define IXGBE_RAH_VIND_SHIFT    18
@@ -1961,6 +1953,8 @@ enum {
 #define IXGBE_MRQC_RSS_FIELD_IPV6_UDP    0x00800000
 #define IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP 0x01000000
 #define IXGBE_MRQC_L3L4TXSWEN            0x00008000
+
+#define IXGBE_FWSM_TS_ENABLED	0x1
 
 /* Queue Drop Enable */
 #define IXGBE_QDE_ENABLE     0x00000001
@@ -2828,7 +2822,7 @@ struct ixgbe_mac_operations {
 	void (*disable_tx_laser)(struct ixgbe_hw *);
 	void (*enable_tx_laser)(struct ixgbe_hw *);
 	void (*flap_tx_laser)(struct ixgbe_hw *);
-	s32 (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool, bool);
+	s32 (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool);
 	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *, bool);
 	s32 (*get_link_capabilities)(struct ixgbe_hw *, ixgbe_link_speed *,
 	                             bool *);
@@ -2875,12 +2869,12 @@ struct ixgbe_phy_operations {
 	s32 (*read_reg)(struct ixgbe_hw *, u32, u32, u16 *);
 	s32 (*write_reg)(struct ixgbe_hw *, u32, u32, u16);
 	s32 (*setup_link)(struct ixgbe_hw *);
-	s32 (*setup_link_speed)(struct ixgbe_hw *, ixgbe_link_speed, bool,
-	                        bool);
+	s32 (*setup_link_speed)(struct ixgbe_hw *, ixgbe_link_speed, bool);
 	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *);
 	s32 (*get_firmware_version)(struct ixgbe_hw *, u16 *);
 	s32 (*read_i2c_byte)(struct ixgbe_hw *, u8, u8, u8 *);
 	s32 (*write_i2c_byte)(struct ixgbe_hw *, u8, u8, u8);
+	s32 (*read_i2c_sff8472)(struct ixgbe_hw *, u8 , u8 *);
 	s32 (*read_i2c_eeprom)(struct ixgbe_hw *, u8 , u8 *);
 	s32 (*write_i2c_eeprom)(struct ixgbe_hw *, u8, u8);
 	s32 (*check_overtemp)(struct ixgbe_hw *);

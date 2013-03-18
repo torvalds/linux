@@ -5,7 +5,7 @@
 config NET_VENDOR_MICROCHIP
 	bool "Microchip devices"
 	default y
-	depends on SPI && EXPERIMENTAL
+	depends on SPI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -20,7 +20,7 @@ if NET_VENDOR_MICROCHIP
 
 config ENC28J60
 	tristate "ENC28J60 support"
-	depends on SPI && EXPERIMENTAL
+	depends on SPI
 	select CRC32
 	---help---
 	  Support for the Microchip EN28J60 ethernet chip.

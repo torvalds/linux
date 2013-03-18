@@ -1237,7 +1237,6 @@ static int ks_set_mac_address(struct net_device *netdev, void *paddr)
 	struct sockaddr *addr = paddr;
 	u8 *da;
 
-	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
 	da = (u8 *)netdev->dev_addr;
@@ -1506,7 +1505,7 @@ static int ks_hw_init(struct ks_net *ks)
 }
 
 
-static int __devinit ks8851_probe(struct platform_device *pdev)
+static int ks8851_probe(struct platform_device *pdev)
 {
 	int err = -ENOMEM;
 	struct resource *io_d, *io_c;
@@ -1641,7 +1640,7 @@ err_mem_region:
 	return err;
 }
 
-static int __devexit ks8851_remove(struct platform_device *pdev)
+static int ks8851_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct ks_net *ks = netdev_priv(netdev);
@@ -1663,7 +1662,7 @@ static struct platform_driver ks8851_platform_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ks8851_probe,
-	.remove = __devexit_p(ks8851_remove),
+	.remove = ks8851_remove,
 };
 
 module_platform_driver(ks8851_platform_driver);

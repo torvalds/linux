@@ -97,7 +97,7 @@ static int bfin_eval_adau1701_probe(struct platform_device *pdev)
 	return snd_soc_register_card(&bfin_eval_adau1701);
 }
 
-static int __devexit bfin_eval_adau1701_remove(struct platform_device *pdev)
+static int bfin_eval_adau1701_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -113,7 +113,7 @@ static struct platform_driver bfin_eval_adau1701_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = bfin_eval_adau1701_probe,
-	.remove = __devexit_p(bfin_eval_adau1701_remove),
+	.remove = bfin_eval_adau1701_remove,
 };
 
 module_platform_driver(bfin_eval_adau1701_driver);

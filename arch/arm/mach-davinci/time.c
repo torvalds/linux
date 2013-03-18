@@ -337,7 +337,7 @@ static struct clock_event_device clockevent_davinci = {
 };
 
 
-static void __init davinci_timer_init(void)
+void __init davinci_timer_init(void)
 {
 	struct clk *timer_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -379,7 +379,7 @@ static void __init davinci_timer_init(void)
 
 	timer_clk = clk_get(NULL, "timer0");
 	BUG_ON(IS_ERR(timer_clk));
-	clk_enable(timer_clk);
+	clk_prepare_enable(timer_clk);
 
 	/* init timer hw */
 	timer_init();
@@ -410,11 +410,6 @@ static void __init davinci_timer_init(void)
 		timer32_config(&timers[i]);
 }
 
-struct sys_timer davinci_timer = {
-	.init   = davinci_timer_init,
-};
-
-
 /* reset board using watchdog timer */
 void davinci_watchdog_reset(struct platform_device *pdev)
 {
@@ -429,7 +424,7 @@ void davinci_watchdog_reset(struct platform_device *pdev)
 	wd_clk = clk_get(&pdev->dev, NULL);
 	if (WARN_ON(IS_ERR(wd_clk)))
 		return;
-	clk_enable(wd_clk);
+	clk_prepare_enable(wd_clk);
 
 	/* disable, internal clock source */
 	__raw_writel(0, base + TCR);

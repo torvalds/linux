@@ -139,7 +139,7 @@
 #define SIRFSOC_UART_MINOR			0
 #define SIRFUART_PORT_NAME			"sirfsoc-uart"
 #define SIRFUART_MAP_SIZE			0x200
-#define SIRFSOC_UART_NR				3
+#define SIRFSOC_UART_NR				5
 #define SIRFSOC_PORT_TYPE			0xa5
 
 /* Baud Rate Calculation */
@@ -163,6 +163,7 @@ struct sirfsoc_uart_port {
 
 	struct uart_port		port;
 	struct pinctrl			*p;
+	struct clk			*clk;
 };
 
 /* Hardware Flow Control */

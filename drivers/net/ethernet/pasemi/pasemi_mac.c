@@ -579,8 +579,9 @@ static void pasemi_mac_free_tx_resources(struct pasemi_mac *mac)
 						(TX_RING_SIZE-1)].dma;
 			freed = pasemi_mac_unmap_tx_skb(mac, nfrags,
 							info->skb, dmas);
-		} else
+		} else {
 			freed = 2;
+		}
 	}
 
 	kfree(txring->ring_info);
@@ -808,8 +809,9 @@ static int pasemi_mac_clean_rx(struct pasemi_mac_rxring *rx,
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			skb->csum = (macrx & XCT_MACRX_CSUM_M) >>
 					   XCT_MACRX_CSUM_S;
-		} else
+		} else {
 			skb_checksum_none_assert(skb);
+		}
 
 		packets++;
 		tot_bytes += len;
@@ -1727,7 +1729,7 @@ static const struct net_device_ops pasemi_netdev_ops = {
 #endif
 };
 
-static int __devinit
+static int
 pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
@@ -1829,10 +1831,11 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&mac->pdev->dev, "register_netdev failed with error %d\n",
 			err);
 		goto out;
-	} else if netif_msg_probe(mac)
+	} else if (netif_msg_probe(mac)) {
 		printk(KERN_INFO "%s: PA Semi %s: intf %d, hw addr %pM\n",
 		       dev->name, mac->type == MAC_TYPE_GMAC ? "GMAC" : "XAUI",
 		       mac->dma_if, dev->dev_addr);
+	}
 
 	return err;
 
@@ -1849,7 +1852,7 @@ out_disable_device:
 
 }
 
-static void __devexit pasemi_mac_remove(struct pci_dev *pdev)
+static void pasemi_mac_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct pasemi_mac *mac;
@@ -1884,7 +1887,7 @@ static struct pci_driver pasemi_mac_driver = {
 	.name		= "pasemi_mac",
 	.id_table	= pasemi_mac_pci_tbl,
 	.probe		= pasemi_mac_probe,
-	.remove		= __devexit_p(pasemi_mac_remove),
+	.remove		= pasemi_mac_remove,
 };
 
 static void __exit pasemi_mac_cleanup_module(void)

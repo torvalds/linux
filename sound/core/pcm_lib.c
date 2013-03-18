@@ -316,6 +316,8 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	unsigned long jdelta;
 	unsigned long curr_jiffies;
 	struct timespec curr_tstamp;
+	struct timespec audio_tstamp;
+	int crossed_boundary = 0;
 
 	old_hw_ptr = runtime->status->hw_ptr;
 
@@ -327,8 +329,13 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	 */
 	pos = substream->ops->pointer(substream);
 	curr_jiffies = jiffies;
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
 		snd_pcm_gettime(runtime, (struct timespec *)&curr_tstamp);
+
+		if ((runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK) &&
+			(substream->ops->wall_clock))
+			substream->ops->wall_clock(substream, &audio_tstamp);
+	}
 
 	if (pos == SNDRV_PCM_POS_XRUN) {
 		xrun(substream);
@@ -360,8 +367,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			hdelta = curr_jiffies - runtime->hw_ptr_jiffies;
 			if (hdelta > runtime->hw_ptr_buffer_jiffies/2) {
 				hw_base += runtime->buffer_size;
-				if (hw_base >= runtime->boundary)
+				if (hw_base >= runtime->boundary) {
 					hw_base = 0;
+					crossed_boundary++;
+				}
 				new_hw_ptr = hw_base + pos;
 				goto __delta;
 			}
@@ -371,8 +380,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	/* pointer crosses the end of the ring buffer */
 	if (new_hw_ptr < old_hw_ptr) {
 		hw_base += runtime->buffer_size;
-		if (hw_base >= runtime->boundary)
+		if (hw_base >= runtime->boundary) {
 			hw_base = 0;
+			crossed_boundary++;
+		}
 		new_hw_ptr = hw_base + pos;
 	}
       __delta:
@@ -410,8 +421,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		while (hdelta > xrun_threshold) {
 			delta += runtime->buffer_size;
 			hw_base += runtime->buffer_size;
-			if (hw_base >= runtime->boundary)
+			if (hw_base >= runtime->boundary) {
 				hw_base = 0;
+				crossed_boundary++;
+			}
 			new_hw_ptr = hw_base + pos;
 			hdelta -= runtime->hw_ptr_buffer_jiffies;
 		}
@@ -456,8 +469,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		/* the delta value is small or zero in most cases */
 		while (delta > 0) {
 			new_hw_ptr += runtime->period_size;
-			if (new_hw_ptr >= runtime->boundary)
+			if (new_hw_ptr >= runtime->boundary) {
 				new_hw_ptr -= runtime->boundary;
+				crossed_boundary--;
+			}
 			delta--;
 		}
 		/* align hw_base to buffer_size */
@@ -507,8 +522,34 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
 	runtime->hw_ptr_jiffies = curr_jiffies;
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+	if (crossed_boundary) {
+		snd_BUG_ON(crossed_boundary != 1);
+		runtime->hw_ptr_wrap += runtime->boundary;
+	}
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
 		runtime->status->tstamp = curr_tstamp;
+
+		if (!(runtime->hw.info & SNDRV_PCM_INFO_HAS_WALL_CLOCK)) {
+			/*
+			 * no wall clock available, provide audio timestamp
+			 * derived from pointer position+delay
+			 */
+			u64 audio_frames, audio_nsecs;
+
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+				audio_frames = runtime->hw_ptr_wrap
+					+ runtime->status->hw_ptr
+					- runtime->delay;
+			else
+				audio_frames = runtime->hw_ptr_wrap
+					+ runtime->status->hw_ptr
+					+ runtime->delay;
+			audio_nsecs = div_u64(audio_frames * 1000000000LL,
+					runtime->rate);
+			audio_tstamp = ns_to_timespec(audio_nsecs);
+		}
+		runtime->status->audio_tstamp = audio_tstamp;
+	}
 
 	return snd_pcm_update_state(substream, runtime);
 }
@@ -1661,8 +1702,10 @@ static int snd_pcm_lib_ioctl_reset(struct snd_pcm_substream *substream,
 	if (snd_pcm_running(substream) &&
 	    snd_pcm_update_hw_ptr(substream) >= 0)
 		runtime->status->hw_ptr %= runtime->buffer_size;
-	else
+	else {
 		runtime->status->hw_ptr = 0;
+		runtime->hw_ptr_wrap = 0;
+	}
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return 0;
 }

@@ -39,7 +39,7 @@ static const struct ad7606_bus_ops ad7606_spi_bops = {
 	.read_block	= ad7606_spi_read_block,
 };
 
-static int __devinit ad7606_spi_probe(struct spi_device *spi)
+static int ad7606_spi_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 
@@ -55,7 +55,7 @@ static int __devinit ad7606_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit ad7606_spi_remove(struct spi_device *spi)
+static int ad7606_spi_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&spi->dev);
 
@@ -106,7 +106,7 @@ static struct spi_driver ad7606_driver = {
 		.pm    = AD7606_SPI_PM_OPS,
 	},
 	.probe = ad7606_spi_probe,
-	.remove = __devexit_p(ad7606_spi_remove),
+	.remove = ad7606_spi_remove,
 	.id_table = ad7606_id,
 };
 module_spi_driver(ad7606_driver);

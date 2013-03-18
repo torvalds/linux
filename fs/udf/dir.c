@@ -186,7 +186,7 @@ out:
 
 static int udf_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *dir = filp->f_path.dentry->d_inode;
+	struct inode *dir = file_inode(filp);
 	int result;
 
 	if (filp->f_pos == 0) {

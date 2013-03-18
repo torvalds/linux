@@ -1,0 +1,18 @@
+config ARCH_BCM
+	bool "Broadcom SoC" if ARCH_MULTI_V7
+	depends on MMU
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
+	select ARM_GIC
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_TIME
+	select GPIO_BCM
+	select SPARSE_IRQ
+	select TICK_ONESHOT
+	help
+	  This enables support for system based on Broadcom SoCs.
+	  It currently supports the 'BCM281XX' family, which includes
+	  BCM11130, BCM11140, BCM11351, BCM28145 and
+	  BCM28155 variants.

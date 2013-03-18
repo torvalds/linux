@@ -113,7 +113,7 @@ static const struct ethtool_ops atl1_ethtool_ops;
  *
  * Default Value: 100 (200us)
  */
-static int __devinitdata int_mod_timer[ATL1_MAX_NIC+1] = ATL1_PARAM_INIT;
+static int int_mod_timer[ATL1_MAX_NIC+1] = ATL1_PARAM_INIT;
 static unsigned int num_int_mod_timer;
 module_param_array_named(int_mod_timer, int_mod_timer, int,
 	&num_int_mod_timer, 0);
@@ -143,8 +143,8 @@ struct atl1_option {
 	} arg;
 };
 
-static int __devinit atl1_validate_option(int *value, struct atl1_option *opt,
-	struct pci_dev *pdev)
+static int atl1_validate_option(int *value, struct atl1_option *opt,
+				struct pci_dev *pdev)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -204,7 +204,7 @@ static int __devinit atl1_validate_option(int *value, struct atl1_option *opt,
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  */
-static void __devinit atl1_check_options(struct atl1_adapter *adapter)
+static void atl1_check_options(struct atl1_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	int bd = adapter->bd_number;
@@ -945,7 +945,7 @@ static void atl1_set_mac_addr(struct atl1_hw *hw)
  * Fields are initialized based on PCI device information and
  * OS network device settings (MTU size).
  */
-static int __devinit atl1_sw_init(struct atl1_adapter *adapter)
+static int atl1_sw_init(struct atl1_adapter *adapter)
 {
 	struct atl1_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
@@ -2934,8 +2934,7 @@ static const struct net_device_ops atl1_netdev_ops = {
  * The OS initialization, configuring of the adapter private structure,
  * and a hardware reset occur.
  */
-static int __devinit atl1_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct atl1_adapter *adapter;
@@ -3054,7 +3053,7 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	/* copy the MAC address out of the EEPROM */
 	if (atl1_read_mac_addr(&adapter->hw)) {
 		/* mark random mac */
-		netdev->addr_assign_type |= NET_ADDR_RANDOM;
+		netdev->addr_assign_type = NET_ADDR_RANDOM;
 	}
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
 
@@ -3113,7 +3112,7 @@ err_request_regions:
  * Hot-Plug event, or because the driver is going to be removed from
  * memory.
  */
-static void __devexit atl1_remove(struct pci_dev *pdev)
+static void atl1_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1_adapter *adapter;
@@ -3146,7 +3145,7 @@ static struct pci_driver atl1_driver = {
 	.name = ATLX_DRIVER_NAME,
 	.id_table = atl1_pci_tbl,
 	.probe = atl1_probe,
-	.remove = __devexit_p(atl1_remove),
+	.remove = atl1_remove,
 	.shutdown = atl1_shutdown,
 	.driver.pm = ATL1_PM_OPS,
 };

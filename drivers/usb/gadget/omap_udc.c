@@ -44,7 +44,7 @@
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
-#include <plat/dma.h>
+#include <linux/omap-dma.h>
 
 #include <mach/usb.h>
 
@@ -60,6 +60,9 @@
 
 #define	DRIVER_DESC	"OMAP UDC driver"
 #define	DRIVER_VERSION	"4 October 2004"
+
+#define OMAP_DMA_USB_W2FC_TX0		29
+#define OMAP_DMA_USB_W2FC_RX0		26
 
 /*
  * The OMAP UDC needs _very_ early endpoint setup:  before enabling the
@@ -1307,19 +1310,20 @@ static int omap_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static int omap_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
-static int omap_udc_stop(struct usb_gadget_driver *driver);
+static int omap_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int omap_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 
-static struct usb_gadget_ops omap_gadget_ops = {
+static const struct usb_gadget_ops omap_gadget_ops = {
 	.get_frame		= omap_get_frame,
 	.wakeup			= omap_wakeup,
 	.set_selfpowered	= omap_set_selfpowered,
 	.vbus_session		= omap_vbus_session,
 	.vbus_draw		= omap_vbus_draw,
 	.pullup			= omap_pullup,
-	.start			= omap_udc_start,
-	.stop			= omap_udc_stop,
+	.udc_start		= omap_udc_start,
+	.udc_stop		= omap_udc_stop,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -2039,28 +2043,15 @@ static inline int machine_without_vbus_sense(void)
 		|| cpu_is_omap7xx();
 }
 
-static int omap_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int omap_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
 	int		status = -ENODEV;
 	struct omap_ep	*ep;
 	unsigned long	flags;
 
-	/* basic sanity tests */
-	if (!udc)
-		return -ENODEV;
-	if (!driver
-			/* FIXME if otg, check:  driver->is_otg */
-			|| driver->max_speed < USB_SPEED_FULL
-			|| !bind || !driver->setup)
-		return -EINVAL;
 
 	spin_lock_irqsave(&udc->lock, flags);
-	if (udc->driver) {
-		spin_unlock_irqrestore(&udc->lock, flags);
-		return -EBUSY;
-	}
-
 	/* reset state */
 	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
 		ep->irqs = 0;
@@ -2081,15 +2072,6 @@ static int omap_udc_start(struct usb_gadget_driver *driver,
 
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(1);
-
-	status = bind(&udc->gadget, driver);
-	if (status) {
-		DBG("bind to %s --> %d\n", driver->driver.name, status);
-		udc->gadget.dev.driver = NULL;
-		udc->driver = NULL;
-		goto done;
-	}
-	DBG("bound to driver %s\n", driver->driver.name);
 
 	omap_writew(UDC_IRQ_SRC_MASK, UDC_IRQ_SRC);
 
@@ -2122,18 +2104,15 @@ static int omap_udc_start(struct usb_gadget_driver *driver,
 done:
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(0);
+
 	return status;
 }
 
-static int omap_udc_stop(struct usb_gadget_driver *driver)
+static int omap_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
 	unsigned long	flags;
 	int		status = -ENODEV;
-
-	if (!udc)
-		return -ENODEV;
-	if (!driver || driver != udc->driver || !driver->unbind)
-		return -EINVAL;
 
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(1);
@@ -2150,13 +2129,12 @@ static int omap_udc_stop(struct usb_gadget_driver *driver)
 	udc_quiesce(udc);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(0);
-	DBG("unregistered driver '%s'\n", driver->driver.name);
+
 	return status;
 }
 
@@ -2506,7 +2484,7 @@ static inline void remove_proc_file(void) {}
  * UDC_SYSCON_1.CFG_LOCK is set can now work.  We won't use that
  * capability yet though.
  */
-static unsigned __devinit
+static unsigned
 omap_ep_setup(char *name, u8 addr, u8 type,
 		unsigned buf, unsigned maxp, int dbuf)
 {
@@ -2624,7 +2602,7 @@ static void omap_udc_release(struct device *dev)
 	udc = NULL;
 }
 
-static int __devinit
+static int
 omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 {
 	unsigned	tmp, buf;
@@ -2761,7 +2739,7 @@ omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 	return 0;
 }
 
-static int __devinit omap_udc_probe(struct platform_device *pdev)
+static int omap_udc_probe(struct platform_device *pdev)
 {
 	int			status = -ENODEV;
 	int			hmc;
@@ -2974,7 +2952,7 @@ cleanup0:
 	return status;
 }
 
-static int __devexit omap_udc_remove(struct platform_device *pdev)
+static int omap_udc_remove(struct platform_device *pdev)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 
@@ -3060,7 +3038,7 @@ static int omap_udc_resume(struct platform_device *dev)
 
 static struct platform_driver udc_driver = {
 	.probe		= omap_udc_probe,
-	.remove		= __devexit_p(omap_udc_remove),
+	.remove		= omap_udc_remove,
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
 	.driver		= {

@@ -11,10 +11,12 @@
 
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/binfmts.h>
 struct  ctl_table_header;
 struct  mempolicy;
 
 extern struct proc_dir_entry proc_root;
+extern void proc_self_init(void);
 #ifdef CONFIG_PROC_SYSCTL
 extern int proc_sys_init(void);
 extern void sysctl_head_put(struct ctl_table_header *head);
@@ -107,7 +109,7 @@ static inline int task_dumpable(struct task_struct *task)
 	if (mm)
 		dumpable = get_dumpable(mm);
 	task_unlock(task);
-	if (dumpable == SUID_DUMPABLE_ENABLED)
+	if (dumpable == SUID_DUMP_USER)
 		return 1;
 	return 0;
 }

@@ -197,8 +197,8 @@ static const char *ferr_fat_fbd_name[] = {
 	[0]  = "Memory Write error on non-redundant retry or "
 	       "FBD configuration Write error on retry",
 };
-#define GET_FBD_FAT_IDX(fbderr)	(fbderr & (3 << 28))
-#define FERR_FAT_FBD_ERR_MASK ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3))
+#define GET_FBD_FAT_IDX(fbderr)	(((fbderr) >> 28) & 3)
+#define FERR_FAT_FBD_ERR_MASK ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 22))
 
 #define FERR_NF_FBD	0xa0
 static const char *ferr_nf_fbd_name[] = {
@@ -225,7 +225,7 @@ static const char *ferr_nf_fbd_name[] = {
 	[1]  = "Aliased Uncorrectable Non-Mirrored Demand Data ECC",
 	[0]  = "Uncorrectable Data ECC on Replay",
 };
-#define GET_FBD_NF_IDX(fbderr)	(fbderr & (3 << 28))
+#define GET_FBD_NF_IDX(fbderr)	(((fbderr) >> 28) & 3)
 #define FERR_NF_FBD_ERR_MASK ((1 << 24) | (1 << 23) | (1 << 22) | (1 << 21) |\
 			      (1 << 18) | (1 << 17) | (1 << 16) | (1 << 15) |\
 			      (1 << 14) | (1 << 13) | (1 << 11) | (1 << 10) |\
@@ -464,7 +464,7 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 		errnum = find_first_bit(&errors,
 					ARRAY_SIZE(ferr_nf_fbd_name));
 		specific = GET_ERR_FROM_TABLE(ferr_nf_fbd_name, errnum);
-		branch = (GET_FBD_FAT_IDX(error_reg) == 2) ? 1 : 0;
+		branch = (GET_FBD_NF_IDX(error_reg) == 2) ? 1 : 0;
 
 		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 			REDMEMA, &syndrome);
@@ -923,7 +923,7 @@ static void i7300_put_devices(struct mem_ctl_info *mci)
  *    Device 21 function 0:		PCI_DEVICE_ID_INTEL_I7300_MCH_FB0
  *    Device 22 function 0:		PCI_DEVICE_ID_INTEL_I7300_MCH_FB1
  */
-static int __devinit i7300_get_devices(struct mem_ctl_info *mci)
+static int i7300_get_devices(struct mem_ctl_info *mci)
 {
 	struct i7300_pvt *pvt;
 	struct pci_dev *pdev;
@@ -1008,8 +1008,7 @@ error:
  * @pdev: struct pci_dev pointer
  * @id: struct pci_device_id pointer - currently unused
  */
-static int __devinit i7300_init_one(struct pci_dev *pdev,
-				    const struct pci_device_id *id)
+static int i7300_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[3];
@@ -1122,7 +1121,7 @@ fail0:
  * i7300_remove_one() - Remove the driver
  * @pdev: struct pci_dev pointer
  */
-static void __devexit i7300_remove_one(struct pci_dev *pdev)
+static void i7300_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	char *tmp;
@@ -1163,7 +1162,7 @@ MODULE_DEVICE_TABLE(pci, i7300_pci_tbl);
 static struct pci_driver i7300_driver = {
 	.name = "i7300_edac",
 	.probe = i7300_init_one,
-	.remove = __devexit_p(i7300_remove_one),
+	.remove = i7300_remove_one,
 	.id_table = i7300_pci_tbl,
 };
 

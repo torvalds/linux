@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -297,9 +297,9 @@ ACPI_EXPORT_SYMBOL(acpi_bios_warning)
  *
  * PARAMETERS:  module_name     - Caller's module name (for error output)
  *              line_number     - Caller's line number (for error output)
- *              Pathname        - Full pathname to the node
+ *              pathname        - Full pathname to the node
  *              node_flags      - From Namespace node for the method/object
- *              Format          - Printf format string + additional args
+ *              format          - Printf format string + additional args
  *
  * RETURN:      None
  *
@@ -408,7 +408,7 @@ acpi_ut_namespace_error(const char *module_name,
 
 		ACPI_MOVE_32_TO_32(&bad_name,
 				   ACPI_CAST_PTR(u32, internal_name));
-		acpi_os_printf("[0x%4.4X] (NON-ASCII)", bad_name);
+		acpi_os_printf("[0x%.8X] (NON-ASCII)", bad_name);
 	} else {
 		/* Convert path to external format */
 

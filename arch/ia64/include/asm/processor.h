@@ -340,22 +340,6 @@ struct task_struct;
  */
 #define release_thread(dead_task)
 
-/*
- * This is the mechanism for creating a new kernel thread.
- *
- * NOTE 1: Only a kernel-only process (ie the swapper or direct
- * descendants who haven't done an "execve()") should use this: it
- * will work within a system call from a "real" process, but the
- * process memory space will not be free'd until both the parent and
- * the child have exited.
- *
- * NOTE 2: This MUST NOT be an inlined function.  Otherwise, we get
- * into trouble in init/main.c when the child thread returns to
- * do_basic_setup() and the timing is such that free_initmem() has
- * been called already.
- */
-extern pid_t kernel_thread (int (*fn)(void *), void *arg, unsigned long flags);
-
 /* Get wait channel for task P.  */
 extern unsigned long get_wchan (struct task_struct *p);
 

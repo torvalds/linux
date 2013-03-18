@@ -584,7 +584,6 @@ int imx_drm_add_encoder(struct drm_encoder *encoder,
 
 	ret = imx_drm_encoder_register(imx_drm_encoder);
 	if (ret) {
-		kfree(imx_drm_encoder);
 		ret = -ENOMEM;
 		goto err_register;
 	}
@@ -824,7 +823,7 @@ static int imx_drm_platform_remove(struct platform_device *pdev)
 
 static struct platform_driver imx_drm_pdrv = {
 	.probe		= imx_drm_platform_probe,
-	.remove		= __devexit_p(imx_drm_platform_remove),
+	.remove		= imx_drm_platform_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "imx-drm",

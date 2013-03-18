@@ -95,6 +95,12 @@
 		ranges;
 		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
 
+		counter32k: counter@4a304000 {
+			compatible = "ti,omap-counter32k";
+			reg = <0x4a304000 0x20>;
+			ti,hwmods = "counter_32k";
+		};
+
 		omap4_pmx_core: pinmux@4a100040 {
 			compatible = "ti,omap4-padconf", "pinctrl-single";
 			reg = <0x4a100040 0x0196>;
@@ -340,7 +346,6 @@
 			      <0x49032000 0x7f>; /* L3 Interconnect */
 			reg-names = "mpu", "dma";
 			interrupts = <0 112 0x4>;
-			interrupt-parent = <&gic>;
 			ti,hwmods = "mcpdm";
 		};
 
@@ -350,7 +355,6 @@
 			      <0x4902e000 0x7f>; /* L3 Interconnect */
 			reg-names = "mpu", "dma";
 			interrupts = <0 114 0x4>;
-			interrupt-parent = <&gic>;
 			ti,hwmods = "dmic";
 		};
 
@@ -361,7 +365,6 @@
 			reg-names = "mpu", "dma";
 			interrupts = <0 17 0x4>;
 			interrupt-names = "common";
-			interrupt-parent = <&gic>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp1";
 		};
@@ -373,7 +376,6 @@
 			reg-names = "mpu", "dma";
 			interrupts = <0 22 0x4>;
 			interrupt-names = "common";
-			interrupt-parent = <&gic>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp2";
 		};
@@ -385,7 +387,6 @@
 			reg-names = "mpu", "dma";
 			interrupts = <0 23 0x4>;
 			interrupt-names = "common";
-			interrupt-parent = <&gic>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp3";
 		};
@@ -396,7 +397,6 @@
 			reg-names = "mpu";
 			interrupts = <0 16 0x4>;
 			interrupt-names = "common";
-			interrupt-parent = <&gic>;
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp4";
 		};
@@ -431,12 +431,103 @@
 			hw-caps-temp-alert;
 		};
 
-		ocp2scp {
+		ocp2scp@4a0ad000 {
 			compatible = "ti,omap-ocp2scp";
+			reg = <0x4a0ad000 0x1f>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
 			ti,hwmods = "ocp2scp_usb_phy";
+		};
+
+		timer1: timer@4a318000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x4a318000 0x80>;
+			interrupts = <0 37 0x4>;
+			ti,hwmods = "timer1";
+			ti,timer-alwon;
+		};
+
+		timer2: timer@48032000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48032000 0x80>;
+			interrupts = <0 38 0x4>;
+			ti,hwmods = "timer2";
+		};
+
+		timer3: timer@48034000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48034000 0x80>;
+			interrupts = <0 39 0x4>;
+			ti,hwmods = "timer3";
+		};
+
+		timer4: timer@48036000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48036000 0x80>;
+			interrupts = <0 40 0x4>;
+			ti,hwmods = "timer4";
+		};
+
+		timer5: timer@40138000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x40138000 0x80>,
+			      <0x49038000 0x80>;
+			interrupts = <0 41 0x4>;
+			ti,hwmods = "timer5";
+			ti,timer-dsp;
+		};
+
+		timer6: timer@4013a000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x4013a000 0x80>,
+			      <0x4903a000 0x80>;
+			interrupts = <0 42 0x4>;
+			ti,hwmods = "timer6";
+			ti,timer-dsp;
+		};
+
+		timer7: timer@4013c000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x4013c000 0x80>,
+			      <0x4903c000 0x80>;
+			interrupts = <0 43 0x4>;
+			ti,hwmods = "timer7";
+			ti,timer-dsp;
+		};
+
+		timer8: timer@4013e000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x4013e000 0x80>,
+			      <0x4903e000 0x80>;
+			interrupts = <0 44 0x4>;
+			ti,hwmods = "timer8";
+			ti,timer-pwm;
+			ti,timer-dsp;
+		};
+
+		timer9: timer@4803e000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x4803e000 0x80>;
+			interrupts = <0 45 0x4>;
+			ti,hwmods = "timer9";
+			ti,timer-pwm;
+		};
+
+		timer10: timer@48086000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48086000 0x80>;
+			interrupts = <0 46 0x4>;
+			ti,hwmods = "timer10";
+			ti,timer-pwm;
+		};
+
+		timer11: timer@48088000 {
+			compatible = "ti,omap2-timer";
+			reg = <0x48088000 0x80>;
+			interrupts = <0 47 0x4>;
+			ti,hwmods = "timer11";
+			ti,timer-pwm;
 		};
 	};
 };

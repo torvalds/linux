@@ -1,0 +1,18 @@
+Atmel TCB PWM controller
+
+Required properties:
+- compatible: should be "atmel,tcb-pwm"
+- #pwm-cells: Should be 3.  The first cell specifies the per-chip index
+  of the PWM to use, the second cell is the period in nanoseconds and
+  bit 0 in the third cell is used to encode the polarity of PWM output.
+  Set bit 0 of the third cell in PWM specifier to 1 for inverse polarity &
+  set to 0 for normal polarity.
+- tc-block: The Timer Counter block to use as a PWM chip.
+
+Example:
+
+pwm {
+	compatible = "atmel,tcb-pwm";
+	#pwm-cells = <3>;
+	tc-block = <1>;
+};

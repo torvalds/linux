@@ -26,20 +26,17 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/sysfs.h>
-#include "hid-sensor-attributes.h"
 #include "hid-sensor-trigger.h"
 
 static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 						bool state)
 {
-	struct hid_sensor_iio_common *st = trig->private_data;
+	struct hid_sensor_common *st = trig->private_data;
 	int state_val;
 
 	state_val = state ? 1 : 0;
-#if (defined CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS) || \
-	(defined CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS_MODULE)
-	++state_val;
-#endif
+	if (IS_ENABLED(CONFIG_HID_SENSOR_ENUM_BASE_QUIRKS))
+		++state_val;
 	st->data_ready = state;
 	sensor_hub_set_feature(st->hsdev, st->power_state.report_id,
 					st->power_state.index,
@@ -66,7 +63,7 @@ static const struct iio_trigger_ops hid_sensor_trigger_ops = {
 };
 
 int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
-				struct hid_sensor_iio_common *attrb)
+				struct hid_sensor_common *attrb)
 {
 	int ret;
 	struct iio_trigger *trig;

@@ -55,4 +55,7 @@ struct in6_rtmsg {
 #define RTMSG_NEWROUTE		0x21
 #define RTMSG_DELROUTE		0x22
 
+#define IP6_RT_PRIO_USER	1024
+#define IP6_RT_PRIO_ADDRCONF	256
+
 #endif /* _UAPI_LINUX_IPV6_ROUTE_H */

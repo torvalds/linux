@@ -10,7 +10,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <plat/clkdev_omap.h>
+#include "clock.h"
 #include "opp.h"
 
 /*-------------------------------------------------------------------------

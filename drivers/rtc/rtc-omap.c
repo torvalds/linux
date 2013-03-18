@@ -20,6 +20,9 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/io.h>
 
@@ -37,6 +40,8 @@
  * low power modes) for OMAP1 boards (OMAP-L138 has this built into
  * the SoC). See the BOARD-SPECIFIC CUSTOMIZATION comment.
  */
+
+#define	DRIVER_NAME			"omap_rtc"
 
 #define OMAP_RTC_BASE			0xfffb4800
 
@@ -64,6 +69,9 @@
 #define OMAP_RTC_COMP_MSB_REG		0x50
 #define OMAP_RTC_OSC_REG		0x54
 
+#define OMAP_RTC_KICK0_REG		0x6c
+#define OMAP_RTC_KICK1_REG		0x70
+
 /* OMAP_RTC_CTRL_REG bit fields: */
 #define OMAP_RTC_CTRL_SPLIT		(1<<7)
 #define OMAP_RTC_CTRL_DISABLE		(1<<6)
@@ -88,10 +96,18 @@
 #define OMAP_RTC_INTERRUPTS_IT_ALARM    (1<<3)
 #define OMAP_RTC_INTERRUPTS_IT_TIMER    (1<<2)
 
+/* OMAP_RTC_KICKER values */
+#define	KICK0_VALUE			0x83e70b13
+#define	KICK1_VALUE			0x95a4f1e0
+
+#define	OMAP_RTC_HAS_KICKER		0x1
+
 static void __iomem	*rtc_base;
 
-#define rtc_read(addr)		__raw_readb(rtc_base + (addr))
-#define rtc_write(val, addr)	__raw_writeb(val, rtc_base + (addr))
+#define rtc_read(addr)		readb(rtc_base + (addr))
+#define rtc_write(val, addr)	writeb(val, rtc_base + (addr))
+
+#define rtc_writel(val, addr)	writel(val, rtc_base + (addr))
 
 
 /* we rely on the rtc framework to handle locking (rtc->ops_lock),
@@ -285,11 +301,38 @@ static struct rtc_class_ops omap_rtc_ops = {
 static int omap_rtc_alarm;
 static int omap_rtc_timer;
 
+#define	OMAP_RTC_DATA_DA830_IDX	1
+
+static struct platform_device_id omap_rtc_devtype[] = {
+	{
+		.name	= DRIVER_NAME,
+	}, {
+		.name	= "da830-rtc",
+		.driver_data = OMAP_RTC_HAS_KICKER,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, omap_rtc_devtype);
+
+static const struct of_device_id omap_rtc_of_match[] = {
+	{	.compatible	= "ti,da830-rtc",
+		.data		= &omap_rtc_devtype[OMAP_RTC_DATA_DA830_IDX],
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_rtc_of_match);
+
 static int __init omap_rtc_probe(struct platform_device *pdev)
 {
 	struct resource		*res, *mem;
 	struct rtc_device	*rtc;
 	u8			reg, new_ctrl;
+	const struct platform_device_id *id_entry;
+	const struct of_device_id *of_id;
+
+	of_id = of_match_device(omap_rtc_of_match, &pdev->dev);
+	if (of_id)
+		pdev->id_entry = of_id->data;
 
 	omap_rtc_timer = platform_get_irq(pdev, 0);
 	if (omap_rtc_timer <= 0) {
@@ -320,6 +363,16 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	if (!rtc_base) {
 		pr_debug("%s: RTC registers can't be mapped\n", pdev->name);
 		goto fail;
+	}
+
+	/* Enable the clock/module so that we can access the registers */
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
+	id_entry = platform_get_device_id(pdev);
+	if (id_entry && (id_entry->driver_data & OMAP_RTC_HAS_KICKER)) {
+		rtc_writel(KICK0_VALUE, OMAP_RTC_KICK0_REG);
+		rtc_writel(KICK1_VALUE, OMAP_RTC_KICK1_REG);
 	}
 
 	rtc = rtc_device_register(pdev->name, &pdev->dev,
@@ -398,6 +451,10 @@ fail2:
 fail1:
 	rtc_device_unregister(rtc);
 fail0:
+	if (id_entry && (id_entry->driver_data & OMAP_RTC_HAS_KICKER))
+		rtc_writel(0, OMAP_RTC_KICK0_REG);
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	iounmap(rtc_base);
 fail:
 	release_mem_region(mem->start, resource_size(mem));
@@ -408,6 +465,8 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device	*rtc = platform_get_drvdata(pdev);
 	struct resource		*mem = dev_get_drvdata(&rtc->dev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(pdev);
 
 	device_init_wakeup(&pdev->dev, 0);
 
@@ -420,6 +479,13 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 		free_irq(omap_rtc_alarm, rtc);
 
 	rtc_device_unregister(rtc);
+	if (id_entry && (id_entry->driver_data & OMAP_RTC_HAS_KICKER))
+		rtc_writel(0, OMAP_RTC_KICK0_REG);
+
+	/* Disable the clock/module */
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	iounmap(rtc_base);
 	release_mem_region(mem->start, resource_size(mem));
 	return 0;
@@ -442,11 +508,17 @@ static int omap_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	else
 		rtc_write(0, OMAP_RTC_INTERRUPTS_REG);
 
+	/* Disable the clock/module */
+	pm_runtime_put_sync(&pdev->dev);
+
 	return 0;
 }
 
 static int omap_rtc_resume(struct platform_device *pdev)
 {
+	/* Enable the clock/module so that we can access the registers */
+	pm_runtime_get_sync(&pdev->dev);
+
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(omap_rtc_alarm);
 	else
@@ -471,9 +543,11 @@ static struct platform_driver omap_rtc_driver = {
 	.resume		= omap_rtc_resume,
 	.shutdown	= omap_rtc_shutdown,
 	.driver		= {
-		.name	= "omap_rtc",
+		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(omap_rtc_of_match),
 	},
+	.id_table	= omap_rtc_devtype,
 };
 
 static int __init rtc_init(void)

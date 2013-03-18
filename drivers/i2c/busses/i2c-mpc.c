@@ -175,7 +175,7 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 }
 
 #if defined(CONFIG_PPC_MPC52xx) || defined(CONFIG_PPC_MPC512x)
-static const struct mpc_i2c_divider mpc_i2c_dividers_52xx[] __devinitconst = {
+static const struct mpc_i2c_divider mpc_i2c_dividers_52xx[] = {
 	{20, 0x20}, {22, 0x21}, {24, 0x22}, {26, 0x23},
 	{28, 0x24}, {30, 0x01}, {32, 0x25}, {34, 0x02},
 	{36, 0x26}, {40, 0x27}, {44, 0x04}, {48, 0x28},
@@ -196,7 +196,7 @@ static const struct mpc_i2c_divider mpc_i2c_dividers_52xx[] __devinitconst = {
 	{10240, 0x9d}, {12288, 0x9e}, {15360, 0x9f}
 };
 
-static int __devinit mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
+static int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
 					  int prescaler, u32 *real_clk)
 {
 	const struct mpc_i2c_divider *div = NULL;
@@ -230,7 +230,7 @@ static int __devinit mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock,
 	return (int)div->fdr;
 }
 
-static void __devinit mpc_i2c_setup_52xx(struct device_node *node,
+static void mpc_i2c_setup_52xx(struct device_node *node,
 					 struct mpc_i2c *i2c,
 					 u32 clock, u32 prescaler)
 {
@@ -252,7 +252,7 @@ static void __devinit mpc_i2c_setup_52xx(struct device_node *node,
 			 fdr);
 }
 #else /* !(CONFIG_PPC_MPC52xx || CONFIG_PPC_MPC512x) */
-static void __devinit mpc_i2c_setup_52xx(struct device_node *node,
+static void mpc_i2c_setup_52xx(struct device_node *node,
 					 struct mpc_i2c *i2c,
 					 u32 clock, u32 prescaler)
 {
@@ -260,7 +260,7 @@ static void __devinit mpc_i2c_setup_52xx(struct device_node *node,
 #endif /* CONFIG_PPC_MPC52xx || CONFIG_PPC_MPC512x */
 
 #ifdef CONFIG_PPC_MPC512x
-static void __devinit mpc_i2c_setup_512x(struct device_node *node,
+static void mpc_i2c_setup_512x(struct device_node *node,
 					 struct mpc_i2c *i2c,
 					 u32 clock, u32 prescaler)
 {
@@ -288,7 +288,7 @@ static void __devinit mpc_i2c_setup_512x(struct device_node *node,
 	mpc_i2c_setup_52xx(node, i2c, clock, prescaler);
 }
 #else /* CONFIG_PPC_MPC512x */
-static void __devinit mpc_i2c_setup_512x(struct device_node *node,
+static void mpc_i2c_setup_512x(struct device_node *node,
 					 struct mpc_i2c *i2c,
 					 u32 clock, u32 prescaler)
 {
@@ -296,7 +296,7 @@ static void __devinit mpc_i2c_setup_512x(struct device_node *node,
 #endif /* CONFIG_PPC_MPC512x */
 
 #ifdef CONFIG_FSL_SOC
-static const struct mpc_i2c_divider mpc_i2c_dividers_8xxx[] __devinitconst = {
+static const struct mpc_i2c_divider mpc_i2c_dividers_8xxx[] = {
 	{160, 0x0120}, {192, 0x0121}, {224, 0x0122}, {256, 0x0123},
 	{288, 0x0100}, {320, 0x0101}, {352, 0x0601}, {384, 0x0102},
 	{416, 0x0602}, {448, 0x0126}, {480, 0x0103}, {512, 0x0127},
@@ -316,7 +316,7 @@ static const struct mpc_i2c_divider mpc_i2c_dividers_8xxx[] __devinitconst = {
 	{49152, 0x011e}, {61440, 0x011f}
 };
 
-static u32 __devinit mpc_i2c_get_sec_cfg_8xxx(void)
+static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 {
 	struct device_node *node = NULL;
 	u32 __iomem *reg;
@@ -345,7 +345,7 @@ static u32 __devinit mpc_i2c_get_sec_cfg_8xxx(void)
 	return val;
 }
 
-static int __devinit mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
+static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 					  u32 prescaler, u32 *real_clk)
 {
 	const struct mpc_i2c_divider *div = NULL;
@@ -383,7 +383,7 @@ static int __devinit mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 	return div ? (int)div->fdr : -EINVAL;
 }
 
-static void __devinit mpc_i2c_setup_8xxx(struct device_node *node,
+static void mpc_i2c_setup_8xxx(struct device_node *node,
 					 struct mpc_i2c *i2c,
 					 u32 clock, u32 prescaler)
 {
@@ -408,7 +408,7 @@ static void __devinit mpc_i2c_setup_8xxx(struct device_node *node,
 }
 
 #else /* !CONFIG_FSL_SOC */
-static void __devinit mpc_i2c_setup_8xxx(struct device_node *node,
+static void mpc_i2c_setup_8xxx(struct device_node *node,
 					 struct mpc_i2c *i2c,
 					 u32 clock, u32 prescaler)
 {
@@ -615,7 +615,7 @@ static struct i2c_adapter mpc_ops = {
 };
 
 static const struct of_device_id mpc_i2c_of_match[];
-static int __devinit fsl_i2c_probe(struct platform_device *op)
+static int fsl_i2c_probe(struct platform_device *op)
 {
 	const struct of_device_id *match;
 	struct mpc_i2c *i2c;
@@ -696,7 +696,6 @@ static int __devinit fsl_i2c_probe(struct platform_device *op)
 	return result;
 
  fail_add:
-	dev_set_drvdata(&op->dev, NULL);
 	free_irq(i2c->irq, i2c);
  fail_request:
 	irq_dispose_mapping(i2c->irq);
@@ -706,12 +705,11 @@ static int __devinit fsl_i2c_probe(struct platform_device *op)
 	return result;
 };
 
-static int __devexit fsl_i2c_remove(struct platform_device *op)
+static int fsl_i2c_remove(struct platform_device *op)
 {
 	struct mpc_i2c *i2c = dev_get_drvdata(&op->dev);
 
 	i2c_del_adapter(&i2c->adap);
-	dev_set_drvdata(&op->dev, NULL);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, i2c);
@@ -746,24 +744,24 @@ static int mpc_i2c_resume(struct device *dev)
 SIMPLE_DEV_PM_OPS(mpc_i2c_pm_ops, mpc_i2c_suspend, mpc_i2c_resume);
 #endif
 
-static const struct mpc_i2c_data mpc_i2c_data_512x __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_512x = {
 	.setup = mpc_i2c_setup_512x,
 };
 
-static const struct mpc_i2c_data mpc_i2c_data_52xx __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_52xx = {
 	.setup = mpc_i2c_setup_52xx,
 };
 
-static const struct mpc_i2c_data mpc_i2c_data_8313 __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_8313 = {
 	.setup = mpc_i2c_setup_8xxx,
 };
 
-static const struct mpc_i2c_data mpc_i2c_data_8543 __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_8543 = {
 	.setup = mpc_i2c_setup_8xxx,
 	.prescaler = 2,
 };
 
-static const struct mpc_i2c_data mpc_i2c_data_8544 __devinitdata = {
+static const struct mpc_i2c_data mpc_i2c_data_8544 = {
 	.setup = mpc_i2c_setup_8xxx,
 	.prescaler = 3,
 };
@@ -785,7 +783,7 @@ MODULE_DEVICE_TABLE(of, mpc_i2c_of_match);
 /* Structure for a device driver */
 static struct platform_driver mpc_i2c_driver = {
 	.probe		= fsl_i2c_probe,
-	.remove		= __devexit_p(fsl_i2c_remove),
+	.remove		= fsl_i2c_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = DRV_NAME,

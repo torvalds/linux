@@ -25,13 +25,13 @@
 #include <linux/err.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
-#include <plat/mmc.h>
-
+#include "prm.h"
 #include "common.h"
 #include "control.h"
+#include "omap_hwmod.h"
+#include "omap_device.h"
 #include "mux.h"
+#include "mmc.h"
 
 /*
  * MSDI_CON_OFFSET: offset in bytes of the MSDI IP block's CON register
@@ -43,9 +43,6 @@
 #define MSDI_CON_POW_MASK			BIT(11)
 #define MSDI_CON_CLKD_MASK			(0x3f << 0)
 #define MSDI_CON_CLKD_SHIFT			0
-
-/* Maximum microseconds to wait for OMAP module to softreset */
-#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 /* MSDI_TARGET_RESET_CLKD: clock divisor to use throughout the reset */
 #define MSDI_TARGET_RESET_CLKD		0x3ff
@@ -153,7 +150,7 @@ void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 		return;
 	}
 	pdev = omap_device_build(dev_name, id, oh, mmc_data[0],
-				 sizeof(struct omap_mmc_platform_data), NULL, 0, 0);
+				 sizeof(struct omap_mmc_platform_data));
 	if (IS_ERR(pdev))
 		WARN(1, "Can'd build omap_device for %s:%s.\n",
 					dev_name, oh->name);

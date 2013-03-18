@@ -25,6 +25,8 @@ All attributes are read-only.
 	serial			Product Serial Number (from CID Register)
 	erase_size		Erase group size
 	preferred_erase_size	Preferred erase size
+	raw_rpmb_size_mult	RPMB partition size
+	rel_sectors		Reliable write sector count
 
 Note on Erase Size and Preferred Erase Size:
 
@@ -64,6 +66,11 @@ Note on Erase Size and Preferred Erase Size:
 	size specified by the card.
 
 	"preferred_erase_size" is in bytes.
+
+Note on raw_rpmb_size_mult:
+	"raw_rpmb_size_mult" is a mutliple of 128kB block.
+	RPMB size in byte is calculated by using the following equation:
+	RPMB partition size = 128kB x raw_rpmb_size_mult
 
 SD/MMC/SDIO Clock Gating Attribute
 ==================================

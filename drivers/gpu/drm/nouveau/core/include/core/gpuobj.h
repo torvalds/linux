@@ -65,7 +65,7 @@ nouveau_gpuobj_ref(struct nouveau_gpuobj *obj, struct nouveau_gpuobj **ref)
 void _nouveau_gpuobj_dtor(struct nouveau_object *);
 int  _nouveau_gpuobj_init(struct nouveau_object *);
 int  _nouveau_gpuobj_fini(struct nouveau_object *, bool);
-u32  _nouveau_gpuobj_rd32(struct nouveau_object *, u32);
-void _nouveau_gpuobj_wr32(struct nouveau_object *, u32, u32);
+u32  _nouveau_gpuobj_rd32(struct nouveau_object *, u64);
+void _nouveau_gpuobj_wr32(struct nouveau_object *, u64, u32);
 
 #endif

@@ -24,6 +24,12 @@
 
 #include <net/nfc/nfc.h>
 
+struct nfc_phy_ops {
+	int (*write)(void *dev_id, struct sk_buff *skb);
+	int (*enable)(void *dev_id);
+	void (*disable)(void *dev_id);
+};
+
 struct nfc_hci_dev;
 
 struct nfc_hci_ops {
@@ -38,15 +44,23 @@ struct nfc_hci_ops {
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*start_poll) (struct nfc_hci_dev *hdev,
 			   u32 im_protocols, u32 tm_protocols);
+	int (*dep_link_up)(struct nfc_hci_dev *hdev, struct nfc_target *target,
+			   u8 comm_mode, u8 *gb, size_t gb_len);
+	int (*dep_link_down)(struct nfc_hci_dev *hdev);
 	int (*target_from_gate) (struct nfc_hci_dev *hdev, u8 gate,
 				 struct nfc_target *target);
 	int (*complete_target_discovered) (struct nfc_hci_dev *hdev, u8 gate,
 					   struct nfc_target *target);
-	int (*data_exchange) (struct nfc_hci_dev *hdev,
+	int (*im_transceive) (struct nfc_hci_dev *hdev,
 			      struct nfc_target *target, struct sk_buff *skb,
 			      data_exchange_cb_t cb, void *cb_context);
+	int (*tm_send)(struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
+	int (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+			      struct sk_buff *skb);
+	int (*enable_se)(struct nfc_dev *dev, u32 secure_element);
+	int (*disable_se)(struct nfc_dev *dev, u32 secure_element);
 };
 
 /* Pipes */
@@ -70,10 +84,22 @@ typedef int (*xmit) (struct sk_buff *skb, void *cb_data);
 
 #define NFC_HCI_MAX_GATES		256
 
+/*
+ * These values can be specified by a driver to indicate it requires some
+ * adaptation of the HCI standard.
+ *
+ * NFC_HCI_QUIRK_SHORT_CLEAR - send HCI_ADM_CLEAR_ALL_PIPE cmd with no params
+ */
+enum {
+	NFC_HCI_QUIRK_SHORT_CLEAR	= 0,
+};
+
 struct nfc_hci_dev {
 	struct nfc_dev *ndev;
 
 	u32 max_data_link_payload;
+
+	bool shutting_down;
 
 	struct mutex msg_tx_mutex;
 
@@ -114,12 +140,19 @@ struct nfc_hci_dev {
 	int async_cb_type;
 	data_exchange_cb_t async_cb;
 	void *async_cb_context;
+
+	u8 *gb;
+	size_t gb_len;
+
+	unsigned long quirks;
 };
 
 /* hci device allocation */
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
+					    unsigned long quirks,
 					    u32 protocols,
+					    u32 supported_se,
 					    const char *llc_name,
 					    int tx_headroom,
 					    int tx_tailroom,
@@ -133,6 +166,8 @@ void nfc_hci_set_clientdata(struct nfc_hci_dev *hdev, void *clientdata);
 void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev);
 
 void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err);
+
+int nfc_hci_result_to_errno(u8 result);
 
 /* Host IDs */
 #define NFC_HCI_HOST_CONTROLLER_ID	0x00
@@ -219,5 +254,7 @@ int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
 			  const u8 *param, size_t param_len);
 int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 		       const u8 *param, size_t param_len);
+int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate);
+u32 nfc_hci_sak_to_protocol(u8 sak);
 
 #endif /* __NET_HCI_H */

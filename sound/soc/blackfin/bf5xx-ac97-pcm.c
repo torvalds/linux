@@ -453,12 +453,12 @@ static struct snd_soc_platform_driver bf5xx_ac97_soc_platform = {
 	.pcm_free	= bf5xx_pcm_free_dma_buffers,
 };
 
-static int __devinit bf5xx_soc_platform_probe(struct platform_device *pdev)
+static int bf5xx_soc_platform_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev, &bf5xx_ac97_soc_platform);
 }
 
-static int __devexit bf5xx_soc_platform_remove(struct platform_device *pdev)
+static int bf5xx_soc_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -471,7 +471,7 @@ static struct platform_driver bf5xx_pcm_driver = {
 	},
 
 	.probe = bf5xx_soc_platform_probe,
-	.remove = __devexit_p(bf5xx_soc_platform_remove),
+	.remove = bf5xx_soc_platform_remove,
 };
 
 module_platform_driver(bf5xx_pcm_driver);

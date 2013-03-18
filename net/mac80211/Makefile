@@ -8,6 +8,7 @@ mac80211-y := \
 	wpa.o \
 	scan.o offchannel.o \
 	ht.o agg-tx.o agg-rx.o \
+	vht.o \
 	ibss.o \
 	iface.o \
 	rate.o \
@@ -38,7 +39,8 @@ mac80211-$(CONFIG_MAC80211_MESH) += \
 	mesh_pathtbl.o \
 	mesh_plink.o \
 	mesh_hwmp.o \
-	mesh_sync.o
+	mesh_sync.o \
+	mesh_ps.o
 
 mac80211-$(CONFIG_PM) += pm.o
 

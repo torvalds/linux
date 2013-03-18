@@ -355,7 +355,7 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 	static struct irq_chip  twl6030_irq_chip;
 	int			status = 0;
 	int			i;
-	u8			mask[4];
+	u8			mask[3];
 
 	nr_irqs = TWL6030_NR_IRQS;
 
@@ -370,9 +370,9 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 
 	irq_end = irq_base + nr_irqs;
 
+	mask[0] = 0xFF;
 	mask[1] = 0xFF;
 	mask[2] = 0xFF;
-	mask[3] = 0xFF;
 
 	/* mask all int lines */
 	twl_i2c_write(TWL_MODULE_PIH, &mask[0], REG_INT_MSK_LINE_A, 3);

@@ -38,7 +38,7 @@ struct nv40_mpeg_priv {
 };
 
 struct nv40_mpeg_chan {
-	struct nouveau_mpeg base;
+	struct nouveau_mpeg_chan base;
 };
 
 /*******************************************************************************

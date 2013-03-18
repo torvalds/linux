@@ -11,12 +11,11 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#include <linux/pm_runtime.h>
-
 #include <asm/pmu.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "soc.h"
+#include "omap_hwmod.h"
+#include "omap_device.h"
 
 static char *omap2_pmu_oh_names[] = {"mpu"};
 static char *omap3_pmu_oh_names[] = {"mpu", "debugss"};
@@ -49,15 +48,12 @@ static int __init omap2_init_pmu(unsigned oh_num, char *oh_names[])
 		}
 	}
 
-	omap_pmu_dev = omap_device_build_ss(dev_name, -1, oh, oh_num, NULL, 0,
-					    NULL, 0, 0);
+	omap_pmu_dev = omap_device_build_ss(dev_name, -1, oh, oh_num, NULL, 0);
 	WARN(IS_ERR(omap_pmu_dev), "Can't build omap_device for %s.\n",
 	     dev_name);
 
 	if (IS_ERR(omap_pmu_dev))
 		return PTR_ERR(omap_pmu_dev);
-
-	pm_runtime_enable(&omap_pmu_dev->dev);
 
 	return 0;
 }
@@ -92,4 +88,4 @@ static int __init omap_init_pmu(void)
 
 	return omap2_init_pmu(oh_num, oh_names);
 }
-subsys_initcall(omap_init_pmu);
+omap_subsys_initcall(omap_init_pmu);

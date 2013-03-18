@@ -142,9 +142,6 @@ struct task_struct;
 /* Free all resources held by a thread */
 extern void release_thread(struct task_struct *);
 
-/* Create a kernel thread without removing it from tasklists */
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-
 /* Return saved PC of a blocked thread */
 #define thread_saved_pc(tsk)    ((tsk)->thread.cpu_context.pc)
 

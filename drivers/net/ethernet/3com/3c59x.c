@@ -102,7 +102,7 @@ static int vortex_debug = 1;
 #include <linux/delay.h>
 
 
-static const char version[] __devinitconst =
+static const char version[] =
 	DRV_NAME ": Donald Becker and others.\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
@@ -277,7 +277,7 @@ static struct vortex_chip_info {
 	int flags;
 	int drv_flags;
 	int io_size;
-} vortex_info_tbl[] __devinitdata = {
+} vortex_info_tbl[] = {
 	{"3c590 Vortex 10Mbps",
 	 PCI_USES_MASTER, IS_VORTEX, 32, },
 	{"3c592 EISA 10Mbps Demon/Vortex",					/* AKPM: from Don's 3c59x_cb.c 0.49H */
@@ -931,7 +931,7 @@ static int __init vortex_eisa_probe(struct device *device)
 	return 0;
 }
 
-static int __devexit vortex_eisa_remove(struct device *device)
+static int vortex_eisa_remove(struct device *device)
 {
 	struct eisa_device *edev;
 	struct net_device *dev;
@@ -962,7 +962,7 @@ static struct eisa_driver vortex_eisa_driver = {
 	.driver   = {
 		.name    = "3c59x",
 		.probe   = vortex_eisa_probe,
-		.remove  = __devexit_p(vortex_eisa_remove)
+		.remove  = vortex_eisa_remove
 	}
 };
 
@@ -1000,8 +1000,8 @@ static int __init vortex_eisa_init(void)
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit vortex_init_one(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int vortex_init_one(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	int rc, unit, pci_bar;
 	struct vortex_chip_info *vci;
@@ -1088,9 +1088,8 @@ static const struct net_device_ops vortex_netdev_ops = {
  *
  * NOTE: pdev can be NULL, for the case of a Compaq device
  */
-static int __devinit vortex_probe1(struct device *gendev,
-				   void __iomem *ioaddr, int irq,
-				   int chip_idx, int card_idx)
+static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
+			 int chip_idx, int card_idx)
 {
 	struct vortex_private *vp;
 	int option;
@@ -1294,7 +1293,6 @@ static int __devinit vortex_probe1(struct device *gendev,
 		pr_cont(" ***INVALID CHECKSUM %4.4x*** ", checksum);
 	for (i = 0; i < 3; i++)
 		((__be16 *)dev->dev_addr)[i] = htons(eeprom[i + 10]);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	if (print_info)
 		pr_cont(" %pM", dev->dev_addr);
 	/* Unfortunately an all zero eeprom passes the checksum and this
@@ -3222,7 +3220,7 @@ static void acpi_set_WOL(struct net_device *dev)
 }
 
 
-static void __devexit vortex_remove_one(struct pci_dev *pdev)
+static void vortex_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct vortex_private *vp;
@@ -3265,7 +3263,7 @@ static void __devexit vortex_remove_one(struct pci_dev *pdev)
 static struct pci_driver vortex_driver = {
 	.name		= "3c59x",
 	.probe		= vortex_init_one,
-	.remove		= __devexit_p(vortex_remove_one),
+	.remove		= vortex_remove_one,
 	.id_table	= vortex_pci_tbl,
 	.driver.pm	= VORTEX_PM_OPS,
 };

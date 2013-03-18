@@ -30,7 +30,6 @@
  */
 
 #include <linux/platform_device.h>
-#include <plat/usb.h>
 #include <linux/pm_runtime.h>
 
 /*-------------------------------------------------------------------------*/
@@ -125,7 +124,7 @@ static const struct hc_driver ohci_omap3_hc_driver = {
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
  */
-static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
+static int ohci_hcd_omap3_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
 	struct usb_hcd		*hcd = NULL;
@@ -209,7 +208,7 @@ err_io:
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  */
-static int __devexit ohci_hcd_omap3_remove(struct platform_device *pdev)
+static int ohci_hcd_omap3_remove(struct platform_device *pdev)
 {
 	struct device *dev	= &pdev->dev;
 	struct usb_hcd *hcd	= dev_get_drvdata(dev);
@@ -232,7 +231,7 @@ static void ohci_hcd_omap3_shutdown(struct platform_device *pdev)
 
 static struct platform_driver ohci_hcd_omap3_driver = {
 	.probe		= ohci_hcd_omap3_probe,
-	.remove		= __devexit_p(ohci_hcd_omap3_remove),
+	.remove		= ohci_hcd_omap3_remove,
 	.shutdown	= ohci_hcd_omap3_shutdown,
 	.driver		= {
 		.name	= "ohci-omap3",

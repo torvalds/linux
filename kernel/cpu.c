@@ -224,11 +224,13 @@ void clear_tasks_mm_cpumask(int cpu)
 static inline void check_for_tasks(int cpu)
 {
 	struct task_struct *p;
+	cputime_t utime, stime;
 
 	write_lock_irq(&tasklist_lock);
 	for_each_process(p) {
+		task_cputime(p, &utime, &stime);
 		if (task_cpu(p) == cpu && p->state == TASK_RUNNING &&
-		    (p->utime || p->stime))
+		    (utime || stime))
 			printk(KERN_WARNING "Task %s (pid = %d) is on cpu %d "
 				"(state = %ld, flags = %x)\n",
 				p->comm, task_pid_nr(p), cpu,
@@ -254,6 +256,8 @@ static int __ref take_cpu_down(void *_param)
 		return err;
 
 	cpu_notify(CPU_DYING | param->mod, param->hcpu);
+	/* Park the stopper thread */
+	kthread_park(current);
 	return 0;
 }
 
@@ -348,10 +352,12 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
 	struct task_struct *idle;
 
-	if (cpu_online(cpu) || !cpu_present(cpu))
-		return -EINVAL;
-
 	cpu_hotplug_begin();
+
+	if (cpu_online(cpu) || !cpu_present(cpu)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	idle = idle_thread_get(cpu);
 	if (IS_ERR(idle)) {
@@ -601,6 +607,11 @@ cpu_hotplug_pm_callback(struct notifier_block *nb,
 
 static int __init cpu_hotplug_pm_sync_init(void)
 {
+	/*
+	 * cpu_hotplug_pm_callback has higher priority than x86
+	 * bsp_pm_callback which depends on cpu_hotplug_pm_callback
+	 * to disable cpu hotplug to avoid cpu hotplug race.
+	 */
 	pm_notifier(cpu_hotplug_pm_callback, 0);
 	return 0;
 }

@@ -318,7 +318,7 @@ static void tcp_fastopen_synack_timer(struct sock *sk)
 	req = tcp_sk(sk)->fastopen_rsk;
 	req->rsk_ops->syn_ack_timeout(sk, req);
 
-	if (req->retrans >= max_retries) {
+	if (req->num_timeout >= max_retries) {
 		tcp_write_err(sk);
 		return;
 	}
@@ -327,10 +327,10 @@ static void tcp_fastopen_synack_timer(struct sock *sk)
 	 * regular retransmit because if the child socket has been accepted
 	 * it's not good to give up too easily.
 	 */
-	req->rsk_ops->rtx_syn_ack(sk, req, NULL);
-	req->retrans++;
+	inet_rtx_syn_ack(sk, req);
+	req->num_timeout++;
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-			  TCP_TIMEOUT_INIT << req->retrans, TCP_RTO_MAX);
+			  TCP_TIMEOUT_INIT << req->num_timeout, TCP_RTO_MAX);
 }
 
 /*

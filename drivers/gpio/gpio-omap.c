@@ -1012,7 +1012,7 @@ static void omap_gpio_mod_init(struct gpio_bank *bank)
 		dev_err(bank->dev, "Could not get gpio dbck\n");
 }
 
-static __devinit void
+static void
 omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 		    unsigned int num)
 {
@@ -1041,7 +1041,7 @@ omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static void __devinit omap_gpio_chip_init(struct gpio_bank *bank)
+static void omap_gpio_chip_init(struct gpio_bank *bank)
 {
 	int j;
 	static int gpio;
@@ -1089,7 +1089,7 @@ static void __devinit omap_gpio_chip_init(struct gpio_bank *bank)
 
 static const struct of_device_id omap_gpio_match[];
 
-static int __devinit omap_gpio_probe(struct platform_device *pdev)
+static int omap_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
@@ -1105,7 +1105,7 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	bank = devm_kzalloc(&pdev->dev, sizeof(struct gpio_bank), GFP_KERNEL);
+	bank = devm_kzalloc(dev, sizeof(struct gpio_bank), GFP_KERNEL);
 	if (!bank) {
 		dev_err(dev, "Memory alloc failed\n");
 		return -ENOMEM;
@@ -1476,19 +1476,19 @@ static struct omap_gpio_reg_offs omap4_gpio_regs = {
 	.fallingdetect =	OMAP4_GPIO_FALLINGDETECT,
 };
 
-const static struct omap_gpio_platform_data omap2_pdata = {
+static const struct omap_gpio_platform_data omap2_pdata = {
 	.regs = &omap2_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = false,
 };
 
-const static struct omap_gpio_platform_data omap3_pdata = {
+static const struct omap_gpio_platform_data omap3_pdata = {
 	.regs = &omap2_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = true,
 };
 
-const static struct omap_gpio_platform_data omap4_pdata = {
+static const struct omap_gpio_platform_data omap4_pdata = {
 	.regs = &omap4_gpio_regs,
 	.bank_width = 32,
 	.dbck_flag = true,

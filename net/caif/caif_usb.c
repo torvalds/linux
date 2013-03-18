@@ -81,8 +81,8 @@ static void cfusbl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 		layr->up->ctrlcmd(layr->up, ctrl, layr->id);
 }
 
-struct cflayer *cfusbl_create(int phyid, u8 ethaddr[ETH_ALEN],
-					u8 braddr[ETH_ALEN])
+static struct cflayer *cfusbl_create(int phyid, u8 ethaddr[ETH_ALEN],
+				      u8 braddr[ETH_ALEN])
 {
 	struct cfusbl *this = kmalloc(sizeof(struct cfusbl), GFP_ATOMIC);
 
@@ -126,20 +126,16 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 	struct net_device *dev = arg;
 	struct caif_dev_common common;
 	struct cflayer *layer, *link_support;
-	struct usbnet	*usbnet = netdev_priv(dev);
-	struct usb_device	*usbdev = usbnet->udev;
-	struct ethtool_drvinfo drvinfo;
+	struct usbnet *usbnet;
+	struct usb_device *usbdev;
 
-	/*
-	 * Quirks: High-jack ethtool to find if we have a NCM device,
-	 * and find it's VID/PID.
-	 */
-	if (dev->ethtool_ops == NULL || dev->ethtool_ops->get_drvinfo == NULL)
+	/* Check whether we have a NCM device, and find its VID/PID. */
+	if (!(dev->dev.parent && dev->dev.parent->driver &&
+	      strcmp(dev->dev.parent->driver->name, "cdc_ncm") == 0))
 		return 0;
 
-	dev->ethtool_ops->get_drvinfo(dev, &drvinfo);
-	if (strncmp(drvinfo.driver, "cdc_ncm", 7) != 0)
-		return 0;
+	usbnet = netdev_priv(dev);
+	usbdev = usbnet->udev;
 
 	pr_debug("USB CDC NCM device VID:0x%4x PID:0x%4x\n",
 		le16_to_cpu(usbdev->descriptor.idVendor),

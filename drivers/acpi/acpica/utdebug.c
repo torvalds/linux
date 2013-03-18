@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,9 @@
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utdebug")
+
 #ifdef ACPI_DEBUG_OUTPUT
-static acpi_thread_id acpi_gbl_prev_thread_id;
+static acpi_thread_id acpi_gbl_prev_thread_id = (acpi_thread_id) 0xFFFFFFFF;
 static char *acpi_gbl_fn_entry_str = "----Entry";
 static char *acpi_gbl_fn_exit_str = "----Exit-";
 
@@ -109,7 +110,7 @@ void acpi_ut_track_stack_ptr(void)
  * RETURN:      Updated pointer to the function name
  *
  * DESCRIPTION: Remove the "Acpi" prefix from the function name, if present.
- *              This allows compiler macros such as __func__ to be used
+ *              This allows compiler macros such as __FUNCTION__ to be used
  *              with no change to the debug output.
  *
  ******************************************************************************/
@@ -165,11 +166,9 @@ acpi_debug_print(u32 requested_debug_level,
 	acpi_thread_id thread_id;
 	va_list args;
 
-	/*
-	 * Stay silent if the debug level or component ID is disabled
-	 */
-	if (!(requested_debug_level & acpi_dbg_level) ||
-	    !(component_id & acpi_dbg_layer)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(requested_debug_level, component_id)) {
 		return;
 	}
 
@@ -222,7 +221,7 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print message with no headers.  Has same interface as
+ * DESCRIPTION: Print message with no headers. Has same interface as
  *              debug_print so that the same macros can be used.
  *
  ******************************************************************************/
@@ -235,8 +234,9 @@ acpi_debug_print_raw(u32 requested_debug_level,
 {
 	va_list args;
 
-	if (!(requested_debug_level & acpi_dbg_level) ||
-	    !(component_id & acpi_dbg_layer)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(requested_debug_level, component_id)) {
 		return;
 	}
 
@@ -258,7 +258,7 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print_raw)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -271,9 +271,13 @@ acpi_ut_trace(u32 line_number,
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s\n", acpi_gbl_fn_entry_str);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s\n", acpi_gbl_fn_entry_str);
+	}
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_trace)
@@ -290,7 +294,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_trace)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -299,12 +303,18 @@ acpi_ut_trace_ptr(u32 line_number,
 		  const char *function_name,
 		  const char *module_name, u32 component_id, void *pointer)
 {
+
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %p\n", acpi_gbl_fn_entry_str, pointer);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %p\n", acpi_gbl_fn_entry_str,
+				 pointer);
+	}
 }
 
 /*******************************************************************************
@@ -319,7 +329,7 @@ acpi_ut_trace_ptr(u32 line_number,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -333,9 +343,14 @@ acpi_ut_trace_str(u32 line_number,
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %s\n", acpi_gbl_fn_entry_str, string);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %s\n", acpi_gbl_fn_entry_str,
+				 string);
+	}
 }
 
 /*******************************************************************************
@@ -350,7 +365,7 @@ acpi_ut_trace_str(u32 line_number,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function entry trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -364,9 +379,14 @@ acpi_ut_trace_u32(u32 line_number,
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %08X\n", acpi_gbl_fn_entry_str, integer);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %08X\n",
+				 acpi_gbl_fn_entry_str, integer);
+	}
 }
 
 /*******************************************************************************
@@ -380,7 +400,7 @@ acpi_ut_trace_u32(u32 line_number,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level
  *
  ******************************************************************************/
@@ -391,9 +411,13 @@ acpi_ut_exit(u32 line_number,
 	     const char *module_name, u32 component_id)
 {
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s\n", acpi_gbl_fn_exit_str);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s\n", acpi_gbl_fn_exit_str);
+	}
 
 	acpi_gbl_nesting_level--;
 }
@@ -412,7 +436,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_exit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit status also.
  *
  ******************************************************************************/
@@ -423,17 +447,23 @@ acpi_ut_status_exit(u32 line_number,
 		    u32 component_id, acpi_status status)
 {
 
-	if (ACPI_SUCCESS(status)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
-				 line_number, function_name, module_name,
-				 component_id, "%s %s\n", acpi_gbl_fn_exit_str,
-				 acpi_format_exception(status));
-	} else {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
-				 line_number, function_name, module_name,
-				 component_id, "%s ****Exception****: %s\n",
-				 acpi_gbl_fn_exit_str,
-				 acpi_format_exception(status));
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		if (ACPI_SUCCESS(status)) {
+			acpi_debug_print(ACPI_LV_FUNCTIONS,
+					 line_number, function_name,
+					 module_name, component_id, "%s %s\n",
+					 acpi_gbl_fn_exit_str,
+					 acpi_format_exception(status));
+		} else {
+			acpi_debug_print(ACPI_LV_FUNCTIONS,
+					 line_number, function_name,
+					 module_name, component_id,
+					 "%s ****Exception****: %s\n",
+					 acpi_gbl_fn_exit_str,
+					 acpi_format_exception(status));
+		}
 	}
 
 	acpi_gbl_nesting_level--;
@@ -453,7 +483,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
  *
  ******************************************************************************/
@@ -463,10 +493,15 @@ acpi_ut_value_exit(u32 line_number,
 		   const char *module_name, u32 component_id, u64 value)
 {
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %8.8X%8.8X\n", acpi_gbl_fn_exit_str,
-			 ACPI_FORMAT_UINT64(value));
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %8.8X%8.8X\n",
+				 acpi_gbl_fn_exit_str,
+				 ACPI_FORMAT_UINT64(value));
+	}
 
 	acpi_gbl_nesting_level--;
 }
@@ -485,7 +520,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Function exit trace.  Prints only if TRACE_FUNCTIONS bit is
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
  *              set in debug_level. Prints exit value also.
  *
  ******************************************************************************/
@@ -495,9 +530,14 @@ acpi_ut_ptr_exit(u32 line_number,
 		 const char *module_name, u32 component_id, u8 *ptr)
 {
 
-	acpi_debug_print(ACPI_LV_FUNCTIONS,
-			 line_number, function_name, module_name, component_id,
-			 "%s %p\n", acpi_gbl_fn_exit_str, ptr);
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %p\n", acpi_gbl_fn_exit_str,
+				 ptr);
+	}
 
 	acpi_gbl_nesting_level--;
 }
@@ -511,7 +551,7 @@ acpi_ut_ptr_exit(u32 line_number,
  * PARAMETERS:  buffer              - Buffer to dump
  *              count               - Amount to dump, in bytes
  *              display             - BYTE, WORD, DWORD, or QWORD display
- *              component_ID        - Caller's component ID
+ *              offset              - Beginning buffer offset (display only)
  *
  * RETURN:      None
  *
@@ -519,7 +559,7 @@ acpi_ut_ptr_exit(u32 line_number,
  *
  ******************************************************************************/
 
-void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
+void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
 {
 	u32 i = 0;
 	u32 j;
@@ -541,7 +581,7 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 
 		/* Print current offset */
 
-		acpi_os_printf("%6.4X: ", i);
+		acpi_os_printf("%6.4X: ", (base_offset + i));
 
 		/* Print 16 hex chars */
 
@@ -623,7 +663,7 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_dump_buffer
+ * FUNCTION:    acpi_ut_debug_dump_buffer
  *
  * PARAMETERS:  buffer              - Buffer to dump
  *              count               - Amount to dump, in bytes
@@ -636,7 +676,8 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
  *
  ******************************************************************************/
 
-void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
+void
+acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
 {
 
 	/* Only dump the buffer if tracing is enabled */
@@ -646,5 +687,5 @@ void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
 		return;
 	}
 
-	acpi_ut_dump_buffer2(buffer, count, display);
+	acpi_ut_dump_buffer(buffer, count, display, 0);
 }

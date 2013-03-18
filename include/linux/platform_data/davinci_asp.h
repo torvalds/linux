@@ -16,12 +16,13 @@
 #ifndef __DAVINCI_ASP_H
 #define __DAVINCI_ASP_H
 
+#include <linux/genalloc.h>
+
 struct snd_platform_data {
 	u32 tx_dma_offset;
 	u32 rx_dma_offset;
 	int asp_chan_q;	/* event queue number for ASP channel */
 	int ram_chan_q;	/* event queue number for RAM channel */
-	unsigned int codec_fmt;
 	/*
 	 * Allowing this is more efficient and eliminates left and right swaps
 	 * caused by underruns, but will swap the left and right channels
@@ -30,6 +31,7 @@ struct snd_platform_data {
 	unsigned enable_channel_combine:1;
 	unsigned sram_size_playback;
 	unsigned sram_size_capture;
+	struct gen_pool *sram_pool;
 
 	/*
 	 * If McBSP peripheral gets the clock from an external pin,

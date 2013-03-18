@@ -26,7 +26,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/sysmmu.h>
 
 #include "common.h"
 #include "clock-exynos4.h"
@@ -111,20 +110,30 @@ static struct clksrc_clk clksrcs[] = {
 
 static struct clk init_clocks_off[] = {
 	{
-		.name		= SYSMMU_CLOCK_NAME,
-		.devname	= SYSMMU_CLOCK_DEVNAME(2d, 14),
+		.name		= "sysmmu",
+		.devname	= "exynos-sysmmu.9",
 		.enable		= exynos4_clk_ip_dmc_ctrl,
 		.ctrlbit	= (1 << 24),
 	}, {
-		.name		= SYSMMU_CLOCK_NAME,
-		.devname	= SYSMMU_CLOCK_DEVNAME(isp, 9),
+		.name		= "sysmmu",
+		.devname	= "exynos-sysmmu.12",
 		.enable		= exynos4212_clk_ip_isp0_ctrl,
 		.ctrlbit	= (7 << 8),
 	}, {
-		.name		= SYSMMU_CLOCK_NAME2,
-		.devname	= SYSMMU_CLOCK_DEVNAME(isp, 9),
+		.name		= "sysmmu",
+		.devname	= "exynos-sysmmu.13",
 		.enable		= exynos4212_clk_ip_isp1_ctrl,
 		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "sysmmu",
+		.devname	= "exynos-sysmmu.14",
+		.enable		= exynos4212_clk_ip_isp0_ctrl,
+		.ctrlbit	= (1 << 11),
+	}, {
+		.name		= "sysmmu",
+		.devname	= "exynos-sysmmu.15",
+		.enable		= exynos4212_clk_ip_isp0_ctrl,
+		.ctrlbit	= (1 << 12),
 	}, {
 		.name		= "flite",
 		.devname	= "exynos-fimc-lite.0",

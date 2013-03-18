@@ -48,7 +48,7 @@ static int jornada_bl_get_brightness(struct backlight_device *bd)
 
 	jornada_ssp_end();
 
-	return (BL_MAX_BRIGHT - ret);
+	return BL_MAX_BRIGHT - ret;
 }
 
 static int jornada_bl_update_status(struct backlight_device *bd)
@@ -77,18 +77,23 @@ static int jornada_bl_update_status(struct backlight_device *bd)
 			goto out;
 		}
 
-		/* at this point we expect that the mcu has accepted
-		   our command and is waiting for our new value
-		   please note that maximum brightness is 255,
-		   but due to physical layout it is equal to 0, so we simply
-		   invert the value (MAX VALUE - NEW VALUE). */
-		if (jornada_ssp_byte(BL_MAX_BRIGHT - bd->props.brightness) != TXDUMMY) {
+		/*
+		 * at this point we expect that the mcu has accepted
+		 * our command and is waiting for our new value
+		 * please note that maximum brightness is 255,
+		 * but due to physical layout it is equal to 0, so we simply
+		 * invert the value (MAX VALUE - NEW VALUE).
+		 */
+		if (jornada_ssp_byte(BL_MAX_BRIGHT - bd->props.brightness)
+			!= TXDUMMY) {
 			pr_err("set brightness failed\n");
 			ret = -ETIMEDOUT;
 		}
 
-		/* If infact we get an TXDUMMY as output we are happy and dont
-		   make any further comments about it */
+		/*
+		 * If infact we get an TXDUMMY as output we are happy and dont
+		 * make any further comments about it
+		 */
 out:
 	jornada_ssp_end();
 
@@ -121,9 +126,11 @@ static int jornada_bl_probe(struct platform_device *pdev)
 
 	bd->props.power = FB_BLANK_UNBLANK;
 	bd->props.brightness = BL_DEF_BRIGHT;
-	/* note. make sure max brightness is set otherwise
-	   you will get seemingly non-related errors when
-	   trying to change brightness */
+	/*
+	 * note. make sure max brightness is set otherwise
+	 * you will get seemingly non-related errors when
+	 * trying to change brightness
+	 */
 	jornada_bl_update_status(bd);
 
 	platform_set_drvdata(pdev, bd);

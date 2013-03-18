@@ -27,6 +27,7 @@
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -1650,7 +1651,7 @@ cdv_intel_dp_set_property(struct drm_connector *connector,
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
 
-	ret = drm_connector_property_set_value(connector, property, val);
+	ret = drm_object_property_set_value(&connector->base, property, val);
 	if (ret)
 		return ret;
 

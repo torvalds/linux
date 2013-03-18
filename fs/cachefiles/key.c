@@ -78,7 +78,7 @@ char *cachefiles_cook_key(const u8 *raw, int keylen, uint8_t type)
 
 	_debug("max: %d", max);
 
-	key = kmalloc(max, GFP_KERNEL);
+	key = kmalloc(max, cachefiles_gfp);
 	if (!key)
 		return NULL;
 

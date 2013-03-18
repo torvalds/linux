@@ -137,7 +137,7 @@ static const struct hw_data nvidia_chipset_data = {
 	.set_brightness = nvidia_chipset_set_brightness,
 };
 
-static int __devinit apple_bl_add(struct acpi_device *dev)
+static int apple_bl_add(struct acpi_device *dev)
 {
 	struct backlight_properties props;
 	struct pci_dev *host;
@@ -196,7 +196,7 @@ static int __devinit apple_bl_add(struct acpi_device *dev)
 	return 0;
 }
 
-static int __devexit apple_bl_remove(struct acpi_device *dev, int type)
+static int apple_bl_remove(struct acpi_device *dev)
 {
 	backlight_device_unregister(apple_backlight_device);
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -326,8 +326,6 @@ enum acpi_preferred_pm_profiles {
 
 #pragma pack()
 
-#define ACPI_FADT_OFFSET(f)             (u16) ACPI_OFFSET (struct acpi_table_fadt, f)
-
 /*
  * Internal table-related structures
  */
@@ -359,10 +357,13 @@ struct acpi_table_desc {
 /*
  * Get the remaining ACPI tables
  */
-
 #include <acpi/actbl1.h>
 #include <acpi/actbl2.h>
 #include <acpi/actbl3.h>
+
+/* Macros used to generate offsets to specific table fields */
+
+#define ACPI_FADT_OFFSET(f)             (u16) ACPI_OFFSET (struct acpi_table_fadt, f)
 
 /*
  * Sizes of the various flavors of FADT. We need to look closely

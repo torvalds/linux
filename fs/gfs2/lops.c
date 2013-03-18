@@ -37,7 +37,7 @@
  *
  * The log lock must be held when calling this function
  */
-static void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
+void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
 	struct gfs2_bufdata *bd;
 
@@ -388,37 +388,6 @@ static struct page *gfs2_get_log_desc(struct gfs2_sbd *sdp, u32 ld_type,
 	return page;
 }
 
-static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
-{
-	struct gfs2_meta_header *mh;
-	struct gfs2_trans *tr;
-
-	lock_buffer(bd->bd_bh);
-	gfs2_log_lock(sdp);
-	tr = current->journal_info;
-	tr->tr_touched = 1;
-	if (!list_empty(&bd->bd_list))
-		goto out;
-	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
-	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
-	mh = (struct gfs2_meta_header *)bd->bd_bh->b_data;
-	if (unlikely(mh->mh_magic != cpu_to_be32(GFS2_MAGIC))) {
-		printk(KERN_ERR
-		       "Attempting to add uninitialised block to journal (inplace block=%lld)\n",
-		       (unsigned long long)bd->bd_bh->b_blocknr);
-		BUG();
-	}
-	gfs2_pin(sdp, bd->bd_bh);
-	mh->__pad0 = cpu_to_be64(0);
-	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
-	sdp->sd_log_num_buf++;
-	list_add(&bd->bd_list, &sdp->sd_log_le_buf);
-	tr->tr_num_buf_new++;
-out:
-	gfs2_log_unlock(sdp);
-	unlock_buffer(bd->bd_bh);
-}
-
 static void gfs2_check_magic(struct buffer_head *bh)
 {
 	void *kaddr;
@@ -605,23 +574,8 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	        jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
 }
 
-static void revoke_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
-{
-	struct gfs2_glock *gl = bd->bd_gl;
-	struct gfs2_trans *tr;
-
-	tr = current->journal_info;
-	tr->tr_touched = 1;
-	tr->tr_num_revoke++;
-	sdp->sd_log_num_revoke++;
-	atomic_inc(&gl->gl_revokes);
-	set_bit(GLF_LFLUSH, &gl->gl_flags);
-	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
-}
-
 static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 {
-	struct gfs2_log_descriptor *ld;
 	struct gfs2_meta_header *mh;
 	unsigned int offset;
 	struct list_head *head = &sdp->sd_log_le_revoke;
@@ -634,7 +588,6 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 
 	length = gfs2_struct2blk(sdp, sdp->sd_log_num_revoke, sizeof(u64));
 	page = gfs2_get_log_desc(sdp, GFS2_LOG_DESC_REVOKE, length, sdp->sd_log_num_revoke);
-	ld = page_address(page);
 	offset = sizeof(struct gfs2_log_descriptor);
 
 	list_for_each_entry(bd, head, bd_list) {
@@ -756,49 +709,6 @@ static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 }
 
 /**
- * databuf_lo_add - Add a databuf to the transaction.
- *
- * This is used in two distinct cases:
- * i) In ordered write mode
- *    We put the data buffer on a list so that we can ensure that its
- *    synced to disk at the right time
- * ii) In journaled data mode
- *    We need to journal the data block in the same way as metadata in
- *    the functions above. The difference is that here we have a tag
- *    which is two __be64's being the block number (as per meta data)
- *    and a flag which says whether the data block needs escaping or
- *    not. This means we need a new log entry for each 251 or so data
- *    blocks, which isn't an enormous overhead but twice as much as
- *    for normal metadata blocks.
- */
-static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
-{
-	struct gfs2_trans *tr = current->journal_info;
-	struct address_space *mapping = bd->bd_bh->b_page->mapping;
-	struct gfs2_inode *ip = GFS2_I(mapping->host);
-
-	lock_buffer(bd->bd_bh);
-	gfs2_log_lock(sdp);
-	if (tr)
-		tr->tr_touched = 1;
-	if (!list_empty(&bd->bd_list))
-		goto out;
-	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
-	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
-	if (gfs2_is_jdata(ip)) {
-		gfs2_pin(sdp, bd->bd_bh);
-		tr->tr_num_databuf_new++;
-		sdp->sd_log_num_databuf++;
-		list_add_tail(&bd->bd_list, &sdp->sd_log_le_databuf);
-	} else {
-		list_add_tail(&bd->bd_list, &sdp->sd_log_le_ordered);
-	}
-out:
-	gfs2_log_unlock(sdp);
-	unlock_buffer(bd->bd_bh);
-}
-
-/**
  * databuf_lo_before_commit - Scan the data buffers, writing as we go
  *
  */
@@ -897,7 +807,6 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 
 
 const struct gfs2_log_operations gfs2_buf_lops = {
-	.lo_add = buf_lo_add,
 	.lo_before_commit = buf_lo_before_commit,
 	.lo_after_commit = buf_lo_after_commit,
 	.lo_before_scan = buf_lo_before_scan,
@@ -907,7 +816,6 @@ const struct gfs2_log_operations gfs2_buf_lops = {
 };
 
 const struct gfs2_log_operations gfs2_revoke_lops = {
-	.lo_add = revoke_lo_add,
 	.lo_before_commit = revoke_lo_before_commit,
 	.lo_after_commit = revoke_lo_after_commit,
 	.lo_before_scan = revoke_lo_before_scan,
@@ -921,7 +829,6 @@ const struct gfs2_log_operations gfs2_rg_lops = {
 };
 
 const struct gfs2_log_operations gfs2_databuf_lops = {
-	.lo_add = databuf_lo_add,
 	.lo_before_commit = databuf_lo_before_commit,
 	.lo_after_commit = databuf_lo_after_commit,
 	.lo_scan_elements = databuf_lo_scan_elements,

@@ -43,7 +43,7 @@ void octeon_serial_out(struct uart_port *up, int offset, int value)
 	cvmx_write_csr((uint64_t)(up->membase + (offset << 3)), (u8)value);
 }
 
-static int __devinit octeon_serial_probe(struct platform_device *pdev)
+static int octeon_serial_probe(struct platform_device *pdev)
 {
 	int irq, res;
 	struct resource *res_mem;

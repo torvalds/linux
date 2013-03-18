@@ -17,9 +17,8 @@
 #include <linux/clk.h>
 #include <linux/dw_dmac.h>
 #include <linux/err.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 #include <asm/smp_twd.h>
 #include <mach/dma.h>
@@ -57,12 +56,10 @@ static struct dw_dma_slave ssp_dma_param[] = {
 };
 
 struct pl022_ssp_controller pl022_plat_data = {
-	.bus_id = 0,
 	.enable_dma = 1,
 	.dma_filter = dw_dma_filter,
 	.dma_rx_param = &ssp_dma_param[1],
 	.dma_tx_param = &ssp_dma_param[0],
-	.num_chipselect = 3,
 };
 
 /* CF device registration */
@@ -155,7 +152,7 @@ static void __init spear13xx_clk_init(void)
 		pr_err("%s: Unknown machine\n", __func__);
 }
 
-static void __init spear13xx_timer_init(void)
+void __init spear13xx_timer_init(void)
 {
 	char pclk_name[] = "osc_24m_clk";
 	struct clk *gpt_clk, *pclk;
@@ -183,18 +180,4 @@ static void __init spear13xx_timer_init(void)
 
 	spear_setup_of_timer();
 	twd_local_timer_of_register();
-}
-
-struct sys_timer spear13xx_timer = {
-	.init = spear13xx_timer_init,
-};
-
-static const struct of_device_id gic_of_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
-	{ /* Sentinel */ }
-};
-
-void __init spear13xx_dt_init_irq(void)
-{
-	of_irq_init(gic_of_match);
 }

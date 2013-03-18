@@ -1,0 +1,26 @@
+Binding for dual-GPIO LED found on Network Space v2 (and parents).
+
+Required properties:
+- compatible: "lacie,ns2-leds".
+
+Each LED is represented as a sub-node of the ns2-leds device.
+
+Required sub-node properties:
+- cmd-gpio: Command LED GPIO. See OF device-tree GPIO specification.
+- slow-gpio: Slow LED GPIO. See OF device-tree GPIO specification.
+
+Optional sub-node properties:
+- label: Name for this LED. If omitted, the label is taken from the node name.
+- linux,default-trigger: Trigger assigned to the LED.
+
+Example:
+
+ns2-leds {
+	compatible = "lacie,ns2-leds";
+
+	blue-sata {
+		label = "ns2:blue:sata";
+		slow-gpio = <&gpio0 29 0>;
+		cmd-gpio = <&gpio0 30 0>;
+	};
+};

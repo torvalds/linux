@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exoparg6 - AML execution - opcodes with 6 arguments
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,7 +197,7 @@ acpi_ex_do_match(u32 match_op,
 		return (FALSE);
 	}
 
-	return logical_result;
+	return (logical_result);
 }
 
 /*******************************************************************************
@@ -269,7 +268,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		 * and the next should be examined.
 		 *
 		 * Upon finding a match, the loop will terminate via "break" at
-		 * the bottom.  If it terminates "normally", match_value will be
+		 * the bottom. If it terminates "normally", match_value will be
 		 * ACPI_UINT64_MAX (Ones) (its initial value) indicating that no
 		 * match was found.
 		 */

@@ -7,7 +7,7 @@
 
 #define pa_to_nid(addr)		NASID_TO_COMPACT_NODEID(NASID_GET(addr))
 
-#define LEVELS_PER_SLICE        128
+#define LEVELS_PER_SLICE	128
 
 struct slice_data {
 	unsigned long irq_enable_mask[2];

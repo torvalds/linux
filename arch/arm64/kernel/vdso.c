@@ -239,7 +239,7 @@ void update_vsyscall(struct timekeeper *tk)
 	if (!use_syscall) {
 		vdso_data->cs_cycle_last	= tk->clock->cycle_last;
 		vdso_data->xtime_clock_sec	= tk->xtime_sec;
-		vdso_data->xtime_clock_nsec	= tk->xtime_nsec >> tk->shift;
+		vdso_data->xtime_clock_nsec	= tk->xtime_nsec;
 		vdso_data->cs_mult		= tk->mult;
 		vdso_data->cs_shift		= tk->shift;
 		vdso_data->wtm_clock_sec	= tk->wall_to_monotonic.tv_sec;
@@ -252,10 +252,6 @@ void update_vsyscall(struct timekeeper *tk)
 
 void update_vsyscall_tz(void)
 {
-	++vdso_data->tb_seq_count;
-	smp_wmb();
 	vdso_data->tz_minuteswest	= sys_tz.tz_minuteswest;
 	vdso_data->tz_dsttime		= sys_tz.tz_dsttime;
-	smp_wmb();
-	++vdso_data->tb_seq_count;
 }

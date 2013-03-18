@@ -500,8 +500,8 @@ struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(struct iscsi_conn *c
 		spin_unlock_bh(&conn->immed_queue_lock);
 		return NULL;
 	}
-	list_for_each_entry(qr, &conn->immed_queue_list, qr_list)
-		break;
+	qr = list_first_entry(&conn->immed_queue_list,
+			      struct iscsi_queue_req, qr_list);
 
 	list_del(&qr->qr_list);
 	if (qr->cmd)
@@ -575,8 +575,8 @@ struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsi_conn *co
 		return NULL;
 	}
 
-	list_for_each_entry(qr, &conn->response_queue_list, qr_list)
-		break;
+	qr = list_first_entry(&conn->response_queue_list,
+			      struct iscsi_queue_req, qr_list);
 
 	list_del(&qr->qr_list);
 	if (qr->cmd)
@@ -684,7 +684,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 void iscsit_free_cmd(struct iscsi_cmd *cmd)
 {
 	/*
-	 * Determine if a struct se_cmd is assoicated with
+	 * Determine if a struct se_cmd is associated with
 	 * this struct iscsi_cmd.
 	 */
 	switch (cmd->iscsi_opcode) {

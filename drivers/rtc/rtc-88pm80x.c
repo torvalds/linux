@@ -248,7 +248,7 @@ static int pm80x_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pm80x_rtc_pm_ops, pm80x_rtc_suspend, pm80x_rtc_resume);
 
-static int __devinit pm80x_rtc_probe(struct platform_device *pdev)
+static int pm80x_rtc_probe(struct platform_device *pdev)
 {
 	struct pm80x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm80x_platform_data *pm80x_pdata;
@@ -342,7 +342,7 @@ out:
 	return ret;
 }
 
-static int __devexit pm80x_rtc_remove(struct platform_device *pdev)
+static int pm80x_rtc_remove(struct platform_device *pdev)
 {
 	struct pm80x_rtc_info *info = platform_get_drvdata(pdev);
 	platform_set_drvdata(pdev, NULL);
@@ -358,7 +358,7 @@ static struct platform_driver pm80x_rtc_driver = {
 		   .pm = &pm80x_rtc_pm_ops,
 		   },
 	.probe = pm80x_rtc_probe,
-	.remove = __devexit_p(pm80x_rtc_remove),
+	.remove = pm80x_rtc_remove,
 };
 
 module_platform_driver(pm80x_rtc_driver);

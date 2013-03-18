@@ -61,7 +61,7 @@ static inline void blk_clear_rq_complete(struct request *rq)
 /*
  * Internal elevator interface
  */
-#define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
+#define ELV_ON_HASH(rq) hash_hashed(&(rq)->hash)
 
 void blk_insert_flush(struct request *rq);
 void blk_abort_flushes(struct request_queue *q);
@@ -96,7 +96,7 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 			q->flush_queue_delayed = 1;
 			return NULL;
 		}
-		if (unlikely(blk_queue_dead(q)) ||
+		if (unlikely(blk_queue_dying(q)) ||
 		    !q->elevator->type->ops.elevator_dispatch_fn(q, 0))
 			return NULL;
 	}
@@ -144,6 +144,8 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio);
 int blk_try_merge(struct request *rq, struct bio *bio);
 
 void blk_queue_congestion_threshold(struct request_queue *q);
+
+void __blk_run_queue_uncond(struct request_queue *q);
 
 int blk_dev_init(void);
 

@@ -465,9 +465,9 @@ static struct via_device_mapping device_mapping[] = {
 static struct via_clock clock;
 
 static void load_fix_bit_crtc_reg(void);
-static void __devinit init_gfx_chip_info(int chip_type);
-static void __devinit init_tmds_chip_info(void);
-static void __devinit init_lvds_chip_info(void);
+static void init_gfx_chip_info(int chip_type);
+static void init_tmds_chip_info(void);
+static void init_lvds_chip_info(void);
 static void device_screen_off(void);
 static void device_screen_on(void);
 static void set_display_channel(void);
@@ -1467,10 +1467,10 @@ void viafb_set_vclock(u32 clk, int set_iga)
 	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
 }
 
-struct display_timing var_to_timing(const struct fb_var_screeninfo *var,
+struct via_display_timing var_to_timing(const struct fb_var_screeninfo *var,
 	u16 cxres, u16 cyres)
 {
-	struct display_timing timing;
+	struct via_display_timing timing;
 	u16 dx = (var->xres - cxres) / 2, dy = (var->yres - cyres) / 2;
 
 	timing.hor_addr = cxres;
@@ -1491,7 +1491,7 @@ struct display_timing var_to_timing(const struct fb_var_screeninfo *var,
 void viafb_fill_crtc_timing(const struct fb_var_screeninfo *var,
 	u16 cxres, u16 cyres, int iga)
 {
-	struct display_timing crt_reg = var_to_timing(var,
+	struct via_display_timing crt_reg = var_to_timing(var,
 		cxres ? cxres : var->xres, cyres ? cyres : var->yres);
 
 	if (iga == IGA1)
@@ -1507,7 +1507,7 @@ void viafb_fill_crtc_timing(const struct fb_var_screeninfo *var,
 	viafb_set_vclock(PICOS2KHZ(var->pixclock) * 1000, iga);
 }
 
-void __devinit viafb_init_chip_info(int chip_type)
+void viafb_init_chip_info(int chip_type)
 {
 	via_clock_init(&clock, chip_type);
 	init_gfx_chip_info(chip_type);
@@ -1540,7 +1540,7 @@ void viafb_update_device_setting(int hres, int vres, int bpp, int flag)
 	}
 }
 
-static void __devinit init_gfx_chip_info(int chip_type)
+static void init_gfx_chip_info(int chip_type)
 {
 	u8 tmp;
 
@@ -1593,7 +1593,7 @@ static void __devinit init_gfx_chip_info(int chip_type)
 	}
 }
 
-static void __devinit init_tmds_chip_info(void)
+static void init_tmds_chip_info(void)
 {
 	viafb_tmds_trasmitter_identify();
 
@@ -1638,7 +1638,7 @@ static void __devinit init_tmds_chip_info(void)
 		&viaparinfo->shared->tmds_setting_info);
 }
 
-static void __devinit init_lvds_chip_info(void)
+static void init_lvds_chip_info(void)
 {
 	viafb_lvds_trasmitter_identify();
 	viafb_init_lcd_size();
@@ -1672,7 +1672,7 @@ static void __devinit init_lvds_chip_info(void)
 		  viaparinfo->chip_info->lvds_chip_info.output_interface);
 }
 
-void __devinit viafb_init_dac(int set_iga)
+void viafb_init_dac(int set_iga)
 {
 	int i;
 	u8 tmp;

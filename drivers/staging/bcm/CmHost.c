@@ -107,13 +107,13 @@ static VOID deleteSFBySfid(struct bcm_mini_adapter *Adapter, UINT uiSearchRuleIn
 	DeleteAllClassifiersForSF(Adapter, uiSearchRuleIndex);
 
 	/* Resetting only MIBS related entries in the SF */
-	memset((PVOID)&Adapter->PackInfo[uiSearchRuleIndex], 0, sizeof(S_MIBS_SERVICEFLOW_TABLE));
+	memset((PVOID)&Adapter->PackInfo[uiSearchRuleIndex], 0, sizeof(struct bcm_mibs_table));
 }
 
 static inline VOID
 CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 		B_UINT8 u8IpAddressLen, B_UINT8 *pu8IpAddressMaskSrc,
-		BOOLEAN bIpVersion6, E_IPADDR_CONTEXT eIpAddrContext)
+		BOOLEAN bIpVersion6, enum bcm_ipaddr_context eIpAddrContext)
 {
 	int i = 0;
 	UINT nSizeOfIPAddressInBytes = IP_LENGTH_OF_ADDRESS;
@@ -431,7 +431,7 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 			register struct bcm_connect_mgr_params *psfLocalSet, /* Pointer to the connection manager parameters structure */
 			register UINT uiSearchRuleIndex, /* <Index of Queue, to which this data belongs */
 			register UCHAR ucDsxType,
-			stLocalSFAddIndicationAlt *pstAddIndication) {
+			struct bcm_add_indication_alt *pstAddIndication) {
 
 	/* UCHAR ucProtocolLength = 0; */
 	ULONG ulSFID;
@@ -440,7 +440,7 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	B_UINT16 u16PacketClassificationRuleIndex = 0;
 	int i;
 	struct bcm_convergence_types *psfCSType = NULL;
-	S_PHS_RULE sPhsRule;
+	struct bcm_phs_rule sPhsRule;
 	USHORT uVCID = Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value;
 	UINT UGIValue = 0;
 
@@ -703,7 +703,7 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 							/* Update PHS Rule For the Classifier */
 							if (sPhsRule.u8PHSI) {
 								Adapter->astClassifierTable[uiClassifierIndex].u32PHSRuleID = sPhsRule.u8PHSI;
-								memcpy(&Adapter->astClassifierTable[uiClassifierIndex].sPhsRule, &sPhsRule, sizeof(S_PHS_RULE));
+								memcpy(&Adapter->astClassifierTable[uiClassifierIndex].sPhsRule, &sPhsRule, sizeof(struct bcm_phs_rule));
 							}
 						}
 					}
@@ -833,11 +833,11 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 {
 	int uiLoopIndex;
 	int nIndex;
-	stLocalSFAddIndicationAlt *pstAddIndication;
+	struct bcm_add_indication_alt *pstAddIndication;
 	UINT nCurClassifierCnt;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
-	pstAddIndication = (stLocalSFAddIndicationAlt *)pvBuffer;
+	pstAddIndication = (struct bcm_add_indication_alt *)pvBuffer;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "======>");
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8Type: 0x%X", pstAddIndication->u8Type);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8Direction: 0x%X", pstAddIndication->u8Direction);
@@ -1333,13 +1333,13 @@ static ULONG StoreSFParam(struct bcm_mini_adapter *Adapter, PUCHAR pucSrcBuffer,
 
 ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer, UINT *puBufferLength)
 {
-	stLocalSFAddIndicationAlt *pstAddIndicationAlt = NULL;
+	struct bcm_add_indication_alt *pstAddIndicationAlt = NULL;
 	struct bcm_add_indication *pstAddIndication = NULL;
 	struct bcm_del_request *pstDeletionRequest;
 	UINT uiSearchRuleIndex;
 	ULONG ulSFID;
 
-	pstAddIndicationAlt = (stLocalSFAddIndicationAlt *)(pvBuffer);
+	pstAddIndicationAlt = (struct bcm_add_indication_alt *)(pvBuffer);
 
 	/*
 	 * In case of DSD Req By MS, we should immediately delete this SF so that
@@ -1445,29 +1445,29 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	return 1;
 }
 
-static inline stLocalSFAddIndicationAlt
+static inline struct bcm_add_indication_alt
 *RestoreCmControlResponseMessage(register struct bcm_mini_adapter *Adapter, register PVOID pvBuffer)
 {
 	ULONG ulStatus = 0;
 	struct bcm_add_indication *pstAddIndication = NULL;
-	stLocalSFAddIndicationAlt *pstAddIndicationDest = NULL;
+	struct bcm_add_indication_alt *pstAddIndicationDest = NULL;
 
 	pstAddIndication = (struct bcm_add_indication *)(pvBuffer);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "=====>");
 	if ((pstAddIndication->u8Type == DSD_REQ) ||
 		(pstAddIndication->u8Type == DSD_RSP) ||
 		(pstAddIndication->u8Type == DSD_ACK))
-		return (stLocalSFAddIndicationAlt *)pvBuffer;
+		return (struct bcm_add_indication_alt *)pvBuffer;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Inside RestoreCmControlResponseMessage ");
 	/*
 	 * Need to Allocate memory to contain the SUPER Large structures
 	 * Our driver can't create these structures on Stack :(
 	 */
-	pstAddIndicationDest = kmalloc(sizeof(stLocalSFAddIndicationAlt), GFP_KERNEL);
+	pstAddIndicationDest = kmalloc(sizeof(struct bcm_add_indication_alt), GFP_KERNEL);
 
 	if (pstAddIndicationDest) {
-		memset(pstAddIndicationDest, 0, sizeof(stLocalSFAddIndicationAlt));
+		memset(pstAddIndicationDest, 0, sizeof(struct bcm_add_indication_alt));
 	} else {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Failed to allocate memory for SF Add Indication Structure ");
 		return NULL;
@@ -1573,36 +1573,36 @@ ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter)
 
 static ULONG GetNextTargetBufferLocation(struct bcm_mini_adapter *Adapter, B_UINT16 tid)
 {
-	ULONG ulTargetDSXBufferAddress;
-	ULONG ulTargetDsxBufferIndexToUse, ulMaxTry;
+	ULONG dsx_buf;
+	ULONG idx, max_try;
 
 	if ((Adapter->ulTotalTargetBuffersAvailable == 0) || (Adapter->ulFreeTargetBufferCnt == 0)) {
 		ClearTargetDSXBuffer(Adapter, tid, FALSE);
 		return 0;
 	}
 
-	ulTargetDsxBufferIndexToUse = Adapter->ulCurrentTargetBuffer;
-	ulMaxTry = Adapter->ulTotalTargetBuffersAvailable;
-	while ((ulMaxTry) && (Adapter->astTargetDsxBuffer[ulTargetDsxBufferIndexToUse].valid != 1)) {
-		ulTargetDsxBufferIndexToUse = (ulTargetDsxBufferIndexToUse+1) % Adapter->ulTotalTargetBuffersAvailable;
-		ulMaxTry--;
+	idx = Adapter->ulCurrentTargetBuffer;
+	max_try = Adapter->ulTotalTargetBuffersAvailable;
+	while ((max_try) && (Adapter->astTargetDsxBuffer[idx].valid != 1)) {
+		idx = (idx+1) % Adapter->ulTotalTargetBuffersAvailable;
+		max_try--;
 	}
 
-	if (ulMaxTry == 0) {
+	if (max_try == 0) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "\n GetNextTargetBufferLocation : Error No Free Target DSX Buffers FreeCnt : %lx ", Adapter->ulFreeTargetBufferCnt);
 		ClearTargetDSXBuffer(Adapter, tid, FALSE);
 		return 0;
 	}
 
-	ulTargetDSXBufferAddress = Adapter->astTargetDsxBuffer[ulTargetDsxBufferIndexToUse].ulTargetDsxBuffer;
-	Adapter->astTargetDsxBuffer[ulTargetDsxBufferIndexToUse].valid = 0;
-	Adapter->astTargetDsxBuffer[ulTargetDsxBufferIndexToUse].tid = tid;
+	dsx_buf = Adapter->astTargetDsxBuffer[idx].ulTargetDsxBuffer;
+	Adapter->astTargetDsxBuffer[idx].valid = 0;
+	Adapter->astTargetDsxBuffer[idx].tid = tid;
 	Adapter->ulFreeTargetBufferCnt--;
-	ulTargetDsxBufferIndexToUse = (ulTargetDsxBufferIndexToUse+1)%Adapter->ulTotalTargetBuffersAvailable;
-	Adapter->ulCurrentTargetBuffer = ulTargetDsxBufferIndexToUse;
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "GetNextTargetBufferLocation :Returning address %lx tid %d\n", ulTargetDSXBufferAddress, tid);
+	idx = (idx+1)%Adapter->ulTotalTargetBuffersAvailable;
+	Adapter->ulCurrentTargetBuffer = idx;
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "GetNextTargetBufferLocation :Returning address %lx tid %d\n", dsx_buf, tid);
 
-	return ulTargetDSXBufferAddress;
+	return dsx_buf;
 }
 
 int AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter)
@@ -1611,7 +1611,7 @@ int AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter)
 	 * Need to Allocate memory to contain the SUPER Large structures
 	 * Our driver can't create these structures on Stack
 	 */
-	Adapter->caDsxReqResp = kmalloc(sizeof(stLocalSFAddIndicationAlt)+LEADER_SIZE, GFP_KERNEL);
+	Adapter->caDsxReqResp = kmalloc(sizeof(struct bcm_add_indication_alt)+LEADER_SIZE, GFP_KERNEL);
 	if (!Adapter->caDsxReqResp)
 		return -ENOMEM;
 
@@ -1634,8 +1634,8 @@ BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer 
 				PVOID pvBuffer /* Starting Address of the Buffer, that contains the AddIndication Data */)
 {
 	struct bcm_connect_mgr_params *psfLocalSet = NULL;
-	stLocalSFAddIndicationAlt *pstAddIndication = NULL;
-	stLocalSFChangeIndicationAlt *pstChangeIndication = NULL;
+	struct bcm_add_indication_alt *pstAddIndication = NULL;
+	struct bcm_change_indication *pstChangeIndication = NULL;
 	struct bcm_leader *pLeader = NULL;
 
 	/*
@@ -1661,12 +1661,12 @@ BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer 
 	switch (pstAddIndication->u8Type) {
 	case DSA_REQ:
 	{
-		pLeader->PLength = sizeof(stLocalSFAddIndicationAlt);
+		pLeader->PLength = sizeof(struct bcm_add_indication_alt);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Sending DSA Response....\n");
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSA RESPONSE TO MAC %d", pLeader->PLength);
-		*((stLocalSFAddIndicationAlt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))
+		*((struct bcm_add_indication_alt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))
 			= *pstAddIndication;
-		((stLocalSFAddIndicationAlt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSA_RSP;
+		((struct bcm_add_indication_alt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSA_RSP;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, " VCID = %x", ntohs(pstAddIndication->u16VCID));
 		CopyBufferToControlPacket(Adapter, (PVOID)Adapter->caDsxReqResp);
@@ -1675,12 +1675,12 @@ BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer 
 	break;
 	case DSA_RSP:
 	{
-		pLeader->PLength = sizeof(stLocalSFAddIndicationAlt);
+		pLeader->PLength = sizeof(struct bcm_add_indication_alt);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSA ACK TO MAC %d",
 				pLeader->PLength);
-		*((stLocalSFAddIndicationAlt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))
+		*((struct bcm_add_indication_alt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))
 			= *pstAddIndication;
-		((stLocalSFAddIndicationAlt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSA_ACK;
+		((struct bcm_add_indication_alt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSA_ACK;
 
 	} /* no break here..we should go down. */
 	case DSA_ACK:
@@ -1773,12 +1773,12 @@ BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer 
 	break;
 	case DSC_REQ:
 	{
-		pLeader->PLength = sizeof(stLocalSFChangeIndicationAlt);
-		pstChangeIndication = (stLocalSFChangeIndicationAlt *)pstAddIndication;
+		pLeader->PLength = sizeof(struct bcm_change_indication);
+		pstChangeIndication = (struct bcm_change_indication *)pstAddIndication;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSC RESPONSE TO MAC %d", pLeader->PLength);
 
-		*((stLocalSFChangeIndicationAlt *)&(Adapter->caDsxReqResp[LEADER_SIZE])) = *pstChangeIndication;
-		((stLocalSFChangeIndicationAlt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSC_RSP;
+		*((struct bcm_change_indication *)&(Adapter->caDsxReqResp[LEADER_SIZE])) = *pstChangeIndication;
+		((struct bcm_change_indication *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSC_RSP;
 
 		CopyBufferToControlPacket(Adapter, (PVOID)Adapter->caDsxReqResp);
 		kfree(pstAddIndication);
@@ -1786,17 +1786,17 @@ BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer 
 	break;
 	case DSC_RSP:
 	{
-		pLeader->PLength = sizeof(stLocalSFChangeIndicationAlt);
-		pstChangeIndication = (stLocalSFChangeIndicationAlt *)pstAddIndication;
+		pLeader->PLength = sizeof(struct bcm_change_indication);
+		pstChangeIndication = (struct bcm_change_indication *)pstAddIndication;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "SENDING DSC ACK TO MAC %d", pLeader->PLength);
-		*((stLocalSFChangeIndicationAlt *)&(Adapter->caDsxReqResp[LEADER_SIZE])) = *pstChangeIndication;
-		((stLocalSFChangeIndicationAlt *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSC_ACK;
+		*((struct bcm_change_indication *)&(Adapter->caDsxReqResp[LEADER_SIZE])) = *pstChangeIndication;
+		((struct bcm_change_indication *)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSC_ACK;
 	}
 	case DSC_ACK:
 	{
 		UINT uiSearchRuleIndex = 0;
 
-		pstChangeIndication = (stLocalSFChangeIndicationAlt *)pstAddIndication;
+		pstChangeIndication = (struct bcm_change_indication *)pstAddIndication;
 		uiSearchRuleIndex = SearchSfid(Adapter, ntohl(pstChangeIndication->sfActiveSet.u32SFID));
 		if (uiSearchRuleIndex > NO_OF_QUEUES-1)
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "SF doesn't exist for which DSC_ACK is received");
@@ -1902,7 +1902,7 @@ int get_dsx_sf_data_to_application(struct bcm_mini_adapter *Adapter, UINT uiSFId
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "status =%d", status);
 	psSfInfo = &Adapter->PackInfo[status];
 	if (psSfInfo->pstSFIndication && copy_to_user(user_buffer,
-							psSfInfo->pstSFIndication, sizeof(stLocalSFAddIndicationAlt))) {
+							psSfInfo->pstSFIndication, sizeof(struct bcm_add_indication_alt))) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy to user failed SFID %d, present in queue !!!", uiSFId);
 		status = -EFAULT;
 		return status;

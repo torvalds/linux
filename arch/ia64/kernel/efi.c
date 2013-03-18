@@ -870,7 +870,7 @@ kern_mem_attribute (unsigned long phys_addr, unsigned long size)
 EXPORT_SYMBOL(kern_mem_attribute);
 
 int
-valid_phys_addr_range (unsigned long phys_addr, unsigned long size)
+valid_phys_addr_range (phys_addr_t phys_addr, unsigned long size)
 {
 	u64 attr;
 

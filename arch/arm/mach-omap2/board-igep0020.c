@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/usb/phy.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -29,20 +30,19 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include "common.h"
-#include <plat/gpmc.h>
-#include <plat/usb.h>
-
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 
+#include "common.h"
+#include "gpmc.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "sdram-numonyx-m65kxxxxam.h"
 #include "common-board-devices.h"
 #include "board-flash.h"
 #include "control.h"
+#include "gpmc-onenand.h"
 
 #define IGEP2_SMSC911X_CS       5
 #define IGEP2_SMSC911X_GPIO     176
@@ -175,7 +175,7 @@ static void __init igep_flash_init(void)
 		pr_info("IGEP: initializing NAND memory device\n");
 		board_nand_init(igep_flash_partitions,
 				ARRAY_SIZE(igep_flash_partitions),
-				0, NAND_BUSWIDTH_16);
+				0, NAND_BUSWIDTH_16, nand_default_timings);
 	} else if (mux == IGEP_SYSBOOT_ONENAND) {
 		pr_info("IGEP: initializing OneNAND memory device\n");
 		board_onenand_init(igep_flash_partitions,
@@ -301,20 +301,20 @@ static struct omap2_hsmmc_info mmc[] = {
 
 static struct gpio_led igep_gpio_leds[] = {
 	[0] = {
-		.name			= "gpio-led:red:d0",
-		.default_trigger	= "default-off"
+		.name			= "omap3:red:user0",
+		.default_state		= 0,
 	},
 	[1] = {
-		.name			= "gpio-led:green:d0",
-		.default_trigger	= "default-off",
+		.name			= "omap3:green:boot",
+		.default_state		= 1,
 	},
 	[2] = {
-		.name			= "gpio-led:red:d1",
-		.default_trigger	= "default-off",
+		.name			= "omap3:red:user1",
+		.default_state		= 0,
 	},
 	[3] = {
-		.name			= "gpio-led:green:d1",
-		.default_trigger	= "heartbeat",
+		.name			= "omap3:green:user1",
+		.default_state		= 0,
 		.gpio			= -EINVAL, /* gets replaced */
 		.active_low		= 1,
 	},
@@ -527,7 +527,7 @@ static void __init igep_i2c_init(void)
 	omap3_pmic_init("twl4030", &igep_twldata);
 }
 
-static const struct usbhs_omap_board_data igep2_usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data igep2_usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -538,7 +538,7 @@ static const struct usbhs_omap_board_data igep2_usbhs_bdata __initconst = {
 	.reset_gpio_port[2] = -EINVAL,
 };
 
-static const struct usbhs_omap_board_data igep3_usbhs_bdata __initconst = {
+static struct usbhs_omap_platform_data igep3_usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -579,6 +579,11 @@ static void __init igep_wlan_bt_init(void)
 		igep_wlan_bt_gpios[2].gpio = IGEP2_RC_GPIO_BT_NRESET;
 	} else
 		return;
+
+	/* Make sure that the GPIO pins are muxed correctly */
+	omap_mux_init_gpio(igep_wlan_bt_gpios[0].gpio, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(igep_wlan_bt_gpios[1].gpio, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(igep_wlan_bt_gpios[2].gpio, OMAP_PIN_OUTPUT);
 
 	err = gpio_request_array(igep_wlan_bt_gpios,
 				 ARRAY_SIZE(igep_wlan_bt_gpios));
@@ -621,11 +626,12 @@ static void __init igep_init(void)
 	omap_serial_init();
 	omap_sdrc_init(m65kxxxxam_sdrc_params,
 				  m65kxxxxam_sdrc_params);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 
 	igep_flash_init();
 	igep_leds_init();
-	omap_twl4030_audio_init("igep2");
+	omap_twl4030_audio_init("igep2", NULL);
 
 	/*
 	 * WLAN-BT combo module from MuRata which has a Marvell WLAN
@@ -651,8 +657,8 @@ MACHINE_START(IGEP0020, "IGEP v2 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= igep_init,
 	.init_late	= omap35xx_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(IGEP0030, "IGEP OMAP3 module")
@@ -664,6 +670,6 @@ MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= igep_init,
 	.init_late	= omap35xx_init_late,
-	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

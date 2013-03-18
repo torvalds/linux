@@ -1497,7 +1497,7 @@ enable_pci_ports(hfc4s8s_hw *hw)
 /* initialise the HFC-4s/8s hardware */
 /* return 0 on success.              */
 /*************************************/
-static int __devinit
+static int
 setup_instance(hfc4s8s_hw *hw)
 {
 	int err = -EIO;
@@ -1585,7 +1585,7 @@ out:
 /*****************************************/
 /* PCI hotplug interface: probe new card */
 /*****************************************/
-static int __devinit
+static int
 hfc4s8s_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err = -ENOMEM;
@@ -1640,7 +1640,7 @@ out:
 /**************************************/
 /* PCI hotplug interface: remove card */
 /**************************************/
-static void __devexit
+static void
 hfc4s8s_remove(struct pci_dev *pdev)
 {
 	hfc4s8s_hw *hw = pci_get_drvdata(pdev);
@@ -1662,7 +1662,7 @@ hfc4s8s_remove(struct pci_dev *pdev)
 static struct pci_driver hfc4s8s_driver = {
 	.name	= "hfc4s8s_l1",
 	.probe	= hfc4s8s_probe,
-	.remove	= __devexit_p(hfc4s8s_remove),
+	.remove	= hfc4s8s_remove,
 	.id_table	= hfc4s8s_ids,
 };
 
@@ -1687,14 +1687,6 @@ hfc4s8s_module_init(void)
 		goto out;
 	}
 	printk(KERN_INFO "HFC-4S/8S: found %d cards\n", card_cnt);
-
-#if !defined(CONFIG_HOTPLUG)
-	if (err == 0) {
-		err = -ENODEV;
-		pci_unregister_driver(&hfc4s8s_driver);
-		goto out;
-	}
-#endif
 
 	return 0;
 out:

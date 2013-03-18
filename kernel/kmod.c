@@ -38,6 +38,7 @@
 #include <linux/suspend.h>
 #include <linux/rwsem.h>
 #include <linux/ptrace.h>
+#include <linux/async.h>
 #include <asm/uaccess.h>
 
 #include <trace/events/module.h>
@@ -130,6 +131,14 @@ int __request_module(bool wait, const char *fmt, ...)
 #define MAX_KMOD_CONCURRENT 50	/* Completely arbitrary value - KAO */
 	static int kmod_loop_msg;
 
+	/*
+	 * We don't allow synchronous module loading from async.  Module
+	 * init may invoke async_synchronize_full() which will end up
+	 * waiting for this task which already is waiting for the module
+	 * loading to complete, leading to a deadlock.
+	 */
+	WARN_ON_ONCE(wait && current_is_async());
+
 	va_start(args, fmt);
 	ret = vsnprintf(module_name, MODULE_NAME_LEN, fmt, args);
 	va_end(args);
@@ -219,9 +228,9 @@ static int ____call_usermodehelper(void *data)
 
 	commit_creds(new);
 
-	retval = kernel_execve(sub_info->path,
-			       (const char *const *)sub_info->argv,
-			       (const char *const *)sub_info->envp);
+	retval = do_execve(sub_info->path,
+			   (const char __user *const __user *)sub_info->argv,
+			   (const char __user *const __user *)sub_info->envp);
 	if (!retval)
 		return 0;
 

@@ -47,8 +47,8 @@
  */
 ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
-	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
-	and	r3, r1, #0xff
+	mmid	r1, r1				@ get mm->context.id
+	asid	r3, r1
 	mov	r3, r3, lsl #(48 - 32)		@ ASID
 	mcrr	p15, 0, r0, r3, c2		@ set TTB 0
 	isb
@@ -65,8 +65,11 @@ ENDPROC(cpu_v7_switch_mm)
  */
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
-	tst	r2, #L_PTE_PRESENT
+	tst	r2, #L_PTE_VALID
 	beq	1f
+	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
+	bicne	r2, #L_PTE_VALID
+	bne	1f
 	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
 	orreq	r2, #L_PTE_RDONLY
 1:	strd	r2, r3, [r0]

@@ -75,15 +75,15 @@ struct octeon_boot_descriptor {
 	uint32_t argc;
 	uint32_t argv[OCTEON_ARGV_MAX_ARGS];
 
-#define  BOOT_FLAG_INIT_CORE		(1 << 0)
-#define  OCTEON_BL_FLAG_DEBUG		(1 << 1)
-#define  OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
+#define	 BOOT_FLAG_INIT_CORE		(1 << 0)
+#define	 OCTEON_BL_FLAG_DEBUG		(1 << 1)
+#define	 OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
 	/* If set, use uart1 for console */
-#define  OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
+#define	 OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
 	/* If set, use PCI console */
-#define  OCTEON_BL_FLAG_CONSOLE_PCI	(1 << 4)
+#define	 OCTEON_BL_FLAG_CONSOLE_PCI	(1 << 4)
 	/* Call exit on break on serial port */
-#define  OCTEON_BL_FLAG_BREAK		(1 << 5)
+#define	 OCTEON_BL_FLAG_BREAK		(1 << 5)
 
 	uint32_t flags;
 	uint32_t core_mask;
@@ -207,13 +207,6 @@ union octeon_cvmemctl {
 		 * bytes) is max legal value. */
 		uint64_t lmemsz:6;
 	} s;
-};
-
-struct octeon_cf_data {
-	unsigned long	base_region_bias;
-	unsigned int	base_region;	/* The chip select region used by CF */
-	int		is16bit;	/* 0 - 8bit, !0 - 16bit */
-	int		dma_engine;	/* -1 for no DMA */
 };
 
 extern void octeon_write_lcd(const char *s);

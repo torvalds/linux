@@ -401,7 +401,7 @@ static unsigned long ps3disk_mask;
 
 static DEFINE_MUTEX(ps3disk_mask_mutex);
 
-static int __devinit ps3disk_probe(struct ps3_system_bus_device *_dev)
+static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
 	struct ps3disk_private *priv;

@@ -471,7 +471,7 @@ hash_netiface6_data_equal(const struct hash_netiface6_elem *ip1,
 			  const struct hash_netiface6_elem *ip2,
 			  u32 *multi)
 {
-	return ipv6_addr_cmp(&ip1->ip.in6, &ip2->ip.in6) == 0 &&
+	return ipv6_addr_equal(&ip1->ip.in6, &ip2->ip.in6) &&
 	       ip1->cidr == ip2->cidr &&
 	       (++*multi) &&
 	       ip1->physdev == ip2->physdev &&
@@ -793,7 +793,7 @@ static struct ip_set_type hash_netiface_type __read_mostly = {
 		[IPSET_ATTR_IP]		= { .type = NLA_NESTED },
 		[IPSET_ATTR_IP_TO]	= { .type = NLA_NESTED },
 		[IPSET_ATTR_IFACE]	= { .type = NLA_NUL_STRING,
-					    .len = IPSET_MAXNAMELEN - 1 },
+					    .len  = IFNAMSIZ - 1 },
 		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
 		[IPSET_ATTR_CIDR]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },

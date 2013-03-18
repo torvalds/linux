@@ -8,7 +8,7 @@
 #ifndef __MSP_H
 #define __MSP_H
 
-#include <plat/ste_dma40.h>
+#include <linux/platform_data/dma-ste-dma40.h>
 
 enum msp_i2s_id {
 	MSP_I2S_0 = 0,

@@ -16,12 +16,6 @@
 /*
  * Registers
  */
-#define DB8500_PRCM_GPIOCR 0x138
-#define DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0	BIT(0)
-#define DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD	BIT(9)
-#define DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1	BIT(11)
-#define DB8500_PRCM_GPIOCR_SPI2_SELECT		BIT(23)
-
 #define DB8500_PRCM_LINE_VALUE 0x170
 #define DB8500_PRCM_LINE_VALUE_HSI_CAWAKE0	BIT(3)
 
@@ -493,20 +487,6 @@ struct prcmu_auto_pm_config {
 	u8 sva_policy;
 };
 
-#define PRCMU_FW_PROJECT_U8500		2
-#define PRCMU_FW_PROJECT_U9500		4
-#define PRCMU_FW_PROJECT_U8500_C2	7
-#define PRCMU_FW_PROJECT_U9500_C2	11
-#define PRCMU_FW_PROJECT_U8520		13
-#define PRCMU_FW_PROJECT_U8420		14
-
-struct prcmu_fw_version {
-	u8 project;
-	u8 api_version;
-	u8 func_version;
-	u8 errata;
-};
-
 #ifdef CONFIG_MFD_DB8500_PRCMU
 
 void db8500_prcmu_early_init(void);
@@ -515,7 +495,6 @@ enum romcode_read prcmu_get_rc_p2a(void);
 enum ap_pwrst prcmu_get_xp70_current_state(void);
 bool prcmu_has_arm_maxopp(void);
 struct prcmu_fw_version *prcmu_get_fw_version(void);
-int prcmu_request_ape_opp_100_voltage(bool enable);
 int prcmu_release_usb_wakeup_state(void);
 void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 	struct prcmu_auto_pm_config *idle);
@@ -564,6 +543,7 @@ int db8500_prcmu_set_arm_opp(u8 opp);
 int db8500_prcmu_get_arm_opp(void);
 int db8500_prcmu_set_ape_opp(u8 opp);
 int db8500_prcmu_get_ape_opp(void);
+int db8500_prcmu_request_ape_opp_100_voltage(bool enable);
 int db8500_prcmu_set_ddr_opp(u8 opp);
 int db8500_prcmu_get_ddr_opp(void);
 
@@ -610,7 +590,7 @@ static inline int db8500_prcmu_get_ape_opp(void)
 	return APE_100_OPP;
 }
 
-static inline int prcmu_request_ape_opp_100_voltage(bool enable)
+static inline int db8500_prcmu_request_ape_opp_100_voltage(bool enable)
 {
 	return 0;
 }

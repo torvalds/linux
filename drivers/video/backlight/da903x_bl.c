@@ -2,10 +2,10 @@
  * Backlight driver for Dialog Semiconductor DA9030/DA9034
  *
  * Copyright (C) 2008 Compulab, Ltd.
- * 	Mike Rapoport <mike@compulab.co.il>
+ *	Mike Rapoport <mike@compulab.co.il>
  *
  * Copyright (C) 2006-2008 Marvell International Ltd.
- * 	Eric Miao <eric.miao@marvell.com>
+ *	Eric Miao <eric.miao@marvell.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -164,15 +164,14 @@ static int da903x_backlight_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int da903x_backlight_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct backlight_device *bl = platform_get_drvdata(pdev);
+	struct backlight_device *bl = dev_get_drvdata(dev);
+
 	return da903x_backlight_set(bl, 0);
 }
 
 static int da903x_backlight_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct backlight_device *bl = platform_get_drvdata(pdev);
+	struct backlight_device *bl = dev_get_drvdata(dev);
 
 	backlight_update_status(bl);
 	return 0;
@@ -199,7 +198,7 @@ static struct platform_driver da903x_backlight_driver = {
 module_platform_driver(da903x_backlight_driver);
 
 MODULE_DESCRIPTION("Backlight Driver for Dialog Semiconductor DA9030/DA9034");
-MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>"
-	      "Mike Rapoport <mike@compulab.co.il>");
+MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
+MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:da903x-backlight");

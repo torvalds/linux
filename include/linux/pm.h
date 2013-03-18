@@ -31,7 +31,6 @@
 /*
  * Callbacks for platform drivers to implement.
  */
-extern void (*pm_idle)(void);
 extern void (*pm_power_off)(void);
 extern void (*pm_power_off_prepare)(void);
 
@@ -538,6 +537,7 @@ struct dev_pm_info {
 	unsigned int		irq_safe:1;
 	unsigned int		use_autosuspend:1;
 	unsigned int		timer_autosuspends:1;
+	unsigned int		memalloc_noio:1;
 	enum rpm_request	request;
 	enum rpm_status		runtime_status;
 	int			runtime_error;
@@ -546,10 +546,9 @@ struct dev_pm_info {
 	unsigned long		active_jiffies;
 	unsigned long		suspended_jiffies;
 	unsigned long		accounting_timestamp;
-	struct dev_pm_qos_request *pq_req;
 #endif
 	struct pm_subsys_data	*subsys_data;  /* Owned by the subsystem. */
-	struct pm_qos_constraints *constraints;
+	struct dev_pm_qos	*qos;
 };
 
 extern void update_pm_runtime_accounting(struct device *dev);

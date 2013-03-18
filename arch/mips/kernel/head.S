@@ -21,7 +21,6 @@
 #include <asm/asmmacro.h>
 #include <asm/irqflags.h>
 #include <asm/regdef.h>
-#include <asm/page.h>
 #include <asm/pgtable-bits.h>
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
@@ -134,7 +133,7 @@ EXPORT(_stext)
 #ifdef CONFIG_BOOT_RAW
 	/*
 	 * Give us a fighting chance of running if execution beings at the
-	 * kernel load address.  This is needed because this platform does
+	 * kernel load address.	 This is needed because this platform does
 	 * not have a ELF loader yet.
 	 */
 FEXPORT(__kernel_entry)
@@ -202,7 +201,7 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 
 #ifdef CONFIG_SMP
 /*
- * SMP slave cpus entry point.  Board specific code for bootstrap calls this
+ * SMP slave cpus entry point.	Board specific code for bootstrap calls this
  * function after setting up the stack and gp registers.
  */
 NESTED(smp_bootstrap, 16, sp)

@@ -91,7 +91,7 @@ static struct panel_info panel_table[] = {
 #define DPY_W 800
 #define DPY_H 600
 
-static struct fb_fix_screeninfo broadsheetfb_fix __devinitdata = {
+static struct fb_fix_screeninfo broadsheetfb_fix = {
 	.id =		"broadsheetfb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_STATIC_PSEUDOCOLOR,
@@ -102,7 +102,7 @@ static struct fb_fix_screeninfo broadsheetfb_fix __devinitdata = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo broadsheetfb_var __devinitdata = {
+static struct fb_var_screeninfo broadsheetfb_var = {
 	.xres		= DPY_W,
 	.yres		= DPY_H,
 	.xres_virtual	= DPY_W,
@@ -774,7 +774,7 @@ static DEVICE_ATTR(loadstore_waveform, S_IWUSR, NULL,
 			broadsheet_loadstore_waveform);
 
 /* upper level functions that manipulate the display and other stuff */
-static void __devinit broadsheet_init_display(struct broadsheetfb_par *par)
+static void broadsheet_init_display(struct broadsheetfb_par *par)
 {
 	u16 args[5];
 	int xres = par->info->var.xres;
@@ -834,7 +834,7 @@ static void __devinit broadsheet_init_display(struct broadsheetfb_par *par)
 	par->board->wait_for_rdy(par);
 }
 
-static void __devinit broadsheet_identify(struct broadsheetfb_par *par)
+static void broadsheet_identify(struct broadsheetfb_par *par)
 {
 	u16 rev, prc;
 	struct device *dev = par->info->device;
@@ -849,7 +849,7 @@ static void __devinit broadsheet_identify(struct broadsheetfb_par *par)
 		dev_warn(dev, "Unrecognized Broadsheet Revision\n");
 }
 
-static void __devinit broadsheet_init(struct broadsheetfb_par *par)
+static void broadsheet_init(struct broadsheetfb_par *par)
 {
 	broadsheet_send_command(par, BS_CMD_INIT_SYS_RUN);
 	/* the controller needs a second */
@@ -1058,7 +1058,7 @@ static struct fb_deferred_io broadsheetfb_defio = {
 	.deferred_io	= broadsheetfb_dpy_deferred_io,
 };
 
-static int __devinit broadsheetfb_probe(struct platform_device *dev)
+static int broadsheetfb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	struct broadsheet_board *board;
@@ -1190,7 +1190,7 @@ err:
 
 }
 
-static int __devexit broadsheetfb_remove(struct platform_device *dev)
+static int broadsheetfb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -1211,7 +1211,7 @@ static int __devexit broadsheetfb_remove(struct platform_device *dev)
 
 static struct platform_driver broadsheetfb_driver = {
 	.probe	= broadsheetfb_probe,
-	.remove = __devexit_p(broadsheetfb_remove),
+	.remove = broadsheetfb_remove,
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "broadsheetfb",

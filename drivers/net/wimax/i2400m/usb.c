@@ -346,9 +346,9 @@ static void i2400mu_get_drvinfo(struct net_device *net_dev,
 	struct i2400mu *i2400mu = container_of(i2400m, struct i2400mu, i2400m);
 	struct usb_device *udev = i2400mu->usb_dev;
 
-	strncpy(info->driver, KBUILD_MODNAME, sizeof(info->driver) - 1);
-	strncpy(info->fw_version,
-	        i2400m->fw_name ? : "", sizeof(info->fw_version) - 1);
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->fw_version, i2400m->fw_name ? : "",
+		sizeof(info->fw_version));
 	usb_make_path(udev, info->bus_info, sizeof(info->bus_info));
 }
 
@@ -510,6 +510,9 @@ int i2400mu_probe(struct usb_interface *iface,
 	switch (id->idProduct) {
 	case USB_DEVICE_ID_I6050:
 	case USB_DEVICE_ID_I6050_2:
+	case USB_DEVICE_ID_I6150:
+	case USB_DEVICE_ID_I6150_2:
+	case USB_DEVICE_ID_I6150_3:
 	case USB_DEVICE_ID_I6250:
 		i2400mu->i6050 = 1;
 		break;
@@ -759,6 +762,9 @@ static
 struct usb_device_id i2400mu_id_table[] = {
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050) },
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050_2) },
+	{ USB_DEVICE(0x8087, USB_DEVICE_ID_I6150) },
+	{ USB_DEVICE(0x8087, USB_DEVICE_ID_I6150_2) },
+	{ USB_DEVICE(0x8087, USB_DEVICE_ID_I6150_3) },
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6250) },
 	{ USB_DEVICE(0x8086, 0x0181) },
 	{ USB_DEVICE(0x8086, 0x1403) },

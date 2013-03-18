@@ -673,8 +673,7 @@ clear_pending_icc_ints(struct IsdnCardState *cs)
 	cs->writeisac(cs, ICC_MASK, 0xFF);
 }
 
-void __devinit
-setup_icc(struct IsdnCardState *cs)
+void setup_icc(struct IsdnCardState *cs)
 {
 	INIT_WORK(&cs->tqueue, icc_bh);
 	cs->dbusytimer.function = (void *) dbusy_timer_handler;

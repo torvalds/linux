@@ -167,6 +167,7 @@ struct hid_item {
 #define HID_UP_MSVENDOR		0xff000000
 #define HID_UP_CUSTOM		0x00ff0000
 #define HID_UP_LOGIVENDOR	0xffbc0000
+#define HID_UP_SENSOR		0x00200000
 
 #define HID_USAGE		0x0000ffff
 
@@ -292,6 +293,7 @@ struct hid_item {
  */
 #define HID_GROUP_GENERIC			0x0001
 #define HID_GROUP_MULTITOUCH			0x0002
+#define HID_GROUP_SENSOR_HUB			0x0003
 
 /*
  * This is the global environment of the parser. This information is
@@ -342,6 +344,7 @@ struct hid_collection {
 struct hid_usage {
 	unsigned  hid;			/* hid usage code */
 	unsigned  collection_index;	/* index into collection array */
+	unsigned  usage_index;		/* index into usage array */
 	/* hidinput data */
 	__u16     code;			/* input driver code */
 	__u8      type;			/* input driver type */
@@ -586,6 +589,7 @@ struct hid_usage_id {
  * @raw_event: if report in report_table, this hook is called (NULL means nop)
  * @usage_table: on which events to call event (NULL means all)
  * @event: if usage in usage_table, this hook is called (NULL means nop)
+ * @report: this hook is called after parsing a report (NULL means nop)
  * @report_fixup: called before report descriptor parsing (NULL means nop)
  * @input_mapping: invoked on input registering before mapping an usage
  * @input_mapped: invoked on input registering after mapping an usage
@@ -624,6 +628,7 @@ struct hid_driver {
 	const struct hid_usage_id *usage_table;
 	int (*event)(struct hid_device *hdev, struct hid_field *field,
 			struct hid_usage *usage, __s32 value);
+	void (*report)(struct hid_device *hdev, struct hid_report *report);
 
 	__u8 *(*report_fixup)(struct hid_device *hdev, __u8 *buf,
 			unsigned int *size);
@@ -684,6 +689,7 @@ struct hid_ll_driver {
 
 extern int hid_debug;
 
+extern bool hid_ignore(struct hid_device *);
 extern int hid_add_device(struct hid_device *);
 extern void hid_destroy_device(struct hid_device *);
 
@@ -696,6 +702,18 @@ extern int __must_check __hid_register_driver(struct hid_driver *,
 
 extern void hid_unregister_driver(struct hid_driver *);
 
+/**
+ * module_hid_driver() - Helper macro for registering a HID driver
+ * @__hid_driver: hid_driver struct
+ *
+ * Helper macro for HID drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_hid_driver(__hid_driver) \
+	module_driver(__hid_driver, hid_register_driver, \
+		      hid_unregister_driver)
+
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 extern void hidinput_report_event(struct hid_device *hid, struct hid_report *report);
 extern int hidinput_connect(struct hid_device *hid, unsigned int force);
@@ -706,6 +724,7 @@ int hid_input_report(struct hid_device *, int type, u8 *, int, int);
 int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field);
 struct hid_field *hidinput_get_led_field(struct hid_device *hid);
 unsigned int hidinput_count_leds(struct hid_device *hid);
+__s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code);
 void hid_output_report(struct hid_report *report, __u8 *data);
 struct hid_device *hid_allocate_device(void);
 struct hid_report *hid_register_report(struct hid_device *device, unsigned type, unsigned id);
@@ -716,6 +735,7 @@ int hid_connect(struct hid_device *hid, unsigned int connect_mask);
 void hid_disconnect(struct hid_device *hid);
 const struct hid_device_id *hid_match_id(struct hid_device *hdev,
 					 const struct hid_device_id *id);
+s32 hid_snto32(__u32 value, unsigned n);
 
 /**
  * hid_map_usage - map usage input bits
@@ -865,9 +885,6 @@ static inline int hid_hw_power(struct hid_device *hdev, int level)
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		int interrupt);
-
-extern int hid_generic_init(void);
-extern void hid_generic_exit(void);
 
 /* HID quirks API */
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);

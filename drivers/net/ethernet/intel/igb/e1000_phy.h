@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -124,6 +124,7 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 #define E1000_82580_PM_SPD		0x0001 /* Smart Power Down */
 #define E1000_82580_PM_D0_LPLU		0x0002 /* For D0a states */
 #define E1000_82580_PM_D3_LPLU		0x0004 /* For all other states */
+#define E1000_82580_PM_GO_LINKD		0x0020 /* Go Link Disconnect */
 
 /* Enable flexible speed on link-up */
 #define IGP02E1000_PM_D0_LPLU             0x0002 /* For D0a states */

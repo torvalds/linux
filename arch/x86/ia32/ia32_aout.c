@@ -35,7 +35,7 @@
 #undef WARN_OLD
 #undef CORE_DUMP /* definitely broken */
 
-static int load_aout_binary(struct linux_binprm *, struct pt_regs *regs);
+static int load_aout_binary(struct linux_binprm *);
 static int load_aout_library(struct file *);
 
 #ifdef CORE_DUMP
@@ -260,9 +260,10 @@ static u32 __user *create_aout_tables(char __user *p, struct linux_binprm *bprm)
  * These are the functions used to load a.out style executables and shared
  * libraries.  There is no binary dependent code anywhere else.
  */
-static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
+static int load_aout_binary(struct linux_binprm *bprm)
 {
 	unsigned long error, fd_offset, rlim;
+	struct pt_regs *regs = current_pt_regs();
 	struct exec ex;
 	int retval;
 
@@ -270,7 +271,7 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	if ((N_MAGIC(ex) != ZMAGIC && N_MAGIC(ex) != OMAGIC &&
 	     N_MAGIC(ex) != QMAGIC && N_MAGIC(ex) != NMAGIC) ||
 	    N_TRSIZE(ex) || N_DRSIZE(ex) ||
-	    i_size_read(bprm->file->f_path.dentry->d_inode) <
+	    i_size_read(file_inode(bprm->file)) <
 	    ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
 		return -ENOEXEC;
 	}
@@ -424,12 +425,10 @@ beyond_if:
 
 static int load_aout_library(struct file *file)
 {
-	struct inode *inode;
 	unsigned long bss, start_addr, len, error;
 	int retval;
 	struct exec ex;
 
-	inode = file->f_path.dentry->d_inode;
 
 	retval = -ENOEXEC;
 	error = kernel_read(file, 0, (char *) &ex, sizeof(ex));
@@ -439,7 +438,7 @@ static int load_aout_library(struct file *file)
 	/* We come in here for the regular a.out style of shared libraries */
 	if ((N_MAGIC(ex) != ZMAGIC && N_MAGIC(ex) != QMAGIC) || N_TRSIZE(ex) ||
 	    N_DRSIZE(ex) || ((ex.a_entry & 0xfff) && N_MAGIC(ex) == ZMAGIC) ||
-	    i_size_read(inode) <
+	    i_size_read(file_inode(file)) <
 	    ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
 		goto out;
 	}

@@ -495,7 +495,7 @@ static const struct i2c_algorithm mv64xxx_i2c_algo = {
  *
  *****************************************************************************
  */
-static int __devinit
+static int
 mv64xxx_i2c_map_regs(struct platform_device *pd,
 	struct mv64xxx_i2c_data *drv_data)
 {
@@ -530,13 +530,13 @@ mv64xxx_i2c_unmap_regs(struct mv64xxx_i2c_data *drv_data)
 }
 
 #ifdef CONFIG_OF
-static int __devinit
+static int
 mv64xxx_calc_freq(const int tclk, const int n, const int m)
 {
 	return tclk / (10 * (m + 1) * (2 << n));
 }
 
-static bool __devinit
+static bool
 mv64xxx_find_baud_factors(const u32 req_freq, const u32 tclk, u32 *best_n,
 			  u32 *best_m)
 {
@@ -560,7 +560,7 @@ mv64xxx_find_baud_factors(const u32 req_freq, const u32 tclk, u32 *best_n,
 	return true;
 }
 
-static int __devinit
+static int
 mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device_node *np)
 {
@@ -597,7 +597,7 @@ out:
 #endif
 }
 #else /* CONFIG_OF */
-static int __devinit
+static int
 mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device_node *np)
 {
@@ -605,7 +605,7 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 }
 #endif /* CONFIG_OF */
 
-static int __devinit
+static int
 mv64xxx_i2c_probe(struct platform_device *pd)
 {
 	struct mv64xxx_i2c_data		*drv_data;
@@ -697,7 +697,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	return rc;
 }
 
-static int __devexit
+static int
 mv64xxx_i2c_remove(struct platform_device *dev)
 {
 	struct mv64xxx_i2c_data		*drv_data = platform_get_drvdata(dev);
@@ -718,7 +718,7 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 	return rc;
 }
 
-static const struct of_device_id mv64xxx_i2c_of_match_table[] __devinitdata = {
+static const struct of_device_id mv64xxx_i2c_of_match_table[] = {
 	{ .compatible = "marvell,mv64xxx-i2c", },
 	{}
 };
@@ -726,7 +726,7 @@ MODULE_DEVICE_TABLE(of, mv64xxx_i2c_of_match_table);
 
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
-	.remove	= __devexit_p(mv64xxx_i2c_remove),
+	.remove	= mv64xxx_i2c_remove,
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= MV64XXX_I2C_CTLR_NAME,

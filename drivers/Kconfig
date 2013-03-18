@@ -134,6 +134,8 @@ source "drivers/hwspinlock/Kconfig"
 
 source "drivers/clocksource/Kconfig"
 
+source "drivers/mailbox/Kconfig"
+
 source "drivers/iommu/Kconfig"
 
 source "drivers/remoteproc/Kconfig"
@@ -150,10 +152,14 @@ source "drivers/memory/Kconfig"
 
 source "drivers/iio/Kconfig"
 
+source "drivers/ntb/Kconfig"
+
 source "drivers/vme/Kconfig"
 
 source "drivers/pwm/Kconfig"
 
 source "drivers/irqchip/Kconfig"
+
+source "drivers/ipack/Kconfig"
 
 endmenu

@@ -94,9 +94,9 @@ static struct scsi_host_template sim710_driver_template = {
 	.module			= THIS_MODULE,
 };
 
-static __devinit int
-sim710_probe_common(struct device *dev, unsigned long base_addr,
-		    int irq, int clock, int differential, int scsi_id)
+static int sim710_probe_common(struct device *dev, unsigned long base_addr,
+			       int irq, int clock, int differential,
+			       int scsi_id)
 {
 	struct Scsi_Host * host = NULL;
 	struct NCR_700_Host_Parameters *hostdata =
@@ -153,8 +153,7 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 	return -ENODEV;
 }
 
-static __devexit int
-sim710_device_remove(struct device *dev)
+static int sim710_device_remove(struct device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(dev);
 	struct NCR_700_Host_Parameters *hostdata =
@@ -221,7 +220,7 @@ static struct eisa_driver sim710_eisa_driver = {
 	.driver = {
 		.name		= "sim710",
 		.probe		= sim710_eisa_probe,
-		.remove		= __devexit_p(sim710_device_remove),
+		.remove		= sim710_device_remove,
 	},
 };
 #endif /* CONFIG_EISA */

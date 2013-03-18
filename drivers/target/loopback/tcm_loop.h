@@ -53,7 +53,6 @@ struct tcm_loop_hba {
 	struct se_hba_s *se_hba;
 	struct se_lun *tl_hba_lun;
 	struct se_port *tl_hba_lun_sep;
-	struct se_device_s *se_dev_hba_ptr;
 	struct tcm_loop_nexus *tl_nexus;
 	struct device dev;
 	struct Scsi_Host *sh;

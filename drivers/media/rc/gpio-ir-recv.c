@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <media/rc-core.h>
@@ -29,6 +30,45 @@ struct gpio_rc_dev {
 	int gpio_nr;
 	bool active_low;
 };
+
+#ifdef CONFIG_OF
+/*
+ * Translate OpenFirmware node properties into platform_data
+ */
+static int gpio_ir_recv_get_devtree_pdata(struct device *dev,
+				  struct gpio_ir_recv_platform_data *pdata)
+{
+	struct device_node *np = dev->of_node;
+	enum of_gpio_flags flags;
+	int gpio;
+
+	gpio = of_get_gpio_flags(np, 0, &flags);
+	if (gpio < 0) {
+		if (gpio != -EPROBE_DEFER)
+			dev_err(dev, "Failed to get gpio flags (%d)\n", gpio);
+		return gpio;
+	}
+
+	pdata->gpio_nr = gpio;
+	pdata->active_low = (flags & OF_GPIO_ACTIVE_LOW);
+	/* probe() takes care of map_name == NULL or allowed_protos == 0 */
+	pdata->map_name = of_get_property(np, "linux,rc-map-name", NULL);
+	pdata->allowed_protos = 0;
+
+	return 0;
+}
+
+static struct of_device_id gpio_ir_recv_of_match[] = {
+	{ .compatible = "gpio-ir-receiver", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, gpio_ir_recv_of_match);
+
+#else /* !CONFIG_OF */
+
+#define gpio_ir_recv_get_devtree_pdata(dev, pdata)	(-ENOSYS)
+
+#endif
 
 static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 {
@@ -58,13 +98,24 @@ err_get_value:
 	return IRQ_HANDLED;
 }
 
-static int __devinit gpio_ir_recv_probe(struct platform_device *pdev)
+static int gpio_ir_recv_probe(struct platform_device *pdev)
 {
 	struct gpio_rc_dev *gpio_dev;
 	struct rc_dev *rcdev;
 	const struct gpio_ir_recv_platform_data *pdata =
 					pdev->dev.platform_data;
 	int rc;
+
+	if (pdev->dev.of_node) {
+		struct gpio_ir_recv_platform_data *dtpdata =
+			devm_kzalloc(&pdev->dev, sizeof(*dtpdata), GFP_KERNEL);
+		if (!dtpdata)
+			return -ENOMEM;
+		rc = gpio_ir_recv_get_devtree_pdata(&pdev->dev, dtpdata);
+		if (rc)
+			return rc;
+		pdata = dtpdata;
+	}
 
 	if (!pdata)
 		return -EINVAL;
@@ -95,7 +146,7 @@ static int __devinit gpio_ir_recv_probe(struct platform_device *pdev)
 	if (pdata->allowed_protos)
 		rcdev->allowed_protos = pdata->allowed_protos;
 	else
-		rcdev->allowed_protos = RC_TYPE_ALL;
+		rcdev->allowed_protos = RC_BIT_ALL;
 	rcdev->map_name = pdata->map_name ?: RC_MAP_EMPTY;
 
 	gpio_dev->rcdev = rcdev;
@@ -129,18 +180,18 @@ static int __devinit gpio_ir_recv_probe(struct platform_device *pdev)
 err_request_irq:
 	platform_set_drvdata(pdev, NULL);
 	rc_unregister_device(rcdev);
+	rcdev = NULL;
 err_register_rc_device:
 err_gpio_direction_input:
 	gpio_free(pdata->gpio_nr);
 err_gpio_request:
 	rc_free_device(rcdev);
-	rcdev = NULL;
 err_allocate_device:
 	kfree(gpio_dev);
 	return rc;
 }
 
-static int __devexit gpio_ir_recv_remove(struct platform_device *pdev)
+static int gpio_ir_recv_remove(struct platform_device *pdev)
 {
 	struct gpio_rc_dev *gpio_dev = platform_get_drvdata(pdev);
 
@@ -148,7 +199,6 @@ static int __devexit gpio_ir_recv_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	rc_unregister_device(gpio_dev->rcdev);
 	gpio_free(gpio_dev->gpio_nr);
-	rc_free_device(gpio_dev->rcdev);
 	kfree(gpio_dev);
 	return 0;
 }
@@ -188,10 +238,11 @@ static const struct dev_pm_ops gpio_ir_recv_pm_ops = {
 
 static struct platform_driver gpio_ir_recv_driver = {
 	.probe  = gpio_ir_recv_probe,
-	.remove = __devexit_p(gpio_ir_recv_remove),
+	.remove = gpio_ir_recv_remove,
 	.driver = {
 		.name   = GPIO_IR_DRIVER_NAME,
 		.owner  = THIS_MODULE,
+		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),
 #ifdef CONFIG_PM
 		.pm	= &gpio_ir_recv_pm_ops,
 #endif

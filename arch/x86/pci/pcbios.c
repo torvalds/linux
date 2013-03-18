@@ -124,7 +124,7 @@ static struct {
 
 static int pci_bios_present;
 
-static int __devinit check_pcibios(void)
+static int check_pcibios(void)
 {
 	u32 signature, eax, ebx, ecx;
 	u8 status, major_ver, minor_ver, hw_mech;
@@ -312,7 +312,7 @@ static const struct pci_raw_ops pci_bios_access = {
  * Try to find PCI BIOS.
  */
 
-static const struct pci_raw_ops * __devinit pci_find_bios(void)
+static const struct pci_raw_ops *pci_find_bios(void)
 {
 	union bios32 *check;
 	unsigned char sum;

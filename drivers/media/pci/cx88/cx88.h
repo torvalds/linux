@@ -94,13 +94,13 @@ enum cx8802_board_access {
 /* ----------------------------------------------------------- */
 /* tv norms                                                    */
 
-static unsigned int inline norm_maxw(v4l2_std_id norm)
+static inline unsigned int norm_maxw(v4l2_std_id norm)
 {
 	return (norm & (V4L2_STD_MN & ~V4L2_STD_PAL_Nc)) ? 720 : 768;
 }
 
 
-static unsigned int inline norm_maxh(v4l2_std_id norm)
+static inline unsigned int norm_maxh(v4l2_std_id norm)
 {
 	return (norm & V4L2_STD_625_50) ? 576 : 480;
 }
@@ -363,7 +363,7 @@ struct cx88_core {
 	unsigned int               tuner_formats;
 
 	/* config info -- dvb */
-#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_CX88_DVB)
 	int 			   (*prev_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
 #endif
 	void			   (*gate_ctrl)(struct cx88_core  *core, int open);
@@ -562,8 +562,7 @@ struct cx8802_dev {
 
 	/* for blackbird only */
 	struct list_head           devlist;
-#if defined(CONFIG_VIDEO_CX88_BLACKBIRD) || \
-    defined(CONFIG_VIDEO_CX88_BLACKBIRD_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_CX88_BLACKBIRD)
 	struct video_device        *mpeg_dev;
 	u32                        mailbox;
 	int                        width;
@@ -574,13 +573,12 @@ struct cx8802_dev {
 	struct cx2341x_handler     cxhdl;
 #endif
 
-#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_CX88_DVB)
 	/* for dvb only */
 	struct videobuf_dvb_frontends frontends;
 #endif
 
-#if defined(CONFIG_VIDEO_CX88_VP3054) || \
-    defined(CONFIG_VIDEO_CX88_VP3054_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_CX88_VP3054)
 	/* For VP3045 secondary I2C bus support */
 	struct vp3054_i2c_state	   *vp3054;
 #endif

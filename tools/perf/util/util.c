@@ -10,6 +10,10 @@
 /*
  * XXX We need to find a better place for these things...
  */
+unsigned int page_size;
+
+bool test_attr__enabled;
+
 bool perf_host  = true;
 bool perf_guest = false;
 
@@ -164,6 +168,39 @@ size_t hex_width(u64 v)
 	return n;
 }
 
+static int hex(char ch)
+{
+	if ((ch >= '0') && (ch <= '9'))
+		return ch - '0';
+	if ((ch >= 'a') && (ch <= 'f'))
+		return ch - 'a' + 10;
+	if ((ch >= 'A') && (ch <= 'F'))
+		return ch - 'A' + 10;
+	return -1;
+}
+
+/*
+ * While we find nice hex chars, build a long_val.
+ * Return number of chars processed.
+ */
+int hex2u64(const char *ptr, u64 *long_val)
+{
+	const char *p = ptr;
+	*long_val = 0;
+
+	while (*p) {
+		const int hex_val = hex(*p);
+
+		if (hex_val < 0)
+			break;
+
+		*long_val = (*long_val << 4) | hex_val;
+		p++;
+	}
+
+	return p - ptr;
+}
+
 /* Obtain a backtrace and print it to stdout. */
 #ifdef BACKTRACE_SUPPORT
 void dump_stack(void)
@@ -183,3 +220,25 @@ void dump_stack(void)
 #else
 void dump_stack(void) {}
 #endif
+
+void get_term_dimensions(struct winsize *ws)
+{
+	char *s = getenv("LINES");
+
+	if (s != NULL) {
+		ws->ws_row = atoi(s);
+		s = getenv("COLUMNS");
+		if (s != NULL) {
+			ws->ws_col = atoi(s);
+			if (ws->ws_row && ws->ws_col)
+				return;
+		}
+	}
+#ifdef TIOCGWINSZ
+	if (ioctl(1, TIOCGWINSZ, ws) == 0 &&
+	    ws->ws_row && ws->ws_col)
+		return;
+#endif
+	ws->ws_row = 25;
+	ws->ws_col = 80;
+}

@@ -179,6 +179,30 @@ static int set_user_msr(struct task_struct *task, unsigned long msr)
 	return 0;
 }
 
+#ifdef CONFIG_PPC64
+static unsigned long get_user_dscr(struct task_struct *task)
+{
+	return task->thread.dscr;
+}
+
+static int set_user_dscr(struct task_struct *task, unsigned long dscr)
+{
+	task->thread.dscr = dscr;
+	task->thread.dscr_inherit = 1;
+	return 0;
+}
+#else
+static unsigned long get_user_dscr(struct task_struct *task)
+{
+	return -EIO;
+}
+
+static int set_user_dscr(struct task_struct *task, unsigned long dscr)
+{
+	return -EIO;
+}
+#endif
+
 /*
  * We prevent mucking around with the reserved area of trap
  * which are used internally by the kernel.
@@ -200,6 +224,9 @@ unsigned long ptrace_get_reg(struct task_struct *task, int regno)
 	if (regno == PT_MSR)
 		return get_user_msr(task);
 
+	if (regno == PT_DSCR)
+		return get_user_dscr(task);
+
 	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long)))
 		return ((unsigned long *)task->thread.regs)[regno];
 
@@ -218,6 +245,8 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 		return set_user_msr(task, data);
 	if (regno == PT_TRAP)
 		return set_user_trap(task, data);
+	if (regno == PT_DSCR)
+		return set_user_dscr(task, data);
 
 	if (regno <= PT_MAX_PUT_REG) {
 		((unsigned long *)task->thread.regs)[regno] = data;
@@ -905,6 +934,9 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
+#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+	struct arch_hw_breakpoint hw_brk;
+#endif
 
 	/* For ppc64 we support one DABR and no IABR's at the moment (ppc64).
 	 *  For embedded processors we support one DAC and no IAC's at the
@@ -931,14 +963,17 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	 */
 
 	/* Ensure breakpoint translation bit is set */
-	if (data && !(data & DABR_TRANSLATION))
+	if (data && !(data & HW_BRK_TYPE_TRANSLATE))
 		return -EIO;
+	hw_brk.address = data & (~HW_BRK_TYPE_DABR);
+	hw_brk.type = (data & HW_BRK_TYPE_DABR) | HW_BRK_TYPE_PRIV_ALL;
+	hw_brk.len = 8;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	if (ptrace_get_breakpoints(task) < 0)
 		return -ESRCH;
 
 	bp = thread->ptrace_bps[0];
-	if ((!data) || !(data & (DABR_DATA_WRITE | DABR_DATA_READ))) {
+	if ((!data) || !(hw_brk.type & HW_BRK_TYPE_RDWR)) {
 		if (bp) {
 			unregister_hw_breakpoint(bp);
 			thread->ptrace_bps[0] = NULL;
@@ -948,10 +983,12 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	}
 	if (bp) {
 		attr = bp->attr;
-		attr.bp_addr = data & ~HW_BREAKPOINT_ALIGN;
-		arch_bp_generic_fields(data &
-					(DABR_DATA_WRITE | DABR_DATA_READ),
-							&attr.bp_type);
+		attr.bp_addr = hw_brk.address;
+		arch_bp_generic_fields(hw_brk.type, &attr.bp_type);
+
+		/* Enable breakpoint */
+		attr.disabled = false;
+
 		ret =  modify_user_hw_breakpoint(bp, &attr);
 		if (ret) {
 			ptrace_put_breakpoints(task);
@@ -959,16 +996,15 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 		}
 		thread->ptrace_bps[0] = bp;
 		ptrace_put_breakpoints(task);
-		thread->dabr = data;
-		thread->dabrx = DABRX_ALL;
+		thread->hw_brk = hw_brk;
 		return 0;
 	}
 
 	/* Create a new breakpoint request if one doesn't exist already */
 	hw_breakpoint_init(&attr);
-	attr.bp_addr = data & ~HW_BREAKPOINT_ALIGN;
-	arch_bp_generic_fields(data & (DABR_DATA_WRITE | DABR_DATA_READ),
-								&attr.bp_type);
+	attr.bp_addr = hw_brk.address;
+	arch_bp_generic_fields(hw_brk.type,
+			       &attr.bp_type);
 
 	thread->ptrace_bps[0] = bp = register_user_hw_breakpoint(&attr,
 					       ptrace_triggered, NULL, task);
@@ -981,10 +1017,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	ptrace_put_breakpoints(task);
 
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
-
-	/* Move contents to the DABR register */
-	task->thread.dabr = data;
-	task->thread.dabrx = DABRX_ALL;
+	task->thread.hw_brk = hw_brk;
 #else /* CONFIG_PPC_ADV_DEBUG_REGS */
 	/* As described above, it was assumed 3 bits were passed with the data
 	 *  address, but we will assume only the mode bits will be passed
@@ -1037,7 +1070,7 @@ void ptrace_disable(struct task_struct *child)
 }
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
-static long set_intruction_bp(struct task_struct *child,
+static long set_instruction_bp(struct task_struct *child,
 			      struct ppc_hw_breakpoint *bp_info)
 {
 	int slot;
@@ -1338,8 +1371,14 @@ static int set_dac_range(struct task_struct *child,
 static long ppc_set_hwdebug(struct task_struct *child,
 		     struct ppc_hw_breakpoint *bp_info)
 {
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	int len = 0;
+	struct thread_struct *thread = &(child->thread);
+	struct perf_event *bp;
+	struct perf_event_attr attr;
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #ifndef CONFIG_PPC_ADV_DEBUG_REGS
-	unsigned long dabr;
+	struct arch_hw_breakpoint brk;
 #endif
 
 	if (bp_info->version != 1)
@@ -1365,7 +1404,7 @@ static long ppc_set_hwdebug(struct task_struct *child,
 		if ((bp_info->trigger_type != PPC_BREAKPOINT_TRIGGER_EXECUTE) ||
 		    (bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE))
 			return -EINVAL;
-		return set_intruction_bp(child, bp_info);
+		return set_instruction_bp(child, bp_info);
 	}
 	if (bp_info->addr_mode == PPC_BREAKPOINT_MODE_EXACT)
 		return set_dac(child, bp_info);
@@ -1381,32 +1420,75 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	 */
 	if ((bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_RW) == 0 ||
 	    (bp_info->trigger_type & ~PPC_BREAKPOINT_TRIGGER_RW) != 0 ||
-	    bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT ||
 	    bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE)
 		return -EINVAL;
-
-	if (child->thread.dabr)
-		return -ENOSPC;
 
 	if ((unsigned long)bp_info->addr >= TASK_SIZE)
 		return -EIO;
 
-	dabr = (unsigned long)bp_info->addr & ~7UL;
-	dabr |= DABR_TRANSLATION;
+	brk.address = bp_info->addr & ~7UL;
+	brk.type = HW_BRK_TYPE_TRANSLATE;
 	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_READ)
-		dabr |= DABR_DATA_READ;
+		brk.type |= HW_BRK_TYPE_READ;
 	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_WRITE)
-		dabr |= DABR_DATA_WRITE;
+		brk.type |= HW_BRK_TYPE_WRITE;
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	if (ptrace_get_breakpoints(child) < 0)
+		return -ESRCH;
 
-	child->thread.dabr = dabr;
-	child->thread.dabrx = DABRX_ALL;
+	/*
+	 * Check if the request is for 'range' breakpoints. We can
+	 * support it if range < 8 bytes.
+	 */
+	if (bp_info->addr_mode == PPC_BREAKPOINT_MODE_RANGE_INCLUSIVE) {
+		len = bp_info->addr2 - bp_info->addr;
+	} else if (bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT) {
+		ptrace_put_breakpoints(child);
+		return -EINVAL;
+	}
+	bp = thread->ptrace_bps[0];
+	if (bp) {
+		ptrace_put_breakpoints(child);
+		return -ENOSPC;
+	}
+
+	/* Create a new breakpoint request if one doesn't exist already */
+	hw_breakpoint_init(&attr);
+	attr.bp_addr = (unsigned long)bp_info->addr & ~HW_BREAKPOINT_ALIGN;
+	attr.bp_len = len;
+	arch_bp_generic_fields(brk.type, &attr.bp_type);
+
+	thread->ptrace_bps[0] = bp = register_user_hw_breakpoint(&attr,
+					       ptrace_triggered, NULL, child);
+	if (IS_ERR(bp)) {
+		thread->ptrace_bps[0] = NULL;
+		ptrace_put_breakpoints(child);
+		return PTR_ERR(bp);
+	}
+
+	ptrace_put_breakpoints(child);
+	return 1;
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
+
+	if (bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT)
+		return -EINVAL;
+
+	if (child->thread.hw_brk.address)
+		return -ENOSPC;
+
+	child->thread.hw_brk = brk;
 
 	return 1;
 #endif /* !CONFIG_PPC_ADV_DEBUG_DVCS */
 }
 
-static long ppc_del_hwdebug(struct task_struct *child, long addr, long data)
+static long ppc_del_hwdebug(struct task_struct *child, long data)
 {
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	int ret = 0;
+	struct thread_struct *thread = &(child->thread);
+	struct perf_event *bp;
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	int rc;
 
@@ -1426,10 +1508,26 @@ static long ppc_del_hwdebug(struct task_struct *child, long addr, long data)
 #else
 	if (data != 1)
 		return -EINVAL;
-	if (child->thread.dabr == 0)
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	if (ptrace_get_breakpoints(child) < 0)
+		return -ESRCH;
+
+	bp = thread->ptrace_bps[0];
+	if (bp) {
+		unregister_hw_breakpoint(bp);
+		thread->ptrace_bps[0] = NULL;
+	} else
+		ret = -ENOENT;
+	ptrace_put_breakpoints(child);
+	return ret;
+#else /* CONFIG_HAVE_HW_BREAKPOINT */
+	if (child->thread.hw_brk.address == 0)
 		return -ENOENT;
 
-	child->thread.dabr = 0;
+	child->thread.hw_brk.address = 0;
+	child->thread.hw_brk.type = 0;
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
 	return 0;
 #endif
@@ -1536,7 +1634,11 @@ long arch_ptrace(struct task_struct *child, long request,
 		dbginfo.data_bp_alignment = 4;
 #endif
 		dbginfo.sizeof_condition = 0;
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+		dbginfo.features = PPC_DEBUG_FEATURE_DATA_BP_RANGE;
+#else
 		dbginfo.features = 0;
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif /* CONFIG_PPC_ADV_DEBUG_REGS */
 
 		if (!access_ok(VERIFY_WRITE, datavp,
@@ -1563,11 +1665,14 @@ long arch_ptrace(struct task_struct *child, long request,
 	}
 
 	case PPC_PTRACE_DELHWDEBUG: {
-		ret = ppc_del_hwdebug(child, addr, data);
+		ret = ppc_del_hwdebug(child, data);
 		break;
 	}
 
 	case PTRACE_GET_DEBUGREG: {
+#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+		unsigned long dabr_fake;
+#endif
 		ret = -EINVAL;
 		/* We only support one DABR and no IABRS at the moment */
 		if (addr > 0)
@@ -1575,7 +1680,9 @@ long arch_ptrace(struct task_struct *child, long request,
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		ret = put_user(child->thread.dac1, datalp);
 #else
-		ret = put_user(child->thread.dabr, datalp);
+		dabr_fake = ((child->thread.hw_brk.address & (~HW_BRK_TYPE_DABR)) |
+			     (child->thread.hw_brk.type & HW_BRK_TYPE_DABR));
+		ret = put_user(dabr_fake, datalp);
 #endif
 		break;
 	}

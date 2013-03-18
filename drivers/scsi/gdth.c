@@ -590,7 +590,7 @@ static struct pci_driver gdth_pci_driver = {
 	.remove		= gdth_pci_remove_one,
 };
 
-static void __devexit gdth_pci_remove_one(struct pci_dev *pdev)
+static void gdth_pci_remove_one(struct pci_dev *pdev)
 {
 	gdth_ha_str *ha = pci_get_drvdata(pdev);
 
@@ -602,8 +602,8 @@ static void __devexit gdth_pci_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int __devinit gdth_pci_init_one(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+static int gdth_pci_init_one(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	u16 vendor = pdev->vendor;
 	u16 device = pdev->device;
@@ -855,8 +855,8 @@ static int __init gdth_init_isa(u32 bios_adr,gdth_ha_str *ha)
 #endif /* CONFIG_ISA */
 
 #ifdef CONFIG_PCI
-static int __devinit gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
-				   gdth_ha_str *ha)
+static int gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
+			 gdth_ha_str *ha)
 {
     register gdt6_dpram_str __iomem *dp6_ptr;
     register gdt6c_dpram_str __iomem *dp6c_ptr;
@@ -1107,14 +1107,8 @@ static int __devinit gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
 	pci_read_config_word(pdev, PCI_COMMAND, &command);
         command |= 6;
 	pci_write_config_word(pdev, PCI_COMMAND, command);
-	if (pci_resource_start(pdev, 8) == 1UL)
-	    pci_resource_start(pdev, 8) = 0UL;
-        i = 0xFEFF0001UL;
-	pci_write_config_dword(pdev, PCI_ROM_ADDRESS, i);
-        gdth_delay(1);
-	pci_write_config_dword(pdev, PCI_ROM_ADDRESS,
-			       pci_resource_start(pdev, 8));
-        
+	gdth_delay(1);
+
         dp6m_ptr = ha->brd;
 
         /* Ensure that it is safe to access the non HW portions of DPMEM.
@@ -1239,7 +1233,7 @@ static int __devinit gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
 
 /* controller protocol functions */
 
-static void __devinit gdth_enable_int(gdth_ha_str *ha)
+static void gdth_enable_int(gdth_ha_str *ha)
 {
     unsigned long flags;
     gdt2_dpram_str __iomem *dp2_ptr;
@@ -1555,7 +1549,7 @@ static int gdth_internal_cmd(gdth_ha_str *ha, u8 service, u16 opcode,
 
 /* search for devices */
 
-static int __devinit gdth_search_drives(gdth_ha_str *ha)
+static int gdth_search_drives(gdth_ha_str *ha)
 {
     u16 cdev_cnt, i;
     int ok;
@@ -4959,8 +4953,7 @@ static int __init gdth_eisa_probe_one(u16 eisa_slot)
 #endif /* CONFIG_EISA */
 
 #ifdef CONFIG_PCI
-static int __devinit gdth_pci_probe_one(gdth_pci_str *pcistr,
-			     gdth_ha_str **ha_out)
+static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 {
 	struct Scsi_Host *shp;
 	gdth_ha_str *ha;

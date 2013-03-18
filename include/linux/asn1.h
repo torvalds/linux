@@ -64,4 +64,6 @@ enum asn1_tag {
 	ASN1_LONG_TAG	= 31	/* Long form tag */
 };
 
+#define ASN1_INDEFINITE_LENGTH 0x80
+
 #endif /* _LINUX_ASN1_H */

@@ -53,7 +53,7 @@ int (*cx18_ext_init)(struct cx18 *);
 EXPORT_SYMBOL(cx18_ext_init);
 
 /* add your revision and whatnot here */
-static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
+static struct pci_device_id cx18_pci_tbl[] = {
 	{PCI_VENDOR_ID_CX, PCI_DEVICE_ID_CX23418,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
@@ -691,7 +691,7 @@ done:
 	cx->card_i2c = cx->card->i2c;
 }
 
-static int __devinit cx18_create_in_workq(struct cx18 *cx)
+static int cx18_create_in_workq(struct cx18 *cx)
 {
 	snprintf(cx->in_workq_name, sizeof(cx->in_workq_name), "%s-in",
 		 cx->v4l2_dev.name);
@@ -703,7 +703,7 @@ static int __devinit cx18_create_in_workq(struct cx18 *cx)
 	return 0;
 }
 
-static void __devinit cx18_init_in_work_orders(struct cx18 *cx)
+static void cx18_init_in_work_orders(struct cx18 *cx)
 {
 	int i;
 	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++) {
@@ -718,7 +718,7 @@ static void __devinit cx18_init_in_work_orders(struct cx18 *cx)
    No assumptions on the card type may be made here (see cx18_init_struct2
    for that).
  */
-static int __devinit cx18_init_struct1(struct cx18 *cx)
+static int cx18_init_struct1(struct cx18 *cx)
 {
 	int ret;
 
@@ -775,7 +775,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 
 /* Second initialization part. Here the card type has been
    autodetected. */
-static void __devinit cx18_init_struct2(struct cx18 *cx)
+static void cx18_init_struct2(struct cx18 *cx)
 {
 	int i;
 
@@ -892,8 +892,8 @@ static void cx18_init_subdevs(struct cx18 *cx)
 		cx->sd_extmux = cx18_find_hw(cx, cx->card->hw_muxer);
 }
 
-static int __devinit cx18_probe(struct pci_dev *pci_dev,
-				const struct pci_device_id *pci_id)
+static int cx18_probe(struct pci_dev *pci_dev,
+		      const struct pci_device_id *pci_id)
 {
 	int retval = 0;
 	int i;

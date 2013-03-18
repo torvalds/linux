@@ -105,4 +105,48 @@ static inline int cfc_check_trigger_is_unique(unsigned int src)
 	return 0;
 }
 
+/**
+ * cfc_check_trigger_arg_is() - trivially validate a trigger argument
+ * @arg: pointer to the trigger arg to validate
+ * @val: the value the argument should be
+ */
+static inline int cfc_check_trigger_arg_is(unsigned int *arg, unsigned int val)
+{
+	if (*arg != val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
+ * cfc_check_trigger_arg_min() - trivially validate a trigger argument
+ * @arg: pointer to the trigger arg to validate
+ * @val: the minimum value the argument should be
+ */
+static inline int cfc_check_trigger_arg_min(unsigned int *arg,
+					    unsigned int val)
+{
+	if (*arg < val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/**
+ * cfc_check_trigger_arg_max() - trivially validate a trigger argument
+ * @arg: pointer to the trigger arg to validate
+ * @val: the maximum value the argument should be
+ */
+static inline int cfc_check_trigger_arg_max(unsigned int *arg,
+					    unsigned int val)
+{
+	if (*arg > val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
 #endif /* _COMEDI_FC_H */

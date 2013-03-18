@@ -21,14 +21,10 @@ struct nf_queue_entry {
 struct nf_queue_handler {
 	int			(*outfn)(struct nf_queue_entry *entry,
 					 unsigned int queuenum);
-	char			*name;
 };
 
-extern int nf_register_queue_handler(u_int8_t pf,
-				     const struct nf_queue_handler *qh);
-extern int nf_unregister_queue_handler(u_int8_t pf,
-				       const struct nf_queue_handler *qh);
-extern void nf_unregister_queue_handlers(const struct nf_queue_handler *qh);
+void nf_register_queue_handler(const struct nf_queue_handler *qh);
+void nf_unregister_queue_handler(void);
 extern void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict);
 
 #endif /* _NF_QUEUE_H */

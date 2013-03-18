@@ -188,7 +188,7 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 int __init tile_pci_init(void);
 int __init pcibios_init(void);
 
-void __devinit pcibios_fixup_bus(struct pci_bus *bus);
+void pcibios_fixup_bus(struct pci_bus *bus);
 
 #define pci_domain_nr(bus) (((struct pci_controller *)(bus)->sysdata)->index)
 

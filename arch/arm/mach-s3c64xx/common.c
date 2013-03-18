@@ -25,10 +25,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/irqchip/arm-vic.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/hardware/vic.h>
 #include <asm/system_misc.h>
 
 #include <mach/map.h>
@@ -155,7 +155,6 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	/* initialise the io descriptors we need for initialisation */
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));
 	iotable_init(mach_desc, size);
-	init_consistent_dma_size(SZ_8M);
 
 	/* detect cpu id */
 	s3c64xx_init_cpu();

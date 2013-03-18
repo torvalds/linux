@@ -83,7 +83,7 @@ u8 lgtdqcs001f_inittab[] = {
 #define MANTIS_MODEL_NAME	"VP-1033"
 #define MANTIS_DEV_TYPE		"DVB-S/DSS"
 
-int lgtdqcs001f_tuner_set(struct dvb_frontend *fe)
+static int lgtdqcs001f_tuner_set(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mantis_pci *mantis	= fe->dvb->priv;
@@ -115,8 +115,8 @@ int lgtdqcs001f_tuner_set(struct dvb_frontend *fe)
 	return 0;
 }
 
-int lgtdqcs001f_set_symbol_rate(struct dvb_frontend *fe,
-				u32 srate, u32 ratio)
+static int lgtdqcs001f_set_symbol_rate(struct dvb_frontend *fe,
+				       u32 srate, u32 ratio)
 {
 	u8 aclk = 0;
 	u8 bclk = 0;

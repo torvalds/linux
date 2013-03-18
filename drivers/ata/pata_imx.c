@@ -60,7 +60,7 @@ static int pata_imx_set_mode(struct ata_link *link, struct ata_device **unused)
 			val &= ~PATA_IMX_ATA_CTRL_IORDY_EN;
 		__raw_writel(val, priv->host_regs + PATA_IMX_ATA_CONTROL);
 
-		ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
+		ata_dev_info(dev, "configured for PIO\n");
 	}
 	return 0;
 }
@@ -91,7 +91,7 @@ static void pata_imx_setup_port(struct ata_ioports *ioaddr)
 	ioaddr->command_addr	= ioaddr->cmd_addr + (ATA_REG_CMD     << 2);
 }
 
-static int __devinit pata_imx_probe(struct platform_device *pdev)
+static int pata_imx_probe(struct platform_device *pdev)
 {
 	struct ata_host *host;
 	struct ata_port *ap;
@@ -167,7 +167,7 @@ free_priv:
 	return -ENOMEM;
 }
 
-static int __devexit pata_imx_remove(struct platform_device *pdev)
+static int pata_imx_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	struct pata_imx_priv *priv = host->private_data;
@@ -225,7 +225,7 @@ static const struct dev_pm_ops pata_imx_pm_ops = {
 
 static struct platform_driver pata_imx_driver = {
 	.probe		= pata_imx_probe,
-	.remove		= __devexit_p(pata_imx_remove),
+	.remove		= pata_imx_remove,
 	.driver = {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,

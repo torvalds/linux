@@ -1,7 +1,7 @@
 #ifndef __PERF_HEADER_H
 #define __PERF_HEADER_H
 
-#include "../../../include/uapi/linux/perf_event.h"
+#include <linux/perf_event.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include "types.h"
@@ -29,6 +29,7 @@ enum {
 	HEADER_NUMA_TOPOLOGY,
 	HEADER_BRANCH_STACK,
 	HEADER_PMU_MAPPINGS,
+	HEADER_GROUP_DESC,
 	HEADER_LAST_FEATURE,
 	HEADER_FEAT_BITS	= 256,
 };
@@ -79,6 +80,7 @@ struct perf_session_env {
 	char			*numa_nodes;
 	int			nr_pmu_mappings;
 	char			*pmu_mappings;
+	int			nr_groups;
 };
 
 struct perf_header {
@@ -154,6 +156,7 @@ int perf_event__synthesize_build_id(struct perf_tool *tool,
 int perf_event__process_build_id(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_session *session);
+bool is_perf_magic(u64 magic);
 
 /*
  * arch specific callback

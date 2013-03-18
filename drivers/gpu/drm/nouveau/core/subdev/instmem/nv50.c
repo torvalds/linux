@@ -76,7 +76,7 @@ nv50_instobj_dtor(struct nouveau_object *object)
 }
 
 static u32
-nv50_instobj_rd32(struct nouveau_object *object, u32 offset)
+nv50_instobj_rd32(struct nouveau_object *object, u64 offset)
 {
 	struct nv50_instmem_priv *priv = (void *)object->engine;
 	struct nv50_instobj_priv *node = (void *)object;
@@ -96,7 +96,7 @@ nv50_instobj_rd32(struct nouveau_object *object, u32 offset)
 }
 
 static void
-nv50_instobj_wr32(struct nouveau_object *object, u32 offset, u32 data)
+nv50_instobj_wr32(struct nouveau_object *object, u64 offset, u32 data)
 {
 	struct nv50_instmem_priv *priv = (void *)object->engine;
 	struct nv50_instobj_priv *node = (void *)object;

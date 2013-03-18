@@ -123,7 +123,7 @@ static struct rtc_class_ops dm355evm_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit dm355evm_rtc_probe(struct platform_device *pdev)
+static int dm355evm_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
@@ -139,7 +139,7 @@ static int __devinit dm355evm_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit dm355evm_rtc_remove(struct platform_device *pdev)
+static int dm355evm_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
@@ -154,7 +154,7 @@ static int __devexit dm355evm_rtc_remove(struct platform_device *pdev)
  */
 static struct platform_driver rtc_dm355evm_driver = {
 	.probe		= dm355evm_rtc_probe,
-	.remove		= __devexit_p(dm355evm_rtc_remove),
+	.remove		= dm355evm_rtc_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "rtc-dm355evm",

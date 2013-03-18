@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -25,14 +26,15 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/amba/bus.h>
+#include <linux/clk-provider.h>
 
+#include <asm/arch_timer.h>
 #include <asm/cacheflush.h>
+#include <asm/cputype.h>
 #include <asm/smp_plat.h>
-#include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -42,16 +44,7 @@
 #include "sysregs.h"
 
 void __iomem *sregs_base;
-
-#define HB_SCU_VIRT_BASE	0xfee00000
-void __iomem *scu_base_addr = ((void __iomem *)(HB_SCU_VIRT_BASE));
-
-static struct map_desc scu_io_desc __initdata = {
-	.virtual	= HB_SCU_VIRT_BASE,
-	.pfn		= 0, /* run-time */
-	.length		= SZ_4K,
-	.type		= MT_DEVICE,
-};
+void __iomem *scu_base_addr;
 
 static void __init highbank_scu_map_io(void)
 {
@@ -60,14 +53,7 @@ static void __init highbank_scu_map_io(void)
 	/* Get SCU base */
 	asm("mrc p15, 4, %0, c15, c0, 0" : "=r" (base));
 
-	scu_io_desc.pfn = __phys_to_pfn(base);
-	iotable_init(&scu_io_desc, 1);
-}
-
-static void __init highbank_map_io(void)
-{
-	highbank_scu_map_io();
-	highbank_lluart_map_io();
+	scu_base_addr = ioremap(base, SZ_4K);
 }
 
 #define HB_JUMP_TABLE_PHYS(cpu)		(0x40 + (0x10 * (cpu)))
@@ -75,17 +61,12 @@ static void __init highbank_map_io(void)
 
 void highbank_set_cpu_jump(int cpu, void *jump_addr)
 {
-	cpu = cpu_logical_map(cpu);
+	cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(cpu), 0);
 	writel(virt_to_phys(jump_addr), HB_JUMP_TABLE_VIRT(cpu));
 	__cpuc_flush_dcache_area(HB_JUMP_TABLE_VIRT(cpu), 16);
 	outer_clean_range(HB_JUMP_TABLE_PHYS(cpu),
 			  HB_JUMP_TABLE_PHYS(cpu) + 15);
 }
-
-const static struct of_device_id irq_match[] = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{}
-};
 
 #ifdef CONFIG_CACHE_L2X0
 static void highbank_l2x0_disable(void)
@@ -97,7 +78,10 @@ static void highbank_l2x0_disable(void)
 
 static void __init highbank_init_irq(void)
 {
-	of_irq_init(irq_match);
+	irqchip_init();
+
+	if (of_find_compatible_node(NULL, NULL, "arm,cortex-a9"))
+		highbank_scu_map_io();
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Enable PL310 L2 Cache controller */
@@ -128,7 +112,7 @@ static void __init highbank_timer_init(void)
 	WARN_ON(!timer_base);
 	irq = irq_of_parse_and_map(np, 0);
 
-	highbank_clocks_init();
+	of_clk_init(NULL);
 	lookup.clk = of_clk_get(np, 0);
 	clkdev_add(&lookup);
 
@@ -136,16 +120,14 @@ static void __init highbank_timer_init(void)
 	sp804_clockevents_init(timer_base, irq, "timer0");
 
 	twd_local_timer_of_register();
-}
 
-static struct sys_timer highbank_timer = {
-	.init = highbank_timer_init,
-};
+	arch_timer_of_register();
+	arch_timer_sched_clock_init();
+}
 
 static void highbank_power_off(void)
 {
-	hignbank_set_pwr_shutdown();
-	scu_power_mode(scu_base_addr, SCU_PM_POWEROFF);
+	highbank_set_pwr_shutdown();
 
 	while (1)
 		cpu_do_idle();
@@ -211,15 +193,15 @@ static void __init highbank_init(void)
 
 static const char *highbank_match[] __initconst = {
 	"calxeda,highbank",
+	"calxeda,ecx-2000",
 	NULL,
 };
 
 DT_MACHINE_START(HIGHBANK, "Highbank")
 	.smp		= smp_ops(highbank_smp_ops),
-	.map_io		= highbank_map_io,
+	.map_io		= debug_ll_io_init,
 	.init_irq	= highbank_init_irq,
-	.timer		= &highbank_timer,
-	.handle_irq	= gic_handle_irq,
+	.init_time	= highbank_timer_init,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,
 	.restart	= highbank_restart,

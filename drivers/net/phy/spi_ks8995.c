@@ -264,7 +264,7 @@ static struct bin_attribute ks8995_registers_attr = {
 
 /* ------------------------------------------------------------------------ */
 
-static int __devinit ks8995_probe(struct spi_device *spi)
+static int ks8995_probe(struct spi_device *spi)
 {
 	struct ks8995_switch    *ks;
 	struct ks8995_pdata     *pdata;
@@ -275,10 +275,8 @@ static int __devinit ks8995_probe(struct spi_device *spi)
 	pdata = spi->dev.platform_data;
 
 	ks = kzalloc(sizeof(*ks), GFP_KERNEL);
-	if (!ks) {
-		dev_err(&spi->dev, "no memory for private data\n");
+	if (!ks)
 		return -ENOMEM;
-	}
 
 	mutex_init(&ks->lock);
 	ks->pdata = pdata;
@@ -332,7 +330,7 @@ err_drvdata:
 	return err;
 }
 
-static int __devexit ks8995_remove(struct spi_device *spi)
+static int ks8995_remove(struct spi_device *spi)
 {
 	struct ks8995_data      *ks8995;
 
@@ -353,7 +351,7 @@ static struct spi_driver ks8995_driver = {
 		.owner	   = THIS_MODULE,
 	},
 	.probe	  = ks8995_probe,
-	.remove	  = __devexit_p(ks8995_remove),
+	.remove	  = ks8995_remove,
 };
 
 static int __init ks8995_init(void)

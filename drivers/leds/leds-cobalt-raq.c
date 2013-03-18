@@ -76,7 +76,7 @@ static struct led_classdev raq_power_off_led = {
 	.default_trigger	= "power-off",
 };
 
-static int __devinit cobalt_raq_led_probe(struct platform_device *pdev)
+static int cobalt_raq_led_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int retval;
@@ -85,13 +85,13 @@ static int __devinit cobalt_raq_led_probe(struct platform_device *pdev)
 	if (!res)
 		return -EBUSY;
 
-	led_port = ioremap(res->start, resource_size(res));
+	led_port = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!led_port)
 		return -ENOMEM;
 
 	retval = led_classdev_register(&pdev->dev, &raq_power_off_led);
 	if (retval)
-		goto err_iounmap;
+		goto err_null;
 
 	retval = led_classdev_register(&pdev->dev, &raq_web_led);
 	if (retval)
@@ -102,29 +102,26 @@ static int __devinit cobalt_raq_led_probe(struct platform_device *pdev)
 err_unregister:
 	led_classdev_unregister(&raq_power_off_led);
 
-err_iounmap:
-	iounmap(led_port);
+err_null:
 	led_port = NULL;
 
 	return retval;
 }
 
-static int __devexit cobalt_raq_led_remove(struct platform_device *pdev)
+static int cobalt_raq_led_remove(struct platform_device *pdev)
 {
 	led_classdev_unregister(&raq_power_off_led);
 	led_classdev_unregister(&raq_web_led);
 
-	if (led_port) {
-		iounmap(led_port);
+	if (led_port)
 		led_port = NULL;
-	}
 
 	return 0;
 }
 
 static struct platform_driver cobalt_raq_led_driver = {
 	.probe	= cobalt_raq_led_probe,
-	.remove	= __devexit_p(cobalt_raq_led_remove),
+	.remove	= cobalt_raq_led_remove,
 	.driver = {
 		.name	= "cobalt-raq-leds",
 		.owner	= THIS_MODULE,

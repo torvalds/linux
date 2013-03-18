@@ -54,12 +54,7 @@ struct mlx4_mgm {
 
 int mlx4_get_mgm_entry_size(struct mlx4_dev *dev)
 {
-	if (dev->caps.steering_mode ==
-	    MLX4_STEERING_MODE_DEVICE_MANAGED)
-		return 1 << MLX4_FS_MGM_LOG_ENTRY_SIZE;
-	else
-		return min((1 << mlx4_log_num_mgm_entry_size),
-			   MLX4_MAX_MGM_ENTRY_SIZE);
+	return 1 << dev->oper_log_mgm_entry_size;
 }
 
 int mlx4_get_qp_per_mgm(struct mlx4_dev *dev)
@@ -669,7 +664,7 @@ static void trans_rule_ctrl_to_hw(struct mlx4_net_trans_rule *ctrl,
 	dw |= ctrl->priority << 16;
 
 	hw->ctrl = cpu_to_be32(dw);
-	hw->vf_vep_port = cpu_to_be32(ctrl->port);
+	hw->port = ctrl->port;
 	hw->qpn = cpu_to_be32(ctrl->qpn);
 }
 
@@ -1162,7 +1157,7 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			.priority = MLX4_DOMAIN_NIC,
 		};
 
-		rule.allow_loopback = ~block_mcast_loopback;
+		rule.allow_loopback = !block_mcast_loopback;
 		rule.port = port;
 		rule.qpn = qp->qpn;
 		INIT_LIST_HEAD(&rule.list);

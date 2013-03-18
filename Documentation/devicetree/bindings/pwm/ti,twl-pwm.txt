@@ -1,0 +1,17 @@
+Texas Instruments TWL series PWM drivers
+
+Supported PWMs:
+On TWL4030 series: PWM1 and PWM2
+On TWL6030 series: PWM0 and PWM1
+
+Required properties:
+- compatible: "ti,twl4030-pwm" or "ti,twl6030-pwm"
+- #pwm-cells: should be 2.  The first cell specifies the per-chip index
+  of the PWM to use and the second cell is the period in nanoseconds.
+
+Example:
+
+twl_pwm: pwm {
+	compatible = "ti,twl6030-pwm";
+	#pwm-cells = <2>;
+};

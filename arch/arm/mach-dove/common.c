@@ -8,33 +8,24 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/pci.h>
 #include <linux/clk-provider.h>
-#include <linux/ata_platform.h>
-#include <linux/gpio.h>
+#include <linux/clk/mvebu.h>
+#include <linux/dma-mapping.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <asm/page.h>
-#include <asm/setup.h>
-#include <asm/timex.h>
+#include <linux/platform_data/dma-mv_xor.h>
+#include <linux/platform_data/usb-ehci-orion.h>
+#include <linux/platform_device.h>
 #include <asm/hardware/cache-tauros2.h>
+#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/mach/pci.h>
-#include <mach/dove.h>
-#include <mach/pm.h>
 #include <mach/bridge-regs.h>
-#include <asm/mach/arch.h>
-#include <linux/irq.h>
-#include <plat/time.h>
-#include <linux/platform_data/usb-ehci-orion.h>
-#include <plat/irq.h>
+#include <mach/pm.h>
 #include <plat/common.h>
-#include <plat/addr-map.h>
+#include <plat/irq.h>
+#include <plat/time.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -123,8 +114,8 @@ static void __init dove_clk_init(void)
 	orion_clkdev_add(NULL, "mv_crypto", crypto);
 	orion_clkdev_add(NULL, "dove-ac97", ac97);
 	orion_clkdev_add(NULL, "dove-pdma", pdma);
-	orion_clkdev_add(NULL, "mv_xor_shared.0", xor0);
-	orion_clkdev_add(NULL, "mv_xor_shared.1", xor1);
+	orion_clkdev_add(NULL, MV_XOR_NAME ".0", xor0);
+	orion_clkdev_add(NULL, MV_XOR_NAME ".1", xor1);
 }
 
 /*****************************************************************************
@@ -240,16 +231,12 @@ static int __init dove_find_tclk(void)
 	return 166666667;
 }
 
-static void __init dove_timer_init(void)
+void __init dove_timer_init(void)
 {
 	dove_tclk = dove_find_tclk();
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_DOVE_BRIDGE, dove_tclk);
 }
-
-struct sys_timer dove_timer = {
-	.init = dove_timer_init,
-};
 
 /*****************************************************************************
  * Cryptographic Engines and Security Accelerator (CESA)
@@ -373,66 +360,3 @@ void dove_restart(char mode, const char *cmd)
 	while (1)
 		;
 }
-
-#if defined(CONFIG_MACH_DOVE_DT)
-/*
- * Auxdata required until real OF clock provider
- */
-struct of_dev_auxdata dove_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1010600, "orion_spi.0", NULL),
-	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1014600, "orion_spi.1", NULL),
-	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
-	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011000, "mv64xxx_i2c.0",
-		       NULL),
-	OF_DEV_AUXDATA("marvell,orion-sata", 0xf10a0000, "sata_mv.0", NULL),
-	OF_DEV_AUXDATA("marvell,dove-sdhci", 0xf1092000, "sdhci-dove.0", NULL),
-	OF_DEV_AUXDATA("marvell,dove-sdhci", 0xf1090000, "sdhci-dove.1", NULL),
-	{},
-};
-
-static struct mv643xx_eth_platform_data dove_dt_ge00_data = {
-	.phy_addr = MV643XX_ETH_PHY_ADDR_DEFAULT,
-};
-
-static void __init dove_dt_init(void)
-{
-	pr_info("Dove 88AP510 SoC, TCLK = %d MHz.\n",
-		(dove_tclk + 499999) / 1000000);
-
-#ifdef CONFIG_CACHE_TAUROS2
-	tauros2_init(0);
-#endif
-	dove_setup_cpu_mbus();
-
-	/* Setup root of clk tree */
-	dove_clk_init();
-
-	/* Internal devices not ported to DT yet */
-	dove_rtc_init();
-	dove_xor0_init();
-	dove_xor1_init();
-
-	dove_ge00_init(&dove_dt_ge00_data);
-	dove_ehci0_init();
-	dove_ehci1_init();
-	dove_pcie_init(1, 1);
-
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     dove_auxdata_lookup, NULL);
-}
-
-static const char * const dove_dt_board_compat[] = {
-	"marvell,dove",
-	NULL
-};
-
-DT_MACHINE_START(DOVE_DT, "Marvell Dove (Flattened Device Tree)")
-	.map_io		= dove_map_io,
-	.init_early	= dove_init_early,
-	.init_irq	= orion_dt_init_irq,
-	.timer		= &dove_timer,
-	.init_machine	= dove_dt_init,
-	.restart	= dove_restart,
-	.dt_compat	= dove_dt_board_compat,
-MACHINE_END
-#endif

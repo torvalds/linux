@@ -24,6 +24,7 @@ const char perf_more_info_string[] =
 
 int use_browser = -1;
 static int use_pager = -1;
+const char *input_name;
 
 struct cmd_struct {
 	const char *cmd;
@@ -84,21 +85,26 @@ int check_pager_config(const char *cmd)
 	return c.val;
 }
 
-static int tui_command_config(const char *var, const char *value, void *data)
+static int browser_command_config(const char *var, const char *value, void *data)
 {
 	struct pager_config *c = data;
 	if (!prefixcmp(var, "tui.") && !strcmp(var + 4, c->cmd))
 		c->val = perf_config_bool(var, value);
+	if (!prefixcmp(var, "gtk.") && !strcmp(var + 4, c->cmd))
+		c->val = perf_config_bool(var, value) ? 2 : 0;
 	return 0;
 }
 
-/* returns 0 for "no tui", 1 for "use tui", and -1 for "not specified" */
-static int check_tui_config(const char *cmd)
+/*
+ * returns 0 for "no tui", 1 for "use tui", 2 for "use gtk",
+ * and -1 for "not specified"
+ */
+static int check_browser_config(const char *cmd)
 {
 	struct pager_config c;
 	c.cmd = cmd;
 	c.val = -1;
-	perf_config(tui_command_config, &c);
+	perf_config(browser_command_config, &c);
 	return c.val;
 }
 
@@ -301,7 +307,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 		prefix = NULL; /* setup_perf_directory(); */
 
 	if (use_browser == -1)
-		use_browser = check_tui_config(p->cmd);
+		use_browser = check_browser_config(p->cmd);
 
 	if (use_pager == -1 && p->option & RUN_SETUP)
 		use_pager = check_pager_config(p->cmd);
@@ -322,14 +328,23 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	if (S_ISFIFO(st.st_mode) || S_ISSOCK(st.st_mode))
 		return 0;
 
+	status = 1;
 	/* Check for ENOSPC and EIO errors.. */
-	if (fflush(stdout))
-		die("write failure on standard output: %s", strerror(errno));
-	if (ferror(stdout))
-		die("unknown write failure on standard output");
-	if (fclose(stdout))
-		die("close failed on standard output: %s", strerror(errno));
-	return 0;
+	if (fflush(stdout)) {
+		fprintf(stderr, "write failure on standard output: %s", strerror(errno));
+		goto out;
+	}
+	if (ferror(stdout)) {
+		fprintf(stderr, "unknown write failure on standard output");
+		goto out;
+	}
+	if (fclose(stdout)) {
+		fprintf(stderr, "close failed on standard output: %s", strerror(errno));
+		goto out;
+	}
+	status = 0;
+out:
+	return status;
 }
 
 static void handle_internal_command(int argc, const char **argv)
@@ -440,6 +455,8 @@ int main(int argc, const char **argv)
 {
 	const char *cmd;
 
+	page_size = sysconf(_SC_PAGE_SIZE);
+
 	cmd = perf_extract_argv0_path(argv[0]);
 	if (!cmd)
 		cmd = "perf-help";
@@ -459,7 +476,8 @@ int main(int argc, const char **argv)
 		cmd += 5;
 		argv[0] = cmd;
 		handle_internal_command(argc, argv);
-		die("cannot handle %s internally", cmd);
+		fprintf(stderr, "cannot handle %s internally", cmd);
+		goto out;
 	}
 
 	/* Look for flags.. */
@@ -477,9 +495,11 @@ int main(int argc, const char **argv)
 		printf("\n usage: %s\n\n", perf_usage_string);
 		list_common_cmds_help();
 		printf("\n %s\n\n", perf_more_info_string);
-		exit(1);
+		goto out;
 	}
 	cmd = argv[0];
+
+	test_attr__init();
 
 	/*
 	 * We use PATH to find perf commands, but we prepend some higher
@@ -507,7 +527,7 @@ int main(int argc, const char **argv)
 			fprintf(stderr, "Expansion of alias '%s' failed; "
 				"'%s' is not a perf-command\n",
 				cmd, argv[0]);
-			exit(1);
+			goto out;
 		}
 		if (!done_help) {
 			cmd = argv[0] = help_unknown_cmd(cmd);
@@ -518,6 +538,6 @@ int main(int argc, const char **argv)
 
 	fprintf(stderr, "Failed to run command '%s': %s\n",
 		cmd, strerror(errno));
-
+out:
 	return 1;
 }

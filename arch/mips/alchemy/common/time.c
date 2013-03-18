@@ -53,7 +53,7 @@ static struct clocksource au1x_counter1_clocksource = {
 	.read		= au1x_counter1_read,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-	.rating		= 100,
+	.rating		= 1500,
 };
 
 static int au1x_rtcmatch2_set_next_event(unsigned long delta,
@@ -84,8 +84,8 @@ static irqreturn_t au1x_rtcmatch2_irq(int irq, void *dev_id)
 static struct clock_event_device au1x_rtcmatch2_clockdev = {
 	.name		= "rtcmatch2",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.rating		= 100,
-	.set_next_event	= au1x_rtcmatch2_set_next_event,
+	.rating		= 1500,
+	.set_next_event = au1x_rtcmatch2_set_next_event,
 	.set_mode	= au1x_rtcmatch2_set_mode,
 	.cpumask	= cpu_all_mask,
 };
@@ -158,20 +158,6 @@ cntr_err:
 	return -1;
 }
 
-static void __init alchemy_setup_c0timer(void)
-{
-	/*
-	 * MIPS kernel assigns 'au1k_wait' to 'cpu_wait' before this
-	 * function is called.  Because the Alchemy counters are unusable
-	 * the C0 timekeeping code is installed and use of the 'wait'
-	 * instruction must be prohibited, which is done most easily by
-	 * assigning NULL to cpu_wait.
-	 */
-	cpu_wait = NULL;
-	r4k_clockevent_init();
-	init_r4k_clocksource();
-}
-
 static int alchemy_m2inttab[] __initdata = {
 	AU1000_RTC_MATCH2_INT,
 	AU1500_RTC_MATCH2_INT,
@@ -186,8 +172,7 @@ void __init plat_time_init(void)
 	int t;
 
 	t = alchemy_get_cputype();
-	if (t == ALCHEMY_CPU_UNKNOWN)
-		alchemy_setup_c0timer();
-	else if (alchemy_time_init(alchemy_m2inttab[t]))
-		alchemy_setup_c0timer();
+	if (t == ALCHEMY_CPU_UNKNOWN ||
+	    alchemy_time_init(alchemy_m2inttab[t]))
+		cpu_wait = NULL;	/* wait doesn't work with r4k timer */
 }

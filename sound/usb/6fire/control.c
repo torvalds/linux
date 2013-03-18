@@ -411,7 +411,7 @@ static int usb6fire_control_digital_thru_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct __devinitdata snd_kcontrol_new vol_elements[] = {
+static struct snd_kcontrol_new vol_elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Analog Playback Volume",
@@ -451,7 +451,7 @@ static struct __devinitdata snd_kcontrol_new vol_elements[] = {
 	{}
 };
 
-static struct __devinitdata snd_kcontrol_new mute_elements[] = {
+static struct snd_kcontrol_new mute_elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Analog Playback Switch",
@@ -485,7 +485,7 @@ static struct __devinitdata snd_kcontrol_new mute_elements[] = {
 	{}
 };
 
-static struct __devinitdata snd_kcontrol_new elements[] = {
+static struct snd_kcontrol_new elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Line/Phono Capture Route",
@@ -561,7 +561,7 @@ static int usb6fire_control_add_virtual(
 	return 0;
 }
 
-int __devinit usb6fire_control_init(struct sfire_chip *chip)
+int usb6fire_control_init(struct sfire_chip *chip)
 {
 	int i;
 	int ret;

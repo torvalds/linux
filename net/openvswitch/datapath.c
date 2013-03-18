@@ -158,11 +158,10 @@ static struct hlist_head *vport_hash_bucket(const struct datapath *dp,
 struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no)
 {
 	struct vport *vport;
-	struct hlist_node *n;
 	struct hlist_head *head;
 
 	head = vport_hash_bucket(dp, port_no);
-	hlist_for_each_entry_rcu(vport, n, head, dp_hash_node) {
+	hlist_for_each_entry_rcu(vport, head, dp_hash_node) {
 		if (vport->port_no == port_no)
 			return vport;
 	}
@@ -208,7 +207,7 @@ void ovs_dp_process_received_packet(struct vport *p, struct sk_buff *skb)
 	int error;
 	int key_len;
 
-	stats = per_cpu_ptr(dp->stats_percpu, smp_processor_id());
+	stats = this_cpu_ptr(dp->stats_percpu);
 
 	/* Extract flow from 'skb' into 'key'. */
 	error = ovs_flow_extract(skb, p->port_no, &key, &key_len);
@@ -282,7 +281,7 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 	return 0;
 
 err:
-	stats = per_cpu_ptr(dp->stats_percpu, smp_processor_id());
+	stats = this_cpu_ptr(dp->stats_percpu);
 
 	u64_stats_update_begin(&stats->sync);
 	stats->n_lost++;
@@ -301,7 +300,7 @@ static int queue_gso_packets(struct net *net, int dp_ifindex,
 	struct sk_buff *segs, *nskb;
 	int err;
 
-	segs = skb_gso_segment(skb, NETIF_F_SG | NETIF_F_HW_CSUM);
+	segs = __skb_gso_segment(skb, NETIF_F_SG | NETIF_F_HW_CSUM, false);
 	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 
@@ -479,8 +478,10 @@ static int validate_set(const struct nlattr *a,
 
 	switch (key_type) {
 	const struct ovs_key_ipv4 *ipv4_key;
+	const struct ovs_key_ipv6 *ipv6_key;
 
 	case OVS_KEY_ATTR_PRIORITY:
+	case OVS_KEY_ATTR_SKB_MARK:
 	case OVS_KEY_ATTR_ETHERNET:
 		break;
 
@@ -496,6 +497,25 @@ static int validate_set(const struct nlattr *a,
 			return -EINVAL;
 
 		if (ipv4_key->ipv4_frag != flow_key->ip.frag)
+			return -EINVAL;
+
+		break;
+
+	case OVS_KEY_ATTR_IPV6:
+		if (flow_key->eth.type != htons(ETH_P_IPV6))
+			return -EINVAL;
+
+		if (!flow_key->ip.proto)
+			return -EINVAL;
+
+		ipv6_key = nla_data(ovs_key);
+		if (ipv6_key->ipv6_proto != flow_key->ip.proto)
+			return -EINVAL;
+
+		if (ipv6_key->ipv6_frag != flow_key->ip.frag)
+			return -EINVAL;
+
+		if (ntohl(ipv6_key->ipv6_label) & 0xFFF00000)
 			return -EINVAL;
 
 		break;
@@ -675,6 +695,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 		goto err_flow_free;
 
 	err = ovs_flow_metadata_from_nlattrs(&flow->key.phy.priority,
+					     &flow->key.phy.skb_mark,
 					     &flow->key.phy.in_port,
 					     a[OVS_PACKET_ATTR_KEY]);
 	if (err)
@@ -694,6 +715,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 
 	OVS_CB(packet)->flow = flow;
 	packet->priority = flow->key.phy.priority;
+	packet->mark = flow->key.phy.skb_mark;
 
 	rcu_read_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
@@ -1363,9 +1385,9 @@ static void __dp_destroy(struct datapath *dp)
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;
-		struct hlist_node *node, *n;
+		struct hlist_node *n;
 
-		hlist_for_each_entry_safe(vport, node, n, &dp->ports[i], dp_hash_node)
+		hlist_for_each_entry_safe(vport, n, &dp->ports[i], dp_hash_node)
 			if (vport->port_no != OVSP_LOCAL)
 				ovs_dp_detach_port(vport);
 	}
@@ -1802,10 +1824,9 @@ static int ovs_vport_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	rcu_read_lock();
 	for (i = bucket; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;
-		struct hlist_node *n;
 
 		j = 0;
-		hlist_for_each_entry_rcu(vport, n, &dp->ports[i], dp_hash_node) {
+		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node) {
 			if (j >= skip &&
 			    ovs_vport_cmd_fill_info(vport, skb,
 						    NETLINK_CB(cb->skb).portid,
@@ -1966,10 +1987,9 @@ static struct pernet_operations ovs_net_ops = {
 
 static int __init dp_init(void)
 {
-	struct sk_buff *dummy_skb;
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	pr_info("Open vSwitch switching datapath\n");
 

@@ -2873,22 +2873,20 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	ret = 0;
 
-	if (fll1 & WM8962_FLL_ENA) {
-		/* This should be a massive overestimate but go even
-		 * higher if we'll error out
-		 */
-		if (wm8962->irq)
-			timeout = msecs_to_jiffies(5);
-		else
-			timeout = msecs_to_jiffies(1);
+	/* This should be a massive overestimate but go even
+	 * higher if we'll error out
+	 */
+	if (wm8962->irq)
+		timeout = msecs_to_jiffies(5);
+	else
+		timeout = msecs_to_jiffies(1);
 
-		timeout = wait_for_completion_timeout(&wm8962->fll_lock,
-						      timeout);
+	timeout = wait_for_completion_timeout(&wm8962->fll_lock,
+					      timeout);
 
-		if (timeout == 0 && wm8962->irq) {
-			dev_err(codec->dev, "FLL lock timed out");
-			ret = -ETIMEDOUT;
-		}
+	if (timeout == 0 && wm8962->irq) {
+		dev_err(codec->dev, "FLL lock timed out");
+		ret = -ETIMEDOUT;
 	}
 
 	wm8962->fll_fref = Fref;
@@ -3189,7 +3187,7 @@ static void wm8962_init_beep(struct snd_soc_codec *codec)
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	wm8962->beep = input_allocate_device();
+	wm8962->beep = devm_input_allocate_device(codec->dev);
 	if (!wm8962->beep) {
 		dev_err(codec->dev, "Failed to allocate beep device\n");
 		return;
@@ -3210,7 +3208,6 @@ static void wm8962_init_beep(struct snd_soc_codec *codec)
 
 	ret = input_register_device(wm8962->beep);
 	if (ret != 0) {
-		input_free_device(wm8962->beep);
 		wm8962->beep = NULL;
 		dev_err(codec->dev, "Failed to register beep device\n");
 	}
@@ -3227,7 +3224,6 @@ static void wm8962_free_beep(struct snd_soc_codec *codec)
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 
 	device_remove_file(codec->dev, &dev_attr_beep);
-	input_unregister_device(wm8962->beep);
 	cancel_work_sync(&wm8962->beep_work);
 	wm8962->beep = NULL;
 
@@ -3588,8 +3584,8 @@ static const struct regmap_config wm8962_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8962_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8962_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8962_priv *wm8962;
@@ -3610,7 +3606,7 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(wm8962->supplies); i++)
 		wm8962->supplies[i].supply = wm8962_supply_names[i];
 
-	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8962->supplies),
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8962->supplies),
 				 wm8962->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
@@ -3621,10 +3617,10 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 				    wm8962->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
+		return ret;
 	}
 
-	wm8962->regmap = regmap_init_i2c(i2c, &wm8962_regmap);
+	wm8962->regmap = devm_regmap_init_i2c(i2c, &wm8962_regmap);
 	if (IS_ERR(wm8962->regmap)) {
 		ret = PTR_ERR(wm8962->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
@@ -3641,20 +3637,20 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 	ret = regmap_read(wm8962->regmap, WM8962_SOFTWARE_RESET, &reg);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to read ID register\n");
-		goto err_regmap;
+		goto err_enable;
 	}
 	if (reg != 0x6243) {
 		dev_err(&i2c->dev,
 			"Device is not a WM8962, ID %x != 0x6243\n", reg);
 		ret = -EINVAL;
-		goto err_regmap;
+		goto err_enable;
 	}
 
 	ret = regmap_read(wm8962->regmap, WM8962_RIGHT_INPUT_VOLUME, &reg);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to read device revision: %d\n",
 			ret);
-		goto err_regmap;
+		goto err_enable;
 	}
 
 	dev_info(&i2c->dev, "customer id %x revision %c\n",
@@ -3667,7 +3663,7 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 	ret = wm8962_reset(wm8962);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to issue reset\n");
-		goto err_regmap;
+		goto err_enable;
 	}
 
 	if (pdata && pdata->in4_dc_measure) {
@@ -3686,30 +3682,22 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8962, &wm8962_dai, 1);
 	if (ret < 0)
-		goto err_regmap;
+		goto err_enable;
 
 	/* The drivers should power up as needed */
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 
 	return 0;
 
-err_regmap:
-	regmap_exit(wm8962->regmap);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 err:
 	return ret;
 }
 
-static __devexit int wm8962_i2c_remove(struct i2c_client *client)
+static int wm8962_i2c_remove(struct i2c_client *client)
 {
-	struct wm8962_priv *wm8962 = dev_get_drvdata(&client->dev);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(wm8962->regmap);
-	regulator_bulk_free(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 	return 0;
 }
 
@@ -3766,14 +3754,21 @@ static const struct i2c_device_id wm8962_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8962_i2c_id);
 
+static const struct of_device_id wm8962_of_match[] = {
+	{ .compatible = "wlf,wm8962", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8962_of_match);
+
 static struct i2c_driver wm8962_i2c_driver = {
 	.driver = {
 		.name = "wm8962",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8962_of_match,
 		.pm = &wm8962_pm,
 	},
 	.probe =    wm8962_i2c_probe,
-	.remove =   __devexit_p(wm8962_i2c_remove),
+	.remove =   wm8962_i2c_remove,
 	.id_table = wm8962_i2c_id,
 };
 

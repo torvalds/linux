@@ -408,8 +408,8 @@ static void pci_fire_hw_init(struct pci_pbm_info *pbm)
 	upa_writeq(~(u64)0, pbm->pbm_regs + FIRE_PEC_IENAB);
 }
 
-static int __devinit pci_fire_pbm_init(struct pci_pbm_info *pbm,
-				       struct platform_device *op, u32 portid)
+static int pci_fire_pbm_init(struct pci_pbm_info *pbm,
+			     struct platform_device *op, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
 	struct device_node *dp = op->dev.of_node;
@@ -454,7 +454,7 @@ static int __devinit pci_fire_pbm_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static int __devinit fire_probe(struct platform_device *op)
+static int fire_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct pci_pbm_info *pbm;

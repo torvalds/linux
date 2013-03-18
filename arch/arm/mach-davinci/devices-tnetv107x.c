@@ -374,7 +374,7 @@ void __init tnetv107x_devices_init(struct tnetv107x_device_info *info)
 	 * complete sample conversion in time.
 	 */
 	tsc_clk = clk_get(NULL, "sys_tsc_clk");
-	if (tsc_clk) {
+	if (!IS_ERR(tsc_clk)) {
 		error = clk_set_rate(tsc_clk, 5000000);
 		WARN_ON(error < 0);
 		clk_put(tsc_clk);

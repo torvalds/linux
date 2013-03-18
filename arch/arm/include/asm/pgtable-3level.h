@@ -67,7 +67,8 @@
  * These bits overlap with the hardware bits but the naming is preserved for
  * consistency with the classic page table format.
  */
-#define L_PTE_PRESENT		(_AT(pteval_t, 3) << 0)		/* Valid */
+#define L_PTE_VALID		(_AT(pteval_t, 1) << 0)		/* Valid */
+#define L_PTE_PRESENT		(_AT(pteval_t, 3) << 0)		/* Present */
 #define L_PTE_FILE		(_AT(pteval_t, 1) << 2)		/* only when !PRESENT */
 #define L_PTE_USER		(_AT(pteval_t, 1) << 6)		/* AP[1] */
 #define L_PTE_RDONLY		(_AT(pteval_t, 1) << 7)		/* AP[2] */
@@ -76,6 +77,7 @@
 #define L_PTE_XN		(_AT(pteval_t, 1) << 54)	/* XN */
 #define L_PTE_DIRTY		(_AT(pteval_t, 1) << 55)	/* unused */
 #define L_PTE_SPECIAL		(_AT(pteval_t, 1) << 56)	/* unused */
+#define L_PTE_NONE		(_AT(pteval_t, 1) << 57)	/* PROT_NONE */
 
 /*
  * To be used in assembly code with the upper page attributes.
@@ -102,11 +104,29 @@
  */
 #define L_PGD_SWAPPER		(_AT(pgdval_t, 1) << 55)	/* swapper_pg_dir entry */
 
+/*
+ * 2nd stage PTE definitions for LPAE.
+ */
+#define L_PTE_S2_MT_UNCACHED	 (_AT(pteval_t, 0x5) << 2) /* MemAttr[3:0] */
+#define L_PTE_S2_MT_WRITETHROUGH (_AT(pteval_t, 0xa) << 2) /* MemAttr[3:0] */
+#define L_PTE_S2_MT_WRITEBACK	 (_AT(pteval_t, 0xf) << 2) /* MemAttr[3:0] */
+#define L_PTE_S2_RDONLY		 (_AT(pteval_t, 1) << 6)   /* HAP[1]   */
+#define L_PTE_S2_RDWR		 (_AT(pteval_t, 2) << 6)   /* HAP[2:1] */
+
+/*
+ * Hyp-mode PL2 PTE definitions for LPAE.
+ */
+#define L_PTE_HYP		L_PTE_USER
+
 #ifndef __ASSEMBLY__
 
 #define pud_none(pud)		(!pud_val(pud))
 #define pud_bad(pud)		(!(pud_val(pud) & 2))
 #define pud_present(pud)	(pud_val(pud))
+#define pmd_table(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
+						 PMD_TYPE_TABLE)
+#define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
+						 PMD_TYPE_SECT)
 
 #define pud_clear(pudp)			\
 	do {				\

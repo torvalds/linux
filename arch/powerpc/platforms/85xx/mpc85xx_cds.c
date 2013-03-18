@@ -154,7 +154,7 @@ static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 	}
 }
 
-static void __devinit skip_fake_bridge(struct pci_dev *dev)
+static void skip_fake_bridge(struct pci_dev *dev)
 {
 	/* Make it an error to skip the fake bridge
 	 * in pci_setup_device() in probe.c */

@@ -3,8 +3,8 @@
 /*this is transmit call-back(BULK OUT)*/
 static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
-	PUSB_TCB pTcb= (PUSB_TCB)urb->context;
-	PS_INTERFACE_ADAPTER psIntfAdapter = pTcb->psIntfAdapter;
+	struct bcm_usb_tcb *pTcb= (struct bcm_usb_tcb *)urb->context;
+	struct bcm_interface_adapter *psIntfAdapter = pTcb->psIntfAdapter;
 	struct bcm_link_request *pControlMsg = (struct bcm_link_request *)urb->transfer_buffer;
 	struct bcm_mini_adapter *psAdapter = psIntfAdapter->psAdapter ;
 	BOOLEAN bpowerDownMsg = FALSE ;
@@ -107,9 +107,9 @@ err_exit :
 }
 
 
-static PUSB_TCB GetBulkOutTcb(PS_INTERFACE_ADAPTER psIntfAdapter)
+static struct bcm_usb_tcb *GetBulkOutTcb(struct bcm_interface_adapter *psIntfAdapter)
 {
-	PUSB_TCB pTcb = NULL;
+	struct bcm_usb_tcb *pTcb = NULL;
 	UINT index = 0;
 
 	if((atomic_read(&psIntfAdapter->uNumTcbUsed) < MAXIMUM_USB_TCB) &&
@@ -128,7 +128,7 @@ static PUSB_TCB GetBulkOutTcb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	return pTcb;
 }
 
-static int TransmitTcb(PS_INTERFACE_ADAPTER psIntfAdapter, PUSB_TCB pTcb, PVOID data, int len)
+static int TransmitTcb(struct bcm_interface_adapter *psIntfAdapter, struct bcm_usb_tcb *pTcb, PVOID data, int len)
 {
 
 	struct urb *urb = pTcb->urb;
@@ -182,9 +182,9 @@ static int TransmitTcb(PS_INTERFACE_ADAPTER psIntfAdapter, PUSB_TCB pTcb, PVOID 
 
 int InterfaceTransmitPacket(PVOID arg, PVOID data, UINT len)
 {
-	PUSB_TCB pTcb= NULL;
+	struct bcm_usb_tcb *pTcb= NULL;
 
-	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
+	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
 	pTcb= GetBulkOutTcb(psIntfAdapter);
 	if(pTcb == NULL)
 	{

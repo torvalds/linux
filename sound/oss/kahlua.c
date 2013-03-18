@@ -43,7 +43,7 @@
  *	not real hardware.
  */
 
-static u8 __devinit mixer_read(unsigned long io, u8 reg)
+static u8 mixer_read(unsigned long io, u8 reg)
 {
 	outb(reg, io + 4);
 	udelay(20);
@@ -52,7 +52,7 @@ static u8 __devinit mixer_read(unsigned long io, u8 reg)
 	return reg;
 }
 
-static int __devinit probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct address_info *hw_config;
 	unsigned long base;
@@ -183,7 +183,7 @@ err_out_free:
 	return 1;
 }
 
-static void __devexit remove_one(struct pci_dev *pdev)
+static void remove_one(struct pci_dev *pdev)
 {
 	struct address_info *hw_config = pci_get_drvdata(pdev);
 	sb_dsp_unload(hw_config, 0);
@@ -210,7 +210,7 @@ static struct pci_driver kahlua_driver = {
 	.name		= "kahlua",
 	.id_table	= id_tbl,
 	.probe		= probe_one,
-	.remove		= __devexit_p(remove_one),
+	.remove		= remove_one,
 };
 
 
@@ -220,7 +220,7 @@ static int __init kahlua_init_module(void)
 	return pci_register_driver(&kahlua_driver);
 }
 
-static void __devexit kahlua_cleanup_module(void)
+static void kahlua_cleanup_module(void)
 {
 	pci_unregister_driver(&kahlua_driver);
 }

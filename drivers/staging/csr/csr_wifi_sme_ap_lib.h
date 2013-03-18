@@ -22,11 +22,6 @@
 #include "csr_wifi_sme_ap_prim.h"
 #include "csr_wifi_sme_task.h"
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_AP_ENABLE
 #error CSR_WIFI_AP_ENABLE MUST be defined inorder to use csr_wifi_sme_ap_lib.h
 #endif
@@ -775,9 +770,5 @@ extern const char *CsrWifiSmeApDownstreamPrimNames[CSR_WIFI_SME_AP_PRIM_DOWNSTRE
 #define CsrWifiSmeApWpsRegistrationStartedCfmSend(dst__, interfaceTag__, status__) \
     CsrWifiSmeApWpsRegistrationStartedCfmSendTo(dst__, CSR_WIFI_SME_IFACEQUEUE, interfaceTag__, status__)
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_SME_AP_LIB_H__ */

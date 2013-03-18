@@ -60,8 +60,7 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
-static int __devinit
-ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
@@ -95,9 +94,9 @@ static int ast_drm_thaw(struct drm_device *dev)
 	ast_post_gpu(dev);
 
 	drm_mode_config_reset(dev);
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	drm_helper_resume_force_mode(dev);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
 	console_lock();
 	ast_fbdev_set_suspend(dev, 0);

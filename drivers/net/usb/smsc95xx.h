@@ -53,6 +53,11 @@
 #define ID_REV_CHIP_ID_MASK_		(0xFFFF0000)
 #define ID_REV_CHIP_REV_MASK_		(0x0000FFFF)
 #define ID_REV_CHIP_ID_9500_		(0x9500)
+#define ID_REV_CHIP_ID_9500A_		(0x9E00)
+#define ID_REV_CHIP_ID_9512_		(0xEC00)
+#define ID_REV_CHIP_ID_9530_		(0x9530)
+#define ID_REV_CHIP_ID_89530_		(0x9E08)
+#define ID_REV_CHIP_ID_9730_		(0x9730)
 
 #define INT_STS				(0x08)
 #define INT_STS_TX_STOP_		(0x00020000)
@@ -203,8 +208,11 @@
 #define VLAN2				(0x124)
 
 #define WUFF				(0x128)
+#define LAN9500_WUFF_NUM		(4)
+#define LAN9500A_WUFF_NUM		(8)
 
 #define WUCSR				(0x12C)
+#define WUCSR_WFF_PTR_RST_		(0x80000000)
 #define WUCSR_GUE_			(0x00000200)
 #define WUCSR_WUFR_			(0x00000040)
 #define WUCSR_MPR_			(0x00000020)
@@ -217,6 +225,23 @@
 #define Rx_COE_EN_			(0x00000001)
 
 /* Vendor-specific PHY Definitions */
+
+/* EDPD NLP / crossover time configuration (LAN9500A only) */
+#define PHY_EDPD_CONFIG			(16)
+#define PHY_EDPD_CONFIG_TX_NLP_EN_	((u16)0x8000)
+#define PHY_EDPD_CONFIG_TX_NLP_1000_	((u16)0x0000)
+#define PHY_EDPD_CONFIG_TX_NLP_768_	((u16)0x2000)
+#define PHY_EDPD_CONFIG_TX_NLP_512_	((u16)0x4000)
+#define PHY_EDPD_CONFIG_TX_NLP_256_	((u16)0x6000)
+#define PHY_EDPD_CONFIG_RX_1_NLP_	((u16)0x1000)
+#define PHY_EDPD_CONFIG_RX_NLP_64_	((u16)0x0000)
+#define PHY_EDPD_CONFIG_RX_NLP_256_	((u16)0x0400)
+#define PHY_EDPD_CONFIG_RX_NLP_512_	((u16)0x0800)
+#define PHY_EDPD_CONFIG_RX_NLP_1000_	((u16)0x0C00)
+#define PHY_EDPD_CONFIG_EXT_CROSSOVER_	((u16)0x0001)
+#define PHY_EDPD_CONFIG_DEFAULT		(PHY_EDPD_CONFIG_TX_NLP_EN_ | \
+					 PHY_EDPD_CONFIG_TX_NLP_768_ | \
+					 PHY_EDPD_CONFIG_RX_1_NLP_)
 
 /* Mode Control/Status Register */
 #define PHY_MODE_CTRL_STS		(17)

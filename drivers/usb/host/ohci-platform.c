@@ -13,6 +13,7 @@
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ohci_pdriver.h>
 
@@ -31,6 +32,10 @@ static int ohci_platform_reset(struct usb_hcd *hcd)
 		ohci->flags |= OHCI_QUIRK_FRAME_NO;
 
 	ohci_hcd_init(ohci);
+
+	if (pdata->num_ports)
+		ohci->num_ports = pdata->num_ports;
+
 	err = ohci_init(ohci);
 
 	return err;
@@ -79,7 +84,7 @@ static const struct hc_driver ohci_platform_hc_driver = {
 	.start_port_reset	= ohci_start_port_reset,
 };
 
-static int __devinit ohci_platform_probe(struct platform_device *dev)
+static int ohci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res_mem;
@@ -97,13 +102,13 @@ static int __devinit ohci_platform_probe(struct platform_device *dev)
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0) {
-		pr_err("no irq provided");
+		dev_err(&dev->dev, "no irq provided");
 		return irq;
 	}
 
 	res_mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		pr_err("no memory recourse provided");
+		dev_err(&dev->dev, "no memory resource provided");
 		return -ENXIO;
 	}
 
@@ -123,29 +128,19 @@ static int __devinit ohci_platform_probe(struct platform_device *dev)
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		pr_err("controller already in use");
-		err = -EBUSY;
+	hcd->regs = devm_ioremap_resource(&dev->dev, res_mem);
+	if (IS_ERR(hcd->regs)) {
+		err = PTR_ERR(hcd->regs);
 		goto err_put_hcd;
-	}
-
-	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		err = -ENOMEM;
-		goto err_release_region;
 	}
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
-		goto err_iounmap;
+		goto err_put_hcd;
 
 	platform_set_drvdata(dev, hcd);
 
 	return err;
 
-err_iounmap:
-	iounmap(hcd->regs);
-err_release_region:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err_put_hcd:
 	usb_put_hcd(hcd);
 err_power:
@@ -155,14 +150,12 @@ err_power:
 	return err;
 }
 
-static int __devexit ohci_platform_remove(struct platform_device *dev)
+static int ohci_platform_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct usb_ohci_pdata *pdata = dev->dev.platform_data;
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 	platform_set_drvdata(dev, NULL);
 
@@ -199,7 +192,7 @@ static int ohci_platform_resume(struct device *dev)
 			return err;
 	}
 
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 	return 0;
 }
 
@@ -222,7 +215,7 @@ static const struct dev_pm_ops ohci_platform_pm_ops = {
 static struct platform_driver ohci_platform_driver = {
 	.id_table	= ohci_platform_table,
 	.probe		= ohci_platform_probe,
-	.remove		= __devexit_p(ohci_platform_remove),
+	.remove		= ohci_platform_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

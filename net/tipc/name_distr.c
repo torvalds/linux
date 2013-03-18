@@ -262,7 +262,7 @@ void tipc_named_node_up(unsigned long nodearg)
 	named_distribute(&message_list, node, &publ_zone, max_item_buf);
 	read_unlock_bh(&tipc_nametbl_lock);
 
-	tipc_link_send_names(&message_list, (u32)node);
+	tipc_link_send_names(&message_list, node);
 }
 
 /**

@@ -1308,65 +1308,28 @@ static void init_controller(struct fusb300 *fusb300)
 	iowrite32(0xcfffff9f, fusb300->reg + FUSB300_OFFSET_IGER1);
 }
 /*------------------------------------------------------------------------*/
-static struct fusb300 *the_controller;
-
-static int fusb300_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int fusb300_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct fusb300 *fusb300 = the_controller;
-	int retval;
-
-	if (!driver
-			|| driver->max_speed < USB_SPEED_FULL
-			|| !bind
-			|| !driver->setup)
-		return -EINVAL;
-
-	if (!fusb300)
-		return -ENODEV;
-
-	if (fusb300->driver)
-		return -EBUSY;
+	struct fusb300 *fusb300 = to_fusb300(g);
 
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	fusb300->driver = driver;
 	fusb300->gadget.dev.driver = &driver->driver;
 
-	retval = device_add(&fusb300->gadget.dev);
-	if (retval) {
-		pr_err("device_add error (%d)\n", retval);
-		goto error;
-	}
-
-	retval = bind(&fusb300->gadget, driver);
-	if (retval) {
-		pr_err("bind to driver error (%d)\n", retval);
-		device_del(&fusb300->gadget.dev);
-		goto error;
-	}
-
 	return 0;
-
-error:
-	fusb300->driver = NULL;
-	fusb300->gadget.dev.driver = NULL;
-
-	return retval;
 }
 
-static int fusb300_udc_stop(struct usb_gadget_driver *driver)
+static int fusb300_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct fusb300 *fusb300 = the_controller;
-
-	if (driver != fusb300->driver || !driver->unbind)
-		return -EINVAL;
+	struct fusb300 *fusb300 = to_fusb300(g);
 
 	driver->unbind(&fusb300->gadget);
 	fusb300->gadget.dev.driver = NULL;
 
 	init_controller(fusb300);
-	device_del(&fusb300->gadget.dev);
 	fusb300->driver = NULL;
 
 	return 0;
@@ -1378,10 +1341,10 @@ static int fusb300_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-static struct usb_gadget_ops fusb300_gadget_ops = {
+static const struct usb_gadget_ops fusb300_gadget_ops = {
 	.pullup		= fusb300_udc_pullup,
-	.start		= fusb300_udc_start,
-	.stop		= fusb300_udc_stop,
+	.udc_start	= fusb300_udc_start,
+	.udc_stop	= fusb300_udc_stop,
 };
 
 static int __exit fusb300_remove(struct platform_device *pdev)
@@ -1505,8 +1468,6 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	fusb300->gadget.ep0 = &fusb300->ep[0]->ep;
 	INIT_LIST_HEAD(&fusb300->gadget.ep0->ep_list);
 
-	the_controller = fusb300;
-
 	fusb300->ep0_req = fusb300_alloc_request(&fusb300->ep[0]->ep,
 				GFP_KERNEL);
 	if (fusb300->ep0_req == NULL)
@@ -1517,9 +1478,19 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_add_udc;
 
+	ret = device_add(&fusb300->gadget.dev);
+	if (ret) {
+		pr_err("device_add error (%d)\n", ret);
+		goto err_add_device;
+	}
+
 	dev_info(&pdev->dev, "version %s\n", DRIVER_VERSION);
 
 	return 0;
+
+err_add_device:
+	usb_del_gadget_udc(&fusb300->gadget);
+
 err_add_udc:
 	fusb300_free_request(&fusb300->ep[0]->ep, fusb300->ep0_req);
 
@@ -1547,15 +1518,4 @@ static struct platform_driver fusb300_driver = {
 	},
 };
 
-static int __init fusb300_udc_init(void)
-{
-	return platform_driver_probe(&fusb300_driver, fusb300_probe);
-}
-
-module_init(fusb300_udc_init);
-
-static void __exit fusb300_udc_cleanup(void)
-{
-	platform_driver_unregister(&fusb300_driver);
-}
-module_exit(fusb300_udc_cleanup);
+module_platform_driver_probe(fusb300_driver, fusb300_probe);

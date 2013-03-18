@@ -13,10 +13,6 @@
 
 #include "csr_result.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* THIS FILE SHOULD CONTAIN ONLY RESULT CODES */
 
 /* Result Codes */
@@ -26,10 +22,6 @@ extern "C" {
 #define CSR_WIFI_HIP_RESULT_NO_MEMORY        ((CsrResult) 4) /* Fatal error, no memory */
 #define CSR_WIFI_HIP_RESULT_RANGE            ((CsrResult) 5) /* Request exceeds the range of a file or a buffer */
 #define CSR_WIFI_HIP_RESULT_NOT_FOUND        ((CsrResult) 6) /* A file (typically a f/w patch) is not found */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_RESULT_H__ */
 

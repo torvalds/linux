@@ -436,8 +436,8 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4535 = {
 	.num_dapm_routes = ARRAY_SIZE(ak4535_audio_map),
 };
 
-static __devinit int ak4535_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int ak4535_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct ak4535_priv *ak4535;
 	int ret;
@@ -447,7 +447,7 @@ static __devinit int ak4535_i2c_probe(struct i2c_client *i2c,
 	if (ak4535 == NULL)
 		return -ENOMEM;
 
-	ak4535->regmap = regmap_init_i2c(i2c, &ak4535_regmap);
+	ak4535->regmap = devm_regmap_init_i2c(i2c, &ak4535_regmap);
 	if (IS_ERR(ak4535->regmap)) {
 		ret = PTR_ERR(ak4535->regmap);
 		dev_err(&i2c->dev, "Failed to init regmap: %d\n", ret);
@@ -458,18 +458,13 @@ static __devinit int ak4535_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_ak4535, &ak4535_dai, 1);
-	if (ret != 0)
-		regmap_exit(ak4535->regmap);
 
 	return ret;
 }
 
-static __devexit int ak4535_i2c_remove(struct i2c_client *client)
+static int ak4535_i2c_remove(struct i2c_client *client)
 {
-	struct ak4535_priv *ak4535 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(ak4535->regmap);
 	return 0;
 }
 
@@ -485,7 +480,7 @@ static struct i2c_driver ak4535_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    ak4535_i2c_probe,
-	.remove =   __devexit_p(ak4535_i2c_remove),
+	.remove =   ak4535_i2c_remove,
 	.id_table = ak4535_i2c_id,
 };
 

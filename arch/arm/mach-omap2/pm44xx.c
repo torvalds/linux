@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <asm/system_misc.h>
 
+#include "soc.h"
 #include "common.h"
 #include "clockdomain.h"
 #include "powerdomain.h"
@@ -76,10 +77,20 @@ static int omap4_pm_suspend(void)
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 		pwrdm_set_logic_retst(pwrst->pwrdm, pwrst->saved_logic_state);
 	}
-	if (ret)
+	if (ret) {
 		pr_crit("Could not enter target state in pm_suspend\n");
-	else
+		/*
+		 * OMAP4 chip PM currently works only with certain (newer)
+		 * versions of bootloaders. This is due to missing code in the
+		 * kernel to properly reset and initialize some devices.
+		 * Warn the user about the bootloader version being one of the
+		 * possible causes.
+		 * http://www.spinics.net/lists/arm-kernel/msg218641.html
+		 */
+		pr_warn("A possible cause could be an old bootloader - try u-boot >= v2012.07\n");
+	} else {
 		pr_info("Successfully put all powerdomains to target state\n");
+	}
 
 	return 0;
 }
@@ -98,13 +109,6 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	 * further down in the code path
 	 */
 	if (!strncmp(pwrdm->name, "cpu", 3))
-		return 0;
-
-	/*
-	 * FIXME: Remove this check when core retention is supported
-	 * Only MPUSS power domain is added in the list.
-	 */
-	if (strcmp(pwrdm->name, "mpu_pwrdm"))
 		return 0;
 
 	pwrst = kmalloc(sizeof(struct power_state), GFP_ATOMIC);
@@ -152,6 +156,13 @@ int __init omap4_pm_init(void)
 	}
 
 	pr_err("Power Management for TI OMAP4.\n");
+	/*
+	 * OMAP4 chip PM currently works only with certain (newer)
+	 * versions of bootloaders. This is due to missing code in the
+	 * kernel to properly reset and initialize some devices.
+	 * http://www.spinics.net/lists/arm-kernel/msg218641.html
+	 */
+	pr_warn("OMAP4 PM: u-boot >= v2012.07 is required for full PM support\n");
 
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {

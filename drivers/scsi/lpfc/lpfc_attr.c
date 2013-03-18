@@ -3618,6 +3618,77 @@ static DEVICE_ATTR(lpfc_sriov_nr_virtfn, S_IRUGO | S_IWUSR,
 		   lpfc_sriov_nr_virtfn_show, lpfc_sriov_nr_virtfn_store);
 
 /**
+ * lpfc_request_firmware_store - Request for Linux generic firmware upgrade
+ *
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: containing the string the number of vfs to be enabled.
+ * @count: unused variable.
+ *
+ * Description:
+ *
+ * Returns:
+ * length of the buf on success if val is in range the intended mode
+ * is supported.
+ * -EINVAL if val out of range or intended mode is not supported.
+ **/
+static ssize_t
+lpfc_request_firmware_upgrade_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba *phba = vport->phba;
+	int val = 0, rc = -EINVAL;
+
+	/* Sanity check on user data */
+	if (!isdigit(buf[0]))
+		return -EINVAL;
+	if (sscanf(buf, "%i", &val) != 1)
+		return -EINVAL;
+	if (val != 1)
+		return -EINVAL;
+
+	rc = lpfc_sli4_request_firmware_update(phba, RUN_FW_UPGRADE);
+	if (rc)
+		rc = -EPERM;
+	else
+		rc = strlen(buf);
+	return rc;
+}
+
+static int lpfc_req_fw_upgrade;
+module_param(lpfc_req_fw_upgrade, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(lpfc_req_fw_upgrade, "Enable Linux generic firmware upgrade");
+lpfc_param_show(request_firmware_upgrade)
+
+/**
+ * lpfc_request_firmware_upgrade_init - Enable initial linux generic fw upgrade
+ * @phba: lpfc_hba pointer.
+ * @val: 0 or 1.
+ *
+ * Description:
+ * Set the initial Linux generic firmware upgrade enable or disable flag.
+ *
+ * Returns:
+ * zero if val saved.
+ * -EINVAL val out of range
+ **/
+static int
+lpfc_request_firmware_upgrade_init(struct lpfc_hba *phba, int val)
+{
+	if (val >= 0 && val <= 1) {
+		phba->cfg_request_firmware_upgrade = val;
+		return 0;
+	}
+	return -EINVAL;
+}
+static DEVICE_ATTR(lpfc_req_fw_upgrade, S_IRUGO | S_IWUSR,
+		   lpfc_request_firmware_upgrade_show,
+		   lpfc_request_firmware_upgrade_store);
+
+/**
  * lpfc_fcp_imax_store
  *
  * @dev: class device that is converted into a Scsi_host.
@@ -3786,6 +3857,16 @@ LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 */
 LPFC_ATTR_RW(fcp_io_sched, 0, 0, 1, "Determine scheduling algrithmn for "
 		"issuing commands [0] - Round Robin, [1] - Current CPU");
+
+/*
+# lpfc_fcp2_no_tgt_reset: Determine bus reset behavior
+# range is [0,1]. Default value is 0.
+# For [0], bus reset issues target reset to ALL devices
+# For [1], bus reset issues target reset to non-FCP2 devices
+*/
+LPFC_ATTR_RW(fcp2_no_tgt_reset, 0, 0, 1, "Determine bus reset behavior for "
+	     "FCP2 devices [0] - issue tgt reset, [1] - no tgt reset");
+
 
 /*
 # lpfc_cr_delay & lpfc_cr_count: Default values for I/O colaesing
@@ -4029,6 +4110,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_scan_down,
 	&dev_attr_lpfc_link_speed,
 	&dev_attr_lpfc_fcp_io_sched,
+	&dev_attr_lpfc_fcp2_no_tgt_reset,
 	&dev_attr_lpfc_cr_delay,
 	&dev_attr_lpfc_cr_count,
 	&dev_attr_lpfc_multi_ring_support,
@@ -4069,6 +4151,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_aer_support,
 	&dev_attr_lpfc_aer_state_cleanup,
 	&dev_attr_lpfc_sriov_nr_virtfn,
+	&dev_attr_lpfc_req_fw_upgrade,
 	&dev_attr_lpfc_suppress_link_up,
 	&dev_attr_lpfc_iocb_cnt,
 	&dev_attr_iocb_hw,
@@ -5019,6 +5102,7 @@ void
 lpfc_get_cfgparam(struct lpfc_hba *phba)
 {
 	lpfc_fcp_io_sched_init(phba, lpfc_fcp_io_sched);
+	lpfc_fcp2_no_tgt_reset_init(phba, lpfc_fcp2_no_tgt_reset);
 	lpfc_cr_delay_init(phba, lpfc_cr_delay);
 	lpfc_cr_count_init(phba, lpfc_cr_count);
 	lpfc_multi_ring_support_init(phba, lpfc_multi_ring_support);
@@ -5051,6 +5135,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);
 	lpfc_aer_support_init(phba, lpfc_aer_support);
 	lpfc_sriov_nr_virtfn_init(phba, lpfc_sriov_nr_virtfn);
+	lpfc_request_firmware_upgrade_init(phba, lpfc_req_fw_upgrade);
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	lpfc_iocb_cnt_init(phba, lpfc_iocb_cnt);
 	phba->cfg_enable_dss = 1;

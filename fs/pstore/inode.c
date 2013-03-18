@@ -49,6 +49,7 @@ struct pstore_private {
 	struct pstore_info *psi;
 	enum pstore_type_id type;
 	u64	id;
+	int	count;
 	ssize_t	size;
 	char	data[];
 };
@@ -150,13 +151,13 @@ static int pstore_file_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static loff_t pstore_file_llseek(struct file *file, loff_t off, int origin)
+static loff_t pstore_file_llseek(struct file *file, loff_t off, int whence)
 {
 	struct seq_file *sf = file->private_data;
 
 	if (sf->op)
-		return seq_lseek(file, off, origin);
-	return default_llseek(file, off, origin);
+		return seq_lseek(file, off, whence);
+	return default_llseek(file, off, whence);
 }
 
 static const struct file_operations pstore_file_operations = {
@@ -175,7 +176,8 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 	struct pstore_private *p = dentry->d_inode->i_private;
 
 	if (p->psi->erase)
-		p->psi->erase(p->type, p->id, p->psi);
+		p->psi->erase(p->type, p->id, p->count,
+			      dentry->d_inode->i_ctime, p->psi);
 
 	return simple_unlink(dir, dentry);
 }
@@ -270,7 +272,7 @@ int pstore_is_mounted(void)
  * Load it up with "size" bytes of data from "buf".
  * Set the mtime & ctime to the date that this record was originally stored.
  */
-int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id,
+int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 		  char *data, size_t size, struct timespec time,
 		  struct pstore_info *psi)
 {
@@ -306,6 +308,7 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id,
 		goto fail_alloc;
 	private->type = type;
 	private->id = id;
+	private->count = count;
 	private->psi = psi;
 
 	switch (type) {
@@ -415,9 +418,25 @@ static struct file_system_type pstore_fs_type = {
 	.kill_sb	= pstore_kill_sb,
 };
 
+static struct kobject *pstore_kobj;
+
 static int __init init_pstore_fs(void)
 {
-	return register_filesystem(&pstore_fs_type);
+	int err = 0;
+
+	/* Create a convenient mount point for people to access pstore */
+	pstore_kobj = kobject_create_and_add("pstore", fs_kobj);
+	if (!pstore_kobj) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = register_filesystem(&pstore_fs_type);
+	if (err < 0)
+		kobject_put(pstore_kobj);
+
+out:
+	return err;
 }
 module_init(init_pstore_fs)
 

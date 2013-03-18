@@ -472,7 +472,7 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 
 		obj->cable_index = extcon_find_cable_index(obj->edev, cable_name);
 		if (obj->cable_index < 0)
-			return -ENODEV;
+			return obj->cable_index;
 
 		obj->user_nb = nb;
 

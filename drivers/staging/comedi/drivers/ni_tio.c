@@ -276,7 +276,7 @@ static inline unsigned NI_660x_RTSI_Second_Gate_Select(unsigned n)
 }
 
 static const unsigned int counter_status_mask =
-    COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
+	COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
 
 static int __init ni_tio_init_module(void)
 {

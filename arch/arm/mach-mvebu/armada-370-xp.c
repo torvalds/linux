@@ -17,11 +17,14 @@
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/time-armada-370-xp.h>
+#include <linux/clk/mvebu.h>
+#include <linux/dma-mapping.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include "armada-370-xp.h"
 #include "common.h"
+#include "coherency.h"
 
 static struct map_desc armada_370_xp_io_desc[] __initdata = {
 	{
@@ -37,27 +40,41 @@ void __init armada_370_xp_map_io(void)
 	iotable_init(armada_370_xp_io_desc, ARRAY_SIZE(armada_370_xp_io_desc));
 }
 
-struct sys_timer armada_370_xp_timer = {
-	.init		= armada_370_xp_timer_init,
-};
+void __init armada_370_xp_timer_and_clk_init(void)
+{
+	mvebu_clocks_init();
+	armada_370_xp_timer_init();
+}
+
+void __init armada_370_xp_init_early(void)
+{
+	/*
+	 * Some Armada 370/XP devices allocate their coherent buffers
+	 * from atomic context. Increase size of atomic coherent pool
+	 * to make sure such the allocations won't fail.
+	 */
+	init_dma_coherent_pool_size(SZ_1M);
+}
 
 static void __init armada_370_xp_dt_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	coherency_init();
 }
 
-static const char * const armada_370_xp_dt_board_dt_compat[] = {
-	"marvell,a370-db",
-	"marvell,axp-db",
+static const char * const armada_370_xp_dt_compat[] = {
+	"marvell,armada-370-xp",
 	NULL,
 };
 
-DT_MACHINE_START(ARMADA_XP_DT, "Marvell Aramada 370/XP (Device Tree)")
+DT_MACHINE_START(ARMADA_XP_DT, "Marvell Armada 370/XP (Device Tree)")
+	.smp		= smp_ops(armada_xp_smp_ops),
 	.init_machine	= armada_370_xp_dt_init,
 	.map_io		= armada_370_xp_map_io,
+	.init_early	= armada_370_xp_init_early,
 	.init_irq	= armada_370_xp_init_irq,
 	.handle_irq     = armada_370_xp_handle_irq,
-	.timer		= &armada_370_xp_timer,
+	.init_time	= armada_370_xp_timer_and_clk_init,
 	.restart	= mvebu_restart,
-	.dt_compat	= armada_370_xp_dt_board_dt_compat,
+	.dt_compat	= armada_370_xp_dt_compat,
 MACHINE_END

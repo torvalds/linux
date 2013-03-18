@@ -7,8 +7,22 @@
  *      2 of the License, or (at your option) any later version.
  */
 #include <linux/string.h>
+#include <asm/udbg.h>
 #include <asm/time.h>
 #include "nonstdio.h"
+
+
+static int xmon_write(const void *ptr, int nb)
+{
+	return udbg_write(ptr, nb);
+}
+
+static int xmon_readchar(void)
+{
+	if (udbg_getc)
+		return udbg_getc();
+	return -1;
+}
 
 int xmon_putchar(int c)
 {
@@ -23,34 +37,7 @@ static char line[256];
 static char *lineptr;
 static int lineleft;
 
-int xmon_expect(const char *str, unsigned long timeout)
-{
-	int c;
-	unsigned long t0;
-
-	/* assume 25MHz default timebase if tb_ticks_per_sec not set yet */
-	timeout *= tb_ticks_per_sec? tb_ticks_per_sec: 25000000;
-	t0 = get_tbl();
-	do {
-		lineptr = line;
-		for (;;) {
-			c = xmon_read_poll();
-			if (c == -1) {
-				if (get_tbl() - t0 > timeout)
-					return 0;
-				continue;
-			}
-			if (c == '\n')
-				break;
-			if (c != '\r' && lineptr < &line[sizeof(line) - 1])
-				*lineptr++ = c;
-		}
-		*lineptr = 0;
-	} while (strstr(line, str) == NULL);
-	return 1;
-}
-
-int xmon_getchar(void)
+static int xmon_getchar(void)
 {
 	int c;
 
@@ -124,13 +111,19 @@ char *xmon_gets(char *str, int nb)
 void xmon_printf(const char *format, ...)
 {
 	va_list args;
-	int n;
 	static char xmon_outbuf[1024];
+	int rc, n;
 
 	va_start(args, format);
 	n = vsnprintf(xmon_outbuf, sizeof(xmon_outbuf), format, args);
 	va_end(args);
-	xmon_write(xmon_outbuf, n);
+
+	rc = xmon_write(xmon_outbuf, n);
+
+	if (n && rc == 0) {
+		/* No udbg hooks, fallback to printk() - dangerous */
+		printk(xmon_outbuf);
+	}
 }
 
 void xmon_puts(const char *str)

@@ -588,17 +588,38 @@ static int if_sdio_prog_real(struct if_sdio_card *card,
 	size = fw->size;
 
 	while (size) {
-		ret = if_sdio_wait_status(card, FW_DL_READY_STATUS);
-		if (ret)
-			goto release;
+		timeout = jiffies + HZ;
+		while (1) {
+			ret = if_sdio_wait_status(card, FW_DL_READY_STATUS);
+			if (ret)
+				goto release;
 
-		req_size = sdio_readb(card->func, IF_SDIO_RD_BASE, &ret);
-		if (ret)
-			goto release;
+			req_size = sdio_readb(card->func, IF_SDIO_RD_BASE,
+					&ret);
+			if (ret)
+				goto release;
 
-		req_size |= sdio_readb(card->func, IF_SDIO_RD_BASE + 1, &ret) << 8;
-		if (ret)
-			goto release;
+			req_size |= sdio_readb(card->func, IF_SDIO_RD_BASE + 1,
+					&ret) << 8;
+			if (ret)
+				goto release;
+
+			/*
+			 * For SD8688 wait until the length is not 0, 1 or 2
+			 * before downloading the first FW block,
+			 * since BOOT code writes the register to indicate the
+			 * helper/FW download winner,
+			 * the value could be 1 or 2 (Func1 or Func2).
+			 */
+			if ((size != fw->size) || (req_size > 2))
+				break;
+			if (time_after(jiffies, timeout)) {
+				ret = -ETIMEDOUT;
+				goto release;
+			}
+			mdelay(1);
+		}
+
 /*
 		lbs_deb_sdio("firmware wants %d bytes\n", (int)req_size);
 */
@@ -804,6 +825,11 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 
 	sdio_release_host(func);
 
+	/* Set fw_ready before queuing any commands so that
+	 * lbs_thread won't block from sending them to firmware.
+	 */
+	priv->fw_ready = 1;
+
 	/*
 	 * FUNC_INIT is required for SD8688 WLAN/BT multiple functions
 	 */
@@ -818,7 +844,6 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 			netdev_alert(priv->dev, "CMD_FUNC_INIT cmd failed\n");
 	}
 
-	priv->fw_ready = 1;
 	wake_up(&card->pwron_waitq);
 
 	if (!card->started) {

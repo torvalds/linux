@@ -185,11 +185,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (info->request == RADEON_INFO_TIMESTAMP) {
 		if (rdev->family >= CHIP_R600) {
 			value_ptr64 = (uint64_t*)((unsigned long)info->value);
-			if (rdev->family >= CHIP_TAHITI) {
-				value64 = si_get_gpu_clock(rdev);
-			} else {
-				value64 = r600_get_gpu_clock(rdev);
-			}
+			value64 = radeon_get_gpu_clock_counter(rdev);
 
 			if (DRM_COPY_TO_USER(value_ptr64, &value64, sizeof(value64))) {
 				DRM_ERROR("copy_to_user %s:%u\n", __func__, __LINE__);
@@ -282,7 +278,10 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_CLOCK_CRYSTAL_FREQ:
 		/* return clock value in KHz */
-		value = rdev->clock.spll.reference_freq * 10;
+		if (rdev->asic->get_xclk)
+			value = radeon_get_xclk(rdev) * 10;
+		else
+			value = rdev->clock.spll.reference_freq * 10;
 		break;
 	case RADEON_INFO_NUM_BACKENDS:
 		if (rdev->family >= CHIP_TAHITI)
@@ -360,6 +359,22 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		else {
 			return -EINVAL;
 		}
+		break;
+	case RADEON_INFO_MAX_SE:
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.max_shader_engines;
+		else if (rdev->family >= CHIP_CAYMAN)
+			value = rdev->config.cayman.max_shader_engines;
+		else if (rdev->family >= CHIP_CEDAR)
+			value = rdev->config.evergreen.num_ses;
+		else
+			value = 1;
+		break;
+	case RADEON_INFO_MAX_SH_PER_SE:
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.max_sh_per_se;
+		else
+			return -EINVAL;
 		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);

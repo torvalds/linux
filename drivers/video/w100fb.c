@@ -54,7 +54,7 @@ static void w100_update_enable(void);
 static void w100_update_disable(void);
 static void calc_hsync(struct w100fb_par *par);
 static void w100_init_graphic_engine(struct w100fb_par *par);
-struct w100_pll_info *w100_get_xtal_table(unsigned int freq) __devinit;
+struct w100_pll_info *w100_get_xtal_table(unsigned int freq);
 
 /* Pseudo palette size */
 #define MAX_PALETTES      16
@@ -630,7 +630,7 @@ static int w100fb_resume(struct platform_device *dev)
 #endif
 
 
-int __devinit w100fb_probe(struct platform_device *pdev)
+int w100fb_probe(struct platform_device *pdev)
 {
 	int err = -EIO;
 	struct w100fb_mach_info *inf;
@@ -783,7 +783,7 @@ out:
 }
 
 
-static int __devexit w100fb_remove(struct platform_device *pdev)
+static int w100fb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct w100fb_par *par=info->par;
@@ -1021,7 +1021,7 @@ static struct pll_entries {
 	{ 0 },
 };
 
-struct w100_pll_info __devinit *w100_get_xtal_table(unsigned int freq)
+struct w100_pll_info *w100_get_xtal_table(unsigned int freq)
 {
 	struct pll_entries *pll_entry = w100_pll_tables;
 
@@ -1624,7 +1624,7 @@ static void w100_vsync(void)
 
 static struct platform_driver w100fb_driver = {
 	.probe		= w100fb_probe,
-	.remove		= __devexit_p(w100fb_remove),
+	.remove		= w100fb_remove,
 	.suspend	= w100fb_suspend,
 	.resume		= w100fb_resume,
 	.driver		= {

@@ -308,6 +308,18 @@ performed on the denizens of the cache.  These are held in a structure of type:
      obtained by calling object->cookie->def->get_aux()/get_attr().
 
 
+ (*) Invalidate data object [mandatory]:
+
+	int (*invalidate_object)(struct fscache_operation *op)
+
+     This is called to invalidate a data object (as pointed to by op->object).
+     All the data stored for this object should be discarded and an
+     attr_changed operation should be performed.  The caller will follow up
+     with an object update operation.
+
+     fscache_op_complete() must be called on op before returning.
+
+
  (*) Discard object [mandatory]:
 
 	void (*drop_object)(struct fscache_object *object)
@@ -419,7 +431,10 @@ performed on the denizens of the cache.  These are held in a structure of type:
 
      If an I/O error occurs, fscache_io_error() should be called and -ENOBUFS
      returned if possible or fscache_end_io() called with a suitable error
-     code..
+     code.
+
+     fscache_put_retrieval() should be called after a page or pages are dealt
+     with.  This will complete the operation when all pages are dealt with.
 
 
  (*) Request pages be read from cache [mandatory]:
@@ -524,6 +539,27 @@ FS-Cache provides some utilities that a cache backend may make use of:
 
      This is called to note the end of an attempt to retrieve a page.  The
      error value should be 0 if successful and an error otherwise.
+
+
+ (*) Record that one or more pages being retrieved or allocated have been dealt
+     with:
+
+	void fscache_retrieval_complete(struct fscache_retrieval *op,
+					int n_pages);
+
+     This is called to record the fact that one or more pages have been dealt
+     with and are no longer the concern of this operation.  When the number of
+     pages remaining in the operation reaches 0, the operation will be
+     completed.
+
+
+ (*) Record operation completion:
+
+	void fscache_op_complete(struct fscache_operation *op);
+
+     This is called to record the completion of an operation.  This deducts
+     this operation from the parent object's run state, potentially permitting
+     one or more pending operations to start running.
 
 
  (*) Set highest store limit:

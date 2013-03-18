@@ -47,7 +47,7 @@ static int ir_jvc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
 	struct jvc_dec *data = &dev->raw->jvc;
 
-	if (!(dev->raw->enabled_protocols & RC_TYPE_JVC))
+	if (!(dev->raw->enabled_protocols & RC_BIT_JVC))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -174,7 +174,7 @@ out:
 }
 
 static struct ir_raw_handler jvc_handler = {
-	.protocols	= RC_TYPE_JVC,
+	.protocols	= RC_BIT_JVC,
 	.decode		= ir_jvc_decode,
 };
 

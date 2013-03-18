@@ -15,7 +15,6 @@
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
-#include <asm/page.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
 #include <asm/thread_info.h>
@@ -43,7 +42,7 @@
 
 /*
  * task_struct *resume(task_struct *prev, task_struct *next,
- *                     struct thread_info *next_ti, int usedfpu)
+ *		       struct thread_info *next_ti, int usedfpu)
  */
 LEAF(resume)
 	mfc0	t1, CP0_STATUS

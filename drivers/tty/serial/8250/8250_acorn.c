@@ -38,7 +38,7 @@ struct serial_card_info {
 	void __iomem *vaddr;
 };
 
-static int __devinit
+static int
 serial_card_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct serial_card_info *info;
@@ -80,7 +80,7 @@ serial_card_probe(struct expansion_card *ec, const struct ecard_id *id)
 	return 0;
 }
 
-static void __devexit serial_card_remove(struct expansion_card *ec)
+static void serial_card_remove(struct expansion_card *ec)
 {
 	struct serial_card_info *info = ecard_get_drvdata(ec);
 	int i;
@@ -116,7 +116,7 @@ static const struct ecard_id serial_cids[] = {
 
 static struct ecard_driver serial_card_driver = {
 	.probe		= serial_card_probe,
-	.remove 	= __devexit_p(serial_card_remove),
+	.remove		= serial_card_remove,
 	.id_table	= serial_cids,
 	.drv = {
 		.name	= "8250_acorn",

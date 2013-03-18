@@ -26,21 +26,21 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/console.h>
+#include <linux/omap-dma.h>
+#include <linux/platform_data/serial-omap.h>
 
-#include <plat/omap-serial.h>
 #include "common.h"
-#include <plat/dma.h>
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
-#include <plat/omap-pm.h>
-#include <plat/serial.h>
-
+#include "omap_hwmod.h"
+#include "omap_device.h"
+#include "omap-pm.h"
+#include "soc.h"
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
 #include "cm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
 #include "control.h"
 #include "mux.h"
+#include "serial.h"
 
 /*
  * NOTE: By default the serial auto_suspend timeout is disabled as it causes
@@ -254,7 +254,7 @@ static int __init omap_serial_early_init(void)
 
 	return 0;
 }
-core_initcall(omap_serial_early_init);
+omap_core_initcall(omap_serial_early_init);
 
 /**
  * omap_serial_init_port() - initialize single serial port
@@ -316,8 +316,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	if (WARN_ON(!oh))
 		return;
 
-	pdev = omap_device_build(name, uart->num, oh, pdata, pdata_size,
-				 NULL, 0, false);
+	pdev = omap_device_build(name, uart->num, oh, pdata, pdata_size);
 	if (IS_ERR(pdev)) {
 		WARN(1, "Could not build omap_device for %s: %s.\n", name,
 		     oh->name);

@@ -92,7 +92,7 @@ static int vortex_game_open(struct gameport *gameport, int mode)
 	return 0;
 }
 
-static int __devinit vortex_gameport_register(vortex_t * vortex)
+static int vortex_gameport_register(vortex_t *vortex)
 {
 	struct gameport *gp;
 

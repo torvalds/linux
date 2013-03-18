@@ -1,8 +1,7 @@
 #ifndef _ASM_X86_MCE_H
 #define _ASM_X86_MCE_H
 
-#include <linux/types.h>
-#include <asm/ioctls.h>
+#include <uapi/asm/mce.h>
 
 /*
  * Machine Check support for x86
@@ -16,7 +15,7 @@
 #define MCG_EXT_CNT_MASK	0xff0000     /* Number of Extended registers */
 #define MCG_EXT_CNT_SHIFT	16
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
-#define MCG_SER_P	 	(1ULL<<24)   /* MCA recovery/new status bits */
+#define MCG_SER_P		(1ULL<<24)   /* MCA recovery/new status bits */
 
 /* MCG_STATUS register defines */
 #define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
@@ -64,28 +63,15 @@
 #define MCJ_EXCEPTION		0x8  /* raise as exception */
 #define MCJ_IRQ_BRAODCAST	0x10 /* do IRQ broadcasting */
 
-/* Fields are zero when not available */
-struct mce {
-	__u64 status;
-	__u64 misc;
-	__u64 addr;
-	__u64 mcgstatus;
-	__u64 ip;
-	__u64 tsc;	/* cpu time stamp counter */
-	__u64 time;	/* wall time_t when error was detected */
-	__u8  cpuvendor;	/* cpu vendor as encoded in system.h */
-	__u8  inject_flags;	/* software inject flags */
-	__u16  pad;
-	__u32 cpuid;	/* CPUID 1 EAX */
-	__u8  cs;		/* code segment */
-	__u8  bank;	/* machine check bank */
-	__u8  cpu;	/* cpu number; obsolete; use extcpu now */
-	__u8  finished;   /* entry is valid */
-	__u32 extcpu;	/* linux cpu number that detected the error */
-	__u32 socketid;	/* CPU socket ID */
-	__u32 apicid;	/* CPU initial apic ID */
-	__u64 mcgcap;	/* MCGCAP MSR: machine check capabilities of CPU */
-};
+#define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
+
+/* Software defined banks */
+#define MCE_EXTENDED_BANK	128
+#define MCE_THERMAL_BANK	(MCE_EXTENDED_BANK + 0)
+#define K8_MCE_THRESHOLD_BASE   (MCE_EXTENDED_BANK + 1)
+
+#define MCE_LOG_LEN 32
+#define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
 /*
  * This structure contains all data related to the MCE log.  Also
@@ -93,9 +79,6 @@ struct mce {
  * debugging tools.  Each entry is only valid when its finished flag
  * is set.
  */
-
-#define MCE_LOG_LEN 32
-
 struct mce_log {
 	char signature[12]; /* "MACHINECHECK" */
 	unsigned len;	    /* = MCE_LOG_LEN */
@@ -105,20 +88,22 @@ struct mce_log {
 	struct mce entry[MCE_LOG_LEN];
 };
 
-#define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
+struct mca_config {
+	bool dont_log_ce;
+	bool cmci_disabled;
+	bool ignore_ce;
+	bool disabled;
+	bool ser;
+	bool bios_cmci_threshold;
+	u8 banks;
+	s8 bootlog;
+	int tolerant;
+	int monarch_timeout;
+	int panic_timeout;
+	u32 rip_msr;
+};
 
-#define MCE_LOG_SIGNATURE	"MACHINECHECK"
-
-#define MCE_GET_RECORD_LEN   _IOR('M', 1, int)
-#define MCE_GET_LOG_LEN      _IOR('M', 2, int)
-#define MCE_GETCLEAR_FLAGS   _IOR('M', 3, int)
-
-/* Software defined banks */
-#define MCE_EXTENDED_BANK	128
-#define MCE_THERMAL_BANK	MCE_EXTENDED_BANK + 0
-#define K8_MCE_THRESHOLD_BASE      (MCE_EXTENDED_BANK + 1)
-
-#ifdef __KERNEL__
+extern struct mca_config mca_cfg;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
@@ -126,7 +111,6 @@ extern void mce_unregister_decode_chain(struct notifier_block *nb);
 #include <linux/init.h>
 #include <linux/atomic.h>
 
-extern int mce_disabled;
 extern int mce_p5_enabled;
 
 #ifdef CONFIG_X86_MCE
@@ -159,9 +143,6 @@ DECLARE_PER_CPU(struct device *, mce_device);
 #define MAX_NR_BANKS 32
 
 #ifdef CONFIG_X86_MCE_INTEL
-extern int mce_cmci_disabled;
-extern int mce_ignore_ce;
-extern int mce_bios_cmci_threshold;
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
@@ -247,5 +228,4 @@ struct cper_sec_mem_err;
 extern void apei_mce_report_mem_error(int corrected,
 				      struct cper_sec_mem_err *mem_err);
 
-#endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */

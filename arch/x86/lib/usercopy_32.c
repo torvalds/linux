@@ -570,63 +570,6 @@ do {									\
 unsigned long __copy_to_user_ll(void __user *to, const void *from,
 				unsigned long n)
 {
-#ifndef CONFIG_X86_WP_WORKS_OK
-	if (unlikely(boot_cpu_data.wp_works_ok == 0) &&
-			((unsigned long)to) < TASK_SIZE) {
-		/*
-		 * When we are in an atomic section (see
-		 * mm/filemap.c:file_read_actor), return the full
-		 * length to take the slow path.
-		 */
-		if (in_atomic())
-			return n;
-
-		/*
-		 * CPU does not honor the WP bit when writing
-		 * from supervisory mode, and due to preemption or SMP,
-		 * the page tables can change at any time.
-		 * Do it manually.	Manfred <manfred@colorfullife.com>
-		 */
-		while (n) {
-			unsigned long offset = ((unsigned long)to)%PAGE_SIZE;
-			unsigned long len = PAGE_SIZE - offset;
-			int retval;
-			struct page *pg;
-			void *maddr;
-
-			if (len > n)
-				len = n;
-
-survive:
-			down_read(&current->mm->mmap_sem);
-			retval = get_user_pages(current, current->mm,
-					(unsigned long)to, 1, 1, 0, &pg, NULL);
-
-			if (retval == -ENOMEM && is_global_init(current)) {
-				up_read(&current->mm->mmap_sem);
-				congestion_wait(BLK_RW_ASYNC, HZ/50);
-				goto survive;
-			}
-
-			if (retval != 1) {
-				up_read(&current->mm->mmap_sem);
-				break;
-			}
-
-			maddr = kmap_atomic(pg);
-			memcpy(maddr + offset, from, len);
-			kunmap_atomic(maddr);
-			set_page_dirty_lock(pg);
-			put_page(pg);
-			up_read(&current->mm->mmap_sem);
-
-			from += len;
-			to += len;
-			n -= len;
-		}
-		return n;
-	}
-#endif
 	stac();
 	if (movsl_is_ok(to, from, n))
 		__copy_user(to, from, n);

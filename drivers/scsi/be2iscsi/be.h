@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2012 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@
 /* BladeEngine Generation numbers */
 #define BE_GEN2 2
 #define BE_GEN3 3
-
+#define BE_GEN4	4
 struct be_dma_mem {
 	void *va;
 	dma_addr_t dma;
@@ -84,9 +84,12 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 /*ISCSI */
 
 struct be_eq_obj {
+	bool todo_mcc_cq;
+	bool todo_cq;
 	struct be_queue_info q;
 	struct beiscsi_hba *phba;
 	struct be_queue_info *cq;
+	struct work_struct work_cqs; /* Work Item */
 	struct blk_iopoll	iopoll;
 };
 

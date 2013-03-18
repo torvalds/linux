@@ -95,4 +95,10 @@
 			gpio = <&gpio 232 0>; /* GPIO PDD0 */
 		};
 	};
+
+	sdhci@78000400 {
+		status = "okay";
+		power-gpios = <&gpio 27 0>; /* gpio PD3 */
+		bus-width = <4>;
+	};
 };

@@ -2399,7 +2399,7 @@ static void udc_handle_ep0_setup(struct lpc32xx_udc *udc)
 
 		if (i < 0) {
 			/* setup processing failed, force stall */
-			dev_err(udc->dev,
+			dev_dbg(udc->dev,
 				"req %02x.%02x protocol STALL; stat %d\n",
 				reqtype, req, i);
 			udc->ep0state = WAIT_FOR_SETUP;
@@ -3352,7 +3352,7 @@ phy_fail:
 	return retval;
 }
 
-static int __devexit lpc32xx_udc_remove(struct platform_device *pdev)
+static int lpc32xx_udc_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_udc *udc = platform_get_drvdata(pdev);
 
@@ -3447,7 +3447,7 @@ MODULE_DEVICE_TABLE(of, lpc32xx_udc_of_match);
 #endif
 
 static struct platform_driver lpc32xx_udc_driver = {
-	.remove		= __devexit_p(lpc32xx_udc_remove),
+	.remove		= lpc32xx_udc_remove,
 	.shutdown	= lpc32xx_udc_shutdown,
 	.suspend	= lpc32xx_udc_suspend,
 	.resume		= lpc32xx_udc_resume,
@@ -3458,17 +3458,7 @@ static struct platform_driver lpc32xx_udc_driver = {
 	},
 };
 
-static int __init udc_init_module(void)
-{
-	return platform_driver_probe(&lpc32xx_udc_driver, lpc32xx_udc_probe);
-}
-module_init(udc_init_module);
-
-static void __exit udc_exit_module(void)
-{
-	platform_driver_unregister(&lpc32xx_udc_driver);
-}
-module_exit(udc_exit_module);
+module_platform_driver_probe(lpc32xx_udc_driver, lpc32xx_udc_probe);
 
 MODULE_DESCRIPTION("LPC32XX udc driver");
 MODULE_AUTHOR("Kevin Wells <kevin.wells@nxp.com>");

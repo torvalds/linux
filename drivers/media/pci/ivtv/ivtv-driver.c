@@ -73,7 +73,7 @@ int (*ivtv_ext_init)(struct ivtv *);
 EXPORT_SYMBOL(ivtv_ext_init);
 
 /* add your revision and whatnot here */
-static struct pci_device_id ivtv_pci_tbl[] __devinitdata = {
+static struct pci_device_id ivtv_pci_tbl[] = {
 	{PCI_VENDOR_ID_ICOMP, PCI_DEVICE_ID_IVTV15,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ICOMP, PCI_DEVICE_ID_IVTV16,
@@ -304,7 +304,7 @@ static void request_modules(struct ivtv *dev)
 
 static void flush_request_modules(struct ivtv *dev)
 {
-	flush_work_sync(&dev->request_module_wk);
+	flush_work(&dev->request_module_wk);
 }
 #else
 #define request_modules(dev)
@@ -736,7 +736,7 @@ done:
    No assumptions on the card type may be made here (see ivtv_init_struct2
    for that).
  */
-static int __devinit ivtv_init_struct1(struct ivtv *itv)
+static int ivtv_init_struct1(struct ivtv *itv)
 {
 	struct sched_param param = { .sched_priority = 99 };
 
@@ -802,7 +802,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 
 /* Second initialization part. Here the card type has been
    autodetected. */
-static void __devinit ivtv_init_struct2(struct ivtv *itv)
+static void ivtv_init_struct2(struct ivtv *itv)
 {
 	int i;
 
@@ -1001,8 +1001,7 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	}
 }
 
-static int __devinit ivtv_probe(struct pci_dev *pdev,
-				const struct pci_device_id *pci_id)
+static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 {
 	int retval = 0;
 	int vbi_buf_size;

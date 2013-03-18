@@ -2384,7 +2384,7 @@ static struct ccw_driver lcs_ccw_driver = {
 	.ids	= lcs_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,
-	.int_class = IOINT_LCS,
+	.int_class = IRQIO_LCS,
 };
 
 /**

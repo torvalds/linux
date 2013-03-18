@@ -1058,7 +1058,7 @@ static void pt1_i2c_init(struct pt1 *pt1)
 		pt1_i2c_emit(pt1, i, 0, 0, 1, 1, 0);
 }
 
-static void __devexit pt1_remove(struct pci_dev *pdev)
+static void pt1_remove(struct pci_dev *pdev)
 {
 	struct pt1 *pt1;
 	void __iomem *regs;
@@ -1083,8 +1083,7 @@ static void __devexit pt1_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int __devinit
-pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret;
 	void __iomem *regs;
@@ -1222,7 +1221,7 @@ MODULE_DEVICE_TABLE(pci, pt1_id_table);
 static struct pci_driver pt1_driver = {
 	.name		= DRIVER_NAME,
 	.probe		= pt1_probe,
-	.remove		= __devexit_p(pt1_remove),
+	.remove		= pt1_remove,
 	.id_table	= pt1_id_table,
 };
 

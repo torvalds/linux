@@ -59,15 +59,7 @@
  * if it becomes full and it is queried once a second to see if
  * anything is in it.  Incoming commands to the driver will get
  * delivered as commands.
- *
- * This driver provides two main interfaces: one for in-kernel
- * applications and another for userland applications.  The
- * capabilities are basically the same for both interface, although
- * the interfaces are somewhat different.  The stuff in the
- * #ifdef __KERNEL__ below is the in-kernel interface.  The userland
- * interface is defined later in the file.  */
-
-
+ */
 
 /*
  * This is an overlay for all the address types, so it's easy to

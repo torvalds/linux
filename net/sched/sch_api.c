@@ -493,20 +493,19 @@ void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_watchdog_init);
 
-void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
+void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires)
 {
-	ktime_t time;
-
 	if (test_bit(__QDISC_STATE_DEACTIVATED,
 		     &qdisc_root_sleeping(wd->qdisc)->state))
 		return;
 
 	qdisc_throttled(wd->qdisc);
-	time = ktime_set(0, 0);
-	time = ktime_add_ns(time, PSCHED_TICKS2NS(expires));
-	hrtimer_start(&wd->timer, time, HRTIMER_MODE_ABS);
+
+	hrtimer_start(&wd->timer,
+		      ns_to_ktime(expires),
+		      HRTIMER_MODE_ABS);
 }
-EXPORT_SYMBOL(qdisc_watchdog_schedule);
+EXPORT_SYMBOL(qdisc_watchdog_schedule_ns);
 
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd)
 {
@@ -546,7 +545,7 @@ static void qdisc_class_hash_free(struct hlist_head *h, unsigned int n)
 void qdisc_class_hash_grow(struct Qdisc *sch, struct Qdisc_class_hash *clhash)
 {
 	struct Qdisc_class_common *cl;
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 	struct hlist_head *nhash, *ohash;
 	unsigned int nsize, nmask, osize;
 	unsigned int i, h;
@@ -565,7 +564,7 @@ void qdisc_class_hash_grow(struct Qdisc *sch, struct Qdisc_class_hash *clhash)
 
 	sch_tree_lock(sch);
 	for (i = 0; i < osize; i++) {
-		hlist_for_each_entry_safe(cl, n, next, &ohash[i], hnode) {
+		hlist_for_each_entry_safe(cl, next, &ohash[i], hnode) {
 			h = qdisc_class_hash(cl->classid, nmask);
 			hlist_add_head(&cl->hnode, &nhash[h]);
 		}
@@ -834,6 +833,8 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 		}
 		lockdep_set_class(qdisc_lock(sch), &qdisc_tx_lock);
+		if (!netif_is_multiqueue(dev))
+			sch->flags |= TCQ_F_ONETXQUEUE;
 	}
 
 	sch->handle = handle;
@@ -981,6 +982,9 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	struct Qdisc *p = NULL;
 	int err;
 
+	if ((n->nlmsg_type != RTM_GETQDISC) && !capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
 	if (!dev)
 		return -ENODEV;
@@ -1043,6 +1047,9 @@ static int tc_modify_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	u32 clid;
 	struct Qdisc *q, *p;
 	int err;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 replay:
 	/* Reinit, just in case something touches this. */
@@ -1379,6 +1386,9 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	u32 clid = tcm->tcm_handle;
 	u32 qid = TC_H_MAJ(clid);
 	int err;
+
+	if ((n->nlmsg_type != RTM_GETTCLASS) && !capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
 	if (!dev)
@@ -1758,7 +1768,7 @@ static int __net_init psched_net_init(struct net *net)
 {
 	struct proc_dir_entry *e;
 
-	e = proc_net_fops_create(net, "psched", 0, &psched_fops);
+	e = proc_create("psched", 0, net->proc_net, &psched_fops);
 	if (e == NULL)
 		return -ENOMEM;
 
@@ -1767,7 +1777,7 @@ static int __net_init psched_net_init(struct net *net)
 
 static void __net_exit psched_net_exit(struct net *net)
 {
-	proc_net_remove(net, "psched");
+	remove_proc_entry("psched", net->proc_net);
 }
 #else
 static int __net_init psched_net_init(struct net *net)

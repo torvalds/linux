@@ -50,7 +50,7 @@ struct control_runtime {
 	u8 ivol_updated;
 };
 
-int __devinit usb6fire_control_init(struct sfire_chip *chip);
+int usb6fire_control_init(struct sfire_chip *chip);
 void usb6fire_control_abort(struct sfire_chip *chip);
 void usb6fire_control_destroy(struct sfire_chip *chip);
 #endif /* USB6FIRE_CONTROL_H */

@@ -257,17 +257,14 @@ error:
  * Allocate a keyring and link into the destination keyring.
  */
 struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
-			  const struct cred *cred, unsigned long flags,
-			  struct key *dest)
+			  const struct cred *cred, key_perm_t perm,
+			  unsigned long flags, struct key *dest)
 {
 	struct key *keyring;
 	int ret;
 
 	keyring = key_alloc(&key_type_keyring, description,
-			    uid, gid, cred,
-			    (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL,
-			    flags);
-
+			    uid, gid, cred, perm, flags);
 	if (!IS_ERR(keyring)) {
 		ret = key_instantiate_and_link(keyring, NULL, 0, dest, NULL);
 		if (ret < 0) {
@@ -278,6 +275,7 @@ struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 
 	return keyring;
 }
+EXPORT_SYMBOL(keyring_alloc);
 
 /**
  * keyring_search_aux - Search a keyring tree for a key matching some criteria

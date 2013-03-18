@@ -175,8 +175,7 @@ struct net_local {
     unsigned int tx_unit_busy:1;
     unsigned char re_tx,	/* Number of packet retransmissions. */
 		addr_mode,		/* Current Rx filter e.g. promiscuous, etc. */
-		pac_cnt_in_tx_buf,
-		chip_type;
+		pac_cnt_in_tx_buf;
 };
 
 /* This code, written by wwc@super.org, resets the adapter every
@@ -339,7 +338,6 @@ static int __init atp_probe1(long ioaddr)
 	write_reg_high(ioaddr, CMR1, CMR1h_RESET | CMR1h_MUX);
 
 	lp = netdev_priv(dev);
-	lp->chip_type = RTL8002;
 	lp->addr_mode = CMR2h_Normal;
 	spin_lock_init(&lp->lock);
 
@@ -852,7 +850,7 @@ net_close(struct net_device *dev)
  *	Set or clear the multicast filter for this adapter.
  */
 
-static void set_rx_mode_8002(struct net_device *dev)
+static void set_rx_mode(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 	long ioaddr = dev->base_addr;
@@ -863,58 +861,6 @@ static void set_rx_mode_8002(struct net_device *dev)
 		lp->addr_mode = CMR2h_Normal;
 	write_reg_high(ioaddr, CMR2, lp->addr_mode);
 }
-
-static void set_rx_mode_8012(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-	long ioaddr = dev->base_addr;
-	unsigned char new_mode, mc_filter[8]; /* Multicast hash filter */
-	int i;
-
-	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
-		new_mode = CMR2h_PROMISC;
-	} else if ((netdev_mc_count(dev) > 1000) ||
-		   (dev->flags & IFF_ALLMULTI)) {
-		/* Too many to filter perfectly -- accept all multicasts. */
-		memset(mc_filter, 0xff, sizeof(mc_filter));
-		new_mode = CMR2h_Normal;
-	} else {
-		struct netdev_hw_addr *ha;
-
-		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(ha, dev) {
-			int filterbit = ether_crc_le(ETH_ALEN, ha->addr) & 0x3f;
-			mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
-		}
-		new_mode = CMR2h_Normal;
-	}
-	lp->addr_mode = new_mode;
-    write_reg(ioaddr, CMR2, CMR2_IRQOUT | 0x04); /* Switch to page 1. */
-    for (i = 0; i < 8; i++)
-		write_reg_byte(ioaddr, i, mc_filter[i]);
-	if (net_debug > 2 || 1) {
-		lp->addr_mode = 1;
-		printk(KERN_DEBUG "%s: Mode %d, setting multicast filter to",
-			   dev->name, lp->addr_mode);
-		for (i = 0; i < 8; i++)
-			printk(" %2.2x", mc_filter[i]);
-		printk(".\n");
-	}
-
-	write_reg_high(ioaddr, CMR2, lp->addr_mode);
-    write_reg(ioaddr, CMR2, CMR2_IRQOUT); /* Switch back to page 0 */
-}
-
-static void set_rx_mode(struct net_device *dev)
-{
-	struct net_local *lp = netdev_priv(dev);
-
-	if (lp->chip_type == RTL8002)
-		return set_rx_mode_8002(dev);
-	else
-		return set_rx_mode_8012(dev);
-}
-
 
 static int __init atp_init_module(void) {
 	if (debug)					/* Emit version even if no cards detected. */

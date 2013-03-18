@@ -1440,7 +1440,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 		oobdelta = mtd->ecclayout->oobavail;
 		break;
 	default:
-		oobdelta = 0;
+		return -EINVAL;
 	}
 	if ((len % DOC_LAYOUT_PAGE_SIZE) || (ooblen % oobdelta) ||
 	    (ofs % DOC_LAYOUT_PAGE_SIZE))

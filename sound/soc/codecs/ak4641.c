@@ -557,8 +557,8 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
 };
 
 
-static int __devinit ak4641_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int ak4641_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct ak4641_platform_data *pdata = i2c->dev.platform_data;
 	struct ak4641_priv *ak4641;
@@ -610,7 +610,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit ak4641_i2c_remove(struct i2c_client *i2c)
+static int ak4641_i2c_remove(struct i2c_client *i2c)
 {
 	struct ak4641_platform_data *pdata = i2c->dev.platform_data;
 
@@ -640,7 +640,7 @@ static struct i2c_driver ak4641_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    ak4641_i2c_probe,
-	.remove =   __devexit_p(ak4641_i2c_remove),
+	.remove =   ak4641_i2c_remove,
 	.id_table = ak4641_i2c_id,
 };
 

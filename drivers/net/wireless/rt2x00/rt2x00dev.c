@@ -157,6 +157,7 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 	 * requested configurations.
 	 */
 	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    rt2x00lib_intf_scheduled_iter,
 					    rt2x00dev);
 }
@@ -225,9 +226,9 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* send buffered bc/mc frames out for every bssid */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_bc_buffer_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_bc_buffer_iter, rt2x00dev);
 	/*
 	 * Devices with pre tbtt interrupt don't need to update the beacon
 	 * here as they will fetch the next beacon directly prior to
@@ -237,9 +238,9 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* fetch next beacon */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_beaconupdate_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_beaconupdate_iter, rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
 
@@ -249,9 +250,9 @@ void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* fetch next beacon */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_beaconupdate_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_beaconupdate_iter, rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
@@ -269,6 +270,50 @@ void rt2x00lib_dmadone(struct queue_entry *entry)
 	rt2x00queue_index_inc(entry, Q_INDEX_DMA_DONE);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_dmadone);
+
+static inline int rt2x00lib_txdone_bar_status(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct ieee80211_bar *bar = (void *) entry->skb->data;
+	struct rt2x00_bar_list_entry *bar_entry;
+	int ret;
+
+	if (likely(!ieee80211_is_back_req(bar->frame_control)))
+		return 0;
+
+	/*
+	 * Unlike all other frames, the status report for BARs does
+	 * not directly come from the hardware as it is incapable of
+	 * matching a BA to a previously send BAR. The hardware will
+	 * report all BARs as if they weren't acked at all.
+	 *
+	 * Instead the RX-path will scan for incoming BAs and set the
+	 * block_acked flag if it sees one that was likely caused by
+	 * a BAR from us.
+	 *
+	 * Remove remaining BARs here and return their status for
+	 * TX done processing.
+	 */
+	ret = 0;
+	rcu_read_lock();
+	list_for_each_entry_rcu(bar_entry, &rt2x00dev->bar_list, list) {
+		if (bar_entry->entry != entry)
+			continue;
+
+		spin_lock_bh(&rt2x00dev->bar_list_lock);
+		/* Return whether this BAR was blockacked or not */
+		ret = bar_entry->block_acked;
+		/* Remove the BAR from our checklist */
+		list_del_rcu(&bar_entry->list);
+		spin_unlock_bh(&rt2x00dev->bar_list_lock);
+		kfree_rcu(bar_entry, head);
+
+		break;
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
 
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
@@ -323,9 +368,12 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry->skb);
 
 	/*
-	 * Determine if the frame has been successfully transmitted.
+	 * Determine if the frame has been successfully transmitted and
+	 * remove BARs from our check list while checking for their
+	 * TX status.
 	 */
 	success =
+	    rt2x00lib_txdone_bar_status(entry) ||
 	    test_bit(TXDONE_SUCCESS, &txdesc->flags) ||
 	    test_bit(TXDONE_UNKNOWN, &txdesc->flags);
 
@@ -391,10 +439,9 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
 		tx_info->status.ampdu_len = 1;
 		tx_info->status.ampdu_ack_len = success ? 1 : 0;
-		/*
-		 * TODO: Need to tear down BA session here
-		 * if not successful.
-		 */
+
+		if (!success)
+			tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 	}
 
 	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
@@ -489,6 +536,50 @@ static void rt2x00lib_sleep(struct work_struct *work)
 	if (!test_bit(CONFIG_POWERSAVING, &rt2x00dev->flags))
 		rt2x00lib_config(rt2x00dev, &rt2x00dev->hw->conf,
 				 IEEE80211_CONF_CHANGE_PS);
+}
+
+static void rt2x00lib_rxdone_check_ba(struct rt2x00_dev *rt2x00dev,
+				      struct sk_buff *skb,
+				      struct rxdone_entry_desc *rxdesc)
+{
+	struct rt2x00_bar_list_entry *entry;
+	struct ieee80211_bar *ba = (void *)skb->data;
+
+	if (likely(!ieee80211_is_back(ba->frame_control)))
+		return;
+
+	if (rxdesc->size < sizeof(*ba) + FCS_LEN)
+		return;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, &rt2x00dev->bar_list, list) {
+
+		if (ba->start_seq_num != entry->start_seq_num)
+			continue;
+
+#define TID_CHECK(a, b) (						\
+	((a) & cpu_to_le16(IEEE80211_BAR_CTRL_TID_INFO_MASK)) ==	\
+	((b) & cpu_to_le16(IEEE80211_BAR_CTRL_TID_INFO_MASK)))		\
+
+		if (!TID_CHECK(ba->control, entry->control))
+			continue;
+
+#undef TID_CHECK
+
+		if (compare_ether_addr(ba->ra, entry->ta))
+			continue;
+
+		if (compare_ether_addr(ba->ta, entry->ra))
+			continue;
+
+		/* Mark BAR since we received the according BA */
+		spin_lock_bh(&rt2x00dev->bar_list_lock);
+		entry->block_acked = 1;
+		spin_unlock_bh(&rt2x00dev->bar_list_lock);
+		break;
+	}
+	rcu_read_unlock();
+
 }
 
 static void rt2x00lib_rxdone_check_ps(struct rt2x00_dev *rt2x00dev,
@@ -674,6 +765,12 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	rt2x00lib_rxdone_check_ps(rt2x00dev, entry->skb, &rxdesc);
 
 	/*
+	 * Check for incoming BlockAcks to match to the BlockAckReqs
+	 * we've send out.
+	 */
+	rt2x00lib_rxdone_check_ba(rt2x00dev, entry->skb, &rxdesc);
+
+	/*
 	 * Update extra components
 	 */
 	rt2x00link_update_stats(rt2x00dev, entry->skb, &rxdesc);
@@ -685,6 +782,14 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	 * to mac80211.
 	 */
 	rx_status = IEEE80211_SKB_RXCB(entry->skb);
+
+	/* Ensure that all fields of rx_status are initialized
+	 * properly. The skb->cb array was used for driver
+	 * specific informations, so rx_status might contain
+	 * garbage.
+	 */
+	memset(rx_status, 0, sizeof(*rx_status));
+
 	rx_status->mactime = rxdesc.timestamp;
 	rx_status->band = rt2x00dev->curr_band;
 	rx_status->freq = rt2x00dev->curr_freq;
@@ -1123,12 +1228,18 @@ static inline void rt2x00lib_set_if_combinations(struct rt2x00_dev *rt2x00dev)
 	struct ieee80211_iface_limit *if_limit;
 	struct ieee80211_iface_combination *if_combination;
 
+	if (rt2x00dev->ops->max_ap_intf < 2)
+		return;
+
 	/*
 	 * Build up AP interface limits structure.
 	 */
 	if_limit = &rt2x00dev->if_limits_ap;
 	if_limit->max = rt2x00dev->ops->max_ap_intf;
 	if_limit->types = BIT(NL80211_IFTYPE_AP);
+#ifdef CONFIG_MAC80211_MESH
+	if_limit->types |= BIT(NL80211_IFTYPE_MESH_POINT);
+#endif
 
 	/*
 	 * Build up AP interface combinations structure.
@@ -1172,6 +1283,8 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 
 	spin_lock_init(&rt2x00dev->irqmask_lock);
 	mutex_init(&rt2x00dev->csr_mutex);
+	INIT_LIST_HEAD(&rt2x00dev->bar_list);
+	spin_lock_init(&rt2x00dev->bar_list_lock);
 
 	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 
@@ -1180,6 +1293,13 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 * structure ieee80211_vif.
 	 */
 	rt2x00dev->hw->vif_data_size = sizeof(struct rt2x00_intf);
+
+	/*
+	 * rt2x00 devices can only use the last n bits of the MAC address
+	 * for virtual interfaces.
+	 */
+	rt2x00dev->hw->wiphy->addr_mask[ETH_ALEN - 1] =
+		(rt2x00dev->ops->max_ap_intf - 1);
 
 	/*
 	 * Determine which operating modes are supported, all modes
@@ -1191,7 +1311,9 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		rt2x00dev->hw->wiphy->interface_modes |=
 		    BIT(NL80211_IFTYPE_ADHOC) |
 		    BIT(NL80211_IFTYPE_AP) |
+#ifdef CONFIG_MAC80211_MESH
 		    BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
 		    BIT(NL80211_IFTYPE_WDS);
 
 	rt2x00dev->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
@@ -1329,7 +1451,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 #ifdef CONFIG_PM
 int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 {
-	NOTICE(rt2x00dev, "Going to sleep.\n");
+	DEBUG(rt2x00dev, "Going to sleep.\n");
 
 	/*
 	 * Prevent mac80211 from accessing driver while suspended.
@@ -1369,7 +1491,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_suspend);
 
 int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 {
-	NOTICE(rt2x00dev, "Waking up.\n");
+	DEBUG(rt2x00dev, "Waking up.\n");
 
 	/*
 	 * Restore/enable extra components.

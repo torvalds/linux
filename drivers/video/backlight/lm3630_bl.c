@@ -37,7 +37,7 @@ enum lm3630_leds {
 	BLED_2
 };
 
-static const char *bled_name[] = {
+static const char * const bled_name[] = {
 	[BLED_ALL] = "lm3630_bled",	/*Bank1 controls all string */
 	[BLED_1] = "lm3630_bled1",	/*Bank1 controls bled1 */
 	[BLED_2] = "lm3630_bled2",	/*Bank1 or 2 controls bled2 */
@@ -55,7 +55,7 @@ struct lm3630_chip_data {
 };
 
 /* initialize chip */
-static int __devinit lm3630_chip_init(struct lm3630_chip_data *pchip)
+static int lm3630_chip_init(struct lm3630_chip_data *pchip)
 {
 	int ret;
 	unsigned int reg_val;
@@ -320,7 +320,7 @@ static int lm3630_backlight_register(struct lm3630_chip_data *pchip,
 		    backlight_device_register(name, pchip->dev, pchip,
 					      &lm3630_bank_a_ops, &props);
 		if (IS_ERR(pchip->bled1))
-			return -EIO;
+			return PTR_ERR(pchip->bled1);
 		break;
 	case BLED_2:
 		props.brightness = pdata->init_brt_led2;
@@ -329,7 +329,7 @@ static int lm3630_backlight_register(struct lm3630_chip_data *pchip,
 		    backlight_device_register(name, pchip->dev, pchip,
 					      &lm3630_bank_b_ops, &props);
 		if (IS_ERR(pchip->bled2))
-			return -EIO;
+			return PTR_ERR(pchip->bled2);
 		break;
 	}
 	return 0;
@@ -349,7 +349,7 @@ static const struct regmap_config lm3630_regmap = {
 	.max_register = REG_MAX,
 };
 
-static int __devinit lm3630_probe(struct i2c_client *client,
+static int lm3630_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct lm3630_platform_data *pdata = client->dev.platform_data;
@@ -429,7 +429,7 @@ err_chip_init:
 	return ret;
 }
 
-static int __devexit lm3630_remove(struct i2c_client *client)
+static int lm3630_remove(struct i2c_client *client)
 {
 	int ret;
 	struct lm3630_chip_data *pchip = i2c_get_clientdata(client);
@@ -463,7 +463,7 @@ static struct i2c_driver lm3630_i2c_driver = {
 		   .name = LM3630_NAME,
 		   },
 	.probe = lm3630_probe,
-	.remove = __devexit_p(lm3630_remove),
+	.remove = lm3630_remove,
 	.id_table = lm3630_id,
 };
 

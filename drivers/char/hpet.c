@@ -816,7 +816,7 @@ static unsigned long __hpet_calibrate(struct hpets *hpetp)
 
 static unsigned long hpet_calibrate(struct hpets *hpetp)
 {
-	unsigned long ret = -1;
+	unsigned long ret = ~0UL;
 	unsigned long tmp;
 
 	/*
@@ -1001,6 +1001,9 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		irqp = &res->data.extended_irq;
 
 		for (i = 0; i < irqp->interrupt_count; i++) {
+			if (hdp->hd_nirqs >= HPET_MAX_TIMERS)
+				break;
+
 			irq = acpi_register_gsi(NULL, irqp->interrupts[i],
 				      irqp->triggering, irqp->polarity);
 			if (irq < 0)
@@ -1038,7 +1041,7 @@ static int hpet_acpi_add(struct acpi_device *device)
 	return hpet_alloc(&data);
 }
 
-static int hpet_acpi_remove(struct acpi_device *device, int type)
+static int hpet_acpi_remove(struct acpi_device *device)
 {
 	/* XXX need to unregister clocksource, dealloc mem, etc */
 	return -EINVAL;

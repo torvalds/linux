@@ -16,11 +16,13 @@
 #include <media/videobuf-dma-contig.h>
 #include <media/v4l2-device.h>
 
-#include <plat/dma.h>
-#include <plat/vrfb.h>
+#include <linux/omap-dma.h>
+#include <video/omapvrfb.h>
 
 #include "omap_voutdef.h"
 #include "omap_voutlib.h"
+
+#define OMAP_DMA_NO_DEVICE	0
 
 /*
  * Function for allocating video buffers

@@ -39,13 +39,12 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/board-mx31lite.h>
-#include <mach/iomux-mx3.h>
-#include <mach/ulpi.h>
-
+#include "board-mx31lite.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 /*
  * This file contains the module-specific initialization routines.
@@ -286,10 +285,6 @@ static void __init mx31lite_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer mx31lite_timer = {
-	.init	= mx31lite_timer_init,
-};
-
 MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.atag_offset = 0x100,
@@ -297,7 +292,7 @@ MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &mx31lite_timer,
+	.init_time	= mx31lite_timer_init,
 	.init_machine = mx31lite_init,
 	.restart	= mxc_restart,
 MACHINE_END

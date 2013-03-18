@@ -22,10 +22,10 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/os.h>
-#include <core/enum.h>
+#include <core/client.h>
+#include <core/falcon.h>
 #include <core/class.h>
-#include <core/engctx.h>
+#include <core/enum.h>
 
 #include <subdev/fb.h>
 #include <subdev/vm.h>
@@ -36,11 +36,7 @@
 #include "fuc/nva3.fuc.h"
 
 struct nva3_copy_priv {
-	struct nouveau_copy base;
-};
-
-struct nva3_copy_chan {
-	struct nouveau_copy_chan base;
+	struct nouveau_falcon base;
 };
 
 /*******************************************************************************
@@ -57,34 +53,16 @@ nva3_copy_sclass[] = {
  * PCOPY context
  ******************************************************************************/
 
-static int
-nva3_copy_context_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
-{
-	struct nva3_copy_chan *priv;
-	int ret;
-
-	ret = nouveau_copy_context_create(parent, engine, oclass, NULL, 256, 0,
-					  NVOBJ_FLAG_ZERO_ALLOC, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static struct nouveau_oclass
 nva3_copy_cclass = {
 	.handle = NV_ENGCTX(COPY0, 0xa3),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_copy_context_ctor,
-		.dtor = _nouveau_copy_context_dtor,
-		.init = _nouveau_copy_context_init,
-		.fini = _nouveau_copy_context_fini,
-		.rd32 = _nouveau_copy_context_rd32,
-		.wr32 = _nouveau_copy_context_wr32,
+		.ctor = _nouveau_falcon_context_ctor,
+		.dtor = _nouveau_falcon_context_dtor,
+		.init = _nouveau_falcon_context_init,
+		.fini = _nouveau_falcon_context_fini,
+		.rd32 = _nouveau_falcon_context_rd32,
+		.wr32 = _nouveau_falcon_context_wr32,
 
 	},
 };
@@ -100,41 +78,41 @@ static const struct nouveau_enum nva3_copy_isr_error_name[] = {
 	{}
 };
 
-static void
+void
 nva3_copy_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_falcon *falcon = (void *)subdev;
 	struct nouveau_object *engctx;
-	struct nva3_copy_priv *priv = (void *)subdev;
-	u32 dispatch = nv_rd32(priv, 0x10401c);
-	u32 stat = nv_rd32(priv, 0x104008) & dispatch & ~(dispatch >> 16);
-	u64 inst = nv_rd32(priv, 0x104050) & 0x3fffffff;
-	u32 ssta = nv_rd32(priv, 0x104040) & 0x0000ffff;
-	u32 addr = nv_rd32(priv, 0x104040) >> 16;
+	u32 dispatch = nv_ro32(falcon, 0x01c);
+	u32 stat = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
+	u64 inst = nv_ro32(falcon, 0x050) & 0x3fffffff;
+	u32 ssta = nv_ro32(falcon, 0x040) & 0x0000ffff;
+	u32 addr = nv_ro32(falcon, 0x040) >> 16;
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
-	u32 data = nv_rd32(priv, 0x104044);
+	u32 data = nv_ro32(falcon, 0x044);
 	int chid;
 
 	engctx = nouveau_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000040) {
-		nv_error(priv, "DISPATCH_ERROR [");
+		nv_error(falcon, "DISPATCH_ERROR [");
 		nouveau_enum_print(nva3_copy_isr_error_name, ssta);
-		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, inst << 12, subc, mthd, data);
-		nv_wr32(priv, 0x104004, 0x00000040);
+		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
+		       chid, inst << 12, nouveau_client_name(engctx), subc,
+		       mthd, data);
+		nv_wo32(falcon, 0x004, 0x00000040);
 		stat &= ~0x00000040;
 	}
 
 	if (stat) {
-		nv_error(priv, "unhandled intr 0x%08x\n", stat);
-		nv_wr32(priv, 0x104004, stat);
+		nv_error(falcon, "unhandled intr 0x%08x\n", stat);
+		nv_wo32(falcon, 0x004, stat);
 	}
 
-	nv50_fb_trap(nouveau_fb(priv), 1);
 	nouveau_engctx_put(engctx);
 }
 
@@ -154,7 +132,8 @@ nva3_copy_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nva3_copy_priv *priv;
 	int ret;
 
-	ret = nouveau_copy_create(parent, engine, oclass, enable, 0, &priv);
+	ret = nouveau_falcon_create(parent, engine, oclass, 0x104000, enable,
+				    "PCE0", "copy0", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -164,50 +143,11 @@ nva3_copy_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->cclass = &nva3_copy_cclass;
 	nv_engine(priv)->sclass = nva3_copy_sclass;
 	nv_engine(priv)->tlb_flush = nva3_copy_tlb_flush;
+	nv_falcon(priv)->code.data = nva3_pcopy_code;
+	nv_falcon(priv)->code.size = sizeof(nva3_pcopy_code);
+	nv_falcon(priv)->data.data = nva3_pcopy_data;
+	nv_falcon(priv)->data.size = sizeof(nva3_pcopy_data);
 	return 0;
-}
-
-static int
-nva3_copy_init(struct nouveau_object *object)
-{
-	struct nva3_copy_priv *priv = (void *)object;
-	int ret, i;
-
-	ret = nouveau_copy_init(&priv->base);
-	if (ret)
-		return ret;
-
-	/* disable all interrupts */
-	nv_wr32(priv, 0x104014, 0xffffffff);
-
-	/* upload ucode */
-	nv_wr32(priv, 0x1041c0, 0x01000000);
-	for (i = 0; i < sizeof(nva3_pcopy_data) / 4; i++)
-		nv_wr32(priv, 0x1041c4, nva3_pcopy_data[i]);
-
-	nv_wr32(priv, 0x104180, 0x01000000);
-	for (i = 0; i < sizeof(nva3_pcopy_code) / 4; i++) {
-		if ((i & 0x3f) == 0)
-			nv_wr32(priv, 0x104188, i >> 6);
-		nv_wr32(priv, 0x104184, nva3_pcopy_code[i]);
-	}
-
-	/* start it running */
-	nv_wr32(priv, 0x10410c, 0x00000000);
-	nv_wr32(priv, 0x104104, 0x00000000); /* ENTRY */
-	nv_wr32(priv, 0x104100, 0x00000002); /* TRIGGER */
-	return 0;
-}
-
-static int
-nva3_copy_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nva3_copy_priv *priv = (void *)object;
-
-	nv_mask(priv, 0x104048, 0x00000003, 0x00000000);
-	nv_wr32(priv, 0x104014, 0xffffffff);
-
-	return nouveau_copy_fini(&priv->base, suspend);
 }
 
 struct nouveau_oclass
@@ -215,8 +155,10 @@ nva3_copy_oclass = {
 	.handle = NV_ENGINE(COPY0, 0xa3),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nva3_copy_ctor,
-		.dtor = _nouveau_copy_dtor,
-		.init = nva3_copy_init,
-		.fini = nva3_copy_fini,
+		.dtor = _nouveau_falcon_dtor,
+		.init = _nouveau_falcon_init,
+		.fini = _nouveau_falcon_fini,
+		.rd32 = _nouveau_falcon_rd32,
+		.wr32 = _nouveau_falcon_wr32,
 	},
 };

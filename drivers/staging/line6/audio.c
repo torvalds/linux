@@ -16,20 +16,16 @@
 #include "driver.h"
 #include "audio.h"
 
-static int line6_index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
-static char *line6_id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
-
 /*
 	Initialize the Line6 USB audio system.
 */
 int line6_init_audio(struct usb_line6 *line6)
 {
-	static int dev;
 	struct snd_card *card;
 	int err;
 
-	err = snd_card_create(line6_index[dev], line6_id[dev], THIS_MODULE, 0,
-			      &card);
+	err = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			      THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 

@@ -304,9 +304,9 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 static void netvsc_get_drvinfo(struct net_device *net,
 			       struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, KBUILD_MODNAME);
-	strcpy(info->version, HV_DRV_VERSION);
-	strcpy(info->fw_version, "N/A");
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->version, HV_DRV_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
 static int netvsc_change_mtu(struct net_device *ndev, int mtu)
@@ -349,7 +349,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	struct net_device_context *ndevctx = netdev_priv(ndev);
 	struct hv_device *hdev =  ndevctx->device_ctx;
 	struct sockaddr *addr = p;
-	char save_adr[14];
+	char save_adr[ETH_ALEN];
 	unsigned char save_aatype;
 	int err;
 
@@ -498,8 +498,7 @@ static int netvsc_remove(struct hv_device *dev)
 
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Network guid */
-	{ VMBUS_DEVICE(0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46,
-		       0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E) },
+	{ HV_NIC_GUID, },
 	{ },
 };
 

@@ -439,6 +439,48 @@ slower clock delays the rising edge of SCK, and the I2C master adjusts its
 signaling rate accordingly.
 
 
+GPIO controllers and the pinctrl subsystem
+------------------------------------------
+
+A GPIO controller on a SOC might be tightly coupled with the pinctrl
+subsystem, in the sense that the pins can be used by other functions
+together with an optional gpio feature. We have already covered the
+case where e.g. a GPIO controller need to reserve a pin or set the
+direction of a pin by calling any of:
+
+pinctrl_request_gpio()
+pinctrl_free_gpio()
+pinctrl_gpio_direction_input()
+pinctrl_gpio_direction_output()
+
+But how does the pin control subsystem cross-correlate the GPIO
+numbers (which are a global business) to a certain pin on a certain
+pin controller?
+
+This is done by registering "ranges" of pins, which are essentially
+cross-reference tables. These are described in
+Documentation/pinctrl.txt
+
+While the pin allocation is totally managed by the pinctrl subsystem,
+gpio (under gpiolib) is still maintained by gpio drivers. It may happen
+that different pin ranges in a SoC is managed by different gpio drivers.
+
+This makes it logical to let gpio drivers announce their pin ranges to
+the pin ctrl subsystem before it will call 'pinctrl_request_gpio' in order
+to request the corresponding pin to be prepared by the pinctrl subsystem
+before any gpio usage.
+
+For this, the gpio controller can register its pin range with pinctrl
+subsystem. There are two ways of doing it currently: with or without DT.
+
+For with DT support refer to Documentation/devicetree/bindings/gpio/gpio.txt.
+
+For non-DT support, user can call gpiochip_add_pin_range() with appropriate
+parameters to register a range of gpio pins with a pinctrl driver. For this
+exact name string of pinctrl device has to be passed as one of the
+argument to this routine.
+
+
 What do these conventions omit?
 ===============================
 One of the biggest things these conventions omit is pin multiplexing, since

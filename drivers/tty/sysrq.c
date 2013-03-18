@@ -15,6 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -347,7 +348,8 @@ static struct sysrq_key_op sysrq_term_op = {
 
 static void moom_callback(struct work_struct *ignored)
 {
-	out_of_memory(node_zonelist(0, GFP_KERNEL), GFP_KERNEL, 0, NULL, true);
+	out_of_memory(node_zonelist(first_online_node, GFP_KERNEL), GFP_KERNEL,
+		      0, NULL, true);
 }
 
 static DECLARE_WORK(moom_work, moom_callback);
@@ -868,21 +870,20 @@ static struct input_handler sysrq_handler = {
 
 static bool sysrq_handler_registered;
 
+unsigned short platform_sysrq_reset_seq[] __weak = { KEY_RESERVED };
+
 static inline void sysrq_register_handler(void)
 {
-	extern unsigned short platform_sysrq_reset_seq[] __weak;
 	unsigned short key;
 	int error;
 	int i;
 
-	if (platform_sysrq_reset_seq) {
-		for (i = 0; i < ARRAY_SIZE(sysrq_reset_seq); i++) {
-			key = platform_sysrq_reset_seq[i];
-			if (key == KEY_RESERVED || key > KEY_MAX)
-				break;
+	for (i = 0; i < ARRAY_SIZE(sysrq_reset_seq); i++) {
+		key = platform_sysrq_reset_seq[i];
+		if (key == KEY_RESERVED || key > KEY_MAX)
+			break;
 
-			sysrq_reset_seq[sysrq_reset_seq_len++] = key;
-		}
+		sysrq_reset_seq[sysrq_reset_seq_len++] = key;
 	}
 
 	error = input_register_handler(&sysrq_handler);

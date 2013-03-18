@@ -822,7 +822,7 @@ static void raise_barrier(struct r1conf *conf)
 
 	/* Wait until no block IO is waiting */
 	wait_event_lock_irq(conf->wait_barrier, !conf->nr_waiting,
-			    conf->resync_lock, );
+			    conf->resync_lock);
 
 	/* block any new IO from starting */
 	conf->barrier++;
@@ -830,7 +830,7 @@ static void raise_barrier(struct r1conf *conf)
 	/* Now wait for all pending IO to complete */
 	wait_event_lock_irq(conf->wait_barrier,
 			    !conf->nr_pending && conf->barrier < RESYNC_DEPTH,
-			    conf->resync_lock, );
+			    conf->resync_lock);
 
 	spin_unlock_irq(&conf->resync_lock);
 }
@@ -864,8 +864,7 @@ static void wait_barrier(struct r1conf *conf)
 				    (conf->nr_pending &&
 				     current->bio_list &&
 				     !bio_list_empty(current->bio_list)),
-				    conf->resync_lock,
-			);
+				    conf->resync_lock);
 		conf->nr_waiting--;
 	}
 	conf->nr_pending++;
@@ -898,10 +897,10 @@ static void freeze_array(struct r1conf *conf)
 	spin_lock_irq(&conf->resync_lock);
 	conf->barrier++;
 	conf->nr_waiting++;
-	wait_event_lock_irq(conf->wait_barrier,
-			    conf->nr_pending == conf->nr_queued+1,
-			    conf->resync_lock,
-			    flush_pending_writes(conf));
+	wait_event_lock_irq_cmd(conf->wait_barrier,
+				conf->nr_pending == conf->nr_queued+1,
+				conf->resync_lock,
+				flush_pending_writes(conf));
 	spin_unlock_irq(&conf->resync_lock);
 }
 static void unfreeze_array(struct r1conf *conf)
@@ -963,11 +962,12 @@ static void raid1_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	struct r1conf *conf = mddev->private;
 	struct bio *bio;
 
-	if (from_schedule) {
+	if (from_schedule || current->bio_list) {
 		spin_lock_irq(&conf->device_lock);
 		bio_list_merge(&conf->pending_bio_list, &plug->pending);
 		conf->pending_count += plug->pending_cnt;
 		spin_unlock_irq(&conf->device_lock);
+		wake_up(&conf->wait_barrier);
 		md_wakeup_thread(mddev->thread);
 		kfree(plug);
 		return;
@@ -1001,6 +1001,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	const unsigned long do_flush_fua = (bio->bi_rw & (REQ_FLUSH | REQ_FUA));
 	const unsigned long do_discard = (bio->bi_rw
 					  & (REQ_DISCARD | REQ_SECURE));
+	const unsigned long do_same = (bio->bi_rw & REQ_WRITE_SAME);
 	struct md_rdev *blocked_rdev;
 	struct blk_plug_cb *cb;
 	struct raid1_plug_cb *plug = NULL;
@@ -1302,7 +1303,8 @@ read_again:
 				   conf->mirrors[i].rdev->data_offset);
 		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
-		mbio->bi_rw = WRITE | do_flush_fua | do_sync | do_discard;
+		mbio->bi_rw =
+			WRITE | do_flush_fua | do_sync | do_discard | do_same;
 		mbio->bi_private = r1_bio;
 
 		atomic_inc(&r1_bio->remaining);
@@ -2819,6 +2821,9 @@ static int run(struct mddev *mddev)
 	if (IS_ERR(conf))
 		return PTR_ERR(conf);
 
+	if (mddev->queue)
+		blk_queue_max_write_same_sectors(mddev->queue,
+						 mddev->chunk_sectors);
 	rdev_for_each(rdev, mddev) {
 		if (!mddev->gendisk)
 			continue;

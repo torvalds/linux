@@ -53,8 +53,8 @@
  * using 2 wire for device control, so we cache them instead.
  */
 static const struct reg_default wm8960_reg_defaults[] = {
-	{  0x0, 0x0097 },
-	{  0x1, 0x0097 },
+	{  0x0, 0x00a7 },
+	{  0x1, 0x00a7 },
 	{  0x2, 0x0000 },
 	{  0x3, 0x0000 },
 	{  0x4, 0x0000 },
@@ -323,8 +323,8 @@ SND_SOC_DAPM_MIXER("Left Input Mixer", WM8960_POWER3, 5, 0,
 SND_SOC_DAPM_MIXER("Right Input Mixer", WM8960_POWER3, 4, 0,
 		   wm8960_rin, ARRAY_SIZE(wm8960_rin)),
 
-SND_SOC_DAPM_ADC("Left ADC", "Capture", WM8960_POWER2, 3, 0),
-SND_SOC_DAPM_ADC("Right ADC", "Capture", WM8960_POWER2, 2, 0),
+SND_SOC_DAPM_ADC("Left ADC", "Capture", WM8960_POWER1, 3, 0),
+SND_SOC_DAPM_ADC("Right ADC", "Capture", WM8960_POWER1, 2, 0),
 
 SND_SOC_DAPM_DAC("Left DAC", "Playback", WM8960_POWER2, 8, 0),
 SND_SOC_DAPM_DAC("Right DAC", "Playback", WM8960_POWER2, 7, 0),
@@ -1028,8 +1028,8 @@ static const struct regmap_config wm8960_regmap = {
 	.volatile_reg = wm8960_volatile,
 };
 
-static __devinit int wm8960_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8960_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8960_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8960_priv *wm8960;
@@ -1040,7 +1040,7 @@ static __devinit int wm8960_i2c_probe(struct i2c_client *i2c,
 	if (wm8960 == NULL)
 		return -ENOMEM;
 
-	wm8960->regmap = regmap_init_i2c(i2c, &wm8960_regmap);
+	wm8960->regmap = devm_regmap_init_i2c(i2c, &wm8960_regmap);
 	if (IS_ERR(wm8960->regmap))
 		return PTR_ERR(wm8960->regmap);
 
@@ -1062,7 +1062,7 @@ static __devinit int wm8960_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int wm8960_i2c_remove(struct i2c_client *client)
+static int wm8960_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -1080,7 +1080,7 @@ static struct i2c_driver wm8960_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8960_i2c_probe,
-	.remove =   __devexit_p(wm8960_i2c_remove),
+	.remove =   wm8960_i2c_remove,
 	.id_table = wm8960_i2c_id,
 };
 

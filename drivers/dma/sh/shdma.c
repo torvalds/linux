@@ -326,7 +326,7 @@ static int sh_dmae_set_slave(struct shdma_chan *schan,
 						    shdma_chan);
 	const struct sh_dmae_slave_config *cfg = dmae_find_slave(sh_chan, slave_id);
 	if (!cfg)
-		return -ENODEV;
+		return -ENXIO;
 
 	if (!try)
 		sh_chan->config = cfg;
@@ -483,7 +483,7 @@ static struct notifier_block sh_dmae_nmi_notifier __read_mostly = {
 	.priority	= 1,
 };
 
-static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
+static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 					int irq, unsigned long flags)
 {
 	const struct sh_dmae_channel *chan_pdata = &shdev->pdata->channel[id];
@@ -646,7 +646,7 @@ static const struct shdma_ops sh_dmae_shdma_ops = {
 	.get_partial = sh_dmae_get_partial,
 };
 
-static int __devinit sh_dmae_probe(struct platform_device *pdev)
+static int sh_dmae_probe(struct platform_device *pdev)
 {
 	struct sh_dmae_pdata *pdata = pdev->dev.platform_data;
 	unsigned long irqflags = IRQF_DISABLED,
@@ -880,7 +880,7 @@ ermrdmars:
 	return err;
 }
 
-static int __devexit sh_dmae_remove(struct platform_device *pdev)
+static int sh_dmae_remove(struct platform_device *pdev)
 {
 	struct sh_dmae_device *shdev = platform_get_drvdata(pdev);
 	struct dma_device *dma_dev = &shdev->shdma_dev.dma_dev;
@@ -926,7 +926,7 @@ static struct platform_driver sh_dmae_driver = {
 		.pm	= &sh_dmae_pm,
 		.name	= SH_DMAE_DRV_NAME,
 	},
-	.remove		= __devexit_p(sh_dmae_remove),
+	.remove		= sh_dmae_remove,
 	.shutdown	= sh_dmae_shutdown,
 };
 

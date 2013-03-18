@@ -288,8 +288,16 @@ int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 	int status = 0;
 	struct ath6kl_cookie *cookie = NULL;
 
-	if (WARN_ON_ONCE(ar->state == ATH6KL_STATE_WOW))
+	if (WARN_ON_ONCE(ar->state == ATH6KL_STATE_WOW)) {
+		dev_kfree_skb(skb);
 		return -EACCES;
+	}
+
+	if (WARN_ON_ONCE(eid == ENDPOINT_UNUSED ||
+			 eid >= ENDPOINT_MAX)) {
+		status = -EINVAL;
+		goto fail_ctrl_tx;
+	}
 
 	spin_lock_bh(&ar->lock);
 
@@ -591,6 +599,7 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 		 */
 		set_bit(WMI_CTRL_EP_FULL, &ar->flag);
 		ath6kl_err("wmi ctrl ep is full\n");
+		ath6kl_recovery_err_notify(ar, ATH6KL_FW_EP_FULL);
 		return action;
 	}
 
@@ -695,22 +704,31 @@ void ath6kl_tx_complete(struct htc_target *target,
 					  list);
 		list_del(&packet->list);
 
+		if (WARN_ON_ONCE(packet->endpoint == ENDPOINT_UNUSED ||
+				 packet->endpoint >= ENDPOINT_MAX))
+			continue;
+
 		ath6kl_cookie = (struct ath6kl_cookie *)packet->pkt_cntxt;
-		if (!ath6kl_cookie)
-			goto fatal;
+		if (WARN_ON_ONCE(!ath6kl_cookie))
+			continue;
 
 		status = packet->status;
 		skb = ath6kl_cookie->skb;
 		eid = packet->endpoint;
 		map_no = ath6kl_cookie->map_no;
 
-		if (!skb || !skb->data)
-			goto fatal;
+		if (WARN_ON_ONCE(!skb || !skb->data)) {
+			dev_kfree_skb(skb);
+			ath6kl_free_cookie(ar, ath6kl_cookie);
+			continue;
+		}
 
 		__skb_queue_tail(&skb_queue, skb);
 
-		if (!status && (packet->act_len != skb->len))
-			goto fatal;
+		if (WARN_ON_ONCE(!status && (packet->act_len != skb->len))) {
+			ath6kl_free_cookie(ar, ath6kl_cookie);
+			continue;
+		}
 
 		ar->tx_pending[eid]--;
 
@@ -791,11 +809,6 @@ void ath6kl_tx_complete(struct htc_target *target,
 	if (wake_event)
 		wake_up(&ar->event_wq);
 
-	return;
-
-fatal:
-	WARN_ON(1);
-	spin_unlock_bh(&ar->lock);
 	return;
 }
 
@@ -885,8 +898,11 @@ void ath6kl_rx_refill(struct htc_target *target, enum htc_endpoint_id endpoint)
 			break;
 
 		packet = (struct htc_packet *) skb->head;
-		if (!IS_ALIGNED((unsigned long) skb->data, 4))
+		if (!IS_ALIGNED((unsigned long) skb->data, 4)) {
+			size_t len = skb_headlen(skb);
 			skb->data = PTR_ALIGN(skb->data - 4, 4);
+			skb_set_tail_pointer(skb, len);
+		}
 		set_htc_rxpkt_info(packet, skb, skb->data,
 				   ATH6KL_BUFFER_SIZE, endpoint);
 		packet->skb = skb;
@@ -908,8 +924,11 @@ void ath6kl_refill_amsdu_rxbufs(struct ath6kl *ar, int count)
 			return;
 
 		packet = (struct htc_packet *) skb->head;
-		if (!IS_ALIGNED((unsigned long) skb->data, 4))
+		if (!IS_ALIGNED((unsigned long) skb->data, 4)) {
+			size_t len = skb_headlen(skb);
 			skb->data = PTR_ALIGN(skb->data - 4, 4);
+			skb_set_tail_pointer(skb, len);
+		}
 		set_htc_rxpkt_info(packet, skb, skb->data,
 				   ATH6KL_AMSDU_BUFFER_SIZE, 0);
 		packet->skb = skb;

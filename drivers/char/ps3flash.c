@@ -312,7 +312,7 @@ static int ps3flash_flush(struct file *file, fl_owner_t id)
 
 static int ps3flash_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int err;
 	mutex_lock(&inode->i_mutex);
 	err = ps3flash_writeback(ps3flash_dev);
@@ -363,7 +363,7 @@ static struct miscdevice ps3flash_misc = {
 	.fops	= &ps3flash_fops,
 };
 
-static int __devinit ps3flash_probe(struct ps3_system_bus_device *_dev)
+static int ps3flash_probe(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
 	struct ps3flash_private *priv;

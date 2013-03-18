@@ -125,7 +125,7 @@ static struct pmcraid_chip_details pmcraid_chip_cfg[] = {
 /*
  * PCI device ids supported by pmcraid driver
  */
-static struct pci_device_id pmcraid_pci_table[] __devinitdata = {
+static struct pci_device_id pmcraid_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PMC, PCI_DEVICE_ID_PMC_MAXRAID),
 	  0, 0, (kernel_ulong_t)&pmcraid_chip_cfg[0]
 	},
@@ -4818,8 +4818,7 @@ pmcraid_release_control_blocks(
  * Return Value
  *	0 in case of success; -ENOMEM in case of failure
  */
-static int __devinit
-pmcraid_allocate_cmd_blocks(struct pmcraid_instance *pinstance)
+static int pmcraid_allocate_cmd_blocks(struct pmcraid_instance *pinstance)
 {
 	int i;
 
@@ -4855,8 +4854,7 @@ pmcraid_allocate_cmd_blocks(struct pmcraid_instance *pinstance)
  * Return Value
  *  0 in case it can allocate all control blocks, otherwise -ENOMEM
  */
-static int __devinit
-pmcraid_allocate_control_blocks(struct pmcraid_instance *pinstance)
+static int pmcraid_allocate_control_blocks(struct pmcraid_instance *pinstance)
 {
 	int i;
 
@@ -4922,8 +4920,7 @@ pmcraid_release_host_rrqs(struct pmcraid_instance *pinstance, int maxindex)
  * Return value
  *	0 hrrq buffers are allocated, -ENOMEM otherwise.
  */
-static int __devinit
-pmcraid_allocate_host_rrqs(struct pmcraid_instance *pinstance)
+static int pmcraid_allocate_host_rrqs(struct pmcraid_instance *pinstance)
 {
 	int i, buffer_size;
 
@@ -5062,8 +5059,7 @@ static void pmcraid_release_config_buffers(struct pmcraid_instance *pinstance)
  * Return Value
  *	0 for successful allocation, -ENOMEM for any failure
  */
-static int __devinit
-pmcraid_allocate_config_buffers(struct pmcraid_instance *pinstance)
+static int pmcraid_allocate_config_buffers(struct pmcraid_instance *pinstance)
 {
 	int i;
 
@@ -5181,7 +5177,7 @@ static void pmcraid_release_buffers(struct pmcraid_instance *pinstance)
  * Return Value
  *	 0 in case all of the blocks are allocated, -ENOMEM otherwise.
  */
-static int __devinit pmcraid_init_buffers(struct pmcraid_instance *pinstance)
+static int pmcraid_init_buffers(struct pmcraid_instance *pinstance)
 {
 	int i;
 
@@ -5281,11 +5277,8 @@ static void pmcraid_reinit_buffers(struct pmcraid_instance *pinstance)
  * Return Value
  *	 0 on success, non-zero in case of any failure
  */
-static int __devinit pmcraid_init_instance(
-	struct pci_dev *pdev,
-	struct Scsi_Host *host,
-	void __iomem *mapped_pci_addr
-)
+static int pmcraid_init_instance(struct pci_dev *pdev, struct Scsi_Host *host,
+				 void __iomem *mapped_pci_addr)
 {
 	struct pmcraid_instance *pinstance =
 		(struct pmcraid_instance *)host->hostdata;
@@ -5442,7 +5435,7 @@ static void pmcraid_release_chrdev(struct pmcraid_instance *pinstance)
  * Return value
  *	  none
  */
-static void __devexit pmcraid_remove(struct pci_dev *pdev)
+static void pmcraid_remove(struct pci_dev *pdev)
 {
 	struct pmcraid_instance *pinstance = pci_get_drvdata(pdev);
 
@@ -5883,10 +5876,8 @@ static void pmcraid_querycfg(struct pmcraid_cmd *cmd)
  *	returns 0 if the device is claimed and successfully configured.
  *	returns non-zero error code in case of any failure
  */
-static int __devinit pmcraid_probe(
-	struct pci_dev *pdev,
-	const struct pci_device_id *dev_id
-)
+static int pmcraid_probe(struct pci_dev *pdev,
+			 const struct pci_device_id *dev_id)
 {
 	struct pmcraid_instance *pinstance;
 	struct Scsi_Host *host;

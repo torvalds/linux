@@ -231,7 +231,9 @@ retry:
 	}
 	start_dma_addr = xen_virt_to_bus(xen_io_tlb_start);
 	if (early) {
-		swiotlb_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs, verbose);
+		if (swiotlb_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs,
+			 verbose))
+			panic("Cannot allocate SWIOTLB buffer");
 		rc = 0;
 	} else
 		rc = swiotlb_late_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs);
@@ -338,9 +340,8 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 				enum dma_data_direction dir,
 				struct dma_attrs *attrs)
 {
-	phys_addr_t phys = page_to_phys(page) + offset;
+	phys_addr_t map, phys = page_to_phys(page) + offset;
 	dma_addr_t dev_addr = xen_phys_to_bus(phys);
-	void *map;
 
 	BUG_ON(dir == DMA_NONE);
 	/*
@@ -356,10 +357,10 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	 * Oh well, have to allocate and map a bounce buffer.
 	 */
 	map = swiotlb_tbl_map_single(dev, start_dma_addr, phys, size, dir);
-	if (!map)
+	if (map == SWIOTLB_MAP_ERROR)
 		return DMA_ERROR_CODE;
 
-	dev_addr = xen_virt_to_bus(map);
+	dev_addr = xen_phys_to_bus(map);
 
 	/*
 	 * Ensure that the address returned is DMA'ble
@@ -389,7 +390,7 @@ static void xen_unmap_single(struct device *hwdev, dma_addr_t dev_addr,
 
 	/* NOTE: We use dev_addr here, not paddr! */
 	if (is_xen_swiotlb_buffer(dev_addr)) {
-		swiotlb_tbl_unmap_single(hwdev, phys_to_virt(paddr), size, dir);
+		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir);
 		return;
 	}
 
@@ -434,8 +435,7 @@ xen_swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 
 	/* NOTE: We use dev_addr here, not paddr! */
 	if (is_xen_swiotlb_buffer(dev_addr)) {
-		swiotlb_tbl_sync_single(hwdev, phys_to_virt(paddr), size, dir,
-				       target);
+		swiotlb_tbl_sync_single(hwdev, paddr, size, dir, target);
 		return;
 	}
 
@@ -494,11 +494,12 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 		if (swiotlb_force ||
 		    !dma_capable(hwdev, dev_addr, sg->length) ||
 		    range_straddles_page_boundary(paddr, sg->length)) {
-			void *map = swiotlb_tbl_map_single(hwdev,
-							   start_dma_addr,
-							   sg_phys(sg),
-							   sg->length, dir);
-			if (!map) {
+			phys_addr_t map = swiotlb_tbl_map_single(hwdev,
+								 start_dma_addr,
+								 sg_phys(sg),
+								 sg->length,
+								 dir);
+			if (map == SWIOTLB_MAP_ERROR) {
 				/* Don't panic here, we expect map_sg users
 				   to do proper error handling. */
 				xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
@@ -506,7 +507,7 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 				sgl[0].dma_length = 0;
 				return DMA_ERROR_CODE;
 			}
-			sg->dma_address = xen_virt_to_bus(map);
+			sg->dma_address = xen_phys_to_bus(map);
 		} else
 			sg->dma_address = dev_addr;
 		sg->dma_length = sg->length;

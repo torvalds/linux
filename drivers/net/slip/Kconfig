@@ -4,6 +4,7 @@
 
 config SLIP
 	tristate "SLIP (serial line) support"
+	depends on TTY
 	---help---
 	  Say Y if you intend to use SLIP or CSLIP (compressed SLIP) to
 	  connect to your Internet service provider or to connect to some

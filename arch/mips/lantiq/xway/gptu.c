@@ -133,7 +133,7 @@ static inline void clkdev_add_gptu(struct device *dev, const char *con,
 	clkdev_add(&clk->cl);
 }
 
-static int __devinit gptu_probe(struct platform_device *pdev)
+static int gptu_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct resource *res;
@@ -150,11 +150,9 @@ static int __devinit gptu_probe(struct platform_device *pdev)
 	}
 
 	/* remap gptu register range */
-	gptu_membase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!gptu_membase) {
-		dev_err(&pdev->dev, "Failed to remap resource\n");
-		return -ENOMEM;
-	}
+	gptu_membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(gptu_membase))
+		return PTR_ERR(gptu_membase);
 
 	/* enable our clock */
 	clk = clk_get(&pdev->dev, NULL);

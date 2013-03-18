@@ -782,7 +782,7 @@ BLOCKING_NOTIFIER_HEAD(intel_scu_notifier);
 EXPORT_SYMBOL_GPL(intel_scu_notifier);
 
 /* Called by IPC driver */
-void __devinit intel_scu_devices_create(void)
+void intel_scu_devices_create(void)
 {
 	int i;
 

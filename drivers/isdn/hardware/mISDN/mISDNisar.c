@@ -1302,7 +1302,7 @@ modeisar(struct isar_ch *ch, u32 bprotocol)
 						   &ch->is->Flags))
 				ch->dpath = 1;
 			else {
-				pr_info("modeisar both pathes in use\n");
+				pr_info("modeisar both paths in use\n");
 				return -EBUSY;
 			}
 			if (bprotocol == ISDN_P_B_HDLC)

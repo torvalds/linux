@@ -179,6 +179,8 @@ struct pci_dev;
 #define BCMA_CORE_PCI_CFG_FUN_MASK		7	/* Function mask */
 #define BCMA_CORE_PCI_CFG_OFF_MASK		0xfff	/* Register mask */
 
+#define BCMA_CORE_PCI_CFG_DEVCTRL		0xd8
+
 /* PCIE Root Capability Register bits (Host mode only) */
 #define BCMA_CORE_PCI_RC_CRS_VISIBILITY		0x0001
 
@@ -214,7 +216,7 @@ struct bcma_drv_pci {
 #define pcicore_write16(pc, offset, val)	bcma_write16((pc)->core, offset, val)
 #define pcicore_write32(pc, offset, val)	bcma_write32((pc)->core, offset, val)
 
-extern void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc);
+extern void bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);
 extern void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend);

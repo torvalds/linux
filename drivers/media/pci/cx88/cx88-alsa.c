@@ -45,11 +45,15 @@
 #include "cx88.h"
 #include "cx88-reg.h"
 
-#define dprintk(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_INFO "%s/1: " fmt, chip->core->name , ## arg)
+#define dprintk(level, fmt, arg...) do {				\
+	if (debug + 1 > level)						\
+		printk(KERN_INFO "%s/1: " fmt, chip->core->name , ## arg);\
+} while(0)
 
-#define dprintk_core(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s/1: " fmt, chip->core->name , ## arg)
+#define dprintk_core(level, fmt, arg...) do {				\
+	if (debug + 1 > level)						\
+		printk(KERN_DEBUG "%s/1: " fmt, chip->core->name , ## arg);\
+} while(0)
 
 /****************************************************************************
 	Data type declarations - Can be moded to a header file later
@@ -536,7 +540,7 @@ static struct snd_pcm_ops snd_cx88_pcm_ops = {
 /*
  * create a PCM device
  */
-static int __devinit snd_cx88_pcm(snd_cx88_card_t *chip, int device, const char *name)
+static int snd_cx88_pcm(snd_cx88_card_t *chip, int device, const char *name)
 {
 	int err;
 	struct snd_pcm *pcm;
@@ -749,7 +753,7 @@ static struct snd_kcontrol_new snd_cx88_alc_switch = {
  * Only boards with eeprom and byte 1 at eeprom=1 have it
  */
 
-static const struct pci_device_id cx88_audio_pci_tbl[] __devinitdata = {
+static const struct pci_device_id cx88_audio_pci_tbl[] = {
 	{0x14f1,0x8801,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0x14f1,0x8811,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0, }
@@ -788,10 +792,9 @@ static void snd_cx88_dev_free(struct snd_card * card)
  */
 
 static int devno;
-static int __devinit snd_cx88_create(struct snd_card *card,
-				     struct pci_dev *pci,
-				     snd_cx88_card_t **rchip,
-				     struct cx88_core **core_ptr)
+static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
+			   snd_cx88_card_t **rchip,
+			   struct cx88_core **core_ptr)
 {
 	snd_cx88_card_t   *chip;
 	struct cx88_core  *core;
@@ -858,8 +861,8 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	return 0;
 }
 
-static int __devinit cx88_audio_initdev(struct pci_dev *pci,
-				    const struct pci_device_id *pci_id)
+static int cx88_audio_initdev(struct pci_dev *pci,
+			      const struct pci_device_id *pci_id)
 {
 	struct snd_card  *card;
 	snd_cx88_card_t  *chip;
@@ -927,7 +930,7 @@ error:
 /*
  * ALSA destructor
  */
-static void __devexit cx88_audio_finidev(struct pci_dev *pci)
+static void cx88_audio_finidev(struct pci_dev *pci)
 {
 	struct cx88_audio_dev *card = pci_get_drvdata(pci);
 
@@ -946,7 +949,7 @@ static struct pci_driver cx88_audio_pci_driver = {
 	.name     = "cx88_audio",
 	.id_table = cx88_audio_pci_tbl,
 	.probe    = cx88_audio_initdev,
-	.remove   = __devexit_p(cx88_audio_finidev),
+	.remove   = cx88_audio_finidev,
 };
 
 /****************************************************************************

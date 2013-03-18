@@ -161,7 +161,7 @@ static enum power_supply_property wm831x_backup_props[] = {
  *		Initialisation
  *********************************************************************/
 
-static __devinit int wm831x_backup_probe(struct platform_device *pdev)
+static int wm831x_backup_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *wm831x_pdata = wm831x->dev->platform_data;
@@ -207,7 +207,7 @@ err_kmalloc:
 	return ret;
 }
 
-static __devexit int wm831x_backup_remove(struct platform_device *pdev)
+static int wm831x_backup_remove(struct platform_device *pdev)
 {
 	struct wm831x_backup *devdata = platform_get_drvdata(pdev);
 
@@ -220,7 +220,7 @@ static __devexit int wm831x_backup_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_backup_driver = {
 	.probe = wm831x_backup_probe,
-	.remove = __devexit_p(wm831x_backup_remove),
+	.remove = wm831x_backup_remove,
 	.driver = {
 		.name = "wm831x-backup",
 	},

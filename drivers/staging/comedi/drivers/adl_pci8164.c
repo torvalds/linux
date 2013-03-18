@@ -30,9 +30,11 @@ Updated: Mon, 14 Apr 2008 15:10:32 +0100
 Configuration Options: not applicable, uses PCI auto config
 */
 
-#include "../comedidev.h"
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
+
+#include "../comedidev.h"
 #include "comedi_fc.h"
 #include "8253.h"
 
@@ -62,36 +64,36 @@ static void adl_pci8164_insn_read(struct comedi_device *dev,
 				  char *action, unsigned short offset)
 {
 	int axis, axis_reg;
-	char *axisname;
+	char axisname;
 
 	axis = CR_CHAN(insn->chanspec);
 
 	switch (axis) {
 	case 0:
 		axis_reg = PCI8164_AXIS_X;
-		axisname = "X";
+		axisname = 'X';
 		break;
 	case 1:
 		axis_reg = PCI8164_AXIS_Y;
-		axisname = "Y";
+		axisname = 'Y';
 		break;
 	case 2:
 		axis_reg = PCI8164_AXIS_Z;
-		axisname = "Z";
+		axisname = 'Z';
 		break;
 	case 3:
 		axis_reg = PCI8164_AXIS_U;
-		axisname = "U";
+		axisname = 'U';
 		break;
 	default:
 		axis_reg = PCI8164_AXIS_X;
-		axisname = "X";
+		axisname = 'X';
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + offset);
-	printk(KERN_DEBUG "comedi: pci8164 %s read -> "
-						  "%04X:%04X on axis %s\n",
-				action, data[0], data[1], axisname);
+	dev_dbg(dev->class_dev,
+		"pci8164 %s read -> %04X:%04X on axis %c\n",
+		action, data[0], data[1], axisname);
 }
 
 static int adl_pci8164_insn_read_msts(struct comedi_device *dev,
@@ -142,37 +144,37 @@ static void adl_pci8164_insn_out(struct comedi_device *dev,
 {
 	unsigned int axis, axis_reg;
 
-	char *axisname;
+	char axisname;
 
 	axis = CR_CHAN(insn->chanspec);
 
 	switch (axis) {
 	case 0:
 		axis_reg = PCI8164_AXIS_X;
-		axisname = "X";
+		axisname = 'X';
 		break;
 	case 1:
 		axis_reg = PCI8164_AXIS_Y;
-		axisname = "Y";
+		axisname = 'Y';
 		break;
 	case 2:
 		axis_reg = PCI8164_AXIS_Z;
-		axisname = "Z";
+		axisname = 'Z';
 		break;
 	case 3:
 		axis_reg = PCI8164_AXIS_U;
-		axisname = "U";
+		axisname = 'U';
 		break;
 	default:
 		axis_reg = PCI8164_AXIS_X;
-		axisname = "X";
+		axisname = 'X';
 	}
 
 	outw(data[0], dev->iobase + axis_reg + offset);
 
-	printk(KERN_DEBUG "comedi: pci8164 %s write -> "
-						"%04X:%04X on axis %s\n",
-				action, data[0], data[1], axisname);
+	dev_dbg(dev->class_dev,
+		"pci8164 %s write -> %04X:%04X on axis %c\n",
+		action, data[0], data[1], axisname);
 
 }
 
@@ -212,13 +214,12 @@ static int adl_pci8164_insn_write_buf1(struct comedi_device *dev,
 	return 2;
 }
 
-static int adl_pci8164_attach_pci(struct comedi_device *dev,
-				  struct pci_dev *pcidev)
+static int adl_pci8164_auto_attach(struct comedi_device *dev,
+					     unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int ret;
-
-	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	dev->board_name = dev->driver->driver_name;
 
@@ -289,19 +290,14 @@ static void adl_pci8164_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci8164_driver = {
 	.driver_name	= "adl_pci8164",
 	.module		= THIS_MODULE,
-	.attach_pci	= adl_pci8164_attach_pci,
+	.auto_attach	= adl_pci8164_auto_attach,
 	.detach		= adl_pci8164_detach,
 };
 
-static int __devinit adl_pci8164_pci_probe(struct pci_dev *dev,
+static int adl_pci8164_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adl_pci8164_driver);
-}
-
-static void __devexit adl_pci8164_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci8164_pci_table) = {
@@ -314,7 +310,7 @@ static struct pci_driver adl_pci8164_pci_driver = {
 	.name		= "adl_pci8164",
 	.id_table	= adl_pci8164_pci_table,
 	.probe		= adl_pci8164_pci_probe,
-	.remove		= __devexit_p(adl_pci8164_pci_remove),
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adl_pci8164_driver, adl_pci8164_pci_driver);
 

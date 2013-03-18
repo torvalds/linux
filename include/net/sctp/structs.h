@@ -177,6 +177,7 @@ struct sctp_sock {
 
 	/* Access to HMAC transform. */
 	struct crypto_hash *hmac;
+	char *sctp_hmac_alg;
 
 	/* What is our base endpointer? */
 	struct sctp_endpoint *ep;
@@ -948,6 +949,8 @@ struct sctp_transport {
 
 	/* 64-bit random number sent with heartbeat. */
 	__u64 hb_nonce;
+
+	struct rcu_head rcu;
 };
 
 struct sctp_transport *sctp_transport_new(struct net *, const union sctp_addr *,
@@ -1233,10 +1236,7 @@ struct sctp_endpoint {
 	 *	      Discussion in [RFC1750] can be helpful in
 	 *	      selection of the key.
 	 */
-	__u8 secret_key[SCTP_HOW_MANY_SECRETS][SCTP_SECRET_SIZE];
-	int current_key;
-	int last_key;
-	int key_changed_at;
+	__u8 secret_key[SCTP_SECRET_SIZE];
 
  	/* digest:  This is a digest of the sctp cookie.  This field is
  	 * 	    only used on the receive path when we try to validate
@@ -1309,6 +1309,40 @@ struct sctp_inithdr_host {
 	__u16 num_outbound_streams;
 	__u16 num_inbound_streams;
 	__u32 initial_tsn;
+};
+
+/* SCTP_GET_ASSOC_STATS counters */
+struct sctp_priv_assoc_stats {
+	/* Maximum observed rto in the association during subsequent
+	 * observations. Value is set to 0 if no RTO measurement took place
+	 * The transport where the max_rto was observed is returned in
+	 * obs_rto_ipaddr
+	 */
+	struct sockaddr_storage obs_rto_ipaddr;
+	__u64 max_obs_rto;
+	/* Total In and Out SACKs received and sent */
+	__u64 isacks;
+	__u64 osacks;
+	/* Total In and Out packets received and sent */
+	__u64 opackets;
+	__u64 ipackets;
+	/* Total retransmitted chunks */
+	__u64 rtxchunks;
+	/* TSN received > next expected */
+	__u64 outofseqtsns;
+	/* Duplicate Chunks received */
+	__u64 idupchunks;
+	/* Gap Ack Blocks received */
+	__u64 gapcnt;
+	/* Unordered data chunks sent and received */
+	__u64 ouodchunks;
+	__u64 iuodchunks;
+	/* Ordered data chunks sent and received */
+	__u64 oodchunks;
+	__u64 iodchunks;
+	/* Control chunks sent and received */
+	__u64 octrlchunks;
+	__u64 ictrlchunks;
 };
 
 /* RFC2960
@@ -1829,6 +1863,8 @@ struct sctp_association {
 
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1;		/* Is it a temporary association? */
+
+	struct sctp_priv_assoc_stats stats;
 };
 
 

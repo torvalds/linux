@@ -116,7 +116,7 @@ static int io_err_ctr(struct dm_target *tt, unsigned int argc, char **args)
 	/*
 	 * Return error for discards instead of -EOPNOTSUPP
 	 */
-	tt->num_discard_requests = 1;
+	tt->num_discard_bios = 1;
 
 	return 0;
 }
@@ -126,15 +126,14 @@ static void io_err_dtr(struct dm_target *tt)
 	/* empty */
 }
 
-static int io_err_map(struct dm_target *tt, struct bio *bio,
-		      union map_info *map_context)
+static int io_err_map(struct dm_target *tt, struct bio *bio)
 {
 	return -EIO;
 }
 
 static struct target_type error_target = {
 	.name = "error",
-	.version = {1, 0, 1},
+	.version = {1, 1, 0},
 	.ctr  = io_err_ctr,
 	.dtr  = io_err_dtr,
 	.map  = io_err_map,

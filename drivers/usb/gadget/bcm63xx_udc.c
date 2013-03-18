@@ -2323,7 +2323,7 @@ static void bcm63xx_udc_gadget_release(struct device *dev)
  * Note that platform data is required, because pd.port_no varies from chip
  * to chip and is used to switch the correct USB port to device mode.
  */
-static int __devinit bcm63xx_udc_probe(struct platform_device *pdev)
+static int bcm63xx_udc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct bcm63xx_usbd_platform_data *pd = dev->platform_data;
@@ -2351,19 +2351,20 @@ static int __devinit bcm63xx_udc_probe(struct platform_device *pdev)
 		dev_err(dev, "error finding USBD resource\n");
 		return -ENXIO;
 	}
-	udc->usbd_regs = devm_request_and_ioremap(dev, res);
+
+	udc->usbd_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(udc->usbd_regs))
+		return PTR_ERR(udc->usbd_regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
 		dev_err(dev, "error finding IUDMA resource\n");
 		return -ENXIO;
 	}
-	udc->iudma_regs = devm_request_and_ioremap(dev, res);
 
-	if (!udc->usbd_regs || !udc->iudma_regs) {
-		dev_err(dev, "error requesting resources\n");
-		return -ENXIO;
-	}
+	udc->iudma_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(udc->iudma_regs))
+		return PTR_ERR(udc->iudma_regs);
 
 	spin_lock_init(&udc->lock);
 	INIT_WORK(&udc->ep0_wq, bcm63xx_ep0_process);
@@ -2433,7 +2434,7 @@ out_uninit:
  * bcm63xx_udc_remove - Remove the device from the system.
  * @pdev: Platform device struct from the bcm63xx BSP code.
  */
-static int __devexit bcm63xx_udc_remove(struct platform_device *pdev)
+static int bcm63xx_udc_remove(struct platform_device *pdev)
 {
 	struct bcm63xx_udc *udc = platform_get_drvdata(pdev);
 
@@ -2450,7 +2451,7 @@ static int __devexit bcm63xx_udc_remove(struct platform_device *pdev)
 
 static struct platform_driver bcm63xx_udc_driver = {
 	.probe		= bcm63xx_udc_probe,
-	.remove		= __devexit_p(bcm63xx_udc_remove),
+	.remove		= bcm63xx_udc_remove,
 	.driver		= {
 		.name	= DRV_MODULE_NAME,
 		.owner	= THIS_MODULE,

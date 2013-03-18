@@ -1184,7 +1184,7 @@ MODULE_DEVICE_TABLE(of, mv_cesa_of_match_table);
 
 static struct platform_driver marvell_crypto = {
 	.probe		= mv_probe,
-	.remove		= __devexit_p(mv_remove),
+	.remove		= mv_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "mv_crypto",

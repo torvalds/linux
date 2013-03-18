@@ -81,8 +81,6 @@ int sysctl_tcp_sack __read_mostly = 1;
 int sysctl_tcp_fack __read_mostly = 1;
 int sysctl_tcp_reordering __read_mostly = TCP_FASTRETRANS_THRESH;
 EXPORT_SYMBOL(sysctl_tcp_reordering);
-int sysctl_tcp_ecn __read_mostly = 2;
-EXPORT_SYMBOL(sysctl_tcp_ecn);
 int sysctl_tcp_dsack __read_mostly = 1;
 int sysctl_tcp_app_win __read_mostly = 31;
 int sysctl_tcp_adv_win_scale __read_mostly = 1;
@@ -100,7 +98,6 @@ int sysctl_tcp_frto_response __read_mostly;
 int sysctl_tcp_thin_dupack __read_mostly;
 
 int sysctl_tcp_moderate_rcvbuf __read_mostly = 1;
-int sysctl_tcp_abc __read_mostly;
 int sysctl_tcp_early_retrans __read_mostly = 2;
 
 #define FLAG_DATA		0x01 /* Incoming frame contained data.		*/
@@ -2009,7 +2006,6 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tp->snd_cwnd_cnt = 0;
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 	tp->frto_counter = 0;
-	tp->bytes_acked = 0;
 
 	tp->reordering = min_t(unsigned int, tp->reordering,
 			       sysctl_tcp_reordering);
@@ -2058,7 +2054,6 @@ void tcp_enter_loss(struct sock *sk, int how)
 	tp->snd_cwnd_cnt   = 0;
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 
-	tp->bytes_acked = 0;
 	tcp_clear_retrans_partial(tp);
 
 	if (tcp_is_reno(tp))
@@ -2686,7 +2681,6 @@ static void tcp_init_cwnd_reduction(struct sock *sk, const bool set_ssthresh)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->high_seq = tp->snd_nxt;
-	tp->bytes_acked = 0;
 	tp->snd_cwnd_cnt = 0;
 	tp->prior_cwnd = tp->snd_cwnd;
 	tp->prr_delivered = 0;
@@ -2737,7 +2731,6 @@ void tcp_enter_cwr(struct sock *sk, const int set_ssthresh)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->prior_ssthresh = 0;
-	tp->bytes_acked = 0;
 	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
 		tp->undo_marker = 0;
 		tcp_init_cwnd_reduction(sk, set_ssthresh);
@@ -3419,7 +3412,6 @@ static void tcp_conservative_spur_to_response(struct tcp_sock *tp)
 {
 	tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_ssthresh);
 	tp->snd_cwnd_cnt = 0;
-	tp->bytes_acked = 0;
 	TCP_ECN_queue_cwr(tp);
 	tcp_moderate_cwnd(tp);
 }
@@ -3504,6 +3496,11 @@ static bool tcp_process_frto(struct sock *sk, int flag)
 		}
 	} else {
 		if (!(flag & FLAG_DATA_ACKED) && (tp->frto_counter == 1)) {
+			if (!tcp_packets_in_flight(tp)) {
+				tcp_enter_frto_loss(sk, 2, flag);
+				return true;
+			}
+
 			/* Prevent sending of new data. */
 			tp->snd_cwnd = min(tp->snd_cwnd,
 					   tcp_packets_in_flight(tp));
@@ -3552,6 +3549,24 @@ static bool tcp_process_frto(struct sock *sk, int flag)
 	return false;
 }
 
+/* RFC 5961 7 [ACK Throttling] */
+static void tcp_send_challenge_ack(struct sock *sk)
+{
+	/* unprotected vars, we dont care of overwrites */
+	static u32 challenge_timestamp;
+	static unsigned int challenge_count;
+	u32 now = jiffies / HZ;
+
+	if (now != challenge_timestamp) {
+		challenge_timestamp = now;
+		challenge_count = 0;
+	}
+	if (++challenge_count <= sysctl_tcp_challenge_ack_limit) {
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPCHALLENGEACK);
+		tcp_send_ack(sk);
+	}
+}
+
 /* This routine deals with incoming acks, but not outgoing ones. */
 static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 {
@@ -3571,8 +3586,14 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	/* If the ack is older than previous acks
 	 * then we can probably ignore it.
 	 */
-	if (before(ack, prior_snd_una))
+	if (before(ack, prior_snd_una)) {
+		/* RFC 5961 5.2 [Blind Data Injection Attack].[Mitigation] */
+		if (before(ack, prior_snd_una - tp->max_window)) {
+			tcp_send_challenge_ack(sk);
+			return -1;
+		}
 		goto old_ack;
+	}
 
 	/* If the ack includes data we haven't sent yet, discard
 	 * this segment (RFC793 Section 3.9).
@@ -3585,15 +3606,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	if (after(ack, prior_snd_una))
 		flag |= FLAG_SND_UNA_ADVANCED;
-
-	if (sysctl_tcp_abc) {
-		if (icsk->icsk_ca_state < TCP_CA_CWR)
-			tp->bytes_acked += ack - prior_snd_una;
-		else if (icsk->icsk_ca_state == TCP_CA_Loss)
-			/* we assume just one segment left network */
-			tp->bytes_acked += min(ack - prior_snd_una,
-					       tp->mss_cache);
-	}
 
 	prior_fackets = tp->fackets_out;
 	prior_in_flight = tcp_packets_in_flight(tp);
@@ -3848,7 +3860,7 @@ static bool tcp_parse_aligned_timestamp(struct tcp_sock *tp, const struct tcphdr
 		++ptr;
 		tp->rx_opt.rcv_tsval = ntohl(*ptr);
 		++ptr;
-		tp->rx_opt.rcv_tsecr = ntohl(*ptr);
+		tp->rx_opt.rcv_tsecr = ntohl(*ptr) - tp->tsoffset;
 		return true;
 	}
 	return false;
@@ -3872,7 +3884,11 @@ static bool tcp_fast_parse_options(const struct sk_buff *skb,
 		if (tcp_parse_aligned_timestamp(tp, th))
 			return true;
 	}
+
 	tcp_parse_options(skb, &tp->rx_opt, hvpp, 1, NULL);
+	if (tp->rx_opt.saw_tstamp)
+		tp->rx_opt.rcv_tsecr -= tp->tsoffset;
+
 	return true;
 }
 
@@ -5244,23 +5260,6 @@ out:
 }
 #endif /* CONFIG_NET_DMA */
 
-static void tcp_send_challenge_ack(struct sock *sk)
-{
-	/* unprotected vars, we dont care of overwrites */
-	static u32 challenge_timestamp;
-	static unsigned int challenge_count;
-	u32 now = jiffies / HZ;
-
-	if (now != challenge_timestamp) {
-		challenge_timestamp = now;
-		challenge_count = 0;
-	}
-	if (++challenge_count <= sysctl_tcp_challenge_ack_limit) {
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPCHALLENGEACK);
-		tcp_send_ack(sk);
-	}
-}
-
 /* Does PAWS and seqno based validation of an incoming segment, flags will
  * play significant role here.
  */
@@ -5312,11 +5311,6 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 			tcp_send_challenge_ack(sk);
 		goto discard;
 	}
-
-	/* ts_recent update must be made after we are sure that the packet
-	 * is in window.
-	 */
-	tcp_replace_ts_recent(tp, TCP_SKB_CB(skb)->seq);
 
 	/* step 3: check security and precedence [ignored] */
 
@@ -5491,6 +5485,9 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				if (tcp_checksum_complete_user(sk, skb))
 					goto csum_error;
 
+				if ((int)skb->truesize > sk->sk_forward_alloc)
+					goto step5;
+
 				/* Predicted packet is in window by definition.
 				 * seq == rcv_nxt and rcv_wup <= rcv_nxt.
 				 * Hence, check seq<=rcv_wup reduces to:
@@ -5501,9 +5498,6 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 					tcp_store_ts_recent(tp);
 
 				tcp_rcv_rtt_measure_ts(sk, skb);
-
-				if ((int)skb->truesize > sk->sk_forward_alloc)
-					goto step5;
 
 				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPHPHITS);
 
@@ -5541,6 +5535,9 @@ slow_path:
 	if (len < (th->doff << 2) || tcp_checksum_complete_user(sk, skb))
 		goto csum_error;
 
+	if (!th->ack && !th->rst)
+		goto discard;
+
 	/*
 	 *	Standard slow path.
 	 */
@@ -5549,8 +5546,13 @@ slow_path:
 		return 0;
 
 step5:
-	if (th->ack && tcp_ack(sk, skb, FLAG_SLOWPATH) < 0)
+	if (tcp_ack(sk, skb, FLAG_SLOWPATH) < 0)
 		goto discard;
+
+	/* ts_recent update must be made after we are sure that the packet
+	 * is in window.
+	 */
+	tcp_replace_ts_recent(tp, TCP_SKB_CB(skb)->seq);
 
 	tcp_rcv_rtt_measure_ts(sk, skb);
 
@@ -5639,13 +5641,16 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 	 * the remote receives only the retransmitted (regular) SYNs: either
 	 * the original SYN-data or the corresponding SYN-ACK is lost.
 	 */
-	syn_drop = (cookie->len <= 0 && data &&
-		    inet_csk(sk)->icsk_retransmits);
+	syn_drop = (cookie->len <= 0 && data && tp->total_retrans);
 
 	tcp_fastopen_cache_set(sk, mss, cookie, syn_drop);
 
 	if (data) { /* Retransmit unacked data in SYN */
-		tcp_retransmit_skb(sk, data);
+		tcp_for_write_queue_from(data, sk) {
+			if (data == tcp_send_head(sk) ||
+			    __tcp_retransmit_skb(sk, data))
+				break;
+		}
 		tcp_rearm_rto(sk);
 		return true;
 	}
@@ -5664,6 +5669,8 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 	int saved_clamp = tp->rx_opt.mss_clamp;
 
 	tcp_parse_options(skb, &tp->rx_opt, &hash_location, 0, &foc);
+	if (tp->rx_opt.saw_tstamp)
+		tp->rx_opt.rcv_tsecr -= tp->tsoffset;
 
 	if (th->ack) {
 		/* rfc793:
@@ -5973,11 +5980,15 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (tcp_check_req(sk, skb, req, NULL, true) == NULL)
 			goto discard;
 	}
+
+	if (!th->ack && !th->rst)
+		goto discard;
+
 	if (!tcp_validate_incoming(sk, skb, th, 0))
 		return 0;
 
 	/* step 5: check the ACK field */
-	if (th->ack) {
+	if (true) {
 		int acceptable = tcp_ack(sk, skb, FLAG_SLOWPATH) > 0;
 
 		switch (sk->sk_state) {
@@ -5988,7 +5999,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				 */
 				if (req) {
 					tcp_synack_rtt_meas(sk, req);
-					tp->total_retrans = req->retrans;
+					tp->total_retrans = req->num_retrans;
 
 					reqsk_fastopen_remove(sk, req, false);
 				} else {
@@ -6127,8 +6138,12 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			}
 			break;
 		}
-	} else
-		goto discard;
+	}
+
+	/* ts_recent update must be made after we are sure that the packet
+	 * is in window.
+	 */
+	tcp_replace_ts_recent(tp, TCP_SKB_CB(skb)->seq);
 
 	/* step 6: check the URG bit */
 	tcp_urg(sk, skb, th);

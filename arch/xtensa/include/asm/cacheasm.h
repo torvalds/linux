@@ -174,4 +174,3 @@
 	__loop_cache_page \ar \as ihi XCHAL_ICACHE_LINEWIDTH
 
 	.endm
-

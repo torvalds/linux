@@ -23,8 +23,8 @@
 /* #define cpu_has_watch	? */
 #define cpu_has_divec		1
 #define cpu_has_vce		0
-/* #define cpu_has_cache_cdex_p	? */
-/* #define cpu_has_cache_cdex_s	? */
+/* #define cpu_has_cache_cdex_p ? */
+/* #define cpu_has_cache_cdex_s ? */
 /* #define cpu_has_prefetch	? */
 #define cpu_has_mcheck		1
 /* #define cpu_has_ejtag	? */
@@ -50,8 +50,8 @@
 /* #define cpu_has_watch	? */
 #define cpu_has_divec		1
 #define cpu_has_vce		0
-/* #define cpu_has_cache_cdex_p	? */
-/* #define cpu_has_cache_cdex_s	? */
+/* #define cpu_has_cache_cdex_p ? */
+/* #define cpu_has_cache_cdex_s ? */
 /* #define cpu_has_prefetch	? */
 #define cpu_has_mcheck		1
 /* #define cpu_has_ejtag	? */

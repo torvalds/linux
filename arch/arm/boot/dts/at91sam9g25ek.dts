@@ -7,55 +7,10 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9x5.dtsi"
-/include/ "at91sam9x5cm.dtsi"
+/include/ "at91sam9g25.dtsi"
+/include/ "at91sam9x5ek.dtsi"
 
 / {
 	model = "Atmel AT91SAM9G25-EK";
 	compatible = "atmel,at91sam9g25ek", "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
-
-	chosen {
-		bootargs = "console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=ubifs ubi.mtd=1 root=ubi0:rootfs";
-	};
-
-	ahb {
-		apb {
-			dbgu: serial@fffff200 {
-				status = "okay";
-			};
-
-			usart0: serial@f801c000 {
-				status = "okay";
-			};
-
-			macb0: ethernet@f802c000 {
-				phy-mode = "rmii";
-				status = "okay";
-			};
-
-			i2c0: i2c@f8010000 {
-				status = "okay";
-			};
-
-			i2c1: i2c@f8014000 {
-				status = "okay";
-			};
-
-			i2c2: i2c@f8018000 {
-				status = "okay";
-			};
-		};
-
-		usb0: ohci@00600000 {
-			status = "okay";
-			num-ports = <2>;
-			atmel,vbus-gpio = <&pioD 19 1
-					   &pioD 20 1
-					  >;
-		};
-
-		usb1: ehci@00700000 {
-			status = "okay";
-		};
-	};
 };

@@ -97,7 +97,7 @@ static void nfs_fattr_free_group_name(struct nfs_fattr *fattr)
 static bool nfs_fattr_map_owner_name(struct nfs_server *server, struct nfs_fattr *fattr)
 {
 	struct nfs4_string *owner = fattr->owner_name;
-	__u32 uid;
+	kuid_t uid;
 
 	if (!(fattr->valid & NFS_ATTR_FATTR_OWNER_NAME))
 		return false;
@@ -111,7 +111,7 @@ static bool nfs_fattr_map_owner_name(struct nfs_server *server, struct nfs_fattr
 static bool nfs_fattr_map_group_name(struct nfs_server *server, struct nfs_fattr *fattr)
 {
 	struct nfs4_string *group = fattr->group_name;
-	__u32 gid;
+	kgid_t gid;
 
 	if (!(fattr->valid & NFS_ATTR_FATTR_GROUP_NAME))
 		return false;
@@ -193,18 +193,15 @@ static int nfs_idmap_init_keyring(void)
 	if (!cred)
 		return -ENOMEM;
 
-	keyring = key_alloc(&key_type_keyring, ".id_resolver", 0, 0, cred,
-			     (KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			     KEY_USR_VIEW | KEY_USR_READ,
-			     KEY_ALLOC_NOT_IN_QUOTA);
+	keyring = keyring_alloc(".id_resolver",
+				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
+				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
+				KEY_USR_VIEW | KEY_USR_READ,
+				KEY_ALLOC_NOT_IN_QUOTA, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto failed_put_cred;
 	}
-
-	ret = key_instantiate_and_link(keyring, NULL, 0, NULL, NULL);
-	if (ret < 0)
-		goto failed_put_key;
 
 	ret = register_key_type(&key_type_id_resolver);
 	if (ret < 0)
@@ -768,7 +765,7 @@ out:
 static ssize_t
 idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 {
-	struct rpc_inode *rpci = RPC_I(filp->f_path.dentry->d_inode);
+	struct rpc_inode *rpci = RPC_I(file_inode(filp));
 	struct idmap *idmap = (struct idmap *)rpci->private;
 	struct key_construction *cons;
 	struct idmap_msg im;
@@ -840,43 +837,61 @@ idmap_release_pipe(struct inode *inode)
 	nfs_idmap_abort_pipe_upcall(idmap, -EPIPE);
 }
 
-int nfs_map_name_to_uid(const struct nfs_server *server, const char *name, size_t namelen, __u32 *uid)
+int nfs_map_name_to_uid(const struct nfs_server *server, const char *name, size_t namelen, kuid_t *uid)
 {
 	struct idmap *idmap = server->nfs_client->cl_idmap;
+	__u32 id = -1;
+	int ret = 0;
 
-	if (nfs_map_string_to_numeric(name, namelen, uid))
-		return 0;
-	return nfs_idmap_lookup_id(name, namelen, "uid", uid, idmap);
-}
-
-int nfs_map_group_to_gid(const struct nfs_server *server, const char *name, size_t namelen, __u32 *gid)
-{
-	struct idmap *idmap = server->nfs_client->cl_idmap;
-
-	if (nfs_map_string_to_numeric(name, namelen, gid))
-		return 0;
-	return nfs_idmap_lookup_id(name, namelen, "gid", gid, idmap);
-}
-
-int nfs_map_uid_to_name(const struct nfs_server *server, __u32 uid, char *buf, size_t buflen)
-{
-	struct idmap *idmap = server->nfs_client->cl_idmap;
-	int ret = -EINVAL;
-
-	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
-		ret = nfs_idmap_lookup_name(uid, "user", buf, buflen, idmap);
-	if (ret < 0)
-		ret = nfs_map_numeric_to_string(uid, buf, buflen);
+	if (!nfs_map_string_to_numeric(name, namelen, &id))
+		ret = nfs_idmap_lookup_id(name, namelen, "uid", &id, idmap);
+	if (ret == 0) {
+		*uid = make_kuid(&init_user_ns, id);
+		if (!uid_valid(*uid))
+			ret = -ERANGE;
+	}
 	return ret;
 }
-int nfs_map_gid_to_group(const struct nfs_server *server, __u32 gid, char *buf, size_t buflen)
+
+int nfs_map_group_to_gid(const struct nfs_server *server, const char *name, size_t namelen, kgid_t *gid)
+{
+	struct idmap *idmap = server->nfs_client->cl_idmap;
+	__u32 id = -1;
+	int ret = 0;
+
+	if (!nfs_map_string_to_numeric(name, namelen, &id))
+		ret = nfs_idmap_lookup_id(name, namelen, "gid", &id, idmap);
+	if (ret == 0) {
+		*gid = make_kgid(&init_user_ns, id);
+		if (!gid_valid(*gid))
+			ret = -ERANGE;
+	}
+	return ret;
+}
+
+int nfs_map_uid_to_name(const struct nfs_server *server, kuid_t uid, char *buf, size_t buflen)
 {
 	struct idmap *idmap = server->nfs_client->cl_idmap;
 	int ret = -EINVAL;
+	__u32 id;
 
+	id = from_kuid(&init_user_ns, uid);
 	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
-		ret = nfs_idmap_lookup_name(gid, "group", buf, buflen, idmap);
+		ret = nfs_idmap_lookup_name(id, "user", buf, buflen, idmap);
 	if (ret < 0)
-		ret = nfs_map_numeric_to_string(gid, buf, buflen);
+		ret = nfs_map_numeric_to_string(id, buf, buflen);
+	return ret;
+}
+int nfs_map_gid_to_group(const struct nfs_server *server, kgid_t gid, char *buf, size_t buflen)
+{
+	struct idmap *idmap = server->nfs_client->cl_idmap;
+	int ret = -EINVAL;
+	__u32 id;
+
+	id = from_kgid(&init_user_ns, gid);
+	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
+		ret = nfs_idmap_lookup_name(id, "group", buf, buflen, idmap);
+	if (ret < 0)
+		ret = nfs_map_numeric_to_string(id, buf, buflen);
 	return ret;
 }

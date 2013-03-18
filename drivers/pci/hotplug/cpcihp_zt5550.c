@@ -271,7 +271,7 @@ init_hc_error:
 
 }
 
-static void __devexit zt5550_hc_remove_one(struct pci_dev *pdev)
+static void zt5550_hc_remove_one(struct pci_dev *pdev)
 {
 	cpci_hp_stop();
 	cpci_hp_unregister_bus(bus0);
@@ -290,7 +290,7 @@ static struct pci_driver zt5550_hc_driver = {
 	.name		= "zt5550_hc",
 	.id_table	= zt5550_hc_pci_tbl,
 	.probe		= zt5550_hc_init_one,
-	.remove		= __devexit_p(zt5550_hc_remove_one),
+	.remove		= zt5550_hc_remove_one,
 };
 
 static int __init zt5550_init(void)

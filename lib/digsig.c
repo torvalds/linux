@@ -30,11 +30,10 @@
 
 static struct crypto_shash *shash;
 
-static int pkcs_1_v1_5_decode_emsa(const unsigned char *msg,
-			unsigned long  msglen,
-			unsigned long  modulus_bitlen,
-			unsigned char *out,
-			unsigned long *outlen)
+static const char *pkcs_1_v1_5_decode_emsa(const unsigned char *msg,
+						unsigned long  msglen,
+						unsigned long  modulus_bitlen,
+						unsigned long *outlen)
 {
 	unsigned long modulus_len, ps_len, i;
 
@@ -42,11 +41,11 @@ static int pkcs_1_v1_5_decode_emsa(const unsigned char *msg,
 
 	/* test message size */
 	if ((msglen > modulus_len) || (modulus_len < 11))
-		return -EINVAL;
+		return NULL;
 
 	/* separate encoded message */
-	if ((msg[0] != 0x00) || (msg[1] != (unsigned char)1))
-		return -EINVAL;
+	if (msg[0] != 0x00 || msg[1] != 0x01)
+		return NULL;
 
 	for (i = 2; i < modulus_len - 1; i++)
 		if (msg[i] != 0xFF)
@@ -56,19 +55,13 @@ static int pkcs_1_v1_5_decode_emsa(const unsigned char *msg,
 	if (msg[i] != 0)
 		/* There was no octet with hexadecimal value 0x00
 		to separate ps from m. */
-		return -EINVAL;
+		return NULL;
 
 	ps_len = i - 2;
 
-	if (*outlen < (msglen - (2 + ps_len + 1))) {
-		*outlen = msglen - (2 + ps_len + 1);
-		return -EOVERFLOW;
-	}
-
 	*outlen = (msglen - (2 + ps_len + 1));
-	memcpy(out, &msg[2 + ps_len + 1], *outlen);
 
-	return 0;
+	return msg + 2 + ps_len + 1;
 }
 
 /*
@@ -83,7 +76,8 @@ static int digsig_verify_rsa(struct key *key,
 	unsigned long mlen, mblen;
 	unsigned nret, l;
 	int head, i;
-	unsigned char *out1 = NULL, *out2 = NULL;
+	unsigned char *out1 = NULL;
+	const char *m;
 	MPI in = NULL, res = NULL, pkey[2];
 	uint8_t *p, *datap, *endp;
 	struct user_key_payload *ukp;
@@ -120,17 +114,13 @@ static int digsig_verify_rsa(struct key *key,
 	}
 
 	mblen = mpi_get_nbits(pkey[0]);
-	mlen = (mblen + 7)/8;
+	mlen = DIV_ROUND_UP(mblen, 8);
 
 	if (mlen == 0)
 		goto err;
 
 	out1 = kzalloc(mlen, GFP_KERNEL);
 	if (!out1)
-		goto err;
-
-	out2 = kzalloc(mlen, GFP_KERNEL);
-	if (!out2)
 		goto err;
 
 	nret = siglen;
@@ -162,18 +152,17 @@ static int digsig_verify_rsa(struct key *key,
 	memset(out1, 0, head);
 	memcpy(out1 + head, p, l);
 
-	err = pkcs_1_v1_5_decode_emsa(out1, len, mblen, out2, &len);
-	if (err)
-		goto err;
+	kfree(p);
 
-	if (len != hlen || memcmp(out2, h, hlen))
+	m = pkcs_1_v1_5_decode_emsa(out1, len, mblen, &len);
+
+	if (!m || len != hlen || memcmp(m, h, hlen))
 		err = -EINVAL;
 
 err:
 	mpi_free(in);
 	mpi_free(res);
 	kfree(out1);
-	kfree(out2);
 	while (--i >= 0)
 		mpi_free(pkey[i]);
 err1:

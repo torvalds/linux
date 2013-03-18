@@ -387,7 +387,7 @@ void __init find_legacy_serial_ports(void)
 			of_node_put(parent);
 			continue;
 		}
-		/* Check for known pciclass, and also check wether we have
+		/* Check for known pciclass, and also check whether we have
 		 * a device with child nodes for ports or not
 		 */
 		if (of_device_is_compatible(np, "pciclass,0700") ||

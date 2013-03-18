@@ -13,8 +13,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * License along with this program; if not,  see <http://www.gnu.org/licenses>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -174,7 +173,7 @@ static int cmdline_init(struct pevent *pevent)
 	return 0;
 }
 
-static char *find_cmdline(struct pevent *pevent, int pid)
+static const char *find_cmdline(struct pevent *pevent, int pid)
 {
 	const struct cmdline *comm;
 	struct cmdline key;
@@ -1224,6 +1223,34 @@ static int field_is_long(struct format_field *field)
 	return 0;
 }
 
+static unsigned int type_size(const char *name)
+{
+	/* This covers all FIELD_IS_STRING types. */
+	static struct {
+		const char *type;
+		unsigned int size;
+	} table[] = {
+		{ "u8",   1 },
+		{ "u16",  2 },
+		{ "u32",  4 },
+		{ "u64",  8 },
+		{ "s8",   1 },
+		{ "s16",  2 },
+		{ "s32",  4 },
+		{ "s64",  8 },
+		{ "char", 1 },
+		{ },
+	};
+	int i;
+
+	for (i = 0; table[i].type; i++) {
+		if (!strcmp(table[i].type, name))
+			return table[i].size;
+	}
+
+	return 0;
+}
+
 static int event_read_fields(struct event_format *event, struct format_field **fields)
 {
 	struct format_field *field = NULL;
@@ -1233,6 +1260,8 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 	int count = 0;
 
 	do {
+		unsigned int size_dynamic = 0;
+
 		type = read_token(&token);
 		if (type == EVENT_NEWLINE) {
 			free_token(token);
@@ -1391,6 +1420,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 				field->type = new_type;
 				strcat(field->type, " ");
 				strcat(field->type, field->name);
+				size_dynamic = type_size(field->name);
 				free_token(field->name);
 				strcat(field->type, brackets);
 				field->name = token;
@@ -1463,7 +1493,8 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 			if (read_expect_type(EVENT_ITEM, &token))
 				goto fail;
 
-			/* add signed type */
+			if (strtoul(token, NULL, 0))
+				field->flags |= FIELD_IS_SIGNED;
 
 			free_token(token);
 			if (read_expected(EVENT_OP, ";") < 0)
@@ -1478,10 +1509,14 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 		if (field->flags & FIELD_IS_ARRAY) {
 			if (field->arraylen)
 				field->elementsize = field->size / field->arraylen;
+			else if (field->flags & FIELD_IS_DYNAMIC)
+				field->elementsize = size_dynamic;
 			else if (field->flags & FIELD_IS_STRING)
 				field->elementsize = 1;
-			else
-				field->elementsize = event->pevent->long_size;
+			else if (field->flags & FIELD_IS_LONG)
+				field->elementsize = event->pevent ?
+						     event->pevent->long_size :
+						     sizeof(long);
 		} else
 			field->elementsize = field->size;
 
@@ -1785,6 +1820,8 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		   strcmp(token, "/") == 0 ||
 		   strcmp(token, "<") == 0 ||
 		   strcmp(token, ">") == 0 ||
+		   strcmp(token, "<=") == 0 ||
+		   strcmp(token, ">=") == 0 ||
 		   strcmp(token, "==") == 0 ||
 		   strcmp(token, "!=") == 0) {
 
@@ -2481,7 +2518,7 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 
 	free_token(token);
 	arg = alloc_arg();
-	if (!field) {
+	if (!arg) {
 		do_warning("%s: not enough memory!", __func__);
 		*tok = NULL;
 		return EVENT_ERROR;
@@ -2637,7 +2674,7 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 	struct print_arg *farg;
 	enum event_type type;
 	char *token;
-	char *test;
+	const char *test;
 	int i;
 
 	arg->type = PRINT_FUNC;
@@ -3889,7 +3926,7 @@ static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 			  struct event_format *event, struct print_arg *arg)
 {
 	unsigned char *buf;
-	char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
+	const char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
 
 	if (arg->type == PRINT_FUNC) {
 		process_defined_func(s, data, size, event, arg);
@@ -3931,7 +3968,8 @@ static int is_printable_array(char *p, unsigned int len)
 	return 1;
 }
 
-static void print_event_fields(struct trace_seq *s, void *data, int size,
+static void print_event_fields(struct trace_seq *s, void *data,
+			       int size __maybe_unused,
 			       struct event_format *event)
 {
 	struct format_field *field;
@@ -4408,7 +4446,7 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			struct pevent_record *record)
 {
-	static char *spaces = "                    "; /* 20 spaces */
+	static const char *spaces = "                    "; /* 20 spaces */
 	struct event_format *event;
 	unsigned long secs;
 	unsigned long usecs;
@@ -5070,8 +5108,8 @@ static const char * const pevent_error_str[] = {
 };
 #undef _PE
 
-int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
-		    char *buf, size_t buflen)
+int pevent_strerror(struct pevent *pevent __maybe_unused,
+		    enum pevent_errno errnum, char *buf, size_t buflen)
 {
 	int idx;
 	const char *msg;
@@ -5100,6 +5138,7 @@ int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
 	case PEVENT_ERRNO__READ_FORMAT_FAILED:
 	case PEVENT_ERRNO__READ_PRINT_FAILED:
 	case PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED:
+	case PEVENT_ERRNO__INVALID_ARG_TYPE:
 		snprintf(buf, buflen, "%s", msg);
 		break;
 
@@ -5362,7 +5401,7 @@ int pevent_register_print_function(struct pevent *pevent,
 		if (type == PEVENT_FUNC_ARG_VOID)
 			break;
 
-		if (type < 0 || type >= PEVENT_FUNC_ARG_MAX_TYPES) {
+		if (type >= PEVENT_FUNC_ARG_MAX_TYPES) {
 			do_warning("Invalid argument type %d", type);
 			ret = PEVENT_ERRNO__INVALID_ARG_TYPE;
 			goto out_free;
@@ -5560,7 +5599,7 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	if (pevent->func_map) {
-		for (i = 0; i < pevent->func_count; i++) {
+		for (i = 0; i < (int)pevent->func_count; i++) {
 			free(pevent->func_map[i].func);
 			free(pevent->func_map[i].mod);
 		}
@@ -5582,7 +5621,7 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	if (pevent->printk_map) {
-		for (i = 0; i < pevent->printk_count; i++)
+		for (i = 0; i < (int)pevent->printk_count; i++)
 			free(pevent->printk_map[i].printk);
 		free(pevent->printk_map);
 	}

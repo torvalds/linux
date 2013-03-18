@@ -33,16 +33,14 @@
 
 static int
 tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
-		  int *verdict, struct ip_vs_conn **cpp)
+		  int *verdict, struct ip_vs_conn **cpp,
+		  struct ip_vs_iphdr *iph)
 {
 	struct net *net;
 	struct ip_vs_service *svc;
 	struct tcphdr _tcph, *th;
-	struct ip_vs_iphdr iph;
 
-	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
-
-	th = skb_header_pointer(skb, iph.len, sizeof(_tcph), &_tcph);
+	th = skb_header_pointer(skb, iph->len, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		*verdict = NF_DROP;
 		return 0;
@@ -50,8 +48,8 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	net = skb_net(skb);
 	/* No !th->ack check to allow scheduling on SYN+ACK for Active FTP */
 	if (th->syn &&
-	    (svc = ip_vs_service_get(net, af, skb->mark, iph.protocol,
-				     &iph.daddr, th->dest))) {
+	    (svc = ip_vs_service_get(net, af, skb->mark, iph->protocol,
+				     &iph->daddr, th->dest))) {
 		int ignored;
 
 		if (ip_vs_todrop(net_ipvs(net))) {
@@ -68,10 +66,10 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pd, &ignored);
+		*cpp = ip_vs_schedule(svc, skb, pd, &ignored, iph);
 		if (!*cpp && ignored <= 0) {
 			if (!ignored)
-				*verdict = ip_vs_leave(svc, skb, pd);
+				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else {
 				ip_vs_service_put(svc);
 				*verdict = NF_DROP;
@@ -128,20 +126,18 @@ tcp_partial_csum_update(int af, struct tcphdr *tcph,
 
 
 static int
-tcp_snat_handler(struct sk_buff *skb,
-		 struct ip_vs_protocol *pp, struct ip_vs_conn *cp)
+tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
+		 struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
 	struct tcphdr *tcph;
-	unsigned int tcphoff;
+	unsigned int tcphoff = iph->len;
 	int oldlen;
 	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (cp->af == AF_INET6)
-		tcphoff = sizeof(struct ipv6hdr);
-	else
+	if (cp->af == AF_INET6 && iph->fragoffs)
+		return 1;
 #endif
-		tcphoff = ip_hdrlen(skb);
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
@@ -208,20 +204,18 @@ tcp_snat_handler(struct sk_buff *skb,
 
 
 static int
-tcp_dnat_handler(struct sk_buff *skb,
-		 struct ip_vs_protocol *pp, struct ip_vs_conn *cp)
+tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
+		 struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
 	struct tcphdr *tcph;
-	unsigned int tcphoff;
+	unsigned int tcphoff = iph->len;
 	int oldlen;
 	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (cp->af == AF_INET6)
-		tcphoff = sizeof(struct ipv6hdr);
-	else
+	if (cp->af == AF_INET6 && iph->fragoffs)
+		return 1;
 #endif
-		tcphoff = ip_hdrlen(skb);
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */

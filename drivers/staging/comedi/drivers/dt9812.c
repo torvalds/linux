@@ -43,6 +43,8 @@ for my needs.
  *      says P1).
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -322,9 +324,6 @@ static const struct comedi_lrange dt9812_2pt5_aout_range = { 1, {
 };
 
 static struct slot_dt9812 dt9812[DT9812_NUM_SLOTS];
-
-/* Useful shorthand access to private data */
-#define devpriv ((struct comedi_dt9812 *)dev->private)
 
 static inline struct usb_dt9812 *to_dt9812_dev(struct kref *d)
 {
@@ -703,10 +702,9 @@ static int dt9812_probe(struct usb_interface *interface,
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (dev == NULL)
 		goto error;
-	}
+
 	kref_init(&dev->kref);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
@@ -893,6 +891,7 @@ static struct usb_driver dt9812_usb_driver = {
 
 static int dt9812_comedi_open(struct comedi_device *dev)
 {
+	struct comedi_dt9812 *devpriv = dev->private;
 	int result = -ENODEV;
 
 	down(&devpriv->slot->mutex);
@@ -947,12 +946,14 @@ static int dt9812_di_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
 
 	dt9812_digital_in(devpriv->slot, &bits);
 	for (n = 0; n < insn->n; n++)
-		data[n] = ((1 << insn->chanspec) & bits) != 0;
+		data[n] = ((1 << channel) & bits) != 0;
 	return n;
 }
 
@@ -960,12 +961,14 @@ static int dt9812_do_winsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
 
 	dt9812_digital_out_shadow(devpriv->slot, &bits);
 	for (n = 0; n < insn->n; n++) {
-		u8 mask = 1 << insn->chanspec;
+		u8 mask = 1 << channel;
 
 		bits &= ~mask;
 		if (data[n])
@@ -979,13 +982,14 @@ static int dt9812_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++) {
 		u16 value = 0;
 
-		dt9812_analog_in(devpriv->slot, insn->chanspec, &value,
-				 DT9812_GAIN_1);
+		dt9812_analog_in(devpriv->slot, channel, &value, DT9812_GAIN_1);
 		data[n] = value;
 	}
 	return n;
@@ -995,12 +999,14 @@ static int dt9812_ao_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u16 value;
 
 	for (n = 0; n < insn->n; n++) {
 		value = 0;
-		dt9812_analog_out_shadow(devpriv->slot, insn->chanspec, &value);
+		dt9812_analog_out_shadow(devpriv->slot, channel, &value);
 		data[n] = value;
 	}
 	return n;
@@ -1010,23 +1016,28 @@ static int dt9812_ao_winsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++)
-		dt9812_analog_out(devpriv->slot, insn->chanspec, data[n]);
+		dt9812_analog_out(devpriv->slot, channel, data[n]);
 	return n;
 }
 
 static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct comedi_dt9812 *devpriv;
 	int i;
 	struct comedi_subdevice *s;
 	int ret;
 
 	dev->board_name = "dt9812";
 
-	if (alloc_private(dev, sizeof(struct comedi_dt9812)) < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
+	dev->private = devpriv;
 
 	/*
 	 * Special open routine, since USB unit may be unattached at
@@ -1077,8 +1088,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = &dt9812_ao_winsn;
 	s->insn_read = &dt9812_ao_rinsn;
 
-	printk(KERN_INFO "comedi%d: successfully attached to dt9812.\n",
-	       dev->minor);
+	dev_info(dev->class_dev, "successfully attached to dt9812.\n");
 
 	down(&dt9812_mutex);
 	/* Find a slot for the comedi device */
@@ -1126,7 +1136,7 @@ static struct comedi_driver dt9812_comedi_driver = {
 
 static int __init usb_dt9812_init(void)
 {
-	int result, i;
+	int i;
 
 	/* Initialize all driver slots */
 	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
@@ -1137,32 +1147,13 @@ static int __init usb_dt9812_init(void)
 	}
 	dt9812[12].serial = 0x0;
 
-	/* register with the USB subsystem */
-	result = usb_register(&dt9812_usb_driver);
-	if (result) {
-		printk(KERN_ERR KBUILD_MODNAME
-		       ": usb_register failed. Error number %d\n", result);
-		return result;
-	}
-	/* register with comedi */
-	result = comedi_driver_register(&dt9812_comedi_driver);
-	if (result) {
-		usb_deregister(&dt9812_usb_driver);
-		printk(KERN_ERR KBUILD_MODNAME
-			": comedi_driver_register failed. Error number %d\n",
-			result);
-	}
-
-	return result;
+	return comedi_usb_driver_register(&dt9812_comedi_driver,
+						&dt9812_usb_driver);
 }
 
 static void __exit usb_dt9812_exit(void)
 {
-	/* unregister with comedi */
-	comedi_driver_unregister(&dt9812_comedi_driver);
-
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&dt9812_usb_driver);
+	comedi_usb_driver_unregister(&dt9812_comedi_driver, &dt9812_usb_driver);
 }
 
 module_init(usb_dt9812_init);

@@ -141,7 +141,7 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
 	 * unaligned here as a result of stack start randomization.
 	 */
 	addr = PAGE_ALIGN(addr);
-	addr = align_addr(addr, NULL, ALIGN_VDSO);
+	addr = align_vdso_addr(addr);
 
 	return addr;
 }

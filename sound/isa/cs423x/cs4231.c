@@ -68,7 +68,7 @@ MODULE_PARM_DESC(dma1, "DMA1 # for " CRD_NAME " driver.");
 module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for " CRD_NAME " driver.");
 
-static int __devinit snd_cs4231_match(struct device *dev, unsigned int n)
+static int snd_cs4231_match(struct device *dev, unsigned int n)
 {
 	if (!enable[n])
 		return 0;
@@ -88,7 +88,7 @@ static int __devinit snd_cs4231_match(struct device *dev, unsigned int n)
 	return 1;
 }
 
-static int __devinit snd_cs4231_probe(struct device *dev, unsigned int n)
+static int snd_cs4231_probe(struct device *dev, unsigned int n)
 {
 	struct snd_card *card;
 	struct snd_wss *chip;
@@ -148,7 +148,7 @@ out:	snd_card_free(card);
 	return error;
 }
 
-static int __devexit snd_cs4231_remove(struct device *dev, unsigned int n)
+static int snd_cs4231_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
 	dev_set_drvdata(dev, NULL);
@@ -180,7 +180,7 @@ static int snd_cs4231_resume(struct device *dev, unsigned int n)
 static struct isa_driver snd_cs4231_driver = {
 	.match		= snd_cs4231_match,
 	.probe		= snd_cs4231_probe,
-	.remove		= __devexit_p(snd_cs4231_remove),
+	.remove		= snd_cs4231_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cs4231_suspend,
 	.resume		= snd_cs4231_resume,

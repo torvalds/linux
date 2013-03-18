@@ -93,7 +93,7 @@ void b43_sdio_free_irq(struct b43_wldev *dev)
 	sdio->irq_handler = NULL;
 }
 
-static int __devinit b43_sdio_probe(struct sdio_func *func,
+static int b43_sdio_probe(struct sdio_func *func,
 				    const struct sdio_device_id *id)
 {
 	struct b43_sdio *sdio;
@@ -171,7 +171,7 @@ out:
 	return error;
 }
 
-static void __devexit b43_sdio_remove(struct sdio_func *func)
+static void b43_sdio_remove(struct sdio_func *func)
 {
 	struct b43_sdio *sdio = sdio_get_drvdata(func);
 
@@ -193,7 +193,7 @@ static struct sdio_driver b43_sdio_driver = {
 	.name		= "b43-sdio",
 	.id_table	= b43_sdio_ids,
 	.probe		= b43_sdio_probe,
-	.remove		= __devexit_p(b43_sdio_remove),
+	.remove		= b43_sdio_remove,
 };
 
 int b43_sdio_init(void)

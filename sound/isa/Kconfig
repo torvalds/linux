@@ -425,7 +425,7 @@ config SND_WAVEFRONT
 
 config SND_MSND_PINNACLE
 	tristate "Turtle Beach MultiSound Pinnacle/Fiji driver"
-	depends on X86 && EXPERIMENTAL
+	depends on X86
 	select FW_LOADER
 	select SND_MPU401_UART
 	select SND_PCM
@@ -438,7 +438,7 @@ config SND_MSND_PINNACLE
 
 config SND_MSND_CLASSIC
 	tristate "Support for Turtle Beach MultiSound Classic, Tahiti, Monterey"
-	depends on X86 && EXPERIMENTAL
+	depends on X86
 	select FW_LOADER
 	select SND_MPU401_UART
 	select SND_PCM

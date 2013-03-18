@@ -669,7 +669,7 @@ static int wf_rm31_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit wf_rm31_remove(struct platform_device *dev)
+static int wf_rm31_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&rm31_events);
 
@@ -696,7 +696,7 @@ static int __init wf_rm31_init(void)
 
 	/* Count the number of CPU cores */
 	nr_chips = 0;
-	for (cpu = NULL; (cpu = of_find_node_by_type(cpu, "cpu")) != NULL; )
+	for_each_node_by_type(cpu, "cpu")
 		++nr_chips;
 	if (nr_chips > NR_CHIPS)
 		nr_chips = NR_CHIPS;

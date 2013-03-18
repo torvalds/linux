@@ -34,6 +34,7 @@
 #include "xfs_error.h"
 #include "xfs_btree.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 STATIC int
 xfs_internal_inum(
@@ -395,7 +396,8 @@ xfs_bulkstat(
 					if (xfs_inobt_maskn(chunkidx, nicluster)
 							& ~r.ir_free)
 						xfs_btree_reada_bufs(mp, agno,
-							agbno, nbcluster);
+							agbno, nbcluster,
+							&xfs_inode_buf_ops);
 				}
 				irbp->ir_startino = r.ir_startino;
 				irbp->ir_freecount = r.ir_freecount;

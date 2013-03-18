@@ -112,7 +112,7 @@ int usb_urb_submitv2(struct usb_data_stream *stream,
 	return 0;
 }
 
-int usb_urb_free_urbs(struct usb_data_stream *stream)
+static int usb_urb_free_urbs(struct usb_data_stream *stream)
 {
 	int i;
 
@@ -205,7 +205,7 @@ static int usb_urb_alloc_isoc_urbs(struct usb_data_stream *stream)
 	return 0;
 }
 
-int usb_free_stream_buffers(struct usb_data_stream *stream)
+static int usb_free_stream_buffers(struct usb_data_stream *stream)
 {
 	if (stream->state & USB_STATE_URB_BUF) {
 		while (stream->buf_num) {
@@ -223,8 +223,8 @@ int usb_free_stream_buffers(struct usb_data_stream *stream)
 	return 0;
 }
 
-int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
-		unsigned long size)
+static int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
+				    unsigned long size)
 {
 	stream->buf_num = 0;
 	stream->buf_size = size;

@@ -21,6 +21,8 @@
 #include "core.h"
 #include "mmc_ops.h"
 
+#define MMC_OPS_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
+
 static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 {
 	int err;
@@ -361,6 +363,7 @@ int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	return mmc_send_cxd_data(card, card->host, MMC_SEND_EXT_CSD,
 			ext_csd, 512);
 }
+EXPORT_SYMBOL_GPL(mmc_send_ext_csd);
 
 int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
 {
@@ -409,6 +412,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 {
 	int err;
 	struct mmc_command cmd = {0};
+	unsigned long timeout;
 	u32 status;
 
 	BUG_ON(!card);
@@ -437,6 +441,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		return 0;
 
 	/* Must check status to be sure of no errors */
+	timeout = jiffies + msecs_to_jiffies(MMC_OPS_TIMEOUT_MS);
 	do {
 		err = mmc_send_status(card, &status);
 		if (err)
@@ -445,6 +450,13 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 			break;
 		if (mmc_host_is_spi(card->host))
 			break;
+
+		/* Timeout if the device never leaves the program state. */
+		if (time_after(jiffies, timeout)) {
+			pr_err("%s: Card stuck in programming state! %s\n",
+				mmc_hostname(card->host), __func__);
+			return -ETIMEDOUT;
+		}
 	} while (R1_CURRENT_STATE(status) == R1_STATE_PRG);
 
 	if (mmc_host_is_spi(card->host)) {

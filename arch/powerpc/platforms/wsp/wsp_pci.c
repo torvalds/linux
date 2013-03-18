@@ -402,7 +402,7 @@ static struct wsp_dma_table *wsp_pci_create_dma32_table(struct wsp_phb *phb,
 	return ERR_PTR(-ENOMEM);
 }
 
-static void __devinit wsp_pci_dma_dev_setup(struct pci_dev *pdev)
+static void wsp_pci_dma_dev_setup(struct pci_dev *pdev)
 {
 	struct dev_archdata *archdata = &pdev->dev.archdata;
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);

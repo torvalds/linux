@@ -14,6 +14,7 @@
  * another interface, some abstraction will have to be introduced.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -174,7 +175,7 @@ static struct watchdog_device max63xx_wdt_dev = {
 	.ops = &max63xx_wdt_ops,
 };
 
-static int __devinit max63xx_wdt_probe(struct platform_device *pdev)
+static int max63xx_wdt_probe(struct platform_device *pdev)
 {
 	struct resource	*wdt_mem;
 	struct max63xx_timeout *table;
@@ -198,9 +199,9 @@ static int __devinit max63xx_wdt_probe(struct platform_device *pdev)
 	heartbeat = current_timeout->twd;
 
 	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt_base = devm_request_and_ioremap(&pdev->dev, wdt_mem);
-	if (!wdt_base)
-		return -ENOMEM;
+	wdt_base = devm_ioremap_resource(&pdev->dev, wdt_mem);
+	if (IS_ERR(wdt_base))
+		return PTR_ERR(wdt_base);
 
 	max63xx_wdt_dev.timeout = heartbeat;
 	watchdog_set_nowayout(&max63xx_wdt_dev, nowayout);
@@ -209,7 +210,7 @@ static int __devinit max63xx_wdt_probe(struct platform_device *pdev)
 	return watchdog_register_device(&max63xx_wdt_dev);
 }
 
-static int __devexit max63xx_wdt_remove(struct platform_device *pdev)
+static int max63xx_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&max63xx_wdt_dev);
 	return 0;
@@ -228,7 +229,7 @@ MODULE_DEVICE_TABLE(platform, max63xx_id_table);
 
 static struct platform_driver max63xx_wdt_driver = {
 	.probe		= max63xx_wdt_probe,
-	.remove		= __devexit_p(max63xx_wdt_remove),
+	.remove		= max63xx_wdt_remove,
 	.id_table	= max63xx_id_table,
 	.driver		= {
 		.name	= "max63xx_wdt",

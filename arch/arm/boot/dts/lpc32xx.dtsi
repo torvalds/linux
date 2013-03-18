@@ -182,6 +182,13 @@
 				pnx,timeout = <0x64>;
 			};
 
+			mpwm: mpwm@400E8000 {
+				compatible = "nxp,lpc3220-motor-pwm";
+				reg = <0x400E8000 0x78>;
+				status = "disabled";
+				#pwm-cells = <2>;
+			};
+
 			i2cusb: i2c@31020300 {
 				compatible = "nxp,pnx-i2c";
 				reg = <0x31020300 0x100>;

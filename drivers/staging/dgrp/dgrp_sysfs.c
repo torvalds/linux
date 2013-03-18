@@ -17,7 +17,6 @@
 #include "dgrp_common.h"
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -55,23 +54,6 @@ static DEVICE_ATTR(register_with_sysfs, 0400,
 		   dgrp_class_register_with_sysfs_show, NULL);
 
 
-static ssize_t dgrp_class_rawreadok_show(struct device *c,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", dgrp_rawreadok);
-}
-static ssize_t dgrp_class_rawreadok_store(struct device *c,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
-{
-	sscanf(buf, "0x%x\n", &dgrp_rawreadok);
-	return count;
-}
-static DEVICE_ATTR(rawreadok, 0600, dgrp_class_rawreadok_show,
-		   dgrp_class_rawreadok_store);
-
-
 static ssize_t dgrp_class_pollrate_show(struct device *c,
 					struct device_attribute *attr,
 					char *buf)
@@ -91,7 +73,6 @@ static DEVICE_ATTR(pollrate, 0600, dgrp_class_pollrate_show,
 
 static struct attribute *dgrp_sysfs_global_settings_entries[] = {
 	&dev_attr_pollrate.attr,
-	&dev_attr_rawreadok.attr,
 	&dev_attr_register_with_sysfs.attr,
 	NULL
 };
@@ -177,7 +158,7 @@ static ssize_t dgrp_node_description_show(struct device *c,
 	if (!nd)
 		return 0;
 
-	if (nd->nd_state == NS_READY && nd->nd_ps_desc)
+	if (nd->nd_state == NS_READY)
 		return snprintf(buf, PAGE_SIZE, "%s\n", nd->nd_ps_desc);
 	return 0;
 }

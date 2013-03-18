@@ -786,7 +786,7 @@ static struct snd_pcm_ops snd_ps3_pcm_spdif_ops = {
 };
 
 
-static int __devinit snd_ps3_map_mmio(void)
+static int snd_ps3_map_mmio(void)
 {
 	the_card.mapped_mmio_vaddr =
 		ioremap(the_card.ps3_dev->m_region->bus_addr,
@@ -808,7 +808,7 @@ static void snd_ps3_unmap_mmio(void)
 	the_card.mapped_mmio_vaddr = NULL;
 }
 
-static int __devinit snd_ps3_allocate_irq(void)
+static int snd_ps3_allocate_irq(void)
 {
 	int ret;
 	u64 lpar_addr, lpar_size;
@@ -866,7 +866,7 @@ static void snd_ps3_free_irq(void)
 	ps3_irq_plug_destroy(the_card.irq_no);
 }
 
-static void __devinit snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
+static void snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
 {
 	uint64_t val;
 	int ret;
@@ -882,7 +882,7 @@ static void __devinit snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
 			ret);
 }
 
-static void __devinit snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
+static void snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
 {
 	/*
 	 * avsetting driver seems to never change the followings
@@ -906,7 +906,7 @@ static void __devinit snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
 		   PS3_AUDIO_AO_3WMCTRL_ASOPLRCK_DEFAULT);
 }
 
-static int __devinit snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
+static int snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
 {
 	int ret;
 	pr_debug("%s: start\n", __func__);
@@ -928,7 +928,7 @@ static int __devinit snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
 	return ret;
 }
 
-static int __devinit snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
+static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 {
 	int i, ret;
 	u64 lpar_addr, lpar_size;

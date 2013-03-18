@@ -174,7 +174,8 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 		config.width = prtd->params->dma_size;
 		config.fifo = prtd->params->dma_addr;
 		prtd->params->ch = prtd->params->ops->request(
-				prtd->params->channel, &req);
+				prtd->params->channel, &req, rtd->cpu_dai->dev,
+				prtd->params->ch_name);
 		prtd->params->ops->config(prtd->params->ch, &config);
 	}
 
@@ -432,30 +433,18 @@ static struct snd_soc_platform_driver samsung_asoc_platform = {
 	.pcm_free	= dma_free_dma_buffers,
 };
 
-static int __devinit samsung_asoc_platform_probe(struct platform_device *pdev)
+int asoc_dma_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(&pdev->dev, &samsung_asoc_platform);
+	return snd_soc_register_platform(dev, &samsung_asoc_platform);
 }
+EXPORT_SYMBOL_GPL(asoc_dma_platform_register);
 
-static int __devexit samsung_asoc_platform_remove(struct platform_device *pdev)
+void asoc_dma_platform_unregister(struct device *dev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
+	snd_soc_unregister_platform(dev);
 }
-
-static struct platform_driver asoc_dma_driver = {
-	.driver = {
-		.name = "samsung-audio",
-		.owner = THIS_MODULE,
-	},
-
-	.probe = samsung_asoc_platform_probe,
-	.remove = __devexit_p(samsung_asoc_platform_remove),
-};
-
-module_platform_driver(asoc_dma_driver);
+EXPORT_SYMBOL_GPL(asoc_dma_platform_unregister);
 
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung ASoC DMA Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:samsung-audio");

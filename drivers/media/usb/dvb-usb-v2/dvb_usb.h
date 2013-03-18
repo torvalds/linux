@@ -137,7 +137,7 @@ struct dvb_usb_driver_info {
 struct dvb_usb_rc {
 	const char *map_name;
 	u64 allowed_protos;
-	int (*change_protocol)(struct rc_dev *dev, u64 rc_type);
+	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
 	int (*query) (struct dvb_usb_device *d);
 	unsigned int interval;
 	const enum rc_driver_type driver_type;
@@ -347,6 +347,7 @@ struct dvb_usb_adapter {
  * @props: device properties
  * @name: device name
  * @rc_map: name of rc codes table
+ * @rc_polling_active: set when RC polling is active
  * @udev: pointer to the device's struct usb_device
  * @intf: pointer to the device's usb interface
  * @rc: remote controller configuration
@@ -364,7 +365,7 @@ struct dvb_usb_device {
 	const struct dvb_usb_device_properties *props;
 	const char *name;
 	const char *rc_map;
-
+	bool rc_polling_active;
 	struct usb_device *udev;
 	struct usb_interface *intf;
 	struct dvb_usb_rc rc;

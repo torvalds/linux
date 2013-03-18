@@ -27,7 +27,6 @@
 #define AD5064_ADDR(x)				((x) << 20)
 #define AD5064_CMD(x)				((x) << 24)
 
-#define AD5064_ADDR_DAC(chan)			(chan)
 #define AD5064_ADDR_ALL_DAC			0xF
 
 #define AD5064_CMD_WRITE_INPUT_N		0x0
@@ -131,15 +130,15 @@ static int ad5064_write(struct ad5064_state *st, unsigned int cmd,
 }
 
 static int ad5064_sync_powerdown_mode(struct ad5064_state *st,
-	unsigned int channel)
+	const struct iio_chan_spec *chan)
 {
 	unsigned int val;
 	int ret;
 
-	val = (0x1 << channel);
+	val = (0x1 << chan->address);
 
-	if (st->pwr_down[channel])
-		val |= st->pwr_down_mode[channel] << 8;
+	if (st->pwr_down[chan->channel])
+		val |= st->pwr_down_mode[chan->channel] << 8;
 
 	ret = ad5064_write(st, AD5064_CMD_POWERDOWN_DAC, 0, val, 0);
 
@@ -169,7 +168,7 @@ static int ad5064_set_powerdown_mode(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	st->pwr_down_mode[chan->channel] = mode + 1;
 
-	ret = ad5064_sync_powerdown_mode(st, chan->channel);
+	ret = ad5064_sync_powerdown_mode(st, chan);
 	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
@@ -205,7 +204,7 @@ static ssize_t ad5064_write_dac_powerdown(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	st->pwr_down[chan->channel] = pwr_down;
 
-	ret = ad5064_sync_powerdown_mode(st, chan->channel);
+	ret = ad5064_sync_powerdown_mode(st, chan);
 	mutex_unlock(&indio_dev->mlock);
 	return ret ? ret : len;
 }
@@ -258,7 +257,7 @@ static int ad5064_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (val > (1 << chan->scan_type.realbits) || val < 0)
+		if (val >= (1 << chan->scan_type.realbits) || val < 0)
 			return -EINVAL;
 
 		mutex_lock(&indio_dev->mlock);
@@ -292,33 +291,43 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	{ },
 };
 
-#define AD5064_CHANNEL(chan, bits) {				\
+#define AD5064_CHANNEL(chan, addr, bits) {			\
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
 	.channel = (chan),					\
 	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
 	IIO_CHAN_INFO_SCALE_SEPARATE_BIT,			\
-	.address = AD5064_ADDR_DAC(chan),			\
+	.address = addr,					\
 	.scan_type = IIO_ST('u', (bits), 16, 20 - (bits)),	\
 	.ext_info = ad5064_ext_info,				\
 }
 
 #define DECLARE_AD5064_CHANNELS(name, bits) \
 const struct iio_chan_spec name[] = { \
-	AD5064_CHANNEL(0, bits), \
-	AD5064_CHANNEL(1, bits), \
-	AD5064_CHANNEL(2, bits), \
-	AD5064_CHANNEL(3, bits), \
-	AD5064_CHANNEL(4, bits), \
-	AD5064_CHANNEL(5, bits), \
-	AD5064_CHANNEL(6, bits), \
-	AD5064_CHANNEL(7, bits), \
+	AD5064_CHANNEL(0, 0, bits), \
+	AD5064_CHANNEL(1, 1, bits), \
+	AD5064_CHANNEL(2, 2, bits), \
+	AD5064_CHANNEL(3, 3, bits), \
+	AD5064_CHANNEL(4, 4, bits), \
+	AD5064_CHANNEL(5, 5, bits), \
+	AD5064_CHANNEL(6, 6, bits), \
+	AD5064_CHANNEL(7, 7, bits), \
+}
+
+#define DECLARE_AD5065_CHANNELS(name, bits) \
+const struct iio_chan_spec name[] = { \
+	AD5064_CHANNEL(0, 0, bits), \
+	AD5064_CHANNEL(1, 3, bits), \
 }
 
 static DECLARE_AD5064_CHANNELS(ad5024_channels, 12);
 static DECLARE_AD5064_CHANNELS(ad5044_channels, 14);
 static DECLARE_AD5064_CHANNELS(ad5064_channels, 16);
+
+static DECLARE_AD5065_CHANNELS(ad5025_channels, 12);
+static DECLARE_AD5065_CHANNELS(ad5045_channels, 14);
+static DECLARE_AD5065_CHANNELS(ad5065_channels, 16);
 
 static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 	[ID_AD5024] = {
@@ -328,7 +337,7 @@ static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 	},
 	[ID_AD5025] = {
 		.shared_vref = false,
-		.channels = ad5024_channels,
+		.channels = ad5025_channels,
 		.num_channels = 2,
 	},
 	[ID_AD5044] = {
@@ -338,7 +347,7 @@ static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 	},
 	[ID_AD5045] = {
 		.shared_vref = false,
-		.channels = ad5044_channels,
+		.channels = ad5045_channels,
 		.num_channels = 2,
 	},
 	[ID_AD5064] = {
@@ -353,7 +362,7 @@ static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 	},
 	[ID_AD5065] = {
 		.shared_vref = false,
-		.channels = ad5064_channels,
+		.channels = ad5065_channels,
 		.num_channels = 2,
 	},
 	[ID_AD5628_1] = {
@@ -424,11 +433,12 @@ static const char * const ad5064_vref_name(struct ad5064_state *st,
 	return st->chip_info->shared_vref ? "vref" : ad5064_vref_names[vref];
 }
 
-static int __devinit ad5064_probe(struct device *dev, enum ad5064_type type,
-	const char *name, ad5064_write_func write)
+static int ad5064_probe(struct device *dev, enum ad5064_type type,
+			const char *name, ad5064_write_func write)
 {
 	struct iio_dev *indio_dev;
 	struct ad5064_state *st;
+	unsigned int midscale;
 	unsigned int i;
 	int ret;
 
@@ -465,17 +475,19 @@ static int __devinit ad5064_probe(struct device *dev, enum ad5064_type type,
 			goto error_free_reg;
 	}
 
-	for (i = 0; i < st->chip_info->num_channels; ++i) {
-		st->pwr_down_mode[i] = AD5064_LDAC_PWRDN_1K;
-		st->dac_cache[i] = 0x8000;
-	}
-
 	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->info = &ad5064_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
+
+	midscale = (1 << indio_dev->channels[0].scan_type.realbits) /  2;
+
+	for (i = 0; i < st->chip_info->num_channels; ++i) {
+		st->pwr_down_mode[i] = AD5064_LDAC_PWRDN_1K;
+		st->dac_cache[i] = midscale;
+	}
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
@@ -495,7 +507,7 @@ error_free:
 	return ret;
 }
 
-static int __devexit ad5064_remove(struct device *dev)
+static int ad5064_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad5064_state *st = iio_priv(indio_dev);
@@ -523,7 +535,7 @@ static int ad5064_spi_write(struct ad5064_state *st, unsigned int cmd,
 	return spi_write(spi, &st->data.spi, sizeof(st->data.spi));
 }
 
-static int __devinit ad5064_spi_probe(struct spi_device *spi)
+static int ad5064_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 
@@ -531,7 +543,7 @@ static int __devinit ad5064_spi_probe(struct spi_device *spi)
 				ad5064_spi_write);
 }
 
-static int __devexit ad5064_spi_remove(struct spi_device *spi)
+static int ad5064_spi_remove(struct spi_device *spi)
 {
 	return ad5064_remove(&spi->dev);
 }
@@ -563,7 +575,7 @@ static struct spi_driver ad5064_spi_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5064_spi_probe,
-	.remove = __devexit_p(ad5064_spi_remove),
+	.remove = ad5064_spi_remove,
 	.id_table = ad5064_spi_ids,
 };
 
@@ -596,14 +608,14 @@ static int ad5064_i2c_write(struct ad5064_state *st, unsigned int cmd,
 	return i2c_master_send(i2c, st->data.i2c, 3);
 }
 
-static int __devinit ad5064_i2c_probe(struct i2c_client *i2c,
+static int ad5064_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
 {
 	return ad5064_probe(&i2c->dev, id->driver_data, id->name,
 						ad5064_i2c_write);
 }
 
-static int __devexit ad5064_i2c_remove(struct i2c_client *i2c)
+static int ad5064_i2c_remove(struct i2c_client *i2c)
 {
 	return ad5064_remove(&i2c->dev);
 }
@@ -625,7 +637,7 @@ static struct i2c_driver ad5064_i2c_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5064_i2c_probe,
-	.remove = __devexit_p(ad5064_i2c_remove),
+	.remove = ad5064_i2c_remove,
 	.id_table = ad5064_i2c_ids,
 };
 

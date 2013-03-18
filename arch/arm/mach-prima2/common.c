@@ -8,6 +8,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/irqchip.h>
 #include <asm/sizes.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -30,6 +31,12 @@ void __init sirfsoc_init_late(void)
 	sirfsoc_pm_init();
 }
 
+static __init void sirfsoc_map_io(void)
+{
+	sirfsoc_map_lluart();
+	sirfsoc_map_scu();
+}
+
 #ifdef CONFIG_ARCH_PRIMA2
 static const char *prima2_dt_match[] __initdata = {
        "sirf,prima2",
@@ -38,13 +45,35 @@ static const char *prima2_dt_match[] __initdata = {
 
 DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
-	.map_io         = sirfsoc_map_lluart,
+	.map_io         = sirfsoc_map_io,
 	.init_irq	= sirfsoc_of_irq_init,
-	.timer		= &sirfsoc_timer,
+	.init_time	= sirfsoc_prima2_timer_init,
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+	.handle_irq     = sirfsoc_handle_irq,
+#endif
 	.dma_zone_size	= SZ_256M,
 	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = prima2_dt_match,
+	.restart	= sirfsoc_restart,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_ARCH_MARCO
+static const char *marco_dt_match[] __initdata = {
+	"sirf,marco",
+	NULL
+};
+
+DT_MACHINE_START(MARCO_DT, "Generic MARCO (Flattened Device Tree)")
+	/* Maintainer: Barry Song <baohua.song@csr.com> */
+	.smp            = smp_ops(sirfsoc_smp_ops),
+	.map_io         = sirfsoc_map_io,
+	.init_irq	= irqchip_init,
+	.init_time	= sirfsoc_marco_timer_init,
+	.init_machine	= sirfsoc_mach_init,
+	.init_late	= sirfsoc_init_late,
+	.dt_compat      = marco_dt_match,
 	.restart	= sirfsoc_restart,
 MACHINE_END
 #endif

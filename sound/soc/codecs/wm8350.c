@@ -283,18 +283,16 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		out->ramp = WM8350_RAMP_UP;
 		out->active = 1;
 
-		if (!delayed_work_pending(&codec->dapm.delayed_work))
-			schedule_delayed_work(&codec->dapm.delayed_work,
-					      msecs_to_jiffies(1));
+		schedule_delayed_work(&codec->dapm.delayed_work,
+				      msecs_to_jiffies(1));
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		out->ramp = WM8350_RAMP_DOWN;
 		out->active = 0;
 
-		if (!delayed_work_pending(&codec->dapm.delayed_work))
-			schedule_delayed_work(&codec->dapm.delayed_work,
-					      msecs_to_jiffies(1));
+		schedule_delayed_work(&codec->dapm.delayed_work,
+				      msecs_to_jiffies(1));
 		break;
 	}
 
@@ -1303,7 +1301,7 @@ static irqreturn_t wm8350_hpl_jack_handler(int irq, void *data)
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&priv->hpl.work, 200);
+	schedule_delayed_work(&priv->hpl.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }
@@ -1320,7 +1318,7 @@ static irqreturn_t wm8350_hpr_jack_handler(int irq, void *data)
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&priv->hpr.work, 200);
+	schedule_delayed_work(&priv->hpr.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }
@@ -1500,7 +1498,7 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		priv->supplies[i].supply = supply_names[i];
 
-	ret = regulator_bulk_get(wm8350->dev, ARRAY_SIZE(priv->supplies),
+	ret = devm_regulator_bulk_get(wm8350->dev, ARRAY_SIZE(priv->supplies),
 				 priv->supplies);
 	if (ret != 0)
 		return ret;
@@ -1607,8 +1605,6 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
 
-	regulator_bulk_free(ARRAY_SIZE(priv->supplies), priv->supplies);
-
 	return 0;
 }
 
@@ -1627,13 +1623,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8350_dapm_routes),
 };
 
-static int __devinit wm8350_probe(struct platform_device *pdev)
+static int wm8350_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8350,
 			&wm8350_dai, 1);
 }
 
-static int __devexit wm8350_remove(struct platform_device *pdev)
+static int wm8350_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -1645,7 +1641,7 @@ static struct platform_driver wm8350_codec_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8350_probe,
-	.remove = __devexit_p(wm8350_remove),
+	.remove = wm8350_remove,
 };
 
 module_platform_driver(wm8350_codec_driver);

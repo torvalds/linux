@@ -35,10 +35,11 @@
 #ifndef _ASM_NLM_XLR_PIC_H
 #define _ASM_NLM_XLR_PIC_H
 
-#define PIC_CLKS_PER_SEC		66666666ULL
+#define PIC_CLK_HZ			66666666
 /* PIC hardware interrupt numbers */
 #define PIC_IRT_WD_INDEX		0
 #define PIC_IRT_TIMER_0_INDEX		1
+#define PIC_IRT_TIMER_INDEX(i)		((i) + PIC_IRT_TIMER_0_INDEX)
 #define PIC_IRT_TIMER_1_INDEX		2
 #define PIC_IRT_TIMER_2_INDEX		3
 #define PIC_IRT_TIMER_3_INDEX		4
@@ -99,6 +100,7 @@
 
 /* PIC Registers */
 #define PIC_CTRL			0x00
+#define PIC_CTRL_STE			8	/* timer enable start bit */
 #define PIC_IPI				0x04
 #define PIC_INT_ACK			0x06
 
@@ -116,7 +118,7 @@
 #define PIC_TIMER_COUNT_0_BASE		0x120
 #define PIC_TIMER_COUNT_1_BASE		0x130
 
-#define PIC_IRT_0(picintr)      (PIC_IRT_0_BASE + (picintr))
+#define PIC_IRT_0(picintr)	(PIC_IRT_0_BASE + (picintr))
 #define PIC_IRT_1(picintr)	(PIC_IRT_1_BASE + (picintr))
 
 #define PIC_TIMER_MAXVAL_0(i)	(PIC_TIMER_MAXVAL_0_BASE + (i))
@@ -130,9 +132,9 @@
  * 8-39. This leaves the IRQ 0-7 for cpu interrupts like
  * count/compare and FMN
  */
-#define PIC_IRQ_BASE            8
-#define PIC_INTR_TO_IRQ(i)      (PIC_IRQ_BASE + (i))
-#define PIC_IRQ_TO_INTR(i)      ((i) - PIC_IRQ_BASE)
+#define PIC_IRQ_BASE		8
+#define PIC_INTR_TO_IRQ(i)	(PIC_IRQ_BASE + (i))
+#define PIC_IRQ_TO_INTR(i)	((i) - PIC_IRQ_BASE)
 
 #define PIC_IRT_FIRST_IRQ	PIC_IRQ_BASE
 #define PIC_WD_IRQ		PIC_INTR_TO_IRQ(PIC_IRT_WD_INDEX)
@@ -168,7 +170,7 @@
 #define PIC_BRIDGE_AERR_IRQ	PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_AERR_INDEX)
 #define PIC_BRIDGE_BERR_IRQ	PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_BERR_INDEX)
 #define PIC_BRIDGE_TB_XLR_IRQ	PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_TB_XLR_INDEX)
-#define PIC_BRIDGE_AERR_NMI_IRQ	PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_AERR_NMI_INDEX)
+#define PIC_BRIDGE_AERR_NMI_IRQ PIC_INTR_TO_IRQ(PIC_IRT_BRIDGE_AERR_NMI_INDEX)
 /* XLS defines */
 #define PIC_GMAC_4_IRQ		PIC_INTR_TO_IRQ(PIC_IRT_GMAC4_INDEX)
 #define PIC_GMAC_5_IRQ		PIC_INTR_TO_IRQ(PIC_IRT_GMAC5_INDEX)
@@ -251,14 +253,52 @@ nlm_pic_ack(uint64_t base, int irt)
 }
 
 static inline void
-nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
+nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt, int en)
 {
 	nlm_write_reg(base, PIC_IRT_0(irt), (1u << hwt));
 	/* local scheduling, invalid, level by default */
 	nlm_write_reg(base, PIC_IRT_1(irt),
-		(1 << 30) | (1 << 6) | irq);
+		(en << 30) | (1 << 6) | irq);
 }
 
-extern uint64_t nlm_pic_base;
+static inline uint64_t
+nlm_pic_read_timer(uint64_t base, int timer)
+{
+	uint32_t up1, up2, low;
+
+	up1 = nlm_read_reg(base, PIC_TIMER_COUNT_1(timer));
+	low = nlm_read_reg(base, PIC_TIMER_COUNT_0(timer));
+	up2 = nlm_read_reg(base, PIC_TIMER_COUNT_1(timer));
+
+	if (up1 != up2) /* wrapped, get the new low */
+		low = nlm_read_reg(base, PIC_TIMER_COUNT_0(timer));
+	return ((uint64_t)up2 << 32) | low;
+
+}
+
+static inline uint32_t
+nlm_pic_read_timer32(uint64_t base, int timer)
+{
+	return nlm_read_reg(base, PIC_TIMER_COUNT_0(timer));
+}
+
+static inline void
+nlm_pic_set_timer(uint64_t base, int timer, uint64_t value, int irq, int cpu)
+{
+	uint32_t up, low;
+	uint64_t pic_ctrl = nlm_read_reg(base, PIC_CTRL);
+	int en;
+
+	en = (irq > 0);
+	up = value >> 32;
+	low = value & 0xFFFFFFFF;
+	nlm_write_reg(base, PIC_TIMER_MAXVAL_0(timer), low);
+	nlm_write_reg(base, PIC_TIMER_MAXVAL_1(timer), up);
+	nlm_pic_init_irt(base, PIC_IRT_TIMER_INDEX(timer), irq, cpu, 0);
+
+	/* enable the timer */
+	pic_ctrl |= (1 << (PIC_CTRL_STE + timer));
+	nlm_write_reg(base, PIC_CTRL, pic_ctrl);
+}
 #endif
 #endif /* _ASM_NLM_XLR_PIC_H */

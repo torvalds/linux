@@ -1103,8 +1103,8 @@ static int ffs_fs_parse_opts(struct ffs_sb_fill_data *data, char *opts)
 		return 0;
 
 	for (;;) {
-		char *end, *eq, *comma;
 		unsigned long value;
+		char *eq, *comma;
 
 		/* Option limit */
 		comma = strchr(opts, ',');
@@ -1120,8 +1120,7 @@ static int ffs_fs_parse_opts(struct ffs_sb_fill_data *data, char *opts)
 		*eq = 0;
 
 		/* Parse value */
-		value = simple_strtoul(eq + 1, &end, 0);
-		if (unlikely(*end != ',' && *end != 0)) {
+		if (kstrtoul(eq + 1, 0, &value)) {
 			pr_err("%s: invalid value: %s\n", opts, eq + 1);
 			return -EINVAL;
 		}
@@ -1153,15 +1152,15 @@ static int ffs_fs_parse_opts(struct ffs_sb_fill_data *data, char *opts)
 					pr_err("%s: unmapped value: %lu\n", opts, value);
 					return -EINVAL;
 				}
-			}
-			else if (!memcmp(opts, "gid", 3))
+			} else if (!memcmp(opts, "gid", 3)) {
 				data->perms.gid = make_kgid(current_user_ns(), value);
 				if (!gid_valid(data->perms.gid)) {
 					pr_err("%s: unmapped value: %lu\n", opts, value);
 					return -EINVAL;
 				}
-			else
+			} else {
 				goto invalid;
+			}
 			break;
 
 		default:
@@ -1236,6 +1235,7 @@ static struct file_system_type ffs_fs_type = {
 	.mount		= ffs_fs_mount,
 	.kill_sb	= ffs_fs_kill_sb,
 };
+MODULE_ALIAS_FS("functionfs");
 
 
 /* Driver's main init/cleanup functions *************************************/
@@ -2097,7 +2097,7 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 	if (isHS)
 		func->function.hs_descriptors[(long)valuep] = desc;
 	else
-		func->function.descriptors[(long)valuep]    = desc;
+		func->function.fs_descriptors[(long)valuep]    = desc;
 
 	if (!desc || desc->bDescriptorType != USB_DT_ENDPOINT)
 		return 0;
@@ -2249,7 +2249,7 @@ static int ffs_func_bind(struct usb_configuration *c,
 	 * numbers without worrying that it may be described later on.
 	 */
 	if (likely(full)) {
-		func->function.descriptors = data->fs_descs;
+		func->function.fs_descriptors = data->fs_descs;
 		ret = ffs_do_descs(ffs->fs_descs_count,
 				   data->raw_descs,
 				   sizeof data->raw_descs,

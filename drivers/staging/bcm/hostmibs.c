@@ -9,13 +9,13 @@
 
 #include "headers.h"
 
-INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMibs)
+INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_mibs *pstHostMibs)
 {
-	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
-	S_PHS_RULE *pstPhsRule = NULL;
-	S_CLASSIFIER_TABLE *pstClassifierTable = NULL;
-	S_CLASSIFIER_ENTRY *pstClassifierRule = NULL;
-	PPHS_DEVICE_EXTENSION pDeviceExtension = (PPHS_DEVICE_EXTENSION) &Adapter->stBCMPhsContext;
+	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
+	struct bcm_phs_rule *pstPhsRule = NULL;
+	struct bcm_phs_classifier_table *pstClassifierTable = NULL;
+	struct bcm_phs_classifier_entry *pstClassifierRule = NULL;
+	struct bcm_phs_extension *pDeviceExtension = (struct bcm_phs_extension *) &Adapter->stBCMPhsContext;
 
 	UINT nClassifierIndex = 0, nPhsTableIndex = 0, nSfIndex = 0, uiIndex = 0;
 
@@ -31,7 +31,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, S_MIBS_HOST_STATS_MIBS 
 			       astClassifierTable[nClassifierIndex],
 			       (PVOID) & Adapter->
 			       astClassifierTable[nClassifierIndex],
-			       sizeof(S_MIBS_CLASSIFIER_RULE));
+			       sizeof(struct bcm_mibs_classifier_rule));
 	}
 
 	/* Copy the SF Table */
@@ -39,7 +39,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, S_MIBS_HOST_STATS_MIBS 
 		if (Adapter->PackInfo[nSfIndex].bValid) {
 			memcpy((PVOID) & pstHostMibs->astSFtable[nSfIndex],
 			       (PVOID) & Adapter->PackInfo[nSfIndex],
-			       sizeof(S_MIBS_SERVICEFLOW_TABLE));
+				sizeof(struct bcm_mibs_table));
 		} else {
 			/* If index in not valid,
 			 * don't process this for the PHS table.
@@ -70,7 +70,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, S_MIBS_HOST_STATS_MIBS 
 
 				memcpy(&pstHostMibs->
 				       astPhsRulesTable[nPhsTableIndex].u8PHSI,
-				       &pstPhsRule->u8PHSI, sizeof(S_PHS_RULE));
+				       &pstPhsRule->u8PHSI, sizeof(struct bcm_phs_rule));
 				nPhsTableIndex++;
 
 			}
@@ -94,16 +94,16 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, S_MIBS_HOST_STATS_MIBS 
 	return STATUS_SUCCESS;
 }
 
-VOID GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *pstHostMibs, struct bcm_tarang_data *pTarang)
+VOID GetDroppedAppCntrlPktMibs(struct bcm_host_stats_mibs *pstHostMibs, struct bcm_tarang_data *pTarang)
 {
 	memcpy(&(pstHostMibs->stDroppedAppCntrlMsgs),
 	       &(pTarang->stDroppedAppCntrlMsgs),
-	       sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
+	       sizeof(struct bcm_mibs_dropped_cntrl_msg));
 }
 
 VOID CopyMIBSExtendedSFParameters(struct bcm_mini_adapter *Adapter, struct bcm_connect_mgr_params *psfLocalSet, UINT uiSearchRuleIndex)
 {
-	S_MIBS_EXTSERVICEFLOW_PARAMETERS *t = &Adapter->PackInfo[uiSearchRuleIndex].stMibsExtServiceFlowTable;
+	struct bcm_mibs_parameters *t = &Adapter->PackInfo[uiSearchRuleIndex].stMibsExtServiceFlowTable;
 
 	t->wmanIfSfid = psfLocalSet->u32SFID;
 	t->wmanIfCmnCpsMaxSustainedRate = psfLocalSet->u32MaxSustainedTrafficRate;

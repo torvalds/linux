@@ -82,8 +82,9 @@ static struct omap3isp_prev_csc flr_prev_csc = {
  * The preview engine crops several rows and columns internally depending on
  * which filters are enabled. To avoid format changes when the filters are
  * enabled or disabled (which would prevent them from being turned on or off
- * during streaming), the driver assumes all the filters are enabled when
- * computing sink crop and source format limits.
+ * during streaming), the driver assumes all filters that can be configured
+ * during streaming are enabled when computing sink crop and source format
+ * limits.
  *
  * If a filter is disabled, additional cropping is automatically added at the
  * preview engine input by the driver to avoid overflow at line and frame end.
@@ -92,25 +93,23 @@ static struct omap3isp_prev_csc flr_prev_csc = {
  * Median filter		4 pixels
  * Noise filter,
  * Faulty pixels correction	4 pixels, 4 lines
- * CFA filter			4 pixels, 4 lines in Bayer mode
- *					  2 lines in other modes
  * Color suppression		2 pixels
  * or luma enhancement
  * -------------------------------------------------------------
- * Maximum total		14 pixels, 8 lines
+ * Maximum total		10 pixels, 4 lines
  *
  * The color suppression and luma enhancement filters are applied after bayer to
  * YUV conversion. They thus can crop one pixel on the left and one pixel on the
  * right side of the image without changing the color pattern. When both those
  * filters are disabled, the driver must crop the two pixels on the same side of
  * the image to avoid changing the bayer pattern. The left margin is thus set to
- * 8 pixels and the right margin to 6 pixels.
+ * 6 pixels and the right margin to 4 pixels.
  */
 
-#define PREV_MARGIN_LEFT	8
-#define PREV_MARGIN_RIGHT	6
-#define PREV_MARGIN_TOP		4
-#define PREV_MARGIN_BOTTOM	4
+#define PREV_MARGIN_LEFT	6
+#define PREV_MARGIN_RIGHT	4
+#define PREV_MARGIN_TOP		2
+#define PREV_MARGIN_BOTTOM	2
 
 #define PREV_MIN_IN_WIDTH	64
 #define PREV_MIN_IN_HEIGHT	8
@@ -200,10 +199,10 @@ static void preview_enable_invalaw(struct isp_prev_device *prev, bool enable)
 
 	if (enable)
 		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_WIDTH | ISPPRV_PCR_INVALAW);
+			    ISPPRV_PCR_INVALAW);
 	else
 		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
-			    ISPPRV_PCR_WIDTH | ISPPRV_PCR_INVALAW);
+			    ISPPRV_PCR_INVALAW);
 }
 
 /*
@@ -1014,7 +1013,7 @@ static void preview_config_averager(struct isp_prev_device *prev, u8 average)
 /*
  * preview_config_input_format - Configure the input format
  * @prev: The preview engine
- * @format: Format on the preview engine sink pad
+ * @info: Sink pad format information
  *
  * Enable and configure CFA interpolation for Bayer formats and disable it for
  * greyscale formats.
@@ -1025,22 +1024,29 @@ static void preview_config_averager(struct isp_prev_device *prev, u8 average)
  * reordered to support non-GRBG Bayer patterns.
  */
 static void preview_config_input_format(struct isp_prev_device *prev,
-					const struct v4l2_mbus_framefmt *format)
+					const struct isp_format_info *info)
 {
 	struct isp_device *isp = to_isp_device(prev);
 	struct prev_params *params;
 
-	switch (format->code) {
-	case V4L2_MBUS_FMT_SGRBG10_1X10:
+	if (info->width == 8)
+		isp_reg_set(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_WIDTH);
+	else
+		isp_reg_clr(isp, OMAP3_ISP_IOMEM_PREV, ISPPRV_PCR,
+			    ISPPRV_PCR_WIDTH);
+
+	switch (info->flavor) {
+	case V4L2_MBUS_FMT_SGRBG8_1X8:
 		prev->params.cfa_order = 0;
 		break;
-	case V4L2_MBUS_FMT_SRGGB10_1X10:
+	case V4L2_MBUS_FMT_SRGGB8_1X8:
 		prev->params.cfa_order = 1;
 		break;
-	case V4L2_MBUS_FMT_SBGGR10_1X10:
+	case V4L2_MBUS_FMT_SBGGR8_1X8:
 		prev->params.cfa_order = 2;
 		break;
-	case V4L2_MBUS_FMT_SGBRG10_1X10:
+	case V4L2_MBUS_FMT_SGBRG8_1X8:
 		prev->params.cfa_order = 3;
 		break;
 	default:
@@ -1073,20 +1079,12 @@ static void preview_config_input_format(struct isp_prev_device *prev,
  */
 static void preview_config_input_size(struct isp_prev_device *prev, u32 active)
 {
-	const struct v4l2_mbus_framefmt *format = &prev->formats[PREV_PAD_SINK];
 	struct isp_device *isp = to_isp_device(prev);
 	unsigned int sph = prev->crop.left;
 	unsigned int eph = prev->crop.left + prev->crop.width - 1;
 	unsigned int slv = prev->crop.top;
 	unsigned int elv = prev->crop.top + prev->crop.height - 1;
 	u32 features;
-
-	if (format->code != V4L2_MBUS_FMT_Y10_1X10) {
-		sph -= 2;
-		eph += 2;
-		slv -= 2;
-		elv += 2;
-	}
 
 	features = (prev->params.params[0].features & active)
 		 | (prev->params.params[1].features & ~active);
@@ -1389,6 +1387,7 @@ static unsigned int preview_max_out_width(struct isp_prev_device *prev)
 static void preview_configure(struct isp_prev_device *prev)
 {
 	struct isp_device *isp = to_isp_device(prev);
+	const struct isp_format_info *info;
 	struct v4l2_mbus_framefmt *format;
 	unsigned long flags;
 	u32 update;
@@ -1402,17 +1401,18 @@ static void preview_configure(struct isp_prev_device *prev)
 
 	/* PREV_PAD_SINK */
 	format = &prev->formats[PREV_PAD_SINK];
+	info = omap3isp_video_format_info(format->code);
 
 	preview_adjust_bandwidth(prev);
 
-	preview_config_input_format(prev, format);
+	preview_config_input_format(prev, info);
 	preview_config_input_size(prev, active);
 
 	if (prev->input == PREVIEW_INPUT_CCDC)
 		preview_config_inlineoffset(prev, 0);
 	else
-		preview_config_inlineoffset(prev,
-				ALIGN(format->width, 0x20) * 2);
+		preview_config_inlineoffset(prev, ALIGN(format->width, 0x20) *
+					    info->bpp);
 
 	preview_setup_hw(prev, update, active);
 
@@ -1709,6 +1709,11 @@ __preview_get_crop(struct isp_prev_device *prev, struct v4l2_subdev_fh *fh,
 
 /* previewer format descriptions */
 static const unsigned int preview_input_fmts[] = {
+	V4L2_MBUS_FMT_Y8_1X8,
+	V4L2_MBUS_FMT_SGRBG8_1X8,
+	V4L2_MBUS_FMT_SRGGB8_1X8,
+	V4L2_MBUS_FMT_SBGGR8_1X8,
+	V4L2_MBUS_FMT_SGBRG8_1X8,
 	V4L2_MBUS_FMT_Y10_1X10,
 	V4L2_MBUS_FMT_SGRBG10_1X10,
 	V4L2_MBUS_FMT_SRGGB10_1X10,
@@ -1832,6 +1837,18 @@ static void preview_try_crop(struct isp_prev_device *prev,
 	if (prev->input == PREVIEW_INPUT_CCDC) {
 		left += 2;
 		right -= 2;
+	}
+
+	/* The CFA filter crops 4 lines and 4 columns in Bayer mode, and 2 lines
+	 * and no columns in other modes. Increase the margins based on the sink
+	 * format.
+	 */
+	if (sink->code != V4L2_MBUS_FMT_Y8_1X8 &&
+	    sink->code != V4L2_MBUS_FMT_Y10_1X10) {
+		left += 2;
+		right -= 2;
+		top += 2;
+		bottom -= 2;
 	}
 
 	/* Restrict left/top to even values to keep the Bayer pattern. */

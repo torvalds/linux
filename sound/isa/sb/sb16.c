@@ -250,9 +250,9 @@ MODULE_DEVICE_TABLE(pnp_card, snd_sb16_pnpids);
 
 #ifdef CONFIG_PNP
 
-static int __devinit snd_card_sb16_pnp(int dev, struct snd_card_sb16 *acard,
-				       struct pnp_card_link *card,
-				       const struct pnp_card_device_id *id)
+static int snd_card_sb16_pnp(int dev, struct snd_card_sb16 *acard,
+			     struct pnp_card_link *card,
+			     const struct pnp_card_device_id *id)
 {
 	struct pnp_dev *pdev;
 	int err;
@@ -337,7 +337,7 @@ static int snd_sb16_card_new(int dev, struct snd_card **cardp)
 	return 0;
 }
 
-static int __devinit snd_sb16_probe(struct snd_card *card, int dev)
+static int snd_sb16_probe(struct snd_card *card, int dev)
 {
 	int xirq, xdma8, xdma16;
 	struct snd_sb *chip;
@@ -487,7 +487,7 @@ static int snd_sb16_resume(struct snd_card *card)
 }
 #endif
 
-static int __devinit snd_sb16_isa_probe1(int dev, struct device *pdev)
+static int snd_sb16_isa_probe1(int dev, struct device *pdev)
 {
 	struct snd_card_sb16 *acard;
 	struct snd_card *card;
@@ -517,12 +517,12 @@ static int __devinit snd_sb16_isa_probe1(int dev, struct device *pdev)
 }
 
 
-static int __devinit snd_sb16_isa_match(struct device *pdev, unsigned int dev)
+static int snd_sb16_isa_match(struct device *pdev, unsigned int dev)
 {
 	return enable[dev] && !is_isapnp_selected(dev);
 }
 
-static int __devinit snd_sb16_isa_probe(struct device *pdev, unsigned int dev)
+static int snd_sb16_isa_probe(struct device *pdev, unsigned int dev)
 {
 	int err;
 	static int possible_irqs[] = {5, 9, 10, 7, -1};
@@ -563,7 +563,7 @@ static int __devinit snd_sb16_isa_probe(struct device *pdev, unsigned int dev)
 	}
 }
 
-static int __devexit snd_sb16_isa_remove(struct device *pdev, unsigned int dev)
+static int snd_sb16_isa_remove(struct device *pdev, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(pdev));
 	dev_set_drvdata(pdev, NULL);
@@ -592,7 +592,7 @@ static int snd_sb16_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver snd_sb16_isa_driver = {
 	.match		= snd_sb16_isa_match,
 	.probe		= snd_sb16_isa_probe,
-	.remove		= __devexit_p(snd_sb16_isa_remove),
+	.remove		= snd_sb16_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_sb16_isa_suspend,
 	.resume		= snd_sb16_isa_resume,
@@ -604,8 +604,8 @@ static struct isa_driver snd_sb16_isa_driver = {
 
 
 #ifdef CONFIG_PNP
-static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *pcard,
-					 const struct pnp_card_device_id *pid)
+static int snd_sb16_pnp_detect(struct pnp_card_link *pcard,
+			       const struct pnp_card_device_id *pid)
 {
 	static int dev;
 	struct snd_card *card;
@@ -631,7 +631,7 @@ static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *pcard,
 	return -ENODEV;
 }
 
-static void __devexit snd_sb16_pnp_remove(struct pnp_card_link * pcard)
+static void snd_sb16_pnp_remove(struct pnp_card_link *pcard)
 {
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
@@ -657,7 +657,7 @@ static struct pnp_card_driver sb16_pnpc_driver = {
 #endif
 	.id_table = snd_sb16_pnpids,
 	.probe = snd_sb16_pnp_detect,
-	.remove = __devexit_p(snd_sb16_pnp_remove),
+	.remove = snd_sb16_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend = snd_sb16_pnp_suspend,
 	.resume = snd_sb16_pnp_resume,

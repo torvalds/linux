@@ -11,7 +11,7 @@
 #include <linux/gfp.h>
 #include <linux/dma-debug.h>
 #include <linux/export.h>
-#include <asm/bug.h>
+#include <linux/bug.h>
 
 /*
  * Generic direct DMA implementation
@@ -197,8 +197,8 @@ EXPORT_SYMBOL(dma_direct_ops);
 
 static int __init dma_init(void)
 {
-       dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
 
-       return 0;
+	return 0;
 }
 fs_initcall(dma_init);

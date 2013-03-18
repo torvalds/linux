@@ -416,8 +416,7 @@ bfin_sport_spi_pump_transfers(unsigned long data)
 	drv_data->cs_change = transfer->cs_change;
 
 	/* Bits per word setup */
-	bits_per_word = transfer->bits_per_word ? :
-		message->spi->bits_per_word ? : 8;
+	bits_per_word = transfer->bits_per_word;
 	if (bits_per_word % 16 == 0)
 		drv_data->ops = &bfin_sport_transfer_ops_u16;
 	else
@@ -755,8 +754,7 @@ bfin_sport_spi_destroy_queue(struct bfin_sport_spi_master_data *drv_data)
 	return 0;
 }
 
-static int __devinit
-bfin_sport_spi_probe(struct platform_device *pdev)
+static int bfin_sport_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct bfin5xx_spi_master *platform_info;
@@ -863,8 +861,7 @@ bfin_sport_spi_probe(struct platform_device *pdev)
 }
 
 /* stop hardware and remove the driver */
-static int __devexit
-bfin_sport_spi_remove(struct platform_device *pdev)
+static int bfin_sport_spi_remove(struct platform_device *pdev)
 {
 	struct bfin_sport_spi_master_data *drv_data = platform_get_drvdata(pdev);
 	int status = 0;
@@ -935,7 +932,7 @@ static struct platform_driver bfin_sport_spi_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe   = bfin_sport_spi_probe,
-	.remove  = __devexit_p(bfin_sport_spi_remove),
+	.remove  = bfin_sport_spi_remove,
 	.suspend = bfin_sport_spi_suspend,
 	.resume  = bfin_sport_spi_resume,
 };

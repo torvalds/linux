@@ -33,12 +33,6 @@
 
 #define DEBUG_SIG 0
 
-asmlinkage long
-_sys_sigaltstack(const stack_t *uss, stack_t *uoss, struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->sp);
-}
-
 struct rt_sigframe {
 	struct siginfo *pinfo;
 	void *puc;
@@ -84,7 +78,6 @@ asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe *frame = (struct rt_sigframe __user *)regs->sp;
 	sigset_t set;
-	stack_t st;
 
 	/*
 	 * Since we stacked the signal on a dword boundary,
@@ -104,11 +97,8 @@ asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (__copy_from_user(&st, &frame->uc.uc_stack, sizeof(st)))
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	do_sigaltstack(&st, NULL, regs->sp);
 
 	return regs->gpr[11];
 
@@ -207,10 +197,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __clear_user(&frame->uc, offsetof(struct ucontext, uc_mcontext));
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(NULL, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
-			  &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->sp), &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, set->sig[0]);
 
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));

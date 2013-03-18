@@ -163,6 +163,7 @@ enum {
 
 	ATA_DFLAG_DA		= (1 << 26), /* device supports Device Attention */
 	ATA_DFLAG_DEVSLP	= (1 << 27), /* device supports Device Sleep */
+	ATA_DFLAG_ACPI_DISABLED = (1 << 28), /* ACPI for the device is disabled */
 
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
@@ -619,6 +620,9 @@ struct ata_device {
 	union acpi_object	*gtf_cache;
 	unsigned int		gtf_filter;
 #endif
+#ifdef CONFIG_SATA_ZPODD
+	void			*zpodd;
+#endif
 	struct device		tdev;
 	/* n_sector is CLEAR_BEGIN, read comment above CLEAR_BEGIN */
 	u64			n_sectors;	/* size of device, if ATA */
@@ -651,8 +655,8 @@ struct ata_device {
 		u32		gscr[SATA_PMP_GSCR_DWORDS]; /* PMP GSCR block */
 	};
 
-	/* Identify Device Data Log (30h), SATA Settings (page 08h) */
-	u8			sata_settings[ATA_SECT_SIZE];
+	/* DEVSLP Timing Variables from Identify Device Data Log */
+	u8			devslp_timing[ATA_LOG_DEVSLP_SIZE];
 
 	/* error history */
 	int			spdn_cnt;
@@ -1113,6 +1117,10 @@ extern int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 extern int ata_pci_device_resume(struct pci_dev *pdev);
 #endif /* CONFIG_PM */
 #endif /* CONFIG_PCI */
+
+struct platform_device;
+
+extern int ata_platform_remove_one(struct platform_device *pdev);
 
 /*
  * ACPI - drivers/ata/libata-acpi.c

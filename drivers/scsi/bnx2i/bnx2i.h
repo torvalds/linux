@@ -800,7 +800,7 @@ extern struct device_attribute *bnx2i_dev_attributes[];
 /*
  * Function Prototypes
  */
-extern void bnx2i_identify_device(struct bnx2i_hba *hba);
+extern void bnx2i_identify_device(struct bnx2i_hba *hba, struct cnic_dev *dev);
 
 extern void bnx2i_ulp_init(struct cnic_dev *dev);
 extern void bnx2i_ulp_exit(struct cnic_dev *dev);

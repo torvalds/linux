@@ -12,7 +12,6 @@
  */
 
 #include <linux/netdevice.h>
-#include <linux/version.h>
 #include "unifi_priv.h"
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_conversions.h"
@@ -22,23 +21,17 @@ static const unsigned char wildcard_address[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00,
 int
 uf_sme_init(unifi_priv_t *priv)
 {
-    func_enter();
-
     sema_init(&priv->mlme_blocking_mutex, 1);
 
 #ifdef CSR_SUPPORT_WEXT
     {
         int r = uf_init_wext_interface(priv);
         if (r != 0) {
-            func_exit();
             return r;
         }
     }
 #endif
 
-
-
-    func_exit();
     return 0;
 } /* uf_sme_init() */
 
@@ -46,8 +39,6 @@ uf_sme_init(unifi_priv_t *priv)
 void
 uf_sme_deinit(unifi_priv_t *priv)
 {
-
-    func_enter();
 
     /* Free memory allocated for the scan table */
 /*    unifi_clear_scan_table(priv); */
@@ -59,8 +50,6 @@ uf_sme_deinit(unifi_priv_t *priv)
     uf_deinit_wext_interface(priv);
 #endif
 
-
-    func_exit();
 } /* uf_sme_deinit() */
 
 
@@ -222,8 +211,6 @@ sme_native_log_event(ul_client_t *pcli,
     CSR_SIGNAL signal;
     ul_client_t *client = pcli;
 
-    func_enter();
-
     if (client == NULL) {
         unifi_error(NULL, "sme_native_log_event: client has exited\n");
         return;
@@ -333,8 +320,6 @@ sme_native_log_event(ul_client_t *pcli,
 
     /* Wake any waiting user process */
     wake_up_interruptible(&client->udi_wq);
-
-    func_exit();
 
 } /* sme_native_log_event() */
 
@@ -461,8 +446,6 @@ sme_native_mlme_event_handler(ul_client_t *pcli,
     unifi_priv_t *priv = uf_find_instance(pcli->instance);
     int id, r;
 
-    func_enter();
-
     /* Just a sanity check */
     if ((sig_packed == NULL) || (sig_len <= 0)) {
         return;
@@ -542,7 +525,6 @@ sme_native_mlme_event_handler(ul_client_t *pcli,
             break;
     }
 
-    func_exit();
 } /* sme_native_mlme_event_handler() */
 
 
@@ -574,14 +556,11 @@ unifi_reset_state(unifi_priv_t *priv, unsigned char *macaddr,
 {
     int r = 0;
 
-    func_enter();
-
 #ifdef CSR_SUPPORT_WEXT
     /* The reset clears any 802.11 association. */
     priv->wext_conf.flag_associated = 0;
 #endif
 
-    func_exit();
     return r;
 } /* unifi_reset_state() */
 

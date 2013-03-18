@@ -22,16 +22,64 @@
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_pm.h"
 
-static void *s5p_mfc_bitproc_buf;
-static size_t s5p_mfc_bitproc_phys;
-static unsigned char *s5p_mfc_bitproc_virt;
+/* Allocate memory for firmware */
+int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
+{
+	void *bank2_virt;
+	dma_addr_t bank2_dma_addr;
 
-/* Allocate and load firmware */
-int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
+	dev->fw_size = dev->variant->buf_size->fw;
+
+	if (dev->fw_virt_addr) {
+		mfc_err("Attempting to allocate firmware when it seems that it is already loaded\n");
+		return -ENOMEM;
+	}
+
+	dev->fw_virt_addr = dma_alloc_coherent(dev->mem_dev_l, dev->fw_size,
+					&dev->bank1, GFP_KERNEL);
+
+	if (IS_ERR(dev->fw_virt_addr)) {
+		dev->fw_virt_addr = NULL;
+		mfc_err("Allocating bitprocessor buffer failed\n");
+		return -ENOMEM;
+	}
+
+	dev->bank1 = dev->bank1;
+
+	if (HAS_PORTNUM(dev) && IS_TWOPORT(dev)) {
+		bank2_virt = dma_alloc_coherent(dev->mem_dev_r, 1 << MFC_BASE_ALIGN_ORDER,
+					&bank2_dma_addr, GFP_KERNEL);
+
+		if (IS_ERR(dev->fw_virt_addr)) {
+			mfc_err("Allocating bank2 base failed\n");
+			dma_free_coherent(dev->mem_dev_l, dev->fw_size,
+				dev->fw_virt_addr, dev->bank1);
+			dev->fw_virt_addr = NULL;
+			return -ENOMEM;
+		}
+
+		/* Valid buffers passed to MFC encoder with LAST_FRAME command
+		 * should not have address of bank2 - MFC will treat it as a null frame.
+		 * To avoid such situation we set bank2 address below the pool address.
+		 */
+		dev->bank2 = bank2_dma_addr - (1 << MFC_BASE_ALIGN_ORDER);
+
+		dma_free_coherent(dev->mem_dev_r, 1 << MFC_BASE_ALIGN_ORDER,
+			bank2_virt, bank2_dma_addr);
+
+	} else {
+		/* In this case bank2 can point to the same address as bank1.
+		 * Firmware will always occupy the beggining of this area so it is
+		 * impossible having a video frame buffer with zero address. */
+		dev->bank2 = dev->bank1;
+	}
+	return 0;
+}
+
+/* Load firmware */
+int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 {
 	struct firmware *fw_blob;
-	size_t bank2_base_phys;
-	void *b_base;
 	int err;
 
 	/* Firmare has to be present as a separate file or compiled
@@ -44,77 +92,17 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 		mfc_err("Firmware is not present in the /lib/firmware directory nor compiled in kernel\n");
 		return -EINVAL;
 	}
-	dev->fw_size = dev->variant->buf_size->fw;
 	if (fw_blob->size > dev->fw_size) {
 		mfc_err("MFC firmware is too big to be loaded\n");
 		release_firmware(fw_blob);
 		return -ENOMEM;
 	}
-	if (s5p_mfc_bitproc_buf) {
-		mfc_err("Attempting to allocate firmware when it seems that it is already loaded\n");
+	if (!dev->fw_virt_addr) {
+		mfc_err("MFC firmware is not allocated\n");
 		release_firmware(fw_blob);
-		return -ENOMEM;
+		return -EINVAL;
 	}
-	s5p_mfc_bitproc_buf = vb2_dma_contig_memops.alloc(
-		dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], dev->fw_size);
-	if (IS_ERR(s5p_mfc_bitproc_buf)) {
-		s5p_mfc_bitproc_buf = NULL;
-		mfc_err("Allocating bitprocessor buffer failed\n");
-		release_firmware(fw_blob);
-		return -ENOMEM;
-	}
-	s5p_mfc_bitproc_phys = s5p_mfc_mem_cookie(
-		dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], s5p_mfc_bitproc_buf);
-	if (s5p_mfc_bitproc_phys & ((1 << MFC_BASE_ALIGN_ORDER) - 1)) {
-		mfc_err("The base memory for bank 1 is not aligned to 128KB\n");
-		vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
-		s5p_mfc_bitproc_phys = 0;
-		s5p_mfc_bitproc_buf = NULL;
-		release_firmware(fw_blob);
-		return -EIO;
-	}
-	s5p_mfc_bitproc_virt = vb2_dma_contig_memops.vaddr(s5p_mfc_bitproc_buf);
-	if (!s5p_mfc_bitproc_virt) {
-		mfc_err("Bitprocessor memory remap failed\n");
-		vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
-		s5p_mfc_bitproc_phys = 0;
-		s5p_mfc_bitproc_buf = NULL;
-		release_firmware(fw_blob);
-		return -EIO;
-	}
-	dev->bank1 = s5p_mfc_bitproc_phys;
-	if (HAS_PORTNUM(dev) && IS_TWOPORT(dev)) {
-		b_base = vb2_dma_contig_memops.alloc(
-			dev->alloc_ctx[MFC_BANK2_ALLOC_CTX],
-			1 << MFC_BASE_ALIGN_ORDER);
-		if (IS_ERR(b_base)) {
-			vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
-			s5p_mfc_bitproc_phys = 0;
-			s5p_mfc_bitproc_buf = NULL;
-			mfc_err("Allocating bank2 base failed\n");
-			release_firmware(fw_blob);
-			return -ENOMEM;
-		}
-		bank2_base_phys = s5p_mfc_mem_cookie(
-			dev->alloc_ctx[MFC_BANK2_ALLOC_CTX], b_base);
-		vb2_dma_contig_memops.put(b_base);
-		if (bank2_base_phys & ((1 << MFC_BASE_ALIGN_ORDER) - 1)) {
-			mfc_err("The base memory for bank 2 is not aligned to 128KB\n");
-			vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
-			s5p_mfc_bitproc_phys = 0;
-			s5p_mfc_bitproc_buf = NULL;
-			release_firmware(fw_blob);
-			return -EIO;
-		}
-		/* Valid buffers passed to MFC encoder with LAST_FRAME command
-		 * should not have address of bank2 - MFC will treat it as a null frame.
-		 * To avoid such situation we set bank2 address below the pool address.
-		 */
-		dev->bank2 = bank2_base_phys - (1 << MFC_BASE_ALIGN_ORDER);
-	} else {
-		dev->bank2 = dev->bank1;
-	}
-	memcpy(s5p_mfc_bitproc_virt, fw_blob->data, fw_blob->size);
+	memcpy(dev->fw_virt_addr, fw_blob->data, fw_blob->size);
 	wmb();
 	release_firmware(fw_blob);
 	mfc_debug_leave();
@@ -142,12 +130,12 @@ int s5p_mfc_reload_firmware(struct s5p_mfc_dev *dev)
 		release_firmware(fw_blob);
 		return -ENOMEM;
 	}
-	if (s5p_mfc_bitproc_buf == NULL || s5p_mfc_bitproc_phys == 0) {
-		mfc_err("MFC firmware is not allocated or was not mapped correctly\n");
+	if (!dev->fw_virt_addr) {
+		mfc_err("MFC firmware is not allocated\n");
 		release_firmware(fw_blob);
 		return -EINVAL;
 	}
-	memcpy(s5p_mfc_bitproc_virt, fw_blob->data, fw_blob->size);
+	memcpy(dev->fw_virt_addr, fw_blob->data, fw_blob->size);
 	wmb();
 	release_firmware(fw_blob);
 	mfc_debug_leave();
@@ -159,12 +147,11 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 {
 	/* Before calling this function one has to make sure
 	 * that MFC is no longer processing */
-	if (!s5p_mfc_bitproc_buf)
+	if (!dev->fw_virt_addr)
 		return -EINVAL;
-	vb2_dma_contig_memops.put(s5p_mfc_bitproc_buf);
-	s5p_mfc_bitproc_virt = NULL;
-	s5p_mfc_bitproc_phys = 0;
-	s5p_mfc_bitproc_buf = NULL;
+	dma_free_coherent(dev->mem_dev_l, dev->fw_size, dev->fw_virt_addr,
+						dev->bank1);
+	dev->fw_virt_addr = NULL;
 	return 0;
 }
 
@@ -257,8 +244,10 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	int ret;
 
 	mfc_debug_enter();
-	if (!s5p_mfc_bitproc_buf)
+	if (!dev->fw_virt_addr) {
+		mfc_err("Firmware memory is not allocated.\n");
 		return -EINVAL;
+	}
 
 	/* 0. MFC reset */
 	mfc_debug(2, "MFC reset..\n");

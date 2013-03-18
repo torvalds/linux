@@ -45,6 +45,7 @@
 #include <net/tcp_states.h>
 #include <net/ip6_checksum.h>
 #include <net/xfrm.h>
+#include <net/inet6_hashtables.h>
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -203,7 +204,8 @@ static struct sock *udp6_lib_lookup2(struct net *net,
 {
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
-	int score, badness;
+	int score, badness, matches = 0, reuseport = 0;
+	u32 hash = 0;
 
 begin:
 	result = NULL;
@@ -214,8 +216,18 @@ begin:
 		if (score > badness) {
 			result = sk;
 			badness = score;
-			if (score == SCORE2_MAX)
+			reuseport = sk->sk_reuseport;
+			if (reuseport) {
+				hash = inet6_ehashfn(net, daddr, hnum,
+						     saddr, sport);
+				matches = 1;
+			} else if (score == SCORE2_MAX)
 				goto exact_match;
+		} else if (score == badness && reuseport) {
+			matches++;
+			if (((u64)hash * matches) >> 32 == 0)
+				result = sk;
+			hash = next_pseudo_random32(hash);
 		}
 	}
 	/*
@@ -249,7 +261,8 @@ struct sock *__udp6_lib_lookup(struct net *net,
 	unsigned short hnum = ntohs(dport);
 	unsigned int hash2, slot2, slot = udp_hashfn(net, hnum, udptable->mask);
 	struct udp_hslot *hslot2, *hslot = &udptable->hash[slot];
-	int score, badness;
+	int score, badness, matches = 0, reuseport = 0;
+	u32 hash = 0;
 
 	rcu_read_lock();
 	if (hslot->count > 10) {
@@ -284,6 +297,17 @@ begin:
 		if (score > badness) {
 			result = sk;
 			badness = score;
+			reuseport = sk->sk_reuseport;
+			if (reuseport) {
+				hash = inet6_ehashfn(net, daddr, hnum,
+						     saddr, sport);
+				matches = 1;
+			}
+		} else if (score == badness && reuseport) {
+			matches++;
+			if (((u64)hash * matches) >> 32 == 0)
+				result = sk;
+			hash = next_pseudo_random32(hash);
 		}
 	}
 	/*
@@ -443,7 +467,7 @@ try_again:
 			ip_cmsg_recv(msg, skb);
 	} else {
 		if (np->rxopt.all)
-			datagram_recv_ctl(sk, msg, skb);
+			ip6_datagram_recv_ctl(sk, msg, skb);
 	}
 
 	err = copied;
@@ -749,40 +773,6 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 	} else {
 		kfree_skb(skb);
 	}
-	return 0;
-}
-
-static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh,
-				 int proto)
-{
-	int err;
-
-	UDP_SKB_CB(skb)->partial_cov = 0;
-	UDP_SKB_CB(skb)->cscov = skb->len;
-
-	if (proto == IPPROTO_UDPLITE) {
-		err = udplite_checksum_init(skb, uh);
-		if (err)
-			return err;
-	}
-
-	if (uh->check == 0) {
-		/* RFC 2460 section 8.1 says that we SHOULD log
-		   this error. Well, it is reasonable.
-		 */
-		LIMIT_NETDEBUG(KERN_INFO "IPv6: udp checksum is 0\n");
-		return 1;
-	}
-	if (skb->ip_summed == CHECKSUM_COMPLETE &&
-	    !csum_ipv6_magic(&ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
-			     skb->len, proto, skb->csum))
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-
-	if (!skb_csum_unnecessary(skb))
-		skb->csum = ~csum_unfold(csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-							 &ipv6_hdr(skb)->daddr,
-							 skb->len, proto, 0));
-
 	return 0;
 }
 
@@ -1153,8 +1143,8 @@ do_udp_sendmsg:
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(*opt);
 
-		err = datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
-					&hlimit, &tclass, &dontfrag);
+		err = ip6_datagram_send_ctl(sock_net(sk), sk, msg, &fl6, opt,
+					    &hlimit, &tclass, &dontfrag);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -1343,103 +1333,9 @@ int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
 }
 #endif
 
-static int udp6_ufo_send_check(struct sk_buff *skb)
-{
-	const struct ipv6hdr *ipv6h;
-	struct udphdr *uh;
-
-	if (!pskb_may_pull(skb, sizeof(*uh)))
-		return -EINVAL;
-
-	ipv6h = ipv6_hdr(skb);
-	uh = udp_hdr(skb);
-
-	uh->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
-				     IPPROTO_UDP, 0);
-	skb->csum_start = skb_transport_header(skb) - skb->head;
-	skb->csum_offset = offsetof(struct udphdr, check);
-	skb->ip_summed = CHECKSUM_PARTIAL;
-	return 0;
-}
-
-static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
-	netdev_features_t features)
-{
-	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	unsigned int mss;
-	unsigned int unfrag_ip6hlen, unfrag_len;
-	struct frag_hdr *fptr;
-	u8 *mac_start, *prevhdr;
-	u8 nexthdr;
-	u8 frag_hdr_sz = sizeof(struct frag_hdr);
-	int offset;
-	__wsum csum;
-
-	mss = skb_shinfo(skb)->gso_size;
-	if (unlikely(skb->len <= mss))
-		goto out;
-
-	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
-		/* Packet is from an untrusted source, reset gso_segs. */
-		int type = skb_shinfo(skb)->gso_type;
-
-		if (unlikely(type & ~(SKB_GSO_UDP | SKB_GSO_DODGY) ||
-			     !(type & (SKB_GSO_UDP))))
-			goto out;
-
-		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
-
-		segs = NULL;
-		goto out;
-	}
-
-	/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
-	 * do checksum of UDP packets sent as multiple IP fragments.
-	 */
-	offset = skb_checksum_start_offset(skb);
-	csum = skb_checksum(skb, offset, skb->len - offset, 0);
-	offset += skb->csum_offset;
-	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
-	skb->ip_summed = CHECKSUM_NONE;
-
-	/* Check if there is enough headroom to insert fragment header. */
-	if ((skb_mac_header(skb) < skb->head + frag_hdr_sz) &&
-	    pskb_expand_head(skb, frag_hdr_sz, 0, GFP_ATOMIC))
-		goto out;
-
-	/* Find the unfragmentable header and shift it left by frag_hdr_sz
-	 * bytes to insert fragment header.
-	 */
-	unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
-	nexthdr = *prevhdr;
-	*prevhdr = NEXTHDR_FRAGMENT;
-	unfrag_len = skb_network_header(skb) - skb_mac_header(skb) +
-		     unfrag_ip6hlen;
-	mac_start = skb_mac_header(skb);
-	memmove(mac_start-frag_hdr_sz, mac_start, unfrag_len);
-
-	skb->mac_header -= frag_hdr_sz;
-	skb->network_header -= frag_hdr_sz;
-
-	fptr = (struct frag_hdr *)(skb_network_header(skb) + unfrag_ip6hlen);
-	fptr->nexthdr = nexthdr;
-	fptr->reserved = 0;
-	ipv6_select_ident(fptr, (struct rt6_info *)skb_dst(skb));
-
-	/* Fragment the skb. ipv6 header and the remaining fields of the
-	 * fragment header are updated in ipv6_gso_segment()
-	 */
-	segs = skb_segment(skb, features);
-
-out:
-	return segs;
-}
-
 static const struct inet6_protocol udpv6_protocol = {
 	.handler	=	udpv6_rcv,
 	.err_handler	=	udpv6_err,
-	.gso_send_check =	udp6_ufo_send_check,
-	.gso_segment	=	udp6_ufo_fragment,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 

@@ -1696,8 +1696,8 @@ static void cx8800_unregister_video(struct cx8800_dev *dev)
 	}
 }
 
-static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
-				    const struct pci_device_id *pci_id)
+static int cx8800_initdev(struct pci_dev *pci_dev,
+			  const struct pci_device_id *pci_id)
 {
 	struct cx8800_dev *dev;
 	struct cx88_core *core;
@@ -1923,7 +1923,7 @@ fail_free:
 	return err;
 }
 
-static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
+static void cx8800_finidev(struct pci_dev *pci_dev)
 {
 	struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
@@ -2052,7 +2052,7 @@ static struct pci_driver cx8800_pci_driver = {
 	.name     = "cx8800",
 	.id_table = cx8800_pci_tbl,
 	.probe    = cx8800_initdev,
-	.remove   = __devexit_p(cx8800_finidev),
+	.remove   = cx8800_finidev,
 #ifdef CONFIG_PM
 	.suspend  = cx8800_suspend,
 	.resume   = cx8800_resume,

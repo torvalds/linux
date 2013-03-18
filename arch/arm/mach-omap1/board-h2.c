@@ -39,8 +39,8 @@
 #include <asm/mach/map.h>
 
 #include <mach/mux.h>
-#include <plat/dma.h>
-#include <plat/tc.h>
+#include <linux/omap-dma.h>
+#include <mach/tc.h>
 #include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>
 #include <mach/flash.h>
@@ -50,6 +50,7 @@
 
 #include "common.h"
 #include "board-h2.h"
+#include "dma.h"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define OMAP1610_ETHR_START		0x04000300
@@ -411,8 +412,7 @@ static void __init h2_init(void)
 
 	h2_nand_resource.end = h2_nand_resource.start = OMAP_CS2B_PHYS;
 	h2_nand_resource.end += SZ_4K - 1;
-	if (gpio_request(H2_NAND_RB_GPIO_PIN, "NAND ready") < 0)
-		BUG();
+	BUG_ON(gpio_request(H2_NAND_RB_GPIO_PIN, "NAND ready") < 0);
 	gpio_direction_input(H2_NAND_RB_GPIO_PIN);
 
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
@@ -458,10 +458,9 @@ MACHINE_START(OMAP_H2, "TI-H2")
 	.atag_offset	= 0x100,
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= h2_init,
 	.init_late	= omap1_init_late,
-	.timer		= &omap1_timer,
+	.init_time	= omap1_timer_init,
 	.restart	= omap1_restart,
 MACHINE_END

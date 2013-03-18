@@ -48,8 +48,8 @@ static int ir_rc5_sz_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u8 toggle, command, system;
 	u32 scancode;
 
-        if (!(dev->raw->enabled_protocols & RC_TYPE_RC5_SZ))
-                return 0;
+	if (!(dev->raw->enabled_protocols & RC_BIT_RC5_SZ))
+		return 0;
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
@@ -128,7 +128,7 @@ out:
 }
 
 static struct ir_raw_handler rc5_sz_handler = {
-	.protocols	= RC_TYPE_RC5_SZ,
+	.protocols	= RC_BIT_RC5_SZ,
 	.decode		= ir_rc5_sz_decode,
 };
 

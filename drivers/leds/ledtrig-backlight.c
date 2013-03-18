@@ -40,7 +40,7 @@ static int fb_notifier_callback(struct notifier_block *p,
 	int new_status = *blank ? BLANK : UNBLANK;
 
 	switch (event) {
-	case FB_EVENT_BLANK :
+	case FB_EVENT_BLANK:
 		if (new_status == n->old_status)
 			break;
 
@@ -76,7 +76,7 @@ static ssize_t bl_trig_invert_store(struct device *dev,
 	unsigned long invert;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &invert);
+	ret = kstrtoul(buf, 10, &invert);
 	if (ret < 0)
 		return ret;
 

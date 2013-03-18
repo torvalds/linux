@@ -523,8 +523,8 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 	if (mac->opmode == NL80211_IFTYPE_STATION)
 		bw_40 = mac->bw_40;
 	else if (mac->opmode == NL80211_IFTYPE_AP ||
-		mac->opmode == NL80211_IFTYPE_ADHOC)
-		bw_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+		 mac->opmode == NL80211_IFTYPE_ADHOC)
+		bw_40 = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 
 	if (bw_40 && sgi_40)
 		tcb_desc->use_shortgi = true;
@@ -634,8 +634,7 @@ static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
 		return;
 	if (mac->opmode == NL80211_IFTYPE_AP ||
 	    mac->opmode == NL80211_IFTYPE_ADHOC) {
-		if (!(sta->ht_cap.ht_supported) ||
-		    !(sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+		if (sta->bandwidth == IEEE80211_STA_RX_BW_20)
 			return;
 	} else if (mac->opmode == NL80211_IFTYPE_STATION) {
 		if (!mac->bw_40 || !(sta->ht_cap.ht_supported))
@@ -826,6 +825,30 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(rtlwifi_rate_mapping);
 
+bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	__le16 fc = rtl_get_fc(skb);
+
+	if (rtlpriv->dm.supp_phymode_switch &&
+	    mac->link_state < MAC80211_LINKED &&
+	    (ieee80211_is_auth(fc) || ieee80211_is_probe_req(fc))) {
+		if (rtlpriv->cfg->ops->check_switch_to_dmdp)
+			rtlpriv->cfg->ops->check_switch_to_dmdp(hw);
+	}
+	if (ieee80211_is_auth(fc)) {
+		RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
+		rtl_ips_nic_on(hw);
+
+		mac->link_state = MAC80211_LINKING;
+		/* Dual mac */
+		rtlpriv->phy.need_iqk = true;
+	}
+
+	return true;
+}
+
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
 		      struct ieee80211_sta *sta,
@@ -980,7 +1003,8 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 					 is_tx ? "Tx" : "Rx");
 
 				if (is_tx) {
-					rtl_lps_leave(hw);
+					schedule_work(&rtlpriv->
+						      works.lps_leave_work);
 					ppsc->last_delaylps_stamp_jiffies =
 					    jiffies;
 				}
@@ -990,7 +1014,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 		}
 	} else if (ETH_P_ARP == ether_type) {
 		if (is_tx) {
-			rtl_lps_leave(hw);
+			schedule_work(&rtlpriv->works.lps_leave_work);
 			ppsc->last_delaylps_stamp_jiffies = jiffies;
 		}
 
@@ -1000,7 +1024,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 			 "802.1X %s EAPOL pkt!!\n", is_tx ? "Tx" : "Rx");
 
 		if (is_tx) {
-			rtl_lps_leave(hw);
+			schedule_work(&rtlpriv->works.lps_leave_work);
 			ppsc->last_delaylps_stamp_jiffies = jiffies;
 		}
 

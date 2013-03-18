@@ -228,8 +228,8 @@ static const struct rtc_class_ops rx8581_rtc_ops = {
 	.set_time	= rx8581_rtc_set_time,
 };
 
-static int __devinit rx8581_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int rx8581_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct rtc_device *rtc;
 
@@ -251,7 +251,7 @@ static int __devinit rx8581_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit rx8581_remove(struct i2c_client *client)
+static int rx8581_remove(struct i2c_client *client)
 {
 	struct rtc_device *rtc = i2c_get_clientdata(client);
 
@@ -272,7 +272,7 @@ static struct i2c_driver rx8581_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= rx8581_probe,
-	.remove		= __devexit_p(rx8581_remove),
+	.remove		= rx8581_remove,
 	.id_table	= rx8581_id,
 };
 

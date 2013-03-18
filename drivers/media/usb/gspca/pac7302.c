@@ -29,14 +29,13 @@
  * Register page 0:
  *
  * Address	Description
- * 0x02		Red balance control
- * 0x03		Green balance control
- * 0x04 	Blue balance control
- *		     Valus are inverted (0=max, 255=min).
+ * 0x01		Red balance control
+ * 0x02		Green balance control
+ * 0x03		Blue balance control
  *		     The Windows driver uses a quadratic approach to map
  *		     the settable values (0-200) on register values:
- *		     min=0x80, default=0x40, max=0x20
- * 0x0f-0x20	Colors, saturation and exposure control
+ *		     min=0x20, default=0x40, max=0x80
+ * 0x0f-0x20	Color and saturation control
  * 0xa2-0xab	Brightness, contrast and gamma control
  * 0xb6		Sharpness control (bits 0-4)
  *
@@ -78,12 +77,12 @@
  *
  * Page | Register   | Function
  * -----+------------+---------------------------------------------------
+ *  0   | 0x01       | setredbalance()
+ *  0   | 0x03       | setbluebalance()
  *  0   | 0x0f..0x20 | setcolors()
  *  0   | 0xa2..0xab | setbrightcont()
  *  0   | 0xb6       | setsharpness()
- *  0   | 0xc5       | setredbalance()
  *  0   | 0xc6       | setwhitebalance()
- *  0   | 0xc7       | setbluebalance()
  *  0   | 0xdc       | setbrightcont(), setcolors()
  *  3   | 0x02       | setexposure()
  *  3   | 0x10, 0x12 | setgain()
@@ -99,10 +98,13 @@
 /* Include pac common sof detection functions */
 #include "pac_common.h"
 
-#define PAC7302_GAIN_DEFAULT      15
-#define PAC7302_GAIN_KNEE         42
-#define PAC7302_EXPOSURE_DEFAULT  66 /* 33 ms / 30 fps */
-#define PAC7302_EXPOSURE_KNEE    133 /* 66 ms / 15 fps */
+#define PAC7302_RGB_BALANCE_MIN		  0
+#define PAC7302_RGB_BALANCE_MAX		200
+#define PAC7302_RGB_BALANCE_DEFAULT	100
+#define PAC7302_GAIN_DEFAULT		 15
+#define PAC7302_GAIN_KNEE		 42
+#define PAC7302_EXPOSURE_DEFAULT	 66 /* 33 ms / 30 fps */
+#define PAC7302_EXPOSURE_KNEE		133 /* 66 ms / 15 fps */
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
 		"Thomas Kaiser thomas@kaiser-linux.li");
@@ -439,12 +441,31 @@ static void setwhitebalance(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xdc, 0x01);
 }
 
+static u8 rgbbalance_ctrl_to_reg_value(s32 rgb_ctrl_val)
+{
+	const unsigned int k = 1000;	/* precision factor */
+	unsigned int norm;
+
+	/* Normed value [0...k] */
+	norm = k * (rgb_ctrl_val - PAC7302_RGB_BALANCE_MIN)
+		    / (PAC7302_RGB_BALANCE_MAX - PAC7302_RGB_BALANCE_MIN);
+	/* Qudratic apporach improves control at small (register) values: */
+	return 64 * norm * norm / (k*k)  +  32 * norm / k  +  32;
+	/* Y = 64*X*X + 32*X + 32
+	 * => register values 0x20-0x80; Windows driver uses these limits */
+
+	/* NOTE: for full value range (0x00-0xff) use
+	 *         Y = 254*X*X + X
+	 *         => 254 * norm * norm / (k*k)  +  1 * norm / k	*/
+}
+
 static void setredbalance(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	reg_w(gspca_dev, 0xff, 0x00);		/* page 0 */
-	reg_w(gspca_dev, 0xc5, sd->red_balance->val);
+	reg_w(gspca_dev, 0xff, 0x00);			/* page 0 */
+	reg_w(gspca_dev, 0x01,
+	      rgbbalance_ctrl_to_reg_value(sd->red_balance->val));
 
 	reg_w(gspca_dev, 0xdc, 0x01);
 }
@@ -454,7 +475,8 @@ static void setbluebalance(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, 0xff, 0x00);			/* page 0 */
-	reg_w(gspca_dev, 0xc7, sd->blue_balance->val);
+	reg_w(gspca_dev, 0x03,
+	      rgbbalance_ctrl_to_reg_value(sd->blue_balance->val));
 
 	reg_w(gspca_dev, 0xdc, 0x01);
 }
@@ -643,9 +665,15 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 					V4L2_CID_WHITE_BALANCE_TEMPERATURE,
 					0, 255, 1, 55);
 	sd->red_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
-					V4L2_CID_RED_BALANCE, 0, 3, 1, 1);
+					V4L2_CID_RED_BALANCE,
+					PAC7302_RGB_BALANCE_MIN,
+					PAC7302_RGB_BALANCE_MAX,
+					1, PAC7302_RGB_BALANCE_DEFAULT);
 	sd->blue_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
-					V4L2_CID_BLUE_BALANCE, 0, 3, 1, 1);
+					V4L2_CID_BLUE_BALANCE,
+					PAC7302_RGB_BALANCE_MIN,
+					PAC7302_RGB_BALANCE_MAX,
+					1, PAC7302_RGB_BALANCE_DEFAULT);
 
 	gspca_dev->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
@@ -862,7 +890,7 @@ static int sd_chip_ident(struct gspca_dev *gspca_dev,
 }
 #endif
 
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
 			int len)		/* interrput packet length */
@@ -908,7 +936,7 @@ static const struct sd_desc sd_desc = {
 	.set_register = sd_dbg_s_register,
 	.get_chip_ident = sd_chip_ident,
 #endif
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
 };

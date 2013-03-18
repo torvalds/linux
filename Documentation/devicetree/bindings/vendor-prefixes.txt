@@ -5,6 +5,7 @@ using them to avoid name-space collisions.
 
 ad	Avionic Design GmbH
 adi	Analog Devices, Inc.
+ak	Asahi Kasei Corp.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
@@ -13,6 +14,7 @@ bosch	Bosch Sensortec GmbH
 brcm	Broadcom Corporation
 cavium	Cavium, Inc.
 chrp	Common Hardware Reference Platform
+cirrus	Cirrus Logic, Inc.
 cortina	Cortina Systems, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 denx	Denx Software Engineering
@@ -25,6 +27,7 @@ gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 hp	Hewlett Packard
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
+img	Imagination Technologies Ltd.
 intercontrol	Inter Control Group
 linux	Linux-specific binding
 marvell	Marvell Technology Group Ltd.
@@ -34,21 +37,27 @@ national	National Semiconductor
 nintendo	Nintendo
 nvidia	NVIDIA
 nxp	NXP Semiconductors
+onnn	ON Semiconductor Corp.
 picochip	Picochip Ltd
-powervr	Imagination Technologies
+powervr	PowerVR (deprecated, use img)
 qcom	Qualcomm, Inc.
 ramtron	Ramtron International
 realtek Realtek Semiconductor Corp.
+renesas	Renesas Electronics Corporation
 samsung	Samsung Semiconductor
 sbs	Smart Battery System
 schindler	Schindler
 sil	Silicon Image
 simtek
 sirf	SiRF Technology, Inc.
+snps 	Synopsys, Inc.
 st	STMicroelectronics
+ste	ST-Ericsson
 stericsson	ST-Ericsson
 ti	Texas Instruments
+toshiba	Toshiba Corporation
 via	VIA Technologies, Inc.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
+winbond Winbond Electronics corp.
 xlnx	Xilinx

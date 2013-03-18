@@ -18,7 +18,7 @@ extern void a2_setup_smp(void);
 extern int a2_scom_startup_cpu(unsigned int lcpu, int thr_idx,
 			       struct device_node *np);
 extern int smp_a2_cpu_bootable(unsigned int nr);
-extern int __devinit smp_a2_kick_cpu(int nr);
+extern int smp_a2_kick_cpu(int nr);
 
 extern void opb_pic_init(void);
 

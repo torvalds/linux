@@ -52,7 +52,7 @@ nv10_software_flip(struct nouveau_object *object, u32 mthd,
 
 static struct nouveau_omthds
 nv10_software_omthds[] = {
-	{ 0x0500, nv10_software_flip },
+	{ 0x0500, 0x0500, nv10_software_flip },
 	{}
 };
 

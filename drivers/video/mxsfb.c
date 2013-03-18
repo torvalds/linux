@@ -369,7 +369,8 @@ static void mxsfb_disable_controller(struct fb_info *fb_info)
 		loop--;
 	}
 
-	writel(VDCTRL4_SYNC_SIGNALS_ON, host->base + LCDC_VDCTRL4 + REG_CLR);
+	reg = readl(host->base + LCDC_VDCTRL4);
+	writel(reg & ~VDCTRL4_SYNC_SIGNALS_ON, host->base + LCDC_VDCTRL4);
 
 	clk_disable_unprepare(host->clk);
 
@@ -586,7 +587,7 @@ static struct fb_ops mxsfb_ops = {
 	.fb_imageblit = cfb_imageblit,
 };
 
-static int __devinit mxsfb_restore_mode(struct mxsfb_info *host)
+static int mxsfb_restore_mode(struct mxsfb_info *host)
 {
 	struct fb_info *fb_info = &host->fb_info;
 	unsigned line_count;
@@ -677,7 +678,7 @@ static int __devinit mxsfb_restore_mode(struct mxsfb_info *host)
 	return 0;
 }
 
-static int __devinit mxsfb_init_fbinfo(struct mxsfb_info *host)
+static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 {
 	struct fb_info *fb_info = &host->fb_info;
 	struct fb_var_screeninfo *var = &fb_info->var;
@@ -739,7 +740,7 @@ static int __devinit mxsfb_init_fbinfo(struct mxsfb_info *host)
 	return 0;
 }
 
-static void __devexit mxsfb_free_videomem(struct mxsfb_info *host)
+static void mxsfb_free_videomem(struct mxsfb_info *host)
 {
 	struct fb_info *fb_info = &host->fb_info;
 
@@ -772,7 +773,7 @@ static const struct of_device_id mxsfb_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mxsfb_dt_ids);
 
-static int __devinit mxsfb_probe(struct platform_device *pdev)
+static int mxsfb_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxsfb_dt_ids, &pdev->dev);
@@ -912,7 +913,7 @@ error_alloc_info:
 	return ret;
 }
 
-static int __devexit mxsfb_remove(struct platform_device *pdev)
+static int mxsfb_remove(struct platform_device *pdev)
 {
 	struct fb_info *fb_info = platform_get_drvdata(pdev);
 	struct mxsfb_info *host = to_imxfb_host(fb_info);
@@ -949,7 +950,7 @@ static void mxsfb_shutdown(struct platform_device *pdev)
 
 static struct platform_driver mxsfb_driver = {
 	.probe = mxsfb_probe,
-	.remove = __devexit_p(mxsfb_remove),
+	.remove = mxsfb_remove,
 	.shutdown = mxsfb_shutdown,
 	.id_table = mxsfb_devtype,
 	.driver = {

@@ -234,7 +234,6 @@ void free_mdio_bitbang(struct mii_bus *bus)
 	struct mdiobb_ctrl *ctrl = bus->priv;
 
 	module_put(ctrl->ops->owner);
-	mdiobus_unregister(bus);
 	mdiobus_free(bus);
 }
 EXPORT_SYMBOL(free_mdio_bitbang);

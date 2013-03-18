@@ -1068,12 +1068,12 @@ int cx231xx_unmute_audio(struct cx231xx *dev)
 }
 EXPORT_SYMBOL_GPL(cx231xx_unmute_audio);
 
-int stopAudioFirmware(struct cx231xx *dev)
+static int stopAudioFirmware(struct cx231xx *dev)
 {
 	return vid_blk_write_byte(dev, DL_CTL_CONTROL, 0x03);
 }
 
-int restartAudioFirmware(struct cx231xx *dev)
+static int restartAudioFirmware(struct cx231xx *dev)
 {
 	return vid_blk_write_byte(dev, DL_CTL_CONTROL, 0x13);
 }
@@ -2630,11 +2630,6 @@ int cx231xx_capture_start(struct cx231xx *dev, int start, u8 media_type)
 		if (ep_mask > 0)
 			rc = cx231xx_stop_stream(dev, ep_mask);
 	}
-
-	if (dev->mode == CX231XX_ANALOG_MODE)
-		;/* do any in Analog mode */
-	else
-		;/* do any in digital mode */
 
 	return rc;
 }

@@ -314,7 +314,8 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
 		}
 
 		this->size += next->size;
-		memmove(next, next + 1, (type->cnt - (i + 1)) * sizeof(*next));
+		/* move forward from next + 1, index of which is i + 2 */
+		memmove(next, next + 1, (type->cnt - (i + 2)) * sizeof(*next));
 		type->cnt--;
 	}
 }
@@ -825,6 +826,23 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
 phys_addr_t __init memblock_phys_mem_size(void)
 {
 	return memblock.memory.total_size;
+}
+
+phys_addr_t __init memblock_mem_size(unsigned long limit_pfn)
+{
+	unsigned long pages = 0;
+	struct memblock_region *r;
+	unsigned long start_pfn, end_pfn;
+
+	for_each_memblock(memory, r) {
+		start_pfn = memblock_region_memory_base_pfn(r);
+		end_pfn = memblock_region_memory_end_pfn(r);
+		start_pfn = min_t(unsigned long, start_pfn, limit_pfn);
+		end_pfn = min_t(unsigned long, end_pfn, limit_pfn);
+		pages += end_pfn - start_pfn;
+	}
+
+	return (phys_addr_t)pages << PAGE_SHIFT;
 }
 
 /* lowest address */

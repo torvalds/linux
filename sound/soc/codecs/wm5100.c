@@ -563,6 +563,19 @@ SOC_DOUBLE_R("IN3 Switch", WM5100_ADC_DIGITAL_VOLUME_3L,
 SOC_DOUBLE_R("IN4 Switch", WM5100_ADC_DIGITAL_VOLUME_4L,
 	     WM5100_ADC_DIGITAL_VOLUME_4R, WM5100_IN4L_MUTE_SHIFT, 1, 1),
 
+SND_SOC_BYTES_MASK("EQ1 Coefficients", WM5100_EQ1_1, 20, WM5100_EQ1_ENA),
+SND_SOC_BYTES_MASK("EQ2 Coefficients", WM5100_EQ2_1, 20, WM5100_EQ2_ENA),
+SND_SOC_BYTES_MASK("EQ3 Coefficients", WM5100_EQ3_1, 20, WM5100_EQ3_ENA),
+SND_SOC_BYTES_MASK("EQ4 Coefficients", WM5100_EQ4_1, 20, WM5100_EQ4_ENA),
+
+SND_SOC_BYTES_MASK("DRC Coefficients", WM5100_DRC1_CTRL1, 5,
+		   WM5100_DRCL_ENA | WM5100_DRCR_ENA),
+
+SND_SOC_BYTES("LHPF1 Coefficeints", WM5100_HPLPF1_2, 1),
+SND_SOC_BYTES("LHPF2 Coefficeints", WM5100_HPLPF2_2, 1),
+SND_SOC_BYTES("LHPF3 Coefficeints", WM5100_HPLPF3_2, 1),
+SND_SOC_BYTES("LHPF4 Coefficeints", WM5100_HPLPF4_2, 1),
+
 SOC_SINGLE("HPOUT1 High Performance Switch", WM5100_OUT_VOLUME_1L,
 	   WM5100_OUT1_OSR_SHIFT, 1, 0),
 SOC_SINGLE("HPOUT2 High Performance Switch", WM5100_OUT_VOLUME_2L,
@@ -1233,7 +1246,7 @@ static const struct snd_soc_dapm_route wm5100_dapm_routes[] = {
 	{ "PWM2", NULL, "PWM2 Driver" },
 };
 
-static const __devinitconst struct reg_default wm5100_reva_patches[] = {
+static const struct reg_default wm5100_reva_patches[] = {
 	{ WM5100_AUDIO_IF_1_10, 0 },
 	{ WM5100_AUDIO_IF_1_11, 1 },
 	{ WM5100_AUDIO_IF_1_12, 2 },
@@ -1279,14 +1292,8 @@ static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		mask = 0;
 		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		mask = 1;
-		break;
 	case SND_SOC_DAIFMT_I2S:
 		mask = 2;
-		break;
-	case SND_SOC_DAIFMT_LEFT_J:
-		mask = 3;
 		break;
 	default:
 		dev_err(codec->dev, "Unsupported DAI format %d\n",
@@ -2414,8 +2421,8 @@ static const unsigned int wm5100_mic_ctrl_reg[] = {
 	WM5100_IN4L_CONTROL,
 };
 
-static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm5100_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm5100_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm5100_priv *wm5100;
@@ -2639,7 +2646,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm5100_i2c_remove(struct i2c_client *i2c)
+static int wm5100_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm5100_priv *wm5100 = i2c_get_clientdata(i2c);
 
@@ -2717,7 +2724,7 @@ static struct i2c_driver wm5100_i2c_driver = {
 		.pm = &wm5100_pm,
 	},
 	.probe =    wm5100_i2c_probe,
-	.remove =   __devexit_p(wm5100_i2c_remove),
+	.remove =   wm5100_i2c_remove,
 	.id_table = wm5100_i2c_id,
 };
 

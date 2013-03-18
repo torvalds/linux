@@ -42,10 +42,8 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 	while (wq) {
 		nwq = wq->next;
 		wq->status = -ENOENT; /* Magic is gone - report failure */
-		if (wq->name.name) {
-			kfree(wq->name.name);
-			wq->name.name = NULL;
-		}
+		kfree(wq->name.name);
+		wq->name.name = NULL;
 		wq->wait_ctr--;
 		wake_up_interruptible(&wq->queue);
 		wq = nwq;
@@ -154,6 +152,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	case autofs_ptype_expire_direct:
 	{
 		struct autofs_v5_packet *packet = &pkt.v5_pkt.v5_packet;
+		struct user_namespace *user_ns = sbi->pipe->f_cred->user_ns;
 
 		pktsz = sizeof(*packet);
 
@@ -163,8 +162,8 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		packet->name[wq->name.len] = '\0';
 		packet->dev = wq->dev;
 		packet->ino = wq->ino;
-		packet->uid = wq->uid;
-		packet->gid = wq->gid;
+		packet->uid = from_kuid_munged(user_ns, wq->uid);
+		packet->gid = from_kgid_munged(user_ns, wq->gid);
 		packet->pid = wq->pid;
 		packet->tgid = wq->tgid;
 		break;

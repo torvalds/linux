@@ -2500,7 +2500,7 @@ static bool pcidrv_registered;
 /*
  * add a pci uncore device
  */
-static int __devinit uncore_pci_add(struct intel_uncore_type *type, struct pci_dev *pdev)
+static int uncore_pci_add(struct intel_uncore_type *type, struct pci_dev *pdev)
 {
 	struct intel_uncore_pmu *pmu;
 	struct intel_uncore_box *box;
@@ -2571,8 +2571,8 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	kfree(box);
 }
 
-static int __devinit uncore_pci_probe(struct pci_dev *pdev,
-				const struct pci_device_id *id)
+static int uncore_pci_probe(struct pci_dev *pdev,
+			    const struct pci_device_id *id)
 {
 	struct intel_uncore_type *type;
 

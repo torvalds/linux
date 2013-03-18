@@ -530,7 +530,7 @@ static inline void vbi_buffer_filled(struct cx231xx *dev,
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	do_gettimeofday(&buf->vb.ts);
+	v4l2_get_timestamp(&buf->vb.ts);
 
 	dev->vbi_mode.bulk_ctl.buf = NULL;
 

@@ -444,7 +444,7 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	struct callchain_cursor_node *node = *cursor->last;
 
 	if (!node) {
-		node = calloc(sizeof(*node), 1);
+		node = calloc(1, sizeof(*node));
 		if (!node)
 			return -ENOMEM;
 

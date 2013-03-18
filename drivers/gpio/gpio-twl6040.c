@@ -82,7 +82,7 @@ static struct gpio_chip twl6040gpo_chip = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit gpo_twl6040_probe(struct platform_device *pdev)
+static int gpo_twl6040_probe(struct platform_device *pdev)
 {
 	struct twl6040_gpo_data *pdata = pdev->dev.platform_data;
 	struct device *twl6040_core_dev = pdev->dev.parent;
@@ -113,7 +113,7 @@ static int __devinit gpo_twl6040_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit gpo_twl6040_remove(struct platform_device *pdev)
+static int gpo_twl6040_remove(struct platform_device *pdev)
 {
 	return gpiochip_remove(&twl6040gpo_chip);
 }

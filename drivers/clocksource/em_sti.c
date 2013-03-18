@@ -311,7 +311,7 @@ static void em_sti_register_clockevent(struct em_sti_priv *p)
 	clockevents_config_and_register(ced, 1, 2, 0xffffffff);
 }
 
-static int __devinit em_sti_probe(struct platform_device *pdev)
+static int em_sti_probe(struct platform_device *pdev)
 {
 	struct em_sti_priv *p;
 	struct resource *res;
@@ -379,12 +379,12 @@ err0:
 	return ret;
 }
 
-static int __devexit em_sti_remove(struct platform_device *pdev)
+static int em_sti_remove(struct platform_device *pdev)
 {
 	return -EBUSY; /* cannot unregister clockevent and clocksource */
 }
 
-static const struct of_device_id em_sti_dt_ids[] __devinitconst = {
+static const struct of_device_id em_sti_dt_ids[] = {
 	{ .compatible = "renesas,em-sti", },
 	{},
 };
@@ -392,7 +392,7 @@ MODULE_DEVICE_TABLE(of, em_sti_dt_ids);
 
 static struct platform_driver em_sti_device_driver = {
 	.probe		= em_sti_probe,
-	.remove		= __devexit_p(em_sti_remove),
+	.remove		= em_sti_remove,
 	.driver		= {
 		.name	= "em_sti",
 		.of_match_table = em_sti_dt_ids,

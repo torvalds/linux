@@ -17,6 +17,7 @@ struct orion_addr_map_cfg {
 	const int num_wins;	/* Total number of windows */
 	const int remappable_wins;
 	void __iomem *bridge_virt_base;
+	int hw_io_coherency;
 
 	/* If NULL, the default cpu_win_can_remap will be used, using
 	   the value in remappable_wins */

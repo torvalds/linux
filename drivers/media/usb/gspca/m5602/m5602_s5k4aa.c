@@ -74,6 +74,12 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pa 2548")
 		}
 	}, {
+		.ident = "Fujitsu-Siemens Amilo Pi 2530",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pi 2530")
+		}
+	}, {
 		.ident = "MSI GX700",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),

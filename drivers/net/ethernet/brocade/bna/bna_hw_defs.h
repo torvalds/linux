@@ -46,7 +46,8 @@
 #define BFI_MAX_INTERPKT_COUNT		0xFF
 #define BFI_MAX_INTERPKT_TIMEO		0xF	/* in 0.5us units */
 #define BFI_TX_COALESCING_TIMEO		20	/* 20 * 5 = 100us */
-#define BFI_TX_INTERPKT_COUNT		32
+#define BFI_TX_INTERPKT_COUNT		12	/* Pkt Cnt = 12 */
+#define BFI_TX_INTERPKT_TIMEO		15	/* 15 * 0.5 = 7.5us */
 #define	BFI_RX_COALESCING_TIMEO		12	/* 12 * 5 = 60us */
 #define	BFI_RX_INTERPKT_COUNT		6	/* Pkt Cnt = 6 */
 #define	BFI_RX_INTERPKT_TIMEO		3	/* 3 * 0.5 = 1.5us */

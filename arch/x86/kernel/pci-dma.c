@@ -56,7 +56,7 @@ struct device x86_dma_fallback_dev = {
 EXPORT_SYMBOL(x86_dma_fallback_dev);
 
 /* Number of entries preallocated for DMA-API debugging */
-#define PREALLOC_DMA_DEBUG_ENTRIES       32768
+#define PREALLOC_DMA_DEBUG_ENTRIES       65536
 
 int dma_set_mask(struct device *dev, u64 mask)
 {
@@ -265,7 +265,7 @@ rootfs_initcall(pci_iommu_init);
 #ifdef CONFIG_PCI
 /* Many VIA bridges seem to corrupt data for DAC. Disable it here */
 
-static __devinit void via_no_dac(struct pci_dev *dev)
+static void via_no_dac(struct pci_dev *dev)
 {
 	if (forbid_dac == 0) {
 		dev_info(&dev->dev, "disabling DAC on VIA PCI bridge\n");

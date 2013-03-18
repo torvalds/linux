@@ -23,6 +23,7 @@
 #include <linux/if_ether.h>
 #include <linux/slab.h>
 #include <net/sock.h>
+#include <linux/if_vlan.h>
 
 #include "br_private.h"
 
@@ -66,14 +67,14 @@ void br_port_carrier_check(struct net_bridge_port *p)
 	struct net_device *dev = p->dev;
 	struct net_bridge *br = p->br;
 
-	if (netif_running(dev) && netif_carrier_ok(dev))
+	if (netif_running(dev) && netif_oper_up(dev))
 		p->path_cost = port_cost(dev);
 
 	if (!netif_running(br->dev))
 		return;
 
 	spin_lock_bh(&br->lock);
-	if (netif_running(dev) && netif_carrier_ok(dev)) {
+	if (netif_running(dev) && netif_oper_up(dev)) {
 		if (p->state == BR_STATE_DISABLED)
 			br_stp_enable_port(p);
 	} else {
@@ -139,6 +140,7 @@ static void del_nbp(struct net_bridge_port *p)
 
 	br_ifinfo_notify(RTM_DELLINK, p);
 
+	nbp_vlan_flush(p);
 	br_fdb_delete_by_port(br, p, 1);
 
 	list_del_rcu(&p->list);
@@ -148,7 +150,7 @@ static void del_nbp(struct net_bridge_port *p)
 	netdev_rx_handler_unregister(dev);
 	synchronize_net();
 
-	netdev_set_master(dev, NULL);
+	netdev_upper_dev_unlink(dev, br->dev);
 
 	br_multicast_del_port(p);
 
@@ -364,13 +366,13 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (br_netpoll_info(br) && ((err = br_netpoll_enable(p, GFP_KERNEL))))
 		goto err3;
 
-	err = netdev_set_master(dev, br->dev);
+	err = netdev_master_upper_dev_link(dev, br->dev);
 	if (err)
-		goto err3;
+		goto err4;
 
 	err = netdev_rx_handler_register(dev, br_handle_frame, p);
 	if (err)
-		goto err4;
+		goto err5;
 
 	dev->priv_flags |= IFF_BRIDGE_PORT;
 
@@ -383,7 +385,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	spin_lock_bh(&br->lock);
 	changed_addr = br_stp_recalculate_bridge_id(br);
 
-	if ((dev->flags & IFF_UP) && netif_carrier_ok(dev) &&
+	if (netif_running(dev) && netif_oper_up(dev) &&
 	    (br->dev->flags & IFF_UP))
 		br_stp_enable_port(p);
 	spin_unlock_bh(&br->lock);
@@ -395,15 +397,17 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	dev_set_mtu(br->dev, br_min_mtu(br));
 
-	if (br_fdb_insert(br, p, dev->dev_addr))
+	if (br_fdb_insert(br, p, dev->dev_addr, 0))
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
 	return 0;
 
+err5:
+	netdev_upper_dev_unlink(dev, br->dev);
 err4:
-	netdev_set_master(dev, NULL);
+	br_netpoll_disable(p);
 err3:
 	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:

@@ -216,13 +216,13 @@ static int wm8350_led_probe(struct platform_device *pdev)
 
 	isink = devm_regulator_get(&pdev->dev, "led_isink");
 	if (IS_ERR(isink)) {
-		printk(KERN_ERR "%s: can't get ISINK\n", __func__);
+		dev_err(&pdev->dev, "%s: can't get ISINK\n", __func__);
 		return PTR_ERR(isink);
 	}
 
 	dcdc = devm_regulator_get(&pdev->dev, "led_vcc");
 	if (IS_ERR(dcdc)) {
-		printk(KERN_ERR "%s: can't get DCDC\n", __func__);
+		dev_err(&pdev->dev, "%s: can't get DCDC\n", __func__);
 		return PTR_ERR(dcdc);
 	}
 

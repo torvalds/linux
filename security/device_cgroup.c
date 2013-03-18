@@ -82,6 +82,8 @@ static int dev_exceptions_copy(struct list_head *dest, struct list_head *orig)
 {
 	struct dev_exception_item *ex, *tmp, *new;
 
+	lockdep_assert_held(&devcgroup_mutex);
+
 	list_for_each_entry(ex, orig, list) {
 		new = kmemdup(ex, sizeof(*ex), GFP_KERNEL);
 		if (!new)
@@ -106,6 +108,8 @@ static int dev_exception_add(struct dev_cgroup *dev_cgroup,
 			     struct dev_exception_item *ex)
 {
 	struct dev_exception_item *excopy, *walk;
+
+	lockdep_assert_held(&devcgroup_mutex);
 
 	excopy = kmemdup(ex, sizeof(*ex), GFP_KERNEL);
 	if (!excopy)
@@ -137,6 +141,8 @@ static void dev_exception_rm(struct dev_cgroup *dev_cgroup,
 {
 	struct dev_exception_item *walk, *tmp;
 
+	lockdep_assert_held(&devcgroup_mutex);
+
 	list_for_each_entry_safe(walk, tmp, &dev_cgroup->exceptions, list) {
 		if (walk->type != ex->type)
 			continue;
@@ -153,6 +159,16 @@ static void dev_exception_rm(struct dev_cgroup *dev_cgroup,
 	}
 }
 
+static void __dev_exception_clean(struct dev_cgroup *dev_cgroup)
+{
+	struct dev_exception_item *ex, *tmp;
+
+	list_for_each_entry_safe(ex, tmp, &dev_cgroup->exceptions, list) {
+		list_del_rcu(&ex->list);
+		kfree_rcu(ex, rcu);
+	}
+}
+
 /**
  * dev_exception_clean - frees all entries of the exception list
  * @dev_cgroup: dev_cgroup with the exception list to be cleaned
@@ -161,18 +177,15 @@ static void dev_exception_rm(struct dev_cgroup *dev_cgroup,
  */
 static void dev_exception_clean(struct dev_cgroup *dev_cgroup)
 {
-	struct dev_exception_item *ex, *tmp;
+	lockdep_assert_held(&devcgroup_mutex);
 
-	list_for_each_entry_safe(ex, tmp, &dev_cgroup->exceptions, list) {
-		list_del(&ex->list);
-		kfree(ex);
-	}
+	__dev_exception_clean(dev_cgroup);
 }
 
 /*
  * called from kernel/cgroup.c with cgroup_lock() held.
  */
-static struct cgroup_subsys_state *devcgroup_create(struct cgroup *cgroup)
+static struct cgroup_subsys_state *devcgroup_css_alloc(struct cgroup *cgroup)
 {
 	struct dev_cgroup *dev_cgroup, *parent_dev_cgroup;
 	struct cgroup *parent_cgroup;
@@ -202,12 +215,12 @@ static struct cgroup_subsys_state *devcgroup_create(struct cgroup *cgroup)
 	return &dev_cgroup->css;
 }
 
-static void devcgroup_destroy(struct cgroup *cgroup)
+static void devcgroup_css_free(struct cgroup *cgroup)
 {
 	struct dev_cgroup *dev_cgroup;
 
 	dev_cgroup = cgroup_to_devcgroup(cgroup);
-	dev_exception_clean(dev_cgroup);
+	__dev_exception_clean(dev_cgroup);
 	kfree(dev_cgroup);
 }
 
@@ -298,7 +311,11 @@ static int may_access(struct dev_cgroup *dev_cgroup,
 	struct dev_exception_item *ex;
 	bool match = false;
 
-	list_for_each_entry(ex, &dev_cgroup->exceptions, list) {
+	rcu_lockdep_assert(rcu_read_lock_held() ||
+			   lockdep_is_held(&devcgroup_mutex),
+			   "device_cgroup::may_access() called without proper synchronization");
+
+	list_for_each_entry_rcu(ex, &dev_cgroup->exceptions, list) {
 		if ((refex->type & DEV_BLOCK) && !(ex->type & DEV_BLOCK))
 			continue;
 		if ((refex->type & DEV_CHAR) && !(ex->type & DEV_CHAR))
@@ -352,6 +369,8 @@ static int parent_has_perm(struct dev_cgroup *childcg,
  */
 static inline int may_allow_all(struct dev_cgroup *parent)
 {
+	if (!parent)
+		return 1;
 	return parent->behavior == DEVCG_DEFAULT_ALLOW;
 }
 
@@ -376,10 +395,13 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	int count, rc;
 	struct dev_exception_item ex;
 	struct cgroup *p = devcgroup->css.cgroup;
-	struct dev_cgroup *parent = cgroup_to_devcgroup(p->parent);
+	struct dev_cgroup *parent = NULL;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	if (p->parent)
+		parent = cgroup_to_devcgroup(p->parent);
 
 	memset(&ex, 0, sizeof(ex));
 	b = buffer;
@@ -391,11 +413,14 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 			if (!may_allow_all(parent))
 				return -EPERM;
 			dev_exception_clean(devcgroup);
+			devcgroup->behavior = DEVCG_DEFAULT_ALLOW;
+			if (!parent)
+				break;
+
 			rc = dev_exceptions_copy(&devcgroup->exceptions,
 						 &parent->exceptions);
 			if (rc)
 				return rc;
-			devcgroup->behavior = DEVCG_DEFAULT_ALLOW;
 			break;
 		case DEVCG_DENY:
 			dev_exception_clean(devcgroup);
@@ -544,8 +569,8 @@ static struct cftype dev_cgroup_files[] = {
 struct cgroup_subsys devices_subsys = {
 	.name = "devices",
 	.can_attach = devcgroup_can_attach,
-	.create = devcgroup_create,
-	.destroy = devcgroup_destroy,
+	.css_alloc = devcgroup_css_alloc,
+	.css_free = devcgroup_css_free,
 	.subsys_id = devices_subsys_id,
 	.base_cftypes = dev_cgroup_files,
 

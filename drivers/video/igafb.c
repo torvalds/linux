@@ -571,7 +571,7 @@ static int __init igafb_setup(char *options)
 
 module_init(igafb_init);
 MODULE_LICENSE("GPL");
-static struct pci_device_id igafb_pci_tbl[] __devinitdata = {
+static struct pci_device_id igafb_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTERG, PCI_DEVICE_ID_INTERG_1682,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }

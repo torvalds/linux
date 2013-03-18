@@ -111,7 +111,7 @@ static ssize_t srm_env_proc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int res;
-	srm_env_t	*entry = PDE(file->f_path.dentry->d_inode)->data;
+	srm_env_t	*entry = PDE(file_inode(file))->data;
 	char		*buf = (char *) __get_free_page(GFP_USER);
 	unsigned long	ret1, ret2;
 

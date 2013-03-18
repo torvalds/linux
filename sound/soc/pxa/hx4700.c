@@ -183,7 +183,7 @@ static struct gpio hx4700_audio_gpios[] = {
 	{ GPIO92_HX4700_HP_DRIVER, GPIOF_OUT_INIT_LOW, "EP_POWER" },
 };
 
-static int __devinit hx4700_audio_probe(struct platform_device *pdev)
+static int hx4700_audio_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -204,7 +204,7 @@ static int __devinit hx4700_audio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit hx4700_audio_remove(struct platform_device *pdev)
+static int hx4700_audio_remove(struct platform_device *pdev)
 {
 	snd_soc_jack_free_gpios(&hs_jack, 1, &hs_jack_gpio);
 	snd_soc_unregister_card(&snd_soc_card_hx4700);
@@ -223,7 +223,7 @@ static struct platform_driver hx4700_audio_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe	= hx4700_audio_probe,
-	.remove	= __devexit_p(hx4700_audio_remove),
+	.remove	= hx4700_audio_remove,
 };
 
 module_platform_driver(hx4700_audio_driver);

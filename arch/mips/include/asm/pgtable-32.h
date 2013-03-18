@@ -47,7 +47,7 @@
 #define USER_PTRS_PER_PGD	(0x80000000UL/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
 
-#define VMALLOC_START     MAP_BASE
+#define VMALLOC_START	  MAP_BASE
 
 #define PKMAP_BASE		(0xfe000000UL)
 
@@ -136,7 +136,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #define pte_offset_kernel(dir, address)					\
 	((pte_t *) pmd_page_vaddr(*(dir)) + __pte_offset(address))
 
-#define pte_offset_map(dir, address)                                    \
+#define pte_offset_map(dir, address)					\
 	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
 #define pte_unmap(pte) ((void)(pte))
 
@@ -155,7 +155,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 
 #define pte_to_pgoff(_pte)	((((_pte).pte >> 1 ) & 0x07) | \
 				 (((_pte).pte >> 2 ) & 0x38) | \
-				 (((_pte).pte >> 10) <<  6 ))
+				 (((_pte).pte >> 10) <<	 6 ))
 
 #define pgoff_to_pte(off)	((pte_t) { (((off) & 0x07) << 1 ) | \
 					   (((off) & 0x38) << 2 ) | \
@@ -167,14 +167,14 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 /* Swap entries must have VALID and GLOBAL bits cleared. */
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 #define __swp_type(x)		(((x).val >> 2) & 0x1f)
-#define __swp_offset(x) 	 ((x).val >> 7)
+#define __swp_offset(x)		 ((x).val >> 7)
 #define __swp_entry(type,offset)	\
-		((swp_entry_t)  { ((type) << 2) | ((offset) << 7) })
+		((swp_entry_t)	{ ((type) << 2) | ((offset) << 7) })
 #else
 #define __swp_type(x)		(((x).val >> 8) & 0x1f)
-#define __swp_offset(x) 	 ((x).val >> 13)
+#define __swp_offset(x)		 ((x).val >> 13)
 #define __swp_entry(type,offset)	\
-		((swp_entry_t)  { ((type) << 8) | ((offset) << 13) })
+		((swp_entry_t)	{ ((type) << 8) | ((offset) << 13) })
 #endif /* defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32) */
 
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
@@ -184,7 +184,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #define PTE_FILE_MAX_BITS	30
 
 #define pte_to_pgoff(_pte)	((_pte).pte_high >> 2)
-#define pgoff_to_pte(off) 	((pte_t) { _PAGE_FILE, (off) << 2 })
+#define pgoff_to_pte(off)	((pte_t) { _PAGE_FILE, (off) << 2 })
 
 #else
 /*
@@ -194,7 +194,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 
 #define pte_to_pgoff(_pte)	((((_pte).pte >> 1) & 0x7) | \
 				 (((_pte).pte >> 2) & 0x8) | \
-				 (((_pte).pte >> 8) <<  4))
+				 (((_pte).pte >> 8) <<	4))
 
 #define pgoff_to_pte(off)	((pte_t) { (((off) & 0x7) << 1) | \
 					   (((off) & 0x8) << 2) | \
@@ -208,7 +208,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #define __pte_to_swp_entry(pte) ((swp_entry_t) { (pte).pte_high })
 #define __swp_entry_to_pte(x)	((pte_t) { 0, (x).val })
 #else
-#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
+#define __pte_to_swp_entry(pte) ((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 #endif
 

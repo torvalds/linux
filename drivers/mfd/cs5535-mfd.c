@@ -71,9 +71,9 @@ static int cs5535_mfd_res_disable(struct platform_device *pdev)
 	return 0;
 }
 
-static __devinitdata struct resource cs5535_mfd_resources[NR_BARS];
+static struct resource cs5535_mfd_resources[NR_BARS];
 
-static __devinitdata struct mfd_cell cs5535_mfd_cells[] = {
+static struct mfd_cell cs5535_mfd_cells[] = {
 	{
 		.id = SMB_BAR,
 		.name = "cs5535-smb",
@@ -113,7 +113,7 @@ static __devinitdata struct mfd_cell cs5535_mfd_cells[] = {
 };
 
 #ifdef CONFIG_OLPC
-static void __devinit cs5535_clone_olpc_cells(void)
+static void cs5535_clone_olpc_cells(void)
 {
 	const char *acpi_clones[] = { "olpc-xo1-pm-acpi", "olpc-xo1-sci-acpi" };
 
@@ -126,7 +126,7 @@ static void __devinit cs5535_clone_olpc_cells(void)
 static void cs5535_clone_olpc_cells(void) { }
 #endif
 
-static int __devinit cs5535_mfd_probe(struct pci_dev *pdev,
+static int cs5535_mfd_probe(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
 	int err, i;
@@ -166,7 +166,7 @@ err_disable:
 	return err;
 }
 
-static void __devexit cs5535_mfd_remove(struct pci_dev *pdev)
+static void cs5535_mfd_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 	pci_disable_device(pdev);
@@ -183,7 +183,7 @@ static struct pci_driver cs5535_mfd_driver = {
 	.name = DRV_NAME,
 	.id_table = cs5535_mfd_pci_tbl,
 	.probe = cs5535_mfd_probe,
-	.remove = __devexit_p(cs5535_mfd_remove),
+	.remove = cs5535_mfd_remove,
 };
 
 module_pci_driver(cs5535_mfd_driver);

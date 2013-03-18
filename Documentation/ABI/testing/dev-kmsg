@@ -92,7 +92,7 @@ Description:	The /dev/kmsg character device node provides userspace access
 		The flags field carries '-' by default. A 'c' indicates a
 		fragment of a line. All following fragments are flagged with
 		'+'. Note, that these hints about continuation lines are not
-		neccessarily correct, and the stream could be interleaved with
+		necessarily correct, and the stream could be interleaved with
 		unrelated messages, but merging the lines in the output
 		usually produces better human readable results. A similar
 		logic is used internally when messages are printed to the

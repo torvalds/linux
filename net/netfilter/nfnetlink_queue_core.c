@@ -80,11 +80,10 @@ static struct nfqnl_instance *
 instance_lookup(u_int16_t queue_num)
 {
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct nfqnl_instance *inst;
 
 	head = &instance_table[instance_hashfn(queue_num)];
-	hlist_for_each_entry_rcu(inst, pos, head, hlist) {
+	hlist_for_each_entry_rcu(inst, head, hlist) {
 		if (inst->queue_num == queue_num)
 			return inst;
 	}
@@ -583,11 +582,10 @@ nfqnl_dev_drop(int ifindex)
 	rcu_read_lock();
 
 	for (i = 0; i < INSTANCE_BUCKETS; i++) {
-		struct hlist_node *tmp;
 		struct nfqnl_instance *inst;
 		struct hlist_head *head = &instance_table[i];
 
-		hlist_for_each_entry_rcu(inst, tmp, head, hlist)
+		hlist_for_each_entry_rcu(inst, head, hlist)
 			nfqnl_flush(inst, dev_cmp, ifindex);
 	}
 
@@ -627,11 +625,11 @@ nfqnl_rcv_nl_event(struct notifier_block *this,
 		/* destroy all instances for this portid */
 		spin_lock(&instances_lock);
 		for (i = 0; i < INSTANCE_BUCKETS; i++) {
-			struct hlist_node *tmp, *t2;
+			struct hlist_node *t2;
 			struct nfqnl_instance *inst;
 			struct hlist_head *head = &instance_table[i];
 
-			hlist_for_each_entry_safe(inst, tmp, t2, head, hlist) {
+			hlist_for_each_entry_safe(inst, t2, head, hlist) {
 				if ((n->net == &init_net) &&
 				    (n->portid == inst->peer_portid))
 					__instance_destroy(inst);
@@ -809,7 +807,6 @@ static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 };
 
 static const struct nf_queue_handler nfqh = {
-	.name 	= "nf_queue",
 	.outfn	= &nfqnl_enqueue_packet,
 };
 
@@ -827,14 +824,10 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	if (nfqa[NFQA_CFG_CMD]) {
 		cmd = nla_data(nfqa[NFQA_CFG_CMD]);
 
-		/* Commands without queue context - might sleep */
+		/* Obsolete commands without queue context */
 		switch (cmd->command) {
-		case NFQNL_CFG_CMD_PF_BIND:
-			return nf_register_queue_handler(ntohs(cmd->pf),
-							 &nfqh);
-		case NFQNL_CFG_CMD_PF_UNBIND:
-			return nf_unregister_queue_handler(ntohs(cmd->pf),
-							   &nfqh);
+		case NFQNL_CFG_CMD_PF_BIND: return 0;
+		case NFQNL_CFG_CMD_PF_UNBIND: return 0;
 		}
 	}
 
@@ -1074,6 +1067,7 @@ static int __init nfnetlink_queue_init(void)
 #endif
 
 	register_netdevice_notifier(&nfqnl_dev_notifier);
+	nf_register_queue_handler(&nfqh);
 	return status;
 
 #ifdef CONFIG_PROC_FS
@@ -1087,7 +1081,7 @@ cleanup_netlink_notifier:
 
 static void __exit nfnetlink_queue_fini(void)
 {
-	nf_unregister_queue_handlers(&nfqh);
+	nf_unregister_queue_handler();
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", proc_net_netfilter);

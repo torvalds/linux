@@ -194,8 +194,12 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 	}
 }
 
-__always_inline void
-__rb_erase_color(struct rb_node *parent, struct rb_root *root,
+/*
+ * Inline version for rb_erase() use - we want to be able to inline
+ * and eliminate the dummy_rotate callback there
+ */
+static __always_inline void
+____rb_erase_color(struct rb_node *parent, struct rb_root *root,
 	void (*augment_rotate)(struct rb_node *old, struct rb_node *new))
 {
 	struct rb_node *node = NULL, *sibling, *tmp1, *tmp2;
@@ -355,6 +359,13 @@ __rb_erase_color(struct rb_node *parent, struct rb_root *root,
 		}
 	}
 }
+
+/* Non-inline version for rb_erase_augmented() use */
+void __rb_erase_color(struct rb_node *parent, struct rb_root *root,
+	void (*augment_rotate)(struct rb_node *old, struct rb_node *new))
+{
+	____rb_erase_color(parent, root, augment_rotate);
+}
 EXPORT_SYMBOL(__rb_erase_color);
 
 /*
@@ -380,7 +391,10 @@ EXPORT_SYMBOL(rb_insert_color);
 
 void rb_erase(struct rb_node *node, struct rb_root *root)
 {
-	rb_erase_augmented(node, root, &dummy_callbacks);
+	struct rb_node *rebalance;
+	rebalance = __rb_erase_augmented(node, root, &dummy_callbacks);
+	if (rebalance)
+		____rb_erase_color(rebalance, root, dummy_rotate);
 }
 EXPORT_SYMBOL(rb_erase);
 

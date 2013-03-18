@@ -120,7 +120,7 @@ int lola_set_granularity(struct lola *chip, unsigned int val, bool force)
  * Clock widget handling
  */
 
-int __devinit lola_init_clock_widget(struct lola *chip, int nid)
+int lola_init_clock_widget(struct lola *chip, int nid)
 {
 	unsigned int val;
 	int i, j, nitems, nb_verbs, idx, idx_list;

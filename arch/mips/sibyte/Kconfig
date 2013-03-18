@@ -74,7 +74,7 @@ config SIBYTE_SB1xxx_SOC
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
-	select CFE
+	select FW_CFE
 	select SYS_HAS_EARLY_PRINTK
 
 choice

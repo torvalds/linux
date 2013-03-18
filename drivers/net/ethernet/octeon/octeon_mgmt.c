@@ -1350,10 +1350,10 @@ static void octeon_mgmt_poll_controller(struct net_device *netdev)
 static void octeon_mgmt_get_drvinfo(struct net_device *netdev,
 				    struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strncpy(info->version, DRV_VERSION, sizeof(info->version));
-	strncpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strncpy(info->bus_info, "N/A", sizeof(info->bus_info));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 	info->n_stats = 0;
 	info->testinfo_len = 0;
 	info->regdump_len = 0;
@@ -1419,7 +1419,7 @@ static const struct net_device_ops octeon_mgmt_ops = {
 #endif
 };
 
-static int __devinit octeon_mgmt_probe(struct platform_device *pdev)
+static int octeon_mgmt_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct octeon_mgmt *p;
@@ -1534,12 +1534,10 @@ static int __devinit octeon_mgmt_probe(struct platform_device *pdev)
 
 	mac = of_get_mac_address(pdev->dev.of_node);
 
-	if (mac && is_valid_ether_addr(mac)) {
+	if (mac && is_valid_ether_addr(mac))
 		memcpy(netdev->dev_addr, mac, ETH_ALEN);
-		netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
-	} else {
+	else
 		eth_hw_addr_random(netdev);
-	}
 
 	p->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 
@@ -1559,7 +1557,7 @@ err:
 	return result;
 }
 
-static int __devexit octeon_mgmt_remove(struct platform_device *pdev)
+static int octeon_mgmt_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
 
@@ -1583,7 +1581,7 @@ static struct platform_driver octeon_mgmt_driver = {
 		.of_match_table = octeon_mgmt_match,
 	},
 	.probe		= octeon_mgmt_probe,
-	.remove		= __devexit_p(octeon_mgmt_remove),
+	.remove		= octeon_mgmt_remove,
 };
 
 extern void octeon_mdiobus_force_mod_depencency(void);

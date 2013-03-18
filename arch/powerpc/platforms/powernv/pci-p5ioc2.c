@@ -84,8 +84,8 @@ static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb)
 static void pnv_pci_init_p5ioc2_msis(struct pnv_phb *phb) { }
 #endif /* CONFIG_PCI_MSI */
 
-static void __devinit pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
-						   struct pci_dev *pdev)
+static void pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
+					 struct pci_dev *pdev)
 {
 	if (phb->p5ioc2.iommu_table.it_map == NULL)
 		iommu_init_table(&phb->p5ioc2.iommu_table, phb->hose->node);

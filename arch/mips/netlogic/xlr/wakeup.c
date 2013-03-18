@@ -33,6 +33,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/threads.h>
 
 #include <asm/asm.h>
@@ -50,18 +51,34 @@
 
 int __cpuinit xlr_wakeup_secondary_cpus(void)
 {
-	unsigned int i, boot_cpu;
+	struct nlm_soc_info *nodep;
+	unsigned int i, j, boot_cpu;
 
 	/*
 	 *  In case of RMI boot, hit with NMI to get the cores
 	 *  from bootloader to linux code.
 	 */
+	nodep = nlm_get_node(0);
 	boot_cpu = hard_smp_processor_id();
 	nlm_set_nmi_handler(nlm_rmiboot_preboot);
 	for (i = 0; i < NR_CPUS; i++) {
-		if (i == boot_cpu || (nlm_cpumask & (1u << i)) == 0)
+		if (i == boot_cpu || !cpumask_test_cpu(i, &nlm_cpumask))
 			continue;
-		nlm_pic_send_ipi(nlm_pic_base, i, 1, 1); /* send NMI */
+		nlm_pic_send_ipi(nodep->picbase, i, 1, 1); /* send NMI */
+	}
+
+	/* Fill up the coremask early */
+	nodep->coremask = 1;
+	for (i = 1; i < NLM_CORES_PER_NODE; i++) {
+		for (j = 1000000; j > 0; j--) {
+			if (nlm_cpu_ready[i * NLM_THREADS_PER_CORE])
+				break;
+			udelay(10);
+		}
+		if (j != 0)
+			nodep->coremask |= (1u << i);
+		else
+			pr_err("Failed to wakeup core %d\n", i);
 	}
 
 	return 0;

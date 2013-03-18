@@ -56,6 +56,7 @@
 
 #include "nfs4_fs.h"
 #include "internal.h"
+#include "nfs4session.h"
 #include "pnfs.h"
 #include "netns.h"
 
@@ -270,6 +271,8 @@ static int nfs4_stat_to_errno(int);
 
 #if defined(CONFIG_NFS_V4_1)
 #define NFS4_MAX_MACHINE_NAME_LEN (64)
+#define IMPL_NAME_LIMIT (sizeof(utsname()->sysname) + sizeof(utsname()->release) + \
+			 sizeof(utsname()->version) + sizeof(utsname()->machine) + 8)
 
 #define encode_exchange_id_maxsz (op_encode_hdr_maxsz + \
 				encode_verifier_maxsz + \
@@ -282,7 +285,7 @@ static int nfs4_stat_to_errno(int);
 				1 /* nii_domain */ + \
 				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
 				1 /* nii_name */ + \
-				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
+				XDR_QUADLEN(IMPL_NAME_LIMIT) + \
 				3 /* nii_date */)
 #define decode_exchange_id_maxsz (op_decode_hdr_maxsz + \
 				2 /* eir_clientid */ + \
@@ -936,7 +939,7 @@ static void encode_compound_hdr(struct xdr_stream *xdr,
 	 * but this is not required as a MUST for the server to do so. */
 	hdr->replen = RPC_REPHDRSIZE + auth->au_rslack + 3 + hdr->taglen;
 
-	BUG_ON(hdr->taglen > NFS4_MAXTAGLEN);
+	WARN_ON_ONCE(hdr->taglen > NFS4_MAXTAGLEN);
 	encode_string(xdr, hdr->taglen, hdr->tag);
 	p = reserve_space(xdr, 8);
 	*p++ = cpu_to_be32(hdr->minorversion);
@@ -955,7 +958,7 @@ static void encode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 op,
 
 static void encode_nops(struct compound_hdr *hdr)
 {
-	BUG_ON(hdr->nops > NFS4_MAX_OPS);
+	WARN_ON_ONCE(hdr->nops > NFS4_MAX_OPS);
 	*hdr->nops_p = htonl(hdr->nops);
 }
 
@@ -999,7 +1002,7 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		owner_namelen = nfs_map_uid_to_name(server, iap->ia_uid, owner_name, IDMAP_NAMESZ);
 		if (owner_namelen < 0) {
 			dprintk("nfs: couldn't resolve uid %d to string\n",
-					iap->ia_uid);
+					from_kuid(&init_user_ns, iap->ia_uid));
 			/* XXX */
 			strcpy(owner_name, "nobody");
 			owner_namelen = sizeof("nobody") - 1;
@@ -1011,7 +1014,7 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 		owner_grouplen = nfs_map_gid_to_group(server, iap->ia_gid, owner_group, IDMAP_NAMESZ);
 		if (owner_grouplen < 0) {
 			dprintk("nfs: couldn't resolve gid %d to string\n",
-					iap->ia_gid);
+					from_kgid(&init_user_ns, iap->ia_gid));
 			strcpy(owner_group, "nobody");
 			owner_grouplen = sizeof("nobody") - 1;
 			/* goto out; */
@@ -1403,7 +1406,6 @@ static void encode_opentype(struct xdr_stream *xdr, const struct nfs_openargs *a
 		*p = cpu_to_be32(NFS4_OPEN_NOCREATE);
 		break;
 	default:
-		BUG_ON(arg->claim != NFS4_OPEN_CLAIM_NULL);
 		*p = cpu_to_be32(NFS4_OPEN_CREATE);
 		encode_createmode(xdr, arg);
 	}
@@ -1621,7 +1623,6 @@ encode_setacl(struct xdr_stream *xdr, struct nfs_setaclargs *arg, struct compoun
 	p = reserve_space(xdr, 2*4);
 	*p++ = cpu_to_be32(1);
 	*p = cpu_to_be32(FATTR4_WORD0_ACL);
-	BUG_ON(arg->acl_len % 4);
 	p = reserve_space(xdr, 4);
 	*p = cpu_to_be32(arg->acl_len);
 	xdr_write_pages(xdr, arg->acl_pages, arg->acl_pgbase, arg->acl_len);
@@ -1713,7 +1714,7 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 			       struct compound_hdr *hdr)
 {
 	__be32 *p;
-	char impl_name[NFS4_OPAQUE_LIMIT];
+	char impl_name[IMPL_NAME_LIMIT];
 	int len = 0;
 
 	encode_op_hdr(xdr, OP_EXCHANGE_ID, decode_exchange_id_maxsz, hdr);
@@ -1728,7 +1729,7 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 	if (send_implementation_id &&
 	    sizeof(CONFIG_NFS_V4_1_IMPLEMENTATION_ID_DOMAIN) > 1 &&
 	    sizeof(CONFIG_NFS_V4_1_IMPLEMENTATION_ID_DOMAIN)
-		<= NFS4_OPAQUE_LIMIT + 1)
+		<= sizeof(impl_name) + 1)
 		len = snprintf(impl_name, sizeof(impl_name), "%s %s %s %s",
 			       utsname()->sysname, utsname()->release,
 			       utsname()->version, utsname()->machine);
@@ -1835,18 +1836,16 @@ static void encode_sequence(struct xdr_stream *xdr,
 			    struct compound_hdr *hdr)
 {
 #if defined(CONFIG_NFS_V4_1)
-	struct nfs4_session *session = args->sa_session;
+	struct nfs4_session *session;
 	struct nfs4_slot_table *tp;
-	struct nfs4_slot *slot;
+	struct nfs4_slot *slot = args->sa_slot;
 	__be32 *p;
 
-	if (!session)
+	if (slot == NULL)
 		return;
 
-	tp = &session->fc_slot_table;
-
-	WARN_ON(args->sa_slotid == NFS4_MAX_SLOT_TABLE);
-	slot = tp->slots + args->sa_slotid;
+	tp = slot->table;
+	session = tp->session;
 
 	encode_op_hdr(xdr, OP_SEQUENCE, decode_sequence_maxsz, hdr);
 
@@ -1860,12 +1859,12 @@ static void encode_sequence(struct xdr_stream *xdr,
 		((u32 *)session->sess_id.data)[1],
 		((u32 *)session->sess_id.data)[2],
 		((u32 *)session->sess_id.data)[3],
-		slot->seq_nr, args->sa_slotid,
+		slot->seq_nr, slot->slot_nr,
 		tp->highest_used_slotid, args->sa_cache_this);
 	p = reserve_space(xdr, NFS4_MAX_SESSIONID_LEN + 16);
 	p = xdr_encode_opaque_fixed(p, session->sess_id.data, NFS4_MAX_SESSIONID_LEN);
 	*p++ = cpu_to_be32(slot->seq_nr);
-	*p++ = cpu_to_be32(args->sa_slotid);
+	*p++ = cpu_to_be32(slot->slot_nr);
 	*p++ = cpu_to_be32(tp->highest_used_slotid);
 	*p = cpu_to_be32(args->sa_cache_this);
 #endif /* CONFIG_NFS_V4_1 */
@@ -2027,8 +2026,9 @@ static void encode_free_stateid(struct xdr_stream *xdr,
 static u32 nfs4_xdr_minorversion(const struct nfs4_sequence_args *args)
 {
 #if defined(CONFIG_NFS_V4_1)
-	if (args->sa_session)
-		return args->sa_session->clp->cl_mvops->minor_version;
+
+	if (args->sa_slot)
+		return args->sa_slot->table->session->clp->cl_mvops->minor_version;
 #endif /* CONFIG_NFS_V4_1 */
 	return 0;
 }
@@ -3778,14 +3778,14 @@ out_overflow:
 }
 
 static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap,
-		const struct nfs_server *server, uint32_t *uid,
+		const struct nfs_server *server, kuid_t *uid,
 		struct nfs4_string *owner_name)
 {
 	uint32_t len;
 	__be32 *p;
 	int ret = 0;
 
-	*uid = -2;
+	*uid = make_kuid(&init_user_ns, -2);
 	if (unlikely(bitmap[1] & (FATTR4_WORD1_OWNER - 1U)))
 		return -EIO;
 	if (likely(bitmap[1] & FATTR4_WORD1_OWNER)) {
@@ -3813,7 +3813,7 @@ static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap,
 					__func__, len);
 		bitmap[1] &= ~FATTR4_WORD1_OWNER;
 	}
-	dprintk("%s: uid=%d\n", __func__, (int)*uid);
+	dprintk("%s: uid=%d\n", __func__, (int)from_kuid(&init_user_ns, *uid));
 	return ret;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -3821,14 +3821,14 @@ out_overflow:
 }
 
 static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap,
-		const struct nfs_server *server, uint32_t *gid,
+		const struct nfs_server *server, kgid_t *gid,
 		struct nfs4_string *group_name)
 {
 	uint32_t len;
 	__be32 *p;
 	int ret = 0;
 
-	*gid = -2;
+	*gid = make_kgid(&init_user_ns, -2);
 	if (unlikely(bitmap[1] & (FATTR4_WORD1_OWNER_GROUP - 1U)))
 		return -EIO;
 	if (likely(bitmap[1] & FATTR4_WORD1_OWNER_GROUP)) {
@@ -3856,7 +3856,7 @@ static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap,
 					__func__, len);
 		bitmap[1] &= ~FATTR4_WORD1_OWNER_GROUP;
 	}
-	dprintk("%s: gid=%d\n", __func__, (int)*gid);
+	dprintk("%s: gid=%d\n", __func__, (int)from_kgid(&init_user_ns, *gid));
 	return ret;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -5509,12 +5509,13 @@ static int decode_sequence(struct xdr_stream *xdr,
 			   struct rpc_rqst *rqstp)
 {
 #if defined(CONFIG_NFS_V4_1)
+	struct nfs4_session *session;
 	struct nfs4_sessionid id;
 	u32 dummy;
 	int status;
 	__be32 *p;
 
-	if (!res->sr_session)
+	if (res->sr_slot == NULL)
 		return 0;
 
 	status = decode_op_hdr(xdr, OP_SEQUENCE);
@@ -5528,8 +5529,9 @@ static int decode_sequence(struct xdr_stream *xdr,
 	 * sequence number, the server is looney tunes.
 	 */
 	status = -EREMOTEIO;
+	session = res->sr_slot->table->session;
 
-	if (memcmp(id.data, res->sr_session->sess_id.data,
+	if (memcmp(id.data, session->sess_id.data,
 		   NFS4_MAX_SESSIONID_LEN)) {
 		dprintk("%s Invalid session id\n", __func__);
 		goto out_err;
@@ -5547,14 +5549,14 @@ static int decode_sequence(struct xdr_stream *xdr,
 	}
 	/* slot id */
 	dummy = be32_to_cpup(p++);
-	if (dummy != res->sr_slot - res->sr_session->fc_slot_table.slots) {
+	if (dummy != res->sr_slot->slot_nr) {
 		dprintk("%s Invalid slot id\n", __func__);
 		goto out_err;
 	}
-	/* highest slot id - currently not processed */
-	dummy = be32_to_cpup(p++);
-	/* target highest slot id - currently not processed */
-	dummy = be32_to_cpup(p++);
+	/* highest slot id */
+	res->sr_highest_slotid = be32_to_cpup(p++);
+	/* target highest slot id */
+	res->sr_target_highest_slotid = be32_to_cpup(p++);
 	/* result flags */
 	res->sr_status_flags = be32_to_cpup(p);
 	status = 0;

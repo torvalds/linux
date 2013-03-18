@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/etherdevice.h>
 #include <asm/byteorder.h>
 
@@ -23,15 +25,6 @@
 #include "gdm_qos.h"
 
 #define B2H(x)		__be16_to_cpu(x)
-
-#undef dprintk
-#define dprintk(fmt, args ...) printk(KERN_DEBUG "[QoS] " fmt, ## args)
-#undef wprintk
-#define wprintk(fmt, args ...) \
-	printk(KERN_WARNING "[QoS WARNING] " fmt, ## args)
-#undef eprintk
-#define eprintk(fmt, args ...) printk(KERN_ERR "[QoS ERROR] " fmt, ## args)
-
 
 #define MAX_FREE_LIST_CNT		32
 static struct {
@@ -95,7 +88,7 @@ static void free_qos_entry_list(struct list_head *free_list)
 		total_free++;
 	}
 
-	dprintk("%s: total_free_cnt=%d\n", __func__, total_free);
+	pr_debug("%s: total_free_cnt=%d\n", __func__, total_free);
 }
 
 void gdm_qos_init(void *nic_ptr)
@@ -240,7 +233,9 @@ static u32 extract_qos_list(struct nic *nic, struct list_head *head)
 					qcb->csr[i].qos_buf_count++;
 
 					if (!list_empty(&qcb->qos_list[i]))
-						wprintk("QoS Index(%d) is piled!!\n", i);
+						netdev_warn(nic->netdev,
+							    "Index(%d) is piled!!\n",
+							    i);
 				}
 			}
 		}
@@ -280,7 +275,8 @@ int gdm_qos_send_hci_pkt(struct sk_buff *skb, struct net_device *dev)
 			entry = alloc_qos_entry();
 			entry->skb = skb;
 			entry->dev = dev;
-			dprintk("qcb->qos_list_cnt=%d\n", qcb->qos_list_cnt);
+			netdev_dbg(dev, "qcb->qos_list_cnt=%d\n",
+				   qcb->qos_list_cnt);
 		}
 
 		spin_lock_irqsave(&qcb->qos_lock, flags);
@@ -362,7 +358,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 			index = get_csr(qcb, SFID, 0);
 			if (index == -1) {
 				spin_unlock_irqrestore(&qcb->qos_lock, flags);
-				eprintk("QoS ERROR: No SF\n");
+				netdev_err(nic->netdev, "QoS ERROR: No SF\n");
 				return;
 			}
 			qcb->csr[index].qos_buf_count = buf[(i*5)+10];
@@ -383,11 +379,12 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 
 		index = get_csr(qcb, SFID, 1);
 		if (index == -1) {
-			eprintk("QoS ERROR: csr Update Error\n");
+			netdev_err(nic->netdev, "QoS ERROR: csr Update Error\n");
 			return;
 		}
 
-		dprintk("QOS_ADD SFID = 0x%x, index=%d\n", SFID, index);
+		netdev_dbg(nic->netdev, "QOS_ADD SFID = 0x%x, index=%d\n",
+			   SFID, index);
 
 		spin_lock_irqsave(&qcb->qos_lock, flags);
 		qcb->csr[index].SFID = SFID;
@@ -435,11 +432,13 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		SFID += (buf[pos++]);
 		index = get_csr(qcb, SFID, 1);
 		if (index == -1) {
-			eprintk("QoS ERROR: Wrong index(%d)\n", index);
+			netdev_err(nic->netdev, "QoS ERROR: Wrong index(%d)\n",
+				   index);
 			return;
 		}
 
-		dprintk("QOS_CHANGE_DEL SFID = 0x%x, index=%d\n", SFID, index);
+		netdev_dbg(nic->netdev, "QOS_CHANGE_DEL SFID = 0x%x, index=%d\n",
+			   SFID, index);
 
 		INIT_LIST_HEAD(&free_list);
 

@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/tty.h>
@@ -34,7 +35,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/sa1111.h>
-#include <asm/mach/serial_sa1100.h>
 
 #include <mach/badge4.h>
 
@@ -336,7 +336,7 @@ MACHINE_START(BADGE4, "Hewlett-Packard Laboratories BadgePAD 4")
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.init_late	= sa11x0_init_late,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 #ifdef CONFIG_SA1111
 	.dma_zone_size	= SZ_1M,
 #endif

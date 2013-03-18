@@ -401,8 +401,8 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 
 	/* Revoke setuid/setgid on chown */
 	if (!S_ISDIR(inode->i_mode) &&
-	    (((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) ||
-	     ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid))) {
+	    (((iap->ia_valid & ATTR_UID) && !uid_eq(iap->ia_uid, inode->i_uid)) ||
+	     ((iap->ia_valid & ATTR_GID) && !gid_eq(iap->ia_gid, inode->i_gid)))) {
 		iap->ia_valid |= ATTR_KILL_PRIV;
 		if (iap->ia_valid & ATTR_MODE) {
 			/* we're setting mode too, just clear the s*id bits */
@@ -886,7 +886,7 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 		  struct splice_desc *sd)
 {
 	struct svc_rqst *rqstp = sd->u.data;
-	struct page **pp = rqstp->rq_respages + rqstp->rq_resused;
+	struct page **pp = rqstp->rq_next_page;
 	struct page *page = buf->page;
 	size_t size;
 
@@ -894,17 +894,15 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 
 	if (rqstp->rq_res.page_len == 0) {
 		get_page(page);
-		put_page(*pp);
-		*pp = page;
-		rqstp->rq_resused++;
+		put_page(*rqstp->rq_next_page);
+		*(rqstp->rq_next_page++) = page;
 		rqstp->rq_res.page_base = buf->offset;
 		rqstp->rq_res.page_len = size;
 	} else if (page != pp[-1]) {
 		get_page(page);
-		if (*pp)
-			put_page(*pp);
-		*pp = page;
-		rqstp->rq_resused++;
+		if (*rqstp->rq_next_page)
+			put_page(*rqstp->rq_next_page);
+		*(rqstp->rq_next_page++) = page;
 		rqstp->rq_res.page_len += size;
 	} else
 		rqstp->rq_res.page_len += size;
@@ -936,7 +934,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 			.u.data		= rqstp,
 		};
 
-		rqstp->rq_resused = 1;
+		rqstp->rq_next_page = rqstp->rq_respages + 1;
 		host_err = splice_direct_to_actor(file, &sd, nfsd_direct_splice_actor);
 	} else {
 		oldfs = get_fs();
@@ -981,7 +979,7 @@ static void kill_suid(struct dentry *dentry)
  */
 static int wait_for_concurrent_writes(struct file *file)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	static ino_t last_ino;
 	static dev_t last_dev;
 	int err = 0;
@@ -1020,28 +1018,10 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	inode = dentry->d_inode;
 	exp   = fhp->fh_export;
 
-	/*
-	 * Request sync writes if
-	 *  -	the sync export option has been set, or
-	 *  -	the client requested O_SYNC behavior (NFSv3 feature).
-	 *  -   The file system doesn't support fsync().
-	 * When NFSv2 gathered writes have been configured for this volume,
-	 * flushing the data to disk is handled separately below.
-	 */
 	use_wgather = (rqstp->rq_vers == 2) && EX_WGATHER(exp);
-
-	if (!file->f_op->fsync) {/* COMMIT3 cannot work */
-	       stable = 2;
-	       *stablep = 2; /* FILE_SYNC */
-	}
 
 	if (!EX_ISSYNC(exp))
 		stable = 0;
-	if (stable && !use_wgather) {
-		spin_lock(&file->f_lock);
-		file->f_flags |= O_SYNC;
-		spin_unlock(&file->f_lock);
-	}
 
 	/* Write the data. */
 	oldfs = get_fs(); set_fs(KERNEL_DS);
@@ -1057,8 +1037,12 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	if (inode->i_mode & (S_ISUID | S_ISGID))
 		kill_suid(dentry);
 
-	if (stable && use_wgather)
-		host_err = wait_for_concurrent_writes(file);
+	if (stable) {
+		if (use_wgather)
+			host_err = wait_for_concurrent_writes(file);
+		else
+			host_err = vfs_fsync_range(file, offset, offset+*cnt, 0);
+	}
 
 out_nfserr:
 	dprintk("nfsd: write complete host_err=%d\n", host_err);
@@ -1086,7 +1070,7 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (err)
 		return err;
 
-	inode = file->f_path.dentry->d_inode;
+	inode = file_inode(file);
 
 	/* Get readahead parameters */
 	ra = nfsd_get_raparms(inode->i_sb->s_dev, inode->i_ino);
@@ -1221,7 +1205,7 @@ nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *resfhp,
 	 * send along the gid on create when it tries to implement
 	 * setgid directories via NFS:
 	 */
-	if (current_fsuid() != 0)
+	if (!uid_eq(current_fsuid(), GLOBAL_ROOT_UID))
 		iap->ia_valid &= ~(ATTR_UID|ATTR_GID);
 	if (iap->ia_valid)
 		return nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
@@ -1485,13 +1469,19 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		case NFS3_CREATE_EXCLUSIVE:
 			if (   dchild->d_inode->i_mtime.tv_sec == v_mtime
 			    && dchild->d_inode->i_atime.tv_sec == v_atime
-			    && dchild->d_inode->i_size  == 0 )
+			    && dchild->d_inode->i_size  == 0 ) {
+				if (created)
+					*created = 1;
 				break;
+			}
 		case NFS4_CREATE_EXCLUSIVE4_1:
 			if (   dchild->d_inode->i_mtime.tv_sec == v_mtime
 			    && dchild->d_inode->i_atime.tv_sec == v_atime
-			    && dchild->d_inode->i_size  == 0 )
+			    && dchild->d_inode->i_size  == 0 ) {
+				if (created)
+					*created = 1;
 				goto set_attr;
+			}
 			 /* fallthru */
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
@@ -1967,7 +1957,7 @@ static __be32 nfsd_buffered_readdir(struct file *file, filldir_t func,
 	offset = *offsetp;
 
 	while (1) {
-		struct inode *dir_inode = file->f_path.dentry->d_inode;
+		struct inode *dir_inode = file_inode(file);
 		unsigned int reclen;
 
 		cdp->err = nfserr_eof; /* will be cleared on successful read */
@@ -2160,7 +2150,7 @@ nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
 	 * with NFSv3.
 	 */
 	if ((acc & NFSD_MAY_OWNER_OVERRIDE) &&
-	    inode->i_uid == current_fsuid())
+	    uid_eq(inode->i_uid, current_fsuid()))
 		return 0;
 
 	/* This assumes  NFSD_MAY_{READ,WRITE,EXEC} == MAY_{READ,WRITE,EXEC} */

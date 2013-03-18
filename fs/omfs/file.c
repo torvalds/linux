@@ -306,6 +306,16 @@ omfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	return mpage_writepages(mapping, wbc, omfs_get_block);
 }
 
+static void omfs_write_failed(struct address_space *mapping, loff_t to)
+{
+	struct inode *inode = mapping->host;
+
+	if (to > inode->i_size) {
+		truncate_pagecache(inode, to, inode->i_size);
+		omfs_truncate(inode);
+	}
+}
+
 static int omfs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
@@ -314,11 +324,8 @@ static int omfs_write_begin(struct file *file, struct address_space *mapping,
 
 	ret = block_write_begin(mapping, pos, len, flags, pagep,
 				omfs_get_block);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
+	if (unlikely(ret))
+		omfs_write_failed(mapping, pos + len);
 
 	return ret;
 }
@@ -350,9 +357,11 @@ static int omfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    attr->ia_size != i_size_read(inode)) {
-		error = vmtruncate(inode, attr->ia_size);
+		error = inode_newsize_ok(inode, attr->ia_size);
 		if (error)
 			return error;
+		truncate_setsize(inode, attr->ia_size);
+		omfs_truncate(inode);
 	}
 
 	setattr_copy(inode, attr);
@@ -362,7 +371,6 @@ static int omfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 const struct inode_operations omfs_file_inops = {
 	.setattr = omfs_setattr,
-	.truncate = omfs_truncate
 };
 
 const struct address_space_operations omfs_aops = {

@@ -22,7 +22,7 @@
 
 #include "arizona.h"
 
-static int __devinit arizona_spi_probe(struct spi_device *spi)
+static int arizona_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct arizona *arizona;
@@ -65,7 +65,7 @@ static int __devinit arizona_spi_probe(struct spi_device *spi)
 	return arizona_dev_init(arizona);
 }
 
-static int __devexit arizona_spi_remove(struct spi_device *spi)
+static int arizona_spi_remove(struct spi_device *spi)
 {
 	struct arizona *arizona = dev_get_drvdata(&spi->dev);
 	arizona_dev_exit(arizona);
@@ -86,7 +86,7 @@ static struct spi_driver arizona_spi_driver = {
 		.pm	= &arizona_pm_ops,
 	},
 	.probe		= arizona_spi_probe,
-	.remove		= __devexit_p(arizona_spi_remove),
+	.remove		= arizona_spi_remove,
 	.id_table	= arizona_spi_ids,
 };
 

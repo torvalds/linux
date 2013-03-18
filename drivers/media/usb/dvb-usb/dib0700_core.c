@@ -561,10 +561,7 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 		}
 	}
 
-	if (mutex_lock_interruptible(&adap->dev->usb_mutex) < 0) {
-		err("could not acquire lock");
-		return -EINTR;
-	}
+	mutex_lock(&adap->dev->usb_mutex);
 
 	st->buf[0] = REQUEST_ENABLE_VIDEO;
 	/* this bit gives a kind of command,
@@ -605,7 +602,7 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return ret;
 }
 
-int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
+int dib0700_change_protocol(struct rc_dev *rc, u64 *rc_type)
 {
 	struct dvb_usb_device *d = rc->priv;
 	struct dib0700_state *st = d->priv;
@@ -621,17 +618,19 @@ int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
 	st->buf[2] = 0;
 
 	/* Set the IR mode */
-	if (rc_type == RC_TYPE_RC5)
+	if (*rc_type & RC_BIT_RC5) {
 		new_proto = 1;
-	else if (rc_type == RC_TYPE_NEC)
+		*rc_type = RC_BIT_RC5;
+	} else if (*rc_type & RC_BIT_NEC) {
 		new_proto = 0;
-	else if (rc_type == RC_TYPE_RC6) {
+		*rc_type = RC_BIT_NEC;
+	} else if (*rc_type & RC_BIT_RC6_MCE) {
 		if (st->fw_version < 0x10200) {
 			ret = -EINVAL;
 			goto out;
 		}
-
 		new_proto = 2;
+		*rc_type = RC_BIT_RC6_MCE;
 	} else {
 		ret = -EINVAL;
 		goto out;
@@ -645,7 +644,7 @@ int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
 		goto out;
 	}
 
-	d->props.rc.core.protocol = rc_type;
+	d->props.rc.core.protocol = *rc_type;
 
 out:
 	mutex_unlock(&d->usb_mutex);
@@ -707,7 +706,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		 purb->actual_length);
 
 	switch (d->props.rc.core.protocol) {
-	case RC_TYPE_NEC:
+	case RC_BIT_NEC:
 		toggle = 0;
 
 		/* NEC protocol sends repeat code as 0 0 0 FF */

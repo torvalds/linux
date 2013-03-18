@@ -385,7 +385,7 @@ static irqreturn_t ioh_gpio_handler(int irq, void *dev_id)
 	return ret;
 }
 
-static __devinit void ioh_gpio_alloc_generic_chip(struct ioh_gpio *chip,
+static void ioh_gpio_alloc_generic_chip(struct ioh_gpio *chip,
 				unsigned int irq_start, unsigned int num)
 {
 	struct irq_chip_generic *gc;
@@ -406,7 +406,7 @@ static __devinit void ioh_gpio_alloc_generic_chip(struct ioh_gpio *chip,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static int __devinit ioh_gpio_probe(struct pci_dev *pdev,
+static int ioh_gpio_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	int ret;
@@ -517,7 +517,7 @@ err_pci_enable:
 	return ret;
 }
 
-static void __devexit ioh_gpio_remove(struct pci_dev *pdev)
+static void ioh_gpio_remove(struct pci_dev *pdev)
 {
 	int err;
 	int i;
@@ -606,7 +606,7 @@ static struct pci_driver ioh_gpio_driver = {
 	.name = "ml_ioh_gpio",
 	.id_table = ioh_gpio_pcidev_id,
 	.probe = ioh_gpio_probe,
-	.remove = __devexit_p(ioh_gpio_remove),
+	.remove = ioh_gpio_remove,
 	.suspend = ioh_gpio_suspend,
 	.resume = ioh_gpio_resume
 };

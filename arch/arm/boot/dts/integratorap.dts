@@ -18,6 +18,11 @@
 		bootargs = "root=/dev/ram0 console=ttyAM0,38400n8 earlyprintk";
 	};
 
+	syscon {
+		/* AP system controller registers */
+		reg = <0x11000000 0x100>;
+	};
+
 	timer0: timer@13000000 {
 		compatible = "arm,integrator-timer";
 	};

@@ -39,6 +39,7 @@
 #include <linux/irqflags.h>
 #include <linux/rwsem.h>
 #include <linux/pm_runtime.h>
+#include <linux/acpi.h>
 #include <asm/uaccess.h>
 
 #include "i2c-core.h"
@@ -76,6 +77,10 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 
 	/* Attempt an OF style match */
 	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	/* Then ACPI style match */
+	if (acpi_driver_match_device(dev, drv))
 		return 1;
 
 	driver = to_i2c_driver(drv);
@@ -539,6 +544,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
 	client->dev.of_node = info->of_node;
+	ACPI_HANDLE_SET(&client->dev, info->acpi_node.handle);
 
 	/* For 10-bit clients, add an arbitrary offset to avoid collisions */
 	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
@@ -929,25 +935,17 @@ out_list:
  */
 int i2c_add_adapter(struct i2c_adapter *adapter)
 {
-	int	id, res = 0;
-
-retry:
-	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0)
-		return -ENOMEM;
+	int id;
 
 	mutex_lock(&core_lock);
-	/* "above" here means "above or equal to", sigh */
-	res = idr_get_new_above(&i2c_adapter_idr, adapter,
-				__i2c_first_dynamic_bus_num, &id);
+	id = idr_alloc(&i2c_adapter_idr, adapter,
+		       __i2c_first_dynamic_bus_num, 0, GFP_KERNEL);
 	mutex_unlock(&core_lock);
-
-	if (res < 0) {
-		if (res == -EAGAIN)
-			goto retry;
-		return res;
-	}
+	if (id < 0)
+		return id;
 
 	adapter->nr = id;
+
 	return i2c_register_adapter(adapter);
 }
 EXPORT_SYMBOL(i2c_add_adapter);
@@ -978,33 +976,17 @@ EXPORT_SYMBOL(i2c_add_adapter);
 int i2c_add_numbered_adapter(struct i2c_adapter *adap)
 {
 	int	id;
-	int	status;
 
 	if (adap->nr == -1) /* -1 means dynamically assign bus id */
 		return i2c_add_adapter(adap);
-	if (adap->nr & ~MAX_IDR_MASK)
-		return -EINVAL;
-
-retry:
-	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0)
-		return -ENOMEM;
 
 	mutex_lock(&core_lock);
-	/* "above" here means "above or equal to", sigh;
-	 * we need the "equal to" result to force the result
-	 */
-	status = idr_get_new_above(&i2c_adapter_idr, adap, adap->nr, &id);
-	if (status == 0 && id != adap->nr) {
-		status = -EBUSY;
-		idr_remove(&i2c_adapter_idr, id);
-	}
+	id = idr_alloc(&i2c_adapter_idr, adap, adap->nr, adap->nr + 1,
+		       GFP_KERNEL);
 	mutex_unlock(&core_lock);
-	if (status == -EAGAIN)
-		goto retry;
-
-	if (status == 0)
-		status = i2c_register_adapter(adap);
-	return status;
+	if (id < 0)
+		return id == -ENOSPC ? -EBUSY : id;
+	return i2c_register_adapter(adap);
 }
 EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 
@@ -1858,29 +1840,6 @@ s32 i2c_smbus_write_word_data(const struct i2c_client *client, u8 command,
 			      I2C_SMBUS_WORD_DATA, &data);
 }
 EXPORT_SYMBOL(i2c_smbus_write_word_data);
-
-/**
- * i2c_smbus_process_call - SMBus "process call" protocol
- * @client: Handle to slave device
- * @command: Byte interpreted by slave
- * @value: 16-bit "word" being written
- *
- * This executes the SMBus "process call" protocol, returning negative errno
- * else a 16-bit unsigned "word" received from the device.
- */
-s32 i2c_smbus_process_call(const struct i2c_client *client, u8 command,
-			   u16 value)
-{
-	union i2c_smbus_data data;
-	int status;
-	data.word = value;
-
-	status = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
-				I2C_SMBUS_WRITE, command,
-				I2C_SMBUS_PROC_CALL, &data);
-	return (status < 0) ? status : data.word;
-}
-EXPORT_SYMBOL(i2c_smbus_process_call);
 
 /**
  * i2c_smbus_read_block_data - SMBus "block read" protocol

@@ -4,6 +4,7 @@
 #include <linux/preempt.h>
 #include <linux/lockdep.h>
 #include <linux/ftrace_irq.h>
+#include <linux/vtime.h>
 #include <asm/hardirq.h>
 
 /*
@@ -117,26 +118,14 @@
 
 #ifdef CONFIG_PREEMPT_COUNT
 # define preemptible()	(preempt_count() == 0 && !irqs_disabled())
-# define IRQ_EXIT_OFFSET (HARDIRQ_OFFSET-1)
 #else
 # define preemptible()	0
-# define IRQ_EXIT_OFFSET HARDIRQ_OFFSET
 #endif
 
 #if defined(CONFIG_SMP) || defined(CONFIG_GENERIC_HARDIRQS)
 extern void synchronize_irq(unsigned int irq);
 #else
 # define synchronize_irq(irq)	barrier()
-#endif
-
-struct task_struct;
-
-#if !defined(CONFIG_VIRT_CPU_ACCOUNTING) && !defined(CONFIG_IRQ_TIME_ACCOUNTING)
-static inline void vtime_account(struct task_struct *tsk)
-{
-}
-#else
-extern void vtime_account(struct task_struct *tsk);
 #endif
 
 #if defined(CONFIG_TINY_RCU) || defined(CONFIG_TINY_PREEMPT_RCU)
@@ -162,7 +151,7 @@ extern void rcu_nmi_exit(void);
  */
 #define __irq_enter()					\
 	do {						\
-		vtime_account(current);		\
+		account_irq_enter_time(current);	\
 		add_preempt_count(HARDIRQ_OFFSET);	\
 		trace_hardirq_enter();			\
 	} while (0)
@@ -178,7 +167,7 @@ extern void irq_enter(void);
 #define __irq_exit()					\
 	do {						\
 		trace_hardirq_exit();			\
-		vtime_account(current);		\
+		account_irq_exit_time(current);		\
 		sub_preempt_count(HARDIRQ_OFFSET);	\
 	} while (0)
 
@@ -189,10 +178,10 @@ extern void irq_exit(void);
 
 #define nmi_enter()						\
 	do {							\
+		lockdep_off();					\
 		ftrace_nmi_enter();				\
 		BUG_ON(in_nmi());				\
 		add_preempt_count(NMI_OFFSET + HARDIRQ_OFFSET);	\
-		lockdep_off();					\
 		rcu_nmi_enter();				\
 		trace_hardirq_enter();				\
 	} while (0)
@@ -201,10 +190,10 @@ extern void irq_exit(void);
 	do {							\
 		trace_hardirq_exit();				\
 		rcu_nmi_exit();					\
-		lockdep_on();					\
 		BUG_ON(!in_nmi());				\
 		sub_preempt_count(NMI_OFFSET + HARDIRQ_OFFSET);	\
 		ftrace_nmi_exit();				\
+		lockdep_on();					\
 	} while (0)
 
 #endif /* LINUX_HARDIRQ_H */

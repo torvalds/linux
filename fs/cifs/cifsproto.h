@@ -46,7 +46,8 @@ extern void _free_xid(unsigned int);
 ({								\
 	unsigned int __xid = _get_xid();				\
 	cFYI(1, "CIFS VFS: in %s as Xid: %u with uid: %d",	\
-	     __func__, __xid, current_fsuid());			\
+	     __func__, __xid,					\
+	     from_kuid(&init_user_ns, current_fsuid()));	\
 	__xid;							\
 })
 
@@ -58,8 +59,10 @@ do {								\
 } while (0)
 extern int init_cifs_idmap(void);
 extern void exit_cifs_idmap(void);
-extern void cifs_destroy_idmaptrees(void);
 extern char *build_path_from_dentry(struct dentry *);
+extern char *cifs_build_path_to_root(struct smb_vol *vol,
+				     struct cifs_sb_info *cifs_sb,
+				     struct cifs_tcon *tcon);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
 extern char *cifs_compose_mount_options(const char *sb_mountdata,
 		const char *fullpath, const struct dfs_info3_param *ref,
@@ -107,9 +110,7 @@ extern unsigned int smbCalcSize(void *buf);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			struct TCP_Server_Info *server);
 extern int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
-extern int cifs_set_port(struct sockaddr *addr, const unsigned short int port);
-extern int cifs_fill_sockaddr(struct sockaddr *dst, const char *src, int len,
-				const unsigned short int port);
+extern void cifs_set_port(struct sockaddr *addr, const unsigned short int port);
 extern int map_smb_to_linux_error(char *buf, bool logErr);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifs_tcon *, int /* length of
@@ -161,7 +162,7 @@ extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      const char *path, const __u16 *pfid);
 extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64,
-					uid_t, gid_t);
+					kuid_t, kgid_t);
 extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
 					const char *, u32 *);
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
@@ -185,7 +186,7 @@ extern void cifs_mark_open_files_invalid(struct cifs_tcon *tcon);
 extern bool cifs_find_lock_conflict(struct cifsFileInfo *cfile, __u64 offset,
 				    __u64 length, __u8 type,
 				    struct cifsLockInfo **conf_lock,
-				    bool rw_check);
+				    int rw_check);
 extern void cifs_add_pending_open(struct cifs_fid *fid,
 				  struct tcon_link *tlink,
 				  struct cifs_pending_open *open);
@@ -304,8 +305,8 @@ struct cifs_unix_set_info_args {
 	__u64	atime;
 	__u64	mtime;
 	__u64	mode;
-	__u64	uid;
-	__u64	gid;
+	kuid_t	uid;
+	kgid_t	gid;
 	dev_t	device;
 };
 

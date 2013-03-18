@@ -349,6 +349,16 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 	return rc;
 }
 
+static inline
+int _wait_for_empty_queues(struct dasd_device *device)
+{
+	if (device->block)
+		return list_empty(&device->ccw_queue) &&
+			list_empty(&device->block->ccw_queue);
+	else
+		return list_empty(&device->ccw_queue);
+}
+
 /*
  * Remove device from block device layer. Destroy dirty buffers.
  * Forget format information. Check if the target level is basic
@@ -1342,7 +1352,7 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 		switch (rc) {
 		case 0:	/* termination successful */
 			cqr->status = DASD_CQR_CLEAR_PENDING;
-			cqr->stopclk = get_clock();
+			cqr->stopclk = get_tod_clock();
 			cqr->starttime = 0;
 			DBF_DEV_EVENT(DBF_DEBUG, device,
 				      "terminate cqr %p successful",
@@ -1410,7 +1420,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		cqr->status = DASD_CQR_ERROR;
 		return -EIO;
 	}
-	cqr->startclk = get_clock();
+	cqr->startclk = get_tod_clock();
 	cqr->starttime = jiffies;
 	cqr->retries--;
 	if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags)) {
@@ -1613,7 +1623,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		return;
 	}
 
-	now = get_clock();
+	now = get_tod_clock();
 	cqr = (struct dasd_ccw_req *) intparm;
 	/* check for conditions that should be handled immediately */
 	if (!cqr ||
@@ -1841,6 +1851,13 @@ static void __dasd_device_check_expire(struct dasd_device *device)
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, devlist);
 	if ((cqr->status == DASD_CQR_IN_IO && cqr->expires != 0) &&
 	    (time_after_eq(jiffies, cqr->expires + cqr->starttime))) {
+		if (test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+			/*
+			 * IO in safe offline processing should not
+			 * run out of retries
+			 */
+			cqr->retries++;
+		}
 		if (device->discipline->term_IO(cqr) != 0) {
 			/* Hmpf, try again in 5 sec */
 			dev_err(&device->cdev->dev,
@@ -1946,7 +1963,7 @@ int dasd_flush_device_queue(struct dasd_device *device)
 			}
 			break;
 		case DASD_CQR_QUEUED:
-			cqr->stopclk = get_clock();
+			cqr->stopclk = get_tod_clock();
 			cqr->status = DASD_CQR_CLEARED;
 			break;
 		default: /* no need to modify the others */
@@ -2193,7 +2210,7 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 			wait_event(generic_waitq, _wait_for_wakeup(cqr));
 	}
 
-	maincqr->endclk = get_clock();
+	maincqr->endclk = get_tod_clock();
 	if ((maincqr->status != DASD_CQR_DONE) &&
 	    (maincqr->intrc != -ERESTARTSYS))
 		dasd_log_sense(maincqr, &maincqr->irb);
@@ -2323,7 +2340,7 @@ int dasd_cancel_req(struct dasd_ccw_req *cqr)
 				"Cancelling request %p failed with rc=%d\n",
 				cqr, rc);
 		} else {
-			cqr->stopclk = get_clock();
+			cqr->stopclk = get_tod_clock();
 		}
 		break;
 	default: /* already finished or clear pending - do nothing */
@@ -2551,7 +2568,7 @@ restart:
 		}
 
 		/* Rechain finished requests to final queue */
-		cqr->endclk = get_clock();
+		cqr->endclk = get_tod_clock();
 		list_move_tail(&cqr->blocklist, final_queue);
 	}
 }
@@ -2694,7 +2711,7 @@ restart_cb:
 		}
 		/* call the callback function */
 		spin_lock_irq(&block->request_queue_lock);
-		cqr->endclk = get_clock();
+		cqr->endclk = get_tod_clock();
 		list_del_init(&cqr->blocklist);
 		__dasd_cleanup_cqr(cqr);
 		spin_unlock_irq(&block->request_queue_lock);
@@ -3024,13 +3041,16 @@ void dasd_generic_remove(struct ccw_device *cdev)
 
 	cdev->handler = NULL;
 
-	dasd_remove_sysfs_files(cdev);
 	device = dasd_device_from_cdev(cdev);
-	if (IS_ERR(device))
+	if (IS_ERR(device)) {
+		dasd_remove_sysfs_files(cdev);
 		return;
-	if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+	}
+	if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags) &&
+	    !test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
 		/* Already doing offline processing */
 		dasd_put_device(device);
+		dasd_remove_sysfs_files(cdev);
 		return;
 	}
 	/*
@@ -3048,6 +3068,8 @@ void dasd_generic_remove(struct ccw_device *cdev)
 	 */
 	if (block)
 		dasd_free_block(block);
+
+	dasd_remove_sysfs_files(cdev);
 }
 
 /*
@@ -3126,16 +3148,13 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 {
 	struct dasd_device *device;
 	struct dasd_block *block;
-	int max_count, open_count;
+	int max_count, open_count, rc;
 
+	rc = 0;
 	device = dasd_device_from_cdev(cdev);
 	if (IS_ERR(device))
 		return PTR_ERR(device);
-	if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags)) {
-		/* Already doing offline processing */
-		dasd_put_device(device);
-		return 0;
-	}
+
 	/*
 	 * We must make sure that this device is currently not in use.
 	 * The open_count is increased for every opener, that includes
@@ -3159,6 +3178,54 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 			return -EBUSY;
 		}
 	}
+
+	if (test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+		/*
+		 * safe offline allready running
+		 * could only be called by normal offline so safe_offline flag
+		 * needs to be removed to run normal offline and kill all I/O
+		 */
+		if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+			/* Already doing normal offline processing */
+			dasd_put_device(device);
+			return -EBUSY;
+		} else
+			clear_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
+
+	} else
+		if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+			/* Already doing offline processing */
+			dasd_put_device(device);
+			return -EBUSY;
+		}
+
+	/*
+	 * if safe_offline called set safe_offline_running flag and
+	 * clear safe_offline so that a call to normal offline
+	 * can overrun safe_offline processing
+	 */
+	if (test_and_clear_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags) &&
+	    !test_and_set_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+		/*
+		 * If we want to set the device safe offline all IO operations
+		 * should be finished before continuing the offline process
+		 * so sync bdev first and then wait for our queues to become
+		 * empty
+		 */
+		/* sync blockdev and partitions */
+		rc = fsync_bdev(device->block->bdev);
+		if (rc != 0)
+			goto interrupted;
+
+		/* schedule device tasklet and wait for completion */
+		dasd_schedule_device_bh(device);
+		rc = wait_event_interruptible(shutdown_waitq,
+					      _wait_for_empty_queues(device));
+		if (rc != 0)
+			goto interrupted;
+	}
+
+	set_bit(DASD_FLAG_OFFLINE, &device->flags);
 	dasd_set_target_state(device, DASD_STATE_NEW);
 	/* dasd_delete_device destroys the device reference. */
 	block = device->block;
@@ -3170,6 +3237,14 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 	if (block)
 		dasd_free_block(block);
 	return 0;
+
+interrupted:
+	/* interrupted by signal */
+	clear_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
+	clear_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags);
+	clear_bit(DASD_FLAG_OFFLINE, &device->flags);
+	dasd_put_device(device);
+	return rc;
 }
 
 int dasd_generic_last_path_gone(struct dasd_device *device)
@@ -3432,7 +3507,7 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 	cqr->memdev = device;
 	cqr->expires = 10*HZ;
 	cqr->retries = 256;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }
@@ -3488,15 +3563,6 @@ char *dasd_get_sense(struct irb *irb)
 	return sense;
 }
 EXPORT_SYMBOL_GPL(dasd_get_sense);
-
-static inline int _wait_for_empty_queues(struct dasd_device *device)
-{
-	if (device->block)
-		return list_empty(&device->ccw_queue) &&
-			list_empty(&device->block->ccw_queue);
-	else
-		return list_empty(&device->ccw_queue);
-}
 
 void dasd_generic_shutdown(struct ccw_device *cdev)
 {

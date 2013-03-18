@@ -352,7 +352,7 @@ static struct irq_chip msm_gpio_irq_chip = {
 	.irq_set_wake	= msm_gpio_irq_set_wake,
 };
 
-static int __devinit msm_gpio_probe(struct platform_device *dev)
+static int msm_gpio_probe(struct platform_device *dev)
 {
 	int i, irq, ret;
 
@@ -376,7 +376,7 @@ static int __devinit msm_gpio_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit msm_gpio_remove(struct platform_device *dev)
+static int msm_gpio_remove(struct platform_device *dev)
 {
 	int ret = gpiochip_remove(&msm_gpio.gpio_chip);
 
@@ -390,7 +390,7 @@ static int __devexit msm_gpio_remove(struct platform_device *dev)
 
 static struct platform_driver msm_gpio_driver = {
 	.probe = msm_gpio_probe,
-	.remove = __devexit_p(msm_gpio_remove),
+	.remove = msm_gpio_remove,
 	.driver = {
 		.name = "msmgpio",
 		.owner = THIS_MODULE,

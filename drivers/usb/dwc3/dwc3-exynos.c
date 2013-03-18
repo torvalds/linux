@@ -21,8 +21,7 @@
 #include <linux/clk.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/nop-usb-xceiv.h>
-
-#include "core.h"
+#include <linux/of.h>
 
 struct dwc3_exynos {
 	struct platform_device	*dwc3;
@@ -33,7 +32,7 @@ struct dwc3_exynos {
 	struct clk		*clk;
 };
 
-static int __devinit dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
+static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 {
 	struct nop_usb_xceiv_platform_data pdata;
 	struct platform_device	*pdev;
@@ -41,7 +40,7 @@ static int __devinit dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 
 	memset(&pdata, 0x00, sizeof(pdata));
 
-	pdev = platform_device_alloc("nop_usb_xceiv", 0);
+	pdev = platform_device_alloc("nop_usb_xceiv", PLATFORM_DEVID_AUTO);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -52,7 +51,7 @@ static int __devinit dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 	if (ret)
 		goto err1;
 
-	pdev = platform_device_alloc("nop_usb_xceiv", 1);
+	pdev = platform_device_alloc("nop_usb_xceiv", PLATFORM_DEVID_AUTO);
 	if (!pdev) {
 		ret = -ENOMEM;
 		goto err1;
@@ -87,124 +86,113 @@ err1:
 	return ret;
 }
 
-static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
+static u64 dwc3_exynos_dma_mask = DMA_BIT_MASK(32);
+
+static int dwc3_exynos_probe(struct platform_device *pdev)
 {
-	struct dwc3_exynos_data	*pdata = pdev->dev.platform_data;
 	struct platform_device	*dwc3;
 	struct dwc3_exynos	*exynos;
 	struct clk		*clk;
+	struct device		*dev = &pdev->dev;
 
-	int			devid;
 	int			ret = -ENOMEM;
 
-	exynos = kzalloc(sizeof(*exynos), GFP_KERNEL);
+	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
 	if (!exynos) {
-		dev_err(&pdev->dev, "not enough memory\n");
-		goto err0;
+		dev_err(dev, "not enough memory\n");
+		return -ENOMEM;
 	}
+
+	/*
+	 * Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we move to full device tree support this will vanish off.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &dwc3_exynos_dma_mask;
 
 	platform_set_drvdata(pdev, exynos);
 
-	devid = dwc3_get_device_id();
-	if (devid < 0)
-		goto err1;
-
 	ret = dwc3_exynos_register_phys(exynos);
 	if (ret) {
-		dev_err(&pdev->dev, "couldn't register PHYs\n");
+		dev_err(dev, "couldn't register PHYs\n");
+		return ret;
+	}
+
+	dwc3 = platform_device_alloc("dwc3", PLATFORM_DEVID_AUTO);
+	if (!dwc3) {
+		dev_err(dev, "couldn't allocate dwc3 device\n");
+		return -ENOMEM;
+	}
+
+	clk = devm_clk_get(dev, "usbdrd30");
+	if (IS_ERR(clk)) {
+		dev_err(dev, "couldn't get clock\n");
+		ret = -EINVAL;
 		goto err1;
 	}
 
-	dwc3 = platform_device_alloc("dwc3", devid);
-	if (!dwc3) {
-		dev_err(&pdev->dev, "couldn't allocate dwc3 device\n");
-		goto err2;
-	}
+	dma_set_coherent_mask(&dwc3->dev, dev->coherent_dma_mask);
 
-	clk = clk_get(&pdev->dev, "usbdrd30");
-	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "couldn't get clock\n");
-		ret = -EINVAL;
-		goto err3;
-	}
-
-	dma_set_coherent_mask(&dwc3->dev, pdev->dev.coherent_dma_mask);
-
-	dwc3->dev.parent = &pdev->dev;
-	dwc3->dev.dma_mask = pdev->dev.dma_mask;
-	dwc3->dev.dma_parms = pdev->dev.dma_parms;
+	dwc3->dev.parent = dev;
+	dwc3->dev.dma_mask = dev->dma_mask;
+	dwc3->dev.dma_parms = dev->dma_parms;
 	exynos->dwc3	= dwc3;
-	exynos->dev	= &pdev->dev;
+	exynos->dev	= dev;
 	exynos->clk	= clk;
 
 	clk_enable(exynos->clk);
 
-	/* PHY initialization */
-	if (!pdata) {
-		dev_dbg(&pdev->dev, "missing platform data\n");
-	} else {
-		if (pdata->phy_init)
-			pdata->phy_init(pdev, pdata->phy_type);
-	}
-
 	ret = platform_device_add_resources(dwc3, pdev->resource,
 			pdev->num_resources);
 	if (ret) {
-		dev_err(&pdev->dev, "couldn't add resources to dwc3 device\n");
-		goto err4;
+		dev_err(dev, "couldn't add resources to dwc3 device\n");
+		goto err2;
 	}
 
 	ret = platform_device_add(dwc3);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register dwc3 device\n");
-		goto err4;
+		dev_err(dev, "failed to register dwc3 device\n");
+		goto err2;
 	}
 
 	return 0;
 
-err4:
-	if (pdata && pdata->phy_exit)
-		pdata->phy_exit(pdev, pdata->phy_type);
-
-	clk_disable(clk);
-	clk_put(clk);
-err3:
-	platform_device_put(dwc3);
 err2:
-	dwc3_put_device_id(devid);
+	clk_disable(clk);
 err1:
-	kfree(exynos);
-err0:
+	platform_device_put(dwc3);
+
 	return ret;
 }
 
-static int __devexit dwc3_exynos_remove(struct platform_device *pdev)
+static int dwc3_exynos_remove(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos = platform_get_drvdata(pdev);
-	struct dwc3_exynos_data *pdata = pdev->dev.platform_data;
 
 	platform_device_unregister(exynos->dwc3);
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
 
-	dwc3_put_device_id(exynos->dwc3->id);
-
-	if (pdata && pdata->phy_exit)
-		pdata->phy_exit(pdev, pdata->phy_type);
-
 	clk_disable(exynos->clk);
-	clk_put(exynos->clk);
-
-	kfree(exynos);
 
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id exynos_dwc3_match[] = {
+	{ .compatible = "samsung,exynos5250-dwusb3" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_dwc3_match);
+#endif
+
 static struct platform_driver dwc3_exynos_driver = {
 	.probe		= dwc3_exynos_probe,
-	.remove		= __devexit_p(dwc3_exynos_remove),
+	.remove		= dwc3_exynos_remove,
 	.driver		= {
 		.name	= "exynos-dwc3",
+		.of_match_table = of_match_ptr(exynos_dwc3_match),
 	},
 };
 

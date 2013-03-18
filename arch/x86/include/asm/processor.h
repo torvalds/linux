@@ -89,7 +89,6 @@ struct cpuinfo_x86 {
 	char			wp_works_ok;	/* It doesn't on 386's */
 
 	/* Problems on some 486Dx4's and old 386's: */
-	char			hlt_works_ok;
 	char			hard_math;
 	char			rfu;
 	char			fdiv_bug;
@@ -165,20 +164,9 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 
 extern const struct seq_operations cpuinfo_op;
 
-static inline int hlt_works(int cpu)
-{
-#ifdef CONFIG_X86_32
-	return cpu_data(cpu).hlt_works_ok;
-#else
-	return 1;
-#endif
-}
-
 #define cache_line_size()	(boot_cpu_data.x86_cache_alignment)
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
-
-extern struct pt_regs *idle_regs(struct pt_regs *);
 
 extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
@@ -187,11 +175,19 @@ extern void print_cpu_info(struct cpuinfo_x86 *);
 void print_cpu_msr(struct cpuinfo_x86 *);
 extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
-extern unsigned short num_cache_leaves;
+extern void init_amd_cacheinfo(struct cpuinfo_x86 *c);
 
 extern void detect_extended_topology(struct cpuinfo_x86 *c);
 extern void detect_ht(struct cpuinfo_x86 *c);
 
+#ifdef CONFIG_X86_32
+extern int have_cpuid_p(void);
+#else
+static inline int have_cpuid_p(void)
+{
+	return 1;
+}
+#endif
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 				unsigned int *ecx, unsigned int *edx)
 {
@@ -672,18 +668,29 @@ static inline void sync_core(void)
 {
 	int tmp;
 
-#if defined(CONFIG_M386) || defined(CONFIG_M486)
-	if (boot_cpu_data.x86 < 5)
-		/* There is no speculative execution.
-		 * jmp is a barrier to prefetching. */
-		asm volatile("jmp 1f\n1:\n" ::: "memory");
-	else
+#ifdef CONFIG_M486
+	/*
+	 * Do a CPUID if available, otherwise do a jump.  The jump
+	 * can conveniently enough be the jump around CPUID.
+	 */
+	asm volatile("cmpl %2,%1\n\t"
+		     "jl 1f\n\t"
+		     "cpuid\n"
+		     "1:"
+		     : "=a" (tmp)
+		     : "rm" (boot_cpu_data.cpuid_level), "ri" (0), "0" (1)
+		     : "ebx", "ecx", "edx", "memory");
+#else
+	/*
+	 * CPUID is a barrier to speculative execution.
+	 * Prefetched instructions are automatically
+	 * invalidated when modified.
+	 */
+	asm volatile("cpuid"
+		     : "=a" (tmp)
+		     : "0" (1)
+		     : "ebx", "ecx", "edx", "memory");
 #endif
-		/* cpuid is a barrier to speculative execution.
-		 * Prefetched instructions are automatically
-		 * invalidated when modified. */
-		asm volatile("cpuid" : "=a" (tmp) : "0" (1)
-			     : "ebx", "ecx", "edx", "memory");
 }
 
 static inline void __monitor(const void *eax, unsigned long ecx,
@@ -716,12 +723,13 @@ extern unsigned long		boot_option_idle_override;
 extern bool			amd_e400_c1e_detected;
 
 enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_NOMWAIT,
-			 IDLE_POLL, IDLE_FORCE_MWAIT};
+			 IDLE_POLL};
 
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
 extern void early_trap_init(void);
+void early_trap_pf_init(void);
 
 /* Defined in head.S */
 extern struct desc_ptr		early_gdt_descr;
@@ -934,7 +942,7 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
 
-extern int amd_get_nb_id(int cpu);
+extern u16 amd_get_nb_id(int cpu);
 
 struct aperfmperf {
 	u64 aperf, mperf;
@@ -989,7 +997,11 @@ extern unsigned long arch_align_stack(unsigned long sp);
 extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
 
 void default_idle(void);
-bool set_pm_idle_to_default(void);
+#ifdef	CONFIG_XEN
+bool xen_set_default_idle(void);
+#else
+#define xen_set_default_idle 0
+#endif
 
 void stop_this_cpu(void *dummy);
 

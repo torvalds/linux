@@ -279,12 +279,12 @@ static const struct v4l2_subdev_ops hdmiphy_ops = {
 	.video = &hdmiphy_video_ops,
 };
 
-static int __devinit hdmiphy_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int hdmiphy_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct hdmiphy_ctx *ctx;
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -295,7 +295,7 @@ static int __devinit hdmiphy_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit hdmiphy_remove(struct i2c_client *client)
+static int hdmiphy_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct hdmiphy_ctx *ctx = sd_to_ctx(sd);
@@ -322,7 +322,7 @@ static struct i2c_driver hdmiphy_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= hdmiphy_probe,
-	.remove		= __devexit_p(hdmiphy_remove),
+	.remove		= hdmiphy_remove,
 	.id_table = hdmiphy_id,
 };
 

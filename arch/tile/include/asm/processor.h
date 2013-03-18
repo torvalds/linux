@@ -211,6 +211,7 @@ static inline void start_thread(struct pt_regs *regs,
 {
 	regs->pc = pc;
 	regs->sp = usp;
+	single_step_execve();
 }
 
 /* Free all resources held by a thread. */
@@ -218,8 +219,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 	/* Nothing for now */
 }
-
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 extern int do_work_pending(struct pt_regs *regs, u32 flags);
 
@@ -239,6 +238,9 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_TOP(task)	(task_ksp0(task) - STACK_TOP_DELTA)
 #define task_pt_regs(task) \
   ((struct pt_regs *)(task_ksp0(task) - KSTK_PTREGS_GAP) - 1)
+#define current_pt_regs()                                   \
+  ((struct pt_regs *)((stack_pointer | (THREAD_SIZE - 1)) - \
+                      (KSTK_PTREGS_GAP - 1)) - 1)
 #define task_sp(task)	(task_pt_regs(task)->sp)
 #define task_pc(task)	(task_pt_regs(task)->pc)
 /* Aliases for pc and sp (used in fs/proc/array.c) */

@@ -33,12 +33,11 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx35.h>
-#include <mach/ulpi.h>
-
+#include "common.h"
 #include "devices-imx35.h"
+#include "hardware.h"
+#include "iomux-mx35.h"
+#include "ulpi.h"
 
 static const struct fb_videomode fb_modedb[] = {
 	{
@@ -395,10 +394,6 @@ static void __init pcm043_timer_init(void)
 	mx35_clocks_init();
 }
 
-static struct sys_timer pcm043_timer = {
-	.init	= pcm043_timer_init,
-};
-
 MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	/* Maintainer: Pengutronix */
 	.atag_offset = 0x100,
@@ -406,7 +401,7 @@ MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.handle_irq = imx35_handle_irq,
-	.timer = &pcm043_timer,
+	.init_time = pcm043_timer_init,
 	.init_machine = pcm043_init,
 	.restart	= mxc_restart,
 MACHINE_END

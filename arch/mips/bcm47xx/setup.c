@@ -35,7 +35,7 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <bcm47xx.h>
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 
 union bcm47xx_bus bcm47xx_bus;
 EXPORT_SYMBOL(bcm47xx_bus);
@@ -94,7 +94,7 @@ static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
-		bcm47xx_fill_sprom(out, prefix);
+		bcm47xx_fill_sprom(out, prefix, false);
 		return 0;
 	} else {
 		printk(KERN_WARNING "bcm47xx: unable to fill SPROM for given bustype.\n");
@@ -113,9 +113,9 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 	bcm47xx_fill_ssb_boardinfo(&iv->boardinfo, NULL);
 
 	memset(&iv->sprom, 0, sizeof(struct ssb_sprom));
-	bcm47xx_fill_sprom(&iv->sprom, NULL);
+	bcm47xx_fill_sprom(&iv->sprom, NULL, false);
 
-	if (nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
+	if (bcm47xx_nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
 		iv->has_cardbus_slot = !!simple_strtoul(buf, NULL, 10);
 
 	return 0;
@@ -138,7 +138,7 @@ static void __init bcm47xx_register_ssb(void)
 		panic("Failed to initialize SSB bus (err %d)", err);
 
 	mcore = &bcm47xx_bus.ssb.mipscore;
-	if (nvram_getenv("kernel_args", buf, sizeof(buf)) >= 0) {
+	if (bcm47xx_nvram_getenv("kernel_args", buf, sizeof(buf)) >= 0) {
 		if (strstr(buf, "console=ttyS1")) {
 			struct ssb_serial_port port;
 
@@ -165,16 +165,17 @@ static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
-		bcm47xx_fill_sprom(out, prefix);
+		bcm47xx_fill_sprom(out, prefix, false);
 		return 0;
 	case BCMA_HOSTTYPE_SOC:
 		memset(out, 0, sizeof(struct ssb_sprom));
-		bcm47xx_fill_sprom_ethernet(out, NULL);
 		core = bcma_find_core(bus, BCMA_CORE_80211);
 		if (core) {
 			snprintf(prefix, sizeof(prefix), "sb/%u/",
 				 core->core_index);
-			bcm47xx_fill_sprom(out, prefix);
+			bcm47xx_fill_sprom(out, prefix, true);
+		} else {
+			bcm47xx_fill_sprom(out, NULL, false);
 		}
 		return 0;
 	default:

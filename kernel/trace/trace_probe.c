@@ -441,7 +441,7 @@ static const struct fetch_type *find_fetch_type(const char *type)
 			goto fail;
 
 		type++;
-		if (strict_strtoul(type, 0, &bs))
+		if (kstrtoul(type, 0, &bs))
 			goto fail;
 
 		switch (bs) {
@@ -501,8 +501,8 @@ int traceprobe_split_symbol_offset(char *symbol, unsigned long *offset)
 
 	tmp = strchr(symbol, '+');
 	if (tmp) {
-		/* skip sign because strict_strtol doesn't accept '+' */
-		ret = strict_strtoul(tmp + 1, 0, offset);
+		/* skip sign because kstrtoul doesn't accept '+' */
+		ret = kstrtoul(tmp + 1, 0, offset);
 		if (ret)
 			return ret;
 
@@ -533,7 +533,7 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 			else
 				ret = -EINVAL;
 		} else if (isdigit(arg[5])) {
-			ret = strict_strtoul(arg + 5, 10, &param);
+			ret = kstrtoul(arg + 5, 10, &param);
 			if (ret || param > PARAM_MAX_STACK)
 				ret = -EINVAL;
 			else {
@@ -579,7 +579,7 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
 
 	case '@':	/* memory or symbol */
 		if (isdigit(arg[1])) {
-			ret = strict_strtoul(arg + 1, 0, &param);
+			ret = kstrtoul(arg + 1, 0, &param);
 			if (ret)
 				break;
 
@@ -597,14 +597,14 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
 		break;
 
 	case '+':	/* deref memory */
-		arg++;	/* Skip '+', because strict_strtol() rejects it. */
+		arg++;	/* Skip '+', because kstrtol() rejects it. */
 	case '-':
 		tmp = strchr(arg, '(');
 		if (!tmp)
 			break;
 
 		*tmp = '\0';
-		ret = strict_strtol(arg, 0, &offset);
+		ret = kstrtol(arg, 0, &offset);
 
 		if (ret)
 			break;

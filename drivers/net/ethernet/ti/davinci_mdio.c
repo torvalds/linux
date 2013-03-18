@@ -310,7 +310,7 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 }
 
 
-static int __devinit davinci_mdio_probe(struct platform_device *pdev)
+static int davinci_mdio_probe(struct platform_device *pdev)
 {
 	struct mdio_platform_data *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
@@ -320,10 +320,8 @@ static int __devinit davinci_mdio_probe(struct platform_device *pdev)
 	int ret, addr;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(dev, "failed to alloc device data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->bus = mdiobus_alloc();
 	if (!data->bus) {
@@ -416,7 +414,7 @@ bail_out:
 	return ret;
 }
 
-static int __devexit davinci_mdio_remove(struct platform_device *pdev)
+static int davinci_mdio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct davinci_mdio_data *data = dev_get_drvdata(dev);
@@ -465,7 +463,7 @@ static int davinci_mdio_resume(struct device *dev)
 	u32 ctrl;
 
 	spin_lock(&data->lock);
-	pm_runtime_put_sync(data->dev);
+	pm_runtime_get_sync(data->dev);
 
 	/* restart the scan state machine */
 	ctrl = __raw_readl(&data->regs->control);
@@ -496,7 +494,7 @@ static struct platform_driver davinci_mdio_driver = {
 		.of_match_table = of_match_ptr(davinci_mdio_of_mtable),
 	},
 	.probe = davinci_mdio_probe,
-	.remove = __devexit_p(davinci_mdio_remove),
+	.remove = davinci_mdio_remove,
 };
 
 static int __init davinci_mdio_init(void)

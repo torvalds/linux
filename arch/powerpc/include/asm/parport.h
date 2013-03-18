@@ -12,7 +12,7 @@
 
 #include <asm/prom.h>
 
-static int __devinit parport_pc_find_nonpci_ports (int autoirq, int autodma)
+static int parport_pc_find_nonpci_ports (int autoirq, int autodma)
 {
 	struct device_node *np;
 	const u32 *prop;

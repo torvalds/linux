@@ -25,11 +25,11 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 
 #include <linux/gpio.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 static void __init rsi_ews_init_early(void)
@@ -222,7 +222,7 @@ static void __init rsi_ews_board_init(void)
 
 MACHINE_START(RSI_EWS, "RSI EWS")
 	/* Maintainer: Josef Holzmayr <holzmayr@rsi-elektrotechnik.de> */
-	.timer		= &at91rm9200_timer,
+	.init_time	= at91rm9200_timer_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= rsi_ews_init_early,

@@ -37,6 +37,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/usb/musb-omap.h>
+#include <linux/usb/omap_control_usb.h>
 
 #include "musb_core.h"
 #include "omap2430.h"
@@ -46,33 +47,13 @@ struct omap2430_glue {
 	struct platform_device	*musb;
 	enum omap_musb_vbus_id_status status;
 	struct work_struct	omap_musb_mailbox_work;
-	u32 __iomem		*control_otghs;
+	struct device		*control_otghs;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
-struct omap2430_glue		*_glue;
+static struct omap2430_glue	*_glue;
 
 static struct timer_list musb_idle_timer;
-
-/**
- * omap4_usb_phy_mailbox - write to usb otg mailbox
- * @glue: struct omap2430_glue *
- * @val: the value to be written to the mailbox
- *
- * On detection of a device (ID pin is grounded), this API should be called
- * to set AVALID, VBUSVALID and ID pin is grounded.
- *
- * When OMAP is connected to a host (OMAP in device mode), this API
- * is called to set AVALID, VBUSVALID and ID pin in high impedance.
- *
- * XXX: This function will be removed once we have a seperate driver for
- * control module
- */
-static void omap4_usb_phy_mailbox(struct omap2430_glue *glue, u32 val)
-{
-	if (glue->control_otghs)
-		writel(val, glue->control_otghs);
-}
 
 static void musb_do_idle(unsigned long _musb)
 {
@@ -255,11 +236,15 @@ static inline void omap2430_low_level_init(struct musb *musb)
 void omap_musb_mailbox(enum omap_musb_vbus_id_status status)
 {
 	struct omap2430_glue	*glue = _glue;
-	struct musb		*musb = glue_to_musb(glue);
 
+	if (!glue) {
+		pr_err("%s: musb core is not yet initialized\n", __func__);
+		return;
+	}
 	glue->status = status;
-	if (!musb) {
-		dev_err(glue->dev, "musb core is not yet ready\n");
+
+	if (!glue_to_musb(glue)) {
+		pr_err("%s: musb core is not yet ready\n", __func__);
 		return;
 	}
 
@@ -269,7 +254,6 @@ EXPORT_SYMBOL_GPL(omap_musb_mailbox);
 
 static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 {
-	u32 val;
 	struct musb *musb = glue_to_musb(glue);
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *pdata = dev->platform_data;
@@ -285,8 +269,8 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		musb->xceiv->last_event = USB_EVENT_ID;
 		if (musb->gadget_driver) {
 			pm_runtime_get_sync(dev);
-			val = AVALID | VBUSVALID;
-			omap4_usb_phy_mailbox(glue, val);
+			omap_control_usb_set_mode(glue->control_otghs,
+				USB_MODE_HOST);
 			omap2430_musb_set_vbus(musb, 1);
 		}
 		break;
@@ -299,8 +283,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		musb->xceiv->last_event = USB_EVENT_VBUS;
 		if (musb->gadget_driver)
 			pm_runtime_get_sync(dev);
-		val = IDDIG | AVALID | VBUSVALID;
-		omap4_usb_phy_mailbox(glue, val);
+		omap_control_usb_set_mode(glue->control_otghs, USB_MODE_DEVICE);
 		break;
 
 	case OMAP_MUSB_ID_FLOAT:
@@ -317,8 +300,8 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 			if (musb->xceiv->otg->set_vbus)
 				otg_set_vbus(musb->xceiv->otg, 0);
 		}
-		val = SESSEND | IDDIG;
-		omap4_usb_phy_mailbox(glue, val);
+		omap_control_usb_set_mode(glue->control_otghs,
+			USB_MODE_DISCONNECT);
 		break;
 	default:
 		dev_dbg(dev, "ID float\n");
@@ -331,6 +314,26 @@ static void omap_musb_mailbox_work(struct work_struct *mailbox_work)
 	struct omap2430_glue *glue = container_of(mailbox_work,
 				struct omap2430_glue, omap_musb_mailbox_work);
 	omap_musb_set_mailbox(glue);
+}
+
+static irqreturn_t omap2430_musb_interrupt(int irq, void *__hci)
+{
+	unsigned long   flags;
+	irqreturn_t     retval = IRQ_NONE;
+	struct musb     *musb = __hci;
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB);
+	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX);
+	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX);
+
+	if (musb->int_usb || musb->int_tx || musb->int_rx)
+		retval = musb_interrupt(musb);
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+
+	return retval;
 }
 
 static int omap2430_musb_init(struct musb *musb)
@@ -346,11 +349,18 @@ static int omap2430_musb_init(struct musb *musb)
 	 * up through ULPI.  TWL4030-family PMICs include one,
 	 * which needs a driver, drivers aren't always needed.
 	 */
-	musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (dev->parent->of_node)
+		musb->xceiv = devm_usb_get_phy_by_phandle(dev->parent,
+		    "usb-phy", 0);
+	else
+		musb->xceiv = devm_usb_get_phy_dev(dev, 0);
+
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		pr_err("HS USB OTG: no transceiver configured\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
+
+	musb->isr = omap2430_musb_interrupt;
 
 	status = pm_runtime_get_sync(dev);
 	if (status < 0) {
@@ -393,7 +403,6 @@ err1:
 static void omap2430_musb_enable(struct musb *musb)
 {
 	u8		devctl;
-	u32		val;
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
@@ -403,8 +412,7 @@ static void omap2430_musb_enable(struct musb *musb)
 	switch (glue->status) {
 
 	case OMAP_MUSB_ID_GROUND:
-		val = AVALID | VBUSVALID;
-		omap4_usb_phy_mailbox(glue, val);
+		omap_control_usb_set_mode(glue->control_otghs, USB_MODE_HOST);
 		if (data->interface_type != MUSB_INTERFACE_UTMI)
 			break;
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -423,8 +431,7 @@ static void omap2430_musb_enable(struct musb *musb)
 		break;
 
 	case OMAP_MUSB_VBUS_VALID:
-		val = IDDIG | AVALID | VBUSVALID;
-		omap4_usb_phy_mailbox(glue, val);
+		omap_control_usb_set_mode(glue->control_otghs, USB_MODE_DEVICE);
 		break;
 
 	default:
@@ -434,14 +441,12 @@ static void omap2430_musb_enable(struct musb *musb)
 
 static void omap2430_musb_disable(struct musb *musb)
 {
-	u32 val;
 	struct device *dev = musb->controller;
 	struct omap2430_glue *glue = dev_get_drvdata(dev->parent);
 
-	if (glue->status != OMAP_MUSB_UNKNOWN) {
-		val = SESSEND | IDDIG;
-		omap4_usb_phy_mailbox(glue, val);
-	}
+	if (glue->status != OMAP_MUSB_UNKNOWN)
+		omap_control_usb_set_mode(glue->control_otghs,
+			USB_MODE_DISCONNECT);
 }
 
 static int omap2430_musb_exit(struct musb *musb)
@@ -468,7 +473,7 @@ static const struct musb_platform_ops omap2430_ops = {
 
 static u64 omap2430_dmamask = DMA_BIT_MASK(32);
 
-static int __devinit omap2430_probe(struct platform_device *pdev)
+static int omap2430_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct omap_musb_board_data	*data;
@@ -476,9 +481,7 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 	struct omap2430_glue		*glue;
 	struct device_node		*np = pdev->dev.of_node;
 	struct musb_hdrc_config		*config;
-	struct resource			*res;
 	int				ret = -ENOMEM;
-	int				musbid;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -486,21 +489,12 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	/* get the musb id */
-	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
-	if (musbid < 0) {
-		dev_err(&pdev->dev, "failed to allocate musb id\n");
-		ret = -ENOMEM;
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
+	if (!musb) {
+		dev_err(&pdev->dev, "failed to allocate musb device\n");
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", musbid);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
-	}
-
-	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &omap2430_dmamask;
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
@@ -509,34 +503,26 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 	glue->musb			= musb;
 	glue->status			= OMAP_MUSB_UNKNOWN;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-
-	glue->control_otghs = devm_request_and_ioremap(&pdev->dev, res);
-	if (glue->control_otghs == NULL)
-		dev_dbg(&pdev->dev, "Failed to obtain control memory\n");
-
 	if (np) {
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			dev_err(&pdev->dev,
 				"failed to allocate musb platfrom data\n");
-			ret = -ENOMEM;
-			goto err1;
+			goto err2;
 		}
 
 		data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 		if (!data) {
 			dev_err(&pdev->dev,
-					"failed to allocate musb board data\n");
-			ret = -ENOMEM;
-			goto err1;
+				"failed to allocate musb board data\n");
+			goto err2;
 		}
 
 		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
-		if (!data) {
+		if (!config) {
 			dev_err(&pdev->dev,
 				"failed to allocate musb hdrc config\n");
-			goto err1;
+			goto err2;
 		}
 
 		of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
@@ -546,11 +532,22 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 		of_property_read_u32(np, "ram_bits", (u32 *)&config->ram_bits);
 		of_property_read_u32(np, "power", (u32 *)&pdata->power);
 		config->multipoint = of_property_read_bool(np, "multipoint");
+		pdata->has_mailbox = of_property_read_bool(np,
+		    "ti,has-mailbox");
 
 		pdata->board_data	= data;
 		pdata->config		= config;
 	}
 
+	if (pdata->has_mailbox) {
+		glue->control_otghs = omap_get_control_dev();
+		if (IS_ERR(glue->control_otghs)) {
+			dev_vdbg(&pdev->dev, "Failed to get control device\n");
+			return -ENODEV;
+		}
+	} else {
+		glue->control_otghs = ERR_PTR(-ENODEV);
+	}
 	pdata->platform_ops		= &omap2430_ops;
 
 	platform_set_drvdata(pdev, glue);
@@ -589,19 +586,15 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 err2:
 	platform_device_put(musb);
 
-err1:
-	musb_put_id(&pdev->dev, musbid);
-
 err0:
 	return ret;
 }
 
-static int __devexit omap2430_remove(struct platform_device *pdev)
+static int omap2430_remove(struct platform_device *pdev)
 {
 	struct omap2430_glue		*glue = platform_get_drvdata(pdev);
 
 	cancel_work_sync(&glue->omap_musb_mailbox_work);
-	musb_put_id(&pdev->dev, glue->musb->id);
 	platform_device_unregister(glue->musb);
 
 	return 0;
@@ -666,7 +659,7 @@ MODULE_DEVICE_TABLE(of, omap2430_id_table);
 
 static struct platform_driver omap2430_driver = {
 	.probe		= omap2430_probe,
-	.remove		= __devexit_p(omap2430_remove),
+	.remove		= omap2430_remove,
 	.driver		= {
 		.name	= "musb-omap2430",
 		.pm	= DEV_PM_OPS,

@@ -1039,7 +1039,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit asic3_remove(struct platform_device *pdev)
+static int asic3_remove(struct platform_device *pdev)
 {
 	int ret;
 	struct asic3 *asic = platform_get_drvdata(pdev);
@@ -1071,7 +1071,7 @@ static struct platform_driver asic3_device_driver = {
 	.driver		= {
 		.name	= "asic3",
 	},
-	.remove		= __devexit_p(asic3_remove),
+	.remove		= asic3_remove,
 	.shutdown	= asic3_shutdown,
 };
 

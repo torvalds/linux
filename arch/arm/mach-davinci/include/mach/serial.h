@@ -38,11 +38,12 @@
 
 #ifndef __ASSEMBLY__
 struct davinci_uart_config {
-	/* Bit field of UARTs present; bit 0 --> UART1 */
+	/* Bit field of UARTs present; bit 0 --> UART0 */
 	unsigned int enabled_uarts;
 };
 
 extern int davinci_serial_init(struct davinci_uart_config *);
+extern int davinci_serial_setup_clk(unsigned instance, unsigned int *rate);
 #endif
 
 #endif /* __ASM_ARCH_SERIAL_H */

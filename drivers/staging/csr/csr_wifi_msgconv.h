@@ -14,11 +14,6 @@
 #include "csr_prim_defs.h"
 #include "csr_sched.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 void CsrUint16SerBigEndian(u8 *ptr, size_t *len, u16 v);
 void CsrUint24SerBigEndian(u8 *ptr, size_t *len, u32 v);
 void CsrUint32SerBigEndian(u8 *ptr, size_t *len, u32 v);
@@ -50,9 +45,5 @@ void* CsrWifiEventCsrUint32Des(u8 *buffer, size_t length);
 size_t CsrWifiEventCsrUint16CsrUint8Sizeof(void *msg);
 u8* CsrWifiEventCsrUint16CsrUint8Ser(u8 *ptr, size_t *len, void *msg);
 void* CsrWifiEventCsrUint16CsrUint8Des(u8 *buffer, size_t length);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_MSGCONV_H__ */

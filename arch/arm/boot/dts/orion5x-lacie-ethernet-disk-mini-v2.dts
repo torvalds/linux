@@ -1,0 +1,55 @@
+/*
+ * Copyright (C) 2012 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2. This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "orion5x.dtsi"
+
+/ {
+	model = "LaCie Ethernet Disk mini V2";
+	compatible = "lacie,ethernet-disk-mini-v2", "marvell,orion5x-88f5182", "marvell,orion5x";
+
+	memory {
+		reg = <0x00000000 0x4000000>; /* 64 MB */
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	ocp@f1000000 {
+		serial@12000 {
+			clock-frequency = <166666667>;
+			status = "okay";
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "Power-on Switch";
+			linux,code = <116>; /* KEY_POWER */
+			gpios = <&gpio0 18 0>;
+		};
+	};
+
+	gpio_leds {
+		compatible = "gpio-leds";
+
+		led@1 {
+			label = "power:blue";
+			gpios = <&gpio0 16 1>;
+		};
+	};
+};

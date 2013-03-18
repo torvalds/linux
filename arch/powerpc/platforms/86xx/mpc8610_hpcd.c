@@ -236,14 +236,14 @@ void mpc8610hpcd_set_pixel_clock(unsigned int pixclock)
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,mpc8610-guts");
 	if (!guts_np) {
-		pr_err("mpc8610hpcd: missing global utilties device node\n");
+		pr_err("mpc8610hpcd: missing global utilities device node\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
 	of_node_put(guts_np);
 	if (!guts) {
-		pr_err("mpc8610hpcd: could not map global utilties device\n");
+		pr_err("mpc8610hpcd: could not map global utilities device\n");
 		return;
 	}
 
@@ -353,5 +353,7 @@ define_machine(mpc86xx_hpcd) {
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+#ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
 };

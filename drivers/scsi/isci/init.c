@@ -282,7 +282,7 @@ static void isci_unregister(struct isci_host *isci_host)
 	scsi_host_put(shost);
 }
 
-static int __devinit isci_pci_init(struct pci_dev *pdev)
+static int isci_pci_init(struct pci_dev *pdev)
 {
 	int err, bar_num, bar_mask = 0;
 	void __iomem * const *iomap;
@@ -616,7 +616,7 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	return NULL;
 }
 
-static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct isci_pci_info *pci_info;
 	int err, i;
@@ -633,7 +633,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pci_info);
 
-	if (efi_enabled)
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		orom = isci_get_efi_var(pdev);
 
 	if (!orom)
@@ -709,7 +709,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	return err;
 }
 
-static void __devexit isci_pci_remove(struct pci_dev *pdev)
+static void isci_pci_remove(struct pci_dev *pdev)
 {
 	struct isci_host *ihost;
 	int i;
@@ -778,7 +778,7 @@ static struct pci_driver isci_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= isci_id_table,
 	.probe		= isci_pci_probe,
-	.remove		= __devexit_p(isci_pci_remove),
+	.remove		= isci_pci_remove,
 #ifdef CONFIG_PM
 	.driver.pm      = &isci_pm_ops,
 #endif

@@ -78,7 +78,7 @@ extern void vga_set_legacy_decoding(struct pci_dev *pdev,
  *     This function acquires VGA resources for the given
  *     card and mark those resources locked. If the resource requested
  *     are "normal" (and not legacy) resources, the arbiter will first check
- *     wether the card is doing legacy decoding for that type of resource. If
+ *     whether the card is doing legacy decoding for that type of resource. If
  *     yes, the lock is "converted" into a legacy resource lock.
  *     The arbiter will first look for all VGA cards that might conflict
  *     and disable their IOs and/or Memory access, including VGA forwarding
@@ -89,7 +89,7 @@ extern void vga_set_legacy_decoding(struct pci_dev *pdev,
  *     This function will block if some conflicting card is already locking
  *     one of the required resources (or any resource on a different bus
  *     segment, since P2P bridges don't differenciate VGA memory and IO
- *     afaik). You can indicate wether this blocking should be interruptible
+ *     afaik). You can indicate whether this blocking should be interruptible
  *     by a signal (for userland interface) or not.
  *     Must not be called at interrupt time or in atomic context.
  *     If the card already owns the resources, the function succeeds.

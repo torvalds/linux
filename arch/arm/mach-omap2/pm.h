@@ -33,7 +33,6 @@ static inline int omap4_idle_init(void)
 extern void *omap3_secure_ram_storage;
 extern void omap3_pm_off_mode_enable(int);
 extern void omap_sram_idle(void);
-extern int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state);
 extern int omap_pm_clkdms_setup(struct clockdomain *clkdm, void *unused);
 extern int (*omap_pm_suspend)(void);
 
@@ -102,6 +101,15 @@ extern void enable_omap3630_toggle_l2_on_restore(void);
 static inline void enable_omap3630_toggle_l2_on_restore(void) { }
 #endif		/* defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3) */
 
+#define PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD	(1 << 0)
+
+#if defined(CONFIG_ARCH_OMAP4)
+extern u16 pm44xx_errata;
+#define IS_PM44XX_ERRATUM(id)		(pm44xx_errata & (id))
+#else
+#define IS_PM44XX_ERRATUM(id)		0
+#endif
+
 #ifdef CONFIG_POWER_AVS_OMAP
 extern int omap_devinit_smartreflex(void);
 extern void omap_enable_smartreflex_on_init(void);
@@ -127,6 +135,16 @@ static inline int omap4_twl_init(void)
 {
 	return -EINVAL;
 }
+#endif
+
+#ifdef CONFIG_PM
+extern void omap_pm_setup_oscillator(u32 tstart, u32 tshut);
+extern void omap_pm_get_oscillator(u32 *tstart, u32 *tshut);
+extern void omap_pm_setup_sr_i2c_pcb_length(u32 mm);
+#else
+static inline void omap_pm_setup_oscillator(u32 tstart, u32 tshut) { }
+static inline void omap_pm_get_oscillator(u32 *tstart, u32 *tshut) { *tstart = *tshut = 0; }
+static inline void omap_pm_setup_sr_i2c_pcb_length(u32 mm) { }
 #endif
 
 #endif

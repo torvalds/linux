@@ -35,13 +35,6 @@
 #include "pcxhr_mix22.h"
 
 
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
-#if !defined(CONFIG_USE_PCXHRLOADER) && !defined(CONFIG_SND_PCXHR) /* built-in kernel */
-#define SND_PCXHR_FW_LOADER	/* use the standard firmware loader */
-#endif
-#endif
-
-
 static int pcxhr_sub_init(struct pcxhr_mgr *mgr);
 /*
  * get basic information and init pcxhr card
@@ -362,8 +355,6 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
 /*
  * fw loader entry
  */
-#ifdef SND_PCXHR_FW_LOADER
-
 int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
 {
 	static char *fw_files[][5] = {
@@ -424,80 +415,3 @@ MODULE_FIRMWARE("pcxhr/xlxc924.dat");
 MODULE_FIRMWARE("pcxhr/dspe924.e56");
 MODULE_FIRMWARE("pcxhr/dspb924.b56");
 MODULE_FIRMWARE("pcxhr/dspd222.d56");
-
-
-#else /* old style firmware loading */
-
-/* pcxhr hwdep interface id string */
-#define PCXHR_HWDEP_ID       "pcxhr loader"
-
-
-static int pcxhr_hwdep_dsp_status(struct snd_hwdep *hw,
-				  struct snd_hwdep_dsp_status *info)
-{
-	struct pcxhr_mgr *mgr = hw->private_data;
-	sprintf(info->id, "pcxhr%d", mgr->fw_file_set);
-        info->num_dsps = PCXHR_FIRMWARE_FILES_MAX_INDEX;
-
-	if (hw->dsp_loaded & (1 << PCXHR_FIRMWARE_DSP_MAIN_INDEX))
-		info->chip_ready = 1;
-
-	info->version = PCXHR_DRIVER_VERSION;
-	return 0;
-}
-
-static int pcxhr_hwdep_dsp_load(struct snd_hwdep *hw,
-				struct snd_hwdep_dsp_image *dsp)
-{
-	struct pcxhr_mgr *mgr = hw->private_data;
-	int err;
-	struct firmware fw;
-
-	fw.size = dsp->length;
-	fw.data = vmalloc(fw.size);
-	if (! fw.data) {
-		snd_printk(KERN_ERR "pcxhr: cannot allocate dsp image "
-			   "(%lu bytes)\n", (unsigned long)fw.size);
-		return -ENOMEM;
-	}
-	if (copy_from_user((void *)fw.data, dsp->image, dsp->length)) {
-		vfree(fw.data);
-		return -EFAULT;
-	}
-	err = pcxhr_dsp_load(mgr, dsp->index, &fw);
-	vfree(fw.data);
-	if (err < 0)
-		return err;
-	mgr->dsp_loaded |= 1 << dsp->index;
-	return 0;
-}
-
-int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
-{
-	int err;
-	struct snd_hwdep *hw;
-
-	/* only create hwdep interface for first cardX
-	 * (see "index" module parameter)
-	 */
-	err = snd_hwdep_new(mgr->chip[0]->card, PCXHR_HWDEP_ID, 0, &hw);
-	if (err < 0)
-		return err;
-
-	hw->iface = SNDRV_HWDEP_IFACE_PCXHR;
-	hw->private_data = mgr;
-	hw->ops.dsp_status = pcxhr_hwdep_dsp_status;
-	hw->ops.dsp_load = pcxhr_hwdep_dsp_load;
-	hw->exclusive = 1;
-	/* stereo cards don't need fw_file_0 -> dsp_loaded = 1 */
-	hw->dsp_loaded = mgr->is_hr_stereo ? 1 : 0;
-	mgr->dsp_loaded = 0;
-	sprintf(hw->name, PCXHR_HWDEP_ID);
-
-	err = snd_card_register(mgr->chip[0]->card);
-	if (err < 0)
-		return err;
-	return 0;
-}
-
-#endif /* SND_PCXHR_FW_LOADER */

@@ -481,7 +481,44 @@ struct spear_function spear3xx_timer_2_3_function = {
 	.ngroups = ARRAY_SIZE(timer_2_3_grps),
 };
 
+/* Define muxreg arrays */
+DEFINE_MUXREG(firda_pins, 0, PMX_FIRDA_MASK, 0);
+DEFINE_MUXREG(i2c_pins, 0, PMX_I2C_MASK, 0);
+DEFINE_MUXREG(ssp_cs_pins, 0, PMX_SSP_CS_MASK, 0);
+DEFINE_MUXREG(ssp_pins, 0, PMX_SSP_MASK, 0);
+DEFINE_MUXREG(mii_pins, 0, PMX_MII_MASK, 0);
+DEFINE_MUXREG(gpio0_pin0_pins, 0, PMX_GPIO_PIN0_MASK, 0);
+DEFINE_MUXREG(gpio0_pin1_pins, 0, PMX_GPIO_PIN1_MASK, 0);
+DEFINE_MUXREG(gpio0_pin2_pins, 0, PMX_GPIO_PIN2_MASK, 0);
+DEFINE_MUXREG(gpio0_pin3_pins, 0, PMX_GPIO_PIN3_MASK, 0);
+DEFINE_MUXREG(gpio0_pin4_pins, 0, PMX_GPIO_PIN4_MASK, 0);
+DEFINE_MUXREG(gpio0_pin5_pins, 0, PMX_GPIO_PIN5_MASK, 0);
+DEFINE_MUXREG(uart0_ext_pins, 0, PMX_UART0_MODEM_MASK, 0);
+DEFINE_MUXREG(uart0_pins, 0, PMX_UART0_MASK, 0);
+DEFINE_MUXREG(timer_0_1_pins, 0, PMX_TIMER_0_1_MASK, 0);
+DEFINE_MUXREG(timer_2_3_pins, 0, PMX_TIMER_2_3_MASK, 0);
+
+static struct spear_gpio_pingroup spear3xx_gpio_pingroup[] = {
+	GPIO_PINGROUP(firda_pins),
+	GPIO_PINGROUP(i2c_pins),
+	GPIO_PINGROUP(ssp_cs_pins),
+	GPIO_PINGROUP(ssp_pins),
+	GPIO_PINGROUP(mii_pins),
+	GPIO_PINGROUP(gpio0_pin0_pins),
+	GPIO_PINGROUP(gpio0_pin1_pins),
+	GPIO_PINGROUP(gpio0_pin2_pins),
+	GPIO_PINGROUP(gpio0_pin3_pins),
+	GPIO_PINGROUP(gpio0_pin4_pins),
+	GPIO_PINGROUP(gpio0_pin5_pins),
+	GPIO_PINGROUP(uart0_ext_pins),
+	GPIO_PINGROUP(uart0_pins),
+	GPIO_PINGROUP(timer_0_1_pins),
+	GPIO_PINGROUP(timer_2_3_pins),
+};
+
 struct spear_pinctrl_machdata spear3xx_machdata = {
 	.pins = spear3xx_pins,
 	.npins = ARRAY_SIZE(spear3xx_pins),
+	.gpio_pingroups = spear3xx_gpio_pingroup,
+	.ngpio_pingroups = ARRAY_SIZE(spear3xx_gpio_pingroup),
 };

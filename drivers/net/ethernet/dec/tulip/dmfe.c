@@ -291,8 +291,8 @@ enum dmfe_CR6_bits {
 };
 
 /* Global variable declaration ----------------------------- */
-static int __devinitdata printed_version;
-static const char version[] __devinitconst =
+static int printed_version;
+static const char version[] =
 	"Davicom DM9xxx net driver, version " DRV_VERSION " (" DRV_RELDATE ")";
 
 static int dmfe_debug;
@@ -367,8 +367,7 @@ static const struct net_device_ops netdev_ops = {
  *	Search DM910X board ,allocate space and register it
  */
 
-static int __devinit dmfe_init_one (struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct dmfe_board_info *db;	/* board information structure */
 	struct net_device *dev;
@@ -531,7 +530,7 @@ err_out_free:
 }
 
 
-static void __devexit dmfe_remove_one (struct pci_dev *pdev)
+static void dmfe_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct dmfe_board_info *db = netdev_priv(dev);
@@ -2187,7 +2186,7 @@ static struct pci_driver dmfe_driver = {
 	.name		= "dmfe",
 	.id_table	= dmfe_pci_tbl,
 	.probe		= dmfe_init_one,
-	.remove		= __devexit_p(dmfe_remove_one),
+	.remove		= dmfe_remove_one,
 	.suspend        = dmfe_suspend,
 	.resume         = dmfe_resume
 };

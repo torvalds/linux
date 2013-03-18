@@ -1,6 +1,3 @@
-#ifndef VMX_H
-#define VMX_H
-
 /*
  * vmx.h: VMX Architecture related definitions
  * Copyright (c) 2004, Intel Corporation.
@@ -24,90 +21,12 @@
  *    Yaniv Kamay <yaniv@qumranet.com>
  *
  */
+#ifndef VMX_H
+#define VMX_H
 
-#define VMX_EXIT_REASONS_FAILED_VMENTRY         0x80000000
-
-#define EXIT_REASON_EXCEPTION_NMI       0
-#define EXIT_REASON_EXTERNAL_INTERRUPT  1
-#define EXIT_REASON_TRIPLE_FAULT        2
-
-#define EXIT_REASON_PENDING_INTERRUPT   7
-#define EXIT_REASON_NMI_WINDOW          8
-#define EXIT_REASON_TASK_SWITCH         9
-#define EXIT_REASON_CPUID               10
-#define EXIT_REASON_HLT                 12
-#define EXIT_REASON_INVD                13
-#define EXIT_REASON_INVLPG              14
-#define EXIT_REASON_RDPMC               15
-#define EXIT_REASON_RDTSC               16
-#define EXIT_REASON_VMCALL              18
-#define EXIT_REASON_VMCLEAR             19
-#define EXIT_REASON_VMLAUNCH            20
-#define EXIT_REASON_VMPTRLD             21
-#define EXIT_REASON_VMPTRST             22
-#define EXIT_REASON_VMREAD              23
-#define EXIT_REASON_VMRESUME            24
-#define EXIT_REASON_VMWRITE             25
-#define EXIT_REASON_VMOFF               26
-#define EXIT_REASON_VMON                27
-#define EXIT_REASON_CR_ACCESS           28
-#define EXIT_REASON_DR_ACCESS           29
-#define EXIT_REASON_IO_INSTRUCTION      30
-#define EXIT_REASON_MSR_READ            31
-#define EXIT_REASON_MSR_WRITE           32
-#define EXIT_REASON_INVALID_STATE       33
-#define EXIT_REASON_MWAIT_INSTRUCTION   36
-#define EXIT_REASON_MONITOR_INSTRUCTION 39
-#define EXIT_REASON_PAUSE_INSTRUCTION   40
-#define EXIT_REASON_MCE_DURING_VMENTRY  41
-#define EXIT_REASON_TPR_BELOW_THRESHOLD 43
-#define EXIT_REASON_APIC_ACCESS         44
-#define EXIT_REASON_EPT_VIOLATION       48
-#define EXIT_REASON_EPT_MISCONFIG       49
-#define EXIT_REASON_WBINVD              54
-#define EXIT_REASON_XSETBV              55
-#define EXIT_REASON_INVPCID             58
-
-#define VMX_EXIT_REASONS \
-	{ EXIT_REASON_EXCEPTION_NMI,         "EXCEPTION_NMI" }, \
-	{ EXIT_REASON_EXTERNAL_INTERRUPT,    "EXTERNAL_INTERRUPT" }, \
-	{ EXIT_REASON_TRIPLE_FAULT,          "TRIPLE_FAULT" }, \
-	{ EXIT_REASON_PENDING_INTERRUPT,     "PENDING_INTERRUPT" }, \
-	{ EXIT_REASON_NMI_WINDOW,            "NMI_WINDOW" }, \
-	{ EXIT_REASON_TASK_SWITCH,           "TASK_SWITCH" }, \
-	{ EXIT_REASON_CPUID,                 "CPUID" }, \
-	{ EXIT_REASON_HLT,                   "HLT" }, \
-	{ EXIT_REASON_INVLPG,                "INVLPG" }, \
-	{ EXIT_REASON_RDPMC,                 "RDPMC" }, \
-	{ EXIT_REASON_RDTSC,                 "RDTSC" }, \
-	{ EXIT_REASON_VMCALL,                "VMCALL" }, \
-	{ EXIT_REASON_VMCLEAR,               "VMCLEAR" }, \
-	{ EXIT_REASON_VMLAUNCH,              "VMLAUNCH" }, \
-	{ EXIT_REASON_VMPTRLD,               "VMPTRLD" }, \
-	{ EXIT_REASON_VMPTRST,               "VMPTRST" }, \
-	{ EXIT_REASON_VMREAD,                "VMREAD" }, \
-	{ EXIT_REASON_VMRESUME,              "VMRESUME" }, \
-	{ EXIT_REASON_VMWRITE,               "VMWRITE" }, \
-	{ EXIT_REASON_VMOFF,                 "VMOFF" }, \
-	{ EXIT_REASON_VMON,                  "VMON" }, \
-	{ EXIT_REASON_CR_ACCESS,             "CR_ACCESS" }, \
-	{ EXIT_REASON_DR_ACCESS,             "DR_ACCESS" }, \
-	{ EXIT_REASON_IO_INSTRUCTION,        "IO_INSTRUCTION" }, \
-	{ EXIT_REASON_MSR_READ,              "MSR_READ" }, \
-	{ EXIT_REASON_MSR_WRITE,             "MSR_WRITE" }, \
-	{ EXIT_REASON_MWAIT_INSTRUCTION,     "MWAIT_INSTRUCTION" }, \
-	{ EXIT_REASON_MONITOR_INSTRUCTION,   "MONITOR_INSTRUCTION" }, \
-	{ EXIT_REASON_PAUSE_INSTRUCTION,     "PAUSE_INSTRUCTION" }, \
-	{ EXIT_REASON_MCE_DURING_VMENTRY,    "MCE_DURING_VMENTRY" }, \
-	{ EXIT_REASON_TPR_BELOW_THRESHOLD,   "TPR_BELOW_THRESHOLD" }, \
-	{ EXIT_REASON_APIC_ACCESS,           "APIC_ACCESS" }, \
-	{ EXIT_REASON_EPT_VIOLATION,         "EPT_VIOLATION" }, \
-	{ EXIT_REASON_EPT_MISCONFIG,         "EPT_MISCONFIG" }, \
-	{ EXIT_REASON_WBINVD,                "WBINVD" }
-
-#ifdef __KERNEL__
 
 #include <linux/types.h>
+#include <uapi/asm/vmx.h>
 
 /*
  * Definitions of Primary Processor-Based VM-Execution Controls.
@@ -138,9 +57,12 @@
 #define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
 #define SECONDARY_EXEC_ENABLE_EPT               0x00000002
 #define SECONDARY_EXEC_RDTSCP			0x00000008
+#define SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE   0x00000010
 #define SECONDARY_EXEC_ENABLE_VPID              0x00000020
 #define SECONDARY_EXEC_WBINVD_EXITING		0x00000040
 #define SECONDARY_EXEC_UNRESTRICTED_GUEST	0x00000080
+#define SECONDARY_EXEC_APIC_REGISTER_VIRT       0x00000100
+#define SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY    0x00000200
 #define SECONDARY_EXEC_PAUSE_LOOP_EXITING	0x00000400
 #define SECONDARY_EXEC_ENABLE_INVPCID		0x00001000
 
@@ -178,6 +100,7 @@ enum vmcs_field {
 	GUEST_GS_SELECTOR               = 0x0000080a,
 	GUEST_LDTR_SELECTOR             = 0x0000080c,
 	GUEST_TR_SELECTOR               = 0x0000080e,
+	GUEST_INTR_STATUS               = 0x00000810,
 	HOST_ES_SELECTOR                = 0x00000c00,
 	HOST_CS_SELECTOR                = 0x00000c02,
 	HOST_SS_SELECTOR                = 0x00000c04,
@@ -205,6 +128,14 @@ enum vmcs_field {
 	APIC_ACCESS_ADDR_HIGH		= 0x00002015,
 	EPT_POINTER                     = 0x0000201a,
 	EPT_POINTER_HIGH                = 0x0000201b,
+	EOI_EXIT_BITMAP0                = 0x0000201c,
+	EOI_EXIT_BITMAP0_HIGH           = 0x0000201d,
+	EOI_EXIT_BITMAP1                = 0x0000201e,
+	EOI_EXIT_BITMAP1_HIGH           = 0x0000201f,
+	EOI_EXIT_BITMAP2                = 0x00002020,
+	EOI_EXIT_BITMAP2_HIGH           = 0x00002021,
+	EOI_EXIT_BITMAP3                = 0x00002022,
+	EOI_EXIT_BITMAP3_HIGH           = 0x00002023,
 	GUEST_PHYSICAL_ADDRESS          = 0x00002400,
 	GUEST_PHYSICAL_ADDRESS_HIGH     = 0x00002401,
 	VMCS_LINK_POINTER               = 0x00002800,
@@ -427,9 +358,9 @@ enum vmcs_field {
 
 #define AR_RESERVD_MASK 0xfffe0f00
 
-#define TSS_PRIVATE_MEMSLOT			(KVM_MEMORY_SLOTS + 0)
-#define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	(KVM_MEMORY_SLOTS + 1)
-#define IDENTITY_PAGETABLE_PRIVATE_MEMSLOT	(KVM_MEMORY_SLOTS + 2)
+#define TSS_PRIVATE_MEMSLOT			(KVM_USER_MEM_SLOTS + 0)
+#define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	(KVM_USER_MEM_SLOTS + 1)
+#define IDENTITY_PAGETABLE_PRIVATE_MEMSLOT	(KVM_USER_MEM_SLOTS + 2)
 
 #define VMX_NR_VPIDS				(1 << 16)
 #define VMX_VPID_EXTENT_SINGLE_CONTEXT		1
@@ -445,8 +376,7 @@ enum vmcs_field {
 #define VMX_EPTP_WB_BIT				(1ull << 14)
 #define VMX_EPT_2MB_PAGE_BIT			(1ull << 16)
 #define VMX_EPT_1GB_PAGE_BIT			(1ull << 17)
-#define VMX_EPT_AD_BIT					(1ull << 21)
-#define VMX_EPT_EXTENT_INDIVIDUAL_BIT		(1ull << 24)
+#define VMX_EPT_AD_BIT				    (1ull << 21)
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
 
@@ -525,7 +455,5 @@ enum vm_instruction_error_number {
 	VMXERR_ENTRY_EVENTS_BLOCKED_BY_MOV_SS = 26,
 	VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID = 28,
 };
-
-#endif
 
 #endif

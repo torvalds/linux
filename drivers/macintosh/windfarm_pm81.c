@@ -720,7 +720,7 @@ static int wf_smu_probe(struct platform_device *ddev)
 	return 0;
 }
 
-static int __devexit wf_smu_remove(struct platform_device *ddev)
+static int wf_smu_remove(struct platform_device *ddev)
 {
 	wf_unregister_client(&wf_smu_events);
 
@@ -763,7 +763,7 @@ static int __devexit wf_smu_remove(struct platform_device *ddev)
 
 static struct platform_driver wf_smu_driver = {
         .probe = wf_smu_probe,
-        .remove = __devexit_p(wf_smu_remove),
+        .remove = wf_smu_remove,
 	.driver = {
 		.name = "windfarm",
 		.owner	= THIS_MODULE,

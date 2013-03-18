@@ -215,7 +215,7 @@ static void virtscsi_ctrl_done(struct virtqueue *vq)
 static int virtscsi_kick_event(struct virtio_scsi *vscsi,
 			       struct virtio_scsi_event_node *event_node)
 {
-	int ret;
+	int err;
 	struct scatterlist sg;
 	unsigned long flags;
 
@@ -223,13 +223,14 @@ static int virtscsi_kick_event(struct virtio_scsi *vscsi,
 
 	spin_lock_irqsave(&vscsi->event_vq.vq_lock, flags);
 
-	ret = virtqueue_add_buf(vscsi->event_vq.vq, &sg, 0, 1, event_node, GFP_ATOMIC);
-	if (ret >= 0)
+	err = virtqueue_add_buf(vscsi->event_vq.vq, &sg, 0, 1, event_node,
+				GFP_ATOMIC);
+	if (!err)
 		virtqueue_kick(vscsi->event_vq.vq);
 
 	spin_unlock_irqrestore(&vscsi->event_vq.vq_lock, flags);
 
-	return ret;
+	return err;
 }
 
 static int virtscsi_kick_event_all(struct virtio_scsi *vscsi)
@@ -410,22 +411,23 @@ static int virtscsi_kick_cmd(struct virtio_scsi_target_state *tgt,
 {
 	unsigned int out_num, in_num;
 	unsigned long flags;
-	int ret;
+	int err;
+	bool needs_kick = false;
 
 	spin_lock_irqsave(&tgt->tgt_lock, flags);
 	virtscsi_map_cmd(tgt, cmd, &out_num, &in_num, req_size, resp_size);
 
 	spin_lock(&vq->vq_lock);
-	ret = virtqueue_add_buf(vq->vq, tgt->sg, out_num, in_num, cmd, gfp);
+	err = virtqueue_add_buf(vq->vq, tgt->sg, out_num, in_num, cmd, gfp);
 	spin_unlock(&tgt->tgt_lock);
-	if (ret >= 0)
-		ret = virtqueue_kick_prepare(vq->vq);
+	if (!err)
+		needs_kick = virtqueue_kick_prepare(vq->vq);
 
 	spin_unlock_irqrestore(&vq->vq_lock, flags);
 
-	if (ret > 0)
+	if (needs_kick)
 		virtqueue_notify(vq->vq);
-	return ret;
+	return err;
 }
 
 static int virtscsi_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
@@ -467,8 +469,10 @@ static int virtscsi_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
 
 	if (virtscsi_kick_cmd(tgt, &vscsi->req_vq, cmd,
 			      sizeof cmd->req.cmd, sizeof cmd->resp.cmd,
-			      GFP_ATOMIC) >= 0)
+			      GFP_ATOMIC) == 0)
 		ret = 0;
+	else
+		mempool_free(cmd, virtscsi_cmd_pool);
 
 out:
 	return ret;
@@ -675,7 +679,7 @@ out:
 	return err;
 }
 
-static int __devinit virtscsi_probe(struct virtio_device *vdev)
+static int virtscsi_probe(struct virtio_device *vdev)
 {
 	struct Scsi_Host *shost;
 	struct virtio_scsi *vscsi;
@@ -729,7 +733,7 @@ virtscsi_init_failed:
 	return err;
 }
 
-static void __devexit virtscsi_remove(struct virtio_device *vdev)
+static void virtscsi_remove(struct virtio_device *vdev)
 {
 	struct Scsi_Host *shost = virtio_scsi_host(vdev);
 	struct virtio_scsi *vscsi = shost_priv(shost);
@@ -781,7 +785,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.freeze = virtscsi_freeze,
 	.restore = virtscsi_restore,
 #endif
-	.remove = __devexit_p(virtscsi_remove),
+	.remove = virtscsi_remove,
 };
 
 static int __init init(void)

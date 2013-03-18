@@ -1024,7 +1024,11 @@ ENTRY(aes_sparc64_ecb_encrypt_256)
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
 	 nop
-10:	ldx		[%o1 + 0x00], %g3
+10:	ldd		[%o0 + 0xd0], %f56
+	ldd		[%o0 + 0xd8], %f58
+	ldd		[%o0 + 0xe0], %f60
+	ldd		[%o0 + 0xe8], %f62
+	ldx		[%o1 + 0x00], %g3
 	ldx		[%o1 + 0x08], %g7
 	xor		%g1, %g3, %g3
 	xor		%g2, %g7, %g7
@@ -1128,9 +1132,9 @@ ENTRY(aes_sparc64_ecb_decrypt_256)
 	/* %o0=&key[key_len], %o1=input, %o2=output, %o3=len */
 	ldx		[%o0 - 0x10], %g1
 	subcc		%o3, 0x10, %o3
+	ldx		[%o0 - 0x08], %g2
 	be		10f
-	 ldx		[%o0 - 0x08], %g2
-	sub		%o0, 0xf0, %o0
+	 sub		%o0, 0xf0, %o0
 1:	ldx		[%o1 + 0x00], %g3
 	ldx		[%o1 + 0x08], %g7
 	ldx		[%o1 + 0x10], %o4
@@ -1154,7 +1158,11 @@ ENTRY(aes_sparc64_ecb_decrypt_256)
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
 	 nop
-10:	ldx		[%o1 + 0x00], %g3
+10:	ldd		[%o0 + 0x18], %f56
+	ldd		[%o0 + 0x10], %f58
+	ldd		[%o0 + 0x08], %f60
+	ldd		[%o0 + 0x00], %f62
+	ldx		[%o1 + 0x00], %g3
 	ldx		[%o1 + 0x08], %g7
 	xor		%g1, %g3, %g3
 	xor		%g2, %g7, %g7
@@ -1511,11 +1519,11 @@ ENTRY(aes_sparc64_ctr_crypt_256)
 	 add		%o2, 0x20, %o2
 	brlz,pt		%o3, 11f
 	 nop
-	ldd		[%o0 + 0xd0], %f56
+10:	ldd		[%o0 + 0xd0], %f56
 	ldd		[%o0 + 0xd8], %f58
 	ldd		[%o0 + 0xe0], %f60
 	ldd		[%o0 + 0xe8], %f62
-10:	xor		%g1, %g3, %o5
+	xor		%g1, %g3, %o5
 	MOVXTOD_O5_F0
 	xor		%g2, %g7, %o5
 	MOVXTOD_O5_F2

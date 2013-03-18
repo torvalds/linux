@@ -436,7 +436,7 @@ static struct snd_soc_dai_driver s6000_i2s_dai = {
 	.ops = &s6000_i2s_dai_ops,
 };
 
-static int __devinit s6000_i2s_probe(struct platform_device *pdev)
+static int s6000_i2s_probe(struct platform_device *pdev)
 {
 	struct s6000_i2s_dev *dev;
 	struct resource *scbmem, *sifmem, *region, *dma1, *dma2;
@@ -566,7 +566,7 @@ err_release_none:
 	return ret;
 }
 
-static void __devexit s6000_i2s_remove(struct platform_device *pdev)
+static void s6000_i2s_remove(struct platform_device *pdev)
 {
 	struct s6000_i2s_dev *dev = dev_get_drvdata(&pdev->dev);
 	struct resource *region;
@@ -597,7 +597,7 @@ static void __devexit s6000_i2s_remove(struct platform_device *pdev)
 
 static struct platform_driver s6000_i2s_driver = {
 	.probe  = s6000_i2s_probe,
-	.remove = __devexit_p(s6000_i2s_remove),
+	.remove = s6000_i2s_remove,
 	.driver = {
 		.name   = "s6000-i2s",
 		.owner  = THIS_MODULE,

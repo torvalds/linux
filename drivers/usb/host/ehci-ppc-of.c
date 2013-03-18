@@ -12,6 +12,7 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/err.h>
 #include <linux/signal.h>
 
 #include <linux/of.h>
@@ -71,7 +72,7 @@ static const struct hc_driver ehci_ppc_of_hc_driver = {
  * Fix: Enable Break Memory Transfer (BMT) in INSNREG3
  */
 #define PPC440EPX_EHCI0_INSREG_BMT	(0x1 << 0)
-static int __devinit
+static int
 ppc44x_enable_bmt(struct device_node *dn)
 {
 	__iomem u32 *insreg_virt;
@@ -87,7 +88,7 @@ ppc44x_enable_bmt(struct device_node *dn)
 }
 
 
-static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
+static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -121,10 +122,9 @@ static int __devinit ehci_hcd_ppc_of_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
-	hcd->regs = devm_request_and_ioremap(&op->dev, &res);
-	if (!hcd->regs) {
-		pr_err("%s: devm_request_and_ioremap failed\n", __FILE__);
-		rv = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&op->dev, &res);
+	if (IS_ERR(hcd->regs)) {
+		rv = PTR_ERR(hcd->regs);
 		goto err_ioremap;
 	}
 

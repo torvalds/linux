@@ -187,8 +187,7 @@ static char *t1pci_procinfo(struct capi_ctr *ctrl)
 
 /* ------------------------------------------------------------- */
 
-static int __devinit t1pci_probe(struct pci_dev *dev,
-				 const struct pci_device_id *ent)
+static int t1pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct capicardparams param;
 	int retval;

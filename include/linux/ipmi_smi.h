@@ -216,7 +216,7 @@ int ipmi_unregister_smi(ipmi_smi_t intf);
 
 /*
  * The lower layer reports received messages through this interface.
- * The data_size should be zero if this is an asyncronous message.  If
+ * The data_size should be zero if this is an asynchronous message.  If
  * the lower layer gets an error sending a message, it should format
  * an error response in the message response.
  */

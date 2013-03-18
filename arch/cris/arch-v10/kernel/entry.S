@@ -35,6 +35,7 @@
 	.globl system_call
 	.globl ret_from_intr
 	.globl ret_from_fork
+	.globl ret_from_kernel_thread
 	.globl resume
 	.globl multiple_interrupt
 	.globl hwbreakpoint
@@ -81,7 +82,14 @@ ret_from_fork:
 	jsr schedule_tail
 	ba  ret_from_sys_call
 	nop
-		
+
+ret_from_kernel_thread:
+	jsr schedule_tail
+	move.d	$r2, $r10	; argument is here
+	jsr	$r1		; call the payload
+	moveq	0, $r9		; no syscall restarts, TYVM...
+	ba  ret_from_sys_call
+
 ret_from_intr:
 	;; check for resched if preemptive kernel or if we're going back to user-mode 
 	;; this test matches the user_regs(regs) macro
@@ -585,13 +593,6 @@ _ugdb_handle_breakpoint:
 	pop	$r0			; Restore r0. 
 	ba	do_sigtrap		; SIGTRAP the offending process. 
 	pop	$dccr			; Restore dccr in delay slot.
-
-	.global kernel_execve
-kernel_execve:
-	move.d __NR_execve, $r9
-	break 13
-	ret
-	nop
 
 	.data
 

@@ -339,8 +339,10 @@ static void raw3215_wakeup(unsigned long data)
 	struct tty_struct *tty;
 
 	tty = tty_port_tty_get(&raw->port);
-	tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (tty) {
+		tty_wakeup(tty);
+		tty_kref_put(tty);
+	}
 }
 
 /*
@@ -410,8 +412,9 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 				break;
 
 			case CTRLCHAR_CTRL:
-				tty_insert_flip_char(tty, cchar, TTY_NORMAL);
-				tty_flip_buffer_push(tty);
+				tty_insert_flip_char(&raw->port, cchar,
+						TTY_NORMAL);
+				tty_flip_buffer_push(&raw->port);
 				break;
 
 			case CTRLCHAR_NONE:
@@ -423,8 +426,9 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 					count++;
 				} else
 					count -= 2;
-				tty_insert_flip_string(tty, raw->inbuf, count);
-				tty_flip_buffer_push(tty);
+				tty_insert_flip_string(&raw->port, raw->inbuf,
+						count);
+				tty_flip_buffer_push(&raw->port);
 				break;
 			}
 		} else if (req->type == RAW3215_WRITE) {
@@ -630,7 +634,7 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 	unsigned long flags;
 
 	if (!(raw->port.flags & ASYNC_INITIALIZED) ||
-			(raw->flags & RAW3215_FIXED))
+	    (raw->flags & RAW3215_FIXED))
 		return;
 	/* Wait for outstanding requests, then free irq */
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
@@ -677,6 +681,7 @@ static void raw3215_free_info(struct raw3215_info *raw)
 {
 	kfree(raw->inbuf);
 	kfree(raw->buffer);
+	tty_port_destroy(&raw->port);
 	kfree(raw);
 }
 
@@ -804,7 +809,7 @@ static struct ccw_driver raw3215_ccw_driver = {
 	.freeze		= &raw3215_pm_stop,
 	.thaw		= &raw3215_pm_start,
 	.restore	= &raw3215_pm_start,
-	.int_class	= IOINT_C15,
+	.int_class	= IRQIO_C15,
 };
 
 #ifdef CONFIG_TN3215_CONSOLE
@@ -967,7 +972,7 @@ static int tty3215_open(struct tty_struct *tty, struct file * filp)
 
 	tty_port_tty_set(&raw->port, tty);
 
-	tty->low_latency = 0;  /* don't use bottom half for pushing chars */
+	raw->port.low_latency = 0; /* don't use bottom half for pushing chars */
 	/*
 	 * Start up 3215 device
 	 */

@@ -40,9 +40,6 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-
-#include "u_serial.c"
-#include "f_acm.c"
 #include "f_mass_storage.c"
 
 /*-------------------------------------------------------------------------*/
@@ -112,12 +109,15 @@ FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 static struct fsg_common fsg_common;
 
 /*-------------------------------------------------------------------------*/
-
+static unsigned char tty_line;
+static struct usb_function *f_acm;
+static struct usb_function_instance *f_acm_inst;
 /*
  * We _always_ have both ACM and mass storage functions.
  */
 static int __init acm_ms_do_config(struct usb_configuration *c)
 {
+	struct f_serial_opts *opts;
 	int	status;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -125,16 +125,35 @@ static int __init acm_ms_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
+	f_acm_inst = usb_get_function_instance("acm");
+	if (IS_ERR(f_acm_inst))
+		return PTR_ERR(f_acm_inst);
 
-	status = acm_bind_config(c, 0);
+	opts = container_of(f_acm_inst, struct f_serial_opts, func_inst);
+	opts->port_num = tty_line;
+
+	f_acm = usb_get_function(f_acm_inst);
+	if (IS_ERR(f_acm)) {
+		status = PTR_ERR(f_acm);
+		goto err_func;
+	}
+
+	status = usb_add_function(c, f_acm);
 	if (status < 0)
-		return status;
+		goto err_conf;
 
 	status = fsg_bind_config(c->cdev, c, &fsg_common);
 	if (status < 0)
-		return status;
+		goto err_fsg;
 
 	return 0;
+err_fsg:
+	usb_remove_function(c, f_acm);
+err_conf:
+	usb_put_function(f_acm);
+err_func:
+	usb_put_function_instance(f_acm_inst);
+	return status;
 }
 
 static struct usb_configuration acm_ms_config_driver = {
@@ -153,7 +172,7 @@ static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 	void			*retp;
 
 	/* set up serial link layer */
-	status = gserial_setup(cdev->gadget, 1);
+	status = gserial_alloc_line(&tty_line);
 	if (status < 0)
 		return status;
 
@@ -189,14 +208,15 @@ static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 fail1:
 	fsg_common_put(&fsg_common);
 fail0:
-	gserial_cleanup();
+	gserial_free_line(tty_line);
 	return status;
 }
 
 static int __exit acm_ms_unbind(struct usb_composite_dev *cdev)
 {
-	gserial_cleanup();
-
+	usb_put_function(f_acm);
+	usb_put_function_instance(f_acm_inst);
+	gserial_free_line(tty_line);
 	return 0;
 }
 

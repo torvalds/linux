@@ -21,10 +21,8 @@
 #include "pch_gbe.h"
 #include "pch_gbe_api.h"
 #include <linux/module.h>
-#ifdef CONFIG_PCH_PTP
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
-#endif
 
 #define DRV_VERSION     "1.01"
 const char pch_driver_version[] = DRV_VERSION;
@@ -98,7 +96,6 @@ const char pch_driver_version[] = DRV_VERSION;
 
 #define PCH_GBE_INT_DISABLE_ALL		0
 
-#ifdef CONFIG_PCH_PTP
 /* Macros for ieee1588 */
 /* 0x40 Time Synchronization Channel Control Register Bits */
 #define MASTER_MODE   (1<<0)
@@ -113,7 +110,6 @@ const char pch_driver_version[] = DRV_VERSION;
 
 #define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
 #define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
-#endif
 
 static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
 
@@ -122,7 +118,6 @@ static void pch_gbe_mdio_write(struct net_device *netdev, int addr, int reg,
 			       int data);
 static void pch_gbe_set_multi(struct net_device *netdev);
 
-#ifdef CONFIG_PCH_PTP
 static struct sock_filter ptp_filter[] = {
 	PTP_FILTER
 };
@@ -291,7 +286,6 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
-#endif
 
 inline void pch_gbe_mac_load_mac_addr(struct pch_gbe_hw *hw)
 {
@@ -1244,9 +1238,7 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 		  (int)sizeof(struct pch_gbe_tx_desc) * ring_num,
 		  &hw->reg->TX_DSC_SW_P);
 
-#ifdef CONFIG_PCH_PTP
 	pch_tx_timestamp(adapter, skb);
-#endif
 
 	dev_kfree_skb_any(skb);
 }
@@ -1730,9 +1722,7 @@ pch_gbe_clean_rx(struct pch_gbe_adapter *adapter,
 			/* Write meta date of skb */
 			skb_put(skb, length);
 
-#ifdef CONFIG_PCH_PTP
 			pch_rx_timestamp(adapter, skb);
-#endif
 
 			skb->protocol = eth_type_trans(skb, netdev);
 			if (tcp_ip_status & PCH_GBE_RXD_ACC_STAT_TCPIPOK)
@@ -2334,10 +2324,8 @@ static int pch_gbe_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 	pr_debug("cmd : 0x%04x\n", cmd);
 
-#ifdef CONFIG_PCH_PTP
 	if (cmd == SIOCSHWTSTAMP)
 		return hwtstamp_ioctl(netdev, ifr, cmd);
-#endif
 
 	return generic_mii_ioctl(&adapter->mii, if_mii(ifr), cmd, NULL);
 }
@@ -2623,14 +2611,12 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		goto err_free_netdev;
 	}
 
-#ifdef CONFIG_PCH_PTP
 	adapter->ptp_pdev = pci_get_bus_and_slot(adapter->pdev->bus->number,
 					       PCI_DEVFN(12, 4));
 	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter))) {
 		pr_err("Bad ptp filter\n");
 		return -EINVAL;
 	}
-#endif
 
 	netdev->netdev_ops = &pch_gbe_netdev_ops;
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;

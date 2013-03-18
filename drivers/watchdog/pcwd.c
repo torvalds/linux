@@ -801,7 +801,7 @@ static inline int get_revision(void)
  *  The initial rate is once per second at board start up, then twice
  *  per second for normal operation.
  */
-static int __devinit pcwd_isa_match(struct device *dev, unsigned int id)
+static int pcwd_isa_match(struct device *dev, unsigned int id)
 {
 	int base_addr = pcwd_ioports[id];
 	int port0, last_port0;	/* Reg 0, in case it's REV A */
@@ -846,7 +846,7 @@ static int __devinit pcwd_isa_match(struct device *dev, unsigned int id)
 	return retval;
 }
 
-static int __devinit pcwd_isa_probe(struct device *dev, unsigned int id)
+static int pcwd_isa_probe(struct device *dev, unsigned int id)
 {
 	int ret;
 
@@ -949,7 +949,7 @@ error_request_region:
 	return ret;
 }
 
-static int __devexit pcwd_isa_remove(struct device *dev, unsigned int id)
+static int pcwd_isa_remove(struct device *dev, unsigned int id)
 {
 	if (debug >= DEBUG)
 		pr_debug("pcwd_isa_remove id=%d\n", id);
@@ -984,7 +984,7 @@ static void pcwd_isa_shutdown(struct device *dev, unsigned int id)
 static struct isa_driver pcwd_isa_driver = {
 	.match		= pcwd_isa_match,
 	.probe		= pcwd_isa_probe,
-	.remove		= __devexit_p(pcwd_isa_remove),
+	.remove		= pcwd_isa_remove,
 	.shutdown	= pcwd_isa_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

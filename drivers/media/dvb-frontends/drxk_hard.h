@@ -320,11 +320,7 @@ struct drxk_state {
 
 	u8               *m_microcode;
 	int               m_microcode_length;
-	bool              m_DRXK_A1_PATCH_CODE;
-	bool              m_DRXK_A1_ROM_CODE;
-	bool              m_DRXK_A2_ROM_CODE;
-	bool              m_DRXK_A3_ROM_CODE;
-	bool              m_DRXK_A2_PATCH_CODE;
+	bool		  m_DRXK_A3_ROM_CODE;
 	bool              m_DRXK_A3_PATCH_CODE;
 
 	bool              m_rfmirror;

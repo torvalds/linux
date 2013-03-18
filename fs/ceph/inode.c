@@ -612,10 +612,11 @@ static int fill_inode(struct inode *inode,
 
 	if ((issued & CEPH_CAP_AUTH_EXCL) == 0) {
 		inode->i_mode = le32_to_cpu(info->mode);
-		inode->i_uid = le32_to_cpu(info->uid);
-		inode->i_gid = le32_to_cpu(info->gid);
+		inode->i_uid = make_kuid(&init_user_ns, le32_to_cpu(info->uid));
+		inode->i_gid = make_kgid(&init_user_ns, le32_to_cpu(info->gid));
 		dout("%p mode 0%o uid.gid %d.%d\n", inode, inode->i_mode,
-		     inode->i_uid, inode->i_gid);
+		     from_kuid(&init_user_ns, inode->i_uid),
+		     from_kgid(&init_user_ns, inode->i_gid));
 	}
 
 	if ((issued & CEPH_CAP_LINK_EXCL) == 0)
@@ -1130,8 +1131,8 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 					    req->r_request_started);
 		dout(" final dn %p\n", dn);
 		i++;
-	} else if (req->r_op == CEPH_MDS_OP_LOOKUPSNAP ||
-		   req->r_op == CEPH_MDS_OP_MKSNAP) {
+	} else if ((req->r_op == CEPH_MDS_OP_LOOKUPSNAP ||
+		   req->r_op == CEPH_MDS_OP_MKSNAP) && !req->r_aborted) {
 		struct dentry *dn = req->r_dentry;
 
 		/* fill out a snapdir LOOKUPSNAP dentry */
@@ -1195,6 +1196,39 @@ done:
 /*
  * Prepopulate our cache with readdir results, leases, etc.
  */
+static int readdir_prepopulate_inodes_only(struct ceph_mds_request *req,
+					   struct ceph_mds_session *session)
+{
+	struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
+	int i, err = 0;
+
+	for (i = 0; i < rinfo->dir_nr; i++) {
+		struct ceph_vino vino;
+		struct inode *in;
+		int rc;
+
+		vino.ino = le64_to_cpu(rinfo->dir_in[i].in->ino);
+		vino.snap = le64_to_cpu(rinfo->dir_in[i].in->snapid);
+
+		in = ceph_get_inode(req->r_dentry->d_sb, vino);
+		if (IS_ERR(in)) {
+			err = PTR_ERR(in);
+			dout("new_inode badness got %d\n", err);
+			continue;
+		}
+		rc = fill_inode(in, &rinfo->dir_in[i], NULL, session,
+				req->r_request_started, -1,
+				&req->r_caps_reservation);
+		if (rc < 0) {
+			pr_err("fill_inode badness on %p got %d\n", in, rc);
+			err = rc;
+			continue;
+		}
+	}
+
+	return err;
+}
+
 int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 			     struct ceph_mds_session *session)
 {
@@ -1208,6 +1242,9 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	struct ceph_mds_request_head *rhead = req->r_request->front.iov_base;
 	u64 frag = le32_to_cpu(rhead->args.readdir.frag);
 	struct ceph_dentry_info *di;
+
+	if (req->r_aborted)
+		return readdir_prepopulate_inodes_only(req, session);
 
 	if (le32_to_cpu(rinfo->head->op) == CEPH_MDS_OP_LSSNAP) {
 		snapdir = ceph_get_snapdir(parent->d_inode);
@@ -1466,7 +1503,7 @@ void __ceph_do_pending_vmtruncate(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 to;
-	int wrbuffer_refs, wake = 0;
+	int wrbuffer_refs, finish = 0;
 
 retry:
 	spin_lock(&ci->i_ceph_lock);
@@ -1498,15 +1535,18 @@ retry:
 	truncate_inode_pages(inode->i_mapping, to);
 
 	spin_lock(&ci->i_ceph_lock);
-	ci->i_truncate_pending--;
-	if (ci->i_truncate_pending == 0)
-		wake = 1;
+	if (to == ci->i_truncate_size) {
+		ci->i_truncate_pending = 0;
+		finish = 1;
+	}
 	spin_unlock(&ci->i_ceph_lock);
+	if (!finish)
+		goto retry;
 
 	if (wrbuffer_refs == 0)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
-	if (wake)
-		wake_up_all(&ci->i_cap_wq);
+
+	wake_up_all(&ci->i_cap_wq);
 }
 
 
@@ -1562,26 +1602,30 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (ia_valid & ATTR_UID) {
 		dout("setattr %p uid %d -> %d\n", inode,
-		     inode->i_uid, attr->ia_uid);
+		     from_kuid(&init_user_ns, inode->i_uid),
+		     from_kuid(&init_user_ns, attr->ia_uid));
 		if (issued & CEPH_CAP_AUTH_EXCL) {
 			inode->i_uid = attr->ia_uid;
 			dirtied |= CEPH_CAP_AUTH_EXCL;
 		} else if ((issued & CEPH_CAP_AUTH_SHARED) == 0 ||
-			   attr->ia_uid != inode->i_uid) {
-			req->r_args.setattr.uid = cpu_to_le32(attr->ia_uid);
+			   !uid_eq(attr->ia_uid, inode->i_uid)) {
+			req->r_args.setattr.uid = cpu_to_le32(
+				from_kuid(&init_user_ns, attr->ia_uid));
 			mask |= CEPH_SETATTR_UID;
 			release |= CEPH_CAP_AUTH_SHARED;
 		}
 	}
 	if (ia_valid & ATTR_GID) {
 		dout("setattr %p gid %d -> %d\n", inode,
-		     inode->i_gid, attr->ia_gid);
+		     from_kgid(&init_user_ns, inode->i_gid),
+		     from_kgid(&init_user_ns, attr->ia_gid));
 		if (issued & CEPH_CAP_AUTH_EXCL) {
 			inode->i_gid = attr->ia_gid;
 			dirtied |= CEPH_CAP_AUTH_EXCL;
 		} else if ((issued & CEPH_CAP_AUTH_SHARED) == 0 ||
-			   attr->ia_gid != inode->i_gid) {
-			req->r_args.setattr.gid = cpu_to_le32(attr->ia_gid);
+			   !gid_eq(attr->ia_gid, inode->i_gid)) {
+			req->r_args.setattr.gid = cpu_to_le32(
+				from_kgid(&init_user_ns, attr->ia_gid));
 			mask |= CEPH_SETATTR_GID;
 			release |= CEPH_CAP_AUTH_SHARED;
 		}

@@ -28,6 +28,9 @@
 #include <core/namedb.h>
 #include <core/handle.h>
 #include <core/gpuobj.h>
+#include <core/event.h>
+
+#include <subdev/bar.h>
 
 #include <engine/software.h>
 #include <engine/disp.h>
@@ -90,18 +93,11 @@ nv50_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
 {
 	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
 	struct nouveau_disp *disp = nouveau_disp(object);
-	unsigned long flags;
 	u32 crtc = *(u32 *)args;
-
 	if (crtc > 1)
 		return -EINVAL;
 
-	disp->vblank.get(disp->vblank.data, crtc);
-
-	spin_lock_irqsave(&disp->vblank.lock, flags);
-	list_add(&chan->base.vblank.head, &disp->vblank.list);
-	chan->base.vblank.crtc = crtc;
-	spin_unlock_irqrestore(&disp->vblank.lock, flags);
+	nouveau_event_get(disp->vblank, crtc, &chan->base.vblank.event);
 	return 0;
 }
 
@@ -117,11 +113,11 @@ nv50_software_mthd_flip(struct nouveau_object *object, u32 mthd,
 
 static struct nouveau_omthds
 nv50_software_omthds[] = {
-	{ 0x018c, nv50_software_mthd_dma_vblsem },
-	{ 0x0400, nv50_software_mthd_vblsem_offset },
-	{ 0x0404, nv50_software_mthd_vblsem_value },
-	{ 0x0408, nv50_software_mthd_vblsem_release },
-	{ 0x0500, nv50_software_mthd_flip },
+	{ 0x018c, 0x018c, nv50_software_mthd_dma_vblsem },
+	{ 0x0400, 0x0400, nv50_software_mthd_vblsem_offset },
+	{ 0x0404, 0x0404, nv50_software_mthd_vblsem_value },
+	{ 0x0408, 0x0408, nv50_software_mthd_vblsem_release },
+	{ 0x0500, 0x0500, nv50_software_mthd_flip },
 	{}
 };
 
@@ -134,6 +130,29 @@ nv50_software_sclass[] = {
 /*******************************************************************************
  * software context
  ******************************************************************************/
+
+static int
+nv50_software_vblsem_release(struct nouveau_eventh *event, int head)
+{
+	struct nouveau_software_chan *chan =
+		container_of(event, struct nouveau_software_chan, vblank.event);
+	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
+	struct nouveau_bar *bar = nouveau_bar(priv);
+
+	nv_wr32(priv, 0x001704, chan->vblank.channel);
+	nv_wr32(priv, 0x001710, 0x80000000 | chan->vblank.ctxdma);
+	bar->flush(bar);
+
+	if (nv_device(priv)->chipset == 0x50) {
+		nv_wr32(priv, 0x001570, chan->vblank.offset);
+		nv_wr32(priv, 0x001574, chan->vblank.value);
+	} else {
+		nv_wr32(priv, 0x060010, chan->vblank.offset);
+		nv_wr32(priv, 0x060014, chan->vblank.value);
+	}
+
+	return NVKM_EVENT_DROP;
+}
 
 static int
 nv50_software_context_ctor(struct nouveau_object *parent,
@@ -150,6 +169,7 @@ nv50_software_context_ctor(struct nouveau_object *parent,
 		return ret;
 
 	chan->base.vblank.channel = nv_gpuobj(parent->parent)->addr >> 12;
+	chan->base.vblank.event.func = nv50_software_vblsem_release;
 	return 0;
 }
 
@@ -170,8 +190,8 @@ nv50_software_cclass = {
 
 static int
 nv50_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
+		   struct nouveau_oclass *oclass, void *data, u32 size,
+		   struct nouveau_object **pobject)
 {
 	struct nv50_software_priv *priv;
 	int ret;

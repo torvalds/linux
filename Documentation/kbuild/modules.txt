@@ -470,7 +470,7 @@ build.
 
 	Sometimes, an external module uses exported symbols from
 	another external module. kbuild needs to have full knowledge of
-	all symbols to avoid spitting out warnings about undefined
+	all symbols to avoid spliitting out warnings about undefined
 	symbols. Three solutions exist for this situation.
 
 	NOTE: The method with a top-level kbuild file is recommended

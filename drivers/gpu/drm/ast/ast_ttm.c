@@ -186,11 +186,11 @@ static void ast_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *
 
 static int ast_bo_move(struct ttm_buffer_object *bo,
 		       bool evict, bool interruptible,
-		       bool no_wait_reserve, bool no_wait_gpu,
+		       bool no_wait_gpu,
 		       struct ttm_mem_reg *new_mem)
 {
 	int r;
-	r = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
+	r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 	return r;
 }
 
@@ -356,7 +356,7 @@ int ast_bo_create(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&ast->ttm.bdev, &astbo->bo, size,
 			  ttm_bo_type_device, &astbo->placement,
-			  align >> PAGE_SHIFT, 0, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, false, NULL, acc_size,
 			  NULL, ast_bo_ttm_destroy);
 	if (ret)
 		return ret;
@@ -383,7 +383,7 @@ int ast_bo_pin(struct ast_bo *bo, u32 pl_flag, u64 *gpu_addr)
 	ast_ttm_placement(bo, pl_flag);
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
 	if (ret)
 		return ret;
 
@@ -406,7 +406,7 @@ int ast_bo_unpin(struct ast_bo *bo)
 
 	for (i = 0; i < bo->placement.num_placement ; i++)
 		bo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
 	if (ret)
 		return ret;
 
@@ -431,7 +431,7 @@ int ast_bo_push_sysram(struct ast_bo *bo)
 	for (i = 0; i < bo->placement.num_placement ; i++)
 		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
 
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
 	if (ret) {
 		DRM_ERROR("pushing to VRAM failed\n");
 		return ret;

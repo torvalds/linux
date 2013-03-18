@@ -329,7 +329,8 @@ int cx25821_i2c_unregister(struct cx25821_i2c *bus)
 	return 0;
 }
 
-void cx25821_av_clk(struct cx25821_dev *dev, int enable)
+#if 0 /* Currently unused */
+static void cx25821_av_clk(struct cx25821_dev *dev, int enable)
 {
 	/* write 0 to bus 2 addr 0x144 via i2x_xfer() */
 	char buffer[3];
@@ -351,6 +352,7 @@ void cx25821_av_clk(struct cx25821_dev *dev, int enable)
 
 	i2c_xfer(&dev->i2c_bus[0].i2c_adap, &msg, 1);
 }
+#endif
 
 int cx25821_i2c_read(struct cx25821_i2c *bus, u16 reg_addr, int *value)
 {

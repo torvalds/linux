@@ -162,6 +162,8 @@ static int kexec_all_irq_disabled = 0;
 static void kexec_smp_down(void *arg)
 {
 	local_irq_disable();
+	hard_irq_disable();
+
 	mb(); /* make sure our irqs are disabled before we say they are */
 	get_paca()->kexec_state = KEXEC_STATE_IRQS_OFF;
 	while(kexec_all_irq_disabled == 0)
@@ -244,6 +246,8 @@ static void kexec_prepare_cpus(void)
 	wake_offline_cpus();
 	smp_call_function(kexec_smp_down, NULL, /* wait */0);
 	local_irq_disable();
+	hard_irq_disable();
+
 	mb(); /* make sure IRQs are disabled before we say they are */
 	get_paca()->kexec_state = KEXEC_STATE_IRQS_OFF;
 
@@ -281,6 +285,7 @@ static void kexec_prepare_cpus(void)
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 0);
 	local_irq_disable();
+	hard_irq_disable();
 }
 
 #endif /* SMP */
@@ -389,14 +394,14 @@ static int __init export_htab_values(void)
 	/* remove any stale propertys so ours can be found */
 	prop = of_find_property(node, htab_base_prop.name, NULL);
 	if (prop)
-		prom_remove_property(node, prop);
+		of_remove_property(node, prop);
 	prop = of_find_property(node, htab_size_prop.name, NULL);
 	if (prop)
-		prom_remove_property(node, prop);
+		of_remove_property(node, prop);
 
 	htab_base = __pa(htab_address);
-	prom_add_property(node, &htab_base_prop);
-	prom_add_property(node, &htab_size_prop);
+	of_add_property(node, &htab_base_prop);
+	of_add_property(node, &htab_size_prop);
 
 	of_node_put(node);
 	return 0;

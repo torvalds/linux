@@ -2273,7 +2273,6 @@ bfa_ioc_get_type(struct bfa_ioc *ioc)
 static void
 bfa_ioc_get_adapter_serial_num(struct bfa_ioc *ioc, char *serial_num)
 {
-	memset(serial_num, 0, BFA_ADAPTER_SERIAL_NUM_LEN);
 	memcpy(serial_num,
 			(void *)ioc->attr->brcd_serialnum,
 			BFA_ADAPTER_SERIAL_NUM_LEN);
@@ -2282,7 +2281,6 @@ bfa_ioc_get_adapter_serial_num(struct bfa_ioc *ioc, char *serial_num)
 static void
 bfa_ioc_get_adapter_fw_ver(struct bfa_ioc *ioc, char *fw_ver)
 {
-	memset(fw_ver, 0, BFA_VERSION_LEN);
 	memcpy(fw_ver, ioc->attr->fw_version, BFA_VERSION_LEN);
 }
 
@@ -2304,7 +2302,6 @@ bfa_ioc_get_pci_chip_rev(struct bfa_ioc *ioc, char *chip_rev)
 static void
 bfa_ioc_get_adapter_optrom_ver(struct bfa_ioc *ioc, char *optrom_ver)
 {
-	memset(optrom_ver, 0, BFA_VERSION_LEN);
 	memcpy(optrom_ver, ioc->attr->optrom_version,
 		      BFA_VERSION_LEN);
 }
@@ -2312,7 +2309,6 @@ bfa_ioc_get_adapter_optrom_ver(struct bfa_ioc *ioc, char *optrom_ver)
 static void
 bfa_ioc_get_adapter_manufacturer(struct bfa_ioc *ioc, char *manufacturer)
 {
-	memset(manufacturer, 0, BFA_ADAPTER_MFG_NAME_LEN);
 	memcpy(manufacturer, BFA_MFG_NAME, BFA_ADAPTER_MFG_NAME_LEN);
 }
 

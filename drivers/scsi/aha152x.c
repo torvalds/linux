@@ -420,7 +420,7 @@ MODULE_PARM_DESC(aha152x1, "parameters for second controller");
 #endif /* MODULE */
 
 #ifdef __ISAPNP__
-static struct isapnp_device_id id_table[] __devinitdata = {
+static struct isapnp_device_id id_table[] = {
 	{ ISAPNP_ANY_ID, ISAPNP_ANY_ID,	ISAPNP_VENDOR('A', 'D', 'P'), ISAPNP_FUNCTION(0x1502), 0 },
 	{ ISAPNP_ANY_ID, ISAPNP_ANY_ID,	ISAPNP_VENDOR('A', 'D', 'P'), ISAPNP_FUNCTION(0x1505), 0 },
 	{ ISAPNP_ANY_ID, ISAPNP_ANY_ID,	ISAPNP_VENDOR('A', 'D', 'P'), ISAPNP_FUNCTION(0x1510), 0 },

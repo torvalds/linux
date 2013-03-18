@@ -94,7 +94,7 @@ out:
 	return ERR_PTR(ret);
 }
 
-static int __devinit ce4100_i2c_probe(struct pci_dev *dev,
+static int ce4100_i2c_probe(struct pci_dev *dev,
 		const struct pci_device_id *ent)
 {
 	int ret;
@@ -128,20 +128,18 @@ static int __devinit ce4100_i2c_probe(struct pci_dev *dev,
 	return 0;
 
 err_dev_add:
-	pci_set_drvdata(dev, NULL);
 	kfree(sds);
 err_mem:
 	pci_disable_device(dev);
 	return ret;
 }
 
-static void __devexit ce4100_i2c_remove(struct pci_dev *dev)
+static void ce4100_i2c_remove(struct pci_dev *dev)
 {
 	struct ce4100_devices *sds;
 	unsigned int i;
 
 	sds = pci_get_drvdata(dev);
-	pci_set_drvdata(dev, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(sds->pdev); i++)
 		platform_device_unregister(sds->pdev[i]);
@@ -160,7 +158,7 @@ static struct pci_driver ce4100_i2c_driver = {
 	.name           = "ce4100_i2c",
 	.id_table       = ce4100_i2c_devices,
 	.probe          = ce4100_i2c_probe,
-	.remove         = __devexit_p(ce4100_i2c_remove),
+	.remove         = ce4100_i2c_remove,
 };
 
 module_pci_driver(ce4100_i2c_driver);

@@ -39,7 +39,7 @@ struct ssb_hcd_device {
 	u32 enable_flags;
 };
 
-static void __devinit ssb_hcd_5354wa(struct ssb_device *dev)
+static void ssb_hcd_5354wa(struct ssb_device *dev)
 {
 #ifdef CONFIG_SSB_DRIVER_MIPS
 	/* Work around for 5354 failures */
@@ -53,7 +53,7 @@ static void __devinit ssb_hcd_5354wa(struct ssb_device *dev)
 #endif
 }
 
-static void __devinit ssb_hcd_usb20wa(struct ssb_device *dev)
+static void ssb_hcd_usb20wa(struct ssb_device *dev)
 {
 	if (dev->id.coreid == SSB_DEV_USB20_HOST) {
 		/*
@@ -80,7 +80,7 @@ static void __devinit ssb_hcd_usb20wa(struct ssb_device *dev)
 }
 
 /* based on arch/mips/brcm-boards/bcm947xx/pcibios.c */
-static u32 __devinit ssb_hcd_init_chip(struct ssb_device *dev)
+static u32 ssb_hcd_init_chip(struct ssb_device *dev)
 {
 	u32 flags = 0;
 
@@ -101,8 +101,7 @@ static const struct usb_ehci_pdata ehci_pdata = {
 static const struct usb_ohci_pdata ohci_pdata = {
 };
 
-static struct platform_device * __devinit
-ssb_hcd_create_pdev(struct ssb_device *dev, bool ohci, u32 addr, u32 len)
+static struct platform_device *ssb_hcd_create_pdev(struct ssb_device *dev, bool ohci, u32 addr, u32 len)
 {
 	struct platform_device *hci_dev;
 	struct resource hci_res[2];
@@ -148,7 +147,7 @@ err_alloc:
 	return ERR_PTR(ret);
 }
 
-static int __devinit ssb_hcd_probe(struct ssb_device *dev,
+static int ssb_hcd_probe(struct ssb_device *dev,
 				   const struct ssb_device_id *id)
 {
 	int err, tmp;
@@ -207,7 +206,7 @@ err_free_usb_dev:
 	return err;
 }
 
-static void __devexit ssb_hcd_remove(struct ssb_device *dev)
+static void ssb_hcd_remove(struct ssb_device *dev)
 {
 	struct ssb_hcd_device *usb_dev = ssb_get_drvdata(dev);
 	struct platform_device *ohci_dev = usb_dev->ohci_dev;
@@ -221,7 +220,7 @@ static void __devexit ssb_hcd_remove(struct ssb_device *dev)
 	ssb_device_disable(dev, 0);
 }
 
-static void __devexit ssb_hcd_shutdown(struct ssb_device *dev)
+static void ssb_hcd_shutdown(struct ssb_device *dev)
 {
 	ssb_device_disable(dev, 0);
 }
@@ -249,7 +248,7 @@ static int ssb_hcd_resume(struct ssb_device *dev)
 #define ssb_hcd_resume	NULL
 #endif /* CONFIG_PM */
 
-static const struct ssb_device_id ssb_hcd_table[] __devinitconst = {
+static const struct ssb_device_id ssb_hcd_table[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB11_HOSTDEV, SSB_ANY_REV),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB11_HOST, SSB_ANY_REV),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB20_HOST, SSB_ANY_REV),
@@ -261,7 +260,7 @@ static struct ssb_driver ssb_hcd_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= ssb_hcd_table,
 	.probe		= ssb_hcd_probe,
-	.remove		= __devexit_p(ssb_hcd_remove),
+	.remove		= ssb_hcd_remove,
 	.shutdown	= ssb_hcd_shutdown,
 	.suspend	= ssb_hcd_suspend,
 	.resume		= ssb_hcd_resume,

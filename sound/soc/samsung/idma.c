@@ -416,12 +416,12 @@ static struct snd_soc_platform_driver asoc_idma_platform = {
 	.pcm_free = idma_free,
 };
 
-static int __devinit asoc_idma_platform_probe(struct platform_device *pdev)
+static int asoc_idma_platform_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev, &asoc_idma_platform);
 }
 
-static int __devexit asoc_idma_platform_remove(struct platform_device *pdev)
+static int asoc_idma_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -434,7 +434,7 @@ static struct platform_driver asoc_idma_driver = {
 	},
 
 	.probe = asoc_idma_platform_probe,
-	.remove = __devexit_p(asoc_idma_platform_remove),
+	.remove = asoc_idma_platform_remove,
 };
 
 module_platform_driver(asoc_idma_driver);

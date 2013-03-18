@@ -197,7 +197,7 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 	return 0;
 }
 
-static int __devinit xway_stp_probe(struct platform_device *pdev)
+static int xway_stp_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	const __be32 *shadow, *groups, *dsl, *phy;
@@ -214,11 +214,10 @@ static int __devinit xway_stp_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	chip->virt = devm_request_and_ioremap(&pdev->dev, res);
-	if (!chip->virt) {
-		dev_err(&pdev->dev, "failed to remap STP memory\n");
-		return -ENOMEM;
-	}
+	chip->virt = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(chip->virt))
+		return PTR_ERR(chip->virt);
+	
 	chip->gc.dev = &pdev->dev;
 	chip->gc.label = "stp-xway";
 	chip->gc.direction_output = xway_stp_dir_out;

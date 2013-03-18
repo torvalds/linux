@@ -816,8 +816,7 @@ static const struct net_device_ops lmc_ops = {
 	.ndo_get_stats  = lmc_get_stats,
 };
 
-static int __devinit lmc_init_one(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	lmc_softc_t *sc;
 	struct net_device *dev;
@@ -986,7 +985,7 @@ err_req_io:
 /*
  * Called from pci when removing module.
  */
-static void __devexit lmc_remove_one(struct pci_dev *pdev)
+static void lmc_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -1733,7 +1732,7 @@ static struct pci_driver lmc_driver = {
 	.name		= "lmc",
 	.id_table	= lmc_pci_tbl,
 	.probe		= lmc_init_one,
-	.remove		= __devexit_p(lmc_remove_one),
+	.remove		= lmc_remove_one,
 };
 
 module_pci_driver(lmc_driver);

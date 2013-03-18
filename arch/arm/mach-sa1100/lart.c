@@ -4,6 +4,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/tty.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
@@ -18,14 +19,10 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
 #include <linux/platform_data/mfd-mcp-sa11x0.h>
 #include <mach/irqs.h>
 
 #include "generic.h"
-
-
-#warning "include/asm/arch-sa1100/ide.h needs fixing for lart"
 
 static struct mcp_plat_data lart_mcp_data = {
 	.mccr0		= MCCR0_ADM,
@@ -174,6 +171,6 @@ MACHINE_START(LART, "LART")
 	.init_irq	= sa1100_init_irq,
 	.init_machine	= lart_init,
 	.init_late	= sa11x0_init_late,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.restart	= sa11x0_restart,
 MACHINE_END

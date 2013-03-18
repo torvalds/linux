@@ -15,7 +15,7 @@
 #include <linux/seqlock.h>
 #include <linux/nodemask.h>
 #include <linux/pageblock-flags.h>
-#include <generated/bounds.h>
+#include <linux/page-flags-layout.h>
 #include <linux/atomic.h>
 #include <asm/page.h>
 
@@ -57,16 +57,16 @@ enum {
 	 */
 	MIGRATE_CMA,
 #endif
+#ifdef CONFIG_MEMORY_ISOLATION
 	MIGRATE_ISOLATE,	/* can't allocate from here */
+#endif
 	MIGRATE_TYPES
 };
 
 #ifdef CONFIG_CMA
 #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
-#  define cma_wmark_pages(zone)	zone->min_cma_pages
 #else
 #  define is_migrate_cma(migratetype) false
-#  define cma_wmark_pages(zone) 0
 #endif
 
 #define for_each_migratetype_order(order, type) \
@@ -310,24 +310,6 @@ enum zone_type {
 
 #ifndef __GENERATING_BOUNDS_H
 
-/*
- * When a memory allocation must conform to specific limitations (such
- * as being suitable for DMA) the caller will pass in hints to the
- * allocator in the gfp_mask, in the zone modifier bits.  These bits
- * are used to select a priority ordered list of memory zones which
- * match the requested limits. See gfp_zone() in include/linux/gfp.h
- */
-
-#if MAX_NR_ZONES < 2
-#define ZONES_SHIFT 0
-#elif MAX_NR_ZONES <= 2
-#define ZONES_SHIFT 1
-#elif MAX_NR_ZONES <= 4
-#define ZONES_SHIFT 2
-#else
-#error ZONES_SHIFT -- too many zones configured adjust calculation
-#endif
-
 struct zone {
 	/* Fields commonly accessed by the page allocator */
 
@@ -382,13 +364,6 @@ struct zone {
 #ifdef CONFIG_MEMORY_HOTPLUG
 	/* see spanned/present_pages for more description */
 	seqlock_t		span_seqlock;
-#endif
-#ifdef CONFIG_CMA
-	/*
-	 * CMA needs to increase watermark levels during the allocation
-	 * process to make sure that the system is not starved.
-	 */
-	unsigned long		min_cma_pages;
 #endif
 	struct free_area	free_area[MAX_ORDER];
 
@@ -469,30 +444,49 @@ struct zone {
 	unsigned long		zone_start_pfn;
 
 	/*
-	 * zone_start_pfn, spanned_pages and present_pages are all
-	 * protected by span_seqlock.  It is a seqlock because it has
-	 * to be read outside of zone->lock, and it is done in the main
-	 * allocator path.  But, it is written quite infrequently.
+	 * spanned_pages is the total pages spanned by the zone, including
+	 * holes, which is calculated as:
+	 * 	spanned_pages = zone_end_pfn - zone_start_pfn;
 	 *
-	 * The lock is declared along with zone->lock because it is
+	 * present_pages is physical pages existing within the zone, which
+	 * is calculated as:
+	 *	present_pages = spanned_pages - absent_pages(pags in holes);
+	 *
+	 * managed_pages is present pages managed by the buddy system, which
+	 * is calculated as (reserved_pages includes pages allocated by the
+	 * bootmem allocator):
+	 *	managed_pages = present_pages - reserved_pages;
+	 *
+	 * So present_pages may be used by memory hotplug or memory power
+	 * management logic to figure out unmanaged pages by checking
+	 * (present_pages - managed_pages). And managed_pages should be used
+	 * by page allocator and vm scanner to calculate all kinds of watermarks
+	 * and thresholds.
+	 *
+	 * Locking rules:
+	 *
+	 * zone_start_pfn and spanned_pages are protected by span_seqlock.
+	 * It is a seqlock because it has to be read outside of zone->lock,
+	 * and it is done in the main allocator path.  But, it is written
+	 * quite infrequently.
+	 *
+	 * The span_seq lock is declared along with zone->lock because it is
 	 * frequently read in proximity to zone->lock.  It's good to
 	 * give them a chance of being in the same cacheline.
+	 *
+	 * Write access to present_pages and managed_pages at runtime should
+	 * be protected by lock_memory_hotplug()/unlock_memory_hotplug().
+	 * Any reader who can't tolerant drift of present_pages and
+	 * managed_pages should hold memory hotplug lock to get a stable value.
 	 */
-	unsigned long		spanned_pages;	/* total size, including holes */
-	unsigned long		present_pages;	/* amount of memory (excluding holes) */
+	unsigned long		spanned_pages;
+	unsigned long		present_pages;
+	unsigned long		managed_pages;
 
 	/*
 	 * rarely used fields:
 	 */
 	const char		*name;
-#ifdef CONFIG_MEMORY_ISOLATION
-	/*
-	 * the number of MIGRATE_ISOLATE *pageblock*.
-	 * We need this for free page counting. Look at zone_watermark_ok_safe.
-	 * It's protected by zone->lock
-	 */
-	int		nr_pageblock_isolate;
-#endif
 } ____cacheline_internodealigned_in_smp;
 
 typedef enum {
@@ -531,6 +525,26 @@ static inline int zone_is_reclaim_locked(const struct zone *zone)
 static inline int zone_is_oom_locked(const struct zone *zone)
 {
 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
+}
+
+static inline unsigned zone_end_pfn(const struct zone *zone)
+{
+	return zone->zone_start_pfn + zone->spanned_pages;
+}
+
+static inline bool zone_spans_pfn(const struct zone *zone, unsigned long pfn)
+{
+	return zone->zone_start_pfn <= pfn && pfn < zone_end_pfn(zone);
+}
+
+static inline bool zone_is_initialized(struct zone *zone)
+{
+	return !!zone->wait_table;
+}
+
+static inline bool zone_is_empty(struct zone *zone)
+{
+	return zone->spanned_pages == 0;
 }
 
 /*
@@ -717,6 +731,19 @@ typedef struct pglist_data {
 	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
 	int kswapd_max_order;
 	enum zone_type classzone_idx;
+#ifdef CONFIG_NUMA_BALANCING
+	/*
+	 * Lock serializing the per destination node AutoNUMA memory
+	 * migration rate limiting data.
+	 */
+	spinlock_t numabalancing_migrate_lock;
+
+	/* Rate limiting time interval */
+	unsigned long numabalancing_migrate_next_window;
+
+	/* Number of pages migrated during the rate limiting time interval */
+	unsigned long numabalancing_migrate_nr_pages;
+#endif
 } pg_data_t;
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
@@ -729,11 +756,17 @@ typedef struct pglist_data {
 #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
 
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
+#define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
 
-#define node_end_pfn(nid) ({\
-	pg_data_t *__pgdat = NODE_DATA(nid);\
-	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;\
-})
+static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)
+{
+	return pgdat->node_start_pfn + pgdat->node_spanned_pages;
+}
+
+static inline bool pgdat_is_empty(pg_data_t *pgdat)
+{
+	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
+}
 
 #include <linux/memory_hotplug.h>
 
@@ -752,7 +785,7 @@ extern int init_currently_empty_zone(struct zone *zone, unsigned long start_pfn,
 				     unsigned long size,
 				     enum memmap_context context);
 
-extern void lruvec_init(struct lruvec *lruvec, struct zone *zone);
+extern void lruvec_init(struct lruvec *lruvec);
 
 static inline struct zone *lruvec_zone(struct lruvec *lruvec)
 {
@@ -1030,8 +1063,6 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
  * PA_SECTION_SHIFT		physical address to/from section number
  * PFN_SECTION_SHIFT		pfn to/from section number
  */
-#define SECTIONS_SHIFT		(MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
-
 #define PA_SECTION_SHIFT	(SECTION_SIZE_BITS)
 #define PFN_SECTION_SHIFT	(SECTION_SIZE_BITS - PAGE_SHIFT)
 

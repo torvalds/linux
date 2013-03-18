@@ -39,7 +39,7 @@
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
-EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
+EXPORT_TRACEPOINT_SYMBOL_GPL(block_unplug);
 
 DEFINE_IDA(blk_queue_ida);
 
@@ -219,12 +219,13 @@ static void blk_delay_work(struct work_struct *work)
  * Description:
  *   Sometimes queueing needs to be postponed for a little while, to allow
  *   resources to come back. This function will make sure that queueing is
- *   restarted around the specified time.
+ *   restarted around the specified time. Queue lock must be held.
  */
 void blk_delay_queue(struct request_queue *q, unsigned long msecs)
 {
-	queue_delayed_work(kblockd_workqueue, &q->delay_work,
-				msecs_to_jiffies(msecs));
+	if (likely(!blk_queue_dead(q)))
+		queue_delayed_work(kblockd_workqueue, &q->delay_work,
+				   msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL(blk_delay_queue);
 
@@ -293,6 +294,34 @@ void blk_sync_queue(struct request_queue *q)
 EXPORT_SYMBOL(blk_sync_queue);
 
 /**
+ * __blk_run_queue_uncond - run a queue whether or not it has been stopped
+ * @q:	The queue to run
+ *
+ * Description:
+ *    Invoke request handling on a queue if there are any pending requests.
+ *    May be used to restart request handling after a request has completed.
+ *    This variant runs the queue whether or not the queue has been
+ *    stopped. Must be called with the queue lock held and interrupts
+ *    disabled. See also @blk_run_queue.
+ */
+inline void __blk_run_queue_uncond(struct request_queue *q)
+{
+	if (unlikely(blk_queue_dead(q)))
+		return;
+
+	/*
+	 * Some request_fn implementations, e.g. scsi_request_fn(), unlock
+	 * the queue lock internally. As a result multiple threads may be
+	 * running such a request function concurrently. Keep track of the
+	 * number of active request_fn invocations such that blk_drain_queue()
+	 * can wait until all these request_fn calls have finished.
+	 */
+	q->request_fn_active++;
+	q->request_fn(q);
+	q->request_fn_active--;
+}
+
+/**
  * __blk_run_queue - run a single device queue
  * @q:	The queue to run
  *
@@ -305,7 +334,7 @@ void __blk_run_queue(struct request_queue *q)
 	if (unlikely(blk_queue_stopped(q)))
 		return;
 
-	q->request_fn(q);
+	__blk_run_queue_uncond(q);
 }
 EXPORT_SYMBOL(__blk_run_queue);
 
@@ -315,11 +344,11 @@ EXPORT_SYMBOL(__blk_run_queue);
  *
  * Description:
  *    Tells kblockd to perform the equivalent of @blk_run_queue on behalf
- *    of us.
+ *    of us. The caller must hold the queue lock.
  */
 void blk_run_queue_async(struct request_queue *q)
 {
-	if (likely(!blk_queue_stopped(q)))
+	if (likely(!blk_queue_stopped(q) && !blk_queue_dead(q)))
 		mod_delayed_work(kblockd_workqueue, &q->delay_work, 0);
 }
 EXPORT_SYMBOL(blk_run_queue_async);
@@ -349,7 +378,7 @@ void blk_put_queue(struct request_queue *q)
 EXPORT_SYMBOL(blk_put_queue);
 
 /**
- * blk_drain_queue - drain requests from request_queue
+ * __blk_drain_queue - drain requests from request_queue
  * @q: queue to drain
  * @drain_all: whether to drain all requests or only the ones w/ ELVPRIV
  *
@@ -357,14 +386,16 @@ EXPORT_SYMBOL(blk_put_queue);
  * If not, only ELVPRIV requests are drained.  The caller is responsible
  * for ensuring that no new requests which need to be drained are queued.
  */
-void blk_drain_queue(struct request_queue *q, bool drain_all)
+static void __blk_drain_queue(struct request_queue *q, bool drain_all)
+	__releases(q->queue_lock)
+	__acquires(q->queue_lock)
 {
 	int i;
 
+	lockdep_assert_held(q->queue_lock);
+
 	while (true) {
 		bool drain = false;
-
-		spin_lock_irq(q->queue_lock);
 
 		/*
 		 * The caller might be trying to drain @q before its
@@ -386,6 +417,7 @@ void blk_drain_queue(struct request_queue *q, bool drain_all)
 			__blk_run_queue(q);
 
 		drain |= q->nr_rqs_elvpriv;
+		drain |= q->request_fn_active;
 
 		/*
 		 * Unfortunately, requests are queued at and tracked from
@@ -401,11 +433,14 @@ void blk_drain_queue(struct request_queue *q, bool drain_all)
 			}
 		}
 
-		spin_unlock_irq(q->queue_lock);
-
 		if (!drain)
 			break;
+
+		spin_unlock_irq(q->queue_lock);
+
 		msleep(10);
+
+		spin_lock_irq(q->queue_lock);
 	}
 
 	/*
@@ -416,13 +451,9 @@ void blk_drain_queue(struct request_queue *q, bool drain_all)
 	if (q->request_fn) {
 		struct request_list *rl;
 
-		spin_lock_irq(q->queue_lock);
-
 		blk_queue_for_each_rl(rl, q)
 			for (i = 0; i < ARRAY_SIZE(rl->wait); i++)
 				wake_up_all(&rl->wait[i]);
-
-		spin_unlock_irq(q->queue_lock);
 	}
 }
 
@@ -446,7 +477,10 @@ void blk_queue_bypass_start(struct request_queue *q)
 	spin_unlock_irq(q->queue_lock);
 
 	if (drain) {
-		blk_drain_queue(q, false);
+		spin_lock_irq(q->queue_lock);
+		__blk_drain_queue(q, false);
+		spin_unlock_irq(q->queue_lock);
+
 		/* ensure blk_queue_bypass() is %true inside RCU read lock */
 		synchronize_rcu();
 	}
@@ -473,20 +507,20 @@ EXPORT_SYMBOL_GPL(blk_queue_bypass_end);
  * blk_cleanup_queue - shutdown a request queue
  * @q: request queue to shutdown
  *
- * Mark @q DEAD, drain all pending requests, destroy and put it.  All
- * future requests will be failed immediately with -ENODEV.
+ * Mark @q DYING, drain all pending requests, mark @q DEAD, destroy and
+ * put it.  All future requests will be failed immediately with -ENODEV.
  */
 void blk_cleanup_queue(struct request_queue *q)
 {
 	spinlock_t *lock = q->queue_lock;
 
-	/* mark @q DEAD, no new request or merges will be allowed afterwards */
+	/* mark @q DYING, no new request or merges will be allowed afterwards */
 	mutex_lock(&q->sysfs_lock);
-	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
+	queue_flag_set_unlocked(QUEUE_FLAG_DYING, q);
 	spin_lock_irq(lock);
 
 	/*
-	 * Dead queue is permanently in bypass mode till released.  Note
+	 * A dying queue is permanently in bypass mode till released.  Note
 	 * that, unlike blk_queue_bypass_start(), we aren't performing
 	 * synchronize_rcu() after entering bypass mode to avoid the delay
 	 * as some drivers create and destroy a lot of queues while
@@ -499,12 +533,18 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
 	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
-	queue_flag_set(QUEUE_FLAG_DEAD, q);
+	queue_flag_set(QUEUE_FLAG_DYING, q);
 	spin_unlock_irq(lock);
 	mutex_unlock(&q->sysfs_lock);
 
-	/* drain all requests queued before DEAD marking */
-	blk_drain_queue(q, true);
+	/*
+	 * Drain all requests queued before DYING marking. Set DEAD flag to
+	 * prevent that q->request_fn() gets invoked after draining finished.
+	 */
+	spin_lock_irq(lock);
+	__blk_drain_queue(q, true);
+	queue_flag_set(QUEUE_FLAG_DEAD, q);
+	spin_unlock_irq(lock);
 
 	/* @q won't process any more request, flush async actions */
 	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
@@ -549,7 +589,7 @@ void blk_exit_rl(struct request_list *rl)
 
 struct request_queue *blk_alloc_queue(gfp_t gfp_mask)
 {
-	return blk_alloc_queue_node(gfp_mask, -1);
+	return blk_alloc_queue_node(gfp_mask, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(blk_alloc_queue);
 
@@ -660,7 +700,7 @@ EXPORT_SYMBOL(blk_alloc_queue_node);
 
 struct request_queue *blk_init_queue(request_fn_proc *rfn, spinlock_t *lock)
 {
-	return blk_init_queue_node(rfn, lock, -1);
+	return blk_init_queue_node(rfn, lock, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(blk_init_queue);
 
@@ -716,7 +756,7 @@ EXPORT_SYMBOL(blk_init_allocated_queue);
 
 bool blk_get_queue(struct request_queue *q)
 {
-	if (likely(!blk_queue_dead(q))) {
+	if (likely(!blk_queue_dying(q))) {
 		__blk_get_queue(q);
 		return true;
 	}
@@ -870,7 +910,7 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
 	int may_queue;
 
-	if (unlikely(blk_queue_dead(q)))
+	if (unlikely(blk_queue_dying(q)))
 		return NULL;
 
 	may_queue = elv_may_queue(q, rw_flags);
@@ -1050,7 +1090,7 @@ retry:
 	if (rq)
 		return rq;
 
-	if (!(gfp_mask & __GFP_WAIT) || unlikely(blk_queue_dead(q))) {
+	if (!(gfp_mask & __GFP_WAIT) || unlikely(blk_queue_dying(q))) {
 		blk_put_rl(rl);
 		return NULL;
 	}
@@ -1307,7 +1347,7 @@ static bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 	if (!ll_back_merge_fn(q, req, bio))
 		return false;
 
-	trace_block_bio_backmerge(q, bio);
+	trace_block_bio_backmerge(q, req, bio);
 
 	if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff)
 		blk_rq_set_mixed_merge(req);
@@ -1329,7 +1369,7 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 	if (!ll_front_merge_fn(q, req, bio))
 		return false;
 
-	trace_block_bio_frontmerge(q, bio);
+	trace_block_bio_frontmerge(q, req, bio);
 
 	if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff)
 		blk_rq_set_mixed_merge(req);
@@ -1433,6 +1473,11 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 */
 	blk_queue_bounce(q, &bio);
 
+	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
+		bio_endio(bio, -EIO);
+		return;
+	}
+
 	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
 		spin_lock_irq(q->queue_lock);
 		where = ELEVATOR_INSERT_FLUSH;
@@ -1507,13 +1552,6 @@ get_rq:
 		if (list_empty(&plug->list))
 			trace_block_plug(q);
 		else {
-			if (!plug->should_sort) {
-				struct request *__rq;
-
-				__rq = list_entry_rq(plug->list.prev);
-				if (__rq->q != q)
-					plug->should_sort = 1;
-			}
 			if (request_count >= BLK_MAX_REQUEST_COUNT) {
 				blk_flush_plug_list(plug, false);
 				trace_block_plug(q);
@@ -1672,9 +1710,6 @@ generic_make_request_checks(struct bio *bio)
 	 * of partition p to block n+start(p) of the disk.
 	 */
 	blk_partition_remap(bio);
-
-	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio))
-		goto end_io;
 
 	if (bio_check_eod(bio, nr_sectors))
 		goto end_io;
@@ -1910,7 +1945,7 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 		return -EIO;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (unlikely(blk_queue_dead(q))) {
+	if (unlikely(blk_queue_dying(q))) {
 		spin_unlock_irqrestore(q->queue_lock, flags);
 		return -ENODEV;
 	}
@@ -2847,7 +2882,6 @@ void blk_start_plug(struct blk_plug *plug)
 	plug->magic = PLUG_MAGIC;
 	INIT_LIST_HEAD(&plug->list);
 	INIT_LIST_HEAD(&plug->cb_list);
-	plug->should_sort = 0;
 
 	/*
 	 * If this is a nested plug, don't actually assign it. It will be
@@ -2884,27 +2918,11 @@ static void queue_unplugged(struct request_queue *q, unsigned int depth,
 {
 	trace_block_unplug(q, depth, !from_schedule);
 
-	/*
-	 * Don't mess with dead queue.
-	 */
-	if (unlikely(blk_queue_dead(q))) {
-		spin_unlock(q->queue_lock);
-		return;
-	}
-
-	/*
-	 * If we are punting this to kblockd, then we can safely drop
-	 * the queue_lock before waking kblockd (which needs to take
-	 * this lock).
-	 */
-	if (from_schedule) {
-		spin_unlock(q->queue_lock);
+	if (from_schedule)
 		blk_run_queue_async(q);
-	} else {
+	else
 		__blk_run_queue(q);
-		spin_unlock(q->queue_lock);
-	}
-
+	spin_unlock(q->queue_lock);
 }
 
 static void flush_plug_callbacks(struct blk_plug *plug, bool from_schedule)
@@ -2965,10 +2983,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 	list_splice_init(&plug->list, &list);
 
-	if (plug->should_sort) {
-		list_sort(NULL, &list, plug_rq_cmp);
-		plug->should_sort = 0;
-	}
+	list_sort(NULL, &list, plug_rq_cmp);
 
 	q = NULL;
 	depth = 0;
@@ -2996,7 +3011,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		/*
 		 * Short-circuit if @q is dead
 		 */
-		if (unlikely(blk_queue_dead(q))) {
+		if (unlikely(blk_queue_dying(q))) {
 			__blk_end_request_all(rq, -ENODEV);
 			continue;
 		}

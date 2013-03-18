@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -279,8 +279,7 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 		e1e_flush();
 		udelay(1);
 
-		/*
-		 * Read "Status Register" repeatedly until the LSB is cleared.
+		/* Read "Status Register" repeatedly until the LSB is cleared.
 		 * The EEPROM will signal that the command has been completed
 		 * by clearing bit 0 of the internal status register.  If it's
 		 * not cleared within 'timeout', then error out.
@@ -321,8 +320,7 @@ s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	u32 i, eerd = 0;
 	s32 ret_val = 0;
 
-	/*
-	 * A check for invalid values:  offset too large, too many words,
+	/* A check for invalid values:  offset too large, too many words,
 	 * too many words for the offset, and not enough words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
@@ -361,11 +359,10 @@ s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
-	s32 ret_val;
+	s32 ret_val = -E1000_ERR_NVM;
 	u16 widx = 0;
 
-	/*
-	 * A check for invalid values:  offset too large, too many words,
+	/* A check for invalid values:  offset too large, too many words,
 	 * and not enough words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
@@ -374,16 +371,18 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		return -E1000_ERR_NVM;
 	}
 
-	ret_val = nvm->ops.acquire(hw);
-	if (ret_val)
-		return ret_val;
-
 	while (widx < words) {
 		u8 write_opcode = NVM_WRITE_OPCODE_SPI;
 
-		ret_val = e1000_ready_nvm_eeprom(hw);
+		ret_val = nvm->ops.acquire(hw);
 		if (ret_val)
-			goto release;
+			return ret_val;
+
+		ret_val = e1000_ready_nvm_eeprom(hw);
+		if (ret_val) {
+			nvm->ops.release(hw);
+			return ret_val;
+		}
 
 		e1000_standby_nvm(hw);
 
@@ -393,8 +392,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 		e1000_standby_nvm(hw);
 
-		/*
-		 * Some SPI eeproms use the 8th address bit embedded in the
+		/* Some SPI eeproms use the 8th address bit embedded in the
 		 * opcode
 		 */
 		if ((nvm->address_bits == 8) && (offset >= 128))
@@ -417,11 +415,9 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 				break;
 			}
 		}
+		usleep_range(10000, 20000);
+		nvm->ops.release(hw);
 	}
-
-	usleep_range(10000, 20000);
-release:
-	nvm->ops.release(hw);
 
 	return ret_val;
 }
@@ -461,16 +457,15 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 		return ret_val;
 	}
 
-	/*
-	 * if nvm_data is not ptr guard the PBA must be in legacy format which
+	/* if nvm_data is not ptr guard the PBA must be in legacy format which
 	 * means pba_ptr is actually our second data word for the PBA number
 	 * and we can decode it into an ascii string
 	 */
 	if (nvm_data != NVM_PBA_PTR_GUARD) {
 		e_dbg("NVM PBA number is not stored as string\n");
 
-		/* we will need 11 characters to store the PBA */
-		if (pba_num_size < 11) {
+		/* make sure callers buffer is big enough to store the PBA */
+		if (pba_num_size < E1000_PBANUM_LENGTH) {
 			e_dbg("PBA string buffer too small\n");
 			return E1000_ERR_NO_SPACE;
 		}

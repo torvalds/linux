@@ -93,7 +93,7 @@ static const struct hc_driver ps3_ehci_hc_driver = {
 	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
-static int __devinit ps3_ehci_probe(struct ps3_system_bus_device *dev)
+static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
 {
 	int result;
 	struct usb_hcd *hcd;

@@ -102,6 +102,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		tcp_parse_options(skb, &tmp_opt, &hash_location, 0, NULL);
 
 		if (tmp_opt.saw_tstamp) {
+			tmp_opt.rcv_tsecr	-= tcptw->tw_ts_offset;
 			tmp_opt.ts_recent	= tcptw->tw_ts_recent;
 			tmp_opt.ts_recent_stamp	= tcptw->tw_ts_recent_stamp;
 			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
@@ -288,6 +289,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tcptw->tw_rcv_wnd	= tcp_receive_window(tp);
 		tcptw->tw_ts_recent	= tp->rx_opt.ts_recent;
 		tcptw->tw_ts_recent_stamp = tp->rx_opt.ts_recent_stamp;
+		tcptw->tw_ts_offset	= tp->tsoffset;
 
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == PF_INET6) {
@@ -446,7 +448,6 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		 */
 		newtp->snd_cwnd = TCP_INIT_CWND;
 		newtp->snd_cwnd_cnt = 0;
-		newtp->bytes_acked = 0;
 
 		newtp->frto_counter = 0;
 		newtp->frto_highmark = 0;
@@ -500,6 +501,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 			newtp->rx_opt.ts_recent_stamp = 0;
 			newtp->tcp_header_len = sizeof(struct tcphdr);
 		}
+		newtp->tsoffset = 0;
 #ifdef CONFIG_TCP_MD5SIG
 		newtp->md5sig_info = NULL;	/*XXX*/
 		if (newtp->af_specific->md5_lookup(sk, newsk))
@@ -553,7 +555,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			 * it can be estimated (approximately)
 			 * from another data.
 			 */
-			tmp_opt.ts_recent_stamp = get_seconds() - ((TCP_TIMEOUT_INIT/HZ)<<req->retrans);
+			tmp_opt.ts_recent_stamp = get_seconds() - ((TCP_TIMEOUT_INIT/HZ)<<req->num_timeout);
 			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
 		}
 	}
@@ -582,7 +584,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		 * Note that even if there is new data in the SYN packet
 		 * they will be thrown away too.
 		 */
-		req->rsk_ops->rtx_syn_ack(sk, req, NULL);
+		inet_rtx_syn_ack(sk, req);
 		return NULL;
 	}
 
@@ -696,7 +698,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	/* Got ACK for our SYNACK, so update baseline for SYNACK RTT sample. */
 	if (tmp_opt.saw_tstamp && tmp_opt.rcv_tsecr)
 		tcp_rsk(req)->snt_synack = tmp_opt.rcv_tsecr;
-	else if (req->retrans) /* don't take RTT sample if retrans && ~TS */
+	else if (req->num_retrans) /* don't take RTT sample if retrans && ~TS */
 		tcp_rsk(req)->snt_synack = 0;
 
 	/* For Fast Open no more processing is needed (sk is the
@@ -706,7 +708,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		return sk;
 
 	/* While TCP_DEFER_ACCEPT is active, drop bare ACK. */
-	if (req->retrans < inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
+	if (req->num_timeout < inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
 	    TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
 		inet_rsk(req)->acked = 1;
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPDEFERACCEPTDROP);

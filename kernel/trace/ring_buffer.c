@@ -3,8 +3,10 @@
  *
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  */
+#include <linux/ftrace_event.h>
 #include <linux/ring_buffer.h>
 #include <linux/trace_clock.h>
+#include <linux/trace_seq.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
@@ -21,7 +23,6 @@
 #include <linux/fs.h>
 
 #include <asm/local.h>
-#include "trace.h"
 
 static void update_pages_handler(struct work_struct *work);
 
@@ -177,13 +178,15 @@ void tracing_off_permanent(void)
 #define RB_MAX_SMALL_DATA	(RB_ALIGNMENT * RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 #define RB_EVNT_MIN_SIZE	8U	/* two 32bit words */
 
-#if !defined(CONFIG_64BIT) || defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+#ifndef CONFIG_HAVE_64BIT_ALIGNED_ACCESS
 # define RB_FORCE_8BYTE_ALIGNMENT	0
 # define RB_ARCH_ALIGNMENT		RB_ALIGNMENT
 #else
 # define RB_FORCE_8BYTE_ALIGNMENT	1
 # define RB_ARCH_ALIGNMENT		8U
 #endif
+
+#define RB_ALIGN_DATA		__aligned(RB_ARCH_ALIGNMENT)
 
 /* define RINGBUF_TYPE_DATA for 'case RINGBUF_TYPE_DATA:' */
 #define RINGBUF_TYPE_DATA 0 ... RINGBUF_TYPE_DATA_TYPE_LEN_MAX
@@ -333,7 +336,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
 struct buffer_data_page {
 	u64		 time_stamp;	/* page time stamp */
 	local_t		 commit;	/* write committed index */
-	unsigned char	 data[];	/* data of buffer page */
+	unsigned char	 data[] RB_ALIGN_DATA;	/* data of buffer page */
 };
 
 /*
@@ -460,9 +463,10 @@ struct ring_buffer_per_cpu {
 	unsigned long			lost_events;
 	unsigned long			last_overrun;
 	local_t				entries_bytes;
-	local_t				commit_overrun;
-	local_t				overrun;
 	local_t				entries;
+	local_t				overrun;
+	local_t				commit_overrun;
+	local_t				dropped_events;
 	local_t				committing;
 	local_t				commits;
 	unsigned long			read;
@@ -1396,6 +1400,8 @@ rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer)
 		struct list_head *head_page_with_bit;
 
 		head_page = &rb_set_head_page(cpu_buffer)->list;
+		if (!head_page)
+			break;
 		prev_page = head_page->prev;
 
 		first_page = pages->next;
@@ -1820,7 +1826,7 @@ rb_add_time_stamp(struct ring_buffer_event *event, u64 delta)
 }
 
 /**
- * ring_buffer_update_event - update event type and data
+ * rb_update_event - update event type and data
  * @event: the even to update
  * @type: the type of event
  * @length: the size of the event field in the ring buffer
@@ -2155,8 +2161,10 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 			 * If we are not in overwrite mode,
 			 * this is easy, just stop here.
 			 */
-			if (!(buffer->flags & RB_FL_OVERWRITE))
+			if (!(buffer->flags & RB_FL_OVERWRITE)) {
+				local_inc(&cpu_buffer->dropped_events);
 				goto out_reset;
+			}
 
 			ret = rb_handle_head_page(cpu_buffer,
 						  tail_page,
@@ -2427,41 +2435,76 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 
 #ifdef CONFIG_TRACING
 
-#define TRACE_RECURSIVE_DEPTH 16
+/*
+ * The lock and unlock are done within a preempt disable section.
+ * The current_context per_cpu variable can only be modified
+ * by the current task between lock and unlock. But it can
+ * be modified more than once via an interrupt. To pass this
+ * information from the lock to the unlock without having to
+ * access the 'in_interrupt()' functions again (which do show
+ * a bit of overhead in something as critical as function tracing,
+ * we use a bitmask trick.
+ *
+ *  bit 0 =  NMI context
+ *  bit 1 =  IRQ context
+ *  bit 2 =  SoftIRQ context
+ *  bit 3 =  normal context.
+ *
+ * This works because this is the order of contexts that can
+ * preempt other contexts. A SoftIRQ never preempts an IRQ
+ * context.
+ *
+ * When the context is determined, the corresponding bit is
+ * checked and set (if it was set, then a recursion of that context
+ * happened).
+ *
+ * On unlock, we need to clear this bit. To do so, just subtract
+ * 1 from the current_context and AND it to itself.
+ *
+ * (binary)
+ *  101 - 1 = 100
+ *  101 & 100 = 100 (clearing bit zero)
+ *
+ *  1010 - 1 = 1001
+ *  1010 & 1001 = 1000 (clearing bit 1)
+ *
+ * The least significant bit can be cleared this way, and it
+ * just so happens that it is the same bit corresponding to
+ * the current context.
+ */
+static DEFINE_PER_CPU(unsigned int, current_context);
 
-/* Keep this code out of the fast path cache */
-static noinline void trace_recursive_fail(void)
+static __always_inline int trace_recursive_lock(void)
 {
-	/* Disable all tracing before we do anything else */
-	tracing_off_permanent();
+	unsigned int val = this_cpu_read(current_context);
+	int bit;
 
-	printk_once(KERN_WARNING "Tracing recursion: depth[%ld]:"
-		    "HC[%lu]:SC[%lu]:NMI[%lu]\n",
-		    trace_recursion_buffer(),
-		    hardirq_count() >> HARDIRQ_SHIFT,
-		    softirq_count() >> SOFTIRQ_SHIFT,
-		    in_nmi());
+	if (in_interrupt()) {
+		if (in_nmi())
+			bit = 0;
+		else if (in_irq())
+			bit = 1;
+		else
+			bit = 2;
+	} else
+		bit = 3;
 
-	WARN_ON_ONCE(1);
+	if (unlikely(val & (1 << bit)))
+		return 1;
+
+	val |= (1 << bit);
+	this_cpu_write(current_context, val);
+
+	return 0;
 }
 
-static inline int trace_recursive_lock(void)
+static __always_inline void trace_recursive_unlock(void)
 {
-	trace_recursion_inc();
+	unsigned int val = this_cpu_read(current_context);
 
-	if (likely(trace_recursion_buffer() < TRACE_RECURSIVE_DEPTH))
-		return 0;
-
-	trace_recursive_fail();
-
-	return -1;
-}
-
-static inline void trace_recursive_unlock(void)
-{
-	WARN_ON_ONCE(!trace_recursion_buffer());
-
-	trace_recursion_dec();
+	val--;
+	val &= this_cpu_read(current_context);
+	this_cpu_write(current_context, val);
 }
 
 #else
@@ -2720,8 +2763,8 @@ EXPORT_SYMBOL_GPL(ring_buffer_discard_commit);
  * and not the length of the event which would hold the header.
  */
 int ring_buffer_write(struct ring_buffer *buffer,
-			unsigned long length,
-			void *data)
+		      unsigned long length,
+		      void *data)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
@@ -2929,12 +2972,12 @@ rb_num_of_entries(struct ring_buffer_per_cpu *cpu_buffer)
  * @buffer: The ring buffer
  * @cpu: The per CPU buffer to read from.
  */
-unsigned long ring_buffer_oldest_event_ts(struct ring_buffer *buffer, int cpu)
+u64 ring_buffer_oldest_event_ts(struct ring_buffer *buffer, int cpu)
 {
 	unsigned long flags;
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct buffer_page *bpage;
-	unsigned long ret;
+	u64 ret = 0;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return 0;
@@ -2949,7 +2992,8 @@ unsigned long ring_buffer_oldest_event_ts(struct ring_buffer *buffer, int cpu)
 		bpage = cpu_buffer->reader_page;
 	else
 		bpage = rb_set_head_page(cpu_buffer);
-	ret = bpage->page->time_stamp;
+	if (bpage)
+		ret = bpage->page->time_stamp;
 	raw_spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
 	return ret;
@@ -2995,7 +3039,8 @@ unsigned long ring_buffer_entries_cpu(struct ring_buffer *buffer, int cpu)
 EXPORT_SYMBOL_GPL(ring_buffer_entries_cpu);
 
 /**
- * ring_buffer_overrun_cpu - get the number of overruns in a cpu_buffer
+ * ring_buffer_overrun_cpu - get the number of overruns caused by the ring
+ * buffer wrapping around (only if RB_FL_OVERWRITE is on).
  * @buffer: The ring buffer
  * @cpu: The per CPU buffer to get the number of overruns from
  */
@@ -3015,7 +3060,9 @@ unsigned long ring_buffer_overrun_cpu(struct ring_buffer *buffer, int cpu)
 EXPORT_SYMBOL_GPL(ring_buffer_overrun_cpu);
 
 /**
- * ring_buffer_commit_overrun_cpu - get the number of overruns caused by commits
+ * ring_buffer_commit_overrun_cpu - get the number of overruns caused by
+ * commits failing due to the buffer wrapping around while there are uncommitted
+ * events, such as during an interrupt storm.
  * @buffer: The ring buffer
  * @cpu: The per CPU buffer to get the number of overruns from
  */
@@ -3034,6 +3081,46 @@ ring_buffer_commit_overrun_cpu(struct ring_buffer *buffer, int cpu)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_commit_overrun_cpu);
+
+/**
+ * ring_buffer_dropped_events_cpu - get the number of dropped events caused by
+ * the ring buffer filling up (only if RB_FL_OVERWRITE is off).
+ * @buffer: The ring buffer
+ * @cpu: The per CPU buffer to get the number of overruns from
+ */
+unsigned long
+ring_buffer_dropped_events_cpu(struct ring_buffer *buffer, int cpu)
+{
+	struct ring_buffer_per_cpu *cpu_buffer;
+	unsigned long ret;
+
+	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+		return 0;
+
+	cpu_buffer = buffer->buffers[cpu];
+	ret = local_read(&cpu_buffer->dropped_events);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_dropped_events_cpu);
+
+/**
+ * ring_buffer_read_events_cpu - get the number of events successfully read
+ * @buffer: The ring buffer
+ * @cpu: The per CPU buffer to get the number of events read
+ */
+unsigned long
+ring_buffer_read_events_cpu(struct ring_buffer *buffer, int cpu)
+{
+	struct ring_buffer_per_cpu *cpu_buffer;
+
+	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+		return 0;
+
+	cpu_buffer = buffer->buffers[cpu];
+	return cpu_buffer->read;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_read_events_cpu);
 
 /**
  * ring_buffer_entries - get the number of entries in a buffer
@@ -3260,6 +3347,8 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	 * Splice the empty reader page into the list around the head.
 	 */
 	reader = rb_set_head_page(cpu_buffer);
+	if (!reader)
+		goto out;
 	cpu_buffer->reader_page->list.next = rb_list_head(reader->list.next);
 	cpu_buffer->reader_page->list.prev = reader->list.prev;
 
@@ -3392,7 +3481,7 @@ static void rb_advance_iter(struct ring_buffer_iter *iter)
 	/* check for end of page padding */
 	if ((iter->head >= rb_page_size(iter->head_page)) &&
 	    (iter->head_page != cpu_buffer->commit_page))
-		rb_advance_iter(iter);
+		rb_inc_iter(iter);
 }
 
 static int rb_lost_events(struct ring_buffer_per_cpu *cpu_buffer)
@@ -3778,12 +3867,17 @@ void
 ring_buffer_read_finish(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
+	unsigned long flags;
 
 	/*
 	 * Ring buffer is disabled from recording, here's a good place
-	 * to check the integrity of the ring buffer. 
+	 * to check the integrity of the ring buffer.
+	 * Must prevent readers from trying to read, as the check
+	 * clears the HEAD page and readers require it.
 	 */
+	raw_spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 	rb_check_pages(cpu_buffer);
+	raw_spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
 	atomic_dec(&cpu_buffer->record_disabled);
 	atomic_dec(&cpu_buffer->buffer->resize_disabled);
@@ -3864,9 +3958,10 @@ rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer)
 	local_set(&cpu_buffer->reader_page->page->commit, 0);
 	cpu_buffer->reader_page->read = 0;
 
-	local_set(&cpu_buffer->commit_overrun, 0);
 	local_set(&cpu_buffer->entries_bytes, 0);
 	local_set(&cpu_buffer->overrun, 0);
+	local_set(&cpu_buffer->commit_overrun, 0);
+	local_set(&cpu_buffer->dropped_events, 0);
 	local_set(&cpu_buffer->entries, 0);
 	local_set(&cpu_buffer->committing, 0);
 	local_set(&cpu_buffer->commits, 0);

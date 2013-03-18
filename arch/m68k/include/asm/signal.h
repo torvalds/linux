@@ -16,23 +16,8 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
-struct old_sigaction {
-	__sighandler_t sa_handler;
-	old_sigset_t sa_mask;
-	unsigned long sa_flags;
-	__sigrestore_t sa_restorer;
-};
+#define __ARCH_HAS_SA_RESTORER
 
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	__sigrestore_t sa_restorer;
-	sigset_t sa_mask;		/* mask last for extensibility */
-};
-
-struct k_sigaction {
-	struct sigaction sa;
-};
 #include <asm/sigcontext.h>
 
 #ifndef CONFIG_CPU_HAS_NO_BITFIELDS
@@ -41,7 +26,7 @@ struct k_sigaction {
 static inline void sigaddset(sigset_t *set, int _sig)
 {
 	asm ("bfset %0{%1,#1}"
-		: "+od" (*set)
+		: "+o" (*set)
 		: "id" ((_sig - 1) ^ 31)
 		: "cc");
 }
@@ -49,7 +34,7 @@ static inline void sigaddset(sigset_t *set, int _sig)
 static inline void sigdelset(sigset_t *set, int _sig)
 {
 	asm ("bfclr %0{%1,#1}"
-		: "+od" (*set)
+		: "+o" (*set)
 		: "id" ((_sig - 1) ^ 31)
 		: "cc");
 }
@@ -65,7 +50,7 @@ static inline int __gen_sigismember(sigset_t *set, int _sig)
 	int ret;
 	asm ("bfextu %1{%2,#1},%0"
 		: "=d" (ret)
-		: "od" (*set), "id" ((_sig-1) ^ 31)
+		: "o" (*set), "id" ((_sig-1) ^ 31)
 		: "cc");
 	return ret;
 }
@@ -86,11 +71,9 @@ static inline int sigfindinword(unsigned long word)
 
 #endif /* !CONFIG_CPU_HAS_NO_BITFIELDS */
 
-#ifdef __uClinux__
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
-#else
-struct pt_regs;
-extern void ptrace_signal_deliver(struct pt_regs *regs, void *cookie);
+#ifndef __uClinux__
+extern void ptrace_signal_deliver(void);
+#define ptrace_signal_deliver ptrace_signal_deliver
 #endif /* __uClinux__ */
 
 #endif /* _M68K_SIGNAL_H */

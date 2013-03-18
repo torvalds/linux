@@ -508,7 +508,7 @@ pcbit_irq_handler(int interrupt, void *devptr)
 		return IRQ_NONE;
 	}
 	if (dev->interrupt) {
-		printk(KERN_DEBUG "pcbit: reentering interrupt hander\n");
+		printk(KERN_DEBUG "pcbit: reentering interrupt handler\n");
 		return IRQ_HANDLED;
 	}
 	dev->interrupt = 1;

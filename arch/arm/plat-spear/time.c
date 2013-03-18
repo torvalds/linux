@@ -186,15 +186,9 @@ static void __init spear_clockevent_init(int irq)
 	tick_rate = clk_get_rate(gpt_clk);
 	tick_rate >>= CTRL_PRESCALER16;
 
-	clockevents_calc_mult_shift(&clkevt, tick_rate, SPEAR_MIN_RANGE);
-
-	clkevt.max_delta_ns = clockevent_delta2ns(0xfff0,
-			&clkevt);
-	clkevt.min_delta_ns = clockevent_delta2ns(3, &clkevt);
-
 	clkevt.cpumask = cpumask_of(0);
 
-	clockevents_register_device(&clkevt);
+	clockevents_config_and_register(&clkevt, tick_rate, 3, 0xfff0);
 
 	setup_irq(irq, &spear_timer_irq);
 }

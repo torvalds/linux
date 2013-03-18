@@ -371,14 +371,14 @@ static struct spear_function *spear310_functions[] = {
 	&tdm_function,
 };
 
-static struct of_device_id spear310_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id spear310_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear310-pinmux",
 	},
 	{},
 };
 
-static int __devinit spear310_pinctrl_probe(struct platform_device *pdev)
+static int spear310_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -388,6 +388,8 @@ static int __devinit spear310_pinctrl_probe(struct platform_device *pdev)
 	spear3xx_machdata.nfunctions = ARRAY_SIZE(spear310_functions);
 
 	pmx_init_addr(&spear3xx_machdata, PMX_CONFIG_REG);
+	pmx_init_gpio_pingroup_addr(spear3xx_machdata.gpio_pingroups,
+			spear3xx_machdata.ngpio_pingroups, PMX_CONFIG_REG);
 
 	spear3xx_machdata.modes_supported = false;
 
@@ -398,7 +400,7 @@ static int __devinit spear310_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit spear310_pinctrl_remove(struct platform_device *pdev)
+static int spear310_pinctrl_remove(struct platform_device *pdev)
 {
 	return spear_pinctrl_remove(pdev);
 }
@@ -410,7 +412,7 @@ static struct platform_driver spear310_pinctrl_driver = {
 		.of_match_table = spear310_pinctrl_of_match,
 	},
 	.probe = spear310_pinctrl_probe,
-	.remove = __devexit_p(spear310_pinctrl_remove),
+	.remove = spear310_pinctrl_remove,
 };
 
 static int __init spear310_pinctrl_init(void)

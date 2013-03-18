@@ -2567,7 +2567,7 @@ static inline void *rtllib_priv(struct net_device *dev)
 	return ((struct rtllib_device *)netdev_priv(dev))->priv;
 }
 
-extern inline int rtllib_is_empty_essid(const char *essid, int essid_len)
+static inline int rtllib_is_empty_essid(const char *essid, int essid_len)
 {
 	/* Single white space is for Linksys APs */
 	if (essid_len == 1 && essid[0] == ' ')
@@ -2583,7 +2583,7 @@ extern inline int rtllib_is_empty_essid(const char *essid, int essid_len)
 	return 1;
 }
 
-extern inline int rtllib_is_valid_mode(struct rtllib_device *ieee, int mode)
+static inline int rtllib_is_valid_mode(struct rtllib_device *ieee, int mode)
 {
 	/*
 	 * It is possible for both access points and our device to support
@@ -2609,7 +2609,7 @@ extern inline int rtllib_is_valid_mode(struct rtllib_device *ieee, int mode)
 	return 0;
 }
 
-extern inline int rtllib_get_hdrlen(u16 fc)
+static inline int rtllib_get_hdrlen(u16 fc)
 {
 	int hdrlen = RTLLIB_3ADDR_LEN;
 

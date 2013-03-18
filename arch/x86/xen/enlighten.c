@@ -67,6 +67,7 @@
 #include <asm/hypervisor.h>
 #include <asm/mwait.h>
 #include <asm/pci_x86.h>
+#include <asm/pat.h>
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
@@ -193,10 +194,11 @@ void xen_vcpu_restore(void)
 {
 	int cpu;
 
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		bool other_cpu = (cpu != smp_processor_id());
+		bool is_up = HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL);
 
-		if (other_cpu &&
+		if (other_cpu && is_up &&
 		    HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL))
 			BUG();
 
@@ -205,7 +207,7 @@ void xen_vcpu_restore(void)
 		if (have_vcpu_info_placement)
 			xen_vcpu_setup(cpu);
 
-		if (other_cpu &&
+		if (other_cpu && is_up &&
 		    HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL))
 			BUG();
 	}
@@ -222,6 +224,21 @@ static void __init xen_banner(void)
 	printk(KERN_INFO "Xen version: %d.%d%s%s\n",
 	       version >> 16, version & 0xffff, extra.extraversion,
 	       xen_feature(XENFEAT_mmu_pt_update_preserve_ad) ? " (preserve-AD)" : "");
+}
+/* Check if running on Xen version (major, minor) or later */
+bool
+xen_running_on_version_or_later(unsigned int major, unsigned int minor)
+{
+	unsigned int version;
+
+	if (!xen_domain())
+		return false;
+
+	version = HYPERVISOR_xen_version(XENVER_version, NULL);
+	if ((((version >> 16) == major) && ((version & 0xffff) >= minor)) ||
+		((version >> 16) > major))
+		return true;
+	return false;
 }
 
 #define CPUID_THERM_POWER_LEAF 6
@@ -287,8 +304,7 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 
 static bool __init xen_check_mwait(void)
 {
-#if defined(CONFIG_ACPI) && !defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR) && \
-	!defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR_MODULE)
+#ifdef CONFIG_ACPI
 	struct xen_platform_op op = {
 		.cmd			= XENPF_set_processor_pminfo,
 		.u.set_pminfo.id	= -1,
@@ -307,6 +323,13 @@ static bool __init xen_check_mwait(void)
 	 * from the hardware and hypercall.
 	 */
 	if (!xen_initial_domain())
+		return false;
+
+	/*
+	 * When running under platform earlier than Xen4.2, do not expose
+	 * mwait, to avoid the risk of loading native acpi pad driver
+	 */
+	if (!xen_running_on_version_or_later(4, 2))
 		return false;
 
 	ax = 1;
@@ -1395,7 +1418,14 @@ asmlinkage void __init xen_start_kernel(void)
 	 */
 	acpi_numa = -1;
 #endif
-
+#ifdef CONFIG_X86_PAT
+	/*
+	 * For right now disable the PAT. We should remove this once
+	 * git commit 8eaffa67b43e99ae581622c5133e20b0f48bcef1
+	 * (xen/pat: Disable PAT support for now) is reverted.
+	 */
+	pat_enabled = 0;
+#endif
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
@@ -1615,6 +1645,7 @@ const struct hypervisor_x86 x86_hyper_xen_hvm __refconst = {
 	.name			= "Xen HVM",
 	.detect			= xen_hvm_platform,
 	.init_platform		= xen_hvm_guest_init,
+	.x2apic_available	= xen_x2apic_para_available,
 };
 EXPORT_SYMBOL(x86_hyper_xen_hvm);
 #endif

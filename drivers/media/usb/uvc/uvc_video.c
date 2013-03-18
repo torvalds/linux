@@ -1812,6 +1812,7 @@ int uvc_video_init(struct uvc_streaming *stream)
 	probe->bFormatIndex = format->index;
 	probe->bFrameIndex = frame->bFrameIndex;
 
+	stream->def_format = format;
 	stream->cur_format = format;
 	stream->cur_frame = frame;
 

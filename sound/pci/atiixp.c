@@ -296,7 +296,7 @@ static DEFINE_PCI_DEVICE_TABLE(snd_atiixp_ids) = {
 
 MODULE_DEVICE_TABLE(pci, snd_atiixp_ids);
 
-static struct snd_pci_quirk atiixp_quirks[] __devinitdata = {
+static struct snd_pci_quirk atiixp_quirks[] = {
 	SND_PCI_QUIRK(0x105b, 0x0c81, "Foxconn RC4107MA-RS2", 0),
 	SND_PCI_QUIRK(0x15bd, 0x3100, "DFI RS482", 0),
 	{ } /* terminator */
@@ -561,21 +561,22 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 	     ATI_REG_ISR_CODEC2_NOT_READY)
 #define CODEC_CHECK_BITS (ALL_CODEC_NOT_READY|ATI_REG_ISR_NEW_FRAME)
 
-static int __devinit ac97_probing_bugs(struct pci_dev *pci)
+static int ac97_probing_bugs(struct pci_dev *pci)
 {
 	const struct snd_pci_quirk *q;
 
 	q = snd_pci_quirk_lookup(pci, atiixp_quirks);
 	if (q) {
-		snd_printdd(KERN_INFO "Atiixp quirk for %s.  "
-			    "Forcing codec %d\n", q->name, q->value);
+		snd_printdd(KERN_INFO
+			    "Atiixp quirk for %s.  Forcing codec %d\n",
+			    snd_pci_quirk_name(q), q->value);
 		return q->value;
 	}
 	/* this hardware doesn't need workarounds.  Probe for codec */
 	return -1;
 }
 
-static int __devinit snd_atiixp_codec_detect(struct atiixp *chip)
+static int snd_atiixp_codec_detect(struct atiixp *chip)
 {
 	int timeout;
 
@@ -1183,7 +1184,7 @@ static struct snd_pcm_ops snd_atiixp_spdif_ops = {
 	.pointer =	snd_atiixp_pcm_pointer,
 };
 
-static struct ac97_pcm atiixp_pcm_defs[] __devinitdata = {
+static struct ac97_pcm atiixp_pcm_defs[] = {
 	/* front PCM */
 	{
 		.exclusive = 1,
@@ -1247,7 +1248,7 @@ static struct atiixp_dma_ops snd_atiixp_spdif_dma_ops = {
 };
 	
 
-static int __devinit snd_atiixp_pcm_new(struct atiixp *chip)
+static int snd_atiixp_pcm_new(struct atiixp *chip)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_chmap *chmap;
@@ -1390,7 +1391,7 @@ static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id)
  * ac97 mixer section
  */
 
-static struct ac97_quirk ac97_quirks[] __devinitdata = {
+static struct ac97_quirk ac97_quirks[] = {
 	{
 		.subvendor = 0x103c,
 		.subdevice = 0x006b,
@@ -1412,8 +1413,8 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	{ } /* terminator */
 };
 
-static int __devinit snd_atiixp_mixer_new(struct atiixp *chip, int clock,
-					  const char *quirk_override)
+static int snd_atiixp_mixer_new(struct atiixp *chip, int clock,
+				const char *quirk_override)
 {
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
@@ -1560,7 +1561,7 @@ static void snd_atiixp_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "%02x: %08x\n", i, readl(chip->remap_addr + i));
 }
 
-static void __devinit snd_atiixp_proc_init(struct atiixp *chip)
+static void snd_atiixp_proc_init(struct atiixp *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1602,9 +1603,9 @@ static int snd_atiixp_dev_free(struct snd_device *device)
 /*
  * constructor for chip instance
  */
-static int __devinit snd_atiixp_create(struct snd_card *card,
-				      struct pci_dev *pci,
-				      struct atiixp **r_chip)
+static int snd_atiixp_create(struct snd_card *card,
+			     struct pci_dev *pci,
+			     struct atiixp **r_chip)
 {
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_atiixp_dev_free,
@@ -1661,8 +1662,8 @@ static int __devinit snd_atiixp_create(struct snd_card *card,
 }
 
 
-static int __devinit snd_atiixp_probe(struct pci_dev *pci,
-				     const struct pci_device_id *pci_id)
+static int snd_atiixp_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct atiixp *chip;
@@ -1710,7 +1711,7 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 	return err;
 }
 
-static void __devexit snd_atiixp_remove(struct pci_dev *pci)
+static void snd_atiixp_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1720,7 +1721,7 @@ static struct pci_driver atiixp_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_atiixp_ids,
 	.probe = snd_atiixp_probe,
-	.remove = __devexit_p(snd_atiixp_remove),
+	.remove = snd_atiixp_remove,
 	.driver = {
 		.pm = SND_ATIIXP_PM_OPS,
 	},

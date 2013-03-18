@@ -478,7 +478,7 @@ static void softing_card_shutdown(struct softing *card)
 	mutex_unlock(&card->fw.lock);
 }
 
-static __devinit int softing_card_boot(struct softing *card)
+static int softing_card_boot(struct softing *card)
 {
 	int ret, j;
 	static const uint8_t stream[] = {
@@ -645,8 +645,8 @@ static const struct can_bittiming_const softing_btr_const = {
 };
 
 
-static __devinit struct net_device *softing_netdev_create(struct softing *card,
-		uint16_t chip_id)
+static struct net_device *softing_netdev_create(struct softing *card,
+						uint16_t chip_id)
 {
 	struct net_device *netdev;
 	struct softing_priv *priv;
@@ -676,7 +676,7 @@ static __devinit struct net_device *softing_netdev_create(struct softing *card,
 	return netdev;
 }
 
-static __devinit int softing_netdev_register(struct net_device *netdev)
+static int softing_netdev_register(struct net_device *netdev)
 {
 	int ret;
 
@@ -745,7 +745,7 @@ static const struct attribute_group softing_pdev_group = {
 /*
  * platform driver
  */
-static __devexit int softing_pdev_remove(struct platform_device *pdev)
+static int softing_pdev_remove(struct platform_device *pdev)
 {
 	struct softing *card = platform_get_drvdata(pdev);
 	int j;
@@ -766,7 +766,7 @@ static __devexit int softing_pdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static __devinit int softing_pdev_probe(struct platform_device *pdev)
+static int softing_pdev_probe(struct platform_device *pdev)
 {
 	const struct softing_platform_data *pdat = pdev->dev.platform_data;
 	struct softing *card;
@@ -871,7 +871,7 @@ static struct platform_driver softing_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = softing_pdev_probe,
-	.remove = __devexit_p(softing_pdev_remove),
+	.remove = softing_pdev_remove,
 };
 
 module_platform_driver(softing_driver);

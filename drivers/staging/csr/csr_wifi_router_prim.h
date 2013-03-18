@@ -20,10 +20,6 @@
 #include "csr_result.h"
 #include "csr_wifi_fsm_event.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define CSR_WIFI_ROUTER_PRIM                                            (0x0400)
 
 typedef CsrPrim CsrWifiRouterPrim;
@@ -420,11 +416,6 @@ typedef struct
     s16                       snr;
     u16                      rate;
 } CsrWifiRouterMaPacketInd;
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_ROUTER_PRIM_H__ */
 

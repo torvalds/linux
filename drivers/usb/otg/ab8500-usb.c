@@ -468,7 +468,7 @@ static int ab8500_usb_v2_res_setup(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit ab8500_usb_probe(struct platform_device *pdev)
+static int ab8500_usb_probe(struct platform_device *pdev)
 {
 	struct ab8500_usb	*ab;
 	struct usb_otg		*otg;
@@ -546,7 +546,7 @@ fail0:
 	return err;
 }
 
-static int __devexit ab8500_usb_remove(struct platform_device *pdev)
+static int ab8500_usb_remove(struct platform_device *pdev)
 {
 	struct ab8500_usb *ab = platform_get_drvdata(pdev);
 
@@ -571,7 +571,7 @@ static int __devexit ab8500_usb_remove(struct platform_device *pdev)
 
 static struct platform_driver ab8500_usb_driver = {
 	.probe		= ab8500_usb_probe,
-	.remove		= __devexit_p(ab8500_usb_remove),
+	.remove		= ab8500_usb_remove,
 	.driver		= {
 		.name	= "ab8500-usb",
 		.owner	= THIS_MODULE,

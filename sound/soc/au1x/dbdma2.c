@@ -347,7 +347,7 @@ static struct snd_soc_platform_driver au1xpsc_soc_platform = {
 	.pcm_free	= au1xpsc_pcm_free_dma_buffers,
 };
 
-static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
+static int au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_dmadata *dmadata;
 
@@ -362,7 +362,7 @@ static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 	return snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
 }
 
-static int __devexit au1xpsc_pcm_drvremove(struct platform_device *pdev)
+static int au1xpsc_pcm_drvremove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 
@@ -375,7 +375,7 @@ static struct platform_driver au1xpsc_pcm_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1xpsc_pcm_drvprobe,
-	.remove		= __devexit_p(au1xpsc_pcm_drvremove),
+	.remove		= au1xpsc_pcm_drvremove,
 };
 
 module_platform_driver(au1xpsc_pcm_driver);

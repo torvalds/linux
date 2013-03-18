@@ -210,8 +210,10 @@ memcpy:
 	_beqz	a4, .Ldone	# avoid loading anything for zero-length copies
 	# copy 16 bytes per iteration for word-aligned dst and unaligned src
 	ssa8	a3		# set shift amount from byte offset
-#define SIM_CHECKS_ALIGNMENT	1	/* set to 1 when running on ISS (simulator) with the
-					   lint or ferret client, or 0 to save a few cycles */
+
+/* set to 1 when running on ISS (simulator) with the
+   lint or ferret client, or 0 to save a few cycles */
+#define SIM_CHECKS_ALIGNMENT	1
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || SIM_CHECKS_ALIGNMENT
 	and	a11, a3, a8	# save unalignment offset for below
 	sub	a3, a3, a11	# align a3

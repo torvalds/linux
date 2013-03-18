@@ -29,10 +29,6 @@ Running Lguest:
 
   You will need to configure your kernel with the following options:
 
-  "General setup":
-     "Prompt for development and/or incomplete code/drivers" = Y
-        (CONFIG_EXPERIMENTAL=y)
-
   "Processor type and features":
      "Paravirtualized guest support" = Y
         "Lguest guest support" = Y
@@ -43,10 +39,10 @@ Running Lguest:
 
   "Device Drivers":
      "Block devices"
-        "Virtio block driver (EXPERIMENTAL)" = M/Y
+        "Virtio block driver" = M/Y
      "Network device support"
         "Universal TUN/TAP device driver support" = M/Y
-        "Virtio network driver (EXPERIMENTAL)" = M/Y
+        "Virtio network driver" = M/Y
            (CONFIG_VIRTIO_BLK=m, CONFIG_VIRTIO_NET=m and CONFIG_TUN=m)
 
   "Virtualization"

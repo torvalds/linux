@@ -101,7 +101,7 @@ static const struct pwm_ops puv3_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit pwm_probe(struct platform_device *pdev)
+static int pwm_probe(struct platform_device *pdev)
 {
 	struct puv3_pwm_chip *puv3;
 	struct resource *r;
@@ -123,9 +123,9 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	puv3->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (puv3->base == NULL)
-		return -EADDRNOTAVAIL;
+	puv3->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(puv3->base))
+		return PTR_ERR(puv3->base);
 
 	puv3->chip.dev = &pdev->dev;
 	puv3->chip.ops = &puv3_pwm_ops;
@@ -142,7 +142,7 @@ static int __devinit pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pwm_remove(struct platform_device *pdev)
+static int pwm_remove(struct platform_device *pdev)
 {
 	struct puv3_pwm_chip *puv3 = platform_get_drvdata(pdev);
 
@@ -154,7 +154,7 @@ static struct platform_driver puv3_pwm_driver = {
 		.name = "PKUnity-v3-PWM",
 	},
 	.probe = pwm_probe,
-	.remove = __devexit_p(pwm_remove),
+	.remove = pwm_remove,
 };
 module_platform_driver(puv3_pwm_driver);
 

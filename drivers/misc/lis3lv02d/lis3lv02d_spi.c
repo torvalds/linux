@@ -69,7 +69,7 @@ static struct of_device_id lis302dl_spi_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, lis302dl_spi_dt_ids);
 #endif
 
-static int __devinit lis302dl_spi_probe(struct spi_device *spi)
+static int lis302dl_spi_probe(struct spi_device *spi)
 {
 	int ret;
 
@@ -100,7 +100,7 @@ static int __devinit lis302dl_spi_probe(struct spi_device *spi)
 	return lis3lv02d_init_device(&lis3_dev);
 }
 
-static int __devexit lis302dl_spi_remove(struct spi_device *spi)
+static int lis302dl_spi_remove(struct spi_device *spi)
 {
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 	lis3lv02d_joystick_disable(lis3);
@@ -144,7 +144,7 @@ static struct spi_driver lis302dl_spi_driver = {
 		.of_match_table = of_match_ptr(lis302dl_spi_dt_ids),
 	},
 	.probe	= lis302dl_spi_probe,
-	.remove	= __devexit_p(lis302dl_spi_remove),
+	.remove	= lis302dl_spi_remove,
 };
 
 module_spi_driver(lis302dl_spi_driver);

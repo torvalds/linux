@@ -74,8 +74,8 @@ int fsl_lbc_find(phys_addr_t addr_base)
 
 	lbc = fsl_lbc_ctrl_dev->regs;
 	for (i = 0; i < ARRAY_SIZE(lbc->bank); i++) {
-		__be32 br = in_be32(&lbc->bank[i].br);
-		__be32 or = in_be32(&lbc->bank[i].or);
+		u32 br = in_be32(&lbc->bank[i].br);
+		u32 or = in_be32(&lbc->bank[i].or);
 
 		if (br & BR_V && (br & or & BR_BA) == fsl_lbc_addr(addr_base))
 			return i;
@@ -97,7 +97,7 @@ EXPORT_SYMBOL(fsl_lbc_find);
 int fsl_upm_find(phys_addr_t addr_base, struct fsl_upm *upm)
 {
 	int bank;
-	__be32 br;
+	u32 br;
 	struct fsl_lbc_regs __iomem *lbc;
 
 	bank = fsl_lbc_find(addr_base);
@@ -185,8 +185,8 @@ int fsl_upm_run_pattern(struct fsl_upm *upm, void __iomem *io_base, u32 mar)
 }
 EXPORT_SYMBOL(fsl_upm_run_pattern);
 
-static int __devinit fsl_lbc_ctrl_init(struct fsl_lbc_ctrl *ctrl,
-				       struct device_node *node)
+static int fsl_lbc_ctrl_init(struct fsl_lbc_ctrl *ctrl,
+			     struct device_node *node)
 {
 	struct fsl_lbc_regs __iomem *lbc = ctrl->regs;
 
@@ -273,7 +273,7 @@ static irqreturn_t fsl_lbc_ctrl_irq(int irqno, void *data)
  * in the chip probe function.
 */
 
-static int __devinit fsl_lbc_ctrl_probe(struct platform_device *dev)
+static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 {
 	int ret;
 

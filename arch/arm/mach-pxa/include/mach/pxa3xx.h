@@ -7,7 +7,6 @@
 
 extern void __init pxa3xx_map_io(void);
 extern void __init pxa3xx_init_irq(void);
-extern void __init pxa95x_init_irq(void);
 
 #define pxa3xx_handle_irq	ichp_handle_irq
 

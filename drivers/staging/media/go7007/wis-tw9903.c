@@ -31,8 +31,7 @@ struct wis_tw9903 {
 	int hue;
 };
 
-static u8 initial_registers[] =
-{
+static u8 initial_registers[] = {
 	0x02, 0x44, /* input 1, composite */
 	0x03, 0x92, /* correct digital format */
 	0x04, 0x00,
@@ -128,8 +127,8 @@ static int wis_tw9903_command(struct i2c_client *client,
 			0x06, 0xc0, /* reset device */
 			0,	0,
 		};
-		printk(KERN_DEBUG "vscale is %04x, hscale is %04x\n",
-				vscale, hscale);
+		dev_dbg(&client->dev, "vscale is %04x, hscale is %04x\n",
+			vscale, hscale);
 		/*write_regs(client, regs);*/
 		break;
 	}
@@ -288,12 +287,11 @@ static int wis_tw9903_probe(struct i2c_client *client,
 	dec->hue = 0;
 	i2c_set_clientdata(client, dec);
 
-	printk(KERN_DEBUG
-		"wis-tw9903: initializing TW9903 at address %d on %s\n",
+	dev_dbg(&client->dev, "initializing TW9903 at address %d on %s\n",
 		client->addr, adapter->name);
 
 	if (write_regs(client, initial_registers) < 0) {
-		printk(KERN_ERR "wis-tw9903: error initializing TW9903\n");
+		dev_err(&client->dev, "error initializing TW9903\n");
 		kfree(dec);
 		return -ENODEV;
 	}
@@ -325,17 +323,6 @@ static struct i2c_driver wis_tw9903_driver = {
 	.id_table	= wis_tw9903_id,
 };
 
-static int __init wis_tw9903_init(void)
-{
-	return i2c_add_driver(&wis_tw9903_driver);
-}
-
-static void __exit wis_tw9903_cleanup(void)
-{
-	i2c_del_driver(&wis_tw9903_driver);
-}
-
-module_init(wis_tw9903_init);
-module_exit(wis_tw9903_cleanup);
+module_i2c_driver(wis_tw9903_driver);
 
 MODULE_LICENSE("GPL v2");

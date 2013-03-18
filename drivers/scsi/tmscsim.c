@@ -2219,7 +2219,7 @@ static struct scsi_host_template driver_template = {
  *
  **********************************************************************/
 
-static void __devinit dc390_eeprom_prepare_read(struct pci_dev *pdev, u8 cmd)
+static void dc390_eeprom_prepare_read(struct pci_dev *pdev, u8 cmd)
 {
 	u8 carryFlag = 1, j = 0x80, bval;
 	int i;
@@ -2242,7 +2242,7 @@ static void __devinit dc390_eeprom_prepare_read(struct pci_dev *pdev, u8 cmd)
 	}
 }
 
-static u16 __devinit dc390_eeprom_get_data(struct pci_dev *pdev)
+static u16 dc390_eeprom_get_data(struct pci_dev *pdev)
 {
 	int i;
 	u16 wval = 0;
@@ -2264,7 +2264,7 @@ static u16 __devinit dc390_eeprom_get_data(struct pci_dev *pdev)
 	return wval;
 }
 
-static void __devinit dc390_read_eeprom(struct pci_dev *pdev, u16 *ptr)
+static void dc390_read_eeprom(struct pci_dev *pdev, u16 *ptr)
 {
 	u8 cmd = EEPROM_READ, i;
 
@@ -2282,7 +2282,7 @@ static void __devinit dc390_read_eeprom(struct pci_dev *pdev, u16 *ptr)
 }
 
 /* Override EEprom values with explicitly set values */
-static void __devinit dc390_eeprom_override(u8 index)
+static void dc390_eeprom_override(u8 index)
 {
 	u8 *ptr = (u8 *) dc390_eepromBuf[index], id;
 
@@ -2305,7 +2305,7 @@ static void __devinit dc390_eeprom_override(u8 index)
 	}
 }
 
-static int __devinitdata tmscsim_def[] = {
+static int tmscsim_def[] = {
 	7,
 	0 /* 10MHz */,
 	PARITY_CHK_ | SEND_START_ | EN_DISCONNECT_ | SYNC_NEGO_ | TAG_QUEUEING_,
@@ -2315,7 +2315,7 @@ static int __devinitdata tmscsim_def[] = {
 };
 
 /* Copy defaults over set values where missing */
-static void __devinit dc390_fill_with_defaults (void)
+static void dc390_fill_with_defaults (void)
 {
 	int i;
 
@@ -2335,7 +2335,7 @@ static void __devinit dc390_fill_with_defaults (void)
 		tmscsim[5] = 180;
 }
 
-static void __devinit dc390_check_eeprom(struct pci_dev *pdev, u8 index)
+static void dc390_check_eeprom(struct pci_dev *pdev, u8 index)
 {
 	u8 interpd[] = {1, 3, 5, 10, 16, 30, 60, 120};
 	u8 EEbuf[128];
@@ -2372,7 +2372,7 @@ static void __devinit dc390_check_eeprom(struct pci_dev *pdev, u8 index)
 	}
 }
 
-static void __devinit dc390_init_hw(struct dc390_acb *pACB, u8 index)
+static void dc390_init_hw(struct dc390_acb *pACB, u8 index)
 {
 	struct Scsi_Host *shost = pACB->pScsiHost;
 	u8 dstate;
@@ -2422,8 +2422,7 @@ static void __devinit dc390_init_hw(struct dc390_acb *pACB, u8 index)
 	DC390_write8(DMA_Status, dstate);
 }
 
-static int __devinit dc390_probe_one(struct pci_dev *pdev,
-				    const struct pci_device_id *id)
+static int dc390_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct dc390_acb *pACB;
 	struct Scsi_Host *shost;
@@ -2532,7 +2531,7 @@ static int __devinit dc390_probe_one(struct pci_dev *pdev,
  *
  * @dev: The PCI device to remove.
  */
-static void __devexit dc390_remove_one(struct pci_dev *dev)
+static void dc390_remove_one(struct pci_dev *dev)
 {
 	struct Scsi_Host *scsi_host = pci_get_drvdata(dev);
 	unsigned long iflags;
@@ -2568,7 +2567,7 @@ static struct pci_driver dc390_driver = {
 	.name           = "tmscsim",
 	.id_table       = tmscsim_pci_tbl,
 	.probe          = dc390_probe_one,
-	.remove         = __devexit_p(dc390_remove_one),
+	.remove         = dc390_remove_one,
 };
 
 static int __init dc390_module_init(void)

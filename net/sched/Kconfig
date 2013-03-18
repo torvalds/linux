@@ -509,7 +509,7 @@ config NET_EMATCH_TEXT
 
 config NET_EMATCH_CANID
 	tristate "CAN Identifier"
-	depends on NET_EMATCH && CAN
+	depends on NET_EMATCH && (CAN=y || CAN=m)
 	---help---
 	  Say Y here if you want to be able to classify CAN frames based
 	  on CAN Identifier.

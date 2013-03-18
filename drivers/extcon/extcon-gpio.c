@@ -29,7 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/gpio.h>
 #include <linux/extcon.h>
-#include <linux/extcon/extcon_gpio.h>
+#include <linux/extcon/extcon-gpio.h>
 
 struct gpio_extcon_data {
 	struct extcon_dev edev;
@@ -76,7 +76,7 @@ static ssize_t extcon_gpio_print_state(struct extcon_dev *edev, char *buf)
 	return -EINVAL;
 }
 
-static int __devinit gpio_extcon_probe(struct platform_device *pdev)
+static int gpio_extcon_probe(struct platform_device *pdev)
 {
 	struct gpio_extcon_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_extcon_data *extcon_data;
@@ -137,7 +137,7 @@ err:
 	return ret;
 }
 
-static int __devexit gpio_extcon_remove(struct platform_device *pdev)
+static int gpio_extcon_remove(struct platform_device *pdev)
 {
 	struct gpio_extcon_data *extcon_data = platform_get_drvdata(pdev);
 
@@ -150,7 +150,7 @@ static int __devexit gpio_extcon_remove(struct platform_device *pdev)
 
 static struct platform_driver gpio_extcon_driver = {
 	.probe		= gpio_extcon_probe,
-	.remove		= __devexit_p(gpio_extcon_remove),
+	.remove		= gpio_extcon_remove,
 	.driver		= {
 		.name	= "extcon-gpio",
 		.owner	= THIS_MODULE,

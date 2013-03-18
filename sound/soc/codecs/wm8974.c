@@ -113,15 +113,15 @@ SOC_ENUM("Equaliser Function", wm8974_enum[3]),
 SOC_ENUM("EQ1 Cut Off", wm8974_enum[4]),
 SOC_SINGLE_TLV("EQ1 Volume", WM8974_EQ1,  0, 24, 1, eq_tlv),
 
-SOC_ENUM("Equaliser EQ2 Bandwith", wm8974_enum[5]),
+SOC_ENUM("Equaliser EQ2 Bandwidth", wm8974_enum[5]),
 SOC_ENUM("EQ2 Cut Off", wm8974_enum[6]),
 SOC_SINGLE_TLV("EQ2 Volume", WM8974_EQ2,  0, 24, 1, eq_tlv),
 
-SOC_ENUM("Equaliser EQ3 Bandwith", wm8974_enum[7]),
+SOC_ENUM("Equaliser EQ3 Bandwidth", wm8974_enum[7]),
 SOC_ENUM("EQ3 Cut Off", wm8974_enum[8]),
 SOC_SINGLE_TLV("EQ3 Volume", WM8974_EQ3,  0, 24, 1, eq_tlv),
 
-SOC_ENUM("Equaliser EQ4 Bandwith", wm8974_enum[9]),
+SOC_ENUM("Equaliser EQ4 Bandwidth", wm8974_enum[9]),
 SOC_ENUM("EQ4 Cut Off", wm8974_enum[10]),
 SOC_SINGLE_TLV("EQ4 Volume", WM8974_EQ4,  0, 24, 1, eq_tlv),
 
@@ -625,8 +625,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8974 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8974_dapm_routes),
 };
 
-static __devinit int wm8974_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8974_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	int ret;
 
@@ -636,7 +636,7 @@ static __devinit int wm8974_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int wm8974_i2c_remove(struct i2c_client *client)
+static int wm8974_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 
@@ -655,7 +655,7 @@ static struct i2c_driver wm8974_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8974_i2c_probe,
-	.remove =   __devexit_p(wm8974_i2c_remove),
+	.remove =   wm8974_i2c_remove,
 	.id_table = wm8974_i2c_id,
 };
 

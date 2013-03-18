@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include "../../util/types.h"
-#include "../../../../../arch/x86/include/asm/perf_regs.h"
+#include <asm/perf_regs.h>
 
 #ifndef ARCH_X86_64
 #define PERF_REGS_MASK ((1ULL << PERF_REG_X86_32_MAX) - 1)

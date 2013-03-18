@@ -18,7 +18,6 @@
 #ifndef __XFS_DA_BTREE_H__
 #define	__XFS_DA_BTREE_H__
 
-struct xfs_buf;
 struct xfs_bmap_free;
 struct xfs_inode;
 struct xfs_mount;
@@ -214,6 +213,9 @@ int	xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
  */
 int	xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 				       xfs_da_state_blk_t *new_blk);
+int	xfs_da_node_read(struct xfs_trans *tp, struct xfs_inode *dp,
+			 xfs_dablk_t bno, xfs_daddr_t mappedbno,
+			 struct xfs_buf **bpp, int which_fork);
 
 /*
  * Utility routines.
@@ -226,9 +228,11 @@ int	xfs_da_get_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 			      struct xfs_buf **bp, int whichfork);
 int	xfs_da_read_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 			       xfs_dablk_t bno, xfs_daddr_t mappedbno,
-			       struct xfs_buf **bpp, int whichfork);
+			       struct xfs_buf **bpp, int whichfork,
+			       const struct xfs_buf_ops *ops);
 xfs_daddr_t	xfs_da_reada_buf(struct xfs_trans *trans, struct xfs_inode *dp,
-			xfs_dablk_t bno, int whichfork);
+				xfs_dablk_t bno, xfs_daddr_t mapped_bno,
+				int whichfork, const struct xfs_buf_ops *ops);
 int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 					  struct xfs_buf *dead_buf);
 

@@ -18,6 +18,8 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
+#include "omap44xx.h"
+
 	__CPUINIT
 
 /* Physical address needed since MMU not enabled yet on secondary core */
@@ -64,3 +66,39 @@ hold:	ldr	r12,=0x103
 	b	secondary_startup
 ENDPROC(omap_secondary_startup)
 
+ENTRY(omap_secondary_startup_4460)
+hold_2:	ldr	r12,=0x103
+	dsb
+	smc	#0			@ read from AuxCoreBoot0
+	mov	r0, r0, lsr #9
+	mrc	p15, 0, r4, c0, c0, 5
+	and	r4, r4, #0x0f
+	cmp	r0, r4
+	bne	hold_2
+
+	/*
+	 * GIC distributor control register has changed between
+	 * CortexA9 r1pX and r2pX. The Control Register secure
+	 * banked version is now composed of 2 bits:
+	 * bit 0 == Secure Enable
+	 * bit 1 == Non-Secure Enable
+	 * The Non-Secure banked register has not changed
+	 * Because the ROM Code is based on the r1pX GIC, the CPU1
+	 * GIC restoration will cause a problem to CPU0 Non-Secure SW.
+	 * The workaround must be:
+	 * 1) Before doing the CPU1 wakeup, CPU0 must disable
+	 * the GIC distributor
+	 * 2) CPU1 must re-enable the GIC distributor on
+	 * it's wakeup path.
+	 */
+	ldr	r1, =OMAP44XX_GIC_DIST_BASE
+	ldr	r0, [r1]
+	orr	r0, #1
+	str	r0, [r1]
+
+	/*
+	 * we've been released from the wait loop,secondary_stack
+	 * should now contain the SVC stack for this core
+	 */
+	b	secondary_startup
+ENDPROC(omap_secondary_startup_4460)

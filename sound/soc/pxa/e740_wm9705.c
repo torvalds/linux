@@ -144,7 +144,7 @@ static struct gpio e740_audio_gpios[] = {
 	{ GPIO_E740_WM9705_nAVDD2, GPIOF_OUT_INIT_HIGH, "Audio power" },
 };
 
-static int __devinit e740_probe(struct platform_device *pdev)
+static int e740_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &e740;
 	int ret;
@@ -165,7 +165,7 @@ static int __devinit e740_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit e740_remove(struct platform_device *pdev)
+static int e740_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -180,7 +180,7 @@ static struct platform_driver e740_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= e740_probe,
-	.remove		= __devexit_p(e740_remove),
+	.remove		= e740_remove,
 };
 
 module_platform_driver(e740_driver);

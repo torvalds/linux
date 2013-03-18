@@ -18,7 +18,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/dmi.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
@@ -26,6 +25,7 @@
 #include <linux/fb.h>
 
 #include <linux/pci.h>
+#include <linux/console.h>
 #include <linux/vga_switcheroo.h>
 
 #include <linux/vgaarb.h>
@@ -338,8 +338,10 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 
 	if (new_client->fb_info) {
 		struct fb_event event;
+		console_lock();
 		event.info = new_client->fb_info;
 		fb_notifier_call_chain(FB_EVENT_REMAP_ALL_CONSOLE, &event);
+		console_unlock();
 	}
 
 	ret = vgasr_priv.handler->switchto(new_client->id);
@@ -376,7 +378,6 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos)
 {
 	char usercmd[64];
-	const char *pdev_name;
 	int ret;
 	bool delay = false, can_switch;
 	bool just_mux = false;
@@ -468,7 +469,6 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 		goto out;
 
 	if (can_switch) {
-		pdev_name = pci_name(client->pdev);
 		ret = vga_switchto_stage1(client);
 		if (ret)
 			printk(KERN_ERR "vga_switcheroo: switching failed stage 1 %d\n", ret);
@@ -540,7 +540,6 @@ fail:
 int vga_switcheroo_process_delayed_switch(void)
 {
 	struct vga_switcheroo_client *client;
-	const char *pdev_name;
 	int ret;
 	int err = -EINVAL;
 
@@ -555,7 +554,6 @@ int vga_switcheroo_process_delayed_switch(void)
 	if (!client || !check_can_switch())
 		goto err;
 
-	pdev_name = pci_name(client->pdev);
 	ret = vga_switchto_stage2(client);
 	if (ret)
 		printk(KERN_ERR "vga_switcheroo: delayed switching failed stage 2 %d\n", ret);
@@ -567,4 +565,3 @@ err:
 	return err;
 }
 EXPORT_SYMBOL(vga_switcheroo_process_delayed_switch);
-

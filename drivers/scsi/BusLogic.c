@@ -3615,7 +3615,7 @@ static void __exit BusLogic_exit(void)
 __setup("BusLogic=", BusLogic_Setup);
 
 #ifdef MODULE
-static struct pci_device_id BusLogic_pci_tbl[] __devinitdata = {
+static struct pci_device_id BusLogic_pci_tbl[] = {
 	{ PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_BUSLOGIC, PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER_NC,

@@ -19,10 +19,12 @@ static void pci_free_resources(struct pci_dev *dev)
 
 static void pci_stop_dev(struct pci_dev *dev)
 {
+	pci_pme_active(dev, false);
+
 	if (dev->is_added) {
 		pci_proc_detach_device(dev);
 		pci_remove_sysfs_dev_files(dev);
-		device_unregister(&dev->dev);
+		device_del(&dev->dev);
 		dev->is_added = 0;
 	}
 
@@ -37,7 +39,7 @@ static void pci_destroy_dev(struct pci_dev *dev)
 	up_write(&pci_bus_sem);
 
 	pci_free_resources(dev);
-	pci_dev_put(dev);
+	put_device(&dev->dev);
 }
 
 void pci_remove_bus(struct pci_bus *bus)
@@ -111,3 +113,39 @@ void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 	pci_remove_bus_device(dev);
 }
 EXPORT_SYMBOL(pci_stop_and_remove_bus_device);
+
+void pci_stop_root_bus(struct pci_bus *bus)
+{
+	struct pci_dev *child, *tmp;
+	struct pci_host_bridge *host_bridge;
+
+	if (!pci_is_root_bus(bus))
+		return;
+
+	host_bridge = to_pci_host_bridge(bus->bridge);
+	list_for_each_entry_safe_reverse(child, tmp,
+					 &bus->devices, bus_list)
+		pci_stop_bus_device(child);
+
+	/* stop the host bridge */
+	device_del(&host_bridge->dev);
+}
+
+void pci_remove_root_bus(struct pci_bus *bus)
+{
+	struct pci_dev *child, *tmp;
+	struct pci_host_bridge *host_bridge;
+
+	if (!pci_is_root_bus(bus))
+		return;
+
+	host_bridge = to_pci_host_bridge(bus->bridge);
+	list_for_each_entry_safe(child, tmp,
+				 &bus->devices, bus_list)
+		pci_remove_bus_device(child);
+	pci_remove_bus(bus);
+	host_bridge->bus = NULL;
+
+	/* remove the host bridge */
+	put_device(&host_bridge->dev);
+}

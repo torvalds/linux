@@ -37,6 +37,7 @@ config USB_ARCH_HAS_EHCI
 	default y if ARCH_W90X900
 	default y if ARCH_AT91
 	default y if ARCH_MXC
+	default y if ARCH_MXS
 	default y if ARCH_OMAP3
 	default y if ARCH_CNS3XXX
 	default y if ARCH_VT8500

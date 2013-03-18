@@ -590,6 +590,9 @@ static int apei_check_gar(struct acpi_generic_address *reg, u64 *paddr,
 	if (bit_width == 32 && bit_offset == 0 && (*paddr & 0x03) == 0 &&
 	    *access_bit_width < 32)
 		*access_bit_width = 32;
+	else if (bit_width == 64 && bit_offset == 0 && (*paddr & 0x07) == 0 &&
+	    *access_bit_width < 64)
+		*access_bit_width = 64;
 
 	if ((bit_width + bit_offset) > *access_bit_width) {
 		pr_warning(FW_BUG APEI_PFX

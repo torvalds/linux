@@ -207,14 +207,14 @@ static void bcma_core_pci_config_fixup(struct bcma_drv_pci *pc)
  * Init.
  **************************************************/
 
-static void __devinit bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
+static void bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
 {
 	bcma_core_pci_fixcfg(pc);
 	bcma_pcicore_serdes_workaround(pc);
 	bcma_core_pci_config_fixup(pc);
 }
 
-void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc)
+void bcma_core_pci_init(struct bcma_drv_pci *pc)
 {
 	if (pc->setup_done)
 		return;

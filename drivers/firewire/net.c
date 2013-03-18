@@ -270,7 +270,7 @@ static int fwnet_header_cache(const struct neighbour *neigh,
 	if (type == cpu_to_be16(ETH_P_802_3))
 		return -1;
 	net = neigh->dev;
-	h = (struct fwnet_header *)((u8 *)hh->hh_data + 16 - sizeof(*h));
+	h = (struct fwnet_header *)((u8 *)hh->hh_data + HH_DATA_OFF(sizeof(*h)));
 	h->h_proto = type;
 	memcpy(h->h_dest, neigh->ha, net->addr_len);
 	hh->hh_len = FWNET_HLEN;
@@ -282,7 +282,7 @@ static int fwnet_header_cache(const struct neighbour *neigh,
 static void fwnet_header_cache_update(struct hh_cache *hh,
 		const struct net_device *net, const unsigned char *haddr)
 {
-	memcpy((u8 *)hh->hh_data + 16 - FWNET_HLEN, haddr, net->addr_len);
+	memcpy((u8 *)hh->hh_data + HH_DATA_OFF(FWNET_HLEN), haddr, net->addr_len);
 }
 
 static int fwnet_header_parse(const struct sk_buff *skb, unsigned char *haddr)
@@ -398,11 +398,11 @@ static struct fwnet_partial_datagram *fwnet_pd_new(struct net_device *net,
 
 	new->datagram_label = datagram_label;
 	new->datagram_size = dg_size;
-	new->skb = dev_alloc_skb(dg_size + net->hard_header_len + 15);
+	new->skb = dev_alloc_skb(dg_size + LL_RESERVED_SPACE(net));
 	if (new->skb == NULL)
 		goto fail_w_fi;
 
-	skb_reserve(new->skb, (net->hard_header_len + 15) & ~15);
+	skb_reserve(new->skb, LL_RESERVED_SPACE(net));
 	new->pbuf = skb_put(new->skb, dg_size);
 	memcpy(new->pbuf + frag_off, frag_buf, frag_len);
 	list_add_tail(&new->pd_link, &peer->pd_list);
@@ -520,7 +520,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 	dev = netdev_priv(net);
 	/* Write metadata, and then pass to the receive level */
 	skb->dev = net;
-	skb->ip_summed = CHECKSUM_UNNECESSARY;  /* don't check it */
+	skb->ip_summed = CHECKSUM_NONE;
 
 	/*
 	 * Parse the encapsulation header. This actually does the job of
@@ -690,14 +690,14 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 		buf++;
 		len -= RFC2374_UNFRAG_HDR_SIZE;
 
-		skb = dev_alloc_skb(len + net->hard_header_len + 15);
+		skb = dev_alloc_skb(len + LL_RESERVED_SPACE(net));
 		if (unlikely(!skb)) {
 			dev_err(&net->dev, "out of memory\n");
 			net->stats.rx_dropped++;
 
 			return -ENOMEM;
 		}
-		skb_reserve(skb, (net->hard_header_len + 15) & ~15);
+		skb_reserve(skb, LL_RESERVED_SPACE(net));
 		memcpy(skb_put(skb, len), buf, len);
 
 		return fwnet_finish_incoming_packet(net, skb, source_node_id,
@@ -828,7 +828,6 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 {
 	struct fwnet_device *dev;
 	struct fw_iso_packet packet;
-	struct fw_card *card;
 	__be16 *hdr_ptr;
 	__be32 *buf_ptr;
 	int retval;
@@ -840,7 +839,6 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 	unsigned long flags;
 
 	dev = data;
-	card = dev->card;
 	hdr_ptr = header;
 	length = be16_to_cpup(hdr_ptr);
 
@@ -861,8 +859,8 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 	if (specifier_id == IANA_SPECIFIER_ID && ver == RFC2734_SW_VERSION) {
 		buf_ptr += 2;
 		length -= IEEE1394_GASP_HDR_SIZE;
-		fwnet_incoming_packet(dev, buf_ptr, length,
-				      source_node_id, -1, true);
+		fwnet_incoming_packet(dev, buf_ptr, length, source_node_id,
+				      context->card->generation, true);
 	}
 
 	packet.payload_length = dev->rcv_buffer_size;
@@ -958,7 +956,12 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 			break;
 		}
 
-		skb_pull(skb, ptask->max_payload);
+		if (ptask->dest_node == IEEE1394_ALL_NODES) {
+			skb_pull(skb,
+				 ptask->max_payload + IEEE1394_GASP_HDR_SIZE);
+		} else {
+			skb_pull(skb, ptask->max_payload);
+		}
 		if (ptask->outstanding_pkts > 1) {
 			fwnet_make_sf_hdr(&ptask->hdr, RFC2374_HDR_INTFRAG,
 					  dg_size, fg_off, datagram_label);
@@ -1062,7 +1065,7 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 		smp_rmb();
 		node_id = dev->card->node_id;
 
-		p = skb_push(ptask->skb, 8);
+		p = skb_push(ptask->skb, IEEE1394_GASP_HDR_SIZE);
 		put_unaligned_be32(node_id << 16 | IANA_SPECIFIER_ID >> 8, p);
 		put_unaligned_be32((IANA_SPECIFIER_ID & 0xff) << 24
 						| RFC2734_SW_VERSION, &p[4]);

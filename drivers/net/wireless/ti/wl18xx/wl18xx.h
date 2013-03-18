@@ -26,10 +26,10 @@
 
 /* minimum FW required for driver */
 #define WL18XX_CHIP_VER		8
-#define WL18XX_IFTYPE_VER	2
-#define WL18XX_MAJOR_VER	0
-#define WL18XX_SUBTYPE_VER	0
-#define WL18XX_MINOR_VER	100
+#define WL18XX_IFTYPE_VER	5
+#define WL18XX_MAJOR_VER	WLCORE_FW_VER_IGNORE
+#define WL18XX_SUBTYPE_VER	WLCORE_FW_VER_IGNORE
+#define WL18XX_MINOR_VER	28
 
 #define WL18XX_CMD_MAX_SIZE          740
 
@@ -49,8 +49,8 @@ struct wl18xx_priv {
 	/* Index of last released Tx desc in FW */
 	u8 last_fw_rls_idx;
 
-	/* number of VIFs requiring extra spare mem-blocks */
-	int extra_spare_vif_count;
+	/* number of keys requiring extra spare mem-blocks */
+	int extra_spare_key_count;
 };
 
 #define WL18XX_FW_MAX_TX_STATUS_DESC 33
@@ -68,7 +68,43 @@ struct wl18xx_fw_status_priv {
 	 */
 	u8 released_tx_desc[WL18XX_FW_MAX_TX_STATUS_DESC];
 
-	u8 padding[2];
+	/* A bitmap representing the currently suspended links. The suspend
+	 * is short lived, for multi-channel Tx requirements.
+	 */
+	__le32 link_suspend_bitmap;
+
+	/* packet threshold for an "almost empty" AC,
+	 * for Tx schedulng purposes
+	 */
+	u8 tx_ac_threshold;
+
+	/* number of packets to queue up for a link in PS */
+	u8 tx_ps_threshold;
+
+	/* number of packet to queue up for a suspended link */
+	u8 tx_suspend_threshold;
+
+	/* Should have less than this number of packets in queue of a slow
+	 * link to qualify as high priority link
+	 */
+	u8 tx_slow_link_prio_threshold;
+
+	/* Should have less than this number of packets in queue of a fast
+	 * link to qualify as high priority link
+	 */
+	u8 tx_fast_link_prio_threshold;
+
+	/* Should have less than this number of packets in queue of a slow
+	 * link before we stop queuing up packets for it.
+	 */
+	u8 tx_slow_stop_threshold;
+
+	/* Should have less than this number of packets in queue of a fast
+	 * link before we stop queuing up packets for it.
+	 */
+	u8 tx_fast_stop_threshold;
+
+	u8 padding[3];
 };
 
 #define WL18XX_PHY_VERSION_MAX_LEN 20

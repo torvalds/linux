@@ -62,8 +62,6 @@ unifi_fw_read_start(void *ospriv, s8 is_fw, const card_info_t *info)
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
     CSR_UNUSED(info);
 
-    func_enter();
-
     if (is_fw == UNIFI_FW_STA) {
         /* F/w may have been released after a previous successful download. */
         if (priv->fw_sta.dl_data == NULL) {
@@ -72,7 +70,6 @@ unifi_fw_read_start(void *ospriv, s8 is_fw, const card_info_t *info)
         }
         /* Set up callback struct for readfunc() */
         if (priv->fw_sta.dl_data != NULL) {
-            func_exit();
             return &priv->fw_sta;
         }
 
@@ -80,7 +77,6 @@ unifi_fw_read_start(void *ospriv, s8 is_fw, const card_info_t *info)
         unifi_error(priv, "downloading firmware... unknown request: %d\n", is_fw);
     }
 
-    func_exit();
     return NULL;
 } /* unifi_fw_read_start() */
 
@@ -105,7 +101,6 @@ unifi_fw_read_stop(void *ospriv, void *dlpriv)
 {
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
     struct dlpriv *dl_struct = (struct dlpriv *)dlpriv;
-    func_enter();
 
     if (dl_struct != NULL) {
         if (dl_struct->dl_data != NULL) {
@@ -115,7 +110,6 @@ unifi_fw_read_stop(void *ospriv, void *dlpriv)
         uf_release_firmware(priv, dl_struct);
     }
 
-    func_exit();
 } /* unifi_fw_read_stop() */
 
 
@@ -143,17 +137,14 @@ void *
 unifi_fw_open_buffer(void *ospriv, void *fwbuf, u32 len)
 {
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
-    func_enter();
 
     if (fwbuf == NULL) {
-        func_exit();
         return NULL;
     }
     priv->fw_conv.dl_data = fwbuf;
     priv->fw_conv.dl_len = len;
     priv->fw_conv.fw_desc = NULL;   /* No OS f/w resource is associated */
 
-    func_exit();
     return &priv->fw_conv;
 }
 
@@ -242,8 +233,6 @@ unifi_fw_read(void *ospriv, void *arg, u32 offset, void *buf, u32 len)
 int
 uf_run_unifihelper(unifi_priv_t *priv)
 {
-#ifdef CONFIG_HOTPLUG
-
 #ifdef ANDROID_BUILD
     char *prog = "/system/bin/unififw";
 #else
@@ -289,10 +278,6 @@ uf_run_unifihelper(unifi_priv_t *priv)
     r = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 
     return r;
-#else
-    unifi_trace(priv, UDBG1, "Can't automatically download firmware because kernel does not have HOTPLUG\n");
-    return -1;
-#endif
 } /* uf_run_unifihelper() */
 
 #ifdef CSR_WIFI_SPLIT_PATCH

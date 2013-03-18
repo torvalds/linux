@@ -1,5 +1,4 @@
-/*
- * Agere Systems Inc.
+/* Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
  * Copyright © 2005 Agere Systems Inc.
@@ -50,7 +49,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -102,8 +100,7 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define INTERNAL_MEM_RX_OFFSET  0x1FF	/* 50%   Tx, 50%   Rx */
 
 /* ISR defines */
-/*
- * For interrupts, normal running is:
+/* For interrupts, normal running is:
  *       rxdma_xfr_done, phy_interrupt, mac_stat_interrupt,
  *       watchdog_interrupt & txdma_xfer_done
  *
@@ -139,20 +136,19 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define NIC_SEND_HANG_THRESHOLD	0
 
 /* MP_TCB flags */
-#define fMP_DEST_MULTI			0x00000001
-#define fMP_DEST_BROAD			0x00000002
+#define FMP_DEST_MULTI			0x00000001
+#define FMP_DEST_BROAD			0x00000002
 
 /* MP_ADAPTER flags */
-#define fMP_ADAPTER_RECV_LOOKASIDE	0x00000004
-#define fMP_ADAPTER_INTERRUPT_IN_USE	0x00000008
+#define FMP_ADAPTER_INTERRUPT_IN_USE	0x00000008
 
 /* MP_SHARED flags */
-#define fMP_ADAPTER_LOWER_POWER		0x00200000
+#define FMP_ADAPTER_LOWER_POWER		0x00200000
 
-#define fMP_ADAPTER_NON_RECOVER_ERROR	0x00800000
-#define fMP_ADAPTER_HARDWARE_ERROR	0x04000000
+#define FMP_ADAPTER_NON_RECOVER_ERROR	0x00800000
+#define FMP_ADAPTER_HARDWARE_ERROR	0x04000000
 
-#define fMP_ADAPTER_FAIL_SEND_MASK	0x3ff00000
+#define FMP_ADAPTER_FAIL_SEND_MASK	0x3ff00000
 
 /* Some offsets in PCI config space that are actually used. */
 #define ET1310_PCI_MAC_ADDRESS		0xA4
@@ -176,22 +172,14 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define PARM_DMA_CACHE_DEF      0
 
 /* RX defines */
-#define USE_FBR0 1
-#define FBR_CHUNKS 32
-#define MAX_DESC_PER_RING_RX         1024
+#define FBR_CHUNKS		32
+#define MAX_DESC_PER_RING_RX	1024
 
 /* number of RFDs - default and min */
-#ifdef USE_FBR0
 #define RFD_LOW_WATER_MARK	40
 #define NIC_DEFAULT_NUM_RFD	1024
 #define NUM_FBRS		2
-#else
-#define RFD_LOW_WATER_MARK	20
-#define NIC_DEFAULT_NUM_RFD	256
-#define NUM_FBRS		1
-#endif
 
-#define NIC_MIN_NUM_RFD		64
 #define NUM_PACKETS_HANDLED	256
 
 #define ALCATEL_MULTICAST_PKT	0x01000000
@@ -254,8 +242,7 @@ struct pkt_stat_desc {
 
 /* Typedefs for the RX DMA status word */
 
-/*
- * rx status word 0 holds part of the status bits of the Rx DMA engine
+/* rx status word 0 holds part of the status bits of the Rx DMA engine
  * that get copied out to memory by the ET-1310.  Word 0 is a 32 bit word
  * which contains the Free Buffer ring 0 and 1 available offset.
  *
@@ -265,8 +252,7 @@ struct pkt_stat_desc {
  * bit 26 Wrap flag for FBR0
  */
 
-/*
- * RXSTAT_WORD1_t structure holds part of the status bits of the Rx DMA engine
+/* RXSTAT_WORD1_t structure holds part of the status bits of the Rx DMA engine
  * that get copied out to memory by the ET-1310.  Word 3 is a 32 bit word
  * which contains the Packet Status Ring available offset.
  *
@@ -276,8 +262,7 @@ struct pkt_stat_desc {
  * bit 29-31 unused
  */
 
-/*
- * struct rx_status_block is a structure representing the status of the Rx
+/* struct rx_status_block is a structure representing the status of the Rx
  * DMA engine it sits in free memory, and is pointed to by 0x101c / 0x1020
  */
 struct rx_status_block {
@@ -285,35 +270,24 @@ struct rx_status_block {
 	u32 word1;
 };
 
-/*
- * Structure for look-up table holding free buffer ring pointers, addresses
+/* Structure for look-up table holding free buffer ring pointers, addresses
  * and state.
  */
 struct fbr_lookup {
 	void		*virt[MAX_DESC_PER_RING_RX];
-	void		*buffer1[MAX_DESC_PER_RING_RX];
-	void		*buffer2[MAX_DESC_PER_RING_RX];
 	u32		 bus_high[MAX_DESC_PER_RING_RX];
 	u32		 bus_low[MAX_DESC_PER_RING_RX];
 	void		*ring_virtaddr;
 	dma_addr_t	 ring_physaddr;
 	void		*mem_virtaddrs[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
 	dma_addr_t	 mem_physaddrs[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
-	u64		 real_physaddr;
-	u64		 offset;
 	u32		 local_full;
 	u32		 num_entries;
-	u32		 buffsize;
+	dma_addr_t	 buffsize;
 };
 
-/*
- * struct rx_ring is the sructure representing the adaptor's local
+/* struct rx_ring is the sructure representing the adaptor's local
  * reference(s) to the rings
- *
- ******************************************************************************
- * IMPORTANT NOTE :- fbr_lookup *fbr[NUM_FBRS] uses index 0 to refer to FBR1
- *			and index 1 to refer to FRB0
- ******************************************************************************
  */
 struct rx_ring {
 	struct fbr_lookup *fbr[NUM_FBRS];
@@ -332,14 +306,10 @@ struct rx_ring {
 	u32 num_rfd;
 
 	bool unfinished_receives;
-
-	/* lookaside lists */
-	struct kmem_cache *recv_lookaside;
 };
 
 /* TX defines */
-/*
- * word 2 of the control bits in the Tx Descriptor ring for the ET-1310
+/* word 2 of the control bits in the Tx Descriptor ring for the ET-1310
  *
  * 0-15: length of packet
  * 16-27: VLAN tag
@@ -365,6 +335,10 @@ struct rx_ring {
  * 14: UDP checksum assist
  */
 
+#define TXDESC_FLAG_LASTPKT		0x0001
+#define TXDESC_FLAG_FIRSTPKT		0x0002
+#define TXDESC_FLAG_INTPROC		0x0004
+
 /* struct tx_desc represents each descriptor on the ring */
 struct tx_desc {
 	u32 addr_hi;
@@ -373,8 +347,7 @@ struct tx_desc {
 	u32 flags;	/* data (detailed above) */
 };
 
-/*
- * The status of the Tx DMA engine it sits in free memory, and is pointed to
+/* The status of the Tx DMA engine it sits in free memory, and is pointed to
  * by 0x101c / 0x1020. This is a DMA10 type
  */
 
@@ -423,15 +396,13 @@ struct tx_ring {
 	int since_irq;
 };
 
-/*
- * Do not change these values: if changed, then change also in respective
+/* Do not change these values: if changed, then change also in respective
  * TXdma and Rxdma engines
  */
 #define NUM_DESC_PER_RING_TX         512    /* TX Do not change these values */
 #define NUM_TCB                      64
 
-/*
- * These values are all superseded by registry entries to facilitate tuning.
+/* These values are all superseded by registry entries to facilitate tuning.
  * Once the desired performance has been achieved, the optimal registry values
  * should be re-populated to these #defines:
  */
@@ -576,8 +547,7 @@ static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
 	u32 reg;
 	int i;
 
-	/*
-	 * 1. Check LBCIF Status Register for bits 6 & 3:2 all equal to 0 and
+	/* 1. Check LBCIF Status Register for bits 6 & 3:2 all equal to 0 and
 	 *    bits 7,1:0 both equal to 1, at least once after reset.
 	 *    Subsequent operations need only to check that bits 1:0 are equal
 	 *    to 1 prior to starting a single byte read/write
@@ -598,9 +568,7 @@ static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
 	return -ETIMEDOUT;
 }
 
-
-/**
- * eeprom_write - Write a byte to the ET1310's EEPROM
+/* eeprom_write - Write a byte to the ET1310's EEPROM
  * @adapter: pointer to our private adapter structure
  * @addr: the address to write
  * @data: the value to write
@@ -618,8 +586,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	u32 status;
 	u32 val = 0;
 
-	/*
-	 * For an EEPROM, an I2C single byte write is defined as a START
+	/* For an EEPROM, an I2C single byte write is defined as a START
 	 * condition followed by the device address, EEPROM address, one byte
 	 * of data and a STOP condition.  The STOP condition will trigger the
 	 * EEPROM's internally timed write cycle to the nonvolatile memory.
@@ -631,12 +598,11 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	if (err)
 		return err;
 
-	 /*
-	 * 2. Write to the LBCIF Control Register:  bit 7=1, bit 6=1, bit 3=0,
-	 *    and bits 1:0 both =0.  Bit 5 should be set according to the
-	 *    type of EEPROM being accessed (1=two byte addressing, 0=one
-	 *    byte addressing).
-	 */
+	 /* 2. Write to the LBCIF Control Register:  bit 7=1, bit 6=1, bit 3=0,
+	  *    and bits 1:0 both =0.  Bit 5 should be set according to the
+	  *    type of EEPROM being accessed (1=two byte addressing, 0=one
+	  *    byte addressing).
+	  */
 	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER,
 			LBCIF_CONTROL_LBCIF_ENABLE | LBCIF_CONTROL_I2C_WRITE))
 		return -EIO;
@@ -649,14 +615,12 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 		/* Write the address to the LBCIF Address Register */
 		if (pci_write_config_dword(pdev, LBCIF_ADDRESS_REGISTER, addr))
 			break;
-		/*
-		 * Write the data to the LBCIF Data Register (the I2C write
+		/* Write the data to the LBCIF Data Register (the I2C write
 		 * will begin).
 		 */
 		if (pci_write_config_byte(pdev, LBCIF_DATA_REGISTER, data))
 			break;
-		/*
-		 * Monitor bit 1:0 of the LBCIF Status Register.  When bits
+		/* Monitor bit 1:0 of the LBCIF Status Register.  When bits
 		 * 1:0 are both equal to 1, the I2C write has completed and the
 		 * internal write cycle of the EEPROM is about to start.
 		 * (bits 1:0 = 01 is a legal state while waiting from both
@@ -667,8 +631,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 		if (err < 0)
 			return 0;
 
-		/*
-		 * Check bit 3 of the LBCIF Status Register.  If  equal to 1,
+		/* Check bit 3 of the LBCIF Status Register.  If  equal to 1,
 		 * an error has occurred.Don't break here if we are revision
 		 * 1, this is so we do a blind write for load bug.
 		 */
@@ -676,8 +639,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 			&& adapter->pdev->revision == 0)
 			break;
 
-		/*
-		 * Check bit 2 of the LBCIF Status Register.  If equal to 1 an
+		/* Check bit 2 of the LBCIF Status Register.  If equal to 1 an
 		 * ACK error has occurred on the address phase of the write.
 		 * This could be due to an actual hardware failure or the
 		 * EEPROM may still be in its internal write cycle from a
@@ -685,8 +647,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 		  *repeated later.
 		 */
 		if (status & LBCIF_STATUS_ACK_ERROR) {
-			/*
-			 * This could be due to an actual hardware failure
+			/* This could be due to an actual hardware failure
 			 * or the EEPROM may still be in its internal write
 			 * cycle from a previous write. This write operation
 			 * was ignored and must be repeated later.
@@ -699,8 +660,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 		break;
 	}
 
-	/*
-	 * Set bit 6 of the LBCIF Control Register = 0.
+	/* Set bit 6 of the LBCIF Control Register = 0.
 	 */
 	udelay(10);
 
@@ -729,8 +689,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 	return writeok ? 0 : -EIO;
 }
 
-/**
- * eeprom_read - Read a byte from the ET1310's EEPROM
+/* eeprom_read - Read a byte from the ET1310's EEPROM
  * @adapter: pointer to our private adapter structure
  * @addr: the address from which to read
  * @pdata: a pointer to a byte in which to store the value of the read
@@ -745,16 +704,14 @@ static int eeprom_read(struct et131x_adapter *adapter, u32 addr, u8 *pdata)
 	int err;
 	u32 status;
 
-	/*
-	 * A single byte read is similar to the single byte write, with the
+	/* A single byte read is similar to the single byte write, with the
 	 * exception of the data flow:
 	 */
 
 	err = eeprom_wait_ready(pdev, NULL);
 	if (err)
 		return err;
-	/*
-	 * Write to the LBCIF Control Register:  bit 7=1, bit 6=0, bit 3=0,
+	/* Write to the LBCIF Control Register:  bit 7=1, bit 6=0, bit 3=0,
 	 * and bits 1:0 both =0.  Bit 5 should be set according to the type
 	 * of EEPROM being accessed (1=two byte addressing, 0=one byte
 	 * addressing).
@@ -762,27 +719,23 @@ static int eeprom_read(struct et131x_adapter *adapter, u32 addr, u8 *pdata)
 	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER,
 				  LBCIF_CONTROL_LBCIF_ENABLE))
 		return -EIO;
-	/*
-	 * Write the address to the LBCIF Address Register (I2C read will
+	/* Write the address to the LBCIF Address Register (I2C read will
 	 * begin).
 	 */
 	if (pci_write_config_dword(pdev, LBCIF_ADDRESS_REGISTER, addr))
 		return -EIO;
-	/*
-	 * Monitor bit 0 of the LBCIF Status Register.  When = 1, I2C read
+	/* Monitor bit 0 of the LBCIF Status Register.  When = 1, I2C read
 	 * is complete. (if bit 1 =1 and bit 0 stays = 0, a hardware failure
 	 * has occurred).
 	 */
 	err = eeprom_wait_ready(pdev, &status);
 	if (err < 0)
 		return err;
-	/*
-	 * Regardless of error status, read data byte from LBCIF Data
+	/* Regardless of error status, read data byte from LBCIF Data
 	 * Register.
 	 */
 	*pdata = err;
-	/*
-	 * Check bit 2 of the LBCIF Status Register.  If = 1,
+	/* Check bit 2 of the LBCIF Status Register.  If = 1,
 	 * then an error has occurred.
 	 */
 	return (status & LBCIF_STATUS_ACK_ERROR) ? -EIO : 0;
@@ -796,13 +749,12 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 	/* We first need to check the EEPROM Status code located at offset
 	 * 0xB2 of config space
 	 */
-	pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS,
-				      &eestatus);
+	pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus);
 
 	/* THIS IS A WORKAROUND:
 	 * I need to call this function twice to get my card in a
 	 * LG M1 Express Dual running. I tried also a msleep before this
-	 * function, because I thought there could be some time condidions
+	 * function, because I thought there could be some time conditions
 	 * but it didn't work. Call the whole function twice also work.
 	 */
 	if (pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus)) {
@@ -857,37 +809,35 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 	return 0;
 }
 
-/**
- * et131x_rx_dma_enable - re-start of Rx_DMA on the ET1310.
+/* et131x_rx_dma_enable - re-start of Rx_DMA on the ET1310.
  * @adapter: pointer to our adapter structure
  */
 static void et131x_rx_dma_enable(struct et131x_adapter *adapter)
 {
 	/* Setup the receive dma configuration register for normal operation */
-	u32 csr =  0x2000;	/* FBR1 enable */
+	u32 csr =  ET_RXDMA_CSR_FBR1_ENABLE;
 
-	if (adapter->rx_ring.fbr[0]->buffsize == 4096)
-		csr |= 0x0800;
-	else if (adapter->rx_ring.fbr[0]->buffsize == 8192)
-		csr |= 0x1000;
-	else if (adapter->rx_ring.fbr[0]->buffsize == 16384)
-		csr |= 0x1800;
-#ifdef USE_FBR0
-	csr |= 0x0400;		/* FBR0 enable */
-	if (adapter->rx_ring.fbr[1]->buffsize == 256)
-		csr |= 0x0100;
-	else if (adapter->rx_ring.fbr[1]->buffsize == 512)
-		csr |= 0x0200;
-	else if (adapter->rx_ring.fbr[1]->buffsize == 1024)
-		csr |= 0x0300;
-#endif
+	if (adapter->rx_ring.fbr[1]->buffsize == 4096)
+		csr |= ET_RXDMA_CSR_FBR1_SIZE_LO;
+	else if (adapter->rx_ring.fbr[1]->buffsize == 8192)
+		csr |= ET_RXDMA_CSR_FBR1_SIZE_HI;
+	else if (adapter->rx_ring.fbr[1]->buffsize == 16384)
+		csr |= ET_RXDMA_CSR_FBR1_SIZE_LO | ET_RXDMA_CSR_FBR1_SIZE_HI;
+
+	csr |= ET_RXDMA_CSR_FBR0_ENABLE;
+	if (adapter->rx_ring.fbr[0]->buffsize == 256)
+		csr |= ET_RXDMA_CSR_FBR0_SIZE_LO;
+	else if (adapter->rx_ring.fbr[0]->buffsize == 512)
+		csr |= ET_RXDMA_CSR_FBR0_SIZE_HI;
+	else if (adapter->rx_ring.fbr[0]->buffsize == 1024)
+		csr |= ET_RXDMA_CSR_FBR0_SIZE_LO | ET_RXDMA_CSR_FBR0_SIZE_HI;
 	writel(csr, &adapter->regs->rxdma.csr);
 
 	csr = readl(&adapter->regs->rxdma.csr);
-	if ((csr & 0x00020000) != 0) {
+	if (csr & ET_RXDMA_CSR_HALT_STATUS) {
 		udelay(5);
 		csr = readl(&adapter->regs->rxdma.csr);
-		if ((csr & 0x00020000) != 0) {
+		if (csr & ET_RXDMA_CSR_HALT_STATUS) {
 			dev_err(&adapter->pdev->dev,
 			    "RX Dma failed to exit halt state.  CSR 0x%08x\n",
 				csr);
@@ -895,28 +845,27 @@ static void et131x_rx_dma_enable(struct et131x_adapter *adapter)
 	}
 }
 
-/**
- * et131x_rx_dma_disable - Stop of Rx_DMA on the ET1310
+/* et131x_rx_dma_disable - Stop of Rx_DMA on the ET1310
  * @adapter: pointer to our adapter structure
  */
 static void et131x_rx_dma_disable(struct et131x_adapter *adapter)
 {
 	u32 csr;
 	/* Setup the receive dma configuration register */
-	writel(0x00002001, &adapter->regs->rxdma.csr);
+	writel(ET_RXDMA_CSR_HALT | ET_RXDMA_CSR_FBR1_ENABLE,
+	       &adapter->regs->rxdma.csr);
 	csr = readl(&adapter->regs->rxdma.csr);
-	if ((csr & 0x00020000) == 0) {	/* Check halt status (bit 17) */
+	if (!(csr & ET_RXDMA_CSR_HALT_STATUS)) {
 		udelay(5);
 		csr = readl(&adapter->regs->rxdma.csr);
-		if ((csr & 0x00020000) == 0)
+		if (!(csr & ET_RXDMA_CSR_HALT_STATUS))
 			dev_err(&adapter->pdev->dev,
-			"RX Dma failed to enter halt state. CSR 0x%08x\n",
-				csr);
+			      "RX Dma failed to enter halt state. CSR 0x%08x\n",
+			      csr);
 	}
 }
 
-/**
- * et131x_tx_dma_enable - re-start of Tx_DMA on the ET1310.
+/* et131x_tx_dma_enable - re-start of Tx_DMA on the ET1310.
  * @adapter: pointer to our adapter structure
  *
  * Mainly used after a return to the D0 (full-power) state from a lower state.
@@ -940,8 +889,7 @@ static inline void add_12bit(u32 *v, int n)
 	*v = INDEX12(*v + n) | (*v & ET_DMA12_WRAP);
 }
 
-/**
- * et1310_config_mac_regs1 - Initialize the first part of MAC regs
+/* et1310_config_mac_regs1 - Initialize the first part of MAC regs
  * @adapter: pointer to our adapter structure
  */
 static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
@@ -954,7 +902,10 @@ static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 	/* First we need to reset everything.  Write to MAC configuration
 	 * register 1 to perform reset.
 	 */
-	writel(0xC00F0000, &macregs->cfg1);
+	writel(ET_MAC_CFG1_SOFT_RESET | ET_MAC_CFG1_SIM_RESET  |
+	       ET_MAC_CFG1_RESET_RXMC | ET_MAC_CFG1_RESET_TXMC |
+	       ET_MAC_CFG1_RESET_RXFUNC | ET_MAC_CFG1_RESET_TXFUNC,
+	       &macregs->cfg1);
 
 	/* Next lets configure the MAC Inter-packet gap register */
 	ipg = 0x38005860;		/* IPG1 0x38 IPG2 0x58 B2B 0x60 */
@@ -969,7 +920,7 @@ static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 	writel(0, &macregs->if_ctrl);
 
 	/* Let's move on to setting up the mii management configuration */
-	writel(0x07, &macregs->mii_mgmt_cfg);	/* Clock reset 0x7 */
+	writel(ET_MAC_MIIMGMT_CLK_RST, &macregs->mii_mgmt_cfg);
 
 	/* Next lets configure the MAC Station Address register.  These
 	 * values are read from the EEPROM during initialization and stored
@@ -1000,8 +951,7 @@ static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 	writel(0, &macregs->cfg1);
 }
 
-/**
- * et1310_config_mac_regs2 - Initialize the second part of MAC regs
+/* et1310_config_mac_regs2 - Initialize the second part of MAC regs
  * @adapter: pointer to our adapter structure
  */
 static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
@@ -1020,38 +970,44 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 	ifctrl = readl(&mac->if_ctrl);
 
 	/* Set up the if mode bits */
-	cfg2 &= ~0x300;
+	cfg2 &= ~ET_MAC_CFG2_IFMODE_MASK;
 	if (phydev && phydev->speed == SPEED_1000) {
-		cfg2 |= 0x200;
+		cfg2 |= ET_MAC_CFG2_IFMODE_1000;
 		/* Phy mode bit */
-		ifctrl &= ~(1 << 24);
+		ifctrl &= ~ET_MAC_IFCTRL_PHYMODE;
 	} else {
-		cfg2 |= 0x100;
-		ifctrl |= (1 << 24);
+		cfg2 |= ET_MAC_CFG2_IFMODE_100;
+		ifctrl |= ET_MAC_IFCTRL_PHYMODE;
 	}
 
 	/* We need to enable Rx/Tx */
-	cfg1 |= CFG1_RX_ENABLE | CFG1_TX_ENABLE | CFG1_TX_FLOW;
+	cfg1 |= ET_MAC_CFG1_RX_ENABLE | ET_MAC_CFG1_TX_ENABLE |
+							ET_MAC_CFG1_TX_FLOW;
 	/* Initialize loop back to off */
-	cfg1 &= ~(CFG1_LOOPBACK | CFG1_RX_FLOW);
+	cfg1 &= ~(ET_MAC_CFG1_LOOPBACK | ET_MAC_CFG1_RX_FLOW);
 	if (adapter->flowcontrol == FLOW_RXONLY ||
 				adapter->flowcontrol == FLOW_BOTH)
-		cfg1 |= CFG1_RX_FLOW;
+		cfg1 |= ET_MAC_CFG1_RX_FLOW;
 	writel(cfg1, &mac->cfg1);
 
 	/* Now we need to initialize the MAC Configuration 2 register */
 	/* preamble 7, check length, huge frame off, pad crc, crc enable
-	   full duplex off */
-	cfg2 |= 0x7016;
-	cfg2 &= ~0x0021;
+	 * full duplex off
+	 */
+	cfg2 |= 0x7 << ET_MAC_CFG2_PREAMBLE_SHIFT;
+	cfg2 |= ET_MAC_CFG2_IFMODE_LEN_CHECK;
+	cfg2 |= ET_MAC_CFG2_IFMODE_PAD_CRC;
+	cfg2 |=	ET_MAC_CFG2_IFMODE_CRC_ENABLE;
+	cfg2 &= ~ET_MAC_CFG2_IFMODE_HUGE_FRAME;
+	cfg2 &= ~ET_MAC_CFG2_IFMODE_FULL_DPLX;
 
 	/* Turn on duplex if needed */
 	if (phydev && phydev->duplex == DUPLEX_FULL)
-		cfg2 |= 0x01;
+		cfg2 |= ET_MAC_CFG2_IFMODE_FULL_DPLX;
 
-	ifctrl &= ~(1 << 26);
+	ifctrl &= ~ET_MAC_IFCTRL_GHDMODE;
 	if (phydev && phydev->duplex == DUPLEX_HALF)
-		ifctrl |= (1<<26);	/* Enable ghd */
+		ifctrl |= ET_MAC_IFCTRL_GHDMODE;
 
 	writel(ifctrl, &mac->if_ctrl);
 	writel(cfg2, &mac->cfg2);
@@ -1060,7 +1016,7 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 		udelay(10);
 		delay++;
 		cfg1 = readl(&mac->cfg1);
-	} while ((cfg1 & CFG1_WAIT) != CFG1_WAIT && delay < 100);
+	} while ((cfg1 & ET_MAC_CFG1_WAIT) != ET_MAC_CFG1_WAIT && delay < 100);
 
 	if (delay == 100) {
 		dev_warn(&adapter->pdev->dev,
@@ -1069,18 +1025,17 @@ static void et1310_config_mac_regs2(struct et131x_adapter *adapter)
 	}
 
 	/* Enable txmac */
-	ctl |= 0x09;	/* TX mac enable, FC disable */
+	ctl |= ET_TX_CTRL_TXMAC_ENABLE | ET_TX_CTRL_FC_DISABLE;
 	writel(ctl, &adapter->regs->txmac.ctl);
 
 	/* Ready to start the RXDMA/TXDMA engine */
-	if (adapter->flags & fMP_ADAPTER_LOWER_POWER) {
+	if (adapter->flags & FMP_ADAPTER_LOWER_POWER) {
 		et131x_rx_dma_enable(adapter);
 		et131x_tx_dma_enable(adapter);
 	}
 }
 
-/**
- * et1310_in_phy_coma - check if the device is in phy coma
+/* et1310_in_phy_coma - check if the device is in phy coma
  * @adapter: pointer to our adapter structure
  *
  * Returns 0 if the device is not in phy coma, 1 if it is in phy coma
@@ -1161,19 +1116,19 @@ static void et1310_setup_device_for_unicast(struct et131x_adapter *adapter)
 	 * Set up unicast packet filter reg 3 to be the octets 2 - 5 of the
 	 * MAC address for first address
 	 */
-	uni_pf3 = (adapter->addr[0] << ET_UNI_PF_ADDR2_1_SHIFT) |
-		  (adapter->addr[1] << ET_UNI_PF_ADDR2_2_SHIFT) |
-		  (adapter->addr[0] << ET_UNI_PF_ADDR1_1_SHIFT) |
+	uni_pf3 = (adapter->addr[0] << ET_RX_UNI_PF_ADDR2_1_SHIFT) |
+		  (adapter->addr[1] << ET_RX_UNI_PF_ADDR2_2_SHIFT) |
+		  (adapter->addr[0] << ET_RX_UNI_PF_ADDR1_1_SHIFT) |
 		   adapter->addr[1];
 
-	uni_pf2 = (adapter->addr[2] << ET_UNI_PF_ADDR2_3_SHIFT) |
-		  (adapter->addr[3] << ET_UNI_PF_ADDR2_4_SHIFT) |
-		  (adapter->addr[4] << ET_UNI_PF_ADDR2_5_SHIFT) |
+	uni_pf2 = (adapter->addr[2] << ET_RX_UNI_PF_ADDR2_3_SHIFT) |
+		  (adapter->addr[3] << ET_RX_UNI_PF_ADDR2_4_SHIFT) |
+		  (adapter->addr[4] << ET_RX_UNI_PF_ADDR2_5_SHIFT) |
 		   adapter->addr[5];
 
-	uni_pf1 = (adapter->addr[2] << ET_UNI_PF_ADDR1_3_SHIFT) |
-		  (adapter->addr[3] << ET_UNI_PF_ADDR1_4_SHIFT) |
-		  (adapter->addr[4] << ET_UNI_PF_ADDR1_5_SHIFT) |
+	uni_pf1 = (adapter->addr[2] << ET_RX_UNI_PF_ADDR1_3_SHIFT) |
+		  (adapter->addr[3] << ET_RX_UNI_PF_ADDR1_4_SHIFT) |
+		  (adapter->addr[4] << ET_RX_UNI_PF_ADDR1_5_SHIFT) |
 		   adapter->addr[5];
 
 	pm_csr = readl(&adapter->regs->global.pm_csr);
@@ -1230,13 +1185,13 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	writel(0, &rxmac->mask4_word3);
 
 	/* Lets setup the WOL Source Address */
-	sa_lo = (adapter->addr[2] << ET_WOL_LO_SA3_SHIFT) |
-		(adapter->addr[3] << ET_WOL_LO_SA4_SHIFT) |
-		(adapter->addr[4] << ET_WOL_LO_SA5_SHIFT) |
+	sa_lo = (adapter->addr[2] << ET_RX_WOL_LO_SA3_SHIFT) |
+		(adapter->addr[3] << ET_RX_WOL_LO_SA4_SHIFT) |
+		(adapter->addr[4] << ET_RX_WOL_LO_SA5_SHIFT) |
 		 adapter->addr[5];
 	writel(sa_lo, &rxmac->sa_lo);
 
-	sa_hi = (u32) (adapter->addr[0] << ET_WOL_HI_SA1_SHIFT) |
+	sa_hi = (u32) (adapter->addr[0] << ET_RX_WOL_HI_SA1_SHIFT) |
 		       adapter->addr[1];
 	writel(sa_hi, &rxmac->sa_hi);
 
@@ -1246,7 +1201,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	/* Let's initialize the Unicast Packet filtering address */
 	if (adapter->packet_filter & ET131X_PACKET_TYPE_DIRECTED) {
 		et1310_setup_device_for_unicast(adapter);
-		pf_ctrl |= 4;	/* Unicast filter */
+		pf_ctrl |= ET_RX_PFCTRL_UNICST_FILTER_ENABLE;
 	} else {
 		writel(0, &rxmac->uni_pf_addr1);
 		writel(0, &rxmac->uni_pf_addr2);
@@ -1255,13 +1210,13 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 
 	/* Let's initialize the Multicast hash */
 	if (!(adapter->packet_filter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
-		pf_ctrl |= 2;	/* Multicast filter */
+		pf_ctrl |= ET_RX_PFCTRL_MLTCST_FILTER_ENABLE;
 		et1310_setup_device_for_multicast(adapter);
 	}
 
 	/* Runt packet filtering.  Didn't work in version A silicon. */
-	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << 16;
-	pf_ctrl |= 8;	/* Fragment filter */
+	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << ET_RX_PFCTRL_MIN_PKT_SZ_SHIFT;
+	pf_ctrl |= ET_RX_PFCTRL_FRAG_FILTER_ENABLE;
 
 	if (adapter->registry_jumbo_packet > 8192)
 		/* In order to transmit jumbo packets greater than 8k, the
@@ -1312,7 +1267,7 @@ static void et1310_config_rxmac_regs(struct et131x_adapter *adapter)
 	 * but we still leave the packet filter on.
 	 */
 	writel(pf_ctrl, &rxmac->pf_ctrl);
-	writel(0x9, &rxmac->ctrl);
+	writel(ET_RX_CTRL_RXMAC_ENABLE | ET_RX_CTRL_WOL_DISABLE, &rxmac->ctrl);
 }
 
 static void et1310_config_txmac_regs(struct et131x_adapter *adapter)
@@ -1394,8 +1349,7 @@ static void et1310_config_macstat_regs(struct et131x_adapter *adapter)
 	writel(0xFFFE7E8B, &macstat->carry_reg2_mask);
 }
 
-/**
- * et131x_phy_mii_read - Read from the PHY through the MII Interface on the MAC
+/* et131x_phy_mii_read - Read from the PHY through the MII Interface on the MAC
  * @adapter: pointer to our private adapter structure
  * @addr: the address of the transceiver
  * @reg: the register to read
@@ -1423,7 +1377,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 	writel(0, &mac->mii_mgmt_cmd);
 
 	/* Set up the register we need to read from on the correct PHY */
-	writel(MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
+	writel(ET_MAC_MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
 
 	writel(0x1, &mac->mii_mgmt_cmd);
 
@@ -1431,7 +1385,7 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 		udelay(50);
 		delay++;
 		mii_indicator = readl(&mac->mii_mgmt_indicator);
-	} while ((mii_indicator & MGMT_WAIT) && delay < 50);
+	} while ((mii_indicator & ET_MAC_MGMT_WAIT) && delay < 50);
 
 	/* If we hit the max delay, we could not read the register */
 	if (delay == 50) {
@@ -1444,8 +1398,9 @@ static int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 addr,
 	}
 
 	/* If we hit here we were able to read the register and we need to
-	 * return the value to the caller */
-	*value = readl(&mac->mii_mgmt_stat) & 0xFFFF;
+	 * return the value to the caller
+	 */
+	*value = readl(&mac->mii_mgmt_stat) & ET_MAC_MIIMGMT_STAT_PHYCRTL_MASK;
 
 	/* Stop the read operation */
 	writel(0, &mac->mii_mgmt_cmd);
@@ -1469,8 +1424,7 @@ static int et131x_mii_read(struct et131x_adapter *adapter, u8 reg, u16 *value)
 	return et131x_phy_mii_read(adapter, phydev->addr, reg, value);
 }
 
-/**
- * et131x_mii_write - Write to a PHY register through the MII interface of the MAC
+/* et131x_mii_write - Write to a PHY reg through the MII interface of the MAC
  * @adapter: pointer to our private adapter structure
  * @reg: the register to read
  * @value: 16-bit value to write
@@ -1505,7 +1459,7 @@ static int et131x_mii_write(struct et131x_adapter *adapter, u8 reg, u16 value)
 	writel(0, &mac->mii_mgmt_cmd);
 
 	/* Set up the register we need to write to on the correct PHY */
-	writel(MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
+	writel(ET_MAC_MII_ADDR(addr, reg), &mac->mii_mgmt_addr);
 
 	/* Add the value to write to the registers to the mac */
 	writel(value, &mac->mii_mgmt_ctrl);
@@ -1514,7 +1468,7 @@ static int et131x_mii_write(struct et131x_adapter *adapter, u8 reg, u16 value)
 		udelay(50);
 		delay++;
 		mii_indicator = readl(&mac->mii_mgmt_indicator);
-	} while ((mii_indicator & MGMT_BUSY) && delay < 100);
+	} while ((mii_indicator & ET_MAC_MGMT_BUSY) && delay < 100);
 
 	/* If we hit the max delay, we could not write the register */
 	if (delay == 100) {
@@ -1534,8 +1488,7 @@ static int et131x_mii_write(struct et131x_adapter *adapter, u8 reg, u16 value)
 	/* Stop the write operation */
 	writel(0, &mac->mii_mgmt_cmd);
 
-	/*
-	 * set the registers we touched back to the state at which we entered
+	/* set the registers we touched back to the state at which we entered
 	 * this function
 	 */
 	writel(mii_addr, &mac->mii_mgmt_addr);
@@ -1550,7 +1503,7 @@ static void et1310_phy_access_mii_bit(struct et131x_adapter *adapter,
 				      u8 *value)
 {
 	u16 reg;
-	u16 mask = 0x0001 << bitnum;
+	u16 mask = 1 << bitnum;
 
 	/* Read the requested register */
 	et131x_mii_read(adapter, regnum, &reg);
@@ -1601,7 +1554,8 @@ static void et1310_config_flow_control(struct et131x_adapter *adapter)
 			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
 			adapter->flowcontrol = FLOW_NONE;
 		} else {/* if (remote_pause == TRUEPHY_CLEAR_BIT &&
-			       remote_async_pause == TRUEPHY_SET_BIT) */
+			 *     remote_async_pause == TRUEPHY_SET_BIT)
+			 */
 			if (adapter->wanted_flow == FLOW_BOTH)
 				adapter->flowcontrol = FLOW_RXONLY;
 			else
@@ -1610,8 +1564,7 @@ static void et1310_config_flow_control(struct et131x_adapter *adapter)
 	}
 }
 
-/**
- * et1310_update_macstat_host_counters - Update the local copy of the statistics
+/* et1310_update_macstat_host_counters - Update the local copy of the statistics
  * @adapter: pointer to the adapter structure
  */
 static void et1310_update_macstat_host_counters(struct et131x_adapter *adapter)
@@ -1638,8 +1591,7 @@ static void et1310_update_macstat_host_counters(struct et131x_adapter *adapter)
 	stats->rx_other_errs        += readl(&macstat->rx_fragment_packets);
 }
 
-/**
- * et1310_handle_macstat_interrupt
+/* et1310_handle_macstat_interrupt
  * @adapter: pointer to the adapter structure
  *
  * One of the MACSTAT counters has wrapped.  Update the local copy of
@@ -1730,8 +1682,7 @@ static int et131x_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
-/**
- *	et1310_phy_power_down	-	PHY power control
+/*	et1310_phy_power_down	-	PHY power control
  *	@adapter: device to control
  *	@down: true for off/false for back on
  *
@@ -1751,28 +1702,13 @@ static void et1310_phy_power_down(struct et131x_adapter *adapter, bool down)
 	et131x_mii_write(adapter, MII_BMCR, data);
 }
 
-/**
- * et131x_xcvr_init - Init the phy if we are setting it into force mode
+/* et131x_xcvr_init - Init the phy if we are setting it into force mode
  * @adapter: pointer to our private adapter structure
  *
  */
 static void et131x_xcvr_init(struct et131x_adapter *adapter)
 {
-	u16 imr;
-	u16 isr;
 	u16 lcr2;
-
-	et131x_mii_read(adapter, PHY_INTERRUPT_STATUS, &isr);
-	et131x_mii_read(adapter, PHY_INTERRUPT_MASK, &imr);
-
-	/* Set the link status interrupt only.  Bad behavior when link status
-	 * and auto neg are set, we run into a nested interrupt problem
-	 */
-	imr |= (ET_PHY_INT_MASK_AUTONEGSTAT |
-		ET_PHY_INT_MASK_LINKSTAT |
-		ET_PHY_INT_MASK_ENABLE);
-
-	et131x_mii_write(adapter, PHY_INTERRUPT_MASK, imr);
 
 	/* Set the LED behavior such that LED 1 indicates speed (off =
 	 * 10Mbits, blink = 100Mbits, on = 1000Mbits) and LED 2 indicates
@@ -1797,8 +1733,7 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 	}
 }
 
-/**
- * et131x_configure_global_regs	-	configure JAGCore global regs
+/* et131x_configure_global_regs	- configure JAGCore global regs
  * @adapter: pointer to our adapter structure
  *
  * Used to configure the global registers on the JAGCore
@@ -1844,8 +1779,7 @@ static void et131x_configure_global_regs(struct et131x_adapter *adapter)
 	writel(0, &regs->watchdog_timer);
 }
 
-/**
- * et131x_config_rx_dma_regs - Start of Rx_DMA init sequence
+/* et131x_config_rx_dma_regs - Start of Rx_DMA init sequence
  * @adapter: pointer to our adapter structure
  */
 static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
@@ -1856,33 +1790,26 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	u32 entry;
 	u32 psr_num_des;
 	unsigned long flags;
+	u8 id;
 
 	/* Halt RXDMA to perform the reconfigure.  */
 	et131x_rx_dma_disable(adapter);
 
-	/* Load the completion writeback physical address
-	 *
-	 * NOTE : dma_alloc_coherent(), used above to alloc DMA regions,
-	 * ALWAYS returns SAC (32-bit) addresses. If DAC (64-bit) addresses
-	 * are ever returned, make sure the high part is retrieved here
-	 * before storing the adjusted address.
-	 */
-	writel((u32) ((u64)rx_local->rx_status_bus >> 32),
-	       &rx_dma->dma_wb_base_hi);
-	writel((u32) rx_local->rx_status_bus, &rx_dma->dma_wb_base_lo);
+	/* Load the completion writeback physical address */
+	writel(upper_32_bits(rx_local->rx_status_bus), &rx_dma->dma_wb_base_hi);
+	writel(lower_32_bits(rx_local->rx_status_bus), &rx_dma->dma_wb_base_lo);
 
 	memset(rx_local->rx_status_block, 0, sizeof(struct rx_status_block));
 
 	/* Set the address and parameters of the packet status ring into the
 	 * 1310's registers
 	 */
-	writel((u32) ((u64)rx_local->ps_ring_physaddr >> 32),
-	       &rx_dma->psr_base_hi);
-	writel((u32) rx_local->ps_ring_physaddr, &rx_dma->psr_base_lo);
+	writel(upper_32_bits(rx_local->ps_ring_physaddr), &rx_dma->psr_base_hi);
+	writel(lower_32_bits(rx_local->ps_ring_physaddr), &rx_dma->psr_base_lo);
 	writel(rx_local->psr_num_entries - 1, &rx_dma->psr_num_des);
 	writel(0, &rx_dma->psr_full_offset);
 
-	psr_num_des = readl(&rx_dma->psr_num_des) & 0xFFF;
+	psr_num_des = readl(&rx_dma->psr_num_des) & ET_RXDMA_PSR_NUM_DES_MASK;
 	writel((psr_num_des * LO_MARK_PERCENT_FOR_PSR) / 100,
 	       &rx_dma->psr_min_des);
 
@@ -1891,56 +1818,56 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	/* These local variables track the PSR in the adapter structure */
 	rx_local->local_psr_full = 0;
 
-	/* Now's the best time to initialize FBR1 contents */
-	fbr_entry = (struct fbr_desc *) rx_local->fbr[0]->ring_virtaddr;
-	for (entry = 0; entry < rx_local->fbr[0]->num_entries; entry++) {
-		fbr_entry->addr_hi = rx_local->fbr[0]->bus_high[entry];
-		fbr_entry->addr_lo = rx_local->fbr[0]->bus_low[entry];
-		fbr_entry->word2 = entry;
-		fbr_entry++;
+	for (id = 0; id < NUM_FBRS; id++) {
+		u32 __iomem *num_des;
+		u32 __iomem *full_offset;
+		u32 __iomem *min_des;
+		u32 __iomem *base_hi;
+		u32 __iomem *base_lo;
+
+		if (id == 0) {
+			num_des = &rx_dma->fbr0_num_des;
+			full_offset = &rx_dma->fbr0_full_offset;
+			min_des = &rx_dma->fbr0_min_des;
+			base_hi = &rx_dma->fbr0_base_hi;
+			base_lo = &rx_dma->fbr0_base_lo;
+		} else {
+			num_des = &rx_dma->fbr1_num_des;
+			full_offset = &rx_dma->fbr1_full_offset;
+			min_des = &rx_dma->fbr1_min_des;
+			base_hi = &rx_dma->fbr1_base_hi;
+			base_lo = &rx_dma->fbr1_base_lo;
+		}
+
+		/* Now's the best time to initialize FBR contents */
+		fbr_entry =
+		    (struct fbr_desc *) rx_local->fbr[id]->ring_virtaddr;
+		for (entry = 0;
+		     entry < rx_local->fbr[id]->num_entries; entry++) {
+			fbr_entry->addr_hi = rx_local->fbr[id]->bus_high[entry];
+			fbr_entry->addr_lo = rx_local->fbr[id]->bus_low[entry];
+			fbr_entry->word2 = entry;
+			fbr_entry++;
+		}
+
+		/* Set the address and parameters of Free buffer ring 1 and 0
+		 * into the 1310's registers
+		 */
+		writel(upper_32_bits(rx_local->fbr[id]->ring_physaddr),
+		       base_hi);
+		writel(lower_32_bits(rx_local->fbr[id]->ring_physaddr),
+		       base_lo);
+		writel(rx_local->fbr[id]->num_entries - 1, num_des);
+		writel(ET_DMA10_WRAP, full_offset);
+
+		/* This variable tracks the free buffer ring 1 full position,
+		 * so it has to match the above.
+		 */
+		rx_local->fbr[id]->local_full = ET_DMA10_WRAP;
+		writel(((rx_local->fbr[id]->num_entries *
+					LO_MARK_PERCENT_FOR_RX) / 100) - 1,
+		       min_des);
 	}
-
-	/* Set the address and parameters of Free buffer ring 1 (and 0 if
-	 * required) into the 1310's registers
-	 */
-	writel((u32) (rx_local->fbr[0]->real_physaddr >> 32),
-	       &rx_dma->fbr1_base_hi);
-	writel((u32) rx_local->fbr[0]->real_physaddr, &rx_dma->fbr1_base_lo);
-	writel(rx_local->fbr[0]->num_entries - 1, &rx_dma->fbr1_num_des);
-	writel(ET_DMA10_WRAP, &rx_dma->fbr1_full_offset);
-
-	/* This variable tracks the free buffer ring 1 full position, so it
-	 * has to match the above.
-	 */
-	rx_local->fbr[0]->local_full = ET_DMA10_WRAP;
-	writel(
-	   ((rx_local->fbr[0]->num_entries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
-	   &rx_dma->fbr1_min_des);
-
-#ifdef USE_FBR0
-	/* Now's the best time to initialize FBR0 contents */
-	fbr_entry = (struct fbr_desc *) rx_local->fbr[1]->ring_virtaddr;
-	for (entry = 0; entry < rx_local->fbr[1]->num_entries; entry++) {
-		fbr_entry->addr_hi = rx_local->fbr[1]->bus_high[entry];
-		fbr_entry->addr_lo = rx_local->fbr[1]->bus_low[entry];
-		fbr_entry->word2 = entry;
-		fbr_entry++;
-	}
-
-	writel((u32) (rx_local->fbr[1]->real_physaddr >> 32),
-	       &rx_dma->fbr0_base_hi);
-	writel((u32) rx_local->fbr[1]->real_physaddr, &rx_dma->fbr0_base_lo);
-	writel(rx_local->fbr[1]->num_entries - 1, &rx_dma->fbr0_num_des);
-	writel(ET_DMA10_WRAP, &rx_dma->fbr0_full_offset);
-
-	/* This variable tracks the free buffer ring 0 full position, so it
-	 * has to match the above.
-	 */
-	rx_local->fbr[1]->local_full = ET_DMA10_WRAP;
-	writel(
-	   ((rx_local->fbr[1]->num_entries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
-	   &rx_dma->fbr0_min_des);
-#endif
 
 	/* Program the number of packets we will receive before generating an
 	 * interrupt.
@@ -1959,8 +1886,7 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 }
 
-/**
- * et131x_config_tx_dma_regs - Set up the tx dma section of the JAGCore.
+/* et131x_config_tx_dma_regs - Set up the tx dma section of the JAGCore.
  * @adapter: pointer to our private adapter structure
  *
  * Configure the transmit engine with the ring buffers we have created
@@ -1971,18 +1897,19 @@ static void et131x_config_tx_dma_regs(struct et131x_adapter *adapter)
 	struct txdma_regs __iomem *txdma = &adapter->regs->txdma;
 
 	/* Load the hardware with the start of the transmit descriptor ring. */
-	writel((u32) ((u64)adapter->tx_ring.tx_desc_ring_pa >> 32),
+	writel(upper_32_bits(adapter->tx_ring.tx_desc_ring_pa),
 	       &txdma->pr_base_hi);
-	writel((u32) adapter->tx_ring.tx_desc_ring_pa,
+	writel(lower_32_bits(adapter->tx_ring.tx_desc_ring_pa),
 	       &txdma->pr_base_lo);
 
 	/* Initialise the transmit DMA engine */
 	writel(NUM_DESC_PER_RING_TX - 1, &txdma->pr_num_des);
 
 	/* Load the completion writeback physical address */
-	writel((u32)((u64)adapter->tx_ring.tx_status_pa >> 32),
-						&txdma->dma_wb_base_hi);
-	writel((u32)adapter->tx_ring.tx_status_pa, &txdma->dma_wb_base_lo);
+	writel(upper_32_bits(adapter->tx_ring.tx_status_pa),
+	       &txdma->dma_wb_base_hi);
+	writel(lower_32_bits(adapter->tx_ring.tx_status_pa),
+	       &txdma->dma_wb_base_lo);
 
 	*adapter->tx_ring.tx_status = 0;
 
@@ -1990,8 +1917,7 @@ static void et131x_config_tx_dma_regs(struct et131x_adapter *adapter)
 	adapter->tx_ring.send_idx = 0;
 }
 
-/**
- * et131x_adapter_setup - Set the adapter up as per cassini+ documentation
+/* et131x_adapter_setup - Set the adapter up as per cassini+ documentation
  * @adapter: pointer to our private adapter structure
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
@@ -2019,23 +1945,29 @@ static void et131x_adapter_setup(struct et131x_adapter *adapter)
 	et131x_xcvr_init(adapter);
 }
 
-/**
- * et131x_soft_reset - Issue a soft reset to the hardware, complete for ET1310
+/* et131x_soft_reset - Issue a soft reset to the hardware, complete for ET1310
  * @adapter: pointer to our private adapter structure
  */
 static void et131x_soft_reset(struct et131x_adapter *adapter)
 {
-	/* Disable MAC Core */
-	writel(0xc00f0000, &adapter->regs->mac.cfg1);
+	u32 reg;
 
-	/* Set everything to a reset value */
-	writel(0x7F, &adapter->regs->global.sw_reset);
-	writel(0x000f0000, &adapter->regs->mac.cfg1);
-	writel(0x00000000, &adapter->regs->mac.cfg1);
+	/* Disable MAC Core */
+	reg = ET_MAC_CFG1_SOFT_RESET | ET_MAC_CFG1_SIM_RESET |
+	      ET_MAC_CFG1_RESET_RXMC | ET_MAC_CFG1_RESET_TXMC |
+	      ET_MAC_CFG1_RESET_RXFUNC | ET_MAC_CFG1_RESET_TXFUNC;
+	writel(reg, &adapter->regs->mac.cfg1);
+
+	reg = ET_RESET_ALL;
+	writel(reg, &adapter->regs->global.sw_reset);
+
+	reg = ET_MAC_CFG1_RESET_RXMC | ET_MAC_CFG1_RESET_TXMC |
+	      ET_MAC_CFG1_RESET_RXFUNC | ET_MAC_CFG1_RESET_TXFUNC;
+	writel(reg, &adapter->regs->mac.cfg1);
+	writel(0, &adapter->regs->mac.cfg1);
 }
 
-/**
- *	et131x_enable_interrupts	-	enable interrupt
+/*	et131x_enable_interrupts	-	enable interrupt
  *	@adapter: et131x device
  *
  *	Enable the appropriate interrupts on the ET131x according to our
@@ -2055,8 +1987,7 @@ static void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	writel(mask, &adapter->regs->global.int_mask);
 }
 
-/**
- *	et131x_disable_interrupts	-	interrupt disable
+/*	et131x_disable_interrupts	-	interrupt disable
  *	@adapter: et131x device
  *
  *	Block all interrupts from the et131x device at the device itself
@@ -2067,19 +1998,17 @@ static void et131x_disable_interrupts(struct et131x_adapter *adapter)
 	writel(INT_MASK_DISABLE, &adapter->regs->global.int_mask);
 }
 
-/**
- * et131x_tx_dma_disable - Stop of Tx_DMA on the ET1310
+/* et131x_tx_dma_disable - Stop of Tx_DMA on the ET1310
  * @adapter: pointer to our adapter structure
  */
 static void et131x_tx_dma_disable(struct et131x_adapter *adapter)
 {
 	/* Setup the tramsmit dma configuration register */
-	writel(ET_TXDMA_CSR_HALT|ET_TXDMA_SNGL_EPKT,
+	writel(ET_TXDMA_CSR_HALT | ET_TXDMA_SNGL_EPKT,
 					&adapter->regs->txdma.csr);
 }
 
-/**
- * et131x_enable_txrx - Enable tx/rx queues
+/* et131x_enable_txrx - Enable tx/rx queues
  * @netdev: device to be enabled
  */
 static void et131x_enable_txrx(struct net_device *netdev)
@@ -2091,15 +2020,14 @@ static void et131x_enable_txrx(struct net_device *netdev)
 	et131x_tx_dma_enable(adapter);
 
 	/* Enable device interrupts */
-	if (adapter->flags & fMP_ADAPTER_INTERRUPT_IN_USE)
+	if (adapter->flags & FMP_ADAPTER_INTERRUPT_IN_USE)
 		et131x_enable_interrupts(adapter);
 
 	/* We're ready to move some data, so start the queue */
 	netif_start_queue(netdev);
 }
 
-/**
- * et131x_disable_txrx - Disable tx/rx queues
+/* et131x_disable_txrx - Disable tx/rx queues
  * @netdev: device to be disabled
  */
 static void et131x_disable_txrx(struct net_device *netdev)
@@ -2117,8 +2045,7 @@ static void et131x_disable_txrx(struct net_device *netdev)
 	et131x_disable_interrupts(adapter);
 }
 
-/**
- * et131x_init_send - Initialize send data structures
+/* et131x_init_send - Initialize send data structures
  * @adapter: pointer to our private adapter structure
  */
 static void et131x_init_send(struct et131x_adapter *adapter)
@@ -2151,8 +2078,7 @@ static void et131x_init_send(struct et131x_adapter *adapter)
 	tx_ring->send_tail = NULL;
 }
 
-/**
- * et1310_enable_phy_coma - called when network cable is unplugged
+/* et1310_enable_phy_coma - called when network cable is unplugged
  * @adapter: pointer to our adapter structure
  *
  * driver receive an phy status change interrupt while in D0 and check that
@@ -2181,8 +2107,7 @@ static void et1310_enable_phy_coma(struct et131x_adapter *adapter)
 	/* Save the GbE PHY speed and duplex modes. Need to restore this
 	 * when cable is plugged back in
 	 */
-	/*
-	 * TODO - when PM is re-enabled, check if we need to
+	/* TODO - when PM is re-enabled, check if we need to
 	 * perform a similar task as this -
 	 * adapter->pdown_speed = adapter->ai_force_speed;
 	 * adapter->pdown_duplex = adapter->ai_force_duplex;
@@ -2190,7 +2115,7 @@ static void et1310_enable_phy_coma(struct et131x_adapter *adapter)
 
 	/* Stop sending packets. */
 	spin_lock_irqsave(&adapter->send_hw_lock, flags);
-	adapter->flags |= fMP_ADAPTER_LOWER_POWER;
+	adapter->flags |= FMP_ADAPTER_LOWER_POWER;
 	spin_unlock_irqrestore(&adapter->send_hw_lock, flags);
 
 	/* Wait for outstanding Receive packets */
@@ -2206,8 +2131,7 @@ static void et1310_enable_phy_coma(struct et131x_adapter *adapter)
 	writel(pmcsr, &adapter->regs->global.pm_csr);
 }
 
-/**
- * et1310_disable_phy_coma - Disable the Phy Coma Mode
+/* et1310_disable_phy_coma - Disable the Phy Coma Mode
  * @adapter: pointer to our adapter structure
  */
 static void et1310_disable_phy_coma(struct et131x_adapter *adapter)
@@ -2243,7 +2167,7 @@ static void et1310_disable_phy_coma(struct et131x_adapter *adapter)
 	et131x_adapter_setup(adapter);
 
 	/* Allow Tx to restart */
-	adapter->flags &= ~fMP_ADAPTER_LOWER_POWER;
+	adapter->flags &= ~FMP_ADAPTER_LOWER_POWER;
 
 	et131x_enable_txrx(adapter->netdev);
 }
@@ -2253,9 +2177,10 @@ static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
 	u32 tmp_free_buff_ring = *free_buff_ring;
 	tmp_free_buff_ring++;
 	/* This works for all cases where limit < 1024. The 1023 case
-	   works because 1023++ is 1024 which means the if condition is not
-	   taken but the carry of the bit into the wrap bit toggles the wrap
-	   value correctly */
+	 * works because 1023++ is 1024 which means the if condition is not
+	 * taken but the carry of the bit into the wrap bit toggles the wrap
+	 * value correctly
+	 */
 	if ((tmp_free_buff_ring & ET_DMA10_MASK) > limit) {
 		tmp_free_buff_ring &= ~ET_DMA10_MASK;
 		tmp_free_buff_ring ^= ET_DMA10_WRAP;
@@ -2266,33 +2191,7 @@ static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
 	return tmp_free_buff_ring;
 }
 
-/**
- * et131x_align_allocated_memory - Align allocated memory on a given boundary
- * @adapter: pointer to our adapter structure
- * @phys_addr: pointer to Physical address
- * @offset: pointer to the offset variable
- * @mask: correct mask
- */
-static void et131x_align_allocated_memory(struct et131x_adapter *adapter,
-					  u64 *phys_addr, u64 *offset,
-					  u64 mask)
-{
-	u64 new_addr = *phys_addr & ~mask;
-
-	*offset = 0;
-
-	if (new_addr != *phys_addr) {
-		/* Move to next aligned block */
-		new_addr += mask + 1;
-		/* Return offset for adjusting virt addr */
-		*offset = new_addr - *phys_addr;
-		/* Return new physical address */
-		*phys_addr = new_addr;
-	}
-}
-
-/**
- * et131x_rx_dma_memory_alloc
+/* et131x_rx_dma_memory_alloc
  * @adapter: pointer to our private adapter structure
  *
  * Returns 0 on success and errno on failure (as defined in errno.h)
@@ -2302,19 +2201,19 @@ static void et131x_align_allocated_memory(struct et131x_adapter *adapter,
  */
 static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 {
+	u8 id;
 	u32 i, j;
 	u32 bufsize;
-	u32 pktstat_ringsize, fbr_chunksize;
+	u32 pktstat_ringsize;
+	u32 fbr_chunksize;
 	struct rx_ring *rx_ring;
 
 	/* Setup some convenience pointers */
 	rx_ring = &adapter->rx_ring;
 
 	/* Alloc memory for the lookup table */
-#ifdef USE_FBR0
-	rx_ring->fbr[1] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
-#endif
 	rx_ring->fbr[0] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
+	rx_ring->fbr[1] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
 
 	/* The first thing we will do is configure the sizes of the buffer
 	 * rings. These will change based on jumbo packet support.  Larger
@@ -2335,211 +2234,85 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 */
 
 	if (adapter->registry_jumbo_packet < 2048) {
-#ifdef USE_FBR0
-		rx_ring->fbr[1]->buffsize = 256;
+		rx_ring->fbr[0]->buffsize = 256;
+		rx_ring->fbr[0]->num_entries = 512;
+		rx_ring->fbr[1]->buffsize = 2048;
 		rx_ring->fbr[1]->num_entries = 512;
-#endif
-		rx_ring->fbr[0]->buffsize = 2048;
-		rx_ring->fbr[0]->num_entries = 512;
 	} else if (adapter->registry_jumbo_packet < 4096) {
-#ifdef USE_FBR0
-		rx_ring->fbr[1]->buffsize = 512;
-		rx_ring->fbr[1]->num_entries = 1024;
-#endif
-		rx_ring->fbr[0]->buffsize = 4096;
-		rx_ring->fbr[0]->num_entries = 512;
+		rx_ring->fbr[0]->buffsize = 512;
+		rx_ring->fbr[0]->num_entries = 1024;
+		rx_ring->fbr[1]->buffsize = 4096;
+		rx_ring->fbr[1]->num_entries = 512;
 	} else {
-#ifdef USE_FBR0
-		rx_ring->fbr[1]->buffsize = 1024;
-		rx_ring->fbr[1]->num_entries = 768;
-#endif
-		rx_ring->fbr[0]->buffsize = 16384;
-		rx_ring->fbr[0]->num_entries = 128;
+		rx_ring->fbr[0]->buffsize = 1024;
+		rx_ring->fbr[0]->num_entries = 768;
+		rx_ring->fbr[1]->buffsize = 16384;
+		rx_ring->fbr[1]->num_entries = 128;
 	}
 
-#ifdef USE_FBR0
 	adapter->rx_ring.psr_num_entries =
-				adapter->rx_ring.fbr[1]->num_entries +
-				adapter->rx_ring.fbr[0]->num_entries;
-#else
-	adapter->rx_ring.psr_num_entries = adapter->rx_ring.fbr[0]->num_entries;
-#endif
+				adapter->rx_ring.fbr[0]->num_entries +
+				adapter->rx_ring.fbr[1]->num_entries;
 
-	/* Allocate an area of memory for Free Buffer Ring 1 */
-	bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[0]->num_entries) +
-									0xfff;
-	rx_ring->fbr[0]->ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
+	for (id = 0; id < NUM_FBRS; id++) {
+		/* Allocate an area of memory for Free Buffer Ring */
+		bufsize =
+		    (sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries);
+		rx_ring->fbr[id]->ring_virtaddr =
+				dma_alloc_coherent(&adapter->pdev->dev,
 					bufsize,
-					&rx_ring->fbr[0]->ring_physaddr,
+					&rx_ring->fbr[id]->ring_physaddr,
 					GFP_KERNEL);
-	if (!rx_ring->fbr[0]->ring_virtaddr) {
-		dev_err(&adapter->pdev->dev,
-			  "Cannot alloc memory for Free Buffer Ring 1\n");
-		return -ENOMEM;
-	}
-
-	/* Save physical address
-	 *
-	 * NOTE: dma_alloc_coherent(), used above to alloc DMA regions,
-	 * ALWAYS returns SAC (32-bit) addresses. If DAC (64-bit) addresses
-	 * are ever returned, make sure the high part is retrieved here
-	 * before storing the adjusted address.
-	 */
-	rx_ring->fbr[0]->real_physaddr = rx_ring->fbr[0]->ring_physaddr;
-
-	/* Align Free Buffer Ring 1 on a 4K boundary */
-	et131x_align_allocated_memory(adapter,
-				      &rx_ring->fbr[0]->real_physaddr,
-				      &rx_ring->fbr[0]->offset, 0x0FFF);
-
-	rx_ring->fbr[0]->ring_virtaddr =
-			(void *)((u8 *) rx_ring->fbr[0]->ring_virtaddr +
-			rx_ring->fbr[0]->offset);
-
-#ifdef USE_FBR0
-	/* Allocate an area of memory for Free Buffer Ring 0 */
-	bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[1]->num_entries) +
-									0xfff;
-	rx_ring->fbr[1]->ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
-						bufsize,
-						&rx_ring->fbr[1]->ring_physaddr,
-						GFP_KERNEL);
-	if (!rx_ring->fbr[1]->ring_virtaddr) {
-		dev_err(&adapter->pdev->dev,
-			  "Cannot alloc memory for Free Buffer Ring 0\n");
-		return -ENOMEM;
-	}
-
-	/* Save physical address
-	 *
-	 * NOTE: dma_alloc_coherent(), used above to alloc DMA regions,
-	 * ALWAYS returns SAC (32-bit) addresses. If DAC (64-bit) addresses
-	 * are ever returned, make sure the high part is retrieved here before
-	 * storing the adjusted address.
-	 */
-	rx_ring->fbr[1]->real_physaddr = rx_ring->fbr[1]->ring_physaddr;
-
-	/* Align Free Buffer Ring 0 on a 4K boundary */
-	et131x_align_allocated_memory(adapter,
-				      &rx_ring->fbr[1]->real_physaddr,
-				      &rx_ring->fbr[1]->offset, 0x0FFF);
-
-	rx_ring->fbr[1]->ring_virtaddr =
-			(void *)((u8 *) rx_ring->fbr[1]->ring_virtaddr +
-			rx_ring->fbr[1]->offset);
-#endif
-	for (i = 0; i < (rx_ring->fbr[0]->num_entries / FBR_CHUNKS); i++) {
-		u64 fbr1_tmp_physaddr;
-		u64 fbr1_offset;
-		u32 fbr1_align;
-
-		/* This code allocates an area of memory big enough for N
-		 * free buffers + (buffer_size - 1) so that the buffers can
-		 * be aligned on 4k boundaries.  If each buffer were aligned
-		 * to a buffer_size boundary, the effect would be to double
-		 * the size of FBR0.  By allocating N buffers at once, we
-		 * reduce this overhead.
-		 */
-		if (rx_ring->fbr[0]->buffsize > 4096)
-			fbr1_align = 4096;
-		else
-			fbr1_align = rx_ring->fbr[0]->buffsize;
-
-		fbr_chunksize =
-		    (FBR_CHUNKS * rx_ring->fbr[0]->buffsize) + fbr1_align - 1;
-		rx_ring->fbr[0]->mem_virtaddrs[i] =
-		    dma_alloc_coherent(&adapter->pdev->dev, fbr_chunksize,
-				       &rx_ring->fbr[0]->mem_physaddrs[i],
-				       GFP_KERNEL);
-
-		if (!rx_ring->fbr[0]->mem_virtaddrs[i]) {
+		if (!rx_ring->fbr[id]->ring_virtaddr) {
 			dev_err(&adapter->pdev->dev,
-				"Could not alloc memory\n");
+			   "Cannot alloc memory for Free Buffer Ring %d\n", id);
 			return -ENOMEM;
 		}
-
-		/* See NOTE in "Save Physical Address" comment above */
-		fbr1_tmp_physaddr = rx_ring->fbr[0]->mem_physaddrs[i];
-
-		et131x_align_allocated_memory(adapter,
-					      &fbr1_tmp_physaddr,
-					      &fbr1_offset, (fbr1_align - 1));
-
-		for (j = 0; j < FBR_CHUNKS; j++) {
-			u32 index = (i * FBR_CHUNKS) + j;
-
-			/* Save the Virtual address of this index for quick
-			 * access later
-			 */
-			rx_ring->fbr[0]->virt[index] =
-			    (u8 *) rx_ring->fbr[0]->mem_virtaddrs[i] +
-			    (j * rx_ring->fbr[0]->buffsize) + fbr1_offset;
-
-			/* now store the physical address in the descriptor
-			 * so the device can access it
-			 */
-			rx_ring->fbr[0]->bus_high[index] =
-			    (u32) (fbr1_tmp_physaddr >> 32);
-			rx_ring->fbr[0]->bus_low[index] =
-			    (u32) fbr1_tmp_physaddr;
-
-			fbr1_tmp_physaddr += rx_ring->fbr[0]->buffsize;
-
-			rx_ring->fbr[0]->buffer1[index] =
-			    rx_ring->fbr[0]->virt[index];
-			rx_ring->fbr[0]->buffer2[index] =
-			    rx_ring->fbr[0]->virt[index] - 4;
-		}
 	}
 
-#ifdef USE_FBR0
-	/* Same for FBR0 (if in use) */
-	for (i = 0; i < (rx_ring->fbr[1]->num_entries / FBR_CHUNKS); i++) {
-		u64 fbr0_tmp_physaddr;
-		u64 fbr0_offset;
+	for (id = 0; id < NUM_FBRS; id++) {
+		fbr_chunksize = (FBR_CHUNKS * rx_ring->fbr[id]->buffsize);
 
-		fbr_chunksize =
-		    ((FBR_CHUNKS + 1) * rx_ring->fbr[1]->buffsize) - 1;
-		rx_ring->fbr[1]->mem_virtaddrs[i] =
-		    dma_alloc_coherent(&adapter->pdev->dev, fbr_chunksize,
-				       &rx_ring->fbr[1]->mem_physaddrs[i],
-				       GFP_KERNEL);
+		for (i = 0;
+		     i < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS); i++) {
+			dma_addr_t fbr_tmp_physaddr;
 
-		if (!rx_ring->fbr[1]->mem_virtaddrs[i]) {
-			dev_err(&adapter->pdev->dev,
-				"Could not alloc memory\n");
-			return -ENOMEM;
-		}
+			rx_ring->fbr[id]->mem_virtaddrs[i] = dma_alloc_coherent(
+					&adapter->pdev->dev, fbr_chunksize,
+					&rx_ring->fbr[id]->mem_physaddrs[i],
+					GFP_KERNEL);
 
-		/* See NOTE in "Save Physical Address" comment above */
-		fbr0_tmp_physaddr = rx_ring->fbr[1]->mem_physaddrs[i];
+			if (!rx_ring->fbr[id]->mem_virtaddrs[i]) {
+				dev_err(&adapter->pdev->dev,
+					"Could not alloc memory\n");
+				return -ENOMEM;
+			}
 
-		et131x_align_allocated_memory(adapter,
-					      &fbr0_tmp_physaddr,
-					      &fbr0_offset,
-					      rx_ring->fbr[1]->buffsize - 1);
+			/* See NOTE in "Save Physical Address" comment above */
+			fbr_tmp_physaddr = rx_ring->fbr[id]->mem_physaddrs[i];
 
-		for (j = 0; j < FBR_CHUNKS; j++) {
-			u32 index = (i * FBR_CHUNKS) + j;
+			for (j = 0; j < FBR_CHUNKS; j++) {
+				u32 index = (i * FBR_CHUNKS) + j;
 
-			rx_ring->fbr[1]->virt[index] =
-			    (u8 *) rx_ring->fbr[1]->mem_virtaddrs[i] +
-			    (j * rx_ring->fbr[1]->buffsize) + fbr0_offset;
+				/* Save the Virtual address of this index for
+				 * quick access later
+				 */
+				rx_ring->fbr[id]->virt[index] =
+				  (u8 *) rx_ring->fbr[id]->mem_virtaddrs[i] +
+				  (j * rx_ring->fbr[id]->buffsize);
 
-			rx_ring->fbr[1]->bus_high[index] =
-			    (u32) (fbr0_tmp_physaddr >> 32);
-			rx_ring->fbr[1]->bus_low[index] =
-			    (u32) fbr0_tmp_physaddr;
+				/* now store the physical address in the
+				 * descriptor so the device can access it
+				 */
+				rx_ring->fbr[id]->bus_high[index] =
+						upper_32_bits(fbr_tmp_physaddr);
+				rx_ring->fbr[id]->bus_low[index] =
+						lower_32_bits(fbr_tmp_physaddr);
 
-			fbr0_tmp_physaddr += rx_ring->fbr[1]->buffsize;
-
-			rx_ring->fbr[1]->buffer1[index] =
-			    rx_ring->fbr[1]->virt[index];
-			rx_ring->fbr[1]->buffer2[index] =
-			    rx_ring->fbr[1]->virt[index] - 4;
+				fbr_tmp_physaddr += rx_ring->fbr[id]->buffsize;
+			}
 		}
 	}
-#endif
 
 	/* Allocate an area of memory for FIFO of Packet Status ring entries */
 	pktstat_ringsize =
@@ -2558,8 +2331,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	pr_info("Packet Status Ring %llx\n",
 		(unsigned long long) rx_ring->ps_ring_physaddr);
 
-	/*
-	 * NOTE : dma_alloc_coherent(), used above to alloc DMA regions,
+	/* NOTE : dma_alloc_coherent(), used above to alloc DMA regions,
 	 * ALWAYS returns SAC (32-bit) addresses. If DAC (64-bit) addresses
 	 * are ever returned, make sure the high part is retrieved here before
 	 * storing the adjusted address.
@@ -2578,21 +2350,6 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	rx_ring->num_rfd = NIC_DEFAULT_NUM_RFD;
 	pr_info("PRS %llx\n", (unsigned long long)rx_ring->rx_status_bus);
 
-	/* Recv
-	 * kmem_cache_create initializes a lookaside list. After successful
-	 * creation, nonpaged fixed-size blocks can be allocated from and
-	 * freed to the lookaside list.
-	 * RFDs will be allocated from this pool.
-	 */
-	rx_ring->recv_lookaside = kmem_cache_create(adapter->netdev->name,
-						   sizeof(struct rfd),
-						   0,
-						   SLAB_CACHE_DMA |
-						   SLAB_HWCACHE_ALIGN,
-						   NULL);
-
-	adapter->flags |= fMP_ADAPTER_RECV_LOOKASIDE;
-
 	/* The RFDs are going to be put on lists later on, so initialize the
 	 * lists now.
 	 */
@@ -2600,12 +2357,12 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	return 0;
 }
 
-/**
- * et131x_rx_dma_memory_free - Free all memory allocated within this module.
+/* et131x_rx_dma_memory_free - Free all memory allocated within this module.
  * @adapter: pointer to our private adapter structure
  */
 static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 {
+	u8 id;
 	u32 index;
 	u32 bufsize;
 	u32 pktstat_ringsize;
@@ -2624,92 +2381,45 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 		list_del(&rfd->list_node);
 		rfd->skb = NULL;
-		kmem_cache_free(adapter->rx_ring.recv_lookaside, rfd);
+		kfree(rfd);
 	}
 
-	/* Free Free Buffer Ring 1 */
-	if (rx_ring->fbr[0]->ring_virtaddr) {
+	/* Free Free Buffer Rings */
+	for (id = 0; id < NUM_FBRS; id++) {
+		if (!rx_ring->fbr[id]->ring_virtaddr)
+			continue;
+
 		/* First the packet memory */
-		for (index = 0; index <
-		     (rx_ring->fbr[0]->num_entries / FBR_CHUNKS); index++) {
-			if (rx_ring->fbr[0]->mem_virtaddrs[index]) {
-				u32 fbr1_align;
-
-				if (rx_ring->fbr[0]->buffsize > 4096)
-					fbr1_align = 4096;
-				else
-					fbr1_align = rx_ring->fbr[0]->buffsize;
-
+		for (index = 0;
+		     index < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS);
+		     index++) {
+			if (rx_ring->fbr[id]->mem_virtaddrs[index]) {
 				bufsize =
-				    (rx_ring->fbr[0]->buffsize * FBR_CHUNKS) +
-				    fbr1_align - 1;
+				    rx_ring->fbr[id]->buffsize * FBR_CHUNKS;
 
 				dma_free_coherent(&adapter->pdev->dev,
 					bufsize,
-					rx_ring->fbr[0]->mem_virtaddrs[index],
-					rx_ring->fbr[0]->mem_physaddrs[index]);
+					rx_ring->fbr[id]->mem_virtaddrs[index],
+					rx_ring->fbr[id]->mem_physaddrs[index]);
 
-				rx_ring->fbr[0]->mem_virtaddrs[index] = NULL;
+				rx_ring->fbr[id]->mem_virtaddrs[index] = NULL;
 			}
 		}
 
-		/* Now the FIFO itself */
-		rx_ring->fbr[0]->ring_virtaddr = (void *)((u8 *)
-		    rx_ring->fbr[0]->ring_virtaddr - rx_ring->fbr[0]->offset);
-
 		bufsize =
-		    (sizeof(struct fbr_desc) * rx_ring->fbr[0]->num_entries) +
-									0xfff;
+		    sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries;
 
 		dma_free_coherent(&adapter->pdev->dev, bufsize,
-				    rx_ring->fbr[0]->ring_virtaddr,
-				    rx_ring->fbr[0]->ring_physaddr);
+				    rx_ring->fbr[id]->ring_virtaddr,
+				    rx_ring->fbr[id]->ring_physaddr);
 
-		rx_ring->fbr[0]->ring_virtaddr = NULL;
+		rx_ring->fbr[id]->ring_virtaddr = NULL;
 	}
-
-#ifdef USE_FBR0
-	/* Now the same for Free Buffer Ring 0 */
-	if (rx_ring->fbr[1]->ring_virtaddr) {
-		/* First the packet memory */
-		for (index = 0; index <
-		     (rx_ring->fbr[1]->num_entries / FBR_CHUNKS); index++) {
-			if (rx_ring->fbr[1]->mem_virtaddrs[index]) {
-				bufsize =
-				    (rx_ring->fbr[1]->buffsize *
-				     (FBR_CHUNKS + 1)) - 1;
-
-				dma_free_coherent(&adapter->pdev->dev,
-					bufsize,
-					rx_ring->fbr[1]->mem_virtaddrs[index],
-					rx_ring->fbr[1]->mem_physaddrs[index]);
-
-				rx_ring->fbr[1]->mem_virtaddrs[index] = NULL;
-			}
-		}
-
-		/* Now the FIFO itself */
-		rx_ring->fbr[1]->ring_virtaddr = (void *)((u8 *)
-		    rx_ring->fbr[1]->ring_virtaddr - rx_ring->fbr[1]->offset);
-
-		bufsize =
-		    (sizeof(struct fbr_desc) * rx_ring->fbr[1]->num_entries) +
-									0xfff;
-
-		dma_free_coherent(&adapter->pdev->dev,
-				  bufsize,
-				  rx_ring->fbr[1]->ring_virtaddr,
-				  rx_ring->fbr[1]->ring_physaddr);
-
-		rx_ring->fbr[1]->ring_virtaddr = NULL;
-	}
-#endif
 
 	/* Free Packet Status Ring */
 	if (rx_ring->ps_ring_virtaddr) {
-		pktstat_ringsize =
-		    sizeof(struct pkt_stat_desc) *
-		    adapter->rx_ring.psr_num_entries;
+		pktstat_ringsize = sizeof(struct pkt_stat_desc) *
+					adapter->rx_ring.psr_num_entries;
 
 		dma_free_coherent(&adapter->pdev->dev, pktstat_ringsize,
 				    rx_ring->ps_ring_virtaddr,
@@ -2726,33 +2436,22 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		rx_ring->rx_status_block = NULL;
 	}
 
-	/* Destroy the lookaside (RFD) pool */
-	if (adapter->flags & fMP_ADAPTER_RECV_LOOKASIDE) {
-		kmem_cache_destroy(rx_ring->recv_lookaside);
-		adapter->flags &= ~fMP_ADAPTER_RECV_LOOKASIDE;
-	}
-
 	/* Free the FBR Lookup Table */
-#ifdef USE_FBR0
-	kfree(rx_ring->fbr[1]);
-#endif
-
 	kfree(rx_ring->fbr[0]);
+	kfree(rx_ring->fbr[1]);
 
 	/* Reset Counters */
 	rx_ring->num_ready_recv = 0;
 }
 
-/**
- * et131x_init_recv - Initialize receive data structures.
+/* et131x_init_recv - Initialize receive data structures.
  * @adapter: pointer to our private adapter structure
  *
  * Returns 0 on success and errno on failure (as defined in errno.h)
  */
 static int et131x_init_recv(struct et131x_adapter *adapter)
 {
-	int status = -ENOMEM;
-	struct rfd *rfd = NULL;
+	struct rfd *rfd;
 	u32 rfdct;
 	u32 numrfd = 0;
 	struct rx_ring *rx_ring;
@@ -2762,15 +2461,9 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->num_rfd; rfdct++) {
-		rfd = kmem_cache_alloc(rx_ring->recv_lookaside,
-						     GFP_ATOMIC | GFP_DMA);
-
-		if (!rfd) {
-			dev_err(&adapter->pdev->dev,
-				  "Couldn't alloc RFD out of kmem_cache\n");
-			status = -ENOMEM;
-			continue;
-		}
+		rfd = kzalloc(sizeof(struct rfd), GFP_ATOMIC | GFP_DMA);
+		if (!rfd)
+			return -ENOMEM;
 
 		rfd->skb = NULL;
 
@@ -2782,21 +2475,10 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 		numrfd++;
 	}
 
-	if (numrfd > NIC_MIN_NUM_RFD)
-		status = 0;
-
-	rx_ring->num_rfd = numrfd;
-
-	if (status != 0) {
-		kmem_cache_free(rx_ring->recv_lookaside, rfd);
-		dev_err(&adapter->pdev->dev,
-			  "Allocation problems in et131x_init_recv\n");
-	}
-	return status;
+	return 0;
 }
 
-/**
- * et131x_set_rx_dma_timer - Set the heartbeat timer according to line rate.
+/* et131x_set_rx_dma_timer - Set the heartbeat timer according to line rate.
  * @adapter: pointer to our adapter structure
  */
 static void et131x_set_rx_dma_timer(struct et131x_adapter *adapter)
@@ -2815,8 +2497,7 @@ static void et131x_set_rx_dma_timer(struct et131x_adapter *adapter)
 	}
 }
 
-/**
- * NICReturnRFD - Recycle a RFD and put it back onto the receive list
+/* NICReturnRFD - Recycle a RFD and put it back onto the receive list
  * @adapter: pointer to our adapter
  * @rfd: pointer to the RFD
  */
@@ -2831,51 +2512,34 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	/* We don't use any of the OOB data besides status. Otherwise, we
 	 * need to clean up OOB data
 	 */
-	if (
-#ifdef USE_FBR0
-	    (ring_index == 0 && buff_index < rx_local->fbr[1]->num_entries) ||
-#endif
-	    (ring_index == 1 && buff_index < rx_local->fbr[0]->num_entries)) {
+	if (buff_index < rx_local->fbr[ring_index]->num_entries) {
+		u32 __iomem *offset;
+		struct fbr_desc *next;
+
 		spin_lock_irqsave(&adapter->fbr_lock, flags);
 
-		if (ring_index == 1) {
-			struct fbr_desc *next = (struct fbr_desc *)
-					(rx_local->fbr[0]->ring_virtaddr) +
-					INDEX10(rx_local->fbr[0]->local_full);
+		if (ring_index == 0)
+			offset = &rx_dma->fbr0_full_offset;
+		else
+			offset = &rx_dma->fbr1_full_offset;
 
-			/* Handle the Free Buffer Ring advancement here. Write
-			 * the PA / Buffer Index for the returned buffer into
-			 * the oldest (next to be freed)FBR entry
-			 */
-			next->addr_hi = rx_local->fbr[0]->bus_high[buff_index];
-			next->addr_lo = rx_local->fbr[0]->bus_low[buff_index];
-			next->word2 = buff_index;
+		next = (struct fbr_desc *)
+			   (rx_local->fbr[ring_index]->ring_virtaddr) +
+				INDEX10(rx_local->fbr[ring_index]->local_full);
 
-			writel(bump_free_buff_ring(
-					&rx_local->fbr[0]->local_full,
-					rx_local->fbr[0]->num_entries - 1),
-					&rx_dma->fbr1_full_offset);
-		}
-#ifdef USE_FBR0
-		else {
-			struct fbr_desc *next = (struct fbr_desc *)
-				rx_local->fbr[1]->ring_virtaddr +
-				    INDEX10(rx_local->fbr[1]->local_full);
+		/* Handle the Free Buffer Ring advancement here. Write
+		 * the PA / Buffer Index for the returned buffer into
+		 * the oldest (next to be freed)FBR entry
+		 */
+		next->addr_hi = rx_local->fbr[ring_index]->bus_high[buff_index];
+		next->addr_lo = rx_local->fbr[ring_index]->bus_low[buff_index];
+		next->word2 = buff_index;
 
-			/* Handle the Free Buffer Ring advancement here. Write
-			 * the PA / Buffer Index for the returned buffer into
-			 * the oldest (next to be freed) FBR entry
-			 */
-			next->addr_hi = rx_local->fbr[1]->bus_high[buff_index];
-			next->addr_lo = rx_local->fbr[1]->bus_low[buff_index];
-			next->word2 = buff_index;
+		writel(bump_free_buff_ring(
+				  &rx_local->fbr[ring_index]->local_full,
+				  rx_local->fbr[ring_index]->num_entries - 1),
+		       offset);
 
-			writel(bump_free_buff_ring(
-					&rx_local->fbr[1]->local_full,
-					rx_local->fbr[1]->num_entries - 1),
-			       &rx_dma->fbr0_full_offset);
-		}
-#endif
 		spin_unlock_irqrestore(&adapter->fbr_lock, flags);
 	} else {
 		dev_err(&adapter->pdev->dev,
@@ -2893,8 +2557,7 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	WARN_ON(rx_local->num_ready_recv > rx_local->num_rfd);
 }
 
-/**
- * nic_rx_pkts - Checks the hardware for available packets
+/* nic_rx_pkts - Checks the hardware for available packets
  * @adapter: pointer to our adapter
  *
  * Returns rfd, a pointer to our MPRFD.
@@ -2919,6 +2582,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	u32 len;
 	u32 word0;
 	u32 word1;
+	struct sk_buff *skb;
 
 	/* RX Status block is written by the DMA engine prior to every
 	 * interrupt. It contains the next to be used entry in the Packet
@@ -2929,16 +2593,14 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 
 	/* Check the PSR and wrap bits do not match */
 	if ((word1 & 0x1FFF) == (rx_local->local_psr_full & 0x1FFF))
-		/* Looks like this ring is not updated yet */
-		return NULL;
+		return NULL; /* Looks like this ring is not updated yet */
 
 	/* The packet status ring indicates that data is available. */
 	psr = (struct pkt_stat_desc *) (rx_local->ps_ring_virtaddr) +
 			(rx_local->local_psr_full & 0xFFF);
 
-	/* Grab any information that is required once the PSR is
-	 * advanced, since we can no longer rely on the memory being
-	 * accurate
+	/* Grab any information that is required once the PSR is advanced,
+	 * since we can no longer rely on the memory being accurate
 	 */
 	len = psr->word1 & 0xFFFF;
 	ring_index = (psr->word1 >> 26) & 0x03;
@@ -2955,40 +2617,24 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		rx_local->local_psr_full ^= 0x1000;
 	}
 
-	writel(rx_local->local_psr_full,
-	       &adapter->regs->rxdma.psr_full_offset);
+	writel(rx_local->local_psr_full, &adapter->regs->rxdma.psr_full_offset);
 
-#ifndef USE_FBR0
-	if (ring_index != 1)
-		return NULL;
-#endif
-
-#ifdef USE_FBR0
 	if (ring_index > 1 ||
-		(ring_index == 0 &&
-		buff_index > rx_local->fbr[1]->num_entries - 1) ||
-		(ring_index == 1 &&
-		buff_index > rx_local->fbr[0]->num_entries - 1)) {
-#else
-	if (ring_index != 1 || buff_index > rx_local->fbr[0]->num_entries - 1) {
-#endif
+		    buff_index > rx_local->fbr[ring_index]->num_entries - 1) {
 		/* Illegal buffer or ring index cannot be used by S/W*/
 		dev_err(&adapter->pdev->dev,
-			  "NICRxPkts PSR Entry %d indicates "
-			  "length of %d and/or bad bi(%d)\n",
-			  rx_local->local_psr_full & 0xFFF,
-			  len, buff_index);
+			"NICRxPkts PSR Entry %d indicates length of %d and/or bad bi(%d)\n",
+			rx_local->local_psr_full & 0xFFF, len, buff_index);
 		return NULL;
 	}
 
 	/* Get and fill the RFD. */
 	spin_lock_irqsave(&adapter->rcv_lock, flags);
 
-	rfd = NULL;
 	element = rx_local->recv_list.next;
 	rfd = (struct rfd *) list_entry(element, struct rfd, list_node);
 
-	if (rfd == NULL) {
+	if (!rfd) {
 		spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 		return NULL;
 	}
@@ -3001,125 +2647,99 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	rfd->bufferindex = buff_index;
 	rfd->ringindex = ring_index;
 
-	/* In V1 silicon, there is a bug which screws up filtering of
-	 * runt packets.  Therefore runt packet filtering is disabled
-	 * in the MAC and the packets are dropped here.  They are
-	 * also counted here.
+	/* In V1 silicon, there is a bug which screws up filtering of runt
+	 * packets. Therefore runt packet filtering is disabled in the MAC and
+	 * the packets are dropped here. They are also counted here.
 	 */
 	if (len < (NIC_MIN_PACKET_SIZE + 4)) {
 		adapter->stats.rx_other_errs++;
 		len = 0;
 	}
 
-	if (len) {
-		/* Determine if this is a multicast packet coming in */
-		if ((word0 & ALCATEL_MULTICAST_PKT) &&
-		    !(word0 & ALCATEL_BROADCAST_PKT)) {
-			/* Promiscuous mode and Multicast mode are
-			 * not mutually exclusive as was first
-			 * thought.  I guess Promiscuous is just
-			 * considered a super-set of the other
-			 * filters. Generally filter is 0x2b when in
-			 * promiscuous mode.
-			 */
-			if ((adapter->packet_filter &
-					ET131X_PACKET_TYPE_MULTICAST)
-			    && !(adapter->packet_filter &
-					ET131X_PACKET_TYPE_PROMISCUOUS)
-			    && !(adapter->packet_filter &
+	if (len == 0) {
+		rfd->len = 0;
+		goto out;
+	}
+
+	/* Determine if this is a multicast packet coming in */
+	if ((word0 & ALCATEL_MULTICAST_PKT) &&
+	    !(word0 & ALCATEL_BROADCAST_PKT)) {
+		/* Promiscuous mode and Multicast mode are not mutually
+		 * exclusive as was first thought. I guess Promiscuous is just
+		 * considered a super-set of the other filters. Generally filter
+		 * is 0x2b when in promiscuous mode.
+		 */
+		if ((adapter->packet_filter & ET131X_PACKET_TYPE_MULTICAST)
+		   && !(adapter->packet_filter & ET131X_PACKET_TYPE_PROMISCUOUS)
+		   && !(adapter->packet_filter &
 					ET131X_PACKET_TYPE_ALL_MULTICAST)) {
-				/*
-				 * Note - ring_index for fbr[] array is reversed
-				 * 1 for FBR0 etc
-				 */
-				buf = rx_local->fbr[(ring_index == 0 ? 1 : 0)]->
-						virt[buff_index];
+			buf = rx_local->fbr[ring_index]->virt[buff_index];
 
-				/* Loop through our list to see if the
-				 * destination address of this packet
-				 * matches one in our list.
-				 */
-				for (i = 0; i < adapter->multicast_addr_count;
-				     i++) {
-					if (buf[0] ==
-						adapter->multicast_list[i][0]
-					    && buf[1] ==
-						adapter->multicast_list[i][1]
-					    && buf[2] ==
-						adapter->multicast_list[i][2]
-					    && buf[3] ==
-						adapter->multicast_list[i][3]
-					    && buf[4] ==
-						adapter->multicast_list[i][4]
-					    && buf[5] ==
-						adapter->multicast_list[i][5]) {
-						break;
-					}
+			/* Loop through our list to see if the destination
+			 * address of this packet matches one in our list.
+			 */
+			for (i = 0; i < adapter->multicast_addr_count; i++) {
+				if (buf[0] == adapter->multicast_list[i][0]
+				 && buf[1] == adapter->multicast_list[i][1]
+				 && buf[2] == adapter->multicast_list[i][2]
+				 && buf[3] == adapter->multicast_list[i][3]
+				 && buf[4] == adapter->multicast_list[i][4]
+				 && buf[5] == adapter->multicast_list[i][5]) {
+					break;
 				}
-
-				/* If our index is equal to the number
-				 * of Multicast address we have, then
-				 * this means we did not find this
-				 * packet's matching address in our
-				 * list.  Set the len to zero,
-				 * so we free our RFD when we return
-				 * from this function.
-				 */
-				if (i == adapter->multicast_addr_count)
-					len = 0;
 			}
 
-			if (len > 0)
-				adapter->stats.multicast_pkts_rcvd++;
-		} else if (word0 & ALCATEL_BROADCAST_PKT)
-			adapter->stats.broadcast_pkts_rcvd++;
-		else
-			/* Not sure what this counter measures in
-			 * promiscuous mode. Perhaps we should check
-			 * the MAC address to see if it is directed
-			 * to us in promiscuous mode.
+			/* If our index is equal to the number of Multicast
+			 * address we have, then this means we did not find this
+			 * packet's matching address in our list. Set the len to
+			 * zero, so we free our RFD when we return from this
+			 * function.
 			 */
-			adapter->stats.unicast_pkts_rcvd++;
-	}
-
-	if (len > 0) {
-		struct sk_buff *skb = NULL;
-
-		/*rfd->len = len - 4; */
-		rfd->len = len;
-
-		skb = dev_alloc_skb(rfd->len + 2);
-		if (!skb) {
-			dev_err(&adapter->pdev->dev,
-				  "Couldn't alloc an SKB for Rx\n");
-			return NULL;
+			if (i == adapter->multicast_addr_count)
+				len = 0;
 		}
 
-		adapter->net_stats.rx_bytes += rfd->len;
-
-		/*
-		 * Note - ring_index for fbr[] array is reversed,
-		 * 1 for FBR0 etc
-		 */
-		memcpy(skb_put(skb, rfd->len),
-		    rx_local->fbr[(ring_index == 0 ? 1 : 0)]->virt[buff_index],
-		    rfd->len);
-
-		skb->dev = adapter->netdev;
-		skb->protocol = eth_type_trans(skb, adapter->netdev);
-		skb->ip_summed = CHECKSUM_NONE;
-
-		netif_rx_ni(skb);
+		if (len > 0)
+			adapter->stats.multicast_pkts_rcvd++;
+	} else if (word0 & ALCATEL_BROADCAST_PKT) {
+		adapter->stats.broadcast_pkts_rcvd++;
 	} else {
-		rfd->len = 0;
+		/* Not sure what this counter measures in promiscuous mode.
+		 * Perhaps we should check the MAC address to see if it is
+		 * directed to us in promiscuous mode.
+		 */
+		adapter->stats.unicast_pkts_rcvd++;
 	}
 
+	if (len == 0) {
+		rfd->len = 0;
+		goto out;
+	}
+
+	rfd->len = len;
+
+	skb = dev_alloc_skb(rfd->len + 2);
+	if (!skb) {
+		dev_err(&adapter->pdev->dev, "Couldn't alloc an SKB for Rx\n");
+		return NULL;
+	}
+
+	adapter->net_stats.rx_bytes += rfd->len;
+
+	memcpy(skb_put(skb, rfd->len),
+	       rx_local->fbr[ring_index]->virt[buff_index],
+	       rfd->len);
+
+	skb->protocol = eth_type_trans(skb, adapter->netdev);
+	skb->ip_summed = CHECKSUM_NONE;
+	netif_rx_ni(skb);
+
+out:
 	nic_return_rfd(adapter, rfd);
 	return rfd;
 }
 
-/**
- * et131x_handle_recv_interrupt - Interrupt handler for receive processing
+/* et131x_handle_recv_interrupt - Interrupt handler for receive processing
  * @adapter: pointer to our adapter
  *
  * Assumption, Rcv spinlock has been acquired.
@@ -3173,8 +2793,7 @@ static void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 		adapter->rx_ring.unfinished_receives = false;
 }
 
-/**
- * et131x_tx_dma_memory_alloc
+/* et131x_tx_dma_memory_alloc
  * @adapter: pointer to our private adapter structure
  *
  * Returns 0 on success and errno on failure (as defined in errno.h).
@@ -3191,17 +2810,12 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Allocate memory for the TCB's (Transmit Control Block) */
-	adapter->tx_ring.tcb_ring =
-		kcalloc(NUM_TCB, sizeof(struct tcb), GFP_ATOMIC | GFP_DMA);
-	if (!adapter->tx_ring.tcb_ring) {
-		dev_err(&adapter->pdev->dev, "Cannot alloc memory for TCBs\n");
+	adapter->tx_ring.tcb_ring = kcalloc(NUM_TCB, sizeof(struct tcb),
+					    GFP_ATOMIC | GFP_DMA);
+	if (!adapter->tx_ring.tcb_ring)
 		return -ENOMEM;
-	}
 
-	/* Allocate enough memory for the Tx descriptor ring, and allocate
-	 * some extra so that the ring can be aligned on a 4k boundary.
-	 */
-	desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX) + 4096 - 1;
+	desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX);
 	tx_ring->tx_desc_ring =
 	    (struct tx_desc *) dma_alloc_coherent(&adapter->pdev->dev,
 						  desc_size,
@@ -3233,8 +2847,7 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	return 0;
 }
 
-/**
- * et131x_tx_dma_memory_free - Free all memory allocated within this module
+/* et131x_tx_dma_memory_free - Free all memory allocated within this module
  * @adapter: pointer to our private adapter structure
  *
  * Returns 0 on success and errno on failure (as defined in errno.h).
@@ -3245,8 +2858,7 @@ static void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 
 	if (adapter->tx_ring.tx_desc_ring) {
 		/* Free memory relating to Tx rings here */
-		desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX)
-								+ 4096 - 1;
+		desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX);
 		dma_free_coherent(&adapter->pdev->dev,
 				    desc_size,
 				    adapter->tx_ring.tx_desc_ring,
@@ -3267,8 +2879,7 @@ static void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 	kfree(adapter->tx_ring.tcb_ring);
 }
 
-/**
- * nic_send_packet - NIC specific send handler for version B silicon.
+/* nic_send_packet - NIC specific send handler for version B silicon.
  * @adapter: pointer to our adapter
  * @tcb: pointer to struct tcb
  *
@@ -3285,6 +2896,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	struct skb_frag_struct *frags = &skb_shinfo(skb)->frags[0];
 	unsigned long flags;
 	struct phy_device *phydev = adapter->phydev;
+	dma_addr_t dma_addr;
 
 	/* Part of the optimizations of this send routine restrict us to
 	 * sending 24 fragments at a pass.  In practice we should never see
@@ -3313,108 +2925,72 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 			 * This will work until we determine why the hardware
 			 * doesn't seem to like large fragments.
 			 */
-			if ((skb->len - skb->data_len) <= 1514) {
-				desc[frag].addr_hi = 0;
+			if (skb_headlen(skb) <= 1514) {
 				/* Low 16bits are length, high is vlan and
-				   unused currently so zero */
-				desc[frag].len_vlan =
-					skb->len - skb->data_len;
-
-				/* NOTE: Here, the dma_addr_t returned from
-				 * dma_map_single() is implicitly cast as a
-				 * u32. Although dma_addr_t can be
-				 * 64-bit, the address returned by
-				 * dma_map_single() is always 32-bit
-				 * addressable (as defined by the pci/dma
-				 * subsystem)
+				 * unused currently so zero
 				 */
-				desc[frag++].addr_lo =
-				    dma_map_single(&adapter->pdev->dev,
-						   skb->data,
-						   skb->len -
-						   skb->data_len,
-						   DMA_TO_DEVICE);
+				desc[frag].len_vlan = skb_headlen(skb);
+				dma_addr = dma_map_single(&adapter->pdev->dev,
+							  skb->data,
+							  skb_headlen(skb),
+							  DMA_TO_DEVICE);
+				desc[frag].addr_lo = lower_32_bits(dma_addr);
+				desc[frag].addr_hi = upper_32_bits(dma_addr);
+				frag++;
 			} else {
-				desc[frag].addr_hi = 0;
-				desc[frag].len_vlan =
-				    (skb->len - skb->data_len) / 2;
+				desc[frag].len_vlan = skb_headlen(skb) / 2;
+				dma_addr = dma_map_single(&adapter->pdev->dev,
+							 skb->data,
+							 (skb_headlen(skb) / 2),
+							 DMA_TO_DEVICE);
+				desc[frag].addr_lo = lower_32_bits(dma_addr);
+				desc[frag].addr_hi = upper_32_bits(dma_addr);
+				frag++;
 
-				/* NOTE: Here, the dma_addr_t returned from
-				 * dma_map_single() is implicitly cast as a
-				 * u32. Although dma_addr_t can be
-				 * 64-bit, the address returned by
-				 * dma_map_single() is always 32-bit
-				 * addressable (as defined by the pci/dma
-				 * subsystem)
-				 */
-				desc[frag++].addr_lo =
-				    dma_map_single(&adapter->pdev->dev,
-						   skb->data,
-						   ((skb->len -
-						     skb->data_len) / 2),
-						   DMA_TO_DEVICE);
-				desc[frag].addr_hi = 0;
-
-				desc[frag].len_vlan =
-				    (skb->len - skb->data_len) / 2;
-
-				/* NOTE: Here, the dma_addr_t returned from
-				 * dma_map_single() is implicitly cast as a
-				 * u32. Although dma_addr_t can be
-				 * 64-bit, the address returned by
-				 * dma_map_single() is always 32-bit
-				 * addressable (as defined by the pci/dma
-				 * subsystem)
-				 */
-				desc[frag++].addr_lo =
-				    dma_map_single(&adapter->pdev->dev,
-						   skb->data +
-						   ((skb->len -
-						     skb->data_len) / 2),
-						   ((skb->len -
-						     skb->data_len) / 2),
-						   DMA_TO_DEVICE);
+				desc[frag].len_vlan = skb_headlen(skb) / 2;
+				dma_addr = dma_map_single(&adapter->pdev->dev,
+							 skb->data +
+							 (skb_headlen(skb) / 2),
+							 (skb_headlen(skb) / 2),
+							 DMA_TO_DEVICE);
+				desc[frag].addr_lo = lower_32_bits(dma_addr);
+				desc[frag].addr_hi = upper_32_bits(dma_addr);
+				frag++;
 			}
 		} else {
-			desc[frag].addr_hi = 0;
-			desc[frag].len_vlan =
-					frags[i - 1].size;
-
-			/* NOTE: Here, the dma_addr_t returned from
-			 * dma_map_page() is implicitly cast as a u32.
-			 * Although dma_addr_t can be 64-bit, the address
-			 * returned by dma_map_page() is always 32-bit
-			 * addressable (as defined by the pci/dma subsystem)
-			 */
-			desc[frag++].addr_lo = skb_frag_dma_map(
-							&adapter->pdev->dev,
-							&frags[i - 1],
-							0,
-							frags[i - 1].size,
-							DMA_TO_DEVICE);
+			desc[frag].len_vlan = frags[i - 1].size;
+			dma_addr = skb_frag_dma_map(&adapter->pdev->dev,
+						    &frags[i - 1],
+						    0,
+						    frags[i - 1].size,
+						    DMA_TO_DEVICE);
+			desc[frag].addr_lo = lower_32_bits(dma_addr);
+			desc[frag].addr_hi = upper_32_bits(dma_addr);
+			frag++;
 		}
 	}
 
 	if (phydev && phydev->speed == SPEED_1000) {
 		if (++adapter->tx_ring.since_irq == PARM_TX_NUM_BUFS_DEF) {
 			/* Last element & Interrupt flag */
-			desc[frag - 1].flags = 0x5;
+			desc[frag - 1].flags =
+				    TXDESC_FLAG_INTPROC | TXDESC_FLAG_LASTPKT;
 			adapter->tx_ring.since_irq = 0;
 		} else { /* Last element */
-			desc[frag - 1].flags = 0x1;
+			desc[frag - 1].flags = TXDESC_FLAG_LASTPKT;
 		}
 	} else
-		desc[frag - 1].flags = 0x5;
+		desc[frag - 1].flags =
+				    TXDESC_FLAG_INTPROC | TXDESC_FLAG_LASTPKT;
 
-	desc[0].flags |= 2;	/* First element flag */
+	desc[0].flags |= TXDESC_FLAG_FIRSTPKT;
 
 	tcb->index_start = adapter->tx_ring.send_idx;
 	tcb->stale = 0;
 
 	spin_lock_irqsave(&adapter->send_hw_lock, flags);
 
-	thiscopy = NUM_DESC_PER_RING_TX -
-				INDEX10(adapter->tx_ring.send_idx);
+	thiscopy = NUM_DESC_PER_RING_TX - INDEX10(adapter->tx_ring.send_idx);
 
 	if (thiscopy >= frag) {
 		remainder = 0;
@@ -3482,8 +3058,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	return 0;
 }
 
-/**
- * send_packet - Do the work to send a packet
+/* send_packet - Do the work to send a packet
  * @skb: the packet(s) to send
  * @adapter: a pointer to the device's private adapter structure
  *
@@ -3521,14 +3096,14 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 
 	tcb->skb = skb;
 
-	if (skb->data != NULL && skb->len - skb->data_len >= 6) {
+	if (skb->data != NULL && skb_headlen(skb) >= 6) {
 		shbufva = (u16 *) skb->data;
 
 		if ((shbufva[0] == 0xffff) &&
 		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff)) {
-			tcb->flags |= fMP_DEST_BROAD;
+			tcb->flags |= FMP_DEST_BROAD;
 		} else if ((shbufva[0] & 0x3) == 0x0001) {
-			tcb->flags |=  fMP_DEST_MULTI;
+			tcb->flags |=  FMP_DEST_MULTI;
 		}
 	}
 
@@ -3554,8 +3129,7 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 	return 0;
 }
 
-/**
- * et131x_send_packets - This function is called by the OS to send packets
+/* et131x_send_packets - This function is called by the OS to send packets
  * @skb: the packet(s) to send
  * @netdev:device on which to TX the above packet(s)
  *
@@ -3583,7 +3157,7 @@ static int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 		/* We need to see if the link is up; if it's not, make the
 		 * netif layer think we're good and drop the packet
 		 */
-		if ((adapter->flags & fMP_ADAPTER_FAIL_SEND_MASK) ||
+		if ((adapter->flags & FMP_ADAPTER_FAIL_SEND_MASK) ||
 					!netif_carrier_ok(netdev)) {
 			dev_kfree_skb_any(skb);
 			skb = NULL;
@@ -3604,8 +3178,7 @@ static int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 	return status;
 }
 
-/**
- * free_send_packet - Recycle a struct tcb
+/* free_send_packet - Recycle a struct tcb
  * @adapter: pointer to our adapter
  * @tcb: pointer to struct tcb
  *
@@ -3618,10 +3191,11 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 	unsigned long flags;
 	struct tx_desc *desc = NULL;
 	struct net_device_stats *stats = &adapter->net_stats;
+	u64  dma_addr;
 
-	if (tcb->flags & fMP_DEST_BROAD)
+	if (tcb->flags & FMP_DEST_BROAD)
 		atomic_inc(&adapter->stats.broadcast_pkts_xmtd);
-	else if (tcb->flags & fMP_DEST_MULTI)
+	else if (tcb->flags & FMP_DEST_MULTI)
 		atomic_inc(&adapter->stats.multicast_pkts_xmtd);
 	else
 		atomic_inc(&adapter->stats.unicast_pkts_xmtd);
@@ -3638,8 +3212,11 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 				    (adapter->tx_ring.tx_desc_ring +
 						INDEX10(tcb->index_start));
 
+			dma_addr = desc->addr_lo;
+			dma_addr |= (u64)desc->addr_hi << 32;
+
 			dma_unmap_single(&adapter->pdev->dev,
-					 desc->addr_lo,
+					 dma_addr,
 					 desc->len_vlan, DMA_TO_DEVICE);
 
 			add_10bit(&tcb->index_start, 1);
@@ -3673,8 +3250,7 @@ static inline void free_send_packet(struct et131x_adapter *adapter,
 	WARN_ON(adapter->tx_ring.used < 0);
 }
 
-/**
- * et131x_free_busy_send_packets - Free and complete the stopped active sends
+/* et131x_free_busy_send_packets - Free and complete the stopped active sends
  * @adapter: pointer to our adapter
  *
  * Assumption - Send spinlock has been acquired
@@ -3717,8 +3293,7 @@ static void et131x_free_busy_send_packets(struct et131x_adapter *adapter)
 	adapter->tx_ring.used = 0;
 }
 
-/**
- * et131x_handle_send_interrupt - Interrupt handler for sending processing
+/* et131x_handle_send_interrupt - Interrupt handler for sending processing
  * @adapter: pointer to our adapter
  *
  * Re-claim the send resources, complete sends and get more to send from
@@ -3810,6 +3385,7 @@ static void et131x_get_regs(struct net_device *netdev,
 	struct address_map __iomem *aregs = adapter->regs;
 	u32 *regs_buff = regs_data;
 	u32 num = 0;
+	u16 tmp;
 
 	memset(regs_data, 0, et131x_get_regs_len(netdev));
 
@@ -3817,38 +3393,68 @@ static void et131x_get_regs(struct net_device *netdev,
 			adapter->pdev->device;
 
 	/* PHY regs */
-	et131x_mii_read(adapter, MII_BMCR, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_BMSR, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_PHYSID1, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_PHYSID2, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_ADVERTISE, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_LPA, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_EXPANSION, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, MII_BMCR, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_BMSR, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_PHYSID1, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_PHYSID2, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_ADVERTISE, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_LPA, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_EXPANSION, &tmp);
+	regs_buff[num++] = tmp;
 	/* Autoneg next page transmit reg */
-	et131x_mii_read(adapter, 0x07, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, 0x07, &tmp);
+	regs_buff[num++] = tmp;
 	/* Link partner next page reg */
-	et131x_mii_read(adapter, 0x08, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_CTRL1000, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_STAT1000, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, MII_ESTATUS, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_INDEX_REG, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_DATA_REG, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL+1,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_REGISTER_MGMT_CONTROL,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_CONFIG, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_PHY_CONTROL, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_INTERRUPT_MASK, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_INTERRUPT_STATUS,
-			(u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_PHY_STATUS, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_LED_1, (u16 *)&regs_buff[num++]);
-	et131x_mii_read(adapter, PHY_LED_2, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, 0x08, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_CTRL1000, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_STAT1000, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, 0x0b, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, 0x0c, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_MMD_CTRL, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_MMD_DATA, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, MII_ESTATUS, &tmp);
+	regs_buff[num++] = tmp;
+
+	et131x_mii_read(adapter, PHY_INDEX_REG, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_DATA_REG, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL + 1, &tmp);
+	regs_buff[num++] = tmp;
+
+	et131x_mii_read(adapter, PHY_REGISTER_MGMT_CONTROL, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_CONFIG, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_PHY_CONTROL, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_INTERRUPT_MASK, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_INTERRUPT_STATUS, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_PHY_STATUS, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_LED_1, &tmp);
+	regs_buff[num++] = tmp;
+	et131x_mii_read(adapter, PHY_LED_2, &tmp);
+	regs_buff[num++] = tmp;
 
 	/* Global regs */
 	regs_buff[num++] = readl(&aregs->global.txq_start_addr);
@@ -3926,15 +3532,15 @@ static void et131x_get_regs(struct net_device *netdev,
 	regs_buff[num++] = readl(&aregs->rxdma.fbr1_min_des);
 }
 
-#define ET131X_DRVINFO_LEN 32 /* value from ethtool.h */
 static void et131x_get_drvinfo(struct net_device *netdev,
 			       struct ethtool_drvinfo *info)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
-	strncpy(info->driver, DRIVER_NAME, ET131X_DRVINFO_LEN);
-	strncpy(info->version, DRIVER_VERSION, ET131X_DRVINFO_LEN);
-	strncpy(info->bus_info, pci_name(adapter->pdev), ET131X_DRVINFO_LEN);
+	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(adapter->pdev),
+		sizeof(info->bus_info));
 }
 
 static struct ethtool_ops et131x_ethtool_ops = {
@@ -3943,10 +3549,10 @@ static struct ethtool_ops et131x_ethtool_ops = {
 	.get_drvinfo	= et131x_get_drvinfo,
 	.get_regs_len	= et131x_get_regs_len,
 	.get_regs	= et131x_get_regs,
-	.get_link = ethtool_op_get_link,
+	.get_link	= ethtool_op_get_link,
 };
-/**
- * et131x_hwaddr_init - set up the MAC Address on the ET1310
+
+/* et131x_hwaddr_init - set up the MAC Address on the ET1310
  * @adapter: pointer to our private adapter structure
  */
 static void et131x_hwaddr_init(struct et131x_adapter *adapter)
@@ -3956,14 +3562,12 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 	 * device
 	 */
 	if (is_zero_ether_addr(adapter->rom_addr)) {
-		/*
-		 * We need to randomly generate the last octet so we
+		/* We need to randomly generate the last octet so we
 		 * decrease our chances of setting the mac address to
 		 * same as another one of our cards in the system
 		 */
 		get_random_bytes(&adapter->addr[5], 1);
-		/*
-		 * We have the default value in the register we are
+		/* We have the default value in the register we are
 		 * working with so we need to copy the current
 		 * address into the permanent address
 		 */
@@ -3979,8 +3583,7 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 	}
 }
 
-/**
- * et131x_pci_init	 - initial PCI setup
+/* et131x_pci_init	 - initial PCI setup
  * @adapter: pointer to our private adapter structure
  * @pdev: our PCI device
  *
@@ -4072,8 +3675,7 @@ err_out:
 	goto out;
 }
 
-/**
- * et131x_error_timer_handler
+/* et131x_error_timer_handler
  * @data: timer-specific variable; here a pointer to our adapter structure
  *
  * The routine called when the error timer expires, to track the number of
@@ -4087,7 +3689,8 @@ static void et131x_error_timer_handler(unsigned long data)
 	if (et1310_in_phy_coma(adapter)) {
 		/* Bring the device immediately out of coma, to
 		 * prevent it from sleeping indefinitely, this
-		 * mechanism could be improved! */
+		 * mechanism could be improved!
+		 */
 		et1310_disable_phy_coma(adapter);
 		adapter->boot_coma = 20;
 	} else {
@@ -4110,12 +3713,20 @@ static void et131x_error_timer_handler(unsigned long data)
 	}
 
 	/* This is a periodic timer, so reschedule */
-	mod_timer(&adapter->error_timer, jiffies +
-					  TX_ERROR_PERIOD * HZ / 1000);
+	mod_timer(&adapter->error_timer, jiffies + TX_ERROR_PERIOD * HZ / 1000);
 }
 
-/**
- * et131x_adapter_memory_alloc
+/* et131x_adapter_memory_free - Free all memory allocated for use by Tx & Rx
+ * @adapter: pointer to our private adapter structure
+ */
+static void et131x_adapter_memory_free(struct et131x_adapter *adapter)
+{
+	/* Free DMA memory */
+	et131x_tx_dma_memory_free(adapter);
+	et131x_rx_dma_memory_free(adapter);
+}
+
+/* et131x_adapter_memory_alloc
  * @adapter: pointer to our private adapter structure
  *
  * Returns 0 on success, errno on failure (as defined in errno.h).
@@ -4144,24 +3755,12 @@ static int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Init receive data structures */
 	status = et131x_init_recv(adapter);
-	if (status != 0) {
+	if (status) {
 		dev_err(&adapter->pdev->dev,
 			"et131x_init_recv FAILED\n");
-		et131x_tx_dma_memory_free(adapter);
-		et131x_rx_dma_memory_free(adapter);
+		et131x_adapter_memory_free(adapter);
 	}
 	return status;
-}
-
-/**
- * et131x_adapter_memory_free - Free all memory allocated for use by Tx & Rx
- * @adapter: pointer to our private adapter structure
- */
-static void et131x_adapter_memory_free(struct et131x_adapter *adapter)
-{
-	/* Free DMA memory */
-	et131x_tx_dma_memory_free(adapter);
-	et131x_rx_dma_memory_free(adapter);
 }
 
 static void et131x_adjust_link(struct net_device *netdev)
@@ -4169,60 +3768,54 @@ static void et131x_adjust_link(struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct  phy_device *phydev = adapter->phydev;
 
-	if (netif_carrier_ok(netdev)) {
-		adapter->boot_coma = 20;
-
-		if (phydev && phydev->speed == SPEED_10) {
-			/*
-			 * NOTE - Is there a way to query this without
-			 * TruePHY?
-			 * && TRU_QueryCoreType(adapter->hTruePhy, 0)==
-			 * EMI_TRUEPHY_A13O) {
-			 */
-			u16 register18;
-
-			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
-					 &register18);
-			et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
-					 register18 | 0x4);
-			et131x_mii_write(adapter, PHY_INDEX_REG,
-					 register18 | 0x8402);
-			et131x_mii_write(adapter, PHY_DATA_REG,
-					 register18 | 511);
-			et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
-					 register18);
-		}
-
-		et1310_config_flow_control(adapter);
-
-		if (phydev && phydev->speed == SPEED_1000 &&
-				adapter->registry_jumbo_packet > 2048) {
-			u16 reg;
-
-			et131x_mii_read(adapter, PHY_CONFIG, &reg);
-			reg &= ~ET_PHY_CONFIG_TX_FIFO_DEPTH;
-			reg |= ET_PHY_CONFIG_FIFO_DEPTH_32;
-			et131x_mii_write(adapter, PHY_CONFIG, reg);
-		}
-
-		et131x_set_rx_dma_timer(adapter);
-		et1310_config_mac_regs2(adapter);
-	}
-
 	if (phydev && phydev->link != adapter->link) {
-		/*
-		 * Check to see if we are in coma mode and if
+		/* Check to see if we are in coma mode and if
 		 * so, disable it because we will not be able
 		 * to read PHY values until we are out.
 		 */
 		if (et1310_in_phy_coma(adapter))
 			et1310_disable_phy_coma(adapter);
 
+		adapter->link = phydev->link;
+		phy_print_status(phydev);
+
 		if (phydev->link) {
 			adapter->boot_coma = 20;
+			if (phydev && phydev->speed == SPEED_10) {
+				/* NOTE - Is there a way to query this without
+				 * TruePHY?
+				 * && TRU_QueryCoreType(adapter->hTruePhy, 0)==
+				 * EMI_TRUEPHY_A13O) {
+				 */
+				u16 register18;
+
+				et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
+						 &register18);
+				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+						 register18 | 0x4);
+				et131x_mii_write(adapter, PHY_INDEX_REG,
+						 register18 | 0x8402);
+				et131x_mii_write(adapter, PHY_DATA_REG,
+						 register18 | 511);
+				et131x_mii_write(adapter, PHY_MPHY_CONTROL_REG,
+						 register18);
+			}
+
+			et1310_config_flow_control(adapter);
+
+			if (phydev && phydev->speed == SPEED_1000 &&
+					adapter->registry_jumbo_packet > 2048) {
+				u16 reg;
+
+				et131x_mii_read(adapter, PHY_CONFIG, &reg);
+				reg &= ~ET_PHY_CONFIG_TX_FIFO_DEPTH;
+				reg |= ET_PHY_CONFIG_FIFO_DEPTH_32;
+				et131x_mii_write(adapter, PHY_CONFIG, reg);
+			}
+
+			et131x_set_rx_dma_timer(adapter);
+			et1310_config_mac_regs2(adapter);
 		} else {
-			dev_warn(&adapter->pdev->dev,
-			    "Link down - cable problem ?\n");
 			adapter->boot_coma = 0;
 
 			if (phydev->speed == SPEED_10) {
@@ -4251,8 +3844,7 @@ static void et131x_adjust_link(struct net_device *netdev)
 			/* Re-initialize the send structures */
 			et131x_init_send(adapter);
 
-			/*
-			 * Bring the device back to the state it was during
+			/* Bring the device back to the state it was during
 			 * init prior to autonegotiation being complete. This
 			 * way, when we get the auto-neg complete interrupt,
 			 * we can complete init by calling config_mac_regs2.
@@ -4267,9 +3859,6 @@ static void et131x_adjust_link(struct net_device *netdev)
 			et131x_enable_txrx(netdev);
 		}
 
-		adapter->link = phydev->link;
-
-		phy_print_status(phydev);
 	}
 }
 
@@ -4285,7 +3874,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 	}
 
 	phydev = phy_connect(netdev, dev_name(&phydev->dev),
-			&et131x_adjust_link, 0, PHY_INTERFACE_MODE_MII);
+			     &et131x_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		dev_err(&adapter->pdev->dev, "Could not attach to PHY\n");
@@ -4312,8 +3901,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 	return 0;
 }
 
-/**
- * et131x_adapter_init
+/* et131x_adapter_init
  * @adapter: pointer to the private adapter struct
  * @pdev: pointer to the PCI device
  *
@@ -4350,15 +3938,14 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	return adapter;
 }
 
-/**
- * et131x_pci_remove
+/* et131x_pci_remove
  * @pdev: a pointer to the device's pci_dev structure
  *
  * Registered in the pci_driver structure, this function is called when the
  * PCI subsystem detects that a PCI device which matches the information
  * contained in the pci_device_id table has been removed.
  */
-static void __devexit et131x_pci_remove(struct pci_dev *pdev)
+static void et131x_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct et131x_adapter *adapter = netdev_priv(netdev);
@@ -4378,8 +3965,7 @@ static void __devexit et131x_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-/**
- * et131x_up - Bring up a device for use.
+/* et131x_up - Bring up a device for use.
  * @netdev: device to be opened
  */
 static void et131x_up(struct net_device *netdev)
@@ -4390,8 +3976,7 @@ static void et131x_up(struct net_device *netdev)
 	phy_start(adapter->phydev);
 }
 
-/**
- * et131x_down - Bring down the device
+/* et131x_down - Bring down the device
  * @netdev: device to be brought down
  */
 static void et131x_down(struct net_device *netdev)
@@ -4440,14 +4025,13 @@ static SIMPLE_DEV_PM_OPS(et131x_pm_ops, et131x_suspend, et131x_resume);
 #define ET131X_PM_OPS NULL
 #endif
 
-/**
- * et131x_isr - The Interrupt Service Routine for the driver.
+/* et131x_isr - The Interrupt Service Routine for the driver.
  * @irq: the IRQ on which the interrupt was received.
  * @dev_id: device-specific info (here a pointer to a net_device struct)
  *
  * Returns a value indicating if the interrupt was handled.
  */
-irqreturn_t et131x_isr(int irq, void *dev_id)
+static irqreturn_t et131x_isr(int irq, void *dev_id)
 {
 	bool handled = true;
 	struct net_device *netdev = (struct net_device *)dev_id;
@@ -4529,8 +4113,7 @@ out:
 	return IRQ_RETVAL(handled);
 }
 
-/**
- * et131x_isr_handler - The ISR handler
+/* et131x_isr_handler - The ISR handler
  * @p_adapter, a pointer to the device's private adapter structure
  *
  * scheduled to run in a deferred context by the ISR. This is where the ISR's
@@ -4543,8 +4126,7 @@ static void et131x_isr_handler(struct work_struct *work)
 	u32 status = adapter->stats.interrupt_status;
 	struct address_map __iomem *iomem = adapter->regs;
 
-	/*
-	 * These first two are by far the most common.  Once handled, we clear
+	/* These first two are by far the most common.  Once handled, we clear
 	 * their two bits in the status word.  If the word is now zero, we
 	 * exit.
 	 */
@@ -4558,187 +4140,161 @@ static void et131x_isr_handler(struct work_struct *work)
 
 	status &= 0xffffffd7;
 
-	if (status) {
-		/* Handle the TXDMA Error interrupt */
-		if (status & ET_INTR_TXDMA_ERR) {
-			u32 txdma_err;
+	if (!status)
+		goto out;
 
-			/* Following read also clears the register (COR) */
-			txdma_err = readl(&iomem->txdma.tx_dma_error);
+	/* Handle the TXDMA Error interrupt */
+	if (status & ET_INTR_TXDMA_ERR) {
+		u32 txdma_err;
 
-			dev_warn(&adapter->pdev->dev,
-				    "TXDMA_ERR interrupt, error = %d\n",
-				    txdma_err);
-		}
+		/* Following read also clears the register (COR) */
+		txdma_err = readl(&iomem->txdma.tx_dma_error);
 
-		/* Handle Free Buffer Ring 0 and 1 Low interrupt */
-		if (status &
-		    (ET_INTR_RXDMA_FB_R0_LOW | ET_INTR_RXDMA_FB_R1_LOW)) {
-			/*
-			 * This indicates the number of unused buffers in
-			 * RXDMA free buffer ring 0 is <= the limit you
-			 * programmed. Free buffer resources need to be
-			 * returned.  Free buffers are consumed as packets
-			 * are passed from the network to the host. The host
-			 * becomes aware of the packets from the contents of
-			 * the packet status ring. This ring is queried when
-			 * the packet done interrupt occurs. Packets are then
-			 * passed to the OS. When the OS is done with the
-			 * packets the resources can be returned to the
-			 * ET1310 for re-use. This interrupt is one method of
-			 * returning resources.
+		dev_warn(&adapter->pdev->dev,
+			    "TXDMA_ERR interrupt, error = %d\n",
+			    txdma_err);
+	}
+
+	/* Handle Free Buffer Ring 0 and 1 Low interrupt */
+	if (status & (ET_INTR_RXDMA_FB_R0_LOW | ET_INTR_RXDMA_FB_R1_LOW)) {
+		/* This indicates the number of unused buffers in RXDMA free
+		 * buffer ring 0 is <= the limit you programmed. Free buffer
+		 * resources need to be returned.  Free buffers are consumed as
+		 * packets are passed from the network to the host. The host
+		 * becomes aware of the packets from the contents of the packet
+		 * status ring. This ring is queried when the packet done
+		 * interrupt occurs. Packets are then passed to the OS. When
+		 * the OS is done with the packets the resources can be
+		 * returned to the ET1310 for re-use. This interrupt is one
+		 * method of returning resources.
+		 */
+
+		/*  If the user has flow control on, then we will
+		 * send a pause packet, otherwise just exit
+		 */
+		if (adapter->flowcontrol == FLOW_TXONLY ||
+		    adapter->flowcontrol == FLOW_BOTH) {
+			u32 pm_csr;
+
+			/* Tell the device to send a pause packet via the back
+			 * pressure register (bp req and bp xon/xoff)
 			 */
-
-			/* If the user has flow control on, then we will
-			 * send a pause packet, otherwise just exit
-			 */
-			if (adapter->flowcontrol == FLOW_TXONLY ||
-			    adapter->flowcontrol == FLOW_BOTH) {
-				u32 pm_csr;
-
-				/* Tell the device to send a pause packet via
-				 * the back pressure register (bp req  and
-				 * bp xon/xoff)
-				 */
-				pm_csr = readl(&iomem->global.pm_csr);
-				if (!et1310_in_phy_coma(adapter))
-					writel(3, &iomem->txmac.bp_ctrl);
-			}
-		}
-
-		/* Handle Packet Status Ring Low Interrupt */
-		if (status & ET_INTR_RXDMA_STAT_LOW) {
-
-			/*
-			 * Same idea as with the two Free Buffer Rings.
-			 * Packets going from the network to the host each
-			 * consume a free buffer resource and a packet status
-			 * resource.  These resoures are passed to the OS.
-			 * When the OS is done with the resources, they need
-			 * to be returned to the ET1310. This is one method
-			 * of returning the resources.
-			 */
-		}
-
-		/* Handle RXDMA Error Interrupt */
-		if (status & ET_INTR_RXDMA_ERR) {
-			/*
-			 * The rxdma_error interrupt is sent when a time-out
-			 * on a request issued by the JAGCore has occurred or
-			 * a completion is returned with an un-successful
-			 * status.  In both cases the request is considered
-			 * complete. The JAGCore will automatically re-try the
-			 * request in question. Normally information on events
-			 * like these are sent to the host using the "Advanced
-			 * Error Reporting" capability. This interrupt is
-			 * another way of getting similar information. The
-			 * only thing required is to clear the interrupt by
-			 * reading the ISR in the global resources. The
-			 * JAGCore will do a re-try on the request.  Normally
-			 * you should never see this interrupt. If you start
-			 * to see this interrupt occurring frequently then
-			 * something bad has occurred. A reset might be the
-			 * thing to do.
-			 */
-			/* TRAP();*/
-
-			dev_warn(&adapter->pdev->dev,
-				    "RxDMA_ERR interrupt, error %x\n",
-				    readl(&iomem->txmac.tx_test));
-		}
-
-		/* Handle the Wake on LAN Event */
-		if (status & ET_INTR_WOL) {
-			/*
-			 * This is a secondary interrupt for wake on LAN.
-			 * The driver should never see this, if it does,
-			 * something serious is wrong. We will TRAP the
-			 * message when we are in DBG mode, otherwise we
-			 * will ignore it.
-			 */
-			dev_err(&adapter->pdev->dev, "WAKE_ON_LAN interrupt\n");
-		}
-
-		/* Let's move on to the TxMac */
-		if (status & ET_INTR_TXMAC) {
-			u32 err = readl(&iomem->txmac.err);
-
-			/*
-			 * When any of the errors occur and TXMAC generates
-			 * an interrupt to report these errors, it usually
-			 * means that TXMAC has detected an error in the data
-			 * stream retrieved from the on-chip Tx Q. All of
-			 * these errors are catastrophic and TXMAC won't be
-			 * able to recover data when these errors occur.  In
-			 * a nutshell, the whole Tx path will have to be reset
-			 * and re-configured afterwards.
-			 */
-			dev_warn(&adapter->pdev->dev,
-				    "TXMAC interrupt, error 0x%08x\n",
-				    err);
-
-			/* If we are debugging, we want to see this error,
-			 * otherwise we just want the device to be reset and
-			 * continue
-			 */
-		}
-
-		/* Handle RXMAC Interrupt */
-		if (status & ET_INTR_RXMAC) {
-			/*
-			 * These interrupts are catastrophic to the device,
-			 * what we need to do is disable the interrupts and
-			 * set the flag to cause us to reset so we can solve
-			 * this issue.
-			 */
-			/* MP_SET_FLAG( adapter,
-						fMP_ADAPTER_HARDWARE_ERROR); */
-
-			dev_warn(&adapter->pdev->dev,
-			  "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
-				    readl(&iomem->rxmac.err_reg));
-
-			dev_warn(&adapter->pdev->dev,
-				    "Enable 0x%08x, Diag 0x%08x\n",
-				    readl(&iomem->rxmac.ctrl),
-				    readl(&iomem->rxmac.rxq_diag));
-
-			/*
-			 * If we are debugging, we want to see this error,
-			 * otherwise we just want the device to be reset and
-			 * continue
-			 */
-		}
-
-		/* Handle MAC_STAT Interrupt */
-		if (status & ET_INTR_MAC_STAT) {
-			/*
-			 * This means at least one of the un-masked counters
-			 * in the MAC_STAT block has rolled over.  Use this
-			 * to maintain the top, software managed bits of the
-			 * counter(s).
-			 */
-			et1310_handle_macstat_interrupt(adapter);
-		}
-
-		/* Handle SLV Timeout Interrupt */
-		if (status & ET_INTR_SLV_TIMEOUT) {
-			/*
-			 * This means a timeout has occurred on a read or
-			 * write request to one of the JAGCore registers. The
-			 * Global Resources block has terminated the request
-			 * and on a read request, returned a "fake" value.
-			 * The most likely reasons are: Bad Address or the
-			 * addressed module is in a power-down state and
-			 * can't respond.
-			 */
+			pm_csr = readl(&iomem->global.pm_csr);
+			if (!et1310_in_phy_coma(adapter))
+				writel(3, &iomem->txmac.bp_ctrl);
 		}
 	}
+
+	/* Handle Packet Status Ring Low Interrupt */
+	if (status & ET_INTR_RXDMA_STAT_LOW) {
+		/* Same idea as with the two Free Buffer Rings. Packets going
+		 * from the network to the host each consume a free buffer
+		 * resource and a packet status resource. These resoures are
+		 * passed to the OS. When the OS is done with the resources,
+		 * they need to be returned to the ET1310. This is one method
+		 * of returning the resources.
+		 */
+	}
+
+	/* Handle RXDMA Error Interrupt */
+	if (status & ET_INTR_RXDMA_ERR) {
+		/* The rxdma_error interrupt is sent when a time-out on a
+		 * request issued by the JAGCore has occurred or a completion is
+		 * returned with an un-successful status. In both cases the
+		 * request is considered complete. The JAGCore will
+		 * automatically re-try the request in question. Normally
+		 * information on events like these are sent to the host using
+		 * the "Advanced Error Reporting" capability. This interrupt is
+		 * another way of getting similar information. The only thing
+		 * required is to clear the interrupt by reading the ISR in the
+		 * global resources. The JAGCore will do a re-try on the
+		 * request. Normally you should never see this interrupt. If
+		 * you start to see this interrupt occurring frequently then
+		 * something bad has occurred. A reset might be the thing to do.
+		 */
+		/* TRAP();*/
+
+		dev_warn(&adapter->pdev->dev,
+			    "RxDMA_ERR interrupt, error %x\n",
+			    readl(&iomem->txmac.tx_test));
+	}
+
+	/* Handle the Wake on LAN Event */
+	if (status & ET_INTR_WOL) {
+		/* This is a secondary interrupt for wake on LAN. The driver
+		 * should never see this, if it does, something serious is
+		 * wrong. We will TRAP the message when we are in DBG mode,
+		 * otherwise we will ignore it.
+		 */
+		dev_err(&adapter->pdev->dev, "WAKE_ON_LAN interrupt\n");
+	}
+
+	/* Let's move on to the TxMac */
+	if (status & ET_INTR_TXMAC) {
+		u32 err = readl(&iomem->txmac.err);
+
+		/* When any of the errors occur and TXMAC generates an
+		 * interrupt to report these errors, it usually means that
+		 * TXMAC has detected an error in the data stream retrieved
+		 * from the on-chip Tx Q. All of these errors are catastrophic
+		 * and TXMAC won't be able to recover data when these errors
+		 * occur. In a nutshell, the whole Tx path will have to be reset
+		 * and re-configured afterwards.
+		 */
+		dev_warn(&adapter->pdev->dev,
+			 "TXMAC interrupt, error 0x%08x\n",
+			 err);
+
+		/* If we are debugging, we want to see this error, otherwise we
+		 * just want the device to be reset and continue
+		 */
+	}
+
+	/* Handle RXMAC Interrupt */
+	if (status & ET_INTR_RXMAC) {
+		/* These interrupts are catastrophic to the device, what we need
+		 * to do is disable the interrupts and set the flag to cause us
+		 * to reset so we can solve this issue.
+		 */
+		/* MP_SET_FLAG( adapter, FMP_ADAPTER_HARDWARE_ERROR); */
+
+		dev_warn(&adapter->pdev->dev,
+			 "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
+			 readl(&iomem->rxmac.err_reg));
+
+		dev_warn(&adapter->pdev->dev,
+			 "Enable 0x%08x, Diag 0x%08x\n",
+			 readl(&iomem->rxmac.ctrl),
+			 readl(&iomem->rxmac.rxq_diag));
+
+		/* If we are debugging, we want to see this error, otherwise we
+		 * just want the device to be reset and continue
+		 */
+	}
+
+	/* Handle MAC_STAT Interrupt */
+	if (status & ET_INTR_MAC_STAT) {
+		/* This means at least one of the un-masked counters in the
+		 * MAC_STAT block has rolled over. Use this to maintain the top,
+		 * software managed bits of the counter(s).
+		 */
+		et1310_handle_macstat_interrupt(adapter);
+	}
+
+	/* Handle SLV Timeout Interrupt */
+	if (status & ET_INTR_SLV_TIMEOUT) {
+		/* This means a timeout has occurred on a read or write request
+		 * to one of the JAGCore registers. The Global Resources block
+		 * has terminated the request and on a read request, returned a
+		 * "fake" value. The most likely reasons are: Bad Address or the
+		 * addressed module is in a power-down state and can't respond.
+		 */
+	}
+out:
 	et131x_enable_interrupts(adapter);
 }
 
-/**
- * et131x_stats - Return the current device statistics.
+/* et131x_stats - Return the current device statistics.
  * @netdev: device whose stats are being queried
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
@@ -4784,8 +4340,7 @@ static struct net_device_stats *et131x_stats(struct net_device *netdev)
 	return stats;
 }
 
-/**
- * et131x_open - Open the device for use.
+/* et131x_open - Open the device for use.
  * @netdev: device to be opened
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
@@ -4811,15 +4366,14 @@ static int et131x_open(struct net_device *netdev)
 		return result;
 	}
 
-	adapter->flags |= fMP_ADAPTER_INTERRUPT_IN_USE;
+	adapter->flags |= FMP_ADAPTER_INTERRUPT_IN_USE;
 
 	et131x_up(netdev);
 
 	return result;
 }
 
-/**
- * et131x_close - Close the device
+/* et131x_close - Close the device
  * @netdev: device to be closed
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
@@ -4830,15 +4384,14 @@ static int et131x_close(struct net_device *netdev)
 
 	et131x_down(netdev);
 
-	adapter->flags &= ~fMP_ADAPTER_INTERRUPT_IN_USE;
+	adapter->flags &= ~FMP_ADAPTER_INTERRUPT_IN_USE;
 	free_irq(adapter->pdev->irq, netdev);
 
 	/* Stop the error timer */
 	return del_timer_sync(&adapter->error_timer);
 }
 
-/**
- * et131x_ioctl - The I/O Control handler for the driver
+/* et131x_ioctl - The I/O Control handler for the driver
  * @netdev: device on which the control request is being made
  * @reqbuf: a pointer to the IOCTL request buffer
  * @cmd: the IOCTL command code
@@ -4856,8 +4409,7 @@ static int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf,
 	return phy_mii_ioctl(adapter->phydev, reqbuf, cmd);
 }
 
-/**
- * et131x_set_packet_filter - Configures the Rx Packet filtering on the device
+/* et131x_set_packet_filter - Configures the Rx Packet filtering on the device
  * @adapter: pointer to our private adapter structure
  *
  * FIXME: lot of dups with MAC code
@@ -4885,8 +4437,7 @@ static int et131x_set_packet_filter(struct et131x_adapter *adapter)
 	if ((filter & ET131X_PACKET_TYPE_PROMISCUOUS) || filter == 0)
 		pf_ctrl &= ~7;	/* Clear filter bits */
 	else {
-		/*
-		 * Set us up with Multicast packet filtering.  Three cases are
+		/* Set us up with Multicast packet filtering.  Three cases are
 		 * possible - (1) we have a multi-cast list, (2) we receive ALL
 		 * multicast entries or (3) we receive none.
 		 */
@@ -4922,8 +4473,7 @@ static int et131x_set_packet_filter(struct et131x_adapter *adapter)
 	return status;
 }
 
-/**
- * et131x_multicast - The handler to configure multicasting on the interface
+/* et131x_multicast - The handler to configure multicasting on the interface
  * @netdev: a pointer to a net_device struct representing the device
  */
 static void et131x_multicast(struct net_device *netdev)
@@ -4992,8 +4542,7 @@ static void et131x_multicast(struct net_device *netdev)
 	spin_unlock_irqrestore(&adapter->lock, flags);
 }
 
-/**
- * et131x_tx - The handler to tx a packet on the device
+/* et131x_tx - The handler to tx a packet on the device
  * @skb: data to be Tx'd
  * @netdev: device on which data is to be Tx'd
  *
@@ -5025,8 +4574,7 @@ static int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 	return status;
 }
 
-/**
- * et131x_tx_timeout - Timeout handler
+/* et131x_tx_timeout - Timeout handler
  * @netdev: a pointer to a net_device struct representing the device
  *
  * The handler called when a Tx request times out. The timeout period is
@@ -5040,17 +4588,17 @@ static void et131x_tx_timeout(struct net_device *netdev)
 	unsigned long flags;
 
 	/* If the device is closed, ignore the timeout */
-	if (~(adapter->flags & fMP_ADAPTER_INTERRUPT_IN_USE))
+	if (~(adapter->flags & FMP_ADAPTER_INTERRUPT_IN_USE))
 		return;
 
 	/* Any nonrecoverable hardware error?
 	 * Checks adapter->flags for any failure in phy reading
 	 */
-	if (adapter->flags & fMP_ADAPTER_NON_RECOVER_ERROR)
+	if (adapter->flags & FMP_ADAPTER_NON_RECOVER_ERROR)
 		return;
 
 	/* Hardware failure? */
-	if (adapter->flags & fMP_ADAPTER_HARDWARE_ERROR) {
+	if (adapter->flags & FMP_ADAPTER_HARDWARE_ERROR) {
 		dev_err(&adapter->pdev->dev, "hardware error - reset\n");
 		return;
 	}
@@ -5084,8 +4632,7 @@ static void et131x_tx_timeout(struct net_device *netdev)
 	spin_unlock_irqrestore(&adapter->tcb_send_qlock, flags);
 }
 
-/**
- * et131x_change_mtu - The handler called to change the MTU for the device
+/* et131x_change_mtu - The handler called to change the MTU for the device
  * @netdev: device whose MTU is to be changed
  * @new_mtu: the desired MTU
  *
@@ -5135,8 +4682,7 @@ static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 	return result;
 }
 
-/**
- * et131x_set_mac_addr - handler to change the MAC address for the device
+/* et131x_set_mac_addr - handler to change the MAC address for the device
  * @netdev: device whose MAC is to be changed
  * @new_mac: the desired MAC address
  *
@@ -5209,8 +4755,7 @@ static const struct net_device_ops et131x_netdev_ops = {
 	.ndo_do_ioctl		= et131x_ioctl,
 };
 
-/**
- * et131x_pci_setup - Perform device initialization
+/* et131x_pci_setup - Perform device initialization
  * @pdev: a pointer to the device's pci_dev structure
  * @ent: this device's entry in the pci_device_id table
  *
@@ -5221,7 +4766,7 @@ static const struct net_device_ops et131x_netdev_ops = {
  * contained in the pci_device_id table. This routine is the equivalent to
  * a device insertion routine.
  */
-static int __devinit et131x_pci_setup(struct pci_dev *pdev,
+static int et131x_pci_setup(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
@@ -5344,11 +4889,10 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	adapter->mii_bus->read = et131x_mdio_read;
 	adapter->mii_bus->write = et131x_mdio_write;
 	adapter->mii_bus->reset = et131x_mdio_reset;
-	adapter->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (!adapter->mii_bus->irq) {
-		dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
+	adapter->mii_bus->irq = kmalloc_array(PHY_MAX_ADDR, sizeof(int),
+					      GFP_KERNEL);
+	if (!adapter->mii_bus->irq)
 		goto err_mdio_free;
-	}
 
 	for (ii = 0; ii < PHY_MAX_ADDR; ii++)
 		adapter->mii_bus->irq[ii] = PHY_POLL;
@@ -5423,7 +4967,7 @@ static struct pci_driver et131x_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= et131x_pci_table,
 	.probe		= et131x_pci_setup,
-	.remove		= __devexit_p(et131x_pci_remove),
+	.remove		= et131x_pci_remove,
 	.driver.pm	= ET131X_PM_OPS,
 };
 

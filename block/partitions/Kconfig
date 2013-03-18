@@ -234,8 +234,8 @@ config KARMA_PARTITION
 	  uses a proprietary partition table.
 
 config EFI_PARTITION
-	bool "EFI GUID Partition support"
-	depends on PARTITION_ADVANCED
+	bool "EFI GUID Partition support" if PARTITION_ADVANCED
+	default y
 	select CRC32
 	help
 	  Say Y here if you would like to use hard disks under Linux which

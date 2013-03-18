@@ -39,11 +39,11 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 
@@ -219,7 +219,7 @@ static void __init dk_board_init(void)
 
 MACHINE_START(AT91RM9200DK, "Atmel AT91RM9200-DK")
 	/* Maintainer: SAN People/Atmel */
-	.timer		= &at91rm9200_timer,
+	.init_time	= at91rm9200_timer_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= dk_init_early,

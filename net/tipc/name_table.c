@@ -473,11 +473,10 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq,
 static struct name_seq *nametbl_find_seq(u32 type)
 {
 	struct hlist_head *seq_head;
-	struct hlist_node *seq_node;
 	struct name_seq *ns;
 
 	seq_head = &table.types[hash(type)];
-	hlist_for_each_entry(ns, seq_node, seq_head, ns_list) {
+	hlist_for_each_entry(ns, seq_head, ns_list) {
 		if (ns->type == type)
 			return ns;
 	}
@@ -853,7 +852,6 @@ static int nametbl_list(char *buf, int len, u32 depth_info,
 			 u32 type, u32 lowbound, u32 upbound)
 {
 	struct hlist_head *seq_head;
-	struct hlist_node *seq_node;
 	struct name_seq *seq;
 	int all_types;
 	int ret = 0;
@@ -873,7 +871,7 @@ static int nametbl_list(char *buf, int len, u32 depth_info,
 		upbound = ~0;
 		for (i = 0; i < TIPC_NAMETBL_SIZE; i++) {
 			seq_head = &table.types[i];
-			hlist_for_each_entry(seq, seq_node, seq_head, ns_list) {
+			hlist_for_each_entry(seq, seq_head, ns_list) {
 				ret += nameseq_list(seq, buf + ret, len - ret,
 						   depth, seq->type,
 						   lowbound, upbound, i);
@@ -889,7 +887,7 @@ static int nametbl_list(char *buf, int len, u32 depth_info,
 		ret += nametbl_header(buf + ret, len - ret, depth);
 		i = hash(type);
 		seq_head = &table.types[i];
-		hlist_for_each_entry(seq, seq_node, seq_head, ns_list) {
+		hlist_for_each_entry(seq, seq_head, ns_list) {
 			if (seq->type == type) {
 				ret += nameseq_list(seq, buf + ret, len - ret,
 						   depth, type,

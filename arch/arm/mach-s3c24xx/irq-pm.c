@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/syscore_ops.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
@@ -29,18 +30,18 @@
  * set bit to 1 in allow bitfield to enable the wakeup settings on it
 */
 
-unsigned long s3c_irqwake_intallow	= 1L << (IRQ_RTC - IRQ_EINT0) | 0xfL;
+unsigned long s3c_irqwake_intallow	= 1L << 30 | 0xfL;
 unsigned long s3c_irqwake_eintallow	= 0x0000fff0L;
 
 int s3c_irq_wake(struct irq_data *data, unsigned int state)
 {
-	unsigned long irqbit = 1 << (data->irq - IRQ_EINT0);
+	unsigned long irqbit = 1 << data->hwirq;
 
 	if (!(s3c_irqwake_intallow & irqbit))
 		return -ENOENT;
 
-	printk(KERN_INFO "wake %s for irq %d\n",
-	       state ? "enabled" : "disabled", data->irq);
+	pr_info("wake %s for hwirq %lu\n",
+		state ? "enabled" : "disabled", data->hwirq);
 
 	if (!state)
 		s3c_irqwake_intmask |= irqbit;
@@ -64,7 +65,7 @@ static unsigned long save_extint[3];
 static unsigned long save_eintflt[4];
 static unsigned long save_eintmask;
 
-int s3c24xx_irq_suspend(void)
+static int s3c24xx_irq_suspend(void)
 {
 	unsigned int i;
 
@@ -80,7 +81,7 @@ int s3c24xx_irq_suspend(void)
 	return 0;
 }
 
-void s3c24xx_irq_resume(void)
+static void s3c24xx_irq_resume(void)
 {
 	unsigned int i;
 
@@ -93,3 +94,31 @@ void s3c24xx_irq_resume(void)
 	s3c_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
 	__raw_writel(save_eintmask, S3C24XX_EINTMASK);
 }
+
+struct syscore_ops s3c24xx_irq_syscore_ops = {
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
+};
+
+#ifdef CONFIG_CPU_S3C2416
+static struct sleep_save s3c2416_irq_save[] = {
+	SAVE_ITEM(S3C2416_INTMSK2),
+};
+
+static int s3c2416_irq_suspend(void)
+{
+	s3c_pm_do_save(s3c2416_irq_save, ARRAY_SIZE(s3c2416_irq_save));
+
+	return 0;
+}
+
+static void s3c2416_irq_resume(void)
+{
+	s3c_pm_do_restore(s3c2416_irq_save, ARRAY_SIZE(s3c2416_irq_save));
+}
+
+struct syscore_ops s3c2416_irq_syscore_ops = {
+	.suspend	= s3c2416_irq_suspend,
+	.resume		= s3c2416_irq_resume,
+};
+#endif

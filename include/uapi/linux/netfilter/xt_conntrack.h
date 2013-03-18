@@ -31,6 +31,7 @@ enum {
 	XT_CONNTRACK_REPLSRC_PORT = 1 << 10,
 	XT_CONNTRACK_REPLDST_PORT = 1 << 11,
 	XT_CONNTRACK_DIRECTION    = 1 << 12,
+	XT_CONNTRACK_STATE_ALIAS  = 1 << 13,
 };
 
 struct xt_conntrack_mtinfo1 {

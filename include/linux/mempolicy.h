@@ -82,16 +82,6 @@ static inline void mpol_cond_put(struct mempolicy *pol)
 		__mpol_put(pol);
 }
 
-extern struct mempolicy *__mpol_cond_copy(struct mempolicy *tompol,
-					  struct mempolicy *frompol);
-static inline struct mempolicy *mpol_cond_copy(struct mempolicy *tompol,
-						struct mempolicy *frompol)
-{
-	if (!frompol)
-		return frompol;
-	return __mpol_cond_copy(tompol, frompol);
-}
-
 extern struct mempolicy *__mpol_dup(struct mempolicy *pol);
 static inline struct mempolicy *mpol_dup(struct mempolicy *pol)
 {
@@ -133,7 +123,7 @@ struct sp_node {
 
 struct shared_policy {
 	struct rb_root root;
-	struct mutex mutex;
+	spinlock_t lock;
 };
 
 void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol);
@@ -175,11 +165,10 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 
 
 #ifdef CONFIG_TMPFS
-extern int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context);
+extern int mpol_parse_str(char *str, struct mempolicy **mpol);
 #endif
 
-extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
-			int no_context);
+extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
 
 /* Check if a vma is migratable */
 static inline int vma_migratable(struct vm_area_struct *vma)
@@ -198,6 +187,8 @@ static inline int vma_migratable(struct vm_area_struct *vma)
 	return 1;
 }
 
+extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long);
+
 #else
 
 struct mempolicy {};
@@ -213,12 +204,6 @@ static inline void mpol_put(struct mempolicy *p)
 
 static inline void mpol_cond_put(struct mempolicy *pol)
 {
-}
-
-static inline struct mempolicy *mpol_cond_copy(struct mempolicy *to,
-						struct mempolicy *from)
-{
-	return from;
 }
 
 static inline void mpol_get(struct mempolicy *pol)
@@ -310,17 +295,21 @@ static inline void check_highest_zone(int k)
 }
 
 #ifdef CONFIG_TMPFS
-static inline int mpol_parse_str(char *str, struct mempolicy **mpol,
-				int no_context)
+static inline int mpol_parse_str(char *str, struct mempolicy **mpol)
 {
 	return 1;	/* error */
 }
 #endif
 
-static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
-				int no_context)
+static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 {
 	return 0;
+}
+
+static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
+				 unsigned long address)
+{
+	return -1; /* no node preference */
 }
 
 #endif /* CONFIG_NUMA */

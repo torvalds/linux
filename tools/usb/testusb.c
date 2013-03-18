@@ -279,8 +279,7 @@ nomem:
 
 	entry->ifnum = ifnum;
 
-	/* FIXME ask usbfs what speed; update USBDEVFS_CONNECTINFO so
-	 * it tells about high speed etc */
+	/* FIXME update USBDEVFS_CONNECTINFO so it tells about high speed etc */
 
 	fprintf(stderr, "%s speed\t%s\t%u\n",
 		speed(entry->speed), entry->name, entry->ifnum);
@@ -351,7 +350,7 @@ restart:
 	return arg;
 }
 
-static const char *usbfs_dir_find(void)
+static const char *usb_dir_find(void)
 {
 	static char udev_usb_path[] = "/dev/bus/usb";
 
@@ -380,7 +379,7 @@ int main (int argc, char **argv)
 	int			c;
 	struct testdev		*entry;
 	char			*device;
-	const char		*usbfs_dir = NULL;
+	const char		*usb_dir = NULL;
 	int			all = 0, forever = 0, not = 0;
 	int			test = -1 /* all */;
 	struct usbtest_param	param;
@@ -407,8 +406,8 @@ int main (int argc, char **argv)
 	case 'D':	/* device, if only one */
 		device = optarg;
 		continue;
-	case 'A':	/* use all devices with specified usbfs dir */
-		usbfs_dir = optarg;
+	case 'A':	/* use all devices with specified USB dir */
+		usb_dir = optarg;
 		/* FALL THROUGH */
 	case 'a':	/* use all devices */
 		device = NULL;
@@ -449,7 +448,7 @@ usage:
 			"usage: %s [options]\n"
 			"Options:\n"
 			"\t-D dev		only test specific device\n"
-			"\t-A usbfs-dir\n"
+			"\t-A usb-dir\n"
 			"\t-a		test all recognized devices\n"
 			"\t-l		loop forever(for stress test)\n"
 			"\t-t testnum	only run specified case\n"
@@ -470,18 +469,18 @@ usage:
 		goto usage;
 	}
 
-	/* Find usbfs mount point */
-	if (!usbfs_dir) {
-		usbfs_dir = usbfs_dir_find();
-		if (!usbfs_dir) {
-			fputs ("usbfs files are missing\n", stderr);
+	/* Find usb device subdirectory */
+	if (!usb_dir) {
+		usb_dir = usb_dir_find();
+		if (!usb_dir) {
+			fputs ("USB device files are missing\n", stderr);
 			return -1;
 		}
 	}
 
 	/* collect and list the test devices */
-	if (ftw (usbfs_dir, find_testdev, 3) != 0) {
-		fputs ("ftw failed; is usbfs missing?\n", stderr);
+	if (ftw (usb_dir, find_testdev, 3) != 0) {
+		fputs ("ftw failed; are USB device files missing?\n", stderr);
 		return -1;
 	}
 
@@ -507,10 +506,8 @@ usage:
 			return handle_testdev (entry) != entry;
 		}
 		status = pthread_create (&entry->thread, 0, handle_testdev, entry);
-		if (status) {
+		if (status)
 			perror ("pthread_create");
-			continue;
-		}
 	}
 	if (device) {
 		struct testdev		dev;

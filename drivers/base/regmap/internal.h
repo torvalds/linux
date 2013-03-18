@@ -15,9 +15,19 @@
 
 #include <linux/regmap.h>
 #include <linux/fs.h>
+#include <linux/list.h>
+#include <linux/wait.h>
 
 struct regmap;
 struct regcache_ops;
+
+struct regmap_debugfs_off_cache {
+	struct list_head list;
+	off_t min;
+	off_t max;
+	unsigned int base_reg;
+	unsigned int max_reg;
+};
 
 struct regmap_format {
 	size_t buf_size;
@@ -31,14 +41,19 @@ struct regmap_format {
 	unsigned int (*parse_val)(void *buf);
 };
 
-typedef void (*regmap_lock)(struct regmap *map);
-typedef void (*regmap_unlock)(struct regmap *map);
+struct regmap_async {
+	struct list_head list;
+	struct work_struct cleanup;
+	struct regmap *map;
+	void *work_buf;
+};
 
 struct regmap {
 	struct mutex mutex;
 	spinlock_t spinlock;
 	regmap_lock lock;
 	regmap_unlock unlock;
+	void *lock_arg; /* This is passed to lock/unlock functions */
 
 	struct device *dev; /* Device we do I/O on */
 	void *work_buf;     /* Scratch buffer used to format I/O */
@@ -47,9 +62,20 @@ struct regmap {
 	void *bus_context;
 	const char *name;
 
+	spinlock_t async_lock;
+	wait_queue_head_t async_waitq;
+	struct list_head async_list;
+	int async_ret;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 	const char *debugfs_name;
+
+	unsigned int debugfs_reg_len;
+	unsigned int debugfs_val_len;
+	unsigned int debugfs_tot_len;
+
+	struct list_head debugfs_off_cache;
 #endif
 
 	unsigned int max_register;
@@ -57,6 +83,15 @@ struct regmap {
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
+	const struct regmap_access_table *wr_table;
+	const struct regmap_access_table *rd_table;
+	const struct regmap_access_table *volatile_table;
+	const struct regmap_access_table *precious_table;
+
+	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
+	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
+
+	bool defer_caching;
 
 	u8 read_flag_mask;
 	u8 write_flag_mask;
@@ -120,6 +155,8 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 
 struct regmap_range_node {
 	struct rb_node node;
+	const char *name;
+	struct regmap *map;
 
 	unsigned int range_min;
 	unsigned int range_max;
@@ -157,7 +194,10 @@ bool regcache_set_val(void *base, unsigned int idx,
 		      unsigned int val, unsigned int word_size);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
 
+void regmap_async_complete_cb(struct regmap_async *async, int ret);
+
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
+extern struct regcache_ops regcache_flat_ops;
 
 #endif

@@ -43,6 +43,7 @@ struct usb_mixer_elem_info {
 	unsigned int id;
 	unsigned int control;	/* CS or ICN (high byte) */
 	unsigned int cmask; /* channel mask bitmap: 0 = master */
+	unsigned int idx_off; /* Control index offset */
 	unsigned int ch_readonly;
 	unsigned int master_readonly;
 	int channels;

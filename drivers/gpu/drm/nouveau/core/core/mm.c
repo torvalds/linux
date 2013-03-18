@@ -234,15 +234,18 @@ nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 int
 nouveau_mm_fini(struct nouveau_mm *mm)
 {
-	struct nouveau_mm_node *node, *heap =
-		list_first_entry(&mm->nodes, struct nouveau_mm_node, nl_entry);
-	int nodes = 0;
+	if (nouveau_mm_initialised(mm)) {
+		struct nouveau_mm_node *node, *heap =
+			list_first_entry(&mm->nodes, typeof(*heap), nl_entry);
+		int nodes = 0;
 
-	list_for_each_entry(node, &mm->nodes, nl_entry) {
-		if (WARN_ON(nodes++ == mm->heap_nodes))
-			return -EBUSY;
+		list_for_each_entry(node, &mm->nodes, nl_entry) {
+			if (WARN_ON(nodes++ == mm->heap_nodes))
+				return -EBUSY;
+		}
+
+		kfree(heap);
 	}
 
-	kfree(heap);
 	return 0;
 }

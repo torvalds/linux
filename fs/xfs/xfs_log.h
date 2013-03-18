@@ -181,5 +181,9 @@ int	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 				xfs_lsn_t *commit_lsn, int flags);
 bool	xfs_log_item_in_current_chkpt(struct xfs_log_item *lip);
 
+void	xfs_log_work_queue(struct xfs_mount *mp);
+void	xfs_log_worker(struct work_struct *work);
+void	xfs_log_quiesce(struct xfs_mount *mp);
+
 #endif
 #endif	/* __XFS_LOG_H__ */

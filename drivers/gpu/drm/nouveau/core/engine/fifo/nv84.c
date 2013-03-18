@@ -26,6 +26,7 @@
 #include <core/client.h>
 #include <core/engctx.h>
 #include <core/ramht.h>
+#include <core/event.h>
 #include <core/class.h>
 #include <core/math.h>
 
@@ -95,6 +96,17 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 		return -EINVAL;
 	}
 
+	save = nv_mask(priv, 0x002520, 0x0000003f, 1 << engn);
+	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
+	done = nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff);
+	nv_wr32(priv, 0x002520, save);
+	if (!done) {
+		nv_error(priv, "channel %d [%s] unload timeout\n",
+			 chan->base.chid, nouveau_client_name(chan));
+		if (suspend)
+			return -EBUSY;
+	}
+
 	nv_wo32(base->eng, addr + 0x00, 0x00000000);
 	nv_wo32(base->eng, addr + 0x04, 0x00000000);
 	nv_wo32(base->eng, addr + 0x08, 0x00000000);
@@ -102,16 +114,6 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	nv_wo32(base->eng, addr + 0x10, 0x00000000);
 	nv_wo32(base->eng, addr + 0x14, 0x00000000);
 	bar->flush(bar);
-
-	save = nv_mask(priv, 0x002520, 0x0000003f, 1 << engn);
-	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
-	done = nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff);
-	nv_wr32(priv, 0x002520, save);
-	if (!done) {
-		nv_error(priv, "channel %d unload timeout\n", chan->base.chid);
-		if (suspend)
-			return -EBUSY;
-	}
 	return 0;
 }
 
@@ -163,17 +165,17 @@ nv84_fifo_chan_ctor_dma(struct nouveau_object *parent,
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
 					  0x2000, args->pushbuf,
-					  (1 << NVDEV_ENGINE_DMAOBJ) |
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_MPEG) |
-					  (1 << NVDEV_ENGINE_ME) |
-					  (1 << NVDEV_ENGINE_VP) |
-					  (1 << NVDEV_ENGINE_CRYPT) |
-					  (1 << NVDEV_ENGINE_BSP) |
-					  (1 << NVDEV_ENGINE_PPP) |
-					  (1 << NVDEV_ENGINE_COPY0) |
-					  (1 << NVDEV_ENGINE_UNK1C1), &chan);
+					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_MPEG) |
+					  (1ULL << NVDEV_ENGINE_ME) |
+					  (1ULL << NVDEV_ENGINE_VP) |
+					  (1ULL << NVDEV_ENGINE_CRYPT) |
+					  (1ULL << NVDEV_ENGINE_BSP) |
+					  (1ULL << NVDEV_ENGINE_PPP) |
+					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_UNK1C1), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -225,17 +227,17 @@ nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
 					  0x2000, args->pushbuf,
-					  (1 << NVDEV_ENGINE_DMAOBJ) |
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_MPEG) |
-					  (1 << NVDEV_ENGINE_ME) |
-					  (1 << NVDEV_ENGINE_VP) |
-					  (1 << NVDEV_ENGINE_CRYPT) |
-					  (1 << NVDEV_ENGINE_BSP) |
-					  (1 << NVDEV_ENGINE_PPP) |
-					  (1 << NVDEV_ENGINE_COPY0) |
-					  (1 << NVDEV_ENGINE_UNK1C1), &chan);
+					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_MPEG) |
+					  (1ULL << NVDEV_ENGINE_ME) |
+					  (1ULL << NVDEV_ENGINE_VP) |
+					  (1ULL << NVDEV_ENGINE_CRYPT) |
+					  (1ULL << NVDEV_ENGINE_BSP) |
+					  (1ULL << NVDEV_ENGINE_PPP) |
+					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_UNK1C1), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -378,6 +380,20 @@ nv84_fifo_cclass = {
  * PFIFO engine
  ******************************************************************************/
 
+static void
+nv84_fifo_uevent_enable(struct nouveau_event *event, int index)
+{
+	struct nv84_fifo_priv *priv = event->priv;
+	nv_mask(priv, 0x002140, 0x40000000, 0x40000000);
+}
+
+static void
+nv84_fifo_uevent_disable(struct nouveau_event *event, int index)
+{
+	struct nv84_fifo_priv *priv = event->priv;
+	nv_mask(priv, 0x002140, 0x40000000, 0x00000000);
+}
+
 static int
 nv84_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
@@ -400,6 +416,10 @@ nv84_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 				&priv->playlist[1]);
 	if (ret)
 		return ret;
+
+	priv->base.uevent->enable = nv84_fifo_uevent_enable;
+	priv->base.uevent->disable = nv84_fifo_uevent_disable;
+	priv->base.uevent->priv = priv;
 
 	nv_subdev(priv)->unit = 0x00000100;
 	nv_subdev(priv)->intr = nv04_fifo_intr;

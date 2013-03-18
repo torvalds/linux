@@ -120,8 +120,6 @@ static int __init nfcon_init(void)
 {
 	int res;
 
-	tty_port_init(&nfcon_tty_port);
-
 	stderr_id = nf_get_id("NF_STDERR");
 	if (!stderr_id)
 		return -ENODEV;
@@ -129,6 +127,8 @@ static int __init nfcon_init(void)
 	nfcon_tty_driver = alloc_tty_driver(1);
 	if (!nfcon_tty_driver)
 		return -ENOMEM;
+
+	tty_port_init(&nfcon_tty_port);
 
 	nfcon_tty_driver->driver_name = "nfcon";
 	nfcon_tty_driver->name = "nfcon";
@@ -143,6 +143,7 @@ static int __init nfcon_init(void)
 	if (res) {
 		pr_err("failed to register nfcon tty driver\n");
 		put_tty_driver(nfcon_tty_driver);
+		tty_port_destroy(&nfcon_tty_port);
 		return res;
 	}
 
@@ -157,6 +158,7 @@ static void __exit nfcon_exit(void)
 	unregister_console(&nf_console);
 	tty_unregister_driver(nfcon_tty_driver);
 	put_tty_driver(nfcon_tty_driver);
+	tty_port_destroy(&nfcon_tty_port);
 }
 
 module_init(nfcon_init);

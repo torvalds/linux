@@ -136,7 +136,7 @@ hfcs_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 }
 
 #ifdef __ISAPNP__
-static struct isapnp_device_id hfc_ids[] __devinitdata = {
+static struct isapnp_device_id hfc_ids[] = {
 	{ ISAPNP_VENDOR('A', 'N', 'X'), ISAPNP_FUNCTION(0x1114),
 	  ISAPNP_VENDOR('A', 'N', 'X'), ISAPNP_FUNCTION(0x1114),
 	  (unsigned long) "Acer P10" },
@@ -161,12 +161,11 @@ static struct isapnp_device_id hfc_ids[] __devinitdata = {
 	{ 0, }
 };
 
-static struct isapnp_device_id *ipid __devinitdata = &hfc_ids[0];
-static struct pnp_card *pnp_c __devinitdata = NULL;
+static struct isapnp_device_id *ipid = &hfc_ids[0];
+static struct pnp_card *pnp_c = NULL;
 #endif
 
-int __devinit
-setup_hfcs(struct IsdnCard *card)
+int setup_hfcs(struct IsdnCard *card)
 {
 	struct IsdnCardState *cs = card->cs;
 	char tmp[64];

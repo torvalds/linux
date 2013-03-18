@@ -58,7 +58,7 @@ static void vortex_wt_setdsout(vortex_t * vortex, u32 wt, int en)
 	if (en)
 		temp |= (1 << (wt & 0x1f));
 	else
-		temp &= (1 << ~(wt & 0x1f));
+		temp &= ~(1 << (wt & 0x1f));
 	hwwrite(vortex->mmio, WT_DSREG((wt >= 0x20) ? 1 : 0), temp);
 }
 

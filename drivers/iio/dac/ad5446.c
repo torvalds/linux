@@ -212,8 +212,8 @@ static const struct iio_info ad5446_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad5446_probe(struct device *dev, const char *name,
-	const struct ad5446_chip_info *chip_info)
+static int ad5446_probe(struct device *dev, const char *name,
+			const struct ad5446_chip_info *chip_info)
 {
 	struct ad5446_state *st;
 	struct iio_dev *indio_dev;
@@ -226,7 +226,11 @@ static int __devinit ad5446_probe(struct device *dev, const char *name,
 		if (ret)
 			goto error_put_reg;
 
-		voltage_uv = regulator_get_voltage(reg);
+		ret = regulator_get_voltage(reg);
+		if (ret < 0)
+			goto error_disable_reg;
+
+		voltage_uv = ret;
 	}
 
 	indio_dev = iio_device_alloc(sizeof(*st));
@@ -461,7 +465,7 @@ static const struct spi_device_id ad5446_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, ad5446_spi_ids);
 
-static int __devinit ad5446_spi_probe(struct spi_device *spi)
+static int ad5446_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 
@@ -469,7 +473,7 @@ static int __devinit ad5446_spi_probe(struct spi_device *spi)
 		&ad5446_spi_chip_info[id->driver_data]);
 }
 
-static int __devexit ad5446_spi_remove(struct spi_device *spi)
+static int ad5446_spi_remove(struct spi_device *spi)
 {
 	return ad5446_remove(&spi->dev);
 }
@@ -480,7 +484,7 @@ static struct spi_driver ad5446_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad5446_spi_probe,
-	.remove		= __devexit_p(ad5446_spi_remove),
+	.remove		= ad5446_spi_remove,
 	.id_table	= ad5446_spi_ids,
 };
 
@@ -539,14 +543,14 @@ static const struct ad5446_chip_info ad5446_i2c_chip_info[] = {
 	},
 };
 
-static int __devinit ad5446_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int ad5446_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	return ad5446_probe(&i2c->dev, id->name,
 		&ad5446_i2c_chip_info[id->driver_data]);
 }
 
-static int __devexit ad5446_i2c_remove(struct i2c_client *i2c)
+static int ad5446_i2c_remove(struct i2c_client *i2c)
 {
 	return ad5446_remove(&i2c->dev);
 }
@@ -568,7 +572,7 @@ static struct i2c_driver ad5446_i2c_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5446_i2c_probe,
-	.remove = __devexit_p(ad5446_i2c_remove),
+	.remove = ad5446_i2c_remove,
 	.id_table = ad5446_i2c_ids,
 };
 

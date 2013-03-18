@@ -27,6 +27,7 @@
 #include <linux/bcd.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 
 #include <linux/i2c/twl.h>
 
@@ -233,7 +234,7 @@ static int twl_rtc_alarm_irq_enable(struct device *dev, unsigned enabled)
  */
 static int twl_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned char rtc_data[ALL_TIME_REGS + 1];
+	unsigned char rtc_data[ALL_TIME_REGS];
 	int ret;
 	u8 save_control;
 	u8 rtc_control;
@@ -300,15 +301,15 @@ static int twl_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int twl_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned char save_control;
-	unsigned char rtc_data[ALL_TIME_REGS + 1];
+	unsigned char rtc_data[ALL_TIME_REGS];
 	int ret;
 
-	rtc_data[1] = bin2bcd(tm->tm_sec);
-	rtc_data[2] = bin2bcd(tm->tm_min);
-	rtc_data[3] = bin2bcd(tm->tm_hour);
-	rtc_data[4] = bin2bcd(tm->tm_mday);
-	rtc_data[5] = bin2bcd(tm->tm_mon + 1);
-	rtc_data[6] = bin2bcd(tm->tm_year - 100);
+	rtc_data[0] = bin2bcd(tm->tm_sec);
+	rtc_data[1] = bin2bcd(tm->tm_min);
+	rtc_data[2] = bin2bcd(tm->tm_hour);
+	rtc_data[3] = bin2bcd(tm->tm_mday);
+	rtc_data[4] = bin2bcd(tm->tm_mon + 1);
+	rtc_data[5] = bin2bcd(tm->tm_year - 100);
 
 	/* Stop RTC while updating the TC registers */
 	ret = twl_rtc_read_u8(&save_control, REG_RTC_CTRL_REG);
@@ -341,7 +342,7 @@ out:
  */
 static int twl_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	unsigned char rtc_data[ALL_TIME_REGS + 1];
+	unsigned char rtc_data[ALL_TIME_REGS];
 	int ret;
 
 	ret = twl_i2c_read(TWL_MODULE_RTC, rtc_data,
@@ -368,19 +369,19 @@ static int twl_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 static int twl_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	unsigned char alarm_data[ALL_TIME_REGS + 1];
+	unsigned char alarm_data[ALL_TIME_REGS];
 	int ret;
 
 	ret = twl_rtc_alarm_irq_enable(dev, 0);
 	if (ret)
 		goto out;
 
-	alarm_data[1] = bin2bcd(alm->time.tm_sec);
-	alarm_data[2] = bin2bcd(alm->time.tm_min);
-	alarm_data[3] = bin2bcd(alm->time.tm_hour);
-	alarm_data[4] = bin2bcd(alm->time.tm_mday);
-	alarm_data[5] = bin2bcd(alm->time.tm_mon + 1);
-	alarm_data[6] = bin2bcd(alm->time.tm_year - 100);
+	alarm_data[0] = bin2bcd(alm->time.tm_sec);
+	alarm_data[1] = bin2bcd(alm->time.tm_min);
+	alarm_data[2] = bin2bcd(alm->time.tm_hour);
+	alarm_data[3] = bin2bcd(alm->time.tm_mday);
+	alarm_data[4] = bin2bcd(alm->time.tm_mon + 1);
+	alarm_data[5] = bin2bcd(alm->time.tm_year - 100);
 
 	/* update all the alarm registers in one shot */
 	ret = twl_i2c_write(TWL_MODULE_RTC, alarm_data,
@@ -458,7 +459,7 @@ static struct rtc_class_ops twl_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit twl_rtc_probe(struct platform_device *pdev)
+static int twl_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	int ret = -EINVAL;
@@ -535,7 +536,7 @@ out1:
  * Disable all TWL RTC module interrupts.
  * Sets status flag to free.
  */
-static int __devexit twl_rtc_remove(struct platform_device *pdev)
+static int twl_rtc_remove(struct platform_device *pdev)
 {
 	/* leave rtc running, but disable irqs */
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
@@ -588,23 +589,26 @@ static int twl_rtc_resume(struct platform_device *pdev)
 #define twl_rtc_resume  NULL
 #endif
 
+#ifdef CONFIG_OF
 static const struct of_device_id twl_rtc_of_match[] = {
 	{.compatible = "ti,twl4030-rtc", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
+#endif
+
 MODULE_ALIAS("platform:twl_rtc");
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove		= __devexit_p(twl_rtc_remove),
+	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.suspend	= twl_rtc_suspend,
 	.resume		= twl_rtc_resume,
 	.driver		= {
 		.owner		= THIS_MODULE,
 		.name		= "twl_rtc",
-		.of_match_table = twl_rtc_of_match,
+		.of_match_table = of_match_ptr(twl_rtc_of_match),
 	},
 };
 

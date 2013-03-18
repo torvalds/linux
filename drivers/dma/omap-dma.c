@@ -19,9 +19,6 @@
 
 #include "virt-dma.h"
 
-#include <plat/cpu.h>
-#include <plat/dma.h>
-
 struct omap_dmadev {
 	struct dma_device ddev;
 	spinlock_t lock;
@@ -438,7 +435,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 		omap_disable_dma_irq(c->dma_ch, OMAP_DMA_BLOCK_IRQ);
 	}
 
-	if (!cpu_class_is_omap1()) {
+	if (dma_omap2plus()) {
 		omap_set_dma_src_burst_mode(c->dma_ch, OMAP_DMA_DATA_BURST_16);
 		omap_set_dma_dest_burst_mode(c->dma_ch, OMAP_DMA_DATA_BURST_16);
 	}
@@ -664,32 +661,14 @@ bool omap_dma_filter_fn(struct dma_chan *chan, void *param)
 }
 EXPORT_SYMBOL_GPL(omap_dma_filter_fn);
 
-static struct platform_device *pdev;
-
-static const struct platform_device_info omap_dma_dev_info = {
-	.name = "omap-dma-engine",
-	.id = -1,
-	.dma_mask = DMA_BIT_MASK(32),
-};
-
 static int omap_dma_init(void)
 {
-	int rc = platform_driver_register(&omap_dma_driver);
-
-	if (rc == 0) {
-		pdev = platform_device_register_full(&omap_dma_dev_info);
-		if (IS_ERR(pdev)) {
-			platform_driver_unregister(&omap_dma_driver);
-			rc = PTR_ERR(pdev);
-		}
-	}
-	return rc;
+	return platform_driver_register(&omap_dma_driver);
 }
 subsys_initcall(omap_dma_init);
 
 static void __exit omap_dma_exit(void)
 {
-	platform_device_unregister(pdev);
 	platform_driver_unregister(&omap_dma_driver);
 }
 module_exit(omap_dma_exit);

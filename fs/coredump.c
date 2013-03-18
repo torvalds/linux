@@ -411,7 +411,7 @@ static void wait_for_dump_helpers(struct file *file)
 {
 	struct pipe_inode_info *pipe;
 
-	pipe = file->f_path.dentry->d_inode->i_pipe;
+	pipe = file_inode(file)->i_pipe;
 
 	pipe_lock(pipe);
 	pipe->readers++;
@@ -458,7 +458,7 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 	return err;
 }
 
-void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
+void do_coredump(siginfo_t *siginfo)
 {
 	struct core_state core_state;
 	struct core_name cn;
@@ -474,7 +474,7 @@ void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
-		.regs = regs,
+		.regs = signal_pt_regs(),
 		.limit = rlimit(RLIMIT_CORE),
 		/*
 		 * We must use the same mm->flags while dumping core to avoid
@@ -501,7 +501,7 @@ void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
 	 * so we dump it as root in mode 2, and only into a controlled
 	 * environment (pipe handler or fully qualified path).
 	 */
-	if (__get_dumpable(cprm.mm_flags) == SUID_DUMPABLE_SAFE) {
+	if (__get_dumpable(cprm.mm_flags) == SUID_DUMP_ROOT) {
 		/* Setuid core dump mode */
 		flag = O_EXCL;		/* Stop rewrite attacks */
 		cred->fsuid = GLOBAL_ROOT_UID;	/* Dump root private */
@@ -600,7 +600,7 @@ void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
 		if (IS_ERR(cprm.file))
 			goto fail_unlock;
 
-		inode = cprm.file->f_path.dentry->d_inode;
+		inode = file_inode(cprm.file);
 		if (inode->i_nlink > 1)
 			goto close_fail;
 		if (d_unhashed(cprm.file->f_path.dentry))

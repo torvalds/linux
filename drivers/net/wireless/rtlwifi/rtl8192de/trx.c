@@ -132,8 +132,8 @@ static void _rtl92de_query_rxphystatus(struct ieee80211_hw *hw,
 	pstats->packet_toself = packet_toself;
 	pstats->packet_beacon = packet_beacon;
 	pstats->is_cck = is_cck_rate;
-	pstats->rx_mimo_signalquality[0] = -1;
-	pstats->rx_mimo_signalquality[1] = -1;
+	pstats->rx_mimo_sig_qual[0] = -1;
+	pstats->rx_mimo_sig_qual[1] = -1;
 
 	if (is_cck_rate) {
 		u8 report, cck_highpwr;
@@ -212,8 +212,8 @@ static void _rtl92de_query_rxphystatus(struct ieee80211_hw *hw,
 					sq = ((64 - sq) * 100) / 44;
 			}
 			pstats->signalquality = sq;
-			pstats->rx_mimo_signalquality[0] = sq;
-			pstats->rx_mimo_signalquality[1] = -1;
+			pstats->rx_mimo_sig_qual[0] = sq;
+			pstats->rx_mimo_sig_qual[1] = -1;
 		}
 	} else {
 		rtlpriv->dm.rfpath_rxenable[0] = true;
@@ -246,7 +246,7 @@ static void _rtl92de_query_rxphystatus(struct ieee80211_hw *hw,
 				if (i == 0)
 					pstats->signalquality =
 						 (u8)(evm & 0xff);
-				pstats->rx_mimo_signalquality[i] =
+				pstats->rx_mimo_sig_qual[i] =
 						 (u8)(evm & 0xff);
 			}
 		}
@@ -345,33 +345,28 @@ static void _rtl92de_process_pwdb(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	long undecorated_smoothed_pwdb;
+	long undec_sm_pwdb;
 
 	if (mac->opmode == NL80211_IFTYPE_ADHOC	||
 		mac->opmode == NL80211_IFTYPE_AP)
 		return;
 	else
-		undecorated_smoothed_pwdb =
-		    rtlpriv->dm.undecorated_smoothed_pwdb;
+		undec_sm_pwdb = rtlpriv->dm.undec_sm_pwdb;
 
 	if (pstats->packet_toself || pstats->packet_beacon) {
-		if (undecorated_smoothed_pwdb < 0)
-			undecorated_smoothed_pwdb = pstats->rx_pwdb_all;
-		if (pstats->rx_pwdb_all > (u32) undecorated_smoothed_pwdb) {
-			undecorated_smoothed_pwdb =
-			      (((undecorated_smoothed_pwdb) *
+		if (undec_sm_pwdb < 0)
+			undec_sm_pwdb = pstats->rx_pwdb_all;
+		if (pstats->rx_pwdb_all > (u32) undec_sm_pwdb) {
+			undec_sm_pwdb = (((undec_sm_pwdb) *
 			      (RX_SMOOTH_FACTOR - 1)) +
 			      (pstats->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
-			undecorated_smoothed_pwdb =
-			      undecorated_smoothed_pwdb + 1;
+			undec_sm_pwdb = undec_sm_pwdb + 1;
 		} else {
-			undecorated_smoothed_pwdb =
-			      (((undecorated_smoothed_pwdb) *
+			undec_sm_pwdb = (((undec_sm_pwdb) *
 			      (RX_SMOOTH_FACTOR - 1)) +
 			      (pstats->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 		}
-		rtlpriv->dm.undecorated_smoothed_pwdb =
-				 undecorated_smoothed_pwdb;
+		rtlpriv->dm.undec_sm_pwdb = undec_sm_pwdb;
 		_rtl92de_update_rxsignalstatistics(hw, pstats);
 	}
 }
@@ -383,15 +378,15 @@ static void rtl92d_loop_over_streams(struct ieee80211_hw *hw,
 	int stream;
 
 	for (stream = 0; stream < 2; stream++) {
-		if (pstats->rx_mimo_signalquality[stream] != -1) {
+		if (pstats->rx_mimo_sig_qual[stream] != -1) {
 			if (rtlpriv->stats.rx_evm_percentage[stream] == 0) {
 				rtlpriv->stats.rx_evm_percentage[stream] =
-				    pstats->rx_mimo_signalquality[stream];
+				    pstats->rx_mimo_sig_qual[stream];
 			}
 			rtlpriv->stats.rx_evm_percentage[stream] =
 			    ((rtlpriv->stats.rx_evm_percentage[stream]
 			      * (RX_SMOOTH_FACTOR - 1)) +
-			     (pstats->rx_mimo_signalquality[stream] * 1)) /
+			     (pstats->rx_mimo_sig_qual[stream] * 1)) /
 			    (RX_SMOOTH_FACTOR);
 		}
 	}
@@ -457,7 +452,7 @@ static void _rtl92de_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	u8 *praddr;
 	u16 type, cfc;
 	__le16 fc;
-	bool packet_matchbssid, packet_toself, packet_beacon;
+	bool packet_matchbssid, packet_toself, packet_beacon = false;
 
 	tmp_buf = skb->data + pstats->rx_drvinfo_size + pstats->rx_bufshift;
 	hdr = (struct ieee80211_hdr *)tmp_buf;
@@ -514,7 +509,7 @@ bool rtl92de_rx_query_desc(struct ieee80211_hw *hw,	struct rtl_stats *stats,
 		rx_status->flag |= RX_FLAG_40MHZ;
 	if (GET_RX_DESC_RXHT(pdesc))
 		rx_status->flag |= RX_FLAG_HT;
-	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
+	rx_status->flag |= RX_FLAG_MACTIME_START;
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
@@ -579,8 +574,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 	} else if (mac->opmode == NL80211_IFTYPE_AP ||
 		mac->opmode == NL80211_IFTYPE_ADHOC) {
 		if (sta)
-			bw_40 = sta->ht_cap.cap &
-				IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			bw_40 = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 	}
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
 	rtl_get_tcb_desc(hw, info, sta, skb, ptcb_desc);
@@ -592,6 +586,11 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 	buf_len = skb->len;
 	mapping = pci_map_single(rtlpci->pdev, skb->data, skb->len,
 				 PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
+		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
+			 "DMA mapping error");
+		return;
+	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, sizeof(struct tx_desc_92d));
 	if (ieee80211_is_nullfunc(fc) || ieee80211_is_ctl(fc)) {
 		firstseg = true;
@@ -745,6 +744,11 @@ void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	__le16 fc = hdr->frame_control;
 
+	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
+		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
+			 "DMA mapping error");
+		return;
+	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
 	if (firstseg)
 		SET_TX_DESC_OFFSET(pdesc, USB_HWDESC_HEADER_LEN);

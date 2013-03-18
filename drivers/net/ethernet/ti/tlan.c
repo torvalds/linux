@@ -300,7 +300,7 @@ these functions are more or less common to all linux network drivers.
  **************************************************************/
 
 
-static void __devexit tlan_remove_one(struct pci_dev *pdev)
+static void tlan_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct tlan_priv	*priv = netdev_priv(dev);
@@ -392,7 +392,7 @@ static struct pci_driver tlan_driver = {
 	.name		= "tlan",
 	.id_table	= tlan_pci_tbl,
 	.probe		= tlan_init_one,
-	.remove		= __devexit_p(tlan_remove_one),
+	.remove		= tlan_remove_one,
 	.suspend	= tlan_suspend,
 	.resume		= tlan_resume,
 };
@@ -434,7 +434,7 @@ err_out_pci_free:
 }
 
 
-static int __devinit tlan_init_one(struct pci_dev *pdev,
+static int tlan_init_one(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
 	return tlan_probe1(pdev, -1, -1, 0, ent);
@@ -460,9 +460,8 @@ static int __devinit tlan_init_one(struct pci_dev *pdev,
 *
 **************************************************************/
 
-static int __devinit tlan_probe1(struct pci_dev *pdev,
-				 long ioaddr, int irq, int rev,
-				 const struct pci_device_id *ent)
+static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
+		       const struct pci_device_id *ent)
 {
 
 	struct net_device  *dev;

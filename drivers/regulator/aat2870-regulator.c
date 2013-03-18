@@ -187,7 +187,7 @@ static int aat2870_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit aat2870_regulator_remove(struct platform_device *pdev)
+static int aat2870_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
@@ -201,7 +201,7 @@ static struct platform_driver aat2870_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= aat2870_regulator_probe,
-	.remove	= __devexit_p(aat2870_regulator_remove),
+	.remove	= aat2870_regulator_remove,
 };
 
 static int __init aat2870_regulator_init(void)

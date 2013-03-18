@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -300,7 +300,8 @@ struct init_cb_24xx {
 	uint32_t prio_request_q_address[2];
 
 	uint16_t msix;
-	uint8_t reserved_2[6];
+	uint16_t msix_atio;
+	uint8_t reserved_2[4];
 
 	uint16_t atio_q_inpointer;
 	uint16_t atio_q_length;
@@ -1092,6 +1093,27 @@ struct device_reg_24xx {
 	uint32_t unused_6[2];		/* Gap. */
 	uint32_t iobase_sdata;
 };
+/* RISC-RISC semaphore register PCI offet */
+#define RISC_REGISTER_BASE_OFFSET	0x7010
+#define RISC_REGISTER_WINDOW_OFFET	0x6
+
+/* RISC-RISC semaphore/flag register (risc address 0x7016) */
+
+#define RISC_SEMAPHORE		0x1UL
+#define RISC_SEMAPHORE_WE	(RISC_SEMAPHORE << 16)
+#define RISC_SEMAPHORE_CLR	(RISC_SEMAPHORE_WE | 0x0UL)
+#define RISC_SEMAPHORE_SET	(RISC_SEMAPHORE_WE | RISC_SEMAPHORE)
+
+#define RISC_SEMAPHORE_FORCE		0x8000UL
+#define RISC_SEMAPHORE_FORCE_WE		(RISC_SEMAPHORE_FORCE << 16)
+#define RISC_SEMAPHORE_FORCE_CLR	(RISC_SEMAPHORE_FORCE_WE | 0x0UL)
+#define RISC_SEMAPHORE_FORCE_SET	\
+		(RISC_SEMAPHORE_FORCE_WE | RISC_SEMAPHORE_FORCE)
+
+/* RISC semaphore timeouts (ms) */
+#define TIMEOUT_SEMAPHORE		2500
+#define TIMEOUT_SEMAPHORE_FORCE		2000
+#define TIMEOUT_TOTAL_ELAPSED		4500
 
 /* Trace Control *************************************************************/
 
@@ -1366,9 +1388,7 @@ struct qla_flt_header {
 #define FLT_REG_FCP_PRIO_0	0x87
 #define FLT_REG_FCP_PRIO_1	0x88
 #define FLT_REG_FCOE_FW		0xA4
-#define FLT_REG_FCOE_VPD_0	0xA9
 #define FLT_REG_FCOE_NVRAM_0	0xAA
-#define FLT_REG_FCOE_VPD_1	0xAB
 #define FLT_REG_FCOE_NVRAM_1	0xAC
 
 struct qla_flt_region {

@@ -95,6 +95,10 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 	/* we assume caller has already allocated space on waiters ring */
 	radeon_semaphore_emit_wait(rdev, waiter, semaphore);
 
+	/* for debugging lockup only, used by sysfs debug files */
+	rdev->ring[signaler].last_semaphore_signal_addr = semaphore->gpu_addr;
+	rdev->ring[waiter].last_semaphore_wait_addr = semaphore->gpu_addr;
+
 	return 0;
 }
 

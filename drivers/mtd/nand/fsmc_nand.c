@@ -361,7 +361,7 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	struct nand_chip *this = mtd->priv;
 	struct fsmc_nand_data *host = container_of(mtd,
 					struct fsmc_nand_data, mtd);
-	void *__iomem *regs = host->regs_va;
+	void __iomem *regs = host->regs_va;
 	unsigned int bank = host->bank;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
@@ -383,13 +383,13 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 			pc |= FSMC_ENABLE;
 		else
 			pc &= ~FSMC_ENABLE;
-		writel(pc, FSMC_NAND_REG(regs, bank, PC));
+		writel_relaxed(pc, FSMC_NAND_REG(regs, bank, PC));
 	}
 
 	mb();
 
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, this->IO_ADDR_W);
+		writeb_relaxed(cmd, this->IO_ADDR_W);
 }
 
 /*
@@ -426,14 +426,18 @@ static void fsmc_nand_setup(void __iomem *regs, uint32_t bank,
 	tset = (tims->tset & FSMC_TSET_MASK) << FSMC_TSET_SHIFT;
 
 	if (busw)
-		writel(value | FSMC_DEVWID_16, FSMC_NAND_REG(regs, bank, PC));
+		writel_relaxed(value | FSMC_DEVWID_16,
+				FSMC_NAND_REG(regs, bank, PC));
 	else
-		writel(value | FSMC_DEVWID_8, FSMC_NAND_REG(regs, bank, PC));
+		writel_relaxed(value | FSMC_DEVWID_8,
+				FSMC_NAND_REG(regs, bank, PC));
 
-	writel(readl(FSMC_NAND_REG(regs, bank, PC)) | tclr | tar,
+	writel_relaxed(readl(FSMC_NAND_REG(regs, bank, PC)) | tclr | tar,
 			FSMC_NAND_REG(regs, bank, PC));
-	writel(thiz | thold | twait | tset, FSMC_NAND_REG(regs, bank, COMM));
-	writel(thiz | thold | twait | tset, FSMC_NAND_REG(regs, bank, ATTRIB));
+	writel_relaxed(thiz | thold | twait | tset,
+			FSMC_NAND_REG(regs, bank, COMM));
+	writel_relaxed(thiz | thold | twait | tset,
+			FSMC_NAND_REG(regs, bank, ATTRIB));
 }
 
 /*
@@ -446,11 +450,11 @@ static void fsmc_enable_hwecc(struct mtd_info *mtd, int mode)
 	void __iomem *regs = host->regs_va;
 	uint32_t bank = host->bank;
 
-	writel(readl(FSMC_NAND_REG(regs, bank, PC)) & ~FSMC_ECCPLEN_256,
+	writel_relaxed(readl(FSMC_NAND_REG(regs, bank, PC)) & ~FSMC_ECCPLEN_256,
 			FSMC_NAND_REG(regs, bank, PC));
-	writel(readl(FSMC_NAND_REG(regs, bank, PC)) & ~FSMC_ECCEN,
+	writel_relaxed(readl(FSMC_NAND_REG(regs, bank, PC)) & ~FSMC_ECCEN,
 			FSMC_NAND_REG(regs, bank, PC));
-	writel(readl(FSMC_NAND_REG(regs, bank, PC)) | FSMC_ECCEN,
+	writel_relaxed(readl(FSMC_NAND_REG(regs, bank, PC)) | FSMC_ECCEN,
 			FSMC_NAND_REG(regs, bank, PC));
 }
 
@@ -470,7 +474,7 @@ static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
 	unsigned long deadline = jiffies + FSMC_BUSY_WAIT_TIMEOUT;
 
 	do {
-		if (readl(FSMC_NAND_REG(regs, bank, STS)) & FSMC_CODE_RDY)
+		if (readl_relaxed(FSMC_NAND_REG(regs, bank, STS)) & FSMC_CODE_RDY)
 			break;
 		else
 			cond_resched();
@@ -481,25 +485,25 @@ static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
 		return -ETIMEDOUT;
 	}
 
-	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, ECC1));
+	ecc_tmp = readl_relaxed(FSMC_NAND_REG(regs, bank, ECC1));
 	ecc[0] = (uint8_t) (ecc_tmp >> 0);
 	ecc[1] = (uint8_t) (ecc_tmp >> 8);
 	ecc[2] = (uint8_t) (ecc_tmp >> 16);
 	ecc[3] = (uint8_t) (ecc_tmp >> 24);
 
-	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, ECC2));
+	ecc_tmp = readl_relaxed(FSMC_NAND_REG(regs, bank, ECC2));
 	ecc[4] = (uint8_t) (ecc_tmp >> 0);
 	ecc[5] = (uint8_t) (ecc_tmp >> 8);
 	ecc[6] = (uint8_t) (ecc_tmp >> 16);
 	ecc[7] = (uint8_t) (ecc_tmp >> 24);
 
-	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, ECC3));
+	ecc_tmp = readl_relaxed(FSMC_NAND_REG(regs, bank, ECC3));
 	ecc[8] = (uint8_t) (ecc_tmp >> 0);
 	ecc[9] = (uint8_t) (ecc_tmp >> 8);
 	ecc[10] = (uint8_t) (ecc_tmp >> 16);
 	ecc[11] = (uint8_t) (ecc_tmp >> 24);
 
-	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, STS));
+	ecc_tmp = readl_relaxed(FSMC_NAND_REG(regs, bank, STS));
 	ecc[12] = (uint8_t) (ecc_tmp >> 16);
 
 	return 0;
@@ -519,7 +523,7 @@ static int fsmc_read_hwecc_ecc1(struct mtd_info *mtd, const uint8_t *data,
 	uint32_t bank = host->bank;
 	uint32_t ecc_tmp;
 
-	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, ECC1));
+	ecc_tmp = readl_relaxed(FSMC_NAND_REG(regs, bank, ECC1));
 	ecc[0] = (uint8_t) (ecc_tmp >> 0);
 	ecc[1] = (uint8_t) (ecc_tmp >> 8);
 	ecc[2] = (uint8_t) (ecc_tmp >> 16);
@@ -569,23 +573,22 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	dma_dev = chan->device;
 	dma_addr = dma_map_single(dma_dev->dev, buffer, len, direction);
 
+	flags |= DMA_COMPL_SKIP_SRC_UNMAP | DMA_COMPL_SKIP_DEST_UNMAP;
+
 	if (direction == DMA_TO_DEVICE) {
 		dma_src = dma_addr;
 		dma_dst = host->data_pa;
-		flags |= DMA_COMPL_SRC_UNMAP_SINGLE | DMA_COMPL_SKIP_DEST_UNMAP;
 	} else {
 		dma_src = host->data_pa;
 		dma_dst = dma_addr;
-		flags |= DMA_COMPL_DEST_UNMAP_SINGLE | DMA_COMPL_SKIP_SRC_UNMAP;
 	}
 
 	tx = dma_dev->device_prep_dma_memcpy(chan, dma_dst, dma_src,
 			len, flags);
-
 	if (!tx) {
 		dev_err(host->dev, "device_prep_dma_memcpy error\n");
-		dma_unmap_single(dma_dev->dev, dma_addr, len, direction);
-		return -EIO;
+		ret = -EIO;
+		goto unmap_dma;
 	}
 
 	tx->callback = dma_complete;
@@ -595,21 +598,28 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	ret = dma_submit_error(cookie);
 	if (ret) {
 		dev_err(host->dev, "dma_submit_error %d\n", cookie);
-		return ret;
+		goto unmap_dma;
 	}
 
 	dma_async_issue_pending(chan);
 
 	ret =
-	wait_for_completion_interruptible_timeout(&host->dma_access_complete,
+	wait_for_completion_timeout(&host->dma_access_complete,
 				msecs_to_jiffies(3000));
 	if (ret <= 0) {
 		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
 		dev_err(host->dev, "wait_for_completion_timeout\n");
-		return ret ? ret : -ETIMEDOUT;
+		if (!ret)
+			ret = -ETIMEDOUT;
+		goto unmap_dma;
 	}
 
-	return 0;
+	ret = 0;
+
+unmap_dma:
+	dma_unmap_single(dma_dev->dev, dma_addr, len, direction);
+
+	return ret;
 }
 
 /*
@@ -628,10 +638,10 @@ static void fsmc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 		uint32_t *p = (uint32_t *)buf;
 		len = len >> 2;
 		for (i = 0; i < len; i++)
-			writel(p[i], chip->IO_ADDR_W);
+			writel_relaxed(p[i], chip->IO_ADDR_W);
 	} else {
 		for (i = 0; i < len; i++)
-			writeb(buf[i], chip->IO_ADDR_W);
+			writeb_relaxed(buf[i], chip->IO_ADDR_W);
 	}
 }
 
@@ -651,10 +661,10 @@ static void fsmc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 		uint32_t *p = (uint32_t *)buf;
 		len = len >> 2;
 		for (i = 0; i < len; i++)
-			p[i] = readl(chip->IO_ADDR_R);
+			p[i] = readl_relaxed(chip->IO_ADDR_R);
 	} else {
 		for (i = 0; i < len; i++)
-			buf[i] = readb(chip->IO_ADDR_R);
+			buf[i] = readb_relaxed(chip->IO_ADDR_R);
 	}
 }
 
@@ -783,7 +793,7 @@ static int fsmc_bch8_correct_data(struct mtd_info *mtd, uint8_t *dat,
 	uint32_t num_err, i;
 	uint32_t ecc1, ecc2, ecc3, ecc4;
 
-	num_err = (readl(FSMC_NAND_REG(regs, bank, STS)) >> 10) & 0xF;
+	num_err = (readl_relaxed(FSMC_NAND_REG(regs, bank, STS)) >> 10) & 0xF;
 
 	/* no bit flipping */
 	if (likely(num_err == 0))
@@ -826,10 +836,10 @@ static int fsmc_bch8_correct_data(struct mtd_info *mtd, uint8_t *dat,
 	 * uint64_t array and error offset indexes are populated in err_idx
 	 * array
 	 */
-	ecc1 = readl(FSMC_NAND_REG(regs, bank, ECC1));
-	ecc2 = readl(FSMC_NAND_REG(regs, bank, ECC2));
-	ecc3 = readl(FSMC_NAND_REG(regs, bank, ECC3));
-	ecc4 = readl(FSMC_NAND_REG(regs, bank, STS));
+	ecc1 = readl_relaxed(FSMC_NAND_REG(regs, bank, ECC1));
+	ecc2 = readl_relaxed(FSMC_NAND_REG(regs, bank, ECC2));
+	ecc3 = readl_relaxed(FSMC_NAND_REG(regs, bank, ECC3));
+	ecc4 = readl_relaxed(FSMC_NAND_REG(regs, bank, STS));
 
 	err_idx[0] = (ecc1 >> 0) & 0x1FFF;
 	err_idx[1] = (ecc1 >> 13) & 0x1FFF;
@@ -860,8 +870,8 @@ static bool filter(struct dma_chan *chan, void *slave)
 }
 
 #ifdef CONFIG_OF
-static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
-					       struct device_node *np)
+static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
+				     struct device_node *np)
 {
 	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	u32 val;
@@ -876,16 +886,14 @@ static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
 			return -EINVAL;
 		}
 	}
-	of_property_read_u32(np, "st,ale-off", &pdata->ale_off);
-	of_property_read_u32(np, "st,cle-off", &pdata->cle_off);
 	if (of_get_property(np, "nand-skip-bbtscan", NULL))
 		pdata->options = NAND_SKIP_BBTSCAN;
 
 	return 0;
 }
 #else
-static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
-					       struct device_node *np)
+static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
+				     struct device_node *np)
 {
 	return -ENOSYS;
 }
@@ -935,62 +943,35 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
-				pdev->name)) {
-		dev_err(&pdev->dev, "Failed to get memory data resourse\n");
-		return -ENOENT;
-	}
-
+	host->data_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->data_va))
+		return PTR_ERR(host->data_va);
+	
 	host->data_pa = (dma_addr_t)res->start;
-	host->data_va = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
-	if (!host->data_va) {
-		dev_err(&pdev->dev, "data ioremap failed\n");
-		return -ENOMEM;
-	}
 
-	if (!devm_request_mem_region(&pdev->dev, res->start + pdata->ale_off,
-			resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "Failed to get memory ale resourse\n");
-		return -ENOENT;
-	}
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_addr");
+	if (!res)
+		return -EINVAL;
 
-	host->addr_va = devm_ioremap(&pdev->dev, res->start + pdata->ale_off,
-			resource_size(res));
-	if (!host->addr_va) {
-		dev_err(&pdev->dev, "ale ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->addr_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->addr_va))
+		return PTR_ERR(host->addr_va);
 
-	if (!devm_request_mem_region(&pdev->dev, res->start + pdata->cle_off,
-			resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "Failed to get memory cle resourse\n");
-		return -ENOENT;
-	}
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_cmd");
+	if (!res)
+		return -EINVAL;
 
-	host->cmd_va = devm_ioremap(&pdev->dev, res->start + pdata->cle_off,
-			resource_size(res));
-	if (!host->cmd_va) {
-		dev_err(&pdev->dev, "ale ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->cmd_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->cmd_va))
+		return PTR_ERR(host->cmd_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fsmc_regs");
 	if (!res)
 		return -EINVAL;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
-			pdev->name)) {
-		dev_err(&pdev->dev, "Failed to get memory regs resourse\n");
-		return -ENOENT;
-	}
-
-	host->regs_va = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
-	if (!host->regs_va) {
-		dev_err(&pdev->dev, "regs ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->regs_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->regs_va))
+		return PTR_ERR(host->regs_va);
 
 	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
@@ -1236,6 +1217,7 @@ static SIMPLE_DEV_PM_OPS(fsmc_nand_pm_ops, fsmc_nand_suspend, fsmc_nand_resume);
 #ifdef CONFIG_OF
 static const struct of_device_id fsmc_nand_id_table[] = {
 	{ .compatible = "st,spear600-fsmc-nand" },
+	{ .compatible = "stericsson,fsmc-nand" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);

@@ -439,16 +439,13 @@ ret_from_fork:
 ret_from_kernel_thread:
 	REST_NVGPRS(r1)
 	bl	schedule_tail
+	li	r3,0
+	stw	r3,0(r1)
 	mtlr	r14
 	mr	r3,r15
 	PPC440EP_ERR42
 	blrl
 	li	r3,0
-	b	do_exit		# no return
-
-	.globl	__ret_from_kernel_execve
-__ret_from_kernel_execve:
-	addi	r1,r3,-STACK_FRAME_OVERHEAD
 	b	ret_from_syscall
 
 /* Traced system call support */

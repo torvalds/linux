@@ -63,14 +63,14 @@ nv04_instobj_dtor(struct nouveau_object *object)
 }
 
 static u32
-nv04_instobj_rd32(struct nouveau_object *object, u32 addr)
+nv04_instobj_rd32(struct nouveau_object *object, u64 addr)
 {
 	struct nv04_instobj_priv *node = (void *)object;
 	return nv_ro32(object->engine, node->mem->offset + addr);
 }
 
 static void
-nv04_instobj_wr32(struct nouveau_object *object, u32 addr, u32 data)
+nv04_instobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	struct nv04_instobj_priv *node = (void *)object;
 	nv_wo32(object->engine, node->mem->offset + addr, data);
@@ -173,13 +173,13 @@ nv04_instmem_dtor(struct nouveau_object *object)
 }
 
 static u32
-nv04_instmem_rd32(struct nouveau_object *object, u32 addr)
+nv04_instmem_rd32(struct nouveau_object *object, u64 addr)
 {
 	return nv_rd32(object, 0x700000 + addr);
 }
 
 static void
-nv04_instmem_wr32(struct nouveau_object *object, u32 addr, u32 data)
+nv04_instmem_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	return nv_wr32(object, 0x700000 + addr, data);
 }

@@ -13,6 +13,10 @@
 #define	FEC_H
 /****************************************************************************/
 
+#include <linux/clocksource.h>
+#include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
+
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
     defined(CONFIG_ARCH_MXC) || defined(CONFIG_SOC_IMX28)
@@ -44,6 +48,10 @@
 #define FEC_R_DES_START		0x180 /* Receive descriptor ring */
 #define FEC_X_DES_START		0x184 /* Transmit descriptor ring */
 #define FEC_R_BUFF_SIZE		0x188 /* Maximum receive buff size */
+#define FEC_R_FIFO_RSFL		0x190 /* Receive FIFO section full threshold */
+#define FEC_R_FIFO_RSEM		0x194 /* Receive FIFO section empty threshold */
+#define FEC_R_FIFO_RAEM		0x198 /* Receive FIFO almost empty threshold */
+#define FEC_R_FIFO_RAFL		0x19c /* Receive FIFO almost full threshold */
 #define FEC_MIIGSK_CFGR		0x300 /* MIIGSK Configuration reg */
 #define FEC_MIIGSK_ENR		0x308 /* MIIGSK Enable reg */
 
@@ -97,6 +105,15 @@ struct bufdesc {
 };
 #endif
 
+struct bufdesc_ex {
+	struct bufdesc desc;
+	unsigned long cbd_esc;
+	unsigned long cbd_prot;
+	unsigned long cbd_bdu;
+	unsigned long ts;
+	unsigned short res0[4];
+};
+
 /*
  *	The following definitions courtesy of commproc.h, which where
  *	Copyright (c) 1997 Dan Malek (dmalek@jlc.net).
@@ -147,6 +164,107 @@ struct bufdesc {
 #define BD_ENET_TX_CSL          ((ushort)0x0001)
 #define BD_ENET_TX_STATS        ((ushort)0x03ff)        /* All status bits */
 
+/*enhanced buffer desciptor control/status used by Ethernet transmit*/
+#define BD_ENET_TX_INT          0x40000000
+#define BD_ENET_TX_TS           0x20000000
+
+
+/* This device has up to three irqs on some platforms */
+#define FEC_IRQ_NUM		3
+
+/* The number of Tx and Rx buffers.  These are allocated from the page
+ * pool.  The code may assume these are power of two, so it it best
+ * to keep them that size.
+ * We don't need to allocate pages for the transmitter.  We just use
+ * the skbuffer directly.
+ */
+
+#define FEC_ENET_RX_PAGES	8
+#define FEC_ENET_RX_FRSIZE	2048
+#define FEC_ENET_RX_FRPPG	(PAGE_SIZE / FEC_ENET_RX_FRSIZE)
+#define RX_RING_SIZE		(FEC_ENET_RX_FRPPG * FEC_ENET_RX_PAGES)
+#define FEC_ENET_TX_FRSIZE	2048
+#define FEC_ENET_TX_FRPPG	(PAGE_SIZE / FEC_ENET_TX_FRSIZE)
+#define TX_RING_SIZE		16	/* Must be power of two */
+#define TX_RING_MOD_MASK	15	/*   for this to work */
+
+#define BD_ENET_RX_INT          0x00800000
+#define BD_ENET_RX_PTP          ((ushort)0x0400)
+
+/* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and
+ * tx_bd_base always point to the base of the buffer descriptors.  The
+ * cur_rx and cur_tx point to the currently available buffer.
+ * The dirty_tx tracks the current buffer that is being sent by the
+ * controller.  The cur_tx and dirty_tx are equal under both completely
+ * empty and completely full conditions.  The empty/ready indicator in
+ * the buffer descriptor determines the actual condition.
+ */
+struct fec_enet_private {
+	/* Hardware registers of the FEC device */
+	void __iomem *hwp;
+
+	struct net_device *netdev;
+
+	struct clk *clk_ipg;
+	struct clk *clk_ahb;
+	struct clk *clk_ptp;
+
+	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
+	unsigned char *tx_bounce[TX_RING_SIZE];
+	struct	sk_buff *tx_skbuff[TX_RING_SIZE];
+	struct	sk_buff *rx_skbuff[RX_RING_SIZE];
+
+	/* CPM dual port RAM relative addresses */
+	dma_addr_t	bd_dma;
+	/* Address of Rx and Tx buffers */
+	struct bufdesc	*rx_bd_base;
+	struct bufdesc	*tx_bd_base;
+	/* The next free ring entry */
+	struct bufdesc	*cur_rx, *cur_tx;
+	/* The ring entries to be free()ed */
+	struct bufdesc	*dirty_tx;
+
+	/* hold while accessing the HW like ringbuffer for tx/rx but not MAC */
+	spinlock_t hw_lock;
+
+	struct	platform_device *pdev;
+
+	int	opened;
+	int	dev_id;
+
+	/* Phylib and MDIO interface */
+	struct	mii_bus *mii_bus;
+	struct	phy_device *phy_dev;
+	int	mii_timeout;
+	uint	phy_speed;
+	phy_interface_t	phy_interface;
+	int	link;
+	int	full_duplex;
+	struct	completion mdio_done;
+	int	irq[FEC_IRQ_NUM];
+	int	bufdesc_ex;
+	int	pause_flag;
+
+	struct	napi_struct napi;
+
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_caps;
+	unsigned long last_overflow_check;
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
+	int rx_hwtstamp_filter;
+	u32 base_incval;
+	u32 cycle_speed;
+	int hwts_rx_en;
+	int hwts_tx_en;
+	struct timer_list time_keep;
+
+};
+
+void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev);
+void fec_ptp_start_cyclecounter(struct net_device *ndev);
+int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
 
 /****************************************************************************/
 #endif /* FEC_H */

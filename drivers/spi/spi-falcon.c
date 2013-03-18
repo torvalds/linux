@@ -398,12 +398,12 @@ static int falcon_sflash_xfer_one(struct spi_master *master,
 	}
 
 	m->status = ret;
-	m->complete(m->context);
+	spi_finalize_current_message(master);
 
 	return 0;
 }
 
-static int __devinit falcon_sflash_probe(struct platform_device *pdev)
+static int falcon_sflash_probe(struct platform_device *pdev)
 {
 	struct falcon_sflash *priv;
 	struct spi_master *master;
@@ -423,6 +423,7 @@ static int __devinit falcon_sflash_probe(struct platform_device *pdev)
 
 	master->mode_bits = SPI_MODE_3;
 	master->num_chipselect = 1;
+	master->flags = SPI_MASTER_HALF_DUPLEX;
 	master->bus_num = -1;
 	master->setup = falcon_sflash_setup;
 	master->prepare_transfer_hardware = falcon_sflash_prepare_xfer;
@@ -438,7 +439,7 @@ static int __devinit falcon_sflash_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit falcon_sflash_remove(struct platform_device *pdev)
+static int falcon_sflash_remove(struct platform_device *pdev)
 {
 	struct falcon_sflash *priv = platform_get_drvdata(pdev);
 
@@ -455,7 +456,7 @@ MODULE_DEVICE_TABLE(of, falcon_sflash_match);
 
 static struct platform_driver falcon_sflash_driver = {
 	.probe	= falcon_sflash_probe,
-	.remove	= __devexit_p(falcon_sflash_remove),
+	.remove	= falcon_sflash_remove,
 	.driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

@@ -391,7 +391,7 @@ EXPORT_SYMBOL(bt878_device_control);
 		.driver_data = (unsigned long) name \
 	}
 
-static struct pci_device_id bt878_pci_tbl[] __devinitdata = {
+static struct pci_device_id bt878_pci_tbl[] = {
 	BROOKTREE_878_DEVICE(0x0071, 0x0101, "Nebula Electronics DigiTV"),
 	BROOKTREE_878_DEVICE(0x1461, 0x0761, "AverMedia AverTV DVB-T 761"),
 	BROOKTREE_878_DEVICE(0x11bd, 0x001c, "Pinnacle PCTV Sat"),
@@ -410,7 +410,7 @@ static struct pci_device_id bt878_pci_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, bt878_pci_tbl);
 
-static const char * __devinit card_name(const struct pci_device_id *id)
+static const char * card_name(const struct pci_device_id *id)
 {
 	return id->driver_data ? (const char *)id->driver_data : "Unknown";
 }
@@ -419,8 +419,7 @@ static const char * __devinit card_name(const struct pci_device_id *id)
 /* PCI device handling */
 /***********************/
 
-static int __devinit bt878_probe(struct pci_dev *dev,
-				 const struct pci_device_id *pci_id)
+static int bt878_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 {
 	int result = 0;
 	unsigned char lat;
@@ -529,7 +528,7 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 	return result;
 }
 
-static void __devexit bt878_remove(struct pci_dev *pci_dev)
+static void bt878_remove(struct pci_dev *pci_dev)
 {
 	u8 command;
 	struct bt878 *bt = pci_get_drvdata(pci_dev);
@@ -573,7 +572,7 @@ static struct pci_driver bt878_pci_driver = {
       .name	= "bt878",
       .id_table = bt878_pci_tbl,
       .probe	= bt878_probe,
-      .remove	= __devexit_p(bt878_remove),
+      .remove	= bt878_remove,
 };
 
 /*******************************/

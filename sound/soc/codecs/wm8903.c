@@ -2020,8 +2020,8 @@ static int wm8903_set_pdata_from_of(struct i2c_client *i2c,
 	return 0;
 }
 
-static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8903_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm8903_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8903_priv *wm8903;
@@ -2206,7 +2206,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm8903_i2c_remove(struct i2c_client *client)
+static int wm8903_i2c_remove(struct i2c_client *client)
 {
 	struct wm8903_priv *wm8903 = i2c_get_clientdata(client);
 
@@ -2237,7 +2237,7 @@ static struct i2c_driver wm8903_i2c_driver = {
 		.of_match_table = wm8903_of_match,
 	},
 	.probe =    wm8903_i2c_probe,
-	.remove =   __devexit_p(wm8903_i2c_remove),
+	.remove =   wm8903_i2c_remove,
 	.id_table = wm8903_i2c_id,
 };
 

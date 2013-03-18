@@ -196,7 +196,7 @@ static int pvr2_g_std(struct file *file, void *priv, v4l2_std_id *std)
 	return ret;
 }
 
-int pvr2_s_std(struct file *file, void *priv, v4l2_std_id *std)
+static int pvr2_s_std(struct file *file, void *priv, v4l2_std_id *std)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
@@ -365,7 +365,7 @@ static int pvr2_s_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
 			vt->audmode);
 }
 
-int pvr2_s_frequency(struct file *file, void *priv, struct v4l2_frequency *vf)
+static int pvr2_s_frequency(struct file *file, void *priv, struct v4l2_frequency *vf)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
@@ -1339,7 +1339,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		return;
 	}
 
-	memcpy(&dip->devbase,&vdev_template,sizeof(vdev_template));
+	dip->devbase = vdev_template;
 	dip->devbase.release = pvr2_video_device_release;
 	dip->devbase.ioctl_ops = &pvr2_ioctl_ops;
 	{

@@ -49,14 +49,15 @@ int inode_change_ok(const struct inode *inode, struct iattr *attr)
 	/* Make sure a caller can chown. */
 	if ((ia_valid & ATTR_UID) &&
 	    (!uid_eq(current_fsuid(), inode->i_uid) ||
-	     !uid_eq(attr->ia_uid, inode->i_uid)) && !capable(CAP_CHOWN))
+	     !uid_eq(attr->ia_uid, inode->i_uid)) &&
+	    !inode_capable(inode, CAP_CHOWN))
 		return -EPERM;
 
 	/* Make sure caller can chgrp. */
 	if ((ia_valid & ATTR_GID) &&
 	    (!uid_eq(current_fsuid(), inode->i_uid) ||
 	    (!in_group_p(attr->ia_gid) && !gid_eq(attr->ia_gid, inode->i_gid))) &&
-	    !capable(CAP_CHOWN))
+	    !inode_capable(inode, CAP_CHOWN))
 		return -EPERM;
 
 	/* Make sure a caller can chmod. */
@@ -65,7 +66,8 @@ int inode_change_ok(const struct inode *inode, struct iattr *attr)
 			return -EPERM;
 		/* Also check the setgid bit! */
 		if (!in_group_p((ia_valid & ATTR_GID) ? attr->ia_gid :
-				inode->i_gid) && !capable(CAP_FSETID))
+				inode->i_gid) &&
+		    !inode_capable(inode, CAP_FSETID))
 			attr->ia_mode &= ~S_ISGID;
 	}
 
@@ -157,7 +159,8 @@ void setattr_copy(struct inode *inode, const struct iattr *attr)
 	if (ia_valid & ATTR_MODE) {
 		umode_t mode = attr->ia_mode;
 
-		if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
+		if (!in_group_p(inode->i_gid) &&
+		    !inode_capable(inode, CAP_FSETID))
 			mode &= ~S_ISGID;
 		inode->i_mode = mode;
 	}

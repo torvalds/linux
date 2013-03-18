@@ -70,6 +70,16 @@
  *                                  OFF-ON : MMC
  */
 
+/*
+ * FSI - DA7210
+ *
+ * it needs amixer settings for playing
+ *
+ * amixer set 'HeadPhone' 80
+ * amixer set 'Out Mixer Left DAC Left' on
+ * amixer set 'Out Mixer Right DAC Right' on
+ */
+
 /* Heartbeat */
 static unsigned char led_pos[] = { 0, 1, 2, 3 };
 
@@ -329,11 +339,6 @@ static int ecovec24_set_brightness(int brightness)
 	return 0;
 }
 
-static int ecovec24_get_brightness(void)
-{
-	return gpio_get_value(GPIO_PTR1);
-}
-
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
@@ -347,7 +352,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
 			.set_brightness = ecovec24_set_brightness,
-			.get_brightness = ecovec24_get_brightness,
 		},
 	}
 };
@@ -883,12 +887,6 @@ static struct platform_device camera_devices[] = {
 };
 
 /* FSI */
-static struct sh_fsi_platform_info fsi_info = {
-	.port_b = {
-		.flags = SH_FSI_BRS_INV,
-	},
-};
-
 static struct resource fsi_resources[] = {
 	[0] = {
 		.name	= "FSI",
@@ -907,25 +905,22 @@ static struct platform_device fsi_device = {
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(fsi_resources),
 	.resource	= fsi_resources,
-	.dev	= {
-		.platform_data	= &fsi_info,
-	},
-};
-
-static struct asoc_simple_dai_init_info fsi_da7210_init_info = {
-	.fmt		= SND_SOC_DAIFMT_I2S,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
 };
 
 static struct asoc_simple_card_info fsi_da7210_info = {
 	.name		= "DA7210",
 	.card		= "FSIB-DA7210",
-	.cpu_dai	= "fsib-dai",
 	.codec		= "da7210.0-001a",
 	.platform	= "sh_fsi.0",
-	.codec_dai	= "da7210-hifi",
-	.init		= &fsi_da7210_init_info,
+	.daifmt		= SND_SOC_DAIFMT_I2S,
+	.cpu_dai = {
+		.name	= "fsib-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "da7210-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+	},
 };
 
 static struct platform_device fsi_da7210_device = {

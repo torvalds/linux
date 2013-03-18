@@ -22,8 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-
-#include <mach/ipu.h>
+#include <linux/dma/ipu-dma.h>
 
 #include "../dmaengine.h"
 #include "ipu_intern.h"
@@ -1348,7 +1347,7 @@ static struct dma_async_tx_descriptor *idmac_prep_slave_sg(struct dma_chan *chan
 	    chan->chan_id != IDMAC_IC_7)
 		return NULL;
 
-	if (direction != DMA_DEV_TO_MEM && direction != DMA_MEM_TO_DEV) {
+	if (!is_slave_direction(direction)) {
 		dev_err(chan->device->dev, "Invalid DMA direction %d!\n", direction);
 		return NULL;
 	}

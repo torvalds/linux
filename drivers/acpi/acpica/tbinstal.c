@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -526,6 +526,8 @@ void acpi_tb_terminate(void)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ACPI Tables freed\n"));
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+
+	return_VOID;
 }
 
 /*******************************************************************************

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -94,8 +94,8 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 	.device_family = IWL_DEVICE_FAMILY_1000,		\
 	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
-	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
+	.nvm_ver = EEPROM_1000_EEPROM_VERSION,		\
+	.nvm_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.base_params = &iwl1000_base_params,			\
 	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK
@@ -119,8 +119,8 @@ const struct iwl_cfg iwl1000_bg_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_100,			\
 	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
-	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
-	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
+	.nvm_ver = EEPROM_1000_EEPROM_VERSION,		\
+	.nvm_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.base_params = &iwl1000_base_params,			\
 	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\

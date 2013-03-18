@@ -57,7 +57,7 @@ void clk_pxa2xx_cken_disable(struct clk *clk);
 
 extern struct syscore_ops pxa2xx_clock_syscore_ops;
 
-#if defined(CONFIG_PXA3xx) || defined(CONFIG_PXA95x)
+#if defined(CONFIG_PXA3xx)
 #define DEFINE_PXA3_CKEN(_name, _cken, _rate, _delay)	\
 struct clk clk_##_name = {				\
 		.ops	= &clk_pxa3xx_cken_ops,		\

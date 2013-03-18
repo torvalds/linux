@@ -82,7 +82,7 @@ static struct snd_soc_dai_link simtec_dai_aic33 = {
 	.codec_name	= "tlv320aic3x-codec.0-001a",
 	.cpu_dai_name	= "s3c24xx-iis",
 	.codec_dai_name = "tlv320aic3x-hifi",
-	.platform_name	= "samsung-audio",
+	.platform_name	= "s3c24xx-iis",
 	.init		= simtec_hermes_init,
 };
 
@@ -99,7 +99,7 @@ static struct snd_soc_card snd_soc_machine_simtec_aic33 = {
 	.num_dapm_routes = ARRAY_SIZE(base_map),
 };
 
-static int __devinit simtec_audio_hermes_probe(struct platform_device *pd)
+static int simtec_audio_hermes_probe(struct platform_device *pd)
 {
 	dev_info(&pd->dev, "probing....\n");
 	return simtec_audio_core_probe(pd, &snd_soc_machine_simtec_aic33);
@@ -112,7 +112,7 @@ static struct platform_driver simtec_audio_hermes_platdrv = {
 		.pm	= simtec_audio_pm,
 	},
 	.probe	= simtec_audio_hermes_probe,
-	.remove	= __devexit_p(simtec_audio_remove),
+	.remove	= simtec_audio_remove,
 };
 
 module_platform_driver(simtec_audio_hermes_platdrv);

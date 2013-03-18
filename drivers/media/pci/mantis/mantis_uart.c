@@ -61,7 +61,7 @@ static struct {
 
 #define UART_MAX_BUF			16
 
-int mantis_uart_read(struct mantis_pci *mantis, u8 *data)
+static int mantis_uart_read(struct mantis_pci *mantis, u8 *data)
 {
 	struct mantis_hwconfig *config = mantis->hwconfig;
 	u32 stat = 0, i;

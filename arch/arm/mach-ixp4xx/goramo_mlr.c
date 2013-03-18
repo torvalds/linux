@@ -15,6 +15,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/pci.h>
+#include <asm/system_info.h>
 
 #define SLOT_ETHA		0x0B	/* IDSEL = AD21 */
 #define SLOT_ETHB		0x0C	/* IDSEL = AD20 */
@@ -329,7 +330,7 @@ static struct platform_device device_hss_tab[] = {
 };
 
 
-static struct platform_device *device_tab[6] __initdata = {
+static struct platform_device *device_tab[7] __initdata = {
 	&device_flash,		/* index 0 */
 };
 
@@ -497,7 +498,7 @@ MACHINE_START(GORAMO_MLR, "MultiLink")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer		= &ixp4xx_timer,
+	.init_time	= ixp4xx_timer_init,
 	.atag_offset	= 0x100,
 	.init_machine	= gmlr_init,
 #if defined(CONFIG_PCI)

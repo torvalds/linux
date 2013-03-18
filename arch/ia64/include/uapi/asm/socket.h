@@ -31,7 +31,7 @@
 #define SO_PRIORITY	12
 #define SO_LINGER	13
 #define SO_BSDCOMPAT	14
-/* To add :#define SO_REUSEPORT 15 */
+#define SO_REUSEPORT	15
 #define SO_PASSCRED	16
 #define SO_PEERCRED	17
 #define SO_RCVLOWAT	18
@@ -49,6 +49,7 @@
 /* Socket filtering */
 #define SO_ATTACH_FILTER	26
 #define SO_DETACH_FILTER	27
+#define SO_GET_FILTER		SO_ATTACH_FILTER
 
 #define SO_PEERNAME		28
 #define SO_TIMESTAMP		29
@@ -77,5 +78,7 @@
 
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define SO_NOFCS		43
+
+#define SO_LOCK_FILTER		44
 
 #endif /* _ASM_IA64_SOCKET_H */

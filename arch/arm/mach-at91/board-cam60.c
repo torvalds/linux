@@ -38,10 +38,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -187,7 +187,7 @@ static void __init cam60_board_init(void)
 
 MACHINE_START(CAM60, "KwikByte CAM60")
 	/* Maintainer: KwikByte */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= cam60_init_early,

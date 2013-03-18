@@ -26,18 +26,17 @@
 #include <linux/spi/spi.h>
 #include <linux/can/platform/mcp251x.h>
 
-#include <mach/eukrea-baseboards.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx51.h>
-
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include "common.h"
 #include "devices-imx51.h"
 #include "cpu_op-mx51.h"
+#include "eukrea-baseboards.h"
+#include "hardware.h"
+#include "iomux-mx51.h"
 
 #define USBH1_RST		IMX_GPIO_NR(2, 28)
 #define ETH_RST			IMX_GPIO_NR(2, 31)
@@ -356,10 +355,6 @@ static void __init eukrea_cpuimx51sd_timer_init(void)
 	mx51_clocks_init(32768, 24000000, 22579200, 0);
 }
 
-static struct sys_timer mxc_timer = {
-	.init	= eukrea_cpuimx51sd_timer_init,
-};
-
 MACHINE_START(EUKREA_CPUIMX51SD, "Eukrea CPUIMX51SD")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
 	.atag_offset = 0x100,
@@ -367,7 +362,7 @@ MACHINE_START(EUKREA_CPUIMX51SD, "Eukrea CPUIMX51SD")
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
 	.handle_irq = imx51_handle_irq,
-	.timer = &mxc_timer,
+	.init_time	= eukrea_cpuimx51sd_timer_init,
 	.init_machine = eukrea_cpuimx51sd_init,
 	.init_late	= imx51_init_late,
 	.restart	= mxc_restart,

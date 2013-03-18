@@ -21,6 +21,6 @@
 #include <asm/sigcontext.h>
 #include <asm/siginfo.h>
 
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
+#define __ARCH_HAS_ODD_SIGACTION
 
 #endif /* _ASM_SIGNAL_H */

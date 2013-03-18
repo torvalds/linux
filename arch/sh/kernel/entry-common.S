@@ -297,6 +297,19 @@ ret_from_fork:
 	 mov	r0, r4
 	bra	syscall_exit
 	 nop
+
+	.align	2
+	.globl	ret_from_kernel_thread
+ret_from_kernel_thread:
+	mov.l	1f, r8
+	jsr	@r8
+	 mov	r0, r4
+	mov.l	@(OFF_R5,r15), r5   ! fn
+	jsr	@r5
+	 mov.l	@(OFF_R4,r15), r4   ! arg
+	bra	syscall_exit
+	 nop
+
 	.align	2
 1:	.long	schedule_tail
 

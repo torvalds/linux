@@ -83,6 +83,7 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu_44x->shadow_refs[i].gtlb_index = -1;
 
 	vcpu->arch.cpu_type = KVM_CPU_440;
+	vcpu->arch.pvr = mfspr(SPRN_PVR);
 
 	return 0;
 }

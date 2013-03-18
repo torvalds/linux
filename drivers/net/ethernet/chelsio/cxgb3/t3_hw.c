@@ -3307,7 +3307,7 @@ static void config_pcie(struct adapter *adap)
 	    G_NUMFSTTRNSEQRX(t3_read_reg(adap, A_PCIE_MODE));
 	log2_width = fls(adap->params.pci.width) - 1;
 	acklat = ack_lat[log2_width][pldsize];
-	if (val & 1)		/* check LOsEnable */
+	if (val & PCI_EXP_LNKCTL_ASPM_L0S)	/* check LOsEnable */
 		acklat += fst_trn_tx * 4;
 	rpllmt = rpl_tmr[log2_width][pldsize] + fst_trn_rx * 4;
 
@@ -3724,8 +3724,6 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		hw_addr[5] = adapter->params.vpd.eth_base[5] + i;
 
 		memcpy(adapter->port[i]->dev_addr, hw_addr,
-		       ETH_ALEN);
-		memcpy(adapter->port[i]->perm_addr, hw_addr,
 		       ETH_ALEN);
 		init_link_config(&p->link_config, p->phy.caps);
 		p->phy.ops->power_down(&p->phy, 1);

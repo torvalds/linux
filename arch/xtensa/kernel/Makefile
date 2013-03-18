@@ -23,13 +23,13 @@ obj-$(CONFIG_MODULES) += xtensa_ksyms.o module.o
 #
 # Replicate rules in scripts/Makefile.build
 
-sed-y = -e 's/\*(\(\.[a-z]*it\|\.ref\|\)\.text)/*(\1.literal \1.text)/g'    \
-	-e 's/\.text\.unlikely/.literal.unlikely .text.unlikely/g' \
+sed-y = -e 's/\*(\(\.[a-z]*it\|\.ref\|\)\.text)/*(\1.literal \1.text)/g' \
+	-e 's/\.text\.unlikely/.literal.unlikely .text.unlikely/g'	 \
 	-e 's/\*(\(\.text\.[a-z]*\))/*(\1.literal \1)/g'
 
 quiet_cmd__cpp_lds_S = LDS     $@
-      cmd__cpp_lds_S = $(CPP) $(cpp_flags) -P -C -Uxtensa -D__ASSEMBLY__ $< \
-                       | sed $(sed-y) >$@
+cmd__cpp_lds_S = $(CPP) $(cpp_flags) -P -C -Uxtensa -D__ASSEMBLY__ $<    \
+                 | sed $(sed-y) >$@
 
 $(obj)/vmlinux.lds: $(src)/vmlinux.lds.S FORCE
 	$(call if_changed_dep,_cpp_lds_S)

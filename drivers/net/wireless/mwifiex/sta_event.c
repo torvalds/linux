@@ -124,8 +124,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	}
 	memset(priv->cfg_bssid, 0, ETH_ALEN);
 
-	if (!netif_queue_stopped(priv->netdev))
-		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
 }
@@ -197,8 +196,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "event: LINK_SENSED\n");
 		if (!netif_carrier_ok(priv->netdev))
 			netif_carrier_on(priv->netdev);
-		if (netif_queue_stopped(priv->netdev))
-			mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
+		mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 		break;
 
 	case EVENT_DEAUTHENTICATED:
@@ -306,8 +304,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "event: ADHOC_BCN_LOST\n");
 		priv->adhoc_is_link_sensed = false;
 		mwifiex_clean_txrx(priv);
-		if (!netif_queue_stopped(priv->netdev))
-			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 		if (netif_carrier_ok(priv->netdev))
 			netif_carrier_off(priv->netdev);
 		break;
@@ -424,7 +421,6 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		cfg80211_remain_on_channel_expired(priv->wdev,
 						   priv->roc_cfg.cookie,
 						   &priv->roc_cfg.chan,
-						   priv->roc_cfg.chan_type,
 						   GFP_ATOMIC);
 
 		memset(&priv->roc_cfg, 0x00, sizeof(struct mwifiex_roc_cfg));

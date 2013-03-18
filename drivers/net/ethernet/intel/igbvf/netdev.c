@@ -47,7 +47,7 @@
 
 #include "igbvf.h"
 
-#define DRV_VERSION "2.0.1-k"
+#define DRV_VERSION "2.0.2-k"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
@@ -107,12 +107,19 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
                               struct sk_buff *skb,
                               u32 status, u16 vlan)
 {
+	u16 vid;
+
 	if (status & E1000_RXD_STAT_VP) {
-		u16 vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+		if ((adapter->flags & IGBVF_FLAG_RX_LB_VLAN_BSWAP) &&
+		    (status & E1000_RXDEXT_STATERR_LB))
+			vid = be16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+		else
+			vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
 		if (test_bit(vid, adapter->active_vlans))
 			__vlan_hwaccel_put_tag(skb, vid);
 	}
-	netif_receive_skb(skb);
+
+	napi_gro_receive(&adapter->rx_ring->napi, skb);
 }
 
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
@@ -184,6 +191,13 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 				             buffer_info->page_offset,
 				             PAGE_SIZE / 2,
 					     DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev,
+					      buffer_info->page_dma)) {
+				__free_page(buffer_info->page);
+				buffer_info->page = NULL;
+				dev_err(&pdev->dev, "RX DMA map failed\n");
+				break;
+			}
 		}
 
 		if (!buffer_info->skb) {
@@ -197,6 +211,12 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 			buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 			                                  bufsz,
 							  DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
+				dev_kfree_skb(buffer_info->skb);
+				buffer_info->skb = NULL;
+				dev_err(&pdev->dev, "RX DMA map failed\n");
+				goto no_buffers;
+			}
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
@@ -777,20 +797,31 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 	struct sk_buff *skb;
 	union e1000_adv_tx_desc *tx_desc, *eop_desc;
 	unsigned int total_bytes = 0, total_packets = 0;
-	unsigned int i, eop, count = 0;
+	unsigned int i, count = 0;
 	bool cleaned = false;
 
 	i = tx_ring->next_to_clean;
-	eop = tx_ring->buffer_info[i].next_to_watch;
-	eop_desc = IGBVF_TX_DESC_ADV(*tx_ring, eop);
+	buffer_info = &tx_ring->buffer_info[i];
+	eop_desc = buffer_info->next_to_watch;
 
-	while ((eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)) &&
-	       (count < tx_ring->count)) {
-		rmb();	/* read buffer_info after eop_desc status */
+	do {
+		/* if next_to_watch is not set then there is no work pending */
+		if (!eop_desc)
+			break;
+
+		/* prevent any other reads prior to eop_desc */
+		read_barrier_depends();
+
+		/* if DD is not set pending work has not been completed */
+		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
+			break;
+
+		/* clear next_to_watch to prevent false hangs */
+		buffer_info->next_to_watch = NULL;
+
 		for (cleaned = false; !cleaned; count++) {
 			tx_desc = IGBVF_TX_DESC_ADV(*tx_ring, i);
-			buffer_info = &tx_ring->buffer_info[i];
-			cleaned = (i == eop);
+			cleaned = (tx_desc == eop_desc);
 			skb = buffer_info->skb;
 
 			if (skb) {
@@ -811,10 +842,12 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 			i++;
 			if (i == tx_ring->count)
 				i = 0;
+
+			buffer_info = &tx_ring->buffer_info[i];
 		}
-		eop = tx_ring->buffer_info[i].next_to_watch;
-		eop_desc = IGBVF_TX_DESC_ADV(*tx_ring, eop);
-	}
+
+		eop_desc = buffer_info->next_to_watch;
+	} while (count < tx_ring->count);
 
 	tx_ring->next_to_clean = i;
 
@@ -1078,7 +1111,7 @@ out:
  * igbvf_alloc_queues - Allocate memory for all rings
  * @adapter: board private structure to initialize
  **/
-static int __devinit igbvf_alloc_queues(struct igbvf_adapter *adapter)
+static int igbvf_alloc_queues(struct igbvf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
@@ -1379,12 +1412,10 @@ static void igbvf_set_multi(struct net_device *netdev)
 	int i;
 
 	if (!netdev_mc_empty(netdev)) {
-		mta_list = kmalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
-		if (!mta_list) {
-			dev_err(&adapter->pdev->dev,
-			        "failed to allocate multicast filter list\n");
+		mta_list = kmalloc_array(netdev_mc_count(netdev), ETH_ALEN,
+					 GFP_ATOMIC);
+		if (!mta_list)
 			return;
-		}
 	}
 
 	/* prepare a packed array of only addresses. */
@@ -1530,7 +1561,7 @@ void igbvf_reinit_locked(struct igbvf_adapter *adapter)
  * Fields are initialized based on PCI device information and
  * OS network device settings (MTU size).
  **/
-static int __devinit igbvf_sw_init(struct igbvf_adapter *adapter)
+static int igbvf_sw_init(struct igbvf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	s32 rc;
@@ -1718,7 +1749,6 @@ static int igbvf_set_mac(struct net_device *netdev, void *p)
 		return -EADDRNOTAVAIL;
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	return 0;
 }
@@ -1944,7 +1974,6 @@ static int igbvf_tso(struct igbvf_adapter *adapter,
 	context_desc->seqnum_seed = 0;
 
 	buffer_info->time_stamp = jiffies;
-	buffer_info->next_to_watch = i;
 	buffer_info->dma = 0;
 	i++;
 	if (i == tx_ring->count)
@@ -2004,7 +2033,6 @@ static inline bool igbvf_tx_csum(struct igbvf_adapter *adapter,
 		context_desc->mss_l4len_idx = 0;
 
 		buffer_info->time_stamp = jiffies;
-		buffer_info->next_to_watch = i;
 		buffer_info->dma = 0;
 		i++;
 		if (i == tx_ring->count)
@@ -2044,8 +2072,7 @@ static int igbvf_maybe_stop_tx(struct net_device *netdev, int size)
 
 static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
                                    struct igbvf_ring *tx_ring,
-                                   struct sk_buff *skb,
-                                   unsigned int first)
+				   struct sk_buff *skb)
 {
 	struct igbvf_buffer *buffer_info;
 	struct pci_dev *pdev = adapter->pdev;
@@ -2060,7 +2087,6 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 	buffer_info->length = len;
 	/* set time_stamp *before* dma to help avoid a possible race */
 	buffer_info->time_stamp = jiffies;
-	buffer_info->next_to_watch = i;
 	buffer_info->mapped_as_page = false;
 	buffer_info->dma = dma_map_single(&pdev->dev, skb->data, len,
 					  DMA_TO_DEVICE);
@@ -2083,7 +2109,6 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 		BUG_ON(len >= IGBVF_MAX_DATA_PER_TXD);
 		buffer_info->length = len;
 		buffer_info->time_stamp = jiffies;
-		buffer_info->next_to_watch = i;
 		buffer_info->mapped_as_page = true;
 		buffer_info->dma = skb_frag_dma_map(&pdev->dev, frag, 0, len,
 						DMA_TO_DEVICE);
@@ -2092,7 +2117,6 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 	}
 
 	tx_ring->buffer_info[i].skb = skb;
-	tx_ring->buffer_info[first].next_to_watch = i;
 
 	return ++count;
 
@@ -2103,7 +2127,6 @@ dma_error:
 	buffer_info->dma = 0;
 	buffer_info->time_stamp = 0;
 	buffer_info->length = 0;
-	buffer_info->next_to_watch = 0;
 	buffer_info->mapped_as_page = false;
 	if (count)
 		count--;
@@ -2122,7 +2145,8 @@ dma_error:
 
 static inline void igbvf_tx_queue_adv(struct igbvf_adapter *adapter,
                                       struct igbvf_ring *tx_ring,
-                                      int tx_flags, int count, u32 paylen,
+				      int tx_flags, int count,
+				      unsigned int first, u32 paylen,
                                       u8 hdr_len)
 {
 	union e1000_adv_tx_desc *tx_desc = NULL;
@@ -2172,6 +2196,7 @@ static inline void igbvf_tx_queue_adv(struct igbvf_adapter *adapter,
 	 * such as IA-64). */
 	wmb();
 
+	tx_ring->buffer_info[first].next_to_watch = tx_desc;
 	tx_ring->next_to_use = i;
 	writel(i, adapter->hw.hw_addr + tx_ring->tail);
 	/* we need this if more than one processor can write to our tail
@@ -2238,11 +2263,11 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 	 * count reflects descriptors mapped, if 0 then mapping error
 	 * has occurred and we need to rewind the descriptor queue
 	 */
-	count = igbvf_tx_map_adv(adapter, tx_ring, skb, first);
+	count = igbvf_tx_map_adv(adapter, tx_ring, skb);
 
 	if (count) {
 		igbvf_tx_queue_adv(adapter, tx_ring, tx_flags, count,
-		                   skb->len, hdr_len);
+				   first, skb->len, hdr_len);
 		/* Make sure there is space in the ring for the next send. */
 		igbvf_maybe_stop_tx(netdev, MAX_SKB_FRAGS + 4);
 	} else {
@@ -2598,8 +2623,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
  * The OS initialization, configuring of the adapter private structure,
  * and a hardware reset occur.
  **/
-static int __devinit igbvf_probe(struct pci_dev *pdev,
-                                 const struct pci_device_id *ent)
+static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct igbvf_adapter *adapter;
@@ -2717,29 +2741,23 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
 		dev_info(&pdev->dev,
-			 "PF still in reset state, assigning new address."
-			 " Is the PF interface up?\n");
-		eth_hw_addr_random(netdev);
-		memcpy(adapter->hw.mac.addr, netdev->dev_addr,
-			netdev->addr_len);
+			 "PF still in reset state. Is the PF interface up?\n");
 	} else {
 		err = hw->mac.ops.read_mac_addr(hw);
-		if (err) {
-			dev_err(&pdev->dev, "Error reading MAC address\n");
-			goto err_hw_init;
-		}
+		if (err)
+			dev_info(&pdev->dev, "Error reading MAC address.\n");
+		else if (is_zero_ether_addr(adapter->hw.mac.addr))
+			dev_info(&pdev->dev, "MAC address not assigned by administrator.\n");
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
-			netdev->addr_len);
+		       netdev->addr_len);
 	}
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		dev_err(&pdev->dev, "Invalid MAC Address: %pM\n",
-		        netdev->dev_addr);
-		err = -EIO;
-		goto err_hw_init;
+		dev_info(&pdev->dev, "Assigning random MAC address.\n");
+		eth_hw_addr_random(netdev);
+		memcpy(adapter->hw.mac.addr, netdev->dev_addr,
+			netdev->addr_len);
 	}
-
-	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
 	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
 	            (unsigned long) adapter);
@@ -2753,6 +2771,10 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 
 	/* reset the hardware with the new settings */
 	igbvf_reset(adapter);
+
+	/* set hardware-specific flags */
+	if (adapter->hw.mac.type == e1000_vfadapt_i350)
+		adapter->flags |= IGBVF_FLAG_RX_LB_VLAN_BSWAP;
 
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
@@ -2794,7 +2816,7 @@ err_dma:
  * Hot-Plug event, or because the driver is going to be removed from
  * memory.
  **/
-static void __devexit igbvf_remove(struct pci_dev *pdev)
+static void igbvf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
@@ -2851,7 +2873,7 @@ static struct pci_driver igbvf_driver = {
 	.name     = igbvf_driver_name,
 	.id_table = igbvf_pci_tbl,
 	.probe    = igbvf_probe,
-	.remove   = __devexit_p(igbvf_remove),
+	.remove   = igbvf_remove,
 #ifdef CONFIG_PM
 	/* Power Management Hooks */
 	.suspend  = igbvf_suspend,

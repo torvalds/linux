@@ -22,7 +22,6 @@ enum ath6kl_cfg_suspend_mode {
 	ATH6KL_CFG_SUSPEND_DEEPSLEEP,
 	ATH6KL_CFG_SUSPEND_CUTPOWER,
 	ATH6KL_CFG_SUSPEND_WOW,
-	ATH6KL_CFG_SUSPEND_SCHED_SCAN,
 };
 
 struct wireless_dev *ath6kl_interface_add(struct ath6kl *ar, const char *name,
@@ -62,7 +61,5 @@ void ath6kl_cfg80211_cleanup(struct ath6kl *ar);
 
 struct ath6kl *ath6kl_cfg80211_create(void);
 void ath6kl_cfg80211_destroy(struct ath6kl *ar);
-/* TODO: remove this once ath6kl_vif_cleanup() is moved to cfg80211.c */
-void ath6kl_cfg80211_sta_bmiss_enhance(struct ath6kl_vif *vif, bool enable);
 
 #endif /* ATH6KL_CFG80211_H */

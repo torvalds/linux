@@ -804,9 +804,9 @@ void __init setup_arch(char **cmdline_p)
 
 	BUG_ON(memory_start == memory_end);
 
-	init_mm.start_code = (unsigned long) &_stext;
-	init_mm.end_code = (unsigned long) &_etext;
-	init_mm.end_data = (unsigned long) &_edata;
+	init_mm.start_code = (unsigned long) _stext;
+	init_mm.end_code = (unsigned long) _etext;
+	init_mm.end_data = (unsigned long) _edata;
 #if 0 /* DAVIDM - don't set brk just incase someone decides to use it */
 	init_mm.brk = (unsigned long) &_end;
 #else
@@ -814,10 +814,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef DEBUG
-	printk("KERNEL -> TEXT=0x%06x-0x%06x DATA=0x%06x-0x%06x BSS=0x%06x-0x%06x\n",
-	       (int) &_stext, (int) &_etext,
-	       (int) &_sdata, (int) &_edata,
-	       (int) &_sbss, (int) &_ebss);
+	printk("KERNEL -> TEXT=0x%p-0x%p DATA=0x%p-0x%p BSS=0x%p-0x%p\n",
+	       _stext, _etext, _sdata, _edata, __bss_start, __bss_stop);
 #endif
 
 #ifdef CONFIG_VT
@@ -854,7 +852,7 @@ void __init setup_arch(char **cmdline_p)
 /*
  *
  */
-static int __devinit setup_arch_serial(void)
+static int setup_arch_serial(void)
 {
 	/* register those serial ports that are available */
 #ifndef CONFIG_GDBSTUB_UART0

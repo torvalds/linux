@@ -243,6 +243,9 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	err = ceph_mdsc_do_request(mdsc,
 				   (flags & (O_CREAT|O_TRUNC)) ? dir : NULL,
 				   req);
+	if (err)
+		goto out_err;
+
 	err = ceph_handle_snapdir(req, dentry, err);
 	if (err == 0 && (flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
@@ -263,6 +266,9 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		err = finish_no_open(file, dn);
 	} else {
 		dout("atomic_open finish_open on dn %p\n", dn);
+		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_ino) {
+			*opened |= FILE_CREATED;
+		}
 		err = finish_open(file, dentry, ceph_open, opened);
 	}
 
@@ -393,7 +399,7 @@ more:
 static ssize_t ceph_sync_read(struct file *file, char __user *data,
 			      unsigned len, loff_t *poff, int *checkeof)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct page **pages;
 	u64 off = *poff;
 	int num_pages, ret;
@@ -466,7 +472,7 @@ static void sync_write_commit(struct ceph_osd_request *req,
 static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 			       size_t left, loff_t *offset)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_osd_request *req;
@@ -483,7 +489,7 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
 
-	if (ceph_snap(file->f_dentry->d_inode) != CEPH_NOSNAP)
+	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
 
 	dout("sync_write on file %p %lld~%u %s\n", file, *offset,
@@ -535,7 +541,7 @@ more:
 				    ci->i_snap_realm->cached_context,
 				    do_sync,
 				    ci->i_truncate_seq, ci->i_truncate_size,
-				    &mtime, false, 2, page_align);
+				    &mtime, false, page_align);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -637,7 +643,7 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	struct ceph_file_info *fi = filp->private_data;
 	loff_t *ppos = &iocb->ki_pos;
 	size_t len = iov->iov_len;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	void __user *base = iov->iov_base;
 	ssize_t ret;
@@ -707,68 +713,58 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct ceph_file_info *fi = file->private_data;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
 	loff_t endoff = pos + iov->iov_len;
-	int want, got = 0;
-	int ret, err;
+	int got = 0;
+	int ret, err, written;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
 retry_snap:
+	written = 0;
 	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL))
 		return -ENOSPC;
 	__ceph_do_pending_vmtruncate(inode);
-	dout("aio_write %p %llx.%llx %llu~%u getting caps. i_size %llu\n",
-	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
-	     inode->i_size);
-	if (fi->fmode & CEPH_FILE_MODE_LAZY)
-		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
-	else
-		want = CEPH_CAP_FILE_BUFFER;
-	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, &got, endoff);
-	if (ret < 0)
-		goto out_put;
 
-	dout("aio_write %p %llx.%llx %llu~%u  got cap refs on %s\n",
-	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
-	     ceph_cap_string(got));
-
-	if ((got & (CEPH_CAP_FILE_BUFFER|CEPH_CAP_FILE_LAZYIO)) == 0 ||
-	    (iocb->ki_filp->f_flags & O_DIRECT) ||
-	    (inode->i_sb->s_flags & MS_SYNCHRONOUS) ||
-	    (fi->flags & CEPH_F_SYNC)) {
-		ret = ceph_sync_write(file, iov->iov_base, iov->iov_len,
-			&iocb->ki_pos);
-	} else {
-		/*
-		 * buffered write; drop Fw early to avoid slow
-		 * revocation if we get stuck on balance_dirty_pages
-		 */
-		int dirty;
-
-		spin_lock(&ci->i_ceph_lock);
-		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
-		spin_unlock(&ci->i_ceph_lock);
-		ceph_put_cap_refs(ci, got);
-
+	/*
+	 * try to do a buffered write.  if we don't have sufficient
+	 * caps, we'll get -EAGAIN from generic_file_aio_write, or a
+	 * short write if we only get caps for some pages.
+	 */
+	if (!(iocb->ki_filp->f_flags & O_DIRECT) &&
+	    !(inode->i_sb->s_flags & MS_SYNCHRONOUS) &&
+	    !(fi->flags & CEPH_F_SYNC)) {
 		ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
+		if (ret >= 0)
+			written = ret;
+
 		if ((ret >= 0 || ret == -EIOCBQUEUED) &&
 		    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host)
 		     || ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
-			err = vfs_fsync_range(file, pos, pos + ret - 1, 1);
+			err = vfs_fsync_range(file, pos, pos + written - 1, 1);
 			if (err < 0)
 				ret = err;
 		}
-
-		if (dirty)
-			__mark_inode_dirty(inode, dirty);
-		goto out;
+		if ((ret < 0 && ret != -EAGAIN) || pos + written >= endoff)
+			goto out;
 	}
 
+	dout("aio_write %p %llx.%llx %llu~%u getting caps. i_size %llu\n",
+	     inode, ceph_vinop(inode), pos + written,
+	     (unsigned)iov->iov_len - written, inode->i_size);
+	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, 0, &got, endoff);
+	if (ret < 0)
+		goto out;
+
+	dout("aio_write %p %llx.%llx %llu~%u  got cap refs on %s\n",
+	     inode, ceph_vinop(inode), pos + written,
+	     (unsigned)iov->iov_len - written, ceph_cap_string(got));
+	ret = ceph_sync_write(file, iov->iov_base + written,
+			      iov->iov_len - written, &iocb->ki_pos);
 	if (ret >= 0) {
 		int dirty;
 		spin_lock(&ci->i_ceph_lock);
@@ -777,13 +773,10 @@ retry_snap:
 		if (dirty)
 			__mark_inode_dirty(inode, dirty);
 	}
-
-out_put:
 	dout("aio_write %p %llx.%llx %llu~%u  dropping cap refs on %s\n",
-	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
-	     ceph_cap_string(got));
+	     inode, ceph_vinop(inode), pos + written,
+	     (unsigned)iov->iov_len - written, ceph_cap_string(got));
 	ceph_put_cap_refs(ci, got);
-
 out:
 	if (ret == -EOLDSNAPC) {
 		dout("aio_write %p %llx.%llx %llu~%u got EOLDSNAPC, retrying\n",
@@ -797,7 +790,7 @@ out:
 /*
  * llseek.  be sure to verify file size on SEEK_END.
  */
-static loff_t ceph_llseek(struct file *file, loff_t offset, int origin)
+static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	int ret;
@@ -805,7 +798,7 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int origin)
 	mutex_lock(&inode->i_mutex);
 	__ceph_do_pending_vmtruncate(inode);
 
-	if (origin == SEEK_END || origin == SEEK_DATA || origin == SEEK_HOLE) {
+	if (whence == SEEK_END || whence == SEEK_DATA || whence == SEEK_HOLE) {
 		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
 		if (ret < 0) {
 			offset = ret;
@@ -813,7 +806,7 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int origin)
 		}
 	}
 
-	switch (origin) {
+	switch (whence) {
 	case SEEK_END:
 		offset += inode->i_size;
 		break;

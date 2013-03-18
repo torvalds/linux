@@ -680,7 +680,7 @@ config ETRAX_SPI_MMC_BOARD
 
 config SPI_ETRAX_SSER
 	tristate
-	depends on SPI_MASTER && ETRAX_ARCH_V32 && EXPERIMENTAL
+	depends on SPI_MASTER && ETRAX_ARCH_V32
 	select SPI_BITBANG
 	help
 	  This enables using an synchronous serial (sser) port as a
@@ -689,7 +689,7 @@ config SPI_ETRAX_SSER
 
 config SPI_ETRAX_GPIO
 	tristate
-	depends on SPI_MASTER && ETRAX_ARCH_V32 && EXPERIMENTAL
+	depends on SPI_MASTER && ETRAX_ARCH_V32
 	select SPI_BITBANG
 	help
 	  This enables using GPIO pins port as a SPI master controller

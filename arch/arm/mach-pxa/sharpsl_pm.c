@@ -829,7 +829,7 @@ static const struct platform_suspend_ops sharpsl_pm_ops = {
 };
 #endif
 
-static int __devinit sharpsl_pm_probe(struct platform_device *pdev)
+static int sharpsl_pm_probe(struct platform_device *pdev)
 {
 	int ret, irq;
 
@@ -941,7 +941,7 @@ static struct platform_driver sharpsl_pm_driver = {
 	},
 };
 
-static int __devinit sharpsl_pm_init(void)
+static int sharpsl_pm_init(void)
 {
 	return platform_driver_register(&sharpsl_pm_driver);
 }

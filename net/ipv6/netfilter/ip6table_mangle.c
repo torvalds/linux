@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/slab.h>
+#include <net/ipv6.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
@@ -60,8 +61,8 @@ ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 			    dev_net(out)->ipv6.ip6table_mangle);
 
 	if (ret != NF_DROP && ret != NF_STOLEN &&
-	    (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr)) ||
-	     memcmp(&ipv6_hdr(skb)->daddr, &daddr, sizeof(daddr)) ||
+	    (!ipv6_addr_equal(&ipv6_hdr(skb)->saddr, &saddr) ||
+	     !ipv6_addr_equal(&ipv6_hdr(skb)->daddr, &daddr) ||
 	     skb->mark != mark ||
 	     ipv6_hdr(skb)->hop_limit != hop_limit ||
 	     flowlabel != *((u_int32_t *)ipv6_hdr(skb))))

@@ -228,10 +228,6 @@
 
 static const char fsg_string_interface[] = "Mass Storage";
 
-#define FSG_NO_DEVICE_STRINGS    1
-#define FSG_NO_OTG               1
-#define FSG_NO_INTR_EP           1
-
 #include "storage_common.c"
 
 
@@ -250,20 +246,6 @@ struct fsg_operations {
 	 * set).
 	 */
 	int (*thread_exits)(struct fsg_common *common);
-
-	/*
-	 * Called prior to ejection.  Negative return means error,
-	 * zero means to continue with ejection, positive means not to
-	 * eject.
-	 */
-	int (*pre_eject)(struct fsg_common *common,
-			 struct fsg_lun *lun, int num);
-	/*
-	 * Called after ejection.  Negative return means error, zero
-	 * or positive is just a success.
-	 */
-	int (*post_eject)(struct fsg_common *common,
-			  struct fsg_lun *lun, int num);
 };
 
 /* Data shared by all the FSG instances. */
@@ -996,7 +978,7 @@ static int do_synchronize_cache(struct fsg_common *common)
 static void invalidate_sub(struct fsg_lun *curlun)
 {
 	struct file	*filp = curlun->filp;
-	struct inode	*inode = filp->f_path.dentry->d_inode;
+	struct inode	*inode = file_inode(filp);
 	unsigned long	rc;
 
 	rc = invalidate_mapping_pages(inode->i_mapping, 0, -1);
@@ -1378,26 +1360,13 @@ static int do_start_stop(struct fsg_common *common)
 	if (!loej)
 		return 0;
 
-	/* Simulate an unload/eject */
-	if (common->ops && common->ops->pre_eject) {
-		int r = common->ops->pre_eject(common, curlun,
-					       curlun - common->luns);
-		if (unlikely(r < 0))
-			return r;
-		else if (r)
-			return 0;
-	}
-
 	up_read(&common->filesem);
 	down_write(&common->filesem);
 	fsg_lun_close(curlun);
 	up_write(&common->filesem);
 	down_read(&common->filesem);
 
-	return common->ops && common->ops->post_eject
-		? min(0, common->ops->post_eject(common, curlun,
-						 curlun - common->luns))
-		: 0;
+	return 0;
 }
 
 static int do_prevent_allow(struct fsg_common *common)
@@ -1722,7 +1691,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 			 int needs_medium, const char *name)
 {
 	int			i;
-	int			lun = common->cmnd[1] >> 5;
+	unsigned int		lun = common->cmnd[1] >> 5;
 	static const char	dirletter[4] = {'u', 'o', 'i', 'n'};
 	char			hdlen[20];
 	struct fsg_lun		*curlun;
@@ -1788,7 +1757,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 
 	/* Check that the LUN values are consistent */
 	if (common->lun != lun)
-		DBG(common, "using LUN %d from CBW, not LUN %d from CDB\n",
+		DBG(common, "using LUN %u from CBW, not LUN %u from CDB\n",
 		    common->lun, lun);
 
 	/* Check the LUN */
@@ -1808,7 +1777,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 		 */
 		if (common->cmnd[0] != INQUIRY &&
 		    common->cmnd[0] != REQUEST_SENSE) {
-			DBG(common, "unsupported LUN %d\n", common->lun);
+			DBG(common, "unsupported LUN %u\n", common->lun);
 			return -EINVAL;
 		}
 	}
@@ -2200,7 +2169,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	if (common->data_size == 0)
 		common->data_dir = DATA_DIR_NONE;
 	common->lun = cbw->Lun;
-	if (common->lun >= 0 && common->lun < common->nluns)
+	if (common->lun < common->nluns)
 		common->curlun = &common->luns[common->lun];
 	else
 		common->curlun = NULL;
@@ -2904,9 +2873,7 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 	}
 
 	fsg_common_put(common);
-	usb_free_descriptors(fsg->function.descriptors);
-	usb_free_descriptors(fsg->function.hs_descriptors);
-	usb_free_descriptors(fsg->function.ss_descriptors);
+	usb_free_all_descriptors(&fsg->function);
 	kfree(fsg);
 }
 
@@ -2916,6 +2883,8 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	int			i;
 	struct usb_ep		*ep;
+	unsigned		max_burst;
+	int			ret;
 
 	fsg->gadget = gadget;
 
@@ -2939,45 +2908,27 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	ep->driver_data = fsg->common;	/* claim the endpoint */
 	fsg->bulk_out = ep;
 
-	/* Copy descriptors */
-	f->descriptors = usb_copy_descriptors(fsg_fs_function);
-	if (unlikely(!f->descriptors))
-		return -ENOMEM;
+	/* Assume endpoint addresses are the same for both speeds */
+	fsg_hs_bulk_in_desc.bEndpointAddress =
+		fsg_fs_bulk_in_desc.bEndpointAddress;
+	fsg_hs_bulk_out_desc.bEndpointAddress =
+		fsg_fs_bulk_out_desc.bEndpointAddress;
 
-	if (gadget_is_dualspeed(gadget)) {
-		/* Assume endpoint addresses are the same for both speeds */
-		fsg_hs_bulk_in_desc.bEndpointAddress =
-			fsg_fs_bulk_in_desc.bEndpointAddress;
-		fsg_hs_bulk_out_desc.bEndpointAddress =
-			fsg_fs_bulk_out_desc.bEndpointAddress;
-		f->hs_descriptors = usb_copy_descriptors(fsg_hs_function);
-		if (unlikely(!f->hs_descriptors)) {
-			usb_free_descriptors(f->descriptors);
-			return -ENOMEM;
-		}
-	}
+	/* Calculate bMaxBurst, we know packet size is 1024 */
+	max_burst = min_t(unsigned, FSG_BUFLEN / 1024, 15);
 
-	if (gadget_is_superspeed(gadget)) {
-		unsigned	max_burst;
+	fsg_ss_bulk_in_desc.bEndpointAddress =
+		fsg_fs_bulk_in_desc.bEndpointAddress;
+	fsg_ss_bulk_in_comp_desc.bMaxBurst = max_burst;
 
-		/* Calculate bMaxBurst, we know packet size is 1024 */
-		max_burst = min_t(unsigned, FSG_BUFLEN / 1024, 15);
+	fsg_ss_bulk_out_desc.bEndpointAddress =
+		fsg_fs_bulk_out_desc.bEndpointAddress;
+	fsg_ss_bulk_out_comp_desc.bMaxBurst = max_burst;
 
-		fsg_ss_bulk_in_desc.bEndpointAddress =
-			fsg_fs_bulk_in_desc.bEndpointAddress;
-		fsg_ss_bulk_in_comp_desc.bMaxBurst = max_burst;
-
-		fsg_ss_bulk_out_desc.bEndpointAddress =
-			fsg_fs_bulk_out_desc.bEndpointAddress;
-		fsg_ss_bulk_out_comp_desc.bMaxBurst = max_burst;
-
-		f->ss_descriptors = usb_copy_descriptors(fsg_ss_function);
-		if (unlikely(!f->ss_descriptors)) {
-			usb_free_descriptors(f->hs_descriptors);
-			usb_free_descriptors(f->descriptors);
-			return -ENOMEM;
-		}
-	}
+	ret = usb_assign_descriptors(f, fsg_fs_function, fsg_hs_function,
+			fsg_ss_function);
+	if (ret)
+		goto autoconf_fail;
 
 	return 0;
 
@@ -2985,7 +2936,6 @@ autoconf_fail:
 	ERROR(fsg, "unable to autoconfigure all endpoints\n");
 	return -ENOTSUPP;
 }
-
 
 /****************************** ADD FUNCTION ******************************/
 

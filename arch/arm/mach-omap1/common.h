@@ -26,8 +26,12 @@
 #ifndef __ARCH_ARM_MACH_OMAP1_COMMON_H
 #define __ARCH_ARM_MACH_OMAP1_COMMON_H
 
-#include <plat/common.h>
 #include <linux/mtd/mtd.h>
+#include <linux/i2c-omap.h>
+
+#include <plat/i2c.h>
+
+#include <mach/irqs.h>
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 void omap7xx_map_io(void);
@@ -38,6 +42,7 @@ static inline void omap7xx_map_io(void)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP15XX
+void omap1510_fpga_init_irq(void);
 void omap15xx_map_io(void);
 #else
 static inline void omap15xx_map_io(void)
@@ -72,7 +77,7 @@ extern void __init omap_check_revision(void);
 extern void omap1_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
 			       unsigned int ctrl);
 
-extern struct sys_timer omap1_timer;
+extern void omap1_timer_init(void);
 #ifdef CONFIG_OMAP_32K_TIMER
 extern int omap_32k_timer_init(void);
 #else
@@ -89,5 +94,7 @@ extern int ocpi_enable(void);
 #else
 static inline int ocpi_enable(void) { return 0; }
 #endif
+
+extern u32 omap1_get_reset_sources(void);
 
 #endif /* __ARCH_ARM_MACH_OMAP1_COMMON_H */

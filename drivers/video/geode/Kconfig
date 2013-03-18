@@ -2,14 +2,14 @@
 # Geode family framebuffer configuration
 #
 config FB_GEODE
-	bool "AMD Geode family framebuffer support (EXPERIMENTAL)"
-	depends on FB && PCI && EXPERIMENTAL && X86
+	bool "AMD Geode family framebuffer support"
+	depends on FB && PCI && X86
 	---help---
 	  Say 'Y' here to allow you to select framebuffer drivers for
 	  the AMD Geode family of processors.
 
 config FB_GEODE_LX
-	tristate "AMD Geode LX framebuffer support (EXPERIMENTAL)"
+	tristate "AMD Geode LX framebuffer support"
 	depends on FB && FB_GEODE
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -24,8 +24,8 @@ config FB_GEODE_LX
 	  If unsure, say N.
 
 config FB_GEODE_GX
-	tristate "AMD Geode GX framebuffer support (EXPERIMENTAL)"
-	depends on FB && FB_GEODE && EXPERIMENTAL
+	tristate "AMD Geode GX framebuffer support"
+	depends on FB && FB_GEODE
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -39,8 +39,8 @@ config FB_GEODE_GX
 	  If unsure, say N.
 
 config FB_GEODE_GX1
-	tristate "AMD Geode GX1 framebuffer support (EXPERIMENTAL)"
-	depends on FB && FB_GEODE && EXPERIMENTAL
+	tristate "AMD Geode GX1 framebuffer support"
+	depends on FB && FB_GEODE
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

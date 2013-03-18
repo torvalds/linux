@@ -115,6 +115,12 @@ int vid_from_reg(int val, u8 vrm)
 		return (val < 32) ? 1550 - 25 * val
 			: 775 - (25 * (val - 31)) / 2;
 
+	case 26:		/* AMD family 10h to 15h, serial VID */
+		val &= 0x7f;
+		if (val >= 0x7c)
+			return 0;
+		return DIV_ROUND_CLOSEST(15500 - 125 * val, 10);
+
 	case 91:		/* VRM 9.1 */
 	case 90:		/* VRM 9.0 */
 		val &= 0x1f;
@@ -195,6 +201,10 @@ static struct vrm_model vrm_models[] = {
 	{X86_VENDOR_AMD, 0xF, 0x40, 0x7F, ANY, 24},	/* NPT family 0Fh */
 	{X86_VENDOR_AMD, 0xF, 0x80, ANY, ANY, 25},	/* future fam. 0Fh */
 	{X86_VENDOR_AMD, 0x10, 0x0, ANY, ANY, 25},	/* NPT family 10h */
+	{X86_VENDOR_AMD, 0x11, 0x0, ANY, ANY, 26},	/* family 11h */
+	{X86_VENDOR_AMD, 0x12, 0x0, ANY, ANY, 26},	/* family 12h */
+	{X86_VENDOR_AMD, 0x14, 0x0, ANY, ANY, 26},	/* family 14h */
+	{X86_VENDOR_AMD, 0x15, 0x0, ANY, ANY, 26},	/* family 15h */
 
 	{X86_VENDOR_INTEL, 0x6, 0x0, 0x6, ANY, 82},	/* Pentium Pro,
 							 * Pentium II, Xeon,

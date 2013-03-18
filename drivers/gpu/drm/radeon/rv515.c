@@ -40,6 +40,12 @@ static int rv515_debugfs_ga_info_init(struct radeon_device *rdev);
 static void rv515_gpu_init(struct radeon_device *rdev);
 int rv515_mc_wait_for_idle(struct radeon_device *rdev);
 
+static const u32 crtc_offsets[2] =
+{
+	0,
+	AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL
+};
+
 void rv515_debugfs(struct radeon_device *rdev)
 {
 	if (r100_debugfs_rbbm_init(rdev)) {
@@ -281,30 +287,116 @@ static int rv515_debugfs_ga_info_init(struct radeon_device *rdev)
 
 void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 {
+	u32 crtc_enabled, tmp, frame_count, blackout;
+	int i, j;
+
 	save->vga_render_control = RREG32(R_000300_VGA_RENDER_CONTROL);
 	save->vga_hdp_control = RREG32(R_000328_VGA_HDP_CONTROL);
 
-	/* Stop all video */
-	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
+	/* disable VGA render */
 	WREG32(R_000300_VGA_RENDER_CONTROL, 0);
-	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 1);
-	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 1);
-	WREG32(R_006080_D1CRTC_CONTROL, 0);
-	WREG32(R_006880_D2CRTC_CONTROL, 0);
-	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 0);
-	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
-	WREG32(R_000330_D1VGA_CONTROL, 0);
-	WREG32(R_000338_D2VGA_CONTROL, 0);
+	/* blank the display controllers */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		crtc_enabled = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]) & AVIVO_CRTC_EN;
+		if (crtc_enabled) {
+			save->crtc_enabled[i] = true;
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
+			if (!(tmp & AVIVO_CRTC_DISP_READ_REQUEST_DISABLE)) {
+				radeon_wait_for_vblank(rdev, i);
+				tmp |= AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
+				WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+			}
+			/* wait for the next frame */
+			frame_count = radeon_get_vblank_counter(rdev, i);
+			for (j = 0; j < rdev->usec_timeout; j++) {
+				if (radeon_get_vblank_counter(rdev, i) != frame_count)
+					break;
+				udelay(1);
+			}
+		} else {
+			save->crtc_enabled[i] = false;
+		}
+	}
+
+	radeon_mc_wait_for_idle(rdev);
+
+	if (rdev->family >= CHIP_R600) {
+		if (rdev->family >= CHIP_RV770)
+			blackout = RREG32(R700_MC_CITF_CNTL);
+		else
+			blackout = RREG32(R600_CITF_CNTL);
+		if ((blackout & R600_BLACKOUT_MASK) != R600_BLACKOUT_MASK) {
+			/* Block CPU access */
+			WREG32(R600_BIF_FB_EN, 0);
+			/* blackout the MC */
+			blackout |= R600_BLACKOUT_MASK;
+			if (rdev->family >= CHIP_RV770)
+				WREG32(R700_MC_CITF_CNTL, blackout);
+			else
+				WREG32(R600_CITF_CNTL, blackout);
+		}
+	}
+	/* wait for the MC to settle */
+	udelay(100);
 }
 
 void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
 {
-	WREG32(R_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS, rdev->mc.vram_start);
-	WREG32(R_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS, rdev->mc.vram_start);
-	WREG32(R_006910_D2GRPH_PRIMARY_SURFACE_ADDRESS, rdev->mc.vram_start);
-	WREG32(R_006918_D2GRPH_SECONDARY_SURFACE_ADDRESS, rdev->mc.vram_start);
-	WREG32(R_000310_VGA_MEMORY_BASE_ADDRESS, rdev->mc.vram_start);
-	/* Unlock host access */
+	u32 tmp, frame_count;
+	int i, j;
+
+	/* update crtc base addresses */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (rdev->family >= CHIP_RV770) {
+			if (i == 1) {
+				WREG32(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(rdev->mc.vram_start));
+				WREG32(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(rdev->mc.vram_start));
+			} else {
+				WREG32(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(rdev->mc.vram_start));
+				WREG32(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(rdev->mc.vram_start));
+			}
+		}
+		WREG32(R_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS + crtc_offsets[i],
+		       (u32)rdev->mc.vram_start);
+		WREG32(R_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS + crtc_offsets[i],
+		       (u32)rdev->mc.vram_start);
+	}
+	WREG32(R_000310_VGA_MEMORY_BASE_ADDRESS, (u32)rdev->mc.vram_start);
+
+	if (rdev->family >= CHIP_R600) {
+		/* unblackout the MC */
+		if (rdev->family >= CHIP_RV770)
+			tmp = RREG32(R700_MC_CITF_CNTL);
+		else
+			tmp = RREG32(R600_CITF_CNTL);
+		tmp &= ~R600_BLACKOUT_MASK;
+		if (rdev->family >= CHIP_RV770)
+			WREG32(R700_MC_CITF_CNTL, tmp);
+		else
+			WREG32(R600_CITF_CNTL, tmp);
+		/* allow CPU access */
+		WREG32(R600_BIF_FB_EN, R600_FB_READ_EN | R600_FB_WRITE_EN);
+	}
+
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
+			tmp &= ~AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
+			WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+			/* wait for the next frame */
+			frame_count = radeon_get_vblank_counter(rdev, i);
+			for (j = 0; j < rdev->usec_timeout; j++) {
+				if (radeon_get_vblank_counter(rdev, i) != frame_count)
+					break;
+				udelay(1);
+			}
+		}
+	}
+	/* Unlock vga access */
 	WREG32(R_000328_VGA_HDP_CONTROL, save->vga_hdp_control);
 	mdelay(1);
 	WREG32(R_000300_VGA_RENDER_CONTROL, save->vga_render_control);

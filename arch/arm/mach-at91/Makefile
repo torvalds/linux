@@ -66,7 +66,6 @@ obj-$(CONFIG_MACH_AT91SAM9G10EK) += board-sam9261ek.o
 # AT91SAM9263 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9263EK) += board-sam9263ek.o
 obj-$(CONFIG_MACH_USB_A9263)	+= board-usb-a926x.o
-obj-$(CONFIG_MACH_NEOCORE926)	+= board-neocore926.o
 
 # AT91SAM9RL board-specific support
 obj-$(CONFIG_MACH_AT91SAM9RLEK)	+= board-sam9rlek.o
@@ -88,6 +87,7 @@ obj-$(CONFIG_MACH_SNAPPER_9260)	+= board-snapper9260.o
 obj-$(CONFIG_MACH_AT91SAM9M10G45EK) += board-sam9m10g45ek.o
 
 # AT91SAM board with device-tree
+obj-$(CONFIG_MACH_AT91RM9200_DT) += board-rm9200-dt.o
 obj-$(CONFIG_MACH_AT91SAM_DT) += board-dt.o
 
 # AT91X40 board-specific support

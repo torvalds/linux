@@ -17,6 +17,7 @@
 #include <linux/skbuff.h>
 #include <linux/cgroup.h>
 #include <linux/rcupdate.h>
+#include <linux/fdtable.h>
 #include <net/rtnetlink.h>
 #include <net/pkt_cls.h>
 #include <net/sock.h>
@@ -34,23 +35,49 @@ static inline struct cgroup_cls_state *task_cls_state(struct task_struct *p)
 			    struct cgroup_cls_state, css);
 }
 
-static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
+static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 {
 	struct cgroup_cls_state *cs;
 
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
-
-	if (cgrp->parent)
-		cs->classid = cgrp_cls_state(cgrp->parent)->classid;
-
 	return &cs->css;
 }
 
-static void cgrp_destroy(struct cgroup *cgrp)
+static int cgrp_css_online(struct cgroup *cgrp)
+{
+	if (cgrp->parent)
+		cgrp_cls_state(cgrp)->classid =
+			cgrp_cls_state(cgrp->parent)->classid;
+	return 0;
+}
+
+static void cgrp_css_free(struct cgroup *cgrp)
 {
 	kfree(cgrp_cls_state(cgrp));
+}
+
+static int update_classid(const void *v, struct file *file, unsigned n)
+{
+	int err;
+	struct socket *sock = sock_from_file(file, &err);
+	if (sock)
+		sock->sk->sk_classid = (u32)(unsigned long)v;
+	return 0;
+}
+
+static void cgrp_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+{
+	struct task_struct *p;
+	void *v;
+
+	cgroup_taskset_for_each(p, cgrp, tset) {
+		task_lock(p);
+		v = (void *)(unsigned long)task_cls_classid(p);
+		iterate_fd(p->files, 0, update_classid, v);
+		task_unlock(p);
+	}
 }
 
 static u64 read_classid(struct cgroup *cgrp, struct cftype *cft)
@@ -75,20 +102,13 @@ static struct cftype ss_files[] = {
 
 struct cgroup_subsys net_cls_subsys = {
 	.name		= "net_cls",
-	.create		= cgrp_create,
-	.destroy	= cgrp_destroy,
+	.css_alloc	= cgrp_css_alloc,
+	.css_online	= cgrp_css_online,
+	.css_free	= cgrp_css_free,
+	.attach		= cgrp_attach,
 	.subsys_id	= net_cls_subsys_id,
 	.base_cftypes	= ss_files,
 	.module		= THIS_MODULE,
-
-	/*
-	 * While net_cls cgroup has the rudimentary hierarchy support of
-	 * inheriting the parent's classid on cgroup creation, it doesn't
-	 * properly propagates config changes in ancestors to their
-	 * descendents.  A child should follow the parent's configuration
-	 * but be allowed to override it.  Fix it and remove the following.
-	 */
-	.broken_hierarchy = true,
 };
 
 struct cls_cgroup_head {
@@ -158,7 +178,7 @@ static const struct nla_policy cgroup_policy[TCA_CGROUP_MAX + 1] = {
 	[TCA_CGROUP_EMATCHES]	= { .type = NLA_NESTED },
 };
 
-static int cls_cgroup_change(struct sk_buff *in_skb,
+static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
 			     unsigned long *arg)
@@ -195,7 +215,8 @@ static int cls_cgroup_change(struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
-	err = tcf_exts_validate(tp, tb, tca[TCA_RATE], &e, &cgroup_ext_map);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e,
+				&cgroup_ext_map);
 	if (err < 0)
 		return err;
 

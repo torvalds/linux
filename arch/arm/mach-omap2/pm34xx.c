@@ -28,29 +28,27 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/omap-dma.h>
 #include <linux/platform_data/gpio-omap.h>
 
 #include <trace/events/power.h>
 
+#include <asm/fncpy.h>
 #include <asm/suspend.h>
 #include <asm/system_misc.h>
 
-#include <plat/sram.h>
 #include "clockdomain.h"
 #include "powerdomain.h"
-#include <plat/sdrc.h>
-#include <plat/prcm.h>
-#include <plat/gpmc.h>
-#include <plat/dma.h>
-
+#include "soc.h"
 #include "common.h"
-#include "cm2xxx_3xxx.h"
+#include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
+#include "gpmc.h"
 #include "prm-regbits-34xx.h"
-
-#include "prm2xxx_3xxx.h"
+#include "prm3xxx.h"
 #include "pm.h"
 #include "sdrc.h"
+#include "sram.h"
 #include "control.h"
 
 /* pm34xx errata defined in pm.h */
@@ -353,12 +351,10 @@ static void omap3_pm_idle(void)
 	if (omap_irq_pending())
 		goto out;
 
-	trace_power_start(POWER_CSTATE, 1, smp_processor_id());
 	trace_cpu_idle(1, smp_processor_id());
 
 	omap_sram_idle();
 
-	trace_power_end(smp_processor_id());
 	trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
 
 out:

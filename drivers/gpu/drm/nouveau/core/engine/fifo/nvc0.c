@@ -27,6 +27,7 @@
 #include <core/namedb.h>
 #include <core/gpuobj.h>
 #include <core/engctx.h>
+#include <core/event.h>
 #include <core/class.h>
 #include <core/math.h>
 #include <core/enum.h>
@@ -103,6 +104,9 @@ nvc0_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_COPY0: addr = 0x0230; break;
 	case NVDEV_ENGINE_COPY1: addr = 0x0240; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -137,21 +141,24 @@ nvc0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_COPY0: addr = 0x0230; break;
 	case NVDEV_ENGINE_COPY1: addr = 0x0240; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
+	}
+
+	nv_wr32(priv, 0x002634, chan->base.chid);
+	if (!nv_wait(priv, 0x002634, 0xffffffff, chan->base.chid)) {
+		nv_error(priv, "channel %d [%s] kick timeout\n",
+			 chan->base.chid, nouveau_client_name(chan));
+		if (suspend)
+			return -EBUSY;
 	}
 
 	nv_wo32(base, addr + 0x00, 0x00000000);
 	nv_wo32(base, addr + 0x04, 0x00000000);
 	bar->flush(bar);
-
-	nv_wr32(priv, 0x002634, chan->base.chid);
-	if (!nv_wait(priv, 0x002634, 0xffffffff, chan->base.chid)) {
-		nv_error(priv, "channel %d kick timeout\n", chan->base.chid);
-		if (suspend)
-			return -EBUSY;
-	}
-
 	return 0;
 }
 
@@ -175,10 +182,13 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 1,
 					  priv->user.bar.offset, 0x1000,
 					  args->pushbuf,
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_COPY0) |
-					  (1 << NVDEV_ENGINE_COPY1), &chan);
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_COPY1) |
+					  (1ULL << NVDEV_ENGINE_BSP) |
+					  (1ULL << NVDEV_ENGINE_VP) |
+					  (1ULL << NVDEV_ENGINE_PPP), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -325,17 +335,17 @@ nvc0_fifo_cclass = {
  ******************************************************************************/
 
 static const struct nouveau_enum nvc0_fifo_fault_unit[] = {
-	{ 0x00, "PGRAPH" },
+	{ 0x00, "PGRAPH", NULL, NVDEV_ENGINE_GR },
 	{ 0x03, "PEEPHOLE" },
 	{ 0x04, "BAR1" },
 	{ 0x05, "BAR3" },
-	{ 0x07, "PFIFO" },
-	{ 0x10, "PBSP" },
-	{ 0x11, "PPPP" },
+	{ 0x07, "PFIFO", NULL, NVDEV_ENGINE_FIFO },
+	{ 0x10, "PBSP", NULL, NVDEV_ENGINE_BSP },
+	{ 0x11, "PPPP", NULL, NVDEV_ENGINE_PPP },
 	{ 0x13, "PCOUNTER" },
-	{ 0x14, "PVP" },
-	{ 0x15, "PCOPY0" },
-	{ 0x16, "PCOPY1" },
+	{ 0x14, "PVP", NULL, NVDEV_ENGINE_VP },
+	{ 0x15, "PCOPY0", NULL, NVDEV_ENGINE_COPY0 },
+	{ 0x16, "PCOPY1", NULL, NVDEV_ENGINE_COPY1 },
 	{ 0x17, "PDAEMON" },
 	{}
 };
@@ -394,6 +404,9 @@ nvc0_fifo_isr_vm_fault(struct nvc0_fifo_priv *priv, int unit)
 	u32 vahi = nv_rd32(priv, 0x002808 + (unit * 0x10));
 	u32 stat = nv_rd32(priv, 0x00280c + (unit * 0x10));
 	u32 client = (stat & 0x00001f00) >> 8;
+	const struct nouveau_enum *en;
+	struct nouveau_engine *engine;
+	struct nouveau_object *engctx = NULL;
 
 	switch (unit) {
 	case 3: /* PEEPHOLE */
@@ -412,16 +425,26 @@ nvc0_fifo_isr_vm_fault(struct nvc0_fifo_priv *priv, int unit)
 	nv_error(priv, "%s fault at 0x%010llx [", (stat & 0x00000080) ?
 		 "write" : "read", (u64)vahi << 32 | valo);
 	nouveau_enum_print(nvc0_fifo_fault_reason, stat & 0x0000000f);
-	printk("] from ");
-	nouveau_enum_print(nvc0_fifo_fault_unit, unit);
+	pr_cont("] from ");
+	en = nouveau_enum_print(nvc0_fifo_fault_unit, unit);
 	if (stat & 0x00000040) {
-		printk("/");
+		pr_cont("/");
 		nouveau_enum_print(nvc0_fifo_fault_hubclient, client);
 	} else {
-		printk("/GPC%d/", (stat & 0x1f000000) >> 24);
+		pr_cont("/GPC%d/", (stat & 0x1f000000) >> 24);
 		nouveau_enum_print(nvc0_fifo_fault_gpcclient, client);
 	}
-	printk(" on channel 0x%010llx\n", (u64)inst << 12);
+
+	if (en && en->data2) {
+		engine = nouveau_engine(priv, en->data2);
+		if (engine)
+			engctx = nouveau_engctx_get(engine, inst);
+
+	}
+	pr_cont(" on channel 0x%010llx [%s]\n", (u64)inst << 12,
+			nouveau_client_name(engctx));
+
+	nouveau_engctx_put(engctx);
 }
 
 static int
@@ -476,10 +499,12 @@ nvc0_fifo_isr_subfifo_intr(struct nvc0_fifo_priv *priv, int unit)
 	if (show) {
 		nv_error(priv, "SUBFIFO%d:", unit);
 		nouveau_bitfield_print(nvc0_fifo_subfifo_intr, show);
-		printk("\n");
-		nv_error(priv, "SUBFIFO%d: ch %d subc %d mthd 0x%04x "
-			       "data 0x%08x\n",
-			 unit, chid, subc, mthd, data);
+		pr_cont("\n");
+		nv_error(priv,
+			 "SUBFIFO%d: ch %d [%s] subc %d mthd 0x%04x data 0x%08x\n",
+			 unit, chid,
+			 nouveau_client_name_for_fifo_chid(&priv->base, chid),
+			 subc, mthd, data);
 	}
 
 	nv_wr32(priv, 0x0400c0 + (unit * 0x2000), 0x80600008);
@@ -493,10 +518,32 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	u32 mask = nv_rd32(priv, 0x002140);
 	u32 stat = nv_rd32(priv, 0x002100) & mask;
 
+	if (stat & 0x00000001) {
+		u32 intr = nv_rd32(priv, 0x00252c);
+		nv_warn(priv, "INTR 0x00000001: 0x%08x\n", intr);
+		nv_wr32(priv, 0x002100, 0x00000001);
+		stat &= ~0x00000001;
+	}
+
 	if (stat & 0x00000100) {
-		nv_info(priv, "unknown status 0x00000100\n");
+		u32 intr = nv_rd32(priv, 0x00254c);
+		nv_warn(priv, "INTR 0x00000100: 0x%08x\n", intr);
 		nv_wr32(priv, 0x002100, 0x00000100);
 		stat &= ~0x00000100;
+	}
+
+	if (stat & 0x00010000) {
+		u32 intr = nv_rd32(priv, 0x00256c);
+		nv_warn(priv, "INTR 0x00010000: 0x%08x\n", intr);
+		nv_wr32(priv, 0x002100, 0x00010000);
+		stat &= ~0x00010000;
+	}
+
+	if (stat & 0x01000000) {
+		u32 intr = nv_rd32(priv, 0x00258c);
+		nv_warn(priv, "INTR 0x01000000: 0x%08x\n", intr);
+		nv_wr32(priv, 0x002100, 0x01000000);
+		stat &= ~0x01000000;
 	}
 
 	if (stat & 0x10000000) {
@@ -528,9 +575,18 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x40000000) {
-		nv_warn(priv, "unknown status 0x40000000\n");
-		nv_mask(priv, 0x002a00, 0x00000000, 0x00000000);
+		u32 intr0 = nv_rd32(priv, 0x0025a4);
+		u32 intr1 = nv_mask(priv, 0x002a00, 0x00000000, 0x00000);
+		nv_debug(priv, "INTR 0x40000000: 0x%08x 0x%08x\n",
+			       intr0, intr1);
 		stat &= ~0x40000000;
+	}
+
+	if (stat & 0x80000000) {
+		u32 intr = nv_mask(priv, 0x0025a8, 0x00000000, 0x00000000);
+		nouveau_event_trigger(priv->base.uevent, 0);
+		nv_debug(priv, "INTR 0x80000000: 0x%08x\n", intr);
+		stat &= ~0x80000000;
 	}
 
 	if (stat) {
@@ -538,6 +594,20 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 		nv_wr32(priv, 0x002100, stat);
 		nv_wr32(priv, 0x002140, 0);
 	}
+}
+
+static void
+nvc0_fifo_uevent_enable(struct nouveau_event *event, int index)
+{
+	struct nvc0_fifo_priv *priv = event->priv;
+	nv_mask(priv, 0x002140, 0x80000000, 0x80000000);
+}
+
+static void
+nvc0_fifo_uevent_disable(struct nouveau_event *event, int index)
+{
+	struct nvc0_fifo_priv *priv = event->priv;
+	nv_mask(priv, 0x002140, 0x80000000, 0x00000000);
 }
 
 static int
@@ -572,6 +642,10 @@ nvc0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 				&priv->user.bar);
 	if (ret)
 		return ret;
+
+	priv->base.uevent->enable = nvc0_fifo_uevent_enable;
+	priv->base.uevent->disable = nvc0_fifo_uevent_disable;
+	priv->base.uevent->priv = priv;
 
 	nv_subdev(priv)->unit = 0x00000100;
 	nv_subdev(priv)->intr = nvc0_fifo_intr;
@@ -631,7 +705,8 @@ nvc0_fifo_init(struct nouveau_object *object)
 
 	nv_wr32(priv, 0x002a00, 0xffffffff); /* clears PFIFO.INTR bit 30 */
 	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0xbfffffff);
+	nv_wr32(priv, 0x002140, 0x3fffffff);
+	nv_wr32(priv, 0x002628, 0x00000001); /* makes mthd 0x20 work */
 	return 0;
 }
 

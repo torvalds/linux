@@ -750,7 +750,7 @@ static const struct attribute_group ds2781_attr_group = {
 	.attrs = ds2781_attributes,
 };
 
-static int __devinit ds2781_battery_probe(struct platform_device *pdev)
+static int ds2781_battery_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct ds2781_device_info *dev_info;
@@ -810,7 +810,7 @@ fail:
 	return ret;
 }
 
-static int __devexit ds2781_battery_remove(struct platform_device *pdev)
+static int ds2781_battery_remove(struct platform_device *pdev)
 {
 	struct ds2781_device_info *dev_info = platform_get_drvdata(pdev);
 
@@ -827,7 +827,7 @@ static struct platform_driver ds2781_battery_driver = {
 		.name = "ds2781-battery",
 	},
 	.probe	  = ds2781_battery_probe,
-	.remove   = __devexit_p(ds2781_battery_remove),
+	.remove   = ds2781_battery_remove,
 };
 module_platform_driver(ds2781_battery_driver);
 

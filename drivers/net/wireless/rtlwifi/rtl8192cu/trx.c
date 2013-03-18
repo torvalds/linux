@@ -334,7 +334,7 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 		rx_status->flag |= RX_FLAG_40MHZ;
 	if (GET_RX_DESC_RX_HT(pdesc))
 		rx_status->flag |= RX_FLAG_HT;
-	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
+	rx_status->flag |= RX_FLAG_MACTIME_START;
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw,

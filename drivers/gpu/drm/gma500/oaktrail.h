@@ -249,3 +249,9 @@ extern void oaktrail_hdmi_i2c_exit(struct pci_dev *dev);
 extern void oaktrail_hdmi_save(struct drm_device *dev);
 extern void oaktrail_hdmi_restore(struct drm_device *dev);
 extern void oaktrail_hdmi_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev);
+extern int oaktrail_crtc_hdmi_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
+						struct drm_display_mode *adjusted_mode, int x, int y,
+						struct drm_framebuffer *old_fb);
+extern void oaktrail_crtc_hdmi_dpms(struct drm_crtc *crtc, int mode);
+
+

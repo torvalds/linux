@@ -157,7 +157,7 @@ static int match_number(substring_t *s, int *result, int base)
  *
  * Description: Attempts to parse the &substring_t @s as a decimal integer. On
  * success, sets @result to the integer represented by the string and returns 0.
- * Returns either -ENOMEM or -EINVAL on failure.
+ * Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
  */
 int match_int(substring_t *s, int *result)
 {
@@ -171,7 +171,7 @@ int match_int(substring_t *s, int *result)
  *
  * Description: Attempts to parse the &substring_t @s as an octal integer. On
  * success, sets @result to the integer represented by the string and returns
- * 0. Returns either -ENOMEM or -EINVAL on failure.
+ * 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
  */
 int match_octal(substring_t *s, int *result)
 {
@@ -185,7 +185,7 @@ int match_octal(substring_t *s, int *result)
  *
  * Description: Attempts to parse the &substring_t @s as a hexadecimal integer.
  * On success, sets @result to the integer represented by the string and
- * returns 0. Returns either -ENOMEM or -EINVAL on failure.
+ * returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
  */
 int match_hex(substring_t *s, int *result)
 {

@@ -55,36 +55,26 @@ extern struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
 extern u32			nfsd_supported_minorversion;
 extern struct mutex		nfsd_mutex;
-extern struct svc_serv		*nfsd_serv;
 extern spinlock_t		nfsd_drc_lock;
-extern unsigned int		nfsd_drc_max_mem;
-extern unsigned int		nfsd_drc_mem_used;
+extern unsigned long		nfsd_drc_max_mem;
+extern unsigned long		nfsd_drc_mem_used;
 
 extern const struct seq_operations nfs_exports_op;
 
 /*
  * Function prototypes.
  */
-int		nfsd_svc(int nrservs);
+int		nfsd_svc(int nrservs, struct net *net);
 int		nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp);
 
-int		nfsd_nrthreads(void);
-int		nfsd_nrpools(void);
-int		nfsd_get_nrthreads(int n, int *);
-int		nfsd_set_nrthreads(int n, int *);
+int		nfsd_nrthreads(struct net *);
+int		nfsd_nrpools(struct net *);
+int		nfsd_get_nrthreads(int n, int *, struct net *);
+int		nfsd_set_nrthreads(int n, int *, struct net *);
 int		nfsd_pool_stats_open(struct inode *, struct file *);
 int		nfsd_pool_stats_release(struct inode *, struct file *);
 
-static inline void nfsd_destroy(struct net *net)
-{
-	int destroy = (nfsd_serv->sv_nrthreads == 1);
-
-	if (destroy)
-		svc_shutdown_net(nfsd_serv, net);
-	svc_destroy(nfsd_serv);
-	if (destroy)
-		nfsd_serv = NULL;
-}
+void		nfsd_destroy(struct net *net);
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
@@ -103,7 +93,7 @@ enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
 int nfsd_vers(int vers, enum vers_op change);
 int nfsd_minorversion(u32 minorversion, enum vers_op change);
 void nfsd_reset_versions(void);
-int nfsd_create_serv(void);
+int nfsd_create_serv(struct net *net);
 
 extern int nfsd_max_blksize;
 
@@ -116,12 +106,14 @@ static inline int nfsd_v4client(struct svc_rqst *rq)
  * NFSv4 State
  */
 #ifdef CONFIG_NFSD_V4
-extern unsigned int max_delegations;
+extern unsigned long max_delegations;
 void nfs4_state_init(void);
 int nfsd4_init_slabs(void);
 void nfsd4_free_slabs(void);
 int nfs4_state_start(void);
+int nfs4_state_start_net(struct net *net);
 void nfs4_state_shutdown(void);
+void nfs4_state_shutdown_net(struct net *net);
 void nfs4_reset_lease(time_t leasetime);
 int nfs4_reset_recoverydir(char *recdir);
 char * nfs4_recoverydir(void);
@@ -130,7 +122,9 @@ static inline void nfs4_state_init(void) { }
 static inline int nfsd4_init_slabs(void) { return 0; }
 static inline void nfsd4_free_slabs(void) { }
 static inline int nfs4_state_start(void) { return 0; }
+static inline int nfs4_state_start_net(struct net *net) { return 0; }
 static inline void nfs4_state_shutdown(void) { }
+static inline void nfs4_state_shutdown_net(struct net *net) { }
 static inline void nfs4_reset_lease(time_t leasetime) { }
 static inline int nfs4_reset_recoverydir(char *recdir) { return 0; }
 static inline char * nfs4_recoverydir(void) {return NULL; }
@@ -265,15 +259,7 @@ void		nfsd_lockd_shutdown(void);
 /* Check for dir entries '.' and '..' */
 #define isdotent(n, l)	(l < 3 && n[0] == '.' && (l == 1 || n[1] == '.'))
 
-/*
- * Time of server startup
- */
-extern struct timeval	nfssvc_boot;
-
 #ifdef CONFIG_NFSD_V4
-
-extern time_t nfsd4_lease;
-extern time_t nfsd4_grace;
 
 /* before processing a COMPOUND operation, we have to check that there
  * is enough space in the buffer for XDR encode to succeed.  otherwise,

@@ -118,7 +118,7 @@ static inline int LIMIT_TO_MV(int limit, int range)
 
 static inline int MV_TO_LIMIT(int mv, int range)
 {
-	return SENSORS_LIMIT(DIV_ROUND_CLOSEST(mv * 256, range), 0, 255);
+	return clamp_val(DIV_ROUND_CLOSEST(mv * 256, range), 0, 255);
 }
 
 static inline int ADC_TO_CURR(int adc, int gain)

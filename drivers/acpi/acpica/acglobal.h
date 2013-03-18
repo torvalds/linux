@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@
 
 /*
  * Enable "slack" in the AML interpreter?  Default is FALSE, and the
- * interpreter strictly follows the ACPI specification.  Setting to TRUE
+ * interpreter strictly follows the ACPI specification. Setting to TRUE
  * allows the interpreter to ignore certain errors and/or bad AML constructs.
  *
  * Currently, these features are enabled by this flag:
@@ -155,26 +155,6 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_no_resource_disassembly, FALSE);
 
 /*****************************************************************************
  *
- * Debug support
- *
- ****************************************************************************/
-
-/* Procedure nesting level for debug output */
-
-extern u32 acpi_gbl_nesting_level;
-
-ACPI_EXTERN u32 acpi_gpe_count;
-ACPI_EXTERN u32 acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS];
-
-/* Support for dynamic control method tracing mechanism */
-
-ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
-ACPI_EXTERN u32 acpi_gbl_original_dbg_layer;
-ACPI_EXTERN u32 acpi_gbl_trace_dbg_level;
-ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
-
-/*****************************************************************************
- *
  * ACPI Table globals
  *
  ****************************************************************************/
@@ -212,14 +192,6 @@ ACPI_EXTERN u8 acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8 acpi_gbl_integer_byte_width;
 ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
 
-/* Mutex for _OSI support */
-
-ACPI_EXTERN acpi_mutex acpi_gbl_osi_mutex;
-
-/* Reader/Writer lock is used for namespace walk and dynamic table unload */
-
-ACPI_EXTERN struct acpi_rw_lock acpi_gbl_namespace_rw_lock;
-
 /*****************************************************************************
  *
  * Mutual exclusion within ACPICA subsystem
@@ -253,20 +225,19 @@ ACPI_EXTERN u8 acpi_gbl_global_lock_pending;
 ACPI_EXTERN acpi_spinlock acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
 ACPI_EXTERN acpi_spinlock acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
 
+/* Mutex for _OSI support */
+
+ACPI_EXTERN acpi_mutex acpi_gbl_osi_mutex;
+
+/* Reader/Writer lock is used for namespace walk and dynamic table unload */
+
+ACPI_EXTERN struct acpi_rw_lock acpi_gbl_namespace_rw_lock;
+
 /*****************************************************************************
  *
  * Miscellaneous globals
  *
  ****************************************************************************/
-
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
-
-/* Lists for tracking memory allocations */
-
-ACPI_EXTERN struct acpi_memory_list *acpi_gbl_global_list;
-ACPI_EXTERN struct acpi_memory_list *acpi_gbl_ns_node_list;
-ACPI_EXTERN u8 acpi_gbl_display_final_mem_stats;
-#endif
 
 /* Object caches */
 
@@ -281,7 +252,7 @@ ACPI_EXTERN acpi_cache_t *acpi_gbl_operand_cache;
 ACPI_EXTERN struct acpi_global_notify_handler acpi_gbl_global_notify[2];
 ACPI_EXTERN acpi_exception_handler acpi_gbl_exception_handler;
 ACPI_EXTERN acpi_init_handler acpi_gbl_init_handler;
-ACPI_EXTERN acpi_tbl_handler acpi_gbl_table_handler;
+ACPI_EXTERN acpi_table_handler acpi_gbl_table_handler;
 ACPI_EXTERN void *acpi_gbl_table_handler_context;
 ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
 ACPI_EXTERN acpi_interface_handler acpi_gbl_interface_handler;
@@ -324,6 +295,16 @@ extern const char *acpi_gbl_highest_dstate_names[ACPI_NUM_sx_d_METHODS];
 extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 extern const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS];
 
+#endif
+
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+
+/* Lists for tracking memory allocations */
+
+ACPI_EXTERN struct acpi_memory_list *acpi_gbl_global_list;
+ACPI_EXTERN struct acpi_memory_list *acpi_gbl_ns_node_list;
+ACPI_EXTERN u8 acpi_gbl_display_final_mem_stats;
+ACPI_EXTERN u8 acpi_gbl_disable_mem_tracking;
 #endif
 
 /*****************************************************************************
@@ -385,25 +366,46 @@ ACPI_EXTERN u8 acpi_gbl_sleep_type_b;
  *
  ****************************************************************************/
 
-extern struct acpi_fixed_event_info
-    acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS];
-ACPI_EXTERN struct acpi_fixed_event_handler
-    acpi_gbl_fixed_event_handlers[ACPI_NUM_FIXED_EVENTS];
-ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
-ACPI_EXTERN struct acpi_gpe_block_info
-*acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
-
 #if (!ACPI_REDUCED_HARDWARE)
 
 ACPI_EXTERN u8 acpi_gbl_all_gpes_initialized;
-ACPI_EXTERN ACPI_GBL_EVENT_HANDLER acpi_gbl_global_event_handler;
+ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
+ACPI_EXTERN struct acpi_gpe_block_info
+    *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
+ACPI_EXTERN acpi_gbl_event_handler acpi_gbl_global_event_handler;
 ACPI_EXTERN void *acpi_gbl_global_event_handler_context;
+ACPI_EXTERN struct acpi_fixed_event_handler
+    acpi_gbl_fixed_event_handlers[ACPI_NUM_FIXED_EVENTS];
+extern struct acpi_fixed_event_info
+    acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS];
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
 /*****************************************************************************
  *
- * Debugger globals
+ * Debug support
+ *
+ ****************************************************************************/
+
+/* Procedure nesting level for debug output */
+
+extern u32 acpi_gbl_nesting_level;
+
+/* Event counters */
+
+ACPI_EXTERN u32 acpi_gpe_count;
+ACPI_EXTERN u32 acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS];
+
+/* Support for dynamic control method tracing mechanism */
+
+ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
+ACPI_EXTERN u32 acpi_gbl_original_dbg_layer;
+ACPI_EXTERN u32 acpi_gbl_trace_dbg_level;
+ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
+
+/*****************************************************************************
+ *
+ * Debugger and Disassembler globals
  *
  ****************************************************************************/
 
@@ -411,8 +413,12 @@ ACPI_EXTERN u8 acpi_gbl_db_output_flags;
 
 #ifdef ACPI_DISASSEMBLER
 
+u8 ACPI_INIT_GLOBAL(acpi_gbl_ignore_noop_operator, FALSE);
+
 ACPI_EXTERN u8 acpi_gbl_db_opt_disasm;
 ACPI_EXTERN u8 acpi_gbl_db_opt_verbose;
+ACPI_EXTERN struct acpi_external_list *acpi_gbl_external_list;
+ACPI_EXTERN struct acpi_external_file *acpi_gbl_external_file_list;
 #endif
 
 #ifdef ACPI_DEBUGGER
@@ -424,12 +430,14 @@ extern u8 acpi_gbl_db_terminate_threads;
 ACPI_EXTERN u8 acpi_gbl_db_opt_tables;
 ACPI_EXTERN u8 acpi_gbl_db_opt_stats;
 ACPI_EXTERN u8 acpi_gbl_db_opt_ini_methods;
+ACPI_EXTERN u8 acpi_gbl_db_opt_no_region_support;
 
 ACPI_EXTERN char *acpi_gbl_db_args[ACPI_DEBUGGER_MAX_ARGS];
-ACPI_EXTERN char acpi_gbl_db_line_buf[80];
-ACPI_EXTERN char acpi_gbl_db_parsed_buf[80];
-ACPI_EXTERN char acpi_gbl_db_scope_buf[40];
-ACPI_EXTERN char acpi_gbl_db_debug_filename[40];
+ACPI_EXTERN acpi_object_type acpi_gbl_db_arg_types[ACPI_DEBUGGER_MAX_ARGS];
+ACPI_EXTERN char acpi_gbl_db_line_buf[ACPI_DB_LINE_BUFFER_SIZE];
+ACPI_EXTERN char acpi_gbl_db_parsed_buf[ACPI_DB_LINE_BUFFER_SIZE];
+ACPI_EXTERN char acpi_gbl_db_scope_buf[80];
+ACPI_EXTERN char acpi_gbl_db_debug_filename[80];
 ACPI_EXTERN u8 acpi_gbl_db_output_to_file;
 ACPI_EXTERN char *acpi_gbl_db_buffer;
 ACPI_EXTERN char *acpi_gbl_db_filename;

@@ -606,24 +606,6 @@ static struct clk init_clocks_off[] = {
 		.enable		= s5pc100_d1_4_ctrl,
 		.ctrlbit	= (1 << 13),
 	}, {
-		.name		= "iis",
-		.devname	= "samsung-i2s.0",
-		.parent		= &clk_div_pclkd1.clk,
-		.enable		= s5pc100_d1_5_ctrl,
-		.ctrlbit	= (1 << 0),
-	}, {
-		.name		= "iis",
-		.devname	= "samsung-i2s.1",
-		.parent		= &clk_div_pclkd1.clk,
-		.enable		= s5pc100_d1_5_ctrl,
-		.ctrlbit	= (1 << 1),
-	}, {
-		.name		= "iis",
-		.devname	= "samsung-i2s.2",
-		.parent		= &clk_div_pclkd1.clk,
-		.enable		= s5pc100_d1_5_ctrl,
-		.ctrlbit	= (1 << 2),
-	}, {
 		.name		= "ac97",
 		.parent		= &clk_div_pclkd1.clk,
 		.enable		= s5pc100_d1_5_ctrl,
@@ -722,6 +704,30 @@ static struct clk clk_48m_spi2 = {
 	.parent		= &clk_mout_48m.clk,
 	.enable		= s5pc100_sclk0_ctrl,
 	.ctrlbit	= (1 << 9),
+};
+
+static struct clk clk_i2s0 = {
+	.name		= "iis",
+	.devname	= "samsung-i2s.0",
+	.parent		= &clk_div_pclkd1.clk,
+	.enable		= s5pc100_d1_5_ctrl,
+	.ctrlbit	= (1 << 0),
+};
+
+static struct clk clk_i2s1 = {
+	.name		= "iis",
+	.devname	= "samsung-i2s.1",
+	.parent		= &clk_div_pclkd1.clk,
+	.enable		= s5pc100_d1_5_ctrl,
+	.ctrlbit	= (1 << 1),
+};
+
+static struct clk clk_i2s2 = {
+	.name		= "iis",
+	.devname	= "samsung-i2s.2",
+	.parent		= &clk_div_pclkd1.clk,
+	.enable		= s5pc100_d1_5_ctrl,
+	.ctrlbit	= (1 << 2),
 };
 
 static struct clk clk_vclk54m = {
@@ -1154,6 +1160,9 @@ static struct clk *clk_cdev[] = {
 	&clk_48m_spi0,
 	&clk_48m_spi1,
 	&clk_48m_spi2,
+	&clk_i2s0,
+	&clk_i2s1,
+	&clk_i2s2,
 };
 
 static struct clksrc_clk *clksrc_cdev[] = {
@@ -1321,6 +1330,9 @@ static struct clk_lookup s5pc100_clk_lookup[] = {
 	CLKDEV_INIT("s5pc100-spi.1", "spi_busclk2", &clk_sclk_spi1.clk),
 	CLKDEV_INIT("s5pc100-spi.2", "spi_busclk1", &clk_48m_spi2),
 	CLKDEV_INIT("s5pc100-spi.2", "spi_busclk2", &clk_sclk_spi2.clk),
+	CLKDEV_INIT("samsung-i2s.0", "i2s_opclk0", &clk_i2s0),
+	CLKDEV_INIT("samsung-i2s.1", "i2s_opclk0", &clk_i2s1),
+	CLKDEV_INIT("samsung-i2s.2", "i2s_opclk0", &clk_i2s2),
 };
 
 void __init s5pc100_register_clocks(void)

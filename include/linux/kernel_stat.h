@@ -7,6 +7,7 @@
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/vtime.h>
 #include <asm/irq.h>
 #include <asm/cputime.h>
 
@@ -126,16 +127,16 @@ extern void account_system_time(struct task_struct *, int, cputime_t, cputime_t)
 extern void account_steal_time(cputime_t);
 extern void account_idle_time(cputime_t);
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+static inline void account_process_tick(struct task_struct *tsk, int user)
+{
+	vtime_account_user(tsk);
+}
+#else
 extern void account_process_tick(struct task_struct *, int user);
+#endif
+
 extern void account_steal_ticks(unsigned long ticks);
 extern void account_idle_ticks(unsigned long ticks);
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-extern void vtime_task_switch(struct task_struct *prev);
-extern void vtime_account_system(struct task_struct *tsk);
-extern void vtime_account_idle(struct task_struct *tsk);
-#else
-static inline void vtime_task_switch(struct task_struct *prev) { }
-#endif
 
 #endif /* _LINUX_KERNEL_STAT_H */

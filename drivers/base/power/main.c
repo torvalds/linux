@@ -99,7 +99,6 @@ void device_pm_add(struct device *dev)
 		dev_warn(dev, "parent %s should not be sleeping\n",
 			dev_name(dev->parent));
 	list_add_tail(&dev->power.entry, &dpm_list);
-	dev_pm_qos_constraints_init(dev);
 	mutex_unlock(&dpm_list_mtx);
 }
 
@@ -113,7 +112,6 @@ void device_pm_remove(struct device *dev)
 		 dev->bus ? dev->bus->name : "No Bus", dev_name(dev));
 	complete_all(&dev->power.completion);
 	mutex_lock(&dpm_list_mtx);
-	dev_pm_qos_constraints_destroy(dev);
 	list_del_init(&dev->power.entry);
 	mutex_unlock(&dpm_list_mtx);
 	device_wakeup_disable(dev);
@@ -513,6 +511,8 @@ static int device_resume_early(struct device *dev, pm_message_t state)
 
  Out:
 	TRACE_RESUME(error);
+
+	pm_runtime_enable(dev);
 	return error;
 }
 
@@ -588,8 +588,6 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 
 	if (!dev->power.is_suspended)
 		goto Unlock;
-
-	pm_runtime_enable(dev);
 
 	if (dev->pm_domain) {
 		info = "power domain ";
@@ -930,6 +928,8 @@ static int device_suspend_late(struct device *dev, pm_message_t state)
 	pm_callback_t callback = NULL;
 	char *info = NULL;
 
+	__pm_runtime_disable(dev, false);
+
 	if (dev->power.syscore)
 		return 0;
 
@@ -1133,11 +1133,8 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 
  Complete:
 	complete_all(&dev->power.completion);
-
 	if (error)
 		async_error = error;
-	else if (dev->power.is_suspended)
-		__pm_runtime_disable(dev, false);
 
 	return error;
 }

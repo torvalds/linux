@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,8 +69,10 @@ acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 u32 acpi_hw_get_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info)
 {
-	return (u32)1 << (gpe_event_info->gpe_number -
-		 gpe_event_info->register_info->base_gpe_number);
+
+	return ((u32)1 <<
+		(gpe_event_info->gpe_number -
+		 gpe_event_info->register_info->base_gpe_number));
 }
 
 /******************************************************************************
@@ -134,7 +135,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 		break;
 
 	default:
-		ACPI_ERROR((AE_INFO, "Invalid GPE Action, %u\n", action));
+		ACPI_ERROR((AE_INFO, "Invalid GPE Action, %u", action));
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -339,7 +340,8 @@ acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 acpi_status
 acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-				 struct acpi_gpe_block_info *gpe_block, void *context)
+				 struct acpi_gpe_block_info * gpe_block,
+				 void *context)
 {
 	u32 i;
 	acpi_status status;

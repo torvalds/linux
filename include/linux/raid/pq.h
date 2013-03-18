@@ -98,6 +98,9 @@ extern const struct raid6_calls raid6_altivec1;
 extern const struct raid6_calls raid6_altivec2;
 extern const struct raid6_calls raid6_altivec4;
 extern const struct raid6_calls raid6_altivec8;
+extern const struct raid6_calls raid6_avx2x1;
+extern const struct raid6_calls raid6_avx2x2;
+extern const struct raid6_calls raid6_avx2x4;
 
 struct raid6_recov_calls {
 	void (*data2)(int, size_t, int, int, void **);
@@ -109,6 +112,7 @@ struct raid6_recov_calls {
 
 extern const struct raid6_recov_calls raid6_recov_intx1;
 extern const struct raid6_recov_calls raid6_recov_ssse3;
+extern const struct raid6_recov_calls raid6_recov_avx2;
 
 /* Algorithm list */
 extern const struct raid6_calls * const raid6_algos[];

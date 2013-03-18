@@ -130,7 +130,6 @@ struct gpmi_nand_data {
 	/* System Interface */
 	struct device		*dev;
 	struct platform_device	*pdev;
-	struct gpmi_nand_platform_data	*pdata;
 
 	/* Resources */
 	struct resources	resources;
@@ -284,6 +283,10 @@ extern int gpmi_read_page(struct gpmi_nand_data *,
 #define STATUS_GOOD		0x00
 #define STATUS_ERASED		0xff
 #define STATUS_UNCORRECTABLE	0xfe
+
+/* BCH's bit correction capability. */
+#define MXS_ECC_STRENGTH_MAX	20	/* mx23 and mx28 */
+#define MX6_ECC_STRENGTH_MAX	40
 
 /* Use the platform_id to distinguish different Archs. */
 #define IS_MX23			0x0

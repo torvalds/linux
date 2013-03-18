@@ -63,7 +63,7 @@ static int ohci_sa1111_reset(struct usb_hcd *hcd)
 	return ohci_init(ohci);
 }
 
-static int __devinit ohci_sa1111_start(struct usb_hcd *hcd)
+static int ohci_sa1111_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
 	int ret;

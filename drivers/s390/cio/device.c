@@ -632,6 +632,14 @@ initiate_logging(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct subchannel *sch = to_subchannel(dev);
+
+	return sprintf(buf, "%02x\n", sch->vpm);
+}
+
 static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
 static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
 static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
@@ -640,11 +648,13 @@ static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
 static DEVICE_ATTR(online, 0644, online_show, online_store);
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 static DEVICE_ATTR(logging, 0200, NULL, initiate_logging);
+static DEVICE_ATTR(vpm, 0444, vpm_show, NULL);
 
 static struct attribute *io_subchannel_attrs[] = {
 	&dev_attr_chpids.attr,
 	&dev_attr_pimpampom.attr,
 	&dev_attr_logging.attr,
+	&dev_attr_vpm.attr,
 	NULL,
 };
 
@@ -758,7 +768,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 					struct ccw_device *cdev)
 {
 	cdev->private->cdev = cdev;
-	cdev->private->int_class = IOINT_CIO;
+	cdev->private->int_class = IRQIO_CIO;
 	atomic_set(&cdev->private->onoff, 0);
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
@@ -1023,7 +1033,7 @@ static void io_subchannel_irq(struct subchannel *sch)
 	if (cdev)
 		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
 	else
-		kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+		inc_irq_stat(IRQIO_CIO);
 }
 
 void io_subchannel_init_config(struct subchannel *sch)
@@ -1424,7 +1434,7 @@ static enum io_sch_action sch_get_action(struct subchannel *sch)
 	}
 	if (device_is_disconnected(cdev))
 		return IO_SCH_REPROBE;
-	if (cdev->online)
+	if (cdev->online && !cdev->private->flags.resuming)
 		return IO_SCH_VERIFY;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return IO_SCH_UNREG_ATTACH;
@@ -1469,12 +1479,6 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 		rc = 0;
 		goto out_unlock;
 	case IO_SCH_VERIFY:
-		if (cdev->private->flags.resuming == 1) {
-			if (cio_enable_subchannel(sch, (u32)(addr_t)sch)) {
-				ccw_device_set_notoper(cdev);
-				break;
-			}
-		}
 		/* Trigger path verification. */
 		io_subchannel_verify(sch);
 		rc = 0;
@@ -1640,7 +1644,7 @@ ccw_device_probe_console(void)
 	memset(&console_private, 0, sizeof(struct ccw_device_private));
 	console_cdev.private = &console_private;
 	console_private.cdev = &console_cdev;
-	console_private.int_class = IOINT_CIO;
+	console_private.int_class = IRQIO_CIO;
 	ret = ccw_device_console_enable(&console_cdev, sch);
 	if (ret) {
 		cio_release_console();
@@ -1721,13 +1725,13 @@ ccw_device_probe (struct device *dev)
 	if (cdrv->int_class != 0)
 		cdev->private->int_class = cdrv->int_class;
 	else
-		cdev->private->int_class = IOINT_CIO;
+		cdev->private->int_class = IRQIO_CIO;
 
 	ret = cdrv->probe ? cdrv->probe(cdev) : -ENODEV;
 
 	if (ret) {
 		cdev->drv = NULL;
-		cdev->private->int_class = IOINT_CIO;
+		cdev->private->int_class = IRQIO_CIO;
 		return ret;
 	}
 
@@ -1761,7 +1765,7 @@ ccw_device_remove (struct device *dev)
 	}
 	ccw_device_set_timeout(cdev, 0);
 	cdev->drv = NULL;
-	cdev->private->int_class = IOINT_CIO;
+	cdev->private->int_class = IRQIO_CIO;
 	return 0;
 }
 
@@ -2042,16 +2046,6 @@ void ccw_driver_unregister(struct ccw_driver *cdriver)
 	driver_unregister(&cdriver->driver);
 }
 
-/* Helper func for qdio. */
-struct subchannel_id
-ccw_device_get_subchannel_id(struct ccw_device *cdev)
-{
-	struct subchannel *sch;
-
-	sch = to_subchannel(cdev->dev.parent);
-	return sch->schid;
-}
-
 static void ccw_device_todo(struct work_struct *work)
 {
 	struct ccw_device_private *priv;
@@ -2144,4 +2138,3 @@ EXPORT_SYMBOL(ccw_device_set_offline);
 EXPORT_SYMBOL(ccw_driver_register);
 EXPORT_SYMBOL(ccw_driver_unregister);
 EXPORT_SYMBOL(get_ccwdev_by_busid);
-EXPORT_SYMBOL_GPL(ccw_device_get_subchannel_id);

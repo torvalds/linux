@@ -46,14 +46,62 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
+/*********      Definitions for APCI-1564 card  *****/
 
-#include <linux/delay.h>
-#include "hwdrv_apci1564.h"
+#define APCI1564_ADDRESS_RANGE				128
+
+/* DIGITAL INPUT-OUTPUT DEFINE */
+/* Input defines */
+#define APCI1564_DIGITAL_IP				0x04
+#define APCI1564_DIGITAL_IP_INTERRUPT_MODE1		4
+#define APCI1564_DIGITAL_IP_INTERRUPT_MODE2		8
+#define APCI1564_DIGITAL_IP_IRQ				16
+
+/* Output defines */
+#define APCI1564_DIGITAL_OP				0x18
+#define APCI1564_DIGITAL_OP_RW				0
+#define APCI1564_DIGITAL_OP_INTERRUPT			4
+#define APCI1564_DIGITAL_OP_IRQ				12
+
+/* Digital Input IRQ Function Selection */
+#define ADDIDATA_OR					0
+#define ADDIDATA_AND					1
+
+/* Digital Input Interrupt Status */
+#define APCI1564_DIGITAL_IP_INTERRUPT_STATUS		12
+
+/* Digital Output Interrupt Status */
+#define APCI1564_DIGITAL_OP_INTERRUPT_STATUS		8
+
+/* Digital Input Interrupt Enable Disable. */
+#define APCI1564_DIGITAL_IP_INTERRUPT_ENABLE		0x4
+#define APCI1564_DIGITAL_IP_INTERRUPT_DISABLE		0xfffffffb
+
+/* Digital Output Interrupt Enable Disable. */
+#define APCI1564_DIGITAL_OP_VCC_INTERRUPT_ENABLE	0x1
+#define APCI1564_DIGITAL_OP_VCC_INTERRUPT_DISABLE	0xfffffffe
+#define APCI1564_DIGITAL_OP_CC_INTERRUPT_ENABLE		0x2
+#define APCI1564_DIGITAL_OP_CC_INTERRUPT_DISABLE	0xfffffffd
+
+/* TIMER COUNTER WATCHDOG DEFINES */
+
+#define ADDIDATA_TIMER					0
+#define ADDIDATA_COUNTER				1
+#define ADDIDATA_WATCHDOG				2
+#define APCI1564_DIGITAL_OP_WATCHDOG			0x28
+#define APCI1564_TIMER					0x48
+#define APCI1564_COUNTER1				0x0
+#define APCI1564_COUNTER2				0x20
+#define APCI1564_COUNTER3				0x40
+#define APCI1564_COUNTER4				0x60
+#define APCI1564_TCW_SYNC_ENABLEDISABLE			0
+#define APCI1564_TCW_RELOAD_VALUE			4
+#define APCI1564_TCW_TIMEBASE				8
+#define APCI1564_TCW_PROG				12
+#define APCI1564_TCW_TRIG_STATUS			16
+#define APCI1564_TCW_IRQ				20
+#define APCI1564_TCW_WARN_TIMEVAL			24
+#define APCI1564_TCW_WARN_TIMEBASE			28
 
 /* Global variables */
 static unsigned int ui_InterruptStatus_1564 = 0;
@@ -86,9 +134,13 @@ static unsigned int ui_InterruptData, ui_Type;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1564_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1564_ConfigDigitalInput(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_insn *insn,
+					 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
+
 	devpriv->tsk_Current = current;
    /*******************************/
 	/* Set the digital input logic */
@@ -128,107 +180,15 @@ int i_APCI1564_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subde
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1564_Read1DigitalInput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the digital input                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              unsigned int ui_Channel : Channel number to read       |
-|                     unsigned int *data          : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-int i_APCI1564_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int apci1564_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	unsigned int ui_TmpValue = 0;
-	unsigned int ui_Channel;
+	struct addi_private *devpriv = dev->private;
 
-	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel <= 31) {
-		ui_TmpValue =
-			(unsigned int) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
-/*
-* since only 1 channel reqd to bring it to last bit it is rotated 8
-* +(chan - 1) times then ANDed with 1 for last bit.
-*/
-		*data = (ui_TmpValue >> ui_Channel) & 0x1;
-	}			/*  if  (ui_Channel >= 0 && ui_Channel <=31) */
-	else {
-		comedi_error(dev, "Not a valid channel number !!! \n");
-		return -EINVAL;	/*  "sorry channel spec wrong " */
-	}			/* else if  (ui_Channel >= 0 && ui_Channel <=31) */
-	return insn->n;
-}
+	data[1] = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1564_ReadMoreDigitalInput                    |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                     struct comedi_insn *insn,unsigned int *data)                      |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the Requested digital inputs      |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
-|                      unsigned int *data             : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-int i_APCI1564_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned int ui_PortValue = data[0];
-	unsigned int ui_Mask = 0;
-	unsigned int ui_NoOfChannels;
-
-	ui_NoOfChannels = CR_CHAN(insn->chanspec);
-	if (data[1] == 0) {
-		*data = (unsigned int) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
-		switch (ui_NoOfChannels) {
-		case 2:
-			ui_Mask = 3;
-			*data = (*data >> (2 * ui_PortValue)) & ui_Mask;
-			break;
-		case 4:
-			ui_Mask = 15;
-			*data = (*data >> (4 * ui_PortValue)) & ui_Mask;
-			break;
-		case 8:
-			ui_Mask = 255;
-			*data = (*data >> (8 * ui_PortValue)) & ui_Mask;
-			break;
-		case 16:
-			ui_Mask = 65535;
-			*data = (*data >> (16 * ui_PortValue)) & ui_Mask;
-			break;
-		case 31:
-			break;
-		default:
-			comedi_error(dev, "Not a valid Channel number !!!\n");
-			return -EINVAL;	/*  "sorry channel spec wrong " */
-			break;
-		}		/*  switch  (ui_NoOfChannels) */
-	}			/*  if  (data[1]==0) */
-	else {
-		if (data[1] == 1) {
-			*data = ui_InterruptStatus_1564;
-		}		/*  if  (data[1]==1) */
-	}			/*  else if  (data[1]==0) */
 	return insn->n;
 }
 
@@ -257,9 +217,12 @@ int i_APCI1564_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1564_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1564_ConfigDigitalOutput(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command = 0;
 
 	if ((data[0] != 0) && (data[0] != 1)) {
@@ -295,244 +258,27 @@ int i_APCI1564_ConfigDigitalOutput(struct comedi_device *dev, struct comedi_subd
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1564_WriteDigitalOutput                      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Writes port value  To the selected port                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To Write      |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-int i_APCI1564_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int apci1564_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	unsigned int ui_Temp, ui_Temp1;
-	unsigned int ui_NoOfChannel;
+	struct addi_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	if (devpriv->b_OutputMemoryStatus) {
-		ui_Temp =
-			inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
+	s->state = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
 			APCI1564_DIGITAL_OP_RW);
-	}			/*  if  (devpriv->b_OutputMemoryStatus ) */
-	else {
-		ui_Temp = 0;
-	}			/*  else if  (devpriv->b_OutputMemoryStatus ) */
-	if (data[3] == 0) {
-		if (data[1] == 0) {
-			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
-			outl(data[0],
-				devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-				APCI1564_DIGITAL_OP_RW);
-		}		/*  if  (data[1]==0) */
-		else {
-			if (data[1] == 1) {
-				switch (ui_NoOfChannel) {
-				case 2:
-					data[0] =
-						(data[0] << (2 *
-							data[2])) | ui_Temp;
-					break;
-				case 4:
-					data[0] =
-						(data[0] << (4 *
-							data[2])) | ui_Temp;
-					break;
-				case 8:
-					data[0] =
-						(data[0] << (8 *
-							data[2])) | ui_Temp;
-					break;
-				case 16:
-					data[0] =
-						(data[0] << (16 *
-							data[2])) | ui_Temp;
-					break;
-				case 31:
-					data[0] = data[0] | ui_Temp;
-					break;
-				default:
-					comedi_error(dev, " chan spec wrong");
-					return -EINVAL;	/*  "sorry channel spec wrong " */
-				}	/*  switch (ui_NoOfChannels) */
-				outl(data[0],
-					devpriv->i_IobaseAmcc +
-					APCI1564_DIGITAL_OP +
-					APCI1564_DIGITAL_OP_RW);
-			}	/*  if  (data[1]==1) */
-			else {
-				printk("\nSpecified channel not supported\n");
-			}	/*  else if  (data[1]==1) */
-		}		/*  else if (data[1]==0) */
-	}			/* if(data[3]==0) */
-	else {
-		if (data[3] == 1) {
-			if (data[1] == 0) {
-				data[0] = ~data[0] & 0x1;
-				ui_Temp1 = 1;
-				ui_Temp1 = ui_Temp1 << ui_NoOfChannel;
-				ui_Temp = ui_Temp | ui_Temp1;
-				data[0] =
-					(data[0] << ui_NoOfChannel) ^
-					0xffffffff;
-				data[0] = data[0] & ui_Temp;
-				outl(data[0],
-					devpriv->i_IobaseAmcc +
-					APCI1564_DIGITAL_OP +
-					APCI1564_DIGITAL_OP_RW);
-			}	/*  if  (data[1]==0) */
-			else {
-				if (data[1] == 1) {
-					switch (ui_NoOfChannel) {
-					case 2:
-						data[0] = ~data[0] & 0x3;
-						ui_Temp1 = 3;
-						ui_Temp1 =
-							ui_Temp1 << 2 * data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (2 *
-									data
-									[2])) ^
-							0xffffffff) & ui_Temp;
-						break;
-					case 4:
-						data[0] = ~data[0] & 0xf;
-						ui_Temp1 = 15;
-						ui_Temp1 =
-							ui_Temp1 << 4 * data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (4 *
-									data
-									[2])) ^
-							0xffffffff) & ui_Temp;
-						break;
-					case 8:
-						data[0] = ~data[0] & 0xff;
-						ui_Temp1 = 255;
-						ui_Temp1 =
-							ui_Temp1 << 8 * data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (8 *
-									data
-									[2])) ^
-							0xffffffff) & ui_Temp;
-						break;
-					case 16:
-						data[0] = ~data[0] & 0xffff;
-						ui_Temp1 = 65535;
-						ui_Temp1 =
-							ui_Temp1 << 16 *
-							data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (16 *
-									data
-									[2])) ^
-							0xffffffff) & ui_Temp;
-						break;
-					case 31:
-						break;
-					default:
-						comedi_error(dev,
-							" chan spec wrong");
-						return -EINVAL;	/*  "sorry channel spec wrong " */
-					}	/* switch(ui_NoOfChannels) */
-					outl(data[0],
-						devpriv->i_IobaseAmcc +
-						APCI1564_DIGITAL_OP +
-						APCI1564_DIGITAL_OP_RW);
-				}	/*  if  (data[1]==1) */
-				else {
-					printk("\nSpecified channel not supported\n");
-				}	/*  else if  (data[1]==1) */
-			}	/*  else if  (data[1]==0) */
-		}		/*  if  (data[3]==1); */
-		else {
-			printk("\nSpecified functionality does not exist\n");
-			return -EINVAL;
-		}		/*  else if (data[3]==1) */
-	}			/*  else if (data[3]==0) */
-	return insn->n;
-}
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1564_ReadDigitalOutput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read  value  of the selected channel or port           |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-int i_APCI1564_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
-{
-	unsigned int ui_Temp;
-	unsigned int ui_NoOfChannel;
+		outl(s->state, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
+			APCI1564_DIGITAL_OP_RW);
+	}
 
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
-		APCI1564_DIGITAL_OP_RW);
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/*  if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
-			switch (ui_NoOfChannel) {
-			case 2:
-				*data = (*data >> (2 * data[1])) & 3;
-				break;
+	data[1] = s->state;
 
-			case 4:
-				*data = (*data >> (4 * data[1])) & 15;
-				break;
-
-			case 8:
-				*data = (*data >> (8 * data[1])) & 255;
-				break;
-
-			case 16:
-				*data = (*data >> (16 * data[1])) & 65535;
-				break;
-
-			case 31:
-				break;
-
-			default:
-				comedi_error(dev, " chan spec wrong");
-				return -EINVAL;	/*  "sorry channel spec wrong " */
-				break;
-			}	/*  switch(ui_NoOfChannels) */
-		}		/*  if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/*  else if (ui_Temp==1) */
-	}			/*  else if  (ui_Temp==0) */
 	return insn->n;
 }
 
@@ -566,10 +312,14 @@ int i_APCI1564_ReadDigitalOutput(struct comedi_device *dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 struct comedi_insn *insn,
+						 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
+
 	devpriv->tsk_Current = current;
 	if (data[0] == ADDIDATA_WATCHDOG) {
 		devpriv->b_TimerSelectMode = ADDIDATA_WATCHDOG;
@@ -720,10 +470,14 @@ int i_APCI1564_ConfigTimerCounterWatchdog(struct comedi_device *dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
+							 struct comedi_subdevice *s,
+							 struct comedi_insn *insn,
+							 unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
+
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
 		switch (data[1]) {
 		case 0:	/* stop the watchdog */
@@ -815,9 +569,12 @@ int i_APCI1564_StartStopWriteTimerCounterWatchdog(struct comedi_device *dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
+					       struct comedi_subdevice *s,
+					       struct comedi_insn *insn,
+					       unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	unsigned int ul_Command1 = 0;
 
 	if (devpriv->b_TimerSelectMode == ADDIDATA_WATCHDOG) {
@@ -894,8 +651,10 @@ int i_APCI1564_ReadTimerCounterWatchdog(struct comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1564_ReadInterruptStatus(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1564_ReadInterruptStatus(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
 	*data = ui_Type;
 	return insn->n;
@@ -921,10 +680,12 @@ int i_APCI1564_ReadInterruptStatus(struct comedi_device *dev, struct comedi_subd
 static void v_APCI1564_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
 	unsigned int ui_DO, ui_DI;
 	unsigned int ui_Timer;
 	unsigned int ui_C1, ui_C2, ui_C3, ui_C4;
 	unsigned int ul_Command2 = 0;
+
 	ui_DI = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP +
 		APCI1564_DIGITAL_IP_IRQ) & 0x01;
 	ui_DO = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
@@ -1104,8 +865,10 @@ static void v_APCI1564_Interrupt(int irq, void *d)
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1564_Reset(struct comedi_device *dev)
+static int i_APCI1564_Reset(struct comedi_device *dev)
 {
+	struct addi_private *devpriv = dev->private;
+
 	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP_IRQ);	/* disable the interrupts */
 	inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP_INTERRUPT_STATUS);	/* Reset the interrupt status register */
 	outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP_INTERRUPT_MODE1);	/* Disable the and/or interrupt */

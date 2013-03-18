@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  *
  * Chris Zankel <chris@zankel.net>
  * Marc Gauthier <marc@tensilica.com, marc@alumni.uwaterloo.ca>
@@ -18,6 +18,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/cacheasm.h>
+#include <asm/initialize_mmu.h>
 
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -47,16 +48,19 @@
 	 */
 
 	__HEAD
-	.globl _start
-_start:	_j	2f
+ENTRY(_start)
+
+	_j	2f
 	.align	4
 1:	.word	_startup
 2:	l32r	a0, 1b
 	jx	a0
 
+ENDPROC(_start)
+
 	.section .init.text, "ax"
-	.align 4
-_startup:
+
+ENTRY(_startup)
 
 	/* Disable interrupts and exceptions. */
 
@@ -107,7 +111,7 @@ _startup:
 	/* Disable all timers. */
 
 	.set	_index, 0
-	.rept	XCHAL_NUM_TIMERS - 1
+	.rept	XCHAL_NUM_TIMERS
 	wsr	a0, SREG_CCOMPARE + _index
 	.set	_index, _index + 1
 	.endr
@@ -120,18 +124,18 @@ _startup:
 
 	/* Disable coprocessors. */
 
-#if XCHAL_CP_NUM > 0
+#if XCHAL_HAVE_CP
 	wsr	a0, cpenable
 #endif
 
-	/* Set PS.INTLEVEL=1, PS.WOE=0, kernel stack, PS.EXCM=0
+	/* Set PS.INTLEVEL=LOCKLEVEL, PS.WOE=0, kernel stack, PS.EXCM=0
 	 *
 	 * Note: PS.EXCM must be cleared before using any loop
 	 *	 instructions; otherwise, they are silently disabled, and
 	 * 	 at most one iteration of the loop is executed.
 	 */
 
-	movi	a1, 1
+	movi	a1, LOCKLEVEL
 	wsr	a1, ps
 	rsync
 
@@ -151,6 +155,8 @@ _startup:
 	___invalidate_icache_all a2 a3
 
 	isync
+
+	initialize_mmu
 
 	/* Unpack data sections
 	 *
@@ -205,7 +211,8 @@ _startup:
 	movi	a1, init_thread_union
 	addi	a1, a1, KERNEL_STACK_SIZE
 
-	movi	a2, 0x00040001		# WOE=1, INTLEVEL=1, UM=0
+	movi	a2, (1 << PS_WOE_BIT) | LOCKLEVEL
+					# WOE=1, INTLEVEL=LOCKLEVEL, UM=0
 	wsr	a2, ps			# (enable reg-windows; progmode stack)
 	rsync
 
@@ -230,6 +237,7 @@ _startup:
 should_never_return:
 	j	should_never_return
 
+ENDPROC(_startup)
 
 /*
  * BSS section
@@ -239,6 +247,8 @@ __PAGE_ALIGNED_BSS
 #ifdef CONFIG_MMU
 ENTRY(swapper_pg_dir)
 	.fill	PAGE_SIZE, 1, 0
+END(swapper_pg_dir)
 #endif
 ENTRY(empty_zero_page)
 	.fill	PAGE_SIZE, 1, 0
+END(empty_zero_page)

@@ -42,13 +42,12 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
-#include <mach/board-mx31lilly.h>
-#include <mach/ulpi.h>
-
+#include "board-mx31lilly.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 /*
  * This file contains module-specific initialization routines for LILLY-1131.
@@ -304,17 +303,13 @@ static void __init mx31lilly_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer mx31lilly_timer = {
-	.init	= mx31lilly_timer_init,
-};
-
 MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
 	.atag_offset = 0x100,
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &mx31lilly_timer,
+	.init_time	= mx31lilly_timer_init,
 	.init_machine = mx31lilly_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

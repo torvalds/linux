@@ -159,8 +159,8 @@ static const struct regmap_config max9768_i2c_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __devinit max9768_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int max9768_i2c_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id)
 {
 	struct max9768 *max9768;
 	struct max9768_pdata *pdata = client->dev.platform_data;
@@ -187,7 +187,7 @@ static int __devinit max9768_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, max9768);
 
-	max9768->regmap = regmap_init_i2c(client, &max9768_i2c_regmap_config);
+	max9768->regmap = devm_regmap_init_i2c(client, &max9768_i2c_regmap_config);
 	if (IS_ERR(max9768->regmap)) {
 		err = PTR_ERR(max9768->regmap);
 		goto err_gpio_free;
@@ -195,12 +195,10 @@ static int __devinit max9768_i2c_probe(struct i2c_client *client,
 
 	err = snd_soc_register_codec(&client->dev, &max9768_codec_driver, NULL, 0);
 	if (err)
-		goto err_regmap_free;
+		goto err_gpio_free;
 
 	return 0;
 
- err_regmap_free:
-	regmap_exit(max9768->regmap);
  err_gpio_free:
 	if (gpio_is_valid(max9768->shdn_gpio))
 		gpio_free(max9768->shdn_gpio);
@@ -210,12 +208,11 @@ static int __devinit max9768_i2c_probe(struct i2c_client *client,
 	return err;
 }
 
-static int __devexit max9768_i2c_remove(struct i2c_client *client)
+static int max9768_i2c_remove(struct i2c_client *client)
 {
 	struct max9768 *max9768 = i2c_get_clientdata(client);
 
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(max9768->regmap);
 
 	if (gpio_is_valid(max9768->shdn_gpio))
 		gpio_free(max9768->shdn_gpio);
@@ -237,7 +234,7 @@ static struct i2c_driver max9768_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max9768_i2c_probe,
-	.remove = __devexit_p(max9768_i2c_remove),
+	.remove = max9768_i2c_remove,
 	.id_table = max9768_i2c_id,
 };
 module_i2c_driver(max9768_i2c_driver);

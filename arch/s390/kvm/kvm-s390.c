@@ -140,6 +140,8 @@ int kvm_dev_ioctl_check_extension(long ext)
 #endif
 	case KVM_CAP_SYNC_REGS:
 	case KVM_CAP_ONE_REG:
+	case KVM_CAP_ENABLE_CAP:
+	case KVM_CAP_S390_CSS_SUPPORT:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -147,7 +149,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_MAX_VCPUS;
 		break;
 	case KVM_CAP_S390_COW:
-		r = sclp_get_fac85() & 0x2;
+		r = MACHINE_HAS_ESOP;
 		break;
 	default:
 		r = 0;
@@ -234,6 +236,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		if (!kvm->arch.gmap)
 			goto out_nogmap;
 	}
+
+	kvm->arch.css_support = 0;
+
 	return 0;
 out_nogmap:
 	debug_unregister(kvm->arch.dbf);
@@ -353,6 +358,11 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	asm volatile("lfpc %0" : : "Q" (vcpu->arch.guest_fpregs.fpc));
 	vcpu->arch.sie_block->gbea = 1;
 	atomic_set_mask(CPUSTAT_STOPPED, &vcpu->arch.sie_block->cpuflags);
+}
+
+int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
+{
+	return 0;
 }
 
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
@@ -608,9 +618,9 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		kvm_s390_deliver_pending_interrupts(vcpu);
 
 	vcpu->arch.sie_block->icptcode = 0;
-	local_irq_disable();
+	preempt_disable();
 	kvm_guest_enter();
-	local_irq_enable();
+	preempt_enable();
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
 	trace_kvm_s390_sie_enter(vcpu,
@@ -629,9 +639,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
 	trace_kvm_s390_sie_exit(vcpu, vcpu->arch.sie_block->icptcode);
-	local_irq_disable();
 	kvm_guest_exit();
-	local_irq_enable();
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
 	return rc;
@@ -656,6 +664,7 @@ rerun_vcpu:
 	case KVM_EXIT_INTR:
 	case KVM_EXIT_S390_RESET:
 	case KVM_EXIT_S390_UCONTROL:
+	case KVM_EXIT_S390_TSCH:
 		break;
 	default:
 		BUG();
@@ -763,6 +772,14 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	} else
 		prefix = 0;
 
+	/*
+	 * The guest FPRS and ACRS are in the host FPRS/ACRS due to the lazy
+	 * copying in vcpu load/put. Lets update our copies before we save
+	 * it into the save area
+	 */
+	save_fp_regs(&vcpu->arch.guest_fpregs);
+	save_access_regs(vcpu->run->s.regs.acrs);
+
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, fp_regs),
 			vcpu->arch.guest_fpregs.fprs, 128, prefix))
 		return -EFAULT;
@@ -805,6 +822,29 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 			&vcpu->arch.sie_block->gcr, 128, prefix))
 		return -EFAULT;
 	return 0;
+}
+
+static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
+				     struct kvm_enable_cap *cap)
+{
+	int r;
+
+	if (cap->flags)
+		return -EINVAL;
+
+	switch (cap->cap) {
+	case KVM_CAP_S390_CSS_SUPPORT:
+		if (!vcpu->kvm->arch.css_support) {
+			vcpu->kvm->arch.css_support = 1;
+			trace_kvm_s390_enable_css(vcpu->kvm);
+		}
+		r = 0;
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+	return r;
 }
 
 long kvm_arch_vcpu_ioctl(struct file *filp,
@@ -893,6 +933,15 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			r = 0;
 		break;
 	}
+	case KVM_ENABLE_CAP:
+	{
+		struct kvm_enable_cap cap;
+		r = -EFAULT;
+		if (copy_from_user(&cap, argp, sizeof(cap)))
+			break;
+		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
+		break;
+	}
 	default:
 		r = -ENOTTY;
 	}
@@ -927,7 +976,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
 				   struct kvm_memory_slot old,
 				   struct kvm_userspace_memory_region *mem,
-				   int user_alloc)
+				   bool user_alloc)
 {
 	/* A few sanity checks. We can have exactly one memory slot which has
 	   to start at guest virtual zero and which has to be located at a
@@ -957,7 +1006,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
 				struct kvm_memory_slot old,
-				int user_alloc)
+				bool user_alloc)
 {
 	int rc;
 
@@ -997,7 +1046,7 @@ static int __init kvm_s390_init(void)
 	}
 	memcpy(facilities, S390_lowcore.stfle_fac_list, 16);
 	facilities[0] &= 0xff00fff3f47c0000ULL;
-	facilities[1] &= 0x201c000000000000ULL;
+	facilities[1] &= 0x001c000000000000ULL;
 	return 0;
 }
 

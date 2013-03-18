@@ -36,7 +36,8 @@
 #include <bcm63xx_dev_spi.h>
 
 #define PFX		KBUILD_MODNAME
-#define DRV_VER		"0.1.2"
+
+#define BCM63XX_SPI_MAX_PREPEND		15
 
 struct bcm63xx_spi {
 	struct completion	done;
@@ -50,15 +51,9 @@ struct bcm63xx_spi {
 	unsigned int		msg_type_shift;
 	unsigned int		msg_ctl_width;
 
-	/* Data buffers */
-	const unsigned char	*tx_ptr;
-	unsigned char		*rx_ptr;
-
 	/* data iomem */
 	u8 __iomem		*tx_io;
 	const u8 __iomem	*rx_io;
-
-	int			remaining_bytes;
 
 	struct clk		*clk;
 	struct platform_device	*pdev;
@@ -170,37 +165,23 @@ static int bcm63xx_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	ret = bcm63xx_spi_check_transfer(spi, NULL);
-	if (ret < 0) {
-		dev_err(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return ret;
-	}
-
 	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec/bit\n",
 		__func__, spi->mode & MODEBITS, spi->bits_per_word, 0);
 
 	return 0;
 }
 
-/* Fill the TX FIFO with as many bytes as possible */
-static void bcm63xx_spi_fill_tx_fifo(struct bcm63xx_spi *bs)
-{
-	u8 size;
-
-	/* Fill the Tx FIFO with as many bytes as possible */
-	size = bs->remaining_bytes < bs->fifo_size ? bs->remaining_bytes :
-		bs->fifo_size;
-	memcpy_toio(bs->tx_io, bs->tx_ptr, size);
-	bs->remaining_bytes -= size;
-}
-
-static unsigned int bcm63xx_txrx_bufs(struct spi_device *spi,
-					struct spi_transfer *t)
+static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
+				unsigned int num_transfers)
 {
 	struct bcm63xx_spi *bs = spi_master_get_devdata(spi->master);
 	u16 msg_ctl;
 	u16 cmd;
+	u8 rx_tail;
+	unsigned int i, timeout = 0, prepend_len = 0, len = 0;
+	struct spi_transfer *t = first;
+	bool do_rx = false;
+	bool do_tx = false;
 
 	/* Disable the CMD_DONE interrupt */
 	bcm_spi_writeb(bs, 0, SPI_INT_MASK);
@@ -208,25 +189,45 @@ static unsigned int bcm63xx_txrx_bufs(struct spi_device *spi,
 	dev_dbg(&spi->dev, "txrx: tx %p, rx %p, len %d\n",
 		t->tx_buf, t->rx_buf, t->len);
 
-	/* Transmitter is inhibited */
-	bs->tx_ptr = t->tx_buf;
-	bs->rx_ptr = t->rx_buf;
+	if (num_transfers > 1 && t->tx_buf && t->len <= BCM63XX_SPI_MAX_PREPEND)
+		prepend_len = t->len;
 
-	if (t->tx_buf) {
-		bs->remaining_bytes = t->len;
-		bcm63xx_spi_fill_tx_fifo(bs);
+	/* prepare the buffer */
+	for (i = 0; i < num_transfers; i++) {
+		if (t->tx_buf) {
+			do_tx = true;
+			memcpy_toio(bs->tx_io + len, t->tx_buf, t->len);
+
+			/* don't prepend more than one tx */
+			if (t != first)
+				prepend_len = 0;
+		}
+
+		if (t->rx_buf) {
+			do_rx = true;
+			/* prepend is half-duplex write only */
+			if (t == first)
+				prepend_len = 0;
+		}
+
+		len += t->len;
+
+		t = list_entry(t->transfer_list.next, struct spi_transfer,
+			       transfer_list);
 	}
+
+	len -= prepend_len;
 
 	init_completion(&bs->done);
 
 	/* Fill in the Message control register */
-	msg_ctl = (t->len << SPI_BYTE_CNT_SHIFT);
+	msg_ctl = (len << SPI_BYTE_CNT_SHIFT);
 
-	if (t->rx_buf && t->tx_buf)
+	if (do_rx && do_tx && prepend_len == 0)
 		msg_ctl |= (SPI_FD_RW << bs->msg_type_shift);
-	else if (t->rx_buf)
+	else if (do_rx)
 		msg_ctl |= (SPI_HD_R << bs->msg_type_shift);
-	else if (t->tx_buf)
+	else if (do_tx)
 		msg_ctl |= (SPI_HD_W << bs->msg_type_shift);
 
 	switch (bs->msg_ctl_width) {
@@ -240,14 +241,41 @@ static unsigned int bcm63xx_txrx_bufs(struct spi_device *spi,
 
 	/* Issue the transfer */
 	cmd = SPI_CMD_START_IMMEDIATE;
-	cmd |= (0 << SPI_CMD_PREPEND_BYTE_CNT_SHIFT);
+	cmd |= (prepend_len << SPI_CMD_PREPEND_BYTE_CNT_SHIFT);
 	cmd |= (spi->chip_select << SPI_CMD_DEVICE_ID_SHIFT);
 	bcm_spi_writew(bs, cmd, SPI_CMD);
 
 	/* Enable the CMD_DONE interrupt */
 	bcm_spi_writeb(bs, SPI_INTR_CMD_DONE, SPI_INT_MASK);
 
-	return t->len - bs->remaining_bytes;
+	timeout = wait_for_completion_timeout(&bs->done, HZ);
+	if (!timeout)
+		return -ETIMEDOUT;
+
+	/* read out all data */
+	rx_tail = bcm_spi_readb(bs, SPI_RX_TAIL);
+
+	if (do_rx && rx_tail != len)
+		return -EIO;
+
+	if (!rx_tail)
+		return 0;
+
+	len = 0;
+	t = first;
+	/* Read out all the data */
+	for (i = 0; i < num_transfers; i++) {
+		if (t->rx_buf)
+			memcpy_fromio(t->rx_buf, bs->rx_io + len, t->len);
+
+		if (t != first || prepend_len == 0)
+			len += t->len;
+
+		t = list_entry(t->transfer_list.next, struct spi_transfer,
+			       transfer_list);
+	}
+
+	return 0;
 }
 
 static int bcm63xx_spi_prepare_transfer(struct spi_master *master)
@@ -272,41 +300,76 @@ static int bcm63xx_spi_transfer_one(struct spi_master *master,
 					struct spi_message *m)
 {
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-	struct spi_transfer *t;
+	struct spi_transfer *t, *first = NULL;
 	struct spi_device *spi = m->spi;
 	int status = 0;
-	unsigned int timeout = 0;
+	unsigned int n_transfers = 0, total_len = 0;
+	bool can_use_prepend = false;
 
+	/*
+	 * This SPI controller does not support keeping CS active after a
+	 * transfer.
+	 * Work around this by merging as many transfers we can into one big
+	 * full-duplex transfers.
+	 */
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		unsigned int len = t->len;
-		u8 rx_tail;
-
 		status = bcm63xx_spi_check_transfer(spi, t);
 		if (status < 0)
 			goto exit;
 
-		/* configure adapter for a new transfer */
-		bcm63xx_spi_setup_transfer(spi, t);
+		if (!first)
+			first = t;
 
-		while (len) {
-			/* send the data */
-			len -= bcm63xx_txrx_bufs(spi, t);
+		n_transfers++;
+		total_len += t->len;
 
-			timeout = wait_for_completion_timeout(&bs->done, HZ);
-			if (!timeout) {
-				status = -ETIMEDOUT;
-				goto exit;
-			}
+		if (n_transfers == 2 && !first->rx_buf && !t->tx_buf &&
+		    first->len <= BCM63XX_SPI_MAX_PREPEND)
+			can_use_prepend = true;
+		else if (can_use_prepend && t->tx_buf)
+			can_use_prepend = false;
 
-			/* read out all data */
-			rx_tail = bcm_spi_readb(bs, SPI_RX_TAIL);
-
-			/* Read out all the data */
-			if (rx_tail)
-				memcpy_fromio(bs->rx_ptr, bs->rx_io, rx_tail);
+		/* we can only transfer one fifo worth of data */
+		if ((can_use_prepend &&
+		     total_len > (bs->fifo_size + BCM63XX_SPI_MAX_PREPEND)) ||
+		    (!can_use_prepend && total_len > bs->fifo_size)) {
+			dev_err(&spi->dev, "unable to do transfers larger than FIFO size (%i > %i)\n",
+				total_len, bs->fifo_size);
+			status = -EINVAL;
+			goto exit;
 		}
 
-		m->actual_length += t->len;
+		/* all combined transfers have to have the same speed */
+		if (t->speed_hz != first->speed_hz) {
+			dev_err(&spi->dev, "unable to change speed between transfers\n");
+			status = -EINVAL;
+			goto exit;
+		}
+
+		/* CS will be deasserted directly after transfer */
+		if (t->delay_usecs) {
+			dev_err(&spi->dev, "unable to keep CS asserted after transfer\n");
+			status = -EINVAL;
+			goto exit;
+		}
+
+		if (t->cs_change ||
+		    list_is_last(&t->transfer_list, &m->transfers)) {
+			/* configure adapter for a new transfer */
+			bcm63xx_spi_setup_transfer(spi, first);
+
+			/* send the data */
+			status = bcm63xx_txrx_bufs(spi, first, n_transfers);
+			if (status)
+				goto exit;
+
+			m->actual_length += total_len;
+
+			first = NULL;
+			n_transfers = 0;
+			total_len = 0;
+			can_use_prepend = false;
+		}
 	}
 exit:
 	m->status = status;
@@ -337,7 +400,7 @@ static irqreturn_t bcm63xx_spi_interrupt(int irq, void *dev_id)
 }
 
 
-static int __devinit bcm63xx_spi_probe(struct platform_device *pdev)
+static int bcm63xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource *r;
 	struct device *dev = &pdev->dev;
@@ -441,8 +504,8 @@ static int __devinit bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	dev_info(dev, "at 0x%08x (irq %d, FIFOs size %d) v%s\n",
-		 r->start, irq, bs->fifo_size, DRV_VER);
+	dev_info(dev, "at 0x%08x (irq %d, FIFOs size %d)\n",
+		 r->start, irq, bs->fifo_size);
 
 	return 0;
 
@@ -457,7 +520,7 @@ out:
 	return ret;
 }
 
-static int __devexit bcm63xx_spi_remove(struct platform_device *pdev)
+static int bcm63xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
@@ -485,6 +548,8 @@ static int bcm63xx_spi_suspend(struct device *dev)
 			platform_get_drvdata(to_platform_device(dev));
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
+	spi_master_suspend(master);
+
 	clk_disable(bs->clk);
 
 	return 0;
@@ -497,6 +562,8 @@ static int bcm63xx_spi_resume(struct device *dev)
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
 	clk_enable(bs->clk);
+
+	spi_master_resume(master);
 
 	return 0;
 }
@@ -518,7 +585,7 @@ static struct platform_driver bcm63xx_spi_driver = {
 		.pm	= BCM63XX_SPI_PM_OPS,
 	},
 	.probe		= bcm63xx_spi_probe,
-	.remove		= __devexit_p(bcm63xx_spi_remove),
+	.remove		= bcm63xx_spi_remove,
 };
 
 module_platform_driver(bcm63xx_spi_driver);

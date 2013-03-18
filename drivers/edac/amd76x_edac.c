@@ -301,8 +301,8 @@ fail:
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit amd76x_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int amd76x_init_one(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	edac_dbg(0, "\n");
 
@@ -318,7 +318,7 @@ static int __devinit amd76x_init_one(struct pci_dev *pdev,
  *	structure for the device then delete the mci and free the
  *	resources.
  */
-static void __devexit amd76x_remove_one(struct pci_dev *pdev)
+static void amd76x_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
@@ -350,7 +350,7 @@ MODULE_DEVICE_TABLE(pci, amd76x_pci_tbl);
 static struct pci_driver amd76x_driver = {
 	.name = EDAC_MOD_STR,
 	.probe = amd76x_init_one,
-	.remove = __devexit_p(amd76x_remove_one),
+	.remove = amd76x_remove_one,
 	.id_table = amd76x_pci_tbl,
 };
 

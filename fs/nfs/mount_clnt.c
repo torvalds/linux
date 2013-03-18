@@ -169,6 +169,9 @@ int nfs_mount(struct nfs_mount_request *info)
 		(info->hostname ? info->hostname : "server"),
 			info->dirpath);
 
+	if (strlen(info->dirpath) > MNTPATHLEN)
+		return -ENAMETOOLONG;
+
 	if (info->noresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
@@ -242,6 +245,9 @@ void nfs_umount(const struct nfs_mount_request *info)
 	struct rpc_clnt *clnt;
 	int status;
 
+	if (strlen(info->dirpath) > MNTPATHLEN)
+		return;
+
 	if (info->noresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
@@ -283,7 +289,6 @@ static void encode_mntdirpath(struct xdr_stream *xdr, const char *pathname)
 	const u32 pathname_len = strlen(pathname);
 	__be32 *p;
 
-	BUG_ON(pathname_len > MNTPATHLEN);
 	p = xdr_reserve_space(xdr, 4 + pathname_len);
 	xdr_encode_opaque(p, pathname, pathname_len);
 }

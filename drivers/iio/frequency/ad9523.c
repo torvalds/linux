@@ -287,7 +287,6 @@ struct ad9523_state {
 static int ad9523_read(struct iio_dev *indio_dev, unsigned addr)
 {
 	struct ad9523_state *st = iio_priv(indio_dev);
-	struct spi_message m;
 	int ret;
 
 	/* We encode the register size 1..3 bytes into the register address.
@@ -305,15 +304,11 @@ static int ad9523_read(struct iio_dev *indio_dev, unsigned addr)
 		},
 	};
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-
 	st->data[0].d32 = cpu_to_be32(AD9523_READ |
 				      AD9523_CNT(AD9523_TRANSF_LEN(addr)) |
 				      AD9523_ADDR(addr));
 
-	ret = spi_sync(st->spi, &m);
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 	if (ret < 0)
 		dev_err(&indio_dev->dev, "read failed (%d)", ret);
 	else
@@ -326,7 +321,6 @@ static int ad9523_read(struct iio_dev *indio_dev, unsigned addr)
 static int ad9523_write(struct iio_dev *indio_dev, unsigned addr, unsigned val)
 {
 	struct ad9523_state *st = iio_priv(indio_dev);
-	struct spi_message m;
 	int ret;
 	struct spi_transfer t[] = {
 		{
@@ -338,16 +332,12 @@ static int ad9523_write(struct iio_dev *indio_dev, unsigned addr, unsigned val)
 		},
 	};
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-
 	st->data[0].d32 = cpu_to_be32(AD9523_WRITE |
 				      AD9523_CNT(AD9523_TRANSF_LEN(addr)) |
 				      AD9523_ADDR(addr));
 	st->data[1].d32 = cpu_to_be32(val);
 
-	ret = spi_sync(st->spi, &m);
+	ret = spi_sync_transfer(st->spi, t, ARRAY_SIZE(t));
 
 	if (ret < 0)
 		dev_err(&indio_dev->dev, "write failed (%d)", ret);
@@ -959,7 +949,7 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int __devinit ad9523_probe(struct spi_device *spi)
+static int ad9523_probe(struct spi_device *spi)
 {
 	struct ad9523_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
@@ -1020,7 +1010,7 @@ error_put_reg:
 	return ret;
 }
 
-static int __devexit ad9523_remove(struct spi_device *spi)
+static int ad9523_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad9523_state *st = iio_priv(indio_dev);
@@ -1049,7 +1039,7 @@ static struct spi_driver ad9523_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9523_probe,
-	.remove		= __devexit_p(ad9523_remove),
+	.remove		= ad9523_remove,
 	.id_table	= ad9523_id,
 };
 module_spi_driver(ad9523_driver);

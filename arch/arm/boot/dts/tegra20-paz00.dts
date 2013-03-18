@@ -10,6 +10,18 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
+	host1x {
+		hdmi {
+			status = "okay";
+
+			vdd-supply = <&hdmi_vdd_reg>;
+			pll-supply = <&hdmi_pll_reg>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio = <&gpio 111 0>; /* PN7 */
+		};
+	};
+
 	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
@@ -232,12 +244,10 @@
 
 	serial@70006000 {
 		status = "okay";
-		clock-frequency = <216000000>;
 	};
 
 	serial@70006200 {
 		status = "okay";
-		clock-frequency = <216000000>;
 	};
 
 	i2c@7000c000 {
@@ -252,9 +262,9 @@
 		};
 	};
 
-	i2c@7000c400 {
+	hdmi_ddc: i2c@7000c400 {
 		status = "okay";
-		clock-frequency = <400000>;
+		clock-frequency = <100000>;
 	};
 
 	nvec {
@@ -266,6 +276,8 @@
 		clock-frequency = <80000>;
 		request-gpios = <&gpio 170 0>; /* gpio PV2 */
 		slave-addr = <138>;
+		clocks = <&tegra_car 67>, <&tegra_car 124>;
+		clock-names = "div-clk", "fast-clk";
 	};
 
 	i2c@7000d000 {
@@ -291,37 +303,26 @@
 			vinldo9-supply = <&sm2_reg>;
 
 			regulators {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				sys_reg: regulator@0 {
-					reg = <0>;
-					regulator-compatible = "sys";
+				sys_reg: sys {
 					regulator-name = "vdd_sys";
 					regulator-always-on;
 				};
 
-				regulator@1 {
-					reg = <1>;
-					regulator-compatible = "sm0";
+				sm0 {
 					regulator-name = "+1.2vs_sm0,vdd_core";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 				};
 
-				regulator@2 {
-					reg = <2>;
-					regulator-compatible = "sm1";
+				sm1 {
 					regulator-name = "+1.0vs_sm1,vdd_cpu";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
 					regulator-always-on;
 				};
 
-				sm2_reg: regulator@3 {
-					reg = <3>;
-					regulator-compatible = "sm2";
+				sm2_reg: sm2 {
 					regulator-name = "+3.7vs_sm2,vin_ldo*";
 					regulator-min-microvolt = <3700000>;
 					regulator-max-microvolt = <3700000>;
@@ -330,53 +331,41 @@
 
 				/* LDO0 is not connected to anything */
 
-				regulator@5 {
-					reg = <5>;
-					regulator-compatible = "ldo1";
+				ldo1 {
 					regulator-name = "+1.1vs_ldo1,avdd_pll*";
 					regulator-min-microvolt = <1100000>;
 					regulator-max-microvolt = <1100000>;
 					regulator-always-on;
 				};
 
-				regulator@6 {
-					reg = <6>;
-					regulator-compatible = "ldo2";
+				ldo2 {
 					regulator-name = "+1.2vs_ldo2,vdd_rtc";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 				};
 
-				regulator@7 {
-					reg = <7>;
-					regulator-compatible = "ldo3";
+				ldo3 {
 					regulator-name = "+3.3vs_ldo3,avdd_usb*";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
 				};
 
-				regulator@8 {
-					reg = <8>;
-					regulator-compatible = "ldo4";
+				ldo4 {
 					regulator-name = "+1.8vs_ldo4,avdd_osc,vddio_sys";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
 				};
 
-				regulator@9 {
-					reg = <9>;
-					regulator-compatible = "ldo5";
+				ldo5 {
 					regulator-name = "+2.85vs_ldo5,vcore_mmc";
 					regulator-min-microvolt = <2850000>;
 					regulator-max-microvolt = <2850000>;
 					regulator-always-on;
 				};
 
-				regulator@10 {
-					reg = <10>;
-					regulator-compatible = "ldo6";
+				ldo6 {
 					/*
 					 * Research indicates this should be
 					 * 1.8v; other boards that use this
@@ -390,34 +379,26 @@
 					regulator-max-microvolt = <1800000>;
 				};
 
-				regulator@11 {
-					reg = <11>;
-					regulator-compatible = "ldo7";
+				hdmi_vdd_reg: ldo7 {
 					regulator-name = "+3.3vs_ldo7,avdd_hdmi";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 				};
 
-				regulator@12 {
-					reg = <12>;
-					regulator-compatible = "ldo8";
+				hdmi_pll_reg: ldo8 {
 					regulator-name = "+1.8vs_ldo8,avdd_hdmi_pll";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
-				regulator@13 {
-					reg = <13>;
-					regulator-compatible = "ldo9";
+				ldo9 {
 					regulator-name = "+2.85vs_ldo9,vdd_ddr_rx";
 					regulator-min-microvolt = <2850000>;
 					regulator-max-microvolt = <2850000>;
 					regulator-always-on;
 				};
 
-				regulator@14 {
-					reg = <14>;
-					regulator-compatible = "ldo_rtc";
+				ldo_rtc {
 					regulator-name = "+3.3vs_rtc";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
@@ -447,6 +428,10 @@
 
 	usb@c5008000 {
 		status = "okay";
+	};
+
+	usb-phy@c5004400 {
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
 	};
 
 	sdhci@c8000000 {

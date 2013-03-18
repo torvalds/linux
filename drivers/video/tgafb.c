@@ -61,8 +61,8 @@ static void tgafb_fillrect(struct fb_info *, const struct fb_fillrect *);
 static void tgafb_copyarea(struct fb_info *, const struct fb_copyarea *);
 static int tgafb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info);
 
-static int __devinit tgafb_register(struct device *dev);
-static void __devexit tgafb_unregister(struct device *dev);
+static int tgafb_register(struct device *dev);
+static void tgafb_unregister(struct device *dev);
 
 static const char *mode_option;
 static const char *mode_option_pci = "640x480@60";
@@ -93,9 +93,8 @@ static struct fb_ops tgafb_ops = {
 /*
  *  PCI registration operations
  */
-static int __devinit tgafb_pci_register(struct pci_dev *,
-					const struct pci_device_id *);
-static void __devexit tgafb_pci_unregister(struct pci_dev *);
+static int tgafb_pci_register(struct pci_dev *, const struct pci_device_id *);
+static void tgafb_pci_unregister(struct pci_dev *);
 
 static struct pci_device_id const tgafb_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TGA) },
@@ -107,17 +106,16 @@ static struct pci_driver tgafb_pci_driver = {
 	.name			= "tgafb",
 	.id_table		= tgafb_pci_table,
 	.probe			= tgafb_pci_register,
-	.remove			= __devexit_p(tgafb_pci_unregister),
+	.remove			= tgafb_pci_unregister,
 };
 
-static int __devinit
-tgafb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int tgafb_pci_register(struct pci_dev *pdev,
+			      const struct pci_device_id *ent)
 {
 	return tgafb_register(&pdev->dev);
 }
 
-static void __devexit
-tgafb_pci_unregister(struct pci_dev *pdev)
+static void tgafb_pci_unregister(struct pci_dev *pdev)
 {
 	tgafb_unregister(&pdev->dev);
 }
@@ -127,8 +125,8 @@ tgafb_pci_unregister(struct pci_dev *pdev)
 /*
  *  TC registration operations
  */
-static int __devinit tgafb_tc_register(struct device *);
-static int __devexit tgafb_tc_unregister(struct device *);
+static int tgafb_tc_register(struct device *);
+static int tgafb_tc_unregister(struct device *);
 
 static struct tc_device_id const tgafb_tc_table[] = {
 	{ "DEC     ", "PMAGD-AA" },
@@ -143,12 +141,11 @@ static struct tc_driver tgafb_tc_driver = {
 		.name		= "tgafb",
 		.bus		= &tc_bus_type,
 		.probe		= tgafb_tc_register,
-		.remove		= __devexit_p(tgafb_tc_unregister),
+		.remove		= tgafb_tc_unregister,
 	},
 };
 
-static int __devinit
-tgafb_tc_register(struct device *dev)
+static int tgafb_tc_register(struct device *dev)
 {
 	int status = tgafb_register(dev);
 	if (!status)
@@ -156,8 +153,7 @@ tgafb_tc_register(struct device *dev)
 	return status;
 }
 
-static int __devexit
-tgafb_tc_unregister(struct device *dev)
+static int tgafb_tc_unregister(struct device *dev)
 {
 	put_device(dev);
 	tgafb_unregister(dev);
@@ -1546,8 +1542,7 @@ static int tgafb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 	return 0;
 }
 
-static int __devinit
-tgafb_register(struct device *dev)
+static int tgafb_register(struct device *dev)
 {
 	static const struct fb_videomode modedb_tc = {
 		/* 1280x1024 @ 72 Hz, 76.8 kHz hsync */
@@ -1692,8 +1687,7 @@ tgafb_register(struct device *dev)
 	return ret;
 }
 
-static void __devexit
-tgafb_unregister(struct device *dev)
+static void tgafb_unregister(struct device *dev)
 {
 	resource_size_t bar0_start = 0, bar0_len = 0;
 	int tga_bus_pci = TGA_BUS_PCI(dev);
@@ -1721,16 +1715,14 @@ tgafb_unregister(struct device *dev)
 	framebuffer_release(info);
 }
 
-static void __devexit
-tgafb_exit(void)
+static void tgafb_exit(void)
 {
 	tc_unregister_driver(&tgafb_tc_driver);
 	pci_unregister_driver(&tgafb_pci_driver);
 }
 
 #ifndef MODULE
-static int __devinit
-tgafb_setup(char *arg)
+static int tgafb_setup(char *arg)
 {
 	char *this_opt;
 
@@ -1751,8 +1743,7 @@ tgafb_setup(char *arg)
 }
 #endif /* !MODULE */
 
-static int __devinit
-tgafb_init(void)
+static int tgafb_init(void)
 {
 	int status;
 #ifndef MODULE

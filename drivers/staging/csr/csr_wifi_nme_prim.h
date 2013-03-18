@@ -21,10 +21,6 @@
 #include "csr_wifi_fsm_event.h"
 #include "csr_wifi_sme_prim.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_NME_ENABLE
 #error CSR_WIFI_NME_ENABLE MUST be defined inorder to use csr_wifi_nme_prim.h
 #endif
@@ -1656,11 +1652,6 @@ typedef struct
     CsrWifiFsmEvent common;
     CsrResult       status;
 } CsrWifiNmeEventMaskSetCfm;
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_NME_PRIM_H__ */
 

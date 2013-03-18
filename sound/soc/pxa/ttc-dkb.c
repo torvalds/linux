@@ -131,7 +131,7 @@ static struct snd_soc_card ttc_dkb_card = {
 	.num_dapm_routes = ARRAY_SIZE(ttc_audio_map),
 };
 
-static int __devinit ttc_dkb_probe(struct platform_device *pdev)
+static int ttc_dkb_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &ttc_dkb_card;
 	int ret;
@@ -146,7 +146,7 @@ static int __devinit ttc_dkb_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit ttc_dkb_remove(struct platform_device *pdev)
+static int ttc_dkb_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -161,7 +161,7 @@ static struct platform_driver ttc_dkb_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ttc_dkb_probe,
-	.remove		= __devexit_p(ttc_dkb_remove),
+	.remove		= ttc_dkb_remove,
 };
 
 module_platform_driver(ttc_dkb_driver);

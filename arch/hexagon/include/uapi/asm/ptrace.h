@@ -32,4 +32,8 @@
 extern int regs_query_register_offset(const char *name);
 extern const char *regs_query_register_name(unsigned int offset);
 
+#define current_pt_regs() \
+	((struct pt_regs *) \
+	 ((unsigned long)current_thread_info() + THREAD_SIZE) - 1)
+
 #endif

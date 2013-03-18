@@ -99,7 +99,7 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	/* The i2c micro-controller only outputs the cmd part of NEC protocol */
 	dev->init_data.rc_dev->scanmask = 0xff;
 	dev->init_data.rc_dev->driver_name = "cx231xx";
-	dev->init_data.type = RC_TYPE_NEC;
+	dev->init_data.type = RC_BIT_NEC;
 	info.addr = 0x30;
 
 	/* Load and bind ir-kbd-i2c */

@@ -43,7 +43,6 @@
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
-#include <linux/mmc/mxs-mmc.h>
 #include <linux/spi/mxs-spi.h>
 
 #define DRIVER_NAME	"mxs-mmc"
@@ -355,7 +354,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	struct dma_async_tx_descriptor *desc;
 	struct scatterlist *sgl = data->sg, *sg;
 	unsigned int sg_len = data->sg_len;
-	int i;
+	unsigned int i;
 
 	unsigned short dma_data_dir, timeout;
 	enum dma_transfer_direction slave_dirn;
@@ -593,13 +592,13 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
 	struct resource *iores, *dmares;
-	struct mxs_mmc_platform_data *pdata;
 	struct pinctrl *pinctrl;
 	int ret = 0, irq_err, irq_dma;
 	dma_cap_mask_t mask;
 	struct regulator *reg_vmmc;
 	enum of_gpio_flags flags;
 	struct mxs_ssp *ssp;
+	u32 bus_width = 0;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -615,9 +614,9 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	ssp = &host->ssp;
 	ssp->dev = &pdev->dev;
-	ssp->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!ssp->base) {
-		ret = -EADDRNOTAVAIL;
+	ssp->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(ssp->base)) {
+		ret = PTR_ERR(ssp->base);
 		goto out_mmc_free;
 	}
 
@@ -682,25 +681,15 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	mmc->caps = MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED |
 		    MMC_CAP_SDIO_IRQ | MMC_CAP_NEEDS_POLL;
 
-	pdata =	mmc_dev(host->mmc)->platform_data;
-	if (!pdata) {
-		u32 bus_width = 0;
-		of_property_read_u32(np, "bus-width", &bus_width);
-		if (bus_width == 4)
-			mmc->caps |= MMC_CAP_4_BIT_DATA;
-		else if (bus_width == 8)
-			mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
-		host->wp_gpio = of_get_named_gpio_flags(np, "wp-gpios", 0,
-							&flags);
-		if (flags & OF_GPIO_ACTIVE_LOW)
-			host->wp_inverted = 1;
-	} else {
-		if (pdata->flags & SLOTF_8_BIT_CAPABLE)
-			mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
-		if (pdata->flags & SLOTF_4_BIT_CAPABLE)
-			mmc->caps |= MMC_CAP_4_BIT_DATA;
-		host->wp_gpio = pdata->wp_gpio;
-	}
+	of_property_read_u32(np, "bus-width", &bus_width);
+	if (bus_width == 4)
+		mmc->caps |= MMC_CAP_4_BIT_DATA;
+	else if (bus_width == 8)
+		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
+	host->wp_gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
+
+	if (flags & OF_GPIO_ACTIVE_LOW)
+		host->wp_inverted = 1;
 
 	mmc->f_min = 400000;
 	mmc->f_max = 288000000;
@@ -815,3 +804,4 @@ module_platform_driver(mxs_mmc_driver);
 MODULE_DESCRIPTION("FREESCALE MXS MMC peripheral");
 MODULE_AUTHOR("Freescale Semiconductor");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);

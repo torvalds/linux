@@ -77,6 +77,12 @@ unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
 #endif
 
+unsigned long long native_read_tsc(void)
+{
+	return __native_read_tsc();
+}
+EXPORT_SYMBOL(native_read_tsc);
+
 int check_tsc_unstable(void)
 {
 	return tsc_unstable;
@@ -617,7 +623,8 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	ns_now = __cycles_2_ns(tsc_now);
 
 	if (cpu_khz) {
-		*scale = (NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR)/cpu_khz;
+		*scale = ((NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR) +
+				cpu_khz / 2) / cpu_khz;
 		*offset = ns_now - mult_frac(tsc_now, *scale,
 					     (1UL << CYC2NS_SCALE_FACTOR));
 	}

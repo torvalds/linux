@@ -74,7 +74,7 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  * SAVE_REGS - The ftrace_ops wants regs saved at each function called
  *            and passed to the callback. If this flag is set, but the
  *            architecture does not support passing regs
- *            (ARCH_SUPPORTS_FTRACE_SAVE_REGS is not defined), then the
+ *            (CONFIG_DYNAMIC_FTRACE_WITH_REGS is not defined), then the
  *            ftrace_ops will fail to register, unless the next flag
  *            is set.
  * SAVE_REGS_IF_SUPPORTED - This is the same as SAVE_REGS, but if the
@@ -394,7 +394,7 @@ ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos);
 ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos);
-loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int origin);
+loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int whence);
 int ftrace_regex_release(struct inode *inode, struct file *file);
 
 void __init
@@ -418,7 +418,7 @@ void ftrace_modify_all_code(int command);
 #endif
 
 #ifndef FTRACE_REGS_ADDR
-#ifdef ARCH_SUPPORTS_FTRACE_SAVE_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 # define FTRACE_REGS_ADDR ((unsigned long)ftrace_regs_caller)
 #else
 # define FTRACE_REGS_ADDR FTRACE_ADDR
@@ -480,7 +480,7 @@ extern int ftrace_make_nop(struct module *mod,
  */
 extern int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr);
 
-#ifdef ARCH_SUPPORTS_FTRACE_SAVE_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 /**
  * ftrace_modify_call - convert from one addr to another (no nop)
  * @rec: the mcount call site record
@@ -559,7 +559,7 @@ static inline ssize_t ftrace_filter_write(struct file *file, const char __user *
 			    size_t cnt, loff_t *ppos) { return -ENODEV; }
 static inline ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos) { return -ENODEV; }
-static inline loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
+static inline loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int whence)
 {
 	return -ENODEV;
 }

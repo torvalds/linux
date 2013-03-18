@@ -32,8 +32,7 @@ struct wis_saa7113 {
 	int hue;
 };
 
-static u8 initial_registers[] =
-{
+static u8 initial_registers[] = {
 	0x01, 0x08,
 	0x02, 0xc0,
 	0x03, 0x33,
@@ -142,7 +141,7 @@ static int wis_saa7113_command(struct i2c_client *client,
 		} else if (dec->norm & V4L2_STD_PAL) {
 			write_reg(client, 0x0e, 0x01);
 			write_reg(client, 0x10, 0x48);
-		} else if (dec->norm * V4L2_STD_SECAM) {
+		} else if (dec->norm & V4L2_STD_SECAM) {
 			write_reg(client, 0x0e, 0x50);
 			write_reg(client, 0x10, 0x48);
 		}
@@ -282,12 +281,12 @@ static int wis_saa7113_probe(struct i2c_client *client,
 	dec->hue = 0;
 	i2c_set_clientdata(client, dec);
 
-	printk(KERN_DEBUG
+	dev_dbg(&client->dev,
 		"wis-saa7113: initializing SAA7113 at address %d on %s\n",
 		client->addr, adapter->name);
 
 	if (write_regs(client, initial_registers) < 0) {
-		printk(KERN_ERR
+		dev_err(&client->dev,
 			"wis-saa7113: error initializing SAA7113\n");
 		kfree(dec);
 		return -ENODEV;
@@ -320,17 +319,6 @@ static struct i2c_driver wis_saa7113_driver = {
 	.id_table	= wis_saa7113_id,
 };
 
-static int __init wis_saa7113_init(void)
-{
-	return i2c_add_driver(&wis_saa7113_driver);
-}
-
-static void __exit wis_saa7113_cleanup(void)
-{
-	i2c_del_driver(&wis_saa7113_driver);
-}
-
-module_init(wis_saa7113_init);
-module_exit(wis_saa7113_cleanup);
+module_i2c_driver(wis_saa7113_driver);
 
 MODULE_LICENSE("GPL v2");

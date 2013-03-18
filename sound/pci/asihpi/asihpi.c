@@ -1235,8 +1235,7 @@ static struct snd_pcm_ops snd_card_asihpi_capture_mmap_ops = {
 	.pointer = snd_card_asihpi_capture_pointer,
 };
 
-static int __devinit snd_card_asihpi_pcm_new(
-		struct snd_card_asihpi *asihpi, int device)
+static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1497,8 +1496,8 @@ static int snd_asihpi_volume_mute_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static int __devinit snd_asihpi_volume_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl)
+static int snd_asihpi_volume_add(struct snd_card_asihpi *asihpi,
+				 struct hpi_control *hpi_ctl)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -1593,8 +1592,8 @@ static int snd_asihpi_level_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_level, -1000, 100, 0);
 
-static int __devinit snd_asihpi_level_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl)
+static int snd_asihpi_level_add(struct snd_card_asihpi *asihpi,
+				struct hpi_control *hpi_ctl)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -1715,8 +1714,8 @@ static int snd_asihpi_aesebu_rxstatus_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int __devinit snd_asihpi_aesebu_rx_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl)
+static int snd_asihpi_aesebu_rx_add(struct snd_card_asihpi *asihpi,
+				    struct hpi_control *hpi_ctl)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -1753,8 +1752,8 @@ static int snd_asihpi_aesebu_tx_format_put(struct snd_kcontrol *kcontrol,
 }
 
 
-static int __devinit snd_asihpi_aesebu_tx_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl)
+static int snd_asihpi_aesebu_tx_add(struct snd_card_asihpi *asihpi,
+				    struct hpi_control *hpi_ctl)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -1996,8 +1995,8 @@ static int snd_asihpi_tuner_freq_put(struct snd_kcontrol *kcontrol,
 }
 
 /* Tuner control group initializer  */
-static int __devinit snd_asihpi_tuner_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl)
+static int snd_asihpi_tuner_add(struct snd_card_asihpi *asihpi,
+				struct hpi_control *hpi_ctl)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -2100,8 +2099,8 @@ static int snd_asihpi_meter_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int __devinit snd_asihpi_meter_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl, int subidx)
+static int snd_asihpi_meter_add(struct snd_card_asihpi *asihpi,
+				struct hpi_control *hpi_ctl, int subidx)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -2214,8 +2213,8 @@ static int snd_asihpi_mux_put(struct snd_kcontrol *kcontrol,
 }
 
 
-static int  __devinit snd_asihpi_mux_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl)
+static int  snd_asihpi_mux_add(struct snd_card_asihpi *asihpi,
+			       struct hpi_control *hpi_ctl)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -2303,8 +2302,8 @@ static int snd_asihpi_cmode_put(struct snd_kcontrol *kcontrol,
 }
 
 
-static int __devinit snd_asihpi_cmode_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl)
+static int snd_asihpi_cmode_add(struct snd_card_asihpi *asihpi,
+				struct hpi_control *hpi_ctl)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -2471,8 +2470,8 @@ static int snd_asihpi_clkrate_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int __devinit snd_asihpi_sampleclock_add(struct snd_card_asihpi *asihpi,
-					struct hpi_control *hpi_ctl)
+static int snd_asihpi_sampleclock_add(struct snd_card_asihpi *asihpi,
+				      struct hpi_control *hpi_ctl)
 {
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
@@ -2548,9 +2547,9 @@ static int __devinit snd_asihpi_sampleclock_add(struct snd_card_asihpi *asihpi,
    Mixer
  ------------------------------------------------------------*/
 
-static int __devinit snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
+static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 {
-	struct snd_card *card = asihpi->card;
+	struct snd_card *card;
 	unsigned int idx = 0;
 	unsigned int subindex = 0;
 	int err;
@@ -2558,6 +2557,7 @@ static int __devinit snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 
 	if (snd_BUG_ON(!asihpi))
 		return -EINVAL;
+	card = asihpi->card;
 	strcpy(card->mixername, "Asihpi Mixer");
 
 	err =
@@ -2722,7 +2722,7 @@ snd_asihpi_proc_read(struct snd_info_entry *entry,
 	}
 }
 
-static void __devinit snd_asihpi_proc_init(struct snd_card_asihpi *asihpi)
+static void snd_asihpi_proc_init(struct snd_card_asihpi *asihpi)
 {
 	struct snd_info_entry *entry;
 
@@ -2764,8 +2764,8 @@ static int snd_asihpi_hpi_ioctl(struct snd_hwdep *hw, struct file *file,
 /* results in /dev/snd/hwC#D0 file for each card with index #
    also /proc/asound/hwdep will contain '#-00: asihpi (HPI) for each card'
 */
-static int __devinit snd_asihpi_hpi_new(struct snd_card_asihpi *asihpi,
-	int device, struct snd_hwdep **rhwdep)
+static int snd_asihpi_hpi_new(struct snd_card_asihpi *asihpi,
+			      int device, struct snd_hwdep **rhwdep)
 {
 	struct snd_hwdep *hw;
 	int err;
@@ -2789,8 +2789,8 @@ static int __devinit snd_asihpi_hpi_new(struct snd_card_asihpi *asihpi,
 /*------------------------------------------------------------
    CARD
  ------------------------------------------------------------*/
-static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
-				       const struct pci_device_id *pci_id)
+static int snd_asihpi_probe(struct pci_dev *pci_dev,
+			    const struct pci_device_id *pci_id)
 {
 	int err;
 	struct hpi_adapter *hpi;
@@ -2944,7 +2944,7 @@ __nodev:
 
 }
 
-static void __devexit snd_asihpi_remove(struct pci_dev *pci_dev)
+static void snd_asihpi_remove(struct pci_dev *pci_dev)
 {
 	struct hpi_adapter *hpi = pci_get_drvdata(pci_dev);
 	snd_card_free(hpi->snd_card);
@@ -2967,7 +2967,7 @@ static struct pci_driver driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = asihpi_pci_tbl,
 	.probe = snd_asihpi_probe,
-	.remove = __devexit_p(snd_asihpi_remove),
+	.remove = snd_asihpi_remove,
 #ifdef CONFIG_PM_SLEEP
 /*	.suspend = snd_asihpi_suspend,
 	.resume = snd_asihpi_resume, */

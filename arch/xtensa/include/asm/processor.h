@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  */
 
 #ifndef _XTENSA_PROCESSOR_H
@@ -68,7 +68,7 @@
 /* LOCKLEVEL defines the interrupt level that masks all
  * general-purpose interrupts.
  */
-#define LOCKLEVEL 1
+#define LOCKLEVEL XCHAL_EXCM_LEVEL
 
 /* WSBITS and WBBITS are the width of the WINDOWSTART and WINDOWBASE
  * registers
@@ -89,7 +89,7 @@
 #define MAKE_PC_FROM_RA(ra,sp)    (((ra) & 0x3fffffff) | ((sp) & 0xc0000000))
 
 typedef struct {
-    unsigned long seg;
+	unsigned long seg;
 } mm_segment_t;
 
 struct thread_struct {
@@ -145,10 +145,10 @@ struct thread_struct {
  *       set_thread_state in signal.c depends on it.
  */
 #define USER_PS_VALUE ((1 << PS_WOE_BIT) |				\
-                       (1 << PS_CALLINC_SHIFT) |			\
-                       (USER_RING << PS_RING_SHIFT) |			\
-                       (1 << PS_UM_BIT) |				\
-                       (1 << PS_EXCM_BIT))
+		       (1 << PS_CALLINC_SHIFT) |			\
+		       (USER_RING << PS_RING_SHIFT) |			\
+		       (1 << PS_UM_BIT) |				\
+		       (1 << PS_EXCM_BIT))
 
 /* Clearing a0 terminates the backtrace. */
 #define start_thread(regs, new_pc, new_sp) \

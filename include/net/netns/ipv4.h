@@ -22,6 +22,7 @@ struct netns_ipv4 {
 	struct ctl_table_header	*frags_hdr;
 	struct ctl_table_header	*ipv4_hdr;
 	struct ctl_table_header *route_hdr;
+	struct ctl_table_header *xfrm4_hdr;
 #endif
 	struct ipv4_devconf	*devconf_all;
 	struct ipv4_devconf	*devconf_dflt;
@@ -60,6 +61,8 @@ struct netns_ipv4 {
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
 	int sysctl_icmp_errors_use_inbound_ifaddr;
+
+	int sysctl_tcp_ecn;
 
 	kgid_t sysctl_ping_group_range[2];
 	long sysctl_tcp_mem[3];

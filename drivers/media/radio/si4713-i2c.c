@@ -1769,7 +1769,7 @@ exit:
 }
 
 /* si4713_ioctl - deal with private ioctls (only rnl for now) */
-long si4713_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static long si4713_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct si4713_device *sdev = to_si4713_device(sd);
 	struct si4713_rnl *rnl = arg;

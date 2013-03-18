@@ -176,7 +176,7 @@ static struct regmap_config max8649_regmap_config = {
 	.val_bits = 8,
 };
 
-static int __devinit max8649_regulator_probe(struct i2c_client *client,
+static int max8649_regulator_probe(struct i2c_client *client,
 					     const struct i2c_device_id *id)
 {
 	struct max8649_platform_data *pdata = client->dev.platform_data;
@@ -271,7 +271,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit max8649_regulator_remove(struct i2c_client *client)
+static int max8649_regulator_remove(struct i2c_client *client)
 {
 	struct max8649_regulator_info *info = i2c_get_clientdata(client);
 
@@ -291,7 +291,7 @@ MODULE_DEVICE_TABLE(i2c, max8649_id);
 
 static struct i2c_driver max8649_driver = {
 	.probe		= max8649_regulator_probe,
-	.remove		= __devexit_p(max8649_regulator_remove),
+	.remove		= max8649_regulator_remove,
 	.driver		= {
 		.name	= "max8649",
 	},

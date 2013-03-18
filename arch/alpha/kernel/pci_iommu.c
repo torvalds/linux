@@ -354,8 +354,7 @@ static dma_addr_t alpha_pci_map_page(struct device *dev, struct page *page,
 	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	int dac_allowed;
 
-	if (dir == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(dir == PCI_DMA_NONE);
 
 	dac_allowed = pdev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0; 
 	return pci_map_single_1(pdev, (char *)page_address(page) + offset, 
@@ -378,8 +377,7 @@ static void alpha_pci_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	struct pci_iommu_arena *arena;
 	long dma_ofs, npages;
 
-	if (dir == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(dir == PCI_DMA_NONE);
 
 	if (dma_addr >= __direct_map_base
 	    && dma_addr < __direct_map_base + __direct_map_size) {
@@ -662,8 +660,7 @@ static int alpha_pci_map_sg(struct device *dev, struct scatterlist *sg,
 	dma_addr_t max_dma;
 	int dac_allowed;
 
-	if (dir == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(dir == PCI_DMA_NONE);
 
 	dac_allowed = dev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0;
 
@@ -742,8 +739,7 @@ static void alpha_pci_unmap_sg(struct device *dev, struct scatterlist *sg,
 	dma_addr_t max_dma;
 	dma_addr_t fbeg, fend;
 
-	if (dir == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(dir == PCI_DMA_NONE);
 
 	if (! alpha_mv.mv_pci_tbi)
 		return;

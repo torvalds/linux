@@ -25,17 +25,21 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_mtd.h>
+#include <linux/of_device.h>
+#include <linux/mtd/nand.h>
+
+#include <linux/platform_data/mtd-nand-omap2.h>
 
 #include <asm/mach-types.h>
-#include <plat/gpmc.h>
-
-#include <plat/cpu.h>
-#include <plat/gpmc.h>
-#include <plat/sdrc.h>
-#include <plat/omap_device.h>
 
 #include "soc.h"
 #include "common.h"
+#include "omap_device.h"
+#include "gpmc.h"
+#include "gpmc-nand.h"
+#include "gpmc-onenand.h"
 
 #define	DEVICE_NAME		"omap-gpmc"
 
@@ -59,6 +63,9 @@
 #define GPMC_ECC_SIZE_CONFIG	0x1fc
 #define GPMC_ECC1_RESULT        0x200
 #define GPMC_ECC_BCH_RESULT_0   0x240   /* not available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_1	0x244	/* not available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_2	0x248	/* not available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_3	0x24c	/* not available on OMAP2 */
 
 /* GPMC ECC control settings */
 #define GPMC_ECC_CTRL_ECCCLEAR		0x100
@@ -73,8 +80,16 @@
 #define GPMC_ECC_CTRL_ECCREG8		0x008
 #define GPMC_ECC_CTRL_ECCREG9		0x009
 
+#define	GPMC_CONFIG2_CSEXTRADELAY		BIT(7)
+#define	GPMC_CONFIG3_ADVEXTRADELAY		BIT(7)
+#define	GPMC_CONFIG4_OEEXTRADELAY		BIT(7)
+#define	GPMC_CONFIG4_WEEXTRADELAY		BIT(23)
+#define	GPMC_CONFIG6_CYCLE2CYCLEDIFFCSEN	BIT(6)
+#define	GPMC_CONFIG6_CYCLE2CYCLESAMECSEN	BIT(7)
+
 #define GPMC_CS0_OFFSET		0x60
 #define GPMC_CS_SIZE		0x30
+#define	GPMC_BCH_SIZE		0x10
 
 #define GPMC_MEM_START		0x00000000
 #define GPMC_MEM_END		0x3FFFFFFF
@@ -136,8 +151,8 @@ static unsigned gpmc_irq_start;
 static struct resource	gpmc_mem_root;
 static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
 static DEFINE_SPINLOCK(gpmc_mem_lock);
-static unsigned int gpmc_cs_map;	/* flag for cs which are initialized */
-static int gpmc_ecc_used = -EINVAL;	/* cs using ecc engine */
+/* Define chip-selects as reserved by default until probe completes */
+static unsigned int gpmc_cs_map = ((1 << GPMC_CS_NUM) - 1);
 static struct device *gpmc_dev;
 static int gpmc_irq;
 static resource_size_t phys_base, mem_size;
@@ -156,22 +171,6 @@ static void gpmc_write_reg(int idx, u32 val)
 static u32 gpmc_read_reg(int idx)
 {
 	return __raw_readl(gpmc_base + idx);
-}
-
-static void gpmc_cs_write_byte(int cs, int idx, u8 val)
-{
-	void __iomem *reg_addr;
-
-	reg_addr = gpmc_base + GPMC_CS0_OFFSET + (cs * GPMC_CS_SIZE) + idx;
-	__raw_writeb(val, reg_addr);
-}
-
-static u8 gpmc_cs_read_byte(int cs, int idx)
-{
-	void __iomem *reg_addr;
-
-	reg_addr = gpmc_base + GPMC_CS0_OFFSET + (cs * GPMC_CS_SIZE) + idx;
-	return __raw_readb(reg_addr);
 }
 
 void gpmc_cs_write_reg(int cs, int idx, u32 val)
@@ -238,6 +237,51 @@ unsigned int gpmc_round_ns_to_ticks(unsigned int time_ns)
 	return ticks * gpmc_get_fclk_period() / 1000;
 }
 
+static unsigned int gpmc_ticks_to_ps(unsigned int ticks)
+{
+	return ticks * gpmc_get_fclk_period();
+}
+
+static unsigned int gpmc_round_ps_to_ticks(unsigned int time_ps)
+{
+	unsigned long ticks = gpmc_ps_to_ticks(time_ps);
+
+	return ticks * gpmc_get_fclk_period();
+}
+
+static inline void gpmc_cs_modify_reg(int cs, int reg, u32 mask, bool value)
+{
+	u32 l;
+
+	l = gpmc_cs_read_reg(cs, reg);
+	if (value)
+		l |= mask;
+	else
+		l &= ~mask;
+	gpmc_cs_write_reg(cs, reg, l);
+}
+
+static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
+{
+	gpmc_cs_modify_reg(cs, GPMC_CS_CONFIG1,
+			   GPMC_CONFIG1_TIME_PARA_GRAN,
+			   p->time_para_granularity);
+	gpmc_cs_modify_reg(cs, GPMC_CS_CONFIG2,
+			   GPMC_CONFIG2_CSEXTRADELAY, p->cs_extra_delay);
+	gpmc_cs_modify_reg(cs, GPMC_CS_CONFIG3,
+			   GPMC_CONFIG3_ADVEXTRADELAY, p->adv_extra_delay);
+	gpmc_cs_modify_reg(cs, GPMC_CS_CONFIG4,
+			   GPMC_CONFIG4_OEEXTRADELAY, p->oe_extra_delay);
+	gpmc_cs_modify_reg(cs, GPMC_CS_CONFIG4,
+			   GPMC_CONFIG4_OEEXTRADELAY, p->we_extra_delay);
+	gpmc_cs_modify_reg(cs, GPMC_CS_CONFIG6,
+			   GPMC_CONFIG6_CYCLE2CYCLESAMECSEN,
+			   p->cycle2cyclesamecsen);
+	gpmc_cs_modify_reg(cs, GPMC_CS_CONFIG6,
+			   GPMC_CONFIG6_CYCLE2CYCLEDIFFCSEN,
+			   p->cycle2cyclediffcsen);
+}
+
 #ifdef DEBUG
 static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 			       int time, const char *name)
@@ -288,7 +332,7 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 		return -1
 #endif
 
-int gpmc_cs_calc_divider(int cs, unsigned int sync_clk)
+int gpmc_calc_divider(unsigned int sync_clk)
 {
 	int div;
 	u32 l;
@@ -308,7 +352,7 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 	int div;
 	u32 l;
 
-	div = gpmc_cs_calc_divider(cs, t->sync_clk);
+	div = gpmc_calc_divider(t->sync_clk);
 	if (div < 0)
 		return div;
 
@@ -331,6 +375,12 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 
 	GPMC_SET_ONE(GPMC_CS_CONFIG5, 24, 27, page_burst_access);
 
+	GPMC_SET_ONE(GPMC_CS_CONFIG6, 0, 3, bus_turnaround);
+	GPMC_SET_ONE(GPMC_CS_CONFIG6, 8, 11, cycle2cycle_delay);
+
+	GPMC_SET_ONE(GPMC_CS_CONFIG1, 18, 19, wait_monitoring);
+	GPMC_SET_ONE(GPMC_CS_CONFIG1, 25, 26, clk_activation);
+
 	if (gpmc_capability & GPMC_HAS_WR_DATA_MUX_BUS)
 		GPMC_SET_ONE(GPMC_CS_CONFIG6, 16, 19, wr_data_mux_bus);
 	if (gpmc_capability & GPMC_HAS_WR_ACCESS)
@@ -349,6 +399,8 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 		l |= (div - 1);
 		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, l);
 	}
+
+	gpmc_cs_bool_timings(cs, &t->bool_timings);
 
 	return 0;
 }
@@ -509,44 +561,6 @@ void gpmc_cs_free(int cs)
 EXPORT_SYMBOL(gpmc_cs_free);
 
 /**
- * gpmc_read_status - read access request to get the different gpmc status
- * @cmd: command type
- * @return status
- */
-int gpmc_read_status(int cmd)
-{
-	int	status = -EINVAL;
-	u32	regval = 0;
-
-	switch (cmd) {
-	case GPMC_GET_IRQ_STATUS:
-		status = gpmc_read_reg(GPMC_IRQSTATUS);
-		break;
-
-	case GPMC_PREFETCH_FIFO_CNT:
-		regval = gpmc_read_reg(GPMC_PREFETCH_STATUS);
-		status = GPMC_PREFETCH_STATUS_FIFO_CNT(regval);
-		break;
-
-	case GPMC_PREFETCH_COUNT:
-		regval = gpmc_read_reg(GPMC_PREFETCH_STATUS);
-		status = GPMC_PREFETCH_STATUS_COUNT(regval);
-		break;
-
-	case GPMC_STATUS_BUFFER:
-		regval = gpmc_read_reg(GPMC_STATUS);
-		/* 1 : buffer is available to write */
-		status = regval & GPMC_STATUS_BUFF_EMPTY;
-		break;
-
-	default:
-		printk(KERN_ERR "gpmc_read_status: Not supported\n");
-	}
-	return status;
-}
-EXPORT_SYMBOL(gpmc_read_status);
-
-/**
  * gpmc_cs_configure - write request to configure gpmc
  * @cs: chip select number
  * @cmd: command type
@@ -614,121 +628,10 @@ int gpmc_cs_configure(int cs, int cmd, int wval)
 }
 EXPORT_SYMBOL(gpmc_cs_configure);
 
-/**
- * gpmc_nand_read - nand specific read access request
- * @cs: chip select number
- * @cmd: command type
- */
-int gpmc_nand_read(int cs, int cmd)
-{
-	int rval = -EINVAL;
-
-	switch (cmd) {
-	case GPMC_NAND_DATA:
-		rval = gpmc_cs_read_byte(cs, GPMC_CS_NAND_DATA);
-		break;
-
-	default:
-		printk(KERN_ERR "gpmc_read_nand_ctrl: Not supported\n");
-	}
-	return rval;
-}
-EXPORT_SYMBOL(gpmc_nand_read);
-
-/**
- * gpmc_nand_write - nand specific write request
- * @cs: chip select number
- * @cmd: command type
- * @wval: value to write
- */
-int gpmc_nand_write(int cs, int cmd, int wval)
-{
-	int err = 0;
-
-	switch (cmd) {
-	case GPMC_NAND_COMMAND:
-		gpmc_cs_write_byte(cs, GPMC_CS_NAND_COMMAND, wval);
-		break;
-
-	case GPMC_NAND_ADDRESS:
-		gpmc_cs_write_byte(cs, GPMC_CS_NAND_ADDRESS, wval);
-		break;
-
-	case GPMC_NAND_DATA:
-		gpmc_cs_write_byte(cs, GPMC_CS_NAND_DATA, wval);
-
-	default:
-		printk(KERN_ERR "gpmc_write_nand_ctrl: Not supported\n");
-		err = -EINVAL;
-	}
-	return err;
-}
-EXPORT_SYMBOL(gpmc_nand_write);
-
-
-
-/**
- * gpmc_prefetch_enable - configures and starts prefetch transfer
- * @cs: cs (chip select) number
- * @fifo_th: fifo threshold to be used for read/ write
- * @dma_mode: dma mode enable (1) or disable (0)
- * @u32_count: number of bytes to be transferred
- * @is_write: prefetch read(0) or write post(1) mode
- */
-int gpmc_prefetch_enable(int cs, int fifo_th, int dma_mode,
-				unsigned int u32_count, int is_write)
-{
-
-	if (fifo_th > PREFETCH_FIFOTHRESHOLD_MAX) {
-		pr_err("gpmc: fifo threshold is not supported\n");
-		return -1;
-	} else if (!(gpmc_read_reg(GPMC_PREFETCH_CONTROL))) {
-		/* Set the amount of bytes to be prefetched */
-		gpmc_write_reg(GPMC_PREFETCH_CONFIG2, u32_count);
-
-		/* Set dma/mpu mode, the prefetch read / post write and
-		 * enable the engine. Set which cs is has requested for.
-		 */
-		gpmc_write_reg(GPMC_PREFETCH_CONFIG1, ((cs << CS_NUM_SHIFT) |
-					PREFETCH_FIFOTHRESHOLD(fifo_th) |
-					ENABLE_PREFETCH |
-					(dma_mode << DMA_MPU_MODE) |
-					(0x1 & is_write)));
-
-		/*  Start the prefetch engine */
-		gpmc_write_reg(GPMC_PREFETCH_CONTROL, 0x1);
-	} else {
-		return -EBUSY;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(gpmc_prefetch_enable);
-
-/**
- * gpmc_prefetch_reset - disables and stops the prefetch engine
- */
-int gpmc_prefetch_reset(int cs)
-{
-	u32 config1;
-
-	/* check if the same module/cs is trying to reset */
-	config1 = gpmc_read_reg(GPMC_PREFETCH_CONFIG1);
-	if (((config1 >> CS_NUM_SHIFT) & 0x7) != cs)
-		return -EINVAL;
-
-	/* Stop the PFPW engine */
-	gpmc_write_reg(GPMC_PREFETCH_CONTROL, 0x0);
-
-	/* Reset/disable the PFPW engine */
-	gpmc_write_reg(GPMC_PREFETCH_CONFIG1, 0x0);
-
-	return 0;
-}
-EXPORT_SYMBOL(gpmc_prefetch_reset);
-
 void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
 {
+	int i;
+
 	reg->gpmc_status = gpmc_base + GPMC_STATUS;
 	reg->gpmc_nand_command = gpmc_base + GPMC_CS0_OFFSET +
 				GPMC_CS_NAND_COMMAND + GPMC_CS_SIZE * cs;
@@ -744,7 +647,17 @@ void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
 	reg->gpmc_ecc_control = gpmc_base + GPMC_ECC_CONTROL;
 	reg->gpmc_ecc_size_config = gpmc_base + GPMC_ECC_SIZE_CONFIG;
 	reg->gpmc_ecc1_result = gpmc_base + GPMC_ECC1_RESULT;
-	reg->gpmc_bch_result0 = gpmc_base + GPMC_ECC_BCH_RESULT_0;
+
+	for (i = 0; i < GPMC_BCH_NUM_REMAINDER; i++) {
+		reg->gpmc_bch_result0[i] = gpmc_base + GPMC_ECC_BCH_RESULT_0 +
+					   GPMC_BCH_SIZE * i;
+		reg->gpmc_bch_result1[i] = gpmc_base + GPMC_ECC_BCH_RESULT_1 +
+					   GPMC_BCH_SIZE * i;
+		reg->gpmc_bch_result2[i] = gpmc_base + GPMC_ECC_BCH_RESULT_2 +
+					   GPMC_BCH_SIZE * i;
+		reg->gpmc_bch_result3[i] = gpmc_base + GPMC_ECC_BCH_RESULT_3 +
+					   GPMC_BCH_SIZE * i;
+	}
 }
 
 int gpmc_get_client_irq(unsigned irq_config)
@@ -838,7 +751,7 @@ static int gpmc_setup_irq(void)
 	return request_irq(gpmc_irq, gpmc_handle_irq, 0, "gpmc", NULL);
 }
 
-static __devexit int gpmc_free_irq(void)
+static int gpmc_free_irq(void)
 {
 	int i;
 
@@ -856,7 +769,7 @@ static __devexit int gpmc_free_irq(void)
 	return 0;
 }
 
-static void __devexit gpmc_mem_exit(void)
+static void gpmc_mem_exit(void)
 {
 	int cs;
 
@@ -868,7 +781,7 @@ static void __devexit gpmc_mem_exit(void)
 
 }
 
-static int __devinit gpmc_mem_init(void)
+static int gpmc_mem_init(void)
 {
 	int cs, rc;
 	unsigned long boot_rom_space = 0;
@@ -877,9 +790,6 @@ static int __devinit gpmc_mem_init(void)
 	 * even if we didn't boot from ROM.
 	 */
 	boot_rom_space = BOOT_ROM_SPACE;
-	/* In apollon the CS0 is mapped as 0x0000 0000 */
-	if (machine_is_omap_apollon())
-		boot_rom_space = 0;
 	gpmc_mem_root.start = GPMC_MEM_START + boot_rom_space;
 	gpmc_mem_root.end = GPMC_MEM_END;
 
@@ -902,7 +812,524 @@ static int __devinit gpmc_mem_init(void)
 	return 0;
 }
 
-static __devinit int gpmc_probe(struct platform_device *pdev)
+static u32 gpmc_round_ps_to_sync_clk(u32 time_ps, u32 sync_clk)
+{
+	u32 temp;
+	int div;
+
+	div = gpmc_calc_divider(sync_clk);
+	temp = gpmc_ps_to_ticks(time_ps);
+	temp = (temp + div - 1) / div;
+	return gpmc_ticks_to_ps(temp * div);
+}
+
+/* XXX: can the cycles be avoided ? */
+static int gpmc_calc_sync_read_timings(struct gpmc_timings *gpmc_t,
+				struct gpmc_device_timings *dev_t)
+{
+	bool mux = dev_t->mux;
+	u32 temp;
+
+	/* adv_rd_off */
+	temp = dev_t->t_avdp_r;
+	/* XXX: mux check required ? */
+	if (mux) {
+		/* XXX: t_avdp not to be required for sync, only added for tusb
+		 * this indirectly necessitates requirement of t_avdp_r and
+		 * t_avdp_w instead of having a single t_avdp
+		 */
+		temp = max_t(u32, temp,	gpmc_t->clk_activation + dev_t->t_avdh);
+		temp = max_t(u32, gpmc_t->adv_on + gpmc_ticks_to_ps(1), temp);
+	}
+	gpmc_t->adv_rd_off = gpmc_round_ps_to_ticks(temp);
+
+	/* oe_on */
+	temp = dev_t->t_oeasu; /* XXX: remove this ? */
+	if (mux) {
+		temp = max_t(u32, temp,	gpmc_t->clk_activation + dev_t->t_ach);
+		temp = max_t(u32, temp, gpmc_t->adv_rd_off +
+				gpmc_ticks_to_ps(dev_t->cyc_aavdh_oe));
+	}
+	gpmc_t->oe_on = gpmc_round_ps_to_ticks(temp);
+
+	/* access */
+	/* XXX: any scope for improvement ?, by combining oe_on
+	 * and clk_activation, need to check whether
+	 * access = clk_activation + round to sync clk ?
+	 */
+	temp = max_t(u32, dev_t->t_iaa,	dev_t->cyc_iaa * gpmc_t->sync_clk);
+	temp += gpmc_t->clk_activation;
+	if (dev_t->cyc_oe)
+		temp = max_t(u32, temp, gpmc_t->oe_on +
+				gpmc_ticks_to_ps(dev_t->cyc_oe));
+	gpmc_t->access = gpmc_round_ps_to_ticks(temp);
+
+	gpmc_t->oe_off = gpmc_t->access + gpmc_ticks_to_ps(1);
+	gpmc_t->cs_rd_off = gpmc_t->oe_off;
+
+	/* rd_cycle */
+	temp = max_t(u32, dev_t->t_cez_r, dev_t->t_oez);
+	temp = gpmc_round_ps_to_sync_clk(temp, gpmc_t->sync_clk) +
+							gpmc_t->access;
+	/* XXX: barter t_ce_rdyz with t_cez_r ? */
+	if (dev_t->t_ce_rdyz)
+		temp = max_t(u32, temp,	gpmc_t->cs_rd_off + dev_t->t_ce_rdyz);
+	gpmc_t->rd_cycle = gpmc_round_ps_to_ticks(temp);
+
+	return 0;
+}
+
+static int gpmc_calc_sync_write_timings(struct gpmc_timings *gpmc_t,
+				struct gpmc_device_timings *dev_t)
+{
+	bool mux = dev_t->mux;
+	u32 temp;
+
+	/* adv_wr_off */
+	temp = dev_t->t_avdp_w;
+	if (mux) {
+		temp = max_t(u32, temp,
+			gpmc_t->clk_activation + dev_t->t_avdh);
+		temp = max_t(u32, gpmc_t->adv_on + gpmc_ticks_to_ps(1), temp);
+	}
+	gpmc_t->adv_wr_off = gpmc_round_ps_to_ticks(temp);
+
+	/* wr_data_mux_bus */
+	temp = max_t(u32, dev_t->t_weasu,
+			gpmc_t->clk_activation + dev_t->t_rdyo);
+	/* XXX: shouldn't mux be kept as a whole for wr_data_mux_bus ?,
+	 * and in that case remember to handle we_on properly
+	 */
+	if (mux) {
+		temp = max_t(u32, temp,
+			gpmc_t->adv_wr_off + dev_t->t_aavdh);
+		temp = max_t(u32, temp, gpmc_t->adv_wr_off +
+				gpmc_ticks_to_ps(dev_t->cyc_aavdh_we));
+	}
+	gpmc_t->wr_data_mux_bus = gpmc_round_ps_to_ticks(temp);
+
+	/* we_on */
+	if (gpmc_capability & GPMC_HAS_WR_DATA_MUX_BUS)
+		gpmc_t->we_on = gpmc_round_ps_to_ticks(dev_t->t_weasu);
+	else
+		gpmc_t->we_on = gpmc_t->wr_data_mux_bus;
+
+	/* wr_access */
+	/* XXX: gpmc_capability check reqd ? , even if not, will not harm */
+	gpmc_t->wr_access = gpmc_t->access;
+
+	/* we_off */
+	temp = gpmc_t->we_on + dev_t->t_wpl;
+	temp = max_t(u32, temp,
+			gpmc_t->wr_access + gpmc_ticks_to_ps(1));
+	temp = max_t(u32, temp,
+		gpmc_t->we_on + gpmc_ticks_to_ps(dev_t->cyc_wpl));
+	gpmc_t->we_off = gpmc_round_ps_to_ticks(temp);
+
+	gpmc_t->cs_wr_off = gpmc_round_ps_to_ticks(gpmc_t->we_off +
+							dev_t->t_wph);
+
+	/* wr_cycle */
+	temp = gpmc_round_ps_to_sync_clk(dev_t->t_cez_w, gpmc_t->sync_clk);
+	temp += gpmc_t->wr_access;
+	/* XXX: barter t_ce_rdyz with t_cez_w ? */
+	if (dev_t->t_ce_rdyz)
+		temp = max_t(u32, temp,
+				 gpmc_t->cs_wr_off + dev_t->t_ce_rdyz);
+	gpmc_t->wr_cycle = gpmc_round_ps_to_ticks(temp);
+
+	return 0;
+}
+
+static int gpmc_calc_async_read_timings(struct gpmc_timings *gpmc_t,
+				struct gpmc_device_timings *dev_t)
+{
+	bool mux = dev_t->mux;
+	u32 temp;
+
+	/* adv_rd_off */
+	temp = dev_t->t_avdp_r;
+	if (mux)
+		temp = max_t(u32, gpmc_t->adv_on + gpmc_ticks_to_ps(1), temp);
+	gpmc_t->adv_rd_off = gpmc_round_ps_to_ticks(temp);
+
+	/* oe_on */
+	temp = dev_t->t_oeasu;
+	if (mux)
+		temp = max_t(u32, temp,
+			gpmc_t->adv_rd_off + dev_t->t_aavdh);
+	gpmc_t->oe_on = gpmc_round_ps_to_ticks(temp);
+
+	/* access */
+	temp = max_t(u32, dev_t->t_iaa, /* XXX: remove t_iaa in async ? */
+				gpmc_t->oe_on + dev_t->t_oe);
+	temp = max_t(u32, temp,
+				gpmc_t->cs_on + dev_t->t_ce);
+	temp = max_t(u32, temp,
+				gpmc_t->adv_on + dev_t->t_aa);
+	gpmc_t->access = gpmc_round_ps_to_ticks(temp);
+
+	gpmc_t->oe_off = gpmc_t->access + gpmc_ticks_to_ps(1);
+	gpmc_t->cs_rd_off = gpmc_t->oe_off;
+
+	/* rd_cycle */
+	temp = max_t(u32, dev_t->t_rd_cycle,
+			gpmc_t->cs_rd_off + dev_t->t_cez_r);
+	temp = max_t(u32, temp, gpmc_t->oe_off + dev_t->t_oez);
+	gpmc_t->rd_cycle = gpmc_round_ps_to_ticks(temp);
+
+	return 0;
+}
+
+static int gpmc_calc_async_write_timings(struct gpmc_timings *gpmc_t,
+				struct gpmc_device_timings *dev_t)
+{
+	bool mux = dev_t->mux;
+	u32 temp;
+
+	/* adv_wr_off */
+	temp = dev_t->t_avdp_w;
+	if (mux)
+		temp = max_t(u32, gpmc_t->adv_on + gpmc_ticks_to_ps(1), temp);
+	gpmc_t->adv_wr_off = gpmc_round_ps_to_ticks(temp);
+
+	/* wr_data_mux_bus */
+	temp = dev_t->t_weasu;
+	if (mux) {
+		temp = max_t(u32, temp,	gpmc_t->adv_wr_off + dev_t->t_aavdh);
+		temp = max_t(u32, temp, gpmc_t->adv_wr_off +
+				gpmc_ticks_to_ps(dev_t->cyc_aavdh_we));
+	}
+	gpmc_t->wr_data_mux_bus = gpmc_round_ps_to_ticks(temp);
+
+	/* we_on */
+	if (gpmc_capability & GPMC_HAS_WR_DATA_MUX_BUS)
+		gpmc_t->we_on = gpmc_round_ps_to_ticks(dev_t->t_weasu);
+	else
+		gpmc_t->we_on = gpmc_t->wr_data_mux_bus;
+
+	/* we_off */
+	temp = gpmc_t->we_on + dev_t->t_wpl;
+	gpmc_t->we_off = gpmc_round_ps_to_ticks(temp);
+
+	gpmc_t->cs_wr_off = gpmc_round_ps_to_ticks(gpmc_t->we_off +
+							dev_t->t_wph);
+
+	/* wr_cycle */
+	temp = max_t(u32, dev_t->t_wr_cycle,
+				gpmc_t->cs_wr_off + dev_t->t_cez_w);
+	gpmc_t->wr_cycle = gpmc_round_ps_to_ticks(temp);
+
+	return 0;
+}
+
+static int gpmc_calc_sync_common_timings(struct gpmc_timings *gpmc_t,
+			struct gpmc_device_timings *dev_t)
+{
+	u32 temp;
+
+	gpmc_t->sync_clk = gpmc_calc_divider(dev_t->clk) *
+						gpmc_get_fclk_period();
+
+	gpmc_t->page_burst_access = gpmc_round_ps_to_sync_clk(
+					dev_t->t_bacc,
+					gpmc_t->sync_clk);
+
+	temp = max_t(u32, dev_t->t_ces, dev_t->t_avds);
+	gpmc_t->clk_activation = gpmc_round_ps_to_ticks(temp);
+
+	if (gpmc_calc_divider(gpmc_t->sync_clk) != 1)
+		return 0;
+
+	if (dev_t->ce_xdelay)
+		gpmc_t->bool_timings.cs_extra_delay = true;
+	if (dev_t->avd_xdelay)
+		gpmc_t->bool_timings.adv_extra_delay = true;
+	if (dev_t->oe_xdelay)
+		gpmc_t->bool_timings.oe_extra_delay = true;
+	if (dev_t->we_xdelay)
+		gpmc_t->bool_timings.we_extra_delay = true;
+
+	return 0;
+}
+
+static int gpmc_calc_common_timings(struct gpmc_timings *gpmc_t,
+			struct gpmc_device_timings *dev_t)
+{
+	u32 temp;
+
+	/* cs_on */
+	gpmc_t->cs_on = gpmc_round_ps_to_ticks(dev_t->t_ceasu);
+
+	/* adv_on */
+	temp = dev_t->t_avdasu;
+	if (dev_t->t_ce_avd)
+		temp = max_t(u32, temp,
+				gpmc_t->cs_on + dev_t->t_ce_avd);
+	gpmc_t->adv_on = gpmc_round_ps_to_ticks(temp);
+
+	if (dev_t->sync_write || dev_t->sync_read)
+		gpmc_calc_sync_common_timings(gpmc_t, dev_t);
+
+	return 0;
+}
+
+/* TODO: remove this function once all peripherals are confirmed to
+ * work with generic timing. Simultaneously gpmc_cs_set_timings()
+ * has to be modified to handle timings in ps instead of ns
+*/
+static void gpmc_convert_ps_to_ns(struct gpmc_timings *t)
+{
+	t->cs_on /= 1000;
+	t->cs_rd_off /= 1000;
+	t->cs_wr_off /= 1000;
+	t->adv_on /= 1000;
+	t->adv_rd_off /= 1000;
+	t->adv_wr_off /= 1000;
+	t->we_on /= 1000;
+	t->we_off /= 1000;
+	t->oe_on /= 1000;
+	t->oe_off /= 1000;
+	t->page_burst_access /= 1000;
+	t->access /= 1000;
+	t->rd_cycle /= 1000;
+	t->wr_cycle /= 1000;
+	t->bus_turnaround /= 1000;
+	t->cycle2cycle_delay /= 1000;
+	t->wait_monitoring /= 1000;
+	t->clk_activation /= 1000;
+	t->wr_access /= 1000;
+	t->wr_data_mux_bus /= 1000;
+}
+
+int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
+			struct gpmc_device_timings *dev_t)
+{
+	memset(gpmc_t, 0, sizeof(*gpmc_t));
+
+	gpmc_calc_common_timings(gpmc_t, dev_t);
+
+	if (dev_t->sync_read)
+		gpmc_calc_sync_read_timings(gpmc_t, dev_t);
+	else
+		gpmc_calc_async_read_timings(gpmc_t, dev_t);
+
+	if (dev_t->sync_write)
+		gpmc_calc_sync_write_timings(gpmc_t, dev_t);
+	else
+		gpmc_calc_async_write_timings(gpmc_t, dev_t);
+
+	/* TODO: remove, see function definition */
+	gpmc_convert_ps_to_ns(gpmc_t);
+
+	return 0;
+}
+
+#ifdef CONFIG_OF
+static struct of_device_id gpmc_dt_ids[] = {
+	{ .compatible = "ti,omap2420-gpmc" },
+	{ .compatible = "ti,omap2430-gpmc" },
+	{ .compatible = "ti,omap3430-gpmc" },	/* omap3430 & omap3630 */
+	{ .compatible = "ti,omap4430-gpmc" },	/* omap4430 & omap4460 & omap543x */
+	{ .compatible = "ti,am3352-gpmc" },	/* am335x devices */
+	{ }
+};
+MODULE_DEVICE_TABLE(of, gpmc_dt_ids);
+
+static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
+						struct gpmc_timings *gpmc_t)
+{
+	u32 val;
+
+	memset(gpmc_t, 0, sizeof(*gpmc_t));
+
+	/* minimum clock period for syncronous mode */
+	if (!of_property_read_u32(np, "gpmc,sync-clk", &val))
+		gpmc_t->sync_clk = val;
+
+	/* chip select timtings */
+	if (!of_property_read_u32(np, "gpmc,cs-on", &val))
+		gpmc_t->cs_on = val;
+
+	if (!of_property_read_u32(np, "gpmc,cs-rd-off", &val))
+		gpmc_t->cs_rd_off = val;
+
+	if (!of_property_read_u32(np, "gpmc,cs-wr-off", &val))
+		gpmc_t->cs_wr_off = val;
+
+	/* ADV signal timings */
+	if (!of_property_read_u32(np, "gpmc,adv-on", &val))
+		gpmc_t->adv_on = val;
+
+	if (!of_property_read_u32(np, "gpmc,adv-rd-off", &val))
+		gpmc_t->adv_rd_off = val;
+
+	if (!of_property_read_u32(np, "gpmc,adv-wr-off", &val))
+		gpmc_t->adv_wr_off = val;
+
+	/* WE signal timings */
+	if (!of_property_read_u32(np, "gpmc,we-on", &val))
+		gpmc_t->we_on = val;
+
+	if (!of_property_read_u32(np, "gpmc,we-off", &val))
+		gpmc_t->we_off = val;
+
+	/* OE signal timings */
+	if (!of_property_read_u32(np, "gpmc,oe-on", &val))
+		gpmc_t->oe_on = val;
+
+	if (!of_property_read_u32(np, "gpmc,oe-off", &val))
+		gpmc_t->oe_off = val;
+
+	/* access and cycle timings */
+	if (!of_property_read_u32(np, "gpmc,page-burst-access", &val))
+		gpmc_t->page_burst_access = val;
+
+	if (!of_property_read_u32(np, "gpmc,access", &val))
+		gpmc_t->access = val;
+
+	if (!of_property_read_u32(np, "gpmc,rd-cycle", &val))
+		gpmc_t->rd_cycle = val;
+
+	if (!of_property_read_u32(np, "gpmc,wr-cycle", &val))
+		gpmc_t->wr_cycle = val;
+
+	/* only for OMAP3430 */
+	if (!of_property_read_u32(np, "gpmc,wr-access", &val))
+		gpmc_t->wr_access = val;
+
+	if (!of_property_read_u32(np, "gpmc,wr-data-mux-bus", &val))
+		gpmc_t->wr_data_mux_bus = val;
+}
+
+#ifdef CONFIG_MTD_NAND
+
+static const char * const nand_ecc_opts[] = {
+	[OMAP_ECC_HAMMING_CODE_DEFAULT]		= "sw",
+	[OMAP_ECC_HAMMING_CODE_HW]		= "hw",
+	[OMAP_ECC_HAMMING_CODE_HW_ROMCODE]	= "hw-romcode",
+	[OMAP_ECC_BCH4_CODE_HW]			= "bch4",
+	[OMAP_ECC_BCH8_CODE_HW]			= "bch8",
+};
+
+static int gpmc_probe_nand_child(struct platform_device *pdev,
+				 struct device_node *child)
+{
+	u32 val;
+	const char *s;
+	struct gpmc_timings gpmc_t;
+	struct omap_nand_platform_data *gpmc_nand_data;
+
+	if (of_property_read_u32(child, "reg", &val) < 0) {
+		dev_err(&pdev->dev, "%s has no 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	gpmc_nand_data = devm_kzalloc(&pdev->dev, sizeof(*gpmc_nand_data),
+				      GFP_KERNEL);
+	if (!gpmc_nand_data)
+		return -ENOMEM;
+
+	gpmc_nand_data->cs = val;
+	gpmc_nand_data->of_node = child;
+
+	if (!of_property_read_string(child, "ti,nand-ecc-opt", &s))
+		for (val = 0; val < ARRAY_SIZE(nand_ecc_opts); val++)
+			if (!strcasecmp(s, nand_ecc_opts[val])) {
+				gpmc_nand_data->ecc_opt = val;
+				break;
+			}
+
+	val = of_get_nand_bus_width(child);
+	if (val == 16)
+		gpmc_nand_data->devsize = NAND_BUSWIDTH_16;
+
+	gpmc_read_timings_dt(child, &gpmc_t);
+	gpmc_nand_init(gpmc_nand_data, &gpmc_t);
+
+	return 0;
+}
+#else
+static int gpmc_probe_nand_child(struct platform_device *pdev,
+				 struct device_node *child)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_MTD_ONENAND
+static int gpmc_probe_onenand_child(struct platform_device *pdev,
+				 struct device_node *child)
+{
+	u32 val;
+	struct omap_onenand_platform_data *gpmc_onenand_data;
+
+	if (of_property_read_u32(child, "reg", &val) < 0) {
+		dev_err(&pdev->dev, "%s has no 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	gpmc_onenand_data = devm_kzalloc(&pdev->dev, sizeof(*gpmc_onenand_data),
+					 GFP_KERNEL);
+	if (!gpmc_onenand_data)
+		return -ENOMEM;
+
+	gpmc_onenand_data->cs = val;
+	gpmc_onenand_data->of_node = child;
+	gpmc_onenand_data->dma_channel = -1;
+
+	if (!of_property_read_u32(child, "dma-channel", &val))
+		gpmc_onenand_data->dma_channel = val;
+
+	gpmc_onenand_init(gpmc_onenand_data);
+
+	return 0;
+}
+#else
+static int gpmc_probe_onenand_child(struct platform_device *pdev,
+				    struct device_node *child)
+{
+	return 0;
+}
+#endif
+
+static int gpmc_probe_dt(struct platform_device *pdev)
+{
+	int ret;
+	struct device_node *child;
+	const struct of_device_id *of_id =
+		of_match_device(gpmc_dt_ids, &pdev->dev);
+
+	if (!of_id)
+		return 0;
+
+	for_each_node_by_name(child, "nand") {
+		ret = gpmc_probe_nand_child(pdev, child);
+		if (ret < 0) {
+			of_node_put(child);
+			return ret;
+		}
+	}
+
+	for_each_node_by_name(child, "onenand") {
+		ret = gpmc_probe_onenand_child(pdev, child);
+		if (ret < 0) {
+			of_node_put(child);
+			return ret;
+		}
+	}
+	return 0;
+}
+#else
+static int gpmc_probe_dt(struct platform_device *pdev)
+{
+	return 0;
+}
+#endif
+
+static int gpmc_probe(struct platform_device *pdev)
 {
 	int rc;
 	u32 l;
@@ -915,11 +1342,9 @@ static __devinit int gpmc_probe(struct platform_device *pdev)
 	phys_base = res->start;
 	mem_size = resource_size(res);
 
-	gpmc_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!gpmc_base) {
-		dev_err(&pdev->dev, "error: request memory / ioremap\n");
-		return -EADDRNOTAVAIL;
-	}
+	gpmc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(gpmc_base))
+		return PTR_ERR(gpmc_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL)
@@ -955,10 +1380,21 @@ static __devinit int gpmc_probe(struct platform_device *pdev)
 	if (IS_ERR_VALUE(gpmc_setup_irq()))
 		dev_warn(gpmc_dev, "gpmc_setup_irq failed\n");
 
+	/* Now the GPMC is initialised, unreserve the chip-selects */
+	gpmc_cs_map = 0;
+
+	rc = gpmc_probe_dt(pdev);
+	if (rc < 0) {
+		clk_disable_unprepare(gpmc_l3_clk);
+		clk_put(gpmc_l3_clk);
+		dev_err(gpmc_dev, "failed to probe DT parameters\n");
+		return rc;
+	}
+
 	return 0;
 }
 
-static __devexit int gpmc_remove(struct platform_device *pdev)
+static int gpmc_remove(struct platform_device *pdev)
 {
 	gpmc_free_irq();
 	gpmc_mem_exit();
@@ -968,10 +1404,11 @@ static __devexit int gpmc_remove(struct platform_device *pdev)
 
 static struct platform_driver gpmc_driver = {
 	.probe		= gpmc_probe,
-	.remove		= __devexit_p(gpmc_remove),
+	.remove		= gpmc_remove,
 	.driver		= {
 		.name	= DEVICE_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(gpmc_dt_ids),
 	},
 };
 
@@ -986,7 +1423,7 @@ static __exit void gpmc_exit(void)
 
 }
 
-postcore_initcall(gpmc_init);
+omap_postcore_initcall(gpmc_init);
 module_exit(gpmc_exit);
 
 static int __init omap_gpmc_init(void)
@@ -995,18 +1432,25 @@ static int __init omap_gpmc_init(void)
 	struct platform_device *pdev;
 	char *oh_name = "gpmc";
 
+	/*
+	 * if the board boots up with a populated DT, do not
+	 * manually add the device from this initcall
+	 */
+	if (of_have_populated_dt())
+		return -ENODEV;
+
 	oh = omap_hwmod_lookup(oh_name);
 	if (!oh) {
 		pr_err("Could not look up %s\n", oh_name);
 		return -ENODEV;
 	}
 
-	pdev = omap_device_build(DEVICE_NAME, -1, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build(DEVICE_NAME, -1, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
 
 	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
 }
-postcore_initcall(omap_gpmc_init);
+omap_postcore_initcall(omap_gpmc_init);
 
 static irqreturn_t gpmc_handle_irq(int irq, void *dev)
 {
@@ -1092,268 +1536,4 @@ void omap3_gpmc_restore_context(void)
 		}
 	}
 }
-#endif /* CONFIG_ARCH_OMAP3 */
-
-/**
- * gpmc_enable_hwecc - enable hardware ecc functionality
- * @cs: chip select number
- * @mode: read/write mode
- * @dev_width: device bus width(1 for x16, 0 for x8)
- * @ecc_size: bytes for which ECC will be generated
- */
-int gpmc_enable_hwecc(int cs, int mode, int dev_width, int ecc_size)
-{
-	unsigned int val;
-
-	/* check if ecc module is in used */
-	if (gpmc_ecc_used != -EINVAL)
-		return -EINVAL;
-
-	gpmc_ecc_used = cs;
-
-	/* clear ecc and enable bits */
-	gpmc_write_reg(GPMC_ECC_CONTROL,
-			GPMC_ECC_CTRL_ECCCLEAR |
-			GPMC_ECC_CTRL_ECCREG1);
-
-	/* program ecc and result sizes */
-	val = ((((ecc_size >> 1) - 1) << 22) | (0x0000000F));
-	gpmc_write_reg(GPMC_ECC_SIZE_CONFIG, val);
-
-	switch (mode) {
-	case GPMC_ECC_READ:
-	case GPMC_ECC_WRITE:
-		gpmc_write_reg(GPMC_ECC_CONTROL,
-				GPMC_ECC_CTRL_ECCCLEAR |
-				GPMC_ECC_CTRL_ECCREG1);
-		break;
-	case GPMC_ECC_READSYN:
-		gpmc_write_reg(GPMC_ECC_CONTROL,
-				GPMC_ECC_CTRL_ECCCLEAR |
-				GPMC_ECC_CTRL_ECCDISABLE);
-		break;
-	default:
-		printk(KERN_INFO "Error: Unrecognized Mode[%d]!\n", mode);
-		break;
-	}
-
-	/* (ECC 16 or 8 bit col) | ( CS  )  | ECC Enable */
-	val = (dev_width << 7) | (cs << 1) | (0x1);
-	gpmc_write_reg(GPMC_ECC_CONFIG, val);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gpmc_enable_hwecc);
-
-/**
- * gpmc_calculate_ecc - generate non-inverted ecc bytes
- * @cs: chip select number
- * @dat: data pointer over which ecc is computed
- * @ecc_code: ecc code buffer
- *
- * Using non-inverted ECC is considered ugly since writing a blank
- * page (padding) will clear the ECC bytes. This is not a problem as long
- * no one is trying to write data on the seemingly unused page. Reading
- * an erased page will produce an ECC mismatch between generated and read
- * ECC bytes that has to be dealt with separately.
- */
-int gpmc_calculate_ecc(int cs, const u_char *dat, u_char *ecc_code)
-{
-	unsigned int val = 0x0;
-
-	if (gpmc_ecc_used != cs)
-		return -EINVAL;
-
-	/* read ecc result */
-	val = gpmc_read_reg(GPMC_ECC1_RESULT);
-	*ecc_code++ = val;          /* P128e, ..., P1e */
-	*ecc_code++ = val >> 16;    /* P128o, ..., P1o */
-	/* P2048o, P1024o, P512o, P256o, P2048e, P1024e, P512e, P256e */
-	*ecc_code++ = ((val >> 8) & 0x0f) | ((val >> 20) & 0xf0);
-
-	gpmc_ecc_used = -EINVAL;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gpmc_calculate_ecc);
-
-#ifdef CONFIG_ARCH_OMAP3
-
-/**
- * gpmc_init_hwecc_bch - initialize hardware BCH ecc functionality
- * @cs: chip select number
- * @nsectors: how many 512-byte sectors to process
- * @nerrors: how many errors to correct per sector (4 or 8)
- *
- * This function must be executed before any call to gpmc_enable_hwecc_bch.
- */
-int gpmc_init_hwecc_bch(int cs, int nsectors, int nerrors)
-{
-	/* check if ecc module is in use */
-	if (gpmc_ecc_used != -EINVAL)
-		return -EINVAL;
-
-	/* support only OMAP3 class */
-	if (!cpu_is_omap34xx()) {
-		printk(KERN_ERR "BCH ecc is not supported on this CPU\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * For now, assume 4-bit mode is only supported on OMAP3630 ES1.x, x>=1.
-	 * Other chips may be added if confirmed to work.
-	 */
-	if ((nerrors == 4) &&
-	    (!cpu_is_omap3630() || (GET_OMAP_REVISION() == 0))) {
-		printk(KERN_ERR "BCH 4-bit mode is not supported on this CPU\n");
-		return -EINVAL;
-	}
-
-	/* sanity check */
-	if (nsectors > 8) {
-		printk(KERN_ERR "BCH cannot process %d sectors (max is 8)\n",
-		       nsectors);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gpmc_init_hwecc_bch);
-
-/**
- * gpmc_enable_hwecc_bch - enable hardware BCH ecc functionality
- * @cs: chip select number
- * @mode: read/write mode
- * @dev_width: device bus width(1 for x16, 0 for x8)
- * @nsectors: how many 512-byte sectors to process
- * @nerrors: how many errors to correct per sector (4 or 8)
- */
-int gpmc_enable_hwecc_bch(int cs, int mode, int dev_width, int nsectors,
-			  int nerrors)
-{
-	unsigned int val;
-
-	/* check if ecc module is in use */
-	if (gpmc_ecc_used != -EINVAL)
-		return -EINVAL;
-
-	gpmc_ecc_used = cs;
-
-	/* clear ecc and enable bits */
-	gpmc_write_reg(GPMC_ECC_CONTROL, 0x1);
-
-	/*
-	 * When using BCH, sector size is hardcoded to 512 bytes.
-	 * Here we are using wrapping mode 6 both for reading and writing, with:
-	 *  size0 = 0  (no additional protected byte in spare area)
-	 *  size1 = 32 (skip 32 nibbles = 16 bytes per sector in spare area)
-	 */
-	gpmc_write_reg(GPMC_ECC_SIZE_CONFIG, (32 << 22) | (0 << 12));
-
-	/* BCH configuration */
-	val = ((1                        << 16) | /* enable BCH */
-	       (((nerrors == 8) ? 1 : 0) << 12) | /* 8 or 4 bits */
-	       (0x06                     <<  8) | /* wrap mode = 6 */
-	       (dev_width                <<  7) | /* bus width */
-	       (((nsectors-1) & 0x7)     <<  4) | /* number of sectors */
-	       (cs                       <<  1) | /* ECC CS */
-	       (0x1));                            /* enable ECC */
-
-	gpmc_write_reg(GPMC_ECC_CONFIG, val);
-	gpmc_write_reg(GPMC_ECC_CONTROL, 0x101);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gpmc_enable_hwecc_bch);
-
-/**
- * gpmc_calculate_ecc_bch4 - Generate 7 ecc bytes per sector of 512 data bytes
- * @cs:  chip select number
- * @dat: The pointer to data on which ecc is computed
- * @ecc: The ecc output buffer
- */
-int gpmc_calculate_ecc_bch4(int cs, const u_char *dat, u_char *ecc)
-{
-	int i;
-	unsigned long nsectors, reg, val1, val2;
-
-	if (gpmc_ecc_used != cs)
-		return -EINVAL;
-
-	nsectors = ((gpmc_read_reg(GPMC_ECC_CONFIG) >> 4) & 0x7) + 1;
-
-	for (i = 0; i < nsectors; i++) {
-
-		reg = GPMC_ECC_BCH_RESULT_0 + 16*i;
-
-		/* Read hw-computed remainder */
-		val1 = gpmc_read_reg(reg + 0);
-		val2 = gpmc_read_reg(reg + 4);
-
-		/*
-		 * Add constant polynomial to remainder, in order to get an ecc
-		 * sequence of 0xFFs for a buffer filled with 0xFFs; and
-		 * left-justify the resulting polynomial.
-		 */
-		*ecc++ = 0x28 ^ ((val2 >> 12) & 0xFF);
-		*ecc++ = 0x13 ^ ((val2 >>  4) & 0xFF);
-		*ecc++ = 0xcc ^ (((val2 & 0xF) << 4)|((val1 >> 28) & 0xF));
-		*ecc++ = 0x39 ^ ((val1 >> 20) & 0xFF);
-		*ecc++ = 0x96 ^ ((val1 >> 12) & 0xFF);
-		*ecc++ = 0xac ^ ((val1 >> 4) & 0xFF);
-		*ecc++ = 0x7f ^ ((val1 & 0xF) << 4);
-	}
-
-	gpmc_ecc_used = -EINVAL;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gpmc_calculate_ecc_bch4);
-
-/**
- * gpmc_calculate_ecc_bch8 - Generate 13 ecc bytes per block of 512 data bytes
- * @cs:  chip select number
- * @dat: The pointer to data on which ecc is computed
- * @ecc: The ecc output buffer
- */
-int gpmc_calculate_ecc_bch8(int cs, const u_char *dat, u_char *ecc)
-{
-	int i;
-	unsigned long nsectors, reg, val1, val2, val3, val4;
-
-	if (gpmc_ecc_used != cs)
-		return -EINVAL;
-
-	nsectors = ((gpmc_read_reg(GPMC_ECC_CONFIG) >> 4) & 0x7) + 1;
-
-	for (i = 0; i < nsectors; i++) {
-
-		reg = GPMC_ECC_BCH_RESULT_0 + 16*i;
-
-		/* Read hw-computed remainder */
-		val1 = gpmc_read_reg(reg + 0);
-		val2 = gpmc_read_reg(reg + 4);
-		val3 = gpmc_read_reg(reg + 8);
-		val4 = gpmc_read_reg(reg + 12);
-
-		/*
-		 * Add constant polynomial to remainder, in order to get an ecc
-		 * sequence of 0xFFs for a buffer filled with 0xFFs.
-		 */
-		*ecc++ = 0xef ^ (val4 & 0xFF);
-		*ecc++ = 0x51 ^ ((val3 >> 24) & 0xFF);
-		*ecc++ = 0x2e ^ ((val3 >> 16) & 0xFF);
-		*ecc++ = 0x09 ^ ((val3 >> 8) & 0xFF);
-		*ecc++ = 0xed ^ (val3 & 0xFF);
-		*ecc++ = 0x93 ^ ((val2 >> 24) & 0xFF);
-		*ecc++ = 0x9a ^ ((val2 >> 16) & 0xFF);
-		*ecc++ = 0xc2 ^ ((val2 >> 8) & 0xFF);
-		*ecc++ = 0x97 ^ (val2 & 0xFF);
-		*ecc++ = 0x79 ^ ((val1 >> 24) & 0xFF);
-		*ecc++ = 0xe5 ^ ((val1 >> 16) & 0xFF);
-		*ecc++ = 0x24 ^ ((val1 >> 8) & 0xFF);
-		*ecc++ = 0xb5 ^ (val1 & 0xFF);
-	}
-
-	gpmc_ecc_used = -EINVAL;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gpmc_calculate_ecc_bch8);
-
 #endif /* CONFIG_ARCH_OMAP3 */

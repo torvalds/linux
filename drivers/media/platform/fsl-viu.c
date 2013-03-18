@@ -352,8 +352,7 @@ static int restart_video_queue(struct viu_dmaqueue *vidq)
 			return 0;
 		buf = list_entry(vidq->queued.next, struct viu_buf, vb.queue);
 		if (prev == NULL) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue, &vidq->active);
+			list_move_tail(&buf->vb.queue, &vidq->active);
 
 			dprintk(1, "Restarting video dma\n");
 			viu_stop_dma(vidq->dev);
@@ -367,8 +366,7 @@ static int restart_video_queue(struct viu_dmaqueue *vidq)
 		} else if (prev->vb.width  == buf->vb.width  &&
 			   prev->vb.height == buf->vb.height &&
 			   prev->fmt       == buf->fmt) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue, &vidq->active);
+			list_move_tail(&buf->vb.queue, &vidq->active);
 			buf->vb.state = VIDEOBUF_ACTIVE;
 			dprintk(2, "[%p/%d] restart_queue - move to active\n",
 				buf, buf->vb.i);
@@ -1183,7 +1181,7 @@ static void viu_capture_intr(struct viu_dev *dev, u32 status)
 
 		if (waitqueue_active(&buf->vb.done)) {
 			list_del(&buf->vb.queue);
-			do_gettimeofday(&buf->vb.ts);
+			v4l2_get_timestamp(&buf->vb.ts);
 			buf->vb.state = VIDEOBUF_DONE;
 			buf->vb.field_count++;
 			wake_up(&buf->vb.done);
@@ -1480,7 +1478,7 @@ static struct video_device viu_template = {
 	.current_norm   = V4L2_STD_NTSC_M,
 };
 
-static int __devinit viu_of_probe(struct platform_device *op)
+static int viu_of_probe(struct platform_device *op)
 {
 	struct viu_dev *viu_dev;
 	struct video_device *vdev;
@@ -1617,7 +1615,7 @@ err:
 	return ret;
 }
 
-static int __devexit viu_of_remove(struct platform_device *op)
+static int viu_of_remove(struct platform_device *op)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(&op->dev);
 	struct viu_dev *dev = container_of(v4l2_dev, struct viu_dev, v4l2_dev);
@@ -1670,7 +1668,7 @@ MODULE_DEVICE_TABLE(of, mpc512x_viu_of_match);
 
 static struct platform_driver viu_of_platform_driver = {
 	.probe = viu_of_probe,
-	.remove = __devexit_p(viu_of_remove),
+	.remove = viu_of_remove,
 #ifdef CONFIG_PM
 	.suspend = viu_suspend,
 	.resume = viu_resume,

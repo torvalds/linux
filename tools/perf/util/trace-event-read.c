@@ -47,8 +47,6 @@ int file_bigendian;
 int host_bigendian;
 static int long_size;
 
-static unsigned long	page_size;
-
 static ssize_t calc_data_size;
 static bool repipe;
 

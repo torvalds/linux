@@ -61,7 +61,7 @@ module_param(clockp, int, 0);
 module_param(clockm, int, 0);
 MODULE_LICENSE("GPL");
 
-static int __devinit com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct net_device *dev;
 	struct arcnet_local *lp;
@@ -135,7 +135,7 @@ out_dev:
 	return err;
 }
 
-static void __devexit com20020pci_remove(struct pci_dev *pdev)
+static void com20020pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	unregister_netdev(dev);
@@ -178,7 +178,7 @@ static struct pci_driver com20020pci_driver = {
 	.name		= "com20020",
 	.id_table	= com20020pci_id_table,
 	.probe		= com20020pci_probe,
-	.remove		= __devexit_p(com20020pci_remove),
+	.remove		= com20020pci_remove,
 };
 
 static int __init com20020pci_init(void)

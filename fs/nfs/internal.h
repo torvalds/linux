@@ -18,27 +18,6 @@ struct nfs_string;
  */
 #define NFS_MAX_READAHEAD	(RPC_DEF_SLOT_TABLE - 1)
 
-/*
- * Determine if sessions are in use.
- */
-static inline int nfs4_has_session(const struct nfs_client *clp)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (clp->cl_session)
-		return 1;
-#endif /* CONFIG_NFS_V4_1 */
-	return 0;
-}
-
-static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (nfs4_has_session(clp))
-		return (clp->cl_session->flags & SESSION4_PERSIST);
-#endif /* CONFIG_NFS_V4_1 */
-	return 0;
-}
-
 static inline void nfs_attr_check_mountpoint(struct super_block *parent, struct nfs_fattr *fattr)
 {
 	if (!nfs_fsid_equal(&NFS_SB(parent)->fsid, &fattr->fsid))
@@ -276,8 +255,6 @@ extern const u32 nfs41_maxwrite_overhead;
 extern struct rpc_procinfo nfs4_procedures[];
 #endif
 
-extern int nfs4_init_ds_session(struct nfs_client *, unsigned long);
-
 /* proc.c */
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
 extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
@@ -319,6 +296,7 @@ extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
 extern void nfs_destroy_inode(struct inode *);
 extern int nfs_write_inode(struct inode *, struct writeback_control *);
+extern int nfs_drop_inode(struct inode *);
 extern void nfs_clear_inode(struct inode *);
 extern void nfs_evict_inode(struct inode *);
 void nfs_zap_acl_cache(struct inode *inode);
@@ -351,7 +329,6 @@ extern int __init register_nfs_fs(void);
 extern void __exit unregister_nfs_fs(void);
 extern void nfs_sb_active(struct super_block *sb);
 extern void nfs_sb_deactive(struct super_block *sb);
-extern void nfs_sb_deactive_async(struct super_block *sb);
 
 /* namespace.c */
 #define NFS_PATH_CANONICAL 1
@@ -386,9 +363,6 @@ extern int nfs_initiate_read(struct rpc_clnt *clnt,
 extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 extern int nfs_generic_pagein(struct nfs_pageio_descriptor *desc,
 			      struct nfs_pgio_header *hdr);
-extern void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-			struct inode *inode,
-			const struct nfs_pgio_completion_ops *compl_ops);
 extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_readdata_release(struct nfs_read_data *rdata);
 
@@ -411,9 +385,6 @@ extern struct nfs_write_header *nfs_writehdr_alloc(void);
 extern void nfs_writehdr_free(struct nfs_pgio_header *hdr);
 extern int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
 			     struct nfs_pgio_header *hdr);
-extern void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
-			struct inode *inode, int ioflags,
-			const struct nfs_pgio_completion_ops *compl_ops);
 extern void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_writedata_release(struct nfs_write_data *wdata);
 extern void nfs_commit_free(struct nfs_commit_data *p);
@@ -474,18 +445,6 @@ extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 			    const struct rpc_timeout *timeparms,
 			    const char *ip_addr,
 			    rpc_authflavor_t authflavour);
-extern int _nfs4_call_sync(struct rpc_clnt *clnt,
-			   struct nfs_server *server,
-			   struct rpc_message *msg,
-			   struct nfs4_sequence_args *args,
-			   struct nfs4_sequence_res *res,
-			   int cache_reply);
-extern int _nfs4_call_sync_session(struct rpc_clnt *clnt,
-				   struct nfs_server *server,
-				   struct rpc_message *msg,
-				   struct nfs4_sequence_args *args,
-				   struct nfs4_sequence_res *res,
-				   int cache_reply);
 extern int nfs40_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
 				struct rpc_cred *cred);

@@ -330,12 +330,12 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp);
 static void hvcs_close(struct tty_struct *tty, struct file *filp);
 static void hvcs_hangup(struct tty_struct * tty);
 
-static int __devinit hvcs_probe(struct vio_dev *dev,
+static int hvcs_probe(struct vio_dev *dev,
 		const struct vio_device_id *id);
-static int __devexit hvcs_remove(struct vio_dev *dev);
+static int hvcs_remove(struct vio_dev *dev);
 static int __init hvcs_module_init(void);
 static void __exit hvcs_module_exit(void);
-static int __devinit hvcs_initialize(void);
+static int hvcs_initialize(void);
 
 #define HVCS_SCHED_READ	0x00000001
 #define HVCS_QUICK_READ	0x00000002
@@ -609,11 +609,11 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	/* remove the read masks */
 	hvcsd->todo_mask &= ~(HVCS_READ_MASK);
 
-	if (tty_buffer_request_room(tty, HVCS_BUFF_LEN) >= HVCS_BUFF_LEN) {
+	if (tty_buffer_request_room(&hvcsd->port, HVCS_BUFF_LEN) >= HVCS_BUFF_LEN) {
 		got = hvc_get_chars(unit_address,
 				&buf[0],
 				HVCS_BUFF_LEN);
-		tty_insert_flip_string(tty, buf, got);
+		tty_insert_flip_string(&hvcsd->port, buf, got);
 	}
 
 	/* Give the TTY time to process the data we just sent. */
@@ -623,7 +623,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
 	/* This is synch because tty->low_latency == 1 */
 	if(got)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&hvcsd->port);
 
 	if (!got) {
 		/* Do this _after_ the flip_buffer_push */
@@ -676,7 +676,7 @@ static int khvcsd(void *unused)
 	return 0;
 }
 
-static struct vio_device_id hvcs_driver_table[] __devinitdata= {
+static struct vio_device_id hvcs_driver_table[] = {
 	{"serial-server", "hvterm2"},
 	{ "", "" }
 };
@@ -756,7 +756,7 @@ static int hvcs_get_index(void)
 	return -1;
 }
 
-static int __devinit hvcs_probe(
+static int hvcs_probe(
 	struct vio_dev *dev,
 	const struct vio_device_id *id)
 {
@@ -835,7 +835,7 @@ static int __devinit hvcs_probe(
 	return 0;
 }
 
-static int __devexit hvcs_remove(struct vio_dev *dev)
+static int hvcs_remove(struct vio_dev *dev)
 {
 	struct hvcs_struct *hvcsd = dev_get_drvdata(&dev->dev);
 	unsigned long flags;
@@ -874,24 +874,19 @@ static int __devexit hvcs_remove(struct vio_dev *dev)
 static struct vio_driver hvcs_vio_driver = {
 	.id_table	= hvcs_driver_table,
 	.probe		= hvcs_probe,
-	.remove		= __devexit_p(hvcs_remove),
+	.remove		= hvcs_remove,
 	.name		= hvcs_driver_name,
 };
 
 /* Only called from hvcs_get_pi please */
 static void hvcs_set_pi(struct hvcs_partner_info *pi, struct hvcs_struct *hvcsd)
 {
-	int clclength;
-
 	hvcsd->p_unit_address = pi->unit_address;
 	hvcsd->p_partition_ID  = pi->partition_ID;
-	clclength = strlen(&pi->location_code[0]);
-	if (clclength > HVCS_CLC_LENGTH)
-		clclength = HVCS_CLC_LENGTH;
 
 	/* copy the null-term char too */
-	strncpy(&hvcsd->p_location_code[0],
-			&pi->location_code[0], clclength + 1);
+	strlcpy(&hvcsd->p_location_code[0],
+			&pi->location_code[0], sizeof(hvcsd->p_location_code));
 }
 
 /*
@@ -1478,7 +1473,7 @@ static void hvcs_free_index_list(void)
 	hvcs_index_count = 0;
 }
 
-static int __devinit hvcs_initialize(void)
+static int hvcs_initialize(void)
 {
 	int rc, num_ttys_to_alloc;
 
@@ -1496,8 +1491,10 @@ static int __devinit hvcs_initialize(void)
 		num_ttys_to_alloc = hvcs_parm_num_devs;
 
 	hvcs_tty_driver = alloc_tty_driver(num_ttys_to_alloc);
-	if (!hvcs_tty_driver)
+	if (!hvcs_tty_driver) {
+		mutex_unlock(&hvcs_init_mutex);
 		return -ENOMEM;
+	}
 
 	if (hvcs_alloc_index_list(num_ttys_to_alloc)) {
 		rc = -ENOMEM;

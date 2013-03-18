@@ -343,7 +343,24 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 			break;
 		}
 	} else {
-		mac_addr = NULL;
+		/*
+		 * Enable monitor mode
+		 *
+		 * rx_ctrl |= AR9170_MAC_RX_CTRL_ACK_IN_SNIFFER;
+		 * sniffer |= AR9170_MAC_SNIFFER_ENABLE_PROMISC;
+		 *
+		 * When the hardware is in SNIFFER_PROMISC mode,
+		 * it generates spurious ACKs for every incoming
+		 * frame. This confuses every peer in the
+		 * vicinity and the network throughput will suffer
+		 * badly.
+		 *
+		 * Hence, the hardware will be put into station
+		 * mode and just the rx filters are disabled.
+		 */
+		cam_mode |= AR9170_MAC_CAM_STA;
+		rx_ctrl |= AR9170_MAC_RX_CTRL_PASS_TO_HOST;
+		mac_addr = common->macaddr;
 		bssid = NULL;
 	}
 	rcu_read_unlock();
@@ -355,8 +372,6 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 		enc_mode |= AR9170_MAC_ENCRYPTION_RX_SOFTWARE;
 
 	if (ar->sniffer_enabled) {
-		rx_ctrl |= AR9170_MAC_RX_CTRL_ACK_IN_SNIFFER;
-		sniffer |= AR9170_MAC_SNIFFER_ENABLE_PROMISC;
 		enc_mode |= AR9170_MAC_ENCRYPTION_RX_SOFTWARE;
 	}
 

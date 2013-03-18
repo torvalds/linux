@@ -528,7 +528,7 @@ static struct ide_dma_ops it821x_pass_through_dma_ops = {
  *	ide DMA handlers appropriately
  */
 
-static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
+static void init_hwif_it821x(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct ide_host *host = pci_get_drvdata(dev);
@@ -630,7 +630,7 @@ static const struct ide_port_ops it821x_port_ops = {
 	.cable_detect		= it821x_cable_detect,
 };
 
-static const struct ide_port_info it821x_chipset __devinitconst = {
+static const struct ide_port_info it821x_chipset = {
 	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_it821x,
 	.init_hwif	= init_hwif_it821x,
@@ -647,7 +647,7 @@ static const struct ide_port_info it821x_chipset __devinitconst = {
  *	We then use the IDE PCI generic helper to do most of the work.
  */
 
-static int __devinit it821x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int it821x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct it821x_dev *itdevs;
 	int rc;
@@ -667,7 +667,7 @@ static int __devinit it821x_init_one(struct pci_dev *dev, const struct pci_devic
 	return rc;
 }
 
-static void __devexit it821x_remove(struct pci_dev *dev)
+static void it821x_remove(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct it821x_dev *itdevs = host->host_priv;
@@ -689,7 +689,7 @@ static struct pci_driver it821x_pci_driver = {
 	.name		= "ITE821x IDE",
 	.id_table	= it821x_pci_tbl,
 	.probe		= it821x_init_one,
-	.remove		= __devexit_p(it821x_remove),
+	.remove		= it821x_remove,
 	.suspend	= ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };

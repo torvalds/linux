@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/mtd/mtd.h>
@@ -27,7 +28,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
 
 #include <mach/cerf.h>
 #include <linux/platform_data/mfd-mcp-sa11x0.h>
@@ -174,7 +174,7 @@ MACHINE_START(CERF, "Intrinsyc CerfBoard/CerfCube")
 	.map_io		= cerf_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= cerf_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine	= cerf_init,
 	.init_late	= sa11x0_init_late,
 	.restart	= sa11x0_restart,

@@ -171,6 +171,27 @@ ssize_t device_show_int(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(device_show_int);
 
+ssize_t device_store_bool(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t size)
+{
+	struct dev_ext_attribute *ea = to_ext_attr(attr);
+
+	if (strtobool(buf, ea->var) < 0)
+		return -EINVAL;
+
+	return size;
+}
+EXPORT_SYMBOL_GPL(device_store_bool);
+
+ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct dev_ext_attribute *ea = to_ext_attr(attr);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", *(bool *)(ea->var));
+}
+EXPORT_SYMBOL_GPL(device_show_bool);
+
 /**
  *	device_release - free device structure.
  *	@kobj:	device's kobject.
@@ -1180,7 +1201,6 @@ void device_del(struct device *dev)
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
-	device_pm_remove(dev);
 	dpm_sysfs_remove(dev);
 	if (parent)
 		klist_del(&dev->p->knode_parent);
@@ -1205,6 +1225,7 @@ void device_del(struct device *dev)
 	device_remove_file(dev, &uevent_attr);
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
+	device_pm_remove(dev);
 	driver_deferred_probe_del(dev);
 
 	/* Notify the platform of the removal, in case they
@@ -1399,7 +1420,7 @@ struct root_device {
 	struct module *owner;
 };
 
-inline struct root_device *to_root_device(struct device *d)
+static inline struct root_device *to_root_device(struct device *d)
 {
 	return container_of(d, struct root_device, dev);
 }
@@ -1596,9 +1617,9 @@ struct device *device_create(struct class *class, struct device *parent,
 }
 EXPORT_SYMBOL_GPL(device_create);
 
-static int __match_devt(struct device *dev, void *data)
+static int __match_devt(struct device *dev, const void *data)
 {
-	dev_t *devt = data;
+	const dev_t *devt = data;
 
 	return dev->devt == *devt;
 }
@@ -1664,8 +1685,6 @@ EXPORT_SYMBOL_GPL(device_destroy);
  */
 int device_rename(struct device *dev, const char *new_name)
 {
-	char *old_class_name = NULL;
-	char *new_class_name = NULL;
 	char *old_device_name = NULL;
 	int error;
 
@@ -1696,8 +1715,6 @@ int device_rename(struct device *dev, const char *new_name)
 out:
 	put_device(dev);
 
-	kfree(new_class_name);
-	kfree(old_class_name);
 	kfree(old_device_name);
 
 	return error;
@@ -1840,10 +1857,12 @@ void device_shutdown(void)
 		pm_runtime_barrier(dev);
 
 		if (dev->bus && dev->bus->shutdown) {
-			dev_dbg(dev, "shutdown\n");
+			if (initcall_debug)
+				dev_info(dev, "shutdown\n");
 			dev->bus->shutdown(dev);
 		} else if (dev->driver && dev->driver->shutdown) {
-			dev_dbg(dev, "shutdown\n");
+			if (initcall_debug)
+				dev_info(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
 		}
 

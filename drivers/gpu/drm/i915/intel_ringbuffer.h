@@ -1,6 +1,17 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+/*
+ * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
+ * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
+ * Gen4+ BSpec "vol1c Memory Interface and Command Stream" / 5.3.4.5 "Ring Buffer Use"
+ *
+ * "If the Ring Buffer Head Pointer and the Tail Pointer are on the same
+ * cacheline, the Head Pointer must not be greater than the Tail
+ * Pointer."
+ */
+#define I915_RING_FREE_SPACE 64
+
 struct  intel_hw_status_page {
 	u32		*page_addr;
 	unsigned int	gfx_addr;
@@ -70,8 +81,7 @@ struct  intel_ring_buffer {
 	int __must_check (*flush)(struct intel_ring_buffer *ring,
 				  u32	invalidate_domains,
 				  u32	flush_domains);
-	int		(*add_request)(struct intel_ring_buffer *ring,
-				       u32 *seqno);
+	int		(*add_request)(struct intel_ring_buffer *ring);
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
 	 * However, the up-to-date seqno is not always required and the last
@@ -80,8 +90,13 @@ struct  intel_ring_buffer {
 	 */
 	u32		(*get_seqno)(struct intel_ring_buffer *ring,
 				     bool lazy_coherency);
+	void		(*set_seqno)(struct intel_ring_buffer *ring,
+				     u32 seqno);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
-					       u32 offset, u32 length);
+					       u32 offset, u32 length,
+					       unsigned flags);
+#define I915_DISPATCH_SECURE 0x1
+#define I915_DISPATCH_PINNED 0x2
 	void		(*cleanup)(struct intel_ring_buffer *ring);
 	int		(*sync_to)(struct intel_ring_buffer *ring,
 				   struct intel_ring_buffer *to,
@@ -165,6 +180,13 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 	return ring->status_page.page_addr[reg];
 }
 
+static inline void
+intel_write_status_page(struct intel_ring_buffer *ring,
+			int reg, u32 value)
+{
+	ring->status_page.page_addr[reg] = value;
+}
+
 /**
  * Reads a dword out of the status page, which is written to from the command
  * queue by automatic updates, MI_REPORT_HEAD, MI_STORE_DATA_INDEX, or
@@ -181,27 +203,21 @@ intel_read_status_page(struct intel_ring_buffer *ring,
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
 #define I915_GEM_HWS_INDEX		0x20
+#define I915_GEM_HWS_SCRATCH_INDEX	0x30
+#define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 
-int __must_check intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n);
-static inline int intel_wait_ring_idle(struct intel_ring_buffer *ring)
-{
-	return intel_wait_ring_buffer(ring, ring->size - 8);
-}
-
 int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
-
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 				   u32 data)
 {
 	iowrite32(data, ring->virtual_start + ring->tail);
 	ring->tail += 4;
 }
-
 void intel_ring_advance(struct intel_ring_buffer *ring);
-
-u32 intel_ring_get_seqno(struct intel_ring_buffer *ring);
+int __must_check intel_ring_idle(struct intel_ring_buffer *ring);
+void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_ring_buffer *ring);
 int intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring);
 
@@ -215,6 +231,12 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
 static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)
 {
 	return ring->tail;
+}
+
+static inline u32 intel_ring_get_seqno(struct intel_ring_buffer *ring)
+{
+	BUG_ON(ring->outstanding_lazy_request == 0);
+	return ring->outstanding_lazy_request;
 }
 
 static inline void i915_trace_irq_get(struct intel_ring_buffer *ring, u32 seqno)

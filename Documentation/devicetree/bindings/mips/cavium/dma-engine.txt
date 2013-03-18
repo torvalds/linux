@@ -1,7 +1,7 @@
 * DMA Engine.
 
 The Octeon DMA Engine transfers between the Boot Bus and main memory.
-The DMA Engine will be refered to by phandle by any device that is
+The DMA Engine will be referred to by phandle by any device that is
 connected to it.
 
 Properties:

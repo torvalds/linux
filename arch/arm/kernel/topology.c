@@ -196,32 +196,7 @@ static inline void parse_dt_topology(void) {}
 static inline void update_cpu_power(unsigned int cpuid, unsigned int mpidr) {}
 #endif
 
-
-/*
- * cpu topology management
- */
-
-#define MPIDR_SMP_BITMASK (0x3 << 30)
-#define MPIDR_SMP_VALUE (0x2 << 30)
-
-#define MPIDR_MT_BITMASK (0x1 << 24)
-
-/*
- * These masks reflect the current use of the affinity levels.
- * The affinity level can be up to 16 bits according to ARM ARM
- */
-#define MPIDR_HWID_BITMASK 0xFFFFFF
-
-#define MPIDR_LEVEL0_MASK 0x3
-#define MPIDR_LEVEL0_SHIFT 0
-
-#define MPIDR_LEVEL1_MASK 0xF
-#define MPIDR_LEVEL1_SHIFT 8
-
-#define MPIDR_LEVEL2_MASK 0xFF
-#define MPIDR_LEVEL2_SHIFT 16
-
-/*
+ /*
  * cpu topology table
  */
 struct cputopo_arm cpu_topology[NR_CPUS];
@@ -282,19 +257,14 @@ void store_cpu_topology(unsigned int cpuid)
 
 		if (mpidr & MPIDR_MT_BITMASK) {
 			/* core performance interdependency */
-			cpuid_topo->thread_id = (mpidr >> MPIDR_LEVEL0_SHIFT)
-				& MPIDR_LEVEL0_MASK;
-			cpuid_topo->core_id = (mpidr >> MPIDR_LEVEL1_SHIFT)
-				& MPIDR_LEVEL1_MASK;
-			cpuid_topo->socket_id = (mpidr >> MPIDR_LEVEL2_SHIFT)
-				& MPIDR_LEVEL2_MASK;
+			cpuid_topo->thread_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+			cpuid_topo->core_id = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+			cpuid_topo->socket_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);
 		} else {
 			/* largely independent cores */
 			cpuid_topo->thread_id = -1;
-			cpuid_topo->core_id = (mpidr >> MPIDR_LEVEL0_SHIFT)
-				& MPIDR_LEVEL0_MASK;
-			cpuid_topo->socket_id = (mpidr >> MPIDR_LEVEL1_SHIFT)
-				& MPIDR_LEVEL1_MASK;
+			cpuid_topo->core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+			cpuid_topo->socket_id = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 		}
 	} else {
 		/*

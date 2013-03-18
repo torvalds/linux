@@ -183,32 +183,12 @@ Please mark the initialization and cleanup functions where appropriate
 			initializes.
 	__exit		Exit code. Ignored for non-modular drivers.
 
-
-	__devinit	Device initialization code.
-			Identical to __init if the kernel is not compiled
-			with CONFIG_HOTPLUG, normal function otherwise.
-	__devexit	The same for __exit.
-
 Tips on when/where to use the above attributes:
 	o The module_init()/module_exit() functions (and all
 	  initialization functions called _only_ from these)
 	  should be marked __init/__exit.
 
 	o Do not mark the struct pci_driver.
-
-	o The ID table array should be marked __devinitconst; this is done
-	  automatically if the table is declared with DEFINE_PCI_DEVICE_TABLE().
-
-	o The probe() and remove() functions should be marked __devinit
-	  and __devexit respectively.  All initialization functions
-	  exclusively called by the probe() routine, can be marked __devinit.
-	  Ditto for remove() and __devexit.
-
-	o If mydriver_remove() is marked with __devexit(), then all address
-	  references to mydriver_remove must use __devexit_p(mydriver_remove)
-	  (in the struct pci_driver declaration for example).
-	  __devexit_p() will generate the function name _or_ NULL if the
-	  function will be discarded.  For an example, see drivers/net/tg3.c.
 
 	o Do NOT mark a function if you are not sure which mark to use.
 	  Better to not mark the function than mark the function wrong.

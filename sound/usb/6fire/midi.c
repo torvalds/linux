@@ -146,7 +146,7 @@ static struct snd_rawmidi_ops in_ops = {
 	.trigger = usb6fire_midi_in_trigger
 };
 
-int __devinit usb6fire_midi_init(struct sfire_chip *chip)
+int usb6fire_midi_init(struct sfire_chip *chip)
 {
 	int ret;
 	struct midi_runtime *rt = kzalloc(sizeof(struct midi_runtime),

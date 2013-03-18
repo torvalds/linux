@@ -46,6 +46,7 @@
 #include <linux/stat.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
+#include <linux/trace_clock.h>
 #include <asm/byteorder.h>
 
 MODULE_LICENSE("GPL");
@@ -207,6 +208,20 @@ MODULE_PARM_DESC(rcutorture_runnable, "Start rcutorture at boot");
 #define rcu_can_boost() 0
 #endif /* #else #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
 
+#ifdef CONFIG_RCU_TRACE
+static u64 notrace rcu_trace_clock_local(void)
+{
+	u64 ts = trace_clock_local();
+	unsigned long __maybe_unused ts_rem = do_div(ts, NSEC_PER_USEC);
+	return ts;
+}
+#else /* #ifdef CONFIG_RCU_TRACE */
+static u64 notrace rcu_trace_clock_local(void)
+{
+	return 0ULL;
+}
+#endif /* #else #ifdef CONFIG_RCU_TRACE */
+
 static unsigned long shutdown_time;	/* jiffies to system shutdown. */
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
 DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
@@ -339,7 +354,6 @@ rcu_stutter_wait(char *title)
 
 struct rcu_torture_ops {
 	void (*init)(void);
-	void (*cleanup)(void);
 	int (*readlock)(void);
 	void (*read_delay)(struct rcu_random_state *rrsp);
 	void (*readunlock)(int idx);
@@ -431,7 +445,6 @@ static void rcu_torture_deferred_free(struct rcu_torture *p)
 
 static struct rcu_torture_ops rcu_ops = {
 	.init		= NULL,
-	.cleanup	= NULL,
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,
 	.readunlock	= rcu_torture_read_unlock,
@@ -475,7 +488,6 @@ static void rcu_sync_torture_init(void)
 
 static struct rcu_torture_ops rcu_sync_ops = {
 	.init		= rcu_sync_torture_init,
-	.cleanup	= NULL,
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,
 	.readunlock	= rcu_torture_read_unlock,
@@ -493,7 +505,6 @@ static struct rcu_torture_ops rcu_sync_ops = {
 
 static struct rcu_torture_ops rcu_expedited_ops = {
 	.init		= rcu_sync_torture_init,
-	.cleanup	= NULL,
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_torture_read_unlock,
@@ -536,7 +547,6 @@ static void rcu_bh_torture_deferred_free(struct rcu_torture *p)
 
 static struct rcu_torture_ops rcu_bh_ops = {
 	.init		= NULL,
-	.cleanup	= NULL,
 	.readlock	= rcu_bh_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_bh_torture_read_unlock,
@@ -553,7 +563,6 @@ static struct rcu_torture_ops rcu_bh_ops = {
 
 static struct rcu_torture_ops rcu_bh_sync_ops = {
 	.init		= rcu_sync_torture_init,
-	.cleanup	= NULL,
 	.readlock	= rcu_bh_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_bh_torture_read_unlock,
@@ -570,7 +579,6 @@ static struct rcu_torture_ops rcu_bh_sync_ops = {
 
 static struct rcu_torture_ops rcu_bh_expedited_ops = {
 	.init		= rcu_sync_torture_init,
-	.cleanup	= NULL,
 	.readlock	= rcu_bh_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_bh_torture_read_unlock,
@@ -589,19 +597,7 @@ static struct rcu_torture_ops rcu_bh_expedited_ops = {
  * Definitions for srcu torture testing.
  */
 
-static struct srcu_struct srcu_ctl;
-
-static void srcu_torture_init(void)
-{
-	init_srcu_struct(&srcu_ctl);
-	rcu_sync_torture_init();
-}
-
-static void srcu_torture_cleanup(void)
-{
-	synchronize_srcu(&srcu_ctl);
-	cleanup_srcu_struct(&srcu_ctl);
-}
+DEFINE_STATIC_SRCU(srcu_ctl);
 
 static int srcu_torture_read_lock(void) __acquires(&srcu_ctl)
 {
@@ -672,8 +668,7 @@ static int srcu_torture_stats(char *page)
 }
 
 static struct rcu_torture_ops srcu_ops = {
-	.init		= srcu_torture_init,
-	.cleanup	= srcu_torture_cleanup,
+	.init		= rcu_sync_torture_init,
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
@@ -687,8 +682,7 @@ static struct rcu_torture_ops srcu_ops = {
 };
 
 static struct rcu_torture_ops srcu_sync_ops = {
-	.init		= srcu_torture_init,
-	.cleanup	= srcu_torture_cleanup,
+	.init		= rcu_sync_torture_init,
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
@@ -712,8 +706,7 @@ static void srcu_torture_read_unlock_raw(int idx) __releases(&srcu_ctl)
 }
 
 static struct rcu_torture_ops srcu_raw_ops = {
-	.init		= srcu_torture_init,
-	.cleanup	= srcu_torture_cleanup,
+	.init		= rcu_sync_torture_init,
 	.readlock	= srcu_torture_read_lock_raw,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock_raw,
@@ -727,8 +720,7 @@ static struct rcu_torture_ops srcu_raw_ops = {
 };
 
 static struct rcu_torture_ops srcu_raw_sync_ops = {
-	.init		= srcu_torture_init,
-	.cleanup	= srcu_torture_cleanup,
+	.init		= rcu_sync_torture_init,
 	.readlock	= srcu_torture_read_lock_raw,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock_raw,
@@ -747,8 +739,7 @@ static void srcu_torture_synchronize_expedited(void)
 }
 
 static struct rcu_torture_ops srcu_expedited_ops = {
-	.init		= srcu_torture_init,
-	.cleanup	= srcu_torture_cleanup,
+	.init		= rcu_sync_torture_init,
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
@@ -783,7 +774,6 @@ static void rcu_sched_torture_deferred_free(struct rcu_torture *p)
 
 static struct rcu_torture_ops sched_ops = {
 	.init		= rcu_sync_torture_init,
-	.cleanup	= NULL,
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
@@ -799,7 +789,6 @@ static struct rcu_torture_ops sched_ops = {
 
 static struct rcu_torture_ops sched_sync_ops = {
 	.init		= rcu_sync_torture_init,
-	.cleanup	= NULL,
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
@@ -814,7 +803,6 @@ static struct rcu_torture_ops sched_sync_ops = {
 
 static struct rcu_torture_ops sched_expedited_ops = {
 	.init		= rcu_sync_torture_init,
-	.cleanup	= NULL,
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
@@ -872,7 +860,7 @@ static int rcu_torture_boost(void *arg)
 		/* Wait for the next test interval. */
 		oldstarttime = boost_starttime;
 		while (ULONG_CMP_LT(jiffies, oldstarttime)) {
-			schedule_timeout_uninterruptible(1);
+			schedule_timeout_interruptible(oldstarttime - jiffies);
 			rcu_stutter_wait("rcu_torture_boost");
 			if (kthread_should_stop() ||
 			    fullstop != FULLSTOP_DONTSTOP)
@@ -1055,7 +1043,6 @@ void rcutorture_trace_dump(void)
 		return;
 	if (atomic_xchg(&beenhere, 1) != 0)
 		return;
-	do_trace_rcu_torture_read(cur_ops->name, (struct rcu_head *)~0UL);
 	ftrace_dump(DUMP_ALL);
 }
 
@@ -1069,13 +1056,16 @@ static void rcu_torture_timer(unsigned long unused)
 {
 	int idx;
 	int completed;
+	int completed_end;
 	static DEFINE_RCU_RANDOM(rand);
 	static DEFINE_SPINLOCK(rand_lock);
 	struct rcu_torture *p;
 	int pipe_count;
+	unsigned long long ts;
 
 	idx = cur_ops->readlock();
 	completed = cur_ops->completed();
+	ts = rcu_trace_clock_local();
 	p = rcu_dereference_check(rcu_torture_current,
 				  rcu_read_lock_bh_held() ||
 				  rcu_read_lock_sched_held() ||
@@ -1085,7 +1075,6 @@ static void rcu_torture_timer(unsigned long unused)
 		cur_ops->readunlock(idx);
 		return;
 	}
-	do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu);
 	if (p->rtort_mbtest == 0)
 		atomic_inc(&n_rcu_torture_mberror);
 	spin_lock(&rand_lock);
@@ -1098,10 +1087,14 @@ static void rcu_torture_timer(unsigned long unused)
 		/* Should not happen, but... */
 		pipe_count = RCU_TORTURE_PIPE_LEN;
 	}
-	if (pipe_count > 1)
+	completed_end = cur_ops->completed();
+	if (pipe_count > 1) {
+		do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu, ts,
+					  completed, completed_end);
 		rcutorture_trace_dump();
+	}
 	__this_cpu_inc(rcu_torture_count[pipe_count]);
-	completed = cur_ops->completed() - completed;
+	completed = completed_end - completed;
 	if (completed > RCU_TORTURE_PIPE_LEN) {
 		/* Should not happen, but... */
 		completed = RCU_TORTURE_PIPE_LEN;
@@ -1121,11 +1114,13 @@ static int
 rcu_torture_reader(void *arg)
 {
 	int completed;
+	int completed_end;
 	int idx;
 	DEFINE_RCU_RANDOM(rand);
 	struct rcu_torture *p;
 	int pipe_count;
 	struct timer_list t;
+	unsigned long long ts;
 
 	VERBOSE_PRINTK_STRING("rcu_torture_reader task started");
 	set_user_nice(current, 19);
@@ -1139,6 +1134,7 @@ rcu_torture_reader(void *arg)
 		}
 		idx = cur_ops->readlock();
 		completed = cur_ops->completed();
+		ts = rcu_trace_clock_local();
 		p = rcu_dereference_check(rcu_torture_current,
 					  rcu_read_lock_bh_held() ||
 					  rcu_read_lock_sched_held() ||
@@ -1149,7 +1145,6 @@ rcu_torture_reader(void *arg)
 			schedule_timeout_interruptible(HZ);
 			continue;
 		}
-		do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu);
 		if (p->rtort_mbtest == 0)
 			atomic_inc(&n_rcu_torture_mberror);
 		cur_ops->read_delay(&rand);
@@ -1159,10 +1154,14 @@ rcu_torture_reader(void *arg)
 			/* Should not happen, but... */
 			pipe_count = RCU_TORTURE_PIPE_LEN;
 		}
-		if (pipe_count > 1)
+		completed_end = cur_ops->completed();
+		if (pipe_count > 1) {
+			do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu,
+						  ts, completed, completed_end);
 			rcutorture_trace_dump();
+		}
 		__this_cpu_inc(rcu_torture_count[pipe_count]);
-		completed = cur_ops->completed() - completed;
+		completed = completed_end - completed;
 		if (completed > RCU_TORTURE_PIPE_LEN) {
 			/* Should not happen, but... */
 			completed = RCU_TORTURE_PIPE_LEN;
@@ -1328,19 +1327,35 @@ static void rcu_torture_shuffle_tasks(void)
 				set_cpus_allowed_ptr(reader_tasks[i],
 						     shuffle_tmp_mask);
 	}
-
 	if (fakewriter_tasks) {
 		for (i = 0; i < nfakewriters; i++)
 			if (fakewriter_tasks[i])
 				set_cpus_allowed_ptr(fakewriter_tasks[i],
 						     shuffle_tmp_mask);
 	}
-
 	if (writer_task)
 		set_cpus_allowed_ptr(writer_task, shuffle_tmp_mask);
-
 	if (stats_task)
 		set_cpus_allowed_ptr(stats_task, shuffle_tmp_mask);
+	if (stutter_task)
+		set_cpus_allowed_ptr(stutter_task, shuffle_tmp_mask);
+	if (fqs_task)
+		set_cpus_allowed_ptr(fqs_task, shuffle_tmp_mask);
+	if (shutdown_task)
+		set_cpus_allowed_ptr(shutdown_task, shuffle_tmp_mask);
+#ifdef CONFIG_HOTPLUG_CPU
+	if (onoff_task)
+		set_cpus_allowed_ptr(onoff_task, shuffle_tmp_mask);
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+	if (stall_task)
+		set_cpus_allowed_ptr(stall_task, shuffle_tmp_mask);
+	if (barrier_cbs_tasks)
+		for (i = 0; i < n_barrier_cbs; i++)
+			if (barrier_cbs_tasks[i])
+				set_cpus_allowed_ptr(barrier_cbs_tasks[i],
+						     shuffle_tmp_mask);
+	if (barrier_task)
+		set_cpus_allowed_ptr(barrier_task, shuffle_tmp_mask);
 
 	if (rcu_idle_cpu == -1)
 		rcu_idle_cpu = num_online_cpus() - 1;
@@ -1396,12 +1411,16 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, char *tag)
 		 "fqs_duration=%d fqs_holdoff=%d fqs_stutter=%d "
 		 "test_boost=%d/%d test_boost_interval=%d "
 		 "test_boost_duration=%d shutdown_secs=%d "
+		 "stall_cpu=%d stall_cpu_holdoff=%d "
+		 "n_barrier_cbs=%d "
 		 "onoff_interval=%d onoff_holdoff=%d\n",
 		 torture_type, tag, nrealreaders, nfakewriters,
 		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
 		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
 		 test_boost, cur_ops->can_boost,
 		 test_boost_interval, test_boost_duration, shutdown_secs,
+		 stall_cpu, stall_cpu_holdoff,
+		 n_barrier_cbs,
 		 onoff_interval, onoff_holdoff);
 }
 
@@ -1502,6 +1521,7 @@ rcu_torture_onoff(void *arg)
 	unsigned long delta;
 	int maxcpu = -1;
 	DEFINE_RCU_RANDOM(rand);
+	int ret;
 	unsigned long starttime;
 
 	VERBOSE_PRINTK_STRING("rcu_torture_onoff task started");
@@ -1522,7 +1542,13 @@ rcu_torture_onoff(void *arg)
 					 torture_type, cpu);
 			starttime = jiffies;
 			n_offline_attempts++;
-			if (cpu_down(cpu) == 0) {
+			ret = cpu_down(cpu);
+			if (ret) {
+				if (verbose)
+					pr_alert("%s" TORTURE_FLAG
+						 "rcu_torture_onoff task: offline %d failed: errno %d\n",
+						 torture_type, cpu, ret);
+			} else {
 				if (verbose)
 					pr_alert("%s" TORTURE_FLAG
 						 "rcu_torture_onoff task: offlined %d\n",
@@ -1765,7 +1791,7 @@ static int rcu_torture_barrier_init(void)
 	barrier_cbs_wq =
 		kzalloc(n_barrier_cbs * sizeof(barrier_cbs_wq[0]),
 			GFP_KERNEL);
-	if (barrier_cbs_tasks == NULL || barrier_cbs_wq == 0)
+	if (barrier_cbs_tasks == NULL || !barrier_cbs_wq)
 		return -ENOMEM;
 	for (i = 0; i < n_barrier_cbs; i++) {
 		init_waitqueue_head(&barrier_cbs_wq[i]);
@@ -1936,8 +1962,6 @@ rcu_torture_cleanup(void)
 
 	rcu_torture_stats_print();  /* -After- the stats thread is stopped! */
 
-	if (cur_ops->cleanup)
-		cur_ops->cleanup();
 	if (atomic_read(&n_rcu_torture_error) || n_rcu_torture_barrier_error)
 		rcu_torture_print_module_parms(cur_ops, "End of test: FAILURE");
 	else if (n_online_successes != n_online_attempts ||

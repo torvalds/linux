@@ -231,13 +231,41 @@ static int ohci_urb_enqueue (
 			frame &= ~(ed->interval - 1);
 			frame |= ed->branch;
 			urb->start_frame = frame;
-
-			/* yes, only URB_ISO_ASAP is supported, and
-			 * urb->start_frame is never used as input.
-			 */
 		}
-	} else if (ed->type == PIPE_ISOCHRONOUS)
-		urb->start_frame = ed->last_iso + ed->interval;
+	} else if (ed->type == PIPE_ISOCHRONOUS) {
+		u16	next = ohci_frame_no(ohci) + 2;
+		u16	frame = ed->last_iso + ed->interval;
+
+		/* Behind the scheduling threshold? */
+		if (unlikely(tick_before(frame, next))) {
+
+			/* USB_ISO_ASAP: Round up to the first available slot */
+			if (urb->transfer_flags & URB_ISO_ASAP)
+				frame += (next - frame + ed->interval - 1) &
+						-ed->interval;
+
+			/*
+			 * Not ASAP: Use the next slot in the stream.  If
+			 * the entire URB falls before the threshold, fail.
+			 */
+			else if (tick_before(frame + ed->interval *
+					(urb->number_of_packets - 1), next)) {
+				retval = -EXDEV;
+				usb_hcd_unlink_urb_from_ep(hcd, urb);
+				goto fail;
+			}
+
+			/*
+			 * Some OHCI hardware doesn't handle late TDs
+			 * correctly.  After retiring them it proceeds to
+			 * the next ED instead of the next TD.  Therefore
+			 * we have to omit the late TDs entirely.
+			 */
+			urb_priv->td_cnt = DIV_ROUND_UP(next - frame,
+					ed->interval);
+		}
+		urb->start_frame = frame;
+	}
 
 	/* fill the TDs and link them to the ed; and
 	 * enable that part of the schedule, if needed
@@ -983,6 +1011,79 @@ static int ohci_restart (struct ohci_hcd *ohci)
 
 #endif
 
+#ifdef CONFIG_PM
+
+static int __maybe_unused ohci_suspend(struct usb_hcd *hcd, bool do_wakeup)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+	unsigned long	flags;
+
+	/* Disable irq emission and mark HW unaccessible. Use
+	 * the spinlock to properly synchronize with possible pending
+	 * RH suspend or resume activity.
+	 */
+	spin_lock_irqsave (&ohci->lock, flags);
+	ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
+	(void)ohci_readl(ohci, &ohci->regs->intrdisable);
+
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	spin_unlock_irqrestore (&ohci->lock, flags);
+
+	return 0;
+}
+
+
+static int __maybe_unused ohci_resume(struct usb_hcd *hcd, bool hibernated)
+{
+	struct ohci_hcd		*ohci = hcd_to_ohci(hcd);
+	int			port;
+	bool			need_reinit = false;
+
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+
+	/* Make sure resume from hibernation re-enumerates everything */
+	if (hibernated)
+		ohci_usb_reset(ohci);
+
+	/* See if the controller is already running or has been reset */
+	ohci->hc_control = ohci_readl(ohci, &ohci->regs->control);
+	if (ohci->hc_control & (OHCI_CTRL_IR | OHCI_SCHED_ENABLES)) {
+		need_reinit = true;
+	} else {
+		switch (ohci->hc_control & OHCI_CTRL_HCFS) {
+		case OHCI_USB_OPER:
+		case OHCI_USB_RESET:
+			need_reinit = true;
+		}
+	}
+
+	/* If needed, reinitialize and suspend the root hub */
+	if (need_reinit) {
+		spin_lock_irq(&ohci->lock);
+		ohci_rh_resume(ohci);
+		ohci_rh_suspend(ohci, 0);
+		spin_unlock_irq(&ohci->lock);
+	}
+
+	/* Normally just turn on port power and enable interrupts */
+	else {
+		ohci_dbg(ohci, "powerup ports\n");
+		for (port = 0; port < ohci->num_ports; port++)
+			ohci_writel(ohci, RH_PS_PPS,
+					&ohci->regs->roothub.portstatus[port]);
+
+		ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrenable);
+		ohci_readl(ohci, &ohci->regs->intrenable);
+		msleep(20);
+	}
+
+	usb_hcd_resume_root_hub(hcd);
+
+	return 0;
+}
+
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 MODULE_AUTHOR (DRIVER_AUTHOR);
@@ -1029,21 +1130,6 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_ep93xx_driver
 #endif
 
-#ifdef CONFIG_MIPS_ALCHEMY
-#include "ohci-au1xxx.c"
-#define PLATFORM_DRIVER		ohci_hcd_au1xxx_driver
-#endif
-
-#ifdef CONFIG_PNX8550
-#include "ohci-pnx8550.c"
-#define PLATFORM_DRIVER		ohci_hcd_pnx8550_driver
-#endif
-
-#ifdef CONFIG_USB_OHCI_HCD_PPC_SOC
-#include "ohci-ppc-soc.c"
-#define PLATFORM_DRIVER		ohci_hcd_ppc_soc_driver
-#endif
-
 #ifdef CONFIG_ARCH_AT91
 #include "ohci-at91.c"
 #define PLATFORM_DRIVER		ohci_hcd_at91_driver
@@ -1057,11 +1143,6 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_ARCH_DAVINCI_DA8XX
 #include "ohci-da8xx.c"
 #define PLATFORM_DRIVER		ohci_hcd_da8xx_driver
-#endif
-
-#ifdef CONFIG_USB_OHCI_SH
-#include "ohci-sh.c"
-#define PLATFORM_DRIVER		ohci_hcd_sh_driver
 #endif
 
 
@@ -1103,16 +1184,6 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_TILE_USB
 #include "ohci-tilegx.c"
 #define PLATFORM_DRIVER		ohci_hcd_tilegx_driver
-#endif
-
-#ifdef CONFIG_USB_CNS3XXX_OHCI
-#include "ohci-cns3xxx.c"
-#define PLATFORM_DRIVER		ohci_hcd_cns3xxx_driver
-#endif
-
-#ifdef CONFIG_CPU_XLR
-#include "ohci-xls.c"
-#define PLATFORM_DRIVER		ohci_xls_driver
 #endif
 
 #ifdef CONFIG_USB_OHCI_HCD_PLATFORM

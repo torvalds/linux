@@ -31,8 +31,10 @@
 #include <linux/nfs_fs.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
+#include <linux/sunrpc/addr.h>
 
 #include "internal.h"
+#include "nfs4session.h"
 #include "nfs4filelayout.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
@@ -161,8 +163,6 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 
 	dprintk("--> %s DS %s au_flavor %d\n", __func__, ds->ds_remotestr,
 		mds_srv->nfs_client->cl_rpcclient->cl_auth->au_flavor);
-
-	BUG_ON(list_empty(&ds->ds_addrs));
 
 	list_for_each_entry(da, &ds->ds_addrs, da_node) {
 		dprintk("%s: DS %s: trying address %s\n",

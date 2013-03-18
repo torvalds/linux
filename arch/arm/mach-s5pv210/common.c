@@ -169,8 +169,6 @@ void __init s5pv210_init_io(struct map_desc *mach_desc, int size)
 
 void __init s5pv210_map_io(void)
 {
-	init_consistent_dma_size(14 << 20);
-
 	/* initialise device information early */
 	s5pv210_default_sdhci0();
 	s5pv210_default_sdhci1();

@@ -114,11 +114,6 @@ static void invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 	hlist_del_init_rcu(&pte->list_vpte);
 	hlist_del_init_rcu(&pte->list_vpte_long);
 
-	if (pte->pte.may_write)
-		kvm_release_pfn_dirty(pte->pfn);
-	else
-		kvm_release_pfn_clean(pte->pfn);
-
 	spin_unlock(&vcpu3s->mmu_lock);
 
 	vcpu3s->hpte_cache_count--;
@@ -129,7 +124,6 @@ static void kvmppc_mmu_pte_flush_all(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	struct hpte_cache *pte;
-	struct hlist_node *node;
 	int i;
 
 	rcu_read_lock();
@@ -137,7 +131,7 @@ static void kvmppc_mmu_pte_flush_all(struct kvm_vcpu *vcpu)
 	for (i = 0; i < HPTEG_HASH_NUM_VPTE_LONG; i++) {
 		struct hlist_head *list = &vcpu3s->hpte_hash_vpte_long[i];
 
-		hlist_for_each_entry_rcu(pte, node, list, list_vpte_long)
+		hlist_for_each_entry_rcu(pte, list, list_vpte_long)
 			invalidate_pte(vcpu, pte);
 	}
 
@@ -148,7 +142,6 @@ static void kvmppc_mmu_pte_flush_page(struct kvm_vcpu *vcpu, ulong guest_ea)
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	struct hlist_head *list;
-	struct hlist_node *node;
 	struct hpte_cache *pte;
 
 	/* Find the list of entries in the map */
@@ -157,7 +150,7 @@ static void kvmppc_mmu_pte_flush_page(struct kvm_vcpu *vcpu, ulong guest_ea)
 	rcu_read_lock();
 
 	/* Check the list for matching entries and invalidate */
-	hlist_for_each_entry_rcu(pte, node, list, list_pte)
+	hlist_for_each_entry_rcu(pte, list, list_pte)
 		if ((pte->pte.eaddr & ~0xfffUL) == guest_ea)
 			invalidate_pte(vcpu, pte);
 
@@ -168,7 +161,6 @@ static void kvmppc_mmu_pte_flush_long(struct kvm_vcpu *vcpu, ulong guest_ea)
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	struct hlist_head *list;
-	struct hlist_node *node;
 	struct hpte_cache *pte;
 
 	/* Find the list of entries in the map */
@@ -178,7 +170,7 @@ static void kvmppc_mmu_pte_flush_long(struct kvm_vcpu *vcpu, ulong guest_ea)
 	rcu_read_lock();
 
 	/* Check the list for matching entries and invalidate */
-	hlist_for_each_entry_rcu(pte, node, list, list_pte_long)
+	hlist_for_each_entry_rcu(pte, list, list_pte_long)
 		if ((pte->pte.eaddr & 0x0ffff000UL) == guest_ea)
 			invalidate_pte(vcpu, pte);
 
@@ -212,7 +204,6 @@ static void kvmppc_mmu_pte_vflush_short(struct kvm_vcpu *vcpu, u64 guest_vp)
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	struct hlist_head *list;
-	struct hlist_node *node;
 	struct hpte_cache *pte;
 	u64 vp_mask = 0xfffffffffULL;
 
@@ -221,7 +212,7 @@ static void kvmppc_mmu_pte_vflush_short(struct kvm_vcpu *vcpu, u64 guest_vp)
 	rcu_read_lock();
 
 	/* Check the list for matching entries and invalidate */
-	hlist_for_each_entry_rcu(pte, node, list, list_vpte)
+	hlist_for_each_entry_rcu(pte, list, list_vpte)
 		if ((pte->pte.vpage & vp_mask) == guest_vp)
 			invalidate_pte(vcpu, pte);
 
@@ -233,7 +224,6 @@ static void kvmppc_mmu_pte_vflush_long(struct kvm_vcpu *vcpu, u64 guest_vp)
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	struct hlist_head *list;
-	struct hlist_node *node;
 	struct hpte_cache *pte;
 	u64 vp_mask = 0xffffff000ULL;
 
@@ -243,7 +233,7 @@ static void kvmppc_mmu_pte_vflush_long(struct kvm_vcpu *vcpu, u64 guest_vp)
 	rcu_read_lock();
 
 	/* Check the list for matching entries and invalidate */
-	hlist_for_each_entry_rcu(pte, node, list, list_vpte_long)
+	hlist_for_each_entry_rcu(pte, list, list_vpte_long)
 		if ((pte->pte.vpage & vp_mask) == guest_vp)
 			invalidate_pte(vcpu, pte);
 
@@ -271,7 +261,6 @@ void kvmppc_mmu_pte_vflush(struct kvm_vcpu *vcpu, u64 guest_vp, u64 vp_mask)
 void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, ulong pa_start, ulong pa_end)
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
-	struct hlist_node *node;
 	struct hpte_cache *pte;
 	int i;
 
@@ -282,7 +271,7 @@ void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, ulong pa_start, ulong pa_end)
 	for (i = 0; i < HPTEG_HASH_NUM_VPTE_LONG; i++) {
 		struct hlist_head *list = &vcpu3s->hpte_hash_vpte_long[i];
 
-		hlist_for_each_entry_rcu(pte, node, list, list_vpte_long)
+		hlist_for_each_entry_rcu(pte, list, list_vpte_long)
 			if ((pte->pte.raddr >= pa_start) &&
 			    (pte->pte.raddr < pa_end))
 				invalidate_pte(vcpu, pte);

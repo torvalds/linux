@@ -17,6 +17,8 @@
 #define FDBD_HAS_BUFFERED_IO_WCE 0x04
 
 struct fd_dev {
+	struct se_device dev;
+
 	u32		fbd_flags;
 	unsigned char	fd_dev_name[FD_MAX_DEV_NAME];
 	/* Unique Ramdisk Device ID in Ramdisk HBA */

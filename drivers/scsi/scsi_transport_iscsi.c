@@ -183,10 +183,10 @@ static struct attribute_group iscsi_endpoint_group = {
 
 #define ISCSI_MAX_EPID -1
 
-static int iscsi_match_epid(struct device *dev, void *data)
+static int iscsi_match_epid(struct device *dev, const void *data)
 {
 	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
-	uint64_t *epid = (uint64_t *) data;
+	const uint64_t *epid = data;
 
 	return *epid == ep->id;
 }
@@ -2503,6 +2503,15 @@ show_priv_session_creator(struct device *dev, struct device_attribute *attr,
 }
 static ISCSI_CLASS_ATTR(priv_sess, creator, S_IRUGO, show_priv_session_creator,
 			NULL);
+static ssize_t
+show_priv_session_target_id(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct iscsi_cls_session *session = iscsi_dev_to_session(dev->parent);
+	return sprintf(buf, "%d\n", session->target_id);
+}
+static ISCSI_CLASS_ATTR(priv_sess, target_id, S_IRUGO,
+			show_priv_session_target_id, NULL);
 
 #define iscsi_priv_session_attr_show(field, format)			\
 static ssize_t								\
@@ -2575,6 +2584,7 @@ static struct attribute *iscsi_session_attrs[] = {
 	&dev_attr_priv_sess_creator.attr,
 	&dev_attr_sess_chap_out_idx.attr,
 	&dev_attr_sess_chap_in_idx.attr,
+	&dev_attr_priv_sess_target_id.attr,
 	NULL,
 };
 
@@ -2637,6 +2647,8 @@ static umode_t iscsi_session_attr_is_visible(struct kobject *kobj,
 	else if (attr == &dev_attr_priv_sess_state.attr)
 		return S_IRUGO;
 	else if (attr == &dev_attr_priv_sess_creator.attr)
+		return S_IRUGO;
+	else if (attr == &dev_attr_priv_sess_target_id.attr)
 		return S_IRUGO;
 	else {
 		WARN_ONCE(1, "Invalid session attr");

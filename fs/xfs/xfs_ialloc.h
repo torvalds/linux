@@ -147,7 +147,9 @@ int xfs_inobt_lookup(struct xfs_btree_cur *cur, xfs_agino_t ino,
 /*
  * Get the data from the pointed-to record.
  */
-extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur,
+int xfs_inobt_get_rec(struct xfs_btree_cur *cur,
 		xfs_inobt_rec_incore_t *rec, int *stat);
+
+extern const struct xfs_buf_ops xfs_agi_buf_ops;
 
 #endif	/* __XFS_IALLOC_H__ */

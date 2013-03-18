@@ -203,7 +203,7 @@ static int adp5520_remove_subdevs(struct adp5520_chip *chip)
 	return device_for_each_child(chip->dev, NULL, __remove_subdev);
 }
 
-static int __devinit adp5520_probe(struct i2c_client *client,
+static int adp5520_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct adp5520_platform_data *pdata = client->dev.platform_data;
@@ -307,7 +307,7 @@ out_free_chip:
 	return ret;
 }
 
-static int __devexit adp5520_remove(struct i2c_client *client)
+static int adp5520_remove(struct i2c_client *client)
 {
 	struct adp5520_chip *chip = dev_get_drvdata(&client->dev);
 
@@ -356,7 +356,7 @@ static struct i2c_driver adp5520_driver = {
 		.pm	= &adp5520_pm,
 	},
 	.probe		= adp5520_probe,
-	.remove		= __devexit_p(adp5520_remove),
+	.remove		= adp5520_remove,
 	.id_table 	= adp5520_id,
 };
 

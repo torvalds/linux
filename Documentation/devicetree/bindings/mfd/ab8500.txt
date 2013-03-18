@@ -13,9 +13,6 @@ Required parent device properties:
                                   4 = active high level-sensitive
                                   8 = active low level-sensitive
 
-Optional parent device properties:
-- reg                    : contains the PRCMU mailbox address for the AB8500 i2c port
-
 The AB8500 consists of a large and varied group of sub-devices:
 
 Device                     IRQ Names              Supply Names   Description
@@ -24,7 +21,32 @@ ab8500-bm                :                      :              : Battery Manager
 ab8500-btemp             :                      :              : Battery Temperature
 ab8500-charger           :                      :              : Battery Charger
 ab8500-codec             :                      :              : Audio Codec
-ab8500-fg                :                      :              : Fuel Gauge
+ab8500-fg                : 			: vddadc       : Fuel Gauge
+			 : NCONV_ACCU           :	       : Accumulate N Sample Conversion
+			 : BATT_OVV		:	       : Battery Over Voltage
+			 : LOW_BAT_F		:	       : LOW threshold battery voltage
+			 : CC_INT_CALIB		:	       : Coulomb Counter Internal Calibration
+			 : CCEOC		:	       : Coulomb Counter End of Conversion
+ab8500-btemp		 :			: vtvout       : Battery Temperature
+			 : BAT_CTRL_INDB        :              : Battery Removal Indicator
+			 : BTEMP_LOW            :              : Btemp < BtempLow, if battery temperature is lower than -10°C
+			 : BTEMP_LOW_MEDIUM     :              : BtempLow < Btemp < BtempMedium,if battery temperature is between -10 and 0°C
+			 : BTEMP_MEDIUM_HIGH    :	       : BtempMedium < Btemp < BtempHigh,if battery temperature is between 0°C and“MaxTemp
+			 : BTEMP_HIGH           :              : Btemp > BtempHigh, if battery temperature is higher than “MaxTemp
+ab8500-charger		 :			: vddadc       : Charger interface
+			 : MAIN_CH_UNPLUG_DET	:	       : main charger unplug detection management (not in 8505)
+			 : MAIN_CHARGE_PLUG_DET	:	       : main charger plug detection management (not in 8505)
+			 : MAIN_EXT_CH_NOT_OK	:	       : main charger not OK
+			 : MAIN_CH_TH_PROT_R	:	       : Die temp is above main charger
+			 : MAIN_CH_TH_PROT_F	:	       : Die temp is below main charger
+			 : VBUS_DET_F		:	       : VBUS falling detected
+			 : VBUS_DET_R		:	       : VBUS rising detected
+			 : USB_LINK_STATUS	:	       : USB link status has changed
+			 : USB_CH_TH_PROT_R	:	       : Die temp is above usb charger
+			 : USB_CH_TH_PROT_F	:	       : Die temp is below usb charger
+			 : USB_CHARGER_NOT_OKR	:	       : allowed USB charger not ok detection
+			 : VBUS_OVV		:	       : Overvoltage on Vbus ball detected (USB charge is stopped)
+			 : CH_WD_EXP		:	       : Charger watchdog detected
 ab8500-gpadc             : HW_CONV_END          : vddadc       : Analogue to Digital Converter
                            SW_CONV_END          :              :
 ab8500-gpio              :                      :              : GPIO Controller
@@ -61,9 +83,8 @@ Non-standard child device properties:
    - stericsson,amic2-bias-vamic1           : Analoge Mic wishes to use a non-standard Vamic
    - stericsson,earpeice-cmv                : Earpeice voltage (only: 950 | 1100 | 1270 | 1580)
 
-ab8500@5 {
+ab8500 {
          compatible = "stericsson,ab8500";
-         reg = <5>; /* mailbox 5 is i2c */
          interrupts = <0 40 0x4>;
          interrupt-controller;
          #interrupt-cells = <2>;

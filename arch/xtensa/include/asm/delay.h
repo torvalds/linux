@@ -19,9 +19,9 @@ extern unsigned long loops_per_jiffy;
 
 static inline void __delay(unsigned long loops)
 {
-  /* 2 cycles per loop. */
-  __asm__ __volatile__ ("1: addi %0, %0, -2; bgeui %0, 2, 1b"
-			: "=r" (loops) : "0" (loops));
+	/* 2 cycles per loop. */
+	__asm__ __volatile__ ("1: addi %0, %0, -2; bgeui %0, 2, 1b"
+			      : "=r" (loops) : "0" (loops));
 }
 
 static __inline__ u32 xtensa_get_ccount(void)
@@ -46,4 +46,3 @@ static __inline__ void udelay (unsigned long usecs)
 }
 
 #endif
-

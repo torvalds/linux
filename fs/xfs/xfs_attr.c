@@ -300,9 +300,12 @@ xfs_attr_set_int(
 	if (rsvd)
 		args.trans->t_flags |= XFS_TRANS_RESERVE;
 
-	if ((error = xfs_trans_reserve(args.trans, args.total,
-			XFS_ATTRSET_LOG_RES(mp, args.total), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_ATTRSET_LOG_COUNT))) {
+	error = xfs_trans_reserve(args.trans, args.total,
+				  XFS_ATTRSETM_LOG_RES(mp) +
+				  XFS_ATTRSETRT_LOG_RES(mp) * args.total,
+				  0, XFS_TRANS_PERM_LOG_RES,
+				  XFS_ATTRSET_LOG_COUNT);
+	if (error) {
 		xfs_trans_cancel(args.trans, 0);
 		return(error);
 	}
@@ -903,11 +906,9 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 	 */
 	dp = args->dp;
 	args->blkno = 0;
-	error = xfs_da_read_buf(args->trans, args->dp, args->blkno, -1, &bp,
-					     XFS_ATTR_FORK);
+	error = xfs_attr_leaf_read(args->trans, args->dp, args->blkno, -1, &bp);
 	if (error)
-		return(error);
-	ASSERT(bp != NULL);
+		return error;
 
 	/*
 	 * Look up the given attribute in the leaf block.  Figure out if
@@ -1031,12 +1032,12 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		 * Read in the block containing the "old" attr, then
 		 * remove the "old" attr from that block (neat, huh!)
 		 */
-		error = xfs_da_read_buf(args->trans, args->dp, args->blkno, -1,
-						     &bp, XFS_ATTR_FORK);
+		error = xfs_attr_leaf_read(args->trans, args->dp, args->blkno,
+					   -1, &bp);
 		if (error)
-			return(error);
-		ASSERT(bp != NULL);
-		(void)xfs_attr_leaf_remove(bp, args);
+			return error;
+
+		xfs_attr_leaf_remove(bp, args);
 
 		/*
 		 * If the result is small enough, shrink it all into the inode.
@@ -1100,20 +1101,17 @@ xfs_attr_leaf_removename(xfs_da_args_t *args)
 	 */
 	dp = args->dp;
 	args->blkno = 0;
-	error = xfs_da_read_buf(args->trans, args->dp, args->blkno, -1, &bp,
-					     XFS_ATTR_FORK);
-	if (error) {
-		return(error);
-	}
+	error = xfs_attr_leaf_read(args->trans, args->dp, args->blkno, -1, &bp);
+	if (error)
+		return error;
 
-	ASSERT(bp != NULL);
 	error = xfs_attr_leaf_lookup_int(bp, args);
 	if (error == ENOATTR) {
 		xfs_trans_brelse(args->trans, bp);
 		return(error);
 	}
 
-	(void)xfs_attr_leaf_remove(bp, args);
+	xfs_attr_leaf_remove(bp, args);
 
 	/*
 	 * If the result is small enough, shrink it all into the inode.
@@ -1155,12 +1153,12 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
 	struct xfs_buf *bp;
 	int error;
 
+	trace_xfs_attr_leaf_get(args);
+
 	args->blkno = 0;
-	error = xfs_da_read_buf(args->trans, args->dp, args->blkno, -1, &bp,
-					     XFS_ATTR_FORK);
+	error = xfs_attr_leaf_read(args->trans, args->dp, args->blkno, -1, &bp);
 	if (error)
-		return(error);
-	ASSERT(bp != NULL);
+		return error;
 
 	error = xfs_attr_leaf_lookup_int(bp, args);
 	if (error != EEXIST)  {
@@ -1181,22 +1179,15 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
 STATIC int
 xfs_attr_leaf_list(xfs_attr_list_context_t *context)
 {
-	xfs_attr_leafblock_t *leaf;
 	int error;
 	struct xfs_buf *bp;
 
+	trace_xfs_attr_leaf_list(context);
+
 	context->cursor->blkno = 0;
-	error = xfs_da_read_buf(NULL, context->dp, 0, -1, &bp, XFS_ATTR_FORK);
+	error = xfs_attr_leaf_read(NULL, context->dp, 0, -1, &bp);
 	if (error)
 		return XFS_ERROR(error);
-	ASSERT(bp != NULL);
-	leaf = bp->b_addr;
-	if (unlikely(leaf->hdr.info.magic != cpu_to_be16(XFS_ATTR_LEAF_MAGIC))) {
-		XFS_CORRUPTION_ERROR("xfs_attr_leaf_list", XFS_ERRLEVEL_LOW,
-				     context->dp->i_mount, leaf);
-		xfs_trans_brelse(NULL, bp);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
 
 	error = xfs_attr_leaf_list_int(bp, context);
 	xfs_trans_brelse(NULL, bp);
@@ -1600,12 +1591,9 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 		ASSERT(state->path.blk[0].bp);
 		state->path.blk[0].bp = NULL;
 
-		error = xfs_da_read_buf(args->trans, args->dp, 0, -1, &bp,
-						     XFS_ATTR_FORK);
+		error = xfs_attr_leaf_read(args->trans, args->dp, 0, -1, &bp);
 		if (error)
 			goto out;
-		ASSERT((((xfs_attr_leafblock_t *)bp->b_addr)->hdr.info.magic) ==
-		       cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
 
 		if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
 			xfs_bmap_init(args->flist, args->firstblock);
@@ -1653,6 +1641,8 @@ xfs_attr_fillstate(xfs_da_state_t *state)
 	xfs_da_state_blk_t *blk;
 	int level;
 
+	trace_xfs_attr_fillstate(state->args);
+
 	/*
 	 * Roll down the "path" in the state structure, storing the on-disk
 	 * block number for those buffers in the "path".
@@ -1699,6 +1689,8 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 	xfs_da_state_blk_t *blk;
 	int level, error;
 
+	trace_xfs_attr_refillstate(state->args);
+
 	/*
 	 * Roll down the "path" in the state structure, storing the on-disk
 	 * block number for those buffers in the "path".
@@ -1707,7 +1699,7 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
 		if (blk->disk_blkno) {
-			error = xfs_da_read_buf(state->args->trans,
+			error = xfs_da_node_read(state->args->trans,
 						state->args->dp,
 						blk->blkno, blk->disk_blkno,
 						&blk->bp, XFS_ATTR_FORK);
@@ -1726,7 +1718,7 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
 		if (blk->disk_blkno) {
-			error = xfs_da_read_buf(state->args->trans,
+			error = xfs_da_node_read(state->args->trans,
 						state->args->dp,
 						blk->blkno, blk->disk_blkno,
 						&blk->bp, XFS_ATTR_FORK);
@@ -1754,6 +1746,8 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	xfs_da_state_blk_t *blk;
 	int error, retval;
 	int i;
+
+	trace_xfs_attr_node_get(args);
 
 	state = xfs_da_state_alloc();
 	state->args = args;
@@ -1804,6 +1798,8 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	int error, i;
 	struct xfs_buf *bp;
 
+	trace_xfs_attr_node_list(context);
+
 	cursor = context->cursor;
 	cursor->initted = 1;
 
@@ -1814,7 +1810,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	bp = NULL;
 	if (cursor->blkno > 0) {
-		error = xfs_da_read_buf(NULL, context->dp, cursor->blkno, -1,
+		error = xfs_da_node_read(NULL, context->dp, cursor->blkno, -1,
 					      &bp, XFS_ATTR_FORK);
 		if ((error != 0) && (error != EFSCORRUPTED))
 			return(error);
@@ -1856,17 +1852,11 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	if (bp == NULL) {
 		cursor->blkno = 0;
 		for (;;) {
-			error = xfs_da_read_buf(NULL, context->dp,
+			error = xfs_da_node_read(NULL, context->dp,
 						      cursor->blkno, -1, &bp,
 						      XFS_ATTR_FORK);
 			if (error)
 				return(error);
-			if (unlikely(bp == NULL)) {
-				XFS_ERROR_REPORT("xfs_attr_node_list(2)",
-						 XFS_ERRLEVEL_LOW,
-						 context->dp->i_mount);
-				return(XFS_ERROR(EFSCORRUPTED));
-			}
 			node = bp->b_addr;
 			if (node->hdr.info.magic ==
 			    cpu_to_be16(XFS_ATTR_LEAF_MAGIC))
@@ -1907,14 +1897,6 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	for (;;) {
 		leaf = bp->b_addr;
-		if (unlikely(leaf->hdr.info.magic !=
-			     cpu_to_be16(XFS_ATTR_LEAF_MAGIC))) {
-			XFS_CORRUPTION_ERROR("xfs_attr_node_list(4)",
-					     XFS_ERRLEVEL_LOW,
-					     context->dp->i_mount, leaf);
-			xfs_trans_brelse(NULL, bp);
-			return(XFS_ERROR(EFSCORRUPTED));
-		}
 		error = xfs_attr_leaf_list_int(bp, context);
 		if (error) {
 			xfs_trans_brelse(NULL, bp);
@@ -1924,16 +1906,10 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 			break;
 		cursor->blkno = be32_to_cpu(leaf->hdr.info.forw);
 		xfs_trans_brelse(NULL, bp);
-		error = xfs_da_read_buf(NULL, context->dp, cursor->blkno, -1,
-					      &bp, XFS_ATTR_FORK);
+		error = xfs_attr_leaf_read(NULL, context->dp, cursor->blkno, -1,
+					   &bp);
 		if (error)
-			return(error);
-		if (unlikely((bp == NULL))) {
-			XFS_ERROR_REPORT("xfs_attr_node_list(5)",
-					 XFS_ERRLEVEL_LOW,
-					 context->dp->i_mount);
-			return(XFS_ERROR(EFSCORRUPTED));
-		}
+			return error;
 	}
 	xfs_trans_brelse(NULL, bp);
 	return(0);
@@ -1959,6 +1935,8 @@ xfs_attr_rmtval_get(xfs_da_args_t *args)
 	int nmap, error, tmp, valuelen, blkcnt, i;
 	xfs_dablk_t lblkno;
 
+	trace_xfs_attr_rmtval_get(args);
+
 	ASSERT(!(args->flags & ATTR_KERNOVAL));
 
 	mp = args->dp->i_mount;
@@ -1980,7 +1958,7 @@ xfs_attr_rmtval_get(xfs_da_args_t *args)
 			dblkno = XFS_FSB_TO_DADDR(mp, map[i].br_startblock);
 			blkcnt = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
 			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
-						   dblkno, blkcnt, 0, &bp);
+						   dblkno, blkcnt, 0, &bp, NULL);
 			if (error)
 				return(error);
 
@@ -2013,6 +1991,8 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 	xfs_buf_t *bp;
 	xfs_dablk_t lblkno;
 	int blkcnt, valuelen, nmap, error, tmp, committed;
+
+	trace_xfs_attr_rmtval_set(args);
 
 	dp = args->dp;
 	mp = dp->i_mount;
@@ -2142,6 +2122,8 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 	xfs_daddr_t dblkno;
 	xfs_dablk_t lblkno;
 	int valuelen, blkcnt, nmap, error, done, committed;
+
+	trace_xfs_attr_rmtval_remove(args);
 
 	mp = args->dp->i_mount;
 

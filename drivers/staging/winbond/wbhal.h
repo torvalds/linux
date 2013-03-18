@@ -226,11 +226,11 @@ struct T01_descriptor {
 			u32	T01_add_challenge_text:1;
 			u32	T01_inhibit_crc:1;
 			u32	T01_loop_back_wep_mode:1;
-			u32	T01_retry_abort_ebable:1;
+			u32	T01_retry_abort_enable:1;
 		};
 #else
 		struct {
-			u32	T01_retry_abort_ebable:1;
+			u32	T01_retry_abort_enable:1;
 			u32	T01_loop_back_wep_mode:1;
 			u32	T01_inhibit_crc:1;
 			u32	T01_add_challenge_text:1;

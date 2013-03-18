@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -220,8 +220,8 @@ ACPI_EXPORT_SYMBOL(acpi_get_parent)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Return the next peer object within the namespace.  If Handle is
- *              valid, Scope is ignored.  Otherwise, the first object within
+ * DESCRIPTION: Return the next peer object within the namespace. If Handle is
+ *              valid, Scope is ignored. Otherwise, the first object within
  *              Scope is returned.
  *
  ******************************************************************************/

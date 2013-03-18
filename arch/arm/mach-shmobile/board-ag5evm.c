@@ -40,6 +40,7 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <linux/sh_clk.h>
+#include <linux/irqchip/arm-gic.h>
 #include <video/sh_mobile_lcdc.h>
 #include <video/sh_mipi_dsi.h>
 #include <sound/sh_fsi.h>
@@ -49,7 +50,6 @@
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/traps.h>
 
@@ -213,95 +213,6 @@ static struct platform_device irda_device = {
 	.num_resources  = ARRAY_SIZE(irda_resources),
 };
 
-static unsigned char lcd_backlight_seq[3][2] = {
-	{ 0x04, 0x07 },
-	{ 0x23, 0x80 },
-	{ 0x03, 0x01 },
-};
-
-static void lcd_backlight_on(void)
-{
-	struct i2c_adapter *a;
-	struct i2c_msg msg;
-	int k;
-
-	a = i2c_get_adapter(1);
-	for (k = 0; a && k < 3; k++) {
-		msg.addr = 0x6d;
-		msg.buf = &lcd_backlight_seq[k][0];
-		msg.len = 2;
-		msg.flags = 0;
-		if (i2c_transfer(a, &msg, 1) != 1)
-			break;
-	}
-}
-
-static void lcd_backlight_reset(void)
-{
-	gpio_set_value(GPIO_PORT235, 0);
-	mdelay(24);
-	gpio_set_value(GPIO_PORT235, 1);
-}
-
-/* LCDC0 */
-static const struct fb_videomode lcdc0_modes[] = {
-	{
-		.name		= "R63302(QHD)",
-		.xres		= 544,
-		.yres		= 961,
-		.left_margin	= 72,
-		.right_margin	= 600,
-		.hsync_len	= 16,
-		.upper_margin	= 8,
-		.lower_margin	= 8,
-		.vsync_len	= 2,
-		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
-	},
-};
-
-static struct sh_mobile_lcdc_info lcdc0_info = {
-	.clock_source = LCDC_CLK_PERIPHERAL,
-	.ch[0] = {
-		.chan = LCDC_CHAN_MAINLCD,
-		.interface_type = RGB24,
-		.clock_divider = 1,
-		.flags = LCDC_FLAGS_DWPOL,
-		.fourcc = V4L2_PIX_FMT_RGB565,
-		.lcd_modes = lcdc0_modes,
-		.num_modes = ARRAY_SIZE(lcdc0_modes),
-		.panel_cfg = {
-			.width = 44,
-			.height = 79,
-			.display_on = lcd_backlight_on,
-			.display_off = lcd_backlight_reset,
-		},
-	}
-};
-
-static struct resource lcdc0_resources[] = {
-	[0] = {
-		.name	= "LCDC0",
-		.start	= 0xfe940000, /* P4-only space */
-		.end	= 0xfe943fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= intcs_evt2irq(0x580),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device lcdc0_device = {
-	.name		= "sh_mobile_lcdc_fb",
-	.num_resources	= ARRAY_SIZE(lcdc0_resources),
-	.resource	= lcdc0_resources,
-	.id             = 0,
-	.dev	= {
-		.platform_data	= &lcdc0_info,
-		.coherent_dma_mask = ~0,
-	},
-};
-
 /* MIPI-DSI */
 static struct resource mipidsi0_resources[] = {
 	[0] = {
@@ -358,7 +269,7 @@ sh_mipi_set_dot_clock_pck_err:
 
 static struct sh_mipi_dsi_info mipidsi0_info = {
 	.data_format	= MIPI_RGB888,
-	.lcd_chan	= &lcdc0_info.ch[0],
+	.channel	= LCDC_CHAN_MAINLCD,
 	.lane		= 2,
 	.vsynw_offset	= 20,
 	.clksrc		= 1,
@@ -375,6 +286,109 @@ static struct platform_device mipidsi0_device = {
 	.id             = 0,
 	.dev	= {
 		.platform_data	= &mipidsi0_info,
+	},
+};
+
+static unsigned char lcd_backlight_seq[3][2] = {
+	{ 0x04, 0x07 },
+	{ 0x23, 0x80 },
+	{ 0x03, 0x01 },
+};
+
+static int lcd_backlight_set_brightness(int brightness)
+{
+	struct i2c_adapter *adap;
+	struct i2c_msg msg;
+	unsigned int i;
+	int ret;
+
+	if (brightness == 0) {
+		/* Reset the chip */
+		gpio_set_value(GPIO_PORT235, 0);
+		mdelay(24);
+		gpio_set_value(GPIO_PORT235, 1);
+		return 0;
+	}
+
+	adap = i2c_get_adapter(1);
+	if (adap == NULL)
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(lcd_backlight_seq); i++) {
+		msg.addr = 0x6d;
+		msg.buf = &lcd_backlight_seq[i][0];
+		msg.len = 2;
+		msg.flags = 0;
+
+		ret = i2c_transfer(adap, &msg, 1);
+		if (ret < 0)
+			break;
+	}
+
+	i2c_put_adapter(adap);
+	return ret < 0 ? ret : 0;
+}
+
+/* LCDC0 */
+static const struct fb_videomode lcdc0_modes[] = {
+	{
+		.name		= "R63302(QHD)",
+		.xres		= 544,
+		.yres		= 961,
+		.left_margin	= 72,
+		.right_margin	= 600,
+		.hsync_len	= 16,
+		.upper_margin	= 8,
+		.lower_margin	= 8,
+		.vsync_len	= 2,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
+	},
+};
+
+static struct sh_mobile_lcdc_info lcdc0_info = {
+	.clock_source = LCDC_CLK_PERIPHERAL,
+	.ch[0] = {
+		.chan = LCDC_CHAN_MAINLCD,
+		.interface_type = RGB24,
+		.clock_divider = 1,
+		.flags = LCDC_FLAGS_DWPOL,
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.lcd_modes = lcdc0_modes,
+		.num_modes = ARRAY_SIZE(lcdc0_modes),
+		.panel_cfg = {
+			.width = 44,
+			.height = 79,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
+			.set_brightness = lcd_backlight_set_brightness,
+		},
+		.tx_dev = &mipidsi0_device,
+	}
+};
+
+static struct resource lcdc0_resources[] = {
+	[0] = {
+		.name	= "LCDC0",
+		.start	= 0xfe940000, /* P4-only space */
+		.end	= 0xfe943fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= intcs_evt2irq(0x580),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device lcdc0_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(lcdc0_resources),
+	.resource	= lcdc0_resources,
+	.id             = 0,
+	.dev	= {
+		.platform_data	= &lcdc0_info,
+		.coherent_dma_mask = ~0,
 	},
 };
 
@@ -465,11 +479,10 @@ static void ag5evm_sdhi1_set_pwr(struct platform_device *pdev, int state)
 	static int power_gpio = -EINVAL;
 
 	if (power_gpio < 0) {
-		int ret = gpio_request(GPIO_PORT114, "sdhi1_power");
-		if (!ret) {
+		int ret = gpio_request_one(GPIO_PORT114, GPIOF_OUT_INIT_LOW,
+					   "sdhi1_power");
+		if (!ret)
 			power_gpio = GPIO_PORT114;
-			gpio_direction_output(power_gpio, 0);
-		}
 	}
 
 	/*
@@ -531,8 +544,8 @@ static struct platform_device *ag5evm_devices[] __initdata = {
 	&fsi_device,
 	&mmc_device,
 	&irda_device,
-	&lcdc0_device,
 	&mipidsi0_device,
+	&lcdc0_device,
 	&sdhi0_device,
 	&sdhi1_device,
 };
@@ -590,14 +603,11 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_MMCD0_5_PU, NULL);
 	gpio_request(GPIO_FN_MMCD0_6_PU, NULL);
 	gpio_request(GPIO_FN_MMCD0_7_PU, NULL);
-	gpio_request(GPIO_PORT208, NULL); /* Reset */
-	gpio_direction_output(GPIO_PORT208, 1);
+	gpio_request_one(GPIO_PORT208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
 
 	/* enable SMSC911X */
-	gpio_request(GPIO_PORT144, NULL); /* PINTA2 */
-	gpio_direction_input(GPIO_PORT144);
-	gpio_request(GPIO_PORT145, NULL); /* RESET */
-	gpio_direction_output(GPIO_PORT145, 1);
+	gpio_request_one(GPIO_PORT144, GPIOF_IN, NULL); /* PINTA2 */
+	gpio_request_one(GPIO_PORT145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
 
 	/* FSI A */
 	gpio_request(GPIO_FN_FSIACK, NULL);
@@ -612,16 +622,14 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_PORT243_IRDA_FIRSEL, NULL);
 
 	/* LCD panel */
-	gpio_request(GPIO_PORT217, NULL); /* RESET */
-	gpio_direction_output(GPIO_PORT217, 0);
+	gpio_request_one(GPIO_PORT217, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
 	mdelay(1);
 	gpio_set_value(GPIO_PORT217, 1);
 	mdelay(100);
 
 	/* LCD backlight controller */
-	gpio_request(GPIO_PORT235, NULL); /* RESET */
-	gpio_direction_output(GPIO_PORT235, 0);
-	lcd_backlight_reset();
+	gpio_request_one(GPIO_PORT235, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
+	lcd_backlight_set_brightness(0);
 
 	/* enable SDHI0 on CN15 [SD I/F] */
 	gpio_request(GPIO_FN_SDHIWP0, NULL);
@@ -654,8 +662,7 @@ MACHINE_START(AG5EVM, "ag5evm")
 	.init_early	= sh73a0_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= ag5evm_init,
 	.init_late	= shmobile_init_late,
-	.timer		= &shmobile_timer,
+	.init_time	= sh73a0_earlytimer_init,
 MACHINE_END

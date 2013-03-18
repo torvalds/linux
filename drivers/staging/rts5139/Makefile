@@ -25,13 +25,19 @@
 # Makefile for the RTS51xx USB Card Reader drivers.
 #
 
-TARGET_MODULE := rts5139
+obj-$(CONFIG_RTS5139) := rts5139.o
 
-EXTRA_CFLAGS := -Idrivers/scsi -I$(PWD)
+ccflags-y := -Idrivers/scsi
 
-obj-m += $(TARGET_MODULE).o
-
-common-obj := rts51x_transport.o rts51x_scsi.o rts51x_fop.o
-
-$(TARGET_MODULE)-objs := $(common-obj) rts51x.o rts51x_chip.o rts51x_card.o \
-		xd.o sd.o ms.o sd_cprm.o ms_mg.o
+rts5139-y :=				\
+		rts51x_transport.o 	\
+		rts51x_scsi.o		\
+		rts51x_fop.o		\
+		rts51x.o		\
+		rts51x_chip.o		\
+		rts51x_card.o		\
+		xd.o			\
+		sd.o			\
+		ms.o			\
+		sd_cprm.o		\
+		ms_mg.o

@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/input.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
@@ -42,7 +43,6 @@
 #include <mach/sh73a0.h>
 #include <mach/common.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <video/sh_mobile_lcdc.h>
@@ -384,6 +384,8 @@ static struct regulator_consumer_supply fixed2v8_power_consumers[] =
 
 /* SDHI */
 static struct sh_mobile_sdhi_info sdhi0_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
 	.tmio_ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
@@ -424,6 +426,8 @@ static struct platform_device sdhi0_device = {
 
 /* Micro SD */
 static struct sh_mobile_sdhi_info sdhi2_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
 			  TMIO_MMC_USE_GPIO_CD |
 			  TMIO_MMC_WRPROTECT_DISABLE,
@@ -521,21 +525,21 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_ak4648_init_info = {
-	.fmt		= SND_SOC_DAIFMT_LEFT_J,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
-	.sysclk		= 11289600,
-};
-
 static struct asoc_simple_card_info fsi2_ak4648_info = {
 	.name		= "AK4648",
 	.card		= "FSI2A-AK4648",
-	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "ak4642-hifi",
-	.init		= &fsi2_ak4648_init_info,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.cpu_dai = {
+		.name	= "fsia-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
+	},
+	.codec_dai = {
+		.name	= "ak4642-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.sysclk	= 11289600,
+	},
 };
 
 static struct platform_device fsi_ak4648_device = {
@@ -548,7 +552,6 @@ static struct platform_device fsi_ak4648_device = {
 /* I2C */
 static struct pcf857x_platform_data pcf8575_pdata = {
 	.gpio_base	= GPIO_PCF8575_BASE,
-	.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
 };
 
 static struct i2c_board_info i2c0_devices[] = {
@@ -557,7 +560,15 @@ static struct i2c_board_info i2c0_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("r2025sd", 0x32),
-	}
+	},
+	{
+		I2C_BOARD_INFO("ak8975", 0x0c),
+		.irq = intcs_evt2irq(0x3380), /* IRQ28 */
+	},
+	{
+		I2C_BOARD_INFO("adxl34x", 0x1d),
+		.irq = intcs_evt2irq(0x3340), /* IRQ26 */
+	},
 };
 
 static struct i2c_board_info i2c1_devices[] = {
@@ -570,6 +581,7 @@ static struct i2c_board_info i2c1_devices[] = {
 static struct i2c_board_info i2c3_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8575", 0x20),
+		.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
 		.platform_data = &pcf8575_pdata,
 	},
 };
@@ -611,7 +623,7 @@ static int __init as3711_enable_lcdc_backlight(void)
 		0x45, 0xf0,
 	};
 
-	if (!machine_is_kzm9g())
+	if (!of_machine_is_compatible("renesas,kzm9g"))
 		return 0;
 
 	if (!a)
@@ -660,8 +672,7 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_CS4_, NULL); /* CS4 */
 
 	/* SMSC */
-	gpio_request(GPIO_PORT224, NULL); /* IRQ3 */
-	gpio_direction_input(GPIO_PORT224);
+	gpio_request_one(GPIO_PORT224, GPIOF_IN, NULL); /* IRQ3 */
 
 	/* LCDC */
 	gpio_request(GPIO_FN_LCDD23,	NULL);
@@ -691,14 +702,11 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_LCDDISP,	NULL);
 	gpio_request(GPIO_FN_LCDDCK,	NULL);
 
-	gpio_request(GPIO_PORT222,	NULL); /* LCDCDON */
-	gpio_request(GPIO_PORT226,	NULL); /* SC */
-	gpio_direction_output(GPIO_PORT222, 1);
-	gpio_direction_output(GPIO_PORT226, 1);
+	gpio_request_one(GPIO_PORT222, GPIOF_OUT_INIT_HIGH, NULL); /* LCDCDON */
+	gpio_request_one(GPIO_PORT226, GPIOF_OUT_INIT_HIGH, NULL); /* SC */
 
 	/* Touchscreen */
-	gpio_request(GPIO_PORT223, NULL); /* IRQ8 */
-	gpio_direction_input(GPIO_PORT223);
+	gpio_request_one(GPIO_PORT223, GPIOF_IN, NULL); /* IRQ8 */
 
 	/* enable MMCIF */
 	gpio_request(GPIO_FN_MMCCLK0,		NULL);
@@ -722,8 +730,7 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_SDHID0_1,		NULL);
 	gpio_request(GPIO_FN_SDHID0_0,		NULL);
 	gpio_request(GPIO_FN_SDHI0_VCCQ_MC0_ON,	NULL);
-	gpio_request(GPIO_PORT15, NULL);
-	gpio_direction_output(GPIO_PORT15, 1); /* power */
+	gpio_request_one(GPIO_PORT15, GPIOF_OUT_INIT_HIGH, NULL); /* power */
 
 	/* enable Micro SD */
 	gpio_request(GPIO_FN_SDHID2_0,		NULL);
@@ -732,8 +739,7 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_SDHID2_3,		NULL);
 	gpio_request(GPIO_FN_SDHICMD2,		NULL);
 	gpio_request(GPIO_FN_SDHICLK2,		NULL);
-	gpio_request(GPIO_PORT14, NULL);
-	gpio_direction_output(GPIO_PORT14, 1); /* power */
+	gpio_request_one(GPIO_PORT14, GPIOF_OUT_INIT_HIGH, NULL); /* power */
 
 	/* I2C 3 */
 	gpio_request(GPIO_FN_PORT27_I2C_SCL3, NULL);
@@ -760,6 +766,8 @@ static void __init kzm_init(void)
 
 	sh73a0_add_standard_devices();
 	platform_add_devices(kzm_devices, ARRAY_SIZE(kzm_devices));
+
+	sh73a0_pm_init();
 }
 
 static void kzm9g_restart(char mode, const char *cmd)
@@ -780,10 +788,9 @@ DT_MACHINE_START(KZM9G_DT, "kzm9g")
 	.init_early	= sh73a0_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= kzm_init,
 	.init_late	= shmobile_init_late,
-	.timer		= &shmobile_timer,
+	.init_time	= sh73a0_earlytimer_init,
 	.restart	= kzm9g_restart,
 	.dt_compat	= kzm9g_boards_compat_dt,
 MACHINE_END

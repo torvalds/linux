@@ -35,8 +35,9 @@ This document contains the following sections:
 	(12) Index and data file update
 	(13) Miscellaneous cookie operations
 	(14) Cookie unregistration
-	(15) Index and data file invalidation
-	(16) FS-Cache specific page flags.
+	(15) Index invalidation
+	(16) Data file invalidation
+	(17) FS-Cache specific page flags.
 
 
 =============================
@@ -767,13 +768,42 @@ the cookies for "child" indices, objects and pages have been relinquished
 first.
 
 
-================================
-INDEX AND DATA FILE INVALIDATION
-================================
+==================
+INDEX INVALIDATION
+==================
 
-There is no direct way to invalidate an index subtree or a data file.  To do
-this, the caller should relinquish and retire the cookie they have, and then
-acquire a new one.
+There is no direct way to invalidate an index subtree.  To do this, the caller
+should relinquish and retire the cookie they have, and then acquire a new one.
+
+
+======================
+DATA FILE INVALIDATION
+======================
+
+Sometimes it will be necessary to invalidate an object that contains data.
+Typically this will be necessary when the server tells the netfs of a foreign
+change - at which point the netfs has to throw away all the state it had for an
+inode and reload from the server.
+
+To indicate that a cache object should be invalidated, the following function
+can be called:
+
+	void fscache_invalidate(struct fscache_cookie *cookie);
+
+This can be called with spinlocks held as it defers the work to a thread pool.
+All extant storage, retrieval and attribute change ops at this point are
+cancelled and discarded.  Some future operations will be rejected until the
+cache has had a chance to insert a barrier in the operations queue.  After
+that, operations will be queued again behind the invalidation operation.
+
+The invalidation operation will perform an attribute change operation and an
+auxiliary data update operation as it is very likely these will have changed.
+
+Using the following function, the netfs can wait for the invalidation operation
+to have reached a point at which it can start submitting ordinary operations
+once again:
+
+	void fscache_wait_on_invalidate(struct fscache_cookie *cookie);
 
 
 ===========================

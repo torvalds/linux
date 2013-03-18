@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portionhelp of the ieee80211 subsystem header files.
@@ -631,8 +631,6 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 	     test_bit(STATUS_RF_KILL_HW, &priv->status)))
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
-	else
-		wake_up(&priv->trans->wait_command_queue);
 	return 0;
 }
 
@@ -792,7 +790,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
-	ieee80211_rx(priv->hw, skb);
+	ieee80211_rx_ni(priv->hw, skb);
 }
 
 static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
@@ -901,7 +899,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 			    struct iwl_device_cmd *cmd)
 {
 	struct ieee80211_hdr *header;
-	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rx_status rx_status = {};
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
@@ -951,7 +949,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 
 	/* TSF isn't reliable. In order to allow smooth user experience,
 	 * this W/A doesn't propagate it to the mac80211 */
-	/*rx_status.flag |= RX_FLAG_MACTIME_MPDU;*/
+	/*rx_status.flag |= RX_FLAG_MACTIME_START;*/
 
 	priv->ucode_beacon_time = le32_to_cpu(phy_res->beacon_time_stamp);
 

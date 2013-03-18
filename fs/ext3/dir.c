@@ -99,7 +99,7 @@ static int ext3_readdir(struct file * filp,
 	int i, stored;
 	struct ext3_dir_entry_2 *de;
 	int err;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	int ret = 0;
 	int dir_has_error = 0;
@@ -114,7 +114,7 @@ static int ext3_readdir(struct file * filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		EXT3_I(filp->f_path.dentry->d_inode)->i_flags &= ~EXT3_INDEX_FL;
+		EXT3_I(file_inode(filp))->i_flags &= ~EXT3_INDEX_FL;
 	}
 	stored = 0;
 	offset = filp->f_pos & (sb->s_blocksize - 1);
@@ -296,17 +296,17 @@ static inline loff_t ext3_get_htree_eof(struct file *filp)
  * NOTE: offsets obtained *before* ext3_set_inode_flag(dir, EXT3_INODE_INDEX)
  *       will be invalid once the directory was converted into a dx directory
  */
-loff_t ext3_dir_llseek(struct file *file, loff_t offset, int origin)
+loff_t ext3_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	int dx_dir = is_dx_dir(inode);
 	loff_t htree_max = ext3_get_htree_eof(file);
 
 	if (likely(dx_dir))
-		return generic_file_llseek_size(file, offset, origin,
+		return generic_file_llseek_size(file, offset, whence,
 					        htree_max, htree_max);
 	else
-		return generic_file_llseek(file, offset, origin);
+		return generic_file_llseek(file, offset, whence);
 }
 
 /*
@@ -457,7 +457,7 @@ static int call_filldir(struct file * filp, void * dirent,
 {
 	struct dir_private_info *info = filp->private_data;
 	loff_t	curr_pos;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block * sb;
 	int error;
 
@@ -487,7 +487,7 @@ static int ext3_dx_readdir(struct file * filp,
 			 void * dirent, filldir_t filldir)
 {
 	struct dir_private_info *info = filp->private_data;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct fname *fname;
 	int	ret;
 

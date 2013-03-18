@@ -50,8 +50,8 @@ int ima_store_template(struct ima_template_entry *entry,
 	entry->template_len = sizeof(entry->template);
 
 	if (!violation) {
-		result = ima_calc_template_hash(entry->template_len,
-						&entry->template,
+		result = ima_calc_buffer_hash(&entry->template,
+						entry->template_len,
 						entry->digest);
 		if (result < 0) {
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
@@ -100,12 +100,12 @@ err_out:
  * ima_get_action - appraise & measure decision based on policy.
  * @inode: pointer to inode to measure
  * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXECUTE)
- * @function: calling function (FILE_CHECK, BPRM_CHECK, FILE_MMAP)
+ * @function: calling function (FILE_CHECK, BPRM_CHECK, MMAP_CHECK, MODULE_CHECK)
  *
  * The policy is defined in terms of keypairs:
  * 		subj=, obj=, type=, func=, mask=, fsmagic=
  *	subj,obj, and type: are LSM specific.
- * 	func: FILE_CHECK | BPRM_CHECK | FILE_MMAP
+ * 	func: FILE_CHECK | BPRM_CHECK | MMAP_CHECK | MODULE_CHECK
  * 	mask: contains the permission mask
  *	fsmagic: hex value
  *
@@ -140,15 +140,15 @@ int ima_must_measure(struct inode *inode, int mask, int function)
 int ima_collect_measurement(struct integrity_iint_cache *iint,
 			    struct file *file)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	const char *filename = file->f_dentry->d_name.name;
 	int result = 0;
 
 	if (!(iint->flags & IMA_COLLECTED)) {
-		u64 i_version = file->f_dentry->d_inode->i_version;
+		u64 i_version = file_inode(file)->i_version;
 
 		iint->ima_xattr.type = IMA_XATTR_DIGEST;
-		result = ima_calc_hash(file, iint->ima_xattr.digest);
+		result = ima_calc_file_hash(file, iint->ima_xattr.digest);
 		if (!result) {
 			iint->version = i_version;
 			iint->flags |= IMA_COLLECTED;
@@ -182,7 +182,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	const char *op = "add_template_measure";
 	const char *audit_cause = "ENOMEM";
 	int result = -ENOMEM;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ima_template_entry *entry;
 	int violation = 0;
 
@@ -236,4 +236,21 @@ void ima_audit_measurement(struct integrity_iint_cache *iint,
 	audit_log_end(ab);
 
 	iint->flags |= IMA_AUDITED;
+}
+
+const char *ima_d_path(struct path *path, char **pathbuf)
+{
+	char *pathname = NULL;
+
+	/* We will allow 11 spaces for ' (deleted)' to be appended */
+	*pathbuf = kmalloc(PATH_MAX + 11, GFP_KERNEL);
+	if (*pathbuf) {
+		pathname = d_path(path, *pathbuf, PATH_MAX + 11);
+		if (IS_ERR(pathname)) {
+			kfree(*pathbuf);
+			*pathbuf = NULL;
+			pathname = NULL;
+		}
+	}
+	return pathname;
 }

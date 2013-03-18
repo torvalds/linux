@@ -939,7 +939,7 @@ module_param(dtc_3181e, int, 0);
 MODULE_LICENSE("GPL");
 
 #ifndef SCSI_G_NCR5380_MEM
-static struct isapnp_device_id id_table[] __devinitdata = {
+static struct isapnp_device_id id_table[] = {
 	{
 	 ISAPNP_ANY_ID, ISAPNP_ANY_ID,
 	 ISAPNP_VENDOR('D', 'T', 'C'), ISAPNP_FUNCTION(0x436e),

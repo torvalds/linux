@@ -186,7 +186,6 @@ void free_tty_struct(struct tty_struct *tty)
 	if (tty->dev)
 		put_device(tty->dev);
 	kfree(tty->write_buf);
-	tty_buffer_free_all(tty);
 	tty->magic = 0xDEADDEAD;
 	kfree(tty);
 }
@@ -237,7 +236,7 @@ void tty_free_file(struct file *file)
 }
 
 /* Delete file from its tty */
-void tty_del_file(struct file *file)
+static void tty_del_file(struct file *file)
 {
 	struct tty_file_private *priv = file->private_data;
 
@@ -537,7 +536,7 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
  *	__tty_hangup		-	actual handler for hangup events
  *	@work: tty device
  *
- *	This can be called by the "eventd" kernel thread.  That is process
+ *	This can be called by a "kworker" kernel thread.  That is process
  *	synchronous but doesn't hold any locks, so we need to make sure we
  *	have the appropriate locks for what we're doing.
  *
@@ -555,7 +554,7 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
  *		  tasklist_lock to walk task list for hangup event
  *		    ->siglock to protect ->signal/->sighand
  */
-void __tty_hangup(struct tty_struct *tty)
+static void __tty_hangup(struct tty_struct *tty)
 {
 	struct file *cons_filp = NULL;
 	struct file *filp, *f = NULL;
@@ -961,11 +960,10 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
 	int i;
-	struct inode *inode = file->f_path.dentry->d_inode;
 	struct tty_struct *tty = file_tty(file);
 	struct tty_ldisc *ld;
 
-	if (tty_paranoia_check(tty, inode, "tty_read"))
+	if (tty_paranoia_check(tty, file_inode(file), "tty_read"))
 		return -EIO;
 	if (!tty || (test_bit(TTY_IO_ERROR, &tty->flags)))
 		return -EIO;
@@ -978,8 +976,7 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 	else
 		i = -EIO;
 	tty_ldisc_deref(ld);
-	if (i > 0)
-		inode->i_atime = current_fs_time(inode->i_sb);
+
 	return i;
 }
 
@@ -1080,11 +1077,8 @@ static inline ssize_t do_tty_write(
 			break;
 		cond_resched();
 	}
-	if (written) {
-		struct inode *inode = file->f_path.dentry->d_inode;
-		inode->i_mtime = current_fs_time(inode->i_sb);
+	if (written)
 		ret = written;
-	}
 out:
 	tty_write_unlock(tty);
 	return ret;
@@ -1137,12 +1131,11 @@ void tty_write_message(struct tty_struct *tty, char *msg)
 static ssize_t tty_write(struct file *file, const char __user *buf,
 						size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
 	struct tty_struct *tty = file_tty(file);
  	struct tty_ldisc *ld;
 	ssize_t ret;
 
-	if (tty_paranoia_check(tty, inode, "tty_write"))
+	if (tty_paranoia_check(tty, file_inode(file), "tty_write"))
 		return -EIO;
 	if (!tty || !tty->ops->write ||
 		(test_bit(TTY_IO_ERROR, &tty->flags)))
@@ -1417,6 +1410,8 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 			"%s: %s driver does not set tty->port. This will crash the kernel later. Fix the driver!\n",
 			__func__, tty->driver->name);
 
+	tty->port->itty = tty;
+
 	/*
 	 * Structures all installed ... call the ldisc open routines.
 	 * If we fail here just call release_tty to clean up.  No need
@@ -1552,6 +1547,7 @@ static void release_tty(struct tty_struct *tty, int idx)
 		tty->ops->shutdown(tty);
 	tty_free_termios(tty);
 	tty_driver_remove_tty(tty->driver, tty);
+	tty->port->itty = NULL;
 
 	if (tty->link)
 		tty_kref_put(tty->link);
@@ -1625,7 +1621,6 @@ int tty_release(struct inode *inode, struct file *filp)
 	struct tty_struct *tty = file_tty(filp);
 	struct tty_struct *o_tty;
 	int	pty_master, tty_closing, o_tty_closing, do_sleep;
-	int	devpts;
 	int	idx;
 	char	buf[64];
 
@@ -1640,7 +1635,6 @@ int tty_release(struct inode *inode, struct file *filp)
 	idx = tty->index;
 	pty_master = (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 		      tty->driver->subtype == PTY_TYPE_MASTER);
-	devpts = (tty->driver->flags & TTY_DRIVER_DEVPTS_MEM) != 0;
 	/* Review: parallel close */
 	o_tty = tty->link;
 
@@ -1799,9 +1793,6 @@ int tty_release(struct inode *inode, struct file *filp)
 	release_tty(tty, idx);
 	mutex_unlock(&tty_mutex);
 
-	/* Make this pty number available for reallocation */
-	if (devpts)
-		devpts_kill_index(inode, idx);
 	return 0;
 }
 
@@ -2054,7 +2045,7 @@ static unsigned int tty_poll(struct file *filp, poll_table *wait)
 	struct tty_ldisc *ld;
 	int ret = 0;
 
-	if (tty_paranoia_check(tty, filp->f_path.dentry->d_inode, "tty_poll"))
+	if (tty_paranoia_check(tty, file_inode(filp), "tty_poll"))
 		return 0;
 
 	ld = tty_ldisc_ref_wait(tty);
@@ -2070,7 +2061,7 @@ static int __tty_fasync(int fd, struct file *filp, int on)
 	unsigned long flags;
 	int retval = 0;
 
-	if (tty_paranoia_check(tty, filp->f_path.dentry->d_inode, "tty_fasync"))
+	if (tty_paranoia_check(tty, file_inode(filp), "tty_fasync"))
 		goto out;
 
 	retval = fasync_helper(fd, filp, on, &tty->fasync);
@@ -2206,6 +2197,7 @@ done:
 	mutex_unlock(&tty->termios_mutex);
 	return 0;
 }
+EXPORT_SYMBOL(tty_do_resize);
 
 /**
  *	tiocswinsz		-	implement window size set ioctl
@@ -2643,9 +2635,8 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *p = (void __user *)arg;
 	int retval;
 	struct tty_ldisc *ld;
-	struct inode *inode = file->f_dentry->d_inode;
 
-	if (tty_paranoia_check(tty, inode, "tty_ioctl"))
+	if (tty_paranoia_check(tty, file_inode(file), "tty_ioctl"))
 		return -EINVAL;
 
 	real_tty = tty_pair_get_tty(tty);
@@ -2690,6 +2681,11 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TIOCNXCL:
 		clear_bit(TTY_EXCLUSIVE, &tty->flags);
 		return 0;
+	case TIOCGEXCL:
+	{
+		int excl = test_bit(TTY_EXCLUSIVE, &tty->flags);
+		return put_user(excl, (int __user *)p);
+	}
 	case TIOCNOTTY:
 		if (current->signal->tty != tty)
 			return -ENOTTY;
@@ -2781,12 +2777,11 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
-	struct inode *inode = file->f_dentry->d_inode;
 	struct tty_struct *tty = file_tty(file);
 	struct tty_ldisc *ld;
 	int retval = -ENOIOCTLCMD;
 
-	if (tty_paranoia_check(tty, inode, "tty_ioctl"))
+	if (tty_paranoia_check(tty, file_inode(file), "tty_ioctl"))
 		return -EINVAL;
 
 	if (tty->ops->compat_ioctl) {
@@ -2904,9 +2899,9 @@ void do_SAK(struct tty_struct *tty)
 
 EXPORT_SYMBOL(do_SAK);
 
-static int dev_match_devt(struct device *dev, void *data)
+static int dev_match_devt(struct device *dev, const void *data)
 {
-	dev_t *devt = data;
+	const dev_t *devt = data;
 	return dev->devt == *devt;
 }
 
@@ -2937,19 +2932,13 @@ void initialize_tty_struct(struct tty_struct *tty,
 	tty_ldisc_init(tty);
 	tty->session = NULL;
 	tty->pgrp = NULL;
-	tty->overrun_time = jiffies;
-	tty_buffer_init(tty);
 	mutex_init(&tty->legacy_mutex);
 	mutex_init(&tty->termios_mutex);
 	mutex_init(&tty->ldisc_mutex);
 	init_waitqueue_head(&tty->write_wait);
 	init_waitqueue_head(&tty->read_wait);
 	INIT_WORK(&tty->hangup_work, do_tty_hangup);
-	mutex_init(&tty->atomic_read_lock);
 	mutex_init(&tty->atomic_write_lock);
-	mutex_init(&tty->output_lock);
-	mutex_init(&tty->echo_lock);
-	spin_lock_init(&tty->read_lock);
 	spin_lock_init(&tty->ctrl_lock);
 	INIT_LIST_HEAD(&tty->tty_files);
 	INIT_WORK(&tty->SAK_work, do_SAK_work);

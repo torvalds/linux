@@ -167,6 +167,7 @@
 #define X86_FEATURE_TBM		(6*32+21) /* trailing bit manipulations */
 #define X86_FEATURE_TOPOEXT	(6*32+22) /* topology extensions CPUID leafs */
 #define X86_FEATURE_PERFCTR_CORE (6*32+23) /* core performance counter extensions */
+#define X86_FEATURE_PERFCTR_NB  (6*32+24) /* NB performance counter extensions */
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various
@@ -202,6 +203,7 @@
 
 /* Intel-defined CPU features, CPUID level 0x00000007:0 (ebx), word 9 */
 #define X86_FEATURE_FSGSBASE	(9*32+ 0) /* {RD/WR}{FS/GS}BASE instructions*/
+#define X86_FEATURE_TSC_ADJUST	(9*32+ 1) /* TSC adjustment MSR 0x3b */
 #define X86_FEATURE_BMI1	(9*32+ 3) /* 1st group bit manipulation extensions */
 #define X86_FEATURE_HLE		(9*32+ 4) /* Hardware Lock Elision */
 #define X86_FEATURE_AVX2	(9*32+ 5) /* AVX2 instructions */
@@ -308,15 +310,11 @@ extern const char * const x86_power_flags[32];
 #define cpu_has_hypervisor	boot_cpu_has(X86_FEATURE_HYPERVISOR)
 #define cpu_has_pclmulqdq	boot_cpu_has(X86_FEATURE_PCLMULQDQ)
 #define cpu_has_perfctr_core	boot_cpu_has(X86_FEATURE_PERFCTR_CORE)
+#define cpu_has_perfctr_nb	boot_cpu_has(X86_FEATURE_PERFCTR_NB)
 #define cpu_has_cx8		boot_cpu_has(X86_FEATURE_CX8)
 #define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
 #define cpu_has_eager_fpu	boot_cpu_has(X86_FEATURE_EAGER_FPU)
-
-#if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
-# define cpu_has_invlpg		1
-#else
-# define cpu_has_invlpg		(boot_cpu_data.x86 > 3)
-#endif
+#define cpu_has_topoext		boot_cpu_has(X86_FEATURE_TOPOEXT)
 
 #ifdef CONFIG_X86_64
 

@@ -225,7 +225,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 			 * eventfd (ie. the appropriate virtqueue thread)?
 			 */
 			if (!send_notify_to_eventfd(cpu)) {
-				/* OK, we tell the main Laucher. */
+				/* OK, we tell the main Launcher. */
 				if (put_user(cpu->pending_notify, user))
 					return -EFAULT;
 				return sizeof(cpu->pending_notify);

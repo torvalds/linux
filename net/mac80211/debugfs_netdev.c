@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/if.h>
+#include <linux/if_ether.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
@@ -167,7 +168,29 @@ IEEE80211_IF_FILE(rc_rateidx_mcs_mask_5ghz,
 
 IEEE80211_IF_FILE(flags, flags, HEX);
 IEEE80211_IF_FILE(state, state, LHEX);
-IEEE80211_IF_FILE(channel_type, vif.bss_conf.channel_type, DEC);
+IEEE80211_IF_FILE(txpower, vif.bss_conf.txpower, DEC);
+IEEE80211_IF_FILE(ap_power_level, ap_power_level, DEC);
+IEEE80211_IF_FILE(user_power_level, user_power_level, DEC);
+
+static ssize_t
+ieee80211_if_fmt_hw_queues(const struct ieee80211_sub_if_data *sdata,
+			   char *buf, int buflen)
+{
+	int len;
+
+	len = scnprintf(buf, buflen, "AC queues: VO:%d VI:%d BE:%d BK:%d\n",
+			sdata->vif.hw_queue[IEEE80211_AC_VO],
+			sdata->vif.hw_queue[IEEE80211_AC_VI],
+			sdata->vif.hw_queue[IEEE80211_AC_BE],
+			sdata->vif.hw_queue[IEEE80211_AC_BK]);
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		len += scnprintf(buf + len, buflen - len, "cab queue: %d\n",
+				 sdata->vif.cab_queue);
+
+	return len;
+}
+__IEEE80211_IF_FILE(hw_queues, NULL);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
@@ -217,7 +240,7 @@ static ssize_t ieee80211_if_fmt_smps(const struct ieee80211_sub_if_data *sdata,
 
 	return snprintf(buf, buflen, "request: %s\nused: %s\n",
 			smps_modes[sdata->u.mgd.req_smps],
-			smps_modes[sdata->u.mgd.ap_smps]);
+			smps_modes[sdata->smps_mode]);
 }
 
 static ssize_t ieee80211_if_parse_smps(struct ieee80211_sub_if_data *sdata,
@@ -245,27 +268,6 @@ static ssize_t ieee80211_if_fmt_tkip_mic_test(
 	return -EOPNOTSUPP;
 }
 
-static int hwaddr_aton(const char *txt, u8 *addr)
-{
-	int i;
-
-	for (i = 0; i < ETH_ALEN; i++) {
-		int a, b;
-
-		a = hex_to_bin(*txt++);
-		if (a < 0)
-			return -1;
-		b = hex_to_bin(*txt++);
-		if (b < 0)
-			return -1;
-		*addr++ = (a << 4) | b;
-		if (i < 5 && *txt++ != ':')
-			return -1;
-	}
-
-	return 0;
-}
-
 static ssize_t ieee80211_if_parse_tkip_mic_test(
 	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
 {
@@ -275,13 +277,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 	struct ieee80211_hdr *hdr;
 	__le16 fc;
 
-	/*
-	 * Assume colon-delimited MAC address with possible white space
-	 * following.
-	 */
-	if (buflen < 3 * ETH_ALEN - 1)
-		return -EINVAL;
-	if (hwaddr_aton(buf, addr) < 0)
+	if (!mac_pton(buf, addr))
 		return -EINVAL;
 
 	if (!ieee80211_sdata_running(sdata))
@@ -307,13 +303,16 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 	case NL80211_IFTYPE_STATION:
 		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
-		if (sdata->vif.bss_conf.bssid == NULL) {
+		mutex_lock(&sdata->u.mgd.mtx);
+		if (!sdata->u.mgd.associated) {
+			mutex_unlock(&sdata->u.mgd.mtx);
 			dev_kfree_skb(skb);
 			return -ENOTCONN;
 		}
-		memcpy(hdr->addr1, sdata->vif.bss_conf.bssid, ETH_ALEN);
+		memcpy(hdr->addr1, sdata->u.mgd.associated->bssid, ETH_ALEN);
 		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
 		memcpy(hdr->addr3, addr, ETH_ALEN);
+		mutex_unlock(&sdata->u.mgd.mtx);
 		break;
 	default:
 		dev_kfree_skb(skb);
@@ -395,14 +394,14 @@ __IEEE80211_IF_FILE_W(uapsd_max_sp_len);
 
 /* AP attributes */
 IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
-IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
-IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
+IEEE80211_IF_FILE(num_sta_ps, u.ap.ps.num_sta_ps, ATOMIC);
+IEEE80211_IF_FILE(dtim_count, u.ap.ps.dtim_count, DEC);
 
 static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
 {
 	return scnprintf(buf, buflen, "%u\n",
-			 skb_queue_len(&sdata->u.ap.ps_bc_buf));
+			 skb_queue_len(&sdata->u.ap.ps.bc_buf));
 }
 __IEEE80211_IF_FILE(num_buffered_multicast, NULL);
 
@@ -443,7 +442,7 @@ static ssize_t ieee80211_if_parse_tsf(
 		}
 		ret = kstrtoull(buf, 10, &tsf);
 		if (ret < 0)
-			return -EINVAL;
+			return ret;
 		if (tsf_is_delta)
 			tsf = drv_get_tsf(local, sdata) + tsf_is_delta * tsf;
 		if (local->ops->set_tsf) {
@@ -471,7 +470,7 @@ IEEE80211_IF_FILE(dropped_frames_congestion,
 		  u.mesh.mshstats.dropped_frames_congestion, DEC);
 IEEE80211_IF_FILE(dropped_frames_no_route,
 		  u.mesh.mshstats.dropped_frames_no_route, DEC);
-IEEE80211_IF_FILE(estab_plinks, u.mesh.mshstats.estab_plinks, ATOMIC);
+IEEE80211_IF_FILE(estab_plinks, u.mesh.estab_plinks, ATOMIC);
 
 /* Mesh parameters */
 IEEE80211_IF_FILE(dot11MeshMaxRetries,
@@ -516,6 +515,9 @@ IEEE80211_IF_FILE(dot11MeshHWMProotInterval,
 		  u.mesh.mshcfg.dot11MeshHWMProotInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPconfirmationInterval,
 		  u.mesh.mshcfg.dot11MeshHWMPconfirmationInterval, DEC);
+IEEE80211_IF_FILE(power_mode, u.mesh.mshcfg.power_mode, DEC);
+IEEE80211_IF_FILE(dot11MeshAwakeWindowDuration,
+		  u.mesh.mshcfg.dot11MeshAwakeWindowDuration, DEC);
 #endif
 
 #define DEBUGFS_ADD_MODE(name, mode) \
@@ -531,6 +533,7 @@ static void add_common_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
+	DEBUGFS_ADD(hw_queues);
 }
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
@@ -620,6 +623,8 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshHWMPactivePathToRootTimeout);
 	MESHPARAMS_ADD(dot11MeshHWMProotInterval);
 	MESHPARAMS_ADD(dot11MeshHWMPconfirmationInterval);
+	MESHPARAMS_ADD(power_mode);
+	MESHPARAMS_ADD(dot11MeshAwakeWindowDuration);
 #undef MESHPARAMS_ADD
 }
 #endif
@@ -631,7 +636,9 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
+	DEBUGFS_ADD(txpower);
+	DEBUGFS_ADD(user_power_level);
+	DEBUGFS_ADD(ap_power_level);
 
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
 		add_common_files(sdata);

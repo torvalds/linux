@@ -112,14 +112,6 @@ nv50_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 		return -EINVAL;
 	}
 
-	nv_wo32(base->eng, addr + 0x00, 0x00000000);
-	nv_wo32(base->eng, addr + 0x04, 0x00000000);
-	nv_wo32(base->eng, addr + 0x08, 0x00000000);
-	nv_wo32(base->eng, addr + 0x0c, 0x00000000);
-	nv_wo32(base->eng, addr + 0x10, 0x00000000);
-	nv_wo32(base->eng, addr + 0x14, 0x00000000);
-	bar->flush(bar);
-
 	/* HW bug workaround:
 	 *
 	 * PFIFO will hang forever if the connected engines don't report
@@ -137,12 +129,23 @@ nv50_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	/* do the kickoff... */
 	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
 	if (!nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff)) {
-		nv_error(priv, "channel %d unload timeout\n", chan->base.chid);
+		nv_error(priv, "channel %d [%s] unload timeout\n",
+			 chan->base.chid, nouveau_client_name(chan));
 		if (suspend)
 			ret = -EBUSY;
 	}
-
 	nv_wr32(priv, 0x00b860, me);
+
+	if (ret == 0) {
+		nv_wo32(base->eng, addr + 0x00, 0x00000000);
+		nv_wo32(base->eng, addr + 0x04, 0x00000000);
+		nv_wo32(base->eng, addr + 0x08, 0x00000000);
+		nv_wo32(base->eng, addr + 0x0c, 0x00000000);
+		nv_wo32(base->eng, addr + 0x10, 0x00000000);
+		nv_wo32(base->eng, addr + 0x14, 0x00000000);
+		bar->flush(bar);
+	}
+
 	return ret;
 }
 
@@ -194,10 +197,10 @@ nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
 					  0x2000, args->pushbuf,
-					  (1 << NVDEV_ENGINE_DMAOBJ) |
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_MPEG), &chan);
+					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_MPEG), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -247,10 +250,10 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
 					  0x2000, args->pushbuf,
-					  (1 << NVDEV_ENGINE_DMAOBJ) |
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_MPEG), &chan);
+					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_MPEG), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -478,7 +481,7 @@ nv50_fifo_init(struct nouveau_object *object)
 	nv_wr32(priv, 0x002044, 0x01003fff);
 
 	nv_wr32(priv, 0x002100, 0xffffffff);
-	nv_wr32(priv, 0x002140, 0xffffffff);
+	nv_wr32(priv, 0x002140, 0xbfffffff);
 
 	for (i = 0; i < 128; i++)
 		nv_wr32(priv, 0x002600 + (i * 4), 0x00000000);

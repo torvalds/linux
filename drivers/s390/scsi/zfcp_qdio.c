@@ -68,7 +68,7 @@ static inline void zfcp_qdio_account(struct zfcp_qdio *qdio)
 	unsigned long long now, span;
 	int used;
 
-	now = get_clock_monotonic();
+	now = get_tod_clock_monotonic();
 	span = (now - qdio->req_q_time) >> 12;
 	used = QDIO_MAX_BUFFERS_PER_Q - atomic_read(&qdio->req_q_free);
 	qdio->req_q_util += used * span;

@@ -51,7 +51,7 @@ static const struct nla_policy csum_policy[TCA_CSUM_MAX + 1] = {
 	[TCA_CSUM_PARMS] = { .len = sizeof(struct tc_csum), },
 };
 
-static int tcf_csum_init(struct nlattr *nla, struct nlattr *est,
+static int tcf_csum_init(struct net *n, struct nlattr *nla, struct nlattr *est,
 			 struct tc_action *a, int ovr, int bind)
 {
 	struct nlattr *tb[TCA_CSUM_MAX + 1];

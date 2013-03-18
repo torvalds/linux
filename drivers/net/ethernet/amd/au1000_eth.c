@@ -437,8 +437,8 @@ static int au1000_mii_probe(struct net_device *dev)
 	/* now we are supposed to have a proper phydev, to attach to... */
 	BUG_ON(phydev->attached_dev);
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev), &au1000_adjust_link,
-			0, PHY_INTERFACE_MODE_MII);
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
+			     &au1000_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -587,10 +587,10 @@ au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	info->fw_version[0] = '\0';
-	sprintf(info->bus_info, "%s %d", DRV_NAME, aup->mac_id);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info), "%s %d", DRV_NAME,
+		 aup->mac_id);
 	info->regdump_len = 0;
 }
 
@@ -1016,7 +1016,7 @@ static const struct net_device_ops au1000_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
-static int __devinit au1000_probe(struct platform_device *pdev)
+static int au1000_probe(struct platform_device *pdev)
 {
 	static unsigned version_printed;
 	struct au1000_private *aup = NULL;
@@ -1295,7 +1295,7 @@ out:
 	return err;
 }
 
-static int __devexit au1000_remove(struct platform_device *pdev)
+static int au1000_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct au1000_private *aup = netdev_priv(dev);
@@ -1340,7 +1340,7 @@ static int __devexit au1000_remove(struct platform_device *pdev)
 
 static struct platform_driver au1000_eth_driver = {
 	.probe  = au1000_probe,
-	.remove = __devexit_p(au1000_remove),
+	.remove = au1000_remove,
 	.driver = {
 		.name   = "au1000-eth",
 		.owner  = THIS_MODULE,

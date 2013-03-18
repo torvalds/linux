@@ -43,7 +43,7 @@ static char *ac97_quirk;
 module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 board specific workarounds.");
 
-static struct ac97_quirk ac97_quirks[] __devinitdata = {
+static struct ac97_quirk ac97_quirks[] = {
 #if 0 /* Not yet confirmed if all 5536 boards are HP only */
 	{
 		.subvendor = PCI_VENDOR_ID_AMD, 
@@ -144,7 +144,7 @@ static unsigned short snd_cs5535audio_ac97_codec_read(struct snd_ac97 *ac97,
 	return snd_cs5535audio_codec_read(cs5535au, reg);
 }
 
-static int __devinit snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
+static int snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
 {
 	struct snd_card *card = cs5535au->card;
 	struct snd_ac97_bus *pbus;
@@ -270,9 +270,9 @@ static int snd_cs5535audio_dev_free(struct snd_device *device)
 	return snd_cs5535audio_free(cs5535au);
 }
 
-static int __devinit snd_cs5535audio_create(struct snd_card *card,
-					    struct pci_dev *pci,
-					    struct cs5535audio **rcs5535au)
+static int snd_cs5535audio_create(struct snd_card *card,
+				  struct pci_dev *pci,
+				  struct cs5535audio **rcs5535au)
 {
 	struct cs5535audio *cs5535au;
 
@@ -338,8 +338,8 @@ pcifail:
 	return err;
 }
 
-static int __devinit snd_cs5535audio_probe(struct pci_dev *pci,
-					   const struct pci_device_id *pci_id)
+static int snd_cs5535audio_probe(struct pci_dev *pci,
+				 const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -387,7 +387,7 @@ probefail_out:
 	return err;
 }
 
-static void __devexit snd_cs5535audio_remove(struct pci_dev *pci)
+static void snd_cs5535audio_remove(struct pci_dev *pci)
 {
 	olpc_quirks_cleanup();
 	snd_card_free(pci_get_drvdata(pci));
@@ -398,7 +398,7 @@ static struct pci_driver cs5535audio_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_cs5535audio_ids,
 	.probe = snd_cs5535audio_probe,
-	.remove = __devexit_p(snd_cs5535audio_remove),
+	.remove = snd_cs5535audio_remove,
 #ifdef CONFIG_PM_SLEEP
 	.driver = {
 		.pm = &snd_cs5535audio_pm,

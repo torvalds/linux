@@ -24,7 +24,7 @@
 /*
  * Supports following chips:
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * as99127f	7	3	0	3	0x31	0x12c3	yes	no
  * as99127f rev.2 (type_name = as99127f)	0x31	0x5ca3	yes	no
  * w83781d	7	3	0	3	0x10-1	0x5ca3	yes	yes
@@ -159,7 +159,7 @@ static const u8 BIT_SCFG2[] = { 0x10, 0x20, 0x40 };
 #define W83781D_DEFAULT_BETA		3435
 
 /* Conversions */
-#define IN_TO_REG(val)			SENSORS_LIMIT(((val) + 8) / 16, 0, 255)
+#define IN_TO_REG(val)			clamp_val(((val) + 8) / 16, 0, 255)
 #define IN_FROM_REG(val)		((val) * 16)
 
 static inline u8
@@ -167,8 +167,8 @@ FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 static inline long
@@ -181,7 +181,7 @@ FAN_FROM_REG(u8 val, int div)
 	return 1350000 / (val * div);
 }
 
-#define TEMP_TO_REG(val)		SENSORS_LIMIT((val) / 1000, -127, 128)
+#define TEMP_TO_REG(val)		clamp_val((val) / 1000, -127, 128)
 #define TEMP_FROM_REG(val)		((val) * 1000)
 
 #define BEEP_MASK_FROM_REG(val, type)	((type) == as99127f ? \
@@ -195,9 +195,8 @@ static inline u8
 DIV_TO_REG(long val, enum chips type)
 {
 	int i;
-	val = SENSORS_LIMIT(val, 1,
-			    ((type == w83781d
-			      || type == as99127f) ? 8 : 128)) >> 1;
+	val = clamp_val(val, 1,
+			((type == w83781d || type == as99127f) ? 8 : 128)) >> 1;
 	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
@@ -443,7 +442,7 @@ store_vrm_reg(struct device *dev, struct device_attribute *attr,
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
-	data->vrm = SENSORS_LIMIT(val, 0, 255);
+	data->vrm = clamp_val(val, 0, 255);
 
 	return count;
 }
@@ -730,7 +729,7 @@ store_pwm(struct device *dev, struct device_attribute *da, const char *buf,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->pwm[nr] = SENSORS_LIMIT(val, 0, 255);
+	data->pwm[nr] = clamp_val(val, 0, 255);
 	w83781d_write_value(data, W83781D_REG_PWM[nr], data->pwm[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -1764,7 +1763,7 @@ w83781d_write_value(struct w83781d_data *data, u16 reg, u16 value)
 	return 0;
 }
 
-static int __devinit
+static int
 w83781d_isa_probe(struct platform_device *pdev)
 {
 	int err, reg;
@@ -1824,7 +1823,7 @@ w83781d_isa_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit
+static int
 w83781d_isa_remove(struct platform_device *pdev)
 {
 	struct w83781d_data *data = platform_get_drvdata(pdev);
@@ -1842,7 +1841,7 @@ static struct platform_driver w83781d_isa_driver = {
 		.name = "w83781d",
 	},
 	.probe = w83781d_isa_probe,
-	.remove = __devexit_p(w83781d_isa_remove),
+	.remove = w83781d_isa_remove,
 };
 
 /* return 1 if a supported chip is found, 0 otherwise */

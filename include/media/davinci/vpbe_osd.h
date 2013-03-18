@@ -26,7 +26,9 @@
 
 #include <media/davinci/vpbe_types.h>
 
-#define VPBE_OSD_SUBDEV_NAME "vpbe-osd"
+#define DM644X_VPBE_OSD_SUBDEV_NAME	"dm644x,vpbe-osd"
+#define DM365_VPBE_OSD_SUBDEV_NAME	"dm365,vpbe-osd"
+#define DM355_VPBE_OSD_SUBDEV_NAME	"dm355,vpbe-osd"
 
 /**
  * enum osd_layer
@@ -357,7 +359,7 @@ struct osd_state {
 	spinlock_t lock;
 	struct device *dev;
 	dma_addr_t osd_base_phys;
-	unsigned long osd_base;
+	void __iomem *osd_base;
 	unsigned long osd_size;
 	/* 1-->the isr will toggle the VID0 ping-pong buffer */
 	int pingpong;
@@ -387,7 +389,6 @@ struct osd_state {
 };
 
 struct osd_platform_data {
-	enum vpbe_version vpbe_type;
 	int  field_inv_wa_enable;
 };
 

@@ -486,7 +486,7 @@ TRACE_EVENT(gfs2_block_alloc,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= ip->i_gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev		= rgd->rd_gl->gl_sbd->sd_vfs->s_dev;
 		__entry->start		= block;
 		__entry->inum		= ip->i_no_addr;
 		__entry->len		= len;

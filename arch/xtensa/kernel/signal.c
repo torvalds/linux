@@ -212,7 +212,7 @@ restore_sigcontext(struct pt_regs *regs, struct rt_sigframe __user *frame)
 	if (err)
 		return err;
 
- 	/* The signal handler may have used coprocessors in which
+	/* The signal handler may have used coprocessors in which
 	 * case they are still enabled.  We disable them to force a
 	 * reloading of the original task's CP state by the lazy
 	 * context-switching mechanisms of CP exception handling.
@@ -265,7 +265,7 @@ asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
 
 	ret = regs->areg[2];
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->areg[1]) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return ret;
@@ -337,7 +337,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	struct rt_sigframe *frame;
 	int err = 0;
 	int signal;
-	unsigned long sp, ra;
+	unsigned long sp, ra, tp;
 
 	sp = regs->areg[1];
 
@@ -368,11 +368,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
-			  &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->areg[1]),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->areg[1]);
 	err |= setup_sigcontext(frame, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
@@ -395,8 +391,9 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * Return context not modified until this point.
 	 */
 
-	/* Set up registers for signal handler */
-	start_thread(regs, (unsigned long) ka->sa.sa_handler, 
+	/* Set up registers for signal handler; preserve the threadptr */
+	tp = regs->threadptr;
+	start_thread(regs, (unsigned long) ka->sa.sa_handler,
 		     (unsigned long) frame);
 
 	/* Set up a stack frame for a call4
@@ -406,6 +403,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->areg[6] = (unsigned long) signal;
 	regs->areg[7] = (unsigned long) &frame->info;
 	regs->areg[8] = (unsigned long) &frame->uc;
+	regs->threadptr = tp;
 
 	/* Set access mode to USER_DS.  Nomenclature is outdated, but
 	 * functionality is used in uaccess.h
@@ -423,16 +421,6 @@ give_sigsegv:
 	force_sigsegv(sig, current);
 	return -EFAULT;
 }
-
-asmlinkage long xtensa_sigaltstack(const stack_t __user *uss, 
-				   stack_t __user *uoss,
-    				   long a2, long a3, long a4, long a5,
-				   struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->areg[1]);
-}
-
-
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't

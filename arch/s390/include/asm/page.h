@@ -30,6 +30,8 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
+void storage_key_init_range(unsigned long start, unsigned long end);
+
 static unsigned long pfmf(unsigned long function, unsigned long address)
 {
 	asm volatile(
@@ -151,25 +153,6 @@ static inline int page_reset_referenced(unsigned long addr)
 #define _PAGE_REFERENCED	0x04	/* HW referenced bit		*/
 #define _PAGE_FP_BIT		0x08	/* HW fetch protection bit	*/
 #define _PAGE_ACC_BITS		0xf0	/* HW access control bits	*/
-
-/*
- * Test and clear dirty bit in storage key.
- * We can't clear the changed bit atomically. This is a potential
- * race against modification of the referenced bit. This function
- * should therefore only be called if it is not mapped in any
- * address space.
- */
-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
-static inline int page_test_and_clear_dirty(unsigned long pfn, int mapped)
-{
-	unsigned char skey;
-
-	skey = page_get_storage_key(pfn << PAGE_SHIFT);
-	if (!(skey & _PAGE_CHANGED))
-		return 0;
-	page_set_storage_key(pfn << PAGE_SHIFT, skey & ~_PAGE_CHANGED, mapped);
-	return 1;
-}
 
 /*
  * Test and clear referenced bit in storage key.

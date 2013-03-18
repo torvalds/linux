@@ -324,6 +324,33 @@ struct xenpf_cpu_ol {
 };
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_cpu_ol);
 
+#define XENPF_cpu_hotadd	58
+struct xenpf_cpu_hotadd {
+	uint32_t apic_id;
+	uint32_t acpi_id;
+	uint32_t pxm;
+};
+
+#define XENPF_mem_hotadd	59
+struct xenpf_mem_hotadd {
+	uint64_t spfn;
+	uint64_t epfn;
+	uint32_t pxm;
+	uint32_t flags;
+};
+
+#define XENPF_core_parking     60
+struct xenpf_core_parking {
+	/* IN variables */
+#define XEN_CORE_PARKING_SET   1
+#define XEN_CORE_PARKING_GET   2
+	uint32_t type;
+	/* IN variables:  set cpu nums expected to be idled */
+	/* OUT variables: get cpu nums actually be idled */
+	uint32_t idle_nums;
+};
+DEFINE_GUEST_HANDLE_STRUCT(xenpf_core_parking);
+
 struct xen_platform_op {
 	uint32_t cmd;
 	uint32_t interface_version; /* XENPF_INTERFACE_VERSION */
@@ -341,6 +368,9 @@ struct xen_platform_op {
 		struct xenpf_set_processor_pminfo set_pminfo;
 		struct xenpf_pcpuinfo          pcpu_info;
 		struct xenpf_cpu_ol            cpu_ol;
+		struct xenpf_cpu_hotadd        cpu_add;
+		struct xenpf_mem_hotadd        mem_add;
+		struct xenpf_core_parking      core_parking;
 		uint8_t                        pad[128];
 	} u;
 };

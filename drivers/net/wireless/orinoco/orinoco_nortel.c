@@ -255,7 +255,7 @@ static int orinoco_nortel_init_one(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit orinoco_nortel_remove_one(struct pci_dev *pdev)
+static void orinoco_nortel_remove_one(struct pci_dev *pdev)
 {
 	struct orinoco_private *priv = pci_get_drvdata(pdev);
 	struct orinoco_pci_card *card = priv->card;
@@ -288,7 +288,7 @@ static struct pci_driver orinoco_nortel_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= orinoco_nortel_id_table,
 	.probe		= orinoco_nortel_init_one,
-	.remove		= __devexit_p(orinoco_nortel_remove_one),
+	.remove		= orinoco_nortel_remove_one,
 	.suspend	= orinoco_pci_suspend,
 	.resume		= orinoco_pci_resume,
 };

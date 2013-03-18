@@ -1,6 +1,6 @@
 config ECRYPT_FS
-	tristate "eCrypt filesystem layer support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && KEYS && CRYPTO && (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)
+	tristate "eCrypt filesystem layer support"
+	depends on KEYS && CRYPTO && (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)
 	select CRYPTO_ECB
 	select CRYPTO_CBC
 	select CRYPTO_MD5
@@ -12,3 +12,11 @@ config ECRYPT_FS
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called ecryptfs.
+
+config ECRYPT_FS_MESSAGING
+	bool "Enable notifications for userspace key wrap/unwrap"
+	depends on ECRYPT_FS
+	help
+	  Enables the /dev/ecryptfs entry for use by ecryptfsd. This allows
+	  for userspace to wrap/unwrap file encryption keys by other
+	  backends, like OpenSSL.

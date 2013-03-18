@@ -238,7 +238,7 @@ static int note_last_dentry(struct ceph_file_info *fi, const char *name,
 static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct ceph_file_info *fi = filp->private_data;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -454,7 +454,7 @@ static void reset_readdir(struct ceph_file_info *fi)
 	fi->flags &= ~CEPH_F_ATEND;
 }
 
-static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int origin)
+static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct ceph_file_info *fi = file->private_data;
 	struct inode *inode = file->f_mapping->host;
@@ -463,7 +463,7 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int origin)
 
 	mutex_lock(&inode->i_mutex);
 	retval = -EINVAL;
-	switch (origin) {
+	switch (whence) {
 	case SEEK_END:
 		offset += inode->i_size + 2;   /* FIXME */
 		break;
@@ -1138,7 +1138,7 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 			     loff_t *ppos)
 {
 	struct ceph_file_info *cf = file->private_data;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int left;
 	const int bufsize = 1024;
@@ -1188,7 +1188,7 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
 			  int datasync)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct list_head *head = &ci->i_unsafe_dirops;
 	struct ceph_mds_request *req;

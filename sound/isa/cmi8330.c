@@ -193,7 +193,7 @@ MODULE_DEVICE_TABLE(pnp_card, snd_cmi8330_pnpids);
 #endif
 
 
-static struct snd_kcontrol_new snd_cmi8330_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_cmi8330_controls[] = {
 WSS_DOUBLE("Master Playback Volume", 0,
 		CMI8330_MASTVOL, CMI8330_MASTVOL, 4, 0, 15, 0),
 WSS_SINGLE("Loud Playback Switch", 0,
@@ -249,7 +249,7 @@ WSS_SINGLE(SNDRV_CTL_NAME_IEC958("Input ", PLAYBACK, SWITCH), 0,
 };
 
 #ifdef ENABLE_SB_MIXER
-static struct sbmix_elem cmi8330_sb_mixers[] __devinitdata = {
+static struct sbmix_elem cmi8330_sb_mixers[] = {
 SB_DOUBLE("SB Master Playback Volume", SB_DSP4_MASTER_DEV, (SB_DSP4_MASTER_DEV + 1), 3, 3, 31),
 SB_DOUBLE("Tone Control - Bass", SB_DSP4_BASS_DEV, (SB_DSP4_BASS_DEV + 1), 4, 4, 15),
 SB_DOUBLE("Tone Control - Treble", SB_DSP4_TREBLE_DEV, (SB_DSP4_TREBLE_DEV + 1), 4, 4, 15),
@@ -267,7 +267,7 @@ SB_DOUBLE("SB Playback Volume", SB_DSP4_OGAIN_DEV, (SB_DSP4_OGAIN_DEV + 1), 6, 6
 SB_SINGLE("SB Mic Auto Gain", SB_DSP4_MIC_AGC, 0, 1),
 };
 
-static unsigned char cmi8330_sb_init_values[][2] __devinitdata = {
+static unsigned char cmi8330_sb_init_values[][2] = {
 	{ SB_DSP4_MASTER_DEV + 0, 0 },
 	{ SB_DSP4_MASTER_DEV + 1, 0 },
 	{ SB_DSP4_PCM_DEV + 0, 0 },
@@ -281,7 +281,7 @@ static unsigned char cmi8330_sb_init_values[][2] __devinitdata = {
 };
 
 
-static int __devinit cmi8330_add_sb_mixers(struct snd_sb *chip)
+static int cmi8330_add_sb_mixers(struct snd_sb *chip)
 {
 	int idx, err;
 	unsigned long flags;
@@ -306,7 +306,7 @@ static int __devinit cmi8330_add_sb_mixers(struct snd_sb *chip)
 }
 #endif
 
-static int __devinit snd_cmi8330_mixer(struct snd_card *card, struct snd_cmi8330 *acard)
+static int snd_cmi8330_mixer(struct snd_card *card, struct snd_cmi8330 *acard)
 {
 	unsigned int idx;
 	int err;
@@ -329,9 +329,9 @@ static int __devinit snd_cmi8330_mixer(struct snd_card *card, struct snd_cmi8330
 }
 
 #ifdef CONFIG_PNP
-static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
-				     struct pnp_card_link *card,
-				     const struct pnp_card_device_id *id)
+static int snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
+			   struct pnp_card_link *card,
+			   const struct pnp_card_device_id *id)
 {
 	struct pnp_dev *pdev;
 	int err;
@@ -437,7 +437,7 @@ static int snd_cmi8330_capture_open(struct snd_pcm_substream *substream)
 	return chip->streams[SNDRV_PCM_STREAM_CAPTURE].open(substream);
 }
 
-static int __devinit snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *chip)
+static int snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *chip)
 {
 	struct snd_pcm *pcm;
 	const struct snd_pcm_ops *ops;
@@ -532,7 +532,7 @@ static int snd_cmi8330_card_new(int dev, struct snd_card **cardp)
 	return 0;
 }
 
-static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
+static int snd_cmi8330_probe(struct snd_card *card, int dev)
 {
 	struct snd_cmi8330 *acard;
 	int i, err;
@@ -613,8 +613,8 @@ static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
 	return snd_card_register(card);
 }
 
-static int __devinit snd_cmi8330_isa_match(struct device *pdev,
-					   unsigned int dev)
+static int snd_cmi8330_isa_match(struct device *pdev,
+				 unsigned int dev)
 {
 	if (!enable[dev] || is_isapnp_selected(dev))
 		return 0;
@@ -629,8 +629,8 @@ static int __devinit snd_cmi8330_isa_match(struct device *pdev,
 	return 1;
 }
 
-static int __devinit snd_cmi8330_isa_probe(struct device *pdev,
-					   unsigned int dev)
+static int snd_cmi8330_isa_probe(struct device *pdev,
+				 unsigned int dev)
 {
 	struct snd_card *card;
 	int err;
@@ -647,8 +647,8 @@ static int __devinit snd_cmi8330_isa_probe(struct device *pdev,
 	return 0;
 }
 
-static int __devexit snd_cmi8330_isa_remove(struct device *devptr,
-					    unsigned int dev)
+static int snd_cmi8330_isa_remove(struct device *devptr,
+				  unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
 	dev_set_drvdata(devptr, NULL);
@@ -673,7 +673,7 @@ static int snd_cmi8330_isa_resume(struct device *dev, unsigned int n)
 static struct isa_driver snd_cmi8330_driver = {
 	.match		= snd_cmi8330_isa_match,
 	.probe		= snd_cmi8330_isa_probe,
-	.remove		= __devexit_p(snd_cmi8330_isa_remove),
+	.remove		= snd_cmi8330_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cmi8330_isa_suspend,
 	.resume		= snd_cmi8330_isa_resume,
@@ -685,8 +685,8 @@ static struct isa_driver snd_cmi8330_driver = {
 
 
 #ifdef CONFIG_PNP
-static int __devinit snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
-					    const struct pnp_card_device_id *pid)
+static int snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
+				  const struct pnp_card_device_id *pid)
 {
 	static int dev;
 	struct snd_card *card;
@@ -717,7 +717,7 @@ static int __devinit snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
 	return 0;
 }
 
-static void __devexit snd_cmi8330_pnp_remove(struct pnp_card_link * pcard)
+static void snd_cmi8330_pnp_remove(struct pnp_card_link *pcard)
 {
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
@@ -740,7 +740,7 @@ static struct pnp_card_driver cmi8330_pnpc_driver = {
 	.name = "cmi8330",
 	.id_table = snd_cmi8330_pnpids,
 	.probe = snd_cmi8330_pnp_detect,
-	.remove = __devexit_p(snd_cmi8330_pnp_remove),
+	.remove = snd_cmi8330_pnp_remove,
 #ifdef CONFIG_PM
 	.suspend	= snd_cmi8330_pnp_suspend,
 	.resume		= snd_cmi8330_pnp_resume,

@@ -48,7 +48,7 @@ static inline unsigned long size_inside_page(unsigned long start,
 }
 
 #ifndef ARCH_HAS_VALID_PHYS_ADDR_RANGE
-static inline int valid_phys_addr_range(unsigned long addr, size_t count)
+static inline int valid_phys_addr_range(phys_addr_t addr, size_t count)
 {
 	return addr + count <= __pa(high_memory);
 }
@@ -96,7 +96,7 @@ void __weak unxlate_dev_mem_ptr(unsigned long phys, void *addr)
 static ssize_t read_mem(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	unsigned long p = *ppos;
+	phys_addr_t p = *ppos;
 	ssize_t read, sz;
 	char *ptr;
 
@@ -153,7 +153,7 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 static ssize_t write_mem(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	unsigned long p = *ppos;
+	phys_addr_t p = *ppos;
 	ssize_t written, sz;
 	unsigned long copied;
 	void *ptr;
@@ -226,7 +226,7 @@ int __weak phys_mem_access_prot_allowed(struct file *file,
  *
  */
 #ifdef pgprot_noncached
-static int uncached_access(struct file *file, unsigned long addr)
+static int uncached_access(struct file *file, phys_addr_t addr)
 {
 #if defined(CONFIG_IA64)
 	/*
@@ -258,7 +258,7 @@ static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot)
 {
 #ifdef pgprot_noncached
-	unsigned long offset = pfn << PAGE_SHIFT;
+	phys_addr_t offset = pfn << PAGE_SHIFT;
 
 	if (uncached_access(file, offset))
 		return pgprot_noncached(vma_prot);
@@ -399,7 +399,7 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 {
 	unsigned long p = *ppos;
 	ssize_t low_count, read, sz;
-	char * kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
+	char *kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
 	int err = 0;
 
 	read = 0;
@@ -527,7 +527,7 @@ static ssize_t write_kmem(struct file *file, const char __user *buf,
 	unsigned long p = *ppos;
 	ssize_t wrote = 0;
 	ssize_t virtr = 0;
-	char * kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
+	char *kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
 	int err = 0;
 
 	if (p < (unsigned long) high_memory) {
@@ -595,7 +595,7 @@ static ssize_t write_port(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	unsigned long i = *ppos;
-	const char __user * tmp = buf;
+	const char __user *tmp = buf;
 
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
@@ -708,7 +708,7 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	mutex_lock(&file->f_path.dentry->d_inode->i_mutex);
+	mutex_lock(&file_inode(file)->i_mutex);
 	switch (orig) {
 	case SEEK_CUR:
 		offset += file->f_pos;
@@ -725,11 +725,11 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
+	mutex_unlock(&file_inode(file)->i_mutex);
 	return ret;
 }
 
-static int open_port(struct inode * inode, struct file * filp)
+static int open_port(struct inode *inode, struct file *filp)
 {
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
@@ -898,7 +898,7 @@ static int __init chr_dev_init(void)
 			continue;
 
 		/*
-		 * Create /dev/port? 
+		 * Create /dev/port?
 		 */
 		if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
 			continue;

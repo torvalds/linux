@@ -333,6 +333,11 @@ static void __init attach_pas_card(struct address_info *hw_config)
 		{
 			char            temp[100];
 
+			if (pas_model < 0 ||
+			    pas_model >= ARRAY_SIZE(pas_model_names)) {
+				printk(KERN_ERR "pas2 unrecognized model.\n");
+				return;
+			}
 			sprintf(temp,
 			    "%s rev %d", pas_model_names[(int) pas_model],
 				    pas_read(0x2789));

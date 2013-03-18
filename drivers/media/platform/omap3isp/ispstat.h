@@ -30,7 +30,7 @@
 
 #include <linux/types.h>
 #include <linux/omap3isp.h>
-#include <plat/dma.h>
+#include <linux/omap-dma.h>
 #include <media/v4l2-event.h>
 
 #include "isp.h"
@@ -50,7 +50,7 @@ struct ispstat_buffer {
 	struct iovm_struct *iovm;
 	void *virt_addr;
 	dma_addr_t dma_addr;
-	struct timeval ts;
+	struct timespec ts;
 	u32 buf_size;
 	u32 frame_number;
 	u16 config_counter;
@@ -147,10 +147,10 @@ int omap3isp_stat_init(struct ispstat *stat, const char *name,
 void omap3isp_stat_cleanup(struct ispstat *stat);
 int omap3isp_stat_subscribe_event(struct v4l2_subdev *subdev,
 				  struct v4l2_fh *fh,
-				  const struct v4l2_event_subscription *sub);
+				  struct v4l2_event_subscription *sub);
 int omap3isp_stat_unsubscribe_event(struct v4l2_subdev *subdev,
 				    struct v4l2_fh *fh,
-				    const struct v4l2_event_subscription *sub);
+				    struct v4l2_event_subscription *sub);
 int omap3isp_stat_s_stream(struct v4l2_subdev *subdev, int enable);
 
 int omap3isp_stat_busy(struct ispstat *stat);

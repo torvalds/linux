@@ -235,7 +235,7 @@ static struct miscdevice ks8695wdt_miscdev = {
 	.fops		= &ks8695wdt_fops,
 };
 
-static int __devinit ks8695wdt_probe(struct platform_device *pdev)
+static int ks8695wdt_probe(struct platform_device *pdev)
 {
 	int res;
 
@@ -252,7 +252,7 @@ static int __devinit ks8695wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ks8695wdt_remove(struct platform_device *pdev)
+static int ks8695wdt_remove(struct platform_device *pdev)
 {
 	int res;
 
@@ -290,7 +290,7 @@ static int ks8695wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver ks8695wdt_driver = {
 	.probe		= ks8695wdt_probe,
-	.remove		= __devexit_p(ks8695wdt_remove),
+	.remove		= ks8695wdt_remove,
 	.shutdown	= ks8695wdt_shutdown,
 	.suspend	= ks8695wdt_suspend,
 	.resume		= ks8695wdt_resume,

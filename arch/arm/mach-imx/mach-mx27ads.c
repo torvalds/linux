@@ -21,15 +21,15 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-mx27.h>
 
+#include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
+#include "iomux-mx27.h"
 
 /*
  * Base address of PBC controller, CS4
@@ -323,10 +323,6 @@ static void __init mx27ads_timer_init(void)
 	mx27_clocks_init(fref);
 }
 
-static struct sys_timer mx27ads_timer = {
-	.init	= mx27ads_timer_init,
-};
-
 static struct map_desc mx27ads_io_desc[] __initdata = {
 	{
 		.virtual = PBC_BASE_ADDRESS,
@@ -349,7 +345,7 @@ MACHINE_START(MX27ADS, "Freescale i.MX27ADS")
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
 	.handle_irq = imx27_handle_irq,
-	.timer = &mx27ads_timer,
+	.init_time	= mx27ads_timer_init,
 	.init_machine = mx27ads_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

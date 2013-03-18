@@ -638,9 +638,6 @@ static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	unsigned long flags;
 	int ret;
 
-	if (!chan)
-		return -EINVAL;
-
 	switch (cmd) {
 	case DMA_TERMINATE_ALL:
 		spin_lock_irqsave(&schan->chan_lock, flags);

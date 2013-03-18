@@ -1,4 +1,4 @@
-#include "../../../include/linux/hw_breakpoint.h"
+#include <linux/hw_breakpoint.h>
 #include "util.h"
 #include "../perf.h"
 #include "evlist.h"
@@ -380,8 +380,8 @@ static int add_tracepoint(struct list_head **listp, int *idx,
 	return 0;
 }
 
-static int add_tracepoint_multi(struct list_head **list, int *idx,
-				char *sys_name, char *evt_name)
+static int add_tracepoint_multi_event(struct list_head **list, int *idx,
+				      char *sys_name, char *evt_name)
 {
 	char evt_path[MAXPATHLEN];
 	struct dirent *evt_ent;
@@ -408,6 +408,47 @@ static int add_tracepoint_multi(struct list_head **list, int *idx,
 		ret = add_tracepoint(list, idx, sys_name, evt_ent->d_name);
 	}
 
+	closedir(evt_dir);
+	return ret;
+}
+
+static int add_tracepoint_event(struct list_head **list, int *idx,
+				char *sys_name, char *evt_name)
+{
+	return strpbrk(evt_name, "*?") ?
+	       add_tracepoint_multi_event(list, idx, sys_name, evt_name) :
+	       add_tracepoint(list, idx, sys_name, evt_name);
+}
+
+static int add_tracepoint_multi_sys(struct list_head **list, int *idx,
+				    char *sys_name, char *evt_name)
+{
+	struct dirent *events_ent;
+	DIR *events_dir;
+	int ret = 0;
+
+	events_dir = opendir(tracing_events_path);
+	if (!events_dir) {
+		perror("Can't open event dir");
+		return -1;
+	}
+
+	while (!ret && (events_ent = readdir(events_dir))) {
+		if (!strcmp(events_ent->d_name, ".")
+		    || !strcmp(events_ent->d_name, "..")
+		    || !strcmp(events_ent->d_name, "enable")
+		    || !strcmp(events_ent->d_name, "header_event")
+		    || !strcmp(events_ent->d_name, "header_page"))
+			continue;
+
+		if (!strglobmatch(events_ent->d_name, sys_name))
+			continue;
+
+		ret = add_tracepoint_event(list, idx, events_ent->d_name,
+					   evt_name);
+	}
+
+	closedir(events_dir);
 	return ret;
 }
 
@@ -420,9 +461,10 @@ int parse_events_add_tracepoint(struct list_head **list, int *idx,
 	if (ret)
 		return ret;
 
-	return strpbrk(event, "*?") ?
-	       add_tracepoint_multi(list, idx, sys, event) :
-	       add_tracepoint(list, idx, sys, event);
+	if (strpbrk(sys, "*?"))
+		return add_tracepoint_multi_sys(list, idx, sys, event);
+	else
+		return add_tracepoint_event(list, idx, sys, event);
 }
 
 static int
@@ -492,7 +534,7 @@ int parse_events_add_breakpoint(struct list_head **list, int *idx,
 }
 
 static int config_term(struct perf_event_attr *attr,
-		       struct parse_events__term *term)
+		       struct parse_events_term *term)
 {
 #define CHECK_TYPE_VAL(type)					\
 do {								\
@@ -537,7 +579,7 @@ do {								\
 static int config_attr(struct perf_event_attr *attr,
 		       struct list_head *head, int fail)
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
 	list_for_each_entry(term, head, list)
 		if (config_term(attr, term) && fail)
@@ -563,14 +605,14 @@ int parse_events_add_numeric(struct list_head **list, int *idx,
 	return add_event(list, idx, &attr, NULL);
 }
 
-static int parse_events__is_name_term(struct parse_events__term *term)
+static int parse_events__is_name_term(struct parse_events_term *term)
 {
 	return term->type_term == PARSE_EVENTS__TERM_TYPE_NAME;
 }
 
 static char *pmu_event_name(struct list_head *head_terms)
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
 	list_for_each_entry(term, head_terms, list)
 		if (parse_events__is_name_term(term))
@@ -657,14 +699,6 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	int exclude = eu | ek | eh;
 	int exclude_GH = evsel ? evsel->exclude_GH : 0;
 
-	/*
-	 * We are here for group and 'GH' was not set as event
-	 * modifier and whatever event/group modifier override
-	 * default 'GH' setup.
-	 */
-	if (evsel && !exclude_GH)
-		eH = eG = 0;
-
 	memset(mod, 0, sizeof(*mod));
 
 	while (*str) {
@@ -722,6 +756,27 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	return 0;
 }
 
+/*
+ * Basic modifier sanity check to validate it contains only one
+ * instance of any modifier (apart from 'p') present.
+ */
+static int check_modifier(char *str)
+{
+	char *p = str;
+
+	/* The sizeof includes 0 byte as well. */
+	if (strlen(str) > (sizeof("ukhGHppp") - 1))
+		return -1;
+
+	while (*p) {
+		if (*p != 'p' && strchr(p + 1, *p))
+			return -1;
+		p++;
+	}
+
+	return 0;
+}
+
 int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 {
 	struct perf_evsel *evsel;
@@ -729,6 +784,9 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 
 	if (str == NULL)
 		return 0;
+
+	if (check_modifier(str))
+		return -EINVAL;
 
 	if (!add && get_event_modifier(&mod, str, NULL))
 		return -EINVAL;
@@ -790,7 +848,7 @@ static int parse_events__scanner(const char *str, void *data, int start_token)
  */
 int parse_events_terms(struct list_head *terms, const char *str)
 {
-	struct parse_events_data__terms data = {
+	struct parse_events_terms data = {
 		.terms = NULL,
 	};
 	int ret;
@@ -806,10 +864,9 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-int parse_events(struct perf_evlist *evlist, const char *str,
-		 int unset __maybe_unused)
+int parse_events(struct perf_evlist *evlist, const char *str)
 {
-	struct parse_events_data__events data = {
+	struct parse_events_evlist data = {
 		.list = LIST_HEAD_INIT(data.list),
 		.idx  = evlist->nr_entries,
 	};
@@ -819,6 +876,7 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 	if (!ret) {
 		int entries = data.idx - evlist->nr_entries;
 		perf_evlist__splice_list_tail(evlist, &data.list, entries);
+		evlist->nr_groups += data.nr_groups;
 		return 0;
 	}
 
@@ -827,8 +885,6 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 	 * Both call perf_evlist__delete in case of error, so we dont
 	 * need to bother.
 	 */
-	fprintf(stderr, "invalid or unsupported event: '%s'\n", str);
-	fprintf(stderr, "Run 'perf list' for a list of valid events\n");
 	return ret;
 }
 
@@ -836,7 +892,13 @@ int parse_events_option(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
-	return parse_events(evlist, str, unset);
+	int ret = parse_events(evlist, str);
+
+	if (ret) {
+		fprintf(stderr, "invalid or unsupported event: '%s'\n", str);
+		fprintf(stderr, "Run 'perf list' for a list of valid events\n");
+	}
+	return ret;
 }
 
 int parse_filter(const struct option *opt, const char *str,
@@ -1081,7 +1143,7 @@ void print_events(const char *event_glob, bool name_only)
 		printf("  %-50s [%s]\n",
 		       "cpu/t1=v1[,t2=v2,t3 ...]/modifier",
 		       event_type_descriptors[PERF_TYPE_RAW]);
-		printf("   (see 'perf list --help' on how to encode it)\n");
+		printf("   (see 'man perf-list' on how to encode it)\n");
 		printf("\n");
 
 		printf("  %-50s [%s]\n",
@@ -1093,16 +1155,16 @@ void print_events(const char *event_glob, bool name_only)
 	print_tracepoint_events(NULL, NULL, name_only);
 }
 
-int parse_events__is_hardcoded_term(struct parse_events__term *term)
+int parse_events__is_hardcoded_term(struct parse_events_term *term)
 {
 	return term->type_term != PARSE_EVENTS__TERM_TYPE_USER;
 }
 
-static int new_term(struct parse_events__term **_term, int type_val,
+static int new_term(struct parse_events_term **_term, int type_val,
 		    int type_term, char *config,
 		    char *str, u64 num)
 {
-	struct parse_events__term *term;
+	struct parse_events_term *term;
 
 	term = zalloc(sizeof(*term));
 	if (!term)
@@ -1128,22 +1190,40 @@ static int new_term(struct parse_events__term **_term, int type_val,
 	return 0;
 }
 
-int parse_events__term_num(struct parse_events__term **term,
+int parse_events_term__num(struct parse_events_term **term,
 			   int type_term, char *config, u64 num)
 {
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_NUM, type_term,
 			config, NULL, num);
 }
 
-int parse_events__term_str(struct parse_events__term **term,
+int parse_events_term__str(struct parse_events_term **term,
 			   int type_term, char *config, char *str)
 {
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_STR, type_term,
 			config, str, 0);
 }
 
-int parse_events__term_clone(struct parse_events__term **new,
-			     struct parse_events__term *term)
+int parse_events_term__sym_hw(struct parse_events_term **term,
+			      char *config, unsigned idx)
+{
+	struct event_symbol *sym;
+
+	BUG_ON(idx >= PERF_COUNT_HW_MAX);
+	sym = &event_symbols_hw[idx];
+
+	if (config)
+		return new_term(term, PARSE_EVENTS__TERM_TYPE_STR,
+				PARSE_EVENTS__TERM_TYPE_USER, config,
+				(char *) sym->symbol, 0);
+	else
+		return new_term(term, PARSE_EVENTS__TERM_TYPE_STR,
+				PARSE_EVENTS__TERM_TYPE_USER,
+				(char *) "event", (char *) sym->symbol, 0);
+}
+
+int parse_events_term__clone(struct parse_events_term **new,
+			     struct parse_events_term *term)
 {
 	return new_term(new, term->type_val, term->type_term, term->config,
 			term->val.str, term->val.num);
@@ -1151,7 +1231,7 @@ int parse_events__term_clone(struct parse_events__term **new,
 
 void parse_events__free_terms(struct list_head *terms)
 {
-	struct parse_events__term *term, *h;
+	struct parse_events_term *term, *h;
 
 	list_for_each_entry_safe(term, h, terms, list)
 		free(term);

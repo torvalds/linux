@@ -7,8 +7,10 @@ Required properties:
 - compatible: "marvell,88f6180-pinctrl",
               "marvell,88f6190-pinctrl", "marvell,88f6192-pinctrl",
               "marvell,88f6281-pinctrl", "marvell,88f6282-pinctrl"
+              "marvell,98dx4122-pinctrl"
 
 This driver supports all kirkwood variants, i.e. 88f6180, 88f619x, and 88f628x.
+It also support the 88f6281-based variant in the 98dx412x Bobcat SoCs.
 
 Available mpp pins/groups and functions:
 Note: brackets (x) are not part of the mpp name for marvell,function and given
@@ -277,3 +279,40 @@ mpp46         46       gpio, ts(mp10), tdm(fs), lcd(hsync)
 mpp47         47       gpio, ts(mp11), tdm(drx), lcd(vsync)
 mpp48         48       gpio, ts(mp12), tdm(dtx), lcd(d16)
 mpp49         49       gpo, tdm(rx0ql), pex(clkreq), lcd(d17)
+
+* Marvell Bobcat 98dx4122
+
+name          pins     functions
+================================================================================
+mpp0          0        gpio, nand(io2), spi(cs)
+mpp1          1        gpo, nand(io3), spi(mosi)
+mpp2          2        gpo, nand(io4), spi(sck)
+mpp3          3        gpo, nand(io5), spi(miso)
+mpp4          4        gpio, nand(io6), uart0(rxd)
+mpp5          5        gpo, nand(io7), uart0(txd)
+mpp6          6        sysrst(out), spi(mosi)
+mpp7          7        gpo, pex(rsto), spi(cs)
+mpp8          8        gpio, twsi0(sda), uart0(rts), uart1(rts)
+mpp9          9        gpio, twsi(sck), uart0(cts), uart1(cts)
+mpp10         10       gpo, spi(sck), uart0(txd)
+mpp11         11       gpio, spi(miso), uart0(rxd)
+mpp13         13       gpio, uart1(txd)
+mpp14         14       gpio, uart1(rxd)
+mpp15         15       gpio, uart0(rts)
+mpp16         16       gpio, uart0(cts)
+mpp18         18       gpo, nand(io0)
+mpp19         19       gpo, nand(io1)
+mpp34         34       gpio
+mpp35         35       gpio
+mpp36         36       gpio
+mpp37         37       gpio
+mpp38         38       gpio
+mpp39         39       gpio
+mpp40         40       gpio
+mpp41         41       gpio
+mpp42         42       gpio
+mpp43         43       gpio
+mpp44         44       gpio
+mpp45         45       gpio
+mpp49         49       gpio
+

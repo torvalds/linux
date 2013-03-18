@@ -1089,8 +1089,9 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	return err;
 }
 
-void rtl92se_set_mac_addr(struct rtl_io *io, const u8 * addr)
+void rtl92se_set_mac_addr(struct rtl_io *io, const u8 *addr)
 {
+	/* This is a stub. */
 }
 
 void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
@@ -1697,7 +1698,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 			hwinfo[EEPROM_TXPOWERBASE + 6 + rf_path * 3 + i];
 
 			/* Read OFDM RF A & B Tx power for 2T */
-			rtlefuse->eeprom_chnlarea_txpwr_ht40_2sdiif[rf_path][i]
+			rtlefuse->eprom_chnl_txpwr_ht40_2sdf[rf_path][i]
 				 = hwinfo[EEPROM_TXPOWERBASE + 12 +
 				   rf_path * 3 + i];
 		}
@@ -1722,7 +1723,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 			RTPRINT(rtlpriv, FINIT, INIT_EEPROM,
 				"RF(%d) EEPROM HT40 2S Diff Area(%d) = 0x%x\n",
 				rf_path, i,
-				rtlefuse->eeprom_chnlarea_txpwr_ht40_2sdiif
+				rtlefuse->eprom_chnl_txpwr_ht40_2sdf
 				[rf_path][i]);
 
 	for (rf_path = 0; rf_path < 2; rf_path++) {
@@ -1748,7 +1749,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 				rtlefuse->eeprom_chnlarea_txpwr_ht40_1s
 							[rf_path][index];
 			rtlefuse->txpwrlevel_ht40_2s[rf_path][i]  =
-				rtlefuse->eeprom_chnlarea_txpwr_ht40_2sdiif
+				rtlefuse->eprom_chnl_txpwr_ht40_2sdf
 							[rf_path][index];
 		}
 
@@ -2084,8 +2085,7 @@ static void rtl92se_update_hal_rate_mask(struct ieee80211_hw *hw,
 	struct rtl_sta_info *sta_entry = NULL;
 	u32 ratr_bitmap;
 	u8 ratr_index = 0;
-	u8 curtxbw_40mhz = (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
-				? 1 : 0;
+	u8 curtxbw_40mhz = (sta->bandwidth >= IEEE80211_STA_RX_BW_40) ? 1 : 0;
 	u8 curshortgi_40mhz = (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40) ?
 				1 : 0;
 	u8 curshortgi_20mhz = (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ?

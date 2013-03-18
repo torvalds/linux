@@ -22,10 +22,12 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/enum.h>
 #include <core/class.h>
 #include <core/engctx.h>
+#include <core/falcon.h>
 
 #include <subdev/timer.h>
 #include <subdev/fb.h>
@@ -36,11 +38,7 @@
 #include "fuc/nv98.fuc.h"
 
 struct nv98_crypt_priv {
-	struct nouveau_crypt base;
-};
-
-struct nv98_crypt_chan {
-	struct nouveau_crypt_chan base;
+	struct nouveau_falcon base;
 };
 
 /*******************************************************************************
@@ -57,34 +55,16 @@ nv98_crypt_sclass[] = {
  * PCRYPT context
  ******************************************************************************/
 
-static int
-nv98_crypt_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
-{
-	struct nv98_crypt_chan *priv;
-	int ret;
-
-	ret = nouveau_crypt_context_create(parent, engine, oclass, NULL, 256,
-					   256, NVOBJ_FLAG_ZERO_ALLOC, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static struct nouveau_oclass
 nv98_crypt_cclass = {
 	.handle = NV_ENGCTX(CRYPT, 0x98),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv98_crypt_context_ctor,
-		.dtor = _nouveau_crypt_context_dtor,
-		.init = _nouveau_crypt_context_init,
-		.fini = _nouveau_crypt_context_fini,
-		.rd32 = _nouveau_crypt_context_rd32,
-		.wr32 = _nouveau_crypt_context_wr32,
+		.ctor = _nouveau_falcon_context_ctor,
+		.dtor = _nouveau_falcon_context_dtor,
+		.init = _nouveau_falcon_context_init,
+		.fini = _nouveau_falcon_context_fini,
+		.rd32 = _nouveau_falcon_context_rd32,
+		.wr32 = _nouveau_falcon_context_wr32,
 	},
 };
 
@@ -123,8 +103,9 @@ nv98_crypt_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00000040) {
 		nv_error(priv, "DISPATCH_ERROR [");
 		nouveau_enum_print(nv98_crypt_isr_error_name, ssta);
-		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, subc, mthd, data);
+		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
+		       chid, (u64)inst << 12, nouveau_client_name(engctx),
+		       subc, mthd, data);
 		nv_wr32(priv, 0x087004, 0x00000040);
 		stat &= ~0x00000040;
 	}
@@ -134,7 +115,6 @@ nv98_crypt_intr(struct nouveau_subdev *subdev)
 		nv_wr32(priv, 0x087004, stat);
 	}
 
-	nv50_fb_trap(nouveau_fb(priv), 1);
 	nouveau_engctx_put(engctx);
 }
 
@@ -153,7 +133,8 @@ nv98_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv98_crypt_priv *priv;
 	int ret;
 
-	ret = nouveau_crypt_create(parent, engine, oclass, &priv);
+	ret = nouveau_falcon_create(parent, engine, oclass, 0x087000, true,
+				    "PCRYPT", "crypt", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -163,36 +144,10 @@ nv98_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->cclass = &nv98_crypt_cclass;
 	nv_engine(priv)->sclass = nv98_crypt_sclass;
 	nv_engine(priv)->tlb_flush = nv98_crypt_tlb_flush;
-	return 0;
-}
-
-static int
-nv98_crypt_init(struct nouveau_object *object)
-{
-	struct nv98_crypt_priv *priv = (void *)object;
-	int ret, i;
-
-	ret = nouveau_crypt_init(&priv->base);
-	if (ret)
-		return ret;
-
-	/* wait for exit interrupt to signal */
-	nv_wait(priv, 0x087008, 0x00000010, 0x00000010);
-	nv_wr32(priv, 0x087004, 0x00000010);
-
-	/* upload microcode code and data segments */
-	nv_wr32(priv, 0x087ff8, 0x00100000);
-	for (i = 0; i < ARRAY_SIZE(nv98_pcrypt_code); i++)
-		nv_wr32(priv, 0x087ff4, nv98_pcrypt_code[i]);
-
-	nv_wr32(priv, 0x087ff8, 0x00000000);
-	for (i = 0; i < ARRAY_SIZE(nv98_pcrypt_data); i++)
-		nv_wr32(priv, 0x087ff4, nv98_pcrypt_data[i]);
-
-	/* start it running */
-	nv_wr32(priv, 0x08710c, 0x00000000);
-	nv_wr32(priv, 0x087104, 0x00000000); /* ENTRY */
-	nv_wr32(priv, 0x087100, 0x00000002); /* TRIGGER */
+	nv_falcon(priv)->code.data = nv98_pcrypt_code;
+	nv_falcon(priv)->code.size = sizeof(nv98_pcrypt_code);
+	nv_falcon(priv)->data.data = nv98_pcrypt_data;
+	nv_falcon(priv)->data.size = sizeof(nv98_pcrypt_data);
 	return 0;
 }
 
@@ -201,8 +156,10 @@ nv98_crypt_oclass = {
 	.handle = NV_ENGINE(CRYPT, 0x98),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv98_crypt_ctor,
-		.dtor = _nouveau_crypt_dtor,
-		.init = nv98_crypt_init,
-		.fini = _nouveau_crypt_fini,
+		.dtor = _nouveau_falcon_dtor,
+		.init = _nouveau_falcon_init,
+		.fini = _nouveau_falcon_fini,
+		.rd32 = _nouveau_falcon_rd32,
+		.wr32 = _nouveau_falcon_wr32,
 	},
 };

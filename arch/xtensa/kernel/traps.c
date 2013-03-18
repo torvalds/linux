@@ -37,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
+#include <asm/traps.h>
 
 #ifdef CONFIG_KGDB
 extern int gdb_enter;
@@ -193,28 +194,49 @@ void do_multihit(struct pt_regs *regs, unsigned long exccause)
 }
 
 /*
- * Level-1 interrupt.
- * We currently have no priority encoding.
+ * IRQ handler.
+ * PS.INTLEVEL is the current IRQ priority level.
  */
 
-unsigned long ignored_level1_interrupts;
 extern void do_IRQ(int, struct pt_regs *);
 
-void do_interrupt (struct pt_regs *regs)
+void do_interrupt(struct pt_regs *regs)
 {
-	unsigned long intread = get_sr (interrupt);
-	unsigned long intenable = get_sr (intenable);
-	int i, mask;
+	static const unsigned int_level_mask[] = {
+		0,
+		XCHAL_INTLEVEL1_MASK,
+		XCHAL_INTLEVEL2_MASK,
+		XCHAL_INTLEVEL3_MASK,
+		XCHAL_INTLEVEL4_MASK,
+		XCHAL_INTLEVEL5_MASK,
+		XCHAL_INTLEVEL6_MASK,
+		XCHAL_INTLEVEL7_MASK,
+	};
+	unsigned level = get_sr(ps) & PS_INTLEVEL_MASK;
 
-	/* Handle all interrupts (no priorities).
-	 * (Clear the interrupt before processing, in case it's
-	 *  edge-triggered or software-generated)
-	 */
+	if (WARN_ON_ONCE(level >= ARRAY_SIZE(int_level_mask)))
+		return;
 
-	for (i=0, mask = 1; i < XCHAL_NUM_INTERRUPTS; i++, mask <<= 1) {
-		if (mask & (intread & intenable)) {
-			set_sr (mask, intclear);
-			do_IRQ (i,regs);
+	for (;;) {
+		unsigned intread = get_sr(interrupt);
+		unsigned intenable = get_sr(intenable);
+		unsigned int_at_level = intread & intenable &
+			int_level_mask[level];
+
+		if (!int_at_level)
+			return;
+
+		/*
+		 * Clear the interrupt before processing, in case it's
+		 *  edge-triggered or software-generated
+		 */
+		while (int_at_level) {
+			unsigned i = __ffs(int_at_level);
+			unsigned mask = 1 << i;
+
+			int_at_level ^= mask;
+			set_sr(mask, intclear);
+			do_IRQ(i, regs);
 		}
 	}
 }
@@ -290,6 +312,17 @@ do_debug(struct pt_regs *regs)
 	/* If in user mode, send SIGTRAP signal to current process */
 
 	force_sig(SIGTRAP, current);
+}
+
+
+/* Set exception C handler - for temporary use when probing exceptions */
+
+void * __init trap_set_handler(int cause, void *handler)
+{
+	unsigned long *entry = &exc_table[EXC_TABLE_DEFAULT / 4 + cause];
+	void *previous = (void *)*entry;
+	*entry = (unsigned long)handler;
+	return previous;
 }
 
 
@@ -381,25 +414,6 @@ static __always_inline unsigned long *stack_pointer(struct task_struct *task)
 	return sp;
 }
 
-static inline void spill_registers(void)
-{
-	unsigned int a0, ps;
-
-	__asm__ __volatile__ (
-		"movi	a14, " __stringify(PS_EXCM_BIT | 1) "\n\t"
-		"mov	a12, a0\n\t"
-		"rsr	a13, sar\n\t"
-		"xsr	a14, ps\n\t"
-		"movi	a0, _spill_registers\n\t"
-		"rsync\n\t"
-		"callx0 a0\n\t"
-		"mov	a0, a12\n\t"
-		"wsr	a13, sar\n\t"
-		"wsr	a14, ps\n\t"
-		:: "a" (&a0), "a" (&ps)
-		: "a2", "a3", "a4", "a7", "a11", "a12", "a13", "a14", "a15", "memory");
-}
-
 void show_trace(struct task_struct *task, unsigned long *sp)
 {
 	unsigned long a0, a1, pc;
@@ -452,7 +466,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 
 	if (!sp)
 		sp = stack_pointer(task);
- 	stack = sp;
+	stack = sp;
 
 	printk("\nStack: ");
 
@@ -512,7 +526,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (!user_mode(regs))
 		show_stack(NULL, (unsigned long*)regs->areg[1]);
 
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	spin_unlock_irq(&die_lock);
 
 	if (in_interrupt())
@@ -523,5 +537,3 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	do_exit(err);
 }
-
-

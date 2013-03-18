@@ -13,15 +13,62 @@ menuconfig THERMAL
 	  All platforms with ACPI thermal support can use this driver.
 	  If you want this support, you should say Y or M here.
 
+if THERMAL
+
 config THERMAL_HWMON
 	bool
-	depends on THERMAL
 	depends on HWMON=y || HWMON=THERMAL
 	default y
 
+choice
+	prompt "Default Thermal governor"
+	default THERMAL_DEFAULT_GOV_STEP_WISE
+	help
+	  This option sets which thermal governor shall be loaded at
+	  startup. If in doubt, select 'step_wise'.
+
+config THERMAL_DEFAULT_GOV_STEP_WISE
+	bool "step_wise"
+	select THERMAL_GOV_STEP_WISE
+	help
+	  Use the step_wise governor as default. This throttles the
+	  devices one step at a time.
+
+config THERMAL_DEFAULT_GOV_FAIR_SHARE
+	bool "fair_share"
+	select THERMAL_GOV_FAIR_SHARE
+	help
+	  Use the fair_share governor as default. This throttles the
+	  devices based on their 'contribution' to a zone. The
+	  contribution should be provided through platform data.
+
+config THERMAL_DEFAULT_GOV_USER_SPACE
+	bool "user_space"
+	select THERMAL_GOV_USER_SPACE
+	help
+	  Select this if you want to let the user space manage the
+	  lpatform thermals.
+
+endchoice
+
+config THERMAL_GOV_FAIR_SHARE
+	bool "Fair-share thermal governor"
+	help
+	  Enable this to manage platform thermals using fair-share governor.
+
+config THERMAL_GOV_STEP_WISE
+	bool "Step_wise thermal governor"
+	help
+	  Enable this to manage platform thermals using a simple linear
+
+config THERMAL_GOV_USER_SPACE
+	bool "User_space thermal governor"
+	help
+	  Enable this to let the user space manage the platform thermals.
+
 config CPU_THERMAL
-	bool "generic cpu cooling support"
-	depends on THERMAL && CPU_FREQ
+	tristate "generic cpu cooling support"
+	depends on CPU_FREQ
 	select CPU_FREQ_TABLE
 	help
 	  This implements the generic cpu cooling mechanism through frequency
@@ -31,9 +78,16 @@ config CPU_THERMAL
 	  and not the ACPI interface.
 	  If you want this support, you should say Y here.
 
+config THERMAL_EMULATION
+	bool "Thermal emulation mode support"
+	help
+	  Enable this option to make a emul_temp sysfs node in thermal zone
+	  directory to support temperature emulation. With emulation sysfs node,
+	  user can manually input temperature and test the different trip
+	  threshold behaviour for simulation purpose.
+
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
-	depends on THERMAL
 	depends on PLAT_SPEAR
 	depends on OF
 	help
@@ -42,16 +96,73 @@ config SPEAR_THERMAL
 
 config RCAR_THERMAL
 	tristate "Renesas R-Car thermal driver"
-	depends on THERMAL
 	depends on ARCH_SHMOBILE
 	help
 	  Enable this to plug the R-Car thermal sensor driver into the Linux
 	  thermal framework
 
+config KIRKWOOD_THERMAL
+	tristate "Temperature sensor on Marvell Kirkwood SoCs"
+	depends on ARCH_KIRKWOOD
+	depends on OF
+	help
+	  Support for the Kirkwood thermal sensor driver into the Linux thermal
+	  framework. Only kirkwood 88F6282 and 88F6283 have this sensor.
+
 config EXYNOS_THERMAL
 	tristate "Temperature sensor on Samsung EXYNOS"
-	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5) && THERMAL
-	select CPU_FREQ_TABLE
+	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5)
+	depends on CPU_THERMAL
 	help
-	  If you say yes here you get support for TMU (Thermal Managment
+	  If you say yes here you get support for TMU (Thermal Management
 	  Unit) on SAMSUNG EXYNOS series of SoC.
+
+config EXYNOS_THERMAL_EMUL
+	bool "EXYNOS TMU emulation mode support"
+	depends on EXYNOS_THERMAL
+	help
+	  Exynos 4412 and 4414 and 5 series has emulation mode on TMU.
+	  Enable this option will be make sysfs node in exynos thermal platform
+	  device directory to support emulation mode. With emulation mode sysfs
+	  node, you can manually input temperature to TMU for simulation purpose.
+
+config DOVE_THERMAL
+	tristate "Temperature sensor on Marvell Dove SoCs"
+	depends on ARCH_DOVE
+	depends on OF
+	help
+	  Support for the Dove thermal sensor driver in the Linux thermal
+	  framework.
+
+config DB8500_THERMAL
+	bool "DB8500 thermal management"
+	depends on ARCH_U8500
+	default y
+	help
+	  Adds DB8500 thermal management implementation according to the thermal
+	  management framework. A thermal zone with several trip points will be
+	  created. Cooling devices can be bound to the trip points to cool this
+	  thermal zone if trip points reached.
+
+config DB8500_CPUFREQ_COOLING
+	tristate "DB8500 cpufreq cooling"
+	depends on ARCH_U8500
+	depends on CPU_THERMAL
+	default y
+	help
+	  Adds DB8500 cpufreq cooling devices, and these cooling devices can be
+	  bound to thermal zone trip points. When a trip point reached, the
+	  bound cpufreq cooling device turns active to set CPU frequency low to
+	  cool down the CPU.
+
+config INTEL_POWERCLAMP
+	tristate "Intel PowerClamp idle injection driver"
+	depends on THERMAL
+	depends on X86
+	depends on CPU_SUP_INTEL
+	help
+	  Enable this to enable Intel PowerClamp idle injection driver. This
+	  enforce idle time which results in more package C-state residency. The
+	  user interface is exposed via generic thermal framework.
+
+endif

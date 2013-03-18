@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,11 +44,7 @@
 #include <linux/export.h>
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acevents.h"
-#include "acnamesp.h"
 #include "acdebug.h"
-#include "actables.h"
-#include "acinterp.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utxface")
@@ -147,7 +143,7 @@ ACPI_EXPORT_SYMBOL(acpi_subsystem_status)
  * RETURN:      status          - the status of the call
  *
  * DESCRIPTION: This function is called to get information about the current
- *              state of the ACPI subsystem.  It will return system information
+ *              state of the ACPI subsystem. It will return system information
  *              in the out_buffer.
  *
  *              If the function fails an appropriate status will be returned
@@ -238,7 +234,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 	}
 
 	acpi_gbl_init_handler = handler;
-	return AE_OK;
+	return (AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_install_initialization_handler)
@@ -263,6 +259,7 @@ acpi_status acpi_purge_cached_objects(void)
 	(void)acpi_os_purge_cache(acpi_gbl_operand_cache);
 	(void)acpi_os_purge_cache(acpi_gbl_ps_node_cache);
 	(void)acpi_os_purge_cache(acpi_gbl_ps_node_ext_cache);
+
 	return_ACPI_STATUS(AE_OK);
 }
 

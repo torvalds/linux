@@ -314,10 +314,10 @@ EXPORT_SYMBOL(fscache_add_cache);
  */
 void fscache_io_error(struct fscache_cache *cache)
 {
-	set_bit(FSCACHE_IOERROR, &cache->flags);
-
-	printk(KERN_ERR "FS-Cache: Cache %s stopped due to I/O error\n",
-	       cache->ops->name);
+	if (!test_and_set_bit(FSCACHE_IOERROR, &cache->flags))
+		printk(KERN_ERR "FS-Cache:"
+		       " Cache '%s' stopped due to I/O error\n",
+		       cache->ops->name);
 }
 EXPORT_SYMBOL(fscache_io_error);
 

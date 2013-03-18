@@ -804,10 +804,15 @@ static inline int ezusb_8051_cpucs(struct ezusb_priv *upriv, int reset)
 static int ezusb_firmware_download(struct ezusb_priv *upriv,
 				   struct ez_usb_fw *fw)
 {
-	u8 fw_buffer[FW_BUF_SIZE];
+	u8 *fw_buffer;
 	int retval, addr;
 	int variant_offset;
 
+	fw_buffer = kmalloc(FW_BUF_SIZE, GFP_KERNEL);
+	if (!fw_buffer) {
+		printk(KERN_ERR PFX "Out of memory for firmware buffer.\n");
+		return -ENOMEM;
+	}
 	/*
 	 * This byte is 1 and should be replaced with 0.  The offset is
 	 * 0x10AD in version 0.0.6.  The byte in question should follow
@@ -859,13 +864,14 @@ static int ezusb_firmware_download(struct ezusb_priv *upriv,
 	printk(KERN_ERR PFX "Firmware download failed, error %d\n",
 	       retval);
  exit:
+	kfree(fw_buffer);
 	return retval;
 }
 
 static int ezusb_access_ltv(struct ezusb_priv *upriv,
 			    struct request_context *ctx,
 			    u16 length, const void *data, u16 frame_type,
-			    void *ans_buff, int ans_size, u16 *ans_length)
+			    void *ans_buff, unsigned ans_size, u16 *ans_length)
 {
 	int req_size;
 	int retval = 0;
@@ -933,7 +939,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	}
 	if (ctx->in_rid) {
 		struct ezusb_packet *ans = ctx->buf;
-		int exp_len;
+		unsigned exp_len;
 
 		if (ans->hermes_len != 0)
 			exp_len = le16_to_cpu(ans->hermes_len) * 2 + 12;
@@ -949,8 +955,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 		}
 
 		if (ans_buff)
-			memcpy(ans_buff, ans->data,
-			       min_t(int, exp_len, ans_size));
+			memcpy(ans_buff, ans->data, min(exp_len, ans_size));
 		if (ans_length)
 			*ans_length = le16_to_cpu(ans->hermes_len);
 	}
@@ -995,7 +1000,7 @@ static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
 	struct ezusb_priv *upriv = hw->priv;
 	struct request_context *ctx;
 
-	if ((bufsize < 0) || (bufsize % 2))
+	if (bufsize % 2)
 		return -EINVAL;
 
 	ctx = ezusb_alloc_ctx(upriv, rid, rid);
@@ -1682,7 +1687,8 @@ static int ezusb_probe(struct usb_interface *interface,
 		firmware.code = fw_entry->data;
 	}
 	if (firmware.size && firmware.code) {
-		ezusb_firmware_download(upriv, &firmware);
+		if (ezusb_firmware_download(upriv, &firmware))
+			goto error;
 	} else {
 		err("No firmware to download");
 		goto error;

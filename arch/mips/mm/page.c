@@ -140,15 +140,6 @@ static void __cpuinit set_prefetch_parameters(void)
 			pref_bias_copy_load = 256;
 			break;
 
-		case CPU_RM9000:
-			/*
-			 * As a workaround for erratum G105 which make the
-			 * PrepareForStore hint unusable we fall back to
-			 * StoreRetained on the RM9000.  Once it is known which
-			 * versions of the RM9000 we'll be able to condition-
-			 * alize this.
-			 */
-
 		case CPU_R10000:
 		case CPU_R12000:
 		case CPU_R14000:
@@ -280,7 +271,7 @@ void __cpuinit build_clear_page(void)
 		uasm_i_lui(&buf, AT, 0xa000);
 
 	off = cache_line_size ? min(8, pref_bias_clear_store / cache_line_size)
-	                        * cache_line_size : 0;
+				* cache_line_size : 0;
 	while (off) {
 		build_clear_pref(&buf, -off);
 		off -= cache_line_size;
@@ -426,13 +417,13 @@ void __cpuinit build_copy_page(void)
 		uasm_i_lui(&buf, AT, 0xa000);
 
 	off = cache_line_size ? min(8, pref_bias_copy_load / cache_line_size) *
-	                        cache_line_size : 0;
+				cache_line_size : 0;
 	while (off) {
 		build_copy_load_pref(&buf, -off);
 		off -= cache_line_size;
 	}
 	off = cache_line_size ? min(8, pref_bias_copy_store / cache_line_size) *
-	                        cache_line_size : 0;
+				cache_line_size : 0;
 	while (off) {
 		build_copy_store_pref(&buf, -off);
 		off -= cache_line_size;

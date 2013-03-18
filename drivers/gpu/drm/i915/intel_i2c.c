@@ -63,6 +63,7 @@ intel_i2c_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS0, 0);
+	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS4, 0);
 }
 
 static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
@@ -202,6 +203,68 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 	algo->data = bus;
 }
 
+#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 4)
+static int
+gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
+		     u32 gmbus2_status,
+		     u32 gmbus4_irq_en)
+{
+	int i;
+	int reg_offset = dev_priv->gpio_mmio_base;
+	u32 gmbus2 = 0;
+	DEFINE_WAIT(wait);
+
+	/* Important: The hw handles only the first bit, so set only one! Since
+	 * we also need to check for NAKs besides the hw ready/idle signal, we
+	 * need to wake up periodically and check that ourselves. */
+	I915_WRITE(GMBUS4 + reg_offset, gmbus4_irq_en);
+
+	for (i = 0; i < msecs_to_jiffies(50) + 1; i++) {
+		prepare_to_wait(&dev_priv->gmbus_wait_queue, &wait,
+				TASK_UNINTERRUPTIBLE);
+
+		gmbus2 = I915_READ_NOTRACE(GMBUS2 + reg_offset);
+		if (gmbus2 & (GMBUS_SATOER | gmbus2_status))
+			break;
+
+		schedule_timeout(1);
+	}
+	finish_wait(&dev_priv->gmbus_wait_queue, &wait);
+
+	I915_WRITE(GMBUS4 + reg_offset, 0);
+
+	if (gmbus2 & GMBUS_SATOER)
+		return -ENXIO;
+	if (gmbus2 & gmbus2_status)
+		return 0;
+	return -ETIMEDOUT;
+}
+
+static int
+gmbus_wait_idle(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	int reg_offset = dev_priv->gpio_mmio_base;
+
+#define C ((I915_READ_NOTRACE(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0)
+
+	if (!HAS_GMBUS_IRQ(dev_priv->dev))
+		return wait_for(C, 10);
+
+	/* Important: The hw handles only the first bit, so set only one! */
+	I915_WRITE(GMBUS4 + reg_offset, GMBUS_IDLE_EN);
+
+	ret = wait_event_timeout(dev_priv->gmbus_wait_queue, C, 10);
+
+	I915_WRITE(GMBUS4 + reg_offset, 0);
+
+	if (ret)
+		return 0;
+	else
+		return -ETIMEDOUT;
+#undef C
+}
+
 static int
 gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 		u32 gmbus1_index)
@@ -219,15 +282,11 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	while (len) {
 		int ret;
 		u32 val, loop = 0;
-		u32 gmbus2;
 
-		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-			       (GMBUS_SATOER | GMBUS_HW_RDY),
-			       50);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY,
+					   GMBUS_HW_RDY_EN);
 		if (ret)
-			return -ETIMEDOUT;
-		if (gmbus2 & GMBUS_SATOER)
-			return -ENXIO;
+			return ret;
 
 		val = I915_READ(GMBUS3 + reg_offset);
 		do {
@@ -261,7 +320,6 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 		   GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
 	while (len) {
 		int ret;
-		u32 gmbus2;
 
 		val = loop = 0;
 		do {
@@ -270,13 +328,10 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 
 		I915_WRITE(GMBUS3 + reg_offset, val);
 
-		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-			       (GMBUS_SATOER | GMBUS_HW_RDY),
-			       50);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY,
+					   GMBUS_HW_RDY_EN);
 		if (ret)
-			return -ETIMEDOUT;
-		if (gmbus2 & GMBUS_SATOER)
-			return -ENXIO;
+			return ret;
 	}
 	return 0;
 }
@@ -345,8 +400,6 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
 	for (i = 0; i < num; i++) {
-		u32 gmbus2;
-
 		if (gmbus_is_index_read(msgs, i, num)) {
 			ret = gmbus_xfer_index_read(dev_priv, &msgs[i]);
 			i += 1;  /* set i to the index of the read xfer */
@@ -361,13 +414,12 @@ gmbus_xfer(struct i2c_adapter *adapter,
 		if (ret == -ENXIO)
 			goto clear_err;
 
-		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-			       (GMBUS_SATOER | GMBUS_HW_WAIT_PHASE),
-			       50);
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_WAIT_PHASE,
+					   GMBUS_HW_WAIT_EN);
+		if (ret == -ENXIO)
+			goto clear_err;
 		if (ret)
 			goto timeout;
-		if (gmbus2 & GMBUS_SATOER)
-			goto clear_err;
 	}
 
 	/* Generate a STOP condition on the bus. Note that gmbus can't generata
@@ -380,8 +432,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	 * We will re-enable it at the start of the next xfer,
 	 * till then let it sleep.
 	 */
-	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
-		     10)) {
+	if (gmbus_wait_idle(dev_priv)) {
 		DRM_DEBUG_KMS("GMBUS [%s] timed out waiting for idle\n",
 			 adapter->name);
 		ret = -ETIMEDOUT;
@@ -405,8 +456,7 @@ clear_err:
 	 * it's slow responding and only answers on the 2nd retry.
 	 */
 	ret = -ENXIO;
-	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
-		     10)) {
+	if (gmbus_wait_idle(dev_priv)) {
 		DRM_DEBUG_KMS("GMBUS [%s] timed out after NAK\n",
 			      adapter->name);
 		ret = -ETIMEDOUT;
@@ -432,7 +482,7 @@ timeout:
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 
 	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
-	bus->force_bit = true;
+	bus->force_bit = 1;
 	ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
 
 out:
@@ -465,10 +515,13 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 	if (HAS_PCH_SPLIT(dev))
 		dev_priv->gpio_mmio_base = PCH_GPIOA - GPIOA;
+	else if (IS_VALLEYVIEW(dev))
+		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
 	else
 		dev_priv->gpio_mmio_base = 0;
 
 	mutex_init(&dev_priv->gmbus_mutex);
+	init_waitqueue_head(&dev_priv->gmbus_wait_queue);
 
 	for (i = 0; i < GMBUS_NUM_PORTS; i++) {
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
@@ -491,7 +544,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 		/* gmbus seems to be broken on i830 */
 		if (IS_I830(dev))
-			bus->force_bit = true;
+			bus->force_bit = 1;
 
 		intel_gpio_setup(bus, port);
 
@@ -532,7 +585,10 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
-	bus->force_bit = force_bit;
+	bus->force_bit += force_bit ? 1 : -1;
+	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
+		      force_bit ? "en" : "dis", adapter->name,
+		      bus->force_bit);
 }
 
 void intel_teardown_gmbus(struct drm_device *dev)

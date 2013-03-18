@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2009 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -25,6 +25,39 @@
  *****************************************************************************/
 
 #if !defined(__IWLWIFI_DEVICE_TRACE) || defined(TRACE_HEADER_MULTI_READ)
+#include <linux/skbuff.h>
+#include <linux/ieee80211.h>
+#include <net/cfg80211.h>
+#include "iwl-trans.h"
+#if !defined(__IWLWIFI_DEVICE_TRACE)
+static inline bool iwl_trace_data(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+
+	if (ieee80211_is_data(hdr->frame_control))
+		return skb->protocol != cpu_to_be16(ETH_P_PAE);
+	return false;
+}
+
+static inline size_t iwl_rx_trace_len(const struct iwl_trans *trans,
+				      void *rxbuf, size_t len)
+{
+	struct iwl_cmd_header *cmd = (void *)((u8 *)rxbuf + sizeof(__le32));
+	struct ieee80211_hdr *hdr;
+
+	if (cmd->cmd != trans->rx_mpdu_cmd)
+		return len;
+
+	hdr = (void *)((u8 *)cmd + sizeof(struct iwl_cmd_header) +
+			trans->rx_mpdu_cmd_hdr_size);
+	if (!ieee80211_is_data(hdr->frame_control))
+		return len;
+	/* maybe try to identify EAPOL frames? */
+	return sizeof(__le32) + sizeof(*cmd) + trans->rx_mpdu_cmd_hdr_size +
+		ieee80211_hdrlen(hdr->frame_control);
+}
+#endif
+
 #define __IWLWIFI_DEVICE_TRACE
 
 #include <linux/tracepoint.h>
@@ -97,6 +130,40 @@ TRACE_EVENT(iwlwifi_dev_iowrite32,
 		__entry->val = val;
 	),
 	TP_printk("[%s] write io[%#x] = %#x)",
+		  __get_str(dev), __entry->offs, __entry->val)
+);
+
+TRACE_EVENT(iwlwifi_dev_iowrite_prph32,
+	TP_PROTO(const struct device *dev, u32 offs, u32 val),
+	TP_ARGS(dev, offs, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u32, offs)
+		__field(u32, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->offs = offs;
+		__entry->val = val;
+	),
+	TP_printk("[%s] write PRPH[%#x] = %#x)",
+		  __get_str(dev), __entry->offs, __entry->val)
+);
+
+TRACE_EVENT(iwlwifi_dev_ioread_prph32,
+	TP_PROTO(const struct device *dev, u32 offs, u32 val),
+	TP_ARGS(dev, offs, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u32, offs)
+		__field(u32, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->offs = offs;
+		__entry->val = val;
+	),
+	TP_printk("[%s] read PRPH[%#x] = %#x",
 		  __get_str(dev), __entry->offs, __entry->val)
 );
 
@@ -235,29 +302,69 @@ TRACE_EVENT(iwlwifi_dbg,
 );
 
 #undef TRACE_SYSTEM
+#define TRACE_SYSTEM iwlwifi_data
+
+TRACE_EVENT(iwlwifi_dev_tx_data,
+	TP_PROTO(const struct device *dev,
+		 struct sk_buff *skb,
+		 void *data, size_t data_len),
+	TP_ARGS(dev, skb, data, data_len),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+
+		__dynamic_array(u8, data, iwl_trace_data(skb) ? data_len : 0)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		if (iwl_trace_data(skb))
+			memcpy(__get_dynamic_array(data), data, data_len);
+	),
+	TP_printk("[%s] TX frame data", __get_str(dev))
+);
+
+TRACE_EVENT(iwlwifi_dev_rx_data,
+	TP_PROTO(const struct device *dev,
+		 const struct iwl_trans *trans,
+		 void *rxbuf, size_t len),
+	TP_ARGS(dev, trans, rxbuf, len),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+
+		__dynamic_array(u8, data,
+				len - iwl_rx_trace_len(trans, rxbuf, len))
+	),
+	TP_fast_assign(
+		size_t offs = iwl_rx_trace_len(trans, rxbuf, len);
+		DEV_ASSIGN;
+		if (offs < len)
+			memcpy(__get_dynamic_array(data),
+			       ((u8 *)rxbuf) + offs, len - offs);
+	),
+	TP_printk("[%s] RX frame data", __get_str(dev))
+);
+
+#undef TRACE_SYSTEM
 #define TRACE_SYSTEM iwlwifi
 
 TRACE_EVENT(iwlwifi_dev_hcmd,
 	TP_PROTO(const struct device *dev,
 		 struct iwl_host_cmd *cmd, u16 total_size,
-		 const void *hdr, size_t hdr_len),
-	TP_ARGS(dev, cmd, total_size, hdr, hdr_len),
+		 struct iwl_cmd_header *hdr),
+	TP_ARGS(dev, cmd, total_size, hdr),
 	TP_STRUCT__entry(
 		DEV_ENTRY
 		__dynamic_array(u8, hcmd, total_size)
 		__field(u32, flags)
 	),
 	TP_fast_assign(
-		int i, offset = hdr_len;
+		int i, offset = sizeof(*hdr);
 
 		DEV_ASSIGN;
 		__entry->flags = cmd->flags;
-		memcpy(__get_dynamic_array(hcmd), hdr, hdr_len);
+		memcpy(__get_dynamic_array(hcmd), hdr, sizeof(*hdr));
 
-		for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
+		for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 			if (!cmd->len[i])
-				continue;
-			if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
 				continue;
 			memcpy((u8 *)__get_dynamic_array(hcmd) + offset,
 			       cmd->data[i], cmd->len[i]);
@@ -270,25 +377,28 @@ TRACE_EVENT(iwlwifi_dev_hcmd,
 );
 
 TRACE_EVENT(iwlwifi_dev_rx,
-	TP_PROTO(const struct device *dev, void *rxbuf, size_t len),
-	TP_ARGS(dev, rxbuf, len),
+	TP_PROTO(const struct device *dev, const struct iwl_trans *trans,
+		 void *rxbuf, size_t len),
+	TP_ARGS(dev, trans, rxbuf, len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
-		__dynamic_array(u8, rxbuf, len)
+		__dynamic_array(u8, rxbuf, iwl_rx_trace_len(trans, rxbuf, len))
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
-		memcpy(__get_dynamic_array(rxbuf), rxbuf, len);
+		memcpy(__get_dynamic_array(rxbuf), rxbuf,
+		       iwl_rx_trace_len(trans, rxbuf, len));
 	),
 	TP_printk("[%s] RX cmd %#.2x",
 		  __get_str(dev), ((u8 *)__get_dynamic_array(rxbuf))[4])
 );
 
 TRACE_EVENT(iwlwifi_dev_tx,
-	TP_PROTO(const struct device *dev, void *tfd, size_t tfdlen,
+	TP_PROTO(const struct device *dev, struct sk_buff *skb,
+		 void *tfd, size_t tfdlen,
 		 void *buf0, size_t buf0_len,
 		 void *buf1, size_t buf1_len),
-	TP_ARGS(dev, tfd, tfdlen, buf0, buf0_len, buf1, buf1_len),
+	TP_ARGS(dev, skb, tfd, tfdlen, buf0, buf0_len, buf1, buf1_len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
 
@@ -301,14 +411,15 @@ TRACE_EVENT(iwlwifi_dev_tx,
 		 * for the possible padding).
 		 */
 		__dynamic_array(u8, buf0, buf0_len)
-		__dynamic_array(u8, buf1, buf1_len)
+		__dynamic_array(u8, buf1, iwl_trace_data(skb) ? 0 : buf1_len)
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
 		__entry->framelen = buf0_len + buf1_len;
 		memcpy(__get_dynamic_array(tfd), tfd, tfdlen);
 		memcpy(__get_dynamic_array(buf0), buf0, buf0_len);
-		memcpy(__get_dynamic_array(buf1), buf1, buf1_len);
+		if (!iwl_trace_data(skb))
+			memcpy(__get_dynamic_array(buf1), buf1, buf1_len);
 	),
 	TP_printk("[%s] TX %.2x (%zu bytes)",
 		  __get_str(dev), ((u8 *)__get_dynamic_array(buf0))[0],

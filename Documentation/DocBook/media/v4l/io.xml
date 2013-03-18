@@ -331,7 +331,7 @@ application until one or more buffers can be dequeued. By default
 outgoing queue. When the <constant>O_NONBLOCK</constant> flag was
 given to the &func-open; function, <constant>VIDIOC_DQBUF</constant>
 returns immediately with an &EAGAIN; when no buffer is available. The
-&func-select; or &func-poll; function are always available.</para>
+&func-select; or &func-poll; functions are always available.</para>
 
     <para>To start and stop capturing or output applications call the
 &VIDIOC-STREAMON; and &VIDIOC-STREAMOFF; ioctl. Note
@@ -472,6 +472,165 @@ rest should be evident.</para>
       </footnote></para>
   </section>
 
+  <section id="dmabuf">
+    <title>Streaming I/O (DMA buffer importing)</title>
+
+    <note>
+      <title>Experimental</title>
+      <para>This is an <link linkend="experimental">experimental</link>
+      interface and may change in the future.</para>
+    </note>
+
+<para>The DMABUF framework provides a generic method for sharing buffers
+between multiple devices. Device drivers that support DMABUF can export a DMA
+buffer to userspace as a file descriptor (known as the exporter role), import a
+DMA buffer from userspace using a file descriptor previously exported for a
+different or the same device (known as the importer role), or both. This
+section describes the DMABUF importer role API in V4L2.</para>
+
+    <para>Refer to <link linkend="vidioc-expbuf">DMABUF exporting</link> for
+details about exporting V4L2 buffers as DMABUF file descriptors.</para>
+
+<para>Input and output devices support the streaming I/O method when the
+<constant>V4L2_CAP_STREAMING</constant> flag in the
+<structfield>capabilities</structfield> field of &v4l2-capability; returned by
+the &VIDIOC-QUERYCAP; ioctl is set. Whether importing DMA buffers through
+DMABUF file descriptors is supported is determined by calling the
+&VIDIOC-REQBUFS; ioctl with the memory type set to
+<constant>V4L2_MEMORY_DMABUF</constant>.</para>
+
+    <para>This I/O method is dedicated to sharing DMA buffers between different
+devices, which may be V4L devices or other video-related devices (e.g. DRM).
+Buffers (planes) are allocated by a driver on behalf of an application. Next,
+these buffers are exported to the application as file descriptors using an API
+which is specific for an allocator driver.  Only such file descriptor are
+exchanged. The descriptors and meta-information are passed in &v4l2-buffer; (or
+in &v4l2-plane; in the multi-planar API case).  The driver must be switched
+into DMABUF I/O mode by calling the &VIDIOC-REQBUFS; with the desired buffer
+type.</para>
+
+    <example>
+      <title>Initiating streaming I/O with DMABUF file descriptors</title>
+
+      <programlisting>
+&v4l2-requestbuffers; reqbuf;
+
+memset(&amp;reqbuf, 0, sizeof (reqbuf));
+reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+reqbuf.memory = V4L2_MEMORY_DMABUF;
+reqbuf.count = 1;
+
+if (ioctl(fd, &VIDIOC-REQBUFS;, &amp;reqbuf) == -1) {
+	if (errno == EINVAL)
+		printf("Video capturing or DMABUF streaming is not supported\n");
+	else
+		perror("VIDIOC_REQBUFS");
+
+	exit(EXIT_FAILURE);
+}
+      </programlisting>
+    </example>
+
+    <para>The buffer (plane) file descriptor is passed on the fly with the
+&VIDIOC-QBUF; ioctl. In case of multiplanar buffers, every plane can be
+associated with a different DMABUF descriptor. Although buffers are commonly
+cycled, applications can pass a different DMABUF descriptor at each
+<constant>VIDIOC_QBUF</constant> call.</para>
+
+    <example>
+      <title>Queueing DMABUF using single plane API</title>
+
+      <programlisting>
+int buffer_queue(int v4lfd, int index, int dmafd)
+{
+	&v4l2-buffer; buf;
+
+	memset(&amp;buf, 0, sizeof buf);
+	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	buf.memory = V4L2_MEMORY_DMABUF;
+	buf.index = index;
+	buf.m.fd = dmafd;
+
+	if (ioctl(v4lfd, &VIDIOC-QBUF;, &amp;buf) == -1) {
+		perror("VIDIOC_QBUF");
+		return -1;
+	}
+
+	return 0;
+}
+      </programlisting>
+    </example>
+
+    <example>
+      <title>Queueing DMABUF using multi plane API</title>
+
+      <programlisting>
+int buffer_queue_mp(int v4lfd, int index, int dmafd[], int n_planes)
+{
+	&v4l2-buffer; buf;
+	&v4l2-plane; planes[VIDEO_MAX_PLANES];
+	int i;
+
+	memset(&amp;buf, 0, sizeof buf);
+	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	buf.memory = V4L2_MEMORY_DMABUF;
+	buf.index = index;
+	buf.m.planes = planes;
+	buf.length = n_planes;
+
+	memset(&amp;planes, 0, sizeof planes);
+
+	for (i = 0; i &lt; n_planes; ++i)
+		buf.m.planes[i].m.fd = dmafd[i];
+
+	if (ioctl(v4lfd, &VIDIOC-QBUF;, &amp;buf) == -1) {
+		perror("VIDIOC_QBUF");
+		return -1;
+	}
+
+	return 0;
+}
+      </programlisting>
+    </example>
+
+    <para>Captured or displayed buffers are dequeued with the
+&VIDIOC-DQBUF; ioctl. The driver can unlock the buffer at any
+time between the completion of the DMA and this ioctl. The memory is
+also unlocked when &VIDIOC-STREAMOFF; is called, &VIDIOC-REQBUFS;, or
+when the device is closed.</para>
+
+    <para>For capturing applications it is customary to enqueue a
+number of empty buffers, to start capturing and enter the read loop.
+Here the application waits until a filled buffer can be dequeued, and
+re-enqueues the buffer when the data is no longer needed. Output
+applications fill and enqueue buffers, when enough buffers are stacked
+up output is started. In the write loop, when the application
+runs out of free buffers it must wait until an empty buffer can be
+dequeued and reused. Two methods exist to suspend execution of the
+application until one or more buffers can be dequeued. By default
+<constant>VIDIOC_DQBUF</constant> blocks when no buffer is in the
+outgoing queue. When the <constant>O_NONBLOCK</constant> flag was
+given to the &func-open; function, <constant>VIDIOC_DQBUF</constant>
+returns immediately with an &EAGAIN; when no buffer is available. The
+&func-select; and &func-poll; functions are always available.</para>
+
+    <para>To start and stop capturing or displaying applications call the
+&VIDIOC-STREAMON; and &VIDIOC-STREAMOFF; ioctls. Note that
+<constant>VIDIOC_STREAMOFF</constant> removes all buffers from both queues and
+unlocks all buffers as a side effect. Since there is no notion of doing
+anything "now" on a multitasking system, if an application needs to synchronize
+with another event it should examine the &v4l2-buffer;
+<structfield>timestamp</structfield> of captured buffers, or set the field
+before enqueuing buffers for output.</para>
+
+    <para>Drivers implementing DMABUF importing I/O must support the
+<constant>VIDIOC_REQBUFS</constant>, <constant>VIDIOC_QBUF</constant>,
+<constant>VIDIOC_DQBUF</constant>, <constant>VIDIOC_STREAMON</constant> and
+<constant>VIDIOC_STREAMOFF</constant> ioctls, and the
+<function>select()</function> and <function>poll()</function> functions.</para>
+
+  </section>
+
   <section id="async">
     <title>Asynchronous I/O</title>
 
@@ -582,17 +741,19 @@ applications when an output stream.</entry>
 	    <entry>struct timeval</entry>
 	    <entry><structfield>timestamp</structfield></entry>
 	    <entry></entry>
-	    <entry><para>For input streams this is the
-system time (as returned by the <function>gettimeofday()</function>
-function) when the first data byte was captured. For output streams
-the data will not be displayed before this time, secondary to the
-nominal frame rate determined by the current video standard in
-enqueued order. Applications can for example zero this field to
-display frames as soon as possible. The driver stores the time at
-which the first data byte was actually sent out in the
-<structfield>timestamp</structfield> field. This permits
-applications to monitor the drift between the video and system
-clock.</para></entry>
+	    <entry><para>For input streams this is time when the first data
+	    byte was captured, as returned by the
+	    <function>clock_gettime()</function> function for the relevant
+	    clock id; see <constant>V4L2_BUF_FLAG_TIMESTAMP_*</constant> in
+	    <xref linkend="buffer-flags" />. For output streams the data
+	    will not be displayed before this time, secondary to the nominal
+	    frame rate determined by the current video standard in enqueued
+	    order. Applications can for example zero this field to display
+	    frames as soon as possible. The driver stores the time at which
+	    the first data byte was actually sent out in the
+	    <structfield>timestamp</structfield> field. This permits
+	    applications to monitor the drift between the video and system
+	    clock.</para></entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-timecode;</entry>
@@ -673,6 +834,14 @@ memory, set by the application. See <xref linkend="userp" /> for details.
 	    <structname>v4l2_buffer</structname> structure.</entry>
 	  </row>
 	  <row>
+	    <entry></entry>
+	    <entry>int</entry>
+	    <entry><structfield>fd</structfield></entry>
+	    <entry>For the single-plane API and when
+<structfield>memory</structfield> is <constant>V4L2_MEMORY_DMABUF</constant> this
+is the file descriptor associated with a DMABUF buffer.</entry>
+	  </row>
+	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>length</structfield></entry>
 	    <entry></entry>
@@ -736,12 +905,21 @@ should set this to 0.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
-	    <entry>__unsigned long</entry>
+	    <entry>unsigned long</entry>
 	    <entry><structfield>userptr</structfield></entry>
 	    <entry>When the memory type in the containing &v4l2-buffer; is
 	      <constant>V4L2_MEMORY_USERPTR</constant>, this is a userspace
 	      pointer to the memory allocated for this plane by an application.
 	      </entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>int</entry>
+	    <entry><structfield>fd</structfield></entry>
+	    <entry>When the memory type in the containing &v4l2-buffer; is
+		<constant>V4L2_MEMORY_DMABUF</constant>, this is a file
+		descriptor associated with a DMABUF buffer, similar to the
+		<structfield>fd</structfield> field in &v4l2-buffer;.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -923,7 +1101,7 @@ application. Drivers set or clear this flag when the
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_NO_CACHE_INVALIDATE</constant></entry>
-	    <entry>0x0400</entry>
+	    <entry>0x0800</entry>
 	    <entry>Caches do not have to be invalidated for this buffer.
 Typically applications shall use this flag if the data captured in the buffer
 is not going to be touched by the CPU, instead the buffer will, probably, be
@@ -932,11 +1110,40 @@ passed on to a DMA-capable hardware unit for further processing or output.
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_FLAG_NO_CACHE_CLEAN</constant></entry>
-	    <entry>0x0800</entry>
+	    <entry>0x1000</entry>
 	    <entry>Caches do not have to be cleaned for this buffer.
 Typically applications shall use this flag for output buffers if the data
 in this buffer has not been created by the CPU but by some DMA-capable unit,
 in which case caches have not been used.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_MASK</constant></entry>
+	    <entry>0xe000</entry>
+	    <entry>Mask for timestamp types below. To test the
+	    timestamp type, mask out bits not belonging to timestamp
+	    type by performing a logical and operation with buffer
+	    flags and timestamp mask.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN</constant></entry>
+	    <entry>0x0000</entry>
+	    <entry>Unknown timestamp type. This type is used by
+	    drivers before Linux 3.9 and may be either monotonic (see
+	    below) or realtime (wall clock). Monotonic clock has been
+	    favoured in embedded systems whereas most of the drivers
+	    use the realtime clock. Either kinds of timestamps are
+	    available in user space via
+	    <function>clock_gettime(2)</function> using clock IDs
+	    <constant>CLOCK_MONOTONIC</constant> and
+	    <constant>CLOCK_REALTIME</constant>, respectively.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC</constant></entry>
+	    <entry>0x2000</entry>
+	    <entry>The buffer timestamp has been taken from the
+	    <constant>CLOCK_MONOTONIC</constant> clock. To access the
+	    same clock outside V4L2, use
+	    <function>clock_gettime(2)</function> .</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -963,6 +1170,12 @@ pointer</link> I/O.</entry>
 	    <entry><constant>V4L2_MEMORY_OVERLAY</constant></entry>
 	    <entry>3</entry>
 	    <entry>[to do]</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_MEMORY_DMABUF</constant></entry>
+	    <entry>4</entry>
+	    <entry>The buffer is used for <link linkend="dmabuf">DMA shared
+buffer</link> I/O.</entry>
 	  </row>
 	</tbody>
       </tgroup>

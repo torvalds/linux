@@ -8,7 +8,6 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
-#include <linux/kref.h>
 #include <linux/rbtree.h>
 #include <linux/debugfs.h>
 #include <linux/rfkill.h>
@@ -17,6 +16,9 @@
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include "reg.h"
+
+
+#define WIPHY_IDX_INVALID	-1
 
 struct cfg80211_registered_device {
 	const struct cfg80211_ops *ops;
@@ -55,7 +57,8 @@ struct cfg80211_registered_device {
 	int opencount; /* also protected by devlist_mtx */
 	wait_queue_head_t dev_wait;
 
-	u32 ap_beacons_nlportid;
+	struct list_head beacon_registrations;
+	spinlock_t beacon_registrations_lock;
 
 	/* protected by RTNL only */
 	int num_running_ifaces;
@@ -83,9 +86,11 @@ struct cfg80211_registered_device {
 
 	struct cfg80211_wowlan *wowlan;
 
+	struct delayed_work dfs_update_channels_wk;
+
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
-	struct wiphy wiphy __attribute__((__aligned__(NETDEV_ALIGN)));
+	struct wiphy wiphy __aligned(NETDEV_ALIGN);
 };
 
 static inline
@@ -93,13 +98,6 @@ struct cfg80211_registered_device *wiphy_to_dev(struct wiphy *wiphy)
 {
 	BUG_ON(!wiphy);
 	return container_of(wiphy, struct cfg80211_registered_device, wiphy);
-}
-
-/* Note 0 is valid, hence phy0 */
-static inline
-bool wiphy_idx_valid(int wiphy_idx)
-{
-	return wiphy_idx >= 0;
 }
 
 static inline void
@@ -112,6 +110,9 @@ cfg80211_rdev_free_wowlan(struct cfg80211_registered_device *rdev)
 	for (i = 0; i < rdev->wowlan->n_patterns; i++)
 		kfree(rdev->wowlan->patterns[i].mask);
 	kfree(rdev->wowlan->patterns);
+	if (rdev->wowlan->tcp && rdev->wowlan->tcp->sock)
+		sock_release(rdev->wowlan->tcp->sock);
+	kfree(rdev->wowlan->tcp);
 	kfree(rdev->wowlan);
 }
 
@@ -125,20 +126,13 @@ static inline void assert_cfg80211_lock(void)
 	lockdep_assert_held(&cfg80211_mutex);
 }
 
-/*
- * You can use this to mark a wiphy_idx as not having an associated wiphy.
- * It guarantees cfg80211_rdev_by_wiphy_idx(wiphy_idx) will return NULL
- */
-#define WIPHY_IDX_STALE -1
-
 struct cfg80211_internal_bss {
 	struct list_head list;
+	struct list_head hidden_list;
 	struct rb_node rbn;
 	unsigned long ts;
-	struct kref ref;
+	unsigned long refcount;
 	atomic_t hold;
-	bool beacon_ies_allocated;
-	bool proberesp_ies_allocated;
 
 	/* must be last because of priv member */
 	struct cfg80211_bss pub;
@@ -260,6 +254,10 @@ enum cfg80211_chan_mode {
 	CHAN_MODE_EXCLUSIVE,
 };
 
+struct cfg80211_beacon_registration {
+	struct list_head list;
+	u32 nlportid;
+};
 
 /* free object */
 extern void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
@@ -304,9 +302,9 @@ int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		       const struct mesh_config *conf);
 int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
-int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
-			   struct wireless_dev *wdev, int freq,
-			   enum nl80211_channel_type channel_type);
+int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
+			      struct wireless_dev *wdev,
+			      struct cfg80211_chan_def *chandef);
 
 /* AP */
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
@@ -320,13 +318,15 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 const u8 *bssid,
 			 const u8 *ssid, int ssid_len,
 			 const u8 *ie, int ie_len,
-			 const u8 *key, int key_len, int key_idx);
+			 const u8 *key, int key_len, int key_idx,
+			 const u8 *sae_data, int sae_data_len);
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev, struct ieee80211_channel *chan,
 		       enum nl80211_auth_type auth_type, const u8 *bssid,
 		       const u8 *ssid, int ssid_len,
 		       const u8 *ie, int ie_len,
-		       const u8 *key, int key_len, int key_idx);
+		       const u8 *key, int key_len, int key_idx,
+		       const u8 *sae_data, int sae_data_len);
 int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
 			  struct ieee80211_channel *chan,
@@ -371,10 +371,8 @@ void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  struct wireless_dev *wdev,
 			  struct ieee80211_channel *chan, bool offchan,
-			  enum nl80211_channel_type channel_type,
-			  bool channel_type_valid, unsigned int wait,
-			  const u8 *buf, size_t len, bool no_cck,
-			  bool dont_wait_for_ack, u64 *cookie);
+			  unsigned int wait, const u8 *buf, size_t len,
+			  bool no_cck, bool dont_wait_for_ack, u64 *cookie);
 void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
 			       const struct ieee80211_ht_cap *ht_capa_mask);
 
@@ -432,7 +430,24 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev,
 				 enum nl80211_iftype iftype,
 				 struct ieee80211_channel *chan,
-				 enum cfg80211_chan_mode chanmode);
+				 enum cfg80211_chan_mode chanmode,
+				 u8 radar_detect);
+
+/**
+ * cfg80211_chandef_dfs_required - checks if radar detection is required
+ * @wiphy: the wiphy to validate against
+ * @chandef: the channel definition to check
+ * Return: 1 if radar detection is required, 0 if it is not, < 0 on error
+ */
+int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
+				  const struct cfg80211_chan_def *c);
+
+void cfg80211_set_dfs_state(struct wiphy *wiphy,
+			    const struct cfg80211_chan_def *chandef,
+			    enum nl80211_dfs_state dfs_state);
+
+void cfg80211_dfs_channels_update_work(struct work_struct *work);
+
 
 static inline int
 cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
@@ -440,7 +455,7 @@ cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
 			      enum nl80211_iftype iftype)
 {
 	return cfg80211_can_use_iftype_chan(rdev, wdev, iftype, NULL,
-					    CHAN_MODE_UNDEFINED);
+					    CHAN_MODE_UNDEFINED, 0);
 }
 
 static inline int
@@ -457,7 +472,17 @@ cfg80211_can_use_chan(struct cfg80211_registered_device *rdev,
 		      enum cfg80211_chan_mode chanmode)
 {
 	return cfg80211_can_use_iftype_chan(rdev, wdev, wdev->iftype,
-					    chan, chanmode);
+					    chan, chanmode, 0);
+}
+
+static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
+{
+	unsigned long end = jiffies;
+
+	if (end >= start)
+		return jiffies_to_msecs(end - start);
+
+	return jiffies_to_msecs(end + (MAX_JIFFY_OFFSET - start) + 1);
 }
 
 void
@@ -465,11 +490,8 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 		        struct ieee80211_channel **chan,
 		        enum cfg80211_chan_mode *chanmode);
 
-struct ieee80211_channel *
-rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
-		  int freq, enum nl80211_channel_type channel_type);
 int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
-				 int freq, enum nl80211_channel_type chantype);
+				 struct cfg80211_chan_def *chandef);
 
 int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 			   const u8 *rates, unsigned int n_rates,

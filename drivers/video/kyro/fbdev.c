@@ -40,14 +40,14 @@
 #define KHZ2PICOS(a) (1000000000UL/(a))
 
 /****************************************************************************/
-static struct fb_fix_screeninfo kyro_fix __devinitdata = {
+static struct fb_fix_screeninfo kyro_fix = {
 	.id		= "ST Kyro",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo kyro_var __devinitdata = {
+static struct fb_var_screeninfo kyro_var = {
 	/* 640x480, 16bpp @ 60 Hz */
 	.xres		= 640,
 	.yres		= 480,
@@ -81,18 +81,18 @@ typedef struct {
 /* global graphics card info structure (one per card) */
 static device_info_t deviceInfo;
 
-static char *mode_option __devinitdata = NULL;
-static int nopan __devinitdata = 0;
-static int nowrap __devinitdata = 1;
+static char *mode_option = NULL;
+static int nopan = 0;
+static int nowrap = 1;
 #ifdef CONFIG_MTRR
-static int nomtrr __devinitdata = 0;
+static int nomtrr = 0;
 #endif
 
 /* PCI driver prototypes */
 static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void kyrofb_remove(struct pci_dev *pdev);
 
-static struct fb_videomode kyro_modedb[] __devinitdata = {
+static struct fb_videomode kyro_modedb[] = {
 	{
 		/* 640x350 @ 85Hz */
 		NULL, 85, 640, 350, KHZ2PICOS(31500),
@@ -653,7 +653,7 @@ static struct pci_driver kyrofb_pci_driver = {
 	.name		= "kyrofb",
 	.id_table	= kyrofb_pci_tbl,
 	.probe		= kyrofb_probe,
-	.remove		= __devexit_p(kyrofb_remove),
+	.remove		= kyrofb_remove,
 };
 
 static struct fb_ops kyrofb_ops = {
@@ -667,8 +667,7 @@ static struct fb_ops kyrofb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int __devinit kyrofb_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct kyrofb_info *currentpar;
@@ -754,7 +753,7 @@ out_unmap:
 	return -EINVAL;
 }
 
-static void __devexit kyrofb_remove(struct pci_dev *pdev)
+static void kyrofb_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct kyrofb_info *par = info->par;

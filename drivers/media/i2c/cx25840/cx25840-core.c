@@ -2065,7 +2065,7 @@ static int cx25840_irq_handler(struct v4l2_subdev *sd, u32 status,
 #define DIF_BPF_COEFF3435	(0x38c)
 #define DIF_BPF_COEFF36		(0x390)
 
-void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
+static void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 {
 	u64 pll_freq;
 	u32 pll_freq_word;

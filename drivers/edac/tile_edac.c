@@ -82,7 +82,7 @@ static void tile_edac_check(struct mem_ctl_info *mci)
  * Initialize the 'csrows' table within the mci control structure with the
  * addressing of memory.
  */
-static int __devinit tile_edac_init_csrows(struct mem_ctl_info *mci)
+static int tile_edac_init_csrows(struct mem_ctl_info *mci)
 {
 	struct csrow_info	*csrow = mci->csrows[0];
 	struct tile_edac_priv	*priv = mci->pvt_info;
@@ -120,7 +120,7 @@ static int __devinit tile_edac_init_csrows(struct mem_ctl_info *mci)
 	return 0;
 }
 
-static int __devinit tile_edac_mc_probe(struct platform_device *pdev)
+static int tile_edac_mc_probe(struct platform_device *pdev)
 {
 	char			hv_file[32];
 	int			hv_devhdl;
@@ -186,7 +186,7 @@ static int __devinit tile_edac_mc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tile_edac_mc_remove(struct platform_device *pdev)
+static int tile_edac_mc_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
@@ -202,7 +202,7 @@ static struct platform_driver tile_edac_mc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tile_edac_mc_probe,
-	.remove		= __devexit_p(tile_edac_mc_remove),
+	.remove		= tile_edac_mc_remove,
 };
 
 /*

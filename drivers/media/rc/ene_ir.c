@@ -329,7 +329,7 @@ static int ene_rx_get_sample_reg(struct ene_device *dev)
 }
 
 /* Sense current received carrier */
-void ene_rx_sense_carrier(struct ene_device *dev)
+static void ene_rx_sense_carrier(struct ene_device *dev)
 {
 	DEFINE_IR_RAW_EVENT(ev);
 
@@ -1003,7 +1003,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	dev = kzalloc(sizeof(struct ene_device), GFP_KERNEL);
 	rdev = rc_allocate_device();
 	if (!dev || !rdev)
-		goto error1;
+		goto exit_free_dev_rdev;
 
 	/* validate resources */
 	error = -ENODEV;
@@ -1014,10 +1014,10 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	if (!pnp_port_valid(pnp_dev, 0) ||
 	    pnp_port_len(pnp_dev, 0) < ENE_IO_SIZE)
-		goto error;
+		goto exit_free_dev_rdev;
 
 	if (!pnp_irq_valid(pnp_dev, 0))
-		goto error;
+		goto exit_free_dev_rdev;
 
 	spin_lock_init(&dev->hw_lock);
 
@@ -1033,7 +1033,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	/* detect hardware version and features */
 	error = ene_hw_detect(dev);
 	if (error)
-		goto error;
+		goto exit_free_dev_rdev;
 
 	if (!dev->hw_learning_and_tx_capable && txsim) {
 		dev->hw_learning_and_tx_capable = true;
@@ -1046,7 +1046,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		learning_mode_force = false;
 
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protos = RC_TYPE_ALL;
+	rdev->allowed_protos = RC_BIT_ALL;
 	rdev->priv = dev;
 	rdev->open = ene_open;
 	rdev->close = ene_close;
@@ -1075,33 +1075,30 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	device_set_wakeup_capable(&pnp_dev->dev, true);
 	device_set_wakeup_enable(&pnp_dev->dev, true);
 
+	error = rc_register_device(rdev);
+	if (error < 0)
+		goto exit_free_dev_rdev;
+
 	/* claim the resources */
 	error = -EBUSY;
 	if (!request_region(dev->hw_io, ENE_IO_SIZE, ENE_DRIVER_NAME)) {
-		dev->hw_io = -1;
-		dev->irq = -1;
-		goto error;
+		goto exit_unregister_device;
 	}
 
 	dev->irq = pnp_irq(pnp_dev, 0);
 	if (request_irq(dev->irq, ene_isr,
 			IRQF_SHARED, ENE_DRIVER_NAME, (void *)dev)) {
-		dev->irq = -1;
-		goto error;
+		goto exit_release_hw_io;
 	}
-
-	error = rc_register_device(rdev);
-	if (error < 0)
-		goto error;
 
 	pr_notice("driver has been successfully loaded\n");
 	return 0;
-error:
-	if (dev && dev->irq >= 0)
-		free_irq(dev->irq, dev);
-	if (dev && dev->hw_io >= 0)
-		release_region(dev->hw_io, ENE_IO_SIZE);
-error1:
+
+exit_release_hw_io:
+	release_region(dev->hw_io, ENE_IO_SIZE);
+exit_unregister_device:
+	rc_unregister_device(rdev);
+exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(dev);
 	return error;
@@ -1175,7 +1172,7 @@ static struct pnp_driver ene_driver = {
 	.flags = PNP_DRIVER_RES_DO_NOT_CHANGE,
 
 	.probe = ene_probe,
-	.remove = __devexit_p(ene_remove),
+	.remove = ene_remove,
 #ifdef CONFIG_PM
 	.suspend = ene_suspend,
 	.resume = ene_resume,

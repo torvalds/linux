@@ -41,7 +41,7 @@ static void mvs_64xx_detect_porttype(struct mvs_info *mvi, int i)
 		phy->phy_type |= PORT_TYPE_SATA;
 }
 
-static void __devinit mvs_64xx_enable_xmt(struct mvs_info *mvi, int phy_id)
+static void mvs_64xx_enable_xmt(struct mvs_info *mvi, int phy_id)
 {
 	void __iomem *regs = mvi->regs;
 	u32 tmp;
@@ -54,7 +54,7 @@ static void __devinit mvs_64xx_enable_xmt(struct mvs_info *mvi, int phy_id)
 	mw32(MVS_PCS, tmp);
 }
 
-static void __devinit mvs_64xx_phy_hacks(struct mvs_info *mvi)
+static void mvs_64xx_phy_hacks(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs;
 	int i;
@@ -156,7 +156,7 @@ void mvs_64xx_clear_srs_irq(struct mvs_info *mvi, u8 reg_set, u8 clear_all)
 	}
 }
 
-static int __devinit mvs_64xx_chip_reset(struct mvs_info *mvi)
+static int mvs_64xx_chip_reset(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs;
 	u32 tmp;
@@ -250,7 +250,7 @@ static void mvs_64xx_phy_enable(struct mvs_info *mvi, u32 phy_id)
 	}
 }
 
-static int __devinit mvs_64xx_init(struct mvs_info *mvi)
+static int mvs_64xx_init(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs;
 	int i;

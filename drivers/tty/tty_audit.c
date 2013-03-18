@@ -23,7 +23,7 @@ struct tty_audit_buf {
 };
 
 static struct tty_audit_buf *tty_audit_buf_alloc(int major, int minor,
-						 int icanon)
+						 unsigned icanon)
 {
 	struct tty_audit_buf *buf;
 
@@ -239,7 +239,8 @@ int tty_audit_push_task(struct task_struct *tsk, kuid_t loginuid, u32 sessionid)
  *	if TTY auditing is disabled or out of memory.  Otherwise, return a new
  *	reference to the buffer.
  */
-static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
+static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
+		unsigned icanon)
 {
 	struct tty_audit_buf *buf, *buf2;
 
@@ -257,7 +258,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
 
 	buf2 = tty_audit_buf_alloc(tty->driver->major,
 				   tty->driver->minor_start + tty->index,
-				   tty->icanon);
+				   icanon);
 	if (buf2 == NULL) {
 		audit_log_lost("out of memory in TTY auditing");
 		return NULL;
@@ -287,7 +288,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty)
  *	Audit @data of @size from @tty, if necessary.
  */
 void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
-			size_t size)
+			size_t size, unsigned icanon)
 {
 	struct tty_audit_buf *buf;
 	int major, minor;
@@ -299,7 +300,7 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 	    && tty->driver->subtype == PTY_TYPE_MASTER)
 		return;
 
-	buf = tty_audit_buf_get(tty);
+	buf = tty_audit_buf_get(tty, icanon);
 	if (!buf)
 		return;
 
@@ -307,11 +308,11 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 	major = tty->driver->major;
 	minor = tty->driver->minor_start + tty->index;
 	if (buf->major != major || buf->minor != minor
-	    || buf->icanon != tty->icanon) {
+	    || buf->icanon != icanon) {
 		tty_audit_buf_push_current(buf);
 		buf->major = major;
 		buf->minor = minor;
-		buf->icanon = tty->icanon;
+		buf->icanon = icanon;
 	}
 	do {
 		size_t run;

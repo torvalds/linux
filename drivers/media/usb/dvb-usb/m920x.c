@@ -16,6 +16,7 @@
 #include "qt1010.h"
 #include "tda1004x.h"
 #include "tda827x.h"
+#include "mt2060.h"
 
 #include <media/tuner.h>
 #include "tuner-simple.h"
@@ -63,23 +64,33 @@ static inline int m920x_write(struct usb_device *udev, u8 request,
 	return ret;
 }
 
+static inline int m920x_write_seq(struct usb_device *udev, u8 request,
+				  struct m920x_inits *seq)
+{
+	int ret;
+	while (seq->address) {
+		ret = m920x_write(udev, request, seq->data, seq->address);
+		if (ret != 0)
+			return ret;
+
+		seq++;
+	}
+
+	return ret;
+}
+
 static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 {
 	int ret = 0, i, epi, flags = 0;
 	int adap_enabled[M9206_MAX_ADAPTERS] = { 0 };
 
 	/* Remote controller init. */
-	if (d->props.rc.legacy.rc_query) {
+	if (d->props.rc.legacy.rc_query || d->props.rc.core.rc_query) {
 		deb("Initialising remote control\n");
-		while (rc_seq->address) {
-			if ((ret = m920x_write(d->udev, M9206_CORE,
-					       rc_seq->data,
-					       rc_seq->address)) != 0) {
-				deb("Initialising remote control failed\n");
-				return ret;
-			}
-
-			rc_seq++;
+		ret = m920x_write_seq(d->udev, M9206_CORE, rc_seq);
+		if (ret != 0) {
+			deb("Initialising remote control failed\n");
+			return ret;
 		}
 
 		deb("Initialising remote control success\n");
@@ -130,9 +141,50 @@ static int m920x_init_ep(struct usb_interface *intf)
 				 alt->desc.bAlternateSetting);
 }
 
-static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static inline void m920x_parse_rc_state(struct dvb_usb_device *d, u8 rc_state,
+					int *state)
 {
 	struct m920x_state *m = d->priv;
+
+	switch (rc_state) {
+	case 0x80:
+		*state = REMOTE_NO_KEY_PRESSED;
+		break;
+
+	case 0x88: /* framing error or "invalid code" */
+	case 0x99:
+	case 0xc0:
+	case 0xd8:
+		*state = REMOTE_NO_KEY_PRESSED;
+		m->rep_count = 0;
+		break;
+
+	case 0x93:
+	case 0x92:
+	case 0x83: /* pinnacle PCTV310e */
+	case 0x82:
+		m->rep_count = 0;
+		*state = REMOTE_KEY_PRESSED;
+		break;
+
+	case 0x91:
+	case 0x81: /* pinnacle PCTV310e */
+		/* prevent immediate auto-repeat */
+		if (++m->rep_count > 2)
+			*state = REMOTE_KEY_REPEAT;
+		else
+			*state = REMOTE_NO_KEY_PRESSED;
+		break;
+
+	default:
+		deb("Unexpected rc state %02x\n", rc_state);
+		*state = REMOTE_NO_KEY_PRESSED;
+		break;
+	}
+}
+
+static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+{
 	int i, ret = 0;
 	u8 *rc_state;
 
@@ -140,51 +192,22 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	if (!rc_state)
 		return -ENOMEM;
 
-	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
+	ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE,
+			 rc_state, 1);
+	if (ret != 0)
 		goto out;
 
-	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
+	ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY,
+			 rc_state + 1, 1);
+	if (ret != 0)
 		goto out;
+
+	m920x_parse_rc_state(d, rc_state[0], state);
 
 	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 		if (rc5_data(&d->props.rc.legacy.rc_map_table[i]) == rc_state[1]) {
 			*event = d->props.rc.legacy.rc_map_table[i].keycode;
-
-			switch(rc_state[0]) {
-			case 0x80:
-				*state = REMOTE_NO_KEY_PRESSED;
-				goto out;
-
-			case 0x88: /* framing error or "invalid code" */
-			case 0x99:
-			case 0xc0:
-			case 0xd8:
-				*state = REMOTE_NO_KEY_PRESSED;
-				m->rep_count = 0;
-				goto out;
-
-			case 0x93:
-			case 0x92:
-			case 0x83: /* pinnacle PCTV310e */
-			case 0x82:
-				m->rep_count = 0;
-				*state = REMOTE_KEY_PRESSED;
-				goto out;
-
-			case 0x91:
-			case 0x81: /* pinnacle PCTV310e */
-				/* prevent immediate auto-repeat */
-				if (++m->rep_count > 2)
-					*state = REMOTE_KEY_REPEAT;
-				else
-					*state = REMOTE_NO_KEY_PRESSED;
-				goto out;
-
-			default:
-				deb("Unexpected rc state %02x\n", rc_state[0]);
-				*state = REMOTE_NO_KEY_PRESSED;
-				goto out;
-			}
+			goto out;
 		}
 
 	if (rc_state[1] != 0)
@@ -193,6 +216,38 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 
  out:
+	kfree(rc_state);
+	return ret;
+}
+
+static int m920x_rc_core_query(struct dvb_usb_device *d)
+{
+	int ret = 0;
+	u8 *rc_state;
+	int state;
+
+	rc_state = kmalloc(2, GFP_KERNEL);
+	if (!rc_state)
+		return -ENOMEM;
+
+	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, &rc_state[0], 1)) != 0)
+		goto out;
+
+	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, &rc_state[1], 1)) != 0)
+		goto out;
+
+	deb("state=0x%02x keycode=0x%02x\n", rc_state[0], rc_state[1]);
+
+	m920x_parse_rc_state(d, rc_state[0], &state);
+
+	if (state == REMOTE_NO_KEY_PRESSED)
+		rc_keyup(d->rc_dev);
+	else if (state == REMOTE_KEY_REPEAT)
+		rc_repeat(d->rc_dev);
+	else
+		rc_keydown(d->rc_dev, rc_state[1], 0);
+
+out:
 	kfree(rc_state);
 	return ret;
 }
@@ -496,6 +551,12 @@ static struct qt1010_config m920x_qt1010_config = {
 	.i2c_address = 0x62
 };
 
+static struct mt2060_config m920x_mt2060_config = {
+	.i2c_address = 0x60, /* 0xc0 */
+	.clock_out = 0,
+};
+
+
 /* Callbacks for DVB USB */
 static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
@@ -508,6 +569,37 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 		return -EIO;
 
 	return 0;
+}
+
+static int m920x_mt352_frontend_attach_vp7049(struct dvb_usb_adapter *adap)
+{
+	struct m920x_inits vp7049_fe_init_seq[] = {
+		/* XXX without these commands the frontend cannot be detected,
+		 * they must be sent BEFORE the frontend is attached */
+		{ 0xff28,         0x00 },
+		{ 0xff23,         0x00 },
+		{ 0xff28,         0x00 },
+		{ 0xff23,         0x00 },
+		{ 0xff21,         0x20 },
+		{ 0xff21,         0x60 },
+		{ 0xff28,         0x00 },
+		{ 0xff22,         0x00 },
+		{ 0xff20,         0x30 },
+		{ 0xff20,         0x20 },
+		{ 0xff20,         0x30 },
+		{ } /* terminating entry */
+	};
+	int ret;
+
+	deb("%s\n", __func__);
+
+	ret = m920x_write_seq(adap->dev->udev, M9206_CORE, vp7049_fe_init_seq);
+	if (ret != 0) {
+		deb("Initialization of vp7049 frontend failed.");
+		return ret;
+	}
+
+	return m920x_mt352_frontend_attach(adap);
 }
 
 static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
@@ -574,6 +666,18 @@ static int m920x_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int m920x_mt2060_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	deb("%s\n", __func__);
+
+	if (dvb_attach(mt2060_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap,
+		       &m920x_mt2060_config, 1220) == NULL)
+		return -ENODEV;
+
+	return 0;
+}
+
+
 /* device-specific initialization */
 static struct m920x_inits megasky_rc_init [] = {
 	{ M9206_RC_INIT2, 0xa8 },
@@ -591,7 +695,7 @@ static struct m920x_inits tvwalkertwin_rc_init [] = {
 };
 
 static struct m920x_inits pinnacle310e_init[] = {
-	/* without these the tuner don't work */
+	/* without these the tuner doesn't work */
 	{ 0xff20,         0x9b },
 	{ 0xff22,         0x70 },
 
@@ -599,6 +703,15 @@ static struct m920x_inits pinnacle310e_init[] = {
 	{ 0xff50,         0x80 },
 	{ M9206_RC_INIT1, 0x00 },
 	{ M9206_RC_INIT2, 0xff },
+	{ } /* terminating entry */
+};
+
+static struct m920x_inits vp7049_rc_init[] = {
+	{ 0xff28,         0x00 },
+	{ 0xff23,         0x00 },
+	{ 0xff21,         0x70 },
+	{ M9206_RC_INIT2, 0x00 },
+	{ M9206_RC_INIT1, 0xff },
 	{ } /* terminating entry */
 };
 
@@ -704,6 +817,7 @@ static struct dvb_usb_device_properties digivox_mini_ii_properties;
 static struct dvb_usb_device_properties tvwalkertwin_properties;
 static struct dvb_usb_device_properties dposh_properties;
 static struct dvb_usb_device_properties pinnacle_pctv310e_properties;
+static struct dvb_usb_device_properties vp7049_properties;
 
 static int m920x_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -756,6 +870,13 @@ static int m920x_probe(struct usb_interface *intf,
 			goto found;
 		}
 
+		ret = dvb_usb_device_init(intf, &vp7049_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
+			rc_init_seq = vp7049_rc_init;
+			goto found;
+		}
+
 		return ret;
 	} else {
 		/* Another interface on a multi-tuner device */
@@ -787,6 +908,7 @@ static struct usb_device_id m920x_table [] = {
 		{ USB_DEVICE(USB_VID_DPOSH, USB_PID_DPOSH_M9206_COLD) },
 		{ USB_DEVICE(USB_VID_DPOSH, USB_PID_DPOSH_M9206_WARM) },
 		{ USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_PINNACLE_PCTV310E) },
+		{ USB_DEVICE(USB_VID_AZUREWAVE, USB_PID_TWINHAN_VP7049) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, m920x_table);
@@ -1077,6 +1199,61 @@ static struct dvb_usb_device_properties pinnacle_pctv310e_properties = {
 			{ NULL },
 		}
 	}
+};
+
+static struct dvb_usb_device_properties vp7049_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl = DEVICE_SPECIFIC,
+	.firmware = "dvb-usb-vp7049-0.95.fw",
+	.download_firmware = m920x_firmware_download,
+
+	.rc.core = {
+		.rc_interval    = 150,
+		.rc_codes       = RC_MAP_TWINHAN_VP1027_DVBS,
+		.rc_query       = m920x_rc_core_query,
+		.allowed_protos = RC_TYPE_UNKNOWN,
+	},
+
+	.size_of_priv     = sizeof(struct m920x_state),
+
+	.identify_state   = m920x_identify_state,
+	.num_adapters = 1,
+	.adapter = {{
+		.num_frontends = 1,
+		.fe = {{
+
+		.caps = DVB_USB_ADAP_HAS_PID_FILTER |
+			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+
+		.pid_filter_count = 8,
+		.pid_filter       = m920x_pid_filter,
+		.pid_filter_ctrl  = m920x_pid_filter_ctrl,
+
+		.frontend_attach  = m920x_mt352_frontend_attach_vp7049,
+		.tuner_attach     = m920x_mt2060_tuner_attach,
+
+		.stream = {
+			.type = USB_BULK,
+			.count = 8,
+			.endpoint = 0x81,
+			.u = {
+				 .bulk = {
+					 .buffersize = 512,
+				 }
+			}
+		},
+		} },
+	} },
+	.i2c_algo         = &m920x_i2c_algo,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "DTV-DVB UDTT7049",
+			{ &m920x_table[7], NULL },
+			{ NULL },
+		}
+	 }
 };
 
 static struct usb_driver m920x_driver = {

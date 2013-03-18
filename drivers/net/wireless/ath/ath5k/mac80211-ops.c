@@ -62,7 +62,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	u16 qnum = skb_get_queue_mapping(skb);
 
 	if (WARN_ON(qnum >= ah->ah_capabilities.cap_queues.q_tx_num)) {
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 
@@ -452,8 +452,9 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	iter_data.hw_macaddr = NULL;
 	iter_data.n_stas = 0;
 	iter_data.need_set_hw_addr = false;
-	ieee80211_iterate_active_interfaces_atomic(ah->hw, ath5k_vif_iter,
-						   &iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		ah->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath5k_vif_iter, &iter_data);
 
 	/* Set up RX Filter */
 	if (iter_data.n_stas > 1) {

@@ -34,10 +34,8 @@
 #include "../vme_bridge.h"
 #include "vme_ca91cx42.h"
 
-static int __init ca91cx42_init(void);
 static int ca91cx42_probe(struct pci_dev *, const struct pci_device_id *);
 static void ca91cx42_remove(struct pci_dev *);
-static void __exit ca91cx42_exit(void);
 
 /* Module parameters */
 static int geoid;
@@ -1523,11 +1521,6 @@ static void ca91cx42_free_consistent(struct device *parent, size_t size,
 	pci_free_consistent(pdev, size, vaddr, dma);
 }
 
-static int __init ca91cx42_init(void)
-{
-	return pci_register_driver(&ca91cx42_driver);
-}
-
 /*
  * Configure CR/CSR space
  *
@@ -1944,16 +1937,10 @@ static void ca91cx42_remove(struct pci_dev *pdev)
 	kfree(ca91cx42_bridge);
 }
 
-static void __exit ca91cx42_exit(void)
-{
-	pci_unregister_driver(&ca91cx42_driver);
-}
+module_pci_driver(ca91cx42_driver);
 
 MODULE_PARM_DESC(geoid, "Override geographical addressing");
 module_param(geoid, int, 0);
 
 MODULE_DESCRIPTION("VME driver for the Tundra Universe II VME bridge");
 MODULE_LICENSE("GPL");
-
-module_init(ca91cx42_init);
-module_exit(ca91cx42_exit);

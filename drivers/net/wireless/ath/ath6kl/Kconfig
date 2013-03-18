@@ -18,7 +18,6 @@ config ATH6KL_USB
 	depends on ATH6KL
 	depends on USB
 	depends on CFG80211
-	depends on EXPERIMENTAL
 	---help---
 	  This module adds support for wireless adapters based on
 	  Atheros AR6004 chipset running over USB. This is still under
@@ -30,3 +29,12 @@ config ATH6KL_DEBUG
 	depends on ATH6KL
 	---help---
 	  Enables debug support
+
+config ATH6KL_REGDOMAIN
+	bool "Atheros ath6kl regdomain support"
+	depends on ATH6KL
+	depends on CFG80211_CERTIFICATION_ONUS
+	---help---
+	  Enabling this makes it possible to change the regdomain in
+	  the firmware. This can be only enabled if regulatory requirements
+	  are taken into account.

@@ -28,17 +28,6 @@ STD_ENTRY(current_text_addr)
 	STD_ENDPROC(current_text_addr)
 
 /*
- * Implement execve().  The i386 code has a note that forking from kernel
- * space results in no copy on write until the execve, so we should be
- * careful not to write to the stack here.
- */
-STD_ENTRY(kernel_execve)
-	moveli TREG_SYSCALL_NR_NAME, __NR_execve
-	swint1
-	jrp lr
-	STD_ENDPROC(kernel_execve)
-
-/*
  * We don't run this function directly, but instead copy it to a page
  * we map into every user process.  See vdso_setup().
  *

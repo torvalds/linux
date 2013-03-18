@@ -581,7 +581,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 	case PVR2_IR_SCHEME_29XXX: /* Original 29xxx device */
 		init_data->ir_codes              = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
-		init_data->type                  = RC_TYPE_RC5;
+		init_data->type                  = RC_BIT_RC5;
 		init_data->name                  = hdw->hdw_desc->description;
 		init_data->polling_interval      = 100; /* ms From ir-kbd-i2c */
 		/* IR Receiver */
@@ -596,7 +596,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 	case PVR2_IR_SCHEME_24XXX_MCE: /* 24xxx MCE device */
 		init_data->ir_codes              = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type                  = RC_TYPE_RC5;
+		init_data->type                  = RC_BIT_RC5;
 		init_data->name                  = hdw->hdw_desc->description;
 		/* IR Receiver */
 		info.addr          = 0x71;
@@ -649,8 +649,8 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	}
 
 	// Configure the adapter and set up everything else related to it.
-	memcpy(&hdw->i2c_adap,&pvr2_i2c_adap_template,sizeof(hdw->i2c_adap));
-	memcpy(&hdw->i2c_algo,&pvr2_i2c_algo_template,sizeof(hdw->i2c_algo));
+	hdw->i2c_adap = pvr2_i2c_adap_template;
+	hdw->i2c_algo = pvr2_i2c_algo_template;
 	strlcpy(hdw->i2c_adap.name,hdw->name,sizeof(hdw->i2c_adap.name));
 	hdw->i2c_adap.dev.parent = &hdw->usb_dev->dev;
 	hdw->i2c_adap.algo = &hdw->i2c_algo;

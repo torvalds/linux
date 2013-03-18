@@ -118,7 +118,7 @@ EXPORT_SYMBOL_GPL(twl4030_audio_enable_resource);
  * Disable the resource.
  * The function returns with error or the content of the register
  */
-int twl4030_audio_disable_resource(unsigned id)
+int twl4030_audio_disable_resource(enum twl4030_audio_res id)
 {
 	struct twl4030_audio *audio = platform_get_drvdata(twl4030_audio_dev);
 	int val;
@@ -184,7 +184,7 @@ static bool twl4030_audio_has_vibra(struct twl4030_audio_data *pdata,
 	return false;
 }
 
-static int __devinit twl4030_audio_probe(struct platform_device *pdev)
+static int twl4030_audio_probe(struct platform_device *pdev)
 {
 	struct twl4030_audio *audio;
 	struct twl4030_audio_data *pdata = pdev->dev.platform_data;
@@ -269,7 +269,7 @@ static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit twl4030_audio_remove(struct platform_device *pdev)
+static int twl4030_audio_remove(struct platform_device *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
@@ -291,7 +291,7 @@ static struct platform_driver twl4030_audio_driver = {
 		.of_match_table = twl4030_audio_of_match,
 	},
 	.probe		= twl4030_audio_probe,
-	.remove		= __devexit_p(twl4030_audio_remove),
+	.remove		= twl4030_audio_remove,
 };
 
 module_platform_driver(twl4030_audio_driver);

@@ -144,7 +144,7 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return 0;
 }
 
-int __devinit mantis_dvb_init(struct mantis_pci *mantis)
+int mantis_dvb_init(struct mantis_pci *mantis)
 {
 	struct mantis_hwconfig *config = mantis->hwconfig;
 	int result = -1;
@@ -271,7 +271,7 @@ err0:
 }
 EXPORT_SYMBOL_GPL(mantis_dvb_init);
 
-int __devexit mantis_dvb_exit(struct mantis_pci *mantis)
+int mantis_dvb_exit(struct mantis_pci *mantis)
 {
 	int err;
 
