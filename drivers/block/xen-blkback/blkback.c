@@ -164,7 +164,7 @@ static void make_response(struct xen_blkif *blkif, u64 id,
 
 #define foreach_grant_safe(pos, n, rbtree, node) \
 	for ((pos) = container_of(rb_first((rbtree)), typeof(*(pos)), node), \
-	     (n) = rb_next(&(pos)->node); \
+	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL; \
 	     &(pos)->node != NULL; \
 	     (pos) = container_of(n, typeof(*(pos)), node), \
 	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL)
