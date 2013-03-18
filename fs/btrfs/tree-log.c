@@ -3650,8 +3650,6 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	bool fast_search = false;
 	u64 ino = btrfs_ino(inode);
 
-	log = root->log_root;
-
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
