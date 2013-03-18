@@ -518,6 +518,9 @@ check_writeio:
 	if (alloc_blocks < mp->m_writeio_blocks)
 		alloc_blocks = mp->m_writeio_blocks;
 
+	trace_xfs_iomap_prealloc_size(ip, alloc_blocks, shift,
+				      mp->m_writeio_blocks);
+
 	return alloc_blocks;
 }
 
