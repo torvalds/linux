@@ -360,7 +360,6 @@ static inline void enable_clk_enet_out(void)
 
 static void __init imx28_evk_init(void)
 {
-	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_FSL);
 
 	mxsfb_pdata.mode_list = mx28evk_video_modes;
@@ -389,11 +388,6 @@ static void __init m28evk_init(void)
 	mxsfb_pdata.default_bpp = 16;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
 	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
-}
-
-static void __init sc_sps1_init(void)
-{
-	enable_clk_enet_out();
 }
 
 static int apx4devkit_phy_fixup(struct phy_device *phy)
@@ -494,7 +488,6 @@ static void __init tx28_post_init(void)
 
 static void __init cfa10049_init(void)
 {
-	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 
 	mxsfb_pdata.mode_list = cfa10049_video_modes;
@@ -506,14 +499,11 @@ static void __init cfa10049_init(void)
 
 static void __init cfa10037_init(void)
 {
-	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
 static void __init apf28_init(void)
 {
-	enable_clk_enet_out();
-
 	mxsfb_pdata.mode_list = apf28dev_video_modes;
 	mxsfb_pdata.mode_count = ARRAY_SIZE(apf28dev_video_modes);
 	mxsfb_pdata.default_bpp = 16;
@@ -538,8 +528,6 @@ static void __init mxs_machine_init(void)
 		cfa10049_init();
 	else if (of_machine_is_compatible("armadeus,imx28-apf28"))
 		apf28_init();
-	else if (of_machine_is_compatible("schulercontrol,imx28-sps1"))
-		sc_sps1_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, NULL);
