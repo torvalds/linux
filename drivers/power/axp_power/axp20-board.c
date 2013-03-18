@@ -294,7 +294,7 @@ static struct axp_funcdev_info axp_regldevs[] = {
 
 static struct power_supply_info battery_data ={
 		.name ="PTI PL336078",
-		.technology = POWER_SUPPLY_TECHNOLOGY_LiFe,
+		.technology = POWER_SUPPLY_TECHNOLOGY_LION,
 		//.voltage_max_design = pmu_init_chgvol,
 		//.voltage_min_design = pmu_pwroff_vol,
 		//.energy_full_design = pmu_battery_cap,
