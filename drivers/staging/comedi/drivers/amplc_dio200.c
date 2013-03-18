@@ -1738,7 +1738,6 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 	int ret;
 
 	devpriv->intr_sd = -1;
-	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, layout->n_subdevs);
 	if (ret)
@@ -1818,6 +1817,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!DO_ISA)
 		return -EINVAL;
 
+	dev->board_name = thisboard->name;
 	dev_info(dev->class_dev, DIO200_DRIVER_NAME ": attach\n");
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
