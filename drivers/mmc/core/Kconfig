@@ -29,7 +29,6 @@ config MMC_CLKGATE
 
 config MMC_EMBEDDED_SDIO
 	boolean "MMC embedded SDIO device support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 	help
 	  If you say Y here, support will be added for embedded SDIO
 	  devices which do not contain the necessary enumeration
@@ -37,7 +36,6 @@ config MMC_EMBEDDED_SDIO
 
 config MMC_PARANOID_SD_INIT
 	bool "Enable paranoid SD card initialization (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 	help
 	  If you say Y here, the MMC layer will be extra paranoid
 	  about re-trying SD init requests. This can be a useful
