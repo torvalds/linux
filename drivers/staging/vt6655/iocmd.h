@@ -48,34 +48,34 @@
 
 typedef enum tagWMAC_CMD {
 
-    WLAN_CMD_BSS_SCAN,
-    WLAN_CMD_BSS_JOIN,
-    WLAN_CMD_DISASSOC,
-    WLAN_CMD_SET_WEP,
-    WLAN_CMD_GET_LINK,
-    WLAN_CMD_GET_LISTLEN,
-    WLAN_CMD_GET_LIST,
-    WLAN_CMD_GET_MIB,
-    WLAN_CMD_GET_STAT,
-    WLAN_CMD_STOP_MAC,
-    WLAN_CMD_START_MAC,
-    WLAN_CMD_AP_START,
-    WLAN_CMD_SET_HOSTAPD,
-    WLAN_CMD_SET_HOSTAPD_STA,
-    WLAN_CMD_SET_802_1X,
-    WLAN_CMD_SET_HOST_WEP,
-    WLAN_CMD_SET_WPA,
-    WLAN_CMD_GET_NODE_CNT,
-    WLAN_CMD_ZONETYPE_SET,
-    WLAN_CMD_GET_NODE_LIST
+	WLAN_CMD_BSS_SCAN,
+	WLAN_CMD_BSS_JOIN,
+	WLAN_CMD_DISASSOC,
+	WLAN_CMD_SET_WEP,
+	WLAN_CMD_GET_LINK,
+	WLAN_CMD_GET_LISTLEN,
+	WLAN_CMD_GET_LIST,
+	WLAN_CMD_GET_MIB,
+	WLAN_CMD_GET_STAT,
+	WLAN_CMD_STOP_MAC,
+	WLAN_CMD_START_MAC,
+	WLAN_CMD_AP_START,
+	WLAN_CMD_SET_HOSTAPD,
+	WLAN_CMD_SET_HOSTAPD_STA,
+	WLAN_CMD_SET_802_1X,
+	WLAN_CMD_SET_HOST_WEP,
+	WLAN_CMD_SET_WPA,
+	WLAN_CMD_GET_NODE_CNT,
+	WLAN_CMD_ZONETYPE_SET,
+	WLAN_CMD_GET_NODE_LIST
 
 } WMAC_CMD, *PWMAC_CMD;
 
 typedef enum tagWZONETYPE {
-  ZoneType_USA=0,
-  ZoneType_Japan=1,
-  ZoneType_Europe=2
-}WZONETYPE;
+	ZoneType_USA = 0,
+	ZoneType_Japan = 1,
+	ZoneType_Europe = 2
+} WZONETYPE;
 
 #define ADHOC	0
 #define INFRA	1
@@ -86,7 +86,7 @@ typedef enum tagWZONETYPE {
 #define ADHOC_JOINTED	   2
 
 
-#define PHY80211a 	    0
+#define PHY80211a       0
 #define PHY80211b       1
 #define PHY80211g       2
 
@@ -127,12 +127,12 @@ typedef struct tagSCmdScan {
 
 typedef struct tagSCmdBSSJoin {
 
-    u16	    wBSSType;
-    u16     wBBPType;
-    u8	    ssid[SSID_MAXLEN + 2];
-    u32	    uChannel;
-    bool bPSEnable;
-    bool bShareKeyAuth;
+	u16	    wBSSType;
+	u16     wBBPType;
+	u8	    ssid[SSID_MAXLEN + 2];
+	u32	    uChannel;
+	bool bPSEnable;
+	bool bShareKeyAuth;
 
 } SCmdBSSJoin, *PSCmdBSSJoin;
 
@@ -142,41 +142,41 @@ typedef struct tagSCmdBSSJoin {
 
 typedef struct tagSCmdZoneTypeSet {
 
- bool bWrite;
- WZONETYPE  ZoneType;
+	bool bWrite;
+	WZONETYPE  ZoneType;
 
 } SCmdZoneTypeSet, *PSCmdZoneTypeSet;
 
 #ifdef WPA_SM_Transtatus
 typedef struct tagSWPAResult {
-         char	ifname[100];
-         u8 proto;
-         u8 key_mgmt;
-         u8 eap_type;
-         bool authenticated;
+	char	ifname[100];
+	u8 proto;
+	u8 key_mgmt;
+	u8 eap_type;
+	bool authenticated;
 } SWPAResult, *PSWPAResult;
 #endif
 
 typedef struct tagSCmdStartAP {
 
-    u16	    wBSSType;
-    u16     wBBPType;
-    u8	    ssid[SSID_MAXLEN + 2];
-    u32	    uChannel;
-    u32     uBeaconInt;
-    bool bShareKeyAuth;
-    u8      byBasicRate;
+	u16	    wBSSType;
+	u16     wBBPType;
+	u8	    ssid[SSID_MAXLEN + 2];
+	u32	    uChannel;
+	u32     uBeaconInt;
+	bool bShareKeyAuth;
+	u8      byBasicRate;
 
 } SCmdStartAP, *PSCmdStartAP;
 
 
 typedef struct tagSCmdSetWEP {
 
-    bool bEnableWep;
-    u8      byKeyIndex;
-    u8      abyWepKey[WEP_NKEYS][WEP_KEYMAXLEN];
-    bool bWepKeyAvailable[WEP_NKEYS];
-    u32     auWepKeyLength[WEP_NKEYS];
+	bool bEnableWep;
+	u8      byKeyIndex;
+	u8      abyWepKey[WEP_NKEYS][WEP_KEYMAXLEN];
+	bool bWepKeyAvailable[WEP_NKEYS];
+	u32     auWepKeyLength[WEP_NKEYS];
 
 } SCmdSetWEP, *PSCmdSetWEP;
 
@@ -185,18 +185,18 @@ typedef struct tagSCmdSetWEP {
 typedef struct tagSBSSIDItem {
 
 	u32	    uChannel;
-    u8      abyBSSID[BSSID_LEN];
-    u8      abySSID[SSID_MAXLEN + 1];
-    //2006-1116-01,<Modify> by NomadZhao
-    //u16	    wBeaconInterval;
-    //u16	    wCapInfo;
-    //u8      byNetType;
-    u8      byNetType;
-    u16	    wBeaconInterval;
-    u16	    wCapInfo;        // for address of byNetType at align 4
+	u8      abyBSSID[BSSID_LEN];
+	u8      abySSID[SSID_MAXLEN + 1];
+	//2006-1116-01,<Modify> by NomadZhao
+	//u16	    wBeaconInterval;
+	//u16	    wCapInfo;
+	//u8      byNetType;
+	u8      byNetType;
+	u16	    wBeaconInterval;
+	u16	    wCapInfo;        // for address of byNetType at align 4
 
-    bool bWEPOn;
-    u32     uRSSI;
+	bool bWEPOn;
+	u32     uRSSI;
 
 } SBSSIDItem;
 
@@ -210,13 +210,13 @@ typedef struct tagSBSSIDList {
 
 typedef struct tagSCmdLinkStatus {
 
-    bool bLink;
+	bool bLink;
 	u16   wBSSType;
 	u8      byState;
-    u8      abyBSSID[BSSID_LEN];
-    u8      abySSID[SSID_MAXLEN + 2];
-    u32     uChannel;
-    u32     uLinkRate;
+	u8      abyBSSID[BSSID_LEN];
+	u8      abySSID[SSID_MAXLEN + 2];
+	u32     uChannel;
+	u32     uLinkRate;
 
 } SCmdLinkStatus, *PSCmdLinkStatus;
 
@@ -244,9 +244,9 @@ typedef struct tagSDot11MIBCount {
 // statistic counter
 //
 typedef struct tagSStatMIBCount {
-    //
-    // ISR status count
-    //
+	//
+	// ISR status count
+	//
 	u32   dwIsrTx0OK;
 	u32   dwIsrTx1OK;
 	u32   dwIsrBeaconTxOK;
@@ -256,12 +256,12 @@ typedef struct tagSStatMIBCount {
 	u32   dwIsrUnrecoverableError;
 	u32   dwIsrSoftInterrupt;
 	u32   dwIsrRxNoBuf;
-    /////////////////////////////////////
+	/////////////////////////////////////
 
 	u32   dwIsrUnknown;               // unknown interrupt count
 
-    // RSR status count
-    //
+	// RSR status count
+	//
 	u32   dwRsrFrmAlgnErr;
 	u32   dwRsrErr;
 	u32   dwRsrCRCErr;
@@ -282,10 +282,10 @@ typedef struct tagSStatMIBCount {
 	u32   dwRsrBroadcast;
 	u32   dwRsrMulticast;
 	u32   dwRsrDirected;
-    // 64-bit OID
+	// 64-bit OID
 	u32   ullRsrOK;
 
-    // for some optional OIDs (64 bits) and DMI support
+	// for some optional OIDs (64 bits) and DMI support
 	u32   ullRxBroadcastBytes;
 	u32   ullRxMulticastBytes;
 	u32   ullRxDirectedBytes;
@@ -301,13 +301,13 @@ typedef struct tagSStatMIBCount {
 	u32   dwRsrRxFrmLen512_1023;
 	u32   dwRsrRxFrmLen1024_1518;
 
-    // TSR0,1 status count
-    //
+	// TSR0,1 status count
+	//
 	u32   dwTsrTotalRetry[2];        // total collision retry count
 	u32   dwTsrOnceRetry[2];         // this packet only occur one collision
 	u32   dwTsrMoreThanOnceRetry[2]; // this packet occur more than one collision
 	u32   dwTsrRetry[2];             // this packet has ever occur collision,
-                                       // that is (dwTsrOnceCollision0 + dwTsrMoreThanOnceCollision0)
+	// that is (dwTsrOnceCollision0 + dwTsrMoreThanOnceCollision0)
 	u32   dwTsrACKData[2];
 	u32   dwTsrErr[2];
 	u32   dwAllTsrOK[2];
@@ -320,23 +320,23 @@ typedef struct tagSStatMIBCount {
 	u32   dwTsrMulticast[2];
 	u32   dwTsrDirected[2];
 
-    // RD/TD count
+	// RD/TD count
 	u32   dwCntRxFrmLength;
 	u32   dwCntTxBufLength;
 
 	u8    abyCntRxPattern[16];
 	u8    abyCntTxPattern[16];
 
-    // Software check....
+	// Software check....
 	u32   dwCntRxDataErr;             // rx buffer data software compare CRC err count
 	u32   dwCntDecryptErr;            // rx buffer data software compare CRC err count
 	u32   dwCntRxICVErr;              // rx buffer data software compare CRC err count
 	u32    idxRxErrorDesc;             // index for rx data error RD
 
-    // 64-bit OID
+	// 64-bit OID
 	u32   ullTsrOK[2];
 
-    // for some optional OIDs (64 bits) and DMI support
+	// for some optional OIDs (64 bits) and DMI support
 	u32   ullTxBroadcastFrames[2];
 	u32   ullTxMulticastFrames[2];
 	u32   ullTxDirectedFrames[2];
@@ -347,22 +347,22 @@ typedef struct tagSStatMIBCount {
 
 
 typedef struct tagSNodeItem {
-    // STA info
-    u16            wAID;
-    u8             abyMACAddr[6];
-    u16            wTxDataRate;
-    u16            wInActiveCount;
-    u16            wEnQueueCnt;
-    u16            wFlags;
-    bool bPWBitOn;
-    u8             byKeyIndex;
-    u16            wWepKeyLength;
-    u8            abyWepKey[WEP_KEYMAXLEN];
-    // Auto rate fallback vars
-    bool bIsInFallback;
-    u32            uTxFailures;
-    u32            uTxAttempts;
-    u16            wFailureRatio;
+	// STA info
+	u16            wAID;
+	u8             abyMACAddr[6];
+	u16            wTxDataRate;
+	u16            wInActiveCount;
+	u16            wEnQueueCnt;
+	u16            wFlags;
+	bool bPWBitOn;
+	u8             byKeyIndex;
+	u16            wWepKeyLength;
+	u8            abyWepKey[WEP_KEYMAXLEN];
+	// Auto rate fallback vars
+	bool bIsInFallback;
+	u32            uTxFailures;
+	u32            uTxAttempts;
+	u16            wFailureRatio;
 
 } SNodeItem;
 
@@ -405,8 +405,8 @@ enum {
 };
 
 
-#define VIAWGET_HOSTAPD_GENERIC_ELEMENT_HDR_LEN \
-((int) (&((struct viawget_hostapd_param *) 0)->u.generic_elem.data))
+#define VIAWGET_HOSTAPD_GENERIC_ELEMENT_HDR_LEN				\
+	((int)(&((struct viawget_hostapd_param *)0)->u.generic_elem.data))
 
 // Maximum length for algorithm names (-1 for nul termination) used in ioctl()
 
