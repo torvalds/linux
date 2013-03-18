@@ -117,7 +117,7 @@ static int xen_irq_info_common_setup(struct irq_info *info,
 
 	irq_clear_status_flags(irq, IRQ_NOREQUEST|IRQ_NOAUTOEN);
 
-	return 0;
+	return xen_evtchn_port_setup(info);
 }
 
 static int xen_irq_info_evtchn_setup(unsigned irq,
