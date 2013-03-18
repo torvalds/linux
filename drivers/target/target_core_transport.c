@@ -2765,8 +2765,13 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		/* CURRENT ERROR */
 		buffer[0] = 0x70;
 		buffer[SPC_ADD_SENSE_LEN_OFFSET] = 10;
-		/* ILLEGAL REQUEST */
-		buffer[SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
+		/*
+		 * Returning ILLEGAL REQUEST would cause immediate IO errors on
+		 * Solaris initiators.  Returning NOT READY instead means the
+		 * operations will be retried a finite number of times and we
+		 * can survive intermittent errors.
+		 */
+		buffer[SPC_SENSE_KEY_OFFSET] = NOT_READY;
 		/* LOGICAL UNIT COMMUNICATION FAILURE */
 		buffer[SPC_ASC_KEY_OFFSET] = 0x08;
 		break;
