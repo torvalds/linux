@@ -22,6 +22,7 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 #include <net/wpan-phy.h>
 #include <net/mac802154.h>
 
@@ -623,6 +624,7 @@ static int mrf24j40_probe(struct spi_device *spi)
 	int ret = -ENOMEM;
 	u8 val;
 	struct mrf24j40 *devrec;
+	struct pinctrl *pinctrl;
 
 	printk(KERN_INFO "mrf24j40: probe(). IRQ: %d\n", spi->irq);
 
@@ -632,6 +634,11 @@ static int mrf24j40_probe(struct spi_device *spi)
 	devrec->buf = kzalloc(3, GFP_KERNEL);
 	if (!devrec->buf)
 		goto err_buf;
+
+	pinctrl = devm_pinctrl_get_select_default(&spi->dev);
+	if (IS_ERR(pinctrl))
+		dev_warn(&spi->dev,
+			"pinctrl pins are not configured from the driver");
 
 	spi->mode = SPI_MODE_0; /* TODO: Is this appropriate for right here? */
 	if (spi->max_speed_hz > MAX_SPI_SPEED_HZ)
