@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/clk/tegra.h>
+#include <linux/err.h>
 
 #define KBC_MAX_GPIO	24
 #define KBC_MAX_KPENT	8
@@ -608,11 +609,9 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 
 	setup_timer(&kbc->timer, tegra_kbc_keypress_timer, (unsigned long)kbc);
 
-	kbc->mmio = devm_request_and_ioremap(&pdev->dev, res);
-	if (!kbc->mmio) {
-		dev_err(&pdev->dev, "Cannot request memregion/iomap address\n");
-		return -EBUSY;
-	}
+	kbc->mmio = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(kbc->mmio))
+		return PTR_ERR(kbc->mmio);
 
 	kbc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(kbc->clk)) {
