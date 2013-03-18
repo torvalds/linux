@@ -373,6 +373,23 @@ struct dio200_region {
 };
 
 /*
+ * Subdevice types.
+ */
+enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254, sd_timer };
+
+#define DIO200_MAX_SUBDEVS	8
+#define DIO200_MAX_ISNS		6
+
+struct dio200_layout {
+	unsigned short n_subdevs;	/* number of subdevices */
+	unsigned char sdtype[DIO200_MAX_SUBDEVS];	/* enum dio200_sdtype */
+	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */
+	bool has_int_sce:1;		/* has interrupt enable/status reg */
+	bool has_clk_gat_sce:1;		/* has clock/gate selection registers */
+	bool has_enhancements:1;	/* has enhanced features */
+};
+
+/*
  * Board descriptions.
  */
 
@@ -386,27 +403,10 @@ enum dio200_pci_model {
 	pcie296_model
 };
 
-enum dio200_layout_idx {
-#if DO_ISA
-	pc212_layout,
-	pc214_layout,
-#endif
-	pc215_layout,
-#if DO_ISA
-	pc218_layout,
-#endif
-	pc272_layout,
-#if DO_PCI
-	pcie215_layout,
-	pcie236_layout,
-	pcie296_layout,
-#endif
-};
-
 struct dio200_board {
 	const char *name;
+	struct dio200_layout layout;
 	enum dio200_bustype bustype;
-	enum dio200_layout_idx layout;
 	unsigned char mainbar;
 	unsigned char mainshift;
 	unsigned int mainsize;
@@ -417,32 +417,61 @@ static const struct dio200_board dio200_isa_boards[] = {
 	{
 		.name = "pc212e",
 		.bustype = isa_bustype,
-		.layout = pc212_layout,
 		.mainsize = DIO200_IO_SIZE,
+		.layout = {
+			.n_subdevs = 6,
+			.sdtype = {sd_8255, sd_8254, sd_8254, sd_8254, sd_8254,
+				   sd_intr},
+			.sdinfo = {0x00, 0x08, 0x0C, 0x10, 0x14, 0x3F},
+			.has_int_sce = true,
+			.has_clk_gat_sce = true,
+		},
 	},
 	{
 		.name = "pc214e",
 		.bustype = isa_bustype,
-		.layout = pc214_layout,
 		.mainsize = DIO200_IO_SIZE,
+		.layout = {
+			.n_subdevs = 4,
+			.sdtype = {sd_8255, sd_8255, sd_8254, sd_intr},
+			.sdinfo = {0x00, 0x08, 0x10, 0x01},
+		},
 	},
 	{
 		.name = "pc215e",
 		.bustype = isa_bustype,
-		.layout = pc215_layout,
 		.mainsize = DIO200_IO_SIZE,
+		.layout = {
+			.n_subdevs = 5,
+			.sdtype = {sd_8255, sd_8255, sd_8254, sd_8254, sd_intr},
+			.sdinfo = {0x00, 0x08, 0x10, 0x14, 0x3F},
+			.has_int_sce = true,
+			.has_clk_gat_sce = true,
+		},
 	},
 	{
 		.name = "pc218e",
 		.bustype = isa_bustype,
-		.layout = pc218_layout,
 		.mainsize = DIO200_IO_SIZE,
+		.layout = {
+			.n_subdevs = 7,
+			.sdtype = {sd_8254, sd_8254, sd_8255, sd_8254, sd_8254,
+				   sd_intr},
+			.sdinfo = {0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x3F},
+			.has_int_sce = true,
+			.has_clk_gat_sce = true,
+		},
 	},
 	{
 		.name = "pc272e",
 		.bustype = isa_bustype,
-		.layout = pc272_layout,
 		.mainsize = DIO200_IO_SIZE,
+		.layout = {
+			.n_subdevs = 4,
+			.sdtype = {sd_8255, sd_8255, sd_8255, sd_intr},
+			.sdinfo = {0x00, 0x08, 0x10, 0x3F},
+			.has_int_sce = true,
+		},
 	},
 };
 #endif
@@ -452,147 +481,81 @@ static const struct dio200_board dio200_pci_boards[] = {
 	[pci215_model] {
 		.name = "pci215",
 		.bustype = pci_bustype,
-		.layout = pc215_layout,
 		.mainbar = 2,
 		.mainsize = DIO200_IO_SIZE,
+		.layout = {
+			.n_subdevs = 5,
+			.sdtype = {sd_8255, sd_8255, sd_8254, sd_8254, sd_intr},
+			.sdinfo = {0x00, 0x08, 0x10, 0x14, 0x3F},
+			.has_int_sce = true,
+			.has_clk_gat_sce = true,
+		},
 	},
 	[pci272_model] {
 		.name = "pci272",
 		.bustype = pci_bustype,
-		.layout = pc272_layout,
 		.mainbar = 2,
 		.mainsize = DIO200_IO_SIZE,
+		.layout = {
+			.n_subdevs = 4,
+			.sdtype = {sd_8255, sd_8255, sd_8255, sd_intr},
+			.sdinfo = {0x00, 0x08, 0x10, 0x3F},
+			.has_int_sce = true,
+		},
 	},
 	[pcie215_model] {
 		.name = "pcie215",
 		.bustype = pci_bustype,
-		.layout = pcie215_layout,
 		.mainbar = 1,
 		.mainshift = 3,
 		.mainsize = DIO200_PCIE_IO_SIZE,
+		.layout = {
+			.n_subdevs = 8,
+			.sdtype = {sd_8255, sd_none, sd_8255, sd_none,
+				   sd_8254, sd_8254, sd_timer, sd_intr},
+			.sdinfo = {0x00, 0x00, 0x08, 0x00,
+				   0x10, 0x14, 0x00, 0x3F},
+			.has_int_sce = true,
+			.has_clk_gat_sce = true,
+			.has_enhancements = true,
+		},
 	},
 	[pcie236_model] {
 		.name = "pcie236",
 		.bustype = pci_bustype,
-		.layout = pcie236_layout,
 		.mainbar = 1,
 		.mainshift = 3,
 		.mainsize = DIO200_PCIE_IO_SIZE,
+		.layout = {
+			.n_subdevs = 8,
+			.sdtype = {sd_8255, sd_none, sd_none, sd_none,
+				   sd_8254, sd_8254, sd_timer, sd_intr},
+			.sdinfo = {0x00, 0x00, 0x00, 0x00,
+				   0x10, 0x14, 0x00, 0x3F},
+			.has_int_sce = true,
+			.has_clk_gat_sce = true,
+			.has_enhancements = true,
+		},
 	},
 	[pcie296_model] {
 		.name = "pcie296",
 		.bustype = pci_bustype,
-		.layout = pcie296_layout,
 		.mainbar = 1,
 		.mainshift = 3,
 		.mainsize = DIO200_PCIE_IO_SIZE,
+		.layout = {
+			.n_subdevs = 8,
+			.sdtype = {sd_8255, sd_8255, sd_8255, sd_8255,
+				   sd_8254, sd_8254, sd_timer, sd_intr},
+			.sdinfo = {0x00, 0x04, 0x08, 0x0C,
+				   0x10, 0x14, 0x00, 0x3F},
+			.has_int_sce = true,
+			.has_clk_gat_sce = true,
+			.has_enhancements = true,
+		},
 	},
 };
 #endif
-
-/*
- * Layout descriptions - some ISA and PCI board descriptions share the same
- * layout.
- */
-
-enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254, sd_timer };
-
-#define DIO200_MAX_SUBDEVS	8
-#define DIO200_MAX_ISNS		6
-
-struct dio200_layout {
-	unsigned short n_subdevs;	/* number of subdevices */
-	unsigned char sdtype[DIO200_MAX_SUBDEVS];	/* enum dio200_sdtype */
-	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */
-	char has_int_sce;	/* has interrupt enable/status register */
-	char has_clk_gat_sce;	/* has clock/gate selection registers */
-	char has_enhancements;	/* has enhanced features */
-};
-
-static const struct dio200_layout dio200_layouts[] = {
-#if DO_ISA
-	[pc212_layout] = {
-			  .n_subdevs = 6,
-			  .sdtype = {sd_8255, sd_8254, sd_8254, sd_8254,
-				     sd_8254,
-				     sd_intr},
-			  .sdinfo = {0x00, 0x08, 0x0C, 0x10, 0x14,
-				     0x3F},
-			  .has_int_sce = 1,
-			  .has_clk_gat_sce = 1,
-			  },
-	[pc214_layout] = {
-			  .n_subdevs = 4,
-			  .sdtype = {sd_8255, sd_8255, sd_8254,
-				     sd_intr},
-			  .sdinfo = {0x00, 0x08, 0x10, 0x01},
-			  .has_int_sce = 0,
-			  .has_clk_gat_sce = 0,
-			  },
-#endif
-	[pc215_layout] = {
-			  .n_subdevs = 5,
-			  .sdtype = {sd_8255, sd_8255, sd_8254,
-				     sd_8254,
-				     sd_intr},
-			  .sdinfo = {0x00, 0x08, 0x10, 0x14, 0x3F},
-			  .has_int_sce = 1,
-			  .has_clk_gat_sce = 1,
-			  },
-#if DO_ISA
-	[pc218_layout] = {
-			  .n_subdevs = 7,
-			  .sdtype = {sd_8254, sd_8254, sd_8255, sd_8254,
-				     sd_8254,
-				     sd_intr},
-			  .sdinfo = {0x00, 0x04, 0x08, 0x0C, 0x10,
-				     0x14,
-				     0x3F},
-			  .has_int_sce = 1,
-			  .has_clk_gat_sce = 1,
-			  },
-#endif
-	[pc272_layout] = {
-			  .n_subdevs = 4,
-			  .sdtype = {sd_8255, sd_8255, sd_8255,
-				     sd_intr},
-			  .sdinfo = {0x00, 0x08, 0x10, 0x3F},
-			  .has_int_sce = 1,
-			  .has_clk_gat_sce = 0,
-			  },
-#if DO_PCI
-	[pcie215_layout] = {
-			  .n_subdevs = 8,
-			  .sdtype = {sd_8255, sd_none, sd_8255, sd_none,
-				     sd_8254, sd_8254, sd_timer, sd_intr},
-			  .sdinfo = {0x00, 0x00, 0x08, 0x00,
-				     0x10, 0x14, 0x00, 0x3F},
-			  .has_int_sce = 1,
-			  .has_clk_gat_sce = 1,
-			  .has_enhancements = 1,
-			  },
-	[pcie236_layout] = {
-			  .n_subdevs = 8,
-			  .sdtype = {sd_8255, sd_none, sd_none, sd_none,
-				     sd_8254, sd_8254, sd_timer, sd_intr},
-			  .sdinfo = {0x00, 0x00, 0x00, 0x00,
-				     0x10, 0x14, 0x00, 0x3F},
-			  .has_int_sce = 1,
-			  .has_clk_gat_sce = 1,
-			  .has_enhancements = 1,
-			  },
-	[pcie296_layout] = {
-			  .n_subdevs = 8,
-			  .sdtype = {sd_8255, sd_8255, sd_8255, sd_8255,
-				     sd_8254, sd_8254, sd_timer, sd_intr},
-			  .sdinfo = {0x00, 0x04, 0x08, 0x0C,
-				     0x10, 0x14, 0x00, 0x3F},
-			  .has_int_sce = 1,
-			  .has_clk_gat_sce = 1,
-			  .has_enhancements = 1,
-			  },
-#endif
-};
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -630,7 +593,7 @@ struct dio200_subdev_intr {
 static inline const struct dio200_layout *
 dio200_board_layout(const struct dio200_board *board)
 {
-	return &dio200_layouts[board->layout];
+	return &board->layout;
 }
 
 static inline const struct dio200_layout *
