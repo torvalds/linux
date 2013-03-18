@@ -581,13 +581,13 @@ struct dio200_subdev_8255 {
 };
 
 struct dio200_subdev_intr {
-	unsigned int ofs;
 	spinlock_t spinlock;
-	int active;
+	unsigned int ofs;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
 	unsigned int stopcount;
-	int continuous;
+	bool active:1;
+	bool continuous:1;
 };
 
 static inline const struct dio200_layout *
@@ -723,7 +723,7 @@ static void dio200_stop_intr(struct comedi_device *dev,
 	const struct dio200_layout *layout = dio200_dev_layout(dev);
 	struct dio200_subdev_intr *subpriv = s->private;
 
-	subpriv->active = 0;
+	subpriv->active = false;
 	subpriv->enabled_isns = 0;
 	if (layout->has_int_sce)
 		dio200_write8(dev, subpriv->ofs, 0);
@@ -745,7 +745,7 @@ static int dio200_start_intr(struct comedi_device *dev,
 	if (!subpriv->continuous && subpriv->stopcount == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
-		subpriv->active = 0;
+		subpriv->active = false;
 		retval = 1;
 	} else {
 		/* Determine interrupt sources to enable. */
@@ -998,12 +998,12 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev,
 	/* Set up end of acquisition. */
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		subpriv->continuous = 0;
+		subpriv->continuous = false;
 		subpriv->stopcount = cmd->stop_arg;
 		break;
 	default:
 		/* TRIG_NONE */
-		subpriv->continuous = 1;
+		subpriv->continuous = true;
 		subpriv->stopcount = 0;
 		break;
 	}
