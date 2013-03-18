@@ -1383,7 +1383,7 @@ static int _nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs
 	int ret;
 
 	opendata = nfs4_open_recoverdata_alloc(ctx, state,
-			NFS4_OPEN_CLAIM_DELEGATE_CUR);
+			NFS4_OPEN_CLAIM_DELEG_CUR_FH);
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
 	nfs4_stateid_copy(&opendata->o_arg.u.delegation, stateid);
