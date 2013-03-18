@@ -381,42 +381,43 @@ xfs_iomap_prealloc_size(
 	int			nimaps)
 {
 	xfs_fsblock_t		alloc_blocks = 0;
+	int			shift = 0;
+	int64_t			freesp;
 
 	alloc_blocks = xfs_iomap_eof_prealloc_initial_size(mp, ip, offset,
 							   imap, nimaps);
-	if (alloc_blocks > 0) {
-		int shift = 0;
-		int64_t freesp;
+	if (!alloc_blocks)
+		goto check_writeio;
 
-		alloc_blocks = XFS_FILEOFF_MIN(MAXEXTLEN,
-					rounddown_pow_of_two(alloc_blocks));
+	alloc_blocks = XFS_FILEOFF_MIN(MAXEXTLEN,
+				rounddown_pow_of_two(alloc_blocks));
 
-		xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
-		freesp = mp->m_sb.sb_fdblocks;
-		if (freesp < mp->m_low_space[XFS_LOWSP_5_PCNT]) {
-			shift = 2;
-			if (freesp < mp->m_low_space[XFS_LOWSP_4_PCNT])
-				shift++;
-			if (freesp < mp->m_low_space[XFS_LOWSP_3_PCNT])
-				shift++;
-			if (freesp < mp->m_low_space[XFS_LOWSP_2_PCNT])
-				shift++;
-			if (freesp < mp->m_low_space[XFS_LOWSP_1_PCNT])
-				shift++;
-		}
-		if (shift)
-			alloc_blocks >>= shift;
-
-		/*
-		 * If we are still trying to allocate more space than is
-		 * available, squash the prealloc hard. This can happen if we
-		 * have a large file on a small filesystem and the above
-		 * lowspace thresholds are smaller than MAXEXTLEN.
-		 */
-		while (alloc_blocks && alloc_blocks >= freesp)
-			alloc_blocks >>= 4;
+	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
+	freesp = mp->m_sb.sb_fdblocks;
+	if (freesp < mp->m_low_space[XFS_LOWSP_5_PCNT]) {
+		shift = 2;
+		if (freesp < mp->m_low_space[XFS_LOWSP_4_PCNT])
+			shift++;
+		if (freesp < mp->m_low_space[XFS_LOWSP_3_PCNT])
+			shift++;
+		if (freesp < mp->m_low_space[XFS_LOWSP_2_PCNT])
+			shift++;
+		if (freesp < mp->m_low_space[XFS_LOWSP_1_PCNT])
+			shift++;
 	}
+	if (shift)
+		alloc_blocks >>= shift;
 
+	/*
+	 * If we are still trying to allocate more space than is
+	 * available, squash the prealloc hard. This can happen if we
+	 * have a large file on a small filesystem and the above
+	 * lowspace thresholds are smaller than MAXEXTLEN.
+	 */
+	while (alloc_blocks && alloc_blocks >= freesp)
+		alloc_blocks >>= 4;
+
+check_writeio:
 	if (alloc_blocks < mp->m_writeio_blocks)
 		alloc_blocks = mp->m_writeio_blocks;
 
