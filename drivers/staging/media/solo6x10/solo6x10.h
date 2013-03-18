@@ -135,6 +135,11 @@ struct solo_p2m_dev {
 
 #define OSD_TEXT_MAX		44
 
+enum solo_enc_types {
+	SOLO_ENC_TYPE_STD,
+	SOLO_ENC_TYPE_EXT,
+};
+
 struct solo_enc_dev {
 	struct solo_dev	*solo_dev;
 	/* V4L2 Items */
@@ -163,8 +168,16 @@ struct solo_enc_dev {
 	unsigned char		jpeg_header[1024];
 	int			jpeg_len;
 
-	/* File handles that are listening for buffers */
-	struct list_head	listeners;
+	u32			fmt;
+	u8			enc_on;
+	enum solo_enc_types	type;
+	struct videobuf_queue	vidq;
+	struct list_head	vidq_active;
+	int			desc_count;
+	int			desc_nelts;
+	struct solo_p2m_desc	*desc_items;
+	dma_addr_t		desc_dma;
+	spinlock_t		av_lock;
 };
 
 /* The SOLO6x10 PCI Device */
