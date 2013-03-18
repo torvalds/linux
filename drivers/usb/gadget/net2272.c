@@ -1495,6 +1495,13 @@ stop_activity(struct net2272 *dev, struct usb_gadget_driver *driver)
 	for (i = 0; i < 4; ++i)
 		net2272_dequeue_all(&dev->ep[i]);
 
+	/* report disconnect; the driver is already quiesced */
+	if (driver) {
+		spin_unlock(&dev->lock);
+		driver->disconnect(&dev->gadget);
+		spin_lock(&dev->lock);
+	}
+
 	net2272_usb_reinit(dev);
 }
 
