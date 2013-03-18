@@ -44,7 +44,7 @@
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
 #include <linux/bitmap.h>
-#include <linux/llist.h>
+#include <linux/list.h>
 
 #include <xen/xen.h>
 #include <xen/xenbus.h>
@@ -68,7 +68,7 @@ enum blkif_state {
 struct grant {
 	grant_ref_t gref;
 	unsigned long pfn;
-	struct llist_node node;
+	struct list_head node;
 };
 
 struct blk_shadow {
@@ -105,7 +105,7 @@ struct blkfront_info
 	struct work_struct work;
 	struct gnttab_free_callback callback;
 	struct blk_shadow shadow[BLK_RING_SIZE];
-	struct llist_head persistent_gnts;
+	struct list_head persistent_gnts;
 	unsigned int persistent_gnts_c;
 	unsigned long shadow_free;
 	unsigned int feature_flush;
@@ -371,10 +371,11 @@ static int blkif_queue_request(struct request *req)
 			lsect = fsect + (sg->length >> 9) - 1;
 
 			if (info->persistent_gnts_c) {
-				BUG_ON(llist_empty(&info->persistent_gnts));
-				gnt_list_entry = llist_entry(
-					llist_del_first(&info->persistent_gnts),
-					struct grant, node);
+				BUG_ON(list_empty(&info->persistent_gnts));
+				gnt_list_entry = list_first_entry(
+				                      &info->persistent_gnts,
+				                      struct grant, node);
+				list_del(&gnt_list_entry->node);
 
 				ref = gnt_list_entry->gref;
 				buffer_mfn = pfn_to_mfn(gnt_list_entry->pfn);
@@ -790,9 +791,8 @@ static void blkif_restart_queue(struct work_struct *work)
 
 static void blkif_free(struct blkfront_info *info, int suspend)
 {
-	struct llist_node *all_gnts;
-	struct grant *persistent_gnt, *tmp;
-	struct llist_node *n;
+	struct grant *persistent_gnt;
+	struct grant *n;
 
 	/* Prevent new requests being issued until we fix things up. */
 	spin_lock_irq(&info->io_lock);
@@ -804,20 +804,15 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 
 	/* Remove all persistent grants */
 	if (info->persistent_gnts_c) {
-		all_gnts = llist_del_all(&info->persistent_gnts);
-		persistent_gnt = llist_entry(all_gnts, typeof(*(persistent_gnt)), node);
-		while (persistent_gnt) {
+		list_for_each_entry_safe(persistent_gnt, n,
+		                         &info->persistent_gnts, node) {
+			list_del(&persistent_gnt->node);
 			gnttab_end_foreign_access(persistent_gnt->gref, 0, 0UL);
 			__free_page(pfn_to_page(persistent_gnt->pfn));
-			tmp = persistent_gnt;
-			n = persistent_gnt->node.next;
-			if (n)
-				persistent_gnt = llist_entry(n, typeof(*(persistent_gnt)), node);
-			else
-				persistent_gnt = NULL;
-			kfree(tmp);
+			kfree(persistent_gnt);
+			info->persistent_gnts_c--;
 		}
-		info->persistent_gnts_c = 0;
+		BUG_ON(info->persistent_gnts_c != 0);
 	}
 
 	/* No more gnttab callback work. */
@@ -875,7 +870,7 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 	}
 	/* Add the persistent grant into the list of free grants */
 	for (i = 0; i < s->req.u.rw.nr_segments; i++) {
-		llist_add(&s->grants_used[i]->node, &info->persistent_gnts);
+		list_add(&s->grants_used[i]->node, &info->persistent_gnts);
 		info->persistent_gnts_c++;
 	}
 }
@@ -1171,7 +1166,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 	spin_lock_init(&info->io_lock);
 	info->xbdev = dev;
 	info->vdevice = vdevice;
-	init_llist_head(&info->persistent_gnts);
+	INIT_LIST_HEAD(&info->persistent_gnts);
 	info->persistent_gnts_c = 0;
 	info->connected = BLKIF_STATE_DISCONNECTED;
 	INIT_WORK(&info->work, blkif_restart_queue);
