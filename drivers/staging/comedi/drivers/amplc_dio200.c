@@ -1698,32 +1698,6 @@ static int dio200_pcie_board_setup(struct comedi_device *dev)
 	return 0;
 }
 
-static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
-{
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	char tmpbuf[60];
-	int tmplen;
-
-	if (is_isa_board(thisboard))
-		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
-				   "(base %#lx) ", devpriv->io.u.iobase);
-	else if (is_pci_board(thisboard))
-		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
-				   "(pci %s) ", pci_name(pcidev));
-	else
-		tmplen = 0;
-	if (irq)
-		tmplen += scnprintf(&tmpbuf[tmplen], sizeof(tmpbuf) - tmplen,
-				    "(irq %u%s) ", irq,
-				    (dev->irq ? "" : " UNAVAILABLE"));
-	else
-		tmplen += scnprintf(&tmpbuf[tmplen], sizeof(tmpbuf) - tmplen,
-				    "(no irq) ");
-	dev_info(dev->class_dev, "%s %sattached\n", dev->board_name, tmpbuf);
-}
-
 static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 				unsigned long req_irq_flags)
 {
@@ -1799,7 +1773,7 @@ static int dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 				 "warning! irq %u unavailable!\n", irq);
 		}
 	}
-	dio200_report_attach(dev, irq);
+	dev_info(dev->class_dev, "attached\n");
 	return 0;
 }
 
@@ -1816,15 +1790,16 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 
 	dev->board_name = thisboard->name;
-	dev_info(dev->class_dev, "%s: attach\n", dev->driver->driver_name);
+	iobase = it->options[0];
+	irq = it->options[1];
+	dev_info(dev->class_dev, "%s: attach %s 0x%lX,%u\n",
+		 dev->driver->driver_name, dev->board_name, iobase, irq);
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	iobase = it->options[0];
-	irq = it->options[1];
 	ret = dio200_request_region(dev, iobase, thisboard->mainsize);
 	if (ret < 0)
 		return ret;
@@ -1858,8 +1833,8 @@ static int dio200_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
-	dev_info(dev->class_dev, "%s: attach pci %s\n",
-		 dev->driver->driver_name, pci_name(pci_dev));
+	dev_info(dev->class_dev, "%s: attach pci %s (%s)\n",
+		 dev->driver->driver_name, pci_name(pci_dev), dev->board_name);
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
