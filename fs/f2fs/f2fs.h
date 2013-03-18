@@ -137,7 +137,7 @@ struct extent_info {
 	rwlock_t ext_lock;	/* rwlock for consistency */
 	unsigned int fofs;	/* start offset in a file */
 	u32 blk_addr;		/* start block address of the extent */
-	unsigned int len;	/* lenth of the extent */
+	unsigned int len;	/* length of the extent */
 };
 
 /*
