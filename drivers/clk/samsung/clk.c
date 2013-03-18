@@ -183,9 +183,17 @@ void __init samsung_clk_register_div(struct samsung_div_clock *list,
 	unsigned int idx, ret;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
-		clk = clk_register_divider(NULL, list->name, list->parent_name,
-			list->flags, reg_base + list->offset, list->shift,
-			list->width, list->div_flags, &lock);
+		if (list->table)
+			clk = clk_register_divider_table(NULL, list->name,
+					list->parent_name, list->flags,
+					reg_base + list->offset, list->shift,
+					list->width, list->div_flags,
+					list->table, &lock);
+		else
+			clk = clk_register_divider(NULL, list->name,
+					list->parent_name, list->flags,
+					reg_base + list->offset, list->shift,
+					list->width, list->div_flags, &lock);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n", __func__,
 				list->name);

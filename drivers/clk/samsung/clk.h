@@ -150,9 +150,10 @@ struct samsung_div_clock {
 	u8			width;
 	u8			div_flags;
 	const char		*alias;
+	struct clk_div_table	*table;
 };
 
-#define __DIV(_id, dname, cname, pname, o, s, w, f, df, a)	\
+#define __DIV(_id, dname, cname, pname, o, s, w, f, df, a, t)	\
 	{							\
 		.id		= _id,				\
 		.dev_name	= dname,			\
@@ -164,16 +165,20 @@ struct samsung_div_clock {
 		.width		= w,				\
 		.div_flags	= df,				\
 		.alias		= a,				\
+		.table		= t,				\
 	}
 
 #define DIV(_id, cname, pname, o, s, w)				\
-	__DIV(_id, NULL, cname, pname, o, s, w, 0, 0, NULL)
+	__DIV(_id, NULL, cname, pname, o, s, w, 0, 0, NULL, NULL)
 
 #define DIV_A(_id, cname, pname, o, s, w, a)			\
-	__DIV(_id, NULL, cname, pname, o, s, w, 0, 0, a)
+	__DIV(_id, NULL, cname, pname, o, s, w, 0, 0, a, NULL)
 
 #define DIV_F(_id, cname, pname, o, s, w, f, df)		\
-	__DIV(_id, NULL, cname, pname, o, s, w, f, df, NULL)
+	__DIV(_id, NULL, cname, pname, o, s, w, f, df, NULL, NULL)
+
+#define DIV_T(_id, cname, pname, o, s, w, t)			\
+	__DIV(_id, NULL, cname, pname, o, s, w, 0, 0, NULL, t)
 
 /**
  * struct samsung_gate_clock: information about gate clock
