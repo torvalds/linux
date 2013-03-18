@@ -185,6 +185,62 @@ TRACE_EVENT(ath6kl_sdio_irq,
 	)
 );
 
+TRACE_EVENT(ath6kl_htc_rx,
+	TP_PROTO(int status, int endpoint, void *buf,
+		 size_t buf_len),
+
+	TP_ARGS(status, endpoint, buf, buf_len),
+
+	TP_STRUCT__entry(
+		__field(int, status)
+		__field(int, endpoint)
+		__field(size_t, buf_len)
+		__dynamic_array(u8, buf, buf_len)
+	),
+
+	TP_fast_assign(
+		__entry->status = status;
+		__entry->endpoint = endpoint;
+		__entry->buf_len = buf_len;
+		memcpy(__get_dynamic_array(buf), buf, buf_len);
+	),
+
+	TP_printk(
+		"status %d endpoint %d len %d\n",
+		__entry->status,
+		__entry->endpoint,
+		__entry->buf_len
+	)
+);
+
+TRACE_EVENT(ath6kl_htc_tx,
+	TP_PROTO(int status, int endpoint, void *buf,
+		 size_t buf_len),
+
+	TP_ARGS(status, endpoint, buf, buf_len),
+
+	TP_STRUCT__entry(
+		__field(int, status)
+		__field(int, endpoint)
+		__field(size_t, buf_len)
+		__dynamic_array(u8, buf, buf_len)
+	),
+
+	TP_fast_assign(
+		__entry->status = status;
+		__entry->endpoint = endpoint;
+		__entry->buf_len = buf_len;
+		memcpy(__get_dynamic_array(buf), buf, buf_len);
+	),
+
+	TP_printk(
+		"status %d endpoint %d len %d\n",
+		__entry->status,
+		__entry->endpoint,
+		__entry->buf_len
+	)
+);
+
 #endif /* _ ATH6KL_TRACE_H || TRACE_HEADER_MULTI_READ*/
 
 /* we don't want to use include/trace/events */
