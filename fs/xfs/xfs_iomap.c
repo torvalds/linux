@@ -42,6 +42,8 @@
 #include "xfs_iomap.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_dquot_item.h"
+#include "xfs_dquot.h"
 
 
 #define XFS_WRITEIO_ALIGN(mp,off)	(((off) >> mp->m_writeio_log) \
@@ -366,6 +368,61 @@ xfs_iomap_eof_prealloc_initial_size(
 	return XFS_B_TO_FSB(mp, offset);
 }
 
+STATIC bool
+xfs_quota_need_throttle(
+	struct xfs_inode *ip,
+	int type,
+	xfs_fsblock_t alloc_blocks)
+{
+	struct xfs_dquot *dq = xfs_inode_dquot(ip, type);
+
+	if (!dq || !xfs_this_quota_on(ip->i_mount, type))
+		return false;
+
+	/* no hi watermark, no throttle */
+	if (!dq->q_prealloc_hi_wmark)
+		return false;
+
+	/* under the lo watermark, no throttle */
+	if (dq->q_res_bcount + alloc_blocks < dq->q_prealloc_lo_wmark)
+		return false;
+
+	return true;
+}
+
+STATIC void
+xfs_quota_calc_throttle(
+	struct xfs_inode *ip,
+	int type,
+	xfs_fsblock_t *qblocks,
+	int *qshift)
+{
+	int64_t freesp;
+	int shift = 0;
+	struct xfs_dquot *dq = xfs_inode_dquot(ip, type);
+
+	/* over hi wmark, squash the prealloc completely */
+	if (dq->q_res_bcount >= dq->q_prealloc_hi_wmark) {
+		*qblocks = 0;
+		return;
+	}
+
+	freesp = dq->q_prealloc_hi_wmark - dq->q_res_bcount;
+	if (freesp < dq->q_low_space[XFS_QLOWSP_5_PCNT]) {
+		shift = 2;
+		if (freesp < dq->q_low_space[XFS_QLOWSP_3_PCNT])
+			shift += 2;
+		if (freesp < dq->q_low_space[XFS_QLOWSP_1_PCNT])
+			shift += 2;
+	}
+
+	/* only overwrite the throttle values if we are more aggressive */
+	if ((freesp >> shift) < (*qblocks >> *qshift)) {
+		*qblocks = freesp;
+		*qshift = shift;
+	}
+}
+
 /*
  * If we don't have a user specified preallocation size, dynamically increase
  * the preallocation size as the size of the file grows. Cap the maximum size
@@ -383,11 +440,14 @@ xfs_iomap_prealloc_size(
 	xfs_fsblock_t		alloc_blocks = 0;
 	int			shift = 0;
 	int64_t			freesp;
+	xfs_fsblock_t		qblocks;
+	int			qshift = 0;
 
 	alloc_blocks = xfs_iomap_eof_prealloc_initial_size(mp, ip, offset,
 							   imap, nimaps);
 	if (!alloc_blocks)
 		goto check_writeio;
+	qblocks = alloc_blocks;
 
 	/*
 	 * MAXEXTLEN is not a power of two value but we round the prealloc down
@@ -412,6 +472,28 @@ xfs_iomap_prealloc_size(
 		if (freesp < mp->m_low_space[XFS_LOWSP_1_PCNT])
 			shift++;
 	}
+
+	/*
+	 * Check each quota to cap the prealloc size and provide a shift
+	 * value to throttle with.
+	 */
+	if (xfs_quota_need_throttle(ip, XFS_DQ_USER, alloc_blocks))
+		xfs_quota_calc_throttle(ip, XFS_DQ_USER, &qblocks, &qshift);
+	if (xfs_quota_need_throttle(ip, XFS_DQ_GROUP, alloc_blocks))
+		xfs_quota_calc_throttle(ip, XFS_DQ_GROUP, &qblocks, &qshift);
+	if (xfs_quota_need_throttle(ip, XFS_DQ_PROJ, alloc_blocks))
+		xfs_quota_calc_throttle(ip, XFS_DQ_PROJ, &qblocks, &qshift);
+
+	/*
+	 * The final prealloc size is set to the minimum of free space available
+	 * in each of the quotas and the overall filesystem.
+	 *
+	 * The shift throttle value is set to the maximum value as determined by
+	 * the global low free space values and per-quota low free space values.
+	 */
+	alloc_blocks = MIN(alloc_blocks, qblocks);
+	shift = MAX(shift, qshift);
+
 	if (shift)
 		alloc_blocks >>= shift;
 	/*
