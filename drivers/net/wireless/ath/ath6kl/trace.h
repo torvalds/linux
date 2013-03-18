@@ -4,6 +4,7 @@
 #include <linux/skbuff.h>
 #include <linux/tracepoint.h>
 #include "wmi.h"
+#include "hif.h"
 
 #if !defined(_ATH6KL_TRACE_H)
 static inline unsigned int ath6kl_get_wmi_id(void *buf, size_t buf_len)
@@ -72,6 +73,95 @@ TRACE_EVENT(ath6kl_wmi_event,
 	TP_printk(
 		"id %d len %d",
 		__entry->id, __entry->buf_len
+	)
+);
+
+TRACE_EVENT(ath6kl_sdio,
+	TP_PROTO(unsigned int addr, int flags,
+		 void *buf, size_t buf_len),
+
+	TP_ARGS(addr, flags, buf, buf_len),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, tx)
+		__field(unsigned int, addr)
+		__field(int, flags)
+		__field(size_t, buf_len)
+		__dynamic_array(u8, buf, buf_len)
+	),
+
+	TP_fast_assign(
+		__entry->addr = addr;
+		__entry->flags = flags;
+		__entry->buf_len = buf_len;
+		memcpy(__get_dynamic_array(buf), buf, buf_len);
+
+		if (flags & HIF_WRITE)
+			__entry->tx = 1;
+		else
+			__entry->tx = 0;
+	),
+
+	TP_printk(
+		"%s addr 0x%x flags 0x%x len %d\n",
+		__entry->tx ? "tx" : "rx",
+		__entry->addr,
+		__entry->flags,
+		__entry->buf_len
+	)
+);
+
+TRACE_EVENT(ath6kl_sdio_scat,
+	TP_PROTO(unsigned int addr, int flags, unsigned int total_len,
+		 unsigned int entries, struct hif_scatter_item *list),
+
+	TP_ARGS(addr, flags, total_len, entries, list),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, tx)
+		__field(unsigned int, addr)
+		__field(int, flags)
+		__field(unsigned int, entries)
+		__field(size_t, total_len)
+		__dynamic_array(unsigned int, len_array, entries)
+		__dynamic_array(u8, data, total_len)
+	),
+
+	TP_fast_assign(
+		unsigned int *len_array;
+		int i, offset = 0;
+		size_t len;
+
+		__entry->addr = addr;
+		__entry->flags = flags;
+		__entry->entries = entries;
+		__entry->total_len = total_len;
+
+		if (flags & HIF_WRITE)
+			__entry->tx = 1;
+		else
+			__entry->tx = 0;
+
+		len_array = __get_dynamic_array(len_array);
+
+		for (i = 0; i < entries; i++) {
+			len = list[i].len;
+
+			memcpy((u8 *) __get_dynamic_array(data) + offset,
+			       list[i].buf, len);
+
+			len_array[i] = len;
+			offset += len;
+		}
+	),
+
+	TP_printk(
+		"%s addr 0x%x flags 0x%x entries %d total_len %d\n",
+		__entry->tx ? "tx" : "rx",
+		__entry->addr,
+		__entry->flags,
+		__entry->entries,
+		__entry->total_len
 	)
 );
 
