@@ -506,6 +506,8 @@ static int patch_cs420x(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 
+	spec->gen.automute_hook = cs_automute;
+
 	snd_hda_pick_fixup(codec, cs420x_models, cs420x_fixup_tbl,
 			   cs420x_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
@@ -892,6 +894,8 @@ static int patch_cs4210(struct hda_codec *codec)
 	spec = cs_alloc_spec(codec, CS4210_VENDOR_NID);
 	if (!spec)
 		return -ENOMEM;
+
+	spec->gen.automute_hook = cs_automute;
 
 	snd_hda_pick_fixup(codec, cs421x_models, cs421x_fixup_tbl,
 			   cs421x_fixups);
