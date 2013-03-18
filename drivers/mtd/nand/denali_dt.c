@@ -150,17 +150,7 @@ static struct platform_driver denali_dt_driver = {
 	},
 };
 
-static int __init denali_init_dt(void)
-{
-	return platform_driver_register(&denali_dt_driver);
-}
-module_init(denali_init_dt);
-
-static void __exit denali_exit_dt(void)
-{
-	platform_driver_unregister(&denali_dt_driver);
-}
-module_exit(denali_exit_dt);
+module_platform_driver(denali_dt_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jamie Iles");
