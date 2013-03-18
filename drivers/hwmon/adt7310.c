@@ -48,7 +48,7 @@ static int adt7310_spi_read_word(struct device *dev, u8 reg)
 	if (ret < 0)
 		return ret;
 
-	return be16_to_cpu(ret);
+	return be16_to_cpu((__force __be16)ret);
 }
 
 static int adt7310_spi_write_word(struct device *dev, u8 reg, u16 data)
