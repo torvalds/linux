@@ -358,11 +358,8 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 		if (key.objectid != BTRFS_EXTENT_CSUM_OBJECTID ||
-		    key.type != BTRFS_EXTENT_CSUM_KEY)
-			break;
-
-		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-		if (key.offset > end)
+		    key.type != BTRFS_EXTENT_CSUM_KEY ||
+		    key.offset > end)
 			break;
 
 		if (key.offset > start)
