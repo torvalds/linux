@@ -3385,7 +3385,7 @@ static int sw_udc_probe_otg(struct platform_device *pdev)
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
 
-    return 0;
+    return usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 }
 
 /*

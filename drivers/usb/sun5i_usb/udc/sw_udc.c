@@ -3055,8 +3055,7 @@ static int sun5i_start(struct usb_gadget_driver *driver,
 	}
 
 	/* Enable udc */
-	//sw_udc_enable(udc);  //remove by 2011.11.25
-
+	sw_udc_enable(udc);
 	return 0;
 
 register_error:
@@ -3333,7 +3332,7 @@ EXPORT_SYMBOL(sw_usb_device_disable);
 static int sw_udc_probe_otg(struct platform_device *pdev)
 {
 	struct sw_udc  	*udc = &sw_udc;
-
+	pr_info("%s", __func__);
 	g_udc_pdev = pdev;
 
 	spin_lock_init (&udc->lock);
@@ -3347,7 +3346,7 @@ static int sw_udc_probe_otg(struct platform_device *pdev)
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
 
-    return 0;
+    return usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 }
 
 /*
