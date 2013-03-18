@@ -102,7 +102,8 @@ nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
 {
 	if (rp->c_type == RC_REPLBUFF)
 		kfree(rp->c_replvec.iov_base);
-	hlist_del(&rp->c_hash);
+	if (!hlist_unhashed(&rp->c_hash))
+		hlist_del(&rp->c_hash);
 	list_del(&rp->c_lru);
 	--num_drc_entries;
 	kmem_cache_free(drc_slab, rp);
