@@ -286,7 +286,7 @@ static void exynos5440_dt_free_map(struct pinctrl_dev *pctldev,
 }
 
 /* list of pinctrl callbacks for the pinctrl core */
-static struct pinctrl_ops exynos5440_pctrl_ops = {
+static const struct pinctrl_ops exynos5440_pctrl_ops = {
 	.get_groups_count	= exynos5440_get_group_count,
 	.get_group_name		= exynos5440_get_group_name,
 	.get_group_pins		= exynos5440_get_group_pins,
@@ -374,7 +374,7 @@ static int exynos5440_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 }
 
 /* list of pinmux callbacks for the pinmux vertical in pinctrl core */
-static struct pinmux_ops exynos5440_pinmux_ops = {
+static const struct pinmux_ops exynos5440_pinmux_ops = {
 	.get_functions_count	= exynos5440_get_functions_count,
 	.get_function_name	= exynos5440_pinmux_get_fname,
 	.get_function_groups	= exynos5440_pinmux_get_groups,
@@ -523,7 +523,7 @@ static int exynos5440_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 /* list of pinconfig callbacks for pinconfig vertical in the pinctrl code */
-static struct pinconf_ops exynos5440_pinconf_ops = {
+static const struct pinconf_ops exynos5440_pinconf_ops = {
 	.pin_config_get		= exynos5440_pinconf_get,
 	.pin_config_set		= exynos5440_pinconf_set,
 	.pin_config_group_get	= exynos5440_pinconf_group_get,

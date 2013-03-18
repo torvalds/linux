@@ -53,7 +53,7 @@ static int pxa3xx_get_group_pins(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static struct pinctrl_ops pxa3xx_pctrl_ops = {
+static const struct pinctrl_ops pxa3xx_pctrl_ops = {
 	.get_groups_count = pxa3xx_get_groups_count,
 	.get_group_name	= pxa3xx_get_group_name,
 	.get_group_pins	= pxa3xx_get_group_pins,
@@ -161,7 +161,7 @@ static int pxa3xx_pmx_request_gpio(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static struct pinmux_ops pxa3xx_pmx_ops = {
+static const struct pinmux_ops pxa3xx_pmx_ops = {
 	.get_functions_count	= pxa3xx_pmx_get_funcs_count,
 	.get_function_name	= pxa3xx_pmx_get_func_name,
 	.get_function_groups	= pxa3xx_pmx_get_groups,

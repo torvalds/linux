@@ -10,6 +10,7 @@ config PINCTRL_SH_PFC
 	select GPIO_SH_PFC if ARCH_REQUIRE_GPIOLIB
 	select PINMUX
 	select PINCONF
+	select GENERIC_PINCONF
 	def_bool y
 	help
 	  This enables pin control drivers for SH and SH Mobile platforms
