@@ -104,6 +104,8 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	struct nfs_page		*req;
 	struct nfs_lock_context *l_ctx;
 
+	if (test_bit(NFS_CONTEXT_BAD, &ctx->flags))
+		return ERR_PTR(-EBADF);
 	/* try to allocate the request struct */
 	req = nfs_page_alloc();
 	if (req == NULL)

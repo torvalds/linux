@@ -1328,9 +1328,25 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 		nfs4_schedule_state_manager(clp);
 }
 
+static void nfs4_state_mark_open_context_bad(struct nfs4_state *state)
+{
+	struct inode *inode = state->inode;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_open_context *ctx;
+
+	spin_lock(&inode->i_lock);
+	list_for_each_entry(ctx, &nfsi->open_files, list) {
+		if (ctx->state != state)
+			continue;
+		set_bit(NFS_CONTEXT_BAD, &ctx->flags);
+	}
+	spin_unlock(&inode->i_lock);
+}
+
 static void nfs4_state_mark_recovery_failed(struct nfs4_state *state, int error)
 {
 	set_bit(NFS_STATE_RECOVERY_FAILED, &state->flags);
+	nfs4_state_mark_open_context_bad(state);
 }
 
 

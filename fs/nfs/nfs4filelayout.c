@@ -305,6 +305,10 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_read_data *rdata = data;
 
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &rdata->args.context->flags))) {
+		rpc_exit(task, -EIO);
+		return;
+	}
 	if (filelayout_reset_to_mds(rdata->header->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
 		filelayout_reset_read(rdata);
@@ -407,6 +411,10 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_write_data *wdata = data;
 
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &wdata->args.context->flags))) {
+		rpc_exit(task, -EIO);
+		return;
+	}
 	if (filelayout_reset_to_mds(wdata->header->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
 		filelayout_reset_write(wdata);
