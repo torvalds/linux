@@ -271,7 +271,8 @@ static const struct abx500_function ab8505_functions[] = {
  *	alt_A	|       1       |          0          |          0
  */
 
-struct alternate_functions ab8505_alternate_functions[AB8505_GPIO_MAX_NUMBER + 1] = {
+static struct
+alternate_functions ab8505_alternate_functions[AB8505_GPIO_MAX_NUMBER + 1] = {
 	ALTERNATE_FUNCTIONS(0, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO0 */
 	ALTERNATE_FUNCTIONS(1,      0, UNUSED, UNUSED, 0, 0, 0), /* GPIO1, altA controlled by bit 0 */
 	ALTERNATE_FUNCTIONS(2,      1, UNUSED, UNUSED, 0, 0, 0), /* GPIO2, altA controlled by bit 1 */
@@ -348,7 +349,7 @@ struct alternate_functions ab8505_alternate_functions[AB8505_GPIO_MAX_NUMBER + 1
  *	GPIO50
  *	GPIO52 to GPIO53
  */
-struct abx500_gpio_irq_cluster ab8505_gpio_irq_cluster[] = {
+static struct abx500_gpio_irq_cluster ab8505_gpio_irq_cluster[] = {
 	GPIO_IRQ_CLUSTER(10, 11, AB8500_INT_GPIO10R),
 	GPIO_IRQ_CLUSTER(13, 13, AB8500_INT_GPIO13R),
 	GPIO_IRQ_CLUSTER(40, 41, AB8500_INT_GPIO40R),
