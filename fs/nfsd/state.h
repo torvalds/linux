@@ -194,9 +194,11 @@ struct nfsd4_conn {
 };
 
 struct nfsd4_session {
-	struct kref		se_ref;
+	atomic_t		se_ref;
 	struct list_head	se_hash;	/* hash by sessionid */
 	struct list_head	se_perclnt;
+/* See SESSION4_PERSIST, etc. for standard flags; this is internal-only: */
+#define NFS4_SESSION_DEAD	0x010
 	u32			se_flags;
 	struct nfs4_client	*se_client;
 	struct nfs4_sessionid	se_sessionid;
