@@ -1226,6 +1226,37 @@ void do_submit(struct work_struct *ws)
 			break;
 
 		wait_event(mdev->al_wait, prepare_al_transaction_nonblock(mdev, &incoming, &pending));
+		/* Maybe more was queued, while we prepared the transaction?
+		 * Try to stuff them into this transaction as well.
+		 * Be strictly non-blocking here, no wait_event, we already
+		 * have something to commit.
+		 * Stop if we don't make any more progres.
+		 */
+		for (;;) {
+			LIST_HEAD(more_pending);
+			LIST_HEAD(more_incoming);
+			bool made_progress;
+
+			/* It is ok to look outside the lock,
+			 * it's only an optimization anyways */
+			if (list_empty(&mdev->submit.writes))
+				break;
+
+			spin_lock(&mdev->submit.lock);
+			list_splice_tail_init(&mdev->submit.writes, &more_incoming);
+			spin_unlock(&mdev->submit.lock);
+
+			if (list_empty(&more_incoming))
+				break;
+
+			made_progress = prepare_al_transaction_nonblock(mdev, &more_incoming, &more_pending);
+
+			list_splice_tail_init(&more_pending, &pending);
+			list_splice_tail_init(&more_incoming, &incoming);
+
+			if (!made_progress)
+				break;
+		}
 		drbd_al_begin_io_commit(mdev, false);
 
 		list_for_each_entry_safe(req, tmp, &pending, tl_requests) {
