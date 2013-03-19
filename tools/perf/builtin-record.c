@@ -5,8 +5,6 @@
  * (or a CPU, or a PID) into the perf.data output file - for
  * later analysis via perf report.
  */
-#define _FILE_OFFSET_BITS 64
-
 #include "builtin.h"
 
 #include "perf.h"
