@@ -466,19 +466,12 @@ static void pppol2tp_session_close(struct l2tp_session *session)
  */
 static void pppol2tp_session_destruct(struct sock *sk)
 {
-	struct l2tp_session *session;
-
-	if (sk->sk_user_data != NULL) {
-		session = sk->sk_user_data;
-		if (session == NULL)
-			goto out;
-
+	struct l2tp_session *session = sk->sk_user_data;
+	if (session) {
 		sk->sk_user_data = NULL;
 		BUG_ON(session->magic != L2TP_SESSION_MAGIC);
 		l2tp_session_dec_refcount(session);
 	}
-
-out:
 	return;
 }
 
@@ -509,6 +502,7 @@ static int pppol2tp_release(struct socket *sock)
 
 	/* Purge any queued data */
 	if (session != NULL) {
+		__l2tp_session_unhash(session);
 		l2tp_session_queue_purge(session);
 		sock_put(sk);
 	}

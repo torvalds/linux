@@ -1316,26 +1316,12 @@ again:
 
 			hlist_del_init(&session->hlist);
 
-			/* Since we should hold the sock lock while
-			 * doing any unbinding, we need to release the
-			 * lock we're holding before taking that lock.
-			 * Hold a reference to the sock so it doesn't
-			 * disappear as we're jumping between locks.
-			 */
 			if (session->ref != NULL)
 				(*session->ref)(session);
 
 			write_unlock_bh(&tunnel->hlist_lock);
 
-			if (tunnel->version != L2TP_HDR_VER_2) {
-				struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
-
-				spin_lock_bh(&pn->l2tp_session_hlist_lock);
-				hlist_del_init_rcu(&session->global_hlist);
-				spin_unlock_bh(&pn->l2tp_session_hlist_lock);
-				synchronize_rcu();
-			}
-
+			__l2tp_session_unhash(session);
 			l2tp_session_queue_purge(session);
 
 			if (session->session_close != NULL)
@@ -1732,37 +1718,15 @@ EXPORT_SYMBOL_GPL(l2tp_tunnel_delete);
  */
 void l2tp_session_free(struct l2tp_session *session)
 {
-	struct l2tp_tunnel *tunnel;
+	struct l2tp_tunnel *tunnel = session->tunnel;
 
 	BUG_ON(atomic_read(&session->ref_count) != 0);
 
-	tunnel = session->tunnel;
-	if (tunnel != NULL) {
+	if (tunnel) {
 		BUG_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
-
-		/* Delete the session from the hash */
-		write_lock_bh(&tunnel->hlist_lock);
-		hlist_del_init(&session->hlist);
-		write_unlock_bh(&tunnel->hlist_lock);
-
-		/* Unlink from the global hash if not L2TPv2 */
-		if (tunnel->version != L2TP_HDR_VER_2) {
-			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
-
-			spin_lock_bh(&pn->l2tp_session_hlist_lock);
-			hlist_del_init_rcu(&session->global_hlist);
-			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
-			synchronize_rcu();
-		}
-
 		if (session->session_id != 0)
 			atomic_dec(&l2tp_session_count);
-
 		sock_put(tunnel->sock);
-
-		/* This will delete the tunnel context if this
-		 * is the last session on the tunnel.
-		 */
 		session->tunnel = NULL;
 		l2tp_tunnel_dec_refcount(tunnel);
 	}
@@ -1773,22 +1737,51 @@ void l2tp_session_free(struct l2tp_session *session)
 }
 EXPORT_SYMBOL_GPL(l2tp_session_free);
 
+/* Remove an l2tp session from l2tp_core's hash lists.
+ * Provides a tidyup interface for pseudowire code which can't just route all
+ * shutdown via. l2tp_session_delete and a pseudowire-specific session_close
+ * callback.
+ */
+void __l2tp_session_unhash(struct l2tp_session *session)
+{
+	struct l2tp_tunnel *tunnel = session->tunnel;
+
+	/* Remove the session from core hashes */
+	if (tunnel) {
+		/* Remove from the per-tunnel hash */
+		write_lock_bh(&tunnel->hlist_lock);
+		hlist_del_init(&session->hlist);
+		write_unlock_bh(&tunnel->hlist_lock);
+
+		/* For L2TPv3 we have a per-net hash: remove from there, too */
+		if (tunnel->version != L2TP_HDR_VER_2) {
+			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
+			spin_lock_bh(&pn->l2tp_session_hlist_lock);
+			hlist_del_init_rcu(&session->global_hlist);
+			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
+			synchronize_rcu();
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(__l2tp_session_unhash);
+
 /* This function is used by the netlink SESSION_DELETE command and by
    pseudowire modules.
  */
 int l2tp_session_delete(struct l2tp_session *session)
 {
+	if (session->ref)
+		(*session->ref)(session);
+	__l2tp_session_unhash(session);
 	l2tp_session_queue_purge(session);
-
 	if (session->session_close != NULL)
 		(*session->session_close)(session);
-
+	if (session->deref)
+		(*session->ref)(session);
 	l2tp_session_dec_refcount(session);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(l2tp_session_delete);
-
 
 /* We come here whenever a session's send_seq, cookie_len or
  * l2specific_len parameters are set.
