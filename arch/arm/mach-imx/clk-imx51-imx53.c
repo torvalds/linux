@@ -51,6 +51,28 @@ static const char *gpu3d_sel[] = { "axi_a", "axi_b", "emi_slow_gate", "ahb" };
 static const char *gpu2d_sel[] = { "axi_a", "axi_b", "emi_slow_gate", "ahb" };
 static const char *vpu_sel[] = { "axi_a", "axi_b", "emi_slow_gate", "ahb", };
 static const char *mx53_can_sel[] = { "ipg", "ckih1", "ckih2", "lp_apm", };
+static const char *mx53_cko1_sel[] = {
+	"cpu_podf", "pll1_sw", "pll2_sw", "pll3_sw",
+	"emi_slow_podf", "pll4_sw", "nfc_podf", "dummy",
+	"di_pred", "dummy", "dummy", "ahb",
+	"ipg", "per_root", "ckil", "dummy",};
+static const char *mx53_cko2_sel[] = {
+	"dummy"/* dptc_core */, "dummy"/* dptc_perich */,
+	"dummy", "esdhc_a_podf",
+	"usboh3_podf", "dummy"/* wrck_clk_root */,
+	"ecspi_podf", "dummy"/* pll1_ref_clk */,
+	"esdhc_b_podf", "dummy"/* ddr_clk_root */,
+	"dummy"/* arm_axi_clk_root */, "dummy"/* usb_phy_out */,
+	"vpu_sel", "ipu_sel",
+	"osc", "ckih1",
+	"dummy", "esdhc_c_sel",
+	"ssi1_root_podf", "ssi2_root_podf",
+	"dummy", "dummy",
+	"dummy"/* lpsr_clk_root */, "dummy"/* pgc_clk_root */,
+	"dummy"/* tve_out */, "usb_phy_sel",
+	"tve_sel", "lp_apm",
+	"uart_root", "dummy"/* spdif0_clk_root */,
+	"dummy", "dummy", };
 
 enum imx5_clks {
 	dummy, ckil, osc, ckih1, ckih2, ahb, ipg, axi_a, axi_b, uart_pred,
@@ -86,6 +108,8 @@ enum imx5_clks {
 	epit1_ipg_gate, epit1_hf_gate, epit2_ipg_gate, epit2_hf_gate,
 	can_sel, can1_serial_gate, can1_ipg_gate,
 	owire_gate, gpu3d_s, gpu2d_s, gpu3d_gate, gpu2d_gate, garb_gate,
+	cko1_sel, cko1_podf, cko1,
+	cko2_sel, cko2_podf, cko2,
 	clk_max
 };
 
@@ -462,6 +486,16 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk[can2_serial_gate] = imx_clk_gate2("can2_serial_gate", "can_sel", MXC_CCM_CCGR4, 8);
 	clk[can2_ipg_gate] = imx_clk_gate2("can2_ipg_gate", "ipg", MXC_CCM_CCGR4, 6);
 	clk[i2c3_gate] = imx_clk_gate2("i2c3_gate", "per_root", MXC_CCM_CCGR1, 22);
+
+	clk[cko1_sel] = imx_clk_mux("cko1_sel", MXC_CCM_CCOSR, 0, 4,
+				mx53_cko1_sel, ARRAY_SIZE(mx53_cko1_sel));
+	clk[cko1_podf] = imx_clk_divider("cko1_podf", "cko1_sel", MXC_CCM_CCOSR, 4, 3);
+	clk[cko1] = imx_clk_gate2("cko1", "cko1_podf", MXC_CCM_CCOSR, 7);
+
+	clk[cko2_sel] = imx_clk_mux("cko2_sel", MXC_CCM_CCOSR, 16, 5,
+				mx53_cko2_sel, ARRAY_SIZE(mx53_cko2_sel));
+	clk[cko2_podf] = imx_clk_divider("cko2_podf", "cko2_sel", MXC_CCM_CCOSR, 21, 3);
+	clk[cko2] = imx_clk_gate2("cko2", "cko2_podf", MXC_CCM_CCOSR, 24);
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))

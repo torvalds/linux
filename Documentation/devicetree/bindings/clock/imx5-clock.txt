@@ -177,6 +177,12 @@ clocks and IDs.
 	gpu3d_gate		162
 	gpu2d_gate		163
 	garb_gate		164
+	cko1_sel		165
+	cko1_podf		166
+	cko1			167
+	cko2_sel		168
+	cko2_podf		169
+	cko2			170
 
 Examples (for mx53):
 
