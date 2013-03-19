@@ -38,13 +38,13 @@ obj-$(CONFIG_MACH_RK30_PHONE_LOQUAT) += board-rk30-phone-loquat.o board-rk30-pho
 obj-$(CONFIG_MACH_RK30_DS1001B) += board-rk30-ds1001b.o board-rk30-ds1001b-key.o board-rk30-ds1001b-rfkill.o
 obj-$(CONFIG_MACH_RK30_PHONE_A22) += board-rk30-phone-a22.o board-rk30-phone-a22-key.o 
 
+obj-$(CONFIG_SOC_RK3028) += board.o
+board-$(CONFIG_MACH_RK3028_TB) += board-rk3028-tb.o
+
 obj-$(CONFIG_SOC_RK3066B) += board.o
 board-$(CONFIG_MACH_RK3066B_FPGA) += board-rk3066b-fpga.o
 board-$(CONFIG_MACH_RK3066B_SDK) += board-rk3066b-sdk.o
 board-$(CONFIG_MACH_RK3066B_M701) += board-rk3066b-m701.o
-
-obj-$(CONFIG_SOC_RK3168M) += board.o
-board-$(CONFIG_MACH_RK3168M_TB) += board-rk3168m-tb.o
 
 obj-$(CONFIG_SOC_RK3108) += board.o
 board-$(CONFIG_MACH_RK3108_TB) += board-rk3108-tb.o
@@ -56,3 +56,5 @@ board-$(CONFIG_MACH_RK3168_DS1006H) += board-rk3168-ds1006h.o
 board-$(CONFIG_MACH_RK3168_86V) += board-rk3168-86v.o
 board-$(CONFIG_MACH_RK3168_86V_OLD) += board-rk3168-86v-old.o
 
+obj-$(CONFIG_SOC_RK3168M) += board.o
+board-$(CONFIG_MACH_RK3168M_TB) += board-rk3168m-tb.o

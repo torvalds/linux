@@ -829,7 +829,7 @@ static struct platform_device device_ion = {
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
 #ifdef CONFIG_SDMMC_RK29
-#include "board-rk2928b-tb-sdmmc-conifg.c"
+#include "board-rk3028-tb-sdmmc-conifg.c"
 #include "../plat-rk/rk-sdmmc-ops.c"
 #include "../plat-rk/rk-sdmmc-wifi.c"
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
@@ -1090,7 +1090,7 @@ struct regulator_init_data pwm_regulator_init_dcdc[1] =
 
 static struct pwm_platform_data pwm_regulator_info[1] = {
 	{
-	#if defined (CONFIG_MACH_RK2928B_TB)	
+	#if defined (CONFIG_MACH_RK3028_TB)
 		.pwm_id = 2,
 		.pwm_gpio = RK30_PIN3_PD5,
 		.pwm_iomux_pwm = PWM2,
