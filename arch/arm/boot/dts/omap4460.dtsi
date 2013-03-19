@@ -10,6 +10,19 @@
 /include/ "omap4.dtsi"
 
 / {
+	cpus {
+		/* OMAP446x 'standard device' variants OPP50 to OPPTurbo */
+		cpu@0 {
+			operating-points = <
+				/* kHz    uV */
+				350000   975000
+				700000  1075000
+				920000  1200000
+			>;
+			clock-latency = <300000>; /* From legacy driver */
+		};
+	};
+
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupts = <0 54 0x4>,
