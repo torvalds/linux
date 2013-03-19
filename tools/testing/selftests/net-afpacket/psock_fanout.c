@@ -56,24 +56,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-/* Hack: build even if local includes are old */
-#ifndef PACKET_FANOUT
-#define PACKET_FANOUT			18
-#define PACKET_FANOUT_HASH		0
-#define PACKET_FANOUT_LB		1
-#define PACKET_FANOUT_CPU		2
-#define PACKET_FANOUT_FLAG_DEFRAG	0x8000
-
-#ifndef PACKET_FANOUT_ROLLOVER
-#define PACKET_FANOUT_ROLLOVER		3
-#endif
-
-#ifndef PACKET_FANOUT_FLAG_ROLLOVER
-#define PACKET_FANOUT_FLAG_ROLLOVER	0x1000
-#endif
-
-#endif
-
 #define DATA_LEN			100
 #define DATA_CHAR			'a'
 
