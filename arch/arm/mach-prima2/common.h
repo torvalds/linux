@@ -13,9 +13,6 @@
 #include <asm/mach/time.h>
 #include <asm/exception.h>
 
-extern void sirfsoc_prima2_timer_init(void);
-extern void sirfsoc_marco_timer_init(void);
-
 extern struct smp_operations   sirfsoc_smp_ops;
 extern void sirfsoc_secondary_startup(void);
 extern void sirfsoc_cpu_die(unsigned int cpu);
