@@ -838,6 +838,8 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	if (pm8001_ha->chip_id != chip_8001) {
 		for (i = 1; i < pm8001_ha->number_of_intr; i++)
 			PM8001_CHIP_DISP->interrupt_enable(pm8001_ha, i);
+		/* setup thermal configuration. */
+		pm80xx_set_thermal_config(pm8001_ha);
 	}
 
 	pm8001_init_sas_add(pm8001_ha);

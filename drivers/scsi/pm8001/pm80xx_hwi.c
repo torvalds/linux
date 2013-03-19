@@ -613,7 +613,7 @@ static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
  * pm80xx_set_thermal_config - support the thermal configuration
  * @pm8001_ha: our hba card information.
  */
-static int
+int
 pm80xx_set_thermal_config(struct pm8001_hba_info *pm8001_ha)
 {
 	struct set_ctrl_cfg_req payload;
@@ -636,6 +636,86 @@ pm80xx_set_thermal_config(struct pm8001_hba_info *pm8001_ha)
 	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload, 0);
 	return rc;
 
+}
+
+/**
+* pm80xx_set_sas_protocol_timer_config - support the SAS Protocol
+* Timer configuration page
+* @pm8001_ha: our hba card information.
+*/
+static int
+pm80xx_set_sas_protocol_timer_config(struct pm8001_hba_info *pm8001_ha)
+{
+	struct set_ctrl_cfg_req payload;
+	struct inbound_queue_table *circularQ;
+	SASProtocolTimerConfig_t SASConfigPage;
+	int rc;
+	u32 tag;
+	u32 opc = OPC_INB_SET_CONTROLLER_CONFIG;
+
+	memset(&payload, 0, sizeof(struct set_ctrl_cfg_req));
+	memset(&SASConfigPage, 0, sizeof(SASProtocolTimerConfig_t));
+
+	rc = pm8001_tag_alloc(pm8001_ha, &tag);
+
+	if (rc)
+		return -1;
+
+	circularQ = &pm8001_ha->inbnd_q_tbl[0];
+	payload.tag = cpu_to_le32(tag);
+
+	SASConfigPage.pageCode        =  SAS_PROTOCOL_TIMER_CONFIG_PAGE;
+	SASConfigPage.MST_MSI         =  3 << 15;
+	SASConfigPage.STP_SSP_MCT_TMO =  (STP_MCT_TMO << 16) | SSP_MCT_TMO;
+	SASConfigPage.STP_FRM_TMO     = (SAS_MAX_OPEN_TIME << 24) |
+				(SMP_MAX_CONN_TIMER << 16) | STP_FRM_TIMER;
+	SASConfigPage.STP_IDLE_TMO    =  STP_IDLE_TIME;
+
+	if (SASConfigPage.STP_IDLE_TMO > 0x3FFFFFF)
+		SASConfigPage.STP_IDLE_TMO = 0x3FFFFFF;
+
+
+	SASConfigPage.OPNRJT_RTRY_INTVL =         (SAS_MFD << 16) |
+						SAS_OPNRJT_RTRY_INTVL;
+	SASConfigPage.Data_Cmd_OPNRJT_RTRY_TMO =  (SAS_DOPNRJT_RTRY_TMO << 16)
+						| SAS_COPNRJT_RTRY_TMO;
+	SASConfigPage.Data_Cmd_OPNRJT_RTRY_THR =  (SAS_DOPNRJT_RTRY_THR << 16)
+						| SAS_COPNRJT_RTRY_THR;
+	SASConfigPage.MAX_AIP =  SAS_MAX_AIP;
+
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("SASConfigPage.pageCode "
+			"0x%08x\n", SASConfigPage.pageCode));
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("SASConfigPage.MST_MSI "
+			" 0x%08x\n", SASConfigPage.MST_MSI));
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("SASConfigPage.STP_SSP_MCT_TMO "
+			" 0x%08x\n", SASConfigPage.STP_SSP_MCT_TMO));
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("SASConfigPage.STP_FRM_TMO "
+			" 0x%08x\n", SASConfigPage.STP_FRM_TMO));
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("SASConfigPage.STP_IDLE_TMO "
+			" 0x%08x\n", SASConfigPage.STP_IDLE_TMO));
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("SASConfigPage.OPNRJT_RTRY_INTVL "
+			" 0x%08x\n", SASConfigPage.OPNRJT_RTRY_INTVL));
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("SASConfigPage.Data_Cmd_OPNRJT_RTRY_TMO "
+			" 0x%08x\n", SASConfigPage.Data_Cmd_OPNRJT_RTRY_TMO));
+	PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("SASConfigPage.Data_Cmd_OPNRJT_RTRY_THR "
+			" 0x%08x\n", SASConfigPage.Data_Cmd_OPNRJT_RTRY_THR));
+	PM8001_INIT_DBG(pm8001_ha, pm8001_printk("SASConfigPage.MAX_AIP "
+			" 0x%08x\n", SASConfigPage.MAX_AIP));
+
+	memcpy(&payload.cfg_pg, &SASConfigPage,
+			 sizeof(SASProtocolTimerConfig_t));
+
+	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &payload, 0);
+
+	return rc;
 }
 
 /**
@@ -800,11 +880,8 @@ static int pm80xx_chip_init(struct pm8001_hba_info *pm8001_ha)
 	} else
 		return -EBUSY;
 
-	/* configure thermal */
-	pm80xx_set_thermal_config(pm8001_ha);
-
-	PM8001_INIT_DBG(pm8001_ha,
-		pm8001_printk("Thermal configuration successful!\n"));
+	/* send SAS protocol timer configuration page to FW */
+	ret = pm80xx_set_sas_protocol_timer_config(pm8001_ha);
 
 	/* Check for encryption */
 	if (pm8001_ha->chip->encrypt) {
@@ -1269,6 +1346,11 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
+	case IO_XFER_OPEN_RETRY_BACKOFF_THRESHOLD_REACHED:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_TMO:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_NO_DEST:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n"));
 		ts->resp = SAS_TASK_COMPLETE;
@@ -1472,6 +1554,11 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
+	case IO_XFER_OPEN_RETRY_BACKOFF_THRESHOLD_REACHED:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_TMO:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_NO_DEST:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n"));
 		ts->resp = SAS_TASK_COMPLETE;
@@ -1554,6 +1641,13 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	case IO_XFER_ERROR_XFER_ZERO_DATA_LEN:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_XFER_ERROR_XFER_ZERO_DATA_LEN\n"));
+		ts->resp = SAS_TASK_COMPLETE;
+		ts->stat = SAS_DATA_OVERRUN;
+		break;
+	case IO_XFER_ERROR_INTERNAL_CRC_ERROR:
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("IO_XFR_ERROR_INTERNAL_CRC_ERROR\n"));
+		/* TBC: used default set values */
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_DATA_OVERRUN;
 		break;
@@ -1761,6 +1855,11 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_CONT0;
 		break;
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
+	case IO_XFER_OPEN_RETRY_BACKOFF_THRESHOLD_REACHED:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_TMO:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_NO_DEST:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n"));
 		ts->resp = SAS_TASK_COMPLETE;
@@ -2051,7 +2150,12 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_CONT0;
 		break;
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
-		PM8001_IO_DBG(pm8001_ha,
+	case IO_XFER_OPEN_RETRY_BACKOFF_THRESHOLD_REACHED:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_TMO:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_NO_DEST:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED:
+		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n"));
 		ts->resp = SAS_TASK_UNDELIVERED;
 		ts->stat = SAS_DEV_NO_RESPONSE;
@@ -2151,6 +2255,20 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	case IO_XFER_PIO_SETUP_ERROR:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_XFER_PIO_SETUP_ERROR\n"));
+		ts->resp = SAS_TASK_COMPLETE;
+		ts->stat = SAS_OPEN_TO;
+		break;
+	case IO_XFER_ERROR_INTERNAL_CRC_ERROR:
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("IO_XFR_ERROR_INTERNAL_CRC_ERROR\n"));
+		/* TBC: used default set values */
+		ts->resp = SAS_TASK_COMPLETE;
+		ts->stat = SAS_OPEN_TO;
+		break;
+	case IO_XFER_DMA_ACTIVATE_TIMEOUT:
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("IO_XFR_DMA_ACTIVATE_TIMEOUT\n"));
+		/* TBC: used default set values */
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_TO;
 		break;
@@ -2305,6 +2423,11 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->open_rej_reason = SAS_OREJ_RSVD_CONT0;
 		break;
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
+	case IO_XFER_OPEN_RETRY_BACKOFF_THRESHOLD_REACHED:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_TMO:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_NO_DEST:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE:
+	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS\n"));
 		ts->resp = SAS_TASK_COMPLETE;
@@ -2862,6 +2985,9 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case HW_EVENT_PORT_RECOVERY_TIMER_TMO:
 		PM8001_MSG_DBG(pm8001_ha,
 			pm8001_printk("HW_EVENT_PORT_RECOVERY_TIMER_TMO\n"));
+		pm80xx_hw_event_ack_req(pm8001_ha, 0,
+			HW_EVENT_PORT_RECOVERY_TIMER_TMO,
+			port_id, phy_id, 0, 0);
 		sas_phy_disconnected(sas_phy);
 		phy->phy_attached = 0;
 		sas_ha->notify_port_event(sas_phy, PORTE_LINK_RESET_ERR);
@@ -3499,10 +3625,7 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_prio << 3);
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_attr & 7);
 	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cdb, 16);
-	circularQ = &pm8001_ha->inbnd_q_tbl[inb++];
-
-	/* rotate the inb queue */
-	inb = inb%PM8001_MAX_SPCV_INB_NUM;
+	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 
 	/* Check if encryption is set */
 	if (pm8001_ha->chip->encrypt &&
@@ -3603,10 +3726,7 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	unsigned long flags;
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	circularQ = &pm8001_ha->inbnd_q_tbl[inb++];
-
-	/* rotate the inb queue */
-	inb = inb%PM8001_MAX_SPCV_INB_NUM;
+	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 
 	if (task->data_dir == PCI_DMA_NONE) {
 		ATAP = 0x04; /* no data*/

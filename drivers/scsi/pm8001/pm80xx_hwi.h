@@ -197,6 +197,30 @@
 #define CIPHER_MODE_XTS				0x00000002
 #define KEK_MGMT_SUBOP_KEYCARDUPDATE		0x4
 
+/* SAS protocol timer configuration page */
+#define SAS_PROTOCOL_TIMER_CONFIG_PAGE  0x04
+#define STP_MCT_TMO                     32
+#define SSP_MCT_TMO                     32
+#define SAS_MAX_OPEN_TIME				5
+#define SMP_MAX_CONN_TIMER              0xFF
+#define STP_FRM_TIMER                   0
+#define STP_IDLE_TIME                   5 /* 5 us; controller default */
+#define SAS_MFD                         0
+#define SAS_OPNRJT_RTRY_INTVL           2
+#define SAS_DOPNRJT_RTRY_TMO            128
+#define SAS_COPNRJT_RTRY_TMO            128
+
+/*
+  Making ORR bigger than IT NEXUS LOSS which is 2000000us = 2 second.
+  Assuming a bigger value 3 second, 3000000/128 = 23437.5 where 128
+  is DOPNRJT_RTRY_TMO
+*/
+#define SAS_DOPNRJT_RTRY_THR            23438
+#define SAS_COPNRJT_RTRY_THR            23438
+#define SAS_MAX_AIP                     0x200000
+#define IT_NEXUS_TIMEOUT       0x7D0
+#define PORT_RECOVERY_TIMEOUT  ((IT_NEXUS_TIMEOUT/100) + 30)
+
 struct mpi_msg_hdr {
 	__le32	header;	/* Bits [11:0] - Message operation code */
 	/* Bits [15:12] - Message Category */
@@ -996,6 +1020,23 @@ struct ssp_coalesced_comp_resp {
 
 /* new outbound structure for spcv - ends */
 
+/* brief data structure for SAS protocol timer configuration page.
+ *
+ */
+struct SASProtocolTimerConfig {
+	__le32 pageCode;			/* 0 */
+	__le32 MST_MSI;				/* 1 */
+	__le32 STP_SSP_MCT_TMO;			/* 2 */
+	__le32 STP_FRM_TMO;			/* 3 */
+	__le32 STP_IDLE_TMO;			/* 4 */
+	__le32 OPNRJT_RTRY_INTVL;		/* 5 */
+	__le32 Data_Cmd_OPNRJT_RTRY_TMO;	/* 6 */
+	__le32 Data_Cmd_OPNRJT_RTRY_THR;	/* 7 */
+	__le32 MAX_AIP;				/* 8 */
+} __attribute__((packed, aligned(4)));
+
+typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
+
 #define NDS_BITS 0x0F
 #define PDS_BITS 0xF0
 
@@ -1122,7 +1163,8 @@ struct ssp_coalesced_comp_resp {
 #define IO_DS_INVALID					0x49
 /* WARNING: the value is not contiguous from here */
 #define IO_XFER_ERR_LAST_PIO_DATAIN_CRC_ERR	0x52
-#define IO_XFR_ERROR_INTERNAL_CRC_ERROR		0x54
+#define IO_XFER_DMA_ACTIVATE_TIMEOUT		0x53
+#define IO_XFER_ERROR_INTERNAL_CRC_ERROR	0x54
 #define MPI_IO_RQE_BUSY_FULL			0x55
 #define IO_XFER_ERR_EOB_DATA_OVERRUN		0x56
 #define IO_XFR_ERROR_INVALID_SSP_RSP_FRAME	0x57

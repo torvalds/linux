@@ -563,6 +563,7 @@ int pm8001_dev_found(struct domain_device *dev);
 void pm8001_dev_gone(struct domain_device *dev);
 int pm8001_lu_reset(struct domain_device *dev, u8 *lun);
 int pm8001_I_T_nexus_reset(struct domain_device *dev);
+int pm8001_I_T_nexus_event_handler(struct domain_device *dev);
 int pm8001_query_task(struct sas_task *task);
 void pm8001_open_reject_retry(
 	struct pm8001_hba_info *pm8001_ha,
@@ -625,6 +626,7 @@ void pm8001_free_task(struct sas_task *task);
 void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag);
 struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
 					u32 device_id);
+int pm80xx_set_thermal_config(struct pm8001_hba_info *pm8001_ha);
 
 int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
 

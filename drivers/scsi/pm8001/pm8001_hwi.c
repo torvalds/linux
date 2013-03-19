@@ -1670,7 +1670,7 @@ void pm8001_work_fn(struct work_struct *work)
 	}	break;
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
 		dev = pm8001_dev->sas_device;
-		pm8001_I_T_nexus_reset(dev);
+		pm8001_I_T_nexus_event_handler(dev);
 		break;
 	case IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY:
 		dev = pm8001_dev->sas_device;

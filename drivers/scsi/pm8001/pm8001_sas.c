@@ -1018,6 +1018,72 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 	return rc;
 }
 
+/*
+* This function handle the IT_NEXUS_XXX event or completion
+* status code for SSP/SATA/SMP I/O request.
+*/
+int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
+{
+	int rc = TMF_RESP_FUNC_FAILED;
+	struct pm8001_device *pm8001_dev;
+	struct pm8001_hba_info *pm8001_ha;
+	struct sas_phy *phy;
+	u32 device_id = 0;
+
+	if (!dev || !dev->lldd_dev)
+		return -1;
+
+	pm8001_dev = dev->lldd_dev;
+	device_id = pm8001_dev->device_id;
+	pm8001_ha = pm8001_find_ha_by_dev(dev);
+
+	PM8001_EH_DBG(pm8001_ha,
+			pm8001_printk("I_T_Nexus handler invoked !!"));
+
+	phy = sas_get_local_phy(dev);
+
+	if (dev_is_sata(dev)) {
+		DECLARE_COMPLETION_ONSTACK(completion_setstate);
+		if (scsi_is_sas_phy_local(phy)) {
+			rc = 0;
+			goto out;
+		}
+		/* send internal ssp/sata/smp abort command to FW */
+		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
+							dev, 1, 0);
+		msleep(100);
+
+		/* deregister the target device */
+		pm8001_dev_gone_notify(dev);
+		msleep(200);
+
+		/*send phy reset to hard reset target */
+		rc = sas_phy_reset(phy, 1);
+		msleep(2000);
+		pm8001_dev->setds_completion = &completion_setstate;
+
+		wait_for_completion(&completion_setstate);
+	} else {
+		/* send internal ssp/sata/smp abort command to FW */
+		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
+							dev, 1, 0);
+		msleep(100);
+
+		/* deregister the target device */
+		pm8001_dev_gone_notify(dev);
+		msleep(200);
+
+		/*send phy reset to hard reset target */
+		rc = sas_phy_reset(phy, 1);
+		msleep(2000);
+	}
+	PM8001_EH_DBG(pm8001_ha, pm8001_printk(" for device[%x]:rc=%d\n",
+		pm8001_dev->device_id, rc));
+out:
+	sas_put_local_phy(phy);
+
+	return rc;
+}
 /* mandatory SAM-3, the task reset the specified LUN*/
 int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 {
