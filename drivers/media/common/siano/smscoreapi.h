@@ -44,7 +44,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-/* Define the firmware names used by the driver */
+/*
+ * Define the firmware names used by the driver.
+ * Those should match what's used at smscoreapi.c and sms-cards.c
+ * including the MODULE_FIRMWARE() macros at the end of smscoreapi.c
+ */
 #define SMS_FW_ATSC_DENVER         "atsc_denver.inp"
 #define SMS_FW_CMMB_MING_APP       "cmmb_ming_app.inp"
 #define SMS_FW_CMMB_VEGA_12MHZ     "cmmb_vega_12mhz.inp"
