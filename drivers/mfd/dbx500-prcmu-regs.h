@@ -74,32 +74,10 @@
 #define PRCM_A9PL_FORCE_CLKEN_PRCM_A9PL_FORCE_CLKEN BIT(0)
 #define PRCM_A9PL_FORCE_CLKEN_PRCM_A9AXI_FORCE_CLKEN BIT(1)
 
-/* ARM WFI Standby signal register */
-#define PRCM_ARM_WFI_STANDBY    (prcmu_base + 0x130)
-#define PRCM_ARM_WFI_STANDBY_WFI0               0x08
-#define PRCM_ARM_WFI_STANDBY_WFI1               0x10
-#define PRCM_IOCR		(prcmu_base + 0x310)
-#define PRCM_IOCR_IOFORCE			0x1
-
 /* CPU mailbox registers */
 #define PRCM_MBOX_CPU_VAL	(prcmu_base + 0x0fc)
 #define PRCM_MBOX_CPU_SET	(prcmu_base + 0x100)
 #define PRCM_MBOX_CPU_CLR	(prcmu_base + 0x104)
-
-/* Dual A9 core interrupt management unit registers */
-#define PRCM_A9_MASK_REQ	(prcmu_base + 0x328)
-#define PRCM_A9_MASK_REQ_PRCM_A9_MASK_REQ	0x1
-
-#define PRCM_A9_MASK_ACK	(prcmu_base + 0x32c)
-#define PRCM_ARMITMSK31TO0	(prcmu_base + 0x11c)
-#define PRCM_ARMITMSK63TO32	(prcmu_base + 0x120)
-#define PRCM_ARMITMSK95TO64	(prcmu_base + 0x124)
-#define PRCM_ARMITMSK127TO96	(prcmu_base + 0x128)
-#define PRCM_POWER_STATE_VAL	(prcmu_base + 0x25C)
-#define PRCM_ARMITVAL31TO0	(prcmu_base + 0x260)
-#define PRCM_ARMITVAL63TO32	(prcmu_base + 0x264)
-#define PRCM_ARMITVAL95TO64	(prcmu_base + 0x268)
-#define PRCM_ARMITVAL127TO96	(prcmu_base + 0x26C)
 
 #define PRCM_HOSTACCESS_REQ	(prcmu_base + 0x334)
 #define PRCM_HOSTACCESS_REQ_HOSTACCESS_REQ 0x1

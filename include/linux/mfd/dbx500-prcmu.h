@@ -293,36 +293,6 @@ static inline u8 prcmu_get_power_state_result(void)
 	return db8500_prcmu_get_power_state_result();
 }
 
-static inline int prcmu_gic_decouple(void)
-{
-	return db8500_prcmu_gic_decouple();
-}
-
-static inline int prcmu_gic_recouple(void)
-{
-	return db8500_prcmu_gic_recouple();
-}
-
-static inline bool prcmu_gic_pending_irq(void)
-{
-	return db8500_prcmu_gic_pending_irq();
-}
-
-static inline bool prcmu_is_cpu_in_wfi(int cpu)
-{
-	return db8500_prcmu_is_cpu_in_wfi(cpu);
-}
-
-static inline int prcmu_copy_gic_settings(void)
-{
-	return db8500_prcmu_copy_gic_settings();
-}
-
-static inline bool prcmu_pending_irq(void)
-{
-	return db8500_prcmu_pending_irq();
-}
-
 static inline int prcmu_set_epod(u16 epod_id, u8 epod_state)
 {
 	return db8500_prcmu_set_epod(epod_id, epod_state);

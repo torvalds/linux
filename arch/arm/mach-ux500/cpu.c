@@ -20,6 +20,7 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/clk-ux500.h>
+#include <linux/platform_data/arm-ux500-pm.h>
 
 #include <asm/mach/map.h>
 
@@ -68,12 +69,15 @@ void __init ux500_init_irq(void)
 	 */
 	if (cpu_is_u8500_family()) {
 		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
 		u8500_clk_init();
 	} else if (cpu_is_u9540()) {
 		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
 		u8500_clk_init();
 	} else if (cpu_is_u8540()) {
 		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
 		u8540_clk_init();
 	}
 }
