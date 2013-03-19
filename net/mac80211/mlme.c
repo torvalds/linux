@@ -56,7 +56,10 @@ MODULE_PARM_DESC(max_probe_tries,
  * probe on beacon miss before declaring the connection lost
  * default to what we want.
  */
-#define IEEE80211_BEACON_LOSS_COUNT	7
+static int beacon_loss_count = 7;
+module_param(beacon_loss_count, int, 0644);
+MODULE_PARM_DESC(beacon_loss_count,
+		 "Number of beacon intervals before we decide beacon was lost.");
 
 /*
  * Time the connection can be idle before we probe
@@ -1645,7 +1648,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		bss_conf->assoc_capability, bss->has_erp_value, bss->erp_value);
 
 	sdata->u.mgd.beacon_timeout = usecs_to_jiffies(ieee80211_tu_to_usec(
-		IEEE80211_BEACON_LOSS_COUNT * bss_conf->beacon_int));
+		beacon_loss_count * bss_conf->beacon_int));
 
 	sdata->u.mgd.associated = cbss;
 	memcpy(sdata->u.mgd.bssid, cbss->bssid, ETH_ALEN);
@@ -1977,7 +1980,8 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 
 	if (beacon)
 		mlme_dbg_ratelimited(sdata,
-				     "detected beacon loss from AP - probing\n");
+				     "detected beacon loss from AP (missed %d beacons) - probing\n",
+				     beacon_loss_count);
 
 	ieee80211_cqm_rssi_notify(&sdata->vif,
 		NL80211_CQM_RSSI_BEACON_LOSS_EVENT, GFP_KERNEL);
