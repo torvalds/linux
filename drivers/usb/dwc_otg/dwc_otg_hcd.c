@@ -2709,11 +2709,12 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
  * @param _qh Transactions from the first QTD for this QH are selected and
  * assigned to a free host channel.
  */
-static void assign_and_init_hc(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
+static int assign_and_init_hc(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 {
 	dwc_hc_t	*hc;
 	dwc_otg_qtd_t	*qtd;
 	struct urb	*urb;
+	int  retval = 0;
 
 	DWC_DEBUGPL(DBG_HCDV, "%s(%p,%p)\n", __func__, _hcd, _qh);
 	hc = list_entry(_hcd->free_hc_list.next, dwc_hc_t, hc_list_entry);
@@ -2723,8 +2724,13 @@ static void assign_and_init_hc(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 
 	qtd = list_entry(_qh->qtd_list.next, dwc_otg_qtd_t, qtd_list_entry);
 	urb = qtd->urb;
-	_qh->channel = hc;
-	_qh->qtd_in_process = qtd;
+	if (urb == NULL){
+		printk("%s : urb is NULL\n", __func__);
+		retval = -EINVAL;
+		return retval;
+	}else{
+		_qh->channel = hc;
+		_qh->qtd_in_process = qtd;
 
 	/*
 	 * Use usb_pipedevice to determine device address. This address is
@@ -2877,6 +2883,8 @@ static void assign_and_init_hc(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 
 	dwc_otg_hc_init(_hcd->core_if, hc);
 	hc->qh = _qh;
+	return retval;
+	}
 }
 
 /**
@@ -2894,6 +2902,7 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 	dwc_otg_qh_t 			*qh;
 	int				num_channels;
 	dwc_otg_transaction_type_e	ret_val = DWC_OTG_TRANSACTION_NONE;
+	int err;
 
 #ifdef DEBUG_SOF
 	DWC_DEBUGPL(DBG_HCD, "  Select Transactions\n");
@@ -2937,13 +2946,15 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 	       !list_empty(&_hcd->free_hc_list)) {
 
 		qh = list_entry(qh_ptr, dwc_otg_qh_t, qh_list_entry);
-		assign_and_init_hc(_hcd, qh);
+		err = assign_and_init_hc(_hcd, qh);
 
 		/*
 		 * Move the QH from the non-periodic inactive schedule to the
 		 * non-periodic active schedule.
 		 */
 		qh_ptr = qh_ptr->next;
+		if (err != 0)
+			continue;
 		list_move_tail(&qh->qh_list_entry, &_hcd->non_periodic_sched_active);
 
 		if (ret_val == DWC_OTG_TRANSACTION_NONE) {
