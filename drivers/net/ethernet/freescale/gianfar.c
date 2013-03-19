@@ -132,7 +132,7 @@ static int gfar_poll(struct napi_struct *napi, int budget);
 static void gfar_netpoll(struct net_device *dev);
 #endif
 int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit);
-static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue);
+static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue);
 static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 			       int amount_pull, struct napi_struct *napi);
 void gfar_halt(struct net_device *dev);
@@ -2468,7 +2468,7 @@ static void gfar_align_skb(struct sk_buff *skb)
 }
 
 /* Interrupt Handler for Transmit complete */
-static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
+static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 {
 	struct net_device *dev = tx_queue->dev;
 	struct netdev_queue *txq;
@@ -2570,8 +2570,6 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	tx_queue->dirty_tx = bdp;
 
 	netdev_tx_completed_queue(txq, howmany, bytes_sent);
-
-	return howmany;
 }
 
 static void gfar_schedule_cleanup(struct gfar_priv_grp *gfargrp)
@@ -2834,62 +2832,72 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	struct gfar __iomem *regs = gfargrp->regs;
 	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
-	int rx_cleaned = 0, budget_per_queue = 0, rx_cleaned_per_queue = 0;
-	int tx_cleaned = 0, i, left_over_budget = budget;
+	int work_done = 0, work_done_per_q = 0;
+	int i, budget_per_q;
+	int has_tx_work;
 	unsigned long serviced_queues = 0;
-	int num_queues = 0;
+	int num_queues = gfargrp->num_rx_queues;
 
-	num_queues = gfargrp->num_rx_queues;
-	budget_per_queue = budget/num_queues;
-
+	budget_per_q = budget/num_queues;
 	/* Clear IEVENT, so interrupts aren't called again
 	 * because of the packets that have already arrived
 	 */
 	gfar_write(&regs->ievent, IEVENT_RTX_MASK);
 
-	while (num_queues && left_over_budget) {
-		budget_per_queue = left_over_budget/num_queues;
-		left_over_budget = 0;
+	while (1) {
+		has_tx_work = 0;
+		for_each_set_bit(i, &gfargrp->tx_bit_map, priv->num_tx_queues) {
+			tx_queue = priv->tx_queue[i];
+			/* run Tx cleanup to completion */
+			if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx]) {
+				gfar_clean_tx_ring(tx_queue);
+				has_tx_work = 1;
+			}
+		}
 
 		for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
 			if (test_bit(i, &serviced_queues))
 				continue;
-			rx_queue = priv->rx_queue[i];
-			tx_queue = priv->tx_queue[rx_queue->qindex];
 
-			tx_cleaned += gfar_clean_tx_ring(tx_queue);
-			rx_cleaned_per_queue =
-				gfar_clean_rx_ring(rx_queue, budget_per_queue);
-			rx_cleaned += rx_cleaned_per_queue;
-			if (rx_cleaned_per_queue < budget_per_queue) {
-				left_over_budget = left_over_budget +
-					(budget_per_queue -
-					 rx_cleaned_per_queue);
+			rx_queue = priv->rx_queue[i];
+			work_done_per_q =
+				gfar_clean_rx_ring(rx_queue, budget_per_q);
+			work_done += work_done_per_q;
+
+			/* finished processing this queue */
+			if (work_done_per_q < budget_per_q) {
 				set_bit(i, &serviced_queues);
 				num_queues--;
+				if (!num_queues)
+					break;
+				/* recompute budget per Rx queue */
+				budget_per_q =
+					(budget - work_done) / num_queues;
 			}
+		}
+
+		if (work_done >= budget)
+			break;
+
+		if (!num_queues && !has_tx_work) {
+
+			napi_complete(napi);
+
+			/* Clear the halt bit in RSTAT */
+			gfar_write(&regs->rstat, gfargrp->rstat);
+
+			gfar_write(&regs->imask, IMASK_DEFAULT);
+
+			/* If we are coalescing interrupts, update the timer
+			 * Otherwise, clear it
+			 */
+			gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
+						  gfargrp->tx_bit_map);
+			break;
 		}
 	}
 
-	if (tx_cleaned)
-		return budget;
-
-	if (rx_cleaned < budget) {
-		napi_complete(napi);
-
-		/* Clear the halt bit in RSTAT */
-		gfar_write(&regs->rstat, gfargrp->rstat);
-
-		gfar_write(&regs->imask, IMASK_DEFAULT);
-
-		/* If we are coalescing interrupts, update the timer
-		 * Otherwise, clear it
-		 */
-		gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
-					  gfargrp->tx_bit_map);
-	}
-
-	return rx_cleaned;
+	return work_done;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
