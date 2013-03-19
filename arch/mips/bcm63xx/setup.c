@@ -157,4 +157,4 @@ int __init bcm63xx_register_devices(void)
 	return board_register_devices();
 }
 
-device_initcall(bcm63xx_register_devices);
+arch_initcall(bcm63xx_register_devices);
