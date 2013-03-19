@@ -1757,12 +1757,8 @@ static struct worker *create_worker(struct worker_pool *pool)
 	set_user_nice(worker->task, pool->attrs->nice);
 	set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
 
-	/*
-	 * %PF_THREAD_BOUND is used to prevent userland from meddling with
-	 * cpumask of workqueue workers.  This is an abuse.  We need
-	 * %PF_NO_SETAFFINITY.
-	 */
-	worker->task->flags |= PF_THREAD_BOUND;
+	/* prevent userland from meddling with cpumask of workqueue workers */
+	worker->task->flags |= PF_NO_SETAFFINITY;
 
 	/*
 	 * The caller is responsible for ensuring %POOL_DISASSOCIATED
@@ -3876,7 +3872,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 		}
 
 		wq->rescuer = rescuer;
-		rescuer->task->flags |= PF_THREAD_BOUND;
+		rescuer->task->flags |= PF_NO_SETAFFINITY;
 		wake_up_process(rescuer->task);
 	}
 
