@@ -758,7 +758,7 @@ config COMEDI_AMPLC_DIO200_PCI
 	  and PCIe296 DIO boards.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called amplc_dio200.
+	  called amplc_dio200_pci.
 
 config COMEDI_AMPLC_PC236_PCI
 	tristate "Amplicon PCI236 DIO board support"
