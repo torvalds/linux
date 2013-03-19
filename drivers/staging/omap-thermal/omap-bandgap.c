@@ -566,7 +566,7 @@ int _omap_bandgap_read_threshold(struct omap_bandgap *bg_ptr, int id,
 	*val = temp;
 
 exit:
-	return 0;
+	return ret;
 }
 
 /***   Exposed APIs   ***/
