@@ -60,47 +60,45 @@
 
 /* helper macros */
 /**
- * omap_thermal_get_trip_value - returns trip temperature based on index
+ * ti_thermal_get_trip_value - returns trip temperature based on index
  * @i:	trip index
  */
-#define omap_thermal_get_trip_value(i)					\
+#define ti_thermal_get_trip_value(i)					\
 	(OMAP_TRIP_HOT + ((i) * OMAP_TRIP_STEP))
 
 /**
- * omap_thermal_is_valid_trip - check for trip index
+ * ti_thermal_is_valid_trip - check for trip index
  * @i:	trip index
  */
-#define omap_thermal_is_valid_trip(trip)				\
+#define ti_thermal_is_valid_trip(trip)				\
 	((trip) >= 0 && (trip) < OMAP_TRIP_NUMBER)
 
 #ifdef CONFIG_TI_THERMAL
-int omap_thermal_expose_sensor(struct omap_bandgap *bgp, int id,
-			       char *domain);
-int omap_thermal_remove_sensor(struct omap_bandgap *bgp, int id);
-int omap_thermal_register_cpu_cooling(struct omap_bandgap *bgp, int id);
-int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bgp, int id);
+int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id, char *domain);
+int ti_thermal_remove_sensor(struct ti_bandgap *bgp, int id);
+int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id);
+int ti_thermal_unregister_cpu_cooling(struct ti_bandgap *bgp, int id);
 #else
 static inline
-int omap_thermal_expose_sensor(struct omap_bandgap *bgp, int id,
-			       char *domain)
+int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id, char *domain)
 {
 	return 0;
 }
 
 static inline
-int omap_thermal_remove_sensor(struct omap_bandgap *bgp, int id)
+int ti_thermal_remove_sensor(struct ti_bandgap *bgp, int id)
 {
 	return 0;
 }
 
 static inline
-int omap_thermal_register_cpu_cooling(struct omap_bandgap *bgp, int id)
+int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 {
 	return 0;
 }
 
 static inline
-int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bgp, int id)
+int ti_thermal_unregister_cpu_cooling(struct ti_bandgap *bgp, int id)
 {
 	return 0;
 }

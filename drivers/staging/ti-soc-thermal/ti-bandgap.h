@@ -20,8 +20,8 @@
  * 02110-1301 USA
  *
  */
-#ifndef __OMAP_BANDGAP_H
-#define __OMAP_BANDGAP_H
+#ifndef __TI_BANDGAP_H
+#define __TI_BANDGAP_H
 
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -30,22 +30,22 @@
 /**
  * DOC: bandgap driver data structure
  * ==================================
- *   +---------------------+   +-----------------+
- *   | struct omap_bandgap |-->| struct device * |
- *   +----------+----------+   +-----------------+
+ *   +-------------------+   +-----------------+
+ *   | struct ti_bandgap |-->| struct device * |
+ *   +----------+--------+   +-----------------+
  *              |
  *              |
  *              V
- *   +--------------------------+
- *   | struct omap_bandgap_data |
- *   +--------------------------+
+ *   +------------------------+
+ *   | struct ti_bandgap_data |
+ *   +------------------------+
  *              |
  *              |
  *              * (Array of)
  * +------------+------------------------------------------------------+
- * | +----------+--------------+   +-------------------------+         |
- * | | struct omap_temp_sensor |-->| struct temp_sensor_data |         |
- * | +-------------------------+   +------------+------------+         |
+ * | +----------+------------+   +-------------------------+           |
+ * | | struct ti_temp_sensor |-->| struct temp_sensor_data |           |
+ * | +-----------------------+   +------------+------------+           |
  * |            |                                                      |
  * |            +--------------------------+                           |
  * |            V                          V                           |
@@ -56,7 +56,7 @@
  * +-------------------------------------------------------------------+
  *
  * Above is a simple diagram describing how the data structure below
- * are organized. For each bandgap device there should be a omap_bandgap_data
+ * are organized. For each bandgap device there should be a ti_bandgap_data
  * containing the device instance configuration, as well as, an array of
  * sensors, representing every sensor instance present in this bandgap.
  */
@@ -187,16 +187,16 @@ struct temp_sensor_data {
 	u32     update_int2; /* not used */
 };
 
-struct omap_bandgap_data;
+struct ti_bandgap_data;
 
 /**
- * struct omap_bandgap - bandgap device structure
+ * struct ti_bandgap - bandgap device structure
  * @dev: struct device pointer
  * @base: io memory base address
  * @conf: struct with bandgap configuration set (# sensors, conv_table, etc)
  * @fclock: pointer to functional clock of temperature sensor
  * @div_clk: pointer to divider clock of temperature sensor fclk
- * @bg_mutex: mutex for omap_bandgap structure
+ * @bg_mutex: mutex for ti_bandgap structure
  * @irq: MPU IRQ number for thermal alert
  * @tshut_gpio: GPIO where Tshut signal is routed
  * @clk_rate: Holds current clock rate
@@ -205,10 +205,10 @@ struct omap_bandgap_data;
  * It holds most of the dynamic stuff. Configurations and sensor specific
  * entries are inside the @conf structure.
  */
-struct omap_bandgap {
+struct ti_bandgap {
 	struct device			*dev;
 	void __iomem			*base;
-	struct omap_bandgap_data	*conf;
+	struct ti_bandgap_data		*conf;
 	struct clk			*fclock;
 	struct clk			*div_clk;
 	spinlock_t			lock; /* shields this struct */
@@ -237,7 +237,7 @@ struct temp_sensor_regval {
 };
 
 /**
- * struct omap_temp_sensor - bandgap temperature sensor configuration data
+ * struct ti_temp_sensor - bandgap temperature sensor configuration data
  * @ts_data: pointer to struct with thresholds, limits of temperature sensor
  * @registers: pointer to the list of register offsets and bitfields
  * @regval: temperature sensor register values
@@ -258,7 +258,7 @@ struct temp_sensor_regval {
  * assess the gradient from hotspot, how to cooldown the domain when sensor
  * reports too hot temperature.
  */
-struct omap_temp_sensor {
+struct ti_temp_sensor {
 	struct temp_sensor_data		*ts_data;
 	struct temp_sensor_registers	*registers;
 	struct temp_sensor_regval	regval;
@@ -269,56 +269,56 @@ struct omap_temp_sensor {
 	const int			slope_pcb;
 	const int			constant_pcb;
 	void				*data;
-	int (*register_cooling)(struct omap_bandgap *bgp, int id);
-	int (*unregister_cooling)(struct omap_bandgap *bgp, int id);
+	int (*register_cooling)(struct ti_bandgap *bgp, int id);
+	int (*unregister_cooling)(struct ti_bandgap *bgp, int id);
 };
 
 /**
  * DOC: omap bandgap feature types
  *
- * OMAP_BANDGAP_FEATURE_TSHUT - used when the thermal shutdown signal output
+ * TI_BANDGAP_FEATURE_TSHUT - used when the thermal shutdown signal output
  *      of a bandgap device instance is routed to the processor. This means
  *      the system must react and perform the shutdown by itself (handle an
  *      IRQ, for instance).
  *
- * OMAP_BANDGAP_FEATURE_TSHUT_CONFIG - used when the bandgap device has control
+ * TI_BANDGAP_FEATURE_TSHUT_CONFIG - used when the bandgap device has control
  *      over the thermal shutdown configuration. This means that the thermal
  *      shutdown thresholds are programmable, for instance.
  *
- * OMAP_BANDGAP_FEATURE_TALERT - used when the bandgap device instance outputs
+ * TI_BANDGAP_FEATURE_TALERT - used when the bandgap device instance outputs
  *      a signal representing violation of programmable alert thresholds.
  *
- * OMAP_BANDGAP_FEATURE_MODE_CONFIG - used when it is possible to choose which
+ * TI_BANDGAP_FEATURE_MODE_CONFIG - used when it is possible to choose which
  *      mode, continuous or one shot, the bandgap device instance will operate.
  *
- * OMAP_BANDGAP_FEATURE_COUNTER - used when the bandgap device instance allows
+ * TI_BANDGAP_FEATURE_COUNTER - used when the bandgap device instance allows
  *      programming the update interval of its internal state machine.
  *
- * OMAP_BANDGAP_FEATURE_POWER_SWITCH - used when the bandgap device allows
+ * TI_BANDGAP_FEATURE_POWER_SWITCH - used when the bandgap device allows
  *      itself to be switched on/off.
  *
- * OMAP_BANDGAP_FEATURE_CLK_CTRL - used when the clocks feeding the bandgap
+ * TI_BANDGAP_FEATURE_CLK_CTRL - used when the clocks feeding the bandgap
  *      device are gateable or not.
  *
- * OMAP_BANDGAP_FEATURE_FREEZE_BIT - used when the bandgap device features
+ * TI_BANDGAP_FEATURE_FREEZE_BIT - used when the bandgap device features
  *      a history buffer that its update can be freezed/unfreezed.
  *
- * OMAP_BANDGAP_HAS(b, f) - macro to check if a bandgap device is capable of a
+ * TI_BANDGAP_HAS(b, f) - macro to check if a bandgap device is capable of a
  *      specific feature (above) or not. Return non-zero, if yes.
  */
-#define OMAP_BANDGAP_FEATURE_TSHUT		BIT(0)
-#define OMAP_BANDGAP_FEATURE_TSHUT_CONFIG	BIT(1)
-#define OMAP_BANDGAP_FEATURE_TALERT		BIT(2)
-#define OMAP_BANDGAP_FEATURE_MODE_CONFIG	BIT(3)
-#define OMAP_BANDGAP_FEATURE_COUNTER		BIT(4)
-#define OMAP_BANDGAP_FEATURE_POWER_SWITCH	BIT(5)
-#define OMAP_BANDGAP_FEATURE_CLK_CTRL		BIT(6)
-#define OMAP_BANDGAP_FEATURE_FREEZE_BIT		BIT(7)
-#define OMAP_BANDGAP_HAS(b, f)			\
-			((b)->conf->features & OMAP_BANDGAP_FEATURE_ ## f)
+#define TI_BANDGAP_FEATURE_TSHUT		BIT(0)
+#define TI_BANDGAP_FEATURE_TSHUT_CONFIG		BIT(1)
+#define TI_BANDGAP_FEATURE_TALERT		BIT(2)
+#define TI_BANDGAP_FEATURE_MODE_CONFIG		BIT(3)
+#define TI_BANDGAP_FEATURE_COUNTER		BIT(4)
+#define TI_BANDGAP_FEATURE_POWER_SWITCH		BIT(5)
+#define TI_BANDGAP_FEATURE_CLK_CTRL		BIT(6)
+#define TI_BANDGAP_FEATURE_FREEZE_BIT		BIT(7)
+#define TI_BANDGAP_HAS(b, f)			\
+			((b)->conf->features & TI_BANDGAP_FEATURE_ ## f)
 
 /**
- * struct omap_bandgap_data - omap bandgap data configuration structure
+ * struct ti_bandgap_data - omap bandgap data configuration structure
  * @features: a bitwise flag set to describe the device features
  * @conv_table: Pointer to ADC to temperature conversion table
  * @adc_start_val: ADC conversion table starting value
@@ -337,7 +337,7 @@ struct omap_temp_sensor {
  * their configuration representation, and how to export and unexport them to
  * a thermal API.
  */
-struct omap_bandgap_data {
+struct ti_bandgap_data {
 	unsigned int			features;
 	const int			*conv_table;
 	u32				adc_start_val;
@@ -345,32 +345,31 @@ struct omap_bandgap_data {
 	char				*fclock_name;
 	char				*div_ck_name;
 	int				sensor_count;
-	int (*report_temperature)(struct omap_bandgap *bgp, int id);
-	int (*expose_sensor)(struct omap_bandgap *bgp, int id, char *domain);
-	int (*remove_sensor)(struct omap_bandgap *bgp, int id);
+	int (*report_temperature)(struct ti_bandgap *bgp, int id);
+	int (*expose_sensor)(struct ti_bandgap *bgp, int id, char *domain);
+	int (*remove_sensor)(struct ti_bandgap *bgp, int id);
 
 	/* this needs to be at the end */
-	struct omap_temp_sensor		sensors[];
+	struct ti_temp_sensor		sensors[];
 };
 
-int omap_bandgap_read_thot(struct omap_bandgap *bgp, int id, int *thot);
-int omap_bandgap_write_thot(struct omap_bandgap *bgp, int id, int val);
-int omap_bandgap_read_tcold(struct omap_bandgap *bgp, int id, int *tcold);
-int omap_bandgap_write_tcold(struct omap_bandgap *bgp, int id, int val);
-int omap_bandgap_read_update_interval(struct omap_bandgap *bgp, int id,
-				      int *interval);
-int omap_bandgap_write_update_interval(struct omap_bandgap *bgp, int id,
-				       u32 interval);
-int omap_bandgap_read_temperature(struct omap_bandgap *bgp, int id,
+int ti_bandgap_read_thot(struct ti_bandgap *bgp, int id, int *thot);
+int ti_bandgap_write_thot(struct ti_bandgap *bgp, int id, int val);
+int ti_bandgap_read_tcold(struct ti_bandgap *bgp, int id, int *tcold);
+int ti_bandgap_write_tcold(struct ti_bandgap *bgp, int id, int val);
+int ti_bandgap_read_update_interval(struct ti_bandgap *bgp, int id,
+				    int *interval);
+int ti_bandgap_write_update_interval(struct ti_bandgap *bgp, int id,
+				     u32 interval);
+int ti_bandgap_read_temperature(struct ti_bandgap *bgp, int id,
 				  int *temperature);
-int omap_bandgap_set_sensor_data(struct omap_bandgap *bgp, int id,
-				 void *data);
-void *omap_bandgap_get_sensor_data(struct omap_bandgap *bgp, int id);
+int ti_bandgap_set_sensor_data(struct ti_bandgap *bgp, int id, void *data);
+void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id);
 
 #ifdef CONFIG_OMAP4_THERMAL
-extern const struct omap_bandgap_data omap4430_data;
-extern const struct omap_bandgap_data omap4460_data;
-extern const struct omap_bandgap_data omap4470_data;
+extern const struct ti_bandgap_data omap4430_data;
+extern const struct ti_bandgap_data omap4460_data;
+extern const struct ti_bandgap_data omap4470_data;
 #else
 #define omap4430_data					NULL
 #define omap4460_data					NULL
@@ -378,7 +377,7 @@ extern const struct omap_bandgap_data omap4470_data;
 #endif
 
 #ifdef CONFIG_OMAP5_THERMAL
-extern const struct omap_bandgap_data omap5430_data;
+extern const struct ti_bandgap_data omap5430_data;
 #else
 #define omap5430_data					NULL
 #endif

@@ -66,17 +66,17 @@ omap4430_adc_to_temp[OMAP4430_ADC_END_VALUE - OMAP4430_ADC_START_VALUE + 1] = {
 };
 
 /* OMAP4430 data */
-const struct omap_bandgap_data omap4430_data = {
-	.features = OMAP_BANDGAP_FEATURE_MODE_CONFIG |
-			OMAP_BANDGAP_FEATURE_CLK_CTRL |
-			OMAP_BANDGAP_FEATURE_POWER_SWITCH,
+const struct ti_bandgap_data omap4430_data = {
+	.features = TI_BANDGAP_FEATURE_MODE_CONFIG |
+			TI_BANDGAP_FEATURE_CLK_CTRL |
+			TI_BANDGAP_FEATURE_POWER_SWITCH,
 	.fclock_name = "bandgap_fclk",
 	.div_ck_name = "bandgap_fclk",
 	.conv_table = omap4430_adc_to_temp,
 	.adc_start_val = OMAP4430_ADC_START_VALUE,
 	.adc_end_val = OMAP4430_ADC_END_VALUE,
-	.expose_sensor = omap_thermal_expose_sensor,
-	.remove_sensor = omap_thermal_remove_sensor,
+	.expose_sensor = ti_thermal_expose_sensor,
+	.remove_sensor = ti_thermal_remove_sensor,
 	.sensors = {
 		{
 		.registers = &omap4430_mpu_temp_sensor_registers,
@@ -86,8 +86,8 @@ const struct omap_bandgap_data omap4430_data = {
 		.constant = 20000,
 		.slope_pcb = 0,
 		.constant_pcb = 20000,
-		.register_cooling = omap_thermal_register_cpu_cooling,
-		.unregister_cooling = omap_thermal_unregister_cpu_cooling,
+		.register_cooling = ti_thermal_register_cpu_cooling,
+		.unregister_cooling = ti_thermal_unregister_cpu_cooling,
 		},
 	},
 	.sensor_count = 1,
@@ -201,21 +201,21 @@ omap4460_adc_to_temp[OMAP4460_ADC_END_VALUE - OMAP4460_ADC_START_VALUE + 1] = {
 };
 
 /* OMAP4460 data */
-const struct omap_bandgap_data omap4460_data = {
-	.features = OMAP_BANDGAP_FEATURE_TSHUT |
-			OMAP_BANDGAP_FEATURE_TSHUT_CONFIG |
-			OMAP_BANDGAP_FEATURE_TALERT |
-			OMAP_BANDGAP_FEATURE_MODE_CONFIG |
-			OMAP_BANDGAP_FEATURE_POWER_SWITCH |
-			OMAP_BANDGAP_FEATURE_CLK_CTRL |
-			OMAP_BANDGAP_FEATURE_COUNTER,
+const struct ti_bandgap_data omap4460_data = {
+	.features = TI_BANDGAP_FEATURE_TSHUT |
+			TI_BANDGAP_FEATURE_TSHUT_CONFIG |
+			TI_BANDGAP_FEATURE_TALERT |
+			TI_BANDGAP_FEATURE_MODE_CONFIG |
+			TI_BANDGAP_FEATURE_POWER_SWITCH |
+			TI_BANDGAP_FEATURE_CLK_CTRL |
+			TI_BANDGAP_FEATURE_COUNTER,
 	.fclock_name = "bandgap_ts_fclk",
 	.div_ck_name = "div_ts_ck",
 	.conv_table = omap4460_adc_to_temp,
 	.adc_start_val = OMAP4460_ADC_START_VALUE,
 	.adc_end_val = OMAP4460_ADC_END_VALUE,
-	.expose_sensor = omap_thermal_expose_sensor,
-	.remove_sensor = omap_thermal_remove_sensor,
+	.expose_sensor = ti_thermal_expose_sensor,
+	.remove_sensor = ti_thermal_remove_sensor,
 	.sensors = {
 		{
 		.registers = &omap4460_mpu_temp_sensor_registers,
@@ -225,29 +225,29 @@ const struct omap_bandgap_data omap4460_data = {
 		.constant = OMAP_GRADIENT_CONST_4460,
 		.slope_pcb = OMAP_GRADIENT_SLOPE_W_PCB_4460,
 		.constant_pcb = OMAP_GRADIENT_CONST_W_PCB_4460,
-		.register_cooling = omap_thermal_register_cpu_cooling,
-		.unregister_cooling = omap_thermal_unregister_cpu_cooling,
+		.register_cooling = ti_thermal_register_cpu_cooling,
+		.unregister_cooling = ti_thermal_unregister_cpu_cooling,
 		},
 	},
 	.sensor_count = 1,
 };
 
 /* OMAP4470 data */
-const struct omap_bandgap_data omap4470_data = {
-	.features = OMAP_BANDGAP_FEATURE_TSHUT |
-			OMAP_BANDGAP_FEATURE_TSHUT_CONFIG |
-			OMAP_BANDGAP_FEATURE_TALERT |
-			OMAP_BANDGAP_FEATURE_MODE_CONFIG |
-			OMAP_BANDGAP_FEATURE_POWER_SWITCH |
-			OMAP_BANDGAP_FEATURE_CLK_CTRL |
-			OMAP_BANDGAP_FEATURE_COUNTER,
+const struct ti_bandgap_data omap4470_data = {
+	.features = TI_BANDGAP_FEATURE_TSHUT |
+			TI_BANDGAP_FEATURE_TSHUT_CONFIG |
+			TI_BANDGAP_FEATURE_TALERT |
+			TI_BANDGAP_FEATURE_MODE_CONFIG |
+			TI_BANDGAP_FEATURE_POWER_SWITCH |
+			TI_BANDGAP_FEATURE_CLK_CTRL |
+			TI_BANDGAP_FEATURE_COUNTER,
 	.fclock_name = "bandgap_ts_fclk",
 	.div_ck_name = "div_ts_ck",
 	.conv_table = omap4460_adc_to_temp,
 	.adc_start_val = OMAP4460_ADC_START_VALUE,
 	.adc_end_val = OMAP4460_ADC_END_VALUE,
-	.expose_sensor = omap_thermal_expose_sensor,
-	.remove_sensor = omap_thermal_remove_sensor,
+	.expose_sensor = ti_thermal_expose_sensor,
+	.remove_sensor = ti_thermal_remove_sensor,
 	.sensors = {
 		{
 		.registers = &omap4460_mpu_temp_sensor_registers,
@@ -257,8 +257,8 @@ const struct omap_bandgap_data omap4470_data = {
 		.constant = OMAP_GRADIENT_CONST_4470,
 		.slope_pcb = OMAP_GRADIENT_SLOPE_W_PCB_4470,
 		.constant_pcb = OMAP_GRADIENT_CONST_W_PCB_4470,
-		.register_cooling = omap_thermal_register_cpu_cooling,
-		.unregister_cooling = omap_thermal_unregister_cpu_cooling,
+		.register_cooling = ti_thermal_register_cpu_cooling,
+		.unregister_cooling = ti_thermal_unregister_cpu_cooling,
 		},
 	},
 	.sensor_count = 1,

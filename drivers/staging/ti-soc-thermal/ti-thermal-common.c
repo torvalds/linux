@@ -36,33 +36,33 @@
 #include "ti-bandgap.h"
 
 /* common data structures */
-struct omap_thermal_data {
-	struct thermal_zone_device *omap_thermal;
+struct ti_thermal_data {
+	struct thermal_zone_device *ti_thermal;
 	struct thermal_cooling_device *cool_dev;
-	struct omap_bandgap *bgp;
+	struct ti_bandgap *bgp;
 	enum thermal_device_mode mode;
 	struct work_struct thermal_wq;
 	int sensor_id;
 };
 
-static void omap_thermal_work(struct work_struct *work)
+static void ti_thermal_work(struct work_struct *work)
 {
-	struct omap_thermal_data *data = container_of(work,
-					struct omap_thermal_data, thermal_wq);
+	struct ti_thermal_data *data = container_of(work,
+					struct ti_thermal_data, thermal_wq);
 
-	thermal_zone_device_update(data->omap_thermal);
+	thermal_zone_device_update(data->ti_thermal);
 
-	dev_dbg(&data->omap_thermal->device, "updated thermal zone %s\n",
-		data->omap_thermal->type);
+	dev_dbg(&data->ti_thermal->device, "updated thermal zone %s\n",
+		data->ti_thermal->type);
 }
 
 /**
- * omap_thermal_hotspot_temperature - returns sensor extrapolated temperature
+ * ti_thermal_hotspot_temperature - returns sensor extrapolated temperature
  * @t:	omap sensor temperature
  * @s:	omap sensor slope value
  * @c:	omap sensor const value
  */
-static inline int omap_thermal_hotspot_temperature(int t, int s, int c)
+static inline int ti_thermal_hotspot_temperature(int t, int s, int c)
 {
 	int delta = t * s / 1000 + c;
 
@@ -74,12 +74,12 @@ static inline int omap_thermal_hotspot_temperature(int t, int s, int c)
 
 /* thermal zone ops */
 /* Get temperature callback function for thermal zone*/
-static inline int omap_thermal_get_temp(struct thermal_zone_device *thermal,
-					 unsigned long *temp)
+static inline int ti_thermal_get_temp(struct thermal_zone_device *thermal,
+				      unsigned long *temp)
 {
-	struct omap_thermal_data *data = thermal->devdata;
-	struct omap_bandgap *bgp;
-	struct omap_temp_sensor *s;
+	struct ti_thermal_data *data = thermal->devdata;
+	struct ti_bandgap *bgp;
+	struct ti_temp_sensor *s;
 	int ret, tmp, pcb_temp, slope, constant;
 
 	if (!data)
@@ -88,7 +88,7 @@ static inline int omap_thermal_get_temp(struct thermal_zone_device *thermal,
 	bgp = data->bgp;
 	s = &bgp->conf->sensors[data->sensor_id];
 
-	ret = omap_bandgap_read_temperature(bgp, data->sensor_id, &tmp);
+	ret = ti_bandgap_read_temperature(bgp, data->sensor_id, &tmp);
 	if (ret)
 		return ret;
 
@@ -103,16 +103,16 @@ static inline int omap_thermal_get_temp(struct thermal_zone_device *thermal,
 		slope = s->slope;
 		constant = s->constant;
 	}
-	*temp = omap_thermal_hotspot_temperature(tmp, slope, constant);
+	*temp = ti_thermal_hotspot_temperature(tmp, slope, constant);
 
 	return ret;
 }
 
 /* Bind callback functions for thermal zone */
-static int omap_thermal_bind(struct thermal_zone_device *thermal,
-			      struct thermal_cooling_device *cdev)
+static int ti_thermal_bind(struct thermal_zone_device *thermal,
+			   struct thermal_cooling_device *cdev)
 {
-	struct omap_thermal_data *data = thermal->devdata;
+	struct ti_thermal_data *data = thermal->devdata;
 	int id;
 
 	if (IS_ERR_OR_NULL(data))
@@ -132,10 +132,10 @@ static int omap_thermal_bind(struct thermal_zone_device *thermal,
 }
 
 /* Unbind callback functions for thermal zone */
-static int omap_thermal_unbind(struct thermal_zone_device *thermal,
-				struct thermal_cooling_device *cdev)
+static int ti_thermal_unbind(struct thermal_zone_device *thermal,
+			     struct thermal_cooling_device *cdev)
 {
-	struct omap_thermal_data *data = thermal->devdata;
+	struct ti_thermal_data *data = thermal->devdata;
 
 	if (IS_ERR_OR_NULL(data))
 		return -ENODEV;
@@ -149,10 +149,10 @@ static int omap_thermal_unbind(struct thermal_zone_device *thermal,
 }
 
 /* Get mode callback functions for thermal zone */
-static int omap_thermal_get_mode(struct thermal_zone_device *thermal,
-				  enum thermal_device_mode *mode)
+static int ti_thermal_get_mode(struct thermal_zone_device *thermal,
+			       enum thermal_device_mode *mode)
 {
-	struct omap_thermal_data *data = thermal->devdata;
+	struct ti_thermal_data *data = thermal->devdata;
 
 	if (data)
 		*mode = data->mode;
@@ -161,38 +161,38 @@ static int omap_thermal_get_mode(struct thermal_zone_device *thermal,
 }
 
 /* Set mode callback functions for thermal zone */
-static int omap_thermal_set_mode(struct thermal_zone_device *thermal,
-				  enum thermal_device_mode mode)
+static int ti_thermal_set_mode(struct thermal_zone_device *thermal,
+			       enum thermal_device_mode mode)
 {
-	struct omap_thermal_data *data = thermal->devdata;
+	struct ti_thermal_data *data = thermal->devdata;
 
-	if (!data->omap_thermal) {
+	if (!data->ti_thermal) {
 		dev_notice(&thermal->device, "thermal zone not registered\n");
 		return 0;
 	}
 
-	mutex_lock(&data->omap_thermal->lock);
+	mutex_lock(&data->ti_thermal->lock);
 
 	if (mode == THERMAL_DEVICE_ENABLED)
-		data->omap_thermal->polling_delay = FAST_TEMP_MONITORING_RATE;
+		data->ti_thermal->polling_delay = FAST_TEMP_MONITORING_RATE;
 	else
-		data->omap_thermal->polling_delay = 0;
+		data->ti_thermal->polling_delay = 0;
 
-	mutex_unlock(&data->omap_thermal->lock);
+	mutex_unlock(&data->ti_thermal->lock);
 
 	data->mode = mode;
-	thermal_zone_device_update(data->omap_thermal);
+	thermal_zone_device_update(data->ti_thermal);
 	dev_dbg(&thermal->device, "thermal polling set for duration=%d msec\n",
-		data->omap_thermal->polling_delay);
+		data->ti_thermal->polling_delay);
 
 	return 0;
 }
 
 /* Get trip type callback functions for thermal zone */
-static int omap_thermal_get_trip_type(struct thermal_zone_device *thermal,
-				       int trip, enum thermal_trip_type *type)
+static int ti_thermal_get_trip_type(struct thermal_zone_device *thermal,
+				    int trip, enum thermal_trip_type *type)
 {
-	if (!omap_thermal_is_valid_trip(trip))
+	if (!ti_thermal_is_valid_trip(trip))
 		return -EINVAL;
 
 	if (trip + 1 == OMAP_TRIP_NUMBER)
@@ -204,41 +204,41 @@ static int omap_thermal_get_trip_type(struct thermal_zone_device *thermal,
 }
 
 /* Get trip temperature callback functions for thermal zone */
-static int omap_thermal_get_trip_temp(struct thermal_zone_device *thermal,
-				       int trip, unsigned long *temp)
+static int ti_thermal_get_trip_temp(struct thermal_zone_device *thermal,
+				    int trip, unsigned long *temp)
 {
-	if (!omap_thermal_is_valid_trip(trip))
+	if (!ti_thermal_is_valid_trip(trip))
 		return -EINVAL;
 
-	*temp = omap_thermal_get_trip_value(trip);
+	*temp = ti_thermal_get_trip_value(trip);
 
 	return 0;
 }
 
 /* Get critical temperature callback functions for thermal zone */
-static int omap_thermal_get_crit_temp(struct thermal_zone_device *thermal,
-				       unsigned long *temp)
+static int ti_thermal_get_crit_temp(struct thermal_zone_device *thermal,
+				    unsigned long *temp)
 {
 	/* shutdown zone */
-	return omap_thermal_get_trip_temp(thermal, OMAP_TRIP_NUMBER - 1, temp);
+	return ti_thermal_get_trip_temp(thermal, OMAP_TRIP_NUMBER - 1, temp);
 }
 
-static struct thermal_zone_device_ops omap_thermal_ops = {
-	.get_temp = omap_thermal_get_temp,
+static struct thermal_zone_device_ops ti_thermal_ops = {
+	.get_temp = ti_thermal_get_temp,
 	/* TODO: add .get_trend */
-	.bind = omap_thermal_bind,
-	.unbind = omap_thermal_unbind,
-	.get_mode = omap_thermal_get_mode,
-	.set_mode = omap_thermal_set_mode,
-	.get_trip_type = omap_thermal_get_trip_type,
-	.get_trip_temp = omap_thermal_get_trip_temp,
-	.get_crit_temp = omap_thermal_get_crit_temp,
+	.bind = ti_thermal_bind,
+	.unbind = ti_thermal_unbind,
+	.get_mode = ti_thermal_get_mode,
+	.set_mode = ti_thermal_set_mode,
+	.get_trip_type = ti_thermal_get_trip_type,
+	.get_trip_temp = ti_thermal_get_trip_temp,
+	.get_crit_temp = ti_thermal_get_crit_temp,
 };
 
-static struct omap_thermal_data
-*omap_thermal_build_data(struct omap_bandgap *bgp, int id)
+static struct ti_thermal_data
+*ti_thermal_build_data(struct ti_bandgap *bgp, int id)
 {
-	struct omap_thermal_data *data;
+	struct ti_thermal_data *data;
 
 	data = devm_kzalloc(bgp->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
@@ -248,69 +248,69 @@ static struct omap_thermal_data
 	data->sensor_id = id;
 	data->bgp = bgp;
 	data->mode = THERMAL_DEVICE_ENABLED;
-	INIT_WORK(&data->thermal_wq, omap_thermal_work);
+	INIT_WORK(&data->thermal_wq, ti_thermal_work);
 
 	return data;
 }
 
-int omap_thermal_expose_sensor(struct omap_bandgap *bgp, int id,
-			       char *domain)
+int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
+			     char *domain)
 {
-	struct omap_thermal_data *data;
+	struct ti_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bgp, id);
+	data = ti_bandgap_get_sensor_data(bgp, id);
 
 	if (IS_ERR_OR_NULL(data))
-		data = omap_thermal_build_data(bgp, id);
+		data = ti_thermal_build_data(bgp, id);
 
 	if (!data)
 		return -EINVAL;
 
 	/* TODO: remove TC1 TC2 */
 	/* Create thermal zone */
-	data->omap_thermal = thermal_zone_device_register(domain,
-				OMAP_TRIP_NUMBER, 0, data, &omap_thermal_ops,
+	data->ti_thermal = thermal_zone_device_register(domain,
+				OMAP_TRIP_NUMBER, 0, data, &ti_thermal_ops,
 				NULL, FAST_TEMP_MONITORING_RATE,
 				FAST_TEMP_MONITORING_RATE);
-	if (IS_ERR_OR_NULL(data->omap_thermal)) {
+	if (IS_ERR_OR_NULL(data->ti_thermal)) {
 		dev_err(bgp->dev, "thermal zone device is NULL\n");
-		return PTR_ERR(data->omap_thermal);
+		return PTR_ERR(data->ti_thermal);
 	}
-	data->omap_thermal->polling_delay = FAST_TEMP_MONITORING_RATE;
-	omap_bandgap_set_sensor_data(bgp, id, data);
+	data->ti_thermal->polling_delay = FAST_TEMP_MONITORING_RATE;
+	ti_bandgap_set_sensor_data(bgp, id, data);
 
 	return 0;
 }
 
-int omap_thermal_remove_sensor(struct omap_bandgap *bgp, int id)
+int ti_thermal_remove_sensor(struct ti_bandgap *bgp, int id)
 {
-	struct omap_thermal_data *data;
+	struct ti_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bgp, id);
+	data = ti_bandgap_get_sensor_data(bgp, id);
 
-	thermal_zone_device_unregister(data->omap_thermal);
+	thermal_zone_device_unregister(data->ti_thermal);
 
 	return 0;
 }
 
-int omap_thermal_report_sensor_temperature(struct omap_bandgap *bgp, int id)
+int ti_thermal_report_sensor_temperature(struct ti_bandgap *bgp, int id)
 {
-	struct omap_thermal_data *data;
+	struct ti_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bgp, id);
+	data = ti_bandgap_get_sensor_data(bgp, id);
 
 	schedule_work(&data->thermal_wq);
 
 	return 0;
 }
 
-int omap_thermal_register_cpu_cooling(struct omap_bandgap *bgp, int id)
+int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 {
-	struct omap_thermal_data *data;
+	struct ti_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bgp, id);
+	data = ti_bandgap_get_sensor_data(bgp, id);
 	if (IS_ERR_OR_NULL(data))
-		data = omap_thermal_build_data(bgp, id);
+		data = ti_thermal_build_data(bgp, id);
 
 	if (!data)
 		return -EINVAL;
@@ -322,16 +322,16 @@ int omap_thermal_register_cpu_cooling(struct omap_bandgap *bgp, int id)
 			"Failed to register cpufreq cooling device\n");
 		return PTR_ERR(data->cool_dev);
 	}
-	omap_bandgap_set_sensor_data(bgp, id, data);
+	ti_bandgap_set_sensor_data(bgp, id, data);
 
 	return 0;
 }
 
-int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bgp, int id)
+int ti_thermal_unregister_cpu_cooling(struct ti_bandgap *bgp, int id)
 {
-	struct omap_thermal_data *data;
+	struct ti_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bgp, id);
+	data = ti_bandgap_get_sensor_data(bgp, id);
 	cpufreq_cooling_unregister(data->cool_dev);
 
 	return 0;

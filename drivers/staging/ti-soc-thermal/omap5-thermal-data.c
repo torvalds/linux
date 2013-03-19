@@ -312,24 +312,24 @@ omap5430_adc_to_temp[
 
 /* OMAP54xx ES2.0 data */
 /* TODO : Need to update the slope/constant for ES2.0 silicon */
-const struct omap_bandgap_data omap5430_data = {
-	.features = OMAP_BANDGAP_FEATURE_TSHUT_CONFIG |
-			OMAP_BANDGAP_FEATURE_FREEZE_BIT |
-			OMAP_BANDGAP_FEATURE_TALERT,
+const struct ti_bandgap_data omap5430_data = {
+	.features = TI_BANDGAP_FEATURE_TSHUT_CONFIG |
+			TI_BANDGAP_FEATURE_FREEZE_BIT |
+			TI_BANDGAP_FEATURE_TALERT,
 	.fclock_name = "l3instr_ts_gclk_div",
 	.div_ck_name = "l3instr_ts_gclk_div",
 	.conv_table = omap5430_adc_to_temp,
 	.adc_start_val = OMAP5430_ADC_START_VALUE,
 	.adc_end_val = OMAP5430_ADC_END_VALUE,
-	.expose_sensor = omap_thermal_expose_sensor,
-	.remove_sensor = omap_thermal_remove_sensor,
+	.expose_sensor = ti_thermal_expose_sensor,
+	.remove_sensor = ti_thermal_remove_sensor,
 	.sensors = {
 		{
 		.registers = &omap5430_mpu_temp_sensor_registers,
 		.ts_data = &omap5430_mpu_temp_sensor_data,
 		.domain = "cpu",
-		.register_cooling = omap_thermal_register_cpu_cooling,
-		.unregister_cooling = omap_thermal_unregister_cpu_cooling,
+		.register_cooling = ti_thermal_register_cpu_cooling,
+		.unregister_cooling = ti_thermal_unregister_cpu_cooling,
 		.slope = OMAP_GRADIENT_SLOPE_5430_CPU,
 		.constant = OMAP_GRADIENT_CONST_5430_CPU,
 		.slope_pcb = OMAP_GRADIENT_SLOPE_W_PCB_5430_CPU,
