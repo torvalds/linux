@@ -43,7 +43,7 @@ static int samsung_usbphy_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
-static bool exynos5_phyhost_is_on(void *regs)
+static bool exynos5_phyhost_is_on(void __iomem *regs)
 {
 	u32 reg;
 
