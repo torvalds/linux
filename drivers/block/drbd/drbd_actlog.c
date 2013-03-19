@@ -359,6 +359,55 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
 		drbd_al_begin_io_commit(mdev, delegate);
 }
 
+int drbd_al_begin_io_nonblock(struct drbd_conf *mdev, struct drbd_interval *i)
+{
+	struct lru_cache *al = mdev->act_log;
+	/* for bios crossing activity log extent boundaries,
+	 * we may need to activate two extents in one go */
+	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
+	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+	unsigned nr_al_extents;
+	unsigned available_update_slots;
+	unsigned enr;
+
+	D_ASSERT(first <= last);
+
+	nr_al_extents = 1 + last - first; /* worst case: all touched extends are cold. */
+	available_update_slots = min(al->nr_elements - al->used,
+				al->max_pending_changes - al->pending_changes);
+
+	/* We want all necessary updates for a given request within the same transaction
+	 * We could first check how many updates are *actually* needed,
+	 * and use that instead of the worst-case nr_al_extents */
+	if (available_update_slots < nr_al_extents)
+		return -EWOULDBLOCK;
+
+	/* Is resync active in this area? */
+	for (enr = first; enr <= last; enr++) {
+		struct lc_element *tmp;
+		tmp = lc_find(mdev->resync, enr/AL_EXT_PER_BM_SECT);
+		if (unlikely(tmp != NULL)) {
+			struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
+			if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
+				if (!test_and_set_bit(BME_PRIORITY, &bm_ext->flags));
+					return -EBUSY;
+				return -EWOULDBLOCK;
+			}
+		}
+	}
+
+	/* Checkout the refcounts.
+	 * Given that we checked for available elements and update slots above,
+	 * this has to be successful. */
+	for (enr = first; enr <= last; enr++) {
+		struct lc_element *al_ext;
+		al_ext = lc_get_cumulative(mdev->act_log, enr);
+		if (!al_ext)
+			dev_info(DEV, "LOGIC BUG for enr=%u\n", enr);
+	}
+	return 0;
+}
+
 void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
 {
 	/* for bios crossing activity log extent boundaries,
