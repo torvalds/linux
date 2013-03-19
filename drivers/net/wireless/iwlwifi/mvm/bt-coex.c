@@ -188,6 +188,8 @@ static const __le32 iwl_concurrent_lookup[BT_COEX_LUT_SIZE] = {
 
 /* BT Antenna Coupling Threshold (dB) */
 #define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)
+#define IWL_BT_LOAD_FORCE_SISO_THRESHOLD	(3)
+
 
 int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 {
@@ -274,7 +276,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (data->notif->bt_status)
 		smps_mode = IEEE80211_SMPS_DYNAMIC;
 
-	if (data->notif->bt_traffic_load)
+	if (data->notif->bt_traffic_load >= IWL_BT_LOAD_FORCE_SISO_THRESHOLD)
 		smps_mode = IEEE80211_SMPS_STATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
