@@ -2840,6 +2840,8 @@ static inline void skb_checksum_none_assert(const struct sk_buff *skb)
 
 bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off);
 
+u32 __skb_get_poff(const struct sk_buff *skb);
+
 /**
  * skb_head_is_locked - Determine if the skb->head is locked down
  * @skb: skb to check
