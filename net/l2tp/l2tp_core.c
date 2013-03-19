@@ -191,6 +191,7 @@ struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel)
 	} else {
 		/* Socket is owned by kernelspace */
 		sk = tunnel->sock;
+		sock_hold(sk);
 	}
 
 out:
@@ -209,6 +210,7 @@ void l2tp_tunnel_sock_put(struct sock *sk)
 		}
 		sock_put(sk);
 	}
+	sock_put(sk);
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_sock_put);
 
