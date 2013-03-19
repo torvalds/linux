@@ -570,16 +570,11 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 			pDevice->bTxRxAntInv = true;
 		else
 			pDevice->bTxRxAntInv = false;
-#ifdef	PLICE_DEBUG
-		//printk("init_register:TxRxAntInv is %d,byValue is %d\n",pDevice->bTxRxAntInv,byValue);
-#endif
 
 		byValue &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 		if (byValue == 0) // if not set default is All
 			byValue = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
-#ifdef	PLICE_DEBUG
-		//printk("init_register:byValue is %d\n",byValue);
-#endif
+
 		pDevice->ulDiversityNValue = 100*260;//100*SROMbyReadEmbedded(pDevice->PortOffset, 0x51);
 		pDevice->ulDiversityMValue = 100*16;//SROMbyReadEmbedded(pDevice->PortOffset, 0x52);
 		pDevice->byTMax = 1;//SROMbyReadEmbedded(pDevice->PortOffset, 0x53);
@@ -603,9 +598,6 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 				pDevice->bDiversityEnable = false;//SROMbyReadEmbedded(pDevice->PortOffset, 0x50);
 			else
 				pDevice->bDiversityEnable = true;
-#ifdef	PLICE_DEBUG
-			//printk("aux |main antenna: RxAntennaMode is %d\n",pDevice->byRxAntennaMode);
-#endif
 		} else  {
 			pDevice->bDiversityEnable = false;
 			pDevice->byAntennaCount = 1;
@@ -625,9 +617,6 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 					pDevice->byRxAntennaMode = ANT_B;
 			}
 		}
-#ifdef	PLICE_DEBUG
-		//printk("init registers: TxAntennaMode is %d\n",pDevice->byTxAntennaMode);
-#endif
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bDiversityEnable=[%d],NValue=[%d],MValue=[%d],TMax=[%d],TMax2=[%d]\n",
 			pDevice->bDiversityEnable, (int)pDevice->ulDiversityNValue, (int)pDevice->ulDiversityMValue, pDevice->byTMax, pDevice->byTMax2);
 
@@ -692,7 +681,7 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 		//byCCKPwrdBm = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_CCK_PWR_dBm);
 
 		//byOFDMPwrdBm = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_OFDM_PWR_dBm);
-//printk("CCKPwrdBm is 0x%x,byOFDMPwrdBm is 0x%x\n",byCCKPwrdBm,byOFDMPwrdBm);
+
 		// Load power Table
 
 
@@ -756,9 +745,6 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 			pDevice->byBBVGANew = pDevice->byBBVGACurrent;
 			BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
 		}
-#ifdef	PLICE_DEBUG
-		//printk("init registers:RxAntennaMode is %x,TxAntennaMode is %x\n",pDevice->byRxAntennaMode,pDevice->byTxAntennaMode);
-#endif
 		BBvSetRxAntennaMode(pDevice->PortOffset, pDevice->byRxAntennaMode);
 		BBvSetTxAntennaMode(pDevice->PortOffset, pDevice->byTxAntennaMode);
 
@@ -1162,13 +1148,11 @@ static bool device_get_pci_info(PSDevice pDevice, struct pci_dev *pcid) {
 
 #ifdef	PLICE_DEBUG
 	//pci_read_config_word(pcid,PCI_MAX_LAT,&max_lat);
-	//printk("max lat is %x,SubSystemID is %x\n",max_lat,pDevice->SubSystemID);
 	//for (ii=0;ii<0xFF;ii++)
 	//pci_read_config_word(pcid,PCI_MAX_LAT,&max_lat);
 	//max_lat  = 0x20;
 	//pci_write_config_word(pcid,PCI_MAX_LAT,max_lat);
 	//pci_read_config_word(pcid,PCI_MAX_LAT,&max_lat);
-	//printk("max lat is %x\n",max_lat);
 
 	for (ii = 0; ii < 0xFF; ii++)
 	{
@@ -1604,9 +1588,6 @@ static bool device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
 
 
 	pRDInfo->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-#ifdef	PLICE_DEBUG
-	//printk("device_alloc_rx_buf:skb is %x\n",pRDInfo->skb);
-#endif
 	if (pRDInfo->skb == NULL)
 		return false;
 	ASSERT(pRDInfo->skb);
@@ -1828,15 +1809,12 @@ int MlmeThread(
 	PSRxMgmtPacket			pRxMgmtPacket;
 	// int i;
 	//complete(&pDevice->notify);
-//printk("Enter MngWorkItem,Queue packet num is %d\n",pDevice->rxManeQueue.packet_num);
 
-	//printk("Enter MlmeThread,packet _num is %d\n",pDevice->rxManeQueue.packet_num);
 	//i = 0;
 #if 1
 	while (1)
 	{
 
-		//printk("DDDD\n");
 		//down(&pDevice->mlme_semaphore);
 		// pRxMgmtPacket =  DeQueue(pDevice);
 #if 1
@@ -1847,20 +1825,15 @@ int MlmeThread(
 			//pDevice;
 			//DequeueManageObject(pDevice->FirstRecvMngList, pDevice->LastRecvMngList);
 			vMgrRxManagePacket(pDevice, pDevice->pMgmt, pRxMgmtPacket);
-			//printk("packet_num is %d\n",pDevice->rxManeQueue.packet_num);
-
 		}
 		spin_unlock_irq(&pDevice->lock);
 		if (mlme_kill == 0)
 			break;
 		//udelay(200);
 #endif
-		//printk("Before schedule thread jiffies is %x\n",jiffies);
 		schedule();
-		//printk("after schedule thread jiffies is %x\n",jiffies);
 		if (mlme_kill == 0)
 			break;
-		//printk("i is %d\n",i);
 	}
 
 #endif
@@ -1885,7 +1858,7 @@ static int  device_open(struct net_device *dev) {
 	i = request_irq(pDevice->pcid->irq, &device_intr, IRQF_SHARED, dev->name, dev);
 	if (i)
 		return i;
-	//printk("DEBUG1\n");
+
 #ifdef WPA_SM_Transtatus
 	memset(wpa_Result.ifname, 0, sizeof(wpa_Result.ifname));
 	wpa_Result.proto = 0;
@@ -1927,8 +1900,6 @@ static int  device_open(struct net_device *dev) {
 
 
 
-	//printk("thread id is %d\n",pDevice->MLMEThr_pid);
-	//printk("Create thread time is %x\n",jiffies);
 	//wait_for_completion(&pDevice->notify);
 
 
@@ -1971,9 +1942,6 @@ static int  device_open(struct net_device *dev) {
 			);
 		pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 	}
-
-//printk("DEBUG2\n");
-
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call MACvIntEnable\n");
 	MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
@@ -2579,7 +2547,6 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 	}
 	else
 	{
-		//printk("Auto Rate:Rate is %d,TxPower is %d\n",pDevice->wCurrentRate,pDevice->byCurPwr);
 	}
 //#endif
 

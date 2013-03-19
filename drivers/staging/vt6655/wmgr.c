@@ -2102,9 +2102,6 @@ s_vMgrRxBeacon(
 					  &(pMgmt->sNodeDBTable[0].byTopCCKBasicRate),
 					  &(pMgmt->sNodeDBTable[0].byTopOFDMBasicRate)
 				);
-#ifdef	PLICE_DEBUG
-			//printk("RxBeacon:MaxSuppRate is %d\n",pMgmt->sNodeDBTable[0].wMaxSuppRate);
-#endif
 			if (bUpdatePhyParameter == true) {
 				CARDbSetPhyParameter(pMgmt->pAdapter,
 						     pMgmt->eCurrentPHYMode,

@@ -433,7 +433,6 @@ void init_channel_table(void *pDeviceHandler)
 	case RF_AL2230S:
 	case RF_UW2451:
 	case RF_VT3226:
-		//printk("chester-false\n");
 		bMultiBand = false;
 		break;
 	case RF_AIROHA7230:
@@ -581,14 +580,8 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	}
 
 	if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
-#ifdef	PLICE_DEBUG
-		//printk("Func:ChbSetChannel:call RFbSetPower:11B\n");
-#endif
 		RFbSetPower(pDevice, RATE_1M, pDevice->byCurrentCh);
 	} else {
-#ifdef	PLICE_DEBUG
-		//printk("Func:ChbSetChannel:call RFbSetPower\n");
-#endif
 		RFbSetPower(pDevice, RATE_6M, pDevice->byCurrentCh);
 	}
 

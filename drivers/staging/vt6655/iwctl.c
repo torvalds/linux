@@ -192,7 +192,6 @@ int iwctl_siwscan(struct net_device *dev,
 	}
 
 	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
-	//printk("SIOCSIWSCAN:WLAN_CMD_BSSID_SCAN\n");
 	bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 	spin_unlock_irq(&pDevice->lock);
 

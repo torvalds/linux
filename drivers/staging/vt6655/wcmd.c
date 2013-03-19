@@ -415,7 +415,6 @@ vCommandTimer(
 				spin_unlock_irq(&pDevice->lock);
 				return;
 			}
-//printk("chester-pMgmt->uScanChannel=%d,pDevice->byMaxChannel=%d\n",pMgmt->uScanChannel,pDevice->byMaxChannel);
 			if (pMgmt->uScanChannel == pDevice->byMinChannel) {
 				//pMgmt->eScanType = WMAC_SCAN_ACTIVE;
 				pMgmt->abyScanBSSID[0] = 0xFF;
@@ -439,8 +438,6 @@ vCommandTimer(
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "SET SCAN Channel Fail: %d\n", pMgmt->uScanChannel);
 			}
 			CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_UNKNOWN);
-//	printk("chester-mxch=%d\n",pDevice->byMaxChannel);
-			//          printk("chester-ch=%d\n",pMgmt->uScanChannel);
 			pMgmt->uScanChannel++;
 //2008-8-4 <modify> by chester
 			if (!is_channel_valid(pMgmt->uScanChannel) &&
@@ -546,7 +543,6 @@ vCommandTimer(
 			spin_unlock_irq(&pDevice->lock);
 			return;
 		}
-//printk("chester-currmode=%d\n",pMgmt->eCurrMode);
 		printk("chester-abyDesireSSID=%s\n", ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID);
 		//memcpy(pMgmt->abyAdHocSSID,pMgmt->abyDesireSSID,
 		//((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len + WLAN_IEHDR_LEN);
@@ -710,7 +706,6 @@ vCommandTimer(
 			}
 #ifdef TxInSleep
 			if (pDevice->IsTxDataTrigger != false)   {    //TxDataTimer is not triggered at the first time
-				// printk("Re-initial TxDataTimer****\n");
 				del_timer(&pDevice->sTimerTxData);
 				init_timer(&pDevice->sTimerTxData);
 				pDevice->sTimerTxData.data = (unsigned long) pDevice;
@@ -720,7 +715,6 @@ vCommandTimer(
 				pDevice->nTxDataTimeCout = 0;
 			}
 			else {
-				// printk("mike:-->First time trigger TimerTxData InSleep\n");
 			}
 			pDevice->IsTxDataTrigger = true;
 			add_timer(&pDevice->sTimerTxData);
@@ -1094,8 +1088,6 @@ BSSvSecondTxData(
 
 	if (pDevice->nTxDataTimeCout < 4)     //don't tx data if timer less than 40s
 	{
-		// printk("mike:%s-->no data Tx not exceed the desired Time as %d\n",__FUNCTION__,
-		//	(int)pDevice->nTxDataTimeCout);
 		pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
 		add_timer(&pDevice->sTimerTxData);
 		return;
@@ -1108,8 +1100,6 @@ BSSvSecondTxData(
 #else
 		if (pDevice->bLinkPass == true) {
 #endif
-
-			//   printk("mike:%s-->InSleep Tx Data Procedure\n",__FUNCTION__);
 			pDevice->fTxDataInSleep = true;
 			PSbSendNullPacket(pDevice);      //send null packet
 			pDevice->fTxDataInSleep = false;

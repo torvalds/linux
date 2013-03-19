@@ -1413,12 +1413,7 @@ BSSvUpdateNodeTxCounter(
 		byFallBack = AUTO_FB_NONE;
 	}
 	wRate = pTxBufHead->wReserved; //?wRate
-	//printk("BSSvUpdateNodeTxCounter:byTxRetry is %d\n",byTxRetry);
 
-//printk("BSSvUpdateNodeTx:wRate is %d,byFallback is %d\n",wRate,byFallBack);
-//#ifdef	PLICE_DEBUG
-	//printk("BSSvUpdateNodeTx: wRate is %d\n",wRate);
-////#endif
 	// Only Unicast using support rates
 	if (pTxBufHead->wFIFOCtl & FIFOCTL_NEEDACK) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wRate %04X, byTsr0 %02X, byTsr1 %02X\n", wRate, byTsr0, byTsr1);
@@ -1466,13 +1461,11 @@ BSSvUpdateNodeTxCounter(
 
 //PLICE_DEBUG
 							wFallBackRate = awHWRetry0[wRate-RATE_18M][ii];
-							//printk(" II is %d:BSSvUpdateNodeTx:wFallBackRate is %d\n",ii,wFallBackRate);
 							//wFallBackRate = awHWRetry0[wRate-RATE_12M][ii];
 						}
 						else
 						{
 							wFallBackRate = awHWRetry0[wRate-RATE_18M][4];
-							//printk("ii is %d BSSvUpdateNodeTx:wFallBackRate is %d\n",ii,wFallBackRate);
 							//wFallBackRate = awHWRetry0[wRate-RATE_12M][4];
 						}
 						pMgmt->sNodeDBTable[0].uTxFail[wFallBackRate]++;
@@ -1686,7 +1679,6 @@ void s_uCalculateLinkQual(
 //decide link quality
 	if (pDevice->bLinkPass != true)
 	{
-		//  printk("s_uCalculateLinkQual-->Link disconnect and Poor quality**\n");
 		pDevice->scStatistic.LinkQuality = 0;
 		pDevice->scStatistic.SignalStren = 0;
 	}

@@ -815,10 +815,8 @@ typedef struct __device_info {
 
 inline  static	void   EnQueue(PSDevice pDevice, PSRxMgmtPacket  pRxMgmtPacket)
 {
-	//printk("Enter EnQueue:tail is %d\n",pDevice->rxManeQueue.tail);
 	if ((pDevice->rxManeQueue.tail+1) % NUM == pDevice->rxManeQueue.head)
 	{
-		//printk("Queue is Full,tail is %d\n",pDevice->rxManeQueue.tail);
 		return;
 	}
 	else
@@ -826,7 +824,6 @@ inline  static	void   EnQueue(PSDevice pDevice, PSRxMgmtPacket  pRxMgmtPacket)
 		pDevice->rxManeQueue.tail = (pDevice->rxManeQueue.tail + 1) % NUM;
 		pDevice->rxManeQueue.Q[pDevice->rxManeQueue.tail] = pRxMgmtPacket;
 		pDevice->rxManeQueue.packet_num++;
-		//printk("packet num is %d\n",pDevice->rxManeQueue.packet_num);
 	}
 }
 
@@ -847,7 +844,6 @@ inline  static  PSRxMgmtPacket DeQueue(PSDevice pDevice)
 		//x=pDevice->rxManeQueue.head = (pDevice->rxManeQueue.head+1)%NUM;
 		pDevice->rxManeQueue.head = (pDevice->rxManeQueue.head+1)%NUM;
 		x = pDevice->rxManeQueue.head;
-		//printk("Enter DeQueue:head is %d\n",x);
 		pRxMgmtPacket = pDevice->rxManeQueue.Q[x];
 		pDevice->rxManeQueue.packet_num--;
 		return pRxMgmtPacket;
