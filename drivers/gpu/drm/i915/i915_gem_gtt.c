@@ -126,7 +126,7 @@ static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 		page_addr = sg_dma_address(sg_iter.sg) +
 				(sg_iter.sg_pgoffset << PAGE_SHIFT);
 		pt_vaddr[act_pte] = gen6_pte_encode(ppgtt->dev, page_addr,
-							cache_level);
+						    cache_level);
 		if (++act_pte == I915_PPGTT_PT_ENTRIES) {
 			kunmap_atomic(pt_vaddr);
 			act_pd++;
