@@ -517,14 +517,14 @@ static inline void abx500_gpio_dbg_show_one(struct seq_file *s,
 #define abx500_gpio_dbg_show	NULL
 #endif
 
-int abx500_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int abx500_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	int gpio = chip->base + offset;
 
 	return pinctrl_request_gpio(gpio);
 }
 
-void abx500_gpio_free(struct gpio_chip *chip, unsigned offset)
+static void abx500_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	int gpio = chip->base + offset;
 
@@ -611,7 +611,7 @@ static void abx500_pmx_disable(struct pinctrl_dev *pctldev,
 	dev_dbg(pct->dev, "disable group %s, %u pins\n", g->name, g->npins);
 }
 
-int abx500_gpio_request_enable(struct pinctrl_dev *pctldev,
+static int abx500_gpio_request_enable(struct pinctrl_dev *pctldev,
 			       struct pinctrl_gpio_range *range,
 			       unsigned offset)
 {
@@ -711,14 +711,14 @@ static const struct pinctrl_ops abx500_pinctrl_ops = {
 	.pin_dbg_show = abx500_pin_dbg_show,
 };
 
-int abx500_pin_config_get(struct pinctrl_dev *pctldev,
+static int abx500_pin_config_get(struct pinctrl_dev *pctldev,
 			  unsigned pin,
 			  unsigned long *config)
 {
 	return -ENOSYS;
 }
 
-int abx500_pin_config_set(struct pinctrl_dev *pctldev,
+static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			  unsigned pin,
 			  unsigned long config)
 {
