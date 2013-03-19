@@ -1777,9 +1777,9 @@ static inline void drbd_chk_io_error_(struct drbd_conf *mdev,
  * BTW, for internal meta data, this happens to be the maximum capacity
  * we could agree upon with our peer node.
  */
-static inline sector_t _drbd_md_first_sector(int meta_dev_idx, struct drbd_backing_dev *bdev)
+static inline sector_t drbd_md_first_sector(struct drbd_backing_dev *bdev)
 {
-	switch (meta_dev_idx) {
+	switch (bdev->md.meta_dev_idx) {
 	case DRBD_MD_INDEX_INTERNAL:
 	case DRBD_MD_INDEX_FLEX_INT:
 		return bdev->md.md_offset + bdev->md.bm_offset;
@@ -1789,30 +1789,13 @@ static inline sector_t _drbd_md_first_sector(int meta_dev_idx, struct drbd_backi
 	}
 }
 
-static inline sector_t drbd_md_first_sector(struct drbd_backing_dev *bdev)
-{
-	int meta_dev_idx;
-
-	rcu_read_lock();
-	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
-	rcu_read_unlock();
-
-	return _drbd_md_first_sector(meta_dev_idx, bdev);
-}
-
 /**
  * drbd_md_last_sector() - Return the last sector number of the meta data area
  * @bdev:	Meta data block device.
  */
 static inline sector_t drbd_md_last_sector(struct drbd_backing_dev *bdev)
 {
-	int meta_dev_idx;
-
-	rcu_read_lock();
-	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
-	rcu_read_unlock();
-
-	switch (meta_dev_idx) {
+	switch (bdev->md.meta_dev_idx) {
 	case DRBD_MD_INDEX_INTERNAL:
 	case DRBD_MD_INDEX_FLEX_INT:
 		return bdev->md.md_offset + MD_4kB_SECT -1;
@@ -1840,18 +1823,13 @@ static inline sector_t drbd_get_capacity(struct block_device *bdev)
 static inline sector_t drbd_get_max_capacity(struct drbd_backing_dev *bdev)
 {
 	sector_t s;
-	int meta_dev_idx;
 
-	rcu_read_lock();
-	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
-	rcu_read_unlock();
-
-	switch (meta_dev_idx) {
+	switch (bdev->md.meta_dev_idx) {
 	case DRBD_MD_INDEX_INTERNAL:
 	case DRBD_MD_INDEX_FLEX_INT:
 		s = drbd_get_capacity(bdev->backing_bdev)
 			? min_t(sector_t, DRBD_MAX_SECTORS_FLEX,
-				_drbd_md_first_sector(meta_dev_idx, bdev))
+				drbd_md_first_sector(bdev))
 			: 0;
 		break;
 	case DRBD_MD_INDEX_FLEX_EXT:

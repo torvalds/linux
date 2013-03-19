@@ -722,14 +722,10 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 {
 	sector_t md_size_sect = 0;
 	unsigned int al_size_sect = MD_32kB_SECT;
-	int meta_dev_idx;
-
-	rcu_read_lock();
-	meta_dev_idx = rcu_dereference(bdev->disk_conf)->meta_dev_idx;
 
 	bdev->md.md_offset = drbd_md_ss(bdev);
 
-	switch (meta_dev_idx) {
+	switch (bdev->md.meta_dev_idx) {
 	default:
 		/* v07 style fixed size indexed meta data */
 		bdev->md.md_size_sect = MD_128MB_SECT;
@@ -761,7 +757,6 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 		bdev->md.bm_offset   = -md_size_sect + MD_4kB_SECT;
 		break;
 	}
-	rcu_read_unlock();
 }
 
 /* input size is expected to be in KB */
