@@ -1054,7 +1054,7 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 	if (rw == WRITE && req->private_bio && req->i.size
 	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
 		req->rq_state |= RQ_IN_ACT_LOG;
-		drbd_al_begin_io(mdev, &req->i);
+		drbd_al_begin_io(mdev, &req->i, true);
 	}
 
 	spin_lock_irq(&mdev->tconn->req_lock);

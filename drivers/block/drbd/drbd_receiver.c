@@ -2265,7 +2265,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 		drbd_set_out_of_sync(mdev, peer_req->i.sector, peer_req->i.size);
 		peer_req->flags |= EE_CALL_AL_COMPLETE_IO;
 		peer_req->flags &= ~EE_MAY_SET_IN_SYNC;
-		drbd_al_begin_io(mdev, &peer_req->i);
+		drbd_al_begin_io(mdev, &peer_req->i, true);
 	}
 
 	err = drbd_submit_peer_request(mdev, peer_req, rw, DRBD_FAULT_DT_WR);

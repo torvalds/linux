@@ -104,7 +104,7 @@ struct update_al_work {
 	int err;
 };
 
-static int al_write_transaction(struct drbd_conf *mdev);
+static int al_write_transaction(struct drbd_conf *mdev, bool delegate);
 
 void *drbd_md_get_buffer(struct drbd_conf *mdev)
 {
@@ -246,7 +246,10 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
 	return al_ext;
 }
 
-void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
+/*
+ * @delegate:   delegate activity log I/O to the worker thread
+ */
+void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool delegate)
 {
 	/* for bios crossing activity log extent boundaries,
 	 * we may need to activate two extents in one go */
@@ -255,6 +258,17 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 	unsigned enr;
 	bool locked = false;
 
+	/* When called through generic_make_request(), we must delegate
+	 * activity log I/O to the worker thread: a further request
+	 * submitted via generic_make_request() within the same task
+	 * would be queued on current->bio_list, and would only start
+	 * after this function returns (see generic_make_request()).
+	 *
+	 * However, if we *are* the worker, we must not delegate to ourselves.
+	 */
+
+	if (delegate)
+		BUG_ON(current == mdev->tconn->worker.task);
 
 	D_ASSERT(first <= last);
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
@@ -270,13 +284,6 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 			(locked = lc_try_lock_for_transaction(mdev->act_log)));
 
 	if (locked) {
-		/* drbd_al_write_transaction(mdev,al_ext,enr);
-		 * recurses into generic_make_request(), which
-		 * disallows recursion, bios being serialized on the
-		 * current->bio_tail list now.
-		 * we have to delegate updates to the activity log
-		 * to the worker thread. */
-
 		/* Double check: it may have been committed by someone else,
 		 * while we have been waiting for the lock. */
 		if (mdev->act_log->pending_changes) {
@@ -287,7 +294,7 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 			rcu_read_unlock();
 
 			if (write_al_updates) {
-				al_write_transaction(mdev);
+				al_write_transaction(mdev, delegate);
 				mdev->al_writ_cnt++;
 			}
 
@@ -495,20 +502,18 @@ static int w_al_write_transaction(struct drbd_work *w, int unused)
 /* Calls from worker context (see w_restart_disk_io()) need to write the
    transaction directly. Others came through generic_make_request(),
    those need to delegate it to the worker. */
-static int al_write_transaction(struct drbd_conf *mdev)
+static int al_write_transaction(struct drbd_conf *mdev, bool delegate)
 {
-	struct update_al_work al_work;
-
-	if (current == mdev->tconn->worker.task)
+	if (delegate) {
+		struct update_al_work al_work;
+		init_completion(&al_work.event);
+		al_work.w.cb = w_al_write_transaction;
+		al_work.w.mdev = mdev;
+		drbd_queue_work_front(&mdev->tconn->sender_work, &al_work.w);
+		wait_for_completion(&al_work.event);
+		return al_work.err;
+	} else
 		return _al_write_transaction(mdev);
-
-	init_completion(&al_work.event);
-	al_work.w.cb = w_al_write_transaction;
-	al_work.w.mdev = mdev;
-	drbd_queue_work_front(&mdev->tconn->sender_work, &al_work.w);
-	wait_for_completion(&al_work.event);
-
-	return al_work.err;
 }
 
 static int _try_lc_del(struct drbd_conf *mdev, struct lc_element *al_ext)
