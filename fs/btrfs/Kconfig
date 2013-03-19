@@ -1,5 +1,5 @@
 config BTRFS_FS
-	tristate "Btrfs filesystem Unstable disk format"
+	tristate "Btrfs filesystem support"
 	select LIBCRC32C
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
