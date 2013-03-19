@@ -41,13 +41,13 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
 #include <mach/irqs.h>
 #include <linux/platform_data/crypto-ux500.h>
 
 #include "ste-dma40-db8500.h"
+#include "db8500-regs.h"
 #include "devices-db8500.h"
 #include "board-mop500.h"
 #include "board-mop500-regulators.h"

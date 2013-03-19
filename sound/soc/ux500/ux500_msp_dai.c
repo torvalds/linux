@@ -21,8 +21,6 @@
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/platform_data/asoc-ux500-msp.h>
 
-#include <mach/hardware.h>
-
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 

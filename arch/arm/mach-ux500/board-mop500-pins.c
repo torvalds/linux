@@ -13,8 +13,6 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/hardware.h>
-
 #include "pins-db8500.h"
 #include "board-mop500.h"
 

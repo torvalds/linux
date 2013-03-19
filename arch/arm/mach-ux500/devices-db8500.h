@@ -10,6 +10,7 @@
 
 #include <linux/platform_data/usb-musb-ux500.h>
 #include <mach/irqs.h>
+#include "db8500-regs.h"
 #include "devices-common.h"
 
 struct ske_keypad_platform_data;

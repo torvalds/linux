@@ -10,8 +10,6 @@
 #ifndef ASM_ARCH_IRQS_H
 #define ASM_ARCH_IRQS_H
 
-#include <mach/hardware.h>
-
 #define IRQ_LOCALTIMER			29
 #define IRQ_LOCALWDOG			30
 

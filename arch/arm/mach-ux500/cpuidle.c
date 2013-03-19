@@ -21,6 +21,8 @@
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
 
+#include "db8500-regs.h"
+
 static atomic_t master = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(master_lock);
 static DEFINE_PER_CPU(struct cpuidle_device, ux500_cpuidle_device);

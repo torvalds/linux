@@ -32,7 +32,6 @@
 #include <crypto/scatterwalk.h>
 
 #include <linux/platform_data/crypto-ux500.h>
-#include <mach/hardware.h>
 
 #include "cryp_p.h"
 #include "cryp.h"

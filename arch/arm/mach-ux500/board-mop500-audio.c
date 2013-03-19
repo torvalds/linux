@@ -11,7 +11,6 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 
 #include <mach/devices.h>
-#include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <linux/platform_data/asoc-ux500-msp.h>
 

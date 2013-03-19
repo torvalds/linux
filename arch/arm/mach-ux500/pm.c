@@ -13,7 +13,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/arm-ux500-pm.h>
 
-#include <mach/hardware.h>
+#include "db8500-regs.h"
 
 /* ARM WFI Standby signal register */
 #define PRCM_ARM_WFI_STANDBY    (prcmu_base + 0x130)

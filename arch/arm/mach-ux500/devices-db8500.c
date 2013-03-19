@@ -15,10 +15,10 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 #include <linux/mfd/dbx500-prcmu.h>
 
-#include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/irqs.h>
 
+#include "db8500-regs.h"
 #include "devices-db8500.h"
 #include "ste-dma40-db8500.h"
 

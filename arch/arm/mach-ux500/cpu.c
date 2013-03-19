@@ -24,11 +24,11 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
 
 #include "board-mop500.h"
+#include "db8500-regs.h"
 #include "id.h"
 
 /*

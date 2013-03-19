@@ -170,4 +170,32 @@
 /* SoC identification number information */
 #define U8500_BB_UID_BASE      (U8500_BACKUPRAM1_BASE + 0xFC0)
 
+/* Offsets to specific addresses in some IP blocks for DMA */
+#define MSP_TX_RX_REG_OFFSET	0
+#define CRYP1_RX_REG_OFFSET	0x10
+#define CRYP1_TX_REG_OFFSET	0x8
+#define HASH1_TX_REG_OFFSET	0x4
+
+/*
+ * Macros to get at IO space when running virtually
+ * We dont map all the peripherals, let ioremap do
+ * this for us. We map only very basic peripherals here.
+ */
+#define U8500_IO_VIRTUAL	0xf0000000
+#define U8500_IO_PHYSICAL	0xa0000000
+/* This is where we map in the ROM to check ASIC IDs */
+#define UX500_VIRT_ROM		0xf0000000
+
+/* This macro is used in assembly, so no cast */
+#define IO_ADDRESS(x)           \
+	(((x) & 0x0fffffff) + (((x) >> 4) & 0x0f000000) + U8500_IO_VIRTUAL)
+
+/* typesafe io address */
+#define __io_address(n)		IOMEM(IO_ADDRESS(n))
+
+/* Used by some plat-nomadik code */
+#define io_p2v(n)		__io_address(n)
+
+#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
+
 #endif

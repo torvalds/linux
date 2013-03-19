@@ -22,7 +22,8 @@
 #include <asm/mach-types.h>
 #include <linux/io.h>
 #include <linux/amba/serial.h>
-#include <mach/hardware.h>
+/* TODO: This goes away in multiplatform boot, this file gets deleted */
+#include "../../db8500-regs.h"
 
 void __iomem *ux500_uart_base;
 
