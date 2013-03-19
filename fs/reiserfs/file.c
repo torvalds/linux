@@ -234,68 +234,9 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 	return ret;
 }
 
-/* Write @count bytes at position @ppos in a file indicated by @file
-   from the buffer @buf.
-
-   generic_file_write() is only appropriate for filesystems that are not seeking to optimize performance and want
-   something simple that works.  It is not for serious use by general purpose filesystems, excepting the one that it was
-   written for (ext2/3).  This is for several reasons:
-
-   * It has no understanding of any filesystem specific optimizations.
-
-   * It enters the filesystem repeatedly for each page that is written.
-
-   * It depends on reiserfs_get_block() function which if implemented by reiserfs performs costly search_by_key
-   * operation for each page it is supplied with. By contrast reiserfs_file_write() feeds as much as possible at a time
-   * to reiserfs which allows for fewer tree traversals.
-
-   * Each indirect pointer insertion takes a lot of cpu, because it involves memory moves inside of blocks.
-
-   * Asking the block allocation code for blocks one at a time is slightly less efficient.
-
-   All of these reasons for not using only generic file write were understood back when reiserfs was first miscoded to
-   use it, but we were in a hurry to make code freeze, and so it couldn't be revised then.  This new code should make
-   things right finally.
-
-   Future Features: providing search_by_key with hints.
-
-*/
-static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going to write into */
-				   const char __user * buf,	/*  pointer to user supplied data
-								   (in userspace) */
-				   size_t count,	/* amount of bytes to write */
-				   loff_t * ppos	/* pointer to position in file that we start writing at. Should be updated to
-							 * new current position before returning. */
-				   )
-{
-	struct inode *inode = file_inode(file);	// Inode of the file that we are writing to.
-	/* To simplify coding at this time, we store
-	   locked pages in array for now */
-	struct reiserfs_transaction_handle th;
-	th.t_trans_id = 0;
-
-	/* If a filesystem is converted from 3.5 to 3.6, we'll have v3.5 items
-	* lying around (most of the disk, in fact). Despite the filesystem
-	* now being a v3.6 format, the old items still can't support large
-	* file sizes. Catch this case here, as the rest of the VFS layer is
-	* oblivious to the different limitations between old and new items.
-	* reiserfs_setattr catches this for truncates. This chunk is lifted
-	* from generic_write_checks. */
-	if (get_inode_item_key_version (inode) == KEY_FORMAT_3_5 &&
-	    *ppos + count > MAX_NON_LFS) {
-		if (*ppos >= MAX_NON_LFS) {
-			return -EFBIG;
-		}
-		if (count > MAX_NON_LFS - (unsigned long)*ppos)
-			count = MAX_NON_LFS - (unsigned long)*ppos;
-	}
-
-	return do_sync_write(file, buf, count, ppos);
-}
-
 const struct file_operations reiserfs_file_operations = {
 	.read = do_sync_read,
-	.write = reiserfs_file_write,
+	.write = do_sync_write,
 	.unlocked_ioctl = reiserfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = reiserfs_compat_ioctl,
