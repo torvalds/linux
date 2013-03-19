@@ -821,7 +821,7 @@ static int __init iblock_module_init(void)
 	return transport_subsystem_register(&iblock_template);
 }
 
-static void iblock_module_exit(void)
+static void __exit iblock_module_exit(void)
 {
 	transport_subsystem_release(&iblock_template);
 }

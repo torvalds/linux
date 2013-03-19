@@ -55,6 +55,8 @@ temperature) and throttle appropriate devices.
 	.get_trip_type: get the type of certain trip point.
 	.get_trip_temp: get the temperature above which the certain trip point
 			will be fired.
+	.set_emul_temp: set the emulation temperature which helps in debugging
+			different threshold temperature points.
 
 1.1.2 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
@@ -153,6 +155,7 @@ Thermal zone device sys I/F, created once it's registered:
     |---trip_point_[0-*]_temp:	Trip point temperature
     |---trip_point_[0-*]_type:	Trip point type
     |---trip_point_[0-*]_hyst:	Hysteresis value for this trip point
+    |---emul_temp:		Emulated temperature set node
 
 Thermal cooling device sys I/F, created once it's registered:
 /sys/class/thermal/cooling_device[0-*]:
@@ -252,6 +255,16 @@ passive
 	Valid values: 0 (disabled) or greater than 1000
 	RW, Optional
 
+emul_temp
+	Interface to set the emulated temperature method in thermal zone
+	(sensor). After setting this temperature, the thermal zone may pass
+	this temperature to platform emulation function if registered or
+	cache it locally. This is useful in debugging different temperature
+	threshold and its associated cooling action. This is write only node
+	and writing 0 on this node should disable emulation.
+	Unit: millidegree Celsius
+	WO, Optional
+
 *****************************
 * Cooling device attributes *
 *****************************
@@ -329,8 +342,9 @@ The framework includes a simple notification mechanism, in the form of a
 netlink event. Netlink socket initialization is done during the _init_
 of the framework. Drivers which intend to use the notification mechanism
 just need to call thermal_generate_netlink_event() with two arguments viz
-(originator, event). Typically the originator will be an integer assigned
-to a thermal_zone_device when it registers itself with the framework. The
+(originator, event). The originator is a pointer to struct thermal_zone_device
+from where the event has been originated. An integer which represents the
+thermal zone device will be used in the message to identify the zone. The
 event will be one of:{THERMAL_AUX0, THERMAL_AUX1, THERMAL_CRITICAL,
 THERMAL_DEV_FAULT}. Notification can be sent when the current temperature
 crosses any of the configured thresholds.

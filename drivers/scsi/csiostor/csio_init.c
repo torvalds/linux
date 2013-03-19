@@ -60,13 +60,6 @@ static struct scsi_transport_template *csio_fcoe_transport_vport;
 /*
  * debugfs support
  */
-static int
-csio_mem_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t
 csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
@@ -110,7 +103,7 @@ csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 static const struct file_operations csio_mem_debugfs_fops = {
 	.owner   = THIS_MODULE,
-	.open    = csio_mem_open,
+	.open    = simple_open,
 	.read    = csio_mem_read,
 	.llseek  = default_llseek,
 };

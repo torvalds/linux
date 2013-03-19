@@ -1185,6 +1185,12 @@ bin_to_hex_dup(const unsigned char *src, int srclen)
 static int
 nfsd4_umh_cltrack_init(struct net __attribute__((unused)) *net)
 {
+	/* XXX: The usermode helper s not working in container yet. */
+	if (net != &init_net) {
+		WARN(1, KERN_ERR "NFSD: attempt to initialize umh client "
+			"tracking in a container!\n");
+		return -EINVAL;
+	}
 	return nfsd4_umh_cltrack_upcall("init", NULL, NULL);
 }
 

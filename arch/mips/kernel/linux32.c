@@ -76,7 +76,7 @@ out:
 	return error;
 }
 
-#define RLIM_INFINITY32	0x7fffffff
+#define RLIM_INFINITY32 0x7fffffff
 #define RESOURCE32(x) ((x > RLIM_INFINITY32) ? RLIM_INFINITY32 : x)
 
 struct rlimit32 {
@@ -105,7 +105,7 @@ SYSCALL_DEFINE5(32_llseek, unsigned int, fd, unsigned int, offset_high,
 
 /* From the Single Unix Spec: pread & pwrite act like lseek to pos + op +
    lseek back to original location.  They fail just like lseek does on
-   non-seekable files.  */
+   non-seekable files.	*/
 
 SYSCALL_DEFINE6(32_pread, unsigned long, fd, char __user *, buf, size_t, count,
 	unsigned long, unused, unsigned long, a4, unsigned long, a5)
@@ -247,7 +247,7 @@ SYSCALL_DEFINE4(32_sendfile, long, out_fd, long, in_fd,
 }
 
 asmlinkage ssize_t sys32_readahead(int fd, u32 pad0, u64 a2, u64 a3,
-                                   size_t count)
+				   size_t count)
 {
 	return sys_readahead(fd, merge_64(a2, a3), count);
 }
@@ -276,7 +276,7 @@ asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_a2,
 	unsigned offset_a3, unsigned len_a4, unsigned len_a5)
 {
 	return sys_fallocate(fd, mode, merge_64(offset_a2, offset_a3),
-	                     merge_64(len_a4, len_a5));
+			     merge_64(len_a4, len_a5));
 }
 
 asmlinkage long sys32_lookup_dcookie(u32 a0, u32 a1, char __user *buf,
@@ -286,7 +286,7 @@ asmlinkage long sys32_lookup_dcookie(u32 a0, u32 a1, char __user *buf,
 }
 
 SYSCALL_DEFINE6(32_fanotify_mark, int, fanotify_fd, unsigned int, flags,
-		u64, a3, u64, a4, int, dfd, const char  __user *, pathname)
+		u64, a3, u64, a4, int, dfd, const char	__user *, pathname)
 {
 	return sys_fanotify_mark(fanotify_fd, flags, merge_64(a3, a4),
 				 dfd, pathname);

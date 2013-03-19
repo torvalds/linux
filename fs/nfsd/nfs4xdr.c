@@ -2024,12 +2024,11 @@ static int get_parent_attributes(struct svc_export *exp, struct kstat *stat)
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
  *
- * @countp is the buffer size in _words_; upon successful return this becomes
- * replaced with the number of words written.
+ * countp is the buffer size in _words_
  */
 __be32
 nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
-		struct dentry *dentry, __be32 *buffer, int *countp, u32 *bmval,
+		struct dentry *dentry, __be32 **buffer, int count, u32 *bmval,
 		struct svc_rqst *rqstp, int ignore_crossmnt)
 {
 	u32 bmval0 = bmval[0];
@@ -2038,12 +2037,12 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	struct kstat stat;
 	struct svc_fh tempfh;
 	struct kstatfs statfs;
-	int buflen = *countp << 2;
+	int buflen = count << 2;
 	__be32 *attrlenp;
 	u32 dummy;
 	u64 dummy64;
 	u32 rdattr_err = 0;
-	__be32 *p = buffer;
+	__be32 *p = *buffer;
 	__be32 status;
 	int err;
 	int aclsupport = 0;
@@ -2447,7 +2446,7 @@ out_acl:
 	}
 
 	*attrlenp = htonl((char *)p - (char *)attrlenp - 4);
-	*countp = p - buffer;
+	*buffer = p;
 	status = nfs_ok;
 
 out:
@@ -2459,7 +2458,6 @@ out_nfserr:
 	status = nfserrno(err);
 	goto out;
 out_resource:
-	*countp = 0;
 	status = nfserr_resource;
 	goto out;
 out_serverfault:
@@ -2478,7 +2476,7 @@ static inline int attributes_need_mount(u32 *bmval)
 
 static __be32
 nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
-		const char *name, int namlen, __be32 *p, int *buflen)
+		const char *name, int namlen, __be32 **p, int buflen)
 {
 	struct svc_export *exp = cd->rd_fhp->fh_export;
 	struct dentry *dentry;
@@ -2584,10 +2582,9 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	p = xdr_encode_hyper(p, NFS_OFFSET_MAX);    /* offset of next entry */
 	p = xdr_encode_array(p, name, namlen);      /* name length & name */
 
-	nfserr = nfsd4_encode_dirent_fattr(cd, name, namlen, p, &buflen);
+	nfserr = nfsd4_encode_dirent_fattr(cd, name, namlen, &p, buflen);
 	switch (nfserr) {
 	case nfs_ok:
-		p += buflen;
 		break;
 	case nfserr_resource:
 		nfserr = nfserr_toosmall;
@@ -2714,10 +2711,8 @@ nfsd4_encode_getattr(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 
 	buflen = resp->end - resp->p - (COMPOUND_ERR_SLACK_SPACE >> 2);
 	nfserr = nfsd4_encode_fattr(fhp, fhp->fh_export, fhp->fh_dentry,
-				    resp->p, &buflen, getattr->ga_bmval,
+				    &resp->p, buflen, getattr->ga_bmval,
 				    resp->rqstp, 0);
-	if (!nfserr)
-		resp->p += buflen;
 	return nfserr;
 }
 

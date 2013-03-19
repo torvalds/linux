@@ -436,7 +436,7 @@
 
 	sdhci@c8000000 {
 		status = "okay";
-		cd-gpios = <&gpio 173 0>; /* gpio PV5 */
+		cd-gpios = <&gpio 173 1>; /* gpio PV5 */
 		wp-gpios = <&gpio 57 0>;  /* gpio PH1 */
 		power-gpios = <&gpio 169 0>; /* gpio PV1 */
 		bus-width = <4>;

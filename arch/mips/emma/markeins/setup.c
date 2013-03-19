@@ -28,7 +28,7 @@
 
 #include <asm/emma/emma2rh.h>
 
-#define	USE_CPU_COUNTER_TIMER	/* whether we use cpu counter */
+#define USE_CPU_COUNTER_TIMER	/* whether we use cpu counter */
 
 extern void markeins_led(const char *);
 

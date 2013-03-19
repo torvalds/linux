@@ -461,14 +461,13 @@ const struct file_operations bin_fops = {
 void unmap_bin_file(struct sysfs_dirent *attr_sd)
 {
 	struct bin_buffer *bb;
-	struct hlist_node *tmp;
 
 	if (sysfs_type(attr_sd) != SYSFS_KOBJ_BIN_ATTR)
 		return;
 
 	mutex_lock(&sysfs_bin_lock);
 
-	hlist_for_each_entry(bb, tmp, &attr_sd->s_bin_attr.buffers, list) {
+	hlist_for_each_entry(bb, &attr_sd->s_bin_attr.buffers, list) {
 		struct inode *inode = file_inode(bb->file);
 
 		unmap_mapping_range(inode->i_mapping, 0, 0, 1);

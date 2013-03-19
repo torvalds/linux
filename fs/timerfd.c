@@ -383,10 +383,10 @@ SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
 	return copy_to_user(otmr, &kotmr, sizeof(kotmr)) ? -EFAULT: 0;
 }
 
-#ifdef COMPAT
+#ifdef CONFIG_COMPAT
 COMPAT_SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
-		const struct itimerspec __user *, utmr,
-		struct itimerspec __user *, otmr)
+		const struct compat_itimerspec __user *, utmr,
+		struct compat_itimerspec __user *, otmr)
 {
 	struct itimerspec new, old;
 	int ret;
@@ -402,12 +402,12 @@ COMPAT_SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
 }
 
 COMPAT_SYSCALL_DEFINE2(timerfd_gettime, int, ufd,
-		struct itimerspec __user *, otmr)
+		struct compat_itimerspec __user *, otmr)
 {
 	struct itimerspec kotmr;
 	int ret = do_timerfd_gettime(ufd, &kotmr);
 	if (ret)
 		return ret;
-	return put_compat_itimerspec(otmr, &t) ? -EFAULT: 0;
+	return put_compat_itimerspec(otmr, &kotmr) ? -EFAULT: 0;
 }
 #endif

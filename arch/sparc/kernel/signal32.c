@@ -726,7 +726,7 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-void do_signal32(sigset_t *oldset, struct pt_regs * regs)
+void do_signal32(struct pt_regs * regs)
 {
 	struct ksignal ksig;
 	unsigned long orig_i0 = 0;

@@ -1906,9 +1906,8 @@ static inline void free_mm_slot(struct mm_slot *mm_slot)
 static struct mm_slot *get_mm_slot(struct mm_struct *mm)
 {
 	struct mm_slot *mm_slot;
-	struct hlist_node *node;
 
-	hash_for_each_possible(mm_slots_hash, mm_slot, node, hash, (unsigned long)mm)
+	hash_for_each_possible(mm_slots_hash, mm_slot, hash, (unsigned long)mm)
 		if (mm == mm_slot->mm)
 			return mm_slot;
 

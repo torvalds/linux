@@ -27,7 +27,6 @@
  */
 struct dw_dma_slave {
 	struct device		*dma_dev;
-	const char		*bus_id;
 	u32			cfg_hi;
 	u32			cfg_lo;
 	u8			src_master;
@@ -60,9 +59,6 @@ struct dw_dma_platform_data {
 	unsigned short	block_size;
 	unsigned char	nr_masters;
 	unsigned char	data_width[4];
-
-	struct dw_dma_slave *sd;
-	unsigned int sd_count;
 };
 
 /* bursts size */
@@ -114,6 +110,5 @@ void dw_dma_cyclic_stop(struct dma_chan *chan);
 dma_addr_t dw_dma_get_src_addr(struct dma_chan *chan);
 
 dma_addr_t dw_dma_get_dst_addr(struct dma_chan *chan);
-bool dw_dma_generic_filter(struct dma_chan *chan, void *param);
 
 #endif /* DW_DMAC_H */

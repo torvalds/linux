@@ -218,11 +218,6 @@ asmlinkage long sys32_sendfile(int out_fd, int in_fd,
  * Some system calls that need sign extended arguments. This could be
  * done by a generic wrapper.
  */
-long sys32_lseek(unsigned int fd, int offset, unsigned int whence)
-{
-	return sys_lseek(fd, offset, whence);
-}
-
 long sys32_kill(int pid, int sig)
 {
 	return sys_kill(pid, sig);

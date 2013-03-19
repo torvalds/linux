@@ -201,6 +201,7 @@ enum storvsc_request_type {
 #define SRB_STATUS_AUTOSENSE_VALID	0x80
 #define SRB_STATUS_INVALID_LUN	0x20
 #define SRB_STATUS_SUCCESS	0x01
+#define SRB_STATUS_ABORTED	0x02
 #define SRB_STATUS_ERROR	0x04
 
 /*
@@ -294,6 +295,25 @@ struct storvsc_scan_work {
 	struct Scsi_Host *host;
 	uint lun;
 };
+
+static void storvsc_device_scan(struct work_struct *work)
+{
+	struct storvsc_scan_work *wrk;
+	uint lun;
+	struct scsi_device *sdev;
+
+	wrk = container_of(work, struct storvsc_scan_work, work);
+	lun = wrk->lun;
+
+	sdev = scsi_device_lookup(wrk->host, 0, 0, lun);
+	if (!sdev)
+		goto done;
+	scsi_rescan_device(&sdev->sdev_gendev);
+	scsi_device_put(sdev);
+
+done:
+	kfree(wrk);
+}
 
 static void storvsc_bus_scan(struct work_struct *work)
 {
@@ -467,6 +487,7 @@ static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
 	if (!bounce_sgl)
 		return NULL;
 
+	sg_init_table(bounce_sgl, num_pages);
 	for (i = 0; i < num_pages; i++) {
 		page_buf = alloc_page(GFP_ATOMIC);
 		if (!page_buf)
@@ -760,6 +781,66 @@ cleanup:
 	return ret;
 }
 
+static void storvsc_handle_error(struct vmscsi_request *vm_srb,
+				struct scsi_cmnd *scmnd,
+				struct Scsi_Host *host,
+				u8 asc, u8 ascq)
+{
+	struct storvsc_scan_work *wrk;
+	void (*process_err_fn)(struct work_struct *work);
+	bool do_work = false;
+
+	switch (vm_srb->srb_status) {
+	case SRB_STATUS_ERROR:
+		/*
+		 * If there is an error; offline the device since all
+		 * error recovery strategies would have already been
+		 * deployed on the host side. However, if the command
+		 * were a pass-through command deal with it appropriately.
+		 */
+		switch (scmnd->cmnd[0]) {
+		case ATA_16:
+		case ATA_12:
+			set_host_byte(scmnd, DID_PASSTHROUGH);
+			break;
+		default:
+			set_host_byte(scmnd, DID_TARGET_FAILURE);
+		}
+		break;
+	case SRB_STATUS_INVALID_LUN:
+		do_work = true;
+		process_err_fn = storvsc_remove_lun;
+		break;
+	case (SRB_STATUS_ABORTED | SRB_STATUS_AUTOSENSE_VALID):
+		if ((asc == 0x2a) && (ascq == 0x9)) {
+			do_work = true;
+			process_err_fn = storvsc_device_scan;
+			/*
+			 * Retry the I/O that trigerred this.
+			 */
+			set_host_byte(scmnd, DID_REQUEUE);
+		}
+		break;
+	}
+
+	if (!do_work)
+		return;
+
+	/*
+	 * We need to schedule work to process this error; schedule it.
+	 */
+	wrk = kmalloc(sizeof(struct storvsc_scan_work), GFP_ATOMIC);
+	if (!wrk) {
+		set_host_byte(scmnd, DID_TARGET_FAILURE);
+		return;
+	}
+
+	wrk->host = host;
+	wrk->lun = vm_srb->lun;
+	INIT_WORK(&wrk->work, process_err_fn);
+	schedule_work(&wrk->work);
+}
+
 
 static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request)
 {
@@ -768,8 +849,13 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request)
 	void (*scsi_done_fn)(struct scsi_cmnd *);
 	struct scsi_sense_hdr sense_hdr;
 	struct vmscsi_request *vm_srb;
-	struct storvsc_scan_work *wrk;
 	struct stor_mem_pools *memp = scmnd->device->hostdata;
+	struct Scsi_Host *host;
+	struct storvsc_device *stor_dev;
+	struct hv_device *dev = host_dev->dev;
+
+	stor_dev = get_in_stor_device(dev);
+	host = stor_dev->host;
 
 	vm_srb = &cmd_request->vstor_packet.vm_srb;
 	if (cmd_request->bounce_sgl_count) {
@@ -782,54 +868,17 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request)
 					cmd_request->bounce_sgl_count);
 	}
 
-	/*
-	 * If there is an error; offline the device since all
-	 * error recovery strategies would have already been
-	 * deployed on the host side. However, if the command
-	 * were a pass-through command deal with it appropriately.
-	 */
 	scmnd->result = vm_srb->scsi_status;
-
-	if (vm_srb->srb_status == SRB_STATUS_ERROR) {
-		switch (scmnd->cmnd[0]) {
-		case ATA_16:
-		case ATA_12:
-			set_host_byte(scmnd, DID_PASSTHROUGH);
-			break;
-		default:
-			set_host_byte(scmnd, DID_TARGET_FAILURE);
-		}
-	}
-
-
-	/*
-	 * If the LUN is invalid; remove the device.
-	 */
-	if (vm_srb->srb_status == SRB_STATUS_INVALID_LUN) {
-		struct storvsc_device *stor_dev;
-		struct hv_device *dev = host_dev->dev;
-		struct Scsi_Host *host;
-
-		stor_dev = get_in_stor_device(dev);
-		host = stor_dev->host;
-
-		wrk = kmalloc(sizeof(struct storvsc_scan_work),
-				GFP_ATOMIC);
-		if (!wrk) {
-			scmnd->result = DID_TARGET_FAILURE << 16;
-		} else {
-			wrk->host = host;
-			wrk->lun = vm_srb->lun;
-			INIT_WORK(&wrk->work, storvsc_remove_lun);
-			schedule_work(&wrk->work);
-		}
-	}
 
 	if (scmnd->result) {
 		if (scsi_normalize_sense(scmnd->sense_buffer,
 				SCSI_SENSE_BUFFERSIZE, &sense_hdr))
 			scsi_print_sense_hdr("storvsc", &sense_hdr);
 	}
+
+	if (vm_srb->srb_status != SRB_STATUS_SUCCESS)
+		storvsc_handle_error(vm_srb, scmnd, host, sense_hdr.asc,
+					 sense_hdr.ascq);
 
 	scsi_set_resid(scmnd,
 		cmd_request->data_buffer.len -
@@ -1155,6 +1204,8 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 
 	blk_queue_bounce_limit(sdevice->request_queue, BLK_BOUNCE_ANY);
 
+	sdevice->no_write_same = 1;
+
 	return 0;
 }
 
@@ -1237,6 +1288,8 @@ static bool storvsc_scsi_cmd_ok(struct scsi_cmnd *scmnd)
 	u8 scsi_op = scmnd->cmnd[0];
 
 	switch (scsi_op) {
+	/* the host does not handle WRITE_SAME, log accident usage */
+	case WRITE_SAME:
 	/*
 	 * smartd sends this command and the host does not handle
 	 * this. So, don't send it.

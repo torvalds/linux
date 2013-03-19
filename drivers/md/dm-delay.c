@@ -198,8 +198,8 @@ out:
 	mutex_init(&dc->timer_lock);
 	atomic_set(&dc->may_delay, 1);
 
-	ti->num_flush_requests = 1;
-	ti->num_discard_requests = 1;
+	ti->num_flush_bios = 1;
+	ti->num_discard_bios = 1;
 	ti->private = dc;
 	return 0;
 
@@ -293,8 +293,8 @@ static int delay_map(struct dm_target *ti, struct bio *bio)
 	return delay_bio(dc, dc->read_delay, bio);
 }
 
-static int delay_status(struct dm_target *ti, status_type_t type,
-			unsigned status_flags, char *result, unsigned maxlen)
+static void delay_status(struct dm_target *ti, status_type_t type,
+			 unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct delay_c *dc = ti->private;
 	int sz = 0;
@@ -314,8 +314,6 @@ static int delay_status(struct dm_target *ti, status_type_t type,
 			       dc->write_delay);
 		break;
 	}
-
-	return 0;
 }
 
 static int delay_iterate_devices(struct dm_target *ti,
@@ -337,7 +335,7 @@ out:
 
 static struct target_type delay_target = {
 	.name	     = "delay",
-	.version     = {1, 2, 0},
+	.version     = {1, 2, 1},
 	.module      = THIS_MODULE,
 	.ctr	     = delay_ctr,
 	.dtr	     = delay_dtr,

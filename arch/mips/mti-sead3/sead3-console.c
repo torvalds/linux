@@ -10,8 +10,8 @@
 #include <linux/serial_reg.h>
 #include <linux/io.h>
 
-#define SEAD_UART1_REGS_BASE    0xbf000800   /* ttyS1 = DB9 port */
-#define SEAD_UART0_REGS_BASE    0xbf000900   /* ttyS0 = USB port   */
+#define SEAD_UART1_REGS_BASE	0xbf000800   /* ttyS1 = DB9 port */
+#define SEAD_UART0_REGS_BASE	0xbf000900   /* ttyS0 = USB port   */
 #define PORT(base_addr, offset) ((unsigned int __iomem *)(base_addr+(offset)*4))
 
 static char console_port = 1;

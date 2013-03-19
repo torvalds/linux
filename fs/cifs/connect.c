@@ -1031,7 +1031,7 @@ static int cifs_parse_security_flavors(char *value,
 
 	switch (match_token(value, cifs_secflavor_tokens, args)) {
 	case Opt_sec_krb5:
-		vol->secFlg |= CIFSSEC_MAY_KRB5;
+		vol->secFlg |= CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_SIGN;
 		break;
 	case Opt_sec_krb5i:
 		vol->secFlg |= CIFSSEC_MAY_KRB5 | CIFSSEC_MUST_SIGN;

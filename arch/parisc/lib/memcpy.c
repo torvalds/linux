@@ -68,7 +68,7 @@
 DECLARE_PER_CPU(struct exception_data, exception_data);
 
 #define preserve_branch(label)	do {					\
-	volatile int dummy;						\
+	volatile int dummy = 0;						\
 	/* The following branch is never taken, it's just here to  */	\
 	/* prevent gcc from optimizing away our exception code. */ 	\
 	if (unlikely(dummy != dummy))					\

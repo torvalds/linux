@@ -76,7 +76,7 @@
 	ENTRY_SAME(socket)
 	/* struct stat is MAYBE identical wide and narrow ?? */
 	ENTRY_COMP(newstat)
-	ENTRY_DIFF(lseek)
+	ENTRY_COMP(lseek)
 	ENTRY_SAME(getpid)		/* 20 */
 	/* the 'void * data' parameter may need re-packing in wide */
 	ENTRY_COMP(mount)
@@ -165,8 +165,8 @@
 	ENTRY_SAME(mmap2)
 	ENTRY_SAME(mmap)		/* 90 */
 	ENTRY_SAME(munmap)
-	ENTRY_SAME(truncate)
-	ENTRY_SAME(ftruncate)
+	ENTRY_COMP(truncate)
+	ENTRY_COMP(ftruncate)
 	ENTRY_SAME(fchmod)
 	ENTRY_SAME(fchown)		/* 95 */
 	ENTRY_SAME(getpriority)
@@ -310,10 +310,10 @@
 	ENTRY_COMP(sched_getaffinity)
 	ENTRY_SAME(ni_syscall)	/* set_thread_area */
 	ENTRY_SAME(ni_syscall)	/* get_thread_area */
-	ENTRY_SAME(io_setup)		/* 215 */
+	ENTRY_COMP(io_setup)		/* 215 */
 	ENTRY_SAME(io_destroy)
-	ENTRY_SAME(io_getevents)
-	ENTRY_SAME(io_submit)
+	ENTRY_COMP(io_getevents)
+	ENTRY_COMP(io_submit)
 	ENTRY_SAME(io_cancel)
 	ENTRY_SAME(alloc_hugepages)	/* 220 */
 	ENTRY_SAME(free_hugepages)

@@ -7,7 +7,7 @@ obj-y     = fork.o exec_domain.o panic.o printk.o \
 	    sysctl.o sysctl_binary.o capability.o ptrace.o timer.o user.o \
 	    signal.o sys.o kmod.o workqueue.o pid.o task_work.o \
 	    rcupdate.o extable.o params.o posix-timers.o \
-	    kthread.o wait.o kfifo.o sys_ni.o posix-cpu-timers.o mutex.o \
+	    kthread.o wait.o sys_ni.o posix-cpu-timers.o mutex.o \
 	    hrtimer.o rwsem.o nsproxy.o srcu.o semaphore.o \
 	    notifier.o ksysfs.o cred.o \
 	    async.o range.o groups.o lglock.o smpboot.o
@@ -25,9 +25,7 @@ endif
 obj-y += sched/
 obj-y += power/
 
-ifeq ($(CONFIG_CHECKPOINT_RESTORE),y)
-obj-$(CONFIG_X86) += kcmp.o
-endif
+obj-$(CONFIG_CHECKPOINT_RESTORE) += kcmp.o
 obj-$(CONFIG_FREEZER) += freezer.o
 obj-$(CONFIG_PROFILING) += profile.o
 obj-$(CONFIG_STACKTRACE) += stacktrace.o
@@ -127,11 +125,19 @@ $(obj)/config_data.h: $(obj)/config_data.gz FORCE
 
 $(obj)/time.o: $(obj)/timeconst.h
 
-quiet_cmd_timeconst  = TIMEC   $@
-      cmd_timeconst  = $(PERL) $< $(CONFIG_HZ) > $@
+quiet_cmd_hzfile = HZFILE  $@
+      cmd_hzfile = echo "hz=$(CONFIG_HZ)" > $@
+
+targets += hz.bc
+$(obj)/hz.bc: $(objtree)/include/config/hz.h FORCE
+	$(call if_changed,hzfile)
+
+quiet_cmd_bc  = BC      $@
+      cmd_bc  = bc -q $(filter-out FORCE,$^) > $@
+
 targets += timeconst.h
-$(obj)/timeconst.h: $(src)/timeconst.pl FORCE
-	$(call if_changed,timeconst)
+$(obj)/timeconst.h: $(obj)/hz.bc $(src)/timeconst.bc FORCE
+	$(call if_changed,bc)
 
 ifeq ($(CONFIG_MODULE_SIG),y)
 #

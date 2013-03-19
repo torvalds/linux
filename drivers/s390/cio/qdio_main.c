@@ -1226,7 +1226,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 
 	tiqdio_remove_input_queues(irq_ptr);
 	qdio_shutdown_queues(cdev);
-	qdio_shutdown_debug_entries(irq_ptr, cdev);
+	qdio_shutdown_debug_entries(irq_ptr);
 
 	/* cleanup subchannel */
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);

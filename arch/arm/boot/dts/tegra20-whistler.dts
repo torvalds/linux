@@ -510,6 +510,7 @@
 
 	sdhci@c8000400 {
 		status = "okay";
+		cd-gpios = <&gpio 69 1>; /* gpio PI5 */
 		wp-gpios = <&gpio 173 0>; /* gpio PV5 */
 		bus-width = <8>;
 	};

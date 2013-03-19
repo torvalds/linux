@@ -147,7 +147,7 @@ int cvmx_l2c_set_hw_way_partition(uint32_t mask)
 	mask &= valid_mask;
 
 	/* A UMSK setting which blocks all L2C Ways is an error on some chips */
-	if (mask == valid_mask  && !OCTEON_IS_MODEL(OCTEON_CN63XX))
+	if (mask == valid_mask	&& !OCTEON_IS_MODEL(OCTEON_CN63XX))
 		return -1;
 
 	if (OCTEON_IS_MODEL(OCTEON_CN63XX))
@@ -438,7 +438,7 @@ void cvmx_l2c_flush(void)
 		for (set = 0; set < n_set; set++) {
 			for (assoc = 0; assoc < n_assoc; assoc++) {
 				address = CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS,
-						       (assoc << assoc_shift) |	(set << set_shift));
+						       (assoc << assoc_shift) | (set << set_shift));
 				CVMX_CACHE_WBIL2I(address, 0);
 			}
 		}
@@ -573,8 +573,8 @@ union __cvmx_l2c_tag {
  * @index:  Index of the cacheline
  *
  * Returns The Octeon model specific tag structure.  This is
- *         translated by a wrapper function to a generic form that is
- *         easier for applications to use.
+ *	   translated by a wrapper function to a generic form that is
+ *	   easier for applications to use.
  */
 static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 {
@@ -618,12 +618,12 @@ static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 		".set push\n\t"
 		".set mips64\n\t"
 		".set noreorder\n\t"
-		"sd    %[dbg_val], 0(%[dbg_addr])\n\t"   /* Enter debug mode, wait for store */
+		"sd    %[dbg_val], 0(%[dbg_addr])\n\t"	 /* Enter debug mode, wait for store */
 		"ld    $0, 0(%[dbg_addr])\n\t"
-		"ld    %[tag_val], 0(%[tag_addr])\n\t"   /* Read L2C tag data */
-		"sd    $0, 0(%[dbg_addr])\n\t"          /* Exit debug mode, wait for store */
+		"ld    %[tag_val], 0(%[tag_addr])\n\t"	 /* Read L2C tag data */
+		"sd    $0, 0(%[dbg_addr])\n\t"		/* Exit debug mode, wait for store */
 		"ld    $0, 0(%[dbg_addr])\n\t"
-		"cache 9, 0($0)\n\t"             /* Invalidate dcache to discard debug data */
+		"cache 9, 0($0)\n\t"		 /* Invalidate dcache to discard debug data */
 		".set pop"
 		: [tag_val] "=r" (tag_val)
 		: [dbg_addr] "r" (dbg_addr), [dbg_val] "r" (debug_val), [tag_addr] "r" (debug_tag_addr)
@@ -664,10 +664,10 @@ union cvmx_l2c_tag cvmx_l2c_get_tag(uint32_t association, uint32_t index)
 		CVMX_SYNC;   /* make sure CVMX_L2C_TADX_TAG is updated */
 		l2c_tadx_tag.u64 = cvmx_read_csr(CVMX_L2C_TADX_TAG(0));
 
-		tag.s.V     = l2c_tadx_tag.s.valid;
-		tag.s.D     = l2c_tadx_tag.s.dirty;
-		tag.s.L     = l2c_tadx_tag.s.lock;
-		tag.s.U     = l2c_tadx_tag.s.use;
+		tag.s.V	    = l2c_tadx_tag.s.valid;
+		tag.s.D	    = l2c_tadx_tag.s.dirty;
+		tag.s.L	    = l2c_tadx_tag.s.lock;
+		tag.s.U	    = l2c_tadx_tag.s.use;
 		tag.s.addr  = l2c_tadx_tag.s.tag;
 	} else {
 		union __cvmx_l2c_tag tmp_tag;
@@ -679,34 +679,34 @@ union cvmx_l2c_tag cvmx_l2c_get_tag(uint32_t association, uint32_t index)
 		 * as it can represent all models.
 		 */
 		if (OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN56XX)) {
-			tag.s.V    = tmp_tag.cn58xx.V;
-			tag.s.D    = tmp_tag.cn58xx.D;
-			tag.s.L    = tmp_tag.cn58xx.L;
-			tag.s.U    = tmp_tag.cn58xx.U;
+			tag.s.V	   = tmp_tag.cn58xx.V;
+			tag.s.D	   = tmp_tag.cn58xx.D;
+			tag.s.L	   = tmp_tag.cn58xx.L;
+			tag.s.U	   = tmp_tag.cn58xx.U;
 			tag.s.addr = tmp_tag.cn58xx.addr;
 		} else if (OCTEON_IS_MODEL(OCTEON_CN38XX)) {
-			tag.s.V    = tmp_tag.cn38xx.V;
-			tag.s.D    = tmp_tag.cn38xx.D;
-			tag.s.L    = tmp_tag.cn38xx.L;
-			tag.s.U    = tmp_tag.cn38xx.U;
+			tag.s.V	   = tmp_tag.cn38xx.V;
+			tag.s.D	   = tmp_tag.cn38xx.D;
+			tag.s.L	   = tmp_tag.cn38xx.L;
+			tag.s.U	   = tmp_tag.cn38xx.U;
 			tag.s.addr = tmp_tag.cn38xx.addr;
 		} else if (OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN52XX)) {
-			tag.s.V    = tmp_tag.cn31xx.V;
-			tag.s.D    = tmp_tag.cn31xx.D;
-			tag.s.L    = tmp_tag.cn31xx.L;
-			tag.s.U    = tmp_tag.cn31xx.U;
+			tag.s.V	   = tmp_tag.cn31xx.V;
+			tag.s.D	   = tmp_tag.cn31xx.D;
+			tag.s.L	   = tmp_tag.cn31xx.L;
+			tag.s.U	   = tmp_tag.cn31xx.U;
 			tag.s.addr = tmp_tag.cn31xx.addr;
 		} else if (OCTEON_IS_MODEL(OCTEON_CN30XX)) {
-			tag.s.V    = tmp_tag.cn30xx.V;
-			tag.s.D    = tmp_tag.cn30xx.D;
-			tag.s.L    = tmp_tag.cn30xx.L;
-			tag.s.U    = tmp_tag.cn30xx.U;
+			tag.s.V	   = tmp_tag.cn30xx.V;
+			tag.s.D	   = tmp_tag.cn30xx.D;
+			tag.s.L	   = tmp_tag.cn30xx.L;
+			tag.s.U	   = tmp_tag.cn30xx.U;
 			tag.s.addr = tmp_tag.cn30xx.addr;
 		} else if (OCTEON_IS_MODEL(OCTEON_CN50XX)) {
-			tag.s.V    = tmp_tag.cn50xx.V;
-			tag.s.D    = tmp_tag.cn50xx.D;
-			tag.s.L    = tmp_tag.cn50xx.L;
-			tag.s.U    = tmp_tag.cn50xx.U;
+			tag.s.V	   = tmp_tag.cn50xx.V;
+			tag.s.D	   = tmp_tag.cn50xx.D;
+			tag.s.L	   = tmp_tag.cn50xx.L;
+			tag.s.U	   = tmp_tag.cn50xx.U;
 			tag.s.addr = tmp_tag.cn50xx.addr;
 		} else {
 			cvmx_dprintf("Unsupported OCTEON Model in %s\n", __func__);
@@ -865,7 +865,7 @@ void cvmx_l2c_flush_line(uint32_t assoc, uint32_t index)
 		uint64_t address;
 		/* Create the address based on index and association.
 		 * Bits<20:17> select the way of the cache block involved in
-		 *             the operation
+		 *	       the operation
 		 * Bits<16:7> of the effect address select the index
 		 */
 		address = CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS,

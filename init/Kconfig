@@ -1230,6 +1230,14 @@ config SYSCTL_ARCH_UNALIGN_NO_WARN
 	  Allows arch to define/use @no_unaligned_warning to possibly warn
 	  about unaligned access emulation going on under the hood.
 
+config SYSCTL_ARCH_UNALIGN_ALLOW
+	bool
+	help
+	  Enable support for /proc/sys/kernel/unaligned-trap
+	  Allows arches to define/use @unaligned_enabled to runtime toggle
+	  the unaligned access emulation.
+	  see arch/parisc/kernel/unaligned.c for reference
+
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EXPERT
 	 default y

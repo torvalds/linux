@@ -176,9 +176,8 @@ pid_t pid_vnr(struct pid *pid);
 
 #define do_each_pid_task(pid, type, task)				\
 	do {								\
-		struct hlist_node *pos___;				\
 		if ((pid) != NULL)					\
-			hlist_for_each_entry_rcu((task), pos___,	\
+			hlist_for_each_entry_rcu((task),		\
 				&(pid)->tasks[type], pids[type].node) {
 
 			/*

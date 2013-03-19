@@ -2932,9 +2932,8 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	inode->i_size = size;
 	clear_nlink(inode);	/* It is unlinked */
 #ifndef CONFIG_MMU
-	error = ramfs_nommu_expand_for_mapping(inode, size);
-	res = ERR_PTR(error);
-	if (error)
+	res = ERR_PTR(ramfs_nommu_expand_for_mapping(inode, size));
+	if (IS_ERR(res))
 		goto put_dentry;
 #endif
 

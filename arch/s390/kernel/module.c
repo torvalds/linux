@@ -222,7 +222,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	struct mod_arch_syminfo *info;
 	Elf_Addr loc, val;
 	int r_type, r_sym;
-	int rc;
+	int rc = -ENOEXEC;
 
 	/* This is where to make the change */
 	loc = base + rela->r_offset;

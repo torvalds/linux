@@ -147,11 +147,12 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 			      ext4_lblk_t end);
 static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
 				       int nr_to_scan);
-static int ext4_es_reclaim_extents_count(struct super_block *sb);
 
 int __init ext4_init_es(void)
 {
-	ext4_es_cachep = KMEM_CACHE(extent_status, SLAB_RECLAIM_ACCOUNT);
+	ext4_es_cachep = kmem_cache_create("ext4_extent_status",
+					   sizeof(struct extent_status),
+					   0, (SLAB_RECLAIM_ACCOUNT), NULL);
 	if (ext4_es_cachep == NULL)
 		return -ENOMEM;
 	return 0;
@@ -302,8 +303,10 @@ ext4_es_alloc_extent(struct inode *inode, ext4_lblk_t lblk, ext4_lblk_t len,
 	/*
 	 * We don't count delayed extent because we never try to reclaim them
 	 */
-	if (!ext4_es_is_delayed(es))
+	if (!ext4_es_is_delayed(es)) {
 		EXT4_I(inode)->i_es_lru_nr++;
+		percpu_counter_inc(&EXT4_SB(inode->i_sb)->s_extent_cache_cnt);
+	}
 
 	return es;
 }
@@ -314,6 +317,7 @@ static void ext4_es_free_extent(struct inode *inode, struct extent_status *es)
 	if (!ext4_es_is_delayed(es)) {
 		BUG_ON(EXT4_I(inode)->i_es_lru_nr == 0);
 		EXT4_I(inode)->i_es_lru_nr--;
+		percpu_counter_dec(&EXT4_SB(inode->i_sb)->s_extent_cache_cnt);
 	}
 
 	kmem_cache_free(ext4_es_cachep, es);
@@ -674,10 +678,11 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	int nr_to_scan = sc->nr_to_scan;
 	int ret, nr_shrunk = 0;
 
-	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan);
+	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
+	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan, ret);
 
 	if (!nr_to_scan)
-		return ext4_es_reclaim_extents_count(sbi->s_sb);
+		return ret;
 
 	INIT_LIST_HEAD(&scanned);
 
@@ -705,9 +710,10 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	}
 	list_splice_tail(&scanned, &sbi->s_es_lru);
 	spin_unlock(&sbi->s_es_lru_lock);
-	trace_ext4_es_shrink_exit(sbi->s_sb, nr_shrunk);
 
-	return ext4_es_reclaim_extents_count(sbi->s_sb);
+	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
+	trace_ext4_es_shrink_exit(sbi->s_sb, nr_shrunk, ret);
+	return ret;
 }
 
 void ext4_es_register_shrinker(struct super_block *sb)
@@ -749,25 +755,6 @@ void ext4_es_lru_del(struct inode *inode)
 	if (!list_empty(&ei->i_es_lru))
 		list_del_init(&ei->i_es_lru);
 	spin_unlock(&sbi->s_es_lru_lock);
-}
-
-static int ext4_es_reclaim_extents_count(struct super_block *sb)
-{
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_inode_info *ei;
-	struct list_head *cur;
-	int nr_cached = 0;
-
-	spin_lock(&sbi->s_es_lru_lock);
-	list_for_each(cur, &sbi->s_es_lru) {
-		ei = list_entry(cur, struct ext4_inode_info, i_es_lru);
-		read_lock(&ei->i_es_lock);
-		nr_cached += ei->i_es_lru_nr;
-		read_unlock(&ei->i_es_lock);
-	}
-	spin_unlock(&sbi->s_es_lru_lock);
-	trace_ext4_es_reclaim_extents_count(sb, nr_cached);
-	return nr_cached;
 }
 
 static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,

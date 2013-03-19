@@ -618,17 +618,15 @@ out_unlock:
  * RECLAIM: Try to reclaim a lock
  */
 int
-nlmclnt_reclaim(struct nlm_host *host, struct file_lock *fl)
+nlmclnt_reclaim(struct nlm_host *host, struct file_lock *fl,
+		struct nlm_rqst *req)
 {
-	struct nlm_rqst reqst, *req;
 	int		status;
 
-	req = &reqst;
 	memset(req, 0, sizeof(*req));
 	locks_init_lock(&req->a_args.lock.fl);
 	locks_init_lock(&req->a_res.lock.fl);
 	req->a_host  = host;
-	req->a_flags = 0;
 
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(req, fl);

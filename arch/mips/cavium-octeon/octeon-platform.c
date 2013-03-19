@@ -410,7 +410,7 @@ int __init octeon_prune_device_tree(void)
 	pip_path = fdt_getprop(initial_boot_params, aliases, "pip", NULL);
 	if (pip_path) {
 		int pip = fdt_path_offset(initial_boot_params, pip_path);
-		if (pip  >= 0)
+		if (pip	 >= 0)
 			for (i = 0; i <= 4; i++)
 				octeon_fdt_pip_iface(pip, i, &mac_addr_base);
 	}

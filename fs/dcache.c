@@ -675,11 +675,10 @@ EXPORT_SYMBOL(dget_parent);
 static struct dentry *__d_find_alias(struct inode *inode, int want_discon)
 {
 	struct dentry *alias, *discon_alias;
-	struct hlist_node *p;
 
 again:
 	discon_alias = NULL;
-	hlist_for_each_entry(alias, p, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(alias, &inode->i_dentry, d_alias) {
 		spin_lock(&alias->d_lock);
  		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
 			if (IS_ROOT(alias) &&
@@ -730,10 +729,9 @@ EXPORT_SYMBOL(d_find_alias);
 void d_prune_aliases(struct inode *inode)
 {
 	struct dentry *dentry;
-	struct hlist_node *p;
 restart:
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (!dentry->d_count) {
 			__dget_dlock(dentry);
@@ -1443,14 +1441,13 @@ static struct dentry *__d_instantiate_unique(struct dentry *entry,
 	int len = entry->d_name.len;
 	const char *name = entry->d_name.name;
 	unsigned int hash = entry->d_name.hash;
-	struct hlist_node *p;
 
 	if (!inode) {
 		__d_instantiate(entry, NULL);
 		return NULL;
 	}
 
-	hlist_for_each_entry(alias, p, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(alias, &inode->i_dentry, d_alias) {
 		/*
 		 * Don't need alias->d_lock here, because aliases with
 		 * d_parent == entry->d_parent are not subject to name or

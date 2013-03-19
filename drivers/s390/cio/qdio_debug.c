@@ -232,7 +232,8 @@ static struct file_operations debugfs_perf_fops = {
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
-static void setup_debugfs_entry(struct qdio_q *q, struct ccw_device *cdev)
+
+static void setup_debugfs_entry(struct qdio_q *q)
 {
 	char name[QDIO_DEBUGFS_NAME_LEN];
 
@@ -263,12 +264,12 @@ void qdio_setup_debug_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)
 		irq_ptr->debugfs_perf = NULL;
 
 	for_each_input_queue(irq_ptr, q, i)
-		setup_debugfs_entry(q, cdev);
+		setup_debugfs_entry(q);
 	for_each_output_queue(irq_ptr, q, i)
-		setup_debugfs_entry(q, cdev);
+		setup_debugfs_entry(q);
 }
 
-void qdio_shutdown_debug_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)
+void qdio_shutdown_debug_entries(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
 	int i;

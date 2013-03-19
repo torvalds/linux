@@ -66,6 +66,18 @@
 			};
 		};
 
+		gpio_keys {
+			compatible = "gpio-keys";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			button@1 {
+				label = "Init Button";
+				linux,code = <116>;
+				gpios = <&gpio1 28 0>;
+			};
+		};
+
 		mdio {
 			phy0: ethernet-phy@0 {
 				reg = <0>;
@@ -119,6 +131,12 @@
 		};
 		sata@d00a0000 {
 			nr-ports = <2>;
+			status = "okay";
+		};
+		usb@d0050000 {
+			status = "okay";
+		};
+		usb@d0051000 {
 			status = "okay";
 		};
 	};

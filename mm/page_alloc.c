@@ -202,18 +202,11 @@ static unsigned long __meminitdata nr_all_pages;
 static unsigned long __meminitdata dma_reserve;
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-/* Movable memory ranges, will also be used by memblock subsystem. */
-struct movablemem_map movablemem_map = {
-	.acpi = false,
-	.nr_map = 0,
-};
-
 static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
 static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
 static unsigned long __initdata required_kernelcore;
 static unsigned long __initdata required_movablecore;
 static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
-static unsigned long __meminitdata zone_movable_limit[MAX_NUMNODES];
 
 /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
 int movable_zone;
@@ -4412,77 +4405,6 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
 	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
 }
 
-/**
- * sanitize_zone_movable_limit - Sanitize the zone_movable_limit array.
- *
- * zone_movable_limit is initialized as 0. This function will try to get
- * the first ZONE_MOVABLE pfn of each node from movablemem_map, and
- * assigne them to zone_movable_limit.
- * zone_movable_limit[nid] == 0 means no limit for the node.
- *
- * Note: Each range is represented as [start_pfn, end_pfn)
- */
-static void __meminit sanitize_zone_movable_limit(void)
-{
-	int map_pos = 0, i, nid;
-	unsigned long start_pfn, end_pfn;
-
-	if (!movablemem_map.nr_map)
-		return;
-
-	/* Iterate all ranges from minimum to maximum */
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
-		/*
-		 * If we have found lowest pfn of ZONE_MOVABLE of the node
-		 * specified by user, just go on to check next range.
-		 */
-		if (zone_movable_limit[nid])
-			continue;
-
-#ifdef CONFIG_ZONE_DMA
-		/* Skip DMA memory. */
-		if (start_pfn < arch_zone_highest_possible_pfn[ZONE_DMA])
-			start_pfn = arch_zone_highest_possible_pfn[ZONE_DMA];
-#endif
-
-#ifdef CONFIG_ZONE_DMA32
-		/* Skip DMA32 memory. */
-		if (start_pfn < arch_zone_highest_possible_pfn[ZONE_DMA32])
-			start_pfn = arch_zone_highest_possible_pfn[ZONE_DMA32];
-#endif
-
-#ifdef CONFIG_HIGHMEM
-		/* Skip lowmem if ZONE_MOVABLE is highmem. */
-		if (zone_movable_is_highmem() &&
-		    start_pfn < arch_zone_lowest_possible_pfn[ZONE_HIGHMEM])
-			start_pfn = arch_zone_lowest_possible_pfn[ZONE_HIGHMEM];
-#endif
-
-		if (start_pfn >= end_pfn)
-			continue;
-
-		while (map_pos < movablemem_map.nr_map) {
-			if (end_pfn <= movablemem_map.map[map_pos].start_pfn)
-				break;
-
-			if (start_pfn >= movablemem_map.map[map_pos].end_pfn) {
-				map_pos++;
-				continue;
-			}
-
-			/*
-			 * The start_pfn of ZONE_MOVABLE is either the minimum
-			 * pfn specified by movablemem_map, or 0, which means
-			 * the node has no ZONE_MOVABLE.
-			 */
-			zone_movable_limit[nid] = max(start_pfn,
-					movablemem_map.map[map_pos].start_pfn);
-
-			break;
-		}
-	}
-}
-
 #else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
 					unsigned long zone_type,
@@ -4500,6 +4422,7 @@ static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
 
 	return zholes_size[zone_type];
 }
+
 #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
 static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
@@ -4941,19 +4864,12 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 		required_kernelcore = max(required_kernelcore, corepages);
 	}
 
-	/*
-	 * If neither kernelcore/movablecore nor movablemem_map is specified,
-	 * there is no ZONE_MOVABLE. But if movablemem_map is specified, the
-	 * start pfn of ZONE_MOVABLE has been stored in zone_movable_limit[].
-	 */
-	if (!required_kernelcore) {
-		if (movablemem_map.nr_map)
-			memcpy(zone_movable_pfn, zone_movable_limit,
-				sizeof(zone_movable_pfn));
+	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
+	if (!required_kernelcore)
 		goto out;
-	}
 
 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+	find_usable_zone_for_movable();
 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
 
 restart:
@@ -4981,23 +4897,9 @@ restart:
 		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
 			unsigned long size_pages;
 
-			/*
-			 * Find more memory for kernelcore in
-			 * [zone_movable_pfn[nid], zone_movable_limit[nid]).
-			 */
 			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
 			if (start_pfn >= end_pfn)
 				continue;
-
-			if (zone_movable_limit[nid]) {
-				end_pfn = min(end_pfn, zone_movable_limit[nid]);
-				/* No range left for kernelcore in this node */
-				if (start_pfn >= end_pfn) {
-					zone_movable_pfn[nid] =
-							zone_movable_limit[nid];
-					break;
-				}
-			}
 
 			/* Account for what is only usable for kernelcore */
 			if (start_pfn < usable_startpfn) {
@@ -5058,12 +4960,12 @@ restart:
 	if (usable_nodes && required_kernelcore > usable_nodes)
 		goto restart;
 
-out:
 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
 	for (nid = 0; nid < MAX_NUMNODES; nid++)
 		zone_movable_pfn[nid] =
 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
 
+out:
 	/* restore the node_state */
 	node_states[N_MEMORY] = saved_node_state;
 }
@@ -5126,8 +5028,6 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 
 	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
 	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
-	find_usable_zone_for_movable();
-	sanitize_zone_movable_limit();
 	find_zone_movable_pfns_for_nodes();
 
 	/* Print out the zone ranges */
@@ -5210,181 +5110,6 @@ static int __init cmdline_parse_movablecore(char *p)
 
 early_param("kernelcore", cmdline_parse_kernelcore);
 early_param("movablecore", cmdline_parse_movablecore);
-
-/**
- * movablemem_map_overlap() - Check if a range overlaps movablemem_map.map[].
- * @start_pfn:	start pfn of the range to be checked
- * @end_pfn: 	end pfn of the range to be checked (exclusive)
- *
- * This function checks if a given memory range [start_pfn, end_pfn) overlaps
- * the movablemem_map.map[] array.
- *
- * Return: index of the first overlapped element in movablemem_map.map[]
- *         or -1 if they don't overlap each other.
- */
-int __init movablemem_map_overlap(unsigned long start_pfn,
-				   unsigned long end_pfn)
-{
-	int overlap;
-
-	if (!movablemem_map.nr_map)
-		return -1;
-
-	for (overlap = 0; overlap < movablemem_map.nr_map; overlap++)
-		if (start_pfn < movablemem_map.map[overlap].end_pfn)
-			break;
-
-	if (overlap == movablemem_map.nr_map ||
-	    end_pfn <= movablemem_map.map[overlap].start_pfn)
-		return -1;
-
-	return overlap;
-}
-
-/**
- * insert_movablemem_map - Insert a memory range in to movablemem_map.map.
- * @start_pfn:	start pfn of the range
- * @end_pfn:	end pfn of the range
- *
- * This function will also merge the overlapped ranges, and sort the array
- * by start_pfn in monotonic increasing order.
- */
-void __init insert_movablemem_map(unsigned long start_pfn,
-				  unsigned long end_pfn)
-{
-	int pos, overlap;
-
-	/*
-	 * pos will be at the 1st overlapped range, or the position
-	 * where the element should be inserted.
-	 */
-	for (pos = 0; pos < movablemem_map.nr_map; pos++)
-		if (start_pfn <= movablemem_map.map[pos].end_pfn)
-			break;
-
-	/* If there is no overlapped range, just insert the element. */
-	if (pos == movablemem_map.nr_map ||
-	    end_pfn < movablemem_map.map[pos].start_pfn) {
-		/*
-		 * If pos is not the end of array, we need to move all
-		 * the rest elements backward.
-		 */
-		if (pos < movablemem_map.nr_map)
-			memmove(&movablemem_map.map[pos+1],
-				&movablemem_map.map[pos],
-				sizeof(struct movablemem_entry) *
-				(movablemem_map.nr_map - pos));
-		movablemem_map.map[pos].start_pfn = start_pfn;
-		movablemem_map.map[pos].end_pfn = end_pfn;
-		movablemem_map.nr_map++;
-		return;
-	}
-
-	/* overlap will be at the last overlapped range */
-	for (overlap = pos + 1; overlap < movablemem_map.nr_map; overlap++)
-		if (end_pfn < movablemem_map.map[overlap].start_pfn)
-			break;
-
-	/*
-	 * If there are more ranges overlapped, we need to merge them,
-	 * and move the rest elements forward.
-	 */
-	overlap--;
-	movablemem_map.map[pos].start_pfn = min(start_pfn,
-					movablemem_map.map[pos].start_pfn);
-	movablemem_map.map[pos].end_pfn = max(end_pfn,
-					movablemem_map.map[overlap].end_pfn);
-
-	if (pos != overlap && overlap + 1 != movablemem_map.nr_map)
-		memmove(&movablemem_map.map[pos+1],
-			&movablemem_map.map[overlap+1],
-			sizeof(struct movablemem_entry) *
-			(movablemem_map.nr_map - overlap - 1));
-
-	movablemem_map.nr_map -= overlap - pos;
-}
-
-/**
- * movablemem_map_add_region - Add a memory range into movablemem_map.
- * @start:	physical start address of range
- * @end:	physical end address of range
- *
- * This function transform the physical address into pfn, and then add the
- * range into movablemem_map by calling insert_movablemem_map().
- */
-static void __init movablemem_map_add_region(u64 start, u64 size)
-{
-	unsigned long start_pfn, end_pfn;
-
-	/* In case size == 0 or start + size overflows */
-	if (start + size <= start)
-		return;
-
-	if (movablemem_map.nr_map >= ARRAY_SIZE(movablemem_map.map)) {
-		pr_err("movablemem_map: too many entries;"
-			" ignoring [mem %#010llx-%#010llx]\n",
-			(unsigned long long) start,
-			(unsigned long long) (start + size - 1));
-		return;
-	}
-
-	start_pfn = PFN_DOWN(start);
-	end_pfn = PFN_UP(start + size);
-	insert_movablemem_map(start_pfn, end_pfn);
-}
-
-/*
- * cmdline_parse_movablemem_map - Parse boot option movablemem_map.
- * @p:	The boot option of the following format:
- *	movablemem_map=nn[KMG]@ss[KMG]
- *
- * This option sets the memory range [ss, ss+nn) to be used as movable memory.
- *
- * Return: 0 on success or -EINVAL on failure.
- */
-static int __init cmdline_parse_movablemem_map(char *p)
-{
-	char *oldp;
-	u64 start_at, mem_size;
-
-	if (!p)
-		goto err;
-
-	if (!strcmp(p, "acpi"))
-		movablemem_map.acpi = true;
-
-	/*
-	 * If user decide to use info from BIOS, all the other user specified
-	 * ranges will be ingored.
-	 */
-	if (movablemem_map.acpi) {
-		if (movablemem_map.nr_map) {
-			memset(movablemem_map.map, 0,
-				sizeof(struct movablemem_entry)
-				* movablemem_map.nr_map);
-			movablemem_map.nr_map = 0;
-		}
-		return 0;
-	}
-
-	oldp = p;
-	mem_size = memparse(p, &p);
-	if (p == oldp)
-		goto err;
-
-	if (*p == '@') {
-		oldp = ++p;
-		start_at = memparse(p, &p);
-		if (p == oldp || *p != '\0')
-			goto err;
-
-		movablemem_map_add_region(start_at, mem_size);
-		return 0;
-	}
-err:
-	return -EINVAL;
-}
-early_param("movablemem_map", cmdline_parse_movablemem_map);
 
 #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 

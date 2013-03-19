@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -897,7 +897,7 @@ struct ct6_dsd {
 #define FLT_REG_BOOT_CODE_82XX	0x78
 #define FLT_REG_FW_82XX		0x74
 #define FLT_REG_GOLD_FW_82XX	0x75
-#define FLT_REG_VPD_82XX	0x81
+#define FLT_REG_VPD_8XXX	0x81
 
 #define	FA_VPD_SIZE_82XX	0x400
 

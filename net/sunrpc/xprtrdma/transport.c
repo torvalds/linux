@@ -51,6 +51,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
+#include <linux/sunrpc/addr.h>
 
 #include "xprt_rdma.h"
 

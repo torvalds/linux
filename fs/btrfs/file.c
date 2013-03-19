@@ -30,11 +30,11 @@
 #include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/slab.h>
+#include <linux/btrfs.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
-#include "ioctl.h"
 #include "print-tree.h"
 #include "tree-log.h"
 #include "locking.h"
@@ -374,6 +374,11 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 
 	atomic_inc(&fs_info->defrag_running);
 	while(1) {
+		/* Pause the auto defragger. */
+		if (test_bit(BTRFS_FS_STATE_REMOUNTING,
+			     &fs_info->fs_state))
+			break;
+
 		if (!__need_auto_defrag(fs_info->tree_root))
 			break;
 
@@ -505,8 +510,7 @@ int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
 	loff_t isize = i_size_read(inode);
 
 	start_pos = pos & ~((u64)root->sectorsize - 1);
-	num_bytes = (write_bytes + pos - start_pos +
-		    root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
+	num_bytes = ALIGN(write_bytes + pos - start_pos, root->sectorsize);
 
 	end_of_last_block = start_pos + num_bytes - 1;
 	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
@@ -1544,7 +1548,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	 * although we have opened a file as writable, we have
 	 * to stop this write operation to ensure FS consistency.
 	 */
-	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state)) {
 		mutex_unlock(&inode->i_mutex);
 		err = -EROFS;
 		goto out;
@@ -1627,7 +1631,20 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 	 */
 	if (test_and_clear_bit(BTRFS_INODE_ORDERED_DATA_CLOSE,
 			       &BTRFS_I(inode)->runtime_flags)) {
-		btrfs_add_ordered_operation(NULL, BTRFS_I(inode)->root, inode);
+		struct btrfs_trans_handle *trans;
+		struct btrfs_root *root = BTRFS_I(inode)->root;
+
+		/*
+		 * We need to block on a committing transaction to keep us from
+		 * throwing a ordered operation on to the list and causing
+		 * something like sync to deadlock trying to flush out this
+		 * inode.
+		 */
+		trans = btrfs_start_transaction(root, 0);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+		btrfs_add_ordered_operation(trans, BTRFS_I(inode)->root, inode);
+		btrfs_end_transaction(trans, root);
 		if (inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
 			filemap_flush(inode->i_mapping);
 	}
@@ -1654,16 +1671,21 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
 	struct btrfs_trans_handle *trans;
+	bool full_sync = 0;
 
 	trace_btrfs_sync_file(file, datasync);
 
 	/*
 	 * We write the dirty pages in the range and wait until they complete
 	 * out of the ->i_mutex. If so, we can flush the dirty pages by
-	 * multi-task, and make the performance up.
+	 * multi-task, and make the performance up.  See
+	 * btrfs_wait_ordered_range for an explanation of the ASYNC check.
 	 */
 	atomic_inc(&BTRFS_I(inode)->sync_writers);
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
+	if (!ret && test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
+			     &BTRFS_I(inode)->runtime_flags))
+		ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
 	atomic_dec(&BTRFS_I(inode)->sync_writers);
 	if (ret)
 		return ret;
@@ -1675,7 +1697,10 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * range being left.
 	 */
 	atomic_inc(&root->log_batch);
-	btrfs_wait_ordered_range(inode, start, end - start + 1);
+	full_sync = test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+			     &BTRFS_I(inode)->runtime_flags);
+	if (full_sync)
+		btrfs_wait_ordered_range(inode, start, end - start + 1);
 	atomic_inc(&root->log_batch);
 
 	/*
@@ -1742,13 +1767,25 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (ret != BTRFS_NO_LOG_SYNC) {
 		if (ret > 0) {
+			/*
+			 * If we didn't already wait for ordered extents we need
+			 * to do that now.
+			 */
+			if (!full_sync)
+				btrfs_wait_ordered_range(inode, start,
+							 end - start + 1);
 			ret = btrfs_commit_transaction(trans, root);
 		} else {
 			ret = btrfs_sync_log(trans, root);
-			if (ret == 0)
+			if (ret == 0) {
 				ret = btrfs_end_transaction(trans, root);
-			else
+			} else {
+				if (!full_sync)
+					btrfs_wait_ordered_range(inode, start,
+								 end -
+								 start + 1);
 				ret = btrfs_commit_transaction(trans, root);
+			}
 		}
 	} else {
 		ret = btrfs_end_transaction(trans, root);

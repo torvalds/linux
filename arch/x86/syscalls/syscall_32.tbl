@@ -25,7 +25,7 @@
 16	i386	lchown			sys_lchown16
 17	i386	break
 18	i386	oldstat			sys_stat
-19	i386	lseek			sys_lseek			sys32_lseek
+19	i386	lseek			sys_lseek			compat_sys_lseek
 20	i386	getpid			sys_getpid
 21	i386	mount			sys_mount			compat_sys_mount
 22	i386	umount			sys_oldumount
@@ -98,8 +98,8 @@
 89	i386	readdir			sys_old_readdir			compat_sys_old_readdir
 90	i386	mmap			sys_old_mmap			sys32_mmap
 91	i386	munmap			sys_munmap
-92	i386	truncate		sys_truncate
-93	i386	ftruncate		sys_ftruncate
+92	i386	truncate		sys_truncate			compat_sys_truncate
+93	i386	ftruncate		sys_ftruncate			compat_sys_ftruncate
 94	i386	fchmod			sys_fchmod
 95	i386	fchown			sys_fchown16
 96	i386	getpriority		sys_getpriority

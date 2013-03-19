@@ -67,12 +67,6 @@ ENTRY(sys32_lchown16_wrapper)
 	llgfr	%r4,%r4			# __kernel_old_uid_emu31_t
 	jg	sys32_lchown16		# branch to system call
 
-ENTRY(sys32_lseek_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	lgfr	%r3,%r3			# off_t
-	llgfr	%r4,%r4			# unsigned int
-	jg	sys_lseek		# branch to system call
-
 #sys32_getpid_wrapper				# void
 
 ENTRY(sys32_mount_wrapper)
@@ -330,16 +324,6 @@ ENTRY(sys32_munmap_wrapper)
 	llgfr	%r2,%r2			# unsigned long
 	llgfr	%r3,%r3			# size_t
 	jg	sys_munmap		# branch to system call
-
-ENTRY(sys32_truncate_wrapper)
-	llgtr	%r2,%r2			# const char *
-	lgfr	%r3,%r3			# long
-	jg	sys_truncate		# branch to system call
-
-ENTRY(sys32_ftruncate_wrapper)
-	llgfr	%r2,%r2			# unsigned int
-	llgfr	%r3,%r3			# unsigned long
-	jg	sys_ftruncate		# branch to system call
 
 ENTRY(sys32_fchmod_wrapper)
 	llgfr	%r2,%r2			# unsigned int

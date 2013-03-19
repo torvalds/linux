@@ -485,14 +485,6 @@ static inline bool acpi_driver_match_device(struct device *dev,
 
 #endif	/* !CONFIG_ACPI */
 
-#ifdef CONFIG_ACPI_NUMA
-void __init early_parse_srat(void);
-#else
-static inline void early_parse_srat(void)
-{
-}
-#endif
-
 #ifdef CONFIG_ACPI
 void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
 			       u32 pm1a_ctrl,  u32 pm1b_ctrl));

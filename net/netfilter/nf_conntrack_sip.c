@@ -855,11 +855,11 @@ static int refresh_signalling_expectation(struct nf_conn *ct,
 {
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_expect *exp;
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 	int found = 0;
 
 	spin_lock_bh(&nf_conntrack_lock);
-	hlist_for_each_entry_safe(exp, n, next, &help->expectations, lnode) {
+	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if (exp->class != SIP_EXPECT_SIGNALLING ||
 		    !nf_inet_addr_cmp(&exp->tuple.dst.u3, addr) ||
 		    exp->tuple.dst.protonum != proto ||
@@ -881,10 +881,10 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 {
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_expect *exp;
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 
 	spin_lock_bh(&nf_conntrack_lock);
-	hlist_for_each_entry_safe(exp, n, next, &help->expectations, lnode) {
+	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if ((exp->class != SIP_EXPECT_SIGNALLING) ^ media)
 			continue;
 		if (!del_timer(&exp->timeout))

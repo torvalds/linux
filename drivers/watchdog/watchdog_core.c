@@ -36,11 +36,67 @@
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/idr.h>		/* For ida_* macros */
 #include <linux/err.h>		/* For IS_ERR macros */
+#include <linux/of.h>		/* For of_get_timeout_sec */
 
 #include "watchdog_core.h"	/* For watchdog_dev_register/... */
 
 static DEFINE_IDA(watchdog_ida);
 static struct class *watchdog_class;
+
+static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
+{
+	/*
+	 * Check that we have valid min and max timeout values, if
+	 * not reset them both to 0 (=not used or unknown)
+	 */
+	if (wdd->min_timeout > wdd->max_timeout) {
+		pr_info("Invalid min and max timeout values, resetting to 0!\n");
+		wdd->min_timeout = 0;
+		wdd->max_timeout = 0;
+	}
+}
+
+/**
+ * watchdog_init_timeout() - initialize the timeout field
+ * @timeout_parm: timeout module parameter
+ * @dev: Device that stores the timeout-sec property
+ *
+ * Initialize the timeout field of the watchdog_device struct with either the
+ * timeout module parameter (if it is valid value) or the timeout-sec property
+ * (only if it is a valid value and the timeout_parm is out of bounds).
+ * If none of them are valid then we keep the old value (which should normally
+ * be the default timeout value.
+ *
+ * A zero is returned on success and -EINVAL for failure.
+ */
+int watchdog_init_timeout(struct watchdog_device *wdd,
+				unsigned int timeout_parm, struct device *dev)
+{
+	unsigned int t = 0;
+	int ret = 0;
+
+	watchdog_check_min_max_timeout(wdd);
+
+	/* try to get the tiemout module parameter first */
+	if (!watchdog_timeout_invalid(wdd, timeout_parm)) {
+		wdd->timeout = timeout_parm;
+		return ret;
+	}
+	if (timeout_parm)
+		ret = -EINVAL;
+
+	/* try to get the timeout_sec property */
+	if (dev == NULL || dev->of_node == NULL)
+		return ret;
+	of_property_read_u32(dev->of_node, "timeout-sec", &t);
+	if (!watchdog_timeout_invalid(wdd, t))
+		wdd->timeout = t;
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(watchdog_init_timeout);
 
 /**
  * watchdog_register_device() - register a watchdog device
@@ -63,15 +119,7 @@ int watchdog_register_device(struct watchdog_device *wdd)
 	if (wdd->ops->start == NULL || wdd->ops->stop == NULL)
 		return -EINVAL;
 
-	/*
-	 * Check that we have valid min and max timeout values, if
-	 * not reset them both to 0 (=not used or unknown)
-	 */
-	if (wdd->min_timeout > wdd->max_timeout) {
-		pr_info("Invalid min and max timeout values, resetting to 0!\n");
-		wdd->min_timeout = 0;
-		wdd->max_timeout = 0;
-	}
+	watchdog_check_min_max_timeout(wdd);
 
 	/*
 	 * Note: now that all watchdog_device data has been verified, we

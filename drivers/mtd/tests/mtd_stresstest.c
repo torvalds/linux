@@ -55,7 +55,7 @@ static int rand_eb(void)
 	unsigned int eb;
 
 again:
-	eb = random32();
+	eb = prandom_u32();
 	/* Read or write up 2 eraseblocks at a time - hence 'ebcnt - 1' */
 	eb %= (ebcnt - 1);
 	if (bbt[eb])
@@ -67,7 +67,7 @@ static int rand_offs(void)
 {
 	unsigned int offs;
 
-	offs = random32();
+	offs = prandom_u32();
 	offs %= bufsize;
 	return offs;
 }
@@ -76,7 +76,7 @@ static int rand_len(int offs)
 {
 	unsigned int len;
 
-	len = random32();
+	len = prandom_u32();
 	len %= (bufsize - offs);
 	return len;
 }
@@ -191,7 +191,7 @@ static int do_write(void)
 
 static int do_operation(void)
 {
-	if (random32() & 1)
+	if (prandom_u32() & 1)
 		return do_read();
 	else
 		return do_write();
@@ -282,8 +282,7 @@ static int __init mtd_stresstest_init(void)
 	}
 	for (i = 0; i < ebcnt; i++)
 		offsets[i] = mtd->erasesize;
-	for (i = 0; i < bufsize; i++)
-		writebuf[i] = random32();
+	prandom_bytes(writebuf, bufsize);
 
 	err = scan_for_bad_eraseblocks();
 	if (err)

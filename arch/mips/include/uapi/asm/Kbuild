@@ -8,6 +8,7 @@ header-y += byteorder.h
 header-y += cachectl.h
 header-y += errno.h
 header-y += fcntl.h
+header-y += inst.h
 header-y += ioctl.h
 header-y += ioctls.h
 header-y += ipcbuf.h

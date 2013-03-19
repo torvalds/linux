@@ -134,8 +134,8 @@ int proc_lasat_ip(ctl_table *table, int write,
 	} else {
 		ip = *(unsigned int *)(table->data);
 		sprintf(ipbuf, "%d.%d.%d.%d",
-			(ip)       & 0xff,
-			(ip >>  8) & 0xff,
+			(ip)	   & 0xff,
+			(ip >>	8) & 0xff,
 			(ip >> 16) & 0xff,
 			(ip >> 24) & 0xff);
 		len = strlen(ipbuf);

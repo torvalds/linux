@@ -48,7 +48,7 @@ extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 __user 
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
  */
-#define __NR_O32_restart_syscall        4253
+#define __NR_O32_restart_syscall	4253
 
 /* 32-bit compatibility types */
 
@@ -56,11 +56,11 @@ typedef unsigned int __sighandler32_t;
 typedef void (*vfptr_t)(void);
 
 struct ucontext32 {
-	u32                 uc_flags;
-	s32                 uc_link;
+	u32		    uc_flags;
+	s32		    uc_link;
 	compat_stack_t      uc_stack;
 	struct sigcontext32 uc_mcontext;
-	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
+	compat_sigset_t	    uc_sigmask;	  /* mask last for extensibility */
 };
 
 struct sigframe32 {
@@ -302,7 +302,7 @@ SYSCALL_DEFINE3(32_sigaction, long, sig, const struct compat_sigaction __user *,
 			return -EFAULT;
 		err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 		err |= __put_user((u32)(u64)old_ka.sa.sa_handler,
-		                  &oact->sa_handler);
+				  &oact->sa_handler);
 		err |= __put_user(old_ka.sa.sa_mask.sig[0], oact->sa_mask.sig);
 		err |= __put_user(0, &oact->sa_mask.sig[1]);
 		err |= __put_user(0, &oact->sa_mask.sig[2]);
@@ -507,7 +507,7 @@ static int setup_rt_frame_32(void *sig_return, struct k_sigaction *ka,
 	/* Convert (siginfo_t -> compat_siginfo_t) and copy to user. */
 	err |= copy_siginfo_to_user32(&frame->rs_info, info);
 
-	/* Create the ucontext.  */
+	/* Create the ucontext.	 */
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(0, &frame->rs_uc.uc_link);
 	err |= __compat_save_altstack(&frame->rs_uc.uc_stack, regs->regs[29]);
@@ -552,7 +552,7 @@ struct mips_abi mips_abi_32 = {
 	.setup_frame	= setup_frame_32,
 	.signal_return_offset =
 		offsetof(struct mips_vdso, o32_signal_trampoline),
-	.setup_rt_frame	= setup_rt_frame_32,
+	.setup_rt_frame = setup_rt_frame_32,
 	.rt_signal_return_offset =
 		offsetof(struct mips_vdso, o32_rt_signal_trampoline),
 	.restart	= __NR_O32_restart_syscall

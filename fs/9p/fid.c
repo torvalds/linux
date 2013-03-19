@@ -41,29 +41,16 @@
  *
  */
 
-int v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
+static inline void __add_fid(struct dentry *dentry, struct p9_fid *fid)
 {
-	struct v9fs_dentry *dent;
+	hlist_add_head(&fid->dlist, (struct hlist_head *)&dentry->d_fsdata);
+}
 
-	p9_debug(P9_DEBUG_VFS, "fid %d dentry %s\n",
-		 fid->fid, dentry->d_name.name);
-
-	dent = dentry->d_fsdata;
-	if (!dent) {
-		dent = kmalloc(sizeof(struct v9fs_dentry), GFP_KERNEL);
-		if (!dent)
-			return -ENOMEM;
-
-		spin_lock_init(&dent->lock);
-		INIT_LIST_HEAD(&dent->fidlist);
-		dentry->d_fsdata = dent;
-	}
-
-	spin_lock(&dent->lock);
-	list_add(&fid->dlist, &dent->fidlist);
-	spin_unlock(&dent->lock);
-
-	return 0;
+void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
+{
+	spin_lock(&dentry->d_lock);
+	__add_fid(dentry, fid);
+	spin_unlock(&dentry->d_lock);
 }
 
 /**
@@ -76,23 +63,23 @@ int v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
 
 static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
 {
-	struct v9fs_dentry *dent;
 	struct p9_fid *fid, *ret;
 
 	p9_debug(P9_DEBUG_VFS, " dentry: %s (%p) uid %d any %d\n",
 		 dentry->d_name.name, dentry, from_kuid(&init_user_ns, uid),
 		 any);
-	dent = (struct v9fs_dentry *) dentry->d_fsdata;
 	ret = NULL;
-	if (dent) {
-		spin_lock(&dent->lock);
-		list_for_each_entry(fid, &dent->fidlist, dlist) {
+	/* we'll recheck under lock if there's anything to look in */
+	if (dentry->d_fsdata) {
+		struct hlist_head *h = (struct hlist_head *)&dentry->d_fsdata;
+		spin_lock(&dentry->d_lock);
+		hlist_for_each_entry(fid, h, dlist) {
 			if (any || uid_eq(fid->uid, uid)) {
 				ret = fid;
 				break;
 			}
 		}
-		spin_unlock(&dent->lock);
+		spin_unlock(&dentry->d_lock);
 	}
 
 	return ret;
@@ -215,8 +202,17 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	}
 	kfree(wnames);
 fid_out:
-	if (!IS_ERR(fid))
-		v9fs_fid_add(dentry, fid);
+	if (!IS_ERR(fid)) {
+		spin_lock(&dentry->d_lock);
+		if (d_unhashed(dentry)) {
+			spin_unlock(&dentry->d_lock);
+			p9_client_clunk(fid);
+			fid = ERR_PTR(-ENOENT);
+		} else {
+			__add_fid(dentry, fid);
+			spin_unlock(&dentry->d_lock);
+		}
+	}
 err_out:
 	up_read(&v9ses->rename_sem);
 	return fid;

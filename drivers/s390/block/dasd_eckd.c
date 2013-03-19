@@ -1573,7 +1573,10 @@ static void dasd_eckd_do_validate_server(struct work_struct *work)
 {
 	struct dasd_device *device = container_of(work, struct dasd_device,
 						  kick_validate);
-	if (dasd_eckd_validate_server(device, DASD_CQR_FLAGS_FAILFAST)
+	unsigned long flags = 0;
+
+	set_bit(DASD_CQR_FLAGS_FAILFAST, &flags);
+	if (dasd_eckd_validate_server(device, flags)
 	    == -EAGAIN) {
 		/* schedule worker again if failed */
 		schedule_work(&device->kick_validate);
@@ -4157,6 +4160,7 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	int rc;
 	struct dasd_uid temp_uid;
 	unsigned long flags;
+	unsigned long cqr_flags = 0;
 
 	private = (struct dasd_eckd_private *) device->private;
 
@@ -4178,7 +4182,9 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 	rc = dasd_alias_make_device_known_to_lcu(device);
 	if (rc)
 		return rc;
-	dasd_eckd_validate_server(device, DASD_CQR_FLAGS_FAILFAST);
+
+	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr_flags);
+	dasd_eckd_validate_server(device, cqr_flags);
 
 	/* RE-Read Configuration Data */
 	dasd_eckd_read_conf(device);

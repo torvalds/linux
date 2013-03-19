@@ -31,10 +31,10 @@
 #include <trace/events/btrfs.h>
 #include <asm/kmap_types.h>
 #include <linux/pagemap.h>
+#include <linux/btrfs.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
-#include "ioctl.h"
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;
@@ -46,7 +46,7 @@ extern struct kmem_cache *btrfs_path_cachep;
 extern struct kmem_cache *btrfs_free_space_cachep;
 struct btrfs_ordered_sum;
 
-#define BTRFS_MAGIC "_BHRfS_M"
+#define BTRFS_MAGIC 0x4D5F53665248425FULL /* ascii _BHRfS_M, no null */
 
 #define BTRFS_MAX_MIRRORS 3
 
@@ -190,6 +190,8 @@ static int btrfs_csum_sizes[] = { 4, 0 };
 
 /* ioprio of readahead is set to idle */
 #define BTRFS_IOPRIO_READA (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0))
+
+#define BTRFS_DIRTY_METADATA_THRESH	(32 * 1024 * 1024)
 
 /*
  * The key defines the order in the tree, and so it also defines (optimal)
@@ -336,7 +338,10 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 /*
  * File system states
  */
+#define BTRFS_FS_STATE_ERROR		0
+#define BTRFS_FS_STATE_REMOUNTING	1
 
+/* Super block flags */
 /* Errors detected */
 #define BTRFS_SUPER_FLAG_ERROR		(1ULL << 2)
 
@@ -502,6 +507,7 @@ struct btrfs_super_block {
 #define BTRFS_FEATURE_INCOMPAT_BIG_METADATA	(1ULL << 5)
 
 #define BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF	(1ULL << 6)
+#define BTRFS_FEATURE_INCOMPAT_RAID56		(1ULL << 7)
 
 #define BTRFS_FEATURE_COMPAT_SUPP		0ULL
 #define BTRFS_FEATURE_COMPAT_RO_SUPP		0ULL
@@ -511,6 +517,7 @@ struct btrfs_super_block {
 	 BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS |		\
 	 BTRFS_FEATURE_INCOMPAT_BIG_METADATA |		\
 	 BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO |		\
+	 BTRFS_FEATURE_INCOMPAT_RAID56 |		\
 	 BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF)
 
 /*
@@ -952,8 +959,20 @@ struct btrfs_dev_replace_item {
 #define BTRFS_BLOCK_GROUP_RAID1		(1ULL << 4)
 #define BTRFS_BLOCK_GROUP_DUP		(1ULL << 5)
 #define BTRFS_BLOCK_GROUP_RAID10	(1ULL << 6)
+#define BTRFS_BLOCK_GROUP_RAID5    (1 << 7)
+#define BTRFS_BLOCK_GROUP_RAID6    (1 << 8)
 #define BTRFS_BLOCK_GROUP_RESERVED	BTRFS_AVAIL_ALLOC_BIT_SINGLE
-#define BTRFS_NR_RAID_TYPES		5
+
+enum btrfs_raid_types {
+	BTRFS_RAID_RAID10,
+	BTRFS_RAID_RAID1,
+	BTRFS_RAID_DUP,
+	BTRFS_RAID_RAID0,
+	BTRFS_RAID_SINGLE,
+	BTRFS_RAID_RAID5,
+	BTRFS_RAID_RAID6,
+	BTRFS_NR_RAID_TYPES
+};
 
 #define BTRFS_BLOCK_GROUP_TYPE_MASK	(BTRFS_BLOCK_GROUP_DATA |    \
 					 BTRFS_BLOCK_GROUP_SYSTEM |  \
@@ -961,6 +980,8 @@ struct btrfs_dev_replace_item {
 
 #define BTRFS_BLOCK_GROUP_PROFILE_MASK	(BTRFS_BLOCK_GROUP_RAID0 |   \
 					 BTRFS_BLOCK_GROUP_RAID1 |   \
+					 BTRFS_BLOCK_GROUP_RAID5 |   \
+					 BTRFS_BLOCK_GROUP_RAID6 |   \
 					 BTRFS_BLOCK_GROUP_DUP |     \
 					 BTRFS_BLOCK_GROUP_RAID10)
 /*
@@ -1185,6 +1206,10 @@ struct btrfs_block_group_cache {
 	u64 flags;
 	u64 sectorsize;
 	u64 cache_generation;
+
+	/* for raid56, this is a full stripe, without parity */
+	unsigned long full_stripe_len;
+
 	unsigned int ro:1;
 	unsigned int dirty:1;
 	unsigned int iref:1;
@@ -1225,6 +1250,28 @@ struct seq_list {
 	u64 seq;
 };
 
+enum btrfs_orphan_cleanup_state {
+	ORPHAN_CLEANUP_STARTED	= 1,
+	ORPHAN_CLEANUP_DONE	= 2,
+};
+
+/* used by the raid56 code to lock stripes for read/modify/write */
+struct btrfs_stripe_hash {
+	struct list_head hash_list;
+	wait_queue_head_t wait;
+	spinlock_t lock;
+};
+
+/* used by the raid56 code to lock stripes for read/modify/write */
+struct btrfs_stripe_hash_table {
+	struct list_head stripe_cache;
+	spinlock_t cache_lock;
+	int cache_size;
+	struct btrfs_stripe_hash table[];
+};
+
+#define BTRFS_STRIPE_HASH_TABLE_BITS 11
+
 /* fs_info */
 struct reloc_control;
 struct btrfs_device;
@@ -1250,6 +1297,7 @@ struct btrfs_fs_info {
 
 	/* block group cache stuff */
 	spinlock_t block_group_cache_lock;
+	u64 first_logical_byte;
 	struct rb_root block_group_cache_tree;
 
 	/* keep track of unallocated space */
@@ -1288,7 +1336,23 @@ struct btrfs_fs_info {
 	u64 last_trans_log_full_commit;
 	unsigned long mount_opt;
 	unsigned long compress_type:4;
+	/*
+	 * It is a suggestive number, the read side is safe even it gets a
+	 * wrong number because we will write out the data into a regular
+	 * extent. The write side(mount/remount) is under ->s_umount lock,
+	 * so it is also safe.
+	 */
 	u64 max_inline;
+	/*
+	 * Protected by ->chunk_mutex and sb->s_umount.
+	 *
+	 * The reason that we use two lock to protect it is because only
+	 * remount and mount operations can change it and these two operations
+	 * are under sb->s_umount, but the read side (chunk allocation) can not
+	 * acquire sb->s_umount or the deadlock would happen. So we use two
+	 * locks to protect it. On the write side, we must acquire two locks,
+	 * and on the read side, we just need acquire one of them.
+	 */
 	u64 alloc_start;
 	struct btrfs_transaction *running_transaction;
 	wait_queue_head_t transaction_throttle;
@@ -1307,6 +1371,13 @@ struct btrfs_fs_info {
 	struct mutex cleaner_mutex;
 	struct mutex chunk_mutex;
 	struct mutex volume_mutex;
+
+	/* this is used during read/modify/write to make sure
+	 * no two ios are trying to mod the same stripe at the same
+	 * time
+	 */
+	struct btrfs_stripe_hash_table *stripe_hash_table;
+
 	/*
 	 * this protects the ordered operations list only while we are
 	 * processing all of the entries on it.  This way we make
@@ -1365,19 +1436,13 @@ struct btrfs_fs_info {
 	 */
 	struct list_head ordered_extents;
 
+	spinlock_t delalloc_lock;
 	/*
 	 * all of the inodes that have delalloc bytes.  It is possible for
 	 * this list to be empty even when there is still dirty data=ordered
 	 * extents waiting to finish IO.
 	 */
 	struct list_head delalloc_inodes;
-
-	/*
-	 * special rename and truncate targets that must be on disk before
-	 * we're allowed to commit.  This is basically the ext3 style
-	 * data=ordered list.
-	 */
-	struct list_head ordered_operations;
 
 	/*
 	 * there is a pool of worker threads for checksumming during writes
@@ -1395,6 +1460,8 @@ struct btrfs_fs_info {
 	struct btrfs_workers flush_workers;
 	struct btrfs_workers endio_workers;
 	struct btrfs_workers endio_meta_workers;
+	struct btrfs_workers endio_raid56_workers;
+	struct btrfs_workers rmw_workers;
 	struct btrfs_workers endio_meta_write_workers;
 	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers endio_freespace_worker;
@@ -1423,10 +1490,12 @@ struct btrfs_fs_info {
 
 	u64 total_pinned;
 
-	/* protected by the delalloc lock, used to keep from writing
-	 * metadata until there is a nice batch
-	 */
-	u64 dirty_metadata_bytes;
+	/* used to keep from writing metadata until there is a nice batch */
+	struct percpu_counter dirty_metadata_bytes;
+	struct percpu_counter delalloc_bytes;
+	s32 dirty_metadata_batch;
+	s32 delalloc_batch;
+
 	struct list_head dirty_cowonly_roots;
 
 	struct btrfs_fs_devices *fs_devices;
@@ -1442,9 +1511,6 @@ struct btrfs_fs_info {
 
 	struct reloc_control *reloc_ctl;
 
-	spinlock_t delalloc_lock;
-	u64 delalloc_bytes;
-
 	/* data_alloc_cluster is only used in ssd mode */
 	struct btrfs_free_cluster data_alloc_cluster;
 
@@ -1456,6 +1522,8 @@ struct btrfs_fs_info {
 	struct rb_root defrag_inodes;
 	atomic_t defrag_running;
 
+	/* Used to protect avail_{data, metadata, system}_alloc_bits */
+	seqlock_t profiles_lock;
 	/*
 	 * these three are in extended format (availability of single
 	 * chunks is denoted by BTRFS_AVAIL_ALLOC_BIT_SINGLE bit, other
@@ -1520,7 +1588,7 @@ struct btrfs_fs_info {
 	u64 qgroup_seq;
 
 	/* filesystem state */
-	u64 fs_state;
+	unsigned long fs_state;
 
 	struct btrfs_delayed_root *delayed_root;
 
@@ -1622,6 +1690,9 @@ struct btrfs_root {
 	struct list_head dirty_list;
 
 	struct list_head root_list;
+
+	spinlock_t log_extents_lock[2];
+	struct list_head logged_list[2];
 
 	spinlock_t orphan_lock;
 	atomic_t orphan_inodes;
@@ -1832,6 +1903,7 @@ struct btrfs_ioctl_defrag_range_args {
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
+#define btrfs_raw_test_opt(o, opt)	((o) & BTRFS_MOUNT_##opt)
 #define btrfs_test_opt(root, opt)	((root)->fs_info->mount_opt & \
 					 BTRFS_MOUNT_##opt)
 /*
@@ -2936,8 +3008,7 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 			     u64 num_bytes, u64 *refs, u64 *flags);
 int btrfs_pin_extent(struct btrfs_root *root,
 		     u64 bytenr, u64 num, int reserved);
-int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
-				    struct btrfs_root *root,
+int btrfs_pin_extent_for_log_replay(struct btrfs_root *root,
 				    u64 bytenr, u64 num_bytes);
 int btrfs_cross_ref_exist(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
@@ -3035,8 +3106,13 @@ void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 				  struct inode *inode);
 void btrfs_orphan_release_metadata(struct inode *inode);
-int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
-				struct btrfs_pending_snapshot *pending);
+int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
+				     struct btrfs_block_rsv *rsv,
+				     int nitems,
+				     u64 *qgroup_reserved);
+void btrfs_subvolume_release_metadata(struct btrfs_root *root,
+				      struct btrfs_block_rsv *rsv,
+				      u64 qgroup_reserved);
 int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes);
 void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes);
 int btrfs_delalloc_reserve_space(struct inode *inode, u64 num_bytes);
@@ -3092,10 +3168,10 @@ struct extent_buffer *btrfs_root_node(struct btrfs_root *root);
 struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
 			struct btrfs_key *key, int lowest_level,
-			int cache_only, u64 min_trans);
+			u64 min_trans);
 int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 			 struct btrfs_key *max_key,
-			 struct btrfs_path *path, int cache_only,
+			 struct btrfs_path *path,
 			 u64 min_trans);
 enum btrfs_compare_tree_result {
 	BTRFS_COMPARE_TREE_NEW,
@@ -3148,7 +3224,7 @@ int btrfs_search_slot_for_read(struct btrfs_root *root,
 			       int find_higher, int return_any);
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct extent_buffer *parent,
-		       int start_slot, int cache_only, u64 *last_ret,
+		       int start_slot, u64 *last_ret,
 		       struct btrfs_key *progress);
 void btrfs_release_path(struct btrfs_path *p);
 struct btrfs_path *btrfs_alloc_path(void);
@@ -3459,9 +3535,9 @@ int btrfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *new_root, u64 new_dirid);
-int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
-			 size_t size, struct bio *bio, unsigned long bio_flags);
-
+int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
+			 size_t size, struct bio *bio,
+			 unsigned long bio_flags);
 int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 int btrfs_readpage(struct file *file, struct page *page);
 void btrfs_evict_inode(struct inode *inode);
@@ -3543,7 +3619,7 @@ int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
 
 /* tree-defrag.c */
 int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root, int cache_only);
+			struct btrfs_root *root);
 
 /* sysfs.c */
 int btrfs_init_sysfs(void);
@@ -3620,11 +3696,14 @@ __printf(5, 6)
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int errno, const char *fmt, ...);
 
+/*
+ * If BTRFS_MOUNT_PANIC_ON_FATAL_ERROR is in mount_opt, __btrfs_panic
+ * will panic().  Otherwise we BUG() here.
+ */
 #define btrfs_panic(fs_info, errno, fmt, args...)			\
 do {									\
-	struct btrfs_fs_info *_i = (fs_info);				\
-	__btrfs_panic(_i, __func__, __LINE__, errno, fmt, ##args);	\
-	BUG_ON(!(_i->mount_opt & BTRFS_MOUNT_PANIC_ON_FATAL_ERROR));	\
+	__btrfs_panic(fs_info, __func__, __LINE__, errno, fmt, ##args);	\
+	BUG();								\
 } while (0)
 
 /* acl.c */
@@ -3745,4 +3824,11 @@ static inline int is_fstree(u64 rootid)
 		return 1;
 	return 0;
 }
+
+static inline int btrfs_defrag_cancelled(struct btrfs_fs_info *fs_info)
+{
+	return signal_pending(current);
+}
+
+
 #endif

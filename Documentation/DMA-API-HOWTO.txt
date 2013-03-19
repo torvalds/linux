@@ -488,9 +488,10 @@ will invoke the generic mapping error check interface. Doing so will ensure
 that the mapping code will work correctly on all dma implementations without
 any dependency on the specifics of the underlying implementation. Using the
 returned address without checking for errors could result in failures ranging
-from panics to silent data corruption. Couple of example of incorrect ways to
-check for errors that make assumptions about the underlying dma implementation
-are as follows and these are applicable to dma_map_page() as well.
+from panics to silent data corruption. A couple of examples of incorrect ways
+to check for errors that make assumptions about the underlying dma
+implementation are as follows and these are applicable to dma_map_page() as
+well.
 
 Incorrect example 1:
 	dma_addr_t dma_handle;
@@ -751,7 +752,7 @@ Example 1:
 		dma_unmap_single(dma_handle1);
 	map_error_handling1:
 
-Example 2: (if buffers are allocated a loop, unmap all mapped buffers when
+Example 2: (if buffers are allocated in a loop, unmap all mapped buffers when
 	    mapping error is detected in the middle)
 
 	dma_addr_t dma_addr;

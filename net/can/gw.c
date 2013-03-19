@@ -457,11 +457,11 @@ static int cgw_notifier(struct notifier_block *nb,
 	if (msg == NETDEV_UNREGISTER) {
 
 		struct cgw_job *gwj = NULL;
-		struct hlist_node *n, *nx;
+		struct hlist_node *nx;
 
 		ASSERT_RTNL();
 
-		hlist_for_each_entry_safe(gwj, n, nx, &cgw_list, list) {
+		hlist_for_each_entry_safe(gwj, nx, &cgw_list, list) {
 
 			if (gwj->src.dev == dev || gwj->dst.dev == dev) {
 				hlist_del(&gwj->list);
@@ -575,12 +575,11 @@ cancel:
 static int cgw_dump_jobs(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct cgw_job *gwj = NULL;
-	struct hlist_node *n;
 	int idx = 0;
 	int s_idx = cb->args[0];
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gwj, n, &cgw_list, list) {
+	hlist_for_each_entry_rcu(gwj, &cgw_list, list) {
 		if (idx < s_idx)
 			goto cont;
 
@@ -858,11 +857,11 @@ out:
 static void cgw_remove_all_jobs(void)
 {
 	struct cgw_job *gwj = NULL;
-	struct hlist_node *n, *nx;
+	struct hlist_node *nx;
 
 	ASSERT_RTNL();
 
-	hlist_for_each_entry_safe(gwj, n, nx, &cgw_list, list) {
+	hlist_for_each_entry_safe(gwj, nx, &cgw_list, list) {
 		hlist_del(&gwj->list);
 		cgw_unregister_filter(gwj);
 		kfree(gwj);
@@ -872,7 +871,7 @@ static void cgw_remove_all_jobs(void)
 static int cgw_remove_job(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 {
 	struct cgw_job *gwj = NULL;
-	struct hlist_node *n, *nx;
+	struct hlist_node *nx;
 	struct rtcanmsg *r;
 	struct cf_mod mod;
 	struct can_can_gw ccgw;
@@ -907,7 +906,7 @@ static int cgw_remove_job(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	ASSERT_RTNL();
 
 	/* remove only the first matching entry */
-	hlist_for_each_entry_safe(gwj, n, nx, &cgw_list, list) {
+	hlist_for_each_entry_safe(gwj, nx, &cgw_list, list) {
 
 		if (gwj->flags != r->flags)
 			continue;

@@ -242,7 +242,6 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	unsigned long haddr, sigframe_size;
 	int err = 0;
 #ifdef CONFIG_64BIT
-	compat_int_t compat_val;
 	struct compat_rt_sigframe __user * compat_frame;
 	compat_sigset_t compat_set;
 #endif

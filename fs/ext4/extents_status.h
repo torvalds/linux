@@ -20,10 +20,13 @@
 #define es_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
-#define EXTENT_STATUS_WRITTEN	0x80000000	/* written extent */
-#define EXTENT_STATUS_UNWRITTEN	0x40000000	/* unwritten extent */
-#define EXTENT_STATUS_DELAYED	0x20000000	/* delayed extent */
-#define EXTENT_STATUS_HOLE	0x10000000	/* hole */
+/*
+ * These flags live in the high bits of extent_status.es_pblk
+ */
+#define EXTENT_STATUS_WRITTEN	(1ULL << 63)
+#define EXTENT_STATUS_UNWRITTEN (1ULL << 62)
+#define EXTENT_STATUS_DELAYED	(1ULL << 61)
+#define EXTENT_STATUS_HOLE	(1ULL << 60)
 
 #define EXTENT_STATUS_FLAGS	(EXTENT_STATUS_WRITTEN | \
 				 EXTENT_STATUS_UNWRITTEN | \
@@ -58,22 +61,22 @@ extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 
 static inline int ext4_es_is_written(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_WRITTEN);
+	return (es->es_pblk & EXTENT_STATUS_WRITTEN) != 0;
 }
 
 static inline int ext4_es_is_unwritten(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_UNWRITTEN);
+	return (es->es_pblk & EXTENT_STATUS_UNWRITTEN) != 0;
 }
 
 static inline int ext4_es_is_delayed(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_DELAYED);
+	return (es->es_pblk & EXTENT_STATUS_DELAYED) != 0;
 }
 
 static inline int ext4_es_is_hole(struct extent_status *es)
 {
-	return (es->es_pblk & EXTENT_STATUS_HOLE);
+	return (es->es_pblk & EXTENT_STATUS_HOLE) != 0;
 }
 
 static inline ext4_fsblk_t ext4_es_status(struct extent_status *es)

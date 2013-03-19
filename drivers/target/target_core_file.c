@@ -631,7 +631,7 @@ static int __init fileio_module_init(void)
 	return transport_subsystem_register(&fileio_template);
 }
 
-static void fileio_module_exit(void)
+static void __exit fileio_module_exit(void)
 {
 	transport_subsystem_release(&fileio_template);
 }

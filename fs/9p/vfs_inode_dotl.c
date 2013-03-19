@@ -333,9 +333,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	/* Now set the ACL based on the default value */
 	v9fs_set_create_acl(inode, fid, dacl, pacl);
 
-	err = v9fs_fid_add(dentry, fid);
-	if (err < 0)
-		goto error;
+	v9fs_fid_add(dentry, fid);
 	d_instantiate(dentry, inode);
 
 	v9inode = V9FS_I(inode);
@@ -453,12 +451,11 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 				 err);
 			goto error;
 		}
-		err = v9fs_fid_add(dentry, fid);
-		if (err < 0)
-			goto error;
+		v9fs_fid_add(dentry, fid);
 		v9fs_set_create_acl(inode, fid, dacl, pacl);
 		d_instantiate(dentry, inode);
 		fid = NULL;
+		err = 0;
 	} else {
 		/*
 		 * Not in cached mode. No need to populate
@@ -747,11 +744,10 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 				 err);
 			goto error;
 		}
-		err = v9fs_fid_add(dentry, fid);
-		if (err < 0)
-			goto error;
+		v9fs_fid_add(dentry, fid);
 		d_instantiate(dentry, inode);
 		fid = NULL;
+		err = 0;
 	} else {
 		/* Not in cached mode. No need to populate inode with stat */
 		inode = v9fs_get_inode(dir->i_sb, S_IFLNK, 0);
@@ -900,11 +896,10 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 			goto error;
 		}
 		v9fs_set_create_acl(inode, fid, dacl, pacl);
-		err = v9fs_fid_add(dentry, fid);
-		if (err < 0)
-			goto error;
+		v9fs_fid_add(dentry, fid);
 		d_instantiate(dentry, inode);
 		fid = NULL;
+		err = 0;
 	} else {
 		/*
 		 * Not in cached mode. No need to populate inode with stat.

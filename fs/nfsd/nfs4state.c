@@ -40,7 +40,7 @@
 #include <linux/pagemap.h>
 #include <linux/ratelimit.h>
 #include <linux/sunrpc/svcauth_gss.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include "xdr4.h"
 #include "vfs.h"
 #include "current_stateid.h"
@@ -261,33 +261,46 @@ static inline int get_new_stid(struct nfs4_stid *stid)
 	return new_stid;
 }
 
-static void init_stid(struct nfs4_stid *stid, struct nfs4_client *cl, unsigned char type)
-{
-	stateid_t *s = &stid->sc_stateid;
-	int new_id;
-
-	stid->sc_type = type;
-	stid->sc_client = cl;
-	s->si_opaque.so_clid = cl->cl_clientid;
-	new_id = get_new_stid(stid);
-	s->si_opaque.so_id = (u32)new_id;
-	/* Will be incremented before return to client: */
-	s->si_generation = 0;
-}
-
-static struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct kmem_cache *slab)
+static struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct
+kmem_cache *slab)
 {
 	struct idr *stateids = &cl->cl_stateids;
+	static int min_stateid = 0;
+	struct nfs4_stid *stid;
+	int new_id;
+
+	stid = kmem_cache_alloc(slab, GFP_KERNEL);
+	if (!stid)
+		return NULL;
 
 	if (!idr_pre_get(stateids, GFP_KERNEL))
-		return NULL;
+		goto out_free;
+	if (idr_get_new_above(stateids, stid, min_stateid, &new_id))
+		goto out_free;
+	stid->sc_client = cl;
+	stid->sc_type = 0;
+	stid->sc_stateid.si_opaque.so_id = new_id;
+	stid->sc_stateid.si_opaque.so_clid = cl->cl_clientid;
+	/* Will be incremented before return to client: */
+	stid->sc_stateid.si_generation = 0;
+
 	/*
-	 * Note: if we fail here (or any time between now and the time
-	 * we actually get the new idr), we won't need to undo the idr
-	 * preallocation, since the idr code caps the number of
-	 * preallocated entries.
+	 * It shouldn't be a problem to reuse an opaque stateid value.
+	 * I don't think it is for 4.1.  But with 4.0 I worry that, for
+	 * example, a stray write retransmission could be accepted by
+	 * the server when it should have been rejected.  Therefore,
+	 * adopt a trick from the sctp code to attempt to maximize the
+	 * amount of time until an id is reused, by ensuring they always
+	 * "increase" (mod INT_MAX):
 	 */
-	return kmem_cache_alloc(slab, GFP_KERNEL);
+
+	min_stateid = new_id+1;
+	if (min_stateid == INT_MAX)
+		min_stateid = 0;
+	return stid;
+out_free:
+	kfree(stid);
+	return NULL;
 }
 
 static struct nfs4_ol_stateid * nfs4_alloc_stateid(struct nfs4_client *clp)
@@ -316,7 +329,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct sv
 	dp = delegstateid(nfs4_alloc_stid(clp, deleg_slab));
 	if (dp == NULL)
 		return dp;
-	init_stid(&dp->dl_stid, clp, NFS4_DELEG_STID);
+	dp->dl_stid.sc_type = NFS4_DELEG_STID;
 	/*
 	 * delegation seqid's are never incremented.  The 4.1 special
 	 * meaning of seqid 0 isn't meaningful, really, but let's avoid
@@ -337,13 +350,21 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct sv
 	return dp;
 }
 
+static void free_stid(struct nfs4_stid *s, struct kmem_cache *slab)
+{
+	struct idr *stateids = &s->sc_client->cl_stateids;
+
+	idr_remove(stateids, s->sc_stateid.si_opaque.so_id);
+	kmem_cache_free(slab, s);
+}
+
 void
 nfs4_put_delegation(struct nfs4_delegation *dp)
 {
 	if (atomic_dec_and_test(&dp->dl_count)) {
 		dprintk("NFSD: freeing dp %p\n",dp);
 		put_nfs4_file(dp->dl_file);
-		kmem_cache_free(deleg_slab, dp);
+		free_stid(&dp->dl_stid, deleg_slab);
 		num_delegations--;
 	}
 }
@@ -360,9 +381,7 @@ static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 
 static void unhash_stid(struct nfs4_stid *s)
 {
-	struct idr *stateids = &s->sc_client->cl_stateids;
-
-	idr_remove(stateids, s->sc_stateid.si_opaque.so_id);
+	s->sc_type = 0;
 }
 
 /* Called under the state lock. */
@@ -519,7 +538,7 @@ static void close_generic_stateid(struct nfs4_ol_stateid *stp)
 
 static void free_generic_stateid(struct nfs4_ol_stateid *stp)
 {
-	kmem_cache_free(stateid_slab, stp);
+	free_stid(&stp->st_stid, stateid_slab);
 }
 
 static void release_lock_stateid(struct nfs4_ol_stateid *stp)
@@ -905,7 +924,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fchan,
 
 	new = __alloc_session(slotsize, numslots);
 	if (!new) {
-		nfsd4_put_drc_mem(slotsize, fchan->maxreqs);
+		nfsd4_put_drc_mem(slotsize, numslots);
 		return NULL;
 	}
 	init_forechannel_attrs(&new->se_fchannel, fchan, numslots, slotsize, nn);
@@ -1048,7 +1067,7 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 static inline void
 free_client(struct nfs4_client *clp)
 {
-	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	struct nfsd_net __maybe_unused *nn = net_generic(clp->net, nfsd_net_id);
 
 	lockdep_assert_held(&nn->client_lock);
 	while (!list_empty(&clp->cl_sessions)) {
@@ -1060,6 +1079,7 @@ free_client(struct nfs4_client *clp)
 	}
 	free_svc_cred(&clp->cl_cred);
 	kfree(clp->cl_name.data);
+	idr_destroy(&clp->cl_stateids);
 	kfree(clp);
 }
 
@@ -1258,7 +1278,12 @@ static void gen_confirm(struct nfs4_client *clp)
 
 static struct nfs4_stid *find_stateid(struct nfs4_client *cl, stateid_t *t)
 {
-	return idr_find(&cl->cl_stateids, t->si_opaque.so_id);
+	struct nfs4_stid *ret;
+
+	ret = idr_find(&cl->cl_stateids, t->si_opaque.so_id);
+	if (!ret || !ret->sc_type)
+		return NULL;
+	return ret;
 }
 
 static struct nfs4_stid *find_stateid_by_type(struct nfs4_client *cl, stateid_t *t, char typemask)
@@ -1844,11 +1869,12 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 	/* cache solo and embedded create sessions under the state lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
-out:
 	nfs4_unlock_state();
+out:
 	dprintk("%s returns %d\n", __func__, ntohl(status));
 	return status;
 out_free_conn:
+	nfs4_unlock_state();
 	free_conn(conn);
 out_free_session:
 	__free_session(new);
@@ -2443,9 +2469,8 @@ alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp, str
 
 static void init_open_stateid(struct nfs4_ol_stateid *stp, struct nfs4_file *fp, struct nfsd4_open *open) {
 	struct nfs4_openowner *oo = open->op_openowner;
-	struct nfs4_client *clp = oo->oo_owner.so_client;
 
-	init_stid(&stp->st_stid, clp, NFS4_OPEN_STID);
+	stp->st_stid.sc_type = NFS4_OPEN_STID;
 	INIT_LIST_HEAD(&stp->st_lockowners);
 	list_add(&stp->st_perstateowner, &oo->oo_owner.so_stateids);
 	list_add(&stp->st_perfile, &fp->fi_stateids);
@@ -4031,7 +4056,7 @@ alloc_init_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fp, struct 
 	stp = nfs4_alloc_stateid(clp);
 	if (stp == NULL)
 		return NULL;
-	init_stid(&stp->st_stid, clp, NFS4_LOCK_STID);
+	stp->st_stid.sc_type = NFS4_LOCK_STID;
 	list_add(&stp->st_perfile, &fp->fi_stateids);
 	list_add(&stp->st_perstateowner, &lo->lo_owner.so_stateids);
 	stp->st_stateowner = &lo->lo_owner;
@@ -4912,16 +4937,6 @@ nfs4_state_start_net(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int ret;
-
-	/*
-	 * FIXME: For now, we hang most of the pernet global stuff off of
-	 * init_net until nfsd is fully containerized. Eventually, we'll
-	 * need to pass a net pointer into this function, take a reference
-	 * to that instead and then do most of the rest of this on a per-net
-	 * basis.
-	 */
-	if (net != &init_net)
-		return -EINVAL;
 
 	ret = nfs4_state_create_net(net);
 	if (ret)

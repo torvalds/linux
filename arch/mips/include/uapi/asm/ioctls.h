@@ -41,7 +41,7 @@
 #define	 TIOCPKT_START		0x08	/* start output */
 #define	 TIOCPKT_NOSTOP		0x10	/* no more ^S, ^Q */
 #define	 TIOCPKT_DOSTOP		0x20	/* now do ^S ^Q */
-#define  TIOCPKT_IOCTL		0x40	/* state change of pty driver */
+#define	 TIOCPKT_IOCTL		0x40	/* state change of pty driver */
 #define TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
 #define TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
 #define TIOCNOTTY	0x5471		/* void tty association */
@@ -63,9 +63,9 @@
 #define FIONREAD	0x467f
 #define TIOCINQ		FIONREAD
 
-#define TIOCGETP        0x7408
-#define TIOCSETP        0x7409
-#define TIOCSETN        0x740a			/* TIOCSETP wo flush */
+#define TIOCGETP	0x7408
+#define TIOCSETP	0x7409
+#define TIOCSETN	0x740a			/* TIOCSETP wo flush */
 
 /* #define TIOCSETA	_IOW('t', 20, struct termios) set termios struct */
 /* #define TIOCSETAW	_IOW('t', 21, struct termios) drain output, set */
@@ -74,9 +74,9 @@
 /* #define TIOCSETD	_IOW('t', 27, int)	set line discipline */
 						/* 127-124 compat */
 
-#define TIOCSBRK	0x5427  /* BSD compatibility */
-#define TIOCCBRK	0x5428  /* BSD compatibility */
-#define TIOCGSID	0x7416  /* Return the session ID of FD */
+#define TIOCSBRK	0x5427	/* BSD compatibility */
+#define TIOCCBRK	0x5428	/* BSD compatibility */
+#define TIOCGSID	0x7416	/* Return the session ID of FD */
 #define TCGETS2		_IOR('T', 0x2A, struct termios2)
 #define TCSETS2		_IOW('T', 0x2B, struct termios2)
 #define TCSETSW2	_IOW('T', 0x2C, struct termios2)
@@ -104,10 +104,10 @@
 #define TIOCGLCKTRMIOS	0x548b
 #define TIOCSLCKTRMIOS	0x548c
 #define TIOCSERGSTRUCT	0x548d /* For debugging only */
-#define TIOCSERGETLSR   0x548e /* Get line status register */
-#define TIOCSERGETMULTI 0x548f /* Get multiport config  */
+#define TIOCSERGETLSR	0x548e /* Get line status register */
+#define TIOCSERGETMULTI 0x548f /* Get multiport config	*/
 #define TIOCSERSETMULTI 0x5490 /* Set multiport config */
-#define TIOCMIWAIT      0x5491 /* wait for a change on serial input line(s) */
-#define TIOCGICOUNT     0x5492 /* read serial port inline interrupt counts */
+#define TIOCMIWAIT	0x5491 /* wait for a change on serial input line(s) */
+#define TIOCGICOUNT	0x5492 /* read serial port inline interrupt counts */
 
 #endif /* __ASM_IOCTLS_H */

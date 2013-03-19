@@ -993,14 +993,15 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (!buf)
 		return nfserr_jukebox;
 
+	p = buf;
 	status = nfsd4_encode_fattr(&cstate->current_fh,
 				    cstate->current_fh.fh_export,
-				    cstate->current_fh.fh_dentry, buf,
-				    &count, verify->ve_bmval,
+				    cstate->current_fh.fh_dentry, &p,
+				    count, verify->ve_bmval,
 				    rqstp, 0);
 
 	/* this means that nfsd4_encode_fattr() ran out of space */
-	if (status == nfserr_resource && count == 0)
+	if (status == nfserr_resource)
 		status = nfserr_not_same;
 	if (status)
 		goto out_kfree;

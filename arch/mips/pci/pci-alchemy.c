@@ -29,7 +29,7 @@
 #define PCI_ACCESS_WRITE	1
 
 struct alchemy_pci_context {
-	struct pci_controller alchemy_pci_ctrl;	/* leave as first member! */
+	struct pci_controller alchemy_pci_ctrl; /* leave as first member! */
 	void __iomem *regs;			/* ctrl base */
 	/* tools for wired entry for config space access */
 	unsigned long last_elo0;
@@ -381,7 +381,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no  pcictl ctrl regs resource\n");
+		dev_err(&pdev->dev, "no	 pcictl ctrl regs resource\n");
 		ret = -ENODEV;
 		goto out1;
 	}
@@ -482,7 +482,7 @@ out:
 
 static struct platform_driver alchemy_pcictl_driver = {
 	.probe		= alchemy_pci_probe,
-	.driver	= {
+	.driver = {
 		.name	= "alchemy-pci",
 		.owner	= THIS_MODULE,
 	},

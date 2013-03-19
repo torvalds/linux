@@ -2185,11 +2185,6 @@ SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
 
 char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
 
-static void argv_cleanup(struct subprocess_info *info)
-{
-	argv_free(info->argv);
-}
-
 static int __orderly_poweroff(void)
 {
 	int argc;
@@ -2209,9 +2204,8 @@ static int __orderly_poweroff(void)
 	}
 
 	ret = call_usermodehelper_fns(argv[0], argv, envp, UMH_WAIT_EXEC,
-				      NULL, argv_cleanup, NULL);
-	if (ret == -ENOMEM)
-		argv_free(argv);
+				      NULL, NULL, NULL);
+	argv_free(argv);
 
 	return ret;
 }

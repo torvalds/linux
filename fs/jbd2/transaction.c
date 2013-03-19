@@ -382,7 +382,7 @@ handle_t *jbd2__journal_start(journal_t *journal, int nblocks, gfp_t gfp_mask,
 	if (err < 0) {
 		jbd2_free_handle(handle);
 		current->journal_info = NULL;
-		handle = ERR_PTR(err);
+		return ERR_PTR(err);
 	}
 	handle->h_type = type;
 	handle->h_line_no = line_no;

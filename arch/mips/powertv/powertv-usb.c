@@ -1,7 +1,7 @@
 /*
  *				powertv-usb.c
  *
- * Description:  ASIC-specific USB device setup and shutdown
+ * Description:	 ASIC-specific USB device setup and shutdown
  *
  * Copyright (C) 2005-2009 Scientific-Atlanta, Inc.
  * Copyright (C) 2009 Cisco Systems, Inc.
@@ -20,8 +20,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * Author:       Ken Eppinett
- *               David Schleef <ds@schleef.org>
+ * Author:	 Ken Eppinett
+ *		 David Schleef <ds@schleef.org>
  *
  * NOTE: The bootloader allocates persistent memory at an address which is
  * 16 MiB below the end of the highest address in KSEG0. All fixed
@@ -70,15 +70,15 @@
 #define MCC2_GMII_RX2_CLOCK_SELECT	(1 << 16)
 
 #define ETHER_CLK_CONFIG	(MCC2_GMII_GCLK_TO_PAD |	\
-				 MCC2_ETHER125_0_CLOCK_SELECT |	\
+				 MCC2_ETHER125_0_CLOCK_SELECT | \
 				 MCC2_RMII_0_CLOCK_SELECT |	\
 				 MCC2_GMII_TX0_CLOCK_SELECT |	\
 				 MCC2_GMII_RX0_CLOCK_SELECT |	\
-				 MCC2_ETHER125_1_CLOCK_SELECT |	\
+				 MCC2_ETHER125_1_CLOCK_SELECT | \
 				 MCC2_RMII_1_CLOCK_SELECT |	\
 				 MCC2_GMII_TX1_CLOCK_SELECT |	\
 				 MCC2_GMII_RX1_CLOCK_SELECT |	\
-				 MCC2_ETHER125_2_CLOCK_SELECT |	\
+				 MCC2_ETHER125_2_CLOCK_SELECT | \
 				 MCC2_RMII_2_CLOCK_SELECT |	\
 				 MCC2_GMII_TX2_CLOCK_SELECT |	\
 				 MCC2_GMII_RX2_CLOCK_SELECT)
@@ -98,9 +98,9 @@
 
 #define QAM_FS_DISABLE_DIVIDE_BY_3		(1 << 5)
 #define QAM_FS_ENABLE_PROGRAM			(1 << 4)
-#define	QAM_FS_ENABLE_OUTPUT			(1 << 3)
-#define	QAM_FS_SELECT_TEST_BYPASS		(1 << 2)
-#define	QAM_FS_DISABLE_DIGITAL_STANDBY		(1 << 1)
+#define QAM_FS_ENABLE_OUTPUT			(1 << 3)
+#define QAM_FS_SELECT_TEST_BYPASS		(1 << 2)
+#define QAM_FS_DISABLE_DIGITAL_STANDBY		(1 << 1)
 #define QAM_FS_CHOOSE_FS			(1 << 0)
 
 /* Definitions for fs432x4a_ctl register */
@@ -142,14 +142,14 @@
 static struct resource ehci_resources[] = {
 	{
 		.parent = &asic_resource,
-		.start  = 0,
-		.end    = 0xff,
-		.flags  = IORESOURCE_MEM,
+		.start	= 0,
+		.end	= 0xff,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start  = irq_usbehci,
-		.end    = irq_usbehci,
-		.flags  = IORESOURCE_IRQ,
+		.start	= irq_usbehci,
+		.end	= irq_usbehci,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -169,14 +169,14 @@ static struct platform_device ehci_device = {
 static struct resource ohci_resources[] = {
 	{
 		.parent = &asic_resource,
-		.start  = 0,
-		.end    = 0xff,
-		.flags  = IORESOURCE_MEM,
+		.start	= 0,
+		.end	= 0xff,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start  = irq_usbohci,
-		.end    = irq_usbohci,
-		.flags  = IORESOURCE_IRQ,
+		.start	= irq_usbohci,
+		.end	= irq_usbohci,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -207,9 +207,9 @@ static DEFINE_SPINLOCK(usb_regs_lock);
  *
  * QAM frequency selection code, which affects the frequency at which USB
  * runs. The frequency is calculated as:
- *                             2^15 * ndiv * Fin
+ *			       2^15 * ndiv * Fin
  * Fout = ------------------------------------------------------------
- *        (sdiv * (ipe * (1 + md/32) - (ipe - 2^15)*(1 + (md + 1)/32)))
+ *	  (sdiv * (ipe * (1 + md/32) - (ipe - 2^15)*(1 + (md + 1)/32)))
  * where:
  * Fin		54 MHz
  * ndiv		QAM_FS_NSDIV_54MHZ ? 8 : 16

@@ -113,11 +113,9 @@ palo: vmlinux
 # Shorthands for known targets not supported by parisc, use vmlinux as default
 Image zImage bzImage: vmlinux
 
-kernel_install: vmlinux
+install: vmlinux
 	sh $(src)/arch/parisc/install.sh \
 			$(KERNELRELEASE) $< System.map "$(INSTALL_PATH)"
-
-install: kernel_install modules_install
 
 CLEAN_FILES	+= lifimage
 MRPROPER_FILES	+= palo.conf

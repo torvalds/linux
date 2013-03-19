@@ -158,6 +158,11 @@ static void sony_nc_thermal_cleanup(struct platform_device *pd);
 static int sony_nc_lid_resume_setup(struct platform_device *pd);
 static void sony_nc_lid_resume_cleanup(struct platform_device *pd);
 
+static int sony_nc_gfx_switch_setup(struct platform_device *pd,
+		unsigned int handle);
+static void sony_nc_gfx_switch_cleanup(struct platform_device *pd);
+static int __sony_nc_gfx_switch_status_get(void);
+
 static int sony_nc_highspeed_charging_setup(struct platform_device *pd);
 static void sony_nc_highspeed_charging_cleanup(struct platform_device *pd);
 
@@ -1241,17 +1246,13 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 			/* Hybrid GFX switching */
 			sony_call_snc_handle(handle, 0x0000, &result);
 			dprintk("GFX switch event received (reason: %s)\n",
-					(result & 0x01) ?
-					"switch change" : "unknown");
-
-			/* verify the switch state
-			 * 1: discrete GFX
-			 * 0: integrated GFX
-			 */
-			sony_call_snc_handle(handle, 0x0100, &result);
+					(result == 0x1) ? "switch change" :
+					(result == 0x2) ? "output switch" :
+					(result == 0x3) ? "output switch" :
+					"");
 
 			ev_type = GFX_SWITCH;
-			real_ev = result & 0xff;
+			real_ev = __sony_nc_gfx_switch_status_get();
 			break;
 
 		default:
@@ -1350,6 +1351,13 @@ static void sony_nc_function_setup(struct acpi_device *device,
 				pr_err("couldn't set up thermal profile function (%d)\n",
 						result);
 			break;
+		case 0x0128:
+		case 0x0146:
+			result = sony_nc_gfx_switch_setup(pf_device, handle);
+			if (result)
+				pr_err("couldn't set up GFX Switch status (%d)\n",
+						result);
+			break;
 		case 0x0131:
 			result = sony_nc_highspeed_charging_setup(pf_device);
 			if (result)
@@ -1365,6 +1373,8 @@ static void sony_nc_function_setup(struct acpi_device *device,
 			break;
 		case 0x0137:
 		case 0x0143:
+		case 0x014b:
+		case 0x014c:
 			result = sony_nc_kbd_backlight_setup(pf_device, handle);
 			if (result)
 				pr_err("couldn't set up keyboard backlight function (%d)\n",
@@ -1414,6 +1424,10 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 		case 0x0122:
 			sony_nc_thermal_cleanup(pd);
 			break;
+		case 0x0128:
+		case 0x0146:
+			sony_nc_gfx_switch_cleanup(pd);
+			break;
 		case 0x0131:
 			sony_nc_highspeed_charging_cleanup(pd);
 			break;
@@ -1423,6 +1437,8 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 			break;
 		case 0x0137:
 		case 0x0143:
+		case 0x014b:
+		case 0x014c:
 			sony_nc_kbd_backlight_cleanup(pd);
 			break;
 		default:
@@ -1467,6 +1483,8 @@ static void sony_nc_function_resume(void)
 			break;
 		case 0x0137:
 		case 0x0143:
+		case 0x014b:
+		case 0x014c:
 			sony_nc_kbd_backlight_resume();
 			break;
 		default:
@@ -1534,7 +1552,7 @@ static int sony_nc_rfkill_set(void *data, bool blocked)
 	int argument = sony_rfkill_address[(long) data] + 0x100;
 
 	if (!blocked)
-		argument |= 0x030000;
+		argument |= 0x070000;
 
 	return sony_call_snc_handle(sony_rfkill_handle, argument, &result);
 }
@@ -2333,7 +2351,7 @@ static int sony_nc_lid_resume_setup(struct platform_device *pd)
 	return 0;
 
 liderror:
-	for (; i > 0; i--)
+	for (i--; i >= 0; i--)
 		device_remove_file(&pd->dev, &lid_ctl->attrs[i]);
 
 	kfree(lid_ctl);
@@ -2352,6 +2370,97 @@ static void sony_nc_lid_resume_cleanup(struct platform_device *pd)
 
 		kfree(lid_ctl);
 		lid_ctl = NULL;
+	}
+}
+
+/* GFX Switch position */
+enum gfx_switch {
+	SPEED,
+	STAMINA,
+	AUTO
+};
+struct snc_gfx_switch_control {
+	struct device_attribute attr;
+	unsigned int handle;
+};
+static struct snc_gfx_switch_control *gfxs_ctl;
+
+/* returns 0 for speed, 1 for stamina */
+static int __sony_nc_gfx_switch_status_get(void)
+{
+	unsigned int result;
+
+	if (sony_call_snc_handle(gfxs_ctl->handle, 0x0100, &result))
+		return -EIO;
+
+	switch (gfxs_ctl->handle) {
+	case 0x0146:
+		/* 1: discrete GFX (speed)
+		 * 0: integrated GFX (stamina)
+		 */
+		return result & 0x1 ? SPEED : STAMINA;
+		break;
+	case 0x0128:
+		/* it's a more elaborated bitmask, for now:
+		 * 2: integrated GFX (stamina)
+		 * 0: discrete GFX (speed)
+		 */
+		dprintk("GFX Status: 0x%x\n", result);
+		return result & 0x80 ? AUTO :
+			result & 0x02 ? STAMINA : SPEED;
+		break;
+	}
+	return -EINVAL;
+}
+
+static ssize_t sony_nc_gfx_switch_status_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buffer)
+{
+	int pos = __sony_nc_gfx_switch_status_get();
+
+	if (pos < 0)
+		return pos;
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", pos ? "speed" : "stamina");
+}
+
+static int sony_nc_gfx_switch_setup(struct platform_device *pd,
+		unsigned int handle)
+{
+	unsigned int result;
+
+	gfxs_ctl = kzalloc(sizeof(struct snc_gfx_switch_control), GFP_KERNEL);
+	if (!gfxs_ctl)
+		return -ENOMEM;
+
+	gfxs_ctl->handle = handle;
+
+	sysfs_attr_init(&gfxs_ctl->attr.attr);
+	gfxs_ctl->attr.attr.name = "gfx_switch_status";
+	gfxs_ctl->attr.attr.mode = S_IRUGO;
+	gfxs_ctl->attr.show = sony_nc_gfx_switch_status_show;
+
+	result = device_create_file(&pd->dev, &gfxs_ctl->attr);
+	if (result)
+		goto gfxerror;
+
+	return 0;
+
+gfxerror:
+	kfree(gfxs_ctl);
+	gfxs_ctl = NULL;
+
+	return result;
+}
+
+static void sony_nc_gfx_switch_cleanup(struct platform_device *pd)
+{
+	if (gfxs_ctl) {
+		device_remove_file(&pd->dev, &gfxs_ctl->attr);
+
+		kfree(gfxs_ctl);
+		gfxs_ctl = NULL;
 	}
 }
 
@@ -2533,6 +2642,8 @@ static void sony_nc_backlight_ng_read_limits(int handle,
 		lvl_table_len = 9;
 		break;
 	case 0x143:
+	case 0x14b:
+	case 0x14c:
 		lvl_table_len = 16;
 		break;
 	}
@@ -2582,6 +2693,18 @@ static void sony_nc_backlight_setup(void)
 		ops = &sony_backlight_ng_ops;
 		sony_bl_props.cmd_base = 0x3000;
 		sony_nc_backlight_ng_read_limits(0x143, &sony_bl_props);
+		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
+
+	} else if (sony_find_snc_handle(0x14b) >= 0) {
+		ops = &sony_backlight_ng_ops;
+		sony_bl_props.cmd_base = 0x3000;
+		sony_nc_backlight_ng_read_limits(0x14b, &sony_bl_props);
+		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
+
+	} else if (sony_find_snc_handle(0x14c) >= 0) {
+		ops = &sony_backlight_ng_ops;
+		sony_bl_props.cmd_base = 0x3000;
+		sony_nc_backlight_ng_read_limits(0x14c, &sony_bl_props);
 		max_brightness = sony_bl_props.maxlvl - sony_bl_props.offset;
 
 	} else if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "GBRT",
