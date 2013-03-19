@@ -77,10 +77,11 @@ struct packet_fanout {
 	unsigned int		num_members;
 	u16			id;
 	u8			type;
-	u8			defrag;
+	u8			flags;
 	atomic_t		rr_cur;
 	struct list_head	list;
 	struct sock		*arr[PACKET_FANOUT_MAX];
+	int			next[PACKET_FANOUT_MAX];
 	spinlock_t		lock;
 	atomic_t		sk_ref;
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
