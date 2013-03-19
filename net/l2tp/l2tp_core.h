@@ -36,16 +36,15 @@ enum {
 struct sk_buff;
 
 struct l2tp_stats {
-	u64			tx_packets;
-	u64			tx_bytes;
-	u64			tx_errors;
-	u64			rx_packets;
-	u64			rx_bytes;
-	u64			rx_seq_discards;
-	u64			rx_oos_packets;
-	u64			rx_errors;
-	u64			rx_cookie_discards;
-	struct u64_stats_sync	syncp;
+	atomic_long_t		tx_packets;
+	atomic_long_t		tx_bytes;
+	atomic_long_t		tx_errors;
+	atomic_long_t		rx_packets;
+	atomic_long_t		rx_bytes;
+	atomic_long_t		rx_seq_discards;
+	atomic_long_t		rx_oos_packets;
+	atomic_long_t		rx_errors;
+	atomic_long_t		rx_cookie_discards;
 };
 
 struct l2tp_tunnel;

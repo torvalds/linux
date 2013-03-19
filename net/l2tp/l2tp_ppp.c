@@ -260,7 +260,7 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 			  session->name);
 
 		/* Not bound. Nothing we can do, so discard. */
-		session->stats.rx_errors++;
+		atomic_long_inc(&session->stats.rx_errors);
 		kfree_skb(skb);
 	}
 
@@ -992,14 +992,14 @@ end:
 static void pppol2tp_copy_stats(struct pppol2tp_ioc_stats *dest,
 				struct l2tp_stats *stats)
 {
-	dest->tx_packets = stats->tx_packets;
-	dest->tx_bytes = stats->tx_bytes;
-	dest->tx_errors = stats->tx_errors;
-	dest->rx_packets = stats->rx_packets;
-	dest->rx_bytes = stats->rx_bytes;
-	dest->rx_seq_discards = stats->rx_seq_discards;
-	dest->rx_oos_packets = stats->rx_oos_packets;
-	dest->rx_errors = stats->rx_errors;
+	dest->tx_packets = atomic_long_read(&stats->tx_packets);
+	dest->tx_bytes = atomic_long_read(&stats->tx_bytes);
+	dest->tx_errors = atomic_long_read(&stats->tx_errors);
+	dest->rx_packets = atomic_long_read(&stats->rx_packets);
+	dest->rx_bytes = atomic_long_read(&stats->rx_bytes);
+	dest->rx_seq_discards = atomic_long_read(&stats->rx_seq_discards);
+	dest->rx_oos_packets = atomic_long_read(&stats->rx_oos_packets);
+	dest->rx_errors = atomic_long_read(&stats->rx_errors);
 }
 
 /* Session ioctl helper.
@@ -1633,14 +1633,14 @@ static void pppol2tp_seq_tunnel_show(struct seq_file *m, void *v)
 		   tunnel->name,
 		   (tunnel == tunnel->sock->sk_user_data) ? 'Y' : 'N',
 		   atomic_read(&tunnel->ref_count) - 1);
-	seq_printf(m, " %08x %llu/%llu/%llu %llu/%llu/%llu\n",
+	seq_printf(m, " %08x %ld/%ld/%ld %ld/%ld/%ld\n",
 		   tunnel->debug,
-		   (unsigned long long)tunnel->stats.tx_packets,
-		   (unsigned long long)tunnel->stats.tx_bytes,
-		   (unsigned long long)tunnel->stats.tx_errors,
-		   (unsigned long long)tunnel->stats.rx_packets,
-		   (unsigned long long)tunnel->stats.rx_bytes,
-		   (unsigned long long)tunnel->stats.rx_errors);
+		   atomic_long_read(&tunnel->stats.tx_packets),
+		   atomic_long_read(&tunnel->stats.tx_bytes),
+		   atomic_long_read(&tunnel->stats.tx_errors),
+		   atomic_long_read(&tunnel->stats.rx_packets),
+		   atomic_long_read(&tunnel->stats.rx_bytes),
+		   atomic_long_read(&tunnel->stats.rx_errors));
 }
 
 static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
@@ -1675,14 +1675,14 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   session->lns_mode ? "LNS" : "LAC",
 		   session->debug,
 		   jiffies_to_msecs(session->reorder_timeout));
-	seq_printf(m, "   %hu/%hu %llu/%llu/%llu %llu/%llu/%llu\n",
+	seq_printf(m, "   %hu/%hu %ld/%ld/%ld %ld/%ld/%ld\n",
 		   session->nr, session->ns,
-		   (unsigned long long)session->stats.tx_packets,
-		   (unsigned long long)session->stats.tx_bytes,
-		   (unsigned long long)session->stats.tx_errors,
-		   (unsigned long long)session->stats.rx_packets,
-		   (unsigned long long)session->stats.rx_bytes,
-		   (unsigned long long)session->stats.rx_errors);
+		   atomic_long_read(&session->stats.tx_packets),
+		   atomic_long_read(&session->stats.tx_bytes),
+		   atomic_long_read(&session->stats.tx_errors),
+		   atomic_long_read(&session->stats.rx_packets),
+		   atomic_long_read(&session->stats.rx_bytes),
+		   atomic_long_read(&session->stats.rx_errors));
 
 	if (po)
 		seq_printf(m, "   interface %s\n", ppp_dev_name(&po->chan));
