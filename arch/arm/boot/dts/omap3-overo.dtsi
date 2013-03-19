@@ -11,7 +11,7 @@
  */
 /dts-v1/;
 
-/include/ "omap3.dtsi"
+/include/ "omap34xx.dtsi"
 
 / {
 	pwmleds {

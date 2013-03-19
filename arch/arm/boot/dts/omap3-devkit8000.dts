@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "omap3.dtsi"
+/include/ "omap34xx.dtsi"
 / {
 	model = "TimLL OMAP3 Devkit8000";
 	compatible = "timll,omap3-devkit8000", "ti,omap3";
