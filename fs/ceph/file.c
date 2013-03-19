@@ -611,7 +611,7 @@ out:
 		pos += len;
 		written += len;
 		left -= len;
-		data += written;
+		data += len;
 		if (left)
 			goto more;
 
