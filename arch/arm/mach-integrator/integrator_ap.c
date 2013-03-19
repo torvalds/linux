@@ -56,10 +56,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/mach/pci.h>
 #include <asm/mach/time.h>
 
 #include "common.h"
+#include "pci_v3.h"
 
 /* Base address to the AP system controller */
 void __iomem *ap_syscon_base;
@@ -77,9 +77,6 @@ void __iomem *ap_syscon_base;
 
 /*
  * Logical      Physical
- * e8000000	40000000	PCI memory		PHYS_PCI_MEM_BASE	(max 512M)
- * ec000000	61000000	PCI config space	PHYS_PCI_CONFIG_BASE	(max 16M)
- * fee00000	60000000	PCI IO			PHYS_PCI_IO_BASE	(max 16M)
  * ef000000			Cache flush
  * f1000000	10000000	Core module registers
  * f1100000	11000000	System controller registers
@@ -128,23 +125,13 @@ static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 		.pfn		= __phys_to_pfn(INTEGRATOR_AP_GPIO_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_MEMORY_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_MEM_BASE),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= (unsigned long)PCI_CONFIG_VADDR,
-		.pfn		= __phys_to_pfn(PHYS_PCI_CONFIG_BASE),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
 	}
 };
 
 static void __init ap_map_io(void)
 {
 	iotable_init(ap_io_desc, ARRAY_SIZE(ap_io_desc));
-	pci_map_io_early(__phys_to_pfn(PHYS_PCI_IO_BASE));
+	pci_v3_early_init();
 }
 
 #ifdef CONFIG_PM

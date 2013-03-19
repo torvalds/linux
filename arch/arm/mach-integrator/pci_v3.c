@@ -34,9 +34,27 @@
 #include <mach/platform.h>
 #include <mach/irqs.h>
 
+#include <asm/mach/map.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
+
+#include "pci_v3.h"
+
+/*
+ * Where in the memory map does PCI live?
+ *
+ * This represents a fairly liberal usage of address space.  Even though
+ * the V3 only has two windows (therefore we need to map stuff on the fly),
+ * we maintain the same addresses, even if they're not mapped.
+ */
+#define PHYS_PCI_MEM_BASE               0x40000000 /* 512M */
+#define PHYS_PCI_IO_BASE                0x60000000 /* 16M */
+#define PHYS_PCI_CONFIG_BASE            0x61000000 /* 16M */
+#define PHYS_PCI_V3_BASE                0x62000000 /* 64K */
+
+#define PCI_MEMORY_VADDR               IOMEM(0xe8000000)
+#define PCI_CONFIG_VADDR               IOMEM(0xec000000)
 
 /*
  * V3 Local Bus to PCI Bridge definitions
@@ -851,7 +869,6 @@ static int __init pci_v3_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	vga_base = (unsigned long)PCI_MEMORY_VADDR;
 	pci_common_init(&pci_v3);
 
 	return 0;
@@ -869,3 +886,32 @@ static int __init pci_v3_init(void)
 }
 
 subsys_initcall(pci_v3_init);
+
+/*
+ * Static mappings for the PCIv3 bridge
+ *
+ * e8000000	40000000	PCI memory		PHYS_PCI_MEM_BASE	(max 512M)
+ * ec000000	61000000	PCI config space	PHYS_PCI_CONFIG_BASE	(max 16M)
+ * fee00000	60000000	PCI IO			PHYS_PCI_IO_BASE	(max 16M)
+ */
+static struct map_desc pci_v3_io_desc[] __initdata __maybe_unused = {
+	{
+		.virtual	= (unsigned long)PCI_MEMORY_VADDR,
+		.pfn		= __phys_to_pfn(PHYS_PCI_MEM_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= (unsigned long)PCI_CONFIG_VADDR,
+		.pfn		= __phys_to_pfn(PHYS_PCI_CONFIG_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE
+	}
+};
+
+int __init pci_v3_early_init(void)
+{
+	iotable_init(pci_v3_io_desc, ARRAY_SIZE(pci_v3_io_desc));
+	vga_base = (unsigned long)PCI_MEMORY_VADDR;
+	pci_map_io_early(__phys_to_pfn(PHYS_PCI_IO_BASE));
+	return 0;
+}

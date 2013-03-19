@@ -305,28 +305,6 @@
 /* KMI definitions are now in include/asm-arm/hardware/amba_kmi.h -- rmk */
 
 /* ------------------------------------------------------------------------
- *  Where in the memory map does PCI live?
- * ------------------------------------------------------------------------
- *  This represents a fairly liberal usage of address space.  Even though
- *  the V3 only has two windows (therefore we need to map stuff on the fly),
- *  we maintain the same addresses, even if they're not mapped.
- *
- */
-#define PHYS_PCI_MEM_BASE               0x40000000   /* 512M to xxx */
-/*  unused 256M from A0000000-AFFFFFFF might be used for I2O ???
- */
-#define PHYS_PCI_IO_BASE                0x60000000   /* 16M to xxx */
-/*  unused (128-16)M from B1000000-B7FFFFFF
- */
-#define PHYS_PCI_CONFIG_BASE            0x61000000   /* 16M to xxx */
-/*  unused ((128-16)M - 64K) from XXX
- */
-#define PHYS_PCI_V3_BASE                0x62000000
-
-#define PCI_MEMORY_VADDR		IOMEM(0xe8000000)
-#define PCI_CONFIG_VADDR		IOMEM(0xec000000)
-
-/* ------------------------------------------------------------------------
  *  Integrator Interrupt Controllers
  * ------------------------------------------------------------------------
  *
