@@ -269,8 +269,8 @@ struct omap_temp_sensor {
 	const int			slope_pcb;
 	const int			constant_pcb;
 	void				*data;
-	int (*register_cooling)(struct omap_bandgap *bg_ptr, int id);
-	int (*unregister_cooling)(struct omap_bandgap *bg_ptr, int id);
+	int (*register_cooling)(struct omap_bandgap *bgp, int id);
+	int (*unregister_cooling)(struct omap_bandgap *bgp, int id);
 };
 
 /**
@@ -345,27 +345,27 @@ struct omap_bandgap_data {
 	char				*fclock_name;
 	char				*div_ck_name;
 	int				sensor_count;
-	int (*report_temperature)(struct omap_bandgap *bg_ptr, int id);
-	int (*expose_sensor)(struct omap_bandgap *bg_ptr, int id, char *domain);
-	int (*remove_sensor)(struct omap_bandgap *bg_ptr, int id);
+	int (*report_temperature)(struct omap_bandgap *bgp, int id);
+	int (*expose_sensor)(struct omap_bandgap *bgp, int id, char *domain);
+	int (*remove_sensor)(struct omap_bandgap *bgp, int id);
 
 	/* this needs to be at the end */
 	struct omap_temp_sensor		sensors[];
 };
 
-int omap_bandgap_read_thot(struct omap_bandgap *bg_ptr, int id, int *thot);
-int omap_bandgap_write_thot(struct omap_bandgap *bg_ptr, int id, int val);
-int omap_bandgap_read_tcold(struct omap_bandgap *bg_ptr, int id, int *tcold);
-int omap_bandgap_write_tcold(struct omap_bandgap *bg_ptr, int id, int val);
-int omap_bandgap_read_update_interval(struct omap_bandgap *bg_ptr, int id,
+int omap_bandgap_read_thot(struct omap_bandgap *bgp, int id, int *thot);
+int omap_bandgap_write_thot(struct omap_bandgap *bgp, int id, int val);
+int omap_bandgap_read_tcold(struct omap_bandgap *bgp, int id, int *tcold);
+int omap_bandgap_write_tcold(struct omap_bandgap *bgp, int id, int val);
+int omap_bandgap_read_update_interval(struct omap_bandgap *bgp, int id,
 				      int *interval);
-int omap_bandgap_write_update_interval(struct omap_bandgap *bg_ptr, int id,
+int omap_bandgap_write_update_interval(struct omap_bandgap *bgp, int id,
 				       u32 interval);
-int omap_bandgap_read_temperature(struct omap_bandgap *bg_ptr, int id,
+int omap_bandgap_read_temperature(struct omap_bandgap *bgp, int id,
 				  int *temperature);
-int omap_bandgap_set_sensor_data(struct omap_bandgap *bg_ptr, int id,
+int omap_bandgap_set_sensor_data(struct omap_bandgap *bgp, int id,
 				 void *data);
-void *omap_bandgap_get_sensor_data(struct omap_bandgap *bg_ptr, int id);
+void *omap_bandgap_get_sensor_data(struct omap_bandgap *bgp, int id);
 
 #ifdef CONFIG_OMAP4_THERMAL
 extern const struct omap_bandgap_data omap4430_data;

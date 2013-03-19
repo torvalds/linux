@@ -39,7 +39,7 @@
 struct omap_thermal_data {
 	struct thermal_zone_device *omap_thermal;
 	struct thermal_cooling_device *cool_dev;
-	struct omap_bandgap *bg_ptr;
+	struct omap_bandgap *bgp;
 	enum thermal_device_mode mode;
 	struct work_struct thermal_wq;
 	int sensor_id;
@@ -78,17 +78,17 @@ static inline int omap_thermal_get_temp(struct thermal_zone_device *thermal,
 					 unsigned long *temp)
 {
 	struct omap_thermal_data *data = thermal->devdata;
-	struct omap_bandgap *bg_ptr;
+	struct omap_bandgap *bgp;
 	struct omap_temp_sensor *s;
 	int ret, tmp, pcb_temp, slope, constant;
 
 	if (!data)
 		return 0;
 
-	bg_ptr = data->bg_ptr;
-	s = &bg_ptr->conf->sensors[data->sensor_id];
+	bgp = data->bgp;
+	s = &bgp->conf->sensors[data->sensor_id];
 
-	ret = omap_bandgap_read_temperature(bg_ptr, data->sensor_id, &tmp);
+	ret = omap_bandgap_read_temperature(bgp, data->sensor_id, &tmp);
 	if (ret)
 		return ret;
 
@@ -236,32 +236,32 @@ static struct thermal_zone_device_ops omap_thermal_ops = {
 };
 
 static struct omap_thermal_data
-*omap_thermal_build_data(struct omap_bandgap *bg_ptr, int id)
+*omap_thermal_build_data(struct omap_bandgap *bgp, int id)
 {
 	struct omap_thermal_data *data;
 
-	data = devm_kzalloc(bg_ptr->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(bgp->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		dev_err(bg_ptr->dev, "kzalloc fail\n");
+		dev_err(bgp->dev, "kzalloc fail\n");
 		return NULL;
 	}
 	data->sensor_id = id;
-	data->bg_ptr = bg_ptr;
+	data->bgp = bgp;
 	data->mode = THERMAL_DEVICE_ENABLED;
 	INIT_WORK(&data->thermal_wq, omap_thermal_work);
 
 	return data;
 }
 
-int omap_thermal_expose_sensor(struct omap_bandgap *bg_ptr, int id,
+int omap_thermal_expose_sensor(struct omap_bandgap *bgp, int id,
 			       char *domain)
 {
 	struct omap_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bg_ptr, id);
+	data = omap_bandgap_get_sensor_data(bgp, id);
 
 	if (IS_ERR_OR_NULL(data))
-		data = omap_thermal_build_data(bg_ptr, id);
+		data = omap_thermal_build_data(bgp, id);
 
 	if (!data)
 		return -EINVAL;
@@ -273,44 +273,44 @@ int omap_thermal_expose_sensor(struct omap_bandgap *bg_ptr, int id,
 				NULL, FAST_TEMP_MONITORING_RATE,
 				FAST_TEMP_MONITORING_RATE);
 	if (IS_ERR_OR_NULL(data->omap_thermal)) {
-		dev_err(bg_ptr->dev, "thermal zone device is NULL\n");
+		dev_err(bgp->dev, "thermal zone device is NULL\n");
 		return PTR_ERR(data->omap_thermal);
 	}
 	data->omap_thermal->polling_delay = FAST_TEMP_MONITORING_RATE;
-	omap_bandgap_set_sensor_data(bg_ptr, id, data);
+	omap_bandgap_set_sensor_data(bgp, id, data);
 
 	return 0;
 }
 
-int omap_thermal_remove_sensor(struct omap_bandgap *bg_ptr, int id)
+int omap_thermal_remove_sensor(struct omap_bandgap *bgp, int id)
 {
 	struct omap_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bg_ptr, id);
+	data = omap_bandgap_get_sensor_data(bgp, id);
 
 	thermal_zone_device_unregister(data->omap_thermal);
 
 	return 0;
 }
 
-int omap_thermal_report_sensor_temperature(struct omap_bandgap *bg_ptr, int id)
+int omap_thermal_report_sensor_temperature(struct omap_bandgap *bgp, int id)
 {
 	struct omap_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bg_ptr, id);
+	data = omap_bandgap_get_sensor_data(bgp, id);
 
 	schedule_work(&data->thermal_wq);
 
 	return 0;
 }
 
-int omap_thermal_register_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
+int omap_thermal_register_cpu_cooling(struct omap_bandgap *bgp, int id)
 {
 	struct omap_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bg_ptr, id);
+	data = omap_bandgap_get_sensor_data(bgp, id);
 	if (IS_ERR_OR_NULL(data))
-		data = omap_thermal_build_data(bg_ptr, id);
+		data = omap_thermal_build_data(bgp, id);
 
 	if (!data)
 		return -EINVAL;
@@ -318,20 +318,20 @@ int omap_thermal_register_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
 	/* Register cooling device */
 	data->cool_dev = cpufreq_cooling_register(cpu_present_mask);
 	if (IS_ERR_OR_NULL(data->cool_dev)) {
-		dev_err(bg_ptr->dev,
+		dev_err(bgp->dev,
 			"Failed to register cpufreq cooling device\n");
 		return PTR_ERR(data->cool_dev);
 	}
-	omap_bandgap_set_sensor_data(bg_ptr, id, data);
+	omap_bandgap_set_sensor_data(bgp, id, data);
 
 	return 0;
 }
 
-int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
+int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bgp, int id)
 {
 	struct omap_thermal_data *data;
 
-	data = omap_bandgap_get_sensor_data(bg_ptr, id);
+	data = omap_bandgap_get_sensor_data(bgp, id);
 	cpufreq_cooling_unregister(data->cool_dev);
 
 	return 0;

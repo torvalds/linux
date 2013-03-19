@@ -74,33 +74,33 @@
 	((trip) >= 0 && (trip) < OMAP_TRIP_NUMBER)
 
 #ifdef CONFIG_OMAP_THERMAL
-int omap_thermal_expose_sensor(struct omap_bandgap *bg_ptr, int id,
+int omap_thermal_expose_sensor(struct omap_bandgap *bgp, int id,
 			       char *domain);
-int omap_thermal_remove_sensor(struct omap_bandgap *bg_ptr, int id);
-int omap_thermal_register_cpu_cooling(struct omap_bandgap *bg_ptr, int id);
-int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bg_ptr, int id);
+int omap_thermal_remove_sensor(struct omap_bandgap *bgp, int id);
+int omap_thermal_register_cpu_cooling(struct omap_bandgap *bgp, int id);
+int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bgp, int id);
 #else
 static inline
-int omap_thermal_expose_sensor(struct omap_bandgap *bg_ptr, int id,
+int omap_thermal_expose_sensor(struct omap_bandgap *bgp, int id,
 			       char *domain)
 {
 	return 0;
 }
 
 static inline
-int omap_thermal_remove_sensor(struct omap_bandgap *bg_ptr, int id)
+int omap_thermal_remove_sensor(struct omap_bandgap *bgp, int id)
 {
 	return 0;
 }
 
 static inline
-int omap_thermal_register_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
+int omap_thermal_register_cpu_cooling(struct omap_bandgap *bgp, int id)
 {
 	return 0;
 }
 
 static inline
-int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
+int omap_thermal_unregister_cpu_cooling(struct omap_bandgap *bgp, int id)
 {
 	return 0;
 }
