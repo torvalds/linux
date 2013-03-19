@@ -203,8 +203,7 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	cmd.flags = iwlwifi_mod_params.bt_coex_active ?
 			BT_COEX_NW : BT_COEX_DISABLE;
-	cmd.flags |= iwlwifi_mod_params.bt_ch_announce ? BT_CH_PRIMARY_EN : 0;
-	cmd.flags |= BT_SYNC_2_BT_DISABLE;
+	cmd.flags |= BT_CH_PRIMARY_EN | BT_SYNC_2_BT_DISABLE;
 
 	cmd.valid_bit_msk = cpu_to_le16(BT_VALID_ENABLE |
 					BT_VALID_BT_PRIO_BOOST |
