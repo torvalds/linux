@@ -16,6 +16,7 @@
 #include <linux/videodev2.h>
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/ir-kbd-i2c.h>
 
 #define HDPVR_MAX 8
@@ -65,10 +66,17 @@ struct hdpvr_options {
 struct hdpvr_device {
 	/* the v4l device for this device */
 	struct video_device	*video_dev;
+	/* the control handler for this device */
+	struct v4l2_ctrl_handler hdl;
 	/* the usb device for this device */
 	struct usb_device	*udev;
 	/* v4l2-device unused */
 	struct v4l2_device	v4l2_dev;
+	struct { /* video mode/bitrate control cluster */
+		struct v4l2_ctrl *video_mode;
+		struct v4l2_ctrl *video_bitrate;
+		struct v4l2_ctrl *video_bitrate_peak;
+	};
 
 	/* the max packet size of the bulk endpoint */
 	size_t			bulk_in_size;
