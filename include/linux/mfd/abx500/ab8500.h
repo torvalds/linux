@@ -362,6 +362,7 @@ struct ab8500 {
 	u8 *oldmask;
 	int mask_size;
 	const int *irq_reg_offset;
+	int it_latchhier_num;
 };
 
 struct regulator_reg_init;
@@ -511,6 +512,8 @@ static inline int is_ab9540_2p0_or_earlier(struct ab8500 *ab)
 {
 	return (is_ab9540(ab) && (ab->chip_id < AB8500_CUT2P0));
 }
+
+void ab8500_override_turn_on_stat(u8 mask, u8 set);
 
 #ifdef CONFIG_AB8500_DEBUG
 void ab8500_dump_all_banks(struct device *dev);
