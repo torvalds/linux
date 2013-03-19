@@ -1605,6 +1605,15 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 				- sizeof(struct SmsMsgHdr_ST));
 			break;
 
+		case MSG_SMS_DVBT_BDA_DATA:
+			/*
+			 * It can be received here, if the frontend is
+			 * tuned into a valid channel and the proper firmware
+			 * is loaded. That happens when the module got removed
+			 * and re-inserted, without powering the device off
+			 */
+			break;
+
 		default:
 			sms_debug("message %s(%d) not handled.",
 				  smscore_translate_msg(phdr->msgType),
