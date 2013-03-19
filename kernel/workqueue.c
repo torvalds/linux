@@ -305,7 +305,8 @@ static void copy_workqueue_attrs(struct workqueue_attrs *to,
 
 #ifdef CONFIG_LOCKDEP
 #define assert_manager_or_pool_lock(pool)				\
-	WARN_ONCE(!lockdep_is_held(&(pool)->manager_mutex) &&		\
+	WARN_ONCE(debug_locks &&					\
+		  !lockdep_is_held(&(pool)->manager_mutex) &&		\
 		  !lockdep_is_held(&(pool)->lock),			\
 		  "pool->manager_mutex or ->lock should be held")
 #else
