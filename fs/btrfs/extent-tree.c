@@ -2403,9 +2403,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 				btrfs_free_delayed_extent_op(extent_op);
 
 				if (ret) {
-					printk(KERN_DEBUG
-					       "btrfs: run_delayed_extent_op "
-					       "returned %d\n", ret);
+					btrfs_debug(fs_info, "run_delayed_extent_op returned %d", ret);
 					spin_lock(&delayed_refs->lock);
 					btrfs_delayed_ref_unlock(locked_ref);
 					return ret;
@@ -2444,8 +2442,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		if (ret) {
 			btrfs_delayed_ref_unlock(locked_ref);
 			btrfs_put_delayed_ref(ref);
-			printk(KERN_DEBUG
-			       "btrfs: run_one_delayed_ref returned %d\n", ret);
+			btrfs_debug(fs_info, "run_one_delayed_ref returned %d", ret);
 			spin_lock(&delayed_refs->lock);
 			return ret;
 		}
@@ -2522,7 +2519,8 @@ int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
 	if (list_empty(&trans->qgroup_ref_list) !=
 	    !trans->delayed_ref_elem.seq) {
 		/* list without seq or seq without list */
-		printk(KERN_ERR "btrfs: qgroup accounting update error, list is%s empty, seq is %llu\n",
+		btrfs_err(fs_info,
+			"qgroup accounting update error, list is%s empty, seq is %llu",
 			list_empty(&trans->qgroup_ref_list) ? "" : " not",
 			trans->delayed_ref_elem.seq);
 		BUG();
@@ -3723,8 +3721,8 @@ static void check_system_chunk(struct btrfs_trans_handle *trans,
 
 	thresh = get_system_chunk_thresh(root, type);
 	if (left < thresh && btrfs_test_opt(root, ENOSPC_DEBUG)) {
-		printk(KERN_INFO "left=%llu, need=%llu, flags=%llu\n",
-		       left, thresh, type);
+		btrfs_info(root->fs_info, "left=%llu, need=%llu, flags=%llu",
+			left, thresh, type);
 		dump_space_info(info, 0, 0);
 	}
 
@@ -5501,9 +5499,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			}
 
 			if (ret) {
-				printk(KERN_ERR "umm, got %d back from search"
-				       ", was looking for %llu\n", ret,
-				       (unsigned long long)bytenr);
+				btrfs_err(info, "umm, got %d back from search, was looking for %llu",
+					ret, (unsigned long long)bytenr);
 				if (ret > 0)
 					btrfs_print_leaf(extent_root,
 							 path->nodes[0]);
@@ -5517,13 +5514,13 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	} else if (ret == -ENOENT) {
 		btrfs_print_leaf(extent_root, path->nodes[0]);
 		WARN_ON(1);
-		printk(KERN_ERR "btrfs unable to find ref byte nr %llu "
-		       "parent %llu root %llu  owner %llu offset %llu\n",
-		       (unsigned long long)bytenr,
-		       (unsigned long long)parent,
-		       (unsigned long long)root_objectid,
-		       (unsigned long long)owner_objectid,
-		       (unsigned long long)owner_offset);
+		btrfs_err(info,
+			"unable to find ref byte nr %llu parent %llu root %llu  owner %llu offset %llu",
+			(unsigned long long)bytenr,
+			(unsigned long long)parent,
+			(unsigned long long)root_objectid,
+			(unsigned long long)owner_objectid,
+			(unsigned long long)owner_offset);
 	} else {
 		btrfs_abort_transaction(trans, extent_root, ret);
 		goto out;
@@ -5551,9 +5548,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		ret = btrfs_search_slot(trans, extent_root, &key, path,
 					-1, 1);
 		if (ret) {
-			printk(KERN_ERR "umm, got %d back from search"
-			       ", was looking for %llu\n", ret,
-			       (unsigned long long)bytenr);
+			btrfs_err(info, "umm, got %d back from search, was looking for %llu",
+				ret, (unsigned long long)bytenr);
 			btrfs_print_leaf(extent_root, path->nodes[0]);
 		}
 		if (ret < 0) {
@@ -5922,7 +5918,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 
 	space_info = __find_space_info(root->fs_info, data);
 	if (!space_info) {
-		printk(KERN_ERR "No space info for %llu\n", data);
+		btrfs_err(root->fs_info, "No space info for %llu", data);
 		return -ENOSPC;
 	}
 
@@ -6346,9 +6342,9 @@ again:
 			struct btrfs_space_info *sinfo;
 
 			sinfo = __find_space_info(root->fs_info, data);
-			printk(KERN_ERR "btrfs allocation failed flags %llu, "
-			       "wanted %llu\n", (unsigned long long)data,
-			       (unsigned long long)num_bytes);
+			btrfs_err(root->fs_info, "allocation failed flags %llu, wanted %llu",
+				(unsigned long long)data,
+				(unsigned long long)num_bytes);
 			if (sinfo)
 				dump_space_info(sinfo, num_bytes, 1);
 		}
@@ -6367,8 +6363,8 @@ static int __btrfs_free_reserved_extent(struct btrfs_root *root,
 
 	cache = btrfs_lookup_block_group(root->fs_info, start);
 	if (!cache) {
-		printk(KERN_ERR "Unable to find block group for %llu\n",
-		       (unsigned long long)start);
+		btrfs_err(root->fs_info, "Unable to find block group for %llu",
+			(unsigned long long)start);
 		return -ENOSPC;
 	}
 
@@ -6463,9 +6459,9 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 
 	ret = update_block_group(root, ins->objectid, ins->offset, 1);
 	if (ret) { /* -ENOENT, logic error */
-		printk(KERN_ERR "btrfs update block group failed for %llu "
-		       "%llu\n", (unsigned long long)ins->objectid,
-		       (unsigned long long)ins->offset);
+		btrfs_err(fs_info, "update block group failed for %llu %llu",
+			(unsigned long long)ins->objectid,
+			(unsigned long long)ins->offset);
 		BUG();
 	}
 	return ret;
@@ -6536,9 +6532,9 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 
 	ret = update_block_group(root, ins->objectid, root->leafsize, 1);
 	if (ret) { /* -ENOENT, logic error */
-		printk(KERN_ERR "btrfs update block group failed for %llu "
-		       "%llu\n", (unsigned long long)ins->objectid,
-		       (unsigned long long)ins->offset);
+		btrfs_err(fs_info, "update block group failed for %llu %llu",
+			(unsigned long long)ins->objectid,
+			(unsigned long long)ins->offset);
 		BUG();
 	}
 	return ret;
@@ -7027,7 +7023,10 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	BUG_ON(wc->refs[level - 1] == 0);
+	if (unlikely(wc->refs[level - 1] == 0)) {
+		btrfs_err(root->fs_info, "Missing references.");
+		BUG();
+	}
 	*lookup_info = 0;
 
 	if (wc->stage == DROP_REFERENCE) {

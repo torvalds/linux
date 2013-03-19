@@ -105,7 +105,7 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		sb->s_flags |= MS_RDONLY;
-		printk(KERN_INFO "btrfs is forced readonly\n");
+		btrfs_info(fs_info, "forced readonly");
 		/*
 		 * Note that a running device replace operation is not
 		 * canceled here although there is no way to update
@@ -172,7 +172,7 @@ static const char * const logtypes[] = {
 	"debug",
 };
 
-void btrfs_printk(struct btrfs_fs_info *fs_info, const char *fmt, ...)
+void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
 	struct super_block *sb = fs_info->sb;
 	char lvl[4];
@@ -196,7 +196,7 @@ void btrfs_printk(struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk("%sBTRFS %s (device %s): %pV", lvl, type, sb->s_id, &vaf);
+	printk("%sBTRFS %s (device %s): %pV\n", lvl, type, sb->s_id, &vaf);
 
 	va_end(args);
 }
@@ -255,9 +255,9 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 		const char *errstr;
 
 		errstr = btrfs_decode_error(errno);
-		btrfs_printk(root->fs_info,
-			     "%s:%d: Aborting unused transaction (%s)\n",
-			     function, line, errstr);
+		btrfs_warn(root->fs_info,
+		           "%s:%d: Aborting unused transaction(%s).",
+		           function, line, errstr);
 		return;
 	}
 	ACCESS_ONCE(trans->transaction->aborted) = errno;

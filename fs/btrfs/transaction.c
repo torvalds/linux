@@ -1864,7 +1864,7 @@ cleanup_transaction:
 		btrfs_qgroup_free(root, trans->qgroup_reserved);
 		trans->qgroup_reserved = 0;
 	}
-	btrfs_printk(root->fs_info, "Skipping commit of aborted transaction\n");
+	btrfs_warn(root->fs_info, "Skipping commit of aborted transaction.");
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
 	cleanup_transaction(trans, root, ret);

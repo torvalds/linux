@@ -104,7 +104,8 @@ struct inode *lookup_free_space_inode(struct btrfs_root *root,
 
 	spin_lock(&block_group->lock);
 	if (!((BTRFS_I(inode)->flags & flags) == flags)) {
-		printk(KERN_INFO "Old style space inode found, converting.\n");
+		btrfs_info(root->fs_info,
+			"Old style space inode found, converting.");
 		BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM |
 			BTRFS_INODE_NODATACOW;
 		block_group->disk_cache_state = BTRFS_DC_CLEAR;
@@ -669,10 +670,11 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	btrfs_release_path(path);
 
 	if (BTRFS_I(inode)->generation != generation) {
-		printk(KERN_ERR "btrfs: free space inode generation (%llu) did"
-		       " not match free space cache generation (%llu)\n",
-		       (unsigned long long)BTRFS_I(inode)->generation,
-		       (unsigned long long)generation);
+		btrfs_err(root->fs_info,
+			"free space inode generation (%llu) "
+			"did not match free space cache generation (%llu)",
+			(unsigned long long)BTRFS_I(inode)->generation,
+			(unsigned long long)generation);
 		return 0;
 	}
 
@@ -721,8 +723,8 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 			ret = link_free_space(ctl, e);
 			spin_unlock(&ctl->tree_lock);
 			if (ret) {
-				printk(KERN_ERR "Duplicate entries in "
-				       "free space cache, dumping\n");
+				btrfs_err(root->fs_info,
+					"Duplicate entries in free space cache, dumping");
 				kmem_cache_free(btrfs_free_space_cachep, e);
 				goto free_cache;
 			}
@@ -741,8 +743,8 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 			ctl->op->recalc_thresholds(ctl);
 			spin_unlock(&ctl->tree_lock);
 			if (ret) {
-				printk(KERN_ERR "Duplicate entries in "
-				       "free space cache, dumping\n");
+				btrfs_err(root->fs_info,
+					"Duplicate entries in free space cache, dumping");
 				kmem_cache_free(btrfs_free_space_cachep, e);
 				goto free_cache;
 			}
@@ -833,8 +835,8 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 
 	if (!matched) {
 		__btrfs_remove_free_space_cache(ctl);
-		printk(KERN_ERR "block group %llu has an wrong amount of free "
-		       "space\n", block_group->key.objectid);
+		btrfs_err(fs_info, "block group %llu has wrong amount of free space",
+			block_group->key.objectid);
 		ret = -1;
 	}
 out:
@@ -845,8 +847,8 @@ out:
 		spin_unlock(&block_group->lock);
 		ret = 0;
 
-		printk(KERN_ERR "btrfs: failed to load free space cache "
-		       "for block group %llu\n", block_group->key.objectid);
+		btrfs_err(fs_info, "failed to load free space cache for block group %llu",
+			block_group->key.objectid);
 	}
 
 	iput(inode);
@@ -1104,8 +1106,9 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 		spin_unlock(&block_group->lock);
 		ret = 0;
 #ifdef DEBUG
-		printk(KERN_ERR "btrfs: failed to write free space cache "
-		       "for block group %llu\n", block_group->key.objectid);
+		btrfs_err(root->fs_info,
+			"failed to write free space cache for block group %llu",
+			block_group->key.objectid);
 #endif
 	}
 
@@ -2931,8 +2934,9 @@ int load_free_ino_cache(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	ret = __load_free_space_cache(root, inode, ctl, path, 0);
 
 	if (ret < 0)
-		printk(KERN_ERR "btrfs: failed to load free ino cache for "
-		       "root %llu\n", root->root_key.objectid);
+		btrfs_err(fs_info,
+			"failed to load free ino cache for root %llu",
+			root->root_key.objectid);
 out_put:
 	iput(inode);
 out:
@@ -2959,8 +2963,9 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 	if (ret) {
 		btrfs_delalloc_release_metadata(inode, inode->i_size);
 #ifdef DEBUG
-		printk(KERN_ERR "btrfs: failed to write free ino cache "
-		       "for root %llu\n", root->root_key.objectid);
+		btrfs_err(root->fs_info,
+			"failed to write free ino cache for root %llu",
+			root->root_key.objectid);
 #endif
 	}
 
