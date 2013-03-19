@@ -30,8 +30,6 @@
 #include "board-mop500.h"
 #include "id.h"
 
-void __iomem *_PRCMU_BASE;
-
 /*
  * FIXME: Should we set up the GPIO domain here?
  *

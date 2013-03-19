@@ -422,9 +422,10 @@ static DEFINE_SPINLOCK(clkout_lock);
 
 /* Global var to runtime determine TCDM base for v2 or v1 */
 static __iomem void *tcdm_base;
+static __iomem void *prcmu_base;
 
 struct clk_mgt {
-	void __iomem *reg;
+	u32 offset;
 	u32 pllsw;
 	int branch;
 	bool clk38div;
@@ -599,9 +600,9 @@ int db8500_prcmu_set_display_clocks(void)
 	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
 		cpu_relax();
 
-	writel(PRCMU_DSI_CLOCK_SETTING, PRCM_HDMICLK_MGT);
-	writel(PRCMU_DSI_LP_CLOCK_SETTING, PRCM_TVCLK_MGT);
-	writel(PRCMU_DPI_CLOCK_SETTING, PRCM_LCDCLK_MGT);
+	writel(PRCMU_DSI_CLOCK_SETTING, prcmu_base + PRCM_HDMICLK_MGT);
+	writel(PRCMU_DSI_LP_CLOCK_SETTING, prcmu_base + PRCM_TVCLK_MGT);
+	writel(PRCMU_DPI_CLOCK_SETTING, prcmu_base + PRCM_LCDCLK_MGT);
 
 	/* Release the HW semaphore. */
 	writel(0, PRCM_SEM);
@@ -613,7 +614,7 @@ int db8500_prcmu_set_display_clocks(void)
 
 u32 db8500_prcmu_read(unsigned int reg)
 {
-	return readl(_PRCMU_BASE + reg);
+	return readl(prcmu_base + reg);
 }
 
 void db8500_prcmu_write(unsigned int reg, u32 value)
@@ -621,7 +622,7 @@ void db8500_prcmu_write(unsigned int reg, u32 value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&prcmu_lock, flags);
-	writel(value, (_PRCMU_BASE + reg));
+	writel(value, (prcmu_base + reg));
 	spin_unlock_irqrestore(&prcmu_lock, flags);
 }
 
@@ -631,9 +632,9 @@ void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&prcmu_lock, flags);
-	val = readl(_PRCMU_BASE + reg);
+	val = readl(prcmu_base + reg);
 	val = ((val & ~mask) | (value & mask));
-	writel(val, (_PRCMU_BASE + reg));
+	writel(val, (prcmu_base + reg));
 	spin_unlock_irqrestore(&prcmu_lock, flags);
 }
 
@@ -1059,7 +1060,7 @@ int db8500_prcmu_set_ddr_opp(u8 opp)
 /* Divide the frequency of certain clocks by 2 for APE_50_PARTLY_25_OPP. */
 static void request_even_slower_clocks(bool enable)
 {
-	void __iomem *clock_reg[] = {
+	u32 clock_reg[] = {
 		PRCM_ACLK_MGT,
 		PRCM_DMACLK_MGT
 	};
@@ -1076,7 +1077,7 @@ static void request_even_slower_clocks(bool enable)
 		u32 val;
 		u32 div;
 
-		val = readl(clock_reg[i]);
+		val = readl(prcmu_base + clock_reg[i]);
 		div = (val & PRCM_CLK_MGT_CLKPLLDIV_MASK);
 		if (enable) {
 			if ((div <= 1) || (div > 15)) {
@@ -1092,7 +1093,7 @@ static void request_even_slower_clocks(bool enable)
 		}
 		val = ((val & ~PRCM_CLK_MGT_CLKPLLDIV_MASK) |
 			(div & PRCM_CLK_MGT_CLKPLLDIV_MASK));
-		writel(val, clock_reg[i]);
+		writel(val, prcmu_base + clock_reg[i]);
 	}
 
 unlock_and_return:
@@ -1446,14 +1447,14 @@ static int request_clock(u8 clock, bool enable)
 	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
 		cpu_relax();
 
-	val = readl(clk_mgt[clock].reg);
+	val = readl(prcmu_base + clk_mgt[clock].offset);
 	if (enable) {
 		val |= (PRCM_CLK_MGT_CLKEN | clk_mgt[clock].pllsw);
 	} else {
 		clk_mgt[clock].pllsw = (val & PRCM_CLK_MGT_CLKPLLSW_MASK);
 		val &= ~(PRCM_CLK_MGT_CLKEN | PRCM_CLK_MGT_CLKPLLSW_MASK);
 	}
-	writel(val, clk_mgt[clock].reg);
+	writel(val, prcmu_base + clk_mgt[clock].offset);
 
 	/* Release the HW semaphore. */
 	writel(0, PRCM_SEM);
@@ -1629,7 +1630,7 @@ static unsigned long clock_rate(u8 clock)
 	u32 pllsw;
 	unsigned long rate = ROOT_CLOCK_RATE;
 
-	val = readl(clk_mgt[clock].reg);
+	val = readl(prcmu_base + clk_mgt[clock].offset);
 
 	if (val & PRCM_CLK_MGT_CLK38) {
 		if (clk_mgt[clock].clk38div && (val & PRCM_CLK_MGT_CLK38DIV))
@@ -1785,7 +1786,7 @@ static long round_clock_rate(u8 clock, unsigned long rate)
 	unsigned long src_rate;
 	long rounded_rate;
 
-	val = readl(clk_mgt[clock].reg);
+	val = readl(prcmu_base + clk_mgt[clock].offset);
 	src_rate = clock_source_rate((val | clk_mgt[clock].pllsw),
 		clk_mgt[clock].branch);
 	div = clock_divider(src_rate, rate);
@@ -1933,7 +1934,7 @@ static void set_clock_rate(u8 clock, unsigned long rate)
 	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
 		cpu_relax();
 
-	val = readl(clk_mgt[clock].reg);
+	val = readl(prcmu_base + clk_mgt[clock].offset);
 	src_rate = clock_source_rate((val | clk_mgt[clock].pllsw),
 		clk_mgt[clock].branch);
 	div = clock_divider(src_rate, rate);
@@ -1961,7 +1962,7 @@ static void set_clock_rate(u8 clock, unsigned long rate)
 		val &= ~PRCM_CLK_MGT_CLKPLLDIV_MASK;
 		val |= min(div, (u32)31);
 	}
-	writel(val, clk_mgt[clock].reg);
+	writel(val, prcmu_base + clk_mgt[clock].offset);
 
 	/* Release the HW semaphore. */
 	writel(0, PRCM_SEM);
@@ -3163,8 +3164,18 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	int irq = 0, err = 0, i;
 	struct resource *res;
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu");
+	if (!res) {
+		dev_err(&pdev->dev, "no prcmu memory region provided\n");
+		return -ENOENT;
+	}
+	prcmu_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!prcmu_base) {
+		dev_err(&pdev->dev,
+			"failed to ioremap prcmu register memory\n");
+		return -ENOENT;
+	}
 	init_prcm_registers();
-
 	dbx500_fw_version_init(pdev, pdata->version_offset);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu-tcdm");
 	if (!res) {
