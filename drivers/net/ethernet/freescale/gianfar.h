@@ -1182,8 +1182,7 @@ extern void stop_gfar(struct net_device *dev);
 extern void gfar_halt(struct net_device *dev);
 extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 		int enable, u32 regnum, u32 read);
-extern void gfar_configure_coalescing(struct gfar_private *priv,
-		unsigned long tx_mask, unsigned long rx_mask);
+extern void gfar_configure_coalescing_all(struct gfar_private *priv);
 void gfar_init_sysfs(struct net_device *dev);
 int gfar_set_features(struct net_device *dev, netdev_features_t features);
 extern void gfar_check_rx_parser_mode(struct gfar_private *priv);

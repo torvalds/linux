@@ -436,7 +436,7 @@ static int gfar_scoalesce(struct net_device *dev,
 			gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
 	}
 
-	gfar_configure_coalescing(priv, 0xFF, 0xFF);
+	gfar_configure_coalescing_all(priv);
 
 	return 0;
 }

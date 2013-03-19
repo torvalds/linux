@@ -341,7 +341,7 @@ static void gfar_init_mac(struct net_device *ndev)
 	gfar_init_tx_rx_base(priv);
 
 	/* Configure the coalescing support */
-	gfar_configure_coalescing(priv, 0xFF, 0xFF);
+	gfar_configure_coalescing_all(priv);
 
 	/* set this when rx hw offload (TOE) functions are being used */
 	priv->uses_rxfcb = 0;
@@ -1816,7 +1816,7 @@ void gfar_start(struct net_device *dev)
 	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
-void gfar_configure_coalescing(struct gfar_private *priv,
+static void gfar_configure_coalescing(struct gfar_private *priv,
 			       unsigned long tx_mask, unsigned long rx_mask)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
@@ -1849,6 +1849,11 @@ void gfar_configure_coalescing(struct gfar_private *priv,
 		if (unlikely(priv->rx_queue[0]->rxcoalescing))
 			gfar_write(&regs->rxic, priv->rx_queue[0]->rxic);
 	}
+}
+
+void gfar_configure_coalescing_all(struct gfar_private *priv)
+{
+	gfar_configure_coalescing(priv, 0xFF, 0xFF);
 }
 
 static int register_grp_irqs(struct gfar_priv_grp *grp)
@@ -1940,7 +1945,7 @@ int startup_gfar(struct net_device *ndev)
 
 	phy_start(priv->phydev);
 
-	gfar_configure_coalescing(priv, 0xFF, 0xFF);
+	gfar_configure_coalescing_all(priv);
 
 	return 0;
 
