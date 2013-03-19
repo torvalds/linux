@@ -104,7 +104,6 @@ struct update_al_work {
 	int err;
 };
 
-static int al_write_transaction(struct drbd_conf *mdev, bool delegate);
 
 void *drbd_md_get_buffer(struct drbd_conf *mdev)
 {
@@ -246,10 +245,30 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
 	return al_ext;
 }
 
-/*
- * @delegate:   delegate activity log I/O to the worker thread
- */
-void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool delegate)
+bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i)
+{
+	/* for bios crossing activity log extent boundaries,
+	 * we may need to activate two extents in one go */
+	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
+	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+	bool fastpath_ok = true;
+
+	D_ASSERT((unsigned)(last - first) <= 1);
+	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
+
+	/* FIXME figure out a fast path for bios crossing AL extent boundaries */
+	if (first != last)
+		return false;
+
+	spin_lock_irq(&mdev->al_lock);
+	fastpath_ok =
+		lc_find(mdev->resync, first/AL_EXT_PER_BM_SECT) == NULL &&
+		lc_try_get(mdev->act_log, first) != NULL;
+	spin_unlock_irq(&mdev->al_lock);
+	return fastpath_ok;
+}
+
+bool drbd_al_begin_io_prepare(struct drbd_conf *mdev, struct drbd_interval *i)
 {
 	/* for bios crossing activity log extent boundaries,
 	 * we may need to activate two extents in one go */
@@ -257,19 +276,6 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
 	unsigned enr;
 	bool need_transaction = false;
-	bool locked = false;
-
-	/* When called through generic_make_request(), we must delegate
-	 * activity log I/O to the worker thread: a further request
-	 * submitted via generic_make_request() within the same task
-	 * would be queued on current->bio_list, and would only start
-	 * after this function returns (see generic_make_request()).
-	 *
-	 * However, if we *are* the worker, we must not delegate to ourselves.
-	 */
-
-	if (delegate)
-		BUG_ON(current == mdev->tconn->worker.task);
 
 	D_ASSERT(first <= last);
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
@@ -280,11 +286,28 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
 		if (al_ext->lc_number != enr)
 			need_transaction = true;
 	}
+	return need_transaction;
+}
 
-	/* If *this* request was to an already active extent,
-	 * we're done, even if there are pending changes. */
-	if (!need_transaction)
-		return;
+static int al_write_transaction(struct drbd_conf *mdev, bool delegate);
+
+/* When called through generic_make_request(), we must delegate
+ * activity log I/O to the worker thread: a further request
+ * submitted via generic_make_request() within the same task
+ * would be queued on current->bio_list, and would only start
+ * after this function returns (see generic_make_request()).
+ *
+ * However, if we *are* the worker, we must not delegate to ourselves.
+ */
+
+/*
+ * @delegate:   delegate activity log I/O to the worker thread
+ */
+void drbd_al_begin_io_commit(struct drbd_conf *mdev, bool delegate)
+{
+	bool locked = false;
+
+	BUG_ON(delegate && current == mdev->tconn->worker.task);
 
 	/* Serialize multiple transactions.
 	 * This uses test_and_set_bit, memory barrier is implicit.
@@ -303,11 +326,8 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
 			write_al_updates = rcu_dereference(mdev->ldev->disk_conf)->al_updates;
 			rcu_read_unlock();
 
-			if (write_al_updates) {
+			if (write_al_updates)
 				al_write_transaction(mdev, delegate);
-				mdev->al_writ_cnt++;
-			}
-
 			spin_lock_irq(&mdev->al_lock);
 			/* FIXME
 			if (err)
@@ -319,6 +339,17 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
 		lc_unlock(mdev->act_log);
 		wake_up(&mdev->al_wait);
 	}
+}
+
+/*
+ * @delegate:   delegate activity log I/O to the worker thread
+ */
+void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool delegate)
+{
+	BUG_ON(delegate && current == mdev->tconn->worker.task);
+
+	if (drbd_al_begin_io_prepare(mdev, i))
+		drbd_al_begin_io_commit(mdev, delegate);
 }
 
 void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
@@ -478,15 +509,22 @@ _al_write_transaction(struct drbd_conf *mdev)
 	crc = crc32c(0, buffer, 4096);
 	buffer->crc32c = cpu_to_be32(crc);
 
-	/* normal execution path goes through all three branches */
 	if (drbd_bm_write_hinted(mdev))
 		err = -EIO;
-		/* drbd_chk_io_error done already */
-	else if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
-		err = -EIO;
-		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
-	} else {
-		mdev->al_tr_number++;
+	else {
+		bool write_al_updates;
+		rcu_read_lock();
+		write_al_updates = rcu_dereference(mdev->ldev->disk_conf)->al_updates;
+		rcu_read_unlock();
+		if (write_al_updates) {
+			if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
+				err = -EIO;
+				drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
+			} else {
+				mdev->al_tr_number++;
+				mdev->al_writ_cnt++;
+			}
+		}
 	}
 
 	drbd_md_put_buffer(mdev);
