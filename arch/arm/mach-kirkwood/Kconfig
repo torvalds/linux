@@ -194,6 +194,15 @@ config MACH_OPENBLOCKS_A6_DT
 	  Say 'Y' here if you want your kernel to support the
 	  Plat'Home OpenBlocks A6 (Flattened Device Tree).
 
+config MACH_READYNAS_DT
+	bool "NETGEAR ReadyNAS Duo v2 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	select ARM_APPENDED_DTB
+	select ARM_ATAG_DTB_COMPAT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  NETGEAR ReadyNAS Duo v2 using Fattened Device Tree.
+
 config MACH_TOPKICK_DT
 	bool "USI Topkick (Flattened Device Tree)"
 	select ARCH_KIRKWOOD_DT

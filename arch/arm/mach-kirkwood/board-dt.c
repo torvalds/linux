@@ -149,6 +149,9 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("mpl,cec4"))
 		mplcec4_init();
 
+	if (of_machine_is_compatible("netgear,readynas-duo-v2"))
+		netgear_readynas_init();
+
 	if (of_machine_is_compatible("plathome,openblocks-a6"))
 		openblocks_a6_init();
 
@@ -177,6 +180,7 @@ static const char * const kirkwood_dt_board_compat[] = {
 	"lacie,netspace_lite_v2",
 	"lacie,netspace_mini_v2",
 	"mpl,cec4",
+	"netgear,readynas-duo-v2",
 	"plathome,openblocks-a6",
 	"usi,topkick",
 	"zyxel,nsa310",
