@@ -4131,6 +4131,39 @@ static void rebind_workers(struct worker_pool *pool)
 	spin_unlock_irq(&pool->lock);
 }
 
+/**
+ * restore_unbound_workers_cpumask - restore cpumask of unbound workers
+ * @pool: unbound pool of interest
+ * @cpu: the CPU which is coming up
+ *
+ * An unbound pool may end up with a cpumask which doesn't have any online
+ * CPUs.  When a worker of such pool get scheduled, the scheduler resets
+ * its cpus_allowed.  If @cpu is in @pool's cpumask which didn't have any
+ * online CPU before, cpus_allowed of all its workers should be restored.
+ */
+static void restore_unbound_workers_cpumask(struct worker_pool *pool, int cpu)
+{
+	static cpumask_t cpumask;
+	struct worker *worker;
+	int wi;
+
+	lockdep_assert_held(&pool->manager_mutex);
+
+	/* is @cpu allowed for @pool? */
+	if (!cpumask_test_cpu(cpu, pool->attrs->cpumask))
+		return;
+
+	/* is @cpu the only online CPU? */
+	cpumask_and(&cpumask, pool->attrs->cpumask, cpu_online_mask);
+	if (cpumask_weight(&cpumask) != 1)
+		return;
+
+	/* as we're called from CPU_ONLINE, the following shouldn't fail */
+	for_each_pool_worker(worker, wi, pool)
+		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task,
+						  pool->attrs->cpumask) < 0);
+}
+
 /*
  * Workqueues should be brought up before normal priority CPU notifiers.
  * This will be registered high priority CPU notifier.
@@ -4141,6 +4174,7 @@ static int __cpuinit workqueue_cpu_up_callback(struct notifier_block *nfb,
 {
 	int cpu = (unsigned long)hcpu;
 	struct worker_pool *pool;
+	int pi;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_UP_PREPARE:
@@ -4154,17 +4188,25 @@ static int __cpuinit workqueue_cpu_up_callback(struct notifier_block *nfb,
 
 	case CPU_DOWN_FAILED:
 	case CPU_ONLINE:
-		for_each_cpu_worker_pool(pool, cpu) {
+		mutex_lock(&wq_mutex);
+
+		for_each_pool(pool, pi) {
 			mutex_lock(&pool->manager_mutex);
 
-			spin_lock_irq(&pool->lock);
-			pool->flags &= ~POOL_DISASSOCIATED;
-			spin_unlock_irq(&pool->lock);
+			if (pool->cpu == cpu) {
+				spin_lock_irq(&pool->lock);
+				pool->flags &= ~POOL_DISASSOCIATED;
+				spin_unlock_irq(&pool->lock);
 
-			rebind_workers(pool);
+				rebind_workers(pool);
+			} else if (pool->cpu < 0) {
+				restore_unbound_workers_cpumask(pool, cpu);
+			}
 
 			mutex_unlock(&pool->manager_mutex);
 		}
+
+		mutex_unlock(&wq_mutex);
 		break;
 	}
 	return NOTIFY_OK;
