@@ -27,7 +27,8 @@
 #define WIPHY_PR_ARG	__entry->wiphy_name
 
 #define WDEV_ENTRY	__field(u32, id)
-#define WDEV_ASSIGN	(__entry->id) = (wdev ? wdev->identifier : 0)
+#define WDEV_ASSIGN	(__entry->id) = (!IS_ERR_OR_NULL(wdev)	\
+					 ? wdev->identifier : 0)
 #define WDEV_PR_FMT	"wdev(%u)"
 #define WDEV_PR_ARG	(__entry->id)
 
