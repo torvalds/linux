@@ -175,21 +175,18 @@ s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
 			// strip IV , add 4 byte
 			cbHeaderSize += (WLAN_HDR_ADDR3_LEN + 4);
 		}
-	}
-	else {
+	} else {
 		cbHeaderSize += WLAN_HDR_ADDR3_LEN;
 	};
 
 	pbyRxBuffer = (unsigned char *)(pbyRxBufferAddr + cbHeaderSize);
 	if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_Bridgetunnel[0])) {
 		cbHeaderSize += 6;
-	}
-	else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
+	} else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
 		cbHeaderSize += 6;
 		pwType = (unsigned short *)(pbyRxBufferAddr + cbHeaderSize);
 		if ((*pwType != TYPE_PKT_IPX) && (*pwType != cpu_to_le16(0xF380))) {
-		}
-		else {
+		} else {
 			cbHeaderSize -= 8;
 			pwType = (unsigned short *)(pbyRxBufferAddr + cbHeaderSize);
 			if (bIsWEP) {
@@ -198,13 +195,11 @@ s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
 				} else {
 					*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 4);    // 4 is IV
 				}
-			}
-			else {
+			} else {
 				*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN);
 			}
 		}
-	}
-	else {
+	} else {
 		cbHeaderSize -= 2;
 		pwType = (unsigned short *)(pbyRxBufferAddr + cbHeaderSize);
 		if (bIsWEP) {
@@ -213,8 +208,7 @@ s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
 			} else {
 				*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 4);    // 4 is IV
 			}
-		}
-		else {
+		} else {
 			*pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN);
 		}
 	}
@@ -260,16 +254,14 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 				psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr1[ii];
 				psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr3[ii];
 			}
-		}
-		else {
+		} else {
 			// IBSS mode
 			for (ii = 0; ii < ETH_ALEN; ii++) {
 				psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr1[ii];
 				psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr2[ii];
 			}
 		}
-	}
-	else {
+	} else {
 		// Is AP mode..
 		if (pMACHeader->wFrameCtl & FC_FROMDS) {
 			for (ii = 0; ii < ETH_ALEN; ii++) {
@@ -277,8 +269,7 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 				psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr4[ii];
 				cbHeaderSize += 6;
 			}
-		}
-		else {
+		} else {
 			for (ii = 0; ii < ETH_ALEN; ii++) {
 				psEthHeader->abyDstAddr[ii] = pMACHeader->abyAddr3[ii];
 				psEthHeader->abySrcAddr[ii] = pMACHeader->abyAddr2[ii];
@@ -299,8 +290,7 @@ void	MngWorkItem(void *Context)
 	PSDevice	pDevice =  (PSDevice) Context;
 
 	spin_lock_irq(&pDevice->lock);
-	while (pDevice->rxManeQueue.packet_num != 0)
-	{
+	while (pDevice->rxManeQueue.packet_num != 0) {
 		pRxMgmtPacket =  DeQueue(pDevice);
 		vMgrRxManagePacket(pDevice, pDevice->pMgmt, pRxMgmtPacket);
 	}
@@ -558,8 +548,7 @@ device_receive_frame(
 			skb = pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].skb;
 			FrameSize = pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength;
 
-		}
-		else {
+		} else {
 			return false;
 		}
 	}
@@ -625,13 +614,11 @@ device_receive_frame(
 				netif_rx(skb);
 				return true;
 			}
-		}
-		else {
+		} else {
 			// Control Frame
 		};
 		return false;
-	}
-	else {
+	} else {
 		if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
 			//In AP mode, hw only check addr1(BSSID or RA) if equal to local MAC.
 			if (!(*pbyRsr & RSR_BSSIDOK)) {
@@ -643,8 +630,7 @@ device_receive_frame(
 				}
 				return false;
 			}
-		}
-		else {
+		} else {
 			// discard DATA packet while not associate || BSSID error
 			if ((pDevice->bLinkPass == false) ||
 			    !(*pbyRsr & RSR_BSSIDOK)) {
@@ -688,8 +674,7 @@ device_receive_frame(
 			if (*pbyRsr & RSR_ADDROK) {
 				//PSbSendPSPOLL((PSDevice)pDevice);
 			}
-		}
-		else {
+		} else {
 			if (pDevice->pMgmt->bInTIMWake == true) {
 				pDevice->pMgmt->bInTIMWake = false;
 			}
@@ -785,8 +770,7 @@ device_receive_frame(
 			if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
 				dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[24]));
 				dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[28]));
-			}
-			else {
+			} else {
 				if (pDevice->pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
 					dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[16]));
 					dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[20]));
@@ -1055,8 +1039,7 @@ static bool s_bAPModeRxCtl(
 						pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = true;
 						bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 1\n");
-					}
-					else {
+					} else {
 						// check Data PS state
 						// if PW bit off, send out all PS bufferring packets.
 						if (!IS_FC_POWERMGT(pbyFrame)) {
@@ -1066,14 +1049,12 @@ static bool s_bAPModeRxCtl(
 							DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 2\n");
 						}
 					}
-				}
-				else {
+				} else {
 					if (IS_FC_POWERMGT(pbyFrame)) {
 						pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = true;
 						// Once if STA in PS state, enable multicast bufferring
 						pMgmt->sNodeDBTable[0].bPSEnable = true;
-					}
-					else {
+					} else {
 						// clear all pending PS frame.
 						if (pMgmt->sNodeDBTable[iSANodeIndex].wEnQueueCnt > 0) {
 							pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = false;
@@ -1084,8 +1065,7 @@ static bool s_bAPModeRxCtl(
 						}
 					}
 				}
-			}
-			else {
+			} else {
 				vMgrDeAuthenBeginSta(pDevice,
 						     pMgmt,
 						     (unsigned char *)(p802_11Header->abyAddr2),
@@ -1416,8 +1396,7 @@ static bool s_bAPModeRxData(
 			// if any node in PS mode, buffer packet until DTIM.
 			if (skbcpy == NULL) {
 				DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available \n");
-			}
-			else {
+			} else {
 				skbcpy->dev = pDevice->dev;
 				skbcpy->len = FrameSize;
 				memcpy(skbcpy->data, skb->data+cbHeaderOffset, FrameSize);
@@ -1427,12 +1406,10 @@ static bool s_bAPModeRxData(
 				// set tx map
 				pMgmt->abyPSTxMap[0] |= byMask[0];
 			}
-		}
-		else {
+		} else {
 			bRelayAndForward = true;
 		}
-	}
-	else {
+	} else {
 		// check if relay
 		if (BSSDBbIsSTAInNodeDB(pMgmt, (unsigned char *)(skb->data+cbHeaderOffset), &iDANodeIndex)) {
 			if (pMgmt->sNodeDBTable[iDANodeIndex].eNodeState >= NODE_ASSOC) {
@@ -1449,8 +1426,7 @@ static bool s_bAPModeRxData(
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "relay: index= %d, pMgmt->abyPSTxMap[%d]= %d\n",
 						iDANodeIndex, (wAID >> 3), pMgmt->abyPSTxMap[wAID >> 3]);
 					return true;
-				}
-				else {
+				} else {
 					bRelayOnly = true;
 				}
 			}

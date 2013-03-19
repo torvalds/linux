@@ -631,28 +631,24 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 				pDevice->abyEEPROM[EEP_OFS_ZONETYPE] = 0;
 				pDevice->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0B;
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Init Zone Type :USA\n");
-			}
-			else if ((zonetype == 1) &&
+			} else if ((zonetype == 1) &&
 				 (pDevice->abyEEPROM[EEP_OFS_ZONETYPE] != 0x01)) {   //for Japan
 				pDevice->abyEEPROM[EEP_OFS_ZONETYPE] = 0x01;
 				pDevice->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0D;
-			}
-			else if ((zonetype == 2) &&
+			} else if ((zonetype == 2) &&
 				 (pDevice->abyEEPROM[EEP_OFS_ZONETYPE] != 0x02)) {   //for Europe
 				pDevice->abyEEPROM[EEP_OFS_ZONETYPE] = 0x02;
 				pDevice->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0D;
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Init Zone Type :Europe\n");
 			}
 
-			else
-			{
+			else {
 				if (zonetype != pDevice->abyEEPROM[EEP_OFS_ZONETYPE])
 					printk("zonetype in file[%02x] mismatch with in EEPROM[%02x]\n", zonetype, pDevice->abyEEPROM[EEP_OFS_ZONETYPE]);
 				else
 					printk("Read Zonetype file success,use default zonetype setting[%02x]\n", zonetype);
 			}
-		}
-		else
+		} else
 			printk("Read Zonetype file fail,use default zonetype setting[%02x]\n", SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_ZONETYPE));
 
 		// Get RFType
@@ -779,8 +775,7 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 		}
 		if ((pDevice->bRadioControlOff == true)) {
 			CARDbRadioPowerOff(pDevice);
-		}
-		else  CARDbRadioPowerOn(pDevice);
+		} else  CARDbRadioPowerOn(pDevice);
 #else
 		if (((pDevice->byGPIO & GPIO0_DATA) && !(pDevice->byRadioCtl & EEP_RADIOCTL_INV)) ||
 		    (!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV))) {
@@ -958,13 +953,11 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 			PCI_BASE_ADDRESS_4,
 			PCI_BASE_ADDRESS_5,
 			0};
-		for (i = 0; address[i]; i++)
-		{
+		for (i = 0; address[i]; i++) {
 			//pci_write_config_dword(pcid,address[i], 0xFFFFFFFF);
 			pci_read_config_dword(pcid, address[i], &bar);
 			printk("bar %d is %x\n", i, bar);
-			if (!bar)
-			{
+			if (!bar) {
 				printk("bar %d not implemented\n", i);
 				continue;
 			}
@@ -975,9 +968,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 				len = len & ~(len - 1);
 
 				printk("IO space:  len in IO %x, BAR %d\n", len, i);
-			}
-			else
-			{
+			} else {
 				len = bar & 0xFFFFFFF0;
 				len = ~len + 1;
 
@@ -1056,8 +1047,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	dev->wireless_handlers = (struct iw_handler_def *)&iwctl_handler_def;
 
 	rc = register_netdev(dev);
-	if (rc)
-	{
+	if (rc) {
 		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
 		device_free_info(pDevice);
 		return -ENODEV;
@@ -1094,8 +1084,7 @@ static void vt6655_init_info(struct pci_dev *pcid, PSDevice *ppDevice,
 
 	if (pDevice_Infos == NULL) {
 		pDevice_Infos = *ppDevice;
-	}
-	else {
+	} else {
 		for (p = pDevice_Infos; p->next != NULL; p = p->next)
 			do {} while (0);
 		p->next = *ppDevice;
@@ -1154,20 +1143,15 @@ static bool device_get_pci_info(PSDevice pDevice, struct pci_dev *pcid) {
 	//pci_write_config_word(pcid,PCI_MAX_LAT,max_lat);
 	//pci_read_config_word(pcid,PCI_MAX_LAT,&max_lat);
 
-	for (ii = 0; ii < 0xFF; ii++)
-	{
+	for (ii = 0; ii < 0xFF; ii++) {
 		pci_read_config_byte(pcid, ii, &value);
 		pci_config[ii] = value;
 	}
-	for (ii = 0, j = 1; ii < 0x100; ii++, j++)
-	{
-		if (j % 16 == 0)
-		{
+	for (ii = 0, j = 1; ii < 0x100; ii++, j++) {
+		if (j % 16 == 0) {
 			printk("%x:", pci_config[ii]);
 			printk("\n");
-		}
-		else
-		{
+		} else {
 			printk("%x:", pci_config[ii]);
 		}
 	}
@@ -1199,8 +1183,7 @@ static void device_free_info(PSDevice pDevice) {
 			pDevice_Infos = ptr->next;
 		else
 			ptr->prev->next = ptr->next;
-	}
-	else {
+	} else {
 		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR "info struct not found\n");
 		return;
 	}
@@ -1675,8 +1658,7 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
 					}
 					pStats->tx_packets++;
 					pStats->tx_bytes += pTD->pTDInfo->skb->len;
-				}
-				else {
+				} else {
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Tx[%d] dropped & tsr1[%02X] tsr0[%02X].\n",
 						(int)uIdx, byTsr1, byTsr0);
 					pStats->tx_errors++;
@@ -1812,15 +1794,13 @@ int MlmeThread(
 
 	//i = 0;
 #if 1
-	while (1)
-	{
+	while (1) {
 
 		//down(&pDevice->mlme_semaphore);
 		// pRxMgmtPacket =  DeQueue(pDevice);
 #if 1
 		spin_lock_irq(&pDevice->lock);
-		while (pDevice->rxManeQueue.packet_num != 0)
-		{
+		while (pDevice->rxManeQueue.packet_num != 0) {
 			pRxMgmtPacket = DeQueue(pDevice);
 			//pDevice;
 			//DequeueManageObject(pDevice->FirstRecvMngList, pDevice->LastRecvMngList);
@@ -1948,8 +1928,7 @@ static int  device_open(struct net_device *dev) {
 
 	if (pDevice->pMgmt->eConfigMode == WMAC_CONFIG_AP) {
 		bScheduleCommand((void *)pDevice, WLAN_CMD_RUN_AP, NULL);
-	}
-	else {
+	} else {
 		bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 		bScheduleCommand((void *)pDevice, WLAN_CMD_SSID, NULL);
 	}
@@ -2117,16 +2096,14 @@ bool device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
 			else
 				pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
 		}
-	}
-	else {
+	} else {
 		pDevice->wCurrentRate = pDevice->pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate;
 	}
 
 	//preamble type
 	if (pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble) {
 		pDevice->byPreambleType = pDevice->byShortPreamble;
-	}
-	else {
+	} else {
 		pDevice->byPreambleType = PREAMBLE_LONG;
 	}
 
@@ -2337,8 +2314,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 				pTransmitKey = NULL;
 				if (pDevice->pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG "IBSS and KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
-				}
-				else
+				} else
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG "NOT IBSS and KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
 			} else {
 				bTKIP_UseGTK = true;
@@ -2407,8 +2383,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 		pDevice->byACKRate = (unsigned char) pDevice->wCurrentRate;
 		pDevice->byTopCCKBasicRate = RATE_1M;
 		pDevice->byTopOFDMBasicRate = RATE_6M;
-	}
-	else {
+	} else {
 		//auto rate
 		if (pDevice->sTxEthHeader.wType == TYPE_PKT_802_1x) {
 			if (pDevice->eCurrentPHYType != PHY_TYPE_11A) {
@@ -2422,8 +2397,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 				pDevice->byTopCCKBasicRate = RATE_1M;
 				pDevice->byTopOFDMBasicRate = RATE_6M;
 			}
-		}
-		else {
+		} else {
 			VNTWIFIvGetTxRate(pDevice->pMgmt,
 					  pDevice->sTxEthHeader.abyDstAddr,
 					  &(pDevice->wCurrentRate),
@@ -2461,12 +2435,10 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 			if ((pDevice->pMgmt->eCurrMode == WMAC_MODE_ESS_STA) && (pDevice->pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
 				if (pTransmitKey == NULL) {
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Don't Find TX KEY\n");
-				}
-				else {
+				} else {
 					if (bTKIP_UseGTK == true) {
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "error: KEY is GTK!!~~\n");
-					}
-					else {
+					} else {
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Find PTK [%lX]\n", pTransmitKey->dwKeyIndex);
 						bNeedEncryption = true;
 					}
@@ -2485,8 +2457,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 					bNeedEncryption = true;
 				}
 			}
-		}
-		else {
+		} else {
 			if (pTransmitKey == NULL) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "return no tx key\n");
 				dev_kfree_skb_irq(skb);
@@ -2541,12 +2512,9 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 
 	pDevice->apCurrTD[TYPE_AC0DMA] = pHeadTD;
 //#ifdef	PLICE_DEBUG
-	if (pDevice->bFixRate)
-	{
+	if (pDevice->bFixRate) {
 		printk("FixRate:Rate is %d,TxPower is %d\n", pDevice->wCurrentRate, pDevice->byCurPwr);
-	}
-	else
-	{
+	} else {
 	}
 //#endif
 
@@ -2632,8 +2600,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 	VNSvInPortB(pDevice->PortOffset + MAC_REG_PAGE1SEL, &byOrgPageSel);
 	if (byOrgPageSel == 1) {
 		MACvSelectPage0(pDevice->PortOffset);
-	}
-	else
+	} else
 		byOrgPageSel = 0;
 
 	MACvReadMIBCounter(pDevice->PortOffset, &dwMIBCounter);
@@ -2807,8 +2774,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 				if (pMgmt->byDTIMCount > 0) {
 					pMgmt->byDTIMCount--;
 					pMgmt->sNodeDBTable[0].bRxPSPoll = false;
-				}
-				else {
+				} else {
 					if (pMgmt->byDTIMCount == 0) {
 						// check if mutltcast tx bufferring
 						pMgmt->byDTIMCount = pMgmt->byDTIMPeriod - 1;
@@ -2967,14 +2933,11 @@ int Config_FileOperation(PSDevice pDevice, bool fwrite, unsigned char *Parameter
 
 	if (memcmp(tmpbuffer, "USA", 3) == 0) {
 		result = ZoneType_USA;
-	}
-	else if (memcmp(tmpbuffer, "JAPAN", 5) == 0) {
+	} else if (memcmp(tmpbuffer, "JAPAN", 5) == 0) {
 		result = ZoneType_Japan;
-	}
-	else if (memcmp(tmpbuffer, "EUROPE", 5) == 0) {
+	} else if (memcmp(tmpbuffer, "EUROPE", 5) == 0) {
 		result = ZoneType_Europe;
-	}
-	else {
+	} else {
 		result = -1;
 		printk("Unknown Zonetype[%s]?\n", tmpbuffer);
 	}
@@ -3012,16 +2975,14 @@ static void device_set_multi(struct net_device *dev) {
 		DBG_PRT(MSG_LEVEL_ERR, KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		/* Unconditionally log net taps. */
 		pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST|RCR_UNICAST);
-	}
-	else if ((netdev_mc_count(dev) > pDevice->multicast_limit)
+	} else if ((netdev_mc_count(dev) > pDevice->multicast_limit)
 		 ||  (dev->flags & IFF_ALLMULTI)) {
 		MACvSelectPage1(pDevice->PortOffset);
 		VNSvOutPortD(pDevice->PortOffset + MAC_REG_MAR0, 0xffffffff);
 		VNSvOutPortD(pDevice->PortOffset + MAC_REG_MAR0 + 4, 0xffffffff);
 		MACvSelectPage0(pDevice->PortOffset);
 		pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
-	}
-	else {
+	} else {
 		memset(mc_filter, 0, sizeof(mc_filter));
 		netdev_for_each_mc_addr(ha, dev) {
 			int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
@@ -3193,8 +3154,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		break;
 
 		// Set WEP keys and mode
-	case SIOCSIWENCODE:
-	{
+	case SIOCSIWENCODE: {
 		char abyKey[WLAN_WEP232_KEYLEN];
 
 		if (wrq->u.encoding.pointer) {
@@ -3296,8 +3256,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		rc = -EOPNOTSUPP;
 		break;
 
-	case SIOCGIWAPLIST:
-	{
+	case SIOCGIWAPLIST: {
 		char buffer[IW_MAX_AP * (sizeof(struct sockaddr) + sizeof(struct iw_quality))];
 
 		if (wrq->u.data.pointer) {
@@ -3369,8 +3328,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		rc = iwctl_giwgenie(dev, NULL, &(wrq->u.data), wrq->u.data.pointer);
 		break;
 
-	case SIOCSIWENCODEEXT:
-	{
+	case SIOCSIWENCODEEXT: {
 		char extra[sizeof(struct iw_encode_ext)+MAX_KEY_LEN+1];
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWENCODEEXT \n");
 		if (wrq->u.encoding.pointer) {
@@ -3467,8 +3425,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 			spin_lock_irq(&pDevice->lock);
 			bScheduleCommand((void *)pDevice, WLAN_CMD_RUN_AP, NULL);
 			spin_unlock_irq(&pDevice->lock);
-		}
-		else {
+		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Commit the settings\n");
 			spin_lock_irq(&pDevice->lock);
 			pDevice->bLinkPass = false;
@@ -3626,8 +3583,7 @@ viawget_resume(struct pci_dev *pcid)
 			if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
 				// In Adhoc, BSS state set back to started.
 				pMgmt->eCurrState = WMAC_STATE_STARTED;
-			}
-			else {
+			} else {
 				pMgmt->eCurrMode = WMAC_MODE_STANDBY;
 				pMgmt->eCurrState = WMAC_STATE_IDLE;
 			}

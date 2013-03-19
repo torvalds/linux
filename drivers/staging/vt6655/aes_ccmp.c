@@ -154,8 +154,7 @@ void SubBytes(unsigned char *in, unsigned char *out)
 {
 	int i;
 
-	for (i = 0; i < 16; i++)
-	{
+	for (i = 0; i < 16; i++) {
 		out[i] = sbox_table[in[i]];
 	}
 }
@@ -201,20 +200,15 @@ void AESv128(unsigned char *key, unsigned char *data, unsigned char *ciphertext)
 	for (i = 0; i < 16; i++)
 		abyRoundKey[i] = key[i];
 
-	for (round = 0; round < 11; round++)
-	{
-		if (round == 0)
-		{
+	for (round = 0; round < 11; round++) {
+		if (round == 0) {
 			xor_128(abyRoundKey, data, ciphertext);
 			AddRoundKey(abyRoundKey, round);
-		}
-		else if (round == 10)
-		{
+		} else if (round == 10) {
 			SubBytes(ciphertext, TmpdataA);
 			ShiftRows(TmpdataA, TmpdataB);
 			xor_128(TmpdataB, abyRoundKey, ciphertext);
-		}
-		else // round 1 ~ 9
+		} else // round 1 ~ 9
 		{
 			SubBytes(ciphertext, TmpdataA);
 			ShiftRows(TmpdataA, TmpdataB);

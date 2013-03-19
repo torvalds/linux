@@ -152,8 +152,7 @@ bool ROUTEbRelay(PSDevice pDevice, unsigned char *pbySkbData, unsigned int uData
 					pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
 			}
 		}
-	}
-	else {
+	} else {
 		pDevice->wCurrentRate = pDevice->pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate;
 	}
 

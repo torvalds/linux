@@ -161,8 +161,7 @@ WPA_ParseRSN(
 					else
 						// any vendor checks here
 						;
-				}
-				else
+				} else
 					break;
 				//DBG_PRN_GRP14(("abyPKType[%d]: %X\n", j-1, pBSSList->abyPKType[j-1]));
 			} //for
@@ -189,8 +188,7 @@ WPA_ParseRSN(
 					else
 						// any vendor checks here
 						;
-				}
-				else
+				} else
 					break;
 				//DBG_PRN_GRP14(("abyAuthType[%d]: %X\n", j-1, pBSSList->abyAuthType[j-1]));
 			}
@@ -309,8 +307,7 @@ WPAb_Is_RSN(
 	    (pRSN->byElementID == WLAN_EID_RSN_WPA) &&  !memcmp(pRSN->abyOUI, abyOUI01, 4) &&
 	    (pRSN->wVersion == 1)) {
 		return true;
-	}
-	else
+	} else
 		return false;
 }
 

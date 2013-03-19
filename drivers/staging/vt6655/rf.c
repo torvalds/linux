@@ -912,14 +912,11 @@ bool RFvWriteWakeProgSyn(unsigned long dwIoBase, unsigned char byRFType, unsigne
 			return false;
 		}
 
-		if (uChannel <= CB_MAX_CHANNEL_24G)
-		{
+		if (uChannel <= CB_MAX_CHANNEL_24G) {
 			for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++) {
 				MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230InitTable[ii]);
 			}
-		}
-		else
-		{
+		} else {
 			for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++) {
 				MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230InitTableAMode[ii]);
 			}
@@ -1158,8 +1155,7 @@ bool RFbAL7230SelectChannelPostProcess(unsigned long dwIoBase, unsigned char byO
 	// if change between 11 b/g and 11a need to update the following register
 	// Channel Index 1~14
 
-	if ((byOldChannel <= CB_MAX_CHANNEL_24G) && (byNewChannel > CB_MAX_CHANNEL_24G))
-	{
+	if ((byOldChannel <= CB_MAX_CHANNEL_24G) && (byNewChannel > CB_MAX_CHANNEL_24G)) {
 		// Change from 2.4G to 5G
 		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[2]); //Reg2
 		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[3]); //Reg3
@@ -1168,9 +1164,7 @@ bool RFbAL7230SelectChannelPostProcess(unsigned long dwIoBase, unsigned char byO
 		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[10]);//Reg10
 		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[12]);//Reg12
 		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTableAMode[15]);//Reg15
-	}
-	else if ((byOldChannel > CB_MAX_CHANNEL_24G) && (byNewChannel <= CB_MAX_CHANNEL_24G))
-	{
+	} else if ((byOldChannel > CB_MAX_CHANNEL_24G) && (byNewChannel <= CB_MAX_CHANNEL_24G)) {
 		// change from 5G to 2.4G
 		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[2]); //Reg2
 		bResult &= IFRFbWriteEmbedded(dwIoBase, dwAL7230InitTable[3]); //Reg3

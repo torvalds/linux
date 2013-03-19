@@ -1806,8 +1806,7 @@ BBuGetFrameTime(
 		}
 
 		return (uPreamble + uFrameTime);
-	}
-	else {
+	} else {
 		uFrameTime = (cbFrameLength * 8 + 22) / uRate;   //????????
 		uTmp = ((uFrameTime * uRate) - 22) / 8;
 		if (cbFrameLength != uTmp) {
@@ -1905,8 +1904,7 @@ BBvCalculateParameter(
 	case RATE_6M:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x9B; //1001 1011
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x8B; //1000 1011
 		}
 		break;
@@ -1914,8 +1912,7 @@ BBvCalculateParameter(
 	case RATE_9M:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x9F; //1001 1111
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x8F; //1000 1111
 		}
 		break;
@@ -1923,8 +1920,7 @@ BBvCalculateParameter(
 	case RATE_12M:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x9A; //1001 1010
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x8A; //1000 1010
 		}
 		break;
@@ -1932,8 +1928,7 @@ BBvCalculateParameter(
 	case RATE_18M:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x9E; //1001 1110
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x8E; //1000 1110
 		}
 		break;
@@ -1941,8 +1936,7 @@ BBvCalculateParameter(
 	case RATE_24M:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x99; //1001 1001
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x89; //1000 1001
 		}
 		break;
@@ -1950,8 +1944,7 @@ BBvCalculateParameter(
 	case RATE_36M:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x9D; //1001 1101
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x8D; //1000 1101
 		}
 		break;
@@ -1959,8 +1952,7 @@ BBvCalculateParameter(
 	case RATE_48M:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x98; //1001 1000
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x88; //1000 1000
 		}
 		break;
@@ -1968,8 +1960,7 @@ BBvCalculateParameter(
 	case RATE_54M:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x9C; //1001 1100
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x8C; //1000 1100
 		}
 		break;
@@ -1977,8 +1968,7 @@ BBvCalculateParameter(
 	default:
 		if (byPacketType == PK_TYPE_11A) {//11a, 5GHZ
 			*pbyPhySgn = 0x9C; //1001 1100
-		}
-		else {//11g, 2.4GHZ
+		} else {//11g, 2.4GHZ
 			*pbyPhySgn = 0x8C; //1000 1100
 		}
 		break;
@@ -1989,8 +1979,7 @@ BBvCalculateParameter(
 		if (bExtBit)
 			*pbyPhySrv = *pbyPhySrv | 0x80;
 		*pwPhyLen = (unsigned short)cbUsCount;
-	}
-	else {
+	} else {
 		*pbyPhySrv = 0x00;
 		*pwPhyLen = (unsigned short)cbFrameLength;
 	}
@@ -2362,8 +2351,7 @@ void BBvLoopbackOn(PSDevice pDevice)
 		BBbWriteEmbedded(dwIoBase, 0x9A, 0);   //CR154
 
 		BBbWriteEmbedded(dwIoBase, 0x88, 0x02);//CR239
-	}
-	else { //OFDM
+	} else { //OFDM
 		// Enable internal digital loopback:CR154 |= 0000 0001
 		BBbReadEmbedded(dwIoBase, 0x9A, &byData);//CR154
 		BBbWriteEmbedded(dwIoBase, 0x9A, (unsigned char)(byData | 0x01));//CR154
@@ -2408,8 +2396,7 @@ void BBvLoopbackOff(PSDevice pDevice)
 		// Set the CR33 Bit2 to disable internal Loopback.
 		BBbReadEmbedded(dwIoBase, 0x21, &byData);//CR33
 		BBbWriteEmbedded(dwIoBase, 0x21, (unsigned char)(byData & 0xFE));//CR33
-	}
-	else { // OFDM
+	} else { // OFDM
 		BBbReadEmbedded(dwIoBase, 0x9A, &byData);//CR154
 		BBbWriteEmbedded(dwIoBase, 0x9A, (unsigned char)(byData & 0xFE));//CR154
 	}

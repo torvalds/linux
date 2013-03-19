@@ -150,20 +150,17 @@ bool KeybGetKey(
 				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
 					return (true);
-				}
-				else {
+				} else {
 					return (false);
 				}
 			} else if (dwKeyIndex < MAX_GROUP_KEY) {
 				if (pTable->KeyTable[i].GroupKey[dwKeyIndex].bKeyValid == true) {
 					*pKey = &(pTable->KeyTable[i].GroupKey[dwKeyIndex]);
 					return (true);
-				}
-				else {
+				} else {
 					return (false);
 				}
-			}
-			else {
+			} else {
 				return (false);
 			}
 		}
@@ -257,8 +254,7 @@ bool KeybSetKey(
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
 				memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
-			}
-			else {
+			} else {
 				memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
 			}
 			pKey->dwTSC47_16 = 0;
@@ -322,8 +318,7 @@ bool KeybSetKey(
 		if ((dwKeyIndex & USE_KEYRSC) == 0) {
 			// RSC set by NIC
 			memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
-		}
-		else {
+		} else {
 			memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
 		}
 		pKey->dwTSC47_16 = 0;
@@ -379,8 +374,7 @@ bool KeybRemoveKey(
 			}
 			s_vCheckKeyTableValid(pTable, dwIoBase);
 			return true;
-		}
-		else if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
+		} else if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
 			for (i = 0; i < MAX_KEY_TABLE; i++) {
 				pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = false;
 				if ((dwKeyIndex & 0x7FFFFFFF) == (pTable->KeyTable[i].dwGTKeyIndex & 0x7FFFFFFF)) {
@@ -390,8 +384,7 @@ bool KeybRemoveKey(
 			}
 			s_vCheckKeyTableValid(pTable, dwIoBase);
 			return true;
-		}
-		else {
+		} else {
 			return false;
 		}
 	}
@@ -403,8 +396,7 @@ bool KeybRemoveKey(
 				pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 				s_vCheckKeyTableValid(pTable, dwIoBase);
 				return (true);
-			}
-			else if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
+			} else if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
 				pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = false;
 				if ((dwKeyIndex & 0x7FFFFFFF) == (pTable->KeyTable[i].dwGTKeyIndex & 0x7FFFFFFF)) {
 					// remove Group transmit key
@@ -412,8 +404,7 @@ bool KeybRemoveKey(
 				}
 				s_vCheckKeyTableValid(pTable, dwIoBase);
 				return (true);
-			}
-			else {
+			} else {
 				return (false);
 			}
 		}
@@ -545,8 +536,7 @@ bool KeybGetTransmitKey(
 
 
 					return (true);
-				}
-				else {
+				} else {
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PairwiseKey.bKeyValid == false\n");
 					return (false);
 				}
@@ -568,8 +558,7 @@ bool KeybGetTransmitKey(
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dwGTKeyIndex: %lX\n", pTable->KeyTable[i].dwGTKeyIndex);
 
 					return (true);
-				}
-				else {
+				} else {
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GroupKey.bKeyValid == false\n");
 					return (false);
 				}
@@ -800,8 +789,7 @@ bool KeybSetAllGroupKey(
 			if ((dwKeyIndex & USE_KEYRSC) == 0) {
 				// RSC set by NIC
 				memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
-			}
-			else {
+			} else {
 				memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
 			}
 			pKey->dwTSC47_16 = 0;

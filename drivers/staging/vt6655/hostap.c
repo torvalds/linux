@@ -214,8 +214,7 @@ static int hostap_remove_sta(PSDevice pDevice,
 
 	if (BSSDBbIsSTAInNodeDB(pDevice->pMgmt, param->sta_addr, &uNodeIndex)) {
 		BSSvRemoveOneNode(pDevice, uNodeIndex);
-	}
-	else {
+	} else {
 		return -ENOENT;
 	}
 	return 0;
@@ -305,8 +304,7 @@ static int hostap_get_info_sta(PSDevice pDevice,
 			(jiffies - pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer) / HZ;
 
 		//param->u.get_info_sta.txexc = pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts;
-	}
-	else {
+	} else {
 		return -ENOENT;
 	}
 
@@ -336,8 +334,7 @@ static int hostap_get_info_sta(PSDevice pDevice,
 
   if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
   pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts = 0;
-  }
-  else {
+  } else {
   return -ENOENT;
   }
 
@@ -369,8 +366,7 @@ static int hostap_set_flags_sta(PSDevice pDevice,
 		pMgmt->sNodeDBTable[uNodeIndex].dwFlags &= param->u.set_flags_sta.flags_and;
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " dwFlags = %x \n",
 			(unsigned int)pMgmt->sNodeDBTable[uNodeIndex].dwFlags);
-	}
-	else {
+	} else {
 		return -ENOENT;
 	}
 

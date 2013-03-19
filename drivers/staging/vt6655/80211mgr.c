@@ -494,8 +494,7 @@ vMgrDecodeAssocResponse(
 	    (pItem->byElementID == WLAN_EID_EXTSUPP_RATES)) {
 		pFrame->pExtSuppRates = (PWLAN_IE_SUPP_RATES)pItem;
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pFrame->pExtSuppRates=[%p].\n", pItem);
-	}
-	else {
+	} else {
 		pFrame->pExtSuppRates = NULL;
 	}
 	return;

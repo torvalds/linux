@@ -105,8 +105,7 @@ PSvEnablePowerSaving(
 		// first time set listen next beacon
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_LNBCN);
 		pMgmt->wCountToWakeUp = wListenInterval;
-	}
-	else {
+	} else {
 		// always listen beacon
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
 		//pDevice->wCFG |= CFG_ALB;
@@ -277,8 +276,7 @@ PSvSendPSPOLL(
 	// send the frame
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
-	}
-	else {
+	} else {
 //        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
 	};
 
@@ -339,8 +337,7 @@ PSbSendNullPacket(
 				WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_NULL) |
 				WLAN_SET_FC_PWRMGT(1)
 ));
-	}
-	else {
+	} else {
 		pTxPacket->p80211Header->sA3.wFrameCtl = cpu_to_le16(
 			(
 				WLAN_SET_FC_FTYPE(WLAN_TYPE_DATA) |
@@ -362,8 +359,7 @@ PSbSendNullPacket(
 	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
 		return false;
-	}
-	else {
+	} else {
 
 //            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
 	}

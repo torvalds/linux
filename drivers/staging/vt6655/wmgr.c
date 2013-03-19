@@ -519,8 +519,7 @@ vMgrAssocBeginSta(
 			pMgmt->eCurrState = WMAC_STATE_ASSOCPENDING;
 			*pStatus = CMD_STATUS_SUCCESS;
 		}
-	}
-	else
+	} else
 		*pStatus = CMD_STATUS_RESOURCES;
 
 	return;
@@ -596,8 +595,7 @@ vMgrReAssocBeginSta(
 		*pStatus = csMgmt_xmit(pDevice, pTxPacket);
 		if (*pStatus != CMD_STATUS_PENDING) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Reassociation tx failed.\n");
-		}
-		else {
+		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Reassociation tx sending.\n");
 		}
 	}
@@ -813,8 +811,7 @@ s_vMgrRxAssocRequest(
 		Status = csMgmt_xmit(pDevice, pTxPacket);
 		if (Status != CMD_STATUS_PENDING) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Assoc response tx failed\n");
-		}
-		else {
+		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Assoc response tx sending..\n");
 		}
 
@@ -971,8 +968,7 @@ s_vMgrRxReAssocRequest(
 		Status = csMgmt_xmit(pDevice, pTxPacket);
 		if (Status != CMD_STATUS_PENDING) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:ReAssoc response tx failed\n");
-		}
-		else {
+		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:ReAssoc response tx sending..\n");
 		}
 	}
@@ -1036,8 +1032,7 @@ s_vMgrRxAssocResponse(
 		if (cpu_to_le16((*(sFrame.pwStatus))) == WLAN_MGMT_STATUS_SUCCESS) {
 			// set AID
 			pMgmt->wCurrAID = cpu_to_le16((*(sFrame.pwAid)));
-			if ((pMgmt->wCurrAID >> 14) != (BIT0 | BIT1))
-			{
+			if ((pMgmt->wCurrAID >> 14) != (BIT0 | BIT1)) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "AID from AP, has two msb clear.\n");
 			}
 			DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Association Successful, AID=%d.\n", pMgmt->wCurrAID & ~(BIT14 | BIT15));
@@ -1111,12 +1106,10 @@ s_vMgrRxAssocResponse(
 			}
 #endif //#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 //End Add -- //2008-0409-07, <Add> by Einsn Liu
-		}
-		else {
+		} else {
 			if (bReAssocType) {
 				pMgmt->eCurrState = WMAC_STATE_IDLE;
-			}
-			else {
+			} else {
 				// jump back to the auth state and indicate the error
 				pMgmt->eCurrState = WMAC_STATE_AUTH;
 			}
@@ -1346,8 +1339,7 @@ s_vMgrRxAuthenSequence_1(
 	if (pMgmt->bShareKeyAlgorithm) {
 		pMgmt->sNodeDBTable[uNodeIndex].eNodeState = NODE_KNOWN;
 		pMgmt->sNodeDBTable[uNodeIndex].byAuthSequence = 1;
-	}
-	else {
+	} else {
 		pMgmt->sNodeDBTable[uNodeIndex].eNodeState = NODE_AUTH;
 	}
 
@@ -1377,8 +1369,7 @@ s_vMgrRxAuthenSequence_1(
 			*(sFrame.pwStatus) = cpu_to_le16(WLAN_MGMT_STATUS_SUCCESS);
 		else
 			*(sFrame.pwStatus) = cpu_to_le16(WLAN_MGMT_STATUS_UNSUPPORTED_AUTHALG);
-	}
-	else {
+	} else {
 		if (pMgmt->bShareKeyAlgorithm)
 			*(sFrame.pwStatus) = cpu_to_le16(WLAN_MGMT_STATUS_UNSUPPORTED_AUTHALG);
 		else
@@ -1441,15 +1432,13 @@ s_vMgrRxAuthenSequence_2(
 	PSTxMgmtPacket      pTxPacket = NULL;
 
 
-	switch (cpu_to_le16((*(pFrame->pwAuthAlgorithm))))
-	{
+	switch (cpu_to_le16((*(pFrame->pwAuthAlgorithm)))) {
 	case WLAN_AUTH_ALG_OPENSYSTEM:
 		if (cpu_to_le16((*(pFrame->pwStatus))) == WLAN_MGMT_STATUS_SUCCESS) {
 			DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (OPEN) Successful.\n");
 			pMgmt->eCurrState = WMAC_STATE_AUTH;
 			timer_expire(pDevice->sTimerCommand, 0);
-		}
-		else {
+		} else {
 			DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (OPEN) Failed.\n");
 			s_vMgrLogStatus(pMgmt, cpu_to_le16((*(pFrame->pwStatus))));
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
@@ -1498,8 +1487,7 @@ s_vMgrRxAuthenSequence_2(
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Auth_reply sequence_2 tx failed.\n");
 			}
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Auth_reply sequence_2 tx ...\n");
-		}
-		else {
+		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:rx Auth_reply sequence_2 status error ...\n");
 			if (pDevice->eCommandState == WLAN_AUTHENTICATE_WAIT) {
 //                    spin_unlock_irq(&pDevice->lock);
@@ -1557,8 +1545,7 @@ s_vMgrRxAuthenSequence_3(
 			uStatusCode = WLAN_MGMT_STATUS_CHALLENGE_FAIL;
 			goto reply;
 		}
-	}
-	else {
+	} else {
 		uStatusCode = WLAN_MGMT_STATUS_UNSPEC_FAILURE;
 		goto reply;
 	}
@@ -1632,8 +1619,7 @@ s_vMgrRxAuthenSequence_4(
 		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (SHAREDKEY) Successful.\n");
 		pMgmt->eCurrState = WMAC_STATE_AUTH;
 		timer_expire(pDevice->sTimerCommand, 0);
-	}
-	else{
+	} else{
 		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "802.11 Authen (SHAREDKEY) Failed.\n");
 		s_vMgrLogStatus(pMgmt, cpu_to_le16((*(pFrame->pwStatus))));
 		pMgmt->eCurrState = WMAC_STATE_IDLE;
@@ -1678,12 +1664,10 @@ s_vMgrRxDisassociation(
 		sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
 		if (BSSDBbIsSTAInNodeDB(pMgmt, pRxPacket->p80211Header->sA3.abyAddr2, &uNodeIndex)) {
 			BSSvRemoveOneNode(pDevice, uNodeIndex);
-		}
-		else {
+		} else {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx disassoc, sta not found\n");
 		}
-	}
-	else if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA) {
+	} else if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA) {
 		sFrame.len = pRxPacket->cbMPDULen;
 		sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
 		vMgrDecodeDisassociation(&sFrame);
@@ -1758,12 +1742,10 @@ s_vMgrRxDeauthentication(
 		sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
 		if (BSSDBbIsSTAInNodeDB(pMgmt, pRxPacket->p80211Header->sA3.abyAddr2, &uNodeIndex)) {
 			BSSvRemoveOneNode(pDevice, uNodeIndex);
-		}
-		else {
+		} else {
 			DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Rx deauth, sta not found\n");
 		}
-	}
-	else {
+	} else {
 		if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA) {
 			sFrame.len = pRxPacket->cbMPDULen;
 			sFrame.pBuf = (unsigned char *)pRxPacket->p80211Header;
@@ -1965,8 +1947,7 @@ s_vMgrRxBeacon(
 				    sFrame.pHdr->sA4.abyAddr4,   // payload of beacon
 				    (void *)pRxPacket
 );
-	}
-	else {
+	} else {
 //        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "update bcn: RxChannel = : %d\n", byCurrChannel);
 		BSSbUpdateToBSSList((void *)pDevice,
 				    *sFrame.pqwTimestamp,
@@ -2005,8 +1986,7 @@ s_vMgrRxBeacon(
 				pDevice->byERPFlag |= WLAN_SET_ERP_USE_PROTECTION(1);
 				pDevice->wUseProtectCntDown = USE_PROTECT_PERIOD;
 			}
-		}
-		else {
+		} else {
 			pDevice->byERPFlag |= WLAN_SET_ERP_USE_PROTECTION(1);
 			pDevice->wUseProtectCntDown = USE_PROTECT_PERIOD;
 		}
@@ -2147,22 +2127,18 @@ s_vMgrRxBeacon(
 	if (HIDWORD(qwTimestamp) == HIDWORD(qwLocalTSF)) {
 		if (LODWORD(qwTimestamp) >= LODWORD(qwLocalTSF)) {
 			bTSFOffsetPostive = true;
-		}
-		else {
+		} else {
 			bTSFOffsetPostive = false;
 		}
-	}
-	else if (HIDWORD(qwTimestamp) > HIDWORD(qwLocalTSF)) {
+	} else if (HIDWORD(qwTimestamp) > HIDWORD(qwLocalTSF)) {
 		bTSFOffsetPostive = true;
-	}
-	else if (HIDWORD(qwTimestamp) < HIDWORD(qwLocalTSF)) {
+	} else if (HIDWORD(qwTimestamp) < HIDWORD(qwLocalTSF)) {
 		bTSFOffsetPostive = false;
 	}
 
 	if (bTSFOffsetPostive) {
 		qwTSFOffset = CARDqGetTSFOffset(pRxPacket->byRxRate, (qwTimestamp), (qwLocalTSF));
-	}
-	else {
+	} else {
 		qwTSFOffset = CARDqGetTSFOffset(pRxPacket->byRxRate, (qwLocalTSF), (qwTimestamp));
 	}
 
@@ -2198,12 +2174,10 @@ s_vMgrRxBeacon(
 				if (sFrame.pTIM->len >= (uLocateByteIndex + 4)) {
 					byTIMBitOn  = (0x01) << ((wAIDNumber) % 8);
 					pMgmt->bInTIM = sFrame.pTIM->byVirtBitMap[uLocateByteIndex] & byTIMBitOn ? true : false;
-				}
-				else {
+				} else {
 					pMgmt->bInTIM = false;
 				};
-			}
-			else {
+			} else {
 				pMgmt->bInTIM = false;
 			};
 
@@ -2217,8 +2191,7 @@ s_vMgrRxBeacon(
 //                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN:PS-POLL sent..\n");
 				}
 
-			}
-			else {
+			} else {
 				pMgmt->bInTIMWake = false;
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BCN: Not In TIM..\n");
 				if (pDevice->bPWBitOn == false) {
@@ -2267,8 +2240,7 @@ s_vMgrRxBeacon(
 				pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble = WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
 				pMgmt->sNodeDBTable[uNodeIndex].bShortSlotTime = WLAN_GET_CAP_INFO_SHORTSLOTTIME(*sFrame.pwCapInfo);
 				pMgmt->sNodeDBTable[uNodeIndex].uInActiveCount = 0;
-			}
-			else {
+			} else {
 				// Todo, initial Node content
 				BSSvCreateOneNode((PSDevice)pDevice, &uNodeIndex);
 
@@ -2314,8 +2286,7 @@ s_vMgrRxBeacon(
 				pMgmt->sNodeDBTable[0].uInActiveCount = 0;
 
 			}
-		}
-		else if (bIsSSIDEqual) {
+		} else if (bIsSSIDEqual) {
 
 			// See other adhoc sta with the same SSID but BSSID is different.
 			// adpot this vars only when TSF larger then us.
@@ -2358,7 +2329,7 @@ s_vMgrRxBeacon(
 	}
 	// endian issue ???
 	// Update TSF
-	if (bUpdateTSF) {
+if (bUpdateTSF) {
 		CARDbGetCurrentTSF(pDevice->PortOffset, &qwCurrTSF);
 		CARDbUpdateTSF(pDevice, pRxPacket->byRxRate, qwTimestamp, pRxPacket->qwLocalTSF);
 		CARDbGetCurrentTSF(pDevice->PortOffset, &qwCurrTSF);
@@ -2805,14 +2776,12 @@ vMgrJoinBSSBegin(
 
 
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "End of Join AP -- A/B/G Action\n");
-		}
-		else {
+		} else {
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
 		};
 
 
-	}
-	else {
+	} else {
 		// ad-hoc mode BSS
 		if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
 
@@ -2879,8 +2848,7 @@ vMgrJoinBSSBegin(
 
 			// Prepare beacon
 			bMgrPrepareBeaconToSend((void *)pDevice, pMgmt);
-		}
-		else {
+		} else {
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
 		};
 	};
@@ -3085,19 +3053,16 @@ static void  Encyption_Rebuild(
 			if (pCurr->abyPKType[0] == WPA_TKIP) {
 				pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;    //TKIP
 				PRINT_K("Encyption_Rebuild--->ssid reset config to [WPAPSK-TKIP]\n");
-			}
-			else if (pCurr->abyPKType[0] == WPA_AESCCMP) {
+			} else if (pCurr->abyPKType[0] == WPA_AESCCMP) {
 				pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;    //AES
 				PRINT_K("Encyption_Rebuild--->ssid reset config to [WPAPSK-AES]\n");
 			}
-		}
-		else if (pCurr->bWPA2Valid == true) {  //WPA2-PSK
+		} else if (pCurr->bWPA2Valid == true) {  //WPA2-PSK
 			pMgmt->eAuthenMode = WMAC_AUTH_WPA2PSK;
 			if (pCurr->abyCSSPK[0] == WLAN_11i_CSS_TKIP) {
 				pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;     //TKIP
 				PRINT_K("Encyption_Rebuild--->ssid reset config to [WPA2PSK-TKIP]\n");
-			}
-			else if (pCurr->abyCSSPK[0] == WLAN_11i_CSS_CCMP) {
+			} else if (pCurr->abyCSSPK[0] == WLAN_11i_CSS_CCMP) {
 				pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;    //AES
 				PRINT_K("Encyption_Rebuild--->ssid reset config to [WPA2PSK-AES]\n");
 			}
@@ -3749,11 +3714,9 @@ s_MgrMakeAssocRequest(
 		*pbyRSN++ = 0xf2;
 		if (pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) {
 			*pbyRSN++ = WPA_AUTH_PSK;
-		}
-		else if (pMgmt->eAuthenMode == WMAC_AUTH_WPA) {
+		} else if (pMgmt->eAuthenMode == WMAC_AUTH_WPA) {
 			*pbyRSN++ = WPA_AUTH_IEEE802_1X;
-		}
-		else {
+		} else {
 			*pbyRSN++ = WPA_NONE;
 		}
 
@@ -4374,8 +4337,7 @@ s_vMgrRxProbeResponse(
 				    sFrame.pHdr->sA4.abyAddr4,   // payload of probresponse
 				    (void *)pRxPacket
 );
-	}
-	else {
+	} else {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe resp/insert: RxChannel = : %d\n", byCurrChannel);
 		BSSbInsertToBSSList((void *)pDevice,
 				    sFrame.pHdr->sA3.abyAddr3,
@@ -4474,8 +4436,7 @@ s_vMgrRxProbeRequest(
 			Status = csMgmt_xmit(pDevice, pTxPacket);
 			if (Status != CMD_STATUS_PENDING) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Probe response tx failed\n");
-			}
-			else {
+			} else {
 //                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Probe response tx sending..\n");
 			}
 		}
@@ -4537,8 +4498,7 @@ vMgrRxManagePacket(
 					     &Status
 );
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wmgr: send vMgrDeAuthenBeginSta 1\n");
-		}
-		else {
+		} else {
 			s_vMgrRxAssocRequest(pDevice, pMgmt, pRxPacket, uNodeIndex);
 		}
 		break;
@@ -4664,8 +4624,7 @@ bMgrPrepareBeaconToSend(
 //    pDevice->bBeaconBufReady = false;
 	if (pDevice->bEncryptionEnable || pDevice->bEnable8021x) {
 		pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
-	}
-	else {
+	} else {
 		pMgmt->wCurrCapInfo &= ~WLAN_SET_CAP_INFO_PRIVACY(1);
 	}
 	pTxPacket = s_MgrMakeBeacon

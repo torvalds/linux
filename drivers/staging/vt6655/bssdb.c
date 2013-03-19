@@ -810,8 +810,7 @@ BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
 				BigestCount = pMgmt->sNodeDBTable[ii].uInActiveCount;
 				SelectIndex = ii;
 			}
-		}
-		else {
+		} else {
 			break;
 		}
 	}
@@ -825,8 +824,7 @@ BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
 			while ((skb = skb_dequeue(&pMgmt->sNodeDBTable[*puNodeIndex].sTxPSQueue)) != NULL)
 				dev_kfree_skb(skb);
 		}
-	}
-	else {
+	} else {
 		*puNodeIndex = ii;
 	}
 
@@ -1027,13 +1025,13 @@ BSSvSecondCallBack(
 	MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
 	if (((!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->bHWRadioOff == false)) || ((pDevice->byGPIO & GPIO0_DATA) && (pDevice->bHWRadioOff == true))) && (cc == false)) {
 		cc = true;
-	}
-	else if (cc == true) {
+	} else if (cc == true) {
 
 		if (pDevice->bHWRadioOff == true) {
 			if (!(pDevice->byGPIO & GPIO0_DATA))
 //||(!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
-			{ if (status == 1) goto start;
+			{
+				if (status == 1) goto start;
 				status = 1;
 				CARDbRadioPowerOff(pDevice);
 				pMgmt->sNodeDBTable[0].bActive = false;
@@ -1045,14 +1043,16 @@ BSSvSecondCallBack(
 			}
 			if (pDevice->byGPIO & GPIO0_DATA)
 //||(!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
-			{if (status == 2) goto start;
+			{
+				if (status == 2) goto start;
 				status = 2;
 				CARDbRadioPowerOn(pDevice);
-			} }
-		else{
+			}
+		} else {
 			if (pDevice->byGPIO & GPIO0_DATA)
 //||(!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
-			{if (status == 3) goto start;
+			{
+				if (status == 3) goto start;
 				status = 3;
 				CARDbRadioPowerOff(pDevice);
 				pMgmt->sNodeDBTable[0].bActive = false;
@@ -1064,10 +1064,12 @@ BSSvSecondCallBack(
 			}
 			if (!(pDevice->byGPIO & GPIO0_DATA))
 //||(!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
-			{if (status == 4) goto start;
+			{
+				if (status == 4) goto start;
 				status = 4;
 				CARDbRadioPowerOn(pDevice);
-			} }
+			}
+		}
 	}
 start:
 #endif
@@ -1075,8 +1077,7 @@ start:
 
 	if (pDevice->wUseProtectCntDown > 0) {
 		pDevice->wUseProtectCntDown--;
-	}
-	else {
+	} else {
 		// disable protect mode
 		pDevice->byERPFlag &= ~(WLAN_SET_ERP_USE_PROTECTION(1));
 	}
@@ -1096,8 +1097,7 @@ start:
 				wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 			}
 #endif
-		}
-		else if (pDevice->bLinkPass == true)
+		} else if (pDevice->bLinkPass == true)
 			pDevice->byReAssocCount = 0;
 	}
 
@@ -1154,8 +1154,7 @@ start:
 				if (ii > 0) {
 					// ii = 0 for multicast node (AP & Adhoc)
 					RATEvTxRateFallBack((void *)pDevice, &(pMgmt->sNodeDBTable[ii]));
-				}
-				else {
+				} else {
 					// ii = 0 reserved for unicast AP node (Infra STA)
 					if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)
 #ifdef	PLICE_DEBUG
@@ -1193,8 +1192,7 @@ start:
 				MACvEnableProtectMD(pDevice->PortOffset);
 				pDevice->bProtectMode = true;
 			}
-		}
-		else {
+		} else {
 			if (pDevice->bProtectMode) {
 				MACvDisableProtectMD(pDevice->PortOffset);
 				pDevice->bProtectMode = false;
@@ -1208,8 +1206,7 @@ start:
 				BBvSetShortSlotTime(pDevice);
 				vUpdateIFS((void *)pDevice);
 			}
-		}
-		else {
+		} else {
 			if (!pDevice->bShortSlotTime) {
 				pDevice->bShortSlotTime = true;
 				BBvSetShortSlotTime(pDevice);
@@ -1224,8 +1221,7 @@ start:
 				MACvEnableBarkerPreambleMd(pDevice->PortOffset);
 				pDevice->bBarkerPreambleMd = true;
 			}
-		}
-		else {
+		} else {
 			if (pDevice->bBarkerPreambleMd) {
 				MACvDisableBarkerPreambleMd(pDevice->PortOffset);
 				pDevice->bBarkerPreambleMd = false;
@@ -1299,8 +1295,7 @@ start:
 				}
 #endif
 			}
-		}
-		else if (pItemSSID->len != 0) {
+		} else if (pItemSSID->len != 0) {
 			if (pDevice->uAutoReConnectTime < 10) {
 				pDevice->uAutoReConnectTime++;
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
@@ -1308,8 +1303,7 @@ start:
 				if (pDevice->bWPASuppWextEnabled == true)
 					pDevice->uAutoReConnectTime = 0;
 #endif
-			}
-			else {
+			} else {
 				//mike use old encryption status for wpa reauthen
 				if (pDevice->bWPADEVUp)
 					pDevice->eEncryptionStatus = pDevice->eOldEncryptionStatus;
@@ -1329,8 +1323,7 @@ start:
 		if ((pMgmt->eCurrState == WMAC_STATE_STARTED) && (pCurrSSID->len == 0)) {
 			if (pDevice->uAutoReConnectTime < 10) {
 				pDevice->uAutoReConnectTime++;
-			}
-			else {
+			} else {
 				DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Adhoc re-scanning ...\n");
 				pMgmt->eScanType = WMAC_SCAN_ACTIVE;
 				bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
@@ -1456,15 +1449,12 @@ BSSvUpdateNodeTxCounter(
 					for (ii = 0; ii < byTxRetry; ii++)
 						//for (ii=0;ii<txRetryTemp;ii++)
 					{
-						if (ii < 5)
-						{
+						if (ii < 5) {
 
 //PLICE_DEBUG
 							wFallBackRate = awHWRetry0[wRate-RATE_18M][ii];
 							//wFallBackRate = awHWRetry0[wRate-RATE_12M][ii];
-						}
-						else
-						{
+						} else {
 							wFallBackRate = awHWRetry0[wRate-RATE_18M][4];
 							//wFallBackRate = awHWRetry0[wRate-RATE_12M][4];
 						}
@@ -1677,21 +1667,16 @@ void s_uCalculateLinkQual(
 	TxOkRatio = (TxCnt < 6) ? 4000 : ((pDevice->scStatistic.TxNoRetryOkCount * 4000) / TxCnt);
 	RxOkRatio = (RxCnt < 6) ? 2000 : ((pDevice->scStatistic.RxOkCnt * 2000) / RxCnt);
 //decide link quality
-	if (pDevice->bLinkPass != true)
-	{
+	if (pDevice->bLinkPass != true) {
 		pDevice->scStatistic.LinkQuality = 0;
 		pDevice->scStatistic.SignalStren = 0;
-	}
-	else
-	{
+	} else {
 		RFvRSSITodBm(pDevice, (unsigned char)(pDevice->uCurrRSSI), &ldBm);
 		if (-ldBm < 50)  {
 			RssiRatio = 4000;
-		}
-		else if (-ldBm > 90) {
+		} else if (-ldBm > 90) {
 			RssiRatio = 0;
-		}
-		else {
+		} else {
 			RssiRatio = (40-(-ldBm-50))*4000/40;
 		}
 		pDevice->scStatistic.SignalStren = RssiRatio/40;

@@ -234,8 +234,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 	//spin_unlock_irq(&pDevice->lock);
 	if (param->u.wpa_key.key && fcpfkernel) {
 		memcpy(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len);
-	}
-	else {
+	} else {
 		spin_unlock_irq(&pDevice->lock);
 		if (param->u.wpa_key.key &&
 		    copy_from_user(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len)) {
@@ -250,8 +249,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 	if (param->u.wpa_key.alg_name == WPA_ALG_WEP) {
 		if (dwKeyIndex > 3) {
 			return -EINVAL;
-		}
-		else {
+		} else {
 			if (param->u.wpa_key.set_tx) {
 				pDevice->byKeyIndex = (unsigned char)dwKeyIndex;
 				pDevice->bTransmitKey = true;
@@ -275,8 +273,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 	//spin_unlock_irq(&pDevice->lock);
 	if (param->u.wpa_key.seq && fcpfkernel) {
 		memcpy(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len);
-	}
-	else {
+	} else {
 		spin_unlock_irq(&pDevice->lock);
 		if (param->u.wpa_key.seq &&
 		    copy_from_user(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len)) {
@@ -781,8 +778,7 @@ static int wpa_set_associate(PSDevice pDevice,
 	// set bssid
 	if (memcmp(param->u.wpa_associate.bssid, &abyNullAddr[0], 6) != 0)
 		memcpy(pMgmt->abyDesireBSSID, param->u.wpa_associate.bssid, 6);
-	else
-	{
+	else {
 		bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, pItemSSID->abySSID);
 	}
 
@@ -833,8 +829,7 @@ static int wpa_set_associate(PSDevice pDevice,
 		pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 		//pMgmt->eAuthenMode = WMAC_AUTH_SHAREKEY;
 		pMgmt->bShareKeyAlgorithm = true;
-	}
-	else if (pMgmt->eAuthenMode == WMAC_AUTH_OPEN) {
+	} else if (pMgmt->eAuthenMode == WMAC_AUTH_OPEN) {
 		if (!bWepEnabled)  pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 		else pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 		//pMgmt->eAuthenMode = WMAC_AUTH_OPEN;

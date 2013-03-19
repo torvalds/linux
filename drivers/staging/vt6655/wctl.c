@@ -185,8 +185,7 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 		if (bExtIV)
 			// ExtIV
 			uHeaderSize += 4;
-	}
-	else {
+	} else {
 		uHeaderSize = 24;
 	}
 
@@ -197,8 +196,7 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 			pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].uLifetime = pDevice->dwMaxReceiveLifetime;
 			pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wSequence = (pMACHeader->wSeqCtl >> 4);
 			pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum = (pMACHeader->wSeqCtl & 0x000F);
-		}
-		else {
+		} else {
 			pDevice->uCurrentDFCBIdx = WCTLuInsertDFCB(pDevice, pMACHeader);
 			if (pDevice->uCurrentDFCBIdx == pDevice->cbDFCB) {
 				return(false);
@@ -212,8 +210,7 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 		pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
 		//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "First pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
 		return(false);
-	}
-	else {
+	} else {
 		pDevice->uCurrentDFCBIdx = WCTLuSearchDFCB(pDevice, pMACHeader);
 		if (pDevice->uCurrentDFCBIdx != pDevice->cbDFCB) {
 			if ((pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wSequence == (pMACHeader->wSeqCtl >> 4)) &&
@@ -225,15 +222,13 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += (cbFrameLength - uHeaderSize);
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
 				//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Second pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
-			}
-			else {
+			} else {
 				// seq error or frag # error flush DFCB
 				pDevice->cbFreeDFCB++;
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].bInUse = false;
 				return(false);
 			}
-		}
-		else {
+		} else {
 			return(false);
 		}
 		if (IS_LAST_FRAGMENT_PKT(pMACHeader)) {

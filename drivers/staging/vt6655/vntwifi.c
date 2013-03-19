@@ -614,8 +614,7 @@ VNTWIFIbyGetKeyCypher(
   VNTWIFIbInit(
   void *pAdapterHandler,
   void **pMgmtHandler
-)
-  {
+) {
 
   PSMgmtObject        pMgmt = NULL;
   unsigned int ii;
@@ -785,8 +784,7 @@ VNTWIFIbChannelSwitch(
   VNTWIFIbRadarPresent(
   void *pMgmtObject,
   unsigned char byChannel
-)
-  {
+) {
   PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
   if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
   (byChannel == (unsigned char) pMgmt->uCurrChannel) &&

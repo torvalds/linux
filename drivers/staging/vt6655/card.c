@@ -138,8 +138,7 @@ s_vCalculateOFDMRParameter(
 		if (ePHYType == PHY_TYPE_11A) {//5GHZ
 			*pbyTxRate = 0x9B;
 			*pbyRsvTime = 44;
-		}
-		else {
+		} else {
 			*pbyTxRate = 0x8B;
 			*pbyRsvTime = 50;
 		}
@@ -149,8 +148,7 @@ s_vCalculateOFDMRParameter(
 		if (ePHYType == PHY_TYPE_11A) {//5GHZ
 			*pbyTxRate = 0x9F;
 			*pbyRsvTime = 36;
-		}
-		else {
+		} else {
 			*pbyTxRate = 0x8F;
 			*pbyRsvTime = 42;
 		}
@@ -160,8 +158,7 @@ s_vCalculateOFDMRParameter(
 		if (ePHYType == PHY_TYPE_11A) {//5GHZ
 			*pbyTxRate = 0x9A;
 			*pbyRsvTime = 32;
-		}
-		else {
+		} else {
 			*pbyTxRate = 0x8A;
 			*pbyRsvTime = 38;
 		}
@@ -171,8 +168,7 @@ s_vCalculateOFDMRParameter(
 		if (ePHYType == PHY_TYPE_11A) {//5GHZ
 			*pbyTxRate = 0x9E;
 			*pbyRsvTime = 28;
-		}
-		else {
+		} else {
 			*pbyTxRate = 0x8E;
 			*pbyRsvTime = 34;
 		}
@@ -182,8 +178,7 @@ s_vCalculateOFDMRParameter(
 		if (ePHYType == PHY_TYPE_11A) {//5GHZ
 			*pbyTxRate = 0x9D;
 			*pbyRsvTime = 24;
-		}
-		else {
+		} else {
 			*pbyTxRate = 0x8D;
 			*pbyRsvTime = 30;
 		}
@@ -193,8 +188,7 @@ s_vCalculateOFDMRParameter(
 		if (ePHYType == PHY_TYPE_11A) {//5GHZ
 			*pbyTxRate = 0x98;
 			*pbyRsvTime = 24;
-		}
-		else {
+		} else {
 			*pbyTxRate = 0x88;
 			*pbyRsvTime = 30;
 		}
@@ -204,8 +198,7 @@ s_vCalculateOFDMRParameter(
 		if (ePHYType == PHY_TYPE_11A) {//5GHZ
 			*pbyTxRate = 0x9C;
 			*pbyRsvTime = 24;
-		}
-		else {
+		} else {
 			*pbyTxRate = 0x8C;
 			*pbyRsvTime = 30;
 		}
@@ -216,8 +209,7 @@ s_vCalculateOFDMRParameter(
 		if (ePHYType == PHY_TYPE_11A) {//5GHZ
 			*pbyTxRate = 0x99;
 			*pbyRsvTime = 28;
-		}
-		else {
+		} else {
 			*pbyTxRate = 0x89;
 			*pbyRsvTime = 34;
 		}
@@ -369,8 +361,7 @@ s_vSetRSPINF(PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, v
  *
  */
 /*
-  bool CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength)
-  {
+  bool CARDbSendPacket (void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength) {
   PSDevice    pDevice = (PSDevice) pDeviceHandler;
   if (ePktType == PKT_TYPE_802_11_MNG) {
   return TXbTD0Send(pDevice, pPacket, uLength);
@@ -1005,8 +996,7 @@ bool CARDbRadioPowerOn(void *pDeviceHandler)
 		if (pDevice->bRadioControlOff == true) printk("chester bRadioControlOff\n");
 		return false; }
 
-	if (pDevice->bRadioOff == false)
-	{
+	if (pDevice->bRadioOff == false) {
 		printk("chester pbRadioOff\n");
 		return true; }
 
@@ -1865,15 +1855,13 @@ void vUpdateIFS(void *pDeviceHandler)
 		pDevice->uDIFS = C_SIFS_A + 2*C_SLOT_SHORT;
 		pDevice->uCwMin = C_CWMIN_A;
 		byMaxMin = 4;
-	}
-	else if (pDevice->byPacketType == PK_TYPE_11B) {//0000 0001 0000 0000,11b
+	} else if (pDevice->byPacketType == PK_TYPE_11B) {//0000 0001 0000 0000,11b
 		pDevice->uSlot = C_SLOT_LONG;
 		pDevice->uSIFS = C_SIFS_BG;
 		pDevice->uDIFS = C_SIFS_BG + 2*C_SLOT_LONG;
 		pDevice->uCwMin = C_CWMIN_B;
 		byMaxMin = 5;
-	}
-	else { // PK_TYPE_11GA & PK_TYPE_11GB
+	} else { // PK_TYPE_11GA & PK_TYPE_11GB
 		pDevice->uSIFS = C_SIFS_BG;
 		if (pDevice->bShortSlotTime) {
 			pDevice->uSlot = C_SLOT_SHORT;
@@ -1884,8 +1872,7 @@ void vUpdateIFS(void *pDeviceHandler)
 		if (pDevice->wBasicRate & 0x0150) { //0000 0001 0101 0000,24M,12M,6M
 			pDevice->uCwMin = C_CWMIN_A;
 			byMaxMin = 4;
-		}
-		else {
+		} else {
 			pDevice->uCwMin = C_CWMIN_B;
 			byMaxMin = 5;
 		}
@@ -1978,11 +1965,9 @@ unsigned char CARDbyGetPktType(void *pDeviceHandler)
 
 	if (pDevice->byBBType == BB_TYPE_11A || pDevice->byBBType == BB_TYPE_11B) {
 		return (unsigned char)pDevice->byBBType;
-	}
-	else if (CARDbIsOFDMinBasicRate((void *)pDevice)) {
+	} else if (CARDbIsOFDMinBasicRate((void *)pDevice)) {
 		return PK_TYPE_11GA;
-	}
-	else {
+	} else {
 		return PK_TYPE_11GB;
 	}
 }
@@ -2072,8 +2057,7 @@ QWORD CARDqGetTSFOffset(unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
 	if (LODWORD(qwTSF1) < LODWORD(qwTSF2)) {
 		// if borrow needed
 		HIDWORD(qwTSFOffset) = HIDWORD(qwTSF1) - HIDWORD(qwTSF2) - 1;
-	}
-	else {
+	} else {
 		HIDWORD(qwTSFOffset) = HIDWORD(qwTSF1) - HIDWORD(qwTSF2);
 	};
 	return (qwTSFOffset);

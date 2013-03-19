@@ -195,12 +195,10 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
 			if (byRSR & RSR_ADDRBROAD) {
 				pStatistic->ullRxBroadcastFrames++;
 				pStatistic->ullRxBroadcastBytes += (unsigned long long) cbFrameLength;
-			}
-			else if (byRSR & RSR_ADDRMULTI) {
+			} else if (byRSR & RSR_ADDRMULTI) {
 				pStatistic->ullRxMulticastFrames++;
 				pStatistic->ullRxMulticastBytes += (unsigned long long) cbFrameLength;
-			}
-			else {
+			} else {
 				pStatistic->ullRxDirectedFrames++;
 				pStatistic->ullRxDirectedBytes += (unsigned long long) cbFrameLength;
 			}
@@ -213,85 +211,73 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
 			pStatistic->CustomStat.ullRsr11MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "11M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr11M, (int)pStatistic->CustomStat.ullRsr11MCRCOk, byRSR);
-	}
-	else if (byRxRate == 11) {
+	} else if (byRxRate == 11) {
 		pStatistic->CustomStat.ullRsr5M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr5MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 5M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr5M, (int)pStatistic->CustomStat.ullRsr5MCRCOk, byRSR);
-	}
-	else if (byRxRate == 4) {
+	} else if (byRxRate == 4) {
 		pStatistic->CustomStat.ullRsr2M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr2MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 2M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr2M, (int)pStatistic->CustomStat.ullRsr2MCRCOk, byRSR);
-	}
-	else if (byRxRate == 2) {
+	} else if (byRxRate == 2) {
 		pStatistic->CustomStat.ullRsr1M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr1MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 1M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr1M, (int)pStatistic->CustomStat.ullRsr1MCRCOk, byRSR);
-	}
-	else if (byRxRate == 12) {
+	} else if (byRxRate == 12) {
 		pStatistic->CustomStat.ullRsr6M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr6MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 6M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr6M, (int)pStatistic->CustomStat.ullRsr6MCRCOk);
-	}
-	else if (byRxRate == 18) {
+	} else if (byRxRate == 18) {
 		pStatistic->CustomStat.ullRsr9M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr9MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 9M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr9M, (int)pStatistic->CustomStat.ullRsr9MCRCOk);
-	}
-	else if (byRxRate == 24) {
+	} else if (byRxRate == 24) {
 		pStatistic->CustomStat.ullRsr12M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr12MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "12M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr12M, (int)pStatistic->CustomStat.ullRsr12MCRCOk);
-	}
-	else if (byRxRate == 36) {
+	} else if (byRxRate == 36) {
 		pStatistic->CustomStat.ullRsr18M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr18MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "18M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr18M, (int)pStatistic->CustomStat.ullRsr18MCRCOk);
-	}
-	else if (byRxRate == 48) {
+	} else if (byRxRate == 48) {
 		pStatistic->CustomStat.ullRsr24M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr24MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "24M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr24M, (int)pStatistic->CustomStat.ullRsr24MCRCOk);
-	}
-	else if (byRxRate == 72) {
+	} else if (byRxRate == 72) {
 		pStatistic->CustomStat.ullRsr36M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr36MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "36M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr36M, (int)pStatistic->CustomStat.ullRsr36MCRCOk);
-	}
-	else if (byRxRate == 96) {
+	} else if (byRxRate == 96) {
 		pStatistic->CustomStat.ullRsr48M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr48MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "48M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr48M, (int)pStatistic->CustomStat.ullRsr48MCRCOk);
-	}
-	else if (byRxRate == 108) {
+	} else if (byRxRate == 108) {
 		pStatistic->CustomStat.ullRsr54M++;
 		if (byRSR & RSR_CRCOK) {
 			pStatistic->CustomStat.ullRsr54MCRCOk++;
 		}
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "54M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr54M, (int)pStatistic->CustomStat.ullRsr54MCRCOk);
-	}
-	else {
+	} else {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unknown: Total[%d], CRCOK[%d]\n", (int)pStatistic->dwRsrRxPacket+1, (int)pStatistic->dwRsrCRCOk);
 	}
 
@@ -343,23 +329,17 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
 
 	if (cbFrameLength < ETH_ZLEN + 4) {
 		pStatistic->dwRsrRunt++;
-	}
-	else if (cbFrameLength == ETH_ZLEN + 4) {
+	} else if (cbFrameLength == ETH_ZLEN + 4) {
 		pStatistic->dwRsrRxFrmLen64++;
-	}
-	else if ((65 <= cbFrameLength) && (cbFrameLength <= 127)) {
+	} else if ((65 <= cbFrameLength) && (cbFrameLength <= 127)) {
 		pStatistic->dwRsrRxFrmLen65_127++;
-	}
-	else if ((128 <= cbFrameLength) && (cbFrameLength <= 255)) {
+	} else if ((128 <= cbFrameLength) && (cbFrameLength <= 255)) {
 		pStatistic->dwRsrRxFrmLen128_255++;
-	}
-	else if ((256 <= cbFrameLength) && (cbFrameLength <= 511)) {
+	} else if ((256 <= cbFrameLength) && (cbFrameLength <= 511)) {
 		pStatistic->dwRsrRxFrmLen256_511++;
-	}
-	else if ((512 <= cbFrameLength) && (cbFrameLength <= 1023)) {
+	} else if ((512 <= cbFrameLength) && (cbFrameLength <= 1023)) {
 		pStatistic->dwRsrRxFrmLen512_1023++;
-	}
-	else if ((1024 <= cbFrameLength) && (cbFrameLength <= ETH_FRAME_LEN + 4)) {
+	} else if ((1024 <= cbFrameLength) && (cbFrameLength <= ETH_FRAME_LEN + 4)) {
 		pStatistic->dwRsrRxFrmLen1024_1518++;
 	} else if (cbFrameLength > ETH_FRAME_LEN + 4) {
 		pStatistic->dwRsrLong++;
@@ -448,8 +428,7 @@ STAvUpdateTDStatCounter(
 	pHeader = (PWLAN_80211HDR_A4) pbyBuffer;
 	if (WLAN_GET_FC_TODS(pHeader->wFrameCtl) == 0) {
 		pbyDestAddr = &(pHeader->abyAddr1[0]);
-	}
-	else {
+	} else {
 		pbyDestAddr = &(pHeader->abyAddr3[0]);
 	}
 	// increase tx packet count
@@ -474,17 +453,14 @@ STAvUpdateTDStatCounter(
 		if (is_broadcast_ether_addr(pbyDestAddr)) {
 			pStatistic->ullTxBroadcastFrames[uIdx]++;
 			pStatistic->ullTxBroadcastBytes[uIdx] += (unsigned long long) cbFrameLength;
-		}
-		else if (is_multicast_ether_addr(pbyDestAddr)) {
+		} else if (is_multicast_ether_addr(pbyDestAddr)) {
 			pStatistic->ullTxMulticastFrames[uIdx]++;
 			pStatistic->ullTxMulticastBytes[uIdx] += (unsigned long long) cbFrameLength;
-		}
-		else {
+		} else {
 			pStatistic->ullTxDirectedFrames[uIdx]++;
 			pStatistic->ullTxDirectedBytes[uIdx] += (unsigned long long) cbFrameLength;
 		}
-	}
-	else {
+	} else {
 		if (byTSR1 & TSR1_TERR)
 			pStatistic->dwTsrErr[uIdx]++;
 		if (byTSR1 & TSR1_RETRYTMO)
