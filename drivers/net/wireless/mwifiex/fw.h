@@ -295,6 +295,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_PCIE_DESC_DETAILS                 0x00fa
 #define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
+#define HostCmd_CMD_11AC_CFG			      0x0112
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -1363,6 +1364,15 @@ struct host_cmd_ds_sys_config {
 	u8 tlv[0];
 };
 
+struct host_cmd_11ac_vht_cfg {
+	__le16 action;
+	u8 band_config;
+	u8 misc_config;
+	__le32 cap_info;
+	__le32 mcs_tx_set;
+	__le32 mcs_rx_set;
+} __packed;
+
 struct host_cmd_tlv_akmp {
 	struct host_cmd_tlv tlv;
 	__le16 key_mgmt;
@@ -1620,6 +1630,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_eeprom_access eeprom;
 		struct host_cmd_ds_802_11_subsc_evt subsc_evt;
 		struct host_cmd_ds_sys_config uap_sys_config;
+		struct host_cmd_11ac_vht_cfg vht_cfg;
 	} params;
 } __packed;
 
