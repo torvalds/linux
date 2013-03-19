@@ -79,7 +79,7 @@ static inline int ti_thermal_get_temp(struct thermal_zone_device *thermal,
 {
 	struct ti_thermal_data *data = thermal->devdata;
 	struct ti_bandgap *bgp;
-	struct ti_temp_sensor *s;
+	const struct ti_temp_sensor *s;
 	int ret, tmp, pcb_temp, slope, constant;
 
 	if (!data)

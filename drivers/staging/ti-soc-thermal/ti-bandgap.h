@@ -30,6 +30,13 @@
 /**
  * DOC: bandgap driver data structure
  * ==================================
+ *
+ *   +----------+----------------+
+ *   | struct temp_sensor_regval |
+ *   +---------------------------+
+ *              * (Array of)
+ *              |
+ *              |
  *   +-------------------+   +-----------------+
  *   | struct ti_bandgap |-->| struct device * |
  *   +----------+--------+   +-----------------+
@@ -47,11 +54,11 @@
  * | | struct ti_temp_sensor |-->| struct temp_sensor_data |           |
  * | +-----------------------+   +------------+------------+           |
  * |            |                                                      |
- * |            +--------------------------+                           |
- * |            V                          V                           |
- * | +----------+- --------------+  +----+-------------------------+   |
- * | | struct temp_sensor_regval |  | struct temp_sensor_registers |   |
- * | +---------------------------+  +------------------------------+   |
+ * |            +                                                      |
+ * |            V                                                      |
+ * | +----------+-------------------+                                  |
+ * | | struct temp_sensor_registers |                                  |
+ * | +------------------------------+                                  |
  * |                                                                   |
  * +-------------------------------------------------------------------+
  *
@@ -190,10 +197,32 @@ struct temp_sensor_data {
 struct ti_bandgap_data;
 
 /**
+ * struct temp_sensor_regval - temperature sensor register values and priv data
+ * @bg_mode_ctrl: temp sensor control register value
+ * @bg_ctrl: bandgap ctrl register value
+ * @bg_counter: bandgap counter value
+ * @bg_threshold: bandgap threshold register value
+ * @tshut_threshold: bandgap tshut register value
+ * @data: private data
+ *
+ * Data structure to save and restore bandgap register set context. Only
+ * required registers are shadowed, when needed.
+ */
+struct temp_sensor_regval {
+	u32			bg_mode_ctrl;
+	u32			bg_ctrl;
+	u32			bg_counter;
+	u32			bg_threshold;
+	u32			tshut_threshold;
+	void			*data;
+};
+
+/**
  * struct ti_bandgap - bandgap device structure
  * @dev: struct device pointer
  * @base: io memory base address
  * @conf: struct with bandgap configuration set (# sensors, conv_table, etc)
+ * @regval: temperature sensor register values
  * @fclock: pointer to functional clock of temperature sensor
  * @div_clk: pointer to divider clock of temperature sensor fclk
  * @bg_mutex: mutex for ti_bandgap structure
@@ -208,7 +237,8 @@ struct ti_bandgap_data;
 struct ti_bandgap {
 	struct device			*dev;
 	void __iomem			*base;
-	struct ti_bandgap_data		*conf;
+	const struct ti_bandgap_data	*conf;
+	struct temp_sensor_regval	*regval;
 	struct clk			*fclock;
 	struct clk			*div_clk;
 	spinlock_t			lock; /* shields this struct */
@@ -218,29 +248,9 @@ struct ti_bandgap {
 };
 
 /**
- * struct temp_sensor_regval - temperature sensor register values
- * @bg_mode_ctrl: temp sensor control register value
- * @bg_ctrl: bandgap ctrl register value
- * @bg_counter: bandgap counter value
- * @bg_threshold: bandgap threshold register value
- * @tshut_threshold: bandgap tshut register value
- *
- * Data structure to save and restore bandgap register set context. Only
- * required registers are shadowed, when needed.
- */
-struct temp_sensor_regval {
-	u32			bg_mode_ctrl;
-	u32			bg_ctrl;
-	u32			bg_counter;
-	u32			bg_threshold;
-	u32			tshut_threshold;
-};
-
-/**
  * struct ti_temp_sensor - bandgap temperature sensor configuration data
  * @ts_data: pointer to struct with thresholds, limits of temperature sensor
  * @registers: pointer to the list of register offsets and bitfields
- * @regval: temperature sensor register values
  * @domain: the name of the domain where the sensor is located
  * @slope: sensor gradient slope info for hotspot extrapolation equation
  * @const: sensor gradient const info for hotspot extrapolation equation
@@ -248,7 +258,6 @@ struct temp_sensor_regval {
  *             with no external influence
  * @constant_pcb: sensor gradient const info for hotspot extrapolation equation
  *             with no external influence
- * @data: private data
  * @register_cooling: function to describe how this sensor is going to be cooled
  * @unregister_cooling: function to release cooling data
  *
@@ -261,14 +270,12 @@ struct temp_sensor_regval {
 struct ti_temp_sensor {
 	struct temp_sensor_data		*ts_data;
 	struct temp_sensor_registers	*registers;
-	struct temp_sensor_regval	regval;
 	char				*domain;
 	/* for hotspot extrapolation */
 	const int			slope;
 	const int			constant;
 	const int			slope_pcb;
 	const int			constant_pcb;
-	void				*data;
 	int (*register_cooling)(struct ti_bandgap *bgp, int id);
 	int (*unregister_cooling)(struct ti_bandgap *bgp, int id);
 };

@@ -248,7 +248,7 @@ static irqreturn_t ti_bandgap_tshut_irq_handler(int irq, void *data)
 static
 int ti_bandgap_adc_to_mcelsius(struct ti_bandgap *bgp, int adc_val, int *t)
 {
-	struct ti_bandgap_data *conf = bgp->conf;
+	const struct ti_bandgap_data *conf = bgp->conf;
 	int ret = 0;
 
 	/* look up for temperature in the table and return the temperature */
@@ -276,7 +276,7 @@ exit:
 static
 int ti_bandgap_mcelsius_to_adc(struct ti_bandgap *bgp, long temp, int *adc)
 {
-	struct ti_bandgap_data *conf = bgp->conf;
+	const struct ti_bandgap_data *conf = bgp->conf;
 	const int *conv_table = bgp->conf->conv_table;
 	int high, low, mid, ret = 0;
 
@@ -724,7 +724,7 @@ int ti_bandgap_set_sensor_data(struct ti_bandgap *bgp, int id, void *data)
 	if (ret)
 		return ret;
 
-	bgp->conf->sensors[id].data = data;
+	bgp->regval[id].data = data;
 
 	return 0;
 }
@@ -743,7 +743,7 @@ void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id)
 	if (ret)
 		return ERR_PTR(ret);
 
-	return bgp->conf->sensors[id].data;
+	return bgp->regval[id].data;
 }
 
 /***   Helper functions used during device initialization   ***/
@@ -910,6 +910,14 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	of_id = of_match_device(of_ti_bandgap_match, &pdev->dev);
 	if (of_id)
 		bgp->conf = of_id->data;
+
+	/* register shadow for context save and restore */
+	bgp->regval = devm_kzalloc(&pdev->dev, sizeof(*bgp->regval) *
+				   bgp->conf->sensor_count, GFP_KERNEL);
+	if (!bgp) {
+		dev_err(&pdev->dev, "Unable to allocate mem for driver ref\n");
+		return ERR_PTR(-ENOMEM);
+	}
 
 	i = 0;
 	do {
@@ -1147,7 +1155,7 @@ static int ti_bandgap_save_ctxt(struct ti_bandgap *bgp)
 		struct temp_sensor_registers *tsr;
 		struct temp_sensor_regval *rval;
 
-		rval = &bgp->conf->sensors[i].regval;
+		rval = &bgp->regval[i];
 		tsr = bgp->conf->sensors[i].registers;
 
 		if (TI_BANDGAP_HAS(bgp, MODE_CONFIG))
@@ -1180,7 +1188,7 @@ static int ti_bandgap_restore_ctxt(struct ti_bandgap *bgp)
 		struct temp_sensor_regval *rval;
 		u32 val = 0;
 
-		rval = &bgp->conf->sensors[i].regval;
+		rval = &bgp->regval[i];
 		tsr = bgp->conf->sensors[i].registers;
 
 		if (TI_BANDGAP_HAS(bgp, COUNTER))
