@@ -34,10 +34,8 @@ arch/arm/configs/rk30_phonepad*
 arch/arm/mach-rk2928/board-rk2928-a720*
 arch/arm/configs/rk2928_a720_defconfig
 
-arch/arm/mach-rk2928b/*.c
-arch/arm/mach-rk2928b/*.h
-arch/arm/mach-rk2928b/*.S
-arch/arm/configs/rk2928b_*
+arch/arm/mach-rk30/*rk3028*
+arch/arm/configs/rk3028_*
 )
 
 # ---------------------------------------------------------------------------
