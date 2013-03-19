@@ -225,7 +225,7 @@ struct temp_sensor_regval {
  * @regval: temperature sensor register values
  * @fclock: pointer to functional clock of temperature sensor
  * @div_clk: pointer to divider clock of temperature sensor fclk
- * @bg_mutex: mutex for ti_bandgap structure
+ * @lock: spinlock for ti_bandgap structure
  * @irq: MPU IRQ number for thermal alert
  * @tshut_gpio: GPIO where Tshut signal is routed
  * @clk_rate: Holds current clock rate
@@ -253,7 +253,7 @@ struct ti_bandgap {
  * @registers: pointer to the list of register offsets and bitfields
  * @domain: the name of the domain where the sensor is located
  * @slope: sensor gradient slope info for hotspot extrapolation equation
- * @const: sensor gradient const info for hotspot extrapolation equation
+ * @constant: sensor gradient const info for hotspot extrapolation equation
  * @slope_pcb: sensor gradient slope info for hotspot extrapolation equation
  *             with no external influence
  * @constant_pcb: sensor gradient const info for hotspot extrapolation equation
@@ -281,7 +281,7 @@ struct ti_temp_sensor {
 };
 
 /**
- * DOC: omap bandgap feature types
+ * DOC: ti bandgap feature types
  *
  * TI_BANDGAP_FEATURE_TSHUT - used when the thermal shutdown signal output
  *      of a bandgap device instance is routed to the processor. This means
@@ -325,7 +325,7 @@ struct ti_temp_sensor {
 			((b)->conf->features & TI_BANDGAP_FEATURE_ ## f)
 
 /**
- * struct ti_bandgap_data - omap bandgap data configuration structure
+ * struct ti_bandgap_data - ti bandgap data configuration structure
  * @features: a bitwise flag set to describe the device features
  * @conv_table: Pointer to ADC to temperature conversion table
  * @adc_start_val: ADC conversion table starting value

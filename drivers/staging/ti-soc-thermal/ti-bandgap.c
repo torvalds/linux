@@ -340,6 +340,7 @@ exit:
 /**
  * ti_bandgap_unmask_interrupts() - unmasks the events of thot & tcold
  * @bgp: struct ti_bandgap pointer
+ * @id: bandgap sensor id
  * @t_hot: hot temperature value to trigger alert signal
  * @t_cold: cold temperature value to trigger alert signal
  *
@@ -570,9 +571,9 @@ exit:
 
 /**
  * ti_bandgap_read_thot() - reads sensor current thot
- * @bgp - pointer to bandgap instance
- * @id - sensor id
- * @thot - resulting current thot value
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
+ * @thot: resulting current thot value
  *
  * returns 0 on success or the proper error code
  */
@@ -583,9 +584,9 @@ int ti_bandgap_read_thot(struct ti_bandgap *bgp, int id, int *thot)
 
 /**
  * ti_bandgap_write_thot() - sets sensor current thot
- * @bgp - pointer to bandgap instance
- * @id - sensor id
- * @val - desired thot value
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
+ * @val: desired thot value
  *
  * returns 0 on success or the proper error code
  */
@@ -596,9 +597,9 @@ int ti_bandgap_write_thot(struct ti_bandgap *bgp, int id, int val)
 
 /**
  * ti_bandgap_read_tcold() - reads sensor current tcold
- * @bgp - pointer to bandgap instance
- * @id - sensor id
- * @tcold - resulting current tcold value
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
+ * @tcold: resulting current tcold value
  *
  * returns 0 on success or the proper error code
  */
@@ -609,9 +610,9 @@ int ti_bandgap_read_tcold(struct ti_bandgap *bgp, int id, int *tcold)
 
 /**
  * ti_bandgap_write_tcold() - sets the sensor tcold
- * @bgp - pointer to bandgap instance
- * @id - sensor id
- * @val - desired tcold value
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
+ * @val: desired tcold value
  *
  * returns 0 on success or the proper error code
  */
@@ -622,9 +623,9 @@ int ti_bandgap_write_tcold(struct ti_bandgap *bgp, int id, int val)
 
 /**
  * ti_bandgap_read_update_interval() - read the sensor update interval
- * @bgp - pointer to bandgap instance
- * @id - sensor id
- * @interval - resulting update interval in miliseconds
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
+ * @interval: resulting update interval in miliseconds
  *
  * returns 0 on success or the proper error code
  */
@@ -654,9 +655,9 @@ int ti_bandgap_read_update_interval(struct ti_bandgap *bgp, int id,
 
 /**
  * ti_bandgap_write_update_interval() - set the update interval
- * @bgp - pointer to bandgap instance
- * @id - sensor id
- * @interval - desired update interval in miliseconds
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
+ * @interval: desired update interval in miliseconds
  *
  * returns 0 on success or the proper error code
  */
@@ -680,9 +681,9 @@ int ti_bandgap_write_update_interval(struct ti_bandgap *bgp,
 
 /**
  * ti_bandgap_read_temperature() - report current temperature
- * @bgp - pointer to bandgap instance
- * @id - sensor id
- * @temperature - resulting temperature
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
+ * @temperature: resulting temperature
  *
  * returns 0 on success or the proper error code
  */
@@ -712,9 +713,9 @@ int ti_bandgap_read_temperature(struct ti_bandgap *bgp, int id,
 /**
  * ti_bandgap_set_sensor_data() - helper function to store thermal
  * framework related data.
- * @bgp - pointer to bandgap instance
- * @id - sensor id
- * @data - thermal framework related data to be stored
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
+ * @data: thermal framework related data to be stored
  *
  * returns 0 on success or the proper error code
  */
@@ -732,8 +733,8 @@ int ti_bandgap_set_sensor_data(struct ti_bandgap *bgp, int id, void *data)
 /**
  * ti_bandgap_get_sensor_data() - helper function to get thermal
  * framework related data.
- * @bgp - pointer to bandgap instance
- * @id - sensor id
+ * @bgp: pointer to bandgap instance
+ * @id: sensor id
  *
  * returns data stored by set function with sensor id on success or NULL
  */
@@ -875,16 +876,15 @@ static int ti_bandgap_talert_init(struct ti_bandgap *bgp,
 	return 0;
 }
 
+static const struct of_device_id of_ti_bandgap_match[];
 /**
  * ti_bandgap_build() - parse DT and setup a struct ti_bandgap
- * @bgp: pointer to struct ti_bandgap
  * @pdev: pointer to device struct platform_device
  *
  * Used to read the device tree properties accordingly to the bandgap
  * matching version. Based on bandgap version and its capabilities it
  * will build a struct ti_bandgap out of the required DT entries.
  */
-static const struct of_device_id of_ti_bandgap_match[];
 static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
