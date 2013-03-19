@@ -22,9 +22,8 @@
 #include <linux/platform_data/atmel.h>
 #include <linux/of.h>
 
-#include <asm/io.h>
-#include <asm/gpio.h>
-#include <mach/cpu.h>
+#include <linux/io.h>
+#include <linux/gpio.h>
 
 /* SPI register offsets */
 #define SPI_CR					0x0000
@@ -39,6 +38,7 @@
 #define SPI_CSR1				0x0034
 #define SPI_CSR2				0x0038
 #define SPI_CSR3				0x003c
+#define SPI_VERSION				0x00fc
 #define SPI_RPR					0x0100
 #define SPI_RCR					0x0104
 #define SPI_TPR					0x0108
@@ -71,6 +71,8 @@
 #define SPI_FDIV_SIZE				1
 #define SPI_MODFDIS_OFFSET			4
 #define SPI_MODFDIS_SIZE			1
+#define SPI_WDRBT_OFFSET			5
+#define SPI_WDRBT_SIZE				1
 #define SPI_LLB_OFFSET				7
 #define SPI_LLB_SIZE				1
 #define SPI_PCS_OFFSET				16
@@ -180,6 +182,11 @@
 #define spi_writel(port,reg,value) \
 	__raw_writel((value), (port)->regs + SPI_##reg)
 
+struct atmel_spi_caps {
+	bool	is_spi2;
+	bool	has_wdrbt;
+	bool	has_dma_support;
+};
 
 /*
  * The core SPI transfer engine just talks to a register bank to set up
@@ -204,6 +211,8 @@ struct atmel_spi {
 
 	void			*buffer;
 	dma_addr_t		buffer_dma;
+
+	struct atmel_spi_caps	caps;
 };
 
 /* Controller-specific per-slave state */
@@ -222,14 +231,10 @@ struct atmel_spi_device {
  *  - SPI_SR.TXEMPTY, SPI_SR.NSSR (and corresponding irqs)
  *  - SPI_CSRx.CSAAT
  *  - SPI_CSRx.SBCR allows faster clocking
- *
- * We can determine the controller version by reading the VERSION
- * register, but I haven't checked that it exists on all chips, and
- * this is cheaper anyway.
  */
-static bool atmel_spi_is_v2(void)
+static bool atmel_spi_is_v2(struct atmel_spi *as)
 {
-	return !cpu_is_at91rm9200();
+	return as->caps.is_spi2;
 }
 
 /*
@@ -263,15 +268,20 @@ static void cs_activate(struct atmel_spi *as, struct spi_device *spi)
 	unsigned active = spi->mode & SPI_CS_HIGH;
 	u32 mr;
 
-	if (atmel_spi_is_v2()) {
+	if (atmel_spi_is_v2(as)) {
 		/*
 		 * Always use CSR0. This ensures that the clock
 		 * switches to the correct idle polarity before we
 		 * toggle the CS.
 		 */
 		spi_writel(as, CSR0, asd->csr);
-		spi_writel(as, MR, SPI_BF(PCS, 0x0e) | SPI_BIT(MODFDIS)
+		if (as->caps.has_wdrbt) {
+			spi_writel(as, MR, SPI_BF(PCS, 0x0e) | SPI_BIT(WDRBT)
+				| SPI_BIT(MODFDIS) | SPI_BIT(MSTR));
+		} else {
+			spi_writel(as, MR, SPI_BF(PCS, 0x0e) | SPI_BIT(MODFDIS)
 				| SPI_BIT(MSTR));
+		}
 		mr = spi_readl(as, MR);
 		gpio_set_value(asd->npcs_pin, active);
 	} else {
@@ -318,7 +328,7 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 			asd->npcs_pin, active ? " (low)" : "",
 			mr);
 
-	if (atmel_spi_is_v2() || spi->chip_select != 0)
+	if (atmel_spi_is_v2(as) || spi->chip_select != 0)
 		gpio_set_value(asd->npcs_pin, !active);
 }
 
@@ -719,7 +729,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 	}
 
 	/* see notes above re chipselect */
-	if (!atmel_spi_is_v2()
+	if (!atmel_spi_is_v2(as)
 			&& spi->chip_select == 0
 			&& (spi->mode & SPI_CS_HIGH)) {
 		dev_dbg(&spi->dev, "setup: can't be active-high\n");
@@ -728,7 +738,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	/* v1 chips start out at half the peripheral bus speed. */
 	bus_hz = clk_get_rate(as->clk);
-	if (!atmel_spi_is_v2())
+	if (!atmel_spi_is_v2(as))
 		bus_hz /= 2;
 
 	if (spi->max_speed_hz) {
@@ -804,7 +814,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 		"setup: %lu Hz bpw %u mode 0x%x -> csr%d %08x\n",
 		bus_hz / scbr, bits, spi->mode, spi->chip_select, csr);
 
-	if (!atmel_spi_is_v2())
+	if (!atmel_spi_is_v2(as))
 		spi_writel(as, CSR0 + 4 * spi->chip_select, csr);
 
 	return 0;
@@ -910,6 +920,23 @@ static void atmel_spi_cleanup(struct spi_device *spi)
 	kfree(asd);
 }
 
+static inline unsigned int atmel_get_version(struct atmel_spi *as)
+{
+	return spi_readl(as, VERSION) & 0x00000fff;
+}
+
+static void atmel_get_caps(struct atmel_spi *as)
+{
+	unsigned int version;
+
+	version = atmel_get_version(as);
+	dev_info(&as->pdev->dev, "version: 0x%x\n", version);
+
+	as->caps.is_spi2 = version > 0x121;
+	as->caps.has_wdrbt = version >= 0x210;
+	as->caps.has_dma_support = version >= 0x212;
+}
+
 /*-------------------------------------------------------------------------*/
 
 static int atmel_spi_probe(struct platform_device *pdev)
@@ -970,6 +997,8 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	as->irq = irq;
 	as->clk = clk;
 
+	atmel_get_caps(as);
+
 	ret = request_irq(irq, atmel_spi_interrupt, 0,
 			dev_name(&pdev->dev), master);
 	if (ret)
@@ -979,7 +1008,12 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	clk_enable(clk);
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
-	spi_writel(as, MR, SPI_BIT(MSTR) | SPI_BIT(MODFDIS));
+	if (as->caps.has_wdrbt) {
+		spi_writel(as, MR, SPI_BIT(WDRBT) | SPI_BIT(MODFDIS)
+				| SPI_BIT(MSTR));
+	} else {
+		spi_writel(as, MR, SPI_BIT(MSTR) | SPI_BIT(MODFDIS));
+	}
 	spi_writel(as, PTCR, SPI_BIT(RXTDIS) | SPI_BIT(TXTDIS));
 	spi_writel(as, CR, SPI_BIT(SPIEN));
 
