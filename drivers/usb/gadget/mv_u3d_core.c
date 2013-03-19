@@ -2002,7 +2002,7 @@ err_pdata:
 	return retval;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int mv_u3d_suspend(struct device *dev)
 {
 	struct mv_u3d *u3d = dev_get_drvdata(dev);
@@ -2045,9 +2045,9 @@ static int mv_u3d_resume(struct device *dev)
 
 	return 0;
 }
-
-SIMPLE_DEV_PM_OPS(mv_u3d_pm_ops, mv_u3d_suspend, mv_u3d_resume);
 #endif
+
+static SIMPLE_DEV_PM_OPS(mv_u3d_pm_ops, mv_u3d_suspend, mv_u3d_resume);
 
 static void mv_u3d_shutdown(struct platform_device *dev)
 {
@@ -2066,9 +2066,7 @@ static struct platform_driver mv_u3d_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "mv-u3d",
-#ifdef CONFIG_PM
 		.pm	= &mv_u3d_pm_ops,
-#endif
 	},
 };
 
