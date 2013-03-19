@@ -101,6 +101,22 @@ struct rk29_keys_platform_data rk29_keys_pdata = {
 	.chn	= 1,  //chn: 0-7, if do not use ADC,set 'chn' -1
 };
 
+/*
+     v1.0 : 	ignore
+     v1.1 :      rk610 lvds + rk610 codec + MT5931_MT6622 + light photoresistor + adc/cw2015
+     v1.2 :      lvds       + rt5631      + M500          + us5151              + adc
+*/
+#define DS1006H_V1_2_SUPPORT  1
+int get_harware_version()
+{
+    #if DS1006H_V1_2_SUPPORT
+        return 2;
+    #else
+        return 1;
+    #endif
+}
+EXPORT_SYMBOL_GPL(get_harware_version);
+
 #if defined(CONFIG_CT36X_TS)
 
 #define TOUCH_MODEL		363

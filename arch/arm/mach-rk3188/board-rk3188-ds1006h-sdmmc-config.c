@@ -12,7 +12,7 @@
  *
  ******************************************************************************************/
 
-#define DS1006H_V1_2_SUPPORT  0
+#define DS1006H_V1_2_SUPPORT  1
 
 /*
 ** If you select the macro of CONFIG_SDMMC0_RK29_WRITE_PROTECT, You must define the following values.
