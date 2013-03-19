@@ -190,7 +190,7 @@ typedef struct _USB_SEND_CONTEXT {
     struct urb      *pUrb;
     unsigned int            uBufLen;
     CONTEXT_TYPE    Type;
-    SEthernetHeader sEthHeader;
+    struct ethhdr sEthHeader;
     void *Next;
     bool            bBoolInUse;
     unsigned char           Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
@@ -746,8 +746,8 @@ struct vnt_private {
 	u8 byReAssocCount;
 	u8 byLinkWaitCount;
 
-	SEthernetHeader sTxEthHeader;
-	SEthernetHeader sRxEthHeader;
+	struct ethhdr sTxEthHeader;
+	struct ethhdr sRxEthHeader;
 	u8 abyBroadcastAddr[ETH_ALEN];
 	u8 abySNAP_RFC1042[ETH_ALEN];
 	u8 abySNAP_Bridgetunnel[ETH_ALEN];

@@ -114,18 +114,6 @@
 
 #define WEP_IV_MASK         0x00FFFFFF
 
-/*---------------------  Export Types  ------------------------------*/
-//
-// Ethernet packet
-//
-typedef struct tagSEthernetHeader {
-    u8    abyDstAddr[ETH_ALEN];
-    u8    abySrcAddr[ETH_ALEN];
-    u16    wType;
-} __attribute__ ((__packed__))
-SEthernetHeader, *PSEthernetHeader;
-
-
 //
 // 802_3 packet
 //

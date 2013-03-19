@@ -81,7 +81,7 @@ void
 s_vGetDASA(
       u8 * pbyRxBufferAddr,
      unsigned int *pcbHeaderSize,
-     PSEthernetHeader psEthHeader
+     struct ethhdr *psEthHeader
     );
 
 static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
@@ -190,9 +190,9 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
     cbHeaderSize -= (ETH_ALEN * 2);
     pbyRxBuffer = (u8 *) (pbyRxBufferAddr + cbHeaderSize);
     for (ii = 0; ii < ETH_ALEN; ii++)
-        *pbyRxBuffer++ = pDevice->sRxEthHeader.abyDstAddr[ii];
+        *pbyRxBuffer++ = pDevice->sRxEthHeader.h_dest[ii];
     for (ii = 0; ii < ETH_ALEN; ii++)
-        *pbyRxBuffer++ = pDevice->sRxEthHeader.abySrcAddr[ii];
+        *pbyRxBuffer++ = pDevice->sRxEthHeader.h_source[ii];
 
     *pcbHeadSize = cbHeaderSize;
 }
@@ -217,7 +217,7 @@ void
 s_vGetDASA (
       u8 * pbyRxBufferAddr,
      unsigned int *pcbHeaderSize,
-     PSEthernetHeader psEthHeader
+     struct ethhdr *psEthHeader
     )
 {
 	unsigned int            cbHeaderSize = 0;
@@ -229,17 +229,17 @@ s_vGetDASA (
 	if ((pMACHeader->wFrameCtl & FC_TODS) == 0) {
 		if (pMACHeader->wFrameCtl & FC_FROMDS) {
 			for (ii = 0; ii < ETH_ALEN; ii++) {
-				psEthHeader->abyDstAddr[ii] =
+				psEthHeader->h_dest[ii] =
 					pMACHeader->abyAddr1[ii];
-				psEthHeader->abySrcAddr[ii] =
+				psEthHeader->h_source[ii] =
 					pMACHeader->abyAddr3[ii];
 			}
 		} else {
 			/* IBSS mode */
 			for (ii = 0; ii < ETH_ALEN; ii++) {
-				psEthHeader->abyDstAddr[ii] =
+				psEthHeader->h_dest[ii] =
 					pMACHeader->abyAddr1[ii];
-				psEthHeader->abySrcAddr[ii] =
+				psEthHeader->h_source[ii] =
 					pMACHeader->abyAddr2[ii];
 			}
 		}
@@ -247,17 +247,17 @@ s_vGetDASA (
 		/* Is AP mode.. */
 		if (pMACHeader->wFrameCtl & FC_FROMDS) {
 			for (ii = 0; ii < ETH_ALEN; ii++) {
-				psEthHeader->abyDstAddr[ii] =
+				psEthHeader->h_dest[ii] =
 					pMACHeader->abyAddr3[ii];
-				psEthHeader->abySrcAddr[ii] =
+				psEthHeader->h_source[ii] =
 					pMACHeader->abyAddr4[ii];
 				cbHeaderSize += 6;
 			}
 		} else {
 			for (ii = 0; ii < ETH_ALEN; ii++) {
-				psEthHeader->abyDstAddr[ii] =
+				psEthHeader->h_dest[ii] =
 					pMACHeader->abyAddr3[ii];
-				psEthHeader->abySrcAddr[ii] =
+				psEthHeader->h_source[ii] =
 					pMACHeader->abyAddr2[ii];
 			}
 		}
@@ -407,7 +407,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     // Use for TKIP MIC
     s_vGetDASA(pbyFrame, &cbHeaderSize, &pDevice->sRxEthHeader);
 
-    if (!compare_ether_addr((u8 *)&(pDevice->sRxEthHeader.abySrcAddr[0]),
+    if (!compare_ether_addr((u8 *)&(pDevice->sRxEthHeader.h_source[0]),
 			    pDevice->abyCurrentNetAddr))
         return false;
 
@@ -776,7 +776,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             }
 
             MIC_vInit(dwMICKey0, dwMICKey1);
-            MIC_vAppend((u8 *)&(pDevice->sRxEthHeader.abyDstAddr[0]), 12);
+            MIC_vAppend((u8 *)&(pDevice->sRxEthHeader.h_dest[0]), 12);
             dwMIC_Priority = 0;
             MIC_vAppend((u8 *)&dwMIC_Priority, 4);
             // 4 is Rcv buffer header, 24 is MAC Header, and 8 is IV and Ext IV.
