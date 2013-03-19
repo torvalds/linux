@@ -1278,6 +1278,7 @@ struct ssp_coalesced_comp_resp {
 #define MAIN_IQNPPD_HPPD_OFFSET		0x24 /* DWORD 0x09 */
 
 /* 0x28 - 0x4C - RSVD */
+#define MAIN_EVENT_CRC_CHECK		0x48 /* DWORD 0x12 */
 #define MAIN_EVENT_LOG_ADDR_HI		0x50 /* DWORD 0x14 */
 #define MAIN_EVENT_LOG_ADDR_LO		0x54 /* DWORD 0x15 */
 #define MAIN_EVENT_LOG_BUFF_SIZE	0x58 /* DWORD 0x16 */

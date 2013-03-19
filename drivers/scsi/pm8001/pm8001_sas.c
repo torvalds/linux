@@ -68,7 +68,7 @@ static void pm8001_tag_clear(struct pm8001_hba_info *pm8001_ha, u32 tag)
 	clear_bit(tag, bitmap);
 }
 
-static void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
+void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
 {
 	pm8001_tag_clear(pm8001_ha, tag);
 }
@@ -565,6 +565,24 @@ struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
 	}
 	return NULL;
 }
+/**
+  * pm8001_find_dev - find a matching pm8001_device
+  * @pm8001_ha: our hba card information
+  */
+struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
+					u32 device_id)
+{
+	u32 dev;
+	for (dev = 0; dev < PM8001_MAX_DEVICES; dev++) {
+		if (pm8001_ha->devices[dev].device_id == device_id)
+			return &pm8001_ha->devices[dev];
+	}
+	if (dev == PM8001_MAX_DEVICES) {
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk("NO MATCHING "
+				"DEVICE FOUND !!!\n"));
+	}
+	return NULL;
+}
 
 static void pm8001_free_dev(struct pm8001_device *pm8001_dev)
 {
@@ -653,7 +671,7 @@ int pm8001_dev_found(struct domain_device *dev)
 	return pm8001_dev_found_notify(dev);
 }
 
-static void pm8001_task_done(struct sas_task *task)
+void pm8001_task_done(struct sas_task *task)
 {
 	if (!del_timer(&task->slow_task->timer))
 		return;

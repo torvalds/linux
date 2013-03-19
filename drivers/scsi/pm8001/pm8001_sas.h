@@ -321,7 +321,9 @@ union main_cfg_table {
 	u32			inbound_queue_offset;
 	u32			outbound_queue_offset;
 	u32			inbound_q_nppd_hppd;
-	u32			rsvd[10];
+	u32			rsvd[8];
+	u32			crc_core_dump;
+	u32			rsvd1;
 	u32			upper_event_log_addr;
 	u32			lower_event_log_addr;
 	u32			event_log_size;
@@ -493,6 +495,9 @@ struct pm8001_fw_image_header {
 #define FLASH_UPDATE_DNLD_NOT_SUPPORTED		0x10
 #define FLASH_UPDATE_DISABLED			0x11
 
+#define	NCQ_READ_LOG_FLAG			0x80000000
+#define	NCQ_ABORT_ALL_FLAG			0x40000000
+#define	NCQ_2ND_RLE_FLAG			0x20000000
 /**
  * brief param structure for firmware flash update.
  */
@@ -567,7 +572,6 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	dma_addr_t *pphys_addr, u32 *pphys_addr_hi, u32 *pphys_addr_lo,
 	u32 mem_size, u32 align);
 
-/********** functions common to spc & spcv - begins ************/
 void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha);
 int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
 			struct inbound_queue_table *circularQ,
@@ -615,7 +619,12 @@ int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 							void *piomb);
 int pm8001_mpi_general_event(struct pm8001_hba_info *pm8001_ha , void *piomb);
 int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb);
-/*********** functions common to spc & spcv - ends ************/
+struct sas_task *pm8001_alloc_task(void);
+void pm8001_task_done(struct sas_task *task);
+void pm8001_free_task(struct sas_task *task);
+void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag);
+struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
+					u32 device_id);
 
 int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
 
