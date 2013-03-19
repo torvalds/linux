@@ -418,10 +418,10 @@ static int ti_bandgap_update_alert_threshold(struct ti_bandgap *bgp, int id,
 	}
 
 	/* write the new threshold values */
-	reg_val = thresh_val & ~tsr->threshold_thot_mask;
-	reg_val |= (t_hot << __ffs(tsr->threshold_thot_mask));
-	reg_val |= thresh_val & ~tsr->threshold_tcold_mask;
-	reg_val |= (t_cold << __ffs(tsr->threshold_tcold_mask));
+	reg_val = thresh_val &
+		  ~(tsr->threshold_thot_mask | tsr->threshold_tcold_mask);
+	reg_val |= (t_hot << __ffs(tsr->threshold_thot_mask)) |
+		   (t_cold << __ffs(tsr->threshold_tcold_mask));
 	ti_bandgap_writel(bgp, reg_val, tsr->bgap_threshold);
 
 	if (err) {
