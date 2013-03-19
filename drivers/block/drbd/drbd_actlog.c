@@ -256,6 +256,7 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
 	unsigned enr;
+	bool need_transaction = false;
 	bool locked = false;
 
 	/* When called through generic_make_request(), we must delegate
@@ -273,8 +274,17 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool dele
 	D_ASSERT(first <= last);
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
 
-	for (enr = first; enr <= last; enr++)
-		wait_event(mdev->al_wait, _al_get(mdev, enr) != NULL);
+	for (enr = first; enr <= last; enr++) {
+		struct lc_element *al_ext;
+		wait_event(mdev->al_wait, (al_ext = _al_get(mdev, enr)) != NULL);
+		if (al_ext->lc_number != enr)
+			need_transaction = true;
+	}
+
+	/* If *this* request was to an already active extent,
+	 * we're done, even if there are pending changes. */
+	if (!need_transaction)
+		return;
 
 	/* Serialize multiple transactions.
 	 * This uses test_and_set_bit, memory barrier is implicit.
