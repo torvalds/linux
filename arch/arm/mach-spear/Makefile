@@ -22,3 +22,5 @@ obj-$(CONFIG_MACH_SPEAR320)	+= spear320.o
 
 obj-$(CONFIG_ARCH_SPEAR6XX)	+= spear6xx.o
 obj-$(CONFIG_ARCH_SPEAR6XX)	+= pl080.o
+
+CFLAGS_hotplug.o		+= -march=armv7-a
