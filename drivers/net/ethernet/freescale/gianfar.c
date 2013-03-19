@@ -2835,14 +2835,19 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	int work_done = 0, work_done_per_q = 0;
 	int i, budget_per_q;
 	int has_tx_work;
-	unsigned long serviced_queues = 0;
-	int num_queues = gfargrp->num_rx_queues;
+	unsigned long rstat_rxf;
+	int num_act_queues;
 
-	budget_per_q = budget/num_queues;
 	/* Clear IEVENT, so interrupts aren't called again
 	 * because of the packets that have already arrived
 	 */
 	gfar_write(&regs->ievent, IEVENT_RTX_MASK);
+
+	rstat_rxf = gfar_read(&regs->rstat) & RSTAT_RXF_MASK;
+
+	num_act_queues = bitmap_weight(&rstat_rxf, MAX_RX_QS);
+	if (num_act_queues)
+		budget_per_q = budget/num_act_queues;
 
 	while (1) {
 		has_tx_work = 0;
@@ -2856,7 +2861,8 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		}
 
 		for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
-			if (test_bit(i, &serviced_queues))
+			/* skip queue if not active */
+			if (!(rstat_rxf & (RSTAT_CLEAR_RXF0 >> i)))
 				continue;
 
 			rx_queue = priv->rx_queue[i];
@@ -2866,20 +2872,24 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 
 			/* finished processing this queue */
 			if (work_done_per_q < budget_per_q) {
-				set_bit(i, &serviced_queues);
-				num_queues--;
-				if (!num_queues)
+				/* clear active queue hw indication */
+				gfar_write(&regs->rstat,
+					   RSTAT_CLEAR_RXF0 >> i);
+				rstat_rxf &= ~(RSTAT_CLEAR_RXF0 >> i);
+				num_act_queues--;
+
+				if (!num_act_queues)
 					break;
 				/* recompute budget per Rx queue */
 				budget_per_q =
-					(budget - work_done) / num_queues;
+					(budget - work_done) / num_act_queues;
 			}
 		}
 
 		if (work_done >= budget)
 			break;
 
-		if (!num_queues && !has_tx_work) {
+		if (!num_act_queues && !has_tx_work) {
 
 			napi_complete(napi);
 
