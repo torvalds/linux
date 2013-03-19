@@ -427,6 +427,7 @@ config ARCH_SIRF
 	select PINCTRL
 	select PINCTRL_SIRF
 	select USE_OF
+	select SPARSE_IRQ
 	help
 	  Support for CSR SiRFprimaII/Marco/Polo platforms
 
