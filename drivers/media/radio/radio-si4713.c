@@ -43,6 +43,7 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Eduardo Valentin <eduardo.valentin@nokia.com>");
 MODULE_DESCRIPTION("Platform driver for Si4713 FM Radio Transmitter");
 MODULE_VERSION("0.0.1");
+MODULE_ALIAS("platform:radio-si4713");
 
 /* Driver state struct */
 struct radio_si4713_device {
