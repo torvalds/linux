@@ -349,6 +349,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 				ret = -ENOMEM;
 				goto err;
 			}
+			palmas->i2c_clients[i]->dev.of_node = of_node_get(node);
 		}
 		palmas->regmap[i] = devm_regmap_init_i2c(palmas->i2c_clients[i],
 				&palmas_regmap_config[i]);
