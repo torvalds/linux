@@ -518,6 +518,7 @@ int arizona_dev_init(struct arizona *arizona)
 		regmap_update_bits(arizona->regmap, ARIZONA_CLOCK_32K_1,
 				   ARIZONA_CLK_32K_SRC_MASK,
 				   arizona->pdata.clk32k_src - 1);
+		arizona_clk32k_enable(arizona);
 		break;
 	case ARIZONA_32KZ_NONE:
 		regmap_update_bits(arizona->regmap, ARIZONA_CLOCK_32K_1,
