@@ -1643,77 +1643,6 @@ static void busy_worker_rebind_fn(struct work_struct *work)
 	spin_unlock_irq(&worker->pool->lock);
 }
 
-/**
- * rebind_workers - rebind all workers of a pool to the associated CPU
- * @pool: pool of interest
- *
- * @pool->cpu is coming online.  Rebind all workers to the CPU.  Rebinding
- * is different for idle and busy ones.
- *
- * Idle ones will be removed from the idle_list and woken up.  They will
- * add themselves back after completing rebind.  This ensures that the
- * idle_list doesn't contain any unbound workers when re-bound busy workers
- * try to perform local wake-ups for concurrency management.
- *
- * Busy workers can rebind after they finish their current work items.
- * Queueing the rebind work item at the head of the scheduled list is
- * enough.  Note that nr_running will be properly bumped as busy workers
- * rebind.
- *
- * On return, all non-manager workers are scheduled for rebind - see
- * manage_workers() for the manager special case.  Any idle worker
- * including the manager will not appear on @idle_list until rebind is
- * complete, making local wake-ups safe.
- */
-static void rebind_workers(struct worker_pool *pool)
-{
-	struct worker *worker, *n;
-	int i;
-
-	lockdep_assert_held(&pool->manager_mutex);
-	lockdep_assert_held(&pool->lock);
-
-	/* dequeue and kick idle ones */
-	list_for_each_entry_safe(worker, n, &pool->idle_list, entry) {
-		/*
-		 * idle workers should be off @pool->idle_list until rebind
-		 * is complete to avoid receiving premature local wake-ups.
-		 */
-		list_del_init(&worker->entry);
-
-		/*
-		 * worker_thread() will see the above dequeuing and call
-		 * idle_worker_rebind().
-		 */
-		wake_up_process(worker->task);
-	}
-
-	/* rebind busy workers */
-	for_each_busy_worker(worker, i, pool) {
-		struct work_struct *rebind_work = &worker->rebind_work;
-		struct workqueue_struct *wq;
-
-		if (test_and_set_bit(WORK_STRUCT_PENDING_BIT,
-				     work_data_bits(rebind_work)))
-			continue;
-
-		debug_work_activate(rebind_work);
-
-		/*
-		 * wq doesn't really matter but let's keep @worker->pool
-		 * and @pwq->pool consistent for sanity.
-		 */
-		if (worker->pool->attrs->nice < 0)
-			wq = system_highpri_wq;
-		else
-			wq = system_wq;
-
-		insert_work(per_cpu_ptr(wq->cpu_pwqs, pool->cpu), rebind_work,
-			    worker->scheduled.next,
-			    work_color_to_flags(WORK_NO_COLOR));
-	}
-}
-
 static struct worker *alloc_worker(void)
 {
 	struct worker *worker;
@@ -4194,6 +4123,77 @@ static void wq_unbind_fn(struct work_struct *work)
 	 */
 	for_each_cpu_worker_pool(pool, cpu)
 		atomic_set(&pool->nr_running, 0);
+}
+
+/**
+ * rebind_workers - rebind all workers of a pool to the associated CPU
+ * @pool: pool of interest
+ *
+ * @pool->cpu is coming online.  Rebind all workers to the CPU.  Rebinding
+ * is different for idle and busy ones.
+ *
+ * Idle ones will be removed from the idle_list and woken up.  They will
+ * add themselves back after completing rebind.  This ensures that the
+ * idle_list doesn't contain any unbound workers when re-bound busy workers
+ * try to perform local wake-ups for concurrency management.
+ *
+ * Busy workers can rebind after they finish their current work items.
+ * Queueing the rebind work item at the head of the scheduled list is
+ * enough.  Note that nr_running will be properly bumped as busy workers
+ * rebind.
+ *
+ * On return, all non-manager workers are scheduled for rebind - see
+ * manage_workers() for the manager special case.  Any idle worker
+ * including the manager will not appear on @idle_list until rebind is
+ * complete, making local wake-ups safe.
+ */
+static void rebind_workers(struct worker_pool *pool)
+{
+	struct worker *worker, *n;
+	int i;
+
+	lockdep_assert_held(&pool->manager_mutex);
+	lockdep_assert_held(&pool->lock);
+
+	/* dequeue and kick idle ones */
+	list_for_each_entry_safe(worker, n, &pool->idle_list, entry) {
+		/*
+		 * idle workers should be off @pool->idle_list until rebind
+		 * is complete to avoid receiving premature local wake-ups.
+		 */
+		list_del_init(&worker->entry);
+
+		/*
+		 * worker_thread() will see the above dequeuing and call
+		 * idle_worker_rebind().
+		 */
+		wake_up_process(worker->task);
+	}
+
+	/* rebind busy workers */
+	for_each_busy_worker(worker, i, pool) {
+		struct work_struct *rebind_work = &worker->rebind_work;
+		struct workqueue_struct *wq;
+
+		if (test_and_set_bit(WORK_STRUCT_PENDING_BIT,
+				     work_data_bits(rebind_work)))
+			continue;
+
+		debug_work_activate(rebind_work);
+
+		/*
+		 * wq doesn't really matter but let's keep @worker->pool
+		 * and @pwq->pool consistent for sanity.
+		 */
+		if (worker->pool->attrs->nice < 0)
+			wq = system_highpri_wq;
+		else
+			wq = system_wq;
+
+		insert_work(per_cpu_ptr(wq->cpu_pwqs, pool->cpu), rebind_work,
+			    worker->scheduled.next,
+			    work_color_to_flags(WORK_NO_COLOR));
+	}
 }
 
 /*
