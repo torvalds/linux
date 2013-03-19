@@ -1141,15 +1141,32 @@ static bool should_set_defaults(struct genl_info *info)
 	return 0 != (flags & DRBD_GENL_F_SET_DEFAULTS);
 }
 
-static void enforce_disk_conf_limits(struct disk_conf *dc)
+static unsigned int drbd_al_extents_max(struct drbd_backing_dev *bdev)
 {
-	if (dc->al_extents < DRBD_AL_EXTENTS_MIN)
-		dc->al_extents = DRBD_AL_EXTENTS_MIN;
-	if (dc->al_extents > DRBD_AL_EXTENTS_MAX)
-		dc->al_extents = DRBD_AL_EXTENTS_MAX;
+	/* This is limited by 16 bit "slot" numbers,
+	 * and by available on-disk context storage.
+	 *
+	 * Also (u16)~0 is special (denotes a "free" extent).
+	 *
+	 * One transaction occupies one 4kB on-disk block,
+	 * we have n such blocks in the on disk ring buffer,
+	 * the "current" transaction may fail (n-1),
+	 * and there is 919 slot numbers context information per transaction.
+	 *
+	 * 72 transaction blocks amounts to more than 2**16 context slots,
+	 * so cap there first.
+	 */
+	const unsigned int max_al_nr = DRBD_AL_EXTENTS_MAX;
+	const unsigned int sufficient_on_disk =
+		(max_al_nr + AL_CONTEXT_PER_TRANSACTION -1)
+		/AL_CONTEXT_PER_TRANSACTION;
 
-	if (dc->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
-		dc->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
+	unsigned int al_size_4k = bdev->md.al_size_4k;
+
+	if (al_size_4k > sufficient_on_disk)
+		return max_al_nr;
+
+	return (al_size_4k - 1) * AL_CONTEXT_PER_TRANSACTION;
 }
 
 int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
@@ -1196,7 +1213,13 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	if (!expect(new_disk_conf->resync_rate >= 1))
 		new_disk_conf->resync_rate = 1;
 
-	enforce_disk_conf_limits(new_disk_conf);
+	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
+		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
+	if (new_disk_conf->al_extents > drbd_al_extents_max(mdev->ldev))
+		new_disk_conf->al_extents = drbd_al_extents_max(mdev->ldev);
+
+	if (new_disk_conf->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
+		new_disk_conf->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
 
 	fifo_size = (new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 	if (fifo_size != mdev->rs_plan_s->size) {
@@ -1344,7 +1367,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	enforce_disk_conf_limits(new_disk_conf);
+	if (new_disk_conf->c_plan_ahead > DRBD_C_PLAN_AHEAD_MAX)
+		new_disk_conf->c_plan_ahead = DRBD_C_PLAN_AHEAD_MAX;
 
 	new_plan = fifo_alloc((new_disk_conf->c_plan_ahead * 10 * SLEEP_TIME) / HZ);
 	if (!new_plan) {
@@ -1418,6 +1442,11 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	retcode = drbd_md_read(mdev, nbc);
 	if (retcode != NO_ERROR)
 		goto fail;
+
+	if (new_disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
+		new_disk_conf->al_extents = DRBD_AL_EXTENTS_MIN;
+	if (new_disk_conf->al_extents > drbd_al_extents_max(nbc))
+		new_disk_conf->al_extents = drbd_al_extents_max(nbc);
 
 	if (drbd_get_max_capacity(nbc) < new_disk_conf->disk_size) {
 		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
