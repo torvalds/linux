@@ -1412,19 +1412,21 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 		return;
 
 	sock = sk->sk_socket;
-	BUG_ON(!sock);
 
-	/* If the tunnel socket was created directly by the kernel, use the
-	 * sk_* API to release the socket now.  Otherwise go through the
-	 * inet_* layer to shut the socket down, and let userspace close it.
+	/* If the tunnel socket was created by userspace, then go through the
+	 * inet layer to shut the socket down, and let userspace close it.
+	 * Otherwise, if we created the socket directly within the kernel, use
+	 * the sk API to release it here.
 	 * In either case the tunnel resources are freed in the socket
 	 * destructor when the tunnel socket goes away.
 	 */
-	if (sock->file == NULL) {
-		kernel_sock_shutdown(sock, SHUT_RDWR);
-		sk_release_kernel(sk);
+	if (tunnel->fd >= 0) {
+		if (sock)
+			inet_shutdown(sock, 2);
 	} else {
-		inet_shutdown(sock, 2);
+		if (sock)
+			kernel_sock_shutdown(sock, SHUT_RDWR);
+		sk_release_kernel(sk);
 	}
 
 	l2tp_tunnel_sock_put(sk);
