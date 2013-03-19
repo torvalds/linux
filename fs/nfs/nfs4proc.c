@@ -3578,8 +3578,8 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	}
 	if (npages > 1) {
 		/* for decoding across pages */
-		args.acl_scratch = alloc_page(GFP_KERNEL);
-		if (!args.acl_scratch)
+		res.acl_scratch = alloc_page(GFP_KERNEL);
+		if (!res.acl_scratch)
 			goto out_free;
 	}
 	args.acl_len = npages * PAGE_SIZE;
@@ -3615,8 +3615,8 @@ out_free:
 	for (i = 0; i < npages; i++)
 		if (pages[i])
 			__free_page(pages[i]);
-	if (args.acl_scratch)
-		__free_page(args.acl_scratch);
+	if (res.acl_scratch)
+		__free_page(res.acl_scratch);
 	return ret;
 }
 
