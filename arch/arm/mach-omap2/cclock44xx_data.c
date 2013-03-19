@@ -52,6 +52,13 @@
  */
 #define OMAP4_DPLL_ABE_DEFFREQ				98304000
 
+/*
+ * OMAP4 USB DPLL default frequency. In OMAP4430 TRM version V, section
+ * "3.6.3.9.5 DPLL_USB Preferred Settings" shows that the preferred
+ * locked frequency for the USB DPLL is 960MHz.
+ */
+#define OMAP4_DPLL_USB_DEFFREQ				960000000
+
 /* Root clocks */
 
 DEFINE_CLK_FIXED_RATE(extalt_clkin_ck, CLK_IS_ROOT, 59000000, 0x0);
@@ -1011,6 +1018,10 @@ DEFINE_CLK_OMAP_MUX(hsmmc2_fclk, "l3_init_clkdm", hsmmc1_fclk_sel,
 		    OMAP4430_CM_L3INIT_MMC2_CLKCTRL, OMAP4430_CLKSEL_MASK,
 		    hsmmc1_fclk_parents, func_dmic_abe_gfclk_ops);
 
+DEFINE_CLK_GATE(ocp2scp_usb_phy_phy_48m, "func_48m_fclk", &func_48m_fclk, 0x0,
+		OMAP4430_CM_L3INIT_USBPHYOCP2SCP_CLKCTRL,
+		OMAP4430_OPTFCLKEN_PHY_48M_SHIFT, 0x0, NULL);
+
 DEFINE_CLK_GATE(sha2md5_fck, "l3_div_ck", &l3_div_ck, 0x0,
 		OMAP4430_CM_L4SEC_SHA2MD51_CLKCTRL,
 		OMAP4430_MODULEMODE_SWCTRL_SHIFT, 0x0, NULL);
@@ -1538,6 +1549,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"per_mcbsp4_gfclk",			&per_mcbsp4_gfclk,	CK_443X),
 	CLK(NULL,	"hsmmc1_fclk",			&hsmmc1_fclk,	CK_443X),
 	CLK(NULL,	"hsmmc2_fclk",			&hsmmc2_fclk,	CK_443X),
+	CLK(NULL,	"ocp2scp_usb_phy_phy_48m",	&ocp2scp_usb_phy_phy_48m,	CK_443X),
 	CLK(NULL,	"sha2md5_fck",			&sha2md5_fck,	CK_443X),
 	CLK(NULL,	"slimbus1_fclk_1",		&slimbus1_fclk_1,	CK_443X),
 	CLK(NULL,	"slimbus1_fclk_0",		&slimbus1_fclk_0,	CK_443X),
@@ -1704,6 +1716,14 @@ int __init omap4xxx_clk_init(void)
 		rc = clk_set_rate(&dpll_abe_ck, OMAP4_DPLL_ABE_DEFFREQ);
 	if (rc)
 		pr_err("%s: failed to configure ABE DPLL!\n", __func__);
+
+	/*
+	 * Lock USB DPLL on OMAP4 devices so that the L3INIT power
+	 * domain can transition to retention state when not in use.
+	 */
+	rc = clk_set_rate(&dpll_usb_ck, OMAP4_DPLL_USB_DEFFREQ);
+	if (rc)
+		pr_err("%s: failed to configure USB DPLL!\n", __func__);
 
 	return 0;
 }
