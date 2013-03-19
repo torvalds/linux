@@ -326,6 +326,8 @@ void omap_dm_timer_enable(struct omap_dm_timer *timer)
 				omap_timer_restore_context(timer);
 				timer->ctx_loss_count = c;
 			}
+		} else {
+			omap_timer_restore_context(timer);
 		}
 	}
 }
