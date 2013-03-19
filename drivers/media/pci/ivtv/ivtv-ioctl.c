@@ -1078,7 +1078,7 @@ static int ivtv_g_frequency(struct file *file, void *fh, struct v4l2_frequency *
 	return 0;
 }
 
-int ivtv_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
+int ivtv_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *vf)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];

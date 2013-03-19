@@ -2057,7 +2057,7 @@ static int saa7134_g_frequency(struct file *file, void *priv,
 }
 
 static int saa7134_s_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *f)
+					const struct v4l2_frequency *f)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;

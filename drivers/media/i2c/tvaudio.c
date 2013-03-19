@@ -1817,7 +1817,7 @@ static int tvaudio_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int tvaudio_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
+static int tvaudio_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *freq)
 {
 	struct CHIPSTATE *chip = to_state(sd);
 	struct CHIPDESC *desc = chip->desc;

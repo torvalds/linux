@@ -252,7 +252,7 @@ error:
 }
 
 static int fm_set_freq(struct file *file, void *priv,
-		       struct v4l2_frequency *argp)
+		       const struct v4l2_frequency *argp)
 {
 	struct poseidon *p = video_drvdata(file);
 

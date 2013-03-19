@@ -1518,7 +1518,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int cx23885_set_freq(struct cx23885_dev *dev, struct v4l2_frequency *f)
+static int cx23885_set_freq(struct cx23885_dev *dev, const struct v4l2_frequency *f)
 {
 	struct v4l2_control ctrl;
 
@@ -1550,7 +1550,7 @@ static int cx23885_set_freq(struct cx23885_dev *dev, struct v4l2_frequency *f)
 }
 
 static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	struct v4l2_control ctrl;
 	struct videobuf_dvb_frontend *vfe;
@@ -1608,7 +1608,7 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 }
 
 int cx23885_set_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	struct cx23885_fh *fh = priv;
 	struct cx23885_dev *dev = fh->dev;
@@ -1628,7 +1628,7 @@ int cx23885_set_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	return cx23885_set_frequency(file, priv, f);
 }

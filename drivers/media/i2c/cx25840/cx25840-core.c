@@ -1835,7 +1835,7 @@ static int cx25840_s_audio_routing(struct v4l2_subdev *sd,
 	return set_input(client, state->vid_input, input);
 }
 
-static int cx25840_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
+static int cx25840_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *freq)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

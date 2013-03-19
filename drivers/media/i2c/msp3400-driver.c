@@ -445,7 +445,7 @@ static int msp_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int msp_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
+static int msp_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *freq)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

@@ -223,7 +223,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_frequency)      (struct file *file, void *fh,
 					struct v4l2_frequency *a);
 	int (*vidioc_s_frequency)      (struct file *file, void *fh,
-					struct v4l2_frequency *a);
+					const struct v4l2_frequency *a);
 	int (*vidioc_enum_freq_bands) (struct file *file, void *fh,
 				    struct v4l2_frequency_band *band);
 

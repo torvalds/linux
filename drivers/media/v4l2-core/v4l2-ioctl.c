@@ -1316,7 +1316,7 @@ static int v4l_s_frequency(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
-	struct v4l2_frequency *p = arg;
+	const struct v4l2_frequency *p = arg;
 	enum v4l2_tuner_type type;
 
 	type = (vfd->vfl_type == VFL_TYPE_RADIO) ?

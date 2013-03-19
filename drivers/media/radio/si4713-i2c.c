@@ -1212,7 +1212,7 @@ exit:
 	return rval;
 }
 
-static int si4713_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f);
+static int si4713_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *f);
 static int si4713_s_modulator(struct v4l2_subdev *sd, const struct v4l2_modulator *);
 /*
  * si4713_setup - Sets the device up with current configuration.
@@ -1950,7 +1950,7 @@ unlock:
 }
 
 /* si4713_s_frequency - set tuner or modulator radio frequency */
-static int si4713_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
+static int si4713_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *f)
 {
 	struct si4713_device *sdev = to_si4713_device(sd);
 	int rval = 0;
@@ -1970,7 +1970,6 @@ static int si4713_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 		rval = 0;
 	}
 	sdev->frequency = frequency;
-	f->frequency = si4713_to_v4l2(frequency);
 
 unlock:
 	mutex_unlock(&sdev->mutex);

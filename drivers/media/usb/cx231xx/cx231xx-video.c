@@ -1172,10 +1172,11 @@ int cx231xx_g_frequency(struct file *file, void *priv,
 }
 
 int cx231xx_s_frequency(struct file *file, void *priv,
-			      struct v4l2_frequency *f)
+			      const struct v4l2_frequency *f)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
+	struct v4l2_frequency new_freq = *f;
 	int rc;
 	u32 if_frequency = 5400000;
 
@@ -1194,8 +1195,8 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 	rc = cx231xx_tuner_pre_channel_change(dev);
 
 	call_all(dev, tuner, s_frequency, f);
-	call_all(dev, tuner, g_frequency, f);
-	dev->ctl_freq = f->frequency;
+	call_all(dev, tuner, g_frequency, &new_freq);
+	dev->ctl_freq = new_freq.frequency;
 
 	/* set post channel change settings in DIF first */
 	rc = cx231xx_tuner_post_channel_change(dev);

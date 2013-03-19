@@ -1545,7 +1545,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *freq)
+				const struct v4l2_frequency *freq)
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;

@@ -614,7 +614,7 @@ static int cx18_g_frequency(struct file *file, void *fh,
 	return 0;
 }
 
-int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
+int cx18_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *vf)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;

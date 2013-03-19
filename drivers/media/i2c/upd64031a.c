@@ -111,7 +111,7 @@ static void upd64031a_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 /* ------------------------------------------------------------------------ */
 
 /* The input changed due to new input or channel changed */
-static int upd64031a_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
+static int upd64031a_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *freq)
 {
 	struct upd64031a_state *state = to_state(sd);
 	u8 reg = state->regs[R00];

@@ -1079,10 +1079,11 @@ static int set_frequency(struct poseidon *pd, u32 *frequency)
 }
 
 static int vidioc_s_frequency(struct file *file, void *fh,
-				struct v4l2_frequency *freq)
+				const struct v4l2_frequency *freq)
 {
 	struct front_face *front = fh;
 	struct poseidon *pd = front->pd;
+	u32 frequency = freq->frequency;
 
 	if (freq->tuner)
 		return -EINVAL;
@@ -1090,7 +1091,7 @@ static int vidioc_s_frequency(struct file *file, void *fh,
 	pd->pm_suspend = pm_video_suspend;
 	pd->pm_resume = pm_video_resume;
 #endif
-	return set_frequency(pd, &freq->frequency);
+	return set_frequency(pd, &frequency);
 }
 
 static int vidioc_reqbufs(struct file *file, void *fh,

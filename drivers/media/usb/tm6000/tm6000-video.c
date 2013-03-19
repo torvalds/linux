@@ -1255,7 +1255,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct tm6000_fh   *fh  = priv;
 	struct tm6000_core *dev = fh->dev;

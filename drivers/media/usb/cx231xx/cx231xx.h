@@ -940,7 +940,7 @@ int cx231xx_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t);
 int cx231xx_g_frequency(struct file *file, void *priv,
 			      struct v4l2_frequency *f);
 int cx231xx_s_frequency(struct file *file, void *priv,
-			      struct v4l2_frequency *f);
+			      const struct v4l2_frequency *f);
 int cx231xx_enum_input(struct file *file, void *priv,
 			     struct v4l2_input *i);
 int cx231xx_g_input(struct file *file, void *priv, unsigned int *i);

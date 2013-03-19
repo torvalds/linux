@@ -215,7 +215,7 @@ static int radio_si4713_g_frequency(struct file *file, void *p,
 }
 
 static int radio_si4713_s_frequency(struct file *file, void *p,
-				    struct v4l2_frequency *vf)
+				    const struct v4l2_frequency *vf)
 {
 	return v4l2_device_call_until_err(get_v4l2_dev(file), 0, tuner,
 					  s_frequency, vf);

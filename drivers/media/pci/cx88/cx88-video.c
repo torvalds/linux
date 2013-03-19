@@ -1321,8 +1321,10 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 }
 
 int cx88_set_freq (struct cx88_core  *core,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
+	struct v4l2_frequency new_freq = *f;
+
 	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
@@ -1331,8 +1333,8 @@ int cx88_set_freq (struct cx88_core  *core,
 	mutex_lock(&core->lock);
 	cx88_newstation(core);
 	call_all(core, tuner, s_frequency, f);
-	call_all(core, tuner, g_frequency, f);
-	core->freq = f->frequency;
+	call_all(core, tuner, g_frequency, &new_freq);
+	core->freq = new_freq.frequency;
 
 	/* When changing channels it is required to reset TVAUDIO */
 	msleep (10);
@@ -1345,7 +1347,7 @@ int cx88_set_freq (struct cx88_core  *core,
 EXPORT_SYMBOL(cx88_set_freq);
 
 static int vidioc_s_frequency (struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct cx8800_fh  *fh   = priv;
 	struct cx88_core  *core = fh->dev->core;

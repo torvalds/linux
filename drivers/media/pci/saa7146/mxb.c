@@ -595,7 +595,7 @@ static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency
 	return 0;
 }
 
-static int vidioc_s_frequency(struct file *file, void *fh, struct v4l2_frequency *f)
+static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *f)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
@@ -612,8 +612,8 @@ static int vidioc_s_frequency(struct file *file, void *fh, struct v4l2_frequency
 	/* tune in desired frequency */
 	tuner_call(mxb, tuner, s_frequency, f);
 	/* let the tuner subdev clamp the frequency to the tuner range */
-	tuner_call(mxb, tuner, g_frequency, f);
 	mxb->cur_freq = *f;
+	tuner_call(mxb, tuner, g_frequency, &mxb->cur_freq);
 	if (mxb->cur_audinput == 0)
 		mxb_update_audmode(mxb);
 

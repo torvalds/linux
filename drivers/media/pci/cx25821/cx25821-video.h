@@ -149,9 +149,9 @@ extern int cx25821_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f);
 extern int cx25821_vidioc_g_frequency(struct file *file, void *priv,
 				      struct v4l2_frequency *f);
-extern int cx25821_set_freq(struct cx25821_dev *dev, struct v4l2_frequency *f);
+extern int cx25821_set_freq(struct cx25821_dev *dev, const struct v4l2_frequency *f);
 extern int cx25821_vidioc_s_frequency(struct file *file, void *priv,
-				      struct v4l2_frequency *f);
+				      const struct v4l2_frequency *f);
 extern int cx25821_vidioc_g_register(struct file *file, void *fh,
 				     struct v4l2_dbg_register *reg);
 extern int cx25821_vidioc_s_register(struct file *file, void *fh,

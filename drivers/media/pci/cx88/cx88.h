@@ -740,7 +740,7 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev);
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);
-int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
+int cx88_set_freq(struct cx88_core  *core, const struct v4l2_frequency *f);
 int cx88_video_mux(struct cx88_core *core, unsigned int input);
 void cx88_querycap(struct file *file, struct cx88_core *core,
 		struct v4l2_capability *cap);

@@ -1221,8 +1221,9 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
+	struct v4l2_frequency new_freq = *f;
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 
@@ -1230,8 +1231,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		return -EINVAL;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, f);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_frequency, f);
-	dev->ctl_freq = f->frequency;
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_frequency, &new_freq);
+	dev->ctl_freq = new_freq.frequency;
 
 	return 0;
 }

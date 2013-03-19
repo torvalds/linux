@@ -576,7 +576,7 @@ static void input_change(struct cx18 *cx)
 }
 
 static int cx18_av_s_frequency(struct v4l2_subdev *sd,
-			       struct v4l2_frequency *freq)
+			       const struct v4l2_frequency *freq)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	input_change(cx);

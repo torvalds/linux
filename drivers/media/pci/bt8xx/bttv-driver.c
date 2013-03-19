@@ -1852,24 +1852,26 @@ static int bttv_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static void bttv_set_frequency(struct bttv *btv, struct v4l2_frequency *f)
+static void bttv_set_frequency(struct bttv *btv, const struct v4l2_frequency *f)
 {
+	struct v4l2_frequency new_freq = *f;
+
 	bttv_call_all(btv, tuner, s_frequency, f);
 	/* s_frequency may clamp the frequency, so get the actual
 	   frequency before assigning radio/tv_freq. */
-	bttv_call_all(btv, tuner, g_frequency, f);
-	if (f->type == V4L2_TUNER_RADIO) {
+	bttv_call_all(btv, tuner, g_frequency, &new_freq);
+	if (new_freq.type == V4L2_TUNER_RADIO) {
 		radio_enable(btv);
-		btv->radio_freq = f->frequency;
+		btv->radio_freq = new_freq.frequency;
 		if (btv->has_matchbox)
 			tea5757_set_freq(btv, btv->radio_freq);
 	} else {
-		btv->tv_freq = f->frequency;
+		btv->tv_freq = new_freq.frequency;
 	}
 }
 
 static int bttv_s_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *f)
+					const struct v4l2_frequency *f)
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;

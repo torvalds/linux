@@ -1312,7 +1312,7 @@ int cx25821_vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-int cx25821_set_freq(struct cx25821_dev *dev, struct v4l2_frequency *f)
+int cx25821_set_freq(struct cx25821_dev *dev, const struct v4l2_frequency *f)
 {
 	mutex_lock(&dev->lock);
 	dev->freq = f->frequency;
@@ -1328,7 +1328,7 @@ int cx25821_set_freq(struct cx25821_dev *dev, struct v4l2_frequency *f)
 }
 
 int cx25821_vidioc_s_frequency(struct file *file, void *priv,
-			       struct v4l2_frequency *f)
+			       const struct v4l2_frequency *f)
 {
 	struct cx25821_fh *fh = priv;
 	struct cx25821_dev *dev;

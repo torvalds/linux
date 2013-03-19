@@ -91,7 +91,7 @@ static int timbradio_vidioc_s_audio(struct file *file, void *priv,
 }
 
 static int timbradio_vidioc_s_frequency(struct file *file, void *priv,
-	struct v4l2_frequency *f)
+	const struct v4l2_frequency *f)
 {
 	struct timbradio *tr = video_drvdata(file);
 	return v4l2_subdev_call(tr->sd_tuner, tuner, s_frequency, f);
