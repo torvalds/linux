@@ -23,7 +23,7 @@
 #ifndef __OMAP_THERMAL_H
 #define __OMAP_THERMAL_H
 
-#include "omap-bandgap.h"
+#include "ti-bandgap.h"
 
 /* sensors gradient and offsets */
 #define OMAP_GRADIENT_SLOPE_4460				348

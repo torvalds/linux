@@ -1,13 +1,13 @@
 List of TODOs (by Eduardo Valentin)
 
-on omap-bandgap.c:
+on ti-bandgap.c:
 - Test every exposed API to userland
 - Add support to hwmon
 - Revisit PM support
 - Revisit data structures and simplify them
 - Once SCM-core api settles, update this driver accordingly
 
-on omap-thermal-common.c/omap-thermal.h:
+on ti-thermal-common.c/ti-thermal.h:
 - Revisit extrapolation constants for O4/O5
 - Revisit need for locking
 - Revisit trips and its definitions

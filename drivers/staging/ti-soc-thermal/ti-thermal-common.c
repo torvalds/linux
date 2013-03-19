@@ -32,8 +32,8 @@
 #include <linux/cpumask.h>
 #include <linux/cpu_cooling.h>
 
-#include "omap-thermal.h"
-#include "omap-bandgap.h"
+#include "ti-thermal.h"
+#include "ti-bandgap.h"
 
 /* common data structures */
 struct omap_thermal_data {

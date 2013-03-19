@@ -16,9 +16,9 @@
  *
  */
 
-#include "omap-bandgap.h"
+#include "ti-thermal.h"
+#include "ti-bandgap.h"
 #include "omap5xxx-bandgap.h"
-#include "omap-thermal.h"
 
 /*
  * OMAP5430 has three instances of thermal sensor for MPU, GPU & CORE,

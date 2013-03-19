@@ -40,7 +40,7 @@
 #include <linux/of_irq.h>
 #include <linux/io.h>
 
-#include "omap-bandgap.h"
+#include "ti-bandgap.h"
 
 /***   Helper functions to access registers and their bitfields   ***/
 

@@ -16,8 +16,8 @@
  *
  */
 
-#include "omap-thermal.h"
-#include "omap-bandgap.h"
+#include "ti-thermal.h"
+#include "ti-bandgap.h"
 #include "omap4xxx-bandgap.h"
 
 /*
