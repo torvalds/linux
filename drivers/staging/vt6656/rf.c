@@ -41,7 +41,6 @@
 
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-/*---------------------  Static Definitions -------------------------*/
 #define BY_AL2230_REG_LEN     23 //24bit
 #define CB_AL2230_INIT_SEQ    15
 #define AL2230_PWR_IDX_LEN    64
@@ -62,9 +61,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 #define VT3342_PWR_IDX_LEN    64
 //}}
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
 
 
@@ -673,9 +670,7 @@ const u32 dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
     0x0407F900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW
     };
 
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
 //{{ RobertYu:20050103, Channel 11a Number To Index
 // 4.9G => Ch 183, 184, 185, 187, 188, 189, 192, 196  (Value:15 ~ 22)
@@ -708,7 +703,6 @@ const u8 RFaby11aChannelIndex[200] = {
 };
 //}} RobertYu
 
-/*---------------------  Export Functions  --------------------------*/
 
 /*
  * Description: Write to IF/RF, by embedded programming

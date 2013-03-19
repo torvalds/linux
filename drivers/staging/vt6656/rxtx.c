@@ -63,16 +63,11 @@
 #include "usbpipe.h"
 #include "iocmd.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 static int          msglevel                = MSG_LEVEL_INFO;
 
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Static Definitions -------------------------*/
 
 const u16 wTimeStampOff[2][MAX_RATE] = {
         {384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23}, // Long Preamble
@@ -104,7 +99,6 @@ const u16 wFB_Opt1[2][5] = {
 #define DATADUR_A_F0    12
 #define DATADUR_A_F1    13
 
-/*---------------------  Static Functions  --------------------------*/
 
 static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 	u8 *pbyDestAddr, u16 wPktLength, u16 wFIFOCtl);
@@ -157,7 +151,6 @@ static unsigned int s_uGetRTSCTSDuration(struct vnt_private *pDevice,
 	int bNeedAck, u8 byFBOption);
 
 
-/*---------------------  Export Variables  --------------------------*/
 
 static void *s_vGetFreeContext(struct vnt_private *pDevice)
 {

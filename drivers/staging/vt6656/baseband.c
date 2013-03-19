@@ -47,23 +47,15 @@
 #include "datarate.h"
 #include "rndis.h"
 
-/*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
 
 u8 abyVT3184_AGC[] = {
@@ -658,7 +650,6 @@ u8 abyVT3184_VT3226D0[] = {
 const u16 awcFrameTime[MAX_RATE] =
 {10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216};
 
-/*---------------------  Static Functions  --------------------------*/
 
 /*
 static
@@ -674,7 +665,6 @@ void
 s_vClearSQ3Value(PSDevice pDevice);
 */
 
-/*---------------------  Export Variables  --------------------------*/
 /*
  * Description: Calculate data frame transmitting time
  *

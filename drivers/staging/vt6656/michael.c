@@ -42,11 +42,8 @@
 #include "tmacro.h"
 #include "michael.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
-/*---------------------  Static Functions  --------------------------*/
 /*
  * static u32 s_dwGetUINT32(u8 * p);         Get u32 from
  *							4 bytes LSByte first
@@ -60,13 +57,11 @@ static void s_vSetKey(u32 dwK0, u32 dwK1);
 static void s_vAppendByte(u8 b);	/* Add a single byte to the internal
 					 * message */
 
-/*---------------------  Export Variables  --------------------------*/
 static u32  L, R;		/* Current state */
 static u32  K0, K1;		/* Key */
 static u32  M;		/* Message accumulator (single word) */
 static unsigned int   nBytesInM;	/* # bytes in M */
 
-/*---------------------  Export Functions  --------------------------*/
 
 /*
 static u32 s_dwGetUINT32 (u8 * p)

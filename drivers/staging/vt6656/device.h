@@ -77,7 +77,6 @@
 #include "key.h"
 #include "card.h"
 
-/*---------------------  Export Definitions -------------------------*/
 #define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
 
@@ -141,7 +140,6 @@
 
 #define PRIVATE_Message                 0
 
-/*---------------------  Export Types  ------------------------------*/
 
 #define DBG_PRT(l, p, args...) { if (l <= msglevel) printk(p, ##args); }
 #define PRINT_K(p, args...) { if (PRIVATE_Message) printk(p, ##args); }
@@ -840,7 +838,6 @@ struct vnt_private {
 #define MP_IS_READY(_M)        (((_M)->Flags & \
                                  (fMP_DISCONNECTED | fMP_RESET_IN_PROGRESS | fMP_HALT_IN_PROGRESS | fMP_INIT_IN_PROGRESS | fMP_SURPRISE_REMOVED)) == 0)
 
-/*---------------------  Export Functions  --------------------------*/
 
 int device_alloc_frag_buf(struct vnt_private *, PSDeFragControlBlock pDeF);
 

@@ -36,7 +36,6 @@
 #include "card.h"
 #include "mib.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 #define MAX_NODE_NUM             64
 #define MAX_BSS_NUM              42
@@ -67,12 +66,9 @@
 #define MAX_WPA_IE_LEN      64
 
 
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
 
 
-/*---------------------  Export Types  ------------------------------*/
+
 
 //
 // IEEE 802.11 Structures and definitions
@@ -223,7 +219,6 @@ typedef struct tagKnownNodeDB {
 
 } KnownNodeDB, *PKnownNodeDB;
 
-/*---------------------  Export Functions  --------------------------*/
 
 PKnownBSS BSSpSearchBSSList(struct vnt_private *, u8 *pbyDesireBSSID,
 	u8 *pbyDesireSSID, CARD_PHY_TYPE ePhyType);

@@ -55,17 +55,13 @@
 #include "channel.h"
 #include "iowpa.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
 
 
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-/*---------------------  Static Functions  --------------------------*/
 
 static void s_vProbeChannel(struct vnt_private *);
 
@@ -79,9 +75,7 @@ static int s_bCommandComplete(struct vnt_private *);
 
 static int s_bClearBSSID_SCAN(struct vnt_private *);
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 /*
  * Description:

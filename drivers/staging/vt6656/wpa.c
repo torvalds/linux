@@ -41,7 +41,6 @@
 #include "wpa.h"
 #include "80211mgr.h"
 
-/*---------------------  Static Variables  --------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 
 const u8 abyOUI00[4] = { 0x00, 0x50, 0xf2, 0x00 };

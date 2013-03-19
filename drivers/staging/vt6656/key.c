@@ -42,24 +42,15 @@
 #include "rndis.h"
 #include "control.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
-/*---------------------  Static Functions  --------------------------*/
 static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
 	PSKeyManagement pTable)
 {
@@ -96,7 +87,6 @@ static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
 }
 
 
-/*---------------------  Export Functions  --------------------------*/
 
 
 /*

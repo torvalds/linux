@@ -45,7 +45,6 @@
 #include "desc.h"
 #include "device.h"
 
-/*---------------------  Static Definitions -------------------------*/
 //endpoint def
 //endpoint 0: control
 //endpoint 1: interrupt
@@ -62,20 +61,15 @@ static int          msglevel                =MSG_LEVEL_INFO;
 #define URB_ASYNC_UNLINK    0
 #endif
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
-/*---------------------  Static Functions  --------------------------*/
 static void s_nsInterruptUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb);
 static void s_nsControlInUsbIoCompleteRead(struct urb *urb);
 static void s_nsControlInUsbIoCompleteWrite(struct urb *urb);
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 int PIPEnsControlOutAsyn(struct vnt_private *pDevice, u8 byRequest,
 	u16 wValue, u16 wIndex, u16 wLength, u8 *pbyBuffer)

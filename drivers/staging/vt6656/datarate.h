@@ -30,7 +30,6 @@
 #define __DATARATE_H__
 
 
-/*---------------------  Export Definitions -------------------------*/
 
 #define FALLBACK_PKT_COLLECT_TR_H  50   /* pkts */
 #define FALLBACK_PKT_COLLECT_TR_L  10   /* pkts */
@@ -57,15 +56,11 @@
 #define RATE_AUTO      12
 #define MAX_RATE       12
 
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
 
 
-/*---------------------  Export Types  ------------------------------*/
 
 
-/*---------------------  Export Functions  --------------------------*/
+
 
 
 

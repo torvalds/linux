@@ -34,12 +34,9 @@
 #include "device.h"
 #include "wpa2.h"
 
-/*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
 const u8 abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
 const u8 abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
@@ -51,11 +48,8 @@ const u8 abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
 const u8 abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
 
 
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 /*+
  *

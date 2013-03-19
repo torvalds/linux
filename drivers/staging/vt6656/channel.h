@@ -32,9 +32,7 @@
 
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
 typedef struct tagSChannelTblElement {
     u8    byChannelNumber;
@@ -42,9 +40,7 @@ typedef struct tagSChannelTblElement {
     bool    bValid;
 } SChannelTblElement, *PSChannelTblElement;
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 bool    ChannelValid(unsigned int CountryCode, unsigned int ChannelNum);
 void    CHvInitChannelTable(struct vnt_private *pDevice);

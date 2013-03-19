@@ -35,11 +35,8 @@
 
 #include "tcrc.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
 /* 32-bit CRC table */
 static const u32 s_adwCrc32Table[256] = {
@@ -109,9 +106,7 @@ static const u32 s_adwCrc32Table[256] = {
     0xB40BBE37L, 0xC30C8EA1L, 0x5A05DF1BL, 0x2D02EF8DL
 };
 
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
 
 

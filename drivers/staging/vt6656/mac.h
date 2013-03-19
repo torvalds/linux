@@ -37,7 +37,6 @@
 #include "device.h"
 #include "tmacro.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 #define REV_ID_VT3253_A0    0x00
 #define REV_ID_VT3253_A1    0x01
@@ -409,15 +408,10 @@
 #define MAC_REVISION_A1     0x01
 
 
-/*---------------------  Export Types  ------------------------------*/
 
-/*---------------------  Export Macros ------------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 void MACvSetMultiAddrByHash(struct vnt_private *, u8);
 void MACvWriteMultiAddr(struct vnt_private *, u32, u8);

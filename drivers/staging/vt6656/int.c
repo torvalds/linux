@@ -40,18 +40,12 @@
 #include "bssdb.h"
 #include "usbpipe.h"
 
-/*---------------------  Static Definitions -------------------------*/
 static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 /*+
  *

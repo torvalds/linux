@@ -32,7 +32,6 @@
 #include "tether.h"
 #include "desc.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 
 //
@@ -366,11 +365,8 @@ typedef struct tagSStatCounter {
 
 } SStatCounter, *PSStatCounter;
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 void STAvClearAllCounter(PSStatCounter pStatistic);
 

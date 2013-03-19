@@ -32,9 +32,7 @@
 #include "device.h"
 #include "wcmd.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
 //
 // RTS buffer header
@@ -660,9 +658,7 @@ typedef struct tagSBEACON_BUFFER
 } BEACON_BUFFER, *PBEACON_BUFFER;
 
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb);
 int nsDMA_tx_packet(struct vnt_private *, u32 uDMAIdx, struct sk_buff *skb);

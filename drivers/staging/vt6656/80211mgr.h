@@ -33,7 +33,6 @@
 
 #include "80211hdr.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 #define WLAN_MIN_ARRAY          1
 
@@ -212,11 +211,8 @@
 #define MEASURE_MODE_INCAPABLE  0x02
 #define MEASURE_MODE_REFUSED    0x04
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Types  ------------------------------*/
 
 /* Information Element types */
 
@@ -719,7 +715,6 @@ typedef struct tagWLAN_FR_DEAUTHEN {
 
 } WLAN_FR_DEAUTHEN, *PWLAN_FR_DEAUTHEN;
 
-/*---------------------  Export Functions  --------------------------*/
 
 void
 vMgrEncodeBeacon(

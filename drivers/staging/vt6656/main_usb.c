@@ -72,7 +72,6 @@
 #include "int.h"
 #include "iowpa.h"
 
-/*---------------------  Static Definitions -------------------------*/
 /* static int msglevel = MSG_LEVEL_DEBUG; */
 static int          msglevel                =MSG_LEVEL_INFO;
 
@@ -208,7 +207,6 @@ static const long frequency_list[] = {
 static const struct iw_handler_def	iwctl_handler_def;
 */
 
-/*---------------------  Static Functions  --------------------------*/
 
 static int vt6656_probe(struct usb_interface *intf,
 			const struct usb_device_id *id);
@@ -250,9 +248,7 @@ static void usb_device_reset(struct vnt_private *pDevice);
 
 
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 
 static void
@@ -965,7 +961,6 @@ int device_alloc_frag_buf(struct vnt_private *pDevice,
 }
 
 
-/*-----------------------------------------------------------------*/
 
 static int  device_open(struct net_device *dev)
 {

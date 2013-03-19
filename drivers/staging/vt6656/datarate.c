@@ -43,16 +43,13 @@
 #include "srom.h"
 #include "rf.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
 
 
 
-/*---------------------  Static Classes  ----------------------------*/
 
 
 
-/*---------------------  Static Variables  --------------------------*/
 
 /* static int msglevel = MSG_LEVEL_DEBUG; */
 static int          msglevel                =MSG_LEVEL_INFO;
@@ -63,7 +60,6 @@ const u8 acbyIERate[MAX_RATE] =
 #define AUTORATE_TXFAIL_CNT     0x0064
 #define AUTORATE_TIMEOUT        10
 
-/*---------------------  Static Functions  --------------------------*/
 
 void s_vResetCounter(PKnownNodeDB psNodeDBTable);
 
@@ -78,10 +74,8 @@ void s_vResetCounter(PKnownNodeDB psNodeDBTable)
     }
 }
 
-/*---------------------  Export Variables  --------------------------*/
 
 
-/*---------------------  Export Functions  --------------------------*/
 
 
 /*+

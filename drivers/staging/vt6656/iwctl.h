@@ -31,13 +31,9 @@
 
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev);
 

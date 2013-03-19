@@ -31,7 +31,6 @@
 #ifndef __RNDIS_H__
 #define __RNDIS_H__
 
-/*---------------------  Export Definitions -------------------------*/
 #define MESSAGE_TYPE_READ               0x01
 #define MESSAGE_TYPE_WRITE              0x00
 #define MESSAGE_TYPE_LOCK_OR            0x02
@@ -70,7 +69,6 @@
 #define VIAUSB20_PACKET_HEADER          0x04
 
 
-/*---------------------  Export Classes  ----------------------------*/
 
 typedef struct _CMD_MESSAGE
 {
@@ -150,12 +148,9 @@ typedef struct _CMD_CHANGE_BBTYPE
     u16        wRSPINF_a[9];
 } CMD_CHANGE_BBTYPE, *PCMD_CHANGE_BBTYPE;
 
-/*---------------------  Export Macros -------------------------*/
 
 #define EXCH_WORD(w) ((u16)((u16)(w)<<8) | (u16)((u16)(w)>>8))
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 #endif /* _RNDIS_H_ */

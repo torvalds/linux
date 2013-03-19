@@ -32,7 +32,6 @@
 
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
 //
 // Baseband RF pair definition in eeprom (Bits 6..0)
 //
@@ -56,11 +55,8 @@
 
 
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 extern const u8 RFaby11aChannelIndex[200];
-/*---------------------  Export Functions  --------------------------*/
 
 int IFRFbWriteEmbedded(struct vnt_private *, u32 dwData);
 int RFbSetPower(struct vnt_private *, u32 uRATE, u32 uCH);

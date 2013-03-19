@@ -35,21 +35,13 @@
 #include "tmacro.h"
 #include "tkip.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
 /* The Sbox is reduced to 2 16-bit wide tables, each with 256 entries. */
 /* The 2nd table is the same as the 1st but with the upper and lower   */
@@ -128,9 +120,7 @@ const u8 TKIP_Sbox_Upper[256] = {
 
 //STKIPKeyManagement  sTKIPKeyTable[MAX_TKIP_KEY];
 
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
 /************************************************************/
 /* tkip_sbox()                                              */

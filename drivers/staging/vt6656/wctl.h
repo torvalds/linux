@@ -32,7 +32,6 @@
 #include "tether.h"
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 #define IS_TYPE_DATA(pMACHeader)                                                        \
     ((((struct ieee80211_hdr *) pMACHeader)->frame_control & TYPE_802_11_MASK) == TYPE_802_11_DATA)
@@ -89,11 +88,8 @@
         (uVar)++;                                   \
 }
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 bool WCTLbIsDuplicate(PSCache pCache, struct ieee80211_hdr *pMACHeader);
 bool WCTLbHandleFragment(struct vnt_private *, struct ieee80211_hdr *pMACHeader, unsigned int cbFrameLength, bool bWEP, bool bExtIV);

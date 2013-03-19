@@ -81,17 +81,13 @@
 #include "control.h"
 #include "rndis.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
 
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
-/*---------------------  Static Functions  --------------------------*/
 
 static int ChannelExceedZoneType(struct vnt_private *, u8 byCurrChannel);
 
@@ -197,9 +193,7 @@ s_bCipherMatch (
 
 static void Encyption_Rebuild(struct vnt_private *, PKnownBSS pCurr);
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 /*+
  *

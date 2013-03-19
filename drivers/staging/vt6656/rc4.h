@@ -32,8 +32,6 @@
 
 #include <linux/types.h>
 
-/*---------------------  Export Definitions -------------------------*/
-/*---------------------  Export Types  ------------------------------*/
 typedef struct {
     unsigned int ux;
     unsigned int uy;

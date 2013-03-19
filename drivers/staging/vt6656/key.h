@@ -33,7 +33,6 @@
 #include "tether.h"
 #include "80211mgr.h"
 
-/*---------------------  Export Definitions -------------------------*/
 #define MAX_GROUP_KEY       4
 #define MAX_KEY_TABLE       11
 #define MAX_KEY_LEN         32
@@ -86,15 +85,10 @@ typedef struct tagSKeyManagement
     SKeyTable   KeyTable[MAX_KEY_TABLE];
 } SKeyManagement, *PSKeyManagement;
 
-/*---------------------  Export Types  ------------------------------*/
 
-/*---------------------  Export Macros ------------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 void KeyvInitTable(struct vnt_private *, PSKeyManagement pTable);
 

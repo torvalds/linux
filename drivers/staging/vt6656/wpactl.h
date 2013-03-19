@@ -32,7 +32,6 @@
 #include "device.h"
 #include "iowpa.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 
 //WPA related
@@ -46,11 +45,8 @@ typedef enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP } wpa_alg;
 
 typedef unsigned long long NDIS_802_11_KEY_RSC;
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 int wpa_set_keys(struct vnt_private *, void *ctx);
 

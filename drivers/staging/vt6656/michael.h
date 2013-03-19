@@ -33,9 +33,7 @@
 
 #include <linux/types.h>
 
-/*---------------------  Export Definitions -------------------------*/
 
-/*---------------------  Export Types  ------------------------------*/
 
 void MIC_vInit(u32 dwK0, u32 dwK1);
 
@@ -48,7 +46,6 @@ void MIC_vAppend(u8 * src, unsigned int nBytes);
 // This also resets the message to empty.
 void MIC_vGetMIC(u32 * pdwL, u32 * pdwR);
 
-/*---------------------  Export Macros ------------------------------*/
 
 // Rotation functions on 32 bit values
 #define ROL32(A, n) \

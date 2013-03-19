@@ -36,7 +36,6 @@
 #include "tether.h"
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 #define PREAMBLE_LONG   0
 #define PREAMBLE_SHORT  1
@@ -84,15 +83,10 @@
 #define TOP_RATE_1M         0x00100000
 
 
-/*---------------------  Export Types  ------------------------------*/
 
-/*---------------------  Export Macros ------------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 unsigned int
 BBuGetFrameTime(

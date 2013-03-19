@@ -31,17 +31,11 @@
 
 #include <linux/types.h>
 
-/*---------------------  Export Definitions -------------------------*/
 
-/*---------------------  Export Types  ------------------------------*/
 
-/*---------------------  Export Macros ------------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 u32 CRCdwCrc32(u8 * pbyData, unsigned int cbByte, u32 dwCrcSeed);
 u32 CRCdwGetCrc32(u8 * pbyData, unsigned int cbByte);

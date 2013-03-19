@@ -39,15 +39,10 @@
 #include "card.h"
 #include "tmacro.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 // static int          msglevel                =MSG_LEVEL_INFO;
-/*---------------------  Static Functions  --------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
 
 

@@ -30,7 +30,6 @@
 #ifndef __SROM_H__
 #define __SROM_H__
 
-/*---------------------  Export Definitions -------------------------*/
 
 #define EEP_MAX_CONTEXT_SIZE    256
 
@@ -78,7 +77,6 @@
 //
 #define EEP_RADIOCTL_ENABLE 0x80
 
-/*---------------------  Export Types  ------------------------------*/
 
 // AT24C02 eeprom contents
 //      2048 bits = 256 bytes = 128 words
@@ -114,12 +112,8 @@ typedef struct tagSSromReg {
     u8    abyCIS[128];                // 0x80 (u16)
 } SSromReg, *PSSromReg;
 
-/*---------------------  Export Macros ------------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 #endif /* __EEPROM_H__ */

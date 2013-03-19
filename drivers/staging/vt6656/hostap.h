@@ -31,7 +31,6 @@
 
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 #define WLAN_RATE_1M    BIT0
 #define WLAN_RATE_2M    BIT1
@@ -47,11 +46,8 @@
 #define WLAN_RATE_54M   BIT11
 
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 #ifndef ETH_P_PAE
 #define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */

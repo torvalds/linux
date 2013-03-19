@@ -59,24 +59,18 @@
 #include "80211hdr.h"
 #include "wpa.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
 
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 
 static int          msglevel                = MSG_LEVEL_INFO;
 /*static int          msglevel                =MSG_LEVEL_DEBUG;*/
-/*---------------------  Static Functions  --------------------------*/
 
 
 
-/*---------------------  Export Variables  --------------------------*/
 
 
-/*---------------------  Export Functions  --------------------------*/
 
 
 /*+

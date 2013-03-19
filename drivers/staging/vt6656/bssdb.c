@@ -58,14 +58,11 @@
 #include "rndis.h"
 #include "iowpa.h"
 
-/*---------------------  Static Definitions -------------------------*/
 
 
 
 
-/*---------------------  Static Classes  ----------------------------*/
 
-/*---------------------  Static Variables  --------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
@@ -88,16 +85,13 @@ const u16             awHWRetry1[5][5] = {
 
 
 
-/*---------------------  Static Functions  --------------------------*/
 
 static void s_vCheckSensitivity(struct vnt_private *pDevice);
 static void s_vCheckPreEDThreshold(struct vnt_private *pDevice);
 static void s_uCalculateLinkQual(struct vnt_private *pDevice);
 
-/*---------------------  Export Variables  --------------------------*/
 
 
-/*---------------------  Export Functions  --------------------------*/
 
 
 

@@ -28,7 +28,6 @@
 #ifndef __80211HDR_H__
 #define __80211HDR_H__
 
-/*---------------------  Export Definitions -------------------------*/
 
 /* bit type */
 #define BIT0	0x00000001
@@ -323,10 +322,7 @@ typedef union tagUWLAN_80211HDR {
 
 } UWLAN_80211HDR, *PUWLAN_80211HDR;
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 #endif /* __80211HDR_H__ */

@@ -30,15 +30,10 @@
 #ifndef __AES_H__
 #define __AES_H__
 
-/*---------------------  Export Definitions -------------------------*/
 
-/*---------------------  Export Types  ------------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize);
 
 #endif /* __AES_CCMP_H__ */

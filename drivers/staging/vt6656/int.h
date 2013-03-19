@@ -32,7 +32,6 @@
 
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
 typedef struct tagSINTData {
 	u8 byTSR0;
 	u8 byPkt0;
@@ -57,11 +56,8 @@ typedef struct tagSINTData {
 } __attribute__ ((__packed__))
 SINTData, *PSINTData;
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 void INTvWorkItem(struct vnt_private *);
 void INTnsProcessData(struct vnt_private *);

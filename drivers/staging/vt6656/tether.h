@@ -31,7 +31,6 @@
 
 #include <linux/if_ether.h>
 
-/*---------------------  Export Definitions -------------------------*/
 //
 // constants
 //
@@ -114,13 +113,9 @@ typedef struct tagS802_3Header {
 } __attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
 
-/*---------------------  Export Macros ------------------------------*/
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 
 u8 ETHbyGetHashIndexByCrc32(u8 * pbyMultiAddr);
 //u8 ETHbyGetHashIndexByCrc(u8 * pbyMultiAddr);

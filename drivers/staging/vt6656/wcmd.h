@@ -32,7 +32,6 @@
 #include "80211hdr.h"
 #include "80211mgr.h"
 
-/*---------------------  Export Definitions -------------------------*/
 
 
 
@@ -104,13 +103,9 @@ typedef enum tagCMD_STATE {
     WLAN_CMD_IDLE
 } CMD_STATE, *PCMD_STATE;
 
-/*---------------------  Export Classes  ----------------------------*/
 
-/*---------------------  Export Variables  --------------------------*/
 
-/*---------------------  Export Types  ------------------------------*/
 
-/*---------------------  Export Functions  --------------------------*/
 struct vnt_private;
 
 void vResetCommandTimer(struct vnt_private *);
