@@ -44,6 +44,30 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
+/* Define the firmware names used by the driver */
+#define SMS_FW_ATSC_DENVER         "atsc_denver.inp"
+#define SMS_FW_CMMB_MING_APP       "cmmb_ming_app.inp"
+#define SMS_FW_CMMB_VEGA_12MHZ     "cmmb_vega_12mhz.inp"
+#define SMS_FW_CMMB_VENICE_12MHZ   "cmmb_venice_12mhz.inp"
+#define SMS_FW_DVBH_RIO            "dvbh_rio.inp"
+#define SMS_FW_DVB_NOVA_12MHZ_B0   "dvb_nova_12mhz_b0.inp"
+#define SMS_FW_DVB_NOVA_12MHZ      "dvb_nova_12mhz.inp"
+#define SMS_FW_DVB_RIO             "dvb_rio.inp"
+#define SMS_FW_FM_RADIO            "fm_radio.inp"
+#define SMS_FW_FM_RADIO_RIO        "fm_radio_rio.inp"
+#define SMS_FW_DVBT_HCW_55XXX      "sms1xxx-hcw-55xxx-dvbt-02.fw"
+#define SMS_FW_ISDBT_HCW_55XXX     "sms1xxx-hcw-55xxx-isdbt-02.fw"
+#define SMS_FW_ISDBT_NOVA_12MHZ_B0 "isdbt_nova_12mhz_b0.inp"
+#define SMS_FW_ISDBT_NOVA_12MHZ    "isdbt_nova_12mhz.inp"
+#define SMS_FW_ISDBT_PELE          "isdbt_pele.inp"
+#define SMS_FW_ISDBT_RIO           "isdbt_rio.inp"
+#define SMS_FW_DVBT_NOVA_A         "sms1xxx-nova-a-dvbt-01.fw"
+#define SMS_FW_DVBT_NOVA_B         "sms1xxx-nova-b-dvbt-01.fw"
+#define SMS_FW_DVBT_STELLAR        "sms1xxx-stellar-dvbt-01.fw"
+#define SMS_FW_TDMB_DENVER         "tdmb_denver.inp"
+#define SMS_FW_TDMB_NOVA_12MHZ_B0  "tdmb_nova_12mhz_b0.inp"
+#define SMS_FW_TDMB_NOVA_12MHZ     "tdmb_nova_12mhz.inp"
+
 #define SMS_PROTOCOL_MAX_RAOUNDTRIP_MS			(10000)
 #define SMS_ALLOC_ALIGNMENT				128
 #define SMS_DMA_ALIGNMENT				16
