@@ -564,8 +564,6 @@ static struct davinci_uart_config uart_config __initdata = {
 
 static void __init dm365_evm_map_io(void)
 {
-	/* setup input configuration for VPFE input devices */
-	dm365_set_vpfe_config(&vpfe_cfg);
 	dm365_init();
 }
 
@@ -596,6 +594,8 @@ static __init void dm365_evm_init(void)
 	dm365evm_mmc_configure();
 
 	davinci_setup_mmc(0, &dm365evm_mmc_config);
+
+	dm365_init_video(&vpfe_cfg, NULL);
 
 	/* maybe setup mmc1/etc ... _after_ mmc0 */
 	evm_init_cpld();
