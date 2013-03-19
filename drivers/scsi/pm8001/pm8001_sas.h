@@ -453,7 +453,9 @@ struct pm8001_hba_info {
 #endif
 	u32			logging_level;
 	u32			fw_status;
+	u32			int_vector;
 	const struct firmware 	*fw_image;
+	u8			outq[PM8001_MAX_MSIX_VEC];
 };
 
 struct pm8001_work {
