@@ -511,7 +511,7 @@ static int _ti_bandgap_write_threshold(struct ti_bandgap *bgp, int id, int val,
 		goto exit;
 
 	spin_lock(&bgp->lock);
-	ti_bandgap_update_alert_threshold(bgp, id, adc_val, hot);
+	ret = ti_bandgap_update_alert_threshold(bgp, id, adc_val, hot);
 	spin_unlock(&bgp->lock);
 
 exit:
