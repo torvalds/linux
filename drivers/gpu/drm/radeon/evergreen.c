@@ -403,6 +403,19 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 			rdev->pm.current_vddc = voltage->voltage;
 			DRM_DEBUG("Setting: vddc: %d\n", voltage->voltage);
 		}
+
+		/* starting with BTC, there is one state that is used for both
+		 * MH and SH.  Difference is that we always use the high clock index for
+		 * mclk and vddci.
+		 */
+		if ((rdev->pm.pm_method == PM_METHOD_PROFILE) &&
+		    (rdev->family >= CHIP_BARTS) &&
+		    rdev->pm.active_crtc_count &&
+		    ((rdev->pm.profile_index == PM_PROFILE_MID_MH_IDX) ||
+		     (rdev->pm.profile_index == PM_PROFILE_LOW_MH_IDX)))
+			voltage = &rdev->pm.power_state[req_ps_idx].
+				clock_info[rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_cm_idx].voltage;
+
 		/* 0xff01 is a flag rather then an actual voltage */
 		if (voltage->vddci == 0xff01)
 			return;
@@ -2424,6 +2437,12 @@ static u32 evergreen_gpu_check_soft_reset(struct radeon_device *rdev)
 	tmp = RREG32(VM_L2_STATUS);
 	if (tmp & L2_BUSY)
 		reset_mask |= RADEON_RESET_VMC;
+
+	/* Skip MC reset as it's mostly likely not hung, just busy */
+	if (reset_mask & RADEON_RESET_MC) {
+		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
+		reset_mask &= ~RADEON_RESET_MC;
+	}
 
 	return reset_mask;
 }

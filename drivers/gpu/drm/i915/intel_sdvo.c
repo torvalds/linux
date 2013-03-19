@@ -1079,7 +1079,7 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 		/* FIXME: This bit is only valid when using TMDS encoding and 8
 		 * bit per color mode. */
 		if (intel_sdvo->has_hdmi_monitor &&
-		    drm_mode_cea_vic(adjusted_mode) > 1)
+		    drm_match_cea_mode(adjusted_mode) > 1)
 			intel_sdvo->color_range = HDMI_COLOR_RANGE_16_235;
 		else
 			intel_sdvo->color_range = 0;
@@ -2041,7 +2041,6 @@ done:
 static const struct drm_encoder_helper_funcs intel_sdvo_helper_funcs = {
 	.mode_fixup = intel_sdvo_mode_fixup,
 	.mode_set = intel_sdvo_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {

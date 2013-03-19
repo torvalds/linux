@@ -70,10 +70,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.1.29.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.1.30.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01011D00
+#define VMXNET3_DRIVER_VERSION_NUM      0x01011E00
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -276,8 +276,6 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_rx_ctx     rx_ctx;
 	u32 qid;            /* rqID in RCD for buffer from 1st ring */
 	u32 qid2;           /* rqID in RCD for buffer from 2nd ring */
-	u32 uncommitted[2]; /* # of buffers allocated since last RXPROD
-				* update */
 	struct vmxnet3_rx_buf_info     *buf_info[2];
 	struct Vmxnet3_RxQueueCtrl            *shared;
 	struct vmxnet3_rq_driver_stats  stats;
@@ -354,7 +352,6 @@ struct vmxnet3_adapter {
 
 	unsigned long  state;    /* VMXNET3_STATE_BIT_xxx */
 
-	int dev_number;
 	int share_intr;
 };
 

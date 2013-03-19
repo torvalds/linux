@@ -105,7 +105,7 @@ static inline void anon_vma_free(struct anon_vma *anon_vma)
 	 */
 	if (rwsem_is_locked(&anon_vma->root->rwsem)) {
 		anon_vma_lock_write(anon_vma);
-		anon_vma_unlock(anon_vma);
+		anon_vma_unlock_write(anon_vma);
 	}
 
 	kmem_cache_free(anon_vma_cachep, anon_vma);
@@ -191,7 +191,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 			avc = NULL;
 		}
 		spin_unlock(&mm->page_table_lock);
-		anon_vma_unlock(anon_vma);
+		anon_vma_unlock_write(anon_vma);
 
 		if (unlikely(allocated))
 			put_anon_vma(allocated);
@@ -308,7 +308,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	vma->anon_vma = anon_vma;
 	anon_vma_lock_write(anon_vma);
 	anon_vma_chain_link(vma, avc, anon_vma);
-	anon_vma_unlock(anon_vma);
+	anon_vma_unlock_write(anon_vma);
 
 	return 0;
 
@@ -1126,7 +1126,6 @@ void page_add_file_rmap(struct page *page)
  */
 void page_remove_rmap(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
 	bool anon = PageAnon(page);
 	bool locked;
 	unsigned long flags;
@@ -1143,29 +1142,6 @@ void page_remove_rmap(struct page *page)
 	if (!atomic_add_negative(-1, &page->_mapcount))
 		goto out;
 
-	/*
-	 * Now that the last pte has gone, s390 must transfer dirty
-	 * flag from storage key to struct page.  We can usually skip
-	 * this if the page is anon, so about to be freed; but perhaps
-	 * not if it's in swapcache - there might be another pte slot
-	 * containing the swap entry, but page not yet written to swap.
-	 *
-	 * And we can skip it on file pages, so long as the filesystem
-	 * participates in dirty tracking (note that this is not only an
-	 * optimization but also solves problems caused by dirty flag in
-	 * storage key getting set by a write from inside kernel); but need to
-	 * catch shm and tmpfs and ramfs pages which have been modified since
-	 * creation by read fault.
-	 *
-	 * Note that mapping must be decided above, before decrementing
-	 * mapcount (which luckily provides a barrier): once page is unmapped,
-	 * it could be truncated and page->mapping reset to NULL at any moment.
-	 * Note also that we are relying on page_mapping(page) to set mapping
-	 * to &swapper_space when PageSwapCache(page).
-	 */
-	if (mapping && !mapping_cap_account_dirty(mapping) &&
-	    page_test_and_clear_dirty(page_to_pfn(page), 1))
-		set_page_dirty(page);
 	/*
 	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
 	 * and not charged by memcg for now.

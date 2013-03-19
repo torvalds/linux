@@ -193,7 +193,6 @@ static struct spi_driver cyttsp_spi_driver = {
 
 module_spi_driver(cyttsp_spi_driver);
 
-MODULE_ALIAS("spi:cyttsp");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cypress TrueTouch(R) Standard Product (TTSP) SPI driver");
 MODULE_AUTHOR("Cypress");

@@ -60,6 +60,7 @@ enum hp_wmi_radio {
 	HPWMI_WIFI = 0,
 	HPWMI_BLUETOOTH = 1,
 	HPWMI_WWAN = 2,
+	HPWMI_GPS = 3,
 };
 
 enum hp_wmi_event_ids {
@@ -71,10 +72,6 @@ enum hp_wmi_event_ids {
 	HPWMI_CPU_BATTERY_THROTTLE = 6,
 	HPWMI_LOCK_SWITCH = 7,
 };
-
-static int hp_wmi_bios_setup(struct platform_device *device);
-static int __exit hp_wmi_bios_remove(struct platform_device *device);
-static int hp_wmi_resume_handler(struct device *device);
 
 struct bios_args {
 	u32 signature;
@@ -137,6 +134,7 @@ static const struct key_entry hp_wmi_keymap[] = {
 	{ KE_KEY, 0x2142, { KEY_MEDIA } },
 	{ KE_KEY, 0x213b, { KEY_INFO } },
 	{ KE_KEY, 0x2169, { KEY_DIRECTION } },
+	{ KE_KEY, 0x216a, { KEY_SETUP } },
 	{ KE_KEY, 0x231b, { KEY_HELP } },
 	{ KE_END, 0 }
 };
@@ -147,6 +145,7 @@ static struct platform_device *hp_wmi_platform_dev;
 static struct rfkill *wifi_rfkill;
 static struct rfkill *bluetooth_rfkill;
 static struct rfkill *wwan_rfkill;
+static struct rfkill *gps_rfkill;
 
 struct rfkill2_device {
 	u8 id;
@@ -156,21 +155,6 @@ struct rfkill2_device {
 
 static int rfkill2_count;
 static struct rfkill2_device rfkill2[HPWMI_MAX_RFKILL2_DEVICES];
-
-static const struct dev_pm_ops hp_wmi_pm_ops = {
-	.resume  = hp_wmi_resume_handler,
-	.restore  = hp_wmi_resume_handler,
-};
-
-static struct platform_driver hp_wmi_driver = {
-	.driver = {
-		.name = "hp-wmi",
-		.owner = THIS_MODULE,
-		.pm = &hp_wmi_pm_ops,
-	},
-	.probe = hp_wmi_bios_setup,
-	.remove = hp_wmi_bios_remove,
-};
 
 /*
  * hp_wmi_perform_query
@@ -543,6 +527,10 @@ static void hp_wmi_notify(u32 value, void *context)
 			rfkill_set_states(wwan_rfkill,
 					  hp_wmi_get_sw_state(HPWMI_WWAN),
 					  hp_wmi_get_hw_state(HPWMI_WWAN));
+		if (gps_rfkill)
+			rfkill_set_states(gps_rfkill,
+					  hp_wmi_get_sw_state(HPWMI_GPS),
+					  hp_wmi_get_hw_state(HPWMI_GPS));
 		break;
 	case HPWMI_CPU_BATTERY_THROTTLE:
 		pr_info("Unimplemented CPU throttle because of 3 Cell battery event detected\n");
@@ -670,7 +658,7 @@ static int hp_wmi_rfkill_setup(struct platform_device *device)
 					   (void *) HPWMI_WWAN);
 		if (!wwan_rfkill) {
 			err = -ENOMEM;
-			goto register_bluetooth_error;
+			goto register_gps_error;
 		}
 		rfkill_init_sw_state(wwan_rfkill,
 				     hp_wmi_get_sw_state(HPWMI_WWAN));
@@ -681,10 +669,33 @@ static int hp_wmi_rfkill_setup(struct platform_device *device)
 			goto register_wwan_err;
 	}
 
+	if (wireless & 0x8) {
+		gps_rfkill = rfkill_alloc("hp-gps", &device->dev,
+						RFKILL_TYPE_GPS,
+						&hp_wmi_rfkill_ops,
+						(void *) HPWMI_GPS);
+		if (!gps_rfkill) {
+			err = -ENOMEM;
+			goto register_bluetooth_error;
+		}
+		rfkill_init_sw_state(gps_rfkill,
+				     hp_wmi_get_sw_state(HPWMI_GPS));
+		rfkill_set_hw_state(bluetooth_rfkill,
+				    hp_wmi_get_hw_state(HPWMI_GPS));
+		err = rfkill_register(gps_rfkill);
+		if (err)
+			goto register_gps_error;
+	}
+
 	return 0;
 register_wwan_err:
 	rfkill_destroy(wwan_rfkill);
 	wwan_rfkill = NULL;
+	if (gps_rfkill)
+		rfkill_unregister(gps_rfkill);
+register_gps_error:
+	rfkill_destroy(gps_rfkill);
+	gps_rfkill = NULL;
 	if (bluetooth_rfkill)
 		rfkill_unregister(bluetooth_rfkill);
 register_bluetooth_error:
@@ -728,6 +739,10 @@ static int hp_wmi_rfkill2_setup(struct platform_device *device)
 		case HPWMI_WWAN:
 			type = RFKILL_TYPE_WWAN;
 			name = "hp-wwan";
+			break;
+		case HPWMI_GPS:
+			type = RFKILL_TYPE_GPS;
+			name = "hp-gps";
 			break;
 		default:
 			pr_warn("unknown device type 0x%x\n",
@@ -778,7 +793,7 @@ fail:
 	return err;
 }
 
-static int hp_wmi_bios_setup(struct platform_device *device)
+static int __init hp_wmi_bios_setup(struct platform_device *device)
 {
 	int err;
 
@@ -786,6 +801,7 @@ static int hp_wmi_bios_setup(struct platform_device *device)
 	wifi_rfkill = NULL;
 	bluetooth_rfkill = NULL;
 	wwan_rfkill = NULL;
+	gps_rfkill = NULL;
 	rfkill2_count = 0;
 
 	if (hp_wmi_rfkill_setup(device))
@@ -835,6 +851,10 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 		rfkill_unregister(wwan_rfkill);
 		rfkill_destroy(wwan_rfkill);
 	}
+	if (gps_rfkill) {
+		rfkill_unregister(gps_rfkill);
+		rfkill_destroy(gps_rfkill);
+	}
 
 	return 0;
 }
@@ -870,9 +890,27 @@ static int hp_wmi_resume_handler(struct device *device)
 		rfkill_set_states(wwan_rfkill,
 				  hp_wmi_get_sw_state(HPWMI_WWAN),
 				  hp_wmi_get_hw_state(HPWMI_WWAN));
+	if (gps_rfkill)
+		rfkill_set_states(gps_rfkill,
+				  hp_wmi_get_sw_state(HPWMI_GPS),
+				  hp_wmi_get_hw_state(HPWMI_GPS));
 
 	return 0;
 }
+
+static const struct dev_pm_ops hp_wmi_pm_ops = {
+	.resume  = hp_wmi_resume_handler,
+	.restore  = hp_wmi_resume_handler,
+};
+
+static struct platform_driver hp_wmi_driver = {
+	.driver = {
+		.name = "hp-wmi",
+		.owner = THIS_MODULE,
+		.pm = &hp_wmi_pm_ops,
+	},
+	.remove = __exit_p(hp_wmi_bios_remove),
+};
 
 static int __init hp_wmi_init(void)
 {
@@ -880,41 +918,42 @@ static int __init hp_wmi_init(void)
 	int event_capable = wmi_has_guid(HPWMI_EVENT_GUID);
 	int bios_capable = wmi_has_guid(HPWMI_BIOS_GUID);
 
+	if (!bios_capable && !event_capable)
+		return -ENODEV;
+
 	if (event_capable) {
 		err = hp_wmi_input_setup();
 		if (err)
 			return err;
+		
+		//Enable magic for hotkeys that run on the SMBus
+		ec_write(0xe6,0x6e);
 	}
 
 	if (bios_capable) {
-		err = platform_driver_register(&hp_wmi_driver);
-		if (err)
-			goto err_driver_reg;
-		hp_wmi_platform_dev = platform_device_alloc("hp-wmi", -1);
-		if (!hp_wmi_platform_dev) {
-			err = -ENOMEM;
-			goto err_device_alloc;
+		hp_wmi_platform_dev =
+			platform_device_register_simple("hp-wmi", -1, NULL, 0);
+		if (IS_ERR(hp_wmi_platform_dev)) {
+			err = PTR_ERR(hp_wmi_platform_dev);
+			goto err_destroy_input;
 		}
-		err = platform_device_add(hp_wmi_platform_dev);
-		if (err)
-			goto err_device_add;
-	}
 
-	if (!bios_capable && !event_capable)
-		return -ENODEV;
+		err = platform_driver_probe(&hp_wmi_driver, hp_wmi_bios_setup);
+		if (err)
+			goto err_unregister_device;
+	}
 
 	return 0;
 
-err_device_add:
-	platform_device_put(hp_wmi_platform_dev);
-err_device_alloc:
-	platform_driver_unregister(&hp_wmi_driver);
-err_driver_reg:
+err_unregister_device:
+	platform_device_unregister(hp_wmi_platform_dev);
+err_destroy_input:
 	if (event_capable)
 		hp_wmi_input_destroy();
 
 	return err;
 }
+module_init(hp_wmi_init);
 
 static void __exit hp_wmi_exit(void)
 {
@@ -926,6 +965,4 @@ static void __exit hp_wmi_exit(void)
 		platform_driver_unregister(&hp_wmi_driver);
 	}
 }
-
-module_init(hp_wmi_init);
 module_exit(hp_wmi_exit);

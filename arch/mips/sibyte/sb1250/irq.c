@@ -264,7 +264,7 @@ void __init arch_init_irq(void)
 		     IOADDR(A_IMR_REGISTER(1, R_IMR_INTERRUPT_MAP_BASE) +
 			    (K_INT_MBOX_0 << 3)));
 
-	/* Clear the mailboxes.  The firmware may leave them dirty */
+	/* Clear the mailboxes.	 The firmware may leave them dirty */
 	__raw_writeq(0xffffffffffffffffULL,
 		     IOADDR(A_IMR_REGISTER(0, R_IMR_MAILBOX_CLR_CPU)));
 	__raw_writeq(0xffffffffffffffffULL,
@@ -277,7 +277,7 @@ void __init arch_init_irq(void)
 
 	/*
 	 * Note that the timer interrupts are also mapped, but this is
-	 * done in sb1250_time_init().  Also, the profiling driver
+	 * done in sb1250_time_init().	Also, the profiling driver
 	 * does its own management of IP7.
 	 */
 
@@ -294,7 +294,7 @@ static inline void dispatch_ip2(void)
 
 	/*
 	 * Default...we've hit an IP[2] interrupt, which means we've got to
-	 * check the 1250 interrupt registers to figure out what to do.  Need
+	 * check the 1250 interrupt registers to figure out what to do.	 Need
 	 * to detect which CPU we're on, now that smp_affinity is supported.
 	 */
 	mask = __raw_readq(IOADDR(A_IMR_REGISTER(cpu,
@@ -323,7 +323,7 @@ asmlinkage void plat_irq_dispatch(void)
 	if (pending & CAUSEF_IP7) /* CPU performance counter interrupt */
 		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
 	else if (pending & CAUSEF_IP4)
-		do_IRQ(K_INT_TIMER_0 + cpu); 	/* sb1250_timer_interrupt() */
+		do_IRQ(K_INT_TIMER_0 + cpu);	/* sb1250_timer_interrupt() */
 
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)

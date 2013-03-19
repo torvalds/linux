@@ -32,7 +32,7 @@ MACHINE_START(H7201, "Hynix GMS30C7201")
 	.atag_offset	= 0x1000,
 	.map_io		= h720x_map_io,
 	.init_irq	= h720x_init_irq,
-	.timer		= &h7201_timer,
+	.init_time	= h7201_timer_init,
 	.dma_zone_size	= SZ_256M,
 	.restart	= h720x_restart,
 MACHINE_END

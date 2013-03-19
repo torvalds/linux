@@ -193,7 +193,7 @@ static ssize_t set_temp_max(struct device *dev,
 	temp /= 1000;
 
 	mutex_lock(&data->update_lock);
-	data->temp_max[index] = SENSORS_LIMIT(temp, -128, 127);
+	data->temp_max[index] = clamp_val(temp, -128, 127);
 	if (!read_only)
 		i2c_smbus_write_byte_data(client, ADM1021_REG_TOS_W(index),
 					  data->temp_max[index]);
@@ -218,7 +218,7 @@ static ssize_t set_temp_min(struct device *dev,
 	temp /= 1000;
 
 	mutex_lock(&data->update_lock);
-	data->temp_min[index] = SENSORS_LIMIT(temp, -128, 127);
+	data->temp_min[index] = clamp_val(temp, -128, 127);
 	if (!read_only)
 		i2c_smbus_write_byte_data(client, ADM1021_REG_THYST_W(index),
 					  data->temp_min[index]);

@@ -67,7 +67,25 @@ LDFLAGS_vmlinux-y := -Bstatic
 LDFLAGS_vmlinux-$(CONFIG_RELOCATABLE) := -pie
 LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-y)
 
-CFLAGS-$(CONFIG_PPC64)	:= -mminimal-toc -mtraceback=no -mcall-aixdesc
+ifeq ($(CONFIG_PPC64),y)
+ifeq ($(call cc-option-yn,-mcmodel=medium),y)
+	# -mcmodel=medium breaks modules because it uses 32bit offsets from
+	# the TOC pointer to create pointers where possible. Pointers into the
+	# percpu data area are created by this method.
+	#
+	# The kernel module loader relocates the percpu data section from the
+	# original location (starting with 0xd...) to somewhere in the base
+	# kernel percpu data space (starting with 0xc...). We need a full
+	# 64bit relocation for this to work, hence -mcmodel=large.
+	KBUILD_CFLAGS_MODULE += -mcmodel=large
+else
+	export NO_MINIMAL_TOC := -mno-minimal-toc
+endif
+endif
+
+CFLAGS-$(CONFIG_PPC64)	:= -mtraceback=no -mcall-aixdesc
+CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mcmodel=medium,-mminimal-toc)
+CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mno-pointers-to-nested-functions)
 CFLAGS-$(CONFIG_PPC32)	:= -ffixed-r2 -mmultiple
 
 CFLAGS-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=power7,-mtune=power4)
@@ -136,6 +154,7 @@ head-$(CONFIG_FSL_BOOKE)	:= arch/powerpc/kernel/head_fsl_booke.o
 head-$(CONFIG_PPC64)		+= arch/powerpc/kernel/entry_64.o
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 head-$(CONFIG_ALTIVEC)		+= arch/powerpc/kernel/vector.o
+head-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)  += arch/powerpc/kernel/prom_init.o
 
 core-y				+= arch/powerpc/kernel/ \
 				   arch/powerpc/mm/ \
@@ -143,6 +162,7 @@ core-y				+= arch/powerpc/kernel/ \
 				   arch/powerpc/sysdev/ \
 				   arch/powerpc/platforms/ \
 				   arch/powerpc/math-emu/ \
+				   arch/powerpc/crypto/ \
 				   arch/powerpc/net/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_KVM) 		+= arch/powerpc/kvm/

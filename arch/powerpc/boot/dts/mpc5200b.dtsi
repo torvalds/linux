@@ -64,50 +64,59 @@
 			reg = <0x500 0x80>;
 		};
 
-		timer@600 {	// General Purpose Timer
+		gpt0: timer@600 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			#gpio-cells = <2>;  // Add 'gpio-controller;' to enable gpio mode
 			reg = <0x600 0x10>;
 			interrupts = <1 9 0>;
+			// add 'fsl,has-wdt' to enable watchdog
 		};
 
-		timer@610 {	// General Purpose Timer
+		gpt1: timer@610 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			#gpio-cells = <2>;  // Add 'gpio-controller;' to enable gpio mode
 			reg = <0x610 0x10>;
 			interrupts = <1 10 0>;
 		};
 
-		timer@620 {	// General Purpose Timer
+		gpt2: timer@620 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			#gpio-cells = <2>;  // Add 'gpio-controller;' to enable gpio mode
 			reg = <0x620 0x10>;
 			interrupts = <1 11 0>;
 		};
 
-		timer@630 {	// General Purpose Timer
+		gpt3: timer@630 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			#gpio-cells = <2>;  // Add 'gpio-controller;' to enable gpio mode
 			reg = <0x630 0x10>;
 			interrupts = <1 12 0>;
 		};
 
-		timer@640 {	// General Purpose Timer
+		gpt4: timer@640 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			#gpio-cells = <2>;  // Add 'gpio-controller;' to enable gpio mode
 			reg = <0x640 0x10>;
 			interrupts = <1 13 0>;
 		};
 
-		timer@650 {	// General Purpose Timer
+		gpt5: timer@650 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			#gpio-cells = <2>;  // Add 'gpio-controller;' to enable gpio mode
 			reg = <0x650 0x10>;
 			interrupts = <1 14 0>;
 		};
 
-		timer@660 {	// General Purpose Timer
+		gpt6: timer@660 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			#gpio-cells = <2>;  // Add 'gpio-controller;' to enable gpio mode
 			reg = <0x660 0x10>;
 			interrupts = <1 15 0>;
 		};
 
-		timer@670 {	// General Purpose Timer
+		gpt7: timer@670 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
+			#gpio-cells = <2>;  // Add 'gpio-controller;' to enable gpio mode
 			reg = <0x670 0x10>;
 			interrupts = <1 16 0>;
 		};

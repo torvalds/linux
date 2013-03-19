@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -157,7 +157,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	sram = priv->dbgfs_sram_offset & ~0x3;
 
 	/* read the first u32 from sram */
-	val = iwl_read_targ_mem(priv->trans, sram);
+	val = iwl_trans_read_mem32(priv->trans, sram);
 
 	for (; len; len--) {
 		/* put the address at the start of every line */
@@ -176,7 +176,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 		if (++offset == 4) {
 			sram += 4;
 			offset = 0;
-			val = iwl_read_targ_mem(priv->trans, sram);
+			val = iwl_trans_read_mem32(priv->trans, sram);
 		}
 
 		/* put in extra spaces and split lines for human readability */

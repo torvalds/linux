@@ -16,30 +16,6 @@
 
 /* These are here to support 32-bit syscalls on a 64-bit kernel. */
 
-#define __old_sigaction32	old_sigaction32
-
-struct __old_sigaction32 {
-	compat_uptr_t		sa_handler;
-	compat_old_sigset_t  	sa_mask;
-	unsigned int    	sa_flags;
-	compat_uptr_t		sa_restorer;     /* not used by Linux/SPARC yet */
-};
-
-
-
-struct sigaction32 {
-       compat_uptr_t  sa_handler;	/* Really a pointer, but need to deal with 32 bits */
-       unsigned int sa_flags;
-       compat_uptr_t sa_restorer;	/* Another 32 bit pointer */
-       compat_sigset_t sa_mask;		/* A 32 bit mask */
-};
-
-typedef struct sigaltstack_32 {
-	unsigned int ss_sp;
-	int ss_flags;
-	compat_size_t ss_size;
-} stack_32_t;
-
 struct pt_regs32 {
 	unsigned int gpr[32];
 	unsigned int nip;
@@ -75,7 +51,7 @@ struct mcontext32 {
 struct ucontext32 { 
 	unsigned int	  	uc_flags;
 	unsigned int 	  	uc_link;
-	stack_32_t	 	uc_stack;
+	compat_stack_t	 	uc_stack;
 	int		 	uc_pad[7];
 	compat_uptr_t		uc_regs;	/* points to uc_mcontext field */
 	compat_sigset_t	 	uc_sigmask;	/* mask last for extensibility */

@@ -9,17 +9,19 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <mach/hardware.h>
-#include <asm/mach/irq.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/irqdomain.h>
 #include <linux/syscore_ops.h>
+#include <asm/mach/irq.h>
+#include <asm/exception.h>
+#include <mach/hardware.h>
 
 #define SIRFSOC_INT_RISC_MASK0          0x0018
 #define SIRFSOC_INT_RISC_MASK1          0x001C
 #define SIRFSOC_INT_RISC_LEVEL0         0x0020
 #define SIRFSOC_INT_RISC_LEVEL1         0x0024
+#define SIRFSOC_INIT_IRQ_ID		0x0038
 
 void __iomem *sirfsoc_intc_base;
 
@@ -50,6 +52,16 @@ static __init void sirfsoc_irq_init(void)
 
 	writel_relaxed(0, sirfsoc_intc_base + SIRFSOC_INT_RISC_MASK0);
 	writel_relaxed(0, sirfsoc_intc_base + SIRFSOC_INT_RISC_MASK1);
+}
+
+asmlinkage void __exception_irq_entry sirfsoc_handle_irq(struct pt_regs *regs)
+{
+	u32 irqstat, irqnr;
+
+	irqstat = readl_relaxed(sirfsoc_intc_base + SIRFSOC_INIT_IRQ_ID);
+	irqnr = irqstat & 0xff;
+
+	handle_IRQ(irqnr, regs);
 }
 
 static struct of_device_id intc_ids[]  = {

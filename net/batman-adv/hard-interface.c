@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2013 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -457,6 +457,24 @@ out:
 		batadv_hardif_free_ref(primary_if);
 }
 
+/**
+ * batadv_hardif_remove_interface_finish - cleans up the remains of a hardif
+ * @work: work queue item
+ *
+ * Free the parts of the hard interface which can not be removed under
+ * rtnl lock (to prevent deadlock situations).
+ */
+static void batadv_hardif_remove_interface_finish(struct work_struct *work)
+{
+	struct batadv_hard_iface *hard_iface;
+
+	hard_iface = container_of(work, struct batadv_hard_iface,
+				  cleanup_work);
+
+	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
+	batadv_hardif_free_ref(hard_iface);
+}
+
 static struct batadv_hard_iface *
 batadv_hardif_add_interface(struct net_device *net_dev)
 {
@@ -484,6 +502,9 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	hard_iface->soft_iface = NULL;
 	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
 	INIT_LIST_HEAD(&hard_iface->list);
+	INIT_WORK(&hard_iface->cleanup_work,
+		  batadv_hardif_remove_interface_finish);
+
 	/* extra reference for return */
 	atomic_set(&hard_iface->refcount, 2);
 
@@ -518,8 +539,7 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 		return;
 
 	hard_iface->if_status = BATADV_IF_TO_BE_REMOVED;
-	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
-	batadv_hardif_free_ref(hard_iface);
+	queue_work(batadv_event_workqueue, &hard_iface->cleanup_work);
 }
 
 void batadv_hardif_remove_interfaces(void)

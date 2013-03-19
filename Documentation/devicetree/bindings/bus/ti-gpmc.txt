@@ -1,0 +1,84 @@
+Device tree bindings for OMAP general purpose memory controllers (GPMC)
+
+The actual devices are instantiated from the child nodes of a GPMC node.
+
+Required properties:
+
+ - compatible:		Should be set to one of the following:
+
+			ti,omap2420-gpmc (omap2420)
+			ti,omap2430-gpmc (omap2430)
+			ti,omap3430-gpmc (omap3430 & omap3630)
+			ti,omap4430-gpmc (omap4430 & omap4460 & omap543x)
+			ti,am3352-gpmc   (am335x devices)
+
+ - reg:			A resource specifier for the register space
+			(see the example below)
+ - ti,hwmods:		Should be set to "ti,gpmc" until the DT transition is
+			completed.
+ - #address-cells:	Must be set to 2 to allow memory address translation
+ - #size-cells:		Must be set to 1 to allow CS address passing
+ - gpmc,num-cs:		The maximum number of chip-select lines that controller
+			can support.
+ - gpmc,num-waitpins:	The maximum number of wait pins that controller can
+			support.
+ - ranges:		Must be set up to reflect the memory layout with four
+			integer values for each chip-select line in use:
+
+			   <cs-number> 0 <physical address of mapping> <size>
+
+			Currently, calculated values derived from the contents
+			of the per-CS register GPMC_CONFIG7 (as set up by the
+			bootloader) are used for the physical address decoding.
+			As this will change in the future, filling correct
+			values here is a requirement.
+
+Timing properties for child nodes. All are optional and default to 0.
+
+ - gpmc,sync-clk:	Minimum clock period for synchronous mode, in picoseconds
+
+ Chip-select signal timings corresponding to GPMC_CONFIG2:
+ - gpmc,cs-on:		Assertion time
+ - gpmc,cs-rd-off:	Read deassertion time
+ - gpmc,cs-wr-off:	Write deassertion time
+
+ ADV signal timings corresponding to GPMC_CONFIG3:
+ - gpmc,adv-on:		Assertion time
+ - gpmc,adv-rd-off:	Read deassertion time
+ - gpmc,adv-wr-off:	Write deassertion time
+
+ WE signals timings corresponding to GPMC_CONFIG4:
+ - gpmc,we-on:		Assertion time
+ - gpmc,we-off:		Deassertion time
+
+ OE signals timings corresponding to GPMC_CONFIG4:
+ - gpmc,oe-on:		Assertion time
+ - gpmc,oe-off:		Deassertion time
+
+ Access time and cycle time timings corresponding to GPMC_CONFIG5:
+ - gpmc,page-burst-access: Multiple access word delay
+ - gpmc,access:		Start-cycle to first data valid delay
+ - gpmc,rd-cycle:	Total read cycle time
+ - gpmc,wr-cycle:	Total write cycle time
+
+The following are only applicable to OMAP3+ and AM335x:
+ - gpmc,wr-access
+ - gpmc,wr-data-mux-bus
+
+
+Example for an AM33xx board:
+
+	gpmc: gpmc@50000000 {
+		compatible = "ti,am3352-gpmc";
+		ti,hwmods = "gpmc";
+		reg = <0x50000000 0x2000>;
+		interrupts = <100>;
+
+		gpmc,num-cs = <8>;
+		gpmc,num-waitpins = <2>;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0 0x08000000 0x10000000>; /* CS0 @addr 0x8000000, size 0x10000000 */
+
+		/* child nodes go here */
+	};

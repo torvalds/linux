@@ -11,4 +11,8 @@ struct ms_hyperv_info {
 
 extern struct ms_hyperv_info ms_hyperv;
 
+void hyperv_callback_vector(void);
+void hyperv_vector_handler(struct pt_regs *regs);
+void hv_register_vmbus_handler(int irq, irq_handler_t handler);
+
 #endif

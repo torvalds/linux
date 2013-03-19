@@ -44,33 +44,23 @@ struct max77686_clk {
 	struct clk_lookup *lookup;
 };
 
-static struct max77686_clk *get_max77686_clk(struct clk_hw *hw)
+static struct max77686_clk *to_max77686_clk(struct clk_hw *hw)
 {
 	return container_of(hw, struct max77686_clk, hw);
 }
 
 static int max77686_clk_prepare(struct clk_hw *hw)
 {
-	struct max77686_clk *max77686;
-	int ret;
+	struct max77686_clk *max77686 = to_max77686_clk(hw);
 
-	max77686 = get_max77686_clk(hw);
-	if (!max77686)
-		return -ENOMEM;
-
-	ret = regmap_update_bits(max77686->iodev->regmap,
-		MAX77686_REG_32KHZ, max77686->mask, max77686->mask);
-
-	return ret;
+	return regmap_update_bits(max77686->iodev->regmap,
+				  MAX77686_REG_32KHZ, max77686->mask,
+				  max77686->mask);
 }
 
 static void max77686_clk_unprepare(struct clk_hw *hw)
 {
-	struct max77686_clk *max77686;
-
-	max77686 = get_max77686_clk(hw);
-	if (!max77686)
-		return;
+	struct max77686_clk *max77686 = to_max77686_clk(hw);
 
 	regmap_update_bits(max77686->iodev->regmap,
 		MAX77686_REG_32KHZ, max77686->mask, ~max77686->mask);
@@ -78,13 +68,9 @@ static void max77686_clk_unprepare(struct clk_hw *hw)
 
 static int max77686_clk_is_enabled(struct clk_hw *hw)
 {
-	struct max77686_clk *max77686;
+	struct max77686_clk *max77686 = to_max77686_clk(hw);
 	int ret;
 	u32 val;
-
-	max77686 = get_max77686_clk(hw);
-	if (!max77686)
-		return -ENOMEM;
 
 	ret = regmap_read(max77686->iodev->regmap,
 				MAX77686_REG_32KHZ, &val);
@@ -130,9 +116,8 @@ static int max77686_clk_register(struct device *dev,
 	if (IS_ERR(clk))
 		return -ENOMEM;
 
-	max77686->lookup = devm_kzalloc(dev, sizeof(struct clk_lookup),
-					GFP_KERNEL);
-	if (IS_ERR(max77686->lookup))
+	max77686->lookup = kzalloc(sizeof(struct clk_lookup), GFP_KERNEL);
+	if (!max77686->lookup)
 		return -ENOMEM;
 
 	max77686->lookup->con_id = hw->init->name;
@@ -151,13 +136,13 @@ static int max77686_clk_probe(struct platform_device *pdev)
 
 	max77686_clks = devm_kzalloc(&pdev->dev, sizeof(struct max77686_clk *)
 					* MAX77686_CLKS_NUM, GFP_KERNEL);
-	if (IS_ERR(max77686_clks))
+	if (!max77686_clks)
 		return -ENOMEM;
 
 	for (i = 0; i < MAX77686_CLKS_NUM; i++) {
 		max77686_clks[i] = devm_kzalloc(&pdev->dev,
 					sizeof(struct max77686_clk), GFP_KERNEL);
-		if (IS_ERR(max77686_clks[i]))
+		if (!max77686_clks[i])
 			return -ENOMEM;
 	}
 

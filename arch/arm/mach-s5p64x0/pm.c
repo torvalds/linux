@@ -103,8 +103,8 @@ static int s5p64x0_cpu_suspend(unsigned long arg)
 	    "mcr p15, 0, %0, c7, c10, 4\n\t"
 	    "mcr p15, 0, %0, c7, c0, 4" : : "r" (tmp));
 
-	/* we should never get past here */
-	panic("sleep resumed to originator?");
+	pr_info("Failed to suspend the system\n");
+	return 1; /* Aborting suspend */
 }
 
 /* mapping of interrupts to parts of the wakeup mask */

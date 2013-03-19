@@ -115,7 +115,7 @@ static irqreturn_t arizona_underclocked(int irq, void *data)
 	if (val & ARIZONA_ADC_UNDERCLOCKED_STS)
 		dev_err(arizona->dev, "ADC underclocked\n");
 	if (val & ARIZONA_MIXER_UNDERCLOCKED_STS)
-		dev_err(arizona->dev, "Mixer underclocked\n");
+		dev_err(arizona->dev, "Mixer dropped sample\n");
 
 	return IRQ_HANDLED;
 }
@@ -263,10 +263,36 @@ static int arizona_runtime_suspend(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int arizona_resume_noirq(struct device *dev)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	dev_dbg(arizona->dev, "Early resume, disabling IRQ\n");
+	disable_irq(arizona->irq);
+
+	return 0;
+}
+
+static int arizona_resume(struct device *dev)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	dev_dbg(arizona->dev, "Late resume, reenabling IRQ\n");
+	enable_irq(arizona->irq);
+
+	return 0;
+}
+#endif
+
 const struct dev_pm_ops arizona_pm_ops = {
 	SET_RUNTIME_PM_OPS(arizona_runtime_suspend,
 			   arizona_runtime_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, arizona_resume)
+#ifdef CONFIG_PM_SLEEP
+	.resume_noirq = arizona_resume_noirq,
+#endif
 };
 EXPORT_SYMBOL_GPL(arizona_pm_ops);
 
@@ -275,19 +301,19 @@ static struct mfd_cell early_devs[] = {
 };
 
 static struct mfd_cell wm5102_devs[] = {
+	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
-	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-pwm" },
 	{ .name = "wm5102-codec" },
 };
 
 static struct mfd_cell wm5110_devs[] = {
+	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
-	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-pwm" },
 	{ .name = "wm5110-codec" },
 };
@@ -482,6 +508,29 @@ int arizona_dev_init(struct arizona *arizona)
 			arizona->pdata.clk32k_src);
 		ret = -EINVAL;
 		goto err_reset;
+	}
+
+	for (i = 0; i < ARIZONA_MAX_MICBIAS; i++) {
+		if (!arizona->pdata.micbias[i].mV)
+			continue;
+
+		val = (arizona->pdata.micbias[i].mV - 1500) / 100;
+		val <<= ARIZONA_MICB1_LVL_SHIFT;
+
+		if (arizona->pdata.micbias[i].ext_cap)
+			val |= ARIZONA_MICB1_EXT_CAP;
+
+		if (arizona->pdata.micbias[i].discharge)
+			val |= ARIZONA_MICB1_DISCH;
+
+		if (arizona->pdata.micbias[i].fast_start)
+			val |= ARIZONA_MICB1_RATE;
+
+		regmap_update_bits(arizona->regmap,
+				   ARIZONA_MIC_BIAS_CTRL_1 + i,
+				   ARIZONA_MICB1_LVL_MASK |
+				   ARIZONA_MICB1_DISCH |
+				   ARIZONA_MICB1_RATE, val);
 	}
 
 	for (i = 0; i < ARIZONA_MAX_INPUT; i++) {

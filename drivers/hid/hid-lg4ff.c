@@ -43,11 +43,6 @@
 #define G27_REV_MAJ 0x12
 #define G27_REV_MIN 0x38
 
-#define DFP_X_MIN 0
-#define DFP_X_MAX 16383
-#define DFP_PEDAL_MIN 0
-#define DFP_PEDAL_MAX 255
-
 #define to_hid_device(pdev) container_of(pdev, struct hid_device, dev)
 
 static void hid_lg4ff_set_range_dfp(struct hid_device *hid, u16 range);
@@ -597,18 +592,6 @@ int lg4ff_init(struct hid_device *hid)
 	if (error)
 		return error;
 	dbg_hid("sysfs interface created\n");
-
-	/* Set default axes parameters */
-	switch (lg4ff_devices[i].product_id) {
-	case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
-		dbg_hid("Setting axes parameters for Driving Force Pro\n");
-		input_set_abs_params(dev, ABS_X, DFP_X_MIN, DFP_X_MAX, 0, 0);
-		input_set_abs_params(dev, ABS_Y, DFP_PEDAL_MIN, DFP_PEDAL_MAX, 0, 0);
-		input_set_abs_params(dev, ABS_RZ, DFP_PEDAL_MIN, DFP_PEDAL_MAX, 0, 0);
-		break;
-	default:
-		break;
-	}
 
 	/* Set the maximum range to start with */
 	entry->range = entry->max_range;

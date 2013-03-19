@@ -58,8 +58,6 @@ static struct mwifiex_debug_data items[] = {
 	 item_addr(packets_out[WMM_AC_BE]), 1},
 	{"wmm_ac_bk", item_size(packets_out[WMM_AC_BK]),
 	 item_addr(packets_out[WMM_AC_BK]), 1},
-	{"max_tx_buf_size", item_size(max_tx_buf_size),
-	 item_addr(max_tx_buf_size), 1},
 	{"tx_buf_size", item_size(tx_buf_size),
 	 item_addr(tx_buf_size), 1},
 	{"curr_tx_buf_size", item_size(curr_tx_buf_size),

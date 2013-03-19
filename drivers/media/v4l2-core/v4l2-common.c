@@ -238,7 +238,7 @@ int v4l2_chip_match_host(const struct v4l2_dbg_match *match)
 }
 EXPORT_SYMBOL(v4l2_chip_match_host);
 
-#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_I2C)
 int v4l2_chip_match_i2c_client(struct i2c_client *c, const struct v4l2_dbg_match *match)
 {
 	int len;
@@ -384,7 +384,7 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_addr);
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 {
 	static const unsigned short radio_addrs[] = {
-#if defined(CONFIG_MEDIA_TUNER_TEA5761) || defined(CONFIG_MEDIA_TUNER_TEA5761_MODULE)
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_TEA5761)
 		0x10,
 #endif
 		0x60,
@@ -978,3 +978,13 @@ const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
 	return best;
 }
 EXPORT_SYMBOL_GPL(v4l2_find_nearest_format);
+
+void v4l2_get_timestamp(struct timeval *tv)
+{
+	struct timespec ts;
+
+	ktime_get_ts(&ts);
+	tv->tv_sec = ts.tv_sec;
+	tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+}
+EXPORT_SYMBOL_GPL(v4l2_get_timestamp);

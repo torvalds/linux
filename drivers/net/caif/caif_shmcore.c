@@ -633,9 +633,6 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 				kmalloc(sizeof(struct buf_list), GFP_KERNEL);
 
 		if (tx_buf == NULL) {
-			pr_warn("ERROR, Could not"
-					" allocate dynamic mem. for tx_buf,"
-					" Bailing out ...\n");
 			free_netdev(pshm_dev->pshm_netdev);
 			return -ENOMEM;
 		}
@@ -662,9 +659,6 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 				kmalloc(sizeof(struct buf_list), GFP_KERNEL);
 
 		if (rx_buf == NULL) {
-			pr_warn("ERROR, Could not"
-					" allocate dynamic mem.for rx_buf,"
-					" Bailing out ...\n");
 			free_netdev(pshm_dev->pshm_netdev);
 			return -ENOMEM;
 		}

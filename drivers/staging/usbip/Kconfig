@@ -8,7 +8,7 @@ config USBIP_CORE
 	  USB/IP core that is required by both drivers.
 
 	  For more details, and to get the userspace utility
-	  programs, please see http://usbip.sourceforge.net/.
+	  programs, please see <http://usbip.sourceforge.net/>.
 
 	  To compile this as a module, choose M here: the module will
 	  be called usbip-core.

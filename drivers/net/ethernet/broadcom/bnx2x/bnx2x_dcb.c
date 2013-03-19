@@ -1,6 +1,6 @@
 /* bnx2x_dcb.c: Broadcom Everest network driver.
  *
- * Copyright 2009-2012 Broadcom Corporation
+ * Copyright 2009-2013 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -416,6 +416,7 @@ static void bnx2x_pfc_set_pfc(struct bnx2x *bp)
 	int mfw_configured = SHMEM2_HAS(bp, drv_flags) &&
 			     GET_FLAGS(SHMEM2_RD(bp, drv_flags),
 				       1 << DRV_FLAGS_DCB_MFW_CONFIGURED);
+
 	if (bp->dcbx_port_params.pfc.enabled &&
 	    (!(bp->dcbx_error & DCBX_REMOTE_MIB_ERROR) || mfw_configured))
 		/*
@@ -558,6 +559,7 @@ static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 	int mfw_configured = SHMEM2_HAS(bp, drv_flags) &&
 			     GET_FLAGS(SHMEM2_RD(bp, drv_flags),
 				       1 << DRV_FLAGS_DCB_MFW_CONFIGURED);
+
 	bnx2x_ets_disabled(&bp->link_params, &bp->link_vars);
 
 	if (!bp->dcbx_port_params.ets.enabled ||
@@ -1904,11 +1906,13 @@ static u8 bnx2x_dcbnl_set_state(struct net_device *netdev, u8 state)
 	struct bnx2x *bp = netdev_priv(netdev);
 	DP(BNX2X_MSG_DCB, "state = %s\n", state ? "on" : "off");
 
+	/* Fail to set state to "enabled" if dcbx is disabled in nvram */
 	if (state && ((bp->dcbx_enabled == BNX2X_DCBX_ENABLED_OFF) ||
 		      (bp->dcbx_enabled == BNX2X_DCBX_ENABLED_INVALID))) {
 		DP(BNX2X_MSG_DCB, "Can not set dcbx to enabled while it is disabled in nvm\n");
 		return 1;
 	}
+
 	bnx2x_dcbx_set_state(bp, (state ? true : false), bp->dcbx_enabled);
 	return 0;
 }
@@ -2051,7 +2055,6 @@ static void bnx2x_dcbnl_set_pfc_cfg(struct net_device *netdev, int prio,
 
 	if (!bnx2x_dcbnl_set_valid(bp) || prio >= MAX_PFC_PRIORITIES)
 		return;
-
 
 	if (setting) {
 		bp->dcbx_config_params.admin_pfc_bitmap |= (1 << prio);

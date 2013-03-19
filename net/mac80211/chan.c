@@ -9,7 +9,7 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
-static void ieee80211_change_chandef(struct ieee80211_local *local,
+static void ieee80211_change_chanctx(struct ieee80211_local *local,
 				     struct ieee80211_chanctx *ctx,
 				     const struct cfg80211_chan_def *chandef)
 {
@@ -49,7 +49,7 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 		if (!compat)
 			continue;
 
-		ieee80211_change_chandef(local, ctx, compat);
+		ieee80211_change_chanctx(local, ctx, compat);
 
 		return ctx;
 	}
@@ -91,6 +91,10 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 
 	list_add_rcu(&ctx->list, &local->chanctx_list);
 
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
+
 	return ctx;
 }
 
@@ -110,6 +114,10 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 
 	list_del_rcu(&ctx->list);
 	kfree_rcu(ctx, rcu_head);
+
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
 }
 
 static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
@@ -128,6 +136,11 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	ctx->refcount++;
 
 	ieee80211_recalc_txpower(sdata);
+	sdata->vif.bss_conf.idle = false;
+
+	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	return 0;
 }
@@ -162,7 +175,7 @@ static void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 	if (WARN_ON_ONCE(!compat))
 		return;
 
-	ieee80211_change_chandef(local, ctx, compat);
+	ieee80211_change_chanctx(local, ctx, compat);
 }
 
 static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
@@ -175,11 +188,18 @@ static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	ctx->refcount--;
 	rcu_assign_pointer(sdata->vif.chanctx_conf, NULL);
 
+	sdata->vif.bss_conf.idle = true;
+
+	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
+
 	drv_unassign_vif_chanctx(local, sdata, ctx);
 
 	if (ctx->refcount > 0) {
 		ieee80211_recalc_chanctx_chantype(sdata->local, ctx);
 		ieee80211_recalc_smps_chanctx(local, ctx);
+		ieee80211_recalc_radar_chanctx(local, ctx);
 	}
 }
 
@@ -198,18 +218,40 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 
 	ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		struct ieee80211_sub_if_data *vlan;
-
-		/* for the VLAN list */
-		ASSERT_RTNL();
-		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-			rcu_assign_pointer(vlan->vif.chanctx_conf, NULL);
-	}
-
 	ieee80211_unassign_vif_chanctx(sdata, ctx);
 	if (ctx->refcount == 0)
 		ieee80211_free_chanctx(local, ctx);
+}
+
+void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
+				    struct ieee80211_chanctx *chanctx)
+{
+	struct ieee80211_sub_if_data *sdata;
+	bool radar_enabled = false;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (sdata->radar_required) {
+			radar_enabled = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (radar_enabled == chanctx->conf.radar_enabled)
+		return;
+
+	chanctx->conf.radar_enabled = radar_enabled;
+	local->radar_detect_enabled = chanctx->conf.radar_enabled;
+
+	if (!local->use_chanctx) {
+		local->hw.conf.radar_enabled = chanctx->conf.radar_enabled;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	}
+
+	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RADAR);
 }
 
 void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
@@ -326,16 +368,57 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		struct ieee80211_sub_if_data *vlan;
+	ieee80211_recalc_smps_chanctx(local, ctx);
+	ieee80211_recalc_radar_chanctx(local, ctx);
+ out:
+	mutex_unlock(&local->chanctx_mtx);
+	return ret;
+}
 
-		/* for the VLAN list */
-		ASSERT_RTNL();
-		list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-			rcu_assign_pointer(vlan->vif.chanctx_conf, &ctx->conf);
+int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
+				   const struct cfg80211_chan_def *chandef,
+				   u32 *changed)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *ctx;
+	int ret;
+
+	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, chandef,
+				     IEEE80211_CHAN_DISABLED))
+		return -EINVAL;
+
+	mutex_lock(&local->chanctx_mtx);
+	if (cfg80211_chandef_identical(chandef, &sdata->vif.bss_conf.chandef)) {
+		ret = 0;
+		goto out;
 	}
 
-	ieee80211_recalc_smps_chanctx(local, ctx);
+	if (chandef->width == NL80211_CHAN_WIDTH_20_NOHT ||
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					 lockdep_is_held(&local->chanctx_mtx));
+	if (!conf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ctx = container_of(conf, struct ieee80211_chanctx, conf);
+	if (!cfg80211_chandef_compatible(&conf->def, chandef)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	sdata->vif.bss_conf.chandef = *chandef;
+
+	ieee80211_recalc_chanctx_chantype(local, ctx);
+
+	*changed |= BSS_CHANGED_BANDWIDTH;
+	ret = 0;
  out:
 	mutex_unlock(&local->chanctx_mtx);
 	return ret;
@@ -369,6 +452,40 @@ void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata)
 	mutex_unlock(&local->chanctx_mtx);
 }
 
+void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
+					 bool clear)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_sub_if_data *vlan;
+	struct ieee80211_chanctx_conf *conf;
+
+	ASSERT_RTNL();
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_AP))
+		return;
+
+	mutex_lock(&local->chanctx_mtx);
+
+	/*
+	 * Check that conf exists, even when clearing this function
+	 * must be called with the AP's channel context still there
+	 * as it would otherwise cause VLANs to have an invalid
+	 * channel context pointer for a while, possibly pointing
+	 * to a channel context that has already been freed.
+	 */
+	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+				lockdep_is_held(&local->chanctx_mtx));
+	WARN_ON(!conf);
+
+	if (clear)
+		conf = NULL;
+
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		rcu_assign_pointer(vlan->vif.chanctx_conf, conf);
+
+	mutex_unlock(&local->chanctx_mtx);
+}
+
 void ieee80211_iter_chan_contexts_atomic(
 	struct ieee80211_hw *hw,
 	void (*iter)(struct ieee80211_hw *hw,
@@ -381,7 +498,8 @@ void ieee80211_iter_chan_contexts_atomic(
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ctx, &local->chanctx_list, list)
-		iter(hw, &ctx->conf, iter_data);
+		if (ctx->driver_present)
+			iter(hw, &ctx->conf, iter_data);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ieee80211_iter_chan_contexts_atomic);

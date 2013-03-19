@@ -37,7 +37,7 @@
 
 static void mvme147_get_model(char *model);
 extern void mvme147_sched_init(irq_handler_t handler);
-extern unsigned long mvme147_gettimeoffset (void);
+extern u32 mvme147_gettimeoffset(void);
 extern int mvme147_hwclk (int, struct rtc_time *);
 extern int mvme147_set_clock_mmss (unsigned long);
 extern void mvme147_reset (void);
@@ -88,7 +88,7 @@ void __init config_mvme147(void)
 	mach_max_dma_address	= 0x01000000;
 	mach_sched_init		= mvme147_sched_init;
 	mach_init_IRQ		= mvme147_init_IRQ;
-	mach_gettimeoffset	= mvme147_gettimeoffset;
+	arch_gettimeoffset	= mvme147_gettimeoffset;
 	mach_hwclk		= mvme147_hwclk;
 	mach_set_clock_mmss	= mvme147_set_clock_mmss;
 	mach_reset		= mvme147_reset;
@@ -127,7 +127,7 @@ void mvme147_sched_init (irq_handler_t timer_routine)
 
 /* This is always executed with interrupts disabled.  */
 /* XXX There are race hazards in this code XXX */
-unsigned long mvme147_gettimeoffset (void)
+u32 mvme147_gettimeoffset(void)
 {
 	volatile unsigned short *cp = (volatile unsigned short *)0xfffe1012;
 	unsigned short n;
@@ -137,7 +137,7 @@ unsigned long mvme147_gettimeoffset (void)
 		n = *cp;
 
 	n -= PCC_TIMER_PRELOAD;
-	return (unsigned long)n * 25 / 4;
+	return ((unsigned long)n * 25 / 4) * 1000;
 }
 
 static int bcd2int (unsigned char b)

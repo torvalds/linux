@@ -246,7 +246,7 @@ config USB_EHCI_ATH79
 
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
-	depends on USB
+	depends on USB && GENERIC_HARDIRQS
 	---help---
 	  The OXU210HP is an USB host/OTG/device controller. Enable this
 	  option if your board has this chip. If unsure, say N.

@@ -199,7 +199,7 @@ static int kgdb_iabr_match(struct pt_regs *regs)
 	return 1;
 }
 
-static int kgdb_dabr_match(struct pt_regs *regs)
+static int kgdb_break_match(struct pt_regs *regs)
 {
 	if (user_mode(regs))
 		return 0;
@@ -459,7 +459,7 @@ static void *old__debugger;
 static void *old__debugger_bpt;
 static void *old__debugger_sstep;
 static void *old__debugger_iabr_match;
-static void *old__debugger_dabr_match;
+static void *old__debugger_break_match;
 static void *old__debugger_fault_handler;
 
 int kgdb_arch_init(void)
@@ -469,7 +469,7 @@ int kgdb_arch_init(void)
 	old__debugger_bpt = __debugger_bpt;
 	old__debugger_sstep = __debugger_sstep;
 	old__debugger_iabr_match = __debugger_iabr_match;
-	old__debugger_dabr_match = __debugger_dabr_match;
+	old__debugger_break_match = __debugger_break_match;
 	old__debugger_fault_handler = __debugger_fault_handler;
 
 	__debugger_ipi = kgdb_call_nmi_hook;
@@ -477,7 +477,7 @@ int kgdb_arch_init(void)
 	__debugger_bpt = kgdb_handle_breakpoint;
 	__debugger_sstep = kgdb_singlestep;
 	__debugger_iabr_match = kgdb_iabr_match;
-	__debugger_dabr_match = kgdb_dabr_match;
+	__debugger_break_match = kgdb_break_match;
 	__debugger_fault_handler = kgdb_not_implemented;
 
 	return 0;
@@ -490,6 +490,6 @@ void kgdb_arch_exit(void)
 	__debugger_bpt = old__debugger_bpt;
 	__debugger_sstep = old__debugger_sstep;
 	__debugger_iabr_match = old__debugger_iabr_match;
-	__debugger_dabr_match = old__debugger_dabr_match;
+	__debugger_break_match = old__debugger_break_match;
 	__debugger_fault_handler = old__debugger_fault_handler;
 }

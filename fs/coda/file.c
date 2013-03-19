@@ -66,7 +66,7 @@ coda_file_splice_read(struct file *coda_file, loff_t *ppos,
 static ssize_t
 coda_file_write(struct file *coda_file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *host_inode, *coda_inode = coda_file->f_path.dentry->d_inode;
+	struct inode *host_inode, *coda_inode = file_inode(coda_file);
 	struct coda_file_info *cfi;
 	struct file *host_file;
 	ssize_t ret;
@@ -78,7 +78,7 @@ coda_file_write(struct file *coda_file, const char __user *buf, size_t count, lo
 	if (!host_file->f_op || !host_file->f_op->write)
 		return -EINVAL;
 
-	host_inode = host_file->f_path.dentry->d_inode;
+	host_inode = file_inode(host_file);
 	mutex_lock(&coda_inode->i_mutex);
 
 	ret = host_file->f_op->write(host_file, buf, count, ppos);
@@ -106,8 +106,8 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 	if (!host_file->f_op || !host_file->f_op->mmap)
 		return -ENODEV;
 
-	coda_inode = coda_file->f_path.dentry->d_inode;
-	host_inode = host_file->f_path.dentry->d_inode;
+	coda_inode = file_inode(coda_file);
+	host_inode = file_inode(host_file);
 
 	cii = ITOC(coda_inode);
 	spin_lock(&cii->c_lock);
@@ -178,7 +178,7 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	err = venus_close(coda_inode->i_sb, coda_i2f(coda_inode),
 			  coda_flags, coda_file->f_cred->fsuid);
 
-	host_inode = cfi->cfi_container->f_path.dentry->d_inode;
+	host_inode = file_inode(cfi->cfi_container);
 	cii = ITOC(coda_inode);
 
 	/* did we mmap this file? */
@@ -202,7 +202,7 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 int coda_fsync(struct file *coda_file, loff_t start, loff_t end, int datasync)
 {
 	struct file *host_file;
-	struct inode *coda_inode = coda_file->f_path.dentry->d_inode;
+	struct inode *coda_inode = file_inode(coda_file);
 	struct coda_file_info *cfi;
 	int err;
 

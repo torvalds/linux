@@ -15,6 +15,7 @@
 #include <linux/serial_reg.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/debugfs.h>
 
 #include "dma_fifo.h"
 
@@ -193,7 +194,7 @@ struct buffered_rx {
  * @port: underlying tty_port
  * @device: tty device
  * @index: index into port_table for this particular port
- *    note: minor = index + FWSERIAL_TTY_START_MINOR
+ *    note: minor = index + minor_start assigned by tty_alloc_driver()
  * @serial: back pointer to the containing fw_serial
  * @rx_handler: bus address handler for unique addr region used by remotes
  *              to communicate with this port. Every port uses
@@ -279,7 +280,7 @@ struct fwtty_port {
 				   loopback:1;
 	unsigned long		   flags;
 
-	struct fwtty_peer	   *peer;
+	struct fwtty_peer __rcu	   *peer;
 
 	struct async_icount	   icount;
 	struct stats		   stats;
@@ -338,6 +339,7 @@ struct fw_serial {
 	struct fw_card	  *card;
 	struct kref	  kref;
 
+	struct dentry	  *debugfs;
 	struct fwtty_peer *self;
 
 	struct list_head  list;
@@ -351,9 +353,8 @@ struct fw_serial {
 #define TTY_DEV_NAME		    "fwtty"	/* ttyFW was taken           */
 static const char tty_dev_name[] =  TTY_DEV_NAME;
 static const char loop_dev_name[] = "fwloop";
-extern bool limit_bw;
 
-struct tty_driver *fwtty_driver;
+extern struct tty_driver *fwtty_driver;
 
 #define driver_err(s, v...)	pr_err(KBUILD_MODNAME ": " s, ##v)
 
@@ -370,18 +371,16 @@ static inline void fwtty_bind_console(struct fwtty_port *port,
 
 /*
  * Returns the max send async payload size in bytes based on the unit device
- * link speed - if set to limit bandwidth to max 20%, use lookup table
+ * link speed. Self-limiting asynchronous bandwidth (via reducing the payload)
+ * is not necessary and does not work, because
+ *   1) asynchronous traffic will absorb all available bandwidth (less that
+ *	being used for isochronous traffic)
+ *   2) isochronous arbitration always wins.
  */
 static inline int link_speed_to_max_payload(unsigned speed)
 {
-	static const int max_async[] = { 307, 614, 1229, 2458, };
-	BUILD_BUG_ON(ARRAY_SIZE(max_async) - 1 != SCODE_800);
-
-	speed = clamp(speed, (unsigned) SCODE_100, (unsigned) SCODE_800);
-	if (limit_bw)
-		return max_async[speed];
-	else
-		return 1 << (speed + 9);
+	/* Max async payload is 4096 - see IEEE 1394-2008 tables 6-4, 16-18 */
+	return min(512 << speed, 4096);
 }
 
 #endif /* _FIREWIRE_FWSERIAL_H */

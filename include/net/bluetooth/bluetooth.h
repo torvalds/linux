@@ -166,6 +166,29 @@ typedef struct {
 #define BDADDR_LE_PUBLIC	0x01
 #define BDADDR_LE_RANDOM	0x02
 
+static inline bool bdaddr_type_is_valid(__u8 type)
+{
+	switch (type) {
+	case BDADDR_BREDR:
+	case BDADDR_LE_PUBLIC:
+	case BDADDR_LE_RANDOM:
+		return true;
+	}
+
+	return false;
+}
+
+static inline bool bdaddr_type_is_le(__u8 type)
+{
+	switch (type) {
+	case BDADDR_LE_PUBLIC:
+	case BDADDR_LE_RANDOM:
+		return true;
+	}
+
+	return false;
+}
+
 #define BDADDR_ANY   (&(bdaddr_t) {{0, 0, 0, 0, 0, 0} })
 #define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff} })
 

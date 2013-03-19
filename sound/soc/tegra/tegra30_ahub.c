@@ -25,7 +25,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <mach/clk.h>
+#include <linux/clk/tegra.h>
 #include <sound/soc.h>
 #include "tegra30_ahub.h"
 
@@ -299,15 +299,6 @@ static const char * const configlink_clocks[] = {
 	"spdif_in",
 };
 
-struct of_dev_auxdata ahub_auxdata[] = {
-	OF_DEV_AUXDATA("nvidia,tegra30-i2s", 0x70080300, "tegra30-i2s.0", NULL),
-	OF_DEV_AUXDATA("nvidia,tegra30-i2s", 0x70080400, "tegra30-i2s.1", NULL),
-	OF_DEV_AUXDATA("nvidia,tegra30-i2s", 0x70080500, "tegra30-i2s.2", NULL),
-	OF_DEV_AUXDATA("nvidia,tegra30-i2s", 0x70080600, "tegra30-i2s.3", NULL),
-	OF_DEV_AUXDATA("nvidia,tegra30-i2s", 0x70080700, "tegra30-i2s.4", NULL),
-	{}
-};
-
 #define LAST_REG(name) \
 	(TEGRA30_AHUB_##name + \
 	 (TEGRA30_AHUB_##name##_STRIDE * TEGRA30_AHUB_##name##_COUNT) - 4)
@@ -451,7 +442,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	 * Ensure that here.
 	 */
 	for (i = 0; i < ARRAY_SIZE(configlink_clocks); i++) {
-		clk = clk_get_sys(NULL, configlink_clocks[i]);
+		clk = clk_get(&pdev->dev, configlink_clocks[i]);
 		if (IS_ERR(clk)) {
 			dev_err(&pdev->dev, "Can't get clock %s\n",
 				configlink_clocks[i]);
@@ -569,8 +560,7 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	of_platform_populate(pdev->dev.of_node, NULL, ahub_auxdata,
-			     &pdev->dev);
+	of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 
 	return 0;
 
@@ -580,7 +570,7 @@ err_clk_put_apbif:
 	clk_put(ahub->clk_apbif);
 err_clk_put_d_audio:
 	clk_put(ahub->clk_d_audio);
-	ahub = 0;
+	ahub = NULL;
 err:
 	return ret;
 }
@@ -597,7 +587,7 @@ static int tegra30_ahub_remove(struct platform_device *pdev)
 	clk_put(ahub->clk_apbif);
 	clk_put(ahub->clk_d_audio);
 
-	ahub = 0;
+	ahub = NULL;
 
 	return 0;
 }

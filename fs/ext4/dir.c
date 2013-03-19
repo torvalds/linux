@@ -110,7 +110,7 @@ static int ext4_readdir(struct file *filp,
 	int i, stored;
 	struct ext4_dir_entry_2 *de;
 	int err;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	int ret = 0;
 	int dir_has_error = 0;
@@ -133,7 +133,7 @@ static int ext4_readdir(struct file *filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		ext4_clear_inode_flag(filp->f_path.dentry->d_inode,
+		ext4_clear_inode_flag(file_inode(filp),
 				      EXT4_INODE_INDEX);
 	}
 	stored = 0;
@@ -185,6 +185,7 @@ static int ext4_readdir(struct file *filp,
 					"at offset %llu",
 					(unsigned long long)filp->f_pos);
 			filp->f_pos += sb->s_blocksize - offset;
+			brelse(bh);
 			continue;
 		}
 		set_buffer_verified(bh);
@@ -333,7 +334,7 @@ static inline loff_t ext4_get_htree_eof(struct file *filp)
  *
  * For non-htree, ext4_llseek already chooses the proper max offset.
  */
-loff_t ext4_dir_llseek(struct file *file, loff_t offset, int whence)
+static loff_t ext4_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	int dx_dir = is_dx_dir(inode);
@@ -494,7 +495,7 @@ static int call_filldir(struct file *filp, void *dirent,
 {
 	struct dir_private_info *info = filp->private_data;
 	loff_t	curr_pos;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb;
 	int error;
 
@@ -526,7 +527,7 @@ static int ext4_dx_readdir(struct file *filp,
 			 void *dirent, filldir_t filldir)
 {
 	struct dir_private_info *info = filp->private_data;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct fname *fname;
 	int	ret;
 

@@ -55,7 +55,7 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 					[channel->monitor_grp].pending);
 
 	} else {
-		vmbus_set_event(channel->offermsg.child_relid);
+		vmbus_set_event(channel);
 	}
 }
 
@@ -181,7 +181,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	open_msg->ringbuffer_gpadlhandle = newchannel->ringbuffer_gpadlhandle;
 	open_msg->downstream_ringbuffer_pageoffset = send_ringbuffer_size >>
 						  PAGE_SHIFT;
-	open_msg->server_contextarea_gpadlhandle = 0;
+	open_msg->target_vp = newchannel->target_vp;
 
 	if (userdatalen > MAX_USER_DEFINED_BYTES) {
 		err = -EINVAL;
@@ -564,6 +564,7 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 	struct scatterlist bufferlist[3];
 	u64 aligned_data = 0;
 	int ret;
+	bool signal = false;
 
 
 	/* Setup the descriptor */
@@ -580,9 +581,9 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		   packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
+	if (ret == 0 && signal)
 		vmbus_setevent(channel);
 
 	return ret;
@@ -606,6 +607,7 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	u32 packetlen_aligned;
 	struct scatterlist bufferlist[3];
 	u64 aligned_data = 0;
+	bool signal = false;
 
 	if (pagecount > MAX_PAGE_BUFFER_COUNT)
 		return -EINVAL;
@@ -641,9 +643,9 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
+	if (ret == 0 && signal)
 		vmbus_setevent(channel);
 
 	return ret;
@@ -665,6 +667,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	u32 packetlen_aligned;
 	struct scatterlist bufferlist[3];
 	u64 aligned_data = 0;
+	bool signal = false;
 	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->offset,
 					 multi_pagebuffer->len);
 
@@ -703,9 +706,9 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
+	if (ret == 0 && signal)
 		vmbus_setevent(channel);
 
 	return ret;
@@ -732,6 +735,7 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	u32 packetlen;
 	u32 userlen;
 	int ret;
+	bool signal = false;
 
 	*buffer_actual_len = 0;
 	*requestid = 0;
@@ -758,8 +762,10 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 
 	/* Copy over the packet to the user buffer */
 	ret = hv_ringbuffer_read(&channel->inbound, buffer, userlen,
-			     (desc.offset8 << 3));
+			     (desc.offset8 << 3), &signal);
 
+	if (signal)
+		vmbus_setevent(channel);
 
 	return 0;
 }
@@ -774,8 +780,8 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 {
 	struct vmpacket_descriptor desc;
 	u32 packetlen;
-	u32 userlen;
 	int ret;
+	bool signal = false;
 
 	*buffer_actual_len = 0;
 	*requestid = 0;
@@ -788,7 +794,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 
 
 	packetlen = desc.len8 << 3;
-	userlen = packetlen - (desc.offset8 << 3);
 
 	*buffer_actual_len = packetlen;
 
@@ -802,7 +807,11 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	*requestid = desc.trans_id;
 
 	/* Copy over the entire packet to the user buffer */
-	ret = hv_ringbuffer_read(&channel->inbound, buffer, packetlen, 0);
+	ret = hv_ringbuffer_read(&channel->inbound, buffer, packetlen, 0,
+				 &signal);
+
+	if (signal)
+		vmbus_setevent(channel);
 
 	return 0;
 }

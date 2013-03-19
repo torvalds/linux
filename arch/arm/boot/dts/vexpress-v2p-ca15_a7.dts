@@ -72,7 +72,7 @@
 	wdt@2a490000 {
 		compatible = "arm,sp805", "arm,primecell";
 		reg = <0 0x2a490000 0 0x1000>;
-		interrupts = <98>;
+		interrupts = <0 98 4>;
 		clocks = <&oscclk6a>, <&oscclk6a>;
 		clock-names = "wdogclk", "apb_pclk";
 	};

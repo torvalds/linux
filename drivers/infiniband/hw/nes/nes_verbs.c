@@ -55,7 +55,8 @@ static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev);
 /**
  * nes_alloc_mw
  */
-static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd) {
+static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd, enum ib_mw_type type)
+{
 	struct nes_pd *nespd = to_nespd(ibpd);
 	struct nes_vnic *nesvnic = to_nesvnic(ibpd->device);
 	struct nes_device *nesdev = nesvnic->nesdev;
@@ -70,6 +71,9 @@ static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd) {
 	u32 next_stag_index = 0;
 	u32 driver_key = 0;
 	u8 stag_key = 0;
+
+	if (type != IB_MW_TYPE_1)
+		return ERR_PTR(-EINVAL);
 
 	get_random_bytes(&next_stag_index, sizeof(next_stag_index));
 	stag_key = (u8)next_stag_index;
@@ -244,20 +248,19 @@ static int nes_bind_mw(struct ib_qp *ibqp, struct ib_mw *ibmw,
 	if (ibmw_bind->send_flags & IB_SEND_SIGNALED)
 		wqe_misc |= NES_IWARP_SQ_WQE_SIGNALED_COMPL;
 
-	if (ibmw_bind->mw_access_flags & IB_ACCESS_REMOTE_WRITE) {
+	if (ibmw_bind->bind_info.mw_access_flags & IB_ACCESS_REMOTE_WRITE)
 		wqe_misc |= NES_CQP_STAG_RIGHTS_REMOTE_WRITE;
-	}
-	if (ibmw_bind->mw_access_flags & IB_ACCESS_REMOTE_READ) {
+	if (ibmw_bind->bind_info.mw_access_flags & IB_ACCESS_REMOTE_READ)
 		wqe_misc |= NES_CQP_STAG_RIGHTS_REMOTE_READ;
-	}
 
 	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_MISC_IDX, wqe_misc);
-	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_MR_IDX, ibmw_bind->mr->lkey);
+	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_MR_IDX,
+			    ibmw_bind->bind_info.mr->lkey);
 	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_MW_IDX, ibmw->rkey);
 	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_LENGTH_LOW_IDX,
-			ibmw_bind->length);
+			ibmw_bind->bind_info.length);
 	wqe->wqe_words[NES_IWARP_SQ_BIND_WQE_LENGTH_HIGH_IDX] = 0;
-	u64temp = (u64)ibmw_bind->addr;
+	u64temp = (u64)ibmw_bind->bind_info.addr;
 	set_wqe_64bit_value(wqe->wqe_words, NES_IWARP_SQ_BIND_WQE_VA_FBO_LOW_IDX, u64temp);
 
 	head++;

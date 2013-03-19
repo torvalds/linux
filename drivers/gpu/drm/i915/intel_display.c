@@ -2014,18 +2014,29 @@ void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
 
 /* Computes the linear offset to the base tile and adjusts x, y. bytes per pixel
  * is assumed to be a power-of-two. */
-unsigned long intel_gen4_compute_offset_xtiled(int *x, int *y,
-					       unsigned int bpp,
-					       unsigned int pitch)
+unsigned long intel_gen4_compute_page_offset(int *x, int *y,
+					     unsigned int tiling_mode,
+					     unsigned int cpp,
+					     unsigned int pitch)
 {
-	int tile_rows, tiles;
+	if (tiling_mode != I915_TILING_NONE) {
+		unsigned int tile_rows, tiles;
 
-	tile_rows = *y / 8;
-	*y %= 8;
-	tiles = *x / (512/bpp);
-	*x %= 512/bpp;
+		tile_rows = *y / 8;
+		*y %= 8;
 
-	return tile_rows * pitch * 8 + tiles * 4096;
+		tiles = *x / (512/cpp);
+		*x %= 512/cpp;
+
+		return tile_rows * pitch * 8 + tiles * 4096;
+	} else {
+		unsigned int offset;
+
+		offset = *y * pitch + *x * cpp;
+		*y = 0;
+		*x = (offset & 4095) / cpp;
+		return offset & -4096;
+	}
 }
 
 static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
@@ -2102,9 +2113,9 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		intel_crtc->dspaddr_offset =
-			intel_gen4_compute_offset_xtiled(&x, &y,
-							 fb->bits_per_pixel / 8,
-							 fb->pitches[0]);
+			intel_gen4_compute_page_offset(&x, &y, obj->tiling_mode,
+						       fb->bits_per_pixel / 8,
+						       fb->pitches[0]);
 		linear_offset -= intel_crtc->dspaddr_offset;
 	} else {
 		intel_crtc->dspaddr_offset = linear_offset;
@@ -2195,9 +2206,9 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 
 	linear_offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 	intel_crtc->dspaddr_offset =
-		intel_gen4_compute_offset_xtiled(&x, &y,
-						 fb->bits_per_pixel / 8,
-						 fb->pitches[0]);
+		intel_gen4_compute_page_offset(&x, &y, obj->tiling_mode,
+					       fb->bits_per_pixel / 8,
+					       fb->pitches[0]);
 	linear_offset -= intel_crtc->dspaddr_offset;
 
 	DRM_DEBUG_KMS("Writing base %08X %08lX %d %d %d\n",
@@ -3641,6 +3652,30 @@ static void intel_crtc_dpms_overlay(struct intel_crtc *intel_crtc, bool enable)
 	 */
 }
 
+/**
+ * i9xx_fixup_plane - ugly workaround for G45 to fire up the hardware
+ * cursor plane briefly if not already running after enabling the display
+ * plane.
+ * This workaround avoids occasional blank screens when self refresh is
+ * enabled.
+ */
+static void
+g4x_fixup_plane(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	u32 cntl = I915_READ(CURCNTR(pipe));
+
+	if ((cntl & CURSOR_MODE) == 0) {
+		u32 fw_bcl_self = I915_READ(FW_BLC_SELF);
+
+		I915_WRITE(FW_BLC_SELF, fw_bcl_self & ~FW_BLC_SELF_EN);
+		I915_WRITE(CURCNTR(pipe), CURSOR_MODE_64_ARGB_AX);
+		intel_wait_for_vblank(dev_priv->dev, pipe);
+		I915_WRITE(CURCNTR(pipe), cntl);
+		I915_WRITE(CURBASE(pipe), I915_READ(CURBASE(pipe)));
+		I915_WRITE(FW_BLC_SELF, fw_bcl_self);
+	}
+}
+
 static void i9xx_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3666,6 +3701,8 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	intel_enable_pipe(dev_priv, pipe, false);
 	intel_enable_plane(dev_priv, plane, pipe);
+	if (IS_G4X(dev))
+		g4x_fixup_plane(dev_priv, pipe);
 
 	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
@@ -3775,10 +3812,6 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 	intel_crtc_update_sarea(crtc, enable);
 }
 
-static void intel_crtc_noop(struct drm_crtc *crtc)
-{
-}
-
 static void intel_crtc_disable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3825,10 +3858,6 @@ void intel_modeset_disable(struct drm_device *dev)
 		if (crtc->enabled)
 			intel_crtc_disable(crtc);
 	}
-}
-
-void intel_encoder_noop(struct drm_encoder *encoder)
-{
 }
 
 void intel_encoder_destroy(struct drm_encoder *encoder)
@@ -7280,8 +7309,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_framebuffer *intel_fb;
-	struct drm_i915_gem_object *obj;
+	struct drm_framebuffer *old_fb = crtc->fb;
+	struct drm_i915_gem_object *obj = to_intel_framebuffer(fb)->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	unsigned long flags;
@@ -7306,8 +7335,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->event = event;
 	work->crtc = crtc;
-	intel_fb = to_intel_framebuffer(crtc->fb);
-	work->old_fb_obj = intel_fb->obj;
+	work->old_fb_obj = to_intel_framebuffer(old_fb)->obj;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
 	ret = drm_vblank_get(dev, intel_crtc->pipe);
@@ -7326,9 +7354,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	}
 	intel_crtc->unpin_work = work;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	intel_fb = to_intel_framebuffer(fb);
-	obj = intel_fb->obj;
 
 	if (atomic_read(&intel_crtc->unpin_work_count) >= 2)
 		flush_workqueue(dev_priv->wq);
@@ -7364,6 +7389,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
+	crtc->fb = old_fb;
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
@@ -7383,7 +7409,6 @@ free_work:
 static struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.load_lut = intel_crtc_load_lut,
-	.disable = intel_crtc_noop,
 };
 
 bool intel_encoder_check_is_cloned(struct intel_encoder *encoder)
@@ -8093,14 +8118,9 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	BUG_ON(!set->crtc);
 	BUG_ON(!set->crtc->helper_private);
 
-	if (!set->mode)
-		set->fb = NULL;
-
-	/* The fb helper likes to play gross jokes with ->mode_set_config.
-	 * Unfortunately the crtc helper doesn't do much at all for this case,
-	 * so we have to cope with this madness until the fb helper is fixed up. */
-	if (set->fb && set->num_connectors == 0)
-		return 0;
+	/* Enforce sane interface api - has been abused by the fb helper. */
+	BUG_ON(!set->mode && set->fb);
+	BUG_ON(set->fb && set->num_connectors == 0);
 
 	if (set->fb) {
 		DRM_DEBUG_KMS("[CRTC:%d] [FB:%d] #connectors=%d (x y) (%i %i)\n",

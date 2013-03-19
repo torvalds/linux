@@ -304,7 +304,7 @@ static void request_modules(struct ivtv *dev)
 
 static void flush_request_modules(struct ivtv *dev)
 {
-	flush_work_sync(&dev->request_module_wk);
+	flush_work(&dev->request_module_wk);
 }
 #else
 #define request_modules(dev)

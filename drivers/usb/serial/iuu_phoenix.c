@@ -581,7 +581,6 @@ static void read_buf_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	if (status) {
@@ -592,14 +591,12 @@ static void read_buf_callback(struct urb *urb)
 	}
 
 	dev_dbg(&port->dev, "%s - %i chars to write\n", __func__, urb->actual_length);
-	tty = tty_port_tty_get(&port->port);
 	if (data == NULL)
 		dev_dbg(&port->dev, "%s - data is NULL !!!\n", __func__);
-	if (tty && urb->actual_length && data) {
-		tty_insert_flip_string(tty, data, urb->actual_length);
-		tty_flip_buffer_push(tty);
+	if (urb->actual_length && data) {
+		tty_insert_flip_string(&port->port, data, urb->actual_length);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 	iuu_led_activity_on(urb);
 }
 

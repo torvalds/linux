@@ -354,6 +354,7 @@ C_ENTRY(_user_exception):
 	/* Note Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12;			/* convert num -> ptr */
 	add	r12, r12, r12;
+	addi	r30, r0, 1			/* restarts allowed */
 
 #ifdef DEBUG
 	/* Trac syscalls and stored them to syscall_debug_table */
@@ -401,26 +402,27 @@ C_ENTRY(ret_from_trap):
 	 * trigger rescheduling. */
 	/* get thread info from current task */
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
-	lwi	r11, r11, TI_FLAGS;		/* get flags in thread info */
-	andi	r11, r11, _TIF_NEED_RESCHED;
+	lwi	r19, r11, TI_FLAGS;		/* get flags in thread info */
+	andi	r11, r19, _TIF_NEED_RESCHED;
 	beqi	r11, 5f;
 
 	bralid	r15, schedule;	/* Call scheduler */
 	nop;				/* delay slot */
+	bri	1b
 
 	/* Maybe handle a signal */
-5:	/* get thread info from current task*/
-	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
-	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
-	andi	r11, r11, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
-	beqi	r11, 1f;		/* Signals to handle, handle them */
+5:	
+	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
+	beqi	r11, 4f;		/* Signals to handle, handle them */
 
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
 	bralid	r15, do_notify_resume;	/* Handle any signals */
-	addi	r6, r0, 1;		/* Arg 2: int in_syscall */
+	add	r6, r30, r0;		/* Arg 2: int in_syscall */
+	add	r30, r0, r0		/* no more restarts */
+	bri	1b
 
 /* Finally, return to user state.  */
-1:	set_bip;			/*  Ints masked for state restore */
+4:	set_bip;			/*  Ints masked for state restore */
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
@@ -464,6 +466,7 @@ C_ENTRY(ret_from_kernel_thread):
 	add	r3, r0, r0
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
+	addik	r30, r0, 0		/* no restarts */
 	brid	sys_rt_sigreturn	/* Do real work */
 	addik	r5, r1, 0;		/* add user context as 1st arg */
 
@@ -571,20 +574,20 @@ C_ENTRY(ret_from_exc):
 
 	/* We're returning to user mode, so check for various conditions that
 	   trigger rescheduling. */
+1:
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
-	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
-	andi	r11, r11, _TIF_NEED_RESCHED;
+	lwi	r19, r11, TI_FLAGS;	/* get flags in thread info */
+	andi	r11, r19, _TIF_NEED_RESCHED;
 	beqi	r11, 5f;
 
 /* Call the scheduler before returning from a syscall/trap. */
 	bralid	r15, schedule;	/* Call scheduler */
 	nop;				/* delay slot */
+	bri	1b
 
 	/* Maybe handle a signal */
-5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
-	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
-	andi	r11, r11, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
-	beqi	r11, 1f;		/* Signals to handle, handle them */
+5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
+	beqi	r11, 4f;		/* Signals to handle, handle them */
 
 	/*
 	 * Handle a signal return; Pending signals should be in r18.
@@ -600,9 +603,10 @@ C_ENTRY(ret_from_exc):
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
 	bralid	r15, do_notify_resume;	/* Handle any signals */
 	addi	r6, r0, 0;		/* Arg 2: int in_syscall */
+	bri	1b
 
 /* Finally, return to user state.  */
-1:	set_bip;			/* Ints masked for state restore */
+4:	set_bip;			/* Ints masked for state restore */
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
@@ -682,22 +686,23 @@ ret_from_irq:
 	lwi	r11, r1, PT_MODE;
 	bnei	r11, 2f;
 
+1:
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
-	lwi	r11, r11, TI_FLAGS; /* MS: get flags from thread info */
-	andi	r11, r11, _TIF_NEED_RESCHED;
+	lwi	r19, r11, TI_FLAGS; /* MS: get flags from thread info */
+	andi	r11, r19, _TIF_NEED_RESCHED;
 	beqi	r11, 5f
 	bralid	r15, schedule;
 	nop; /* delay slot */
+	bri	1b
 
     /* Maybe handle a signal */
-5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO; /* MS: get thread info */
-	lwi	r11, r11, TI_FLAGS; /* get flags in thread info */
-	andi	r11, r11, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
+5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
 	beqid	r11, no_intr_resched
 /* Handle a signal return; Pending signals should be in r18. */
 	addik	r5, r1, 0; /* Arg 1: struct pt_regs *regs */
 	bralid	r15, do_notify_resume;	/* Handle any signals */
 	addi	r6, r0, 0; /* Arg 2: int in_syscall */
+	bri	1b
 
 /* Finally, return to user state. */
 no_intr_resched:
@@ -815,28 +820,29 @@ dbtrap_call: /* Return point for kernel/user entry + 8 because of rtsd r15, 8 */
 	lwi	r11, r1, PT_MODE;
 	bnei	r11, 2f;
 /* MS: Return to user space - gdb */
+1:
 	/* Get current task ptr into r11 */
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
-	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
-	andi	r11, r11, _TIF_NEED_RESCHED;
+	lwi	r19, r11, TI_FLAGS;	/* get flags in thread info */
+	andi	r11, r19, _TIF_NEED_RESCHED;
 	beqi	r11, 5f;
 
 	/* Call the scheduler before returning from a syscall/trap. */
 	bralid	r15, schedule;	/* Call scheduler */
 	nop;				/* delay slot */
+	bri	1b
 
 	/* Maybe handle a signal */
-5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
-	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
-	andi	r11, r11, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
-	beqi	r11, 1f;		/* Signals to handle, handle them */
+5:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
+	beqi	r11, 4f;		/* Signals to handle, handle them */
 
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
 	bralid	r15, do_notify_resume;	/* Handle any signals */
 	addi  r6, r0, 0;	/* Arg 2: int in_syscall */
+	bri	1b
 
 /* Finally, return to user state.  */
-1:	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
+4:	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
 	/* MS: Restore all regs */

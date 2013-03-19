@@ -4,6 +4,7 @@
  * Copyright 2011-2012 Texas Instruments Inc.
  *
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
+ * Author: Ian Lartey <ian@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under  the terms of the GNU General  Public License as published by the
@@ -156,7 +157,7 @@ static const struct regs_info palmas_regs_info[] = {
  *
  * So they are basically (maxV-minV)/stepV
  */
-#define PALMAS_SMPS_NUM_VOLTAGES	116
+#define PALMAS_SMPS_NUM_VOLTAGES	117
 #define PALMAS_SMPS10_NUM_VOLTAGES	2
 #define PALMAS_LDO_NUM_VOLTAGES		50
 
@@ -527,6 +528,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 	u32 prop;
 	int idx, ret;
 
+	node = of_node_get(node);
 	regulators = of_find_node_by_name(node, "regulators");
 	if (!regulators) {
 		dev_info(dev, "regulator node not found\n");
@@ -535,6 +537,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 
 	ret = of_regulator_match(dev, regulators, palmas_matches,
 			PALMAS_NUM_REGS);
+	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n", ret);
 		return;
@@ -564,11 +567,6 @@ static void palmas_dt_to_pdata(struct device *dev,
 				"ti,mode_sleep", &prop);
 		if (!ret)
 			pdata->reg_init[idx]->mode_sleep = prop;
-
-		ret = of_property_read_u32(palmas_matches[idx].of_node,
-				"ti,warm_reset", &prop);
-		if (!ret)
-			pdata->reg_init[idx]->warm_reset = prop;
 
 		ret = of_property_read_u32(palmas_matches[idx].of_node,
 				"ti,tstep", &prop);

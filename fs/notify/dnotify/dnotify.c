@@ -174,7 +174,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	struct dnotify_struct **prev;
 	struct inode *inode;
 
-	inode = filp->f_path.dentry->d_inode;
+	inode = file_inode(filp);
 	if (!S_ISDIR(inode->i_mode))
 		return;
 
@@ -296,7 +296,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	}
 
 	/* dnotify only works on directories */
-	inode = filp->f_path.dentry->d_inode;
+	inode = file_inode(filp);
 	if (!S_ISDIR(inode->i_mode)) {
 		error = -ENOTDIR;
 		goto out_err;

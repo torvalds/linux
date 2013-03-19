@@ -197,9 +197,8 @@ static inline u32 tun_hashfn(u32 rxhash)
 static struct tun_flow_entry *tun_flow_find(struct hlist_head *head, u32 rxhash)
 {
 	struct tun_flow_entry *e;
-	struct hlist_node *n;
 
-	hlist_for_each_entry_rcu(e, n, head, hash_link) {
+	hlist_for_each_entry_rcu(e, head, hash_link) {
 		if (e->rxhash == rxhash)
 			return e;
 	}
@@ -241,9 +240,9 @@ static void tun_flow_flush(struct tun_struct *tun)
 	spin_lock_bh(&tun->lock);
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++) {
 		struct tun_flow_entry *e;
-		struct hlist_node *h, *n;
+		struct hlist_node *n;
 
-		hlist_for_each_entry_safe(e, h, n, &tun->flows[i], hash_link)
+		hlist_for_each_entry_safe(e, n, &tun->flows[i], hash_link)
 			tun_flow_delete(tun, e);
 	}
 	spin_unlock_bh(&tun->lock);
@@ -256,9 +255,9 @@ static void tun_flow_delete_by_queue(struct tun_struct *tun, u16 queue_index)
 	spin_lock_bh(&tun->lock);
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++) {
 		struct tun_flow_entry *e;
-		struct hlist_node *h, *n;
+		struct hlist_node *n;
 
-		hlist_for_each_entry_safe(e, h, n, &tun->flows[i], hash_link) {
+		hlist_for_each_entry_safe(e, n, &tun->flows[i], hash_link) {
 			if (e->queue_index == queue_index)
 				tun_flow_delete(tun, e);
 		}
@@ -279,9 +278,9 @@ static void tun_flow_cleanup(unsigned long data)
 	spin_lock_bh(&tun->lock);
 	for (i = 0; i < TUN_NUM_FLOW_ENTRIES; i++) {
 		struct tun_flow_entry *e;
-		struct hlist_node *h, *n;
+		struct hlist_node *n;
 
-		hlist_for_each_entry_safe(e, h, n, &tun->flows[i], hash_link) {
+		hlist_for_each_entry_safe(e, n, &tun->flows[i], hash_link) {
 			unsigned long this_timer;
 			count++;
 			this_timer = e->updated + delay;
@@ -298,11 +297,12 @@ static void tun_flow_cleanup(unsigned long data)
 }
 
 static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
-			    u16 queue_index)
+			    struct tun_file *tfile)
 {
 	struct hlist_head *head;
 	struct tun_flow_entry *e;
 	unsigned long delay = tun->ageing_time;
+	u16 queue_index = tfile->queue_index;
 
 	if (!rxhash)
 		return;
@@ -311,7 +311,9 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 
 	rcu_read_lock();
 
-	if (tun->numqueues == 1)
+	/* We may get a very small possibility of OOO during switching, not
+	 * worth to optimize.*/
+	if (tun->numqueues == 1 || tfile->detached)
 		goto unlock;
 
 	e = tun_flow_find(head, rxhash);
@@ -411,21 +413,21 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 
 	tun = rtnl_dereference(tfile->tun);
 
-	if (tun) {
+	if (tun && !tfile->detached) {
 		u16 index = tfile->queue_index;
 		BUG_ON(index >= tun->numqueues);
 		dev = tun->dev;
 
 		rcu_assign_pointer(tun->tfiles[index],
 				   tun->tfiles[tun->numqueues - 1]);
-		rcu_assign_pointer(tfile->tun, NULL);
 		ntfile = rtnl_dereference(tun->tfiles[index]);
 		ntfile->queue_index = index;
 
 		--tun->numqueues;
-		if (clean)
+		if (clean) {
+			rcu_assign_pointer(tfile->tun, NULL);
 			sock_put(&tfile->sk);
-		else
+		} else
 			tun_disable_queue(tun, tfile);
 
 		synchronize_net();
@@ -439,10 +441,13 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 	}
 
 	if (clean) {
-		if (tun && tun->numqueues == 0 && tun->numdisabled == 0 &&
-		    !(tun->flags & TUN_PERSIST))
-			if (tun->dev->reg_state == NETREG_REGISTERED)
+		if (tun && tun->numqueues == 0 && tun->numdisabled == 0) {
+			netif_carrier_off(tun->dev);
+
+			if (!(tun->flags & TUN_PERSIST) &&
+			    tun->dev->reg_state == NETREG_REGISTERED)
 				unregister_netdevice(tun->dev);
+		}
 
 		BUG_ON(!test_bit(SOCK_EXTERNALLY_ALLOCATED,
 				 &tfile->socket.flags));
@@ -469,6 +474,10 @@ static void tun_detach_all(struct net_device *dev)
 		wake_up_all(&tfile->wq.wait);
 		rcu_assign_pointer(tfile->tun, NULL);
 		--tun->numqueues;
+	}
+	list_for_each_entry(tfile, &tun->disabled, next) {
+		wake_up_all(&tfile->wq.wait);
+		rcu_assign_pointer(tfile->tun, NULL);
 	}
 	BUG_ON(tun->numqueues != 0);
 
@@ -500,7 +509,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 		goto out;
 
 	err = -EINVAL;
-	if (rtnl_dereference(tfile->tun))
+	if (rtnl_dereference(tfile->tun) && !tfile->detached)
 		goto out;
 
 	err = -EBUSY;
@@ -737,6 +746,8 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
 		goto drop;
 	skb_orphan(skb);
+
+	nf_reset(skb);
 
 	/* Enqueue packet */
 	skb_queue_tail(&tfile->socket.sk->sk_receive_queue, skb);
@@ -1190,6 +1201,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	if (zerocopy) {
 		skb_shinfo(skb)->destructor_arg = msg_control;
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	}
 
 	skb_reset_network_header(skb);
@@ -1199,7 +1211,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	tun->dev->stats.rx_packets++;
 	tun->dev->stats.rx_bytes += len;
 
-	tun_flow_update(tun, rxhash, tfile->queue_index);
+	tun_flow_update(tun, rxhash, tfile);
 	return total_len;
 }
 
@@ -1658,9 +1670,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		    device_create_file(&tun->dev->dev, &dev_attr_owner) ||
 		    device_create_file(&tun->dev->dev, &dev_attr_group))
 			pr_err("Failed to create tun sysfs files\n");
-
-		netif_carrier_on(tun->dev);
 	}
+
+	netif_carrier_on(tun->dev);
 
 	tun_debug(KERN_INFO, tun, "tun_set_iff\n");
 
@@ -1813,7 +1825,7 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 		ret = tun_attach(tun, file);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
 		tun = rtnl_dereference(tfile->tun);
-		if (!tun || !(tun->flags & TUN_TAP_MQ))
+		if (!tun || !(tun->flags & TUN_TAP_MQ) || tfile->detached)
 			ret = -EINVAL;
 		else
 			__tun_detach(tfile, false);

@@ -1081,6 +1081,45 @@ static void txq_set_fixed_prio_mode(struct tx_queue *txq)
 
 
 /* mii management interface *************************************************/
+static void mv643xx_adjust_pscr(struct mv643xx_eth_private *mp)
+{
+	u32 pscr = rdlp(mp, PORT_SERIAL_CONTROL);
+	u32 autoneg_disable = FORCE_LINK_PASS |
+	             DISABLE_AUTO_NEG_SPEED_GMII |
+		     DISABLE_AUTO_NEG_FOR_FLOW_CTRL |
+		     DISABLE_AUTO_NEG_FOR_DUPLEX;
+
+	if (mp->phy->autoneg == AUTONEG_ENABLE) {
+		/* enable auto negotiation */
+		pscr &= ~autoneg_disable;
+		goto out_write;
+	}
+
+	pscr |= autoneg_disable;
+
+	if (mp->phy->speed == SPEED_1000) {
+		/* force gigabit, half duplex not supported */
+		pscr |= SET_GMII_SPEED_TO_1000;
+		pscr |= SET_FULL_DUPLEX_MODE;
+		goto out_write;
+	}
+
+	pscr &= ~SET_GMII_SPEED_TO_1000;
+
+	if (mp->phy->speed == SPEED_100)
+		pscr |= SET_MII_SPEED_TO_100;
+	else
+		pscr &= ~SET_MII_SPEED_TO_100;
+
+	if (mp->phy->duplex == DUPLEX_FULL)
+		pscr |= SET_FULL_DUPLEX_MODE;
+	else
+		pscr &= ~SET_FULL_DUPLEX_MODE;
+
+out_write:
+	wrlp(mp, PORT_SERIAL_CONTROL, pscr);
+}
+
 static irqreturn_t mv643xx_eth_err_irq(int irq, void *dev_id)
 {
 	struct mv643xx_eth_shared_private *msp = dev_id;
@@ -1499,6 +1538,7 @@ static int
 mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	int ret;
 
 	if (mp->phy == NULL)
 		return -EINVAL;
@@ -1508,7 +1548,10 @@ mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	 */
 	cmd->advertising &= ~ADVERTISED_1000baseT_Half;
 
-	return phy_ethtool_sset(mp->phy, cmd);
+	ret = phy_ethtool_sset(mp->phy, cmd);
+	if (!ret)
+		mv643xx_adjust_pscr(mp);
+	return ret;
 }
 
 static void mv643xx_eth_get_drvinfo(struct net_device *dev,
@@ -1879,12 +1922,10 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 	memset(rxq->rx_desc_area, 0, size);
 
 	rxq->rx_desc_area_size = size;
-	rxq->rx_skb = kmalloc(rxq->rx_ring_size * sizeof(*rxq->rx_skb),
-								GFP_KERNEL);
-	if (rxq->rx_skb == NULL) {
-		netdev_err(mp->dev, "can't allocate rx skb ring\n");
+	rxq->rx_skb = kmalloc_array(rxq->rx_ring_size, sizeof(*rxq->rx_skb),
+				    GFP_KERNEL);
+	if (rxq->rx_skb == NULL)
 		goto out_free;
-	}
 
 	rx_desc = rxq->rx_desc_area;
 	for (i = 0; i < rxq->rx_ring_size; i++) {
@@ -2444,11 +2485,15 @@ static int mv643xx_eth_stop(struct net_device *dev)
 static int mv643xx_eth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
+	int ret;
 
-	if (mp->phy != NULL)
-		return phy_mii_ioctl(mp->phy, ifr, cmd);
+	if (mp->phy == NULL)
+		return -ENOTSUPP;
 
-	return -EOPNOTSUPP;
+	ret = phy_mii_ioctl(mp->phy, ifr, cmd);
+	if (!ret)
+		mv643xx_adjust_pscr(mp);
+	return ret;
 }
 
 static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
@@ -2789,7 +2834,7 @@ static void phy_init(struct mv643xx_eth_private *mp, int speed, int duplex)
 
 	phy_reset(mp);
 
-	phy_attach(mp->dev, dev_name(&phy->dev), 0, PHY_INTERFACE_MODE_GMII);
+	phy_attach(mp->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_GMII);
 
 	if (speed == 0) {
 		phy->autoneg = AUTONEG_ENABLE;

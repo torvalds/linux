@@ -137,6 +137,14 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC)
 		props->device_cap_flags |= IB_DEVICE_XRC;
+	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW)
+		props->device_cap_flags |= IB_DEVICE_MEM_WINDOW;
+	if (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {
+		if (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_WIN_TYPE_2B)
+			props->device_cap_flags |= IB_DEVICE_MEM_WINDOW_TYPE_2B;
+		else
+			props->device_cap_flags |= IB_DEVICE_MEM_WINDOW_TYPE_2A;
+	}
 
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
@@ -1434,6 +1442,17 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		ibdev->ib_dev.dealloc_fmr	= mlx4_ib_fmr_dealloc;
 	}
 
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
+	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {
+		ibdev->ib_dev.alloc_mw = mlx4_ib_alloc_mw;
+		ibdev->ib_dev.bind_mw = mlx4_ib_bind_mw;
+		ibdev->ib_dev.dealloc_mw = mlx4_ib_dealloc_mw;
+
+		ibdev->ib_dev.uverbs_cmd_mask |=
+			(1ull << IB_USER_VERBS_CMD_ALLOC_MW) |
+			(1ull << IB_USER_VERBS_CMD_DEALLOC_MW);
+	}
+
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC) {
 		ibdev->ib_dev.alloc_xrcd = mlx4_ib_alloc_xrcd;
 		ibdev->ib_dev.dealloc_xrcd = mlx4_ib_dealloc_xrcd;
@@ -1601,8 +1620,7 @@ static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 		spin_unlock_irqrestore(&ibdev->sriov.going_down_lock, flags);
 	}
 out:
-	if (dm)
-		kfree(dm);
+	kfree(dm);
 	return;
 }
 

@@ -785,7 +785,7 @@ dt3155_init_board(struct pci_dev *pdev)
 	}
 	write_i2c_reg(pd->regs, CONFIG, pd->config); /*  ACQ_MODE_EVEN  */
 
-	/* select chanel 1 for input and set sync level */
+	/* select channel 1 for input and set sync level */
 	write_i2c_reg(pd->regs, AD_ADDR, AD_CMD_REG);
 	write_i2c_reg(pd->regs, AD_CMD, VIDEO_CNL_1 | SYNC_CNL_1 | SYNC_LVL_3);
 

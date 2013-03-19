@@ -1055,7 +1055,7 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 {
 	int status;
 
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct ocfs2_move_extents range;
 	struct ocfs2_move_extents_context *context = NULL;
 

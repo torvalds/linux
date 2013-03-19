@@ -1124,9 +1124,8 @@ static int axienet_ethtools_set_settings(struct net_device *ndev,
 static void axienet_ethtools_get_drvinfo(struct net_device *ndev,
 					 struct ethtool_drvinfo *ed)
 {
-	memset(ed, 0, sizeof(struct ethtool_drvinfo));
-	strcpy(ed->driver, DRIVER_NAME);
-	strcpy(ed->version, DRIVER_VERSION);
+	strlcpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
+	strlcpy(ed->version, DRIVER_VERSION, sizeof(ed->version));
 	ed->regdump_len = sizeof(u32) * AXIENET_REGS_N;
 }
 

@@ -63,7 +63,7 @@ static inline void vdma_pgtbl_init(void)
 static int __init vdma_init(void)
 {
 	/*
-	 * Allocate 32k of memory for DMA page tables.  This needs to be page
+	 * Allocate 32k of memory for DMA page tables.	This needs to be page
 	 * aligned and should be uncached to avoid cache flushing after every
 	 * update.
 	 */
@@ -218,14 +218,14 @@ int vdma_remap(unsigned long laddr, unsigned long paddr, unsigned long size)
 			printk
 			    ("vdma_map: Invalid logical address: %08lx\n",
 			     laddr);
-		return -EINVAL;	/* invalid logical address */
+		return -EINVAL; /* invalid logical address */
 	}
 	if (paddr > 0x1fffffff) {
 		if (vdma_debug)
 			printk
 			    ("vdma_map: Invalid physical address: %08lx\n",
 			     paddr);
-		return -EINVAL;	/* invalid physical address */
+		return -EINVAL; /* invalid physical address */
 	}
 
 	pages = (((paddr & (VDMA_PAGESIZE - 1)) + size) >> 12) + 1;

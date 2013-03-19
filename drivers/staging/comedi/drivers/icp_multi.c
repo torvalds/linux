@@ -47,11 +47,11 @@ There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
 Configuration options: not applicable, uses PCI auto config
 */
 
-#include <linux/interrupt.h>
-#include "../comedidev.h"
-
-#include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #define PCI_DEVICE_ID_ICP_MULTI	0x8000
 
@@ -623,11 +623,6 @@ static int icp_multi_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &icp_multi_driver);
 }
 
-static void icp_multi_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(icp_multi_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ICP, PCI_DEVICE_ID_ICP_MULTI) },
 	{ 0 }
@@ -638,7 +633,7 @@ static struct pci_driver icp_multi_pci_driver = {
 	.name		= "icp_multi",
 	.id_table	= icp_multi_pci_table,
 	.probe		= icp_multi_pci_probe,
-	.remove		= icp_multi_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(icp_multi_driver, icp_multi_pci_driver);
 

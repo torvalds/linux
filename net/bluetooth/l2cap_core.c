@@ -1527,17 +1527,12 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 	BT_DBG("hcon %p conn %p hchan %p", hcon, conn, hchan);
 
 	switch (hcon->type) {
-	case AMP_LINK:
-		conn->mtu = hcon->hdev->block_mtu;
-		break;
-
 	case LE_LINK:
 		if (hcon->hdev->le_mtu) {
 			conn->mtu = hcon->hdev->le_mtu;
 			break;
 		}
 		/* fall through */
-
 	default:
 		conn->mtu = hcon->hdev->acl_mtu;
 		break;

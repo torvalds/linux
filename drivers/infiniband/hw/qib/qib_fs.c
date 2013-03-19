@@ -45,7 +45,7 @@
 
 static struct super_block *qib_super;
 
-#define private2dd(file) ((file)->f_dentry->d_inode->i_private)
+#define private2dd(file) (file_inode(file)->i_private)
 
 static int qibfs_mknod(struct inode *dir, struct dentry *dentry,
 		       umode_t mode, const struct file_operations *fops,
@@ -171,7 +171,7 @@ static const struct file_operations cntr_ops[] = {
 };
 
 /*
- * Could use file->f_dentry->d_inode->i_ino to figure out which file,
+ * Could use file_inode(file)->i_ino to figure out which file,
  * instead of separate routine for each, but for now, this works...
  */
 
@@ -604,6 +604,7 @@ static struct file_system_type qibfs_fs_type = {
 	.mount =        qibfs_mount,
 	.kill_sb =      qibfs_kill_super,
 };
+MODULE_ALIAS_FS("ipathfs");
 
 int __init qib_init_qibfs(void)
 {

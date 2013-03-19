@@ -65,6 +65,7 @@
 #include <asm/smp.h>
 #include <asm/firmware.h>
 #include <asm/eeh.h>
+#include <asm/reg.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -281,7 +282,7 @@ static struct notifier_block pci_dn_reconfig_nb = {
 
 struct kmem_cache *dtl_cache;
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /*
  * Allocate space for the dispatch trace log for all possible cpus
  * and register the buffers with the hypervisor.  This is used for
@@ -332,12 +333,12 @@ static int alloc_dispatch_logs(void)
 
 	return 0;
 }
-#else /* !CONFIG_VIRT_CPU_ACCOUNTING */
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 static inline int alloc_dispatch_logs(void)
 {
 	return 0;
 }
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 static int alloc_dispatch_log_kmem_cache(void)
 {
@@ -375,7 +376,7 @@ static void pSeries_idle(void)
  * to ever be a problem in practice we can move this into a kernel thread to
  * finish off the process later in boot.
  */
-static int __init pSeries_enable_reloc_on_exc(void)
+long pSeries_enable_reloc_on_exc(void)
 {
 	long rc;
 	unsigned int delay, total_delay = 0;
@@ -397,9 +398,9 @@ static int __init pSeries_enable_reloc_on_exc(void)
 		mdelay(delay);
 	}
 }
+EXPORT_SYMBOL(pSeries_enable_reloc_on_exc);
 
-#ifdef CONFIG_KEXEC
-static long pSeries_disable_reloc_on_exc(void)
+long pSeries_disable_reloc_on_exc(void)
 {
 	long rc;
 
@@ -410,7 +411,9 @@ static long pSeries_disable_reloc_on_exc(void)
 		mdelay(get_longbusy_msecs(rc));
 	}
 }
+EXPORT_SYMBOL(pSeries_disable_reloc_on_exc);
 
+#ifdef CONFIG_KEXEC
 static void pSeries_machine_kexec(struct kimage *image)
 {
 	long rc;
@@ -496,6 +499,14 @@ static int pseries_set_xdabr(unsigned long dabr, unsigned long dabrx)
 	dabrx &= DABRX_KERNEL | DABRX_USER;
 
 	return plpar_hcall_norets(H_SET_XDABR, dabr, dabrx);
+}
+
+static int pseries_set_dawr(unsigned long dawr, unsigned long dawrx)
+{
+	/* PAPR says we can't set HYP */
+	dawrx &= ~DAWRX_HYP;
+
+	return  plapr_set_watchpoint0(dawr, dawrx);
 }
 
 #define CMO_CHARACTERISTICS_TOKEN 44
@@ -603,6 +614,9 @@ static void __init pSeries_init_early(void)
 		ppc_md.set_dabr = pseries_set_xdabr;
 	else if (firmware_has_feature(FW_FEATURE_DABR))
 		ppc_md.set_dabr = pseries_set_dabr;
+
+	if (firmware_has_feature(FW_FEATURE_SET_MODE))
+		ppc_md.set_dawr = pseries_set_dawr;
 
 	pSeries_cmo_feature_init();
 	iommu_init_early_pSeries();

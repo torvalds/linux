@@ -180,11 +180,11 @@ static int ca_get_app_info(struct dst_state *state)
 	put_command_and_length(&state->messages[0], CA_APP_INFO, length);
 
 	// Copy application_type, application_manufacturer and manufacturer_code
-	memcpy(&state->messages[4], &state->messages[7], 5);
+	memmove(&state->messages[4], &state->messages[7], 5);
 
 	// Set string length and copy string
 	state->messages[9] = str_length;
-	memcpy(&state->messages[10], &state->messages[12], str_length);
+	memmove(&state->messages[10], &state->messages[12], str_length);
 
 	return 0;
 }

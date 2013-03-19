@@ -262,8 +262,7 @@ typedef struct _synclinkmp_info {
 	bool sca_statctrl_requested;
 
 	u32 misc_ctrl_value;
-	char flag_buf[MAX_ASYNC_BUFFER_SIZE];
-	char char_buf[MAX_ASYNC_BUFFER_SIZE];
+	char *flag_buf;
 	bool drop_rts_on_tx_done;
 
 	struct	_input_signal_events	input_signal_events;
@@ -762,7 +761,7 @@ static int open(struct tty_struct *tty, struct file *filp)
 		goto cleanup;
 	}
 
-	info->port.tty->low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
 	if (info->netcount) {
@@ -883,7 +882,7 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
 	    !(tty->termios.c_cflag & CBAUD)) {
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		spin_lock_irqsave(&info->lock,flags);
 	 	set_signals(info);
 		spin_unlock_irqrestore(&info->lock,flags);
@@ -1677,8 +1676,8 @@ static int hdlcdev_open(struct net_device *dev)
 		return rc;
 	}
 
-	/* assert DTR and RTS, apply hardware settings */
-	info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+	/* assert RTS and DTR, apply hardware settings */
+	info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	program_hw(info);
 
 	/* enable network layer transmit */
@@ -2008,9 +2007,6 @@ static void bh_handler(struct work_struct *work)
 	SLMP_INFO *info = container_of(work, SLMP_INFO, task);
 	int action;
 
-	if (!info)
-		return;
-
 	if ( debug_level >= DEBUG_LEVEL_BH )
 		printk( "%s(%d):%s bh_handler() entry\n",
 			__FILE__,__LINE__,info->device_name);
@@ -2132,13 +2128,11 @@ static void isr_rxint(SLMP_INFO * info)
 			/* process break detection if tty control
 			 * is not set to ignore it
 			 */
-			if ( tty ) {
-				if (!(status & info->ignore_status_mask1)) {
-					if (info->read_status_mask1 & BRKD) {
-						tty_insert_flip_char(tty, 0, TTY_BREAK);
-						if (info->port.flags & ASYNC_SAK)
-							do_SAK(tty);
-					}
+			if (!(status & info->ignore_status_mask1)) {
+				if (info->read_status_mask1 & BRKD) {
+					tty_insert_flip_char(&info->port, 0, TTY_BREAK);
+					if (tty && (info->port.flags & ASYNC_SAK))
+						do_SAK(tty);
 				}
 			}
 		}
@@ -2170,7 +2164,6 @@ static void isr_rxrdy(SLMP_INFO * info)
 {
 	u16 status;
 	unsigned char DataByte;
- 	struct tty_struct *tty = info->port.tty;
  	struct	mgsl_icount *icount = &info->icount;
 
 	if ( debug_level >= DEBUG_LEVEL_ISR )
@@ -2203,26 +2196,22 @@ static void isr_rxrdy(SLMP_INFO * info)
 
 			status &= info->read_status_mask2;
 
-			if ( tty ) {
-				if (status & PE)
-					flag = TTY_PARITY;
-				else if (status & FRME)
-					flag = TTY_FRAME;
-				if (status & OVRN) {
-					/* Overrun is special, since it's
-					 * reported immediately, and doesn't
-					 * affect the current character
-					 */
-					over = true;
-				}
+			if (status & PE)
+				flag = TTY_PARITY;
+			else if (status & FRME)
+				flag = TTY_FRAME;
+			if (status & OVRN) {
+				/* Overrun is special, since it's
+				 * reported immediately, and doesn't
+				 * affect the current character
+				 */
+				over = true;
 			}
 		}	/* end of if (error) */
 
-		if ( tty ) {
-			tty_insert_flip_char(tty, DataByte, flag);
-			if (over)
-				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
+		tty_insert_flip_char(&info->port, DataByte, flag);
+		if (over)
+			tty_insert_flip_char(&info->port, 0, TTY_OVERRUN);
 	}
 
 	if ( debug_level >= DEBUG_LEVEL_ISR ) {
@@ -2232,8 +2221,7 @@ static void isr_rxrdy(SLMP_INFO * info)
 			icount->frame,icount->overrun);
 	}
 
-	if ( tty )
-		tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&info->port);
 }
 
 static void isr_txeom(SLMP_INFO * info, unsigned char status)
@@ -2718,7 +2706,7 @@ static void shutdown(SLMP_INFO * info)
 	reset_port(info);
 
  	if (!info->port.tty || info->port.tty->termios.c_cflag & HUPCL) {
- 		info->serial_signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		set_signals(info);
 	}
 
@@ -2780,12 +2768,12 @@ static void change_params(SLMP_INFO *info)
 
 	cflag = info->port.tty->termios.c_cflag;
 
-	/* if B0 rate (hangup) specified then negate DTR and RTS */
-	/* otherwise assert DTR and RTS */
+	/* if B0 rate (hangup) specified then negate RTS and DTR */
+	/* otherwise assert RTS and DTR */
  	if (cflag & CBAUD)
-		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 
 	/* byte size and parity */
 
@@ -3224,12 +3212,12 @@ static int tiocmget(struct tty_struct *tty)
  	get_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 
-	result = ((info->serial_signals & SerialSignal_RTS) ? TIOCM_RTS:0) +
-		((info->serial_signals & SerialSignal_DTR) ? TIOCM_DTR:0) +
-		((info->serial_signals & SerialSignal_DCD) ? TIOCM_CAR:0) +
-		((info->serial_signals & SerialSignal_RI)  ? TIOCM_RNG:0) +
-		((info->serial_signals & SerialSignal_DSR) ? TIOCM_DSR:0) +
-		((info->serial_signals & SerialSignal_CTS) ? TIOCM_CTS:0);
+	result = ((info->serial_signals & SerialSignal_RTS) ? TIOCM_RTS : 0) |
+		 ((info->serial_signals & SerialSignal_DTR) ? TIOCM_DTR : 0) |
+		 ((info->serial_signals & SerialSignal_DCD) ? TIOCM_CAR : 0) |
+		 ((info->serial_signals & SerialSignal_RI)  ? TIOCM_RNG : 0) |
+		 ((info->serial_signals & SerialSignal_DSR) ? TIOCM_DSR : 0) |
+		 ((info->serial_signals & SerialSignal_CTS) ? TIOCM_CTS : 0);
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s tiocmget() value=%08X\n",
@@ -3284,9 +3272,9 @@ static void dtr_rts(struct tty_port *port, int on)
 
 	spin_lock_irqsave(&info->lock,flags);
 	if (on)
-		info->serial_signals |= SerialSignal_RTS + SerialSignal_DTR;
+		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
-		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
  	set_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 }
@@ -3553,6 +3541,13 @@ static int alloc_tmp_rx_buf(SLMP_INFO *info)
 	info->tmp_rx_buf = kmalloc(info->max_frame_size, GFP_KERNEL);
 	if (info->tmp_rx_buf == NULL)
 		return -ENOMEM;
+	/* unused flag buffer to satisfy receive_buf calling interface */
+	info->flag_buf = kzalloc(info->max_frame_size, GFP_KERNEL);
+	if (!info->flag_buf) {
+		kfree(info->tmp_rx_buf);
+		info->tmp_rx_buf = NULL;
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -3560,6 +3555,8 @@ static void free_tmp_rx_buf(SLMP_INFO *info)
 {
 	kfree(info->tmp_rx_buf);
 	info->tmp_rx_buf = NULL;
+	kfree(info->flag_buf);
+	info->flag_buf = NULL;
 }
 
 static int claim_resources(SLMP_INFO *info)
@@ -4357,7 +4354,7 @@ static void reset_port(SLMP_INFO *info)
 		tx_stop(info);
 		rx_stop(info);
 
-		info->serial_signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
+		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 		set_signals(info);
 
 		/* disable all port interrupts */
@@ -4753,8 +4750,8 @@ static void get_signals(SLMP_INFO *info)
 	u16 gpstatus = read_status_reg(info);
 	u16 testbit;
 
-	/* clear all serial signals except DTR and RTS */
-	info->serial_signals &= SerialSignal_DTR + SerialSignal_RTS;
+	/* clear all serial signals except RTS and DTR */
+	info->serial_signals &= SerialSignal_RTS | SerialSignal_DTR;
 
 	/* set serial signal bits to reflect MISR */
 
@@ -4773,7 +4770,7 @@ static void get_signals(SLMP_INFO *info)
 		info->serial_signals |= SerialSignal_DSR;
 }
 
-/* Set the state of DTR and RTS based on contents of
+/* Set the state of RTS and DTR based on contents of
  * serial_signals member of device context.
  */
 static void set_signals(SLMP_INFO *info)

@@ -580,15 +580,13 @@ dino_fixup_bus(struct pci_bus *bus)
 				
 			}
 					
-			DBG("DEBUG %s assigning %d [0x%lx,0x%lx]\n",
+			DBG("DEBUG %s assigning %d [%pR]\n",
 			    dev_name(&bus->self->dev), i,
-			    bus->self->resource[i].start,
-			    bus->self->resource[i].end);
+			    &bus->self->resource[i]);
 			WARN_ON(pci_assign_resource(bus->self, i));
-			DBG("DEBUG %s after assign %d [0x%lx,0x%lx]\n",
+			DBG("DEBUG %s after assign %d [%pR]\n",
 			    dev_name(&bus->self->dev), i,
-			    bus->self->resource[i].start,
-			    bus->self->resource[i].end);
+			    &bus->self->resource[i]);
 		}
 	}
 
@@ -772,8 +770,7 @@ dino_bridge_init(struct dino_device *dino_dev, const char *name)
 		result = ccio_request_resource(dino_dev->hba.dev, &res[i]);
 		if (result < 0) {
 			printk(KERN_ERR "%s: failed to claim PCI Bus address "
-			       "space %d (0x%lx-0x%lx)!\n", name, i,
-			       (unsigned long)res[i].start, (unsigned long)res[i].end);
+			       "space %d (%pR)!\n", name, i, &res[i]);
 			return result;
 		}
 	}

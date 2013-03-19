@@ -21,22 +21,42 @@
 #define _PPI_H_
 
 #include <linux/interrupt.h>
+#include <asm/blackfin.h>
+#include <asm/bfin_ppi.h>
 
+/* EPPI */
 #ifdef EPPI_EN
 #define PORT_EN EPPI_EN
+#define PORT_DIR EPPI_DIR
 #define DMA32 0
 #define PACK_EN PACKEN
+#endif
+
+/* EPPI3 */
+#ifdef EPPI0_CTL2
+#define PORT_EN EPPI_CTL_EN
+#define PORT_DIR EPPI_CTL_DIR
+#define PACK_EN EPPI_CTL_PACKEN
+#define DMA32 0
+#define DLEN_8 EPPI_CTL_DLEN08
+#define DLEN_16 EPPI_CTL_DLEN16
 #endif
 
 struct ppi_if;
 
 struct ppi_params {
-	int width;
-	int height;
-	int bpp;
-	unsigned long ppi_control;
-	u32 int_mask;
-	int blank_clocks;
+	u32 width;              /* width in pixels */
+	u32 height;             /* height in lines */
+	u32 hdelay;             /* delay after the HSYNC in pixels */
+	u32 vdelay;             /* delay after the VSYNC in lines */
+	u32 line;               /* total pixels per line */
+	u32 frame;              /* total lines per frame */
+	u32 hsync;              /* HSYNC length in pixels */
+	u32 vsync;              /* VSYNC length in lines */
+	int bpp;                /* bits per pixel */
+	int dlen;               /* data length for ppi in bits */
+	u32 ppi_control;        /* ppi configuration */
+	u32 int_mask;           /* interrupt mask */
 };
 
 struct ppi_ops {
@@ -51,6 +71,7 @@ struct ppi_ops {
 enum ppi_type {
 	PPI_TYPE_PPI,
 	PPI_TYPE_EPPI,
+	PPI_TYPE_EPPI3,
 };
 
 struct ppi_info {
@@ -65,7 +86,8 @@ struct ppi_if {
 	unsigned long ppi_control;
 	const struct ppi_ops *ops;
 	const struct ppi_info *info;
-	bool err_int;
+	bool err_int; /* if we need request error interrupt */
+	bool err; /* if ppi has fifo error */
 	void *priv;
 };
 

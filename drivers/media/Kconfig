@@ -79,8 +79,7 @@ config MEDIA_RC_SUPPORT
 #
 
 config MEDIA_CONTROLLER
-	bool "Media Controller API (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Media Controller API"
 	depends on MEDIA_CAMERA_SUPPORT
 	---help---
 	  Enable the media controller API used to query media devices internal
@@ -100,8 +99,8 @@ config VIDEO_DEV
 	default y
 
 config VIDEO_V4L2_SUBDEV_API
-	bool "V4L2 sub-device userspace API (EXPERIMENTAL)"
-	depends on VIDEO_DEV && MEDIA_CONTROLLER && EXPERIMENTAL
+	bool "V4L2 sub-device userspace API"
+	depends on VIDEO_DEV && MEDIA_CONTROLLER
 	---help---
 	  Enables the V4L2 sub-device pad-level userspace API used to configure
 	  video format, size and frame rate between hardware blocks.
@@ -135,6 +134,12 @@ config DVB_NET
 	  You may want to disable the network support on embedded devices. If
 	  unsure say Y.
 
+# This Kconfig option is used by both PCI and USB drivers
+config TTPCI_EEPROM
+        tristate
+        depends on I2C
+        default n
+
 source "drivers/media/dvb-core/Kconfig"
 
 comment "Media drivers"
@@ -158,17 +163,20 @@ source "drivers/media/firewire/Kconfig"
 # Common driver options
 source "drivers/media/common/Kconfig"
 
+comment "Media ancillary drivers (tuners, sensors, i2c, frontends)"
+
 #
 # Ancillary drivers (tuners, i2c, frontends)
 #
 
 config MEDIA_SUBDRV_AUTOSELECT
-	bool "Autoselect tuners and i2c modules to build"
+	bool "Autoselect ancillary drivers (tuners, sensors, i2c, frontends)"
 	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_CAMERA_SUPPORT
 	default y
 	help
-	  By default, a media driver auto-selects all possible i2c
-	  devices that are used by any of the supported devices.
+	  By default, a media driver auto-selects all possible ancillary
+	  devices such as tuners, sensors, video encoders/decoders and
+	  frontends, that are used by any of the supported devices.
 
 	  This is generally the right thing to do, except when there
 	  are strict constraints with regards to the kernel size,
@@ -177,11 +185,9 @@ config MEDIA_SUBDRV_AUTOSELECT
 	  Use this option with care, as deselecting ancillary drivers which
 	  are, in fact, necessary will result in the lack of the needed
 	  functionality for your device (it may not tune or may not have
-	  the need demodulers).
+	  the needed demodulators).
 
 	  If unsure say Y.
-
-comment "Media ancillary drivers (tuners, sensors, i2c, frontends)"
 
 source "drivers/media/i2c/Kconfig"
 source "drivers/media/tuners/Kconfig"

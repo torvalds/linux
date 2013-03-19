@@ -159,7 +159,7 @@ static struct autofs_sb_info *autofs_dev_ioctl_sbi(struct file *f)
 	struct inode *inode;
 
 	if (f) {
-		inode = f->f_path.dentry->d_inode;
+		inode = file_inode(f);
 		sbi = autofs4_sbi(inode->i_sb);
 	}
 	return sbi;

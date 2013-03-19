@@ -302,7 +302,8 @@ static int handle_remove(const char *nodename, struct device *dev)
 
 	if (dentry->d_inode) {
 		struct kstat stat;
-		err = vfs_getattr(parent.mnt, dentry, &stat);
+		struct path p = {.mnt = parent.mnt, .dentry = dentry};
+		err = vfs_getattr(&p, &stat);
 		if (!err && dev_mynode(dev, dentry->d_inode, &stat)) {
 			struct iattr newattrs;
 			/*

@@ -275,7 +275,7 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		dev_err(&pdev->dev, "couldn't allocate memory\n");
 		return -ENOMEM;
@@ -309,24 +309,65 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 	if ((!info->vibldrv_res && !info->viblmotor_res) ||
 	    (!info->vibrdrv_res && !info->vibrmotor_res)) {
 		dev_err(info->dev, "invalid vibra driver/motor resistance\n");
-		ret = -EINVAL;
-		goto err_kzalloc;
+		return -EINVAL;
 	}
 
 	info->irq = platform_get_irq(pdev, 0);
 	if (info->irq < 0) {
 		dev_err(info->dev, "invalid irq\n");
-		ret = -EINVAL;
-		goto err_kzalloc;
+		return -EINVAL;
 	}
 
 	mutex_init(&info->mutex);
+
+	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
+					twl6040_vib_irq_handler, 0,
+					"twl6040_irq_vib", info);
+	if (ret) {
+		dev_err(info->dev, "VIB IRQ request failed: %d\n", ret);
+		return ret;
+	}
+
+	info->supplies[0].supply = "vddvibl";
+	info->supplies[1].supply = "vddvibr";
+	/*
+	 * When booted with Device tree the regulators are attached to the
+	 * parent device (twl6040 MFD core)
+	 */
+	ret = regulator_bulk_get(pdata ? info->dev : twl6040_core_dev,
+				 ARRAY_SIZE(info->supplies), info->supplies);
+	if (ret) {
+		dev_err(info->dev, "couldn't get regulators %d\n", ret);
+		return ret;
+	}
+
+	if (vddvibl_uV) {
+		ret = regulator_set_voltage(info->supplies[0].consumer,
+					    vddvibl_uV, vddvibl_uV);
+		if (ret) {
+			dev_err(info->dev, "failed to set VDDVIBL volt %d\n",
+				ret);
+			goto err_regulator;
+		}
+	}
+
+	if (vddvibr_uV) {
+		ret = regulator_set_voltage(info->supplies[1].consumer,
+					    vddvibr_uV, vddvibr_uV);
+		if (ret) {
+			dev_err(info->dev, "failed to set VDDVIBR volt %d\n",
+				ret);
+			goto err_regulator;
+		}
+	}
+
+	INIT_WORK(&info->play_work, vibra_play_work);
 
 	info->input_dev = input_allocate_device();
 	if (info->input_dev == NULL) {
 		dev_err(info->dev, "couldn't allocate input device\n");
 		ret = -ENOMEM;
-		goto err_kzalloc;
+		goto err_regulator;
 	}
 
 	input_set_drvdata(info->input_dev, info);
@@ -351,70 +392,14 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	ret = request_threaded_irq(info->irq, NULL, twl6040_vib_irq_handler, 0,
-				   "twl6040_irq_vib", info);
-	if (ret) {
-		dev_err(info->dev, "VIB IRQ request failed: %d\n", ret);
-		goto err_irq;
-	}
-
-	info->supplies[0].supply = "vddvibl";
-	info->supplies[1].supply = "vddvibr";
-	/*
-	 * When booted with Device tree the regulators are attached to the
-	 * parent device (twl6040 MFD core)
-	 */
-	ret = regulator_bulk_get(pdata ? info->dev : twl6040_core_dev,
-				 ARRAY_SIZE(info->supplies), info->supplies);
-	if (ret) {
-		dev_err(info->dev, "couldn't get regulators %d\n", ret);
-		goto err_regulator;
-	}
-
-	if (vddvibl_uV) {
-		ret = regulator_set_voltage(info->supplies[0].consumer,
-					    vddvibl_uV, vddvibl_uV);
-		if (ret) {
-			dev_err(info->dev, "failed to set VDDVIBL volt %d\n",
-				ret);
-			goto err_voltage;
-		}
-	}
-
-	if (vddvibr_uV) {
-		ret = regulator_set_voltage(info->supplies[1].consumer,
-					    vddvibr_uV, vddvibr_uV);
-		if (ret) {
-			dev_err(info->dev, "failed to set VDDVIBR volt %d\n",
-				ret);
-			goto err_voltage;
-		}
-	}
-
-	info->workqueue = alloc_workqueue("twl6040-vibra", 0, 0);
-	if (info->workqueue == NULL) {
-		dev_err(info->dev, "couldn't create workqueue\n");
-		ret = -ENOMEM;
-		goto err_voltage;
-	}
-	INIT_WORK(&info->play_work, vibra_play_work);
-
 	return 0;
 
-err_voltage:
-	regulator_bulk_free(ARRAY_SIZE(info->supplies), info->supplies);
-err_regulator:
-	free_irq(info->irq, info);
-err_irq:
-	input_unregister_device(info->input_dev);
-	info->input_dev = NULL;
 err_iff:
-	if (info->input_dev)
-		input_ff_destroy(info->input_dev);
+	input_ff_destroy(info->input_dev);
 err_ialloc:
 	input_free_device(info->input_dev);
-err_kzalloc:
-	kfree(info);
+err_regulator:
+	regulator_bulk_free(ARRAY_SIZE(info->supplies), info->supplies);
 	return ret;
 }
 
@@ -423,10 +408,7 @@ static int twl6040_vibra_remove(struct platform_device *pdev)
 	struct vibra_info *info = platform_get_drvdata(pdev);
 
 	input_unregister_device(info->input_dev);
-	free_irq(info->irq, info);
 	regulator_bulk_free(ARRAY_SIZE(info->supplies), info->supplies);
-	destroy_workqueue(info->workqueue);
-	kfree(info);
 
 	return 0;
 }

@@ -402,7 +402,7 @@ static void process_interlaced_mode(int fid, struct common_obj *common)
 		/* one frame is displayed If next frame is
 		 *  available, release cur_frm and move on */
 		/* Copy frame display time */
-		do_gettimeofday(&common->cur_frm->vb.v4l2_buf.timestamp);
+		v4l2_get_timestamp(&common->cur_frm->vb.v4l2_buf.timestamp);
 		/* Change status of the cur_frm */
 		vb2_buffer_done(&common->cur_frm->vb,
 					    VB2_BUF_STATE_DONE);
@@ -462,8 +462,8 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 			if (!channel_first_int[i][channel_id]) {
 				/* Mark status of the cur_frm to
 				 * done and unlock semaphore on it */
-				do_gettimeofday(&common->cur_frm->vb.
-						v4l2_buf.timestamp);
+				v4l2_get_timestamp(&common->cur_frm->vb.
+						   v4l2_buf.timestamp);
 				vb2_buffer_done(&common->cur_frm->vb,
 					    VB2_BUF_STATE_DONE);
 				/* Make cur_frm pointing to next_frm */

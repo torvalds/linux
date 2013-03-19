@@ -1055,7 +1055,6 @@ int i2400m_read_mac_addr(struct i2400m *i2400m)
 		result = 0;
 	}
 	net_dev->addr_len = ETH_ALEN;
-	memcpy(net_dev->perm_addr, ack_buf.ack_pl, ETH_ALEN);
 	memcpy(net_dev->dev_addr, ack_buf.ack_pl, ETH_ALEN);
 error_read_mac:
 	d_fnend(5, dev, "(i2400m %p) = %d\n", i2400m, result);

@@ -333,7 +333,7 @@ static int ide_settings_proc_open(struct inode *inode, struct file *file)
 static ssize_t ide_settings_proc_write(struct file *file, const char __user *buffer,
 				       size_t count, loff_t *pos)
 {
-	ide_drive_t	*drive = (ide_drive_t *) PDE(file->f_path.dentry->d_inode)->data;
+	ide_drive_t	*drive = (ide_drive_t *) PDE(file_inode(file))->data;
 	char		name[MAX_LEN + 1];
 	int		for_real = 0, mul_factor, div_factor;
 	unsigned long	n;
@@ -558,7 +558,7 @@ static int ide_replace_subdriver(ide_drive_t *drive, const char *driver)
 static ssize_t ide_driver_proc_write(struct file *file, const char __user *buffer,
 				     size_t count, loff_t *pos)
 {
-	ide_drive_t	*drive = (ide_drive_t *) PDE(file->f_path.dentry->d_inode)->data;
+	ide_drive_t	*drive = (ide_drive_t *) PDE(file_inode(file))->data;
 	char name[32];
 
 	if (!capable(CAP_SYS_ADMIN))

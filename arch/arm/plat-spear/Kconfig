@@ -10,6 +10,7 @@ choice
 
 config ARCH_SPEAR13XX
 	bool "ST SPEAr13xx with Device Tree"
+	select ARCH_HAS_CPUFREQ
 	select ARM_GIC
 	select CPU_V7
 	select GPIO_SPEAR_SPICS

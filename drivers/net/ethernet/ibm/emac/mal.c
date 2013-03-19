@@ -528,12 +528,9 @@ static int mal_probe(struct platform_device *ofdev)
 	irq_handler_t hdlr_serr, hdlr_txde, hdlr_rxde;
 
 	mal = kzalloc(sizeof(struct mal_instance), GFP_KERNEL);
-	if (!mal) {
-		printk(KERN_ERR
-		       "mal%d: out of memory allocating MAL structure!\n",
-		       index);
+	if (!mal)
 		return -ENOMEM;
-	}
+
 	mal->index = index;
 	mal->ofdev = ofdev;
 	mal->version = of_device_is_compatible(ofdev->dev.of_node, "ibm,mcmal2") ? 2 : 1;

@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/idr.h>
 #include <linux/log2.h>
+#include <linux/pm_runtime.h>
 
 #include "blk.h"
 
@@ -25,7 +26,7 @@ static DEFINE_MUTEX(block_class_lock);
 struct kobject *block_depr;
 
 /* for extended dynamic devt allocation, currently only one major is used */
-#define MAX_EXT_DEVT		(1 << MINORBITS)
+#define NR_EXT_DEVT		(1 << MINORBITS)
 
 /* For extended devt allocation.  ext_devt_mutex prevents look up
  * results from going away underneath its user.
@@ -35,6 +36,8 @@ static DEFINE_IDR(ext_devt_idr);
 
 static struct device_type disk_type;
 
+static void disk_check_events(struct disk_events *ev,
+			      unsigned int *clearing_ptr);
 static void disk_alloc_events(struct gendisk *disk);
 static void disk_add_events(struct gendisk *disk);
 static void disk_del_events(struct gendisk *disk);
@@ -408,7 +411,7 @@ static int blk_mangle_minor(int minor)
 int blk_alloc_devt(struct hd_struct *part, dev_t *devt)
 {
 	struct gendisk *disk = part_to_disk(part);
-	int idx, rc;
+	int idx;
 
 	/* in consecutive minor range? */
 	if (part->partno < disk->minors) {
@@ -417,19 +420,11 @@ int blk_alloc_devt(struct hd_struct *part, dev_t *devt)
 	}
 
 	/* allocate ext devt */
-	do {
-		if (!idr_pre_get(&ext_devt_idr, GFP_KERNEL))
-			return -ENOMEM;
-		rc = idr_get_new(&ext_devt_idr, part, &idx);
-	} while (rc == -EAGAIN);
-
-	if (rc)
-		return rc;
-
-	if (idx > MAX_EXT_DEVT) {
-		idr_remove(&ext_devt_idr, idx);
-		return -EBUSY;
-	}
+	mutex_lock(&ext_devt_mutex);
+	idx = idr_alloc(&ext_devt_idr, part, 0, NR_EXT_DEVT, GFP_KERNEL);
+	mutex_unlock(&ext_devt_mutex);
+	if (idx < 0)
+		return idx == -ENOSPC ? -EBUSY : idx;
 
 	*devt = MKDEV(BLOCK_EXT_MAJOR, blk_mangle_minor(idx));
 	return 0;
@@ -532,6 +527,14 @@ static void register_disk(struct gendisk *disk)
 			return;
 		}
 	}
+
+	/*
+	 * avoid probable deadlock caused by allocating memory with
+	 * GFP_KERNEL in runtime_resume callback of its all ancestor
+	 * devices
+	 */
+	pm_runtime_set_memalloc_noio(ddev, true);
+
 	disk->part0.holder_dir = kobject_create_and_add("holders", &ddev->kobj);
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
@@ -644,7 +647,6 @@ void del_gendisk(struct gendisk *disk)
 	disk_part_iter_exit(&piter);
 
 	invalidate_partition(disk, 0);
-	blk_free_devt(disk_to_dev(disk)->devt);
 	set_capacity(disk, 0);
 	disk->flags &= ~GENHD_FL_UP;
 
@@ -661,7 +663,9 @@ void del_gendisk(struct gendisk *disk)
 	disk->driverfs_dev = NULL;
 	if (!sysfs_deprecated)
 		sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
+	pm_runtime_set_memalloc_noio(disk_to_dev(disk), false);
 	device_del(disk_to_dev(disk));
+	blk_free_devt(disk_to_dev(disk)->devt);
 }
 EXPORT_SYMBOL(del_gendisk);
 
@@ -1549,6 +1553,7 @@ unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 	const struct block_device_operations *bdops = disk->fops;
 	struct disk_events *ev = disk->ev;
 	unsigned int pending;
+	unsigned int clearing = mask;
 
 	if (!ev) {
 		/* for drivers still using the old ->media_changed method */
@@ -1558,34 +1563,53 @@ unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 		return 0;
 	}
 
-	/* tell the workfn about the events being cleared */
+	disk_block_events(disk);
+
+	/*
+	 * store the union of mask and ev->clearing on the stack so that the
+	 * race with disk_flush_events does not cause ambiguity (ev->clearing
+	 * can still be modified even if events are blocked).
+	 */
 	spin_lock_irq(&ev->lock);
-	ev->clearing |= mask;
+	clearing |= ev->clearing;
+	ev->clearing = 0;
 	spin_unlock_irq(&ev->lock);
 
-	/* uncondtionally schedule event check and wait for it to finish */
-	disk_block_events(disk);
-	queue_delayed_work(system_freezable_wq, &ev->dwork, 0);
-	flush_delayed_work(&ev->dwork);
-	__disk_unblock_events(disk, false);
+	disk_check_events(ev, &clearing);
+	/*
+	 * if ev->clearing is not 0, the disk_flush_events got called in the
+	 * middle of this function, so we want to run the workfn without delay.
+	 */
+	__disk_unblock_events(disk, ev->clearing ? true : false);
 
 	/* then, fetch and clear pending events */
 	spin_lock_irq(&ev->lock);
-	WARN_ON_ONCE(ev->clearing & mask);	/* cleared by workfn */
 	pending = ev->pending & mask;
 	ev->pending &= ~mask;
 	spin_unlock_irq(&ev->lock);
+	WARN_ON_ONCE(clearing & mask);
 
 	return pending;
 }
 
+/*
+ * Separate this part out so that a different pointer for clearing_ptr can be
+ * passed in for disk_clear_events.
+ */
 static void disk_events_workfn(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct disk_events *ev = container_of(dwork, struct disk_events, dwork);
+
+	disk_check_events(ev, &ev->clearing);
+}
+
+static void disk_check_events(struct disk_events *ev,
+			      unsigned int *clearing_ptr)
+{
 	struct gendisk *disk = ev->disk;
 	char *envp[ARRAY_SIZE(disk_uevents) + 1] = { };
-	unsigned int clearing = ev->clearing;
+	unsigned int clearing = *clearing_ptr;
 	unsigned int events;
 	unsigned long intv;
 	int nr_events = 0, i;
@@ -1598,7 +1622,7 @@ static void disk_events_workfn(struct work_struct *work)
 
 	events &= ~ev->pending;
 	ev->pending |= events;
-	ev->clearing &= ~clearing;
+	*clearing_ptr &= ~clearing;
 
 	intv = disk_events_poll_jiffies(disk);
 	if (!ev->block && intv)

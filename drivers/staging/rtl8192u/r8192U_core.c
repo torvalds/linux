@@ -80,9 +80,9 @@ double __extendsfdf2(float a) {return a;}
 #include "dot11d.h"
 //set here to open your trace code. //WB
 u32 rt_global_debug_component = \
-			//	COMP_INIT    	|
+			//	COMP_INIT	|
 //				COMP_DBG	|
-			//	COMP_EPROM   	|
+			//	COMP_EPROM	|
 //				COMP_PHY	|
 			//	COMP_RF		|
 //				COMP_FIRMWARE	|
@@ -159,23 +159,22 @@ static struct usb_driver rtl8192_usb_driver = {
 	.resume		= rtl8192_resume,                 /* PM resume fn  */
 #else
 	.suspend	= NULL,				  /* PM suspend fn */
-	.resume      	= NULL,				  /* PM resume fn  */
+	.resume		= NULL,				  /* PM resume fn  */
 #endif
 };
 
 
-typedef struct _CHANNEL_LIST
-{
+typedef struct _CHANNEL_LIST {
 	u8	Channel[32];
 	u8	Len;
 }CHANNEL_LIST, *PCHANNEL_LIST;
 
 static CHANNEL_LIST ChannelPlan[] = {
-	{{1,2,3,4,5,6,7,8,9,10,11,36,40,44,48,52,56,60,64,149,153,157,161,165},24},  		//FCC
-	{{1,2,3,4,5,6,7,8,9,10,11},11},                    				//IC
-	{{1,2,3,4,5,6,7,8,9,10,11,12,13,36,40,44,48,52,56,60,64},21},  	//ETSI
+	{{1,2,3,4,5,6,7,8,9,10,11,36,40,44,48,52,56,60,64,149,153,157,161,165},24},		//FCC
+	{{1,2,3,4,5,6,7,8,9,10,11},11},							//IC
+	{{1,2,3,4,5,6,7,8,9,10,11,12,13,36,40,44,48,52,56,60,64},21},	//ETSI
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13},13},    //Spain. Change to ETSI.
-	{{1,2,3,4,5,6,7,8,9,10,11,12,13},13},  	//France. Change to ETSI.
+	{{1,2,3,4,5,6,7,8,9,10,11,12,13},13},	//France. Change to ETSI.
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13,14,36,40,44,48,52,56,60,64},22},	//MKK					//MKK
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13,14,36,40,44,48,52,56,60,64},22},//MKK1
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13},13},	//Israel.
@@ -190,57 +189,51 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 	struct ieee80211_device* ieee = priv->ieee80211;
 	switch (channel_plan)
 	{
-		case COUNTRY_CODE_FCC:
-		case COUNTRY_CODE_IC:
-		case COUNTRY_CODE_ETSI:
-		case COUNTRY_CODE_SPAIN:
-		case COUNTRY_CODE_FRANCE:
-		case COUNTRY_CODE_MKK:
-		case COUNTRY_CODE_MKK1:
-		case COUNTRY_CODE_ISRAEL:
-		case COUNTRY_CODE_TELEC:
-		case COUNTRY_CODE_MIC:
-		{
-			Dot11d_Init(ieee);
-			ieee->bGlobalDomain = false;
-			//actually 8225 & 8256 rf chips only support B,G,24N mode
-			if ((priv->rf_chip == RF_8225) || (priv->rf_chip == RF_8256))
-			{
-				min_chan = 1;
-				max_chan = 14;
-			}
-			else
-			{
-				RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __FUNCTION__);
-			}
-			if (ChannelPlan[channel_plan].Len != 0){
-				// Clear old channel map
-				memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
-				// Set new channel map
-				for (i=0;i<ChannelPlan[channel_plan].Len;i++)
-				{
-					if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
+	case COUNTRY_CODE_FCC:
+	case COUNTRY_CODE_IC:
+	case COUNTRY_CODE_ETSI:
+	case COUNTRY_CODE_SPAIN:
+	case COUNTRY_CODE_FRANCE:
+	case COUNTRY_CODE_MKK:
+	case COUNTRY_CODE_MKK1:
+	case COUNTRY_CODE_ISRAEL:
+	case COUNTRY_CODE_TELEC:
+	case COUNTRY_CODE_MIC:	
+		Dot11d_Init(ieee);
+		ieee->bGlobalDomain = false;
+		//actually 8225 & 8256 rf chips only support B,G,24N mode
+		if ((priv->rf_chip == RF_8225) || (priv->rf_chip == RF_8256)) {
+			min_chan = 1;
+			max_chan = 14;
+		}
+		else {
+			RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __FUNCTION__);
+		}
+		if (ChannelPlan[channel_plan].Len != 0) {
+			// Clear old channel map
+			memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
+			// Set new channel map
+			for (i=0;i<ChannelPlan[channel_plan].Len;i++) {
+				if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
 					break;
-					GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
-				}
+				GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
 			}
-			break;
 		}
-		case COUNTRY_CODE_GLOBAL_DOMAIN:
-		{
-			GET_DOT11D_INFO(ieee)->bEnabled = 0;//this flag enabled to follow 11d country IE setting, otherwise, it shall follow global domain settings.
-			Dot11d_Reset(ieee);
-			ieee->bGlobalDomain = true;
-			break;
-		}
-		default:
-			break;
+		break;
+
+	case COUNTRY_CODE_GLOBAL_DOMAIN:
+		GET_DOT11D_INFO(ieee)->bEnabled = 0;//this flag enabled to follow 11d country IE setting, otherwise, it shall follow global domain settings.
+		Dot11d_Reset(ieee);
+		ieee->bGlobalDomain = true;
+		break;
+	
+	default:
+		break;
 	}
-	return;
 }
 
 
-#define 	rx_hal_is_cck_rate(_pdrvinfo)\
+#define		rx_hal_is_cck_rate(_pdrvinfo)\
 			(_pdrvinfo->RxRate == DESC90_RATE1M ||\
 			_pdrvinfo->RxRate == DESC90_RATE2M ||\
 			_pdrvinfo->RxRate == DESC90_RATE5_5M ||\
@@ -516,55 +509,50 @@ static int proc_get_registers(char *page, char **start,
 	int max=0xff;
 
 	/* This dump the current register page */
-len += snprintf(page + len, count - len,
+	len += snprintf(page + len, count - len,
 			"\n####################page 0##################\n ");
 
-	for(n=0;n<=max;)
-	{
+	for (n=0;n<=max;) {
 		//printk( "\nD: %2x> ", n);
 		len += snprintf(page + len, count - len,
 			"\nD:  %2x > ",n);
 
-		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_nic_byte(dev,0x000|n));
+		for (i=0;i<16 && n<=max;i++,n++)
+			len += snprintf(page + len, count - len,
+					"%2x ",read_nic_byte(dev,0x000|n));
 
 		//	printk("%2x ",read_nic_byte(dev,n));
 	}
-len += snprintf(page + len, count - len,
+	len += snprintf(page + len, count - len,
 			"\n####################page 1##################\n ");
-	for(n=0;n<=max;)
-	{
+	for (n=0;n<=max;) {
 		//printk( "\nD: %2x> ", n);
 		len += snprintf(page + len, count - len,
-			"\nD:  %2x > ",n);
+				"\nD:  %2x > ",n);
 
-		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_nic_byte(dev,0x100|n));
+		for (i=0;i<16 && n<=max;i++,n++)
+			len += snprintf(page + len, count - len,
+					"%2x ",read_nic_byte(dev,0x100|n));
 
 		//      printk("%2x ",read_nic_byte(dev,n));
 	}
-len += snprintf(page + len, count - len,
+	len += snprintf(page + len, count - len,
 			"\n####################page 3##################\n ");
-	for(n=0;n<=max;)
-	{
+	for (n=0;n<=max;) {
 		//printk( "\nD: %2x> ", n);
 		len += snprintf(page + len, count - len,
 			"\nD:  %2x > ",n);
 
 		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_nic_byte(dev,0x300|n));
+			len += snprintf(page + len, count - len,
+					"%2x ",read_nic_byte(dev,0x300|n));
 
 		//      printk("%2x ",read_nic_byte(dev,n));
 	}
-
 
 	len += snprintf(page + len, count - len,"\n");
 	*eof = 1;
 	return len;
-
 }
 
 
@@ -1272,8 +1260,8 @@ struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	cb_desc 	*tcb_desc = NULL;
-	u8 		i;
+	cb_desc		*tcb_desc = NULL;
+	u8		i;
 	u32		TotalLength;
 	struct sk_buff	*skb;
 	struct sk_buff  *agg_skb;
@@ -1444,7 +1432,7 @@ u8 DrvAggr_GetAggregatibleList(struct net_device *dev, struct sk_buff *skb,
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	u16		nMaxAggrNum = pHTInfo->UsbTxAggrNum;
-	cb_desc 	*tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	cb_desc		*tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8		QueueID = tcb_desc->queue_index;
 
 	do {
@@ -1812,7 +1800,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 	int			status;
 	struct urb		*tx_urb;
 	//int			urb_buf_len;
-	unsigned int 		idx_pipe;
+	unsigned int		idx_pipe;
 	tx_desc_cmd_819x_usb *pdesc = (tx_desc_cmd_819x_usb *)skb->data;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
@@ -1876,43 +1864,43 @@ u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 	u8 QueueSelect = 0x0;       //defualt set to
 
 	switch(QueueID) {
-		case BE_QUEUE:
-			QueueSelect = QSLT_BE;  //or QSelect = pTcb->priority;
-			break;
+	case BE_QUEUE:
+		QueueSelect = QSLT_BE;  //or QSelect = pTcb->priority;
+		break;
 
-		case BK_QUEUE:
-			QueueSelect = QSLT_BK;  //or QSelect = pTcb->priority;
-			break;
+	case BK_QUEUE:
+		QueueSelect = QSLT_BK;  //or QSelect = pTcb->priority;
+		break;
 
-		case VO_QUEUE:
-			QueueSelect = QSLT_VO;  //or QSelect = pTcb->priority;
-			break;
+	case VO_QUEUE:
+		QueueSelect = QSLT_VO;  //or QSelect = pTcb->priority;
+		break;
 
-		case VI_QUEUE:
-			QueueSelect = QSLT_VI;  //or QSelect = pTcb->priority;
-			break;
-		case MGNT_QUEUE:
-			QueueSelect = QSLT_MGNT;
-			break;
+	case VI_QUEUE:
+		QueueSelect = QSLT_VI;  //or QSelect = pTcb->priority;
+		break;
+	case MGNT_QUEUE:
+		QueueSelect = QSLT_MGNT;
+		break;
 
-		case BEACON_QUEUE:
-			QueueSelect = QSLT_BEACON;
-			break;
+	case BEACON_QUEUE:
+		QueueSelect = QSLT_BEACON;
+		break;
 
-			// TODO: 2006.10.30 mark other queue selection until we verify it is OK
-			// TODO: Remove Assertions
+		// TODO: 2006.10.30 mark other queue selection until we verify it is OK
+		// TODO: Remove Assertions
 //#if (RTL819X_FPGA_VER & RTL819X_FPGA_GUANGAN_070502)
-		case TXCMD_QUEUE:
-			QueueSelect = QSLT_CMD;
-			break;
+	case TXCMD_QUEUE:
+		QueueSelect = QSLT_CMD;
+		break;
 //#endif
-		case HIGH_QUEUE:
-			QueueSelect = QSLT_HIGH;
-			break;
+	case HIGH_QUEUE:
+		QueueSelect = QSLT_HIGH;
+		break;
 
-		default:
-			RT_TRACE(COMP_ERR, "TransmitTCB(): Impossible Queue Selection: %d \n", QueueID);
-			break;
+	default:
+		RT_TRACE(COMP_ERR, "TransmitTCB(): Impossible Queue Selection: %d \n", QueueID);
+		break;
 	}
 	return QueueSelect;
 }
@@ -1922,39 +1910,39 @@ u8 MRateToHwRate8190Pci(u8 rate)
 	u8  ret = DESC90_RATE1M;
 
 	switch(rate) {
-		case MGN_1M:    ret = DESC90_RATE1M;    break;
-		case MGN_2M:    ret = DESC90_RATE2M;    break;
-		case MGN_5_5M:  ret = DESC90_RATE5_5M;  break;
-		case MGN_11M:   ret = DESC90_RATE11M;   break;
-		case MGN_6M:    ret = DESC90_RATE6M;    break;
-		case MGN_9M:    ret = DESC90_RATE9M;    break;
-		case MGN_12M:   ret = DESC90_RATE12M;   break;
-		case MGN_18M:   ret = DESC90_RATE18M;   break;
-		case MGN_24M:   ret = DESC90_RATE24M;   break;
-		case MGN_36M:   ret = DESC90_RATE36M;   break;
-		case MGN_48M:   ret = DESC90_RATE48M;   break;
-		case MGN_54M:   ret = DESC90_RATE54M;   break;
+	case MGN_1M:    ret = DESC90_RATE1M;    break;
+	case MGN_2M:    ret = DESC90_RATE2M;    break;
+	case MGN_5_5M:  ret = DESC90_RATE5_5M;  break;
+	case MGN_11M:   ret = DESC90_RATE11M;   break;
+	case MGN_6M:    ret = DESC90_RATE6M;    break;
+	case MGN_9M:    ret = DESC90_RATE9M;    break;
+	case MGN_12M:   ret = DESC90_RATE12M;   break;
+	case MGN_18M:   ret = DESC90_RATE18M;   break;
+	case MGN_24M:   ret = DESC90_RATE24M;   break;
+	case MGN_36M:   ret = DESC90_RATE36M;   break;
+	case MGN_48M:   ret = DESC90_RATE48M;   break;
+	case MGN_54M:   ret = DESC90_RATE54M;   break;
 
-		// HT rate since here
-		case MGN_MCS0:  ret = DESC90_RATEMCS0;  break;
-		case MGN_MCS1:  ret = DESC90_RATEMCS1;  break;
-		case MGN_MCS2:  ret = DESC90_RATEMCS2;  break;
-		case MGN_MCS3:  ret = DESC90_RATEMCS3;  break;
-		case MGN_MCS4:  ret = DESC90_RATEMCS4;  break;
-		case MGN_MCS5:  ret = DESC90_RATEMCS5;  break;
-		case MGN_MCS6:  ret = DESC90_RATEMCS6;  break;
-		case MGN_MCS7:  ret = DESC90_RATEMCS7;  break;
-		case MGN_MCS8:  ret = DESC90_RATEMCS8;  break;
-		case MGN_MCS9:  ret = DESC90_RATEMCS9;  break;
-		case MGN_MCS10: ret = DESC90_RATEMCS10; break;
-		case MGN_MCS11: ret = DESC90_RATEMCS11; break;
-		case MGN_MCS12: ret = DESC90_RATEMCS12; break;
-		case MGN_MCS13: ret = DESC90_RATEMCS13; break;
-		case MGN_MCS14: ret = DESC90_RATEMCS14; break;
-		case MGN_MCS15: ret = DESC90_RATEMCS15; break;
-		case (0x80|0x20): ret = DESC90_RATEMCS32; break;
+	// HT rate since here
+	case MGN_MCS0:  ret = DESC90_RATEMCS0;  break;
+	case MGN_MCS1:  ret = DESC90_RATEMCS1;  break;
+	case MGN_MCS2:  ret = DESC90_RATEMCS2;  break;
+	case MGN_MCS3:  ret = DESC90_RATEMCS3;  break;
+	case MGN_MCS4:  ret = DESC90_RATEMCS4;  break;
+	case MGN_MCS5:  ret = DESC90_RATEMCS5;  break;
+	case MGN_MCS6:  ret = DESC90_RATEMCS6;  break;
+	case MGN_MCS7:  ret = DESC90_RATEMCS7;  break;
+	case MGN_MCS8:  ret = DESC90_RATEMCS8;  break;
+	case MGN_MCS9:  ret = DESC90_RATEMCS9;  break;
+	case MGN_MCS10: ret = DESC90_RATEMCS10; break;
+	case MGN_MCS11: ret = DESC90_RATEMCS11; break;
+	case MGN_MCS12: ret = DESC90_RATEMCS12; break;
+	case MGN_MCS13: ret = DESC90_RATEMCS13; break;
+	case MGN_MCS14: ret = DESC90_RATEMCS14; break;
+	case MGN_MCS15: ret = DESC90_RATEMCS15; break;
+	case (0x80|0x20): ret = DESC90_RATEMCS32; break;
 
-		default:       break;
+	default:       break;
 	}
 	return ret;
 }
@@ -2182,7 +2170,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 		dev->trans_start = jiffies;
 		atomic_inc(&priv->tx_pending[tcb_desc->queue_index]);
 		return 0;
-	}else{
+	} else {
 		RT_TRACE(COMP_ERR, "Error TX URB %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]),
 				status);
 		return -1;
@@ -2320,33 +2308,33 @@ void rtl8192_link_change(struct net_device *dev)
 //	RT_TRACE(COMP_CH, "========>%s(), chan:%d\n", __FUNCTION__, priv->chan);
 //	rtl8192_set_chan(dev, priv->chan);
 	 if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC)
-        {
-                u32 reg = 0;
-                reg = read_nic_dword(dev, RCR);
-                if (priv->ieee80211->state == IEEE80211_LINKED)
-                        priv->ReceiveConfig = reg |= RCR_CBSSID;
-                else
-                        priv->ReceiveConfig = reg &= ~RCR_CBSSID;
-                write_nic_dword(dev, RCR, reg);
-        }
+	{
+		u32 reg = 0;
+		reg = read_nic_dword(dev, RCR);
+		if (priv->ieee80211->state == IEEE80211_LINKED)
+			priv->ReceiveConfig = reg |= RCR_CBSSID;
+		else
+			priv->ReceiveConfig = reg &= ~RCR_CBSSID;
+		write_nic_dword(dev, RCR, reg);
+	}
 
 //	rtl8192_set_rxconf(dev);
 }
 
 static struct ieee80211_qos_parameters def_qos_parameters = {
-        {3,3,3,3},/* cw_min */
-        {7,7,7,7},/* cw_max */
-        {2,2,2,2},/* aifs */
-        {0,0,0,0},/* flags */
-        {0,0,0,0} /* tx_op_limit */
+	{3,3,3,3},/* cw_min */
+	{7,7,7,7},/* cw_max */
+	{2,2,2,2},/* aifs */
+	{0,0,0,0},/* flags */
+	{0,0,0,0} /* tx_op_limit */
 };
 
 
 void rtl8192_update_beacon(struct work_struct * work)
 {
-        struct r8192_priv *priv = container_of(work, struct r8192_priv, update_beacon_wq.work);
-        struct net_device *dev = priv->ieee80211->dev;
- 	struct ieee80211_device* ieee = priv->ieee80211;
+	struct r8192_priv *priv = container_of(work, struct r8192_priv, update_beacon_wq.work);
+	struct net_device *dev = priv->ieee80211->dev;
+	struct ieee80211_device* ieee = priv->ieee80211;
 	struct ieee80211_network* net = &ieee->current_network;
 
 	if (ieee->pHTInfo->bCurrentHTSupport)
@@ -2717,7 +2705,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->bDisableNormalResetCheck = false;
 	priv->force_reset = false;
 
-	priv->ieee80211->FwRWRF = 0; 	//we don't use FW read/write RF until stable firmware is available.
+	priv->ieee80211->FwRWRF = 0;	//we don't use FW read/write RF until stable firmware is available.
 	priv->ieee80211->current_network.beacon_interval = DEFAULT_BEACONINTERVAL;
 	priv->ieee80211->iw_mode = IW_MODE_INFRA;
 	priv->ieee80211->softmac_features  = IEEE_SOFTMAC_SCAN |
@@ -2778,11 +2766,11 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 #ifdef TO_DO_LIST
 	if(Adapter->bInHctTest)
 		pHalData->ReceiveConfig	=	pHalData->CSMethod |
-						RCR_AMF | RCR_ADF |	//RCR_AAP | 	//accept management/data
+						RCR_AMF | RCR_ADF |	//RCR_AAP |	//accept management/data
 						//guangan200710
 						RCR_ACF |	//accept control frame for SW AP needs PS-poll, 2005.07.07, by rcnjko.
 						RCR_AB | RCR_AM | RCR_APM |		//accept BC/MC/UC
-						RCR_AICV | RCR_ACRC32 | 		//accept ICV/CRC error packet
+						RCR_AICV | RCR_ACRC32 |			//accept ICV/CRC error packet
 						((u32)7<<RCR_MXDMA_OFFSET) | // Max DMA Burst Size per Rx DMA Burst, 7: unlimited.
 						(pHalData->EarlyRxThreshold<<RCR_FIFO_OFFSET) | // Rx FIFO Threshold, 7: No Rx threshold.
 						(pHalData->EarlyRxThreshold == 7 ? RCR_OnlyErlPkt:0);
@@ -2793,7 +2781,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 		RCR_AMF | RCR_ADF |		//accept management/data
 		RCR_ACF |			//accept control frame for SW AP needs PS-poll, 2005.07.07, by rcnjko.
 		RCR_AB | RCR_AM | RCR_APM |	//accept BC/MC/UC
-		//RCR_AICV | RCR_ACRC32 | 	//accept ICV/CRC error packet
+		//RCR_AICV | RCR_ACRC32 |	//accept ICV/CRC error packet
 		((u32)7<<RCR_MXDMA_OFFSET)| // Max DMA Burst Size per Rx DMA Burst, 7: unlimited.
 		(priv->EarlyRxThreshold<<RX_FIFO_THRESHOLD_SHIFT) | // Rx FIFO Threshold, 7: No Rx threshold.
 		(priv->EarlyRxThreshold == 7 ? RCR_ONLYERLPKT:0);
@@ -3549,7 +3537,7 @@ HalTxCheckStuck819xUsb(
 	)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u16 		RegTxCounter = read_nic_word(dev, 0x128);
+	u16		RegTxCounter = read_nic_word(dev, 0x128);
 	bool		bStuck = FALSE;
 	RT_TRACE(COMP_RESET,"%s():RegTxCounter is %d,TxCounter is %d\n",__FUNCTION__,RegTxCounter,priv->TxCounter);
 	if(priv->TxCounter==RegTxCounter)
@@ -3583,16 +3571,16 @@ TxCheckStuck(struct net_device *dev)
 //	     spin_lock_irqsave(&priv->ieee80211->lock,flags);
 	     for (QueueID = 0; QueueID<=BEACON_QUEUE;QueueID ++)
 	     {
-	     		if(QueueID == TXCMD_QUEUE)
-		         continue;
+			if(QueueID == TXCMD_QUEUE)
+			 continue;
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 			if((skb_queue_len(&priv->ieee80211->skb_waitQ[QueueID]) == 0) && (skb_queue_len(&priv->ieee80211->skb_aggQ[QueueID]) == 0) && (skb_queue_len(&priv->ieee80211->skb_drv_aggQ[QueueID]) == 0))
 #else
-		     	if((skb_queue_len(&priv->ieee80211->skb_waitQ[QueueID]) == 0)  && (skb_queue_len(&priv->ieee80211->skb_aggQ[QueueID]) == 0))
+			if((skb_queue_len(&priv->ieee80211->skb_waitQ[QueueID]) == 0)  && (skb_queue_len(&priv->ieee80211->skb_aggQ[QueueID]) == 0))
 #endif
-			 	continue;
+				continue;
 
-	             bCheckFwTxCnt = true;
+		     bCheckFwTxCnt = true;
 	     }
 //	     PlatformReleaseSpinLock(Adapter, RT_TX_SPINLOCK);
 //	spin_unlock_irqrestore(&priv->ieee80211->lock,flags);
@@ -3611,10 +3599,10 @@ TxCheckStuck(struct net_device *dev)
 bool
 HalRxCheckStuck819xUsb(struct net_device *dev)
 {
-	u16 	RegRxCounter = read_nic_word(dev, 0x130);
+	u16	RegRxCounter = read_nic_word(dev, 0x130);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool bStuck = FALSE;
-	static u8	rx_chk_cnt = 0;
+	static u8	rx_chk_cnt;
 	RT_TRACE(COMP_RESET,"%s(): RegRxCounter is %d,RxCounter is %d\n",__FUNCTION__,RegRxCounter,priv->RxCounter);
 	// If rssi is small, we should check rx for long time because of bad rx.
 	// or maybe it will continuous silent reset every 2 seconds.
@@ -3718,7 +3706,7 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	RESET_TYPE	TxResetType = RESET_TYPE_NORESET;
 	RESET_TYPE	RxResetType = RESET_TYPE_NORESET;
-	RT_RF_POWER_STATE 	rfState;
+	RT_RF_POWER_STATE	rfState;
 
 	rfState = priv->ieee80211->eRFPowerState;
 
@@ -4006,18 +3994,18 @@ RESET_START:
 
 void CAM_read_entry(
 	struct net_device *dev,
-	u32	 		iIndex
+	u32			iIndex
 )
 {
- 	u32 target_command=0;
+	u32 target_command=0;
 	 u32 target_content=0;
 	 u8 entry_i=0;
 	 u32 ulStatus;
 	s32 i=100;
 //	printk("=======>start read CAM\n");
- 	for(entry_i=0;entry_i<CAM_CONTENT_COUNT;entry_i++)
- 	{
-   	// polling bit, and No Write enable, and address
+	for(entry_i=0;entry_i<CAM_CONTENT_COUNT;entry_i++)
+	{
+	// polling bit, and No Write enable, and address
 		target_command= entry_i+CAM_CONTENT_COUNT*iIndex;
 		target_command= target_command | BIT31;
 
@@ -4049,7 +4037,7 @@ void rtl819x_update_rxcounts(
 	u32* TotalRxDataNum
 )
 {
-	u16 			SlotIndex;
+	u16			SlotIndex;
 	u8			i;
 
 	*TotalRxBcnNum = 0;
@@ -4072,7 +4060,7 @@ extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
        struct net_device *dev = priv->ieee80211->dev;
 	struct ieee80211_device* ieee = priv->ieee80211;
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
-	static u8	check_reset_cnt=0;
+	static u8	check_reset_cnt;
 	bool bBusyTraffic = false;
 
 	if(!priv->up)
@@ -4111,7 +4099,7 @@ extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
 				notify_wx_assoc_event(priv->ieee80211);
 				RemovePeerTS(priv->ieee80211,priv->ieee80211->current_network.bssid);
 				priv->ieee80211->link_change(dev);
-                                queue_work(priv->ieee80211->wq, &priv->ieee80211->associate_procedure_wq);
+				queue_work(priv->ieee80211->wq, &priv->ieee80211->associate_procedure_wq);
 
 			}
 		}
@@ -4122,7 +4110,7 @@ extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
 	//check if reset the driver
 	if(check_reset_cnt++ >= 3)
 	{
-    		ResetType = rtl819x_ifcheck_resetornot(dev);
+		ResetType = rtl819x_ifcheck_resetornot(dev);
 		check_reset_cnt = 3;
 		//DbgPrint("Start to check silent reset\n");
 	}
@@ -4365,66 +4353,66 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 
 	switch (cmd) {
-	    case RTL_IOCTL_WPA_SUPPLICANT:
+	case RTL_IOCTL_WPA_SUPPLICANT:
 	//parse here for HW security
-			if (ipw->cmd == IEEE_CMD_SET_ENCRYPTION)
+		if (ipw->cmd == IEEE_CMD_SET_ENCRYPTION)
+		{
+			if (ipw->u.crypt.set_tx)
 			{
-				if (ipw->u.crypt.set_tx)
+				if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
+					ieee->pairwise_key_type = KEY_TYPE_CCMP;
+				else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
+					ieee->pairwise_key_type = KEY_TYPE_TKIP;
+				else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
 				{
-					if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
-						ieee->pairwise_key_type = KEY_TYPE_CCMP;
-					else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
-						ieee->pairwise_key_type = KEY_TYPE_TKIP;
-					else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
-					{
-						if (ipw->u.crypt.key_len == 13)
-							ieee->pairwise_key_type = KEY_TYPE_WEP104;
-						else if (ipw->u.crypt.key_len == 5)
-							ieee->pairwise_key_type = KEY_TYPE_WEP40;
-					}
-					else
-						ieee->pairwise_key_type = KEY_TYPE_NA;
-
-					if (ieee->pairwise_key_type)
-					{
-						memcpy((u8*)key, ipw->u.crypt.key, 16);
-						EnableHWSecurityConfig8192(dev);
-					//we fill both index entry and 4th entry for pairwise key as in IPW interface, adhoc will only get here, so we need index entry for its default key serching!
-					//added by WB.
-						setKey(dev, 4, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
-						if (ieee->auth_mode != 2)
-						setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
-					}
+					if (ipw->u.crypt.key_len == 13)
+						ieee->pairwise_key_type = KEY_TYPE_WEP104;
+					else if (ipw->u.crypt.key_len == 5)
+						ieee->pairwise_key_type = KEY_TYPE_WEP40;
 				}
-				else //if (ipw->u.crypt.idx) //group key use idx > 0
+				else
+					ieee->pairwise_key_type = KEY_TYPE_NA;
+
+				if (ieee->pairwise_key_type)
 				{
 					memcpy((u8*)key, ipw->u.crypt.key, 16);
-					if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
-						ieee->group_key_type= KEY_TYPE_CCMP;
-					else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
-						ieee->group_key_type = KEY_TYPE_TKIP;
-					else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
-					{
-						if (ipw->u.crypt.key_len == 13)
-							ieee->group_key_type = KEY_TYPE_WEP104;
-						else if (ipw->u.crypt.key_len == 5)
-							ieee->group_key_type = KEY_TYPE_WEP40;
-					}
-					else
-						ieee->group_key_type = KEY_TYPE_NA;
-
-					if (ieee->group_key_type)
-					{
-							setKey(	dev,
-								ipw->u.crypt.idx,
-								ipw->u.crypt.idx,		//KeyIndex
-						     		ieee->group_key_type,	//KeyType
-						            	broadcast_addr,	//MacAddr
-								0,		//DefaultKey
-							      	key);		//KeyContent
-					}
+					EnableHWSecurityConfig8192(dev);
+				//we fill both index entry and 4th entry for pairwise key as in IPW interface, adhoc will only get here, so we need index entry for its default key serching!
+				//added by WB.
+					setKey(dev, 4, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
+					if (ieee->auth_mode != 2)
+					setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
 				}
 			}
+			else //if (ipw->u.crypt.idx) //group key use idx > 0
+			{
+				memcpy((u8*)key, ipw->u.crypt.key, 16);
+				if (strcmp(ipw->u.crypt.alg, "CCMP") == 0)
+					ieee->group_key_type= KEY_TYPE_CCMP;
+				else if (strcmp(ipw->u.crypt.alg, "TKIP") == 0)
+					ieee->group_key_type = KEY_TYPE_TKIP;
+				else if (strcmp(ipw->u.crypt.alg, "WEP") == 0)
+				{
+					if (ipw->u.crypt.key_len == 13)
+						ieee->group_key_type = KEY_TYPE_WEP104;
+					else if (ipw->u.crypt.key_len == 5)
+						ieee->group_key_type = KEY_TYPE_WEP40;
+				}
+				else
+					ieee->group_key_type = KEY_TYPE_NA;
+
+				if (ieee->group_key_type)
+				{
+						setKey(	dev,
+							ipw->u.crypt.idx,
+							ipw->u.crypt.idx,		//KeyIndex
+							ieee->group_key_type,	//KeyType
+							broadcast_addr,	//MacAddr
+							0,		//DefaultKey
+							key);		//KeyContent
+				}
+			}
+		}
 #ifdef JOHN_HWSEC_DEBUG
 		//john's test 0711
 		printk("@@ wrq->u pointer = ");
@@ -4437,7 +4425,7 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		ret = ieee80211_wpa_supplicant_ioctl(priv->ieee80211, &wrq->u.data);
 		break;
 
-	    default:
+	default:
 		ret = -EOPNOTSUPP;
 		break;
 	}
@@ -4454,49 +4442,49 @@ u8 HwRateToMRate90(bool bIsHT, u8 rate)
 
 	if(!bIsHT) {
 		switch(rate) {
-			case DESC90_RATE1M:   ret_rate = MGN_1M;         break;
-			case DESC90_RATE2M:   ret_rate = MGN_2M;         break;
-			case DESC90_RATE5_5M: ret_rate = MGN_5_5M;       break;
-			case DESC90_RATE11M:  ret_rate = MGN_11M;        break;
-			case DESC90_RATE6M:   ret_rate = MGN_6M;         break;
-			case DESC90_RATE9M:   ret_rate = MGN_9M;         break;
-			case DESC90_RATE12M:  ret_rate = MGN_12M;        break;
-			case DESC90_RATE18M:  ret_rate = MGN_18M;        break;
-			case DESC90_RATE24M:  ret_rate = MGN_24M;        break;
-			case DESC90_RATE36M:  ret_rate = MGN_36M;        break;
-			case DESC90_RATE48M:  ret_rate = MGN_48M;        break;
-			case DESC90_RATE54M:  ret_rate = MGN_54M;        break;
+		case DESC90_RATE1M:   ret_rate = MGN_1M;         break;
+		case DESC90_RATE2M:   ret_rate = MGN_2M;         break;
+		case DESC90_RATE5_5M: ret_rate = MGN_5_5M;       break;
+		case DESC90_RATE11M:  ret_rate = MGN_11M;        break;
+		case DESC90_RATE6M:   ret_rate = MGN_6M;         break;
+		case DESC90_RATE9M:   ret_rate = MGN_9M;         break;
+		case DESC90_RATE12M:  ret_rate = MGN_12M;        break;
+		case DESC90_RATE18M:  ret_rate = MGN_18M;        break;
+		case DESC90_RATE24M:  ret_rate = MGN_24M;        break;
+		case DESC90_RATE36M:  ret_rate = MGN_36M;        break;
+		case DESC90_RATE48M:  ret_rate = MGN_48M;        break;
+		case DESC90_RATE54M:  ret_rate = MGN_54M;        break;
 
-			default:
-				ret_rate = 0xff;
-				RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n", rate, bIsHT);
-				break;
+		default:
+			ret_rate = 0xff;
+			RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n", rate, bIsHT);
+			break;
 		}
 
 	} else {
 		switch(rate) {
-			case DESC90_RATEMCS0:   ret_rate = MGN_MCS0;    break;
-			case DESC90_RATEMCS1:   ret_rate = MGN_MCS1;    break;
-			case DESC90_RATEMCS2:   ret_rate = MGN_MCS2;    break;
-			case DESC90_RATEMCS3:   ret_rate = MGN_MCS3;    break;
-			case DESC90_RATEMCS4:   ret_rate = MGN_MCS4;    break;
-			case DESC90_RATEMCS5:   ret_rate = MGN_MCS5;    break;
-			case DESC90_RATEMCS6:   ret_rate = MGN_MCS6;    break;
-			case DESC90_RATEMCS7:   ret_rate = MGN_MCS7;    break;
-			case DESC90_RATEMCS8:   ret_rate = MGN_MCS8;    break;
-			case DESC90_RATEMCS9:   ret_rate = MGN_MCS9;    break;
-			case DESC90_RATEMCS10:  ret_rate = MGN_MCS10;   break;
-			case DESC90_RATEMCS11:  ret_rate = MGN_MCS11;   break;
-			case DESC90_RATEMCS12:  ret_rate = MGN_MCS12;   break;
-			case DESC90_RATEMCS13:  ret_rate = MGN_MCS13;   break;
-			case DESC90_RATEMCS14:  ret_rate = MGN_MCS14;   break;
-			case DESC90_RATEMCS15:  ret_rate = MGN_MCS15;   break;
-			case DESC90_RATEMCS32:  ret_rate = (0x80|0x20); break;
+		case DESC90_RATEMCS0:   ret_rate = MGN_MCS0;    break;
+		case DESC90_RATEMCS1:   ret_rate = MGN_MCS1;    break;
+		case DESC90_RATEMCS2:   ret_rate = MGN_MCS2;    break;
+		case DESC90_RATEMCS3:   ret_rate = MGN_MCS3;    break;
+		case DESC90_RATEMCS4:   ret_rate = MGN_MCS4;    break;
+		case DESC90_RATEMCS5:   ret_rate = MGN_MCS5;    break;
+		case DESC90_RATEMCS6:   ret_rate = MGN_MCS6;    break;
+		case DESC90_RATEMCS7:   ret_rate = MGN_MCS7;    break;
+		case DESC90_RATEMCS8:   ret_rate = MGN_MCS8;    break;
+		case DESC90_RATEMCS9:   ret_rate = MGN_MCS9;    break;
+		case DESC90_RATEMCS10:  ret_rate = MGN_MCS10;   break;
+		case DESC90_RATEMCS11:  ret_rate = MGN_MCS11;   break;
+		case DESC90_RATEMCS12:  ret_rate = MGN_MCS12;   break;
+		case DESC90_RATEMCS13:  ret_rate = MGN_MCS13;   break;
+		case DESC90_RATEMCS14:  ret_rate = MGN_MCS14;   break;
+		case DESC90_RATEMCS15:  ret_rate = MGN_MCS15;   break;
+		case DESC90_RATEMCS32:  ret_rate = (0x80|0x20); break;
 
-			default:
-				ret_rate = 0xff;
-				RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",rate, bIsHT);
-				break;
+		default:
+			ret_rate = 0xff;
+			RT_TRACE(COMP_RECV, "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",rate, bIsHT);
+			break;
 		}
 	}
 
@@ -4555,12 +4543,12 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee802
 	u8	rfpath;
 	u32	nspatial_stream, tmp_val;
 	//u8	i;
-	static u32 slide_rssi_index=0, slide_rssi_statistics=0;
-	static u32 slide_evm_index=0, slide_evm_statistics=0;
-	static u32 last_rssi=0, last_evm=0;
+	static u32 slide_rssi_index, slide_rssi_statistics;
+	static u32 slide_evm_index, slide_evm_statistics;
+	static u32 last_rssi, last_evm;
 
-	static u32 slide_beacon_adc_pwdb_index=0, slide_beacon_adc_pwdb_statistics=0;
-	static u32 last_beacon_adc_pwdb=0;
+	static u32 slide_beacon_adc_pwdb_index, slide_beacon_adc_pwdb_statistics;
+	static u32 last_beacon_adc_pwdb;
 
 	struct ieee80211_hdr_3addr *hdr;
 	u16 sc ;
@@ -4578,10 +4566,7 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee802
 	{
 		// if previous packet is not aggregated packet
 		bcheck = true;
-	}else
-	{
 	}
-
 
 	if(slide_rssi_statistics++ >= PHY_RSSI_SLID_WIN_MAX)
 	{
@@ -4808,9 +4793,9 @@ rtl819x_evm_dbtopercentage(
     ret_val = value;
 
     if(ret_val >= 0)
-        ret_val = 0;
+	ret_val = 0;
     if(ret_val <= -33)
-        ret_val = -33;
+	ret_val = -33;
     ret_val = 0 - ret_val;
     ret_val*=3;
 	if(ret_val == 99)
@@ -4819,7 +4804,7 @@ rtl819x_evm_dbtopercentage(
 }
 //
 //	Description:
-// 	We want good-looking for signal strength/quality
+//	We want good-looking for signal strength/quality
 //	2007/7/19 01:09, by cosa.
 //
 long
@@ -5203,7 +5188,7 @@ void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 * Overview:	Record the received data rate
 *
 * Input:
-* 	struct net_device *dev
+*	struct net_device *dev
 *	struct ieee80211_rx_stats *stats
 *
 * Output:
@@ -5581,7 +5566,7 @@ rtl819xusb_process_received_packet(
 	)
 {
 //	bool bfreerfd=false, bqueued=false;
-	u8* 	frame;
+	u8*	frame;
 	u16     frame_len=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 //	u8			index = 0;
@@ -5682,10 +5667,6 @@ void rtl8192_rx_cmd(struct sk_buff *skb)
 
 		dev_kfree_skb_any(skb);
 	}
-	else
-		;
-
-
 }
 
 void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
@@ -5697,25 +5678,25 @@ void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 		info = (struct rtl8192_rx_info *)skb->cb;
 		switch (info->out_pipe) {
 		/* Nomal packet pipe */
-			case 3:
-				//RT_TRACE(COMP_RECV, "normal in-pipe index(%d)\n",info->out_pipe);
-				priv->IrpPendingCount--;
-				rtl8192_rx_nomal(skb);
-				break;
+		case 3:
+			//RT_TRACE(COMP_RECV, "normal in-pipe index(%d)\n",info->out_pipe);
+			priv->IrpPendingCount--;
+			rtl8192_rx_nomal(skb);
+			break;
 
-				/* Command packet pipe */
-			case 9:
-				RT_TRACE(COMP_RECV, "command in-pipe index(%d)\n",\
-						info->out_pipe);
+			/* Command packet pipe */
+		case 9:
+			RT_TRACE(COMP_RECV, "command in-pipe index(%d)\n",\
+					info->out_pipe);
 
-				rtl8192_rx_cmd(skb);
-				break;
+			rtl8192_rx_cmd(skb);
+			break;
 
-			default: /* should never get here! */
-				RT_TRACE(COMP_ERR, "Unknown in-pipe index(%d)\n",\
-						info->out_pipe);
-				dev_kfree_skb(skb);
-				break;
+		default: /* should never get here! */
+			RT_TRACE(COMP_ERR, "Unknown in-pipe index(%d)\n",\
+					info->out_pipe);
+			dev_kfree_skb(skb);
+			break;
 
 		}
 	}
@@ -6007,7 +5988,7 @@ void setKey(	struct net_device *dev,
 	//		printk("setkey cam =%8x\n", read_cam(dev, i+6*EntryNo));
 		}
 		else if(i==1){//MAC
-			TargetContent = (u32)(*(MacAddr+2)) 	 |
+			TargetContent = (u32)(*(MacAddr+2))	 |
 					(u32)(*(MacAddr+3)) <<  8|
 					(u32)(*(MacAddr+4)) << 16|
 					(u32)(*(MacAddr+5)) << 24;

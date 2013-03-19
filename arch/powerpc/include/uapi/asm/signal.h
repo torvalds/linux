@@ -90,6 +90,7 @@ typedef struct {
 
 #include <asm-generic/signal-defs.h>
 
+#ifndef __KERNEL__
 struct old_sigaction {
 	__sighandler_t sa_handler;
 	old_sigset_t sa_mask;
@@ -103,10 +104,7 @@ struct sigaction {
 	__sigrestore_t sa_restorer;
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
-
-struct k_sigaction {
-	struct sigaction sa;
-};
+#endif
 
 typedef struct sigaltstack {
 	void __user *ss_sp;

@@ -349,7 +349,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
 	}
 
-	avi_if.body.avi.VIC = drm_mode_cea_vic(adjusted_mode);
+	avi_if.body.avi.VIC = drm_match_cea_mode(adjusted_mode);
 
 	intel_set_infoframe(encoder, &avi_if);
 }
@@ -777,7 +777,7 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 	if (intel_hdmi->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
 		if (intel_hdmi->has_hdmi_sink &&
-		    drm_mode_cea_vic(adjusted_mode) > 1)
+		    drm_match_cea_mode(adjusted_mode) > 1)
 			intel_hdmi->color_range = HDMI_COLOR_RANGE_16_235;
 		else
 			intel_hdmi->color_range = 0;
@@ -787,28 +787,6 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
 
 	return true;
-}
-
-static bool g4x_hdmi_connected(struct intel_hdmi *intel_hdmi)
-{
-	struct drm_device *dev = intel_hdmi_to_dev(intel_hdmi);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_digital_port *intel_dig_port = hdmi_to_dig_port(intel_hdmi);
-	uint32_t bit;
-
-	switch (intel_dig_port->port) {
-	case PORT_B:
-		bit = PORTB_HOTPLUG_LIVE_STATUS;
-		break;
-	case PORT_C:
-		bit = PORTC_HOTPLUG_LIVE_STATUS;
-		break;
-	default:
-		bit = 0;
-		break;
-	}
-
-	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
 static enum drm_connector_status
@@ -822,13 +800,6 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edid *edid;
 	enum drm_connector_status status = connector_status_disconnected;
-
-
-	if (IS_G4X(dev) && !g4x_hdmi_connected(intel_hdmi))
-		return status;
-	else if (HAS_PCH_SPLIT(dev) &&
-		 !ibx_digital_port_connected(dev_priv, intel_dig_port))
-		 return status;
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
@@ -968,7 +939,6 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 	.mode_fixup = intel_hdmi_mode_fixup,
 	.mode_set = intel_hdmi_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {

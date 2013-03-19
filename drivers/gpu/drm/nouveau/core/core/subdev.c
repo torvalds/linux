@@ -99,7 +99,7 @@ nouveau_subdev_create_(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	mutex_init(&subdev->mutex);
+	__mutex_init(&subdev->mutex, subname, &oclass->lock_class_key);
 	subdev->name = subname;
 
 	if (parent) {

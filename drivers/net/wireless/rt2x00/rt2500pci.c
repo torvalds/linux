@@ -1338,7 +1338,10 @@ static void rt2500pci_write_beacon(struct queue_entry *entry,
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 
-	rt2x00queue_map_txskb(entry);
+	if (rt2x00queue_map_txskb(entry)) {
+		ERROR(rt2x00dev, "Fail to map beacon, aborting\n");
+		goto out;
+	}
 
 	/*
 	 * Write the TX descriptor for the beacon.
@@ -1349,7 +1352,7 @@ static void rt2500pci_write_beacon(struct queue_entry *entry,
 	 * Dump beacon to userspace through debugfs.
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
-
+out:
 	/*
 	 * Enable beaconing again.
 	 */

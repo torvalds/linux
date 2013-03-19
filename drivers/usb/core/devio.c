@@ -40,6 +40,7 @@
 #include <linux/signal.h>
 #include <linux/poll.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>	/* for usbcore internals */
@@ -160,7 +161,7 @@ static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	mutex_lock(&file_inode(file)->i_mutex);
 
 	switch (orig) {
 	case 0:
@@ -176,7 +177,7 @@ static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&file_inode(file)->i_mutex);
 	return ret;
 }
 
@@ -1077,7 +1078,7 @@ static int proc_getdriver(struct dev_state *ps, void __user *arg)
 	if (!intf || !intf->dev.driver)
 		ret = -ENODATA;
 	else {
-		strncpy(gd.driver, intf->dev.driver->name,
+		strlcpy(gd.driver, intf->dev.driver->name,
 				sizeof(gd.driver));
 		ret = (copy_to_user(arg, &gd, sizeof(gd)) ? -EFAULT : 0);
 	}
@@ -1970,7 +1971,7 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 				void __user *p)
 {
 	struct dev_state *ps = file->private_data;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct usb_device *dev = ps->dev;
 	int ret = -ENOTTY;
 

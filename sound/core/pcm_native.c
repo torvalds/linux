@@ -1586,7 +1586,7 @@ static struct file *snd_pcm_file_fd(int fd, int *fput_needed)
 	file = fget_light(fd, fput_needed);
 	if (!file)
 		return NULL;
-	inode = file->f_path.dentry->d_inode;
+	inode = file_inode(file);
 	if (!S_ISCHR(inode->i_mode) ||
 	    imajor(inode) != snd_major) {
 		fput_light(file, *fput_needed);

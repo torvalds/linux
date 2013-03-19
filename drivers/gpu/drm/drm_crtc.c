@@ -68,8 +68,22 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 
 	mutex_unlock(&dev->mode_config.mutex);
 }
-
 EXPORT_SYMBOL(drm_modeset_unlock_all);
+
+/**
+ * drm_warn_on_modeset_not_all_locked - check that all modeset locks are locked
+ * @dev: device
+ */
+void drm_warn_on_modeset_not_all_locked(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		WARN_ON(!mutex_is_locked(&crtc->mutex));
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+}
+EXPORT_SYMBOL(drm_warn_on_modeset_not_all_locked);
 
 /* Avoid boilerplate.  I'm tired of typing. */
 #define DRM_ENUM_NAME_FN(fnname, list)				\
@@ -252,32 +266,21 @@ char *drm_get_connector_status_name(enum drm_connector_status status)
 static int drm_mode_object_get(struct drm_device *dev,
 			       struct drm_mode_object *obj, uint32_t obj_type)
 {
-	int new_id = 0;
 	int ret;
 
-again:
-	if (idr_pre_get(&dev->mode_config.crtc_idr, GFP_KERNEL) == 0) {
-		DRM_ERROR("Ran out memory getting a mode number\n");
-		return -ENOMEM;
-	}
-
 	mutex_lock(&dev->mode_config.idr_mutex);
-	ret = idr_get_new_above(&dev->mode_config.crtc_idr, obj, 1, &new_id);
-
-	if (!ret) {
+	ret = idr_alloc(&dev->mode_config.crtc_idr, obj, 1, 0, GFP_KERNEL);
+	if (ret >= 0) {
 		/*
 		 * Set up the object linking under the protection of the idr
 		 * lock so that other users can't see inconsistent state.
 		 */
-		obj->id = new_id;
+		obj->id = ret;
 		obj->type = obj_type;
 	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
 
-	if (ret == -EAGAIN)
-		goto again;
-
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -1258,7 +1261,6 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		crtc->funcs->destroy(crtc);
 	}
 
-	idr_remove_all(&dev->mode_config.crtc_idr);
 	idr_destroy(&dev->mode_config.crtc_idr);
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
@@ -1982,9 +1984,9 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 					 plane_req->src_w, plane_req->src_h);
 	if (!ret) {
 		old_fb = plane->fb;
-		fb = NULL;
 		plane->crtc = crtc;
 		plane->fb = fb;
+		fb = NULL;
 	}
 	drm_modeset_unlock_all(dev);
 
@@ -3778,6 +3780,13 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		/* Keep the old fb, don't unref it. */
 		old_fb = NULL;
 	} else {
+		/*
+		 * Warn if the driver hasn't properly updated the crtc->fb
+		 * field to reflect that the new framebuffer is now used.
+		 * Failing to do so will screw with the reference counting
+		 * on framebuffers.
+		 */
+		WARN_ON(crtc->fb != fb);
 		/* Unref only the old framebuffer. */
 		fb = NULL;
 	}

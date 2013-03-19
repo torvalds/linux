@@ -39,7 +39,6 @@ static int sca3000_read_data(struct sca3000_state *st,
 			    int len)
 {
 	int ret;
-	struct spi_message msg;
 	struct spi_transfer xfer[2] = {
 		{
 			.len = 1,
@@ -55,10 +54,7 @@ static int sca3000_read_data(struct sca3000_state *st,
 	}
 	xfer[1].rx_buf = *rx_p;
 	st->tx[0] = SCA3000_READ_REG(reg_address_high);
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer[0], &msg);
-	spi_message_add_tail(&xfer[1], &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync_transfer(st->us, xfer, ARRAY_SIZE(xfer));
 	if (ret) {
 		dev_err(get_device(&st->us->dev), "problem reading register");
 		goto error_free_rx;

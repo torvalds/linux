@@ -64,7 +64,7 @@
 #endif
 
 #define KEY_TYPE_NA		0x0
-#define KEY_TYPE_WEP40 		0x1
+#define KEY_TYPE_WEP40		0x1
 #define KEY_TYPE_TKIP		0x2
 #define KEY_TYPE_CCMP		0x4
 #define KEY_TYPE_WEP104		0x5
@@ -195,21 +195,21 @@ enum	_ReasonCode{
 	auth_not_valid	= 0x2,
 	deauth_lv_ss	= 0x3,
 	inactivity		= 0x4,
-	ap_overload 	= 0x5,
+	ap_overload	= 0x5,
 	class2_err		= 0x6,
 	class3_err		= 0x7,
-	disas_lv_ss 	= 0x8,
+	disas_lv_ss	= 0x8,
 	asoc_not_auth	= 0x9,
 
 	//----MIC_CHECK
-	mic_failure 	= 0xe,
+	mic_failure	= 0xe,
 	//----END MIC_CHECK
 
 	// Reason code defined in 802.11i D10.0 p.28.
 	invalid_IE		= 0x0d,
 	four_way_tmout	= 0x0f,
 	two_way_tmout	= 0x10,
-	IE_dismatch 	= 0x11,
+	IE_dismatch	= 0x11,
 	invalid_Gcipher = 0x12,
 	invalid_Pcipher = 0x13,
 	invalid_AKMP	= 0x14,
@@ -222,7 +222,7 @@ enum	_ReasonCode{
 	QoS_unspec		= 0x20, // 32
 	QAP_bandwidth	= 0x21, // 33
 	poor_condition	= 0x22, // 34
-	no_facility 	= 0x23, // 35
+	no_facility	= 0x23, // 35
 							// Where is 36???
 	req_declined	= 0x25, // 37
 	invalid_param	= 0x26, // 38
@@ -265,7 +265,7 @@ enum	_ReasonCode{
 #define IEEE_WPAX_USEGROUP			0
 #define IEEE_WPAX_WEP40				1
 #define IEEE_WPAX_TKIP				2
-#define IEEE_WPAX_WRAP   			3
+#define IEEE_WPAX_WRAP				3
 #define IEEE_WPAX_CCMP				4
 #define IEEE_WPAX_WEP104			5
 
@@ -289,12 +289,12 @@ enum	_ReasonCode{
 #define MAX_IE_LEN  0xff
 
 // added for kernel conflict
-#define ieee80211_crypt_deinit_entries 	ieee80211_crypt_deinit_entries_rsl
-#define ieee80211_crypt_deinit_handler 	ieee80211_crypt_deinit_handler_rsl
-#define ieee80211_crypt_delayed_deinit 	ieee80211_crypt_delayed_deinit_rsl
-#define ieee80211_register_crypto_ops  	ieee80211_register_crypto_ops_rsl
+#define ieee80211_crypt_deinit_entries	ieee80211_crypt_deinit_entries_rsl
+#define ieee80211_crypt_deinit_handler	ieee80211_crypt_deinit_handler_rsl
+#define ieee80211_crypt_delayed_deinit	ieee80211_crypt_delayed_deinit_rsl
+#define ieee80211_register_crypto_ops	ieee80211_register_crypto_ops_rsl
 #define ieee80211_unregister_crypto_ops ieee80211_unregister_crypto_ops_rsl
-#define ieee80211_get_crypto_ops 	ieee80211_get_crypto_ops_rsl
+#define ieee80211_get_crypto_ops	ieee80211_get_crypto_ops_rsl
 
 #define ieee80211_ccmp_null		ieee80211_ccmp_null_rsl
 
@@ -302,10 +302,10 @@ enum	_ReasonCode{
 
 #define ieee80211_wep_null		ieee80211_wep_null_rsl
 
-#define free_ieee80211          	free_ieee80211_rsl
-#define alloc_ieee80211        		alloc_ieee80211_rsl
+#define free_ieee80211			free_ieee80211_rsl
+#define alloc_ieee80211			alloc_ieee80211_rsl
 
-#define ieee80211_rx 			ieee80211_rx_rsl
+#define ieee80211_rx			ieee80211_rx_rsl
 #define ieee80211_rx_mgt		ieee80211_rx_mgt_rsl
 
 #define ieee80211_get_beacon		ieee80211_get_beacon_rsl
@@ -450,7 +450,7 @@ typedef struct ieee_param {
 
 /* management */
 #define IEEE80211_STYPE_ASSOC_REQ	0x0000
-#define IEEE80211_STYPE_ASSOC_RESP 	0x0010
+#define IEEE80211_STYPE_ASSOC_RESP	0x0010
 #define IEEE80211_STYPE_REASSOC_REQ	0x0020
 #define IEEE80211_STYPE_REASSOC_RESP	0x0030
 #define IEEE80211_STYPE_PROBE_REQ	0x0040
@@ -536,7 +536,7 @@ do { if (ieee80211_debug_level & (level)) \
 //if you want print DATA buffer related BA, please set ieee80211_debug_level to DATA|BA
 #define IEEE80211_DEBUG_DATA(level, data, datalen)	\
 	do{ if ((ieee80211_debug_level & (level)) == (level))	\
-		{ 	\
+		{	\
 			int i;					\
 			u8* pdata = (u8*) data;			\
 			printk(KERN_DEBUG "ieee80211: %s()\n", __FUNCTION__);	\
@@ -623,20 +623,20 @@ do { if (ieee80211_debug_level & (level)) \
 #define MAX_STR_LEN     64
 /* I want to see ASCII 33 to 126 only. Otherwise, I print '?'. Annie, 2005-11-22.*/
 #define PRINTABLE(_ch)  (_ch>'!' && _ch<'~')
-#define IEEE80211_PRINT_STR(_Comp, _TitleString, _Ptr, _Len)                            	\
-			if((_Comp) & level)   							\
+#define IEEE80211_PRINT_STR(_Comp, _TitleString, _Ptr, _Len)					\
+			if((_Comp) & level)							\
 			{                                                                       \
 				int             __i;                                            \
-				u8  buffer[MAX_STR_LEN];                                    	\
-				int length = (_Len<MAX_STR_LEN)? _Len : (MAX_STR_LEN-1) ;  	\
-				memset(buffer, 0, MAX_STR_LEN);                      		\
-				memcpy(buffer, (u8 *)_Ptr, length );            		\
+				u8  buffer[MAX_STR_LEN];					\
+				int length = (_Len<MAX_STR_LEN)? _Len : (MAX_STR_LEN-1) ;	\
+				memset(buffer, 0, MAX_STR_LEN);					\
+				memcpy(buffer, (u8 *)_Ptr, length );				\
 				for( __i=0; __i<MAX_STR_LEN; __i++ )                            \
 				{                                                               \
-				     if( !PRINTABLE(buffer[__i]) )   buffer[__i] = '?';     	\
+				     if( !PRINTABLE(buffer[__i]) )   buffer[__i] = '?';		\
 				}                                                               \
 				buffer[length] = '\0';                                          \
-				printk("Rtl819x: ");                                         	\
+				printk("Rtl819x: ");						\
 				printk(_TitleString);                                         \
 				printk(": %d, <%s>\n", _Len, buffer);                         \
 			}
@@ -785,12 +785,12 @@ enum ieee80211_reasoncode {
 #define IEEE80211_24GHZ_BAND     (1<<0)
 #define IEEE80211_52GHZ_BAND     (1<<1)
 
-#define IEEE80211_CCK_RATE_LEN  		4
+#define IEEE80211_CCK_RATE_LEN			4
 #define IEEE80211_CCK_RATE_1MB			0x02
 #define IEEE80211_CCK_RATE_2MB			0x04
 #define IEEE80211_CCK_RATE_5MB			0x0B
 #define IEEE80211_CCK_RATE_11MB			0x16
-#define IEEE80211_OFDM_RATE_LEN 		8
+#define IEEE80211_OFDM_RATE_LEN			8
 #define IEEE80211_OFDM_RATE_6MB			0x0C
 #define IEEE80211_OFDM_RATE_9MB			0x12
 #define IEEE80211_OFDM_RATE_12MB		0x18
@@ -919,10 +919,10 @@ struct ieee80211_rx_stats {
 	u16          fraglength;                        // FragLength should equal to PacketLength in non-fragment case
 	u16          fragoffset;                        // Data offset for this fragment
 	u16          ntotalfrag;
-	bool      	  bisrxaggrsubframe;
+	bool		  bisrxaggrsubframe;
 	bool		  bPacketBeacon;	//cosa add for rssi
 	bool		  bToSelfBA;		//cosa add for rssi
-	char 	  cck_adc_pwdb[4];	//cosa add for rx path selection
+	char	  cck_adc_pwdb[4];	//cosa add for rx path selection
 	u16		  Seq_Num;
 
 };
@@ -992,7 +992,7 @@ struct ieee80211_device;
 #define SEC_ALG_TKIP            2
 #define SEC_ALG_CCMP            3
 
-#define WEP_KEYS 		4
+#define WEP_KEYS		4
 #define WEP_KEY_LEN		13
 #define SCM_KEY_LEN             32
 #define SCM_TEMPORAL_KEY_LENGTH 16
@@ -1205,7 +1205,7 @@ struct ieee80211_drv_agg_txb {
 	struct sk_buff *tx_agg_frames[MAX_TX_AGG_COUNT];
 }__attribute__((packed));
 
-#define MAX_SUBFRAME_COUNT 		  64
+#define MAX_SUBFRAME_COUNT		  64
 struct ieee80211_rxb {
 	u8 nr_subframes;
 	struct sk_buff *subframes[MAX_SUBFRAME_COUNT];
@@ -1534,7 +1534,7 @@ struct ieee80211_network {
 	bool	bWithAironetIE;
 	bool	bCkipSupported;
 	bool	bCcxRmEnable;
-	u16 	CcxRmState[2];
+	u16	CcxRmState[2];
 	// CCXv4 S59, MBSSID.
 	bool	bMBssidValid;
 	u8	MBssidMask;
@@ -1655,8 +1655,7 @@ typedef struct tx_pending_t{
 	struct ieee80211_txb *txb;
 }tx_pending_t;
 
-typedef struct _bandwidth_autoswitch
-{
+typedef struct _bandwidth_autoswitch {
 	long threshold_20Mhzto40Mhz;
 	long	threshold_40Mhzto20Mhz;
 	bool bforced_tx20Mhz;
@@ -1668,8 +1667,7 @@ typedef struct _bandwidth_autoswitch
 
 #define REORDER_WIN_SIZE	128
 #define REORDER_ENTRY_NUM	128
-typedef struct _RX_REORDER_ENTRY
-{
+typedef struct _RX_REORDER_ENTRY {
 	struct list_head	List;
 	u16			SeqNum;
 	struct ieee80211_rxb* prxb;
@@ -1709,15 +1707,13 @@ typedef struct _IbssParms{
 #define MAX_NUM_RATES	264 // Max num of support rates element: 8,  Max num of ext. support rate: 255. 061122, by rcnjko.
 
 // RF state.
-typedef	enum _RT_RF_POWER_STATE
-{
+typedef	enum _RT_RF_POWER_STATE {
 	eRfOn,
 	eRfSleep,
 	eRfOff
 }RT_RF_POWER_STATE;
 
-typedef struct _RT_POWER_SAVE_CONTROL
-{
+typedef struct _RT_POWER_SAVE_CONTROL {
 
 	//
 	// Inactive Power Save(IPS) : Disable RF when disconnected
@@ -1726,7 +1722,7 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	bool				bIPSModeBackup;
 	bool				bSwRfProcessing;
 	RT_RF_POWER_STATE	eInactivePowerState;
-	struct work_struct 	InactivePsWorkItem;
+	struct work_struct	InactivePsWorkItem;
 	struct timer_list	InactivePsTimer;
 
 	// Return point for join action
@@ -1837,11 +1833,11 @@ struct ieee80211_device {
 	u8				HTHighestOperaRate;
 	//wb added for rate operation mode to firmware
 	u8	bTxDisableRateFallBack;
-	u8 	bTxUseDriverAssingedRate;
+	u8	bTxUseDriverAssingedRate;
 	atomic_t	atm_chnlop;
 	atomic_t	atm_swbw;
 //	u8	HTHighestOperaRate;
-//	u8 	HTCurrentOperaRate;
+//	u8	HTCurrentOperaRate;
 
 	// 802.11e and WMM Traffic Stream Info (TX)
 	struct list_head		Tx_TS_Admit_List;
@@ -2055,9 +2051,9 @@ struct ieee80211_device {
 	bool	bdynamic_txpower_enable;
 
 	bool bCTSToSelfEnable;
-	u8 	CTSToSelfTH;
+	u8	CTSToSelfTH;
 
-	u32 	fsync_time_interval;
+	u32	fsync_time_interval;
 	u32	fsync_rate_bitmap;
 	u8	fsync_rssi_threshold;
 	bool	bfsync_enable;
@@ -2092,10 +2088,10 @@ struct ieee80211_device {
 	 struct delayed_work start_ibss_wq;
 	struct work_struct wx_sync_scan_wq;
 	struct workqueue_struct *wq;
-        // Qos related. Added by Annie, 2005-11-01.
-        //STA_QOS  StaQos;
+	// Qos related. Added by Annie, 2005-11-01.
+	//STA_QOS  StaQos;
 
-        //u32 STA_EDCA_PARAM[4];
+	//u32 STA_EDCA_PARAM[4];
 	//CHANNEL_ACCESS_SETTING ChannelAccessSetting;
 
 
@@ -2111,11 +2107,11 @@ struct ieee80211_device {
 			       struct net_device *dev);
 
 	int (*reset_port)(struct net_device *dev);
-        int (*is_queue_full) (struct net_device * dev, int pri);
+	int (*is_queue_full) (struct net_device * dev, int pri);
 
-        int (*handle_management) (struct net_device * dev,
-                                  struct ieee80211_network * network, u16 type);
-        int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
+	int (*handle_management) (struct net_device * dev,
+				  struct ieee80211_network * network, u16 type);
+	int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
 
 	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
@@ -2214,7 +2210,7 @@ struct ieee80211_device {
 #define IEEE_A            (1<<0)
 #define IEEE_B            (1<<1)
 #define IEEE_G            (1<<2)
-#define IEEE_N_24G 		  (1<<4)
+#define IEEE_N_24G		  (1<<4)
 #define	IEEE_N_5G		  (1<<5)
 #define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
 

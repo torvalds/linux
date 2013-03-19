@@ -334,18 +334,3 @@ SYMBOL_NAME_LABEL(sys_call_table)
 	.long SYMBOL_NAME(sys_getcpu)
 	.long SYMBOL_NAME(sys_ni_syscall)	/* sys_epoll_pwait */
 	.long SYMBOL_NAME(sys_setns)		/* 320 */
-
-	.macro	call_sp addr
-	mov.l	#SYMBOL_NAME(\addr),er6
-	bra	SYMBOL_NAME(syscall_trampoline):8
-	.endm
-
-SYMBOL_NAME_LABEL(sys_sigreturn)
-	call_sp	do_sigreturn
-
-SYMBOL_NAME_LABEL(sys_rt_sigreturn)
-	call_sp	do_rt_sigreturn
-
-SYMBOL_NAME_LABEL(syscall_trampoline)
-	mov.l	sp,er0
-	jmp	@er6

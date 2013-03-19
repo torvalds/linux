@@ -76,7 +76,7 @@ out:
 	return error;
 }
 
-#define RLIM_INFINITY32	0x7fffffff
+#define RLIM_INFINITY32 0x7fffffff
 #define RESOURCE32(x) ((x > RLIM_INFINITY32) ? RLIM_INFINITY32 : x)
 
 struct rlimit32 {
@@ -105,7 +105,7 @@ SYSCALL_DEFINE5(32_llseek, unsigned int, fd, unsigned int, offset_high,
 
 /* From the Single Unix Spec: pread & pwrite act like lseek to pos + op +
    lseek back to original location.  They fail just like lseek does on
-   non-seekable files.  */
+   non-seekable files.	*/
 
 SYSCALL_DEFINE6(32_pread, unsigned long, fd, char __user *, buf, size_t, count,
 	unsigned long, unused, unsigned long, a4, unsigned long, a5)
@@ -117,22 +117,6 @@ SYSCALL_DEFINE6(32_pwrite, unsigned int, fd, const char __user *, buf,
 	size_t, count, u32, unused, u64, a4, u64, a5)
 {
 	return sys_pwrite64(fd, buf, count, merge_64(a4, a5));
-}
-
-SYSCALL_DEFINE2(32_sched_rr_get_interval, compat_pid_t, pid,
-	struct compat_timespec __user *, interval)
-{
-	struct timespec t;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *)&t);
-	set_fs(old_fs);
-	if (put_user (t.tv_sec, &interval->tv_sec) ||
-	    __put_user(t.tv_nsec, &interval->tv_nsec))
-		return -EFAULT;
-	return ret;
 }
 
 #ifdef CONFIG_SYSVIPC
@@ -263,7 +247,7 @@ SYSCALL_DEFINE4(32_sendfile, long, out_fd, long, in_fd,
 }
 
 asmlinkage ssize_t sys32_readahead(int fd, u32 pad0, u64 a2, u64 a3,
-                                   size_t count)
+				   size_t count)
 {
 	return sys_readahead(fd, merge_64(a2, a3), count);
 }
@@ -292,28 +276,7 @@ asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_a2,
 	unsigned offset_a3, unsigned len_a4, unsigned len_a5)
 {
 	return sys_fallocate(fd, mode, merge_64(offset_a2, offset_a3),
-	                     merge_64(len_a4, len_a5));
-}
-
-save_static_function(sys32_clone);
-static int noinline __used
-_sys32_clone(nabi_no_regargs struct pt_regs regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
-
-	clone_flags = regs.regs[4];
-	newsp = regs.regs[5];
-	if (!newsp)
-		newsp = regs.regs[29];
-	parent_tidptr = (int __user *) regs.regs[6];
-
-	/* Use __dummy4 instead of getting it off the stack, so that
-	   syscall() works.  */
-	child_tidptr = (int __user *) __dummy4;
-	return do_fork(clone_flags, newsp, 0,
-	               parent_tidptr, child_tidptr);
+			     merge_64(len_a4, len_a5));
 }
 
 asmlinkage long sys32_lookup_dcookie(u32 a0, u32 a1, char __user *buf,
@@ -323,15 +286,8 @@ asmlinkage long sys32_lookup_dcookie(u32 a0, u32 a1, char __user *buf,
 }
 
 SYSCALL_DEFINE6(32_fanotify_mark, int, fanotify_fd, unsigned int, flags,
-		u64, a3, u64, a4, int, dfd, const char  __user *, pathname)
+		u64, a3, u64, a4, int, dfd, const char	__user *, pathname)
 {
 	return sys_fanotify_mark(fanotify_fd, flags, merge_64(a3, a4),
 				 dfd, pathname);
-}
-
-SYSCALL_DEFINE6(32_futex, u32 __user *, uaddr, int, op, u32, val,
-		struct compat_timespec __user *, utime, u32 __user *, uaddr2,
-		u32, val3)
-{
-	return compat_sys_futex(uaddr, op, val, utime, uaddr2, val3);
 }

@@ -677,10 +677,5 @@ ENTRY(sys_rt_sigreturn_wrapper)
 	b	sys_rt_sigreturn
 ENDPROC(sys_rt_sigreturn_wrapper)
 
-ENTRY(sys_sigaltstack_wrapper)
-	ldr	x2, [sp, #S_SP]
-	b	sys_sigaltstack
-ENDPROC(sys_sigaltstack_wrapper)
-
 ENTRY(handle_arch_irq)
 	.quad	0

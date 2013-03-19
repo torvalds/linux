@@ -227,7 +227,7 @@ static int isl12022_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 					 buf[ISL12022_REG_SC + i]);
 		if (ret)
 			return -EIO;
-	};
+	}
 
 	return 0;
 }

@@ -111,6 +111,8 @@ static const struct of_device_id s3c24xx_i2c_match[] = {
 	{ .compatible = "samsung,s3c2440-i2c", .data = (void *)QUIRK_S3C2440 },
 	{ .compatible = "samsung,s3c2440-hdmiphy-i2c",
 	  .data = (void *)(QUIRK_S3C2440 | QUIRK_HDMIPHY | QUIRK_NO_GPIO) },
+	{ .compatible = "samsung,exynos5440-i2c",
+	  .data = (void *)(QUIRK_S3C2440 | QUIRK_NO_GPIO) },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c24xx_i2c_match);
@@ -1000,8 +1002,8 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	i2c->pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!i2c->pdata) {
-		ret = -ENOMEM;
-		goto err_noclk;
+		dev_err(&pdev->dev, "no memory for platform data\n");
+		return -ENOMEM;
 	}
 
 	i2c->quirks = s3c24xx_get_device_quirks(pdev);
@@ -1022,33 +1024,27 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	/* find the clock and enable it */
 
 	i2c->dev = &pdev->dev;
-	i2c->clk = clk_get(&pdev->dev, "i2c");
+	i2c->clk = devm_clk_get(&pdev->dev, "i2c");
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
-		ret = -ENOENT;
-		goto err_noclk;
+		return -ENOENT;
 	}
 
 	dev_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
 
-	clk_prepare_enable(i2c->clk);
 
 	/* map the registers */
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "cannot find IO resource\n");
-		ret = -ENOENT;
-		goto err_clk;
+		return -ENOENT;
 	}
 
-	i2c->regs = devm_request_and_ioremap(&pdev->dev, res);
+	i2c->regs = devm_ioremap_resource(&pdev->dev, res);
 
-	if (i2c->regs == NULL) {
-		dev_err(&pdev->dev, "cannot map IO\n");
-		ret = -ENXIO;
-		goto err_clk;
-	}
+	if (IS_ERR(i2c->regs))
+		return PTR_ERR(i2c->regs);
 
 	dev_dbg(&pdev->dev, "registers %p (%p)\n",
 		i2c->regs, res);
@@ -1065,16 +1061,18 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	if (i2c->pdata->cfg_gpio) {
 		i2c->pdata->cfg_gpio(to_platform_device(i2c->dev));
 	} else if (IS_ERR(i2c->pctrl) && s3c24xx_i2c_parse_dt_gpio(i2c)) {
-		ret = -EINVAL;
-		goto err_clk;
+		return -EINVAL;
 	}
 
 	/* initialise the i2c controller */
 
+	clk_prepare_enable(i2c->clk);
 	ret = s3c24xx_i2c_init(i2c);
-	if (ret != 0)
-		goto err_clk;
-
+	clk_disable_unprepare(i2c->clk);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "I2C controller init failed\n");
+		return ret;
+	}
 	/* find the IRQ for this unit (note, this relies on the init call to
 	 * ensure no current IRQs pending
 	 */
@@ -1082,21 +1080,21 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	i2c->irq = ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
-		goto err_clk;
+		return ret;
 	}
 
-	ret = request_irq(i2c->irq, s3c24xx_i2c_irq, 0,
-			  dev_name(&pdev->dev), i2c);
+	ret = devm_request_irq(&pdev->dev, i2c->irq, s3c24xx_i2c_irq, 0,
+			       dev_name(&pdev->dev), i2c);
 
 	if (ret != 0) {
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", i2c->irq);
-		goto err_clk;
+		return ret;
 	}
 
 	ret = s3c24xx_i2c_register_cpufreq(i2c);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to register cpufreq notifier\n");
-		goto err_irq;
+		return ret;
 	}
 
 	/* Note, previous versions of the driver used i2c_add_adapter()
@@ -1111,7 +1109,8 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
-		goto err_cpufreq;
+		s3c24xx_i2c_deregister_cpufreq(i2c);
+		return ret;
 	}
 
 	of_i2c_register_devices(&i2c->adap);
@@ -1121,21 +1120,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	pm_runtime_enable(&i2c->adap.dev);
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));
-	clk_disable_unprepare(i2c->clk);
 	return 0;
-
- err_cpufreq:
-	s3c24xx_i2c_deregister_cpufreq(i2c);
-
- err_irq:
-	free_irq(i2c->irq, i2c);
-
- err_clk:
-	clk_disable_unprepare(i2c->clk);
-	clk_put(i2c->clk);
-
- err_noclk:
-	return ret;
 }
 
 /* s3c24xx_i2c_remove
@@ -1153,10 +1138,8 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 	s3c24xx_i2c_deregister_cpufreq(i2c);
 
 	i2c_del_adapter(&i2c->adap);
-	free_irq(i2c->irq, i2c);
 
 	clk_disable_unprepare(i2c->clk);
-	clk_put(i2c->clk);
 
 	if (pdev->dev.of_node && IS_ERR(i2c->pctrl))
 		s3c24xx_i2c_dt_gpio_free(i2c);

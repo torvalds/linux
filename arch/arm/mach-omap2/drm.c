@@ -51,8 +51,7 @@ static int __init omap_init_drm(void)
 	oh = omap_hwmod_lookup("dmm");
 
 	if (oh) {
-		pdev = omap_device_build(oh->name, -1, oh, NULL, 0, NULL, 0,
-					false);
+		pdev = omap_device_build(oh->name, -1, oh, NULL, 0);
 		WARN(IS_ERR(pdev), "Could not build omap_device for %s\n",
 			oh->name);
 	}
@@ -63,6 +62,6 @@ static int __init omap_init_drm(void)
 
 }
 
-arch_initcall(omap_init_drm);
+omap_arch_initcall(omap_init_drm);
 
 #endif

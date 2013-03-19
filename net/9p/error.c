@@ -221,15 +221,13 @@ EXPORT_SYMBOL(p9_error_init);
 int p9_errstr2errno(char *errstr, int len)
 {
 	int errno;
-	struct hlist_node *p;
 	struct errormap *c;
 	int bucket;
 
 	errno = 0;
-	p = NULL;
 	c = NULL;
 	bucket = jhash(errstr, len, 0) % ERRHASHSZ;
-	hlist_for_each_entry(c, p, &hash_errmap[bucket], list) {
+	hlist_for_each_entry(c, &hash_errmap[bucket], list) {
 		if (c->namelen == len && !memcmp(c->name, errstr, len)) {
 			errno = c->val;
 			break;

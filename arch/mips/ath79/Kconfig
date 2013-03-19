@@ -14,6 +14,18 @@ config ATH79_MACH_AP121
 	  Say 'Y' here if you want your kernel to support the
 	  Atheros AP121 reference board.
 
+config ATH79_MACH_AP136
+	bool "Atheros AP136 reference board"
+	select SOC_QCA955X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_SPI
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Atheros AP136 reference board.
+
 config ATH79_MACH_AP81
 	bool "Atheros AP81 reference board"
 	select SOC_AR913X
@@ -88,6 +100,12 @@ config SOC_AR934X
 	select PCI_AR724X if PCI
 	def_bool n
 
+config SOC_QCA955X
+	select USB_ARCH_HAS_EHCI
+	select HW_HAS_PCI
+	select PCI_AR724X if PCI
+	def_bool n
+
 config PCI_AR724X
 	def_bool n
 
@@ -104,7 +122,7 @@ config ATH79_DEV_USB
 	def_bool n
 
 config ATH79_DEV_WMAC
-	depends on (SOC_AR913X || SOC_AR933X || SOC_AR934X)
+	depends on (SOC_AR913X || SOC_AR933X || SOC_AR934X || SOC_QCA955X)
 	def_bool n
 
 endif

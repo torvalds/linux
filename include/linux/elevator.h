@@ -2,6 +2,7 @@
 #define _LINUX_ELEVATOR_H
 
 #include <linux/percpu.h>
+#include <linux/hashtable.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -96,6 +97,8 @@ struct elevator_type
 	struct list_head list;
 };
 
+#define ELV_HASH_BITS 6
+
 /*
  * each queue has an elevator_queue associated with it
  */
@@ -105,8 +108,8 @@ struct elevator_queue
 	void *elevator_data;
 	struct kobject kobj;
 	struct mutex sysfs_lock;
-	struct hlist_head *hash;
 	unsigned int registered:1;
+	DECLARE_HASHTABLE(hash, ELV_HASH_BITS);
 };
 
 /*
@@ -138,6 +141,7 @@ extern void elv_drain_elevator(struct request_queue *);
 /*
  * io scheduler registration
  */
+extern void __init load_default_elevator_module(void);
 extern int elv_register(struct elevator_type *);
 extern void elv_unregister(struct elevator_type *);
 
@@ -205,6 +209,10 @@ enum {
 	list_del_init(&(rq)->queuelist);	\
 	INIT_LIST_HEAD(&(rq)->csd.list);	\
 	} while (0)
+
+#else /* CONFIG_BLOCK */
+
+static inline void load_default_elevator_module(void) { }
 
 #endif /* CONFIG_BLOCK */
 #endif

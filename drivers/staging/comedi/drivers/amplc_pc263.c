@@ -44,6 +44,8 @@ connected to a reed-relay. Relay contacts are closed when output is 1.
 The state of the outputs can be read.
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 #define PC263_DRIVER_NAME	"amplc_pc263"
@@ -372,16 +374,11 @@ static int amplc_pc263_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &amplc_pc263_driver);
 }
 
-static void amplc_pc263_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver amplc_pc263_pci_driver = {
 	.name = PC263_DRIVER_NAME,
 	.id_table = pc263_pci_table,
 	.probe = &amplc_pc263_pci_probe,
-	.remove = &amplc_pc263_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(amplc_pc263_driver, amplc_pc263_pci_driver);
 #else

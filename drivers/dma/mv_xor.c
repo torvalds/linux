@@ -210,7 +210,7 @@ static void mv_set_mode(struct mv_xor_chan *chan,
 		break;
 	default:
 		dev_err(mv_chan_to_devp(chan),
-			"error: unsupported operation %d.\n",
+			"error: unsupported operation %d\n",
 			type);
 		BUG();
 		return;
@@ -828,28 +828,22 @@ static void mv_dump_xor_regs(struct mv_xor_chan *chan)
 	u32 val;
 
 	val = __raw_readl(XOR_CONFIG(chan));
-	dev_err(mv_chan_to_devp(chan),
-		"config       0x%08x.\n", val);
+	dev_err(mv_chan_to_devp(chan), "config       0x%08x\n", val);
 
 	val = __raw_readl(XOR_ACTIVATION(chan));
-	dev_err(mv_chan_to_devp(chan),
-		"activation   0x%08x.\n", val);
+	dev_err(mv_chan_to_devp(chan), "activation   0x%08x\n", val);
 
 	val = __raw_readl(XOR_INTR_CAUSE(chan));
-	dev_err(mv_chan_to_devp(chan),
-		"intr cause   0x%08x.\n", val);
+	dev_err(mv_chan_to_devp(chan), "intr cause   0x%08x\n", val);
 
 	val = __raw_readl(XOR_INTR_MASK(chan));
-	dev_err(mv_chan_to_devp(chan),
-		"intr mask    0x%08x.\n", val);
+	dev_err(mv_chan_to_devp(chan), "intr mask    0x%08x\n", val);
 
 	val = __raw_readl(XOR_ERROR_CAUSE(chan));
-	dev_err(mv_chan_to_devp(chan),
-		"error cause  0x%08x.\n", val);
+	dev_err(mv_chan_to_devp(chan), "error cause  0x%08x\n", val);
 
 	val = __raw_readl(XOR_ERROR_ADDR(chan));
-	dev_err(mv_chan_to_devp(chan),
-		"error addr   0x%08x.\n", val);
+	dev_err(mv_chan_to_devp(chan), "error addr   0x%08x\n", val);
 }
 
 static void mv_xor_err_interrupt_handler(struct mv_xor_chan *chan,
@@ -862,7 +856,7 @@ static void mv_xor_err_interrupt_handler(struct mv_xor_chan *chan,
 	}
 
 	dev_err(mv_chan_to_devp(chan),
-		"error on chan %d. intr cause 0x%08x.\n",
+		"error on chan %d. intr cause 0x%08x\n",
 		chan->idx, intr_cause);
 
 	mv_dump_xor_regs(chan);
@@ -1052,9 +1046,8 @@ mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 		u32 *ptr = page_address(dest);
 		if (ptr[i] != cmp_word) {
 			dev_err(dma_chan->device->dev,
-				"Self-test xor failed compare, disabling."
-				" index %d, data %x, expected %x\n", i,
-				ptr[i], cmp_word);
+				"Self-test xor failed compare, disabling. index %d, data %x, expected %x\n",
+				i, ptr[i], cmp_word);
 			err = -ENODEV;
 			goto free_resources;
 		}
@@ -1194,12 +1187,11 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 			goto err_free_irq;
 	}
 
-	dev_info(&pdev->dev, "Marvell XOR: "
-	  "( %s%s%s%s)\n",
-	  dma_has_cap(DMA_XOR, dma_dev->cap_mask) ? "xor " : "",
-	  dma_has_cap(DMA_MEMSET, dma_dev->cap_mask)  ? "fill " : "",
-	  dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask) ? "cpy " : "",
-	  dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask) ? "intr " : "");
+	dev_info(&pdev->dev, "Marvell XOR: ( %s%s%s%s)\n",
+		 dma_has_cap(DMA_XOR, dma_dev->cap_mask) ? "xor " : "",
+		 dma_has_cap(DMA_MEMSET, dma_dev->cap_mask)  ? "fill " : "",
+		 dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask) ? "cpy " : "",
+		 dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask) ? "intr " : "");
 
 	dma_async_device_register(dma_dev);
 	return mv_chan;
@@ -1253,7 +1245,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret;
 
-	dev_notice(&pdev->dev, "Marvell XOR driver\n");
+	dev_notice(&pdev->dev, "Marvell shared XOR driver\n");
 
 	xordev = devm_kzalloc(&pdev->dev, sizeof(*xordev), GFP_KERNEL);
 	if (!xordev)

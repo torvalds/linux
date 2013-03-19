@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef	_ASM_MACH_POWERTV_INTERRUPTS_H_
+#ifndef _ASM_MACH_POWERTV_INTERRUPTS_H_
 #define _ASM_MACH_POWERTV_INTERRUPTS_H_
 
 /*
@@ -49,9 +49,9 @@
 						 * glue logic inside SPARC ILC
 						 * (see INT_SBAG_STAT, below,
 						 * for individual interrupts) */
-#define irq_qam_b_fec		(ibase+116)	/* QAM  B FEC Interrupt */
+#define irq_qam_b_fec		(ibase+116)	/* QAM	B FEC Interrupt */
 #define irq_qam_a_fec		(ibase+115)	/* QAM A FEC Interrupt */
-/* 114 unused 	(bit 18) */
+/* 114 unused	(bit 18) */
 #define irq_mailbox		(ibase+113)	/* Mailbox Debug Interrupt  --
 						 * Ored by glue logic inside
 						 * SPARC ILC (see
@@ -99,9 +99,9 @@
 #define irq_sata1		(ibase+87)	/* SATA 1 Interrupt */
 #define irq_dtcp		(ibase+86)	/* DTCP Interrupt */
 #define irq_pciexp1		(ibase+85)	/* PCI Express 1 Interrupt */
-/* 84 unused 	(bit 20) */
-/* 83 unused 	(bit 19) */
-/* 82 unused 	(bit 18) */
+/* 84 unused	(bit 20) */
+/* 83 unused	(bit 19) */
+/* 82 unused	(bit 18) */
 #define irq_sata2		(ibase+81)	/* SATA2 Interrupt */
 #define irq_uart2		(ibase+80)	/* UART2 Interrupt */
 #define irq_legacy_usb		(ibase+79)	/* Legacy USB Host ISR (1.1
@@ -117,22 +117,22 @@
 #define irq_mod_dma		(ibase+70)	/* Modulator DMA Interrupt */
 #define irq_byte_eng1		(ibase+69)	/* Byte Engine Interrupt [1] */
 #define irq_byte_eng0		(ibase+68)	/* Byte Engine Interrupt [0] */
-/* 67 unused 	(bit 03) */
-/* 66 unused 	(bit 02) */
-/* 65 unused 	(bit 01) */
-/* 64 unused 	(bit 00) */
+/* 67 unused	(bit 03) */
+/* 66 unused	(bit 02) */
+/* 65 unused	(bit 01) */
+/* 64 unused	(bit 00) */
 /*------------- Register: int_stat_1 */
-/* 63 unused 	(bit 31) */
-/* 62 unused 	(bit 30) */
-/* 61 unused 	(bit 29) */
-/* 60 unused 	(bit 28) */
-/* 59 unused 	(bit 27) */
-/* 58 unused 	(bit 26) */
-/* 57 unused 	(bit 25) */
-/* 56 unused 	(bit 24) */
+/* 63 unused	(bit 31) */
+/* 62 unused	(bit 30) */
+/* 61 unused	(bit 29) */
+/* 60 unused	(bit 28) */
+/* 59 unused	(bit 27) */
+/* 58 unused	(bit 26) */
+/* 57 unused	(bit 25) */
+/* 56 unused	(bit 24) */
 #define irq_buf_dma_mem2mem	(ibase+55)	/* BufDMA Memory to Memory
 						 * Interrupt */
-#define irq_buf_dma_usbtransmit	(ibase+54)	/* BufDMA USB Transmit
+#define irq_buf_dma_usbtransmit (ibase+54)	/* BufDMA USB Transmit
 						 * Interrupt */
 #define irq_buf_dma_qpskpodtransmit (ibase+53)	/* BufDMA QPSK/POD Tramsit
 						 * Interrupt */
@@ -140,7 +140,7 @@
 						 * Interrupt */
 #define irq_buf_dma_usbrecv	(ibase+51)	/* BufDMA USB Receive
 						 * Interrupt */
-#define irq_buf_dma_qpskpodrecv	(ibase+50)	/* BufDMA QPSK/POD Receive
+#define irq_buf_dma_qpskpodrecv (ibase+50)	/* BufDMA QPSK/POD Receive
 						 * Interrupt */
 #define irq_buf_dma_recv_error	(ibase+49)	/* BufDMA Receive Error
 						 * Interrupt */
@@ -166,7 +166,7 @@
 						 * Module */
 #define irq_gpio2		(ibase+37)	/* GP I/O IRQ 2 - From GP I/O
 						 * Module (ABE_intN) */
-#define irq_pcrcmplt1		(ibase+36)	/* PCR Capture Complete  or
+#define irq_pcrcmplt1		(ibase+36)	/* PCR Capture Complete	 or
 						 * Discontinuity 1 */
 #define irq_pcrcmplt2		(ibase+35)	/* PCR Capture Complete or
 						 * Discontinuity 2 */
@@ -217,18 +217,18 @@
 #define irq_qpsk_hecerr		(ibase+11)	/* QPSK HEC Error Interrupt */
 #define irq_qpsk_crcerr		(ibase+10)	/* QPSK AAL-5 CRC Error
 						 * Interrupt */
-/* 9 unused 	(bit 09) */
-/* 8 unused 	(bit 08) */
-#define irq_psicrcerr		(ibase+7) 	/* QAM PSI CRC Error
+/* 9 unused	(bit 09) */
+/* 8 unused	(bit 08) */
+#define irq_psicrcerr		(ibase+7)	/* QAM PSI CRC Error
 						 * Interrupt */
-#define irq_psilength_err	(ibase+6) 	/* QAM PSI Length Error
+#define irq_psilength_err	(ibase+6)	/* QAM PSI Length Error
 						 * Interrupt */
-#define irq_esfforward		(ibase+5) 	/* ESF Interrupt Mark From
+#define irq_esfforward		(ibase+5)	/* ESF Interrupt Mark From
 						 * Forward Path Reference -
 						 * every 3ms when forward Mbits
 						 * and forward slot control
 						 * bytes are updated. */
-#define irq_esfreverse		(ibase+4) 	/* ESF Interrupt Mark from
+#define irq_esfreverse		(ibase+4)	/* ESF Interrupt Mark from
 						 * Reverse Path Reference -
 						 * delayed from forward mark by
 						 * the ranging delay plus a
@@ -239,15 +239,15 @@
 						 * 1.554 M upstream rates and
 						 * every 6 ms for 256K upstream
 						 * rate. */
-#define irq_aloha_timeout	(ibase+3) 	/* Slotted-Aloha timeout on
+#define irq_aloha_timeout	(ibase+3)	/* Slotted-Aloha timeout on
 						 * Channel 1. */
-#define irq_reservation		(ibase+2) 	/* Partial (or Incremental)
+#define irq_reservation		(ibase+2)	/* Partial (or Incremental)
 						 * Reservation Message Completed
 						 * or Slotted aloha verify for
 						 * channel 1. */
-#define irq_aloha3		(ibase+1) 	/* Slotted-Aloha Message Verify
+#define irq_aloha3		(ibase+1)	/* Slotted-Aloha Message Verify
 						 * Interrupt or Reservation
 						 * increment completed for
 						 * channel 3. */
-#define irq_mpeg_d		(ibase+0) 	/* MPEG Decoder Interrupt */
+#define irq_mpeg_d		(ibase+0)	/* MPEG Decoder Interrupt */
 #endif	/* _ASM_MACH_POWERTV_INTERRUPTS_H_ */

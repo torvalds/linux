@@ -560,11 +560,9 @@ static int omap_hdq_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	hdq_data->hdq_base = devm_request_and_ioremap(dev, res);
-	if (!hdq_data->hdq_base) {
-		dev_dbg(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	hdq_data->hdq_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(hdq_data->hdq_base))
+		return PTR_ERR(hdq_data->hdq_base);
 
 	hdq_data->hdq_usecount = 0;
 	mutex_init(&hdq_data->hdq_mutex);

@@ -21,7 +21,7 @@
 #ifdef CONFIG_SMP
 void doorbell_setup_this_cpu(void)
 {
-	unsigned long tag = mfspr(SPRN_PIR) & 0x3fff;
+	unsigned long tag = mfspr(SPRN_DOORBELL_CPUTAG) & PPC_DBELL_TAG_MASK;
 
 	smp_muxed_ipi_set_data(smp_processor_id(), tag);
 }
@@ -30,7 +30,7 @@ void doorbell_cause_ipi(int cpu, unsigned long data)
 {
 	/* Order previous accesses vs. msgsnd, which is treated as a store */
 	mb();
-	ppc_msgsnd(PPC_DBELL, 0, data);
+	ppc_msgsnd(PPC_DBELL_MSGTYPE, 0, data);
 }
 
 void doorbell_exception(struct pt_regs *regs)

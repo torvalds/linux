@@ -715,11 +715,9 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	gpio->base = devm_request_and_ioremap(&pdev->dev, memres);
-	if (!gpio->base) {
-		dev_err(gpio->dev, "could not get remap memory\n");
-		return -ENOMEM;
-	}
+	gpio->base = devm_ioremap_resource(&pdev->dev, memres);
+	if (IS_ERR(gpio->base))
+		return PTR_ERR(gpio->base);
 
 	gpio->clk = devm_clk_get(gpio->dev, NULL);
 	if (IS_ERR(gpio->clk)) {

@@ -36,92 +36,95 @@
 #include "ttype.h"
 #include "tether.h"
 
-// max transmit or receive buffer size
-#define CB_MAX_BUF_SIZE     2900U       // max buffer size
-                                        // NOTE: must be multiple of 4
+/* max transmit or receive buffer size */
+#define CB_MAX_BUF_SIZE     2900U       /* NOTE: must be multiple of 4 */
 
-#define CB_MAX_TX_BUF_SIZE          CB_MAX_BUF_SIZE // max Tx buffer size
-#define CB_MAX_RX_BUF_SIZE_NORMAL   CB_MAX_BUF_SIZE // max Rx buffer size when not use Multi-RD
+/* max TX buffer size */
+#define CB_MAX_TX_BUF_SIZE        CB_MAX_BUF_SIZE
+/* max RX buffer size when not use Multi-RD */
+#define CB_MAX_RX_BUF_SIZE_NORMAL CB_MAX_BUF_SIZE
 
-#define CB_BEACON_BUF_SIZE  512U        // default beacon buffer size
+#define CB_BEACON_BUF_SIZE  512U        /* default beacon buffer size */
 
 #define MAX_TOTAL_SIZE_WITH_ALL_HEADERS CB_MAX_BUF_SIZE
 
 #define MAX_INTERRUPT_SIZE              32
 
-#define RX_BLOCKS           64          // form 0x60 to 0xA0
-#define TX_BLOCKS           32          // from 0xA0 to 0xC0
+#define RX_BLOCKS           64          /* from 0x60 to 0xA0 */
+#define TX_BLOCKS           32          /* from 0xA0 to 0xC0 */
 
-#define CB_MAX_RX_DESC      128         // max # of descriptor
-#define CB_MIN_RX_DESC      16          // min # of rx descriptor
-#define CB_MAX_TX_DESC      128         // max # of descriptor
-#define CB_MIN_TX_DESC      16          // min # of tx descriptor
+#define CB_MAX_RX_DESC      128         /* max # of descriptors */
+#define CB_MIN_RX_DESC      16          /* min # of RX descriptors */
+#define CB_MAX_TX_DESC      128         /* max # of descriptors */
+#define CB_MIN_TX_DESC      16          /* min # of TX descriptors */
 
-#define CB_RD_NUM           64          // default # of RD
-#define CB_TD_NUM           64          // default # of TD
+#define CB_RD_NUM           64          /* default # of RD */
+#define CB_TD_NUM           64          /* default # of TD */
 
-//
-// Bits in the RSR register
-//
-#define RSR_ADDRBROAD       0x80        // 1000 0000
-#define RSR_ADDRMULTI       0x40        // 0100 0000
-#define RSR_ADDRUNI         0x00        // 0000 0000
-#define RSR_IVLDTYP         0x20        // 0010 0000 , invalid packet type
-#define RSR_IVLDLEN         0x10        // 0001 0000 , invalid len (> 2312 byte)
-#define RSR_BSSIDOK         0x08        // 0000 1000
-#define RSR_CRCOK           0x04        // 0000 0100
-#define RSR_BCNSSIDOK       0x02        // 0000 0010
-#define RSR_ADDROK          0x01        // 0000 0001
+/*
+ * bits in the RSR register
+ */
+#define RSR_ADDRBROAD       0x80
+#define RSR_ADDRMULTI       0x40
+#define RSR_ADDRUNI         0x00
+#define RSR_IVLDTYP         0x20        /* invalid packet type */
+#define RSR_IVLDLEN         0x10        /* invalid len (> 2312 byte) */
+#define RSR_BSSIDOK         0x08
+#define RSR_CRCOK           0x04
+#define RSR_BCNSSIDOK       0x02
+#define RSR_ADDROK          0x01
 
-//
-// Bits in the new RSR register
-//
-#define NEWRSR_DECRYPTOK    0x10        // 0001 0000
-#define NEWRSR_CFPIND       0x08        // 0000 1000
-#define NEWRSR_HWUTSF       0x04        // 0000 0100
-#define NEWRSR_BCNHITAID    0x02        // 0000 0010
-#define NEWRSR_BCNHITAID0   0x01        // 0000 0001
+/*
+ * bits in the new RSR register
+ */
+#define NEWRSR_DECRYPTOK    0x10
+#define NEWRSR_CFPIND       0x08
+#define NEWRSR_HWUTSF       0x04
+#define NEWRSR_BCNHITAID    0x02
+#define NEWRSR_BCNHITAID0   0x01
 
-//
-// Bits in the TSR register
-//
-#define TSR_RETRYTMO        0x08        // 0000 1000
-#define TSR_TMO             0x04        // 0000 0100
-#define TSR_ACKDATA         0x02        // 0000 0010
-#define TSR_VALID           0x01        // 0000 0001
+/*
+ * bits in the TSR register
+ */
+#define TSR_RETRYTMO        0x08
+#define TSR_TMO             0x04
+#define TSR_ACKDATA         0x02
+#define TSR_VALID           0x01
 
 #define CB_PROTOCOL_RESERVED_SECTION    16
 
-// if retrys excess 15 times , tx will abort, and
-// if tx fifo underflow, tx will fail
-// we should try to resend it
+/*
+ * if retries exceed 15 times, TX will abort, and
+ * if TX fifo underflow, TX will fail
+ * we should try to resend it
+ */
 #define CB_MAX_TX_ABORT_RETRY   3
 
-#define FIFOCTL_AUTO_FB_1   0x1000 // 0001 0000 0000 0000
-#define FIFOCTL_AUTO_FB_0   0x0800 // 0000 1000 0000 0000
-#define FIFOCTL_GRPACK      0x0400 // 0000 0100 0000 0000
-#define FIFOCTL_11GA        0x0300 // 0000 0011 0000 0000
-#define FIFOCTL_11GB        0x0200 // 0000 0010 0000 0000
-#define FIFOCTL_11B         0x0100 // 0000 0001 0000 0000
-#define FIFOCTL_11A         0x0000 // 0000 0000 0000 0000
-#define FIFOCTL_RTS         0x0080 // 0000 0000 1000 0000
-#define FIFOCTL_ISDMA0      0x0040 // 0000 0000 0100 0000
-#define FIFOCTL_GENINT      0x0020 // 0000 0000 0010 0000
-#define FIFOCTL_TMOEN       0x0010 // 0000 0000 0001 0000
-#define FIFOCTL_LRETRY      0x0008 // 0000 0000 0000 1000
-#define FIFOCTL_CRCDIS      0x0004 // 0000 0000 0000 0100
-#define FIFOCTL_NEEDACK     0x0002 // 0000 0000 0000 0010
-#define FIFOCTL_LHEAD       0x0001 // 0000 0000 0000 0001
+#define FIFOCTL_AUTO_FB_1   0x1000
+#define FIFOCTL_AUTO_FB_0   0x0800
+#define FIFOCTL_GRPACK      0x0400
+#define FIFOCTL_11GA        0x0300
+#define FIFOCTL_11GB        0x0200
+#define FIFOCTL_11B         0x0100
+#define FIFOCTL_11A         0x0000
+#define FIFOCTL_RTS         0x0080
+#define FIFOCTL_ISDMA0      0x0040
+#define FIFOCTL_GENINT      0x0020
+#define FIFOCTL_TMOEN       0x0010
+#define FIFOCTL_LRETRY      0x0008
+#define FIFOCTL_CRCDIS      0x0004
+#define FIFOCTL_NEEDACK     0x0002
+#define FIFOCTL_LHEAD       0x0001
 
-//WMAC definition Frag Control
-#define FRAGCTL_AES         0x0300 // 0000 0011 0000 0000
-#define FRAGCTL_TKIP        0x0200 // 0000 0010 0000 0000
-#define FRAGCTL_LEGACY      0x0100 // 0000 0001 0000 0000
-#define FRAGCTL_NONENCRYPT  0x0000 // 0000 0000 0000 0000
-#define FRAGCTL_ENDFRAG     0x0003 // 0000 0000 0000 0011
-#define FRAGCTL_MIDFRAG     0x0002 // 0000 0000 0000 0010
-#define FRAGCTL_STAFRAG     0x0001 // 0000 0000 0000 0001
-#define FRAGCTL_NONFRAG     0x0000 // 0000 0000 0000 0000
+/* WMAC definition Frag Control */
+#define FRAGCTL_AES         0x0300
+#define FRAGCTL_TKIP        0x0200
+#define FRAGCTL_LEGACY      0x0100
+#define FRAGCTL_NONENCRYPT  0x0000
+#define FRAGCTL_ENDFRAG     0x0003
+#define FRAGCTL_MIDFRAG     0x0002
+#define FRAGCTL_STAFRAG     0x0001
+#define FRAGCTL_NONFRAG     0x0000
 
 #define TYPE_TXDMA0     0
 #define TYPE_AC0DMA     1
@@ -135,14 +138,14 @@
 #define TYPE_RXDMA1     1
 #define TYPE_MAXRD      2
 
-// TD_INFO flags control bit
-#define TD_FLAGS_NETIF_SKB               0x01       // check if need release skb
-#define TD_FLAGS_PRIV_SKB                0x02       // check if called from private skb(hostap)
-#define TD_FLAGS_PS_RETRY                0x04       // check if PS STA frame re-transmit
+/* TD_INFO flags control bit */
+#define TD_FLAGS_NETIF_SKB 0x01 /* check if need release skb */
+#define TD_FLAGS_PRIV_SKB  0x02 /* check if called from private skb(hostap) */
+#define TD_FLAGS_PS_RETRY  0x04 /* check if PS STA frame re-transmit */
 
-//
-// RsvTime buffer header
-//
+/*
+ * RsvTime buffer header
+ */
 typedef struct tagSRrvTime_gRTS {
     WORD        wRTSTxRrvTime_ba;
     WORD        wRTSTxRrvTime_aa;
@@ -181,9 +184,9 @@ SRrvTime_atim, *PSRrvTime_atim;
 
 typedef const SRrvTime_atim *PCSRrvTime_atim;
 
-//
-// RTS buffer header
-//
+/*
+ * RTS buffer header
+ */
 typedef struct tagSRTSData {
     WORD    wFrameControl;
     WORD    wDurationID;
@@ -257,9 +260,9 @@ SRTS_a_FB, *PSRTS_a_FB;
 
 typedef const SRTS_a_FB *PCSRTS_a_FB;
 
-//
-// CTS buffer header
-//
+/*
+ * CTS buffer header
+ */
 typedef struct tagSCTSData {
     WORD    wFrameControl;
     WORD    wDurationID;
@@ -294,9 +297,9 @@ SCTS_FB, *PSCTS_FB;
 
 typedef const SCTS_FB *PCSCTS_FB;
 
-//
-// Tx FIFO header
-//
+/*
+ * TX FIFO header
+ */
 typedef struct tagSTxBufHead {
 	u32 adwTxKey[4];
     WORD    wFIFOCtl;
@@ -314,9 +317,9 @@ typedef struct tagSTxShortBufHead {
 STxShortBufHead, *PSTxShortBufHead;
 typedef const STxShortBufHead *PCSTxShortBufHead;
 
-//
-// Tx data header
-//
+/*
+ * TX data header
+ */
 typedef struct tagSTxDataHead_g {
     BYTE    bySignalField_b;
     BYTE    byServiceField_b;
@@ -372,9 +375,9 @@ typedef struct tagSTxDataHead_a_FB {
 STxDataHead_a_FB, *PSTxDataHead_a_FB;
 typedef const STxDataHead_a_FB *PCSTxDataHead_a_FB;
 
-//
-// MICHDR data header
-//
+/*
+ * MICHDR data header
+ */
 typedef struct tagSMICHDRHead {
 	u32 adwHDR0[4];
 	u32 adwHDR1[4];

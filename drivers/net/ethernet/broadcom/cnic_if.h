@@ -179,6 +179,7 @@ struct cnic_eth_dev {
 #define CNIC_DRV_STATE_NO_ISCSI_OOO	0x00000004
 #define CNIC_DRV_STATE_NO_ISCSI		0x00000008
 #define CNIC_DRV_STATE_NO_FCOE		0x00000010
+#define CNIC_DRV_STATE_HANDLES_IRQ	0x00000020
 	u32		chip_id;
 	u32		max_kwqe_pending;
 	struct pci_dev	*pdev;

@@ -38,7 +38,8 @@ struct drm_device;
 struct drm_mode_set;
 struct drm_framebuffer;
 struct drm_object_properties;
-
+struct drm_file;
+struct drm_clip_rect;
 
 #define DRM_MODE_OBJECT_CRTC 0xcccccccc
 #define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
@@ -442,12 +443,12 @@ struct drm_crtc {
  * @dpms: set power state (see drm_crtc_funcs above)
  * @save: save connector state
  * @restore: restore connector state
- * @reset: reset connector after state has been invalidate (e.g. resume)
+ * @reset: reset connector after state has been invalidated (e.g. resume)
  * @detect: is this connector active?
  * @fill_modes: fill mode list for this connector
- * @set_property: property for this connector may need update
+ * @set_property: property for this connector may need an update
  * @destroy: make object go away
- * @force: notify the driver the connector is forced on
+ * @force: notify the driver that the connector is forced on
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
@@ -867,6 +868,7 @@ struct drm_prop_enum_list {
 
 extern void drm_modeset_lock_all(struct drm_device *dev);
 extern void drm_modeset_unlock_all(struct drm_device *dev);
+extern void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 
 extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
@@ -1060,7 +1062,7 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern u8 *drm_find_cea_extension(struct edid *edid);
-extern u8 drm_match_cea_mode(struct drm_display_mode *to_match);
+extern u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
 extern bool drm_detect_monitor_audio(struct edid *edid);
 extern bool drm_rgb_quant_range_selectable(struct edid *edid);
@@ -1078,7 +1080,6 @@ extern struct drm_display_mode *drm_gtf_mode_complex(struct drm_device *dev,
 				int GTF_2C, int GTF_K, int GTF_2J);
 extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
-extern uint8_t drm_mode_cea_vic(const struct drm_display_mode *mode);
 
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
 extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);

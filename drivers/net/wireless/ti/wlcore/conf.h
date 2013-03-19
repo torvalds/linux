@@ -57,20 +57,49 @@ enum {
 };
 
 enum {
-	CONF_HW_RATE_INDEX_1MBPS   = 0,
-	CONF_HW_RATE_INDEX_2MBPS   = 1,
-	CONF_HW_RATE_INDEX_5_5MBPS = 2,
-	CONF_HW_RATE_INDEX_6MBPS   = 3,
-	CONF_HW_RATE_INDEX_9MBPS   = 4,
-	CONF_HW_RATE_INDEX_11MBPS  = 5,
-	CONF_HW_RATE_INDEX_12MBPS  = 6,
-	CONF_HW_RATE_INDEX_18MBPS  = 7,
-	CONF_HW_RATE_INDEX_22MBPS  = 8,
-	CONF_HW_RATE_INDEX_24MBPS  = 9,
-	CONF_HW_RATE_INDEX_36MBPS  = 10,
-	CONF_HW_RATE_INDEX_48MBPS  = 11,
-	CONF_HW_RATE_INDEX_54MBPS  = 12,
-	CONF_HW_RATE_INDEX_MAX     = CONF_HW_RATE_INDEX_54MBPS,
+	CONF_HW_RATE_INDEX_1MBPS      = 0,
+	CONF_HW_RATE_INDEX_2MBPS      = 1,
+	CONF_HW_RATE_INDEX_5_5MBPS    = 2,
+	CONF_HW_RATE_INDEX_11MBPS     = 3,
+	CONF_HW_RATE_INDEX_6MBPS      = 4,
+	CONF_HW_RATE_INDEX_9MBPS      = 5,
+	CONF_HW_RATE_INDEX_12MBPS     = 6,
+	CONF_HW_RATE_INDEX_18MBPS     = 7,
+	CONF_HW_RATE_INDEX_24MBPS     = 8,
+	CONF_HW_RATE_INDEX_36MBPS     = 9,
+	CONF_HW_RATE_INDEX_48MBPS     = 10,
+	CONF_HW_RATE_INDEX_54MBPS     = 11,
+	CONF_HW_RATE_INDEX_MCS0       = 12,
+	CONF_HW_RATE_INDEX_MCS1       = 13,
+	CONF_HW_RATE_INDEX_MCS2       = 14,
+	CONF_HW_RATE_INDEX_MCS3       = 15,
+	CONF_HW_RATE_INDEX_MCS4       = 16,
+	CONF_HW_RATE_INDEX_MCS5       = 17,
+	CONF_HW_RATE_INDEX_MCS6       = 18,
+	CONF_HW_RATE_INDEX_MCS7       = 19,
+	CONF_HW_RATE_INDEX_MCS7_SGI   = 20,
+	CONF_HW_RATE_INDEX_MCS0_40MHZ = 21,
+	CONF_HW_RATE_INDEX_MCS1_40MHZ = 22,
+	CONF_HW_RATE_INDEX_MCS2_40MHZ = 23,
+	CONF_HW_RATE_INDEX_MCS3_40MHZ = 24,
+	CONF_HW_RATE_INDEX_MCS4_40MHZ = 25,
+	CONF_HW_RATE_INDEX_MCS5_40MHZ = 26,
+	CONF_HW_RATE_INDEX_MCS6_40MHZ = 27,
+	CONF_HW_RATE_INDEX_MCS7_40MHZ = 28,
+	CONF_HW_RATE_INDEX_MCS7_40MHZ_SGI = 29,
+
+	/* MCS8+ rates overlap with 40Mhz rates */
+	CONF_HW_RATE_INDEX_MCS8       = 21,
+	CONF_HW_RATE_INDEX_MCS9       = 22,
+	CONF_HW_RATE_INDEX_MCS10      = 23,
+	CONF_HW_RATE_INDEX_MCS11      = 24,
+	CONF_HW_RATE_INDEX_MCS12      = 25,
+	CONF_HW_RATE_INDEX_MCS13      = 26,
+	CONF_HW_RATE_INDEX_MCS14      = 27,
+	CONF_HW_RATE_INDEX_MCS15      = 28,
+	CONF_HW_RATE_INDEX_MCS15_SGI  = 29,
+
+	CONF_HW_RATE_INDEX_MAX        = CONF_HW_RATE_INDEX_MCS7_40MHZ_SGI,
 };
 
 #define CONF_HW_RXTX_RATE_UNSUPPORTED 0xff
@@ -415,11 +444,11 @@ struct conf_rx_settings {
 #define CONF_TX_RATE_MASK_BASIC_P2P    CONF_HW_BIT_RATE_6MBPS
 
 /*
- * Rates supported for data packets when operating as AP. Note the absence
+ * Rates supported for data packets when operating as STA/AP. Note the absence
  * of the 22Mbps rate. There is a FW limitation on 12 rates so we must drop
  * one. The rate dropped is not mandatory under any operating mode.
  */
-#define CONF_TX_AP_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS | \
+#define CONF_TX_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS |    \
 	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS |      \
 	CONF_HW_BIT_RATE_6MBPS | CONF_HW_BIT_RATE_9MBPS |        \
 	CONF_HW_BIT_RATE_11MBPS | CONF_HW_BIT_RATE_12MBPS |      \
@@ -677,6 +706,18 @@ struct conf_tx_settings {
 
 	/* Time in ms for Tx watchdog timer to expire */
 	u32 tx_watchdog_timeout;
+
+	/*
+	 * when a slow link has this much packets pending, it becomes a low
+	 * priority link, scheduling-wise
+	 */
+	u8 slow_link_thold;
+
+	/*
+	 * when a fast link has this much packets pending, it becomes a low
+	 * priority link, scheduling-wise
+	 */
+	u8 fast_link_thold;
 } __packed;
 
 enum {
@@ -1047,6 +1088,7 @@ struct conf_roam_trigger_settings {
 struct conf_scan_settings {
 	/*
 	 * The minimum time to wait on each channel for active scans
+	 * This value will be used whenever there's a connected interface.
 	 *
 	 * Range: u32 tu/1000
 	 */
@@ -1054,24 +1096,37 @@ struct conf_scan_settings {
 
 	/*
 	 * The maximum time to wait on each channel for active scans
+	 * This value will be currently used whenever there's a
+	 * connected interface. It shouldn't exceed 30000 (~30ms) to avoid
+	 * possible interference of voip traffic going on while scanning.
 	 *
 	 * Range: u32 tu/1000
 	 */
 	u32 max_dwell_time_active;
 
-	/*
-	 * The minimum time to wait on each channel for passive scans
+	/* The minimum time to wait on each channel for active scans
+	 * when it's possible to have longer scan dwell times.
+	 * Currently this is used whenever we're idle on all interfaces.
+	 * Longer dwell times improve detection of networks within a
+	 * single scan.
 	 *
 	 * Range: u32 tu/1000
 	 */
-	u32 min_dwell_time_passive;
+	u32 min_dwell_time_active_long;
 
-	/*
-	 * The maximum time to wait on each channel for passive scans
+	/* The maximum time to wait on each channel for active scans
+	 * when it's possible to have longer scan dwell times.
+	 * See min_dwell_time_active_long
 	 *
 	 * Range: u32 tu/1000
 	 */
-	u32 max_dwell_time_passive;
+	u32 max_dwell_time_active_long;
+
+	/* time to wait on the channel for passive scans (in TU/1000) */
+	u32 dwell_time_passive;
+
+	/* time to wait on the channel for DFS scans (in TU/1000) */
+	u32 dwell_time_dfs;
 
 	/*
 	 * Number of probe requests to transmit on each active scan channel
@@ -1276,12 +1331,20 @@ struct conf_hangover_settings {
 	u8 window_size;
 } __packed;
 
+struct conf_recovery_settings {
+	/* BUG() on fw recovery */
+	u8 bug_on_recovery;
+
+	/* Prevent HW recovery. FW will remain stuck. */
+	u8 no_recovery;
+} __packed;
+
 /*
  * The conf version consists of 4 bytes.  The two MSB are the wlcore
  * version, the two LSB are the lower driver's private conf
  * version.
  */
-#define WLCORE_CONF_VERSION	(0x0002 << 16)
+#define WLCORE_CONF_VERSION	(0x0005 << 16)
 #define WLCORE_CONF_MASK	0xffff0000
 #define WLCORE_CONF_SIZE	(sizeof(struct wlcore_conf_header) +	\
 				 sizeof(struct wlcore_conf))
@@ -1309,6 +1372,7 @@ struct wlcore_conf {
 	struct conf_fwlog fwlog;
 	struct conf_rate_policy_settings rate;
 	struct conf_hangover_settings hangover;
+	struct conf_recovery_settings recovery;
 } __packed;
 
 struct wlcore_conf_file {

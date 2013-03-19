@@ -937,7 +937,7 @@ static int serial_polled;
 static int mpsc_rx_intr(struct mpsc_port_info *pi)
 {
 	struct mpsc_rx_desc *rxre;
-	struct tty_struct *tty = pi->port.state->port.tty;
+	struct tty_port *port = &pi->port.state->port;
 	u32	cmdstat, bytes_in, i;
 	int	rc = 0;
 	u8	*bp;
@@ -968,10 +968,9 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 		}
 #endif
 		/* Following use of tty struct directly is deprecated */
-		if (unlikely(tty_buffer_request_room(tty, bytes_in)
-					< bytes_in)) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
+		if (tty_buffer_request_room(port, bytes_in) < bytes_in) {
+			if (port->low_latency)
+				tty_flip_buffer_push(port);
 			/*
 			 * If this failed then we will throw away the bytes
 			 * but must do so to clear interrupts.
@@ -1040,10 +1039,10 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 						| SDMA_DESC_CMDSTAT_FR
 						| SDMA_DESC_CMDSTAT_OR)))
 				&& !(cmdstat & pi->port.ignore_status_mask)) {
-			tty_insert_flip_char(tty, *bp, flag);
+			tty_insert_flip_char(port, *bp, flag);
 		} else {
 			for (i=0; i<bytes_in; i++)
-				tty_insert_flip_char(tty, *bp++, TTY_NORMAL);
+				tty_insert_flip_char(port, *bp++, TTY_NORMAL);
 
 			pi->port.icount.rx += bytes_in;
 		}
@@ -1081,7 +1080,7 @@ next_frame:
 	if ((readl(pi->sdma_base + SDMA_SDCM) & SDMA_SDCM_ERD) == 0)
 		mpsc_start_rx(pi);
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 	return rc;
 }
 

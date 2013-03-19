@@ -23,6 +23,7 @@
 
 #include <linux/omap-dma.h>
 
+#include "soc.h"
 #include "omap_device.h"
 
 /*
@@ -101,7 +102,7 @@ static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		count++;
 	}
 	pdev = omap_device_build_ss(name, id, oh_device, count, pdata,
-				sizeof(*pdata), NULL, 0, false);
+				    sizeof(*pdata));
 	kfree(pdata);
 	if (IS_ERR(pdev))  {
 		pr_err("%s: Can't build omap_device for %s:%s.\n", __func__,
@@ -118,4 +119,4 @@ static int __init omap2_mcbsp_init(void)
 
 	return 0;
 }
-arch_initcall(omap2_mcbsp_init);
+omap_arch_initcall(omap2_mcbsp_init);

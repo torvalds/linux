@@ -24,6 +24,7 @@
 #include "main.h"
 #include "wmm.h"
 #include "11n.h"
+#include "11ac.h"
 
 
 /*
@@ -935,9 +936,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 					/ MWIFIEX_SDIO_BLOCK_SIZE)
 				       * MWIFIEX_SDIO_BLOCK_SIZE;
 		adapter->curr_tx_buf_size = adapter->tx_buf_size;
-		dev_dbg(adapter->dev,
-			"cmd: max_tx_buf_size=%d, tx_buf_size=%d\n",
-			adapter->max_tx_buf_size, adapter->tx_buf_size);
+		dev_dbg(adapter->dev, "cmd: curr_tx_buf_size=%d\n",
+			adapter->curr_tx_buf_size);
 
 		if (adapter->if_ops.update_mp_end_port)
 			adapter->if_ops.update_mp_end_port(adapter,

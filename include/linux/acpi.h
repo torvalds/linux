@@ -74,9 +74,10 @@ enum acpi_address_range_id {
 
 /* Table Handlers */
 
-typedef int (*acpi_table_handler) (struct acpi_table_header *table);
+typedef int (*acpi_tbl_table_handler)(struct acpi_table_header *table);
 
-typedef int (*acpi_table_entry_handler) (struct acpi_subtable_header *header, const unsigned long end);
+typedef int (*acpi_tbl_entry_handler)(struct acpi_subtable_header *header,
+				      const unsigned long end);
 
 #ifdef CONFIG_ACPI_INITRD_TABLE_OVERRIDE
 void acpi_initrd_override(void *data, size_t size);
@@ -95,10 +96,14 @@ int acpi_mps_check (void);
 int acpi_numa_init (void);
 
 int acpi_table_init (void);
-int acpi_table_parse (char *id, acpi_table_handler handler);
+int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
 int __init acpi_table_parse_entries(char *id, unsigned long table_size,
-	int entry_id, acpi_table_entry_handler handler, unsigned int max_entries);
-int acpi_table_parse_madt (enum acpi_madt_type id, acpi_table_entry_handler handler, unsigned int max_entries);
+				    int entry_id,
+				    acpi_tbl_entry_handler handler,
+				    unsigned int max_entries);
+int acpi_table_parse_madt(enum acpi_madt_type id,
+			  acpi_tbl_entry_handler handler,
+			  unsigned int max_entries);
 int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 
@@ -358,8 +363,7 @@ extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 #if defined(CONFIG_ACPI_HOTPLUG_CPU) &&			\
 	(defined(CONFIG_ACPI_HOTPLUG_MEMORY) ||		\
 	 defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)) &&	\
-	(defined(CONFIG_ACPI_CONTAINER) ||		\
-	 defined(CONFIG_ACPI_CONTAINER_MODULE))
+	defined(CONFIG_ACPI_CONTAINER)
 #define ACPI_HOTPLUG_OST
 #endif
 
@@ -511,7 +515,7 @@ static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
 #endif
 
-#ifdef CONFIG_ACPI_SLEEP
+#if defined(CONFIG_ACPI) && defined(CONFIG_PM_SLEEP)
 int acpi_dev_suspend_late(struct device *dev);
 int acpi_dev_resume_early(struct device *dev);
 int acpi_subsys_prepare(struct device *dev);
@@ -526,9 +530,14 @@ static inline int acpi_subsys_resume_early(struct device *dev) { return 0; }
 #endif
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PM)
+struct acpi_device *acpi_dev_pm_get_node(struct device *dev);
 int acpi_dev_pm_attach(struct device *dev, bool power_on);
 void acpi_dev_pm_detach(struct device *dev, bool power_off);
 #else
+static inline struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
+{
+	return NULL;
+}
 static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 {
 	return -ENODEV;

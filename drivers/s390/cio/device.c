@@ -632,6 +632,14 @@ initiate_logging(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct subchannel *sch = to_subchannel(dev);
+
+	return sprintf(buf, "%02x\n", sch->vpm);
+}
+
 static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
 static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
 static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
@@ -640,11 +648,13 @@ static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
 static DEVICE_ATTR(online, 0644, online_show, online_store);
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 static DEVICE_ATTR(logging, 0200, NULL, initiate_logging);
+static DEVICE_ATTR(vpm, 0444, vpm_show, NULL);
 
 static struct attribute *io_subchannel_attrs[] = {
 	&dev_attr_chpids.attr,
 	&dev_attr_pimpampom.attr,
 	&dev_attr_logging.attr,
+	&dev_attr_vpm.attr,
 	NULL,
 };
 

@@ -476,8 +476,10 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		}
 	}
 
-	if (kallsyms__parse(filename, &args, find_symbol_cb) <= 0)
+	if (kallsyms__parse(filename, &args, find_symbol_cb) <= 0) {
+		free(event);
 		return -ENOENT;
+	}
 
 	map = machine->vmlinux_maps[MAP__FUNCTION];
 	size = snprintf(event->mmap.filename, sizeof(event->mmap.filename),

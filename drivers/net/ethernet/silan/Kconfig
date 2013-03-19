@@ -5,7 +5,7 @@
 config NET_VENDOR_SILAN
 	bool "Silan devices"
 	default y
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -19,8 +19,8 @@ config NET_VENDOR_SILAN
 if NET_VENDOR_SILAN
 
 config SC92031
-	tristate "Silan SC92031 PCI Fast Ethernet Adapter driver (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Silan SC92031 PCI Fast Ethernet Adapter driver"
+	depends on PCI
 	select CRC32
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on

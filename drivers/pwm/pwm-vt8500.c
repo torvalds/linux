@@ -36,6 +36,25 @@
  */
 #define VT8500_NR_PWMS	2
 
+#define REG_CTRL(pwm)		(((pwm) << 4) + 0x00)
+#define REG_SCALAR(pwm)		(((pwm) << 4) + 0x04)
+#define REG_PERIOD(pwm)		(((pwm) << 4) + 0x08)
+#define REG_DUTY(pwm)		(((pwm) << 4) + 0x0C)
+#define REG_STATUS		0x40
+
+#define CTRL_ENABLE		BIT(0)
+#define CTRL_INVERT		BIT(1)
+#define CTRL_AUTOLOAD		BIT(2)
+#define CTRL_STOP_IMM		BIT(3)
+#define CTRL_LOAD_PRESCALE	BIT(4)
+#define CTRL_LOAD_PERIOD	BIT(5)
+
+#define STATUS_CTRL_UPDATE	BIT(0)
+#define STATUS_SCALAR_UPDATE	BIT(1)
+#define STATUS_PERIOD_UPDATE	BIT(2)
+#define STATUS_DUTY_UPDATE	BIT(3)
+#define STATUS_ALL_UPDATE	0x0F
+
 struct vt8500_chip {
 	struct pwm_chip chip;
 	void __iomem *base;
@@ -45,15 +64,17 @@ struct vt8500_chip {
 #define to_vt8500_chip(chip)	container_of(chip, struct vt8500_chip, chip)
 
 #define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
-static inline void pwm_busy_wait(void __iomem *reg, u8 bitmask)
+static inline void pwm_busy_wait(struct vt8500_chip *vt8500, int nr, u8 bitmask)
 {
 	int loops = msecs_to_loops(10);
-	while ((readb(reg) & bitmask) && --loops)
+	u32 mask = bitmask << (nr << 8);
+
+	while ((readl(vt8500->base + REG_STATUS) & mask) && --loops)
 		cpu_relax();
 
 	if (unlikely(!loops))
-		pr_warn("Waiting for status bits 0x%x to clear timed out\n",
-			   bitmask);
+		dev_warn(vt8500->chip.dev, "Waiting for status bits 0x%x to clear timed out\n",
+			 mask);
 }
 
 static int vt8500_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -63,6 +84,7 @@ static int vt8500_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long long c;
 	unsigned long period_cycles, prescale, pv, dc;
 	int err;
+	u32 val;
 
 	err = clk_enable(vt8500->clk);
 	if (err < 0) {
@@ -91,14 +113,19 @@ static int vt8500_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	do_div(c, period_ns);
 	dc = c;
 
-	pwm_busy_wait(vt8500->base + 0x40 + pwm->hwpwm, (1 << 1));
-	writel(prescale, vt8500->base + 0x4 + (pwm->hwpwm << 4));
+	writel(prescale, vt8500->base + REG_SCALAR(pwm->hwpwm));
+	pwm_busy_wait(vt8500, pwm->hwpwm, STATUS_SCALAR_UPDATE);
 
-	pwm_busy_wait(vt8500->base + 0x40 + pwm->hwpwm, (1 << 2));
-	writel(pv, vt8500->base + 0x8 + (pwm->hwpwm << 4));
+	writel(pv, vt8500->base + REG_PERIOD(pwm->hwpwm));
+	pwm_busy_wait(vt8500, pwm->hwpwm, STATUS_PERIOD_UPDATE);
 
-	pwm_busy_wait(vt8500->base + 0x40 + pwm->hwpwm, (1 << 3));
-	writel(dc, vt8500->base + 0xc + (pwm->hwpwm << 4));
+	writel(dc, vt8500->base + REG_DUTY(pwm->hwpwm));
+	pwm_busy_wait(vt8500, pwm->hwpwm, STATUS_DUTY_UPDATE);
+
+	val = readl(vt8500->base + REG_CTRL(pwm->hwpwm));
+	val |= CTRL_AUTOLOAD;
+	writel(val, vt8500->base + REG_CTRL(pwm->hwpwm));
+	pwm_busy_wait(vt8500, pwm->hwpwm, STATUS_CTRL_UPDATE);
 
 	clk_disable(vt8500->clk);
 	return 0;
@@ -106,8 +133,9 @@ static int vt8500_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static int vt8500_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	int err;
 	struct vt8500_chip *vt8500 = to_vt8500_chip(chip);
+	int err;
+	u32 val;
 
 	err = clk_enable(vt8500->clk);
 	if (err < 0) {
@@ -115,25 +143,52 @@ static int vt8500_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		return err;
 	}
 
-	pwm_busy_wait(vt8500->base + 0x40 + pwm->hwpwm, (1 << 0));
-	writel(5, vt8500->base + (pwm->hwpwm << 4));
+	val = readl(vt8500->base + REG_CTRL(pwm->hwpwm));
+	val |= CTRL_ENABLE;
+	writel(val, vt8500->base + REG_CTRL(pwm->hwpwm));
+	pwm_busy_wait(vt8500, pwm->hwpwm, STATUS_CTRL_UPDATE);
+
 	return 0;
 }
 
 static void vt8500_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct vt8500_chip *vt8500 = to_vt8500_chip(chip);
+	u32 val;
 
-	pwm_busy_wait(vt8500->base + 0x40 + pwm->hwpwm, (1 << 0));
-	writel(0, vt8500->base + (pwm->hwpwm << 4));
+	val = readl(vt8500->base + REG_CTRL(pwm->hwpwm));
+	val &= ~CTRL_ENABLE;
+	writel(val, vt8500->base + REG_CTRL(pwm->hwpwm));
+	pwm_busy_wait(vt8500, pwm->hwpwm, STATUS_CTRL_UPDATE);
 
 	clk_disable(vt8500->clk);
+}
+
+static int vt8500_pwm_set_polarity(struct pwm_chip *chip,
+				   struct pwm_device *pwm,
+				   enum pwm_polarity polarity)
+{
+	struct vt8500_chip *vt8500 = to_vt8500_chip(chip);
+	u32 val;
+
+	val = readl(vt8500->base + REG_CTRL(pwm->hwpwm));
+
+	if (polarity == PWM_POLARITY_INVERSED)
+		val |= CTRL_INVERT;
+	else
+		val &= ~CTRL_INVERT;
+
+	writel(val, vt8500->base + REG_CTRL(pwm->hwpwm));
+	pwm_busy_wait(vt8500, pwm->hwpwm, STATUS_CTRL_UPDATE);
+
+	return 0;
 }
 
 static struct pwm_ops vt8500_pwm_ops = {
 	.enable = vt8500_pwm_enable,
 	.disable = vt8500_pwm_disable,
 	.config = vt8500_pwm_config,
+	.set_polarity = vt8500_pwm_set_polarity,
 	.owner = THIS_MODULE,
 };
 
@@ -163,6 +218,8 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 
 	chip->chip.dev = &pdev->dev;
 	chip->chip.ops = &vt8500_pwm_ops;
+	chip->chip.of_xlate = of_pwm_xlate_with_flags;
+	chip->chip.of_pwm_n_cells = 3;
 	chip->chip.base = -1;
 	chip->chip.npwm = VT8500_NR_PWMS;
 
@@ -178,9 +235,9 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	chip->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!chip->base)
-		return -EADDRNOTAVAIL;
+	chip->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(chip->base))
+		return PTR_ERR(chip->base);
 
 	ret = clk_prepare(chip->clk);
 	if (ret < 0) {

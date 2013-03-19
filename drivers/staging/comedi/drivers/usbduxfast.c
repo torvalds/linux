@@ -436,10 +436,14 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 {
 	int ret;
-	unsigned char local_transfer_buffer[16];
+	unsigned char *local_transfer_buffer;
+
+	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	/* 7f92 to zero */
-	local_transfer_buffer[0] = 0;
+	*local_transfer_buffer = 0;
 	/* bRequest, "Firmware" */
 	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
 			      USBDUXFASTSUB_FIRMWARE,
@@ -450,22 +454,25 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 			      local_transfer_buffer,
 			      1,      /* Length */
 			      EZTIMEOUT);    /* Timeout */
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&udfs->interface->dev,
 			"control msg failed (start)\n");
-		return ret;
-	}
 
-	return 0;
+	kfree(local_transfer_buffer);
+	return ret;
 }
 
 static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 {
 	int ret;
-	unsigned char local_transfer_buffer[16];
+	unsigned char *local_transfer_buffer;
+
+	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	/* 7f92 to one */
-	local_transfer_buffer[0] = 1;
+	*local_transfer_buffer = 1;
 	/* bRequest, "Firmware" */
 	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
 			      USBDUXFASTSUB_FIRMWARE,
@@ -474,13 +481,12 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 			      0x0000,	/* Index */
 			      local_transfer_buffer, 1,	/* Length */
 			      EZTIMEOUT);	/* Timeout */
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&udfs->interface->dev,
 			"control msg failed (stop)\n");
-		return ret;
-	}
 
-	return 0;
+	kfree(local_transfer_buffer);
+	return ret;
 }
 
 static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
@@ -1490,7 +1496,7 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 		goto out;
 	}
 
-	comedi_usb_auto_config(uinterf, &usbduxfast_driver);
+	comedi_usb_auto_config(uinterf, &usbduxfast_driver, 0);
  out:
 	release_firmware(fw);
 }
@@ -1556,8 +1562,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	usbduxfastsub[index].dux_commands = kmalloc(SIZEOFDUXBUFFER,
 						    GFP_KERNEL);
 	if (!usbduxfastsub[index].dux_commands) {
-		dev_err(&uinterf->dev,
-			"error alloc space for dac commands\n");
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -1565,8 +1569,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	/* create space of the instruction buffer */
 	usbduxfastsub[index].insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
 	if (!usbduxfastsub[index].insnBuffer) {
-		dev_err(&uinterf->dev,
-			"could not alloc space for insnBuffer\n");
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -1592,8 +1594,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	}
 	usbduxfastsub[index].transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
 	if (!usbduxfastsub[index].transfer_buffer) {
-		dev_err(&uinterf->dev,
-			"usbduxfast%d: could not alloc. transb.\n", index);
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;

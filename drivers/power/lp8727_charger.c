@@ -367,28 +367,28 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 			return -EINVAL;
 
 		if (pdata->get_batt_present)
-			val->intval = pchg->pdata->get_batt_present();
+			val->intval = pdata->get_batt_present();
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		if (!pdata)
 			return -EINVAL;
 
 		if (pdata->get_batt_level)
-			val->intval = pchg->pdata->get_batt_level();
+			val->intval = pdata->get_batt_level();
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (!pdata)
 			return -EINVAL;
 
 		if (pdata->get_batt_capacity)
-			val->intval = pchg->pdata->get_batt_capacity();
+			val->intval = pdata->get_batt_capacity();
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		if (!pdata)
 			return -EINVAL;
 
 		if (pdata->get_batt_temp)
-			val->intval = pchg->pdata->get_batt_temp();
+			val->intval = pdata->get_batt_temp();
 		break;
 	default:
 		break;

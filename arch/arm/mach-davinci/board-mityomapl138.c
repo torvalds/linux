@@ -529,8 +529,13 @@ static void __init mityomapl138_init(void)
 
 	mityomapl138_setup_nand();
 
-	ret = da8xx_register_spi(1, mityomapl138_spi_flash_info,
-			       ARRAY_SIZE(mityomapl138_spi_flash_info));
+	ret = spi_register_board_info(mityomapl138_spi_flash_info,
+				      ARRAY_SIZE(mityomapl138_spi_flash_info));
+	if (ret)
+		pr_warn("spi info registration failed: %d\n", ret);
+
+	ret = da8xx_register_spi_bus(1,
+				     ARRAY_SIZE(mityomapl138_spi_flash_info));
 	if (ret)
 		pr_warning("spi 1 registration failed: %d\n", ret);
 
@@ -570,7 +575,7 @@ MACHINE_START(MITYOMAPL138, "MityDSP-L138/MityARM-1808")
 	.atag_offset	= 0x100,
 	.map_io		= mityomapl138_map_io,
 	.init_irq	= cp_intc_init,
-	.timer		= &davinci_timer,
+	.init_time	= davinci_timer_init,
 	.init_machine	= mityomapl138_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,

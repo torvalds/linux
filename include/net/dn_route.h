@@ -16,7 +16,7 @@
 *******************************************************************************/
 
 extern struct sk_buff *dn_alloc_skb(struct sock *sk, int size, gfp_t pri);
-extern int dn_route_output_sock(struct dst_entry **pprt, struct flowidn *, struct sock *sk, int flags);
+extern int dn_route_output_sock(struct dst_entry __rcu **pprt, struct flowidn *, struct sock *sk, int flags);
 extern int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb);
 extern void dn_rt_cache_flush(int delay);
 

@@ -443,9 +443,10 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = request_threaded_irq(alm_irq, NULL, wm831x_alm_irq,
-				   IRQF_TRIGGER_RISING, "RTC alarm",
-				   wm831x_rtc);
+	ret = devm_request_threaded_irq(&pdev->dev, alm_irq, NULL,
+				wm831x_alm_irq,
+				IRQF_TRIGGER_RISING, "RTC alarm",
+				wm831x_rtc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ %d: %d\n",
 			alm_irq, ret);
@@ -462,9 +463,7 @@ err:
 static int wm831x_rtc_remove(struct platform_device *pdev)
 {
 	struct wm831x_rtc *wm831x_rtc = platform_get_drvdata(pdev);
-	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 
-	free_irq(alm_irq, wm831x_rtc);
 	rtc_device_unregister(wm831x_rtc->rtc);
 
 	return 0;

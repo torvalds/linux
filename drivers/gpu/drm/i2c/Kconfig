@@ -19,4 +19,10 @@ config DRM_I2C_SIL164
 	  when used in pairs) TMDS transmitters, used in some nVidia
 	  video cards.
 
+config DRM_I2C_NXP_TDA998X
+	tristate "NXP Semiconductors TDA998X HDMI encoder"
+	default m if DRM_TILCDC
+	help
+	  Support for NXP Semiconductors TDA998X HDMI encoders.
+
 endmenu

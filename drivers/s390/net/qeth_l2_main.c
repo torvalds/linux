@@ -1025,9 +1025,14 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 
 contin:
 	if ((card->info.type == QETH_CARD_TYPE_OSD) ||
-	    (card->info.type == QETH_CARD_TYPE_OSX))
+	    (card->info.type == QETH_CARD_TYPE_OSX)) {
 		/* configure isolation level */
-		qeth_set_access_ctrl_online(card);
+		rc = qeth_set_access_ctrl_online(card, 0);
+		if (rc) {
+			rc = -ENODEV;
+			goto out_remove;
+		}
+	}
 
 	if (card->info.type != QETH_CARD_TYPE_OSN &&
 	    card->info.type != QETH_CARD_TYPE_OSM)
@@ -1144,12 +1149,9 @@ static int qeth_l2_recover(void *ptr)
 		dev_info(&card->gdev->dev,
 			"Device successfully recovered!\n");
 	else {
-		if (rtnl_trylock()) {
-			dev_close(card->dev);
-			rtnl_unlock();
-			dev_warn(&card->gdev->dev, "The qeth device driver "
+		qeth_close_dev(card);
+		dev_warn(&card->gdev->dev, "The qeth device driver "
 				"failed to recover an error on the device\n");
-		}
 	}
 	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
 	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);

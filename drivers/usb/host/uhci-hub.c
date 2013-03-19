@@ -21,8 +21,8 @@ static const __u8 root_hub_hub_des[] =
 	0x00,			/*   (per-port OC, no power switching) */
 	0x01,			/*  __u8  bPwrOn2pwrGood; 2ms */
 	0x00,			/*  __u8  bHubContrCurrent; 0 mA */
-	0x00,			/*  __u8  DeviceRemovable; *** 7 Ports max *** */
-	0xff			/*  __u8  PortPwrCtrlMask; *** 7 ports max *** */
+	0x00,			/*  __u8  DeviceRemovable; *** 7 Ports max */
+	0xff			/*  __u8  PortPwrCtrlMask; *** 7 ports max */
 };
 
 #define	UHCI_RH_MAXCHILD	7

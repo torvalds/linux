@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/sched/sysctl.h>
 
 #include "blk.h"
 
@@ -120,9 +121,9 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 	/* Prevent hang_check timer from firing at us during very long I/O */
 	hang_check = sysctl_hung_task_timeout_secs;
 	if (hang_check)
-		while (!wait_for_completion_timeout(&wait, hang_check * (HZ/2)));
+		while (!wait_for_completion_io_timeout(&wait, hang_check * (HZ/2)));
 	else
-		wait_for_completion(&wait);
+		wait_for_completion_io(&wait);
 
 	if (rq->errors)
 		err = -EIO;

@@ -52,6 +52,7 @@ the IRQ jumper.  If no interrupt is connected, then subdevice 1 is
 unused.
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"
@@ -614,16 +615,11 @@ static int amplc_pc236_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &amplc_pc236_driver);
 }
 
-static void amplc_pc236_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver amplc_pc236_pci_driver = {
 	.name = PC236_DRIVER_NAME,
 	.id_table = pc236_pci_table,
 	.probe = &amplc_pc236_pci_probe,
-	.remove = &amplc_pc236_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 
 module_comedi_pci_driver(amplc_pc236_driver, amplc_pc236_pci_driver);

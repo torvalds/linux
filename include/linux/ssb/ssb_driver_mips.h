@@ -45,6 +45,11 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 {
 }
 
+static inline unsigned int ssb_mips_irq(struct ssb_device *dev)
+{
+	return 0;
+}
+
 #endif /* CONFIG_SSB_DRIVER_MIPS */
 
 #endif /* LINUX_SSB_MIPSCORE_H_ */

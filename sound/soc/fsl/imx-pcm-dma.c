@@ -154,26 +154,7 @@ static struct snd_soc_platform_driver imx_soc_platform_mx2 = {
 	.pcm_free	= imx_pcm_free,
 };
 
-static int imx_soc_platform_probe(struct platform_device *pdev)
+int imx_pcm_dma_init(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev, &imx_soc_platform_mx2);
 }
-
-static int imx_soc_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
-}
-
-static struct platform_driver imx_pcm_driver = {
-	.driver = {
-			.name = "imx-pcm-audio",
-			.owner = THIS_MODULE,
-	},
-	.probe = imx_soc_platform_probe,
-	.remove = imx_soc_platform_remove,
-};
-
-module_platform_driver(imx_pcm_driver);
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:imx-pcm-audio");

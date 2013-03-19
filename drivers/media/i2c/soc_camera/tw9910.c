@@ -569,9 +569,9 @@ static int tw9910_s_register(struct v4l2_subdev *sd,
 static int tw9910_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
-	return soc_camera_set_power(&client->dev, icl, on);
+	return soc_camera_set_power(&client->dev, ssdd, on);
 }
 
 static int tw9910_set_frame(struct v4l2_subdev *sd, u32 *width, u32 *height)
@@ -847,14 +847,14 @@ static int tw9910_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
 		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_LOW |
 		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_LOW |
 		V4L2_MBUS_DATA_ACTIVE_HIGH;
 	cfg->type = V4L2_MBUS_PARALLEL;
-	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+	cfg->flags = soc_camera_apply_board_flags(ssdd, cfg);
 
 	return 0;
 }
@@ -863,9 +863,9 @@ static int tw9910_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	u8 val = VSSL_VVALID | HSSL_DVALID;
-	unsigned long flags = soc_camera_apply_board_flags(icl, cfg);
+	unsigned long flags = soc_camera_apply_board_flags(ssdd, cfg);
 
 	/*
 	 * set OUTCTR1
@@ -911,15 +911,14 @@ static int tw9910_probe(struct i2c_client *client,
 	struct tw9910_video_info	*info;
 	struct i2c_adapter		*adapter =
 		to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link		*icl = soc_camera_i2c_to_link(client);
-	int				ret;
+	struct soc_camera_subdev_desc	*ssdd = soc_camera_i2c_to_desc(client);
 
-	if (!icl || !icl->priv) {
+	if (!ssdd || !ssdd->drv_priv) {
 		dev_err(&client->dev, "TW9910: missing platform data!\n");
 		return -EINVAL;
 	}
 
-	info = icl->priv;
+	info = ssdd->drv_priv;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&client->dev,
@@ -928,7 +927,7 @@ static int tw9910_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -936,18 +935,11 @@ static int tw9910_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
 
-	ret = tw9910_video_probe(client);
-	if (ret)
-		kfree(priv);
-
-	return ret;
+	return tw9910_video_probe(client);
 }
 
 static int tw9910_remove(struct i2c_client *client)
 {
-	struct tw9910_priv *priv = to_tw9910(client);
-
-	kfree(priv);
 	return 0;
 }
 

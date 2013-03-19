@@ -953,11 +953,11 @@ S: Blacksburg, Virginia 24061
 S: USA
 
 N: Randy Dunlap
-E: rdunlap@xenotime.net
-W: http://www.xenotime.net/linux/linux.html
-W: http://www.linux-usb.org
+E: rdunlap@infradead.org
+W: http://www.infradead.org/~rdunlap/
 D: Linux-USB subsystem, USB core/UHCI/printer/storage drivers
 D: x86 SMP, ACPI, bootflag hacking
+D: documentation, builds
 S: (ask for current address)
 S: USA
 
@@ -1572,12 +1572,12 @@ S: Wantage, New Jersey 07461
 S: USA
 
 N: Harald Hoyer
-E: harald.hoyer@parzelle.de
-W: http://parzelle.de/
+E: harald@redhat.com
+W: http://www.harald-hoyer.de
 D: ip_masq_quake
 D: md boot support
-S: Hohe Strasse 30
-S: D-70176 Stuttgart
+S: Am Strand 5
+S: D-19063 Schwerin
 S: Germany
 
 N: Jan Hubicka

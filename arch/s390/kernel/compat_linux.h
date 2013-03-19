@@ -17,13 +17,6 @@ struct ipc_kludge_32 {
         __s32   msgtyp;
 };
 
-struct old_sigaction32 {
-       __u32			sa_handler;	/* Really a pointer, but need to deal with 32 bits */
-       compat_old_sigset_t	sa_mask;	/* A 32 bit mask */
-       __u32			sa_flags;
-       __u32			sa_restorer;	/* Another 32 bit pointer */
-};
-
 /* asm/sigcontext.h */
 typedef union
 {
@@ -68,24 +61,12 @@ struct sigcontext32
 };
 
 /* asm/signal.h */
-struct sigaction32 {
-	__u32		sa_handler;		/* pointer */
-	__u32		sa_flags;
-        __u32		sa_restorer;		/* pointer */
-	compat_sigset_t	sa_mask;        /* mask last for extensibility */
-};
-
-typedef struct {
-	__u32			ss_sp;		/* pointer */
-	int			ss_flags;
-	compat_size_t		ss_size;
-} stack_t32;
 
 /* asm/ucontext.h */
 struct ucontext32 {
 	__u32			uc_flags;
 	__u32			uc_link;	/* pointer */	
-	stack_t32		uc_stack;
+	compat_stack_t		uc_stack;
 	_sigregs32		uc_mcontext;
 	compat_sigset_t		uc_sigmask;	/* mask last for extensibility */
 };
@@ -93,8 +74,6 @@ struct ucontext32 {
 struct stat64_emu31;
 struct mmap_arg_struct_emu31;
 struct fadvise64_64_args;
-struct old_sigaction32;
-struct old_sigaction32;
 
 long sys32_chown16(const char __user * filename, u16 user, u16 group);
 long sys32_lchown16(const char __user * filename, u16 user, u16 group);
@@ -119,12 +98,6 @@ long sys32_ipc(u32 call, int first, int second, int third, u32 ptr);
 long sys32_truncate64(const char __user * path, unsigned long high,
 		      unsigned long low);
 long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low);
-long sys32_sched_rr_get_interval(compat_pid_t pid,
-				 struct compat_timespec __user *interval);
-long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
-			  compat_sigset_t __user *oset, size_t sigsetsize);
-long sys32_rt_sigpending(compat_sigset_t __user *set, size_t sigsetsize);
-long sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo);
 long sys32_init_module(void __user *umod, unsigned long len,
 		       const char __user *uargs);
 long sys32_delete_module(const char __user *name_user, unsigned int flags);
@@ -149,9 +122,4 @@ long sys32_read(unsigned int fd, char __user * buf, size_t count);
 long sys32_write(unsigned int fd, const char __user * buf, size_t count);
 long sys32_fadvise64(int fd, loff_t offset, size_t len, int advise);
 long sys32_fadvise64_64(struct fadvise64_64_args __user *args);
-long sys32_sigaction(int sig, const struct old_sigaction32 __user *act,
-		     struct old_sigaction32 __user *oact);
-long sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
-			struct sigaction32 __user *oact, size_t sigsetsize);
-long sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss);
 #endif /* _ASM_S390X_S390_H */

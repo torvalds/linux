@@ -86,6 +86,7 @@ struct bdaddr_list {
 struct bt_uuid {
 	struct list_head list;
 	u8 uuid[16];
+	u8 size;
 	u8 svc_hint;
 };
 
@@ -152,6 +153,9 @@ struct hci_dev {
 	__u8		minor_class;
 	__u8		features[8];
 	__u8		host_features[8];
+	__u8		le_features[8];
+	__u8		le_white_list_size;
+	__u8		le_states[8];
 	__u8		commands[64];
 	__u8		hci_ver;
 	__u16		hci_rev;
@@ -216,6 +220,7 @@ struct hci_dev {
 	unsigned long	le_last_tx;
 
 	struct workqueue_struct	*workqueue;
+	struct workqueue_struct	*req_workqueue;
 
 	struct work_struct	power_on;
 	struct delayed_work	power_off;

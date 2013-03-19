@@ -463,13 +463,8 @@ static int __init setup_adapter(int card_base, int type, int n)
 
 	/* Initialize what is necessary for write_scc and write_scc_data */
 	info = kzalloc(sizeof(struct scc_info), GFP_KERNEL | GFP_DMA);
-	if (!info) {
-		printk(KERN_ERR "dmascc: "
-		       "could not allocate memory for %s at %#3x\n",
-		       hw[type].name, card_base);
+	if (!info)
 		goto out;
-	}
-
 
 	info->dev[0] = alloc_netdev(0, "", dev_setup);
 	if (!info->dev[0]) {

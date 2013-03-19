@@ -277,7 +277,7 @@ struct dvb_frontend *tda18218_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, struct tda18218_config *cfg)
 {
 	struct tda18218_priv *priv = NULL;
-	u8 uninitialized_var(val);
+	u8 val;
 	int ret;
 	/* chip default registers values */
 	static u8 def_regs[] = {
@@ -302,8 +302,8 @@ struct dvb_frontend *tda18218_attach(struct dvb_frontend *fe,
 
 	/* check if the tuner is there */
 	ret = tda18218_rd_reg(priv, R00_ID, &val);
-	dev_dbg(&priv->i2c->dev, "%s: ret=%d chip id=%02x\n", __func__, ret,
-			val);
+	if (!ret)
+		dev_dbg(&priv->i2c->dev, "%s: chip id=%02x\n", __func__, val);
 	if (ret || val != def_regs[R00_ID]) {
 		kfree(priv);
 		return NULL;

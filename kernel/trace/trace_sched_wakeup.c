@@ -15,8 +15,8 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
+#include <linux/sched/rt.h>
 #include <trace/events/sched.h>
-
 #include "trace.h"
 
 static struct trace_array	*wakeup_trace;

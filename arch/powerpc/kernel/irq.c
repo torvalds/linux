@@ -122,8 +122,8 @@ static inline notrace int decrementer_check_overflow(void)
 }
 
 /* This is called whenever we are re-enabling interrupts
- * and returns either 0 (nothing to do) or 500/900 if there's
- * either an EE or a DEC to generate.
+ * and returns either 0 (nothing to do) or 500/900/280/a00/e80 if
+ * there's an EE, DEC or DBELL to generate.
  *
  * This is called in two contexts: From arch_local_irq_restore()
  * before soft-enabling interrupts, and from the exception exit
@@ -182,6 +182,13 @@ notrace unsigned int __check_irq_replay(void)
 	local_paca->irq_happened &= ~PACA_IRQ_DBELL;
 	if (happened & PACA_IRQ_DBELL)
 		return 0x280;
+#else
+	local_paca->irq_happened &= ~PACA_IRQ_DBELL;
+	if (happened & PACA_IRQ_DBELL) {
+		if (cpu_has_feature(CPU_FTR_HVMODE))
+			return 0xe80;
+		return 0xa00;
+	}
 #endif /* CONFIG_PPC_BOOK3E */
 
 	/* There should be nothing left ! */

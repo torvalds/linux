@@ -276,9 +276,8 @@ static struct qfq_aggregate *qfq_find_agg(struct qfq_sched *q,
 					  u32 lmax, u32 weight)
 {
 	struct qfq_aggregate *agg;
-	struct hlist_node *n;
 
-	hlist_for_each_entry(agg, n, &q->nonfull_aggs, nonfull_next)
+	hlist_for_each_entry(agg, &q->nonfull_aggs, nonfull_next)
 		if (agg->lmax == lmax && agg->class_weight == weight)
 			return agg;
 
@@ -299,6 +298,10 @@ static void qfq_update_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 	    new_num_classes == q->max_agg_classes - 1) /* agg no more full */
 		hlist_add_head(&agg->nonfull_next, &q->nonfull_aggs);
 
+	/* The next assignment may let
+	 * agg->initial_budget > agg->budgetmax
+	 * hold, we will take it into account in charge_actual_service().
+	 */
 	agg->budgetmax = new_num_classes * agg->lmax;
 	new_agg_weight = agg->class_weight * new_num_classes;
 	agg->inv_w = ONE_FP/new_agg_weight;
@@ -670,14 +673,13 @@ static void qfq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl;
-	struct hlist_node *n;
 	unsigned int i;
 
 	if (arg->stop)
 		return;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[i], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
 			if (arg->count < arg->skip) {
 				arg->count++;
 				continue;
@@ -819,7 +821,7 @@ static void qfq_make_eligible(struct qfq_sched *q)
 	unsigned long old_vslot = q->oldV >> q->min_slot_shift;
 
 	if (vslot != old_vslot) {
-		unsigned long mask = (1UL << fls(vslot ^ old_vslot)) - 1;
+		unsigned long mask = (1ULL << fls(vslot ^ old_vslot)) - 1;
 		qfq_move_groups(q, mask, IR, ER);
 		qfq_move_groups(q, mask, IB, EB);
 	}
@@ -990,11 +992,22 @@ static inline struct sk_buff *qfq_peek_skb(struct qfq_aggregate *agg,
 /* Update F according to the actual service received by the aggregate. */
 static inline void charge_actual_service(struct qfq_aggregate *agg)
 {
-	/* compute the service received by the aggregate */
-	u32 service_received = agg->initial_budget - agg->budget;
+	/* Compute the service received by the aggregate, taking into
+	 * account that, after decreasing the number of classes in
+	 * agg, it may happen that
+	 * agg->initial_budget - agg->budget > agg->bugdetmax
+	 */
+	u32 service_received = min(agg->budgetmax,
+				   agg->initial_budget - agg->budget);
 
 	agg->F = agg->S + (u64)service_received * agg->inv_w;
 }
+
+static inline void qfq_update_agg_ts(struct qfq_sched *q,
+				     struct qfq_aggregate *agg,
+				     enum update_reason reason);
+
+static void qfq_schedule_agg(struct qfq_sched *q, struct qfq_aggregate *agg);
 
 static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 {
@@ -1023,7 +1036,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 		in_serv_agg->initial_budget = in_serv_agg->budget =
 			in_serv_agg->budgetmax;
 
-		if (!list_empty(&in_serv_agg->active))
+		if (!list_empty(&in_serv_agg->active)) {
 			/*
 			 * Still active: reschedule for
 			 * service. Possible optimization: if no other
@@ -1034,8 +1047,9 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 			 * handle it, we would need to maintain an
 			 * extra num_active_aggs field.
 			*/
-			qfq_activate_agg(q, in_serv_agg, requeue);
-		else if (sch->q.qlen == 0) { /* no aggregate to serve */
+			qfq_update_agg_ts(q, in_serv_agg, requeue);
+			qfq_schedule_agg(q, in_serv_agg);
+		} else if (sch->q.qlen == 0) { /* no aggregate to serve */
 			q->in_serv_agg = NULL;
 			return NULL;
 		}
@@ -1054,7 +1068,15 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 	qdisc_bstats_update(sch, skb);
 
 	agg_dequeue(in_serv_agg, cl, len);
-	in_serv_agg->budget -= len;
+	/* If lmax is lowered, through qfq_change_class, for a class
+	 * owning pending packets with larger size than the new value
+	 * of lmax, then the following condition may hold.
+	 */
+	if (unlikely(in_serv_agg->budget < len))
+		in_serv_agg->budget = 0;
+	else
+		in_serv_agg->budget -= len;
+
 	q->V += (u64)len * IWSUM;
 	pr_debug("qfq dequeue: len %u F %lld now %lld\n",
 		 len, (unsigned long long) in_serv_agg->F,
@@ -1219,17 +1241,11 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	cl->deficit = agg->lmax;
 	list_add_tail(&cl->alist, &agg->active);
 
-	if (list_first_entry(&agg->active, struct qfq_class, alist) != cl)
-		return err; /* aggregate was not empty, nothing else to do */
+	if (list_first_entry(&agg->active, struct qfq_class, alist) != cl ||
+	    q->in_serv_agg == agg)
+		return err; /* non-empty or in service, nothing else to do */
 
-	/* recharge budget */
-	agg->initial_budget = agg->budget = agg->budgetmax;
-
-	qfq_update_agg_ts(q, agg, enqueue);
-	if (q->in_serv_agg == NULL)
-		q->in_serv_agg = agg;
-	else if (agg != q->in_serv_agg)
-		qfq_schedule_agg(q, agg);
+	qfq_activate_agg(q, agg, enqueue);
 
 	return err;
 }
@@ -1263,7 +1279,8 @@ static void qfq_schedule_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 		/* group was surely ineligible, remove */
 		__clear_bit(grp->index, &q->bitmaps[IR]);
 		__clear_bit(grp->index, &q->bitmaps[IB]);
-	} else if (!q->bitmaps[ER] && qfq_gt(roundedS, q->V))
+	} else if (!q->bitmaps[ER] && qfq_gt(roundedS, q->V) &&
+		   q->in_serv_agg == NULL)
 		q->V = roundedS;
 
 	grp->S = roundedS;
@@ -1286,8 +1303,15 @@ skip_update:
 static void qfq_activate_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 			     enum update_reason reason)
 {
+	agg->initial_budget = agg->budget = agg->budgetmax; /* recharge budg. */
+
 	qfq_update_agg_ts(q, agg, reason);
-	qfq_schedule_agg(q, agg);
+	if (q->in_serv_agg == NULL) { /* no aggr. in service or scheduled */
+		q->in_serv_agg = agg; /* start serving this aggregate */
+		 /* update V: to be in service, agg must be eligible */
+		q->oldV = q->V = agg->S;
+	} else if (agg != q->in_serv_agg)
+		qfq_schedule_agg(q, agg);
 }
 
 static void qfq_slot_remove(struct qfq_sched *q, struct qfq_group *grp,
@@ -1359,8 +1383,6 @@ static void qfq_deactivate_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 			__set_bit(grp->index, &q->bitmaps[s]);
 		}
 	}
-
-	qfq_update_eligible(q);
 }
 
 static void qfq_qlen_notify(struct Qdisc *sch, unsigned long arg)
@@ -1376,11 +1398,10 @@ static unsigned int qfq_drop_from_slot(struct qfq_sched *q,
 				       struct hlist_head *slot)
 {
 	struct qfq_aggregate *agg;
-	struct hlist_node *n;
 	struct qfq_class *cl;
 	unsigned int len;
 
-	hlist_for_each_entry(agg, n, slot, next) {
+	hlist_for_each_entry(agg, slot, next) {
 		list_for_each_entry(cl, &agg->active, alist) {
 
 			if (!cl->qdisc->ops->drop)
@@ -1459,11 +1480,10 @@ static void qfq_reset_qdisc(struct Qdisc *sch)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl;
-	struct hlist_node *n;
 	unsigned int i;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, n, &q->clhash.hash[i], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
 			if (cl->qdisc->q.qlen > 0)
 				qfq_deactivate_class(q, cl);
 
@@ -1477,13 +1497,13 @@ static void qfq_destroy_qdisc(struct Qdisc *sch)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl;
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 	unsigned int i;
 
 	tcf_destroy_chain(&q->filter_list);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry_safe(cl, n, next, &q->clhash.hash[i],
+		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],
 					  common.hnode) {
 			qfq_destroy_class(sch, cl);
 		}

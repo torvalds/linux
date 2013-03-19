@@ -120,7 +120,7 @@ xlog_verify_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	int			count,
-	boolean_t		syncing);
+	bool                    syncing);
 STATIC void
 xlog_verify_tail_lsn(
 	struct xlog		*log,
@@ -1737,7 +1737,7 @@ xlog_sync(
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 	ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);
 
-	xlog_verify_iclog(log, iclog, count, B_TRUE);
+	xlog_verify_iclog(log, iclog, count, true);
 
 	/* account for log which doesn't start at block #0 */
 	XFS_BUF_SET_ADDR(bp, XFS_BUF_ADDR(bp) + log->l_logBBstart);
@@ -3611,7 +3611,7 @@ xlog_verify_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	int			count,
-	boolean_t		syncing)
+	bool                    syncing)
 {
 	xlog_op_header_t	*ophead;
 	xlog_in_core_t		*icptr;
@@ -3659,7 +3659,7 @@ xlog_verify_iclog(
 		/* clientid is only 1 byte */
 		field_offset = (__psint_t)
 			       ((xfs_caddr_t)&(ophead->oh_clientid) - base_ptr);
-		if (syncing == B_FALSE || (field_offset & 0x1ff)) {
+		if (!syncing || (field_offset & 0x1ff)) {
 			clientid = ophead->oh_clientid;
 		} else {
 			idx = BTOBBT((xfs_caddr_t)&(ophead->oh_clientid) - iclog->ic_datap);
@@ -3682,7 +3682,7 @@ xlog_verify_iclog(
 		/* check length */
 		field_offset = (__psint_t)
 			       ((xfs_caddr_t)&(ophead->oh_len) - base_ptr);
-		if (syncing == B_FALSE || (field_offset & 0x1ff)) {
+		if (!syncing || (field_offset & 0x1ff)) {
 			op_len = be32_to_cpu(ophead->oh_len);
 		} else {
 			idx = BTOBBT((__psint_t)&ophead->oh_len -

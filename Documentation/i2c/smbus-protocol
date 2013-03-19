@@ -137,8 +137,8 @@ available for writes where the two data bytes are the other way
 around (not SMBus compliant, but very popular.)
 
 
-SMBus Process Call:  i2c_smbus_process_call()
-=============================================
+SMBus Process Call:
+===================
 
 This command selects a device register (through the Comm byte), sends
 16 bits of data to it, and reads 16 bits of data in return.

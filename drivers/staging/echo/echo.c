@@ -119,7 +119,6 @@
 static inline void lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 {
 	int i;
-	int j;
 	int offset1;
 	int offset2;
 	int factor;
@@ -142,7 +141,7 @@ static inline void lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 
 	/* asm("st:"); */
 	n = ec->taps;
-	for (i = 0, j = offset2; i < n; i++, j++) {
+	for (i = 0; i < n; i++) {
 		exp = *phist++ * factor;
 		ec->fir_taps16[1][i] += (int16_t) ((exp + (1 << 14)) >> 15);
 	}
@@ -230,6 +229,7 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 {
 	struct oslec_state *ec;
 	int i;
+	const int16_t *history;
 
 	ec = kzalloc(sizeof(*ec), GFP_KERNEL);
 	if (!ec)
@@ -239,15 +239,22 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 	ec->log2taps = top_bit(len);
 	ec->curr_pos = ec->taps - 1;
 
-	for (i = 0; i < 2; i++) {
-		ec->fir_taps16[i] =
-		    kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
-		if (!ec->fir_taps16[i])
-			goto error_oom;
-	}
+	ec->fir_taps16[0] =
+	    kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
+	if (!ec->fir_taps16[0])
+		goto error_oom_0;
 
-	fir16_create(&ec->fir_state, ec->fir_taps16[0], ec->taps);
-	fir16_create(&ec->fir_state_bg, ec->fir_taps16[1], ec->taps);
+	ec->fir_taps16[1] =
+	    kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
+	if (!ec->fir_taps16[1])
+		goto error_oom_1;
+
+	history = fir16_create(&ec->fir_state, ec->fir_taps16[0], ec->taps);
+	if (!history)
+		goto error_state;
+	history = fir16_create(&ec->fir_state_bg, ec->fir_taps16[1], ec->taps);
+	if (!history)
+		goto error_state_bg;
 
 	for (i = 0; i < 5; i++)
 		ec->xvtx[i] = ec->yvtx[i] = ec->xvrx[i] = ec->yvrx[i] = 0;
@@ -257,7 +264,7 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 
 	ec->snapshot = kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
 	if (!ec->snapshot)
-		goto error_oom;
+		goto error_snap;
 
 	ec->cond_met = 0;
 	ec->Pstates = 0;
@@ -270,10 +277,15 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 
 	return ec;
 
-error_oom:
-	for (i = 0; i < 2; i++)
-		kfree(ec->fir_taps16[i]);
-
+error_snap:
+	fir16_free(&ec->fir_state_bg);
+error_state_bg:
+	fir16_free(&ec->fir_state);
+error_state:
+	kfree(ec->fir_taps16[1]);
+error_oom_1:
+	kfree(ec->fir_taps16[0]);
+error_oom_0:
 	kfree(ec);
 	return NULL;
 }

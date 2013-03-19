@@ -16,4 +16,34 @@
 	memory {
 		reg = <0x40000000 0x80000000>;
 	};
+
+	soc {
+		pinctrl@01c20800 {
+			compatible = "allwinner,sun4i-a10-pinctrl";
+			reg = <0x01c20800 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			uart0_pins_a: uart0@0 {
+				allwinner,pins = "PB22", "PB23";
+				allwinner,function = "uart0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			uart0_pins_b: uart0@1 {
+				allwinner,pins = "PF2", "PF4";
+				allwinner,function = "uart0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			uart1_pins_a: uart1@0 {
+				allwinner,pins = "PA10", "PA11";
+				allwinner,function = "uart1";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+		};
+	};
 };

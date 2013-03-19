@@ -820,7 +820,6 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port =  urb->context;
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
 	int status = urb->status;
@@ -835,12 +834,10 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (tty != NULL && urb->actual_length > 0) {
-		tty_insert_flip_string(tty, data, urb->actual_length);
-		tty_flip_buffer_push(tty);
+	if (urb->actual_length > 0) {
+		tty_insert_flip_string(&port->port, data, urb->actual_length);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 
 	/* schedule the interrupt urb */
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);

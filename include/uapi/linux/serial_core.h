@@ -50,8 +50,11 @@
 #define PORT_LPC3220	22	/* NXP LPC32xx SoC "Standard" UART */
 #define PORT_8250_CIR	23	/* CIR infrared port, has its own driver */
 #define PORT_XR17V35X	24	/* Exar XR17V35x UARTs */
-#define PORT_BRCM_TRUMANAGE	24
-#define PORT_MAX_8250	25	/* max port ID */
+#define PORT_BRCM_TRUMANAGE	25
+#define PORT_ALTR_16550_F32 26	/* Altera 16550 UART with 32 FIFOs */
+#define PORT_ALTR_16550_F64 27	/* Altera 16550 UART with 64 FIFOs */
+#define PORT_ALTR_16550_F128 28 /* Altera 16550 UART with 128 FIFOs */
+#define PORT_MAX_8250	28	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
@@ -219,5 +222,8 @@
 
 /* ARC (Synopsys) on-chip UART */
 #define PORT_ARC       101
+
+/* Rocketport EXPRESS/INFINITY */
+#define PORT_RP2	102
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */

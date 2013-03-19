@@ -197,7 +197,7 @@ static int adm1026_scaling[] = { /* .001 Volts */
 	};
 #define NEG12_OFFSET  16000
 #define SCALE(val, from, to) (((val)*(to) + ((from)/2))/(from))
-#define INS_TO_REG(n, val)  (SENSORS_LIMIT(SCALE(val, adm1026_scaling[n], 192),\
+#define INS_TO_REG(n, val)  (clamp_val(SCALE(val, adm1026_scaling[n], 192),\
 	0, 255))
 #define INS_FROM_REG(n, val) (SCALE(val, 192, adm1026_scaling[n]))
 
@@ -207,7 +207,7 @@ static int adm1026_scaling[] = { /* .001 Volts */
  *      22500 kHz * 60 (sec/min) * 2 (pulse) / 2 (pulse/rev) == 1350000
  */
 #define FAN_TO_REG(val, div)  ((val) <= 0 ? 0xff : \
-				SENSORS_LIMIT(1350000 / ((val) * (div)), \
+				clamp_val(1350000 / ((val) * (div)), \
 					      1, 254))
 #define FAN_FROM_REG(val, div) ((val) == 0 ? -1 : (val) == 0xff ? 0 : \
 				1350000 / ((val) * (div)))
@@ -215,14 +215,14 @@ static int adm1026_scaling[] = { /* .001 Volts */
 #define DIV_TO_REG(val) ((val) >= 8 ? 3 : (val) >= 4 ? 2 : (val) >= 2 ? 1 : 0)
 
 /* Temperature is reported in 1 degC increments */
-#define TEMP_TO_REG(val) (SENSORS_LIMIT(((val) + ((val) < 0 ? -500 : 500)) \
+#define TEMP_TO_REG(val) (clamp_val(((val) + ((val) < 0 ? -500 : 500)) \
 					/ 1000, -127, 127))
 #define TEMP_FROM_REG(val) ((val) * 1000)
-#define OFFSET_TO_REG(val) (SENSORS_LIMIT(((val) + ((val) < 0 ? -500 : 500)) \
+#define OFFSET_TO_REG(val) (clamp_val(((val) + ((val) < 0 ? -500 : 500)) \
 					  / 1000, -127, 127))
 #define OFFSET_FROM_REG(val) ((val) * 1000)
 
-#define PWM_TO_REG(val) (SENSORS_LIMIT(val, 0, 255))
+#define PWM_TO_REG(val) (clamp_val(val, 0, 255))
 #define PWM_FROM_REG(val) (val)
 
 #define PWM_MIN_TO_REG(val) ((val) & 0xf0)
@@ -233,7 +233,7 @@ static int adm1026_scaling[] = { /* .001 Volts */
  *   indicates that the DAC could be used to drive the fans, but in our
  *   example board (Arima HDAMA) it isn't connected to the fans at all.
  */
-#define DAC_TO_REG(val) (SENSORS_LIMIT(((((val) * 255) + 500) / 2500), 0, 255))
+#define DAC_TO_REG(val) (clamp_val(((((val) * 255) + 500) / 2500), 0, 255))
 #define DAC_FROM_REG(val) (((val) * 2500) / 255)
 
 /*
@@ -933,7 +933,7 @@ static void fixup_fan_min(struct device *dev, int fan, int old_div)
 		return;
 
 	new_min = data->fan_min[fan] * old_div / new_div;
-	new_min = SENSORS_LIMIT(new_min, 1, 254);
+	new_min = clamp_val(new_min, 1, 254);
 	data->fan_min[fan] = new_min;
 	adm1026_write_value(client, ADM1026_REG_FAN_MIN(fan), new_min);
 }
@@ -1527,7 +1527,7 @@ static ssize_t set_auto_pwm_min(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->pwm1.auto_pwm_min = SENSORS_LIMIT(val, 0, 255);
+	data->pwm1.auto_pwm_min = clamp_val(val, 0, 255);
 	if (data->pwm1.enable == 2) { /* apply immediately */
 		data->pwm1.pwm = PWM_TO_REG((data->pwm1.pwm & 0x0f) |
 			PWM_MIN_TO_REG(data->pwm1.auto_pwm_min));

@@ -32,6 +32,7 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 {
 	const struct cred *tcred;
 	struct timespec uptime, ts;
+	cputime_t utime, stime, utimescaled, stimescaled;
 	u64 ac_etime;
 
 	BUILD_BUG_ON(TS_COMM_LEN < TASK_COMM_LEN);
@@ -65,10 +66,15 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 	stats->ac_ppid	 = pid_alive(tsk) ?
 		task_tgid_nr_ns(rcu_dereference(tsk->real_parent), pid_ns) : 0;
 	rcu_read_unlock();
-	stats->ac_utime = cputime_to_usecs(tsk->utime);
-	stats->ac_stime = cputime_to_usecs(tsk->stime);
-	stats->ac_utimescaled = cputime_to_usecs(tsk->utimescaled);
-	stats->ac_stimescaled = cputime_to_usecs(tsk->stimescaled);
+
+	task_cputime(tsk, &utime, &stime);
+	stats->ac_utime = cputime_to_usecs(utime);
+	stats->ac_stime = cputime_to_usecs(stime);
+
+	task_cputime_scaled(tsk, &utimescaled, &stimescaled);
+	stats->ac_utimescaled = cputime_to_usecs(utimescaled);
+	stats->ac_stimescaled = cputime_to_usecs(stimescaled);
+
 	stats->ac_minflt = tsk->min_flt;
 	stats->ac_majflt = tsk->maj_flt;
 
@@ -115,11 +121,8 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 #undef KB
 #undef MB
 
-/**
- * acct_update_integrals - update mm integral fields in task_struct
- * @tsk: task_struct for accounting
- */
-void acct_update_integrals(struct task_struct *tsk)
+static void __acct_update_integrals(struct task_struct *tsk,
+				    cputime_t utime, cputime_t stime)
 {
 	if (likely(tsk->mm)) {
 		cputime_t time, dtime;
@@ -128,7 +131,7 @@ void acct_update_integrals(struct task_struct *tsk)
 		u64 delta;
 
 		local_irq_save(flags);
-		time = tsk->stime + tsk->utime;
+		time = stime + utime;
 		dtime = time - tsk->acct_timexpd;
 		jiffies_to_timeval(cputime_to_jiffies(dtime), &value);
 		delta = value.tv_sec;
@@ -142,6 +145,27 @@ void acct_update_integrals(struct task_struct *tsk)
 	out:
 		local_irq_restore(flags);
 	}
+}
+
+/**
+ * acct_update_integrals - update mm integral fields in task_struct
+ * @tsk: task_struct for accounting
+ */
+void acct_update_integrals(struct task_struct *tsk)
+{
+	cputime_t utime, stime;
+
+	task_cputime(tsk, &utime, &stime);
+	__acct_update_integrals(tsk, utime, stime);
+}
+
+/**
+ * acct_account_cputime - update mm integral after cputime update
+ * @tsk: task_struct for accounting
+ */
+void acct_account_cputime(struct task_struct *tsk)
+{
+	__acct_update_integrals(tsk, tsk->utime, tsk->stime);
 }
 
 /**

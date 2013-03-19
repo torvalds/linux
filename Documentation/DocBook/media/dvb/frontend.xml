@@ -230,7 +230,7 @@ typedef enum fe_status {
 <entry align="char">The frontend has found a DVB signal</entry>
 </row><row>
 <entry align="char">FE_HAS_VITERBI</entry>
-<entry align="char">The frontend FEC code is stable</entry>
+<entry align="char">The frontend FEC inner coding (Viterbi, LDPC or other inner code) is stable</entry>
 </row><row>
 <entry align="char">FE_HAS_SYNC</entry>
 <entry align="char">Syncronization bytes was found</entry>

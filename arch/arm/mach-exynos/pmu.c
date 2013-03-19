@@ -14,7 +14,8 @@
 #include <linux/bug.h>
 
 #include <mach/regs-clock.h>
-#include <mach/pmu.h>
+
+#include "common.h"
 
 static struct exynos_pmu_conf *exynos_pmu_config;
 

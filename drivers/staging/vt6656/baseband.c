@@ -690,7 +690,7 @@ s_vClearSQ3Value(PSDevice pDevice);
  *
  */
 unsigned int
-BBuGetFrameTime (
+BBuGetFrameTime(
      BYTE byPreambleType,
      BYTE byPktType,
      unsigned int cbFrameLength,
@@ -756,26 +756,19 @@ BBuGetFrameTime (
  * Return Value: none
  *
  */
-void
-BBvCalculateParameter (
-      PSDevice pDevice,
-      unsigned int cbFrameLength,
-      WORD wRate,
-      BYTE byPacketType,
-     PWORD pwPhyLen,
-     PBYTE pbyPhySrv,
-     PBYTE pbyPhySgn
-    )
+void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
+	u16 wRate, u8 byPacketType, u16 *pwPhyLen, u8 *pbyPhySrv,
+		u8 *pbyPhySgn)
 {
-    unsigned int cbBitCount;
-    unsigned int cbUsCount = 0;
-    unsigned int cbTmp;
-    BOOL bExtBit;
-    BYTE byPreambleType = pDevice->byPreambleType;
-    BOOL bCCK = pDevice->bCCK;
+	u32 cbBitCount;
+	u32 cbUsCount = 0;
+	u32 cbTmp;
+	int bExtBit;
+	u8 byPreambleType = pDevice->byPreambleType;
+	int bCCK = pDevice->bCCK;
 
     cbBitCount = cbFrameLength * 8;
-    bExtBit = FALSE;
+    bExtBit = false;
 
     switch (wRate) {
     case RATE_1M :
@@ -792,7 +785,7 @@ BBvCalculateParameter (
         break;
 
     case RATE_5M :
-        if (bCCK == FALSE)
+        if (bCCK == false)
             cbBitCount ++;
         cbUsCount = (cbBitCount * 10) / 55;
         cbTmp = (cbUsCount * 55) / 10;
@@ -806,14 +799,14 @@ BBvCalculateParameter (
 
     case RATE_11M :
 
-        if (bCCK == FALSE)
+        if (bCCK == false)
             cbBitCount ++;
         cbUsCount = cbBitCount / 11;
         cbTmp = cbUsCount * 11;
         if (cbTmp != cbBitCount) {
             cbUsCount ++;
             if ((cbBitCount - cbTmp) <= 3)
-                bExtBit = TRUE;
+                bExtBit = true;
         }
         if (byPreambleType == 1)
             *pbyPhySgn = 0x0b;
@@ -929,8 +922,7 @@ BBvCalculateParameter (
  * Return Value: none
  *
  */
-void
-BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
+void BBvSetAntennaMode(struct vnt_private *pDevice, u8 byAntennaMode)
 {
     switch (byAntennaMode) {
         case ANT_TXA:
@@ -968,7 +960,7 @@ BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
  *
  */
 
-BOOL BBbVT3184Init(PSDevice pDevice)
+int BBbVT3184Init(struct vnt_private *pDevice)
 {
 	int ntStatus;
     WORD                    wLength;
@@ -984,12 +976,12 @@ BOOL BBbVT3184Init(PSDevice pDevice)
                                   EEP_MAX_CONTEXT_SIZE,
                                   pDevice->abyEEPROM);
     if (ntStatus != STATUS_SUCCESS) {
-        return FALSE;
+        return false;
     }
 
 
 //    if ((pDevice->abyEEPROM[EEP_OFS_RADIOCTL]&0x06)==0x04)
-//        return FALSE;
+//        return false;
 
 //zonetype initial
  pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
@@ -1105,7 +1097,7 @@ else {
         MACvRegBitsOn(pDevice, MAC_REG_SOFTPWRCTL2, SOFTPWRCTL_RFLEOPT);
     //}}
     } else {
-        return TRUE;
+        return true;
     }
 
    memcpy(abyArray, pbyAddr, wLength);
@@ -1144,7 +1136,7 @@ else {
     ControlvWriteByte(pDevice,MESSAGE_REQUEST_BBREG,0x0D,0x01);
 
     RFbRFTableDownload(pDevice);
-    return TRUE;//ntStatus;
+    return true;//ntStatus;
 }
 
 
@@ -1161,7 +1153,7 @@ else {
  * Return Value: none
  *
  */
-void BBvLoopbackOn (PSDevice pDevice)
+void BBvLoopbackOn(struct vnt_private *pDevice)
 {
     BYTE      byData;
 
@@ -1214,9 +1206,9 @@ void BBvLoopbackOn (PSDevice pDevice)
  * Return Value: none
  *
  */
-void BBvLoopbackOff (PSDevice pDevice)
+void BBvLoopbackOff(struct vnt_private *pDevice)
 {
-    BYTE      byData;
+	u8 byData;
 
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xC9, pDevice->byBBCRc9);//CR201
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, pDevice->byBBCR88);//CR136
@@ -1249,8 +1241,7 @@ void BBvLoopbackOff (PSDevice pDevice)
  * Return Value: none
  *
  */
-void
-BBvSetShortSlotTime (PSDevice pDevice)
+void BBvSetShortSlotTime(struct vnt_private *pDevice)
 {
     BYTE byBBVGA=0;
 
@@ -1267,7 +1258,7 @@ BBvSetShortSlotTime (PSDevice pDevice)
 }
 
 
-void BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData)
+void BBvSetVGAGainOffset(struct vnt_private *pDevice, BYTE byData)
 {
 
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xE7, byData);
@@ -1294,8 +1285,7 @@ void BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData)
  * Return Value: none
  *
  */
-void
-BBvSoftwareReset (PSDevice pDevice)
+void BBvSoftwareReset(struct vnt_private *pDevice)
 {
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x50, 0x40);
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x50, 0);
@@ -1315,22 +1305,20 @@ BBvSoftwareReset (PSDevice pDevice)
  * Return Value: none
  *
  */
-void
-BBvSetDeepSleep (PSDevice pDevice)
+void BBvSetDeepSleep(struct vnt_private *pDevice)
 {
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0c, 0x17);//CR12
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0D, 0xB9);//CR13
 }
 
-void
-BBvExitDeepSleep (PSDevice pDevice)
+void BBvExitDeepSleep(struct vnt_private *pDevice)
 {
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0C, 0x00);//CR12
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0D, 0x01);//CR13
 }
 
 
-static unsigned long s_ulGetLowSQ3(PSDevice pDevice)
+static unsigned long s_ulGetLowSQ3(struct vnt_private *pDevice)
 {
 	int ii;
 	unsigned long ulSQ3 = 0;
@@ -1349,7 +1337,7 @@ static unsigned long s_ulGetLowSQ3(PSDevice pDevice)
     return ulSQ3;
 }
 
-static unsigned long s_ulGetRatio(PSDevice pDevice)
+static unsigned long s_ulGetRatio(struct vnt_private *pDevice)
 {
 	int ii, jj;
 	unsigned long ulRatio = 0;
@@ -1377,9 +1365,7 @@ static unsigned long s_ulGetRatio(PSDevice pDevice)
 }
 
 
-static
-void
-s_vClearSQ3Value (PSDevice pDevice)
+static void s_vClearSQ3Value(struct vnt_private *pDevice)
 {
     int ii;
     pDevice->uDiversityCnt = 0;
@@ -1406,8 +1392,8 @@ s_vClearSQ3Value (PSDevice pDevice)
  *
  */
 
-void
-BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
+void BBvAntennaDiversity(struct vnt_private *pDevice,
+	u8 byRxRate, u8 bySQ3)
 {
 
     pDevice->uDiversityCnt++;
@@ -1541,9 +1527,8 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
  *
 -*/
 
-void TimerSQ3CallBack(void *hDeviceContext)
+void TimerSQ3CallBack(struct vnt_private *pDevice)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3CallBack...");
     spin_lock_irq(&pDevice->lock);
@@ -1579,9 +1564,8 @@ void TimerSQ3CallBack(void *hDeviceContext)
  *
 -*/
 
-void TimerSQ3Tmax3CallBack(void *hDeviceContext)
+void TimerSQ3Tmax3CallBack(struct vnt_private *pDevice)
 {
-    PSDevice        pDevice = (PSDevice)hDeviceContext;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3Tmax3CallBack...");
     spin_lock_irq(&pDevice->lock);
@@ -1607,10 +1591,7 @@ void TimerSQ3Tmax3CallBack(void *hDeviceContext)
     spin_unlock_irq(&pDevice->lock);
 }
 
-void
-BBvUpdatePreEDThreshold(
-      PSDevice    pDevice,
-      BOOL        bScanning)
+void BBvUpdatePreEDThreshold(struct vnt_private *pDevice, int bScanning)
 {
 
 

@@ -407,6 +407,6 @@ MACHINE_START(SX1, "OMAP310 based Siemens SX1")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_sx1_init,
 	.init_late	= omap1_init_late,
-	.timer		= &omap1_timer,
+	.init_time	= omap1_timer_init,
 	.restart	= omap1_restart,
 MACHINE_END

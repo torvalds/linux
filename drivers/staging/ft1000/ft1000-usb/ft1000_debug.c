@@ -137,29 +137,28 @@ void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist)
 // Notes:       Only called by init_module().
 //
 //---------------------------------------------------------------------------
-int ft1000_create_dev(struct ft1000_device *dev)
+int ft1000_create_dev(struct ft1000_usb *dev)
 {
-	struct ft1000_info *info = netdev_priv(dev->net);
     int result;
     int i;
 	struct dentry *dir, *file;
 	struct ft1000_debug_dirs *tmp;
 
     // make a new device name
-    sprintf(info->DeviceName, "%s%d", "FT1000_", info->CardNumber);
+    sprintf(dev->DeviceName, "%s%d", "FT1000_", dev->CardNumber);
 
     DEBUG("%s: number of instance = %d\n", __func__, ft1000_flarion_cnt);
-    DEBUG("DeviceCreated = %x\n", info->DeviceCreated);
+    DEBUG("DeviceCreated = %x\n", dev->DeviceCreated);
 
-    if (info->DeviceCreated)
+    if (dev->DeviceCreated)
     {
-	DEBUG("%s: \"%s\" already registered\n", __func__, info->DeviceName);
+	DEBUG("%s: \"%s\" already registered\n", __func__, dev->DeviceName);
 	return -EIO;
     }
 
 
     // register the device
-    DEBUG("%s: \"%s\" debugfs device registration\n", __func__, info->DeviceName);
+    DEBUG("%s: \"%s\" debugfs device registration\n", __func__, dev->DeviceName);
 
 	tmp = kmalloc(sizeof(struct ft1000_debug_dirs), GFP_KERNEL);
 	if (tmp == NULL) {
@@ -167,7 +166,7 @@ int ft1000_create_dev(struct ft1000_device *dev)
 		goto fail;
 	}
 
-	dir = debugfs_create_dir(info->DeviceName, NULL);
+	dir = debugfs_create_dir(dev->DeviceName, NULL);
 	if (IS_ERR(dir)) {
 		result = PTR_ERR(dir);
 		goto debug_dir_fail;
@@ -182,27 +181,27 @@ int ft1000_create_dev(struct ft1000_device *dev)
 
 	tmp->dent = dir;
 	tmp->file = file;
-	tmp->int_number = info->CardNumber;
-	list_add(&(tmp->list), &(info->nodes.list));
+	tmp->int_number = dev->CardNumber;
+	list_add(&(tmp->list), &(dev->nodes.list));
 
-    DEBUG("%s: registered debugfs directory \"%s\"\n", __func__, info->DeviceName);
+    DEBUG("%s: registered debugfs directory \"%s\"\n", __func__, dev->DeviceName);
 
     // initialize application information
-    info->appcnt = 0;
+    dev->appcnt = 0;
     for (i=0; i<MAX_NUM_APP; i++) {
-        info->app_info[i].nTxMsg = 0;
-        info->app_info[i].nRxMsg = 0;
-        info->app_info[i].nTxMsgReject = 0;
-        info->app_info[i].nRxMsgMiss = 0;
-        info->app_info[i].fileobject = NULL;
-        info->app_info[i].app_id = i+1;
-        info->app_info[i].DspBCMsgFlag = 0;
-        info->app_info[i].NumOfMsg = 0;
-        init_waitqueue_head(&info->app_info[i].wait_dpram_msg);
-        INIT_LIST_HEAD (&info->app_info[i].app_sqlist);
+        dev->app_info[i].nTxMsg = 0;
+        dev->app_info[i].nRxMsg = 0;
+        dev->app_info[i].nTxMsgReject = 0;
+        dev->app_info[i].nRxMsgMiss = 0;
+        dev->app_info[i].fileobject = NULL;
+        dev->app_info[i].app_id = i+1;
+        dev->app_info[i].DspBCMsgFlag = 0;
+        dev->app_info[i].NumOfMsg = 0;
+        init_waitqueue_head(&dev->app_info[i].wait_dpram_msg);
+        INIT_LIST_HEAD (&dev->app_info[i].app_sqlist);
     }
 
-    info->DeviceCreated = TRUE;
+    dev->DeviceCreated = TRUE;
     ft1000_flarion_cnt++;
 
 	return 0;
@@ -225,9 +224,10 @@ fail:
 // Notes:       Only called by cleanup_module().
 //
 //---------------------------------------------------------------------------
-void ft1000_destroy_dev(struct net_device *dev)
+void ft1000_destroy_dev(struct net_device *netdev)
 {
-	struct ft1000_info *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(netdev);
+	struct ft1000_usb *dev = info->priv;
 		int i;
 	struct dpram_blk *pdpram_blk;
 	struct dpram_blk *ptr;
@@ -238,12 +238,12 @@ void ft1000_destroy_dev(struct net_device *dev)
 
 
 
-    if (info->DeviceCreated)
+    if (dev->DeviceCreated)
 	{
         ft1000_flarion_cnt--;
-		list_for_each_safe(pos, q, &info->nodes.list) {
+		list_for_each_safe(pos, q, &dev->nodes.list) {
 			dir = list_entry(pos, struct ft1000_debug_dirs, list);
-			if (dir->int_number == info->CardNumber) {
+			if (dir->int_number == dev->CardNumber) {
 				debugfs_remove(dir->file);
 				debugfs_remove(dir->dent);
 				list_del(pos);
@@ -251,17 +251,17 @@ void ft1000_destroy_dev(struct net_device *dev)
 			}
 		}
 		DEBUG("%s: unregistered device \"%s\"\n", __func__,
-					   info->DeviceName);
+					   dev->DeviceName);
 
         // Make sure we free any memory reserve for slow Queue
         for (i=0; i<MAX_NUM_APP; i++) {
-            while (list_empty(&info->app_info[i].app_sqlist) == 0) {
-                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, struct dpram_blk, list);
+            while (list_empty(&dev->app_info[i].app_sqlist) == 0) {
+                pdpram_blk = list_entry(dev->app_info[i].app_sqlist.next, struct dpram_blk, list);
                 list_del(&pdpram_blk->list);
                 ft1000_free_buffer(pdpram_blk, &freercvpool);
 
             }
-            wake_up_interruptible(&info->app_info[i].wait_dpram_msg);
+            wake_up_interruptible(&dev->app_info[i].wait_dpram_msg);
         }
 
         // Remove buffer allocated for receive command data
@@ -273,7 +273,7 @@ void ft1000_destroy_dev(struct net_device *dev)
                 kfree(ptr);
             }
         }
-		info->DeviceCreated = FALSE;
+		dev->DeviceCreated = FALSE;
 	}
 
 
@@ -292,7 +292,7 @@ void ft1000_destroy_dev(struct net_device *dev)
 static int ft1000_open (struct inode *inode, struct file *file)
 {
 	struct ft1000_info *info;
-	struct ft1000_device *dev = (struct ft1000_device *)inode->i_private;
+	struct ft1000_usb *dev = (struct ft1000_usb *)inode->i_private;
     int i,num;
 
     DEBUG("%s called\n", __func__);
@@ -301,17 +301,17 @@ static int ft1000_open (struct inode *inode, struct file *file)
 
 	info = file->private_data = netdev_priv(dev->net);
 
-    DEBUG("f_owner = %p number of application = %d\n", (&file->f_owner), info->appcnt );
+    DEBUG("f_owner = %p number of application = %d\n", (&file->f_owner), dev->appcnt );
 
     // Check if maximum number of application exceeded
-    if (info->appcnt > MAX_NUM_APP) {
+    if (dev->appcnt > MAX_NUM_APP) {
         DEBUG("Maximum number of application exceeded\n");
         return -EACCES;
     }
 
     // Search for available application info block
     for (i=0; i<MAX_NUM_APP; i++) {
-        if ( (info->app_info[i].fileobject == NULL) ) {
+        if ( (dev->app_info[i].fileobject == NULL) ) {
             break;
         }
     }
@@ -322,12 +322,12 @@ static int ft1000_open (struct inode *inode, struct file *file)
         return -EACCES;
     }
 
-    info->appcnt++;
-    info->app_info[i].fileobject = &file->f_owner;
-    info->app_info[i].nTxMsg = 0;
-    info->app_info[i].nRxMsg = 0;
-    info->app_info[i].nTxMsgReject = 0;
-    info->app_info[i].nRxMsgMiss = 0;
+    dev->appcnt++;
+    dev->app_info[i].fileobject = &file->f_owner;
+    dev->app_info[i].nTxMsg = 0;
+    dev->app_info[i].nRxMsg = 0;
+    dev->app_info[i].nTxMsgReject = 0;
+    dev->app_info[i].nRxMsgMiss = 0;
 
 	nonseekable_open(inode, file);
     return 0;
@@ -347,8 +347,9 @@ static int ft1000_open (struct inode *inode, struct file *file)
 
 static unsigned int ft1000_poll_dev(struct file *file, poll_table *wait)
 {
-    struct net_device *dev = file->private_data;
-	struct ft1000_info *info;
+    struct net_device *netdev = file->private_data;
+	struct ft1000_info *info = netdev_priv(netdev);
+	struct ft1000_usb *dev = info->priv;
     int i;
 
     //DEBUG("ft1000_poll_dev called\n");
@@ -357,12 +358,10 @@ static unsigned int ft1000_poll_dev(struct file *file, poll_table *wait)
         return (-EBADF);
     }
 
-	info = netdev_priv(dev);
-
     // Search for matching file object
     for (i=0; i<MAX_NUM_APP; i++) {
-        if ( info->app_info[i].fileobject == &file->f_owner) {
-            //DEBUG("FT1000:ft1000_ioctl: Message is for AppId = %d\n", info->app_info[i].app_id);
+        if ( dev->app_info[i].fileobject == &file->f_owner) {
+            //DEBUG("FT1000:ft1000_ioctl: Message is for AppId = %d\n", dev->app_info[i].app_id);
             break;
         }
     }
@@ -373,12 +372,12 @@ static unsigned int ft1000_poll_dev(struct file *file, poll_table *wait)
         return ( -EACCES );
     }
 
-    if (list_empty(&info->app_info[i].app_sqlist) == 0) {
+    if (list_empty(&dev->app_info[i].app_sqlist) == 0) {
         DEBUG("FT1000:ft1000_poll_dev:Message detected in slow queue\n");
         return(POLLIN | POLLRDNORM | POLLPRI);
     }
 
-    poll_wait (file, &info->app_info[i].wait_dpram_msg, wait);
+    poll_wait (file, &dev->app_info[i].wait_dpram_msg, wait);
     //DEBUG("FT1000:ft1000_poll_dev:Polling for data from DSP\n");
 
     return (0);
@@ -399,7 +398,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
 {
     void __user *argp = (void __user *)argument;
 	struct ft1000_info *info;
-    struct ft1000_device *ft1000dev;
+    struct ft1000_usb *ft1000dev;
     int result=0;
     int cmd;
     int i;
@@ -428,7 +427,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
     //DEBUG("FT1000:ft1000_ioctl:command = 0x%x argument = 0x%8x\n", command, (u32)argument);
 
 	info = file->private_data;
-	ft1000dev = info->pFt1000Dev;
+	ft1000dev = info->priv;
     cmd = _IOC_NR(command);
     //DEBUG("FT1000:ft1000_ioctl:cmd = 0x%x\n", cmd);
 
@@ -444,8 +443,8 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
             if (tempword == DSPBCMSGID) {
                 // Search for matching file object
                 for (i=0; i<MAX_NUM_APP; i++) {
-                    if ( info->app_info[i].fileobject == &file->f_owner) {
-                        info->app_info[i].DspBCMsgFlag = 1;
+                    if (ft1000dev->app_info[i].fileobject == &file->f_owner) {
+                        ft1000dev->app_info[i].DspBCMsgFlag = 1;
                         DEBUG("FT1000:ft1000_ioctl:Registered for broadcast messages\n");
                         break;
                     }
@@ -534,15 +533,15 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
                 return (-EBADF);
             }
 
-            if (info->DrvMsgPend) {
+            if (ft1000dev->DrvMsgPend) {
                 return (-ENOTTY);
             }
 
-            if ( (info->DspAsicReset) || (info->fProvComplete == 0) ) {
+            if (ft1000dev->fProvComplete == 0) {
                 return (-EACCES);
             }
 
-            info->fAppMsgPend = 1;
+            ft1000dev->fAppMsgPend = 1;
 
             if (info->CardReady) {
 
@@ -571,7 +570,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
                 else {
                     // Check if this message came from a registered application
                     for (i=0; i<MAX_NUM_APP; i++) {
-                        if ( info->app_info[i].fileobject == &file->f_owner) {
+                        if (ft1000dev->app_info[i].fileobject == &file->f_owner) {
                             break;
                         }
                     }
@@ -632,7 +631,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
 
                             // Insert slow queue sequence number
                             ppseudo_hdr->seq_num = info->squeseqnum++;
-                            ppseudo_hdr->portsrc = info->app_info[app_index].app_id;
+                            ppseudo_hdr->portsrc = ft1000dev->app_info[app_index].app_id;
                             // Calculate new checksum
                             ppseudo_hdr->checksum = *pmsg++;
                             //DEBUG("checksum = 0x%x\n", ppseudo_hdr->checksum);
@@ -645,7 +644,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
                            card_send_command(ft1000dev,(unsigned short*)dpram_data,total_len+2);
 
 
-                            info->app_info[app_index].nTxMsg++;
+                            ft1000dev->app_info[app_index].nTxMsg++;
                         }
                         else {
                             result = -EINVAL;
@@ -675,8 +674,8 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
 
             // Search for matching file object
             for (i=0; i<MAX_NUM_APP; i++) {
-                if ( info->app_info[i].fileobject == &file->f_owner) {
-                    //DEBUG("FT1000:ft1000_ioctl: Message is for AppId = %d\n", info->app_info[i].app_id);
+                if (ft1000dev->app_info[i].fileobject == &file->f_owner) {
+                    //DEBUG("FT1000:ft1000_ioctl: Message is for AppId = %d\n", ft1000dev->app_info[i].app_id);
                     break;
                 }
             }
@@ -690,13 +689,13 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
 
             result = 0;
             pioctl_dpram = argp;
-            if (list_empty(&info->app_info[i].app_sqlist) == 0) {
+            if (list_empty(&ft1000dev->app_info[i].app_sqlist) == 0) {
                 //DEBUG("FT1000:ft1000_ioctl:Message detected in slow queue\n");
                 spin_lock_irqsave(&free_buff_lock, flags);
-                pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, struct dpram_blk, list);
+                pdpram_blk = list_entry(ft1000dev->app_info[i].app_sqlist.next, struct dpram_blk, list);
                 list_del(&pdpram_blk->list);
-                info->app_info[i].NumOfMsg--;
-                //DEBUG("FT1000:ft1000_ioctl:NumOfMsg for app %d = %d\n", i, info->app_info[i].NumOfMsg);
+                ft1000dev->app_info[i].NumOfMsg--;
+                //DEBUG("FT1000:ft1000_ioctl:NumOfMsg for app %d = %d\n", i, ft1000dev->app_info[i].NumOfMsg);
                 spin_unlock_irqrestore(&free_buff_lock, flags);
                 msglen = ntohs(*(u16 *)pdpram_blk->pbuffer) + PSEUDOSZ;
                 result = get_user(msglen, &pioctl_dpram->total_len);
@@ -723,7 +722,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
         result = -ENOTTY;
         break;
     }
-    info->fAppMsgPend = 0;
+    ft1000dev->fAppMsgPend = 0;
     return result;
 }
 
@@ -741,6 +740,7 @@ static int ft1000_release (struct inode *inode, struct file *file)
 {
 	struct ft1000_info *info;
     struct net_device *dev;
+    struct ft1000_usb *ft1000dev;
     int i;
 	struct dpram_blk *pdpram_blk;
 
@@ -748,16 +748,17 @@ static int ft1000_release (struct inode *inode, struct file *file)
 
     dev = file->private_data;
 	info = netdev_priv(dev);
+	ft1000dev = info->priv;
 
     if (ft1000_flarion_cnt == 0) {
-        info->appcnt--;
+        ft1000dev->appcnt--;
         return (-EBADF);
     }
 
     // Search for matching file object
     for (i=0; i<MAX_NUM_APP; i++) {
-        if ( info->app_info[i].fileobject == &file->f_owner) {
-            //DEBUG("FT1000:ft1000_ioctl: Message is for AppId = %d\n", info->app_info[i].app_id);
+        if ( ft1000dev->app_info[i].fileobject == &file->f_owner) {
+            //DEBUG("FT1000:ft1000_ioctl: Message is for AppId = %d\n", ft1000dev->app_info[i].app_id);
             break;
         }
     }
@@ -765,17 +766,17 @@ static int ft1000_release (struct inode *inode, struct file *file)
     if (i==MAX_NUM_APP)
 	    return 0;
 
-    while (list_empty(&info->app_info[i].app_sqlist) == 0) {
+    while (list_empty(&ft1000dev->app_info[i].app_sqlist) == 0) {
         DEBUG("Remove and free memory queue up on slow queue\n");
-        pdpram_blk = list_entry(info->app_info[i].app_sqlist.next, struct dpram_blk, list);
+        pdpram_blk = list_entry(ft1000dev->app_info[i].app_sqlist.next, struct dpram_blk, list);
         list_del(&pdpram_blk->list);
         ft1000_free_buffer(pdpram_blk, &freercvpool);
     }
 
     // initialize application information
-    info->appcnt--;
-    DEBUG("ft1000_chdev:%s:appcnt = %d\n", __FUNCTION__, info->appcnt);
-    info->app_info[i].fileobject = NULL;
+    ft1000dev->appcnt--;
+    DEBUG("ft1000_chdev:%s:appcnt = %d\n", __FUNCTION__, ft1000dev->appcnt);
+    ft1000dev->app_info[i].fileobject = NULL;
 
     return 0;
 }

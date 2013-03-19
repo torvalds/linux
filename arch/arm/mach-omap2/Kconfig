@@ -1,3 +1,26 @@
+config ARCH_OMAP
+	bool
+
+config ARCH_OMAP2PLUS
+	bool "TI OMAP2/3/4/5 SoCs with device tree support" if (ARCH_MULTI_V6 || ARCH_MULTI_V7)
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_OMAP
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
+	select HAVE_CLK
+	select OMAP_DM_TIMER
+	select PINCTRL
+	select PROC_DEVICETREE if PROC_FS
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
+
+
 if ARCH_OMAP2PLUS
 
 menu "TI OMAP2/3/4 Specific Features"
@@ -76,12 +99,12 @@ config ARCH_OMAP4
 
 config SOC_OMAP5
 	bool "TI OMAP5"
-	select ARM_ARCH_TIMER
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
 	select CPU_V7
 	select HAVE_SMP
 	select COMMON_CLK
+	select HAVE_ARM_ARCH_TIMER
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -164,12 +187,6 @@ config MACH_OMAP_H4
 	default y
 	select OMAP_DEBUG_DEVICES
 	select OMAP_PACKAGE_ZAF
-
-config MACH_OMAP_APOLLON
-	bool "OMAP 2420 Apollon board"
-	depends on SOC_OMAP2420
-	default y
-	select OMAP_PACKAGE_ZAC
 
 config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
@@ -294,9 +311,6 @@ config MACH_OMAP_ZOOM2
 	default y
 	select OMAP_PACKAGE_CBB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SERIAL_8250
-	select SERIAL_8250_CONSOLE
-	select SERIAL_CORE_CONSOLE
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
@@ -304,9 +318,6 @@ config MACH_OMAP_ZOOM3
 	default y
 	select OMAP_PACKAGE_CBP
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SERIAL_8250
-	select SERIAL_8250_CONSOLE
-	select SERIAL_CORE_CONSOLE
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35/CM-T3730 modules"
@@ -397,7 +408,7 @@ config OMAP3_SDRC_AC_TIMING
 
 config OMAP4_ERRATA_I688
 	bool "OMAP4 errata: Async Bridge Corruption"
-	depends on ARCH_OMAP4
+	depends on ARCH_OMAP4 && !ARCH_MULTIPLATFORM
 	select ARCH_HAS_BARRIERS
 	help
 	  If a data is stalled inside asynchronous bridge because of back

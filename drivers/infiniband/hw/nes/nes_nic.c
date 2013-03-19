@@ -1317,11 +1317,13 @@ static void nes_netdev_get_drvinfo(struct net_device *netdev,
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 
-	strcpy(drvinfo->driver, DRV_NAME);
-	strcpy(drvinfo->bus_info, pci_name(nesvnic->nesdev->pcidev));
-	sprintf(drvinfo->fw_version, "%u.%u", nesadapter->firmware_version>>16,
-				nesadapter->firmware_version & 0x000000ff);
-	strcpy(drvinfo->version, DRV_VERSION);
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->bus_info, pci_name(nesvnic->nesdev->pcidev),
+		sizeof(drvinfo->bus_info));
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		 "%u.%u", nesadapter->firmware_version >> 16,
+		 nesadapter->firmware_version & 0x000000ff);
+	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 	drvinfo->testinfo_len = 0;
 	drvinfo->eedump_len = 0;
 	drvinfo->regdump_len = 0;
@@ -1703,7 +1705,6 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->dev_addr[3] = (u8)(u64temp>>16);
 	netdev->dev_addr[4] = (u8)(u64temp>>8);
 	netdev->dev_addr[5] = (u8)u64temp;
-	memcpy(netdev->perm_addr, netdev->dev_addr, 6);
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_RX;
 	if ((nesvnic->logical_port < 2) || (nesdev->nesadapter->hw_rev != NE020_REV))

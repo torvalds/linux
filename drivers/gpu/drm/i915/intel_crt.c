@@ -88,7 +88,7 @@ static void intel_disable_crt(struct intel_encoder *encoder)
 	u32 temp;
 
 	temp = I915_READ(crt->adpa_reg);
-	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
+	temp |= ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE;
 	temp &= ~ADPA_DAC_ENABLE;
 	I915_WRITE(crt->adpa_reg, temp);
 }
@@ -685,7 +685,6 @@ static void intel_crt_reset(struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs crt_encoder_funcs = {
 	.mode_fixup = intel_crt_mode_fixup,
 	.mode_set = intel_crt_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_crt_connector_funcs = {

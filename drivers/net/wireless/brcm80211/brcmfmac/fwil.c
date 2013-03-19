@@ -45,9 +45,10 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 	if (data != NULL)
 		len = min_t(uint, len, BRCMF_DCMD_MAXLEN);
 	if (set)
-		err = brcmf_proto_cdc_set_dcmd(drvr, ifp->idx, cmd, data, len);
+		err = brcmf_proto_cdc_set_dcmd(drvr, ifp->ifidx, cmd, data,
+					       len);
 	else
-		err = brcmf_proto_cdc_query_dcmd(drvr, ifp->idx, cmd, data,
+		err = brcmf_proto_cdc_query_dcmd(drvr, ifp->ifidx, cmd, data,
 						 len);
 
 	if (err >= 0)
@@ -100,6 +101,7 @@ brcmf_fil_cmd_int_set(struct brcmf_if *ifp, u32 cmd, u32 data)
 	__le32 data_le = cpu_to_le32(data);
 
 	mutex_lock(&ifp->drvr->proto_block);
+	brcmf_dbg(FIL, "cmd=%d, value=%d\n", cmd, data);
 	err = brcmf_fil_cmd_data(ifp, cmd, &data_le, sizeof(data_le), true);
 	mutex_unlock(&ifp->drvr->proto_block);
 
@@ -116,6 +118,7 @@ brcmf_fil_cmd_int_get(struct brcmf_if *ifp, u32 cmd, u32 *data)
 	err = brcmf_fil_cmd_data(ifp, cmd, &data_le, sizeof(data_le), false);
 	mutex_unlock(&ifp->drvr->proto_block);
 	*data = le32_to_cpu(data_le);
+	brcmf_dbg(FIL, "cmd=%d, value=%d\n", cmd, *data);
 
 	return err;
 }

@@ -22,9 +22,9 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_plat.h>
 
@@ -47,16 +47,19 @@ static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct
 {
 	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
 
-	memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
+	if (cpu1start_addr) {
+		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
-	__raw_writel(virt_to_phys(secondary_startup), (sys_manager_base_addr+0x10));
+		__raw_writel(virt_to_phys(socfpga_secondary_startup),
+			(sys_manager_base_addr + (cpu1start_addr & 0x000000ff)));
 
-	flush_cache_all();
-	smp_wmb();
-	outer_clean_range(0, trampoline_size);
+		flush_cache_all();
+		smp_wmb();
+		outer_clean_range(0, trampoline_size);
 
-	/* This will release CPU #1 out of reset.*/
-	__raw_writel(0, rst_manager_base_addr + 0x10);
+		/* This will release CPU #1 out of reset.*/
+		__raw_writel(0, rst_manager_base_addr + 0x10);
+	}
 
 	return 0;
 }
@@ -83,8 +86,6 @@ static void __init socfpga_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init socfpga_smp_prepare_cpus(unsigned int max_cpus)

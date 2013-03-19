@@ -56,6 +56,7 @@
 #define SPRN_SPRG7W	0x117	/* Special Purpose Register General 7 Write */
 #define SPRN_EPCR	0x133	/* Embedded Processor Control Register */
 #define SPRN_DBCR2	0x136	/* Debug Control Register 2 */
+#define SPRN_DBCR4	0x233	/* Debug Control Register 4 */
 #define SPRN_MSRP	0x137	/* MSR Protect Register */
 #define SPRN_IAC3	0x13A	/* Instruction Address Compare 3 */
 #define SPRN_IAC4	0x13B	/* Instruction Address Compare 4 */

@@ -24,18 +24,6 @@ enum brcmf_bus_state {
 	BRCMF_BUS_DATA		/* Ready for frame transfers */
 };
 
-struct dngl_stats {
-	unsigned long rx_packets;	/* total packets received */
-	unsigned long tx_packets;	/* total packets transmitted */
-	unsigned long rx_bytes;	/* total bytes received */
-	unsigned long tx_bytes;	/* total bytes transmitted */
-	unsigned long rx_errors;	/* bad packets received */
-	unsigned long tx_errors;	/* packet transmit problems */
-	unsigned long rx_dropped;	/* packets dropped by dongle */
-	unsigned long tx_dropped;	/* packets dropped by dongle */
-	unsigned long multicast;	/* multicast packets received */
-};
-
 struct brcmf_bus_dcmd {
 	char *name;
 	char *param;
@@ -72,11 +60,12 @@ struct brcmf_bus_ops {
  * @drvr: public driver information.
  * @state: operational state of the bus interface.
  * @maxctl: maximum size for rxctl request message.
- * @drvr_up: indicates driver up/down status.
  * @tx_realloc: number of tx packets realloced for headroom.
  * @dstats: dongle-based statistical data.
  * @align: alignment requirement for the bus.
  * @dcmd_list: bus/device specific dongle initialization commands.
+ * @chip: device identifier of the dongle chip.
+ * @chiprev: revision of the dongle chip.
  */
 struct brcmf_bus {
 	union {
@@ -87,10 +76,10 @@ struct brcmf_bus {
 	struct brcmf_pub *drvr;
 	enum brcmf_bus_state state;
 	uint maxctl;
-	bool drvr_up;
 	unsigned long tx_realloc;
-	struct dngl_stats dstats;
 	u8 align;
+	u32 chip;
+	u32 chiprev;
 	struct list_head dcmd_list;
 
 	struct brcmf_bus_ops *ops;
@@ -130,31 +119,18 @@ int brcmf_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint len)
  * interface functions from common layer
  */
 
-/* Remove any protocol-specific data header. */
-extern int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
-			       struct sk_buff *rxp);
-
 extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frame(struct device *dev, u8 ifidx,
-			   struct sk_buff_head *rxlist);
-static inline void brcmf_rx_packet(struct device *dev, int ifidx,
-				   struct sk_buff *pkt)
-{
-	struct sk_buff_head q;
-
-	skb_queue_head_init(&q);
-	skb_queue_tail(&q, pkt);
-	brcmf_rx_frame(dev, ifidx, &q);
-}
+extern void brcmf_rx_frames(struct device *dev, struct sk_buff_head *rxlist);
 
 /* Indication from bus module regarding presence/insertion of dongle. */
 extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
 /* Indication from bus module regarding removal/absence of dongle */
 extern void brcmf_detach(struct device *dev);
-
+/* Indication from bus module that dongle should be reset */
+extern void brcmf_dev_reset(struct device *dev);
 /* Indication from bus module to change flow-control state */
 extern void brcmf_txflowblock(struct device *dev, bool state);
 

@@ -1099,18 +1099,19 @@ EXPORT_SYMBOL(ib_free_fast_reg_page_list);
 
 /* Memory windows */
 
-struct ib_mw *ib_alloc_mw(struct ib_pd *pd)
+struct ib_mw *ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
 {
 	struct ib_mw *mw;
 
 	if (!pd->device->alloc_mw)
 		return ERR_PTR(-ENOSYS);
 
-	mw = pd->device->alloc_mw(pd);
+	mw = pd->device->alloc_mw(pd, type);
 	if (!IS_ERR(mw)) {
 		mw->device  = pd->device;
 		mw->pd      = pd;
 		mw->uobject = NULL;
+		mw->type    = type;
 		atomic_inc(&pd->usecnt);
 	}
 

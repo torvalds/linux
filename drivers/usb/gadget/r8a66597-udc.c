@@ -1812,7 +1812,7 @@ static int r8a66597_set_selfpowered(struct usb_gadget *gadget, int is_self)
 	return 0;
 }
 
-static struct usb_gadget_ops r8a66597_gadget_ops = {
+static const struct usb_gadget_ops r8a66597_gadget_ops = {
 	.get_frame		= r8a66597_get_frame,
 	.udc_start		= r8a66597_start,
 	.udc_stop		= r8a66597_stop,
@@ -2031,21 +2031,10 @@ static struct platform_driver r8a66597_driver = {
 		.name =	(char *) udc_name,
 	},
 };
-MODULE_ALIAS("platform:r8a66597_udc");
 
-static int __init r8a66597_udc_init(void)
-{
-	return platform_driver_probe(&r8a66597_driver, r8a66597_probe);
-}
-module_init(r8a66597_udc_init);
-
-static void __exit r8a66597_udc_cleanup(void)
-{
-	platform_driver_unregister(&r8a66597_driver);
-}
-module_exit(r8a66597_udc_cleanup);
+module_platform_driver_probe(r8a66597_driver, r8a66597_probe);
 
 MODULE_DESCRIPTION("R8A66597 USB gadget driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
-
+MODULE_ALIAS("platform:r8a66597_udc");

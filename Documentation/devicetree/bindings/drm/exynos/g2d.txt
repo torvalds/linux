@@ -1,0 +1,22 @@
+Samsung 2D Graphic Accelerator using DRM frame work
+
+Samsung FIMG2D is a graphics 2D accelerator which supports Bit Block Transfer.
+We set the drawing-context registers for configuring rendering parameters and
+then start rendering.
+This driver is for SOCs which contain G2D IPs with version 4.1.
+
+Required properties:
+	-compatible:
+		should be "samsung,exynos-g2d-41".
+	-reg:
+		physical base address of the controller and length
+		of memory mapped region.
+	-interrupts:
+		interrupt combiner values.
+
+Example:
+	g2d {
+		compatible = "samsung,exynos-g2d-41";
+		reg = <0x10850000 0x1000>;
+		interrupts = <0 91 0>;
+	};

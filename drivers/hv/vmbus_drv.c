@@ -33,15 +33,16 @@
 #include <acpi/acpi_bus.h>
 #include <linux/completion.h>
 #include <linux/hyperv.h>
+#include <linux/kernel_stat.h>
 #include <asm/hyperv.h>
 #include <asm/hypervisor.h>
+#include <asm/mshyperv.h>
 #include "hyperv_vmbus.h"
 
 
 static struct acpi_device  *hv_acpi_dev;
 
 static struct tasklet_struct msg_dpc;
-static struct tasklet_struct event_dpc;
 static struct completion probe_event;
 static int irq;
 
@@ -454,20 +455,39 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	union hv_synic_event_flags *event;
 	bool handled = false;
 
+	page_addr = hv_context.synic_event_page[cpu];
+	if (page_addr == NULL)
+		return IRQ_NONE;
+
+	event = (union hv_synic_event_flags *)page_addr +
+					 VMBUS_MESSAGE_SINT;
 	/*
 	 * Check for events before checking for messages. This is the order
 	 * in which events and messages are checked in Windows guests on
 	 * Hyper-V, and the Windows team suggested we do the same.
 	 */
 
-	page_addr = hv_context.synic_event_page[cpu];
-	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
+	if ((vmbus_proto_version == VERSION_WS2008) ||
+		(vmbus_proto_version == VERSION_WIN7)) {
 
-	/* Since we are a child, we only need to check bit 0 */
-	if (sync_test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
+		/* Since we are a child, we only need to check bit 0 */
+		if (sync_test_and_clear_bit(0,
+			(unsigned long *) &event->flags32[0])) {
+			handled = true;
+		}
+	} else {
+		/*
+		 * Our host is win8 or above. The signaling mechanism
+		 * has changed and we can directly look at the event page.
+		 * If bit n is set then we have an interrup on the channel
+		 * whose id is n.
+		 */
 		handled = true;
-		tasklet_schedule(&event_dpc);
 	}
+
+	if (handled)
+		tasklet_schedule(hv_context.event_dpc[cpu]);
+
 
 	page_addr = hv_context.synic_message_page[cpu];
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
@@ -485,6 +505,19 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 }
 
 /*
+ * vmbus interrupt flow handler:
+ * vmbus interrupts can concurrently occur on multiple CPUs and
+ * can be handled concurrently.
+ */
+
+static void vmbus_flow_handler(unsigned int irq, struct irq_desc *desc)
+{
+	kstat_incr_irqs_this_cpu(irq, desc);
+
+	desc->action->handler(irq, desc->action->dev_id);
+}
+
+/*
  * vmbus_bus_init -Main vmbus driver initialization routine.
  *
  * Here, we
@@ -496,7 +529,6 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 static int vmbus_bus_init(int irq)
 {
 	int ret;
-	unsigned int vector;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();
@@ -506,7 +538,6 @@ static int vmbus_bus_init(int irq)
 	}
 
 	tasklet_init(&msg_dpc, vmbus_on_msg_dpc, 0);
-	tasklet_init(&event_dpc, vmbus_on_event, 0);
 
 	ret = bus_register(&hv_bus);
 	if (ret)
@@ -520,13 +551,23 @@ static int vmbus_bus_init(int irq)
 		goto err_unregister;
 	}
 
-	vector = IRQ0_VECTOR + irq;
+	/*
+	 * Vmbus interrupts can be handled concurrently on
+	 * different CPUs. Establish an appropriate interrupt flow
+	 * handler that can support this model.
+	 */
+	irq_set_handler(irq, vmbus_flow_handler);
 
 	/*
-	 * Notify the hypervisor of our irq and
+	 * Register our interrupt handler.
+	 */
+	hv_register_vmbus_handler(irq, vmbus_isr);
+
+	/*
+	 * Initialize the per-cpu interrupt state and
 	 * connect to the host.
 	 */
-	on_each_cpu(hv_synic_init, (void *)&vector, 1);
+	on_each_cpu(hv_synic_init, NULL, 1);
 	ret = vmbus_connect();
 	if (ret)
 		goto err_irq;
@@ -574,8 +615,6 @@ int __vmbus_driver_register(struct hv_driver *hv_driver, struct module *owner, c
 	hv_driver->driver.bus = &hv_bus;
 
 	ret = driver_register(&hv_driver->driver);
-
-	vmbus_request_offers();
 
 	return ret;
 }

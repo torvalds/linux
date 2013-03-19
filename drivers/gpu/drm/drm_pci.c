@@ -439,33 +439,6 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	return 0;
 }
 
-#else
-
-int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
-{
-	return -1;
-}
-
-#endif
-
-EXPORT_SYMBOL(drm_pci_init);
-
-/*@}*/
-void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
-{
-	struct drm_device *dev, *tmp;
-	DRM_DEBUG("\n");
-
-	if (driver->driver_features & DRIVER_MODESET) {
-		pci_unregister_driver(pdriver);
-	} else {
-		list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
-			drm_put_dev(dev);
-	}
-	DRM_INFO("Module unloaded\n");
-}
-EXPORT_SYMBOL(drm_pci_exit);
-
 int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 {
 	struct pci_dev *root;
@@ -503,3 +476,30 @@ int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 	return 0;
 }
 EXPORT_SYMBOL(drm_pcie_get_speed_cap_mask);
+
+#else
+
+int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
+{
+	return -1;
+}
+
+#endif
+
+EXPORT_SYMBOL(drm_pci_init);
+
+/*@}*/
+void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
+{
+	struct drm_device *dev, *tmp;
+	DRM_DEBUG("\n");
+
+	if (driver->driver_features & DRIVER_MODESET) {
+		pci_unregister_driver(pdriver);
+	} else {
+		list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
+			drm_put_dev(dev);
+	}
+	DRM_INFO("Module unloaded\n");
+}
+EXPORT_SYMBOL(drm_pci_exit);

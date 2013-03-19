@@ -2965,7 +2965,7 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 		return NULL;
 	memset(state, 0, sizeof(*state));
 
-	memcpy(&state->ops, &drxd_ops, sizeof(struct dvb_frontend_ops));
+	state->ops = drxd_ops;
 	state->dev = dev;
 	state->config = *config;
 	state->i2c = i2c;
@@ -2976,10 +2976,13 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 	if (Read16(state, 0, 0, 0) < 0)
 		goto error;
 
-	memcpy(&state->frontend.ops, &drxd_ops,
-	       sizeof(struct dvb_frontend_ops));
+	state->frontend.ops = drxd_ops;
 	state->frontend.demodulator_priv = state;
 	ConfigureMPEGOutput(state, 0);
+	/* add few initialization to allow gate control */
+	CDRXD(state, state->config.IF ? state->config.IF : 36000000);
+	InitHI(state);
+
 	return &state->frontend;
 
 error:

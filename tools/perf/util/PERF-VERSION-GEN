@@ -26,13 +26,13 @@ VN=$(expr "$VN" : v*'\(.*\)')
 
 if test -r $GVF
 then
-	VC=$(sed -e 's/^PERF_VERSION = //' <$GVF)
+	VC=$(sed -e 's/^#define PERF_VERSION "\(.*\)"/\1/' <$GVF)
 else
 	VC=unset
 fi
 test "$VN" = "$VC" || {
 	echo >&2 "PERF_VERSION = $VN"
-	echo "PERF_VERSION = $VN" >$GVF
+	echo "#define PERF_VERSION \"$VN\"" >$GVF
 }
 
 

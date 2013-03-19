@@ -185,14 +185,6 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev);
 int lis3l02dq_configure_buffer(struct iio_dev *indio_dev);
 void lis3l02dq_unconfigure_buffer(struct iio_dev *indio_dev);
 
-#ifdef CONFIG_LIS3L02DQ_BUF_RING_SW
-#define lis3l02dq_free_buf iio_sw_rb_free
-#define lis3l02dq_alloc_buf iio_sw_rb_allocate
-#endif
-#ifdef CONFIG_LIS3L02DQ_BUF_KFIFO
-#define lis3l02dq_free_buf iio_kfifo_free
-#define lis3l02dq_alloc_buf iio_kfifo_allocate
-#endif
 irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private);
 #define lis3l02dq_th lis3l02dq_data_rdy_trig_poll
 

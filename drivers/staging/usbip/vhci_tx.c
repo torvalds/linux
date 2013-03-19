@@ -46,18 +46,17 @@ static void setup_cmd_submit_pdu(struct usbip_header *pdup,  struct urb *urb)
 
 static struct vhci_priv *dequeue_from_priv_tx(struct vhci_device *vdev)
 {
-	unsigned long flags;
 	struct vhci_priv *priv, *tmp;
 
-	spin_lock_irqsave(&vdev->priv_lock, flags);
+	spin_lock(&vdev->priv_lock);
 
 	list_for_each_entry_safe(priv, tmp, &vdev->priv_tx, list) {
 		list_move_tail(&priv->list, &vdev->priv_rx);
-		spin_unlock_irqrestore(&vdev->priv_lock, flags);
+		spin_unlock(&vdev->priv_lock);
 		return priv;
 	}
 
-	spin_unlock_irqrestore(&vdev->priv_lock, flags);
+	spin_unlock(&vdev->priv_lock);
 
 	return NULL;
 }
@@ -136,18 +135,17 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 
 static struct vhci_unlink *dequeue_from_unlink_tx(struct vhci_device *vdev)
 {
-	unsigned long flags;
 	struct vhci_unlink *unlink, *tmp;
 
-	spin_lock_irqsave(&vdev->priv_lock, flags);
+	spin_lock(&vdev->priv_lock);
 
 	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_tx, list) {
 		list_move_tail(&unlink->list, &vdev->unlink_rx);
-		spin_unlock_irqrestore(&vdev->priv_lock, flags);
+		spin_unlock(&vdev->priv_lock);
 		return unlink;
 	}
 
-	spin_unlock_irqrestore(&vdev->priv_lock, flags);
+	spin_unlock(&vdev->priv_lock);
 
 	return NULL;
 }

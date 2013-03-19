@@ -358,7 +358,7 @@ static int ax_mii_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change, 0,
+	ret = phy_connect_direct(dev, phy_dev, ax_handle_link_change,
 				 PHY_INTERFACE_MODE_MII);
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -469,9 +469,9 @@ static void ax_get_drvinfo(struct net_device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev->dev.parent);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pdev->name);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
 }
 
 static int ax_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)

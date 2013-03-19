@@ -84,7 +84,8 @@ typedef struct {
 	elf_greg_t sar;
 	elf_greg_t windowstart;
 	elf_greg_t windowbase;
-	elf_greg_t reserved[8+48];
+	elf_greg_t threadptr;
+	elf_greg_t reserved[7+48];
 	elf_greg_t a[64];
 } xtensa_gregset_t;
 

@@ -931,6 +931,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	enum drbd_state_rv rv = SS_SUCCESS;
 	enum sanitize_state_warnings ssw;
 	struct after_state_chg_work *ascw;
+	bool did_remote, should_do_remote;
 
 	os = drbd_read_state(mdev);
 
@@ -981,10 +982,16 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	    (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))
 		atomic_inc(&mdev->local_cnt);
 
+	did_remote = drbd_should_do_remote(mdev->state);
 	mdev->state.i = ns.i;
+	should_do_remote = drbd_should_do_remote(mdev->state);
 	mdev->tconn->susp = ns.susp;
 	mdev->tconn->susp_nod = ns.susp_nod;
 	mdev->tconn->susp_fen = ns.susp_fen;
+
+	/* put replicated vs not-replicated requests in seperate epochs */
+	if (did_remote != should_do_remote)
+		start_new_tl_epoch(mdev->tconn);
 
 	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
 		drbd_print_uuids(mdev, "attached to UUIDs");

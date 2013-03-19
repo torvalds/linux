@@ -33,9 +33,9 @@ static void inet_frag_secret_rebuild(unsigned long dummy)
 	get_random_bytes(&f->rnd, sizeof(u32));
 	for (i = 0; i < INETFRAGS_HASHSZ; i++) {
 		struct inet_frag_queue *q;
-		struct hlist_node *p, *n;
+		struct hlist_node *n;
 
-		hlist_for_each_entry_safe(q, p, n, &f->hash[i], list) {
+		hlist_for_each_entry_safe(q, n, &f->hash[i], list) {
 			unsigned int hval = f->hashfn(q);
 
 			if (hval != i) {
@@ -73,8 +73,9 @@ EXPORT_SYMBOL(inet_frags_init);
 void inet_frags_init_net(struct netns_frags *nf)
 {
 	nf->nqueues = 0;
-	atomic_set(&nf->mem, 0);
+	init_frag_mem_limit(nf);
 	INIT_LIST_HEAD(&nf->lru_list);
+	spin_lock_init(&nf->lru_lock);
 }
 EXPORT_SYMBOL(inet_frags_init_net);
 
@@ -91,6 +92,8 @@ void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f)
 	local_bh_disable();
 	inet_frag_evictor(nf, f, true);
 	local_bh_enable();
+
+	percpu_counter_destroy(&nf->mem);
 }
 EXPORT_SYMBOL(inet_frags_exit_net);
 
@@ -98,9 +101,9 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 {
 	write_lock(&f->lock);
 	hlist_del(&fq->list);
-	list_del(&fq->lru_list);
 	fq->net->nqueues--;
 	write_unlock(&f->lock);
+	inet_frag_lru_del(fq);
 }
 
 void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
@@ -117,12 +120,8 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 EXPORT_SYMBOL(inet_frag_kill);
 
 static inline void frag_kfree_skb(struct netns_frags *nf, struct inet_frags *f,
-		struct sk_buff *skb, int *work)
+		struct sk_buff *skb)
 {
-	if (work)
-		*work -= skb->truesize;
-
-	atomic_sub(skb->truesize, &nf->mem);
 	if (f->skb_free)
 		f->skb_free(skb);
 	kfree_skb(skb);
@@ -133,6 +132,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 {
 	struct sk_buff *fp;
 	struct netns_frags *nf;
+	unsigned int sum, sum_truesize = 0;
 
 	WARN_ON(!(q->last_in & INET_FRAG_COMPLETE));
 	WARN_ON(del_timer(&q->timer) != 0);
@@ -143,13 +143,14 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 	while (fp) {
 		struct sk_buff *xp = fp->next;
 
-		frag_kfree_skb(nf, f, fp, work);
+		sum_truesize += fp->truesize;
+		frag_kfree_skb(nf, f, fp);
 		fp = xp;
 	}
-
+	sum = sum_truesize + f->qsize;
 	if (work)
-		*work -= f->qsize;
-	atomic_sub(f->qsize, &nf->mem);
+		*work -= sum;
+	sub_frag_mem_limit(q, sum);
 
 	if (f->destructor)
 		f->destructor(q);
@@ -164,22 +165,23 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 	int work, evicted = 0;
 
 	if (!force) {
-		if (atomic_read(&nf->mem) <= nf->high_thresh)
+		if (frag_mem_limit(nf) <= nf->high_thresh)
 			return 0;
 	}
 
-	work = atomic_read(&nf->mem) - nf->low_thresh;
+	work = frag_mem_limit(nf) - nf->low_thresh;
 	while (work > 0) {
-		read_lock(&f->lock);
+		spin_lock(&nf->lru_lock);
+
 		if (list_empty(&nf->lru_list)) {
-			read_unlock(&f->lock);
+			spin_unlock(&nf->lru_lock);
 			break;
 		}
 
 		q = list_first_entry(&nf->lru_list,
 				struct inet_frag_queue, lru_list);
 		atomic_inc(&q->refcnt);
-		read_unlock(&f->lock);
+		spin_unlock(&nf->lru_lock);
 
 		spin_lock(&q->lock);
 		if (!(q->last_in & INET_FRAG_COMPLETE))
@@ -201,7 +203,6 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 {
 	struct inet_frag_queue *qp;
 #ifdef CONFIG_SMP
-	struct hlist_node *n;
 #endif
 	unsigned int hash;
 
@@ -217,7 +218,7 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 	 * such entry could be created on other cpu, while we
 	 * promoted read lock to write lock.
 	 */
-	hlist_for_each_entry(qp, n, &f->hash[hash], list) {
+	hlist_for_each_entry(qp, &f->hash[hash], list) {
 		if (qp->net == nf && f->match(qp, arg)) {
 			atomic_inc(&qp->refcnt);
 			write_unlock(&f->lock);
@@ -233,9 +234,9 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 
 	atomic_inc(&qp->refcnt);
 	hlist_add_head(&qp->list, &f->hash[hash]);
-	list_add_tail(&qp->lru_list, &nf->lru_list);
 	nf->nqueues++;
 	write_unlock(&f->lock);
+	inet_frag_lru_add(nf, qp);
 	return qp;
 }
 
@@ -250,7 +251,8 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 
 	q->net = nf;
 	f->constructor(q, arg);
-	atomic_add(f->qsize, &nf->mem);
+	add_frag_mem_limit(q, f->qsize);
+
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
 	atomic_set(&q->refcnt, 1);
@@ -275,9 +277,8 @@ struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 	__releases(&f->lock)
 {
 	struct inet_frag_queue *q;
-	struct hlist_node *n;
 
-	hlist_for_each_entry(q, n, &f->hash[hash], list) {
+	hlist_for_each_entry(q, &f->hash[hash], list) {
 		if (q->net == nf && f->match(q, key)) {
 			atomic_inc(&q->refcnt);
 			read_unlock(&f->lock);

@@ -36,7 +36,7 @@
  * Default data server connection timeout and retrans vaules.
  * Set by module paramters dataserver_timeo and dataserver_retrans.
  */
-#define NFS4_DEF_DS_TIMEO   60
+#define NFS4_DEF_DS_TIMEO   600 /* in tenths of a second */
 #define NFS4_DEF_DS_RETRANS 5
 
 /*

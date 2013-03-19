@@ -197,7 +197,7 @@ out:
  * @prsp:       pointer to AS10x command response buffer
  * @proc_id:    id of the command
  *
- * Since the contex command reponse does not follow the common
+ * Since the contex command response does not follow the common
  * response, a specific parse function is required.
  * Return 0 on success or negative value in case of error.
  */

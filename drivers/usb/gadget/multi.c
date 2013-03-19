@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
+#include "u_serial.h"
 #if defined USB_ETH_RNDIS
 #  undef USB_ETH_RNDIS
 #endif
@@ -41,9 +42,6 @@ MODULE_LICENSE("GPL");
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #include "f_mass_storage.c"
-
-#include "u_serial.c"
-#include "f_acm.c"
 
 #include "f_ecm.c"
 #include "f_subset.c"
@@ -137,10 +135,13 @@ static struct fsg_common fsg_common;
 
 static u8 hostaddr[ETH_ALEN];
 
+static unsigned char tty_line;
+static struct usb_function_instance *fi_acm;
 
 /********** RNDIS **********/
 
 #ifdef USB_ETH_RNDIS
+static struct usb_function *f_acm_rndis;
 
 static __init int rndis_do_config(struct usb_configuration *c)
 {
@@ -155,15 +156,25 @@ static __init int rndis_do_config(struct usb_configuration *c)
 	if (ret < 0)
 		return ret;
 
-	ret = acm_bind_config(c, 0);
-	if (ret < 0)
-		return ret;
+	f_acm_rndis = usb_get_function(fi_acm);
+	if (IS_ERR(f_acm_rndis))
+		goto err_func_acm;
+
+	ret = usb_add_function(c, f_acm_rndis);
+	if (ret)
+		goto err_conf;
 
 	ret = fsg_bind_config(c->cdev, c, &fsg_common);
 	if (ret < 0)
-		return ret;
+		goto err_fsg;
 
 	return 0;
+err_fsg:
+	usb_remove_function(c, f_acm_rndis);
+err_conf:
+	usb_put_function(f_acm_rndis);
+err_func_acm:
+	return ret;
 }
 
 static int rndis_config_register(struct usb_composite_dev *cdev)
@@ -192,6 +203,7 @@ static int rndis_config_register(struct usb_composite_dev *cdev)
 /********** CDC ECM **********/
 
 #ifdef CONFIG_USB_G_MULTI_CDC
+static struct usb_function *f_acm_multi;
 
 static __init int cdc_do_config(struct usb_configuration *c)
 {
@@ -206,15 +218,26 @@ static __init int cdc_do_config(struct usb_configuration *c)
 	if (ret < 0)
 		return ret;
 
-	ret = acm_bind_config(c, 0);
-	if (ret < 0)
-		return ret;
+	/* implicit port_num is zero */
+	f_acm_multi = usb_get_function(fi_acm);
+	if (IS_ERR(f_acm_multi))
+		goto err_func_acm;
+
+	ret = usb_add_function(c, f_acm_multi);
+	if (ret)
+		goto err_conf;
 
 	ret = fsg_bind_config(c->cdev, c, &fsg_common);
 	if (ret < 0)
-		return ret;
+		goto err_fsg;
 
 	return 0;
+err_fsg:
+	usb_remove_function(c, f_acm_multi);
+err_conf:
+	usb_put_function(f_acm_multi);
+err_func_acm:
+	return ret;
 }
 
 static int cdc_config_register(struct usb_composite_dev *cdev)
@@ -243,10 +266,10 @@ static int cdc_config_register(struct usb_composite_dev *cdev)
 
 /****************************** Gadget Bind ******************************/
 
-
 static int __ref multi_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
+	struct f_serial_opts *opts;
 	int status;
 
 	if (!can_support_ecm(cdev->gadget)) {
@@ -261,9 +284,18 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 		return status;
 
 	/* set up serial link layer */
-	status = gserial_setup(cdev->gadget, 1);
+	status = gserial_alloc_line(&tty_line);
 	if (status < 0)
 		goto fail0;
+
+	fi_acm = usb_get_function_instance("acm");
+	if (IS_ERR(fi_acm)) {
+		status = PTR_ERR(fi_acm);
+		goto fail0dot5;
+	}
+
+	opts = container_of(fi_acm, struct f_serial_opts, func_inst);
+	opts->port_num = tty_line;
 
 	/* set up mass storage function */
 	{
@@ -301,7 +333,9 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 fail2:
 	fsg_common_put(&fsg_common);
 fail1:
-	gserial_cleanup();
+	usb_put_function_instance(fi_acm);
+fail0dot5:
+	gserial_free_line(tty_line);
 fail0:
 	gether_cleanup();
 	return status;
@@ -309,7 +343,14 @@ fail0:
 
 static int __exit multi_unbind(struct usb_composite_dev *cdev)
 {
-	gserial_cleanup();
+#ifdef CONFIG_USB_G_MULTI_CDC
+	usb_put_function(f_acm_multi);
+#endif
+#ifdef USB_ETH_RNDIS
+	usb_put_function(f_acm_rndis);
+#endif
+	usb_put_function_instance(fi_acm);
+	gserial_free_line(tty_line);
 	gether_cleanup();
 	return 0;
 }

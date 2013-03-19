@@ -31,6 +31,7 @@
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/metrics.h>
 #include <linux/sunrpc/xprtsock.h>
@@ -54,7 +55,6 @@
 #include <linux/parser.h>
 #include <linux/nsproxy.h>
 #include <linux/rcupdate.h>
-#include <linux/kthread.h>
 
 #include <asm/uaccess.h>
 
@@ -292,8 +292,9 @@ struct file_system_type nfs_fs_type = {
 	.name		= "nfs",
 	.mount		= nfs_fs_mount,
 	.kill_sb	= nfs_kill_super,
-	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
+	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
 };
+MODULE_ALIAS_FS("nfs");
 EXPORT_SYMBOL_GPL(nfs_fs_type);
 
 struct file_system_type nfs_xdev_fs_type = {
@@ -301,7 +302,7 @@ struct file_system_type nfs_xdev_fs_type = {
 	.name		= "nfs",
 	.mount		= nfs_xdev_mount,
 	.kill_sb	= nfs_kill_super,
-	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
+	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
 };
 
 const struct super_operations nfs_sops = {
@@ -331,8 +332,10 @@ struct file_system_type nfs4_fs_type = {
 	.name		= "nfs4",
 	.mount		= nfs_fs_mount,
 	.kill_sb	= nfs_kill_super,
-	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
+	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_BINARY_MOUNTDATA,
 };
+MODULE_ALIAS_FS("nfs4");
+MODULE_ALIAS("nfs4");
 EXPORT_SYMBOL_GPL(nfs4_fs_type);
 
 static int __init register_nfs4_fs(void)
@@ -417,54 +420,6 @@ void nfs_sb_deactive(struct super_block *sb)
 		deactivate_super(sb);
 }
 EXPORT_SYMBOL_GPL(nfs_sb_deactive);
-
-static int nfs_deactivate_super_async_work(void *ptr)
-{
-	struct super_block *sb = ptr;
-
-	deactivate_super(sb);
-	module_put_and_exit(0);
-	return 0;
-}
-
-/*
- * same effect as deactivate_super, but will do final unmount in kthread
- * context
- */
-static void nfs_deactivate_super_async(struct super_block *sb)
-{
-	struct task_struct *task;
-	char buf[INET6_ADDRSTRLEN + 1];
-	struct nfs_server *server = NFS_SB(sb);
-	struct nfs_client *clp = server->nfs_client;
-
-	if (!atomic_add_unless(&sb->s_active, -1, 1)) {
-		rcu_read_lock();
-		snprintf(buf, sizeof(buf),
-			rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR));
-		rcu_read_unlock();
-
-		__module_get(THIS_MODULE);
-		task = kthread_run(nfs_deactivate_super_async_work, sb,
-				"%s-deactivate-super", buf);
-		if (IS_ERR(task)) {
-			pr_err("%s: kthread_run: %ld\n",
-				__func__, PTR_ERR(task));
-			/* make synchronous call and hope for the best */
-			deactivate_super(sb);
-			module_put(THIS_MODULE);
-		}
-	}
-}
-
-void nfs_sb_deactive_async(struct super_block *sb)
-{
-	struct nfs_server *server = NFS_SB(sb);
-
-	if (atomic_dec_and_test(&server->active))
-		nfs_deactivate_super_async(sb);
-}
-EXPORT_SYMBOL_GPL(nfs_sb_deactive_async);
 
 /*
  * Deliver file system statistics to userspace
@@ -2765,6 +2720,5 @@ module_param(send_implementation_id, ushort, 0644);
 MODULE_PARM_DESC(send_implementation_id,
 		"Send implementation ID with NFSv4.1 exchange_id");
 MODULE_PARM_DESC(nfs4_unique_id, "nfs_client_id4 uniquifier string");
-MODULE_ALIAS("nfs4");
 
 #endif /* CONFIG_NFS_V4 */

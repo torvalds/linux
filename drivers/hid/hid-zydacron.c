@@ -219,17 +219,6 @@ static struct hid_driver zc_driver = {
 	.probe = zc_probe,
 	.remove = zc_remove,
 };
+module_hid_driver(zc_driver);
 
-static int __init zc_init(void)
-{
-	return hid_register_driver(&zc_driver);
-}
-
-static void __exit zc_exit(void)
-{
-	hid_unregister_driver(&zc_driver);
-}
-
-module_init(zc_init);
-module_exit(zc_exit);
 MODULE_LICENSE("GPL");

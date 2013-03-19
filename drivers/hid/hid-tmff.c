@@ -261,17 +261,6 @@ static struct hid_driver tm_driver = {
 	.id_table = tm_devices,
 	.probe = tm_probe,
 };
+module_hid_driver(tm_driver);
 
-static int __init tm_init(void)
-{
-	return hid_register_driver(&tm_driver);
-}
-
-static void __exit tm_exit(void)
-{
-	hid_unregister_driver(&tm_driver);
-}
-
-module_init(tm_init);
-module_exit(tm_exit);
 MODULE_LICENSE("GPL");

@@ -540,11 +540,9 @@ static int plgpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	plgpio->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!plgpio->base) {
-		dev_err(&pdev->dev, "request and ioremap fail\n");
-		return -ENOMEM;
-	}
+	plgpio->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(plgpio->base))
+		return PTR_ERR(plgpio->base);
 
 	ret = plgpio_probe_dt(pdev, plgpio);
 	if (ret) {

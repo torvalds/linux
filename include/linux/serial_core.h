@@ -29,7 +29,6 @@
 #include <linux/tty.h>
 #include <linux/mutex.h>
 #include <linux/sysrq.h>
-#include <linux/pps_kernel.h>
 #include <uapi/linux/serial_core.h>
 
 struct uart_port;
@@ -37,8 +36,8 @@ struct serial_struct;
 struct device;
 
 /*
- * This structure describes all the operations that can be
- * done on the physical hardware.
+ * This structure describes all the operations that can be done on the
+ * physical hardware.  See Documentation/serial/driver for details.
  */
 struct uart_ops {
 	unsigned int	(*tx_empty)(struct uart_port *);
@@ -65,7 +64,7 @@ struct uart_ops {
 	/*
 	 * Return a string describing the type of the port
 	 */
-	const char *(*type)(struct uart_port *);
+	const char	*(*type)(struct uart_port *);
 
 	/*
 	 * Release IO and memory resources used by the port.
@@ -83,7 +82,7 @@ struct uart_ops {
 	int		(*ioctl)(struct uart_port *, unsigned int, unsigned long);
 #ifdef CONFIG_CONSOLE_POLL
 	int		(*poll_init)(struct uart_port *);
-	void	(*poll_put_char)(struct uart_port *, unsigned char);
+	void		(*poll_put_char)(struct uart_port *, unsigned char);
 	int		(*poll_get_char)(struct uart_port *);
 #endif
 };
@@ -134,9 +133,8 @@ struct uart_port {
 #define UPIO_HUB6		(1)
 #define UPIO_MEM		(2)
 #define UPIO_MEM32		(3)
-#define UPIO_AU			(4)			/* Au1x00 type IO */
+#define UPIO_AU			(4)			/* Au1x00 and RT288x type IO */
 #define UPIO_TSI		(5)			/* Tsi108/109 type IO */
-#define UPIO_RM9000		(6)			/* RM9000 type IO */
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */
@@ -208,13 +206,25 @@ static inline void serial_port_out(struct uart_port *up, int offset, int value)
 	up->serial_out(up, offset, value);
 }
 
+/**
+ * enum uart_pm_state - power states for UARTs
+ * @UART_PM_STATE_ON: UART is powered, up and operational
+ * @UART_PM_STATE_OFF: UART is powered off
+ * @UART_PM_STATE_UNDEFINED: sentinel
+ */
+enum uart_pm_state {
+	UART_PM_STATE_ON = 0,
+	UART_PM_STATE_OFF = 3, /* number taken from ACPI */
+	UART_PM_STATE_UNDEFINED,
+};
+
 /*
  * This is the state information which is persistent across opens.
  */
 struct uart_state {
 	struct tty_port		port;
 
-	int			pm_state;
+	enum uart_pm_state	pm_state;
 	struct circ_buf		xmit;
 
 	struct uart_port	*uart_port;

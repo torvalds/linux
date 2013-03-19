@@ -164,7 +164,7 @@ static ssize_t tanbac_tb0219_read(struct file *file, char __user *buf, size_t le
 	unsigned int minor;
 	char value;
 
-	minor = iminor(file->f_path.dentry->d_inode);
+	minor = iminor(file_inode(file));
 	switch (minor) {
 	case 0:
 		value = get_led();
@@ -200,7 +200,7 @@ static ssize_t tanbac_tb0219_write(struct file *file, const char __user *data,
 	int retval = 0;
 	char c;
 
-	minor = iminor(file->f_path.dentry->d_inode);
+	minor = iminor(file_inode(file));
 	switch (minor) {
 	case 0:
 		type = TYPE_LED;

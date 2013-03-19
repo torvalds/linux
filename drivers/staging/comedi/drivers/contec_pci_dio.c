@@ -30,6 +30,8 @@ Status: works
 Configuration Options: not applicable, uses comedi PCI auto config
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 #define PCI_DEVICE_ID_PIO1616L 0x8172
@@ -130,11 +132,6 @@ static int contec_pci_dio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &contec_pci_dio_driver);
 }
 
-static void contec_pci_dio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(contec_pci_dio_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L) },
 	{ 0 }
@@ -145,7 +142,7 @@ static struct pci_driver contec_pci_dio_pci_driver = {
 	.name		= "contec_pci_dio",
 	.id_table	= contec_pci_dio_pci_table,
 	.probe		= contec_pci_dio_pci_probe,
-	.remove		= contec_pci_dio_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(contec_pci_dio_driver, contec_pci_dio_pci_driver);
 

@@ -193,10 +193,6 @@ static void __init eukrea_cpuimx35_timer_init(void)
 	mx35_clocks_init();
 }
 
-static struct sys_timer eukrea_cpuimx35_timer = {
-	.init	= eukrea_cpuimx35_timer_init,
-};
-
 MACHINE_START(EUKREA_CPUIMX35SD, "Eukrea CPUIMX35")
 	/* Maintainer: Eukrea Electromatique */
 	.atag_offset = 0x100,
@@ -204,7 +200,7 @@ MACHINE_START(EUKREA_CPUIMX35SD, "Eukrea CPUIMX35")
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
 	.handle_irq = imx35_handle_irq,
-	.timer = &eukrea_cpuimx35_timer,
+	.init_time	= eukrea_cpuimx35_timer_init,
 	.init_machine = eukrea_cpuimx35_init,
 	.restart	= mxc_restart,
 MACHINE_END

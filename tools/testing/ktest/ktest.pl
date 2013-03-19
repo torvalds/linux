@@ -126,6 +126,7 @@ my $start_minconfig_defined;
 my $output_minconfig;
 my $minconfig_type;
 my $use_output_minconfig;
+my $warnings_file;
 my $ignore_config;
 my $ignore_errors;
 my $addconfig;
@@ -193,6 +194,9 @@ my $patchcheck_end;
 # which would require more options.
 my $buildonly = 1;
 
+# tell build not to worry about warnings, even when WARNINGS_FILE is set
+my $warnings_ok = 0;
+
 # set when creating a new config
 my $newconfig = 0;
 
@@ -235,6 +239,7 @@ my %option_map = (
     "START_MIN_CONFIG"		=> \$start_minconfig,
     "MIN_CONFIG_TYPE"		=> \$minconfig_type,
     "USE_OUTPUT_MIN_CONFIG"	=> \$use_output_minconfig,
+    "WARNINGS_FILE"		=> \$warnings_file,
     "IGNORE_CONFIG"		=> \$ignore_config,
     "TEST"			=> \$run_test,
     "ADD_CONFIG"		=> \$addconfig,
@@ -618,6 +623,18 @@ sub set_value {
     if ($buildonly && $lvalue =~ /^TEST_TYPE(\[.*\])?$/ && $prvalue ne "build") {
 	# Note if a test is something other than build, then we
 	# will need other manditory options.
+	if ($prvalue ne "install") {
+	    # for bisect, we need to check BISECT_TYPE
+	    if ($prvalue ne "bisect") {
+		$buildonly = 0;
+	    }
+	} else {
+	    # install still limits some manditory options.
+	    $buildonly = 2;
+	}
+    }
+
+    if ($buildonly && $lvalue =~ /^BISECT_TYPE(\[.*\])?$/ && $prvalue ne "build") {
 	if ($prvalue ne "install") {
 	    $buildonly = 0;
 	} else {
@@ -1062,7 +1079,7 @@ sub read_config {
 }
 
 sub __eval_option {
-    my ($option, $i) = @_;
+    my ($name, $option, $i) = @_;
 
     # Add space to evaluate the character before $
     $option = " $option";
@@ -1094,7 +1111,11 @@ sub __eval_option {
 	my $o = "$var\[$i\]";
 	my $parento = "$var\[$parent\]";
 
-	if (defined($opt{$o})) {
+	# If a variable contains itself, use the default var
+	if (($var eq $name) && defined($opt{$var})) {
+	    $o = $opt{$var};
+	    $retval = "$retval$o";
+	} elsif (defined($opt{$o})) {
 	    $o = $opt{$o};
 	    $retval = "$retval$o";
 	} elsif ($repeated && defined($opt{$parento})) {
@@ -1118,7 +1139,7 @@ sub __eval_option {
 }
 
 sub eval_option {
-    my ($option, $i) = @_;
+    my ($name, $option, $i) = @_;
 
     my $prev = "";
 
@@ -1134,7 +1155,7 @@ sub eval_option {
 		"Check for recursive variables\n";
 	}
 	$prev = $option;
-	$option = __eval_option($option, $i);
+	$option = __eval_option($name, $option, $i);
     }
 
     return $option;
@@ -1191,11 +1212,24 @@ sub reboot {
     }
 
     if (defined($time)) {
-	if (wait_for_monitor($time, $reboot_success_line)) {
+
+	# We only want to get to the new kernel, don't fail
+	# if we stumble over a call trace.
+	my $save_ignore_errors = $ignore_errors;
+	$ignore_errors = 1;
+
+	# Look for the good kernel to boot
+	if (wait_for_monitor($time, "Linux version")) {
 	    # reboot got stuck?
 	    doprint "Reboot did not finish. Forcing power cycle\n";
 	    run_command "$power_cycle";
 	}
+
+	$ignore_errors = $save_ignore_errors;
+
+	# Still need to wait for the reboot to finish
+	wait_for_monitor($time, $reboot_success_line);
+
 	end_monitor;
     }
 }
@@ -1279,6 +1313,7 @@ sub start_monitor {
 }
 
 sub end_monitor {
+    return if (!defined $console);
     if (--$monitor_cnt) {
 	return;
     }
@@ -1585,7 +1620,7 @@ sub wait_for_input
 
     $rin = '';
     vec($rin, fileno($fp), 1) = 1;
-    $ready = select($rin, undef, undef, $time);
+    ($ready, $time) = select($rin, undef, undef, $time);
 
     $line = "";
 
@@ -1891,22 +1926,101 @@ sub get_version {
 
 sub start_monitor_and_boot {
     # Make sure the stable kernel has finished booting
-    start_monitor;
-    wait_for_monitor 5;
-    end_monitor;
+
+    # Install bisects, don't need console
+    if (defined $console) {
+	start_monitor;
+	wait_for_monitor 5;
+	end_monitor;
+    }
 
     get_grub_index;
     get_version;
     install;
 
-    start_monitor;
+    start_monitor if (defined $console);
     return monitor;
 }
 
+my $check_build_re = ".*:.*(warning|error|Error):.*";
+my $utf8_quote = "\\x{e2}\\x{80}(\\x{98}|\\x{99})";
+
+sub process_warning_line {
+    my ($line) = @_;
+
+    chomp $line;
+
+    # for distcc heterogeneous systems, some compilers
+    # do things differently causing warning lines
+    # to be slightly different. This makes an attempt
+    # to fixe those issues.
+
+    # chop off the index into the line
+    # using distcc, some compilers give different indexes
+    # depending on white space
+    $line =~ s/^(\s*\S+:\d+:)\d+/$1/;
+
+    # Some compilers use UTF-8 extended for quotes and some don't.
+    $line =~ s/$utf8_quote/'/g;
+
+    return $line;
+}
+
+# Read buildlog and check against warnings file for any
+# new warnings.
+#
+# Returns 1 if OK
+#         0 otherwise
 sub check_buildlog {
+    return 1 if (!defined $warnings_file);
+
+    my %warnings_list;
+
+    # Failed builds should not reboot the target
+    my $save_no_reboot = $no_reboot;
+    $no_reboot = 1;
+
+    if (-f $warnings_file) {
+	open(IN, $warnings_file) or
+	    dodie "Error opening $warnings_file";
+
+	while (<IN>) {
+	    if (/$check_build_re/) {
+		my $warning = process_warning_line $_;
+		
+		$warnings_list{$warning} = 1;
+	    }
+	}
+	close(IN);
+    }
+
+    # If warnings file didn't exist, and WARNINGS_FILE exist,
+    # then we fail on any warning!
+
+    open(IN, $buildlog) or dodie "Can't open $buildlog";
+    while (<IN>) {
+	if (/$check_build_re/) {
+	    my $warning = process_warning_line $_;
+
+	    if (!defined $warnings_list{$warning}) {
+		fail "New warning found (not in $warnings_file)\n$_\n";
+		$no_reboot = $save_no_reboot;
+		return 0;
+	    }
+	}
+    }
+    $no_reboot = $save_no_reboot;
+    close(IN);
+}
+
+sub check_patch_buildlog {
     my ($patch) = @_;
 
     my @files = `git show $patch | diffstat -l`;
+
+    foreach my $file (@files) {
+	chomp $file;
+    }
 
     open(IN, "git show $patch |") or
 	dodie "failed to show $patch";
@@ -3055,10 +3169,12 @@ sub patchcheck {
 	    build "oldconfig" or return 0;
 	}
 
-
-	if (!defined($ignored_warnings{$sha1})) {
-	    check_buildlog $sha1 or return 0;
+	# No need to do per patch checking if warnings file exists
+	if (!defined($warnings_file) && !defined($ignored_warnings{$sha1})) {
+	    check_patch_buildlog $sha1 or return 0;
 	}
+
+	check_buildlog or return 0;
 
 	next if ($type eq "build");
 
@@ -3617,6 +3733,39 @@ sub make_min_config {
     return 1;
 }
 
+sub make_warnings_file {
+    my ($i) = @_;
+
+    if (!defined($warnings_file)) {
+	dodie "Must define WARNINGS_FILE for make_warnings_file test";
+    }
+
+    if ($build_type eq "nobuild") {
+	dodie "BUILD_TYPE can not be 'nobuild' for make_warnings_file test";
+    }
+
+    build $build_type or dodie "Failed to build";
+
+    open(OUT, ">$warnings_file") or dodie "Can't create $warnings_file";
+
+    open(IN, $buildlog) or dodie "Can't open $buildlog";
+    while (<IN>) {
+
+	# Some compilers use UTF-8 extended for quotes
+	# for distcc heterogeneous systems, this causes issues
+	s/$utf8_quote/'/g;
+
+	if (/$check_build_re/) {
+	    print OUT;
+	}
+    }
+    close(IN);
+
+    close(OUT);
+
+    success $i;
+}
+
 $#ARGV < 1 or die "ktest.pl version: $VERSION\n   usage: ktest.pl config-file\n";
 
 if ($#ARGV == 0) {
@@ -3662,7 +3811,7 @@ EOF
 read_config $ktest_config;
 
 if (defined($opt{"LOG_FILE"})) {
-    $opt{"LOG_FILE"} = eval_option($opt{"LOG_FILE"}, -1);
+    $opt{"LOG_FILE"} = eval_option("LOG_FILE", $opt{"LOG_FILE"}, -1);
 }
 
 # Append any configs entered in manually to the config file.
@@ -3739,7 +3888,7 @@ sub set_test_option {
     my $option = __set_test_option($name, $i);
     return $option if (!defined($option));
 
-    return eval_option($option, $i);
+    return eval_option($name, $option, $i);
 }
 
 # First we need to do is the builds
@@ -3818,9 +3967,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$run_type = $bisect_type;
     } elsif ($test_type eq "config_bisect") {
 	$run_type = $config_bisect_type;
-    }
-
-    if ($test_type eq "make_min_config") {
+    } elsif ($test_type eq "make_min_config") {
+	$run_type = "";
+    } elsif ($test_type eq "make_warnings_file") {
 	$run_type = "";
     }
 
@@ -3877,10 +4026,15 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     } elsif ($test_type eq "make_min_config") {
 	make_min_config $i;
 	next;
+    } elsif ($test_type eq "make_warnings_file") {
+	$no_reboot = 1;
+	make_warnings_file $i;
+	next;
     }
 
     if ($build_type ne "nobuild") {
 	build $build_type or next;
+	check_buildlog or next;
     }
 
     if ($test_type eq "install") {

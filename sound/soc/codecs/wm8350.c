@@ -283,18 +283,16 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		out->ramp = WM8350_RAMP_UP;
 		out->active = 1;
 
-		if (!delayed_work_pending(&codec->dapm.delayed_work))
-			schedule_delayed_work(&codec->dapm.delayed_work,
-					      msecs_to_jiffies(1));
+		schedule_delayed_work(&codec->dapm.delayed_work,
+				      msecs_to_jiffies(1));
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		out->ramp = WM8350_RAMP_DOWN;
 		out->active = 0;
 
-		if (!delayed_work_pending(&codec->dapm.delayed_work))
-			schedule_delayed_work(&codec->dapm.delayed_work,
-					      msecs_to_jiffies(1));
+		schedule_delayed_work(&codec->dapm.delayed_work,
+				      msecs_to_jiffies(1));
 		break;
 	}
 
@@ -1303,7 +1301,7 @@ static irqreturn_t wm8350_hpl_jack_handler(int irq, void *data)
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&priv->hpl.work, 200);
+	schedule_delayed_work(&priv->hpl.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }
@@ -1320,7 +1318,7 @@ static irqreturn_t wm8350_hpr_jack_handler(int irq, void *data)
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&priv->hpr.work, 200);
+	schedule_delayed_work(&priv->hpr.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }

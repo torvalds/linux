@@ -12,25 +12,26 @@
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
-#include <linux/cpuidle.h>
+#include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/opp.h>
 #include <linux/phy.h>
 #include <linux/regmap.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/syscon.h>
-#include <asm/cpuidle.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
 
@@ -201,37 +202,91 @@ static void __init imx6q_init_machine(void)
 	imx6q_1588_init();
 }
 
-static struct cpuidle_driver imx6q_cpuidle_driver = {
-	.name			= "imx6q_cpuidle",
-	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
-	.states[0]		= ARM_CPUIDLE_WFI_STATE,
-	.state_count		= 1,
+#define OCOTP_CFG3			0x440
+#define OCOTP_CFG3_SPEED_SHIFT		16
+#define OCOTP_CFG3_SPEED_1P2GHZ		0x3
+
+static void __init imx6q_opp_check_1p2ghz(struct device *cpu_dev)
+{
+	struct device_node *np;
+	void __iomem *base;
+	u32 val;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-ocotp");
+	if (!np) {
+		pr_warn("failed to find ocotp node\n");
+		return;
+	}
+
+	base = of_iomap(np, 0);
+	if (!base) {
+		pr_warn("failed to map ocotp\n");
+		goto put_node;
+	}
+
+	val = readl_relaxed(base + OCOTP_CFG3);
+	val >>= OCOTP_CFG3_SPEED_SHIFT;
+	if ((val & 0x3) != OCOTP_CFG3_SPEED_1P2GHZ)
+		if (opp_disable(cpu_dev, 1200000000))
+			pr_warn("failed to disable 1.2 GHz OPP\n");
+
+put_node:
+	of_node_put(np);
+}
+
+static void __init imx6q_opp_init(struct device *cpu_dev)
+{
+	struct device_node *np;
+
+	np = of_find_node_by_path("/cpus/cpu@0");
+	if (!np) {
+		pr_warn("failed to find cpu0 node\n");
+		return;
+	}
+
+	cpu_dev->of_node = np;
+	if (of_init_opp_table(cpu_dev)) {
+		pr_warn("failed to init OPP table\n");
+		goto put_node;
+	}
+
+	imx6q_opp_check_1p2ghz(cpu_dev);
+
+put_node:
+	of_node_put(np);
+}
+
+struct platform_device imx6q_cpufreq_pdev = {
+	.name = "imx6q-cpufreq",
 };
 
 static void __init imx6q_init_late(void)
 {
-	imx_cpuidle_init(&imx6q_cpuidle_driver);
+	/*
+	 * WAIT mode is broken on TO 1.0 and 1.1, so there is no point
+	 * to run cpuidle on them.
+	 */
+	if (imx6q_revision() > IMX_CHIP_REVISION_1_1)
+		imx6q_cpuidle_init();
+
+	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ)) {
+		imx6q_opp_init(&imx6q_cpufreq_pdev.dev);
+		platform_device_register(&imx6q_cpufreq_pdev);
+	}
 }
 
 static void __init imx6q_map_io(void)
 {
-	imx_lluart_map_io();
+	debug_ll_io_init();
 	imx_scu_map_io();
-	imx6q_clock_map_io();
 }
-
-static const struct of_device_id imx6q_irq_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ /* sentinel */ }
-};
 
 static void __init imx6q_init_irq(void)
 {
 	l2x0_of_init(0, ~0UL);
 	imx_src_init();
 	imx_gpc_init();
-	of_irq_init(imx6q_irq_match);
+	irqchip_init();
 }
 
 static void __init imx6q_timer_init(void)
@@ -240,10 +295,6 @@ static void __init imx6q_timer_init(void)
 	twd_local_timer_of_register();
 	imx_print_silicon_rev("i.MX6Q", imx6q_revision());
 }
-
-static struct sys_timer imx6q_timer = {
-	.init = imx6q_timer_init,
-};
 
 static const char *imx6q_dt_compat[] __initdata = {
 	"fsl,imx6q",
@@ -254,8 +305,7 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
 	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,
-	.handle_irq	= imx6q_handle_irq,
-	.timer		= &imx6q_timer,
+	.init_time	= imx6q_timer_init,
 	.init_machine	= imx6q_init_machine,
 	.init_late      = imx6q_init_late,
 	.dt_compat	= imx6q_dt_compat,

@@ -120,8 +120,6 @@ struct slb_shadow slb_shadow[] __cacheline_aligned = {
 struct paca_struct *paca;
 EXPORT_SYMBOL(paca);
 
-struct paca_struct boot_paca;
-
 void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
        /* The TOC register (GPR2) points 32kB into the TOC, so that 64kB

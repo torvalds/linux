@@ -26,8 +26,8 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
@@ -38,8 +38,6 @@
 #include <asm/mmu.h>
 #include <asm/sections.h>
 #include <asm/fixmap.h>
-
-#define flush_HPTE(X, va, pg)	_tlbie(va)
 
 unsigned long ioremap_base;
 unsigned long ioremap_bot;
@@ -75,9 +73,8 @@ static void __iomem *__ioremap(phys_addr_t addr, unsigned long size,
 		p >= memory_start && p < virt_to_phys(high_memory) &&
 		!(p >= virt_to_phys((unsigned long)&__bss_stop) &&
 		p < virt_to_phys((unsigned long)__bss_stop))) {
-		printk(KERN_WARNING "__ioremap(): phys addr "PTE_FMT
-			" is RAM lr %pf\n", (unsigned long)p,
-			__builtin_return_address(0));
+		pr_warn("__ioremap(): phys addr "PTE_FMT" is RAM lr %pf\n",
+			(unsigned long)p, __builtin_return_address(0));
 		return NULL;
 	}
 
@@ -128,9 +125,10 @@ void __iomem *ioremap(phys_addr_t addr, unsigned long size)
 }
 EXPORT_SYMBOL(ioremap);
 
-void iounmap(void *addr)
+void iounmap(void __iomem *addr)
 {
-	if (addr > high_memory && (unsigned long) addr < ioremap_bot)
+	if ((__force void *)addr > high_memory &&
+					(unsigned long) addr < ioremap_bot)
 		vfree((void *) (PAGE_MASK & (unsigned long) addr));
 }
 EXPORT_SYMBOL(iounmap);
@@ -152,8 +150,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT,
 				__pgprot(flags)));
 		if (unlikely(mem_init_done))
-			flush_HPTE(0, va, pmd_val(*pd));
-			/* flush_HPTE(0, va, pg); */
+			_tlbie(va);
 	}
 	return err;
 }

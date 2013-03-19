@@ -24,7 +24,7 @@
 #include "ux500_pcm.h"
 #include "ux500_msp_dai.h"
 
-#include <mop500_ab8500.h>
+#include "mop500_ab8500.h"
 
 /* Define the whole MOP500 soundcard, linking platform to the codec-drivers  */
 struct snd_soc_dai_link mop500_dai_links[] = {

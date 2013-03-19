@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/clocksource.h>
 #include <linux/io.h>
 #include <linux/pm.h>
 
@@ -175,22 +176,20 @@ static void __init vt8500_init_irq(void)
 	of_irq_init(vt8500_irq_match);
 };
 
-static struct sys_timer vt8500_timer = {
-	.init = vt8500_timer_init,
-};
-
 static const char * const vt8500_dt_compat[] = {
 	"via,vt8500",
 	"wm,wm8650",
 	"wm,wm8505",
+	"wm,wm8750",
+	"wm,wm8850",
 };
 
 DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")
 	.dt_compat	= vt8500_dt_compat,
 	.map_io		= vt8500_map_io,
 	.init_irq	= vt8500_init_irq,
-	.timer		= &vt8500_timer,
 	.init_machine	= vt8500_init,
+	.init_time	= clocksource_of_init,
 	.restart	= vt8500_restart,
 	.handle_irq	= vt8500_handle_irq,
 MACHINE_END

@@ -49,6 +49,8 @@
 #define SYS_ID_HBI_SHIFT	16
 #define SYS_PROCIDx_HBI_SHIFT	0
 
+#define SYS_LED_LED(n)		(1 << (n))
+
 #define SYS_MCI_CARDIN		(1 << 0)
 #define SYS_MCI_WPROT		(1 << 1)
 
@@ -313,7 +315,7 @@ static void vexpress_sysreg_config_complete(unsigned long data)
 }
 
 
-void __init vexpress_sysreg_setup(struct device_node *node)
+void vexpress_sysreg_setup(struct device_node *node)
 {
 	if (WARN_ON(!vexpress_sysreg_base))
 		return;
@@ -336,44 +338,44 @@ void __init vexpress_sysreg_early_init(void __iomem *base)
 
 void __init vexpress_sysreg_of_early_init(void)
 {
-	struct device_node *node = of_find_compatible_node(NULL, NULL,
-			"arm,vexpress-sysreg");
+	struct device_node *node;
 
+	if (vexpress_sysreg_base)
+		return;
+
+	node = of_find_compatible_node(NULL, NULL, "arm,vexpress-sysreg");
 	if (node) {
 		vexpress_sysreg_base = of_iomap(node, 0);
 		vexpress_sysreg_setup(node);
-	} else {
-		pr_info("vexpress-sysreg: No Device Tree node found.");
 	}
 }
 
+
+#define VEXPRESS_SYSREG_GPIO(_name, _reg, _value) \
+	[VEXPRESS_GPIO_##_name] = { \
+		.reg = _reg, \
+		.value = _reg##_##_value, \
+	}
 
 static struct vexpress_sysreg_gpio {
 	unsigned long reg;
 	u32 value;
 } vexpress_sysreg_gpios[] = {
-	[VEXPRESS_GPIO_MMC_CARDIN] = {
-		.reg = SYS_MCI,
-		.value = SYS_MCI_CARDIN,
-	},
-	[VEXPRESS_GPIO_MMC_WPROT] = {
-		.reg = SYS_MCI,
-		.value = SYS_MCI_WPROT,
-	},
-	[VEXPRESS_GPIO_FLASH_WPn] = {
-		.reg = SYS_FLASH,
-		.value = SYS_FLASH_WPn,
-	},
+	VEXPRESS_SYSREG_GPIO(MMC_CARDIN,	SYS_MCI,	CARDIN),
+	VEXPRESS_SYSREG_GPIO(MMC_WPROT,		SYS_MCI,	WPROT),
+	VEXPRESS_SYSREG_GPIO(FLASH_WPn,		SYS_FLASH,	WPn),
+	VEXPRESS_SYSREG_GPIO(LED0,		SYS_LED,	LED(0)),
+	VEXPRESS_SYSREG_GPIO(LED1,		SYS_LED,	LED(1)),
+	VEXPRESS_SYSREG_GPIO(LED2,		SYS_LED,	LED(2)),
+	VEXPRESS_SYSREG_GPIO(LED3,		SYS_LED,	LED(3)),
+	VEXPRESS_SYSREG_GPIO(LED4,		SYS_LED,	LED(4)),
+	VEXPRESS_SYSREG_GPIO(LED5,		SYS_LED,	LED(5)),
+	VEXPRESS_SYSREG_GPIO(LED6,		SYS_LED,	LED(6)),
+	VEXPRESS_SYSREG_GPIO(LED7,		SYS_LED,	LED(7)),
 };
 
 static int vexpress_sysreg_gpio_direction_input(struct gpio_chip *chip,
 				       unsigned offset)
-{
-	return 0;
-}
-
-static int vexpress_sysreg_gpio_direction_output(struct gpio_chip *chip,
-						unsigned offset, int value)
 {
 	return 0;
 }
@@ -401,6 +403,14 @@ static void vexpress_sysreg_gpio_set(struct gpio_chip *chip,
 	writel(reg_value, vexpress_sysreg_base + gpio->reg);
 }
 
+static int vexpress_sysreg_gpio_direction_output(struct gpio_chip *chip,
+						unsigned offset, int value)
+{
+	vexpress_sysreg_gpio_set(chip, offset, value);
+
+	return 0;
+}
+
 static struct gpio_chip vexpress_sysreg_gpio_chip = {
 	.label = "vexpress-sysreg",
 	.direction_input = vexpress_sysreg_gpio_direction_input,
@@ -409,6 +419,30 @@ static struct gpio_chip vexpress_sysreg_gpio_chip = {
 	.set = vexpress_sysreg_gpio_set,
 	.ngpio = ARRAY_SIZE(vexpress_sysreg_gpios),
 	.base = 0,
+};
+
+
+#define VEXPRESS_SYSREG_GREEN_LED(_name, _default_trigger, _gpio) \
+	{ \
+		.name = "v2m:green:"_name, \
+		.default_trigger = _default_trigger, \
+		.gpio = VEXPRESS_GPIO_##_gpio, \
+	}
+
+struct gpio_led vexpress_sysreg_leds[] = {
+	VEXPRESS_SYSREG_GREEN_LED("user1",	"heartbeat",	LED0),
+	VEXPRESS_SYSREG_GREEN_LED("user2",	"mmc0",		LED1),
+	VEXPRESS_SYSREG_GREEN_LED("user3",	"cpu0",		LED2),
+	VEXPRESS_SYSREG_GREEN_LED("user4",	"cpu1",		LED3),
+	VEXPRESS_SYSREG_GREEN_LED("user5",	"cpu2",		LED4),
+	VEXPRESS_SYSREG_GREEN_LED("user6",	"cpu3",		LED5),
+	VEXPRESS_SYSREG_GREEN_LED("user7",	"cpu4",		LED6),
+	VEXPRESS_SYSREG_GREEN_LED("user8",	"cpu5",		LED7),
+};
+
+struct gpio_led_platform_data vexpress_sysreg_leds_pdata = {
+	.num_leds = ARRAY_SIZE(vexpress_sysreg_leds),
+	.leds = vexpress_sysreg_leds,
 };
 
 
@@ -456,6 +490,10 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	platform_device_register_data(vexpress_sysreg_dev, "leds-gpio",
+			PLATFORM_DEVID_AUTO, &vexpress_sysreg_leds_pdata,
+			sizeof(vexpress_sysreg_leds_pdata));
+
 	vexpress_sysreg_dev = &pdev->dev;
 
 	device_create_file(vexpress_sysreg_dev, &dev_attr_sys_id);
@@ -478,6 +516,7 @@ static struct platform_driver vexpress_sysreg_driver = {
 
 static int __init vexpress_sysreg_init(void)
 {
+	vexpress_sysreg_of_early_init();
 	return platform_driver_register(&vexpress_sysreg_driver);
 }
 core_initcall(vexpress_sysreg_init);

@@ -57,8 +57,8 @@ config TULIP
 	  be called tulip.
 
 config TULIP_MWI
-	bool "New bus configuration (EXPERIMENTAL)"
-	depends on TULIP && EXPERIMENTAL
+	bool "New bus configuration"
+	depends on TULIP
 	---help---
 	  This configures your Tulip card specifically for the card and
 	  system cache line size type you are using.

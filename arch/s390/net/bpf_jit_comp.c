@@ -7,6 +7,7 @@
  */
 #include <linux/moduleloader.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/filter.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
@@ -254,6 +255,8 @@ static void bpf_jit_noleaks(struct bpf_jit *jit, struct sock_filter *filter)
 	case BPF_S_ANC_HATYPE:
 	case BPF_S_ANC_RXHASH:
 	case BPF_S_ANC_CPU:
+	case BPF_S_ANC_VLAN_TAG:
+	case BPF_S_ANC_VLAN_TAG_PRESENT:
 	case BPF_S_RET_K:
 		/* first instruction sets A register */
 		break;
@@ -698,6 +701,24 @@ call_fn:	/* lg %r1,<d(function)>(%r13) */
 		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
 		/* l %r5,<d(rxhash)>(%r2) */
 		EMIT4_DISP(0x58502000, offsetof(struct sk_buff, rxhash));
+		break;
+	case BPF_S_ANC_VLAN_TAG:
+	case BPF_S_ANC_VLAN_TAG_PRESENT:
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+		BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
+		/* lhi %r5,0 */
+		EMIT4(0xa7580000);
+		/* icm	%r5,3,<d(vlan_tci)>(%r2) */
+		EMIT4_DISP(0xbf532000, offsetof(struct sk_buff, vlan_tci));
+		if (filter->code == BPF_S_ANC_VLAN_TAG) {
+			/* nill %r5,0xefff */
+			EMIT4_IMM(0xa5570000, ~VLAN_TAG_PRESENT);
+		} else {
+			/* nill %r5,0x1000 */
+			EMIT4_IMM(0xa5570000, VLAN_TAG_PRESENT);
+			/* srl %r5,12 */
+			EMIT4_DISP(0x88500000, 12);
+		}
 		break;
 	case BPF_S_ANC_CPU: /* A = smp_processor_id() */
 #ifdef CONFIG_SMP

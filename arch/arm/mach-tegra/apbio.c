@@ -38,7 +38,7 @@ static void tegra_apb_writel_direct(u32 value, unsigned long offset);
 static struct dma_chan *tegra_apb_dma_chan;
 static struct dma_slave_config dma_sconfig;
 
-bool tegra_apb_dma_init(void)
+static bool tegra_apb_dma_init(void)
 {
 	dma_cap_mask_t mask;
 

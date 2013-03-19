@@ -272,17 +272,9 @@ extern int compat_setup_rt_frame(int sig, struct k_sigaction *ka,
 				 struct pt_regs *regs);
 
 /* Compat syscalls. */
-struct compat_sigaction;
 struct compat_siginfo;
 struct compat_sigaltstack;
-long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
-			     struct compat_sigaction __user *oact,
-			     size_t sigsetsize);
-long compat_sys_rt_sigqueueinfo(int pid, int sig,
-				struct compat_siginfo __user *uinfo);
 long compat_sys_rt_sigreturn(void);
-long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
-			    struct compat_sigaltstack __user *uoss_ptr);
 long compat_sys_truncate64(char __user *filename, u32 dummy, u32 low, u32 high);
 long compat_sys_ftruncate64(unsigned int fd, u32 dummy, u32 low, u32 high);
 long compat_sys_pread64(unsigned int fd, char __user *ubuf, size_t count,
@@ -296,6 +288,9 @@ long compat_sys_sync_file_range2(int fd, unsigned int flags,
 long compat_sys_fallocate(int fd, int mode,
 			  u32 offset_lo, u32 offset_hi,
 			  u32 len_lo, u32 len_hi);
+long compat_sys_llseek(unsigned int fd, unsigned int offset_high,
+		       unsigned int offset_low, loff_t __user * result,
+		       unsigned int origin);
 
 /* Assembly trampoline to avoid clobbering r0. */
 long _compat_sys_rt_sigreturn(void);

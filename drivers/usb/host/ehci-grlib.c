@@ -25,7 +25,7 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-
+#include <linux/err.h>
 #include <linux/signal.h>
 
 #include <linux/of_irq.h>
@@ -118,10 +118,9 @@ static int ehci_hcd_grlib_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
-	hcd->regs = devm_request_and_ioremap(&op->dev, &res);
-	if (!hcd->regs) {
-		pr_err("%s: devm_request_and_ioremap failed\n", __FILE__);
-		rv = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&op->dev, &res);
+	if (IS_ERR(hcd->regs)) {
+		rv = PTR_ERR(hcd->regs);
 		goto err_ioremap;
 	}
 

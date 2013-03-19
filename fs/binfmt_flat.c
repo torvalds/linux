@@ -438,7 +438,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	int ret;
 
 	hdr = ((struct flat_hdr *) bprm->buf);		/* exec-header */
-	inode = bprm->file->f_path.dentry->d_inode;
+	inode = file_inode(bprm->file);
 
 	text_len  = ntohl(hdr->data_start);
 	data_len  = ntohl(hdr->data_end) - ntohl(hdr->data_start);

@@ -167,6 +167,8 @@ struct cs4271_private {
 	int				gpio_nreset;
 	/* GPIO that disable serial bus, if any */
 	int				gpio_disable;
+	/* enable soft reset workaround */
+	bool				enable_soft_reset;
 };
 
 /*
@@ -324,6 +326,33 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 	unsigned int ratio, val;
+
+	if (cs4271->enable_soft_reset) {
+		/*
+		 * Put the codec in soft reset and back again in case it's not
+		 * currently streaming data. This way of bringing the codec in
+		 * sync to the current clocks is not explicitly documented in
+		 * the data sheet, but it seems to work fine, and in contrast
+		 * to a read hardware reset, we don't have to sync back all
+		 * registers every time.
+		 */
+
+		if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+		     !dai->capture_active) ||
+		    (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
+		     !dai->playback_active)) {
+			ret = snd_soc_update_bits(codec, CS4271_MODE2,
+						  CS4271_MODE2_PDN,
+						  CS4271_MODE2_PDN);
+			if (ret < 0)
+				return ret;
+
+			ret = snd_soc_update_bits(codec, CS4271_MODE2,
+						  CS4271_MODE2_PDN, 0);
+			if (ret < 0)
+				return ret;
+		}
+	}
 
 	cs4271->rate = params_rate(params);
 
@@ -484,6 +513,10 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 		if (of_get_property(codec->dev->of_node,
 				     "cirrus,amutec-eq-bmutec", NULL))
 			amutec_eq_bmutec = true;
+
+		if (of_get_property(codec->dev->of_node,
+				     "cirrus,enable-soft-reset", NULL))
+			cs4271->enable_soft_reset = true;
 	}
 #endif
 
@@ -492,6 +525,7 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 			gpio_nreset = cs4271plat->gpio_nreset;
 
 		amutec_eq_bmutec = cs4271plat->amutec_eq_bmutec;
+		cs4271->enable_soft_reset = cs4271plat->enable_soft_reset;
 	}
 
 	if (gpio_nreset >= 0)

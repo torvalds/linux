@@ -122,7 +122,7 @@ static inline void __au1300_ohci_control(void __iomem *base, int enable, int id)
 	unsigned long r;
 
 	if (enable) {
-		__raw_writel(1, base + USB_DWC_CTRL7);  /* start OHCI clock */
+		__raw_writel(1, base + USB_DWC_CTRL7);	/* start OHCI clock */
 		wmb();
 
 		r = __raw_readl(base + USB_DWC_CTRL3);	/* enable OHCI block */

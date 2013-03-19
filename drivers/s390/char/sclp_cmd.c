@@ -56,7 +56,6 @@ static int __initdata early_read_info_sccb_valid;
 
 u64 sclp_facilities;
 static u8 sclp_fac84;
-static u8 sclp_fac85;
 static unsigned long long rzm;
 static unsigned long long rnmax;
 
@@ -131,7 +130,8 @@ void __init sclp_facilities_detect(void)
 	sccb = &early_read_info_sccb;
 	sclp_facilities = sccb->facilities;
 	sclp_fac84 = sccb->fac84;
-	sclp_fac85 = sccb->fac85;
+	if (sccb->fac85 & 0x02)
+		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
 	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	rzm <<= 20;
@@ -170,12 +170,6 @@ unsigned long long sclp_get_rzm(void)
 {
 	return rzm;
 }
-
-u8 sclp_get_fac85(void)
-{
-	return sclp_fac85;
-}
-EXPORT_SYMBOL_GPL(sclp_get_fac85);
 
 /*
  * This function will be called after sclp_facilities_detect(), which gets

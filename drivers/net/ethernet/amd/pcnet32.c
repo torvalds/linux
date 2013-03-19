@@ -494,19 +494,15 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 	}
 	memset(new_tx_ring, 0, sizeof(struct pcnet32_tx_head) * (1 << size));
 
-	new_dma_addr_list = kcalloc((1 << size), sizeof(dma_addr_t),
-				GFP_ATOMIC);
-	if (!new_dma_addr_list) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	new_dma_addr_list = kcalloc(1 << size, sizeof(dma_addr_t),
+				    GFP_ATOMIC);
+	if (!new_dma_addr_list)
 		goto free_new_tx_ring;
-	}
 
-	new_skb_list = kcalloc((1 << size), sizeof(struct sk_buff *),
-				GFP_ATOMIC);
-	if (!new_skb_list) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	new_skb_list = kcalloc(1 << size, sizeof(struct sk_buff *),
+			       GFP_ATOMIC);
+	if (!new_skb_list)
 		goto free_new_lists;
-	}
 
 	kfree(lp->tx_skbuff);
 	kfree(lp->tx_dma_addr);
@@ -564,19 +560,14 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 	}
 	memset(new_rx_ring, 0, sizeof(struct pcnet32_rx_head) * (1 << size));
 
-	new_dma_addr_list = kcalloc((1 << size), sizeof(dma_addr_t),
-				GFP_ATOMIC);
-	if (!new_dma_addr_list) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	new_dma_addr_list = kcalloc(1 << size, sizeof(dma_addr_t), GFP_ATOMIC);
+	if (!new_dma_addr_list)
 		goto free_new_rx_ring;
-	}
 
-	new_skb_list = kcalloc((1 << size), sizeof(struct sk_buff *),
-				GFP_ATOMIC);
-	if (!new_skb_list) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	new_skb_list = kcalloc(1 << size, sizeof(struct sk_buff *),
+			       GFP_ATOMIC);
+	if (!new_skb_list)
 		goto free_new_lists;
-	}
 
 	/* first copy the current receive buffers */
 	overlap = min(size, lp->rx_ring_size);
@@ -1688,10 +1679,9 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 			memcpy(dev->dev_addr, promaddr, 6);
 		}
 	}
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* if the ethernet address is not valid, force to 00:00:00:00:00:00 */
-	if (!is_valid_ether_addr(dev->perm_addr))
+	if (!is_valid_ether_addr(dev->dev_addr))
 		memset(dev->dev_addr, 0, ETH_ALEN);
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
@@ -1934,31 +1924,23 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 
 	lp->tx_dma_addr = kcalloc(lp->tx_ring_size, sizeof(dma_addr_t),
 				  GFP_ATOMIC);
-	if (!lp->tx_dma_addr) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	if (!lp->tx_dma_addr)
 		return -ENOMEM;
-	}
 
 	lp->rx_dma_addr = kcalloc(lp->rx_ring_size, sizeof(dma_addr_t),
 				  GFP_ATOMIC);
-	if (!lp->rx_dma_addr) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	if (!lp->rx_dma_addr)
 		return -ENOMEM;
-	}
 
 	lp->tx_skbuff = kcalloc(lp->tx_ring_size, sizeof(struct sk_buff *),
 				GFP_ATOMIC);
-	if (!lp->tx_skbuff) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	if (!lp->tx_skbuff)
 		return -ENOMEM;
-	}
 
 	lp->rx_skbuff = kcalloc(lp->rx_ring_size, sizeof(struct sk_buff *),
 				GFP_ATOMIC);
-	if (!lp->rx_skbuff) {
-		netif_err(lp, drv, dev, "Memory allocation failed\n");
+	if (!lp->rx_skbuff)
 		return -ENOMEM;
-	}
 
 	return 0;
 }

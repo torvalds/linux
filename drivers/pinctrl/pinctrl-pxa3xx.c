@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -187,9 +188,9 @@ int pxa3xx_pinctrl_register(struct platform_device *pdev,
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENOENT;
-	info->virt_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!info->virt_base)
-		return -ENOMEM;
+	info->virt_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->virt_base))
+		return PTR_ERR(info->virt_base);
 	info->pctrl = pinctrl_register(desc, &pdev->dev, info);
 	if (!info->pctrl) {
 		dev_err(&pdev->dev, "failed to register PXA pinmux driver\n");

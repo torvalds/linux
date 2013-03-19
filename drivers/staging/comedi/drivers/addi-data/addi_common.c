@@ -11,13 +11,21 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	http://www.addi-data.com
 	info@addi-data.com
 
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You should also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this
+source code.
 
 @endverbatim
 */
@@ -29,10 +37,10 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : ADDI DATA         | Compiler : GCC 		          |
+  | Project   : ADDI DATA         | Compiler : GCC                        |
   | Modulname : addi_common.c     | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    :           | Date     :                    		  |
+  | Author    :           | Date     :                                    |
   +-----------------------------------------------------------------------+
   | Description : ADDI COMMON Main Module                                 |
   +-----------------------------------------------------------------------+
@@ -167,11 +175,11 @@ static int addi_auto_attach(struct comedi_device *dev,
 	if (this_board->i_PCIEeprom) {
 		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
 			/*  Set 3 wait stait */
-			if (!(strcmp(dev->board_name, "apci035"))) {
+			if (!(strcmp(dev->board_name, "apci035")))
 				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
-			} else {
+			else
 				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
-			}
+
 			/*  Enable the interrupt for the controller */
 			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
 			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);

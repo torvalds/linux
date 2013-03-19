@@ -21,7 +21,7 @@ struct user_namespace {
 	struct uid_gid_map	uid_map;
 	struct uid_gid_map	gid_map;
 	struct uid_gid_map	projid_map;
-	struct kref		kref;
+	atomic_t		count;
 	struct user_namespace	*parent;
 	kuid_t			owner;
 	kgid_t			group;
@@ -35,18 +35,18 @@ extern struct user_namespace init_user_ns;
 static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 {
 	if (ns)
-		kref_get(&ns->kref);
+		atomic_inc(&ns->count);
 	return ns;
 }
 
 extern int create_user_ns(struct cred *new);
 extern int unshare_userns(unsigned long unshare_flags, struct cred **new_cred);
-extern void free_user_ns(struct kref *kref);
+extern void free_user_ns(struct user_namespace *ns);
 
 static inline void put_user_ns(struct user_namespace *ns)
 {
-	if (ns)
-		kref_put(&ns->kref, free_user_ns);
+	if (ns && atomic_dec_and_test(&ns->count))
+		free_user_ns(ns);
 }
 
 struct seq_operations;

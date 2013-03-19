@@ -20,9 +20,9 @@
 #include <linux/jiffies.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware/gic.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
@@ -149,7 +149,7 @@ static int __cpuinit exynos_boot_secondary(unsigned int cpu, struct task_struct 
 
 		__raw_writel(virt_to_phys(exynos4_secondary_startup),
 							cpu_boot_reg(phys_cpu));
-		gic_raise_softirq(cpumask_of(cpu), 0);
+		arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
 		if (pen_release == -1)
 			break;
@@ -190,8 +190,6 @@ static void __init exynos_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)

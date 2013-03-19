@@ -25,6 +25,10 @@
 		ethernet0 = &gmac0;
 		serial0 = &uart0;
 		serial1 = &uart1;
+		timer0 = &timer0;
+		timer1 = &timer1;
+		timer2 = &timer2;
+		timer3 = &timer3;
 	};
 
 	cpus {
@@ -71,6 +75,9 @@
 				compatible = "arm,pl330", "arm,primecell";
 				reg = <0xffe01000 0x1000>;
 				interrupts = <0 180 4>;
+				#dma-cells = <1>;
+				#dma-channels = <8>;
+				#dma-requests = <32>;
 			};
 		};
 
@@ -98,47 +105,41 @@
 			interrupts = <1 13 0xf04>;
 		};
 
-		timer0: timer@ffc08000 {
+		timer0: timer0@ffc08000 {
 			compatible = "snps,dw-apb-timer-sp";
 			interrupts = <0 167 4>;
-			clock-frequency = <200000000>;
 			reg = <0xffc08000 0x1000>;
 		};
 
-		timer1: timer@ffc09000 {
+		timer1: timer1@ffc09000 {
 			compatible = "snps,dw-apb-timer-sp";
 			interrupts = <0 168 4>;
-			clock-frequency = <200000000>;
 			reg = <0xffc09000 0x1000>;
 		};
 
-		timer2: timer@ffd00000 {
+		timer2: timer2@ffd00000 {
 			compatible = "snps,dw-apb-timer-osc";
 			interrupts = <0 169 4>;
-			clock-frequency = <200000000>;
 			reg = <0xffd00000 0x1000>;
 		};
 
-		timer3: timer@ffd01000 {
+		timer3: timer3@ffd01000 {
 			compatible = "snps,dw-apb-timer-osc";
 			interrupts = <0 170 4>;
-			clock-frequency = <200000000>;
 			reg = <0xffd01000 0x1000>;
 		};
 
-		uart0: uart@ffc02000 {
+		uart0: serial0@ffc02000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0xffc02000 0x1000>;
-			clock-frequency = <7372800>;
 			interrupts = <0 162 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 		};
 
-		uart1: uart@ffc03000 {
+		uart1: serial1@ffc03000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0xffc03000 0x1000>;
-			clock-frequency = <7372800>;
 			interrupts = <0 163 4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;

@@ -472,7 +472,7 @@ EXPORT_SYMBOL_GPL(pci_cfg_access_unlock);
 
 static inline int pcie_cap_version(const struct pci_dev *dev)
 {
-	return dev->pcie_flags_reg & PCI_EXP_FLAGS_VERS;
+	return pcie_caps_reg(dev) & PCI_EXP_FLAGS_VERS;
 }
 
 static inline bool pcie_cap_has_devctl(const struct pci_dev *dev)
@@ -497,7 +497,7 @@ static inline bool pcie_cap_has_sltctl(const struct pci_dev *dev)
 	return pcie_cap_version(dev) > 1 ||
 	       type == PCI_EXP_TYPE_ROOT_PORT ||
 	       (type == PCI_EXP_TYPE_DOWNSTREAM &&
-		dev->pcie_flags_reg & PCI_EXP_FLAGS_SLOT);
+		pcie_caps_reg(dev) & PCI_EXP_FLAGS_SLOT);
 }
 
 static inline bool pcie_cap_has_rtctl(const struct pci_dev *dev)
@@ -515,7 +515,7 @@ static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
 		return false;
 
 	switch (pos) {
-	case PCI_EXP_FLAGS_TYPE:
+	case PCI_EXP_FLAGS:
 		return true;
 	case PCI_EXP_DEVCAP:
 	case PCI_EXP_DEVCTL:

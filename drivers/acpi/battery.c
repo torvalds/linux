@@ -1111,7 +1111,7 @@ fail:
 	return result;
 }
 
-static int acpi_battery_remove(struct acpi_device *device, int type)
+static int acpi_battery_remove(struct acpi_device *device)
 {
 	struct acpi_battery *battery = NULL;
 

@@ -315,7 +315,7 @@ static int uvc_v4l2_set_format(struct uvc_streaming *stream,
 		goto done;
 	}
 
-	memcpy(&stream->ctrl, &probe, sizeof probe);
+	stream->ctrl = probe;
 	stream->cur_format = format;
 	stream->cur_frame = frame;
 
@@ -387,7 +387,7 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 		return -EBUSY;
 	}
 
-	memcpy(&probe, &stream->ctrl, sizeof probe);
+	probe = stream->ctrl;
 	probe.dwFrameInterval =
 		uvc_try_frame_interval(stream->cur_frame, interval);
 
@@ -398,7 +398,7 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 		return ret;
 	}
 
-	memcpy(&stream->ctrl, &probe, sizeof probe);
+	stream->ctrl = probe;
 	mutex_unlock(&stream->mutex);
 
 	/* Return the actual frame period. */
@@ -501,8 +501,8 @@ static int uvc_v4l2_open(struct file *file)
 	if (atomic_inc_return(&stream->dev->users) == 1) {
 		ret = uvc_status_start(stream->dev);
 		if (ret < 0) {
-			usb_autopm_put_interface(stream->dev->intf);
 			atomic_dec(&stream->dev->users);
+			usb_autopm_put_interface(stream->dev->intf);
 			kfree(handle);
 			return ret;
 		}

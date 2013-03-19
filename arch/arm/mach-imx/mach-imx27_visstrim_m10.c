@@ -598,10 +598,6 @@ static void __init visstrim_m10_timer_init(void)
 	mx27_clocks_init((unsigned long)25000000);
 }
 
-static struct sys_timer visstrim_m10_timer = {
-	.init	= visstrim_m10_timer_init,
-};
-
 MACHINE_START(IMX27_VISSTRIM_M10, "Vista Silicon Visstrim_M10")
 	.atag_offset = 0x100,
 	.reserve = visstrim_reserve,
@@ -609,7 +605,7 @@ MACHINE_START(IMX27_VISSTRIM_M10, "Vista Silicon Visstrim_M10")
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
 	.handle_irq = imx27_handle_irq,
-	.timer = &visstrim_m10_timer,
+	.init_time	= visstrim_m10_timer_init,
 	.init_machine = visstrim_m10_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

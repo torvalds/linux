@@ -49,10 +49,9 @@ static inline struct l2tp_ip_sock *l2tp_ip_sk(const struct sock *sk)
 
 static struct sock *__l2tp_ip_bind_lookup(struct net *net, __be32 laddr, int dif, u32 tunnel_id)
 {
-	struct hlist_node *node;
 	struct sock *sk;
 
-	sk_for_each_bound(sk, node, &l2tp_ip_bind_table) {
+	sk_for_each_bound(sk, &l2tp_ip_bind_table) {
 		struct inet_sock *inet = inet_sk(sk);
 		struct l2tp_ip_sock *l2tp = l2tp_ip_sk(sk);
 
@@ -115,6 +114,7 @@ static inline struct sock *l2tp_ip_bind_lookup(struct net *net, __be32 laddr, in
  */
 static int l2tp_ip_recv(struct sk_buff *skb)
 {
+	struct net *net = dev_net(skb->dev);
 	struct sock *sk;
 	u32 session_id;
 	u32 tunnel_id;
@@ -142,7 +142,7 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 	}
 
 	/* Ok, this is a data packet. Lookup the session. */
-	session = l2tp_session_find(&init_net, NULL, session_id);
+	session = l2tp_session_find(net, NULL, session_id);
 	if (session == NULL)
 		goto discard;
 
@@ -173,14 +173,14 @@ pass_up:
 		goto discard;
 
 	tunnel_id = ntohl(*(__be32 *) &skb->data[4]);
-	tunnel = l2tp_tunnel_find(&init_net, tunnel_id);
+	tunnel = l2tp_tunnel_find(net, tunnel_id);
 	if (tunnel != NULL)
 		sk = tunnel->sock;
 	else {
 		struct iphdr *iph = (struct iphdr *) skb_network_header(skb);
 
 		read_lock_bh(&l2tp_ip_lock);
-		sk = __l2tp_ip_bind_lookup(&init_net, iph->daddr, 0, tunnel_id);
+		sk = __l2tp_ip_bind_lookup(net, iph->daddr, 0, tunnel_id);
 		read_unlock_bh(&l2tp_ip_lock);
 	}
 
@@ -239,6 +239,7 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct sockaddr_l2tpip *addr = (struct sockaddr_l2tpip *) uaddr;
+	struct net *net = sock_net(sk);
 	int ret;
 	int chk_addr_ret;
 
@@ -251,7 +252,8 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	ret = -EADDRINUSE;
 	read_lock_bh(&l2tp_ip_lock);
-	if (__l2tp_ip_bind_lookup(&init_net, addr->l2tp_addr.s_addr, sk->sk_bound_dev_if, addr->l2tp_conn_id))
+	if (__l2tp_ip_bind_lookup(net, addr->l2tp_addr.s_addr,
+				  sk->sk_bound_dev_if, addr->l2tp_conn_id))
 		goto out_in_use;
 
 	read_unlock_bh(&l2tp_ip_lock);
@@ -260,7 +262,7 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (sk->sk_state != TCP_CLOSE || addr_len < sizeof(struct sockaddr_l2tpip))
 		goto out;
 
-	chk_addr_ret = inet_addr_type(&init_net, addr->l2tp_addr.s_addr);
+	chk_addr_ret = inet_addr_type(net, addr->l2tp_addr.s_addr);
 	ret = -EADDRNOTAVAIL;
 	if (addr->l2tp_addr.s_addr && chk_addr_ret != RTN_LOCAL &&
 	    chk_addr_ret != RTN_MULTICAST && chk_addr_ret != RTN_BROADCAST)
@@ -369,7 +371,7 @@ static int l2tp_ip_backlog_recv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 
 drop:
-	IP_INC_STATS(&init_net, IPSTATS_MIB_INDISCARDS);
+	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_INDISCARDS);
 	kfree_skb(skb);
 	return -1;
 }
@@ -605,6 +607,7 @@ static struct inet_protosw l2tp_ip_protosw = {
 
 static struct net_protocol l2tp_ip_protocol __read_mostly = {
 	.handler	= l2tp_ip_recv,
+	.netns_ok	= 1,
 };
 
 static int __init l2tp_ip_init(void)

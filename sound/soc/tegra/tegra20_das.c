@@ -191,6 +191,19 @@ static int tegra20_das_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	ret = tegra20_das_connect_dap_to_dac(TEGRA20_DAS_DAP_ID_3,
+					     TEGRA20_DAS_DAP_SEL_DAC3);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't set up DAS DAP connection\n");
+		goto err;
+	}
+	ret = tegra20_das_connect_dac_to_dap(TEGRA20_DAS_DAC_ID_3,
+					     TEGRA20_DAS_DAC_SEL_DAP3);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't set up DAS DAC connection\n");
+		goto err;
+	}
+
 	platform_set_drvdata(pdev, das);
 
 	return 0;

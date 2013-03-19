@@ -2131,13 +2131,16 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 		value_to_add = 4 - (cf->size % 4);
 
 	cfg_data = kzalloc(cf->size+value_to_add, GFP_KERNEL);
-	if (cfg_data == NULL)
-		return -ENOMEM;
+	if (cfg_data == NULL) {
+		ret = -ENOMEM;
+		goto leave;
+	}
 
 	memcpy((void *)cfg_data, (const void *)cf->data, cf->size);
-
-	if (csio_hw_check_fwconfig(hw, fw_cfg_param) != 0)
-		return -EINVAL;
+	if (csio_hw_check_fwconfig(hw, fw_cfg_param) != 0) {
+		ret = -EINVAL;
+		goto leave;
+	}
 
 	mtype = FW_PARAMS_PARAM_Y_GET(*fw_cfg_param);
 	maddr = FW_PARAMS_PARAM_Z_GET(*fw_cfg_param) << 16;
@@ -2149,9 +2152,9 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 		strncpy(path, "/lib/firmware/" CSIO_CF_FNAME, 64);
 	}
 
+leave:
 	kfree(cfg_data);
 	release_firmware(cf);
-
 	return ret;
 }
 

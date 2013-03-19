@@ -435,7 +435,6 @@ static void chsc_process_sei_scm_change(struct chsc_sei_nt0_area *sei_area)
 
 static void chsc_process_sei_nt2(struct chsc_sei_nt2_area *sei_area)
 {
-#ifdef CONFIG_PCI
 	switch (sei_area->cc) {
 	case 1:
 		zpci_event_error(sei_area->ccdf);
@@ -444,11 +443,10 @@ static void chsc_process_sei_nt2(struct chsc_sei_nt2_area *sei_area)
 		zpci_event_availability(sei_area->ccdf);
 		break;
 	default:
-		CIO_CRW_EVENT(2, "chsc: unhandled sei content code %d\n",
+		CIO_CRW_EVENT(2, "chsc: sei nt2 unhandled cc=%d\n",
 			      sei_area->cc);
 		break;
 	}
-#endif
 }
 
 static void chsc_process_sei_nt0(struct chsc_sei_nt0_area *sei_area)
@@ -471,13 +469,19 @@ static void chsc_process_sei_nt0(struct chsc_sei_nt0_area *sei_area)
 		chsc_process_sei_scm_change(sei_area);
 		break;
 	default: /* other stuff */
-		CIO_CRW_EVENT(4, "chsc: unhandled sei content code %d\n",
+		CIO_CRW_EVENT(2, "chsc: sei nt0 unhandled cc=%d\n",
 			      sei_area->cc);
 		break;
 	}
+
+	/* Check if we might have lost some information. */
+	if (sei_area->flags & 0x40) {
+		CIO_CRW_EVENT(2, "chsc: event overflow\n");
+		css_schedule_eval_all();
+	}
 }
 
-static int __chsc_process_crw(struct chsc_sei *sei, u64 ntsm)
+static void chsc_process_event_information(struct chsc_sei *sei, u64 ntsm)
 {
 	do {
 		memset(sei, 0, sizeof(*sei));
@@ -488,40 +492,37 @@ static int __chsc_process_crw(struct chsc_sei *sei, u64 ntsm)
 		if (chsc(sei))
 			break;
 
-		if (sei->response.code == 0x0001) {
-			CIO_CRW_EVENT(2, "chsc: sei successful\n");
-
-			/* Check if we might have lost some information. */
-			if (sei->u.nt0_area.flags & 0x40) {
-				CIO_CRW_EVENT(2, "chsc: event overflow\n");
-				css_schedule_eval_all();
-			}
-
-			switch (sei->nt) {
-			case 0:
-				chsc_process_sei_nt0(&sei->u.nt0_area);
-				break;
-			case 2:
-				chsc_process_sei_nt2(&sei->u.nt2_area);
-				break;
-			default:
-				CIO_CRW_EVENT(2, "chsc: unhandled nt=%d\n",
-					      sei->nt);
-				break;
-			}
-		} else {
+		if (sei->response.code != 0x0001) {
 			CIO_CRW_EVENT(2, "chsc: sei failed (rc=%04x)\n",
 				      sei->response.code);
 			break;
 		}
-	} while (sei->u.nt0_area.flags & 0x80);
 
-	return 0;
+		CIO_CRW_EVENT(2, "chsc: sei successful (nt=%d)\n", sei->nt);
+		switch (sei->nt) {
+		case 0:
+			chsc_process_sei_nt0(&sei->u.nt0_area);
+			break;
+		case 2:
+			chsc_process_sei_nt2(&sei->u.nt2_area);
+			break;
+		default:
+			CIO_CRW_EVENT(2, "chsc: unhandled nt: %d\n", sei->nt);
+			break;
+		}
+	} while (sei->u.nt0_area.flags & 0x80);
 }
 
+/*
+ * Handle channel subsystem related CRWs.
+ * Use store event information to find out what's going on.
+ *
+ * Note: Access to sei_page is serialized through machine check handler
+ * thread, so no need for locking.
+ */
 static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 {
-	struct chsc_sei *sei;
+	struct chsc_sei *sei = sei_page;
 
 	if (overflow) {
 		css_schedule_eval_all();
@@ -531,14 +532,9 @@ static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 		      "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
 		      crw0->slct, crw0->oflw, crw0->chn, crw0->rsc, crw0->anc,
 		      crw0->erc, crw0->rsid);
-	if (!sei_page)
-		return;
-	/* Access to sei_page is serialized through machine check handler
-	 * thread, so no need for locking. */
-	sei = sei_page;
 
 	CIO_TRACE_EVENT(2, "prcss");
-	__chsc_process_crw(sei, CHSC_SEI_NT0 | CHSC_SEI_NT2);
+	chsc_process_event_information(sei, CHSC_SEI_NT0 | CHSC_SEI_NT2);
 }
 
 void chsc_chp_online(struct chp_id chpid)

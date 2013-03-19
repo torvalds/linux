@@ -10,7 +10,8 @@ common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o \
 						eventfd.o)
 
 CFLAGS_44x_tlb.o  := -I.
-CFLAGS_e500_tlb.o := -I.
+CFLAGS_e500_mmu.o := -I.
+CFLAGS_e500_mmu_host.o := -I.
 CFLAGS_emulate.o  := -I.
 
 common-objs-y += powerpc.o emulate.o
@@ -35,7 +36,8 @@ kvm-e500-objs := \
 	booke_emulate.o \
 	booke_interrupts.o \
 	e500.o \
-	e500_tlb.o \
+	e500_mmu.o \
+	e500_mmu_host.o \
 	e500_emulate.o
 kvm-objs-$(CONFIG_KVM_E500V2) := $(kvm-e500-objs)
 
@@ -45,7 +47,8 @@ kvm-e500mc-objs := \
 	booke_emulate.o \
 	bookehv_interrupts.o \
 	e500mc.o \
-	e500_tlb.o \
+	e500_mmu.o \
+	e500_mmu_host.o \
 	e500_emulate.o
 kvm-objs-$(CONFIG_KVM_E500MC) := $(kvm-e500mc-objs)
 

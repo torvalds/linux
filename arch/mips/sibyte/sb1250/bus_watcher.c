@@ -71,7 +71,7 @@ static void print_summary(uint32_t status, uint32_t l2_err,
  * already been destructively read out of the registers.
  *
  * notes: this is currently used by the cache error handler
- *        should provide locking against the interrupt handler
+ *	  should provide locking against the interrupt handler
  */
 void check_bus_watcher(void)
 {
@@ -119,7 +119,7 @@ static int bw_print_buffer(char *page, struct bw_stats_struct *stats)
 		       (int)G_SCD_BERR_RID(stats->status),
 		       (int)G_SCD_BERR_DCODE(stats->status));
 	/* XXXKW indicate multiple errors between printings, or stats
-           collection (or both)? */
+	   collection (or both)? */
 	if (stats->status & M_SCD_BERR_MULTERRS)
 		len += sprintf(page+len, "Multiple errors observed since last check.\n");
 	if (stats->status_printed) {
@@ -168,7 +168,7 @@ static void create_proc_decoder(struct bw_stats_struct *stats)
  * sibyte_bw_int - handle bus watcher interrupts and accumulate counts
  *
  * notes: possible re-entry due to multiple sources
- *        should check/indicate saturation
+ *	  should check/indicate saturation
  */
 static irqreturn_t sibyte_bw_int(int irq, void *data)
 {

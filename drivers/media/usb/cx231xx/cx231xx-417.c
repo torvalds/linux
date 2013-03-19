@@ -1291,7 +1291,7 @@ static void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *ur
 
 			buf->vb.state = VIDEOBUF_DONE;
 			buf->vb.field_count++;
-			do_gettimeofday(&buf->vb.ts);
+			v4l2_get_timestamp(&buf->vb.ts);
 			list_del(&buf->vb.queue);
 			wake_up(&buf->vb.done);
 			dma_q->mpeg_buffer_completed = 0;
@@ -1327,7 +1327,7 @@ static void buffer_filled(char *data, int len, struct urb *urb,
 		memcpy(vbuf, data, len);
 		buf->vb.state = VIDEOBUF_DONE;
 		buf->vb.field_count++;
-		do_gettimeofday(&buf->vb.ts);
+		v4l2_get_timestamp(&buf->vb.ts);
 		list_del(&buf->vb.queue);
 		wake_up(&buf->vb.done);
 

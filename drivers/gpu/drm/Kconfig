@@ -7,6 +7,7 @@
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
 	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU
+	select HDMI
 	select I2C
 	select I2C_ALGOBIT
 	select DMA_SHARED_BUFFER
@@ -215,3 +216,7 @@ source "drivers/gpu/drm/cirrus/Kconfig"
 source "drivers/gpu/drm/shmobile/Kconfig"
 
 source "drivers/gpu/drm/tegra/Kconfig"
+
+source "drivers/gpu/drm/omapdrm/Kconfig"
+
+source "drivers/gpu/drm/tilcdc/Kconfig"

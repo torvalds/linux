@@ -867,6 +867,7 @@ void drm_send_vblank_event(struct drm_device *dev, int crtc,
 
 		now = get_drm_timestamp();
 	}
+	e->pipe = crtc;
 	send_vblank_event(dev, e, seq, &now);
 }
 EXPORT_SYMBOL(drm_send_vblank_event);

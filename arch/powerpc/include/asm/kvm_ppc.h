@@ -44,12 +44,11 @@ enum emulation_result {
 	EMULATE_DO_DCR,       /* kvm_run filled with DCR request */
 	EMULATE_FAIL,         /* can't emulate this instruction */
 	EMULATE_AGAIN,        /* something went wrong. go again */
+	EMULATE_DO_PAPR,      /* kvm_run filled with PAPR request */
 };
 
 extern int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
-extern char kvmppc_handlers_start[];
-extern unsigned long kvmppc_handler_len;
 extern void kvmppc_handler_highmem(void);
 
 extern void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu);
@@ -262,6 +261,15 @@ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 static inline void kvm_linear_init(void)
 {}
 #endif
+
+static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)
+{
+#ifdef CONFIG_KVM_BOOKE_HV
+	mtspr(SPRN_GEPR, epr);
+#elif defined(CONFIG_BOOKE)
+	vcpu->arch.epr = epr;
+#endif
+}
 
 int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 			      struct kvm_config_tlb *cfg);

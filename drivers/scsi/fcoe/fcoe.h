@@ -55,12 +55,12 @@ do {                                                            	\
 
 #define FCOE_DBG(fmt, args...)						\
 	FCOE_CHECK_LOGGING(FCOE_LOGGING,				\
-			   printk(KERN_INFO "fcoe: " fmt, ##args);)
+			   pr_info("fcoe: " fmt, ##args);)
 
 #define FCOE_NETDEV_DBG(netdev, fmt, args...)			\
 	FCOE_CHECK_LOGGING(FCOE_NETDEV_LOGGING,			\
-			   printk(KERN_INFO "fcoe: %s: " fmt,	\
-				  netdev->name, ##args);)
+			   pr_info("fcoe: %s: " fmt,		\
+				   netdev->name, ##args);)
 
 /**
  * struct fcoe_interface - A FCoE interface

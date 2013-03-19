@@ -57,9 +57,9 @@ struct map_groups {
 	struct machine	 *machine;
 };
 
-static inline struct kmap *map__kmap(struct map *self)
+static inline struct kmap *map__kmap(struct map *map)
 {
-	return (struct kmap *)(self + 1);
+	return (struct kmap *)(map + 1);
 }
 
 static inline u64 map__map_ip(struct map *map, u64 ip)
@@ -85,27 +85,27 @@ struct symbol;
 
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
-void map__init(struct map *self, enum map_type type,
+void map__init(struct map *map, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		     u64 pgoff, u32 pid, char *filename,
 		     enum map_type type);
 struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
-void map__delete(struct map *self);
-struct map *map__clone(struct map *self);
+void map__delete(struct map *map);
+struct map *map__clone(struct map *map);
 int map__overlap(struct map *l, struct map *r);
-size_t map__fprintf(struct map *self, FILE *fp);
+size_t map__fprintf(struct map *map, FILE *fp);
 size_t map__fprintf_dsoname(struct map *map, FILE *fp);
 
-int map__load(struct map *self, symbol_filter_t filter);
-struct symbol *map__find_symbol(struct map *self,
+int map__load(struct map *map, symbol_filter_t filter);
+struct symbol *map__find_symbol(struct map *map,
 				u64 addr, symbol_filter_t filter);
-struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
+struct symbol *map__find_symbol_by_name(struct map *map, const char *name,
 					symbol_filter_t filter);
-void map__fixup_start(struct map *self);
-void map__fixup_end(struct map *self);
+void map__fixup_start(struct map *map);
+void map__fixup_end(struct map *map);
 
-void map__reloc_vmlinux(struct map *self);
+void map__reloc_vmlinux(struct map *map);
 
 size_t __map_groups__fprintf_maps(struct map_groups *mg,
 				  enum map_type type, int verbose, FILE *fp);

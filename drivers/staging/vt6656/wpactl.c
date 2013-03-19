@@ -67,14 +67,14 @@ static int msglevel = MSG_LEVEL_INFO;
  * Return Value:
  *
  */
-int wpa_set_keys(PSDevice pDevice, void *ctx)
+int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 {
 	struct viawget_wpa_param *param = ctx;
-	PSMgmtObject pMgmt = &pDevice->sMgmtObj;
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	DWORD dwKeyIndex = 0;
 	BYTE abyKey[MAX_KEY_LEN];
 	BYTE abySeq[MAX_KEY_LEN];
-	QWORD KeyRSC;
+	u64 KeyRSC;
 	BYTE byKeyDecMode = KEY_CTL_WEP;
 	int ret = 0;
 	int uu;
@@ -87,9 +87,9 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 		param->u.wpa_key.alg_name);
 	if (param->u.wpa_key.alg_name == WPA_ALG_NONE) {
 		pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-		pDevice->bEncryptionEnable = FALSE;
+		pDevice->bEncryptionEnable = false;
 		pDevice->byKeyIndex = 0;
-		pDevice->bTransmitKey = FALSE;
+		pDevice->bTransmitKey = false;
 		for (uu=0; uu<MAX_KEY_TABLE; uu++) {
 			MACvDisableKeyEntry(pDevice, uu);
 		}
@@ -109,7 +109,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 		} else {
 			if (param->u.wpa_key.set_tx) {
 				pDevice->byKeyIndex = (BYTE)dwKeyIndex;
-				pDevice->bTransmitKey = TRUE;
+				pDevice->bTransmitKey = true;
 				dwKeyIndex |= (1 << 31);
 			}
 			KeybSetDefaultKey(  pDevice,
@@ -123,7 +123,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 
 		}
 		pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
-		pDevice->bEncryptionEnable = TRUE;
+		pDevice->bEncryptionEnable = true;
 		return ret;
 	}
 
@@ -136,9 +136,9 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 	if (param->u.wpa_key.seq_len > 0) {
 		for (ii = 0 ; ii < param->u.wpa_key.seq_len ; ii++) {
 			if (ii < 4)
-				LODWORD(KeyRSC) |= (abySeq[ii] << (ii * 8));
+				KeyRSC |= (abySeq[ii] << (ii * 8));
 			else
-				HIDWORD(KeyRSC) |= (abySeq[ii] << ((ii-4) * 8));
+				KeyRSC |= (abySeq[ii] << ((ii-4) * 8));
 		}
 		dwKeyIndex |= 1 << 29;
 	}
@@ -203,18 +203,18 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 
 		if ((KeybSetAllGroupKey(pDevice, &(pDevice->sKey), dwKeyIndex,
 							param->u.wpa_key.key_len,
-							(PQWORD) &(KeyRSC),
+							&KeyRSC,
 							(PBYTE)abyKey,
 							byKeyDecMode
-					) == TRUE) &&
+					) == true) &&
 			(KeybSetDefaultKey(pDevice,
 					&(pDevice->sKey),
 					dwKeyIndex,
 					param->u.wpa_key.key_len,
-					(PQWORD) &(KeyRSC),
+					&KeyRSC,
 					(PBYTE)abyKey,
 					byKeyDecMode
-				) == TRUE) ) {
+				) == true) ) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GROUP Key Assign.\n");
 		} else {
 			return -EINVAL;
@@ -234,8 +234,8 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 		}
 		if (KeybSetKey(pDevice, &(pDevice->sKey), &param->addr[0],
 				dwKeyIndex, param->u.wpa_key.key_len,
-				(PQWORD) &(KeyRSC), (PBYTE)abyKey, byKeyDecMode
-				) == TRUE) {
+				&KeyRSC, (PBYTE)abyKey, byKeyDecMode
+				) == true) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
 		} else {
 			// Key Table Full
@@ -251,9 +251,9 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 	} // BSSID not 0xffffffffffff
 	if ((ret == 0) && ((param->u.wpa_key.set_tx) != 0)) {
 		pDevice->byKeyIndex = (BYTE)param->u.wpa_key.key_index;
-		pDevice->bTransmitKey = TRUE;
+		pDevice->bTransmitKey = true;
 	}
-	pDevice->bEncryptionEnable = TRUE;
+	pDevice->bEncryptionEnable = true;
 
 	return ret;
 }

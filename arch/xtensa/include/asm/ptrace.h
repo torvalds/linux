@@ -38,6 +38,7 @@ struct pt_regs {
 	unsigned long syscall;		/*  56 */
 	unsigned long icountlevel;	/*  60 */
 	unsigned long scompare1;	/*  64 */
+	unsigned long threadptr;	/*  68 */
 
 	/* Additional configurable registers that are used by the compiler. */
 	xtregs_opt_t xtregs_opt;
@@ -48,7 +49,7 @@ struct pt_regs {
 	/* current register frame.
 	 * Note: The ESF for kernel exceptions ends after 16 registers!
 	 */
-	unsigned long areg[16];		/* 128 (64) */
+	unsigned long areg[16];
 };
 
 #include <variant/core.h>

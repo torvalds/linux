@@ -162,7 +162,7 @@ static unsigned int get_time_pit(void)
 #define GET_TIME(x)	do { x = get_cycles(); } while (0)
 #define DELTA(x,y)	((y)-(x))
 #define TIME_NAME	"PCC"
-#elif defined(CONFIG_MN10300)
+#elif defined(CONFIG_MN10300) || defined(CONFIG_TILE)
 #define GET_TIME(x)	do { x = get_cycles(); } while (0)
 #define DELTA(x, y)	((x) - (y))
 #define TIME_NAME	"TSC"

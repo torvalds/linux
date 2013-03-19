@@ -404,7 +404,13 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		dev->max_fib_size = status[1] & 0xFFE0;
 		host->sg_tablesize = status[2] >> 16;
 		dev->sg_tablesize = status[2] & 0xFFFF;
-		host->can_queue = (status[3] & 0xFFFF) - AAC_NUM_MGT_FIB;
+		if (dev->pdev->device == PMC_DEVICE_S7 ||
+		    dev->pdev->device == PMC_DEVICE_S8 ||
+		    dev->pdev->device == PMC_DEVICE_S9)
+			host->can_queue = ((status[3] >> 16) ? (status[3] >> 16) :
+				(status[3] & 0xFFFF)) - AAC_NUM_MGT_FIB;
+		else
+			host->can_queue = (status[3] & 0xFFFF) - AAC_NUM_MGT_FIB;
 		dev->max_num_aif = status[4] & 0xFFFF;
 		/*
 		 *	NOTE:
@@ -451,6 +457,9 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 				printk("numacb=%d ignored\n", numacb);
 		}
 	}
+
+	if (host->can_queue > AAC_NUM_IO_FIB)
+		host->can_queue = AAC_NUM_IO_FIB;
 
 	/*
 	 *	Ok now init the communication subsystem

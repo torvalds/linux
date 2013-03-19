@@ -93,13 +93,16 @@ static void be_mcc_notify(struct be_adapter *adapter)
  * little endian) */
 static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
 {
+	u32 flags;
+
 	if (compl->flags != 0) {
-		compl->flags = le32_to_cpu(compl->flags);
-		BUG_ON((compl->flags & CQE_FLAGS_VALID_MASK) == 0);
-		return true;
-	} else {
-		return false;
+		flags = le32_to_cpu(compl->flags);
+		if (flags & CQE_FLAGS_VALID_MASK) {
+			compl->flags = flags;
+			return true;
+		}
 	}
+	return false;
 }
 
 /* Need to reset the entire word that houses the valid bit */
@@ -470,19 +473,17 @@ static int be_mbox_notify_wait(struct be_adapter *adapter)
 	return 0;
 }
 
-static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
+static u16 be_POST_stage_get(struct be_adapter *adapter)
 {
 	u32 sem;
-	u32 reg = skyhawk_chip(adapter) ? SLIPORT_SEMAPHORE_OFFSET_SH :
-					  SLIPORT_SEMAPHORE_OFFSET_BE;
 
-	pci_read_config_dword(adapter->pdev, reg, &sem);
-	*stage = sem & POST_STAGE_MASK;
-
-	if ((sem >> POST_ERR_SHIFT) & POST_ERR_MASK)
-		return -1;
+	if (BEx_chip(adapter))
+		sem  = ioread32(adapter->csr + SLIPORT_SEMAPHORE_OFFSET_BEx);
 	else
-		return 0;
+		pci_read_config_dword(adapter->pdev,
+				      SLIPORT_SEMAPHORE_OFFSET_SH, &sem);
+
+	return sem & POST_STAGE_MASK;
 }
 
 int lancer_wait_ready(struct be_adapter *adapter)
@@ -576,19 +577,17 @@ int be_fw_wait_ready(struct be_adapter *adapter)
 	}
 
 	do {
-		status = be_POST_stage_get(adapter, &stage);
-		if (status) {
-			dev_err(dev, "POST error; stage=0x%x\n", stage);
-			return -1;
-		} else if (stage != POST_STAGE_ARMFW_RDY) {
-			if (msleep_interruptible(2000)) {
-				dev_err(dev, "Waiting for POST aborted\n");
-				return -EINTR;
-			}
-			timeout += 2;
-		} else {
+		stage = be_POST_stage_get(adapter);
+		if (stage == POST_STAGE_ARMFW_RDY)
 			return 0;
+
+		dev_info(dev, "Waiting for POST, %ds elapsed\n",
+			 timeout);
+		if (msleep_interruptible(2000)) {
+			dev_err(dev, "Waiting for POST aborted\n");
+			return -EINTR;
 		}
+		timeout += 2;
 	} while (timeout < 60);
 
 	dev_err(dev, "POST timeout; stage=0x%x\n", stage);
@@ -3133,6 +3132,39 @@ int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 	req->nic_desc.bw_min = cpu_to_le32(bps);
 	req->nic_desc.bw_max = cpu_to_le32(bps);
 	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
+		     int vf_num)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_iface_list *req;
+	struct be_cmd_resp_get_iface_list *resp;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_IFACE_LIST, sizeof(*resp),
+			       wrb, NULL);
+	req->hdr.domain = vf_num + 1;
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		resp = (struct be_cmd_resp_get_iface_list *)req;
+		vf_cfg->if_handle = le32_to_cpu(resp->if_desc.if_id);
+	}
+
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;

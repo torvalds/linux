@@ -55,7 +55,7 @@
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <7>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -64,7 +64,7 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <8>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -73,7 +73,7 @@
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <9>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -82,7 +82,7 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <10>;
-			clock-frequency = <166666667>;
+			clocks = <&core_clk 0>;
 			status = "disabled";
 		};
 
@@ -93,6 +93,7 @@
 			reg = <0xd0400 0x20>;
 			ngpios = <32>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <12>, <13>, <14>, <60>;
 		};
 
@@ -103,6 +104,7 @@
 			reg = <0xd0420 0x20>;
 			ngpios = <32>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <61>;
 		};
 
@@ -154,6 +156,22 @@
 			status = "disabled";
 		};
 
+		ehci0: usb-host@50000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <24>;
+			clocks = <&gate_clk 0>;
+			status = "okay";
+		};
+
+		ehci1: usb-host@51000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x51000 0x1000>;
+			interrupts = <25>;
+			clocks = <&gate_clk 1>;
+			status = "okay";
+		};
+
 		sdio0: sdio@92000 {
 			compatible = "marvell,dove-sdhci";
 			reg = <0x92000 0x100>;
@@ -177,6 +195,11 @@
 			clocks = <&gate_clk 3>;
 			nr-ports = <1>;
 			status = "disabled";
+		};
+
+		rtc@d8500 {
+			compatible = "marvell,orion-rtc";
+			reg = <0xd8500 0x20>;
 		};
 
 		crypto: crypto@30000 {

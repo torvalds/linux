@@ -5,6 +5,8 @@
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
 
+#include "bcm47xxsflash.h"
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Serial flash driver for BCMA bus");
 
@@ -13,26 +15,28 @@ static const char *probes[] = { "bcm47xxpart", NULL };
 static int bcm47xxsflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			      size_t *retlen, u_char *buf)
 {
-	struct bcma_sflash *sflash = mtd->priv;
+	struct bcm47xxsflash *b47s = mtd->priv;
 
 	/* Check address range */
 	if ((from + len) > mtd->size)
 		return -EINVAL;
 
-	memcpy_fromio(buf, (void __iomem *)KSEG0ADDR(sflash->window + from),
+	memcpy_fromio(buf, (void __iomem *)KSEG0ADDR(b47s->window + from),
 		      len);
+	*retlen = len;
 
 	return len;
 }
 
-static void bcm47xxsflash_fill_mtd(struct bcma_sflash *sflash,
-				   struct mtd_info *mtd)
+static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s)
 {
-	mtd->priv = sflash;
+	struct mtd_info *mtd = &b47s->mtd;
+
+	mtd->priv = b47s;
 	mtd->name = "bcm47xxsflash";
 	mtd->owner = THIS_MODULE;
 	mtd->type = MTD_ROM;
-	mtd->size = sflash->size;
+	mtd->size = b47s->size;
 	mtd->_read = bcm47xxsflash_read;
 
 	/* TODO: implement writing support and verify/change following code */
@@ -40,19 +44,30 @@ static void bcm47xxsflash_fill_mtd(struct bcma_sflash *sflash,
 	mtd->writebufsize = mtd->writesize = 1;
 }
 
-static int bcm47xxsflash_probe(struct platform_device *pdev)
+/**************************************************
+ * BCMA
+ **************************************************/
+
+static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 {
 	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
+	struct bcm47xxsflash *b47s;
 	int err;
 
-	sflash->mtd = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
-	if (!sflash->mtd) {
+	b47s = kzalloc(sizeof(*b47s), GFP_KERNEL);
+	if (!b47s) {
 		err = -ENOMEM;
 		goto out;
 	}
-	bcm47xxsflash_fill_mtd(sflash, sflash->mtd);
+	sflash->priv = b47s;
 
-	err = mtd_device_parse_register(sflash->mtd, probes, NULL, NULL, 0);
+	b47s->window = sflash->window;
+	b47s->blocksize = sflash->blocksize;
+	b47s->numblocks = sflash->numblocks;
+	b47s->size = sflash->size;
+	bcm47xxsflash_fill_mtd(b47s);
+
+	err = mtd_device_parse_register(&b47s->mtd, probes, NULL, NULL, 0);
 	if (err) {
 		pr_err("Failed to register MTD device: %d\n", err);
 		goto err_dev_reg;
@@ -61,34 +76,40 @@ static int bcm47xxsflash_probe(struct platform_device *pdev)
 	return 0;
 
 err_dev_reg:
-	kfree(sflash->mtd);
+	kfree(&b47s->mtd);
 out:
 	return err;
 }
 
-static int bcm47xxsflash_remove(struct platform_device *pdev)
+static int bcm47xxsflash_bcma_remove(struct platform_device *pdev)
 {
 	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
+	struct bcm47xxsflash *b47s = sflash->priv;
 
-	mtd_device_unregister(sflash->mtd);
-	kfree(sflash->mtd);
+	mtd_device_unregister(&b47s->mtd);
+	kfree(b47s);
 
 	return 0;
 }
 
 static struct platform_driver bcma_sflash_driver = {
-	.remove = bcm47xxsflash_remove,
+	.probe	= bcm47xxsflash_bcma_probe,
+	.remove = bcm47xxsflash_bcma_remove,
 	.driver = {
 		.name = "bcma_sflash",
 		.owner = THIS_MODULE,
 	},
 };
 
+/**************************************************
+ * Init
+ **************************************************/
+
 static int __init bcm47xxsflash_init(void)
 {
 	int err;
 
-	err = platform_driver_probe(&bcma_sflash_driver, bcm47xxsflash_probe);
+	err = platform_driver_register(&bcma_sflash_driver);
 	if (err)
 		pr_err("Failed to register BCMA serial flash driver: %d\n",
 		       err);

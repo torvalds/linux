@@ -183,7 +183,6 @@ static IIO_DEVICE_ATTR(dds, S_IWUSR, NULL, ad9852_set_parameter, 0);
 
 static void ad9852_init(struct ad9852_state *st)
 {
-	struct spi_message msg;
 	struct spi_transfer xfer;
 	int ret;
 	u8 config[5];
@@ -199,9 +198,7 @@ static void ad9852_init(struct ad9852_state *st)
 	xfer.len = 5;
 	xfer.tx_buf = &config;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret)
 		goto error_ret;
 

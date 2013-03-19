@@ -1433,14 +1433,7 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* copy the MAC address out of the EEPROM */
 	atl2_read_mac_addr(&adapter->hw);
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
-/* FIXME: do we still need this? */
-#ifdef ETHTOOL_GPERMADDR
-	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
-
-	if (!is_valid_ether_addr(netdev->perm_addr)) {
-#else
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-#endif
 		err = -EIO;
 		goto err_eeprom;
 	}

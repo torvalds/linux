@@ -1760,8 +1760,7 @@ add_char_and_flag(struct e100_serial *info, unsigned char data, unsigned char fl
 
 		info->icount.rx++;
 	} else {
-		struct tty_struct *tty = info->port.tty;
-		tty_insert_flip_char(tty, data, flag);
+		tty_insert_flip_char(&info->port, data, flag);
 		info->icount.rx++;
 	}
 
@@ -2105,22 +2104,15 @@ static int force_eop_if_needed(struct e100_serial *info)
 
 static void flush_to_flip_buffer(struct e100_serial *info)
 {
-	struct tty_struct *tty;
 	struct etrax_recv_buffer *buffer;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	tty = info->port.tty;
-
-	if (!tty) {
-		local_irq_restore(flags);
-		return;
-	}
 
 	while ((buffer = info->first_recv_buffer) != NULL) {
 		unsigned int count = buffer->length;
 
-		tty_insert_flip_string(tty, buffer->buffer, count);
+		tty_insert_flip_string(&info->port, buffer->buffer, count);
 		info->recv_cnt -= count;
 
 		if (count == buffer->length) {
@@ -2139,7 +2131,7 @@ static void flush_to_flip_buffer(struct e100_serial *info)
 	local_irq_restore(flags);
 
 	/* This includes a check for low-latency */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&info->port);
 }
 
 static void check_flush_timeout(struct e100_serial *info)
@@ -2275,12 +2267,6 @@ static
 struct e100_serial * handle_ser_rx_interrupt_no_dma(struct e100_serial *info)
 {
 	unsigned long data_read;
-	struct tty_struct *tty = info->port.tty;
-
-	if (!tty) {
-		printk("!NO TTY!\n");
-		return info;
-	}
 
 	/* Read data and status at the same time */
 	data_read = *((unsigned long *)&info->ioport[REG_DATA_STATUS32]);
@@ -2338,8 +2324,7 @@ more_data:
 					data_in, data_read);
 				char flag = TTY_NORMAL;
 				if (info->errorcode == ERRCODE_INSERT_BREAK) {
-					struct tty_struct *tty = info->port.tty;
-					tty_insert_flip_char(tty, 0, flag);
+					tty_insert_flip_char(&info->port, 0, flag);
 					info->icount.rx++;
 				}
 
@@ -2353,7 +2338,7 @@ more_data:
 					info->icount.frame++;
 					flag = TTY_FRAME;
 				}
-				tty_insert_flip_char(tty, data, flag);
+				tty_insert_flip_char(&info->port, data, flag);
 				info->errorcode = 0;
 			}
 			info->break_detected_cnt = 0;
@@ -2369,7 +2354,7 @@ more_data:
 			log_int(rdpc(), 0, 0);
 		}
 		);
-		tty_insert_flip_char(tty,
+		tty_insert_flip_char(&info->port,
 			IO_EXTRACT(R_SERIAL0_READ, data_in, data_read),
 			TTY_NORMAL);
 	} else {
@@ -2384,7 +2369,7 @@ more_data:
 		goto more_data;
 	}
 
-	tty_flip_buffer_push(info->port.tty);
+	tty_flip_buffer_push(&info->port);
 	return info;
 }
 
@@ -3137,7 +3122,7 @@ static int rs_raw_write(struct tty_struct *tty,
 
 	/* first some sanity checks */
 
-	if (!tty || !info->xmit.buf)
+	if (!info->xmit.buf)
 		return 0;
 
 #ifdef SERIAL_DEBUG_DATA
@@ -3464,7 +3449,7 @@ set_serial_info(struct e100_serial *info,
 	info->type = new_serial.type;
 	info->close_delay = new_serial.close_delay;
 	info->closing_wait = new_serial.closing_wait;
-	info->port.tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	info->port.low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
 	if (info->flags & ASYNC_INITIALIZED) {
@@ -4108,7 +4093,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
 	tty->driver_data = info;
 	info->port.tty = tty;
 
-	tty->low_latency = !!(info->flags & ASYNC_LOW_LATENCY);
+	info->port.low_latency = !!(info->flags & ASYNC_LOW_LATENCY);
 
 	/*
 	 * If the port is in the middle of closing, bail out now

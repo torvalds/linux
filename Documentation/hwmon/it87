@@ -30,6 +30,14 @@ Supported chips:
     Prefix: 'it8728'
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Not publicly available
+  * IT8771E
+    Prefix: 'it8771'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
+  * IT8772E
+    Prefix: 'it8772'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
   * IT8782F
     Prefix: 'it8782'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -83,8 +91,8 @@ Description
 -----------
 
 This driver implements support for the IT8705F, IT8712F, IT8716F,
-IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E, IT8781F, IT8782F,
-IT8783E/F, and SiS950 chips.
+IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E, IT8771E, IT8772E,
+IT8782F, IT8783E/F, and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -118,8 +126,8 @@ The IT8726F is just bit enhanced IT8716F with additional hardware
 for AMD power sequencing. Therefore the chip will appear as IT8716F
 to userspace applications.
 
-The IT8728F is considered compatible with the IT8721F, until a datasheet
-becomes available (hopefully.)
+The IT8728F, IT8771E, and IT8772E are considered compatible with the IT8721F,
+until a datasheet becomes available (hopefully.)
 
 Temperatures are measured in degrees Celsius. An alarm is triggered once
 when the Overtemperature Shutdown limit is crossed.

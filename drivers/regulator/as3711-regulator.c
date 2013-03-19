@@ -303,7 +303,7 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 		reg_data = pdata ? pdata->init_data[id] : NULL;
 
 		/* No need to register if there is no regulator data */
-		if (!ri->desc.name)
+		if (!reg_data)
 			continue;
 
 		reg = &regs[id];
