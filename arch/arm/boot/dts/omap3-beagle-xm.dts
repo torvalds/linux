@@ -13,6 +13,12 @@
 	model = "TI OMAP3 BeagleBoard xM";
 	compatible = "ti,omap3-beagle-xm, ti,omap3-beagle", "ti,omap3";
 
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vcc>;
+		};
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
