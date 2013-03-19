@@ -721,7 +721,7 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 				       struct drbd_backing_dev *bdev)
 {
 	sector_t md_size_sect = 0;
-	unsigned int al_size_sect = MD_32kB_SECT;
+	unsigned int al_size_sect = bdev->md.al_size_4k * 8;
 
 	bdev->md.md_offset = drbd_md_ss(bdev);
 
@@ -1413,8 +1413,11 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	/* RT - for drbd_get_max_capacity() DRBD_MD_INDEX_FLEX_INT */
-	drbd_md_set_sector_offsets(mdev, nbc);
+	/* Read our meta data super block early.
+	 * This also sets other on-disk offsets. */
+	retcode = drbd_md_read(mdev, nbc);
+	if (retcode != NO_ERROR)
+		goto fail;
 
 	if (drbd_get_max_capacity(nbc) < new_disk_conf->disk_size) {
 		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
@@ -1481,18 +1484,12 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (!get_ldev_if_state(mdev, D_ATTACHING))
 		goto force_diskless;
 
-	drbd_md_set_sector_offsets(mdev, nbc);
-
 	if (!mdev->bitmap) {
 		if (drbd_bm_init(mdev)) {
 			retcode = ERR_NOMEM;
 			goto force_diskless_dec;
 		}
 	}
-
-	retcode = drbd_md_read(mdev, nbc);
-	if (retcode != NO_ERROR)
-		goto force_diskless_dec;
 
 	if (mdev->state.conn < C_CONNECTED &&
 	    mdev->state.role == R_PRIMARY &&
