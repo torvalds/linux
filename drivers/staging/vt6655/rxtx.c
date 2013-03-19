@@ -385,7 +385,7 @@ s_uGetTxRsvTime(
 	}
 
 	if (bNeedAck) {
-		return (uDataTime + pDevice->uSIFS + uAckTime);
+		return uDataTime + pDevice->uSIFS + uAckTime;
 	} else {
 		return uDataTime;
 	}
@@ -462,7 +462,7 @@ s_uGetDataDuration(
 		if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-				return (pDevice->uSIFS + uAckTime);
+				return pDevice->uSIFS + uAckTime;
 			} else {
 				return 0;
 			}
@@ -474,9 +474,9 @@ s_uGetDataDuration(
 			}
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-				return (pDevice->uSIFS + uAckTime + uNextPktTime);
+				return pDevice->uSIFS + uAckTime + uNextPktTime;
 			} else {
-				return (pDevice->uSIFS + uNextPktTime);
+				return pDevice->uSIFS + uNextPktTime;
 			}
 		}
 		break;
@@ -485,7 +485,7 @@ s_uGetDataDuration(
 		if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-				return (pDevice->uSIFS + uAckTime);
+				return pDevice->uSIFS + uAckTime;
 			} else {
 				return 0;
 			}
@@ -497,9 +497,9 @@ s_uGetDataDuration(
 			}
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-				return (pDevice->uSIFS + uAckTime + uNextPktTime);
+				return pDevice->uSIFS + uAckTime + uNextPktTime;
 			} else {
-				return (pDevice->uSIFS + uNextPktTime);
+				return pDevice->uSIFS + uNextPktTime;
 			}
 		}
 		break;
@@ -508,7 +508,7 @@ s_uGetDataDuration(
 		if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-				return (pDevice->uSIFS + uAckTime);
+				return pDevice->uSIFS + uAckTime;
 			} else {
 				return 0;
 			}
@@ -539,9 +539,9 @@ s_uGetDataDuration(
 
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-				return (pDevice->uSIFS + uAckTime + uNextPktTime);
+				return pDevice->uSIFS + uAckTime + uNextPktTime;
 			} else {
-				return (pDevice->uSIFS + uNextPktTime);
+				return pDevice->uSIFS + uNextPktTime;
 			}
 		}
 		break;
@@ -550,7 +550,7 @@ s_uGetDataDuration(
 		if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-				return (pDevice->uSIFS + uAckTime);
+				return pDevice->uSIFS + uAckTime;
 			} else {
 				return 0;
 			}
@@ -581,9 +581,9 @@ s_uGetDataDuration(
 			}
 			if (bNeedAck) {
 				uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-				return (pDevice->uSIFS + uAckTime + uNextPktTime);
+				return pDevice->uSIFS + uAckTime + uNextPktTime;
 			} else {
-				return (pDevice->uSIFS + uNextPktTime);
+				return pDevice->uSIFS + uNextPktTime;
 			}
 		}
 		break;
@@ -743,7 +743,7 @@ s_uFillDataHead(
 			pBuf->wTimeStampOff_a = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE]);
 			pBuf->wTimeStampOff_b = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][pDevice->byTopCCKBasicRate%MAX_RATE]);
 
-			return (pBuf->wDuration_a);
+			return pBuf->wDuration_a;
 		} else {
 			// Auto Fallback
 			PSTxDataHead_g_FB pBuf = (PSTxDataHead_g_FB)pTxDataHead;
@@ -769,7 +769,7 @@ s_uFillDataHead(
 			pBuf->wTimeStampOff_a = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE]);
 			pBuf->wTimeStampOff_b = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][pDevice->byTopCCKBasicRate%MAX_RATE]);
 
-			return (pBuf->wDuration_a);
+			return pBuf->wDuration_a;
 		} //if (byFBOption == AUTO_FB_NONE)
 	} else if (byPktType == PK_TYPE_11A) {
 		if ((byFBOption != AUTO_FB_NONE)) {
@@ -789,7 +789,7 @@ s_uFillDataHead(
 			pBuf->wDuration_f1 = cpu_to_le16((unsigned short)s_uGetDataDuration(pDevice, DATADUR_A_F1, cbFrameLength, byPktType,
 											    wCurrentRate, bNeedAck, uFragIdx, cbLastFragmentSize, uMACfragNum, byFBOption)); //0: 5GHz
 			pBuf->wTimeStampOff = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE]);
-			return (pBuf->wDuration);
+			return pBuf->wDuration;
 		} else {
 			PSTxDataHead_ab pBuf = (PSTxDataHead_ab)pTxDataHead;
 			//Get SignalField,ServiceField,Length
@@ -805,7 +805,7 @@ s_uFillDataHead(
 											 byFBOption));
 
 			pBuf->wTimeStampOff = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE]);
-			return (pBuf->wDuration);
+			return pBuf->wDuration;
 		}
 	} else {
 		PSTxDataHead_ab pBuf = (PSTxDataHead_ab)pTxDataHead;
@@ -820,7 +820,7 @@ s_uFillDataHead(
 										 cbLastFragmentSize, uMACfragNum,
 										 byFBOption));
 		pBuf->wTimeStampOff = cpu_to_le16(wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE]);
-		return (pBuf->wDuration);
+		return pBuf->wDuration;
 	}
 	return 0;
 }

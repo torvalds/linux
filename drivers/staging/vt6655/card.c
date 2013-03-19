@@ -371,7 +371,7 @@ s_vSetRSPINF(PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, v
   return TXbTD1Send(pDevice, pPacket, uLength);
   }
 
-  return (true);
+  return true;
   }
 */
 
@@ -392,9 +392,9 @@ bool CARDbIsShortPreamble(void *pDeviceHandler)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 	if (pDevice->byPreambleType == 0) {
-		return(false);
+		return false;
 	}
-	return(true);
+	return true;
 }
 
 /*
@@ -412,7 +412,7 @@ bool CARDbIsShortPreamble(void *pDeviceHandler)
 bool CARDbIsShorSlotTime(void *pDeviceHandler)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
-	return(pDevice->bShortSlotTime);
+	return pDevice->bShortSlotTime;
 }
 
 
@@ -596,7 +596,7 @@ bool CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned
 	s_vSetRSPINF(pDevice, ePHYType, pSupportRates, pExtSupportRates);
 	pDevice->eCurrentPHYType = ePHYType;
 	// set for NDIS OID_802_11SUPPORTED_RATES
-	return (true);
+	return true;
 }
 
 /*
@@ -632,7 +632,7 @@ bool CARDbUpdateTSF(void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTim
 		VNSvOutPortD(pDevice->PortOffset + MAC_REG_TSFOFST + 4, HIDWORD(qwTSFOffset));
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TFTCTL, TFTCTL_TSFSYNCEN);
 	}
-	return(true);
+	return true;
 }
 
 
@@ -686,7 +686,7 @@ bool CARDbSetBeaconPeriod(void *pDeviceHandler, unsigned short wBeaconInterval)
 	VNSvOutPortD(pDevice->PortOffset + MAC_REG_NEXTTBTT + 4, HIDWORD(qwNextTBTT));
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
 
-	return(true);
+	return true;
 }
 
 
@@ -725,7 +725,7 @@ bool CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 		if (pDevice->bIsBeaconBufReadySet == true) {
 			if (pDevice->cbBeaconBufReadySetCnt < WAIT_BEACON_TX_DOWN_TMO) {
 				pDevice->cbBeaconBufReadySetCnt++;
-				return(false);
+				return false;
 			}
 		}
 		pDevice->bIsBeaconBufReadySet = false;
@@ -735,17 +735,17 @@ bool CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 	// wait all TD0 complete
 	if (pDevice->bStopTx0Pkt == true) {
 		if (pDevice->iTDUsed[TYPE_TXDMA0] != 0) {
-			return(false);
+			return false;
 		}
 	}
 	// wait all Data TD complete
 	if (pDevice->bStopDataPkt == true) {
 		if (pDevice->iTDUsed[TYPE_AC0DMA] != 0) {
-			return(false);
+			return false;
 		}
 	}
 
-	return(true);
+	return true;
 }
 
 
@@ -785,7 +785,7 @@ bool CARDbStartTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_TCR, TCR_AUTOBCNTX);
 	}
 
-	return(true);
+	return true;
 }
 
 
@@ -835,7 +835,7 @@ bool CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE e
 	}
 	// Adopt BSS state in Adapter Device Object
 	pDevice->eOPMode = eOPMode;
-	return(true);
+	return true;
 }
 
 
@@ -881,7 +881,7 @@ bool CARDbSetTxDataRate(
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
 	pDevice->wCurrentRate = wDataRate;
-	return(true);
+	return true;
 }
 
 /*+
@@ -1034,7 +1034,7 @@ bool CARDbRemoveKey(void *pDeviceHandler, unsigned char *pbyBSSID)
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
 	KeybRemoveAllKey(&(pDevice->sKey), pbyBSSID, pDevice->PortOffset);
-	return (true);
+	return true;
 }
 
 
@@ -1112,7 +1112,7 @@ CARDpGetCurrentAddress(
 {
 	PSDevice            pDevice = (PSDevice) pDeviceHandler;
 
-	return (pDevice->abyCurrentNetAddr);
+	return pDevice->abyCurrentNetAddr;
 }
 
 /*
@@ -1145,7 +1145,7 @@ CARDbStartMeasure(
 
 	if ((pEID == NULL) ||
 	    (uNumOfMeasureEIDs == 0)) {
-		return (true);
+		return true;
 	}
 	CARDbGetCurrentTSF(pDevice->PortOffset, &qwCurrTSF);
 	if (pDevice->bMeasureInProgress == true) {
@@ -1238,7 +1238,7 @@ CARDbStartMeasure(
 				      pDevice->abyRPIs
 			);
 	}
-	return (true);
+	return true;
 }
 
 
@@ -1273,7 +1273,7 @@ CARDbChannelSwitch(
 		MACvSelectPage1(pDevice->PortOffset);
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL+1, MSRCTL1_TXPAUSE);
 		MACvSelectPage0(pDevice->PortOffset);
-		return(bResult);
+		return bResult;
 	}
 	pDevice->byChannelSwitchCount = byCount;
 	pDevice->byNewChannel = byNewChannel;
@@ -1281,7 +1281,7 @@ CARDbChannelSwitch(
 	if (byMode == 1) {
 		bResult = CARDbStopTxPacket(pDevice, PKT_TYPE_802_11_ALL);
 	}
-	return (bResult);
+	return bResult;
 }
 
 
@@ -1337,7 +1337,7 @@ CARDbSetQuiet(
 	} else {
 		// we can not handle Quiet EID more
 	}
-	return (true);
+	return true;
 }
 
 
@@ -1402,7 +1402,7 @@ CARDbStartQuiet(
 				dwGap =  pDevice->dwCurrentQuietEndTime - pDevice->sQuiet[uCurrentQuietIndex].dwStartTime;
 				if (dwGap >= pDevice->sQuiet[uCurrentQuietIndex].wDuration) {
 					// return false to indicate next quiet expired, should call this function again
-					return (false);
+					return false;
 				}
 				dwDuration = pDevice->sQuiet[uCurrentQuietIndex].wDuration - dwGap;
 				dwGap = 0;
@@ -1439,7 +1439,7 @@ CARDbStartQuiet(
 			pDevice->dwCurrentQuietEndTime -= 0x80000000;
 		}
 	}
-	return (true);
+	return true;
 }
 
 /*
@@ -1533,7 +1533,7 @@ CARDbyGetTransmitPower(
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
-	return (pDevice->byCurPwrdBm);
+	return pDevice->byCurPwrdBm;
 }
 
 //xxx
@@ -1944,7 +1944,7 @@ bool CARDbAddBasicRate(void *pDeviceHandler, unsigned short wRateIdx)
 	//Determines the highest basic rate.
 	CARDvUpdateBasicTopRate((void *)pDevice);
 
-	return(true);
+	return true;
 }
 
 bool CARDbIsOFDMinBasicRate(void *pDeviceHandler)
@@ -2060,7 +2060,7 @@ QWORD CARDqGetTSFOffset(unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
 	} else {
 		HIDWORD(qwTSFOffset) = HIDWORD(qwTSF1) - HIDWORD(qwTSF2);
 	};
-	return (qwTSFOffset);
+	return qwTSFOffset;
 }
 
 
@@ -2089,11 +2089,11 @@ bool CARDbGetCurrentTSF(unsigned long dwIoBase, PQWORD pqwCurrTSF)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT)
-		return(false);
+		return false;
 	VNSvInPortD(dwIoBase + MAC_REG_TSFCNTR, &LODWORD(*pqwCurrTSF));
 	VNSvInPortD(dwIoBase + MAC_REG_TSFCNTR + 4, &HIDWORD(*pqwCurrTSF));
 
-	return(true);
+	return true;
 }
 
 
@@ -2137,7 +2137,7 @@ QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval)
 
 	LODWORD(qwTSF) = uLowNextTBTT + uLowRemain;
 
-	return (qwTSF);
+	return qwTSF;
 }
 
 

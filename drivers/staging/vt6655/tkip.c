@@ -151,7 +151,7 @@ unsigned int tkip_sbox(unsigned int index)
 	left = TKIP_Sbox_Lower[index_low] + (TKIP_Sbox_Upper[index_low] * 256);
 	right = TKIP_Sbox_Upper[index_high] + (TKIP_Sbox_Lower[index_high] * 256);
 
-	return (left ^ right);
+	return left ^ right;
 };
 
 

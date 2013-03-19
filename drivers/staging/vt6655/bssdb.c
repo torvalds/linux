@@ -172,7 +172,7 @@ BSSpSearchBSSList(
 							    ((pMgmt->eConfigMode == WMAC_CONFIG_ESS_STA) && WLAN_GET_CAP_INFO_ESS(pCurrBSS->wCapInfo))
 ) {
 								pCurrBSS->bSelected = true;
-								return(pCurrBSS);
+								return pCurrBSS;
 							}
 						}
 					} else {
@@ -181,7 +181,7 @@ BSSpSearchBSSList(
 						    ((pMgmt->eConfigMode == WMAC_CONFIG_ESS_STA) && WLAN_GET_CAP_INFO_ESS(pCurrBSS->wCapInfo))
 ) {
 							pCurrBSS->bSelected = true;
-							return(pCurrBSS);
+							return pCurrBSS;
 						}
 					}
 				}
@@ -260,10 +260,10 @@ BSSpSearchBSSList(
   memcpy(pbyDesireSSID,pCurrBSS->abySSID,WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
   }*/
 
-			return(pSelect);
+			return pSelect;
 		}
 	}
-	return(NULL);
+	return NULL;
 
 }
 

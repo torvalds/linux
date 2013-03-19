@@ -131,7 +131,7 @@ VNTWIFIpGetCurrentSSID(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
-	return((PWLAN_IE_SSID) pMgmt->abyCurrSSID);
+	return (PWLAN_IE_SSID) pMgmt->abyCurrSSID;
 }
 
 /*+
@@ -155,7 +155,7 @@ VNTWIFIpGetCurrentChannel(
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
 	if (pMgmtHandle != NULL) {
-		return (pMgmt->uCurrChannel);
+		return pMgmt->uCurrChannel;
 	}
 	return 0;
 }
@@ -180,7 +180,7 @@ VNTWIFIwGetAssocID(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
-	return(pMgmt->wCurrAID);
+	return pMgmt->wCurrAID;
 }
 
 
@@ -369,11 +369,11 @@ VNTWIFIbConfigPhyMode(
 		if (CARDbSetPhyParameter(pMgmt->pAdapter, ePhyType, 0, 0, NULL, NULL) == true) {
 			pMgmt->eCurrentPHYMode = ePhyType;
 		} else {
-			return(false);
+			return false;
 		}
 	}
 	pMgmt->eConfigPHYMode = ePhyType;
-	return(true);
+	return true;
 }
 
 
@@ -602,9 +602,9 @@ VNTWIFIbyGetKeyCypher(
 	PSMgmtObject    pMgmt = (PSMgmtObject)pMgmtHandle;
 
 	if (bGroupKey == true) {
-		return (pMgmt->byCSSGK);
+		return pMgmt->byCSSGK;
 	} else {
-		return (pMgmt->byCSSPK);
+		return pMgmt->byCSSPK;
 	}
 }
 
@@ -663,11 +663,11 @@ VNTWIFIbSetPMKIDCache(
 	PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
 
 	if (ulCount > MAX_PMKID_CACHE) {
-		return (false);
+		return false;
 	}
 	pMgmt->gsPMKIDCache.BSSIDInfoCount = ulCount;
 	memcpy(pMgmt->gsPMKIDCache.BSSIDInfo, pPMKIDInfo, (ulCount*sizeof(PMKIDInfo)));
-	return (true);
+	return true;
 }
 
 
@@ -682,13 +682,13 @@ VNTWIFIwGetMaxSupportRate(
 
 	for (wRate = RATE_54M; wRate > RATE_1M; wRate--) {
 		if (pMgmt->sNodeDBTable[0].wSuppRate & (1<<wRate)) {
-			return (wRate);
+			return wRate;
 		}
 	}
 	if (pMgmt->eCurrentPHYMode == PHY_TYPE_11A) {
-		return (RATE_6M);
+		return RATE_6M;
 	} else {
-		return (RATE_1M);
+		return RATE_1M;
 	}
 }
 
@@ -760,7 +760,7 @@ VNTWIFIbMeasureReport(
 		IEEE11hbMSRRepTx(pMgmt);
 	}
 	//spin_unlock_irq(&pDevice->lock);
-	return (true);
+	return true;
 }
 
 

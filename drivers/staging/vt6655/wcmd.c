@@ -946,7 +946,7 @@ bool bScheduleCommand(
 
 
 	if (pDevice->cbFreeCmdQueue == 0) {
-		return (false);
+		return false;
 	}
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].eCmd = eCommand;
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bForceSCAN = true;
@@ -998,7 +998,7 @@ bool bScheduleCommand(
 		s_bCommandComplete(pDevice);
 	} else {
 	}
-	return (true);
+	return true;
 
 }
 

@@ -1059,7 +1059,7 @@ bool RFbRawSetPower(
 	unsigned long dwMax7230Pwr = 0;
 
 	if (byPwr >=  pDevice->byMaxPwrLevel) {
-		return (false);
+		return false;
 	}
 	switch (pDevice->byRFType) {
 

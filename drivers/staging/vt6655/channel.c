@@ -390,7 +390,7 @@ bool is_channel_valid(unsigned int ChannelIndex)
 	bValid = sChannelTbl[ChannelIndex].bValid;
 
 exit:
-	return (bValid);
+	return bValid;
 
 }
 
@@ -409,11 +409,11 @@ exit:
 bool channel_get_list(unsigned int uCountryCodeIdx, unsigned char *pbyChannelTable)
 {
 	if (uCountryCodeIdx >= CCODE_MAX)
-		return (false);
+		return false;
 
 	memcpy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
 
-	return (true);
+	return true;
 }
 
 void init_channel_table(void *pDeviceHandler)
@@ -498,11 +498,11 @@ unsigned char get_channel_mapping(void *pDeviceHandler, unsigned char byChannelN
 	unsigned int ii;
 
 	if ((ePhyType == PHY_TYPE_11B) || (ePhyType == PHY_TYPE_11G))
-		return (byChannelNumber);
+		return byChannelNumber;
 
 	for (ii = (CB_MAX_CHANNEL_24G + 1); ii <= CB_MAX_CHANNEL;) {
 		if (sChannelTbl[ii].byChannelNumber == byChannelNumber)
-			return ((unsigned char) ii);
+			return (unsigned char) ii;
 		ii++;
 	}
 	return 0;
@@ -511,7 +511,7 @@ unsigned char get_channel_mapping(void *pDeviceHandler, unsigned char byChannelN
 unsigned char get_channel_number(void *pDeviceHandler, unsigned char byChannelIndex)
 {
 	//PSDevice    pDevice = (PSDevice) pDeviceHandler;
-	return(sChannelTbl[byChannelIndex].byChannelNumber);
+	return sChannelTbl[byChannelIndex].byChannelNumber;
 }
 
 /**
@@ -534,7 +534,7 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	}
 
 	if (sChannelTbl[uConnectionChannel].bValid == false) {
-		return (false);
+		return false;
 	}
 
 	if ((uConnectionChannel > CB_MAX_CHANNEL_24G) &&
@@ -583,7 +583,7 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 		RFbSetPower(pDevice, RATE_6M, pDevice->byCurrentCh);
 	}
 
-	return(bResult);
+	return bResult;
 }
 
 /**
@@ -712,7 +712,7 @@ unsigned char set_support_channels(void *pDeviceHandler, unsigned char *pbyIEs)
 		byLen += 2;
 	}
 	pIE->len += (byLen - 2);
-	return (byLen);
+	return byLen;
 }
 
 void set_country_IE(void *pDeviceHandler, void *pIE)
@@ -779,7 +779,7 @@ unsigned char auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 					byOptionChannel = (unsigned char) ii;
 				}
 				if (sChannelTbl[ii].byMAP == 0) {
-					return ((unsigned char) ii);
+					return (unsigned char) ii;
 				} else if (!(sChannelTbl[ii].byMAP & 0x08)) {
 					byOptionChannel = (unsigned char) ii;
 				}
@@ -821,5 +821,5 @@ unsigned char auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 			}
 		}
 	}
-	return (byOptionChannel);
+	return byOptionChannel;
 }

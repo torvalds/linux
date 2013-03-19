@@ -149,23 +149,23 @@ bool KeybGetKey(
 			if (dwKeyIndex == 0xFFFFFFFF) {
 				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
-					return (true);
+					return true;
 				} else {
-					return (false);
+					return false;
 				}
 			} else if (dwKeyIndex < MAX_GROUP_KEY) {
 				if (pTable->KeyTable[i].GroupKey[dwKeyIndex].bKeyValid == true) {
 					*pKey = &(pTable->KeyTable[i].GroupKey[dwKeyIndex]);
-					return (true);
+					return true;
 				} else {
-					return (false);
+					return false;
 				}
 			} else {
-				return (false);
+				return false;
 			}
 		}
 	}
-	return (false);
+	return false;
 }
 
 
@@ -224,7 +224,7 @@ bool KeybSetKey(
 			} else {
 				// Group key
 				if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY)
-					return (false);
+					return false;
 				pKey = &(pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF]);
 				if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
 					// Group transmit key
@@ -273,7 +273,7 @@ bool KeybSetKey(
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
 
-			return (true);
+			return true;
 		}
 	}
 	if (j < (MAX_KEY_TABLE-1)) {
@@ -288,7 +288,7 @@ bool KeybSetKey(
 		} else {
 			// Group key
 			if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY)
-				return (false);
+				return false;
 			pKey = &(pTable->KeyTable[j].GroupKey[dwKeyIndex & 0x000000FF]);
 			if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
 				// Group transmit key
@@ -337,9 +337,9 @@ bool KeybSetKey(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
 
-		return (true);
+		return true;
 	}
-	return (false);
+	return false;
 }
 
 
@@ -395,7 +395,7 @@ bool KeybRemoveKey(
 			if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
 				pTable->KeyTable[i].PairwiseKey.bKeyValid = false;
 				s_vCheckKeyTableValid(pTable, dwIoBase);
-				return (true);
+				return true;
 			} else if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
 				pTable->KeyTable[i].GroupKey[dwKeyIndex & 0x000000FF].bKeyValid = false;
 				if ((dwKeyIndex & 0x7FFFFFFF) == (pTable->KeyTable[i].dwGTKeyIndex & 0x7FFFFFFF)) {
@@ -403,13 +403,13 @@ bool KeybRemoveKey(
 					pTable->KeyTable[i].dwGTKeyIndex = 0;
 				}
 				s_vCheckKeyTableValid(pTable, dwIoBase);
-				return (true);
+				return true;
 			} else {
-				return (false);
+				return false;
 			}
 		}
 	}
-	return (false);
+	return false;
 }
 
 
@@ -443,10 +443,10 @@ bool KeybRemoveAllKey(
 			}
 			pTable->KeyTable[i].dwGTKeyIndex = 0;
 			s_vCheckKeyTableValid(pTable, dwIoBase);
-			return (true);
+			return true;
 		}
 	}
-	return (false);
+	return false;
 }
 
 /*
@@ -535,10 +535,10 @@ bool KeybGetTransmitKey(
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 
 
-					return (true);
+					return true;
 				} else {
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PairwiseKey.bKeyValid == false\n");
-					return (false);
+					return false;
 				}
 			} // End of Type == PAIRWISE
 			else {
@@ -557,10 +557,10 @@ bool KeybGetTransmitKey(
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dwGTKeyIndex: %lX\n", pTable->KeyTable[i].dwGTKeyIndex);
 
-					return (true);
+					return true;
 				} else {
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GroupKey.bKeyValid == false\n");
-					return (false);
+					return false;
 				}
 			} // End of Type = GROUP
 		} // BSSID match
@@ -570,7 +570,7 @@ bool KeybGetTransmitKey(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", *(pbyBSSID+ii));
 	}
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
-	return (false);
+	return false;
 }
 
 
@@ -598,10 +598,10 @@ bool KeybCheckPairewiseKey(
 		if ((pTable->KeyTable[i].bInUse == true) &&
 		    (pTable->KeyTable[i].PairwiseKey.bKeyValid == true)) {
 			*pKey = &(pTable->KeyTable[i].PairwiseKey);
-			return (true);
+			return true;
 		}
 	}
-	return (false);
+	return false;
 }
 
 /*
@@ -639,9 +639,9 @@ bool KeybSetDefaultKey(
 
 
 	if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
-		return (false);
+		return false;
 	} else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY) {
-		return (false);
+		return false;
 	}
 
 	if (uKeyLength > MAX_KEY_LEN)
@@ -710,7 +710,7 @@ bool KeybSetDefaultKey(
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->wTSC15_0: %x\n", pKey->wTSC15_0);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->dwKeyIndex: %lx\n", pKey->dwKeyIndex);
 
-	return (true);
+	return true;
 }
 
 
@@ -750,9 +750,9 @@ bool KeybSetAllGroupKey(
 
 
 	if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
-		return (false);
+		return false;
 	} else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY) {
-		return (false);
+		return false;
 	}
 
 	for (i = 0; i < MAX_KEY_TABLE - 1; i++) {
@@ -810,5 +810,5 @@ bool KeybSetAllGroupKey(
 
 		} // (pTable->KeyTable[i].bInUse == true)
 	}
-	return (true);
+	return true;
 }

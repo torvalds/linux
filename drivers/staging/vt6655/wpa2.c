@@ -273,7 +273,7 @@ WPA2uSetIEs(
 	unsigned short *pwPMKID = NULL;
 
 	if (pRSNIEs == NULL) {
-		return(0);
+		return 0;
 	}
 	if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) ||
 	     (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
@@ -358,7 +358,7 @@ WPA2uSetIEs(
 				pbyBuffer = &pRSNIEs->abyRSN[18];
 			}
 		}
-		return(pRSNIEs->len + WLAN_IEHDR_LEN);
+		return pRSNIEs->len + WLAN_IEHDR_LEN;
 	}
-	return(0);
+	return 0;
 }

@@ -858,7 +858,7 @@ bool MACbSafeRxOff(unsigned long dwIoBase)
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x10);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x10)\n");
-		return(false);
+		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
 		VNSvInPortD(dwIoBase + MAC_REG_RXDMACTL1, &dwData);
@@ -868,7 +868,7 @@ bool MACbSafeRxOff(unsigned long dwIoBase)
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x11);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x11)\n");
-		return(false);
+		return false;
 	}
 
 	// try to safe shutdown RX
@@ -882,7 +882,7 @@ bool MACbSafeRxOff(unsigned long dwIoBase)
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x12);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x12)\n");
-		return(false);
+		return false;
 	}
 	return true;
 }
@@ -921,7 +921,7 @@ bool MACbSafeTxOff(unsigned long dwIoBase)
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x20);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x20)\n");
-		return(false);
+		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
 		VNSvInPortD(dwIoBase + MAC_REG_AC0DMACTL, &dwData);
@@ -931,7 +931,7 @@ bool MACbSafeTxOff(unsigned long dwIoBase)
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x21);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x21)\n");
-		return(false);
+		return false;
 	}
 
 	// try to safe shutdown TX
@@ -946,7 +946,7 @@ bool MACbSafeTxOff(unsigned long dwIoBase)
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x24);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x24)\n");
-		return(false);
+		return false;
 	}
 	return true;
 }

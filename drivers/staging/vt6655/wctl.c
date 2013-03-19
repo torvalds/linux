@@ -117,10 +117,10 @@ unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 		    (!compare_ether_addr(&(pDevice->sRxDFCB[ii].abyAddr2[0]), &(pMACHeader->abyAddr2[0])))
 ) {
 			//
-			return(ii);
+			return ii;
 		}
 	}
-	return(pDevice->cbDFCB);
+	return pDevice->cbDFCB;
 }
 
 
@@ -143,7 +143,7 @@ unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 	unsigned int ii;
 
 	if (pDevice->cbFreeDFCB == 0)
-		return(pDevice->cbDFCB);
+		return pDevice->cbDFCB;
 	for (ii = 0; ii < pDevice->cbDFCB; ii++) {
 		if (pDevice->sRxDFCB[ii].bInUse == false) {
 			pDevice->cbFreeDFCB--;
@@ -152,10 +152,10 @@ unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 			pDevice->sRxDFCB[ii].wSequence = (pMACHeader->wSeqCtl >> 4);
 			pDevice->sRxDFCB[ii].wFragNum = (pMACHeader->wSeqCtl & 0x000F);
 			memcpy(&(pDevice->sRxDFCB[ii].abyAddr2[0]), &(pMACHeader->abyAddr2[0]), ETH_ALEN);
-			return(ii);
+			return ii;
 		}
 	}
-	return(pDevice->cbDFCB);
+	return pDevice->cbDFCB;
 }
 
 
@@ -199,7 +199,7 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 		} else {
 			pDevice->uCurrentDFCBIdx = WCTLuInsertDFCB(pDevice, pMACHeader);
 			if (pDevice->uCurrentDFCBIdx == pDevice->cbDFCB) {
-				return(false);
+				return false;
 			}
 		}
 		// reserve 4 byte to match MAC RX Buffer
@@ -209,7 +209,7 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 		pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += cbFrameLength;
 		pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
 		//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "First pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
-		return(false);
+		return false;
 	} else {
 		pDevice->uCurrentDFCBIdx = WCTLuSearchDFCB(pDevice, pMACHeader);
 		if (pDevice->uCurrentDFCBIdx != pDevice->cbDFCB) {
@@ -226,19 +226,19 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 				// seq error or frag # error flush DFCB
 				pDevice->cbFreeDFCB++;
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].bInUse = false;
-				return(false);
+				return false;
 			}
 		} else {
-			return(false);
+			return false;
 		}
 		if (IS_LAST_FRAGMENT_PKT(pMACHeader)) {
 			//enq defragcontrolblock
 			pDevice->cbFreeDFCB++;
 			pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].bInUse = false;
 			//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Last pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
-			return(true);
+			return true;
 		}
-		return(false);
+		return false;
 	}
 }
 

@@ -79,7 +79,7 @@ unsigned char ETHbyGetHashIndexByCrc32(unsigned char *pbyMultiAddr)
 	}
 
 	// adjust 6-bits to the right most
-	return (byHash >> 2);
+	return byHash >> 2;
 }
 
 
