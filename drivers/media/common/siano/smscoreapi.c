@@ -1495,7 +1495,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		last_sample_time = time_now;
 
 	if (time_now - last_sample_time > 10000) {
-		sms_debug("\ndata rate %d bytes/secs",
+		sms_debug("data rate %d bytes/secs",
 			  (int)((data_total * 1000) /
 				(time_now - last_sample_time)));
 
@@ -1606,7 +1606,9 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			break;
 
 		default:
-			sms_debug("message not handled.\n");
+			sms_debug("message %s(%d) not handled.",
+				  smscore_translate_msg(phdr->msgType),
+				  phdr->msgType);
 			break;
 		}
 		smscore_putbuffer(coredev, cb);

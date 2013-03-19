@@ -949,7 +949,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 
 	c->bandwidth_hz = 6000000;
 
-	sms_info("%s: freq %d segwidth %d segindex %d\n", __func__,
+	sms_info("%s: freq %d segwidth %d segindex %d", __func__,
 		 c->frequency, c->isdbt_sb_segment_count,
 		 c->isdbt_sb_segment_idx);
 
