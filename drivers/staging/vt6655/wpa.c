@@ -269,10 +269,6 @@ WPA_SearchRSN(
 				return false;
 		}
 		return true;
-//        if (pBSSList->wAuthCount > 0)
-//            for (ii=0; ii < pBSSList->wAuthCount; ii ++)
-//                if (byAuth == pBSSList->abyAuthType[ii])
-//                    break;
 		break;
 
 	default:

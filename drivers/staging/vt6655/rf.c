@@ -1023,12 +1023,11 @@ bool RFbSetPower(
 		break;
 	}
 
-//    if (pDevice->byLocalID <= REV_ID_VT3253_B1) {
 	if (pDevice->byCurPwr == byPwr) {
 		return true;
 	}
+
 	bResult = RFbRawSetPower(pDevice, byPwr, uRATE);
-//    }
 	if (bResult == true) {
 		pDevice->byCurPwr = byPwr;
 	}

@@ -338,8 +338,6 @@ BSSpAddrIsInBSSList(
 		pBSSList = &(pMgmt->sBSSList[ii]);
 		if (pBSSList->bActive) {
 			if (!compare_ether_addr(pBSSList->abyBSSID, abyBSSID)) {
-//                if (pSSID == NULL)
-//                    return pBSSList;
 				if (pSSID->len == ((PWLAN_IE_SSID)pBSSList->abySSID)->len) {
 					if (memcmp(pSSID->abySSID,
 						   ((PWLAN_IE_SSID)pBSSList->abySSID)->abySSID,
@@ -1088,7 +1086,6 @@ start:
 			printk("Re-association timeout!!!\n");
 			pDevice->byReAssocCount = 0;
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-			// if (pDevice->bWPASuppWextEnabled == true)
 			{
 				union iwreq_data  wrqu;
 				memset(&wrqu, 0, sizeof(wrqu));
@@ -1246,11 +1243,6 @@ start:
 	    (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)) {
 
 		if (pMgmt->sNodeDBTable[0].bActive) { // Assoc with BSS
-			// DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Callback inactive Count = [%d]\n", pMgmt->sNodeDBTable[0].uInActiveCount);
-			//if (pDevice->bUpdateBBVGA) {
-			//  s_vCheckSensitivity((void *) pDevice);
-			//}
-
 			if (pDevice->bUpdateBBVGA) {
 				// s_vCheckSensitivity((void *) pDevice);
 				s_vCheckPreEDThreshold((void *)pDevice);
@@ -1285,7 +1277,6 @@ start:
 					pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
 				}
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-				// if (pDevice->bWPASuppWextEnabled == true)
 				{
 					union iwreq_data  wrqu;
 					memset(&wrqu, 0, sizeof(wrqu));
@@ -1394,8 +1385,6 @@ BSSvUpdateNodeTxCounter(
 //	unsigned int txRetryTemp;
 //PLICE_DEBUG->
 	//txRetryTemp = byTxRetry;
-	//if (txRetryTemp== 8)
-	//txRetryTemp -=3;
 //PLICE_DEBUG <-
 	pTxBufHead = (PSTxBufHead) pbyBuffer;
 	if (pTxBufHead->wFIFOCtl & FIFOCTL_AUTO_FB_0) {
@@ -1421,7 +1410,6 @@ BSSvUpdateNodeTxCounter(
 				} else if (byFallBack == AUTO_FB_0) {
 //PLICE_DEBUG
 					if (byTxRetry < 5)
-						//if (txRetryTemp < 5)
 						wFallBackRate = awHWRetry0[wRate-RATE_18M][byTxRetry];
 					//wFallBackRate = awHWRetry0[wRate-RATE_12M][byTxRetry];
 					//wFallBackRate = awHWRetry0[wRate-RATE_18M][txRetryTemp] +1;

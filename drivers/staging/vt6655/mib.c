@@ -139,21 +139,6 @@ void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, unsigned long dwIsr)
 	if (dwIsr & ISR_RXDMA1)               // ISR, bit12
 		pStatistic->ISRStat.dwIsrRx1OK++;             // Rx1 successful
 
-//    if (dwIsr & ISR_ATIMTX)               // ISR, bit13
-//        pStatistic->ISRStat.dwIsrATIMTxOK++;          // ATIMTX successful
-
-//    if (dwIsr & ISR_SYNCTX)               // ISR, bit14
-//        pStatistic->ISRStat.dwIsrSYNCTxOK++;          // SYNCTX successful
-
-//    if (dwIsr & ISR_CFPEND)               // ISR, bit18
-//        pStatistic->ISRStat.dwIsrCFPEnd++;
-
-//    if (dwIsr & ISR_ATIMEND)              // ISR, bit19
-//        pStatistic->ISRStat.dwIsrATIMEnd++;
-
-//    if (dwIsr & ISR_SYNCFLUSHOK)          // ISR, bit20
-//        pStatistic->ISRStat.dwIsrSYNCFlushOK++;
-
 	if (dwIsr & ISR_SOFTTIMER1)           // ISR, bit21
 		pStatistic->ISRStat.dwIsrSTIMER1Int++;
 

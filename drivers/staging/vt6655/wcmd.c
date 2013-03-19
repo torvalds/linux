@@ -630,7 +630,6 @@ vCommandTimer(
 			} else {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disconnect SSID none\n");
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-				// if (pDevice->bWPASuppWextEnabled == true)
 				{
 					union iwreq_data  wrqu;
 					memset(&wrqu, 0, sizeof(wrqu));

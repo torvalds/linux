@@ -812,10 +812,7 @@ int iwctl_siwessid(struct net_device *dev,
 		memset(pMgmt->abyDesireBSSID, 0xFF, 6);
 		PRINT_K("set essid to 'any' \n");
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-		//Unknown desired AP,so here need not associate??
-		//if (pDevice->bWPASuppWextEnabled == true)  {
 		return 0;
-		// }
 #endif
 	} else {
 		// Set the SSID

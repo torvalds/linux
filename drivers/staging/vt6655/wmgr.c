@@ -477,10 +477,6 @@ vMgrAssocBeginSta(
 	if (pDevice->bEncryptionEnable) {
 		pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
 	}
-	// always allow receive short preamble
-	//if (pDevice->byPreambleType == 1) {
-	//    pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
-	//}
 	pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
 	if (pMgmt->wListenInterval == 0)
 		pMgmt->wListenInterval = 1;    // at least one.
@@ -554,9 +550,6 @@ vMgrReAssocBeginSta(
 		pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
 	}
 
-	//if (pDevice->byPreambleType == 1) {
-	//    pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
-	//}
 	pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
 
 	if (pMgmt->wListenInterval == 0)
@@ -1069,7 +1062,6 @@ s_vMgrRxAssocResponse(
 
 //2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-			//if (pDevice->bWPADevEnable == true)
 			{
 				unsigned char buf[512];
 				size_t len;
@@ -1674,9 +1666,6 @@ s_vMgrRxDisassociation(
 		DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "AP disassociated me, reason=%d.\n", cpu_to_le16(*(sFrame.pwReason)));
 		//TODO: do something let upper layer know or
 		//try to send associate packet again because of inactivity timeout
-		//  if (pMgmt->eCurrState == WMAC_STATE_ASSOC) {
-		//     vMgrReAssocBeginSta((PSDevice)pDevice, pMgmt, &CmdStatus);
-		//  }
 		if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
 			wpahdr = (viawget_wpa_header *)pDevice->skb->data;
 			wpahdr->type = VIAWGET_DISASSOC_MSG;
@@ -1694,7 +1683,6 @@ s_vMgrRxDisassociation(
 		}
 
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-		// if (pDevice->bWPASuppWextEnabled == true)
 		{
 			union iwreq_data  wrqu;
 			memset(&wrqu, 0, sizeof(wrqu));
@@ -1778,7 +1766,6 @@ s_vMgrRxDeauthentication(
 			}
 
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-			// if (pDevice->bWPASuppWextEnabled == true)
 			{
 				union iwreq_data  wrqu;
 				memset(&wrqu, 0, sizeof(wrqu));
@@ -2262,7 +2249,6 @@ s_vMgrRxBeacon(
 				pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble = WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
 				pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate = pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate;
 #ifdef	PLICE_DEBUG
-				//if (uNodeIndex == 0)
 				{
 					printk("s_vMgrRxBeacon:TxDataRate is %d,Index is %d\n", pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate, uNodeIndex);
 				}
@@ -2683,7 +2669,6 @@ vMgrJoinBSSBegin(
 		}
 
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-		//if (pDevice->bWPASuppWextEnabled == true)
 		Encyption_Rebuild(pDevice, pCurr);
 #endif
 		// Infrastructure BSS
@@ -3037,15 +3022,7 @@ static void  Encyption_Rebuild(
 )
 {
 	PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
-	// unsigned int ii , uSameBssidNum=0;
 
-	//  for (ii = 0; ii < MAX_BSS_NUM; ii++) {
-	//   if (pMgmt->sBSSList[ii].bActive &&
-	//      !compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID, pCurr->abyBSSID)) {
-	//       uSameBssidNum++;
-	//   }
-	// }
-	//   if (uSameBssidNum>=2) {	 //we only check AP in hidden sssid  mode
 	if ((pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) ||           //networkmanager 0.7.0 does not give the pairwise-key selection,
 	    (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) {         // so we need re-select it according to real pairwise-key info.
 		if (pCurr->bWPAValid == true)  {   //WPA-PSK

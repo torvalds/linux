@@ -593,7 +593,6 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 				pDevice->byRxAntennaMode = ANT_B;
 			// chester for antenna
 			byValue1 = SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_ANTENNA);
-			//  if (pDevice->bDiversityRegCtlON)
 			if ((byValue1 & 0x08) == 0)
 				pDevice->bDiversityEnable = false;//SROMbyReadEmbedded(pDevice->PortOffset, 0x50);
 			else
@@ -1885,8 +1884,6 @@ static int  device_open(struct net_device *dev) {
 
 
 
-	// if ((SROMbyReadEmbedded(pDevice->PortOffset, EEP_OFS_RADIOCTL)&0x06)==0x04)
-	//    return -ENOMEM;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call device_init_registers\n");
 	device_init_registers(pDevice, DEVICE_INIT_COLD);
 	MACvReadEtherAddress(pDevice->PortOffset, pDevice->abyCurrentNetAddr);
@@ -2468,12 +2465,6 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 	}
 
 
-#ifdef	PLICE_DEBUG
-	//if (skb->len == 98)
-	//{
-	//	printk("ping:len is %d\n");
-	//}
-#endif
 	vGenerateFIFOHeader(pDevice, byPktType, pDevice->pbyTmpBuff, bNeedEncryption,
 			    cbFrameBodySize, TYPE_AC0DMA, pHeadTD,
 			    &pDevice->sTxEthHeader, (unsigned char *)skb->data, pTransmitKey, uNodeIndex,

@@ -815,7 +815,6 @@ device_receive_frame(
 				//2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				//send event to wpa_supplicant
-				//if (pDevice->bWPADevEnable == true)
 				{
 					union iwreq_data wrqu;
 					struct iw_michaelmicfailure ev;

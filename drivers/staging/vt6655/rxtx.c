@@ -1567,16 +1567,6 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 				//---------------------------
 				// S/W or H/W Encryption
 				//---------------------------
-				//Fill MICHDR
-				//if (pDevice->bAES) {
-				//    s_vFillMICHDR(pDevice, (unsigned char *)pMICHDR, pbyMacHdr, (unsigned short)cbFragPayloadSize);
-				//}
-				//cbReqCount += s_uDoEncryption(pDevice, psEthHeader, (void *)psTxBufHd, byKeySel,
-				//                                pbyPayloadHead, (unsigned short)cbFragPayloadSize, uDMAIdx);
-
-
-
-				//pbyBuffer = (unsigned char *)pDevice->aamTxBuf[uDMAIdx][uDescIdx].pbyVAddr;
 				pbyBuffer = (unsigned char *)pHeadTD->pTDInfo->buf;
 
 				uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen + cb802_1_H_len;
@@ -1786,18 +1776,8 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 				//---------------------------
 				// S/W or H/W Encryption
 				//---------------------------
-				//Fill MICHDR
-				//if (pDevice->bAES) {
-				//    s_vFillMICHDR(pDevice, (unsigned char *)pMICHDR, pbyMacHdr, (unsigned short)cbFragPayloadSize);
-				//}
-				//cbReqCount += s_uDoEncryption(pDevice, psEthHeader, (void *)psTxBufHd, byKeySel,
-				//                              pbyPayloadHead, (unsigned short)cbFragPayloadSize, uDMAIdx);
-
 
 				pbyBuffer = (unsigned char *)pHeadTD->pTDInfo->buf;
-				//pbyBuffer = (unsigned char *)pDevice->aamTxBuf[uDMAIdx][tmpDescIdx].pbyVAddr;
-
-
 				uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen;
 
 				//copy TxBufferHeader + MacHeader to desc
@@ -1927,15 +1907,7 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
 		//---------------------------
 		// S/W or H/W Encryption
 		//---------------------------
-		//Fill MICHDR
-		//if (pDevice->bAES) {
-		//    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Fill MICHDR...\n");
-		//    s_vFillMICHDR(pDevice, (unsigned char *)pMICHDR, pbyMacHdr, (unsigned short)cbFrameBodySize);
-		//}
-
 		pbyBuffer = (unsigned char *)pHeadTD->pTDInfo->buf;
-		//pbyBuffer = (unsigned char *)pDevice->aamTxBuf[uDMAIdx][uDescIdx].pbyVAddr;
-
 		uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen + cb802_1_H_len;
 
 		//copy TxBufferHeader + MacHeader to desc
@@ -2120,16 +2092,8 @@ vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pb
 	}
 
 #ifdef	PLICE_DEBUG
-	//if (pDevice->wCurrentRate <= 3)
-	//{
-	//	RFbRawSetPower(pDevice,36,pDevice->wCurrentRate);
-	//}
-	//else
-
 	RFbSetPower(pDevice, pDevice->wCurrentRate, pDevice->byCurrentCh);
 #endif
-	//if (pDevice->wCurrentRate == 3)
-	//pDevice->byCurPwr = 46;
 	pTxBufHead->byTxPower = pDevice->byCurPwr;
 
 
@@ -2334,13 +2298,6 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 	    (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
 
 		pTxBufHead->wFIFOCtl |= FIFOCTL_LRETRY;
-		//Set Preamble type always long
-		//pDevice->byPreambleType = PREAMBLE_LONG;
-		// probe-response don't retry
-		//if ((pPacket->p80211Header->sA4.wFrameCtl & TYPE_SUBTYPE_MASK) == TYPE_MGMT_PROBE_RSP) {
-		//     bNeedACK = false;
-		//     pTxBufHead->wFIFOCtl  &= (~FIFOCTL_NEEDACK);
-		//}
 	}
 
 	pTxBufHead->wFIFOCtl |= (FIFOCTL_GENINT | FIFOCTL_ISDMA0);
@@ -2450,10 +2407,6 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 		//---------------------------
 		// S/W or H/W Encryption
 		//---------------------------
-		//Fill MICHDR
-		//if (pDevice->bAES) {
-		//    s_vFillMICHDR(pDevice, (unsigned char *)pMICHDR, (unsigned char *)pMACHeader, (unsigned short)cbFrameBodySize);
-		//}
 		do {
 			if ((pDevice->eOPMode == OP_MODE_INFRASTRUCTURE) &&
 			    (pDevice->bLinkPass == true)) {
@@ -2838,14 +2791,6 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 	    (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
 
 		pTxBufHead->wFIFOCtl |= FIFOCTL_LRETRY;
-		//Set Preamble type always long
-		//pDevice->byPreambleType = PREAMBLE_LONG;
-
-		// probe-response don't retry
-		//if ((p80211Header->sA4.wFrameCtl & TYPE_SUBTYPE_MASK) == TYPE_MGMT_PROBE_RSP) {
-		//     bNeedACK = false;
-		//     pTxBufHead->wFIFOCtl  &= (~FIFOCTL_NEEDACK);
-		//}
 	}
 
 	pTxBufHead->wFIFOCtl |= (FIFOCTL_GENINT | FIFOCTL_ISDMA0);
