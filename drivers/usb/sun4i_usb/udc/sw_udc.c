@@ -3417,7 +3417,7 @@ static int sw_udc_remove_otg(struct platform_device *pdev)
 	    DMSG_PANIC("ERR: invalid argment, udc->driver(0x%p)\n", udc->driver);
 		return -EBUSY;
     }
-
+	usb_del_gadget_udc(&udc->gadget);
 	return 0;
 }
 
@@ -3824,7 +3824,7 @@ err:
 static void __exit udc_exit(void)
 {
 	DMSG_INFO_UDC("udc_exit: version %s\n", DRIVER_VERSION);
-
+	/*TODO: add remove udc gadget driver*/
 	platform_driver_unregister(&sw_udc_driver);
 
 	return ;
