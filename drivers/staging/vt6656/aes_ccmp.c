@@ -243,7 +243,7 @@ bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize)
 	u8            abyPlainText[16];
 	u8            abyLastCipher[16];
 
-	PS802_11Header  pMACHeader = (PS802_11Header) pbyFrame;
+	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *) pbyFrame;
 	u8 *           pbyIV;
 	u8 *           pbyPayload;
 	u16            wHLen = 22;
@@ -265,7 +265,7 @@ bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize)
 	pbyPayload = pbyIV + 8; /* IV-length */
 
 	abyNonce[0]  = 0x00; /* now is 0, if Qos here will be priority */
-	memcpy(&(abyNonce[1]), pMACHeader->abyAddr2, ETH_ALEN);
+	memcpy(&(abyNonce[1]), pMACHeader->addr2, ETH_ALEN);
 	abyNonce[7]  = pbyIV[7];
 	abyNonce[8]  = pbyIV[6];
 	abyNonce[9]  = pbyIV[5];
@@ -282,22 +282,22 @@ bool AESbGenCCMP(u8 * pbyRxKey, u8 * pbyFrame, u16 wFrameSize)
 	/* MIC_HDR1 */
 	MIC_HDR1[0] = (u8)(wHLen >> 8);
 	MIC_HDR1[1] = (u8)(wHLen & 0xff);
-	byTmp = (u8)(pMACHeader->wFrameCtl & 0xff);
+	byTmp = (u8)(pMACHeader->frame_control & 0xff);
 	MIC_HDR1[2] = byTmp & 0x8f;
-	byTmp = (u8)(pMACHeader->wFrameCtl >> 8);
+	byTmp = (u8)(pMACHeader->frame_control >> 8);
 	byTmp &= 0x87;
 	MIC_HDR1[3] = byTmp | 0x40;
-	memcpy(&(MIC_HDR1[4]), pMACHeader->abyAddr1, ETH_ALEN);
-	memcpy(&(MIC_HDR1[10]), pMACHeader->abyAddr2, ETH_ALEN);
+	memcpy(&(MIC_HDR1[4]), pMACHeader->addr1, ETH_ALEN);
+	memcpy(&(MIC_HDR1[10]), pMACHeader->addr2, ETH_ALEN);
 
 	/* MIC_HDR2 */
-	memcpy(&(MIC_HDR2[0]), pMACHeader->abyAddr3, ETH_ALEN);
-	byTmp = (u8)(pMACHeader->wSeqCtl & 0xff);
+	memcpy(&(MIC_HDR2[0]), pMACHeader->addr3, ETH_ALEN);
+	byTmp = (u8)(pMACHeader->seq_ctrl & 0xff);
 	MIC_HDR2[6] = byTmp & 0x0f;
 	MIC_HDR2[7] = 0;
 
 	if (bA4) {
-		memcpy(&(MIC_HDR2[8]), pMACHeader->abyAddr4, ETH_ALEN);
+		memcpy(&(MIC_HDR2[8]), pMACHeader->addr4, ETH_ALEN);
 	} else {
 		MIC_HDR2[8]  = 0x00;
 		MIC_HDR2[9]  = 0x00;

@@ -129,11 +129,11 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
 	u8 *pbyRxBuffer;
 	u32 cbHeaderSize = 0;
 	u16 *pwType;
-	PS802_11Header pMACHeader;
+	struct ieee80211_hdr *pMACHeader;
 	int ii;
 
 
-    pMACHeader = (PS802_11Header) (pbyRxBufferAddr + cbHeaderSize);
+    pMACHeader = (struct ieee80211_hdr *) (pbyRxBufferAddr + cbHeaderSize);
 
     s_vGetDASA((u8 *)pMACHeader, &cbHeaderSize, &pDevice->sRxEthHeader);
 
@@ -221,44 +221,44 @@ s_vGetDASA (
     )
 {
 	unsigned int            cbHeaderSize = 0;
-	PS802_11Header  pMACHeader;
+	struct ieee80211_hdr *pMACHeader;
 	int             ii;
 
-	pMACHeader = (PS802_11Header) (pbyRxBufferAddr + cbHeaderSize);
+	pMACHeader = (struct ieee80211_hdr *) (pbyRxBufferAddr + cbHeaderSize);
 
-	if ((pMACHeader->wFrameCtl & FC_TODS) == 0) {
-		if (pMACHeader->wFrameCtl & FC_FROMDS) {
+	if ((pMACHeader->frame_control & FC_TODS) == 0) {
+		if (pMACHeader->frame_control & FC_FROMDS) {
 			for (ii = 0; ii < ETH_ALEN; ii++) {
 				psEthHeader->h_dest[ii] =
-					pMACHeader->abyAddr1[ii];
+					pMACHeader->addr1[ii];
 				psEthHeader->h_source[ii] =
-					pMACHeader->abyAddr3[ii];
+					pMACHeader->addr3[ii];
 			}
 		} else {
 			/* IBSS mode */
 			for (ii = 0; ii < ETH_ALEN; ii++) {
 				psEthHeader->h_dest[ii] =
-					pMACHeader->abyAddr1[ii];
+					pMACHeader->addr1[ii];
 				psEthHeader->h_source[ii] =
-					pMACHeader->abyAddr2[ii];
+					pMACHeader->addr2[ii];
 			}
 		}
 	} else {
 		/* Is AP mode.. */
-		if (pMACHeader->wFrameCtl & FC_FROMDS) {
+		if (pMACHeader->frame_control & FC_FROMDS) {
 			for (ii = 0; ii < ETH_ALEN; ii++) {
 				psEthHeader->h_dest[ii] =
-					pMACHeader->abyAddr3[ii];
+					pMACHeader->addr3[ii];
 				psEthHeader->h_source[ii] =
-					pMACHeader->abyAddr4[ii];
+					pMACHeader->addr4[ii];
 				cbHeaderSize += 6;
 			}
 		} else {
 			for (ii = 0; ii < ETH_ALEN; ii++) {
 				psEthHeader->h_dest[ii] =
-					pMACHeader->abyAddr3[ii];
+					pMACHeader->addr3[ii];
 				psEthHeader->h_source[ii] =
-					pMACHeader->abyAddr2[ii];
+					pMACHeader->addr2[ii];
 			}
 		}
 	};
@@ -273,7 +273,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 	struct sk_buff *skb;
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct vnt_rx_mgmt *pRxPacket = &pMgmt->sRxPacket;
-	PS802_11Header p802_11Header;
+	struct ieee80211_hdr *p802_11Header;
 	u8 *pbyRsr, *pbyNewRsr, *pbyRSSI, *pbyFrame;
 	u64 *pqwTSFTime;
 	u32 bDeFragRx = false;
@@ -297,7 +297,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 	u8 abyVaildRate[MAX_RATE]
 		= {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 	u16 wPLCPwithPadding;
-	PS802_11Header pMACHeader;
+	struct ieee80211_hdr *pMACHeader;
 	int bRxeapol_key = false;
 
 
@@ -378,27 +378,27 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
                             );
 
 
-    pMACHeader = (PS802_11Header) pbyFrame;
+    pMACHeader = (struct ieee80211_hdr *) pbyFrame;
 
 //mike add: to judge if current AP is activated?
     if ((pMgmt->eCurrMode == WMAC_MODE_STANDBY) ||
         (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)) {
        if (pMgmt->sNodeDBTable[0].bActive) {
-	 if (!compare_ether_addr(pMgmt->abyCurrBSSID, pMACHeader->abyAddr2)) {
+	 if (!compare_ether_addr(pMgmt->abyCurrBSSID, pMACHeader->addr2)) {
 	    if (pMgmt->sNodeDBTable[0].uInActiveCount != 0)
                   pMgmt->sNodeDBTable[0].uInActiveCount = 0;
            }
        }
     }
 
-    if (!is_multicast_ether_addr(pMACHeader->abyAddr1)) {
-        if ( WCTLbIsDuplicate(&(pDevice->sDupRxCache), (PS802_11Header) pbyFrame) ) {
+    if (!is_multicast_ether_addr(pMACHeader->addr1)) {
+        if (WCTLbIsDuplicate(&(pDevice->sDupRxCache), (struct ieee80211_hdr *) pbyFrame)) {
             pDevice->s802_11Counter.FrameDuplicateCount++;
             return false;
         }
 
 	if (compare_ether_addr(pDevice->abyCurrentNetAddr,
-			       pMACHeader->abyAddr1)) {
+			       pMACHeader->addr1)) {
 		return false;
         }
     }
@@ -413,9 +413,9 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) || (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {
         if (IS_CTL_PSPOLL(pbyFrame) || !IS_TYPE_CONTROL(pbyFrame)) {
-            p802_11Header = (PS802_11Header) (pbyFrame);
+            p802_11Header = (struct ieee80211_hdr *) (pbyFrame);
             // get SA NodeIndex
-            if (BSSbIsSTAInNodeDB(pDevice, (u8 *)(p802_11Header->abyAddr2), &iSANodeIndex)) {
+            if (BSSbIsSTAInNodeDB(pDevice, (u8 *)(p802_11Header->addr2), &iSANodeIndex)) {
                 pMgmt->sNodeDBTable[iSANodeIndex].ulLastRxJiffer = jiffies;
                 pMgmt->sNodeDBTable[iSANodeIndex].uInActiveCount = 0;
             }
@@ -508,7 +508,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         (IS_FRAGMENT_PKT((pbyFrame)))
         ) {
         // defragment
-        bDeFragRx = WCTLbHandleFragment(pDevice, (PS802_11Header) (pbyFrame), FrameSize, bIsWEP, bExtIV);
+        bDeFragRx = WCTLbHandleFragment(pDevice, (struct ieee80211_hdr *) (pbyFrame), FrameSize, bIsWEP, bExtIV);
         pDevice->s802_11Counter.ReceivedFragmentCount++;
         if (bDeFragRx) {
             // defrag complete
@@ -818,7 +818,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 					}
 
 					ev.src_addr.sa_family = ARPHRD_ETHER;
-					memcpy(ev.src_addr.sa_data, pMACHeader->abyAddr2, ETH_ALEN);
+					memcpy(ev.src_addr.sa_data, pMACHeader->addr2, ETH_ALEN);
 					memset(&wrqu, 0, sizeof(wrqu));
 					wrqu.data.length = sizeof(ev);
 			PRINT_K("wireless_send_event--->IWEVMICHAELMICFAILURE\n");
@@ -928,13 +928,13 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
 	s32 iSANodeIndex)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	PS802_11Header p802_11Header;
+	struct ieee80211_hdr *p802_11Header;
 	CMD_STATUS Status;
 
 
     if (IS_CTL_PSPOLL(pbyFrame) || !IS_TYPE_CONTROL(pbyFrame)) {
 
-        p802_11Header = (PS802_11Header) (pbyFrame);
+        p802_11Header = (struct ieee80211_hdr *) (pbyFrame);
         if (!IS_TYPE_MGMT(pbyFrame)) {
 
             // Data & PS-Poll packet
@@ -946,7 +946,7 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
                     // reason = (6) class 2 received from nonauth sta
                     vMgrDeAuthenBeginSta(pDevice,
                                          pMgmt,
-                                         (u8 *)(p802_11Header->abyAddr2),
+                                         (u8 *)(p802_11Header->addr2),
                                          (WLAN_MGMT_REASON_CLASS2_NONAUTH),
                                          &Status
                                          );
@@ -958,7 +958,7 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
                     // reason = (7) class 3 received from nonassoc sta
                     vMgrDisassocBeginSta(pDevice,
                                          pMgmt,
-                                         (u8 *)(p802_11Header->abyAddr2),
+                                         (u8 *)(p802_11Header->addr2),
                                          (WLAN_MGMT_REASON_CLASS3_NONASSOC),
                                          &Status
                                          );
@@ -1011,18 +1011,18 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
             else {
                   vMgrDeAuthenBeginSta(pDevice,
                                        pMgmt,
-                                       (u8 *)(p802_11Header->abyAddr2),
+                                       (u8 *)(p802_11Header->addr2),
                                        (WLAN_MGMT_REASON_CLASS2_NONAUTH),
                                        &Status
                                        );
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: send vMgrDeAuthenBeginSta 3\n");
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "BSSID:%pM\n",
-				p802_11Header->abyAddr3);
+				p802_11Header->addr3);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ADDR2:%pM\n",
-				p802_11Header->abyAddr2);
+				p802_11Header->addr2);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ADDR1:%pM\n",
-				p802_11Header->abyAddr1);
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: wFrameCtl= %x\n", p802_11Header->wFrameCtl );
+				p802_11Header->addr1);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: frame_control= %x\n", p802_11Header->frame_control);
                     return true;
             }
         }
@@ -1149,8 +1149,8 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
             (pDevice->byLocalID <= REV_ID_VT3253_A1)) {
             // Software TKIP
             // 1. 3253 A
-            PS802_11Header  pMACHeader = (PS802_11Header) (pbyFrame);
-            TKIPvMixKey(pKey->abyKey, pMACHeader->abyAddr2, *pwRxTSC15_0, *pdwRxTSC47_16, pDevice->abyPRNG);
+            struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *) (pbyFrame);
+            TKIPvMixKey(pKey->abyKey, pMACHeader->addr2, *pwRxTSC15_0, *pdwRxTSC47_16, pDevice->abyPRNG);
             rc4_init(&pDevice->SBox, pDevice->abyPRNG, TKIP_KEY_LEN);
             rc4_encrypt(&pDevice->SBox, pbyIV+8, pbyIV+8, PayloadLen);
             if (ETHbIsBufferCrc32Ok(pbyIV+8, PayloadLen)) {
@@ -1173,7 +1173,7 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
 	s32 *pbExtIV, u16 *pwRxTSC15_0, u32 *pdwRxTSC47_16)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	PS802_11Header  pMACHeader;
+	struct ieee80211_hdr *pMACHeader;
 	u32 PayloadLen = FrameSize;
 	u8 *pbyIV;
 	u8 byKeyIdx;
@@ -1252,8 +1252,8 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
                 // 1. 3253 A
                 // 2. NotOnFly
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"soft KEY_CTL_TKIP \n");
-                pMACHeader = (PS802_11Header) (pbyFrame);
-                TKIPvMixKey(pKey->abyKey, pMACHeader->abyAddr2, *pwRxTSC15_0, *pdwRxTSC47_16, pDevice->abyPRNG);
+                pMACHeader = (struct ieee80211_hdr *) (pbyFrame);
+                TKIPvMixKey(pKey->abyKey, pMACHeader->addr2, *pwRxTSC15_0, *pdwRxTSC47_16, pDevice->abyPRNG);
                 rc4_init(&pDevice->SBox, pDevice->abyPRNG, TKIP_KEY_LEN);
                 rc4_encrypt(&pDevice->SBox, pbyIV+8, pbyIV+8, PayloadLen);
                 if (ETHbIsBufferCrc32Ok(pbyIV+8, PayloadLen)) {

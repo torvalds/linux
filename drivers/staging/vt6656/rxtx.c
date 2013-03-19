@@ -208,7 +208,7 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
 	u32 *pdwIV = (u32 *)pbyIVHead;
 	u32 *pdwExtIV = (u32 *)((u8 *)pbyIVHead + 4);
 	u16 wValue;
-	PS802_11Header pMACHeader = (PS802_11Header)pbyHdrBuf;
+	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyHdrBuf;
 	u32 dwRevIVCounter;
 
 
@@ -275,7 +275,7 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
         //Fill MICHDR0
         *pMICHDR = 0x59;
         *((u8 *)(pMICHDR+1)) = 0; // TxPriority
-        memcpy(pMICHDR+2, &(pMACHeader->abyAddr2[0]), 6);
+        memcpy(pMICHDR+2, &(pMACHeader->addr2[0]), 6);
         *((u8 *)(pMICHDR+8)) = HIBYTE(HIWORD(pTransmitKey->dwTSC47_16));
         *((u8 *)(pMICHDR+9)) = LOBYTE(HIWORD(pTransmitKey->dwTSC47_16));
         *((u8 *)(pMICHDR+10)) = HIBYTE(LOWORD(pTransmitKey->dwTSC47_16));
@@ -292,19 +292,19 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
         } else {
             *((u8 *)(pMICHDR+17)) = 22; // HLEN[7:0]
         }
-        wValue = cpu_to_le16(pMACHeader->wFrameCtl & 0xC78F);
+        wValue = cpu_to_le16(pMACHeader->frame_control & 0xC78F);
         memcpy(pMICHDR+18, (u8 *)&wValue, 2); // MSKFRACTL
-        memcpy(pMICHDR+20, &(pMACHeader->abyAddr1[0]), 6);
-        memcpy(pMICHDR+26, &(pMACHeader->abyAddr2[0]), 6);
+        memcpy(pMICHDR+20, &(pMACHeader->addr1[0]), 6);
+        memcpy(pMICHDR+26, &(pMACHeader->addr2[0]), 6);
 
         //Fill MICHDR2
-        memcpy(pMICHDR+32, &(pMACHeader->abyAddr3[0]), 6);
-        wValue = pMACHeader->wSeqCtl;
+        memcpy(pMICHDR+32, &(pMACHeader->addr3[0]), 6);
+        wValue = pMACHeader->seq_ctrl;
         wValue &= 0x000F;
         wValue = cpu_to_le16(wValue);
         memcpy(pMICHDR+38, (u8 *)&wValue, 2); // MSKSEQCTL
         if (pDevice->bLongHeader) {
-            memcpy(pMICHDR+40, &(pMACHeader->abyAddr4[0]), 6);
+            memcpy(pMICHDR+40, &(pMACHeader->addr4[0]), 6);
         }
     }
 }
@@ -1621,64 +1621,64 @@ static void s_vGenerateMACHeader(struct vnt_private *pDevice,
 	u8 *pbyBufferAddr, u16 wDuration, struct ethhdr *psEthHeader,
 	int bNeedEncrypt, u16 wFragType, u32 uDMAIdx, u32 uFragIdx)
 {
-	PS802_11Header pMACHeader = (PS802_11Header)pbyBufferAddr;
+	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyBufferAddr;
 
-    memset(pMACHeader, 0, (sizeof(S802_11Header)));  //- sizeof(pMACHeader->dwIV)));
+    memset(pMACHeader, 0, (sizeof(struct ieee80211_hdr)));
 
     if (uDMAIdx == TYPE_ATIMDMA) {
-    	pMACHeader->wFrameCtl = TYPE_802_11_ATIM;
+    	pMACHeader->frame_control = TYPE_802_11_ATIM;
     } else {
-        pMACHeader->wFrameCtl = TYPE_802_11_DATA;
+        pMACHeader->frame_control = TYPE_802_11_DATA;
     }
 
     if (pDevice->eOPMode == OP_MODE_AP) {
-	memcpy(&(pMACHeader->abyAddr1[0]),
+	memcpy(&(pMACHeader->addr1[0]),
 	       &(psEthHeader->h_dest[0]),
 	       ETH_ALEN);
-	memcpy(&(pMACHeader->abyAddr2[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
-	memcpy(&(pMACHeader->abyAddr3[0]),
+	memcpy(&(pMACHeader->addr2[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
+	memcpy(&(pMACHeader->addr3[0]),
 	       &(psEthHeader->h_source[0]),
 	       ETH_ALEN);
-        pMACHeader->wFrameCtl |= FC_FROMDS;
+        pMACHeader->frame_control |= FC_FROMDS;
     } else {
 	if (pDevice->eOPMode == OP_MODE_ADHOC) {
-		memcpy(&(pMACHeader->abyAddr1[0]),
+		memcpy(&(pMACHeader->addr1[0]),
 		       &(psEthHeader->h_dest[0]),
 		       ETH_ALEN);
-		memcpy(&(pMACHeader->abyAddr2[0]),
+		memcpy(&(pMACHeader->addr2[0]),
 		       &(psEthHeader->h_source[0]),
 		       ETH_ALEN);
-		memcpy(&(pMACHeader->abyAddr3[0]),
+		memcpy(&(pMACHeader->addr3[0]),
 		       &(pDevice->abyBSSID[0]),
 		       ETH_ALEN);
 	} else {
-		memcpy(&(pMACHeader->abyAddr3[0]),
+		memcpy(&(pMACHeader->addr3[0]),
 		       &(psEthHeader->h_dest[0]),
 		       ETH_ALEN);
-		memcpy(&(pMACHeader->abyAddr2[0]),
+		memcpy(&(pMACHeader->addr2[0]),
 		       &(psEthHeader->h_source[0]),
 		       ETH_ALEN);
-		memcpy(&(pMACHeader->abyAddr1[0]),
+		memcpy(&(pMACHeader->addr1[0]),
 		       &(pDevice->abyBSSID[0]),
 		       ETH_ALEN);
-            pMACHeader->wFrameCtl |= FC_TODS;
+            pMACHeader->frame_control |= FC_TODS;
         }
     }
 
     if (bNeedEncrypt)
-        pMACHeader->wFrameCtl |= cpu_to_le16((u16)WLAN_SET_FC_ISWEP(1));
+        pMACHeader->frame_control |= cpu_to_le16((u16)WLAN_SET_FC_ISWEP(1));
 
-    pMACHeader->wDurationID = cpu_to_le16(wDuration);
+    pMACHeader->duration_id = cpu_to_le16(wDuration);
 
     if (pDevice->bLongHeader) {
         PWLAN_80211HDR_A4 pMACA4Header  = (PWLAN_80211HDR_A4) pbyBufferAddr;
-        pMACHeader->wFrameCtl |= (FC_TODS | FC_FROMDS);
+        pMACHeader->frame_control |= (FC_TODS | FC_FROMDS);
         memcpy(pMACA4Header->abyAddr4, pDevice->abyBSSID, WLAN_ADDR_LEN);
     }
-    pMACHeader->wSeqCtl = cpu_to_le16(pDevice->wSeqCounter << 4);
+    pMACHeader->seq_ctrl = cpu_to_le16(pDevice->wSeqCounter << 4);
 
     //Set FragNumber in Sequence Control
-    pMACHeader->wSeqCtl |= cpu_to_le16((u16)uFragIdx);
+    pMACHeader->seq_ctrl |= cpu_to_le16((u16)uFragIdx);
 
     if ((wFragType == FRAGCTL_ENDFRAG) || (wFragType == FRAGCTL_NONFRAG)) {
         pDevice->wSeqCounter++;
@@ -1687,7 +1687,7 @@ static void s_vGenerateMACHeader(struct vnt_private *pDevice,
     }
 
     if ((wFragType == FRAGCTL_STAFRAG) || (wFragType == FRAGCTL_MIDFRAG)) { //StartFrag or MidFrag
-        pMACHeader->wFrameCtl |= FC_MOREFRAG;
+        pMACHeader->frame_control |= FC_MOREFRAG;
     }
 }
 
@@ -1717,7 +1717,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	PTX_BUFFER pTX_Buffer;
 	PSTxBufHead pTxBufHead;
 	PUSB_SEND_CONTEXT pContext;
-	PS802_11Header pMACHeader;
+	struct ieee80211_hdr *pMACHeader;
 	PSCTS pCTS;
 	struct ethhdr sEthHeader;
 	u8 byPktType, *pbyTxBufferAddr;
@@ -1897,7 +1897,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, TYPE_TXDMA0, bNeedACK,
                                 0, 0, 1, AUTO_FB_NONE);
 
-    pMACHeader = (PS802_11Header) (pbyTxBufferAddr + cbHeaderSize);
+    pMACHeader = (struct ieee80211_hdr *) (pbyTxBufferAddr + cbHeaderSize);
 
     cbReqCount = cbHeaderSize + cbMacHdLen + uPadding + cbIVlen + cbFrameBodySize;
 
@@ -1947,7 +1947,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         memcpy(pMACHeader, pPacket->p80211Header, pPacket->cbMPDULen);
     }
 
-    pMACHeader->wSeqCtl = cpu_to_le16(pDevice->wSeqCounter << 4);
+    pMACHeader->seq_ctrl = cpu_to_le16(pDevice->wSeqCounter << 4);
     pDevice->wSeqCounter++ ;
     if (pDevice->wSeqCounter > 0x0fff)
         pDevice->wSeqCounter = 0;
@@ -1975,11 +1975,11 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     pContext->Type = CONTEXT_MGMT_PACKET;
     pContext->uBufLen = (u16)cbReqCount + 4;  //USB header
 
-    if (WLAN_GET_FC_TODS(pMACHeader->wFrameCtl) == 0) {
-        s_vSaveTxPktInfo(pDevice, (u8) (pTX_Buffer->byPKTNO & 0x0F), &(pMACHeader->abyAddr1[0]),(u16)cbFrameSize,pTX_Buffer->wFIFOCtl);
+    if (WLAN_GET_FC_TODS(pMACHeader->frame_control) == 0) {
+        s_vSaveTxPktInfo(pDevice, (u8) (pTX_Buffer->byPKTNO & 0x0F), &(pMACHeader->addr1[0]), (u16)cbFrameSize, pTX_Buffer->wFIFOCtl);
     }
     else {
-        s_vSaveTxPktInfo(pDevice, (u8) (pTX_Buffer->byPKTNO & 0x0F), &(pMACHeader->abyAddr3[0]),(u16)cbFrameSize,pTX_Buffer->wFIFOCtl);
+        s_vSaveTxPktInfo(pDevice, (u8) (pTX_Buffer->byPKTNO & 0x0F), &(pMACHeader->addr3[0]), (u16)cbFrameSize, pTX_Buffer->wFIFOCtl);
     }
 
     PIPEnsSendBulkOut(pDevice,pContext);
@@ -1994,7 +1994,7 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	u32 cbHeaderSize = 0;
 	u16 wTxBufSize = sizeof(STxShortBufHead);
 	PSTxShortBufHead pTxBufHead;
-	PS802_11Header pMACHeader;
+	struct ieee80211_hdr *pMACHeader;
 	PSTxDataHead_ab pTxDataHead;
 	u16 wCurrentRate;
 	u32 cbFrameBodySize;
@@ -2048,11 +2048,11 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
     }
 
     //Generate Beacon Header
-    pMACHeader = (PS802_11Header)(pbyTxBufferAddr + cbHeaderSize);
+    pMACHeader = (struct ieee80211_hdr *)(pbyTxBufferAddr + cbHeaderSize);
     memcpy(pMACHeader, pPacket->p80211Header, pPacket->cbMPDULen);
 
-    pMACHeader->wDurationID = 0;
-    pMACHeader->wSeqCtl = cpu_to_le16(pDevice->wSeqCounter << 4);
+    pMACHeader->duration_id = 0;
+    pMACHeader->seq_ctrl = cpu_to_le16(pDevice->wSeqCounter << 4);
     pDevice->wSeqCounter++ ;
     if (pDevice->wSeqCounter > 0x0fff)
         pDevice->wSeqCounter = 0;
@@ -2080,7 +2080,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 	u8 *pbyTxBufferAddr;
 	void *pvRTS, *pvCTS, *pvTxDataHd;
 	u32 uDuration, cbReqCount;
-	PS802_11Header  pMACHeader;
+	struct ieee80211_hdr *pMACHeader;
 	u32 cbHeaderSize, cbFrameBodySize;
 	int bNeedACK, bIsPSPOLL = false;
 	PSTxBufHead pTxBufHead;
@@ -2310,7 +2310,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, TYPE_TXDMA0, bNeedACK,
                                 0, 0, 1, AUTO_FB_NONE);
 
-    pMACHeader = (PS802_11Header) (pbyTxBufferAddr + cbHeaderSize);
+    pMACHeader = (struct ieee80211_hdr *) (pbyTxBufferAddr + cbHeaderSize);
 
     cbReqCount = cbHeaderSize + cbMacHdLen + uPadding + cbIVlen + (cbFrameBodySize + cbMIClen) + cbExtSuppRate;
 
@@ -2322,7 +2322,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     memcpy(pbyMacHdr, skb->data, cbMacHdLen);
 
     // version set to 0, patch for hostapd deamon
-    pMACHeader->wFrameCtl &= cpu_to_le16(0xfffc);
+    pMACHeader->frame_control &= cpu_to_le16(0xfffc);
     memcpy(pbyPayloadHead, (skb->data + cbMacHdLen), cbFrameBodySize);
 
     // replace support rate, patch for hostapd daemon( only support 11M)
@@ -2406,7 +2406,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
         }
     }
 
-    pMACHeader->wSeqCtl = cpu_to_le16(pDevice->wSeqCounter << 4);
+    pMACHeader->seq_ctrl = cpu_to_le16(pDevice->wSeqCounter << 4);
     pDevice->wSeqCounter++ ;
     if (pDevice->wSeqCounter > 0x0fff)
         pDevice->wSeqCounter = 0;
@@ -2434,11 +2434,11 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     pContext->Type = CONTEXT_MGMT_PACKET;
     pContext->uBufLen = (u16)cbReqCount + 4;  //USB header
 
-    if (WLAN_GET_FC_TODS(pMACHeader->wFrameCtl) == 0) {
-        s_vSaveTxPktInfo(pDevice, (u8) (pTX_Buffer->byPKTNO & 0x0F), &(pMACHeader->abyAddr1[0]),(u16)cbFrameSize,pTX_Buffer->wFIFOCtl);
+    if (WLAN_GET_FC_TODS(pMACHeader->frame_control) == 0) {
+        s_vSaveTxPktInfo(pDevice, (u8) (pTX_Buffer->byPKTNO & 0x0F), &(pMACHeader->addr1[0]), (u16)cbFrameSize, pTX_Buffer->wFIFOCtl);
     }
     else {
-        s_vSaveTxPktInfo(pDevice, (u8) (pTX_Buffer->byPKTNO & 0x0F), &(pMACHeader->abyAddr3[0]),(u16)cbFrameSize,pTX_Buffer->wFIFOCtl);
+        s_vSaveTxPktInfo(pDevice, (u8) (pTX_Buffer->byPKTNO & 0x0F), &(pMACHeader->addr3[0]), (u16)cbFrameSize, pTX_Buffer->wFIFOCtl);
     }
     PIPEnsSendBulkOut(pDevice,pContext);
     return ;

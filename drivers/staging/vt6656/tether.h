@@ -43,11 +43,6 @@
 
 #define TYPE_MGMT_PROBE_RSP 0x5000
 
-//
-// wFrameCtl field in the S802_11Header
-//
-// NOTE....
-//   in network byte order, high byte is going first
 #define FC_TODS             0x0001
 #define FC_FROMDS           0x0002
 #define FC_MOREFRAG         0x0004
@@ -81,11 +76,6 @@
 
 #define TYPE_MGMT_PROBE_RSP 0x0050
 
-//
-// wFrameCtl field in the S802_11Header
-//
-// NOTE....
-//   in network byte order, high byte is going first
 #define FC_TODS             0x0100
 #define FC_FROMDS           0x0200
 #define FC_MOREFRAG         0x0400
@@ -123,20 +113,6 @@ typedef struct tagS802_3Header {
     u16    wLen;
 } __attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
-
-//
-// 802_11 packet
-//
-typedef struct tagS802_11Header {
-    u16    wFrameCtl;
-    u16    wDurationID;
-    u8    abyAddr1[ETH_ALEN];
-    u8    abyAddr2[ETH_ALEN];
-    u8    abyAddr3[ETH_ALEN];
-    u16    wSeqCtl;
-    u8    abyAddr4[ETH_ALEN];
-} __attribute__ ((__packed__))
-S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Macros ------------------------------*/
 

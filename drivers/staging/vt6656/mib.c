@@ -157,7 +157,7 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
 			     u8 * pbyBuffer, unsigned int cbFrameLength)
 {
 	/* need change */
-	PS802_11Header pHeader = (PS802_11Header)pbyBuffer;
+	struct ieee80211_hdr *pHeader = (struct ieee80211_hdr *)pbyBuffer;
 
 	if (byRSR & RSR_ADDROK)
 		pStatistic->dwRsrADDROk++;
@@ -343,7 +343,7 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
     else
         pStatistic->dwRsrDirected++;
 
-    if (WLAN_GET_FC_MOREFRAG(pHeader->wFrameCtl))
+    if (WLAN_GET_FC_MOREFRAG(pHeader->frame_control))
         pStatistic->dwRsrRxFragment++;
 
     if (cbFrameLength < ETH_ZLEN + 4) {
