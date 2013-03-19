@@ -222,25 +222,37 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 	return err;
 }
 
-static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
+static struct bm_extent *find_active_resync_extent(struct drbd_conf *mdev, unsigned int enr)
 {
-	struct lc_element *al_ext;
 	struct lc_element *tmp;
-	int wake;
-
-	spin_lock_irq(&mdev->al_lock);
 	tmp = lc_find(mdev->resync, enr/AL_EXT_PER_BM_SECT);
 	if (unlikely(tmp != NULL)) {
 		struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
-		if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
-			wake = !test_and_set_bit(BME_PRIORITY, &bm_ext->flags);
-			spin_unlock_irq(&mdev->al_lock);
-			if (wake)
-				wake_up(&mdev->al_wait);
-			return NULL;
-		}
+		if (test_bit(BME_NO_WRITES, &bm_ext->flags))
+			return bm_ext;
 	}
-	al_ext = lc_get(mdev->act_log, enr);
+	return NULL;
+}
+
+static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr, bool nonblock)
+{
+	struct lc_element *al_ext;
+	struct bm_extent *bm_ext;
+	int wake;
+
+	spin_lock_irq(&mdev->al_lock);
+	bm_ext = find_active_resync_extent(mdev, enr);
+	if (bm_ext) {
+		wake = !test_and_set_bit(BME_PRIORITY, &bm_ext->flags);
+		spin_unlock_irq(&mdev->al_lock);
+		if (wake)
+			wake_up(&mdev->al_wait);
+		return NULL;
+	}
+	if (nonblock)
+		al_ext = lc_try_get(mdev->act_log, enr);
+	else
+		al_ext = lc_get(mdev->act_log, enr);
 	spin_unlock_irq(&mdev->al_lock);
 	return al_ext;
 }
@@ -251,7 +263,6 @@ bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i)
 	 * we may need to activate two extents in one go */
 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
-	bool fastpath_ok = true;
 
 	D_ASSERT((unsigned)(last - first) <= 1);
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
@@ -260,12 +271,7 @@ bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i)
 	if (first != last)
 		return false;
 
-	spin_lock_irq(&mdev->al_lock);
-	fastpath_ok =
-		lc_find(mdev->resync, first/AL_EXT_PER_BM_SECT) == NULL &&
-		lc_try_get(mdev->act_log, first) != NULL;
-	spin_unlock_irq(&mdev->al_lock);
-	return fastpath_ok;
+	return _al_get(mdev, first, true);
 }
 
 bool drbd_al_begin_io_prepare(struct drbd_conf *mdev, struct drbd_interval *i)
@@ -282,7 +288,8 @@ bool drbd_al_begin_io_prepare(struct drbd_conf *mdev, struct drbd_interval *i)
 
 	for (enr = first; enr <= last; enr++) {
 		struct lc_element *al_ext;
-		wait_event(mdev->al_wait, (al_ext = _al_get(mdev, enr)) != NULL);
+		wait_event(mdev->al_wait,
+				(al_ext = _al_get(mdev, enr, false)) != NULL);
 		if (al_ext->lc_number != enr)
 			need_transaction = true;
 	}
