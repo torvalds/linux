@@ -940,7 +940,7 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 		 */
 		break;
 	case STA_NOTIFY_AWAKE:
-		if (WARN_ON(mvmsta->sta_id == IWL_INVALID_STATION))
+		if (WARN_ON(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 			break;
 		iwl_mvm_sta_modify_ps_wake(mvm, sta);
 		break;

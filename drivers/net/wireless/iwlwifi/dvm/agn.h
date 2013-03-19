@@ -73,6 +73,8 @@
 /* AUX (TX during scan dwell) queue */
 #define IWL_AUX_QUEUE		10
 
+#define IWL_INVALID_STATION	255
+
 /* device operations */
 extern struct iwl_lib_ops iwl1000_lib;
 extern struct iwl_lib_ops iwl2000_lib;
