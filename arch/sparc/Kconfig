@@ -100,6 +100,9 @@ config HAVE_LATENCYTOP_SUPPORT
 	bool
 	default y if SPARC64
 
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool y if SPARC64
+
 config AUDIT_ARCH
 	bool
 	default y
@@ -326,6 +329,10 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool y if SPARC64
 
 source "mm/Kconfig"
+
+if SPARC64
+source "kernel/power/Kconfig"
+endif
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
