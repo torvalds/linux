@@ -418,7 +418,7 @@ static int ahci_highbank_resume(struct device *dev)
 }
 #endif
 
-SIMPLE_DEV_PM_OPS(ahci_highbank_pm_ops,
+static SIMPLE_DEV_PM_OPS(ahci_highbank_pm_ops,
 		  ahci_highbank_suspend, ahci_highbank_resume);
 
 static struct platform_driver ahci_highbank_driver = {
