@@ -819,7 +819,7 @@ void drbd_resume_io(struct drbd_conf *mdev)
 enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags) __must_hold(local)
 {
 	sector_t prev_first_sect, prev_size; /* previous meta location */
-	sector_t la_size, u_size;
+	sector_t la_size_sect, u_size;
 	sector_t size;
 	char ppb[10];
 
@@ -842,7 +842,7 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 
 	prev_first_sect = drbd_md_first_sector(mdev->ldev);
 	prev_size = mdev->ldev->md.md_size_sect;
-	la_size = mdev->ldev->md.la_size_sect;
+	la_size_sect = mdev->ldev->md.la_size_sect;
 
 	/* TODO: should only be some assert here, not (re)init... */
 	drbd_md_set_sector_offsets(mdev, mdev->ldev);
@@ -878,7 +878,7 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 	if (rv == dev_size_error)
 		goto out;
 
-	la_size_changed = (la_size != mdev->ldev->md.la_size_sect);
+	la_size_changed = (la_size_sect != mdev->ldev->md.la_size_sect);
 
 	md_moved = prev_first_sect != drbd_md_first_sector(mdev->ldev)
 		|| prev_size	   != mdev->ldev->md.md_size_sect;
@@ -900,9 +900,9 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 		drbd_md_mark_dirty(mdev);
 	}
 
-	if (size > la_size)
+	if (size > la_size_sect)
 		rv = grew;
-	if (size < la_size)
+	if (size < la_size_sect)
 		rv = shrunk;
 out:
 	lc_unlock(mdev->act_log);
@@ -917,7 +917,7 @@ drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 		  sector_t u_size, int assume_peer_has_space)
 {
 	sector_t p_size = mdev->p_size;   /* partner's disk size. */
-	sector_t la_size = bdev->md.la_size_sect; /* last agreed size. */
+	sector_t la_size_sect = bdev->md.la_size_sect; /* last agreed size. */
 	sector_t m_size; /* my size */
 	sector_t size = 0;
 
@@ -931,8 +931,8 @@ drbd_new_dev_size(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 	if (p_size && m_size) {
 		size = min_t(sector_t, p_size, m_size);
 	} else {
-		if (la_size) {
-			size = la_size;
+		if (la_size_sect) {
+			size = la_size_sect;
 			if (m_size && m_size < size)
 				size = m_size;
 			if (p_size && p_size < size)

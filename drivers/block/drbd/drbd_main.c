@@ -2836,7 +2836,7 @@ void conn_md_sync(struct drbd_tconn *tconn)
 
 /* aligned 4kByte */
 struct meta_data_on_disk {
-	u64 la_size;           /* last agreed size. */
+	u64 la_size_sect;      /* last agreed size. */
 	u64 uuid[UI_SIZE];   /* UUIDs. */
 	u64 device_uuid;
 	u64 reserved_u64_1;
@@ -2887,7 +2887,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
 
 	memset(buffer, 0, sizeof(*buffer));
 
-	buffer->la_size = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
+	buffer->la_size_sect = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		buffer->uuid[i] = cpu_to_be64(mdev->ldev->md.uuid[i]);
 	buffer->flags = cpu_to_be32(mdev->ldev->md.flags);
@@ -3049,7 +3049,7 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 
 	rv = NO_ERROR;
 
-	bdev->md.la_size_sect = be64_to_cpu(buffer->la_size);
+	bdev->md.la_size_sect = be64_to_cpu(buffer->la_size_sect);
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		bdev->md.uuid[i] = be64_to_cpu(buffer->uuid[i]);
 	bdev->md.flags = be32_to_cpu(buffer->flags);

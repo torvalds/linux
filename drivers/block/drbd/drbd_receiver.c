@@ -3992,7 +3992,7 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
 
 	clear_bit(DISCARD_MY_DATA, &mdev->flags);
 
-	drbd_md_sync(mdev); /* update connected indicator, la_size, ... */
+	drbd_md_sync(mdev); /* update connected indicator, la_size_sect, ... */
 
 	return 0;
 }
