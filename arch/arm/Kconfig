@@ -49,7 +49,6 @@ config ARM
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UID16
-	select HAVE_VIRT_TO_BUS
 	select KTIME_SCALAR
 	select PERF_USE_VMALLOC
 	select RTC_LIB
@@ -414,22 +413,6 @@ config ARCH_GEMINI
 	select CPU_FA526
 	help
 	  Support for the Cortina Systems Gemini family SoCs
-
-config ARCH_SIRF
-	bool "CSR SiRF"
-	select ARCH_REQUIRE_GPIOLIB
-	select AUTO_ZRELADDR
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_IRQ_CHIP
-	select MIGHT_HAVE_CACHE_L2X0
-	select NO_IOPORT
-	select PINCTRL
-	select PINCTRL_SIRF
-	select USE_OF
-	select SPARSE_IRQ
-	help
-	  Support for CSR SiRFprimaII/Marco/Polo platforms
 
 config ARCH_EBSA110
 	bool "EBSA-110"

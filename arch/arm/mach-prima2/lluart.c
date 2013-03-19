@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>
-#include <mach/map.h>
+#include "common.h"
 
 #if defined(CONFIG_DEBUG_SIRFPRIMA2_UART1)
 #define SIRFSOC_UART1_PA_BASE          0xb0060000
