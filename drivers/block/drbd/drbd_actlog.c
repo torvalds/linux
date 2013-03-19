@@ -353,11 +353,11 @@ static unsigned int rs_extent_to_bm_page(unsigned int rs_enr)
 
 static sector_t al_tr_number_to_on_disk_sector(struct drbd_conf *mdev)
 {
-	const unsigned int stripes = 1;
-	const unsigned int stripe_size_4kB = MD_32kB_SECT/MD_4kB_SECT;
+	const unsigned int stripes = mdev->ldev->md.al_stripes;
+	const unsigned int stripe_size_4kB = mdev->ldev->md.al_stripe_size_4k;
 
 	/* transaction number, modulo on-disk ring buffer wrap around */
-	unsigned int t = mdev->al_tr_number % (stripe_size_4kB * stripes);
+	unsigned int t = mdev->al_tr_number % (mdev->ldev->md.al_size_4k);
 
 	/* ... to aligned 4k on disk block */
 	t = ((t % stripes) * stripe_size_4kB) + t/stripes;
