@@ -375,8 +375,8 @@ static struct platform_device mmc_device = {
 	.resource	= sh_mmcif_resources,
 };
 
-/* Fixed 2.8V regulators to be used by SDHI0 and SDHI2 */
-static struct regulator_consumer_supply fixed2v8_power_consumers[] =
+/* Fixed 3.3V regulators to be used by SDHI0 and SDHI2 */
+static struct regulator_consumer_supply fixed3v3_power_consumers[] =
 {
 	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
 	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
@@ -390,7 +390,6 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
-	.tmio_ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -434,7 +433,6 @@ static struct sh_mobile_sdhi_info sdhi2_info = {
 			  TMIO_MMC_USE_GPIO_CD |
 			  TMIO_MMC_WRPROTECT_DISABLE,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
-	.tmio_ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
 	.cd_gpio	= 13,
 };
 
@@ -716,8 +714,8 @@ static void __init kzm_init(void)
 {
 	regulator_register_always_on(0, "fixed-1.8V", fixed1v8_power_consumers,
 				     ARRAY_SIZE(fixed1v8_power_consumers), 1800000);
-	regulator_register_always_on(1, "fixed-2.8V", fixed2v8_power_consumers,
-				     ARRAY_SIZE(fixed2v8_power_consumers), 2800000);
+	regulator_register_always_on(1, "fixed-3.3V", fixed3v3_power_consumers,
+				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
 	regulator_register_fixed(2, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	pinctrl_register_mappings(kzm_pinctrl_map, ARRAY_SIZE(kzm_pinctrl_map));
