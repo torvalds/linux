@@ -17,6 +17,7 @@ config ARCH_NOMADIK
 	help
 	  Support for the Nomadik platform by ST-Ericsson
 
+if ARCH_NOMADIK
 menu "Nomadik boards"
 
 config MACH_NOMADIK_8815NHK
@@ -26,6 +27,7 @@ config MACH_NOMADIK_8815NHK
 	select I2C_ALGOBIT
 
 endmenu
+endif
 
 config NOMADIK_8815
 	depends on ARCH_NOMADIK
