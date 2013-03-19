@@ -83,7 +83,7 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 {
 	gtt_pte_t *pt_vaddr;
 	gtt_pte_t scratch_pte;
-	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
+	unsigned act_pt = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
 
@@ -96,7 +96,7 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 		if (last_pte > I915_PPGTT_PT_ENTRIES)
 			last_pte = I915_PPGTT_PT_ENTRIES;
 
-		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
 
 		for (i = first_pte; i < last_pte; i++)
 			pt_vaddr[i] = scratch_pte;
@@ -105,7 +105,7 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 
 		num_entries -= last_pte - first_pte;
 		first_pte = 0;
-		act_pd++;
+		act_pt++;
 	}
 }
 
@@ -115,11 +115,11 @@ static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 				      enum i915_cache_level cache_level)
 {
 	gtt_pte_t *pt_vaddr;
-	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
+	unsigned act_pt = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned act_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	struct sg_page_iter sg_iter;
 
-	pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+	pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
 	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
 		dma_addr_t page_addr;
 
@@ -129,8 +129,8 @@ static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 						    cache_level);
 		if (++act_pte == I915_PPGTT_PT_ENTRIES) {
 			kunmap_atomic(pt_vaddr);
-			act_pd++;
-			pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+			act_pt++;
+			pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pt]);
 			act_pte = 0;
 
 		}
