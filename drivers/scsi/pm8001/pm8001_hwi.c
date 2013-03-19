@@ -2506,9 +2506,9 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	if (unlikely(!t || !t->lldd_task || !t->dev))
 		return;
 	ts = &t->task_status;
-	PM8001_IO_DBG(pm8001_ha,
-		pm8001_printk("port_id = %x,device_id = %x\n",
-		port_id, dev_id));
+	PM8001_IO_DBG(pm8001_ha, pm8001_printk(
+		"port_id:0x%x, device_id:0x%x, tag:0x%x, event:0x%x\n",
+		port_id, dev_id, tag, event));
 	switch (event) {
 	case IO_OVERFLOW:
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk("IO_UNDERFLOW\n"));
@@ -4409,8 +4409,9 @@ int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
 {
 	u32 opc, device_id;
 	int rc = TMF_RESP_FUNC_FAILED;
-	PM8001_EH_DBG(pm8001_ha, pm8001_printk("cmd_tag = %x, abort task tag"
-		" = %x", cmd_tag, task_tag));
+	PM8001_EH_DBG(pm8001_ha,
+		pm8001_printk("cmd_tag = %x, abort task tag = 0x%x",
+			cmd_tag, task_tag));
 	if (pm8001_dev->dev_type == SAS_END_DEV)
 		opc = OPC_INB_SSP_ABORT;
 	else if (pm8001_dev->dev_type == SATA_DEV)

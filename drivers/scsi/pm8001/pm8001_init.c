@@ -741,7 +741,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	const struct pm8001_chip_info *chip;
 
 	dev_printk(KERN_INFO, &pdev->dev,
-		"pm8001: driver version %s\n", DRV_VERSION);
+		"pm80xx: driver version %s\n", DRV_VERSION);
 	rc = pci_enable_device(pdev);
 	if (rc)
 		goto err_out_enable;
@@ -789,15 +789,21 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	list_add_tail(&pm8001_ha->list, &hba_list);
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 	rc = PM8001_CHIP_DISP->chip_init(pm8001_ha);
-	if (rc)
+	if (rc) {
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+			"chip_init failed [ret: %d]\n", rc));
 		goto err_out_ha_free;
+	}
 
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha_free;
 	rc = pm8001_request_irq(pm8001_ha);
-	if (rc)
+	if (rc)	{
+		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk(
+			"pm8001_request_irq failed [ret: %d]\n", rc));
 		goto err_out_shost;
+	}
 
 	PM8001_CHIP_DISP->interrupt_enable(pm8001_ha, 0);
 	if (pm8001_ha->chip_id != chip_8001) {
@@ -1039,7 +1045,7 @@ static int __init pm8001_init(void)
 {
 	int rc = -ENOMEM;
 
-	pm8001_wq = alloc_workqueue("pm8001", 0, 0);
+	pm8001_wq = alloc_workqueue("pm80xx", 0, 0);
 	if (!pm8001_wq)
 		goto err;
 
