@@ -406,7 +406,7 @@ static int ti_bandgap_update_alert_threshold(struct ti_bandgap *bgp, int id,
 	else
 		t_cold = val;
 
-	if (t_cold < t_hot) {
+	if (t_cold > t_hot) {
 		if (hot)
 			err = ti_bandgap_add_hyst(bgp, t_hot,
 						  -ts_data->hyst_val,
