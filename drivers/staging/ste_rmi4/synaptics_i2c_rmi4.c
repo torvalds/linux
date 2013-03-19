@@ -649,7 +649,7 @@ static int synpatics_rmi4_touchpad_detect(struct synaptics_rmi4_data *pdata,
  *
  * This function calls to configures the rmi4 touchpad device
  */
-int synaptics_rmi4_touchpad_config(struct synaptics_rmi4_data *pdata,
+static int synaptics_rmi4_touchpad_config(struct synaptics_rmi4_data *pdata,
 						struct synaptics_rmi4_fn *rfi)
 {
 	/*
