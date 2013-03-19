@@ -575,6 +575,9 @@ static bool guest_cpuid_has_xsave(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
 
+	if (!cpu_has_xsave)
+		return 0;
+
 	best = kvm_find_cpuid_entry(vcpu, 1, 0);
 	return best && (best->ecx & bit(X86_FEATURE_XSAVE));
 }
@@ -5853,6 +5856,9 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	int mmu_reset_needed = 0;
 	int pending_vec, max_bits, idx;
 	struct desc_ptr dt;
+
+	if (!guest_cpuid_has_xsave(vcpu) && (sregs->cr4 & X86_CR4_OSXSAVE))
+		return -EINVAL;
 
 	dt.size = sregs->idt.limit;
 	dt.address = sregs->idt.base;
