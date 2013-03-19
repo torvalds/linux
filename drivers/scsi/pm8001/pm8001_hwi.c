@@ -640,6 +640,18 @@ static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
 static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 {
 	u8 i = 0;
+	u16 deviceid;
+	pci_read_config_word(pm8001_ha->pdev, PCI_DEVICE_ID, &deviceid);
+	/* 8081 controllers need BAR shift to access MPI space
+	* as this is shared with BIOS data */
+	if (deviceid == 0x8081) {
+		if (-1 == pm8001_bar4_shift(pm8001_ha, GSM_SM_BASE)) {
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("Shift Bar4 to 0x%x failed\n",
+					GSM_SM_BASE));
+			return -1;
+		}
+	}
 	/* check the firmware status */
 	if (-1 == check_fw_ready(pm8001_ha)) {
 		PM8001_FAIL_DBG(pm8001_ha,
@@ -660,9 +672,12 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 		update_inbnd_queue_table(pm8001_ha, i);
 	for (i = 0; i < PM8001_MAX_OUTB_NUM; i++)
 		update_outbnd_queue_table(pm8001_ha, i);
-	mpi_set_phys_g3_with_ssc(pm8001_ha, 0);
-	/* 7->130ms, 34->500ms, 119->1.5s */
-	mpi_set_open_retry_interval_reg(pm8001_ha, 119);
+	/* 8081 controller donot require these operations */
+	if (deviceid != 0x8081) {
+		mpi_set_phys_g3_with_ssc(pm8001_ha, 0);
+		/* 7->130ms, 34->500ms, 119->1.5s */
+		mpi_set_open_retry_interval_reg(pm8001_ha, 119);
+	}
 	/* notify firmware update finished and check initialization status */
 	if (0 == mpi_init_check(pm8001_ha)) {
 		PM8001_INIT_DBG(pm8001_ha,
@@ -684,6 +699,16 @@ static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
 	u32 max_wait_count;
 	u32 value;
 	u32 gst_len_mpistate;
+	u16 deviceid;
+	pci_read_config_word(pm8001_ha->pdev, PCI_DEVICE_ID, &deviceid);
+	if (deviceid == 0x8081) {
+		if (-1 == pm8001_bar4_shift(pm8001_ha, GSM_SM_BASE)) {
+			PM8001_FAIL_DBG(pm8001_ha,
+				pm8001_printk("Shift Bar4 to 0x%x failed\n",
+					GSM_SM_BASE));
+			return -1;
+		}
+	}
 	init_pci_device_addresses(pm8001_ha);
 	/* Write bit1=1 to Inbound DoorBell Register to tell the SPC FW the
 	table is stop */

@@ -131,6 +131,8 @@
 #define LINKRATE_30			(0x02 << 8)
 #define LINKRATE_60			(0x04 << 8)
 
+/* for new SPC controllers MEMBASE III is shared between BIOS and DATA */
+#define GSM_SM_BASE			0x4F0000
 struct mpi_msg_hdr{
 	__le32	header;	/* Bits [11:0]  - Message operation code */
 	/* Bits [15:12] - Message Category */
