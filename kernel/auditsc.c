@@ -121,12 +121,6 @@ struct audit_aux_data_bprm_fcaps {
 	struct audit_cap_data	new_pcap;
 };
 
-struct audit_aux_data_capset {
-	struct audit_aux_data	d;
-	pid_t			pid;
-	struct audit_cap_data	cap;
-};
-
 struct audit_tree_refs {
 	struct audit_tree_refs *next;
 	struct audit_chunk *c[31];
