@@ -2446,6 +2446,11 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		}
 		mdp->tsu_addr = ioremap(rtsu->start,
 					resource_size(rtsu));
+		if (mdp->tsu_addr == NULL) {
+			ret = -ENOMEM;
+			dev_err(&pdev->dev, "TSU ioremap failed.\n");
+			goto out_release;
+		}
 		mdp->port = devno % 2;
 		ndev->features = NETIF_F_HW_VLAN_FILTER;
 	}
