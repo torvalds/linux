@@ -3432,7 +3432,7 @@ MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
 static void __used s8250_options(void)
 {
 #undef MODULE_PARAM_PREFIX
-#define MODULE_PARAM_PREFIX "8250."
+#define MODULE_PARAM_PREFIX "8250_core."
 
 	module_param_cb(share_irqs, &param_ops_uint, &share_irqs, 0644);
 	module_param_cb(nr_uarts, &param_ops_uint, &nr_uarts, 0644);
@@ -3444,5 +3444,5 @@ static void __used s8250_options(void)
 #endif
 }
 #else
-MODULE_ALIAS("8250");
+MODULE_ALIAS("8250_core");
 #endif
