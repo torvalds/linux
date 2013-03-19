@@ -72,14 +72,10 @@
 /*---------------------  Export Macros ------------------------------*/
 
 #define BBvClearFOE(dwIoBase)				\
-	{						\
-		BBbWriteEmbedded(dwIoBase, 0xB1, 0);	\
-	}
+	BBbWriteEmbedded(dwIoBase, 0xB1, 0)
 
 #define BBvSetFOE(dwIoBase)				\
-	{						\
-		BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C);	\
-	}
+	BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C)
 
 
 /*---------------------  Export Classes  ----------------------------*/

@@ -83,13 +83,14 @@ typedef enum  _chip_type {
 
 
 #ifdef VIAWET_DEBUG
-#define ASSERT(x) {							\
-		if (!(x)) {						\
-			printk(KERN_ERR "assertion %s failed: file %s line %d\n", #x, \
-			       __FUNCTION__, __LINE__);			\
-			*(int *)0 = 0;					\
-		}							\
-	}
+#define ASSERT(x)							\
+do {									\
+	if (!(x)) {							\
+		printk(KERN_ERR "assertion %s failed: file %s line %d\n", \
+		       #x, __func__, __LINE__);				\
+		*(int *)0 = 0;						\
+	}								\
+} while (0)
 #define DBG_PORT80(value)                   outb(value, 0x80)
 #else
 #define ASSERT(x)
