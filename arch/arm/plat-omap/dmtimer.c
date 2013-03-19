@@ -315,7 +315,19 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_free);
 
 void omap_dm_timer_enable(struct omap_dm_timer *timer)
 {
+	int c;
+
 	pm_runtime_get_sync(&timer->pdev->dev);
+
+	if (!(timer->capability & OMAP_TIMER_ALWON)) {
+		if (timer->get_context_loss_count) {
+			c = timer->get_context_loss_count(&timer->pdev->dev);
+			if (c != timer->ctx_loss_count) {
+				omap_timer_restore_context(timer);
+				timer->ctx_loss_count = c;
+			}
+		}
+	}
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_enable);
 
@@ -410,13 +422,6 @@ int omap_dm_timer_start(struct omap_dm_timer *timer)
 
 	omap_dm_timer_enable(timer);
 
-	if (!(timer->capability & OMAP_TIMER_ALWON)) {
-		if (timer->get_context_loss_count &&
-			timer->get_context_loss_count(&timer->pdev->dev) !=
-				timer->ctx_loss_count)
-			omap_timer_restore_context(timer);
-	}
-
 	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
 	if (!(l & OMAP_TIMER_CTRL_ST)) {
 		l |= OMAP_TIMER_CTRL_ST;
@@ -440,12 +445,6 @@ int omap_dm_timer_stop(struct omap_dm_timer *timer)
 		rate = clk_get_rate(timer->fclk);
 
 	__omap_dm_timer_stop(timer, timer->posted, rate);
-
-	if (!(timer->capability & OMAP_TIMER_ALWON)) {
-		if (timer->get_context_loss_count)
-			timer->ctx_loss_count =
-				timer->get_context_loss_count(&timer->pdev->dev);
-	}
 
 	/*
 	 * Since the register values are computed and written within
@@ -552,13 +551,6 @@ int omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload,
 		return -EINVAL;
 
 	omap_dm_timer_enable(timer);
-
-	if (!(timer->capability & OMAP_TIMER_ALWON)) {
-		if (timer->get_context_loss_count &&
-			timer->get_context_loss_count(&timer->pdev->dev) !=
-				timer->ctx_loss_count)
-			omap_timer_restore_context(timer);
-	}
 
 	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
 	if (autoreload) {
