@@ -1056,6 +1056,9 @@ drbd_request_prepare(struct drbd_conf *mdev, struct bio *bio, unsigned long star
 		req->private_bio = NULL;
 	}
 
+	/* Update disk stats */
+	_drbd_start_io_acct(mdev, req);
+
 	if (rw == WRITE && req->private_bio && req->i.size
 	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
 		if (!drbd_al_begin_io_fastpath(mdev, &req->i)) {
@@ -1094,9 +1097,6 @@ static void drbd_send_and_submit(struct drbd_conf *mdev, struct drbd_request *re
 		}
 		goto out;
 	}
-
-	/* Update disk stats */
-	_drbd_start_io_acct(mdev, req);
 
 	/* We fail READ/READA early, if we can not serve it.
 	 * We must do this before req is registered on any lists.
