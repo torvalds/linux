@@ -10,7 +10,7 @@ all: $(NET_SOCK_PROGS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 run_tests: all
-	@/bin/sh ./run_netsocktests || echo "vmtests: [FAIL]"
+	@/bin/sh ./run_netsocktests || echo "sockettests: [FAIL]"
 
 clean:
 	$(RM) $(NET_SOCK_PROGS)
