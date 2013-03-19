@@ -264,7 +264,7 @@ int arizona_irq_init(struct arizona *arizona)
 				   flags, "arizona", arizona);
 
 	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to request IRQ %d: %d\n",
+		dev_err(arizona->dev, "Failed to request primary IRQ %d: %d\n",
 			arizona->irq, ret);
 		goto err_main_irq;
 	}
