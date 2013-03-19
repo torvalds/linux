@@ -1282,6 +1282,7 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 		/* No longer an encapsulation socket. See net/ipv4/udp.c */
 		(udp_sk(sk))->encap_type = 0;
 		(udp_sk(sk))->encap_rcv = NULL;
+		(udp_sk(sk))->encap_destroy = NULL;
 		break;
 	case L2TP_ENCAPTYPE_IP:
 		break;
@@ -1360,6 +1361,8 @@ again:
 			if (session->deref != NULL)
 				(*session->deref)(session);
 
+			l2tp_session_dec_refcount(session);
+
 			write_lock_bh(&tunnel->hlist_lock);
 
 			/* Now restart from the beginning of this hash
@@ -1371,6 +1374,16 @@ again:
 		}
 	}
 	write_unlock_bh(&tunnel->hlist_lock);
+}
+
+/* Tunnel socket destroy hook for UDP encapsulation */
+static void l2tp_udp_encap_destroy(struct sock *sk)
+{
+	struct l2tp_tunnel *tunnel = l2tp_sock_to_tunnel(sk);
+	if (tunnel) {
+		l2tp_tunnel_closeall(tunnel);
+		sock_put(sk);
+	}
 }
 
 /* Really kill the tunnel.
@@ -1668,6 +1681,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 		/* Mark socket as an encapsulation socket. See net/ipv4/udp.c */
 		udp_sk(sk)->encap_type = UDP_ENCAP_L2TPINUDP;
 		udp_sk(sk)->encap_rcv = l2tp_udp_encap_recv;
+		udp_sk(sk)->encap_destroy = l2tp_udp_encap_destroy;
 #if IS_ENABLED(CONFIG_IPV6)
 		if (sk->sk_family == PF_INET6)
 			udpv6_encap_enable();
