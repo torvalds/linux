@@ -157,7 +157,7 @@ SYSCALL(sys_readv,sys_readv,compat_sys_readv_wrapper)		/* 145 */
 SYSCALL(sys_writev,sys_writev,compat_sys_writev_wrapper)
 SYSCALL(sys_getsid,sys_getsid,sys32_getsid_wrapper)
 SYSCALL(sys_fdatasync,sys_fdatasync,sys32_fdatasync_wrapper)
-SYSCALL(sys_sysctl,sys_sysctl,sys32_sysctl_wrapper)
+SYSCALL(sys_sysctl,sys_sysctl,compat_sys_sysctl)
 SYSCALL(sys_mlock,sys_mlock,sys32_mlock_wrapper)		/* 150 */
 SYSCALL(sys_munlock,sys_munlock,sys32_munlock_wrapper)
 SYSCALL(sys_mlockall,sys_mlockall,sys32_mlockall_wrapper)

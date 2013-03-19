@@ -793,10 +793,6 @@ ENTRY(sys32_stime_wrapper)
 	llgtr	%r2,%r2			# long *
 	jg	compat_sys_stime	# branch to system call
 
-ENTRY(sys32_sysctl_wrapper)
-	llgtr	%r2,%r2 		# struct compat_sysctl_args *
-	jg	compat_sys_sysctl
-
 ENTRY(sys32_fstat64_wrapper)
 	llgfr	%r2,%r2			# unsigned long
 	llgtr	%r3,%r3			# struct stat64 *
