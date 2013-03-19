@@ -696,12 +696,32 @@ out:
 	return 0;
 }
 
-/* initializes the md.*_offset members, so we are able to find
- * the on disk meta data */
+/* Initializes the md.*_offset members, so we are able to find
+ * the on disk meta data.
+ *
+ * We currently have two possible layouts:
+ * external:
+ *   |----------- md_size_sect ------------------|
+ *   [ 4k superblock ][ activity log ][  Bitmap  ]
+ *   | al_offset == 8 |
+ *   | bm_offset = al_offset + X      |
+ *  ==> bitmap sectors = md_size_sect - bm_offset
+ *
+ * internal:
+ *            |----------- md_size_sect ------------------|
+ * [data.....][  Bitmap  ][ activity log ][ 4k superblock ]
+ *                        | al_offset < 0 |
+ *            | bm_offset = al_offset - Y |
+ *  ==> bitmap sectors = Y = al_offset - bm_offset
+ *
+ *  Activity log size used to be fixed 32kB,
+ *  but is about to become configurable.
+ */
 static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 				       struct drbd_backing_dev *bdev)
 {
 	sector_t md_size_sect = 0;
+	unsigned int al_size_sect = MD_32kB_SECT;
 	int meta_dev_idx;
 
 	rcu_read_lock();
@@ -710,23 +730,23 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 	switch (meta_dev_idx) {
 	default:
 		/* v07 style fixed size indexed meta data */
-		bdev->md.md_size_sect = MD_RESERVED_SECT;
+		bdev->md.md_size_sect = MD_128MB_SECT;
 		bdev->md.md_offset = drbd_md_ss__(mdev, bdev);
-		bdev->md.al_offset = MD_AL_OFFSET;
-		bdev->md.bm_offset = MD_BM_OFFSET;
+		bdev->md.al_offset = MD_4kB_SECT;
+		bdev->md.bm_offset = MD_4kB_SECT + al_size_sect;
 		break;
 	case DRBD_MD_INDEX_FLEX_EXT:
 		/* just occupy the full device; unit: sectors */
 		bdev->md.md_size_sect = drbd_get_capacity(bdev->md_bdev);
 		bdev->md.md_offset = 0;
-		bdev->md.al_offset = MD_AL_OFFSET;
-		bdev->md.bm_offset = MD_BM_OFFSET;
+		bdev->md.al_offset = MD_4kB_SECT;
+		bdev->md.bm_offset = MD_4kB_SECT + al_size_sect;
 		break;
 	case DRBD_MD_INDEX_INTERNAL:
 	case DRBD_MD_INDEX_FLEX_INT:
 		bdev->md.md_offset = drbd_md_ss__(mdev, bdev);
 		/* al size is still fixed */
-		bdev->md.al_offset = -MD_AL_SECTORS;
+		bdev->md.al_offset = -al_size_sect;
 		/* we need (slightly less than) ~ this much bitmap sectors: */
 		md_size_sect = drbd_get_capacity(bdev->backing_bdev);
 		md_size_sect = ALIGN(md_size_sect, BM_SECT_PER_EXT);
@@ -735,11 +755,11 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 
 		/* plus the "drbd meta data super block",
 		 * and the activity log; */
-		md_size_sect += MD_BM_OFFSET;
+		md_size_sect += MD_4kB_SECT + al_size_sect;
 
 		bdev->md.md_size_sect = md_size_sect;
 		/* bitmap offset is adjusted by 'super' block size */
-		bdev->md.bm_offset   = -md_size_sect + MD_AL_OFFSET;
+		bdev->md.bm_offset   = -md_size_sect + MD_4kB_SECT;
 		break;
 	}
 	rcu_read_unlock();
@@ -1416,7 +1436,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		min_md_device_sectors = (2<<10);
 	} else {
 		max_possible_sectors = DRBD_MAX_SECTORS;
-		min_md_device_sectors = MD_RESERVED_SECT * (new_disk_conf->meta_dev_idx + 1);
+		min_md_device_sectors = MD_128MB_SECT * (new_disk_conf->meta_dev_idx + 1);
 	}
 
 	if (drbd_get_capacity(nbc->md_bdev) < min_md_device_sectors) {

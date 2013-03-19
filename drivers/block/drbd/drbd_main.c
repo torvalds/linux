@@ -2834,6 +2834,7 @@ void conn_md_sync(struct drbd_tconn *tconn)
 	rcu_read_unlock();
 }
 
+/* aligned 4kByte */
 struct meta_data_on_disk {
 	u64 la_size;           /* last agreed size. */
 	u64 uuid[UI_SIZE];   /* UUIDs. */
@@ -2843,13 +2844,13 @@ struct meta_data_on_disk {
 	u32 magic;
 	u32 md_size_sect;
 	u32 al_offset;         /* offset to this block */
-	u32 al_nr_extents;     /* important for restoring the AL */
+	u32 al_nr_extents;     /* important for restoring the AL (userspace) */
 	      /* `-- act_log->nr_elements <-- ldev->dc.al_extents */
 	u32 bm_offset;         /* offset to the bitmap, from here */
 	u32 bm_bytes_per_bit;  /* BM_BLOCK_SIZE */
 	u32 la_peer_max_bio_size;   /* last peer max_bio_size */
-	u32 reserved_u32[3];
 
+	u8 reserved_u8[4096 - (7*8 + 8*4)];
 } __packed;
 
 /**
@@ -2861,6 +2862,10 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	struct meta_data_on_disk *buffer;
 	sector_t sector;
 	int i;
+
+	/* Don't accidentally change the DRBD meta data layout. */
+	BUILD_BUG_ON(UI_SIZE != 4);
+	BUILD_BUG_ON(sizeof(struct meta_data_on_disk) != 4096);
 
 	del_timer(&mdev->md_sync_timer);
 	/* timer may be rearmed by drbd_md_mark_dirty() now. */
@@ -2876,7 +2881,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	if (!buffer)
 		goto out;
 
-	memset(buffer, 0, 512);
+	memset(buffer, 0, sizeof(*buffer));
 
 	buffer->la_size = cpu_to_be64(drbd_get_capacity(mdev->this_bdev));
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
