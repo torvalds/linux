@@ -31,6 +31,8 @@
 #include "dss.h"
 
 static struct {
+	struct platform_device *pdev;
+
 	bool update_enabled;
 	struct regulator *vdds_sdi_reg;
 
@@ -258,8 +260,11 @@ static int sdi_init_regulator(void)
 	vdds_sdi = dss_get_vdds_sdi();
 
 	if (IS_ERR(vdds_sdi)) {
-		DSSERR("can't get VDDS_SDI regulator\n");
-		return PTR_ERR(vdds_sdi);
+		vdds_sdi = devm_regulator_get(&sdi.pdev->dev, "vdds_sdi");
+		if (IS_ERR(vdds_sdi)) {
+			DSSERR("can't get VDDS_SDI regulator\n");
+			return PTR_ERR(vdds_sdi);
+		}
 	}
 
 	sdi.vdds_sdi_reg = vdds_sdi;
@@ -361,6 +366,8 @@ static void __exit sdi_uninit_output(struct platform_device *pdev)
 static int omap_sdi_probe(struct platform_device *pdev)
 {
 	int r;
+
+	sdi.pdev = pdev;
 
 	sdi_init_output(pdev);
 
