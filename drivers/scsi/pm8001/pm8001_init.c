@@ -341,6 +341,9 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	pm8001_ha->memoryMap.region[CCB_MEM].total_len = PM8001_MAX_CCB *
 		sizeof(struct pm8001_ccb_info);
 
+	/* Memory region for fw flash */
+	pm8001_ha->memoryMap.region[FW_FLASH].total_len = 4096;
+
 	for (i = 0; i < USI_MAX_MEMCNT; i++) {
 		if (pm8001_mem_alloc(pm8001_ha->pdev,
 			&pm8001_ha->memoryMap.region[i].virt_ptr,

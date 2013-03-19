@@ -86,7 +86,7 @@ enum port_type {
 #define	PM8001_MAX_DEVICES	 2048	/* max supported device */
 #define	PM8001_MAX_MSIX_VEC	 64	/* max msi-x int for spcv/ve */
 
-#define USI_MAX_MEMCNT_BASE	4
+#define USI_MAX_MEMCNT_BASE	5
 #define IB			(USI_MAX_MEMCNT_BASE + 1)
 #define CI			(IB + PM8001_MAX_SPCV_INB_NUM)
 #define OB			(CI + PM8001_MAX_SPCV_INB_NUM)
@@ -99,6 +99,7 @@ enum memory_region_num {
 	NVMD,	    /* NVM device */
 	DEV_MEM,    /* memory for devices */
 	CCB_MEM,    /* memory for command control block */
+	FW_FLASH    /* memory for fw flash update */
 };
 #define	PM8001_EVENT_LOG_SIZE	 (128 * 1024)
 

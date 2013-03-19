@@ -400,10 +400,11 @@ static int pm8001_set_nvmd(struct pm8001_hba_info *pm8001_ha)
 		goto out;
 	}
 	payload = (struct pm8001_ioctl_payload *)ioctlbuffer;
-	memcpy((u8 *)payload->func_specific, (u8 *)pm8001_ha->fw_image->data,
+	memcpy((u8 *)&payload->func_specific, (u8 *)pm8001_ha->fw_image->data,
 				pm8001_ha->fw_image->size);
 	payload->length = pm8001_ha->fw_image->size;
 	payload->id = 0;
+	payload->minor_function = 0x1;
 	pm8001_ha->nvmd_completion = &completion;
 	ret = PM8001_CHIP_DISP->set_nvmd_req(pm8001_ha, payload);
 	wait_for_completion(&completion);
@@ -450,7 +451,7 @@ static int pm8001_update_flash(struct pm8001_hba_info *pm8001_ha)
 			payload->length = 1024*16;
 			payload->id = 0;
 			fwControl =
-			      (struct fw_control_info *)payload->func_specific;
+			      (struct fw_control_info *)&payload->func_specific;
 			fwControl->len = IOCTL_BUF_SIZE;   /* IN */
 			fwControl->size = partitionSize + HEADER_LEN;/* IN */
 			fwControl->retcode = 0;/* OUT */

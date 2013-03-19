@@ -3481,10 +3481,6 @@ int pm8001_mpi_fw_flash_update_resp(struct pm8001_hba_info *pm8001_ha,
 		break;
 	}
 	ccb->fw_control_context->fw_control->retcode = status;
-	pci_free_consistent(pm8001_ha->pdev,
-			fw_control_context.len,
-			fw_control_context.virtAddr,
-			fw_control_context.phys_addr);
 	complete(pm8001_ha->nvmd_completion);
 	ccb->task = NULL;
 	ccb->ccb_tag = 0xFFFFFFFF;
@@ -4474,7 +4470,7 @@ int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
 	if (!fw_control_context)
 		return -ENOMEM;
-	fw_control_context->usrAddr = (u8 *)&ioctl_payload->func_specific[0];
+	fw_control_context->usrAddr = (u8 *)ioctl_payload->func_specific;
 	fw_control_context->len = ioctl_payload->length;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	memset(&nvmd_req, 0, sizeof(nvmd_req));
@@ -4556,7 +4552,7 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 		return -ENOMEM;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	memcpy(pm8001_ha->memoryMap.region[NVMD].virt_ptr,
-		ioctl_payload->func_specific,
+		&ioctl_payload->func_specific,
 		ioctl_payload->length);
 	memset(&nvmd_req, 0, sizeof(nvmd_req));
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
@@ -4658,29 +4654,14 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	int rc;
 	u32 tag;
 	struct pm8001_ccb_info *ccb;
-	void *buffer = NULL;
-	dma_addr_t phys_addr;
-	u32 phys_addr_hi;
-	u32 phys_addr_lo;
+	void *buffer = pm8001_ha->memoryMap.region[FW_FLASH].virt_ptr;
+	dma_addr_t phys_addr = pm8001_ha->memoryMap.region[FW_FLASH].phys_addr;
 	struct pm8001_ioctl_payload *ioctl_payload = payload;
 
 	fw_control_context = kzalloc(sizeof(struct fw_control_ex), GFP_KERNEL);
 	if (!fw_control_context)
 		return -ENOMEM;
-	fw_control = (struct fw_control_info *)&ioctl_payload->func_specific[0];
-	if (fw_control->len != 0) {
-		if (pm8001_mem_alloc(pm8001_ha->pdev,
-			(void **)&buffer,
-			&phys_addr,
-			&phys_addr_hi,
-			&phys_addr_lo,
-			fw_control->len, 0) != 0) {
-				PM8001_FAIL_DBG(pm8001_ha,
-					pm8001_printk("Mem alloc failure\n"));
-				kfree(fw_control_context);
-				return -ENOMEM;
-		}
-	}
+	fw_control = (struct fw_control_info *)&ioctl_payload->func_specific;
 	memcpy(buffer, fw_control->buffer, fw_control->len);
 	flash_update_info.sgl.addr = cpu_to_le64(phys_addr);
 	flash_update_info.sgl.im_len.len = cpu_to_le32(fw_control->len);
@@ -4690,6 +4671,7 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	flash_update_info.total_image_len = fw_control->size;
 	fw_control_context->fw_control = fw_control;
 	fw_control_context->virtAddr = buffer;
+	fw_control_context->phys_addr = phys_addr;
 	fw_control_context->len = fw_control->len;
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
 	if (rc) {
