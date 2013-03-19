@@ -368,14 +368,10 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 		params.setmode_handler = smsusb1_setmode;
 		params.detectmode_handler = smsusb1_detectmode;
 		break;
-	default:
+	case SMS_UNKNOWN_TYPE:
 		sms_err("Unspecified sms device type!");
 		/* fall-thru */
-	case SMS_NOVA_A0:
-	case SMS_NOVA_B0:
-	case SMS_VEGA:
-	case SMS_VENICE:
-	case SMS_DENVER_1530:
+	default:
 		dev->buffer_size = USB2_BUFFER_SIZE;
 		dev->response_alignment =
 		    le16_to_cpu(dev->udev->ep_in[1]->desc.wMaxPacketSize) -
