@@ -7128,6 +7128,17 @@ W:	http://linuxtv.org
 S:	Odd Fixes
 F:	drivers/media/radio/radio-si4713.h
 
+SIANO DVB DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
+F:	drivers/media/common/siano/
+F:	drivers/media/dvb/siano/
+F:	drivers/media/usb/siano/
+F:	drivers/media/mmc/siano
+
 SH_VEU V4L2 MEM2MEM DRIVER
 M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 L:	linux-media@vger.kernel.org
