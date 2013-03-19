@@ -2125,7 +2125,6 @@ void free_initmem(void)
 			ClearPageReserved(p);
 			init_page_count(p);
 			__free_page(p);
-			num_physpages++;
 			totalram_pages++;
 		}
 	}
@@ -2142,7 +2141,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		ClearPageReserved(p);
 		init_page_count(p);
 		__free_page(p);
-		num_physpages++;
 		totalram_pages++;
 	}
 }
