@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <mach/map.h>
 #include <asm/sched_clock.h>
@@ -223,7 +224,6 @@ static struct of_device_id timer_ids[] = {
 static void __init sirfsoc_of_timer_map(void)
 {
 	struct device_node *np;
-	const unsigned int *intspec;
 
 	np = of_find_matching_node(NULL, timer_ids);
 	if (!np)
@@ -233,9 +233,7 @@ static void __init sirfsoc_of_timer_map(void)
 		panic("unable to map timer cpu registers\n");
 
 	/* Get the interrupts property */
-	intspec = of_get_property(np, "interrupts", NULL);
-	BUG_ON(!intspec);
-	sirfsoc_timer_irq.irq = be32_to_cpup(intspec);
+	sirfsoc_timer_irq.irq = irq_of_parse_and_map(np, 0);
 
 	of_node_put(np);
 }
