@@ -895,7 +895,12 @@ static int omap_dm_timer_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id omap_timer_match[] = {
-	{ .compatible = "ti,omap2-timer", },
+	{ .compatible = "ti,omap2420-timer", },
+	{ .compatible = "ti,omap3430-timer", },
+	{ .compatible = "ti,omap4430-timer", },
+	{ .compatible = "ti,omap5430-timer", },
+	{ .compatible = "ti,am335x-timer", },
+	{ .compatible = "ti,am335x-timer-1ms", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_timer_match);

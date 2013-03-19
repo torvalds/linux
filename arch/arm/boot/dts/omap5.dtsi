@@ -502,7 +502,7 @@
 		};
 
 		timer1: timer@4ae18000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x4ae18000 0x80>;
 			interrupts = <0 37 0x4>;
 			ti,hwmods = "timer1";
@@ -510,28 +510,28 @@
 		};
 
 		timer2: timer@48032000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x48032000 0x80>;
 			interrupts = <0 38 0x4>;
 			ti,hwmods = "timer2";
 		};
 
 		timer3: timer@48034000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x48034000 0x80>;
 			interrupts = <0 39 0x4>;
 			ti,hwmods = "timer3";
 		};
 
 		timer4: timer@48036000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x48036000 0x80>;
 			interrupts = <0 40 0x4>;
 			ti,hwmods = "timer4";
 		};
 
 		timer5: timer@40138000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x40138000 0x80>,
 			      <0x49038000 0x80>;
 			interrupts = <0 41 0x4>;
@@ -540,7 +540,7 @@
 		};
 
 		timer6: timer@4013a000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x4013a000 0x80>,
 			      <0x4903a000 0x80>;
 			interrupts = <0 42 0x4>;
@@ -550,7 +550,7 @@
 		};
 
 		timer7: timer@4013c000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x4013c000 0x80>,
 			      <0x4903c000 0x80>;
 			interrupts = <0 43 0x4>;
@@ -559,7 +559,7 @@
 		};
 
 		timer8: timer@4013e000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x4013e000 0x80>,
 			      <0x4903e000 0x80>;
 			interrupts = <0 44 0x4>;
@@ -569,21 +569,21 @@
 		};
 
 		timer9: timer@4803e000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x4803e000 0x80>;
 			interrupts = <0 45 0x4>;
 			ti,hwmods = "timer9";
 		};
 
 		timer10: timer@48086000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x48086000 0x80>;
 			interrupts = <0 46 0x4>;
 			ti,hwmods = "timer10";
 		};
 
 		timer11: timer@48088000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap5430-timer";
 			reg = <0x48088000 0x80>;
 			interrupts = <0 47 0x4>;
 			ti,hwmods = "timer11";
