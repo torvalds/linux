@@ -597,7 +597,7 @@ void __init omap4_local_timer_init(void)
 		int err;
 
 		if (of_have_populated_dt()) {
-			twd_local_timer_of_register();
+			clocksource_of_init();
 			return;
 		}
 
