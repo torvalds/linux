@@ -53,7 +53,7 @@ TRACE_EVENT(ath6kl_wmi_cmd,
 	),
 
 	TP_printk(
-		"id %d len %d",
+		"id %d len %zd",
 		__entry->id, __entry->buf_len
 	)
 );
@@ -76,7 +76,7 @@ TRACE_EVENT(ath6kl_wmi_event,
 	),
 
 	TP_printk(
-		"id %d len %d",
+		"id %d len %zd",
 		__entry->id, __entry->buf_len
 	)
 );
@@ -108,7 +108,7 @@ TRACE_EVENT(ath6kl_sdio,
 	),
 
 	TP_printk(
-		"%s addr 0x%x flags 0x%x len %d\n",
+		"%s addr 0x%x flags 0x%x len %zd\n",
 		__entry->tx ? "tx" : "rx",
 		__entry->addr,
 		__entry->flags,
@@ -161,7 +161,7 @@ TRACE_EVENT(ath6kl_sdio_scat,
 	),
 
 	TP_printk(
-		"%s addr 0x%x flags 0x%x entries %d total_len %d\n",
+		"%s addr 0x%x flags 0x%x entries %d total_len %zd\n",
 		__entry->tx ? "tx" : "rx",
 		__entry->addr,
 		__entry->flags,
@@ -186,7 +186,7 @@ TRACE_EVENT(ath6kl_sdio_irq,
 	),
 
 	TP_printk(
-		"irq len %d\n", __entry->buf_len
+		"irq len %zd\n", __entry->buf_len
 	)
 );
 
@@ -211,7 +211,7 @@ TRACE_EVENT(ath6kl_htc_rx,
 	),
 
 	TP_printk(
-		"status %d endpoint %d len %d\n",
+		"status %d endpoint %d len %zd\n",
 		__entry->status,
 		__entry->endpoint,
 		__entry->buf_len
@@ -239,7 +239,7 @@ TRACE_EVENT(ath6kl_htc_tx,
 	),
 
 	TP_printk(
-		"status %d endpoint %d len %d\n",
+		"status %d endpoint %d len %zd\n",
 		__entry->status,
 		__entry->endpoint,
 		__entry->buf_len
