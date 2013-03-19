@@ -552,12 +552,11 @@ struct nand_chip {
 /*
  * A helper for defining older NAND chips where the second ID byte fully
  * defined the chip, including the geometry (chip size, eraseblock size, page
- * size).
+ * size). All these chips have 512 bytes NAND page size.
  */
-#define LEGACY_ID_NAND(nm, devid, pagesz, chipsz, erasesz, opts)       \
-	{ .name = (nm), {{ .dev_id = (devid) }}, .pagesize = (pagesz), \
-	  .chipsize = (chipsz), .erasesize = (erasesz),                \
-	  .options = (opts) }
+#define LEGACY_ID_NAND(nm, devid, chipsz, erasesz, opts)          \
+	{ .name = (nm), {{ .dev_id = (devid) }}, .pagesize = 512, \
+	  .chipsize = (chipsz), .erasesize = (erasesz), .options = (opts) }
 
 /*
  * A helper for defining newer chips which report their page size and
