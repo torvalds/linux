@@ -365,7 +365,7 @@ static struct sensor_platform_data mma8452_info = {
 	.irq_enable = 1,
 	.poll_delay_ms = 30,
         .init_platform_hw = mma8452_init_platform_hw,
-        .orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
+        .orientation = {-1, 0, 0, 0, 1, 0, 0, 0, -1},
 };
 #endif
 #if defined (CONFIG_GS_LIS3DH)
@@ -1104,8 +1104,8 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 	#endif
 		.pwm_voltage = 1100000,
 		.suspend_voltage = 1000000,
-		.min_uV = 950000,
-		.max_uV	= 1400000,
+		.min_uV = 1000000,
+		.max_uV	= 1450000,
 		.coefficient = 504,	//57.5%
 		.pwm_voltage_map = pwm_voltage_map,
 		.init_data	= &pwm_regulator_init_dcdc[0],
@@ -1539,8 +1539,8 @@ static struct pmu_info  wm8326_ldo_info[] = {
 static struct pmu_info  tps65910_dcdc_info[] = {
 	{
 		.name          = "vdd_cpu",   //arm
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
 	},
 	{
 		.name          = "vdd2",    //ddr
@@ -1823,7 +1823,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.type          = "Goodix-TS",
 		.addr          = 0x55,
 		.flags         = 0,
-		.irq           = RK30_PIN1_PB7,
+		.irq           = RK30_PIN0_PB4,
 		.platform_data = &goodix_info,
 	},
 #endif
@@ -1989,7 +1989,7 @@ struct rk29_keys_platform_data rk29_keys_pdata = {
 // =========== End of rk3168 top board keypad defination  =============
 
 
-#define POWER_ON_PIN RK30_PIN0_PA0   //power_hold
+#define POWER_ON_PIN RK30_PIN0_PD5  //power_hold
 static void rk30_pm_power_off(void)
 {
 	printk(KERN_ERR "rk30_pm_power_off start...\n");
@@ -2085,10 +2085,10 @@ static struct cpufreq_frequency_table dvfs_arm_table[] = {
         {.frequency = 312 * 1000,       .index = 850 * 1000},
         {.frequency = 504 * 1000,       .index = 900 * 1000},
         {.frequency = 816 * 1000,       .index = 950 * 1000},
-        {.frequency = 1008 * 1000,      .index = 1025 * 1000},
-        {.frequency = 1200 * 1000,      .index = 1100 * 1000},
-        {.frequency = 1416 * 1000,      .index = 1200 * 1000},
-        {.frequency = 1608 * 1000,      .index = 1300 * 1000},
+        {.frequency = 1008 * 1000,      .index = 1200 * 1000},
+       // {.frequency = 1200 * 1000,      .index = 1200 * 1000},
+      //  {.frequency = 1416 * 1000,      .index = 1200 * 1000},
+      //  {.frequency = 1608 * 1000,      .index = 1300 * 1000},
         {.frequency = CPUFREQ_TABLE_END},
 };
 
@@ -2103,7 +2103,7 @@ static struct cpufreq_frequency_table dvfs_gpu_table[] = {
 	{.frequency = 266 * 1000,       .index = 1000 * 1000},
 	{.frequency = 300 * 1000,       .index = 1050 * 1000},
 	{.frequency = 400 * 1000,       .index = 1100 * 1000},
-	{.frequency = 600 * 1000,       .index = 1200 * 1000},
+	//{.frequency = 600 * 1000,       .index = 1200 * 1000},
         {.frequency = CPUFREQ_TABLE_END},
 };
 
