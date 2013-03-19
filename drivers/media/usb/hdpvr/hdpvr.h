@@ -78,6 +78,8 @@ struct hdpvr_device {
 		struct v4l2_ctrl *video_bitrate;
 		struct v4l2_ctrl *video_bitrate_peak;
 	};
+	/* v4l2 format */
+	uint width, height;
 
 	/* the max packet size of the bulk endpoint */
 	size_t			bulk_in_size;
@@ -87,8 +89,9 @@ struct hdpvr_device {
 	/* holds the current device status */
 	__u8			status;
 
-	/* holds the cureent set options */
+	/* holds the current set options */
 	struct hdpvr_options	options;
+	v4l2_std_id		cur_std;
 
 	uint			flags;
 
