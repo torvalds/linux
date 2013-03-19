@@ -38,7 +38,7 @@ struct bcm963xx_nvram {
 static struct bcm963xx_nvram nvram;
 static int mac_addr_used;
 
-int __init bcm63xx_nvram_init(void *addr)
+void __init bcm63xx_nvram_init(void *addr)
 {
 	unsigned int check_len;
 	u32 crc, expected_crc;
@@ -60,9 +60,8 @@ int __init bcm63xx_nvram_init(void *addr)
 	crc = crc32_le(~0, (u8 *)&nvram, check_len);
 
 	if (crc != expected_crc)
-		return -EINVAL;
-
-	return 0;
+		pr_warn("nvram checksum failed, contents may be invalid (expected %08x, got %08x)\n",
+			expected_crc, crc);
 }
 
 u8 *bcm63xx_nvram_get_name(void)
