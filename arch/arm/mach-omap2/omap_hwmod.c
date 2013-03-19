@@ -2445,7 +2445,8 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 	if (oh->_state != _HWMOD_STATE_REGISTERED)
 		return 0;
 
-	_init_mpu_rt_base(oh, NULL);
+	if (oh->class->sysc)
+		_init_mpu_rt_base(oh, NULL);
 
 	r = _init_clocks(oh, NULL);
 	if (IS_ERR_VALUE(r)) {
