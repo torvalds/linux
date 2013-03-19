@@ -68,7 +68,6 @@ static int msglevel = MSG_LEVEL_INFO;
 
 #define C_EIFS          80      // micro sec.
 
-
 #define C_SLOT_SHORT    9       // micro sec.
 #define C_SLOT_LONG     20
 
@@ -88,13 +87,10 @@ static unsigned char abyDefaultSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x1
 //1M,   2M,   5M,  11M,
 static unsigned char abyDefaultSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
 
-
 /*---------------------  Static Variables  --------------------------*/
-
 
 const unsigned short cwRXBCNTSFOff[MAX_RATE] =
 {17, 17, 17, 17, 34, 23, 17, 11, 8, 5, 4, 3};
-
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -106,7 +102,6 @@ s_vCalculateOFDMRParameter(
 	unsigned char *pbyTxRate,
 	unsigned char *pbyRsvTime
 );
-
 
 /*---------------------  Export Functions  --------------------------*/
 
@@ -216,8 +211,6 @@ s_vCalculateOFDMRParameter(
 		break;
 	}
 }
-
-
 
 /*
  * Description: Set RSPINF
@@ -375,7 +368,6 @@ s_vSetRSPINF(PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, v
   }
 */
 
-
 /*
  * Description: Get Card short preamble option value
  *
@@ -415,7 +407,6 @@ bool CARDbIsShorSlotTime(void *pDeviceHandler)
 	return pDevice->bShortSlotTime;
 }
 
-
 /*
  * Description: Update IFS
  *
@@ -439,7 +430,6 @@ bool CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned
 //    PWLAN_IE_SUPP_RATES pRates = NULL;
 	PWLAN_IE_SUPP_RATES pSupportRates = (PWLAN_IE_SUPP_RATES) pvSupportRateIEs;
 	PWLAN_IE_SUPP_RATES pExtSupportRates = (PWLAN_IE_SUPP_RATES) pvExtSupportRateIEs;
-
 
 	//Set SIFS, DIFS, EIFS, SlotTime, CwMin
 	if (ePHYType == PHY_TYPE_11A) {
@@ -635,7 +625,6 @@ bool CARDbUpdateTSF(void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTim
 	return true;
 }
 
-
 /*
  * Description: Set NIC TSF counter for first Beacon time
  *              Get NEXTTBTT from adjusted TSF and Beacon Interval
@@ -689,8 +678,6 @@ bool CARDbSetBeaconPeriod(void *pDeviceHandler, unsigned short wBeaconInterval)
 	return true;
 }
 
-
-
 /*
  * Description: Card Stop Hardware Tx
  *
@@ -707,7 +694,6 @@ bool CARDbSetBeaconPeriod(void *pDeviceHandler, unsigned short wBeaconInterval)
 bool CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
-
 
 	if (ePktType == PKT_TYPE_802_11_ALL) {
 		pDevice->bStopBeacon = true;
@@ -748,7 +734,6 @@ bool CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 	return true;
 }
 
-
 /*
  * Description: Card Start Hardware Tx
  *
@@ -765,7 +750,6 @@ bool CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 bool CARDbStartTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
-
 
 	if (ePktType == PKT_TYPE_802_11_ALL) {
 		pDevice->bStopBeacon = false;
@@ -787,8 +771,6 @@ bool CARDbStartTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType)
 
 	return true;
 }
-
-
 
 /*
  * Description: Card Set BSSID value
@@ -838,7 +820,6 @@ bool CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE e
 	return true;
 }
 
-
 /*
  * Description: Card indicate status
  *
@@ -852,9 +833,6 @@ bool CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE e
  * Return Value: true if success; false if failed.
  *
  */
-
-
-
 
 /*
  * Description: Save Assoc info. contain in assoc. response frame
@@ -945,9 +923,7 @@ bool CARDbRadioPowerOff(void *pDeviceHandler)
 	if (pDevice->bRadioOff == true)
 		return true;
 
-
 	switch (pDevice->byRFType) {
-
 	case RF_RFMD2959:
 		MACvWordRegBitsOff(pDevice->PortOffset, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_TXPEINV);
 		MACvWordRegBitsOn(pDevice->PortOffset, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE1);
@@ -972,7 +948,6 @@ bool CARDbRadioPowerOff(void *pDeviceHandler)
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_GPIOCTL0, LED_ACTSET);  //LED issue
 	return bResult;
 }
-
 
 /*
  * Description: Turn on Radio power
@@ -1005,7 +980,6 @@ bool CARDbRadioPowerOn(void *pDeviceHandler)
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_HOSTCR, HOSTCR_RXON);
 
 	switch (pDevice->byRFType) {
-
 	case RF_RFMD2959:
 		MACvWordRegBitsOn(pDevice->PortOffset, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_TXPEINV);
 		MACvWordRegBitsOff(pDevice->PortOffset, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE1);
@@ -1027,8 +1001,6 @@ bool CARDbRadioPowerOn(void *pDeviceHandler)
 	return bResult;
 }
 
-
-
 bool CARDbRemoveKey(void *pDeviceHandler, unsigned char *pbyBSSID)
 {
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -1036,7 +1008,6 @@ bool CARDbRemoveKey(void *pDeviceHandler, unsigned char *pbyBSSID)
 	KeybRemoveAllKey(&(pDevice->sKey), pbyBSSID, pDevice->PortOffset);
 	return true;
 }
-
 
 /*
  *
@@ -1077,7 +1048,6 @@ CARDbAdd_PMKID_Candidate(
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02X ", *(pbyBSSID + ii));
 	}
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
-
 
 	// Update Old Candidate
 	for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
@@ -1241,7 +1211,6 @@ CARDbStartMeasure(
 	return true;
 }
 
-
 /*
  *
  * Description:
@@ -1283,7 +1252,6 @@ CARDbChannelSwitch(
 	}
 	return bResult;
 }
-
 
 /*
  *
@@ -1339,7 +1307,6 @@ CARDbSetQuiet(
 	}
 	return true;
 }
-
 
 /*
  *
@@ -1476,7 +1443,6 @@ CARDvSetPowerConstraint(
 	}
 }
 
-
 /*
  *
  * Description:
@@ -1574,10 +1540,7 @@ CARDvSafeResetTx(
 	// set MAC Beacon TX pointer
 	MACvSetCurrBCNTxDescAddr(pDevice->PortOffset,
 				 (pDevice->tx_beacon_dma));
-
 }
-
-
 
 /*+
  *
@@ -1601,8 +1564,6 @@ CARDvSafeResetRx(
 	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 	unsigned int uu;
 	PSRxDesc    pDesc;
-
-
 
 	// initialize RD index
 	pDevice->pCurrRD[0] = &(pDevice->aRD0Ring[0]);
@@ -1637,9 +1598,6 @@ CARDvSafeResetRx(
 	MACvSetCurrRx1DescAddr(pDevice->PortOffset,
 			       pDevice->rd1_pool_dma);
 }
-
-
-
 
 /*
  * Description: Get response Control frame rate in CCK mode
@@ -1704,7 +1662,6 @@ unsigned short CARDwGetOFDMControlRate(void *pDeviceHandler, unsigned short wRat
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "CARDwGetOFDMControlRate: 6M\n");
 	return (unsigned short)RATE_24M;
 }
-
 
 /*
  * Description: Set RSPINF
@@ -1920,7 +1877,6 @@ void CARDvUpdateBasicTopRate(void *pDeviceHandler)
 	pDevice->byTopCCKBasicRate = byTopCCK;
 }
 
-
 /*
  * Description: Set NIC Tx Basic Rate
  *
@@ -2001,7 +1957,6 @@ void CARDvSetLoopbackMode(unsigned long dwIoBase, unsigned short wLoopbackMode)
 	// set Baseband loopback
 }
 
-
 /*
  * Description: Software Reset NIC
  *
@@ -2024,7 +1979,6 @@ bool CARDbSoftwareReset(void *pDeviceHandler)
 
 	return true;
 }
-
 
 /*
  * Description: Calculate TSF offset of two TSF input
@@ -2063,7 +2017,6 @@ QWORD CARDqGetTSFOffset(unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
 	return qwTSFOffset;
 }
 
-
 /*
  * Description: Read NIC TSF counter
  *              Get local TSF counter
@@ -2096,7 +2049,6 @@ bool CARDbGetCurrentTSF(unsigned long dwIoBase, PQWORD pqwCurrTSF)
 	return true;
 }
 
-
 /*
  * Description: Read NIC TSF counter
  *              Get NEXTTBTT from adjusted TSF and Beacon Interval
@@ -2113,7 +2065,6 @@ bool CARDbGetCurrentTSF(unsigned long dwIoBase, PQWORD pqwCurrTSF)
  */
 QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval)
 {
-
 	unsigned int uLowNextTBTT;
 	unsigned int uHighRemain, uLowRemain;
 	unsigned int uBeaconInterval;
@@ -2140,7 +2091,6 @@ QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval)
 	return qwTSF;
 }
 
-
 /*
  * Description: Set NIC TSF counter for first Beacon time
  *              Get NEXTTBTT from adjusted TSF and Beacon Interval
@@ -2157,7 +2107,6 @@ QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval)
  */
 void CARDvSetFirstNextTBTT(unsigned long dwIoBase, unsigned short wBeaconInterval)
 {
-
 	QWORD   qwNextTBTT;
 
 	HIDWORD(qwNextTBTT) = 0;
@@ -2171,7 +2120,6 @@ void CARDvSetFirstNextTBTT(unsigned long dwIoBase, unsigned short wBeaconInterva
 	//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Card:First Next TBTT[%8xh:%8xh] \n", HIDWORD(qwNextTBTT), LODWORD(qwNextTBTT));
 	return;
 }
-
 
 /*
  * Description: Sync NIC TSF counter for Beacon time
@@ -2190,7 +2138,6 @@ void CARDvSetFirstNextTBTT(unsigned long dwIoBase, unsigned short wBeaconInterva
  */
 void CARDvUpdateNextTBTT(unsigned long dwIoBase, QWORD qwTSF, unsigned short wBeaconInterval)
 {
-
 	qwTSF = CARDqGetNextTBTT(qwTSF, wBeaconInterval);
 	// Set NextTBTT
 	VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, LODWORD(qwTSF));
@@ -2201,10 +2148,3 @@ void CARDvUpdateNextTBTT(unsigned long dwIoBase, QWORD qwTSF, unsigned short wBe
 
 	return;
 }
-
-
-
-
-
-
-

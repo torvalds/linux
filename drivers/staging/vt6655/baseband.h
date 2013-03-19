@@ -41,14 +41,12 @@
 //
 #define BB_MAX_CONTEXT_SIZE 256
 
-
 //
 // Baseband RF pair definition in eeprom (Bits 6..0)
 //
 
 #define PREAMBLE_LONG   0
 #define PREAMBLE_SHORT  1
-
 
 #define F5G             0
 #define F2_4G           1
@@ -66,7 +64,6 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
-
 /*---------------------  Export Types  ------------------------------*/
 
 /*---------------------  Export Macros ------------------------------*/
@@ -76,7 +73,6 @@
 
 #define BBvSetFOE(dwIoBase)				\
 	BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C)
-
 
 /*---------------------  Export Classes  ----------------------------*/
 

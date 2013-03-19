@@ -45,11 +45,7 @@
 
 /*---------------------  Static Definitions -------------------------*/
 
-
-
-
 /*---------------------  Static Classes  ----------------------------*/
-
 
 extern unsigned short TxRate_iwconfig; //2008-5-8 <add> by chester
 /*---------------------  Static Variables  --------------------------*/
@@ -68,8 +64,6 @@ void s_vResetCounter(
 	PKnownNodeDB psNodeDBTable
 );
 
-
-
 void
 s_vResetCounter(
 	PKnownNodeDB psNodeDBTable
@@ -86,9 +80,7 @@ s_vResetCounter(
 
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Functions  --------------------------*/
-
 
 /*+
  *
@@ -121,8 +113,6 @@ DATARATEbyGetRateIdx(
 	return 0;
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -140,9 +130,6 @@ DATARATEbyGetRateIdx(
  -*/
 #define AUTORATE_TXCNT_THRESHOLD        20
 #define AUTORATE_INC_THRESHOLD          30
-
-
-
 
 /*+
  *
@@ -214,7 +201,6 @@ RATEvParseMaxRate(
 	unsigned short wOldBasicRate = pDevice->wBasicRate;
 	unsigned int uRateLen;
 
-
 	if (pItemRates == NULL)
 		return;
 
@@ -247,7 +233,6 @@ RATEvParseMaxRate(
 	}
 	if ((pItemExtRates != NULL) && (pItemExtRates->byElementID == WLAN_EID_EXTSUPP_RATES) &&
 	    (pDevice->eCurrentPHYType != PHY_TYPE_11B)) {
-
 		unsigned int uExtRateLen = pItemExtRates->len;
 
 		if (uExtRateLen > WLAN_RATES_MAXLEN)
@@ -287,7 +272,6 @@ RATEvParseMaxRate(
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Exit ParseMaxRate\n");
 }
-
 
 /*+
  *
@@ -343,7 +327,6 @@ RATEvTxRateFallBack(
 		psNodeDBTable->uTimeCount = 0;
 	}
 
-
 	for (ii = 0; ii < MAX_RATE; ii++) {
 		if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
 			if (bAutoRate[ii] == true) {
@@ -393,7 +376,6 @@ RATEvTxRateFallBack(
 //    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rate: %d, U:%d, D:%d\n", psNodeDBTable->wTxDataRate, wIdxUpRate, wIdxDownRate);
 
 	return;
-
 }
 
 /*+
@@ -434,4 +416,3 @@ RATEuSetIE(
 	}
 	return (unsigned char)uRateCnt;
 }
-

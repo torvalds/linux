@@ -35,11 +35,8 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-
-
 #define AUTHENTICATE_TIMEOUT   1000 //ms
 #define ASSOCIATE_TIMEOUT      1000 //ms
-
 
 // Command code
 typedef enum tagCMD_CODE {
@@ -63,15 +60,12 @@ typedef enum tagCMD_CODE {
 #define CMD_Q_SIZE              32
 
 typedef enum tagCMD_STATUS {
-
 	CMD_STATUS_SUCCESS = 0,
 	CMD_STATUS_FAILURE,
 	CMD_STATUS_RESOURCES,
 	CMD_STATUS_TIMEOUT,
 	CMD_STATUS_PENDING
-
 } CMD_STATUS, *PCMD_STATUS;
-
 
 typedef struct tagCMD_ITEM {
 	CMD_CODE eCmd;
@@ -98,15 +92,11 @@ typedef enum tagCMD_STATE {
 	WLAN_CMD_IDLE
 } CMD_STATE, *PCMD_STATE;
 
-
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Types  ------------------------------*/
-
 
 /*---------------------  Export Functions  --------------------------*/
 void

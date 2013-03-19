@@ -60,16 +60,11 @@
 
 /*---------------------  Static Definitions -------------------------*/
 
-
-
-
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-
-
 
 const unsigned short awHWRetry0[5][5] = {
 	{RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
@@ -86,8 +81,6 @@ const unsigned short awHWRetry1[5][5] = {
 	{RATE_54M, RATE_54M, RATE_36M, RATE_18M, RATE_18M}
 };
 
-
-
 /*---------------------  Static Functions  --------------------------*/
 
 void s_vCheckSensitivity(
@@ -100,18 +93,12 @@ void s_uCalculateLinkQual(
 );
 #endif
 
-
 void s_vCheckPreEDThreshold(
 	void *hDeviceContext
 );
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Functions  --------------------------*/
-
-
-
-
 
 /*+
  *
@@ -194,7 +181,6 @@ BSSpSearchBSSList(
 			//2007-0721-01<Add>by MikeLiu
 			pCurrBSS->bSelected = false;
 			if (pCurrBSS->bActive) {
-
 				if (pSSID != NULL) {
 					// matched SSID
 					if (!!memcmp(pSSID->abySSID,
@@ -264,9 +250,7 @@ BSSpSearchBSSList(
 		}
 	}
 	return NULL;
-
 }
-
 
 /*+
  *
@@ -277,7 +261,6 @@ BSSpSearchBSSList(
  *    None.
  *
  -*/
-
 
 void
 BSSvClearBSSList(
@@ -310,8 +293,6 @@ BSSvClearBSSList(
 
 	return;
 }
-
-
 
 /*+
  *
@@ -351,8 +332,6 @@ BSSpAddrIsInBSSList(
 	return NULL;
 };
 
-
-
 /*+
  *
  * Routine Description:
@@ -384,7 +363,6 @@ BSSbInsertToBSSList(
 	void *pRxPacketContext
 )
 {
-
 	PSDevice     pDevice = (PSDevice)hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
@@ -392,8 +370,6 @@ BSSbInsertToBSSList(
 	unsigned int ii;
 	bool bParsingQuiet = false;
 	PWLAN_IE_QUIET  pQuiet = NULL;
-
-
 
 	pBSSList = (PKnownBSS)&(pMgmt->sBSSList[0]);
 
@@ -486,7 +462,6 @@ BSSbInsertToBSSList(
 	}
 
 	if ((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) || (pBSSList->bWPA2Valid == true)) {
-
 		PSKeyItem  pTransmitKey = NULL;
 		bool bIs802_1x = false;
 
@@ -498,7 +473,6 @@ BSSbInsertToBSSList(
 		}
 		if ((bIs802_1x == true) && (pSSID->len == ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len) &&
 		    (!memcmp(pSSID->abySSID, ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID, pSSID->len))) {
-
 			bAdd_PMKID_Candidate((void *)pDevice, pBSSList->abyBSSID, &pBSSList->sRSNCapObj);
 
 			if ((pDevice->bLinkPass == true) && (pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
@@ -567,7 +541,6 @@ BSSbInsertToBSSList(
 	return true;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -609,11 +582,8 @@ BSSbUpdateToBSSList(
 	bool bParsingQuiet = false;
 	PWLAN_IE_QUIET  pQuiet = NULL;
 
-
-
 	if (pBSSList == NULL)
 		return false;
-
 
 	HIDWORD(pBSSList->qwBSSTimestamp) = cpu_to_le32(HIDWORD(qwTimestamp));
 	LODWORD(pBSSList->qwBSSTimestamp) = cpu_to_le32(LODWORD(qwTimestamp));
@@ -743,10 +713,6 @@ BSSbUpdateToBSSList(
 	return true;
 }
 
-
-
-
-
 /*+
  *
  * Routine Description:
@@ -777,8 +743,6 @@ BSSDBbIsSTAInNodeDB(void *pMgmtObject, unsigned char *abyDstAddr,
 	return false;
 };
 
-
-
 /*+
  *
  * Routine Description:
@@ -792,7 +756,6 @@ BSSDBbIsSTAInNodeDB(void *pMgmtObject, unsigned char *abyDstAddr,
 void
 BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
 {
-
 	PSDevice     pDevice = (PSDevice)hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned int ii;
@@ -837,8 +800,6 @@ BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
 	return;
 };
 
-
-
 /*+
  *
  * Routine Description:
@@ -855,12 +816,10 @@ BSSvRemoveOneNode(
 	unsigned int uNodeIndex
 )
 {
-
 	PSDevice        pDevice = (PSDevice)hDeviceContext;
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	struct sk_buff  *skb;
-
 
 	while ((skb = skb_dequeue(&pMgmt->sNodeDBTable[uNodeIndex].sTxPSQueue)) != NULL)
 		dev_kfree_skb(skb);
@@ -926,12 +885,7 @@ BSSvUpdateAPNode(
 	// Auto rate fallback function initiation.
 	// RATEbInit(pDevice);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->sNodeDBTable[0].wTxDataRate = %d \n", pMgmt->sNodeDBTable[0].wTxDataRate);
-
 };
-
-
-
-
 
 /*+
  *
@@ -943,7 +897,6 @@ BSSvUpdateAPNode(
  *    None
  *
  -*/
-
 
 void
 BSSvAddMulticastNode(
@@ -974,12 +927,7 @@ BSSvAddMulticastNode(
 	printk("BSSvAddMultiCastNode:pMgmt->sNodeDBTable[0].wTxDataRate is %d\n", pMgmt->sNodeDBTable[0].wTxDataRate);
 #endif
 	pMgmt->sNodeDBTable[0].uRatePollTimeout = FALLBACK_POLL_SECOND;
-
 };
-
-
-
-
 
 /*+
  *
@@ -1024,7 +972,6 @@ BSSvSecondCallBack(
 	if (((!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->bHWRadioOff == false)) || ((pDevice->byGPIO & GPIO0_DATA) && (pDevice->bHWRadioOff == true))) && (cc == false)) {
 		cc = true;
 	} else if (cc == true) {
-
 		if (pDevice->bHWRadioOff == true) {
 			if (!(pDevice->byGPIO & GPIO0_DATA))
 //||(!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
@@ -1072,7 +1019,6 @@ BSSvSecondCallBack(
 start:
 #endif
 
-
 	if (pDevice->wUseProtectCntDown > 0) {
 		pDevice->wUseProtectCntDown--;
 	} else {
@@ -1103,7 +1049,6 @@ start:
 #endif
 
 	for (ii = 0; ii < (MAX_NODE_NUM + 1); ii++) {
-
 		if (pMgmt->sNodeDBTable[ii].bActive) {
 			// Increase in-activity counter
 			pMgmt->sNodeDBTable[ii].uInActiveCount++;
@@ -1117,7 +1062,6 @@ start:
 				}
 
 				if (pMgmt->sNodeDBTable[ii].eNodeState >= NODE_ASSOC) {
-
 					pDevice->uAssocCount++;
 
 					// check if Non ERP exist
@@ -1138,7 +1082,6 @@ start:
 				// check if any STA in PS mode
 				if (pMgmt->sNodeDBTable[ii].bPSEnable)
 					uSleepySTACnt++;
-
 
 			}
 
@@ -1180,9 +1123,7 @@ start:
 
 	}
 
-
 	if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->eCurrentPHYType == PHY_TYPE_11G)) {
-
 		// on/off protect mode
 		if (WLAN_GET_ERP_USE_PROTECTION(pDevice->byERPFlag)) {
 			if (!pDevice->bProtectMode) {
@@ -1227,7 +1168,6 @@ start:
 
 	}
 
-
 	// Check if any STA in PS mode, enable DTIM multicast deliver
 	if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
 		if (uSleepySTACnt > 0)
@@ -1241,7 +1181,6 @@ start:
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_STANDBY) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)) {
-
 		if (pMgmt->sNodeDBTable[0].bActive) { // Assoc with BSS
 			if (pDevice->bUpdateBBVGA) {
 				// s_vCheckSensitivity((void *) pDevice);
@@ -1323,7 +1262,6 @@ start:
 			};
 		}
 		if (pMgmt->eCurrState == WMAC_STATE_JOINTED) {
-
 			if (pDevice->bUpdateBBVGA) {
 				//s_vCheckSensitivity((void *) pDevice);
 				s_vCheckPreEDThreshold((void *)pDevice);
@@ -1345,9 +1283,6 @@ start:
 	return;
 }
 
-
-
-
 /*+
  *
  * Routine Description:
@@ -1360,8 +1295,6 @@ start:
  *    none.
  *
  -*/
-
-
 
 void
 BSSvUpdateNodeTxCounter(
@@ -1438,7 +1371,6 @@ BSSvUpdateNodeTxCounter(
 						//for (ii=0;ii<txRetryTemp;ii++)
 					{
 						if (ii < 5) {
-
 //PLICE_DEBUG
 							wFallBackRate = awHWRetry0[wRate-RATE_18M][ii];
 							//wFallBackRate = awHWRetry0[wRate-RATE_12M][ii];
@@ -1462,7 +1394,6 @@ BSSvUpdateNodeTxCounter(
 
 		if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ||
 		    (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
-
 			pMACHeader = (PS802_11Header)(pbyBuffer + uFIFOHeaderSize);
 
 			if (BSSDBbIsSTAInNodeDB((void *)pMgmt,  &(pMACHeader->abyAddr1[0]), &uNodeIndex)) {
@@ -1517,12 +1448,7 @@ BSSvUpdateNodeTxCounter(
 	}
 
 	return;
-
-
 }
-
-
-
 
 /*+
  *
@@ -1541,7 +1467,6 @@ BSSvUpdateNodeTxCounter(
  *    None.
  *
  -*/
-
 
 void
 BSSvClearNodeDBTable(
@@ -1570,7 +1495,6 @@ BSSvClearNodeDBTable(
 
 	return;
 };
-
 
 void s_vCheckSensitivity(
 	void *hDeviceContext
@@ -1619,7 +1543,6 @@ void s_vCheckSensitivity(
 		}
 	}
 }
-
 
 void
 BSSvClearAnyBSSJoinRecord(
@@ -1697,4 +1620,3 @@ void s_vCheckPreEDThreshold(
 	}
 	return;
 }
-

@@ -58,5 +58,3 @@
 #endif
 
 #endif // __TMACRO_H__
-
-

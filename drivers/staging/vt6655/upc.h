@@ -34,7 +34,6 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-
 //
 //  For IO mapped
 //
@@ -71,13 +70,11 @@ do {						\
 //  For memory mapped IO
 //
 
-
 #define VNSvInPortB(dwIOAddress, pbyData)				\
 do {									\
 	volatile unsigned char *pbyAddr = (unsigned char *)(dwIOAddress); \
 	*(pbyData) = readb(pbyAddr);					\
 } while (0)
-
 
 #define VNSvInPortW(dwIOAddress, pwData)				\
 do {									\
@@ -97,7 +94,6 @@ do {									\
 	writeb((unsigned char)byData, pbyAddr);				\
 } while (0)
 
-
 #define VNSvOutPortW(dwIOAddress, wData)				\
 do {									\
 	volatile unsigned short *pwAddr = ((unsigned short *)(dwIOAddress)); \
@@ -111,7 +107,6 @@ do {									\
 } while (0)
 
 #endif
-
 
 //
 // ALWAYS IO-Mapped IO when in 16-bit/32-bit environment
@@ -153,15 +148,10 @@ do {								\
 	}							\
 } while (0)
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-
-
 #endif // __UPC_H__
-

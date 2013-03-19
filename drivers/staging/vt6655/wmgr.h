@@ -45,8 +45,6 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-
-
 // Scan time
 #define PROBE_DELAY                  100  // (us)
 #define SWITCH_CHANNEL_DELAY         200 // (us)
@@ -58,7 +56,6 @@
 #define WCMD_ACTIVE_SCAN_TIME   50 //(ms)
 #define WCMD_PASSIVE_SCAN_TIME  100 //(ms)
 
-
 #define DEFAULT_MSDU_LIFETIME           512  // ms
 #define DEFAULT_MSDU_LIFETIME_RES_64us  8000 // 64us
 
@@ -66,7 +63,6 @@
 #define DEFAULT_MGN_LIFETIME_RES_64us   125  // 64us
 
 #define MAKE_BEACON_RESERVED            10  //(us)
-
 
 #define TIM_MULTICAST_MASK           0x01
 #define TIM_BITMAPOFFSET_MASK        0xFE
@@ -76,7 +72,6 @@
 
 #define DEFAULT_IBSS_CHANNEL            6  //2.4G
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -84,7 +79,6 @@
 /*---------------------  Export Types  ------------------------------*/
 #define timer_expire(timer, next_tick)   mod_timer(&timer, RUN_AT(next_tick))
 typedef void (*TimerFunction)(unsigned long);
-
 
 //+++ NDIS related
 
@@ -116,8 +110,6 @@ typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION
 	unsigned long OffsetResponseIEs;
 } NDIS_802_11_ASSOCIATION_INFORMATION, *PNDIS_802_11_ASSOCIATION_INFORMATION;
 
-
-
 typedef struct tagSAssocInfo {
 	NDIS_802_11_ASSOCIATION_INFORMATION     AssocInfo;
 	unsigned char abyIEs[WLAN_BEACON_FR_MAXLEN+WLAN_BEACON_FR_MAXLEN];
@@ -127,11 +119,8 @@ typedef struct tagSAssocInfo {
 } SAssocInfo, *PSAssocInfo;
 //---
 
-
 /*
   typedef enum tagWMAC_AUTHENTICATION_MODE {
-
-
   WMAC_AUTH_OPEN,
   WMAC_AUTH_SHAREKEY,
   WMAC_AUTH_AUTO,
@@ -142,10 +131,8 @@ typedef struct tagSAssocInfo {
   WMAC_AUTH_WPA2PSK,
   WMAC_AUTH_MAX       // Not a real mode, defined as upper bound
 
-
   } WMAC_AUTHENTICATION_MODE, *PWMAC_AUTHENTICATION_MODE;
 */
-
 
 // Pre-configured Mode (from XP)
 /*
@@ -159,23 +146,16 @@ typedef struct tagSAssocInfo {
 */
 
 typedef enum tagWMAC_SCAN_TYPE {
-
 	WMAC_SCAN_ACTIVE,
 	WMAC_SCAN_PASSIVE,
 	WMAC_SCAN_HYBRID
-
 } WMAC_SCAN_TYPE, *PWMAC_SCAN_TYPE;
 
-
 typedef enum tagWMAC_SCAN_STATE {
-
 	WMAC_NO_SCANNING,
 	WMAC_IS_SCANNING,
 	WMAC_IS_PROBEPENDING
-
 } WMAC_SCAN_STATE, *PWMAC_SCAN_STATE;
-
-
 
 // Notes:
 // Basic Service Set state explained as following:
@@ -188,7 +168,6 @@ typedef enum tagWMAC_SCAN_STATE {
 // WMAC_STATE_ASSOC         : Associated (Infra)
 
 typedef enum tagWMAC_BSS_STATE {
-
 	WMAC_STATE_IDLE,
 	WMAC_STATE_STARTED,
 	WMAC_STATE_JOINTED,
@@ -196,22 +175,18 @@ typedef enum tagWMAC_BSS_STATE {
 	WMAC_STATE_AUTH,
 	WMAC_STATE_ASSOCPENDING,
 	WMAC_STATE_ASSOC
-
 } WMAC_BSS_STATE, *PWMAC_BSS_STATE;
 
 // WMAC selected running mode
 typedef enum tagWMAC_CURRENT_MODE {
-
 	WMAC_MODE_STANDBY,
 	WMAC_MODE_ESS_STA,
 	WMAC_MODE_IBSS_STA,
 	WMAC_MODE_ESS_AP
-
 } WMAC_CURRENT_MODE, *PWMAC_CURRENT_MODE;
 
 /*
   typedef enum tagWMAC_POWER_MODE {
-
   WMAC_POWER_CAM,
   WMAC_POWER_FAST,
   WMAC_POWER_MAX
@@ -219,20 +194,15 @@ typedef enum tagWMAC_CURRENT_MODE {
   } WMAC_POWER_MODE, *PWMAC_POWER_MODE;
 */
 
-
 // Tx Management Packet descriptor
 typedef struct tagSTxMgmtPacket {
-
 	PUWLAN_80211HDR     p80211Header;
 	unsigned int cbMPDULen;
 	unsigned int cbPayloadLen;
-
 } STxMgmtPacket, *PSTxMgmtPacket;
-
 
 // Rx Management Packet descriptor
 typedef struct tagSRxMgmtPacket {
-
 	PUWLAN_80211HDR     p80211Header;
 	QWORD               qwLocalTSF;
 	unsigned int cbMPDULen;
@@ -241,14 +211,10 @@ typedef struct tagSRxMgmtPacket {
 	unsigned char bySQ;
 	unsigned char byRxRate;
 	unsigned char byRxChannel;
-
 } SRxMgmtPacket, *PSRxMgmtPacket;
-
-
 
 typedef struct tagSMgmtObject
 {
-
 	void *pAdapter;
 	// MAC address
 	unsigned char abyMACAddr[WLAN_ADDR_LEN];
@@ -257,7 +223,6 @@ typedef struct tagSMgmtObject
 	WMAC_CONFIG_MODE        eConfigMode; // MAC pre-configed mode
 	CARD_PHY_TYPE           eCurrentPHYMode;
 	CARD_PHY_TYPE           eConfigPHYMode;
-
 
 	// Operation state variables
 	WMAC_CURRENT_MODE       eCurrMode;   // MAC current connection mode
@@ -345,7 +310,6 @@ typedef struct tagSMgmtObject
 	unsigned char *pbyMgmtPacketPool;
 	unsigned char byMgmtPacketPool[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
 
-
 	// One second callback timer
 	struct timer_list	    sTimerSecondCallback;
 
@@ -355,14 +319,10 @@ typedef struct tagSMgmtObject
 	// link list of known bss's (scan results)
 	KnownBSS                sBSSList[MAX_BSS_NUM];
 
-
-
 	// table list of known node
 	// sNodeDBList[0] is reserved for AP under Infra mode
 	// sNodeDBList[0] is reserved for Multicast under adhoc/AP mode
 	KnownNodeDB             sNodeDBTable[MAX_NODE_NUM + 1];
-
-
 
 	// WPA2 PMKID Cache
 	SPMKIDCache             gsPMKIDCache;
@@ -370,11 +330,8 @@ typedef struct tagSMgmtObject
 
 	// rate fall back vars
 
-
-
 	// associate info
 	SAssocInfo              sAssocInfo;
-
 
 	// for 802.11h
 	bool b11hEnable;
@@ -389,15 +346,11 @@ typedef struct tagSMgmtObject
 	unsigned char byIBSSDFSRecovery;
 
 	struct sk_buff  skb;
-
 } SMgmtObject, *PSMgmtObject;
-
 
 /*---------------------  Export Macros ------------------------------*/
 
-
 /*---------------------  Export Functions  --------------------------*/
-
 
 void
 vMgrObjectInit(
@@ -485,7 +438,6 @@ bMgrPrepareBeaconToSend(
 	void *hDeviceContext,
 	PSMgmtObject pMgmt
 );
-
 
 bool
 bAdd_PMKID_Candidate(

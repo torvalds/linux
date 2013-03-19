@@ -120,7 +120,6 @@ static bool s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq,
 	return bResult;
 }
 
-
 static bool s_bRxTPCReq(PSMgmtObject pMgmt,
 			PWLAN_FRAME_TPCREQ pTPCReq,
 			unsigned char byRate,
@@ -195,14 +194,11 @@ static bool s_bRxTPCReq(PSMgmtObject pMgmt,
 	return true;
 /*    return CARDbSendPacket(pMgmt->pAdapter, pFrame, PKT_TYPE_802_11_MNG,
       sizeof(WLAN_FRAME_TPCREP)); */
-
 }
-
 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-
 
 /*+
  *
@@ -285,7 +281,6 @@ IEEE11hbMgrRxAction(void *pMgmtHandle, void *pRxPacket)
 	return true;
 }
 
-
 bool IEEE11hbMSRRepTx(void *pMgmtHandle)
 {
 	PSMgmtObject            pMgmt = (PSMgmtObject) pMgmtHandle;
@@ -324,6 +319,4 @@ bool IEEE11hbMSRRepTx(void *pMgmtHandle)
 	return true;
 /*    return CARDbSendPacket(pMgmt->pAdapter, pMSRRep, PKT_TYPE_802_11_MNG,
       uLength); */
-
 }
-

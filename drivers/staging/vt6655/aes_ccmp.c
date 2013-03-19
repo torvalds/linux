@@ -122,7 +122,6 @@ void xor_128(unsigned char *a, unsigned char *b, unsigned char *out)
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 }
 
-
 void xor_32(unsigned char *a, unsigned char *b, unsigned char *out)
 {
 	unsigned long *dwPtrA = (unsigned long *)a;
@@ -181,13 +180,11 @@ void ShiftRows(unsigned char *in, unsigned char *out)
 
 void MixColumns(unsigned char *in, unsigned char *out)
 {
-
 	out[0] = dot2_table[in[0]] ^ dot3_table[in[1]] ^ in[2] ^ in[3];
 	out[1] = in[0] ^ dot2_table[in[1]] ^ dot3_table[in[2]] ^ in[3];
 	out[2] = in[0] ^ in[1] ^ dot2_table[in[2]] ^ dot3_table[in[3]];
 	out[3] = dot3_table[in[0]] ^ in[1] ^ in[2] ^ dot2_table[in[3]];
 }
-
 
 void AESv128(unsigned char *key, unsigned char *data, unsigned char *ciphertext)
 {
@@ -220,7 +217,6 @@ void AESv128(unsigned char *key, unsigned char *data, unsigned char *ciphertext)
 			AddRoundKey(abyRoundKey, round);
 		}
 	}
-
 }
 
 /*
@@ -258,7 +254,6 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	unsigned char byTmp;
 	unsigned short wCnt;
 	int ii, jj, kk;
-
 
 	pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
 	if (WLAN_GET_FC_TODS(*(unsigned short *)pbyFrame) &&
@@ -330,7 +325,6 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	memcpy(&(abyCTRPLD[1]), &(abyNonce[0]), 13);
 
 	for (jj = wPayloadSize; jj > 16; jj = jj - 16) {
-
 		abyCTRPLD[14] = (unsigned char)(wCnt >> 8);
 		abyCTRPLD[15] = (unsigned char)(wCnt & 0xff);
 
@@ -392,5 +386,4 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	} else {
 		return false;
 	}
-
 }

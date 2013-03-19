@@ -51,7 +51,6 @@ const unsigned char abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
 const unsigned char abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
 const unsigned char abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
 
-
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -137,7 +136,6 @@ WPA2vParseRSN(
 	// information element header makes sense
 	if ((pRSN->byElementID == WLAN_EID_RSN) &&
 	    (pRSN->wVersion == 1)) {
-
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Legal 802.11i RSN\n");
 
 		pbyOUI = &(pRSN->abyRSN[0]);
@@ -169,7 +167,6 @@ WPA2vParseRSN(
 			pbyOUI = &(pRSN->abyRSN[6]);
 
 			for (i = 0; (i < pBSSNode->wCSSPKCount) && (j < sizeof(pBSSNode->abyCSSPK)/sizeof(unsigned char)); i++) {
-
 				if (pRSN->len >= 8+i*4+4) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*i)
 					if (!memcmp(pbyOUI, abyOUIGK, 4)) {
 						pBSSNode->abyCSSPK[j++] = WLAN_11i_CSS_USE_GROUP;
@@ -245,7 +242,6 @@ WPA2vParseRSN(
 		pBSSNode->bWPA2Valid = true;
 	}
 }
-
 
 /*+
  *

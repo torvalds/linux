@@ -48,8 +48,6 @@
 
 /*---------------------  Export Variables  --------------------------*/
 
-
-
 /*
  * Description:
  *      Scan Rx cache.  Return true if packet is duplicate, else
@@ -73,7 +71,6 @@ bool WCTLbIsDuplicate(PSCache pCache, PS802_11Header pMACHeader)
 	PSCacheEntry    pCacheEntry;
 
 	if (IS_FC_RETRY(pMACHeader)) {
-
 		uIndex = pCache->uInPtr;
 		for (ii = 0; ii < DUPLICATE_RX_CACHE_LENGTH; ii++) {
 			pCacheEntry = &(pCache->asCacheEntry[uIndex]);
@@ -123,7 +120,6 @@ unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 	return pDevice->cbDFCB;
 }
 
-
 /*
  * Description:
  *      Insert received fragment packet in Defragment Database
@@ -158,7 +154,6 @@ unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 	return pDevice->cbDFCB;
 }
 
-
 /*
  * Description:
  *      Handle received fragment packet
@@ -178,7 +173,6 @@ unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned int cbFrameLength, bool bWEP, bool bExtIV)
 {
 	unsigned int uHeaderSize;
-
 
 	if (bWEP == true) {
 		uHeaderSize = 28;
@@ -216,7 +210,6 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 			if ((pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wSequence == (pMACHeader->wSeqCtl >> 4)) &&
 			    (pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum == (pMACHeader->wSeqCtl & 0x000F)) &&
 			    ((pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength + cbFrameLength - uHeaderSize) < 2346)) {
-
 				memcpy(pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer, ((unsigned char *)(pMACHeader) + uHeaderSize), (cbFrameLength - uHeaderSize));
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength += (cbFrameLength - uHeaderSize);
 				pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += (cbFrameLength - uHeaderSize);
@@ -241,5 +234,3 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 		return false;
 	}
 }
-
-

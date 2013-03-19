@@ -44,8 +44,6 @@
 
 #define VIAWGET_WPA_MAX_BUF_SIZE 1024
 
-
-
 static const int frequency_list[] = {
 	2412, 2417, 2422, 2427, 2432, 2437, 2442,
 	2447, 2452, 2457, 2462, 2467, 2472, 2484
@@ -57,9 +55,6 @@ static const int frequency_list[] = {
 static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
-
-
-
 
 /*---------------------  Export Variables  --------------------------*/
 static void wpadev_setup(struct net_device *dev)
@@ -126,7 +121,6 @@ static int wpa_init_wpadev(PSDevice pDevice)
 	return 0;
 }
 
-
 /*
  * Description:
  *      unregister net_device (wpadev)
@@ -158,10 +152,6 @@ static int wpa_release_wpadev(PSDevice pDevice)
 	return 0;
 }
 
-
-
-
-
 /*
  * Description:
  *      Set enable/disable dev for wpa supplicant daemon
@@ -183,7 +173,6 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
 	else
 		return wpa_release_wpadev(pDevice);
 }
-
 
 /*
  * Description:
@@ -211,7 +200,6 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 	unsigned char byKeyDecMode = KEY_CTL_WEP;
 	int ret = 0;
 	int uu, ii;
-
 
 	if (param->u.wpa_key.alg_name > WPA_ALG_CCMP ||
 	    param->u.wpa_key.key_len >= MAX_KEY_LEN ||
@@ -309,7 +297,6 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 
 	if (param->u.wpa_key.set_tx)
 		dwKeyIndex |= (1 << 31);
-
 
 	if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled)
 		byKeyDecMode = KEY_CTL_CCMP;
@@ -438,9 +425,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 */
 
 	return ret;
-
 }
-
 
 /*
  * Description:
@@ -459,7 +444,6 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 static int wpa_set_wpa(PSDevice pDevice,
 		       struct viawget_wpa_param *param)
 {
-
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	int ret = 0;
 
@@ -468,9 +452,6 @@ static int wpa_set_wpa(PSDevice pDevice,
 
 	return ret;
 }
-
-
-
 
 /*
  * Description:
@@ -502,8 +483,6 @@ static int wpa_set_disassociate(PSDevice pDevice,
 	return ret;
 }
 
-
-
 /*
  * Description:
  *      enable scan process
@@ -531,8 +510,6 @@ static int wpa_set_scan(PSDevice pDevice,
 	return ret;
 }
 
-
-
 /*
  * Description:
  *      get bssid
@@ -556,9 +533,7 @@ static int wpa_get_bssid(PSDevice pDevice,
 	memcpy(param->u.wpa_associate.bssid, pMgmt->abyCurrBSSID , 6);
 
 	return ret;
-
 }
-
 
 /*
  * Description:
@@ -589,8 +564,6 @@ static int wpa_get_ssid(PSDevice pDevice,
 	return ret;
 }
 
-
-
 /*
  * Description:
  *      get scan results
@@ -620,12 +593,9 @@ static int wpa_get_scan(PSDevice pDevice,
 
 	unsigned char *ptempBSS;
 
-
-
 	ptempBSS = kmalloc(sizeof(KnownBSS), (int)GFP_ATOMIC);
 
 	if (ptempBSS == NULL) {
-
 		printk("bubble sort kmalloc memory fail@@@\n");
 
 		ret = -ENOMEM;
@@ -635,13 +605,10 @@ static int wpa_get_scan(PSDevice pDevice,
 	}
 
 	for (ii = 0; ii < MAX_BSS_NUM; ii++) {
-
 		for (jj = 0; jj < MAX_BSS_NUM - ii - 1; jj++) {
-
 			if ((pMgmt->sBSSList[jj].bActive != true) ||
 
 			    ((pMgmt->sBSSList[jj].uRSSI > pMgmt->sBSSList[jj + 1].uRSSI) && (pMgmt->sBSSList[jj + 1].bActive != false))) {
-
 				memcpy(ptempBSS, &pMgmt->sBSSList[jj], sizeof(KnownBSS));
 
 				memcpy(&pMgmt->sBSSList[jj], &pMgmt->sBSSList[jj + 1], sizeof(KnownBSS));
@@ -658,9 +625,6 @@ static int wpa_get_scan(PSDevice pDevice,
 #endif
 
 //******mike:bubble sort by stronger RSSI*****//
-
-
-
 
 	count = 0;
 	pBSS = &(pMgmt->sBSSList[0]);
@@ -721,8 +685,6 @@ static int wpa_get_scan(PSDevice pDevice,
 	return ret;
 }
 
-
-
 /*
  * Description:
  *      set associate with AP
@@ -754,7 +716,6 @@ static int wpa_set_associate(PSDevice pDevice,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "auth_alg = %d\n", param->u.wpa_associate.auth_alg);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "mode = %d\n", param->u.wpa_associate.mode);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wpa_ie_len = %d\n", param->u.wpa_associate.wpa_ie_len);
-
 
 	if (param->u.wpa_associate.wpa_ie_len) {
 		if (!param->u.wpa_associate.wpa_ie)
@@ -872,7 +833,6 @@ static int wpa_set_associate(PSDevice pDevice,
 	return ret;
 }
 
-
 /*
  * Description:
  *      wpa_ioctl main function supported for wpa supplicant
@@ -979,4 +939,3 @@ out:
 
 	return ret;
 }
-

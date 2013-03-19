@@ -67,11 +67,9 @@
 
 #define MAX_WPA_IE_LEN      64
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
-
 
 /*---------------------  Export Types  ------------------------------*/
 
@@ -88,12 +86,10 @@ typedef enum _NDIS_802_11_NETWORK_TYPE
 	Ndis802_11NetworkTypeMax    // not a real type, defined as an upper bound
 } NDIS_802_11_NETWORK_TYPE, *PNDIS_802_11_NETWORK_TYPE;
 
-
 typedef struct tagSERPObject {
 	bool bERPExist;
 	unsigned char byERP;
 } ERPObject, *PERPObject;
-
 
 typedef struct tagSRSNCapObject {
 	bool bRSNCapExist;
@@ -162,7 +158,6 @@ typedef struct tagKnownBSS {
 	ERPObject       sERP;
 	SRSNCapObject   sRSNCapObj;
 	unsigned char abyIEs[1024];   // don't move this field !!
-
 } __attribute__ ((__packed__))
 KnownBSS , *PKnownBSS;
 
@@ -176,7 +171,6 @@ typedef enum tagNODE_STATE {
 	NODE_AUTH,
 	NODE_ASSOC
 } NODE_STATE, *PNODE_STATE;
-
 
 // STA node info
 typedef struct tagKnownNodeDB {
@@ -234,13 +228,9 @@ typedef struct tagKnownNodeDB {
 	unsigned int	uTxOk[MAX_RATE+1];
 	unsigned int	uTxFail[MAX_RATE+1];
 	unsigned int	uTimeCount;
-
 } KnownNodeDB, *PKnownNodeDB;
 
-
 /*---------------------  Export Functions  --------------------------*/
-
-
 
 PKnownBSS
 BSSpSearchBSSList(
@@ -284,7 +274,6 @@ BSSbInsertToBSSList(
 	void *pRxPacketContext
 );
 
-
 bool
 BSSbUpdateToBSSList(
 	void *hDeviceContext,
@@ -307,7 +296,6 @@ BSSbUpdateToBSSList(
 	void *pRxPacketContext
 );
 
-
 bool
 BSSDBbIsSTAInNodeDB(void *hDeviceContext, unsigned char *abyDstAddr,
 		    unsigned int *puNodeIndex);
@@ -323,12 +311,10 @@ BSSvUpdateAPNode(
 	PWLAN_IE_SUPP_RATES pExtSuppRates
 );
 
-
 void
 BSSvSecondCallBack(
 	void *hDeviceContext
 );
-
 
 void
 BSSvUpdateNodeTxCounter(
@@ -349,7 +335,6 @@ void
 BSSvAddMulticastNode(
 	void *hDeviceContext
 );
-
 
 void
 BSSvClearNodeDBTable(

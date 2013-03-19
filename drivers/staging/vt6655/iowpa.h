@@ -31,9 +31,7 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-
 #define WPA_IE_LEN 64
-
 
 //WPA related
 /*
@@ -57,7 +55,6 @@ enum {
 	VIAWGET_SET_DISASSOCIATE = 10
 };
 
-
 enum {
 	VIAWGET_ASSOC_MSG = 1,
 	VIAWGET_DISASSOC_MSG = 2,
@@ -67,16 +64,12 @@ enum {
 	VIAWGET_DEVICECLOSE_MSG = 6
 };
 
-
-
 #pragma pack(1)
 typedef struct viawget_wpa_header {
 	u8 type;
 	u16 req_ie_len;
 	u16 resp_ie_len;
 } viawget_wpa_header;
-
-
 
 struct viawget_wpa_param {
 	u32 cmd;
@@ -122,7 +115,6 @@ struct viawget_wpa_param {
 		} scan_results;
 
 	} u;
-
 };
 
 #pragma pack(1)
@@ -148,12 +140,8 @@ struct viawget_scan_result {
 
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Types  ------------------------------*/
 
-
 /*---------------------  Export Functions  --------------------------*/
-
-
 
 #endif //__IOWPA_H__

@@ -52,7 +52,6 @@ const unsigned char abyOUI03[4] = { 0x00, 0x50, 0xf2, 0x03 };
 const unsigned char abyOUI04[4] = { 0x00, 0x50, 0xf2, 0x04 };
 const unsigned char abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
 
-
 /*+
  *
  * Description:
@@ -88,7 +87,6 @@ WPA_ClearRSN(
 	pBSSList->bWPAValid = false;
 }
 
-
 /*+
  *
  * Description:
@@ -122,7 +120,6 @@ WPA_ParseRSN(
 	if ((pRSN->len >= 6) // oui1(4)+ver(2)
 	    && (pRSN->byElementID == WLAN_EID_RSN_WPA) && !memcmp(pRSN->abyOUI, abyOUI01, 4)
 	    && (pRSN->wVersion == 1)) {
-
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Legal RSN\n");
 		// update each variable if pRSN is long enough to contain the variable
 		if (pRSN->len >= 10) //oui1(4)+ver(2)+GKSuite(4)
@@ -198,7 +195,6 @@ WPA_ParseRSN(
 		}
 
 		if (pIE_RSN_Auth != NULL) {
-
 			n = pIE_RSN_Auth->wAuthCount;
 
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "n: %d\n", n);
@@ -306,4 +302,3 @@ WPAb_Is_RSN(
 	} else
 		return false;
 }
-

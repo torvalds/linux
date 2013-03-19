@@ -69,14 +69,12 @@
 //}}
 #define EEP_OFS_OFDMA_PWR_dBm       0xD2
 
-
 //----------need to remove --------------------
 #define EEP_OFS_BBTAB_LEN   0x70        // BB Table Length
 #define EEP_OFS_BBTAB_ADR   0x71        // BB Table Offset
 #define EEP_OFS_CHECKSUM    0xFF        // reserved area for baseband 28h ~ 78h
 
 #define EEP_I2C_DEV_ID      0x50        // EEPROM device address on the I2C bus
-
 
 //
 // Bits in EEP_OFS_ANTENNA

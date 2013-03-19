@@ -68,7 +68,6 @@
 #define CB_MAXIM2829_CHANNEL_5G_HIGH    41 //Index41: channel = 100, Tf = 5500MHz, set the (A3:A0=0101) D6=1
 #define CB_UW2452_CHANNEL_5G_HIGH       41 //[20041210] Index41: channel = 100, Tf = 5500MHz, change VCO2->VCO3
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -100,6 +99,3 @@ bool RFbAL7230SelectChannelPostProcess(unsigned long dwIoBase, unsigned char byO
 //}} RobertYu
 
 #endif // __RF_H__
-
-
-

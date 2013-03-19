@@ -37,7 +37,6 @@
 //typedef uint16_t u16;
 //typedef uint8_t u8;
 
-
 // ioctl Command code
 #define MAGIC_CODE	                 0x3142
 #define IOCTL_CMD_TEST	            (SIOCDEVPRIVATE + 0)
@@ -45,9 +44,7 @@
 #define IOCTL_CMD_HOSTAPD           (SIOCDEVPRIVATE + 2)
 #define IOCTL_CMD_WPA               (SIOCDEVPRIVATE + 3)
 
-
 typedef enum tagWMAC_CMD {
-
 	WLAN_CMD_BSS_SCAN,
 	WLAN_CMD_BSS_JOIN,
 	WLAN_CMD_DISASSOC,
@@ -68,7 +65,6 @@ typedef enum tagWMAC_CMD {
 	WLAN_CMD_GET_NODE_CNT,
 	WLAN_CMD_ZONETYPE_SET,
 	WLAN_CMD_GET_NODE_LIST
-
 } WMAC_CMD, *PWMAC_CMD;
 
 typedef enum tagWZONETYPE {
@@ -84,7 +80,6 @@ typedef enum tagWZONETYPE {
 
 #define ADHOC_STARTED	   1
 #define ADHOC_JOINTED	   2
-
 
 #define PHY80211a       0
 #define PHY80211b       1
@@ -115,25 +110,20 @@ typedef struct tagSCmdRequest {
 //
 
 typedef struct tagSCmdScan {
-
 	u8 ssid[SSID_MAXLEN + 2];
-
 } SCmdScan, *PSCmdScan;
-
 
 //
 // BSS Join
 //
 
 typedef struct tagSCmdBSSJoin {
-
 	u16	    wBSSType;
 	u16     wBBPType;
 	u8	    ssid[SSID_MAXLEN + 2];
 	u32	    uChannel;
 	bool bPSEnable;
 	bool bShareKeyAuth;
-
 } SCmdBSSJoin, *PSCmdBSSJoin;
 
 //
@@ -141,10 +131,8 @@ typedef struct tagSCmdBSSJoin {
 //
 
 typedef struct tagSCmdZoneTypeSet {
-
 	bool bWrite;
 	WZONETYPE  ZoneType;
-
 } SCmdZoneTypeSet, *PSCmdZoneTypeSet;
 
 #ifdef WPA_SM_Transtatus
@@ -158,7 +146,6 @@ typedef struct tagSWPAResult {
 #endif
 
 typedef struct tagSCmdStartAP {
-
 	u16	    wBSSType;
 	u16     wBBPType;
 	u8	    ssid[SSID_MAXLEN + 2];
@@ -166,24 +153,17 @@ typedef struct tagSCmdStartAP {
 	u32     uBeaconInt;
 	bool bShareKeyAuth;
 	u8      byBasicRate;
-
 } SCmdStartAP, *PSCmdStartAP;
 
-
 typedef struct tagSCmdSetWEP {
-
 	bool bEnableWep;
 	u8      byKeyIndex;
 	u8      abyWepKey[WEP_NKEYS][WEP_KEYMAXLEN];
 	bool bWepKeyAvailable[WEP_NKEYS];
 	u32     auWepKeyLength[WEP_NKEYS];
-
 } SCmdSetWEP, *PSCmdSetWEP;
 
-
-
 typedef struct tagSBSSIDItem {
-
 	u32	    uChannel;
 	u8      abyBSSID[BSSID_LEN];
 	u8      abySSID[SSID_MAXLEN + 1];
@@ -197,19 +177,14 @@ typedef struct tagSBSSIDItem {
 
 	bool bWEPOn;
 	u32     uRSSI;
-
 } SBSSIDItem;
 
-
 typedef struct tagSBSSIDList {
-
 	u32		    uItem;
 	SBSSIDItem	sBSSIDList[0];
 } SBSSIDList, *PSBSSIDList;
 
-
 typedef struct tagSCmdLinkStatus {
-
 	bool bLink;
 	u16   wBSSType;
 	u8      byState;
@@ -217,7 +192,6 @@ typedef struct tagSCmdLinkStatus {
 	u8      abySSID[SSID_MAXLEN + 2];
 	u32     uChannel;
 	u32     uLinkRate;
-
 } SCmdLinkStatus, *PSCmdLinkStatus;
 
 //
@@ -237,8 +211,6 @@ typedef struct tagSDot11MIBCount {
 	u32 MulticastReceivedFrameCount;
 	u32 FCSErrorCount;
 } SDot11MIBCount, *PSDot11MIBCount;
-
-
 
 //
 // statistic counter
@@ -345,7 +317,6 @@ typedef struct tagSStatMIBCount {
 	u32   ullTxDirectedBytes[2];
 } SStatMIBCount, *PSStatMIBCount;
 
-
 typedef struct tagSNodeItem {
 	// STA info
 	u16            wAID;
@@ -363,30 +334,20 @@ typedef struct tagSNodeItem {
 	u32            uTxFailures;
 	u32            uTxAttempts;
 	u16            wFailureRatio;
-
 } SNodeItem;
 
-
 typedef struct tagSNodeList {
-
 	u32		    uItem;
 	SNodeItem	sNodeList[0];
-
 } SNodeList, *PSNodeList;
 
-
-
 typedef struct tagSCmdValue {
-
 	u32 dwValue;
-
 } SCmdValue,  *PSCmdValue;
-
 
 //
 // hostapd & viawget ioctl related
 //
-
 
 // VIAGWET_IOCTL_HOSTAPD ioctl() cmd:
 enum {
@@ -404,13 +365,10 @@ enum {
 	VIAWGET_HOSTAPD_STA_CLEAR_STATS = 12,
 };
 
-
 #define VIAWGET_HOSTAPD_GENERIC_ELEMENT_HDR_LEN				\
 	((int)(&((struct viawget_hostapd_param *)0)->u.generic_elem.data))
 
 // Maximum length for algorithm names (-1 for nul termination) used in ioctl()
-
-
 
 struct viawget_hostapd_param {
 	u32 cmd;
@@ -464,12 +422,8 @@ struct viawget_hostapd_param {
 
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Types  ------------------------------*/
 
-
 /*---------------------  Export Functions  --------------------------*/
-
-
 
 #endif //__IOCMD_H__

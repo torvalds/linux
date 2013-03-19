@@ -71,7 +71,6 @@ s_vCheckKeyTableValid(PSKeyManagement pTable, unsigned long dwIoBase)
 		    (pTable->KeyTable[i].GroupKey[2].bKeyValid == false) &&
 		    (pTable->KeyTable[i].GroupKey[3].bKeyValid == false)
 ) {
-
 			pTable->KeyTable[i].bInUse = false;
 			pTable->KeyTable[i].wKeyCtl = 0;
 			pTable->KeyTable[i].bSoftWEP = false;
@@ -80,9 +79,7 @@ s_vCheckKeyTableValid(PSKeyManagement pTable, unsigned long dwIoBase)
 	}
 }
 
-
 /*---------------------  Export Functions  --------------------------*/
-
 
 /*
  * Description: Init Key management table
@@ -115,7 +112,6 @@ void KeyvInitTable(PSKeyManagement pTable, unsigned long dwIoBase)
 		MACvDisableKeyEntry(dwIoBase, i);
 	}
 }
-
 
 /*
  * Description: Get Key from table
@@ -167,7 +163,6 @@ bool KeybGetKey(
 	}
 	return false;
 }
-
 
 /*
  * Description: Set Key to table
@@ -342,7 +337,6 @@ bool KeybSetKey(
 	return false;
 }
 
-
 /*
  * Description: Remove Key from table
  *
@@ -412,7 +406,6 @@ bool KeybRemoveKey(
 	return false;
 }
 
-
 /*
  * Description: Remove Key from table
  *
@@ -467,7 +460,6 @@ void KeyvRemoveWEPKey(
 	unsigned long dwIoBase
 )
 {
-
 	if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
 		if (pTable->KeyTable[MAX_KEY_TABLE-1].bInUse == true) {
 			if (pTable->KeyTable[MAX_KEY_TABLE-1].GroupKey[dwKeyIndex & 0x000000FF].byCipherSuite == KEY_CTL_WEP) {
@@ -521,9 +513,7 @@ bool KeybGetTransmitKey(
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
 		if ((pTable->KeyTable[i].bInUse == true) &&
 		    !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
-
 			if (dwKeyType == PAIRWISE_KEY) {
-
 				if (pTable->KeyTable[i].PairwiseKey.bKeyValid == true) {
 					*pKey = &(pTable->KeyTable[i].PairwiseKey);
 
@@ -533,7 +523,6 @@ bool KeybGetTransmitKey(
 						DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%x ", pTable->KeyTable[i].abyBSSID[ii]);
 					}
 					DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
-
 
 					return true;
 				} else {
@@ -572,7 +561,6 @@ bool KeybGetTransmitKey(
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "\n");
 	return false;
 }
-
 
 /*
  * Description: Check Pairewise Key
@@ -637,7 +625,6 @@ bool KeybSetDefaultKey(
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetDefaultKey: %1x, %d \n", (int)dwKeyIndex, (int)uKeyLength);
 
-
 	if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
 		return false;
 	} else if ((dwKeyIndex & 0x000000FF) >= MAX_GROUP_KEY) {
@@ -696,7 +683,6 @@ bool KeybSetDefaultKey(
 	pKey->dwTSC47_16 = 0;
 	pKey->wTSC15_0 = 0;
 
-
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R): \n");
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n", pKey->bKeyValid);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n", (int)pKey->uKeyLength);
@@ -712,7 +698,6 @@ bool KeybSetDefaultKey(
 
 	return true;
 }
-
 
 /*
  * Description: Set Key to table
@@ -747,7 +732,6 @@ bool KeybSetAllGroupKey(
 	unsigned int uKeyIdx;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
-
 
 	if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
 		return false;

@@ -70,17 +70,12 @@ struct _version {
 //Max: 2378=2312Payload + 30HD +4CRC + 2Padding + 4Len + 8TSF + 4RSR
 #define PKT_BUF_SZ          2390
 
-
 #define MAX_UINTS           8
 #define OPTION_DEFAULT      { [0 ... MAX_UINTS-1] = -1}
-
-
 
 typedef enum  _chip_type {
 	VT3253 = 1
 } CHIP_TYPE, *PCHIP_TYPE;
-
-
 
 #ifdef VIAWET_DEBUG
 #define ASSERT(x)							\
@@ -96,6 +91,5 @@ do {									\
 #define ASSERT(x)
 #define DBG_PORT80(value)
 #endif
-
 
 #endif

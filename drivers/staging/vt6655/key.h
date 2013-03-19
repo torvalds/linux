@@ -40,7 +40,6 @@
 #define MAX_KEY_LEN         32
 #define AES_KEY_LEN         16
 
-
 #define AUTHENTICATOR_KEY   0x10000000
 #define USE_KEYRSC          0x20000000
 #define PAIRWISE_KEY        0x40000000
@@ -53,7 +52,6 @@
 #define KEY_CTL_TKIP        0x02
 #define KEY_CTL_CCMP        0x03
 #define KEY_CTL_INVALID     0xFF
-
 
 typedef struct tagSKeyItem
 {
@@ -181,4 +179,3 @@ bool KeybSetAllGroupKey(
 );
 
 #endif // __KEY_H__
-

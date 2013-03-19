@@ -33,7 +33,6 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -52,6 +51,3 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq);
 */
 
 #endif // __IOCTL_H__
-
-
-

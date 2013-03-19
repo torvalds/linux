@@ -41,18 +41,13 @@
 #define RETRY_TIMES_THRD_H         2    // times
 #define RETRY_TIMES_THRD_L         1    // times
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Types  ------------------------------*/
 
-
 /*---------------------  Export Functions  --------------------------*/
-
-
 
 void
 RATEvParseMaxRate(
@@ -85,11 +80,9 @@ wGetRateIdx(
 	unsigned char byRate
 );
 
-
 unsigned char
 DATARATEbyGetRateIdx(
 	unsigned char byRate
 );
-
 
 #endif //__DATARATE_H__

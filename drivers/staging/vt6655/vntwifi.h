@@ -64,7 +64,6 @@
 
 // Pre-configured Authenticaiton Mode (from XP)
 typedef enum tagWMAC_AUTHENTICATION_MODE {
-
 	WMAC_AUTH_OPEN,
 	WMAC_AUTH_SHAREKEY,
 	WMAC_AUTH_AUTO,
@@ -74,11 +73,9 @@ typedef enum tagWMAC_AUTHENTICATION_MODE {
 	WMAC_AUTH_WPA2,
 	WMAC_AUTH_WPA2PSK,
 	WMAC_AUTH_MAX       // Not a real mode, defined as upper bound
-
 } WMAC_AUTHENTICATION_MODE, *PWMAC_AUTHENTICATION_MODE;
 
 typedef enum tagWMAC_ENCRYPTION_MODE {
-
 	WMAC_ENCRYPTION_WEPEnabled,
 	WMAC_ENCRYPTION_WEPDisabled,
 	WMAC_ENCRYPTION_WEPKeyAbsent,
@@ -87,28 +84,21 @@ typedef enum tagWMAC_ENCRYPTION_MODE {
 	WMAC_ENCRYPTION_TKIPKeyAbsent,
 	WMAC_ENCRYPTION_AESEnabled,
 	WMAC_ENCRYPTION_AESKeyAbsent
-
 } WMAC_ENCRYPTION_MODE, *PWMAC_ENCRYPTION_MODE;
 
 // Pre-configured Mode (from XP)
 
 typedef enum tagWMAC_CONFIG_MODE {
-
 	WMAC_CONFIG_ESS_STA = 0,
 	WMAC_CONFIG_IBSS_STA,
 	WMAC_CONFIG_AUTO,
 	WMAC_CONFIG_AP
-
 } WMAC_CONFIG_MODE, *PWMAC_CONFIG_MODE;
 
-
-
 typedef enum tagWMAC_POWER_MODE {
-
 	WMAC_POWER_CAM,
 	WMAC_POWER_FAST,
 	WMAC_POWER_MAX
-
 } WMAC_POWER_MODE, *PWMAC_POWER_MODE;
 
 #define VNTWIFIbIsShortSlotTime(wCapInfo)               \
@@ -129,14 +119,11 @@ typedef enum tagWMAC_POWER_MODE {
 #define VNTWIFIbIsESS(wCapInfo)			\
 	WLAN_GET_CAP_INFO_ESS(wCapInfo)		\
 
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Types  ------------------------------*/
-
 
 /*---------------------  Export Functions  --------------------------*/
 
@@ -194,7 +181,6 @@ VNTWIFIvSetEncryptionMode(
 	WMAC_ENCRYPTION_MODE eEncryptionMode
 );
 
-
 bool
 VNTWIFIbConfigPhyMode(
 	void *pMgmtHandle,
@@ -218,8 +204,6 @@ VNTWIFIvGetNextBSS(
 	void **pvNextBSS
 );
 
-
-
 void
 VNTWIFIvUpdateNodeTxCounter(
 	void *pMgmtHandle,
@@ -228,7 +212,6 @@ VNTWIFIvUpdateNodeTxCounter(
 	unsigned short wRate,
 	unsigned char *pbyTxFailCount
 );
-
 
 void
 VNTWIFIvGetTxRate(
@@ -252,9 +235,6 @@ VNTWIFIbyGetKeyCypher(
 	void *pMgmtHandle,
 	bool bGroupKey
 );
-
-
-
 
 bool
 VNTWIFIbSetPMKIDCache(
