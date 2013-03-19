@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/tick.h>
 #include <linux/vexpress.h>
-#include <asm/bL_entry.h>
+#include <asm/mcpm.h>
 #include <asm/cpuidle.h>
 #include <asm/cputype.h>
 #include <asm/idmap.h>
@@ -88,8 +88,8 @@ static int notrace bl_powerdown_finisher(unsigned long arg)
 	unsigned int cluster = (mpidr >> 8) & 0xf;
 	unsigned int cpu = mpidr & 0xf;
 
-	bL_set_entry_vector(cpu, cluster, cpu_resume);
-	bL_cpu_suspend(0);  /* 0 should be replaced with better value here */
+	mcpm_set_entry_vector(cpu, cluster, cpu_resume);
+	mcpm_cpu_suspend(0);  /* 0 should be replaced with better value here */
 	return 1;
 }
 
@@ -121,7 +121,7 @@ static int bl_enter_powerdown(struct cpuidle_device *dev,
 	if (ret)
 		BUG();
 
-	bL_cpu_powered_up();
+	mcpm_cpu_powered_up();
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
 
