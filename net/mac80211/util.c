@@ -2056,7 +2056,7 @@ int ieee80211_ave_rssi(struct ieee80211_vif *vif)
 		/* non-managed type inferfaces */
 		return 0;
 	}
-	return ifmgd->ave_beacon_signal;
+	return ifmgd->ave_beacon_signal / 16;
 }
 EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);
 
