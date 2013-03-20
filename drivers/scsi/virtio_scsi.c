@@ -222,8 +222,8 @@ static int virtscsi_kick_event(struct virtio_scsi *vscsi,
 
 	spin_lock_irqsave(&vscsi->event_vq.vq_lock, flags);
 
-	err = virtqueue_add_buf(vscsi->event_vq.vq, &sg, 0, 1, event_node,
-				GFP_ATOMIC);
+	err = virtqueue_add_inbuf(vscsi->event_vq.vq, &sg, 1, event_node,
+				  GFP_ATOMIC);
 	if (!err)
 		virtqueue_kick(vscsi->event_vq.vq);
 
