@@ -537,7 +537,7 @@ static struct hv_dynmem_device dm_device;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 
-void hv_bring_pgs_online(unsigned long start_pfn, unsigned long size)
+static void hv_bring_pgs_online(unsigned long start_pfn, unsigned long size)
 {
 	int i;
 
@@ -876,7 +876,7 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 	}
 }
 
-unsigned long compute_balloon_floor(void)
+static unsigned long compute_balloon_floor(void)
 {
 	unsigned long min_pages;
 #define MB2PAGES(mb) ((mb) << (20 - PAGE_SHIFT))
