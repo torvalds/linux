@@ -90,8 +90,7 @@ static inline void update_tty_status(struct ser_device *ser)
 		ser->tty->stopped << 5 |
 		ser->tty->flow_stopped << 3 |
 		ser->tty->packet << 2 |
-		ser->tty->port->low_latency << 1 |
-		ser->tty->warned;
+		ser->tty->port->low_latency << 1;
 }
 static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
 {
