@@ -2010,7 +2010,7 @@ static int bnx2x_init_hw(struct bnx2x *bp, u32 load_code)
  * Cleans the object that have internal lists without sending
  * ramrods. Should be run when interrutps are disabled.
  */
-static void bnx2x_squeeze_objects(struct bnx2x *bp)
+void bnx2x_squeeze_objects(struct bnx2x *bp)
 {
 	int rc;
 	unsigned long ramrod_flags = 0, vlan_mac_flags = 0;
@@ -2775,7 +2775,7 @@ load_error0:
 #endif /* ! BNX2X_STOP_ON_ERROR */
 }
 
-static int bnx2x_drain_tx_queues(struct bnx2x *bp)
+int bnx2x_drain_tx_queues(struct bnx2x *bp)
 {
 	u8 rc = 0, cos, i;
 
