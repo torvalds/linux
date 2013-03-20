@@ -91,7 +91,6 @@ struct cpuinfo_x86 {
 	/* Problems on some 486Dx4's and old 386's: */
 	char			hard_math;
 	char			rfu;
-	char			coma_bug;
 	char			pad0;
 #else
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
