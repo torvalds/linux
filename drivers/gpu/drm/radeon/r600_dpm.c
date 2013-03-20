@@ -769,6 +769,14 @@ static int r600_parse_clk_voltage_dep_table(struct radeon_clock_voltage_dependen
 	return 0;
 }
 
+/* sizeof(ATOM_PPLIB_EXTENDEDHEADER) */
+#define SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V2 12
+#define SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V3 14
+#define SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V4 16
+#define SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V5 18
+#define SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V6 20
+#define SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V7 22
+
 int r600_parse_extended_power_table(struct radeon_device *rdev)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
@@ -925,6 +933,43 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 		}
 	}
 
+	/* ppm table */
+	if (le16_to_cpu(power_info->pplib.usTableSize) >=
+	    sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE3)) {
+		ATOM_PPLIB_EXTENDEDHEADER *ext_hdr = (ATOM_PPLIB_EXTENDEDHEADER *)
+			(mode_info->atom_context->bios + data_offset +
+			 le16_to_cpu(power_info->pplib3.usExtendendedHeaderOffset));
+		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V5) &&
+		    ext_hdr->usPPMTableOffset) {
+			ATOM_PPLIB_PPM_Table *ppm = (ATOM_PPLIB_PPM_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(ext_hdr->usPPMTableOffset));
+			rdev->pm.dpm.dyn_state.ppm_table =
+				kzalloc(sizeof(struct radeon_ppm_table), GFP_KERNEL);
+			if (!rdev->pm.dpm.dyn_state.ppm_table)
+				return -ENOMEM;
+			rdev->pm.dpm.dyn_state.ppm_table->ppm_design = ppm->ucPpmDesign;
+			rdev->pm.dpm.dyn_state.ppm_table->cpu_core_number =
+				le16_to_cpu(ppm->usCpuCoreNumber);
+			rdev->pm.dpm.dyn_state.ppm_table->platform_tdp =
+				le32_to_cpu(ppm->ulPlatformTDP);
+			rdev->pm.dpm.dyn_state.ppm_table->small_ac_platform_tdp =
+				le32_to_cpu(ppm->ulSmallACPlatformTDP);
+			rdev->pm.dpm.dyn_state.ppm_table->platform_tdc =
+				le32_to_cpu(ppm->ulPlatformTDC);
+			rdev->pm.dpm.dyn_state.ppm_table->small_ac_platform_tdc =
+				le32_to_cpu(ppm->ulSmallACPlatformTDC);
+			rdev->pm.dpm.dyn_state.ppm_table->apu_tdp =
+				le32_to_cpu(ppm->ulApuTDP);
+			rdev->pm.dpm.dyn_state.ppm_table->dgpu_tdp =
+				le32_to_cpu(ppm->ulDGpuTDP);
+			rdev->pm.dpm.dyn_state.ppm_table->dgpu_ulv_power =
+				le32_to_cpu(ppm->ulDGpuUlvPower);
+			rdev->pm.dpm.dyn_state.ppm_table->tj_max =
+				le32_to_cpu(ppm->ulTjmax);
+		}
+	}
+
 	return 0;
 }
 
@@ -940,4 +985,6 @@ void r600_free_extended_power_table(struct radeon_device *rdev)
 		kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
 	if (rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries)
 		kfree(rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries);
+	if (rdev->pm.dpm.dyn_state.ppm_table)
+		kfree(rdev->pm.dpm.dyn_state.ppm_table);
 }
