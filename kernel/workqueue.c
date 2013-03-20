@@ -3598,6 +3598,12 @@ static void pwq_adjust_max_active(struct pool_workqueue *pwq)
 		while (!list_empty(&pwq->delayed_works) &&
 		       pwq->nr_active < pwq->max_active)
 			pwq_activate_first_delayed(pwq);
+
+		/*
+		 * Need to kick a worker after thawed or an unbound wq's
+		 * max_active is bumped.  It's a slow path.  Do it always.
+		 */
+		wake_up_worker(pwq->pool);
 	} else {
 		pwq->max_active = 0;
 	}
@@ -4400,13 +4406,6 @@ void thaw_workqueues(void)
 			pwq_adjust_max_active(pwq);
 	}
 	spin_unlock_irq(&pwq_lock);
-
-	/* kick workers */
-	for_each_pool(pool, pi) {
-		spin_lock_irq(&pool->lock);
-		wake_up_worker(pool);
-		spin_unlock_irq(&pool->lock);
-	}
 
 	workqueue_freezing = false;
 out_unlock:
