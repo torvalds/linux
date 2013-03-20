@@ -63,6 +63,9 @@ struct omap_mcpdm {
 
 	/* McPDM dn offsets for rx1, and 2 channels */
 	u32 dn_rx_offset;
+
+	/* McPDM needs to be restarted due to runtime reconfiguration */
+	bool restart;
 };
 
 /*
@@ -149,7 +152,7 @@ static void omap_mcpdm_start(struct omap_mcpdm *mcpdm)
 static void omap_mcpdm_stop(struct omap_mcpdm *mcpdm)
 {
 	u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
-	u32 link_mask = mcpdm->config[0].link_mask | mcpdm->config[1].link_mask;
+	u32 link_mask = MCPDM_PDM_DN_MASK | MCPDM_PDM_UP_MASK;
 
 	ctrl |= (MCPDM_SW_DN_RST | MCPDM_SW_UP_RST);
 	omap_mcpdm_write(mcpdm, MCPDM_REG_CTRL, ctrl);
@@ -287,6 +290,8 @@ static void omap_mcpdm_dai_shutdown(struct snd_pcm_substream *substream,
 		if (omap_mcpdm_active(mcpdm)) {
 			omap_mcpdm_stop(mcpdm);
 			omap_mcpdm_close_streams(mcpdm);
+			mcpdm->config[0].link_mask = 0;
+			mcpdm->config[1].link_mask = 0;
 		}
 	}
 
@@ -334,11 +339,26 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 	/* Configure McPDM channels, and DMA packet size */
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		link_mask <<= 3;
+
+		/* If capture is not running assume a stereo stream to come */
+		if (!mcpdm->config[!stream].link_mask)
+			mcpdm->config[!stream].link_mask = 0x3;
+
 		dma_data->packet_size =
 				(MCPDM_DN_THRES_MAX - threshold) * channels;
 	} else {
+		/* If playback is not running assume a stereo stream to come */
+		if (!mcpdm->config[!stream].link_mask)
+			mcpdm->config[!stream].link_mask = (0x3 << 3);
+
 		dma_data->packet_size = threshold * channels;
 	}
+
+	/* Check if we need to restart McPDM with this stream */
+	if (mcpdm->config[stream].link_mask &&
+	    mcpdm->config[stream].link_mask != link_mask)
+		mcpdm->restart = true;
+
 	mcpdm->config[stream].link_mask = link_mask;
 
 	return 0;
@@ -351,6 +371,11 @@ static int omap_mcpdm_prepare(struct snd_pcm_substream *substream,
 
 	if (!omap_mcpdm_active(mcpdm)) {
 		omap_mcpdm_start(mcpdm);
+		omap_mcpdm_reg_dump(mcpdm);
+	} else if (mcpdm->restart) {
+		omap_mcpdm_stop(mcpdm);
+		omap_mcpdm_start(mcpdm);
+		mcpdm->restart = false;
 		omap_mcpdm_reg_dump(mcpdm);
 	}
 
