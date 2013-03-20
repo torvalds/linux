@@ -12,6 +12,7 @@ help:
 	@echo '  turbostat  - Intel CPU idle stats and freq reporting tool'
 	@echo '  usb        - USB testing tools'
 	@echo '  virtio     - vhost test module'
+	@echo '  net        - misc networking tools'
 	@echo '  vm         - misc vm tools'
 	@echo '  x86_energy_perf_policy - Intel energy policy tool'
 	@echo ''
@@ -34,7 +35,7 @@ help:
 cpupower: FORCE
 	$(call descend,power/$@)
 
-cgroup firewire lguest perf usb virtio vm: FORCE
+cgroup firewire lguest perf usb virtio vm net: FORCE
 	$(call descend,$@)
 
 selftests: FORCE
@@ -46,7 +47,7 @@ turbostat x86_energy_perf_policy: FORCE
 cpupower_install:
 	$(call descend,power/$(@:_install=),install)
 
-cgroup_install firewire_install lguest_install perf_install usb_install virtio_install vm_install:
+cgroup_install firewire_install lguest_install perf_install usb_install virtio_install vm_install net_install:
 	$(call descend,$(@:_install=),install)
 
 selftests_install:
@@ -57,12 +58,12 @@ turbostat_install x86_energy_perf_policy_install:
 
 install: cgroup_install cpupower_install firewire_install lguest_install \
 		perf_install selftests_install turbostat_install usb_install \
-		virtio_install vm_install x86_energy_perf_policy_install
+		virtio_install vm_install net_install x86_energy_perf_policy_install
 
 cpupower_clean:
 	$(call descend,power/cpupower,clean)
 
-cgroup_clean firewire_clean lguest_clean perf_clean usb_clean virtio_clean vm_clean:
+cgroup_clean firewire_clean lguest_clean perf_clean usb_clean virtio_clean vm_clean net_clean:
 	$(call descend,$(@:_clean=),clean)
 
 selftests_clean:
@@ -73,6 +74,6 @@ turbostat_clean x86_energy_perf_policy_clean:
 
 clean: cgroup_clean cpupower_clean firewire_clean lguest_clean perf_clean \
 		selftests_clean turbostat_clean usb_clean virtio_clean \
-		vm_clean x86_energy_perf_policy_clean
+		vm_clean net_clean x86_energy_perf_policy_clean
 
 .PHONY: FORCE
