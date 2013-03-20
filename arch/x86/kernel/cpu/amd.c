@@ -513,6 +513,8 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 #endif
 }
 
+static const int amd_erratum_383[];
+
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	u32 dummy;
@@ -727,6 +729,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		rdmsrl_safe(MSR_AMD64_BU_CFG2, &value);
 		value &= ~(1ULL << 24);
 		wrmsrl_safe(MSR_AMD64_BU_CFG2, value);
+
+		if (cpu_has_amd_erratum(amd_erratum_383))
+			set_cpu_bug(c, X86_BUG_AMD_TLB_MMATCH);
 	}
 
 	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
@@ -863,9 +868,8 @@ const int amd_erratum_400[] =
 			    AMD_MODEL_RANGE(0x10, 0x2, 0x1, 0xff, 0xf));
 EXPORT_SYMBOL_GPL(amd_erratum_400);
 
-const int amd_erratum_383[] =
+static const int amd_erratum_383[] =
 	AMD_OSVW_ERRATUM(3, AMD_MODEL_RANGE(0x10, 0, 0, 0xff, 0xf));
-EXPORT_SYMBOL_GPL(amd_erratum_383);
 
 bool cpu_has_amd_erratum(const int *erratum)
 {
