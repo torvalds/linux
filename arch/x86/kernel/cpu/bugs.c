@@ -59,7 +59,7 @@ static void __init check_fpu(void)
 	 * trap_init() enabled FXSR and company _before_ testing for FP
 	 * problems here.
 	 *
-	 * Test for the divl bug..
+	 * Test for the divl bug: http://en.wikipedia.org/wiki/Fdiv_bug
 	 */
 	__asm__("fninit\n\t"
 		"fldl %1\n\t"
@@ -75,9 +75,10 @@ static void __init check_fpu(void)
 
 	kernel_fpu_end();
 
-	boot_cpu_data.fdiv_bug = fdiv_bug;
-	if (boot_cpu_data.fdiv_bug)
+	if (fdiv_bug) {
+		set_cpu_bug(&boot_cpu_data, X86_BUG_FDIV);
 		pr_warn("Hmm, FPU with FDIV bug\n");
+	}
 }
 
 /*

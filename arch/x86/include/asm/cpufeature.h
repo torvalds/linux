@@ -223,6 +223,7 @@
 #define X86_BUG(x)		(NCAPINTS*32 + (x))
 
 #define X86_BUG_F00F		X86_BUG(0) /* Intel F00F */
+#define X86_BUG_FDIV		X86_BUG(1) /* FPU FDIV */
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
