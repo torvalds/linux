@@ -6408,21 +6408,6 @@ static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
-static int drxk_read_ber(struct dvb_frontend *fe, u32 *ber)
-{
-	struct drxk_state *state = fe->demodulator_priv;
-
-	dprintk(1, "\n");
-
-	if (state->m_DrxkState == DRXK_NO_DEV)
-		return -ENODEV;
-	if (state->m_DrxkState == DRXK_UNINITIALIZED)
-		return -EAGAIN;
-
-	*ber = 0;
-	return 0;
-}
-
 static int drxk_read_signal_strength(struct dvb_frontend *fe,
 				     u16 *strength)
 {
@@ -6529,7 +6514,6 @@ static struct dvb_frontend_ops drxk_ops = {
 	.get_tune_settings = drxk_get_tune_settings,
 
 	.read_status = drxk_read_status,
-	.read_ber = drxk_read_ber,
 	.read_signal_strength = drxk_read_signal_strength,
 	.read_snr = drxk_read_snr,
 	.read_ucblocks = drxk_read_ucblocks,
