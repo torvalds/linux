@@ -78,10 +78,6 @@ static void tcp_event_new_data_sent(struct sock *sk, const struct sk_buff *skb)
 	tcp_advance_send_head(sk, skb);
 	tp->snd_nxt = TCP_SKB_CB(skb)->end_seq;
 
-	/* Don't override Nagle indefinitely with F-RTO */
-	if (tp->frto_counter == 2)
-		tp->frto_counter = 3;
-
 	tp->packets_out += tcp_skb_pcount(skb);
 	if (!prior_packets || icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
 	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)
@@ -1470,11 +1466,8 @@ static inline bool tcp_nagle_test(const struct tcp_sock *tp, const struct sk_buf
 	if (nonagle & TCP_NAGLE_PUSH)
 		return true;
 
-	/* Don't use the nagle rule for urgent data (or for the final FIN).
-	 * Nagle can be ignored during F-RTO too (see RFC4138).
-	 */
-	if (tcp_urg_mode(tp) || (tp->frto_counter == 2) ||
-	    (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN))
+	/* Don't use the nagle rule for urgent data (or for the final FIN). */
+	if (tcp_urg_mode(tp) || (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN))
 		return true;
 
 	if (!tcp_nagle_check(tp, skb, cur_mss, nonagle))

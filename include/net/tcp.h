@@ -272,7 +272,6 @@ extern int sysctl_tcp_app_win;
 extern int sysctl_tcp_adv_win_scale;
 extern int sysctl_tcp_tw_reuse;
 extern int sysctl_tcp_frto;
-extern int sysctl_tcp_frto_response;
 extern int sysctl_tcp_low_latency;
 extern int sysctl_tcp_dma_copybreak;
 extern int sysctl_tcp_nometrics_save;
@@ -424,8 +423,6 @@ extern struct sock * tcp_check_req(struct sock *sk,struct sk_buff *skb,
 				   bool fastopen);
 extern int tcp_child_process(struct sock *parent, struct sock *child,
 			     struct sk_buff *skb);
-extern bool tcp_use_frto(struct sock *sk);
-extern void tcp_enter_frto(struct sock *sk);
 extern void tcp_enter_loss(struct sock *sk, int how);
 extern void tcp_clear_retrans(struct tcp_sock *tp);
 extern void tcp_update_metrics(struct sock *sk);
@@ -756,7 +753,6 @@ enum tcp_ca_event {
 	CA_EVENT_TX_START,	/* first transmit when no packets in flight */
 	CA_EVENT_CWND_RESTART,	/* congestion window restart */
 	CA_EVENT_COMPLETE_CWR,	/* end of congestion recovery */
-	CA_EVENT_FRTO,		/* fast recovery timeout */
 	CA_EVENT_LOSS,		/* loss timeout */
 	CA_EVENT_FAST_ACK,	/* in sequence ack */
 	CA_EVENT_SLOW_ACK,	/* other ack */
