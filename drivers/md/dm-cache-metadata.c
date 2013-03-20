@@ -979,7 +979,7 @@ static int __dirty(struct dm_cache_metadata *cmd, dm_cblock_t cblock, bool dirty
 		/* nothing to be done */
 		return 0;
 
-	value = pack_value(oblock, flags | (dirty ? M_DIRTY : 0));
+	value = pack_value(oblock, (flags & ~M_DIRTY) | (dirty ? M_DIRTY : 0));
 	__dm_bless_for_disk(&value);
 
 	r = dm_array_set_value(&cmd->info, cmd->root, from_cblock(cblock),
