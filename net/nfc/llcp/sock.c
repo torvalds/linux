@@ -299,9 +299,12 @@ static int nfc_llcp_setsockopt(struct socket *sock, int level, int optname,
 static int nfc_llcp_getsockopt(struct socket *sock, int level, int optname,
 			       char __user *optval, int __user *optlen)
 {
+	struct nfc_llcp_local *local;
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
 	int len, err = 0;
+	u16 miux;
+	u8 rw;
 
 	pr_debug("%p optname %d\n", sk, optname);
 
@@ -311,20 +314,27 @@ static int nfc_llcp_getsockopt(struct socket *sock, int level, int optname,
 	if (get_user(len, optlen))
 		return -EFAULT;
 
+	local = llcp_sock->local;
+	if (!local)
+		return -ENODEV;
+
 	len = min_t(u32, len, sizeof(u32));
 
 	lock_sock(sk);
 
 	switch (optname) {
 	case NFC_LLCP_RW:
-		if (put_user(llcp_sock->rw, (u32 __user *) optval))
+		rw = llcp_sock->rw > LLCP_MAX_RW ? local->rw : llcp_sock->rw;
+		if (put_user(rw, (u32 __user *) optval))
 			err = -EFAULT;
 
 		break;
 
 	case NFC_LLCP_MIUX:
-		if (put_user(be16_to_cpu(llcp_sock->miux),
-			     (u32 __user *) optval))
+		miux = be16_to_cpu(llcp_sock->miux) > LLCP_MAX_MIUX ?
+			be16_to_cpu(local->miux) : be16_to_cpu(llcp_sock->miux);
+
+		if (put_user(miux, (u32 __user *) optval))
 			err = -EFAULT;
 
 		break;
