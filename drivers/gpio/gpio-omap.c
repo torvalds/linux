@@ -703,7 +703,7 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	if (WARN_ON(!isr_reg))
 		goto exit;
 
-	while(1) {
+	while (1) {
 		u32 isr_saved, level_mask = 0;
 		u32 enabled;
 
