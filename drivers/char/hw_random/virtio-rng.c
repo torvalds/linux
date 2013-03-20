@@ -47,7 +47,7 @@ static void register_buffer(u8 *buf, size_t size)
 	sg_init_one(&sg, buf, size);
 
 	/* There should always be room for one buffer. */
-	if (virtqueue_add_buf(vq, &sg, 0, 1, buf, GFP_KERNEL) < 0)
+	if (virtqueue_add_inbuf(vq, &sg, 1, buf, GFP_KERNEL) < 0)
 		BUG();
 
 	virtqueue_kick(vq);
