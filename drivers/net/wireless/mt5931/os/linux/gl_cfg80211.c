@@ -117,6 +117,69 @@
 ********************************************************************************
 */
 
+#if RSSI_ENHANCE
+
+#define RSSI_DEG(x...)   //printk(x)
+
+#define RSSI_ENHANCE_VALUE        (10)
+#define MAX_COUNT_OF_RSSI_HISTORY (8)
+typedef struct _RSSI_HISTORY_T
+{
+	int counts;
+	int history[MAX_COUNT_OF_RSSI_HISTORY];
+} RSSI_HISTORY_T, *P_RSSI_HISTORY_T;
+
+RSSI_HISTORY_T gRssiHistory;
+
+extern void initScanRssiHistory(void);
+void initRssiHistory(void)
+{
+	printk("initRssiHistory.\n");
+	memset(&gRssiHistory, 0, sizeof(RSSI_HISTORY_T));
+}
+
+int processRssiHistory(int newRssi)
+{
+	int rstRssi, i, total = 0;
+	int index = gRssiHistory.counts;
+	int *history = &gRssiHistory.history[0];
+
+	RSSI_DEG("---- newRssi = %d\n", newRssi);
+
+	if(index != 0) {
+		if(abs(newRssi-history[index-1]) >= 10) { // rssi change too much, discard history rssi
+			index = 0;
+		}
+	}
+	
+	// save new rssi
+	if(index >= MAX_COUNT_OF_RSSI_HISTORY) {
+		memmove(&history[0], &history[1], (MAX_COUNT_OF_RSSI_HISTORY-1)*sizeof(int));
+		history[MAX_COUNT_OF_RSSI_HISTORY-1] = newRssi;
+	} else {
+		history[index++] = newRssi;
+	}
+	gRssiHistory.counts = index;
+
+	// calc result rssi
+	for(i = 0; i < index; i++) {
+		RSSI_DEG("%d, ", history[i]);
+		total += history[i];
+	}
+	RSSI_DEG("\n");
+
+	rstRssi = total/gRssiHistory.counts;
+	rstRssi += RSSI_ENHANCE_VALUE;
+	RSSI_DEG("---- rstRssi = %d\n", rstRssi);
+
+	if(rstRssi > -10)
+		rstRssi = -10;
+	
+	return rstRssi;
+}
+
+#endif
+
 /*----------------------------------------------------------------------------*/
 /*!
  * @brief This routine is responsible for change STA type between
@@ -486,6 +549,9 @@ mtk_cfg80211_get_station (
             DBGLOG(REQ, WARN, ("unable to retrieve link speed\n"));
         }
         else {
+		#if RSSI_ENHANCE
+			i4Rssi = processRssiHistory(i4Rssi);
+		#endif
             sinfo->filled |= STATION_INFO_SIGNAL;
             sinfo->signal = i4Rssi; /* dBm */
         }
@@ -594,6 +660,10 @@ mtk_cfg80211_connect (
 
     prGlueInfo = (P_GLUE_INFO_T) wiphy_priv(wiphy);
     ASSERT(prGlueInfo);
+
+#if RSSI_ENHANCE
+	initRssiHistory();
+#endif
 
     if (prGlueInfo->prAdapter->rWifiVar.rConnSettings.eOPMode > NET_TYPE_AUTO_SWITCH)
 		eOpMode = NET_TYPE_AUTO_SWITCH;
@@ -933,6 +1003,11 @@ mtk_cfg80211_disconnect (
 
     prGlueInfo = (P_GLUE_INFO_T) wiphy_priv(wiphy);
     ASSERT(prGlueInfo);
+
+#if RSSI_ENHANCE
+	initRssiHistory();
+	initScanRssiHistory();
+#endif
 
     rStatus = kalIoctl(prGlueInfo,
         wlanoidSetDisassociate,

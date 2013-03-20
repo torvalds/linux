@@ -2052,6 +2052,86 @@ scanAddToBssDesc (
     return prBssDesc;
 }
 
+#if RSSI_ENHANCE
+
+extern int numOfTblRssi;
+extern TABLE_RSSI mTABLE_RSSI[MAX_SCAN_RSSI_NUM];
+extern int mTblRssiStatus[MAX_SCAN_RSSI_NUM];
+
+#define RSSI_DEG(x...)   //printk(x)
+
+PARAM_RSSI processAvgRssi(UINT_8 ucRCPI, PARAM_MAC_ADDRESS rMacAddr)
+{
+	int bFound, i;
+	PARAM_RSSI rRssi = RCPI_TO_dBm(ucRCPI);
+	PARAM_RSSI rRssi2 = rRssi;
+	PARAM_RSSI AvgRssiX8, AvgRssi;
+
+	if(rRssi < -40)
+		rRssi += 8;
+
+	RSSI_DEG("---- processAvgRssi ---- \n");
+	
+	bFound = FALSE;
+	for(i = 0; i < numOfTblRssi; i++) {
+		RSSI_DEG("-%02x:%02x:%02x:%02x:%02x:%02x\n", 
+		 	mTABLE_RSSI[i].arMacAddress[0], mTABLE_RSSI[i].arMacAddress[1], mTABLE_RSSI[i].arMacAddress[2], mTABLE_RSSI[i].arMacAddress[3], mTABLE_RSSI[i].arMacAddress[4], mTABLE_RSSI[i].arMacAddress[5]);
+		if(EQUAL_MAC_ADDR(rMacAddr, mTABLE_RSSI[i].arMacAddress)) {
+			bFound = TRUE;
+			AvgRssiX8 = mTABLE_RSSI[i].AvgRssiX8;
+			AvgRssi = mTABLE_RSSI[i].AvgRssi;
+			mTblRssiStatus[i] = 1;
+			break;
+		}
+	}
+
+    if(!bFound) {
+    	AvgRssiX8 = rRssi << 3;
+        AvgRssi   = rRssi;
+    } else {
+        AvgRssiX8 = (AvgRssiX8 - AvgRssi) + rRssi;  
+    }
+
+    AvgRssi = AvgRssiX8 >> 3;
+
+    if(!bFound) {
+		COPY_MAC_ADDR(mTABLE_RSSI[numOfTblRssi].arMacAddress, rMacAddr);
+		mTABLE_RSSI[numOfTblRssi].AvgRssi = AvgRssi;
+		mTABLE_RSSI[numOfTblRssi].AvgRssiX8 = AvgRssiX8;
+		numOfTblRssi++;
+		mTblRssiStatus[i] = 1;
+    } else {
+        mTABLE_RSSI[i].AvgRssi = AvgRssi;
+		mTABLE_RSSI[i].AvgRssiX8 = AvgRssiX8;
+    }		
+
+	RSSI_DEG("results : %02x:%02x:%02x:%02x:%02x:%02x %d -> %d\n", 
+		 rMacAddr[0], rMacAddr[1], rMacAddr[2], rMacAddr[3], rMacAddr[4], rMacAddr[5], rRssi2, AvgRssi);
+
+	return AvgRssi;
+}
+
+void sortAvgRssi(void)
+{
+	int i, index = 0;
+
+	RSSI_DEG("---- sortAvgRssi numOfTblRssi = %d ---- \n", numOfTblRssi);
+
+	for(i = 0; i < numOfTblRssi; i++) {
+		if(mTblRssiStatus[i] == 1) {
+			memmove(&mTABLE_RSSI[index++], &mTABLE_RSSI[i], sizeof(TABLE_RSSI));
+		}
+	}
+	numOfTblRssi = index;
+
+	RSSI_DEG("--numOfTblRssi = %d.\n", numOfTblRssi);
+
+	for(i = 0; i < numOfTblRssi; i++) {
+		mTblRssiStatus[i] = 0;
+	}
+}
+
+#endif
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -2080,6 +2160,7 @@ scanAddScanResult (
     ENUM_PARAM_OP_MODE_T eOpMode;
     UINT_8 ucRateLen = 0;
     UINT_32 i;
+	PARAM_RSSI AvgRssi;
 
     ASSERT(prAdapter);
     ASSERT(prSwRfb);
@@ -2143,11 +2224,19 @@ scanAddScanResult (
         break;
     }
 
+#if RSSI_ENHANCE
+	AvgRssi = processAvgRssi(prBssDesc->ucRCPI, rMacAddr);
+#endif	
+
     kalIndicateBssInfo(prAdapter->prGlueInfo,
             (PUINT_8)prSwRfb->pvHeader,
             prSwRfb->u2PacketLen,
             prBssDesc->ucChannelNum,
+#if RSSI_ENHANCE     
+			AvgRssi);
+#else
             RCPI_TO_dBm(prBssDesc->ucRCPI));
+#endif
 
     nicAddScanResult(prAdapter,
             rMacAddr,
@@ -2159,7 +2248,7 @@ scanAddScanResult (
             eOpMode,
             aucRatesEx,
             prSwRfb->u2PacketLen - prSwRfb->u2HeaderLen,
-            (PUINT_8)((UINT_32)(prSwRfb->pvHeader) + WLAN_MAC_MGMT_HEADER_LEN));
+            (PUINT_8)((UINT_32)(prSwRfb->pvHeader) + WLAN_MAC_MGMT_HEADER_LEN));	
 
     return WLAN_STATUS_SUCCESS;
 

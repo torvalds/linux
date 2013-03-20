@@ -1066,6 +1066,22 @@ extern UINT_32 u4DebugModule;
 UINT_32 u4DebugModuleTemp;
 #endif /* DBG */
 
+#if RSSI_ENHANCE
+int numOfTblRssi;
+TABLE_RSSI mTABLE_RSSI[MAX_SCAN_RSSI_NUM];
+int mTblRssiStatus[MAX_SCAN_RSSI_NUM];
+
+void initScanRssiHistory(void)
+{
+	int i;
+	numOfTblRssi = 0;
+	memset(mTABLE_RSSI, 0, MAX_SCAN_RSSI_NUM*sizeof(TABLE_RSSI));
+	for(i = 0; i < MAX_SCAN_RSSI_NUM; i++) {
+		mTblRssiStatus[i] = 0;
+	}
+}
+#endif
+
 /******************************************************************************
 *                           P R I V A T E   D A T A
 *******************************************************************************
@@ -1422,10 +1438,11 @@ wlanoidQueryBssidList (
 #endif
 
     P_GLUE_INFO_T prGlueInfo;
-    UINT_32 i, u4BssidListExLen;
+    UINT_32 i,j, u4BssidListExLen;
     P_PARAM_BSSID_LIST_EX_T prList;
     P_PARAM_BSSID_EX_T prBssidEx;
     PUINT_8 cp;
+	BOOLEAN bInitial = TRUE;
 
     DEBUGFUNC("wlanoidQueryBssidList");
 
@@ -1499,6 +1516,7 @@ wlanoidQueryBssidList (
 
     prList = (P_PARAM_BSSID_LIST_EX_T) pvQueryBuffer;
     cp = (PUINT_8)&prList->arBssid[0];
+	
 
     if(prAdapter->fgIsRadioOff == FALSE && prAdapter->rWlanInfo.u4ScanResultNum > 0) {
         // fill up for each entry
@@ -1509,27 +1527,36 @@ wlanoidQueryBssidList (
             kalMemCopy(prBssidEx,
                     &(prAdapter->rWlanInfo.arScanResult[i]),
                     OFFSET_OF(PARAM_BSSID_EX_T, aucIEs));
-			
-#if RSSI_ENHANCE
-            BOOLEAN bInitial = FALSE;
- 
-            if (!(prBssidEx->AvgRssiX8 | prBssidEx->AvgRssi))
-            {
-                bInitial = TRUE;
-            }
 
+#if RSSI_ENHANCE
+			bInitial = TRUE;
+			
+//			printk(KERN_INFO "%s::first  prAdapter->rWlanInfo.arScanResult[i].AvgRssiX8 = %d, prBssidEx->rRssi= %d\n", __func__, prAdapter->rWlanInfo.arScanResult[i].AvgRssiX8, prBssidEx->rRssi);
+			for(j=0;j<prAdapter->rWlanInfo.u4ScanResultNum;j++)
+			{
+				if(EQUAL_MAC_ADDR(&(prAdapter->rWlanInfo.arScanResult[i].arMacAddress), mTABLE_RSSI[j].arMacAddress))
+				{
+					bInitial = FALSE;
+					prBssidEx->AvgRssiX8 = mTABLE_RSSI[j].AvgRssiX8;
+					prBssidEx->AvgRssi = mTABLE_RSSI[j].AvgRssi;
+					break;
+				}
+			}
+			
             if (bInitial)
             {
-                prBssidEx->AvgRssiX8 = prBssidEx->rRssi << 3;
-                prBssidEx->AvgRssi  = prBssidEx->rRssi;
+            	prBssidEx->AvgRssiX8 = prBssidEx->rRssi << 3;
+                prBssidEx->AvgRssi   = prBssidEx->rRssi;             
+				//printk(KERN_INFO "%s:: bInitial --- prBssidEx->AvgRssiX8 = %d, prBssidEx->AvgRssi = %d, prBssidEx->rRssi= %d\n", __func__, prBssidEx->AvgRssiX8, prBssidEx->AvgRssi, prBssidEx->rRssi);
             } else {
-                prBssidEx->AvgRssiX8 = (prBssidEx->AvgRssiX8 - prBssidEx->AvgRssi) + prBssidEx->rRssi;
-            //DBGLOG(REQ, WARN,  ("%s:: prBssidEx->AvgRssiX8 = %d, prBssidEx->AvgRssi = %d, prBssidEx->rRssi= %d\n", __func__, prBssidEx->AvgRssiX8, prBssidEx->AvgRssi, prBssidEx->rRssi));
+                prBssidEx->AvgRssiX8 = (prBssidEx->AvgRssiX8 - prBssidEx->AvgRssi) + prBssidEx->rRssi;  
+                //printk(KERN_INFO "%s:: prBssidEx->AvgRssiX8 = %d, prBssidEx->AvgRssi = %d, prBssidEx->rRssi= %d\n", __func__, prBssidEx->AvgRssiX8, prBssidEx->AvgRssi, prBssidEx->rRssi);
             }
 
             prBssidEx->AvgRssi = prBssidEx->AvgRssiX8 >> 3;
-            prBssidEx->AvgRssi +=10;
-            prBssidEx->rRssi = prBssidEx->AvgRssi;			
+            //prBssidEx->AvgRssi +=8;
+            prBssidEx->rRssi = prBssidEx->AvgRssi + 10;	
+		    prAdapter->rWlanInfo.arScanResult[i].rRssi = prBssidEx->AvgRssi;
 #endif
             /*For WHQL test, Rssi should be in range -10 ~ -200 dBm*/
             if(prBssidEx->rRssi > PARAM_WHQL_RSSI_MAX_DBM) {
@@ -1549,6 +1576,23 @@ wlanoidQueryBssidList (
             cp += prBssidEx->u4Length;
             prList->u4NumberOfItems++;
         }
+#if RSSI_ENHANCE
+		for(i = 0 ; i < prAdapter->rWlanInfo.u4ScanResultNum ; i++)
+		{
+			COPY_MAC_ADDR(mTABLE_RSSI[i].arMacAddress,prAdapter->rWlanInfo.arScanResult[i].arMacAddress);
+			mTABLE_RSSI[i].AvgRssi = prAdapter->rWlanInfo.arScanResult[i].rRssi;
+			mTABLE_RSSI[i].AvgRssiX8= prAdapter->rWlanInfo.arScanResult[i].rRssi << 3;
+		}
+		for(i = prAdapter->rWlanInfo.u4ScanResultNum ; i < MAX_SCAN_RSSI_NUM ; i++)
+		{
+			mTABLE_RSSI[i].arMacAddress[0]=0;
+			mTABLE_RSSI[i].arMacAddress[1]=0;
+			mTABLE_RSSI[i].arMacAddress[2]=0;
+			mTABLE_RSSI[i].arMacAddress[3]=0;
+			mTABLE_RSSI[i].arMacAddress[4]=0;
+			mTABLE_RSSI[i].arMacAddress[5]=0;
+		}
+#endif
     }
 
 #if (CFG_NVRAM_EXISTENCE_CHECK == 1)
@@ -1837,9 +1881,6 @@ wlanoidSetBssidListScanExt (
 * \retval WLAN_STATUS_ADAPTER_NOT_READY
 */
 /*----------------------------------------------------------------------------*/
-#if RSSI_ENHANCE
-static int ORssi = 0;time = 2; // add by gwl 
-#endif
 WLAN_STATUS
 wlanoidSetBssid (
     IN  P_ADAPTER_T       prAdapter,
@@ -4363,7 +4404,6 @@ wlanoidQueryVendorId (
     return WLAN_STATUS_SUCCESS;
 } /* wlanoidQueryVendorId */
 
-
 /*----------------------------------------------------------------------------*/
 /*!
 * \brief This routine is called to query the current RSSI value.
@@ -4411,24 +4451,7 @@ wlanoidQueryRssi (
             (kalGetTimeTick() - prAdapter->rLinkQualityUpdateTime) <= CFG_LINK_QUALITY_VALID_PERIOD) {
         PARAM_RSSI rRssi;
 
-        rRssi = (PARAM_RSSI)prAdapter->rLinkQuality.cRssi; // ranged from (-128 ~ 30) in unit of dBm
-#if RSSI_ENHANCE
-	// add by gwl	
-	rRssi += 10;
-	if (ORssi == 0) ORssi = rRssi;
-	else if ((ORssi - rRssi) > 8) {
-		if (time > 0) {
-			rRssi = ORssi;
-			time--;
-		} else {
-			time = 2;
-			ORssi = rRssi;
-		}
-	}else {
-		time = 2;
-		ORssi = rRssi;
-	}
-#endif						
+        rRssi = (PARAM_RSSI)prAdapter->rLinkQuality.cRssi; // ranged from (-128 ~ 30) in unit of dBm						
         if(rRssi > PARAM_WHQL_RSSI_MAX_DBM)
             rRssi = PARAM_WHQL_RSSI_MAX_DBM;
         else if(rRssi < PARAM_WHQL_RSSI_MIN_DBM)

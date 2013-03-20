@@ -4068,7 +4068,7 @@ wlanSecurityFrameTxTimeout(
             WLAN_STATUS_FAILURE);
 }
 
-
+void sortAvgRssi(void);
 /*----------------------------------------------------------------------------*/
 /*!
 * @brief This function is called before AIS is starting a new scan
@@ -4087,6 +4087,10 @@ wlanClearScanningResult(
     UINT_32 i;
 
     ASSERT(prAdapter);
+
+#if RSSI_ENHANCE
+	sortAvgRssi();
+#endif
 
     // clear scanning result
     if(kalGetMediaStateIndicated(prAdapter->prGlueInfo) == PARAM_MEDIA_STATE_CONNECTED) {

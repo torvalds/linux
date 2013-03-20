@@ -978,6 +978,7 @@ kalDevRegRead (
     )
 {
     int ret = 0;
+	int a = 0;
 
     ASSERT(prGlueInfo);
     ASSERT(pu4Value);
@@ -989,7 +990,14 @@ kalDevRegRead (
         sdio_claim_host(prGlueInfo->rHifInfo.func);
     }
 
+retry:
     *pu4Value = sdio_readl(prGlueInfo->rHifInfo.func, u4Register, &ret);
+	if (ret && a < 10) {
+		a++;
+		printk("gwl =-==============> sdio_readl retry %d!\n", a);
+		msleep(1);
+		goto retry;
+	}	
 
     if (!in_interrupt) {
         sdio_release_host(prGlueInfo->rHifInfo.func);

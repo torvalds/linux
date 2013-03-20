@@ -3138,6 +3138,8 @@ wlanRemove(
 
 #include "wifi_version.h"
 
+extern void initRssiHistory(void);
+extern void initScanRssiHistory(void);
 extern VOID exitWlan(void);
 /*static */int initWlan(void)
 {
@@ -3145,6 +3147,10 @@ extern VOID exitWlan(void);
 	int count = 3;
 	driver_start_ok = 0;
 
+#if RSSI_ENHANCE
+	initRssiHistory();
+	initScanRssiHistory();
+#endif
 retry_initwlan:
 	
     //printk("=======================================================\n");

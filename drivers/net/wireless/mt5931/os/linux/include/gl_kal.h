@@ -1507,7 +1507,7 @@ typedef UINT_32             KAL_WAKE_LOCK_T, *P_KAL_WAKE_LOCK_T;
 
 #define CNM_ERROR_LOGFUNC(_Fmt...) kalPrint(_Fmt)
 #define CNM_WARN_LOGFUNC(_Fmt...) kalPrint(_Fmt)
-#define CNM_INFO_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define CNM_INFO_LOGFUNC(_Fmt...) //kalPrint(_Fmt)
 #define CNM_STATE_LOGFUNC(_Fmt...)
 #define CNM_EVENT_LOGFUNC(_Fmt...)
 #define CNM_TRACE_LOGFUNC(_Fmt...)
@@ -1561,7 +1561,7 @@ typedef UINT_32             KAL_WAKE_LOCK_T, *P_KAL_WAKE_LOCK_T;
 
 #define QM_ERROR_LOGFUNC(_Fmt...) kalPrint(_Fmt)
 #define QM_WARN_LOGFUNC(_Fmt...) kalPrint(_Fmt)
-#define QM_INFO_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define QM_INFO_LOGFUNC(_Fmt...) //kalPrint(_Fmt)
 #define QM_STATE_LOGFUNC(_Fmt...)
 #define QM_EVENT_LOGFUNC(_Fmt...)
 #define QM_TRACE_LOGFUNC(_Fmt...) //kalPrint(_Fmt)

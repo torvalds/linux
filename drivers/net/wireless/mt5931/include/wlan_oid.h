@@ -478,6 +478,16 @@ typedef struct _PARAM_BSSID_EX_T {
     UINT_8                          aucIEs[1];
 } PARAM_BSSID_EX_T, *P_PARAM_BSSID_EX_T;
 
+/*! hold a table of mac  and  AvgRssiX8*/
+typedef struct _TABLE_RSSI_ {
+    PARAM_MAC_ADDRESS               arMacAddress;         /*!< BSSID */
+	PARAM_RSSI                      AvgRssiX8;
+	PARAM_RSSI                      AvgRssi;
+} TABLE_RSSI;
+
+#define MAX_SCAN_RSSI_NUM 128
+extern TABLE_RSSI mTABLE_RSSI[MAX_SCAN_RSSI_NUM];
+
 typedef struct _PARAM_BSSID_LIST_EX {
     UINT_32                         u4NumberOfItems;      /*!< at least 1 */
     PARAM_BSSID_EX_T                arBssid[1];

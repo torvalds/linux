@@ -440,7 +440,11 @@ scnSendScanReq (
         rCmdScanReq.u2ChannelDwellTime = prScanParam->u2PassiveListenInterval;
     }
 #endif
-
+#if RSSI_ENHANCE
+    //add by gwl
+    rCmdScanReq.u2ChannelDwellTime = 200;
+	rCmdScanReq.u2ChannelMinDwellTime = 200;
+#endif
     if(prScanParam->u2IELen <= MAX_IE_LENGTH) {
         rCmdScanReq.u2IELen = prScanParam->u2IELen;
     }
