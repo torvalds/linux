@@ -345,6 +345,8 @@ struct drxk_state {
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
 
+	fe_status_t fe_status;
+
 	/* Firmware */
 	const char *microcode_name;
 	struct completion fw_wait_load;

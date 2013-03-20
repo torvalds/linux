@@ -2655,11 +2655,6 @@ static int GetDVBTSignalToNoise(struct drxk_state *state,
 		c = Log10Times100(SqrErrIQ);
 
 		iMER = a + b;
-		/* No negative MER, clip to zero */
-		if (iMER > c)
-			iMER -= c;
-		else
-			iMER = 0;
 	}
 	*pSignalToNoise = iMER;
 
@@ -6380,31 +6375,165 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	Start(state, 0, IF);
 
+	/* After set_frontend, stats aren't avaliable */
+	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
+	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
 	/* printk(KERN_DEBUG "drxk: %s IF=%d done\n", __func__, IF); */
 
 	return 0;
 }
 
-static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int drxk_get_stats(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct drxk_state *state = fe->demodulator_priv;
+	int status;
 	u32 stat;
-
-	dprintk(1, "\n");
+	u16 reg16;
+	u32 post_bit_count;
+	u32 post_bit_err_count;
+	u32 post_bit_error_scale;
+	u32 pre_bit_err_count;
+	u32 pre_bit_count;
+	u32 pkt_count;
+	u32 pkt_error_count;
+	s32 cnr, gain;
 
 	if (state->m_DrxkState == DRXK_NO_DEV)
 		return -ENODEV;
 	if (state->m_DrxkState == DRXK_UNINITIALIZED)
 		return -EAGAIN;
 
-	*status = 0;
+	/* get status */
+	state->fe_status = 0;
 	GetLockStatus(state, &stat, 0);
 	if (stat == MPEG_LOCK)
-		*status |= 0x1f;
+		state->fe_status |= 0x1f;
 	if (stat == FEC_LOCK)
-		*status |= 0x0f;
+		state->fe_status |= 0x0f;
 	if (stat == DEMOD_LOCK)
-		*status |= 0x07;
+		state->fe_status |= 0x07;
+
+	if (stat >= DEMOD_LOCK) {
+		GetSignalToNoise(state, &cnr);
+		c->cnr.stat[0].svalue = cnr * 100;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else {
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	if (stat < FEC_LOCK) {
+		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return 0;
+	}
+
+	/* Get post BER */
+
+	/* BER measurement is valid if at least FEC lock is achieved */
+
+	/* OFDM_EC_VD_REQ_SMB_CNT__A and/or OFDM_EC_VD_REQ_BIT_CNT can be written
+		to set nr of symbols or bits over which
+		to measure EC_VD_REG_ERR_BIT_CNT__A . See CtrlSetCfg(). */
+
+	/* Read registers for post/preViterbi BER calculation */
+	status = read16(state, OFDM_EC_VD_ERR_BIT_CNT__A, &reg16);
+	if (status < 0)
+		goto error;
+	pre_bit_err_count = reg16;
+
+	status = read16(state, OFDM_EC_VD_IN_BIT_CNT__A , &reg16);
+	if (status < 0)
+		goto error;
+	pre_bit_count = reg16;
+
+	/* Number of bit-errors */
+	status = read16(state, FEC_RS_NR_BIT_ERRORS__A, &reg16);
+	if (status < 0)
+		goto error;
+	post_bit_err_count = reg16;
+
+	status = read16(state, FEC_RS_MEASUREMENT_PRESCALE__A, &reg16);
+	if (status < 0)
+		goto error;
+	post_bit_error_scale = reg16;
+
+	status = read16(state, FEC_RS_MEASUREMENT_PERIOD__A, &reg16);
+	if (status < 0)
+		goto error;
+	pkt_count = reg16;
+
+	status = read16(state, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, &reg16);
+	if (status < 0)
+		goto error;
+	pkt_error_count = reg16;
+	write16(state, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
+
+	post_bit_err_count *= post_bit_error_scale;
+
+	post_bit_count = pkt_count * 204 * 8;
+
+	/* Store the results */
+	c->block_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->block_error.stat[0].uvalue += pkt_error_count;
+	c->block_count.stat[0].scale = FE_SCALE_COUNTER;
+	c->block_count.stat[0].uvalue += pkt_count;
+
+	c->pre_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->pre_bit_error.stat[0].uvalue += pre_bit_err_count;
+	c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+	c->pre_bit_count.stat[0].uvalue += pre_bit_count;
+
+	c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->post_bit_error.stat[0].uvalue += post_bit_err_count;
+	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+	c->post_bit_count.stat[0].uvalue += post_bit_count;
+
+	/*
+	 * Read AGC gain
+	 *
+	 * IFgain = (IQM_AF_AGC_IF__A * 26.75) (nA)
+	 */
+	status = read16(state, IQM_AF_AGC_IF__A, &reg16);
+	if (status < 0) {
+		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
+		return status;
+	}
+	gain = 2675 * (reg16 - DRXK_AGC_DAC_OFFSET) / 100;
+
+	/* FIXME: it makes sense to fix the scale here to dBm */
+	c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+	c->strength.stat[0].uvalue = gain;
+
+error:
+	return status;
+}
+
+
+static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
+{
+	struct drxk_state *state = fe->demodulator_priv;
+	int rc;
+
+	dprintk(1, "\n");
+
+	rc = drxk_get_stats(fe);
+	if (rc < 0)
+		return rc;
+
+	*status = state->fe_status;
+
 	return 0;
 }
 
@@ -6439,6 +6568,10 @@ static int drxk_read_snr(struct dvb_frontend *fe, u16 *snr)
 		return -EAGAIN;
 
 	GetSignalToNoise(state, &snr2);
+
+	/* No negative SNR, clip to zero */
+	if (snr2 < 0)
+		snr2 = 0;
 	*snr = snr2 & 0xffff;
 	return 0;
 }
@@ -6522,6 +6655,7 @@ static struct dvb_frontend_ops drxk_ops = {
 struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 				 struct i2c_adapter *i2c)
 {
+	struct dtv_frontend_properties *p;
 	struct drxk_state *state = NULL;
 	u8 adr = config->adr;
 	int status;
@@ -6601,6 +6735,27 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 		}
 	} else if (init_drxk(state) < 0)
 		goto error;
+
+
+	/* Initialize stats */
+	p = &state->frontend.dtv_property_cache;
+	p->strength.len = 1;
+	p->cnr.len = 1;
+	p->block_error.len = 1;
+	p->block_count.len = 1;
+	p->pre_bit_error.len = 1;
+	p->pre_bit_count.len = 1;
+	p->post_bit_error.len = 1;
+	p->post_bit_count.len = 1;
+
+	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
+	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	printk(KERN_INFO "drxk: frontend initialized.\n");
 	return &state->frontend;
