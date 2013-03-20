@@ -158,7 +158,7 @@ struct cache {
 	/*
 	 * origin_blocks entries, discarded if set.
 	 */
-	sector_t discard_block_size; /* a power of 2 times sectors per block */
+	uint32_t discard_block_size; /* a power of 2 times sectors per block */
 	dm_dblock_t discard_nr_blocks;
 	unsigned long *discard_bitset;
 
@@ -412,17 +412,24 @@ static bool block_size_is_power_of_two(struct cache *cache)
 	return cache->sectors_per_block_shift >= 0;
 }
 
+static dm_block_t block_div(dm_block_t b, uint32_t n)
+{
+	do_div(b, n);
+
+	return b;
+}
+
 static dm_dblock_t oblock_to_dblock(struct cache *cache, dm_oblock_t oblock)
 {
-	sector_t discard_blocks = cache->discard_block_size;
+	uint32_t discard_blocks = cache->discard_block_size;
 	dm_block_t b = from_oblock(oblock);
 
 	if (!block_size_is_power_of_two(cache))
-		(void) sector_div(discard_blocks, cache->sectors_per_block);
+		discard_blocks = discard_blocks / cache->sectors_per_block;
 	else
 		discard_blocks >>= cache->sectors_per_block_shift;
 
-	(void) sector_div(b, discard_blocks);
+	b = block_div(b, discard_blocks);
 
 	return to_dblock(b);
 }
@@ -1002,7 +1009,7 @@ static void process_discard_bio(struct cache *cache, struct bio *bio)
 	dm_block_t end_block = bio->bi_sector + bio_sectors(bio);
 	dm_block_t b;
 
-	(void) sector_div(end_block, cache->discard_block_size);
+	end_block = block_div(end_block, cache->discard_block_size);
 
 	for (b = start_block; b < end_block; b++)
 		set_discard(cache, to_dblock(b));
@@ -1835,7 +1842,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	/* FIXME: factor out this whole section */
 	origin_blocks = cache->origin_sectors = ca->origin_sectors;
-	(void) sector_div(origin_blocks, ca->block_size);
+	origin_blocks = block_div(origin_blocks, ca->block_size);
 	cache->origin_blocks = to_oblock(origin_blocks);
 
 	cache->sectors_per_block = ca->block_size;
@@ -1848,7 +1855,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 		dm_block_t cache_size = ca->cache_sectors;
 
 		cache->sectors_per_block_shift = -1;
-		(void) sector_div(cache_size, ca->block_size);
+		cache_size = block_div(cache_size, ca->block_size);
 		cache->cache_size = to_cblock(cache_size);
 	} else {
 		cache->sectors_per_block_shift = __ffs(ca->block_size);
