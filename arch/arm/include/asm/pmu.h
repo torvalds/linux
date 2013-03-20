@@ -38,6 +38,9 @@ struct arm_pmu_platdata {
 				  irq_handler_t pmu_handler);
 	int (*runtime_resume)(struct device *dev);
 	int (*runtime_suspend)(struct device *dev);
+	int (*init)(struct platform_device *pdev);
+	int (*start)(struct platform_device *pdev);
+	int (*stop)(struct platform_device *pdev);
 };
 
 #ifdef CONFIG_HW_PERF_EVENTS
