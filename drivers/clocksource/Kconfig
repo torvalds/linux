@@ -31,6 +31,9 @@ config SUNXI_TIMER
 config VT8500_TIMER
 	bool
 
+config CADENCE_TTC_TIMER
+	bool
+
 config CLKSRC_NOMADIK_MTU
 	bool
 	depends on (ARCH_NOMADIK || ARCH_U8500)
