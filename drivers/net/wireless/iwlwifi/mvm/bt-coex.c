@@ -362,10 +362,12 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		band = -1;
 	rcu_read_unlock();
 
-	if (band != IEEE80211_BAND_2GHZ)
-		return;
-
 	smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
+	if (band != IEEE80211_BAND_2GHZ) {
+		ieee80211_request_smps(vif, smps_mode);
+		return;
+	}
 
 	if (data->notif->bt_status)
 		smps_mode = IEEE80211_SMPS_DYNAMIC;
@@ -432,27 +434,15 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 				      BT_ENABLE_REDUCED_TXPOWER_THRESHOLD);
 }
 
-/* upon association, the fw will send in BT Coex notification */
-int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
-			     struct iwl_rx_cmd_buffer *rxb,
-			     struct iwl_device_cmd *dev_cmd)
+static void iwl_mvm_new_bt_coex_notif(struct iwl_mvm *mvm,
+				      struct iwl_bt_coex_profile_notif *notif)
 {
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
 		.notif = notif,
 		.bt_kill_msk = BT_KILL_MSK_REDUCED_TXPOW,
 	};
 	bool reduced_tx_power;
-
-	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
-	IWL_DEBUG_COEX(mvm, "\tBT %salive\n", notif->bt_status ? "" : "not ");
-	IWL_DEBUG_COEX(mvm, "\tBT open conn %d\n", notif->bt_open_conn);
-	IWL_DEBUG_COEX(mvm, "\tBT traffic load %d\n", notif->bt_traffic_load);
-	IWL_DEBUG_COEX(mvm, "\tBT agg traffic load %d\n",
-		       notif->bt_agg_traffic_load);
-	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
 
 	/* remember this notification for future use: rssi fluctuations */
 	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
@@ -474,6 +464,26 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 
 	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, reduced_tx_power))
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
+}
+
+/* upon association, the fw will send in BT Coex notification */
+int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+			     struct iwl_rx_cmd_buffer *rxb,
+			     struct iwl_device_cmd *dev_cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
+
+
+	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
+	IWL_DEBUG_COEX(mvm, "\tBT %salive\n", notif->bt_status ? "" : "not ");
+	IWL_DEBUG_COEX(mvm, "\tBT open conn %d\n", notif->bt_open_conn);
+	IWL_DEBUG_COEX(mvm, "\tBT traffic load %d\n", notif->bt_traffic_load);
+	IWL_DEBUG_COEX(mvm, "\tBT agg traffic load %d\n",
+		       notif->bt_agg_traffic_load);
+	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
+
+	iwl_mvm_new_bt_coex_notif(mvm, notif);
 
 	/*
 	 * This is an async handler for a notification, returning anything other
@@ -566,4 +576,27 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
  out_unlock:
 	mutex_unlock(&mvm->mutex);
+}
+
+void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum ieee80211_band band;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	if (chanctx_conf && chanctx_conf->def.chan)
+		band = chanctx_conf->def.chan->band;
+	else
+		band = -1;
+	rcu_read_unlock();
+
+	/* if we are in 2GHz we will get a notification from the fw */
+	if (band == IEEE80211_BAND_2GHZ)
+		return;
+
+	/* else, we can remove all the constraints */
+	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
+
+	iwl_mvm_new_bt_coex_notif(mvm, &mvm->last_bt_notif);
 }
