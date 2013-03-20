@@ -78,7 +78,7 @@ static void __init xilinx_zynq_timer_init(void)
 
 	xilinx_zynq_clocks_init(slcr);
 
-	xttcps_timer_init();
+	clocksource_of_init();
 }
 
 /**
