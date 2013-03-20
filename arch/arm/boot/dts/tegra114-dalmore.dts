@@ -717,6 +717,19 @@
 		status = "okay";
 	};
 
+	i2c@7000c000 {
+		status = "okay";
+		clock-frequency = <100000>;
+
+		battery: smart-battery {
+			compatible = "ti,bq20z45", "sbs,sbs-battery";
+			reg = <0xb>;
+			battery-name = "battery";
+			sbs,i2c-retry-count = <2>;
+			sbs,poll-retry-count = <100>;
+		};
+	};
+
 	pmc {
 		nvidia,invert-interrupt;
 	};
