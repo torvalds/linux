@@ -1052,9 +1052,7 @@ static int write_pipe_buf(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	loff_t tmp = sd->pos;
 
 	data = buf->ops->map(pipe, buf, 0);
-	file_start_write(sd->u.file);
 	ret = __kernel_write(sd->u.file, data + buf->offset, sd->len, &tmp);
-	file_end_write(sd->u.file);
 	buf->ops->unmap(pipe, buf, data);
 
 	return ret;
@@ -1066,7 +1064,9 @@ static ssize_t default_file_splice_write(struct pipe_inode_info *pipe,
 {
 	ssize_t ret;
 
+	file_start_write(out);
 	ret = splice_from_pipe(pipe, out, ppos, len, flags, write_pipe_buf);
+	file_end_write(out);
 	if (ret > 0)
 		*ppos += ret;
 
