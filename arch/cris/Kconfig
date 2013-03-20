@@ -269,38 +269,6 @@ config ETRAX_AXISFLASHMAP
 	  This option enables MTD mapping of flash devices.  Needed to use
 	  flash memories.  If unsure, say Y.
 
-config ETRAX_RTC
-	bool "Real Time Clock support"
-	depends on ETRAX_I2C
-	help
-	  Enables drivers for the Real-Time Clock battery-backed chips on
-	  some products. The kernel reads the time when booting, and
-	  the date can be set using ioctl(fd, RTC_SET_TIME, &rt) with rt a
-	  rtc_time struct (see <file:arch/cris/include/asm/rtc.h>) on the
-	  /dev/rtc device.  You can check the time with cat /proc/rtc, but
-	  normal time reading should be done using libc function time and
-	  friends.
-
-choice
-	prompt "RTC chip"
-	depends on ETRAX_RTC
-	default ETRAX_DS1302
-
-config ETRAX_DS1302
-	depends on ETRAX_ARCH_V10
-	bool "DS1302"
-	help
-	  Enables the driver for the DS1302 Real-Time Clock battery-backed
-	  chip on some products.
-
-config ETRAX_PCF8563
-	bool "PCF8563"
-	help
-	  Enables the driver for the PCF8563 Real-Time Clock battery-backed
-	  chip on some products.
-
-endchoice
-
 config ETRAX_SYNCHRONOUS_SERIAL
 	bool "Synchronous serial-port support"
 	help
