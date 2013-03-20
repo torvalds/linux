@@ -661,9 +661,7 @@ void qt2_process_read_urb(struct urb *urb)
 						 __func__);
 					break;
 				}
-
-				if (port_priv->is_open)
-					tty_flip_buffer_push(&port->port);
+				tty_flip_buffer_push(&port->port);
 
 				newport = *(ch + 3);
 
@@ -706,8 +704,7 @@ void qt2_process_read_urb(struct urb *urb)
 		tty_insert_flip_string(&port->port, ch, 1);
 	}
 
-	if (port_priv->is_open)
-		tty_flip_buffer_push(&port->port);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void qt2_write_bulk_callback(struct urb *urb)
