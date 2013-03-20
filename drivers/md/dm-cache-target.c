@@ -2369,8 +2369,7 @@ static int cache_preresume(struct dm_target *ti)
 	}
 
 	if (!cache->loaded_mappings) {
-		r = dm_cache_load_mappings(cache->cmd,
-					   dm_cache_policy_get_name(cache->policy),
+		r = dm_cache_load_mappings(cache->cmd, cache->policy,
 					   load_mapping, cache);
 		if (r) {
 			DMERR("could not load cache mappings");
