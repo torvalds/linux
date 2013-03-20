@@ -12,6 +12,7 @@
 /*#define DEBUG*/
 
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -163,6 +164,7 @@ struct fimc_fmt {
 #define FMT_FLAGS_M2M		(1 << 1 | 1 << 2)
 #define FMT_HAS_ALPHA		(1 << 3)
 #define FMT_FLAGS_COMPRESSED	(1 << 4)
+#define FMT_FLAGS_WRITEBACK	(1 << 5)
 };
 
 /**
@@ -303,9 +305,10 @@ struct fimc_m2m_device {
 	int			refcnt;
 };
 
-#define FIMC_SD_PAD_SINK	0
-#define FIMC_SD_PAD_SOURCE	1
-#define FIMC_SD_PADS_NUM	2
+#define FIMC_SD_PAD_SINK_CAM	0
+#define FIMC_SD_PAD_SINK_FIFO	1
+#define FIMC_SD_PAD_SOURCE	2
+#define FIMC_SD_PADS_NUM	3
 
 /**
  * struct fimc_vid_cap - camera capture device information
@@ -314,7 +317,9 @@ struct fimc_m2m_device {
  * @subdev: subdev exposing the FIMC processing block
  * @vd_pad: fimc video capture node pad
  * @sd_pads: fimc video processing block pads
- * @mf: media bus format at the FIMC camera input (and the scaler output) pad
+ * @ci_fmt: image format at the FIMC camera input (and the scaler output)
+ * @wb_fmt: image format at the FIMC ISP Writeback input
+ * @source_config: external image source related configuration structure
  * @pending_buf_q: the pending buffer queue head
  * @active_buf_q: the queue head of buffers scheduled in hardware
  * @vbq: the capture am video buffer queue
@@ -333,8 +338,10 @@ struct fimc_vid_cap {
 	struct video_device		vfd;
 	struct v4l2_subdev		subdev;
 	struct media_pad		vd_pad;
-	struct v4l2_mbus_framefmt	mf;
 	struct media_pad		sd_pads[FIMC_SD_PADS_NUM];
+	struct v4l2_mbus_framefmt	ci_fmt;
+	struct v4l2_mbus_framefmt	wb_fmt;
+	struct fimc_source_info		source_config;
 	struct list_head		pending_buf_q;
 	struct list_head		active_buf_q;
 	struct vb2_queue		vbq;
@@ -426,6 +433,7 @@ struct fimc_ctx;
  * @lock:	the mutex protecting this data structure
  * @pdev:	pointer to the FIMC platform device
  * @pdata:	pointer to the device platform data
+ * @sysreg:	pointer to the SYSREG regmap
  * @variant:	the IP variant information
  * @id:		FIMC device index (0..FIMC_MAX_DEVS)
  * @clock:	clocks required for FIMC operation
@@ -443,6 +451,7 @@ struct fimc_dev {
 	struct mutex			lock;
 	struct platform_device		*pdev;
 	struct s5p_platform_fimc	*pdata;
+	struct regmap			*sysreg;
 	const struct fimc_variant	*variant;
 	const struct fimc_drvdata	*drv_data;
 	u16				id;

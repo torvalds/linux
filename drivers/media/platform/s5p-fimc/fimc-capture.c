@@ -33,26 +33,27 @@
 
 static int fimc_capture_hw_init(struct fimc_dev *fimc)
 {
+	struct fimc_source_info *si = &fimc->vid_cap.source_config;
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
-	struct fimc_pipeline *p = &fimc->pipeline;
-	struct fimc_sensor_info *sensor;
+	int ret;
 	unsigned long flags;
-	int ret = 0;
 
-	if (p->subdevs[IDX_SENSOR] == NULL || ctx == NULL)
-		return -ENXIO;
-	if (ctx->s_frame.fmt == NULL)
+	if (ctx == NULL || ctx->s_frame.fmt == NULL)
 		return -EINVAL;
 
-	sensor = v4l2_get_subdev_hostdata(p->subdevs[IDX_SENSOR]);
+	if (si->fimc_bus_type == FIMC_BUS_TYPE_ISP_WRITEBACK) {
+		ret = fimc_hw_camblk_cfg_writeback(fimc);
+		if (ret < 0)
+			return ret;
+	}
 
 	spin_lock_irqsave(&fimc->slock, flags);
 	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 	fimc_set_yuv_order(ctx);
 
-	fimc_hw_set_camera_polarity(fimc, &sensor->pdata);
-	fimc_hw_set_camera_type(fimc, &sensor->pdata);
-	fimc_hw_set_camera_source(fimc, &sensor->pdata);
+	fimc_hw_set_camera_polarity(fimc, si);
+	fimc_hw_set_camera_type(fimc, si);
+	fimc_hw_set_camera_source(fimc, si);
 	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
 
 	ret = fimc_set_scaler_info(ctx);
@@ -606,18 +607,22 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 	    fimc_fmt_is_user_defined(ctx->s_frame.fmt->color))
 		*code = ctx->s_frame.fmt->mbus_code;
 
-	if (fourcc && *fourcc != V4L2_PIX_FMT_JPEG && pad != FIMC_SD_PAD_SINK)
+	if (fourcc && *fourcc != V4L2_PIX_FMT_JPEG && pad == FIMC_SD_PAD_SOURCE)
 		mask |= FMT_FLAGS_M2M;
+
+	if (pad == FIMC_SD_PAD_SINK_FIFO)
+		mask = FMT_FLAGS_WRITEBACK;
 
 	ffmt = fimc_find_format(fourcc, code, mask, 0);
 	if (WARN_ON(!ffmt))
 		return NULL;
+
 	if (code)
 		*code = ffmt->mbus_code;
 	if (fourcc)
 		*fourcc = ffmt->fourcc;
 
-	if (pad == FIMC_SD_PAD_SINK) {
+	if (pad != FIMC_SD_PAD_SOURCE) {
 		max_w = fimc_fmt_is_user_defined(ffmt->color) ?
 			pl->scaler_dis_w : pl->scaler_en_w;
 		/* Apply the camera input interface pixel constraints */
@@ -851,7 +856,7 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 		tfmt->width  = mf->width;
 		tfmt->height = mf->height;
 		ffmt = fimc_capture_try_format(ctx, &tfmt->width, &tfmt->height,
-					NULL, &fcc, FIMC_SD_PAD_SINK);
+					NULL, &fcc, FIMC_SD_PAD_SINK_CAM);
 		ffmt = fimc_capture_try_format(ctx, &tfmt->width, &tfmt->height,
 					NULL, &fcc, FIMC_SD_PAD_SOURCE);
 		if (ffmt && ffmt->mbus_code)
@@ -938,7 +943,7 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	if (fimc_jpeg_fourcc(pix->pixelformat)) {
 		fimc_capture_try_format(ctx, &pix->width, &pix->height,
 					NULL, &pix->pixelformat,
-					FIMC_SD_PAD_SINK);
+					FIMC_SD_PAD_SINK_CAM);
 		ctx->s_frame.f_width  = pix->width;
 		ctx->s_frame.f_height = pix->height;
 	}
@@ -992,7 +997,7 @@ static int __fimc_capture_set_format(struct fimc_dev *fimc,
 {
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
-	struct v4l2_mbus_framefmt *mf = &fimc->vid_cap.mf;
+	struct v4l2_mbus_framefmt *mf = &fimc->vid_cap.ci_fmt;
 	struct fimc_frame *ff = &ctx->d_frame;
 	struct fimc_fmt *s_fmt = NULL;
 	int ret, i;
@@ -1004,7 +1009,7 @@ static int __fimc_capture_set_format(struct fimc_dev *fimc,
 	if (fimc_jpeg_fourcc(pix->pixelformat)) {
 		fimc_capture_try_format(ctx, &pix->width, &pix->height,
 					NULL, &pix->pixelformat,
-					FIMC_SD_PAD_SINK);
+					FIMC_SD_PAD_SINK_CAM);
 		ctx->s_frame.f_width  = pix->width;
 		ctx->s_frame.f_height = pix->height;
 	}
@@ -1121,44 +1126,51 @@ static int fimc_cap_g_input(struct file *file, void *priv, unsigned int *i)
 static int fimc_pipeline_validate(struct fimc_dev *fimc)
 {
 	struct v4l2_subdev_format sink_fmt, src_fmt;
-	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
-	struct v4l2_subdev *sd;
-	struct media_pad *pad;
-	int ret;
-
-	/* Start with the video capture node pad */
-	pad = media_entity_remote_source(&vid_cap->vd_pad);
-	if (pad == NULL)
-		return -EPIPE;
-	/* FIMC.{N} subdevice */
-	sd = media_entity_to_v4l2_subdev(pad->entity);
+	struct fimc_vid_cap *vc = &fimc->vid_cap;
+	struct v4l2_subdev *sd = &vc->subdev;
+	struct media_pad *sink_pad, *src_pad;
+	int i, ret;
 
 	while (1) {
-		/* Retrieve format at the sink pad */
-		pad = &sd->entity.pads[0];
-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
+		/*
+		 * Find current entity sink pad and any remote sink pad linked
+		 * to it. We stop if there is no sink pad in current entity or
+		 * it is not linked to any other remote entity.
+		 */
+		src_pad = NULL;
+
+		for (i = 0; i < sd->entity.num_pads; i++) {
+			struct media_pad *p = &sd->entity.pads[i];
+
+			if (p->flags & MEDIA_PAD_FL_SINK) {
+				sink_pad = p;
+				src_pad = media_entity_remote_source(sink_pad);
+				if (src_pad)
+					break;
+			}
+		}
+
+		if (src_pad == NULL ||
+		    media_entity_type(src_pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
+
 		/* Don't call FIMC subdev operation to avoid nested locking */
-		if (sd == &fimc->vid_cap.subdev) {
-			struct fimc_frame *ff = &vid_cap->ctx->s_frame;
+		if (sd == &vc->subdev) {
+			struct fimc_frame *ff = &vc->ctx->s_frame;
 			sink_fmt.format.width = ff->f_width;
 			sink_fmt.format.height = ff->f_height;
 			sink_fmt.format.code = ff->fmt ? ff->fmt->mbus_code : 0;
 		} else {
-			sink_fmt.pad = pad->index;
+			sink_fmt.pad = sink_pad->index;
 			sink_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 			ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &sink_fmt);
 			if (ret < 0 && ret != -ENOIOCTLCMD)
 				return -EPIPE;
 		}
-		/* Retrieve format at the source pad */
-		pad = media_entity_remote_source(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
-			break;
 
-		sd = media_entity_to_v4l2_subdev(pad->entity);
-		src_fmt.pad = pad->index;
+		/* Retrieve format at the source pad */
+		sd = media_entity_to_v4l2_subdev(src_pad->entity);
+		src_fmt.pad = src_pad->index;
 		src_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &src_fmt);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
@@ -1172,7 +1184,7 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 		if (sd == fimc->pipeline.subdevs[IDX_SENSOR] &&
 		    fimc_user_defined_mbus_fmt(src_fmt.format.code)) {
 			struct v4l2_plane_pix_format plane_fmt[FIMC_MAX_PLANES];
-			struct fimc_frame *frame = &vid_cap->ctx->d_frame;
+			struct fimc_frame *frame = &vc->ctx->d_frame;
 			unsigned int i;
 
 			ret = fimc_get_sensor_frame_desc(sd, plane_fmt,
@@ -1196,6 +1208,8 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	struct fimc_pipeline *p = &fimc->pipeline;
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
 	struct media_entity *entity = &vc->vfd.entity;
+	struct fimc_source_info *si = NULL;
+	struct v4l2_subdev *sd;
 	int ret;
 
 	if (fimc_capture_active(fimc))
@@ -1204,6 +1218,23 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	ret = media_entity_pipeline_start(entity, p->m_pipeline);
 	if (ret < 0)
 		return ret;
+
+	sd = p->subdevs[IDX_SENSOR];
+	if (sd)
+		si = v4l2_get_subdev_hostdata(sd);
+
+	if (si == NULL) {
+		ret = -EPIPE;
+		goto err_p_stop;
+	}
+	/*
+	 * Save configuration data related to currently attached image
+	 * sensor or other data source, e.g. FIMC-IS.
+	 */
+	vc->source_config = *si;
+
+	if (vc->input == GRP_ID_FIMC_IS)
+		vc->source_config.fimc_bus_type = FIMC_BUS_TYPE_ISP_WRITEBACK;
 
 	if (vc->user_subdev_api) {
 		ret = fimc_pipeline_validate(fimc);
@@ -1461,25 +1492,37 @@ static int fimc_subdev_get_fmt(struct v4l2_subdev *sd,
 {
 	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
+	struct fimc_frame *ff = &ctx->s_frame;
 	struct v4l2_mbus_framefmt *mf;
-	struct fimc_frame *ff;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
 		fmt->format = *mf;
 		return 0;
 	}
-	mf = &fmt->format;
-	mf->colorspace = V4L2_COLORSPACE_JPEG;
-	ff = fmt->pad == FIMC_SD_PAD_SINK ? &ctx->s_frame : &ctx->d_frame;
 
+	mf = &fmt->format;
 	mutex_lock(&fimc->lock);
-	/* The pixel code is same on both input and output pad */
-	if (!WARN_ON(ctx->s_frame.fmt == NULL))
-		mf->code = ctx->s_frame.fmt->mbus_code;
-	mf->width  = ff->f_width;
-	mf->height = ff->f_height;
+
+	switch (fmt->pad) {
+	case FIMC_SD_PAD_SOURCE:
+		if (!WARN_ON(ff->fmt == NULL))
+			mf->code = ff->fmt->mbus_code;
+		/* Sink pads crop rectangle size */
+		mf->width = ff->width;
+		mf->height = ff->height;
+		break;
+	case FIMC_SD_PAD_SINK_FIFO:
+		*mf = fimc->vid_cap.wb_fmt;
+		break;
+	case FIMC_SD_PAD_SINK_CAM:
+	default:
+		*mf = fimc->vid_cap.ci_fmt;
+		break;
+	}
+
 	mutex_unlock(&fimc->lock);
+	mf->colorspace = V4L2_COLORSPACE_JPEG;
 
 	return 0;
 }
@@ -1490,15 +1533,15 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 {
 	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
-	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
+	struct fimc_vid_cap *vc = &fimc->vid_cap;
+	struct fimc_ctx *ctx = vc->ctx;
 	struct fimc_frame *ff;
 	struct fimc_fmt *ffmt;
 
 	dbg("pad%d: code: 0x%x, %dx%d",
 	    fmt->pad, mf->code, mf->width, mf->height);
 
-	if (fmt->pad == FIMC_SD_PAD_SOURCE &&
-	    vb2_is_busy(&fimc->vid_cap.vbq))
+	if (fmt->pad == FIMC_SD_PAD_SOURCE && vb2_is_busy(&vc->vbq))
 		return -EBUSY;
 
 	mutex_lock(&fimc->lock);
@@ -1520,21 +1563,32 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 	fimc_alpha_ctrl_update(ctx);
 
 	fimc_capture_mark_jpeg_xfer(ctx, ffmt->color);
-
-	ff = fmt->pad == FIMC_SD_PAD_SINK ?
-		&ctx->s_frame : &ctx->d_frame;
+	if (fmt->pad == FIMC_SD_PAD_SOURCE) {
+		ff = &ctx->d_frame;
+		/* Sink pads crop rectangle size */
+		mf->width = ctx->s_frame.width;
+		mf->height = ctx->s_frame.height;
+	} else {
+		ff = &ctx->s_frame;
+	}
 
 	mutex_lock(&fimc->lock);
 	set_frame_bounds(ff, mf->width, mf->height);
-	fimc->vid_cap.mf = *mf;
+
+	if (fmt->pad == FIMC_SD_PAD_SINK_FIFO)
+		vc->wb_fmt = *mf;
+	else if (fmt->pad == FIMC_SD_PAD_SINK_CAM)
+		vc->ci_fmt = *mf;
+
 	ff->fmt = ffmt;
 
 	/* Reset the crop rectangle if required. */
 	if (!(fmt->pad == FIMC_SD_PAD_SOURCE && (ctx->state & FIMC_COMPOSE)))
 		set_frame_crop(ff, 0, 0, mf->width, mf->height);
 
-	if (fmt->pad == FIMC_SD_PAD_SINK)
+	if (fmt->pad != FIMC_SD_PAD_SOURCE)
 		ctx->state &= ~FIMC_COMPOSE;
+
 	mutex_unlock(&fimc->lock);
 	return 0;
 }
@@ -1549,7 +1603,7 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 	struct v4l2_rect *r = &sel->r;
 	struct v4l2_rect *try_sel;
 
-	if (sel->pad != FIMC_SD_PAD_SINK)
+	if (sel->pad == FIMC_SD_PAD_SOURCE)
 		return -EINVAL;
 
 	mutex_lock(&fimc->lock);
@@ -1605,7 +1659,7 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 	struct v4l2_rect *try_sel;
 	unsigned long flags;
 
-	if (sel->pad != FIMC_SD_PAD_SINK)
+	if (sel->pad == FIMC_SD_PAD_SOURCE)
 		return -EINVAL;
 
 	mutex_lock(&fimc->lock);
@@ -1809,7 +1863,8 @@ int fimc_initialize_capture_subdev(struct fimc_dev *fimc)
 	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, sizeof(sd->name), "FIMC.%d", fimc->id);
 
-	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK_CAM].flags = MEDIA_PAD_FL_SINK;
+	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK_FIFO].flags = MEDIA_PAD_FL_SINK;
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_init(&sd->entity, FIMC_SD_PADS_NUM,
 				fimc->vid_cap.sd_pads, 0);

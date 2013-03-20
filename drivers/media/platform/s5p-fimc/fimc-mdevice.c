@@ -267,6 +267,11 @@ static struct v4l2_subdev *fimc_md_register_sensor(struct fimc_md *fmd,
 
 	if (!s_info || !fmd)
 		return NULL;
+	/*
+	 * If FIMC bus type is not Writeback FIFO assume it is same
+	 * as sensor_bus_type.
+	 */
+	s_info->pdata.fimc_bus_type = s_info->pdata.sensor_bus_type;
 
 	adapter = i2c_get_adapter(s_info->pdata.i2c_bus_num);
 	if (!adapter) {
@@ -807,7 +812,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 
 		sink = &fmd->fimc[i]->vid_cap.subdev.entity;
 		ret = media_entity_create_link(source, pad, sink,
-					      FIMC_SD_PAD_SINK, flags);
+					      FIMC_SD_PAD_SINK_CAM, flags);
 		if (ret)
 			return ret;
 

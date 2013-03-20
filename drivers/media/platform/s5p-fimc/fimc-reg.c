@@ -1,21 +1,23 @@
 /*
  * Register interface file for Samsung Camera Interface (FIMC) driver
  *
- * Copyright (C) 2010 - 2012 Samsung Electronics Co., Ltd.
- * Sylwester Nawrocki, <s.nawrocki@samsung.com>
+ * Copyright (C) 2010 - 2013 Samsung Electronics Co., Ltd.
+ * Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
 
-#include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/regmap.h>
+
 #include <media/s5p_fimc.h>
+#include "fimc-mdevice.h"
 
 #include "fimc-reg.h"
 #include "fimc-core.h"
-
 
 void fimc_hw_reset(struct fimc_dev *dev)
 {
@@ -598,7 +600,8 @@ static const struct mbus_pixfmt_desc pix_desc[] = {
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			      struct fimc_source_info *source)
 {
-	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
+	struct fimc_vid_cap *vc = &fimc->vid_cap;
+	struct fimc_frame *f = &vc->ctx->s_frame;
 	u32 bus_width, cfg = 0;
 	int i;
 
@@ -606,7 +609,7 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 	case FIMC_BUS_TYPE_ITU_601:
 	case FIMC_BUS_TYPE_ITU_656:
 		for (i = 0; i < ARRAY_SIZE(pix_desc); i++) {
-			if (fimc->vid_cap.mf.code == pix_desc[i].pixelcode) {
+			if (vc->ci_fmt.code == pix_desc[i].pixelcode) {
 				cfg = pix_desc[i].cisrcfmt;
 				bus_width = pix_desc[i].bus_width;
 				break;
@@ -614,9 +617,9 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 		}
 
 		if (i == ARRAY_SIZE(pix_desc)) {
-			v4l2_err(&fimc->vid_cap.vfd,
+			v4l2_err(&vc->vfd,
 				 "Camera color format not supported: %d\n",
-				 fimc->vid_cap.mf.code);
+				 vc->ci_fmt.code);
 			return -EINVAL;
 		}
 
@@ -630,6 +633,10 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 	case FIMC_BUS_TYPE_MIPI_CSI2:
 		if (fimc_fmt_is_user_defined(f->fmt->color))
 			cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
+		break;
+	default:
+	case FIMC_BUS_TYPE_ISP_WRITEBACK:
+		/* Anything to do here ? */
 		break;
 	}
 
@@ -660,16 +667,17 @@ void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			    struct fimc_source_info *source)
 {
-	u32 cfg, tmp;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
 	u32 csis_data_alignment = 32;
+	u32 cfg, tmp;
 
 	cfg = readl(fimc->regs + FIMC_REG_CIGCTRL);
 
 	/* Select ITU B interface, disable Writeback path and test pattern. */
 	cfg &= ~(FIMC_REG_CIGCTRL_TESTPAT_MASK | FIMC_REG_CIGCTRL_SELCAM_ITU_A |
 		FIMC_REG_CIGCTRL_SELCAM_MIPI | FIMC_REG_CIGCTRL_CAMIF_SELWB |
-		FIMC_REG_CIGCTRL_SELCAM_MIPI_A | FIMC_REG_CIGCTRL_CAM_JPEG);
+		FIMC_REG_CIGCTRL_SELCAM_MIPI_A | FIMC_REG_CIGCTRL_CAM_JPEG |
+		FIMC_REG_CIGCTRL_SELWB_A);
 
 	switch (source->fimc_bus_type) {
 	case FIMC_BUS_TYPE_MIPI_CSI2:
@@ -679,7 +687,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			cfg |= FIMC_REG_CIGCTRL_SELCAM_MIPI_A;
 
 		/* TODO: add remaining supported formats. */
-		switch (vid_cap->mf.code) {
+		switch (vid_cap->ci_fmt.code) {
 		case V4L2_MBUS_FMT_VYUY8_2X8:
 			tmp = FIMC_REG_CSIIMGFMT_YCBCR422_8BIT;
 			break;
@@ -691,7 +699,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		default:
 			v4l2_err(&vid_cap->vfd,
 				 "Not supported camera pixel format: %#x\n",
-				 vid_cap->mf.code);
+				 vid_cap->ci_fmt.code);
 			return -EINVAL;
 		}
 		tmp |= (csis_data_alignment == 32) << 8;
@@ -704,6 +712,12 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		break;
 	case FIMC_BUS_TYPE_LCD_WRITEBACK_A:
 		cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
+		/* fall through */
+	case FIMC_BUS_TYPE_ISP_WRITEBACK:
+		if (fimc->variant->has_isp_wb)
+			cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
+		else
+			WARN_ONCE(1, "ISP Writeback input is not supported\n");
 		break;
 	default:
 		v4l2_err(&vid_cap->vfd, "Invalid FIMC bus type selected: %d\n",
@@ -783,4 +797,41 @@ void fimc_deactivate_capture(struct fimc_dev *fimc)
 	fimc_hw_disable_capture(fimc);
 	fimc_hw_enable_scaler(fimc, false);
 	fimc_hw_en_lastirq(fimc, false);
+}
+
+int fimc_hw_camblk_cfg_writeback(struct fimc_dev *fimc)
+{
+	struct regmap *map = fimc->sysreg;
+	unsigned int mask, val, camblk_cfg;
+	int ret;
+
+	ret = regmap_read(map, SYSREG_CAMBLK, &camblk_cfg);
+	if (ret < 0 || ((camblk_cfg & 0x00700000) >> 20 != 0x3))
+		return ret;
+
+	if (!WARN(fimc->id >= 3, "not supported id: %d\n", fimc->id))
+		val = 0x1 << (fimc->id + 20);
+	else
+		val = 0;
+
+	mask = SYSREG_CAMBLK_FIFORST_ISP | SYSREG_CAMBLK_ISPWB_FULL_EN;
+	ret = regmap_update_bits(map, SYSREG_CAMBLK, mask, val);
+	if (ret < 0)
+		return ret;
+
+	usleep_range(1000, 2000);
+
+	val |= SYSREG_CAMBLK_FIFORST_ISP;
+	ret = regmap_update_bits(map, SYSREG_CAMBLK, mask, val);
+	if (ret < 0)
+		return ret;
+
+	mask = SYSREG_ISPBLK_FIFORST_CAM_BLK;
+	ret = regmap_update_bits(map, SYSREG_ISPBLK, mask, ~mask);
+	if (ret < 0)
+		return ret;
+
+	usleep_range(1000, 2000);
+
+	return regmap_update_bits(map, SYSREG_ISPBLK, mask, mask);
 }
