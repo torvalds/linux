@@ -680,12 +680,14 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
  */
 static bool rs_use_green(struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_sta *sta_priv = (void *)sta->drv_priv;
-
-	bool use_green = !(sta_priv->vif->bss_conf.ht_operation_mode &
-				IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
-
-	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) && use_green;
+	/*
+	 * There's a bug somewhere in this code that causes the
+	 * scaling to get stuck because GF+SGI can't be combined
+	 * in SISO rates. Until we find that bug, disable GF, it
+	 * has only limited benefit and we still interoperate with
+	 * GF APs since we can always receive GF transmissions.
+	 */
+	return false;
 }
 
 /**

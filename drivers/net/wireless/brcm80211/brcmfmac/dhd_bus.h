@@ -134,7 +134,7 @@ extern void brcmf_dev_reset(struct device *dev);
 /* Indication from bus module to change flow-control state */
 extern void brcmf_txflowblock(struct device *dev, bool state);
 
-/* Notify tx completion */
+/* Notify the bus has transferred the tx packet to firmware */
 extern void brcmf_txcomplete(struct device *dev, struct sk_buff *txp,
 			     bool success);
 

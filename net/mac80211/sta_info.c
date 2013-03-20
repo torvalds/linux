@@ -342,6 +342,11 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 	mutex_init(&sta->ampdu_mlme.mtx);
+#ifdef CONFIG_MAC80211_MESH
+	if (ieee80211_vif_is_mesh(&sdata->vif) &&
+	    !sdata->u.mesh.user_mpm)
+		init_timer(&sta->plink_timer);
+#endif
 
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;
@@ -794,9 +799,11 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	mutex_lock(&local->key_mtx);
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
-		__ieee80211_key_free(key_mtx_dereference(local, sta->gtk[i]));
+		__ieee80211_key_free(key_mtx_dereference(local, sta->gtk[i]),
+				     true);
 	if (sta->ptk)
-		__ieee80211_key_free(key_mtx_dereference(local, sta->ptk));
+		__ieee80211_key_free(key_mtx_dereference(local, sta->ptk),
+				     true);
 	mutex_unlock(&local->key_mtx);
 
 	sta->dead = true;

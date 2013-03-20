@@ -325,6 +325,36 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(ht_capa);
 
+static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	char buf[128], *p = buf;
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_sta_vht_cap *vhtc = &sta->sta.vht_cap;
+
+	p += scnprintf(p, sizeof(buf) + buf - p, "VHT %ssupported\n",
+			vhtc->vht_supported ? "" : "not ");
+	if (vhtc->vht_supported) {
+		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.8x\n", vhtc->cap);
+
+		p += scnprintf(p, sizeof(buf)+buf-p, "RX MCS: %.4x\n",
+			       le16_to_cpu(vhtc->vht_mcs.rx_mcs_map));
+		if (vhtc->vht_mcs.rx_highest)
+			p += scnprintf(p, sizeof(buf)+buf-p,
+				       "MCS RX highest: %d Mbps\n",
+				       le16_to_cpu(vhtc->vht_mcs.rx_highest));
+		p += scnprintf(p, sizeof(buf)+buf-p, "TX MCS: %.4x\n",
+			       le16_to_cpu(vhtc->vht_mcs.tx_mcs_map));
+		if (vhtc->vht_mcs.tx_highest)
+			p += scnprintf(p, sizeof(buf)+buf-p,
+				       "MCS TX highest: %d Mbps\n",
+				       le16_to_cpu(vhtc->vht_mcs.tx_highest));
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+}
+STA_OPS(vht_capa);
+
 static ssize_t sta_current_tx_rate_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
 {
@@ -405,6 +435,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(dev);
 	DEBUGFS_ADD(last_signal);
 	DEBUGFS_ADD(ht_capa);
+	DEBUGFS_ADD(vht_capa);
 	DEBUGFS_ADD(last_ack_signal);
 	DEBUGFS_ADD(current_tx_rate);
 	DEBUGFS_ADD(last_rx_rate);

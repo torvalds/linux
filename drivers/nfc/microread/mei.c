@@ -48,7 +48,7 @@ struct mei_nfc_hdr {
 #define MEI_NFC_MAX_READ (MEI_NFC_HEADER_SIZE + MEI_NFC_MAX_HCI_PAYLOAD)
 
 struct microread_mei_phy {
-	struct mei_device *mei_device;
+	struct mei_device *device;
 	struct nfc_hci_dev *hdev;
 
 	int powered;
