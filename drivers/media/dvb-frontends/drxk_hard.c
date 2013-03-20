@@ -2490,32 +2490,6 @@ error:
 	return status;
 }
 
-static int ReadIFAgc(struct drxk_state *state, u32 *pValue)
-{
-	u16 agcDacLvl;
-	int status;
-	u16 Level = 0;
-
-	dprintk(1, "\n");
-
-	status = read16(state, IQM_AF_AGC_IF__A, &agcDacLvl);
-	if (status < 0) {
-		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
-		return status;
-	}
-
-	*pValue = 0;
-
-	if (agcDacLvl > DRXK_AGC_DAC_OFFSET)
-		Level = agcDacLvl - DRXK_AGC_DAC_OFFSET;
-	if (Level < 14000)
-		*pValue = (14000 - Level) / 4;
-	else
-		*pValue = 0;
-
-	return status;
-}
-
 static int GetQAMSignalToNoise(struct drxk_state *state,
 			       s32 *pSignalToNoise)
 {
@@ -6484,7 +6458,7 @@ static int get_strength(struct drxk_state *state, u64 *strength)
 	 * If it can't be measured (AGC is disabled), just show 100%.
 	 */
 	if (totalGain > 0)
-		*strength = (65535UL * atten / totalGain);
+		*strength = (65535UL * atten / totalGain / 100);
 	else
 		*strength = 65535;
 
@@ -6633,7 +6607,7 @@ static int drxk_read_signal_strength(struct dvb_frontend *fe,
 				     u16 *strength)
 {
 	struct drxk_state *state = fe->demodulator_priv;
-	u32 val = 0;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	dprintk(1, "\n");
 
@@ -6642,8 +6616,7 @@ static int drxk_read_signal_strength(struct dvb_frontend *fe,
 	if (state->m_DrxkState == DRXK_UNINITIALIZED)
 		return -EAGAIN;
 
-	ReadIFAgc(state, &val);
-	*strength = val & 0xffff;
+	*strength = c->strength.stat[0].uvalue;
 	return 0;
 }
 
