@@ -1947,8 +1947,7 @@ static int ShutDown(struct drxk_state *state)
 	return 0;
 }
 
-static int GetLockStatus(struct drxk_state *state, u32 *pLockStatus,
-			 u32 Time)
+static int GetLockStatus(struct drxk_state *state, u32 *pLockStatus)
 {
 	int status = -EINVAL;
 
@@ -6488,7 +6487,7 @@ static int drxk_get_stats(struct dvb_frontend *fe)
 
 	/* get status */
 	state->fe_status = 0;
-	GetLockStatus(state, &stat, 0);
+	GetLockStatus(state, &stat);
 	if (stat == MPEG_LOCK)
 		state->fe_status |= 0x1f;
 	if (stat == FEC_LOCK)
