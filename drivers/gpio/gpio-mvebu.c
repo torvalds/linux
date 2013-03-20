@@ -116,7 +116,7 @@ static inline void __iomem *mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvc
 {
 	int cpu;
 
-	switch(mvchip->soc_variant) {
+	switch (mvchip->soc_variant) {
 	case MVEBU_GPIO_SOC_VARIANT_ORION:
 	case MVEBU_GPIO_SOC_VARIANT_MV78200:
 		return mvchip->membase + GPIO_EDGE_CAUSE_OFF;
@@ -132,7 +132,7 @@ static inline void __iomem *mvebu_gpioreg_edge_mask(struct mvebu_gpio_chip *mvch
 {
 	int cpu;
 
-	switch(mvchip->soc_variant) {
+	switch (mvchip->soc_variant) {
 	case MVEBU_GPIO_SOC_VARIANT_ORION:
 		return mvchip->membase + GPIO_EDGE_MASK_OFF;
 	case MVEBU_GPIO_SOC_VARIANT_MV78200:
@@ -150,7 +150,7 @@ static void __iomem *mvebu_gpioreg_level_mask(struct mvebu_gpio_chip *mvchip)
 {
 	int cpu;
 
-	switch(mvchip->soc_variant) {
+	switch (mvchip->soc_variant) {
 	case MVEBU_GPIO_SOC_VARIANT_ORION:
 		return mvchip->membase + GPIO_LEVEL_MASK_OFF;
 	case MVEBU_GPIO_SOC_VARIANT_MV78200:
@@ -400,7 +400,7 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	/*
 	 * Configure interrupt polarity.
 	 */
-	switch(type) {
+	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
 	case IRQ_TYPE_LEVEL_HIGH:
 		u = readl_relaxed(mvebu_gpioreg_in_pol(mvchip));
@@ -472,15 +472,15 @@ static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 static struct of_device_id mvebu_gpio_of_match[] = {
 	{
 		.compatible = "marvell,orion-gpio",
-		.data       = (void*) MVEBU_GPIO_SOC_VARIANT_ORION,
+		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_ORION,
 	},
 	{
 		.compatible = "marvell,mv78200-gpio",
-		.data       = (void*) MVEBU_GPIO_SOC_VARIANT_MV78200,
+		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_MV78200,
 	},
 	{
 		.compatible = "marvell,armadaxp-gpio",
-		.data       = (void*) MVEBU_GPIO_SOC_VARIANT_ARMADAXP,
+		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_ARMADAXP,
 	},
 	{
 		/* sentinel */
@@ -507,13 +507,13 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (! res) {
+	if (!res) {
 		dev_err(&pdev->dev, "Cannot get memory resource\n");
 		return -ENODEV;
 	}
 
 	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip), GFP_KERNEL);
-	if (! mvchip){
+	if (!mvchip) {
 		dev_err(&pdev->dev, "Cannot allocate memory\n");
 		return -ENOMEM;
 	}
@@ -553,21 +553,21 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	 * per-CPU registers */
 	if (soc_variant == MVEBU_GPIO_SOC_VARIANT_ARMADAXP) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (! res) {
+		if (!res) {
 			dev_err(&pdev->dev, "Cannot get memory resource\n");
 			return -ENODEV;
 		}
 
 		mvchip->percpu_membase = devm_ioremap_resource(&pdev->dev,
 							       res);
-		if (IS_ERR(mvchip->percpu_membase)) 
+		if (IS_ERR(mvchip->percpu_membase))
 			return PTR_ERR(mvchip->percpu_membase);
 	}
 
 	/*
 	 * Mask and clear GPIO interrupts.
 	 */
-	switch(soc_variant) {
+	switch (soc_variant) {
 	case MVEBU_GPIO_SOC_VARIANT_ORION:
 		writel_relaxed(0, mvchip->membase + GPIO_EDGE_CAUSE_OFF);
 		writel_relaxed(0, mvchip->membase + GPIO_EDGE_MASK_OFF);
@@ -625,7 +625,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	gc = irq_alloc_generic_chip("mvebu_gpio_irq", 2, mvchip->irqbase,
 				    mvchip->membase, handle_level_irq);
-	if (! gc) {
+	if (!gc) {
 		dev_err(&pdev->dev, "Cannot allocate generic irq_chip\n");
 		return -ENOMEM;
 	}
