@@ -2520,8 +2520,6 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 
 	BUG_ON(iocb->ki_pos != pos);
 
-	sb_start_write(inode->i_sb);
-
 	/*
 	 * We need to hold the sem to be sure nobody modifies lock list
 	 * with a brlock that prevents writing.
@@ -2545,7 +2543,6 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 	}
 
 	up_read(&cinode->lock_sem);
-	sb_end_write(inode->i_sb);
 	return rc;
 }
 
