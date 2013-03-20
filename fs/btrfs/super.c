@@ -643,7 +643,7 @@ out:
  */
 static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		void *holder, char **subvol_name, u64 *subvol_objectid,
-		u64 *subvol_rootid, struct btrfs_fs_devices **fs_devices)
+		struct btrfs_fs_devices **fs_devices)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *device_name, *opts, *orig, *p;
@@ -686,16 +686,8 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			}
 			break;
 		case Opt_subvolrootid:
-			intarg = 0;
-			error = match_int(&args[0], &intarg);
-			if (!error) {
-				/* we want the original fs_tree */
-				if (!intarg)
-					*subvol_rootid =
-						BTRFS_FS_TREE_OBJECTID;
-				else
-					*subvol_rootid = intarg;
-			}
+			printk(KERN_WARNING
+				"btrfs: 'subvolrootid' mount option is deprecated and has no effect\n");
 			break;
 		case Opt_device:
 			device_name = match_strdup(&args[0]);
@@ -1073,7 +1065,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	fmode_t mode = FMODE_READ;
 	char *subvol_name = NULL;
 	u64 subvol_objectid = 0;
-	u64 subvol_rootid = 0;
 	int error = 0;
 
 	if (!(flags & MS_RDONLY))
@@ -1081,7 +1072,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 	error = btrfs_parse_early_options(data, mode, fs_type,
 					  &subvol_name, &subvol_objectid,
-					  &subvol_rootid, &fs_devices);
+					  &fs_devices);
 	if (error) {
 		kfree(subvol_name);
 		return ERR_PTR(error);
