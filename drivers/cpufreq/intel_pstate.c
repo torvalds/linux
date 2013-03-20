@@ -358,14 +358,14 @@ static void intel_pstate_sysfs_expose_params(void)
 static int intel_pstate_min_pstate(void)
 {
 	u64 value;
-	rdmsrl(0xCE, value);
+	rdmsrl(MSR_PLATFORM_INFO, value);
 	return (value >> 40) & 0xFF;
 }
 
 static int intel_pstate_max_pstate(void)
 {
 	u64 value;
-	rdmsrl(0xCE, value);
+	rdmsrl(MSR_PLATFORM_INFO, value);
 	return (value >> 8) & 0xFF;
 }
 
@@ -373,7 +373,7 @@ static int intel_pstate_turbo_pstate(void)
 {
 	u64 value;
 	int nont, ret;
-	rdmsrl(0x1AD, value);
+	rdmsrl(MSR_NHM_TURBO_RATIO_LIMIT, value);
 	nont = intel_pstate_max_pstate();
 	ret = ((value) & 255);
 	if (ret <= nont)
