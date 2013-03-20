@@ -1074,7 +1074,7 @@ struct v4l2_bt_timings {
    longer and field 2 is really one half-line shorter, so each field has
    exactly the same number of half-lines. Whether half-lines can be detected
    or used depends on the hardware. */
-#define V4L2_DV_FL_HALF_LINE			(1 << 0)
+#define V4L2_DV_FL_HALF_LINE			(1 << 3)
 
 
 /** struct v4l2_dv_timings - DV timings
