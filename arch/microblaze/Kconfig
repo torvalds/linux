@@ -38,9 +38,6 @@ config RWSEM_GENERIC_SPINLOCK
 config ZONE_DMA
 	def_bool y
 
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
-
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
