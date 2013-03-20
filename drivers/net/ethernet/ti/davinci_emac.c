@@ -1438,7 +1438,7 @@ static int emac_poll(struct napi_struct *napi, int budget)
  * Polled functionality used by netconsole and others in non interrupt mode
  *
  */
-void emac_poll_controller(struct net_device *ndev)
+static void emac_poll_controller(struct net_device *ndev)
 {
 	struct emac_priv *priv = netdev_priv(ndev);
 
