@@ -33,6 +33,11 @@
 #define SLCR_UNLOCK			0x8   /* SCLR unlock register */
 
 #define SLCR_PS_RST_CTRL_OFFSET		0x200 /* PS Software Reset Control */
+
+#define SLCR_A9_CPU_CLKSTOP		0x10
+#define SLCR_A9_CPU_RST			0x1
+
+#define SLCR_A9_CPU_RST_CTRL		0x244 /* CPU Software Reset Control */
 #define SLCR_REBOOT_STATUS		0x258 /* PS Reboot Status */
 
 void __iomem *zynq_slcr_base;
@@ -59,6 +64,30 @@ void zynq_slcr_system_reset(void)
 	reboot = readl(zynq_slcr_base + SLCR_REBOOT_STATUS);
 	writel(reboot & 0xF0FFFFFF, zynq_slcr_base + SLCR_REBOOT_STATUS);
 	writel(1, zynq_slcr_base + SLCR_PS_RST_CTRL_OFFSET);
+}
+
+/**
+ * zynq_slcr_cpu_start - Start cpu
+ * @cpu:	cpu number
+ */
+void zynq_slcr_cpu_start(int cpu)
+{
+	/* enable CPUn */
+	writel(SLCR_A9_CPU_CLKSTOP << cpu,
+	       zynq_slcr_base + SLCR_A9_CPU_RST_CTRL);
+	/* enable CLK for CPUn */
+	writel(0x0 << cpu, zynq_slcr_base + SLCR_A9_CPU_RST_CTRL);
+}
+
+/**
+ * zynq_slcr_cpu_stop - Stop cpu
+ * @cpu:	cpu number
+ */
+void zynq_slcr_cpu_stop(int cpu)
+{
+	/* stop CLK and reset CPUn */
+	writel((SLCR_A9_CPU_CLKSTOP | SLCR_A9_CPU_RST) << cpu,
+	       zynq_slcr_base + SLCR_A9_CPU_RST_CTRL);
 }
 
 /**
