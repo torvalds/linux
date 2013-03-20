@@ -1052,7 +1052,9 @@ static int write_pipe_buf(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	loff_t tmp = sd->pos;
 
 	data = buf->ops->map(pipe, buf, 0);
+	file_start_write(sd->u.file);
 	ret = __kernel_write(sd->u.file, data + buf->offset, sd->len, &tmp);
+	file_end_write(sd->u.file);
 	buf->ops->unmap(pipe, buf, data);
 
 	return ret;

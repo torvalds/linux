@@ -79,6 +79,7 @@ coda_file_write(struct file *coda_file, const char __user *buf, size_t count, lo
 		return -EINVAL;
 
 	host_inode = file_inode(host_file);
+	file_start_write(host_file);
 	mutex_lock(&coda_inode->i_mutex);
 
 	ret = host_file->f_op->write(host_file, buf, count, ppos);
@@ -87,6 +88,7 @@ coda_file_write(struct file *coda_file, const char __user *buf, size_t count, lo
 	coda_inode->i_blocks = (coda_inode->i_size + 511) >> 9;
 	coda_inode->i_mtime = coda_inode->i_ctime = CURRENT_TIME_SEC;
 	mutex_unlock(&coda_inode->i_mutex);
+	file_end_write(host_file);
 
 	return ret;
 }

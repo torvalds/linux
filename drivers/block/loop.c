@@ -230,9 +230,11 @@ static int __do_lo_send_write(struct file *file,
 	ssize_t bw;
 	mm_segment_t old_fs = get_fs();
 
+	file_start_write(file);
 	set_fs(get_ds());
 	bw = file->f_op->write(file, buf, len, &pos);
 	set_fs(old_fs);
+	file_end_write(file);
 	if (likely(bw == len))
 		return 0;
 	printk(KERN_ERR "loop: Write error at byte offset %llu, length %i.\n",
