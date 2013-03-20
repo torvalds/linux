@@ -777,7 +777,7 @@ void tty_vhangup_self(void)
  *	is complete. That guarantee is necessary for security reasons.
  */
 
-void tty_vhangup_session(struct tty_struct *tty)
+static void tty_vhangup_session(struct tty_struct *tty)
 {
 #ifdef TTY_DEBUG_HANGUP
 	char	buf[64];
