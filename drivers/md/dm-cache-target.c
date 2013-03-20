@@ -1763,8 +1763,11 @@ static int create_cache_policy(struct cache *cache, struct cache_args *ca,
 	}
 
 	r = set_config_values(cache->policy, ca->policy_argc, ca->policy_argv);
-	if (r)
+	if (r) {
+		*error = "Error setting cache policy's config values";
 		dm_cache_policy_destroy(cache->policy);
+		cache->policy = NULL;
+	}
 
 	return r;
 }
