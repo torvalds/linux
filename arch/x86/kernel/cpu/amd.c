@@ -514,6 +514,8 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 }
 
 static const int amd_erratum_383[];
+static const int amd_erratum_400[];
+static bool cpu_has_amd_erratum(const int *erratum);
 
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
@@ -734,6 +736,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 			set_cpu_bug(c, X86_BUG_AMD_TLB_MMATCH);
 	}
 
+	if (cpu_has_amd_erratum(amd_erratum_400))
+		set_cpu_bug(c, X86_BUG_AMD_APIC_C1E);
+
 	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
 }
 
@@ -852,8 +857,7 @@ cpu_dev_register(amd_cpu_dev);
  * AMD_OSVW_ERRATUM() macros. The latter is intended for newer errata that
  * have an OSVW id assigned, which it takes as first argument. Both take a
  * variable number of family-specific model-stepping ranges created by
- * AMD_MODEL_RANGE(). Each erratum also has to be declared as extern const
- * int[] in arch/x86/include/asm/processor.h.
+ * AMD_MODEL_RANGE().
  *
  * Example:
  *
@@ -863,15 +867,22 @@ cpu_dev_register(amd_cpu_dev);
  *			   AMD_MODEL_RANGE(0x10, 0x9, 0x0, 0x9, 0x0));
  */
 
-const int amd_erratum_400[] =
+#define AMD_LEGACY_ERRATUM(...)		{ -1, __VA_ARGS__, 0 }
+#define AMD_OSVW_ERRATUM(osvw_id, ...)	{ osvw_id, __VA_ARGS__, 0 }
+#define AMD_MODEL_RANGE(f, m_start, s_start, m_end, s_end) \
+	((f << 24) | (m_start << 16) | (s_start << 12) | (m_end << 4) | (s_end))
+#define AMD_MODEL_RANGE_FAMILY(range)	(((range) >> 24) & 0xff)
+#define AMD_MODEL_RANGE_START(range)	(((range) >> 12) & 0xfff)
+#define AMD_MODEL_RANGE_END(range)	((range) & 0xfff)
+
+static const int amd_erratum_400[] =
 	AMD_OSVW_ERRATUM(1, AMD_MODEL_RANGE(0xf, 0x41, 0x2, 0xff, 0xf),
 			    AMD_MODEL_RANGE(0x10, 0x2, 0x1, 0xff, 0xf));
-EXPORT_SYMBOL_GPL(amd_erratum_400);
 
 static const int amd_erratum_383[] =
 	AMD_OSVW_ERRATUM(3, AMD_MODEL_RANGE(0x10, 0, 0, 0xff, 0xf));
 
-bool cpu_has_amd_erratum(const int *erratum)
+static bool cpu_has_amd_erratum(const int *erratum)
 {
 	struct cpuinfo_x86 *cpu = __this_cpu_ptr(&cpu_info);
 	int osvw_id = *erratum++;
@@ -912,5 +923,3 @@ bool cpu_has_amd_erratum(const int *erratum)
 
 	return false;
 }
-
-EXPORT_SYMBOL_GPL(cpu_has_amd_erratum);
