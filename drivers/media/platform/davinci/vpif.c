@@ -44,13 +44,15 @@ static struct resource	*res;
 spinlock_t vpif_lock;
 
 void __iomem *vpif_base;
+EXPORT_SYMBOL_GPL(vpif_base);
+
 struct clk *vpif_clk;
 
 /**
- * ch_params: video standard configuration parameters for vpif
+ * vpif_ch_params: video standard configuration parameters for vpif
  * The table must include all presets from supported subdevices.
  */
-const struct vpif_channel_config_params ch_params[] = {
+const struct vpif_channel_config_params vpif_ch_params[] = {
 	/* HDTV formats */
 	{
 		.name = "480p59_94",
@@ -220,8 +222,10 @@ const struct vpif_channel_config_params ch_params[] = {
 		.stdid = V4L2_STD_625_50,
 	},
 };
+EXPORT_SYMBOL_GPL(vpif_ch_params);
 
-const unsigned int vpif_ch_params_count = ARRAY_SIZE(ch_params);
+const unsigned int vpif_ch_params_count = ARRAY_SIZE(vpif_ch_params);
+EXPORT_SYMBOL_GPL(vpif_ch_params_count);
 
 static inline void vpif_wr_bit(u32 reg, u32 bit, u32 val)
 {

@@ -563,7 +563,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	vpif_dbg(2, debug, "vpif_update_std_info\n");
 
 	for (index = 0; index < vpif_ch_params_count; index++) {
-		config = &ch_params[index];
+		config = &vpif_ch_params[index];
 		if (config->hd_sd == 0) {
 			vpif_dbg(2, debug, "SD format\n");
 			if (config->stdid & vid_ch->stdid) {

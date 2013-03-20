@@ -511,7 +511,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	int i;
 
 	for (i = 0; i < vpif_ch_params_count; i++) {
-		config = &ch_params[i];
+		config = &vpif_ch_params[i];
 		if (config->hd_sd == 0) {
 			vpif_dbg(2, debug, "SD format\n");
 			if (config->stdid & vid_ch->stdid) {
