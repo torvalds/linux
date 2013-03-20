@@ -821,7 +821,6 @@ static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
 		skb_get(skb);
 	} else {
 		pr_err("Receive queue is full\n");
-		kfree_skb(skb);
 	}
 
 	nfc_llcp_sock_put(llcp_sock);
@@ -1022,7 +1021,6 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 			skb_get(skb);
 		} else {
 			pr_err("Receive queue is full\n");
-			kfree_skb(skb);
 		}
 	}
 
