@@ -81,6 +81,12 @@ static const char *btrfs_decode_error(int errno)
 	case -EEXIST:
 		errstr = "Object already exists";
 		break;
+	case -ENOSPC:
+		errstr = "No space left";
+		break;
+	case -ENOENT:
+		errstr = "No such entry";
+		break;
 	}
 
 	return errstr;
