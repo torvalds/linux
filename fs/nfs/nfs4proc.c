@@ -2632,7 +2632,7 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	int status;
 
 	if (pnfs_ld_layoutret_on_setattr(inode))
-		pnfs_return_layout(inode);
+		pnfs_commit_and_return_layout(inode);
 
 	nfs_fattr_init(fattr);
 	
