@@ -173,7 +173,7 @@
 	};
 
 	dcscb@60000000 {
-		compatible = "arm,dcscb";
+		compatible = "arm,rtsm,dcscb";
 		reg = <0 0x60000000 0 0x1000>;
 	};
 
