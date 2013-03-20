@@ -27,6 +27,7 @@
 #include <target/target_core_fabric_configfs.h>
 #include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
+#include <target/iscsi/iscsi_transport.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_parameters.h"
@@ -1536,7 +1537,8 @@ static int lio_queue_data_in(struct se_cmd *se_cmd)
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
 	cmd->i_state = ISTATE_SEND_DATAIN;
-	iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
+	cmd->conn->conn_transport->iscsit_queue_data_in(cmd->conn, cmd);
+
 	return 0;
 }
 
@@ -1568,7 +1570,8 @@ static int lio_queue_status(struct se_cmd *se_cmd)
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
 	cmd->i_state = ISTATE_SEND_STATUS;
-	iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
+	cmd->conn->conn_transport->iscsit_queue_status(cmd->conn, cmd);
+
 	return 0;
 }
 

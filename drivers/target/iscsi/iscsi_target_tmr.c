@@ -472,6 +472,7 @@ int iscsit_tmr_post_handler(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 
 	return 0;
 }
+EXPORT_SYMBOL(iscsit_tmr_post_handler);
 
 /*
  *	Nothing to do here, but leave it for good measure. :-)
