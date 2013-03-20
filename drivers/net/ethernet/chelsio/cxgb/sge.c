@@ -835,7 +835,7 @@ static void refill_free_list(struct sge *sge, struct freelQ *q)
 		struct sk_buff *skb;
 		dma_addr_t mapping;
 
-		skb = alloc_skb(q->rx_buffer_size, GFP_ATOMIC);
+		skb = dev_alloc_skb(q->rx_buffer_size);
 		if (!skb)
 			break;
 
