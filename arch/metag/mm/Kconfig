@@ -93,11 +93,6 @@ config ARCH_SPARSEMEM_ENABLE
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 
-config MAX_ACTIVE_REGIONS
-	int
-	default "2" if SPARSEMEM
-	default "1"
-
 config ARCH_POPULATES_NODE_MAP
 	def_bool y
 

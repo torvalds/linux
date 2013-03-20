@@ -137,13 +137,6 @@ config ARCH_SPARSEMEM_ENABLE
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 
-config MAX_ACTIVE_REGIONS
-	int
-	default "6" if (CPU_SUBTYPE_SHX3 && SPARSEMEM)
-	default "2" if SPARSEMEM && (CPU_SUBTYPE_SH7722 || \
-		       CPU_SUBTYPE_SH7785)
-	default "1"
-
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 
