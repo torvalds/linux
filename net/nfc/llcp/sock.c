@@ -279,7 +279,7 @@ static int nfc_llcp_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		llcp_sock->miux = (u16) opt;
+		llcp_sock->miux = cpu_to_be16((u16) opt);
 
 		break;
 
@@ -323,7 +323,8 @@ static int nfc_llcp_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case NFC_LLCP_MIUX:
-		if (put_user(llcp_sock->miux, (u32 __user *) optval))
+		if (put_user(be16_to_cpu(llcp_sock->miux),
+			     (u32 __user *) optval))
 			err = -EFAULT;
 
 		break;
@@ -921,7 +922,7 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 	llcp_sock->ssap = 0;
 	llcp_sock->dsap = LLCP_SAP_SDP;
 	llcp_sock->rw = LLCP_MAX_RW + 1;
-	llcp_sock->miux = LLCP_MAX_MIUX + 1;
+	llcp_sock->miux = cpu_to_be16(LLCP_MAX_MIUX + 1);
 	llcp_sock->remote_rw = LLCP_DEFAULT_RW;
 	llcp_sock->remote_miu = LLCP_DEFAULT_MIU;
 	llcp_sock->send_n = llcp_sock->send_ack_n = 0;

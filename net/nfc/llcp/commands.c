@@ -420,7 +420,8 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 	}
 
 	/* If the socket parameters are not set, use the local ones */
-	miux = sock->miux > LLCP_MAX_MIUX ? local->miux : sock->miux;
+	miux = be16_to_cpu(sock->miux) > LLCP_MAX_MIUX ?
+		local->miux : sock->miux;
 	rw = sock->rw > LLCP_MAX_RW ? local->rw : sock->rw;
 
 	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
@@ -475,7 +476,8 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 		return -ENODEV;
 
 	/* If the socket parameters are not set, use the local ones */
-	miux = sock->miux > LLCP_MAX_MIUX ? local->miux : sock->miux;
+	miux = be16_to_cpu(sock->miux) > LLCP_MAX_MIUX ?
+		local->miux : sock->miux;
 	rw = sock->rw > LLCP_MAX_RW ? local->rw : sock->rw;
 
 	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,

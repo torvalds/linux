@@ -124,7 +124,7 @@ struct nfc_llcp_sock {
 	char *service_name;
 	size_t service_name_len;
 	u8 rw;
-	u16 miux;
+	__be16 miux;
 
 
 	/* Remote link parameters */
