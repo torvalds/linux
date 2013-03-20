@@ -369,11 +369,11 @@ static int parallel_test(unsigned long features,
 			 * user addr */
 			__kmalloc_fake = indirects + (xfers % RINGSIZE) * 4;
 			if (output)
-				err = virtqueue_add_buf(vq, sg, num_sg, 0, dbuf,
-							GFP_KERNEL);
+				err = virtqueue_add_outbuf(vq, sg, num_sg, dbuf,
+							   GFP_KERNEL);
 			else
-				err = virtqueue_add_buf(vq, sg, 0, num_sg, dbuf,
-							GFP_KERNEL);
+				err = virtqueue_add_inbuf(vq, sg, num_sg,
+							  dbuf, GFP_KERNEL);
 
 			if (err == -ENOSPC) {
 				if (!virtqueue_enable_cb_delayed(vq))
