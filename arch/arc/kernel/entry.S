@@ -452,7 +452,7 @@ tracesys:
 	; using ERET won't work since next-PC has already committed
 	lr  r12, [efa]
 	GET_CURR_TASK_FIELD_PTR   TASK_THREAD, r11
-	st  r12, [r11, THREAD_FAULT_ADDR]
+	st  r12, [r11, THREAD_FAULT_ADDR]	; thread.fault_address
 
 	; PRE Sys Call Ptrace hook
 	mov r0, sp			; pt_regs needed
