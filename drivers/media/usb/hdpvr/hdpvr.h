@@ -92,6 +92,7 @@ struct hdpvr_device {
 	/* holds the current set options */
 	struct hdpvr_options	options;
 	v4l2_std_id		cur_std;
+	struct v4l2_dv_timings	cur_dv_timings;
 
 	uint			flags;
 
