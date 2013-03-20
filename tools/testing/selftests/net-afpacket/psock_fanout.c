@@ -97,7 +97,7 @@ static void pair_udp_open(int fds[], uint16_t port)
 		exit(1);
 	}
 	if (connect(fds[0], (void *) &daddr, sizeof(daddr))) {
-		perror("bind");
+		perror("connect");
 		exit(1);
 	}
 }
