@@ -139,15 +139,8 @@ struct child {
 	struct btree_node *n;
 };
 
-static struct dm_btree_value_type le64_type = {
-	.context = NULL,
-	.size = sizeof(__le64),
-	.inc = NULL,
-	.dec = NULL,
-	.equal = NULL
-};
-
-static int init_child(struct dm_btree_info *info, struct btree_node *parent,
+static int init_child(struct dm_btree_info *info, struct dm_btree_value_type *vt,
+		      struct btree_node *parent,
 		      unsigned index, struct child *result)
 {
 	int r, inc;
@@ -164,7 +157,7 @@ static int init_child(struct dm_btree_info *info, struct btree_node *parent,
 	result->n = dm_block_data(result->block);
 
 	if (inc)
-		inc_children(info->tm, result->n, &le64_type);
+		inc_children(info->tm, result->n, vt);
 
 	*((__le64 *) value_ptr(parent, index)) =
 		cpu_to_le64(dm_block_location(result->block));
@@ -236,7 +229,7 @@ static void __rebalance2(struct dm_btree_info *info, struct btree_node *parent,
 }
 
 static int rebalance2(struct shadow_spine *s, struct dm_btree_info *info,
-		      unsigned left_index)
+		      struct dm_btree_value_type *vt, unsigned left_index)
 {
 	int r;
 	struct btree_node *parent;
@@ -244,11 +237,11 @@ static int rebalance2(struct shadow_spine *s, struct dm_btree_info *info,
 
 	parent = dm_block_data(shadow_current(s));
 
-	r = init_child(info, parent, left_index, &left);
+	r = init_child(info, vt, parent, left_index, &left);
 	if (r)
 		return r;
 
-	r = init_child(info, parent, left_index + 1, &right);
+	r = init_child(info, vt, parent, left_index + 1, &right);
 	if (r) {
 		exit_child(info, &left);
 		return r;
@@ -368,7 +361,7 @@ static void __rebalance3(struct dm_btree_info *info, struct btree_node *parent,
 }
 
 static int rebalance3(struct shadow_spine *s, struct dm_btree_info *info,
-		      unsigned left_index)
+		      struct dm_btree_value_type *vt, unsigned left_index)
 {
 	int r;
 	struct btree_node *parent = dm_block_data(shadow_current(s));
@@ -377,17 +370,17 @@ static int rebalance3(struct shadow_spine *s, struct dm_btree_info *info,
 	/*
 	 * FIXME: fill out an array?
 	 */
-	r = init_child(info, parent, left_index, &left);
+	r = init_child(info, vt, parent, left_index, &left);
 	if (r)
 		return r;
 
-	r = init_child(info, parent, left_index + 1, &center);
+	r = init_child(info, vt, parent, left_index + 1, &center);
 	if (r) {
 		exit_child(info, &left);
 		return r;
 	}
 
-	r = init_child(info, parent, left_index + 2, &right);
+	r = init_child(info, vt, parent, left_index + 2, &right);
 	if (r) {
 		exit_child(info, &left);
 		exit_child(info, &center);
@@ -434,7 +427,8 @@ static int get_nr_entries(struct dm_transaction_manager *tm,
 }
 
 static int rebalance_children(struct shadow_spine *s,
-			      struct dm_btree_info *info, uint64_t key)
+			      struct dm_btree_info *info,
+			      struct dm_btree_value_type *vt, uint64_t key)
 {
 	int i, r, has_left_sibling, has_right_sibling;
 	uint32_t child_entries;
@@ -472,13 +466,13 @@ static int rebalance_children(struct shadow_spine *s,
 	has_right_sibling = i < (le32_to_cpu(n->header.nr_entries) - 1);
 
 	if (!has_left_sibling)
-		r = rebalance2(s, info, i);
+		r = rebalance2(s, info, vt, i);
 
 	else if (!has_right_sibling)
-		r = rebalance2(s, info, i - 1);
+		r = rebalance2(s, info, vt, i - 1);
 
 	else
-		r = rebalance3(s, info, i - 1);
+		r = rebalance3(s, info, vt, i - 1);
 
 	return r;
 }
@@ -529,7 +523,7 @@ static int remove_raw(struct shadow_spine *s, struct dm_btree_info *info,
 		if (le32_to_cpu(n->header.flags) & LEAF_NODE)
 			return do_leaf(n, key, index);
 
-		r = rebalance_children(s, info, key);
+		r = rebalance_children(s, info, vt, key);
 		if (r)
 			break;
 
@@ -549,6 +543,14 @@ static int remove_raw(struct shadow_spine *s, struct dm_btree_info *info,
 
 	return r;
 }
+
+static struct dm_btree_value_type le64_type = {
+	.context = NULL,
+	.size = sizeof(__le64),
+	.inc = NULL,
+	.dec = NULL,
+	.equal = NULL
+};
 
 int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 		    uint64_t *keys, dm_block_t *new_root)
