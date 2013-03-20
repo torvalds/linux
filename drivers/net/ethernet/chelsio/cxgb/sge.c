@@ -1046,11 +1046,10 @@ static inline struct sk_buff *get_packet(struct pci_dev *pdev,
 	const struct freelQ_ce *ce = &fl->centries[fl->cidx];
 
 	if (len < copybreak) {
-		skb = alloc_skb(len + 2, GFP_ATOMIC);
+		skb = netdev_alloc_skb_ip_align(NULL, len);
 		if (!skb)
 			goto use_orig_buf;
 
-		skb_reserve(skb, 2);	/* align IP header */
 		skb_put(skb, len);
 		pci_dma_sync_single_for_cpu(pdev,
 					    dma_unmap_addr(ce, dma_addr),
