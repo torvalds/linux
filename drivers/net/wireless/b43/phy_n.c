@@ -1849,7 +1849,7 @@ static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, enum n_rssi_type type)
 		s32 currd;
 		for (vcm = 0; vcm < 4; vcm++) {
 			if (type == N_RSSI_NB)
-				currd = abs(results[vcm][i]);
+				currd = abs(results[vcm][i] - code * 8);
 			else
 				currd = abs(miniq[vcm][i / 2] - code * 8);
 
