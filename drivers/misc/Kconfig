@@ -93,6 +93,14 @@ config ATMEL_TCB_CLKSRC_BLOCK
 	  TC can be used for other purposes, such as PWM generation and
 	  interval timing.
 
+config DUMMY_IRQ
+	tristate "Dummy IRQ handler"
+	default n
+	---help---
+	  This module accepts a single 'irq' parameter, which it should register for.
+	  The sole purpose of this module is to help with debugging of systems on
+	  which spurious IRQs would happen on disabled IRQ vector.
+
 config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
 	depends on X86 && PCI && INPUT
