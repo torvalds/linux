@@ -235,7 +235,7 @@ out:
 
 static int pm2xxx_charger_wd_exp_mngt(struct pm2xxx_charger *pm2, int val)
 {
-	dev_dbg(pm2->dev , "20 minutes watchdog occured\n");
+	dev_dbg(pm2->dev , "20 minutes watchdog expired\n");
 
 	pm2->ac.wd_expired = true;
 	power_supply_changed(&pm2->ac_chg.psy);

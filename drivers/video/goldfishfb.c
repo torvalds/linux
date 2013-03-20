@@ -148,7 +148,7 @@ static int goldfish_fb_pan_display(struct fb_var_screeninfo *var,
 	wait_event_timeout(fb->wait,
 			fb->base_update_count != base_update_count, HZ / 15);
 	if (fb->base_update_count == base_update_count)
-		pr_err("goldfish_fb_pan_display: timeout wating for base update\n");
+		pr_err("goldfish_fb_pan_display: timeout waiting for base update\n");
 	return 0;
 }
 

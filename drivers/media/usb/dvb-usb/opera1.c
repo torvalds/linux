@@ -151,7 +151,7 @@ static int opera1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			break;
 		}
 		if (dvb_usb_opera1_debug & 0x10)
-			info("sending i2c mesage %d %d", tmp, msg[i].len);
+			info("sending i2c message %d %d", tmp, msg[i].len);
 	}
 	mutex_unlock(&d->i2c_mutex);
 	return num;
