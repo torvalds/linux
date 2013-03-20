@@ -464,8 +464,6 @@ static int llcp_sock_release(struct socket *sock)
 			nfc_llcp_accept_unlink(accept_sk);
 
 			release_sock(accept_sk);
-
-			sock_orphan(accept_sk);
 		}
 	}
 
