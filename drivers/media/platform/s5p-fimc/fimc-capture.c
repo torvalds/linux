@@ -1230,36 +1230,43 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_pipeline *p = &fimc->pipeline;
-	struct v4l2_subdev *sd = p->subdevs[IDX_SENSOR];
+	struct fimc_vid_cap *vc = &fimc->vid_cap;
+	struct media_entity *entity = &vc->vfd.entity;
 	int ret;
 
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	ret = media_entity_pipeline_start(&sd->entity, p->m_pipeline);
+	ret = media_entity_pipeline_start(entity, p->m_pipeline);
 	if (ret < 0)
 		return ret;
 
-	if (fimc->vid_cap.user_subdev_api) {
+	if (vc->user_subdev_api) {
 		ret = fimc_pipeline_validate(fimc);
-		if (ret < 0) {
-			media_entity_pipeline_stop(&sd->entity);
-			return ret;
-		}
+		if (ret < 0)
+			goto err_p_stop;
 	}
-	return vb2_streamon(&fimc->vid_cap.vbq, type);
+
+	ret = vb2_streamon(&vc->vbq, type);
+	if (!ret)
+		return ret;
+
+err_p_stop:
+	media_entity_pipeline_stop(entity);
+	return ret;
 }
 
 static int fimc_cap_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct v4l2_subdev *sd = fimc->pipeline.subdevs[IDX_SENSOR];
 	int ret;
 
 	ret = vb2_streamoff(&fimc->vid_cap.vbq, type);
+
 	if (ret == 0)
-		media_entity_pipeline_stop(&sd->entity);
+		media_entity_pipeline_stop(&fimc->vid_cap.vfd.entity);
+
 	return ret;
 }
 

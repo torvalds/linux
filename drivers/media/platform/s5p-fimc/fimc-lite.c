@@ -800,20 +800,20 @@ static int fimc_lite_streamon(struct file *file, void *priv,
 			      enum v4l2_buf_type type)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	struct v4l2_subdev *sensor = fimc->pipeline.subdevs[IDX_SENSOR];
+	struct media_entity *entity = &fimc->vfd.entity;
 	struct fimc_pipeline *p = &fimc->pipeline;
 	int ret;
 
 	if (fimc_lite_active(fimc))
 		return -EBUSY;
 
-	ret = media_entity_pipeline_start(&sensor->entity, p->m_pipeline);
+	ret = media_entity_pipeline_start(entity, p->m_pipeline);
 	if (ret < 0)
 		return ret;
 
 	ret = fimc_pipeline_validate(fimc);
 	if (ret) {
-		media_entity_pipeline_stop(&sensor->entity);
+		media_entity_pipeline_stop(entity);
 		return ret;
 	}
 
@@ -824,12 +824,11 @@ static int fimc_lite_streamoff(struct file *file, void *priv,
 			       enum v4l2_buf_type type)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	struct v4l2_subdev *sd = fimc->pipeline.subdevs[IDX_SENSOR];
 	int ret;
 
 	ret = vb2_streamoff(&fimc->vb_queue, type);
 	if (ret == 0)
-		media_entity_pipeline_stop(&sd->entity);
+		media_entity_pipeline_stop(&fimc->vfd.entity);
 	return ret;
 }
 
