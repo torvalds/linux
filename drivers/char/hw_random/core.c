@@ -380,6 +380,15 @@ void hwrng_unregister(struct hwrng *rng)
 }
 EXPORT_SYMBOL_GPL(hwrng_unregister);
 
+static void __exit hwrng_exit(void)
+{
+	mutex_lock(&rng_mutex);
+	BUG_ON(current_rng);
+	kfree(rng_buffer);
+	mutex_unlock(&rng_mutex);
+}
+
+module_exit(hwrng_exit);
 
 MODULE_DESCRIPTION("H/W Random Number Generator (RNG) driver");
 MODULE_LICENSE("GPL");
