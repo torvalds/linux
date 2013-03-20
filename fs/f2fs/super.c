@@ -642,8 +642,13 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* recover fsynced data */
-	if (!test_opt(sbi, DISABLE_ROLL_FORWARD))
-		recover_fsync_data(sbi);
+	if (!test_opt(sbi, DISABLE_ROLL_FORWARD)) {
+		err = recover_fsync_data(sbi);
+		if (err) {
+			f2fs_msg(sb, KERN_ERR, "Failed to recover fsync data");
+			goto free_root_inode;
+		}
+	}
 
 	/* After POR, we can run background GC thread */
 	err = start_gc_thread(sbi);

@@ -1027,7 +1027,7 @@ void destroy_gc_caches(void);
 /*
  * recovery.c
  */
-void recover_fsync_data(struct f2fs_sb_info *);
+int recover_fsync_data(struct f2fs_sb_info *);
 bool space_for_roll_forward(struct f2fs_sb_info *);
 
 /*
