@@ -132,6 +132,11 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
     #endif // #if COMBO_MODULE_MT6620_CDT--#endif
 #endif 
 
+#ifndef RK30SDK_WIFI_GPIO_WIFI_INT_B
+#define RK30SDK_WIFI_GPIO_WIFI_INT_B              INVALID_GPIO
+#define RK30SDK_WIFI_GPIO_WIFI_INT_B_ENABLE_VALUE   GPIO_HIGH 
+#endif
+
 int rk31sdk_get_sdio_wifi_voltage(void)
 {
     int voltage;
