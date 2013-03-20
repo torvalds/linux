@@ -43,8 +43,6 @@
 #include "omap-mcpdm.h"
 #include "omap-pcm.h"
 
-#define OMAP44XX_MCPDM_L3_BASE		0x49032000
-
 struct mcpdm_link_config {
 	u32 link_mask; /* channel mask for the direction */
 	u32 threshold; /* FIFO threshold */
