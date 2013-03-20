@@ -8,6 +8,7 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/gfp.h>
+#include <linux/vringh.h>
 
 /**
  * virtqueue - a queue to register buffers for sending or receiving.
@@ -70,6 +71,7 @@ static inline unsigned int virtqueue_get_queue_index(struct virtqueue *vq)
  * @dev: underlying device.
  * @id: the device type identification (used to match it with a driver).
  * @config: the configuration ops for this device.
+ * @vringh_config: configuration ops for host vrings.
  * @vqs: the list of virtqueues for this device.
  * @features: the features supported by both driver and device.
  * @priv: private pointer for the driver's use.
@@ -79,6 +81,7 @@ struct virtio_device {
 	struct device dev;
 	struct virtio_device_id id;
 	const struct virtio_config_ops *config;
+	const struct vringh_config_ops *vringh_config;
 	struct list_head vqs;
 	/* Note that this is a Linux set_bit-style bitmap. */
 	unsigned long features[1];

@@ -47,6 +47,28 @@ struct vringh {
 
 	/* The vring (note: it may contain user pointers!) */
 	struct vring vring;
+
+	/* The function to call to notify the guest about added buffers */
+	void (*notify)(struct vringh *);
+};
+
+/**
+ * struct vringh_config_ops - ops for creating a host vring from a virtio driver
+ * @find_vrhs: find the host vrings and instantiate them
+ *	vdev: the virtio_device
+ *	nhvrs: the number of host vrings to find
+ *	hvrs: on success, includes new host vrings
+ *	callbacks: array of driver callbacks, for each host vring
+ *		include a NULL entry for vqs that do not need a callback
+ *	Returns 0 on success or error status
+ * @del_vrhs: free the host vrings found by find_vrhs().
+ */
+struct virtio_device;
+typedef void vrh_callback_t(struct virtio_device *, struct vringh *);
+struct vringh_config_ops {
+	int (*find_vrhs)(struct virtio_device *vdev, unsigned nhvrs,
+			 struct vringh *vrhs[], vrh_callback_t *callbacks[]);
+	void (*del_vrhs)(struct virtio_device *vdev);
 };
 
 /* The memory the vring can access, and what offset to apply. */
@@ -192,5 +214,12 @@ bool vringh_notify_enable_kern(struct vringh *vrh);
 void vringh_notify_disable_kern(struct vringh *vrh);
 
 int vringh_need_notify_kern(struct vringh *vrh);
+
+/* Notify the guest about buffers added to the used ring */
+static inline void vringh_notify(struct vringh *vrh)
+{
+	if (vrh->notify)
+		vrh->notify(vrh);
+}
 
 #endif /* _LINUX_VRINGH_H */
