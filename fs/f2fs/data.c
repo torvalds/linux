@@ -435,7 +435,6 @@ static int f2fs_read_data_pages(struct file *file,
 int do_write_data_page(struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	block_t old_blk_addr, new_blk_addr;
 	struct dnode_of_data dn;
 	int err = 0;
@@ -465,8 +464,6 @@ int do_write_data_page(struct page *page)
 		write_data_page(inode, page, &dn,
 				old_blk_addr, &new_blk_addr);
 		update_extent_cache(new_blk_addr, &dn);
-		F2FS_I(inode)->data_version =
-			le64_to_cpu(F2FS_CKPT(sbi)->checkpoint_ver);
 	}
 out_writepage:
 	f2fs_put_dnode(&dn);

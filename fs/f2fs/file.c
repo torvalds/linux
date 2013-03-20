@@ -124,7 +124,6 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
-	unsigned long long cur_version;
 	int ret = 0;
 	bool need_cp = false;
 	struct writeback_control wbc = {
@@ -147,15 +146,6 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
 		goto out;
-
-	mutex_lock(&sbi->cp_mutex);
-	cur_version = le64_to_cpu(F2FS_CKPT(sbi)->checkpoint_ver);
-	mutex_unlock(&sbi->cp_mutex);
-
-	if (F2FS_I(inode)->data_version != cur_version &&
-					!(inode->i_state & I_DIRTY))
-		goto out;
-	F2FS_I(inode)->data_version--;
 
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
 		need_cp = true;
