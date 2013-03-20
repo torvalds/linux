@@ -485,7 +485,7 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	 */
 	skbdesc->flags |= SKBDESC_DESC_IN_SKB;
 	skbdesc->desc = txi;
-	skbdesc->desc_len = TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
+	skbdesc->desc_len = entry->queue->desc_size;
 }
 
 /*
@@ -730,6 +730,11 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	 * Process the RXWI structure.
 	 */
 	rt2800_process_rxwi(entry, rxdesc);
+
+	/*
+	 * Remove RXWI descriptor from start of buffer.
+	 */
+	skb_pull(entry->skb, entry->queue->desc_size - RXINFO_DESC_SIZE);
 }
 
 /*
@@ -882,6 +887,47 @@ static const struct rt2x00_ops rt2800usb_ops = {
 	.rx			= &rt2800usb_queue_rx,
 	.tx			= &rt2800usb_queue_tx,
 	.bcn			= &rt2800usb_queue_bcn,
+	.lib			= &rt2800usb_rt2x00_ops,
+	.drv			= &rt2800usb_rt2800_ops,
+	.hw			= &rt2800usb_mac80211_ops,
+#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+	.debugfs		= &rt2800_rt2x00debug,
+#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+};
+
+static const struct data_queue_desc rt2800usb_queue_rx_5592 = {
+	.entry_num		= 128,
+	.data_size		= AGGREGATION_SIZE,
+	.desc_size		= RXINFO_DESC_SIZE + RXWI_DESC_SIZE_5592,
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
+};
+
+static const struct data_queue_desc rt2800usb_queue_tx_5592 = {
+	.entry_num		= 16,
+	.data_size		= AGGREGATION_SIZE,
+	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE_5592,
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
+};
+
+static const struct data_queue_desc rt2800usb_queue_bcn_5592 = {
+	.entry_num		= 8,
+	.data_size		= MGMT_FRAME_SIZE,
+	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE_5592,
+	.priv_size		= sizeof(struct queue_entry_priv_usb),
+};
+
+
+static const struct rt2x00_ops rt2800usb_ops_5592 = {
+	.name			= KBUILD_MODNAME,
+	.drv_data_size		= sizeof(struct rt2800_drv_data),
+	.max_ap_intf		= 8,
+	.eeprom_size		= EEPROM_SIZE,
+	.rf_size		= RF_SIZE,
+	.tx_queues		= NUM_TX_QUEUES,
+	.extra_tx_headroom	= TXINFO_DESC_SIZE + TXWI_DESC_SIZE_5592,
+	.rx			= &rt2800usb_queue_rx_5592,
+	.tx			= &rt2800usb_queue_tx_5592,
+	.bcn			= &rt2800usb_queue_bcn_5592,
 	.lib			= &rt2800usb_rt2x00_ops,
 	.drv			= &rt2800usb_rt2800_ops,
 	.hw			= &rt2800usb_mac80211_ops,
@@ -1200,6 +1246,18 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x148f, 0x5370) },
 	{ USB_DEVICE(0x148f, 0x5372) },
 #endif
+#ifdef CONFIG_RT2800USB_RT55XX
+	/* Arcadyan */
+	{ USB_DEVICE(0x043e, 0x7a32), .driver_info = 5592 },
+	/* AVM GmbH */
+	{ USB_DEVICE(0x057c, 0x8501), .driver_info = 5592 },
+	/* D-Link DWA-160-B2 */
+	{ USB_DEVICE(0x2001, 0x3c1a), .driver_info = 5592 },
+	/* Proware */
+	{ USB_DEVICE(0x043e, 0x7a13), .driver_info = 5592 },
+	/* Ralink */
+	{ USB_DEVICE(0x148f, 0x5572), .driver_info = 5592 },
+#endif
 #ifdef CONFIG_RT2800USB_UNKNOWN
 	/*
 	 * Unclear what kind of devices these are (they aren't supported by the
@@ -1303,6 +1361,9 @@ MODULE_LICENSE("GPL");
 static int rt2800usb_probe(struct usb_interface *usb_intf,
 			   const struct usb_device_id *id)
 {
+	if (id->driver_info == 5592)
+		return rt2x00usb_probe(usb_intf, &rt2800usb_ops_5592);
+
 	return rt2x00usb_probe(usb_intf, &rt2800usb_ops);
 }
 

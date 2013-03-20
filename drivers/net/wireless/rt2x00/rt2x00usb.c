@@ -285,7 +285,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 }
 
-static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry)
+static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void *data)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
@@ -390,7 +390,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	queue_work(rt2x00dev->workqueue, &rt2x00dev->rxdone_work);
 }
 
-static bool rt2x00usb_kick_rx_entry(struct queue_entry *entry)
+static bool rt2x00usb_kick_rx_entry(struct queue_entry *entry, void *data)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
@@ -427,12 +427,18 @@ void rt2x00usb_kick_queue(struct data_queue *queue)
 	case QID_AC_BE:
 	case QID_AC_BK:
 		if (!rt2x00queue_empty(queue))
-			rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+			rt2x00queue_for_each_entry(queue,
+						   Q_INDEX_DONE,
+						   Q_INDEX,
+						   NULL,
 						   rt2x00usb_kick_tx_entry);
 		break;
 	case QID_RX:
 		if (!rt2x00queue_full(queue))
-			rt2x00queue_for_each_entry(queue, Q_INDEX, Q_INDEX_DONE,
+			rt2x00queue_for_each_entry(queue,
+						   Q_INDEX,
+						   Q_INDEX_DONE,
+						   NULL,
 						   rt2x00usb_kick_rx_entry);
 		break;
 	default:
@@ -441,7 +447,7 @@ void rt2x00usb_kick_queue(struct data_queue *queue)
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kick_queue);
 
-static bool rt2x00usb_flush_entry(struct queue_entry *entry)
+static bool rt2x00usb_flush_entry(struct queue_entry *entry, void *data)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
@@ -468,7 +474,7 @@ void rt2x00usb_flush_queue(struct data_queue *queue, bool drop)
 	unsigned int i;
 
 	if (drop)
-		rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+		rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX, NULL,
 					   rt2x00usb_flush_entry);
 
 	/*
@@ -559,7 +565,7 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 	entry->flags = 0;
 
 	if (entry->queue->qid == QID_RX)
-		rt2x00usb_kick_rx_entry(entry);
+		rt2x00usb_kick_rx_entry(entry, NULL);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_clear_entry);
 

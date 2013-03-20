@@ -1122,7 +1122,7 @@ il_set_power(struct il_priv *il, struct il_powertable_cmd *cmd)
 			       sizeof(struct il_powertable_cmd), cmd);
 }
 
-int
+static int
 il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd, bool force)
 {
 	int ret;

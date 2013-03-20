@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/hardirq.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
 #include <linux/moduleparam.h>
@@ -560,7 +557,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	if (rc)
 		goto out_free;
 
-	if (reply.cmd.status != WMI_VRING_CFG_SUCCESS) {
+	if (reply.cmd.status != WMI_FW_STATUS_SUCCESS) {
 		wil_err(wil, "Tx config failed, status 0x%02x\n",
 			reply.cmd.status);
 		rc = -EINVAL;

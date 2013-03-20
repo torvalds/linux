@@ -43,6 +43,10 @@ BRCMSMAC_OFILES := \
 	brcms_trace_events.o \
 	debug.o
 
+ifdef CONFIG_BCMA_DRIVER_GPIO
+BRCMSMAC_OFILES += led.o
+endif
+
 MODULEPFX := brcmsmac
 
 obj-$(CONFIG_BRCMSMAC)	+= $(MODULEPFX).o

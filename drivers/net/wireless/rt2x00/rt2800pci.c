@@ -89,7 +89,7 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	rt2x00pci_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 }
 
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 static int rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 	void __iomem *base_addr = ioremap(0x1F040000, EEPROM_SIZE);
@@ -107,7 +107,7 @@ static inline int rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 	return -ENOMEM;
 }
-#endif /* CONFIG_RALINK_RT288X || CONFIG_RALINK_RT305X */
+#endif /* CONFIG_SOC_RT288X || CONFIG_SOC_RT305X */
 
 #ifdef CONFIG_PCI
 static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
@@ -729,6 +729,11 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	 * Process the RXWI structure that is at the start of the buffer.
 	 */
 	rt2800_process_rxwi(entry, rxdesc);
+
+	/*
+	 * Remove RXWI descriptor from start of buffer.
+	 */
+	skb_pull(entry->skb, RXWI_DESC_SIZE);
 }
 
 /*
@@ -742,10 +747,90 @@ static void rt2800pci_wakeup(struct rt2x00_dev *rt2x00dev)
 	rt2800_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
 
+static bool rt2800pci_txdone_entry_check(struct queue_entry *entry, u32 status)
+{
+	__le32 *txwi;
+	u32 word;
+	int wcid, tx_wcid;
+
+	wcid = rt2x00_get_field32(status, TX_STA_FIFO_WCID);
+
+	txwi = rt2800_drv_get_txwi(entry);
+	rt2x00_desc_read(txwi, 1, &word);
+	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
+
+	return (tx_wcid == wcid);
+}
+
+static bool rt2800pci_txdone_find_entry(struct queue_entry *entry, void *data)
+{
+	u32 status = *(u32 *)data;
+
+	/*
+	 * rt2800pci hardware might reorder frames when exchanging traffic
+	 * with multiple BA enabled STAs.
+	 *
+	 * For example, a tx queue
+	 *    [ STA1 | STA2 | STA1 | STA2 ]
+	 * can result in tx status reports
+	 *    [ STA1 | STA1 | STA2 | STA2 ]
+	 * when the hw decides to aggregate the frames for STA1 into one AMPDU.
+	 *
+	 * To mitigate this effect, associate the tx status to the first frame
+	 * in the tx queue with a matching wcid.
+	 */
+	if (rt2800pci_txdone_entry_check(entry, status) &&
+	    !test_bit(ENTRY_DATA_STATUS_SET, &entry->flags)) {
+		/*
+		 * Got a matching frame, associate the tx status with
+		 * the frame
+		 */
+		entry->status = status;
+		set_bit(ENTRY_DATA_STATUS_SET, &entry->flags);
+		return true;
+	}
+
+	/* Check the next frame */
+	return false;
+}
+
+static bool rt2800pci_txdone_match_first(struct queue_entry *entry, void *data)
+{
+	u32 status = *(u32 *)data;
+
+	/*
+	 * Find the first frame without tx status and assign this status to it
+	 * regardless if it matches or not.
+	 */
+	if (!test_bit(ENTRY_DATA_STATUS_SET, &entry->flags)) {
+		/*
+		 * Got a matching frame, associate the tx status with
+		 * the frame
+		 */
+		entry->status = status;
+		set_bit(ENTRY_DATA_STATUS_SET, &entry->flags);
+		return true;
+	}
+
+	/* Check the next frame */
+	return false;
+}
+static bool rt2800pci_txdone_release_entries(struct queue_entry *entry,
+					     void *data)
+{
+	if (test_bit(ENTRY_DATA_STATUS_SET, &entry->flags)) {
+		rt2800_txdone_entry(entry, entry->status,
+				    rt2800pci_get_txwi(entry));
+		return false;
+	}
+
+	/* No more frames to release */
+	return true;
+}
+
 static bool rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
-	struct queue_entry *entry;
 	u32 status;
 	u8 qid;
 	int max_tx_done = 16;
@@ -783,8 +868,33 @@ static bool rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		}
 
-		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		rt2800_txdone_entry(entry, status, rt2800pci_get_txwi(entry));
+		/*
+		 * Let's associate this tx status with the first
+		 * matching frame.
+		 */
+		if (!rt2x00queue_for_each_entry(queue, Q_INDEX_DONE,
+						Q_INDEX, &status,
+						rt2800pci_txdone_find_entry)) {
+			/*
+			 * We cannot match the tx status to any frame, so just
+			 * use the first one.
+			 */
+			if (!rt2x00queue_for_each_entry(queue, Q_INDEX_DONE,
+							Q_INDEX, &status,
+							rt2800pci_txdone_match_first)) {
+				WARNING(rt2x00dev, "No frame found for TX "
+						   "status on queue %u, dropping\n",
+						   qid);
+				break;
+			}
+		}
+
+		/*
+		 * Release all frames with a valid tx status.
+		 */
+		rt2x00queue_for_each_entry(queue, Q_INDEX_DONE,
+					   Q_INDEX, NULL,
+					   rt2800pci_txdone_release_entries);
 
 		if (--max_tx_done == 0)
 			break;
@@ -1177,7 +1287,7 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 #endif /* CONFIG_PCI */
 MODULE_LICENSE("GPL");
 
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 static int rt2800soc_probe(struct platform_device *pdev)
 {
 	return rt2x00soc_probe(pdev, &rt2800pci_ops);
@@ -1194,7 +1304,7 @@ static struct platform_driver rt2800soc_driver = {
 	.suspend	= rt2x00soc_suspend,
 	.resume		= rt2x00soc_resume,
 };
-#endif /* CONFIG_RALINK_RT288X || CONFIG_RALINK_RT305X */
+#endif /* CONFIG_SOC_RT288X || CONFIG_SOC_RT305X */
 
 #ifdef CONFIG_PCI
 static int rt2800pci_probe(struct pci_dev *pci_dev,
@@ -1217,7 +1327,7 @@ static int __init rt2800pci_init(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 	ret = platform_driver_register(&rt2800soc_driver);
 	if (ret)
 		return ret;
@@ -1225,7 +1335,7 @@ static int __init rt2800pci_init(void)
 #ifdef CONFIG_PCI
 	ret = pci_register_driver(&rt2800pci_driver);
 	if (ret) {
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 		platform_driver_unregister(&rt2800soc_driver);
 #endif
 		return ret;
@@ -1240,7 +1350,7 @@ static void __exit rt2800pci_exit(void)
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&rt2800pci_driver);
 #endif
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 	platform_driver_unregister(&rt2800soc_driver);
 #endif
 }

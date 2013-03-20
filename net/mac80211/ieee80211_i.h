@@ -315,6 +315,7 @@ struct ieee80211_roc_work {
 	u32 duration, req_duration;
 	struct sk_buff *frame;
 	u64 cookie, mgmt_tx_cookie;
+	enum ieee80211_roc_type type;
 };
 
 /* flags used in struct ieee80211_if_managed.flags */
@@ -400,7 +401,6 @@ struct ieee80211_if_managed {
 
 	u16 aid;
 
-	unsigned long timers_running; /* used for quiesce/restart */
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
 	u8 dtim_period;
@@ -479,6 +479,8 @@ struct ieee80211_if_managed {
 
 	struct ieee80211_ht_cap ht_capa; /* configured ht-cap over-rides */
 	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
+	struct ieee80211_vht_cap vht_capa; /* configured VHT overrides */
+	struct ieee80211_vht_cap vht_capa_mask; /* Valid parts of vht_capa */
 };
 
 struct ieee80211_if_ibss {
@@ -489,8 +491,6 @@ struct ieee80211_if_ibss {
 	unsigned long last_scan_completed;
 
 	u32 basic_rates;
-
-	bool timer_running;
 
 	bool fixed_bssid;
 	bool fixed_channel;
@@ -543,8 +543,6 @@ struct ieee80211_if_mesh {
 	struct timer_list mesh_path_timer;
 	struct timer_list mesh_path_root_timer;
 
-	unsigned long timers_running;
-
 	unsigned long wrkq_flags;
 
 	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
@@ -590,6 +588,7 @@ struct ieee80211_if_mesh {
 		IEEE80211_MESH_SEC_AUTHED = 0x1,
 		IEEE80211_MESH_SEC_SECURED = 0x2,
 	} security;
+	bool user_mpm;
 	/* Extensible Synchronization Framework */
 	const struct ieee80211_mesh_sync_ops *sync_ops;
 	s64 sync_offset_clockdrift_max;
@@ -682,6 +681,8 @@ struct ieee80211_sub_if_data {
 
 	/* count for keys needing tailroom space allocation */
 	int crypto_tx_tailroom_needed_cnt;
+	int crypto_tx_tailroom_pending_dec;
+	struct delayed_work dec_tailroom_needed_wk;
 
 	struct net_device *dev;
 	struct ieee80211_local *local;
@@ -763,10 +764,6 @@ struct ieee80211_sub_if_data {
 		struct dentry *default_multicast_key;
 		struct dentry *default_mgmt_key;
 	} debugfs;
-#endif
-
-#ifdef CONFIG_PM
-	struct ieee80211_bss_conf suspend_bss_conf;
 #endif
 
 	/* must be last, dynamically sized area in this! */
@@ -1136,11 +1133,6 @@ struct ieee80211_local {
 
 	struct ieee80211_sub_if_data __rcu *p2p_sdata;
 
-	/* dummy netdev for use w/ NAPI */
-	struct net_device napi_dev;
-
-	struct napi_struct napi;
-
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
 	struct cfg80211_chan_def monitor_chandef;
@@ -1283,8 +1275,6 @@ void
 ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				 const struct ieee80211_channel_sw_ie *sw_elem,
 				 struct ieee80211_bss *bss, u64 timestamp);
-void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata);
-void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb);
@@ -1302,8 +1292,6 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_ibss_params *params);
 int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata);
-void ieee80211_ibss_quiesce(struct ieee80211_sub_if_data *sdata);
-void ieee80211_ibss_restart(struct ieee80211_sub_if_data *sdata);
 void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb);
@@ -1441,6 +1429,8 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta);
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 struct sta_info *sta, u8 opmode,
 				 enum ieee80211_band band, bool nss_only);
+void ieee80211_apply_vhtcap_overrides(struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_sta_vht_cap *vht_cap);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,

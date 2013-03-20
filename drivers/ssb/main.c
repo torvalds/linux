@@ -275,8 +275,8 @@ int ssb_devices_thaw(struct ssb_freeze_context *ctx)
 
 		err = sdrv->probe(sdev, &sdev->id);
 		if (err) {
-			ssb_printk(KERN_ERR PFX "Failed to thaw device %s\n",
-				   dev_name(sdev->dev));
+			ssb_err("Failed to thaw device %s\n",
+				dev_name(sdev->dev));
 			result = err;
 		}
 		ssb_device_put(sdev);
@@ -447,10 +447,9 @@ void ssb_bus_unregister(struct ssb_bus *bus)
 
 	err = ssb_gpio_unregister(bus);
 	if (err == -EBUSY)
-		ssb_dprintk(KERN_ERR PFX "Some GPIOs are still in use.\n");
+		ssb_dbg("Some GPIOs are still in use\n");
 	else if (err)
-		ssb_dprintk(KERN_ERR PFX
-			    "Can not unregister GPIO driver: %i\n", err);
+		ssb_dbg("Can not unregister GPIO driver: %i\n", err);
 
 	ssb_buses_lock();
 	ssb_devices_unregister(bus);
@@ -497,8 +496,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 
 		devwrap = kzalloc(sizeof(*devwrap), GFP_KERNEL);
 		if (!devwrap) {
-			ssb_printk(KERN_ERR PFX
-				   "Could not allocate device\n");
+			ssb_err("Could not allocate device\n");
 			err = -ENOMEM;
 			goto error;
 		}
@@ -537,9 +535,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 		sdev->dev = dev;
 		err = device_register(dev);
 		if (err) {
-			ssb_printk(KERN_ERR PFX
-				   "Could not register %s\n",
-				   dev_name(dev));
+			ssb_err("Could not register %s\n", dev_name(dev));
 			/* Set dev to NULL to not unregister
 			 * dev on error unwinding. */
 			sdev->dev = NULL;
@@ -825,10 +821,9 @@ static int ssb_bus_register(struct ssb_bus *bus,
 	ssb_mipscore_init(&bus->mipscore);
 	err = ssb_gpio_init(bus);
 	if (err == -ENOTSUPP)
-		ssb_dprintk(KERN_DEBUG PFX "GPIO driver not activated\n");
+		ssb_dbg("GPIO driver not activated\n");
 	else if (err)
-		ssb_dprintk(KERN_ERR PFX
-			   "Error registering GPIO driver: %i\n", err);
+		ssb_dbg("Error registering GPIO driver: %i\n", err);
 	err = ssb_fetch_invariants(bus, get_invariants);
 	if (err) {
 		ssb_bus_may_powerdown(bus);
@@ -878,11 +873,11 @@ int ssb_bus_pcibus_register(struct ssb_bus *bus, struct pci_dev *host_pci)
 
 	err = ssb_bus_register(bus, ssb_pci_get_invariants, 0);
 	if (!err) {
-		ssb_printk(KERN_INFO PFX "Sonics Silicon Backplane found on "
-			   "PCI device %s\n", dev_name(&host_pci->dev));
+		ssb_info("Sonics Silicon Backplane found on PCI device %s\n",
+			 dev_name(&host_pci->dev));
 	} else {
-		ssb_printk(KERN_ERR PFX "Failed to register PCI version"
-			   " of SSB with error %d\n", err);
+		ssb_err("Failed to register PCI version of SSB with error %d\n",
+			err);
 	}
 
 	return err;
@@ -903,8 +898,8 @@ int ssb_bus_pcmciabus_register(struct ssb_bus *bus,
 
 	err = ssb_bus_register(bus, ssb_pcmcia_get_invariants, baseaddr);
 	if (!err) {
-		ssb_printk(KERN_INFO PFX "Sonics Silicon Backplane found on "
-			   "PCMCIA device %s\n", pcmcia_dev->devname);
+		ssb_info("Sonics Silicon Backplane found on PCMCIA device %s\n",
+			 pcmcia_dev->devname);
 	}
 
 	return err;
@@ -925,8 +920,8 @@ int ssb_bus_sdiobus_register(struct ssb_bus *bus, struct sdio_func *func,
 
 	err = ssb_bus_register(bus, ssb_sdio_get_invariants, ~0);
 	if (!err) {
-		ssb_printk(KERN_INFO PFX "Sonics Silicon Backplane found on "
-			   "SDIO device %s\n", sdio_func_id(func));
+		ssb_info("Sonics Silicon Backplane found on SDIO device %s\n",
+			 sdio_func_id(func));
 	}
 
 	return err;
@@ -944,8 +939,8 @@ int ssb_bus_ssbbus_register(struct ssb_bus *bus, unsigned long baseaddr,
 
 	err = ssb_bus_register(bus, get_invariants, baseaddr);
 	if (!err) {
-		ssb_printk(KERN_INFO PFX "Sonics Silicon Backplane found at "
-			   "address 0x%08lX\n", baseaddr);
+		ssb_info("Sonics Silicon Backplane found at address 0x%08lX\n",
+			 baseaddr);
 	}
 
 	return err;
@@ -1339,7 +1334,7 @@ out:
 #endif
 	return err;
 error:
-	ssb_printk(KERN_ERR PFX "Bus powerdown failed\n");
+	ssb_err("Bus powerdown failed\n");
 	goto out;
 }
 EXPORT_SYMBOL(ssb_bus_may_powerdown);
@@ -1362,7 +1357,7 @@ int ssb_bus_powerup(struct ssb_bus *bus, bool dynamic_pctl)
 
 	return 0;
 error:
-	ssb_printk(KERN_ERR PFX "Bus powerup failed\n");
+	ssb_err("Bus powerup failed\n");
 	return err;
 }
 EXPORT_SYMBOL(ssb_bus_powerup);
@@ -1470,15 +1465,13 @@ static int __init ssb_modinit(void)
 
 	err = b43_pci_ssb_bridge_init();
 	if (err) {
-		ssb_printk(KERN_ERR "Broadcom 43xx PCI-SSB-bridge "
-			   "initialization failed\n");
+		ssb_err("Broadcom 43xx PCI-SSB-bridge initialization failed\n");
 		/* don't fail SSB init because of this */
 		err = 0;
 	}
 	err = ssb_gige_init();
 	if (err) {
-		ssb_printk(KERN_ERR "SSB Broadcom Gigabit Ethernet "
-			   "driver initialization failed\n");
+		ssb_err("SSB Broadcom Gigabit Ethernet driver initialization failed\n");
 		/* don't fail SSB init because of this */
 		err = 0;
 	}

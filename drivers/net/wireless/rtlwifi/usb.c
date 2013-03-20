@@ -224,10 +224,9 @@ static void _usb_writeN_sync(struct rtl_priv *rtlpriv, u32 addr, void *data,
 	u8 *buffer;
 
 	wvalue = (u16)(addr & 0x0000ffff);
-	buffer = kmalloc(len, GFP_ATOMIC);
+	buffer = kmemdup(data, len, GFP_ATOMIC);
 	if (!buffer)
 		return;
-	memcpy(buffer, data, len);
 	usb_control_msg(udev, pipe, request, reqtype, wvalue,
 			index, buffer, len, 50);
 

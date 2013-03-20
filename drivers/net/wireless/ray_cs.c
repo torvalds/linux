@@ -144,7 +144,7 @@ static int psm;
 static char *essid;
 
 /* Default to encapsulation unless translation requested */
-static int translate = 1;
+static bool translate = 1;
 
 static int country = USA;
 
@@ -178,7 +178,7 @@ module_param(hop_dwell, int, 0);
 module_param(beacon_period, int, 0);
 module_param(psm, int, 0);
 module_param(essid, charp, 0);
-module_param(translate, int, 0);
+module_param(translate, bool, 0);
 module_param(country, int, 0);
 module_param(sniffer, int, 0);
 module_param(bc, int, 0);
@@ -1353,7 +1353,7 @@ static int ray_get_range(struct net_device *dev, struct iw_request_info *info,
 static int ray_set_framing(struct net_device *dev, struct iw_request_info *info,
 			   union iwreq_data *wrqu, char *extra)
 {
-	translate = *(extra);	/* Set framing mode */
+	translate = !!*(extra);	/* Set framing mode */
 
 	return 0;
 }
