@@ -157,9 +157,12 @@ void __init orion_setup_cpu_mbus_target(const struct orion_addr_map_cfg *cfg,
 		u32 size = readl(ddr_window_cpu_base + DDR_SIZE_CS_OFF(i));
 
 		/*
-		 * Chip select enabled?
+		 * We only take care of entries for which the chip
+		 * select is enabled, and that don't have high base
+		 * address bits set (devices can only access the first
+		 * 32 bits of the memory).
 		 */
-		if (size & 1) {
+		if ((size & 1) && !(base & 0xF)) {
 			struct mbus_dram_window *w;
 
 			w = &orion_mbus_dram_info.cs[cs++];

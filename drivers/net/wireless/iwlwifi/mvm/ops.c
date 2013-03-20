@@ -624,12 +624,8 @@ static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 	ieee80211_free_txskb(mvm->hw, skb);
 }
 
-static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
+static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-
-	iwl_mvm_dump_nic_error_log(mvm);
-
 	iwl_abort_notification_waits(&mvm->notif_wait);
 
 	/*
@@ -663,9 +659,21 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 	}
 }
 
+static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	iwl_mvm_dump_nic_error_log(mvm);
+
+	iwl_mvm_nic_restart(mvm);
+}
+
 static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 {
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
 	WARN_ON(1);
+	iwl_mvm_nic_restart(mvm);
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {
