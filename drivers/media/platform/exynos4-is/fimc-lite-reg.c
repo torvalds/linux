@@ -127,7 +127,7 @@ static const u32 src_pixfmt_map[8][3] = {
 /* Set camera input pixel format and resolution */
 void flite_hw_set_source_format(struct fimc_lite *dev, struct flite_frame *f)
 {
-	enum v4l2_mbus_pixelcode pixelcode = dev->fmt->mbus_code;
+	enum v4l2_mbus_pixelcode pixelcode = f->fmt->mbus_code;
 	int i = ARRAY_SIZE(src_pixfmt_map);
 	u32 cfg;
 
@@ -227,7 +227,7 @@ static void flite_hw_set_out_order(struct fimc_lite *dev, struct flite_frame *f)
 	int i = ARRAY_SIZE(pixcode);
 
 	while (--i >= 0)
-		if (pixcode[i][0] == dev->fmt->mbus_code)
+		if (pixcode[i][0] == f->fmt->mbus_code)
 			break;
 	cfg &= ~FLITE_REG_CIODMAFMT_YCBCR_ORDER_MASK;
 	writel(cfg | pixcode[i][1], dev->regs + FLITE_REG_CIODMAFMT);

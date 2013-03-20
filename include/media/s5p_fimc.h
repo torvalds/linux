@@ -125,6 +125,8 @@ struct fimc_fmt {
 #define FMT_HAS_ALPHA		(1 << 3)
 #define FMT_FLAGS_COMPRESSED	(1 << 4)
 #define FMT_FLAGS_WRITEBACK	(1 << 5)
+#define FMT_FLAGS_RAW_BAYER	(1 << 6)
+#define FMT_FLAGS_YUV		(1 << 7)
 };
 
 enum fimc_subdev_index {

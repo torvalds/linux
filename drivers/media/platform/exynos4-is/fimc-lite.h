@@ -70,11 +70,13 @@ struct fimc_lite_events {
  * @f_width: full pixel width
  * @f_height: full pixel height
  * @rect: crop/composition rectangle
+ * @fmt: pointer to pixel format description data structure
  */
 struct flite_frame {
 	u16 f_width;
 	u16 f_height;
 	struct v4l2_rect rect;
+	const struct fimc_fmt *fmt;
 };
 
 /**
@@ -111,7 +113,6 @@ struct flite_buffer {
  * @clock: FIMC-LITE gate clock
  * @regs: memory mapped io registers
  * @irq_queue: interrupt handler waitqueue
- * @fmt: pointer to color format description structure
  * @payload: image size in bytes (w x h x bpp)
  * @inp_frame: camera input frame structure
  * @out_frame: DMA output frame structure
@@ -150,7 +151,6 @@ struct fimc_lite {
 	void __iomem		*regs;
 	wait_queue_head_t	irq_queue;
 
-	const struct fimc_fmt	*fmt;
 	unsigned long		payload[FLITE_MAX_PLANES];
 	struct flite_frame	inp_frame;
 	struct flite_frame	out_frame;
