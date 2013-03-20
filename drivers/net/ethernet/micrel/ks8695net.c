@@ -1622,25 +1622,7 @@ static struct platform_driver ks8695_driver = {
 	.resume		= ks8695_drv_resume,
 };
 
-/* Module interface */
-
-static int __init
-ks8695_init(void)
-{
-	printk(KERN_INFO "%s Ethernet driver, V%s\n",
-	       MODULENAME, MODULEVERSION);
-
-	return platform_driver_register(&ks8695_driver);
-}
-
-static void __exit
-ks8695_cleanup(void)
-{
-	platform_driver_unregister(&ks8695_driver);
-}
-
-module_init(ks8695_init);
-module_exit(ks8695_cleanup);
+module_platform_driver(ks8695_driver);
 
 MODULE_AUTHOR("Simtec Electronics");
 MODULE_DESCRIPTION("Micrel KS8695 (Centaur) Ethernet driver");
