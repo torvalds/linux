@@ -59,7 +59,7 @@ static const char * const ep_name[] = {
 };
 
 #define DMA_ADDR_INVALID	(~(dma_addr_t)0)
-#ifdef CONFIG_USB_GADGET_NET2272_DMA
+#ifdef CONFIG_USB_NET2272_DMA
 /*
  * use_dma: the NET2272 can use an external DMA controller.
  * Note that since there is no generic DMA api, some functions,
