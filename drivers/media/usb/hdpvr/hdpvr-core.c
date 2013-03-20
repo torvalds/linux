@@ -174,6 +174,7 @@ static int device_authorization(struct hdpvr_device *dev)
 	case HDPVR_FIRMWARE_VERSION_AC3:
 	case HDPVR_FIRMWARE_VERSION_0X12:
 	case HDPVR_FIRMWARE_VERSION_0X15:
+	case HDPVR_FIRMWARE_VERSION_0X1E:
 		dev->flags |= HDPVR_FLAG_AC3_CAP;
 		break;
 	default:
