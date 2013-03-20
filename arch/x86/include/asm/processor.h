@@ -92,7 +92,6 @@ struct cpuinfo_x86 {
 	char			hard_math;
 	char			rfu;
 	char			fdiv_bug;
-	char			f00f_bug;
 	char			coma_bug;
 	char			pad0;
 #else

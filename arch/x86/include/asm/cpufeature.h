@@ -222,6 +222,8 @@
  */
 #define X86_BUG(x)		(NCAPINTS*32 + (x))
 
+#define X86_BUG_F00F		X86_BUG(0) /* Intel F00F */
+
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
 #include <asm/asm.h>
