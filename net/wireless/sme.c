@@ -234,7 +234,7 @@ void cfg80211_conn_work(struct work_struct *work)
 			wdev_unlock(wdev);
 			continue;
 		}
-		if (wdev->sme_state != CFG80211_SME_CONNECTING) {
+		if (wdev->sme_state != CFG80211_SME_CONNECTING || !wdev->conn) {
 			wdev_unlock(wdev);
 			continue;
 		}
