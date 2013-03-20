@@ -32,7 +32,34 @@
 #define SLCR_UNLOCK_MAGIC		0xDF0D
 #define SLCR_UNLOCK			0x8   /* SCLR unlock register */
 
+#define SLCR_PS_RST_CTRL_OFFSET		0x200 /* PS Software Reset Control */
+#define SLCR_REBOOT_STATUS		0x258 /* PS Reboot Status */
+
 void __iomem *zynq_slcr_base;
+
+/**
+ * zynq_slcr_system_reset - Reset the entire system.
+ */
+void zynq_slcr_system_reset(void)
+{
+	u32 reboot;
+
+	/*
+	 * Unlock the SLCR then reset the system.
+	 * Note that this seems to require raw i/o
+	 * functions or there's a lockup?
+	 */
+	writel(SLCR_UNLOCK_MAGIC, zynq_slcr_base + SLCR_UNLOCK);
+
+	/*
+	 * Clear 0x0F000000 bits of reboot status register to workaround
+	 * the FSBL not loading the bitstream after soft-reboot
+	 * This is a temporary solution until we know more.
+	 */
+	reboot = readl(zynq_slcr_base + SLCR_REBOOT_STATUS);
+	writel(reboot & 0xF0FFFFFF, zynq_slcr_base + SLCR_REBOOT_STATUS);
+	writel(1, zynq_slcr_base + SLCR_PS_RST_CTRL_OFFSET);
+}
 
 /**
  * zynq_slcr_init

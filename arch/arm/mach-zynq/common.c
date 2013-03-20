@@ -92,6 +92,11 @@ static void __init xilinx_map_io(void)
 	zynq_scu_map_io();
 }
 
+static void zynq_system_reset(char mode, const char *cmd)
+{
+	zynq_slcr_system_reset();
+}
+
 static const char *xilinx_dt_match[] = {
 	"xlnx,zynq-zc702",
 	"xlnx,zynq-7000",
@@ -104,4 +109,5 @@ MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
 	.init_machine	= xilinx_init_machine,
 	.init_time	= xilinx_zynq_timer_init,
 	.dt_compat	= xilinx_dt_match,
+	.restart	= zynq_system_reset,
 MACHINE_END
