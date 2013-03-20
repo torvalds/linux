@@ -641,10 +641,12 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	}
 
 	IWL_DEBUG_TX_REPLY(mvm,
-			   "TXQ %d status %s (0x%08x)\n\t\t\t\tinitial_rate 0x%x "
-			    "retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
-			   txq_id, iwl_mvm_get_tx_fail_reason(status),
-			   status, le32_to_cpu(tx_resp->initial_rate),
+			   "TXQ %d status %s (0x%08x)\n",
+			   txq_id, iwl_mvm_get_tx_fail_reason(status), status);
+
+	IWL_DEBUG_TX_REPLY(mvm,
+			   "\t\t\t\tinitial_rate 0x%x retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
+			   le32_to_cpu(tx_resp->initial_rate),
 			   tx_resp->failure_frame, SEQ_TO_INDEX(sequence),
 			   ssn, next_reclaimed, seq_ctl);
 
