@@ -150,8 +150,8 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 			 * Skip the device, but don't terminate the namespace
 			 * scan.
 			 */
-			ret = 0;
-			goto err_out;
+			kfree(pdata);
+			return 0;
 		}
 	}
 
