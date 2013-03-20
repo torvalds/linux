@@ -155,6 +155,13 @@ static inline void vfsub_mnt_drop_write(struct vfsmount *mnt)
 	lockdep_on();
 }
 
+static inline void vfsub_mnt_drop_write_file(struct file *file)
+{
+	lockdep_off();
+	mnt_drop_write_file(file);
+	lockdep_on();
+}
+
 /* ---------------------------------------------------------------------- */
 
 struct au_hinode;
