@@ -170,6 +170,14 @@ static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
+		/* Gigabyte M1405 netbook */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "GIGABYTE"),
+			DMI_MATCH(DMI_BOARD_NAME, "M1405"),
+			DMI_MATCH(DMI_BOARD_VERSION, "Base Board Version"),
+		},
+	},
+	{
 		/* Gigabyte Spring Peak - defines wrong chassis type */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
