@@ -591,7 +591,7 @@ unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to)
 }
 EXPORT_SYMBOL(iov_shorten);
 
-ssize_t do_sync_readv_writev(struct file *filp, const struct iovec *iov,
+static ssize_t do_sync_readv_writev(struct file *filp, const struct iovec *iov,
 		unsigned long nr_segs, size_t len, loff_t *ppos, iov_fn_t fn)
 {
 	struct kiocb kiocb;
@@ -616,7 +616,7 @@ ssize_t do_sync_readv_writev(struct file *filp, const struct iovec *iov,
 }
 
 /* Do it by hand, with file-ops */
-ssize_t do_loop_readv_writev(struct file *filp, struct iovec *iov,
+static ssize_t do_loop_readv_writev(struct file *filp, struct iovec *iov,
 		unsigned long nr_segs, loff_t *ppos, io_fn_t fn)
 {
 	struct iovec *vector = iov;
@@ -897,6 +897,199 @@ SYSCALL_DEFINE5(pwritev, unsigned long, fd, const struct iovec __user *, vec,
 	inc_syscw(current);
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+
+static ssize_t compat_do_readv_writev(int type, struct file *file,
+			       const struct compat_iovec __user *uvector,
+			       unsigned long nr_segs, loff_t *pos)
+{
+	compat_ssize_t tot_len;
+	struct iovec iovstack[UIO_FASTIOV];
+	struct iovec *iov = iovstack;
+	ssize_t ret;
+	io_fn_t fn;
+	iov_fn_t fnv;
+
+	ret = -EINVAL;
+	if (!file->f_op)
+		goto out;
+
+	ret = -EFAULT;
+	if (!access_ok(VERIFY_READ, uvector, nr_segs*sizeof(*uvector)))
+		goto out;
+
+	ret = compat_rw_copy_check_uvector(type, uvector, nr_segs,
+					       UIO_FASTIOV, iovstack, &iov);
+	if (ret <= 0)
+		goto out;
+
+	tot_len = ret;
+	ret = rw_verify_area(type, file, pos, tot_len);
+	if (ret < 0)
+		goto out;
+
+	fnv = NULL;
+	if (type == READ) {
+		fn = file->f_op->read;
+		fnv = file->f_op->aio_read;
+	} else {
+		fn = (io_fn_t)file->f_op->write;
+		fnv = file->f_op->aio_write;
+	}
+
+	if (fnv) {
+		file_start_write(file);
+		ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
+						pos, fnv);
+		file_end_write(file);
+	} else
+		ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
+
+out:
+	if (iov != iovstack)
+		kfree(iov);
+	if ((ret + (type == READ)) > 0) {
+		if (type == READ)
+			fsnotify_access(file);
+		else
+			fsnotify_modify(file);
+	}
+	return ret;
+}
+
+static size_t compat_readv(struct file *file,
+			   const struct compat_iovec __user *vec,
+			   unsigned long vlen, loff_t *pos)
+{
+	ssize_t ret = -EBADF;
+
+	if (!(file->f_mode & FMODE_READ))
+		goto out;
+
+	ret = -EINVAL;
+	if (!file->f_op || (!file->f_op->aio_read && !file->f_op->read))
+		goto out;
+
+	ret = compat_do_readv_writev(READ, file, vec, vlen, pos);
+
+out:
+	if (ret > 0)
+		add_rchar(current, ret);
+	inc_syscr(current);
+	return ret;
+}
+
+COMPAT_SYSCALL_DEFINE3(readv, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen)
+{
+	struct fd f = fdget(fd);
+	ssize_t ret;
+	loff_t pos;
+
+	if (!f.file)
+		return -EBADF;
+	pos = f.file->f_pos;
+	ret = compat_readv(f.file, vec, vlen, &pos);
+	f.file->f_pos = pos;
+	fdput(f);
+	return ret;
+}
+
+COMPAT_SYSCALL_DEFINE4(preadv64, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos)
+{
+	struct fd f;
+	ssize_t ret;
+
+	if (pos < 0)
+		return -EINVAL;
+	f = fdget(fd);
+	if (!f.file)
+		return -EBADF;
+	ret = -ESPIPE;
+	if (f.file->f_mode & FMODE_PREAD)
+		ret = compat_readv(f.file, vec, vlen, &pos);
+	fdput(f);
+	return ret;
+}
+
+COMPAT_SYSCALL_DEFINE5(preadv, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, u32, pos_low, u32, pos_high)
+{
+	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
+	return compat_sys_preadv64(fd, vec, vlen, pos);
+}
+
+static size_t compat_writev(struct file *file,
+			    const struct compat_iovec __user *vec,
+			    unsigned long vlen, loff_t *pos)
+{
+	ssize_t ret = -EBADF;
+
+	if (!(file->f_mode & FMODE_WRITE))
+		goto out;
+
+	ret = -EINVAL;
+	if (!file->f_op || (!file->f_op->aio_write && !file->f_op->write))
+		goto out;
+
+	ret = compat_do_readv_writev(WRITE, file, vec, vlen, pos);
+
+out:
+	if (ret > 0)
+		add_wchar(current, ret);
+	inc_syscw(current);
+	return ret;
+}
+
+COMPAT_SYSCALL_DEFINE3(writev, unsigned long, fd,
+		const struct compat_iovec __user *, vec,
+		unsigned long, vlen)
+{
+	struct fd f = fdget(fd);
+	ssize_t ret;
+	loff_t pos;
+
+	if (!f.file)
+		return -EBADF;
+	pos = f.file->f_pos;
+	ret = compat_writev(f.file, vec, vlen, &pos);
+	f.file->f_pos = pos;
+	fdput(f);
+	return ret;
+}
+
+COMPAT_SYSCALL_DEFINE4(pwritev64, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos)
+{
+	struct fd f;
+	ssize_t ret;
+
+	if (pos < 0)
+		return -EINVAL;
+	f = fdget(fd);
+	if (!f.file)
+		return -EBADF;
+	ret = -ESPIPE;
+	if (f.file->f_mode & FMODE_PWRITE)
+		ret = compat_writev(f.file, vec, vlen, &pos);
+	fdput(f);
+	return ret;
+}
+
+COMPAT_SYSCALL_DEFINE5(pwritev, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, u32, pos_low, u32, pos_high)
+{
+	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
+	return compat_sys_pwritev64(fd, vec, vlen, pos);
+}
+#endif
 
 ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos, size_t count,
 		    loff_t max)
