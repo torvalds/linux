@@ -267,9 +267,9 @@ int go7007_snd_init(struct go7007 *go)
 		kfree(gosnd);
 		return ret;
 	}
-	strncpy(gosnd->card->driver, "go7007", sizeof(gosnd->card->driver));
-	strncpy(gosnd->card->shortname, go->name, sizeof(gosnd->card->driver));
-	strncpy(gosnd->card->longname, gosnd->card->shortname,
+	strlcpy(gosnd->card->driver, "go7007", sizeof(gosnd->card->driver));
+	strlcpy(gosnd->card->shortname, go->name, sizeof(gosnd->card->driver));
+	strlcpy(gosnd->card->longname, gosnd->card->shortname,
 			sizeof(gosnd->card->longname));
 
 	gosnd->pcm->private_data = go;
