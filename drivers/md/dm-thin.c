@@ -1577,6 +1577,11 @@ static bool data_dev_supports_discard(struct pool_c *pt)
 	return q && blk_queue_discard(q);
 }
 
+static bool is_factor(sector_t block_size, uint32_t n)
+{
+	return !sector_div(block_size, n);
+}
+
 /*
  * If discard_passdown was enabled verify that the data device
  * supports discards.  Disable discard_passdown if not.
@@ -1602,7 +1607,7 @@ static void disable_passdown_if_not_supported(struct pool_c *pt)
 	else if (data_limits->discard_granularity > block_size)
 		reason = "discard granularity larger than a block";
 
-	else if (block_size & (data_limits->discard_granularity - 1))
+	else if (!is_factor(block_size, data_limits->discard_granularity))
 		reason = "discard granularity not a factor of block size";
 
 	if (reason) {
