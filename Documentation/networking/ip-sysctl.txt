@@ -225,19 +225,13 @@ tcp_fin_timeout - INTEGER
 	Default: 60 seconds
 
 tcp_frto - INTEGER
-	Enables Forward RTO-Recovery (F-RTO) defined in RFC4138.
+	Enables Forward RTO-Recovery (F-RTO) defined in RFC5682.
 	F-RTO is an enhanced recovery algorithm for TCP retransmission
-	timeouts.  It is particularly beneficial in wireless environments
-	where packet loss is typically due to random radio interference
-	rather than intermediate router congestion.  F-RTO is sender-side
-	only modification. Therefore it does not require any support from
-	the peer.
+	timeouts.  It is particularly beneficial in networks where the
+	RTT fluctuates (e.g., wireless). F-RTO is sender-side only
+	modification. It does not require any support from the peer.
 
-	If set to 1, basic version is enabled.  2 enables SACK enhanced
-	F-RTO if flow uses SACK.  The basic version can be used also when
-	SACK is in use though scenario(s) with it exists where F-RTO
-	interacts badly with the packet counting of the SACK enabled TCP
-	flow.
+	By default it's enabled with a non-zero value. 0 disables F-RTO.
 
 tcp_keepalive_time - INTEGER
 	How often TCP sends out keepalive messages when keepalive is enabled.
