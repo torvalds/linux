@@ -786,7 +786,8 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
 	/* fan table */
-	if (power_info->pplib.usTableSize >= sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE3)) {
+	if (le16_to_cpu(power_info->pplib.usTableSize) >=
+	    sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE3)) {
 		if (power_info->pplib3.usFanTableOffset) {
 			fan_info = (union fan_info *)(mode_info->atom_context->bios + data_offset +
 						      le16_to_cpu(power_info->pplib3.usFanTableOffset));
@@ -807,7 +808,8 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 	}
 
 	/* clock dependancy tables, shedding tables */
-	if (power_info->pplib.usTableSize >= sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE4)) {
+	if (le16_to_cpu(power_info->pplib.usTableSize) >=
+	    sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE4)) {
 		if (power_info->pplib4.usVddcDependencyOnSCLKOffset) {
 			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
 				(mode_info->atom_context->bios + data_offset +
@@ -887,7 +889,8 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 	}
 
 	/* cac data */
-	if (power_info->pplib.usTableSize >= sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE5)) {
+	if (le16_to_cpu(power_info->pplib.usTableSize) >=
+	    sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE5)) {
 		rdev->pm.dpm.tdp_limit = le32_to_cpu(power_info->pplib5.ulTDPLimit);
 		rdev->pm.dpm.near_tdp_limit = le32_to_cpu(power_info->pplib5.ulNearTDPLimit);
 		rdev->pm.dpm.tdp_od_limit = le16_to_cpu(power_info->pplib5.usTDPODLimit);
