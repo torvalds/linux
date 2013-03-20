@@ -602,7 +602,7 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	for_each_gpio_chip(gpio, c) {
 		writel_relaxed(0, c->regbase + GFER_OFFSET);
 		writel_relaxed(0, c->regbase + GRER_OFFSET);
-		writel_relaxed(~0,c->regbase + GEDR_OFFSET);
+		writel_relaxed(~0, c->regbase + GEDR_OFFSET);
 		/* unmask GPIO edge detect for AP side */
 		if (gpio_is_mmp_type(gpio_type))
 			writel_relaxed(~0, c->regbase + ED_MASK_OFFSET);
@@ -669,7 +669,7 @@ static void pxa_gpio_resume(void)
 
 	for_each_gpio_chip(gpio, c) {
 		/* restore level with set/clear */
-		writel_relaxed( c->saved_gplr, c->regbase + GPSR_OFFSET);
+		writel_relaxed(c->saved_gplr, c->regbase + GPSR_OFFSET);
 		writel_relaxed(~c->saved_gplr, c->regbase + GPCR_OFFSET);
 
 		writel_relaxed(c->saved_grer, c->regbase + GRER_OFFSET);
