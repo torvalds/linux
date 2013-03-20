@@ -931,24 +931,28 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 		goto spin_unlock;
 	}
 
-	/* Duplex link change */
 	if (phy_dev->link) {
-		if (fep->full_duplex != phy_dev->duplex) {
-			fec_restart(ndev, phy_dev->duplex);
-			/* prevent unnecessary second fec_restart() below */
+		if (!fep->link) {
 			fep->link = phy_dev->link;
 			status_change = 1;
 		}
-	}
 
-	/* Link on or off change */
-	if (phy_dev->link != fep->link) {
-		fep->link = phy_dev->link;
-		if (phy_dev->link)
+		if (fep->full_duplex != phy_dev->duplex)
+			status_change = 1;
+
+		if (phy_dev->speed != fep->speed) {
+			fep->speed = phy_dev->speed;
+			status_change = 1;
+		}
+
+		/* if any of the above changed restart the FEC */
+		if (status_change)
 			fec_restart(ndev, phy_dev->duplex);
-		else
+	} else {
+		if (fep->link) {
 			fec_stop(ndev);
-		status_change = 1;
+			status_change = 1;
+		}
 	}
 
 spin_unlock:
@@ -1325,7 +1329,7 @@ static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 static void fec_enet_free_buffers(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	int i;
+	unsigned int i;
 	struct sk_buff *skb;
 	struct bufdesc	*bdp;
 
@@ -1349,7 +1353,7 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 static int fec_enet_alloc_buffers(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	int i;
+	unsigned int i;
 	struct sk_buff *skb;
 	struct bufdesc	*bdp;
 
@@ -1434,6 +1438,7 @@ fec_enet_close(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
 	/* Don't know what to do yet. */
+	napi_disable(&fep->napi);
 	fep->opened = 0;
 	netif_stop_queue(ndev);
 	fec_stop(ndev);
@@ -1590,7 +1595,7 @@ static int fec_enet_init(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct bufdesc *cbd_base;
 	struct bufdesc *bdp;
-	int i;
+	unsigned int i;
 
 	/* Allocate memory for buffer descriptors. */
 	cbd_base = dma_alloc_coherent(NULL, PAGE_SIZE, &fep->bd_dma,

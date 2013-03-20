@@ -2215,6 +2215,7 @@ static void sh_eth_tsu_init(struct sh_eth_private *mdp)
 /* MDIO bus release function */
 static int sh_mdio_release(struct net_device *ndev)
 {
+	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct mii_bus *bus = dev_get_drvdata(&ndev->dev);
 
 	/* unregister mdio bus */
@@ -2228,6 +2229,9 @@ static int sh_mdio_release(struct net_device *ndev)
 
 	/* free bitbang info */
 	free_mdio_bitbang(bus);
+
+	/* free bitbang memory */
+	kfree(mdp->bitbang);
 
 	return 0;
 }
@@ -2257,6 +2261,7 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 	bitbang->ctrl.ops = &bb_ops;
 
 	/* MII controller setting */
+	mdp->bitbang = bitbang;
 	mdp->mii_bus = alloc_mdio_bitbang(&bitbang->ctrl);
 	if (!mdp->mii_bus) {
 		ret = -ENOMEM;
@@ -2436,6 +2441,11 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		}
 		mdp->tsu_addr = ioremap(rtsu->start,
 					resource_size(rtsu));
+		if (mdp->tsu_addr == NULL) {
+			ret = -ENOMEM;
+			dev_err(&pdev->dev, "TSU ioremap failed.\n");
+			goto out_release;
+		}
 		mdp->port = devno % 2;
 		ndev->features = NETIF_F_HW_VLAN_FILTER;
 	}
