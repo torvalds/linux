@@ -197,18 +197,7 @@ void octeon_mdiobus_force_mod_depencency(void)
 }
 EXPORT_SYMBOL(octeon_mdiobus_force_mod_depencency);
 
-static int __init octeon_mdiobus_mod_init(void)
-{
-	return platform_driver_register(&octeon_mdiobus_driver);
-}
-
-static void __exit octeon_mdiobus_mod_exit(void)
-{
-	platform_driver_unregister(&octeon_mdiobus_driver);
-}
-
-module_init(octeon_mdiobus_mod_init);
-module_exit(octeon_mdiobus_mod_exit);
+module_platform_driver(octeon_mdiobus_driver);
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
