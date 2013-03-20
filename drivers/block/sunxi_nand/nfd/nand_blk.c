@@ -954,7 +954,7 @@ static int nand_getgeo(struct nand_blk_dev *dev,  struct hd_geometry *geo)
 static struct nand_blk_ops mytr = {
 	.name 			=  "nand",
 	.major 			= 93,
-	.minorbits 		= 3,
+	.minorbits		= 4, /* ⌈log₂(MAX_PART_COUNT + 1)⌉ */
 	.getgeo 			= nand_getgeo,
 	.add_dev			= nand_add_dev,
 	.remove_dev 		= nand_remove_dev,
