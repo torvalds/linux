@@ -100,50 +100,39 @@ static inline struct virtblk_req *virtblk_alloc_req(struct virtio_blk *vblk,
 	return vbr;
 }
 
-static void virtblk_add_buf_wait(struct virtio_blk *vblk,
-				 struct virtblk_req *vbr,
-				 unsigned long out,
-				 unsigned long in)
+static inline int __virtblk_add_req(struct virtqueue *vq,
+			     struct virtblk_req *vbr,
+			     unsigned long out,
+			     unsigned long in)
 {
-	DEFINE_WAIT(wait);
+	return virtqueue_add_buf(vq, vbr->sg, out, in, vbr, GFP_ATOMIC);
+}
 
-	for (;;) {
+static void virtblk_add_req(struct virtblk_req *vbr,
+			    unsigned int out, unsigned int in)
+{
+	struct virtio_blk *vblk = vbr->vblk;
+	DEFINE_WAIT(wait);
+	int ret;
+
+	spin_lock_irq(vblk->disk->queue->queue_lock);
+	while (unlikely((ret = __virtblk_add_req(vblk->vq, vbr,
+						 out, in)) < 0)) {
 		prepare_to_wait_exclusive(&vblk->queue_wait, &wait,
 					  TASK_UNINTERRUPTIBLE);
 
-		spin_lock_irq(vblk->disk->queue->queue_lock);
-		if (virtqueue_add_buf(vblk->vq, vbr->sg, out, in, vbr,
-				      GFP_ATOMIC) < 0) {
-			spin_unlock_irq(vblk->disk->queue->queue_lock);
-			io_schedule();
-		} else {
-			virtqueue_kick(vblk->vq);
-			spin_unlock_irq(vblk->disk->queue->queue_lock);
-			break;
-		}
-
-	}
-
-	finish_wait(&vblk->queue_wait, &wait);
-}
-
-static inline void virtblk_add_req(struct virtblk_req *vbr,
-				   unsigned int out, unsigned int in)
-{
-	struct virtio_blk *vblk = vbr->vblk;
-
-	spin_lock_irq(vblk->disk->queue->queue_lock);
-	if (unlikely(virtqueue_add_buf(vblk->vq, vbr->sg, out, in, vbr,
-					GFP_ATOMIC) < 0)) {
 		spin_unlock_irq(vblk->disk->queue->queue_lock);
-		virtblk_add_buf_wait(vblk, vbr, out, in);
-		return;
+		io_schedule();
+		spin_lock_irq(vblk->disk->queue->queue_lock);
+
+		finish_wait(&vblk->queue_wait, &wait);
 	}
+
 	virtqueue_kick(vblk->vq);
 	spin_unlock_irq(vblk->disk->queue->queue_lock);
 }
 
-static int virtblk_bio_send_flush(struct virtblk_req *vbr)
+static void virtblk_bio_send_flush(struct virtblk_req *vbr)
 {
 	unsigned int out = 0, in = 0;
 
@@ -155,11 +144,9 @@ static int virtblk_bio_send_flush(struct virtblk_req *vbr)
 	sg_set_buf(&vbr->sg[out + in++], &vbr->status, sizeof(vbr->status));
 
 	virtblk_add_req(vbr, out, in);
-
-	return 0;
 }
 
-static int virtblk_bio_send_data(struct virtblk_req *vbr)
+static void virtblk_bio_send_data(struct virtblk_req *vbr)
 {
 	struct virtio_blk *vblk = vbr->vblk;
 	unsigned int num, out = 0, in = 0;
@@ -188,8 +175,6 @@ static int virtblk_bio_send_data(struct virtblk_req *vbr)
 	}
 
 	virtblk_add_req(vbr, out, in);
-
-	return 0;
 }
 
 static void virtblk_bio_send_data_work(struct work_struct *work)
