@@ -806,7 +806,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 		}
 	}
 
-	/* clock dependancy tables */
+	/* clock dependancy tables, shedding tables */
 	if (power_info->pplib.usTableSize >= sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE4)) {
 		if (power_info->pplib4.usVddcDependencyOnSCLKOffset) {
 			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
@@ -857,6 +857,32 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.vddci =
 					le16_to_cpu(clk_v->entries[0].usVddci);
 			}
+		}
+		if (power_info->pplib4.usVddcPhaseShedLimitsTableOffset) {
+			ATOM_PPLIB_PhaseSheddingLimits_Table *psl =
+				(ATOM_PPLIB_PhaseSheddingLimits_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(power_info->pplib4.usVddcPhaseShedLimitsTableOffset));
+
+			rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries =
+				kzalloc(psl->ucNumEntries *
+					sizeof(struct radeon_phase_shedding_limits_entry),
+					GFP_KERNEL);
+			if (!rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries)
+				return -ENOMEM;
+
+			for (i = 0; i < psl->ucNumEntries; i++) {
+				rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries[i].sclk =
+					le16_to_cpu(psl->entries[i].usSclkLow) |
+					(psl->entries[i].ucSclkHigh << 16);
+				rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries[i].mclk =
+					le16_to_cpu(psl->entries[i].usMclkLow) |
+					(psl->entries[i].ucMclkHigh << 16);
+				rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries[i].voltage =
+					le16_to_cpu(psl->entries[i].usVoltage);
+			}
+			rdev->pm.dpm.dyn_state.phase_shedding_limits_table.count =
+				psl->ucNumEntries;
 		}
 	}
 
@@ -909,4 +935,6 @@ void r600_free_extended_power_table(struct radeon_device *rdev)
 		kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
 	if (rdev->pm.dpm.dyn_state.cac_leakage_table.entries)
 		kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
+	if (rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries)
+		kfree(rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries);
 }

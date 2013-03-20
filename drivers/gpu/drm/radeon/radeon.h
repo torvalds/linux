@@ -1270,6 +1270,17 @@ struct radeon_cac_leakage_table {
 	struct radeon_cac_leakage_entry *entries;
 };
 
+struct radeon_phase_shedding_limits_entry {
+	u16 voltage;
+	u32 sclk;
+	u32 mclk;
+};
+
+struct radeon_phase_shedding_limits_table {
+	u32 count;
+	struct radeon_phase_shedding_limits_entry *entries;
+};
+
 struct radeon_dpm_dynamic_state {
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_sclk;
 	struct radeon_clock_voltage_dependency_table vddci_dependency_on_mclk;
@@ -1283,6 +1294,7 @@ struct radeon_dpm_dynamic_state {
 	u16 vddc_vddci_delta;
 	u16 min_vddc_for_pcie_gen2;
 	struct radeon_cac_leakage_table cac_leakage_table;
+	struct radeon_phase_shedding_limits_table phase_shedding_limits_table;
 };
 
 struct radeon_dpm_fan {
