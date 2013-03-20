@@ -965,6 +965,8 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
 	}
 
+	avi_if.body.avi.VIC = drm_match_cea_mode(adjusted_mode);
+
 	intel_dip_infoframe_csum(&avi_if);
 
 	/* sdvo spec says that the ecc is handled by the hw, and it looks like
