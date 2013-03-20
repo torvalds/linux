@@ -1,6 +1,7 @@
 config VHOST_NET
 	tristate "Host kernel accelerator for virtio net"
 	depends on NET && EVENTFD && (TUN || !TUN) && (MACVTAP || !MACVTAP)
+	select VHOST_RING
 	---help---
 	  This kernel module can be loaded in host kernel to accelerate
 	  guest networking with virtio_net. Not to be confused with virtio_net
@@ -12,3 +13,10 @@ config VHOST_NET
 if STAGING
 source "drivers/vhost/Kconfig.tcm"
 endif
+
+config VHOST_RING
+	tristate
+	---help---
+	  This option is selected by any driver which needs to access
+	  the host side of a virtio ring.
+
