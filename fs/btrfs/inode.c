@@ -3239,9 +3239,9 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 	}
 
 	if (nr_unlink)
-		btrfs_info(root->fs_info, "unlinked %d orphans", nr_unlink);
+		btrfs_debug(root->fs_info, "unlinked %d orphans", nr_unlink);
 	if (nr_truncate)
-		btrfs_info(root->fs_info, "truncated %d orphans", nr_truncate);
+		btrfs_debug(root->fs_info, "truncated %d orphans", nr_truncate);
 
 out:
 	if (ret)
