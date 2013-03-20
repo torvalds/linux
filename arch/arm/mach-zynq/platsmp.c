@@ -146,4 +146,7 @@ struct smp_operations zynq_smp_ops __initdata = {
 	.smp_prepare_cpus	= zynq_smp_prepare_cpus,
 	.smp_secondary_init	= zynq_secondary_init,
 	.smp_boot_secondary	= zynq_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= zynq_platform_cpu_die,
+#endif
 };

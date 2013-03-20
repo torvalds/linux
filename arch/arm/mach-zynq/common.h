@@ -34,4 +34,7 @@ extern struct smp_operations zynq_smp_ops __initdata;
 extern void __iomem *zynq_slcr_base;
 extern void __iomem *zynq_scu_base;
 
+/* Hotplug */
+extern void zynq_platform_cpu_die(unsigned int cpu);
+
 #endif
