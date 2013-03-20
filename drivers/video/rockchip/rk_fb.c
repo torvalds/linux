@@ -669,19 +669,23 @@ static struct fb_ops fb_ops = {
 
 
 static struct fb_var_screeninfo def_var = {
-	.red    = {11,5,0},//default set to rgb565,the boot logo is rgb565
-	.green  = {5,6,0},
-	.blue   = {0,5,0},
-	.transp = {0,0,0},	
 #ifdef  CONFIG_LOGO_LINUX_BMP
-	.nonstd      = HAL_PIXEL_FORMAT_RGBA_8888,
+	.red    	= {16,8,0},
+	.green  	= {8,8,0},
+	.blue   	= {0,8,0},
+	.transp 	= {0,0,0},
+	.nonstd 	= HAL_PIXEL_FORMAT_BGRA_8888,
 #else
-	.nonstd      = HAL_PIXEL_FORMAT_RGB_565,   //(ypos<<20+xpos<<8+format) format
+	.red		= {11,5,0},
+	.green  	= {5,6,0},
+	.blue   	= {0,5,0},
+	.transp 	= {0,0,0},
+	.nonstd 	= HAL_PIXEL_FORMAT_RGB_565,   //(ypos<<20+xpos<<8+format) format
 #endif
-	.grayscale   = 0,  //(ysize<<20+xsize<<8)
-	.activate    = FB_ACTIVATE_NOW,
-	.accel_flags = 0,
-	.vmode       = FB_VMODE_NONINTERLACED,
+	.grayscale	= 0,  //(ysize<<20+xsize<<8)
+	.activate    	= FB_ACTIVATE_NOW,
+	.accel_flags 	= 0,
+	.vmode       	= FB_VMODE_NONINTERLACED,
 };
 
 static struct fb_fix_screeninfo def_fix = {

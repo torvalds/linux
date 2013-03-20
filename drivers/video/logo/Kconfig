@@ -98,16 +98,21 @@ config LOGO_LINUX_800x480_CLUT224
         bool "Standard 224-color 800x480 Linux logo "
         default n
 
+config LOGO_LOWERPOWER_WARNING
+        bool "warning: lowerpower when poweron"
+        default n
+
 menuconfig LOGO_LINUX_BMP
         bool "Bmp logo support"
-	default n
-
-config LOGO_LOWERPOWER_WARNING
-	bool "warning: lowerpower when poweron"
 	default n
 
 config LOGO_LINUX_BMP_SUNSET
 	bool "Bmp logo sunset"
 	depends on  LOGO_LINUX_BMP
 	default n
+
+config LOGO_LINUX_BMP_ANDROID
+        bool "Bmp logo android"
+        depends on  LOGO_LINUX_BMP
+        default n
 endif # LOGO
