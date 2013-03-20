@@ -1556,7 +1556,7 @@ fec_set_mac_address(struct net_device *ndev, void *p)
  * Polled functionality used by netconsole and others in non interrupt mode
  *
  */
-void fec_poll_controller(struct net_device *dev)
+static void fec_poll_controller(struct net_device *dev)
 {
 	int i;
 	struct fec_enet_private *fep = netdev_priv(dev);
