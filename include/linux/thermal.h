@@ -251,7 +251,7 @@ void thermal_unregister_governor(struct thermal_governor *);
 extern int thermal_generate_netlink_event(struct thermal_zone_device *tz,
 						enum events event);
 #else
-static int thermal_generate_netlink_event(struct thermal_zone_device *tz,
+static inline int thermal_generate_netlink_event(struct thermal_zone_device *tz,
 						enum events event)
 {
 	return 0;
