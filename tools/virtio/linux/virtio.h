@@ -49,13 +49,6 @@ struct virtqueue {
 	const char *__MODULE_LICENSE_name = __MODULE_LICENSE_value
 
 /* Interfaces exported by virtio_ring. */
-int virtqueue_add_buf(struct virtqueue *vq,
-		      struct scatterlist sg[],
-		      unsigned int out_num,
-		      unsigned int in_num,
-		      void *data,
-		      gfp_t gfp);
-
 int virtqueue_add_sgs(struct virtqueue *vq,
 		      struct scatterlist *sgs[],
 		      unsigned int out_sgs,

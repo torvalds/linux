@@ -388,7 +388,7 @@ static int parallel_test(unsigned long features,
 			}
 
 			if (err)
-				errx(1, "virtqueue_add_buf: %i", err);
+				errx(1, "virtqueue_add_in/outbuf: %i", err);
 
 			xfers++;
 			virtqueue_kick(vq);
@@ -431,7 +431,7 @@ int main(int argc, char *argv[])
 	struct virtio_device vdev;
 	struct virtqueue *vq;
 	struct vringh vrh;
-	struct scatterlist guest_sg[RINGSIZE];
+	struct scatterlist guest_sg[RINGSIZE], *sgs[2];
 	struct iovec host_riov[2], host_wiov[2];
 	struct vringh_iov riov, wiov;
 	struct vring_used_elem used[RINGSIZE];
@@ -492,12 +492,14 @@ int main(int argc, char *argv[])
 	sg_set_buf(&guest_sg[0], __user_addr_max - 1, 1);
 	sg_init_table(guest_sg+1, 1);
 	sg_set_buf(&guest_sg[1], __user_addr_max - 3, 2);
+	sgs[0] = &guest_sg[0];
+	sgs[1] = &guest_sg[1];
 
 	/* May allocate an indirect, so force it to allocate user addr */
 	__kmalloc_fake = __user_addr_min + vring_size(RINGSIZE, ALIGN);
-	err = virtqueue_add_buf(vq, guest_sg, 1, 1, &err, GFP_KERNEL);
+	err = virtqueue_add_sgs(vq, sgs, 1, 1, &err, GFP_KERNEL);
 	if (err)
-		errx(1, "virtqueue_add_buf: %i", err);
+		errx(1, "virtqueue_add_sgs: %i", err);
 	__kmalloc_fake = NULL;
 
 	/* Host retreives it. */
@@ -564,9 +566,9 @@ int main(int argc, char *argv[])
 
 	/* This will allocate an indirect, so force it to allocate user addr */
 	__kmalloc_fake = __user_addr_min + vring_size(RINGSIZE, ALIGN);
-	err = virtqueue_add_buf(vq, guest_sg, RINGSIZE, 0, &err, GFP_KERNEL);
+	err = virtqueue_add_outbuf(vq, guest_sg, RINGSIZE, &err, GFP_KERNEL);
 	if (err)
-		errx(1, "virtqueue_add_buf (large): %i", err);
+		errx(1, "virtqueue_add_outbuf (large): %i", err);
 	__kmalloc_fake = NULL;
 
 	/* Host picks it up (allocates new iov). */
@@ -616,9 +618,9 @@ int main(int argc, char *argv[])
 	sg_init_table(guest_sg, 1);
 	sg_set_buf(&guest_sg[0], __user_addr_max - 1, 1);
 	for (i = 0; i < RINGSIZE; i++) {
-		err = virtqueue_add_buf(vq, guest_sg, 1, 0, &err, GFP_KERNEL);
+		err = virtqueue_add_outbuf(vq, guest_sg, 1, &err, GFP_KERNEL);
 		if (err)
-			errx(1, "virtqueue_add_buf (multiple): %i", err);
+			errx(1, "virtqueue_add_outbuf (multiple): %i", err);
 	}
 
 	/* Now get many, and consume them all at once. */
@@ -664,9 +666,9 @@ int main(int argc, char *argv[])
 		sg_set_buf(&guest_sg[2], data + 6, 4);
 		sg_set_buf(&guest_sg[3], d + 3, sizeof(*d)*3);
 
-		err = virtqueue_add_buf(vq, guest_sg, 4, 0, &err, GFP_KERNEL);
+		err = virtqueue_add_outbuf(vq, guest_sg, 4, &err, GFP_KERNEL);
 		if (err)
-			errx(1, "virtqueue_add_buf (indirect): %i", err);
+			errx(1, "virtqueue_add_outbuf (indirect): %i", err);
 
 		vring_init(&vring, RINGSIZE, __user_addr_min, ALIGN);
 
