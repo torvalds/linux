@@ -4,7 +4,7 @@
  * Author: John Rigby, <jrigby@freescale.com>
  *
  * Description:
- * MPC5121 SoC setup
+ * MPC512x SoC setup
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -34,14 +34,14 @@ static const char * const board[] __initconst = {
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init mpc5121_generic_probe(void)
+static int __init mpc512x_generic_probe(void)
 {
 	return of_flat_dt_match(of_get_flat_dt_root(), board);
 }
 
-define_machine(mpc5121_generic) {
-	.name			= "MPC5121 generic",
-	.probe			= mpc5121_generic_probe,
+define_machine(mpc512x_generic) {
+	.name			= "MPC512x generic",
+	.probe			= mpc512x_generic_probe,
 	.init			= mpc512x_init,
 	.init_early		= mpc512x_init_diu,
 	.setup_arch		= mpc512x_setup_diu,
