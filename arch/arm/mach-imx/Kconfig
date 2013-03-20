@@ -65,6 +65,9 @@ config IRAM_ALLOC
 	bool
 	select GENERIC_ALLOCATOR
 
+config HAVE_IMX_ANATOP
+	bool
+
 config HAVE_IMX_GPC
 	bool
 
@@ -795,6 +798,7 @@ config SOC_IMX6Q
 	select CPU_V7
 	select HAVE_ARM_SCU
 	select HAVE_CAN_FLEXCAN if CAN
+	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
