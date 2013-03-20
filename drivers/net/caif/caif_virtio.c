@@ -572,8 +572,7 @@ static int cfv_netdev_tx(struct sk_buff *skb, struct net_device *netdev)
 		goto err;
 	}
 
-	ret = virtqueue_add_buf(cfv->vq_tx, &sg, 1, 0,
-				buf_info, GFP_ATOMIC);
+	ret = virtqueue_add_outbuf(cfv->vq_tx, &sg, 1, buf_info, GFP_ATOMIC);
 	if (unlikely((ret < 0))) {
 		/* If flow control works, this shouldn't happen */
 		netdev_warn(cfv->ndev, "Failed adding buffer to TX vring:%d\n",
