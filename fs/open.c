@@ -443,7 +443,7 @@ retry:
 		goto dput_and_out;
 
 	error = -EPERM;
-	if (!nsown_capable(CAP_SYS_CHROOT))
+	if (!ns_capable(current_user_ns(), CAP_SYS_CHROOT))
 		goto dput_and_out;
 	error = security_path_chroot(&path);
 	if (error)
