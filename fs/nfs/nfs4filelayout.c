@@ -129,7 +129,6 @@ static void filelayout_fenceme(struct inode *inode, struct pnfs_layout_hdr *lo)
 {
 	if (!test_and_clear_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
 		return;
-	clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags);
 	pnfs_return_layout(inode);
 }
 
