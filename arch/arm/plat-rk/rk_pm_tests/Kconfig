@@ -1,0 +1,29 @@
+menuconfig RK_PM_TESTS
+	bool "/sys/pm_tests/ support"
+	help
+	  PM tests tools
+
+if RK_PM_TESTS
+
+config PM_TEST_CLK_RATE
+	bool "Scale clock rate"
+	default y
+	help
+	  Use to set clock rate
+
+config PM_TEST_CLK_VOLT
+	bool "Scale voltage"
+	default y
+	help
+	  Use to set voltage domain's voltage
+
+config PM_TEST_FREQ_LIMIT
+	bool "Limit clocks' frequency"
+	help
+	  Use to limit clocks' frequency
+
+config PM_TEST_CPU_USAGE
+	bool "Set cpu running at a fixed frequency"
+	help
+	  Use to Set cpu running at a fixed frequency
+endif

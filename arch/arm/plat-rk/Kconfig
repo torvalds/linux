@@ -113,6 +113,8 @@ config RK_CLOCK_PROC
 	bool "/proc/clocks support"
 	depends on PROC_FS
 
+source arch/arm/plat-rk/rk_pm_tests/Kconfig
+
 if !ARCH_RK29
 menu "Support for RK power manage"
 
