@@ -3770,6 +3770,9 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 
+	/* WaSwitchSolVfFArbitrationPriority */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
+
 	/* XXX: This is a workaround for early silicon revisions and should be
 	 * removed later.
 	 */
