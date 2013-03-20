@@ -9,6 +9,8 @@ pack-kernel*
 defconfig
 kernel.img
 arch/arm/plat-rk/vpu*.c
+arch/arm/plat-rk/rk_pm_tests/*.c
+arch/arm/plat-rk/rk_pm_tests/*.h
 drivers/staging/rk29/vivante
 drivers/staging/rk29/ipp/rk29-ipp.c
 drivers/*rk28*.c
