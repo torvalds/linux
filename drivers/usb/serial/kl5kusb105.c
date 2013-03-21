@@ -360,9 +360,6 @@ static void klsi_105_close(struct usb_serial_port *port)
 
 	/* shutdown our bulk reads and writes */
 	usb_serial_generic_close(port);
-
-	/* wgg - do I need this? I think so. */
-	usb_kill_urb(port->interrupt_in_urb);
 }
 
 /* We need to write a complete 64-byte data block and encode the
