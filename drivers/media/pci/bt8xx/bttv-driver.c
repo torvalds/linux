@@ -3065,7 +3065,7 @@ static int bttv_open(struct file *file)
 			    fh, &btv->lock);
 	set_tvnorm(btv,btv->tvnorm);
 	set_input(btv, btv->input, btv->tvnorm);
-
+	audio_mute(btv, btv->mute);
 
 	/* The V4L2 spec requires one global set of cropping parameters
 	   which only change on request. These are stored in btv->crop[1].
@@ -3230,6 +3230,7 @@ static int radio_open(struct file *file)
 	v4l2_fh_init(&fh->fh, vdev);
 
 	btv->radio_user++;
+	audio_mute(btv, btv->mute);
 
 	v4l2_fh_add(&fh->fh);
 
