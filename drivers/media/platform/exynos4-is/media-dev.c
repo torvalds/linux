@@ -32,6 +32,7 @@
 
 #include "media-dev.h"
 #include "fimc-core.h"
+#include "fimc-is.h"
 #include "fimc-lite.h"
 #include "mipi-csis.h"
 
@@ -85,9 +86,11 @@ static void fimc_pipeline_prepare(struct fimc_pipeline *p,
 		case GRP_ID_FIMC:
 			/* No need to control FIMC subdev through subdev ops */
 			break;
+		case GRP_ID_FIMC_IS:
+			p->subdevs[IDX_IS_ISP] = sd;
+			break;
 		default:
-			pr_warn("%s: Unknown subdev grp_id: %#x\n",
-				__func__, sd->grp_id);
+			break;
 		}
 		me = &sd->entity;
 		if (me->num_pads == 1)
@@ -322,6 +325,7 @@ static void fimc_md_unregister_sensor(struct v4l2_subdev *sd)
 
 	if (!client)
 		return;
+
 	v4l2_device_unregister_subdev(sd);
 
 	if (!client->dev.of_node) {
@@ -372,7 +376,11 @@ static int fimc_md_of_add_sensor(struct fimc_md *fmd,
 		goto mod_put;
 
 	v4l2_set_subdev_hostdata(sd, si);
-	sd->grp_id = GRP_ID_SENSOR;
+	if (si->pdata.fimc_bus_type == FIMC_BUS_TYPE_ISP_WRITEBACK)
+		sd->grp_id = GRP_ID_FIMC_IS_SENSOR;
+	else
+		sd->grp_id = GRP_ID_SENSOR;
+
 	si->subdev = sd;
 	v4l2_info(&fmd->v4l2_dev, "Registered sensor subdevice: %s (%d)\n",
 		  sd->name, fmd->num_sensors);
@@ -652,6 +660,22 @@ static int register_csis_entity(struct fimc_md *fmd,
 	return ret;
 }
 
+static int register_fimc_is_entity(struct fimc_md *fmd, struct fimc_is *is)
+{
+	struct v4l2_subdev *sd = &is->isp.subdev;
+	int ret;
+
+	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
+	if (ret) {
+		v4l2_err(&fmd->v4l2_dev,
+			 "Failed to register FIMC-ISP (%d)\n", ret);
+		return ret;
+	}
+
+	fmd->fimc_is = is;
+	return 0;
+}
+
 static int fimc_md_register_platform_entity(struct fimc_md *fmd,
 					    struct platform_device *pdev,
 					    int plat_entity)
@@ -678,6 +702,9 @@ static int fimc_md_register_platform_entity(struct fimc_md *fmd,
 			break;
 		case IDX_CSIS:
 			ret = register_csis_entity(fmd, pdev, drvdata);
+			break;
+		case IDX_IS_ISP:
+			ret = register_fimc_is_entity(fmd, drvdata);
 			break;
 		default:
 			ret = -ENODEV;
@@ -742,6 +769,8 @@ static int fimc_md_register_of_platform_entities(struct fimc_md *fmd,
 		/* If driver of any entity isn't ready try all again later. */
 		if (!strcmp(node->name, CSIS_OF_NODE_NAME))
 			plat_entity = IDX_CSIS;
+		else if	(!strcmp(node->name, FIMC_IS_OF_NODE_NAME))
+			plat_entity = IDX_IS_ISP;
 		else if (!strcmp(node->name, FIMC_LITE_OF_NODE_NAME))
 			plat_entity = IDX_FLITE;
 		else if	(!strcmp(node->name, FIMC_OF_NODE_NAME) &&
@@ -1307,6 +1336,8 @@ static int fimc_md_probe(struct platform_device *pdev)
 	v4l2_dev->mdev = &fmd->media_dev;
 	v4l2_dev->notify = fimc_sensor_notify;
 	strlcpy(v4l2_dev->name, "s5p-fimc-md", sizeof(v4l2_dev->name));
+
+	fmd->use_isp = fimc_md_is_isp_available(dev->of_node);
 
 	ret = v4l2_device_register(dev, &fmd->v4l2_dev);
 	if (ret < 0) {

@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <media/media-device.h>
 #include <media/media-entity.h>
@@ -80,6 +81,7 @@ struct fimc_sensor_info {
  * @num_sensors: actual number of registered sensors
  * @camclk: external sensor clock information
  * @fimc: array of registered fimc devices
+ * @fimc_is: fimc-is data structure
  * @use_isp: set to true when FIMC-IS subsystem is used
  * @pmf: handle to the CAMCLK clock control FIMC helper device
  * @media_dev: top level media device
@@ -99,6 +101,7 @@ struct fimc_md {
 	struct clk *wbclk[FIMC_MAX_WBCLKS];
 	struct fimc_lite *fimc_lite[FIMC_LITE_MAX_DEVS];
 	struct fimc_dev *fimc[FIMC_MAX_DEVS];
+	struct fimc_is *fimc_is;
 	bool use_isp;
 	struct device *pmf;
 	struct media_device media_dev;
@@ -138,5 +141,15 @@ static inline void fimc_md_graph_unlock(struct fimc_dev *fimc)
 }
 
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on);
+
+#ifdef CONFIG_OF
+static inline bool fimc_md_is_isp_available(struct device_node *node)
+{
+	node = of_get_child_by_name(node, FIMC_IS_OF_NODE_NAME);
+	return node ? of_device_is_available(node) : false;
+}
+#else
+#define fimc_md_is_isp_available(node) (false)
+#endif /* CONFIG_OF */
 
 #endif
