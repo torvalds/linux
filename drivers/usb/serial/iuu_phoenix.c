@@ -957,7 +957,6 @@ static void iuu_close(struct usb_serial_port *port)
 		dev_dbg(&port->dev, "%s - shutting down urbs\n", __func__);
 		usb_kill_urb(port->write_urb);
 		usb_kill_urb(port->read_urb);
-		usb_kill_urb(port->interrupt_in_urb);
 		iuu_led(port, 0, 0, 0xF000, 0xFF);
 	}
 }
