@@ -260,6 +260,7 @@ config RK29_VMAC
 	help
 	  MAC device present on rockchip rk29xx 
 
+source "drivers/net/eth_mac/Kconfig"
 
 config MACE
 	tristate "MACE (Power Mac ethernet) support"

@@ -75,7 +75,7 @@ static int rk30_rmii_power_control(int enable)
 #define BIT_EMAC_SPEED      (1 << 1)
 static int rk29_vmac_speed_switch(int speed)
 {
-	printk("%s--speed=%d\n", __FUNCTION__, speed);
+	//printk("%s--speed=%d\n", __FUNCTION__, speed);
 	if (10 == speed) {
 	    writel_relaxed(readl_relaxed(RK30_GRF_BASE + GRF_SOC_CON1) & (~BIT_EMAC_SPEED), RK30_GRF_BASE + GRF_SOC_CON1);
 	} else {

@@ -1,0 +1,58 @@
+#
+#	set Ethernet mac source
+#
+choice 
+	prompt "Ethernet mac source"
+	depends on NETDEV_10000 ||NETDEV_1000 ||NET_ETHERNET
+	default ETH_MAC_FROM_RANDOM
+
+	config ETH_MAC_FROM_RANDOM
+		bool "Random Ethernet mac "
+		---help---
+	 	   Say Y here if you want to set Random mac to Ethernet mac.
+	 
+	  	   This option alone does not add any kernel code.
+
+	  	   If you say N, all options in this submenu will be skipped and disabled.	
+
+	config ETH_MAC_FROM_EEPROM
+		bool "Ethernet mac from EEPROM"
+		depends on EEPROM_AT24C16
+		---help---
+	 	   Say Y here if you want to set EEPROM mac to Ethernet mac,
+	 	   when the EEPROM exsits and mac has been written in.
+	 
+	  	   This option alone does not add any kernel code.
+
+	  	   If you say N, all options in this submenu will be skipped and disabled.	
+
+	config ETH_MAC_FROM_IDB
+		bool "Ethernet mac from IDB"
+		---help---
+	 	  Say Y here if you want to set IDB mac to Ethernet mac,
+	  	  when the IDB mac has been written in.
+	 	
+	  	  This option alone does not add any kernel code.
+
+	  	  If you say N, all options in this submenu will be skipped and disabled.
+
+	config ETH_MAC_FROM_WIFI_MAC
+		bool "Ethernet mac from Wifi mac"
+		---help---
+	  	  Say Y here if you want to set Wifi mac to Ethernet mac,
+	  	  when the Wifi device exsits.
+	  	  This option alone does not add any kernel code.
+
+	  	  If you say N, all options in this submenu will be skipped and disabled.
+
+	config ETH_MAC_FROM_SECURE_CHIP
+		bool "Ethernet mac from Secure chip"
+		---help---
+	  	  Say Y here if you want to set Secure chip mac to Ethernet mac,
+	  	  when the Secure chip exsits and mac has been written in.
+	  	  This option alone does not add any kernel code.
+
+	  	  If you say N, all options in this submenu will be skipped and disabled.
+
+endchoice
+
