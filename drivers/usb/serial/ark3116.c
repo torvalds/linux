@@ -426,33 +426,6 @@ static int ark3116_ioctl(struct tty_struct *tty,
 		if (copy_from_user(&serstruct, user_arg, sizeof(serstruct)))
 			return -EFAULT;
 		return 0;
-	case TIOCMIWAIT:
-		for (;;) {
-			struct async_icount prev = port->icount;
-			interruptible_sleep_on(&port->delta_msr_wait);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-
-			if (port->serial->disconnected)
-				return -EIO;
-
-			if ((prev.rng == port->icount.rng) &&
-			    (prev.dsr == port->icount.dsr) &&
-			    (prev.dcd == port->icount.dcd) &&
-			    (prev.cts == port->icount.cts))
-				return -EIO;
-			if ((arg & TIOCM_RNG &&
-			     (prev.rng != port->icount.rng)) ||
-			    (arg & TIOCM_DSR &&
-			     (prev.dsr != port->icount.dsr)) ||
-			    (arg & TIOCM_CD  &&
-			     (prev.dcd != port->icount.dcd)) ||
-			    (arg & TIOCM_CTS &&
-			     (prev.cts != port->icount.cts)))
-				return 0;
-		}
-		break;
 	}
 
 	return -ENOIOCTLCMD;
@@ -557,7 +530,7 @@ static void ark3116_update_msr(struct usb_serial_port *port, __u8 msr)
 			port->icount.dcd++;
 		if (msr & UART_MSR_TERI)
 			port->icount.rng++;
-		wake_up_interruptible(&port->delta_msr_wait);
+		wake_up_interruptible(&port->port.delta_msr_wait);
 	}
 }
 
@@ -697,6 +670,7 @@ static struct usb_serial_driver ark3116_device = {
 	.ioctl =		ark3116_ioctl,
 	.tiocmget =		ark3116_tiocmget,
 	.tiocmset =		ark3116_tiocmset,
+	.tiocmiwait =		usb_serial_generic_tiocmiwait,
 	.get_icount =		usb_serial_generic_get_icount,
 	.open =			ark3116_open,
 	.close =		ark3116_close,
