@@ -951,14 +951,11 @@ static void iuu_close(struct usb_serial_port *port)
 		return;
 
 	iuu_uart_off(port);
-	if (serial->dev) {
-		/* free writebuf */
-		/* shutdown our urbs */
-		dev_dbg(&port->dev, "%s - shutting down urbs\n", __func__);
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->read_urb);
-		iuu_led(port, 0, 0, 0xF000, 0xFF);
-	}
+
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->read_urb);
+
+	iuu_led(port, 0, 0, 0xF000, 0xFF);
 }
 
 static void iuu_init_termios(struct tty_struct *tty)
