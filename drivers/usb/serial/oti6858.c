@@ -662,7 +662,7 @@ static int oti6858_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	while (1) {
-		wait_event_interruptible(port->delta_msr_wait,
+		wait_event_interruptible(port->port.delta_msr_wait,
 					port->serial->disconnected ||
 					priv->status.pin_state != prev);
 		if (signal_pending(current))
@@ -747,7 +747,7 @@ static void oti6858_read_int_callback(struct urb *urb)
 
 		if (!priv->transient) {
 			if (xs->pin_state != priv->status.pin_state)
-				wake_up_interruptible(&port->delta_msr_wait);
+				wake_up_interruptible(&port->port.delta_msr_wait);
 			memcpy(&priv->status, xs, OTI6858_CTRL_PKT_SIZE);
 		}
 
