@@ -550,10 +550,13 @@ static int pl2303_tiocmset(struct tty_struct *tty,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected)
+	if (!serial->disconnected) {
 		ret = pl2303_set_control_lines(port, control);
-	else
+		if (ret)
+			ret = usb_translate_errors(ret);
+	} else {
 		ret = -ENODEV;
+	}
 	mutex_unlock(&serial->disc_mutex);
 
 	return ret;
