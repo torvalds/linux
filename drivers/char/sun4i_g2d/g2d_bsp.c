@@ -633,12 +633,116 @@ __s32 mixer_fillrectangle(g2d_fillrect *para){
 	return result;
 }
 
+/*
+ * Special fast path for just a simple copy/conversion between
+ * ARGB8888, XRGB8888 and RGB565 formats.
+ */
+static __s32 mixer_simple_blt(g2d_blt *para)
+{
+	__u32 reg_val;
+	__u64 addr_val;
+	__s32 result = 0;
+
+	/* Initial setup, clear all G2D hardware registers */
+	mixer_reg_init();
+
+	/*
+	 * In the case if source and destination buffers are overlapping, we
+	 * want to set a suitable scan order for getting correct results in
+	 * the use cases such as scrolling.
+	 *
+	 * Seems like trying to set horizontal scan order has no effect. But
+	 * at least setting vertical scan order allows to handle all types of
+	 * overlapped blits, except when both of the following conditions are
+	 * met at the same time:
+	 *   1) the destination buffer is shifted right relative to the source
+	 *      buffer by more than 1 pixel
+	 *   2) there is no vertical shift (src_y == dst_y)
+	 *
+	 * If the buffers are not overlapping, then the scan order does not
+	 * matter at all.
+	 */
+	if (para->src_image.addr[0] == para->dst_image.addr[0] &&
+					para->src_rect.y < para->dst_y) {
+		write_wvalue(G2D_SCAN_ORDER_REG, G2D_DOWN_TOP_LR);
+		/* dst_y has to point at the bottom scanline, not the top one */
+		para->dst_y += para->src_rect.h - 1;
+	}
+
+	/* Configure source surface */
+	addr_val = mixer_get_addr(para->src_image.addr[0],
+				  para->src_image.format, para->src_image.w,
+				  para->src_rect.x, para->src_rect.y);
+	reg_val = (addr_val >> 32) & 0xF; /* high addr in bits */
+	write_wvalue(G2D_DMA_HADDR_REG, reg_val);
+	reg_val = addr_val & 0xFFFFFFFF; /* low addr in bits */
+	write_wvalue(G2D_DMA0_LADDR_REG, reg_val);
+	write_wvalue(G2D_DMA0_STRIDE_REG, para->src_image.w *
+				mixer_bpp_count(para->src_image.format));
+	write_wvalue(G2D_DMA0_SIZE_REG, (para->src_rect.w - 1) |
+					((para->src_rect.h - 1) << 16));
+	reg_val = read_wvalue(G2D_DMA0_CONTROL_REG) | G2D_IDMA_ENABLE;
+	reg_val |= mixer_in_fmtseq_set(para->src_image.format,
+				       para->src_image.pixel_seq);
+	/* Opaque source, need to set alpha channel to 0xFF */
+	if (para->src_image.format == G2D_FMT_XRGB8888)
+		reg_val |= (0xFF << 24) | 0x4;
+	write_wvalue(G2D_DMA0_CONTROL_REG, reg_val);
+
+	/*
+	 * Clear low bits before converting to RGB565 in order to avoid funny
+	 * rounding and data corruption for "RGB565 -> RGB565" copy operation.
+	 * The value in G2D_DMA1_FILLCOLOR_REG happens to be processed as a
+	 * constant for bitwise AND operation with the intermediate ARGB8888
+	 * format inside of the G2D pipeline in the default configuration.
+	 */
+	if (para->dst_image.format == G2D_FMT_RGB565)
+		write_wvalue(G2D_DMA1_FILLCOLOR_REG, 0xFFF8FCF8);
+	else
+		write_wvalue(G2D_DMA1_FILLCOLOR_REG, 0xFFFFFFFF);
+	write_wvalue(G2D_DMA2_FILLCOLOR_REG, 0xFFFFFFFF);
+
+	/* Configure output surface */
+	write_wvalue(G2D_OUTPUT_SIZE_REG, (para->src_rect.w - 1) |
+					  ((para->src_rect.h - 1) << 16));
+	addr_val = mixer_get_addr(para->dst_image.addr[0],
+				  para->dst_image.format, para->dst_image.w,
+				  para->dst_x, para->dst_y);
+	reg_val = (addr_val >> 32) & 0xF; /* high addr in bits */
+	write_wvalue(G2D_OUTPUT_HADDR_REG, reg_val);
+	reg_val = addr_val & 0xFFFFFFFF; /* low addr in bits */
+	write_wvalue(G2D_OUTPUT0_LADDR_REG, reg_val);
+	write_wvalue(G2D_OUTPUT0_STRIDE_REG, para->dst_image.w *
+				mixer_bpp_count(para->dst_image.format));
+	reg_val = mixer_out_fmtseq_set(para->dst_image.format,
+				       para->dst_image.pixel_seq);
+	write_wvalue(G2D_OUTPUT_CONTROL_REG, reg_val);
+
+	/* Start */
+	write_wvalue(G2D_CONTROL_REG, 0x0);
+	write_wvalue(G2D_CONTROL_REG, 0x303);
+	/* Wait for completion */
+	result = g2d_wait_cmd_finish();
+
+	return result;
+}
+
 __s32 mixer_blt(g2d_blt *para){
 	__u32 bppnum = 0;
 	__u32 reg_val = 0;
 	__u64 addr_val;
 	__s32 result = 0;
 	__u32 i,j;
+
+	/* Common formats are handled with a special fast path */
+	if (para->flag == G2D_BLT_NONE &&
+			(para->src_image.format == G2D_FMT_ARGB_AYUV8888 ||
+			 para->src_image.format == G2D_FMT_XRGB8888 ||
+			 para->src_image.format == G2D_FMT_RGB565) &&
+			(para->dst_image.format == G2D_FMT_ARGB_AYUV8888 ||
+			 para->dst_image.format == G2D_FMT_XRGB8888 ||
+			 para->dst_image.format == G2D_FMT_RGB565))
+		return mixer_simple_blt(para);
 
 	mixer_reg_init();/* initial mixer register */
 	if((para->dst_image.format>0x16)&&(para->dst_image.format<0x1A)&&(para->dst_image.pixel_seq == G2D_SEQ_VUVU)){
