@@ -22,6 +22,7 @@
 #ifndef __XC5000_H__
 #define __XC5000_H__
 
+#include <linux/kconfig.h>
 #include <linux/firmware.h>
 
 struct dvb_frontend;
@@ -56,8 +57,7 @@ struct xc5000_config {
  * it's passed back to a bridge during tuner_callback().
  */
 
-#if defined(CONFIG_MEDIA_TUNER_XC5000) || \
-    (defined(CONFIG_MEDIA_TUNER_XC5000_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_XC5000)
 extern struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
 					  const struct xc5000_config *cfg);
