@@ -2465,8 +2465,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 			out->f_path.dentry->d_name.len,
 			out->f_path.dentry->d_name.name, len);
 
-	if (pipe->inode)
-		mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_PARENT);
+	pipe_lock(pipe);
 
 	splice_from_pipe_begin(&sd);
 	do {
@@ -2486,8 +2485,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 	} while (ret > 0);
 	splice_from_pipe_end(pipe, &sd);
 
-	if (pipe->inode)
-		mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 
 	if (sd.num_spliced)
 		ret = sd.num_spliced;

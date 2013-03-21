@@ -27,6 +27,7 @@ struct pipe_buffer {
 
 /**
  *	struct pipe_inode_info - a linux kernel pipe
+ *	@mutex: mutex protecting the whole thing
  *	@wait: reader/writer wait point in case of empty/full pipe
  *	@nrbufs: the number of non-empty pipe buffers in this pipe
  *	@buffers: total number of buffers (should be a power of 2)
@@ -44,6 +45,7 @@ struct pipe_buffer {
  *	@bufs: the circular array of pipe buffers
  **/
 struct pipe_inode_info {
+	struct mutex mutex;
 	wait_queue_head_t wait;
 	unsigned int nrbufs, curbuf, buffers;
 	unsigned int readers;
