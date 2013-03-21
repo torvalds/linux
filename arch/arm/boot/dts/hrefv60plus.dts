@@ -158,7 +158,7 @@
 				};
 			};
 
-			ab8500@5 {
+			ab8500 {
 				ab8500-regulators {
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
 						regulator-name = "V-DISPLAY";
