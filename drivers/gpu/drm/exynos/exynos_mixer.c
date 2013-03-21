@@ -1043,13 +1043,13 @@ static int mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 	spin_lock_init(&mixer_res->reg_slock);
 
 	mixer_res->mixer = devm_clk_get(dev, "mixer");
-	if (IS_ERR_OR_NULL(mixer_res->mixer)) {
+	if (IS_ERR(mixer_res->mixer)) {
 		dev_err(dev, "failed to get clock 'mixer'\n");
 		return -ENODEV;
 	}
 
 	mixer_res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
-	if (IS_ERR_OR_NULL(mixer_res->sclk_hdmi)) {
+	if (IS_ERR(mixer_res->sclk_hdmi)) {
 		dev_err(dev, "failed to get clock 'sclk_hdmi'\n");
 		return -ENODEV;
 	}
@@ -1092,17 +1092,17 @@ static int vp_resources_init(struct exynos_drm_hdmi_context *ctx,
 	struct resource *res;
 
 	mixer_res->vp = devm_clk_get(dev, "vp");
-	if (IS_ERR_OR_NULL(mixer_res->vp)) {
+	if (IS_ERR(mixer_res->vp)) {
 		dev_err(dev, "failed to get clock 'vp'\n");
 		return -ENODEV;
 	}
 	mixer_res->sclk_mixer = devm_clk_get(dev, "sclk_mixer");
-	if (IS_ERR_OR_NULL(mixer_res->sclk_mixer)) {
+	if (IS_ERR(mixer_res->sclk_mixer)) {
 		dev_err(dev, "failed to get clock 'sclk_mixer'\n");
 		return -ENODEV;
 	}
 	mixer_res->sclk_dac = devm_clk_get(dev, "sclk_dac");
-	if (IS_ERR_OR_NULL(mixer_res->sclk_dac)) {
+	if (IS_ERR(mixer_res->sclk_dac)) {
 		dev_err(dev, "failed to get clock 'sclk_dac'\n");
 		return -ENODEV;
 	}
