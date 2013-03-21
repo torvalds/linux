@@ -1291,12 +1291,12 @@ module_exit(usb_serial_exit);
 	do {								\
 		if (!type->function) {					\
 			type->function = usb_serial_generic_##function;	\
-			pr_debug("Had to override the " #function	\
-				" usb serial operation with the generic one.");\
-			}						\
+			pr_debug("%s: using generic " #function	"\n",	\
+						type->driver.name);	\
+		}							\
 	} while (0)
 
-static void fixup_generic(struct usb_serial_driver *device)
+static void usb_serial_operations_init(struct usb_serial_driver *device)
 {
 	set_to_generic_if_null(device, open);
 	set_to_generic_if_null(device, write);
@@ -1316,8 +1316,6 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 	if (usb_disabled())
 		return -ENODEV;
 
-	fixup_generic(driver);
-
 	if (!driver->description)
 		driver->description = driver->driver.name;
 	if (!driver->usb_driver) {
@@ -1325,6 +1323,8 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 				driver->description);
 		return -EINVAL;
 	}
+
+	usb_serial_operations_init(driver);
 
 	/* Add this device to our list of devices */
 	mutex_lock(&table_lock);
