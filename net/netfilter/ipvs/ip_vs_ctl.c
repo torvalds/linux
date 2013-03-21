@@ -1514,10 +1514,8 @@ __ip_vs_dev_reset(struct ip_vs_dest *dest, struct net_device *dev)
 	spin_unlock_bh(&dest->dst_lock);
 
 }
-/*
- * Netdev event receiver
- * Currently only NETDEV_UNREGISTER is handled, i.e. if we hold a reference to
- * a device that is "unregister" it must be released.
+/* Netdev event receiver
+ * Currently only NETDEV_DOWN is handled to release refs to cached dsts
  */
 static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 			    void *ptr)
@@ -1529,7 +1527,7 @@ static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
 	struct ip_vs_dest *dest;
 	unsigned int idx;
 
-	if (event != NETDEV_UNREGISTER || !ipvs)
+	if (event != NETDEV_DOWN || !ipvs)
 		return NOTIFY_DONE;
 	IP_VS_DBG(3, "%s() dev=%s\n", __func__, dev->name);
 	EnterFunction(2);
