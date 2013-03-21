@@ -999,7 +999,6 @@ audio_mux(struct bttv *btv, int input, int mute)
 		   bttv_tvcards[btv->c.type].gpiomask);
 	signal = btread(BT848_DSTATUS) & BT848_DSTATUS_HLOC;
 
-	btv->mute = mute;
 	btv->audio = input;
 
 	/* automute */
@@ -1031,7 +1030,7 @@ audio_mux(struct bttv *btv, int input, int mute)
 
 		ctrl = v4l2_ctrl_find(btv->sd_msp34xx->ctrl_handler, V4L2_CID_AUDIO_MUTE);
 		if (ctrl)
-			v4l2_ctrl_s_ctrl(ctrl, btv->mute);
+			v4l2_ctrl_s_ctrl(ctrl, mute);
 
 		/* Note: the inputs tuner/radio/extern/intern are translated
 		   to msp routings. This assumes common behavior for all msp3400
@@ -1080,7 +1079,7 @@ audio_mux(struct bttv *btv, int input, int mute)
 		ctrl = v4l2_ctrl_find(btv->sd_tvaudio->ctrl_handler, V4L2_CID_AUDIO_MUTE);
 
 		if (ctrl)
-			v4l2_ctrl_s_ctrl(ctrl, btv->mute);
+			v4l2_ctrl_s_ctrl(ctrl, mute);
 		v4l2_subdev_call(btv->sd_tvaudio, audio, s_routing,
 				input, 0, 0);
 	}
@@ -1088,7 +1087,7 @@ audio_mux(struct bttv *btv, int input, int mute)
 		ctrl = v4l2_ctrl_find(btv->sd_tda7432->ctrl_handler, V4L2_CID_AUDIO_MUTE);
 
 		if (ctrl)
-			v4l2_ctrl_s_ctrl(ctrl, btv->mute);
+			v4l2_ctrl_s_ctrl(ctrl, mute);
 	}
 	return 0;
 }
@@ -1300,6 +1299,7 @@ static int bttv_s_ctrl(struct v4l2_ctrl *c)
 		break;
 	case V4L2_CID_AUDIO_MUTE:
 		audio_mute(btv, c->val);
+		btv->mute = c->val;
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		btv->volume_gpio(btv, c->val);
