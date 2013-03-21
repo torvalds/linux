@@ -158,8 +158,7 @@ int eth_mac_wifi(u8 *eth_mac){
 	char wifi_mac[32];
 	mm_segment_t old_fs;
 	ssize_t ret;
-
-	int *maci=(int *)kmalloc(6, GFP_KERNEL);
+	int maci[6];
 
 	memset(eth_mac, 0, 6);
 	
@@ -196,7 +195,6 @@ int eth_mac_wifi(u8 *eth_mac){
            	 return -ENOENT;
         }
 
-	kfree(maci);
 	filp_close(file,NULL);
 	return 0;
 	
