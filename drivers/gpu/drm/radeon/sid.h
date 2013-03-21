@@ -30,6 +30,24 @@
 #define VERDE_GB_ADDR_CONFIG_GOLDEN         0x12010002
 #define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02010001
 
+#define SI_MAX_SH_GPRS           256
+#define SI_MAX_TEMP_GPRS         16
+#define SI_MAX_SH_THREADS        256
+#define SI_MAX_SH_STACK_ENTRIES  4096
+#define SI_MAX_FRC_EOV_CNT       16384
+#define SI_MAX_BACKENDS          8
+#define SI_MAX_BACKENDS_MASK     0xFF
+#define SI_MAX_BACKENDS_PER_SE_MASK     0x0F
+#define SI_MAX_SIMDS             12
+#define SI_MAX_SIMDS_MASK        0x0FFF
+#define SI_MAX_SIMDS_PER_SE_MASK        0x00FF
+#define SI_MAX_PIPES             8
+#define SI_MAX_PIPES_MASK        0xFF
+#define SI_MAX_PIPES_PER_SIMD_MASK      0x3F
+#define SI_MAX_LDS_NUM           0xFFFF
+#define SI_MAX_TCC               16
+#define SI_MAX_TCC_MASK          0xFFFF
+
 /* CG IND registers are accessed via SMC indirect space + SMC_CG_IND_START */
 #define SMC_CG_IND_START                    0xc0030000
 
@@ -72,24 +90,6 @@
 #define		CTF_TEMP(x)					((x) << 9)
 #define		CTF_TEMP_MASK					0x0003fe00
 #define		CTF_TEMP_SHIFT					9
-
-#define SI_MAX_SH_GPRS           256
-#define SI_MAX_TEMP_GPRS         16
-#define SI_MAX_SH_THREADS        256
-#define SI_MAX_SH_STACK_ENTRIES  4096
-#define SI_MAX_FRC_EOV_CNT       16384
-#define SI_MAX_BACKENDS          8
-#define SI_MAX_BACKENDS_MASK     0xFF
-#define SI_MAX_BACKENDS_PER_SE_MASK     0x0F
-#define SI_MAX_SIMDS             12
-#define SI_MAX_SIMDS_MASK        0x0FFF
-#define SI_MAX_SIMDS_PER_SE_MASK        0x00FF
-#define SI_MAX_PIPES             8
-#define SI_MAX_PIPES_MASK        0xFF
-#define SI_MAX_PIPES_PER_SIMD_MASK      0x3F
-#define SI_MAX_LDS_NUM           0xFFFF
-#define SI_MAX_TCC               16
-#define SI_MAX_TCC_MASK          0xFFFF
 
 #define VGA_HDP_CONTROL  				0x328
 #define		VGA_MEMORY_DISABLE				(1 << 4)
