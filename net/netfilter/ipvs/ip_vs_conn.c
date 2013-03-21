@@ -265,8 +265,8 @@ __ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[hash], c_list) {
-		if (cp->af == p->af &&
-		    p->cport == cp->cport && p->vport == cp->vport &&
+		if (p->cport == cp->cport && p->vport == cp->vport &&
+		    cp->af == p->af &&
 		    ip_vs_addr_equal(p->af, p->caddr, &cp->caddr) &&
 		    ip_vs_addr_equal(p->af, p->vaddr, &cp->vaddr) &&
 		    ((!p->cport) ^ (!(cp->flags & IP_VS_CONN_F_NO_CPORT))) &&
@@ -350,9 +350,9 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[hash], c_list) {
-		if (!ip_vs_conn_net_eq(cp, p->net))
-			continue;
-		if (p->pe_data && p->pe->ct_match) {
+		if (unlikely(p->pe_data && p->pe->ct_match)) {
+			if (!ip_vs_conn_net_eq(cp, p->net))
+				continue;
 			if (p->pe == cp->pe && p->pe->ct_match(p, cp)) {
 				if (__ip_vs_conn_get(cp))
 					goto out;
@@ -366,9 +366,10 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 		     * p->vaddr is a fwmark */
 		    ip_vs_addr_equal(p->protocol == IPPROTO_IP ? AF_UNSPEC :
 				     p->af, p->vaddr, &cp->vaddr) &&
-		    p->cport == cp->cport && p->vport == cp->vport &&
+		    p->vport == cp->vport && p->cport == cp->cport &&
 		    cp->flags & IP_VS_CONN_F_TEMPLATE &&
-		    p->protocol == cp->protocol) {
+		    p->protocol == cp->protocol &&
+		    ip_vs_conn_net_eq(cp, p->net)) {
 			if (__ip_vs_conn_get(cp))
 				goto out;
 		}
@@ -404,8 +405,8 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 	rcu_read_lock();
 
 	hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[hash], c_list) {
-		if (cp->af == p->af &&
-		    p->vport == cp->cport && p->cport == cp->dport &&
+		if (p->vport == cp->cport && p->cport == cp->dport &&
+		    cp->af == p->af &&
 		    ip_vs_addr_equal(p->af, p->vaddr, &cp->caddr) &&
 		    ip_vs_addr_equal(p->af, p->caddr, &cp->daddr) &&
 		    p->protocol == cp->protocol &&

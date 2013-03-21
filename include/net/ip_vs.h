@@ -566,20 +566,19 @@ struct ip_vs_conn_param {
  */
 struct ip_vs_conn {
 	struct hlist_node	c_list;         /* hashed list heads */
-#ifdef CONFIG_NET_NS
-	struct net              *net;           /* Name space */
-#endif
 	/* Protocol, addresses and port numbers */
-	u16                     af;             /* address family */
 	__be16                  cport;
-	__be16                  vport;
 	__be16                  dport;
-	__u32                   fwmark;         /* Fire wall mark from skb */
+	__be16                  vport;
+	u16			af;		/* address family */
 	union nf_inet_addr      caddr;          /* client address */
 	union nf_inet_addr      vaddr;          /* virtual address */
 	union nf_inet_addr      daddr;          /* destination address */
 	volatile __u32          flags;          /* status flags */
 	__u16                   protocol;       /* Which protocol (TCP/UDP) */
+#ifdef CONFIG_NET_NS
+	struct net              *net;           /* Name space */
+#endif
 
 	/* counter and timer */
 	atomic_t		refcnt;		/* reference count */
@@ -593,6 +592,7 @@ struct ip_vs_conn {
 						 * state transition triggerd
 						 * synchronization
 						 */
+	__u32			fwmark;		/* Fire wall mark from skb */
 	unsigned long		sync_endtime;	/* jiffies + sent_retries */
 
 	/* Control members */
