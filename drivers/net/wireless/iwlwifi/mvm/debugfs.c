@@ -344,6 +344,13 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 	case MVM_DEBUGFS_PM_DISABLE_POWER_OFF:
 		IWL_DEBUG_POWER(mvm, "disable_power_off=%d\n", val);
 		dbgfs_pm->disable_power_off = val;
+	case MVM_DEBUGFS_PM_LPRX_ENA:
+		IWL_DEBUG_POWER(mvm, "lprx %s\n", val ? "enabled" : "disabled");
+		dbgfs_pm->lprx_ena = val;
+		break;
+	case MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD:
+		IWL_DEBUG_POWER(mvm, "lprx_rssi_threshold=%d\n", val);
+		dbgfs_pm->lprx_rssi_threshold = val;
 		break;
 	}
 }
@@ -387,6 +394,17 @@ static ssize_t iwl_dbgfs_pm_params_write(struct file *file,
 		if (sscanf(buf + 18, "%d", &val) != 1)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_DISABLE_POWER_OFF;
+	} else if (!strncmp("lprx=", buf, 5)) {
+		if (sscanf(buf + 5, "%d", &val) != 1)
+			return -EINVAL;
+		param = MVM_DEBUGFS_PM_LPRX_ENA;
+	} else if (!strncmp("lprx_rssi_threshold=", buf, 20)) {
+		if (sscanf(buf + 20, "%d", &val) != 1)
+			return -EINVAL;
+		if (val > POWER_LPRX_RSSI_THRESHOLD_MAX || val <
+		    POWER_LPRX_RSSI_THRESHOLD_MIN)
+			return -EINVAL;
+		param = MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD;
 	} else {
 		return -EINVAL;
 	}
@@ -421,7 +439,7 @@ static ssize_t iwl_dbgfs_pm_params_read(struct file *file,
 			 le32_to_cpu(cmd.skip_dtim_periods));
 	pos += scnprintf(buf+pos, bufsz-pos, "power_scheme = %d\n",
 			 iwlmvm_mod_params.power_scheme);
-	pos += scnprintf(buf+pos, bufsz-pos, "flags = %d\n",
+	pos += scnprintf(buf+pos, bufsz-pos, "flags = 0x%x\n",
 			 le16_to_cpu(cmd.flags));
 	pos += scnprintf(buf+pos, bufsz-pos, "keep_alive = %d\n",
 			 cmd.keep_alive_seconds);
@@ -435,6 +453,10 @@ static ssize_t iwl_dbgfs_pm_params_read(struct file *file,
 				 le32_to_cpu(cmd.rx_data_timeout));
 		pos += scnprintf(buf+pos, bufsz-pos, "tx_data_timeout = %d\n",
 				 le32_to_cpu(cmd.tx_data_timeout));
+		if (cmd.flags & cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK))
+			pos += scnprintf(buf+pos, bufsz-pos,
+					 "lprx_rssi_threshold = %d\n",
+					 le32_to_cpu(cmd.lprx_rssi_threshold));
 	}
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);

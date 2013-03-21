@@ -66,6 +66,11 @@
 
 /* Power Management Commands, Responses, Notifications */
 
+/* Radio LP RX Energy Threshold measured in dBm */
+#define POWER_LPRX_RSSI_THRESHOLD	75
+#define POWER_LPRX_RSSI_THRESHOLD_MAX	94
+#define POWER_LPRX_RSSI_THRESHOLD_MIN	30
+
 /**
  * enum iwl_scan_flags - masks for power table command flags
  * @POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
