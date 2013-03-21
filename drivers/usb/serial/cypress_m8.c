@@ -129,13 +129,12 @@ static int  cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static void cypress_send(struct usb_serial_port *port);
 static int  cypress_write_room(struct tty_struct *tty);
-static int  cypress_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg);
 static void cypress_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  cypress_tiocmget(struct tty_struct *tty);
 static int  cypress_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
+static int  cypress_tiocmiwait(struct tty_struct *tty, unsigned long arg);
 static int  cypress_chars_in_buffer(struct tty_struct *tty);
 static void cypress_throttle(struct tty_struct *tty);
 static void cypress_unthrottle(struct tty_struct *tty);
@@ -158,10 +157,10 @@ static struct usb_serial_driver cypress_earthmate_device = {
 	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
-	.ioctl =			cypress_ioctl,
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
+	.tiocmiwait =			cypress_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =		 	cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -184,10 +183,10 @@ static struct usb_serial_driver cypress_hidcom_device = {
 	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
-	.ioctl =			cypress_ioctl,
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
+	.tiocmiwait =			cypress_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =			cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -210,10 +209,10 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
-	.ioctl =			cypress_ioctl,
 	.set_termios =			cypress_set_termios,
 	.tiocmget =			cypress_tiocmget,
 	.tiocmset =			cypress_tiocmset,
+	.tiocmiwait =			cypress_tiocmiwait,
 	.chars_in_buffer =		cypress_chars_in_buffer,
 	.throttle =			cypress_throttle,
 	.unthrottle =			cypress_unthrottle,
@@ -855,55 +854,43 @@ static int cypress_tiocmset(struct tty_struct *tty,
 }
 
 
-static int cypress_ioctl(struct tty_struct *tty,
-					unsigned int cmd, unsigned long arg)
+static int cypress_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
+	char diff;
 
-	dev_dbg(&port->dev, "%s - port %d, cmd 0x%.4x\n", __func__, port->number, cmd);
+	for (;;) {
+		interruptible_sleep_on(&port->delta_msr_wait);
+		/* see if a signal did it */
+		if (signal_pending(current))
+			return -ERESTARTSYS;
 
-	switch (cmd) {
-	/* This code comes from drivers/char/serial.c and ftdi_sio.c */
-	case TIOCMIWAIT:
-		for (;;) {
-			interruptible_sleep_on(&port->delta_msr_wait);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -ERESTARTSYS;
+		if (port->serial->disconnected)
+			return -EIO;
 
-			if (port->serial->disconnected)
-				return -EIO;
+		diff = priv->diff_status;
+		if (diff == 0)
+			return -EIO; /* no change => error */
 
-			{
-				char diff = priv->diff_status;
-				if (diff == 0)
-					return -EIO; /* no change => error */
+		/* consume all events */
+		priv->diff_status = 0;
 
-				/* consume all events */
-				priv->diff_status = 0;
-
-				/* return 0 if caller wanted to know about
-				   these bits */
-				if (((arg & TIOCM_RNG) && (diff & UART_RI)) ||
-				    ((arg & TIOCM_DSR) && (diff & UART_DSR)) ||
-				    ((arg & TIOCM_CD) && (diff & UART_CD)) ||
-				    ((arg & TIOCM_CTS) && (diff & UART_CTS)))
-					return 0;
-				/* otherwise caller can't care less about what
-				 * happened, and so we continue to wait for
-				 * more events.
-				 */
-			}
-		}
-		return 0;
-	default:
-		break;
+		/* return 0 if caller wanted to know about
+		   these bits */
+		if (((arg & TIOCM_RNG) && (diff & UART_RI))  ||
+			((arg & TIOCM_DSR) && (diff & UART_DSR)) ||
+			((arg & TIOCM_CD)  && (diff & UART_CD))  ||
+			((arg & TIOCM_CTS) && (diff & UART_CTS)))
+			return 0;
+		/* otherwise caller can't care less about what
+		 * happened, and so we continue to wait for
+		 * more events.
+		 */
 	}
-	dev_dbg(&port->dev, "%s - arg not supported - it was 0x%04x - check include/asm/ioctls.h\n", __func__, cmd);
-	return -ENOIOCTLCMD;
-} /* cypress_ioctl */
 
+	return 0;
+}
 
 static void cypress_set_termios(struct tty_struct *tty,
 	struct usb_serial_port *port, struct ktermios *old_termios)
