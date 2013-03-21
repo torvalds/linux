@@ -168,7 +168,7 @@ static struct tps65090_platform_data *
 		tps65090_parse_dt_charger_data(struct platform_device *pdev)
 {
 	struct tps65090_platform_data *pdata;
-	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_node *np = pdev->dev.of_node;
 	unsigned int prop;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -195,7 +195,6 @@ static struct tps65090_platform_data *
 
 static int tps65090_charger_probe(struct platform_device *pdev)
 {
-	struct tps65090 *tps65090_mfd = dev_get_drvdata(pdev->dev.parent);
 	struct tps65090_charger *cdata;
 	struct tps65090_platform_data *pdata;
 	uint8_t status1 = 0;
@@ -204,7 +203,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(pdev->dev.parent);
 
-	if (!pdata && tps65090_mfd->dev->of_node)
+	if (!pdata && pdev->dev.of_node)
 		pdata = tps65090_parse_dt_charger_data(pdev);
 
 	if (!pdata) {
@@ -300,9 +299,15 @@ static int tps65090_charger_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id of_tps65090_charger_match[] = {
+	{ .compatible = "ti,tps65090-charger", },
+	{ /* end */ }
+};
+
 static struct platform_driver tps65090_charger_driver = {
 	.driver	= {
 		.name	= "tps65090-charger",
+		.of_match_table = of_tps65090_charger_match,
 		.owner	= THIS_MODULE,
 	},
 	.probe	= tps65090_charger_probe,
