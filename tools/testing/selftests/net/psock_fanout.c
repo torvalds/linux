@@ -182,7 +182,13 @@ static char *sock_fanout_open_ring(int fd)
 		.tp_frame_nr   = RING_NUM_FRAMES,
 	};
 	char *ring;
+	int val = TPACKET_V2;
 
+	if (setsockopt(fd, SOL_PACKET, PACKET_VERSION, (void *) &val,
+		       sizeof(val))) {
+		perror("packetsock ring setsockopt version");
+		exit(1);
+	}
 	if (setsockopt(fd, SOL_PACKET, PACKET_RX_RING, (void *) &req,
 		       sizeof(req))) {
 		perror("packetsock ring setsockopt");
@@ -201,7 +207,7 @@ static char *sock_fanout_open_ring(int fd)
 
 static int sock_fanout_read_ring(int fd, void *ring)
 {
-	struct tpacket_hdr *header = ring;
+	struct tpacket2_hdr *header = ring;
 	int count = 0;
 
 	while (header->tp_status & TP_STATUS_USER && count < RING_NUM_FRAMES) {
