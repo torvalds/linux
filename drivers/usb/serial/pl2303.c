@@ -149,7 +149,7 @@ static int pl2303_vendor_read(__u16 value, __u16 index,
 	int res = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			VENDOR_READ_REQUEST, VENDOR_READ_REQUEST_TYPE,
 			value, index, buf, 1, 100);
-	dev_dbg(&serial->dev->dev, "0x%x:0x%x:0x%x:0x%x  %d - %x\n",
+	dev_dbg(&serial->interface->dev, "0x%x:0x%x:0x%x:0x%x  %d - %x\n",
 		VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, value, index,
 		res, buf[0]);
 	return res;
@@ -161,7 +161,7 @@ static int pl2303_vendor_write(__u16 value, __u16 index,
 	int res = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			VENDOR_WRITE_REQUEST, VENDOR_WRITE_REQUEST_TYPE,
 			value, index, NULL, 0, 100);
-	dev_dbg(&serial->dev->dev, "0x%x:0x%x:0x%x:0x%x  %d\n",
+	dev_dbg(&serial->interface->dev, "0x%x:0x%x:0x%x:0x%x  %d\n",
 		VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, value, index,
 		res);
 	return res;
