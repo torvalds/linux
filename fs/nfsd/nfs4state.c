@@ -417,21 +417,18 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct sv
 	return dp;
 }
 
-static void free_stid(struct nfs4_stid *s, struct kmem_cache *slab)
+static void remove_stid(struct nfs4_stid *s)
 {
 	struct idr *stateids = &s->sc_client->cl_stateids;
 
 	idr_remove(stateids, s->sc_stateid.si_opaque.so_id);
-	kmem_cache_free(slab, s);
 }
 
 void
 nfs4_put_delegation(struct nfs4_delegation *dp)
 {
 	if (atomic_dec_and_test(&dp->dl_count)) {
-		dprintk("NFSD: freeing dp %p\n",dp);
-		put_nfs4_file(dp->dl_file);
-		free_stid(&dp->dl_stid, deleg_slab);
+		kmem_cache_free(deleg_slab, dp);
 		num_delegations--;
 	}
 }
@@ -462,6 +459,9 @@ unhash_delegation(struct nfs4_delegation *dp)
 	list_del_init(&dp->dl_recall_lru);
 	spin_unlock(&recall_lock);
 	nfs4_put_deleg_lease(dp->dl_file);
+	put_nfs4_file(dp->dl_file);
+	dp->dl_file = NULL;
+	remove_stid(&dp->dl_stid);
 	nfs4_put_delegation(dp);
 }
 
@@ -605,7 +605,8 @@ static void close_generic_stateid(struct nfs4_ol_stateid *stp)
 
 static void free_generic_stateid(struct nfs4_ol_stateid *stp)
 {
-	free_stid(&stp->st_stid, stateid_slab);
+	remove_stid(&stp->st_stid);
+	kmem_cache_free(stateid_slab, stp);
 }
 
 static void release_lock_stateid(struct nfs4_ol_stateid *stp)
