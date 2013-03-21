@@ -146,7 +146,7 @@ int pipe_proc_fn(struct ctl_table *, int, void __user *, size_t *, loff_t *);
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe);
 
-struct pipe_inode_info * alloc_pipe_info(struct inode * inode);
+struct pipe_inode_info *alloc_pipe_info(void);
 void free_pipe_info(struct inode * inode);
 void __free_pipe_info(struct pipe_inode_info *);
 
