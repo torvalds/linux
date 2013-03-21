@@ -28,6 +28,9 @@
 
 #define DRIVER_DESC	"SPCP8x5 USB to serial adaptor driver"
 
+#define SPCP825_QUIRK_NO_UART_STATUS	0x01
+#define SPCP825_QUIRK_NO_WORK_MODE	0x02
+
 #define SPCP8x5_007_VID		0x04FC
 #define SPCP8x5_007_PID		0x0201
 #define SPCP8x5_008_VID		0x04fc
@@ -44,7 +47,9 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(SPCP8x5_INTERMATIC_VID, SPCP8x5_INTERMATIC_PID)},
 	{ USB_DEVICE(SPCP8x5_835_VID, SPCP8x5_835_PID)},
 	{ USB_DEVICE(SPCP8x5_008_VID, SPCP8x5_008_PID)},
-	{ USB_DEVICE(SPCP8x5_007_VID, SPCP8x5_007_PID)},
+	{ USB_DEVICE(SPCP8x5_007_VID, SPCP8x5_007_PID),
+	  .driver_info = SPCP825_QUIRK_NO_UART_STATUS |
+				SPCP825_QUIRK_NO_WORK_MODE },
 	{ }					/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -136,47 +141,32 @@ struct spcp8x5_usb_ctrl_arg {
 #define UART_OVERRUN_ERROR		0x40
 #define UART_CTS			0x80
 
-enum spcp8x5_type {
-	SPCP825_007_TYPE,
-	SPCP825_008_TYPE,
-	SPCP825_PHILIP_TYPE,
-	SPCP825_INTERMATIC_TYPE,
-	SPCP835_TYPE,
-};
-
 struct spcp8x5_private {
+	unsigned		quirks;
 	spinlock_t		lock;
-	enum spcp8x5_type	type;
 	u8			line_control;
 	u8			line_status;
 };
 
+static int spcp8x5_probe(struct usb_serial *serial,
+						const struct usb_device_id *id)
+{
+	usb_set_serial_data(serial, (void *)id);
+
+	return 0;
+}
+
 static int spcp8x5_port_probe(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
+	const struct usb_device_id *id = usb_get_serial_data(port->serial);
 	struct spcp8x5_private *priv;
-	enum spcp8x5_type type = SPCP825_007_TYPE;
-	u16 product = le16_to_cpu(serial->dev->descriptor.idProduct);
-
-	if (product == 0x0201)
-		type = SPCP825_007_TYPE;
-	else if (product == 0x0231)
-		type = SPCP835_TYPE;
-	else if (product == 0x0235)
-		type = SPCP825_008_TYPE;
-	else if (product == 0x0204)
-		type = SPCP825_INTERMATIC_TYPE;
-	else if (product == 0x0471 &&
-		 serial->dev->descriptor.idVendor == cpu_to_le16(0x081e))
-		type = SPCP825_PHILIP_TYPE;
-	dev_dbg(&serial->dev->dev, "device type = %d\n", (int)type);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
-	priv->type = type;
+	priv->quirks = id->driver_info;
 
 	usb_set_serial_port_data(port, priv);
 
@@ -193,18 +183,13 @@ static int spcp8x5_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
-/*
- * Set the modem control line of the device.
- *
- * NOTE: not supported by spcp825-007
- */
 static int spcp8x5_set_ctrl_line(struct usb_serial_port *port, u8 mcr)
 {
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *dev = port->serial->dev;
 	int retval;
 
-	if (priv->type == SPCP825_007_TYPE)
+	if (priv->quirks & SPCP825_QUIRK_NO_UART_STATUS)
 		return -EPERM;
 
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
@@ -217,11 +202,6 @@ static int spcp8x5_set_ctrl_line(struct usb_serial_port *port, u8 mcr)
 	return retval;
 }
 
-/*
- * Get the modem status register of the device.
- *
- * NOTE: not supported by spcp825-007
- */
 static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 {
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
@@ -229,9 +209,7 @@ static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 	u8 *buf;
 	int ret;
 
-	/* I return Permited not support here but seem inval device
-	 * is more fix */
-	if (priv->type == SPCP825_007_TYPE)
+	if (priv->quirks & SPCP825_QUIRK_NO_UART_STATUS)
 		return -EPERM;
 
 	buf = kzalloc(1, GFP_KERNEL);
@@ -251,11 +229,6 @@ static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 	return ret;
 }
 
-/*
- * Select the work mode.
- *
- * NOTE: not supported by spcp825-007
- */
 static void spcp8x5_set_work_mode(struct usb_serial_port *port, u16 value,
 								 u16 index)
 {
@@ -263,9 +236,7 @@ static void spcp8x5_set_work_mode(struct usb_serial_port *port, u16 value,
 	struct usb_device *dev = port->serial->dev;
 	int ret;
 
-	/* I return Permited not support here but seem inval device
-	 * is more fix */
-	if (priv->type == SPCP825_007_TYPE)
+	if (priv->quirks & SPCP825_QUIRK_NO_WORK_MODE)
 		return;
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
@@ -518,6 +489,7 @@ static struct usb_serial_driver spcp8x5_device = {
 	.init_termios		= spcp8x5_init_termios,
 	.tiocmget		= spcp8x5_tiocmget,
 	.tiocmset		= spcp8x5_tiocmset,
+	.probe			= spcp8x5_probe,
 	.port_probe		= spcp8x5_port_probe,
 	.port_remove		= spcp8x5_port_remove,
 };
