@@ -472,8 +472,6 @@ static void spcp8x5_process_read_urb(struct urb *urb)
 	status = priv->line_status;
 	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	/* wake up the wait for termios */
-	wake_up_interruptible(&port->delta_msr_wait);
 
 	if (!urb->actual_length)
 		return;
@@ -507,71 +505,6 @@ static void spcp8x5_process_read_urb(struct urb *urb)
 	tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
 							urb->actual_length);
 	tty_flip_buffer_push(&port->port);
-}
-
-static int spcp8x5_wait_modem_info(struct usb_serial_port *port,
-				   unsigned int arg)
-{
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	unsigned int prevstatus;
-	unsigned int status;
-	unsigned int changed;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	prevstatus = priv->line_status;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	while (1) {
-		/* wake up in bulk read */
-		interruptible_sleep_on(&port->delta_msr_wait);
-
-		/* see if a signal did it */
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		if (port->serial->disconnected)
-			return -EIO;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		status = priv->line_status;
-		spin_unlock_irqrestore(&priv->lock, flags);
-
-		changed = prevstatus^status;
-
-		if (((arg & TIOCM_RNG) && (changed & MSR_STATUS_LINE_RI)) ||
-		    ((arg & TIOCM_DSR) && (changed & MSR_STATUS_LINE_DSR)) ||
-		    ((arg & TIOCM_CD)  && (changed & MSR_STATUS_LINE_DCD)) ||
-		    ((arg & TIOCM_CTS) && (changed & MSR_STATUS_LINE_CTS)))
-			return 0;
-
-		prevstatus = status;
-	}
-	/* NOTREACHED */
-	return 0;
-}
-
-static int spcp8x5_ioctl(struct tty_struct *tty,
-			 unsigned int cmd, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-
-	dev_dbg(&port->dev, "%s (%d) cmd = 0x%04x\n", __func__,
-		port->number, cmd);
-
-	switch (cmd) {
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s (%d) TIOCMIWAIT\n", __func__,
-			port->number);
-		return spcp8x5_wait_modem_info(port, arg);
-
-	default:
-		dev_dbg(&port->dev, "%s not supported = 0x%04x", __func__,
-			cmd);
-		break;
-	}
-
-	return -ENOIOCTLCMD;
 }
 
 static int spcp8x5_tiocmset(struct tty_struct *tty,
@@ -634,7 +567,6 @@ static struct usb_serial_driver spcp8x5_device = {
 	.carrier_raised		= spcp8x5_carrier_raised,
 	.set_termios 		= spcp8x5_set_termios,
 	.init_termios		= spcp8x5_init_termios,
-	.ioctl 			= spcp8x5_ioctl,
 	.tiocmget 		= spcp8x5_tiocmget,
 	.tiocmset 		= spcp8x5_tiocmset,
 	.port_probe		= spcp8x5_port_probe,
