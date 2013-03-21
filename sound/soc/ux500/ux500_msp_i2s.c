@@ -20,9 +20,9 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/platform_data/asoc-ux500-msp.h>
 
 #include <mach/hardware.h>
-#include <mach/msp.h>
 
 #include <sound/soc.h>
 

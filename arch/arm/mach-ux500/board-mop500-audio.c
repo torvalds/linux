@@ -13,7 +13,7 @@
 #include <mach/devices.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/msp.h>
+#include <linux/platform_data/asoc-ux500-msp.h>
 
 #include "ste-dma40-db8500.h"
 #include "board-mop500.h"
