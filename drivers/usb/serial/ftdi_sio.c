@@ -55,7 +55,6 @@ static __u16 vendor = FTDI_VID;
 static __u16 product;
 
 struct ftdi_private {
-	struct kref kref;
 	enum ftdi_chip_type chip_type;
 				/* type of device, either SIO or FT8U232AM */
 	int baud_base;		/* baud base clock for divisor setting */
@@ -910,7 +909,6 @@ static int  ftdi_sio_probe(struct usb_serial *serial,
 static int  ftdi_sio_port_probe(struct usb_serial_port *port);
 static int  ftdi_sio_port_remove(struct usb_serial_port *port);
 static int  ftdi_open(struct tty_struct *tty, struct usb_serial_port *port);
-static void ftdi_close(struct usb_serial_port *port);
 static void ftdi_dtr_rts(struct usb_serial_port *port, int on);
 static void ftdi_process_read_urb(struct urb *urb);
 static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
@@ -950,7 +948,6 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.port_probe =		ftdi_sio_port_probe,
 	.port_remove =		ftdi_sio_port_remove,
 	.open =			ftdi_open,
-	.close =		ftdi_close,
 	.dtr_rts =		ftdi_dtr_rts,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
@@ -1687,7 +1684,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 		return -ENOMEM;
 	}
 
-	kref_init(&priv->kref);
 	mutex_init(&priv->cfg_lock);
 
 	priv->flags = ASYNC_LOW_LATENCY;
@@ -1825,13 +1821,6 @@ static int ftdi_mtxorb_hack_setup(struct usb_serial *serial)
 	return 0;
 }
 
-static void ftdi_sio_priv_release(struct kref *k)
-{
-	struct ftdi_private *priv = container_of(k, struct ftdi_private, kref);
-
-	kfree(priv);
-}
-
 static int ftdi_sio_port_remove(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
@@ -1840,7 +1829,7 @@ static int ftdi_sio_port_remove(struct usb_serial_port *port)
 
 	remove_sysfs_attrs(port);
 
-	kref_put(&priv->kref, ftdi_sio_priv_release);
+	kfree(priv);
 
 	return 0;
 }
@@ -1850,7 +1839,6 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct ktermios dummy;
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	int result;
 
 	/* No error checking for this (will get errors later anyway) */
 	/* See ftdi_sio.h for description of what is reset */
@@ -1869,12 +1857,7 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 		ftdi_set_termios(tty, port, &dummy);
 	}
 
-	/* Start reading from the device */
-	result = usb_serial_generic_open(tty, port);
-	if (!result)
-		kref_get(&priv->kref);
-
-	return result;
+	return usb_serial_generic_open(tty, port);
 }
 
 static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
@@ -1897,19 +1880,6 @@ static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
 		set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	else
 		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
-}
-
-/*
- * usbserial:__serial_close  only calls ftdi_close if the point is open
- *
- *   This only gets called when it is the last close
- */
-static void ftdi_close(struct usb_serial_port *port)
-{
-	struct ftdi_private *priv = usb_get_serial_port_data(port);
-
-	usb_serial_generic_close(port);
-	kref_put(&priv->kref, ftdi_sio_priv_release);
 }
 
 /* The SIO requires the first byte to have:
