@@ -106,20 +106,4 @@ config IPDDP_ENCAP
 	  IP packets inside AppleTalk frames; this is useful if your Linux box
 	  is stuck on an AppleTalk network (which hopefully contains a
 	  decapsulator somewhere). Please see
-	  <file:Documentation/networking/ipddp.txt> for more information. If
-	  you said Y to "AppleTalk-IP driver support" above and you say Y
-	  here, then you cannot say Y to "AppleTalk-IP to IP Decapsulation
-	  support", below.
-
-config IPDDP_DECAP
-	bool "Appletalk-IP to IP Decapsulation support"
-	depends on IPDDP
-	help
-	  If you say Y here, the AppleTalk-IP code will be able to decapsulate
-	  AppleTalk-IP frames to IP packets; this is useful if you want your
-	  Linux box to act as an Internet gateway for an AppleTalk network.
-	  Please see <file:Documentation/networking/ipddp.txt> for more
-	  information.  If you said Y to "AppleTalk-IP driver support" above
-	  and you say Y here, then you cannot say Y to "IP to AppleTalk-IP
-	  Encapsulation support", above.
-
+	  <file:Documentation/networking/ipddp.txt> for more information.
