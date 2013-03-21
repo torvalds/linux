@@ -175,7 +175,7 @@ EXPORT_SYMBOL_GPL(__mlx4_register_mac);
 
 int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
-	u64 out_param;
+	u64 out_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
@@ -222,7 +222,7 @@ EXPORT_SYMBOL_GPL(__mlx4_unregister_mac);
 
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
-	u64 out_param;
+	u64 out_param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&out_param, port);
@@ -361,7 +361,7 @@ out:
 
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 {
-	u64 out_param;
+	u64 out_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
@@ -406,7 +406,7 @@ out:
 
 void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index)
 {
-	u64 in_param;
+	u64 in_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
