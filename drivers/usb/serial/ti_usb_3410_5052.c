@@ -73,7 +73,6 @@ struct ti_port {
 	unsigned int		tp_uart_base_addr;
 	int			tp_flags;
 	int			tp_closing_wait;/* in .01 secs */
-	struct async_icount	tp_icount;
 	wait_queue_head_t	tp_write_wait;
 	struct ti_device	*tp_tdev;
 	struct usb_serial_port	*tp_port;
@@ -108,8 +107,6 @@ static void ti_throttle(struct tty_struct *tty);
 static void ti_unthrottle(struct tty_struct *tty);
 static int ti_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg);
-static int ti_get_icount(struct tty_struct *tty,
-		struct serial_icounter_struct *icount);
 static void ti_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
 static int ti_tiocmget(struct tty_struct *tty);
@@ -235,7 +232,7 @@ static struct usb_serial_driver ti_1port_device = {
 	.set_termios		= ti_set_termios,
 	.tiocmget		= ti_tiocmget,
 	.tiocmset		= ti_tiocmset,
-	.get_icount		= ti_get_icount,
+	.get_icount		= usb_serial_generic_get_icount,
 	.break_ctl		= ti_break,
 	.read_int_callback	= ti_interrupt_callback,
 	.read_bulk_callback	= ti_bulk_in_callback,
@@ -265,7 +262,7 @@ static struct usb_serial_driver ti_2port_device = {
 	.set_termios		= ti_set_termios,
 	.tiocmget		= ti_tiocmget,
 	.tiocmset		= ti_tiocmset,
-	.get_icount		= ti_get_icount,
+	.get_icount		= usb_serial_generic_get_icount,
 	.break_ctl		= ti_break,
 	.read_int_callback	= ti_interrupt_callback,
 	.read_bulk_callback	= ti_bulk_in_callback,
@@ -479,8 +476,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return -ERESTARTSYS;
 
 	port_number = port->number - port->serial->minor;
-
-	memset(&(tport->tp_icount), 0x00, sizeof(tport->tp_icount));
 
 	tport->tp_msr = 0;
 	tport->tp_shadow_mcr |= (TI_MCR_RTS | TI_MCR_DTR);
@@ -731,31 +726,6 @@ static void ti_unthrottle(struct tty_struct *tty)
 	}
 }
 
-static int ti_get_icount(struct tty_struct *tty,
-		struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct ti_port *tport = usb_get_serial_port_data(port);
-	struct async_icount cnow = tport->tp_icount;
-
-	dev_dbg(&port->dev, "%s - TIOCGICOUNT RX=%d, TX=%d\n", __func__,
-		cnow.rx, cnow.tx);
-
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
-
-	return 0;
-}
-
 static int ti_ioctl(struct tty_struct *tty,
 	unsigned int cmd, unsigned long arg)
 {
@@ -780,7 +750,7 @@ static int ti_ioctl(struct tty_struct *tty,
 				(struct serial_struct __user *)arg);
 	case TIOCMIWAIT:
 		dev_dbg(&port->dev, "%s - TIOCMIWAIT\n", __func__);
-		cprev = tport->tp_icount;
+		cprev = port->icount;
 		while (1) {
 			interruptible_sleep_on(&port->delta_msr_wait);
 			if (signal_pending(current))
@@ -789,7 +759,7 @@ static int ti_ioctl(struct tty_struct *tty,
 			if (port->serial->disconnected)
 				return -EIO;
 
-			cnow = tport->tp_icount;
+			cnow = port->icount;
 			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
 			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
 				return -EIO; /* no change => error */
@@ -1156,7 +1126,7 @@ static void ti_bulk_in_callback(struct urb *urb)
 		else
 			ti_recv(port, urb->transfer_buffer, urb->actual_length);
 		spin_lock(&tport->tp_lock);
-		tport->tp_icount.rx += urb->actual_length;
+		port->icount.rx += urb->actual_length;
 		spin_unlock(&tport->tp_lock);
 	}
 
@@ -1265,7 +1235,7 @@ static void ti_send(struct ti_port *tport)
 		/* TODO: reschedule ti_send */
 	} else {
 		spin_lock_irqsave(&tport->tp_lock, flags);
-		tport->tp_icount.tx += count;
+		port->icount.tx += count;
 		spin_unlock_irqrestore(&tport->tp_lock, flags);
 	}
 
@@ -1385,7 +1355,7 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 
 	if (msr & TI_MSR_DELTA_MASK) {
 		spin_lock_irqsave(&tport->tp_lock, flags);
-		icount = &tport->tp_icount;
+		icount = &tport->tp_port->icount;
 		if (msr & TI_MSR_DELTA_CTS)
 			icount->cts++;
 		if (msr & TI_MSR_DELTA_DSR)
