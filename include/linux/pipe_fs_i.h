@@ -147,8 +147,7 @@ int pipe_proc_fn(struct ctl_table *, int, void __user *, size_t *, loff_t *);
 void pipe_wait(struct pipe_inode_info *pipe);
 
 struct pipe_inode_info *alloc_pipe_info(void);
-void free_pipe_info(struct inode * inode);
-void __free_pipe_info(struct pipe_inode_info *);
+void free_pipe_info(struct pipe_inode_info *);
 
 /* Generic pipe buffer ops functions */
 void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *, int);
