@@ -97,6 +97,8 @@ config ARCH_OMAP4
 	select PM_RUNTIME if CPU_IDLE
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select COMMON_CLK
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 
 config SOC_OMAP5
 	bool "TI OMAP5"
