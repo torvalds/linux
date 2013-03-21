@@ -220,7 +220,6 @@ struct moschip_port {
 	char open_ports;
 	wait_queue_head_t wait_chase;	/* for handling sleeping while waiting for chase to finish */
 	int delta_msr_cond;
-	struct async_icount icount;
 	struct usb_serial_port *port;	/* loop back to the owner of this object */
 
 	/* Offsets */
@@ -399,11 +398,10 @@ static void mos7840_handle_new_msr(struct moschip_port *port, __u8 new_msr)
 	struct moschip_port *mos7840_port;
 	struct async_icount *icount;
 	mos7840_port = port;
-	icount = &mos7840_port->icount;
 	if (new_msr &
 	    (MOS_MSR_DELTA_CTS | MOS_MSR_DELTA_DSR | MOS_MSR_DELTA_RI |
 	     MOS_MSR_DELTA_CD)) {
-		icount = &mos7840_port->icount;
+		icount = &mos7840_port->port->icount;
 
 		/* update input line counters */
 		if (new_msr & MOS_MSR_DELTA_CTS)
@@ -434,7 +432,7 @@ static void mos7840_handle_new_lsr(struct moschip_port *port, __u8 new_lsr)
 	}
 
 	/* update input line counters */
-	icount = &port->icount;
+	icount = &port->port->icount;
 	if (new_lsr & SERIAL_LSR_BI)
 		icount->brk++;
 	if (new_lsr & SERIAL_LSR_OE)
@@ -761,8 +759,8 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 		struct tty_port *tport = &mos7840_port->port->port;
 		tty_insert_flip_string(tport, data, urb->actual_length);
 		tty_flip_buffer_push(tport);
-		mos7840_port->icount.rx += urb->actual_length;
-		dev_dbg(&port->dev, "mos7840_port->icount.rx is %d:\n", mos7840_port->icount.rx);
+		port->icount.rx += urb->actual_length;
+		dev_dbg(&port->dev, "icount.rx is %d:\n", port->icount.rx);
 	}
 
 	if (!mos7840_port->read_urb) {
@@ -1113,17 +1111,12 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* initialize our wait queues */
 	init_waitqueue_head(&mos7840_port->wait_chase);
 
-	/* initialize our icount structure */
-	memset(&(mos7840_port->icount), 0x00, sizeof(mos7840_port->icount));
-
 	/* initialize our port settings */
 	/* Must set to enable ints! */
 	mos7840_port->shadowMCR = MCR_MASTER_IE;
 	/* send a open port command */
 	mos7840_port->open = 1;
 	/* mos7840_change_port_settings(mos7840_port,old_termios); */
-	mos7840_port->icount.tx = 0;
-	mos7840_port->icount.rx = 0;
 
 	return 0;
 }
@@ -1489,8 +1482,8 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 		goto exit;
 	}
 	bytes_sent = transfer_size;
-	mos7840_port->icount.tx += transfer_size;
-	dev_dbg(&port->dev, "mos7840_port->icount.tx is %d:\n", mos7840_port->icount.tx);
+	port->icount.tx += transfer_size;
+	dev_dbg(&port->dev, "icount.tx is %d:\n", port->icount.tx);
 exit:
 	return bytes_sent;
 
@@ -2109,37 +2102,6 @@ static int mos7840_get_serial_info(struct moschip_port *mos7840_port,
 	return 0;
 }
 
-static int mos7840_get_icount(struct tty_struct *tty,
-			struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct moschip_port *mos7840_port;
-	struct async_icount cnow;
-	unsigned long flags;
-
-	mos7840_port = mos7840_get_port_private(port);
-
-	spin_lock_irqsave(&port->lock, flags);
-	cnow = mos7840_port->icount;
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
-
-	dev_dbg(&port->dev, "%s TIOCGICOUNT RX=%d, TX=%d\n", __func__,
-		icount->rx, icount->tx);
-	return 0;
-}
-
 /*****************************************************************************
  * SerialIoctl
  *	this function handles any ioctl calls to the driver
@@ -2183,7 +2145,7 @@ static int mos7840_ioctl(struct tty_struct *tty,
 	case TIOCMIWAIT:
 		dev_dbg(&port->dev, "%s  TIOCMIWAIT\n", __func__);
 		spin_lock_irqsave(&port->lock, flags);
-		cprev = mos7840_port->icount;
+		cprev = port->icount;
 		spin_unlock_irqrestore(&port->lock, flags);
 		while (1) {
 			/* interruptible_sleep_on(&mos7840_port->delta_msr_wait); */
@@ -2201,7 +2163,7 @@ static int mos7840_ioctl(struct tty_struct *tty,
 				return -EIO;
 
 			spin_lock_irqsave(&port->lock, flags);
-			cnow = mos7840_port->icount;
+			cnow = port->icount;
 			spin_unlock_irqrestore(&port->lock, flags);
 
 			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
@@ -2565,7 +2527,7 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.break_ctl = mos7840_break,
 	.tiocmget = mos7840_tiocmget,
 	.tiocmset = mos7840_tiocmset,
-	.get_icount = mos7840_get_icount,
+	.get_icount = usb_serial_generic_get_icount,
 	.port_probe = mos7840_port_probe,
 	.port_remove = mos7840_port_remove,
 	.read_bulk_callback = mos7840_bulk_in_callback,
