@@ -71,7 +71,6 @@ CFLAGS += \
 	-std=gnu99
 
 EXTLIBS = -lpthread -lrt -lelf -lm
-ALL_LDFLAGS = $(LDFLAGS)
 
 ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -fstack-protector-all,-fstack-protector-all),y)
 	CFLAGS += -fstack-protector-all
@@ -107,8 +106,6 @@ CFLAGS += \
 	-I../lib/ \
 	-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
 
-BASIC_LDFLAGS =
-
 ifeq ($(call try-cc,$(SOURCE_BIONIC),$(CFLAGS),bionic),y)
 	BIONIC := 1
 	EXTLIBS := $(filter-out -lrt,$(EXTLIBS))
@@ -120,9 +117,9 @@ ifdef NO_LIBELF
 	NO_DEMANGLE := 1
 	NO_LIBUNWIND := 1
 else
-FLAGS_LIBELF=$(CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS)
+FLAGS_LIBELF=$(CFLAGS) $(LDFLAGS) $(EXTLIBS)
 ifneq ($(call try-cc,$(SOURCE_LIBELF),$(FLAGS_LIBELF),libelf),y)
-	FLAGS_GLIBC=$(CFLAGS) $(ALL_LDFLAGS)
+	FLAGS_GLIBC=$(CFLAGS) $(LDFLAGS)
 	ifeq ($(call try-cc,$(SOURCE_GLIBC),$(FLAGS_GLIBC),glibc),y)
 		LIBC_SUPPORT := 1
 	endif
@@ -146,7 +143,7 @@ else
 		LIBDW_LDFLAGS := -L$(LIBDW_DIR)/lib
 	endif
 
-	FLAGS_DWARF=$(CFLAGS) $(LIBDW_CFLAGS) -ldw -lelf $(LIBDW_LDFLAGS) $(ALL_LDFLAGS) $(EXTLIBS)
+	FLAGS_DWARF=$(CFLAGS) $(LIBDW_CFLAGS) -ldw -lelf $(LIBDW_LDFLAGS) $(LDFLAGS) $(EXTLIBS)
 	ifneq ($(call try-cc,$(SOURCE_DWARF),$(FLAGS_DWARF),libdw),y)
 		msg := $(warning No libdw.h found or old libdw.h found or elfutils is older than 0.138, disables dwarf support. Please install new elfutils-devel/libdw-dev);
 		NO_DWARF := 1
@@ -156,7 +153,7 @@ endif # NO_LIBELF
 
 ifndef NO_LIBELF
 CFLAGS += -DLIBELF_SUPPORT
-FLAGS_LIBELF=$(CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS)
+FLAGS_LIBELF=$(CFLAGS) $(LDFLAGS) $(EXTLIBS)
 ifeq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_LIBELF),-DLIBELF_MMAP),y)
 	CFLAGS += -DLIBELF_MMAP
 endif
@@ -170,11 +167,19 @@ ifeq ($(origin PERF_HAVE_DWARF_REGS), undefined)
 	NO_DWARF := 1
 else
 	CFLAGS += -DDWARF_SUPPORT $(LIBDW_CFLAGS)
-	BASIC_LDFLAGS := $(LIBDW_LDFLAGS) $(BASIC_LDFLAGS)
+	LDFLAGS += $(LIBDW_LDFLAGS)
 	EXTLIBS += -lelf -ldw
 endif # PERF_HAVE_DWARF_REGS
 endif # NO_DWARF
 
+endif # NO_LIBELF
+
+ifndef NO_LIBELF
+CFLAGS += -DLIBELF_SUPPORT
+FLAGS_LIBELF=$(CFLAGS) $(LDFLAGS) $(EXTLIBS)
+ifeq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_LIBELF),-DLIBELF_MMAP),y)
+	CFLAGS += -DLIBELF_MMAP
+endif # try-cc
 endif # NO_LIBELF
 
 # There's only x86 (both 32 and 64) support for CFI unwind so far
@@ -190,7 +195,7 @@ ifdef LIBUNWIND_DIR
 	LIBUNWIND_LDFLAGS := -L$(LIBUNWIND_DIR)/lib
 endif
 
-FLAGS_UNWIND=$(LIBUNWIND_CFLAGS) $(CFLAGS) $(LIBUNWIND_LDFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) $(LIBUNWIND_LIBS)
+FLAGS_UNWIND=$(LIBUNWIND_CFLAGS) $(CFLAGS) $(LIBUNWIND_LDFLAGS) $(LDFLAGS) $(EXTLIBS) $(LIBUNWIND_LIBS)
 ifneq ($(call try-cc,$(SOURCE_LIBUNWIND),$(FLAGS_UNWIND),libunwind),y)
 	msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 0.99);
 	NO_LIBUNWIND := 1
@@ -201,11 +206,11 @@ ifndef NO_LIBUNWIND
 	CFLAGS += -DLIBUNWIND_SUPPORT
 	EXTLIBS += $(LIBUNWIND_LIBS)
 	CFLAGS += $(LIBUNWIND_CFLAGS)
-	BASIC_LDFLAGS := $(LIBUNWIND_LDFLAGS) $(BASIC_LDFLAGS)
+	LDFLAGS += $(LIBUNWIND_LDFLAGS)
 endif # NO_LIBUNWIND
 
 ifndef NO_LIBAUDIT
-	FLAGS_LIBAUDIT = $(CFLAGS) $(ALL_LDFLAGS) -laudit
+	FLAGS_LIBAUDIT = $(CFLAGS) $(LDFLAGS) -laudit
 	ifneq ($(call try-cc,$(SOURCE_LIBAUDIT),$(FLAGS_LIBAUDIT),libaudit),y)
 		msg := $(warning No libaudit.h found, disables 'trace' tool, please install audit-libs-devel or libaudit-dev);
 		NO_LIBAUDIT := 1
@@ -220,7 +225,7 @@ ifdef NO_NEWT
 endif
 
 ifndef NO_SLANG
-	FLAGS_SLANG=$(CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) -I/usr/include/slang -lslang
+	FLAGS_SLANG=$(CFLAGS) $(LDFLAGS) $(EXTLIBS) -I/usr/include/slang -lslang
 	ifneq ($(call try-cc,$(SOURCE_SLANG),$(FLAGS_SLANG),libslang),y)
 		msg := $(warning slang not found, disables TUI support. Please install slang-devel or libslang-dev);
 		NO_SLANG := 1
@@ -233,7 +238,7 @@ ifndef NO_SLANG
 endif
 
 ifndef NO_GTK2
-	FLAGS_GTK2=$(CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) $(shell pkg-config --libs --cflags gtk+-2.0 2>/dev/null)
+	FLAGS_GTK2=$(CFLAGS) $(LDFLAGS) $(EXTLIBS) $(shell pkg-config --libs --cflags gtk+-2.0 2>/dev/null)
 	ifneq ($(call try-cc,$(SOURCE_GTK2),$(FLAGS_GTK2),gtk2),y)
 		msg := $(warning GTK2 not found, disables GTK2 support. Please install gtk2-devel or libgtk2.0-dev);
 		NO_GTK2 := 1
@@ -263,7 +268,7 @@ else
 		CFLAGS += -DNO_LIBPERL
 		NO_LIBPERL := 1
 	else
-		ALL_LDFLAGS += $(PERL_EMBED_LDFLAGS)
+		LDFLAGS += $(PERL_EMBED_LDFLAGS)
 		EXTLIBS += $(PERL_EMBED_LIBADD)
 	endif
 endif
@@ -322,7 +327,7 @@ else
           $(warning $(and ,))
           $(error   $(and ,))
         else
-          ALL_LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
+          LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
           EXTLIBS += $(PYTHON_EMBED_LIBADD)
           LANG_BINDINGS += $(OUTPUT)python/perf.so
         endif
@@ -338,7 +343,7 @@ else
 		EXTLIBS += -liberty
 		CFLAGS += -DHAVE_CPLUS_DEMANGLE
 	else
-		FLAGS_BFD=$(CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) -DPACKAGE='perf' -lbfd
+		FLAGS_BFD=$(CFLAGS) $(LDFLAGS) $(EXTLIBS) -DPACKAGE='perf' -lbfd
 		has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD),libbfd)
 		ifeq ($(has_bfd),y)
 			EXTLIBS += -lbfd
@@ -353,7 +358,7 @@ else
 				ifeq ($(has_bfd_iberty_z),y)
 					EXTLIBS += -lbfd -liberty -lz
 				else
-					FLAGS_CPLUS_DEMANGLE=$(CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) -liberty
+					FLAGS_CPLUS_DEMANGLE=$(CFLAGS) $(LDFLAGS) $(EXTLIBS) -liberty
 					has_cplus_demangle := $(call try-cc,$(SOURCE_CPLUS_DEMANGLE),$(FLAGS_CPLUS_DEMANGLE),demangle)
 					ifeq ($(has_cplus_demangle),y)
 						EXTLIBS += -liberty
@@ -387,7 +392,7 @@ ifndef NO_BACKTRACE
 endif
 
 ifndef NO_LIBNUMA
-	FLAGS_LIBNUMA = $(CFLAGS) $(ALL_LDFLAGS) -lnuma
+	FLAGS_LIBNUMA = $(CFLAGS) $(LDFLAGS) -lnuma
 	ifneq ($(call try-cc,$(SOURCE_LIBNUMA),$(FLAGS_LIBNUMA),libnuma),y)
 		msg := $(warning No numa.h found, disables 'perf bench numa mem' benchmark, please install numa-libs-devel or libnuma-dev);
 		NO_LIBNUMA := 1
