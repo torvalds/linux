@@ -130,17 +130,23 @@ static char *read_string(void)
 
 	for (;;) {
 		r = read(input_fd, &c, 1);
-		if (r < 0)
-			die("reading input file");
+		if (r < 0) {
+			pr_debug("reading input file");
+			goto out;
+		}
 
-		if (!r)
-			die("no data");
+		if (!r) {
+			pr_debug("no data");
+			goto out;
+		}
 
 		if (repipe) {
 			int retw = write(STDOUT_FILENO, &c, 1);
 
-			if (retw <= 0 || retw != r)
-				die("repiping input file string");
+			if (retw <= 0 || retw != r) {
+				pr_debug("repiping input file string");
+				goto out;
+			}
 		}
 
 		buf[size++] = c;
@@ -155,7 +161,7 @@ static char *read_string(void)
 	str = malloc(size);
 	if (str)
 		memcpy(str, buf, size);
-
+out:
 	return str;
 }
 
@@ -219,8 +225,10 @@ static int read_header_files(struct pevent *pevent)
 	if (do_read(buf, 12) < 0)
 		return -1;
 
-	if (memcmp(buf, "header_page", 12) != 0)
-		die("did not read header page");
+	if (memcmp(buf, "header_page", 12) != 0) {
+		pr_debug("did not read header page");
+		return -1;
+	}
 
 	size = read8(pevent);
 	skip(size);
@@ -234,8 +242,10 @@ static int read_header_files(struct pevent *pevent)
 	if (do_read(buf, 13) < 0)
 		return -1;
 
-	if (memcmp(buf, "header_event", 13) != 0)
-		die("did not read header event");
+	if (memcmp(buf, "header_event", 13) != 0) {
+		pr_debug("did not read header event");
+		return -1;
+	}
 
 	size = read8(pevent);
 	header_event = malloc(size);
@@ -353,13 +363,17 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 
 	if (do_read(buf, 3) < 0)
 		return -1;
-	if (memcmp(buf, test, 3) != 0)
-		die("no trace data in the file");
+	if (memcmp(buf, test, 3) != 0) {
+		pr_debug("no trace data in the file");
+		return -1;
+	}
 
 	if (do_read(buf, 7) < 0)
 		return -1;
-	if (memcmp(buf, "tracing", 7) != 0)
-		die("not a trace file (missing 'tracing' tag)");
+	if (memcmp(buf, "tracing", 7) != 0) {
+		pr_debug("not a trace file (missing 'tracing' tag)");
+		return -1;
+	}
 
 	version = read_string();
 	if (version == NULL)
