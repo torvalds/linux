@@ -17,7 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 
-#include <asm/bL_entry.h>
+#include <asm/mcpm.h>
 #include <asm/proc-fns.h>
 #include <asm/cacheflush.h>
 #include <asm/psci.h>
@@ -53,7 +53,7 @@ static int tc2_pm_psci_power_up(unsigned int cpu, unsigned int cluster)
 		 */
 		do
 			ret = psci_ops.cpu_on(mpidr,
-					      virt_to_phys(bL_entry_point));
+					      virt_to_phys(mcpm_entry_point));
 		while (ret == -EAGAIN);
 
 		return ret;
@@ -129,13 +129,13 @@ static void tc2_pm_psci_suspend(u64 unused)
 	power_state.type = PSCI_POWER_STATE_TYPE_POWER_DOWN;
 	power_state.affinity_level = PSCI_POWER_STATE_AFFINITY_LEVEL1;
 
-	psci_ops.cpu_suspend(power_state, virt_to_phys(bL_entry_point));
+	psci_ops.cpu_suspend(power_state, virt_to_phys(mcpm_entry_point));
 
 	/* On success this function never returns */
 	BUG();
 }
 
-static const struct bL_platform_power_ops tc2_pm_power_ops = {
+static const struct mcpm_platform_ops tc2_pm_power_ops = {
 	.power_up      = tc2_pm_psci_power_up,
 	.power_down    = tc2_pm_psci_power_down,
 	.suspend       = tc2_pm_psci_suspend,
@@ -168,9 +168,9 @@ static int __init tc2_pm_psci_init(void)
 
 	tc2_pm_usage_count_init();
 
-	ret = bL_platform_power_register(&tc2_pm_power_ops);
+	ret = mcpm_platform_register(&tc2_pm_power_ops);
 	if (!ret)
-		ret = bL_cluster_sync_init(NULL);
+		ret = mcpm_sync_init(NULL);
 	if (!ret)
 		pr_info("TC2 power management initialized\n");
 	return ret;
