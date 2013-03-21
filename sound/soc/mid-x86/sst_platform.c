@@ -165,6 +165,10 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 },
 };
 
+static const struct snd_soc_component_driver sst_component = {
+	.name		= "sst",
+};
+
 /* helper functions */
 static inline void sst_set_stream_status(struct sst_runtime_stream *stream,
 					int state)
@@ -683,7 +687,7 @@ static int sst_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = snd_soc_register_dais(&pdev->dev,
+	ret = snd_soc_register_component(&pdev->dev, &sst_component,
 				sst_platform_dai, ARRAY_SIZE(sst_platform_dai));
 	if (ret) {
 		pr_err("registering cpu dais failed\n");
@@ -695,7 +699,7 @@ static int sst_platform_probe(struct platform_device *pdev)
 static int sst_platform_remove(struct platform_device *pdev)
 {
 
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(sst_platform_dai));
+	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_unregister_platform(&pdev->dev);
 	pr_debug("sst_platform_remove success\n");
 	return 0;
