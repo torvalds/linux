@@ -868,14 +868,6 @@ config SYS_BFIN_SPINLOCK_L1
 	  If enabled, sys_bfin_spinlock function is linked
 	  into L1 instruction memory. (less latency)
 
-config IP_CHECKSUM_L1
-	bool "Locate IP Checksum function in L1 Memory"
-	default n
-	depends on !SMP
-	help
-	  If enabled, the IP Checksum function is linked
-	  into L1 instruction memory. (less latency)
-
 config CACHELINE_ALIGNED_L1
 	bool "Locate cacheline_aligned data to L1 Data Memory"
 	default y if !BF54x
