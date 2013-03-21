@@ -128,8 +128,6 @@ struct qt2_port_private {
 	u8          shadowLSR;
 	u8          shadowMSR;
 
-	struct async_icount icount;
-
 	struct usb_serial_port *port;
 };
 
@@ -501,16 +499,16 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	prev = priv->icount;
+	prev = port->icount;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	while (1) {
 		wait_event_interruptible(port->delta_msr_wait,
 					 (port->serial->disconnected ||
-					  (priv->icount.rng != prev.rng) ||
-					  (priv->icount.dsr != prev.dsr) ||
-					  (priv->icount.dcd != prev.dcd) ||
-					  (priv->icount.cts != prev.cts)));
+					  (port->icount.rng != prev.rng) ||
+					  (port->icount.dsr != prev.dsr) ||
+					  (port->icount.dcd != prev.dcd) ||
+					  (port->icount.cts != prev.cts)));
 
 		if (signal_pending(current))
 			return -ERESTARTSYS;
@@ -519,7 +517,7 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 			return -EIO;
 
 		spin_lock_irqsave(&priv->lock, flags);
-		cur = priv->icount;
+		cur = port->icount;
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 		if ((prev.rng == cur.rng) &&
@@ -534,28 +532,6 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 		    (arg & TIOCM_CTS && (prev.cts != cur.cts)))
 			return 0;
 	}
-	return 0;
-}
-
-static int qt2_get_icount(struct tty_struct *tty,
-			  struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct qt2_port_private *priv = usb_get_serial_port_data(port);
-	struct async_icount cnow = priv->icount;
-
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
-
 	return 0;
 }
 
@@ -958,16 +934,13 @@ static void qt2_update_msr(struct usb_serial_port *port, unsigned char *ch)
 	if (newMSR & UART_MSR_ANY_DELTA) {
 		/* update input line counters */
 		if (newMSR & UART_MSR_DCTS)
-			port_priv->icount.cts++;
-
+			port->icount.cts++;
 		if (newMSR & UART_MSR_DDSR)
-			port_priv->icount.dsr++;
-
+			port->icount.dsr++;
 		if (newMSR & UART_MSR_DDCD)
-			port_priv->icount.dcd++;
-
+			port->icount.dcd++;
 		if (newMSR & UART_MSR_TERI)
-			port_priv->icount.rng++;
+			port->icount.rng++;
 
 		wake_up_interruptible(&port->delta_msr_wait);
 	}
@@ -989,7 +962,7 @@ static void qt2_update_lsr(struct usb_serial_port *port, unsigned char *ch)
 	port_priv->shadowLSR = newLSR;
 	spin_unlock_irqrestore(&port_priv->lock, flags);
 
-	icount = &port_priv->icount;
+	icount = &port->icount;
 
 	if (newLSR & UART_LSR_BRK_ERROR_BITS) {
 
@@ -1099,7 +1072,7 @@ static struct usb_serial_driver qt2_device = {
 	.break_ctl           = qt2_break_ctl,
 	.tiocmget            = qt2_tiocmget,
 	.tiocmset            = qt2_tiocmset,
-	.get_icount	     = qt2_get_icount,
+	.get_icount	     = usb_serial_generic_get_icount,
 	.ioctl               = qt2_ioctl,
 	.set_termios         = qt2_set_termios,
 };
