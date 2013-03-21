@@ -2838,7 +2838,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	int work_done = 0, work_done_per_q = 0;
-	int i, budget_per_q;
+	int i, budget_per_q = 0;
 	int has_tx_work;
 	unsigned long rstat_rxf;
 	int num_act_queues;
