@@ -649,13 +649,8 @@ error:
 }
 static void keyspan_pda_close(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
-
-	if (serial->dev) {
-		/* shutdown our bulk reads and writes */
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->interrupt_in_urb);
-	}
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 
