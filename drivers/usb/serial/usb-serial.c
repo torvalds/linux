@@ -603,10 +603,8 @@ static struct usb_serial *create_serial(struct usb_device *dev,
 	struct usb_serial *serial;
 
 	serial = kzalloc(sizeof(*serial), GFP_KERNEL);
-	if (!serial) {
-		dev_err(&dev->dev, "%s - out of memory\n", __func__);
+	if (!serial)
 		return NULL;
-	}
 	serial->dev = usb_get_dev(dev);
 	serial->type = driver;
 	serial->interface = usb_get_intf(interface);
@@ -750,7 +748,6 @@ static int usb_serial_probe(struct usb_interface *interface,
 	serial = create_serial(dev, interface, type);
 	if (!serial) {
 		module_put(type->driver.owner);
-		dev_err(ddev, "%s - out of memory\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -914,16 +911,12 @@ static int usb_serial_probe(struct usb_interface *interface,
 		for (j = 0; j < ARRAY_SIZE(port->read_urbs); ++j) {
 			set_bit(j, &port->read_urbs_free);
 			port->read_urbs[j] = usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->read_urbs[j]) {
-				dev_err(ddev, "No free urbs available\n");
+			if (!port->read_urbs[j])
 				goto probe_error;
-			}
 			port->bulk_in_buffers[j] = kmalloc(buffer_size,
 								GFP_KERNEL);
-			if (!port->bulk_in_buffers[j]) {
-				dev_err(ddev, "Couldn't allocate bulk_in_buffer\n");
+			if (!port->bulk_in_buffers[j])
 				goto probe_error;
-			}
 			usb_fill_bulk_urb(port->read_urbs[j], dev,
 					usb_rcvbulkpipe(dev,
 						endpoint->bEndpointAddress),
@@ -950,16 +943,12 @@ static int usb_serial_probe(struct usb_interface *interface,
 		for (j = 0; j < ARRAY_SIZE(port->write_urbs); ++j) {
 			set_bit(j, &port->write_urbs_free);
 			port->write_urbs[j] = usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->write_urbs[j]) {
-				dev_err(ddev, "No free urbs available\n");
+			if (!port->write_urbs[j])
 				goto probe_error;
-			}
 			port->bulk_out_buffers[j] = kmalloc(buffer_size,
 								GFP_KERNEL);
-			if (!port->bulk_out_buffers[j]) {
-				dev_err(ddev, "Couldn't allocate bulk_out_buffer\n");
+			if (!port->bulk_out_buffers[j])
 				goto probe_error;
-			}
 			usb_fill_bulk_urb(port->write_urbs[j], dev,
 					usb_sndbulkpipe(dev,
 						endpoint->bEndpointAddress),
@@ -977,19 +966,15 @@ static int usb_serial_probe(struct usb_interface *interface,
 			endpoint = interrupt_in_endpoint[i];
 			port = serial->port[i];
 			port->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->interrupt_in_urb) {
-				dev_err(ddev, "No free urbs available\n");
+			if (!port->interrupt_in_urb)
 				goto probe_error;
-			}
 			buffer_size = usb_endpoint_maxp(endpoint);
 			port->interrupt_in_endpointAddress =
 						endpoint->bEndpointAddress;
 			port->interrupt_in_buffer = kmalloc(buffer_size,
 								GFP_KERNEL);
-			if (!port->interrupt_in_buffer) {
-				dev_err(ddev, "Couldn't allocate interrupt_in_buffer\n");
+			if (!port->interrupt_in_buffer)
 				goto probe_error;
-			}
 			usb_fill_int_urb(port->interrupt_in_urb, dev,
 				usb_rcvintpipe(dev,
 						endpoint->bEndpointAddress),
@@ -1006,20 +991,16 @@ static int usb_serial_probe(struct usb_interface *interface,
 			endpoint = interrupt_out_endpoint[i];
 			port = serial->port[i];
 			port->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->interrupt_out_urb) {
-				dev_err(ddev, "No free urbs available\n");
+			if (!port->interrupt_out_urb)
 				goto probe_error;
-			}
 			buffer_size = usb_endpoint_maxp(endpoint);
 			port->interrupt_out_size = buffer_size;
 			port->interrupt_out_endpointAddress =
 						endpoint->bEndpointAddress;
 			port->interrupt_out_buffer = kmalloc(buffer_size,
 								GFP_KERNEL);
-			if (!port->interrupt_out_buffer) {
-				dev_err(ddev, "Couldn't allocate interrupt_out_buffer\n");
+			if (!port->interrupt_out_buffer)
 				goto probe_error;
-			}
 			usb_fill_int_urb(port->interrupt_out_urb, dev,
 				usb_sndintpipe(dev,
 						  endpoint->bEndpointAddress),
