@@ -87,7 +87,7 @@ struct RECEPTION_STATISTICS_PER_SLICES_S {
 	u32 request_id;
 	u32 modem_state;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
 
-	u32 BER;		/* Post Viterbi BER [1E-5] */
+	u32 ber;		/* Post Viterbi BER [1E-5] */
 	s32 RSSI;		/* dBm */
 	s32 carrier_offset;	/* Carrier Offset in bin/1024 */
 

@@ -30,21 +30,21 @@ void smsendian_handle_tx_message(void *buffer)
 #ifdef __BIG_ENDIAN
 	struct sms_msg_data *msg = (struct sms_msg_data *)buffer;
 	int i;
-	int msgWords;
+	int msg_words;
 
 	switch (msg->x_msg_header.msg_type) {
 	case MSG_SMS_DATA_DOWNLOAD_REQ:
 	{
-		msg->msgData[0] = le32_to_cpu(msg->msgData[0]);
+		msg->msg_data[0] = le32_to_cpu(msg->msg_data[0]);
 		break;
 	}
 
 	default:
-		msgWords = (msg->x_msg_header.msg_length -
+		msg_words = (msg->x_msg_header.msg_length -
 				sizeof(struct sms_msg_hdr))/4;
 
-		for (i = 0; i < msgWords; i++)
-			msg->msgData[i] = le32_to_cpu(msg->msgData[i]);
+		for (i = 0; i < msg_words; i++)
+			msg->msg_data[i] = le32_to_cpu(msg->msg_data[i]);
 
 		break;
 	}
@@ -57,7 +57,7 @@ void smsendian_handle_rx_message(void *buffer)
 #ifdef __BIG_ENDIAN
 	struct sms_msg_data *msg = (struct sms_msg_data *)buffer;
 	int i;
-	int msgWords;
+	int msg_words;
 
 	switch (msg->x_msg_header.msg_type) {
 	case MSG_SMS_GET_VERSION_EX_RES:
@@ -77,11 +77,11 @@ void smsendian_handle_rx_message(void *buffer)
 
 	default:
 	{
-		msgWords = (msg->x_msg_header.msg_length -
+		msg_words = (msg->x_msg_header.msg_length -
 				sizeof(struct sms_msg_hdr))/4;
 
-		for (i = 0; i < msgWords; i++)
-			msg->msgData[i] = le32_to_cpu(msg->msgData[i]);
+		for (i = 0; i < msg_words; i++)
+			msg->msg_data[i] = le32_to_cpu(msg->msg_data[i]);
 
 		break;
 	}

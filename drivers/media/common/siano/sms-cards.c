@@ -179,9 +179,9 @@ static inline void sms_gpio_assign_11xx_default_led_config(
 int sms_board_event(struct smscore_device_t *coredev,
 		    enum SMS_BOARD_EVENTS gevent)
 {
-	struct smscore_config_gpio MyGpioConfig;
+	struct smscore_config_gpio my_gpio_config;
 
-	sms_gpio_assign_11xx_default_led_config(&MyGpioConfig);
+	sms_gpio_assign_11xx_default_led_config(&my_gpio_config);
 
 	switch (gevent) {
 	case BOARD_EVENT_POWER_INIT: /* including hotplug */

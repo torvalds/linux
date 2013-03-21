@@ -624,17 +624,17 @@ struct sms_msg_hdr {
 
 struct sms_msg_data {
 	struct sms_msg_hdr x_msg_header;
-	u32 msgData[1];
+	u32 msg_data[1];
 };
 
 struct sms_msg_data2 {
 	struct sms_msg_hdr x_msg_header;
-	u32 msgData[2];
+	u32 msg_data[2];
 };
 
 struct sms_msg_data4 {
 	struct sms_msg_hdr x_msg_header;
-	u32 msgData[4];
+	u32 msg_data[4];
 };
 
 struct sms_data_download {
@@ -689,9 +689,9 @@ struct sms_stats {
 
 	/* Reception quality */
 	s32 SNR;		/* dB */
-	u32 BER;		/* Post Viterbi BER [1E-5] */
+	u32 ber;		/* Post Viterbi ber [1E-5] */
 	u32 FIB_CRC;		/* CRC errors percentage, valid only for DAB */
-	u32 TS_PER;		/* Transport stream PER,
+	u32 ts_per;		/* Transport stream PER,
 	0xFFFFFFFF indicate N/A, valid only for DVB-T/H */
 	u32 MFER;		/* DVB-H frame error rate in percentage,
 	0xFFFFFFFF indicate N/A, valid only for DVB-H */
@@ -749,7 +749,7 @@ struct sms_stats {
 	u32 sms_to_host_tx_errors;	/* Total number of transmission errors. */
 
 	/* DAB/T-DMB */
-	u32 pre_ber;		/* DAB/T-DMB only: Pre Viterbi BER [1E-5] */
+	u32 pre_ber;		/* DAB/T-DMB only: Pre Viterbi ber [1E-5] */
 
 	/* DVB-H TPS parameters */
 	u32 cell_id;		/* TPS Cell ID in bits 15..0, bits 31..16 zero;
@@ -781,11 +781,11 @@ struct sms_isdbt_layer_stats {
 		       * 255 means layer does not exist */
 	u32 constellation; /* constellation from SMSHOSTLIB_CONSTELLATION_ET,
 			    * 255 means layer does not exist */
-	u32 BER; /* Post Viterbi BER [1E-5], 0xFFFFFFFF indicate N/A */
+	u32 ber; /* Post Viterbi ber [1E-5], 0xFFFFFFFF indicate N/A */
 	u32 ber_error_count; /* Post Viterbi Error Bits Count */
 	u32 ber_bit_count; /* Post Viterbi Total Bits Count */
-	u32 pre_ber; /* Pre Viterbi BER [1E-5], 0xFFFFFFFF indicate N/A */
-	u32 TS_PER; /* Transport stream PER [%], 0xFFFFFFFF indicate N/A */
+	u32 pre_ber; /* Pre Viterbi ber [1E-5], 0xFFFFFFFF indicate N/A */
+	u32 ts_per; /* Transport stream PER [%], 0xFFFFFFFF indicate N/A */
 	u32 error_ts_packets; /* Number of erroneous transport-stream packets */
 	u32 total_ts_packets; /* Total number of transport-stream packets */
 	u32 ti_ldepth_i; /* Time interleaver depth I parameter,
@@ -830,7 +830,7 @@ struct sms_isdbt_stats {
 
 	/* Per-layer information */
 	/* Layers A, B and C */
-	struct sms_isdbt_layer_stats	LayerInfo[3];
+	struct sms_isdbt_layer_stats	layer_info[3];
 	/* Per-layer statistics, see sms_isdbt_layer_stats */
 
 	/* Interface information */
@@ -875,7 +875,7 @@ struct sms_isdbt_stats_ex {
 
 	/* Per-layer information */
 	/* Layers A, B and C */
-	struct sms_isdbt_layer_stats	LayerInfo[3];
+	struct sms_isdbt_layer_stats	layer_info[3];
 	/* Per-layer statistics, see sms_isdbt_layer_stats */
 
 	/* Interface information */
@@ -958,10 +958,10 @@ struct sms_rx_stats {
 
 	u32 modem_state;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
 	s32 SNR;		/* dB */
-	u32 BER;		/* Post Viterbi BER [1E-5] */
+	u32 ber;		/* Post Viterbi ber [1E-5] */
 	u32 ber_error_count;	/* Number of erronous SYNC bits. */
 	u32 ber_bit_count;	/* Total number of SYNC bits. */
-	u32 TS_PER;		/* Transport stream PER,
+	u32 ts_per;		/* Transport stream PER,
 	0xFFFFFFFF indicate N/A */
 	u32 MFER;		/* DVB-H frame error rate in percentage,
 	0xFFFFFFFF indicate N/A, valid only for DVB-H */
@@ -984,10 +984,10 @@ struct sms_rx_stats_ex {
 
 	u32 modem_state;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
 	s32 SNR;		/* dB */
-	u32 BER;		/* Post Viterbi BER [1E-5] */
+	u32 ber;		/* Post Viterbi ber [1E-5] */
 	u32 ber_error_count;	/* Number of erronous SYNC bits. */
 	u32 ber_bit_count;	/* Total number of SYNC bits. */
-	u32 TS_PER;		/* Transport stream PER,
+	u32 ts_per;		/* Transport stream PER,
 	0xFFFFFFFF indicate N/A */
 	u32 MFER;		/* DVB-H frame error rate in percentage,
 	0xFFFFFFFF indicate N/A, valid only for DVB-H */

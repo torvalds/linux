@@ -265,7 +265,7 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 	c->block_error.stat[0].uvalue += p->ets_packets;
 	c->block_count.stat[0].uvalue += p->ets_packets + p->ts_packets;
 
-	/* BER */
+	/* ber */
 	c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_error.stat[0].uvalue += p->ber_error_count;
@@ -318,14 +318,14 @@ static void smsdvb_update_dvb_stats(struct smsdvb_client_t *client,
 	c->block_error.stat[0].uvalue += p->error_ts_packets;
 	c->block_count.stat[0].uvalue += p->total_ts_packets;
 
-	/* BER */
+	/* ber */
 	c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	c->post_bit_error.stat[0].uvalue += p->ber_error_count;
 	c->post_bit_count.stat[0].uvalue += p->ber_bit_count;
 
 	/* Legacy PER/BER */
-	client->legacy_ber = p->BER;
+	client->legacy_ber = p->ber;
 };
 
 static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
@@ -391,7 +391,7 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 
 	for (i = 0; i < n_layers; i++) {
-		lr = &p->LayerInfo[i];
+		lr = &p->layer_info[i];
 
 		/* Update per-layer transmission parameters */
 		if (lr->number_of_segments > 0 && lr->number_of_segments < 13) {
@@ -479,7 +479,7 @@ static void smsdvb_update_isdbt_stats_ex(struct smsdvb_client_t *client,
 	c->block_error.len = n_layers + 1;
 	c->block_count.len = n_layers + 1;
 	for (i = 0; i < n_layers; i++) {
-		lr = &p->LayerInfo[i];
+		lr = &p->layer_info[i];
 
 		/* Update per-layer transmission parameters */
 		if (lr->number_of_segments > 0 && lr->number_of_segments < 13) {
@@ -500,13 +500,13 @@ static void smsdvb_update_isdbt_stats_ex(struct smsdvb_client_t *client,
 		c->block_error.stat[0].uvalue += lr->error_ts_packets;
 		c->block_count.stat[0].uvalue += lr->total_ts_packets;
 
-		/* BER */
+		/* ber */
 		c->post_bit_error.stat[i + 1].scale = FE_SCALE_COUNTER;
 		c->post_bit_count.stat[i + 1].scale = FE_SCALE_COUNTER;
 		c->post_bit_error.stat[i + 1].uvalue += lr->ber_error_count;
 		c->post_bit_count.stat[i + 1].uvalue += lr->ber_bit_count;
 
-		/* Update global BER counter */
+		/* Update global ber counter */
 		c->post_bit_error.stat[0].uvalue += lr->ber_error_count;
 		c->post_bit_count.stat[0].uvalue += lr->ber_bit_count;
 	}
@@ -636,44 +636,44 @@ static int smsdvb_start_feed(struct dvb_demux_feed *feed)
 {
 	struct smsdvb_client_t *client =
 		container_of(feed->demux, struct smsdvb_client_t, demux);
-	struct sms_msg_data PidMsg;
+	struct sms_msg_data pid_msg;
 
 	sms_debug("add pid %d(%x)",
 		  feed->pid, feed->pid);
 
 	client->feed_users++;
 
-	PidMsg.x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
-	PidMsg.x_msg_header.msg_dst_id = HIF_TASK;
-	PidMsg.x_msg_header.msg_flags = 0;
-	PidMsg.x_msg_header.msg_type  = MSG_SMS_ADD_PID_FILTER_REQ;
-	PidMsg.x_msg_header.msg_length = sizeof(PidMsg);
-	PidMsg.msgData[0] = feed->pid;
+	pid_msg.x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	pid_msg.x_msg_header.msg_dst_id = HIF_TASK;
+	pid_msg.x_msg_header.msg_flags = 0;
+	pid_msg.x_msg_header.msg_type  = MSG_SMS_ADD_PID_FILTER_REQ;
+	pid_msg.x_msg_header.msg_length = sizeof(pid_msg);
+	pid_msg.msg_data[0] = feed->pid;
 
 	return smsclient_sendrequest(client->smsclient,
-				     &PidMsg, sizeof(PidMsg));
+				     &pid_msg, sizeof(pid_msg));
 }
 
 static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct smsdvb_client_t *client =
 		container_of(feed->demux, struct smsdvb_client_t, demux);
-	struct sms_msg_data PidMsg;
+	struct sms_msg_data pid_msg;
 
 	sms_debug("remove pid %d(%x)",
 		  feed->pid, feed->pid);
 
 	client->feed_users--;
 
-	PidMsg.x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
-	PidMsg.x_msg_header.msg_dst_id = HIF_TASK;
-	PidMsg.x_msg_header.msg_flags = 0;
-	PidMsg.x_msg_header.msg_type  = MSG_SMS_REMOVE_PID_FILTER_REQ;
-	PidMsg.x_msg_header.msg_length = sizeof(PidMsg);
-	PidMsg.msgData[0] = feed->pid;
+	pid_msg.x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	pid_msg.x_msg_header.msg_dst_id = HIF_TASK;
+	pid_msg.x_msg_header.msg_flags = 0;
+	pid_msg.x_msg_header.msg_type  = MSG_SMS_REMOVE_PID_FILTER_REQ;
+	pid_msg.x_msg_header.msg_length = sizeof(pid_msg);
+	pid_msg.msg_data[0] = feed->pid;
 
 	return smsclient_sendrequest(client->smsclient,
-				     &PidMsg, sizeof(PidMsg));
+				     &pid_msg, sizeof(pid_msg));
 }
 
 static int smsdvb_sendrequest_and_wait(struct smsdvb_client_t *client,
@@ -694,7 +694,7 @@ static int smsdvb_sendrequest_and_wait(struct smsdvb_client_t *client,
 static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 {
 	int rc;
-	struct sms_msg_hdr Msg;
+	struct sms_msg_hdr msg;
 
 	/* Don't request stats too fast */
 	if (client->get_stats_jiffies &&
@@ -702,10 +702,10 @@ static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 		return 0;
 	client->get_stats_jiffies = jiffies + msecs_to_jiffies(100);
 
-	Msg.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
-	Msg.msg_dst_id = HIF_TASK;
-	Msg.msg_flags = 0;
-	Msg.msg_length = sizeof(Msg);
+	msg.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	msg.msg_dst_id = HIF_TASK;
+	msg.msg_flags = 0;
+	msg.msg_length = sizeof(msg);
 
 	switch (smscore_get_device_mode(client->coredev)) {
 	case DEVICE_MODE_ISDBT:
@@ -714,15 +714,15 @@ static int smsdvb_send_statistics_request(struct smsdvb_client_t *client)
 		* Check for firmware version, to avoid breaking for old cards
 		*/
 		if (client->coredev->fw_version >= 0x800)
-			Msg.msg_type = MSG_SMS_GET_STATISTICS_EX_REQ;
+			msg.msg_type = MSG_SMS_GET_STATISTICS_EX_REQ;
 		else
-			Msg.msg_type = MSG_SMS_GET_STATISTICS_REQ;
+			msg.msg_type = MSG_SMS_GET_STATISTICS_REQ;
 		break;
 	default:
-		Msg.msg_type = MSG_SMS_GET_STATISTICS_REQ;
+		msg.msg_type = MSG_SMS_GET_STATISTICS_REQ;
 	}
 
-	rc = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+	rc = smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),
 					 &client->stats_done);
 
 	return rc;
@@ -845,9 +845,9 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 		container_of(fe, struct smsdvb_client_t, frontend);
 
 	struct {
-		struct sms_msg_hdr	Msg;
+		struct sms_msg_hdr	msg;
 		u32		Data[3];
-	} Msg;
+	} msg;
 
 	int ret;
 
@@ -856,26 +856,26 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 	client->event_unc_state = -1;
 	fe->dtv_property_cache.delivery_system = SYS_DVBT;
 
-	Msg.Msg.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
-	Msg.Msg.msg_dst_id = HIF_TASK;
-	Msg.Msg.msg_flags = 0;
-	Msg.Msg.msg_type = MSG_SMS_RF_TUNE_REQ;
-	Msg.Msg.msg_length = sizeof(Msg);
-	Msg.Data[0] = c->frequency;
-	Msg.Data[2] = 12000000;
+	msg.msg.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	msg.msg.msg_dst_id = HIF_TASK;
+	msg.msg.msg_flags = 0;
+	msg.msg.msg_type = MSG_SMS_RF_TUNE_REQ;
+	msg.msg.msg_length = sizeof(msg);
+	msg.Data[0] = c->frequency;
+	msg.Data[2] = 12000000;
 
 	sms_info("%s: freq %d band %d", __func__, c->frequency,
 		 c->bandwidth_hz);
 
 	switch (c->bandwidth_hz / 1000000) {
 	case 8:
-		Msg.Data[1] = BW_8_MHZ;
+		msg.Data[1] = BW_8_MHZ;
 		break;
 	case 7:
-		Msg.Data[1] = BW_7_MHZ;
+		msg.Data[1] = BW_7_MHZ;
 		break;
 	case 6:
-		Msg.Data[1] = BW_6_MHZ;
+		msg.Data[1] = BW_6_MHZ;
 		break;
 	case 0:
 		return -EOPNOTSUPP;
@@ -888,7 +888,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 		fe_status_t status;
 
 		/* tune with LNA off at first */
-		ret = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+		ret = smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),
 						  &client->tune_done);
 
 		smsdvb_read_status(fe, &status);
@@ -900,7 +900,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 		sms_board_lna_control(client->coredev, 1);
 	}
 
-	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+	return smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),
 					   &client->tune_done);
 }
 
@@ -915,17 +915,17 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 	int ret;
 
 	struct {
-		struct sms_msg_hdr	Msg;
+		struct sms_msg_hdr	msg;
 		u32		Data[4];
-	} Msg;
+	} msg;
 
 	fe->dtv_property_cache.delivery_system = SYS_ISDBT;
 
-	Msg.Msg.msg_src_id  = DVBT_BDA_CONTROL_MSG_ID;
-	Msg.Msg.msg_dst_id  = HIF_TASK;
-	Msg.Msg.msg_flags  = 0;
-	Msg.Msg.msg_type   = MSG_SMS_ISDBT_TUNE_REQ;
-	Msg.Msg.msg_length = sizeof(Msg);
+	msg.msg.msg_src_id  = DVBT_BDA_CONTROL_MSG_ID;
+	msg.msg.msg_dst_id  = HIF_TASK;
+	msg.msg.msg_flags  = 0;
+	msg.msg.msg_type   = MSG_SMS_ISDBT_TUNE_REQ;
+	msg.msg.msg_length = sizeof(msg);
 
 	if (c->isdbt_sb_segment_idx == -1)
 		c->isdbt_sb_segment_idx = 0;
@@ -933,19 +933,19 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 	if (!c->isdbt_layer_enabled)
 		c->isdbt_layer_enabled = 7;
 
-	Msg.Data[0] = c->frequency;
-	Msg.Data[1] = BW_ISDBT_1SEG;
-	Msg.Data[2] = 12000000;
-	Msg.Data[3] = c->isdbt_sb_segment_idx;
+	msg.Data[0] = c->frequency;
+	msg.Data[1] = BW_ISDBT_1SEG;
+	msg.Data[2] = 12000000;
+	msg.Data[3] = c->isdbt_sb_segment_idx;
 
 	if (c->isdbt_partial_reception) {
 		if ((type == SMS_PELE || type == SMS_RIO) &&
 		    c->isdbt_sb_segment_count > 3)
-			Msg.Data[1] = BW_ISDBT_13SEG;
+			msg.Data[1] = BW_ISDBT_13SEG;
 		else if (c->isdbt_sb_segment_count > 1)
-			Msg.Data[1] = BW_ISDBT_3SEG;
+			msg.Data[1] = BW_ISDBT_3SEG;
 	} else if (type == SMS_PELE || type == SMS_RIO)
-		Msg.Data[1] = BW_ISDBT_13SEG;
+		msg.Data[1] = BW_ISDBT_13SEG;
 
 	c->bandwidth_hz = 6000000;
 
@@ -959,7 +959,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 		fe_status_t status;
 
 		/* tune with LNA off at first */
-		ret = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+		ret = smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),
 						  &client->tune_done);
 
 		smsdvb_read_status(fe, &status);
@@ -970,7 +970,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 		/* previous tune didn't lock - enable LNA and tune again */
 		sms_board_lna_control(client->coredev, 1);
 	}
-	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+	return smsdvb_sendrequest_and_wait(client, &msg, sizeof(msg),
 					   &client->tune_done);
 }
 
