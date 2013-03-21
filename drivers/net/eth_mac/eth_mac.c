@@ -32,7 +32,7 @@
 
 //extern char GetSNSectorInfo(char * pbuf);
 
-char GetSNSectorInfoBeforeNandInit(char * pbuf)
+static char GetSNSectorInfoBeforeNandInit(char * pbuf)
 {
     char * sn_addr = ioremap(0x10501600,0x200);
     memcpy(pbuf,sn_addr,0x200);
@@ -83,7 +83,7 @@ int eth_mac_idb(u8 *eth_mac)
 *大写转小写
 *
 */
-void   to_lower(char   *str) 
+static void   to_lower(char   *str) 
 { 
 	int   i=0; 
 	while(str[i]!=0) 
@@ -100,7 +100,7 @@ void   to_lower(char   *str)
   *
   *
   */
-void  trans( char *src ,int * k) 
+static void  trans( char *src ,int * k) 
 {
     char c;
     int i;
@@ -152,7 +152,7 @@ void  trans( char *src ,int * k)
 
 }
 
-int eth_mac_wifi(u8 *eth_mac){
+/*int eth_mac_wifi(u8 *eth_mac){
 	int i;
 	struct  file *file = NULL;
 	char wifi_mac[32];
@@ -198,7 +198,7 @@ int eth_mac_wifi(u8 *eth_mac){
 	filp_close(file,NULL);
 	return 0;
 	
-}
+}*/
 
 
 

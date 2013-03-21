@@ -1578,7 +1578,7 @@ static int __devinit vmac_probe(struct platform_device *pdev)
 		}
 	#endif
 	
-	#ifdef CONFIG_ETH_MAC_FROM_WIFI_MAC
+	/*#ifdef CONFIG_ETH_MAC_FROM_WIFI_MAC
 		err = eth_mac_wifi(dev->dev_addr);
 		if (err) {
 			printk("read mac from Wifi  fail.\n");
@@ -1589,7 +1589,7 @@ static int __devinit vmac_probe(struct platform_device *pdev)
 							dev->dev_addr[4],dev->dev_addr[5] );
 			}
 		}
-	#endif
+	#endif*/
 	
 	#ifdef CONFIG_ETH_MAC_FROM_RANDOM
 	    random_ether_addr(dev->dev_addr);
