@@ -285,8 +285,12 @@ static int mcspi_wait_for_reg_bit(void __iomem *reg, unsigned long bit)
 
 	timeout = jiffies + msecs_to_jiffies(1000);
 	while (!(__raw_readl(reg) & bit)) {
-		if (time_after(jiffies, timeout))
-			return -1;
+		if (time_after(jiffies, timeout)) {
+			if (!(__raw_readl(reg) & bit))
+				return -ETIMEDOUT;
+			else
+				return 0;
+		}
 		cpu_relax();
 	}
 	return 0;
