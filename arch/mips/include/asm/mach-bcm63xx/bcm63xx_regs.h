@@ -1223,24 +1223,7 @@
  * _REG relative to RSET_SPI
  *************************************************************************/
 
-/* BCM 6338 SPI core */
-#define SPI_6338_CMD			0x00	/* 16-bits register */
-#define SPI_6338_INT_STATUS		0x02
-#define SPI_6338_INT_MASK_ST		0x03
-#define SPI_6338_INT_MASK		0x04
-#define SPI_6338_ST			0x05
-#define SPI_6338_CLK_CFG		0x06
-#define SPI_6338_FILL_BYTE		0x07
-#define SPI_6338_MSG_TAIL		0x09
-#define SPI_6338_RX_TAIL		0x0b
-#define SPI_6338_MSG_CTL		0x40	/* 8-bits register */
-#define SPI_6338_MSG_CTL_WIDTH		8
-#define SPI_6338_MSG_DATA		0x41
-#define SPI_6338_MSG_DATA_SIZE		0x3f
-#define SPI_6338_RX_DATA		0x80
-#define SPI_6338_RX_DATA_SIZE		0x3f
-
-/* BCM 6348 SPI core */
+/* BCM 6338/6348 SPI core */
 #define SPI_6348_CMD			0x00	/* 16-bits register */
 #define SPI_6348_INT_STATUS		0x02
 #define SPI_6348_INT_MASK_ST		0x03
@@ -1257,7 +1240,7 @@
 #define SPI_6348_RX_DATA		0x80
 #define SPI_6348_RX_DATA_SIZE		0x3f
 
-/* BCM 6358 SPI core */
+/* BCM 6358/6368 SPI core */
 #define SPI_6358_MSG_CTL		0x00	/* 16-bits register */
 #define SPI_6358_MSG_CTL_WIDTH		16
 #define SPI_6358_MSG_DATA		0x02
@@ -1274,23 +1257,6 @@
 #define SPI_6358_MSG_TAIL		0x709
 #define SPI_6358_RX_TAIL		0x70B
 
-/* BCM 6358 SPI core */
-#define SPI_6368_MSG_CTL		0x00	/* 16-bits register */
-#define SPI_6368_MSG_CTL_WIDTH		16
-#define SPI_6368_MSG_DATA		0x02
-#define SPI_6368_MSG_DATA_SIZE		0x21e
-#define SPI_6368_RX_DATA		0x400
-#define SPI_6368_RX_DATA_SIZE		0x220
-#define SPI_6368_CMD			0x700	/* 16-bits register */
-#define SPI_6368_INT_STATUS		0x702
-#define SPI_6368_INT_MASK_ST		0x703
-#define SPI_6368_INT_MASK		0x704
-#define SPI_6368_ST			0x705
-#define SPI_6368_CLK_CFG		0x706
-#define SPI_6368_FILL_BYTE		0x707
-#define SPI_6368_MSG_TAIL		0x709
-#define SPI_6368_RX_TAIL		0x70B
-
 /* Shared SPI definitions */
 
 /* Message configuration */
@@ -1298,10 +1264,8 @@
 #define SPI_HD_W			0x01
 #define SPI_HD_R			0x02
 #define SPI_BYTE_CNT_SHIFT		0
-#define SPI_6338_MSG_TYPE_SHIFT		6
 #define SPI_6348_MSG_TYPE_SHIFT		6
 #define SPI_6358_MSG_TYPE_SHIFT		14
-#define SPI_6368_MSG_TYPE_SHIFT		14
 
 /* Command */
 #define SPI_CMD_NOOP			0x00
