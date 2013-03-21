@@ -708,6 +708,8 @@ void fuse_request_free(struct fuse_req *req);
  * caller should specify # elements in req->pages[] explicitly
  */
 struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages);
+struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
+					     unsigned npages);
 
 /**
  * Get a request, may fail with -ENOMEM,

@@ -126,11 +126,13 @@ static void fuse_file_put(struct fuse_file *ff, bool sync)
 		struct fuse_req *req = ff->reserved_req;
 
 		if (sync) {
+			req->background = 0;
 			fuse_request_send(ff->fc, req);
 			path_put(&req->misc.release.path);
 			fuse_put_request(ff->fc, req);
 		} else {
 			req->end = fuse_release_end;
+			req->background = 1;
 			fuse_request_send_background(ff->fc, req);
 		}
 		kfree(ff);
@@ -282,6 +284,7 @@ void fuse_sync_release(struct fuse_file *ff, int flags)
 	WARN_ON(atomic_read(&ff->count) > 1);
 	fuse_prepare_release(ff, flags, FUSE_RELEASE);
 	ff->reserved_req->force = 1;
+	ff->reserved_req->background = 0;
 	fuse_request_send(ff->fc, ff->reserved_req);
 	fuse_put_request(ff->fc, ff->reserved_req);
 	kfree(ff);
@@ -661,7 +664,12 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 		int nr_alloc = min_t(unsigned, data->nr_pages,
 				     FUSE_MAX_PAGES_PER_REQ);
 		fuse_send_readpages(req, data->file);
-		data->req = req = fuse_get_req(fc, nr_alloc);
+		if (fc->async_read)
+			req = fuse_get_req_for_background(fc, nr_alloc);
+		else
+			req = fuse_get_req(fc, nr_alloc);
+
+		data->req = req;
 		if (IS_ERR(req)) {
 			unlock_page(page);
 			return PTR_ERR(req);
@@ -696,7 +704,10 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 
 	data.file = file;
 	data.inode = inode;
-	data.req = fuse_get_req(fc, nr_alloc);
+	if (fc->async_read)
+		data.req = fuse_get_req_for_background(fc, nr_alloc);
+	else
+		data.req = fuse_get_req(fc, nr_alloc);
 	data.nr_pages = nr_pages;
 	err = PTR_ERR(data.req);
 	if (IS_ERR(data.req))
@@ -1375,6 +1386,7 @@ static int fuse_writepage_locked(struct page *page)
 	if (!req)
 		goto err;
 
+	req->background = 1; /* writeback always goes to bg_queue */
 	tmp_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
 	if (!tmp_page)
 		goto err_free;

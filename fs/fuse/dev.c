@@ -130,7 +130,8 @@ static void fuse_req_init_context(struct fuse_req *req)
 	req->in.h.pid = current->pid;
 }
 
-struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages)
+static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
+				       bool for_background)
 {
 	struct fuse_req *req;
 	sigset_t oldset;
@@ -156,13 +157,26 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages)
 
 	fuse_req_init_context(req);
 	req->waiting = 1;
+	req->background = for_background;
 	return req;
 
  out:
 	atomic_dec(&fc->num_waiting);
 	return ERR_PTR(err);
 }
+
+struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages)
+{
+	return __fuse_get_req(fc, npages, false);
+}
 EXPORT_SYMBOL_GPL(fuse_get_req);
+
+struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
+					     unsigned npages)
+{
+	return __fuse_get_req(fc, npages, true);
+}
+EXPORT_SYMBOL_GPL(fuse_get_req_for_background);
 
 /*
  * Return request in fuse_file->reserved_req.  However that may
@@ -232,6 +246,7 @@ struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
 
 	fuse_req_init_context(req);
 	req->waiting = 1;
+	req->background = 0;
 	return req;
 }
 
@@ -442,6 +457,7 @@ __acquires(fc->lock)
 
 static void __fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 {
+	BUG_ON(req->background);
 	spin_lock(&fc->lock);
 	if (!fc->connected)
 		req->out.h.error = -ENOTCONN;
@@ -469,7 +485,7 @@ EXPORT_SYMBOL_GPL(fuse_request_send);
 static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
 					    struct fuse_req *req)
 {
-	req->background = 1;
+	BUG_ON(!req->background);
 	fc->num_background++;
 	if (fc->num_background == fc->max_background)
 		fc->blocked = 1;
