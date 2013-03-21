@@ -363,8 +363,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 	   unsigned long nr_segs, loff_t pos)
 {
 	struct file *filp = iocb->ki_filp;
-	struct inode *inode = file_inode(filp);
-	struct pipe_inode_info *pipe;
+	struct pipe_inode_info *pipe = file_inode(filp)->i_pipe;
 	int do_wakeup;
 	ssize_t ret;
 	struct iovec *iov = (struct iovec *)_iov;
@@ -377,8 +376,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 
 	do_wakeup = 0;
 	ret = 0;
-	mutex_lock(&inode->i_mutex);
-	pipe = inode->i_pipe;
+	pipe_lock(pipe);
 	for (;;) {
 		int bufs = pipe->nrbufs;
 		if (bufs) {
@@ -466,7 +464,7 @@ redo:
 		}
 		pipe_wait(pipe);
 	}
-	mutex_unlock(&inode->i_mutex);
+	pipe_unlock(pipe);
 
 	/* Signal writers asynchronously that there is more room. */
 	if (do_wakeup) {
@@ -488,8 +486,7 @@ pipe_write(struct kiocb *iocb, const struct iovec *_iov,
 	    unsigned long nr_segs, loff_t ppos)
 {
 	struct file *filp = iocb->ki_filp;
-	struct inode *inode = file_inode(filp);
-	struct pipe_inode_info *pipe;
+	struct pipe_inode_info *pipe = file_inode(filp)->i_pipe;
 	ssize_t ret;
 	int do_wakeup;
 	struct iovec *iov = (struct iovec *)_iov;
@@ -503,8 +500,7 @@ pipe_write(struct kiocb *iocb, const struct iovec *_iov,
 
 	do_wakeup = 0;
 	ret = 0;
-	mutex_lock(&inode->i_mutex);
-	pipe = inode->i_pipe;
+	pipe_lock(pipe);
 
 	if (!pipe->readers) {
 		send_sig(SIGPIPE, current, 0);
@@ -651,7 +647,7 @@ redo2:
 		pipe->waiting_writers--;
 	}
 out:
-	mutex_unlock(&inode->i_mutex);
+	pipe_unlock(pipe);
 	if (do_wakeup) {
 		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLRDNORM);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
@@ -666,14 +662,12 @@ out:
 
 static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
-	struct pipe_inode_info *pipe;
+	struct pipe_inode_info *pipe = file_inode(filp)->i_pipe;
 	int count, buf, nrbufs;
 
 	switch (cmd) {
 		case FIONREAD:
-			mutex_lock(&inode->i_mutex);
-			pipe = inode->i_pipe;
+			pipe_lock(pipe);
 			count = 0;
 			buf = pipe->curbuf;
 			nrbufs = pipe->nrbufs;
@@ -681,7 +675,7 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				count += pipe->bufs[buf].len;
 				buf = (buf+1) & (pipe->buffers - 1);
 			}
-			mutex_unlock(&inode->i_mutex);
+			pipe_unlock(pipe);
 
 			return put_user(count, (int __user *)arg);
 		default:
@@ -694,8 +688,7 @@ static unsigned int
 pipe_poll(struct file *filp, poll_table *wait)
 {
 	unsigned int mask;
-	struct inode *inode = file_inode(filp);
-	struct pipe_inode_info *pipe = inode->i_pipe;
+	struct pipe_inode_info *pipe = file_inode(filp)->i_pipe;
 	int nrbufs;
 
 	poll_wait(filp, &pipe->wait, wait);
@@ -749,11 +742,10 @@ pipe_release(struct inode *inode, struct file *file)
 static int
 pipe_fasync(int fd, struct file *filp, int on)
 {
-	struct inode *inode = file_inode(filp);
-	struct pipe_inode_info *pipe = inode->i_pipe;
+	struct pipe_inode_info *pipe = file_inode(filp)->i_pipe;
 	int retval = 0;
 
-	mutex_lock(&inode->i_mutex);
+	pipe_lock(pipe);
 	if (filp->f_mode & FMODE_READ)
 		retval = fasync_helper(fd, filp, on, &pipe->fasync_readers);
 	if ((filp->f_mode & FMODE_WRITE) && retval >= 0) {
@@ -762,7 +754,7 @@ pipe_fasync(int fd, struct file *filp, int on)
 			/* this can happen only if on == T */
 			fasync_helper(-1, filp, 0, &pipe->fasync_readers);
 	}
-	mutex_unlock(&inode->i_mutex);
+	pipe_unlock(pipe);
 	return retval;
 }
 
@@ -1224,7 +1216,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (!pipe)
 		return -EBADF;
 
-	mutex_lock(&pipe->inode->i_mutex);
+	pipe_lock(pipe);
 
 	switch (cmd) {
 	case F_SETPIPE_SZ: {
@@ -1253,7 +1245,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 out:
-	mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 	return ret;
 }
 
