@@ -42,6 +42,7 @@
 #include <linux/completion.h>
 #include <linux/tracehook.h>
 #include <linux/slab.h>
+#include <linux/cpu.h>
 
 #include <asm/errno.h>
 #include <asm/intrinsics.h>
@@ -1322,8 +1323,6 @@ out:
 }
 EXPORT_SYMBOL(pfm_unregister_buffer_fmt);
 
-extern void update_pal_halt_status(int);
-
 static int
 pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 {
@@ -1371,9 +1370,9 @@ pfm_reserve_session(struct task_struct *task, int is_syswide, unsigned int cpu)
 		cpu));
 
 	/*
-	 * disable default_idle() to go to PAL_HALT
+	 * Force idle() into poll mode
 	 */
-	update_pal_halt_status(0);
+	cpu_idle_poll_ctrl(true);
 
 	UNLOCK_PFS(flags);
 
@@ -1430,11 +1429,8 @@ pfm_unreserve_session(pfm_context_t *ctx, int is_syswide, unsigned int cpu)
 		is_syswide,
 		cpu));
 
-	/*
-	 * if possible, enable default_idle() to go into PAL_HALT
-	 */
-	if (pfm_sessions.pfs_task_sessions == 0 && pfm_sessions.pfs_sys_sessions == 0)
-		update_pal_halt_status(1);
+	/* Undo forced polling. Last session reenables pal_halt */
+	cpu_idle_poll_ctrl(false);
 
 	UNLOCK_PFS(flags);
 
