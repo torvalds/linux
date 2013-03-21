@@ -248,14 +248,15 @@ static int pl2303_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
-static int set_control_lines(struct usb_device *dev, u8 value)
+static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
 {
+	struct usb_device *dev = port->serial->dev;
 	int retval;
 
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 				 SET_CONTROL_REQUEST, SET_CONTROL_REQUEST_TYPE,
 				 value, 0, NULL, 0, 100);
-	dev_dbg(&dev->dev, "%s - value = %d, retval = %d\n", __func__,
+	dev_dbg(&port->dev, "%s - value = %d, retval = %d\n", __func__,
 		value, retval);
 	return retval;
 }
@@ -437,7 +438,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	if (control != priv->line_control) {
 		control = priv->line_control;
 		spin_unlock_irqrestore(&priv->lock, flags);
-		set_control_lines(serial->dev, control);
+		pl2303_set_control_lines(port, control);
 	} else {
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
@@ -480,7 +481,7 @@ static void pl2303_dtr_rts(struct usb_serial_port *port, int on)
 		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	set_control_lines(port->serial->dev, control);
+	pl2303_set_control_lines(port, control);
 }
 
 static void pl2303_close(struct usb_serial_port *port)
@@ -550,7 +551,7 @@ static int pl2303_tiocmset(struct tty_struct *tty,
 
 	mutex_lock(&serial->disc_mutex);
 	if (!serial->disconnected)
-		ret = set_control_lines(serial->dev, control);
+		ret = pl2303_set_control_lines(port, control);
 	else
 		ret = -ENODEV;
 	mutex_unlock(&serial->disc_mutex);
