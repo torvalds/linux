@@ -64,12 +64,6 @@ static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 	return 0;
 }
 
-static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
-{
-	if (unlikely(kvm_mmu_available_pages(vcpu->kvm)< KVM_MIN_FREE_MMU_PAGES))
-		__kvm_mmu_free_some_pages(vcpu);
-}
-
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
 	if (likely(vcpu->arch.mmu.root_hpa != INVALID_PAGE))

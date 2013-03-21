@@ -1501,12 +1501,14 @@ static void drop_parent_pte(struct kvm_mmu_page *sp,
 	mmu_spte_clear_no_track(parent_pte);
 }
 
+static void make_mmu_pages_available(struct kvm_vcpu *vcpu);
+
 static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 					       u64 *parent_pte, int direct)
 {
 	struct kvm_mmu_page *sp;
 
-	kvm_mmu_free_some_pages(vcpu);
+	make_mmu_pages_available(vcpu);
 
 	sp = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_header_cache);
 	sp->spt = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache);
@@ -4010,9 +4012,12 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page_virt);
 
-void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
+static void make_mmu_pages_available(struct kvm_vcpu *vcpu)
 {
 	LIST_HEAD(invalid_list);
+
+	if (likely(kvm_mmu_available_pages(vcpu->kvm) >= KVM_MIN_FREE_MMU_PAGES))
+		return;
 
 	while (kvm_mmu_available_pages(vcpu->kvm) < KVM_REFILL_PAGES) {
 		if (!prepare_zap_oldest_mmu_page(vcpu->kvm, &invalid_list))
