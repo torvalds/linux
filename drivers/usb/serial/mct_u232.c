@@ -35,7 +35,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/serial.h>
-#include <linux/ioctl.h>
 #include "mct_u232.h"
 
 #define DRIVER_AUTHOR "Wolfgang Grandegger <wolfgang@ces.ch>"
@@ -57,8 +56,6 @@ static void mct_u232_break_ctl(struct tty_struct *tty, int break_state);
 static int  mct_u232_tiocmget(struct tty_struct *tty);
 static int  mct_u232_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
-static int  mct_u232_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg);
 static void mct_u232_throttle(struct tty_struct *tty);
 static void mct_u232_unthrottle(struct tty_struct *tty);
 
@@ -93,10 +90,10 @@ static struct usb_serial_driver mct_u232_device = {
 	.break_ctl =	     mct_u232_break_ctl,
 	.tiocmget =	     mct_u232_tiocmget,
 	.tiocmset =	     mct_u232_tiocmset,
+	.tiocmiwait =        usb_serial_generic_tiocmiwait,
 	.attach =	     mct_u232_startup,
 	.port_probe =        mct_u232_port_probe,
 	.port_remove =       mct_u232_port_remove,
-	.ioctl =             mct_u232_ioctl,
 	.get_icount =        usb_serial_generic_get_icount,
 };
 
@@ -595,7 +592,7 @@ static void mct_u232_read_int_callback(struct urb *urb)
 		tty_kref_put(tty);
 	}
 #endif
-	wake_up_interruptible(&port->delta_msr_wait);
+	wake_up_interruptible(&port->port.delta_msr_wait);
 	spin_unlock_irqrestore(&priv->lock, flags);
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -781,57 +778,6 @@ static void mct_u232_unthrottle(struct tty_struct *tty)
 	} else {
 		spin_unlock_irq(&priv->lock);
 	}
-}
-
-static int  mct_u232_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg)
-{
-	DEFINE_WAIT(wait);
-	struct usb_serial_port *port = tty->driver_data;
-	struct mct_u232_private *mct_u232_port = usb_get_serial_port_data(port);
-	struct async_icount cnow, cprev;
-	unsigned long flags;
-
-	dev_dbg(&port->dev, "%s - cmd = 0x%x\n", __func__, cmd);
-
-	switch (cmd) {
-
-	case TIOCMIWAIT:
-
-		dev_dbg(&port->dev, "%s TIOCMIWAIT", __func__);
-
-		spin_lock_irqsave(&mct_u232_port->lock, flags);
-		cprev = port->icount;
-		spin_unlock_irqrestore(&mct_u232_port->lock, flags);
-		for ( ; ; ) {
-			prepare_to_wait(&port->delta_msr_wait,
-					&wait, TASK_INTERRUPTIBLE);
-			schedule();
-			finish_wait(&port->delta_msr_wait, &wait);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-
-			if (port->serial->disconnected)
-				return -EIO;
-
-			spin_lock_irqsave(&mct_u232_port->lock, flags);
-			cnow = port->icount;
-			spin_unlock_irqrestore(&mct_u232_port->lock, flags);
-			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
-				return -EIO; /* no change => error */
-			if (((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
-			    ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-			    ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
-			    ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts))) {
-				return 0;
-			}
-			cprev = cnow;
-		}
-
-	}
-	return -ENOIOCTLCMD;
 }
 
 module_usb_serial_driver(serial_drivers, id_table);
