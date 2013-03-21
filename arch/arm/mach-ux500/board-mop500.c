@@ -43,7 +43,7 @@
 
 #include <mach/setup.h>
 #include <mach/devices.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 #include <linux/platform_data/crypto-ux500.h>
 
 #include "ste-dma40-db8500.h"

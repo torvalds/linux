@@ -12,7 +12,7 @@
 #include <linux/mfd/tc3589x.h>
 #include <linux/input/matrix_keypad.h>
 
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include "board-mop500.h"
 

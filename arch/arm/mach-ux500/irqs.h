@@ -34,14 +34,14 @@
 /* This will be overridden by SoC-specific irq headers */
 #define IRQ_SOC_END		IRQ_SOC_START
 
-#include <mach/irqs-db8500.h>
+#include "irqs-db8500.h"
 
 #define IRQ_BOARD_START		IRQ_SOC_END
 /* This will be overridden by board-specific irq headers */
 #define IRQ_BOARD_END		IRQ_BOARD_START
 
 #ifdef CONFIG_MACH_MOP500
-#include <mach/irqs-board-mop500.h>
+#include "irqs-board-mop500.h"
 #endif
 
 #define UX500_NR_IRQS		IRQ_BOARD_END

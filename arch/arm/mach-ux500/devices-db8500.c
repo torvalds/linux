@@ -16,7 +16,7 @@
 #include <linux/mfd/dbx500-prcmu.h>
 
 #include <mach/setup.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include "db8500-regs.h"
 #include "devices-db8500.h"

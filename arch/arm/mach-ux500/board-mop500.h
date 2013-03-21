@@ -8,7 +8,7 @@
 #define __BOARD_MOP500_H
 
 /* For NOMADIK_NR_GPIO */
-#include <mach/irqs.h>
+#include "irqs.h"
 #include <linux/platform_data/asoc-ux500-msp.h>
 #include <linux/amba/mmci.h>
 
