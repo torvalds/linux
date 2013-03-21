@@ -18,7 +18,7 @@
 
 void __init bcm63xx_cpu_init(void);
 u16 __bcm63xx_get_cpu_id(void);
-u16 bcm63xx_get_cpu_rev(void);
+u8 bcm63xx_get_cpu_rev(void);
 unsigned int bcm63xx_get_cpu_freq(void);
 
 #ifdef CONFIG_BCM63XX_CPU_6328

@@ -25,7 +25,7 @@ const int *bcm63xx_irqs;
 EXPORT_SYMBOL(bcm63xx_irqs);
 
 static u16 bcm63xx_cpu_id;
-static u16 bcm63xx_cpu_rev;
+static u8 bcm63xx_cpu_rev;
 static unsigned int bcm63xx_cpu_freq;
 static unsigned int bcm63xx_memory_size;
 
@@ -87,7 +87,7 @@ u16 __bcm63xx_get_cpu_id(void)
 
 EXPORT_SYMBOL(__bcm63xx_get_cpu_id);
 
-u16 bcm63xx_get_cpu_rev(void)
+u8 bcm63xx_get_cpu_rev(void)
 {
 	return bcm63xx_cpu_rev;
 }

@@ -10,7 +10,7 @@
 #define REV_CHIPID_SHIFT		16
 #define REV_CHIPID_MASK			(0xffff << REV_CHIPID_SHIFT)
 #define REV_REVID_SHIFT			0
-#define REV_REVID_MASK			(0xffff << REV_REVID_SHIFT)
+#define REV_REVID_MASK			(0xff << REV_REVID_SHIFT)
 
 /* Clock Control register */
 #define PERF_CKCTL_REG			0x4
