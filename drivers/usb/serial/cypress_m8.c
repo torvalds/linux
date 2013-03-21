@@ -861,7 +861,7 @@ static int cypress_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 	char diff;
 
 	for (;;) {
-		interruptible_sleep_on(&port->delta_msr_wait);
+		interruptible_sleep_on(&port->port.delta_msr_wait);
 		/* see if a signal did it */
 		if (signal_pending(current))
 			return -ERESTARTSYS;
@@ -1176,7 +1176,7 @@ static void cypress_read_int_callback(struct urb *urb)
 	if (priv->current_status != priv->prev_status) {
 		priv->diff_status |= priv->current_status ^
 			priv->prev_status;
-		wake_up_interruptible(&port->delta_msr_wait);
+		wake_up_interruptible(&port->port.delta_msr_wait);
 		priv->prev_status = priv->current_status;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
