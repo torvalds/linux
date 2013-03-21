@@ -104,24 +104,20 @@ EXPORT_SYMBOL_GPL(usb_serial_generic_open);
 
 static void generic_cleanup(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	unsigned long flags;
 	int i;
 
-	if (serial->dev) {
-		/* shutdown any bulk transfers that might be going on */
-		if (port->bulk_out_size) {
-			for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
-				usb_kill_urb(port->write_urbs[i]);
+	if (port->bulk_out_size) {
+		for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
+			usb_kill_urb(port->write_urbs[i]);
 
-			spin_lock_irqsave(&port->lock, flags);
-			kfifo_reset_out(&port->write_fifo);
-			spin_unlock_irqrestore(&port->lock, flags);
-		}
-		if (port->bulk_in_size) {
-			for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i)
-				usb_kill_urb(port->read_urbs[i]);
-		}
+		spin_lock_irqsave(&port->lock, flags);
+		kfifo_reset_out(&port->write_fifo);
+		spin_unlock_irqrestore(&port->lock, flags);
+	}
+	if (port->bulk_in_size) {
+		for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i)
+			usb_kill_urb(port->read_urbs[i]);
 	}
 }
 
