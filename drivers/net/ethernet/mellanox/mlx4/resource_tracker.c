@@ -3806,6 +3806,7 @@ void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 	mutex_lock(&priv->mfunc.master.res_tracker.slave_list[slave].mutex);
 	/*VLAN*/
 	rem_slave_macs(dev, slave);
+	rem_slave_fs_rule(dev, slave);
 	rem_slave_qps(dev, slave);
 	rem_slave_srqs(dev, slave);
 	rem_slave_cqs(dev, slave);
@@ -3814,6 +3815,5 @@ void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 	rem_slave_mtts(dev, slave);
 	rem_slave_counters(dev, slave);
 	rem_slave_xrcdns(dev, slave);
-	rem_slave_fs_rule(dev, slave);
 	mutex_unlock(&priv->mfunc.master.res_tracker.slave_list[slave].mutex);
 }
