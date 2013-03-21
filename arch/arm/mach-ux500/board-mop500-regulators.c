@@ -139,10 +139,9 @@ static struct regulator_consumer_supply ab8500_vana_consumers[] = {
 static struct ab8500_regulator_reg_init ab8500_reg_init[] = {
 	/*
 	 * VanaRequestCtrl          = HP/LP depending on VxRequest
-	 * VpllRequestCtrl          = HP/LP depending on VxRequest
 	 * VextSupply1RequestCtrl   = HP/LP depending on VxRequest
 	 */
-	INIT_REGULATOR_REGISTER(AB8500_REGUREQUESTCTRL2,       0xfc, 0x00),
+	INIT_REGULATOR_REGISTER(AB8500_REGUREQUESTCTRL2,       0xf0, 0x00),
 	/*
 	 * VextSupply2RequestCtrl   = HP/LP depending on VxRequest
 	 * VextSupply3RequestCtrl   = HP/LP depending on VxRequest
@@ -156,16 +155,12 @@ static struct ab8500_regulator_reg_init ab8500_reg_init[] = {
 	 */
 	INIT_REGULATOR_REGISTER(AB8500_REGUREQUESTCTRL4,       0x07, 0x00),
 	/*
-	 * Vsmps1SysClkReq1HPValid  = enabled
-	 * Vsmps2SysClkReq1HPValid  = enabled
-	 * Vsmps3SysClkReq1HPValid  = enabled
 	 * VanaSysClkReq1HPValid    = disabled
-	 * VpllSysClkReq1HPValid    = enabled
 	 * Vaux1SysClkReq1HPValid   = disabled
 	 * Vaux2SysClkReq1HPValid   = disabled
 	 * Vaux3SysClkReq1HPValid   = disabled
 	 */
-	INIT_REGULATOR_REGISTER(AB8500_REGUSYSCLKREQ1HPVALID1, 0xff, 0x17),
+	INIT_REGULATOR_REGISTER(AB8500_REGUSYSCLKREQ1HPVALID1, 0xe8, 0x00),
 	/*
 	 * VextSupply1SysClkReq1HPValid = disabled
 	 * VextSupply2SysClkReq1HPValid = disabled
@@ -252,17 +247,7 @@ static struct ab8500_regulator_reg_init ab8500_reg_init[] = {
 	 */
 	INIT_REGULATOR_REGISTER(AB8500_REGUCTRL1VAMIC,         0x03, 0x00),
 	/*
-	 * Vsmps1Regu               = HW control
-	 * Vsmps1SelCtrl            = Vsmps1 voltage defined by Vsmsp1Sel2
-	 */
-	INIT_REGULATOR_REGISTER(AB8500_VSMPS1REGU,             0x0f, 0x06),
-	/*
-	 * Vsmps2Regu               = HW control
-	 * Vsmps2SelCtrl            = Vsmps2 voltage defined by Vsmsp2Sel2
-	 */
-	INIT_REGULATOR_REGISTER(AB8500_VSMPS2REGU,             0x0f, 0x06),
-	/*
-	 * VPll                     = Hw controlled
+	 * VPll                     = Hw controlled (NOTE! PRCMU bits)
 	 * VanaRegu                 = force off
 	 */
 	INIT_REGULATOR_REGISTER(AB8500_VPLLVANAREGU,           0x0f, 0x02),
@@ -285,14 +270,9 @@ static struct ab8500_regulator_reg_init ab8500_reg_init[] = {
 	 */
 	INIT_REGULATOR_REGISTER(AB8500_VAUX12REGU,             0x0f, 0x01),
 	/*
-	 * Vrf1Regu                 = HW control
 	 * Vaux3Regu                = force off
 	 */
-	INIT_REGULATOR_REGISTER(AB8500_VRF1VAUX3REGU,          0x0f, 0x08),
-	/*
-	 * Vsmps1                   = 1.15V
-	 */
-	INIT_REGULATOR_REGISTER(AB8500_VSMPS1SEL1,             0x3f, 0x24),
+	INIT_REGULATOR_REGISTER(AB8500_VRF1VAUX3REGU,          0x03, 0x00),
 	/*
 	 * Vaux1Sel                 = 2.5 V
 	 */
