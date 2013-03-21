@@ -12,6 +12,8 @@
 #define wmb()  asm volatile (""   : : :"memory")
 #define set_mb(var, value) do { xchg(&var, value); } while (0)
 
+#define read_barrier_depends()	do { } while (0)
+
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
