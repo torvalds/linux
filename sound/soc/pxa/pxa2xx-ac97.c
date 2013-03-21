@@ -233,6 +233,10 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 },
 };
 
+static const struct snd_soc_component_driver pxa_ac97_component = {
+	.name		= "pxa-ac97",
+};
+
 static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 {
 	if (pdev->id != -1) {
@@ -244,13 +248,13 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 	 * driver to do interesting things with the clocking to get us up
 	 * and running.
 	 */
-	return snd_soc_register_dais(&pdev->dev, pxa_ac97_dai_driver,
-			ARRAY_SIZE(pxa_ac97_dai_driver));
+	return snd_soc_register_component(&pdev->dev, &pxa_ac97_component,
+					  pxa_ac97_dai_driver, ARRAY_SIZE(pxa_ac97_dai_driver));
 }
 
 static int pxa2xx_ac97_dev_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(pxa_ac97_dai_driver));
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 
