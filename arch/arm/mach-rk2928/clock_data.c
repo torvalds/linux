@@ -2185,7 +2185,7 @@ static struct clk_lookup clks[] = {
 	CLK_GATE_NODEV(pclk_peri_axi_matrix),
 	CLK(NULL, "pwm01", &clk_pclk_pwm01),
 	CLK_GATE_NODEV(pclk_wdt),
-	CLK_GATE_NODEV(pclk_spi0),
+	CLK("rk29xx_spim.0", "pclk_spi", &clk_pclk_spi0),
 	CLK("rk_serial.0", "pclk_uart", &clk_pclk_uart0),
 	CLK("rk_serial.1", "pclk_uart", &clk_pclk_uart1),
 	CLK("rk_serial.2", "pclk_uart", &clk_pclk_uart2),
