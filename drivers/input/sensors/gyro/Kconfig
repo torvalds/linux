@@ -16,4 +16,9 @@ config GYRO_K3G
   bool "gyroscope k3g"
 	default n
 
+config GYRO_L3G20D
+  bool "gyroscope l3g20d"
+	default n
+
+
 endif
