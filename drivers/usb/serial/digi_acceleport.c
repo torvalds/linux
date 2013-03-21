@@ -196,7 +196,6 @@ struct digi_port {
 	unsigned char dp_out_buf[DIGI_OUT_BUF_SIZE];
 	int dp_write_urb_in_use;
 	unsigned int dp_modem_signals;
-	wait_queue_head_t dp_modem_change_wait;
 	int dp_transmit_idle;
 	wait_queue_head_t dp_transmit_idle_wait;
 	int dp_throttled;
@@ -1250,7 +1249,6 @@ static int digi_port_init(struct usb_serial_port *port, unsigned port_num)
 
 	spin_lock_init(&priv->dp_port_lock);
 	priv->dp_port_num = port_num;
-	init_waitqueue_head(&priv->dp_modem_change_wait);
 	init_waitqueue_head(&priv->dp_transmit_idle_wait);
 	init_waitqueue_head(&priv->dp_flush_wait);
 	init_waitqueue_head(&priv->dp_close_wait);
@@ -1541,7 +1539,6 @@ static int digi_read_oob_callback(struct urb *urb)
 			else
 				priv->dp_modem_signals &= ~TIOCM_CD;
 
-			wake_up_interruptible(&priv->dp_modem_change_wait);
 			spin_unlock(&priv->dp_port_lock);
 		} else if (opcode == DIGI_CMD_TRANSMIT_IDLE) {
 			spin_lock(&priv->dp_port_lock);
