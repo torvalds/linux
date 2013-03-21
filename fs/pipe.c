@@ -718,23 +718,30 @@ pipe_poll(struct file *filp, poll_table *wait)
 static int
 pipe_release(struct inode *inode, struct file *file)
 {
-	struct pipe_inode_info *pipe;
+	struct pipe_inode_info *pipe = inode->i_pipe;
+	int kill = 0;
 
-	mutex_lock(&inode->i_mutex);
-	pipe = inode->i_pipe;
+	pipe_lock(pipe);
 	if (file->f_mode & FMODE_READ)
 		pipe->readers--;
 	if (file->f_mode & FMODE_WRITE)
 		pipe->writers--;
 
-	if (!pipe->readers && !pipe->writers) {
-		free_pipe_info(inode);
-	} else {
+	if (pipe->readers || pipe->writers) {
 		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM | POLLERR | POLLHUP);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
-	mutex_unlock(&inode->i_mutex);
+	spin_lock(&inode->i_lock);
+	if (!--pipe->files) {
+		inode->i_pipe = NULL;
+		kill = 1;
+	}
+	spin_unlock(&inode->i_lock);
+	pipe_unlock(pipe);
+
+	if (kill)
+		__free_pipe_info(pipe);
 
 	return 0;
 }
@@ -827,8 +834,9 @@ static struct inode * get_pipe_inode(void)
 	pipe = alloc_pipe_info(inode);
 	if (!pipe)
 		goto fail_iput;
-	inode->i_pipe = pipe;
 
+	inode->i_pipe = pipe;
+	pipe->files = 2;
 	pipe->readers = pipe->writers = 1;
 	inode->i_fop = &pipefifo_fops;
 
@@ -999,18 +1007,36 @@ static int fifo_open(struct inode *inode, struct file *filp)
 {
 	struct pipe_inode_info *pipe;
 	bool is_pipe = inode->i_sb->s_magic == PIPEFS_MAGIC;
+	int kill = 0;
 	int ret;
 
-	mutex_lock(&inode->i_mutex);
-	pipe = inode->i_pipe;
-	if (!pipe) {
-		ret = -ENOMEM;
+	filp->f_version = 0;
+
+	spin_lock(&inode->i_lock);
+	if (inode->i_pipe) {
+		pipe = inode->i_pipe;
+		pipe->files++;
+		spin_unlock(&inode->i_lock);
+	} else {
+		spin_unlock(&inode->i_lock);
 		pipe = alloc_pipe_info(inode);
 		if (!pipe)
-			goto err_nocleanup;
-		inode->i_pipe = pipe;
+			return -ENOMEM;
+		pipe->files = 1;
+		spin_lock(&inode->i_lock);
+		if (unlikely(inode->i_pipe)) {
+			inode->i_pipe->files++;
+			spin_unlock(&inode->i_lock);
+			__free_pipe_info(pipe);
+			pipe = inode->i_pipe;
+		} else {
+			inode->i_pipe = pipe;
+			spin_unlock(&inode->i_lock);
+		}
 	}
-	filp->f_version = 0;
+	/* OK, we have a pipe and it's pinned down */
+
+	pipe_lock(pipe);
 
 	/* We can only do regular read/write on fifos */
 	filp->f_mode &= (FMODE_READ | FMODE_WRITE);
@@ -1080,7 +1106,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	}
 
 	/* Ok! */
-	mutex_unlock(&inode->i_mutex);
+	pipe_unlock(pipe);
 	return 0;
 
 err_rd:
@@ -1096,11 +1122,15 @@ err_wr:
 	goto err;
 
 err:
-	if (!pipe->readers && !pipe->writers)
-		free_pipe_info(inode);
-
-err_nocleanup:
-	mutex_unlock(&inode->i_mutex);
+	spin_lock(&inode->i_lock);
+	if (!--pipe->files) {
+		inode->i_pipe = NULL;
+		kill = 1;
+	}
+	spin_unlock(&inode->i_lock);
+	pipe_unlock(pipe);
+	if (kill)
+		__free_pipe_info(pipe);
 	return ret;
 }
 
