@@ -2479,7 +2479,6 @@ out:
 static int sh_eth_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct sh_eth_private *mdp = netdev_priv(ndev);
 
 	sh_mdio_release(ndev);
 	unregister_netdev(ndev);
