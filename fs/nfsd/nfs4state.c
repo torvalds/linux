@@ -225,8 +225,6 @@ opaque_hashval(const void *ptr, int nbytes)
 	return x;
 }
 
-static struct list_head del_recall_lru;
-
 static void nfsd4_free_file(struct nfs4_file *f)
 {
 	kmem_cache_free(file_slab, f);
@@ -2583,6 +2581,9 @@ out:
 
 static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 {
+	struct nfs4_client *clp = dp->dl_stid.sc_client;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+
 	/* We're assuming the state code never drops its reference
 	 * without first removing the lease.  Since we're in this lease
 	 * callback (and since the lease code is serialized by the kernel
@@ -2590,7 +2591,7 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 	 * it's safe to take a reference: */
 	atomic_inc(&dp->dl_count);
 
-	list_add_tail(&dp->dl_recall_lru, &del_recall_lru);
+	list_add_tail(&dp->dl_recall_lru, &nn->del_recall_lru);
 
 	/* only place dl_time is set. protected by lock_flocks*/
 	dp->dl_time = get_seconds();
@@ -3254,7 +3255,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 		expire_client(clp);
 	}
 	spin_lock(&recall_lock);
-	list_for_each_safe(pos, next, &del_recall_lru) {
+	list_for_each_safe(pos, next, &nn->del_recall_lru) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		if (net_generic(dp->dl_stid.sc_client->net, nfsd_net_id) != nn)
 			continue;
@@ -4810,7 +4811,6 @@ struct nfs4_client *nfsd_find_client(struct sockaddr_storage *addr, size_t addr_
 void
 nfs4_state_init(void)
 {
-	INIT_LIST_HEAD(&del_recall_lru);
 }
 
 /*
@@ -4874,6 +4874,7 @@ static int nfs4_state_create_net(struct net *net)
 	nn->unconf_name_tree = RB_ROOT;
 	INIT_LIST_HEAD(&nn->client_lru);
 	INIT_LIST_HEAD(&nn->close_lru);
+	INIT_LIST_HEAD(&nn->del_recall_lru);
 	spin_lock_init(&nn->client_lock);
 
 	INIT_DELAYED_WORK(&nn->laundromat_work, laundromat_main);
@@ -4986,10 +4987,8 @@ nfs4_state_shutdown_net(struct net *net)
 
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&recall_lock);
-	list_for_each_safe(pos, next, &del_recall_lru) {
+	list_for_each_safe(pos, next, &nn->del_recall_lru) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
-		if (dp->dl_stid.sc_client->net != net)
-			continue;
 		list_move(&dp->dl_recall_lru, &reaplist);
 	}
 	spin_unlock(&recall_lock);
