@@ -152,4 +152,11 @@ enum ab9540_regulator_reg {
 	AB9540_NUM_REGULATOR_REGISTERS,
 };
 
+struct ab8500_regulator_platform_data {
+	int num_reg_init;
+	struct ab8500_regulator_reg_init *reg_init;
+	int num_regulator;
+	struct regulator_init_data *regulator;
+};
+
 #endif
