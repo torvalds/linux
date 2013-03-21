@@ -172,6 +172,7 @@ static int __init ip_vs_sip_init(void)
 static void __exit ip_vs_sip_cleanup(void)
 {
 	unregister_ip_vs_pe(&ip_vs_sip_pe);
+	synchronize_rcu();
 }
 
 module_init(ip_vs_sip_init);
