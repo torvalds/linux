@@ -43,9 +43,6 @@ config MMU
 config GENERIC_CSUM
 	def_bool y
 
-config SEMAPHORE_SLEEPERS
-	def_bool y
-
 config HAVE_ARCH_ALLOC_REMAP
 	def_bool y
 
@@ -69,12 +66,6 @@ config HUGETLB_SUPER_PAGES
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
-
-# We have a very flat architecture from a migration point of view,
-# so save boot time by presetting this (particularly useful on tile-sim).
-config DEFAULT_MIGRATION_COST
-	int
-	default "10000000"
 
 # We only support gcc 4.4 and above, so this should work.
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
