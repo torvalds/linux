@@ -963,6 +963,10 @@ static const struct snd_soc_dai_ops samsung_i2s_dai_ops = {
 	.delay = i2s_delay,
 };
 
+static const struct snd_soc_component_driver samsung_i2s_component = {
+	.name		= "samsung-i2s",
+};
+
 #define SAMSUNG_I2S_RATES	SNDRV_PCM_RATE_8000_96000
 
 #define SAMSUNG_I2S_FMTS	(SNDRV_PCM_FMTBIT_S8 | \
@@ -1107,8 +1111,9 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 
 	if (samsung_dai_type == TYPE_SEC) {
 		sec_dai = dev_get_drvdata(&pdev->dev);
-		snd_soc_register_dai(&sec_dai->pdev->dev,
-			&sec_dai->i2s_dai_drv);
+		snd_soc_register_component(&sec_dai->pdev->dev,
+					   &samsung_i2s_component,
+					   &sec_dai->i2s_dai_drv, 1);
 		asoc_dma_platform_register(&pdev->dev);
 		return 0;
 	}
@@ -1237,7 +1242,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		}
 	}
 
-	snd_soc_register_dai(&pri_dai->pdev->dev, &pri_dai->i2s_dai_drv);
+	snd_soc_register_component(&pri_dai->pdev->dev, &samsung_i2s_component,
+				   &pri_dai->i2s_dai_drv, 1);
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -1276,7 +1282,7 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 	i2s->sec_dai = NULL;
 
 	asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }
