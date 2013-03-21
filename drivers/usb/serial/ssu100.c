@@ -641,7 +641,6 @@ static struct usb_serial_driver ssu100_device = {
 	.get_icount	     = ssu100_get_icount,
 	.ioctl               = ssu100_ioctl,
 	.set_termios         = ssu100_set_termios,
-	.disconnect          = usb_serial_generic_disconnect,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
