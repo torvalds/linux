@@ -24,4 +24,8 @@ config MACH_RK3188_LR097
 config MACH_RK3188_DS1006H
 	bool "RK3188 ds1006h board"
 
+config MACH_RK3188_U30GT2
+	bool "RK3188 u30gt2 board"
+
+
 endchoice
