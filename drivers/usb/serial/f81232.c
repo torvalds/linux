@@ -110,7 +110,7 @@ static void f81232_process_read_urb(struct urb *urb)
 	line_status = priv->line_status;
 	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	wake_up_interruptible(&port->delta_msr_wait);
+	wake_up_interruptible(&port->port.delta_msr_wait);
 
 	if (!urb->actual_length)
 		return;
@@ -256,7 +256,7 @@ static int f81232_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	while (1) {
-		interruptible_sleep_on(&port->delta_msr_wait);
+		interruptible_sleep_on(&port->port.delta_msr_wait);
 		/* see if a signal did it */
 		if (signal_pending(current))
 			return -ERESTARTSYS;
