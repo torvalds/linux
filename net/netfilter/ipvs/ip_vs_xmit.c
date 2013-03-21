@@ -362,20 +362,6 @@ __ip_vs_get_out_rt_v6(struct sk_buff *skb, struct ip_vs_dest *dest,
 #endif
 
 
-/*
- *	Release dest->dst_cache before a dest is removed
- */
-void
-ip_vs_dst_reset(struct ip_vs_dest *dest)
-{
-	struct dst_entry *old_dst;
-
-	old_dst = dest->dst_cache;
-	dest->dst_cache = NULL;
-	dst_release(old_dst);
-	dest->dst_saddr.ip = 0;
-}
-
 /* return NF_ACCEPT to allow forwarding or other NF_xxx on error */
 static inline int ip_vs_tunnel_xmit_prepare(struct sk_buff *skb,
 					    struct ip_vs_conn *cp)
