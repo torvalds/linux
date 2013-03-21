@@ -823,6 +823,7 @@ struct ip_vs_app {
 	struct ip_vs_app	*app;		/* its real application */
 	__be16			port;		/* port number in net order */
 	atomic_t		usecnt;		/* usage counter */
+	struct rcu_head		rcu_head;
 
 	/*
 	 * output hook: Process packet in inout direction, diff set for TCP.
@@ -908,7 +909,6 @@ struct netns_ipvs {
 	#define	TCP_APP_TAB_SIZE	(1 << TCP_APP_TAB_BITS)
 	#define	TCP_APP_TAB_MASK	(TCP_APP_TAB_SIZE - 1)
 	struct list_head	tcp_apps[TCP_APP_TAB_SIZE];
-	spinlock_t		tcp_app_lock;
 #endif
 	/* ip_vs_proto_udp */
 #ifdef CONFIG_IP_VS_PROTO_UDP
@@ -916,7 +916,6 @@ struct netns_ipvs {
 	#define	UDP_APP_TAB_SIZE	(1 << UDP_APP_TAB_BITS)
 	#define	UDP_APP_TAB_MASK	(UDP_APP_TAB_SIZE - 1)
 	struct list_head	udp_apps[UDP_APP_TAB_SIZE];
-	spinlock_t		udp_app_lock;
 #endif
 	/* ip_vs_proto_sctp */
 #ifdef CONFIG_IP_VS_PROTO_SCTP
@@ -925,7 +924,6 @@ struct netns_ipvs {
 	#define SCTP_APP_TAB_MASK	(SCTP_APP_TAB_SIZE - 1)
 	/* Hash table for SCTP application incarnations	 */
 	struct list_head	sctp_apps[SCTP_APP_TAB_SIZE];
-	spinlock_t		sctp_app_lock;
 #endif
 	/* ip_vs_conn */
 	atomic_t		conn_count;      /*  connection counter */

@@ -580,18 +580,16 @@ static int tcp_register_app(struct net *net, struct ip_vs_app *inc)
 
 	hash = tcp_app_hashkey(port);
 
-	spin_lock_bh(&ipvs->tcp_app_lock);
 	list_for_each_entry(i, &ipvs->tcp_apps[hash], p_list) {
 		if (i->port == port) {
 			ret = -EEXIST;
 			goto out;
 		}
 	}
-	list_add(&inc->p_list, &ipvs->tcp_apps[hash]);
+	list_add_rcu(&inc->p_list, &ipvs->tcp_apps[hash]);
 	atomic_inc(&pd->appcnt);
 
   out:
-	spin_unlock_bh(&ipvs->tcp_app_lock);
 	return ret;
 }
 
@@ -599,13 +597,10 @@ static int tcp_register_app(struct net *net, struct ip_vs_app *inc)
 static void
 tcp_unregister_app(struct net *net, struct ip_vs_app *inc)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
 
-	spin_lock_bh(&ipvs->tcp_app_lock);
 	atomic_dec(&pd->appcnt);
-	list_del(&inc->p_list);
-	spin_unlock_bh(&ipvs->tcp_app_lock);
+	list_del_rcu(&inc->p_list);
 }
 
 
@@ -624,12 +619,12 @@ tcp_app_conn_bind(struct ip_vs_conn *cp)
 	/* Lookup application incarnations and bind the right one */
 	hash = tcp_app_hashkey(cp->vport);
 
-	spin_lock(&ipvs->tcp_app_lock);
-	list_for_each_entry(inc, &ipvs->tcp_apps[hash], p_list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(inc, &ipvs->tcp_apps[hash], p_list) {
 		if (inc->port == cp->vport) {
 			if (unlikely(!ip_vs_app_inc_get(inc)))
 				break;
-			spin_unlock(&ipvs->tcp_app_lock);
+			rcu_read_unlock();
 
 			IP_VS_DBG_BUF(9, "%s(): Binding conn %s:%u->"
 				      "%s:%u to app %s on port %u\n",
@@ -646,7 +641,7 @@ tcp_app_conn_bind(struct ip_vs_conn *cp)
 			goto out;
 		}
 	}
-	spin_unlock(&ipvs->tcp_app_lock);
+	rcu_read_unlock();
 
   out:
 	return result;
@@ -676,7 +671,6 @@ static int __ip_vs_tcp_init(struct net *net, struct ip_vs_proto_data *pd)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	ip_vs_init_hash_table(ipvs->tcp_apps, TCP_APP_TAB_SIZE);
-	spin_lock_init(&ipvs->tcp_app_lock);
 	pd->timeout_table = ip_vs_create_timeout_table((int *)tcp_timeouts,
 							sizeof(tcp_timeouts));
 	if (!pd->timeout_table)

@@ -480,6 +480,7 @@ static int __init ip_vs_ftp_init(void)
 	int rv;
 
 	rv = register_pernet_subsys(&ip_vs_ftp_ops);
+	/* rcu_barrier() is called by netns on error */
 	return rv;
 }
 
@@ -489,6 +490,7 @@ static int __init ip_vs_ftp_init(void)
 static void __exit ip_vs_ftp_exit(void)
 {
 	unregister_pernet_subsys(&ip_vs_ftp_ops);
+	/* rcu_barrier() is called by netns */
 }
 
 

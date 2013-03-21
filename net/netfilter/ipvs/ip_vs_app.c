@@ -58,6 +58,18 @@ static inline void ip_vs_app_put(struct ip_vs_app *app)
 	module_put(app->module);
 }
 
+static void ip_vs_app_inc_destroy(struct ip_vs_app *inc)
+{
+	kfree(inc->timeout_table);
+	kfree(inc);
+}
+
+static void ip_vs_app_inc_rcu_free(struct rcu_head *head)
+{
+	struct ip_vs_app *inc = container_of(head, struct ip_vs_app, rcu_head);
+
+	ip_vs_app_inc_destroy(inc);
+}
 
 /*
  *	Allocate/initialize app incarnation and register it in proto apps.
@@ -106,8 +118,7 @@ ip_vs_app_inc_new(struct net *net, struct ip_vs_app *app, __u16 proto,
 	return 0;
 
   out:
-	kfree(inc->timeout_table);
-	kfree(inc);
+	ip_vs_app_inc_destroy(inc);
 	return ret;
 }
 
@@ -131,8 +142,7 @@ ip_vs_app_inc_release(struct net *net, struct ip_vs_app *inc)
 
 	list_del(&inc->a_list);
 
-	kfree(inc->timeout_table);
-	kfree(inc);
+	call_rcu(&inc->rcu_head, ip_vs_app_inc_rcu_free);
 }
 
 
@@ -144,9 +154,9 @@ int ip_vs_app_inc_get(struct ip_vs_app *inc)
 {
 	int result;
 
-	atomic_inc(&inc->usecnt);
-	if (unlikely((result = ip_vs_app_get(inc->app)) != 1))
-		atomic_dec(&inc->usecnt);
+	result = ip_vs_app_get(inc->app);
+	if (result)
+		atomic_inc(&inc->usecnt);
 	return result;
 }
 
@@ -156,8 +166,8 @@ int ip_vs_app_inc_get(struct ip_vs_app *inc)
  */
 void ip_vs_app_inc_put(struct ip_vs_app *inc)
 {
-	ip_vs_app_put(inc->app);
 	atomic_dec(&inc->usecnt);
+	ip_vs_app_put(inc->app);
 }
 
 
@@ -218,6 +228,7 @@ out_unlock:
 /*
  *	ip_vs_app unregistration routine
  *	We are sure there are no app incarnations attached to services
+ *	Caller should use synchronize_rcu() or rcu_barrier()
  */
 void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app)
 {
