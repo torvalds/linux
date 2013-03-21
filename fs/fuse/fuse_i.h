@@ -417,6 +417,10 @@ struct fuse_conn {
 	/** Batching of FORGET requests (positive indicates FORGET batch) */
 	int forget_batch;
 
+	/** Flag indicating that INIT reply has been received. Allocating
+	 * any fuse request will be suspended until the flag is set */
+	int initialized;
+
 	/** Flag indicating if connection is blocked.  This will be
 	    the case before the INIT reply is received, and if there
 	    are too many outstading backgrounds requests */

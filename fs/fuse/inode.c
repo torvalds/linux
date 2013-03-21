@@ -363,6 +363,7 @@ void fuse_conn_kill(struct fuse_conn *fc)
 	spin_lock(&fc->lock);
 	fc->connected = 0;
 	fc->blocked = 0;
+	fc->initialized = 1;
 	spin_unlock(&fc->lock);
 	/* Flush all readers on this fs */
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
@@ -583,6 +584,7 @@ void fuse_conn_init(struct fuse_conn *fc)
 	fc->polled_files = RB_ROOT;
 	fc->reqctr = 0;
 	fc->blocked = 1;
+	fc->initialized = 0;
 	fc->attr_version = 1;
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 }
@@ -882,6 +884,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->conn_init = 1;
 	}
 	fc->blocked = 0;
+	fc->initialized = 1;
 	wake_up_all(&fc->blocked_waitq);
 }
 

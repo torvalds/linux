@@ -2087,6 +2087,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 	if (fc->connected) {
 		fc->connected = 0;
 		fc->blocked = 0;
+		fc->initialized = 1;
 		end_io_requests(fc);
 		end_queued_requests(fc);
 		end_polls(fc);
