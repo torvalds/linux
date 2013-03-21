@@ -1621,11 +1621,11 @@ flush_now:
 			nid_in_journal(sum, offset) = cpu_to_le32(nid);
 		}
 
-		if (nat_get_blkaddr(ne) == NULL_ADDR) {
+		if (nat_get_blkaddr(ne) == NULL_ADDR &&
+					!add_free_nid(NM_I(sbi), nid)) {
 			write_lock(&nm_i->nat_tree_lock);
 			__del_from_nat_cache(nm_i, ne);
 			write_unlock(&nm_i->nat_tree_lock);
-			add_free_nid(NM_I(sbi), nid);
 		} else {
 			write_lock(&nm_i->nat_tree_lock);
 			__clear_nat_cache_dirty(nm_i, ne);
