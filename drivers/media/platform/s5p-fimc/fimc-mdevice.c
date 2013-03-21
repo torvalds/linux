@@ -151,26 +151,48 @@ static int fimc_pipeline_s_power(struct fimc_pipeline *p, bool state)
  * __fimc_pipeline_open - update the pipeline information, enable power
  *                        of all pipeline subdevs and the sensor clock
  * @me: media entity to start graph walk with
- * @prep: true to acquire sensor (and csis) subdevs
+ * @prepare: true to walk the current pipeline and acquire all subdevs
  *
  * Called with the graph mutex held.
  */
 static int __fimc_pipeline_open(struct fimc_pipeline *p,
-				struct media_entity *me, bool prep)
+				struct media_entity *me, bool prepare)
 {
+	struct fimc_md *fmd = entity_to_fimc_mdev(me);
+	struct v4l2_subdev *sd;
 	int ret;
 
-	if (prep)
-		fimc_pipeline_prepare(p, me);
-
-	if (p->subdevs[IDX_SENSOR] == NULL)
+	if (WARN_ON(p == NULL || me == NULL))
 		return -EINVAL;
 
-	ret = fimc_md_set_camclk(p->subdevs[IDX_SENSOR], true);
-	if (ret)
-		return ret;
+	if (prepare)
+		fimc_pipeline_prepare(p, me);
 
-	return fimc_pipeline_s_power(p, 1);
+	sd = p->subdevs[IDX_SENSOR];
+	if (sd == NULL)
+		return -EINVAL;
+
+	/* Disable PXLASYNC clock if this pipeline includes FIMC-IS */
+	if (!IS_ERR(fmd->wbclk[CLK_IDX_WB_B]) && p->subdevs[IDX_IS_ISP]) {
+		ret = clk_prepare_enable(fmd->wbclk[CLK_IDX_WB_B]);
+		if (ret < 0)
+			return ret;
+	}
+	ret = fimc_md_set_camclk(sd, true);
+	if (ret < 0)
+		goto err_wbclk;
+
+	ret = fimc_pipeline_s_power(p, 1);
+	if (!ret)
+		return 0;
+
+	fimc_md_set_camclk(sd, false);
+
+err_wbclk:
+	if (!IS_ERR(fmd->wbclk[CLK_IDX_WB_B]) && p->subdevs[IDX_IS_ISP])
+		clk_disable_unprepare(fmd->wbclk[CLK_IDX_WB_B]);
+
+	return ret;
 }
 
 /**
@@ -181,15 +203,24 @@ static int __fimc_pipeline_open(struct fimc_pipeline *p,
  */
 static int __fimc_pipeline_close(struct fimc_pipeline *p)
 {
+	struct v4l2_subdev *sd = p ? p->subdevs[IDX_SENSOR] : NULL;
+	struct fimc_md *fmd;
 	int ret = 0;
 
-	if (!p || !p->subdevs[IDX_SENSOR])
+	if (WARN_ON(sd == NULL))
 		return -EINVAL;
 
 	if (p->subdevs[IDX_SENSOR]) {
 		ret = fimc_pipeline_s_power(p, 0);
-		fimc_md_set_camclk(p->subdevs[IDX_SENSOR], false);
+		fimc_md_set_camclk(sd, false);
 	}
+
+	fmd = entity_to_fimc_mdev(&sd->entity);
+
+	/* Disable PXLASYNC clock if this pipeline includes FIMC-IS */
+	if (!IS_ERR(fmd->wbclk[CLK_IDX_WB_B]) && p->subdevs[IDX_IS_ISP])
+		clk_disable_unprepare(fmd->wbclk[CLK_IDX_WB_B]);
+
 	return ret == -ENXIO ? 0 : ret;
 }
 
@@ -959,7 +990,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 }
 
 /*
- * The peripheral sensor clock management.
+ * The peripheral sensor and CAM_BLK (PIXELASYNCMx) clocks management.
  */
 static void fimc_md_put_clocks(struct fimc_md *fmd)
 {
@@ -971,6 +1002,14 @@ static void fimc_md_put_clocks(struct fimc_md *fmd)
 		clk_unprepare(fmd->camclk[i].clock);
 		clk_put(fmd->camclk[i].clock);
 		fmd->camclk[i].clock = ERR_PTR(-EINVAL);
+	}
+
+	/* Writeback (PIXELASYNCMx) clocks */
+	for (i = 0; i < FIMC_MAX_WBCLKS; i++) {
+		if (IS_ERR(fmd->wbclk[i]))
+			continue;
+		clk_put(fmd->wbclk[i]);
+		fmd->wbclk[i] = ERR_PTR(-EINVAL);
 	}
 }
 
@@ -1004,6 +1043,28 @@ static int fimc_md_get_clocks(struct fimc_md *fmd)
 			break;
 		}
 		fmd->camclk[i].clock = clock;
+	}
+	if (ret)
+		fimc_md_put_clocks(fmd);
+
+	if (!fmd->use_isp)
+		return 0;
+	/*
+	 * For now get only PIXELASYNCM1 clock (Writeback B/ISP),
+	 * leave PIXELASYNCM0 out for the LCD Writeback driver.
+	 */
+	fmd->wbclk[CLK_IDX_WB_A] = ERR_PTR(-EINVAL);
+
+	for (i = CLK_IDX_WB_B; i < FIMC_MAX_WBCLKS; i++) {
+		snprintf(clk_name, sizeof(clk_name), "pxl_async%u", i);
+		clock = clk_get(dev, clk_name);
+		if (IS_ERR(clock)) {
+			v4l2_err(&fmd->v4l2_dev, "Failed to get clock: %s\n",
+				  clk_name);
+			ret = PTR_ERR(clock);
+			break;
+		}
+		fmd->wbclk[i] = clock;
 	}
 	if (ret)
 		fimc_md_put_clocks(fmd);

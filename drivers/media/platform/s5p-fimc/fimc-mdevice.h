@@ -41,6 +41,13 @@
 #define FIMC_MAX_SENSORS	8
 #define FIMC_MAX_CAMCLKS	2
 
+/* LCD/ISP Writeback clocks (PIXELASYNCMx) */
+enum {
+	CLK_IDX_WB_A,
+	CLK_IDX_WB_B,
+	FIMC_MAX_WBCLKS
+};
+
 struct fimc_csis_info {
 	struct v4l2_subdev *sd;
 	int id;
@@ -73,6 +80,7 @@ struct fimc_sensor_info {
  * @num_sensors: actual number of registered sensors
  * @camclk: external sensor clock information
  * @fimc: array of registered fimc devices
+ * @use_isp: set to true when FIMC-IS subsystem is used
  * @media_dev: top level media device
  * @v4l2_dev: top level v4l2_device holding up the subdevs
  * @pdev: platform device this media device is hooked up into
@@ -87,8 +95,10 @@ struct fimc_md {
 	struct fimc_sensor_info sensor[FIMC_MAX_SENSORS];
 	int num_sensors;
 	struct fimc_camclk_info camclk[FIMC_MAX_CAMCLKS];
+	struct clk *wbclk[FIMC_MAX_WBCLKS];
 	struct fimc_lite *fimc_lite[FIMC_LITE_MAX_DEVS];
 	struct fimc_dev *fimc[FIMC_MAX_DEVS];
+	bool use_isp;
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
