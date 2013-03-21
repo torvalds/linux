@@ -33,6 +33,12 @@ config ARCH_R8A7740
 	select CPU_V7
 	select SH_CLK_CPG
 
+config ARCH_R8A7778
+	bool "R-Car M1 (R8A77780)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARM_GIC
+
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
