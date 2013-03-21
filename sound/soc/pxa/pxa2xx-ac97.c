@@ -47,6 +47,7 @@ struct snd_ac97_bus_ops soc_ac97_ops = {
 	.warm_reset	= pxa2xx_ac97_warm_reset,
 	.reset	= pxa2xx_ac97_cold_reset,
 };
+EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_out = {
 	.name			= "AC97 PCM Stereo out",
@@ -231,8 +232,6 @@ static struct snd_soc_dai_driver pxa_ac97_dai_driver[] = {
 	.ops = &pxa_ac97_mic_dai_ops,
 },
 };
-
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 {
