@@ -62,7 +62,7 @@ static const char *find_debugfs(void)
 	const char *path = perf_debugfs_mount(NULL);
 
 	if (!path)
-		die("Your kernel not support debugfs filesystem");
+		pr_debug("Your kernel does not support the debugfs filesystem");
 
 	return path;
 }
@@ -81,8 +81,12 @@ static const char *find_tracing_dir(void)
 		return tracing;
 
 	debugfs = find_debugfs();
+	if (!debugfs)
+		return NULL;
 
-	tracing = malloc_or_die(strlen(debugfs) + 9);
+	tracing = malloc(strlen(debugfs) + 9);
+	if (!tracing)
+		return NULL;
 
 	sprintf(tracing, "%s/tracing", debugfs);
 
@@ -99,7 +103,9 @@ static char *get_tracing_file(const char *name)
 	if (!tracing)
 		return NULL;
 
-	file = malloc_or_die(strlen(tracing) + strlen(name) + 2);
+	file = malloc(strlen(tracing) + strlen(name) + 2);
+	if (!file)
+		return NULL;
 
 	sprintf(file, "%s/%s", tracing, name);
 	return file;
@@ -170,6 +176,9 @@ static void read_header_files(void)
 	struct stat st;
 
 	path = get_tracing_file("events/header_page");
+	if (!path)
+		die("can't get tracing/events/header_page");
+
 	if (stat(path, &st) < 0)
 		die("can't read '%s'", path);
 
@@ -178,6 +187,9 @@ static void read_header_files(void)
 	put_tracing_file(path);
 
 	path = get_tracing_file("events/header_event");
+	if (!path)
+		die("can't get tracing/events/header_event");
+
 	if (stat(path, &st) < 0)
 		die("can't read '%s'", path);
 
@@ -251,6 +263,8 @@ static void read_ftrace_files(struct tracepoint_path *tps)
 	char *path;
 
 	path = get_tracing_file("events/ftrace");
+	if (!path)
+		die("can't get tracing/events/ftrace");
 
 	copy_event_system(path, tps);
 
@@ -279,6 +293,8 @@ static void read_event_files(struct tracepoint_path *tps)
 	int ret;
 
 	path = get_tracing_file("events");
+	if (!path)
+		die("can't get tracing/events");
 
 	dir = opendir(path);
 	if (!dir)
@@ -343,6 +359,9 @@ static void read_ftrace_printk(void)
 	int ret;
 
 	path = get_tracing_file("printk_formats");
+	if (!path)
+		die("can't get tracing/printk_formats");
+
 	ret = stat(path, &st);
 	if (ret < 0) {
 		/* not found */
