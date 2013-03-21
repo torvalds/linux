@@ -989,11 +989,10 @@ static char *audio_modes[] = {
 	"audio: intern", "audio: mute"
 };
 
-static int
-audio_mux(struct bttv *btv, int input, int mute)
+static void
+audio_mux_gpio(struct bttv *btv, int input, int mute)
 {
 	int gpio_val, signal, mute_gpio;
-	struct v4l2_ctrl *ctrl;
 
 	gpio_inout(bttv_tvcards[btv->c.type].gpiomask,
 		   bttv_tvcards[btv->c.type].gpiomask);
@@ -1020,8 +1019,14 @@ audio_mux(struct bttv *btv, int input, int mute)
 
 	if (bttv_gpio)
 		bttv_gpio_tracking(btv, audio_modes[mute_gpio ? 4 : input]);
-	if (in_interrupt())
-		return 0;
+}
+
+static int
+audio_mux(struct bttv *btv, int input, int mute)
+{
+	struct v4l2_ctrl *ctrl;
+
+	audio_mux_gpio(btv, input, mute);
 
 	if (btv->sd_msp34xx) {
 		u32 in;
@@ -3846,7 +3851,8 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 			bttv_irq_switch_video(btv);
 
 		if ((astat & BT848_INT_HLOCK)  &&  btv->opt_automute)
-			audio_mute(btv, btv->mute);  /* trigger automute */
+			/* trigger automute */
+			audio_mux_gpio(btv, btv->audio_input, btv->mute);
 
 		if (astat & (BT848_INT_SCERR|BT848_INT_OCERR)) {
 			pr_info("%d: %s%s @ %08x,",
