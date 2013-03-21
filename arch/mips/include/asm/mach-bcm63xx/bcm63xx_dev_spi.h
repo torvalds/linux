@@ -75,7 +75,8 @@ static inline unsigned long bcm63xx_spireg(enum bcm63xx_regs_spi reg)
 #if defined(CONFIG_BCM63XX_CPU_6338) || defined(CONFIG_BCM63XX_CPU_6348)
 	__GEN_SPI_RSET(6348)
 #endif
-#if defined(CONFIG_BCM63XX_CPU_6358) || defined(CONFIG_BCM63XX_CPU_6368)
+#if defined(CONFIG_BCM63XX_CPU_6358) || defined(CONFIG_BCM63XX_CPU_6362) || \
+	defined(CONFIG_BCM63XX_CPU_6368)
 	__GEN_SPI_RSET(6358)
 #endif
 #endif
