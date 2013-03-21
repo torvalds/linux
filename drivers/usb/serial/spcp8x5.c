@@ -456,57 +456,6 @@ static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return usb_serial_generic_open(tty, port);
 }
 
-static void spcp8x5_process_read_urb(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	unsigned char *data = urb->transfer_buffer;
-	unsigned long flags;
-	u8 status;
-	char tty_flag;
-
-	/* get tty_flag from status */
-	tty_flag = TTY_NORMAL;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	status = priv->line_status;
-	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (!urb->actual_length)
-		return;
-
-
-	if (status & UART_STATE_TRANSIENT_MASK) {
-		/* break takes precedence over parity, which takes precedence
-		 * over framing errors */
-		if (status & UART_BREAK_ERROR)
-			tty_flag = TTY_BREAK;
-		else if (status & UART_PARITY_ERROR)
-			tty_flag = TTY_PARITY;
-		else if (status & UART_FRAME_ERROR)
-			tty_flag = TTY_FRAME;
-		dev_dbg(&port->dev, "tty_flag = %d\n", tty_flag);
-
-		/* overrun is special, not associated with a char */
-		if (status & UART_OVERRUN_ERROR)
-			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
-
-		if (status & UART_DCD) {
-			struct tty_struct *tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				usb_serial_handle_dcd_change(port, tty,
-				       priv->line_status & MSR_STATUS_LINE_DCD);
-				tty_kref_put(tty);
-			}
-		}
-	}
-
-	tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
-							urb->actual_length);
-	tty_flip_buffer_push(&port->port);
-}
-
 static int spcp8x5_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
@@ -571,7 +520,6 @@ static struct usb_serial_driver spcp8x5_device = {
 	.tiocmset 		= spcp8x5_tiocmset,
 	.port_probe		= spcp8x5_port_probe,
 	.port_remove		= spcp8x5_port_remove,
-	.process_read_urb	= spcp8x5_process_read_urb,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
