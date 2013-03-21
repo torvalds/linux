@@ -102,7 +102,7 @@ int usb_serial_generic_open(struct tty_struct *tty, struct usb_serial_port *port
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_open);
 
-static void generic_cleanup(struct usb_serial_port *port)
+void usb_serial_generic_close(struct usb_serial_port *port)
 {
 	unsigned long flags;
 	int i;
@@ -119,11 +119,6 @@ static void generic_cleanup(struct usb_serial_port *port)
 		for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i)
 			usb_kill_urb(port->read_urbs[i]);
 	}
-}
-
-void usb_serial_generic_close(struct usb_serial_port *port)
-{
-	generic_cleanup(port);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_close);
 
@@ -507,11 +502,6 @@ EXPORT_SYMBOL_GPL(usb_serial_generic_resume);
 
 void usb_serial_generic_disconnect(struct usb_serial *serial)
 {
-	int i;
-
-	/* stop reads and writes on all ports */
-	for (i = 0; i < serial->num_ports; ++i)
-		generic_cleanup(serial->port[i]);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_disconnect);
 
