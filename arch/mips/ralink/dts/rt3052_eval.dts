@@ -3,8 +3,6 @@
 /include/ "rt3050.dtsi"
 
 / {
-	#address-cells = <1>;
-	#size-cells = <1>;
 	compatible = "ralink,rt3052-eval-board", "ralink,rt3052-soc";
 	model = "Ralink RT3052 evaluation board";
 
@@ -12,12 +10,8 @@
 		reg = <0x0 0x2000000>;
 	};
 
-	palmbus@10000000 {
-		sysc@0 {
-			ralink,pinmmux = "uartlite", "spi";
-			ralink,uartmux = "gpio";
-			ralink,wdtmux = <0>;
-		};
+	chosen {
+		bootargs = "console=ttyS0,57600";
 	};
 
 	cfi@1f000000 {
