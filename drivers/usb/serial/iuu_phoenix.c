@@ -942,11 +942,6 @@ static void iuu_set_termios(struct tty_struct *tty,
 static void iuu_close(struct usb_serial_port *port)
 {
 	/* iuu_led (port,255,0,0,0); */
-	struct usb_serial *serial;
-
-	serial = port->serial;
-	if (!serial)
-		return;
 
 	iuu_uart_off(port);
 
