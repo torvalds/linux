@@ -24,7 +24,8 @@
 #define __NOUVEAU_HW_H__
 
 #include <drm/drmP.h>
-#include "nv04_display.h"
+#include "disp.h"
+#include "nvreg.h"
 
 #include <subdev/bios/pll.h>
 

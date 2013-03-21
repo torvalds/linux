@@ -225,9 +225,7 @@ nouveau-y += nouveau_connector.o nouveau_dp.o
 nouveau-y += nv04_fbcon.o nv50_fbcon.o nvc0_fbcon.o
 
 # drm/kms/nv04:nv50
-nouveau-y += nouveau_hw.o nouveau_calc.o
-nouveau-y += nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o
-nouveau-y += nv04_crtc.o nv04_display.o nv04_cursor.o
+include $(src)/dispnv04/Makefile
 
 # drm/kms/nv50-
 nouveau-y += nv50_display.o

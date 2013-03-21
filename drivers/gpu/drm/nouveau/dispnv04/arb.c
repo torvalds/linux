@@ -25,7 +25,7 @@
 
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
-#include "nouveau_hw.h"
+#include "hw.h"
 
 /****************************************************************************\
 *                                                                            *

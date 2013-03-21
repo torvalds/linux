@@ -3,7 +3,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
 #include "nouveau_crtc.h"
-#include "nouveau_hw.h"
+#include "hw.h"
 
 static void
 nv04_cursor_show(struct nouveau_crtc *nv_crtc, bool update)
@@ -68,4 +68,3 @@ nv04_cursor_init(struct nouveau_crtc *crtc)
 	crtc->cursor.show = nv04_cursor_show;
 	return 0;
 }
-

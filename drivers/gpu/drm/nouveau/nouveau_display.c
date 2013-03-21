@@ -28,7 +28,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "nouveau_fbcon.h"
-#include "nouveau_hw.h"
+#include "dispnv04/hw.h"
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"

@@ -29,8 +29,8 @@
 #include "nouveau_drm.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
-#include "nouveau_hw.h"
-#include "nv17_tv.h"
+#include "hw.h"
+#include "tvnv17.h"
 
 char *nv17_tv_norm_names[NUM_TV_NORMS] = {
 	[TV_NORM_PAL] = "PAL",
