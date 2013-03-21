@@ -226,31 +226,27 @@ static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 {
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *dev = port->serial->dev;
-	u8 *status_buffer;
+	u8 *buf;
 	int ret;
 
 	/* I return Permited not support here but seem inval device
 	 * is more fix */
 	if (priv->type == SPCP825_007_TYPE)
 		return -EPERM;
-	if (status == NULL)
-		return -EINVAL;
 
-	status_buffer = kmalloc(1, GFP_KERNEL);
-	if (!status_buffer)
+	buf = kzalloc(1, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
-	status_buffer[0] = status[0];
 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			      GET_UART_STATUS, GET_UART_STATUS_TYPE,
-			      0, GET_UART_STATUS_MSR, status_buffer, 1, 100);
+			      0, GET_UART_STATUS_MSR, buf, 1, 100);
 	if (ret < 0)
 		dev_err(&port->dev, "failed to get modem status: %d", ret);
 
-	dev_dbg(&port->dev, "0xc0:0x22:0:6  %d - 0x02%x", ret, *status_buffer);
-
-	status[0] = status_buffer[0];
-	kfree(status_buffer);
+	dev_dbg(&port->dev, "0xc0:0x22:0:6  %d - 0x02%x", ret, *buf);
+	*status = *buf;
+	kfree(buf);
 
 	return ret;
 }
