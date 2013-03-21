@@ -1661,18 +1661,20 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		rcu_read_lock();
 		ies = rcu_dereference(cbss->ies);
 		if (ies) {
-			u8 noa[2];
+			struct ieee80211_p2p_noa_attr noa;
 			int ret;
 
 			ret = cfg80211_get_p2p_attr(
 					ies->data, ies->len,
 					IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
-					noa, sizeof(noa));
+					(u8 *) &noa, sizeof(noa));
 			if (ret >= 2) {
-				bss_conf->p2p_oppps = noa[1] & 0x80;
-				bss_conf->p2p_ctwindow = noa[1] & 0x7f;
+				bss_conf->p2p_oppps = noa.oppps_ctwindow &
+						IEEE80211_P2P_OPPPS_ENABLE_BIT;
+				bss_conf->p2p_ctwindow = noa.oppps_ctwindow &
+						IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
 				bss_info_changed |= BSS_CHANGED_P2P_PS;
-				sdata->u.mgd.p2p_noa_index = noa[0];
+				sdata->u.mgd.p2p_noa_index = noa.index;
 			}
 		}
 		rcu_read_unlock();
@@ -2961,18 +2963,20 @@ ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sdata->vif.p2p) {
-		u8 noa[2];
+		struct ieee80211_p2p_noa_attr noa;
 		int ret;
 
 		ret = cfg80211_get_p2p_attr(mgmt->u.beacon.variable,
 					    len - baselen,
 					    IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
-					    noa, sizeof(noa));
-		if (ret >= 2 && sdata->u.mgd.p2p_noa_index != noa[0]) {
-			bss_conf->p2p_oppps = noa[1] & 0x80;
-			bss_conf->p2p_ctwindow = noa[1] & 0x7f;
+					    (u8 *) &noa, sizeof(noa));
+		if (ret >= 2 && sdata->u.mgd.p2p_noa_index != noa.index) {
+			bss_conf->p2p_oppps = noa.oppps_ctwindow &
+						IEEE80211_P2P_OPPPS_ENABLE_BIT;
+			bss_conf->p2p_ctwindow = noa.oppps_ctwindow &
+						IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
 			changed |= BSS_CHANGED_P2P_PS;
-			sdata->u.mgd.p2p_noa_index = noa[0];
+			sdata->u.mgd.p2p_noa_index = noa.index;
 			/*
 			 * make sure we update all information, the CRC
 			 * mechanism doesn't look at P2P attributes.
