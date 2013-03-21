@@ -43,7 +43,7 @@ int file_bigendian;
 int host_bigendian;
 static int long_size;
 
-static ssize_t calc_data_size;
+static ssize_t trace_data_size;
 static bool repipe;
 
 static int __do_read(int fd, void *buf, int size)
@@ -83,8 +83,7 @@ static int do_read(void *data, int size)
 		return -1;
 	}
 
-	if (calc_data_size)
-		calc_data_size += r;
+	trace_data_size += r;
 
 	return r;
 }
@@ -155,8 +154,7 @@ static char *read_string(void)
 			break;
 	}
 
-	if (calc_data_size)
-		calc_data_size += size;
+	trace_data_size += size;
 
 	str = malloc(size);
 	if (str)
@@ -356,9 +354,7 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 
 	*ppevent = NULL;
 
-	calc_data_size = 1;
 	repipe = __repipe;
-
 	input_fd = fd;
 
 	if (do_read(buf, 3) < 0)
@@ -417,8 +413,7 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	if (err)
 		goto out;
 
-	size = calc_data_size - 1;
-	calc_data_size = 0;
+	size = trace_data_size;
 	repipe = false;
 
 	if (show_funcs) {
