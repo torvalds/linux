@@ -2254,10 +2254,10 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 	/* bitbang init */
 	bitbang->addr = mdp->addr + mdp->reg_offset[PIR];
 	bitbang->set_gate = pd->set_mdio_gate;
-	bitbang->mdi_msk = 0x08;
-	bitbang->mdo_msk = 0x04;
-	bitbang->mmd_msk = 0x02;/* MMD */
-	bitbang->mdc_msk = 0x01;
+	bitbang->mdi_msk = PIR_MDI;
+	bitbang->mdo_msk = PIR_MDO;
+	bitbang->mmd_msk = PIR_MMD;
+	bitbang->mdc_msk = PIR_MDC;
 	bitbang->ctrl.ops = &bb_ops;
 
 	/* MII controller setting */
