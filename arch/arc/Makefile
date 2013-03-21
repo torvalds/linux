@@ -8,6 +8,10 @@
 
 UTS_MACHINE := arc
 
+ifeq ($(CROSS_COMPILE),)
+CROSS_COMPILE := arc-elf32-
+endif
+
 KBUILD_DEFCONFIG := fpga_defconfig
 
 cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
