@@ -272,6 +272,7 @@ struct usb_serial_driver {
 	int  (*tiocmget)(struct tty_struct *tty);
 	int  (*tiocmset)(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
+	int  (*tiocmiwait)(struct tty_struct *tty, unsigned long arg);
 	int  (*get_icount)(struct tty_struct *tty,
 			struct serial_icounter_struct *icount);
 	/* Called by the tty layer for port level work. There may or may not

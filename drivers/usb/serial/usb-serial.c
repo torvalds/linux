@@ -402,10 +402,17 @@ static int serial_ioctl(struct tty_struct *tty,
 
 	dev_dbg(tty->dev, "%s - cmd 0x%.4x\n", __func__, cmd);
 
-	if (port->serial->type->ioctl)
-		retval = port->serial->type->ioctl(tty, cmd, arg);
-	else
-		retval = -ENOIOCTLCMD;
+	switch (cmd) {
+	case TIOCMIWAIT:
+		if (port->serial->type->tiocmiwait)
+			retval = port->serial->type->tiocmiwait(tty, arg);
+		break;
+	default:
+		if (port->serial->type->ioctl)
+			retval = port->serial->type->ioctl(tty, cmd, arg);
+		else
+			retval = -ENOIOCTLCMD;
+	}
 
 	return retval;
 }
