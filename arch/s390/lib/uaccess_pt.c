@@ -197,7 +197,7 @@ size_t copy_to_user_pt(size_t n, void __user *to, const void *from)
 
 static size_t clear_user_pt(size_t n, void __user *to)
 {
-	void *zpage = &empty_zero_page;
+	void *zpage = (void *) empty_zero_page;
 	long done, size, ret;
 
 	done = 0;
