@@ -73,6 +73,11 @@ int __meminit __early_pfn_to_nid(unsigned long pfn)
 	return -1;
 }
 
+void __cpuinit numa_clear_node(int cpu)
+{
+	unmap_cpu_from_node(cpu, NUMA_NO_NODE);
+}
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
  *  SRAT information is stored in node_memblk[], then we can use SRAT
