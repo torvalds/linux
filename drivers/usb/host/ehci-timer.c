@@ -297,6 +297,15 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 {
 	u32 cmd, status;
 
+	/*
+	 * Lost IAA irqs wedge things badly; seen first with a vt8235.
+	 * So we need this watchdog, but must protect it against both
+	 * (a) SMP races against real IAA firing and retriggering, and
+	 * (b) clean HC shutdown, when IAA watchdog was pending.
+	 */
+	if (ehci->rh_state != EHCI_RH_RUNNING)
+		return;
+
 	/* If we get here, IAA is *REALLY* late.  It's barely
 	 * conceivable that the system is so busy that CMD_IAAD
 	 * is still legitimately set, so let's be sure it's
