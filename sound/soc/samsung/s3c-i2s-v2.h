@@ -92,7 +92,7 @@ extern int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 			   unsigned long base);
 
 /**
- * s3c_i2sv2_register_dai - register dai with soc core
+ * s3c_i2sv2_register_component - register component and dai with soc core
  * @dev: DAI device
  * @id: DAI ID
  * @drv: The driver structure to register
@@ -100,7 +100,8 @@ extern int s3c_i2sv2_probe(struct snd_soc_dai *dai,
  * Fill in any missing fields and then register the given dai with the
  * soc core.
  */
-extern int s3c_i2sv2_register_dai(struct device *dev, int id,
-		struct snd_soc_dai_driver *drv);
+extern int s3c_i2sv2_register_component(struct device *dev, int id,
+					struct snd_soc_component_driver *cmp_drv,
+					struct snd_soc_dai_driver *dai_drv);
 
 #endif /* __SND_SOC_S3C24XX_S3C_I2SV2_I2S_H */
