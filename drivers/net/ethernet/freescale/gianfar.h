@@ -629,7 +629,6 @@ struct rmon_mib
 };
 
 struct gfar_extra_stats {
-	atomic64_t kernel_dropped;
 	atomic64_t rx_large;
 	atomic64_t rx_short;
 	atomic64_t rx_nonoctet;

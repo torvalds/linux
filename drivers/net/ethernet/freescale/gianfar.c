@@ -2695,8 +2695,6 @@ static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	struct gfar_private *priv = netdev_priv(dev);
 	struct rxfcb *fcb = NULL;
 
-	gro_result_t ret;
-
 	/* fcb is at the beginning if exists */
 	fcb = (struct rxfcb *)skb->data;
 
@@ -2735,10 +2733,8 @@ static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 		__vlan_hwaccel_put_tag(skb, fcb->vlctl);
 
 	/* Send the packet up the stack */
-	ret = napi_gro_receive(napi, skb);
+	napi_gro_receive(napi, skb);
 
-	if (unlikely(GRO_DROP == ret))
-		atomic64_inc(&priv->extra_stats.kernel_dropped);
 }
 
 /* gfar_clean_rx_ring() -- Processes each frame in the rx ring
