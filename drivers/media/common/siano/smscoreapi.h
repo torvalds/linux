@@ -577,8 +577,11 @@ enum msg_types {
 };
 
 #define SMS_INIT_MSG_EX(ptr, type, src, dst, len) do { \
-	(ptr)->msg_type = type; (ptr)->msg_src_id = src; (ptr)->msg_dst_id = dst; \
-	(ptr)->msg_length = len; (ptr)->msg_flags = 0; \
+	(ptr)->msg_type = type; \
+	(ptr)->msg_src_id = src; \
+	(ptr)->msg_dst_id = dst; \
+	(ptr)->msg_length = len; \
+	(ptr)->msg_flags = 0; \
 } while (0)
 
 #define SMS_INIT_MSG(ptr, type, len) \
@@ -704,7 +707,7 @@ struct sms_stats {
 	u32 modem_state;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET,
 	valid only for DVB-T/H */
 	u32 guard_interval;	/* Guard Interval from
-	SMSHOSTLIB_GUARD_INTERVALS_ET, 	valid only for DVB-T/H */
+	SMSHOSTLIB_GUARD_INTERVALS_ET,	valid only for DVB-T/H */
 	u32 code_rate;		/* Code Rate from SMSHOSTLIB_CODE_RATE_ET,
 	valid only for DVB-T/H */
 	u32 lp_code_rate;		/* Low Priority Code Rate from
@@ -746,7 +749,7 @@ struct sms_stats {
 	u32 sms_to_host_tx_errors;	/* Total number of transmission errors. */
 
 	/* DAB/T-DMB */
-	u32 pre_ber; 		/* DAB/T-DMB only: Pre Viterbi BER [1E-5] */
+	u32 pre_ber;		/* DAB/T-DMB only: Pre Viterbi BER [1E-5] */
 
 	/* DVB-H TPS parameters */
 	u32 cell_id;		/* TPS Cell ID in bits 15..0, bits 31..16 zero;
@@ -1177,7 +1180,8 @@ int smscore_led_state(struct smscore_device_t *core, int led);
 
 #define dprintk(kern, lvl, fmt, arg...) do {\
 	if (sms_dbg & lvl) \
-		sms_printk(kern, fmt, ##arg); } while (0)
+		sms_printk(kern, fmt, ##arg); \
+} while (0)
 
 #define sms_log(fmt, arg...) sms_printk(KERN_INFO, fmt, ##arg)
 #define sms_err(fmt, arg...) \
