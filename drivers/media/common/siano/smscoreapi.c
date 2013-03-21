@@ -792,22 +792,22 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 		if	(rc != 0)
 			sms_err("Error initialization DTV IR sub-module");
 		else {
-			buffer = kmalloc(sizeof(struct SmsMsgData_ST2) +
+			buffer = kmalloc(sizeof(struct sms_msg_data2) +
 						SMS_DMA_ALIGNMENT,
 						GFP_KERNEL | GFP_DMA);
 			if (buffer) {
-				struct SmsMsgData_ST2 *msg =
-				(struct SmsMsgData_ST2 *)
+				struct sms_msg_data2 *msg =
+				(struct sms_msg_data2 *)
 				SMS_ALIGN_ADDRESS(buffer);
 
-				SMS_INIT_MSG(&msg->xMsgHeader,
+				SMS_INIT_MSG(&msg->x_msg_header,
 						MSG_SMS_START_IR_REQ,
-						sizeof(struct SmsMsgData_ST2));
+						sizeof(struct sms_msg_data2));
 				msg->msgData[0] = coredev->ir.controller;
 				msg->msgData[1] = coredev->ir.timeout;
 
 				rc = smscore_sendrequest_and_wait(coredev, msg,
-						msg->xMsgHeader. msgLength,
+						msg->x_msg_header. msg_length,
 						&coredev->ir_init_done);
 
 				kfree(buffer);
@@ -840,14 +840,14 @@ int smscore_configure_board(struct smscore_device_t *coredev)
 	}
 
 	if (board->mtu) {
-		struct SmsMsgData_ST MtuMsg;
+		struct sms_msg_data MtuMsg;
 		sms_debug("set max transmit unit %d", board->mtu);
 
-		MtuMsg.xMsgHeader.msgSrcId = 0;
-		MtuMsg.xMsgHeader.msgDstId = HIF_TASK;
-		MtuMsg.xMsgHeader.msgFlags = 0;
-		MtuMsg.xMsgHeader.msgType = MSG_SMS_SET_MAX_TX_MSG_LEN_REQ;
-		MtuMsg.xMsgHeader.msgLength = sizeof(MtuMsg);
+		MtuMsg.x_msg_header.msg_src_id = 0;
+		MtuMsg.x_msg_header.msg_dst_id = HIF_TASK;
+		MtuMsg.x_msg_header.msg_flags = 0;
+		MtuMsg.x_msg_header.msg_type = MSG_SMS_SET_MAX_TX_MSG_LEN_REQ;
+		MtuMsg.x_msg_header.msg_length = sizeof(MtuMsg);
 		MtuMsg.msgData[0] = board->mtu;
 
 		coredev->sendrequest_handler(coredev->context, &MtuMsg,
@@ -855,10 +855,10 @@ int smscore_configure_board(struct smscore_device_t *coredev)
 	}
 
 	if (board->crystal) {
-		struct SmsMsgData_ST CrysMsg;
+		struct sms_msg_data CrysMsg;
 		sms_debug("set crystal value %d", board->crystal);
 
-		SMS_INIT_MSG(&CrysMsg.xMsgHeader,
+		SMS_INIT_MSG(&CrysMsg.x_msg_header,
 				MSG_SMS_NEW_CRYSTAL_REQ,
 				sizeof(CrysMsg));
 		CrysMsg.msgData[0] = board->crystal;
@@ -916,19 +916,19 @@ EXPORT_SYMBOL_GPL(smscore_start_device);
 static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 					 void *buffer, size_t size)
 {
-	struct SmsFirmware_ST *firmware = (struct SmsFirmware_ST *) buffer;
-	struct SmsMsgData_ST4 *msg;
+	struct sms_firmware *firmware = (struct sms_firmware *) buffer;
+	struct sms_msg_data4 *msg;
 	u32 mem_address,  calc_checksum = 0;
 	u32 i, *ptr;
-	u8 *payload = firmware->Payload;
+	u8 *payload = firmware->payload;
 	int rc = 0;
-	firmware->StartAddress = le32_to_cpu(firmware->StartAddress);
-	firmware->Length = le32_to_cpu(firmware->Length);
+	firmware->start_address = le32_to_cpu(firmware->start_address);
+	firmware->length = le32_to_cpu(firmware->length);
 
-	mem_address = firmware->StartAddress;
+	mem_address = firmware->start_address;
 
 	sms_info("loading FW to addr 0x%x size %d",
-		 mem_address, firmware->Length);
+		 mem_address, firmware->length);
 	if (coredev->preload_handler) {
 		rc = coredev->preload_handler(coredev->context);
 		if (rc < 0)
@@ -942,10 +942,10 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 
 	if (coredev->mode != DEVICE_MODE_NONE) {
 		sms_debug("sending reload command.");
-		SMS_INIT_MSG(&msg->xMsgHeader, MSG_SW_RELOAD_START_REQ,
-			     sizeof(struct SmsMsgHdr_ST));
+		SMS_INIT_MSG(&msg->x_msg_header, MSG_SW_RELOAD_START_REQ,
+			     sizeof(struct sms_msg_hdr));
 		rc = smscore_sendrequest_and_wait(coredev, msg,
-						  msg->xMsgHeader.msgLength,
+						  msg->x_msg_header.msg_length,
 						  &coredev->reload_start_done);
 		if (rc < 0) {
 			sms_err("device reload failed, rc %d", rc);
@@ -954,24 +954,24 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		mem_address = *(u32 *) &payload[20];
 	}
 
-	for (i = 0, ptr = (u32 *)firmware->Payload; i < firmware->Length/4 ;
+	for (i = 0, ptr = (u32 *)firmware->payload; i < firmware->length/4 ;
 	     i++, ptr++)
 		calc_checksum += *ptr;
 
 	while (size && rc >= 0) {
-		struct SmsDataDownload_ST *DataMsg =
-			(struct SmsDataDownload_ST *) msg;
+		struct sms_data_download *DataMsg =
+			(struct sms_data_download *) msg;
 		int payload_size = min((int) size, SMS_MAX_PAYLOAD_SIZE);
 
-		SMS_INIT_MSG(&msg->xMsgHeader, MSG_SMS_DATA_DOWNLOAD_REQ,
-			     (u16)(sizeof(struct SmsMsgHdr_ST) +
+		SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_DATA_DOWNLOAD_REQ,
+			     (u16)(sizeof(struct sms_msg_hdr) +
 				      sizeof(u32) + payload_size));
 
-		DataMsg->MemAddr = mem_address;
-		memcpy(DataMsg->Payload, payload, payload_size);
+		DataMsg->mem_addr = mem_address;
+		memcpy(DataMsg->payload, payload, payload_size);
 
 		rc = smscore_sendrequest_and_wait(coredev, DataMsg,
-				DataMsg->xMsgHeader.msgLength,
+				DataMsg->x_msg_header.msg_length,
 				&coredev->data_download_done);
 
 		payload += payload_size;
@@ -984,30 +984,30 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 
 	sms_err("sending MSG_SMS_DATA_VALIDITY_REQ expecting 0x%x",
 		calc_checksum);
-	SMS_INIT_MSG(&msg->xMsgHeader, MSG_SMS_DATA_VALIDITY_REQ,
-			sizeof(msg->xMsgHeader) +
+	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_DATA_VALIDITY_REQ,
+			sizeof(msg->x_msg_header) +
 			sizeof(u32) * 3);
-	msg->msgData[0] = firmware->StartAddress;
+	msg->msgData[0] = firmware->start_address;
 		/* Entry point */
-	msg->msgData[1] = firmware->Length;
+	msg->msgData[1] = firmware->length;
 	msg->msgData[2] = 0; /* Regular checksum*/
 	rc = smscore_sendrequest_and_wait(coredev, msg,
-					  msg->xMsgHeader.msgLength,
+					  msg->x_msg_header.msg_length,
 					  &coredev->data_validity_done);
 	if (rc < 0)
 		goto exit_fw_download;
 
 	if (coredev->mode == DEVICE_MODE_NONE) {
-		struct SmsMsgData_ST *TriggerMsg =
-			(struct SmsMsgData_ST *) msg;
+		struct sms_msg_data *TriggerMsg =
+			(struct sms_msg_data *) msg;
 
 		sms_debug("sending MSG_SMS_SWDOWNLOAD_TRIGGER_REQ");
-		SMS_INIT_MSG(&msg->xMsgHeader,
+		SMS_INIT_MSG(&msg->x_msg_header,
 				MSG_SMS_SWDOWNLOAD_TRIGGER_REQ,
-				sizeof(struct SmsMsgHdr_ST) +
+				sizeof(struct sms_msg_hdr) +
 				sizeof(u32) * 5);
 
-		TriggerMsg->msgData[0] = firmware->StartAddress;
+		TriggerMsg->msgData[0] = firmware->start_address;
 					/* Entry point */
 		TriggerMsg->msgData[1] = 6; /* Priority */
 		TriggerMsg->msgData[2] = 0x200; /* Stack size */
@@ -1015,13 +1015,13 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		TriggerMsg->msgData[4] = 4; /* Task ID */
 
 		rc = smscore_sendrequest_and_wait(coredev, TriggerMsg,
-					TriggerMsg->xMsgHeader.msgLength,
+					TriggerMsg->x_msg_header.msg_length,
 					&coredev->trigger_done);
 	} else {
-		SMS_INIT_MSG(&msg->xMsgHeader, MSG_SW_RELOAD_EXEC_REQ,
-				sizeof(struct SmsMsgHdr_ST));
+		SMS_INIT_MSG(&msg->x_msg_header, MSG_SW_RELOAD_EXEC_REQ,
+				sizeof(struct sms_msg_hdr));
 		rc = coredev->sendrequest_handler(coredev->context, msg,
-				msg->xMsgHeader.msgLength);
+				msg->x_msg_header.msg_length);
 	}
 
 	if (rc < 0)
@@ -1256,19 +1256,19 @@ EXPORT_SYMBOL_GPL(smscore_unregister_device);
 
 static int smscore_detect_mode(struct smscore_device_t *coredev)
 {
-	void *buffer = kmalloc(sizeof(struct SmsMsgHdr_ST) + SMS_DMA_ALIGNMENT,
+	void *buffer = kmalloc(sizeof(struct sms_msg_hdr) + SMS_DMA_ALIGNMENT,
 			       GFP_KERNEL | GFP_DMA);
-	struct SmsMsgHdr_ST *msg =
-		(struct SmsMsgHdr_ST *) SMS_ALIGN_ADDRESS(buffer);
+	struct sms_msg_hdr *msg =
+		(struct sms_msg_hdr *) SMS_ALIGN_ADDRESS(buffer);
 	int rc;
 
 	if (!buffer)
 		return -ENOMEM;
 
 	SMS_INIT_MSG(msg, MSG_SMS_GET_VERSION_EX_REQ,
-		     sizeof(struct SmsMsgHdr_ST));
+		     sizeof(struct sms_msg_hdr));
 
-	rc = smscore_sendrequest_and_wait(coredev, msg, msg->msgLength,
+	rc = smscore_sendrequest_and_wait(coredev, msg, msg->msg_length,
 					  &coredev->version_ex_done);
 	if (rc == -ETIME) {
 		sms_err("MSG_SMS_GET_VERSION_EX_REQ failed first try");
@@ -1276,7 +1276,7 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
 		if (wait_for_completion_timeout(&coredev->resume_done,
 						msecs_to_jiffies(5000))) {
 			rc = smscore_sendrequest_and_wait(
-				coredev, msg, msg->msgLength,
+				coredev, msg, msg->msg_length,
 				&coredev->version_ex_done);
 			if (rc < 0)
 				sms_err("MSG_SMS_GET_VERSION_EX_REQ failed "
@@ -1302,23 +1302,23 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
 int smscore_init_device(struct smscore_device_t *coredev, int mode)
 {
 	void *buffer;
-	struct SmsMsgData_ST *msg;
+	struct sms_msg_data *msg;
 	int rc = 0;
 
-	buffer = kmalloc(sizeof(struct SmsMsgData_ST) +
+	buffer = kmalloc(sizeof(struct sms_msg_data) +
 			SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
 	if (!buffer) {
 		sms_err("Could not allocate buffer for init device message.");
 		return -ENOMEM;
 	}
 
-	msg = (struct SmsMsgData_ST *)SMS_ALIGN_ADDRESS(buffer);
-	SMS_INIT_MSG(&msg->xMsgHeader, MSG_SMS_INIT_DEVICE_REQ,
-			sizeof(struct SmsMsgData_ST));
+	msg = (struct sms_msg_data *)SMS_ALIGN_ADDRESS(buffer);
+	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
+			sizeof(struct sms_msg_data));
 	msg->msgData[0] = mode;
 
 	rc = smscore_sendrequest_and_wait(coredev, msg,
-			msg->xMsgHeader. msgLength,
+			msg->x_msg_header. msg_length,
 			&coredev->init_device_done);
 
 	kfree(buffer);
@@ -1396,17 +1396,17 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		coredev->mode = mode;
 		coredev->device_flags &= ~SMS_DEVICE_NOT_READY;
 
-		buffer = kmalloc(sizeof(struct SmsMsgData_ST) +
+		buffer = kmalloc(sizeof(struct sms_msg_data) +
 				 SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
 		if (buffer) {
-			struct SmsMsgData_ST *msg = (struct SmsMsgData_ST *) SMS_ALIGN_ADDRESS(buffer);
+			struct sms_msg_data *msg = (struct sms_msg_data *) SMS_ALIGN_ADDRESS(buffer);
 
-			SMS_INIT_MSG(&msg->xMsgHeader, MSG_SMS_INIT_DEVICE_REQ,
-				     sizeof(struct SmsMsgData_ST));
+			SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
+				     sizeof(struct sms_msg_data));
 			msg->msgData[0] = mode;
 
 			rc = smscore_sendrequest_and_wait(
-				coredev, msg, msg->xMsgHeader.msgLength,
+				coredev, msg, msg->x_msg_header.msg_length,
 				&coredev->init_device_done);
 
 			kfree(buffer);
@@ -1483,7 +1483,7 @@ found:
  */
 void smscore_onresponse(struct smscore_device_t *coredev,
 		struct smscore_buffer_t *cb) {
-	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) ((u8 *) cb->p
+	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) ((u8 *) cb->p
 			+ cb->offset);
 	struct smscore_client_t *client;
 	int rc = -EBUSY;
@@ -1505,14 +1505,14 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 
 	data_total += cb->size;
 	/* Do we need to re-route? */
-	if ((phdr->msgType == MSG_SMS_HO_PER_SLICES_IND) ||
-			(phdr->msgType == MSG_SMS_TRANSMISSION_IND)) {
+	if ((phdr->msg_type == MSG_SMS_HO_PER_SLICES_IND) ||
+			(phdr->msg_type == MSG_SMS_TRANSMISSION_IND)) {
 		if (coredev->mode == DEVICE_MODE_DVBT_BDA)
-			phdr->msgDstId = DVBT_BDA_CONTROL_MSG_ID;
+			phdr->msg_dst_id = DVBT_BDA_CONTROL_MSG_ID;
 	}
 
 
-	client = smscore_find_client(coredev, phdr->msgType, phdr->msgDstId);
+	client = smscore_find_client(coredev, phdr->msg_type, phdr->msg_dst_id);
 
 	/* If no client registered for type & id,
 	 * check for control client where type is not registered */
@@ -1520,7 +1520,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		rc = client->onresponse_handler(client->context, cb);
 
 	if (rc < 0) {
-		switch (phdr->msgType) {
+		switch (phdr->msg_type) {
 		case MSG_SMS_ISDBT_TUNE_RES:
 			break;
 		case MSG_SMS_RF_TUNE_RES:
@@ -1537,17 +1537,17 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			break;
 		case MSG_SMS_GET_VERSION_EX_RES:
 		{
-			struct SmsVersionRes_ST *ver =
-				(struct SmsVersionRes_ST *) phdr;
+			struct sms_version_res *ver =
+				(struct sms_version_res *) phdr;
 			sms_debug("Firmware id %d prots 0x%x ver %d.%d",
-				  ver->FirmwareId, ver->SupportedProtocols,
-				  ver->RomVersionMajor, ver->RomVersionMinor);
+				  ver->firmware_id, ver->supported_protocols,
+				  ver->rom_ver_major, ver->rom_ver_minor);
 
-			coredev->mode = ver->FirmwareId == 255 ?
-				DEVICE_MODE_NONE : ver->FirmwareId;
-			coredev->modes_supported = ver->SupportedProtocols;
-			coredev->fw_version = ver->RomVersionMajor << 8 |
-					      ver->RomVersionMinor;
+			coredev->mode = ver->firmware_id == 255 ?
+				DEVICE_MODE_NONE : ver->firmware_id;
+			coredev->modes_supported = ver->supported_protocols;
+			coredev->fw_version = ver->rom_ver_major << 8 |
+					      ver->rom_ver_minor;
 
 			complete(&coredev->version_ex_done);
 			break;
@@ -1560,7 +1560,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			break;
 		case MSG_SMS_DATA_VALIDITY_RES:
 		{
-			struct SmsMsgData_ST *validity = (struct SmsMsgData_ST *) phdr;
+			struct sms_msg_data *validity = (struct sms_msg_data *) phdr;
 
 			sms_err("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x",
 				validity->msgData[0]);
@@ -1600,9 +1600,9 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			sms_ir_event(coredev,
 				(const char *)
 				((char *)phdr
-				+ sizeof(struct SmsMsgHdr_ST)),
-				(int)phdr->msgLength
-				- sizeof(struct SmsMsgHdr_ST));
+				+ sizeof(struct sms_msg_hdr)),
+				(int)phdr->msg_length
+				- sizeof(struct sms_msg_hdr));
 			break;
 
 		case MSG_SMS_DVBT_BDA_DATA:
@@ -1616,8 +1616,8 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 
 		default:
 			sms_debug("message %s(%d) not handled.",
-				  smscore_translate_msg(phdr->msgType),
-				  phdr->msgType);
+				  smscore_translate_msg(phdr->msg_type),
+				  phdr->msg_type);
 			break;
 		}
 		smscore_putbuffer(coredev, cb);
@@ -1799,7 +1799,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 			  void *buffer, size_t size)
 {
 	struct smscore_device_t *coredev;
-	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) buffer;
+	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) buffer;
 	int rc;
 
 	if (client == NULL) {
@@ -1816,7 +1816,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	}
 
 	rc = smscore_validate_client(client->coredev, client, 0,
-				     phdr->msgSrcId);
+				     phdr->msg_src_id);
 	if (rc < 0)
 		return rc;
 
@@ -1830,16 +1830,16 @@ int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
 			   struct smscore_config_gpio *pinconfig)
 {
 	struct {
-		struct SmsMsgHdr_ST hdr;
+		struct sms_msg_hdr hdr;
 		u32 data[6];
 	} msg;
 
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
-		msg.hdr.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-		msg.hdr.msgDstId = HIF_TASK;
-		msg.hdr.msgFlags = 0;
-		msg.hdr.msgType  = MSG_SMS_GPIO_CONFIG_EX_REQ;
-		msg.hdr.msgLength = sizeof(msg);
+		msg.hdr.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+		msg.hdr.msg_dst_id = HIF_TASK;
+		msg.hdr.msg_flags = 0;
+		msg.hdr.msg_type  = MSG_SMS_GPIO_CONFIG_EX_REQ;
+		msg.hdr.msg_length = sizeof(msg);
 
 		msg.data[0] = pin;
 		msg.data[1] = pinconfig->pullupdown;
@@ -1875,18 +1875,18 @@ int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
 int smscore_set_gpio(struct smscore_device_t *coredev, u32 pin, int level)
 {
 	struct {
-		struct SmsMsgHdr_ST hdr;
+		struct sms_msg_hdr hdr;
 		u32 data[3];
 	} msg;
 
 	if (pin > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	msg.hdr.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-	msg.hdr.msgDstId = HIF_TASK;
-	msg.hdr.msgFlags = 0;
-	msg.hdr.msgType  = MSG_SMS_GPIO_SET_LEVEL_REQ;
-	msg.hdr.msgLength = sizeof(msg);
+	msg.hdr.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	msg.hdr.msg_dst_id = HIF_TASK;
+	msg.hdr.msg_flags = 0;
+	msg.hdr.msg_type  = MSG_SMS_GPIO_SET_LEVEL_REQ;
+	msg.hdr.msg_length = sizeof(msg);
 
 	msg.data[0] = pin;
 	msg.data[1] = level ? 1 : 0;
@@ -1897,47 +1897,47 @@ int smscore_set_gpio(struct smscore_device_t *coredev, u32 pin, int level)
 }
 
 /* new GPIO management implementation */
-static int GetGpioPinParams(u32 PinNum, u32 *pTranslatedPinNum,
+static int GetGpioPinParams(u32 pin_num, u32 *pTranslatedpin_num,
 		u32 *pGroupNum, u32 *pGroupCfg) {
 
 	*pGroupCfg = 1;
 
-	if (PinNum <= 1)	{
-		*pTranslatedPinNum = 0;
+	if (pin_num <= 1)	{
+		*pTranslatedpin_num = 0;
 		*pGroupNum = 9;
 		*pGroupCfg = 2;
-	} else if (PinNum >= 2 && PinNum <= 6) {
-		*pTranslatedPinNum = 2;
+	} else if (pin_num >= 2 && pin_num <= 6) {
+		*pTranslatedpin_num = 2;
 		*pGroupNum = 0;
 		*pGroupCfg = 2;
-	} else if (PinNum >= 7 && PinNum <= 11) {
-		*pTranslatedPinNum = 7;
+	} else if (pin_num >= 7 && pin_num <= 11) {
+		*pTranslatedpin_num = 7;
 		*pGroupNum = 1;
-	} else if (PinNum >= 12 && PinNum <= 15) {
-		*pTranslatedPinNum = 12;
+	} else if (pin_num >= 12 && pin_num <= 15) {
+		*pTranslatedpin_num = 12;
 		*pGroupNum = 2;
 		*pGroupCfg = 3;
-	} else if (PinNum == 16) {
-		*pTranslatedPinNum = 16;
+	} else if (pin_num == 16) {
+		*pTranslatedpin_num = 16;
 		*pGroupNum = 23;
-	} else if (PinNum >= 17 && PinNum <= 24) {
-		*pTranslatedPinNum = 17;
+	} else if (pin_num >= 17 && pin_num <= 24) {
+		*pTranslatedpin_num = 17;
 		*pGroupNum = 3;
-	} else if (PinNum == 25) {
-		*pTranslatedPinNum = 25;
+	} else if (pin_num == 25) {
+		*pTranslatedpin_num = 25;
 		*pGroupNum = 6;
-	} else if (PinNum >= 26 && PinNum <= 28) {
-		*pTranslatedPinNum = 26;
+	} else if (pin_num >= 26 && pin_num <= 28) {
+		*pTranslatedpin_num = 26;
 		*pGroupNum = 4;
-	} else if (PinNum == 29) {
-		*pTranslatedPinNum = 29;
+	} else if (pin_num == 29) {
+		*pTranslatedpin_num = 29;
 		*pGroupNum = 5;
 		*pGroupCfg = 2;
-	} else if (PinNum == 30) {
-		*pTranslatedPinNum = 30;
+	} else if (pin_num == 30) {
+		*pTranslatedpin_num = 30;
 		*pGroupNum = 8;
-	} else if (PinNum == 31) {
-		*pTranslatedPinNum = 31;
+	} else if (pin_num == 31) {
+		*pTranslatedpin_num = 31;
 		*pGroupNum = 17;
 	} else
 		return -1;
@@ -1947,11 +1947,11 @@ static int GetGpioPinParams(u32 PinNum, u32 *pTranslatedPinNum,
 	return 0;
 }
 
-int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
-		struct smscore_config_gpio *pGpioConfig) {
+int smscore_gpio_configure(struct smscore_device_t *coredev, u8 pin_num,
+		struct smscore_config_gpio *p_gpio_config) {
 
 	u32 totalLen;
-	u32 TranslatedPinNum = 0;
+	u32 Translatedpin_num = 0;
 	u32 GroupNum = 0;
 	u32 ElectricChar;
 	u32 groupCfg;
@@ -1959,18 +1959,18 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 	int rc;
 
 	struct SetGpioMsg {
-		struct SmsMsgHdr_ST xMsgHeader;
+		struct sms_msg_hdr x_msg_header;
 		u32 msgData[6];
 	} *pMsg;
 
 
-	if (PinNum > MAX_GPIO_PIN_NUMBER)
+	if (pin_num > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	if (pGpioConfig == NULL)
+	if (p_gpio_config == NULL)
 		return -EINVAL;
 
-	totalLen = sizeof(struct SmsMsgHdr_ST) + (sizeof(u32) * 6);
+	totalLen = sizeof(struct sms_msg_hdr) + (sizeof(u32) * 6);
 
 	buffer = kmalloc(totalLen + SMS_DMA_ALIGNMENT,
 			GFP_KERNEL | GFP_DMA);
@@ -1979,35 +1979,35 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 
 	pMsg = (struct SetGpioMsg *) SMS_ALIGN_ADDRESS(buffer);
 
-	pMsg->xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-	pMsg->xMsgHeader.msgDstId = HIF_TASK;
-	pMsg->xMsgHeader.msgFlags = 0;
-	pMsg->xMsgHeader.msgLength = (u16) totalLen;
-	pMsg->msgData[0] = PinNum;
+	pMsg->x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	pMsg->x_msg_header.msg_dst_id = HIF_TASK;
+	pMsg->x_msg_header.msg_flags = 0;
+	pMsg->x_msg_header.msg_length = (u16) totalLen;
+	pMsg->msgData[0] = pin_num;
 
 	if (!(coredev->device_flags & SMS_DEVICE_FAMILY2)) {
-		pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_CONFIG_REQ;
-		if (GetGpioPinParams(PinNum, &TranslatedPinNum, &GroupNum,
+		pMsg->x_msg_header.msg_type = MSG_SMS_GPIO_CONFIG_REQ;
+		if (GetGpioPinParams(pin_num, &Translatedpin_num, &GroupNum,
 				&groupCfg) != 0) {
 			rc = -EINVAL;
 			goto free;
 		}
 
-		pMsg->msgData[1] = TranslatedPinNum;
+		pMsg->msgData[1] = Translatedpin_num;
 		pMsg->msgData[2] = GroupNum;
-		ElectricChar = (pGpioConfig->pullupdown)
-				| (pGpioConfig->inputcharacteristics << 2)
-				| (pGpioConfig->outputslewrate << 3)
-				| (pGpioConfig->outputdriving << 4);
+		ElectricChar = (p_gpio_config->pullupdown)
+				| (p_gpio_config->inputcharacteristics << 2)
+				| (p_gpio_config->outputslewrate << 3)
+				| (p_gpio_config->outputdriving << 4);
 		pMsg->msgData[3] = ElectricChar;
-		pMsg->msgData[4] = pGpioConfig->direction;
+		pMsg->msgData[4] = p_gpio_config->direction;
 		pMsg->msgData[5] = groupCfg;
 	} else {
-		pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_CONFIG_EX_REQ;
-		pMsg->msgData[1] = pGpioConfig->pullupdown;
-		pMsg->msgData[2] = pGpioConfig->outputslewrate;
-		pMsg->msgData[3] = pGpioConfig->outputdriving;
-		pMsg->msgData[4] = pGpioConfig->direction;
+		pMsg->x_msg_header.msg_type = MSG_SMS_GPIO_CONFIG_EX_REQ;
+		pMsg->msgData[1] = p_gpio_config->pullupdown;
+		pMsg->msgData[2] = p_gpio_config->outputslewrate;
+		pMsg->msgData[3] = p_gpio_config->outputdriving;
+		pMsg->msgData[4] = p_gpio_config->direction;
 		pMsg->msgData[5] = 0;
 	}
 
@@ -2026,22 +2026,22 @@ free:
 	return rc;
 }
 
-int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,
-		u8 NewLevel) {
+int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 pin_num,
+		u8 new_level) {
 
 	u32 totalLen;
 	int rc;
 	void *buffer;
 
 	struct SetGpioMsg {
-		struct SmsMsgHdr_ST xMsgHeader;
+		struct sms_msg_hdr x_msg_header;
 		u32 msgData[3]; /* keep it 3 ! */
 	} *pMsg;
 
-	if ((NewLevel > 1) || (PinNum > MAX_GPIO_PIN_NUMBER))
+	if ((new_level > 1) || (pin_num > MAX_GPIO_PIN_NUMBER))
 		return -EINVAL;
 
-	totalLen = sizeof(struct SmsMsgHdr_ST) +
+	totalLen = sizeof(struct sms_msg_hdr) +
 			(3 * sizeof(u32)); /* keep it 3 ! */
 
 	buffer = kmalloc(totalLen + SMS_DMA_ALIGNMENT,
@@ -2051,13 +2051,13 @@ int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,
 
 	pMsg = (struct SetGpioMsg *) SMS_ALIGN_ADDRESS(buffer);
 
-	pMsg->xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-	pMsg->xMsgHeader.msgDstId = HIF_TASK;
-	pMsg->xMsgHeader.msgFlags = 0;
-	pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_SET_LEVEL_REQ;
-	pMsg->xMsgHeader.msgLength = (u16) totalLen;
-	pMsg->msgData[0] = PinNum;
-	pMsg->msgData[1] = NewLevel;
+	pMsg->x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	pMsg->x_msg_header.msg_dst_id = HIF_TASK;
+	pMsg->x_msg_header.msg_flags = 0;
+	pMsg->x_msg_header.msg_type = MSG_SMS_GPIO_SET_LEVEL_REQ;
+	pMsg->x_msg_header.msg_length = (u16) totalLen;
+	pMsg->msgData[0] = pin_num;
+	pMsg->msgData[1] = new_level;
 
 	/* Send message to SMS */
 	rc = smscore_sendrequest_and_wait(coredev, pMsg, totalLen,
@@ -2074,7 +2074,7 @@ int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,
 	return rc;
 }
 
-int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,
+int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 pin_num,
 		u8 *level) {
 
 	u32 totalLen;
@@ -2082,15 +2082,15 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,
 	void *buffer;
 
 	struct SetGpioMsg {
-		struct SmsMsgHdr_ST xMsgHeader;
+		struct sms_msg_hdr x_msg_header;
 		u32 msgData[2];
 	} *pMsg;
 
 
-	if (PinNum > MAX_GPIO_PIN_NUMBER)
+	if (pin_num > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	totalLen = sizeof(struct SmsMsgHdr_ST) + (2 * sizeof(u32));
+	totalLen = sizeof(struct sms_msg_hdr) + (2 * sizeof(u32));
 
 	buffer = kmalloc(totalLen + SMS_DMA_ALIGNMENT,
 			GFP_KERNEL | GFP_DMA);
@@ -2099,12 +2099,12 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,
 
 	pMsg = (struct SetGpioMsg *) SMS_ALIGN_ADDRESS(buffer);
 
-	pMsg->xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-	pMsg->xMsgHeader.msgDstId = HIF_TASK;
-	pMsg->xMsgHeader.msgFlags = 0;
-	pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_GET_LEVEL_REQ;
-	pMsg->xMsgHeader.msgLength = (u16) totalLen;
-	pMsg->msgData[0] = PinNum;
+	pMsg->x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	pMsg->x_msg_header.msg_dst_id = HIF_TASK;
+	pMsg->x_msg_header.msg_flags = 0;
+	pMsg->x_msg_header.msg_type = MSG_SMS_GPIO_GET_LEVEL_REQ;
+	pMsg->x_msg_header.msg_length = (u16) totalLen;
+	pMsg->msgData[0] = pin_num;
 	pMsg->msgData[1] = 0;
 
 	/* Send message to SMS */

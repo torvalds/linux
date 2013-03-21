@@ -57,7 +57,7 @@ struct smsdvb_client_t {
 	int			feed_users;
 	bool			has_tuned;
 
-	/* Stats debugfs data */
+	/* stats debugfs data */
 	struct dentry		*debugfs;
 
 	struct smsdvb_debugfs	*debug_data;
@@ -74,30 +74,30 @@ struct smsdvb_client_t {
 struct RECEPTION_STATISTICS_PER_SLICES_S {
 	u32 result;
 	u32 snr;
-	s32 inBandPower;
-	u32 tsPackets;
-	u32 etsPackets;
+	s32 in_band_power;
+	u32 ts_packets;
+	u32 ets_packets;
 	u32 constellation;
-	u32 hpCode;
-	u32 tpsSrvIndLP;
-	u32 tpsSrvIndHP;
-	u32 cellId;
+	u32 hp_code;
+	u32 tps_srv_ind_lp;
+	u32 tps_srv_ind_hp;
+	u32 cell_id;
 	u32 reason;
-	u32 requestId;
-	u32 ModemState;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
+	u32 request_id;
+	u32 modem_state;		/* from SMSHOSTLIB_DVB_MODEM_STATE_ET */
 
 	u32 BER;		/* Post Viterbi BER [1E-5] */
 	s32 RSSI;		/* dBm */
-	s32 CarrierOffset;	/* Carrier Offset in bin/1024 */
+	s32 carrier_offset;	/* Carrier Offset in bin/1024 */
 
-	u32 IsRfLocked;		/* 0 - not locked, 1 - locked */
-	u32 IsDemodLocked;	/* 0 - not locked, 1 - locked */
+	u32 is_rf_locked;		/* 0 - not locked, 1 - locked */
+	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
 
-	u32 BERBitCount;	/* Total number of SYNC bits. */
-	u32 BERErrorCount;	/* Number of erronous SYNC bits. */
+	u32 ber_bit_count;	/* Total number of SYNC bits. */
+	u32 ber_error_count;	/* Number of erronous SYNC bits. */
 
 	s32 MRC_SNR;		/* dB */
-	s32 MRC_InBandPwr;	/* In band power in dBM */
+	s32 mrc_in_band_pwr;	/* In band power in dBM */
 	s32 MRC_RSSI;		/* dBm */
 };
 

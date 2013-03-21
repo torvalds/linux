@@ -167,13 +167,13 @@ struct sms_board *sms_get_board(unsigned id)
 }
 EXPORT_SYMBOL_GPL(sms_get_board);
 static inline void sms_gpio_assign_11xx_default_led_config(
-		struct smscore_config_gpio *pGpioConfig) {
-	pGpioConfig->direction = SMS_GPIO_DIRECTION_OUTPUT;
-	pGpioConfig->inputcharacteristics =
+		struct smscore_config_gpio *p_gpio_config) {
+	p_gpio_config->direction = SMS_GPIO_DIRECTION_OUTPUT;
+	p_gpio_config->inputcharacteristics =
 		SMS_GPIO_INPUTCHARACTERISTICS_NORMAL;
-	pGpioConfig->outputdriving = SMS_GPIO_OUTPUTDRIVING_4mA;
-	pGpioConfig->outputslewrate = SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS;
-	pGpioConfig->pullupdown = SMS_GPIO_PULLUPDOWN_NONE;
+	p_gpio_config->outputdriving = SMS_GPIO_OUTPUTDRIVING_4mA;
+	p_gpio_config->outputslewrate = SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS;
+	p_gpio_config->pullupdown = SMS_GPIO_PULLUPDOWN_NONE;
 }
 
 int sms_board_event(struct smscore_device_t *coredev,

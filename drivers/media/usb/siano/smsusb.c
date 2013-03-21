@@ -93,26 +93,26 @@ static void smsusb_onresponse(struct urb *urb)
 	}
 
 	if ((urb->actual_length > 0) && (urb->status == 0)) {
-		struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *)surb->cb->p;
+		struct sms_msg_hdr *phdr = (struct sms_msg_hdr *)surb->cb->p;
 
 		smsendian_handle_message_header(phdr);
-		if (urb->actual_length >= phdr->msgLength) {
-			surb->cb->size = phdr->msgLength;
+		if (urb->actual_length >= phdr->msg_length) {
+			surb->cb->size = phdr->msg_length;
 
 			if (dev->response_alignment &&
-			    (phdr->msgFlags & MSG_HDR_FLAG_SPLIT_MSG)) {
+			    (phdr->msg_flags & MSG_HDR_FLAG_SPLIT_MSG)) {
 
 				surb->cb->offset =
 					dev->response_alignment +
-					((phdr->msgFlags >> 8) & 3);
+					((phdr->msg_flags >> 8) & 3);
 
 				/* sanity check */
-				if (((int) phdr->msgLength +
+				if (((int) phdr->msg_length +
 				     surb->cb->offset) > urb->actual_length) {
 					sms_err("invalid response "
 						"msglen %d offset %d "
 						"size %d",
-						phdr->msgLength,
+						phdr->msg_length,
 						surb->cb->offset,
 						urb->actual_length);
 					goto exit_and_resubmit;
@@ -121,22 +121,22 @@ static void smsusb_onresponse(struct urb *urb)
 				/* move buffer pointer and
 				 * copy header to its new location */
 				memcpy((char *) phdr + surb->cb->offset,
-				       phdr, sizeof(struct SmsMsgHdr_ST));
+				       phdr, sizeof(struct sms_msg_hdr));
 			} else
 				surb->cb->offset = 0;
 
 			sms_debug("received %s(%d) size: %d",
-				  smscore_translate_msg(phdr->msgType),
-				  phdr->msgType, phdr->msgLength);
+				  smscore_translate_msg(phdr->msg_type),
+				  phdr->msg_type, phdr->msg_length);
 
-			smsendian_handle_rx_message((struct SmsMsgData_ST *) phdr);
+			smsendian_handle_rx_message((struct sms_msg_data *) phdr);
 
 			smscore_onresponse(dev->coredev, surb->cb);
 			surb->cb = NULL;
 		} else {
 			sms_err("invalid response "
 				"msglen %d actual %d",
-				phdr->msgLength, urb->actual_length);
+				phdr->msg_length, urb->actual_length);
 		}
 	} else
 		sms_err("error, urb status %d, %d bytes",
@@ -206,18 +206,18 @@ static int smsusb_start_streaming(struct smsusb_device_t *dev)
 static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 {
 	struct smsusb_device_t *dev = (struct smsusb_device_t *) context;
-	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) buffer;
+	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) buffer;
 	int dummy;
 
 	if (dev->state != SMSUSB_ACTIVE)
 		return -ENOENT;
 
 	sms_debug("sending %s(%d) size: %d",
-		  smscore_translate_msg(phdr->msgType), phdr->msgType,
-		  phdr->msgLength);
+		  smscore_translate_msg(phdr->msg_type), phdr->msg_type,
+		  phdr->msg_length);
 
-	smsendian_handle_tx_message((struct SmsMsgData_ST *) phdr);
-	smsendian_handle_message_header((struct SmsMsgHdr_ST *)buffer);
+	smsendian_handle_tx_message((struct sms_msg_data *) phdr);
+	smsendian_handle_message_header((struct sms_msg_hdr *)buffer);
 	return usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 2),
 			    buffer, size, &dummy, 1000);
 }
@@ -310,8 +310,8 @@ static void smsusb1_detectmode(void *context, int *mode)
 
 static int smsusb1_setmode(void *context, int mode)
 {
-	struct SmsMsgHdr_ST Msg = { MSG_SW_RELOAD_REQ, 0, HIF_TASK,
-			     sizeof(struct SmsMsgHdr_ST), 0 };
+	struct sms_msg_hdr Msg = { MSG_SW_RELOAD_REQ, 0, HIF_TASK,
+			     sizeof(struct sms_msg_hdr), 0 };
 
 	if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_DVBT_BDA) {
 		sms_err("invalid firmware id specified %d", mode);
@@ -375,7 +375,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 		dev->buffer_size = USB2_BUFFER_SIZE;
 		dev->response_alignment =
 		    le16_to_cpu(dev->udev->ep_in[1]->desc.wMaxPacketSize) -
-		    sizeof(struct SmsMsgHdr_ST);
+		    sizeof(struct sms_msg_hdr);
 
 		params.flags |= SMS_DEVICE_FAMILY2;
 		break;

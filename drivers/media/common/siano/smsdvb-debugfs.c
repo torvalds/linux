@@ -63,11 +63,11 @@ void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
 	buf = debug_data->stats_data;
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsRfLocked = %d\n", p->IsRfLocked);
+		      "is_rf_locked = %d\n", p->is_rf_locked);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsDemodLocked = %d\n", p->IsDemodLocked);
+		      "is_demod_locked = %d\n", p->is_demod_locked);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsExternalLNAOn = %d\n", p->IsExternalLNAOn);
+		      "is_external_lna_on = %d\n", p->is_external_lna_on);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "SNR = %d\n", p->SNR);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
@@ -81,70 +81,70 @@ void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "RSSI = %d\n", p->RSSI);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "InBandPwr = %d\n", p->InBandPwr);
+		      "in_band_pwr = %d\n", p->in_band_pwr);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CarrierOffset = %d\n", p->CarrierOffset);
+		      "carrier_offset = %d\n", p->carrier_offset);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ModemState = %d\n", p->ModemState);
+		      "modem_state = %d\n", p->modem_state);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Frequency = %d\n", p->Frequency);
+		      "frequency = %d\n", p->frequency);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Bandwidth = %d\n", p->Bandwidth);
+		      "bandwidth = %d\n", p->bandwidth);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TransmissionMode = %d\n", p->TransmissionMode);
+		      "transmission_mode = %d\n", p->transmission_mode);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ModemState = %d\n", p->ModemState);
+		      "modem_state = %d\n", p->modem_state);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "GuardInterval = %d\n", p->GuardInterval);
+		      "guard_interval = %d\n", p->guard_interval);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CodeRate = %d\n", p->CodeRate);
+		      "code_rate = %d\n", p->code_rate);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "LPCodeRate = %d\n", p->LPCodeRate);
+		      "lp_code_rate = %d\n", p->lp_code_rate);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Hierarchy = %d\n", p->Hierarchy);
+		      "hierarchy = %d\n", p->hierarchy);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Constellation = %d\n", p->Constellation);
+		      "constellation = %d\n", p->constellation);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BurstSize = %d\n", p->BurstSize);
+		      "burst_size = %d\n", p->burst_size);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BurstDuration = %d\n", p->BurstDuration);
+		      "burst_duration = %d\n", p->burst_duration);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BurstCycleTime = %d\n", p->BurstCycleTime);
+		      "burst_cycle_time = %d\n", p->burst_cycle_time);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CalculatedBurstCycleTime = %d\n",
-	              p->CalculatedBurstCycleTime);
+		      "calc_burst_cycle_time = %d\n",
+	              p->calc_burst_cycle_time);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfRows = %d\n", p->NumOfRows);
+		      "num_of_rows = %d\n", p->num_of_rows);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfPaddCols = %d\n", p->NumOfPaddCols);
+		      "num_of_padd_cols = %d\n", p->num_of_padd_cols);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfPunctCols = %d\n", p->NumOfPunctCols);
+		      "num_of_punct_cols = %d\n", p->num_of_punct_cols);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ErrorTSPackets = %d\n", p->ErrorTSPackets);
+		      "error_ts_packets = %d\n", p->error_ts_packets);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TotalTSPackets = %d\n", p->TotalTSPackets);
+		      "total_ts_packets = %d\n", p->total_ts_packets);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfValidMpeTlbs = %d\n", p->NumOfValidMpeTlbs);
+		      "num_of_valid_mpe_tlbs = %d\n", p->num_of_valid_mpe_tlbs);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfInvalidMpeTlbs = %d\n", p->NumOfInvalidMpeTlbs);
+		      "num_of_invalid_mpe_tlbs = %d\n", p->num_of_invalid_mpe_tlbs);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfCorrectedMpeTlbs = %d\n", p->NumOfCorrectedMpeTlbs);
+		      "num_of_corrected_mpe_tlbs = %d\n", p->num_of_corrected_mpe_tlbs);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BERErrorCount = %d\n", p->BERErrorCount);
+		      "ber_error_count = %d\n", p->ber_error_count);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "BERBitCount = %d\n", p->BERBitCount);
+		      "ber_bit_count = %d\n", p->ber_bit_count);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SmsToHostTxErrors = %d\n", p->SmsToHostTxErrors);
+		      "sms_to_host_tx_errors = %d\n", p->sms_to_host_tx_errors);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "PreBER = %d\n", p->PreBER);
+		      "pre_ber = %d\n", p->pre_ber);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CellId = %d\n", p->CellId);
+		      "cell_id = %d\n", p->cell_id);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "DvbhSrvIndHP = %d\n", p->DvbhSrvIndHP);
+		      "dvbh_srv_ind_hp = %d\n", p->dvbh_srv_ind_hp);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "DvbhSrvIndLP = %d\n", p->DvbhSrvIndLP);
+		      "dvbh_srv_ind_lp = %d\n", p->dvbh_srv_ind_lp);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumMPEReceived = %d\n", p->NumMPEReceived);
+		      "num_mpe_received = %d\n", p->num_mpe_received);
 
 	debug_data->stats_count = n;
 	spin_unlock(&debug_data->lock);
@@ -166,74 +166,74 @@ void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
 	buf = debug_data->stats_data;
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "StatisticsType = %d\t", p->StatisticsType);
+		      "statistics_type = %d\t", p->statistics_type);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "FullSize = %d\n", p->FullSize);
+		      "full_size = %d\n", p->full_size);
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsRfLocked = %d\t\t", p->IsRfLocked);
+		      "is_rf_locked = %d\t\t", p->is_rf_locked);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsDemodLocked = %d\t", p->IsDemodLocked);
+		      "is_demod_locked = %d\t", p->is_demod_locked);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsExternalLNAOn = %d\n", p->IsExternalLNAOn);
+		      "is_external_lna_on = %d\n", p->is_external_lna_on);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "SNR = %d dB\t\t", p->SNR);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "RSSI = %d dBm\t\t", p->RSSI);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "InBandPwr = %d dBm\n", p->InBandPwr);
+		      "in_band_pwr = %d dBm\n", p->in_band_pwr);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CarrierOffset = %d\t", p->CarrierOffset);
+		      "carrier_offset = %d\t", p->carrier_offset);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Bandwidth = %d\t\t", p->Bandwidth);
+		      "bandwidth = %d\t\t", p->bandwidth);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Frequency = %d Hz\n", p->Frequency);
+		      "frequency = %d Hz\n", p->frequency);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TransmissionMode = %d\t", p->TransmissionMode);
+		      "transmission_mode = %d\t", p->transmission_mode);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ModemState = %d\t\t", p->ModemState);
+		      "modem_state = %d\t\t", p->modem_state);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "GuardInterval = %d\n", p->GuardInterval);
+		      "guard_interval = %d\n", p->guard_interval);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SystemType = %d\t\t", p->SystemType);
+		      "system_type = %d\t\t", p->system_type);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "PartialReception = %d\t", p->PartialReception);
+		      "partial_reception = %d\t", p->partial_reception);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfLayers = %d\n", p->NumOfLayers);
+		      "num_of_layers = %d\n", p->num_of_layers);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SmsToHostTxErrors = %d\n", p->SmsToHostTxErrors);
+		      "sms_to_host_tx_errors = %d\n", p->sms_to_host_tx_errors);
 
 	for (i = 0; i < 3; i++) {
-		if (p->LayerInfo[i].NumberOfSegments < 1 ||
-		    p->LayerInfo[i].NumberOfSegments > 13)
+		if (p->LayerInfo[i].number_of_segments < 1 ||
+		    p->LayerInfo[i].number_of_segments > 13)
 			continue;
 
 		n += snprintf(&buf[n], PAGE_SIZE - n, "\nLayer %d\n", i);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tCodeRate = %d\t",
-			      p->LayerInfo[i].CodeRate);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "Constellation = %d\n",
-			      p->LayerInfo[i].Constellation);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "\tcode_rate = %d\t",
+			      p->LayerInfo[i].code_rate);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "constellation = %d\n",
+			      p->LayerInfo[i].constellation);
 		n += snprintf(&buf[n], PAGE_SIZE - n, "\tBER = %-5d\t",
 			      p->LayerInfo[i].BER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tBERErrorCount = %-5d\t",
-			      p->LayerInfo[i].BERErrorCount);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "BERBitCount = %-5d\n",
-			      p->LayerInfo[i].BERBitCount);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tPreBER = %-5d\t",
-			      p->LayerInfo[i].PreBER);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "\tber_error_count = %-5d\t",
+			      p->LayerInfo[i].ber_error_count);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "ber_bit_count = %-5d\n",
+			      p->LayerInfo[i].ber_bit_count);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "\tpre_ber = %-5d\t",
+			      p->LayerInfo[i].pre_ber);
 		n += snprintf(&buf[n], PAGE_SIZE - n, "\tTS_PER = %-5d\n",
 			      p->LayerInfo[i].TS_PER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tErrorTSPackets = %-5d\t",
-			      p->LayerInfo[i].ErrorTSPackets);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TotalTSPackets = %-5d\t",
-			      p->LayerInfo[i].TotalTSPackets);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TILdepthI = %d\n",
-			      p->LayerInfo[i].TILdepthI);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "\terror_ts_packets = %-5d\t",
+			      p->LayerInfo[i].error_ts_packets);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "total_ts_packets = %-5d\t",
+			      p->LayerInfo[i].total_ts_packets);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "ti_ldepth_i = %d\n",
+			      p->LayerInfo[i].ti_ldepth_i);
 		n += snprintf(&buf[n], PAGE_SIZE - n,
-			      "\tNumberOfSegments = %d\t",
-			      p->LayerInfo[i].NumberOfSegments);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TMCCErrors = %d\n",
-			      p->LayerInfo[i].TMCCErrors);
+			      "\tnumber_of_segments = %d\t",
+			      p->LayerInfo[i].number_of_segments);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "tmcc_errors = %d\n",
+			      p->LayerInfo[i].tmcc_errors);
 	}
 
 	debug_data->stats_count = n;
@@ -256,76 +256,76 @@ void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
 	buf = debug_data->stats_data;
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "StatisticsType = %d\t", p->StatisticsType);
+		      "statistics_type = %d\t", p->statistics_type);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "FullSize = %d\n", p->FullSize);
+		      "full_size = %d\n", p->full_size);
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsRfLocked = %d\t\t", p->IsRfLocked);
+		      "is_rf_locked = %d\t\t", p->is_rf_locked);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsDemodLocked = %d\t", p->IsDemodLocked);
+		      "is_demod_locked = %d\t", p->is_demod_locked);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "IsExternalLNAOn = %d\n", p->IsExternalLNAOn);
+		      "is_external_lna_on = %d\n", p->is_external_lna_on);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "SNR = %d dB\t\t", p->SNR);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "RSSI = %d dBm\t\t", p->RSSI);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "InBandPwr = %d dBm\n", p->InBandPwr);
+		      "in_band_pwr = %d dBm\n", p->in_band_pwr);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "CarrierOffset = %d\t", p->CarrierOffset);
+		      "carrier_offset = %d\t", p->carrier_offset);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Bandwidth = %d\t\t", p->Bandwidth);
+		      "bandwidth = %d\t\t", p->bandwidth);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "Frequency = %d Hz\n", p->Frequency);
+		      "frequency = %d Hz\n", p->frequency);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "TransmissionMode = %d\t", p->TransmissionMode);
+		      "transmission_mode = %d\t", p->transmission_mode);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "ModemState = %d\t\t", p->ModemState);
+		      "modem_state = %d\t\t", p->modem_state);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "GuardInterval = %d\n", p->GuardInterval);
+		      "guard_interval = %d\n", p->guard_interval);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "SystemType = %d\t\t", p->SystemType);
+		      "system_type = %d\t\t", p->system_type);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "PartialReception = %d\t", p->PartialReception);
+		      "partial_reception = %d\t", p->partial_reception);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
-		      "NumOfLayers = %d\n", p->NumOfLayers);
-	n += snprintf(&buf[n], PAGE_SIZE - n, "SegmentNumber = %d\t",
-		      p->SegmentNumber);
-	n += snprintf(&buf[n], PAGE_SIZE - n, "TuneBW = %d\n",
-		      p->TuneBW);
+		      "num_of_layers = %d\n", p->num_of_layers);
+	n += snprintf(&buf[n], PAGE_SIZE - n, "segment_number = %d\t",
+		      p->segment_number);
+	n += snprintf(&buf[n], PAGE_SIZE - n, "tune_bw = %d\n",
+		      p->tune_bw);
 
 	for (i = 0; i < 3; i++) {
-		if (p->LayerInfo[i].NumberOfSegments < 1 ||
-		    p->LayerInfo[i].NumberOfSegments > 13)
+		if (p->LayerInfo[i].number_of_segments < 1 ||
+		    p->LayerInfo[i].number_of_segments > 13)
 			continue;
 
 		n += snprintf(&buf[n], PAGE_SIZE - n, "\nLayer %d\n", i);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tCodeRate = %d\t",
-			      p->LayerInfo[i].CodeRate);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "Constellation = %d\n",
-			      p->LayerInfo[i].Constellation);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "\tcode_rate = %d\t",
+			      p->LayerInfo[i].code_rate);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "constellation = %d\n",
+			      p->LayerInfo[i].constellation);
 		n += snprintf(&buf[n], PAGE_SIZE - n, "\tBER = %-5d\t",
 			      p->LayerInfo[i].BER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tBERErrorCount = %-5d\t",
-			      p->LayerInfo[i].BERErrorCount);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "BERBitCount = %-5d\n",
-			      p->LayerInfo[i].BERBitCount);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tPreBER = %-5d\t",
-			      p->LayerInfo[i].PreBER);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "\tber_error_count = %-5d\t",
+			      p->LayerInfo[i].ber_error_count);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "ber_bit_count = %-5d\n",
+			      p->LayerInfo[i].ber_bit_count);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "\tpre_ber = %-5d\t",
+			      p->LayerInfo[i].pre_ber);
 		n += snprintf(&buf[n], PAGE_SIZE - n, "\tTS_PER = %-5d\n",
 			      p->LayerInfo[i].TS_PER);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "\tErrorTSPackets = %-5d\t",
-			      p->LayerInfo[i].ErrorTSPackets);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TotalTSPackets = %-5d\t",
-			      p->LayerInfo[i].TotalTSPackets);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TILdepthI = %d\n",
-			      p->LayerInfo[i].TILdepthI);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "\terror_ts_packets = %-5d\t",
+			      p->LayerInfo[i].error_ts_packets);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "total_ts_packets = %-5d\t",
+			      p->LayerInfo[i].total_ts_packets);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "ti_ldepth_i = %d\n",
+			      p->LayerInfo[i].ti_ldepth_i);
 		n += snprintf(&buf[n], PAGE_SIZE - n,
-			      "\tNumberOfSegments = %d\t",
-			      p->LayerInfo[i].NumberOfSegments);
-		n += snprintf(&buf[n], PAGE_SIZE - n, "TMCCErrors = %d\n",
-			      p->LayerInfo[i].TMCCErrors);
+			      "\tnumber_of_segments = %d\t",
+			      p->LayerInfo[i].number_of_segments);
+		n += snprintf(&buf[n], PAGE_SIZE - n, "tmcc_errors = %d\n",
+			      p->LayerInfo[i].tmcc_errors);
 	}
 
 
