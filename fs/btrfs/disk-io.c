@@ -1291,6 +1291,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				      0, objectid, NULL, 0, 0, 0);
 	if (IS_ERR(leaf)) {
 		ret = PTR_ERR(leaf);
+		leaf = NULL;
 		goto fail;
 	}
 
@@ -1334,11 +1335,16 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 
 	btrfs_tree_unlock(leaf);
 
-fail:
-	if (ret)
-		return ERR_PTR(ret);
-
 	return root;
+
+fail:
+	if (leaf) {
+		btrfs_tree_unlock(leaf);
+		free_extent_buffer(leaf);
+	}
+	kfree(root);
+
+	return ERR_PTR(ret);
 }
 
 static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
