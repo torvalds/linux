@@ -43,6 +43,9 @@ struct mbus_dram_target_info
  */
 #define MVEBU_MBUS_NO_REMAP (0xffffffff)
 
+/* Maximum size of a mbus window name */
+#define MVEBU_MBUS_MAX_WINNAME_SZ 32
+
 /*
  * The Marvell mbus is to be found only on SOCs from the Orion family
  * at the moment.  Provide a dummy stub for other architectures.
