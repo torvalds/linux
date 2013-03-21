@@ -277,6 +277,21 @@ static inline int is_cold_file(struct inode *inode)
 	return F2FS_I(inode)->i_advise & FADVISE_COLD_BIT;
 }
 
+static inline void set_cold_file(struct inode *inode)
+{
+	F2FS_I(inode)->i_advise |= FADVISE_COLD_BIT;
+}
+
+static inline int is_cp_file(struct inode *inode)
+{
+	return F2FS_I(inode)->i_advise & FADVISE_CP_BIT;
+}
+
+static inline void set_cp_file(struct inode *inode)
+{
+	F2FS_I(inode)->i_advise |= FADVISE_CP_BIT;
+}
+
 static inline int is_cold_data(struct page *page)
 {
 	return PageChecked(page);

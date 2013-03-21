@@ -15,6 +15,7 @@
 #include <linux/ctype.h>
 
 #include "f2fs.h"
+#include "node.h"
 #include "xattr.h"
 #include "acl.h"
 
@@ -99,7 +100,7 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 /*
  * Set multimedia files as cold files for hot/cold data separation
  */
-static inline void set_cold_file(struct f2fs_sb_info *sbi, struct inode *inode,
+static inline void set_cold_files(struct f2fs_sb_info *sbi, struct inode *inode,
 		const unsigned char *name)
 {
 	int i;
@@ -108,7 +109,7 @@ static inline void set_cold_file(struct f2fs_sb_info *sbi, struct inode *inode,
 	int count = le32_to_cpu(sbi->raw_super->extension_count);
 	for (i = 0; i < count; i++) {
 		if (!is_multimedia_file(name, extlist[i])) {
-			F2FS_I(inode)->i_advise |= FADVISE_COLD_BIT;
+			set_cold_file(inode);
 			break;
 		}
 	}
@@ -130,7 +131,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		return PTR_ERR(inode);
 
 	if (!test_opt(sbi, DISABLE_EXT_IDENTIFY))
-		set_cold_file(sbi, inode, dentry->d_name.name);
+		set_cold_files(sbi, inode, dentry->d_name.name);
 
 	inode->i_op = &f2fs_file_inode_operations;
 	inode->i_fop = &f2fs_file_operations;
@@ -172,6 +173,12 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	err = f2fs_add_link(dentry, inode);
 	if (err)
 		goto out;
+
+	/*
+	 * This file should be checkpointed during fsync.
+	 * We lost i_pino from now on.
+	 */
+	set_cp_file(inode);
 
 	d_instantiate(dentry, inode);
 	return 0;
@@ -425,7 +432,6 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	old_inode->i_ctime = CURRENT_TIME;
-	set_inode_flag(F2FS_I(old_inode), FI_NEED_CP);
 	mark_inode_dirty(old_inode);
 
 	f2fs_delete_entry(old_entry, old_page, NULL);

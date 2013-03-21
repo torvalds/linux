@@ -103,23 +103,6 @@ static const struct vm_operations_struct f2fs_file_vm_ops = {
 	.remap_pages	= generic_file_remap_pages,
 };
 
-static int need_to_sync_dir(struct f2fs_sb_info *sbi, struct inode *inode)
-{
-	struct dentry *dentry;
-	nid_t pino;
-
-	inode = igrab(inode);
-	dentry = d_find_any_alias(inode);
-	if (!dentry) {
-		iput(inode);
-		return 0;
-	}
-	pino = dentry->d_parent->d_inode->i_ino;
-	dput(dentry);
-	iput(inode);
-	return !is_checkpointed_node(sbi, pino);
-}
-
 int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
@@ -149,17 +132,16 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
 		need_cp = true;
-	else if (is_inode_flag_set(F2FS_I(inode), FI_NEED_CP))
+	else if (is_cp_file(inode))
 		need_cp = true;
 	else if (!space_for_roll_forward(sbi))
 		need_cp = true;
-	else if (need_to_sync_dir(sbi, inode))
+	else if (!is_checkpointed_node(sbi, F2FS_I(inode)->i_pino))
 		need_cp = true;
 
 	if (need_cp) {
 		/* all the dirty node pages should be flushed for POR */
 		ret = f2fs_sync_fs(inode->i_sb, 1);
-		clear_inode_flag(F2FS_I(inode), FI_NEED_CP);
 	} else {
 		/* if there is no written node page, write its inode page */
 		while (!sync_node_pages(sbi, inode->i_ino, &wbc)) {
