@@ -13,7 +13,7 @@
 
 #include <asm/smp_twd.h>
 
-#include <mach/setup.h>
+#include "setup.h"
 #include "irqs.h"
 
 #include "db8500-regs.h"

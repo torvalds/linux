@@ -11,7 +11,7 @@
 #include <linux/io.h>
 #include <linux/amba/bus.h>
 
-#include <mach/setup.h>
+#include "setup.h"
 
 #include "db8500-regs.h"
 

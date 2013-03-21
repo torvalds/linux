@@ -28,8 +28,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
-#include <mach/setup.h>
-#include <mach/devices.h>
+#include "setup.h"
+#include "devices.h"
 #include "irqs.h"
 
 #include "devices-db8500.h"

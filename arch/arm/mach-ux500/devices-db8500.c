@@ -15,7 +15,7 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 #include <linux/mfd/dbx500-prcmu.h>
 
-#include <mach/setup.h>
+#include "setup.h"
 #include "irqs.h"
 
 #include "db8500-regs.h"

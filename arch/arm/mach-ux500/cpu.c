@@ -24,8 +24,8 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/setup.h>
-#include <mach/devices.h>
+#include "setup.h"
+#include "devices.h"
 
 #include "board-mop500.h"
 #include "db8500-regs.h"
