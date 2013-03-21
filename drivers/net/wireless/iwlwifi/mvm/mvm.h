@@ -109,6 +109,7 @@ extern struct iwl_mvm_mod_params iwlmvm_mod_params;
 struct iwl_mvm_phy_ctxt {
 	u16 id;
 	u16 color;
+	u32 ref;
 
 	/*
 	 * TODO: This should probably be removed. Currently here only for rate
@@ -318,7 +319,7 @@ struct iwl_mvm {
 	bool prevent_power_down_d3;
 #endif
 
-	struct iwl_mvm_phy_ctxt phy_ctxt_roc;
+	struct iwl_mvm_phy_ctxt phy_ctxts[NUM_PHY_CTX];
 
 	struct list_head time_event_list;
 	spinlock_t time_event_lock;
@@ -448,8 +449,10 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 			     struct cfg80211_chan_def *chandef,
 			     u8 chains_static, u8 chains_dynamic);
-void iwl_mvm_phy_ctxt_remove(struct iwl_mvm *mvm,
-			     struct iwl_mvm_phy_ctxt *ctxt);
+void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm,
+			  struct iwl_mvm_phy_ctxt *ctxt);
+void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm,
+			    struct iwl_mvm_phy_ctxt *ctxt);
 
 /* MAC (virtual interface) programming */
 int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif);

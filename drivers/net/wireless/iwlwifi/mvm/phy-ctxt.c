@@ -195,21 +195,6 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 	return ret;
 }
 
-
-struct phy_ctx_used_data {
-	unsigned long used[BITS_TO_LONGS(NUM_PHY_CTX)];
-};
-
-static void iwl_mvm_phy_ctx_used_iter(struct ieee80211_hw *hw,
-				      struct ieee80211_chanctx_conf *ctx,
-				      void *_data)
-{
-	struct phy_ctx_used_data *data = _data;
-	struct iwl_mvm_phy_ctxt *phy_ctxt = (void *)ctx->drv_priv;
-
-	__set_bit(phy_ctxt->id, data->used);
-}
-
 /*
  * Send a command to add a PHY context based on the current HW configuration.
  */
@@ -217,34 +202,31 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 			 struct cfg80211_chan_def *chandef,
 			 u8 chains_static, u8 chains_dynamic)
 {
-	struct phy_ctx_used_data data = {
-		.used = { },
-	};
+	int ret;
 
-	/*
-	 * If this is a regular PHY context (not the ROC one)
-	 * skip the ROC PHY context's ID.
-	 */
-	if (ctxt != &mvm->phy_ctxt_roc)
-		__set_bit(mvm->phy_ctxt_roc.id, data.used);
-
+	WARN_ON(ctxt->ref);
 	lockdep_assert_held(&mvm->mutex);
-	ctxt->color++;
-
-	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-		ieee80211_iter_chan_contexts_atomic(
-			mvm->hw, iwl_mvm_phy_ctx_used_iter, &data);
-
-		ctxt->id = find_first_zero_bit(data.used, NUM_PHY_CTX);
-		if (WARN_ONCE(ctxt->id == NUM_PHY_CTX,
-			      "Failed to init PHY context - no free ID!\n"))
-			return -EIO;
-	}
 
 	ctxt->channel = chandef->chan;
-	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
-				      chains_static, chains_dynamic,
-				      FW_CTXT_ACTION_ADD, 0);
+	ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
+				     chains_static, chains_dynamic,
+				     FW_CTXT_ACTION_ADD, 0);
+
+	if (!ret)
+		ctxt->ref = 1;
+	return ret;
+}
+
+/*
+ * Update the number of references to the given PHY context. This is valid only
+ * in case the PHY context was already created, i.e., its reference count > 0.
+ */
+void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
+{
+	WARN_ON(!ctxt->ref);
+	lockdep_assert_held(&mvm->mutex);
+
+	ctxt->ref++;
 }
 
 /*
@@ -269,7 +251,8 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
  * Once the command is sent, regardless of success or failure, the context is
  * marked as invalid
  */
-void iwl_mvm_phy_ctxt_remove(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
+static void iwl_mvm_phy_ctxt_remove(struct iwl_mvm *mvm,
+				    struct iwl_mvm_phy_ctxt *ctxt)
 {
 	struct iwl_phy_context_cmd cmd;
 	int ret;
@@ -280,7 +263,19 @@ void iwl_mvm_phy_ctxt_remove(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, CMD_SYNC,
 				   sizeof(struct iwl_phy_context_cmd),
 				   &cmd);
+	ctxt->channel = NULL;
 	if (ret)
 		IWL_ERR(mvm, "Failed to send PHY remove: ctxt id=%d\n",
 			ctxt->id);
+}
+
+void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	ctxt->ref--;
+	if (ctxt->ref != 0)
+		return;
+
+	return iwl_mvm_phy_ctxt_remove(mvm, ctxt);
 }

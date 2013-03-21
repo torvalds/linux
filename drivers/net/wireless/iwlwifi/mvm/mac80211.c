@@ -127,6 +127,17 @@ static const struct wiphy_wowlan_tcp_support iwl_mvm_wowlan_tcp_support = {
 };
 #endif
 
+static void iwl_mvm_reset_phy_ctxts(struct iwl_mvm *mvm)
+{
+	int i;
+
+	memset(mvm->phy_ctxts, 0, sizeof(mvm->phy_ctxts));
+	for (i = 0; i < NUM_PHY_CTX; i++) {
+		mvm->phy_ctxts[i].id = i;
+		mvm->phy_ctxts[i].ref = 0;
+	}
+}
+
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
@@ -158,7 +169,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->sta_data_size = sizeof(struct iwl_mvm_sta);
 	hw->vif_data_size = sizeof(struct iwl_mvm_vif);
-	hw->chanctx_data_size = sizeof(struct iwl_mvm_phy_ctxt);
+	hw->chanctx_data_size = sizeof(u16);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_P2P_CLIENT) |
@@ -192,6 +203,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		mvm->addresses[i].addr[5]++;
 		hw->wiphy->n_addresses++;
 	}
+
+	iwl_mvm_reset_phy_ctxts(mvm);
 
 	/* we create the 802.11 header and a max-length SSID element */
 	hw->wiphy->max_scan_ie_len =
@@ -345,8 +358,7 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	iwl_mvm_te_clear_data(mvm, &mvmvif->time_event_data);
 	spin_unlock_bh(&mvm->time_event_lock);
 
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
-		mvmvif->phy_ctxt = NULL;
+	mvmvif->phy_ctxt = NULL;
 }
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
@@ -363,6 +375,9 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		iwl_mvm_cleanup_iterator, mvm);
 
+	mvm->p2p_device_vif = NULL;
+
+	iwl_mvm_reset_phy_ctxts(mvm);
 	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
 	memset(mvm->sta_drained, 0, sizeof(mvm->sta_drained));
 
@@ -454,6 +469,20 @@ static void iwl_mvm_power_update_iterator(void *data, u8 *mac,
 	struct iwl_mvm *mvm = data;
 
 	iwl_mvm_power_update_mode(mvm, vif);
+}
+
+static struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm)
+{
+	u16 i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	for (i = 0; i < NUM_PHY_CTX; i++)
+		if (!mvm->phy_ctxts[i].ref)
+			return &mvm->phy_ctxts[i];
+
+	IWL_ERR(mvm, "No available PHY context\n");
+	return NULL;
 }
 
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
@@ -550,7 +579,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		struct ieee80211_channel *chan;
 		struct cfg80211_chan_def chandef;
 
-		mvmvif->phy_ctxt = &mvm->phy_ctxt_roc;
+		mvmvif->phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
+		if (!mvmvif->phy_ctxt) {
+			ret = -ENOSPC;
+			goto out_remove_mac;
+		}
 
 		/*
 		 * The channel used here isn't relevant as it's
@@ -583,7 +616,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
  out_unbind:
 	iwl_mvm_binding_remove_vif(mvm, vif);
  out_remove_phy:
-	iwl_mvm_phy_ctxt_remove(mvm, mvmvif->phy_ctxt);
+	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
  out_remove_mac:
 	mvmvif->phy_ctxt = NULL;
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
@@ -677,7 +710,7 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		mvm->p2p_device_vif = NULL;
 		iwl_mvm_rm_bcast_sta(mvm, &mvmvif->bcast_sta);
 		iwl_mvm_binding_remove_vif(mvm, vif);
-		iwl_mvm_phy_ctxt_remove(mvm, mvmvif->phy_ctxt);
+		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
 		mvmvif->phy_ctxt = NULL;
 	}
 
@@ -1172,6 +1205,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 		       enum ieee80211_roc_type type)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct cfg80211_chan_def chandef;
 	int ret;
 
@@ -1186,7 +1220,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 
 	cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
-	ret = iwl_mvm_phy_ctxt_changed(mvm, &mvm->phy_ctxt_roc,
+	ret = iwl_mvm_phy_ctxt_changed(mvm, mvmvif->phy_ctxt,
 				       &chandef, 1, 1);
 
 	/* Schedule the time events */
@@ -1216,15 +1250,29 @@ static int iwl_mvm_add_chanctx(struct ieee80211_hw *hw,
 			       struct ieee80211_chanctx_conf *ctx)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_phy_ctxt *phy_ctxt = (void *)ctx->drv_priv;
+	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
+	struct iwl_mvm_phy_ctxt *phy_ctxt;
 	int ret;
 
-	mutex_lock(&mvm->mutex);
-
 	IWL_DEBUG_MAC80211(mvm, "Add PHY context\n");
+
+	mutex_lock(&mvm->mutex);
+	phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
+	if (!phy_ctxt) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
 	ret = iwl_mvm_phy_ctxt_add(mvm, phy_ctxt, &ctx->def,
 				   ctx->rx_chains_static,
 				   ctx->rx_chains_dynamic);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to add PHY context\n");
+		goto out;
+	}
+
+	*phy_ctxt_id = phy_ctxt->id;
+out:
 	mutex_unlock(&mvm->mutex);
 	return ret;
 }
@@ -1233,10 +1281,11 @@ static void iwl_mvm_remove_chanctx(struct ieee80211_hw *hw,
 				   struct ieee80211_chanctx_conf *ctx)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_phy_ctxt *phy_ctxt = (void *)ctx->drv_priv;
+	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
+	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_phy_ctxt_remove(mvm, phy_ctxt);
+	iwl_mvm_phy_ctxt_unref(mvm, phy_ctxt);
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -1245,7 +1294,8 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 				   u32 changed)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_phy_ctxt *phy_ctxt = (void *)ctx->drv_priv;
+	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
+	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
 
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->def,
@@ -1259,13 +1309,14 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 				      struct ieee80211_chanctx_conf *ctx)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_phy_ctxt *phyctx = (void *)ctx->drv_priv;
+	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
+	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
 	mutex_lock(&mvm->mutex);
 
-	mvmvif->phy_ctxt = phyctx;
+	mvmvif->phy_ctxt = phy_ctxt;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
