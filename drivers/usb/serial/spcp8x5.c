@@ -1,7 +1,7 @@
 /*
  * spcp8x5 USB to serial adaptor driver
  *
- * Copyright (C) 2010 Johan Hovold (jhovold@gmail.com)
+ * Copyright (C) 2010-2013 Johan Hovold (jhovold@gmail.com)
  * Copyright (C) 2006 Linxb (xubin.lin@worldplus.com.cn)
  * Copyright (C) 2006 S1 Corp.
  *
@@ -145,7 +145,6 @@ struct spcp8x5_private {
 	unsigned		quirks;
 	spinlock_t		lock;
 	u8			line_control;
-	u8			line_status;
 };
 
 static int spcp8x5_probe(struct usb_serial *serial,
@@ -249,9 +248,11 @@ static void spcp8x5_set_work_mode(struct usb_serial_port *port, u16 value,
 
 static int spcp8x5_carrier_raised(struct usb_serial_port *port)
 {
-	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
+	u8 msr;
+	int ret;
 
-	if (priv->line_status & MSR_STATUS_LINE_DCD)
+	ret = spcp8x5_get_msr(port, &msr);
+	if (ret || msr & MSR_STATUS_LINE_DCD)
 		return 1;
 
 	return 0;
@@ -397,9 +398,6 @@ static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
 	int ret;
-	unsigned long flags;
-	u8 status = 0x30;
-	/* status 0x30 means DSR and CTS = 1 other CDC RI and delta = 0 */
 
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
@@ -412,16 +410,8 @@ static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	spcp8x5_set_ctrl_line(port, priv->line_control);
 
-	/* Setup termios */
 	if (tty)
 		spcp8x5_set_termios(tty, port, &tmp_termios);
-
-	spcp8x5_get_msr(port, &status);
-
-	/* may be we should update uart status here but now we did not do */
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->line_status = status & 0xf0 ;
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	port->port.drain_delay = 256;
 
@@ -457,12 +447,15 @@ static int spcp8x5_tiocmget(struct tty_struct *tty)
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	unsigned int mcr;
-	unsigned int status;
+	u8 status;
 	unsigned int result;
+
+	result = spcp8x5_get_msr(port, &status);
+	if (result)
+		return result;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	mcr = priv->line_control;
-	status = priv->line_status;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	result = ((mcr & MCR_DTR)			? TIOCM_DTR : 0)
