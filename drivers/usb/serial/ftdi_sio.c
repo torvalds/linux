@@ -67,7 +67,6 @@ struct ftdi_private {
 				 */
 	int flags;		/* some ASYNC_xxxx flags are supported */
 	unsigned long last_dtr_rts;	/* saved modem control outputs */
-	struct async_icount	icount;
 	char prev_status;        /* Used for TIOCMIWAIT */
 	char transmit_empty;	/* If transmitter is empty or not */
 	__u16 interface;	/* FT2232C, FT2232H or FT4232H port interface
@@ -1909,7 +1908,7 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 			c = kfifo_out(&port->write_fifo, &buffer[i + 1], len);
 			if (!c)
 				break;
-			priv->icount.tx += c;
+			port->icount.tx += c;
 			buffer[i] = (c << 2) + 1;
 			count += c + 1;
 		}
@@ -1917,7 +1916,7 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 	} else {
 		count = kfifo_out_locked(&port->write_fifo, dest, size,
 								&port->lock);
-		priv->icount.tx += count;
+		port->icount.tx += count;
 	}
 
 	return count;
@@ -1946,13 +1945,13 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 		char diff_status = status ^ priv->prev_status;
 
 		if (diff_status & FTDI_RS0_CTS)
-			priv->icount.cts++;
+			port->icount.cts++;
 		if (diff_status & FTDI_RS0_DSR)
-			priv->icount.dsr++;
+			port->icount.dsr++;
 		if (diff_status & FTDI_RS0_RI)
-			priv->icount.rng++;
+			port->icount.rng++;
 		if (diff_status & FTDI_RS0_RLSD)
-			priv->icount.dcd++;
+			port->icount.dcd++;
 
 		wake_up_interruptible(&port->delta_msr_wait);
 		priv->prev_status = status;
@@ -1964,18 +1963,18 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 		 * over framing errors */
 		if (packet[1] & FTDI_RS_BI) {
 			flag = TTY_BREAK;
-			priv->icount.brk++;
+			port->icount.brk++;
 			usb_serial_handle_break(port);
 		} else if (packet[1] & FTDI_RS_PE) {
 			flag = TTY_PARITY;
-			priv->icount.parity++;
+			port->icount.parity++;
 		} else if (packet[1] & FTDI_RS_FE) {
 			flag = TTY_FRAME;
-			priv->icount.frame++;
+			port->icount.frame++;
 		}
 		/* Overrun is special, not associated with a char */
 		if (packet[1] & FTDI_RS_OE) {
-			priv->icount.overrun++;
+			port->icount.overrun++;
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 		}
 	}
@@ -1989,7 +1988,7 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 	len -= 2;
 	if (!len)
 		return 0;	/* status only */
-	priv->icount.rx += len;
+	port->icount.rx += len;
 	ch = packet + 2;
 
 	if (port->port.console && port->sysrq) {
@@ -2357,8 +2356,7 @@ static int ftdi_get_icount(struct tty_struct *tty,
 				struct serial_icounter_struct *icount)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct async_icount *ic = &priv->icount;
+	struct async_icount *ic = &port->icount;
 
 	icount->cts = ic->cts;
 	icount->dsr = ic->dsr;
@@ -2378,7 +2376,6 @@ static int ftdi_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct async_icount cnow;
 	struct async_icount cprev;
 
@@ -2404,7 +2401,7 @@ static int ftdi_ioctl(struct tty_struct *tty,
 	 * This code is borrowed from linux/drivers/char/serial.c
 	 */
 	case TIOCMIWAIT:
-		cprev = priv->icount;
+		cprev = port->icount;
 		for (;;) {
 			interruptible_sleep_on(&port->delta_msr_wait);
 			/* see if a signal did it */
@@ -2414,7 +2411,7 @@ static int ftdi_ioctl(struct tty_struct *tty,
 			if (port->serial->disconnected)
 				return -EIO;
 
-			cnow = priv->icount;
+			cnow = port->icount;
 			if (((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
 			    ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
 			    ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
