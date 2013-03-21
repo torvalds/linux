@@ -19,6 +19,7 @@
 #include <linux/time-armada-370-xp.h>
 #include <linux/clk/mvebu.h>
 #include <linux/dma-mapping.h>
+#include <linux/mbus.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -48,12 +49,29 @@ void __init armada_370_xp_timer_and_clk_init(void)
 
 void __init armada_370_xp_init_early(void)
 {
+	char *mbus_soc_name;
+
 	/*
 	 * Some Armada 370/XP devices allocate their coherent buffers
 	 * from atomic context. Increase size of atomic coherent pool
 	 * to make sure such the allocations won't fail.
 	 */
 	init_dma_coherent_pool_size(SZ_1M);
+
+	/*
+	 * This initialization will be replaced by a DT-based
+	 * initialization once the mvebu-mbus driver gains DT support.
+	 */
+	if (of_machine_is_compatible("marvell,armada370"))
+		mbus_soc_name = "marvell,armada370-mbus";
+	else
+		mbus_soc_name = "marvell,armadaxp-mbus";
+
+	mvebu_mbus_init(mbus_soc_name,
+			ARMADA_370_XP_MBUS_WINS_BASE,
+			ARMADA_370_XP_MBUS_WINS_SIZE,
+			ARMADA_370_XP_SDRAM_WINS_BASE,
+			ARMADA_370_XP_SDRAM_WINS_SIZE);
 }
 
 static void __init armada_370_xp_dt_init(void)
