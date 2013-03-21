@@ -83,6 +83,9 @@ void bcm63xx_machine_reboot(void)
 	case BCM6358_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6358;
 		break;
+	case BCM6362_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6362;
+		break;
 	}
 
 	for (i = 0; i < 2; i++) {

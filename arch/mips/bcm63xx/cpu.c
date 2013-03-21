@@ -71,6 +71,15 @@ static const int bcm6358_irqs[] = {
 
 };
 
+static const unsigned long bcm6362_regs_base[] = {
+	__GEN_CPU_REGS_TABLE(6362)
+};
+
+static const int bcm6362_irqs[] = {
+	__GEN_CPU_IRQ_TABLE(6362)
+
+};
+
 static const unsigned long bcm6368_regs_base[] = {
 	__GEN_CPU_REGS_TABLE(6368)
 };
@@ -169,6 +178,42 @@ static unsigned int detect_cpu_clock(void)
 		return (16 * 1000000 * n1 * n2) / m1;
 	}
 
+	case BCM6362_CPU_ID:
+	{
+		unsigned int tmp, mips_pll_fcvo;
+
+		tmp = bcm_misc_readl(MISC_STRAPBUS_6362_REG);
+		mips_pll_fcvo = (tmp & STRAPBUS_6362_FCVO_MASK)
+				>> STRAPBUS_6362_FCVO_SHIFT;
+		switch (mips_pll_fcvo) {
+		case 0x03:
+		case 0x0b:
+		case 0x13:
+		case 0x1b:
+			return 240000000;
+		case 0x04:
+		case 0x0c:
+		case 0x14:
+		case 0x1c:
+			return 160000000;
+		case 0x05:
+		case 0x0e:
+		case 0x16:
+		case 0x1e:
+		case 0x1f:
+			return 400000000;
+		case 0x06:
+			return 440000000;
+		case 0x07:
+		case 0x17:
+			return 384000000;
+		case 0x15:
+		case 0x1d:
+			return 200000000;
+		default:
+			return 320000000;
+		}
+	}
 	case BCM6368_CPU_ID:
 	{
 		unsigned int tmp, p1, p2, ndiv, m1;
@@ -205,7 +250,7 @@ static unsigned int detect_memory_size(void)
 	unsigned int cols = 0, rows = 0, is_32bits = 0, banks = 0;
 	u32 val;
 
-	if (BCMCPU_IS_6328())
+	if (BCMCPU_IS_6328() || BCMCPU_IS_6362())
 		return bcm_ddr_readl(DDR_CSEND_REG) << 24;
 
 	if (BCMCPU_IS_6345()) {
@@ -296,6 +341,10 @@ void __init bcm63xx_cpu_init(void)
 	case BCM6358_CPU_ID:
 		bcm63xx_regs_base = bcm6358_regs_base;
 		bcm63xx_irqs = bcm6358_irqs;
+		break;
+	case BCM6362_CPU_ID:
+		bcm63xx_regs_base = bcm6362_regs_base;
+		bcm63xx_irqs = bcm6362_irqs;
 		break;
 	case BCM6368_CPU_ID:
 		bcm63xx_regs_base = bcm6368_regs_base;
