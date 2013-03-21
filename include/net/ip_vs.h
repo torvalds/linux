@@ -738,7 +738,7 @@ struct ip_vs_dest_dst {
  */
 struct ip_vs_dest {
 	struct list_head	n_list;   /* for the dests in the service */
-	struct list_head	d_list;   /* for table with all the dests */
+	struct hlist_node	d_list;   /* for table with all the dests */
 
 	u16			af;		/* address family */
 	__be16			port;		/* port number of the server */
@@ -767,6 +767,9 @@ struct ip_vs_dest {
 	__be16			vport;		/* virtual port number */
 	union nf_inet_addr	vaddr;		/* virtual IP address */
 	__u32			vfwmark;	/* firewall mark of service */
+
+	struct rcu_head		rcu_head;
+	unsigned int		in_rs_table:1;	/* we are in rs_table */
 };
 
 
@@ -897,7 +900,7 @@ struct netns_ipvs {
 	#define IP_VS_RTAB_SIZE (1 << IP_VS_RTAB_BITS)
 	#define IP_VS_RTAB_MASK (IP_VS_RTAB_SIZE - 1)
 
-	struct list_head	rs_table[IP_VS_RTAB_SIZE];
+	struct hlist_head	rs_table[IP_VS_RTAB_SIZE];
 	/* ip_vs_app */
 	struct list_head	app_list;
 	/* ip_vs_proto */
@@ -933,7 +936,6 @@ struct netns_ipvs {
 
 	int			num_services;    /* no of virtual services */
 
-	rwlock_t		rs_lock;         /* real services table */
 	/* Trash for destinations */
 	struct list_head	dest_trash;
 	/* Service counters */
@@ -1376,9 +1378,9 @@ static inline void ip_vs_service_put(struct ip_vs_service *svc)
 	atomic_dec(&svc->usecnt);
 }
 
-extern struct ip_vs_dest *
-ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
-			  const union nf_inet_addr *daddr, __be16 dport);
+extern bool
+ip_vs_has_real_service(struct net *net, int af, __u16 protocol,
+		       const union nf_inet_addr *daddr, __be16 dport);
 
 extern int ip_vs_use_count_inc(void);
 extern void ip_vs_use_count_dec(void);

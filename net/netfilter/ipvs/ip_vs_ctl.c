@@ -508,17 +508,13 @@ static inline unsigned int ip_vs_rs_hashkey(int af,
 		& IP_VS_RTAB_MASK;
 }
 
-/*
- *	Hashes ip_vs_dest in rs_table by <proto,addr,port>.
- *	should be called with locked tables.
- */
-static int ip_vs_rs_hash(struct netns_ipvs *ipvs, struct ip_vs_dest *dest)
+/* Hash ip_vs_dest in rs_table by <proto,addr,port>. */
+static void ip_vs_rs_hash(struct netns_ipvs *ipvs, struct ip_vs_dest *dest)
 {
 	unsigned int hash;
 
-	if (!list_empty(&dest->d_list)) {
-		return 0;
-	}
+	if (dest->in_rs_table)
+		return;
 
 	/*
 	 *	Hash by proto,addr,port,
@@ -526,60 +522,47 @@ static int ip_vs_rs_hash(struct netns_ipvs *ipvs, struct ip_vs_dest *dest)
 	 */
 	hash = ip_vs_rs_hashkey(dest->af, &dest->addr, dest->port);
 
-	list_add(&dest->d_list, &ipvs->rs_table[hash]);
-
-	return 1;
+	hlist_add_head_rcu(&dest->d_list, &ipvs->rs_table[hash]);
+	dest->in_rs_table = 1;
 }
 
-/*
- *	UNhashes ip_vs_dest from rs_table.
- *	should be called with locked tables.
- */
-static int ip_vs_rs_unhash(struct ip_vs_dest *dest)
+/* Unhash ip_vs_dest from rs_table. */
+static void ip_vs_rs_unhash(struct ip_vs_dest *dest)
 {
 	/*
 	 * Remove it from the rs_table table.
 	 */
-	if (!list_empty(&dest->d_list)) {
-		list_del_init(&dest->d_list);
+	if (dest->in_rs_table) {
+		hlist_del_rcu(&dest->d_list);
+		dest->in_rs_table = 0;
 	}
-
-	return 1;
 }
 
-/*
- *	Lookup real service by <proto,addr,port> in the real service table.
- */
-struct ip_vs_dest *
-ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
-			  const union nf_inet_addr *daddr,
-			  __be16 dport)
+/* Check if real service by <proto,addr,port> is present */
+bool ip_vs_has_real_service(struct net *net, int af, __u16 protocol,
+			    const union nf_inet_addr *daddr, __be16 dport)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	unsigned int hash;
 	struct ip_vs_dest *dest;
 
-	/*
-	 *	Check for "full" addressed entries
-	 *	Return the first found entry
-	 */
+	/* Check for "full" addressed entries */
 	hash = ip_vs_rs_hashkey(af, daddr, dport);
 
-	read_lock(&ipvs->rs_lock);
-	list_for_each_entry(dest, &ipvs->rs_table[hash], d_list) {
-		if ((dest->af == af)
-		    && ip_vs_addr_equal(af, &dest->addr, daddr)
-		    && (dest->port == dport)
-		    && ((dest->protocol == protocol) ||
-			dest->vfwmark)) {
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(dest, &ipvs->rs_table[hash], d_list) {
+		if (dest->port == dport &&
+		    dest->af == af &&
+		    ip_vs_addr_equal(af, &dest->addr, daddr) &&
+		    (dest->protocol == protocol || dest->vfwmark)) {
 			/* HIT */
-			read_unlock(&ipvs->rs_lock);
-			return dest;
+			rcu_read_unlock();
+			return true;
 		}
 	}
-	read_unlock(&ipvs->rs_lock);
+	rcu_read_unlock();
 
-	return NULL;
+	return false;
 }
 
 /*
@@ -612,9 +595,6 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
  * the backup synchronization daemon. It finds the
  * destination to be bound to the received connection
  * on the backup.
- *
- * ip_vs_lookup_real_service() looked promissing, but
- * seems not working as expected.
  */
 struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 				   const union nf_inet_addr *daddr,
@@ -715,7 +695,7 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 			__ip_vs_dst_cache_reset(dest);
 			__ip_vs_unbind_svc(dest);
 			free_percpu(dest->stats.cpustats);
-			kfree(dest);
+			kfree_rcu(dest, rcu_head);
 		}
 	}
 
@@ -742,7 +722,7 @@ static void ip_vs_trash_cleanup(struct net *net)
 		__ip_vs_dst_cache_reset(dest);
 		__ip_vs_unbind_svc(dest);
 		free_percpu(dest->stats.cpustats);
-		kfree(dest);
+		kfree_rcu(dest, rcu_head);
 	}
 }
 
@@ -807,9 +787,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		 *    Put the real service in rs_table if not present.
 		 *    For now only for NAT!
 		 */
-		write_lock_bh(&ipvs->rs_lock);
 		ip_vs_rs_hash(ipvs, dest);
-		write_unlock_bh(&ipvs->rs_lock);
 	}
 	atomic_set(&dest->conn_flags, conn_flags);
 
@@ -905,7 +883,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	atomic_set(&dest->persistconns, 0);
 	atomic_set(&dest->refcnt, 1);
 
-	INIT_LIST_HEAD(&dest->d_list);
+	INIT_HLIST_NODE(&dest->d_list);
 	spin_lock_init(&dest->dst_lock);
 	spin_lock_init(&dest->stats.lock);
 	__ip_vs_update_dest(svc, dest, udest, 1);
@@ -1045,9 +1023,7 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 	/*
 	 *  Remove it from the d-linked list with the real services.
 	 */
-	write_lock_bh(&ipvs->rs_lock);
 	ip_vs_rs_unhash(dest);
-	write_unlock_bh(&ipvs->rs_lock);
 
 	/*
 	 *  Decrease the refcnt of the dest, and free the dest
@@ -1067,7 +1043,7 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 		   time, so the operation here is OK */
 		atomic_dec(&dest->svc->refcnt);
 		free_percpu(dest->stats.cpustats);
-		kfree(dest);
+		kfree_rcu(dest, rcu_head);
 	} else {
 		IP_VS_DBG_BUF(3, "Moving dest %s:%u into trash, "
 			      "dest->refcnt=%d\n",
@@ -3811,11 +3787,9 @@ int __net_init ip_vs_control_net_init(struct net *net)
 	int idx;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	rwlock_init(&ipvs->rs_lock);
-
 	/* Initialize rs_table */
 	for (idx = 0; idx < IP_VS_RTAB_SIZE; idx++)
-		INIT_LIST_HEAD(&ipvs->rs_table[idx]);
+		INIT_HLIST_HEAD(&ipvs->rs_table[idx]);
 
 	INIT_LIST_HEAD(&ipvs->dest_trash);
 	atomic_set(&ipvs->ftpsvc_counter, 0);
@@ -3892,7 +3866,7 @@ int __init ip_vs_control_init(void)
 
 	EnterFunction(2);
 
-	/* Initialize svc_table, ip_vs_svc_fwm_table, rs_table */
+	/* Initialize svc_table, ip_vs_svc_fwm_table */
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
 		INIT_LIST_HEAD(&ip_vs_svc_table[idx]);
 		INIT_LIST_HEAD(&ip_vs_svc_fwm_table[idx]);

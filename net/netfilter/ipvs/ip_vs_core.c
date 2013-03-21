@@ -1161,9 +1161,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 					 sizeof(_ports), _ports, &iph);
 		if (pptr == NULL)
 			return NF_ACCEPT;	/* Not for me */
-		if (ip_vs_lookup_real_service(net, af, iph.protocol,
-					      &iph.saddr,
-					      pptr[0])) {
+		if (ip_vs_has_real_service(net, af, iph.protocol, &iph.saddr,
+					   pptr[0])) {
 			/*
 			 * Notify the real server: there is no
 			 * existing entry if it is not RST
