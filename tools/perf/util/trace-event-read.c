@@ -46,16 +46,6 @@ static int long_size;
 static ssize_t calc_data_size;
 static bool repipe;
 
-static void *malloc_or_die(int size)
-{
-	void *ret;
-
-	ret = malloc(size);
-	if (!ret)
-		die("malloc");
-	return ret;
-}
-
 static int do_read(int fd, void *buf, int size)
 {
 	int rsize = size;
@@ -156,48 +146,57 @@ static char *read_string(void)
 	if (calc_data_size)
 		calc_data_size += size;
 
-	str = malloc_or_die(size);
-	memcpy(str, buf, size);
+	str = malloc(size);
+	if (str)
+		memcpy(str, buf, size);
 
 	return str;
 }
 
-static void read_proc_kallsyms(struct pevent *pevent)
+static int read_proc_kallsyms(struct pevent *pevent)
 {
 	unsigned int size;
 	char *buf;
 
 	size = read4(pevent);
 	if (!size)
-		return;
+		return 0;
 
-	buf = malloc_or_die(size + 1);
+	buf = malloc(size + 1);
+	if (buf == NULL)
+		return -1;
+
 	read_or_die(buf, size);
 	buf[size] = '\0';
 
 	parse_proc_kallsyms(pevent, buf, size);
 
 	free(buf);
+	return 0;
 }
 
-static void read_ftrace_printk(struct pevent *pevent)
+static int read_ftrace_printk(struct pevent *pevent)
 {
 	unsigned int size;
 	char *buf;
 
 	size = read4(pevent);
 	if (!size)
-		return;
+		return 0;
 
-	buf = malloc_or_die(size);
+	buf = malloc(size);
+	if (buf == NULL)
+		return -1;
+
 	read_or_die(buf, size);
 
 	parse_ftrace_printk(pevent, buf, size);
 
 	free(buf);
+	return 0;
 }
 
-static void read_header_files(struct pevent *pevent)
+static int read_header_files(struct pevent *pevent)
 {
 	unsigned long long size;
 	char *header_event;
@@ -222,65 +221,87 @@ static void read_header_files(struct pevent *pevent)
 		die("did not read header event");
 
 	size = read8(pevent);
-	header_event = malloc_or_die(size);
+	header_event = malloc(size);
+	if (header_event == NULL)
+		return -1;
+
 	read_or_die(header_event, size);
 	free(header_event);
+	return 0;
 }
 
-static void read_ftrace_file(struct pevent *pevent, unsigned long long size)
+static int read_ftrace_file(struct pevent *pevent, unsigned long long size)
 {
 	char *buf;
 
-	buf = malloc_or_die(size);
+	buf = malloc(size);
+	if (buf == NULL)
+		return -1;
+
 	read_or_die(buf, size);
 	parse_ftrace_file(pevent, buf, size);
 	free(buf);
+	return 0;
 }
 
-static void read_event_file(struct pevent *pevent, char *sys,
+static int read_event_file(struct pevent *pevent, char *sys,
 			    unsigned long long size)
 {
 	char *buf;
 
-	buf = malloc_or_die(size);
+	buf = malloc(size);
+	if (buf == NULL)
+		return -1;
+
 	read_or_die(buf, size);
 	parse_event_file(pevent, buf, size, sys);
 	free(buf);
+	return 0;
 }
 
-static void read_ftrace_files(struct pevent *pevent)
+static int read_ftrace_files(struct pevent *pevent)
 {
 	unsigned long long size;
 	int count;
 	int i;
+	int ret;
 
 	count = read4(pevent);
 
 	for (i = 0; i < count; i++) {
 		size = read8(pevent);
-		read_ftrace_file(pevent, size);
+		ret = read_ftrace_file(pevent, size);
+		if (ret)
+			return ret;
 	}
+	return 0;
 }
 
-static void read_event_files(struct pevent *pevent)
+static int read_event_files(struct pevent *pevent)
 {
 	unsigned long long size;
 	char *sys;
 	int systems;
 	int count;
 	int i,x;
+	int ret;
 
 	systems = read4(pevent);
 
 	for (i = 0; i < systems; i++) {
 		sys = read_string();
+		if (sys == NULL)
+			return -1;
 
 		count = read4(pevent);
 		for (x=0; x < count; x++) {
 			size = read8(pevent);
-			read_event_file(pevent, sys, size);
+			ret = read_event_file(pevent, sys, size);
+			if (ret)
+				return ret;
 		}
 	}
+	return 0;
 }
 
 ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
@@ -293,6 +314,7 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	int show_printk = 0;
 	ssize_t size = -1;
 	struct pevent *pevent;
+	int err;
 
 	*ppevent = NULL;
 
@@ -310,6 +332,8 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 		die("not a trace file (missing 'tracing' tag)");
 
 	version = read_string();
+	if (version == NULL)
+		return -1;
 	if (show_version)
 		printf("version = %s\n", version);
 	free(version);
@@ -329,11 +353,21 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 
 	page_size = read4(pevent);
 
-	read_header_files(pevent);
-	read_ftrace_files(pevent);
-	read_event_files(pevent);
-	read_proc_kallsyms(pevent);
-	read_ftrace_printk(pevent);
+	err = read_header_files(pevent);
+	if (err)
+		goto out;
+	err = read_ftrace_files(pevent);
+	if (err)
+		goto out;
+	err = read_event_files(pevent);
+	if (err)
+		goto out;
+	err = read_proc_kallsyms(pevent);
+	if (err)
+		goto out;
+	err = read_ftrace_printk(pevent);
+	if (err)
+		goto out;
 
 	size = calc_data_size - 1;
 	calc_data_size = 0;
