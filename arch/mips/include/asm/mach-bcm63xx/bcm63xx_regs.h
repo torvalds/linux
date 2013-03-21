@@ -1365,7 +1365,8 @@
 /*************************************************************************
  * _REG relative to RSET_MISC
  *************************************************************************/
-#define MISC_SERDES_CTRL_REG		0x0
+#define MISC_SERDES_CTRL_6328_REG	0x0
+#define MISC_SERDES_CTRL_6362_REG	0x4
 #define SERDES_PCIE_EN			(1 << 0)
 #define SERDES_PCIE_EXD_EN		(1 << 15)
 
