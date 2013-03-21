@@ -23,6 +23,7 @@ config MFD_88PM860X
 
 config MFD_CROS_EC
 	tristate "Support ChromeOS Embedded Controller"
+	select MFD_CORE
 	help
 	  If you say Y here you get support for the ChromeOS Embedded
 	  Controller (EC) providing keyboard, battery and power services.
