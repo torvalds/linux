@@ -724,6 +724,13 @@ struct ip_vs_service {
 	struct ip_vs_pe		*pe;
 };
 
+/* Information for cached dst */
+struct ip_vs_dest_dst {
+	struct dst_entry	*dst_cache;	/* destination cache entry */
+	u32			dst_cookie;
+	union nf_inet_addr	dst_saddr;
+	struct rcu_head		rcu_head;
+};
 
 /*
  *	The real server destination forwarding entry
@@ -752,9 +759,7 @@ struct ip_vs_dest {
 
 	/* for destination cache */
 	spinlock_t		dst_lock;	/* lock of dst_cache */
-	struct dst_entry	*dst_cache;	/* destination cache entry */
-	u32			dst_cookie;
-	union nf_inet_addr	dst_saddr;
+	struct ip_vs_dest_dst __rcu *dest_dst;	/* cached dst info */
 
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
@@ -1427,6 +1432,7 @@ extern int ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 extern int ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 			   struct ip_vs_protocol *pp, int offset,
 			   unsigned int hooknum, struct ip_vs_iphdr *iph);
+extern void ip_vs_dest_dst_rcu_free(struct rcu_head *head);
 
 #ifdef CONFIG_IP_VS_IPV6
 extern int ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,

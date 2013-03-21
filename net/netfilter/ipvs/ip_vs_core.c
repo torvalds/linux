@@ -1395,10 +1395,13 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 				goto ignore_ipip;
 			/* Prefer the resulting PMTU */
 			if (dest) {
-				spin_lock(&dest->dst_lock);
-				if (dest->dst_cache)
-					mtu = dst_mtu(dest->dst_cache);
-				spin_unlock(&dest->dst_lock);
+				struct ip_vs_dest_dst *dest_dst;
+
+				rcu_read_lock();
+				dest_dst = rcu_dereference(dest->dest_dst);
+				if (dest_dst)
+					mtu = dst_mtu(dest_dst->dst_cache);
+				rcu_read_unlock();
 			}
 			if (mtu > 68 + sizeof(struct iphdr))
 				mtu -= sizeof(struct iphdr);

@@ -641,15 +641,26 @@ struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 	return dest;
 }
 
-/* Release dst_cache for dest in user context */
+void ip_vs_dest_dst_rcu_free(struct rcu_head *head)
+{
+	struct ip_vs_dest_dst *dest_dst = container_of(head,
+						       struct ip_vs_dest_dst,
+						       rcu_head);
+
+	dst_release(dest_dst->dst_cache);
+	kfree(dest_dst);
+}
+
+/* Release dest_dst and dst_cache for dest in user context */
 static void __ip_vs_dst_cache_reset(struct ip_vs_dest *dest)
 {
-	struct dst_entry *old_dst;
+	struct ip_vs_dest_dst *old;
 
-	old_dst = dest->dst_cache;
-	dest->dst_cache = NULL;
-	dst_release(old_dst);
-	dest->dst_saddr.ip = 0;
+	old = rcu_dereference_protected(dest->dest_dst, 1);
+	if (old) {
+		RCU_INIT_POINTER(dest->dest_dst, NULL);
+		call_rcu(&old->rcu_head, ip_vs_dest_dst_rcu_free);
+	}
 }
 
 /*
@@ -1513,7 +1524,7 @@ static inline void
 ip_vs_forget_dev(struct ip_vs_dest *dest, struct net_device *dev)
 {
 	spin_lock_bh(&dest->dst_lock);
-	if (dest->dst_cache && dest->dst_cache->dev == dev) {
+	if (dest->dest_dst && dest->dest_dst->dst_cache->dev == dev) {
 		IP_VS_DBG_BUF(3, "Reset dev:%s dest %s:%u ,dest->refcnt=%d\n",
 			      dev->name,
 			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
