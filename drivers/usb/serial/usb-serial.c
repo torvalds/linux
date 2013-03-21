@@ -14,7 +14,6 @@
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -49,7 +48,6 @@
    drivers depend on it.
 */
 
-/* initially all NULL */
 static struct usb_serial *serial_table[SERIAL_TTY_MINORS];
 static DEFINE_MUTEX(table_lock);
 static LIST_HEAD(usb_serial_driver_list);
@@ -338,7 +336,6 @@ static int serial_write(struct tty_struct *tty, const unsigned char *buf,
 	dev_dbg(tty->dev, "%s - port %d, %d byte(s)\n", __func__,
 		port->number, count);
 
-	/* pass on to the driver specific version of this function */
 	retval = port->serial->type->write(tty, port, buf, count);
 	if (retval < 0)
 		retval = usb_translate_errors(retval);
@@ -351,7 +348,7 @@ static int serial_write_room(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 
 	dev_dbg(tty->dev, "%s - port %d\n", __func__, port->number);
-	/* pass on to the driver specific version of this function */
+
 	return port->serial->type->write_room(tty);
 }
 
@@ -381,7 +378,6 @@ static void serial_throttle(struct tty_struct *tty)
 
 	dev_dbg(tty->dev, "%s - port %d\n", __func__, port->number);
 
-	/* pass on to the driver specific version of this function */
 	if (port->serial->type->throttle)
 		port->serial->type->throttle(tty);
 }
@@ -392,7 +388,6 @@ static void serial_unthrottle(struct tty_struct *tty)
 
 	dev_dbg(tty->dev, "%s - port %d\n", __func__, port->number);
 
-	/* pass on to the driver specific version of this function */
 	if (port->serial->type->unthrottle)
 		port->serial->type->unthrottle(tty);
 }
@@ -406,12 +401,11 @@ static int serial_ioctl(struct tty_struct *tty,
 	dev_dbg(tty->dev, "%s - port %d, cmd 0x%.4x\n", __func__,
 		port->number, cmd);
 
-	/* pass on to the driver specific version of this function
-	   if it is available */
-	if (port->serial->type->ioctl) {
+	if (port->serial->type->ioctl)
 		retval = port->serial->type->ioctl(tty, cmd, arg);
-	} else
+	else
 		retval = -ENOIOCTLCMD;
+
 	return retval;
 }
 
@@ -421,8 +415,6 @@ static void serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 
 	dev_dbg(tty->dev, "%s - port %d\n", __func__, port->number);
 
-	/* pass on to the driver specific version of this function
-	   if it is available */
 	if (port->serial->type->set_termios)
 		port->serial->type->set_termios(tty, port, old);
 	else
@@ -435,10 +427,9 @@ static int serial_break(struct tty_struct *tty, int break_state)
 
 	dev_dbg(tty->dev, "%s - port %d\n", __func__, port->number);
 
-	/* pass on to the driver specific version of this function
-	   if it is available */
 	if (port->serial->type->break_ctl)
 		port->serial->type->break_ctl(tty, break_state);
+
 	return 0;
 }
 
@@ -1471,7 +1462,6 @@ void usb_serial_deregister_drivers(struct usb_serial_driver *const serial_driver
 }
 EXPORT_SYMBOL_GPL(usb_serial_deregister_drivers);
 
-/* Module information */
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
