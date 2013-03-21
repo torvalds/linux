@@ -51,38 +51,14 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 		return sw->retpc;
 }
 
-/*
- * The idle loop on an m68k..
- */
-static void default_idle(void)
+void arch_cpu_idle(void)
 {
-	if (!need_resched())
 #if defined(MACH_ATARI_ONLY)
-		/* block out HSYNC on the atari (falcon) */
-		__asm__("stop #0x2200" : : : "cc");
+	/* block out HSYNC on the atari (falcon) */
+	__asm__("stop #0x2200" : : : "cc");
 #else
-		__asm__("stop #0x2000" : : : "cc");
+	__asm__("stop #0x2000" : : : "cc");
 #endif
-}
-
-void (*idle)(void) = default_idle;
-
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
-{
-	/* endless idle loop with no priority at all */
-	while (1) {
-		rcu_idle_enter();
-		while (!need_resched())
-			idle();
-		rcu_idle_exit();
-		schedule_preempt_disabled();
-	}
 }
 
 void machine_restart(char * __unused)
