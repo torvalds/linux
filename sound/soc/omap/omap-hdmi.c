@@ -264,6 +264,10 @@ static struct snd_soc_dai_driver omap_hdmi_dai = {
 	.ops = &omap_hdmi_dai_ops,
 };
 
+static const struct snd_soc_component_driver omap_hdmi_component = {
+	.name		= DRV_NAME,
+};
+
 static int omap_hdmi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -321,7 +325,8 @@ static int omap_hdmi_probe(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(&pdev->dev, hdmi_data);
-	ret = snd_soc_register_dai(&pdev->dev, &omap_hdmi_dai);
+	ret = snd_soc_register_component(&pdev->dev, &omap_hdmi_component,
+					 &omap_hdmi_dai, 1);
 
 	return ret;
 }
@@ -330,7 +335,7 @@ static int omap_hdmi_remove(struct platform_device *pdev)
 {
 	struct hdmi_priv *hdmi_data = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	if (hdmi_data == NULL) {
 		dev_err(&pdev->dev, "cannot obtain HDMi data\n");
