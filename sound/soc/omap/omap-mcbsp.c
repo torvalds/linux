@@ -586,6 +586,10 @@ static struct snd_soc_dai_driver omap_mcbsp_dai = {
 	.ops = &mcbsp_dai_ops,
 };
 
+static const struct snd_soc_component_driver omap_mcbsp_component = {
+	.name		= "omap-mcbsp",
+};
+
 static int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
@@ -793,7 +797,8 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 
 	ret = omap_mcbsp_init(pdev);
 	if (!ret)
-		return snd_soc_register_dai(&pdev->dev, &omap_mcbsp_dai);
+		return snd_soc_register_component(&pdev->dev, &omap_mcbsp_component,
+						  &omap_mcbsp_dai, 1);
 
 	return ret;
 }
@@ -802,7 +807,7 @@ static int asoc_mcbsp_remove(struct platform_device *pdev)
 {
 	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	if (mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(mcbsp->id);
