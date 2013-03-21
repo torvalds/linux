@@ -310,15 +310,19 @@ static struct snd_soc_dai_driver sh4_hac_dai[] = {
 #endif
 };
 
+static const struct snd_soc_component_driver sh4_hac_component = {
+	.name		= "sh4-hac",
+};
+
 static int hac_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_dais(&pdev->dev, sh4_hac_dai,
-			ARRAY_SIZE(sh4_hac_dai));
+	return snd_soc_register_component(&pdev->dev, &sh4_hac_component,
+					  sh4_hac_dai, ARRAY_SIZE(sh4_hac_dai));
 }
 
 static int hac_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(sh4_hac_dai));
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 
