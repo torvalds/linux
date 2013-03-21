@@ -23,6 +23,7 @@
 #include <asm/psci.h>
 #include <asm/atomic.h>
 #include <asm/cputype.h>
+#include <asm/cp15.h>
 
 #include <mach/motherboard.h>
 #include <mach/tc2.h>
@@ -83,24 +84,12 @@ static void tc2_pm_psci_power_down(void)
 		 * Overtaken by a power up. Flush caches, exit coherency,
 		 * return & fake a reset
 		 */
-		asm volatile (
-			"mrc	p15, 0, ip, c1, c0, 0 \n\t"
-			"bic	ip, ip, #(1 << 2) @ clear C bit \n\t"
-			"mcr	p15, 0, ip, c1, c0, 0 \n\t"
-			"dsb \n\t"
-			"isb"
-			: : : "ip" );
+		set_cr(get_cr() & ~CR_C);
 
 		flush_cache_louis();
 
-		asm volatile (
-			"clrex	\n\t"
-			"mrc	p15, 0, ip, c1, c0, 1 \n\t"
-			"bic	ip, ip, #(1 << 6) @ clear SMP bit \n\t"
-			"mcr	p15, 0, ip, c1, c0, 1 \n\t"
-			"isb \n\t"
-			"dsb"
-			: : : "ip" );
+		asm volatile ("clrex");
+		set_auxcr(get_auxcr() & ~(1 << 6));
 
 		return;
 	case 0:
