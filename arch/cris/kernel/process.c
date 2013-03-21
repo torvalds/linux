@@ -29,31 +29,6 @@
 
 //#define DEBUG
 
-/*
- * The hlt_counter, disable_hlt and enable_hlt is just here as a hook if
- * there would ever be a halt sequence (for power save when idle) with
- * some largish delay when halting or resuming *and* a driver that can't
- * afford that delay.  The hlt_counter would then be checked before
- * executing the halt sequence, and the driver marks the unhaltable
- * region by enable_hlt/disable_hlt.
- */
-
-int cris_hlt_counter=0;
-
-void disable_hlt(void)
-{
-	cris_hlt_counter++;
-}
-
-EXPORT_SYMBOL(disable_hlt);
-
-void enable_hlt(void)
-{
-	cris_hlt_counter--;
-}
-
-EXPORT_SYMBOL(enable_hlt);
- 
 extern void default_idle(void);
 
 void (*pm_power_off)(void);

@@ -160,8 +160,6 @@ unsigned long get_wchan(struct task_struct *p);
 #  define STACK_TOP	TASK_SIZE
 #  define STACK_TOP_MAX	STACK_TOP
 
-void disable_hlt(void);
-void enable_hlt(void);
 void default_idle(void);
 
 #ifdef CONFIG_DEBUG_FS

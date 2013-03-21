@@ -64,15 +64,11 @@ void disable_hlt(void)
 	hlt_counter++;
 }
 
-EXPORT_SYMBOL(disable_hlt);
-
 void enable_hlt(void)
 {
 	hlt_counter--;
 	BUG_ON(hlt_counter < 0);
 }
-
-EXPORT_SYMBOL(enable_hlt);
 
 static int __init nohlt_setup(char *__unused)
 {
