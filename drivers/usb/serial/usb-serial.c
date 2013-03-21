@@ -565,7 +565,7 @@ static void kill_traffic(struct usb_serial_port *port)
 	usb_kill_urb(port->interrupt_out_urb);
 }
 
-static void port_release(struct device *dev)
+static void usb_serial_port_release(struct device *dev)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	int i;
@@ -888,7 +888,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 		port->dev.parent = &interface->dev;
 		port->dev.driver = NULL;
 		port->dev.bus = &usb_serial_bus_type;
-		port->dev.release = &port_release;
+		port->dev.release = &usb_serial_port_release;
 		device_initialize(&port->dev);
 	}
 
