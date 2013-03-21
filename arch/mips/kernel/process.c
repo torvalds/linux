@@ -41,44 +41,26 @@
 #include <asm/inst.h>
 #include <asm/stacktrace.h>
 
-/*
- * The idle thread. There's no useful work to be done, so just try to conserve
- * power and have a low exit latency (ie sit in a loop waiting for somebody to
- * say that they'd like to reschedule)
- */
-void __noreturn cpu_idle(void)
-{
-	int cpu;
-
-	/* CPU is going idle. */
-	cpu = smp_processor_id();
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched() && cpu_online(cpu)) {
-#ifdef CONFIG_MIPS_MT_SMTC
-			extern void smtc_idle_loop_hook(void);
-
-			smtc_idle_loop_hook();
-#endif
-
-			if (cpu_wait) {
-				/* Don't trace irqs off for idle */
-				stop_critical_timings();
-				(*cpu_wait)();
-				start_critical_timings();
-			}
-		}
 #ifdef CONFIG_HOTPLUG_CPU
-		if (!cpu_online(cpu) && !cpu_isset(cpu, cpu_callin_map))
-			play_dead();
+void arch_cpu_idle_dead(void)
+{
+	/* What the heck is this check doing ? */
+	if (!cpu_isset(smp_processor_id(), cpu_callin_map))
+		play_dead();
+}
 #endif
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
-	}
+
+void arch_cpu_idle(void)
+{
+#ifdef CONFIG_MIPS_MT_SMTC
+	extern void smtc_idle_loop_hook(void);
+
+	smtc_idle_loop_hook();
+#endif
+	if (cpu_wait)
+		(*cpu_wait)();
+	else
+		local_irq_enable();
 }
 
 asmlinkage void ret_from_fork(void);
