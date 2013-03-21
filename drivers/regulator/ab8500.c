@@ -477,7 +477,7 @@ struct ab8500_reg_init {
 static struct ab8500_reg_init ab8500_reg_init[] = {
 	/*
 	 * 0x30, VanaRequestCtrl
-	 * 0x0C, VpllRequestCtrl
+	 * 0x0c, VpllRequestCtrl
 	 * 0xc0, VextSupply1RequestCtrl
 	 */
 	REG_INIT(AB8500_REGUREQUESTCTRL2,	0x03, 0x04, 0xfc),
@@ -494,12 +494,16 @@ static struct ab8500_reg_init ab8500_reg_init[] = {
 	 */
 	REG_INIT(AB8500_REGUREQUESTCTRL4,	0x03, 0x06, 0x07),
 	/*
+	 * 0x01, Vsmps1SysClkReq1HPValid
+	 * 0x02, Vsmps2SysClkReq1HPValid
+	 * 0x04, Vsmps3SysClkReq1HPValid
 	 * 0x08, VanaSysClkReq1HPValid
+	 * 0x10, VpllSysClkReq1HPValid
 	 * 0x20, Vaux1SysClkReq1HPValid
 	 * 0x40, Vaux2SysClkReq1HPValid
 	 * 0x80, Vaux3SysClkReq1HPValid
 	 */
-	REG_INIT(AB8500_REGUSYSCLKREQ1HPVALID1,	0x03, 0x07, 0xe8),
+	REG_INIT(AB8500_REGUSYSCLKREQ1HPVALID1,	0x03, 0x07, 0xff),
 	/*
 	 * 0x10, VextSupply1SysClkReq1HPValid
 	 * 0x20, VextSupply2SysClkReq1HPValid
@@ -578,6 +582,34 @@ static struct ab8500_reg_init ab8500_reg_init[] = {
 	 */
 	REG_INIT(AB8500_REGUCTRL1VAMIC,		0x03, 0x84, 0x03),
 	/*
+	 * 0x0c, VBBNRegu
+	 * 0x03, VBBPRegu
+	 * NOTE! PRCMU register
+	 */
+	REG_INIT(AB8500_ARMREGU2,		0x04, 0x01, 0x0f),
+	/*
+	 * 0x0c, VBBPSel1
+	 * 0x03, VBBNSel1
+	 * NOTE! PRCMU register
+	 */
+	REG_INIT(AB8500_VBBSEL1,		0x04, 0x11, 0x0f),
+	/*
+	 * 0x0c, VBBNSel2
+	 * 0x03, VBBPSel2
+	 * NOTE! PRCMU register
+	 */
+	REG_INIT(AB8500_VBBSEL2,		0x04, 0x12, 0x0f),
+	/*
+	 * 0x03, Vsmps1Regu
+	 * 0x0c, Vsmps1SelCtrl
+	 */
+	REG_INIT(AB8500_VSMPS1REGU,		0x04, 0x03, 0x0f),
+	/*
+	 * 0x03, Vsmps2Regu
+	 * 0x0c, Vsmps2SelCtrl
+	 */
+	REG_INIT(AB8500_VSMPS2REGU,		0x04, 0x04, 0x0f),
+	/*
 	 * 0x0c, VanaRegu
 	 * 0x03, VpllRegu
 	 */
@@ -601,9 +633,10 @@ static struct ab8500_reg_init ab8500_reg_init[] = {
 	 */
 	REG_INIT(AB8500_VAUX12REGU,		0x04, 0x09, 0x0f),
 	/*
+	 * 0x0c, Vrf1Regu
 	 * 0x03, Vaux3Regu
 	 */
-	REG_INIT(AB8500_VRF1VAUX3REGU,		0x04, 0x0a, 0x03),
+	REG_INIT(AB8500_VRF1VAUX3REGU,		0x04, 0x0a, 0x0f),
 	/*
 	 * 0x3f, Vsmps1Sel1
 	 */
