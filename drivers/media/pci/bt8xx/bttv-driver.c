@@ -992,7 +992,7 @@ static char *audio_modes[] = {
 static int
 audio_mux(struct bttv *btv, int input, int mute)
 {
-	int gpio_val, signal;
+	int gpio_val, signal, mute_gpio;
 	struct v4l2_ctrl *ctrl;
 
 	gpio_inout(bttv_tvcards[btv->c.type].gpiomask,
@@ -1003,10 +1003,10 @@ audio_mux(struct bttv *btv, int input, int mute)
 	btv->audio = input;
 
 	/* automute */
-	mute = mute || (btv->opt_automute && (!signal || !btv->users)
+	mute_gpio = mute || (btv->opt_automute && (!signal || !btv->users)
 				&& !btv->has_radio_tuner);
 
-	if (mute)
+	if (mute_gpio)
 		gpio_val = bttv_tvcards[btv->c.type].gpiomute;
 	else
 		gpio_val = bttv_tvcards[btv->c.type].gpiomux[input];
@@ -1022,7 +1022,7 @@ audio_mux(struct bttv *btv, int input, int mute)
 	}
 
 	if (bttv_gpio)
-		bttv_gpio_tracking(btv, audio_modes[mute ? 4 : input]);
+		bttv_gpio_tracking(btv, audio_modes[mute_gpio ? 4 : input]);
 	if (in_interrupt())
 		return 0;
 
