@@ -2825,8 +2825,19 @@ static void dbx500_fw_version_init(struct platform_device *pdev,
 	}
 }
 
-void __init db8500_prcmu_early_init(void)
+void __init db8500_prcmu_early_init(u32 phy_base, u32 size)
 {
+	/*
+	 * This is a temporary remap to bring up the clocks. It is
+	 * subsequently replaces with a real remap. After the merge of
+	 * the mailbox subsystem all of this early code goes away, and the
+	 * clock driver can probe independently. An early initcall will
+	 * still be needed, but it can be diverted into drivers/clk/ux500.
+	 */
+	prcmu_base = ioremap(phy_base, size);
+	if (!prcmu_base)
+		pr_err("%s: ioremap() of prcmu registers failed!\n", __func__);
+
 	spin_lock_init(&mb0_transfer.lock);
 	spin_lock_init(&mb0_transfer.dbb_irqs_lock);
 	mutex_init(&mb0_transfer.ac_wake_lock);

@@ -276,9 +276,9 @@ struct prcmu_fw_version {
 
 #if defined(CONFIG_UX500_SOC_DB8500)
 
-static inline void __init prcmu_early_init(void)
+static inline void prcmu_early_init(u32 phy_base, u32 size)
 {
-	return db8500_prcmu_early_init();
+	return db8500_prcmu_early_init(phy_base, size);
 }
 
 static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
@@ -500,7 +500,7 @@ static inline int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 }
 #else
 
-static inline void __init prcmu_early_init(void) {}
+static inline void prcmu_early_init(u32 phy_base, u32 size) {}
 
 static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	bool keep_ap_pll)
