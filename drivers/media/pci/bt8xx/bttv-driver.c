@@ -999,8 +999,6 @@ audio_mux(struct bttv *btv, int input, int mute)
 		   bttv_tvcards[btv->c.type].gpiomask);
 	signal = btread(BT848_DSTATUS) & BT848_DSTATUS_HLOC;
 
-	btv->audio = input;
-
 	/* automute */
 	mute_gpio = mute || (btv->opt_automute && (!signal || !btv->users)
 				&& !btv->has_radio_tuner);
@@ -1197,8 +1195,9 @@ set_input(struct bttv *btv, unsigned int input, unsigned int norm)
 	} else {
 		video_mux(btv,input);
 	}
-	audio_input(btv, (btv->tuner_type != TUNER_ABSENT && input == 0) ?
-			 TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN);
+	btv->audio = (btv->tuner_type != TUNER_ABSENT && input == 0) ?
+			 TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN;
+	audio_input(btv, btv->audio);
 	set_tvnorm(btv, norm);
 }
 
@@ -1707,7 +1706,8 @@ static void radio_enable(struct bttv *btv)
 	if (!btv->has_radio_tuner) {
 		btv->has_radio_tuner = 1;
 		bttv_call_all(btv, tuner, s_radio);
-		audio_input(btv, TVAUDIO_INPUT_RADIO);
+		btv->audio = TVAUDIO_INPUT_RADIO;
+		audio_input(btv, btv->audio);
 	}
 }
 
