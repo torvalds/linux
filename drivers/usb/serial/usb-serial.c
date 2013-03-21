@@ -1095,7 +1095,8 @@ static void usb_serial_disconnect(struct usb_interface *interface)
 				device_del(&port->dev);
 		}
 	}
-	serial->type->disconnect(serial);
+	if (serial->type->disconnect)
+		serial->type->disconnect(serial);
 
 	/* let the last holder of this object cause it to be cleaned up */
 	usb_serial_put(serial);
@@ -1304,7 +1305,6 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, chars_in_buffer);
 	set_to_generic_if_null(device, read_bulk_callback);
 	set_to_generic_if_null(device, write_bulk_callback);
-	set_to_generic_if_null(device, disconnect);
 	set_to_generic_if_null(device, release);
 	set_to_generic_if_null(device, process_read_urb);
 	set_to_generic_if_null(device, prepare_write_buffer);
