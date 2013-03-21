@@ -3528,8 +3528,12 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	int err;
+	int flags = 0;
 
-	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, NULL, 0);
+	if (spec->headset_jack)
+		flags |= HDA_PINCFG_HEADSET_MIC;
+
+	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, NULL, flags);
 	if (err < 0)
 		return err;
 
