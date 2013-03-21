@@ -986,21 +986,21 @@ SYSCALL_DEFINE1(pipe, int __user *, fildes)
 	return sys_pipe2(fildes, 0);
 }
 
-static int wait_for_partner(struct inode* inode, unsigned int *cnt)
+static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 {
 	int cur = *cnt;	
 
 	while (cur == *cnt) {
-		pipe_wait(inode->i_pipe);
+		pipe_wait(pipe);
 		if (signal_pending(current))
 			break;
 	}
 	return cur == *cnt ? -ERESTARTSYS : 0;
 }
 
-static void wake_up_partner(struct inode* inode)
+static void wake_up_partner(struct pipe_inode_info *pipe)
 {
-	wake_up_interruptible(&inode->i_pipe->wait);
+	wake_up_interruptible(&pipe->wait);
 }
 
 static int fifo_open(struct inode *inode, struct file *filp)
@@ -1032,7 +1032,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 */
 		pipe->r_counter++;
 		if (pipe->readers++ == 0)
-			wake_up_partner(inode);
+			wake_up_partner(pipe);
 
 		if (!is_pipe && !pipe->writers) {
 			if ((filp->f_flags & O_NONBLOCK)) {
@@ -1040,7 +1040,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 				 * seen a writer */
 				filp->f_version = pipe->w_counter;
 			} else {
-				if (wait_for_partner(inode, &pipe->w_counter))
+				if (wait_for_partner(pipe, &pipe->w_counter))
 					goto err_rd;
 			}
 		}
@@ -1058,10 +1058,10 @@ static int fifo_open(struct inode *inode, struct file *filp)
 
 		pipe->w_counter++;
 		if (!pipe->writers++)
-			wake_up_partner(inode);
+			wake_up_partner(pipe);
 
 		if (!is_pipe && !pipe->readers) {
-			if (wait_for_partner(inode, &pipe->r_counter))
+			if (wait_for_partner(pipe, &pipe->r_counter))
 				goto err_wr;
 		}
 		break;
@@ -1079,7 +1079,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 		pipe->r_counter++;
 		pipe->w_counter++;
 		if (pipe->readers == 1 || pipe->writers == 1)
-			wake_up_partner(inode);
+			wake_up_partner(pipe);
 		break;
 
 	default:
