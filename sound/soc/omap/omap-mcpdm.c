@@ -420,6 +420,10 @@ static struct snd_soc_dai_driver omap_mcpdm_dai = {
 	.ops = &omap_mcpdm_dai_ops,
 };
 
+static const struct snd_soc_component_driver omap_mcpdm_component = {
+	.name		= "omap-mcpdm",
+};
+
 void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
 				    u8 rx1, u8 rx2)
 {
@@ -480,12 +484,13 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 
 	mcpdm->dev = &pdev->dev;
 
-	return snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
+	return snd_soc_register_component(&pdev->dev, &omap_mcpdm_component,
+					  &omap_mcpdm_dai, 1);
 }
 
 static int asoc_mcpdm_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 
