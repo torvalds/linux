@@ -911,7 +911,7 @@ net2272_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			}
 		}
 	}
-	if (likely(req != 0))
+	if (likely(req))
 		list_add_tail(&req->queue, &ep->queue);
 
 	if (likely(!list_empty(&ep->queue)))
@@ -1538,7 +1538,7 @@ net2272_handle_dma(struct net2272_ep *ep)
 	      | (ep->dev->dma_eot_polarity << EOT_POLARITY)
 	      | (ep->dev->dma_dack_polarity << DACK_POLARITY)
 	      | (ep->dev->dma_dreq_polarity << DREQ_POLARITY)
-	      | ((ep->dma >> 1) << DMA_ENDPOINT_SELECT));
+	      | (ep->dma << DMA_ENDPOINT_SELECT));
 
 	ep->dev->dma_busy = 0;
 
@@ -1611,7 +1611,7 @@ net2272_handle_ep(struct net2272_ep *ep)
 	ep->irqs++;
 
 	dev_vdbg(ep->dev->dev, "%s ack ep_stat0 %02x, ep_stat1 %02x, req %p\n",
-		ep->ep.name, stat0, stat1, req ? &req->req : 0);
+		ep->ep.name, stat0, stat1, req ? &req->req : NULL);
 
 	net2272_ep_write(ep, EP_STAT0, stat0 &
 		~((1 << NAK_OUT_PACKETS)
