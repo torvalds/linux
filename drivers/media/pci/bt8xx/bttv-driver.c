@@ -1022,18 +1022,37 @@ audio_mux_gpio(struct bttv *btv, int input, int mute)
 }
 
 static int
-audio_mux(struct bttv *btv, int input, int mute)
+audio_mute(struct bttv *btv, int mute)
 {
 	struct v4l2_ctrl *ctrl;
 
-	audio_mux_gpio(btv, input, mute);
+	audio_mux_gpio(btv, btv->audio_input, mute);
 
 	if (btv->sd_msp34xx) {
-		u32 in;
-
 		ctrl = v4l2_ctrl_find(btv->sd_msp34xx->ctrl_handler, V4L2_CID_AUDIO_MUTE);
 		if (ctrl)
 			v4l2_ctrl_s_ctrl(ctrl, mute);
+	}
+	if (btv->sd_tvaudio) {
+		ctrl = v4l2_ctrl_find(btv->sd_tvaudio->ctrl_handler, V4L2_CID_AUDIO_MUTE);
+		if (ctrl)
+			v4l2_ctrl_s_ctrl(ctrl, mute);
+	}
+	if (btv->sd_tda7432) {
+		ctrl = v4l2_ctrl_find(btv->sd_tda7432->ctrl_handler, V4L2_CID_AUDIO_MUTE);
+		if (ctrl)
+			v4l2_ctrl_s_ctrl(ctrl, mute);
+	}
+	return 0;
+}
+
+static int
+audio_input(struct bttv *btv, int input)
+{
+	audio_mux_gpio(btv, input, btv->mute);
+
+	if (btv->sd_msp34xx) {
+		u32 in;
 
 		/* Note: the inputs tuner/radio/extern/intern are translated
 		   to msp routings. This assumes common behavior for all msp3400
@@ -1079,32 +1098,10 @@ audio_mux(struct bttv *btv, int input, int mute)
 			       in, MSP_OUTPUT_DEFAULT, 0);
 	}
 	if (btv->sd_tvaudio) {
-		ctrl = v4l2_ctrl_find(btv->sd_tvaudio->ctrl_handler, V4L2_CID_AUDIO_MUTE);
-
-		if (ctrl)
-			v4l2_ctrl_s_ctrl(ctrl, mute);
 		v4l2_subdev_call(btv->sd_tvaudio, audio, s_routing,
-				input, 0, 0);
-	}
-	if (btv->sd_tda7432) {
-		ctrl = v4l2_ctrl_find(btv->sd_tda7432->ctrl_handler, V4L2_CID_AUDIO_MUTE);
-
-		if (ctrl)
-			v4l2_ctrl_s_ctrl(ctrl, mute);
+				 input, 0, 0);
 	}
 	return 0;
-}
-
-static inline int
-audio_mute(struct bttv *btv, int mute)
-{
-	return audio_mux(btv, btv->audio_input, mute);
-}
-
-static inline int
-audio_input(struct bttv *btv, int input)
-{
-	return audio_mux(btv, input, btv->mute);
 }
 
 static void
