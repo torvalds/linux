@@ -68,7 +68,7 @@ struct tracing_data {
 
 struct tracing_data *tracing_data_get(struct list_head *pattrs,
 				      int fd, bool temp);
-void tracing_data_put(struct tracing_data *tdata);
+int tracing_data_put(struct tracing_data *tdata);
 
 
 struct addr_location;
