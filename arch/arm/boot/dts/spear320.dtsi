@@ -24,7 +24,7 @@
 		pinmux: pinmux@b3000000 {
 			compatible = "st,spear320-pinmux";
 			reg = <0xb3000000 0x1000>;
-			#gpio-range-cells = <2>;
+			#gpio-range-cells = <3>;
 		};
 
 		clcd@90000000 {
@@ -130,7 +130,7 @@
 				interrupt-controller;
 				gpio-controller;
 				#gpio-cells = <2>;
-				gpio-ranges = <&pinmux 0 102>;
+				gpio-ranges = <&pinmux 0 0 102>;
 				status = "disabled";
 
 				st-plgpio,ngpio = <102>;

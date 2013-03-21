@@ -41,7 +41,7 @@ static void dt_free_map(struct pinctrl_dev *pctldev,
 		     struct pinctrl_map *map, unsigned num_maps)
 {
 	if (pctldev) {
-		struct pinctrl_ops *ops = pctldev->desc->pctlops;
+		const struct pinctrl_ops *ops = pctldev->desc->pctlops;
 		ops->dt_free_map(pctldev, map, num_maps);
 	} else {
 		/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
@@ -122,7 +122,7 @@ static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
 {
 	struct device_node *np_pctldev;
 	struct pinctrl_dev *pctldev;
-	struct pinctrl_ops *ops;
+	const struct pinctrl_ops *ops;
 	int ret;
 	struct pinctrl_map *map;
 	unsigned num_maps;

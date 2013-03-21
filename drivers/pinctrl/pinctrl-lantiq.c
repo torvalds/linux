@@ -169,7 +169,7 @@ static int ltq_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinctrl_ops ltq_pctrl_ops = {
+static const struct pinctrl_ops ltq_pctrl_ops = {
 	.get_groups_count	= ltq_get_group_count,
 	.get_group_name		= ltq_get_group_name,
 	.get_group_pins		= ltq_get_group_pins,
@@ -311,7 +311,7 @@ static int ltq_pmx_gpio_request_enable(struct pinctrl_dev *pctrldev,
 	return info->apply_mux(pctrldev, mfp, pin_func);
 }
 
-static struct pinmux_ops ltq_pmx_ops = {
+static const struct pinmux_ops ltq_pmx_ops = {
 	.get_functions_count	= ltq_pmx_func_count,
 	.get_function_name	= ltq_pmx_func_name,
 	.get_function_groups	= ltq_pmx_get_groups,
