@@ -243,6 +243,7 @@ static int lcd_write(struct tty_struct *tty, const unsigned char *buf,
 		     int count)
 {
 	struct lcd *lcd_data = tty->driver_data;
+	int buf_i = 0, left;
 
 #ifdef DEBUG
 	char *dbgbuf = kzalloc(count + 1, GFP_KERNEL);
@@ -258,63 +259,77 @@ static int lcd_write(struct tty_struct *tty, const unsigned char *buf,
 		return 0;
 	}
 
-	/* process displayable chars */
-	if ((0x20 <= buf[0]) && (buf[0] <= 0x7f)) {
-		int i = 0;
-		while (i < count) {
-			lcd_add_char_at_cursor(lcd_data, buf[i]);
-			i++;
-		}
+	while (buf_i < count) {
+		left = count - buf_i;
 
-		/* flush the line out to the display when we get to eol */
-		lcd_reprint_one_line(lcd_data, lcd_data->cursor_line);
+		/* process displayable chars */
+		if ((0x20 <= buf[buf_i]) && (buf[buf_i] <= 0x7f)) {
+			while ((buf_i < count) &&
+			       ((0x20 <= buf[buf_i]) && (buf[buf_i] <= 0x7f))) {
+				lcd_add_char_at_cursor(lcd_data, buf[buf_i]);
+				buf_i++;
+			}
 
-	/*
-	 * ECMA-48 CSI sequences (from console_codes man page)
-	 *
-	 * ESC [ 2 J : erase whole display.
-	 * ESC [ 2 K : erase whole line.
-	 */
-	} else if (buf[0] == ASCII_ESC) {
-		if ((count >= 4) &&
-			(buf[1] == '[') &&
-			(buf[2] == '2') &&
-			(buf[3] == 'J')) {
-			pr_debug("ESC [2J = clear screan\n");
-			lcd_clear_buffer(lcd_data);
-			lcd_cmd_clear_screen(lcd_data);
-
-		} else if ((count >= 4) &&
-			(buf[1] == '[') &&
-			(buf[2] == '2') &&
-			(buf[3] == 'K')) {
-			pr_debug("ESC [2K = clear line\n");
-			lcd_clear_buffer_line(lcd_data, lcd_data->cursor_line);
+			/* flush the line out to the display when we get to eol */
 			lcd_reprint_one_line(lcd_data, lcd_data->cursor_line);
-			lcd_cmd_set_cursor(lcd_data, lcd_data->cursor_line, 0);
-			lcd_data->cursor_col = 0;
 
-		} else
-			pr_debug("Unsupported escape sequence\n");
+		/*
+		 * ECMA-48 CSI sequences (from console_codes man page)
+		 *
+		 * ESC [ 2 J : erase whole display.
+		 * ESC [ 2 K : erase whole line.
+		 */
+		} else if (buf[buf_i] == ASCII_ESC) {
+			if ((left >= 4) &&
+				(buf[buf_i + 1] == '[') &&
+				(buf[buf_i + 2] == '2') &&
+				(buf[buf_i + 3] == 'J')) {
+				pr_debug("ESC [2J = clear screan\n");
+				lcd_clear_buffer(lcd_data);
+				lcd_cmd_clear_screen(lcd_data);
+				buf_i += 4;
 
-	} else if ((count == 2) &&
-		   (buf[0] == ASCII_CR) && (buf[1] == ASCII_LF)) {
-		pr_debug("ASCII_CR/LF\n");
-		lcd_crlf(lcd_data);
+			} else if ((left >= 4) &&
+				(buf[buf_i + 1] == '[') &&
+				(buf[buf_i + 2] == '2') &&
+				(buf[buf_i + 3] == 'K')) {
+				pr_debug("ESC [2K = clear line\n");
+				lcd_clear_buffer_line(lcd_data, lcd_data->cursor_line);
+				lcd_reprint_one_line(lcd_data, lcd_data->cursor_line);
+				lcd_cmd_set_cursor(lcd_data, lcd_data->cursor_line, 0);
+				lcd_data->cursor_col = 0;
+				buf_i += 4;
 
-	} else if ((count == 1) && (buf[0] == ASCII_CR)) {
-		pr_debug("ASCII_CR\n");
-		lcd_crlf(lcd_data);
+			} else {
+				pr_debug("Unsupported escape sequence\n");
+				buf_i++;
+			}
 
-	} else if ((count == 1) && (buf[0] == ASCII_LF)) {
-		pr_debug("ASCII_LF\n");
-		lcd_crlf(lcd_data);
+		} else if ((left >= 2) &&
+			(buf[buf_i] == ASCII_CR) && (buf[buf_i + 1] == ASCII_LF)) {
+			pr_debug("ASCII_CR/LF\n");
+			lcd_crlf(lcd_data);
+			buf_i += 2;
 
-	} else if ((count == 1) && (buf[0] == ASCII_BS)) {
-		pr_debug("ASCII_BS\n");
-		lcd_backspace(lcd_data);
-	} else {
-		pr_debug("%s - Unsupported command 0x%02x\n", __func__, buf[0]);
+		} else if ((left >= 1) && (buf[buf_i] == ASCII_CR)) {
+			pr_debug("ASCII_CR\n");
+			lcd_crlf(lcd_data);
+			buf_i++;
+
+		} else if ((left >= 1) && (buf[buf_i] == ASCII_LF)) {
+			pr_debug("ASCII_LF\n");
+			lcd_crlf(lcd_data);
+			buf_i++;
+
+		} else if ((left >= 1) && (buf[buf_i] == ASCII_BS)) {
+			pr_debug("ASCII_BS\n");
+			lcd_backspace(lcd_data);
+			buf_i++;
+
+		} else {
+			pr_debug("%s - Unsupported command 0x%02x\n", __func__, buf[buf_i]);
+			buf_i++;
+		}
 	}
 
 #ifdef DEBUG
