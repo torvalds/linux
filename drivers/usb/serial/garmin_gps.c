@@ -1181,16 +1181,10 @@ static void garmin_read_bulk_callback(struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = urb->context;
-	struct usb_serial *serial =  port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 	int retval;
-
-	if (!serial) {
-		dev_dbg(&urb->dev->dev, "%s - bad serial pointer, exiting\n", __func__);
-		return;
-	}
 
 	if (status) {
 		dev_dbg(&urb->dev->dev, "%s - nonzero read bulk status received: %d\n",
