@@ -167,8 +167,7 @@ smp_callin(void)
 	      cpuid, current, current->active_mm));
 
 	preempt_disable();
-	/* Do nothing.  */
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 /* Wait until hwrpb->txrdy is clear for cpu.  Return -1 on timeout.  */
