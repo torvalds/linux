@@ -86,6 +86,7 @@ struct edgeport_port {
 	int baud_rate;
 	int close_pending;
 	int lsr_event;
+
 	struct edgeport_serial	*edge_serial;
 	struct usb_serial_port	*port;
 	__u8 bUartMode;		/* Port type, 0: RS232, etc. */
@@ -1455,7 +1456,7 @@ static void handle_new_msr(struct edgeport_port *edge_port, __u8 msr)
 			icount->dcd++;
 		if (msr & EDGEPORT_MSR_DELTA_RI)
 			icount->rng++;
-		wake_up_interruptible(&edge_port->port->delta_msr_wait);
+		wake_up_interruptible(&edge_port->port->port.delta_msr_wait);
 	}
 
 	/* Save the new modem status */
@@ -2392,8 +2393,6 @@ static int edge_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
-	struct async_icount cnow;
-	struct async_icount cprev;
 
 	dev_dbg(&port->dev, "%s - port %d, cmd = 0x%x\n", __func__, port->number, cmd);
 
@@ -2402,32 +2401,6 @@ static int edge_ioctl(struct tty_struct *tty,
 		dev_dbg(&port->dev, "%s - TIOCGSERIAL\n", __func__);
 		return get_serial_info(edge_port,
 				(struct serial_struct __user *) arg);
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s - TIOCMIWAIT\n", __func__);
-		cprev = edge_port->port->icount;
-		while (1) {
-			interruptible_sleep_on(&port->delta_msr_wait);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-
-			if (port->serial->disconnected)
-				return -EIO;
-
-			cnow = port->icount;
-			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
-				return -EIO; /* no change => error */
-			if (((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
-			    ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-			    ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
-			    ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts))) {
-				return 0;
-			}
-			cprev = cnow;
-		}
-		/* not reached */
-		break;
 	}
 	return -ENOIOCTLCMD;
 }
@@ -2522,7 +2495,6 @@ static int edge_port_remove(struct usb_serial_port *port)
 	struct edgeport_port *edge_port;
 
 	edge_port = usb_get_serial_port_data(port);
-
 	edge_remove_sysfs_attrs(port);
 	kfifo_free(&edge_port->write_fifo);
 	kfree(edge_port);
@@ -2594,6 +2566,7 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,
+	.tiocmiwait		= usb_serial_generic_tiocmiwait,
 	.get_icount		= usb_serial_generic_get_icount,
 	.write			= edge_write,
 	.write_room		= edge_write_room,
@@ -2625,6 +2598,7 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,
+	.tiocmiwait		= usb_serial_generic_tiocmiwait,
 	.get_icount		= usb_serial_generic_get_icount,
 	.write			= edge_write,
 	.write_room		= edge_write_room,
