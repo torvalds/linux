@@ -829,7 +829,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_configure_board(struct smscore_device_t *coredev)
+static int smscore_configure_board(struct smscore_device_t *coredev)
 {
 	struct sms_board *board;
 
@@ -1298,7 +1298,7 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_init_device(struct smscore_device_t *coredev, int mode)
+static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 {
 	void *buffer;
 	struct sms_msg_data *msg;

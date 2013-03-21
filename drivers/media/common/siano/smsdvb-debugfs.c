@@ -48,7 +48,7 @@ struct smsdvb_debugfs {
 	wait_queue_head_t	stats_queue;
 };
 
-void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
+static void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
 			    struct sms_stats *p)
 {
 	int n = 0;
@@ -151,7 +151,7 @@ void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
 	wake_up(&debug_data->stats_queue);
 }
 
-void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
+static void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
 			     struct sms_isdbt_stats *p)
 {
 	int i, n = 0;
@@ -241,7 +241,7 @@ void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
 	wake_up(&debug_data->stats_queue);
 }
 
-void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
+static void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
 				struct sms_isdbt_stats_ex *p)
 {
 	int i, n = 0;
