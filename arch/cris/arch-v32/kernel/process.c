@@ -23,13 +23,9 @@ extern void stop_watchdog(void);
 /* We use this if we don't have any better idle routine. */
 void default_idle(void)
 {
-	local_irq_disable();
-	if (!need_resched()) {
-		/* Halt until exception. */
-		__asm__ volatile("ei    \n\t"
-				 "halt      ");
-	}
-	local_irq_enable();
+	/* Halt until exception. */
+	__asm__ volatile("ei    \n\t"
+			 "halt      ");
 }
 
 /*
