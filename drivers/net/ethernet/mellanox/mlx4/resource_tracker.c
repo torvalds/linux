@@ -355,7 +355,7 @@ static int mpt_mask(struct mlx4_dev *dev)
 	return dev->caps.num_mpts - 1;
 }
 
-static void *find_res(struct mlx4_dev *dev, int res_id,
+static void *find_res(struct mlx4_dev *dev, u64 res_id,
 		      enum mlx4_resource type)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
