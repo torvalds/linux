@@ -412,34 +412,34 @@ void fimc_set_yuv_order(struct fimc_ctx *ctx)
 	/* Set order for 1 plane input formats. */
 	switch (ctx->s_frame.fmt->color) {
 	case FIMC_FMT_YCRYCB422:
-		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_CBYCRY;
-		break;
-	case FIMC_FMT_CBYCRY422:
 		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_YCRYCB;
 		break;
+	case FIMC_FMT_CBYCRY422:
+		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_CBYCRY;
+		break;
 	case FIMC_FMT_CRYCBY422:
-		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_YCBYCR;
+		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_CRYCBY;
 		break;
 	case FIMC_FMT_YCBYCR422:
 	default:
-		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_CRYCBY;
+		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_YCBYCR;
 		break;
 	}
 	dbg("ctx->in_order_1p= %d", ctx->in_order_1p);
 
 	switch (ctx->d_frame.fmt->color) {
 	case FIMC_FMT_YCRYCB422:
-		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_CBYCRY;
-		break;
-	case FIMC_FMT_CBYCRY422:
 		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_YCRYCB;
 		break;
+	case FIMC_FMT_CBYCRY422:
+		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_CBYCRY;
+		break;
 	case FIMC_FMT_CRYCBY422:
-		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_YCBYCR;
+		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_CRYCBY;
 		break;
 	case FIMC_FMT_YCBYCR422:
 	default:
-		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_CRYCBY;
+		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_YCBYCR;
 		break;
 	}
 	dbg("ctx->out_order_1p= %d", ctx->out_order_1p);
