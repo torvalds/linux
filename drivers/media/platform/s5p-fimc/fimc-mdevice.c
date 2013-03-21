@@ -509,7 +509,6 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 {
 	struct s5p_platform_fimc *pdata = fmd->pdev->dev.platform_data;
 	struct device_node *of_node = fmd->pdev->dev.of_node;
-	struct fimc_dev *fd = NULL;
 	int num_clients = 0;
 	int ret, i;
 
@@ -517,13 +516,10 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 	 * Runtime resume one of the FIMC entities to make sure
 	 * the sclk_cam clocks are not globally disabled.
 	 */
-	for (i = 0; !fd && i < ARRAY_SIZE(fmd->fimc); i++)
-		if (fmd->fimc[i])
-			fd = fmd->fimc[i];
-	if (!fd)
+	if (!fmd->pmf)
 		return -ENXIO;
 
-	ret = pm_runtime_get_sync(&fd->pdev->dev);
+	ret = pm_runtime_get_sync(fmd->pmf);
 	if (ret < 0)
 		return ret;
 
@@ -557,7 +553,7 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 		}
 	}
 
-	pm_runtime_put(&fd->pdev->dev);
+	pm_runtime_put(fmd->pmf);
 	return ret;
 }
 
@@ -602,6 +598,8 @@ static int register_fimc_entity(struct fimc_md *fmd, struct fimc_dev *fimc)
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
 	if (!ret) {
+		if (!fmd->pmf && fimc->pdev)
+			fmd->pmf = &fimc->pdev->dev;
 		fmd->fimc[fimc->id] = fimc;
 		fimc->vid_cap.user_subdev_api = fmd->user_subdev_api;
 	} else {
@@ -1085,7 +1083,7 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 	struct fimc_camclk_info *camclk;
 	int ret = 0;
 
-	if (WARN_ON(pdata->clk_id >= FIMC_MAX_CAMCLKS) || fmd == NULL)
+	if (WARN_ON(pdata->clk_id >= FIMC_MAX_CAMCLKS) || !fmd || !fmd->pmf)
 		return -EINVAL;
 
 	camclk = &fmd->camclk[pdata->clk_id];
@@ -1101,6 +1099,9 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 		if (camclk->use_count++ == 0) {
 			clk_set_rate(camclk->clock, pdata->clk_frequency);
 			camclk->frequency = pdata->clk_frequency;
+			ret = pm_runtime_get_sync(fmd->pmf);
+			if (ret < 0)
+				return ret;
 			ret = clk_enable(camclk->clock);
 			dbg("Enabled camclk %d: f: %lu", pdata->clk_id,
 			    clk_get_rate(camclk->clock));
@@ -1113,6 +1114,7 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 
 	if (--camclk->use_count == 0) {
 		clk_disable(camclk->clock);
+		pm_runtime_put(fmd->pmf);
 		dbg("Disabled camclk %d", pdata->clk_id);
 	}
 	return ret;
