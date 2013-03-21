@@ -5,6 +5,7 @@
 
 /* GIC */
 #define gic_spi(nr)		((nr) + 32)
+#define gic_iid(nr)		(nr) /* ICCIAR / interrupt ID */
 
 /* INTCS */
 #define INTCS_VECT_BASE		0x3400

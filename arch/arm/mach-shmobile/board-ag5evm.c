@@ -23,6 +23,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -304,9 +306,9 @@ static int lcd_backlight_set_brightness(int brightness)
 
 	if (brightness == 0) {
 		/* Reset the chip */
-		gpio_set_value(GPIO_PORT235, 0);
+		gpio_set_value(235, 0);
 		mdelay(24);
-		gpio_set_value(GPIO_PORT235, 1);
+		gpio_set_value(235, 1);
 		return 0;
 	}
 
@@ -406,7 +408,7 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
 	.tmio_ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
-	.cd_gpio	= GPIO_PORT251,
+	.cd_gpio	= 251,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -461,7 +463,7 @@ static struct regulator_init_data cn4_power_init_data = {
 static struct fixed_voltage_config cn4_power_info = {
 	.supply_name = "CN4 SD/MMC Vdd",
 	.microvolts = 3300000,
-	.gpio = GPIO_PORT114,
+	.gpio = 114,
 	.enable_high = 1,
 	.init_data = &cn4_power_init_data,
 };
@@ -479,10 +481,10 @@ static void ag5evm_sdhi1_set_pwr(struct platform_device *pdev, int state)
 	static int power_gpio = -EINVAL;
 
 	if (power_gpio < 0) {
-		int ret = gpio_request_one(GPIO_PORT114, GPIOF_OUT_INIT_LOW,
+		int ret = gpio_request_one(114, GPIOF_OUT_INIT_LOW,
 					   "sdhi1_power");
 		if (!ret)
-			power_gpio = GPIO_PORT114;
+			power_gpio = 114;
 	}
 
 	/*
@@ -493,7 +495,7 @@ static void ag5evm_sdhi1_set_pwr(struct platform_device *pdev, int state)
 	 * regulator driver. We have to live with the race in case the driver
 	 * gets unloaded and the GPIO freed between these two steps.
 	 */
-	gpio_set_value(GPIO_PORT114, state);
+	gpio_set_value(114, state);
 }
 
 static struct sh_mobile_sdhi_info sh_sdhi1_info = {
@@ -550,6 +552,77 @@ static struct platform_device *ag5evm_devices[] __initdata = {
 	&sdhi1_device,
 };
 
+static unsigned long pin_pullup_conf[] = {
+	PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_UP, 0),
+};
+
+static const struct pinctrl_map ag5evm_pinctrl_map[] = {
+	/* FSIA */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2.0", "pfc-sh73a0",
+				  "fsia_mclk_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2.0", "pfc-sh73a0",
+				  "fsia_sclk_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2.0", "pfc-sh73a0",
+				  "fsia_data_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_fsi2.0", "pfc-sh73a0",
+				  "fsia_data_out", "fsia"),
+	/* I2C2 & I2C3 */
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-sh_mobile.2", "pfc-sh73a0",
+				  "i2c2_0", "i2c2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("i2c-sh_mobile.3", "pfc-sh73a0",
+				  "i2c3_0", "i2c3"),
+	/* IrDA */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_irda.0", "pfc-sh73a0",
+				  "irda_0", "irda"),
+	/* KEYSC */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_in8", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out04", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out5", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out6_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out7_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out8_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out9_2", "keysc"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				      "keysc_in8", pin_pullup_conf),
+	/* MMCIF */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
+				  "mmc0_data8_0", "mmc0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
+				  "mmc0_ctrl_0", "mmc0"),
+	PIN_MAP_CONFIGS_PIN_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
+				    "PORT279", pin_pullup_conf),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
+				      "mmc0_data8_0", pin_pullup_conf),
+	/* SCIFA2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-sh73a0",
+				  "scifa2_data_0", "scifa2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-sh73a0",
+				  "scifa2_ctrl_0", "scifa2"),
+	/* SDHI0 (CN15 [SD I/F]) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				  "sdhi0_data4", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				  "sdhi0_ctrl", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				  "sdhi0_wp", "sdhi0"),
+	/* SDHI1 (CN4 [WLAN I/F]) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh73a0",
+				  "sdhi1_data4", "sdhi1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh73a0",
+				  "sdhi1_ctrl", "sdhi1"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh73a0",
+				      "sdhi1_data4", pin_pullup_conf),
+	PIN_MAP_CONFIGS_PIN_DEFAULT("sh_mobile_sdhi.1", "pfc-sh73a0",
+				    "PORT263", pin_pullup_conf),
+};
+
 static void __init ag5evm_init(void)
 {
 	regulator_register_always_on(0, "fixed-1.8V", fixed1v8_power_consumers,
@@ -558,95 +631,26 @@ static void __init ag5evm_init(void)
 				     ARRAY_SIZE(fixed2v8_power_consumers), 3300000);
 	regulator_register_fixed(3, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
+	pinctrl_register_mappings(ag5evm_pinctrl_map,
+				  ARRAY_SIZE(ag5evm_pinctrl_map));
 	sh73a0_pinmux_init();
 
-	/* enable SCIFA2 */
-	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
-	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
-	gpio_request(GPIO_FN_SCIFA2_RTS1_, NULL);
-	gpio_request(GPIO_FN_SCIFA2_CTS1_, NULL);
-
-	/* enable KEYSC */
-	gpio_request(GPIO_FN_KEYIN0_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN1_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN2_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN3_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN4_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN5_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN6_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN7_PU, NULL);
-	gpio_request(GPIO_FN_KEYOUT0, NULL);
-	gpio_request(GPIO_FN_KEYOUT1, NULL);
-	gpio_request(GPIO_FN_KEYOUT2, NULL);
-	gpio_request(GPIO_FN_KEYOUT3, NULL);
-	gpio_request(GPIO_FN_KEYOUT4, NULL);
-	gpio_request(GPIO_FN_KEYOUT5, NULL);
-	gpio_request(GPIO_FN_PORT59_KEYOUT6, NULL);
-	gpio_request(GPIO_FN_PORT58_KEYOUT7, NULL);
-	gpio_request(GPIO_FN_KEYOUT8, NULL);
-	gpio_request(GPIO_FN_PORT149_KEYOUT9, NULL);
-
-	/* enable I2C channel 2 and 3 */
-	gpio_request(GPIO_FN_PORT236_I2C_SDA2, NULL);
-	gpio_request(GPIO_FN_PORT237_I2C_SCL2, NULL);
-	gpio_request(GPIO_FN_PORT248_I2C_SCL3, NULL);
-	gpio_request(GPIO_FN_PORT249_I2C_SDA3, NULL);
-
 	/* enable MMCIF */
-	gpio_request(GPIO_FN_MMCCLK0, NULL);
-	gpio_request(GPIO_FN_MMCCMD0_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_0_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_1_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_2_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_3_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_4_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_5_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_6_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_7_PU, NULL);
-	gpio_request_one(GPIO_PORT208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
+	gpio_request_one(208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
 
 	/* enable SMSC911X */
-	gpio_request_one(GPIO_PORT144, GPIOF_IN, NULL); /* PINTA2 */
-	gpio_request_one(GPIO_PORT145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
-
-	/* FSI A */
-	gpio_request(GPIO_FN_FSIACK, NULL);
-	gpio_request(GPIO_FN_FSIAILR, NULL);
-	gpio_request(GPIO_FN_FSIAIBT, NULL);
-	gpio_request(GPIO_FN_FSIAISLD, NULL);
-	gpio_request(GPIO_FN_FSIAOSLD, NULL);
-
-	/* IrDA */
-	gpio_request(GPIO_FN_PORT241_IRDA_OUT, NULL);
-	gpio_request(GPIO_FN_PORT242_IRDA_IN,  NULL);
-	gpio_request(GPIO_FN_PORT243_IRDA_FIRSEL, NULL);
+	gpio_request_one(144, GPIOF_IN, NULL); /* PINTA2 */
+	gpio_request_one(145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
 
 	/* LCD panel */
-	gpio_request_one(GPIO_PORT217, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
+	gpio_request_one(217, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
 	mdelay(1);
-	gpio_set_value(GPIO_PORT217, 1);
+	gpio_set_value(217, 1);
 	mdelay(100);
 
 	/* LCD backlight controller */
-	gpio_request_one(GPIO_PORT235, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
+	gpio_request_one(235, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
 	lcd_backlight_set_brightness(0);
-
-	/* enable SDHI0 on CN15 [SD I/F] */
-	gpio_request(GPIO_FN_SDHIWP0, NULL);
-	gpio_request(GPIO_FN_SDHICMD0, NULL);
-	gpio_request(GPIO_FN_SDHICLK0, NULL);
-	gpio_request(GPIO_FN_SDHID0_3, NULL);
-	gpio_request(GPIO_FN_SDHID0_2, NULL);
-	gpio_request(GPIO_FN_SDHID0_1, NULL);
-	gpio_request(GPIO_FN_SDHID0_0, NULL);
-
-	/* enable SDHI1 on CN4 [WLAN I/F] */
-	gpio_request(GPIO_FN_SDHICLK1, NULL);
-	gpio_request(GPIO_FN_SDHICMD1_PU, NULL);
-	gpio_request(GPIO_FN_SDHID1_3_PU, NULL);
-	gpio_request(GPIO_FN_SDHID1_2_PU, NULL);
-	gpio_request(GPIO_FN_SDHID1_1_PU, NULL);
-	gpio_request(GPIO_FN_SDHID1_0_PU, NULL);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Shared attribute override enable, 64K*8way */

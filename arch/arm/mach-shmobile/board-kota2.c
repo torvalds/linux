@@ -24,6 +24,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -135,17 +137,17 @@ static struct platform_device keysc_device = {
 #define GPIO_KEY(c, g, d) { .code = c, .gpio = g, .desc = d, .active_low = 1 }
 
 static struct gpio_keys_button gpio_buttons[] = {
-	GPIO_KEY(KEY_VOLUMEUP, GPIO_PORT56, "+"), /* S2: VOL+ [IRQ9] */
-	GPIO_KEY(KEY_VOLUMEDOWN, GPIO_PORT54, "-"), /* S3: VOL- [IRQ10] */
-	GPIO_KEY(KEY_MENU, GPIO_PORT27, "Menu"), /* S4: MENU [IRQ30] */
-	GPIO_KEY(KEY_HOMEPAGE, GPIO_PORT26, "Home"), /* S5: HOME [IRQ31] */
-	GPIO_KEY(KEY_BACK, GPIO_PORT11, "Back"), /* S6: BACK [IRQ0] */
-	GPIO_KEY(KEY_PHONE, GPIO_PORT238, "Tel"), /* S7: TEL [IRQ11] */
-	GPIO_KEY(KEY_POWER, GPIO_PORT239, "C1"), /* S8: CAM [IRQ13] */
-	GPIO_KEY(KEY_MAIL, GPIO_PORT224, "Mail"), /* S9: MAIL [IRQ3] */
-	/* Omitted button "C3?": GPIO_PORT223 - S10: CUST [IRQ8] */
-	GPIO_KEY(KEY_CAMERA, GPIO_PORT164, "C2"), /* S11: CAM_HALF [IRQ25] */
-	/* Omitted button "?": GPIO_PORT152 - S12: CAM_FULL [No IRQ] */
+	GPIO_KEY(KEY_VOLUMEUP, 56, "+"), /* S2: VOL+ [IRQ9] */
+	GPIO_KEY(KEY_VOLUMEDOWN, 54, "-"), /* S3: VOL- [IRQ10] */
+	GPIO_KEY(KEY_MENU, 27, "Menu"), /* S4: MENU [IRQ30] */
+	GPIO_KEY(KEY_HOMEPAGE, 26, "Home"), /* S5: HOME [IRQ31] */
+	GPIO_KEY(KEY_BACK, 11, "Back"), /* S6: BACK [IRQ0] */
+	GPIO_KEY(KEY_PHONE, 238, "Tel"), /* S7: TEL [IRQ11] */
+	GPIO_KEY(KEY_POWER, 239, "C1"), /* S8: CAM [IRQ13] */
+	GPIO_KEY(KEY_MAIL, 224, "Mail"), /* S9: MAIL [IRQ3] */
+	/* Omitted button "C3?": 223 - S10: CUST [IRQ8] */
+	GPIO_KEY(KEY_CAMERA, 164, "C2"), /* S11: CAM_HALF [IRQ25] */
+	/* Omitted button "?": 152 - S12: CAM_FULL [No IRQ] */
 };
 
 static struct gpio_keys_platform_data gpio_key_info = {
@@ -165,9 +167,9 @@ static struct platform_device gpio_keys_device = {
 #define GPIO_LED(n, g) { .name = n, .gpio = g }
 
 static struct gpio_led gpio_leds[] = {
-	GPIO_LED("G", GPIO_PORT20), /* PORT20 [GPO0] -> LED7 -> "G" */
-	GPIO_LED("H", GPIO_PORT21), /* PORT21 [GPO1] -> LED8 -> "H" */
-	GPIO_LED("J", GPIO_PORT22), /* PORT22 [GPO2] -> LED9 -> "J" */
+	GPIO_LED("G", 20), /* PORT20 [GPO0] -> LED7 -> "G" */
+	GPIO_LED("H", 21), /* PORT21 [GPO1] -> LED8 -> "H" */
+	GPIO_LED("J", 22), /* PORT22 [GPO2] -> LED9 -> "J" */
 };
 
 static struct gpio_led_platform_data gpio_leds_info = {
@@ -187,7 +189,7 @@ static struct platform_device gpio_leds_device = {
 static struct led_renesas_tpu_config led_renesas_tpu12_pdata = {
 	.name		= "V2513",
 	.pin_gpio_fn	= GPIO_FN_TPU1TO2,
-	.pin_gpio	= GPIO_PORT153,
+	.pin_gpio	= 153,
 	.channel_offset = 0x90,
 	.timer_bit = 2,
 	.max_brightness = 1000,
@@ -215,7 +217,7 @@ static struct platform_device leds_tpu12_device = {
 static struct led_renesas_tpu_config led_renesas_tpu41_pdata = {
 	.name		= "V2514",
 	.pin_gpio_fn	= GPIO_FN_TPU4TO1,
-	.pin_gpio	= GPIO_PORT199,
+	.pin_gpio	= 199,
 	.channel_offset = 0x50,
 	.timer_bit = 1,
 	.max_brightness = 1000,
@@ -243,7 +245,7 @@ static struct platform_device leds_tpu41_device = {
 static struct led_renesas_tpu_config led_renesas_tpu21_pdata = {
 	.name		= "V2515",
 	.pin_gpio_fn	= GPIO_FN_TPU2TO1,
-	.pin_gpio	= GPIO_PORT197,
+	.pin_gpio	= 197,
 	.channel_offset = 0x50,
 	.timer_bit = 1,
 	.max_brightness = 1000,
@@ -271,7 +273,7 @@ static struct platform_device leds_tpu21_device = {
 static struct led_renesas_tpu_config led_renesas_tpu30_pdata = {
 	.name		= "KEYLED",
 	.pin_gpio_fn	= GPIO_FN_TPU3TO0,
-	.pin_gpio	= GPIO_PORT163,
+	.pin_gpio	= 163,
 	.channel_offset = 0x10,
 	.timer_bit = 0,
 	.max_brightness = 1000,
@@ -433,6 +435,85 @@ static struct platform_device *kota2_devices[] __initdata = {
 	&sdhi1_device,
 };
 
+static unsigned long pin_pullup_conf[] = {
+	PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_UP, 0),
+};
+
+static const struct pinctrl_map kota2_pinctrl_map[] = {
+	/* KEYSC */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_in8", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out04", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out5", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out6_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out7_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				  "keysc_out8_0", "keysc"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("sh_keysc.0", "pfc-sh73a0",
+				      "keysc_in8", pin_pullup_conf),
+	/* MMCIF */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
+				  "mmc0_data8_0", "mmc0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
+				  "mmc0_ctrl_0", "mmc0"),
+	PIN_MAP_CONFIGS_PIN_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
+				    "PORT279", pin_pullup_conf),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh73a0",
+				      "mmc0_data8_0", pin_pullup_conf),
+	/* SCIFA2 (UART2) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-sh73a0",
+				  "scifa2_data_0", "scifa2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-sh73a0",
+				  "scifa2_ctrl_0", "scifa2"),
+	/* SCIFA4 (UART1) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.4", "pfc-sh73a0",
+				  "scifa4_data", "scifa4"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.4", "pfc-sh73a0",
+				  "scifa4_ctrl", "scifa4"),
+	/* SCIFB (BT) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.8", "pfc-sh73a0",
+				  "scifb_data_0", "scifb"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.8", "pfc-sh73a0",
+				  "scifb_clk_0", "scifb"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.8", "pfc-sh73a0",
+				  "scifb_ctrl_0", "scifb"),
+	/* SDHI0 (microSD) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				  "sdhi0_data4", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				  "sdhi0_ctrl", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				  "sdhi0_cd", "sdhi0"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				      "sdhi0_data4", pin_pullup_conf),
+	PIN_MAP_CONFIGS_PIN_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				    "PORT256", pin_pullup_conf),
+	PIN_MAP_CONFIGS_PIN_DEFAULT("sh_mobile_sdhi.0", "pfc-sh73a0",
+				    "PORT251", pin_pullup_conf),
+	/* SDHI1 (BCM4330) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh73a0",
+				  "sdhi1_data4", "sdhi1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh73a0",
+				  "sdhi1_ctrl", "sdhi1"),
+	PIN_MAP_CONFIGS_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh73a0",
+				      "sdhi1_data4", pin_pullup_conf),
+	PIN_MAP_CONFIGS_PIN_DEFAULT("sh_mobile_sdhi.1", "pfc-sh73a0",
+				    "PORT263", pin_pullup_conf),
+	/* SMSC911X */
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x.0", "pfc-sh73a0",
+				  "bsc_data_0_7", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x.0", "pfc-sh73a0",
+				  "bsc_data_8_15", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x.0", "pfc-sh73a0",
+				  "bsc_cs5_a", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x.0", "pfc-sh73a0",
+				  "bsc_we0", "bsc"),
+};
+
 static void __init kota2_init(void)
 {
 	regulator_register_always_on(0, "fixed-1.8V", fixed1v8_power_consumers,
@@ -441,97 +522,16 @@ static void __init kota2_init(void)
 				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
 	regulator_register_fixed(2, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
+	pinctrl_register_mappings(kota2_pinctrl_map,
+				  ARRAY_SIZE(kota2_pinctrl_map));
 	sh73a0_pinmux_init();
 
-	/* SCIFA2 (UART2) */
-	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
-	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
-	gpio_request(GPIO_FN_SCIFA2_RTS1_, NULL);
-	gpio_request(GPIO_FN_SCIFA2_CTS1_, NULL);
-
-	/* SCIFA4 (UART1) */
-	gpio_request(GPIO_FN_SCIFA4_TXD, NULL);
-	gpio_request(GPIO_FN_SCIFA4_RXD, NULL);
-	gpio_request(GPIO_FN_SCIFA4_RTS_, NULL);
-	gpio_request(GPIO_FN_SCIFA4_CTS_, NULL);
-
 	/* SMSC911X */
-	gpio_request(GPIO_FN_D0_NAF0, NULL);
-	gpio_request(GPIO_FN_D1_NAF1, NULL);
-	gpio_request(GPIO_FN_D2_NAF2, NULL);
-	gpio_request(GPIO_FN_D3_NAF3, NULL);
-	gpio_request(GPIO_FN_D4_NAF4, NULL);
-	gpio_request(GPIO_FN_D5_NAF5, NULL);
-	gpio_request(GPIO_FN_D6_NAF6, NULL);
-	gpio_request(GPIO_FN_D7_NAF7, NULL);
-	gpio_request(GPIO_FN_D8_NAF8, NULL);
-	gpio_request(GPIO_FN_D9_NAF9, NULL);
-	gpio_request(GPIO_FN_D10_NAF10, NULL);
-	gpio_request(GPIO_FN_D11_NAF11, NULL);
-	gpio_request(GPIO_FN_D12_NAF12, NULL);
-	gpio_request(GPIO_FN_D13_NAF13, NULL);
-	gpio_request(GPIO_FN_D14_NAF14, NULL);
-	gpio_request(GPIO_FN_D15_NAF15, NULL);
-	gpio_request(GPIO_FN_CS5A_, NULL);
-	gpio_request(GPIO_FN_WE0__FWE, NULL);
-	gpio_request_one(GPIO_PORT144, GPIOF_IN, NULL); /* PINTA2 */
-	gpio_request_one(GPIO_PORT145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
-
-	/* KEYSC */
-	gpio_request(GPIO_FN_KEYIN0_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN1_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN2_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN3_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN4_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN5_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN6_PU, NULL);
-	gpio_request(GPIO_FN_KEYIN7_PU, NULL);
-	gpio_request(GPIO_FN_KEYOUT0, NULL);
-	gpio_request(GPIO_FN_KEYOUT1, NULL);
-	gpio_request(GPIO_FN_KEYOUT2, NULL);
-	gpio_request(GPIO_FN_KEYOUT3, NULL);
-	gpio_request(GPIO_FN_KEYOUT4, NULL);
-	gpio_request(GPIO_FN_KEYOUT5, NULL);
-	gpio_request(GPIO_FN_PORT59_KEYOUT6, NULL);
-	gpio_request(GPIO_FN_PORT58_KEYOUT7, NULL);
-	gpio_request(GPIO_FN_KEYOUT8, NULL);
+	gpio_request_one(144, GPIOF_IN, NULL); /* PINTA2 */
+	gpio_request_one(145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
 
 	/* MMCIF */
-	gpio_request(GPIO_FN_MMCCLK0, NULL);
-	gpio_request(GPIO_FN_MMCD0_0, NULL);
-	gpio_request(GPIO_FN_MMCD0_1, NULL);
-	gpio_request(GPIO_FN_MMCD0_2, NULL);
-	gpio_request(GPIO_FN_MMCD0_3, NULL);
-	gpio_request(GPIO_FN_MMCD0_4, NULL);
-	gpio_request(GPIO_FN_MMCD0_5, NULL);
-	gpio_request(GPIO_FN_MMCD0_6, NULL);
-	gpio_request(GPIO_FN_MMCD0_7, NULL);
-	gpio_request(GPIO_FN_MMCCMD0, NULL);
-	gpio_request_one(GPIO_PORT208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
-
-	/* SDHI0 (microSD) */
-	gpio_request(GPIO_FN_SDHICD0_PU, NULL);
-	gpio_request(GPIO_FN_SDHICMD0_PU, NULL);
-	gpio_request(GPIO_FN_SDHICLK0, NULL);
-	gpio_request(GPIO_FN_SDHID0_3_PU, NULL);
-	gpio_request(GPIO_FN_SDHID0_2_PU, NULL);
-	gpio_request(GPIO_FN_SDHID0_1_PU, NULL);
-	gpio_request(GPIO_FN_SDHID0_0_PU, NULL);
-
-	/* SCIFB (BT) */
-	gpio_request(GPIO_FN_PORT159_SCIFB_SCK, NULL);
-	gpio_request(GPIO_FN_PORT160_SCIFB_TXD, NULL);
-	gpio_request(GPIO_FN_PORT161_SCIFB_CTS_, NULL);
-	gpio_request(GPIO_FN_PORT162_SCIFB_RXD, NULL);
-	gpio_request(GPIO_FN_PORT163_SCIFB_RTS_, NULL);
-
-	/* SDHI1 (BCM4330) */
-	gpio_request(GPIO_FN_SDHICLK1, NULL);
-	gpio_request(GPIO_FN_SDHICMD1_PU, NULL);
-	gpio_request(GPIO_FN_SDHID1_3_PU, NULL);
-	gpio_request(GPIO_FN_SDHID1_2_PU, NULL);
-	gpio_request(GPIO_FN_SDHID1_1_PU, NULL);
-	gpio_request(GPIO_FN_SDHID1_0_PU, NULL);
+	gpio_request_one(208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
