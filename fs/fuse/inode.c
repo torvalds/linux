@@ -583,7 +583,7 @@ void fuse_conn_init(struct fuse_conn *fc)
 	fc->khctr = 0;
 	fc->polled_files = RB_ROOT;
 	fc->reqctr = 0;
-	fc->blocked = 1;
+	fc->blocked = 0;
 	fc->initialized = 0;
 	fc->attr_version = 1;
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
@@ -883,7 +883,6 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
-	fc->blocked = 0;
 	fc->initialized = 1;
 	wake_up_all(&fc->blocked_waitq);
 }
