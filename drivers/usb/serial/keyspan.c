@@ -1115,7 +1115,6 @@ static void keyspan_dtr_rts(struct usb_serial_port *port, int on)
 static void keyspan_close(struct usb_serial_port *port)
 {
 	int			i;
-	struct usb_serial	*serial = port->serial;
 	struct keyspan_port_private 	*p_priv;
 
 	p_priv = usb_get_serial_port_data(port);
@@ -1123,28 +1122,17 @@ static void keyspan_close(struct usb_serial_port *port)
 	p_priv->rts_state = 0;
 	p_priv->dtr_state = 0;
 
-	if (serial->dev) {
-		keyspan_send_setup(port, 2);
-		/* pilot-xfer seems to work best with this delay */
-		mdelay(100);
-		/* keyspan_set_termios(port, NULL); */
-	}
-
-	/*while (p_priv->outcont_urb->status == -EINPROGRESS) {
-		dev_dbg(&port->dev, "%s - urb in progress\n", __func__);
-	}*/
+	keyspan_send_setup(port, 2);
+	/* pilot-xfer seems to work best with this delay */
+	mdelay(100);
 
 	p_priv->out_flip = 0;
 	p_priv->in_flip = 0;
 
-	if (serial->dev) {
-		/* Stop reading/writing urbs */
-		stop_urb(p_priv->inack_urb);
-		/* stop_urb(p_priv->outcont_urb); */
-		for (i = 0; i < 2; i++) {
-			stop_urb(p_priv->in_urbs[i]);
-			stop_urb(p_priv->out_urbs[i]);
-		}
+	stop_urb(p_priv->inack_urb);
+	for (i = 0; i < 2; i++) {
+		stop_urb(p_priv->in_urbs[i]);
+		stop_urb(p_priv->out_urbs[i]);
 	}
 }
 
