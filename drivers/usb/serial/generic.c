@@ -418,6 +418,64 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_unthrottle);
 
+static bool usb_serial_generic_msr_changed(struct tty_struct *tty,
+				unsigned long arg, struct async_icount *cprev)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct async_icount cnow;
+	unsigned long flags;
+	bool ret;
+
+	/*
+	 * Use tty-port initialised flag to detect all hangups including the
+	 * one generated at USB-device disconnect.
+	 *
+	 * FIXME: Remove hupping check once tty_port_hangup calls shutdown
+	 *        (which clears the initialised flag) before wake up.
+	 */
+	if (test_bit(TTY_HUPPING, &tty->flags))
+		return true;
+	if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
+		return true;
+
+	spin_lock_irqsave(&port->lock, flags);
+	cnow = port->icount;				/* atomic copy*/
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	ret =	((arg & TIOCM_RNG) && (cnow.rng != cprev->rng)) ||
+		((arg & TIOCM_DSR) && (cnow.dsr != cprev->dsr)) ||
+		((arg & TIOCM_CD)  && (cnow.dcd != cprev->dcd)) ||
+		((arg & TIOCM_CTS) && (cnow.cts != cprev->cts));
+
+	*cprev = cnow;
+
+	return ret;
+}
+
+int usb_serial_generic_tiocmiwait(struct tty_struct *tty, unsigned long arg)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct async_icount cnow;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&port->lock, flags);
+	cnow = port->icount;				/* atomic copy */
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	ret = wait_event_interruptible(port->port.delta_msr_wait,
+			usb_serial_generic_msr_changed(tty, arg, &cnow));
+	if (!ret) {
+		if (test_bit(TTY_HUPPING, &tty->flags))
+			ret = -EIO;
+		if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
+			ret = -EIO;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(usb_serial_generic_tiocmiwait);
+
 #ifdef CONFIG_MAGIC_SYSRQ
 int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
 {

@@ -15,6 +15,7 @@
 
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/serial.h>
 #include <linux/sysrq.h>
 #include <linux/kfifo.h>
 
@@ -61,6 +62,7 @@
  * @bulk_out_buffers: pointers to the bulk out buffers for this port
  * @write_urbs: pointers to the bulk out urbs for this port
  * @write_urbs_free: status bitmap the for bulk out urbs
+ * @icount: interrupt counters
  * @tx_bytes: number of bytes currently in host stack queues
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
@@ -109,6 +111,7 @@ struct usb_serial_port {
 	unsigned long		write_urbs_free;
 	__u8			bulk_out_endpointAddress;
 
+	struct async_icount	icount;
 	int			tx_bytes;
 
 	unsigned long		flags;
@@ -330,6 +333,8 @@ extern void usb_serial_generic_read_bulk_callback(struct urb *urb);
 extern void usb_serial_generic_write_bulk_callback(struct urb *urb);
 extern void usb_serial_generic_throttle(struct tty_struct *tty);
 extern void usb_serial_generic_unthrottle(struct tty_struct *tty);
+extern int usb_serial_generic_tiocmiwait(struct tty_struct *tty,
+							unsigned long arg);
 extern int usb_serial_generic_register(void);
 extern void usb_serial_generic_deregister(void);
 extern int usb_serial_generic_submit_read_urbs(struct usb_serial_port *port,
