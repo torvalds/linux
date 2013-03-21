@@ -218,7 +218,7 @@ static int omap_pm_enter(suspend_state_t suspend_state)
 
 static int omap_pm_begin(suspend_state_t state)
 {
-	disable_hlt();
+	cpu_idle_poll_ctrl(true);
 	if (cpu_is_omap34xx())
 		omap_prcm_irq_prepare();
 	return 0;
@@ -226,8 +226,7 @@ static int omap_pm_begin(suspend_state_t state)
 
 static void omap_pm_end(void)
 {
-	enable_hlt();
-	return;
+	cpu_idle_poll_ctrl(false);
 }
 
 static void omap_pm_finish(void)
