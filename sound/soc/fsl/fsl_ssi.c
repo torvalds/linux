@@ -574,6 +574,10 @@ static struct snd_soc_dai_driver fsl_ssi_dai_template = {
 	.ops = &fsl_ssi_dai_ops,
 };
 
+static const struct snd_soc_component_driver fsl_ssi_component = {
+	.name		= "fsl-ssi",
+};
+
 /* Show the statistics of a flag only if its interrupt is enabled.  The
  * compiler will optimze this code to a no-op if the interrupt is not
  * enabled.
@@ -782,7 +786,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	/* Register with ASoC */
 	dev_set_drvdata(&pdev->dev, ssi_private);
 
-	ret = snd_soc_register_dai(&pdev->dev, &ssi_private->cpu_dai_drv);
+	ret = snd_soc_register_component(&pdev->dev, &fsl_ssi_component,
+					 &ssi_private->cpu_dai_drv, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
 		goto error_dev;
@@ -835,7 +840,7 @@ done:
 error_dai:
 	if (ssi_private->ssi_on_imx)
 		platform_device_unregister(ssi_private->imx_pcm_pdev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 error_dev:
 	dev_set_drvdata(&pdev->dev, NULL);
@@ -873,7 +878,7 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 		clk_disable_unprepare(ssi_private->clk);
 		clk_put(ssi_private->clk);
 	}
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
 
 	free_irq(ssi_private->irq, ssi_private);
