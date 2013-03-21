@@ -861,7 +861,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(p->net,
 							   p->protocol);
 
-	cp = kmem_cache_zalloc(ip_vs_conn_cachep, GFP_ATOMIC);
+	cp = kmem_cache_alloc(ip_vs_conn_cachep, GFP_ATOMIC);
 	if (cp == NULL) {
 		IP_VS_ERR_RL("%s(): no memory\n", __func__);
 		return NULL;
@@ -872,13 +872,13 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	ip_vs_conn_net_set(cp, p->net);
 	cp->af		   = p->af;
 	cp->protocol	   = p->protocol;
-	ip_vs_addr_copy(p->af, &cp->caddr, p->caddr);
+	ip_vs_addr_set(p->af, &cp->caddr, p->caddr);
 	cp->cport	   = p->cport;
-	ip_vs_addr_copy(p->af, &cp->vaddr, p->vaddr);
+	ip_vs_addr_set(p->af, &cp->vaddr, p->vaddr);
 	cp->vport	   = p->vport;
 	/* proto should only be IPPROTO_IP if d_addr is a fwmark */
-	ip_vs_addr_copy(p->protocol == IPPROTO_IP ? AF_UNSPEC : p->af,
-			&cp->daddr, daddr);
+	ip_vs_addr_set(p->protocol == IPPROTO_IP ? AF_UNSPEC : p->af,
+		       &cp->daddr, daddr);
 	cp->dport          = dport;
 	cp->flags	   = flags;
 	cp->fwmark         = fwmark;
@@ -887,6 +887,10 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 		cp->pe = p->pe;
 		cp->pe_data = p->pe_data;
 		cp->pe_data_len = p->pe_data_len;
+	} else {
+		cp->pe = NULL;
+		cp->pe_data = NULL;
+		cp->pe_data_len = 0;
 	}
 	spin_lock_init(&cp->lock);
 
@@ -897,18 +901,28 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	 */
 	atomic_set(&cp->refcnt, 1);
 
+	cp->control = NULL;
 	atomic_set(&cp->n_control, 0);
 	atomic_set(&cp->in_pkts, 0);
+
+	cp->packet_xmit = NULL;
+	cp->app = NULL;
+	cp->app_data = NULL;
+	/* reset struct ip_vs_seq */
+	cp->in_seq.delta = 0;
+	cp->out_seq.delta = 0;
 
 	atomic_inc(&ipvs->conn_count);
 	if (flags & IP_VS_CONN_F_NO_CPORT)
 		atomic_inc(&ip_vs_conn_no_cport_cnt);
 
 	/* Bind the connection with a destination server */
+	cp->dest = NULL;
 	ip_vs_bind_dest(cp, dest);
 
 	/* Set its state and timeout */
 	cp->state = 0;
+	cp->old_state = 0;
 	cp->timeout = 3*HZ;
 	cp->sync_endtime = jiffies & ~3UL;
 

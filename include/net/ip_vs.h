@@ -233,6 +233,21 @@ static inline void ip_vs_addr_copy(int af, union nf_inet_addr *dst,
 	dst->ip = src->ip;
 }
 
+static inline void ip_vs_addr_set(int af, union nf_inet_addr *dst,
+				  const union nf_inet_addr *src)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6) {
+		dst->in6 = src->in6;
+		return;
+	}
+#endif
+	dst->ip = src->ip;
+	dst->all[1] = 0;
+	dst->all[2] = 0;
+	dst->all[3] = 0;
+}
+
 static inline int ip_vs_addr_equal(int af, const union nf_inet_addr *a,
 				   const union nf_inet_addr *b)
 {
