@@ -315,11 +315,6 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return usb_serial_generic_open(tty, port);
 }
 
-static void ssu100_close(struct usb_serial_port *port)
-{
-	usb_serial_generic_close(port);
-}
-
 static int get_serial_info(struct usb_serial_port *port,
 			   struct serial_struct __user *retinfo)
 {
@@ -630,7 +625,6 @@ static struct usb_serial_driver ssu100_device = {
 	.id_table	     = id_table,
 	.num_ports	     = 1,
 	.open		     = ssu100_open,
-	.close		     = ssu100_close,
 	.attach              = ssu100_attach,
 	.port_probe          = ssu100_port_probe,
 	.port_remove         = ssu100_port_remove,
