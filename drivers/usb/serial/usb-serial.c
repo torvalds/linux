@@ -225,7 +225,7 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	return retval;
 }
 
-static int serial_activate(struct tty_port *tport, struct tty_struct *tty)
+static int serial_port_activate(struct tty_port *tport, struct tty_struct *tty)
 {
 	struct usb_serial_port *port =
 		container_of(tport, struct usb_serial_port, port);
@@ -254,7 +254,7 @@ static int serial_open(struct tty_struct *tty, struct file *filp)
 }
 
 /**
- * serial_down - shut down hardware
+ * serial_port_shutdown - shut down hardware
  * @tport: tty port to shut down
  *
  * Shut down a USB serial port. Serialized against activate by the
@@ -263,7 +263,7 @@ static int serial_open(struct tty_struct *tty, struct file *filp)
  *
  * Not called if tty is console.
  */
-static void serial_down(struct tty_port *tport)
+static void serial_port_shutdown(struct tty_port *tport)
 {
 	struct usb_serial_port *port =
 		container_of(tport, struct usb_serial_port, port);
@@ -677,7 +677,7 @@ static struct usb_serial_driver *search_serial_device(
 	return NULL;
 }
 
-static int serial_carrier_raised(struct tty_port *port)
+static int serial_port_carrier_raised(struct tty_port *port)
 {
 	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
 	struct usb_serial_driver *drv = p->serial->type;
@@ -688,7 +688,7 @@ static int serial_carrier_raised(struct tty_port *port)
 	return 1;
 }
 
-static void serial_dtr_rts(struct tty_port *port, int on)
+static void serial_port_dtr_rts(struct tty_port *port, int on)
 {
 	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
 	struct usb_serial *serial = p->serial;
@@ -708,10 +708,10 @@ static void serial_dtr_rts(struct tty_port *port, int on)
 }
 
 static const struct tty_port_operations serial_port_ops = {
-	.carrier_raised = serial_carrier_raised,
-	.dtr_rts = serial_dtr_rts,
-	.activate = serial_activate,
-	.shutdown = serial_down,
+	.carrier_raised		= serial_port_carrier_raised,
+	.dtr_rts		= serial_port_dtr_rts,
+	.activate		= serial_port_activate,
+	.shutdown		= serial_port_shutdown,
 };
 
 static int usb_serial_probe(struct usb_interface *interface,
