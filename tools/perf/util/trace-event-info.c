@@ -47,16 +47,6 @@ static const char *output_file = "trace.info";
 static int output_fd;
 
 
-static void *malloc_or_die(unsigned int size)
-{
-	void *data;
-
-	data = malloc(size);
-	if (!data)
-		die("malloc");
-	return data;
-}
-
 static const char *find_debugfs(void)
 {
 	const char *path = perf_debugfs_mount(NULL);
@@ -209,7 +199,7 @@ static bool name_in_tp_list(char *sys, struct tracepoint_path *tps)
 	return false;
 }
 
-static void copy_event_system(const char *sys, struct tracepoint_path *tps)
+static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 {
 	struct dirent *dent;
 	struct stat st;
@@ -217,6 +207,7 @@ static void copy_event_system(const char *sys, struct tracepoint_path *tps)
 	DIR *dir;
 	int count = 0;
 	int ret;
+	int err;
 
 	dir = opendir(sys);
 	if (!dir)
@@ -228,7 +219,11 @@ static void copy_event_system(const char *sys, struct tracepoint_path *tps)
 		    strcmp(dent->d_name, "..") == 0 ||
 		    !name_in_tp_list(dent->d_name, tps))
 			continue;
-		format = malloc_or_die(strlen(sys) + strlen(dent->d_name) + 10);
+		format = malloc(strlen(sys) + strlen(dent->d_name) + 10);
+		if (!format) {
+			err = -ENOMEM;
+			goto out;
+		}
 		sprintf(format, "%s/%s/format", sys, dent->d_name);
 		ret = stat(format, &st);
 		free(format);
@@ -246,16 +241,22 @@ static void copy_event_system(const char *sys, struct tracepoint_path *tps)
 		    strcmp(dent->d_name, "..") == 0 ||
 		    !name_in_tp_list(dent->d_name, tps))
 			continue;
-		format = malloc_or_die(strlen(sys) + strlen(dent->d_name) + 10);
+		format = malloc(strlen(sys) + strlen(dent->d_name) + 10);
+		if (!format) {
+			err = -ENOMEM;
+			goto out;
+		}
 		sprintf(format, "%s/%s/format", sys, dent->d_name);
 		ret = stat(format, &st);
 
 		if (ret >= 0)
 			record_file(format, 8);
-
 		free(format);
 	}
+	err = 0;
+out:
 	closedir(dir);
+	return err;
 }
 
 static void read_ftrace_files(struct tracepoint_path *tps)
@@ -282,7 +283,7 @@ static bool system_in_tp_list(char *sys, struct tracepoint_path *tps)
 	return false;
 }
 
-static void read_event_files(struct tracepoint_path *tps)
+static int read_event_files(struct tracepoint_path *tps)
 {
 	struct dirent *dent;
 	struct stat st;
@@ -291,6 +292,7 @@ static void read_event_files(struct tracepoint_path *tps)
 	DIR *dir;
 	int count = 0;
 	int ret;
+	int err;
 
 	path = get_tracing_file("events");
 	if (!path)
@@ -320,7 +322,11 @@ static void read_event_files(struct tracepoint_path *tps)
 		    strcmp(dent->d_name, "ftrace") == 0 ||
 		    !system_in_tp_list(dent->d_name, tps))
 			continue;
-		sys = malloc_or_die(strlen(path) + strlen(dent->d_name) + 2);
+		sys = malloc(strlen(path) + strlen(dent->d_name) + 2);
+		if (!sys) {
+			err = -ENOMEM;
+			goto out;
+		}
 		sprintf(sys, "%s/%s", path, dent->d_name);
 		ret = stat(sys, &st);
 		if (ret >= 0) {
@@ -329,9 +335,12 @@ static void read_event_files(struct tracepoint_path *tps)
 		}
 		free(sys);
 	}
-
+	err = 0;
+out:
 	closedir(dir);
 	put_tracing_file(path);
+
+	return err;
 }
 
 static void read_proc_kallsyms(void)
@@ -463,7 +472,10 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 	if (!tps)
 		return NULL;
 
-	tdata = malloc_or_die(sizeof(*tdata));
+	tdata = malloc(sizeof(*tdata));
+	if (!tdata)
+		return NULL;
+
 	tdata->temp = temp;
 	tdata->size = 0;
 
