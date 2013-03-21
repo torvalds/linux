@@ -124,6 +124,12 @@ config MACH_ARMADILLO800EVA
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
 
+config MACH_BOCKW
+	bool "BOCK-W platform"
+	depends on ARCH_R8A7778
+	select ARCH_REQUIRE_GPIOLIB
+	select USE_OF
+
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
