@@ -71,8 +71,10 @@
 
 /* CONFIG Register 08h */
 #define LP5562_REG_CONFIG		0x08
-#define LP5562_DEFAULT_CFG	\
-	(LP5562_PWM_HF | LP5562_PWRSAVE_EN | LP5562_CLK_INT)
+#define LP5562_PWM_HF			0x40
+#define LP5562_PWRSAVE_EN		0x20
+#define LP5562_CLK_INT			0x01	/* Internal clock */
+#define LP5562_DEFAULT_CFG		(LP5562_PWM_HF | LP5562_PWRSAVE_EN)
 
 /* RESET Register 0Dh */
 #define LP5562_REG_RESET		0x0D
@@ -280,7 +282,7 @@ static void lp5562_firmware_loaded(struct lp55xx_chip *chip)
 static int lp5562_post_init_device(struct lp55xx_chip *chip)
 {
 	int ret;
-	u8 update_cfg = chip->pdata->update_config ? : LP5562_DEFAULT_CFG;
+	u8 cfg = LP5562_DEFAULT_CFG;
 
 	/* Set all PWMs to direct control mode */
 	ret = lp55xx_write(chip, LP5562_REG_OP_MODE, LP5562_CMD_DIRECT);
@@ -289,7 +291,11 @@ static int lp5562_post_init_device(struct lp55xx_chip *chip)
 
 	lp5562_wait_opmode_done();
 
-	ret = lp55xx_write(chip, LP5562_REG_CONFIG, update_cfg);
+	/* Update configuration for the clock setting */
+	if (!lp55xx_is_extclk_used(chip))
+		cfg |= LP5562_CLK_INT;
+
+	ret = lp55xx_write(chip, LP5562_REG_CONFIG, cfg);
 	if (ret)
 		return ret;
 
