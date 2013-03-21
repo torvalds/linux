@@ -16,8 +16,11 @@
 
 #include "board-mop500.h"
 
-/* Dummy data that can be overridden by staging driver */
-struct i2c_board_info __initdata __weak mop500_i2c3_devices_u8500[] = {
+static struct i2c_board_info __initdata mop500_i2c3_devices_u8500[] = {
+	{
+		I2C_BOARD_INFO("synaptics_rmi4_i2c", 0x4B),
+		.irq = NOMADIK_GPIO_TO_IRQ(84),
+	},
 };
 
 /*
