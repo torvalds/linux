@@ -337,49 +337,6 @@ static int get_serial_info(struct usb_serial_port *port,
 	return 0;
 }
 
-static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
-{
-	struct ssu100_port_private *priv = usb_get_serial_port_data(port);
-	struct async_icount prev, cur;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->status_lock, flags);
-	prev = port->icount;
-	spin_unlock_irqrestore(&priv->status_lock, flags);
-
-	while (1) {
-		wait_event_interruptible(port->delta_msr_wait,
-					 (port->serial->disconnected ||
-					  (port->icount.rng != prev.rng) ||
-					  (port->icount.dsr != prev.dsr) ||
-					  (port->icount.dcd != prev.dcd) ||
-					  (port->icount.cts != prev.cts)));
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		if (port->serial->disconnected)
-			return -EIO;
-
-		spin_lock_irqsave(&priv->status_lock, flags);
-		cur = port->icount;
-		spin_unlock_irqrestore(&priv->status_lock, flags);
-
-		if ((prev.rng == cur.rng) &&
-		    (prev.dsr == cur.dsr) &&
-		    (prev.dcd == cur.dcd) &&
-		    (prev.cts == cur.cts))
-			return -EIO;
-
-		if ((arg & TIOCM_RNG && (prev.rng != cur.rng)) ||
-		    (arg & TIOCM_DSR && (prev.dsr != cur.dsr)) ||
-		    (arg & TIOCM_CD  && (prev.dcd != cur.dcd)) ||
-		    (arg & TIOCM_CTS && (prev.cts != cur.cts)))
-			return 0;
-	}
-	return 0;
-}
-
 static int ssu100_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
@@ -391,10 +348,6 @@ static int ssu100_ioctl(struct tty_struct *tty,
 	case TIOCGSERIAL:
 		return get_serial_info(port,
 				       (struct serial_struct __user *) arg);
-
-	case TIOCMIWAIT:
-		return wait_modem_info(port, arg);
-
 	default:
 		break;
 	}
@@ -509,7 +462,7 @@ static void ssu100_update_msr(struct usb_serial_port *port, u8 msr)
 			port->icount.dcd++;
 		if (msr & UART_MSR_TERI)
 			port->icount.rng++;
-		wake_up_interruptible(&port->delta_msr_wait);
+		wake_up_interruptible(&port->port.delta_msr_wait);
 	}
 }
 
@@ -607,6 +560,7 @@ static struct usb_serial_driver ssu100_device = {
 	.process_read_urb    = ssu100_process_read_urb,
 	.tiocmget            = ssu100_tiocmget,
 	.tiocmset            = ssu100_tiocmset,
+	.tiocmiwait          = usb_serial_generic_tiocmiwait,
 	.get_icount	     = usb_serial_generic_get_icount,
 	.ioctl               = ssu100_ioctl,
 	.set_termios         = ssu100_set_termios,
