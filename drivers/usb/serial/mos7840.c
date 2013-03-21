@@ -1223,25 +1223,10 @@ static void mos7840_close(struct usb_serial_port *port)
 		}
 	}
 
-	/* While closing port, shutdown all bulk read, write  *
-	 * and interrupt read if they exists                  */
-	if (serial->dev) {
-		if (mos7840_port->write_urb) {
-			dev_dbg(&port->dev, "%s", "Shutdown bulk write\n");
-			usb_kill_urb(mos7840_port->write_urb);
-		}
-		if (mos7840_port->read_urb) {
-			dev_dbg(&port->dev, "%s", "Shutdown bulk read\n");
-			usb_kill_urb(mos7840_port->read_urb);
-			mos7840_port->read_urb_busy = false;
-		}
-		if ((&mos7840_port->control_urb)) {
-			dev_dbg(&port->dev, "%s", "Shutdown control read\n");
-			/*/      usb_kill_urb (mos7840_port->control_urb); */
-		}
-	}
-/*      if(mos7840_port->ctrl_buf != NULL) */
-/*              kfree(mos7840_port->ctrl_buf); */
+	usb_kill_urb(mos7840_port->write_urb);
+	usb_kill_urb(mos7840_port->read_urb);
+	mos7840_port->read_urb_busy = false;
+
 	port0->open_ports--;
 	dev_dbg(&port->dev, "%s in close%d:in port%d\n", __func__, port0->open_ports, port->number);
 	if (port0->open_ports == 0) {
@@ -1330,9 +1315,8 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 	if (mos7840_port == NULL)
 		return;
 
-	if (serial->dev)
-		/* flush and block until tx is empty */
-		mos7840_block_until_chase_response(tty, mos7840_port);
+	/* flush and block until tx is empty */
+	mos7840_block_until_chase_response(tty, mos7840_port);
 
 	if (break_state == -1)
 		data = mos7840_port->shadowLCR | LCR_SET_BREAK;
