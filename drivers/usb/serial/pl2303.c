@@ -593,8 +593,9 @@ static int pl2303_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
+static int pl2303_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	unsigned int prevstatus;
@@ -652,10 +653,6 @@ static int pl2303_ioctl(struct tty_struct *tty,
 			return -EFAULT;
 
 		return 0;
-
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s TIOCMIWAIT\n", __func__);
-		return wait_modem_info(port, arg);
 	default:
 		dev_dbg(&port->dev, "%s not supported = 0x%04x\n", __func__, cmd);
 		break;
@@ -836,6 +833,7 @@ static struct usb_serial_driver pl2303_device = {
 	.set_termios =		pl2303_set_termios,
 	.tiocmget =		pl2303_tiocmget,
 	.tiocmset =		pl2303_tiocmset,
+	.tiocmiwait =		pl2303_tiocmiwait,
 	.process_read_urb =	pl2303_process_read_urb,
 	.read_int_callback =	pl2303_read_int_callback,
 	.attach =		pl2303_startup,
