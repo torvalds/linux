@@ -2737,7 +2737,7 @@ static bool nfsd4_is_deleg_cur(struct nfsd4_open *open)
 }
 
 static __be32
-nfs4_check_deleg(struct nfs4_client *cl, struct nfs4_file *fp, struct nfsd4_open *open,
+nfs4_check_deleg(struct nfs4_client *cl, struct nfsd4_open *open,
 		struct nfs4_delegation **dp)
 {
 	int flags;
@@ -3062,7 +3062,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	if (fp) {
 		if ((status = nfs4_check_open(fp, open, &stp)))
 			goto out;
-		status = nfs4_check_deleg(cl, fp, open, &dp);
+		status = nfs4_check_deleg(cl, open, &dp);
 		if (status)
 			goto out;
 	} else {
