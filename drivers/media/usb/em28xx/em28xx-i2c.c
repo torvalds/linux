@@ -284,6 +284,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct em28xx *dev = i2c_bus->dev;
 	unsigned bus = i2c_bus->bus;
 	int addr, rc, i, byte;
+	u8 reg;
 
 	rc = rt_mutex_trylock(&dev->i2c_bus_lock);
 	if (rc < 0)
@@ -292,10 +293,11 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 	/* Switch I2C bus if needed */
 	if (bus != dev->cur_i2c_bus) {
 		if (bus == 1)
-			dev->cur_i2c_bus |= EM2874_I2C_SECONDARY_BUS_SELECT;
+			reg = EM2874_I2C_SECONDARY_BUS_SELECT;
 		else
-			dev->cur_i2c_bus &= ~EM2874_I2C_SECONDARY_BUS_SELECT;
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->cur_i2c_bus);
+			reg = 0;
+		em28xx_write_reg_bits(dev, EM28XX_R06_I2C_CLK, reg,
+				      EM2874_I2C_SECONDARY_BUS_SELECT);
 		dev->cur_i2c_bus = bus;
 	}
 
