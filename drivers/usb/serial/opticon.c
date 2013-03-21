@@ -120,7 +120,10 @@ static int send_control_msg(struct usb_serial_port *port, u8 requesttype,
 				0, 0, buffer, 1, 0);
 	kfree(buffer);
 
-	return retval;
+	if (retval < 0)
+		return retval;
+
+	return 0;
 }
 
 static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -329,10 +332,13 @@ static int opticon_tiocmset(struct tty_struct *tty,
 
 	/* Send the new RTS state to the connected device */
 	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected)
+	if (!serial->disconnected) {
 		ret = send_control_msg(port, CONTROL_RTS, !rts);
-	else
+		if (ret)
+			ret = usb_translate_errors(ret);
+	} else {
 		ret = -ENODEV;
+	}
 	mutex_unlock(&serial->disc_mutex);
 
 	return ret;
