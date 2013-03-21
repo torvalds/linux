@@ -2962,6 +2962,7 @@ static unsigned long bnx2x_get_common_flags(struct bnx2x *bp,
 		__set_bit(BNX2X_Q_FLG_ZERO_STATS, &flags);
 
 	__set_bit(BNX2X_Q_FLG_PCSUM_ON_PKT, &flags);
+	__set_bit(BNX2X_Q_FLG_TUN_INC_INNER_IP_ID, &flags);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	__set_bit(BNX2X_Q_FLG_TX_SEC, &flags);

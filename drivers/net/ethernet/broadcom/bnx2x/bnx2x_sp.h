@@ -828,7 +828,8 @@ enum {
 	BNX2X_Q_FLG_ANTI_SPOOF,
 	BNX2X_Q_FLG_SILENT_VLAN_REM,
 	BNX2X_Q_FLG_FORCE_DEFAULT_PRI,
-	BNX2X_Q_FLG_PCSUM_ON_PKT
+	BNX2X_Q_FLG_PCSUM_ON_PKT,
+	BNX2X_Q_FLG_TUN_INC_INNER_IP_ID
 };
 
 /* Queue type options: queue type may be a compination of below. */

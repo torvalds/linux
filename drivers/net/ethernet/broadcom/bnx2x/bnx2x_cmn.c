@@ -3464,30 +3464,28 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 				      u16 *global_data,
 				      u32 xmit_type)
 {
-	u16 inner_hlen_w = 0;
+	u16 hlen_w = 0;
 	u8 outerip_off, outerip_len = 0;
-
-	/* IP len */
-	inner_hlen_w = (skb_inner_transport_header(skb) -
-			skb_inner_network_header(skb)) >> 1;
+	/* from outer IP to transport */
+	hlen_w = (skb_inner_transport_header(skb) -
+		  skb_network_header(skb)) >> 1;
 
 	/* transport len */
 	if (xmit_type & XMIT_CSUM_TCP)
-		inner_hlen_w += inner_tcp_hdrlen(skb) >> 1;
+		hlen_w += inner_tcp_hdrlen(skb) >> 1;
 	else
-		inner_hlen_w += sizeof(struct udphdr) >> 1;
+		hlen_w += sizeof(struct udphdr) >> 1;
 
-	pbd2->fw_ip_hdr_to_payload_w = inner_hlen_w;
+	pbd2->fw_ip_hdr_to_payload_w = hlen_w;
 
 	if (xmit_type & XMIT_CSUM_ENC_V4) {
-		struct iphdr *iph = inner_ip_hdr(skb);
-
+		struct iphdr *iph = ip_hdr(skb);
 		pbd2->fw_ip_csum_wo_len_flags_frag =
 			bswab16(csum_fold((~iph->check) -
 					  iph->tot_len - iph->frag_off));
 	} else {
 		pbd2->fw_ip_hdr_to_payload_w =
-			inner_hlen_w - ((sizeof(struct ipv6hdr)) >> 1);
+			hlen_w - ((sizeof(struct ipv6hdr)) >> 1);
 	}
 
 	pbd2->tcp_send_seq = bswab32(inner_tcp_hdr(skb)->seq);
@@ -3495,7 +3493,7 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 	pbd2->tcp_flags = pbd_tcp_flags(inner_tcp_hdr(skb));
 
 	if (xmit_type & XMIT_GSO_V4) {
-		pbd2->hw_ip_id = bswab16(ip_hdr(skb)->id);
+		pbd2->hw_ip_id = bswab16(inner_ip_hdr(skb)->id);
 
 		pbd_e2->data.tunnel_data.pseudo_csum =
 			bswab16(~csum_tcpudp_magic(
