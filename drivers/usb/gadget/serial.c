@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 
@@ -26,18 +27,6 @@
 
 #define GS_LONG_NAME			"Gadget Serial"
 #define GS_VERSION_NAME			GS_LONG_NAME " " GS_VERSION_STR
-
-/*-------------------------------------------------------------------------*/
-
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#define USBF_OBEX_INCLUDED
-#include "f_obex.c"
 
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();
@@ -126,17 +115,6 @@ module_param(n_ports, uint, 0);
 MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
 
 /*-------------------------------------------------------------------------*/
-static unsigned char tty_lines[MAX_U_SERIAL_PORTS];
-
-static int __init serial_bind_obex_config(struct usb_configuration *c)
-{
-	unsigned i;
-	int status = 0;
-
-	for (i = 0; i < n_ports && status == 0; i++)
-		status = obex_bind_config(c, tty_lines[i]);
-	return status;
-}
 
 static struct usb_configuration serial_config_driver = {
 	/* .label = f(use_acm) */
@@ -199,15 +177,6 @@ out:
 static int __init gs_bind(struct usb_composite_dev *cdev)
 {
 	int			status;
-	int			cur_line = 0;
-
-	if (use_obex) {
-		for (cur_line = 0; cur_line < n_ports; cur_line++) {
-			status = gserial_alloc_line(&tty_lines[cur_line]);
-			if (status)
-				goto fail;
-		}
-	}
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
@@ -232,8 +201,8 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 				"acm");
 		usb_ep_autoconfig_reset(cdev->gadget);
 	} else if (use_obex)
-		status = usb_add_config(cdev, &serial_config_driver,
-				serial_bind_obex_config);
+		status = serial_register_ports(cdev, &serial_config_driver,
+				"obex");
 	else {
 		status = serial_register_ports(cdev, &serial_config_driver,
 				"gser");
@@ -247,9 +216,6 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail:
-	cur_line--;
-	while (cur_line >= 0 && use_obex)
-		gserial_free_line(tty_lines[cur_line--]);
 	return status;
 }
 
@@ -260,8 +226,6 @@ static int gs_unbind(struct usb_composite_dev *cdev)
 	for (i = 0; i < n_ports; i++) {
 		usb_put_function(f_serial[i]);
 		usb_put_function_instance(fi_serial[i]);
-		if (use_obex)
-			gserial_free_line(tty_lines[i]);
 	}
 	return 0;
 }
