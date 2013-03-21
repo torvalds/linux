@@ -1760,23 +1760,23 @@ int batadv_nc_nodes_seq_print_text(struct seq_file *seq, void *offset)
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
 			seq_printf(seq, "Node:      %pM\n", orig_node->orig);
 
-			seq_printf(seq, " Ingoing:  ");
+			seq_puts(seq, " Ingoing:  ");
 			/* For each in_nc_node to this orig_node */
 			list_for_each_entry_rcu(nc_node,
 						&orig_node->in_coding_list,
 						list)
 				seq_printf(seq, "%pM ",
 					   nc_node->addr);
-			seq_printf(seq, "\n");
+			seq_puts(seq, "\n");
 
-			seq_printf(seq, " Outgoing: ");
+			seq_puts(seq, " Outgoing: ");
 			/* For out_nc_node to this orig_node */
 			list_for_each_entry_rcu(nc_node,
 						&orig_node->out_coding_list,
 						list)
 				seq_printf(seq, "%pM ",
 					   nc_node->addr);
-			seq_printf(seq, "\n\n");
+			seq_puts(seq, "\n\n");
 		}
 		rcu_read_unlock();
 	}

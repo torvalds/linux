@@ -149,7 +149,7 @@ static void batadv_vis_data_read_prim_sec(struct seq_file *seq,
 
 	hlist_for_each_entry(entry, if_list, list) {
 		if (entry->primary)
-			seq_printf(seq, "PRIMARY, ");
+			seq_puts(seq, "PRIMARY, ");
 		else
 			seq_printf(seq,  "SEC %pM, ", entry->addr);
 	}
@@ -207,7 +207,7 @@ static void batadv_vis_data_read_entries(struct seq_file *seq,
 		if (batadv_compare_eth(entry->addr, packet->vis_orig))
 			batadv_vis_data_read_prim_sec(seq, list);
 
-		seq_printf(seq, "\n");
+		seq_puts(seq, "\n");
 	}
 }
 

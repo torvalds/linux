@@ -465,7 +465,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 					   neigh_node_tmp->tq_avg);
 			}
 
-			seq_printf(seq, "\n");
+			seq_puts(seq, "\n");
 			batman_count++;
 
 next:
@@ -475,7 +475,7 @@ next:
 	}
 
 	if (batman_count == 0)
-		seq_printf(seq, "No batman nodes in range ...\n");
+		seq_puts(seq, "No batman nodes in range ...\n");
 
 out:
 	if (primary_if)
