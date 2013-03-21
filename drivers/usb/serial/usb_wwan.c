@@ -421,20 +421,19 @@ void usb_wwan_close(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
-	if (serial->dev) {
-		/* Stop reading/writing urbs */
-		spin_lock_irq(&intfdata->susp_lock);
-		portdata->opened = 0;
-		spin_unlock_irq(&intfdata->susp_lock);
+	/* Stop reading/writing urbs */
+	spin_lock_irq(&intfdata->susp_lock);
+	portdata->opened = 0;
+	spin_unlock_irq(&intfdata->susp_lock);
 
-		for (i = 0; i < N_IN_URB; i++)
-			usb_kill_urb(portdata->in_urbs[i]);
-		for (i = 0; i < N_OUT_URB; i++)
-			usb_kill_urb(portdata->out_urbs[i]);
-		/* balancing - important as an error cannot be handled*/
-		usb_autopm_get_interface_no_resume(serial->interface);
-		serial->interface->needs_remote_wakeup = 0;
-	}
+	for (i = 0; i < N_IN_URB; i++)
+		usb_kill_urb(portdata->in_urbs[i]);
+	for (i = 0; i < N_OUT_URB; i++)
+		usb_kill_urb(portdata->out_urbs[i]);
+
+	/* balancing - important as an error cannot be handled*/
+	usb_autopm_get_interface_no_resume(serial->interface);
+	serial->interface->needs_remote_wakeup = 0;
 }
 EXPORT_SYMBOL(usb_wwan_close);
 
