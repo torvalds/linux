@@ -38,6 +38,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <35>, <36>, <37>, <38>;
+			clocks = <&gate_clk 7>;
 		};
 
 		gpio1: gpio@10140 {
@@ -49,6 +50,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <39>, <40>, <41>;
+			clocks = <&gate_clk 7>;
 		};
 
 		serial@12000 {
@@ -57,7 +59,6 @@
 			reg-shift = <2>;
 			interrupts = <33>;
 			clocks = <&gate_clk 7>;
-			/* set clock-frequency in board dts */
 			status = "disabled";
 		};
 
@@ -67,7 +68,6 @@
 			reg-shift = <2>;
 			interrupts = <34>;
 			clocks = <&gate_clk 7>;
-			/* set clock-frequency in board dts */
 			status = "disabled";
 		};
 
@@ -75,6 +75,7 @@
 			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
 			reg = <0x10300 0x20>;
 			interrupts = <53>;
+			clocks = <&gate_clk 7>;
 		};
 
 		spi@10600 {

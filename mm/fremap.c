@@ -163,7 +163,8 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	 * and that the remapped range is valid and fully within
 	 * the single existing vma.
 	 */
-	if (!vma || !(vma->vm_flags & VM_SHARED))
+	vm_flags = vma->vm_flags;
+	if (!vma || !(vm_flags & VM_SHARED))
 		goto out;
 
 	if (!vma->vm_ops || !vma->vm_ops->remap_pages)
@@ -254,7 +255,8 @@ get_write_lock:
 	 */
 
 out:
-	vm_flags = vma->vm_flags;
+	if (vma)
+		vm_flags = vma->vm_flags;
 	if (likely(!has_write_lock))
 		up_read(&mm->mmap_sem);
 	else

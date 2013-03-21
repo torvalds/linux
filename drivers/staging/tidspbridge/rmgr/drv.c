@@ -76,37 +76,28 @@ int drv_insert_node_res_element(void *hnode, void *node_resource,
 	struct node_res_object **node_res_obj =
 	    (struct node_res_object **)node_resource;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
 	int retval;
 
 	*node_res_obj = kzalloc(sizeof(struct node_res_object), GFP_KERNEL);
-	if (!*node_res_obj) {
-		status = -ENOMEM;
-		goto func_end;
-	}
+	if (!*node_res_obj)
+		return -ENOMEM;
 
 	(*node_res_obj)->node = hnode;
-	retval = idr_get_new(ctxt->node_id, *node_res_obj,
-						&(*node_res_obj)->id);
-	if (retval == -EAGAIN) {
-		if (!idr_pre_get(ctxt->node_id, GFP_KERNEL)) {
-			pr_err("%s: OUT OF MEMORY\n", __func__);
-			status = -ENOMEM;
-			goto func_end;
-		}
-
-		retval = idr_get_new(ctxt->node_id, *node_res_obj,
-						&(*node_res_obj)->id);
+	retval = idr_alloc(ctxt->node_id, *node_res_obj, 0, 0, GFP_KERNEL);
+	if (retval >= 0) {
+		(*node_res_obj)->id = retval;
+		return 0;
 	}
-	if (retval) {
+
+	kfree(*node_res_obj);
+
+	if (retval == -ENOSPC) {
 		pr_err("%s: FAILED, IDR is FULL\n", __func__);
-		status = -EFAULT;
+		return -EFAULT;
+	} else {
+		pr_err("%s: OUT OF MEMORY\n", __func__);
+		return -ENOMEM;
 	}
-func_end:
-	if (status)
-		kfree(*node_res_obj);
-
-	return status;
 }
 
 /* Release all Node resources and its context
@@ -201,35 +192,26 @@ int drv_proc_insert_strm_res_element(void *stream_obj,
 	struct strm_res_object **pstrm_res =
 	    (struct strm_res_object **)strm_res;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
 	int retval;
 
 	*pstrm_res = kzalloc(sizeof(struct strm_res_object), GFP_KERNEL);
-	if (*pstrm_res == NULL) {
-		status = -EFAULT;
-		goto func_end;
-	}
+	if (*pstrm_res == NULL)
+		return -EFAULT;
 
 	(*pstrm_res)->stream = stream_obj;
-	retval = idr_get_new(ctxt->stream_id, *pstrm_res,
-						&(*pstrm_res)->id);
-	if (retval == -EAGAIN) {
-		if (!idr_pre_get(ctxt->stream_id, GFP_KERNEL)) {
-			pr_err("%s: OUT OF MEMORY\n", __func__);
-			status = -ENOMEM;
-			goto func_end;
-		}
-
-		retval = idr_get_new(ctxt->stream_id, *pstrm_res,
-						&(*pstrm_res)->id);
+	retval = idr_alloc(ctxt->stream_id, *pstrm_res, 0, 0, GFP_KERNEL);
+	if (retval >= 0) {
+		(*pstrm_res)->id = retval;
+		return 0;
 	}
-	if (retval) {
+
+	if (retval == -ENOSPC) {
 		pr_err("%s: FAILED, IDR is FULL\n", __func__);
-		status = -EPERM;
+		return -EPERM;
+	} else {
+		pr_err("%s: OUT OF MEMORY\n", __func__);
+		return -ENOMEM;
 	}
-
-func_end:
-	return status;
 }
 
 static int drv_proc_free_strm_res(int id, void *p, void *process_ctxt)

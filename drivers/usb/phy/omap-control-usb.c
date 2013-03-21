@@ -219,32 +219,26 @@ static int omap_control_usb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 		"control_dev_conf");
-	control_usb->dev_conf = devm_request_and_ioremap(&pdev->dev, res);
-	if (!control_usb->dev_conf) {
-		dev_err(&pdev->dev, "Failed to obtain io memory\n");
-		return -EADDRNOTAVAIL;
-	}
+	control_usb->dev_conf = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(control_usb->dev_conf))
+		return PTR_ERR(control_usb->dev_conf);
 
 	if (control_usb->type == OMAP_CTRL_DEV_TYPE1) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 			"otghs_control");
-		control_usb->otghs_control = devm_request_and_ioremap(
+		control_usb->otghs_control = devm_ioremap_resource(
 			&pdev->dev, res);
-		if (!control_usb->otghs_control) {
-			dev_err(&pdev->dev, "Failed to obtain io memory\n");
-			return -EADDRNOTAVAIL;
-		}
+		if (IS_ERR(control_usb->otghs_control))
+			return PTR_ERR(control_usb->otghs_control);
 	}
 
 	if (control_usb->type == OMAP_CTRL_DEV_TYPE2) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 			"phy_power_usb");
-		control_usb->phy_power = devm_request_and_ioremap(
+		control_usb->phy_power = devm_ioremap_resource(
 			&pdev->dev, res);
-		if (!control_usb->phy_power) {
-			dev_dbg(&pdev->dev, "Failed to obtain io memory\n");
-			return -EADDRNOTAVAIL;
-		}
+		if (IS_ERR(control_usb->phy_power))
+			return PTR_ERR(control_usb->phy_power);
 
 		control_usb->sys_clk = devm_clk_get(control_usb->dev,
 			"sys_clkin");

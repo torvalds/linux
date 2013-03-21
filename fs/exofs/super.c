@@ -1010,6 +1010,7 @@ static struct file_system_type exofs_type = {
 	.mount          = exofs_mount,
 	.kill_sb        = generic_shutdown_super,
 };
+MODULE_ALIAS_FS("exofs");
 
 static int __init init_exofs(void)
 {

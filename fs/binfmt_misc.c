@@ -720,6 +720,7 @@ static struct file_system_type bm_fs_type = {
 	.mount		= bm_mount,
 	.kill_sb	= kill_litter_super,
 };
+MODULE_ALIAS_FS("binfmt_misc");
 
 static int __init init_misc_binfmt(void)
 {

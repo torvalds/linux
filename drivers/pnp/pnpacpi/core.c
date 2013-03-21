@@ -353,8 +353,14 @@ static int __init acpi_pnp_find_device(struct device *dev, acpi_handle * handle)
 /* complete initialization of a PNPACPI device includes having
  * pnpdev->dev.archdata.acpi_handle point to its ACPI sibling.
  */
+static bool acpi_pnp_bus_match(struct device *dev)
+{
+	return dev->bus == &pnp_bus_type;
+}
+
 static struct acpi_bus_type __initdata acpi_pnp_bus = {
-	.bus	     = &pnp_bus_type,
+	.name	     = "PNP",
+	.match	     = acpi_pnp_bus_match,
 	.find_device = acpi_pnp_find_device,
 };
 

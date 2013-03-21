@@ -202,6 +202,9 @@ static int rr_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
  out:
+	if (rrpriv->evt_ring)
+		pci_free_consistent(pdev, EVT_RING_SIZE, rrpriv->evt_ring,
+				    rrpriv->evt_ring_dma);
 	if (rrpriv->rx_ring)
 		pci_free_consistent(pdev, RX_TOTAL_SIZE, rrpriv->rx_ring,
 				    rrpriv->rx_ring_dma);

@@ -24,6 +24,9 @@ struct smpboot_thread_data;
  *			parked (cpu offline)
  * @unpark:		Optional unpark function, called when the thread is
  *			unparked (cpu online)
+ * @pre_unpark:		Optional unpark function, called before the thread is
+ *			unparked (cpu online). This is not guaranteed to be
+ *			called on the target cpu of the thread. Careful!
  * @selfparking:	Thread is not parked by the park function.
  * @thread_comm:	The base name of the thread
  */
@@ -37,6 +40,7 @@ struct smp_hotplug_thread {
 	void				(*cleanup)(unsigned int cpu, bool online);
 	void				(*park)(unsigned int cpu);
 	void				(*unpark)(unsigned int cpu);
+	void				(*pre_unpark)(unsigned int cpu);
 	bool				selfparking;
 	const char			*thread_comm;
 };

@@ -790,7 +790,7 @@ u64 CARDqGetNextTBTT(u64 qwTSF, WORD wBeaconInterval)
 	if ((~uLowNextTBTT) < uLowRemain)
 		qwTSF = ((qwTSF >> 32) + 1) << 32;
 
-	qwTSF = (qwTSF & 0xffffffff00000000UL) |
+	qwTSF = (qwTSF & 0xffffffff00000000ULL) |
 		(u64)(uLowNextTBTT + uLowRemain);
 
     return (qwTSF);

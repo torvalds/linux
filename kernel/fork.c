@@ -1141,6 +1141,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
 		return ERR_PTR(-EINVAL);
 
+	if ((clone_flags & (CLONE_NEWUSER|CLONE_FS)) == (CLONE_NEWUSER|CLONE_FS))
+		return ERR_PTR(-EINVAL);
+
 	/*
 	 * Thread groups must share signals as well, and detached threads
 	 * can only be started up within the thread group.
@@ -1807,7 +1810,7 @@ SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 	 * If unsharing a user namespace must also unshare the thread.
 	 */
 	if (unshare_flags & CLONE_NEWUSER)
-		unshare_flags |= CLONE_THREAD;
+		unshare_flags |= CLONE_THREAD | CLONE_FS;
 	/*
 	 * If unsharing a pid namespace must also unshare the thread.
 	 */
