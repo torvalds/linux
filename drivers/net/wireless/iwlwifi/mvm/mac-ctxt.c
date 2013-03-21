@@ -662,6 +662,7 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_client(struct iwl_mvm *mvm,
 					   u32 action)
 {
 	struct iwl_mac_ctx_cmd cmd = {};
+	struct ieee80211_p2p_noa_attr *noa = &vif->bss_conf.p2p_noa_attr;
 
 	WARN_ON(vif->type != NL80211_IFTYPE_STATION || !vif->p2p);
 
@@ -671,7 +672,8 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_client(struct iwl_mvm *mvm,
 	/* Fill the data specific for station mode */
 	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.p2p_sta.sta);
 
-	cmd.p2p_sta.ctwin = cpu_to_le32(vif->bss_conf.p2p_ctwindow);
+	cmd.p2p_sta.ctwin = cpu_to_le32(noa->oppps_ctwindow &
+					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -892,6 +894,7 @@ static int iwl_mvm_mac_ctxt_cmd_go(struct iwl_mvm *mvm,
 				   u32 action)
 {
 	struct iwl_mac_ctx_cmd cmd = {};
+	struct ieee80211_p2p_noa_attr *noa = &vif->bss_conf.p2p_noa_attr;
 
 	WARN_ON(vif->type != NL80211_IFTYPE_AP || !vif->p2p);
 
@@ -901,8 +904,11 @@ static int iwl_mvm_mac_ctxt_cmd_go(struct iwl_mvm *mvm,
 	/* Fill the data specific for GO mode */
 	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.go.ap);
 
-	cmd.go.ctwin = cpu_to_le32(vif->bss_conf.p2p_ctwindow);
-	cmd.go.opp_ps_enabled = cpu_to_le32(!!vif->bss_conf.p2p_oppps);
+	cmd.go.ctwin = cpu_to_le32(noa->oppps_ctwindow &
+					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
+	cmd.go.opp_ps_enabled =
+			cpu_to_le32(!!(noa->oppps_ctwindow &
+					IEEE80211_P2P_OPPPS_ENABLE_BIT));
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }

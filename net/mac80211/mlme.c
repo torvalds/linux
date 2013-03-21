@@ -1661,20 +1661,17 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		rcu_read_lock();
 		ies = rcu_dereference(cbss->ies);
 		if (ies) {
-			struct ieee80211_p2p_noa_attr noa;
 			int ret;
 
 			ret = cfg80211_get_p2p_attr(
 					ies->data, ies->len,
 					IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
-					(u8 *) &noa, sizeof(noa));
+					(u8 *) &bss_conf->p2p_noa_attr,
+					sizeof(bss_conf->p2p_noa_attr));
 			if (ret >= 2) {
-				bss_conf->p2p_oppps = noa.oppps_ctwindow &
-						IEEE80211_P2P_OPPPS_ENABLE_BIT;
-				bss_conf->p2p_ctwindow = noa.oppps_ctwindow &
-						IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
+				sdata->u.mgd.p2p_noa_index =
+					bss_conf->p2p_noa_attr.index;
 				bss_info_changed |= BSS_CHANGED_P2P_PS;
-				sdata->u.mgd.p2p_noa_index = noa.index;
 			}
 		}
 		rcu_read_unlock();
@@ -1799,8 +1796,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_ASSOC;
 	sdata->vif.bss_conf.assoc = false;
 
-	sdata->vif.bss_conf.p2p_ctwindow = 0;
-	sdata->vif.bss_conf.p2p_oppps = false;
+	ifmgd->p2p_noa_index = -1;
+	memset(&sdata->vif.bss_conf.p2p_noa_attr, 0,
+	       sizeof(sdata->vif.bss_conf.p2p_noa_attr));
 
 	/* on the next assoc, re-program HT/VHT parameters */
 	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
@@ -2963,24 +2961,30 @@ ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sdata->vif.p2p) {
-		struct ieee80211_p2p_noa_attr noa;
+		struct ieee80211_p2p_noa_attr noa = {};
 		int ret;
 
 		ret = cfg80211_get_p2p_attr(mgmt->u.beacon.variable,
 					    len - baselen,
 					    IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
 					    (u8 *) &noa, sizeof(noa));
-		if (ret >= 2 && sdata->u.mgd.p2p_noa_index != noa.index) {
-			bss_conf->p2p_oppps = noa.oppps_ctwindow &
-						IEEE80211_P2P_OPPPS_ENABLE_BIT;
-			bss_conf->p2p_ctwindow = noa.oppps_ctwindow &
-						IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
+		if (ret >= 2) {
+			if (sdata->u.mgd.p2p_noa_index != noa.index) {
+				/* valid noa_attr and index changed */
+				sdata->u.mgd.p2p_noa_index = noa.index;
+				memcpy(&bss_conf->p2p_noa_attr, &noa, sizeof(noa));
+				changed |= BSS_CHANGED_P2P_PS;
+				/*
+				 * make sure we update all information, the CRC
+				 * mechanism doesn't look at P2P attributes.
+				 */
+				ifmgd->beacon_crc_valid = false;
+			}
+		} else if (sdata->u.mgd.p2p_noa_index != -1) {
+			/* noa_attr not found and we had valid noa_attr before */
+			sdata->u.mgd.p2p_noa_index = -1;
+			memset(&bss_conf->p2p_noa_attr, 0, sizeof(bss_conf->p2p_noa_attr));
 			changed |= BSS_CHANGED_P2P_PS;
-			sdata->u.mgd.p2p_noa_index = noa.index;
-			/*
-			 * make sure we update all information, the CRC
-			 * mechanism doesn't look at P2P attributes.
-			 */
 			ifmgd->beacon_crc_valid = false;
 		}
 	}
@@ -3523,6 +3527,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmgd->powersave = sdata->wdev.ps;
 	ifmgd->uapsd_queues = IEEE80211_DEFAULT_UAPSD_QUEUES;
 	ifmgd->uapsd_max_sp_len = IEEE80211_DEFAULT_MAX_SP_LEN;
+	ifmgd->p2p_noa_index = -1;
 
 	mutex_init(&ifmgd->mtx);
 

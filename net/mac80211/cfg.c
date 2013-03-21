@@ -965,8 +965,13 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->vif.bss_conf.hidden_ssid =
 		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
 
-	sdata->vif.bss_conf.p2p_ctwindow = params->p2p_ctwindow;
-	sdata->vif.bss_conf.p2p_oppps = params->p2p_opp_ps;
+	memset(&sdata->vif.bss_conf.p2p_noa_attr, 0,
+	       sizeof(sdata->vif.bss_conf.p2p_noa_attr));
+	sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow =
+		params->p2p_ctwindow & IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
+	if (params->p2p_opp_ps)
+		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
+					IEEE80211_P2P_OPPPS_ENABLE_BIT;
 
 	err = ieee80211_assign_beacon(sdata, &params->beacon);
 	if (err < 0)
@@ -1961,12 +1966,20 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (params->p2p_ctwindow >= 0) {
-		sdata->vif.bss_conf.p2p_ctwindow = params->p2p_ctwindow;
+		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow &=
+					~IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
+		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
+			params->p2p_ctwindow & IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
 		changed |= BSS_CHANGED_P2P_PS;
 	}
 
-	if (params->p2p_opp_ps >= 0) {
-		sdata->vif.bss_conf.p2p_oppps = params->p2p_opp_ps;
+	if (params->p2p_opp_ps > 0) {
+		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
+					IEEE80211_P2P_OPPPS_ENABLE_BIT;
+		changed |= BSS_CHANGED_P2P_PS;
+	} else if (params->p2p_opp_ps == 0) {
+		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow &=
+					~IEEE80211_P2P_OPPPS_ENABLE_BIT;
 		changed |= BSS_CHANGED_P2P_PS;
 	}
 

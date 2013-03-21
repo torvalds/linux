@@ -442,7 +442,7 @@ struct ieee80211_if_managed {
 
 	u8 use_4addr;
 
-	u8 p2p_noa_index;
+	s16 p2p_noa_index;
 
 	/* Signal strength from the last Beacon frame in the current BSS. */
 	int last_beacon_signal;

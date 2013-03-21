@@ -330,8 +330,7 @@ enum ieee80211_rssi_event {
  * @ssid_len: Length of SSID given in @ssid.
  * @hidden_ssid: The SSID of the current vif is hidden. Only valid in AP-mode.
  * @txpower: TX power in dBm
- * @p2p_ctwindow: P2P CTWindow, only for P2P client interfaces
- * @p2p_oppps: P2P opportunistic PS is enabled
+ * @p2p_noa_attr: P2P NoA attribute for P2P powersave
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -365,8 +364,7 @@ struct ieee80211_bss_conf {
 	size_t ssid_len;
 	bool hidden_ssid;
 	int txpower;
-	u8 p2p_ctwindow;
-	bool p2p_oppps;
+	struct ieee80211_p2p_noa_attr p2p_noa_attr;
 };
 
 /**
