@@ -272,8 +272,7 @@ static int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 	if (!test_and_clear_bit(index, &port->read_urbs_free))
 		return 0;
 
-	dev_dbg(&port->dev, "%s - port %d, urb %d\n", __func__,
-		port->number, index);
+	dev_dbg(&port->dev, "%s - urb %d\n", __func__, index);
 
 	res = usb_submit_urb(port->read_urbs[index], mem_flags);
 	if (res) {
@@ -347,8 +346,8 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 	}
 	set_bit(i, &port->read_urbs_free);
 
-	dev_dbg(&port->dev, "%s - port %d, urb %d, len %d\n",
-		__func__, port->number, i, urb->actual_length);
+	dev_dbg(&port->dev, "%s - urb %d, len %d\n", __func__, i,
+							urb->actual_length);
 
 	if (urb->status) {
 		dev_dbg(&port->dev, "%s - non-zero urb status: %d\n",
@@ -473,8 +472,7 @@ void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
 {
 	struct tty_port *port = &usb_port->port;
 
-	dev_dbg(&usb_port->dev, "%s - port %d, status %d\n", __func__,
-		usb_port->number, status);
+	dev_dbg(&usb_port->dev, "%s - status %d\n", __func__, status);
 
 	if (status)
 		wake_up_interruptible(&port->open_wait);
