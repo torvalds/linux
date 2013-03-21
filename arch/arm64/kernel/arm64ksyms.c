@@ -46,3 +46,9 @@ EXPORT_SYMBOL(__atomic_hash);
 
 	/* physical memory */
 EXPORT_SYMBOL(memstart_addr);
+
+	/* string / mem functions */
+EXPORT_SYMBOL(memset);
+EXPORT_SYMBOL(memcpy);
+EXPORT_SYMBOL(memmove);
+EXPORT_SYMBOL(memchr);
