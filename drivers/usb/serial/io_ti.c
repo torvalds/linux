@@ -1907,21 +1907,10 @@ static void edge_close(struct usb_serial_port *port)
 	kfifo_reset_out(&edge_port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
-	/* assuming we can still talk to the device,
-	 * send a close port command to it */
 	dev_dbg(&port->dev, "%s - send umpc_close_port\n", __func__);
 	port_number = port->number - port->serial->minor;
-
-	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected) {
-		send_cmd(serial->dev,
-				     UMPC_CLOSE_PORT,
-				     (__u8)(UMPM_UART1_PORT + port_number),
-				     0,
-				     NULL,
-				     0);
-	}
-	mutex_unlock(&serial->disc_mutex);
+	send_cmd(serial->dev, UMPC_CLOSE_PORT,
+		     (__u8)(UMPM_UART1_PORT + port_number), 0, NULL, 0);
 
 	mutex_lock(&edge_serial->es_lock);
 	--edge_port->edge_serial->num_ports_open;
