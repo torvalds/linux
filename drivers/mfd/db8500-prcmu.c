@@ -33,7 +33,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/cpufreq.h>
 #include <linux/platform_data/ux500_wdt.h>
-#include <mach/irqs.h>
+#include <linux/platform_data/db8500_thermal.h>
 #include "dbx500-prcmu-regs.h"
 
 /* Index of different voltages to be used when accessing AVSData */
@@ -273,8 +273,34 @@ static struct irq_domain *db8500_irq_domain;
  * the bits in the bit field are not. (The bits also have a tendency to move
  * around, to further complicate matters.)
  */
-#define IRQ_INDEX(_name) ((IRQ_PRCMU_##_name) - IRQ_PRCMU_BASE)
+#define IRQ_INDEX(_name) ((IRQ_PRCMU_##_name))
 #define IRQ_ENTRY(_name)[IRQ_INDEX(_name)] = (WAKEUP_BIT_##_name)
+
+#define IRQ_PRCMU_RTC 0
+#define IRQ_PRCMU_RTT0 1
+#define IRQ_PRCMU_RTT1 2
+#define IRQ_PRCMU_HSI0 3
+#define IRQ_PRCMU_HSI1 4
+#define IRQ_PRCMU_CA_WAKE 5
+#define IRQ_PRCMU_USB 6
+#define IRQ_PRCMU_ABB 7
+#define IRQ_PRCMU_ABB_FIFO 8
+#define IRQ_PRCMU_ARM 9
+#define IRQ_PRCMU_MODEM_SW_RESET_REQ 10
+#define IRQ_PRCMU_GPIO0 11
+#define IRQ_PRCMU_GPIO1 12
+#define IRQ_PRCMU_GPIO2 13
+#define IRQ_PRCMU_GPIO3 14
+#define IRQ_PRCMU_GPIO4 15
+#define IRQ_PRCMU_GPIO5 16
+#define IRQ_PRCMU_GPIO6 17
+#define IRQ_PRCMU_GPIO7 18
+#define IRQ_PRCMU_GPIO8 19
+#define IRQ_PRCMU_CA_SLEEP 20
+#define IRQ_PRCMU_HOTMON_LOW 21
+#define IRQ_PRCMU_HOTMON_HIGH 22
+#define NUM_PRCMU_WAKEUPS 23
+
 static u32 prcmu_irq_bit[NUM_PRCMU_WAKEUPS] = {
 	IRQ_ENTRY(RTC),
 	IRQ_ENTRY(RTT0),
@@ -2649,14 +2675,13 @@ static struct irq_domain_ops db8500_irq_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static int db8500_irq_init(struct device_node *np)
+static int db8500_irq_init(struct device_node *np, int irq_base)
 {
-	int irq_base = 0;
 	int i;
 
 	/* In the device tree case, just take some IRQs */
-	if (!np)
-		irq_base = IRQ_PRCMU_BASE;
+	if (np)
+		irq_base = 0;
 
 	db8500_irq_domain = irq_domain_add_simple(
 		np, NUM_PRCMU_WAKEUPS, irq_base,
@@ -2988,17 +3013,56 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 	},
 };
 
-static struct resource ab8500_resources[] = {
-	[0] = {
-		.start	= IRQ_DB8500_AB8500,
-		.end	= IRQ_DB8500_AB8500,
-		.flags	= IORESOURCE_IRQ
-	}
-};
-
 static struct ux500_wdt_data db8500_wdt_pdata = {
 	.timeout = 600, /* 10 minutes */
 	.has_28_bits_resolution = true,
+};
+/*
+ * Thermal Sensor
+ */
+
+static struct resource db8500_thsens_resources[] = {
+	{
+		.name = "IRQ_HOTMON_LOW",
+		.start  = IRQ_PRCMU_HOTMON_LOW,
+		.end    = IRQ_PRCMU_HOTMON_LOW,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name = "IRQ_HOTMON_HIGH",
+		.start  = IRQ_PRCMU_HOTMON_HIGH,
+		.end    = IRQ_PRCMU_HOTMON_HIGH,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct db8500_thsens_platform_data db8500_thsens_data = {
+	.trip_points[0] = {
+		.temp = 70000,
+		.type = THERMAL_TRIP_ACTIVE,
+		.cdev_name = {
+			[0] = "thermal-cpufreq-0",
+		},
+	},
+	.trip_points[1] = {
+		.temp = 75000,
+		.type = THERMAL_TRIP_ACTIVE,
+		.cdev_name = {
+			[0] = "thermal-cpufreq-0",
+		},
+	},
+	.trip_points[2] = {
+		.temp = 80000,
+		.type = THERMAL_TRIP_ACTIVE,
+		.cdev_name = {
+			[0] = "thermal-cpufreq-0",
+		},
+	},
+	.trip_points[3] = {
+		.temp = 85000,
+		.type = THERMAL_TRIP_CRITICAL,
+	},
+	.num_trips = 4,
 };
 
 static struct mfd_cell db8500_prcmu_devs[] = {
@@ -3021,11 +3085,10 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.id = -1,
 	},
 	{
-		.name = "ab8500-core",
-		.of_compatible = "stericsson,ab8500",
-		.num_resources = ARRAY_SIZE(ab8500_resources),
-		.resources = ab8500_resources,
-		.id = AB8500_VERSION_AB8500,
+		.name = "db8500-thermal",
+		.num_resources = ARRAY_SIZE(db8500_thsens_resources),
+		.resources = db8500_thsens_resources,
+		.platform_data = &db8500_thsens_data,
 	},
 };
 
@@ -3037,6 +3100,24 @@ static void db8500_prcmu_update_cpufreq(void)
 	}
 }
 
+static int db8500_prcmu_register_ab8500(struct device *parent,
+					struct ab8500_platform_data *pdata,
+					int irq)
+{
+	struct resource ab8500_resource = DEFINE_RES_IRQ(irq);
+	struct mfd_cell ab8500_cell = {
+		.name = "ab8500-core",
+		.of_compatible = "stericsson,ab8500",
+		.id = AB8500_VERSION_AB8500,
+		.platform_data = pdata,
+		.pdata_size = sizeof(struct ab8500_platform_data),
+		.resources = &ab8500_resource,
+		.num_resources = 1,
+	};
+
+	return mfd_add_devices(parent, 0, &ab8500_cell, 1, NULL, 0, NULL);
+}
+
 /**
  * prcmu_fw_init - arch init call for the Linux PRCMU fw init logic
  *
@@ -3045,7 +3126,7 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct prcmu_pdata *pdata = dev_get_platdata(&pdev->dev);
-	int irq = 0, err = 0, i;
+	int irq = 0, err = 0;
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu");
@@ -3086,24 +3167,25 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		goto no_irq_return;
 	}
 
-	db8500_irq_init(np);
-
-	for (i = 0; i < ARRAY_SIZE(db8500_prcmu_devs); i++) {
-		if (!strcmp(db8500_prcmu_devs[i].name, "ab8500-core")) {
-			db8500_prcmu_devs[i].platform_data = pdata->ab_platdata;
-			db8500_prcmu_devs[i].pdata_size = sizeof(struct ab8500_platform_data);
-		}
-	}
+	db8500_irq_init(np, pdata->irq_base);
 
 	prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
 	db8500_prcmu_update_cpufreq();
 
 	err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
-			      ARRAY_SIZE(db8500_prcmu_devs), NULL, 0, NULL);
+			      ARRAY_SIZE(db8500_prcmu_devs), NULL, 0, db8500_irq_domain);
 	if (err) {
 		pr_err("prcmu: Failed to add subdevices\n");
 		return err;
+	}
+
+	err = db8500_prcmu_register_ab8500(&pdev->dev, pdata->ab_platdata,
+					   pdata->ab_irq);
+	if (err) {
+		mfd_remove_devices(&pdev->dev);
+		pr_err("prcmu: Failed to add ab8500 subdevice\n");
+		goto no_irq_return;
 	}
 
 	pr_info("DB8500 PRCMU initialized\n");

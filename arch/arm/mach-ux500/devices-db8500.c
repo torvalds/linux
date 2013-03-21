@@ -199,6 +199,8 @@ struct platform_device u8500_ske_keypad_device = {
 
 struct prcmu_pdata db8500_prcmu_pdata = {
 	.ab_platdata	= &ab8500_platdata,
+	.ab_irq		= IRQ_DB8500_AB8500,
+	.irq_base	= IRQ_PRCMU_BASE,
 	.version_offset	= DB8500_PRCMU_FW_VERSION_OFFSET,
 	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
 };
