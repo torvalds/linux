@@ -476,6 +476,33 @@ int usb_serial_generic_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_tiocmiwait);
 
+int usb_serial_generic_get_icount(struct tty_struct *tty,
+					struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct async_icount cnow;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	cnow = port->icount;				/* atomic copy */
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->tx = cnow.tx;
+	icount->rx = cnow.rx;
+	icount->frame = cnow.frame;
+	icount->parity = cnow.parity;
+	icount->overrun = cnow.overrun;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_serial_generic_get_icount);
+
 #ifdef CONFIG_MAGIC_SYSRQ
 int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
 {

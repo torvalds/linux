@@ -335,6 +335,8 @@ extern void usb_serial_generic_throttle(struct tty_struct *tty);
 extern void usb_serial_generic_unthrottle(struct tty_struct *tty);
 extern int usb_serial_generic_tiocmiwait(struct tty_struct *tty,
 							unsigned long arg);
+extern int usb_serial_generic_get_icount(struct tty_struct *tty,
+					struct serial_icounter_struct *icount);
 extern int usb_serial_generic_register(void);
 extern void usb_serial_generic_deregister(void);
 extern int usb_serial_generic_submit_read_urbs(struct usb_serial_port *port,
