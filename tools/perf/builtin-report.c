@@ -13,7 +13,6 @@
 #include "util/annotate.h"
 #include "util/color.h"
 #include <linux/list.h>
-#include "util/cache.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
@@ -314,7 +313,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 	char buf[512];
 	size_t size = sizeof(buf);
 
-	if (symbol_conf.event_group && evsel->nr_members > 1) {
+	if (perf_evsel__is_group_event(evsel)) {
 		struct perf_evsel *pos;
 
 		perf_evsel__group_desc(evsel, buf, size);

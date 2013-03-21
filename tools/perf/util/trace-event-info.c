@@ -38,34 +38,13 @@
 
 #include "../perf.h"
 #include "trace-event.h"
-#include "debugfs.h"
+#include <lk/debugfs.h>
 #include "evsel.h"
 
 #define VERSION "0.5"
 
-#define TRACE_CTRL	"tracing_on"
-#define TRACE		"trace"
-#define AVAILABLE	"available_tracers"
-#define CURRENT		"current_tracer"
-#define ITER_CTRL	"trace_options"
-#define MAX_LATENCY	"tracing_max_latency"
-
-unsigned int page_size;
-
 static const char *output_file = "trace.info";
 static int output_fd;
-
-struct event_list {
-	struct event_list *next;
-	const char *event;
-};
-
-struct events {
-	struct events *sibling;
-	struct events *children;
-	struct events *next;
-	char *name;
-};
 
 
 static void *malloc_or_die(unsigned int size)
@@ -80,7 +59,7 @@ static void *malloc_or_die(unsigned int size)
 
 static const char *find_debugfs(void)
 {
-	const char *path = debugfs_mount(NULL);
+	const char *path = perf_debugfs_mount(NULL);
 
 	if (!path)
 		die("Your kernel not support debugfs filesystem");
@@ -131,16 +110,9 @@ static void put_tracing_file(char *file)
 	free(file);
 }
 
-static ssize_t calc_data_size;
-
 static ssize_t write_or_die(const void *buf, size_t len)
 {
 	int ret;
-
-	if (calc_data_size) {
-		calc_data_size += len;
-		return len;
-	}
 
 	ret = write(output_fd, buf, len);
 	if (ret < 0)
@@ -457,7 +429,6 @@ static void tracing_data_header(void)
 	write_or_die(buf, 1);
 
 	/* save page_size */
-	page_size = sysconf(_SC_PAGESIZE);
 	write_or_die(&page_size, 4);
 }
 

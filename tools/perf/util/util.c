@@ -17,6 +17,8 @@ bool test_attr__enabled;
 bool perf_host  = true;
 bool perf_guest = false;
 
+char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
+
 void event_attr_init(struct perf_event_attr *attr)
 {
 	if (!perf_host)
@@ -241,4 +243,29 @@ void get_term_dimensions(struct winsize *ws)
 #endif
 	ws->ws_row = 25;
 	ws->ws_col = 80;
+}
+
+static void set_tracing_events_path(const char *mountpoint)
+{
+	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s",
+		 mountpoint, "tracing/events");
+}
+
+const char *perf_debugfs_mount(const char *mountpoint)
+{
+	const char *mnt;
+
+	mnt = debugfs_mount(mountpoint);
+	if (!mnt)
+		return NULL;
+
+	set_tracing_events_path(mnt);
+
+	return mnt;
+}
+
+void perf_debugfs_set_path(const char *mntpt)
+{
+	snprintf(debugfs_mountpoint, strlen(debugfs_mountpoint), "%s", mntpt);
+	set_tracing_events_path(mntpt);
 }
