@@ -811,23 +811,20 @@ static struct ab8500_reg_init ab8500_reg_init[] = {
 	REG_INIT(AB8500_REGUCTRLDISCH2,		0x04, 0x44, 0x16),
 };
 
-static int
-ab8500_regulator_init_registers(struct platform_device *pdev, int id, int value)
+static int ab8500_regulator_init_registers(struct platform_device *pdev,
+					   int id, int mask, int value)
 {
 	int err;
 
-	if (value & ~ab8500_reg_init[id].mask) {
-		dev_err(&pdev->dev,
-			"Configuration error: value outside mask.\n");
-		return -EINVAL;
-	}
+	BUG_ON(value & ~mask);
+	BUG_ON(mask & ~ab8500_reg_init[id].mask);
 
+	/* initialize register */
 	err = abx500_mask_and_set_register_interruptible(
 		&pdev->dev,
 		ab8500_reg_init[id].bank,
 		ab8500_reg_init[id].addr,
-		ab8500_reg_init[id].mask,
-		value);
+		mask, value);
 	if (err < 0) {
 		dev_err(&pdev->dev,
 			"Failed to initialize 0x%02x, 0x%02x.\n",
@@ -835,13 +832,11 @@ ab8500_regulator_init_registers(struct platform_device *pdev, int id, int value)
 			ab8500_reg_init[id].addr);
 		return err;
 	}
-
 	dev_vdbg(&pdev->dev,
-		"init: 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
-		ab8500_reg_init[id].bank,
-		ab8500_reg_init[id].addr,
-		ab8500_reg_init[id].mask,
-		value);
+		 "  init: 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
+		 ab8500_reg_init[id].bank,
+		 ab8500_reg_init[id].addr,
+		 mask, value);
 
 	return 0;
 }
@@ -960,19 +955,16 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 
 	/* initialize registers */
 	for (i = 0; i < pdata->num_regulator_reg_init; i++) {
-		int id, value;
+		int id, mask, value;
 
 		id = pdata->regulator_reg_init[i].id;
+		mask = pdata->regulator_reg_init[i].mask;
 		value = pdata->regulator_reg_init[i].value;
 
 		/* check for configuration errors */
-		if (id >= AB8500_NUM_REGULATOR_REGISTERS) {
-			dev_err(&pdev->dev,
-				"Configuration error: id outside range.\n");
-			return -EINVAL;
-		}
+		BUG_ON(id >= AB8500_NUM_REGULATOR_REGISTERS);
 
-		err = ab8500_regulator_init_registers(pdev, id, value);
+		err = ab8500_regulator_init_registers(pdev, id, mask, value);
 		if (err < 0)
 			return err;
 	}
