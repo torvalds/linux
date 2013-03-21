@@ -572,13 +572,6 @@ static void port_release(struct device *dev)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	/*
-	 * Stop all the traffic before cancelling the work, so that
-	 * nobody will restart it by calling usb_serial_port_softint.
-	 */
-	kill_traffic(port);
-	cancel_work_sync(&port->work);
-
 	usb_free_urb(port->interrupt_in_urb);
 	usb_free_urb(port->interrupt_out_urb);
 	for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i) {
