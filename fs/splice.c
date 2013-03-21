@@ -218,7 +218,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			page_nr++;
 			ret += buf->len;
 
-			if (pipe->inode)
+			if (pipe->files)
 				do_wakeup = 1;
 
 			if (!--spd->nr_pages)
@@ -828,7 +828,7 @@ int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
 			ops->release(pipe, buf);
 			pipe->curbuf = (pipe->curbuf + 1) & (pipe->buffers - 1);
 			pipe->nrbufs--;
-			if (pipe->inode)
+			if (pipe->files)
 				sd->need_wakeup = true;
 		}
 

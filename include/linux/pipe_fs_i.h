@@ -41,7 +41,6 @@ struct pipe_buffer {
  *	@w_counter: writer counter
  *	@fasync_readers: reader side fasync
  *	@fasync_writers: writer side fasync
- *	@inode: inode this pipe is attached to
  *	@bufs: the circular array of pipe buffers
  **/
 struct pipe_inode_info {
@@ -57,7 +56,6 @@ struct pipe_inode_info {
 	struct page *tmp_page;
 	struct fasync_struct *fasync_readers;
 	struct fasync_struct *fasync_writers;
-	struct inode *inode;
 	struct pipe_buffer *bufs;
 };
 
