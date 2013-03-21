@@ -198,21 +198,22 @@ static int spcp8x5_port_remove(struct usb_serial_port *port)
  *
  * NOTE: not supported by spcp825-007
  */
-static int spcp8x5_set_ctrl_line(struct usb_device *dev, u8 value,
-				enum spcp8x5_type type)
+static int spcp8x5_set_ctrl_line(struct usb_serial_port *port, u8 mcr)
 {
+	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
+	struct usb_device *dev = port->serial->dev;
 	int retval;
-	u8 mcr = 0;
 
-	if (type == SPCP825_007_TYPE)
+	if (priv->type == SPCP825_007_TYPE)
 		return -EPERM;
 
-	mcr = (unsigned short)value;
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 				 SET_UART_STATUS_TYPE, SET_UART_STATUS,
 				 mcr, 0x04, NULL, 0, 100);
-	if (retval != 0)
-		dev_dbg(&dev->dev, "usb_control_msg return %#x\n", retval);
+	if (retval != 0) {
+		dev_err(&port->dev, "failed to set control lines: %d\n",
+								retval);
+	}
 	return retval;
 }
 
@@ -221,15 +222,16 @@ static int spcp8x5_set_ctrl_line(struct usb_device *dev, u8 value,
  *
  * NOTE: not supported by spcp825-007
  */
-static int spcp8x5_get_msr(struct usb_device *dev, u8 *status,
-			   enum spcp8x5_type type)
+static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 {
+	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
+	struct usb_device *dev = port->serial->dev;
 	u8 *status_buffer;
 	int ret;
 
 	/* I return Permited not support here but seem inval device
 	 * is more fix */
-	if (type == SPCP825_007_TYPE)
+	if (priv->type == SPCP825_007_TYPE)
 		return -EPERM;
 	if (status == NULL)
 		return -EINVAL;
@@ -243,10 +245,10 @@ static int spcp8x5_get_msr(struct usb_device *dev, u8 *status,
 			      GET_UART_STATUS, GET_UART_STATUS_TYPE,
 			      0, GET_UART_STATUS_MSR, status_buffer, 1, 100);
 	if (ret < 0)
-		dev_dbg(&dev->dev, "Get MSR = 0x%p failed (error = %d)",
-			status_buffer, ret);
+		dev_err(&port->dev, "failed to get modem status: %d", ret);
 
-	dev_dbg(&dev->dev, "0xc0:0x22:0:6  %d - 0x%p ", ret, status_buffer);
+	dev_dbg(&port->dev, "0xc0:0x22:0:6  %d - 0x02%x", ret, *status_buffer);
+
 	status[0] = status_buffer[0];
 	kfree(status_buffer);
 
@@ -258,23 +260,24 @@ static int spcp8x5_get_msr(struct usb_device *dev, u8 *status,
  *
  * NOTE: not supported by spcp825-007
  */
-static void spcp8x5_set_work_mode(struct usb_device *dev, u16 value,
-				 u16 index, enum spcp8x5_type type)
+static void spcp8x5_set_work_mode(struct usb_serial_port *port, u16 value,
+								 u16 index)
 {
+	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
+	struct usb_device *dev = port->serial->dev;
 	int ret;
 
 	/* I return Permited not support here but seem inval device
 	 * is more fix */
-	if (type == SPCP825_007_TYPE)
+	if (priv->type == SPCP825_007_TYPE)
 		return;
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			      SET_WORKING_MODE_TYPE, SET_WORKING_MODE,
 			      value, index, NULL, 0, 100);
-	dev_dbg(&dev->dev, "value = %#x , index = %#x\n", value, index);
+	dev_dbg(&port->dev, "value = %#x , index = %#x\n", value, index);
 	if (ret < 0)
-		dev_dbg(&dev->dev,
-			"RTSCTS usb_control_msg(enable flowctrl) = %d\n", ret);
+		dev_err(&port->dev, "failed to set work mode: %d\n", ret);
 }
 
 static int spcp8x5_carrier_raised(struct usb_serial_port *port)
@@ -302,7 +305,7 @@ static void spcp8x5_dtr_rts(struct usb_serial_port *port, int on)
 						| MCR_CONTROL_LINE_RTS);
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	spcp8x5_set_ctrl_line(port->serial->dev, control, priv->type);
+	spcp8x5_set_ctrl_line(port, control);
 }
 
 static void spcp8x5_init_termios(struct tty_struct *tty)
@@ -342,7 +345,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	if (control != priv->line_control) {
 		control = priv->line_control;
 		spin_unlock_irqrestore(&priv->lock, flags);
-		spcp8x5_set_ctrl_line(serial->dev, control , priv->type);
+		spcp8x5_set_ctrl_line(port, control);
 	} else {
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
@@ -417,8 +420,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 
 	if (cflag & CRTSCTS) {
 		/* enable hardware flow control */
-		spcp8x5_set_work_mode(serial->dev, 0x000a,
-				     SET_WORKING_MODE_U2C, priv->type);
+		spcp8x5_set_work_mode(port, 0x000a, SET_WORKING_MODE_U2C);
 	}
 }
 
@@ -441,13 +443,13 @@ static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (ret)
 		return ret;
 
-	spcp8x5_set_ctrl_line(serial->dev, priv->line_control, priv->type);
+	spcp8x5_set_ctrl_line(port, priv->line_control);
 
 	/* Setup termios */
 	if (tty)
 		spcp8x5_set_termios(tty, port, &tmp_termios);
 
-	spcp8x5_get_msr(serial->dev, &status, priv->type);
+	spcp8x5_get_msr(port, &status);
 
 	/* may be we should update uart status here but now we did not do */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -479,7 +481,7 @@ static int spcp8x5_tiocmset(struct tty_struct *tty,
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return spcp8x5_set_ctrl_line(port->serial->dev, control, priv->type);
+	return spcp8x5_set_ctrl_line(port, control);
 }
 
 static int spcp8x5_tiocmget(struct tty_struct *tty)
