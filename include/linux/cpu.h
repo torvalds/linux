@@ -220,4 +220,12 @@ enum cpuhp_state {
 void cpu_startup_entry(enum cpuhp_state state);
 void cpu_idle(void);
 
+void cpu_idle_poll_ctrl(bool enable);
+
+void arch_cpu_idle(void);
+void arch_cpu_idle_prepare(void);
+void arch_cpu_idle_enter(void);
+void arch_cpu_idle_exit(void);
+void arch_cpu_idle_dead(void);
+
 #endif /* _LINUX_CPU_H_ */
