@@ -28,7 +28,3 @@ config PPC_CHROMA
 	default y
 
 endmenu
-
-config PPC_A2_DD2
-	bool "Support for DD2 based A2/WSP systems"
-	depends on PPC_A2
