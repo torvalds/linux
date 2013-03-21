@@ -56,7 +56,6 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
-#include <plat/regs-iic.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
