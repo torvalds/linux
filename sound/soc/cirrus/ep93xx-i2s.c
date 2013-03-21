@@ -366,6 +366,10 @@ static struct snd_soc_dai_driver ep93xx_i2s_dai = {
 	.ops		= &ep93xx_i2s_dai_ops,
 };
 
+static const struct snd_soc_component_driver ep93xx_i2s_component = {
+	.name		= "ep93xx-i2s",
+};
+
 static int ep93xx_i2s_probe(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info;
@@ -405,7 +409,8 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, info);
 	info->dma_params = ep93xx_i2s_dma_params;
 
-	err = snd_soc_register_dai(&pdev->dev, &ep93xx_i2s_dai);
+	err = snd_soc_register_component(&pdev->dev, &ep93xx_i2s_component,
+					 &ep93xx_i2s_dai, 1);
 	if (err)
 		goto fail_put_lrclk;
 
@@ -426,7 +431,7 @@ static int ep93xx_i2s_remove(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, NULL);
 	clk_put(info->lrclk);
 	clk_put(info->sclk);
