@@ -248,6 +248,10 @@ static struct snd_soc_dai_driver tegra20_ac97_dai = {
 	.ops = &tegra20_ac97_dai_ops,
 };
 
+static const struct snd_soc_component_driver tegra20_ac97_component = {
+	.name		= DRV_NAME,
+};
+
 static bool tegra20_ac97_wr_rd_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -398,7 +402,8 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ac97->playback_dma_data.width = 32;
 	ac97->playback_dma_data.req_sel = of_dma[1];
 
-	ret = snd_soc_register_dais(&pdev->dev, &tegra20_ac97_dai, 1);
+	ret = snd_soc_register_component(&pdev->dev, &tegra20_ac97_component,
+					 &tegra20_ac97_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
 		ret = -ENOMEM;
@@ -408,7 +413,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ret = tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
-		goto err_unregister_dai;
+		goto err_unregister_component;
 	}
 
 	ret = tegra_asoc_utils_init(&ac97->util_data, &pdev->dev);
@@ -434,8 +439,8 @@ err_asoc_utils_fini:
 	tegra_asoc_utils_fini(&ac97->util_data);
 err_unregister_pcm:
 	tegra_pcm_platform_unregister(&pdev->dev);
-err_unregister_dai:
-	snd_soc_unregister_dai(&pdev->dev);
+err_unregister_component:
+	snd_soc_unregister_component(&pdev->dev);
 err_clk_put:
 	clk_put(ac97->clk_ac97);
 err:
@@ -447,7 +452,7 @@ static int tegra20_ac97_platform_remove(struct platform_device *pdev)
 	struct tegra20_ac97 *ac97 = dev_get_drvdata(&pdev->dev);
 
 	tegra_pcm_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	tegra_asoc_utils_fini(&ac97->util_data);
 
