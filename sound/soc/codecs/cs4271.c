@@ -388,13 +388,16 @@ static int cs4271_hw_params(struct snd_pcm_substream *substream,
 	return cs4271_set_deemph(codec);
 }
 
-static int cs4271_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs4271_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 	int val_a = 0;
 	int val_b = 0;
+
+	if (stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
 
 	if (mute) {
 		val_a = CS4271_VOLA_MUTE;
@@ -442,7 +445,7 @@ static const struct snd_soc_dai_ops cs4271_dai_ops = {
 	.hw_params	= cs4271_hw_params,
 	.set_sysclk	= cs4271_set_dai_sysclk,
 	.set_fmt	= cs4271_set_dai_fmt,
-	.digital_mute	= cs4271_digital_mute,
+	.mute_stream	= cs4271_mute_stream,
 };
 
 static struct snd_soc_dai_driver cs4271_dai = {
