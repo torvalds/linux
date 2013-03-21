@@ -1809,27 +1809,27 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	/* get clocks, power */
 	res->hdmi = devm_clk_get(dev, "hdmi");
-	if (IS_ERR_OR_NULL(res->hdmi)) {
+	if (IS_ERR(res->hdmi)) {
 		DRM_ERROR("failed to get clock 'hdmi'\n");
 		goto fail;
 	}
 	res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
-	if (IS_ERR_OR_NULL(res->sclk_hdmi)) {
+	if (IS_ERR(res->sclk_hdmi)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmi'\n");
 		goto fail;
 	}
 	res->sclk_pixel = devm_clk_get(dev, "sclk_pixel");
-	if (IS_ERR_OR_NULL(res->sclk_pixel)) {
+	if (IS_ERR(res->sclk_pixel)) {
 		DRM_ERROR("failed to get clock 'sclk_pixel'\n");
 		goto fail;
 	}
 	res->sclk_hdmiphy = devm_clk_get(dev, "sclk_hdmiphy");
-	if (IS_ERR_OR_NULL(res->sclk_hdmiphy)) {
+	if (IS_ERR(res->sclk_hdmiphy)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmiphy'\n");
 		goto fail;
 	}
 	res->hdmiphy = devm_clk_get(dev, "hdmiphy");
-	if (IS_ERR_OR_NULL(res->hdmiphy)) {
+	if (IS_ERR(res->hdmiphy)) {
 		DRM_ERROR("failed to get clock 'hdmiphy'\n");
 		goto fail;
 	}
