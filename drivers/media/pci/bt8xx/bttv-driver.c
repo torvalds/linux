@@ -1093,7 +1093,7 @@ audio_mux(struct bttv *btv, int input, int mute)
 static inline int
 audio_mute(struct bttv *btv, int mute)
 {
-	return audio_mux(btv, btv->audio, mute);
+	return audio_mux(btv, btv->audio_input, mute);
 }
 
 static inline int
@@ -1195,9 +1195,9 @@ set_input(struct bttv *btv, unsigned int input, unsigned int norm)
 	} else {
 		video_mux(btv,input);
 	}
-	btv->audio = (btv->tuner_type != TUNER_ABSENT && input == 0) ?
-			 TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN;
-	audio_input(btv, btv->audio);
+	btv->audio_input = (btv->tuner_type != TUNER_ABSENT && input == 0) ?
+				TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN;
+	audio_input(btv, btv->audio_input);
 	set_tvnorm(btv, norm);
 }
 
@@ -1706,8 +1706,8 @@ static void radio_enable(struct bttv *btv)
 	if (!btv->has_radio_tuner) {
 		btv->has_radio_tuner = 1;
 		bttv_call_all(btv, tuner, s_radio);
-		btv->audio = TVAUDIO_INPUT_RADIO;
-		audio_input(btv, btv->audio);
+		btv->audio_input = TVAUDIO_INPUT_RADIO;
+		audio_input(btv, btv->audio_input);
 	}
 }
 

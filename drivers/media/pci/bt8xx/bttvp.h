@@ -423,7 +423,7 @@ struct bttv {
 
 	/* video state */
 	unsigned int input;
-	unsigned int audio;
+	unsigned int audio_input;
 	unsigned int mute;
 	unsigned long tv_freq;
 	unsigned int tvnorm;

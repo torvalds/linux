@@ -3947,7 +3947,7 @@ static void avermedia_eeprom(struct bttv *btv)
 u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits)
 {
 
-	if (btv->audio == TVAUDIO_INPUT_TUNER) {
+	if (btv->audio_input == TVAUDIO_INPUT_TUNER) {
 		if (bttv_tvnorms[btv->tvnorm].v4l2_id & V4L2_STD_MN)
 			gpiobits |= 0x10000;
 		else
