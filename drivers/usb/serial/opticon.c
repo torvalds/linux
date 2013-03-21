@@ -309,7 +309,6 @@ static int opticon_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial *serial = port->serial;
 	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	bool rts;
@@ -330,18 +329,11 @@ static int opticon_tiocmset(struct tty_struct *tty,
 	if (!changed)
 		return 0;
 
-	/* Send the new RTS state to the connected device */
-	mutex_lock(&serial->disc_mutex);
-	if (!serial->disconnected) {
-		ret = send_control_msg(port, CONTROL_RTS, !rts);
-		if (ret)
-			ret = usb_translate_errors(ret);
-	} else {
-		ret = -ENODEV;
-	}
-	mutex_unlock(&serial->disc_mutex);
+	ret = send_control_msg(port, CONTROL_RTS, !rts);
+	if (ret)
+		return usb_translate_errors(ret);
 
-	return ret;
+	return 0;
 }
 
 static int get_serial_info(struct usb_serial_port *port,
