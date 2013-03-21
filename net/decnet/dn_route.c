@@ -1619,16 +1619,20 @@ errout:
 static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(in_skb->sk);
-	struct rtattr **rta = arg;
 	struct rtmsg *rtm = nlmsg_data(nlh);
 	struct dn_route *rt = NULL;
 	struct dn_skb_cb *cb;
 	int err;
 	struct sk_buff *skb;
 	struct flowidn fld;
+	struct nlattr *tb[RTA_MAX+1];
 
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
+
+	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_dn_policy);
+	if (err < 0)
+		return err;
 
 	memset(&fld, 0, sizeof(fld));
 	fld.flowidn_proto = DNPROTO_NSP;
@@ -1639,12 +1643,14 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	skb_reset_mac_header(skb);
 	cb = DN_SKB_CB(skb);
 
-	if (rta[RTA_SRC-1])
-		memcpy(&fld.saddr, RTA_DATA(rta[RTA_SRC-1]), 2);
-	if (rta[RTA_DST-1])
-		memcpy(&fld.daddr, RTA_DATA(rta[RTA_DST-1]), 2);
-	if (rta[RTA_IIF-1])
-		memcpy(&fld.flowidn_iif, RTA_DATA(rta[RTA_IIF-1]), sizeof(int));
+	if (tb[RTA_SRC])
+		fld.saddr = nla_get_le16(tb[RTA_SRC]);
+
+	if (tb[RTA_DST])
+		fld.daddr = nla_get_le16(tb[RTA_DST]);
+
+	if (tb[RTA_IIF])
+		fld.flowidn_iif = nla_get_u32(tb[RTA_IIF]);
 
 	if (fld.flowidn_iif) {
 		struct net_device *dev;
@@ -1669,10 +1675,9 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 		if (!err && -rt->dst.error)
 			err = rt->dst.error;
 	} else {
-		int oif = 0;
-		if (rta[RTA_OIF - 1])
-			memcpy(&oif, RTA_DATA(rta[RTA_OIF - 1]), sizeof(int));
-		fld.flowidn_oif = oif;
+		if (tb[RTA_OIF])
+			fld.flowidn_oif = nla_get_u32(tb[RTA_OIF]);
+
 		err = dn_route_output_key((struct dst_entry **)&rt, &fld, 0);
 	}
 
