@@ -59,29 +59,12 @@ static void core_sleep_idle(void)
 	mb();
 }
 
-void (*idle)(void) = core_sleep_idle;
-
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
+void arch_cpu_idle(void)
 {
-	/* endless idle loop with no priority at all */
-	while (1) {
-		rcu_idle_enter();
-		while (!need_resched()) {
-			check_pgt_cache();
-
-			if (!frv_dma_inprogress && idle)
-				idle();
-		}
-		rcu_idle_exit();
-
-		schedule_preempt_disabled();
-	}
+	if (!frv_dma_inprogress)
+		core_sleep_idle();
+	else
+		local_irq_enable();
 }
 
 void machine_restart(char * __unused)
