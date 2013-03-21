@@ -1140,16 +1140,9 @@ static void mos7720_close(struct usb_serial_port *port)
 	usb_kill_urb(port->write_urb);
 	usb_kill_urb(port->read_urb);
 
-	mutex_lock(&serial->disc_mutex);
-	/* these commands must not be issued if the device has
-	 * been disconnected */
-	if (!serial->disconnected) {
-		write_mos_reg(serial, port->number - port->serial->minor,
-			      MCR, 0x00);
-		write_mos_reg(serial, port->number - port->serial->minor,
-			      IER, 0x00);
-	}
-	mutex_unlock(&serial->disc_mutex);
+	write_mos_reg(serial, port->number - port->serial->minor, MCR, 0x00);
+	write_mos_reg(serial, port->number - port->serial->minor, IER, 0x00);
+
 	mos7720_port->open = 0;
 }
 
