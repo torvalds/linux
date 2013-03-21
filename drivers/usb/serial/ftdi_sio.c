@@ -917,8 +917,6 @@ static void ftdi_set_termios(struct tty_struct *tty,
 static int  ftdi_tiocmget(struct tty_struct *tty);
 static int  ftdi_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
-static int ftdi_get_icount(struct tty_struct *tty,
-			   struct serial_icounter_struct *icount);
 static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
@@ -955,7 +953,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.tiocmget =		ftdi_tiocmget,
 	.tiocmset =		ftdi_tiocmset,
 	.tiocmiwait =		usb_serial_generic_tiocmiwait,
-	.get_icount =           ftdi_get_icount,
+	.get_icount =           usb_serial_generic_get_icount,
 	.ioctl =		ftdi_ioctl,
 	.set_termios =		ftdi_set_termios,
 	.break_ctl =		ftdi_break_ctl,
@@ -2349,26 +2347,6 @@ static int ftdi_tiocmset(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 
 	return update_mctrl(port, set, clear);
-}
-
-static int ftdi_get_icount(struct tty_struct *tty,
-				struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct async_icount *ic = &port->icount;
-
-	icount->cts = ic->cts;
-	icount->dsr = ic->dsr;
-	icount->rng = ic->rng;
-	icount->dcd = ic->dcd;
-	icount->tx = ic->tx;
-	icount->rx = ic->rx;
-	icount->frame = ic->frame;
-	icount->parity = ic->parity;
-	icount->overrun = ic->overrun;
-	icount->brk = ic->brk;
-	icount->buf_overrun = ic->buf_overrun;
-	return 0;
 }
 
 static int ftdi_ioctl(struct tty_struct *tty,
