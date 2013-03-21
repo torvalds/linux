@@ -36,6 +36,7 @@ enum {
 struct auto_pin_cfg_item {
 	hda_nid_t pin;
 	int type;
+	unsigned int is_headset_mic:1;
 };
 
 struct auto_pin_cfg;
@@ -80,6 +81,7 @@ struct auto_pin_cfg {
 /* bit-flags for snd_hda_parse_pin_def_config() behavior */
 #define HDA_PINCFG_NO_HP_FIXUP	(1 << 0) /* no HP-split */
 #define HDA_PINCFG_NO_LO_FIXUP	(1 << 1) /* don't take other outs as LO */
+#define HDA_PINCFG_HEADSET_MIC  (1 << 2) /* Take first mic as headset mic */
 
 int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			     struct auto_pin_cfg *cfg,
