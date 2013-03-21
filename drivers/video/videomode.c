@@ -11,15 +11,9 @@
 #include <video/display_timing.h>
 #include <video/videomode.h>
 
-int videomode_from_timing(const struct display_timings *disp,
-			  struct videomode *vm, unsigned int index)
+void videomode_from_timing(const struct display_timing *dt,
+			  struct videomode *vm)
 {
-	struct display_timing *dt;
-
-	dt = display_timings_get(disp, index);
-	if (!dt)
-		return -EINVAL;
-
 	vm->pixelclock = dt->pixelclock.typ;
 	vm->hactive = dt->hactive.typ;
 	vm->hfront_porch = dt->hfront_porch.typ;
@@ -32,7 +26,20 @@ int videomode_from_timing(const struct display_timings *disp,
 	vm->vsync_len = dt->vsync_len.typ;
 
 	vm->flags = dt->flags;
+}
+EXPORT_SYMBOL_GPL(videomode_from_timing);
+
+int videomode_from_timings(const struct display_timings *disp,
+			  struct videomode *vm, unsigned int index)
+{
+	struct display_timing *dt;
+
+	dt = display_timings_get(disp, index);
+	if (!dt)
+		return -EINVAL;
+
+	videomode_from_timing(dt, vm);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(videomode_from_timing);
+EXPORT_SYMBOL_GPL(videomode_from_timings);
