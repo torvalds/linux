@@ -409,9 +409,7 @@ static void coredump_finish(struct mm_struct *mm)
 
 static void wait_for_dump_helpers(struct file *file)
 {
-	struct pipe_inode_info *pipe;
-
-	pipe = file_inode(file)->i_pipe;
+	struct pipe_inode_info *pipe = file->private_data;
 
 	pipe_lock(pipe);
 	pipe->readers++;
