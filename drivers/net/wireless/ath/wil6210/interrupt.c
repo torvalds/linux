@@ -240,6 +240,15 @@ static void wil_notify_fw_error(struct wil6210_priv *wil)
 	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 }
 
+static void wil_cache_mbox_regs(struct wil6210_priv *wil)
+{
+	/* make shadow copy of registers that should not change on run time */
+	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
+			     sizeof(struct wil6210_mbox_ctl));
+	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
+	wil_mbox_ring_le2cpus(&wil->mbox_ctl.tx);
+}
+
 static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 {
 	struct wil6210_priv *wil = cookie;
@@ -257,14 +266,19 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 	wil6210_mask_irq_misc(wil);
 
 	if (isr & ISR_MISC_FW_ERROR) {
-		wil_dbg_irq(wil, "IRQ: Firmware error\n");
+		wil_err(wil, "Firmware error detected\n");
 		clear_bit(wil_status_fwready, &wil->status);
-		wil_notify_fw_error(wil);
-		isr &= ~ISR_MISC_FW_ERROR;
+		/*
+		 * do not clear @isr here - we do 2-nd part in thread
+		 * there, user space get notified, and it should be done
+		 * in non-atomic context
+		 */
 	}
 
 	if (isr & ISR_MISC_FW_READY) {
 		wil_dbg_irq(wil, "IRQ: FW ready\n");
+		wil_cache_mbox_regs(wil);
+		set_bit(wil_status_reset_done, &wil->status);
 		/**
 		 * Actual FW ready indicated by the
 		 * WMI_FW_READY_EVENTID
@@ -288,6 +302,11 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 	u32 isr = wil->isr_misc;
 
 	wil_dbg_irq(wil, "Thread ISR MISC 0x%08x\n", isr);
+
+	if (isr & ISR_MISC_FW_ERROR) {
+		wil_notify_fw_error(wil);
+		isr &= ~ISR_MISC_FW_ERROR;
+	}
 
 	if (isr & ISR_MISC_MBOX_EVT) {
 		wil_dbg_irq(wil, "MBOX event\n");

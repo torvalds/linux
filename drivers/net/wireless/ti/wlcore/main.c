@@ -4956,7 +4956,8 @@ static void wlcore_op_flush(struct ieee80211_hw *hw, bool drop)
 static int wlcore_op_remain_on_channel(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_channel *chan,
-				       int duration)
+				       int duration,
+				       enum ieee80211_roc_type type)
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271 *wl = hw->priv;

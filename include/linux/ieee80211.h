@@ -113,6 +113,34 @@
 #define IEEE80211_CTL_EXT_SSW_FBACK	0x9000
 #define IEEE80211_CTL_EXT_SSW_ACK	0xa000
 
+
+#define IEEE80211_SN_MASK		((IEEE80211_SCTL_SEQ) >> 4)
+#define IEEE80211_MAX_SN		IEEE80211_SN_MASK
+#define IEEE80211_SN_MODULO		(IEEE80211_MAX_SN + 1)
+
+static inline int ieee80211_sn_less(u16 sn1, u16 sn2)
+{
+	return ((sn1 - sn2) & IEEE80211_SN_MASK) > (IEEE80211_SN_MODULO >> 1);
+}
+
+static inline u16 ieee80211_sn_add(u16 sn1, u16 sn2)
+{
+	return (sn1 + sn2) & IEEE80211_SN_MASK;
+}
+
+static inline u16 ieee80211_sn_inc(u16 sn)
+{
+	return ieee80211_sn_add(sn, 1);
+}
+
+static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
+{
+	return (sn1 - sn2) & IEEE80211_SN_MASK;
+}
+
+#define IEEE80211_SEQ_TO_SN(seq)	(((seq) & IEEE80211_SCTL_SEQ) >> 4)
+#define IEEE80211_SN_TO_SEQ(ssn)	(((ssn) << 4) & IEEE80211_SCTL_SEQ)
+
 /* miscellaneous IEEE 802.11 constants */
 #define IEEE80211_MAX_FRAG_THRESHOLD	2352
 #define IEEE80211_MAX_RTS_THRESHOLD	2353
@@ -185,7 +213,7 @@ struct ieee80211_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	u8 addr4[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_hdr_3addr {
 	__le16 frame_control;
@@ -194,7 +222,7 @@ struct ieee80211_hdr_3addr {
 	u8 addr2[6];
 	u8 addr3[6];
 	__le16 seq_ctrl;
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_qos_hdr {
 	__le16 frame_control;
@@ -204,7 +232,7 @@ struct ieee80211_qos_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	__le16 qos_ctrl;
-} __packed;
+} __packed __aligned(2);
 
 /**
  * ieee80211_has_tods - check if IEEE80211_FCTL_TODS is set
@@ -581,7 +609,7 @@ struct ieee80211s_hdr {
 	__le32 seqnum;
 	u8 eaddr1[6];
 	u8 eaddr2[6];
-} __packed;
+} __packed __aligned(2);
 
 /* Mesh flags */
 #define MESH_FLAGS_AE_A4 	0x1
@@ -875,7 +903,7 @@ struct ieee80211_mgmt {
 			} u;
 		} __packed action;
 	} u;
-} __packed;
+} __packed __aligned(2);
 
 /* Supported Rates value encodings in 802.11n-2009 7.3.2.2 */
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
@@ -906,20 +934,20 @@ struct ieee80211_rts {
 	__le16 duration;
 	u8 ra[6];
 	u8 ta[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_cts {
 	__le16 frame_control;
 	__le16 duration;
 	u8 ra[6];
-} __packed;
+} __packed __aligned(2);
 
 struct ieee80211_pspoll {
 	__le16 frame_control;
 	__le16 aid;
 	u8 bssid[6];
 	u8 ta[6];
-} __packed;
+} __packed __aligned(2);
 
 /* TDLS */
 
@@ -1290,11 +1318,6 @@ struct ieee80211_vht_operation {
 } __packed;
 
 
-#define IEEE80211_VHT_MCS_ZERO_TO_SEVEN_SUPPORT 0
-#define IEEE80211_VHT_MCS_ZERO_TO_EIGHT_SUPPORT 1
-#define IEEE80211_VHT_MCS_ZERO_TO_NINE_SUPPORT  2
-#define IEEE80211_VHT_MCS_NOT_SUPPORTED 3
-
 /* 802.11ac VHT Capabilities */
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895			0x00000000
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991			0x00000001
@@ -1310,10 +1333,11 @@ struct ieee80211_vht_operation {
 #define IEEE80211_VHT_CAP_RXSTBC_2				0x00000200
 #define IEEE80211_VHT_CAP_RXSTBC_3				0x00000300
 #define IEEE80211_VHT_CAP_RXSTBC_4				0x00000400
+#define IEEE80211_VHT_CAP_RXSTBC_MASK				0x00000700
 #define IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE			0x00000800
 #define IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE			0x00001000
 #define IEEE80211_VHT_CAP_BEAMFORMER_ANTENNAS_MAX		0x00006000
-#define IEEE80211_VHT_CAP_SOUNDING_DIMENTION_MAX		0x00030000
+#define IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MAX		0x00030000
 #define IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE			0x00080000
 #define IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE			0x00100000
 #define IEEE80211_VHT_CAP_VHT_TXOP_PS				0x00200000

@@ -3052,16 +3052,16 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	int i;
 	int ret = 0;
 
-	brcmf_dbg(SCAN, "Enter n_match_sets:%d   n_ssids:%d\n",
+	brcmf_dbg(SCAN, "Enter n_match_sets:%d n_ssids:%d\n",
 		  request->n_match_sets, request->n_ssids);
 	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
 		brcmf_err("Scanning already: status (%lu)\n", cfg->scan_status);
 		return -EAGAIN;
 	}
 
-	if (!request || !request->n_ssids || !request->n_match_sets) {
+	if (!request->n_ssids || !request->n_match_sets) {
 		brcmf_err("Invalid sched scan req!! n_ssids:%d\n",
-			  request ? request->n_ssids : 0);
+			  request->n_ssids);
 		return -EINVAL;
 	}
 

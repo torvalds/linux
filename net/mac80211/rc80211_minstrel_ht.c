@@ -17,8 +17,6 @@
 #include "rc80211_minstrel_ht.h"
 
 #define AVG_PKT_SIZE	1200
-#define SAMPLE_COLUMNS	10
-#define EWMA_LEVEL		75
 
 /* Number of bits for an average sized packet */
 #define MCS_NBITS (AVG_PKT_SIZE << 3)
@@ -26,11 +24,11 @@
 /* Number of symbols for a packet with (bps) bits per symbol */
 #define MCS_NSYMS(bps) ((MCS_NBITS + (bps) - 1) / (bps))
 
-/* Transmission time for a packet containing (syms) symbols */
+/* Transmission time (nanoseconds) for a packet containing (syms) symbols */
 #define MCS_SYMBOL_TIME(sgi, syms)					\
 	(sgi ?								\
-	  ((syms) * 18 + 4) / 5 :	/* syms * 3.6 us */		\
-	  (syms) << 2			/* syms * 4 us */		\
+	  ((syms) * 18000 + 4000) / 5 :	/* syms * 3.6 us */		\
+	  ((syms) * 1000) << 2		/* syms * 4 us */		\
 	)
 
 /* Transmit duration for the raw data part of an average sized packet */
@@ -64,9 +62,9 @@
 }
 
 #define CCK_DURATION(_bitrate, _short, _len)		\
-	(10 /* SIFS */ +				\
+	(1000 * (10 /* SIFS */ +			\
 	 (_short ? 72 + 24 : 144 + 48 ) +		\
-	 (8 * (_len + 4) * 10) / (_bitrate))
+	 (8 * (_len + 4) * 10) / (_bitrate)))
 
 #define CCK_ACK_DURATION(_bitrate, _short)			\
 	(CCK_DURATION((_bitrate > 10 ? 20 : 10), false, 60) +	\
@@ -127,15 +125,6 @@ const struct mcs_group minstrel_mcs_groups[] = {
 #define MINSTREL_CCK_GROUP	(ARRAY_SIZE(minstrel_mcs_groups) - 1)
 
 static u8 sample_table[SAMPLE_COLUMNS][MCS_GROUP_RATES];
-
-/*
- * Perform EWMA (Exponentially Weighted Moving Average) calculation
- */
-static int
-minstrel_ewma(int old, int new, int weight)
-{
-	return (new * (100 - weight) + old * weight) / 100;
-}
 
 /*
  * Look up an MCS group index based on mac80211 rate information
@@ -211,7 +200,8 @@ static void
 minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 {
 	struct minstrel_rate_stats *mr;
-	unsigned int usecs = 0;
+	unsigned int nsecs = 0;
+	unsigned int tp;
 
 	mr = &mi->groups[group].rates[rate];
 
@@ -221,10 +211,12 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 	}
 
 	if (group != MINSTREL_CCK_GROUP)
-		usecs = mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
+		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
 
-	usecs += minstrel_mcs_groups[group].duration[rate];
-	mr->cur_tp = MINSTREL_TRUNC((1000000 / usecs) * mr->probability);
+	nsecs += minstrel_mcs_groups[group].duration[rate];
+	tp = 1000000 * ((mr->probability * 1000) / nsecs);
+
+	mr->cur_tp = MINSTREL_TRUNC(tp);
 }
 
 /*
@@ -308,8 +300,8 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		}
 	}
 
-	/* try to sample up to half of the available rates during each interval */
-	mi->sample_count *= 4;
+	/* try to sample all available rates during each interval */
+	mi->sample_count *= 8;
 
 	cur_prob = 0;
 	cur_prob_tp = 0;
@@ -320,20 +312,13 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		if (!mg->supported)
 			continue;
 
-		mr = minstrel_get_ratestats(mi, mg->max_prob_rate);
-		if (cur_prob_tp < mr->cur_tp &&
-		    minstrel_mcs_groups[group].streams == 1) {
-			mi->max_prob_rate = mg->max_prob_rate;
-			cur_prob = mr->cur_prob;
-			cur_prob_tp = mr->cur_tp;
-		}
-
 		mr = minstrel_get_ratestats(mi, mg->max_tp_rate);
 		if (cur_tp < mr->cur_tp) {
 			mi->max_tp_rate2 = mi->max_tp_rate;
 			cur_tp2 = cur_tp;
 			mi->max_tp_rate = mg->max_tp_rate;
 			cur_tp = mr->cur_tp;
+			mi->max_prob_streams = minstrel_mcs_groups[group].streams - 1;
 		}
 
 		mr = minstrel_get_ratestats(mi, mg->max_tp_rate2);
@@ -342,6 +327,23 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 			cur_tp2 = mr->cur_tp;
 		}
 	}
+
+	if (mi->max_prob_streams < 1)
+		mi->max_prob_streams = 1;
+
+	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
+		mg = &mi->groups[group];
+		if (!mg->supported)
+			continue;
+		mr = minstrel_get_ratestats(mi, mg->max_prob_rate);
+		if (cur_prob_tp < mr->cur_tp &&
+		    minstrel_mcs_groups[group].streams <= mi->max_prob_streams) {
+			mi->max_prob_rate = mg->max_prob_rate;
+			cur_prob = mr->cur_prob;
+			cur_prob_tp = mr->cur_tp;
+		}
+	}
+
 
 	mi->stats_update = jiffies;
 }
@@ -467,7 +469,7 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	if (!mi->sample_wait && !mi->sample_tries && mi->sample_count > 0) {
 		mi->sample_wait = 16 + 2 * MINSTREL_TRUNC(mi->avg_ampdu_len);
-		mi->sample_tries = 2;
+		mi->sample_tries = 1;
 		mi->sample_count--;
 	}
 
@@ -536,7 +538,7 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	mr->retry_updated = true;
 
 	group = &minstrel_mcs_groups[index / MCS_GROUP_RATES];
-	tx_time_data = group->duration[index % MCS_GROUP_RATES] * ampdu_len;
+	tx_time_data = group->duration[index % MCS_GROUP_RATES] * ampdu_len / 1000;
 
 	/* Contention time for first 2 tries */
 	ctime = (t_slot * cw) >> 1;
@@ -616,6 +618,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 {
 	struct minstrel_rate_stats *mr;
 	struct minstrel_mcs_group_data *mg;
+	unsigned int sample_dur, sample_group;
 	int sample_idx = 0;
 
 	if (mi->sample_wait > 0) {
@@ -626,11 +629,11 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (!mi->sample_tries)
 		return -1;
 
-	mi->sample_tries--;
 	mg = &mi->groups[mi->sample_group];
 	sample_idx = sample_table[mg->column][mg->index];
 	mr = &mg->rates[sample_idx];
-	sample_idx += mi->sample_group * MCS_GROUP_RATES;
+	sample_group = mi->sample_group;
+	sample_idx += sample_group * MCS_GROUP_RATES;
 	minstrel_next_sample_idx(mi);
 
 	/*
@@ -651,14 +654,18 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	 * Make sure that lower rates get sampled only occasionally,
 	 * if the link is working perfectly.
 	 */
-	if (minstrel_get_duration(sample_idx) >
-	    minstrel_get_duration(mi->max_tp_rate)) {
+	sample_dur = minstrel_get_duration(sample_idx);
+	if (sample_dur >= minstrel_get_duration(mi->max_tp_rate2) &&
+	    (mi->max_prob_streams <
+	     minstrel_mcs_groups[sample_group].streams ||
+	     sample_dur >= minstrel_get_duration(mi->max_prob_rate))) {
 		if (mr->sample_skipped < 20)
 			return -1;
 
 		if (mi->sample_slow++ > 2)
 			return -1;
 	}
+	mi->sample_tries--;
 
 	return sample_idx;
 }

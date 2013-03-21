@@ -611,22 +611,10 @@ struct cfg80211_ap_settings {
 };
 
 /**
- * enum plink_action - actions to perform in mesh peers
- *
- * @PLINK_ACTION_INVALID: action 0 is reserved
- * @PLINK_ACTION_OPEN: start mesh peer link establishment
- * @PLINK_ACTION_BLOCK: block traffic from this mesh peer
- */
-enum plink_actions {
-	PLINK_ACTION_INVALID,
-	PLINK_ACTION_OPEN,
-	PLINK_ACTION_BLOCK,
-};
-
-/**
  * enum station_parameters_apply_mask - station parameter values to apply
  * @STATION_PARAM_APPLY_UAPSD: apply new uAPSD parameters (uapsd_queues, max_sp)
  * @STATION_PARAM_APPLY_CAPABILITY: apply new capability
+ * @STATION_PARAM_APPLY_PLINK_STATE: apply new plink state
  *
  * Not all station parameters have in-band "no change" signalling,
  * for those that don't these flags will are used.
@@ -634,6 +622,7 @@ enum plink_actions {
 enum station_parameters_apply_mask {
 	STATION_PARAM_APPLY_UAPSD = BIT(0),
 	STATION_PARAM_APPLY_CAPABILITY = BIT(1),
+	STATION_PARAM_APPLY_PLINK_STATE = BIT(2),
 };
 
 /**
@@ -669,7 +658,7 @@ enum station_parameters_apply_mask {
  * @ext_capab_len: number of extended capabilities
  */
 struct station_parameters {
-	u8 *supported_rates;
+	const u8 *supported_rates;
 	struct net_device *vlan;
 	u32 sta_flags_mask, sta_flags_set;
 	u32 sta_modify_mask;
@@ -678,15 +667,58 @@ struct station_parameters {
 	u8 supported_rates_len;
 	u8 plink_action;
 	u8 plink_state;
-	struct ieee80211_ht_cap *ht_capa;
-	struct ieee80211_vht_cap *vht_capa;
+	const struct ieee80211_ht_cap *ht_capa;
+	const struct ieee80211_vht_cap *vht_capa;
 	u8 uapsd_queues;
 	u8 max_sp;
 	enum nl80211_mesh_power_mode local_pm;
 	u16 capability;
-	u8 *ext_capab;
+	const u8 *ext_capab;
 	u8 ext_capab_len;
 };
+
+/**
+ * enum cfg80211_station_type - the type of station being modified
+ * @CFG80211_STA_AP_CLIENT: client of an AP interface
+ * @CFG80211_STA_AP_MLME_CLIENT: client of an AP interface that has
+ *	the AP MLME in the device
+ * @CFG80211_STA_AP_STA: AP station on managed interface
+ * @CFG80211_STA_IBSS: IBSS station
+ * @CFG80211_STA_TDLS_PEER_SETUP: TDLS peer on managed interface (dummy entry
+ *	while TDLS setup is in progress, it moves out of this state when
+ *	being marked authorized; use this only if TDLS with external setup is
+ *	supported/used)
+ * @CFG80211_STA_TDLS_PEER_ACTIVE: TDLS peer on managed interface (active
+ *	entry that is operating, has been marked authorized by userspace)
+ * @CFG80211_STA_MESH_PEER_KERNEL: peer on mesh interface (kernel managed)
+ * @CFG80211_STA_MESH_PEER_USER: peer on mesh interface (user managed)
+ */
+enum cfg80211_station_type {
+	CFG80211_STA_AP_CLIENT,
+	CFG80211_STA_AP_MLME_CLIENT,
+	CFG80211_STA_AP_STA,
+	CFG80211_STA_IBSS,
+	CFG80211_STA_TDLS_PEER_SETUP,
+	CFG80211_STA_TDLS_PEER_ACTIVE,
+	CFG80211_STA_MESH_PEER_KERNEL,
+	CFG80211_STA_MESH_PEER_USER,
+};
+
+/**
+ * cfg80211_check_station_change - validate parameter changes
+ * @wiphy: the wiphy this operates on
+ * @params: the new parameters for a station
+ * @statype: the type of station being modified
+ *
+ * Utility function for the @change_station driver method. Call this function
+ * with the appropriate station type looking up the station (and checking that
+ * it exists). It will verify whether the station change is acceptable, and if
+ * not will return an error code. Note that it may modify the parameters for
+ * backward compatibility reasons, so don't use them before calling this.
+ */
+int cfg80211_check_station_change(struct wiphy *wiphy,
+				  struct station_parameters *params,
+				  enum cfg80211_station_type statype);
 
 /**
  * enum station_info_flags - station information flags
@@ -1119,6 +1151,7 @@ struct mesh_config {
  * @ie_len: length of vendor information elements
  * @is_authenticated: this mesh requires authentication
  * @is_secure: this mesh uses security
+ * @user_mpm: userspace handles all MPM functions
  * @dtim_period: DTIM period to use
  * @beacon_interval: beacon interval to use
  * @mcast_rate: multicat rate for Mesh Node [6Mbps is the default for 802.11a]
@@ -1136,6 +1169,7 @@ struct mesh_setup {
 	u8 ie_len;
 	bool is_authenticated;
 	bool is_secure;
+	bool user_mpm;
 	u8 dtim_period;
 	u16 beacon_interval;
 	int mcast_rate[IEEE80211_NUM_BANDS];
@@ -1398,9 +1432,11 @@ struct cfg80211_auth_request {
  * enum cfg80211_assoc_req_flags - Over-ride default behaviour in association.
  *
  * @ASSOC_REQ_DISABLE_HT:  Disable HT (802.11n)
+ * @ASSOC_REQ_DISABLE_VHT:  Disable VHT
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT		= BIT(0),
+	ASSOC_REQ_DISABLE_VHT		= BIT(1),
 };
 
 /**
@@ -1422,6 +1458,8 @@ enum cfg80211_assoc_req_flags {
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
  *   will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
+ * @vht_capa: VHT capability override
+ * @vht_capa_mask: VHT capability mask indicating which fields to use
  */
 struct cfg80211_assoc_request {
 	struct cfg80211_bss *bss;
@@ -1432,6 +1470,7 @@ struct cfg80211_assoc_request {
 	u32 flags;
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
+	struct ieee80211_vht_cap vht_capa, vht_capa_mask;
 };
 
 /**
@@ -1542,6 +1581,8 @@ struct cfg80211_ibss_params {
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
  *   will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
+ * @vht_capa:  VHT Capability overrides
+ * @vht_capa_mask: The bits of vht_capa which are to be used.
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -1560,6 +1601,8 @@ struct cfg80211_connect_params {
 	int bg_scan_period;
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
+	struct ieee80211_vht_cap vht_capa;
+	struct ieee80211_vht_cap vht_capa_mask;
 };
 
 /**
@@ -1722,6 +1765,21 @@ struct cfg80211_gtk_rekey_data {
 };
 
 /**
+ * struct cfg80211_update_ft_ies_params - FT IE Information
+ *
+ * This structure provides information needed to update the fast transition IE
+ *
+ * @md: The Mobility Domain ID, 2 Octet value
+ * @ie: Fast Transition IEs
+ * @ie_len: Length of ft_ie in octets
+ */
+struct cfg80211_update_ft_ies_params {
+	u16 md;
+	const u8 *ie;
+	size_t ie_len;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -1781,9 +1839,8 @@ struct cfg80211_gtk_rekey_data {
  * @change_station: Modify a given station. Note that flags changes are not much
  *	validated in cfg80211, in particular the auth/assoc/authorized flags
  *	might come to the driver in invalid combinations -- make sure to check
- *	them, also against the existing state! Also, supported_rates changes are
- *	not checked in station mode -- drivers need to reject (or ignore) them
- *	for anything but TDLS peers.
+ *	them, also against the existing state! Drivers must call
+ *	cfg80211_check_station_change() to validate the information.
  * @get_station: get station information for the station identified by @mac
  * @dump_station: dump station callback -- resume dump at index @idx
  *
@@ -2168,6 +2225,8 @@ struct cfg80211_ops {
 	int	(*start_radar_detection)(struct wiphy *wiphy,
 					 struct net_device *dev,
 					 struct cfg80211_chan_def *chandef);
+	int	(*update_ft_ies)(struct wiphy *wiphy, struct net_device *dev,
+				 struct cfg80211_update_ft_ies_params *ftie);
 };
 
 /*
@@ -2485,6 +2544,8 @@ struct wiphy_wowlan_support {
  * @ap_sme_capa: AP SME capabilities, flags from &enum nl80211_ap_sme_features.
  * @ht_capa_mod_mask:  Specify what ht_cap values can be over-ridden.
  *	If null, then none can be over-ridden.
+ * @vht_capa_mod_mask:  Specify what VHT capabilities can be over-ridden.
+ *	If null, then none can be over-ridden.
  *
  * @max_acl_mac_addrs: Maximum number of MAC addresses that the device
  *	supports for ACL.
@@ -2593,6 +2654,7 @@ struct wiphy {
 	struct dentry *debugfsdir;
 
 	const struct ieee80211_ht_cap *ht_capa_mod_mask;
+	const struct ieee80211_vht_cap *vht_capa_mod_mask;
 
 #ifdef CONFIG_NET_NS
 	/* the network namespace this phy lives in currently */
@@ -4000,6 +4062,30 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate);
  * Requires the RTNL to be held.
  */
 void cfg80211_unregister_wdev(struct wireless_dev *wdev);
+
+/**
+ * struct cfg80211_ft_event - FT Information Elements
+ * @ies: FT IEs
+ * @ies_len: length of the FT IE in bytes
+ * @target_ap: target AP's MAC address
+ * @ric_ies: RIC IE
+ * @ric_ies_len: length of the RIC IE in bytes
+ */
+struct cfg80211_ft_event_params {
+	const u8 *ies;
+	size_t ies_len;
+	const u8 *target_ap;
+	const u8 *ric_ies;
+	size_t ric_ies_len;
+};
+
+/**
+ * cfg80211_ft_event - notify userspace about FT IE and RIC IE
+ * @netdev: network device
+ * @ft_event: IE information
+ */
+void cfg80211_ft_event(struct net_device *netdev,
+		       struct cfg80211_ft_event_params *ft_event);
 
 /**
  * cfg80211_get_p2p_attr - find and copy a P2P attribute from IE buffer

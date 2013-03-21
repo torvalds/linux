@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -64,6 +64,7 @@
 #include <linux/export.h>
 #include <net/netlink.h>
 
+#include "iwl-drv.h"
 #include "iwl-io.h"
 #include "iwl-fh.h"
 #include "iwl-prph.h"
@@ -653,7 +654,7 @@ int iwl_test_parse(struct iwl_test *tst, struct nlattr **tb,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iwl_test_parse);
+IWL_EXPORT_SYMBOL(iwl_test_parse);
 
 /*
  * Handle test commands.
@@ -715,7 +716,7 @@ int iwl_test_handle_cmd(struct iwl_test *tst, struct nlattr **tb)
 	}
 	return result;
 }
-EXPORT_SYMBOL_GPL(iwl_test_handle_cmd);
+IWL_EXPORT_SYMBOL(iwl_test_handle_cmd);
 
 static int iwl_test_trace_dump(struct iwl_test *tst, struct sk_buff *skb,
 			       struct netlink_callback *cb)
@@ -803,7 +804,7 @@ int iwl_test_dump(struct iwl_test *tst, u32 cmd, struct sk_buff *skb,
 	}
 	return result;
 }
-EXPORT_SYMBOL_GPL(iwl_test_dump);
+IWL_EXPORT_SYMBOL(iwl_test_dump);
 
 /*
  * Multicast a spontaneous messages from the device to the user space.
@@ -849,4 +850,4 @@ void iwl_test_rx(struct iwl_test *tst, struct iwl_rx_cmd_buffer *rxb)
 	if (tst->notify)
 		iwl_test_send_rx(tst, rxb);
 }
-EXPORT_SYMBOL_GPL(iwl_test_rx);
+IWL_EXPORT_SYMBOL(iwl_test_rx);

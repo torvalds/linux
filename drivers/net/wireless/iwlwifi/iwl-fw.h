@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -73,12 +73,14 @@
  *	treats good CRC threshold as a boolean
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
  * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
+ * @IWL_UCODE_TLV_FLAGS_DW_BC_TABLE: The SCD byte count table is in DWORDS
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
 	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
 	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
 	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
+	IWL_UCODE_TLV_FLAGS_DW_BC_TABLE	= BIT(4),
 };
 
 /* The default calibrate table size if not specified by firmware file */

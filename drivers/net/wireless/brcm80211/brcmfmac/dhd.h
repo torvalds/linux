@@ -501,6 +501,7 @@ struct brcmf_dcmd {
 /* Forward decls for struct brcmf_pub (see below) */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
+struct brcmf_fws_info; /* firmware signalling info */
 
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
@@ -527,6 +528,10 @@ struct brcmf_pub {
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
 	struct brcmf_fweh_info fweh;
+
+	bool fw_signals;
+	struct brcmf_fws_info *fws;
+	spinlock_t fws_spinlock;
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
@@ -582,7 +587,7 @@ extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 				    void *buf, uint len);
 
 /* Remove any protocol-specific data header. */
-extern int brcmf_proto_hdrpull(struct brcmf_pub *drvr, u8 *ifidx,
+extern int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 			       struct sk_buff *rxp);
 
 extern int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);

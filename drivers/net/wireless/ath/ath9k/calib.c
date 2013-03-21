@@ -369,7 +369,6 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	struct ieee80211_channel *c = chan->chan;
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 
-	chan->channelFlags &= (~CHANNEL_CW_INT);
 	if (REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) {
 		ath_dbg(common, CALIBRATE,
 			"NF did not complete in calibration window\n");
@@ -384,7 +383,6 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		ath_dbg(common, CALIBRATE,
 			"noise floor failed detected; detected %d, threshold %d\n",
 			nf, nfThresh);
-		chan->channelFlags |= CHANNEL_CW_INT;
 	}
 
 	if (!caldata) {
@@ -410,7 +408,7 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah,
 	int i, j;
 
 	ah->caldata->channel = chan->channel;
-	ah->caldata->channelFlags = chan->channelFlags & ~CHANNEL_CW_INT;
+	ah->caldata->channelFlags = chan->channelFlags;
 	ah->caldata->chanmode = chan->chanmode;
 	h = ah->caldata->nfCalHist;
 	default_nf = ath9k_hw_get_default_nf(ah, chan);

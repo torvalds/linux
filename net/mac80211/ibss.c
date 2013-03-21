@@ -985,36 +985,9 @@ static void ieee80211_ibss_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
-	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-	struct ieee80211_local *local = sdata->local;
 
-	if (local->quiescing) {
-		ifibss->timer_running = true;
-		return;
-	}
-
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
-
-#ifdef CONFIG_PM
-void ieee80211_ibss_quiesce(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-
-	if (del_timer_sync(&ifibss->timer))
-		ifibss->timer_running = true;
-}
-
-void ieee80211_ibss_restart(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
-
-	if (ifibss->timer_running) {
-		add_timer(&ifibss->timer);
-		ifibss->timer_running = false;
-	}
-}
-#endif
 
 void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata)
 {

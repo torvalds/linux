@@ -281,7 +281,6 @@ struct sta_ampdu_mlme {
  * @plink_state: peer link state
  * @plink_timeout: timeout of peer link
  * @plink_timer: peer link watch timer
- * @plink_timer_was_running: used by suspend/resume to restore timers
  * @t_offset: timing offset relative to this host
  * @t_offset_setpoint: reference timing offset of this sta to be used when
  * 	calculating clockdrift
@@ -379,7 +378,6 @@ struct sta_info {
 	__le16 reason;
 	u8 plink_retries;
 	bool ignore_plink_timer;
-	bool plink_timer_was_running;
 	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
