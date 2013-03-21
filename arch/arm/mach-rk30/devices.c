@@ -1173,6 +1173,18 @@ static struct resource resource_arm_pmu[] = {
 		.end	= IRQ_ARM_PMU + 1,
 		.flags	= IORESOURCE_IRQ,
 	},
+#if defined(CONFIG_ARCH_RK3188)
+	{
+		.start	= IRQ_ARM_PMU + 2,
+		.end	= IRQ_ARM_PMU + 2,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_ARM_PMU + 3,
+		.end	= IRQ_ARM_PMU + 3,
+		.flags	= IORESOURCE_IRQ,
+	},
+#endif
 };
 
 struct platform_device device_arm_pmu = {
