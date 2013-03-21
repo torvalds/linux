@@ -753,7 +753,6 @@ struct ip_vs_dest {
 	/* for destination cache */
 	spinlock_t		dst_lock;	/* lock of dst_cache */
 	struct dst_entry	*dst_cache;	/* destination cache entry */
-	u32			dst_rtos;	/* RT_TOS(tos) for dst */
 	u32			dst_cookie;
 	union nf_inet_addr	dst_saddr;
 
