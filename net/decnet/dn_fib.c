@@ -511,7 +511,7 @@ static inline u32 rtm_get_table(struct nlattr *attrs[], u8 table)
 	return table;
 }
 
-static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct dn_fib_table *tb;
@@ -536,7 +536,7 @@ static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *
 	return tb->delete(tb, r, attrs, nlh, &NETLINK_CB(skb));
 }
 
-static int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct dn_fib_table *tb;

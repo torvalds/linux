@@ -1613,7 +1613,7 @@ int neigh_table_clear(struct neigh_table *tbl)
 }
 EXPORT_SYMBOL(neigh_table_clear);
 
-static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct ndmsg *ndm;
@@ -1677,7 +1677,7 @@ out:
 	return err;
 }
 
-static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct ndmsg *ndm;
@@ -1955,7 +1955,7 @@ static const struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] = {
 	[NDTPA_LOCKTIME]		= { .type = NLA_U64 },
 };
 
-static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct neigh_table *tbl;

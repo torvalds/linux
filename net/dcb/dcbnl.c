@@ -1658,7 +1658,7 @@ static const struct reply_func reply_funcs[DCB_CMD_MAX+1] = {
 	[DCB_CMD_CEE_GET]	= { RTM_GETDCB, dcbnl_cee_get },
 };
 
-static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_device *netdev;
