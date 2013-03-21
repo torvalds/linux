@@ -632,12 +632,6 @@ static void cypress_close(struct usb_serial_port *port)
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
-	/* writing is potentially harmful, lock must be taken */
-	mutex_lock(&port->serial->disc_mutex);
-	if (port->serial->disconnected) {
-		mutex_unlock(&port->serial->disc_mutex);
-		return;
-	}
 	spin_lock_irqsave(&priv->lock, flags);
 	kfifo_reset_out(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -649,7 +643,6 @@ static void cypress_close(struct usb_serial_port *port)
 	if (stats)
 		dev_info(&port->dev, "Statistics: %d Bytes In | %d Bytes Out | %d Commands Issued\n",
 			priv->bytes_in, priv->bytes_out, priv->cmd_count);
-	mutex_unlock(&port->serial->disc_mutex);
 } /* cypress_close */
 
 
