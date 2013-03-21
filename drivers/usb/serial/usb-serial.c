@@ -137,7 +137,7 @@ static void destroy_serial(struct kref *kref)
 	if (serial->minor != SERIAL_TTY_NO_MINOR)
 		return_serial(serial);
 
-	if (serial->attached)
+	if (serial->attached && serial->type->release)
 		serial->type->release(serial);
 
 	/* Now that nothing is using the ports, they can be freed */
@@ -1305,7 +1305,6 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, chars_in_buffer);
 	set_to_generic_if_null(device, read_bulk_callback);
 	set_to_generic_if_null(device, write_bulk_callback);
-	set_to_generic_if_null(device, release);
 	set_to_generic_if_null(device, process_read_urb);
 	set_to_generic_if_null(device, prepare_write_buffer);
 }
