@@ -55,9 +55,6 @@ config TRACE_IRQFLAGS_SUPPORT
 config GENERIC_CSUM
         def_bool y
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 source "init/Kconfig"
 
 
