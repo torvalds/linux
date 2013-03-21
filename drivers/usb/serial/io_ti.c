@@ -86,7 +86,6 @@ struct edgeport_port {
 	int baud_rate;
 	int close_pending;
 	int lsr_event;
-	struct async_icount	icount;
 	struct edgeport_serial	*edge_serial;
 	struct usb_serial_port	*port;
 	__u8 bUartMode;		/* Port type, 0: RS232, etc. */
@@ -1445,7 +1444,7 @@ static void handle_new_msr(struct edgeport_port *edge_port, __u8 msr)
 
 	if (msr & (EDGEPORT_MSR_DELTA_CTS | EDGEPORT_MSR_DELTA_DSR |
 			EDGEPORT_MSR_DELTA_RI | EDGEPORT_MSR_DELTA_CD)) {
-		icount = &edge_port->icount;
+		icount = &edge_port->port->icount;
 
 		/* update input line counters */
 		if (msr & EDGEPORT_MSR_DELTA_CTS)
@@ -1498,7 +1497,7 @@ static void handle_new_lsr(struct edgeport_port *edge_port, int lsr_data,
 		edge_tty_recv(edge_port->port, &data, 1);
 
 	/* update input line counters */
-	icount = &edge_port->icount;
+	icount = &edge_port->port->icount;
 	if (new_lsr & LSR_BREAK)
 		icount->brk++;
 	if (new_lsr & LSR_OVER_ERR)
@@ -1657,7 +1656,7 @@ static void edge_bulk_in_callback(struct urb *urb)
 		else
 			edge_tty_recv(edge_port->port, data,
 					urb->actual_length);
-		edge_port->icount.rx += urb->actual_length;
+		edge_port->port->icount.rx += urb->actual_length;
 	}
 
 exit:
@@ -1749,8 +1748,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 		__func__, port_number, edge_port->uart_base, edge_port->dma_address);
 
 	dev = port->serial->dev;
-
-	memset(&(edge_port->icount), 0x00, sizeof(edge_port->icount));
 
 	/* turn off loopback */
 	status = ti_do_config(edge_port, UMPC_SET_CLR_LOOPBACK, 0);
@@ -1999,7 +1996,7 @@ static void edge_send(struct tty_struct *tty)
 		edge_port->ep_write_urb_in_use = 0;
 		/* TODO: reschedule edge_send */
 	} else
-		edge_port->icount.tx += count;
+		edge_port->port->icount.tx += count;
 
 	/* wakeup any process waiting for writes to complete */
 	/* there is now more room in the buffer for new writes */
@@ -2360,27 +2357,6 @@ static int edge_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int edge_get_icount(struct tty_struct *tty,
-				struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
-	struct async_icount *ic = &edge_port->icount;
-
-	icount->cts = ic->cts;
-	icount->dsr = ic->dsr;
-	icount->rng = ic->rng;
-	icount->dcd = ic->dcd;
-	icount->tx = ic->tx;
-        icount->rx = ic->rx;
-        icount->frame = ic->frame;
-        icount->parity = ic->parity;
-        icount->overrun = ic->overrun;
-        icount->brk = ic->brk;
-        icount->buf_overrun = ic->buf_overrun;
-	return 0;
-}
-
 static int get_serial_info(struct edgeport_port *edge_port,
 				struct serial_struct __user *retinfo)
 {
@@ -2428,7 +2404,7 @@ static int edge_ioctl(struct tty_struct *tty,
 				(struct serial_struct __user *) arg);
 	case TIOCMIWAIT:
 		dev_dbg(&port->dev, "%s - TIOCMIWAIT\n", __func__);
-		cprev = edge_port->icount;
+		cprev = edge_port->port->icount;
 		while (1) {
 			interruptible_sleep_on(&port->delta_msr_wait);
 			/* see if a signal did it */
@@ -2438,7 +2414,7 @@ static int edge_ioctl(struct tty_struct *tty,
 			if (port->serial->disconnected)
 				return -EIO;
 
-			cnow = edge_port->icount;
+			cnow = port->icount;
 			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
 			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
 				return -EIO; /* no change => error */
@@ -2618,7 +2594,7 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,
-	.get_icount		= edge_get_icount,
+	.get_icount		= usb_serial_generic_get_icount,
 	.write			= edge_write,
 	.write_room		= edge_write_room,
 	.chars_in_buffer	= edge_chars_in_buffer,
@@ -2649,7 +2625,7 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,
-	.get_icount		= edge_get_icount,
+	.get_icount		= usb_serial_generic_get_icount,
 	.write			= edge_write,
 	.write_room		= edge_write_room,
 	.chars_in_buffer	= edge_chars_in_buffer,
