@@ -1579,6 +1579,16 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);
 
+	/* Legacy interrupts are disabled too late by the EEH kernel
+	 * code. Disable them earlier.
+	 * If an EEH error occurred, the read will have returned all ones.
+	 */
+	if (EFX_DWORD_IS_ALL_ONES(reg) && efx_try_recovery(efx) &&
+	    !efx->eeh_disabled_legacy_irq) {
+		disable_irq_nosync(efx->legacy_irq);
+		efx->eeh_disabled_legacy_irq = true;
+	}
+
 	/* Handle non-event-queue sources */
 	if (queues & (1U << efx->irq_level)) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);

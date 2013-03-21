@@ -788,6 +788,7 @@ struct efx_nic {
 	const struct efx_nic_type *type;
 	int legacy_irq;
 	bool legacy_irq_enabled;
+	bool eeh_disabled_legacy_irq;
 	struct workqueue_struct *workqueue;
 	char workqueue_name[16];
 	struct work_struct reset_work;
