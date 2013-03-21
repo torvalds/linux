@@ -13,8 +13,6 @@
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
  *	(at your option) any later version.
- *
- *
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -28,7 +26,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#define DRIVER_DESC 	"SPCP8x5 USB to serial adaptor driver"
+#define DRIVER_DESC	"SPCP8x5 USB to serial adaptor driver"
 
 #define SPCP8x5_007_VID		0x04FC
 #define SPCP8x5_007_PID		0x0201
@@ -52,7 +50,7 @@ static const struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 struct spcp8x5_usb_ctrl_arg {
-	u8 	type;
+	u8	type;
 	u8	cmd;
 	u8	cmd_type;
 	u16	value;
@@ -147,10 +145,10 @@ enum spcp8x5_type {
 };
 
 struct spcp8x5_private {
-	spinlock_t 	lock;
+	spinlock_t		lock;
 	enum spcp8x5_type	type;
-	u8 			line_control;
-	u8 			line_status;
+	u8			line_control;
+	u8			line_status;
 };
 
 static int spcp8x5_port_probe(struct usb_serial_port *port)
@@ -180,7 +178,7 @@ static int spcp8x5_port_probe(struct usb_serial_port *port)
 	spin_lock_init(&priv->lock);
 	priv->type = type;
 
-	usb_set_serial_port_data(port , priv);
+	usb_set_serial_port_data(port, priv);
 
 	return 0;
 }
@@ -195,13 +193,16 @@ static int spcp8x5_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
-/* set the modem control line of the device.
- * NOTE spcp825-007 not supported this */
-static int spcp8x5_set_ctrlLine(struct usb_device *dev, u8 value,
+/*
+ * Set the modem control line of the device.
+ *
+ * NOTE: not supported by spcp825-007
+ */
+static int spcp8x5_set_ctrl_line(struct usb_device *dev, u8 value,
 				enum spcp8x5_type type)
 {
 	int retval;
-	u8 mcr = 0 ;
+	u8 mcr = 0;
 
 	if (type == SPCP825_007_TYPE)
 		return -EPERM;
@@ -215,8 +216,11 @@ static int spcp8x5_set_ctrlLine(struct usb_device *dev, u8 value,
 	return retval;
 }
 
-/* get the modem status register of the device
- * NOTE spcp825-007 not supported this */
+/*
+ * Get the modem status register of the device.
+ *
+ * NOTE: not supported by spcp825-007
+ */
 static int spcp8x5_get_msr(struct usb_device *dev, u8 *status,
 			   enum spcp8x5_type type)
 {
@@ -249,9 +253,12 @@ static int spcp8x5_get_msr(struct usb_device *dev, u8 *status,
 	return ret;
 }
 
-/* select the work mode.
- * NOTE this function not supported by spcp825-007 */
-static void spcp8x5_set_workMode(struct usb_device *dev, u16 value,
+/*
+ * Select the work mode.
+ *
+ * NOTE: not supported by spcp825-007
+ */
+static void spcp8x5_set_work_mode(struct usb_device *dev, u16 value,
 				 u16 index, enum spcp8x5_type type)
 {
 	int ret;
@@ -273,8 +280,10 @@ static void spcp8x5_set_workMode(struct usb_device *dev, u16 value,
 static int spcp8x5_carrier_raised(struct usb_serial_port *port)
 {
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
+
 	if (priv->line_status & MSR_STATUS_LINE_DCD)
 		return 1;
+
 	return 0;
 }
 
@@ -293,20 +302,17 @@ static void spcp8x5_dtr_rts(struct usb_serial_port *port, int on)
 						| MCR_CONTROL_LINE_RTS);
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
-	spcp8x5_set_ctrlLine(port->serial->dev, control , priv->type);
+	spcp8x5_set_ctrl_line(port->serial->dev, control, priv->type);
 }
 
 static void spcp8x5_init_termios(struct tty_struct *tty)
 {
-	/* for the 1st time call this function */
 	tty->termios = tty_std_termios;
 	tty->termios.c_cflag = B115200 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty->termios.c_ispeed = 115200;
 	tty->termios.c_ospeed = 115200;
 }
 
-/* set the serial param for transfer. we should check if we really need to
- * transfer. if we set flow control we should do this too. */
 static void spcp8x5_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
@@ -320,7 +326,6 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	int baud;
 	int i;
 	u8 control;
-
 
 	/* check that they really want us to change something */
 	if (!tty_termios_hw_change(&tty->termios, old_termios))
@@ -337,7 +342,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	if (control != priv->line_control) {
 		control = priv->line_control;
 		spin_unlock_irqrestore(&priv->lock, flags);
-		spcp8x5_set_ctrlLine(serial->dev, control , priv->type);
+		spcp8x5_set_ctrl_line(serial->dev, control , priv->type);
 	} else {
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
@@ -397,9 +402,9 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	if (cflag & PARENB) {
 		buf[1] |= (cflag & PARODD) ?
 		SET_UART_FORMAT_PAR_ODD : SET_UART_FORMAT_PAR_EVEN ;
-	} else
+	} else {
 		buf[1] |= SET_UART_FORMAT_PAR_NONE;
-
+	}
 	uartdata = buf[0] | buf[1]<<8;
 
 	i = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
@@ -412,13 +417,11 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 
 	if (cflag & CRTSCTS) {
 		/* enable hardware flow control */
-		spcp8x5_set_workMode(serial->dev, 0x000a,
+		spcp8x5_set_work_mode(serial->dev, 0x000a,
 				     SET_WORKING_MODE_U2C, priv->type);
 	}
 }
 
-/* open the serial port. do some usb system call. set termios and get the line
- * status of the device. */
 static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
@@ -438,7 +441,7 @@ static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (ret)
 		return ret;
 
-	spcp8x5_set_ctrlLine(serial->dev, priv->line_control , priv->type);
+	spcp8x5_set_ctrl_line(serial->dev, priv->line_control, priv->type);
 
 	/* Setup termios */
 	if (tty)
@@ -476,7 +479,7 @@ static int spcp8x5_tiocmset(struct tty_struct *tty,
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return spcp8x5_set_ctrlLine(port->serial->dev, control , priv->type);
+	return spcp8x5_set_ctrl_line(port->serial->dev, control, priv->type);
 }
 
 static int spcp8x5_tiocmget(struct tty_struct *tty)
@@ -503,7 +506,6 @@ static int spcp8x5_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-/* All of the device info needed for the spcp8x5 SIO serial converter */
 static struct usb_serial_driver spcp8x5_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -511,13 +513,13 @@ static struct usb_serial_driver spcp8x5_device = {
 	},
 	.id_table		= id_table,
 	.num_ports		= 1,
-	.open 			= spcp8x5_open,
+	.open			= spcp8x5_open,
 	.dtr_rts		= spcp8x5_dtr_rts,
 	.carrier_raised		= spcp8x5_carrier_raised,
-	.set_termios 		= spcp8x5_set_termios,
+	.set_termios		= spcp8x5_set_termios,
 	.init_termios		= spcp8x5_init_termios,
-	.tiocmget 		= spcp8x5_tiocmget,
-	.tiocmset 		= spcp8x5_tiocmset,
+	.tiocmget		= spcp8x5_tiocmget,
+	.tiocmset		= spcp8x5_tiocmset,
 	.port_probe		= spcp8x5_port_probe,
 	.port_remove		= spcp8x5_port_remove,
 };
