@@ -620,6 +620,8 @@ struct ip_vs_conn {
 	const struct ip_vs_pe	*pe;
 	char			*pe_data;
 	__u8			pe_data_len;
+
+	struct rcu_head		rcu_head;
 };
 
 /*
@@ -1185,9 +1187,19 @@ struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
 					     const struct ip_vs_iphdr *iph,
 					     int inverse);
 
+/* Get reference to gain full access to conn.
+ * By default, RCU read-side critical sections have access only to
+ * conn fields and its PE data, see ip_vs_conn_rcu_free() for reference.
+ */
+static inline bool __ip_vs_conn_get(struct ip_vs_conn *cp)
+{
+	return atomic_inc_not_zero(&cp->refcnt);
+}
+
 /* put back the conn without restarting its timer */
 static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
 {
+	smp_mb__before_atomic_dec();
 	atomic_dec(&cp->refcnt);
 }
 extern void ip_vs_conn_put(struct ip_vs_conn *cp);
