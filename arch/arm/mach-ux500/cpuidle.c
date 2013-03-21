@@ -30,8 +30,6 @@ static inline int ux500_enter_idle(struct cpuidle_device *dev,
 	int this_cpu = smp_processor_id();
 	bool recouple = false;
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &this_cpu);
-
 	if (atomic_inc_return(&master) == num_online_cpus()) {
 
 		/* With this lock, we prevent the other cpu to exit and enter
@@ -91,8 +89,6 @@ out:
 		spin_unlock(&master_lock);
 	}
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &this_cpu);
-
 	return index;
 }
 
@@ -106,7 +102,8 @@ static struct cpuidle_driver ux500_idle_driver = {
 			.enter		  = ux500_enter_idle,
 			.exit_latency	  = 70,
 			.target_residency = 260,
-			.flags		  = CPUIDLE_FLAG_TIME_VALID,
+			.flags		  = CPUIDLE_FLAG_TIME_VALID |
+			                    CPUIDLE_FLAG_TIMER_STOP,
 			.name		  = "ApIdle",
 			.desc		  = "ARM Retention",
 		},
