@@ -542,27 +542,30 @@ static void usb_serial_port_work(struct work_struct *work)
 	tty_kref_put(tty);
 }
 
-static void kill_traffic(struct usb_serial_port *port)
+static void usb_serial_port_poison_urbs(struct usb_serial_port *port)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i)
-		usb_kill_urb(port->read_urbs[i]);
+		usb_poison_urb(port->read_urbs[i]);
 	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
-		usb_kill_urb(port->write_urbs[i]);
-	/*
-	 * This is tricky.
-	 * Some drivers submit the read_urb in the
-	 * handler for the write_urb or vice versa
-	 * this order determines the order in which
-	 * usb_kill_urb() must be used to reliably
-	 * kill the URBs. As it is unknown here,
-	 * both orders must be used in turn.
-	 * The call below is not redundant.
-	 */
-	usb_kill_urb(port->read_urb);
-	usb_kill_urb(port->interrupt_in_urb);
-	usb_kill_urb(port->interrupt_out_urb);
+		usb_poison_urb(port->write_urbs[i]);
+
+	usb_poison_urb(port->interrupt_in_urb);
+	usb_poison_urb(port->interrupt_out_urb);
+}
+
+static void usb_serial_port_unpoison_urbs(struct usb_serial_port *port)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i)
+		usb_unpoison_urb(port->read_urbs[i]);
+	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
+		usb_unpoison_urb(port->write_urbs[i]);
+
+	usb_unpoison_urb(port->interrupt_in_urb);
+	usb_unpoison_urb(port->interrupt_out_urb);
 }
 
 static void usb_serial_port_release(struct device *dev)
@@ -1082,7 +1085,7 @@ static void usb_serial_disconnect(struct usb_interface *interface)
 				tty_vhangup(tty);
 				tty_kref_put(tty);
 			}
-			kill_traffic(port);
+			usb_serial_port_poison_urbs(port);
 			cancel_work_sync(&port->work);
 			if (device_is_registered(&port->dev))
 				device_del(&port->dev);
@@ -1120,7 +1123,7 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		if (port)
-			kill_traffic(port);
+			usb_serial_port_poison_urbs(port);
 	}
 
 err_out:
@@ -1128,10 +1131,24 @@ err_out:
 }
 EXPORT_SYMBOL(usb_serial_suspend);
 
+static void usb_serial_unpoison_port_urbs(struct usb_serial *serial)
+{
+	struct usb_serial_port *port;
+	int i;
+
+	for (i = 0; i < serial->num_ports; ++i) {
+		port = serial->port[i];
+		if (port)
+			usb_serial_port_unpoison_urbs(port);
+	}
+}
+
 int usb_serial_resume(struct usb_interface *intf)
 {
 	struct usb_serial *serial = usb_get_intfdata(intf);
 	int rv;
+
+	usb_serial_unpoison_port_urbs(serial);
 
 	serial->suspending = 0;
 	if (serial->type->resume)
@@ -1147,6 +1164,8 @@ static int usb_serial_reset_resume(struct usb_interface *intf)
 {
 	struct usb_serial *serial = usb_get_intfdata(intf);
 	int rv;
+
+	usb_serial_unpoison_port_urbs(serial);
 
 	serial->suspending = 0;
 	if (serial->type->reset_resume)
