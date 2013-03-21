@@ -57,8 +57,8 @@ struct smscore_client_t {
 	struct list_head entry;
 	struct smscore_device_t *coredev;
 	void			*context;
-	struct list_head 	idlist;
-	onresponse_t	onresponse_handler;
+	struct list_head	idlist;
+	onresponse_t		onresponse_handler;
 	onremove_t		onremove_handler;
 };
 
@@ -874,7 +874,7 @@ int smscore_configure_board(struct smscore_device_t *coredev)
  * sets initial device mode and notifies client hotplugs that device is ready
  *
  * @param coredev pointer to a coredev object returned by
- * 		  smscore_register_device
+ *		  smscore_register_device
  *
  * @return 0 on success, <0 on error.
  */
@@ -961,7 +961,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	while (size && rc >= 0) {
 		struct sms_data_download *data_msg =
 			(struct sms_data_download *) msg;
-		int payload_size = min((int) size, SMS_MAX_PAYLOAD_SIZE);
+		int payload_size = min_t(int, size, SMS_MAX_PAYLOAD_SIZE);
 
 		SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_DATA_DOWNLOAD_REQ,
 			     (u16)(sizeof(struct sms_msg_hdr) +
@@ -1225,8 +1225,7 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 		if (num_buffers == coredev->num_buffers)
 			break;
 		if (++retry > 10) {
-			sms_info("exiting although "
-				 "not all buffers released.");
+			sms_info("exiting although not all buffers released.");
 			break;
 		}
 
@@ -1279,8 +1278,8 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
 				coredev, msg, msg->msg_length,
 				&coredev->version_ex_done);
 			if (rc < 0)
-				sms_err("MSG_SMS_GET_VERSION_EX_REQ failed "
-					"second try, rc %d", rc);
+				sms_err("MSG_SMS_GET_VERSION_EX_REQ failed second try, rc %d",
+					rc);
 		} else
 			rc = -ETIME;
 	}

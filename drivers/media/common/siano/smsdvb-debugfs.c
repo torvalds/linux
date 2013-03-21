@@ -112,7 +112,7 @@ void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
 		      "burst_cycle_time = %d\n", p->burst_cycle_time);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "calc_burst_cycle_time = %d\n",
-	              p->calc_burst_cycle_time);
+		      p->calc_burst_cycle_time);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "num_of_rows = %d\n", p->num_of_rows);
 	n += snprintf(&buf[n], PAGE_SIZE - n,
@@ -509,8 +509,6 @@ void smsdvb_debugfs_release(struct smsdvb_client_t *client)
 	if (!client->debugfs)
 		return;
 
-printk("%s\n", __func__);
-
 	client->prt_dvb_stats     = NULL;
 	client->prt_isdb_stats    = NULL;
 	client->prt_isdb_stats_ex = NULL;
@@ -548,7 +546,6 @@ int smsdvb_debugfs_register(void)
 
 void smsdvb_debugfs_unregister(void)
 {
-	if (smsdvb_debugfs_usb_root)
-		debugfs_remove_recursive(smsdvb_debugfs_usb_root);
+	debugfs_remove_recursive(smsdvb_debugfs_usb_root);
 	smsdvb_debugfs_usb_root = NULL;
 }
