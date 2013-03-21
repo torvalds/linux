@@ -22,6 +22,8 @@
 #ifndef AF9033_H
 #define AF9033_H
 
+#include <linux/kconfig.h>
+
 struct af9033_config {
 	/*
 	 * I2C address
@@ -76,8 +78,7 @@ struct af9033_config {
 };
 
 
-#if defined(CONFIG_DVB_AF9033) || \
-	(defined(CONFIG_DVB_AF9033_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_AF9033)
 extern struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 	struct i2c_adapter *i2c);
 #else

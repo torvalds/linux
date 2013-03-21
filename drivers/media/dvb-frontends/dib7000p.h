@@ -1,6 +1,8 @@
 #ifndef DIB7000P_H
 #define DIB7000P_H
 
+#include <linux/kconfig.h>
+
 #include "dibx000_common.h"
 
 struct dib7000p_config {
@@ -44,8 +46,7 @@ struct dib7000p_config {
 
 #define DEFAULT_DIB7000P_I2C_ADDRESS 18
 
-#if defined(CONFIG_DVB_DIB7000P) || (defined(CONFIG_DVB_DIB7000P_MODULE) && \
-					defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_DIB7000P)
 extern struct dvb_frontend *dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg);
 extern struct i2c_adapter *dib7000p_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 extern int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[]);

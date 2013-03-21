@@ -21,6 +21,7 @@
 #ifndef RTL2832_H
 #define RTL2832_H
 
+#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct rtl2832_config {
@@ -54,8 +55,7 @@ struct rtl2832_config {
 	u8 tuner;
 };
 
-#if defined(CONFIG_DVB_RTL2832) || \
-	(defined(CONFIG_DVB_RTL2832_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_RTL2832)
 extern struct dvb_frontend *rtl2832_attach(
 	const struct rtl2832_config *cfg,
 	struct i2c_adapter *i2c

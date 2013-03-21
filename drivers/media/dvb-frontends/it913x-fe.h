@@ -21,6 +21,7 @@
 #ifndef IT913X_FE_H
 #define IT913X_FE_H
 
+#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
@@ -38,8 +39,7 @@ struct ite_config {
 	u8 read_slevel;
 };
 
-#if defined(CONFIG_DVB_IT913X_FE) || (defined(CONFIG_DVB_IT913X_FE_MODULE) && \
-defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_IT913X_FE)
 extern struct dvb_frontend *it913x_fe_attach(struct i2c_adapter *i2c_adap,
 			u8 i2c_addr, struct ite_config *config);
 #else
