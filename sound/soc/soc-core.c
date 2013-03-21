@@ -4169,7 +4169,15 @@ int snd_soc_register_component(struct device *dev,
 	cmpnt->driver	= cmpnt_drv;
 	cmpnt->num_dai	= num_dai;
 
-	ret = snd_soc_register_dais(dev, dai_drv, num_dai);
+	/*
+	 * snd_soc_register_dai()  uses fmt_single_name(), and
+	 * snd_soc_register_dais() uses fmt_multiple_name()
+	 * for dai->name which is used for name based matching
+	 */
+	if (1 == num_dai)
+		ret = snd_soc_register_dai(dev, dai_drv);
+	else
+		ret = snd_soc_register_dais(dev, dai_drv, num_dai);
 	if (ret < 0) {
 		dev_err(dev, "ASoC: Failed to regster DAIs: %d\n", ret);
 		goto error_component_name;
