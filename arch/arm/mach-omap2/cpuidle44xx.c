@@ -82,7 +82,6 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 			int index)
 {
 	struct omap4_idle_statedata *cx = &omap4_idle_data[index];
-	int cpu_id = smp_processor_id();
 
 	local_fiq_disable();
 
@@ -108,8 +107,6 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 
 		}
 	}
-
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu_id);
 
 	/*
 	 * Call idle CPU PM enter notifier chain so that
@@ -152,8 +149,6 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 	if (omap4_mpuss_read_prev_context_state())
 		cpu_cluster_pm_exit();
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu_id);
-
 fail:
 	cpuidle_coupled_parallel_barrier(dev, &abort_barrier);
 	cpu_done[dev->cpu] = false;
@@ -193,7 +188,8 @@ static struct cpuidle_driver omap4_idle_driver = {
 			/* C2 - CPU0 OFF + CPU1 OFF + MPU CSWR */
 			.exit_latency = 328 + 440,
 			.target_residency = 960,
-			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED,
+			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED |
+			         CPUIDLE_FLAG_TIMER_STOP,
 			.enter = omap4_enter_idle_coupled,
 			.name = "C2",
 			.desc = "MPUSS CSWR",
@@ -202,7 +198,8 @@ static struct cpuidle_driver omap4_idle_driver = {
 			/* C3 - CPU0 OFF + CPU1 OFF + MPU OSWR */
 			.exit_latency = 460 + 518,
 			.target_residency = 1100,
-			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED,
+			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED |
+			         CPUIDLE_FLAG_TIMER_STOP,
 			.enter = omap4_enter_idle_coupled,
 			.name = "C3",
 			.desc = "MPUSS OSWR",
