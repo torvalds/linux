@@ -562,6 +562,7 @@ config ARCH_DOVE
 	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
 	select USB_ARCH_HAS_EHCI
+	select MVEBU_MBUS
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
