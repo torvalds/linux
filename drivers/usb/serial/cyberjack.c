@@ -166,11 +166,8 @@ static int  cyberjack_open(struct tty_struct *tty,
 
 static void cyberjack_close(struct usb_serial_port *port)
 {
-	if (port->serial->dev) {
-		/* shutdown any bulk reads that might be going on */
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->read_urb);
-	}
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->read_urb);
 }
 
 static int cyberjack_write(struct tty_struct *tty,
