@@ -21,10 +21,6 @@ static DEFINE_SPINLOCK(master_lock);
 static int imx6q_enter_wait(struct cpuidle_device *dev,
 			    struct cpuidle_driver *drv, int index)
 {
-	int cpu = dev->cpu;
-
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
-
 	if (atomic_inc_return(&master) == num_online_cpus()) {
 		/*
 		 * With this lock, we prevent other cpu to exit and enter
@@ -43,7 +39,6 @@ idle:
 	cpu_do_idle();
 done:
 	atomic_dec(&master);
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
 
 	return index;
 }
@@ -70,7 +65,8 @@ static struct cpuidle_driver imx6q_cpuidle_driver = {
 		{
 			.exit_latency = 50,
 			.target_residency = 75,
-			.flags = CPUIDLE_FLAG_TIME_VALID,
+			.flags = CPUIDLE_FLAG_TIME_VALID |
+			         CPUIDLE_FLAG_TIMER_STOP,
 			.enter = imx6q_enter_wait,
 			.name = "WAIT",
 			.desc = "Clock off",
