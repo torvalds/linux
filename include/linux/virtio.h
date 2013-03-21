@@ -58,12 +58,6 @@ void *virtqueue_detach_unused_buf(struct virtqueue *vq);
 
 unsigned int virtqueue_get_vring_size(struct virtqueue *vq);
 
-/* FIXME: Obsolete accessor, but required for virtio_net merge. */
-static inline unsigned int virtqueue_get_queue_index(struct virtqueue *vq)
-{
-	return vq->index;
-}
-
 /**
  * virtio_device - representation of a device using virtio
  * @index: unique position on the virtio bus
