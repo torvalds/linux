@@ -676,7 +676,7 @@ struct sms_firmware {
 
 /* statistics information returned as response for
  * SmsHostApiGetstatistics_Req */
-struct SMSHOSTLIB_STATISTICS_ST {
+struct sms_stats {
 	u32 reserved;		/* reserved */
 
 	/* Common parameters */
@@ -764,7 +764,7 @@ struct SMSHOSTLIB_STATISTICS_ST {
 struct sms_msg_statistics_info {
 	u32 request_result;
 
-	struct SMSHOSTLIB_STATISTICS_ST stat;
+	struct sms_stats stat;
 
 	/* Split the calc of the SNR in DAB */
 	u32 signal; /* dB */
@@ -772,7 +772,7 @@ struct sms_msg_statistics_info {
 
 };
 
-struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST {
+struct sms_isdbt_layer_stats {
 	/* Per-layer information */
 	u32 code_rate; /* Code Rate from SMSHOSTLIB_CODE_RATE_ET,
 		       * 255 means layer does not exist */
@@ -792,7 +792,7 @@ struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST {
 	u32 tmcc_errors; /* TMCC errors */
 };
 
-struct SMSHOSTLIB_STATISTICS_ISDBT_ST {
+struct sms_isdbt_stats {
 	u32 statistics_type; /* Enumerator identifying the type of the
 				* structure.  Values are the same as
 				* SMSHOSTLIB_DEVICE_MODES_E
@@ -827,14 +827,14 @@ struct SMSHOSTLIB_STATISTICS_ISDBT_ST {
 
 	/* Per-layer information */
 	/* Layers A, B and C */
-	struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST	LayerInfo[3];
-	/* Per-layer statistics, see SMSHOSTLIB_ISDBT_LAYER_STAT_ST */
+	struct sms_isdbt_layer_stats	LayerInfo[3];
+	/* Per-layer statistics, see sms_isdbt_layer_stats */
 
 	/* Interface information */
 	u32 sms_to_host_tx_errors; /* Total number of transmission errors. */
 };
 
-struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST {
+struct sms_isdbt_stats_ex {
 	u32 statistics_type; /* Enumerator identifying the type of the
 				* structure.  Values are the same as
 				* SMSHOSTLIB_DEVICE_MODES_E
@@ -872,8 +872,8 @@ struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST {
 
 	/* Per-layer information */
 	/* Layers A, B and C */
-	struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST	LayerInfo[3];
-	/* Per-layer statistics, see SMSHOSTLIB_ISDBT_LAYER_STAT_ST */
+	struct sms_isdbt_layer_stats	LayerInfo[3];
+	/* Per-layer statistics, see sms_isdbt_layer_stats */
 
 	/* Interface information */
 	u32 reserved1;    /* Was sms_to_host_tx_errors - obsolete . */
@@ -894,7 +894,7 @@ struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST {
 };
 
 
-struct PID_STATISTICS_DATA_S {
+struct sms_pid_stats_data {
 	struct PID_BURST_S {
 		u32 size;
 		u32 padding_cols;
@@ -909,10 +909,10 @@ struct PID_STATISTICS_DATA_S {
 	u32 tot_cor_tbl;
 };
 
-struct PID_DATA_S {
+struct sms_pid_data {
 	u32 pid;
 	u32 num_rows;
-	struct PID_STATISTICS_DATA_S pid_statistics;
+	struct sms_pid_stats_data pid_statistics;
 };
 
 #define CORRECT_STAT_RSSI(_stat) ((_stat).RSSI *= -1)
@@ -925,7 +925,7 @@ struct PID_DATA_S {
 		else \
 			_stat.transmission_mode = 4;
 
-struct TRANSMISSION_STATISTICS_S {
+struct sms_tx_stats {
 	u32 frequency;		/* frequency in Hz */
 	u32 bandwidth;		/* bandwidth in MHz */
 	u32 transmission_mode;	/* FFT mode carriers in Kilos */
@@ -948,7 +948,7 @@ struct TRANSMISSION_STATISTICS_S {
 	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
 };
 
-struct RECEPTION_STATISTICS_S {
+struct sms_rx_stats {
 	u32 is_rf_locked;		/* 0 - not locked, 1 - locked */
 	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
 	u32 is_external_lna_on;	/* 0 - external LNA off, 1 - external LNA on */
@@ -974,7 +974,7 @@ struct RECEPTION_STATISTICS_S {
 	s32 mrc_in_band_pwr;	/* In band power in dBM */
 };
 
-struct RECEPTION_STATISTICS_EX_S {
+struct sms_rx_stats_ex {
 	u32 is_rf_locked;		/* 0 - not locked, 1 - locked */
 	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
 	u32 is_external_lna_on;	/* 0 - external LNA off, 1 - external LNA on */
@@ -1006,33 +1006,33 @@ struct RECEPTION_STATISTICS_EX_S {
 
 /* statistics information returned as response for
  * SmsHostApiGetstatisticsEx_Req for DVB applications, SMS1100 and up */
-struct SMSHOSTLIB_STATISTICS_DVB_S {
+struct sms_stats_dvb {
 	/* Reception */
-	struct RECEPTION_STATISTICS_S reception_data;
+	struct sms_rx_stats reception_data;
 
 	/* Transmission parameters */
-	struct TRANSMISSION_STATISTICS_S transmission_data;
+	struct sms_tx_stats transmission_data;
 
 	/* Burst parameters, valid only for DVB-H */
 #define	SRVM_MAX_PID_FILTERS 8
-	struct PID_DATA_S pid_data[SRVM_MAX_PID_FILTERS];
+	struct sms_pid_data pid_data[SRVM_MAX_PID_FILTERS];
 };
 
 /* statistics information returned as response for
  * SmsHostApiGetstatisticsEx_Req for DVB applications, SMS1100 and up */
-struct SMSHOSTLIB_STATISTICS_DVB_EX_S {
+struct sms_stats_dvb_ex {
 	/* Reception */
-	struct RECEPTION_STATISTICS_EX_S reception_data;
+	struct sms_rx_stats_ex reception_data;
 
 	/* Transmission parameters */
-	struct TRANSMISSION_STATISTICS_S transmission_data;
+	struct sms_tx_stats transmission_data;
 
 	/* Burst parameters, valid only for DVB-H */
 #define	SRVM_MAX_PID_FILTERS 8
-	struct PID_DATA_S pid_data[SRVM_MAX_PID_FILTERS];
+	struct sms_pid_data pid_data[SRVM_MAX_PID_FILTERS];
 };
 
-struct SRVM_SIGNAL_STATUS_S {
+struct sms_srvm_signal_status {
 	u32 result;
 	u32 snr;
 	u32 ts_packets;
@@ -1048,14 +1048,14 @@ struct SRVM_SIGNAL_STATUS_S {
 	u32 request_id;
 };
 
-struct SMSHOSTLIB_I2C_REQ_ST {
+struct sms_i2c_req {
 	u32	device_address; /* I2c device address */
 	u32	write_count; /* number of bytes to write */
 	u32	read_count; /* number of bytes to read */
 	u8	Data[1];
 };
 
-struct SMSHOSTLIB_I2C_RES_ST {
+struct sms_i2c_res {
 	u32	status; /* non-zero value in case of failure */
 	u32	read_count; /* number of bytes read */
 	u8	Data[1];

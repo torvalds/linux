@@ -49,7 +49,7 @@ struct smsdvb_debugfs {
 };
 
 void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
-			    struct SMSHOSTLIB_STATISTICS_ST *p)
+			    struct sms_stats *p)
 {
 	int n = 0;
 	char *buf;
@@ -152,7 +152,7 @@ void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
 }
 
 void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
-			     struct SMSHOSTLIB_STATISTICS_ISDBT_ST *p)
+			     struct sms_isdbt_stats *p)
 {
 	int i, n = 0;
 	char *buf;
@@ -242,7 +242,7 @@ void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
 }
 
 void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
-				struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST *p)
+				struct sms_isdbt_stats_ex *p)
 {
 	int i, n = 0;
 	char *buf;

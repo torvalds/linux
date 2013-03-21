@@ -19,14 +19,14 @@ struct smsdvb_debugfs;
 struct smsdvb_client_t;
 
 typedef void (*sms_prt_dvb_stats_t)(struct smsdvb_debugfs *debug_data,
-				    struct SMSHOSTLIB_STATISTICS_ST *p);
+				    struct sms_stats *p);
 
 typedef void (*sms_prt_isdb_stats_t)(struct smsdvb_debugfs *debug_data,
-				     struct SMSHOSTLIB_STATISTICS_ISDBT_ST *p);
+				     struct sms_isdbt_stats *p);
 
 typedef void (*sms_prt_isdb_stats_ex_t)
 			(struct smsdvb_debugfs *debug_data,
-			 struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST *p);
+			 struct sms_isdbt_stats_ex *p);
 
 
 struct smsdvb_client_t {
@@ -68,7 +68,8 @@ struct smsdvb_client_t {
 };
 
 /*
- * This struct is a mix of RECEPTION_STATISTICS_EX_S and SRVM_SIGNAL_STATUS_S.
+ * This struct is a mix of struct sms_rx_stats_ex and
+ * struct sms_srvm_signal_status.
  * It was obtained by comparing the way it was filled by the original code
  */
 struct RECEPTION_STATISTICS_PER_SLICES_S {

@@ -223,7 +223,7 @@ static inline u32 sms_to_bw(u32 value)
 			   FEC_NONE);
 
 static void smsdvb_update_tx_params(struct smsdvb_client_t *client,
-				    struct TRANSMISSION_STATISTICS_S *p)
+				    struct sms_tx_stats *p)
 {
 	struct dvb_frontend *fe = &client->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -277,7 +277,7 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 }
 
 static void smsdvb_update_dvb_stats(struct smsdvb_client_t *client,
-				    struct SMSHOSTLIB_STATISTICS_ST *p)
+				    struct sms_stats *p)
 {
 	struct dvb_frontend *fe = &client->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -329,11 +329,11 @@ static void smsdvb_update_dvb_stats(struct smsdvb_client_t *client,
 };
 
 static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
-				      struct SMSHOSTLIB_STATISTICS_ISDBT_ST *p)
+				      struct sms_isdbt_stats *p)
 {
 	struct dvb_frontend *fe = &client->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST *lr;
+	struct sms_isdbt_layer_stats *lr;
 	int i, n_layers;
 
 	if (client->prt_isdb_stats)
@@ -425,11 +425,11 @@ static void smsdvb_update_isdbt_stats(struct smsdvb_client_t *client,
 }
 
 static void smsdvb_update_isdbt_stats_ex(struct smsdvb_client_t *client,
-					 struct SMSHOSTLIB_STATISTICS_ISDBT_EX_ST *p)
+					 struct sms_isdbt_stats_ex *p)
 {
 	struct dvb_frontend *fe = &client->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct SMSHOSTLIB_ISDBT_LAYER_STAT_ST *lr;
+	struct sms_isdbt_layer_stats *lr;
 	int i, n_layers;
 
 	if (client->prt_isdb_stats_ex)
