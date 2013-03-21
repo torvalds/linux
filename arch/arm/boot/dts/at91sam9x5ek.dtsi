@@ -61,14 +61,6 @@
 				status = "okay";
 			};
 
-			i2c1: i2c@f8014000 {
-				status = "okay";
-			};
-
-			i2c2: i2c@f8018000 {
-				status = "okay";
-			};
-
 			pinctrl@fffff400 {
 				mmc0 {
 					pinctrl_board_mmc0: mmc0-board {
