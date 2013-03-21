@@ -600,6 +600,7 @@ config ARCH_ORION5X
 	select GENERIC_CLOCKEVENTS
 	select PCI
 	select PLAT_ORION_LEGACY
+	select MVEBU_MBUS
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),

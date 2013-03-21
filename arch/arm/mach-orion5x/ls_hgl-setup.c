@@ -243,8 +243,8 @@ static void __init ls_hgl_init(void)
 	orion5x_uart0_init();
 	orion5x_xor_init();
 
-	orion5x_setup_dev_boot_win(LS_HGL_NOR_BOOT_BASE,
-				   LS_HGL_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", LS_HGL_NOR_BOOT_BASE,
+			      LS_HGL_NOR_BOOT_SIZE);
 	platform_device_register(&ls_hgl_nor_flash);
 
 	platform_device_register(&ls_hgl_button_device);
