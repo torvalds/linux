@@ -147,7 +147,7 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 		int intr;
 
 		block_sigs(&oldset);
-		intr = wait_event_interruptible(fc->blocked_waitq,
+		intr = wait_event_interruptible_exclusive(fc->blocked_waitq,
 				!fuse_block_alloc(fc, for_background));
 		restore_sigs(&oldset);
 		err = -EINTR;
@@ -161,8 +161,11 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 
 	req = fuse_request_alloc(npages);
 	err = -ENOMEM;
-	if (!req)
+	if (!req) {
+		if (for_background)
+			wake_up(&fc->blocked_waitq);
 		goto out;
+	}
 
 	fuse_req_init_context(req);
 	req->waiting = 1;
@@ -262,6 +265,17 @@ struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	if (atomic_dec_and_test(&req->count)) {
+		if (unlikely(req->background)) {
+			/*
+			 * We get here in the unlikely case that a background
+			 * request was allocated but not sent
+			 */
+			spin_lock(&fc->lock);
+			if (!fc->blocked)
+				wake_up(&fc->blocked_waitq);
+			spin_unlock(&fc->lock);
+		}
+
 		if (req->waiting)
 			atomic_dec(&fc->num_waiting);
 
@@ -359,10 +373,15 @@ __releases(fc->lock)
 	list_del(&req->intr_entry);
 	req->state = FUSE_REQ_FINISHED;
 	if (req->background) {
-		if (fc->num_background == fc->max_background) {
+		req->background = 0;
+
+		if (fc->num_background == fc->max_background)
 			fc->blocked = 0;
-			wake_up_all(&fc->blocked_waitq);
-		}
+
+		/* Wake up next waiter, if any */
+		if (!fc->blocked)
+			wake_up(&fc->blocked_waitq);
+
 		if (fc->num_background == fc->congestion_threshold &&
 		    fc->connected && fc->bdi_initialized) {
 			clear_bdi_congested(&fc->bdi, BLK_RW_SYNC);
