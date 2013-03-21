@@ -2267,6 +2267,10 @@ static void evergreen_program_watermarks(struct radeon_device *rdev,
 	WREG32(PRIORITY_A_CNT + radeon_crtc->crtc_offset, priority_a_cnt);
 	WREG32(PRIORITY_B_CNT + radeon_crtc->crtc_offset, priority_b_cnt);
 
+	/* save values for DPM */
+	radeon_crtc->line_time = line_time;
+	radeon_crtc->wm_high = latency_watermark_a;
+	radeon_crtc->wm_low = latency_watermark_b;
 }
 
 /**

@@ -331,6 +331,10 @@ struct radeon_crtc {
 	u32 pll_flags;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	/* for dpm */
+	u32 line_time;
+	u32 wm_low;
+	u32 wm_high;
 };
 
 struct radeon_encoder_primary_dac {
