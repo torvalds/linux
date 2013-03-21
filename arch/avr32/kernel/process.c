@@ -30,18 +30,9 @@ EXPORT_SYMBOL(pm_power_off);
  * This file handles the architecture-dependent parts of process handling..
  */
 
-void cpu_idle(void)
+void arch_cpu_idle(void)
 {
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched())
-			cpu_idle_sleep();
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
-	}
+	cpu_enter_idle();
 }
 
 void machine_halt(void)
