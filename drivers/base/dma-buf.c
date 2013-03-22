@@ -77,22 +77,24 @@ static inline int is_dma_buf_file(struct file *file)
 }
 
 /**
- * dma_buf_export - Creates a new dma_buf, and associates an anon file
+ * dma_buf_export_named - Creates a new dma_buf, and associates an anon file
  * with this buffer, so it can be exported.
  * Also connect the allocator specific data and ops to the buffer.
+ * Additionally, provide a name string for exporter; useful in debugging.
  *
  * @priv:	[in]	Attach private data of allocator to this buffer
  * @ops:	[in]	Attach allocator-defined dma buf ops to the new buffer.
  * @size:	[in]	Size of the buffer
  * @flags:	[in]	mode flags for the file.
+ * @exp_name:	[in]	name of the exporting module - useful for debugging.
  *
  * Returns, on success, a newly created dma_buf object, which wraps the
  * supplied private data and operations for dma_buf_ops. On either missing
  * ops, or error in allocating struct dma_buf, will return negative error.
  *
  */
-struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
-				size_t size, int flags)
+struct dma_buf *dma_buf_export_named(void *priv, const struct dma_buf_ops *ops,
+				size_t size, int flags, const char *exp_name)
 {
 	struct dma_buf *dmabuf;
 	struct file *file;
@@ -114,6 +116,7 @@ struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
 	dmabuf->priv = priv;
 	dmabuf->ops = ops;
 	dmabuf->size = size;
+	dmabuf->exp_name = exp_name;
 
 	file = anon_inode_getfile("dmabuf", &dma_buf_fops, dmabuf, flags);
 
@@ -124,7 +127,7 @@ struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
 
 	return dmabuf;
 }
-EXPORT_SYMBOL_GPL(dma_buf_export);
+EXPORT_SYMBOL_GPL(dma_buf_export_named);
 
 
 /**
