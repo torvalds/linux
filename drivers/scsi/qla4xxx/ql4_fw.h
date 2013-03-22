@@ -288,6 +288,8 @@ union external_hw_config_reg {
 #define FA_GOLD_RISC_CODE_ADDR_82	0x80000
 #define FA_FLASH_ISCSI_CHAP		0x540000
 #define FA_FLASH_CHAP_SIZE		0xC0000
+#define FA_FLASH_ISCSI_DDB		0x420000
+#define FA_FLASH_DDB_SIZE		0x080000
 
 /* Flash Description Table */
 struct qla_fdt_layout {
@@ -348,6 +350,7 @@ struct qla_flt_header {
 #define FLT_REG_BOOT_CODE_82	0x78
 #define FLT_REG_ISCSI_PARAM	0x65
 #define FLT_REG_ISCSI_CHAP	0x63
+#define FLT_REG_ISCSI_DDB	0x6A
 
 struct qla_flt_region {
 	uint32_t code;
@@ -779,12 +782,41 @@ struct dev_db_entry {
 #define DDB_OPT_IPV6_NULL_LINK_LOCAL		0x800 /* post connection */
 #define DDB_OPT_IPV6_FW_DEFINED_LINK_LOCAL	0x800 /* pre connection */
 
+#define OPT_IS_FW_ASSIGNED_IPV6		11
+#define OPT_IPV6_DEVICE			8
+#define OPT_AUTO_SENDTGTS_DISABLE	6
+#define OPT_DISC_SESSION		4
+#define OPT_ENTRY_STATE			3
 	uint16_t exec_throttle;	/* 02-03 */
 	uint16_t exec_count;	/* 04-05 */
 	uint16_t res0;	/* 06-07 */
 	uint16_t iscsi_options;	/* 08-09 */
+#define ISCSIOPT_HEADER_DIGEST_EN		13
+#define ISCSIOPT_DATA_DIGEST_EN			12
+#define ISCSIOPT_IMMEDIATE_DATA_EN		11
+#define ISCSIOPT_INITIAL_R2T_EN			10
+#define ISCSIOPT_DATA_SEQ_IN_ORDER		9
+#define ISCSIOPT_DATA_PDU_IN_ORDER		8
+#define ISCSIOPT_CHAP_AUTH_EN			7
+#define ISCSIOPT_SNACK_REQ_EN			6
+#define ISCSIOPT_DISCOVERY_LOGOUT_EN		5
+#define ISCSIOPT_BIDI_CHAP_EN			4
+#define ISCSIOPT_DISCOVERY_AUTH_OPTIONAL	3
+#define ISCSIOPT_ERL1				1
+#define ISCSIOPT_ERL0				0
+
 	uint16_t tcp_options;	/* 0A-0B */
+#define TCPOPT_TIMESTAMP_STAT	6
+#define TCPOPT_NAGLE_DISABLE	5
+#define TCPOPT_WSF_DISABLE	4
+#define TCPOPT_TIMER_SCALE3	3
+#define TCPOPT_TIMER_SCALE2	2
+#define TCPOPT_TIMER_SCALE1	1
+#define TCPOPT_TIMESTAMP_EN	0
+
 	uint16_t ip_options;	/* 0C-0D */
+#define IPOPT_FRAGMENT_DISABLE	4
+
 	uint16_t iscsi_max_rcv_data_seg_len;	/* 0E-0F */
 #define BYTE_UNITS	512
 	uint32_t res1;	/* 10-13 */
@@ -816,6 +848,8 @@ struct dev_db_entry {
 					 * much RAM */
 	uint8_t link_local_ipv6_addr[0x10]; /* 1A0-1AF */
 	uint8_t res5[0x10];	/* 1B0-1BF */
+#define DDB_NO_LINK	0xFFFF
+#define DDB_ISNS	0xFFFD
 	uint16_t ddb_link;	/* 1C0-1C1 */
 	uint16_t chap_tbl_idx;	/* 1C2-1C3 */
 	uint16_t tgt_portal_grp; /* 1C4-1C5 */
