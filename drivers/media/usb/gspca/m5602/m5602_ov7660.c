@@ -96,7 +96,7 @@ sensor_found:
 
 int ov7660_init(struct sd *sd)
 {
-	int i, err = 0;
+	int i, err;
 
 	/* Init the sensor */
 	for (i = 0; i < ARRAY_SIZE(init_ov7660); i++) {
@@ -111,6 +111,8 @@ int ov7660_init(struct sd *sd)
 			err = m5602_write_sensor(sd,
 				init_ov7660[i][1], data, 1);
 		}
+		if (err < 0)
+			return err;
 	}
 
 	if (dump_sensor)
