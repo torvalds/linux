@@ -52,11 +52,6 @@
 				status = "okay";
 			};
 
-			macb0: ethernet@f802c000 {
-				phy-mode = "rmii";
-				status = "okay";
-			};
-
 			i2c0: i2c@f8010000 {
 				status = "okay";
 			};
