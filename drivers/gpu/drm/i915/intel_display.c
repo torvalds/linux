@@ -9420,7 +9420,7 @@ intel_display_print_error_state(struct seq_file *m,
 		if (INTEL_INFO(dev)->gen <= 3)
 			seq_printf(m, "  SIZE: %08x\n", error->plane[i].size);
 		seq_printf(m, "  POS: %08x\n", error->plane[i].pos);
-		if (!IS_HASWELL(dev))
+		if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
 			seq_printf(m, "  ADDR: %08x\n", error->plane[i].addr);
 		if (INTEL_INFO(dev)->gen >= 4) {
 			seq_printf(m, "  SURF: %08x\n", error->plane[i].surface);
