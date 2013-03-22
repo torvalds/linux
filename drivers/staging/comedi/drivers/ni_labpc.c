@@ -472,8 +472,10 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	devpriv->write_byte(devpriv->cmd4, dev->iobase + CMD4_REG);
 
 	/* initialize pacer counter to prevent any problems */
-	labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
-			       0, I8254_MODE2);
+	ret = labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+				     0, I8254_MODE2);
+	if (ret)
+		return ret;
 
 	labpc_clear_adc_fifo(dev);
 
@@ -901,14 +903,15 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
 					 1, 3, I8254_MODE0);
-		if (ret < 0) {
-			comedi_error(dev, "error loading counter a1");
-			return -1;
-		}
 	} else	{
 		/* just put counter a1 in mode 0 to set its output low */
-		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
-				       1, I8254_MODE0);
+		ret = labpc_counter_set_mode(dev,
+					     dev->iobase + COUNTER_A_BASE_REG,
+					     1, I8254_MODE0);
+	}
+	if (ret) {
+		comedi_error(dev, "error loading counter a1");
+		return ret;
 	}
 
 #ifdef CONFIG_ISA_DMA_API
@@ -972,14 +975,15 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*  load counter a0 in mode 2 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
 					 0, devpriv->divisor_a0, I8254_MODE2);
-		if (ret < 0) {
-			comedi_error(dev, "error loading counter a0");
-			return -1;
-		}
 	} else {
 		/* initialize pacer counter to prevent any problems */
-		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
-				       0, I8254_MODE2);
+		ret = labpc_counter_set_mode(dev,
+					     dev->iobase + COUNTER_A_BASE_REG,
+					     0, I8254_MODE2);
+	}
+	if (ret) {
+		comedi_error(dev, "error loading counter a0");
+		return ret;
 	}
 
 	/*  set up scan pacing */
