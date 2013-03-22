@@ -1591,10 +1591,13 @@ static int labpc_eeprom_insn_read(struct comedi_device *dev,
 				  unsigned int *data)
 {
 	struct labpc_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	data[0] = devpriv->eeprom_data[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->eeprom_data[chan];
 
-	return 1;
+	return insn->n;
 }
 
 int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
