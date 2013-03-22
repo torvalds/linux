@@ -57,7 +57,7 @@ struct ux500_dma_controller {
 };
 
 /* Work function invoked from DMA callback to handle rx transfers. */
-void ux500_dma_callback(void *private_data)
+static void ux500_dma_callback(void *private_data)
 {
 	struct dma_channel *channel = private_data;
 	struct ux500_dma_channel *ux500_channel = channel->private_data;
