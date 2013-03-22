@@ -638,8 +638,11 @@ static inline enum ip_defrag_users ip_vs_defrag_user(unsigned int hooknum)
 
 static inline int ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
-	int err = ip_defrag(skb, user);
+	int err;
 
+	local_bh_disable();
+	err = ip_defrag(skb, user);
+	local_bh_enable();
 	if (!err)
 		ip_send_check(ip_hdr(skb));
 
@@ -1217,13 +1220,7 @@ ip_vs_local_reply4(unsigned int hooknum, struct sk_buff *skb,
 		   const struct net_device *in, const struct net_device *out,
 		   int (*okfn)(struct sk_buff *))
 {
-	unsigned int verdict;
-
-	/* Disable BH in LOCAL_OUT until all places are fixed */
-	local_bh_disable();
-	verdict = ip_vs_out(hooknum, skb, AF_INET);
-	local_bh_enable();
-	return verdict;
+	return ip_vs_out(hooknum, skb, AF_INET);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1250,13 +1247,7 @@ ip_vs_local_reply6(unsigned int hooknum, struct sk_buff *skb,
 		   const struct net_device *in, const struct net_device *out,
 		   int (*okfn)(struct sk_buff *))
 {
-	unsigned int verdict;
-
-	/* Disable BH in LOCAL_OUT until all places are fixed */
-	local_bh_disable();
-	verdict = ip_vs_out(hooknum, skb, AF_INET6);
-	local_bh_enable();
-	return verdict;
+	return ip_vs_out(hooknum, skb, AF_INET6);
 }
 
 #endif
@@ -1714,13 +1705,7 @@ ip_vs_local_request4(unsigned int hooknum, struct sk_buff *skb,
 		     const struct net_device *in, const struct net_device *out,
 		     int (*okfn)(struct sk_buff *))
 {
-	unsigned int verdict;
-
-	/* Disable BH in LOCAL_OUT until all places are fixed */
-	local_bh_disable();
-	verdict = ip_vs_in(hooknum, skb, AF_INET);
-	local_bh_enable();
-	return verdict;
+	return ip_vs_in(hooknum, skb, AF_INET);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1779,13 +1764,7 @@ ip_vs_local_request6(unsigned int hooknum, struct sk_buff *skb,
 		     const struct net_device *in, const struct net_device *out,
 		     int (*okfn)(struct sk_buff *))
 {
-	unsigned int verdict;
-
-	/* Disable BH in LOCAL_OUT until all places are fixed */
-	local_bh_disable();
-	verdict = ip_vs_in(hooknum, skb, AF_INET6);
-	local_bh_enable();
-	return verdict;
+	return ip_vs_in(hooknum, skb, AF_INET6);
 }
 
 #endif

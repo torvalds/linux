@@ -352,14 +352,14 @@ static inline void vs_seq_update(struct ip_vs_conn *cp, struct ip_vs_seq *vseq,
 				 unsigned int flag, __u32 seq, int diff)
 {
 	/* spinlock is to keep updating cp->flags atomic */
-	spin_lock(&cp->lock);
+	spin_lock_bh(&cp->lock);
 	if (!(cp->flags & flag) || after(seq, vseq->init_seq)) {
 		vseq->previous_delta = vseq->delta;
 		vseq->delta += diff;
 		vseq->init_seq = seq;
 		cp->flags |= flag;
 	}
-	spin_unlock(&cp->lock);
+	spin_unlock_bh(&cp->lock);
 }
 
 static inline int app_tcp_pkt_out(struct ip_vs_conn *cp, struct sk_buff *skb,

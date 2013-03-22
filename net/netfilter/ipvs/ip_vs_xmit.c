@@ -177,22 +177,22 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 			rt = (struct rtable *) dest_dst->dst_cache;
 		else {
 			dest_dst = ip_vs_dest_dst_alloc();
-			spin_lock(&dest->dst_lock);
+			spin_lock_bh(&dest->dst_lock);
 			if (!dest_dst) {
 				__ip_vs_dst_set(dest, NULL, NULL, 0);
-				spin_unlock(&dest->dst_lock);
+				spin_unlock_bh(&dest->dst_lock);
 				goto err_unreach;
 			}
 			rt = do_output_route4(net, dest->addr.ip, rt_mode,
 					      &dest_dst->dst_saddr.ip);
 			if (!rt) {
 				__ip_vs_dst_set(dest, NULL, NULL, 0);
-				spin_unlock(&dest->dst_lock);
+				spin_unlock_bh(&dest->dst_lock);
 				ip_vs_dest_dst_free(dest_dst);
 				goto err_unreach;
 			}
 			__ip_vs_dst_set(dest, dest_dst, &rt->dst, 0);
-			spin_unlock(&dest->dst_lock);
+			spin_unlock_bh(&dest->dst_lock);
 			IP_VS_DBG(10, "new dst %pI4, src %pI4, refcnt=%d\n",
 				  &dest->addr.ip, &dest_dst->dst_saddr.ip,
 				  atomic_read(&rt->dst.__refcnt));
@@ -358,10 +358,10 @@ __ip_vs_get_out_rt_v6(struct sk_buff *skb, struct ip_vs_dest *dest,
 			u32 cookie;
 
 			dest_dst = ip_vs_dest_dst_alloc();
-			spin_lock(&dest->dst_lock);
+			spin_lock_bh(&dest->dst_lock);
 			if (!dest_dst) {
 				__ip_vs_dst_set(dest, NULL, NULL, 0);
-				spin_unlock(&dest->dst_lock);
+				spin_unlock_bh(&dest->dst_lock);
 				goto err_unreach;
 			}
 			dst = __ip_vs_route_output_v6(net, &dest->addr.in6,
@@ -369,14 +369,14 @@ __ip_vs_get_out_rt_v6(struct sk_buff *skb, struct ip_vs_dest *dest,
 						      do_xfrm);
 			if (!dst) {
 				__ip_vs_dst_set(dest, NULL, NULL, 0);
-				spin_unlock(&dest->dst_lock);
+				spin_unlock_bh(&dest->dst_lock);
 				ip_vs_dest_dst_free(dest_dst);
 				goto err_unreach;
 			}
 			rt = (struct rt6_info *) dst;
 			cookie = rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
 			__ip_vs_dst_set(dest, dest_dst, &rt->dst, cookie);
-			spin_unlock(&dest->dst_lock);
+			spin_unlock_bh(&dest->dst_lock);
 			IP_VS_DBG(10, "new dst %pI6, src %pI6, refcnt=%d\n",
 				  &dest->addr.in6, &dest_dst->dst_saddr.in6,
 				  atomic_read(&rt->dst.__refcnt));

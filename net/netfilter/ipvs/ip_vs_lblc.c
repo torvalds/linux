@@ -527,10 +527,10 @@ ip_vs_lblc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	}
 
 	/* If we fail to create a cache entry, we'll just use the valid dest */
-	spin_lock(&svc->sched_lock);
+	spin_lock_bh(&svc->sched_lock);
 	if (!tbl->dead)
 		ip_vs_lblc_new(tbl, &iph.daddr, dest);
-	spin_unlock(&svc->sched_lock);
+	spin_unlock_bh(&svc->sched_lock);
 
 out:
 	IP_VS_DBG_BUF(6, "LBLC: destination IP address %s --> server %s:%d\n",

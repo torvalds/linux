@@ -170,7 +170,7 @@ ip_vs_wrr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 
 	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
-	spin_lock(&svc->sched_lock);
+	spin_lock_bh(&svc->sched_lock);
 	dest = mark->cl;
 	/* No available dests? */
 	if (mark->mw == 0)
@@ -222,7 +222,7 @@ found:
 	mark->cl = dest;
 
   out:
-	spin_unlock(&svc->sched_lock);
+	spin_unlock_bh(&svc->sched_lock);
 	return dest;
 
 err_noavail:

@@ -86,14 +86,14 @@ struct ip_vs_aligned_lock
 static struct ip_vs_aligned_lock
 __ip_vs_conntbl_lock_array[CT_LOCKARRAY_SIZE] __cacheline_aligned;
 
-static inline void ct_write_lock(unsigned int key)
+static inline void ct_write_lock_bh(unsigned int key)
 {
-	spin_lock(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
+	spin_lock_bh(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static inline void ct_write_unlock(unsigned int key)
+static inline void ct_write_unlock_bh(unsigned int key)
 {
-	spin_unlock(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
+	spin_unlock_bh(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
 
@@ -167,7 +167,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 	/* Hash by protocol, client address and port */
 	hash = ip_vs_conn_hashkey_conn(cp);
 
-	ct_write_lock(hash);
+	ct_write_lock_bh(hash);
 	spin_lock(&cp->lock);
 
 	if (!(cp->flags & IP_VS_CONN_F_HASHED)) {
@@ -182,7 +182,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 	}
 
 	spin_unlock(&cp->lock);
-	ct_write_unlock(hash);
+	ct_write_unlock_bh(hash);
 
 	return ret;
 }
@@ -200,7 +200,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 	/* unhash it and decrease its reference counter */
 	hash = ip_vs_conn_hashkey_conn(cp);
 
-	ct_write_lock(hash);
+	ct_write_lock_bh(hash);
 	spin_lock(&cp->lock);
 
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
@@ -212,7 +212,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 		ret = 0;
 
 	spin_unlock(&cp->lock);
-	ct_write_unlock(hash);
+	ct_write_unlock_bh(hash);
 
 	return ret;
 }
@@ -227,7 +227,7 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 
 	hash = ip_vs_conn_hashkey_conn(cp);
 
-	ct_write_lock(hash);
+	ct_write_lock_bh(hash);
 	spin_lock(&cp->lock);
 
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
@@ -242,7 +242,7 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 		ret = atomic_read(&cp->refcnt) ? false : true;
 
 	spin_unlock(&cp->lock);
-	ct_write_unlock(hash);
+	ct_write_unlock_bh(hash);
 
 	return ret;
 }
@@ -462,13 +462,13 @@ void ip_vs_conn_put(struct ip_vs_conn *cp)
 void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport)
 {
 	if (ip_vs_conn_unhash(cp)) {
-		spin_lock(&cp->lock);
+		spin_lock_bh(&cp->lock);
 		if (cp->flags & IP_VS_CONN_F_NO_CPORT) {
 			atomic_dec(&ip_vs_conn_no_cport_cnt);
 			cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
 			cp->cport = cport;
 		}
-		spin_unlock(&cp->lock);
+		spin_unlock_bh(&cp->lock);
 
 		/* hash on new dport */
 		ip_vs_conn_hash(cp);
@@ -622,9 +622,9 @@ void ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	if (dest) {
 		struct ip_vs_proto_data *pd;
 
-		spin_lock(&cp->lock);
+		spin_lock_bh(&cp->lock);
 		if (cp->dest) {
-			spin_unlock(&cp->lock);
+			spin_unlock_bh(&cp->lock);
 			rcu_read_unlock();
 			return;
 		}
@@ -635,7 +635,7 @@ void ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 			ip_vs_unbind_app(cp);
 
 		ip_vs_bind_dest(cp, dest);
-		spin_unlock(&cp->lock);
+		spin_unlock_bh(&cp->lock);
 
 		/* Update its packet transmitter */
 		cp->packet_xmit = NULL;

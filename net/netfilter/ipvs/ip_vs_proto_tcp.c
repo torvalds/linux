@@ -557,9 +557,9 @@ tcp_state_transition(struct ip_vs_conn *cp, int direction,
 	if (th == NULL)
 		return;
 
-	spin_lock(&cp->lock);
+	spin_lock_bh(&cp->lock);
 	set_tcp_state(pd, cp, direction, th);
-	spin_unlock(&cp->lock);
+	spin_unlock_bh(&cp->lock);
 }
 
 static inline __u16 tcp_app_hashkey(__be16 port)
@@ -655,11 +655,11 @@ void ip_vs_tcp_conn_listen(struct net *net, struct ip_vs_conn *cp)
 {
 	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
 
-	spin_lock(&cp->lock);
+	spin_lock_bh(&cp->lock);
 	cp->state = IP_VS_TCP_S_LISTEN;
 	cp->timeout = (pd ? pd->timeout_table[IP_VS_TCP_S_LISTEN]
 			   : tcp_timeouts[IP_VS_TCP_S_LISTEN]);
-	spin_unlock(&cp->lock);
+	spin_unlock_bh(&cp->lock);
 }
 
 /* ---------------------------------------------

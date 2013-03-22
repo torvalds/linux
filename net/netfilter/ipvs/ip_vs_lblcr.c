@@ -678,7 +678,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		if (atomic_read(&en->set.size) > 1 &&
 		    time_after(jiffies, en->set.lastmod +
 				sysctl_lblcr_expiration(svc))) {
-			spin_lock(&svc->sched_lock);
+			spin_lock_bh(&svc->sched_lock);
 			if (atomic_read(&en->set.size) > 1) {
 				struct ip_vs_dest *m;
 
@@ -686,7 +686,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 				if (m)
 					ip_vs_dest_set_erase(&en->set, m);
 			}
-			spin_unlock(&svc->sched_lock);
+			spin_unlock_bh(&svc->sched_lock);
 		}
 
 		/* If the destination is not overloaded, use it */
@@ -701,10 +701,10 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		}
 
 		/* Update our cache entry */
-		spin_lock(&svc->sched_lock);
+		spin_lock_bh(&svc->sched_lock);
 		if (!tbl->dead)
 			ip_vs_dest_set_insert(&en->set, dest, true);
-		spin_unlock(&svc->sched_lock);
+		spin_unlock_bh(&svc->sched_lock);
 		goto out;
 	}
 
@@ -716,10 +716,10 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	}
 
 	/* If we fail to create a cache entry, we'll just use the valid dest */
-	spin_lock(&svc->sched_lock);
+	spin_lock_bh(&svc->sched_lock);
 	if (!tbl->dead)
 		ip_vs_lblcr_new(tbl, &iph.daddr, dest);
-	spin_unlock(&svc->sched_lock);
+	spin_unlock_bh(&svc->sched_lock);
 
 out:
 	IP_VS_DBG_BUF(6, "LBLCR: destination IP address %s --> server %s:%d\n",
