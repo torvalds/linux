@@ -1929,8 +1929,11 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 		if (rtnl_msg_handlers[idx] == NULL ||
 		    rtnl_msg_handlers[idx][type].dumpit == NULL)
 			continue;
-		if (idx > s_idx)
+		if (idx > s_idx) {
 			memset(&cb->args[0], 0, sizeof(cb->args));
+			cb->prev_seq = 0;
+			cb->seq = 0;
+		}
 		if (rtnl_msg_handlers[idx][type].dumpit(skb, cb))
 			break;
 	}
