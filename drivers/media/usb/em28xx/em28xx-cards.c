@@ -2229,8 +2229,9 @@ static unsigned short msp3400_addrs[] = {
 
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 {
+	struct em28xx_i2c_bus *i2c_bus = ptr;
+	struct em28xx *dev = i2c_bus->dev;
 	int rc = 0;
-	struct em28xx *dev = ptr;
 
 	if (dev->tuner_type != TUNER_XC2028 && dev->tuner_type != TUNER_XC5000)
 		return 0;
