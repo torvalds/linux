@@ -1007,7 +1007,7 @@ enum {
 	/* Primary DAC shared with main surrounds */
 	BAD_SHARED_SURROUND = 0x100,
 	/* No independent HP possible */
-	BAD_NO_INDEP_HP = 0x40,
+	BAD_NO_INDEP_HP = 0x10,
 	/* Primary DAC shared with main CLFE */
 	BAD_SHARED_CLFE = 0x10,
 	/* Primary DAC shared with extra surrounds */
