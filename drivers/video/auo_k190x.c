@@ -60,8 +60,8 @@ static void auok190x_issue_cmd(struct auok190xfb_par *par, u16 data)
 	par->board->set_ctl(par, AUOK190X_I80_DC, 1);
 }
 
-static int auok190x_issue_pixels(struct auok190xfb_par *par, int size,
-				 u16 *data)
+static int auok190x_issue_pixels_gray8(struct auok190xfb_par *par, int size,
+				       u16 *data)
 {
 	struct device *dev = par->info->device;
 	int i;
@@ -87,6 +87,21 @@ static int auok190x_issue_pixels(struct auok190xfb_par *par, int size,
 		par->board->set_hdb(par, tmp);
 		par->board->set_ctl(par, AUOK190X_I80_WR, 1);
 	}
+
+	return 0;
+}
+
+static int auok190x_issue_pixels(struct auok190xfb_par *par, int size,
+				 u16 *data)
+{
+	struct fb_info *info = par->info;
+	struct device *dev = par->info->device;
+
+	if (info->var.bits_per_pixel == 8 && info->var.grayscale)
+		auok190x_issue_pixels_gray8(par, size, data);
+	else
+		dev_err(dev, "unsupported color mode (bits: %d, gray: %d)\n",
+			info->var.bits_per_pixel, info->var.grayscale);
 
 	return 0;
 }
@@ -382,6 +397,35 @@ static int auok190xfb_check_var(struct fb_var_screeninfo *var,
 	int size;
 
 	/*
+	 * Color depth
+	 */
+
+	if (var->bits_per_pixel == 8 && var->grayscale == 1) {
+		/*
+		 * For 8-bit grayscale, R, G, and B offset are equal.
+		 */
+		var->red.length = 8;
+		var->red.offset = 0;
+		var->red.msb_right = 0;
+
+		var->green.length = 8;
+		var->green.offset = 0;
+		var->green.msb_right = 0;
+
+		var->blue.length = 8;
+		var->blue.offset = 0;
+		var->blue.msb_right = 0;
+
+		var->transp.length = 0;
+		var->transp.offset = 0;
+		var->transp.msb_right = 0;
+	} else {
+		dev_warn(dev, "unsupported color mode (bits: %d, grayscale: %d)\n",
+			info->var.bits_per_pixel, info->var.grayscale);
+		return -EINVAL;
+	}
+
+	/*
 	 * Dimensions
 	 */
 
@@ -406,6 +450,24 @@ static int auok190xfb_check_var(struct fb_var_screeninfo *var,
 			size >> 10);
 		return -ENOMEM;
 	}
+
+	return 0;
+}
+
+static int auok190xfb_set_fix(struct fb_info *info)
+{
+	struct fb_fix_screeninfo *fix = &info->fix;
+	struct fb_var_screeninfo *var = &info->var;
+
+	fix->line_length = var->xres_virtual * var->bits_per_pixel / 8;
+
+	fix->type = FB_TYPE_PACKED_PIXELS;
+	fix->accel = FB_ACCEL_NONE;
+	fix->visual = (var->grayscale) ? FB_VISUAL_STATIC_PSEUDOCOLOR
+				       : FB_VISUAL_TRUECOLOR;
+	fix->xpanstep = 0;
+	fix->ypanstep = 0;
+	fix->ywrapstep = 0;
 
 	return 0;
 }
@@ -894,18 +956,8 @@ int auok190x_common_probe(struct platform_device *pdev,
 	/* initialise fix, var, resolution and rotation */
 
 	strlcpy(info->fix.id, init->id, 16);
-	info->fix.type = FB_TYPE_PACKED_PIXELS;
-	info->fix.visual = FB_VISUAL_STATIC_PSEUDOCOLOR;
-	info->fix.xpanstep = 0;
-	info->fix.ypanstep = 0;
-	info->fix.ywrapstep = 0;
-	info->fix.accel = FB_ACCEL_NONE;
-
 	info->var.bits_per_pixel = 8;
 	info->var.grayscale = 1;
-	info->var.red.length = 8;
-	info->var.green.length = 8;
-	info->var.blue.length = 8;
 
 	panel = &panel_table[board->resolution];
 
@@ -933,8 +985,7 @@ int auok190x_common_probe(struct platform_device *pdev,
 	if (ret)
 		goto err_defio;
 
-	info->fix.line_length = info->var.xres_virtual *
-				info->var.bits_per_pixel / 8;
+	auok190xfb_set_fix(info);
 
 	/* deferred io init */
 
