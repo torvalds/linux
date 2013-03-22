@@ -846,10 +846,10 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static inline int labpc_counter_load(struct comedi_device *dev,
-				     unsigned long base_address,
-				     unsigned int counter_number,
-				     unsigned int count, unsigned int mode)
+static int labpc_counter_load(struct comedi_device *dev,
+			      unsigned long base_address,
+			      unsigned int counter_number,
+			      unsigned int count, unsigned int mode)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 
