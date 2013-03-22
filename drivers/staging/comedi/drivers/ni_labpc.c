@@ -365,8 +365,10 @@ static void labpc_clear_adc_fifo(const struct comedi_device *dev)
 	devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
 }
 
-static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int labpc_ai_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
@@ -1336,9 +1338,10 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/* analog output insn */
-static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int labpc_ao_insn_write(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
@@ -1378,9 +1381,10 @@ static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 1;
 }
 
-/* analog output readback insn */
-static int labpc_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int labpc_ao_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct labpc_private *devpriv = dev->private;
 
@@ -1602,9 +1606,10 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 	devpriv->write_byte(devpriv->cmd5, dev->iobase + COMMAND5_REG);
 }
 
-static int labpc_calib_write_insn(struct comedi_device *dev,
+static int labpc_calib_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 
@@ -1612,9 +1617,10 @@ static int labpc_calib_write_insn(struct comedi_device *dev,
 	return 1;
 }
 
-static int labpc_calib_read_insn(struct comedi_device *dev,
+static int labpc_calib_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct labpc_private *devpriv = dev->private;
 
@@ -1623,9 +1629,10 @@ static int labpc_calib_read_insn(struct comedi_device *dev,
 	return 1;
 }
 
-static int labpc_eeprom_write_insn(struct comedi_device *dev,
+static int labpc_eeprom_insn_write(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	int channel = CR_CHAN(insn->chanspec);
 	int ret;
@@ -1644,9 +1651,10 @@ static int labpc_eeprom_write_insn(struct comedi_device *dev,
 	return 1;
 }
 
-static int labpc_eeprom_read_insn(struct comedi_device *dev,
+static int labpc_eeprom_insn_read(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct labpc_private *devpriv = dev->private;
 
@@ -1760,7 +1768,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	s->range_table = board->ai_range_table;
 	s->do_cmd = labpc_ai_cmd;
 	s->do_cmdtest = labpc_ai_cmdtest;
-	s->insn_read = labpc_ai_rinsn;
+	s->insn_read = labpc_ai_insn_read;
 	s->cancel = labpc_cancel;
 
 	/* analog output */
@@ -1776,8 +1784,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		s->n_chan = NUM_AO_CHAN;
 		s->maxdata = (1 << 12) - 1;	/*  12 bit resolution */
 		s->range_table = &range_labpc_ao;
-		s->insn_read = labpc_ao_rinsn;
-		s->insn_write = labpc_ao_winsn;
+		s->insn_read = labpc_ao_insn_read;
+		s->insn_write = labpc_ao_insn_write;
 		/* initialize analog outputs to a known value */
 		for (i = 0; i < s->n_chan; i++) {
 			devpriv->ao_value[i] = s->maxdata / 2;
@@ -1807,8 +1815,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = 16;
 		s->maxdata = 0xff;
-		s->insn_read = labpc_calib_read_insn;
-		s->insn_write = labpc_calib_write_insn;
+		s->insn_read = labpc_calib_insn_read;
+		s->insn_write = labpc_calib_insn_write;
 
 		for (i = 0; i < s->n_chan; i++)
 			write_caldac(dev, i, s->maxdata / 2);
@@ -1822,8 +1830,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = EEPROM_SIZE;
 		s->maxdata = 0xff;
-		s->insn_read = labpc_eeprom_read_insn;
-		s->insn_write = labpc_eeprom_write_insn;
+		s->insn_read = labpc_eeprom_insn_read;
+		s->insn_write = labpc_eeprom_insn_write;
 
 		for (i = 0; i < EEPROM_SIZE; i++)
 			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
