@@ -413,7 +413,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	WARN_ON(status && open->op_created);
 out:
 	nfsd4_cleanup_open_state(open, status);
-	if (open->op_openowner)
+	if (open->op_openowner && !nfsd4_has_session(cstate))
 		cstate->replay_owner = &open->op_openowner->oo_owner;
 	nfsd4_bump_seqid(cstate, status);
 	if (!cstate->replay_owner)
