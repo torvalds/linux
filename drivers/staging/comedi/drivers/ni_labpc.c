@@ -206,6 +206,8 @@ NI manuals:
 #define   INIT_A1_BITS	0x70
 #define COUNTER_B_BASE_REG	0x18
 
+#define LABPC_ADC_TIMEOUT	1000
+
 enum scan_mode {
 	MODE_SINGLE_CHAN,
 	MODE_SINGLE_CHAN_INTERVAL,
@@ -453,6 +455,21 @@ static void labpc_clear_adc_fifo(struct comedi_device *dev)
 	labpc_read_adc_fifo(dev);
 }
 
+static int labpc_ai_wait_for_data(struct comedi_device *dev,
+				  int timeout)
+{
+	struct labpc_private *devpriv = dev->private;
+	int i;
+
+	for (i = 0; i < timeout; i++) {
+		devpriv->stat1 = devpriv->read_byte(dev->iobase + STATUS1_REG);
+		if (devpriv->stat1 & DATA_AVAIL_BIT)
+			return 0;
+		udelay(1);
+	}
+	return -ETIME;
+}
+
 static int labpc_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -462,8 +479,8 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
-	int timeout = 1000;
-	int i, n;
+	int ret;
+	int i;
 
 	/* disable timed conversions, interrupt generation and dma */
 	labpc_cancel(dev, s);
@@ -489,24 +506,18 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 
 	labpc_clear_adc_fifo(dev);
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		/* trigger conversion */
 		devpriv->write_byte(0x1, dev->iobase + ADC_CONVERT_REG);
 
-		for (i = 0; i < timeout; i++) {
-			if (devpriv->read_byte(dev->iobase +
-					       STATUS1_REG) & DATA_AVAIL_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
-		data[n] = labpc_read_adc_fifo(dev);
+		ret = labpc_ai_wait_for_data(dev, LABPC_ADC_TIMEOUT);
+		if (ret)
+			return ret;
+
+		data[i] = labpc_read_adc_fifo(dev);
 	}
 
-	return n;
+	return insn->n;
 }
 
 #ifdef CONFIG_ISA_DMA_API
