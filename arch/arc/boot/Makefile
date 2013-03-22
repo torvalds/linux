@@ -3,7 +3,6 @@ targets := vmlinux.bin vmlinux.bin.gz uImage
 # uImage build relies on mkimage being availble on your host for ARC target
 # You will need to build u-boot for ARC, rename mkimage to arc-elf32-mkimage
 # and make sure it's reacable from your PATH
-MKIMAGE := $(srctree)/scripts/mkuboot.sh
 
 OBJCOPYFLAGS= -O binary -R .note -R .note.gnu.build-id -R .comment -S
 
@@ -23,4 +22,3 @@ $(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 $(obj)/uImage: $(obj)/vmlinux.bin.gz FORCE
 	$(call if_changed,uimage)
 
-PHONY += FORCE

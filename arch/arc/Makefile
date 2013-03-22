@@ -96,11 +96,12 @@ drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
 
 libs-y		+= arch/arc/lib/ $(LIBGCC)
 
+boot		:= arch/arc/boot
+
 #default target for make without any arguements.
-KBUILD_IMAGE := bootpImage
+KBUILD_IMAGE	:= bootpImage
 
 all:	$(KBUILD_IMAGE)
-boot	:= arch/arc/boot
 
 bootpImage: vmlinux
 
