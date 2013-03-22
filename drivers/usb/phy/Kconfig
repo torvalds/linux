@@ -45,7 +45,7 @@ config ISP1301_OMAP
 
 config MV_U3D_PHY
 	bool "Marvell USB 3.0 PHY controller Driver"
-	depends on USB_MV_U3D
+	depends on CPU_MMP3
 	help
 	  Enable this to support Marvell USB 3.0 phy controller for Marvell
 	  SoC.
