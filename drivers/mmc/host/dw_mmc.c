@@ -1454,7 +1454,7 @@ static void dw_mci_read_data_pio(struct dw_mci *host, bool dto)
 	struct mmc_data	*data = host->data;
 	int shift = host->data_shift;
 	u32 status;
-	unsigned int nbytes = 0, len;
+	unsigned int len;
 	unsigned int remain, fcnt;
 
 	do {
@@ -1473,8 +1473,8 @@ static void dw_mci_read_data_pio(struct dw_mci *host, bool dto)
 			if (!len)
 				break;
 			dw_mci_pull_data(host, (void *)(buf + offset), len);
+			data->bytes_xfered += len;
 			offset += len;
-			nbytes += len;
 			remain -= len;
 		} while (remain);
 
@@ -1484,7 +1484,6 @@ static void dw_mci_read_data_pio(struct dw_mci *host, bool dto)
 	/* if the RXDR is ready read again */
 	} while ((status & SDMMC_INT_RXDR) ||
 		 (dto && SDMMC_GET_FCNT(mci_readl(host, STATUS))));
-	data->bytes_xfered += nbytes;
 
 	if (!remain) {
 		if (!sg_miter_next(sg_miter))
@@ -1495,7 +1494,6 @@ static void dw_mci_read_data_pio(struct dw_mci *host, bool dto)
 	return;
 
 done:
-	data->bytes_xfered += nbytes;
 	sg_miter_stop(sg_miter);
 	host->sg = NULL;
 	smp_wmb();
@@ -1510,7 +1508,7 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 	struct mmc_data	*data = host->data;
 	int shift = host->data_shift;
 	u32 status;
-	unsigned int nbytes = 0, len;
+	unsigned int len;
 	unsigned int fifo_depth = host->fifo_depth;
 	unsigned int remain, fcnt;
 
@@ -1531,8 +1529,8 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 			if (!len)
 				break;
 			host->push_data(host, (void *)(buf + offset), len);
+			data->bytes_xfered += len;
 			offset += len;
-			nbytes += len;
 			remain -= len;
 		} while (remain);
 
@@ -1540,7 +1538,6 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 		status = mci_readl(host, MINTSTS);
 		mci_writel(host, RINTSTS, SDMMC_INT_TXDR);
 	} while (status & SDMMC_INT_TXDR); /* if TXDR write again */
-	data->bytes_xfered += nbytes;
 
 	if (!remain) {
 		if (!sg_miter_next(sg_miter))
@@ -1551,7 +1548,6 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 	return;
 
 done:
-	data->bytes_xfered += nbytes;
 	sg_miter_stop(sg_miter);
 	host->sg = NULL;
 	smp_wmb();
