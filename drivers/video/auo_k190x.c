@@ -588,9 +588,15 @@ static int auok190x_power(struct auok190xfb_par *par, bool on)
 
 static void auok190x_recover(struct auok190xfb_par *par)
 {
+	struct device *dev = par->info->device;
+
 	auok190x_power(par, 0);
 	msleep(100);
 	auok190x_power(par, 1);
+
+	/* after powercycling the device, it's always active */
+	pm_runtime_set_active(dev);
+	par->standby = 0;
 
 	par->init(par);
 
