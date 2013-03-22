@@ -134,9 +134,6 @@
 #define CMD4_ECLKRCV		(1 << 4)
 #define DIO_BASE_REG		0x10	/* R/W: 8255 DIO base reg */
 #define COUNTER_A_BASE_REG	0x14	/* R/W: 8253 Counter A base reg */
-#define COUNTER_A_MODE_REG	0x17	/* W: 8253 Counter A mode reg */
-#define INIT_A0_BITS		0x14	/*	(a0 mode 2) */
-#define INIT_A1_BITS		0x70	/*	(a1 mode 0) */
 #define COUNTER_B_BASE_REG	0x18	/* R/W: 8253 Counter B base reg */
 #define CMD5_REG		0x1c	/* W: Command 5 reg */
 #define CMD5_WRTPRT		(1 << 2)
@@ -292,6 +289,20 @@ static const int dma_buffer_size = 0xff00;
 /* 2 bytes per sample */
 static const int sample_size = 2;
 
+static int labpc_counter_set_mode(struct comedi_device *dev,
+				  unsigned long base_address,
+				  unsigned int counter_number,
+				  unsigned int mode)
+{
+	const struct labpc_boardinfo *board = comedi_board(dev);
+
+	if (board->has_mmio)
+		return i8254_mm_set_mode((void __iomem *)base_address, 0,
+					 counter_number, mode);
+	else
+		return i8254_set_mode(base_address, 0, counter_number, mode);
+}
+
 static bool labpc_range_is_unipolar(struct comedi_subdevice *s,
 				    unsigned int range)
 {
@@ -446,11 +457,9 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 		devpriv->cmd4 |= CMD4_SEDIFF;
 	devpriv->write_byte(devpriv->cmd4, dev->iobase + CMD4_REG);
 
-	/*
-	 * initialize pacer counter output to make sure it doesn't
-	 * cause any problems
-	 */
-	devpriv->write_byte(INIT_A0_BITS, dev->iobase + COUNTER_A_MODE_REG);
+	/* initialize pacer counter to prevent any problems */
+	labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+			       0, I8254_MODE2);
 
 	labpc_clear_adc_fifo(dev);
 
@@ -896,12 +905,11 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			comedi_error(dev, "error loading counter a1");
 			return -1;
 		}
-	} else			/*
-				 * otherwise, just put a1 in mode 0
-				 * with no count to set its output low
-				 */
-		devpriv->write_byte(INIT_A1_BITS,
-				    dev->iobase + COUNTER_A_MODE_REG);
+	} else	{
+		/* just put counter a1 in mode 0 to set its output low */
+		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+				       1, I8254_MODE0);
+	}
 
 #ifdef CONFIG_ISA_DMA_API
 	/*  figure out what method we will use to transfer data */
@@ -968,9 +976,11 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			comedi_error(dev, "error loading counter a0");
 			return -1;
 		}
-	} else
-		devpriv->write_byte(INIT_A0_BITS,
-				    dev->iobase + COUNTER_A_MODE_REG);
+	} else {
+		/* initialize pacer counter to prevent any problems */
+		labpc_counter_set_mode(dev, dev->iobase + COUNTER_A_BASE_REG,
+				       0, I8254_MODE2);
+	}
 
 	/*  set up scan pacing */
 	if (labpc_ai_scan_period(cmd, mode)) {
