@@ -29,10 +29,23 @@
 /* Conservative governor macros */
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
+#define DEF_FREQUENCY_STEP			(5)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 
 static DEFINE_PER_CPU(struct cs_cpu_dbs_info_s, cs_cpu_dbs_info);
+
+static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
+					   struct cpufreq_policy *policy)
+{
+	unsigned int freq_target = (cs_tuners->freq_step * policy->max) / 100;
+
+	/* max freq cannot be less than 100. But who knows... */
+	if (unlikely(freq_target == 0))
+		freq_target = DEF_FREQUENCY_STEP;
+
+	return freq_target;
+}
 
 /*
  * Every sampling_rate, we check, if current idle time is less than 20%
@@ -49,7 +62,6 @@ static void cs_check_cpu(int cpu, unsigned int load)
 	struct cpufreq_policy *policy = dbs_info->cdbs.cur_policy;
 	struct dbs_data *dbs_data = policy->governor_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
-	unsigned int freq_target;
 
 	/*
 	 * break out if we 'cannot' reduce the speed as the user might
@@ -66,13 +78,7 @@ static void cs_check_cpu(int cpu, unsigned int load)
 		if (dbs_info->requested_freq == policy->max)
 			return;
 
-		freq_target = (cs_tuners->freq_step * policy->max) / 100;
-
-		/* max freq cannot be less than 100. But who knows.... */
-		if (unlikely(freq_target == 0))
-			freq_target = 5;
-
-		dbs_info->requested_freq += freq_target;
+		dbs_info->requested_freq += get_freq_target(cs_tuners, policy);
 		if (dbs_info->requested_freq > policy->max)
 			dbs_info->requested_freq = policy->max;
 
@@ -94,9 +100,7 @@ static void cs_check_cpu(int cpu, unsigned int load)
 		if (policy->cur == policy->min)
 			return;
 
-		freq_target = (cs_tuners->freq_step * policy->max) / 100;
-
-		dbs_info->requested_freq -= freq_target;
+		dbs_info->requested_freq -= get_freq_target(cs_tuners, policy);
 		if (dbs_info->requested_freq < policy->min)
 			dbs_info->requested_freq = policy->min;
 
@@ -335,7 +339,7 @@ static int cs_init(struct dbs_data *dbs_data)
 	tuners->down_threshold = DEF_FREQUENCY_DOWN_THRESHOLD;
 	tuners->sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR;
 	tuners->ignore_nice = 0;
-	tuners->freq_step = 5;
+	tuners->freq_step = DEF_FREQUENCY_STEP;
 
 	dbs_data->tuners = tuners;
 	dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
