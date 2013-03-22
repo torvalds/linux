@@ -82,7 +82,7 @@ MODULE_PARM_DESC(auth_hashtable_size, "RPC credential cache hashtable size");
 
 static u32
 pseudoflavor_to_flavor(u32 flavor) {
-	if (flavor >= RPC_AUTH_MAXFLAVOR)
+	if (flavor > RPC_AUTH_MAXFLAVOR)
 		return RPC_AUTH_GSS;
 	return flavor;
 }
@@ -172,6 +172,9 @@ rpcauth_get_gssinfo(rpc_authflavor_t pseudoflavor, struct rpcsec_gss_info *info)
 	rpc_authflavor_t flavor = pseudoflavor_to_flavor(pseudoflavor);
 	const struct rpc_authops *ops;
 	int result;
+
+	if (flavor >= RPC_AUTH_MAXFLAVOR)
+		return -EINVAL;
 
 	ops = auth_flavors[flavor];
 	if (ops == NULL)
