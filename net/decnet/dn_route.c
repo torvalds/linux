@@ -1613,6 +1613,20 @@ errout:
 	return -EMSGSIZE;
 }
 
+const struct nla_policy rtm_dn_policy[RTA_MAX + 1] = {
+	[RTA_DST]		= { .type = NLA_U16 },
+	[RTA_SRC]		= { .type = NLA_U16 },
+	[RTA_IIF]		= { .type = NLA_U32 },
+	[RTA_OIF]		= { .type = NLA_U32 },
+	[RTA_GATEWAY]		= { .type = NLA_U16 },
+	[RTA_PRIORITY]		= { .type = NLA_U32 },
+	[RTA_PREFSRC]		= { .type = NLA_U16 },
+	[RTA_METRICS]		= { .type = NLA_NESTED },
+	[RTA_MULTIPATH]		= { .type = NLA_NESTED },
+	[RTA_TABLE]		= { .type = NLA_U32 },
+	[RTA_MARK]		= { .type = NLA_U32 },
+};
+
 /*
  * This is called by both endnodes and routers now.
  */

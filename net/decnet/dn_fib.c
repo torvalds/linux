@@ -489,20 +489,6 @@ void dn_fib_select_multipath(const struct flowidn *fld, struct dn_fib_res *res)
 	spin_unlock_bh(&dn_fib_multipath_lock);
 }
 
-const struct nla_policy rtm_dn_policy[RTA_MAX + 1] = {
-	[RTA_DST]		= { .type = NLA_U16 },
-	[RTA_SRC]		= { .type = NLA_U16 },
-	[RTA_IIF]		= { .type = NLA_U32 },
-	[RTA_OIF]		= { .type = NLA_U32 },
-	[RTA_GATEWAY]		= { .type = NLA_U16 },
-	[RTA_PRIORITY]		= { .type = NLA_U32 },
-	[RTA_PREFSRC]		= { .type = NLA_U16 },
-	[RTA_METRICS]		= { .type = NLA_NESTED },
-	[RTA_MULTIPATH]		= { .type = NLA_NESTED },
-	[RTA_TABLE]		= { .type = NLA_U32 },
-	[RTA_MARK]		= { .type = NLA_U32 },
-};
-
 static inline u32 rtm_get_table(struct nlattr *attrs[], u8 table)
 {
 	if (attrs[RTA_TABLE])
