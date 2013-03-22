@@ -1393,8 +1393,7 @@ static int labpc_ao_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-static int labpc_dio_mem_callback(int dir, int port, int data,
-				  unsigned long iobase)
+static int labpc_8255_mmio(int dir, int port, int data, unsigned long iobase)
 {
 	if (dir) {
 		writeb(data, (void __iomem *)(iobase + port));
@@ -1802,13 +1801,11 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	/* 8255 dio */
 	s = &dev->subdevices[2];
-	/*  if board uses io memory we have to give a custom callback
-	 * function to the 8255 driver */
-	if (board->has_mmio)
-		subdev_8255_init(dev, s, labpc_dio_mem_callback,
-				 (unsigned long)(dev->iobase + DIO_BASE_REG));
-	else
-		subdev_8255_init(dev, s, NULL, dev->iobase + DIO_BASE_REG);
+	ret = subdev_8255_init(dev, s,
+			       (board->has_mmio) ? labpc_8255_mmio : NULL,
+			       dev->iobase + DIO_BASE_REG);
+	if (ret)
+		return ret;
 
 	/*  calibration subdevices for boards that have one */
 	s = &dev->subdevices[3];
