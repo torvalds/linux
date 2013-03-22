@@ -33,8 +33,6 @@ struct dmaengine_pcm_runtime_data {
 	dma_cookie_t cookie;
 
 	unsigned int pos;
-
-	void *data;
 };
 
 static inline struct dmaengine_pcm_runtime_data *substream_to_prtd(
@@ -42,33 +40,6 @@ static inline struct dmaengine_pcm_runtime_data *substream_to_prtd(
 {
 	return substream->runtime->private_data;
 }
-
-/**
- * snd_dmaengine_pcm_set_data - Set dmaengine substream private data
- * @substream: PCM substream
- * @data: Data to set
- */
-void snd_dmaengine_pcm_set_data(struct snd_pcm_substream *substream, void *data)
-{
-	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-
-	prtd->data = data;
-}
-EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_data);
-
-/**
- * snd_dmaengine_pcm_get_data - Get dmaeinge substream private data
- * @substream: PCM substream
- *
- * Returns the data previously set with snd_dmaengine_pcm_set_data
- */
-void *snd_dmaengine_pcm_get_data(struct snd_pcm_substream *substream)
-{
-	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-
-	return prtd->data;
-}
-EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_get_data);
 
 struct dma_chan *snd_dmaengine_pcm_get_chan(struct snd_pcm_substream *substream)
 {

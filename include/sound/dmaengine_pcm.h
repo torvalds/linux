@@ -32,9 +32,6 @@ snd_pcm_substream_to_dma_direction(const struct snd_pcm_substream *substream)
 		return DMA_DEV_TO_MEM;
 }
 
-void snd_dmaengine_pcm_set_data(struct snd_pcm_substream *substream, void *data);
-void *snd_dmaengine_pcm_get_data(struct snd_pcm_substream *substream);
-
 int snd_hwparams_to_dma_slave_config(const struct snd_pcm_substream *substream,
 	const struct snd_pcm_hw_params *params, struct dma_slave_config *slave_config);
 int snd_dmaengine_pcm_trigger(struct snd_pcm_substream *substream, int cmd);
