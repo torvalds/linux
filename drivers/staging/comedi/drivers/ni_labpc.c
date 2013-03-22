@@ -226,12 +226,6 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 #ifdef CONFIG_ISA_DMA_API
 static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd);
 #endif
-static unsigned int labpc_eeprom_read_status(struct comedi_device *dev);
-static int labpc_eeprom_write(struct comedi_device *dev,
-				       unsigned int address,
-				       unsigned int value);
-static void write_caldac(struct comedi_device *dev, unsigned int channel,
-			 unsigned int value);
 
 /* analog input ranges */
 #define NUM_LABPC_PLUS_AI_RANGES 16
@@ -1370,59 +1364,6 @@ static int labpc_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 1;
 }
 
-static int labpc_calib_read_insn(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
-{
-	struct labpc_private *devpriv = dev->private;
-
-	data[0] = devpriv->caldac[CR_CHAN(insn->chanspec)];
-
-	return 1;
-}
-
-static int labpc_calib_write_insn(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
-{
-	int channel = CR_CHAN(insn->chanspec);
-
-	write_caldac(dev, channel, data[0]);
-	return 1;
-}
-
-static int labpc_eeprom_read_insn(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
-{
-	struct labpc_private *devpriv = dev->private;
-
-	data[0] = devpriv->eeprom_data[CR_CHAN(insn->chanspec)];
-
-	return 1;
-}
-
-static int labpc_eeprom_write_insn(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
-{
-	int channel = CR_CHAN(insn->chanspec);
-	int ret;
-
-	/*  only allow writes to user area of eeprom */
-	if (channel < 16 || channel > 127) {
-		dev_dbg(dev->class_dev,
-			"eeprom writes are only allowed to channels 16 through 127 (the pointer and user areas)\n");
-		return -EINVAL;
-	}
-
-	ret = labpc_eeprom_write(dev, channel, data[0]);
-	if (ret < 0)
-		return ret;
-
-	return 1;
-}
-
 #ifdef CONFIG_ISA_DMA_API
 /* utility function that suggests a dma transfer size in bytes */
 static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
@@ -1645,6 +1586,34 @@ static unsigned int labpc_eeprom_read(struct comedi_device *dev,
 	return value;
 }
 
+static unsigned int labpc_eeprom_read_status(struct comedi_device *dev)
+{
+	struct labpc_private *devpriv = dev->private;
+	unsigned int value;
+	const int read_status_instruction = 0x5;
+	const int write_length = 8;	/*  8 bit write lengths to eeprom */
+
+	/*  enable read/write to eeprom */
+	devpriv->command5_bits &= ~EEPROM_EN_BIT;
+	udelay(1);
+	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+	devpriv->command5_bits |= EEPROM_EN_BIT | EEPROM_WRITE_UNPROTECT_BIT;
+	udelay(1);
+	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	/*  send read status instruction */
+	labpc_serial_out(dev, read_status_instruction, write_length);
+	/*  read result */
+	value = labpc_serial_in(dev);
+
+	/*  disable read/write to eeprom */
+	devpriv->command5_bits &= ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
+	udelay(1);
+	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	return value;
+}
+
 static int labpc_eeprom_write(struct comedi_device *dev,
 				unsigned int address, unsigned int value)
 {
@@ -1704,34 +1673,6 @@ static int labpc_eeprom_write(struct comedi_device *dev,
 	return 0;
 }
 
-static unsigned int labpc_eeprom_read_status(struct comedi_device *dev)
-{
-	struct labpc_private *devpriv = dev->private;
-	unsigned int value;
-	const int read_status_instruction = 0x5;
-	const int write_length = 8;	/*  8 bit write lengths to eeprom */
-
-	/*  enable read/write to eeprom */
-	devpriv->command5_bits &= ~EEPROM_EN_BIT;
-	udelay(1);
-	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
-	devpriv->command5_bits |= EEPROM_EN_BIT | EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
-	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
-
-	/*  send read status instruction */
-	labpc_serial_out(dev, read_status_instruction, write_length);
-	/*  read result */
-	value = labpc_serial_in(dev);
-
-	/*  disable read/write to eeprom */
-	devpriv->command5_bits &= ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
-	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
-
-	return value;
-}
-
 /* writes to 8 bit calibration dacs */
 static void write_caldac(struct comedi_device *dev, unsigned int channel,
 			 unsigned int value)
@@ -1760,6 +1701,59 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 	devpriv->command5_bits &= ~CALDAC_LOAD_BIT;
 	udelay(1);
 	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+}
+
+static int labpc_calib_write_insn(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn, unsigned int *data)
+{
+	int channel = CR_CHAN(insn->chanspec);
+
+	write_caldac(dev, channel, data[0]);
+	return 1;
+}
+
+static int labpc_calib_read_insn(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	data[0] = devpriv->caldac[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
+static int labpc_eeprom_write_insn(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data)
+{
+	int channel = CR_CHAN(insn->chanspec);
+	int ret;
+
+	/*  only allow writes to user area of eeprom */
+	if (channel < 16 || channel > 127) {
+		dev_dbg(dev->class_dev,
+			"eeprom writes are only allowed to channels 16 through 127 (the pointer and user areas)\n");
+		return -EINVAL;
+	}
+
+	ret = labpc_eeprom_write(dev, channel, data[0]);
+	if (ret < 0)
+		return ret;
+
+	return 1;
+}
+
+static int labpc_eeprom_read_insn(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn, unsigned int *data)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	data[0] = devpriv->eeprom_data[CR_CHAN(insn->chanspec)];
+
+	return 1;
 }
 
 int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
