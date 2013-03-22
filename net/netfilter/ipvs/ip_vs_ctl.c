@@ -565,8 +565,8 @@ bool ip_vs_has_real_service(struct net *net, int af, __u16 protocol,
 	return false;
 }
 
-/*
- *	Lookup destination by {addr,port} in the given service
+/* Lookup destination by {addr,port} in the given service
+ * Called under RCU lock.
  */
 static struct ip_vs_dest *
 ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
@@ -577,7 +577,7 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 	/*
 	 * Find the destination for the given service
 	 */
-	list_for_each_entry(dest, &svc->destinations, n_list) {
+	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
 		if ((dest->af == svc->af)
 		    && ip_vs_addr_equal(svc->af, &dest->addr, daddr)
 		    && (dest->port == dport)) {
@@ -591,10 +591,11 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 
 /*
  * Find destination by {daddr,dport,vaddr,protocol}
- * Cretaed to be used in ip_vs_process_message() in
+ * Created to be used in ip_vs_process_message() in
  * the backup synchronization daemon. It finds the
  * destination to be bound to the received connection
  * on the backup.
+ * Called under RCU lock, no refcnt is returned.
  */
 struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 				   const union nf_inet_addr *daddr,
@@ -615,8 +616,6 @@ struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 	dest = ip_vs_lookup_dest(svc, daddr, port);
 	if (!dest)
 		dest = ip_vs_lookup_dest(svc, daddr, port ^ dport);
-	if (dest)
-		ip_vs_dest_hold(dest);
 	ip_vs_service_put(svc);
 	return dest;
 }
@@ -826,7 +825,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 0);
 
 	if (add) {
-		list_add(&dest->n_list, &svc->destinations);
+		list_add_rcu(&dest->n_list, &svc->destinations);
 		svc->num_dests++;
 		if (svc->scheduler->add_dest)
 			svc->scheduler->add_dest(svc, dest);
@@ -933,10 +932,10 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	ip_vs_addr_copy(svc->af, &daddr, &udest->addr);
 
-	/*
-	 * Check if the dest already exists in the list
-	 */
+	/* We use function that requires RCU lock */
+	rcu_read_lock();
 	dest = ip_vs_lookup_dest(svc, &daddr, dport);
+	rcu_read_unlock();
 
 	if (dest != NULL) {
 		IP_VS_DBG(1, "%s(): dest already exists\n", __func__);
@@ -997,10 +996,10 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	ip_vs_addr_copy(svc->af, &daddr, &udest->addr);
 
-	/*
-	 *  Lookup the destination list
-	 */
+	/* We use function that requires RCU lock */
+	rcu_read_lock();
 	dest = ip_vs_lookup_dest(svc, &daddr, dport);
+	rcu_read_unlock();
 
 	if (dest == NULL) {
 		IP_VS_DBG(1, "%s(): dest doesn't exist\n", __func__);
@@ -1069,7 +1068,7 @@ static void __ip_vs_unlink_dest(struct ip_vs_service *svc,
 	/*
 	 *  Remove it from the d-linked destination list.
 	 */
-	list_del(&dest->n_list);
+	list_del_rcu(&dest->n_list);
 	svc->num_dests--;
 
 	if (svcupd && svc->scheduler->del_dest)
@@ -1094,7 +1093,10 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	EnterFunction(2);
 
+	/* We use function that requires RCU lock */
+	rcu_read_lock();
 	dest = ip_vs_lookup_dest(svc, &udest->addr, dport);
+	rcu_read_unlock();
 
 	if (dest == NULL) {
 		IP_VS_DBG(1, "%s(): destination not found!\n", __func__);
@@ -2104,7 +2106,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 		else
 			seq_putc(seq, '\n');
 
-		list_for_each_entry(dest, &svc->destinations, n_list) {
+		list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
 #ifdef CONFIG_IP_VS_IPV6
 			if (dest->af == AF_INET6)
 				seq_printf(seq,

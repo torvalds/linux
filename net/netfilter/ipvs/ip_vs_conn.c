@@ -611,10 +611,11 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
  * Check if there is a destination for the connection, if so
  * bind the connection to the destination.
  */
-struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
+void ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 {
 	struct ip_vs_dest *dest;
 
+	rcu_read_lock();
 	dest = ip_vs_find_dest(ip_vs_conn_net(cp), cp->af, &cp->daddr,
 			       cp->dport, &cp->vaddr, cp->vport,
 			       cp->protocol, cp->fwmark, cp->flags);
@@ -624,7 +625,8 @@ struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 		spin_lock(&cp->lock);
 		if (cp->dest) {
 			spin_unlock(&cp->lock);
-			return dest;
+			rcu_read_unlock();
+			return;
 		}
 
 		/* Applications work depending on the forwarding method
@@ -648,7 +650,7 @@ struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 		if (pd && atomic_read(&pd->appcnt))
 			ip_vs_bind_app(cp, pd->pp);
 	}
-	return dest;
+	rcu_read_unlock();
 }
 
 

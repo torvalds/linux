@@ -858,23 +858,20 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 		flags |= cp->flags & ~IP_VS_CONN_F_BACKUP_UPD_MASK;
 		cp->flags = flags;
 		spin_unlock(&cp->lock);
-		if (!dest) {
-			dest = ip_vs_try_bind_dest(cp);
-			if (dest)
-				ip_vs_dest_put(dest);
-		}
+		if (!dest)
+			ip_vs_try_bind_dest(cp);
 	} else {
 		/*
 		 * Find the appropriate destination for the connection.
 		 * If it is not found the connection will remain unbound
 		 * but still handled.
 		 */
+		rcu_read_lock();
 		dest = ip_vs_find_dest(net, type, daddr, dport, param->vaddr,
 				       param->vport, protocol, fwmark, flags);
 
 		cp = ip_vs_conn_new(param, daddr, dport, flags, dest, fwmark);
-		if (dest)
-			ip_vs_dest_put(dest);
+		rcu_read_unlock();
 		if (!cp) {
 			if (param->pe_data)
 				kfree(param->pe_data);
