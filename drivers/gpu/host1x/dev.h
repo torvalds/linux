@@ -20,10 +20,39 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 
+#include "channel.h"
 #include "syncpt.h"
 #include "intr.h"
+#include "cdma.h"
+#include "job.h"
 
 struct host1x_syncpt;
+struct host1x_channel;
+struct host1x_cdma;
+struct host1x_job;
+struct push_buffer;
+
+struct host1x_channel_ops {
+	int (*init)(struct host1x_channel *channel, struct host1x *host,
+		    unsigned int id);
+	int (*submit)(struct host1x_job *job);
+};
+
+struct host1x_cdma_ops {
+	void (*start)(struct host1x_cdma *cdma);
+	void (*stop)(struct host1x_cdma *cdma);
+	void (*flush)(struct  host1x_cdma *cdma);
+	int (*timeout_init)(struct host1x_cdma *cdma, u32 syncpt_id);
+	void (*timeout_destroy)(struct host1x_cdma *cdma);
+	void (*freeze)(struct host1x_cdma *cdma);
+	void (*resume)(struct host1x_cdma *cdma, u32 getptr);
+	void (*timeout_cpu_incr)(struct host1x_cdma *cdma, u32 getptr,
+				 u32 syncpt_incrs, u32 syncval, u32 nr_slots);
+};
+
+struct host1x_pushbuffer_ops {
+	void (*init)(struct push_buffer *pb);
+};
 
 struct host1x_syncpt_ops {
 	void (*restore)(struct host1x_syncpt *syncpt);
@@ -68,11 +97,22 @@ struct host1x {
 
 	const struct host1x_syncpt_ops *syncpt_op;
 	const struct host1x_intr_ops *intr_op;
+	const struct host1x_channel_ops *channel_op;
+	const struct host1x_cdma_ops *cdma_op;
+	const struct host1x_pushbuffer_ops *cdma_pb_op;
 
+	struct host1x_syncpt *nop_sp;
+
+	struct mutex chlist_mutex;
+	struct host1x_channel chlist;
+	unsigned long allocated_channels;
+	unsigned int num_allocated_channels;
 };
 
 void host1x_sync_writel(struct host1x *host1x, u32 r, u32 v);
 u32 host1x_sync_readl(struct host1x *host1x, u32 r);
+void host1x_ch_writel(struct host1x_channel *ch, u32 r, u32 v);
+u32 host1x_ch_readl(struct host1x_channel *ch, u32 r);
 
 static inline void host1x_hw_syncpt_restore(struct host1x *host,
 					    struct host1x_syncpt *sp)
@@ -144,4 +184,77 @@ static inline int host1x_hw_intr_free_syncpt_irq(struct host1x *host)
 {
 	return host->intr_op->free_syncpt_irq(host);
 }
+
+static inline int host1x_hw_channel_init(struct host1x *host,
+					 struct host1x_channel *channel,
+					 int chid)
+{
+	return host->channel_op->init(channel, host, chid);
+}
+
+static inline int host1x_hw_channel_submit(struct host1x *host,
+					   struct host1x_job *job)
+{
+	return host->channel_op->submit(job);
+}
+
+static inline void host1x_hw_cdma_start(struct host1x *host,
+					struct host1x_cdma *cdma)
+{
+	host->cdma_op->start(cdma);
+}
+
+static inline void host1x_hw_cdma_stop(struct host1x *host,
+				       struct host1x_cdma *cdma)
+{
+	host->cdma_op->stop(cdma);
+}
+
+static inline void host1x_hw_cdma_flush(struct host1x *host,
+					struct host1x_cdma *cdma)
+{
+	host->cdma_op->flush(cdma);
+}
+
+static inline int host1x_hw_cdma_timeout_init(struct host1x *host,
+					      struct host1x_cdma *cdma,
+					      u32 syncpt_id)
+{
+	return host->cdma_op->timeout_init(cdma, syncpt_id);
+}
+
+static inline void host1x_hw_cdma_timeout_destroy(struct host1x *host,
+						  struct host1x_cdma *cdma)
+{
+	host->cdma_op->timeout_destroy(cdma);
+}
+
+static inline void host1x_hw_cdma_freeze(struct host1x *host,
+					 struct host1x_cdma *cdma)
+{
+	host->cdma_op->freeze(cdma);
+}
+
+static inline void host1x_hw_cdma_resume(struct host1x *host,
+					 struct host1x_cdma *cdma, u32 getptr)
+{
+	host->cdma_op->resume(cdma, getptr);
+}
+
+static inline void host1x_hw_cdma_timeout_cpu_incr(struct host1x *host,
+						   struct host1x_cdma *cdma,
+						   u32 getptr,
+						   u32 syncpt_incrs,
+						   u32 syncval, u32 nr_slots)
+{
+	host->cdma_op->timeout_cpu_incr(cdma, getptr, syncpt_incrs, syncval,
+					nr_slots);
+}
+
+static inline void host1x_hw_pushbuffer_init(struct host1x *host,
+					     struct push_buffer *pb)
+{
+	host->cdma_pb_op->init(pb);
+}
+
 #endif

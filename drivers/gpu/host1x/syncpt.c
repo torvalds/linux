@@ -300,6 +300,12 @@ bool host1x_syncpt_is_expired(struct host1x_syncpt *sp, u32 thresh)
 		return (s32)(current_val - thresh) >= 0;
 }
 
+/* remove a wait pointed to by patch_addr */
+int host1x_syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr)
+{
+	return host1x_hw_syncpt_patch_wait(sp->host, sp, patch_addr);
+}
+
 int host1x_syncpt_init(struct host1x *host)
 {
 	struct host1x_syncpt *syncpt;
@@ -318,6 +324,11 @@ int host1x_syncpt_init(struct host1x *host)
 	host->syncpt = syncpt;
 
 	host1x_syncpt_restore(host);
+
+	/* Allocate sync point to use for clearing waits for expired fences */
+	host->nop_sp = _host1x_syncpt_alloc(host, NULL, 0);
+	if (!host->nop_sp)
+		return -ENOMEM;
 
 	return 0;
 }

@@ -93,10 +93,21 @@ static void syncpt_cpu_incr(struct host1x_syncpt *sp)
 	wmb();
 }
 
+/* remove a wait pointed to by patch_addr */
+static int syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr)
+{
+	u32 override = host1x_class_host_wait_syncpt(
+		HOST1X_SYNCPT_RESERVED, 0);
+
+	*((u32 *)patch_addr) = override;
+	return 0;
+}
+
 static const struct host1x_syncpt_ops host1x_syncpt_ops = {
 	.restore = syncpt_restore,
 	.restore_wait_base = syncpt_restore_wait_base,
 	.load_wait_base = syncpt_read_wait_base,
 	.load = syncpt_load,
 	.cpu_incr = syncpt_cpu_incr,
+	.patch_wait = syncpt_patch_wait,
 };

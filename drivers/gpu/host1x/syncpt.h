@@ -27,6 +27,9 @@
 
 struct host1x;
 
+/* Reserved for replacing an expired wait with a NOP */
+#define HOST1X_SYNCPT_RESERVED			0
+
 struct host1x_syncpt {
 	int id;
 	atomic_t min_val;
@@ -145,6 +148,9 @@ static inline int host1x_syncpt_is_valid(struct host1x_syncpt *sp)
 {
 	return sp->id < host1x_syncpt_nb_pts(sp->host);
 }
+
+/* Patch a wait by replacing it with a wait for syncpt 0 value 0 */
+int host1x_syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr);
 
 /* Return id of the sync point */
 u32 host1x_syncpt_id(struct host1x_syncpt *sp);

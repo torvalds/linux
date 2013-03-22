@@ -29,6 +29,7 @@
 
 #include "dev.h"
 #include "intr.h"
+#include "channel.h"
 #include "hw/host1x01.h"
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)
@@ -43,6 +44,16 @@ u32 host1x_sync_readl(struct host1x *host1x, u32 r)
 	void __iomem *sync_regs = host1x->regs + host1x->info->sync_offset;
 
 	return readl(sync_regs + r);
+}
+
+void host1x_ch_writel(struct host1x_channel *ch, u32 v, u32 r)
+{
+	writel(v, ch->regs + r);
+}
+
+u32 host1x_ch_readl(struct host1x_channel *ch, u32 r)
+{
+	return readl(ch->regs + r);
 }
 
 static const struct host1x_info host1x01_info = {
@@ -109,6 +120,12 @@ static int host1x_probe(struct platform_device *pdev)
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		err = PTR_ERR(host->clk);
+		return err;
+	}
+
+	err = host1x_channel_list_init(host);
+	if (err) {
+		dev_err(&pdev->dev, "failed to initialize channel list\n");
 		return err;
 	}
 

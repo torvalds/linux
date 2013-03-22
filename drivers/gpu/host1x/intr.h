@@ -26,6 +26,12 @@ struct host1x;
 
 enum host1x_intr_action {
 	/*
+	 * Perform cleanup after a submit has completed.
+	 * 'data' points to a channel
+	 */
+	HOST1X_INTR_ACTION_SUBMIT_COMPLETE = 0,
+
+	/*
 	 * Wake up a  task.
 	 * 'data' points to a wait_queue_head_t
 	 */

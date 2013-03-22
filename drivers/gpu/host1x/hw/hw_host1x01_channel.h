@@ -48,81 +48,55 @@
   *         of register <x>.
   */
 
-#ifndef __hw_host1x01_sync_h__
-#define __hw_host1x01_sync_h__
+#ifndef __hw_host1x_channel_host1x_h__
+#define __hw_host1x_channel_host1x_h__
 
-#define REGISTER_STRIDE	4
-
-static inline u32 host1x_sync_syncpt_r(unsigned int id)
+static inline u32 host1x_channel_dmastart_r(void)
 {
-	return 0x400 + id * REGISTER_STRIDE;
+	return 0x14;
 }
-#define HOST1X_SYNC_SYNCPT(id) \
-	host1x_sync_syncpt_r(id)
-static inline u32 host1x_sync_syncpt_thresh_cpu0_int_status_r(unsigned int id)
+#define HOST1X_CHANNEL_DMASTART \
+	host1x_channel_dmastart_r()
+static inline u32 host1x_channel_dmaput_r(void)
 {
-	return 0x40 + id * REGISTER_STRIDE;
+	return 0x18;
 }
-#define HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(id) \
-	host1x_sync_syncpt_thresh_cpu0_int_status_r(id)
-static inline u32 host1x_sync_syncpt_thresh_int_disable_r(unsigned int id)
+#define HOST1X_CHANNEL_DMAPUT \
+	host1x_channel_dmaput_r()
+static inline u32 host1x_channel_dmaget_r(void)
 {
-	return 0x60 + id * REGISTER_STRIDE;
+	return 0x1c;
 }
-#define HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(id) \
-	host1x_sync_syncpt_thresh_int_disable_r(id)
-static inline u32 host1x_sync_syncpt_thresh_int_enable_cpu0_r(unsigned int id)
+#define HOST1X_CHANNEL_DMAGET \
+	host1x_channel_dmaget_r()
+static inline u32 host1x_channel_dmaend_r(void)
 {
-	return 0x68 + id * REGISTER_STRIDE;
+	return 0x20;
 }
-#define HOST1X_SYNC_SYNCPT_THRESH_INT_ENABLE_CPU0(id) \
-	host1x_sync_syncpt_thresh_int_enable_cpu0_r(id)
-static inline u32 host1x_sync_cmdproc_stop_r(void)
+#define HOST1X_CHANNEL_DMAEND \
+	host1x_channel_dmaend_r()
+static inline u32 host1x_channel_dmactrl_r(void)
 {
-	return 0xac;
+	return 0x24;
 }
-#define HOST1X_SYNC_CMDPROC_STOP \
-	host1x_sync_cmdproc_stop_r()
-static inline u32 host1x_sync_ch_teardown_r(void)
+#define HOST1X_CHANNEL_DMACTRL \
+	host1x_channel_dmactrl_r()
+static inline u32 host1x_channel_dmactrl_dmastop(void)
 {
-	return 0xb0;
+	return 1 << 0;
 }
-#define HOST1X_SYNC_CH_TEARDOWN \
-	host1x_sync_ch_teardown_r()
-static inline u32 host1x_sync_usec_clk_r(void)
+#define HOST1X_CHANNEL_DMACTRL_DMASTOP \
+	host1x_channel_dmactrl_dmastop()
+static inline u32 host1x_channel_dmactrl_dmagetrst(void)
 {
-	return 0x1a4;
+	return 1 << 1;
 }
-#define HOST1X_SYNC_USEC_CLK \
-	host1x_sync_usec_clk_r()
-static inline u32 host1x_sync_ctxsw_timeout_cfg_r(void)
+#define HOST1X_CHANNEL_DMACTRL_DMAGETRST \
+	host1x_channel_dmactrl_dmagetrst()
+static inline u32 host1x_channel_dmactrl_dmainitget(void)
 {
-	return 0x1a8;
+	return 1 << 2;
 }
-#define HOST1X_SYNC_CTXSW_TIMEOUT_CFG \
-	host1x_sync_ctxsw_timeout_cfg_r()
-static inline u32 host1x_sync_ip_busy_timeout_r(void)
-{
-	return 0x1bc;
-}
-#define HOST1X_SYNC_IP_BUSY_TIMEOUT \
-	host1x_sync_ip_busy_timeout_r()
-static inline u32 host1x_sync_syncpt_int_thresh_r(unsigned int id)
-{
-	return 0x500 + id * REGISTER_STRIDE;
-}
-#define HOST1X_SYNC_SYNCPT_INT_THRESH(id) \
-	host1x_sync_syncpt_int_thresh_r(id)
-static inline u32 host1x_sync_syncpt_base_r(unsigned int id)
-{
-	return 0x600 + id * REGISTER_STRIDE;
-}
-#define HOST1X_SYNC_SYNCPT_BASE(id) \
-	host1x_sync_syncpt_base_r(id)
-static inline u32 host1x_sync_syncpt_cpu_incr_r(unsigned int id)
-{
-	return 0x700 + id * REGISTER_STRIDE;
-}
-#define HOST1X_SYNC_SYNCPT_CPU_INCR(id) \
-	host1x_sync_syncpt_cpu_incr_r(id)
-#endif /* __hw_host1x01_sync_h__ */
+#define HOST1X_CHANNEL_DMACTRL_DMAINITGET \
+	host1x_channel_dmactrl_dmainitget()
+#endif

@@ -21,6 +21,8 @@
 #include "hw/host1x01_hardware.h"
 
 /* include code */
+#include "hw/cdma_hw.c"
+#include "hw/channel_hw.c"
 #include "hw/intr_hw.c"
 #include "hw/syncpt_hw.c"
 
@@ -28,6 +30,9 @@
 
 int host1x01_init(struct host1x *host)
 {
+	host->channel_op = &host1x_channel_ops;
+	host->cdma_op = &host1x_cdma_ops;
+	host->cdma_pb_op = &host1x_pushbuffer_ops;
 	host->syncpt_op = &host1x_syncpt_ops;
 	host->intr_op = &host1x_intr_ops;
 

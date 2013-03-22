@@ -21,6 +21,8 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 
+#include <trace/events/host1x.h>
+#include "channel.h"
 #include "dev.h"
 #include "intr.h"
 
@@ -66,13 +68,24 @@ static void remove_completed_waiters(struct list_head *head, u32 sync,
 			struct list_head completed[HOST1X_INTR_ACTION_COUNT])
 {
 	struct list_head *dest;
-	struct host1x_waitlist *waiter, *next;
+	struct host1x_waitlist *waiter, *next, *prev;
 
 	list_for_each_entry_safe(waiter, next, head, list) {
 		if ((s32)(waiter->thresh - sync) > 0)
 			break;
 
 		dest = completed + waiter->action;
+
+		/* consolidate submit cleanups */
+		if (waiter->action == HOST1X_INTR_ACTION_SUBMIT_COMPLETE &&
+		    !list_empty(dest)) {
+			prev = list_entry(dest->prev,
+					  struct host1x_waitlist, list);
+			if (prev->data == waiter->data) {
+				prev->count++;
+				dest = NULL;
+			}
+		}
 
 		/* PENDING->REMOVED or CANCELLED->HANDLED */
 		if (atomic_inc_return(&waiter->state) == WLS_HANDLED || !dest) {
@@ -94,6 +107,18 @@ static void reset_threshold_interrupt(struct host1x *host,
 	host1x_hw_intr_enable_syncpt_intr(host, id);
 }
 
+static void action_submit_complete(struct host1x_waitlist *waiter)
+{
+	struct host1x_channel *channel = waiter->data;
+
+	host1x_cdma_update(&channel->cdma);
+
+	/*  Add nr_completed to trace */
+	trace_host1x_channel_submit_complete(dev_name(channel->dev),
+					     waiter->count, waiter->thresh);
+
+}
+
 static void action_wakeup(struct host1x_waitlist *waiter)
 {
 	wait_queue_head_t *wq = waiter->data;
@@ -109,6 +134,7 @@ static void action_wakeup_interruptible(struct host1x_waitlist *waiter)
 typedef void (*action_handler)(struct host1x_waitlist *waiter);
 
 static action_handler action_handlers[HOST1X_INTR_ACTION_COUNT] = {
+	action_submit_complete,
 	action_wakeup,
 	action_wakeup_interruptible,
 };
