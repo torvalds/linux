@@ -487,12 +487,20 @@ static int auok190xfb_check_var(struct fb_var_screeninfo *var,
 	 * Dimensions
 	 */
 
-	if (par->rotation & 1) {
-		var->xres = panel->h;
-		var->yres = panel->w;
-	} else {
+	switch (var->rotate) {
+	case FB_ROTATE_UR:
+	case FB_ROTATE_UD:
 		var->xres = panel->w;
 		var->yres = panel->h;
+		break;
+	case FB_ROTATE_CW:
+	case FB_ROTATE_CCW:
+		var->xres = panel->h;
+		var->yres = panel->w;
+		break;
+	default:
+		dev_dbg(dev, "Invalid rotation request\n");
+		return -EINVAL;
 	}
 
 	var->xres_virtual = var->xres;
@@ -534,7 +542,14 @@ static int auok190xfb_set_par(struct fb_info *info)
 {
 	struct auok190xfb_par *par = info->par;
 
+	par->rotation = info->var.rotate;
 	auok190xfb_set_fix(info);
+
+	/* reinit the controller to honor the rotation */
+	par->init(par);
+
+	/* wait for init to complete */
+	par->board->wait_for_rdy(par);
 
 	return 0;
 }
@@ -1030,7 +1045,7 @@ int auok190x_common_probe(struct platform_device *pdev,
 	panel = &panel_table[board->resolution];
 
 	par->resolution = board->resolution;
-	par->rotation = board->rotation;
+	par->rotation = 0;
 
 	/* videomemory handling */
 

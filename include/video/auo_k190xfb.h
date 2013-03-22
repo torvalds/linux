@@ -98,7 +98,6 @@ struct auok190x_board {
 	int gpio_nbusy;
 
 	int resolution;
-	int rotation;
 	int quirks;
 	int fps;
 };
