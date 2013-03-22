@@ -124,6 +124,8 @@ struct host1x {
 	unsigned int num_allocated_channels;
 
 	struct dentry *debugfs;
+
+	void *drm_data;
 };
 
 void host1x_sync_writel(struct host1x *host1x, u32 r, u32 v);
@@ -298,5 +300,9 @@ static inline void host1x_hw_show_mlocks(struct host1x *host, struct output *o)
 {
 	host->debug_op->show_mlocks(host, o);
 }
+
+extern struct platform_driver tegra_hdmi_driver;
+extern struct platform_driver tegra_dc_driver;
+extern struct platform_driver tegra_gr2d_driver;
 
 #endif

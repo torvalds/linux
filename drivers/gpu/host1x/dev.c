@@ -32,6 +32,19 @@
 #include "channel.h"
 #include "debug.h"
 #include "hw/host1x01.h"
+#include "host1x_client.h"
+
+void host1x_set_drm_data(struct device *dev, void *data)
+{
+	struct host1x *host1x = dev_get_drvdata(dev);
+	host1x->drm_data = data;
+}
+
+void *host1x_get_drm_data(struct device *dev)
+{
+	struct host1x *host1x = dev_get_drvdata(dev);
+	return host1x->drm_data;
+}
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -150,6 +163,8 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host1x_debug_init(host);
 
+	host1x_drm_alloc(pdev);
+
 	return 0;
 
 fail_deinit_syncpt:
@@ -168,7 +183,7 @@ static int __exit host1x_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver platform_driver = {
+static struct platform_driver tegra_host1x_driver = {
 	.probe = host1x_probe,
 	.remove = __exit_p(host1x_remove),
 	.driver = {
@@ -178,8 +193,47 @@ static struct platform_driver platform_driver = {
 	},
 };
 
-module_platform_driver(platform_driver);
+static int __init tegra_host1x_init(void)
+{
+	int err;
 
+	err = platform_driver_register(&tegra_host1x_driver);
+	if (err < 0)
+		return err;
+
+#ifdef CONFIG_DRM_TEGRA
+	err = platform_driver_register(&tegra_dc_driver);
+	if (err < 0)
+		goto unregister_host1x;
+
+	err = platform_driver_register(&tegra_hdmi_driver);
+	if (err < 0)
+		goto unregister_dc;
+#endif
+
+	return 0;
+
+#ifdef CONFIG_DRM_TEGRA
+unregister_dc:
+	platform_driver_unregister(&tegra_dc_driver);
+unregister_host1x:
+	platform_driver_unregister(&tegra_host1x_driver);
+	return err;
+#endif
+}
+module_init(tegra_host1x_init);
+
+static void __exit tegra_host1x_exit(void)
+{
+#ifdef CONFIG_DRM_TEGRA
+	platform_driver_unregister(&tegra_hdmi_driver);
+	platform_driver_unregister(&tegra_dc_driver);
+#endif
+	platform_driver_unregister(&tegra_host1x_driver);
+}
+module_exit(tegra_host1x_exit);
+
+MODULE_AUTHOR("Thierry Reding <thierry.reding@avionic-design.de>");
 MODULE_AUTHOR("Terje Bergstrom <tbergstrom@nvidia.com>");
 MODULE_DESCRIPTION("Host1x driver for Tegra products");
 MODULE_LICENSE("GPL");

@@ -1,5 +1,5 @@
 config DRM_TEGRA
-	tristate "NVIDIA Tegra DRM"
+	bool "NVIDIA Tegra DRM"
 	depends on DRM && OF
 	select DRM_KMS_HELPER
 	select DRM_GEM_CMA_HELPER

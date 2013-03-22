@@ -229,9 +229,6 @@ extern int tegra_output_exit(struct tegra_output *output);
 extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
 
-extern struct platform_driver tegra_host1x_driver;
-extern struct platform_driver tegra_hdmi_driver;
-extern struct platform_driver tegra_dc_driver;
 extern struct drm_driver tegra_drm_driver;
 
 #endif /* HOST1X_DRM_H */
