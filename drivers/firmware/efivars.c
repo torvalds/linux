@@ -104,7 +104,7 @@ MODULE_VERSION(EFIVARS_VERSION);
 #define GUID_LEN 36
 
 static bool efivars_pstore_disable =
-	IS_ENABLED(EFI_VARS_PSTORE_DEFAULT_DISABLE);
+	IS_ENABLED(CONFIG_EFI_VARS_PSTORE_DEFAULT_DISABLE);
 
 module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
 
