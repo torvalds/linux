@@ -73,7 +73,7 @@ NI manuals:
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-static const struct labpc_board_struct labpc_cs_boards[] = {
+static const struct labpc_boardinfo labpc_cs_boards[] = {
 	{
 		.name			= "daqcard-1200",
 		.device_id		= 0x103,

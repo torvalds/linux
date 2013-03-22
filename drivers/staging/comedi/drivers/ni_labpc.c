@@ -420,7 +420,7 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 	writeb(byte, (void __iomem *)address);
 }
 
-static const struct labpc_board_struct labpc_boards[] = {
+static const struct labpc_boardinfo labpc_boards[] = {
 	{
 	 .name = "lab-pc-1200",
 	 .ai_speed = 10000,
@@ -482,7 +482,7 @@ static const struct labpc_board_struct labpc_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((struct labpc_board_struct *)dev->board_ptr)
+#define thisboard ((struct labpc_boardinfo *)dev->board_ptr)
 
 /* size in bytes of dma buffer */
 static const int dma_buffer_size = 0xff00;
@@ -681,14 +681,14 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 }
 EXPORT_SYMBOL_GPL(labpc_common_attach);
 
-static const struct labpc_board_struct *
+static const struct labpc_boardinfo *
 labpc_pci_find_boardinfo(struct pci_dev *pcidev)
 {
 	unsigned int device_id = pcidev->device;
 	unsigned int n;
 
 	for (n = 0; n < ARRAY_SIZE(labpc_boards); n++) {
-		const struct labpc_board_struct *board = &labpc_boards[n];
+		const struct labpc_boardinfo *board = &labpc_boards[n];
 		if (board->bustype == pci_bustype &&
 		    board->device_id == device_id)
 			return board;
@@ -2108,7 +2108,7 @@ static struct comedi_driver labpc_driver = {
 	.detach = labpc_common_detach,
 	.num_names = ARRAY_SIZE(labpc_boards),
 	.board_name = &labpc_boards[0].name,
-	.offset = sizeof(struct labpc_board_struct),
+	.offset = sizeof(struct labpc_boardinfo),
 };
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS

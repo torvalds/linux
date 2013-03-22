@@ -33,7 +33,7 @@ enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
 	isa_dma_transfer
 };
 
-struct labpc_board_struct {
+struct labpc_boardinfo {
 	const char *name;
 	int device_id;		/*  device id for pci and pcmcia boards */
 	int ai_speed;		/*  maximum input speed in nanoseconds */
