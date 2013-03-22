@@ -154,12 +154,6 @@ static int omap_pcm_open(struct snd_pcm_substream *substream)
 				      &dma_data->dma_req);
 }
 
-static int omap_pcm_close(struct snd_pcm_substream *substream)
-{
-	snd_dmaengine_pcm_close(substream);
-	return 0;
-}
-
 static int omap_pcm_mmap(struct snd_pcm_substream *substream,
 	struct vm_area_struct *vma)
 {
@@ -173,7 +167,7 @@ static int omap_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops omap_pcm_ops = {
 	.open		= omap_pcm_open,
-	.close		= omap_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= omap_pcm_hw_params,
 	.hw_free	= omap_pcm_hw_free,
