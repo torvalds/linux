@@ -660,6 +660,73 @@ static int s626_dio_clear_irq(struct comedi_device *dev)
 	return 0;
 }
 
+static void handle_dio_interrupt(struct comedi_device *dev,
+				 uint16_t irqbit, uint8_t group)
+{
+	struct s626_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
+
+	s626_dio_reset_irq(dev, group, irqbit);
+
+	if (devpriv->ai_cmd_running) {
+		/* check if interrupt is an ai acquisition start trigger */
+		if ((irqbit >> (cmd->start_arg - (16 * group))) == 1 &&
+		    cmd->start_src == TRIG_EXT) {
+			/* Start executing the RPS program */
+			MC_ENABLE(P_MC1, MC1_ERPS1);
+
+			if (cmd->scan_begin_src == TRIG_EXT)
+				s626_dio_set_irq(dev, cmd->scan_begin_arg);
+		}
+		if ((irqbit >> (cmd->scan_begin_arg - (16 * group))) == 1 &&
+		    cmd->scan_begin_src == TRIG_EXT) {
+			/* Trigger ADC scan loop start (set RPS Signal 0) */
+			MC_ENABLE(P_MC2, MC2_ADC_RPS);
+
+			if (cmd->convert_src == TRIG_EXT) {
+				devpriv->ai_convert_count = cmd->chanlist_len;
+
+				s626_dio_set_irq(dev, cmd->convert_arg);
+			}
+
+			if (cmd->convert_src == TRIG_TIMER) {
+				struct enc_private *k = &encpriv[5];
+
+				devpriv->ai_convert_count = cmd->chanlist_len;
+				k->SetEnable(dev, k, CLKENAB_ALWAYS);
+			}
+		}
+		if ((irqbit >> (cmd->convert_arg - (16 * group))) == 1 &&
+		    cmd->convert_src == TRIG_EXT) {
+			/* Trigger ADC scan loop start (set RPS Signal 0) */
+			MC_ENABLE(P_MC2, MC2_ADC_RPS);
+
+			devpriv->ai_convert_count--;
+			if (devpriv->ai_convert_count > 0)
+				s626_dio_set_irq(dev, cmd->convert_arg);
+		}
+	}
+}
+
+static void check_dio_interrupts(struct comedi_device *dev)
+{
+	uint16_t irqbit;
+	uint8_t group;
+
+	for (group = 0; group < S626_DIO_BANKS; group++) {
+		irqbit = 0;
+		/* read interrupt type */
+		irqbit = DEBIread(dev, LP_RDCAPFLG(group));
+
+		/* check if interrupt is generated from dio channels */
+		if (irqbit) {
+			handle_dio_interrupt(dev, irqbit, group);
+			return;
+		}
+	}
+}
+
 static irqreturn_t s626_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -672,7 +739,6 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 	uint32_t irqtype, irqstatus;
 	int i = 0;
 	short tempdata;
-	uint8_t group;
 	uint16_t irqbit;
 
 	if (!dev->attached)
@@ -748,73 +814,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 
 		/* s626_dio_clear_irq(dev); */
 
-		for (group = 0; group < S626_DIO_BANKS; group++) {
-			irqbit = 0;
-			/* read interrupt type */
-			irqbit = DEBIread(dev, LP_RDCAPFLG(group));
-
-			/* check if interrupt is generated from dio channels */
-			if (irqbit) {
-				s626_dio_reset_irq(dev, group, irqbit);
-				if (devpriv->ai_cmd_running) {
-					/* check if interrupt is an ai acquisition start trigger */
-					if ((irqbit >> (cmd->start_arg -
-							(16 * group)))
-					    == 1 && cmd->start_src == TRIG_EXT) {
-						/*  Start executing the RPS program. */
-						MC_ENABLE(P_MC1, MC1_ERPS1);
-
-						if (cmd->scan_begin_src ==
-						    TRIG_EXT) {
-							s626_dio_set_irq(dev,
-									 cmd->scan_begin_arg);
-						}
-					}
-					if ((irqbit >> (cmd->scan_begin_arg -
-							(16 * group)))
-					    == 1
-					    && cmd->scan_begin_src ==
-					    TRIG_EXT) {
-						/*  Trigger ADC scan loop start by setting RPS Signal 0. */
-						MC_ENABLE(P_MC2, MC2_ADC_RPS);
-
-						if (cmd->convert_src ==
-						    TRIG_EXT) {
-							devpriv->ai_convert_count
-							    = cmd->chanlist_len;
-
-							s626_dio_set_irq(dev,
-									 cmd->convert_arg);
-						}
-
-						if (cmd->convert_src ==
-						    TRIG_TIMER) {
-							k = &encpriv[5];
-							devpriv->ai_convert_count
-							    = cmd->chanlist_len;
-							k->SetEnable(dev, k,
-								     CLKENAB_ALWAYS);
-						}
-					}
-					if ((irqbit >> (cmd->convert_arg -
-							(16 * group)))
-					    == 1
-					    && cmd->convert_src == TRIG_EXT) {
-						/*  Trigger ADC scan loop start by setting RPS Signal 0. */
-						MC_ENABLE(P_MC2, MC2_ADC_RPS);
-
-						devpriv->ai_convert_count--;
-
-						if (devpriv->ai_convert_count >
-						    0) {
-							s626_dio_set_irq(dev,
-									 cmd->convert_arg);
-						}
-					}
-				}
-				break;
-			}
-		}
+		check_dio_interrupts(dev);
 
 		/* read interrupt type */
 		irqbit = DEBIread(dev, LP_RDMISC2);
