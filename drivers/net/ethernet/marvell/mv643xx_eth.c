@@ -69,14 +69,6 @@ static char mv643xx_eth_driver_version[] = "1.4";
  * Registers shared between all ports.
  */
 #define PHY_ADDR			0x0000
-#define SMI_REG				0x0004
-#define  SMI_BUSY			0x10000000
-#define  SMI_READ_VALID			0x08000000
-#define  SMI_OPCODE_READ		0x04000000
-#define  SMI_OPCODE_WRITE		0x00000000
-#define ERR_INT_CAUSE			0x0080
-#define  ERR_INT_SMI_DONE		0x00000010
-#define ERR_INT_MASK			0x0084
 #define WINDOW_BASE(w)			(0x0200 + ((w) << 3))
 #define WINDOW_SIZE(w)			(0x0204 + ((w) << 3))
 #define WINDOW_REMAP_HIGH(w)		(0x0280 + ((w) << 2))
@@ -264,25 +256,6 @@ struct mv643xx_eth_shared_private {
 	 * Ethernet controller base address.
 	 */
 	void __iomem *base;
-
-	/*
-	 * Points at the right SMI instance to use.
-	 */
-	struct mv643xx_eth_shared_private *smi;
-
-	/*
-	 * Provides access to local SMI interface.
-	 */
-	struct mii_bus *smi_bus;
-
-	/*
-	 * If we have access to the error interrupt pin (which is
-	 * somewhat misnamed as it not only reflects internal errors
-	 * but also reflects SMI completion), use that to wait for
-	 * SMI access completion instead of polling the SMI busy bit.
-	 */
-	int err_interrupt;
-	wait_queue_head_t smi_busy_wait;
 
 	/*
 	 * Per-port MBUS window access register value.
@@ -1121,97 +1094,6 @@ static void mv643xx_adjust_pscr(struct mv643xx_eth_private *mp)
 out_write:
 	wrlp(mp, PORT_SERIAL_CONTROL, pscr);
 }
-
-static irqreturn_t mv643xx_eth_err_irq(int irq, void *dev_id)
-{
-	struct mv643xx_eth_shared_private *msp = dev_id;
-
-	if (readl(msp->base + ERR_INT_CAUSE) & ERR_INT_SMI_DONE) {
-		writel(~ERR_INT_SMI_DONE, msp->base + ERR_INT_CAUSE);
-		wake_up(&msp->smi_busy_wait);
-		return IRQ_HANDLED;
-	}
-
-	return IRQ_NONE;
-}
-
-static int smi_is_done(struct mv643xx_eth_shared_private *msp)
-{
-	return !(readl(msp->base + SMI_REG) & SMI_BUSY);
-}
-
-static int smi_wait_ready(struct mv643xx_eth_shared_private *msp)
-{
-	if (msp->err_interrupt == NO_IRQ) {
-		int i;
-
-		for (i = 0; !smi_is_done(msp); i++) {
-			if (i == 10)
-				return -ETIMEDOUT;
-			msleep(10);
-		}
-
-		return 0;
-	}
-
-	if (!smi_is_done(msp)) {
-		wait_event_timeout(msp->smi_busy_wait, smi_is_done(msp),
-				   msecs_to_jiffies(100));
-		if (!smi_is_done(msp))
-			return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-static int smi_bus_read(struct mii_bus *bus, int addr, int reg)
-{
-	struct mv643xx_eth_shared_private *msp = bus->priv;
-	void __iomem *smi_reg = msp->base + SMI_REG;
-	int ret;
-
-	if (smi_wait_ready(msp)) {
-		pr_warn("SMI bus busy timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	writel(SMI_OPCODE_READ | (reg << 21) | (addr << 16), smi_reg);
-
-	if (smi_wait_ready(msp)) {
-		pr_warn("SMI bus busy timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	ret = readl(smi_reg);
-	if (!(ret & SMI_READ_VALID)) {
-		pr_warn("SMI bus read not valid\n");
-		return -ENODEV;
-	}
-
-	return ret & 0xffff;
-}
-
-static int smi_bus_write(struct mii_bus *bus, int addr, int reg, u16 val)
-{
-	struct mv643xx_eth_shared_private *msp = bus->priv;
-	void __iomem *smi_reg = msp->base + SMI_REG;
-
-	if (smi_wait_ready(msp)) {
-		pr_warn("SMI bus busy timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	writel(SMI_OPCODE_WRITE | (reg << 21) |
-		(addr << 16) | (val & 0xffff), smi_reg);
-
-	if (smi_wait_ready(msp)) {
-		pr_warn("SMI bus busy timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
 
 /* statistics ***************************************************************/
 static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
@@ -2688,47 +2570,6 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		goto out_free;
 
 	/*
-	 * Set up and register SMI bus.
-	 */
-	if (pd == NULL || pd->shared_smi == NULL) {
-		msp->smi_bus = mdiobus_alloc();
-		if (msp->smi_bus == NULL)
-			goto out_unmap;
-
-		msp->smi_bus->priv = msp;
-		msp->smi_bus->name = "mv643xx_eth smi";
-		msp->smi_bus->read = smi_bus_read;
-		msp->smi_bus->write = smi_bus_write,
-		snprintf(msp->smi_bus->id, MII_BUS_ID_SIZE, "%s-%d",
-			pdev->name, pdev->id);
-		msp->smi_bus->parent = &pdev->dev;
-		msp->smi_bus->phy_mask = 0xffffffff;
-		if (mdiobus_register(msp->smi_bus) < 0)
-			goto out_free_mii_bus;
-		msp->smi = msp;
-	} else {
-		msp->smi = platform_get_drvdata(pd->shared_smi);
-	}
-
-	msp->err_interrupt = NO_IRQ;
-	init_waitqueue_head(&msp->smi_busy_wait);
-
-	/*
-	 * Check whether the error interrupt is hooked up.
-	 */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res != NULL) {
-		int err;
-
-		err = request_irq(res->start, mv643xx_eth_err_irq,
-				  IRQF_SHARED, "mv643xx_eth", msp);
-		if (!err) {
-			writel(ERR_INT_SMI_DONE, msp->base + ERR_INT_MASK);
-			msp->err_interrupt = res->start;
-		}
-	}
-
-	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
 	 */
 	dram = mv_mbus_dram_info();
@@ -2743,10 +2584,6 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_free_mii_bus:
-	mdiobus_free(msp->smi_bus);
-out_unmap:
-	iounmap(msp->base);
 out_free:
 	kfree(msp);
 out:
@@ -2756,14 +2593,7 @@ out:
 static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
 	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
-	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
 
-	if (pd == NULL || pd->shared_smi == NULL) {
-		mdiobus_unregister(msp->smi_bus);
-		mdiobus_free(msp->smi_bus);
-	}
-	if (msp->err_interrupt != NO_IRQ)
-		free_irq(msp->err_interrupt, msp);
 	iounmap(msp->base);
 	kfree(msp);
 
@@ -2826,14 +2656,21 @@ static void set_params(struct mv643xx_eth_private *mp,
 	mp->txq_count = pd->tx_queue_count ? : 1;
 }
 
+static void mv643xx_eth_adjust_link(struct net_device *dev)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	mv643xx_adjust_pscr(mp);
+}
+
 static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 				   int phy_addr)
 {
-	struct mii_bus *bus = mp->shared->smi->smi_bus;
 	struct phy_device *phydev;
 	int start;
 	int num;
 	int i;
+	char phy_id[MII_BUS_ID_SIZE + 3];
 
 	if (phy_addr == MV643XX_ETH_PHY_ADDR_DEFAULT) {
 		start = phy_addr_get(mp) & 0x1f;
@@ -2843,17 +2680,19 @@ static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 		num = 1;
 	}
 
+	/* Attempt to connect to the PHY using orion-mdio */
 	phydev = NULL;
 	for (i = 0; i < num; i++) {
 		int addr = (start + i) & 0x1f;
 
-		if (bus->phy_map[addr] == NULL)
-			mdiobus_scan(bus, addr);
+		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
+				"orion-mdio-mii", addr);
 
-		if (phydev == NULL) {
-			phydev = bus->phy_map[addr];
-			if (phydev != NULL)
-				phy_addr_set(mp, addr);
+		phydev = phy_connect(mp->dev, phy_id, mv643xx_eth_adjust_link,
+				PHY_INTERFACE_MODE_GMII);
+		if (!IS_ERR(phydev)) {
+			phy_addr_set(mp, addr);
+			break;
 		}
 	}
 
@@ -2865,8 +2704,6 @@ static void phy_init(struct mv643xx_eth_private *mp, int speed, int duplex)
 	struct phy_device *phy = mp->phy;
 
 	phy_reset(mp);
-
-	phy_attach(mp->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_GMII);
 
 	if (speed == 0) {
 		phy->autoneg = AUTONEG_ENABLE;
