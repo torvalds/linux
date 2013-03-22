@@ -54,16 +54,10 @@ int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
  * This function waits on a cmd wait queue. It also cancels the pending
  * request after waking up, in case of errors.
  */
-int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
+int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
+				struct cmd_ctrl_node *cmd_queued)
 {
 	int status;
-	struct cmd_ctrl_node *cmd_queued;
-
-	if (!adapter->cmd_queued)
-		return 0;
-
-	cmd_queued = adapter->cmd_queued;
-	adapter->cmd_queued = NULL;
 
 	dev_dbg(adapter->dev, "cmd pending\n");
 	atomic_inc(&adapter->cmd_pending);
