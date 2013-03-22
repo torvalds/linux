@@ -3166,14 +3166,15 @@ no_flash_data:
 	hw->flt_region_boot     = FA_BOOT_CODE_ADDR_82;
 	hw->flt_region_bootload = FA_BOOT_LOAD_ADDR_82;
 	hw->flt_region_fw       = FA_RISC_CODE_ADDR_82;
-	hw->flt_region_chap	= FA_FLASH_ISCSI_CHAP;
+	hw->flt_region_chap	= FA_FLASH_ISCSI_CHAP >> 2;
 	hw->flt_chap_size	= FA_FLASH_CHAP_SIZE;
 
 done:
-	DEBUG2(ql4_printk(KERN_INFO, ha, "FLT[%s]: flt=0x%x fdt=0x%x "
-	    "boot=0x%x bootload=0x%x fw=0x%x\n", loc, hw->flt_region_flt,
-	    hw->flt_region_fdt,	hw->flt_region_boot, hw->flt_region_bootload,
-	    hw->flt_region_fw));
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "FLT[%s]: flt=0x%x fdt=0x%x boot=0x%x bootload=0x%x fw=0x%x chap=0x%x\n",
+			  loc, hw->flt_region_flt, hw->flt_region_fdt,
+			  hw->flt_region_boot, hw->flt_region_bootload,
+			  hw->flt_region_fw, hw->flt_region_chap));
 }
 
 static void
