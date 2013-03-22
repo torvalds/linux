@@ -39,14 +39,14 @@ static int ip_vs_rr_del_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest)
 {
 	struct list_head *p;
 
-	write_lock_bh(&svc->sched_lock);
+	spin_lock_bh(&svc->sched_lock);
 	p = (struct list_head *) svc->sched_data;
 	/* dest is already unlinked, so p->prev is not valid but
 	 * p->next is valid, use it to reach previous entry.
 	 */
 	if (p == &dest->n_list)
 		svc->sched_data = p->next->prev;
-	write_unlock_bh(&svc->sched_lock);
+	spin_unlock_bh(&svc->sched_lock);
 	return 0;
 }
 
@@ -63,7 +63,7 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 
 	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
-	write_lock(&svc->sched_lock);
+	spin_lock(&svc->sched_lock);
 	p = (struct list_head *) svc->sched_data;
 	last = dest = list_entry(p, struct ip_vs_dest, n_list);
 
@@ -85,13 +85,13 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	} while (pass < 2 && p != &svc->destinations);
 
 stop:
-	write_unlock(&svc->sched_lock);
+	spin_unlock(&svc->sched_lock);
 	ip_vs_scheduler_err(svc, "no destination available");
 	return NULL;
 
   out:
 	svc->sched_data = &dest->n_list;
-	write_unlock(&svc->sched_lock);
+	spin_unlock(&svc->sched_lock);
 	IP_VS_DBG_BUF(6, "RR: server %s:%u "
 		      "activeconns %d refcnt %d weight %d\n",
 		      IP_VS_DBG_ADDR(svc->af, &dest->addr), ntohs(dest->port),

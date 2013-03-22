@@ -1219,7 +1219,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	svc->net = net;
 
 	INIT_LIST_HEAD(&svc->destinations);
-	rwlock_init(&svc->sched_lock);
+	spin_lock_init(&svc->sched_lock);
 	spin_lock_init(&svc->stats.lock);
 
 	/* Bind the scheduler */

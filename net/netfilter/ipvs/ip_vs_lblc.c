@@ -194,7 +194,7 @@ ip_vs_lblc_get(int af, struct ip_vs_lblc_table *tbl,
 
 /*
  * Create or update an ip_vs_lblc_entry, which is a mapping of a destination IP
- * address to a server. Called under write lock.
+ * address to a server. Called under spin lock.
  */
 static inline struct ip_vs_lblc_entry *
 ip_vs_lblc_new(struct ip_vs_lblc_table *tbl, const union nf_inet_addr *daddr,
@@ -242,7 +242,7 @@ static void ip_vs_lblc_flush(struct ip_vs_service *svc)
 	struct hlist_node *next;
 	int i;
 
-	write_lock_bh(&svc->sched_lock);
+	spin_lock_bh(&svc->sched_lock);
 	tbl->dead = 1;
 	for (i=0; i<IP_VS_LBLC_TAB_SIZE; i++) {
 		hlist_for_each_entry_safe(en, next, &tbl->bucket[i], list) {
@@ -250,7 +250,7 @@ static void ip_vs_lblc_flush(struct ip_vs_service *svc)
 			atomic_dec(&tbl->entries);
 		}
 	}
-	write_unlock_bh(&svc->sched_lock);
+	spin_unlock_bh(&svc->sched_lock);
 }
 
 static int sysctl_lblc_expiration(struct ip_vs_service *svc)
@@ -274,7 +274,7 @@ static inline void ip_vs_lblc_full_check(struct ip_vs_service *svc)
 	for (i=0, j=tbl->rover; i<IP_VS_LBLC_TAB_SIZE; i++) {
 		j = (j + 1) & IP_VS_LBLC_TAB_MASK;
 
-		write_lock(&svc->sched_lock);
+		spin_lock(&svc->sched_lock);
 		hlist_for_each_entry_safe(en, next, &tbl->bucket[j], list) {
 			if (time_before(now,
 					en->lastuse +
@@ -284,7 +284,7 @@ static inline void ip_vs_lblc_full_check(struct ip_vs_service *svc)
 			ip_vs_lblc_free(en);
 			atomic_dec(&tbl->entries);
 		}
-		write_unlock(&svc->sched_lock);
+		spin_unlock(&svc->sched_lock);
 	}
 	tbl->rover = j;
 }
@@ -330,7 +330,7 @@ static void ip_vs_lblc_check_expire(unsigned long data)
 	for (i=0, j=tbl->rover; i<IP_VS_LBLC_TAB_SIZE; i++) {
 		j = (j + 1) & IP_VS_LBLC_TAB_MASK;
 
-		write_lock(&svc->sched_lock);
+		spin_lock(&svc->sched_lock);
 		hlist_for_each_entry_safe(en, next, &tbl->bucket[j], list) {
 			if (time_before(now, en->lastuse + ENTRY_TIMEOUT))
 				continue;
@@ -339,7 +339,7 @@ static void ip_vs_lblc_check_expire(unsigned long data)
 			atomic_dec(&tbl->entries);
 			goal--;
 		}
-		write_unlock(&svc->sched_lock);
+		spin_unlock(&svc->sched_lock);
 		if (goal <= 0)
 			break;
 	}
@@ -527,10 +527,10 @@ ip_vs_lblc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	}
 
 	/* If we fail to create a cache entry, we'll just use the valid dest */
-	write_lock(&svc->sched_lock);
+	spin_lock(&svc->sched_lock);
 	if (!tbl->dead)
 		ip_vs_lblc_new(tbl, &iph.daddr, dest);
-	write_unlock(&svc->sched_lock);
+	spin_unlock(&svc->sched_lock);
 
 out:
 	IP_VS_DBG_BUF(6, "LBLC: destination IP address %s --> server %s:%d\n",

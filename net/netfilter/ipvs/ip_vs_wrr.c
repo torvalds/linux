@@ -145,7 +145,7 @@ static int ip_vs_wrr_dest_changed(struct ip_vs_service *svc,
 {
 	struct ip_vs_wrr_mark *mark = svc->sched_data;
 
-	write_lock_bh(&svc->sched_lock);
+	spin_lock_bh(&svc->sched_lock);
 	mark->cl = list_entry(&svc->destinations, struct ip_vs_dest, n_list);
 	mark->di = ip_vs_wrr_gcd_weight(svc);
 	mark->mw = ip_vs_wrr_max_weight(svc) - (mark->di - 1);
@@ -153,7 +153,7 @@ static int ip_vs_wrr_dest_changed(struct ip_vs_service *svc,
 		mark->cw = mark->mw;
 	else if (mark->di > 1)
 		mark->cw = (mark->cw / mark->di) * mark->di + 1;
-	write_unlock_bh(&svc->sched_lock);
+	spin_unlock_bh(&svc->sched_lock);
 	return 0;
 }
 
@@ -170,7 +170,7 @@ ip_vs_wrr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 
 	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
-	write_lock(&svc->sched_lock);
+	spin_lock(&svc->sched_lock);
 	dest = mark->cl;
 	/* No available dests? */
 	if (mark->mw == 0)
@@ -222,7 +222,7 @@ found:
 	mark->cl = dest;
 
   out:
-	write_unlock(&svc->sched_lock);
+	spin_unlock(&svc->sched_lock);
 	return dest;
 
 err_noavail:

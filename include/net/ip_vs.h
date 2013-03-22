@@ -734,7 +734,7 @@ struct ip_vs_service {
 
 	/* for scheduling */
 	struct ip_vs_scheduler	*scheduler;    /* bound scheduler object */
-	rwlock_t		sched_lock;    /* lock sched_data */
+	spinlock_t		sched_lock;    /* lock sched_data */
 	void			*sched_data;   /* scheduler application data */
 
 	/* alternate persistence engine */
