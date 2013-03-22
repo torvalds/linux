@@ -649,7 +649,8 @@ static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->qh_state = QH_STATE_IDLE;
 	hw->hw_next = EHCI_LIST_END(ehci);
 
-	qh_completions(ehci, qh);
+	if (!list_empty(&qh->qtd_list))
+		qh_completions(ehci, qh);
 
 	/* reschedule QH iff another request is queued */
 	if (!list_empty(&qh->qtd_list) && ehci->rh_state == EHCI_RH_RUNNING) {
@@ -914,7 +915,7 @@ static void scan_intr(struct ehci_hcd *ehci)
 
 	list_for_each_entry_safe(qh, ehci->qh_scan_next, &ehci->intr_qh_list,
 			intr_node) {
- rescan:
+
 		/* clean any finished work for this qh */
 		if (!list_empty(&qh->qtd_list)) {
 			int temp;
@@ -927,12 +928,9 @@ static void scan_intr(struct ehci_hcd *ehci)
 			 * in qh_unlink_periodic().
 			 */
 			temp = qh_completions(ehci, qh);
-			if (unlikely(qh->needs_rescan ||
-					(list_empty(&qh->qtd_list) &&
-						qh->qh_state == QH_STATE_LINKED)))
+			if (unlikely(temp || (list_empty(&qh->qtd_list) &&
+					qh->qh_state == QH_STATE_LINKED)))
 				start_unlink_intr(ehci, qh);
-			else if (temp != 0)
-				goto rescan;
 		}
 	}
 }

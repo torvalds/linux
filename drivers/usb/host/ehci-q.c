@@ -292,8 +292,8 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 /*
  * Process and free completed qtds for a qh, returning URBs to drivers.
- * Chases up to qh->hw_current.  Returns number of completions called,
- * indicating how much "real" work we did.
+ * Chases up to qh->hw_current.  Returns nonzero if the caller should
+ * unlink qh.
  */
 static unsigned
 qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
@@ -302,12 +302,8 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	struct list_head	*entry, *tmp;
 	int			last_status;
 	int			stopped;
-	unsigned		count = 0;
 	u8			state;
 	struct ehci_qh_hw	*hw = qh->hw;
-
-	if (unlikely (list_empty (&qh->qtd_list)))
-		return count;
 
 	/* completions (or tasks on other cpus) must never clobber HALT
 	 * till we've gone through and cleaned everything up, even when
@@ -345,7 +341,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		if (last) {
 			if (likely (last->urb != urb)) {
 				ehci_urb_done(ehci, last->urb, last_status);
-				count++;
 				last_status = -EINPROGRESS;
 			}
 			ehci_qtd_free (ehci, last);
@@ -519,7 +514,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* last urb's completion might still need calling */
 	if (likely (last != NULL)) {
 		ehci_urb_done(ehci, last->urb, last_status);
-		count++;
 		ehci_qtd_free (ehci, last);
 	}
 
@@ -566,7 +560,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		/* otherwise, unlink already started */
 	}
 
-	return count;
+	return qh->needs_rescan;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1254,7 +1248,8 @@ static void end_unlink_async(struct ehci_hcd *ehci)
 		qh->qh_state = QH_STATE_IDLE;
 		qh->qh_next.qh = NULL;
 
-		qh_completions(ehci, qh);
+		if (!list_empty(&qh->qtd_list))
+			qh_completions(ehci, qh);
 		if (!list_empty(&qh->qtd_list) &&
 				ehci->rh_state == EHCI_RH_RUNNING)
 			qh_link_async(ehci, qh);
@@ -1348,7 +1343,7 @@ static void scan_async (struct ehci_hcd *ehci)
 	while (ehci->qh_scan_next) {
 		qh = ehci->qh_scan_next;
 		ehci->qh_scan_next = qh->qh_next.qh;
- rescan:
+
 		/* clean any finished work for this qh */
 		if (!list_empty(&qh->qtd_list)) {
 			int temp;
@@ -1361,14 +1356,13 @@ static void scan_async (struct ehci_hcd *ehci)
 			 * in single_unlink_async().
 			 */
 			temp = qh_completions(ehci, qh);
-			if (qh->needs_rescan) {
+			if (unlikely(temp)) {
 				start_unlink_async(ehci, qh);
 			} else if (list_empty(&qh->qtd_list)
 					&& qh->qh_state == QH_STATE_LINKED) {
 				qh->unlink_cycle = ehci->async_unlink_cycle;
 				check_unlinks_later = true;
-			} else if (temp != 0)
-				goto rescan;
+			}
 		}
 	}
 
