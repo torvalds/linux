@@ -559,6 +559,13 @@
 					trigger-value = <0x6>;
 				};
 			};
+
+			rtc@fffffeb0 {
+				compatible = "atmel,at91rm9200-rtc";
+				reg = <0xfffffeb0 0x40>;
+				interrupts = <1 4 7>;
+				status = "disabled";
+			};
 		};
 
 		nand0: nand@40000000 {
