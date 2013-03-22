@@ -1906,7 +1906,7 @@ done:
 }
 
 /* usb 3.0 root hub device descriptor */
-struct {
+static struct {
 	struct usb_bos_descriptor bos;
 	struct usb_ss_cap_descriptor ss_cap;
 } __packed usb3_bos_desc = {
