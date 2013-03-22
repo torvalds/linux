@@ -1440,6 +1440,8 @@ static void pch_vbus_gpio_free(struct pch_udc_dev *dev)
  */
 static void complete_req(struct pch_udc_ep *ep, struct pch_udc_request *req,
 								 int status)
+	__releases(&dev->lock)
+	__acquires(&dev->lock)
 {
 	struct pch_udc_dev	*dev;
 	unsigned halted = ep->halted;
@@ -2381,6 +2383,8 @@ static void pch_udc_svc_control_in(struct pch_udc_dev *dev)
  * @dev:	Reference to the device structure
  */
 static void pch_udc_svc_control_out(struct pch_udc_dev *dev)
+	__releases(&dev->lock)
+	__acquires(&dev->lock)
 {
 	u32	stat;
 	int setup_supported;
