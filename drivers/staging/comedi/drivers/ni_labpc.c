@@ -1310,60 +1310,6 @@ static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-/* analog output insn */
-static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
-{
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
-	struct labpc_private *devpriv = dev->private;
-	int channel, range;
-	unsigned long flags;
-	int lsb, msb;
-
-	channel = CR_CHAN(insn->chanspec);
-
-	/* turn off pacing of analog output channel */
-	/* note: hardware bug in daqcard-1200 means pacing cannot
-	 * be independently enabled/disabled for its the two channels */
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->command2_bits &= ~DAC_PACED_BIT(channel);
-	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	/* set range */
-	if (thisboard->register_layout == labpc_1200_layout) {
-		range = CR_RANGE(insn->chanspec);
-		if (range & AO_RANGE_IS_UNIPOLAR)
-			devpriv->command6_bits |= DAC_UNIP_BIT(channel);
-		else
-			devpriv->command6_bits &= ~DAC_UNIP_BIT(channel);
-		/*  write to register */
-		devpriv->write_byte(devpriv->command6_bits,
-				    dev->iobase + COMMAND6_REG);
-	}
-	/* send data */
-	lsb = data[0] & 0xff;
-	msb = (data[0] >> 8) & 0xff;
-	devpriv->write_byte(lsb, dev->iobase + DAC_LSB_REG(channel));
-	devpriv->write_byte(msb, dev->iobase + DAC_MSB_REG(channel));
-
-	/* remember value for readback */
-	devpriv->ao_value[channel] = data[0];
-
-	return 1;
-}
-
-/* analog output readback insn */
-static int labpc_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
-{
-	struct labpc_private *devpriv = dev->private;
-
-	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
-
-	return 1;
-}
-
 #ifdef CONFIG_ISA_DMA_API
 /* utility function that suggests a dma transfer size in bytes */
 static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
@@ -1484,6 +1430,60 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 					       cmd->flags & TRIG_ROUND_MASK);
 		labpc_set_ai_convert_period(cmd, mode, convert_period);
 	}
+}
+
+/* analog output insn */
+static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
+{
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	struct labpc_private *devpriv = dev->private;
+	int channel, range;
+	unsigned long flags;
+	int lsb, msb;
+
+	channel = CR_CHAN(insn->chanspec);
+
+	/* turn off pacing of analog output channel */
+	/* note: hardware bug in daqcard-1200 means pacing cannot
+	 * be independently enabled/disabled for its the two channels */
+	spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->command2_bits &= ~DAC_PACED_BIT(channel);
+	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	/* set range */
+	if (thisboard->register_layout == labpc_1200_layout) {
+		range = CR_RANGE(insn->chanspec);
+		if (range & AO_RANGE_IS_UNIPOLAR)
+			devpriv->command6_bits |= DAC_UNIP_BIT(channel);
+		else
+			devpriv->command6_bits &= ~DAC_UNIP_BIT(channel);
+		/*  write to register */
+		devpriv->write_byte(devpriv->command6_bits,
+				    dev->iobase + COMMAND6_REG);
+	}
+	/* send data */
+	lsb = data[0] & 0xff;
+	msb = (data[0] >> 8) & 0xff;
+	devpriv->write_byte(lsb, dev->iobase + DAC_LSB_REG(channel));
+	devpriv->write_byte(msb, dev->iobase + DAC_MSB_REG(channel));
+
+	/* remember value for readback */
+	devpriv->ao_value[channel] = data[0];
+
+	return 1;
+}
+
+/* analog output readback insn */
+static int labpc_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
+
+	return 1;
 }
 
 static int labpc_dio_mem_callback(int dir, int port, int data,
