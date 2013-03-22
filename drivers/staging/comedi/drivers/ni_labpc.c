@@ -372,7 +372,7 @@ static void labpc_clear_adc_fifo(const struct comedi_device *dev)
 static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	int i, n;
 	int chan, range;
@@ -394,7 +394,7 @@ static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	devpriv->cmd1 = 0;
 	chan = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
-	devpriv->cmd1 |= thisboard->ai_range_code[range];
+	devpriv->cmd1 |= board->ai_range_code[range];
 	/* munge channel bits for differential/scan disabled mode */
 	if (CR_AREF(insn->chanspec) == AREF_DIFF)
 		chan *= 2;
@@ -402,14 +402,14 @@ static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	devpriv->write_byte(devpriv->cmd1, dev->iobase + COMMAND1_REG);
 
 	/* setup cmd6 register for 1200 boards */
-	if (thisboard->register_layout == labpc_1200_layout) {
+	if (board->register_layout == labpc_1200_layout) {
 		/*  reference inputs to ground or common? */
 		if (CR_AREF(insn->chanspec) != AREF_GROUND)
 			devpriv->cmd6 |= ADC_COMMON_BIT;
 		else
 			devpriv->cmd6 &= ~ADC_COMMON_BIT;
 		/* bipolar or unipolar range? */
-		if (thisboard->ai_range_is_unipolar[range])
+		if (board->ai_range_is_unipolar[range])
 			devpriv->cmd6 |= ADC_UNIP_BIT;
 		else
 			devpriv->cmd6 &= ~ADC_UNIP_BIT;
@@ -740,7 +740,7 @@ static int labpc_ai_chanlist_invalid(const struct comedi_device *dev,
 static int labpc_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 	int err = 0;
 	int tmp, tmp2;
 	unsigned int stop_mask;
@@ -755,7 +755,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 
 	stop_mask = TRIG_COUNT | TRIG_NONE;
-	if (thisboard->register_layout == labpc_1200_layout)
+	if (board->register_layout == labpc_1200_layout)
 		stop_mask |= TRIG_EXT;
 	err |= cfc_check_trigger_src(&cmd->stop_src, stop_mask);
 
@@ -789,7 +789,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER)
 		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 thisboard->ai_speed);
+						 board->ai_speed);
 
 	/* make sure scan timing is not too fast */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -797,7 +797,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 					cmd->convert_arg * cmd->chanlist_len);
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-				thisboard->ai_speed * cmd->chanlist_len);
+				board->ai_speed * cmd->chanlist_len);
 	}
 
 	switch (cmd->stop_src) {
@@ -841,9 +841,9 @@ static inline int labpc_counter_load(struct comedi_device *dev,
 				     unsigned int counter_number,
 				     unsigned int count, unsigned int mode)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 
-	if (thisboard->memory_mapped_io)
+	if (board->memory_mapped_io)
 		return i8254_mm_load((void __iomem *)base_address, 0,
 				     counter_number, count, mode);
 	else
@@ -852,7 +852,7 @@ static inline int labpc_counter_load(struct comedi_device *dev,
 
 static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	int channel, range, aref;
 #ifdef CONFIG_ISA_DMA_API
@@ -914,12 +914,12 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 */
 	    (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0 &&
 	    /*  only available on the isa boards */
-	    thisboard->bustype == isa_bustype) {
+	    board->bustype == isa_bustype) {
 		xfer = isa_dma_transfer;
 		/* pc-plus has no fifo-half full interrupt */
 	} else
 #endif
-	if (thisboard->register_layout == labpc_1200_layout &&
+	if (board->register_layout == labpc_1200_layout &&
 		   /*  wake-end-of-scan should interrupt on fifo not empty */
 		   (cmd->flags & TRIG_WAKE_EOS) == 0 &&
 		   /*  make sure we are taking more than just a few points */
@@ -931,14 +931,14 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	mode = labpc_ai_scan_mode(cmd);
 
 	/*  setup cmd6 register for 1200 boards */
-	if (thisboard->register_layout == labpc_1200_layout) {
+	if (board->register_layout == labpc_1200_layout) {
 		/*  reference inputs to ground or common? */
 		if (aref != AREF_GROUND)
 			devpriv->cmd6 |= ADC_COMMON_BIT;
 		else
 			devpriv->cmd6 &= ~ADC_COMMON_BIT;
 		/*  bipolar or unipolar range? */
-		if (thisboard->ai_range_is_unipolar[range])
+		if (board->ai_range_is_unipolar[range])
 			devpriv->cmd6 |= ADC_UNIP_BIT;
 		else
 			devpriv->cmd6 &= ~ADC_UNIP_BIT;
@@ -972,7 +972,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	    aref == AREF_DIFF)
 		channel *= 2;
 	devpriv->cmd1 |= ADC_CHAN_BITS(channel);
-	devpriv->cmd1 |= thisboard->ai_range_code[range];
+	devpriv->cmd1 |= board->ai_range_code[range];
 	devpriv->write_byte(devpriv->cmd1, dev->iobase + COMMAND1_REG);
 	/* manual says to set scan enable bit on second pass */
 	if (mode == MODE_MULT_CHAN_UP || mode == MODE_MULT_CHAN_DOWN) {
@@ -1254,7 +1254,7 @@ static void labpc_drain_dregs(struct comedi_device *dev)
 static irqreturn_t labpc_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
@@ -1271,7 +1271,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 
 	/* read board status */
 	devpriv->stat1 = devpriv->read_byte(dev->iobase + STATUS1_REG);
-	if (thisboard->register_layout == labpc_1200_layout)
+	if (board->register_layout == labpc_1200_layout)
 		devpriv->stat2 = devpriv->read_byte(dev->iobase + STATUS2_REG);
 
 	if ((devpriv->stat1 & (DMATC_BIT | TIMER_BIT | OVERFLOW_BIT |
@@ -1297,7 +1297,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		 * has occurred
 		 */
 		if (devpriv->stat1 & DMATC_BIT ||
-		    (thisboard->register_layout == labpc_1200_layout
+		    (board->register_layout == labpc_1200_layout
 		     && devpriv->stat2 & A1_TC_BIT)) {
 			handle_isa_dma(dev);
 		}
@@ -1344,7 +1344,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	int channel, range;
 	unsigned long flags;
@@ -1361,7 +1361,7 @@ static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* set range */
-	if (thisboard->register_layout == labpc_1200_layout) {
+	if (board->register_layout == labpc_1200_layout) {
 		range = CR_RANGE(insn->chanspec);
 		if (range & AO_RANGE_IS_UNIPOLAR)
 			devpriv->cmd6 |= DAC_UNIP_BIT(channel);
@@ -1662,7 +1662,7 @@ static int labpc_eeprom_read_insn(struct comedi_device *dev,
 int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 			unsigned int irq, unsigned int dma_chan)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int i;
@@ -1673,13 +1673,13 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	short lsb, msb;
 	int ret;
 
-	dev_info(dev->class_dev, "ni_labpc: %s\n", thisboard->name);
+	dev_info(dev->class_dev, "ni_labpc: %s\n", board->name);
 	if (iobase == 0) {
 		dev_err(dev->class_dev, "io base address is zero!\n");
 		return -EINVAL;
 	}
 	/*  request io regions for isa boards */
-	if (thisboard->bustype == isa_bustype) {
+	if (board->bustype == isa_bustype) {
 		/* check if io addresses are available */
 		if (!request_region(iobase, LABPC_SIZE, DRV_NAME)) {
 			dev_err(dev->class_dev, "I/O port conflict\n");
@@ -1688,7 +1688,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	}
 	dev->iobase = iobase;
 
-	if (thisboard->memory_mapped_io) {
+	if (board->memory_mapped_io) {
 		devpriv->read_byte = labpc_readb;
 		devpriv->write_byte = labpc_writeb;
 	} else {
@@ -1700,7 +1700,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	devpriv->write_byte(devpriv->cmd2, dev->iobase + COMMAND2_REG);
 	devpriv->write_byte(devpriv->cmd3, dev->iobase + COMMAND3_REG);
 	devpriv->write_byte(devpriv->cmd4, dev->iobase + COMMAND4_REG);
-	if (thisboard->register_layout == labpc_1200_layout) {
+	if (board->register_layout == labpc_1200_layout) {
 		devpriv->write_byte(devpriv->cmd5, dev->iobase + COMMAND5_REG);
 		devpriv->write_byte(devpriv->cmd6, dev->iobase + COMMAND6_REG);
 	}
@@ -1708,8 +1708,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	/* grab our IRQ */
 	if (irq) {
 		isr_flags = 0;
-		if (thisboard->bustype == pci_bustype
-		    || thisboard->bustype == pcmcia_bustype)
+		if (board->bustype == pci_bustype ||
+		    board->bustype == pcmcia_bustype)
 			isr_flags |= IRQF_SHARED;
 		if (request_irq(irq, labpc_interrupt, isr_flags,
 				DRV_NAME, dev)) {
@@ -1746,7 +1746,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	}
 #endif
 
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
@@ -1761,7 +1761,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	s->n_chan = 8;
 	s->len_chanlist = 8;
 	s->maxdata = (1 << 12) - 1;	/* 12 bit resolution */
-	s->range_table = thisboard->ai_range_table;
+	s->range_table = board->ai_range_table;
 	s->do_cmd = labpc_ai_cmd;
 	s->do_cmdtest = labpc_ai_cmdtest;
 	s->insn_read = labpc_ai_rinsn;
@@ -1769,7 +1769,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	/* analog output */
 	s = &dev->subdevices[1];
-	if (thisboard->has_ao) {
+	if (board->has_ao) {
 		/*
 		 * Could provide command support, except it only has a
 		 * one sample hardware buffer for analog output and no
@@ -1798,7 +1798,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	s = &dev->subdevices[2];
 	/*  if board uses io memory we have to give a custom callback
 	 * function to the 8255 driver */
-	if (thisboard->memory_mapped_io)
+	if (board->memory_mapped_io)
 		subdev_8255_init(dev, s, labpc_dio_mem_callback,
 				 (unsigned long)(dev->iobase + DIO_BASE_REG));
 	else
@@ -1806,7 +1806,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	/*  calibration subdevices for boards that have one */
 	s = &dev->subdevices[3];
-	if (thisboard->register_layout == labpc_1200_layout) {
+	if (board->register_layout == labpc_1200_layout) {
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = 16;
@@ -1821,7 +1821,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	/* EEPROM */
 	s = &dev->subdevices[4];
-	if (thisboard->register_layout == labpc_1200_layout) {
+	if (board->register_layout == labpc_1200_layout) {
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = EEPROM_SIZE;
@@ -1840,7 +1840,7 @@ EXPORT_SYMBOL_GPL(labpc_common_attach);
 
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
@@ -1852,7 +1852,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->private = devpriv;
 
 	/* get base address, irq etc. based on bustype */
-	switch (thisboard->bustype) {
+	switch (board->bustype) {
 	case isa_bustype:
 #ifdef CONFIG_ISA_DMA_API
 		iobase = it->options[0];
@@ -1868,7 +1868,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 		dev_err(dev->class_dev,
 			"manual configuration of PCI board '%s' is not supported\n",
-			thisboard->name);
+			board->name);
 		return -EINVAL;
 #else
 		dev_err(dev->class_dev,
@@ -1938,11 +1938,11 @@ static int labpc_auto_attach(struct comedi_device *dev,
 
 void labpc_common_detach(struct comedi_device *dev)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 
-	if (!thisboard)
+	if (!board)
 		return;
 	if (dev->subdevices) {
 		s = &dev->subdevices[2];
@@ -1956,14 +1956,14 @@ void labpc_common_detach(struct comedi_device *dev)
 #endif
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (thisboard->bustype == isa_bustype && dev->iobase)
+	if (board->bustype == isa_bustype && dev->iobase)
 		release_region(dev->iobase, LABPC_SIZE);
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 	if (devpriv->mite) {
 		mite_unsetup(devpriv->mite);
 		mite_free(devpriv->mite);
 	}
-	if (thisboard->bustype == pci_bustype)
+	if (board->bustype == pci_bustype)
 		comedi_pci_disable(dev);
 #endif
 }
