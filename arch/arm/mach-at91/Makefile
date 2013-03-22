@@ -22,6 +22,7 @@ obj-$(CONFIG_SOC_AT91SAM9G45)	+= at91sam9g45.o
 obj-$(CONFIG_SOC_AT91SAM9N12)	+= at91sam9n12.o
 obj-$(CONFIG_SOC_AT91SAM9X5)	+= at91sam9x5.o
 obj-$(CONFIG_SOC_AT91SAM9RL)	+= at91sam9rl.o
+obj-$(CONFIG_SOC_SAMA5D3)	+= sama5d3.o
 
 obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9260)	+= at91sam9260_devices.o
@@ -90,6 +91,9 @@ obj-$(CONFIG_MACH_AT91SAM9M10G45EK) += board-sam9m10g45ek.o
 # AT91SAM board with device-tree
 obj-$(CONFIG_MACH_AT91RM9200_DT) += board-dt-rm9200.o
 obj-$(CONFIG_MACH_AT91SAM9_DT) += board-dt-sam9.o
+
+# SAMA5 board with device-tree
+obj-$(CONFIG_MACH_SAMA5_DT) += board-dt-sama5.o
 
 # AT91X40 board-specific support
 obj-$(CONFIG_MACH_AT91EB01)	+= board-eb01.o

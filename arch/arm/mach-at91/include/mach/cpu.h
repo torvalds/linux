@@ -36,6 +36,8 @@
 #define ARCH_ID_AT91M40807	0x14080745
 #define ARCH_ID_AT91R40008	0x44000840
 
+#define ARCH_ID_SAMA5D3		0x8A5C07C0
+
 #define ARCH_EXID_AT91SAM9M11	0x00000001
 #define ARCH_EXID_AT91SAM9M10	0x00000002
 #define ARCH_EXID_AT91SAM9G46	0x00000003
@@ -46,6 +48,11 @@
 #define ARCH_EXID_AT91SAM9X35	0x00000002
 #define ARCH_EXID_AT91SAM9G25	0x00000003
 #define ARCH_EXID_AT91SAM9X25	0x00000004
+
+#define ARCH_EXID_SAMA5D31	0x00444300
+#define ARCH_EXID_SAMA5D33	0x00414300
+#define ARCH_EXID_SAMA5D34	0x00414301
+#define ARCH_EXID_SAMA5D35	0x00584300
 
 #define ARCH_FAMILY_AT91X92	0x09200000
 #define ARCH_FAMILY_AT91SAM9	0x01900000
@@ -75,6 +82,9 @@ enum at91_soc_type {
 	/* SAM9N12 */
 	AT91_SOC_SAM9N12,
 
+	/* SAMA5D3 */
+	AT91_SOC_SAMA5D3,
+
 	/* Unknown type */
 	AT91_SOC_NONE
 };
@@ -92,6 +102,10 @@ enum at91_soc_subtype {
 	/* SAM9X5 */
 	AT91_SOC_SAM9G15, AT91_SOC_SAM9G35, AT91_SOC_SAM9X35,
 	AT91_SOC_SAM9G25, AT91_SOC_SAM9X25,
+
+	/* SAMA5D3 */
+	AT91_SOC_SAMA5D31, AT91_SOC_SAMA5D33, AT91_SOC_SAMA5D34,
+	AT91_SOC_SAMA5D35,
 
 	/* Unknown subtype */
 	AT91_SOC_SUBTYPE_NONE
@@ -185,6 +199,12 @@ static inline int at91_soc_is_detected(void)
 #define cpu_is_at91sam9n12()	(at91_soc_initdata.type == AT91_SOC_SAM9N12)
 #else
 #define cpu_is_at91sam9n12()	(0)
+#endif
+
+#ifdef CONFIG_SOC_SAMA5D3
+#define cpu_is_sama5d3()	(at91_soc_initdata.type == AT91_SOC_SAMA5D3)
+#else
+#define cpu_is_sama5d3()	(0)
 #endif
 
 /*
