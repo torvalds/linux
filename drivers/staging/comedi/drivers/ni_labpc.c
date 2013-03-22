@@ -215,48 +215,17 @@ enum scan_mode {
 	MODE_MULT_CHAN_DOWN,
 };
 
-static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-static irqreturn_t labpc_interrupt(int irq, void *d);
 static int labpc_drain_fifo(struct comedi_device *dev);
 #ifdef CONFIG_ISA_DMA_API
 static void labpc_drain_dma(struct comedi_device *dev);
 static void handle_isa_dma(struct comedi_device *dev);
 #endif
 static void labpc_drain_dregs(struct comedi_device *dev);
-static int labpc_ai_cmdtest(struct comedi_device *dev,
-			    struct comedi_subdevice *s, struct comedi_cmd *cmd);
-static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data);
-static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data);
-static int labpc_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data);
-static int labpc_calib_read_insn(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data);
-static int labpc_calib_write_insn(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data);
-static int labpc_eeprom_read_insn(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data);
-static int labpc_eeprom_write_insn(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn,
-				   unsigned int *data);
 static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 			     enum scan_mode scan_mode);
 #ifdef CONFIG_ISA_DMA_API
 static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd);
 #endif
-static int labpc_dio_mem_callback(int dir, int port, int data,
-				  unsigned long arg);
-static void labpc_serial_out(struct comedi_device *dev, unsigned int value,
-			     unsigned int num_bits);
-static unsigned int labpc_serial_in(struct comedi_device *dev);
-static unsigned int labpc_eeprom_read(struct comedi_device *dev,
-				      unsigned int address);
 static unsigned int labpc_eeprom_read_status(struct comedi_device *dev);
 static int labpc_eeprom_write(struct comedi_device *dev,
 				       unsigned int address,
@@ -497,318 +466,6 @@ static inline int labpc_counter_load(struct comedi_device *dev,
 	else
 		return i8254_load(base_address, 0, counter_number, count, mode);
 }
-
-int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
-			unsigned int irq, unsigned int dma_chan)
-{
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
-	struct labpc_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
-	int i;
-	unsigned long isr_flags;
-#ifdef CONFIG_ISA_DMA_API
-	unsigned long dma_flags;
-#endif
-	short lsb, msb;
-	int ret;
-
-	dev_info(dev->class_dev, "ni_labpc: %s\n", thisboard->name);
-	if (iobase == 0) {
-		dev_err(dev->class_dev, "io base address is zero!\n");
-		return -EINVAL;
-	}
-	/*  request io regions for isa boards */
-	if (thisboard->bustype == isa_bustype) {
-		/* check if io addresses are available */
-		if (!request_region(iobase, LABPC_SIZE, DRV_NAME)) {
-			dev_err(dev->class_dev, "I/O port conflict\n");
-			return -EIO;
-		}
-	}
-	dev->iobase = iobase;
-
-	if (thisboard->memory_mapped_io) {
-		devpriv->read_byte = labpc_readb;
-		devpriv->write_byte = labpc_writeb;
-	} else {
-		devpriv->read_byte = labpc_inb;
-		devpriv->write_byte = labpc_outb;
-	}
-	/* initialize board's command registers */
-	devpriv->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
-	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
-	devpriv->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
-	devpriv->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
-	if (thisboard->register_layout == labpc_1200_layout) {
-		devpriv->write_byte(devpriv->command5_bits,
-				    dev->iobase + COMMAND5_REG);
-		devpriv->write_byte(devpriv->command6_bits,
-				    dev->iobase + COMMAND6_REG);
-	}
-
-	/* grab our IRQ */
-	if (irq) {
-		isr_flags = 0;
-		if (thisboard->bustype == pci_bustype
-		    || thisboard->bustype == pcmcia_bustype)
-			isr_flags |= IRQF_SHARED;
-		if (request_irq(irq, labpc_interrupt, isr_flags,
-				DRV_NAME, dev)) {
-			dev_err(dev->class_dev, "unable to allocate irq %u\n",
-				irq);
-			return -EINVAL;
-		}
-	}
-	dev->irq = irq;
-
-#ifdef CONFIG_ISA_DMA_API
-	/* grab dma channel */
-	if (dma_chan > 3) {
-		dev_err(dev->class_dev, "invalid dma channel %u\n", dma_chan);
-		return -EINVAL;
-	} else if (dma_chan) {
-		/* allocate dma buffer */
-		devpriv->dma_buffer = kmalloc(dma_buffer_size,
-					      GFP_KERNEL | GFP_DMA);
-		if (devpriv->dma_buffer == NULL)
-			return -ENOMEM;
-
-		if (request_dma(dma_chan, DRV_NAME)) {
-			dev_err(dev->class_dev,
-				"failed to allocate dma channel %u\n",
-				dma_chan);
-			return -EINVAL;
-		}
-		devpriv->dma_chan = dma_chan;
-		dma_flags = claim_dma_lock();
-		disable_dma(devpriv->dma_chan);
-		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
-		release_dma_lock(dma_flags);
-	}
-#endif
-
-	dev->board_name = thisboard->name;
-
-	ret = comedi_alloc_subdevices(dev, 5);
-	if (ret)
-		return ret;
-
-	/* analog input subdevice */
-	s = &dev->subdevices[0];
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags =
-	    SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = 8;
-	s->len_chanlist = 8;
-	s->maxdata = (1 << 12) - 1;	/* 12 bit resolution */
-	s->range_table = thisboard->ai_range_table;
-	s->do_cmd = labpc_ai_cmd;
-	s->do_cmdtest = labpc_ai_cmdtest;
-	s->insn_read = labpc_ai_rinsn;
-	s->cancel = labpc_cancel;
-
-	/* analog output */
-	s = &dev->subdevices[1];
-	if (thisboard->has_ao) {
-		/*
-		 * Could provide command support, except it only has a
-		 * one sample hardware buffer for analog output and no
-		 * underrun flag.
-		 */
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = NUM_AO_CHAN;
-		s->maxdata = (1 << 12) - 1;	/*  12 bit resolution */
-		s->range_table = &range_labpc_ao;
-		s->insn_read = labpc_ao_rinsn;
-		s->insn_write = labpc_ao_winsn;
-		/* initialize analog outputs to a known value */
-		for (i = 0; i < s->n_chan; i++) {
-			devpriv->ao_value[i] = s->maxdata / 2;
-			lsb = devpriv->ao_value[i] & 0xff;
-			msb = (devpriv->ao_value[i] >> 8) & 0xff;
-			devpriv->write_byte(lsb, dev->iobase + DAC_LSB_REG(i));
-			devpriv->write_byte(msb, dev->iobase + DAC_MSB_REG(i));
-		}
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	/* 8255 dio */
-	s = &dev->subdevices[2];
-	/*  if board uses io memory we have to give a custom callback
-	 * function to the 8255 driver */
-	if (thisboard->memory_mapped_io)
-		subdev_8255_init(dev, s, labpc_dio_mem_callback,
-				 (unsigned long)(dev->iobase + DIO_BASE_REG));
-	else
-		subdev_8255_init(dev, s, NULL, dev->iobase + DIO_BASE_REG);
-
-	/*  calibration subdevices for boards that have one */
-	s = &dev->subdevices[3];
-	if (thisboard->register_layout == labpc_1200_layout) {
-		s->type = COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan = 16;
-		s->maxdata = 0xff;
-		s->insn_read = labpc_calib_read_insn;
-		s->insn_write = labpc_calib_write_insn;
-
-		for (i = 0; i < s->n_chan; i++)
-			write_caldac(dev, i, s->maxdata / 2);
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	/* EEPROM */
-	s = &dev->subdevices[4];
-	if (thisboard->register_layout == labpc_1200_layout) {
-		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan = EEPROM_SIZE;
-		s->maxdata = 0xff;
-		s->insn_read = labpc_eeprom_read_insn;
-		s->insn_write = labpc_eeprom_write_insn;
-
-		for (i = 0; i < EEPROM_SIZE; i++)
-			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(labpc_common_attach);
-
-static const struct labpc_boardinfo *
-labpc_pci_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int device_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(labpc_boards); n++) {
-		const struct labpc_boardinfo *board = &labpc_boards[n];
-		if (board->bustype == pci_bustype &&
-		    board->device_id == device_id)
-			return board;
-	}
-	return NULL;
-}
-
-static int labpc_auto_attach(struct comedi_device *dev,
-				       unsigned long context_unused)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct labpc_private *devpriv;
-	unsigned long iobase;
-	unsigned int irq;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
-		return -ENODEV;
-
-	ret = comedi_pci_enable(dev);
-	if (ret)
-		return ret;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	dev->board_ptr = labpc_pci_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
-		return -ENODEV;
-	devpriv->mite = mite_alloc(pcidev);
-	if (!devpriv->mite)
-		return -ENOMEM;
-	ret = mite_setup(devpriv->mite);
-	if (ret < 0)
-		return ret;
-	iobase = (unsigned long)devpriv->mite->daq_io_addr;
-	irq = mite_irq(devpriv->mite);
-	return labpc_common_attach(dev, iobase, irq, 0);
-}
-
-static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
-	struct labpc_private *devpriv;
-	unsigned long iobase = 0;
-	unsigned int irq = 0;
-	unsigned int dma_chan = 0;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	/* get base address, irq etc. based on bustype */
-	switch (thisboard->bustype) {
-	case isa_bustype:
-#ifdef CONFIG_ISA_DMA_API
-		iobase = it->options[0];
-		irq = it->options[1];
-		dma_chan = it->options[2];
-#else
-		dev_err(dev->class_dev,
-			"ni_labpc driver has not been built with ISA DMA support.\n");
-		return -EINVAL;
-#endif
-		break;
-	case pci_bustype:
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-		dev_err(dev->class_dev,
-			"manual configuration of PCI board '%s' is not supported\n",
-			thisboard->name);
-		return -EINVAL;
-#else
-		dev_err(dev->class_dev,
-			"ni_labpc driver has not been built with PCI support.\n");
-		return -EINVAL;
-#endif
-		break;
-	default:
-		dev_err(dev->class_dev,
-			"ni_labpc: bug! couldn't determine board type\n");
-		return -EINVAL;
-		break;
-	}
-
-	return labpc_common_attach(dev, iobase, irq, dma_chan);
-}
-
-void labpc_common_detach(struct comedi_device *dev)
-{
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
-	struct labpc_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
-
-	if (!thisboard)
-		return;
-	if (dev->subdevices) {
-		s = &dev->subdevices[2];
-		subdev_8255_cleanup(dev, s);
-	}
-#ifdef CONFIG_ISA_DMA_API
-	/* only free stuff if it has been allocated by _attach */
-	kfree(devpriv->dma_buffer);
-	if (devpriv->dma_chan)
-		free_dma(devpriv->dma_chan);
-#endif
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (thisboard->bustype == isa_bustype && dev->iobase)
-		release_region(dev->iobase, LABPC_SIZE);
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-	if (devpriv->mite) {
-		mite_unsetup(devpriv->mite);
-		mite_free(devpriv->mite);
-	}
-	if (thisboard->bustype == pci_bustype)
-		comedi_pci_disable(dev);
-#endif
-};
-EXPORT_SYMBOL_GPL(labpc_common_detach);
 
 static void labpc_clear_adc_fifo(const struct comedi_device *dev)
 {
@@ -2104,6 +1761,318 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 	udelay(1);
 	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
+
+int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
+			unsigned int irq, unsigned int dma_chan)
+{
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	struct labpc_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
+	int i;
+	unsigned long isr_flags;
+#ifdef CONFIG_ISA_DMA_API
+	unsigned long dma_flags;
+#endif
+	short lsb, msb;
+	int ret;
+
+	dev_info(dev->class_dev, "ni_labpc: %s\n", thisboard->name);
+	if (iobase == 0) {
+		dev_err(dev->class_dev, "io base address is zero!\n");
+		return -EINVAL;
+	}
+	/*  request io regions for isa boards */
+	if (thisboard->bustype == isa_bustype) {
+		/* check if io addresses are available */
+		if (!request_region(iobase, LABPC_SIZE, DRV_NAME)) {
+			dev_err(dev->class_dev, "I/O port conflict\n");
+			return -EIO;
+		}
+	}
+	dev->iobase = iobase;
+
+	if (thisboard->memory_mapped_io) {
+		devpriv->read_byte = labpc_readb;
+		devpriv->write_byte = labpc_writeb;
+	} else {
+		devpriv->read_byte = labpc_inb;
+		devpriv->write_byte = labpc_outb;
+	}
+	/* initialize board's command registers */
+	devpriv->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	devpriv->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+	devpriv->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
+	if (thisboard->register_layout == labpc_1200_layout) {
+		devpriv->write_byte(devpriv->command5_bits,
+				    dev->iobase + COMMAND5_REG);
+		devpriv->write_byte(devpriv->command6_bits,
+				    dev->iobase + COMMAND6_REG);
+	}
+
+	/* grab our IRQ */
+	if (irq) {
+		isr_flags = 0;
+		if (thisboard->bustype == pci_bustype
+		    || thisboard->bustype == pcmcia_bustype)
+			isr_flags |= IRQF_SHARED;
+		if (request_irq(irq, labpc_interrupt, isr_flags,
+				DRV_NAME, dev)) {
+			dev_err(dev->class_dev, "unable to allocate irq %u\n",
+				irq);
+			return -EINVAL;
+		}
+	}
+	dev->irq = irq;
+
+#ifdef CONFIG_ISA_DMA_API
+	/* grab dma channel */
+	if (dma_chan > 3) {
+		dev_err(dev->class_dev, "invalid dma channel %u\n", dma_chan);
+		return -EINVAL;
+	} else if (dma_chan) {
+		/* allocate dma buffer */
+		devpriv->dma_buffer = kmalloc(dma_buffer_size,
+					      GFP_KERNEL | GFP_DMA);
+		if (devpriv->dma_buffer == NULL)
+			return -ENOMEM;
+
+		if (request_dma(dma_chan, DRV_NAME)) {
+			dev_err(dev->class_dev,
+				"failed to allocate dma channel %u\n",
+				dma_chan);
+			return -EINVAL;
+		}
+		devpriv->dma_chan = dma_chan;
+		dma_flags = claim_dma_lock();
+		disable_dma(devpriv->dma_chan);
+		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
+		release_dma_lock(dma_flags);
+	}
+#endif
+
+	dev->board_name = thisboard->name;
+
+	ret = comedi_alloc_subdevices(dev, 5);
+	if (ret)
+		return ret;
+
+	/* analog input subdevice */
+	s = &dev->subdevices[0];
+	dev->read_subdev = s;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags =
+	    SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_CMD_READ;
+	s->n_chan = 8;
+	s->len_chanlist = 8;
+	s->maxdata = (1 << 12) - 1;	/* 12 bit resolution */
+	s->range_table = thisboard->ai_range_table;
+	s->do_cmd = labpc_ai_cmd;
+	s->do_cmdtest = labpc_ai_cmdtest;
+	s->insn_read = labpc_ai_rinsn;
+	s->cancel = labpc_cancel;
+
+	/* analog output */
+	s = &dev->subdevices[1];
+	if (thisboard->has_ao) {
+		/*
+		 * Could provide command support, except it only has a
+		 * one sample hardware buffer for analog output and no
+		 * underrun flag.
+		 */
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
+		s->n_chan = NUM_AO_CHAN;
+		s->maxdata = (1 << 12) - 1;	/*  12 bit resolution */
+		s->range_table = &range_labpc_ao;
+		s->insn_read = labpc_ao_rinsn;
+		s->insn_write = labpc_ao_winsn;
+		/* initialize analog outputs to a known value */
+		for (i = 0; i < s->n_chan; i++) {
+			devpriv->ao_value[i] = s->maxdata / 2;
+			lsb = devpriv->ao_value[i] & 0xff;
+			msb = (devpriv->ao_value[i] >> 8) & 0xff;
+			devpriv->write_byte(lsb, dev->iobase + DAC_LSB_REG(i));
+			devpriv->write_byte(msb, dev->iobase + DAC_MSB_REG(i));
+		}
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+
+	/* 8255 dio */
+	s = &dev->subdevices[2];
+	/*  if board uses io memory we have to give a custom callback
+	 * function to the 8255 driver */
+	if (thisboard->memory_mapped_io)
+		subdev_8255_init(dev, s, labpc_dio_mem_callback,
+				 (unsigned long)(dev->iobase + DIO_BASE_REG));
+	else
+		subdev_8255_init(dev, s, NULL, dev->iobase + DIO_BASE_REG);
+
+	/*  calibration subdevices for boards that have one */
+	s = &dev->subdevices[3];
+	if (thisboard->register_layout == labpc_1200_layout) {
+		s->type = COMEDI_SUBD_CALIB;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+		s->n_chan = 16;
+		s->maxdata = 0xff;
+		s->insn_read = labpc_calib_read_insn;
+		s->insn_write = labpc_calib_write_insn;
+
+		for (i = 0; i < s->n_chan; i++)
+			write_caldac(dev, i, s->maxdata / 2);
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	/* EEPROM */
+	s = &dev->subdevices[4];
+	if (thisboard->register_layout == labpc_1200_layout) {
+		s->type = COMEDI_SUBD_MEMORY;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+		s->n_chan = EEPROM_SIZE;
+		s->maxdata = 0xff;
+		s->insn_read = labpc_eeprom_read_insn;
+		s->insn_write = labpc_eeprom_write_insn;
+
+		for (i = 0; i < EEPROM_SIZE; i++)
+			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(labpc_common_attach);
+
+static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	struct labpc_private *devpriv;
+	unsigned long iobase = 0;
+	unsigned int irq = 0;
+	unsigned int dma_chan = 0;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	/* get base address, irq etc. based on bustype */
+	switch (thisboard->bustype) {
+	case isa_bustype:
+#ifdef CONFIG_ISA_DMA_API
+		iobase = it->options[0];
+		irq = it->options[1];
+		dma_chan = it->options[2];
+#else
+		dev_err(dev->class_dev,
+			"ni_labpc driver has not been built with ISA DMA support.\n");
+		return -EINVAL;
+#endif
+		break;
+	case pci_bustype:
+#ifdef CONFIG_COMEDI_PCI_DRIVERS
+		dev_err(dev->class_dev,
+			"manual configuration of PCI board '%s' is not supported\n",
+			thisboard->name);
+		return -EINVAL;
+#else
+		dev_err(dev->class_dev,
+			"ni_labpc driver has not been built with PCI support.\n");
+		return -EINVAL;
+#endif
+		break;
+	default:
+		dev_err(dev->class_dev,
+			"ni_labpc: bug! couldn't determine board type\n");
+		return -EINVAL;
+		break;
+	}
+
+	return labpc_common_attach(dev, iobase, irq, dma_chan);
+}
+
+static const struct labpc_boardinfo *
+labpc_pci_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int device_id = pcidev->device;
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(labpc_boards); n++) {
+		const struct labpc_boardinfo *board = &labpc_boards[n];
+		if (board->bustype == pci_bustype &&
+		    board->device_id == device_id)
+			return board;
+	}
+	return NULL;
+}
+
+static int labpc_auto_attach(struct comedi_device *dev,
+				       unsigned long context_unused)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct labpc_private *devpriv;
+	unsigned long iobase;
+	unsigned int irq;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
+		return -ENODEV;
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	dev->board_ptr = labpc_pci_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+	devpriv->mite = mite_alloc(pcidev);
+	if (!devpriv->mite)
+		return -ENOMEM;
+	ret = mite_setup(devpriv->mite);
+	if (ret < 0)
+		return ret;
+	iobase = (unsigned long)devpriv->mite->daq_io_addr;
+	irq = mite_irq(devpriv->mite);
+	return labpc_common_attach(dev, iobase, irq, 0);
+}
+
+void labpc_common_detach(struct comedi_device *dev)
+{
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	struct labpc_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
+
+	if (!thisboard)
+		return;
+	if (dev->subdevices) {
+		s = &dev->subdevices[2];
+		subdev_8255_cleanup(dev, s);
+	}
+#ifdef CONFIG_ISA_DMA_API
+	/* only free stuff if it has been allocated by _attach */
+	kfree(devpriv->dma_buffer);
+	if (devpriv->dma_chan)
+		free_dma(devpriv->dma_chan);
+#endif
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (thisboard->bustype == isa_bustype && dev->iobase)
+		release_region(dev->iobase, LABPC_SIZE);
+#ifdef CONFIG_COMEDI_PCI_DRIVERS
+	if (devpriv->mite) {
+		mite_unsetup(devpriv->mite);
+		mite_free(devpriv->mite);
+	}
+	if (thisboard->bustype == pci_bustype)
+		comedi_pci_disable(dev);
+#endif
+}
+EXPORT_SYMBOL_GPL(labpc_common_detach);
 
 static struct comedi_driver labpc_driver = {
 	.driver_name	= DRV_NAME,
