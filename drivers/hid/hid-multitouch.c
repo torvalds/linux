@@ -418,6 +418,9 @@ static void mt_pen_input_configured(struct hid_device *hdev,
 		mt_free_input_name(hi);
 		hi->input->name = name;
 	}
+
+	/* force BTN_STYLUS to allow tablet matching in udev */
+	__set_bit(BTN_STYLUS, hi->input->keybit);
 }
 
 static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
