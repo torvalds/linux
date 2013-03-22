@@ -731,8 +731,8 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct s626_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
-	struct comedi_cmd *cmd;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	struct enc_private *k;
 	unsigned long flags;
 	int32_t *readaddr;
@@ -760,10 +760,6 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 
 	switch (irqtype) {
 	case IRQ_RPS1:		/*  end_of_scan occurs */
-		/*  manage ai subdevice */
-		s = dev->subdevices;
-		cmd = &(s->async->cmd);
-
 		/* Init ptr to DMA buffer that holds new ADC data.  We skip the
 		 * first uint16_t in the buffer because it contains junk data from
 		 * the final ADC of the previous poll list scan.
@@ -808,10 +804,6 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 		comedi_event(dev, s);
 		break;
 	case IRQ_GPIO3:	/* check dio and conter interrupt */
-		/*  manage ai subdevice */
-		s = dev->subdevices;
-		cmd = &(s->async->cmd);
-
 		/* s626_dio_clear_irq(dev); */
 
 		check_dio_interrupts(dev);
