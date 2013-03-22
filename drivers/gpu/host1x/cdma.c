@@ -439,6 +439,10 @@ void host1x_cdma_push(struct host1x_cdma *cdma, u32 op1, u32 op2)
 	struct push_buffer *pb = &cdma->push_buffer;
 	u32 slots_free = cdma->slots_free;
 
+	if (host1x_debug_trace_cmdbuf)
+		trace_host1x_cdma_push(dev_name(cdma_to_channel(cdma)->dev),
+				       op1, op2);
+
 	if (slots_free == 0) {
 		host1x_hw_cdma_flush(host1x, cdma);
 		slots_free = host1x_cdma_wait_locked(cdma,

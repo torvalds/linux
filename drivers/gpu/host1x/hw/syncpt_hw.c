@@ -86,6 +86,7 @@ static void syncpt_cpu_incr(struct host1x_syncpt *sp)
 	    host1x_syncpt_idle(sp)) {
 		dev_err(host->dev, "Trying to increment syncpoint id %d beyond max\n",
 			sp->id);
+		host1x_debug_dump(sp->host);
 		return;
 	}
 	host1x_sync_writel(host, BIT_MASK(sp->id),

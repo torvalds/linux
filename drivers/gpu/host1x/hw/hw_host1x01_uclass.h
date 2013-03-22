@@ -87,6 +87,12 @@ static inline u32 host1x_uclass_wait_syncpt_thresh_f(u32 v)
 }
 #define HOST1X_UCLASS_WAIT_SYNCPT_THRESH_F(v) \
 	host1x_uclass_wait_syncpt_thresh_f(v)
+static inline u32 host1x_uclass_wait_syncpt_base_r(void)
+{
+	return 0x9;
+}
+#define HOST1X_UCLASS_WAIT_SYNCPT_BASE \
+	host1x_uclass_wait_syncpt_base_r()
 static inline u32 host1x_uclass_wait_syncpt_base_indx_f(u32 v)
 {
 	return (v & 0xff) << 24;

@@ -31,6 +31,8 @@ struct host1x_channel;
 struct host1x_cdma;
 struct host1x_job;
 struct push_buffer;
+struct output;
+struct dentry;
 
 struct host1x_channel_ops {
 	int (*init)(struct host1x_channel *channel, struct host1x *host,
@@ -52,6 +54,18 @@ struct host1x_cdma_ops {
 
 struct host1x_pushbuffer_ops {
 	void (*init)(struct push_buffer *pb);
+};
+
+struct host1x_debug_ops {
+	void (*debug_init)(struct dentry *de);
+	void (*show_channel_cdma)(struct host1x *host,
+				  struct host1x_channel *ch,
+				  struct output *o);
+	void (*show_channel_fifo)(struct host1x *host,
+				  struct host1x_channel *ch,
+				  struct output *o);
+	void (*show_mlocks)(struct host1x *host, struct output *output);
+
 };
 
 struct host1x_syncpt_ops {
@@ -100,6 +114,7 @@ struct host1x {
 	const struct host1x_channel_ops *channel_op;
 	const struct host1x_cdma_ops *cdma_op;
 	const struct host1x_pushbuffer_ops *cdma_pb_op;
+	const struct host1x_debug_ops *debug_op;
 
 	struct host1x_syncpt *nop_sp;
 
@@ -107,6 +122,8 @@ struct host1x {
 	struct host1x_channel chlist;
 	unsigned long allocated_channels;
 	unsigned int num_allocated_channels;
+
+	struct dentry *debugfs;
 };
 
 void host1x_sync_writel(struct host1x *host1x, u32 r, u32 v);
@@ -255,6 +272,31 @@ static inline void host1x_hw_pushbuffer_init(struct host1x *host,
 					     struct push_buffer *pb)
 {
 	host->cdma_pb_op->init(pb);
+}
+
+static inline void host1x_hw_debug_init(struct host1x *host, struct dentry *de)
+{
+	if (host->debug_op && host->debug_op->debug_init)
+		host->debug_op->debug_init(de);
+}
+
+static inline void host1x_hw_show_channel_cdma(struct host1x *host,
+					       struct host1x_channel *channel,
+					       struct output *o)
+{
+	host->debug_op->show_channel_cdma(host, channel, o);
+}
+
+static inline void host1x_hw_show_channel_fifo(struct host1x *host,
+					       struct host1x_channel *channel,
+					       struct output *o)
+{
+	host->debug_op->show_channel_fifo(host, channel, o);
+}
+
+static inline void host1x_hw_show_mlocks(struct host1x *host, struct output *o)
+{
+	host->debug_op->show_mlocks(host, o);
 }
 
 #endif

@@ -29,6 +29,30 @@
 #define HOST1X_CHANNEL_SIZE 16384
 #define TRACE_MAX_LENGTH 128U
 
+static void trace_write_gather(struct host1x_cdma *cdma, struct host1x_bo *bo,
+			       u32 offset, u32 words)
+{
+	void *mem = NULL;
+
+	if (host1x_debug_trace_cmdbuf)
+		mem = host1x_bo_mmap(bo);
+
+	if (mem) {
+		u32 i;
+		/*
+		 * Write in batches of 128 as there seems to be a limit
+		 * of how much you can output to ftrace at once.
+		 */
+		for (i = 0; i < words; i += TRACE_MAX_LENGTH) {
+			trace_host1x_cdma_push_gather(
+				dev_name(cdma_to_channel(cdma)->dev),
+				(u32)bo, min(words - i, TRACE_MAX_LENGTH),
+				offset + i * sizeof(u32), mem);
+		}
+		host1x_bo_munmap(bo, mem);
+	}
+}
+
 static void submit_gathers(struct host1x_job *job)
 {
 	struct host1x_cdma *cdma = &job->channel->cdma;
@@ -38,6 +62,7 @@ static void submit_gathers(struct host1x_job *job)
 		struct host1x_job_gather *g = &job->gathers[i];
 		u32 op1 = host1x_opcode_gather(g->words);
 		u32 op2 = g->base + g->offset;
+		trace_write_gather(cdma, g->bo, g->offset, op1 & 0xffff);
 		host1x_cdma_push(cdma, op1, op2);
 	}
 }

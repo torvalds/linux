@@ -51,6 +51,18 @@
 #ifndef __hw_host1x_channel_host1x_h__
 #define __hw_host1x_channel_host1x_h__
 
+static inline u32 host1x_channel_fifostat_r(void)
+{
+	return 0x0;
+}
+#define HOST1X_CHANNEL_FIFOSTAT \
+	host1x_channel_fifostat_r()
+static inline u32 host1x_channel_fifostat_cfempty_v(u32 r)
+{
+	return (r >> 10) & 0x1;
+}
+#define HOST1X_CHANNEL_FIFOSTAT_CFEMPTY_V(r) \
+	host1x_channel_fifostat_cfempty_v(r)
 static inline u32 host1x_channel_dmastart_r(void)
 {
 	return 0x14;
@@ -87,6 +99,12 @@ static inline u32 host1x_channel_dmactrl_dmastop(void)
 }
 #define HOST1X_CHANNEL_DMACTRL_DMASTOP \
 	host1x_channel_dmactrl_dmastop()
+static inline u32 host1x_channel_dmactrl_dmastop_v(u32 r)
+{
+	return (r >> 0) & 0x1;
+}
+#define HOST1X_CHANNEL_DMACTRL_DMASTOP_V(r) \
+	host1x_channel_dmactrl_dmastop_v(r)
 static inline u32 host1x_channel_dmactrl_dmagetrst(void)
 {
 	return 1 << 1;

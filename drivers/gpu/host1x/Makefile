@@ -7,6 +7,7 @@ host1x-y = \
 	cdma.o \
 	channel.o \
 	job.o \
+	debug.o \
 	hw/host1x01.o
 
 obj-$(CONFIG_TEGRA_HOST1X) += host1x.o

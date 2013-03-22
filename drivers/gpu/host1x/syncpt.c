@@ -25,6 +25,7 @@
 #include "syncpt.h"
 #include "dev.h"
 #include "intr.h"
+#include "debug.h"
 
 #define SYNCPT_CHECK_PERIOD (2 * HZ)
 #define MAX_STUCK_CHECK_COUNT 15
@@ -231,6 +232,10 @@ int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 				"%s: syncpoint id %d (%s) stuck waiting %d, timeout=%ld\n",
 				 current->comm, sp->id, sp->name,
 				 thresh, timeout);
+
+			host1x_debug_dump_syncpts(sp->host);
+			if (check_count == MAX_STUCK_CHECK_COUNT)
+				host1x_debug_dump(sp->host);
 			check_count++;
 		}
 	}

@@ -77,6 +77,24 @@ static inline u32 host1x_sync_syncpt_thresh_int_enable_cpu0_r(unsigned int id)
 }
 #define HOST1X_SYNC_SYNCPT_THRESH_INT_ENABLE_CPU0(id) \
 	host1x_sync_syncpt_thresh_int_enable_cpu0_r(id)
+static inline u32 host1x_sync_cf_setup_r(unsigned int channel)
+{
+	return 0x80 + channel * REGISTER_STRIDE;
+}
+#define HOST1X_SYNC_CF_SETUP(channel) \
+	host1x_sync_cf_setup_r(channel)
+static inline u32 host1x_sync_cf_setup_base_v(u32 r)
+{
+	return (r >> 0) & 0x1ff;
+}
+#define HOST1X_SYNC_CF_SETUP_BASE_V(r) \
+	host1x_sync_cf_setup_base_v(r)
+static inline u32 host1x_sync_cf_setup_limit_v(u32 r)
+{
+	return (r >> 16) & 0x1ff;
+}
+#define HOST1X_SYNC_CF_SETUP_LIMIT_V(r) \
+	host1x_sync_cf_setup_limit_v(r)
 static inline u32 host1x_sync_cmdproc_stop_r(void)
 {
 	return 0xac;
@@ -107,6 +125,30 @@ static inline u32 host1x_sync_ip_busy_timeout_r(void)
 }
 #define HOST1X_SYNC_IP_BUSY_TIMEOUT \
 	host1x_sync_ip_busy_timeout_r()
+static inline u32 host1x_sync_mlock_owner_r(unsigned int id)
+{
+	return 0x340 + id * REGISTER_STRIDE;
+}
+#define HOST1X_SYNC_MLOCK_OWNER(id) \
+	host1x_sync_mlock_owner_r(id)
+static inline u32 host1x_sync_mlock_owner_chid_f(u32 v)
+{
+	return (v & 0xf) << 8;
+}
+#define HOST1X_SYNC_MLOCK_OWNER_CHID_F(v) \
+	host1x_sync_mlock_owner_chid_f(v)
+static inline u32 host1x_sync_mlock_owner_cpu_owns_v(u32 r)
+{
+	return (r >> 1) & 0x1;
+}
+#define HOST1X_SYNC_MLOCK_OWNER_CPU_OWNS_V(r) \
+	host1x_sync_mlock_owner_cpu_owns_v(r)
+static inline u32 host1x_sync_mlock_owner_ch_owns_v(u32 r)
+{
+	return (r >> 0) & 0x1;
+}
+#define HOST1X_SYNC_MLOCK_OWNER_CH_OWNS_V(r) \
+	host1x_sync_mlock_owner_ch_owns_v(r)
 static inline u32 host1x_sync_syncpt_int_thresh_r(unsigned int id)
 {
 	return 0x500 + id * REGISTER_STRIDE;
@@ -125,4 +167,77 @@ static inline u32 host1x_sync_syncpt_cpu_incr_r(unsigned int id)
 }
 #define HOST1X_SYNC_SYNCPT_CPU_INCR(id) \
 	host1x_sync_syncpt_cpu_incr_r(id)
+static inline u32 host1x_sync_cbread_r(unsigned int channel)
+{
+	return 0x720 + channel * REGISTER_STRIDE;
+}
+#define HOST1X_SYNC_CBREAD(channel) \
+	host1x_sync_cbread_r(channel)
+static inline u32 host1x_sync_cfpeek_ctrl_r(void)
+{
+	return 0x74c;
+}
+#define HOST1X_SYNC_CFPEEK_CTRL \
+	host1x_sync_cfpeek_ctrl_r()
+static inline u32 host1x_sync_cfpeek_ctrl_addr_f(u32 v)
+{
+	return (v & 0x1ff) << 0;
+}
+#define HOST1X_SYNC_CFPEEK_CTRL_ADDR_F(v) \
+	host1x_sync_cfpeek_ctrl_addr_f(v)
+static inline u32 host1x_sync_cfpeek_ctrl_channr_f(u32 v)
+{
+	return (v & 0x7) << 16;
+}
+#define HOST1X_SYNC_CFPEEK_CTRL_CHANNR_F(v) \
+	host1x_sync_cfpeek_ctrl_channr_f(v)
+static inline u32 host1x_sync_cfpeek_ctrl_ena_f(u32 v)
+{
+	return (v & 0x1) << 31;
+}
+#define HOST1X_SYNC_CFPEEK_CTRL_ENA_F(v) \
+	host1x_sync_cfpeek_ctrl_ena_f(v)
+static inline u32 host1x_sync_cfpeek_read_r(void)
+{
+	return 0x750;
+}
+#define HOST1X_SYNC_CFPEEK_READ \
+	host1x_sync_cfpeek_read_r()
+static inline u32 host1x_sync_cfpeek_ptrs_r(void)
+{
+	return 0x754;
+}
+#define HOST1X_SYNC_CFPEEK_PTRS \
+	host1x_sync_cfpeek_ptrs_r()
+static inline u32 host1x_sync_cfpeek_ptrs_cf_rd_ptr_v(u32 r)
+{
+	return (r >> 0) & 0x1ff;
+}
+#define HOST1X_SYNC_CFPEEK_PTRS_CF_RD_PTR_V(r) \
+	host1x_sync_cfpeek_ptrs_cf_rd_ptr_v(r)
+static inline u32 host1x_sync_cfpeek_ptrs_cf_wr_ptr_v(u32 r)
+{
+	return (r >> 16) & 0x1ff;
+}
+#define HOST1X_SYNC_CFPEEK_PTRS_CF_WR_PTR_V(r) \
+	host1x_sync_cfpeek_ptrs_cf_wr_ptr_v(r)
+static inline u32 host1x_sync_cbstat_r(unsigned int channel)
+{
+	return 0x758 + channel * REGISTER_STRIDE;
+}
+#define HOST1X_SYNC_CBSTAT(channel) \
+	host1x_sync_cbstat_r(channel)
+static inline u32 host1x_sync_cbstat_cboffset_v(u32 r)
+{
+	return (r >> 0) & 0xffff;
+}
+#define HOST1X_SYNC_CBSTAT_CBOFFSET_V(r) \
+	host1x_sync_cbstat_cboffset_v(r)
+static inline u32 host1x_sync_cbstat_cbclass_v(u32 r)
+{
+	return (r >> 16) & 0x3ff;
+}
+#define HOST1X_SYNC_CBSTAT_CBCLASS_V(r) \
+	host1x_sync_cbstat_cbclass_v(r)
+
 #endif /* __hw_host1x01_sync_h__ */
