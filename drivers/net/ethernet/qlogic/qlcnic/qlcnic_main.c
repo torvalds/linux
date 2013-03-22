@@ -1412,6 +1412,7 @@ void __qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
 	smp_mb();
 	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
+	adapter->ahw->linkup = 0;
 	netif_tx_disable(netdev);
 
 	qlcnic_free_mac_list(adapter);
