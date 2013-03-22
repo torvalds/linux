@@ -193,6 +193,7 @@ static inline void clockevents_suspend(void) {}
 static inline void clockevents_resume(void) {}
 
 #define clockevents_notify(reason, arg) do { } while (0)
+static inline int tick_check_broadcast_expired(void) { return 0; }
 
 #endif
 
