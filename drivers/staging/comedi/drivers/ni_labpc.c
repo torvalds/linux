@@ -215,138 +215,75 @@ enum scan_mode {
 	MODE_MULT_CHAN_DOWN,
 };
 
-/* analog input ranges */
-#define NUM_LABPC_PLUS_AI_RANGES 16
-/* indicates unipolar ranges */
-static const int labpc_plus_is_unipolar[NUM_LABPC_PLUS_AI_RANGES] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
+static const int labpc_plus_is_unipolar[] = {
+	0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-/* map range index to gain bits */
-static const int labpc_plus_ai_gain_bits[NUM_LABPC_PLUS_AI_RANGES] = {
-	0x00,
-	0x10,
-	0x20,
-	0x30,
-	0x40,
-	0x50,
-	0x60,
-	0x70,
-	0x00,
-	0x10,
-	0x20,
-	0x30,
-	0x40,
-	0x50,
-	0x60,
-	0x70,
+static const int labpc_plus_ai_gain_bits[] = {
+	0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
+	0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
 };
 
 static const struct comedi_lrange range_labpc_plus_ai = {
-	NUM_LABPC_PLUS_AI_RANGES,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(4),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1),
-	 BIP_RANGE(0.5),
-	 BIP_RANGE(0.25),
-	 BIP_RANGE(0.1),
-	 BIP_RANGE(0.05),
-	 UNI_RANGE(10),
-	 UNI_RANGE(8),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2),
-	 UNI_RANGE(1),
-	 UNI_RANGE(0.5),
-	 UNI_RANGE(0.2),
-	 UNI_RANGE(0.1),
-	 }
+	16, {
+		BIP_RANGE(5),
+		BIP_RANGE(4),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(10),
+		UNI_RANGE(8),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1)
+	}
 };
 
-#define NUM_LABPC_1200_AI_RANGES 14
-/* indicates unipolar ranges */
-const int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
+const int labpc_1200_is_unipolar[] = {
+	0, 0, 0, 0, 0, 0, 0,
+	1, 1, 1, 1, 1, 1, 1,
 };
 EXPORT_SYMBOL_GPL(labpc_1200_is_unipolar);
 
-/* map range index to gain bits */
-const int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] = {
-	0x00,
-	0x20,
-	0x30,
-	0x40,
-	0x50,
-	0x60,
-	0x70,
-	0x00,
-	0x20,
-	0x30,
-	0x40,
-	0x50,
-	0x60,
-	0x70,
+const int labpc_1200_ai_gain_bits[] = {
+	0x00, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
+	0x00, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
 };
 EXPORT_SYMBOL_GPL(labpc_1200_ai_gain_bits);
 
 const struct comedi_lrange range_labpc_1200_ai = {
-	NUM_LABPC_1200_AI_RANGES,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1),
-	 BIP_RANGE(0.5),
-	 BIP_RANGE(0.25),
-	 BIP_RANGE(0.1),
-	 BIP_RANGE(0.05),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2),
-	 UNI_RANGE(1),
-	 UNI_RANGE(0.5),
-	 UNI_RANGE(0.2),
-	 UNI_RANGE(0.1),
-	 }
+	14, {
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1)
+	}
 };
 EXPORT_SYMBOL_GPL(range_labpc_1200_ai);
 
-/* analog output ranges */
 #define AO_RANGE_IS_UNIPOLAR 0x1
 static const struct comedi_lrange range_labpc_ao = {
-	2,
-	{
-	 BIP_RANGE(5),
-	 UNI_RANGE(10),
-	 }
+	2, {
+		BIP_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 /* functions that do inb/outb and readb/writeb so we can use
