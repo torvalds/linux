@@ -851,9 +851,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	int channel, range, aref;
-#ifdef CONFIG_ISA_DMA_API
-	unsigned long irq_flags;
-#endif
 	int ret;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -1026,6 +1023,8 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #ifdef CONFIG_ISA_DMA_API
 	/*  set up dma transfer */
 	if (xfer == isa_dma_transfer) {
+		unsigned long irq_flags;
+
 		irq_flags = claim_dma_lock();
 		disable_dma(devpriv->dma_chan);
 		/* clear flip-flop to make sure 2-byte registers for
