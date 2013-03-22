@@ -215,12 +215,6 @@ enum scan_mode {
 	MODE_MULT_CHAN_DOWN,
 };
 
-static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
-			     enum scan_mode scan_mode);
-#ifdef CONFIG_ISA_DMA_API
-static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd);
-#endif
-
 /* analog input ranges */
 #define NUM_LABPC_PLUS_AI_RANGES 16
 /* indicates unipolar ranges */
@@ -441,20 +435,6 @@ static const int dma_buffer_size = 0xff00;
 /* 2 bytes per sample */
 static const int sample_size = 2;
 
-static inline int labpc_counter_load(struct comedi_device *dev,
-				     unsigned long base_address,
-				     unsigned int counter_number,
-				     unsigned int count, unsigned int mode)
-{
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
-
-	if (thisboard->memory_mapped_io)
-		return i8254_mm_load((void __iomem *)base_address, 0,
-				     counter_number, count, mode);
-	else
-		return i8254_load(base_address, 0, counter_number, count, mode);
-}
-
 static void labpc_clear_adc_fifo(const struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
@@ -464,20 +444,279 @@ static void labpc_clear_adc_fifo(const struct comedi_device *dev)
 	devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
 }
 
-static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
+	int i, n;
+	int chan, range;
+	int lsb, msb;
+	int timeout = 1000;
 	unsigned long flags;
 
+	/*  disable timed conversions */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
 	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
+	/*  disable interrupt generation and dma */
 	devpriv->command3_bits = 0;
 	devpriv->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
+	/* set gain and channel */
+	devpriv->command1_bits = 0;
+	chan = CR_CHAN(insn->chanspec);
+	range = CR_RANGE(insn->chanspec);
+	devpriv->command1_bits |= thisboard->ai_range_code[range];
+	/* munge channel bits for differential/scan disabled mode */
+	if (CR_AREF(insn->chanspec) == AREF_DIFF)
+		chan *= 2;
+	devpriv->command1_bits |= ADC_CHAN_BITS(chan);
+	devpriv->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+
+	/* setup command6 register for 1200 boards */
+	if (thisboard->register_layout == labpc_1200_layout) {
+		/*  reference inputs to ground or common? */
+		if (CR_AREF(insn->chanspec) != AREF_GROUND)
+			devpriv->command6_bits |= ADC_COMMON_BIT;
+		else
+			devpriv->command6_bits &= ~ADC_COMMON_BIT;
+		/* bipolar or unipolar range? */
+		if (thisboard->ai_range_is_unipolar[range])
+			devpriv->command6_bits |= ADC_UNIP_BIT;
+		else
+			devpriv->command6_bits &= ~ADC_UNIP_BIT;
+		/* don't interrupt on fifo half full */
+		devpriv->command6_bits &= ~ADC_FHF_INTR_EN_BIT;
+		/* don't enable interrupt on counter a1 terminal count? */
+		devpriv->command6_bits &= ~A1_INTR_EN_BIT;
+		/* write to register */
+		devpriv->write_byte(devpriv->command6_bits,
+				    dev->iobase + COMMAND6_REG);
+	}
+	/* setup command4 register */
+	devpriv->command4_bits = 0;
+	devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
+	/* single-ended/differential */
+	if (CR_AREF(insn->chanspec) == AREF_DIFF)
+		devpriv->command4_bits |= ADC_DIFF_BIT;
+	devpriv->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
+
+	/*
+	 * initialize pacer counter output to make sure it doesn't
+	 * cause any problems
+	 */
+	devpriv->write_byte(INIT_A0_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
+
+	labpc_clear_adc_fifo(dev);
+
+	for (n = 0; n < insn->n; n++) {
+		/* trigger conversion */
+		devpriv->write_byte(0x1, dev->iobase + ADC_CONVERT_REG);
+
+		for (i = 0; i < timeout; i++) {
+			if (devpriv->read_byte(dev->iobase +
+					       STATUS1_REG) & DATA_AVAIL_BIT)
+				break;
+			udelay(1);
+		}
+		if (i == timeout) {
+			comedi_error(dev, "timeout");
+			return -ETIME;
+		}
+		lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
+		msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
+		data[n] = (msb << 8) | lsb;
+	}
+
+	return n;
+}
+
+#ifdef CONFIG_ISA_DMA_API
+/* utility function that suggests a dma transfer size in bytes */
+static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
+{
+	unsigned int size;
+	unsigned int freq;
+
+	if (cmd->convert_src == TRIG_TIMER)
+		freq = 1000000000 / cmd->convert_arg;
+	/* return some default value */
+	else
+		freq = 0xffffffff;
+
+	/* make buffer fill in no more than 1/3 second */
+	size = (freq / 3) * sample_size;
+
+	/* set a minimum and maximum size allowed */
+	if (size > dma_buffer_size)
+		size = dma_buffer_size - dma_buffer_size % sample_size;
+	else if (size < sample_size)
+		size = sample_size;
+
+	return size;
+}
+#endif
+
+static int labpc_use_continuous_mode(const struct comedi_cmd *cmd,
+				     enum scan_mode mode)
+{
+	if (mode == MODE_SINGLE_CHAN)
+		return 1;
+
+	if (cmd->scan_begin_src == TRIG_FOLLOW)
+		return 1;
+
 	return 0;
+}
+
+static unsigned int labpc_ai_convert_period(const struct comedi_cmd *cmd,
+					    enum scan_mode mode)
+{
+	if (cmd->convert_src != TRIG_TIMER)
+		return 0;
+
+	if (mode == MODE_SINGLE_CHAN && cmd->scan_begin_src == TRIG_TIMER)
+		return cmd->scan_begin_arg;
+
+	return cmd->convert_arg;
+}
+
+static void labpc_set_ai_convert_period(struct comedi_cmd *cmd,
+					enum scan_mode mode, unsigned int ns)
+{
+	if (cmd->convert_src != TRIG_TIMER)
+		return;
+
+	if (mode == MODE_SINGLE_CHAN &&
+	    cmd->scan_begin_src == TRIG_TIMER) {
+		cmd->scan_begin_arg = ns;
+		if (cmd->convert_arg > cmd->scan_begin_arg)
+			cmd->convert_arg = cmd->scan_begin_arg;
+	} else
+		cmd->convert_arg = ns;
+}
+
+static unsigned int labpc_ai_scan_period(const struct comedi_cmd *cmd,
+					enum scan_mode mode)
+{
+	if (cmd->scan_begin_src != TRIG_TIMER)
+		return 0;
+
+	if (mode == MODE_SINGLE_CHAN && cmd->convert_src == TRIG_TIMER)
+		return 0;
+
+	return cmd->scan_begin_arg;
+}
+
+static void labpc_set_ai_scan_period(struct comedi_cmd *cmd,
+				     enum scan_mode mode, unsigned int ns)
+{
+	if (cmd->scan_begin_src != TRIG_TIMER)
+		return;
+
+	if (mode == MODE_SINGLE_CHAN && cmd->convert_src == TRIG_TIMER)
+		return;
+
+	cmd->scan_begin_arg = ns;
+}
+
+/* figures out what counter values to use based on command */
+static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
+			     enum scan_mode mode)
+{
+	struct labpc_private *devpriv = dev->private;
+	/* max value for 16 bit counter in mode 2 */
+	const int max_counter_value = 0x10000;
+	/* min value for 16 bit counter in mode 2 */
+	const int min_counter_value = 2;
+	unsigned int base_period;
+	unsigned int scan_period;
+	unsigned int convert_period;
+
+	/*
+	 * if both convert and scan triggers are TRIG_TIMER, then they
+	 * both rely on counter b0
+	 */
+	convert_period = labpc_ai_convert_period(cmd, mode);
+	scan_period = labpc_ai_scan_period(cmd, mode);
+	if (convert_period && scan_period) {
+		/*
+		 * pick the lowest b0 divisor value we can (for maximum input
+		 * clock speed on convert and scan counters)
+		 */
+		devpriv->divisor_b0 = (scan_period - 1) /
+		    (LABPC_TIMER_BASE * max_counter_value) + 1;
+		if (devpriv->divisor_b0 < min_counter_value)
+			devpriv->divisor_b0 = min_counter_value;
+		if (devpriv->divisor_b0 > max_counter_value)
+			devpriv->divisor_b0 = max_counter_value;
+
+		base_period = LABPC_TIMER_BASE * devpriv->divisor_b0;
+
+		/*  set a0 for conversion frequency and b1 for scan frequency */
+		switch (cmd->flags & TRIG_ROUND_MASK) {
+		default:
+		case TRIG_ROUND_NEAREST:
+			devpriv->divisor_a0 =
+			    (convert_period + (base_period / 2)) / base_period;
+			devpriv->divisor_b1 =
+			    (scan_period + (base_period / 2)) / base_period;
+			break;
+		case TRIG_ROUND_UP:
+			devpriv->divisor_a0 =
+			    (convert_period + (base_period - 1)) / base_period;
+			devpriv->divisor_b1 =
+			    (scan_period + (base_period - 1)) / base_period;
+			break;
+		case TRIG_ROUND_DOWN:
+			devpriv->divisor_a0 = convert_period / base_period;
+			devpriv->divisor_b1 = scan_period / base_period;
+			break;
+		}
+		/*  make sure a0 and b1 values are acceptable */
+		if (devpriv->divisor_a0 < min_counter_value)
+			devpriv->divisor_a0 = min_counter_value;
+		if (devpriv->divisor_a0 > max_counter_value)
+			devpriv->divisor_a0 = max_counter_value;
+		if (devpriv->divisor_b1 < min_counter_value)
+			devpriv->divisor_b1 = min_counter_value;
+		if (devpriv->divisor_b1 > max_counter_value)
+			devpriv->divisor_b1 = max_counter_value;
+		/*  write corrected timings to command */
+		labpc_set_ai_convert_period(cmd, mode,
+					    base_period * devpriv->divisor_a0);
+		labpc_set_ai_scan_period(cmd, mode,
+					 base_period * devpriv->divisor_b1);
+		/*
+		 * if only one TRIG_TIMER is used, we can employ the generic
+		 * cascaded timing functions
+		 */
+	} else if (scan_period) {
+		/*
+		 * calculate cascaded counter values
+		 * that give desired scan timing
+		 */
+		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
+					       &(devpriv->divisor_b1),
+					       &(devpriv->divisor_b0),
+					       &scan_period,
+					       cmd->flags & TRIG_ROUND_MASK);
+		labpc_set_ai_scan_period(cmd, mode, scan_period);
+	} else if (convert_period) {
+		/*
+		 * calculate cascaded counter values
+		 * that give desired conversion timing
+		 */
+		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
+					       &(devpriv->divisor_a0),
+					       &(devpriv->divisor_b0),
+					       &convert_period,
+					       cmd->flags & TRIG_ROUND_MASK);
+		labpc_set_ai_convert_period(cmd, mode, convert_period);
+	}
 }
 
 static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd *cmd)
@@ -572,69 +811,6 @@ static int labpc_ai_chanlist_invalid(const struct comedi_device *dev,
 	}
 
 	return 0;
-}
-
-static int labpc_use_continuous_mode(const struct comedi_cmd *cmd,
-				     enum scan_mode mode)
-{
-	if (mode == MODE_SINGLE_CHAN)
-		return 1;
-
-	if (cmd->scan_begin_src == TRIG_FOLLOW)
-		return 1;
-
-	return 0;
-}
-
-static unsigned int labpc_ai_convert_period(const struct comedi_cmd *cmd,
-					    enum scan_mode mode)
-{
-	if (cmd->convert_src != TRIG_TIMER)
-		return 0;
-
-	if (mode == MODE_SINGLE_CHAN && cmd->scan_begin_src == TRIG_TIMER)
-		return cmd->scan_begin_arg;
-
-	return cmd->convert_arg;
-}
-
-static void labpc_set_ai_convert_period(struct comedi_cmd *cmd,
-					enum scan_mode mode, unsigned int ns)
-{
-	if (cmd->convert_src != TRIG_TIMER)
-		return;
-
-	if (mode == MODE_SINGLE_CHAN &&
-	    cmd->scan_begin_src == TRIG_TIMER) {
-		cmd->scan_begin_arg = ns;
-		if (cmd->convert_arg > cmd->scan_begin_arg)
-			cmd->convert_arg = cmd->scan_begin_arg;
-	} else
-		cmd->convert_arg = ns;
-}
-
-static unsigned int labpc_ai_scan_period(const struct comedi_cmd *cmd,
-					enum scan_mode mode)
-{
-	if (cmd->scan_begin_src != TRIG_TIMER)
-		return 0;
-
-	if (mode == MODE_SINGLE_CHAN && cmd->convert_src == TRIG_TIMER)
-		return 0;
-
-	return cmd->scan_begin_arg;
-}
-
-static void labpc_set_ai_scan_period(struct comedi_cmd *cmd,
-				     enum scan_mode mode, unsigned int ns)
-{
-	if (cmd->scan_begin_src != TRIG_TIMER)
-		return;
-
-	if (mode == MODE_SINGLE_CHAN && cmd->convert_src == TRIG_TIMER)
-		return;
-
-	cmd->scan_begin_arg = ns;
 }
 
 static int labpc_ai_cmdtest(struct comedi_device *dev,
@@ -734,6 +910,20 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 		return 5;
 
 	return 0;
+}
+
+static inline int labpc_counter_load(struct comedi_device *dev,
+				     unsigned long base_address,
+				     unsigned int counter_number,
+				     unsigned int count, unsigned int mode)
+{
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+
+	if (thisboard->memory_mapped_io)
+		return i8254_mm_load((void __iomem *)base_address, 0,
+				     counter_number, count, mode);
+	else
+		return i8254_load(base_address, 0, counter_number, count, mode);
 }
 
 static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -1005,216 +1195,20 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
-	int i, n;
-	int chan, range;
-	int lsb, msb;
-	int timeout = 1000;
 	unsigned long flags;
 
-	/*  disable timed conversions */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
 	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	/*  disable interrupt generation and dma */
 	devpriv->command3_bits = 0;
 	devpriv->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
-	/* set gain and channel */
-	devpriv->command1_bits = 0;
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
-	devpriv->command1_bits |= thisboard->ai_range_code[range];
-	/* munge channel bits for differential/scan disabled mode */
-	if (CR_AREF(insn->chanspec) == AREF_DIFF)
-		chan *= 2;
-	devpriv->command1_bits |= ADC_CHAN_BITS(chan);
-	devpriv->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
-
-	/* setup command6 register for 1200 boards */
-	if (thisboard->register_layout == labpc_1200_layout) {
-		/*  reference inputs to ground or common? */
-		if (CR_AREF(insn->chanspec) != AREF_GROUND)
-			devpriv->command6_bits |= ADC_COMMON_BIT;
-		else
-			devpriv->command6_bits &= ~ADC_COMMON_BIT;
-		/* bipolar or unipolar range? */
-		if (thisboard->ai_range_is_unipolar[range])
-			devpriv->command6_bits |= ADC_UNIP_BIT;
-		else
-			devpriv->command6_bits &= ~ADC_UNIP_BIT;
-		/* don't interrupt on fifo half full */
-		devpriv->command6_bits &= ~ADC_FHF_INTR_EN_BIT;
-		/* don't enable interrupt on counter a1 terminal count? */
-		devpriv->command6_bits &= ~A1_INTR_EN_BIT;
-		/* write to register */
-		devpriv->write_byte(devpriv->command6_bits,
-				    dev->iobase + COMMAND6_REG);
-	}
-	/* setup command4 register */
-	devpriv->command4_bits = 0;
-	devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
-	/* single-ended/differential */
-	if (CR_AREF(insn->chanspec) == AREF_DIFF)
-		devpriv->command4_bits |= ADC_DIFF_BIT;
-	devpriv->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
-
-	/*
-	 * initialize pacer counter output to make sure it doesn't
-	 * cause any problems
-	 */
-	devpriv->write_byte(INIT_A0_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
-
-	labpc_clear_adc_fifo(dev);
-
-	for (n = 0; n < insn->n; n++) {
-		/* trigger conversion */
-		devpriv->write_byte(0x1, dev->iobase + ADC_CONVERT_REG);
-
-		for (i = 0; i < timeout; i++) {
-			if (devpriv->read_byte(dev->iobase +
-					       STATUS1_REG) & DATA_AVAIL_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
-		lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-		msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-		data[n] = (msb << 8) | lsb;
-	}
-
-	return n;
-}
-
-#ifdef CONFIG_ISA_DMA_API
-/* utility function that suggests a dma transfer size in bytes */
-static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
-{
-	unsigned int size;
-	unsigned int freq;
-
-	if (cmd->convert_src == TRIG_TIMER)
-		freq = 1000000000 / cmd->convert_arg;
-	/* return some default value */
-	else
-		freq = 0xffffffff;
-
-	/* make buffer fill in no more than 1/3 second */
-	size = (freq / 3) * sample_size;
-
-	/* set a minimum and maximum size allowed */
-	if (size > dma_buffer_size)
-		size = dma_buffer_size - dma_buffer_size % sample_size;
-	else if (size < sample_size)
-		size = sample_size;
-
-	return size;
-}
-#endif
-
-/* figures out what counter values to use based on command */
-static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
-			     enum scan_mode mode)
-{
-	struct labpc_private *devpriv = dev->private;
-	/* max value for 16 bit counter in mode 2 */
-	const int max_counter_value = 0x10000;
-	/* min value for 16 bit counter in mode 2 */
-	const int min_counter_value = 2;
-	unsigned int base_period;
-	unsigned int scan_period;
-	unsigned int convert_period;
-
-	/*
-	 * if both convert and scan triggers are TRIG_TIMER, then they
-	 * both rely on counter b0
-	 */
-	convert_period = labpc_ai_convert_period(cmd, mode);
-	scan_period = labpc_ai_scan_period(cmd, mode);
-	if (convert_period && scan_period) {
-		/*
-		 * pick the lowest b0 divisor value we can (for maximum input
-		 * clock speed on convert and scan counters)
-		 */
-		devpriv->divisor_b0 = (scan_period - 1) /
-		    (LABPC_TIMER_BASE * max_counter_value) + 1;
-		if (devpriv->divisor_b0 < min_counter_value)
-			devpriv->divisor_b0 = min_counter_value;
-		if (devpriv->divisor_b0 > max_counter_value)
-			devpriv->divisor_b0 = max_counter_value;
-
-		base_period = LABPC_TIMER_BASE * devpriv->divisor_b0;
-
-		/*  set a0 for conversion frequency and b1 for scan frequency */
-		switch (cmd->flags & TRIG_ROUND_MASK) {
-		default:
-		case TRIG_ROUND_NEAREST:
-			devpriv->divisor_a0 =
-			    (convert_period + (base_period / 2)) / base_period;
-			devpriv->divisor_b1 =
-			    (scan_period + (base_period / 2)) / base_period;
-			break;
-		case TRIG_ROUND_UP:
-			devpriv->divisor_a0 =
-			    (convert_period + (base_period - 1)) / base_period;
-			devpriv->divisor_b1 =
-			    (scan_period + (base_period - 1)) / base_period;
-			break;
-		case TRIG_ROUND_DOWN:
-			devpriv->divisor_a0 = convert_period / base_period;
-			devpriv->divisor_b1 = scan_period / base_period;
-			break;
-		}
-		/*  make sure a0 and b1 values are acceptable */
-		if (devpriv->divisor_a0 < min_counter_value)
-			devpriv->divisor_a0 = min_counter_value;
-		if (devpriv->divisor_a0 > max_counter_value)
-			devpriv->divisor_a0 = max_counter_value;
-		if (devpriv->divisor_b1 < min_counter_value)
-			devpriv->divisor_b1 = min_counter_value;
-		if (devpriv->divisor_b1 > max_counter_value)
-			devpriv->divisor_b1 = max_counter_value;
-		/*  write corrected timings to command */
-		labpc_set_ai_convert_period(cmd, mode,
-					    base_period * devpriv->divisor_a0);
-		labpc_set_ai_scan_period(cmd, mode,
-					 base_period * devpriv->divisor_b1);
-		/*
-		 * if only one TRIG_TIMER is used, we can employ the generic
-		 * cascaded timing functions
-		 */
-	} else if (scan_period) {
-		/*
-		 * calculate cascaded counter values
-		 * that give desired scan timing
-		 */
-		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
-					       &(devpriv->divisor_b1),
-					       &(devpriv->divisor_b0),
-					       &scan_period,
-					       cmd->flags & TRIG_ROUND_MASK);
-		labpc_set_ai_scan_period(cmd, mode, scan_period);
-	} else if (convert_period) {
-		/*
-		 * calculate cascaded counter values
-		 * that give desired conversion timing
-		 */
-		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
-					       &(devpriv->divisor_a0),
-					       &(devpriv->divisor_b0),
-					       &convert_period,
-					       cmd->flags & TRIG_ROUND_MASK);
-		labpc_set_ai_convert_period(cmd, mode, convert_period);
-	}
+	return 0;
 }
 
 #ifdef CONFIG_ISA_DMA_API
