@@ -114,6 +114,59 @@ int max77686_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 }
 EXPORT_SYMBOL_GPL(max77686_update_reg);
 
+#if defined(CONFIG_MACH_ODROID_4X12) && defined(CONFIG_RTC_DRV_S3C)
+
+#include <linux/delay.h>
+#include <linux/rtc.h>
+static	struct max77686_dev *gMax77686;
+
+int max77686_rtc_gettime(struct rtc_time *rtc_tm)
+{
+    unsigned char tmp;
+    
+    // Reload Register
+    max77686_write_reg(gMax77686->rtc, MAX77686_RTC_UPDATE0, 0x10);  mdelay(100);
+    max77686_read_reg(gMax77686->rtc, MAX77686_RTC_SEC	, &tmp );   rtc_tm->tm_sec  = tmp;
+    max77686_read_reg(gMax77686->rtc, MAX77686_RTC_MIN	, &tmp );   rtc_tm->tm_min  = tmp;
+    max77686_read_reg(gMax77686->rtc, MAX77686_RTC_HOUR	, &tmp );   rtc_tm->tm_hour = tmp & 0x3F;
+    if(tmp & 0x40)  rtc_tm->tm_hour += 12;  // pm
+
+    max77686_read_reg(gMax77686->rtc, MAX77686_RTC_DOM	, &tmp );   rtc_tm->tm_mday = tmp;
+    max77686_read_reg(gMax77686->rtc, MAX77686_RTC_MONTH, &tmp );   rtc_tm->tm_mon  = tmp;
+    max77686_read_reg(gMax77686->rtc, MAX77686_RTC_YEAR	, &tmp );   rtc_tm->tm_year = tmp;
+	rtc_tm->tm_year += 100;
+
+    printk("%s : %04d.%02d.%02d %02d:%02d:%02d\n", 
+		 __func__, 1900 + rtc_tm->tm_year, rtc_tm->tm_mon, rtc_tm->tm_mday,
+		 rtc_tm->tm_hour, rtc_tm->tm_min, rtc_tm->tm_sec);
+
+	rtc_tm->tm_mon -= 1;
+	
+	return  0;
+}
+EXPORT_SYMBOL_GPL(max77686_rtc_gettime);
+
+int max77686_rtc_settime(struct rtc_time *tm)
+{
+	int year = tm->tm_year - 100;
+
+	printk("%s : %04d.%02d.%02d %02d:%02d:%02d\n",
+		 __func__, 1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday,
+		 tm->tm_hour, tm->tm_min, tm->tm_sec);
+
+	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_SEC	 , tm->tm_sec);
+	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_MIN	 , tm->tm_min);
+	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_HOUR , tm->tm_hour);
+	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_DOM	 , tm->tm_mday);
+	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_MONTH, tm->tm_mon + 1);
+	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_YEAR , year);
+
+    max77686_write_reg(gMax77686->rtc, MAX77686_RTC_UPDATE0, 0x01);  mdelay(100);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(max77686_rtc_settime);
+#endif
+
 static int max77686_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -160,6 +213,10 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 
 	/* MAX77686 has a power button input. */
 	device_init_wakeup(max77686->dev, pdata->wakeup);
+
+#if defined(CONFIG_MACH_ODROID_4X12) && defined(CONFIG_RTC_DRV_S3C)
+    gMax77686 = max77686;
+#endif    
 
 	return ret;
 
