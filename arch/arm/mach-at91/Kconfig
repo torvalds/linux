@@ -6,6 +6,10 @@ config HAVE_AT91_DBGU0
 config HAVE_AT91_DBGU1
 	bool
 
+config AT91_PMC_UNIT
+	bool
+	default !ARCH_AT91X40
+
 config AT91_SAM9_ALT_RESET
 	bool
 	default !ARCH_AT91X40
@@ -27,8 +31,21 @@ config SOC_AT91SAM9
 
 menu "Atmel AT91 System-on-Chip"
 
+choice
+
+	prompt "Core type"
+
+config SOC_SAM_V4_V5
+	bool "ARM7/ARM9"
+	help
+	  Select this if you are using one of Atmel's AT91SAM9, AT91RM9200
+	  or AT91X40 SoC.
+
+endchoice
+
 comment "Atmel AT91 Processor"
 
+if SOC_SAM_V4_V5
 config SOC_AT91RM9200
 	bool "AT91RM9200"
 	select CPU_ARM920T
@@ -94,13 +111,10 @@ config SOC_AT91SAM9N12
 	help
 	  Select this if you are using Atmel's AT91SAM9N12 SoC.
 
-config AT91_PMC_UNIT
-	bool
-	default !ARCH_AT91X40
-
 # ----------------------------------------------------------
 
 source arch/arm/mach-at91/Kconfig.non_dt
+endif # SOC_SAM_V4_V5
 
 comment "Generic Board Type"
 
