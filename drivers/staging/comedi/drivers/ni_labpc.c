@@ -1629,18 +1629,11 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	dev->board_name = board->name;
 
-	dev_info(dev->class_dev, "ni_labpc: %s\n", dev->board_name);
-	if (iobase == 0) {
-		dev_err(dev->class_dev, "io base address is zero!\n");
+	if (iobase == 0)
 		return -EINVAL;
-	}
-	/*  request io regions for isa boards */
 	if (board->bustype == isa_bustype) {
-		/* check if io addresses are available */
-		if (!request_region(iobase, LABPC_SIZE, dev->board_name)) {
-			dev_err(dev->class_dev, "I/O port conflict\n");
+		if (!request_region(iobase, LABPC_SIZE, dev->board_name))
 			return -EIO;
-		}
 	}
 	dev->iobase = iobase;
 
@@ -1651,6 +1644,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		devpriv->read_byte = labpc_inb;
 		devpriv->write_byte = labpc_outb;
 	}
+
 	/* initialize board's command registers */
 	devpriv->write_byte(devpriv->cmd1, dev->iobase + CMD1_REG);
 	devpriv->write_byte(devpriv->cmd2, dev->iobase + CMD2_REG);
