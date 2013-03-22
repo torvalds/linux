@@ -125,8 +125,9 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	netdev_features_t enc_features;
 	int ghl = GRE_HEADER_SECTION;
 	struct gre_base_hdr *greh;
+	struct iphdr *iph;
 	int mac_len = skb->mac_len;
-	int tnl_hlen;
+	int tnl_hlen, id;
 	bool csum;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
@@ -170,6 +171,8 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
 	skb->mac_len = skb_inner_network_offset(skb);
 
+	iph = ip_hdr(skb);
+	id = ntohs(iph->id);
 	/* segment inner packet. */
 	enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
 	segs = skb_mac_gso_segment(skb, enc_features);
@@ -179,6 +182,8 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	skb = segs;
 	tnl_hlen = skb_tnl_header_len(skb);
 	do {
+		iph = (struct iphdr *)skb->data;
+		iph->id = htons(id++);
 		__skb_push(skb, ghl);
 		if (csum) {
 			__be32 *pcsum;
