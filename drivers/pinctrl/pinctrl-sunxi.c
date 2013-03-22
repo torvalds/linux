@@ -11,6 +11,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -1917,6 +1918,7 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
 	int i, ret, last_pin;
+	struct clk *clk;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
@@ -1986,6 +1988,12 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 		if (ret)
 			goto gpiochip_error;
 	}
+
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		goto gpiochip_error;
+
+	clk_prepare_enable(clk);
 
 	dev_info(&pdev->dev, "initialized sunXi PIO driver\n");
 
