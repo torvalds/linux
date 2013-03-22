@@ -354,6 +354,22 @@ static bool labpc_range_is_unipolar(struct comedi_subdevice *s,
 		return true;
 }
 
+static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct labpc_private *devpriv = dev->private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->cmd2 &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
+	devpriv->write_byte(devpriv->cmd2, dev->iobase + COMMAND2_REG);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	devpriv->cmd3 = 0;
+	devpriv->write_byte(devpriv->cmd3, dev->iobase + COMMAND3_REG);
+
+	return 0;
+}
+
 static void labpc_ai_set_chan_and_gain(struct comedi_device *dev,
 				       enum scan_mode mode,
 				       unsigned int chan,
@@ -393,19 +409,11 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
 	int timeout = 1000;
-	unsigned long flags;
 	int lsb, msb;
 	int i, n;
 
-	/*  disable timed conversions */
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->cmd2 &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
-	devpriv->write_byte(devpriv->cmd2, dev->iobase + COMMAND2_REG);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	/*  disable interrupt generation and dma */
-	devpriv->cmd3 = 0;
-	devpriv->write_byte(devpriv->cmd3, dev->iobase + COMMAND3_REG);
+	/* disable timed conversions, interrupt generation and dma */
+	labpc_cancel(dev, s);
 
 	labpc_ai_set_chan_and_gain(dev, MODE_SINGLE_CHAN, chan, range, aref);
 
@@ -876,13 +884,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int ret;
 
 	/* make sure board is disabled before setting up acquisition */
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->cmd2 &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
-	devpriv->write_byte(devpriv->cmd2, dev->iobase + COMMAND2_REG);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	devpriv->cmd3 = 0;
-	devpriv->write_byte(devpriv->cmd3, dev->iobase + COMMAND3_REG);
+	labpc_cancel(dev, s);
 
 	/*  initialize software conversion count */
 	if (cmd->stop_src == TRIG_COUNT)
@@ -1105,22 +1107,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	devpriv->write_byte(devpriv->cmd2, dev->iobase + COMMAND2_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	return 0;
-}
-
-static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct labpc_private *devpriv = dev->private;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->cmd2 &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
-	devpriv->write_byte(devpriv->cmd2, dev->iobase + COMMAND2_REG);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	devpriv->cmd3 = 0;
-	devpriv->write_byte(devpriv->cmd3, dev->iobase + COMMAND3_REG);
 
 	return 0;
 }
