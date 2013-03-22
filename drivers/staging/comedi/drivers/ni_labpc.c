@@ -417,11 +417,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 	 .ai_scan_up = 1,
 	 .memory_mapped_io = 1,
 	 },
-/* dummy entry so pci board works when comedi_config is passed driver name */
-	{
-	 .name = DRV_NAME,
-	 .bustype = pci_bustype,
-	 },
 #endif
 };
 
