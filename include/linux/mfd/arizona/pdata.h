@@ -99,7 +99,8 @@ struct arizona_pdata {
 	/** If a direct 32kHz clock is provided on an MCLK specify it here */
 	int clk32k_src;
 
-	bool irq_active_high; /** IRQ polarity */
+	/** Mode for primary IRQ (defaults to active low) */
+	unsigned int irq_flags;
 
 	/* Base GPIO */
 	int gpio_base;
