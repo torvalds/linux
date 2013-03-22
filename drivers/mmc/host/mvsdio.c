@@ -741,8 +741,8 @@ static int __init mvsd_probe(struct platform_device *pdev)
 			goto out;
 		}
 		host->base_clock = mvsd_data->clock / 2;
-		gpio_card_detect = mvsd_data->gpio_card_detect;
-		gpio_write_protect = mvsd_data->gpio_write_protect;
+		gpio_card_detect = mvsd_data->gpio_card_detect ? : -EINVAL;
+		gpio_write_protect = mvsd_data->gpio_write_protect ? : -EINVAL;
 	}
 
 	mmc->ops = &mvsd_ops;
