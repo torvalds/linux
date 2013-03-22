@@ -540,23 +540,18 @@ int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 {
 	int err;
 	struct inode *h_inode;
+	struct super_block *h_sb;
 
-	h_inode = h_path->dentry->d_inode;
 	if (!h_file) {
-		err = vfsub_mnt_want_write(h_path->mnt);
-		if (err)
-			goto out;
-		err = inode_permission(h_inode, MAY_WRITE);
-		if (err)
-			goto out_mnt;
-		err = get_write_access(h_inode);
-		if (err)
-			goto out_mnt;
-		err = break_lease(h_inode, O_WRONLY);
-		if (err)
-			goto out_inode;
+		err = vfsub_truncate(h_path, length);
+		goto out;
 	}
 
+	h_inode = h_path->dentry->d_inode;
+	h_sb = h_inode->i_sb;
+	lockdep_off();
+	sb_start_write(h_sb);
+	lockdep_on();
 	err = locks_verify_truncate(h_inode, h_file, length);
 	if (!err)
 		err = security_path_truncate(h_path);
@@ -565,13 +560,10 @@ int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 		err = do_truncate(h_path->dentry, length, attr, h_file);
 		lockdep_on();
 	}
+	lockdep_off();
+	sb_end_write(h_sb);
+	lockdep_on();
 
-out_inode:
-	if (!h_file)
-		put_write_access(h_inode);
-out_mnt:
-	if (!h_file)
-		vfsub_mnt_drop_write(h_path->mnt);
 out:
 	return err;
 }

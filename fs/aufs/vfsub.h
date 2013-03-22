@@ -33,6 +33,7 @@
 /* copied from linux/fs/internal.h */
 /* todo: BAD approach!! */
 extern struct lglock vfsmount_lock;
+extern void __mnt_drop_write(struct vfsmount *);
 extern spinlock_t inode_sb_list_lock;
 
 /* copied from linux/fs/file_table.c */
@@ -155,6 +156,13 @@ static inline void vfsub_mnt_drop_write(struct vfsmount *mnt)
 	lockdep_on();
 }
 
+static inline void vfsub_mnt_drop_write_file(struct file *file)
+{
+	lockdep_off();
+	mnt_drop_write_file(file);
+	lockdep_on();
+}
+
 /* ---------------------------------------------------------------------- */
 
 struct au_hinode;
@@ -233,6 +241,16 @@ long vfsub_splice_to(struct file *in, loff_t *ppos,
 		     unsigned int flags);
 long vfsub_splice_from(struct pipe_inode_info *pipe, struct file *out,
 		       loff_t *ppos, size_t len, unsigned int flags);
+
+static inline long vfsub_truncate(struct path *path, loff_t length)
+{
+	long err;
+	lockdep_off();
+	err = vfs_truncate(path, length);
+	lockdep_on();
+	return err;
+}
+
 int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 		struct file *h_file);
 int vfsub_fsync(struct file *file, struct path *path, int datasync);
