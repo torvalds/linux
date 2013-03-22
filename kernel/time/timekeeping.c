@@ -1618,6 +1618,8 @@ EXPORT_SYMBOL_GPL(ktime_get_monotonic_offset);
  */
 int do_adjtimex(struct timex *txc)
 {
+	struct timespec ts;
+	s32 tai, orig_tai;
 	int ret;
 
 	/* Validate the data before disabling interrupts */
@@ -1625,9 +1627,16 @@ int do_adjtimex(struct timex *txc)
 	if (ret)
 		return ret;
 
-	return __do_adjtimex(txc);
-}
+	getnstimeofday(&ts);
+	orig_tai = tai = timekeeping_get_tai_offset();
 
+	ret = __do_adjtimex(txc, &ts, &tai);
+
+	if (tai != orig_tai)
+		timekeeping_set_tai_offset(tai);
+
+	return ret;
+}
 
 #ifdef CONFIG_NTP_PPS
 /**

@@ -662,10 +662,8 @@ int ntp_validate_timex(struct timex *txc)
  * adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
  */
-int __do_adjtimex(struct timex *txc)
+int __do_adjtimex(struct timex *txc, struct timespec *ts, s32 *time_tai)
 {
-	struct timespec ts;
-	u32 time_tai, orig_tai;
 	int result;
 
 	if (txc->modes & ADJ_SETOFFSET) {
@@ -678,9 +676,6 @@ int __do_adjtimex(struct timex *txc)
 		if (result)
 			return result;
 	}
-
-	getnstimeofday(&ts);
-	orig_tai = time_tai = timekeeping_get_tai_offset();
 
 	raw_spin_lock_irq(&ntp_lock);
 
@@ -697,7 +692,7 @@ int __do_adjtimex(struct timex *txc)
 
 		/* If there are input parameters, then process them: */
 		if (txc->modes)
-			process_adjtimex_modes(txc, &ts, &time_tai);
+			process_adjtimex_modes(txc, ts, time_tai);
 
 		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
 				  NTP_SCALE_SHIFT);
@@ -719,18 +714,15 @@ int __do_adjtimex(struct timex *txc)
 	txc->precision	   = 1;
 	txc->tolerance	   = MAXFREQ_SCALED / PPM_SCALE;
 	txc->tick	   = tick_usec;
-	txc->tai	   = time_tai;
+	txc->tai	   = *time_tai;
 
 	/* fill PPS status fields */
 	pps_fill_timex(txc);
 
 	raw_spin_unlock_irq(&ntp_lock);
 
-	if (time_tai != orig_tai)
-		timekeeping_set_tai_offset(time_tai);
-
-	txc->time.tv_sec = ts.tv_sec;
-	txc->time.tv_usec = ts.tv_nsec;
+	txc->time.tv_sec = ts->tv_sec;
+	txc->time.tv_usec = ts->tv_nsec;
 	if (!(time_status & STA_NANO))
 		txc->time.tv_usec /= NSEC_PER_USEC;
 
