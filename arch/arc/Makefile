@@ -102,10 +102,11 @@ boot		:= arch/arc/boot
 KBUILD_IMAGE	:= bootpImage
 
 all:	$(KBUILD_IMAGE)
-
 bootpImage: vmlinux
 
-uImage: vmlinux
+boot_targets += uImage uImage.bin uImage.gz
+
+$(boot_targets): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 %.dtb %.dtb.S %.dtb.o: scripts
