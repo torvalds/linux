@@ -82,11 +82,6 @@
 #include "comedi_fc.h"
 #include "ni_labpc.h"
 
-/* size of io region used by board */
-#define LABPC_SIZE           32
-/* 2 MHz master clock */
-#define LABPC_TIMER_BASE            500
-
 /*
  * Register map (all registers are 8-bit)
  */
@@ -157,6 +152,8 @@
 #define INTERVAL_COUNT_REG	0x1e	/* W: Interval Counter Data reg */
 #define INTERVAL_STROBE_REG	0x1f	/* W: Interval Counter Strobe reg */
 
+#define LABPC_SIZE		0x20	/* size of ISA io region */
+#define LABPC_TIMER_BASE	500	/* 2 MHz master clock */
 #define LABPC_ADC_TIMEOUT	1000
 
 enum scan_mode {
