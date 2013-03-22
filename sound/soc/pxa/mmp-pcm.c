@@ -118,9 +118,8 @@ static int mmp_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct platform_device *pdev = to_platform_device(rtd->platform->dev);
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct mmp_dma_data *dma_data;
+	struct mmp_dma_data dma_data;
 	struct resource *r;
-	int ret;
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, substream->stream);
 	if (!r)
@@ -128,33 +127,11 @@ static int mmp_pcm_open(struct snd_pcm_substream *substream)
 
 	snd_soc_set_runtime_hwparams(substream,
 				&mmp_pcm_hardware[substream->stream]);
-	dma_data = devm_kzalloc(&pdev->dev,
-			sizeof(struct mmp_dma_data), GFP_KERNEL);
-	if (dma_data == NULL)
-		return -ENOMEM;
 
-	dma_data->dma_res = r;
-	dma_data->ssp_id = cpu_dai->id;
+	dma_data.dma_res = r;
+	dma_data.ssp_id = cpu_dai->id;
 
-	ret = snd_dmaengine_pcm_open(substream, filter, dma_data);
-	if (ret) {
-		devm_kfree(&pdev->dev, dma_data);
-		return ret;
-	}
-
-	snd_dmaengine_pcm_set_data(substream, dma_data);
-	return 0;
-}
-
-static int mmp_pcm_close(struct snd_pcm_substream *substream)
-{
-	struct mmp_dma_data *dma_data = snd_dmaengine_pcm_get_data(substream);
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct platform_device *pdev = to_platform_device(rtd->platform->dev);
-
-	snd_dmaengine_pcm_close(substream);
-	devm_kfree(&pdev->dev, dma_data);
-	return 0;
+	return snd_dmaengine_pcm_open(substream, filter, &dma_data);
 }
 
 static int mmp_pcm_mmap(struct snd_pcm_substream *substream,
@@ -171,7 +148,7 @@ static int mmp_pcm_mmap(struct snd_pcm_substream *substream,
 
 struct snd_pcm_ops mmp_pcm_ops = {
 	.open		= mmp_pcm_open,
-	.close		= mmp_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= mmp_pcm_hw_params,
 	.trigger	= snd_dmaengine_pcm_trigger,
