@@ -14,9 +14,18 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fixed.h>
+
+struct tegra_fb {
+	struct drm_framebuffer base;
+	struct tegra_bo **planes;
+	unsigned int num_planes;
+};
+
+struct tegra_fbdev {
+	struct drm_fb_helper base;
+	struct tegra_fb *fb;
+};
 
 struct host1x_drm {
 	struct drm_device *drm;
@@ -33,7 +42,7 @@ struct host1x_drm {
 	struct mutex clients_lock;
 	struct list_head clients;
 
-	struct drm_fbdev_cma *fbdev;
+	struct tegra_fbdev *fbdev;
 };
 
 struct host1x_client;
@@ -226,8 +235,11 @@ extern int tegra_output_init(struct drm_device *drm, struct tegra_output *output
 extern int tegra_output_exit(struct tegra_output *output);
 
 /* from fb.c */
+struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
+				    unsigned int index);
 extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
+extern void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
 
 extern struct drm_driver tegra_drm_driver;
 

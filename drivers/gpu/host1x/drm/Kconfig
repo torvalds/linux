@@ -2,11 +2,9 @@ config DRM_TEGRA
 	bool "NVIDIA Tegra DRM"
 	depends on DRM && OF
 	select DRM_KMS_HELPER
-	select DRM_GEM_CMA_HELPER
-	select DRM_KMS_CMA_HELPER
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
 	help
 	  Choose this option if you have an NVIDIA Tegra SoC.
 

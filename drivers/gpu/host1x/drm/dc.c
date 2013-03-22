@@ -14,9 +14,10 @@
 #include <linux/platform_device.h>
 #include <linux/clk/tegra.h>
 
-#include "drm.h"
-#include "dc.h"
 #include "host1x_client.h"
+#include "dc.h"
+#include "drm.h"
+#include "gem.h"
 
 struct tegra_plane {
 	struct drm_plane base;
@@ -52,9 +53,9 @@ static int tegra_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	window.bits_per_pixel = fb->bits_per_pixel;
 
 	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
-		struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(fb, i);
+		struct tegra_bo *bo = tegra_fb_get_plane(fb, i);
 
-		window.base[i] = gem->paddr + fb->offsets[i];
+		window.base[i] = bo->paddr + fb->offsets[i];
 
 		/*
 		 * Tegra doesn't support different strides for U and V planes
@@ -137,7 +138,7 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 			     struct drm_framebuffer *fb)
 {
-	struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(fb, 0);
+	struct tegra_bo *bo = tegra_fb_get_plane(fb, 0);
 	unsigned long value;
 
 	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
@@ -145,7 +146,7 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	value = fb->offsets[0] + y * fb->pitches[0] +
 		x * fb->bits_per_pixel / 8;
 
-	tegra_dc_writel(dc, gem->paddr + value, DC_WINBUF_START_ADDR);
+	tegra_dc_writel(dc, bo->paddr + value, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, fb->pitches[0], DC_WIN_LINE_STRIDE);
 
 	value = GENERAL_UPDATE | WIN_A_UPDATE;
@@ -187,20 +188,20 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 {
 	struct drm_device *drm = dc->base.dev;
 	struct drm_crtc *crtc = &dc->base;
-	struct drm_gem_cma_object *gem;
 	unsigned long flags, base;
+	struct tegra_bo *bo;
 
 	if (!dc->event)
 		return;
 
-	gem = drm_fb_cma_get_gem_obj(crtc->fb, 0);
+	bo = tegra_fb_get_plane(crtc->fb, 0);
 
 	/* check if new start address has been latched */
 	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
 	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
-	if (base == gem->paddr + crtc->fb->offsets[0]) {
+	if (base == bo->paddr + crtc->fb->offsets[0]) {
 		spin_lock_irqsave(&drm->event_lock, flags);
 		drm_send_vblank_event(drm, dc->pipe, dc->event);
 		drm_vblank_put(drm, dc->pipe);
@@ -570,7 +571,7 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *adjusted,
 			       int x, int y, struct drm_framebuffer *old_fb)
 {
-	struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(crtc->fb, 0);
+	struct tegra_bo *bo = tegra_fb_get_plane(crtc->fb, 0);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct tegra_dc_window window;
 	unsigned long div, value;
@@ -617,7 +618,7 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	window.format = tegra_dc_format(crtc->fb->pixel_format);
 	window.bits_per_pixel = crtc->fb->bits_per_pixel;
 	window.stride[0] = crtc->fb->pitches[0];
-	window.base[0] = gem->paddr;
+	window.base[0] = bo->paddr;
 
 	err = tegra_dc_setup_window(dc, 0, &window);
 	if (err < 0)

@@ -15,7 +15,10 @@
 #include <asm/dma-iommu.h>
 
 #include "host1x_client.h"
+#include "dev.h"
 #include "drm.h"
+#include "gem.h"
+#include "syncpt.h"
 
 #define DRIVER_NAME "tegra"
 #define DRIVER_DESC "NVIDIA Tegra graphics"
@@ -281,7 +284,7 @@ static void tegra_drm_lastclose(struct drm_device *drm)
 {
 	struct host1x_drm *host1x = drm->dev_private;
 
-	drm_fbdev_cma_restore_mode(host1x->fbdev);
+	tegra_fbdev_restore_mode(host1x->fbdev);
 }
 
 static struct drm_ioctl_desc tegra_drm_ioctls[] = {
@@ -292,7 +295,7 @@ static const struct file_operations tegra_drm_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_gem_cma_mmap,
+	.mmap = tegra_drm_mmap,
 	.poll = drm_poll,
 	.fasync = drm_fasync,
 	.read = drm_read,
@@ -408,11 +411,11 @@ struct drm_driver tegra_drm_driver = {
 	.debugfs_cleanup = tegra_debugfs_cleanup,
 #endif
 
-	.gem_free_object = drm_gem_cma_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_cma_dumb_destroy,
+	.gem_free_object = tegra_bo_free_object,
+	.gem_vm_ops = &tegra_bo_vm_ops,
+	.dumb_create = tegra_bo_dumb_create,
+	.dumb_map_offset = tegra_bo_dumb_map_offset,
+	.dumb_destroy = tegra_bo_dumb_destroy,
 
 	.ioctls = tegra_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(tegra_drm_ioctls),
