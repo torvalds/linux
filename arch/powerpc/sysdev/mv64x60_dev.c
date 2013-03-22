@@ -214,15 +214,27 @@ static struct platform_device * __init mv64x60_eth_register_shared_pdev(
 						struct device_node *np, int id)
 {
 	struct platform_device *pdev;
-	struct resource r[1];
+	struct resource r[2];
 	int err;
 
 	err = of_address_to_resource(np, 0, &r[0]);
 	if (err)
 		return ERR_PTR(err);
 
+	/* register an orion mdio bus driver */
+	r[1].start = r[0].start + 0x4;
+	r[1].end = r[0].start + 0x84 - 1;
+	r[1].flags = IORESOURCE_MEM;
+
+	if (id == 0) {
+		pdev = platform_device_register_simple("orion-mdio", -1, &r[1], 1);
+		if (!pdev)
+			return pdev;
+	}
+
 	pdev = platform_device_register_simple(MV643XX_ETH_SHARED_NAME, id,
-					       r, 1);
+					       &r[0], 1);
+
 	return pdev;
 }
 

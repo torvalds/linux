@@ -238,6 +238,7 @@ static __init void ge_complete(
 	struct mv643xx_eth_shared_platform_data *orion_ge_shared_data,
 	struct resource *orion_ge_resource, unsigned long irq,
 	struct platform_device *orion_ge_shared,
+	struct platform_device *orion_ge_mvmdio,
 	struct mv643xx_eth_platform_data *eth_data,
 	struct platform_device *orion_ge)
 {
@@ -247,6 +248,8 @@ static __init void ge_complete(
 	orion_ge->dev.platform_data = eth_data;
 
 	platform_device_register(orion_ge_shared);
+	if (orion_ge_mvmdio)
+		platform_device_register(orion_ge_mvmdio);
 	platform_device_register(orion_ge);
 }
 
@@ -258,8 +261,6 @@ struct mv643xx_eth_shared_platform_data orion_ge00_shared_data;
 static struct resource orion_ge00_shared_resources[] = {
 	{
 		.name	= "ge00 base",
-	}, {
-		.name	= "ge00 err irq",
 	},
 };
 
@@ -269,6 +270,19 @@ static struct platform_device orion_ge00_shared = {
 	.dev		= {
 		.platform_data	= &orion_ge00_shared_data,
 	},
+};
+
+static struct resource orion_ge_mvmdio_resources[] = {
+	{
+		.name	= "ge00 mvmdio base",
+	}, {
+		.name	= "ge00 mvmdio err irq",
+	},
+};
+
+static struct platform_device orion_ge_mvmdio = {
+	.name		= "orion-mdio",
+	.id		= -1,
 };
 
 static struct resource orion_ge00_resources[] = {
@@ -295,26 +309,25 @@ void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned int tx_csum_limit)
 {
 	fill_resources(&orion_ge00_shared, orion_ge00_shared_resources,
-		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
+	fill_resources(&orion_ge_mvmdio, orion_ge_mvmdio_resources,
+			mapbase + 0x2004, 0x84 - 1, irq_err);
 	orion_ge00_shared_data.tx_csum_limit = tx_csum_limit;
 	ge_complete(&orion_ge00_shared_data,
 		    orion_ge00_resources, irq, &orion_ge00_shared,
+		    &orion_ge_mvmdio,
 		    eth_data, &orion_ge00);
 }
 
 /*****************************************************************************
  * GE01
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge01_shared_data = {
-	.shared_smi	= &orion_ge00_shared,
-};
+struct mv643xx_eth_shared_platform_data orion_ge01_shared_data;
 
 static struct resource orion_ge01_shared_resources[] = {
 	{
 		.name	= "ge01 base",
-	}, {
-		.name	= "ge01 err irq",
-	},
+	}
 };
 
 static struct platform_device orion_ge01_shared = {
@@ -349,26 +362,23 @@ void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned int tx_csum_limit)
 {
 	fill_resources(&orion_ge01_shared, orion_ge01_shared_resources,
-		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
 	orion_ge01_shared_data.tx_csum_limit = tx_csum_limit;
 	ge_complete(&orion_ge01_shared_data,
 		    orion_ge01_resources, irq, &orion_ge01_shared,
+		    NULL,
 		    eth_data, &orion_ge01);
 }
 
 /*****************************************************************************
  * GE10
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge10_shared_data = {
-	.shared_smi	= &orion_ge00_shared,
-};
+struct mv643xx_eth_shared_platform_data orion_ge10_shared_data;
 
 static struct resource orion_ge10_shared_resources[] = {
 	{
 		.name	= "ge10 base",
-	}, {
-		.name	= "ge10 err irq",
-	},
+	}
 };
 
 static struct platform_device orion_ge10_shared = {
@@ -402,24 +412,21 @@ void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long irq_err)
 {
 	fill_resources(&orion_ge10_shared, orion_ge10_shared_resources,
-		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
 	ge_complete(&orion_ge10_shared_data,
 		    orion_ge10_resources, irq, &orion_ge10_shared,
+		    NULL,
 		    eth_data, &orion_ge10);
 }
 
 /*****************************************************************************
  * GE11
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion_ge11_shared_data = {
-	.shared_smi	= &orion_ge00_shared,
-};
+struct mv643xx_eth_shared_platform_data orion_ge11_shared_data;
 
 static struct resource orion_ge11_shared_resources[] = {
 	{
 		.name	= "ge11 base",
-	}, {
-		.name	= "ge11 err irq",
 	},
 };
 
@@ -454,9 +461,10 @@ void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long irq_err)
 {
 	fill_resources(&orion_ge11_shared, orion_ge11_shared_resources,
-		       mapbase + 0x2000, SZ_16K - 1, irq_err);
+		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
 	ge_complete(&orion_ge11_shared_data,
 		    orion_ge11_resources, irq, &orion_ge11_shared,
+		    NULL,
 		    eth_data, &orion_ge11);
 }
 
