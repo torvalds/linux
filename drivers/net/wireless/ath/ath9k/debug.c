@@ -2072,7 +2072,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_modal_eeprom);
 	sc->rfs_chan_spec_scan = relay_open("spectral_scan",
 					    sc->debug.debugfs_phy,
-					    262144, 4, &rfs_spec_scan_cb,
+					    1024, 256, &rfs_spec_scan_cb,
 					    NULL);
 	debugfs_create_file("spectral_scan_ctl", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc,
