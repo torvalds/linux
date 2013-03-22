@@ -850,16 +850,18 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
-	int channel, range, aref;
-	int ret;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	enum scan_mode mode = labpc_ai_scan_mode(cmd);
+	unsigned int chanspec = (mode == MODE_MULT_CHAN_UP)
+				? cmd->chanlist[cmd->chanlist_len - 1]
+				: cmd->chanlist[0];
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
 	enum transfer_type xfer;
-	enum scan_mode mode;
 	unsigned long flags;
-
-	range = CR_RANGE(cmd->chanlist[0]);
-	aref = CR_AREF(cmd->chanlist[0]);
+	int ret;
 
 	/* make sure board is disabled before setting up acquisition */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -916,7 +918,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	} else
 		xfer = fifo_not_empty_transfer;
 	devpriv->current_transfer = xfer;
-	mode = labpc_ai_scan_mode(cmd);
 
 	/*  setup cmd6 register for 1200 boards */
 	if (board->register_layout == labpc_1200_layout) {
@@ -951,15 +952,11 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* setup channel list, etc (cmd1 register) */
 	devpriv->cmd1 = 0;
-	if (mode == MODE_MULT_CHAN_UP)
-		channel = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
-	else
-		channel = CR_CHAN(cmd->chanlist[0]);
 	/* munge channel bits for differential / scan disabled mode */
 	if ((mode == MODE_SINGLE_CHAN || mode == MODE_SINGLE_CHAN_INTERVAL) &&
 	    aref == AREF_DIFF)
-		channel *= 2;
-	devpriv->cmd1 |= ADC_CHAN_BITS(channel);
+		chan *= 2;
+	devpriv->cmd1 |= ADC_CHAN_BITS(chan);
 	devpriv->cmd1 |= board->ai_range_code[range];
 	devpriv->write_byte(devpriv->cmd1, dev->iobase + COMMAND1_REG);
 	/* manual says to set scan enable bit on second pass */
