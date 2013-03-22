@@ -1673,7 +1673,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	}
 
 #ifdef CONFIG_ISA_DMA_API
-	if (dma_chan == 1 || dma_chan == 3) {
+	if (dev->irq && (dma_chan == 1 || dma_chan == 3)) {
 		devpriv->dma_buffer = kmalloc(dma_buffer_size,
 					      GFP_KERNEL | GFP_DMA);
 		if (devpriv->dma_buffer) {
