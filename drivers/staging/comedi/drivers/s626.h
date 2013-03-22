@@ -267,36 +267,17 @@
 #define LP_DACPOL		0x0082	/*   Write DAC polarity. */
 #define LP_GSEL			0x0084	/*   Write ADC gain. */
 #define LP_ISEL			0x0086	/*   Write ADC channel select. */
-/*  Digital I/O (write only): */
-#define LP_WRINTSELA		0x0042	/*   Write A interrupt enable. */
-#define LP_WREDGSELA		0x0044	/*   Write A edge selection. */
-#define LP_WRCAPSELA		0x0046	/*   Write A capture enable. */
-#define LP_WRDOUTA		0x0048	/*   Write A digital output. */
-#define LP_WRINTSELB		0x0052	/*   Write B interrupt enable. */
-#define LP_WREDGSELB		0x0054	/*   Write B edge selection. */
-#define LP_WRCAPSELB		0x0056	/*   Write B capture enable. */
-#define LP_WRDOUTB		0x0058	/*   Write B digital output. */
-#define LP_WRINTSELC		0x0062	/*   Write C interrupt enable. */
-#define LP_WREDGSELC		0x0064	/*   Write C edge selection. */
-#define LP_WRCAPSELC		0x0066	/*   Write C capture enable. */
-#define LP_WRDOUTC		0x0068	/*   Write C digital output. */
 
-/*  Digital I/O (read only): */
-#define LP_RDDINA		0x0040	/*   Read digital input. */
-#define LP_RDCAPFLGA		0x0048	/*   Read edges captured. */
-#define LP_RDINTSELA		0x004A	/*   Read interrupt enable register. */
-#define LP_RDEDGSELA		0x004C	/*   Read edge selection register. */
-#define LP_RDCAPSELA		0x004E	/*   Read capture enable register. */
-#define LP_RDDINB		0x0050	/*   Read digital input. */
-#define LP_RDCAPFLGB		0x0058	/*   Read edges captured. */
-#define LP_RDINTSELB		0x005A	/*   Read interrupt enable register. */
-#define LP_RDEDGSELB		0x005C	/*   Read edge selection register. */
-#define LP_RDCAPSELB		0x005E	/*   Read capture enable register. */
-#define LP_RDDINC		0x0060	/*   Read digital input. */
-#define LP_RDCAPFLGC		0x0068	/*   Read edges captured. */
-#define LP_RDINTSELC		0x006A	/*   Read interrupt enable register. */
-#define LP_RDEDGSELC		0x006C	/*   Read edge selection register. */
-#define LP_RDCAPSELC		0x006E	/*   Read capture enable register. */
+/* Digital I/O registers */
+#define LP_RDDIN(x)		(0x0040 + (x) * 0x10)	/* R: digital input */
+#define LP_WRINTSEL(x)		(0x0042 + (x) * 0x10)	/* W: int enable */
+#define LP_WREDGSEL(x)		(0x0044 + (x) * 0x10)	/* W: edge selection */
+#define LP_WRCAPSEL(x)		(0x0046 + (x) * 0x10)	/* W: capture enable */
+#define LP_RDCAPFLG(x)		(0x0048 + (x) * 0x10)	/* R: edges captured */
+#define LP_WRDOUT(x)		(0x0048 + (x) * 0x10)	/* W: digital output */
+#define LP_RDINTSEL(x)		(0x004a + (x) * 0x10)	/* R: int enable */
+#define LP_RDEDGSEL(x)		(0x004c + (x) * 0x10)	/* R: edge selection */
+#define LP_RDCAPSEL(x)		(0x004e + (x) * 0x10)	/* R: capture enable */
 
 /*  Counter Registers (read/write): */
 #define LP_CR0A			0x0000	/*   0A setup register. */

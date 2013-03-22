@@ -106,64 +106,6 @@ struct s626_private {
 	unsigned int ao_readback[S626_DAC_CHANNELS];
 };
 
-struct dio_private {
-	uint16_t RDDIn;
-	uint16_t WRDOut;
-	uint16_t RDEdgSel;
-	uint16_t WREdgSel;
-	uint16_t RDCapSel;
-	uint16_t WRCapSel;
-	uint16_t RDCapFlg;
-	uint16_t RDIntSel;
-	uint16_t WRIntSel;
-};
-
-static struct dio_private dio_private_A = {
-	.RDDIn = LP_RDDINA,
-	.WRDOut = LP_WRDOUTA,
-	.RDEdgSel = LP_RDEDGSELA,
-	.WREdgSel = LP_WREDGSELA,
-	.RDCapSel = LP_RDCAPSELA,
-	.WRCapSel = LP_WRCAPSELA,
-	.RDCapFlg = LP_RDCAPFLGA,
-	.RDIntSel = LP_RDINTSELA,
-	.WRIntSel = LP_WRINTSELA,
-};
-
-static struct dio_private dio_private_B = {
-	.RDDIn = LP_RDDINB,
-	.WRDOut = LP_WRDOUTB,
-	.RDEdgSel = LP_RDEDGSELB,
-	.WREdgSel = LP_WREDGSELB,
-	.RDCapSel = LP_RDCAPSELB,
-	.WRCapSel = LP_WRCAPSELB,
-	.RDCapFlg = LP_RDCAPFLGB,
-	.RDIntSel = LP_RDINTSELB,
-	.WRIntSel = LP_WRINTSELB,
-};
-
-static struct dio_private dio_private_C = {
-	.RDDIn = LP_RDDINC,
-	.WRDOut = LP_WRDOUTC,
-	.RDEdgSel = LP_RDEDGSELC,
-	.WREdgSel = LP_WREDGSELC,
-	.RDCapSel = LP_RDCAPSELC,
-	.WRCapSel = LP_WRCAPSELC,
-	.RDCapFlg = LP_RDCAPFLGC,
-	.RDIntSel = LP_RDINTSELC,
-	.WRIntSel = LP_WRINTSELC,
-};
-
-/* to group dio devices (48 bits mask and data are not allowed ???)
-static struct dio_private *dio_private_word[]={
-  &dio_private_A,
-  &dio_private_B,
-  &dio_private_C,
-};
-*/
-
-#define diopriv ((struct dio_private *)s->private)
-
 /*  COUNTER OBJECT ------------------------------------------------ */
 struct enc_private {
 	/*  Pointers to functions that differ for A and B counters: */
@@ -670,43 +612,24 @@ static unsigned int s626_ai_reg_to_uint(int data)
 
 static int s626_dio_set_irq(struct comedi_device *dev, unsigned int chan)
 {
-	unsigned int group;
-	unsigned int bitmask;
+	unsigned int group = chan / 16;
+	unsigned int mask = 1 << (chan - (16 * group));
 	unsigned int status;
 
-	/* select dio bank */
-	group = chan / 16;
-	bitmask = 1 << (chan - (16 * group));
-
 	/* set channel to capture positive edge */
-	status = DEBIread(dev,
-			  ((struct dio_private *)(dev->subdevices + 2 +
-						  group)->private)->RDEdgSel);
-	DEBIwrite(dev,
-		  ((struct dio_private *)(dev->subdevices + 2 +
-					  group)->private)->WREdgSel,
-		  bitmask | status);
+	status = DEBIread(dev, LP_RDEDGSEL(group));
+	DEBIwrite(dev, LP_WREDGSEL(group), mask | status);
 
 	/* enable interrupt on selected channel */
-	status = DEBIread(dev,
-			  ((struct dio_private *)(dev->subdevices + 2 +
-						  group)->private)->RDIntSel);
-	DEBIwrite(dev,
-		  ((struct dio_private *)(dev->subdevices + 2 +
-					  group)->private)->WRIntSel,
-		  bitmask | status);
+	status = DEBIread(dev, LP_RDINTSEL(group));
+	DEBIwrite(dev, LP_WRINTSEL(group), mask | status);
 
 	/* enable edge capture write command */
 	DEBIwrite(dev, LP_MISC1, MISC1_EDCAP);
 
 	/* enable edge capture on selected channel */
-	status = DEBIread(dev,
-			  ((struct dio_private *)(dev->subdevices + 2 +
-						  group)->private)->RDCapSel);
-	DEBIwrite(dev,
-		  ((struct dio_private *)(dev->subdevices + 2 +
-					  group)->private)->WRCapSel,
-		  bitmask | status);
+	status = DEBIread(dev, LP_RDCAPSEL(group));
+	DEBIwrite(dev, LP_WRCAPSEL(group), mask | status);
 
 	return 0;
 }
@@ -718,9 +641,7 @@ static int s626_dio_reset_irq(struct comedi_device *dev, unsigned int group,
 	DEBIwrite(dev, LP_MISC1, MISC1_NOEDCAP);
 
 	/* enable edge capture on selected channel */
-	DEBIwrite(dev,
-		  ((struct dio_private *)(dev->subdevices + 2 +
-					  group)->private)->WRCapSel, mask);
+	DEBIwrite(dev, LP_WRCAPSEL(group), mask);
 
 	return 0;
 }
@@ -732,13 +653,9 @@ static int s626_dio_clear_irq(struct comedi_device *dev)
 	/* disable edge capture write command */
 	DEBIwrite(dev, LP_MISC1, MISC1_NOEDCAP);
 
-	for (group = 0; group < S626_DIO_BANKS; group++) {
-		/* clear pending events and interrupt */
-		DEBIwrite(dev,
-			  ((struct dio_private *)(dev->subdevices + 2 +
-						  group)->private)->WRCapSel,
-			  0xffff);
-	}
+	/* clear all dio pending events and interrupt */
+	for (group = 0; group < S626_DIO_BANKS; group++)
+		DEBIwrite(dev, LP_WRCAPSEL(group), 0xffff);
 
 	return 0;
 }
@@ -834,12 +751,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 		for (group = 0; group < S626_DIO_BANKS; group++) {
 			irqbit = 0;
 			/* read interrupt type */
-			irqbit = DEBIread(dev,
-					  ((struct dio_private *)(dev->
-								  subdevices +
-								  2 +
-								  group)->
-					   private)->RDCapFlg);
+			irqbit = DEBIread(dev, LP_RDCAPFLG(group));
 
 			/* check if interrupt is generated from dio channels */
 			if (irqbit) {
@@ -1679,22 +1591,20 @@ static int s626_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static void s626_dio_init(struct comedi_device *dev)
 {
 	uint16_t group;
-	struct comedi_subdevice *s;
 
 	/*  Prepare to treat writes to WRCapSel as capture disables. */
 	DEBIwrite(dev, LP_MISC1, MISC1_NOEDCAP);
 
 	/*  For each group of sixteen channels ... */
 	for (group = 0; group < S626_DIO_BANKS; group++) {
-		s = dev->subdevices + 2 + group;
-		DEBIwrite(dev, diopriv->WRIntSel, 0);	/*  Disable all interrupts. */
-		DEBIwrite(dev, diopriv->WRCapSel, 0xFFFF);	/*  Disable all event */
-		/*  captures. */
-		DEBIwrite(dev, diopriv->WREdgSel, 0);	/*  Init all DIOs to */
-		/*  default edge */
-		/*  polarity. */
-		DEBIwrite(dev, diopriv->WRDOut, 0);	/*  Program all outputs */
-		/*  to inactive state. */
+		/* Disable all interrupts */
+		DEBIwrite(dev, LP_WRINTSEL(group), 0);
+		/* Disable all event captures */
+		DEBIwrite(dev, LP_WRCAPSEL(group), 0xffff);
+		/* Init all DIOs to default edge polarity */
+		DEBIwrite(dev, LP_WREDGSEL(group), 0);
+		/* Program all outputs to inactive state */
+		DEBIwrite(dev, LP_WRDOUT(group), 0);
 	}
 }
 
@@ -1708,6 +1618,8 @@ static int s626_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
+	unsigned long group = (unsigned long)s->private;
+
 	/*
 	 * The insn data consists of a mask in data[0] and the new data in
 	 * data[1]. The mask defines which bits we are concerning about.
@@ -1724,9 +1636,9 @@ static int s626_dio_insn_bits(struct comedi_device *dev,
 
 		/* Write out the new digital output lines */
 
-		DEBIwrite(dev, diopriv->WRDOut, s->state);
+		DEBIwrite(dev, LP_WRDOUT(group), s->state);
 	}
-	data[1] = DEBIread(dev, diopriv->RDDIn);
+	data[1] = DEBIread(dev, LP_RDDIN(group));
 
 	return insn->n;
 }
@@ -1735,6 +1647,7 @@ static int s626_dio_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	unsigned long group = (unsigned long)s->private;
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_QUERY:
@@ -1754,7 +1667,7 @@ static int s626_dio_insn_config(struct comedi_device *dev,
 		return -EINVAL;
 		break;
 	}
-	DEBIwrite(dev, diopriv->WRDOut, s->io_bits);
+	DEBIwrite(dev, LP_WRDOUT(group), s->io_bits);
 
 	return 1;
 }
@@ -2739,7 +2652,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->io_bits = 0xffff;
-	s->private = &dio_private_A;
+	s->private = (void *)0;		/* DIO group 0 */
 	s->range_table = &range_digital;
 	s->insn_config = s626_dio_insn_config;
 	s->insn_bits = s626_dio_insn_bits;
@@ -2751,7 +2664,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->io_bits = 0xffff;
-	s->private = &dio_private_B;
+	s->private = (void *)1;		/* DIO group 1 */
 	s->range_table = &range_digital;
 	s->insn_config = s626_dio_insn_config;
 	s->insn_bits = s626_dio_insn_bits;
@@ -2763,7 +2676,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->io_bits = 0xffff;
-	s->private = &dio_private_C;
+	s->private = (void *)2;		/* DIO group 2 */
 	s->range_table = &range_digital;
 	s->insn_config = s626_dio_insn_config;
 	s->insn_bits = s626_dio_insn_bits;
