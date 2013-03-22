@@ -75,12 +75,6 @@ static int tegra_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int tegra_pcm_close(struct snd_pcm_substream *substream)
-{
-	snd_dmaengine_pcm_close(substream);
-	return 0;
-}
-
 static int tegra_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
@@ -160,7 +154,7 @@ static int tegra_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops tegra_pcm_ops = {
 	.open		= tegra_pcm_open,
-	.close		= tegra_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= tegra_pcm_hw_params,
 	.hw_free	= tegra_pcm_hw_free,
