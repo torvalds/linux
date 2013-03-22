@@ -896,17 +896,21 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (rc)
 		goto done;
 
-	switch (usb_pipetype (urb->pipe)) {
-	// case PIPE_CONTROL:
-	// case PIPE_BULK:
-	default:
+	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+		/*
+		 * We don't expedite dequeue for isochronous URBs.
+		 * Just wait until they complete normally or their
+		 * time slot expires.
+		 */
+	} else {
 		qh = (struct ehci_qh *) urb->hcpriv;
-		if (!qh)
-			break;
 		qh->exception = 1;
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
-			start_unlink_async(ehci, qh);
+			if (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)
+				start_unlink_intr(ehci, qh);
+			else
+				start_unlink_async(ehci, qh);
 			break;
 		case QH_STATE_COMPLETING:
 			qh->dequeue_during_giveback = 1;
@@ -920,36 +924,6 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			qh_completions(ehci, qh);
 			break;
 		}
-		break;
-
-	case PIPE_INTERRUPT:
-		qh = (struct ehci_qh *) urb->hcpriv;
-		if (!qh)
-			break;
-		qh->exception = 1;
-		switch (qh->qh_state) {
-		case QH_STATE_LINKED:
-			start_unlink_intr(ehci, qh);
-			break;
-		case QH_STATE_COMPLETING:
-			qh->dequeue_during_giveback = 1;
-			break;
-		case QH_STATE_IDLE:
-			qh_completions (ehci, qh);
-			break;
-		default:
-			ehci_dbg (ehci, "bogus qh %p state %d\n",
-					qh, qh->qh_state);
-			goto done;
-		}
-		break;
-
-	case PIPE_ISOCHRONOUS:
-		// itd or sitd ...
-
-		// wait till next completion, do it then.
-		// completion irqs can wait up to 1024 msec,
-		break;
 	}
 done:
 	spin_unlock_irqrestore (&ehci->lock, flags);
