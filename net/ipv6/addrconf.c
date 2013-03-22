@@ -621,6 +621,8 @@ static int inet6_netconf_dump_devconf(struct sk_buff *skb,
 		idx = 0;
 		head = &net->dev_index_head[h];
 		rcu_read_lock();
+		cb->seq = atomic_read(&net->ipv6.dev_addr_genid) ^
+			  net->dev_base_seq;
 		hlist_for_each_entry_rcu(dev, head, index_hlist) {
 			if (idx < s_idx)
 				goto cont;
@@ -638,6 +640,7 @@ static int inet6_netconf_dump_devconf(struct sk_buff *skb,
 				rcu_read_unlock();
 				goto done;
 			}
+			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
 			idx++;
 		}
@@ -3874,6 +3877,7 @@ static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
 						NLM_F_MULTI);
 			if (err <= 0)
 				break;
+			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 		}
 		break;
 	}
@@ -3931,6 +3935,7 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	s_ip_idx = ip_idx = cb->args[2];
 
 	rcu_read_lock();
+	cb->seq = atomic_read(&net->ipv6.dev_addr_genid) ^ net->dev_base_seq;
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
 		idx = 0;
 		head = &net->dev_index_head[h];
@@ -4407,6 +4412,8 @@ errout:
 
 static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 {
+	struct net *net = dev_net(ifp->idev->dev);
+
 	inet6_ifa_notify(event ? : RTM_NEWADDR, ifp);
 
 	switch (event) {
@@ -4432,6 +4439,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 			dst_free(&ifp->rt->dst);
 		break;
 	}
+	atomic_inc(&net->ipv6.dev_addr_genid);
 }
 
 static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
