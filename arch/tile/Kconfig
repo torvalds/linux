@@ -414,11 +414,6 @@ endmenu
 
 menu "Executable file formats"
 
-# only elf supported
-config KCORE_ELF
-	def_bool y
-	depends on PROC_FS
-
 source "fs/Kconfig.binfmt"
 
 endmenu
