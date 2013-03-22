@@ -1758,18 +1758,20 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	/* analog input subdevice */
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags =
-	    SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = 8;
-	s->len_chanlist = 8;
-	s->maxdata = (1 << 12) - 1;	/* 12 bit resolution */
-	s->range_table = board->ai_range_table;
-	s->do_cmd = labpc_ai_cmd;
-	s->do_cmdtest = labpc_ai_cmdtest;
-	s->insn_read = labpc_ai_insn_read;
-	s->cancel = labpc_cancel;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
+	s->n_chan	= 8;
+	s->len_chanlist	= 8;
+	s->maxdata	= 0x0fff;
+	s->range_table	= board->ai_range_table;
+	s->insn_read	= labpc_ai_insn_read;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->do_cmd	= labpc_ai_cmd;
+		s->do_cmdtest	= labpc_ai_cmdtest;
+		s->cancel	= labpc_cancel;
+	}
 
 	/* analog output */
 	s = &dev->subdevices[1];
