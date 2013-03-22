@@ -1673,7 +1673,6 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 #ifdef CONFIG_ISA_DMA_API
 	unsigned long dma_flags;
 #endif
-	short lsb, msb;
 	int ret;
 
 	dev_info(dev->class_dev, "ni_labpc: %s\n", board->name);
@@ -1775,20 +1774,18 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	/* analog output */
 	s = &dev->subdevices[1];
 	if (board->has_ao) {
-		/*
-		 * Could provide command support, except it only has a
-		 * one sample hardware buffer for analog output and no
-		 * underrun flag.
-		 */
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
-		s->n_chan = NUM_AO_CHAN;
-		s->maxdata = (1 << 12) - 1;	/*  12 bit resolution */
-		s->range_table = &range_labpc_ao;
-		s->insn_read = labpc_ao_insn_read;
-		s->insn_write = labpc_ao_insn_write;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
+		s->n_chan	= NUM_AO_CHAN;
+		s->maxdata	= 0x0fff;
+		s->range_table	= &range_labpc_ao;
+		s->insn_read	= labpc_ao_insn_read;
+		s->insn_write	= labpc_ao_insn_write;
+
 		/* initialize analog outputs to a known value */
 		for (i = 0; i < s->n_chan; i++) {
+			short lsb, msb;
+
 			devpriv->ao_value[i] = s->maxdata / 2;
 			lsb = devpriv->ao_value[i] & 0xff;
 			msb = (devpriv->ao_value[i] >> 8) & 0xff;
@@ -1796,7 +1793,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 			devpriv->write_byte(msb, dev->iobase + DAC_MSB_REG(i));
 		}
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/* 8255 dio */
@@ -1810,32 +1807,32 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	/*  calibration subdevices for boards that have one */
 	s = &dev->subdevices[3];
 	if (board->register_layout == labpc_1200_layout) {
-		s->type = COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan = 16;
-		s->maxdata = 0xff;
-		s->insn_read = labpc_calib_insn_read;
-		s->insn_write = labpc_calib_insn_write;
+		s->type		= COMEDI_SUBD_CALIB;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+		s->n_chan	= 16;
+		s->maxdata	= 0xff;
+		s->insn_read	= labpc_calib_insn_read;
+		s->insn_write	= labpc_calib_insn_write;
 
 		for (i = 0; i < s->n_chan; i++)
 			write_caldac(dev, i, s->maxdata / 2);
 	} else
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 
 	/* EEPROM */
 	s = &dev->subdevices[4];
 	if (board->register_layout == labpc_1200_layout) {
-		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan = EEPROM_SIZE;
-		s->maxdata = 0xff;
-		s->insn_read = labpc_eeprom_insn_read;
-		s->insn_write = labpc_eeprom_insn_write;
+		s->type		= COMEDI_SUBD_MEMORY;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+		s->n_chan	= EEPROM_SIZE;
+		s->maxdata	= 0xff;
+		s->insn_read	= labpc_eeprom_insn_read;
+		s->insn_write	= labpc_eeprom_insn_write;
 
-		for (i = 0; i < EEPROM_SIZE; i++)
+		for (i = 0; i < s->n_chan; i++)
 			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
 	} else
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 
 	return 0;
 }
