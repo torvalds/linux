@@ -64,13 +64,7 @@ static int spear_pcm_open(struct snd_pcm_substream *substream)
 	if (ret)
 		return ret;
 
-	ret = snd_dmaengine_pcm_open(substream, dma_data->filter, dma_data);
-	if (ret)
-		return ret;
-
-	snd_dmaengine_pcm_set_data(substream, dma_data);
-
-	return 0;
+	return snd_dmaengine_pcm_open(substream, dma_data->filter, dma_data)
 }
 
 static int spear_pcm_mmap(struct snd_pcm_substream *substream,
