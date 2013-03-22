@@ -377,15 +377,24 @@ static int auok190xfb_check_var(struct fb_var_screeninfo *var,
 				   struct fb_info *info)
 {
 	struct device *dev = info->device;
+	struct auok190xfb_par *par = info->par;
+	struct panel_info *panel = &panel_table[par->resolution];
 	int size;
 
-	if (info->var.xres != var->xres || info->var.yres != var->yres ||
-	    info->var.xres_virtual != var->xres_virtual ||
-	    info->var.yres_virtual != var->yres_virtual) {
-		pr_info("%s: Resolution not supported: X%u x Y%u\n",
-			 __func__, var->xres, var->yres);
-		return -EINVAL;
+	/*
+	 * Dimensions
+	 */
+
+	if (par->rotation & 1) {
+		var->xres = panel->h;
+		var->yres = panel->w;
+	} else {
+		var->xres = panel->w;
+		var->yres = panel->h;
 	}
+
+	var->xres_virtual = var->xres;
+	var->yres_virtual = var->yres;
 
 	/*
 	 *  Memory limit
@@ -900,21 +909,6 @@ int auok190x_common_probe(struct platform_device *pdev,
 
 	panel = &panel_table[board->resolution];
 
-	/* if 90 degree rotation, switch width and height */
-	if (board->rotation & 1) {
-		info->var.xres = panel->h;
-		info->var.yres = panel->w;
-		info->var.xres_virtual = panel->h;
-		info->var.yres_virtual = panel->w;
-		info->fix.line_length = panel->h * info->var.bits_per_pixel / 8;
-	} else {
-		info->var.xres = panel->w;
-		info->var.yres = panel->h;
-		info->var.xres_virtual = panel->w;
-		info->var.yres_virtual = panel->h;
-		info->fix.line_length = panel->w * info->var.bits_per_pixel / 8;
-	}
-
 	par->resolution = board->resolution;
 	par->rotation = board->rotation;
 
@@ -934,6 +928,13 @@ int auok190x_common_probe(struct platform_device *pdev,
 
 	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
 	info->fbops = &auok190xfb_ops;
+
+	ret = auok190xfb_check_var(&info->var, info);
+	if (ret)
+		goto err_defio;
+
+	info->fix.line_length = info->var.xres_virtual *
+				info->var.bits_per_pixel / 8;
 
 	/* deferred io init */
 
