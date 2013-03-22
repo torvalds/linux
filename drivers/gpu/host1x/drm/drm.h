@@ -7,8 +7,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef TEGRA_DRM_H
-#define TEGRA_DRM_H 1
+#ifndef HOST1X_DRM_H
+#define HOST1X_DRM_H 1
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -234,4 +234,4 @@ extern struct platform_driver tegra_hdmi_driver;
 extern struct platform_driver tegra_dc_driver;
 extern struct drm_driver tegra_drm_driver;
 
-#endif /* TEGRA_DRM_H */
+#endif /* HOST1X_DRM_H */

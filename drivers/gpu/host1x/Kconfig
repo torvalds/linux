@@ -19,4 +19,6 @@ config TEGRA_HOST1X_FIREWALL
 
 	  If unsure, choose Y.
 
+source "drivers/gpu/host1x/drm/Kconfig"
+
 endif
