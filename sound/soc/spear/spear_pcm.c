@@ -73,14 +73,6 @@ static int spear_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int spear_pcm_close(struct snd_pcm_substream *substream)
-{
-
-	snd_dmaengine_pcm_close(substream);
-
-	return 0;
-}
-
 static int spear_pcm_mmap(struct snd_pcm_substream *substream,
 		struct vm_area_struct *vma)
 {
@@ -93,7 +85,7 @@ static int spear_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops spear_pcm_ops = {
 	.open		= spear_pcm_open,
-	.close		= spear_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= spear_pcm_hw_params,
 	.hw_free	= spear_pcm_hw_free,
