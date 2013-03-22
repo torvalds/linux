@@ -80,9 +80,17 @@ static int s3c_rtc_setaie(struct device *dev, unsigned int enabled)
 }
 
 /* Time read/write */
+#if defined(CONFIG_MACH_ODROID_4X12) && defined(CONFIG_RTC_DRV_S3C)
+    // drivers/mfd/max77686.c
+    extern  int max77686_rtc_gettime(struct rtc_time *rtc_tm);
+    extern  int max77686_rtc_settime(struct rtc_time *tm);
+#endif
 
 static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 {
+#if defined(CONFIG_MACH_ODROID_4X12) && defined(CONFIG_RTC_DRV_S3C)
+    max77686_rtc_gettime(rtc_tm);
+#else    
 	unsigned int have_retried = 0;
 	void __iomem *base = s3c_rtc_base;
 
@@ -118,12 +126,16 @@ static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 		 rtc_tm->tm_hour, rtc_tm->tm_min, rtc_tm->tm_sec);
 
 	rtc_tm->tm_mon -= 1;
+#endif
 
 	return rtc_valid_tm(rtc_tm);
 }
 
 static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 {
+#if defined(CONFIG_MACH_ODROID_4X12) && defined(CONFIG_RTC_DRV_S3C)
+    max77686_rtc_settime(tm);
+#else
 	void __iomem *base = s3c_rtc_base;
 	int year = tm->tm_year - 100;
 
@@ -144,6 +156,8 @@ static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 	writeb(bin2bcd(tm->tm_mday), base + S3C2410_RTCDATE);
 	writeb(bin2bcd(tm->tm_mon + 1), base + S3C2410_RTCMON);
 	writeb(bin2bcd(year), base + S3C2410_RTCYEAR);
+
+#endif
 
 	return 0;
 }

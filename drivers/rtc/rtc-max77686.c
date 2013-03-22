@@ -224,7 +224,7 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (ret < 0)
 		goto out;
 
-	ret = max77686_bulk_read(info->rtc, MAX77686_ALARM1_SEC, RTC_NR_TIME, data);
+	ret = max77686_bulk_read(info->rtc, MAX77686_RTC_ALARM1_SEC, RTC_NR_TIME, data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s:%d fail to read alarm reg(%d)\n",
 				__func__, __LINE__, ret);
@@ -274,7 +274,7 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 	if (ret < 0)
 		goto out;
 
-	ret = max77686_bulk_read(info->rtc, MAX77686_ALARM1_SEC, RTC_NR_TIME, data);
+	ret = max77686_bulk_read(info->rtc, MAX77686_RTC_ALARM1_SEC, RTC_NR_TIME, data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to read alarm reg(%d)\n",
 				__func__, ret);
@@ -289,7 +289,7 @@ static int max77686_rtc_stop_alarm(struct max77686_rtc_info *info)
 	for (i = 0; i < RTC_NR_TIME; i++)
 		data[i] &= ~ALARM_ENABLE_MASK;
 
-	ret = max77686_bulk_write(info->rtc, MAX77686_ALARM1_SEC, RTC_NR_TIME, data);
+	ret = max77686_bulk_write(info->rtc, MAX77686_RTC_ALARM1_SEC, RTC_NR_TIME, data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
 				__func__, ret);
@@ -314,7 +314,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 	if (ret < 0)
 		goto out;
 
-	ret = max77686_bulk_read(info->rtc, MAX77686_ALARM1_SEC, RTC_NR_TIME, data);
+	ret = max77686_bulk_read(info->rtc, MAX77686_RTC_ALARM1_SEC, RTC_NR_TIME, data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to read alarm reg(%d)\n",
 				__func__, ret);
@@ -329,7 +329,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 	data[RTC_SEC] |= (1 << ALARM_ENABLE_SHIFT);
 	data[RTC_MIN] |= (1 << ALARM_ENABLE_SHIFT);
 	data[RTC_HOUR] |= (1 << ALARM_ENABLE_SHIFT);
-	data[RTC_WEEKDAY] |= (1 << ALARM_ENABLE_SHIFT)
+	data[RTC_WEEKDAY] |= (1 << ALARM_ENABLE_SHIFT);
 	if (data[RTC_MONTH] & 0xf)
 		data[RTC_MONTH] |= (1 << ALARM_ENABLE_SHIFT);
 	if (data[RTC_YEAR] & 0x7f)
@@ -337,7 +337,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 	if (data[RTC_DATE] & 0x1f)
 		data[RTC_DATE] |= (1 << ALARM_ENABLE_SHIFT);
 
-	ret = max77686_bulk_write(info->rtc, MAX77686_ALARM1_SEC, RTC_NR_TIME, data);
+	ret = max77686_bulk_write(info->rtc, MAX77686_RTC_ALARM1_SEC, RTC_NR_TIME, data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
 				__func__, ret);
@@ -369,7 +369,7 @@ static int max77686_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (ret < 0)
 		goto out;
 
-	ret = max77686_bulk_write(info->rtc, MAX77686_ALARM1_SEC, RTC_NR_TIME,
+	ret = max77686_bulk_write(info->rtc, MAX77686_RTC_ALARM1_SEC, RTC_NR_TIME,
 				data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write alarm reg(%d)\n",
@@ -490,7 +490,7 @@ static int max77686_rtc_init_reg(struct max77686_rtc_info *info)
 
 	info->rtc_24hr_mode = 1;
 
-	ret = max77686_bulk_write(info->rtc, MAX77686_RTC_CONTROLM, 2, data);
+	ret = max77686_bulk_write(info->rtc, MAX77686_RTC_RTCCNTLM, 2, data);
 	if (ret < 0) {
 		dev_err(info->dev, "%s: fail to write controlm reg(%d)\n",
 				__func__, ret);
@@ -517,7 +517,7 @@ static int __devinit max77686_rtc_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->max77686 = max77686;
 	info->rtc = max77686->rtc;
-	info->irq = max77686->irq_base + MAX77686_RTCIRQ_RTCA1;
+//	info->irq = max77686->irq_base + MAX77686_RTCIRQ_RTCA1;
 
 	platform_set_drvdata(pdev, info);
 
@@ -548,6 +548,7 @@ static int __devinit max77686_rtc_probe(struct platform_device *pdev)
 		goto err_rtc;
 	}
 
+#if 0
 	ret = request_threaded_irq(info->irq, NULL, max77686_rtc_alarm_irq, 0,
 			"rtc-alarm0", info);
 	if (ret < 0) {
@@ -555,6 +556,7 @@ static int __devinit max77686_rtc_probe(struct platform_device *pdev)
 			info->irq, ret);
 		goto err_rtc;
 	}
+#endif
 
 	goto out;
 err_rtc:
