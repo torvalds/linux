@@ -1101,32 +1101,42 @@ static int s626_ai_insn_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
-/* static int s626_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data) */
-/* { */
-/*   struct s626_private *devpriv = dev->private; */
-/*   register uint8_t	i; */
-/*   register int32_t	*readaddr; */
+#ifdef unused_code
+static int s626_ai_rinsn(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned int *data)
+{
+	struct s626_private *devpriv = dev->private;
+	register uint8_t i;
+	register int32_t *readaddr;
 
-/*   Trigger ADC scan loop start by setting RPS Signal 0. */
-/*   MC_ENABLE( P_MC2, MC2_ADC_RPS ); */
+	/* Trigger ADC scan loop start (set RPS Signal 0) */
+	MC_ENABLE(P_MC2, MC2_ADC_RPS);
 
-/*   Wait until ADC scan loop is finished (RPS Signal 0 reset). */
-/*   while ( MC_TEST( P_MC2, MC2_ADC_RPS ) ); */
+	/* Wait until ADC scan loop is finished (RPS Signal 0 reset) */
+	while (MC_TEST(P_MC2, MC2_ADC_RPS))
+		;
 
-/* Init ptr to DMA buffer that holds new ADC data.  We skip the
- * first uint16_t in the buffer because it contains junk data from
- * the final ADC of the previous poll list scan.
- */
-/*   readaddr = (uint32_t *)devpriv->ANABuf.LogicalBase + 1; */
+	/*
+	 * Init ptr to DMA buffer that holds new ADC data.  We skip the
+	 * first uint16_t in the buffer because it contains junk data from
+	 * the final ADC of the previous poll list scan.
+	 */
+	readaddr = (uint32_t *)devpriv->ANABuf.LogicalBase + 1;
 
-/*  Convert ADC data to 16-bit integer values and copy to application buffer. */
-/*   for ( i = 0; i < devpriv->AdcItems; i++ ) { */
-/*     *data = s626_ai_reg_to_uint( *readaddr++ ); */
-/*     data++; */
-/*   } */
+	/*
+	 * Convert ADC data to 16-bit integer values and
+	 * copy to application buffer.
+	 */
+	for (i = 0; i < devpriv->AdcItems; i++) {
+		*data = s626_ai_reg_to_uint(*readaddr++);
+		data++;
+	}
 
-/*   return i; */
-/* } */
+	return i;
+}
+#endif
 
 static int s626_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
