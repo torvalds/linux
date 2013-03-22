@@ -222,8 +222,8 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	}
 
 	sg = st->sgl;
-	sg->offset = offset;
-	sg->length = size;
+	/* we set the dummy page here only to make for_each_sg_page work */
+	sg_set_page(sg, dev_priv->gtt.scratch_page, size, offset);
 
 	sg_dma_address(sg) = (dma_addr_t)dev_priv->mm.stolen_base + offset;
 	sg_dma_len(sg) = size;
