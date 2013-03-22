@@ -1085,13 +1085,27 @@ void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	ref.dev = dev;
 	ref.dev_addr = dma_addr;
 	bucket = get_hash_bucket(&ref, &flags);
-	entry = bucket_find_exact(bucket, &ref);
 
-	if (!entry)
-		goto out;
+	list_for_each_entry(entry, &bucket->list, list) {
+		if (!exact_match(&ref, entry))
+			continue;
 
-	entry->map_err_type = MAP_ERR_CHECKED;
-out:
+		/*
+		 * The same physical address can be mapped multiple
+		 * times. Without a hardware IOMMU this results in the
+		 * same device addresses being put into the dma-debug
+		 * hash multiple times too. This can result in false
+		 * positives being reported. Therefore we implement a
+		 * best-fit algorithm here which updates the first entry
+		 * from the hash which fits the reference value and is
+		 * not currently listed as being checked.
+		 */
+		if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
+			entry->map_err_type = MAP_ERR_CHECKED;
+			break;
+		}
+	}
+
 	put_hash_bucket(bucket, &flags);
 }
 EXPORT_SYMBOL(debug_dma_mapping_error);
