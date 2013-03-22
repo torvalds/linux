@@ -727,6 +727,64 @@ static void check_dio_interrupts(struct comedi_device *dev)
 	}
 }
 
+static bool handle_eos_interrupt(struct comedi_device *dev)
+{
+	struct s626_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	/*
+	 * Init ptr to DMA buffer that holds new ADC data.  We skip the
+	 * first uint16_t in the buffer because it contains junk data
+	 * from the final ADC of the previous poll list scan.
+	 */
+	int32_t *readaddr = (int32_t *)devpriv->ANABuf.LogicalBase + 1;
+	bool finished = false;
+	int i;
+
+	/* get the data and hand it over to comedi */
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		short tempdata;
+
+		/*
+		 * Convert ADC data to 16-bit integer values and copy
+		 * to application buffer.
+		 */
+		tempdata = s626_ai_reg_to_uint((int)*readaddr);
+		readaddr++;
+
+		/* put data into read buffer */
+		/* comedi_buf_put(async, tempdata); */
+		cfc_write_to_buffer(s, tempdata);
+	}
+
+	/* end of scan occurs */
+	async->events |= COMEDI_CB_EOS;
+
+	if (!devpriv->ai_continous)
+		devpriv->ai_sample_count--;
+	if (devpriv->ai_sample_count <= 0) {
+		devpriv->ai_cmd_running = 0;
+
+		/* Stop RPS program. */
+		MC_DISABLE(P_MC1, MC1_ERPS1);
+
+		/* send end of acquisition */
+		async->events |= COMEDI_CB_EOA;
+
+		/* disable master interrupt */
+		finished = true;
+	}
+
+	if (devpriv->ai_cmd_running && cmd->scan_begin_src == TRIG_EXT)
+		s626_dio_set_irq(dev, cmd->scan_begin_arg);
+
+	/* tell comedi that data is there */
+	comedi_event(dev, s);
+
+	return finished;
+}
+
 static irqreturn_t s626_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -736,10 +794,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 	struct comedi_cmd *cmd = &async->cmd;
 	struct enc_private *k;
 	unsigned long flags;
-	int32_t *readaddr;
 	uint32_t irqtype, irqstatus;
-	int i = 0;
-	short tempdata;
 	uint16_t irqbit;
 
 	if (!dev->attached)
@@ -761,48 +816,8 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 
 	switch (irqtype) {
 	case IRQ_RPS1:		/*  end_of_scan occurs */
-		/* Init ptr to DMA buffer that holds new ADC data.  We skip the
-		 * first uint16_t in the buffer because it contains junk data from
-		 * the final ADC of the previous poll list scan.
-		 */
-		readaddr = (int32_t *) devpriv->ANABuf.LogicalBase + 1;
-
-		/*  get the data and hand it over to comedi */
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			/*  Convert ADC data to 16-bit integer values and copy to application */
-			/*  buffer. */
-			tempdata = s626_ai_reg_to_uint((int)*readaddr);
-			readaddr++;
-
-			/* put data into read buffer */
-			/*  comedi_buf_put(async, tempdata); */
-			if (cfc_write_to_buffer(s, tempdata) == 0)
-				printk
-				    ("s626_irq_handler: cfc_write_to_buffer error!\n");
-		}
-
-		/* end of scan occurs */
-		async->events |= COMEDI_CB_EOS;
-
-		if (!(devpriv->ai_continous))
-			devpriv->ai_sample_count--;
-		if (devpriv->ai_sample_count <= 0) {
-			devpriv->ai_cmd_running = 0;
-
-			/*  Stop RPS program. */
-			MC_DISABLE(P_MC1, MC1_ERPS1);
-
-			/* send end of acquisition */
-			async->events |= COMEDI_CB_EOA;
-
-			/* disable master interrupt */
+		if (handle_eos_interrupt(dev))
 			irqstatus = 0;
-		}
-
-		if (devpriv->ai_cmd_running && cmd->scan_begin_src == TRIG_EXT)
-			s626_dio_set_irq(dev, cmd->scan_begin_arg);
-		/*  tell comedi that data is there */
-		comedi_event(dev, s);
 		break;
 	case IRQ_GPIO3:	/* check dio and conter interrupt */
 		/* s626_dio_clear_irq(dev); */
