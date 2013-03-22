@@ -89,8 +89,6 @@ NI manuals:
 #include "comedi_fc.h"
 #include "ni_labpc.h"
 
-#define DRV_NAME "ni_labpc"
-
 /* size of io region used by board */
 #define LABPC_SIZE           32
 /* 2 MHz master clock */
@@ -1969,7 +1967,7 @@ void labpc_common_detach(struct comedi_device *dev)
 EXPORT_SYMBOL_GPL(labpc_common_detach);
 
 static struct comedi_driver labpc_driver = {
-	.driver_name	= DRV_NAME,
+	.driver_name	= "ni_labpc",
 	.module		= THIS_MODULE,
 	.attach		= labpc_attach,
 	.auto_attach	= labpc_auto_attach,
@@ -1993,7 +1991,7 @@ static int labpc_pci_probe(struct pci_dev *dev,
 }
 
 static struct pci_driver labpc_pci_driver = {
-	.name		= DRV_NAME,
+	.name		= "ni_labpc",
 	.id_table	= labpc_pci_table,
 	.probe		= labpc_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
