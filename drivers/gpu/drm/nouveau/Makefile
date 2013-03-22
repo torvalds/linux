@@ -213,7 +213,7 @@ nouveau-y += core/engine/vp/nve0.o
 
 # drm/core
 nouveau-y += nouveau_drm.o nouveau_chan.o nouveau_dma.o nouveau_fence.o
-nouveau-y += nouveau_irq.o nouveau_vga.o nouveau_agp.o
+nouveau-y += nouveau_vga.o nouveau_agp.o
 nouveau-y += nouveau_ttm.o nouveau_sgdma.o nouveau_bo.o nouveau_gem.o
 nouveau-y += nouveau_prime.o nouveau_abi16.o
 nouveau-y += nv04_fence.o nv10_fence.o nv17_fence.o
