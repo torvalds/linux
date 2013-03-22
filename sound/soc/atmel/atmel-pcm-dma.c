@@ -199,16 +199,9 @@ static int atmel_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int atmel_pcm_close(struct snd_pcm_substream *substream)
-{
-	snd_dmaengine_pcm_close(substream);
-
-	return 0;
-}
-
 static struct snd_pcm_ops atmel_pcm_ops = {
 	.open		= atmel_pcm_open,
-	.close		= atmel_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= atmel_pcm_hw_params,
 	.prepare	= atmel_pcm_dma_prepare,
