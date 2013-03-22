@@ -105,7 +105,9 @@ static const struct drm_plane_funcs tegra_plane_funcs = {
 };
 
 static const uint32_t plane_formats[] = {
+	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB565,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YUV422,
@@ -543,6 +545,9 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 unsigned int tegra_dc_format(uint32_t format)
 {
 	switch (format) {
+	case DRM_FORMAT_XBGR8888:
+		return WIN_COLOR_DEPTH_R8G8B8A8;
+
 	case DRM_FORMAT_XRGB8888:
 		return WIN_COLOR_DEPTH_B8G8R8A8;
 
