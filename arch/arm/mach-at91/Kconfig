@@ -14,8 +14,12 @@ config AT91_SAM9G45_RESET
 	bool
 	default !ARCH_AT91X40
 
+config AT91_SAM9_TIME
+	bool
+
 config SOC_AT91SAM9
 	bool
+	select AT91_SAM9_TIME
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select MULTI_IRQ_HANDLER
