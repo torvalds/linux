@@ -787,10 +787,10 @@ void __init timekeeping_init(void)
 		boot.tv_nsec = 0;
 	}
 
-	ntp_init();
-
 	raw_spin_lock_irqsave(&timekeeper_lock, flags);
 	write_seqcount_begin(&timekeeper_seq);
+	ntp_init();
+
 	clock = clocksource_default_clock();
 	if (clock->enable)
 		clock->enable(clock);
@@ -1618,6 +1618,7 @@ EXPORT_SYMBOL_GPL(ktime_get_monotonic_offset);
  */
 int do_adjtimex(struct timex *txc)
 {
+	unsigned long flags;
 	struct timespec ts;
 	s32 tai, orig_tai;
 	int ret;
@@ -1641,7 +1642,13 @@ int do_adjtimex(struct timex *txc)
 	getnstimeofday(&ts);
 	orig_tai = tai = timekeeping_get_tai_offset();
 
+	raw_spin_lock_irqsave(&timekeeper_lock, flags);
+	write_seqcount_begin(&timekeeper_seq);
+
 	ret = __do_adjtimex(txc, &ts, &tai);
+
+	write_seqcount_end(&timekeeper_seq);
+	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 
 	if (tai != orig_tai)
 		timekeeping_set_tai_offset(tai);
@@ -1655,7 +1662,15 @@ int do_adjtimex(struct timex *txc)
  */
 void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
 {
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&timekeeper_lock, flags);
+	write_seqcount_begin(&timekeeper_seq);
+
 	__hardpps(phase_ts, raw_ts);
+
+	write_seqcount_end(&timekeeper_seq);
+	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 }
 EXPORT_SYMBOL(hardpps);
 #endif
