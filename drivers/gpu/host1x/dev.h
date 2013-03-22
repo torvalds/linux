@@ -21,6 +21,7 @@
 #include <linux/device.h>
 
 #include "syncpt.h"
+#include "intr.h"
 
 struct host1x_syncpt;
 
@@ -31,6 +32,17 @@ struct host1x_syncpt_ops {
 	u32 (*load)(struct host1x_syncpt *syncpt);
 	void (*cpu_incr)(struct host1x_syncpt *syncpt);
 	int (*patch_wait)(struct host1x_syncpt *syncpt, void *patch_addr);
+};
+
+struct host1x_intr_ops {
+	int (*init_host_sync)(struct host1x *host, u32 cpm,
+		void (*syncpt_thresh_work)(struct work_struct *work));
+	void (*set_syncpt_threshold)(
+		struct host1x *host, u32 id, u32 thresh);
+	void (*enable_syncpt_intr)(struct host1x *host, u32 id);
+	void (*disable_syncpt_intr)(struct host1x *host, u32 id);
+	void (*disable_all_syncpt_intrs)(struct host1x *host);
+	int (*free_syncpt_irq)(struct host1x *host);
 };
 
 struct host1x_info {
@@ -50,7 +62,13 @@ struct host1x {
 	struct device *dev;
 	struct clk *clk;
 
+	struct mutex intr_mutex;
+	struct workqueue_struct *intr_wq;
+	int intr_syncpt_irq;
+
 	const struct host1x_syncpt_ops *syncpt_op;
+	const struct host1x_intr_ops *intr_op;
+
 };
 
 void host1x_sync_writel(struct host1x *host1x, u32 r, u32 v);
@@ -93,4 +111,37 @@ static inline int host1x_hw_syncpt_patch_wait(struct host1x *host,
 	return host->syncpt_op->patch_wait(sp, patch_addr);
 }
 
+static inline int host1x_hw_intr_init_host_sync(struct host1x *host, u32 cpm,
+			void (*syncpt_thresh_work)(struct work_struct *))
+{
+	return host->intr_op->init_host_sync(host, cpm, syncpt_thresh_work);
+}
+
+static inline void host1x_hw_intr_set_syncpt_threshold(struct host1x *host,
+						       u32 id, u32 thresh)
+{
+	host->intr_op->set_syncpt_threshold(host, id, thresh);
+}
+
+static inline void host1x_hw_intr_enable_syncpt_intr(struct host1x *host,
+						     u32 id)
+{
+	host->intr_op->enable_syncpt_intr(host, id);
+}
+
+static inline void host1x_hw_intr_disable_syncpt_intr(struct host1x *host,
+						      u32 id)
+{
+	host->intr_op->disable_syncpt_intr(host, id);
+}
+
+static inline void host1x_hw_intr_disable_all_syncpt_intrs(struct host1x *host)
+{
+	host->intr_op->disable_all_syncpt_intrs(host);
+}
+
+static inline int host1x_hw_intr_free_syncpt_irq(struct host1x *host)
+{
+	return host->intr_op->free_syncpt_irq(host);
+}
 #endif

@@ -21,6 +21,7 @@
 #include "hw/host1x01_hardware.h"
 
 /* include code */
+#include "hw/intr_hw.c"
 #include "hw/syncpt_hw.c"
 
 #include "dev.h"
@@ -28,6 +29,7 @@
 int host1x01_init(struct host1x *host)
 {
 	host->syncpt_op = &host1x_syncpt_ops;
+	host->intr_op = &host1x_intr_ops;
 
 	return 0;
 }

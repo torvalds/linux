@@ -28,6 +28,7 @@
 #include <trace/events/host1x.h>
 
 #include "dev.h"
+#include "intr.h"
 #include "hw/host1x01.h"
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)
@@ -123,13 +124,24 @@ static int host1x_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	err = host1x_intr_init(host, syncpt_irq);
+	if (err) {
+		dev_err(&pdev->dev, "failed to initialize interrupts\n");
+		goto fail_deinit_syncpt;
+	}
+
 	return 0;
+
+fail_deinit_syncpt:
+	host1x_syncpt_deinit(host);
+	return err;
 }
 
 static int __exit host1x_remove(struct platform_device *pdev)
 {
 	struct host1x *host = platform_get_drvdata(pdev);
 
+	host1x_intr_deinit(host);
 	host1x_syncpt_deinit(host);
 	clk_disable_unprepare(host->clk);
 

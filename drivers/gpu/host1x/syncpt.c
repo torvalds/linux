@@ -24,6 +24,10 @@
 
 #include "syncpt.h"
 #include "dev.h"
+#include "intr.h"
+
+#define SYNCPT_CHECK_PERIOD (2 * HZ)
+#define MAX_STUCK_CHECK_COUNT 15
 
 static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
 						  struct device *dev,
@@ -139,6 +143,161 @@ void host1x_syncpt_incr(struct host1x_syncpt *sp)
 	if (host1x_syncpt_client_managed(sp))
 		host1x_syncpt_incr_max(sp, 1);
 	host1x_syncpt_cpu_incr(sp);
+}
+
+/*
+ * Updated sync point form hardware, and returns true if syncpoint is expired,
+ * false if we may need to wait
+ */
+static bool syncpt_load_min_is_expired(struct host1x_syncpt *sp, u32 thresh)
+{
+	host1x_hw_syncpt_load(sp->host, sp);
+	return host1x_syncpt_is_expired(sp, thresh);
+}
+
+/*
+ * Main entrypoint for syncpoint value waits.
+ */
+int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
+			u32 *value)
+{
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
+	void *ref;
+	struct host1x_waitlist *waiter;
+	int err = 0, check_count = 0;
+	u32 val;
+
+	if (value)
+		*value = 0;
+
+	/* first check cache */
+	if (host1x_syncpt_is_expired(sp, thresh)) {
+		if (value)
+			*value = host1x_syncpt_load(sp);
+		return 0;
+	}
+
+	/* try to read from register */
+	val = host1x_hw_syncpt_load(sp->host, sp);
+	if (host1x_syncpt_is_expired(sp, thresh)) {
+		if (value)
+			*value = val;
+		goto done;
+	}
+
+	if (!timeout) {
+		err = -EAGAIN;
+		goto done;
+	}
+
+	/* allocate a waiter */
+	waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
+	if (!waiter) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	/* schedule a wakeup when the syncpoint value is reached */
+	err = host1x_intr_add_action(sp->host, sp->id, thresh,
+				     HOST1X_INTR_ACTION_WAKEUP_INTERRUPTIBLE,
+				     &wq, waiter, &ref);
+	if (err)
+		goto done;
+
+	err = -EAGAIN;
+	/* Caller-specified timeout may be impractically low */
+	if (timeout < 0)
+		timeout = LONG_MAX;
+
+	/* wait for the syncpoint, or timeout, or signal */
+	while (timeout) {
+		long check = min_t(long, SYNCPT_CHECK_PERIOD, timeout);
+		int remain = wait_event_interruptible_timeout(wq,
+				syncpt_load_min_is_expired(sp, thresh),
+				check);
+		if (remain > 0 || host1x_syncpt_is_expired(sp, thresh)) {
+			if (value)
+				*value = host1x_syncpt_load(sp);
+			err = 0;
+			break;
+		}
+		if (remain < 0) {
+			err = remain;
+			break;
+		}
+		timeout -= check;
+		if (timeout && check_count <= MAX_STUCK_CHECK_COUNT) {
+			dev_warn(sp->host->dev,
+				"%s: syncpoint id %d (%s) stuck waiting %d, timeout=%ld\n",
+				 current->comm, sp->id, sp->name,
+				 thresh, timeout);
+			check_count++;
+		}
+	}
+	host1x_intr_put_ref(sp->host, sp->id, ref);
+
+done:
+	return err;
+}
+EXPORT_SYMBOL(host1x_syncpt_wait);
+
+/*
+ * Returns true if syncpoint is expired, false if we may need to wait
+ */
+bool host1x_syncpt_is_expired(struct host1x_syncpt *sp, u32 thresh)
+{
+	u32 current_val;
+	u32 future_val;
+	smp_rmb();
+	current_val = (u32)atomic_read(&sp->min_val);
+	future_val = (u32)atomic_read(&sp->max_val);
+
+	/* Note the use of unsigned arithmetic here (mod 1<<32).
+	 *
+	 * c = current_val = min_val	= the current value of the syncpoint.
+	 * t = thresh			= the value we are checking
+	 * f = future_val  = max_val	= the value c will reach when all
+	 *				  outstanding increments have completed.
+	 *
+	 * Note that c always chases f until it reaches f.
+	 *
+	 * Dtf = (f - t)
+	 * Dtc = (c - t)
+	 *
+	 *  Consider all cases:
+	 *
+	 *	A) .....c..t..f.....	Dtf < Dtc	need to wait
+	 *	B) .....c.....f..t..	Dtf > Dtc	expired
+	 *	C) ..t..c.....f.....	Dtf > Dtc	expired	   (Dct very large)
+	 *
+	 *  Any case where f==c: always expired (for any t).	Dtf == Dcf
+	 *  Any case where t==c: always expired (for any f).	Dtf >= Dtc (because Dtc==0)
+	 *  Any case where t==f!=c: always wait.		Dtf <  Dtc (because Dtf==0,
+	 *							Dtc!=0)
+	 *
+	 *  Other cases:
+	 *
+	 *	A) .....t..f..c.....	Dtf < Dtc	need to wait
+	 *	A) .....f..c..t.....	Dtf < Dtc	need to wait
+	 *	A) .....f..t..c.....	Dtf > Dtc	expired
+	 *
+	 *   So:
+	 *	   Dtf >= Dtc implies EXPIRED	(return true)
+	 *	   Dtf <  Dtc implies WAIT	(return false)
+	 *
+	 * Note: If t is expired then we *cannot* wait on it. We would wait
+	 * forever (hang the system).
+	 *
+	 * Note: do NOT get clever and remove the -thresh from both sides. It
+	 * is NOT the same.
+	 *
+	 * If future valueis zero, we have a client managed sync point. In that
+	 * case we do a direct comparison.
+	 */
+	if (!host1x_syncpt_client_managed(sp))
+		return future_val - thresh >= current_val - thresh;
+	else
+		return (s32)(current_val - thresh) >= 0;
 }
 
 int host1x_syncpt_init(struct host1x *host)

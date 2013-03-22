@@ -23,6 +23,8 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 
+#include "intr.h"
+
 struct host1x;
 
 struct host1x_syncpt {
@@ -34,6 +36,9 @@ struct host1x_syncpt {
 	int client_managed;
 	struct host1x *host;
 	struct device *dev;
+
+	/* interrupt data */
+	struct host1x_syncpt_intr intr;
 };
 
 /* Initialize sync point array  */
@@ -113,6 +118,9 @@ void host1x_syncpt_cpu_incr(struct host1x_syncpt *sp);
 /* Load current value from hardware to the shadow register. */
 u32 host1x_syncpt_load(struct host1x_syncpt *sp);
 
+/* Check if the given syncpoint value has already passed */
+bool host1x_syncpt_is_expired(struct host1x_syncpt *sp, u32 thresh);
+
 /* Save host1x sync point state into shadow registers. */
 void host1x_syncpt_save(struct host1x *host);
 
@@ -127,6 +135,10 @@ void host1x_syncpt_incr(struct host1x_syncpt *sp);
 
 /* Indicate future operations by incrementing the sync point max. */
 u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs);
+
+/* Wait until sync point reaches a threshold value, or a timeout. */
+int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh,
+			long timeout, u32 *value);
 
 /* Check if sync point id is valid. */
 static inline int host1x_syncpt_is_valid(struct host1x_syncpt *sp)

@@ -59,6 +59,48 @@ static inline u32 host1x_sync_syncpt_r(unsigned int id)
 }
 #define HOST1X_SYNC_SYNCPT(id) \
 	host1x_sync_syncpt_r(id)
+static inline u32 host1x_sync_syncpt_thresh_cpu0_int_status_r(unsigned int id)
+{
+	return 0x40 + id * REGISTER_STRIDE;
+}
+#define HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(id) \
+	host1x_sync_syncpt_thresh_cpu0_int_status_r(id)
+static inline u32 host1x_sync_syncpt_thresh_int_disable_r(unsigned int id)
+{
+	return 0x60 + id * REGISTER_STRIDE;
+}
+#define HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(id) \
+	host1x_sync_syncpt_thresh_int_disable_r(id)
+static inline u32 host1x_sync_syncpt_thresh_int_enable_cpu0_r(unsigned int id)
+{
+	return 0x68 + id * REGISTER_STRIDE;
+}
+#define HOST1X_SYNC_SYNCPT_THRESH_INT_ENABLE_CPU0(id) \
+	host1x_sync_syncpt_thresh_int_enable_cpu0_r(id)
+static inline u32 host1x_sync_usec_clk_r(void)
+{
+	return 0x1a4;
+}
+#define HOST1X_SYNC_USEC_CLK \
+	host1x_sync_usec_clk_r()
+static inline u32 host1x_sync_ctxsw_timeout_cfg_r(void)
+{
+	return 0x1a8;
+}
+#define HOST1X_SYNC_CTXSW_TIMEOUT_CFG \
+	host1x_sync_ctxsw_timeout_cfg_r()
+static inline u32 host1x_sync_ip_busy_timeout_r(void)
+{
+	return 0x1bc;
+}
+#define HOST1X_SYNC_IP_BUSY_TIMEOUT \
+	host1x_sync_ip_busy_timeout_r()
+static inline u32 host1x_sync_syncpt_int_thresh_r(unsigned int id)
+{
+	return 0x500 + id * REGISTER_STRIDE;
+}
+#define HOST1X_SYNC_SYNCPT_INT_THRESH(id) \
+	host1x_sync_syncpt_int_thresh_r(id)
 static inline u32 host1x_sync_syncpt_base_r(unsigned int id)
 {
 	return 0x600 + id * REGISTER_STRIDE;
