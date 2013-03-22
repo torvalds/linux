@@ -117,12 +117,6 @@ config SAMSUNG_GPIOLIB_4BIT
 	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
 	  series of processors.
 
-config S3C_GPIO_CFG_S3C64XX
-	bool
-	help
-	  Internal configuration to enable S3C64XX style GPIO configuration
-	  functions.
-
 config S5P_GPIO_DRVSTR
 	bool
 	help
