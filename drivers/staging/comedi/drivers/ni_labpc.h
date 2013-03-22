@@ -56,19 +56,19 @@ struct labpc_boardinfo {
 struct labpc_private {
 	struct mite_struct *mite;	/*  for mite chip on pci-1200 */
 	/*  number of data points left to be taken */
-	volatile unsigned long long count;
+	unsigned long long count;
 	/*  software copy of analog output values */
 	unsigned int ao_value[NUM_AO_CHAN];
 	/*  software copys of bits written to command registers */
-	volatile unsigned int command1_bits;
-	volatile unsigned int command2_bits;
-	volatile unsigned int command3_bits;
-	volatile unsigned int command4_bits;
-	volatile unsigned int command5_bits;
-	volatile unsigned int command6_bits;
+	unsigned int command1_bits;
+	unsigned int command2_bits;
+	unsigned int command3_bits;
+	unsigned int command4_bits;
+	unsigned int command5_bits;
+	unsigned int command6_bits;
 	/*  store last read of board status registers */
-	volatile unsigned int status1_bits;
-	volatile unsigned int status2_bits;
+	unsigned int status1_bits;
+	unsigned int status2_bits;
 	/*
 	 * value to load into board's counter a0 (conversion pacing) for timed
 	 * conversions
