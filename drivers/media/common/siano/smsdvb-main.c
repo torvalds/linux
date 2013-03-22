@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <asm/div64.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"
@@ -244,6 +245,7 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 {
 	struct dvb_frontend *fe = &client->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u64 tmp;
 
 	client->fe_status = sms_to_status(p->is_demod_locked, p->is_rf_locked);
 	c->modulation = sms_to_modulation(p->constellation);
@@ -272,8 +274,9 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 	c->post_bit_count.stat[0].uvalue += p->ber_bit_count;
 
 	/* Legacy PER/BER */
-	client->legacy_per = (p->ets_packets * 65535) /
-			     (p->ts_packets + p->ets_packets);
+	tmp = p->ets_packets * 65535;
+	do_div(tmp, p->ts_packets + p->ets_packets);
+	client->legacy_per = tmp;
 }
 
 static void smsdvb_update_dvb_stats(struct smsdvb_client_t *client,
@@ -803,7 +806,7 @@ static int smsdvb_read_snr(struct dvb_frontend *fe, u16 *snr)
 	rc = smsdvb_send_statistics_request(client);
 
 	/* Preferred scale for SNR with legacy API: 0.1 dB */
-	*snr = c->cnr.stat[0].svalue / 100;
+	*snr = ((u32)c->cnr.stat[0].svalue) / 100;
 
 	led_feedback(client);
 
