@@ -1062,8 +1062,10 @@ static int __init nfnetlink_queue_init(void)
 
 #ifdef CONFIG_PROC_FS
 	if (!proc_create("nfnetlink_queue", 0440,
-			 proc_net_netfilter, &nfqnl_file_ops))
+			 proc_net_netfilter, &nfqnl_file_ops)) {
+		status = -ENOMEM;
 		goto cleanup_subsys;
+	}
 #endif
 
 	register_netdevice_notifier(&nfqnl_dev_notifier);
