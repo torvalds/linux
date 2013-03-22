@@ -355,15 +355,16 @@ struct clk *tegra_clk_register_periph_nodiv(const char *name,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset);
 
-#define TEGRA_CLK_PERIPH(_mux_shift, _mux_width, _mux_flags,		\
+#define TEGRA_CLK_PERIPH(_mux_shift, _mux_mask, _mux_flags,		\
 			 _div_shift, _div_width, _div_frac_width,	\
 			 _div_flags, _clk_num, _enb_refcnt, _regs,	\
-			 _gate_flags)					\
+			 _gate_flags, _table)				\
 	{								\
 		.mux = {						\
 			.flags = _mux_flags,				\
 			.shift = _mux_shift,				\
-			.width = _mux_width,				\
+			.mask = _mux_mask,				\
+			.table = _table,				\
 		},							\
 		.divider = {						\
 			.flags = _div_flags,				\
@@ -393,25 +394,35 @@ struct tegra_periph_init_data {
 	const char *dev_id;
 };
 
-#define TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parent_names, _offset, \
-			_mux_shift, _mux_width, _mux_flags, _div_shift,	\
+#define TEGRA_INIT_DATA_TABLE(_name, _con_id, _dev_id, _parent_names, _offset,\
+			_mux_shift, _mux_mask, _mux_flags, _div_shift,	\
 			_div_width, _div_frac_width, _div_flags, _regs,	\
-			_clk_num, _enb_refcnt, _gate_flags, _clk_id)	\
+			_clk_num, _enb_refcnt, _gate_flags, _clk_id, _table) \
 	{								\
 		.name = _name,						\
 		.clk_id = _clk_id,					\
 		.parent_names = _parent_names,				\
 		.num_parents = ARRAY_SIZE(_parent_names),		\
-		.periph = TEGRA_CLK_PERIPH(_mux_shift, _mux_width,	\
+		.periph = TEGRA_CLK_PERIPH(_mux_shift, _mux_mask,	\
 					   _mux_flags, _div_shift,	\
 					   _div_width, _div_frac_width,	\
 					   _div_flags, _clk_num,	\
 					   _enb_refcnt, _regs,		\
-					   _gate_flags),		\
+					   _gate_flags, _table),	\
 		.offset = _offset,					\
 		.con_id = _con_id,					\
 		.dev_id = _dev_id,					\
 	}
+
+#define TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parent_names, _offset,\
+			_mux_shift, _mux_width, _mux_flags, _div_shift,	\
+			_div_width, _div_frac_width, _div_flags, _regs,	\
+			_clk_num, _enb_refcnt, _gate_flags, _clk_id)	\
+	TEGRA_INIT_DATA_TABLE(_name, _con_id, _dev_id, _parent_names, _offset,\
+			_mux_shift, BIT(_mux_width) - 1, _mux_flags,	\
+			_div_shift, _div_width, _div_frac_width, _div_flags, \
+			_regs, _clk_num, _enb_refcnt, _gate_flags, _clk_id,\
+			NULL)
 
 /**
  * struct clk_super_mux - super clock

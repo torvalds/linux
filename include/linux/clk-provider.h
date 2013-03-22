@@ -297,8 +297,9 @@ struct clk *clk_register_divider_table(struct device *dev, const char *name,
 struct clk_mux {
 	struct clk_hw	hw;
 	void __iomem	*reg;
+	u32		*table;
+	u32		mask;
 	u8		shift;
-	u8		width;
 	u8		flags;
 	spinlock_t	*lock;
 };
@@ -307,10 +308,16 @@ struct clk_mux {
 #define CLK_MUX_INDEX_BIT		BIT(1)
 
 extern const struct clk_ops clk_mux_ops;
+
 struct clk *clk_register_mux(struct device *dev, const char *name,
 		const char **parent_names, u8 num_parents, unsigned long flags,
 		void __iomem *reg, u8 shift, u8 width,
 		u8 clk_mux_flags, spinlock_t *lock);
+
+struct clk *clk_register_mux_table(struct device *dev, const char *name,
+		const char **parent_names, u8 num_parents, unsigned long flags,
+		void __iomem *reg, u8 shift, u32 mask,
+		u8 clk_mux_flags, u32 *table, spinlock_t *lock);
 
 /**
  * struct clk_fixed_factor - fixed multiplier and divider clock
