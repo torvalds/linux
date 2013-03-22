@@ -164,10 +164,11 @@ struct enc_private {
 #define I2C_B1(ATTR, VAL)	(((ATTR) << 4) | ((VAL) << 16))
 #define I2C_B0(ATTR, VAL)	(((ATTR) << 2) | ((VAL) <<  8))
 
-static const struct comedi_lrange s626_range_table = { 2, {
-							   RANGE(-5, 5),
-							   RANGE(-10, 10),
-							   }
+static const struct comedi_lrange s626_range_table = {
+	2, {
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+	}
 };
 
 /*  Execute a DEBI transfer.  This must be called from within a */
