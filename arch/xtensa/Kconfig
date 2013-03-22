@@ -281,21 +281,6 @@ endmenu
 
 menu "Executable file formats"
 
-# only elf supported
-config KCORE_ELF
-	def_bool y
-        depends on PROC_FS
-        help
-          If you enabled support for /proc file system then the file
-          /proc/kcore will contain the kernel core image in ELF format. This
-          can be used in gdb:
-
-          $ cd /usr/src/linux ; gdb vmlinux /proc/kcore
-
-          This is especially useful if you have compiled the kernel with the
-          "-g" option to preserve debugging information. It is mainly used
-	  for examining kernel data structures on the live kernel.
-
 source "fs/Kconfig.binfmt"
 
 endmenu
