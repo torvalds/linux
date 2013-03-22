@@ -26,7 +26,7 @@
 typedef uint32_t uint32 ;
 
 
-#define DDR3_DDR2_DLL_DISABLE_FREQ    (125)   //lvddr3 频率太低时dll不能正常工作
+#define DDR3_DDR2_DLL_DISABLE_FREQ    (300)
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
 #define SR_IDLE                       (0x1)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
 #define PD_IDLE                       (0x40)  //unit:DDR clk cycle, and 0 for disable auto power-down
@@ -1187,8 +1187,16 @@ uint32_t ddr_get_parameter(uint32_t nMHz)
         {
             tmp = 3;
         }
-        cl = ddr3_cl_cwl[ddr_speed_bin][tmp] >> 16;
-        cwl = ddr3_cl_cwl[ddr_speed_bin][tmp] & 0x0ff;
+        if(nMHz < DDR3_DDR2_DLL_DISABLE_FREQ)       //when dll bypss cl = cwl = 6;
+        {
+            cl = 6;
+            cwl = 6;
+        }
+        else
+        {
+            cl = ddr3_cl_cwl[ddr_speed_bin][tmp] >> 16;
+            cwl = ddr3_cl_cwl[ddr_speed_bin][tmp] & 0x0ff;
+        }
         if(cl == 0)
         {
             ret = -4; //超过颗粒的最大频率
