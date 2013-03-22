@@ -107,12 +107,13 @@ static int dove_get_temp(struct thermal_zone_device *thermal,
 	}
 
 	/*
-	 * Calculate temperature. See Section 8.10.1 of 88AP510,
-	 * Documentation/arm/Marvell/README
+	 * Calculate temperature. According to Marvell internal
+	 * documentation the formula for this is:
+	 * Celsius = (322-reg)/1.3625
 	 */
 	reg = readl_relaxed(priv->sensor);
 	reg = (reg >> DOVE_THERMAL_TEMP_OFFSET) & DOVE_THERMAL_TEMP_MASK;
-	*temp = ((2281638UL - (7298*reg)) / 10);
+	*temp = ((3220000000UL - (10000000UL * reg)) / 13625);
 
 	return 0;
 }
