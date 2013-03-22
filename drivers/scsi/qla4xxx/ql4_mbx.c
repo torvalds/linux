@@ -1531,7 +1531,7 @@ int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
 	int max_chap_entries = 0;
 	struct ql4_chap_table *chap_table;
 
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		max_chap_entries = (ha->hw.flt_chap_size / 2) /
 						sizeof(struct ql4_chap_table);
 	else

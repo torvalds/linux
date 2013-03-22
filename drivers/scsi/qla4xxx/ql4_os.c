@@ -391,7 +391,7 @@ static int qla4xxx_get_chap_list(struct Scsi_Host *shost, uint16_t chap_tbl_idx,
 	int valid_chap_entries = 0;
 	int ret = 0, i;
 
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		max_chap_entries = (ha->hw.flt_chap_size / 2) /
 					sizeof(struct ql4_chap_table);
 	else
@@ -495,7 +495,7 @@ static int qla4xxx_delete_chap(struct Scsi_Host *shost, uint16_t chap_tbl_idx)
 
 	memset(chap_table, 0, sizeof(struct ql4_chap_table));
 
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		max_chap_entries = (ha->hw.flt_chap_size / 2) /
 				   sizeof(struct ql4_chap_table);
 	else
@@ -4087,7 +4087,7 @@ static int qla4xxx_get_bidi_chap(struct scsi_qla_host *ha, char *username,
 	int max_chap_entries = 0;
 	struct ql4_chap_table *chap_table;
 
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		max_chap_entries = (ha->hw.flt_chap_size / 2) /
 						sizeof(struct ql4_chap_table);
 	else
