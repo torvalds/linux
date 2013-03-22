@@ -861,7 +861,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 		if (!dest) {
 			dest = ip_vs_try_bind_dest(cp);
 			if (dest)
-				atomic_dec(&dest->refcnt);
+				ip_vs_dest_put(dest);
 		}
 	} else {
 		/*
@@ -874,7 +874,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 
 		cp = ip_vs_conn_new(param, daddr, dport, flags, dest, fwmark);
 		if (dest)
-			atomic_dec(&dest->refcnt);
+			ip_vs_dest_put(dest);
 		if (!cp) {
 			if (param->pe_data)
 				kfree(param->pe_data);

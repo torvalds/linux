@@ -554,7 +554,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 		return;
 
 	/* Increase the refcnt counter of the dest */
-	atomic_inc(&dest->refcnt);
+	ip_vs_dest_hold(dest);
 
 	conn_flags = atomic_read(&dest->conn_flags);
 	if (cp->protocol != IPPROTO_UDP)
@@ -700,12 +700,7 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 			dest->flags &= ~IP_VS_DEST_F_OVERLOAD;
 	}
 
-	/*
-	 * Simply decrease the refcnt of the dest, because the
-	 * dest will be either in service's destination list
-	 * or in the trash.
-	 */
-	atomic_dec(&dest->refcnt);
+	ip_vs_dest_put(dest);
 }
 
 static int expire_quiescent_template(struct netns_ipvs *ipvs,

@@ -616,7 +616,7 @@ struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 	if (!dest)
 		dest = ip_vs_lookup_dest(svc, daddr, port ^ dport);
 	if (dest)
-		atomic_inc(&dest->refcnt);
+		ip_vs_dest_hold(dest);
 	ip_vs_service_put(svc);
 	return dest;
 }
@@ -1056,7 +1056,7 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 			      ntohs(dest->port),
 			      atomic_read(&dest->refcnt));
 		list_add(&dest->n_list, &ipvs->dest_trash);
-		atomic_inc(&dest->refcnt);
+		ip_vs_dest_hold(dest);
 	}
 }
 
