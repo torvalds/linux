@@ -857,13 +857,10 @@ static void mt_post_parse(struct mt_device *td)
 
 static void mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 {
-	struct input_dev *input = hi->input;
+	struct mt_device *td = hid_get_drvdata(hdev);
 
-	/* Only initialize slots for MT input devices */
-	if (!test_bit(ABS_MT_POSITION_X, input->absbit))
-		return;
-
-	mt_touch_input_configured(hdev, hi);
+	if (hi->report->id == td->mt_report_id)
+		mt_touch_input_configured(hdev, hi);
 }
 
 static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
