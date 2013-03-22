@@ -304,7 +304,7 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 	 * (a) SMP races against real IAA firing and retriggering, and
 	 * (b) clean HC shutdown, when IAA watchdog was pending.
 	 */
-	if (ehci->rh_state != EHCI_RH_RUNNING)
+	if (!ehci->iaa_in_progress || ehci->rh_state != EHCI_RH_RUNNING)
 		return;
 
 	/* If we get here, IAA is *REALLY* late.  It's barely

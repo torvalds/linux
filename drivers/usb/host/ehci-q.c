@@ -960,7 +960,7 @@ static void disable_async(struct ehci_hcd *ehci)
 
 	/* The async schedule and unlink lists are supposed to be empty */
 	WARN_ON(ehci->async->qh_next.qh || !list_empty(&ehci->async_unlink) ||
-			!list_empty(&ehci->async_iaa));
+			!list_empty(&ehci->async_idle));
 
 	/* Don't turn off the schedule until ASS is 1 */
 	ehci_poll_ASS(ehci);
@@ -1164,41 +1164,19 @@ static void single_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		ehci->qh_scan_next = qh->qh_next.qh;
 }
 
-static void start_iaa_cycle(struct ehci_hcd *ehci, bool nested)
+static void start_iaa_cycle(struct ehci_hcd *ehci)
 {
-	/*
-	 * Do nothing if an IAA cycle is already running or
-	 * if one will be started shortly.
-	 */
-	if (!list_empty(&ehci->async_iaa) || ehci->async_unlinking)
+	/* Do nothing if an IAA cycle is already running */
+	if (ehci->iaa_in_progress)
 		return;
+	ehci->iaa_in_progress = true;
 
 	/* If the controller isn't running, we don't have to wait for it */
 	if (unlikely(ehci->rh_state < EHCI_RH_RUNNING)) {
-
-		/* Do all the waiting QHs */
-		list_splice_tail_init(&ehci->async_unlink, &ehci->async_iaa);
-
-		if (!nested)		/* Avoid recursion */
-			end_unlink_async(ehci);
+		end_unlink_async(ehci);
 
 	/* Otherwise start a new IAA cycle */
 	} else if (likely(ehci->rh_state == EHCI_RH_RUNNING)) {
-		struct ehci_qh		*qh;
-
-		/* Do only the first waiting QH (nVidia bug?) */
-		qh = list_first_entry(&ehci->async_unlink, struct ehci_qh,
-				unlink_node);
-
-		/*
-		 * Intel (?) bug: The HC can write back the overlay region
-		 * even after the IAA interrupt occurs.  In self-defense,
-		 * always go through two IAA cycles for each QH.
-		 */
-		if (qh->qh_state == QH_STATE_UNLINK_WAIT)
-			qh->qh_state = QH_STATE_UNLINK;
-		else
-			list_move_tail(&qh->unlink_node, &ehci->async_iaa);
 
 		/* Make sure the unlinks are all visible to the hardware */
 		wmb();
@@ -1215,16 +1193,59 @@ static void start_iaa_cycle(struct ehci_hcd *ehci, bool nested)
 static void end_unlink_async(struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh;
+	bool			early_exit;
 
 	if (ehci->has_synopsys_hc_bug)
 		ehci_writel(ehci, (u32) ehci->async->qh_dma,
 			    &ehci->regs->async_next);
 
+	/* The current IAA cycle has ended */
+	ehci->iaa_in_progress = false;
+
+	if (list_empty(&ehci->async_unlink))
+		return;
+	qh = list_first_entry(&ehci->async_unlink, struct ehci_qh,
+			unlink_node);	/* QH whose IAA cycle just ended */
+
+	/*
+	 * If async_unlinking is set then this routine is already running,
+	 * either on the stack or on another CPU.
+	 */
+	early_exit = ehci->async_unlinking;
+
+	/* If the controller isn't running, process all the waiting QHs */
+	if (ehci->rh_state < EHCI_RH_RUNNING)
+		list_splice_tail_init(&ehci->async_unlink, &ehci->async_idle);
+
+	/*
+	 * Intel (?) bug: The HC can write back the overlay region even
+	 * after the IAA interrupt occurs.  In self-defense, always go
+	 * through two IAA cycles for each QH.
+	 */
+	else if (qh->qh_state == QH_STATE_UNLINK_WAIT) {
+		qh->qh_state = QH_STATE_UNLINK;
+		early_exit = true;
+	}
+
+	/* Otherwise process only the first waiting QH (NVIDIA bug?) */
+	else
+		list_move_tail(&qh->unlink_node, &ehci->async_idle);
+
+	/* Start a new IAA cycle if any QHs are waiting for it */
+	if (!list_empty(&ehci->async_unlink))
+		start_iaa_cycle(ehci);
+
+	/*
+	 * Don't allow nesting or concurrent calls,
+	 * or wait for the second IAA cycle for the next QH.
+	 */
+	if (early_exit)
+		return;
+
 	/* Process the idle QHs */
- restart:
 	ehci->async_unlinking = true;
-	while (!list_empty(&ehci->async_iaa)) {
-		qh = list_first_entry(&ehci->async_iaa, struct ehci_qh,
+	while (!list_empty(&ehci->async_idle)) {
+		qh = list_first_entry(&ehci->async_idle, struct ehci_qh,
 				unlink_node);
 		list_del(&qh->unlink_node);
 
@@ -1239,13 +1260,6 @@ static void end_unlink_async(struct ehci_hcd *ehci)
 		disable_async(ehci);
 	}
 	ehci->async_unlinking = false;
-
-	/* Start a new IAA cycle if any QHs are waiting for it */
-	if (!list_empty(&ehci->async_unlink)) {
-		start_iaa_cycle(ehci, true);
-		if (unlikely(ehci->rh_state < EHCI_RH_RUNNING))
-			goto restart;
-	}
 }
 
 static void start_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh);
@@ -1270,8 +1284,7 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 	}
 
 	/* If nothing else is being unlinked, unlink the last empty QH */
-	if (list_empty(&ehci->async_iaa) && list_empty(&ehci->async_unlink) &&
-			qh_to_unlink) {
+	if (list_empty(&ehci->async_unlink) && qh_to_unlink) {
 		start_unlink_async(ehci, qh_to_unlink);
 		--count;
 	}
@@ -1293,7 +1306,7 @@ static void unlink_empty_async_suspended(struct ehci_hcd *ehci)
 		WARN_ON(!list_empty(&qh->qtd_list));
 		single_unlink_async(ehci, qh);
 	}
-	start_iaa_cycle(ehci, false);
+	start_iaa_cycle(ehci);
 }
 
 /* makes sure the async qh will become idle */
@@ -1306,7 +1319,7 @@ static void start_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		return;
 
 	single_unlink_async(ehci, qh);
-	start_iaa_cycle(ehci, false);
+	start_iaa_cycle(ehci);
 }
 
 /*-------------------------------------------------------------------------*/

@@ -121,6 +121,7 @@ struct ehci_hcd {			/* one per controller */
 	bool			scanning:1;
 	bool			need_rescan:1;
 	bool			intr_unlinking:1;
+	bool			iaa_in_progress:1;
 	bool			async_unlinking:1;
 	bool			shutdown:1;
 	struct ehci_qh		*qh_scan_next;
@@ -129,7 +130,7 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*async;
 	struct ehci_qh		*dummy;		/* For AMD quirk use */
 	struct list_head	async_unlink;
-	struct list_head	async_iaa;
+	struct list_head	async_idle;
 	unsigned		async_unlink_cycle;
 	unsigned		async_count;	/* async activity count */
 
