@@ -83,7 +83,6 @@ static const struct labpc_boardinfo labpc_cs_boards[] = {
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
-		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
 	},
 };
 

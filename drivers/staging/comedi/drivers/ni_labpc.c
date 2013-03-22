@@ -215,11 +215,6 @@ enum scan_mode {
 	MODE_MULT_CHAN_DOWN,
 };
 
-static const int labpc_plus_is_unipolar[] = {
-	0, 0, 0, 0, 0, 0, 0, 0,
-	1, 1, 1, 1, 1, 1, 1, 1,
-};
-
 static const int labpc_plus_ai_gain_bits[] = {
 	0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
 	0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
@@ -245,12 +240,6 @@ static const struct comedi_lrange range_labpc_plus_ai = {
 		UNI_RANGE(0.1)
 	}
 };
-
-const int labpc_1200_is_unipolar[] = {
-	0, 0, 0, 0, 0, 0, 0,
-	1, 1, 1, 1, 1, 1, 1,
-};
-EXPORT_SYMBOL_GPL(labpc_1200_is_unipolar);
 
 const int labpc_1200_ai_gain_bits[] = {
 	0x00, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
@@ -278,7 +267,6 @@ const struct comedi_lrange range_labpc_1200_ai = {
 };
 EXPORT_SYMBOL_GPL(range_labpc_1200_ai);
 
-#define AO_RANGE_IS_UNIPOLAR 0x1
 static const struct comedi_lrange range_labpc_ao = {
 	2, {
 		BIP_RANGE(5),
@@ -317,7 +305,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
-		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
 		.ai_scan_up		= 1,
 	}, {
 		.name			= "lab-pc-1200ai",
@@ -326,7 +313,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 		.register_layout	= labpc_1200_layout,
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
-		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
 		.ai_scan_up		= 1,
 	}, {
 		.name			= "lab-pc+",
@@ -336,7 +322,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_plus_ai,
 		.ai_range_code		= labpc_plus_ai_gain_bits,
-		.ai_range_is_unipolar	= labpc_plus_is_unipolar,
 	},
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 	{
@@ -348,7 +333,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
-		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
 		.ai_scan_up		= 1,
 		.has_mmio		= 1,
 	},
@@ -359,6 +343,18 @@ static const struct labpc_boardinfo labpc_boards[] = {
 static const int dma_buffer_size = 0xff00;
 /* 2 bytes per sample */
 static const int sample_size = 2;
+
+static bool labpc_range_is_unipolar(struct comedi_subdevice *s,
+				    unsigned int range)
+{
+	const struct comedi_lrange *lrange = s->range_table;
+	const struct comedi_krange *krange = &lrange->range[range];
+
+	if (krange->min < 0)
+		return false;
+	else
+		return true;
+}
 
 static void labpc_clear_adc_fifo(const struct comedi_device *dev)
 {
@@ -409,7 +405,7 @@ static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		else
 			devpriv->cmd6 &= ~ADC_COMMON_BIT;
 		/* bipolar or unipolar range? */
-		if (board->ai_range_is_unipolar[range])
+		if (labpc_range_is_unipolar(s, range))
 			devpriv->cmd6 |= ADC_UNIP_BIT;
 		else
 			devpriv->cmd6 &= ~ADC_UNIP_BIT;
@@ -938,7 +934,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		else
 			devpriv->cmd6 &= ~ADC_COMMON_BIT;
 		/*  bipolar or unipolar range? */
-		if (board->ai_range_is_unipolar[range])
+		if (labpc_range_is_unipolar(s, range))
 			devpriv->cmd6 |= ADC_UNIP_BIT;
 		else
 			devpriv->cmd6 &= ~ADC_UNIP_BIT;
@@ -1363,7 +1359,7 @@ static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* set range */
 	if (board->register_layout == labpc_1200_layout) {
 		range = CR_RANGE(insn->chanspec);
-		if (range & AO_RANGE_IS_UNIPOLAR)
+		if (labpc_range_is_unipolar(s, range))
 			devpriv->cmd6 |= DAC_UNIP_BIT(channel);
 		else
 			devpriv->cmd6 &= ~DAC_UNIP_BIT(channel);
