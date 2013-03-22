@@ -727,6 +727,79 @@ static void check_dio_interrupts(struct comedi_device *dev)
 	}
 }
 
+static void check_counter_interrupts(struct comedi_device *dev)
+{
+	struct s626_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	struct enc_private *k;
+	uint16_t irqbit;
+
+	/* read interrupt type */
+	irqbit = DEBIread(dev, LP_RDMISC2);
+
+	/* check interrupt on counters */
+	if (irqbit & IRQ_COINT1A) {
+		k = &encpriv[0];
+
+		/* clear interrupt capture flag */
+		k->ResetCapFlags(dev, k);
+	}
+	if (irqbit & IRQ_COINT2A) {
+		k = &encpriv[1];
+
+		/* clear interrupt capture flag */
+		k->ResetCapFlags(dev, k);
+	}
+	if (irqbit & IRQ_COINT3A) {
+		k = &encpriv[2];
+
+		/* clear interrupt capture flag */
+		k->ResetCapFlags(dev, k);
+	}
+	if (irqbit & IRQ_COINT1B) {
+		k = &encpriv[3];
+
+		/* clear interrupt capture flag */
+		k->ResetCapFlags(dev, k);
+	}
+	if (irqbit & IRQ_COINT2B) {
+		k = &encpriv[4];
+
+		/* clear interrupt capture flag */
+		k->ResetCapFlags(dev, k);
+
+		if (devpriv->ai_convert_count > 0) {
+			devpriv->ai_convert_count--;
+			if (devpriv->ai_convert_count == 0)
+				k->SetEnable(dev, k, CLKENAB_INDEX);
+
+			if (cmd->convert_src == TRIG_TIMER) {
+				/*  Trigger ADC scan loop start by setting RPS Signal 0. */
+				MC_ENABLE(P_MC2, MC2_ADC_RPS);
+			}
+		}
+	}
+	if (irqbit & IRQ_COINT3B) {
+		k = &encpriv[5];
+
+		/* clear interrupt capture flag */
+		k->ResetCapFlags(dev, k);
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			/*  Trigger ADC scan loop start by setting RPS Signal 0. */
+			MC_ENABLE(P_MC2, MC2_ADC_RPS);
+		}
+
+		if (cmd->convert_src == TRIG_TIMER) {
+			k = &encpriv[4];
+			devpriv->ai_convert_count = cmd->chanlist_len;
+			k->SetEnable(dev, k, CLKENAB_ALWAYS);
+		}
+	}
+}
+
 static bool handle_eos_interrupt(struct comedi_device *dev)
 {
 	struct s626_private *devpriv = dev->private;
@@ -789,13 +862,8 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct s626_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	struct enc_private *k;
 	unsigned long flags;
 	uint32_t irqtype, irqstatus;
-	uint16_t irqbit;
 
 	if (!dev->attached)
 		return IRQ_NONE;
@@ -821,71 +889,9 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 		break;
 	case IRQ_GPIO3:	/* check dio and conter interrupt */
 		/* s626_dio_clear_irq(dev); */
-
 		check_dio_interrupts(dev);
-
-		/* read interrupt type */
-		irqbit = DEBIread(dev, LP_RDMISC2);
-
-		/* check interrupt on counters */
-		if (irqbit & IRQ_COINT1A) {
-			k = &encpriv[0];
-
-			/* clear interrupt capture flag */
-			k->ResetCapFlags(dev, k);
-		}
-		if (irqbit & IRQ_COINT2A) {
-			k = &encpriv[1];
-
-			/* clear interrupt capture flag */
-			k->ResetCapFlags(dev, k);
-		}
-		if (irqbit & IRQ_COINT3A) {
-			k = &encpriv[2];
-
-			/* clear interrupt capture flag */
-			k->ResetCapFlags(dev, k);
-		}
-		if (irqbit & IRQ_COINT1B) {
-			k = &encpriv[3];
-
-			/* clear interrupt capture flag */
-			k->ResetCapFlags(dev, k);
-		}
-		if (irqbit & IRQ_COINT2B) {
-			k = &encpriv[4];
-
-			/* clear interrupt capture flag */
-			k->ResetCapFlags(dev, k);
-
-			if (devpriv->ai_convert_count > 0) {
-				devpriv->ai_convert_count--;
-				if (devpriv->ai_convert_count == 0)
-					k->SetEnable(dev, k, CLKENAB_INDEX);
-
-				if (cmd->convert_src == TRIG_TIMER) {
-					/*  Trigger ADC scan loop start by setting RPS Signal 0. */
-					MC_ENABLE(P_MC2, MC2_ADC_RPS);
-				}
-			}
-		}
-		if (irqbit & IRQ_COINT3B) {
-			k = &encpriv[5];
-
-			/* clear interrupt capture flag */
-			k->ResetCapFlags(dev, k);
-
-			if (cmd->scan_begin_src == TRIG_TIMER) {
-				/*  Trigger ADC scan loop start by setting RPS Signal 0. */
-				MC_ENABLE(P_MC2, MC2_ADC_RPS);
-			}
-
-			if (cmd->convert_src == TRIG_TIMER) {
-				k = &encpriv[4];
-				devpriv->ai_convert_count = cmd->chanlist_len;
-				k->SetEnable(dev, k, CLKENAB_ALWAYS);
-			}
-		}
+		check_counter_interrupts(dev);
+		break;
 	}
 
 	/* enable interrupt */
