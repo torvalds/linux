@@ -1661,20 +1661,16 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		devpriv->write_byte(devpriv->cmd6, dev->iobase + CMD6_REG);
 	}
 
-	/* grab our IRQ */
 	if (irq) {
 		isr_flags = 0;
 		if (board->bustype == pci_bustype ||
 		    board->bustype == pcmcia_bustype)
 			isr_flags |= IRQF_SHARED;
-		if (request_irq(irq, labpc_interrupt, isr_flags,
-				dev->board_name, dev)) {
-			dev_err(dev->class_dev, "unable to allocate irq %u\n",
-				irq);
-			return -EINVAL;
-		}
+		ret = request_irq(irq, labpc_interrupt, isr_flags,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = irq;
 	}
-	dev->irq = irq;
 
 #ifdef CONFIG_ISA_DMA_API
 	/* grab dma channel */
