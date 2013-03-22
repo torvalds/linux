@@ -1668,12 +1668,9 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
-	int i;
 	unsigned long isr_flags;
-#ifdef CONFIG_ISA_DMA_API
-	unsigned long dma_flags;
-#endif
 	int ret;
+	int i;
 
 	dev_info(dev->class_dev, "ni_labpc: %s\n", board->name);
 	if (iobase == 0) {
@@ -1728,6 +1725,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		dev_err(dev->class_dev, "invalid dma channel %u\n", dma_chan);
 		return -EINVAL;
 	} else if (dma_chan) {
+		unsigned long dma_flags;
+
 		/* allocate dma buffer */
 		devpriv->dma_buffer = kmalloc(dma_buffer_size,
 					      GFP_KERNEL | GFP_DMA);
