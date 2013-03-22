@@ -384,7 +384,6 @@ struct ehci_qh {
 
 	unsigned		unlink_cycle;
 
-	u8			needs_rescan;	/* Dequeue during giveback */
 	u8			qh_state;
 #define	QH_STATE_LINKED		1		/* HC sees this */
 #define	QH_STATE_UNLINK		2		/* HC may still see this */
@@ -407,6 +406,9 @@ struct ehci_qh {
 	struct usb_device	*dev;		/* access to TT */
 	unsigned		is_out:1;	/* bulk or intr OUT */
 	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
+	unsigned		dequeue_during_giveback:1;
+	unsigned		exception:1;	/* got a fault, or an unlink
+						   was requested */
 };
 
 /*-------------------------------------------------------------------------*/

@@ -903,10 +903,13 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		qh = (struct ehci_qh *) urb->hcpriv;
 		if (!qh)
 			break;
+		qh->exception = 1;
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
-		case QH_STATE_COMPLETING:
 			start_unlink_async(ehci, qh);
+			break;
+		case QH_STATE_COMPLETING:
+			qh->dequeue_during_giveback = 1;
 			break;
 		case QH_STATE_UNLINK:
 		case QH_STATE_UNLINK_WAIT:
@@ -923,10 +926,13 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		qh = (struct ehci_qh *) urb->hcpriv;
 		if (!qh)
 			break;
+		qh->exception = 1;
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
-		case QH_STATE_COMPLETING:
 			start_unlink_intr(ehci, qh);
+			break;
+		case QH_STATE_COMPLETING:
+			qh->dequeue_during_giveback = 1;
 			break;
 		case QH_STATE_IDLE:
 			qh_completions (ehci, qh);
@@ -984,6 +990,7 @@ rescan:
 		goto done;
 	}
 
+	qh->exception = 1;
 	if (ehci->rh_state < EHCI_RH_RUNNING)
 		qh->qh_state = QH_STATE_IDLE;
 	switch (qh->qh_state) {
@@ -1052,13 +1059,12 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 		usb_settoggle(qh->dev, epnum, is_out, 0);
 		if (!list_empty(&qh->qtd_list)) {
 			WARN_ONCE(1, "clear_halt for a busy endpoint\n");
-		} else if (qh->qh_state == QH_STATE_LINKED ||
-				qh->qh_state == QH_STATE_COMPLETING) {
-
+		} else {
 			/* The toggle value in the QH can't be updated
 			 * while the QH is active.  Unlink it now;
 			 * re-linking will call qh_refresh().
 			 */
+			qh->exception = 1;
 			if (eptype == USB_ENDPOINT_XFER_BULK)
 				start_unlink_async(ehci, qh);
 			else

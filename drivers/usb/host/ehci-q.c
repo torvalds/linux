@@ -322,7 +322,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
  rescan:
 	last = NULL;
 	last_status = -EINPROGRESS;
-	qh->needs_rescan = 0;
+	qh->dequeue_during_giveback = 0;
 
 	/* remove de-activated QTDs from front of queue.
 	 * after faults (including short reads), cleanup this urb
@@ -518,18 +518,12 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	}
 
 	/* Do we need to rescan for URBs dequeued during a giveback? */
-	if (unlikely(qh->needs_rescan)) {
+	if (unlikely(qh->dequeue_during_giveback)) {
 		/* If the QH is already unlinked, do the rescan now. */
 		if (state == QH_STATE_IDLE)
 			goto rescan;
 
-		/* Otherwise we have to wait until the QH is fully unlinked.
-		 * Our caller will start an unlink if qh->needs_rescan is
-		 * set.  But if an unlink has already started, nothing needs
-		 * to be done.
-		 */
-		if (state != QH_STATE_LINKED)
-			qh->needs_rescan = 0;
+		/* Otherwise the caller must unlink the QH. */
 	}
 
 	/* restore original state; caller must unlink or relink */
@@ -538,29 +532,23 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* be sure the hardware's done with the qh before refreshing
 	 * it after fault cleanup, or recovering from silicon wrongly
 	 * overlaying the dummy qtd (which reduces DMA chatter).
+	 *
+	 * We won't refresh a QH that's linked (after the HC
+	 * stopped the queue).  That avoids a race:
+	 *  - HC reads first part of QH;
+	 *  - CPU updates that first part and the token;
+	 *  - HC reads rest of that QH, including token
+	 * Result:  HC gets an inconsistent image, and then
+	 * DMAs to/from the wrong memory (corrupting it).
+	 *
+	 * That should be rare for interrupt transfers,
+	 * except maybe high bandwidth ...
 	 */
-	if (stopped != 0 || hw->hw_qtd_next == EHCI_LIST_END(ehci)) {
-		if (state == QH_STATE_LINKED) {
-			/*
-			 * We won't refresh a QH that's linked (after the HC
-			 * stopped the queue).  That avoids a race:
-			 *  - HC reads first part of QH;
-			 *  - CPU updates that first part and the token;
-			 *  - HC reads rest of that QH, including token
-			 * Result:  HC gets an inconsistent image, and then
-			 * DMAs to/from the wrong memory (corrupting it).
-			 *
-			 * That should be rare for interrupt transfers,
-			 * except maybe high bandwidth ...
-			 *
-			 * Therefore tell the caller to start an unlink.
-			 */
-			qh->needs_rescan = 1;
-		}
-		/* otherwise, unlink already started */
-	}
+	if (stopped != 0 || hw->hw_qtd_next == EHCI_LIST_END(ehci))
+		qh->exception = 1;
 
-	return qh->needs_rescan;
+	/* Let the caller know if the QH needs to be unlinked. */
+	return qh->exception;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1002,8 +990,9 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	head->qh_next.qh = qh;
 	head->hw->hw_next = dma;
 
-	qh->xacterrs = 0;
 	qh->qh_state = QH_STATE_LINKED;
+	qh->xacterrs = 0;
+	qh->exception = 0;
 	/* qtd completions reported later by interrupt */
 
 	enable_async(ehci);
@@ -1317,16 +1306,9 @@ static void unlink_empty_async_suspended(struct ehci_hcd *ehci)
 
 static void start_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	/*
-	 * If the QH isn't linked then there's nothing we can do
-	 * unless we were called during a giveback, in which case
-	 * qh_completions() has to deal with it.
-	 */
-	if (qh->qh_state != QH_STATE_LINKED) {
-		if (qh->qh_state == QH_STATE_COMPLETING)
-			qh->needs_rescan = 1;
+	/* If the QH isn't linked then there's nothing we can do. */
+	if (qh->qh_state != QH_STATE_LINKED)
 		return;
-	}
 
 	single_unlink_async(ehci, qh);
 	start_iaa_cycle(ehci, false);
