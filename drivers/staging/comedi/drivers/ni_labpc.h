@@ -60,15 +60,15 @@ struct labpc_private {
 	/*  software copy of analog output values */
 	unsigned int ao_value[NUM_AO_CHAN];
 	/*  software copys of bits written to command registers */
-	unsigned int command1_bits;
-	unsigned int command2_bits;
-	unsigned int command3_bits;
-	unsigned int command4_bits;
-	unsigned int command5_bits;
-	unsigned int command6_bits;
+	unsigned int cmd1;
+	unsigned int cmd2;
+	unsigned int cmd3;
+	unsigned int cmd4;
+	unsigned int cmd5;
+	unsigned int cmd6;
 	/*  store last read of board status registers */
-	unsigned int status1_bits;
-	unsigned int status2_bits;
+	unsigned int stat1;
+	unsigned int stat2;
 	/*
 	 * value to load into board's counter a0 (conversion pacing) for timed
 	 * conversions
