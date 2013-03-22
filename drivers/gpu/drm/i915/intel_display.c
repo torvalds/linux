@@ -3599,9 +3599,13 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
-	/* Disable PF */
-	I915_WRITE(PF_CTL(pipe), 0);
-	I915_WRITE(PF_WIN_SZ(pipe), 0);
+	/* XXX: Once we have proper panel fitter state tracking implemented with
+	 * hardware state read/check support we should switch to only disable
+	 * the panel fitter when we know it's used. */
+	if (intel_using_power_well(dev)) {
+		I915_WRITE(PF_CTL(pipe), 0);
+		I915_WRITE(PF_WIN_SZ(pipe), 0);
+	}
 
 	intel_ddi_disable_pipe_clock(intel_crtc);
 
