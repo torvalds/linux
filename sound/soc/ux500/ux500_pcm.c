@@ -160,18 +160,6 @@ static int ux500_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int ux500_pcm_close(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
-
-	dev_dbg(dai->dev, "%s: Enter\n", __func__);
-
-	snd_dmaengine_pcm_close(substream);
-
-	return 0;
-}
-
 static int ux500_pcm_hw_params(struct snd_pcm_substream *substream,
 			struct snd_pcm_hw_params *hw_params)
 {
@@ -246,7 +234,7 @@ static int ux500_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops ux500_pcm_ops = {
 	.open		= ux500_pcm_open,
-	.close		= ux500_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ux500_pcm_hw_params,
 	.hw_free	= ux500_pcm_hw_free,
