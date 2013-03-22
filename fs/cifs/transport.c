@@ -179,13 +179,7 @@ smb_send_kvec(struct TCP_Server_Info *server, struct kvec *iov, size_t n_vec,
 		 */
 		rc = kernel_sendmsg(ssocket, &smb_msg, &iov[first_vec],
 				    n_vec - first_vec, remaining);
-		if (rc == -ENOSPC || rc == -EAGAIN) {
-			/*
-			 * Catch if a low level driver returns -ENOSPC. This
-			 * WARN_ON will be removed by 3.10 if no one reports
-			 * seeing this.
-			 */
-			WARN_ON_ONCE(rc == -ENOSPC);
+		if (rc == -EAGAIN) {
 			i++;
 			if (i >= 14 || (!server->noblocksnd && (i > 2))) {
 				cifs_dbg(VFS, "sends on sock %p stuck for 15 seconds\n",
