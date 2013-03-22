@@ -2111,9 +2111,8 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 int qlcnic_83xx_config_intrpt(struct qlcnic_adapter *adapter, bool op_type)
 {
 	int i, index, err;
-	bool type;
 	u8 max_ints;
-	u32 val, temp;
+	u32 val, temp, type;
 	struct qlcnic_cmd_args cmd;
 
 	max_ints = adapter->ahw->num_msix - 1;
