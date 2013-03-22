@@ -30,9 +30,6 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/mv_usb.h>
 #include <linux/clk.h>
-#include <asm/system.h>
-#include <asm/unaligned.h>
-#include <asm/byteorder.h>
 
 #include "mv_u3d.h"
 
