@@ -436,13 +436,21 @@ static void labpc_setup_cmd6_reg(struct comedi_device *dev,
 	devpriv->write_byte(devpriv->cmd6, dev->iobase + COMMAND6_REG);
 }
 
-static void labpc_clear_adc_fifo(const struct comedi_device *dev)
+static unsigned int labpc_read_adc_fifo(struct comedi_device *dev)
+{
+	struct labpc_private *devpriv = dev->private;
+	unsigned int lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
+	unsigned int msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
+
+	return (msb << 8) | lsb;
+}
+
+static void labpc_clear_adc_fifo(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 
 	devpriv->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
-	devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-	devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
+	labpc_read_adc_fifo(dev);
 }
 
 static int labpc_ai_insn_read(struct comedi_device *dev,
@@ -455,7 +463,6 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
 	int timeout = 1000;
-	int lsb, msb;
 	int i, n;
 
 	/* disable timed conversions, interrupt generation and dma */
@@ -496,9 +503,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
-		lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-		msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-		data[n] = (msb << 8) | lsb;
+		data[n] = labpc_read_adc_fifo(dev);
 	}
 
 	return n;
@@ -1185,7 +1190,6 @@ static void handle_isa_dma(struct comedi_device *dev)
 static int labpc_drain_fifo(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	unsigned int lsb, msb;
 	short data;
 	struct comedi_async *async = dev->read_subdev->async;
 	const int timeout = 10000;
@@ -1201,9 +1205,7 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 				break;
 			devpriv->count--;
 		}
-		lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-		msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-		data = (msb << 8) | lsb;
+		data = labpc_read_adc_fifo(dev);
 		cfc_write_to_buffer(dev->read_subdev, data);
 		devpriv->stat1 = devpriv->read_byte(dev->iobase + STATUS1_REG);
 	}
