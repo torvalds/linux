@@ -5345,8 +5345,11 @@ static int qla4xxx_probe_adapter(struct pci_dev *pdev,
 	status = qla4xxx_initialize_adapter(ha, INIT_ADAPTER);
 
 	/* Dont retry adapter initialization if IRQ allocation failed */
-	if (!test_bit(AF_IRQ_ATTACHED, &ha->flags))
+	if (is_qla80XX(ha) && !test_bit(AF_IRQ_ATTACHED, &ha->flags)) {
+		ql4_printk(KERN_WARNING, ha, "%s: Skipping retry of adapter initialization\n",
+			   __func__);
 		goto skip_retry_init;
+	}
 
 	while ((!test_bit(AF_ONLINE, &ha->flags)) &&
 	    init_retry_count++ < MAX_INIT_RETRIES) {
