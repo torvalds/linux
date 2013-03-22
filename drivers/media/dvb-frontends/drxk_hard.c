@@ -2628,7 +2628,7 @@ static int GetDVBTSignalToNoise(struct drxk_state *state,
 		/* log(x) x = (16bits + 16bits) << 15 ->32 bits  */
 		c = Log10Times100(SqrErrIQ);
 
-		iMER = a + b;
+		iMER = a + b - c;
 	}
 	*pSignalToNoise = iMER;
 
