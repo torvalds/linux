@@ -20,9 +20,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  * Authors: Dave Airlie
+ *          Christian König
  */
 #ifndef DRM_FIXED_H
 #define DRM_FIXED_H
+
+#include <linux/math64.h>
 
 typedef union dfixed {
 	u32 full;
@@ -65,4 +68,95 @@ static inline u32 dfixed_div(fixed20_12 A, fixed20_12 B)
 	tmp /= 2;
 	return lower_32_bits(tmp);
 }
+
+#define DRM_FIXED_POINT		32
+#define DRM_FIXED_ONE		(1ULL << DRM_FIXED_POINT)
+#define DRM_FIXED_DECIMAL_MASK	(DRM_FIXED_ONE - 1)
+#define DRM_FIXED_DIGITS_MASK	(~DRM_FIXED_DECIMAL_MASK)
+
+static inline s64 drm_int2fixp(int a)
+{
+	return ((s64)a) << DRM_FIXED_POINT;
+}
+
+static inline int drm_fixp2int(int64_t a)
+{
+	return ((s64)a) >> DRM_FIXED_POINT;
+}
+
+static inline s64 drm_fixp_msbset(int64_t a)
+{
+	unsigned shift, sign = (a >> 63) & 1;
+
+	for (shift = 62; shift > 0; --shift)
+		if ((a >> shift) != sign)
+			return shift;
+
+	return 0;
+}
+
+static inline s64 drm_fixp_mul(s64 a, s64 b)
+{
+	unsigned shift = drm_fixp_msbset(a) + drm_fixp_msbset(b);
+	s64 result;
+
+	if (shift > 63) {
+		shift = shift - 63;
+		a >>= shift >> 1;
+		b >>= shift >> 1;
+	} else
+		shift = 0;
+
+	result = a * b;
+
+	if (shift > DRM_FIXED_POINT)
+		return result << (shift - DRM_FIXED_POINT);
+
+	if (shift < DRM_FIXED_POINT)
+		return result >> (DRM_FIXED_POINT - shift);
+
+	return result;
+}
+
+static inline s64 drm_fixp_div(s64 a, s64 b)
+{
+	unsigned shift = 63 - drm_fixp_msbset(a);
+	s64 result;
+
+	a <<= shift;
+
+	if (shift < DRM_FIXED_POINT)
+		b >>= (DRM_FIXED_POINT - shift);
+
+	result = div64_s64(a, b);
+
+	if (shift > DRM_FIXED_POINT)
+		return result >> (shift - DRM_FIXED_POINT);
+
+	return result;
+}
+
+static inline s64 drm_fixp_exp(s64 x)
+{
+	s64 tolerance = div64_s64(DRM_FIXED_ONE, 1000000);
+	s64 sum = DRM_FIXED_ONE, term, y = x;
+	u64 count = 1;
+
+	if (x < 0)
+		y = -1 * x;
+
+	term = y;
+
+	while (term >= tolerance) {
+		sum = sum + term;
+		count = count + 1;
+		term = drm_fixp_mul(term, div64_s64(y, count));
+	}
+
+	if (x < 0)
+		sum = drm_fixp_div(1, sum);
+
+	return sum;
+}
+
 #endif
