@@ -1268,7 +1268,6 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh;
 	struct ehci_qh		*qh_to_unlink = NULL;
-	bool			check_unlinks_later = false;
 	int			count = 0;
 
 	/* Find the last async QH which has been empty for a timer cycle */
@@ -1276,9 +1275,7 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 		if (list_empty(&qh->qtd_list) &&
 				qh->qh_state == QH_STATE_LINKED) {
 			++count;
-			if (qh->unlink_cycle == ehci->async_unlink_cycle)
-				check_unlinks_later = true;
-			else
+			if (qh->unlink_cycle != ehci->async_unlink_cycle)
 				qh_to_unlink = qh;
 		}
 	}
