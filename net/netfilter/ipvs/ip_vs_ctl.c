@@ -825,6 +825,11 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	if (add) {
 		list_add(&dest->n_list, &svc->destinations);
 		svc->num_dests++;
+		if (svc->scheduler->add_dest)
+			svc->scheduler->add_dest(svc, dest);
+	} else {
+		if (svc->scheduler->upd_dest)
+			svc->scheduler->upd_dest(svc, dest);
 	}
 
 	/* call the update_service, because server weight may be changed */
@@ -1070,6 +1075,9 @@ static void __ip_vs_unlink_dest(struct ip_vs_service *svc,
 	 */
 	list_del(&dest->n_list);
 	svc->num_dests--;
+
+	if (svcupd && svc->scheduler->del_dest)
+		svc->scheduler->del_dest(svc, dest);
 
 	/*
 	 *  Call the update_service function of its scheduler
