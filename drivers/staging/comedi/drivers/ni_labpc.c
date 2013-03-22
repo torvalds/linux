@@ -858,11 +858,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	enum scan_mode mode;
 	unsigned long flags;
 
-	if (!dev->irq) {
-		comedi_error(dev, "no irq assigned, cannot perform command");
-		return -1;
-	}
-
 	range = CR_RANGE(cmd->chanlist[0]);
 	aref = CR_AREF(cmd->chanlist[0]);
 
