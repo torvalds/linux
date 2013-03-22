@@ -1,77 +1,70 @@
 /*
-    comedi/drivers/ni_labpc.c
-    Driver for National Instruments Lab-PC series boards and compatibles
-    Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-************************************************************************
-*/
-/*
-Driver: ni_labpc
-Description: National Instruments Lab-PC (& compatibles)
-Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [National Instruments] Lab-PC-1200 (labpc-1200),
-  Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (ni_labpc)
-Status: works
-
-Tested with lab-pc-1200.  For the older Lab-PC+, not all input ranges
-and analog references will work, the available ranges/arefs will
-depend on how you have configured the jumpers on your board
-(see your owner's manual).
-
-Kernel-level ISA plug-and-play support for the lab-pc-1200
-boards has not
-yet been added to the driver, mainly due to the fact that
-I don't know the device id numbers.  If you have one
-of these boards,
-please file a bug report at http://comedi.org/ 
-so I can get the necessary information from you.
-
-The 1200 series boards have onboard calibration dacs for correcting
-analog input/output offsets and gains.  The proper settings for these
-caldacs are stored on the board's eeprom.  To read the caldac values
-from the eeprom and store them into a file that can be then be used by
-comedilib, use the comedi_calibrate program.
-
-Configuration options - ISA boards:
-  [0] - I/O port base address
-  [1] - IRQ (optional, required for timed or externally triggered conversions)
-  [2] - DMA channel (optional)
-
-Configuration options - PCI boards:
-  [0] - bus (optional)
-  [1] - slot (optional)
-
-The Lab-pc+ has quirky chanlist requirements
-when scanning multiple channels.  Multiple channel scan
-sequence must start at highest channel, then decrement down to
-channel 0.  The rest of the cards can scan down like lab-pc+ or scan
-up from channel zero.  Chanlists consisting of all one channel
-are also legal, and allow you to pace conversions in bursts.
-
-*/
+ * comedi/drivers/ni_labpc.c
+ * Driver for National Instruments Lab-PC series boards and compatibles
+ * Copyright (C) 2001-2003 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 /*
-
-NI manuals:
-341309a (labpc-1200 register manual)
-340914a (pci-1200)
-320502b (lab-pc+)
-
-*/
+ * Driver: ni_labpc
+ * Description: National Instruments Lab-PC (& compatibles)
+ * Devices: (National Instruments) Lab-PC-1200 [lab-pc-1200]
+ *	    (National Instruments) Lab-PC-1200AI [lab-pc-1200ai]
+ *	    (National Instruments) Lab-PC+ [lab-pc+]
+ *	    (National Instruments) PCI-1200 [pci-1200]
+ * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Status: works
+ *
+ * Configuration options - ISA boards:
+ *   [0] - I/O port base address
+ *   [1] - IRQ (optional, required for timed or externally triggered
+ *		conversions)
+ *   [2] - DMA channel (optional)
+ *
+ * Configuration options - PCI boards:
+ *    not applicable, uses PCI auto config
+ *
+ * Tested with lab-pc-1200.  For the older Lab-PC+, not all input
+ * ranges and analog references will work, the available ranges/arefs
+ * will depend on how you have configured the jumpers on your board
+ * (see your owner's manual).
+ *
+ * Kernel-level ISA plug-and-play support for the lab-pc-1200 boards
+ * has not yet been added to the driver, mainly due to the fact that
+ * I don't know the device id numbers. If you have one of these boards,
+ * please file a bug report at http://comedi.org/ so I can get the
+ * necessary information from you.
+ *
+ * The 1200 series boards have onboard calibration dacs for correcting
+ * analog input/output offsets and gains. The proper settings for these
+ * caldacs are stored on the board's eeprom. To read the caldac values
+ * from the eeprom and store them into a file that can be then be used
+ * by comedilib, use the comedi_calibrate program.
+ *
+ * The Lab-pc+ has quirky chanlist requirements when scanning multiple
+ * channels. Multiple channel scan sequence must start at highest channel,
+ * then decrement down to channel 0. The rest of the cards can scan down
+ * like lab-pc+ or scan up from channel zero. Chanlists consisting of all
+ * one channel are also legal, and allow you to pace conversions in bursts.
+ *
+ * NI manuals:
+ * 341309a (labpc-1200 register manual)
+ * 340914a (pci-1200)
+ * 320502b (lab-pc+)
+ */
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
