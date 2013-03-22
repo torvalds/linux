@@ -1618,6 +1618,13 @@ EXPORT_SYMBOL_GPL(ktime_get_monotonic_offset);
  */
 int do_adjtimex(struct timex *txc)
 {
+	int ret;
+
+	/* Validate the data before disabling interrupts */
+	ret = ntp_validate_timex(txc);
+	if (ret)
+		return ret;
+
 	return __do_adjtimex(txc);
 }
 

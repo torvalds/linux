@@ -668,11 +668,6 @@ int __do_adjtimex(struct timex *txc)
 	u32 time_tai, orig_tai;
 	int result;
 
-	/* Validate the data before disabling interrupts */
-	result = ntp_validate_timex(txc);
-	if (result)
-		return result;
-
 	if (txc->modes & ADJ_SETOFFSET) {
 		struct timespec delta;
 		delta.tv_sec  = txc->time.tv_sec;
