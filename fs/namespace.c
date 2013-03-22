@@ -1713,6 +1713,9 @@ static int change_mount_flags(struct vfsmount *mnt, int ms_flags)
 	if (readonly_request == __mnt_is_readonly(mnt))
 		return 0;
 
+	if (mnt->mnt_flags & MNT_LOCK_READONLY)
+		return -EPERM;
+
 	if (readonly_request)
 		error = mnt_make_readonly(real_mount(mnt));
 	else
