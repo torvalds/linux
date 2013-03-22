@@ -1062,16 +1062,7 @@ static int assign_out_path_ctls(struct hda_codec *codec, struct nid_path *path)
 	return badness;
 }
 
-struct badness_table {
-	int no_primary_dac;	/* no primary DAC */
-	int no_dac;		/* no secondary DACs */
-	int shared_primary;	/* primary DAC is shared with main output */
-	int shared_surr;	/* secondary DAC shared with main or primary */
-	int shared_clfe;	/* third DAC shared with main or primary */
-	int shared_surr_main;	/* secondary DAC sahred with main/DAC0 */
-};
-
-static struct badness_table main_out_badness = {
+const struct badness_table hda_main_out_badness = {
 	.no_primary_dac = BAD_NO_PRIMARY_DAC,
 	.no_dac = BAD_NO_DAC,
 	.shared_primary = BAD_NO_PRIMARY_DAC,
@@ -1079,8 +1070,9 @@ static struct badness_table main_out_badness = {
 	.shared_clfe = BAD_SHARED_CLFE,
 	.shared_surr_main = BAD_SHARED_SURROUND,
 };
+EXPORT_SYMBOL_HDA(hda_main_out_badness);
 
-static struct badness_table extra_out_badness = {
+const struct badness_table hda_extra_out_badness = {
 	.no_primary_dac = BAD_NO_DAC,
 	.no_dac = BAD_NO_DAC,
 	.shared_primary = BAD_NO_EXTRA_DAC,
@@ -1088,6 +1080,7 @@ static struct badness_table extra_out_badness = {
 	.shared_clfe = BAD_SHARED_EXTRA_SURROUND,
 	.shared_surr_main = BAD_NO_EXTRA_SURR_DAC,
 };
+EXPORT_SYMBOL_HDA(hda_extra_out_badness);
 
 /* get the DAC of the primary output corresponding to the given array index */
 static hda_nid_t get_primary_out(struct hda_codec *codec, int idx)
@@ -1518,7 +1511,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 
 	badness += try_assign_dacs(codec, cfg->line_outs, cfg->line_out_pins,
 				   spec->private_dac_nids, spec->out_paths,
-				   &main_out_badness);
+				   spec->main_out_badness);
 
 	if (fill_mio_first &&
 	    cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
@@ -1533,7 +1526,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 		err = try_assign_dacs(codec, cfg->hp_outs, cfg->hp_pins,
 				      spec->multiout.hp_out_nid,
 				      spec->hp_paths,
-				      &extra_out_badness);
+				      spec->extra_out_badness);
 		if (err < 0)
 			return err;
 		badness += err;
@@ -1543,7 +1536,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 				      cfg->speaker_pins,
 				      spec->multiout.extra_out_nid,
 				      spec->speaker_paths,
-				      &extra_out_badness);
+				      spec->extra_out_badness);
 		if (err < 0)
 			return err;
 		badness += err;
@@ -4179,6 +4172,11 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 		spec->autocfg = *cfg;
 		cfg = &spec->autocfg;
 	}
+
+	if (!spec->main_out_badness)
+		spec->main_out_badness = &hda_main_out_badness;
+	if (!spec->extra_out_badness)
+		spec->extra_out_badness = &hda_extra_out_badness;
 
 	fill_all_dac_nids(codec);
 

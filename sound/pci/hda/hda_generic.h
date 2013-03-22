@@ -76,6 +76,19 @@ enum {
 	HDA_GEN_PCM_ACT_CLOSE,
 };
 
+/* DAC assignment badness table */
+struct badness_table {
+	int no_primary_dac;	/* no primary DAC */
+	int no_dac;		/* no secondary DACs */
+	int shared_primary;	/* primary DAC is shared with main output */
+	int shared_surr;	/* secondary DAC shared with main or primary */
+	int shared_clfe;	/* third DAC shared with main or primary */
+	int shared_surr_main;	/* secondary DAC sahred with main/DAC0 */
+};
+
+extern const struct badness_table hda_main_out_badness;
+extern const struct badness_table hda_extra_out_badness;
+
 struct hda_gen_spec {
 	char stream_name_analog[32];	/* analog PCM stream */
 	const struct hda_pcm_stream *stream_analog_playback;
@@ -222,6 +235,10 @@ struct hda_gen_spec {
 	unsigned int indep_hp_enabled:1; /* independent HP enabled */
 	unsigned int have_aamix_ctl:1;
 	unsigned int hp_mic_jack_modes:1;
+
+	/* badness tables for output path evaluations */
+	const struct badness_table *main_out_badness;
+	const struct badness_table *extra_out_badness;
 
 	/* loopback mixing mode */
 	bool aamix_mode;
