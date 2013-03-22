@@ -257,6 +257,12 @@ static struct clk vpss_master_clk = {
 	.flags		= CLK_PSC,
 };
 
+static struct clk vpss_slave_clk = {
+	.name		= "vpss_slave",
+	.parent		= &pll1_sysclk5,
+	.lpsc		= DAVINCI_LPSC_VPSSSLV,
+};
+
 static struct clk arm_clk = {
 	.name		= "arm_clk",
 	.parent		= &pll2_sysclk2,
@@ -449,7 +455,8 @@ static struct clk_lookup dm365_clks[] = {
 	CLK(NULL, "pll2_sysclk8", &pll2_sysclk8),
 	CLK(NULL, "pll2_sysclk9", &pll2_sysclk9),
 	CLK(NULL, "vpss_dac", &vpss_dac_clk),
-	CLK(NULL, "vpss_master", &vpss_master_clk),
+	CLK("vpss", "master", &vpss_master_clk),
+	CLK("vpss", "slave", &vpss_slave_clk),
 	CLK(NULL, "arm", &arm_clk),
 	CLK(NULL, "uart0", &uart0_clk),
 	CLK(NULL, "uart1", &uart1_clk),
@@ -1239,8 +1246,6 @@ static int __init dm365_init_devices(void)
 	clk_add_alias(NULL, dev_name(&dm365_mdio_device.dev),
 		      NULL, &dm365_emac_device.dev);
 
-	/* Add isif clock alias */
-	clk_add_alias("master", dm365_isif_dev.name, "vpss_master", NULL);
 	platform_device_register(&dm365_vpss_device);
 	platform_device_register(&dm365_isif_dev);
 	platform_device_register(&vpfe_capture_dev);

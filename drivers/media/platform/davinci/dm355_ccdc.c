@@ -37,7 +37,6 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/videodev2.h>
-#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/module.h>
 
@@ -59,10 +58,6 @@ static struct ccdc_oper_config {
 	struct ccdc_params_raw bayer;
 	/* YCbCr configuration */
 	struct ccdc_params_ycbcr ycbcr;
-	/* Master clock */
-	struct clk *mclk;
-	/* slave clock */
-	struct clk *sclk;
 	/* ccdc base address */
 	void __iomem *base_addr;
 } ccdc_cfg = {
@@ -997,32 +992,10 @@ static int dm355_ccdc_probe(struct platform_device *pdev)
 		goto fail_nomem;
 	}
 
-	/* Get and enable Master clock */
-	ccdc_cfg.mclk = clk_get(&pdev->dev, "master");
-	if (IS_ERR(ccdc_cfg.mclk)) {
-		status = PTR_ERR(ccdc_cfg.mclk);
-		goto fail_nomap;
-	}
-	if (clk_prepare_enable(ccdc_cfg.mclk)) {
-		status = -ENODEV;
-		goto fail_mclk;
-	}
-
-	/* Get and enable Slave clock */
-	ccdc_cfg.sclk = clk_get(&pdev->dev, "slave");
-	if (IS_ERR(ccdc_cfg.sclk)) {
-		status = PTR_ERR(ccdc_cfg.sclk);
-		goto fail_mclk;
-	}
-	if (clk_prepare_enable(ccdc_cfg.sclk)) {
-		status = -ENODEV;
-		goto fail_sclk;
-	}
-
 	/* Platform data holds setup_pinmux function ptr */
 	if (NULL == pdev->dev.platform_data) {
 		status = -ENODEV;
-		goto fail_sclk;
+		goto fail_nomap;
 	}
 	setup_pinmux = pdev->dev.platform_data;
 	/*
@@ -1033,12 +1006,6 @@ static int dm355_ccdc_probe(struct platform_device *pdev)
 	ccdc_cfg.dev = &pdev->dev;
 	printk(KERN_NOTICE "%s is registered with vpfe.\n", ccdc_hw_dev.name);
 	return 0;
-fail_sclk:
-	clk_disable_unprepare(ccdc_cfg.sclk);
-	clk_put(ccdc_cfg.sclk);
-fail_mclk:
-	clk_disable_unprepare(ccdc_cfg.mclk);
-	clk_put(ccdc_cfg.mclk);
 fail_nomap:
 	iounmap(ccdc_cfg.base_addr);
 fail_nomem:
@@ -1052,10 +1019,6 @@ static int dm355_ccdc_remove(struct platform_device *pdev)
 {
 	struct resource	*res;
 
-	clk_disable_unprepare(ccdc_cfg.sclk);
-	clk_disable_unprepare(ccdc_cfg.mclk);
-	clk_put(ccdc_cfg.mclk);
-	clk_put(ccdc_cfg.sclk);
 	iounmap(ccdc_cfg.base_addr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)

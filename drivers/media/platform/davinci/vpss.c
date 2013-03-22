@@ -25,6 +25,8 @@
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
+
 #include <media/davinci/vpss.h>
 
 MODULE_LICENSE("GPL");
@@ -490,6 +492,10 @@ static int vpss_probe(struct platform_device *pdev)
 	} else
 		oper_cfg.hw_ops.clear_wbl_overflow = dm644x_clear_wbl_overflow;
 
+	pm_runtime_enable(&pdev->dev);
+
+	pm_runtime_get(&pdev->dev);
+
 	spin_lock_init(&oper_cfg.vpss_lock);
 	dev_info(&pdev->dev, "%s vpss probe success\n", platform_name);
 	return 0;
@@ -507,6 +513,7 @@ static int vpss_remove(struct platform_device *pdev)
 {
 	struct resource		*res;
 
+	pm_runtime_disable(&pdev->dev);
 	iounmap(oper_cfg.vpss_regs_base0);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
@@ -518,10 +525,28 @@ static int vpss_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int vpss_suspend(struct device *dev)
+{
+	pm_runtime_put(dev);
+	return 0;
+}
+
+static int vpss_resume(struct device *dev)
+{
+	pm_runtime_get(dev);
+	return 0;
+}
+
+static const struct dev_pm_ops vpss_pm_ops = {
+	.suspend = vpss_suspend,
+	.resume = vpss_resume,
+};
+
 static struct platform_driver vpss_driver = {
 	.driver = {
 		.name	= "vpss",
 		.owner = THIS_MODULE,
+		.pm = &vpss_pm_ops,
 	},
 	.remove = vpss_remove,
 	.probe = vpss_probe,
