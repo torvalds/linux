@@ -878,8 +878,12 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kzalloc(psl->ucNumEntries *
 					sizeof(struct radeon_phase_shedding_limits_entry),
 					GFP_KERNEL);
-			if (!rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries)
+			if (!rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
 				return -ENOMEM;
+			}
 
 			for (i = 0; i < psl->ucNumEntries; i++) {
 				rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries[i].sclk =
@@ -946,8 +950,13 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				 le16_to_cpu(ext_hdr->usPPMTableOffset));
 			rdev->pm.dpm.dyn_state.ppm_table =
 				kzalloc(sizeof(struct radeon_ppm_table), GFP_KERNEL);
-			if (!rdev->pm.dpm.dyn_state.ppm_table)
+			if (!rdev->pm.dpm.dyn_state.ppm_table) {
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
 				return -ENOMEM;
+			}
 			rdev->pm.dpm.dyn_state.ppm_table->ppm_design = ppm->ucPpmDesign;
 			rdev->pm.dpm.dyn_state.ppm_table->cpu_core_number =
 				le16_to_cpu(ppm->usCpuCoreNumber);
