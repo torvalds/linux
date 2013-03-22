@@ -52,6 +52,8 @@ REVISION 0.01
 #include "clk_volt.h"
 #include "freq_limit.h"
 #include "cpu_usage.h"
+#include "auto_wakeup.h"
+#include "clk_auto_volt.h"
 //#include "rk2928_freq.h"
 //#include "rk2928_max_freq.h"
 //#include "cpu_calc.h"
@@ -82,7 +84,12 @@ static struct pm_attribute pm_attrs[] = {
 #ifdef CONFIG_PM_TEST_CPU_USAGE
 	__ATTR(cpu_usage, S_IRUGO | S_IWUSR, cpu_usage_show, cpu_usage_store),
 #endif
-		
+#ifdef CONFIG_PM_TEST_AUTO_WAKEUP
+	__ATTR(auto_wakeup, S_IRUGO | S_IWUSR, auto_wakeup_show, auto_wakeup_store),
+#endif
+#ifdef CONFIG_PM_TEST_CLK_AUTO_VOLT
+	__ATTR(clk_auto_volt, S_IRUGO | S_IWUSR, clk_auto_volt_show, clk_auto_volt_store),
+#endif
 #if 0
 	__ATTR(ddr_scale_freq, S_IRUGO | S_IWUSR, ddr_scale_freq_show, ddr_scale_freq_store),
 	__ATTR(pmic_delay, S_IRUGO | S_IWUSR, pmic_delay_show, pmic_delay_store),

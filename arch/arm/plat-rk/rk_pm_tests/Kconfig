@@ -26,4 +26,15 @@ config PM_TEST_CPU_USAGE
 	bool "Set cpu running at a fixed frequency"
 	help
 	  Use to Set cpu running at a fixed frequency
+
+config PM_TEST_AUTO_WAKEUP
+	bool "Auto wakeup"
+	help
+	  Use to auto wake up system
+
+config PM_TEST_CLK_AUTO_VOLT
+	bool "Auto scale voltage"
+	help
+	  Use to auto scale regulator's voltage by step
+
 endif
