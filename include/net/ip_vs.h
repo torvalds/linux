@@ -749,6 +749,8 @@ struct ip_vs_dest_dst {
 	struct rcu_head		rcu_head;
 };
 
+/* In grace period after removing */
+#define IP_VS_DEST_STATE_REMOVING	0x01
 /*
  *	The real server destination forwarding entry
  *	with ip address, port number, and so on.
@@ -766,6 +768,7 @@ struct ip_vs_dest {
 
 	atomic_t		refcnt;		/* reference counter */
 	struct ip_vs_stats      stats;          /* statistics */
+	unsigned long		state;		/* state flags */
 
 	/* connection counters and thresholds */
 	atomic_t		activeconns;	/* active connections */
@@ -785,6 +788,7 @@ struct ip_vs_dest {
 	union nf_inet_addr	vaddr;		/* virtual IP address */
 	__u32			vfwmark;	/* firewall mark of service */
 
+	struct list_head	t_list;		/* in dest_trash */
 	struct rcu_head		rcu_head;
 	unsigned int		in_rs_table:1;	/* we are in rs_table */
 };
@@ -912,6 +916,9 @@ struct ipvs_master_sync_state {
 	struct netns_ipvs	*ipvs;
 };
 
+/* How much time to keep dests in trash */
+#define IP_VS_DEST_TRASH_PERIOD		(120 * HZ)
+
 /* IPVS in network namespace */
 struct netns_ipvs {
 	int			gen;		/* Generation */
@@ -961,6 +968,8 @@ struct netns_ipvs {
 
 	/* Trash for destinations */
 	struct list_head	dest_trash;
+	spinlock_t		dest_trash_lock;
+	struct timer_list	dest_trash_timer; /* expiration timer */
 	/* Service counters */
 	atomic_t		ftpsvc_counter;
 	atomic_t		nullsvc_counter;
