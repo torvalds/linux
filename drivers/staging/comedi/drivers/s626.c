@@ -137,9 +137,18 @@ struct enc_private {
 /*  Translation table to map IntSrc into equivalent RDMISC2 event flag  bits. */
 /* static const uint16_t EventBits[][4] = { EVBITS(0), EVBITS(1), EVBITS(2), EVBITS(3), EVBITS(4), EVBITS(5) }; */
 
-/*  enab/disable a function or test status bit(s) that are accessed */
-/*  through Main Control Registers 1 or 2. */
-#define MC_ENABLE(REGADRS, CTRLWORD)	writel(((uint32_t)(CTRLWORD) << 16) | (uint32_t)(CTRLWORD), devpriv->base_addr+(REGADRS))
+/*
+ * Enable/disable a function or test status bit(s) that are accessed
+ * through Main Control Registers 1 or 2.
+ */
+static void s626_mc_enable(struct comedi_device *dev,
+			   unsigned int cmd, unsigned int reg)
+{
+	struct s626_private *devpriv = dev->private;
+	unsigned int val = (cmd << 16) | cmd;
+
+	writel(val, devpriv->base_addr + reg);
+}
 
 #define MC_DISABLE(REGADRS, CTRLWORD)	writel((uint32_t)(CTRLWORD) << 16 , devpriv->base_addr+(REGADRS))
 
@@ -177,8 +186,8 @@ static void DEBItransfer(struct comedi_device *dev)
 {
 	struct s626_private *devpriv = dev->private;
 
-	/*  Initiate upload of shadow RAM to DEBI control register. */
-	MC_ENABLE(P_MC2, MC2_UPLD_DEBI);
+	/* Initiate upload of shadow RAM to DEBI control register */
+	s626_mc_enable(dev, MC2_UPLD_DEBI, P_MC2);
 
 	/*  Wait for completion of upload from shadow RAM to DEBI control */
 	/*  register. */
@@ -255,10 +264,11 @@ static uint32_t I2Chandshake(struct comedi_device *dev, uint32_t val)
 	/*  Write I2C command to I2C Transfer Control shadow register. */
 	WR7146(P_I2CCTRL, val);
 
-	/*  Upload I2C shadow registers into working registers and wait for */
-	/*  upload confirmation. */
-
-	MC_ENABLE(P_MC2, MC2_UPLD_IIC);
+	/*
+	 * Upload I2C shadow registers into working registers and
+	 * wait for upload confirmation.
+	 */
+	s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
 	while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
 		;
 
@@ -348,12 +358,13 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	/* WR7146( (uint32_t)devpriv->pDacWBuf, val ); */
 	*devpriv->pDacWBuf = val;
 
-	/* enab the output DMA transfer.  This will cause the DMAC to copy
-	 * the DAC's data value to A2's output FIFO.  The DMA transfer will
+	/*
+	 * Enable the output DMA transfer. This will cause the DMAC to copy
+	 * the DAC's data value to A2's output FIFO. The DMA transfer will
 	 * then immediately terminate because the protection address is
 	 * reached upon transfer of the first DWORD value.
 	 */
-	MC_ENABLE(P_MC1, MC1_A2OUT);
+	s626_mc_enable(dev, MC1_A2OUT, P_MC1);
 
 	/*  While the DMA transfer is executing ... */
 
@@ -675,15 +686,15 @@ static void handle_dio_interrupt(struct comedi_device *dev,
 		if ((irqbit >> (cmd->start_arg - (16 * group))) == 1 &&
 		    cmd->start_src == TRIG_EXT) {
 			/* Start executing the RPS program */
-			MC_ENABLE(P_MC1, MC1_ERPS1);
+			s626_mc_enable(dev, MC1_ERPS1, P_MC1);
 
 			if (cmd->scan_begin_src == TRIG_EXT)
 				s626_dio_set_irq(dev, cmd->scan_begin_arg);
 		}
 		if ((irqbit >> (cmd->scan_begin_arg - (16 * group))) == 1 &&
 		    cmd->scan_begin_src == TRIG_EXT) {
-			/* Trigger ADC scan loop start (set RPS Signal 0) */
-			MC_ENABLE(P_MC2, MC2_ADC_RPS);
+			/* Trigger ADC scan loop start */
+			s626_mc_enable(dev, MC2_ADC_RPS, P_MC2);
 
 			if (cmd->convert_src == TRIG_EXT) {
 				devpriv->ai_convert_count = cmd->chanlist_len;
@@ -700,8 +711,8 @@ static void handle_dio_interrupt(struct comedi_device *dev,
 		}
 		if ((irqbit >> (cmd->convert_arg - (16 * group))) == 1 &&
 		    cmd->convert_src == TRIG_EXT) {
-			/* Trigger ADC scan loop start (set RPS Signal 0) */
-			MC_ENABLE(P_MC2, MC2_ADC_RPS);
+			/* Trigger ADC scan loop start */
+			s626_mc_enable(dev, MC2_ADC_RPS, P_MC2);
 
 			devpriv->ai_convert_count--;
 			if (devpriv->ai_convert_count > 0)
@@ -777,8 +788,8 @@ static void check_counter_interrupts(struct comedi_device *dev)
 				k->SetEnable(dev, k, CLKENAB_INDEX);
 
 			if (cmd->convert_src == TRIG_TIMER) {
-				/*  Trigger ADC scan loop start by setting RPS Signal 0. */
-				MC_ENABLE(P_MC2, MC2_ADC_RPS);
+				/* Trigger ADC scan loop start */
+				s626_mc_enable(dev, MC2_ADC_RPS, P_MC2);
 			}
 		}
 	}
@@ -789,8 +800,8 @@ static void check_counter_interrupts(struct comedi_device *dev)
 		k->ResetCapFlags(dev, k);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
-			/*  Trigger ADC scan loop start by setting RPS Signal 0. */
-			MC_ENABLE(P_MC2, MC2_ADC_RPS);
+			/* Trigger ADC scan loop start */
+			s626_mc_enable(dev, MC2_ADC_RPS, P_MC2);
 		}
 
 		if (cmd->convert_src == TRIG_TIMER) {
@@ -1111,8 +1122,8 @@ static int s626_ai_rinsn(struct comedi_device *dev,
 	register uint8_t i;
 	register int32_t *readaddr;
 
-	/* Trigger ADC scan loop start (set RPS Signal 0) */
-	MC_ENABLE(P_MC2, MC2_ADC_RPS);
+	/* Trigger ADC scan loop start */
+	s626_mc_enable(dev, MC2_ADC_RPS, P_MC2);
 
 	/* Wait until ADC scan loop is finished (RPS Signal 0 reset) */
 	while (MC_TEST(P_MC2, MC2_ADC_RPS))
@@ -1254,13 +1265,11 @@ static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd)
 static int s626_ai_inttrig(struct comedi_device *dev,
 			   struct comedi_subdevice *s, unsigned int trignum)
 {
-	struct s626_private *devpriv = dev->private;
-
 	if (trignum != 0)
 		return -EINVAL;
 
-	/*  Start executing the RPS program. */
-	MC_ENABLE(P_MC1, MC1_ERPS1);
+	/* Start executing the RPS program */
+	s626_mc_enable(dev, MC1_ERPS1, P_MC1);
 
 	s->async->inttrig = NULL;
 
@@ -1428,11 +1437,11 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	switch (cmd->start_src) {
 	case TRIG_NOW:
-		/*  Trigger ADC scan loop start by setting RPS Signal 0. */
-		/*  MC_ENABLE( P_MC2, MC2_ADC_RPS ); */
+		/* Trigger ADC scan loop start */
+		/* s626_mc_enable(dev, MC2_ADC_RPS, P_MC2); */
 
-		/*  Start executing the RPS program. */
-		MC_ENABLE(P_MC1, MC1_ERPS1);
+		/* Start executing the RPS program */
+		s626_mc_enable(dev, MC1_ERPS1, P_MC1);
 
 		s->async->inttrig = NULL;
 		break;
@@ -2368,7 +2377,7 @@ static void s626_initialize(struct comedi_device *dev)
 	int i;
 
 	/* Enable DEBI and audio pins, enable I2C interface */
-	MC_ENABLE(P_MC1, MC1_DEBI | MC1_AUDIO | MC1_I2C);
+	s626_mc_enable(dev, MC1_DEBI | MC1_AUDIO | MC1_I2C, P_MC1);
 
 	/*
 	 *  Configure DEBI operating mode
@@ -2396,7 +2405,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * operation in progress and reset BUSY flag.
 	 */
 	WR7146(P_I2CSTAT, I2C_CLKSEL | I2C_ABORT);
-	MC_ENABLE(P_MC2, MC2_UPLD_IIC);
+	s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
 	while ((RR7146(P_MC2) & MC2_UPLD_IIC) == 0)
 		;
 
@@ -2406,7 +2415,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 	for (i = 0; i < 2; i++) {
 		WR7146(P_I2CSTAT, I2C_CLKSEL);
-		MC_ENABLE(P_MC2, MC2_UPLD_IIC);
+		s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
 		while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
 			;
 	}
