@@ -64,22 +64,17 @@ int ip_vs_bind_scheduler(struct ip_vs_service *svc,
 /*
  *  Unbind a service with its scheduler
  */
-int ip_vs_unbind_scheduler(struct ip_vs_service *svc)
+void ip_vs_unbind_scheduler(struct ip_vs_service *svc)
 {
 	struct ip_vs_scheduler *sched = svc->scheduler;
 
 	if (!sched)
-		return 0;
+		return;
 
-	if (sched->done_service) {
-		if (sched->done_service(svc) != 0) {
-			pr_err("%s(): done error\n", __func__);
-			return -EINVAL;
-		}
-	}
+	if (sched->done_service)
+		sched->done_service(svc);
 
 	svc->scheduler = NULL;
-	return 0;
 }
 
 

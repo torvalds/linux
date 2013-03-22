@@ -129,7 +129,7 @@ static int ip_vs_wrr_init_svc(struct ip_vs_service *svc)
 }
 
 
-static int ip_vs_wrr_done_svc(struct ip_vs_service *svc)
+static void ip_vs_wrr_done_svc(struct ip_vs_service *svc)
 {
 	struct ip_vs_wrr_mark *mark = svc->sched_data;
 
@@ -137,8 +137,6 @@ static int ip_vs_wrr_done_svc(struct ip_vs_service *svc)
 	 *    Release the mark variable
 	 */
 	kfree_rcu(mark, rcu_head);
-
-	return 0;
 }
 
 

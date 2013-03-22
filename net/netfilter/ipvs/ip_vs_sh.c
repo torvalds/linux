@@ -187,7 +187,7 @@ static int ip_vs_sh_init_svc(struct ip_vs_service *svc)
 }
 
 
-static int ip_vs_sh_done_svc(struct ip_vs_service *svc)
+static void ip_vs_sh_done_svc(struct ip_vs_service *svc)
 {
 	struct ip_vs_sh_state *s = svc->sched_data;
 
@@ -198,8 +198,6 @@ static int ip_vs_sh_done_svc(struct ip_vs_service *svc)
 	kfree_rcu(s, rcu_head);
 	IP_VS_DBG(6, "SH hash table (memory=%Zdbytes) released\n",
 		  sizeof(struct ip_vs_sh_bucket)*IP_VS_SH_TAB_SIZE);
-
-	return 0;
 }
 
 

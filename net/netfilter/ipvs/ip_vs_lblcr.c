@@ -555,7 +555,7 @@ static int ip_vs_lblcr_init_svc(struct ip_vs_service *svc)
 }
 
 
-static int ip_vs_lblcr_done_svc(struct ip_vs_service *svc)
+static void ip_vs_lblcr_done_svc(struct ip_vs_service *svc)
 {
 	struct ip_vs_lblcr_table *tbl = svc->sched_data;
 
@@ -569,8 +569,6 @@ static int ip_vs_lblcr_done_svc(struct ip_vs_service *svc)
 	kfree_rcu(tbl, rcu_head);
 	IP_VS_DBG(6, "LBLCR hash table (memory=%Zdbytes) released\n",
 		  sizeof(*tbl));
-
-	return 0;
 }
 
 

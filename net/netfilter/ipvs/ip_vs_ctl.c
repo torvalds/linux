@@ -1334,10 +1334,7 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		/*
 		 * Unbind the old scheduler
 		 */
-		if ((ret = ip_vs_unbind_scheduler(svc))) {
-			old_sched = sched;
-			goto out_unlock;
-		}
+		ip_vs_unbind_scheduler(svc);
 
 		/*
 		 * Bind the new scheduler
