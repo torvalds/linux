@@ -382,19 +382,16 @@ static const struct labpc_boardinfo labpc_boards[] = {
 	 .ai_range_code = labpc_1200_ai_gain_bits,
 	 .ai_range_is_unipolar = labpc_1200_is_unipolar,
 	 .ai_scan_up = 1,
-	 .memory_mapped_io = 0,
 	 },
 	{
 	 .name = "lab-pc-1200ai",
 	 .ai_speed = 10000,
 	 .bustype = isa_bustype,
 	 .register_layout = labpc_1200_layout,
-	 .has_ao = 0,
 	 .ai_range_table = &range_labpc_1200_ai,
 	 .ai_range_code = labpc_1200_ai_gain_bits,
 	 .ai_range_is_unipolar = labpc_1200_is_unipolar,
 	 .ai_scan_up = 1,
-	 .memory_mapped_io = 0,
 	 },
 	{
 	 .name = "lab-pc+",
@@ -405,8 +402,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 	 .ai_range_table = &range_labpc_plus_ai,
 	 .ai_range_code = labpc_plus_ai_gain_bits,
 	 .ai_range_is_unipolar = labpc_plus_is_unipolar,
-	 .ai_scan_up = 0,
-	 .memory_mapped_io = 0,
 	 },
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 	{
