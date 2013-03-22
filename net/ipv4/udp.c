@@ -2304,7 +2304,8 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	int mac_len = skb->mac_len;
 	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
-	int outer_hlen;
+	int outer_hlen, id;
+	struct iphdr *iph;
 	netdev_features_t enc_features;
 
 	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
@@ -2315,6 +2316,8 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
 	skb->mac_len = skb_inner_network_offset(skb);
+	iph = ip_hdr(skb);
+	id = ntohs(iph->id);
 
 	/* segment inner packet. */
 	enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
@@ -2329,6 +2332,8 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 		int udp_offset = outer_hlen - tnl_hlen;
 
 		skb->mac_len = mac_len;
+		iph = (struct iphdr *)skb_inner_network_header(skb);
+		iph->id = htons(id++);
 
 		skb_push(skb, outer_hlen);
 		skb_reset_mac_header(skb);
