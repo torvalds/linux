@@ -1387,8 +1387,9 @@ static void i915_capture_error_state(struct drm_device *dev)
 	else if (INTEL_INFO(dev)->gen == 6)
 		error->forcewake = I915_READ(FORCEWAKE);
 
-	for_each_pipe(pipe)
-		error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
+	if (!HAS_PCH_SPLIT(dev))
+		for_each_pipe(pipe)
+			error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		error->error = I915_READ(ERROR_GEN6);
