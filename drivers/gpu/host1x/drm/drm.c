@@ -26,7 +26,7 @@
 static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 {
 	struct device *dev = drm->dev;
-	struct host1x *host1x;
+	struct host1x_drm *host1x;
 	int err;
 
 	host1x = dev_get_drvdata(dev);
@@ -69,7 +69,7 @@ static int tegra_drm_open(struct drm_device *drm, struct drm_file *filp)
 
 static void tegra_drm_lastclose(struct drm_device *drm)
 {
-	struct host1x *host1x = drm->dev_private;
+	struct host1x_drm *host1x = drm->dev_private;
 
 	drm_fbdev_cma_restore_mode(host1x->fbdev);
 }

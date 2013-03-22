@@ -11,7 +11,7 @@
 
 static void tegra_drm_fb_output_poll_changed(struct drm_device *drm)
 {
-	struct host1x *host1x = drm->dev_private;
+	struct host1x_drm *host1x = drm->dev_private;
 
 	drm_fbdev_cma_hotplug_event(host1x->fbdev);
 }
@@ -23,7 +23,7 @@ static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 
 int tegra_drm_fb_init(struct drm_device *drm)
 {
-	struct host1x *host1x = drm->dev_private;
+	struct host1x_drm *host1x = drm->dev_private;
 	struct drm_fbdev_cma *fbdev;
 
 	drm->mode_config.min_width = 0;
@@ -46,7 +46,7 @@ int tegra_drm_fb_init(struct drm_device *drm)
 
 void tegra_drm_fb_exit(struct drm_device *drm)
 {
-	struct host1x *host1x = drm->dev_private;
+	struct host1x_drm *host1x = drm->dev_private;
 
 	drm_fbdev_cma_fini(host1x->fbdev);
 }

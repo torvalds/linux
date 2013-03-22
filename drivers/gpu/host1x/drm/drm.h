@@ -18,7 +18,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fixed.h>
 
-struct host1x {
+struct host1x_drm {
 	struct drm_device *drm;
 	struct device *dev;
 	void __iomem *regs;
@@ -44,7 +44,7 @@ struct host1x_client_ops {
 };
 
 struct host1x_client {
-	struct host1x *host1x;
+	struct host1x_drm *host1x;
 	struct device *dev;
 
 	const struct host1x_client_ops *ops;
@@ -52,12 +52,12 @@ struct host1x_client {
 	struct list_head list;
 };
 
-extern int host1x_drm_init(struct host1x *host1x, struct drm_device *drm);
-extern int host1x_drm_exit(struct host1x *host1x);
+extern int host1x_drm_init(struct host1x_drm *host1x, struct drm_device *drm);
+extern int host1x_drm_exit(struct host1x_drm *host1x);
 
-extern int host1x_register_client(struct host1x *host1x,
+extern int host1x_register_client(struct host1x_drm *host1x,
 				  struct host1x_client *client);
-extern int host1x_unregister_client(struct host1x *host1x,
+extern int host1x_unregister_client(struct host1x_drm *host1x,
 				    struct host1x_client *client);
 
 struct tegra_output;
@@ -66,7 +66,7 @@ struct tegra_dc {
 	struct host1x_client client;
 	spinlock_t lock;
 
-	struct host1x *host1x;
+	struct host1x_drm *host1x;
 	struct device *dev;
 
 	struct drm_crtc base;

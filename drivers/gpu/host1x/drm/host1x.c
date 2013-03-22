@@ -21,7 +21,8 @@ struct host1x_drm_client {
 	struct list_head list;
 };
 
-static int host1x_add_drm_client(struct host1x *host1x, struct device_node *np)
+static int host1x_add_drm_client(struct host1x_drm *host1x,
+				 struct device_node *np)
 {
 	struct host1x_drm_client *client;
 
@@ -37,7 +38,7 @@ static int host1x_add_drm_client(struct host1x *host1x, struct device_node *np)
 	return 0;
 }
 
-static int host1x_activate_drm_client(struct host1x *host1x,
+static int host1x_activate_drm_client(struct host1x_drm *host1x,
 				      struct host1x_drm_client *drm,
 				      struct host1x_client *client)
 {
@@ -50,7 +51,7 @@ static int host1x_activate_drm_client(struct host1x *host1x,
 	return 0;
 }
 
-static int host1x_remove_drm_client(struct host1x *host1x,
+static int host1x_remove_drm_client(struct host1x_drm *host1x,
 				    struct host1x_drm_client *client)
 {
 	mutex_lock(&host1x->drm_clients_lock);
@@ -63,7 +64,7 @@ static int host1x_remove_drm_client(struct host1x *host1x,
 	return 0;
 }
 
-static int host1x_parse_dt(struct host1x *host1x)
+static int host1x_parse_dt(struct host1x_drm *host1x)
 {
 	static const char * const compat[] = {
 		"nvidia,tegra20-dc",
@@ -92,7 +93,7 @@ static int host1x_parse_dt(struct host1x *host1x)
 
 static int tegra_host1x_probe(struct platform_device *pdev)
 {
-	struct host1x *host1x;
+	struct host1x_drm *host1x;
 	struct resource *regs;
 	int err;
 
@@ -156,14 +157,14 @@ err:
 
 static int tegra_host1x_remove(struct platform_device *pdev)
 {
-	struct host1x *host1x = platform_get_drvdata(pdev);
+	struct host1x_drm *host1x = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(host1x->clk);
 
 	return 0;
 }
 
-int host1x_drm_init(struct host1x *host1x, struct drm_device *drm)
+int host1x_drm_init(struct host1x_drm *host1x, struct drm_device *drm)
 {
 	struct host1x_client *client;
 
@@ -186,7 +187,7 @@ int host1x_drm_init(struct host1x *host1x, struct drm_device *drm)
 	return 0;
 }
 
-int host1x_drm_exit(struct host1x *host1x)
+int host1x_drm_exit(struct host1x_drm *host1x)
 {
 	struct platform_device *pdev = to_platform_device(host1x->dev);
 	struct host1x_client *client;
@@ -216,7 +217,8 @@ int host1x_drm_exit(struct host1x *host1x)
 	return 0;
 }
 
-int host1x_register_client(struct host1x *host1x, struct host1x_client *client)
+int host1x_register_client(struct host1x_drm *host1x,
+			   struct host1x_client *client)
 {
 	struct host1x_drm_client *drm, *tmp;
 	int err;
@@ -244,7 +246,7 @@ int host1x_register_client(struct host1x *host1x, struct host1x_client *client)
 	return 0;
 }
 
-int host1x_unregister_client(struct host1x *host1x,
+int host1x_unregister_client(struct host1x_drm *host1x,
 			     struct host1x_client *client)
 {
 	struct host1x_drm_client *drm, *tmp;
