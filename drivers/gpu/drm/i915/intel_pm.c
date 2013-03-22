@@ -4085,6 +4085,22 @@ void intel_init_clock_gating(struct drm_device *dev)
 	dev_priv->display.init_clock_gating(dev);
 }
 
+/**
+ * We should only use the power well if we explicitly asked the hardware to
+ * enable it, so check if it's enabled and also check if we've requested it to
+ * be enabled.
+ */
+bool intel_using_power_well(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_HASWELL(dev))
+		return I915_READ(HSW_PWR_WELL_DRIVER) ==
+		       (HSW_PWR_WELL_ENABLE | HSW_PWR_WELL_STATE);
+	else
+		return true;
+}
+
 void intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;

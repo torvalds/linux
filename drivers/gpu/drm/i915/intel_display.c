@@ -1227,8 +1227,8 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
 		state = true;
 
-	if (IS_HASWELL(dev_priv->dev) && cpu_transcoder != TRANSCODER_EDP &&
-	    !(I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_ENABLE)) {
+	if (!intel_using_power_well(dev_priv->dev) &&
+	    cpu_transcoder != TRANSCODER_EDP) {
 		cur_state = false;
 	} else {
 		reg = PIPECONF(cpu_transcoder);
