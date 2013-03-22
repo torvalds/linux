@@ -376,6 +376,9 @@ static void auok190xfb_imageblit(struct fb_info *info,
 static int auok190xfb_check_var(struct fb_var_screeninfo *var,
 				   struct fb_info *info)
 {
+	struct device *dev = info->device;
+	int size;
+
 	if (info->var.xres != var->xres || info->var.yres != var->yres ||
 	    info->var.xres_virtual != var->xres_virtual ||
 	    info->var.yres_virtual != var->yres_virtual) {
@@ -388,9 +391,10 @@ static int auok190xfb_check_var(struct fb_var_screeninfo *var,
 	 *  Memory limit
 	 */
 
-	if ((info->fix.line_length * var->yres_virtual) > info->fix.smem_len) {
-		pr_info("%s: Memory Limit requested yres_virtual = %u\n",
-			 __func__, var->yres_virtual);
+	size = var->xres_virtual * var->yres_virtual * var->bits_per_pixel / 8;
+	if (size > info->fix.smem_len) {
+		dev_err(dev, "Memory limit exceeded, requested %dK\n",
+			size >> 10);
 		return -ENOMEM;
 	}
 
