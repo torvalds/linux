@@ -186,6 +186,8 @@ static int mv_u3d_process_ep_req(struct mv_u3d *u3d, int index,
  */
 static
 void mv_u3d_done(struct mv_u3d_ep *ep, struct mv_u3d_req *req, int status)
+	__releases(&ep->udc->lock)
+	__acquires(&ep->udc->lock)
 {
 	struct mv_u3d *u3d = (struct mv_u3d *)ep->u3d;
 
@@ -1520,6 +1522,8 @@ static int mv_u3d_is_set_configuration(struct usb_ctrlrequest *setup)
 
 static void mv_u3d_handle_setup_packet(struct mv_u3d *u3d, u8 ep_num,
 	struct usb_ctrlrequest *setup)
+	__releases(&u3c->lock)
+	__acquires(&u3c->lock)
 {
 	bool delegate = false;
 
