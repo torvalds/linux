@@ -370,11 +370,13 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
-	int i, n;
-	int chan, range;
-	int lsb, msb;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int aref = CR_AREF(insn->chanspec);
 	int timeout = 1000;
 	unsigned long flags;
+	int lsb, msb;
+	int i, n;
 
 	/*  disable timed conversions */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -388,11 +390,9 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 
 	/* set gain and channel */
 	devpriv->cmd1 = 0;
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
 	devpriv->cmd1 |= board->ai_range_code[range];
 	/* munge channel bits for differential/scan disabled mode */
-	if (CR_AREF(insn->chanspec) == AREF_DIFF)
+	if (aref == AREF_DIFF)
 		chan *= 2;
 	devpriv->cmd1 |= ADC_CHAN_BITS(chan);
 	devpriv->write_byte(devpriv->cmd1, dev->iobase + COMMAND1_REG);
@@ -400,7 +400,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	/* setup cmd6 register for 1200 boards */
 	if (board->register_layout == labpc_1200_layout) {
 		/*  reference inputs to ground or common? */
-		if (CR_AREF(insn->chanspec) != AREF_GROUND)
+		if (aref != AREF_GROUND)
 			devpriv->cmd6 |= ADC_COMMON_BIT;
 		else
 			devpriv->cmd6 &= ~ADC_COMMON_BIT;
@@ -420,7 +420,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	devpriv->cmd4 = 0;
 	devpriv->cmd4 |= EXT_CONVERT_DISABLE_BIT;
 	/* single-ended/differential */
-	if (CR_AREF(insn->chanspec) == AREF_DIFF)
+	if (aref == AREF_DIFF)
 		devpriv->cmd4 |= ADC_DIFF_BIT;
 	devpriv->write_byte(devpriv->cmd4, dev->iobase + COMMAND4_REG);
 
