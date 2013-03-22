@@ -121,6 +121,7 @@ static void auok1901_update_region(struct auok190xfb_par *par, int mode,
 	struct device *dev = par->info->device;
 	unsigned char *buf = (unsigned char *)par->info->screen_base;
 	int xres = par->info->var.xres;
+	int line_length = par->info->fix.line_length;
 	u16 args[5];
 
 	pm_runtime_get_sync(dev);
@@ -139,9 +140,9 @@ static void auok1901_update_region(struct auok190xfb_par *par, int mode,
 	args[1] = y1 + 1;
 	args[2] = xres;
 	args[3] = y2 - y1;
-	buf += y1 * xres;
+	buf += y1 * line_length;
 	auok190x_send_cmdargs_pixels_nowait(par, AUOK1901_CMD_DMA_START, 4,
-					    args, ((y2 - y1) * xres)/2,
+					    args, ((y2 - y1) * line_length)/2,
 					    (u16 *) buf);
 	auok190x_send_command_nowait(par, AUOK190X_CMD_DATA_STOP);
 

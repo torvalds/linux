@@ -224,8 +224,8 @@ static void auok190xfb_dpy_deferred_io(struct fb_info *info,
 {
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct auok190xfb_par *par = info->par;
+	u16 line_length = info->fix.line_length;
 	u16 yres = info->var.yres;
-	u16 xres = info->var.xres;
 	u16 y1 = 0, h = 0;
 	int prev_index = -1;
 	struct page *cur;
@@ -254,7 +254,7 @@ static void auok190xfb_dpy_deferred_io(struct fb_info *info,
 	}
 
 	/* height increment is fixed per page */
-	h_inc = DIV_ROUND_UP(PAGE_SIZE , xres);
+	h_inc = DIV_ROUND_UP(PAGE_SIZE , line_length);
 
 	/* calculate number of pages from pixel height */
 	threshold = par->consecutive_threshold / h_inc;
@@ -265,7 +265,7 @@ static void auok190xfb_dpy_deferred_io(struct fb_info *info,
 	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
 		if (prev_index < 0) {
 			/* just starting so assign first page */
-			y1 = (cur->index << PAGE_SHIFT) / xres;
+			y1 = (cur->index << PAGE_SHIFT) / line_length;
 			h = h_inc;
 		} else if ((cur->index - prev_index) <= threshold) {
 			/* page is within our threshold for single updates */
@@ -275,7 +275,7 @@ static void auok190xfb_dpy_deferred_io(struct fb_info *info,
 			par->update_partial(par, y1, y1 + h);
 
 			/* start over with our non consecutive page */
-			y1 = (cur->index << PAGE_SHIFT) / xres;
+			y1 = (cur->index << PAGE_SHIFT) / line_length;
 			h = h_inc;
 		}
 		prev_index = cur->index;
@@ -896,13 +896,13 @@ int auok190x_common_probe(struct platform_device *pdev,
 		info->var.yres = panel->w;
 		info->var.xres_virtual = panel->h;
 		info->var.yres_virtual = panel->w;
-		info->fix.line_length = panel->h;
+		info->fix.line_length = panel->h * info->var.bits_per_pixel / 8;
 	} else {
 		info->var.xres = panel->w;
 		info->var.yres = panel->h;
 		info->var.xres_virtual = panel->w;
 		info->var.yres_virtual = panel->h;
-		info->fix.line_length = panel->w;
+		info->fix.line_length = panel->w * info->var.bits_per_pixel / 8;
 	}
 
 	par->resolution = board->resolution;
@@ -910,7 +910,8 @@ int auok190x_common_probe(struct platform_device *pdev,
 
 	/* videomemory handling */
 
-	videomemorysize = roundup((panel->w * panel->h), PAGE_SIZE);
+	videomemorysize = roundup((panel->w * panel->h) *
+				info->var.bits_per_pixel / 8, PAGE_SIZE);
 	videomemory = vmalloc(videomemorysize);
 	if (!videomemory) {
 		ret = -ENOMEM;
