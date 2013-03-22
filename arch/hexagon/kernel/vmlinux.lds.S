@@ -18,8 +18,6 @@
  * 02110-1301, USA.
  */
 
-#define LOAD_OFFSET PAGE_OFFSET
-
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/asm-offsets.h>	/*  Most of the kernel defines are here  */
 #include <asm/mem-layout.h>	/*  except for page_offset  */
@@ -36,13 +34,9 @@ See asm-generic/sections.h for seemingly required labels.
 
 #define PAGE_SIZE _PAGE_SIZE
 
-/*  This LOAD_OFFSET is temporary for debugging on the simulator; it may change
-    for hypervisor pseudo-physical memory.  */
-
-
 SECTIONS
 {
-	. = PAGE_OFFSET + LOAD_ADDRESS;
+	. = PAGE_OFFSET;
 
 	__init_begin = .;
 	HEAD_TEXT_SECTION
@@ -52,7 +46,7 @@ SECTIONS
 
         . = ALIGN(_PAGE_SIZE);
 	_stext = .;
-	.text : AT(ADDR(.text) - LOAD_OFFSET) {
+	.text : AT(ADDR(.text)) {
 		_text = .;
 		TEXT_TEXT
 		SCHED_TEXT

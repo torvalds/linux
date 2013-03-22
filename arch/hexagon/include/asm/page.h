@@ -96,8 +96,8 @@ typedef struct page *pgtable_t;
  * MIPS says they're only used during mem_init.
  * also, check if we need a PHYS_OFFSET.
  */
-#define __pa(x) ((unsigned long)(x) - PAGE_OFFSET)
-#define __va(x) ((void *)((unsigned long)(x) + PAGE_OFFSET))
+#define __pa(x) ((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __va(x) ((void *)((unsigned long)(x) - PHYS_OFFSET + PAGE_OFFSET))
 
 /* The "page frame" descriptor is defined in linux/mm.h */
 struct page;
@@ -147,6 +147,7 @@ static inline void clear_page(void *page)
  */
 #define kern_addr_valid(addr)   (1)
 
+#include <asm/mem-layout.h>
 #include <asm-generic/memory_model.h>
 /* XXX Todo: implement assembly-optimized version of getorder. */
 #include <asm-generic/getorder.h>

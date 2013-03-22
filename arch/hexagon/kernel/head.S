@@ -43,14 +43,21 @@ ENTRY(stext)
 	 * Symbol is kernel segment address, but we need
 	 * the logical/physical address.
 	 */
-	r24 = asl(r24, #2)
-	r24 = lsr(r24, #2)
+	r25 = pc;
+	r2.h = #0xffc0;
+	r2.l = #0x0000;
+	r25 = and(r2,r25);	/*  R25 holds PHYS_OFFSET now  */
+	r1.h = #HI(PAGE_OFFSET);
+	r1.l = #LO(PAGE_OFFSET);
+	r24 = sub(r24,r1);	/* swapper_pg_dir - PAGE_OFFSET */
+	r24 = add(r24,r25);	/* + PHYS_OFFSET */
 
-	r0 = r24
+	r0 = r24;  /* aka __pa(swapper_pg_dir)  */
 
 	/*
-	 * Initialize a 16MB PTE to make the virtual and physical
+	 * Initialize page dir to make the virtual and physical
 	 * addresses where the kernel was loaded be identical.
+	 * Done in 4MB chunks.
 	 */
 #define PTE_BITS ( __HVM_PTE_R | __HVM_PTE_W | __HVM_PTE_X	\
 		  | __HEXAGON_C_WB_L2 << 6			\
@@ -142,6 +149,13 @@ __head_s_vaddr_target:
 
 	r2 = sub(r2,r0);
 	call memset;
+
+	/*  Set PHYS_OFFSET; should still be in R25 */
+#ifdef CONFIG_HEXAGON_PHYS_OFFSET
+	r0.l = #LO(__phys_offset);
+	r0.h = #HI(__phys_offset);
+	memw(r0) = r25;
+#endif
 
 	/* Time to make the doughnuts.   */
 	call start_kernel

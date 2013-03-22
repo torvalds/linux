@@ -32,15 +32,24 @@
 #define PAGE_OFFSET			_AC(0xc0000000, UL)
 
 /*
- * LOAD_ADDRESS is the physical/linear address of where in memory
- * the kernel gets loaded. The 12 least significant bits must be zero (0)
- * due to limitations on setting the EVB
- *
+ * Compiling for a platform that needs a crazy physical offset
+ * (like if the memory starts at 1GB and up) means we need
+ * an actual PHYS_OFFSET.  Should be set up in head.S.
  */
 
-#ifndef LOAD_ADDRESS
-#define LOAD_ADDRESS			0x00000000
+#ifdef CONFIG_HEXAGON_PHYS_OFFSET
+#ifndef __ASSEMBLY__
+extern unsigned long	__phys_offset;
 #endif
+#define PHYS_OFFSET	__phys_offset
+#endif
+
+#ifndef PHYS_OFFSET
+#define PHYS_OFFSET	0
+#endif
+
+#define PHYS_PFN_OFFSET	(PHYS_OFFSET >> PAGE_SHIFT)
+#define ARCH_PFN_OFFSET	PHYS_PFN_OFFSET
 
 #define TASK_SIZE			(PAGE_OFFSET)
 
