@@ -21,7 +21,7 @@
 
 #include "dvb_usb_common.h"
 
-int dvb_usb_v2_generic_io(struct dvb_usb_device *d,
+static int dvb_usb_v2_generic_io(struct dvb_usb_device *d,
 		u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
 	int ret, actual_length;
