@@ -1672,7 +1672,9 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	int ret;
 	int i;
 
-	dev_info(dev->class_dev, "ni_labpc: %s\n", board->name);
+	dev->board_name = board->name;
+
+	dev_info(dev->class_dev, "ni_labpc: %s\n", dev->board_name);
 	if (iobase == 0) {
 		dev_err(dev->class_dev, "io base address is zero!\n");
 		return -EINVAL;
@@ -1680,7 +1682,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	/*  request io regions for isa boards */
 	if (board->bustype == isa_bustype) {
 		/* check if io addresses are available */
-		if (!request_region(iobase, LABPC_SIZE, DRV_NAME)) {
+		if (!request_region(iobase, LABPC_SIZE, dev->board_name)) {
 			dev_err(dev->class_dev, "I/O port conflict\n");
 			return -EIO;
 		}
@@ -1711,7 +1713,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		    board->bustype == pcmcia_bustype)
 			isr_flags |= IRQF_SHARED;
 		if (request_irq(irq, labpc_interrupt, isr_flags,
-				DRV_NAME, dev)) {
+				dev->board_name, dev)) {
 			dev_err(dev->class_dev, "unable to allocate irq %u\n",
 				irq);
 			return -EINVAL;
@@ -1733,7 +1735,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		if (devpriv->dma_buffer == NULL)
 			return -ENOMEM;
 
-		if (request_dma(dma_chan, DRV_NAME)) {
+		if (request_dma(dma_chan, dev->board_name)) {
 			dev_err(dev->class_dev,
 				"failed to allocate dma channel %u\n",
 				dma_chan);
@@ -1746,8 +1748,6 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		release_dma_lock(dma_flags);
 	}
 #endif
-
-	dev->board_name = board->name;
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
