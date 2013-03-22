@@ -24,6 +24,7 @@
 #include <linux/pvclock_gtod.h>
 
 #include "tick-internal.h"
+#include "ntp_internal.h"
 
 static struct timekeeper timekeeper;
 static DEFINE_RAW_SPINLOCK(timekeeper_lock);
@@ -1611,6 +1612,26 @@ ktime_t ktime_get_monotonic_offset(void)
 	return timespec_to_ktime(wtom);
 }
 EXPORT_SYMBOL_GPL(ktime_get_monotonic_offset);
+
+/**
+ * do_adjtimex() - Accessor function to NTP __do_adjtimex function
+ */
+int do_adjtimex(struct timex *txc)
+{
+	return __do_adjtimex(txc);
+}
+
+
+#ifdef CONFIG_NTP_PPS
+/**
+ * hardpps() - Accessor function to NTP __hardpps function
+ */
+void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
+{
+	__hardpps(phase_ts, raw_ts);
+}
+EXPORT_SYMBOL(hardpps);
+#endif
 
 /**
  * xtime_update() - advances the timekeeping infrastructure
