@@ -155,8 +155,6 @@ static int ux500_pcm_open(struct snd_pcm_substream *substream)
 		return ret;
 	}
 
-	snd_dmaengine_pcm_set_data(substream, dma_cfg);
-
 	return 0;
 }
 
