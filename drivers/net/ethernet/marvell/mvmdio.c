@@ -24,10 +24,10 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/phy.h>
-#include <linux/of_address.h>
-#include <linux/of_mdio.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/of_mdio.h>
 
 #define MVMDIO_SMI_DATA_SHIFT              0
 #define MVMDIO_SMI_PHY_ADDR_SHIFT          16
@@ -143,10 +143,16 @@ static int orion_mdio_reset(struct mii_bus *bus)
 
 static int orion_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct resource *r;
 	struct mii_bus *bus;
 	struct orion_mdio_dev *dev;
 	int i, ret;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!r) {
+		dev_err(&pdev->dev, "No SMI register address given\n");
+		return -ENODEV;
+	}
 
 	bus = mdiobus_alloc_size(sizeof(struct orion_mdio_dev));
 	if (!bus) {
@@ -172,9 +178,9 @@ static int orion_mdio_probe(struct platform_device *pdev)
 		bus->irq[i] = PHY_POLL;
 
 	dev = bus->priv;
-	dev->smireg = of_iomap(pdev->dev.of_node, 0);
+	dev->smireg = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!dev->smireg) {
-		dev_err(&pdev->dev, "No SMI register address given in DT\n");
+		dev_err(&pdev->dev, "Unable to remap SMI register\n");
 		kfree(bus->irq);
 		mdiobus_free(bus);
 		return -ENODEV;
@@ -182,10 +188,12 @@ static int orion_mdio_probe(struct platform_device *pdev)
 
 	mutex_init(&dev->lock);
 
-	ret = of_mdiobus_register(bus, np);
+	if (pdev->dev.of_node)
+		ret = of_mdiobus_register(bus, pdev->dev.of_node);
+	else
+		ret = mdiobus_register(bus);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Cannot register MDIO bus (%d)\n", ret);
-		iounmap(dev->smireg);
 		kfree(bus->irq);
 		mdiobus_free(bus);
 		return ret;
