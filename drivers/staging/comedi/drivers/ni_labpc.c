@@ -389,6 +389,53 @@ static void labpc_ai_set_chan_and_gain(struct comedi_device *dev,
 	devpriv->write_byte(devpriv->cmd1, dev->iobase + COMMAND1_REG);
 }
 
+static void labpc_setup_cmd6_reg(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 enum scan_mode mode,
+				 enum transfer_type xfer,
+				 unsigned int range,
+				 unsigned int aref,
+				 bool ena_intr)
+{
+	const struct labpc_boardinfo *board = comedi_board(dev);
+	struct labpc_private *devpriv = dev->private;
+
+	if (board->register_layout != labpc_1200_layout)
+		return;
+
+	/* reference inputs to ground or common? */
+	if (aref != AREF_GROUND)
+		devpriv->cmd6 |= ADC_COMMON_BIT;
+	else
+		devpriv->cmd6 &= ~ADC_COMMON_BIT;
+
+	/* bipolar or unipolar range? */
+	if (labpc_range_is_unipolar(s, range))
+		devpriv->cmd6 |= ADC_UNIP_BIT;
+	else
+		devpriv->cmd6 &= ~ADC_UNIP_BIT;
+
+	/*  interrupt on fifo half full? */
+	if (xfer == fifo_half_full_transfer)
+		devpriv->cmd6 |= ADC_FHF_INTR_EN_BIT;
+	else
+		devpriv->cmd6 &= ~ADC_FHF_INTR_EN_BIT;
+
+	/* enable interrupt on counter a1 terminal count? */
+	if (ena_intr)
+		devpriv->cmd6 |= A1_INTR_EN_BIT;
+	else
+		devpriv->cmd6 &= ~A1_INTR_EN_BIT;
+
+	/* are we scanning up or down through channels? */
+	if (mode == MODE_MULT_CHAN_UP)
+		devpriv->cmd6 |= ADC_SCAN_UP_BIT;
+	else
+		devpriv->cmd6 &= ~ADC_SCAN_UP_BIT;
+
+	devpriv->write_byte(devpriv->cmd6, dev->iobase + COMMAND6_REG);
+}
+
 static void labpc_clear_adc_fifo(const struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
@@ -403,7 +450,6 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
@@ -417,25 +463,9 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 
 	labpc_ai_set_chan_and_gain(dev, MODE_SINGLE_CHAN, chan, range, aref);
 
-	/* setup cmd6 register for 1200 boards */
-	if (board->register_layout == labpc_1200_layout) {
-		/*  reference inputs to ground or common? */
-		if (aref != AREF_GROUND)
-			devpriv->cmd6 |= ADC_COMMON_BIT;
-		else
-			devpriv->cmd6 &= ~ADC_COMMON_BIT;
-		/* bipolar or unipolar range? */
-		if (labpc_range_is_unipolar(s, range))
-			devpriv->cmd6 |= ADC_UNIP_BIT;
-		else
-			devpriv->cmd6 &= ~ADC_UNIP_BIT;
-		/* don't interrupt on fifo half full */
-		devpriv->cmd6 &= ~ADC_FHF_INTR_EN_BIT;
-		/* don't enable interrupt on counter a1 terminal count? */
-		devpriv->cmd6 &= ~A1_INTR_EN_BIT;
-		/* write to register */
-		devpriv->write_byte(devpriv->cmd6, dev->iobase + COMMAND6_REG);
-	}
+	labpc_setup_cmd6_reg(dev, s, MODE_SINGLE_CHAN, fifo_not_empty_transfer,
+			     range, aref, false);
+
 	/* setup cmd4 register */
 	devpriv->cmd4 = 0;
 	devpriv->cmd4 |= EXT_CONVERT_DISABLE_BIT;
@@ -933,38 +963,10 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		xfer = fifo_not_empty_transfer;
 	devpriv->current_transfer = xfer;
 
-	/*  setup cmd6 register for 1200 boards */
-	if (board->register_layout == labpc_1200_layout) {
-		/*  reference inputs to ground or common? */
-		if (aref != AREF_GROUND)
-			devpriv->cmd6 |= ADC_COMMON_BIT;
-		else
-			devpriv->cmd6 &= ~ADC_COMMON_BIT;
-		/*  bipolar or unipolar range? */
-		if (labpc_range_is_unipolar(s, range))
-			devpriv->cmd6 |= ADC_UNIP_BIT;
-		else
-			devpriv->cmd6 &= ~ADC_UNIP_BIT;
-		/*  interrupt on fifo half full? */
-		if (xfer == fifo_half_full_transfer)
-			devpriv->cmd6 |= ADC_FHF_INTR_EN_BIT;
-		else
-			devpriv->cmd6 &= ~ADC_FHF_INTR_EN_BIT;
-		/*  enable interrupt on counter a1 terminal count? */
-		if (cmd->stop_src == TRIG_EXT)
-			devpriv->cmd6 |= A1_INTR_EN_BIT;
-		else
-			devpriv->cmd6 &= ~A1_INTR_EN_BIT;
-		/*  are we scanning up or down through channels? */
-		if (mode == MODE_MULT_CHAN_UP)
-			devpriv->cmd6 |= ADC_SCAN_UP_BIT;
-		else
-			devpriv->cmd6 &= ~ADC_SCAN_UP_BIT;
-		/*  write to register */
-		devpriv->write_byte(devpriv->cmd6, dev->iobase + COMMAND6_REG);
-	}
-
 	labpc_ai_set_chan_and_gain(dev, mode, chan, range, aref);
+
+	labpc_setup_cmd6_reg(dev, s, mode, xfer, range, aref,
+			     (cmd->stop_src == TRIG_EXT));
 
 	/* manual says to set scan enable bit on second pass */
 	if (mode == MODE_MULT_CHAN_UP || mode == MODE_MULT_CHAN_DOWN) {
