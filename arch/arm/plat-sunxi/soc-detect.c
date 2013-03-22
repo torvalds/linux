@@ -85,10 +85,11 @@ int sunxi_pr_chip_id()
 		name = "Unknown";
 	}
 
-	if (machine_is_sun4i())
+	if (machine_is_sun4i()) {
+		int rev = sw_get_ic_ver() - SUNXI_VER_A10A;
 		pr_info("chip-id: %s (AW%u revision %c)\n", name,
-			chip_id, 'A' + sw_get_ic_ver());
-	else
+			chip_id, 'A' + rev);
+	} else
 		pr_info("chip-id: %s (AW%u)\n", name, chip_id);
 
 	return (chip_id != 0);
