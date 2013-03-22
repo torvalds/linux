@@ -23,6 +23,28 @@
 
 #include <net/sock.h>
 #include <net/inet_frag.h>
+#include <net/inet_ecn.h>
+
+/* Given the OR values of all fragments, apply RFC 3168 5.3 requirements
+ * Value : 0xff if frame should be dropped.
+ *         0 or INET_ECN_CE value, to be ORed in to final iph->tos field
+ */
+const u8 ip_frag_ecn_table[16] = {
+	/* at least one fragment had CE, and others ECT_0 or ECT_1 */
+	[IPFRAG_ECN_CE | IPFRAG_ECN_ECT_0]			= INET_ECN_CE,
+	[IPFRAG_ECN_CE | IPFRAG_ECN_ECT_1]			= INET_ECN_CE,
+	[IPFRAG_ECN_CE | IPFRAG_ECN_ECT_0 | IPFRAG_ECN_ECT_1]	= INET_ECN_CE,
+
+	/* invalid combinations : drop frame */
+	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_CE] = 0xff,
+	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_ECT_0] = 0xff,
+	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_ECT_1] = 0xff,
+	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_ECT_0 | IPFRAG_ECN_ECT_1] = 0xff,
+	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_CE | IPFRAG_ECN_ECT_0] = 0xff,
+	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_CE | IPFRAG_ECN_ECT_1] = 0xff,
+	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_CE | IPFRAG_ECN_ECT_0 | IPFRAG_ECN_ECT_1] = 0xff,
+};
+EXPORT_SYMBOL(ip_frag_ecn_table);
 
 static void inet_frag_secret_rebuild(unsigned long dummy)
 {
