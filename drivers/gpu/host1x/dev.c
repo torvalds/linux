@@ -209,11 +209,17 @@ static int __init tegra_host1x_init(void)
 	err = platform_driver_register(&tegra_hdmi_driver);
 	if (err < 0)
 		goto unregister_dc;
+
+	err = platform_driver_register(&tegra_gr2d_driver);
+	if (err < 0)
+		goto unregister_hdmi;
 #endif
 
 	return 0;
 
 #ifdef CONFIG_DRM_TEGRA
+unregister_hdmi:
+	platform_driver_unregister(&tegra_hdmi_driver);
 unregister_dc:
 	platform_driver_unregister(&tegra_dc_driver);
 unregister_host1x:
@@ -226,6 +232,7 @@ module_init(tegra_host1x_init);
 static void __exit tegra_host1x_exit(void)
 {
 #ifdef CONFIG_DRM_TEGRA
+	platform_driver_unregister(&tegra_gr2d_driver);
 	platform_driver_unregister(&tegra_hdmi_driver);
 	platform_driver_unregister(&tegra_dc_driver);
 #endif

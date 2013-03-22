@@ -22,7 +22,9 @@
 #define __LINUX_HOST1X_H
 
 enum host1x_class {
-	HOST1X_CLASS_HOST1X	= 0x1
+	HOST1X_CLASS_HOST1X	= 0x1,
+	HOST1X_CLASS_GR2D	= 0x51,
+	HOST1X_CLASS_GR2D_SB    = 0x52
 };
 
 #endif

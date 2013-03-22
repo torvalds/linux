@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 Avionic Design GmbH
- * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2012-2013 NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,6 +15,9 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
+#include <uapi/drm/tegra_drm.h>
+
+#include "host1x.h"
 
 struct tegra_fb {
 	struct drm_framebuffer base;
@@ -47,9 +50,25 @@ struct host1x_drm {
 
 struct host1x_client;
 
+struct host1x_drm_context {
+	struct host1x_client *client;
+	struct host1x_channel *channel;
+	struct list_head list;
+};
+
 struct host1x_client_ops {
 	int (*drm_init)(struct host1x_client *client, struct drm_device *drm);
 	int (*drm_exit)(struct host1x_client *client);
+	int (*open_channel)(struct host1x_client *client,
+			    struct host1x_drm_context *context);
+	void (*close_channel)(struct host1x_drm_context *context);
+	int (*submit)(struct host1x_drm_context *context,
+		      struct drm_tegra_submit *args, struct drm_device *drm,
+		      struct drm_file *file);
+};
+
+struct host1x_drm_file {
+	struct list_head contexts;
 };
 
 struct host1x_client {
@@ -57,6 +76,12 @@ struct host1x_client {
 	struct device *dev;
 
 	const struct host1x_client_ops *ops;
+
+	enum host1x_class class;
+	struct host1x_channel *channel;
+
+	struct host1x_syncpt **syncpts;
+	unsigned int num_syncpts;
 
 	struct list_head list;
 };

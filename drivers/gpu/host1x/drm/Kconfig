@@ -13,6 +13,14 @@ config DRM_TEGRA
 
 if DRM_TEGRA
 
+config DRM_TEGRA_STAGING
+	bool "Enable HOST1X interface"
+	depends on STAGING
+	help
+	  Say yes if HOST1X should be available for userspace DRM users.
+
+	  If unsure, choose N.
+
 config DRM_TEGRA_DEBUG
 	bool "NVIDIA Tegra DRM debug support"
 	help
