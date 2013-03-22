@@ -133,13 +133,22 @@ config VIDEO_WM8739
 	  module will be called wm8739.
 
 config VIDEO_VP27SMPX
-	tristate "Panasonic VP27s internal MPX"
+	tristate "Panasonic VP27's internal MPX"
 	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the internal MPX of the Panasonic VP27s tuner.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vp27smpx.
+
+config VIDEO_SONY_BTF_MPX
+	tristate "Sony BTF's internal MPX"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the internal MPX of the Sony BTF-PG472Z tuner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sony-btf-mpx.
 
 comment "RDS decoders"
 
