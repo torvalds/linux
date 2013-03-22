@@ -150,7 +150,13 @@ static void s626_mc_enable(struct comedi_device *dev,
 	writel(val, devpriv->base_addr + reg);
 }
 
-#define MC_DISABLE(REGADRS, CTRLWORD)	writel((uint32_t)(CTRLWORD) << 16 , devpriv->base_addr+(REGADRS))
+static void s626_mc_disable(struct comedi_device *dev,
+			    unsigned int cmd, unsigned int reg)
+{
+	struct s626_private *devpriv = dev->private;
+
+	writel(cmd << 16 , devpriv->base_addr + reg);
+}
 
 #define MC_TEST(REGADRS, CTRLWORD)	((readl(devpriv->base_addr+(REGADRS)) & CTRLWORD) != 0)
 
@@ -851,8 +857,8 @@ static bool handle_eos_interrupt(struct comedi_device *dev)
 	if (devpriv->ai_sample_count <= 0) {
 		devpriv->ai_cmd_running = 0;
 
-		/* Stop RPS program. */
-		MC_DISABLE(P_MC1, MC1_ERPS1);
+		/* Stop RPS program */
+		s626_mc_disable(dev, MC1_ERPS1, P_MC1);
 
 		/* send end of acquisition */
 		async->events |= COMEDI_CB_EOA;
@@ -926,8 +932,8 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 	uint32_t LocalPPL;
 	struct comedi_cmd *cmd = &(dev->subdevices->async->cmd);
 
-	/*  Stop RPS program in case it is currently running. */
-	MC_DISABLE(P_MC1, MC1_ERPS1);
+	/* Stop RPS program in case it is currently running */
+	s626_mc_disable(dev, MC1_ERPS1, P_MC1);
 
 	/*  Set starting logical address to write RPS commands. */
 	pRPS = (uint32_t *) devpriv->RPSBuf.LogicalBase;
@@ -1574,8 +1580,8 @@ static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct s626_private *devpriv = dev->private;
 
-	/*  Stop RPS program in case it is currently running. */
-	MC_DISABLE(P_MC1, MC1_ERPS1);
+	/* Stop RPS program in case it is currently running */
+	s626_mc_disable(dev, MC1_ERPS1, P_MC1);
 
 	/* disable master interrupt */
 	writel(0, devpriv->base_addr + P_IER);
