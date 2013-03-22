@@ -24,7 +24,7 @@ extern struct at91_init_soc at91sam9x5_soc;
 extern struct at91_init_soc at91sam9n12_soc;
 
 #define AT91_SOC_START(_name)				\
-struct at91_init_soc __initdata at91##_name##_soc	\
+struct at91_init_soc __initdata _name##_soc		\
  __used							\
 						= {	\
 	.builtin	= 1,				\

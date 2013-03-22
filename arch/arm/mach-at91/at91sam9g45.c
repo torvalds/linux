@@ -418,7 +418,7 @@ static unsigned int at91sam9g45_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0,	/* Advanced Interrupt Controller (IRQ0) */
 };
 
-AT91_SOC_START(sam9g45)
+AT91_SOC_START(at91sam9g45)
 	.map_io = at91sam9g45_map_io,
 	.default_irq_priority = at91sam9g45_default_irq_priority,
 	.ioremap_registers = at91sam9g45_ioremap_registers,
