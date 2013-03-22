@@ -1542,7 +1542,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 
-	freq->type = V4L2_TUNER_ANALOG_TV;
+	if (freq->tuner != 0)
+		return -EINVAL;
 	freq->frequency = dev->ctrl_freq;
 	return 0;
 }
@@ -1552,13 +1553,10 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
+	struct v4l2_frequency new_freq = *freq;
 
 	if (freq->tuner != 0)
 		return -EINVAL;
-	if (freq->type != V4L2_TUNER_ANALOG_TV)
-		return -EINVAL;
-
-	dev->ctrl_freq = freq->frequency;
 
 	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
 		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 1);
@@ -1573,6 +1571,9 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	}
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, freq);
+	/* Get the actual set (and possibly clamped) frequency */
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_frequency, &new_freq);
+	dev->ctrl_freq = new_freq.frequency;
 
 	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
 		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 0);
@@ -1976,6 +1977,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->frame_size = dev->field_size << 1;
 	dev->bytesperline = dev->width << 1;
 	dev->ctrl_ainput = 0;
+	dev->ctrl_freq = 960;
 
 	/* allocate and fill v4l2 video struct */
 	dev->vdev = video_device_alloc();
