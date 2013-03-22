@@ -30,8 +30,6 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <linux/platform_data/dma-imx.h>
-
 #include "imx-pcm.h"
 
 static bool filter(struct dma_chan *chan, void *param)
@@ -101,46 +99,17 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct imx_pcm_dma_params *dma_params;
-	struct imx_dma_data *dma_data;
-	int ret;
 
 	snd_soc_set_runtime_hwparams(substream, &snd_imx_hardware);
 
 	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
-	dma_data = kzalloc(sizeof(*dma_data), GFP_KERNEL);
-	if (!dma_data)
-		return -ENOMEM;
-
-	dma_data->peripheral_type = dma_params->shared_peripheral ?
-					IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI;
-	dma_data->priority = DMA_PRIO_HIGH;
-	dma_data->dma_request = dma_params->dma;
-
-	ret = snd_dmaengine_pcm_open(substream, filter, dma_data);
-	if (ret) {
-		kfree(dma_data);
-		return ret;
-	}
-
-	snd_dmaengine_pcm_set_data(substream, dma_data);
-
-	return 0;
-}
-
-static int snd_imx_close(struct snd_pcm_substream *substream)
-{
-	struct imx_dma_data *dma_data = snd_dmaengine_pcm_get_data(substream);
-
-	snd_dmaengine_pcm_close(substream);
-	kfree(dma_data);
-
-	return 0;
+	return snd_dmaengine_pcm_open(substream, filter, &dma_params->dma_data);
 }
 
 static struct snd_pcm_ops imx_pcm_ops = {
 	.open		= snd_imx_open,
-	.close		= snd_imx_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_imx_pcm_hw_params,
 	.trigger	= snd_dmaengine_pcm_trigger,

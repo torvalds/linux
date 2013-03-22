@@ -649,6 +649,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	const uint32_t *iprop;
 	struct resource res;
 	char name[64];
+	bool shared;
 
 	/* SSIs that are not connected on the board should have a
 	 *      status = "disabled"
@@ -755,14 +756,14 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "could not get dma events\n");
 			goto error_clk;
 		}
-		ssi_private->dma_params_tx.dma = dma_events[0];
-		ssi_private->dma_params_rx.dma = dma_events[1];
 
-		ssi_private->dma_params_tx.shared_peripheral =
-				of_device_is_compatible(of_get_parent(np),
-							"fsl,spba-bus");
-		ssi_private->dma_params_rx.shared_peripheral =
-				ssi_private->dma_params_tx.shared_peripheral;
+		shared = of_device_is_compatible(of_get_parent(np),
+			    "fsl,spba-bus");
+
+		imx_pcm_dma_params_init_data(&ssi_private->dma_params_tx,
+			dma_events[0], shared);
+		imx_pcm_dma_params_init_data(&ssi_private->dma_params_rx,
+			dma_events[1], shared);
 	}
 
 	/* Initialize the the device_attribute structure */
