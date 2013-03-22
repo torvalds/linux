@@ -659,8 +659,8 @@ static inline void __cpuinit print_ucode(struct ucode_cpu_info *uci)
 }
 #endif
 
-static int apply_microcode_early(struct mc_saved_data *mc_saved_data,
-				 struct ucode_cpu_info *uci)
+static int __cpuinit apply_microcode_early(struct mc_saved_data *mc_saved_data,
+					   struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc_intel;
 	unsigned int val[2];
