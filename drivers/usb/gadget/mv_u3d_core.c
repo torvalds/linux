@@ -122,7 +122,7 @@ static int mv_u3d_process_ep_req(struct mv_u3d *u3d, int index,
 	struct mv_u3d_trb	*curr_trb;
 	dma_addr_t cur_deq_lo;
 	struct mv_u3d_ep_context	*curr_ep_context;
-	int trb_complete, actual, remaining_length;
+	int trb_complete, actual, remaining_length = 0;
 	int direction, ep_num;
 	int retval = 0;
 	u32 tmp, status, length;
@@ -809,19 +809,19 @@ mv_u3d_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		return 0;
 	}
 
-	dev_dbg(u3d->dev, "%s: %s, req: 0x%x\n",
-			__func__, _ep->name, (u32)req);
+	dev_dbg(u3d->dev, "%s: %s, req: 0x%p\n",
+			__func__, _ep->name, req);
 
 	/* catch various bogus parameters */
 	if (!req->req.complete || !req->req.buf
 			|| !list_empty(&req->queue)) {
 		dev_err(u3d->dev,
-			"%s, bad params, _req: 0x%x,"
-			"req->req.complete: 0x%x, req->req.buf: 0x%x,"
+			"%s, bad params, _req: 0x%p,"
+			"req->req.complete: 0x%p, req->req.buf: 0x%p,"
 			"list_empty: 0x%x\n",
-			__func__, (u32)_req,
-			(u32)req->req.complete, (u32)req->req.buf,
-			(u32)list_empty(&req->queue));
+			__func__, _req,
+			req->req.complete, req->req.buf,
+			list_empty(&req->queue));
 		return -EINVAL;
 	}
 	if (unlikely(!ep->ep.desc)) {
@@ -902,7 +902,7 @@ static int mv_u3d_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 					struct mv_u3d_req, queue);
 
 			/* Point first TRB of next request to the EP context. */
-			iowrite32((u32) next_req->trb_head,
+			iowrite32((unsigned long) next_req->trb_head,
 					&ep_context->trb_addr_lo);
 		} else {
 			struct mv_u3d_ep_context *ep_context;
@@ -1837,8 +1837,9 @@ static int mv_u3d_probe(struct platform_device *dev)
 		retval = -EBUSY;
 		goto err_map_cap_regs;
 	} else {
-		dev_dbg(&dev->dev, "cap_regs address: 0x%x/0x%x\n",
-			(unsigned int)r->start, (unsigned int)u3d->cap_regs);
+		dev_dbg(&dev->dev, "cap_regs address: 0x%lx/0x%lx\n",
+			(unsigned long) r->start,
+			(unsigned long) u3d->cap_regs);
 	}
 
 	/* we will access controller register, so enable the u3d controller */
@@ -1852,10 +1853,10 @@ static int mv_u3d_probe(struct platform_device *dev)
 		}
 	}
 
-	u3d->op_regs = (struct mv_u3d_op_regs __iomem *)((u32)u3d->cap_regs
+	u3d->op_regs = (struct mv_u3d_op_regs __iomem *)(u3d->cap_regs
 		+ MV_U3D_USB3_OP_REGS_OFFSET);
 
-	u3d->vuc_regs = (struct mv_u3d_vuc_regs __iomem *)((u32)u3d->cap_regs
+	u3d->vuc_regs = (struct mv_u3d_vuc_regs __iomem *)(u3d->cap_regs
 		+ ioread32(&u3d->cap_regs->vuoff));
 
 	u3d->max_eps = 16;
