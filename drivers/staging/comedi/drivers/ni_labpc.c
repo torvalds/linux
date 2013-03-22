@@ -1673,30 +1673,23 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	}
 
 #ifdef CONFIG_ISA_DMA_API
-	/* grab dma channel */
-	if (dma_chan > 3) {
-		dev_err(dev->class_dev, "invalid dma channel %u\n", dma_chan);
-		return -EINVAL;
-	} else if (dma_chan) {
-		unsigned long dma_flags;
-
-		/* allocate dma buffer */
+	if (dma_chan == 1 || dma_chan == 3) {
 		devpriv->dma_buffer = kmalloc(dma_buffer_size,
 					      GFP_KERNEL | GFP_DMA);
-		if (devpriv->dma_buffer == NULL)
-			return -ENOMEM;
+		if (devpriv->dma_buffer) {
+			ret = request_dma(dma_chan, dev->board_name);
+			if (ret == 0) {
+				unsigned long dma_flags;
 
-		if (request_dma(dma_chan, dev->board_name)) {
-			dev_err(dev->class_dev,
-				"failed to allocate dma channel %u\n",
-				dma_chan);
-			return -EINVAL;
+				devpriv->dma_chan = dma_chan;
+				dma_flags = claim_dma_lock();
+				disable_dma(devpriv->dma_chan);
+				set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
+				release_dma_lock(dma_flags);
+			} else {
+				kfree(devpriv->dma_buffer);
+			}
 		}
-		devpriv->dma_chan = dma_chan;
-		dma_flags = claim_dma_lock();
-		disable_dma(devpriv->dma_chan);
-		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
-		release_dma_lock(dma_flags);
 	}
 #endif
 
