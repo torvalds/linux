@@ -354,6 +354,25 @@ static bool labpc_range_is_unipolar(struct comedi_subdevice *s,
 		return true;
 }
 
+static void labpc_ai_set_chan_and_gain(struct comedi_device *dev,
+				       enum scan_mode mode,
+				       unsigned int chan,
+				       unsigned int range,
+				       unsigned int aref)
+{
+	const struct labpc_boardinfo *board = comedi_board(dev);
+	struct labpc_private *devpriv = dev->private;
+
+	/* munge channel bits for differential/scan disabled mode */
+	if ((mode == MODE_SINGLE_CHAN || mode == MODE_SINGLE_CHAN_INTERVAL) &&
+	    aref == AREF_DIFF)
+		chan *= 2;
+	devpriv->cmd1 = ADC_CHAN_BITS(chan);
+	devpriv->cmd1 |= board->ai_range_code[range];
+
+	devpriv->write_byte(devpriv->cmd1, dev->iobase + COMMAND1_REG);
+}
+
 static void labpc_clear_adc_fifo(const struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
@@ -388,14 +407,7 @@ static int labpc_ai_insn_read(struct comedi_device *dev,
 	devpriv->cmd3 = 0;
 	devpriv->write_byte(devpriv->cmd3, dev->iobase + COMMAND3_REG);
 
-	/* set gain and channel */
-	devpriv->cmd1 = 0;
-	devpriv->cmd1 |= board->ai_range_code[range];
-	/* munge channel bits for differential/scan disabled mode */
-	if (aref == AREF_DIFF)
-		chan *= 2;
-	devpriv->cmd1 |= ADC_CHAN_BITS(chan);
-	devpriv->write_byte(devpriv->cmd1, dev->iobase + COMMAND1_REG);
+	labpc_ai_set_chan_and_gain(dev, MODE_SINGLE_CHAN, chan, range, aref);
 
 	/* setup cmd6 register for 1200 boards */
 	if (board->register_layout == labpc_1200_layout) {
@@ -950,15 +962,8 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->write_byte(devpriv->cmd6, dev->iobase + COMMAND6_REG);
 	}
 
-	/* setup channel list, etc (cmd1 register) */
-	devpriv->cmd1 = 0;
-	/* munge channel bits for differential / scan disabled mode */
-	if ((mode == MODE_SINGLE_CHAN || mode == MODE_SINGLE_CHAN_INTERVAL) &&
-	    aref == AREF_DIFF)
-		chan *= 2;
-	devpriv->cmd1 |= ADC_CHAN_BITS(chan);
-	devpriv->cmd1 |= board->ai_range_code[range];
-	devpriv->write_byte(devpriv->cmd1, dev->iobase + COMMAND1_REG);
+	labpc_ai_set_chan_and_gain(dev, mode, chan, range, aref);
+
 	/* manual says to set scan enable bit on second pass */
 	if (mode == MODE_MULT_CHAN_UP || mode == MODE_MULT_CHAN_DOWN) {
 		devpriv->cmd1 |= ADC_SCAN_EN_BIT;
