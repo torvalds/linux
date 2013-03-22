@@ -215,12 +215,6 @@ enum scan_mode {
 	MODE_MULT_CHAN_DOWN,
 };
 
-static int labpc_drain_fifo(struct comedi_device *dev);
-#ifdef CONFIG_ISA_DMA_API
-static void labpc_drain_dma(struct comedi_device *dev);
-static void handle_isa_dma(struct comedi_device *dev);
-#endif
-static void labpc_drain_dregs(struct comedi_device *dev);
 static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 			     enum scan_mode scan_mode);
 #ifdef CONFIG_ISA_DMA_API
@@ -1011,215 +1005,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/* interrupt service routine */
-static irqreturn_t labpc_interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	const struct labpc_boardinfo *thisboard = comedi_board(dev);
-	struct labpc_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async;
-	struct comedi_cmd *cmd;
-
-	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
-		return IRQ_HANDLED;
-	}
-
-	async = s->async;
-	cmd = &async->cmd;
-	async->events = 0;
-
-	/* read board status */
-	devpriv->status1_bits = devpriv->read_byte(dev->iobase + STATUS1_REG);
-	if (thisboard->register_layout == labpc_1200_layout)
-		devpriv->status2_bits =
-		    devpriv->read_byte(dev->iobase + STATUS2_REG);
-
-	if ((devpriv->status1_bits & (DMATC_BIT | TIMER_BIT | OVERFLOW_BIT |
-				      OVERRUN_BIT | DATA_AVAIL_BIT)) == 0
-	    && (devpriv->status2_bits & A1_TC_BIT) == 0
-	    && (devpriv->status2_bits & FNHF_BIT)) {
-		return IRQ_NONE;
-	}
-
-	if (devpriv->status1_bits & OVERRUN_BIT) {
-		/* clear error interrupt */
-		devpriv->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
-		comedi_error(dev, "overrun");
-		return IRQ_HANDLED;
-	}
-
-#ifdef CONFIG_ISA_DMA_API
-	if (devpriv->current_transfer == isa_dma_transfer) {
-		/*
-		 * if a dma terminal count of external stop trigger
-		 * has occurred
-		 */
-		if (devpriv->status1_bits & DMATC_BIT ||
-		    (thisboard->register_layout == labpc_1200_layout
-		     && devpriv->status2_bits & A1_TC_BIT)) {
-			handle_isa_dma(dev);
-		}
-	} else
-#endif
-		labpc_drain_fifo(dev);
-
-	if (devpriv->status1_bits & TIMER_BIT) {
-		comedi_error(dev, "handled timer interrupt?");
-		/*  clear it */
-		devpriv->write_byte(0x1, dev->iobase + TIMER_CLEAR_REG);
-	}
-
-	if (devpriv->status1_bits & OVERFLOW_BIT) {
-		/*  clear error interrupt */
-		devpriv->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
-		comedi_error(dev, "overflow");
-		return IRQ_HANDLED;
-	}
-	/*  handle external stop trigger */
-	if (cmd->stop_src == TRIG_EXT) {
-		if (devpriv->status2_bits & A1_TC_BIT) {
-			labpc_drain_dregs(dev);
-			labpc_cancel(dev, s);
-			async->events |= COMEDI_CB_EOA;
-		}
-	}
-
-	/* TRIG_COUNT end of acquisition */
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (devpriv->count == 0) {
-			labpc_cancel(dev, s);
-			async->events |= COMEDI_CB_EOA;
-		}
-	}
-
-	comedi_event(dev, s);
-	return IRQ_HANDLED;
-}
-
-/* read all available samples from ai fifo */
-static int labpc_drain_fifo(struct comedi_device *dev)
-{
-	struct labpc_private *devpriv = dev->private;
-	unsigned int lsb, msb;
-	short data;
-	struct comedi_async *async = dev->read_subdev->async;
-	const int timeout = 10000;
-	unsigned int i;
-
-	devpriv->status1_bits = devpriv->read_byte(dev->iobase + STATUS1_REG);
-
-	for (i = 0; (devpriv->status1_bits & DATA_AVAIL_BIT) && i < timeout;
-	     i++) {
-		/*  quit if we have all the data we want */
-		if (async->cmd.stop_src == TRIG_COUNT) {
-			if (devpriv->count == 0)
-				break;
-			devpriv->count--;
-		}
-		lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-		msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
-		data = (msb << 8) | lsb;
-		cfc_write_to_buffer(dev->read_subdev, data);
-		devpriv->status1_bits =
-		    devpriv->read_byte(dev->iobase + STATUS1_REG);
-	}
-	if (i == timeout) {
-		comedi_error(dev, "ai timeout, fifo never empties");
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		return -1;
-	}
-
-	return 0;
-}
-
-#ifdef CONFIG_ISA_DMA_API
-static void labpc_drain_dma(struct comedi_device *dev)
-{
-	struct labpc_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s->async;
-	int status;
-	unsigned long flags;
-	unsigned int max_points, num_points, residue, leftover;
-	int i;
-
-	status = devpriv->status1_bits;
-
-	flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma_chan);
-
-	/*  figure out how many points to read */
-	max_points = devpriv->dma_transfer_size / sample_size;
-	/* residue is the number of points left to be done on the dma
-	 * transfer.  It should always be zero at this point unless
-	 * the stop_src is set to external triggering.
-	 */
-	residue = get_dma_residue(devpriv->dma_chan) / sample_size;
-	num_points = max_points - residue;
-	if (devpriv->count < num_points && async->cmd.stop_src == TRIG_COUNT)
-		num_points = devpriv->count;
-
-	/*  figure out how many points will be stored next time */
-	leftover = 0;
-	if (async->cmd.stop_src != TRIG_COUNT) {
-		leftover = devpriv->dma_transfer_size / sample_size;
-	} else if (devpriv->count > num_points) {
-		leftover = devpriv->count - num_points;
-		if (leftover > max_points)
-			leftover = max_points;
-	}
-
-	/* write data to comedi buffer */
-	for (i = 0; i < num_points; i++)
-		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
-
-	if (async->cmd.stop_src == TRIG_COUNT)
-		devpriv->count -= num_points;
-
-	/*  set address and count for next transfer */
-	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
-	set_dma_count(devpriv->dma_chan, leftover * sample_size);
-	release_dma_lock(flags);
-
-	async->events |= COMEDI_CB_BLOCK;
-}
-
-static void handle_isa_dma(struct comedi_device *dev)
-{
-	struct labpc_private *devpriv = dev->private;
-
-	labpc_drain_dma(dev);
-
-	enable_dma(devpriv->dma_chan);
-
-	/*  clear dma tc interrupt */
-	devpriv->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
-}
-#endif
-
-/* makes sure all data acquired by board is transferred to comedi (used
- * when acquisition is terminated by stop_src == TRIG_EXT). */
-static void labpc_drain_dregs(struct comedi_device *dev)
-{
-#ifdef CONFIG_ISA_DMA_API
-	struct labpc_private *devpriv = dev->private;
-
-	if (devpriv->current_transfer == isa_dma_transfer)
-		labpc_drain_dma(dev);
-#endif
-
-	labpc_drain_fifo(dev);
-}
-
 static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
@@ -1430,6 +1215,215 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 					       cmd->flags & TRIG_ROUND_MASK);
 		labpc_set_ai_convert_period(cmd, mode, convert_period);
 	}
+}
+
+#ifdef CONFIG_ISA_DMA_API
+static void labpc_drain_dma(struct comedi_device *dev)
+{
+	struct labpc_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
+	int status;
+	unsigned long flags;
+	unsigned int max_points, num_points, residue, leftover;
+	int i;
+
+	status = devpriv->status1_bits;
+
+	flags = claim_dma_lock();
+	disable_dma(devpriv->dma_chan);
+	/* clear flip-flop to make sure 2-byte registers for
+	 * count and address get set correctly */
+	clear_dma_ff(devpriv->dma_chan);
+
+	/*  figure out how many points to read */
+	max_points = devpriv->dma_transfer_size / sample_size;
+	/* residue is the number of points left to be done on the dma
+	 * transfer.  It should always be zero at this point unless
+	 * the stop_src is set to external triggering.
+	 */
+	residue = get_dma_residue(devpriv->dma_chan) / sample_size;
+	num_points = max_points - residue;
+	if (devpriv->count < num_points && async->cmd.stop_src == TRIG_COUNT)
+		num_points = devpriv->count;
+
+	/*  figure out how many points will be stored next time */
+	leftover = 0;
+	if (async->cmd.stop_src != TRIG_COUNT) {
+		leftover = devpriv->dma_transfer_size / sample_size;
+	} else if (devpriv->count > num_points) {
+		leftover = devpriv->count - num_points;
+		if (leftover > max_points)
+			leftover = max_points;
+	}
+
+	/* write data to comedi buffer */
+	for (i = 0; i < num_points; i++)
+		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
+
+	if (async->cmd.stop_src == TRIG_COUNT)
+		devpriv->count -= num_points;
+
+	/*  set address and count for next transfer */
+	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+	set_dma_count(devpriv->dma_chan, leftover * sample_size);
+	release_dma_lock(flags);
+
+	async->events |= COMEDI_CB_BLOCK;
+}
+
+static void handle_isa_dma(struct comedi_device *dev)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	labpc_drain_dma(dev);
+
+	enable_dma(devpriv->dma_chan);
+
+	/*  clear dma tc interrupt */
+	devpriv->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
+}
+#endif
+
+/* read all available samples from ai fifo */
+static int labpc_drain_fifo(struct comedi_device *dev)
+{
+	struct labpc_private *devpriv = dev->private;
+	unsigned int lsb, msb;
+	short data;
+	struct comedi_async *async = dev->read_subdev->async;
+	const int timeout = 10000;
+	unsigned int i;
+
+	devpriv->status1_bits = devpriv->read_byte(dev->iobase + STATUS1_REG);
+
+	for (i = 0; (devpriv->status1_bits & DATA_AVAIL_BIT) && i < timeout;
+	     i++) {
+		/*  quit if we have all the data we want */
+		if (async->cmd.stop_src == TRIG_COUNT) {
+			if (devpriv->count == 0)
+				break;
+			devpriv->count--;
+		}
+		lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
+		msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
+		data = (msb << 8) | lsb;
+		cfc_write_to_buffer(dev->read_subdev, data);
+		devpriv->status1_bits =
+		    devpriv->read_byte(dev->iobase + STATUS1_REG);
+	}
+	if (i == timeout) {
+		comedi_error(dev, "ai timeout, fifo never empties");
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		return -1;
+	}
+
+	return 0;
+}
+
+/* makes sure all data acquired by board is transferred to comedi (used
+ * when acquisition is terminated by stop_src == TRIG_EXT). */
+static void labpc_drain_dregs(struct comedi_device *dev)
+{
+#ifdef CONFIG_ISA_DMA_API
+	struct labpc_private *devpriv = dev->private;
+
+	if (devpriv->current_transfer == isa_dma_transfer)
+		labpc_drain_dma(dev);
+#endif
+
+	labpc_drain_fifo(dev);
+}
+
+/* interrupt service routine */
+static irqreturn_t labpc_interrupt(int irq, void *d)
+{
+	struct comedi_device *dev = d;
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+	struct labpc_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async;
+	struct comedi_cmd *cmd;
+
+	if (!dev->attached) {
+		comedi_error(dev, "premature interrupt");
+		return IRQ_HANDLED;
+	}
+
+	async = s->async;
+	cmd = &async->cmd;
+	async->events = 0;
+
+	/* read board status */
+	devpriv->status1_bits = devpriv->read_byte(dev->iobase + STATUS1_REG);
+	if (thisboard->register_layout == labpc_1200_layout)
+		devpriv->status2_bits =
+		    devpriv->read_byte(dev->iobase + STATUS2_REG);
+
+	if ((devpriv->status1_bits & (DMATC_BIT | TIMER_BIT | OVERFLOW_BIT |
+				      OVERRUN_BIT | DATA_AVAIL_BIT)) == 0
+	    && (devpriv->status2_bits & A1_TC_BIT) == 0
+	    && (devpriv->status2_bits & FNHF_BIT)) {
+		return IRQ_NONE;
+	}
+
+	if (devpriv->status1_bits & OVERRUN_BIT) {
+		/* clear error interrupt */
+		devpriv->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_event(dev, s);
+		comedi_error(dev, "overrun");
+		return IRQ_HANDLED;
+	}
+
+#ifdef CONFIG_ISA_DMA_API
+	if (devpriv->current_transfer == isa_dma_transfer) {
+		/*
+		 * if a dma terminal count of external stop trigger
+		 * has occurred
+		 */
+		if (devpriv->status1_bits & DMATC_BIT ||
+		    (thisboard->register_layout == labpc_1200_layout
+		     && devpriv->status2_bits & A1_TC_BIT)) {
+			handle_isa_dma(dev);
+		}
+	} else
+#endif
+		labpc_drain_fifo(dev);
+
+	if (devpriv->status1_bits & TIMER_BIT) {
+		comedi_error(dev, "handled timer interrupt?");
+		/*  clear it */
+		devpriv->write_byte(0x1, dev->iobase + TIMER_CLEAR_REG);
+	}
+
+	if (devpriv->status1_bits & OVERFLOW_BIT) {
+		/*  clear error interrupt */
+		devpriv->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_event(dev, s);
+		comedi_error(dev, "overflow");
+		return IRQ_HANDLED;
+	}
+	/*  handle external stop trigger */
+	if (cmd->stop_src == TRIG_EXT) {
+		if (devpriv->status2_bits & A1_TC_BIT) {
+			labpc_drain_dregs(dev);
+			labpc_cancel(dev, s);
+			async->events |= COMEDI_CB_EOA;
+		}
+	}
+
+	/* TRIG_COUNT end of acquisition */
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (devpriv->count == 0) {
+			labpc_cancel(dev, s);
+			async->events |= COMEDI_CB_EOA;
+		}
+	}
+
+	comedi_event(dev, s);
+	return IRQ_HANDLED;
 }
 
 /* analog output insn */
