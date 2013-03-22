@@ -1054,38 +1054,21 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*  startup acquisition */
 
-	/*  cmd2 reg */
-	/*  use 2 cascaded counters for pacing */
 	spin_lock_irqsave(&dev->spinlock, flags);
+
+	/* use 2 cascaded counters for pacing */
 	devpriv->cmd2 |= CMD2_TBSEL;
-	switch (cmd->start_src) {
-	case TRIG_EXT:
+
+	devpriv->cmd2 &= ~(CMD2_SWTRIG | CMD2_HWTRIG | CMD2_PRETRIG);
+	if (cmd->start_src == TRIG_EXT)
 		devpriv->cmd2 |= CMD2_HWTRIG;
-		devpriv->cmd2 &= ~(CMD2_PRETRIG | CMD2_SWTRIG);
-		break;
-	case TRIG_NOW:
+	else
 		devpriv->cmd2 |= CMD2_SWTRIG;
-		devpriv->cmd2 &= ~(CMD2_PRETRIG | CMD2_HWTRIG);
-		break;
-	default:
-		comedi_error(dev, "bug with start_src");
-		spin_unlock_irqrestore(&dev->spinlock, flags);
-		return -1;
-		break;
-	}
-	switch (cmd->stop_src) {
-	case TRIG_EXT:
+	if (cmd->stop_src == TRIG_EXT)
 		devpriv->cmd2 |= (CMD2_HWTRIG | CMD2_PRETRIG);
-		break;
-	case TRIG_COUNT:
-	case TRIG_NONE:
-		break;
-	default:
-		comedi_error(dev, "bug with stop_src");
-		spin_unlock_irqrestore(&dev->spinlock, flags);
-		return -1;
-	}
+
 	devpriv->write_byte(devpriv->cmd2, dev->iobase + CMD2_REG);
+
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return 0;
