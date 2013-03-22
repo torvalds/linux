@@ -90,7 +90,7 @@ qh_update (struct ehci_hcd *ehci, struct ehci_qh *qh, struct ehci_qtd *qtd)
 	struct ehci_qh_hw *hw = qh->hw;
 
 	/* writes to an active overlay are unsafe */
-	BUG_ON(qh->qh_state != QH_STATE_IDLE);
+	WARN_ON(qh->qh_state != QH_STATE_IDLE);
 
 	hw->hw_qtd_next = QTD_NEXT(ehci, qtd->qtd_dma);
 	hw->hw_alt_next = EHCI_LIST_END(ehci);
@@ -123,26 +123,19 @@ qh_refresh (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	struct ehci_qtd *qtd;
 
-	if (list_empty (&qh->qtd_list))
-		qtd = qh->dummy;
-	else {
-		qtd = list_entry (qh->qtd_list.next,
-				struct ehci_qtd, qtd_list);
-		/*
-		 * first qtd may already be partially processed.
-		 * If we come here during unlink, the QH overlay region
-		 * might have reference to the just unlinked qtd. The
-		 * qtd is updated in qh_completions(). Update the QH
-		 * overlay here.
-		 */
-		if (qh->hw->hw_token & ACTIVE_BIT(ehci)) {
-			qh->hw->hw_qtd_next = qtd->hw_next;
-			qtd = NULL;
-		}
-	}
+	qtd = list_entry(qh->qtd_list.next, struct ehci_qtd, qtd_list);
 
-	if (qtd)
-		qh_update (ehci, qh, qtd);
+	/*
+	 * first qtd may already be partially processed.
+	 * If we come here during unlink, the QH overlay region
+	 * might have reference to the just unlinked qtd. The
+	 * qtd is updated in qh_completions(). Update the QH
+	 * overlay here.
+	 */
+	if (qh->hw->hw_token & ACTIVE_BIT(ehci))
+		qh->hw->hw_qtd_next = qtd->hw_next;
+	else
+		qh_update(ehci, qh, qtd);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -553,12 +546,9 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 * overlaying the dummy qtd (which reduces DMA chatter).
 	 */
 	if (stopped != 0 || hw->hw_qtd_next == EHCI_LIST_END(ehci)) {
-		switch (state) {
-		case QH_STATE_IDLE:
-			qh_refresh(ehci, qh);
-			break;
-		case QH_STATE_LINKED:
-			/* We won't refresh a QH that's linked (after the HC
+		if (state == QH_STATE_LINKED) {
+			/*
+			 * We won't refresh a QH that's linked (after the HC
 			 * stopped the queue).  That avoids a race:
 			 *  - HC reads first part of QH;
 			 *  - CPU updates that first part and the token;
@@ -568,13 +558,12 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			 *
 			 * That should be rare for interrupt transfers,
 			 * except maybe high bandwidth ...
+			 *
+			 * Therefore tell the caller to start an unlink.
 			 */
-
-			/* Tell the caller to start an unlink */
 			qh->needs_rescan = 1;
-			break;
-		/* otherwise, unlink already started */
 		}
+		/* otherwise, unlink already started */
 	}
 
 	return count;
@@ -957,14 +946,13 @@ done:
 
 	/* NOTE:  if (PIPE_INTERRUPT) { scheduler sets s-mask } */
 
-	/* init as live, toggle clear, advance to dummy */
+	/* init as live, toggle clear */
 	qh->qh_state = QH_STATE_IDLE;
 	hw = qh->hw;
 	hw->hw_info1 = cpu_to_hc32(ehci, info1);
 	hw->hw_info2 = cpu_to_hc32(ehci, info2);
 	qh->is_out = !is_input;
 	usb_settoggle (urb->dev, usb_pipeendpoint (urb->pipe), !is_input, 1);
-	qh_refresh (ehci, qh);
 	return qh;
 }
 

@@ -792,7 +792,6 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	unsigned	frame;		/* 0..(qh->period - 1), or NO_FRAME */
 	struct ehci_qh_hw	*hw = qh->hw;
 
-	qh_refresh(ehci, qh);
 	hw->hw_next = EHCI_LIST_END(ehci);
 	frame = qh->start;
 
@@ -844,8 +843,6 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	} else
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
 
-	/* stuff into the periodic schedule */
-	qh_link_periodic(ehci, qh);
 done:
 	return status;
 }
@@ -890,6 +887,12 @@ static int intr_submit (
 	/* then queue the urb's tds to the qh */
 	qh = qh_append_tds(ehci, urb, qtd_list, epnum, &urb->ep->hcpriv);
 	BUG_ON (qh == NULL);
+
+	/* stuff into the periodic schedule */
+	if (qh->qh_state == QH_STATE_IDLE) {
+		qh_refresh(ehci, qh);
+		qh_link_periodic(ehci, qh);
+	}
 
 	/* ... update usbfs periodic stats */
 	ehci_to_hcd(ehci)->self.bandwidth_int_reqs++;
