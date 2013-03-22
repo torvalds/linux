@@ -47,9 +47,10 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	}
 	net = skb_net(skb);
 	/* No !th->ack check to allow scheduling on SYN+ACK for Active FTP */
+	rcu_read_lock();
 	if (th->syn &&
-	    (svc = ip_vs_service_get(net, af, skb->mark, iph->protocol,
-				     &iph->daddr, th->dest))) {
+	    (svc = ip_vs_service_find(net, af, skb->mark, iph->protocol,
+				      &iph->daddr, th->dest))) {
 		int ignored;
 
 		if (ip_vs_todrop(net_ipvs(net))) {
@@ -57,7 +58,7 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(
 			 */
-			ip_vs_service_put(svc);
+			rcu_read_unlock();
 			*verdict = NF_DROP;
 			return 0;
 		}
@@ -70,14 +71,13 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		if (!*cpp && ignored <= 0) {
 			if (!ignored)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
-			else {
-				ip_vs_service_put(svc);
+			else
 				*verdict = NF_DROP;
-			}
+			rcu_read_unlock();
 			return 0;
 		}
-		ip_vs_service_put(svc);
 	}
+	rcu_read_unlock();
 	/* NF_ACCEPT */
 	return 1;
 }

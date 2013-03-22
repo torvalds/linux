@@ -283,6 +283,7 @@ static int __init ip_vs_sh_init(void)
 static void __exit ip_vs_sh_cleanup(void)
 {
 	unregister_ip_vs_scheduler(&ip_vs_sh_scheduler);
+	synchronize_rcu();
 }
 
 

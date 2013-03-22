@@ -121,6 +121,7 @@ static int __init ip_vs_rr_init(void)
 static void __exit ip_vs_rr_cleanup(void)
 {
 	unregister_ip_vs_scheduler(&ip_vs_rr_scheduler);
+	synchronize_rcu();
 }
 
 module_init(ip_vs_rr_init);

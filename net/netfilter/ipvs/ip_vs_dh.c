@@ -269,6 +269,7 @@ static int __init ip_vs_dh_init(void)
 static void __exit ip_vs_dh_cleanup(void)
 {
 	unregister_ip_vs_scheduler(&ip_vs_dh_scheduler);
+	synchronize_rcu();
 }
 
 

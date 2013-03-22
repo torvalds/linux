@@ -633,6 +633,7 @@ static void __exit ip_vs_lblc_cleanup(void)
 {
 	unregister_ip_vs_scheduler(&ip_vs_lblc_scheduler);
 	unregister_pernet_subsys(&ip_vs_lblc_ops);
+	synchronize_rcu();
 }
 
 

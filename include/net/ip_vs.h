@@ -359,8 +359,6 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 #define LeaveFunction(level)   do {} while (0)
 #endif
 
-#define	IP_VS_WAIT_WHILE(expr)	while (expr) { cpu_relax(); }
-
 
 /*
  *      The port number of FTP service (in network order).
@@ -712,10 +710,9 @@ struct ip_vs_dest_user_kern {
  *	and the forwarding entries
  */
 struct ip_vs_service {
-	struct list_head	s_list;   /* for normal service table */
-	struct list_head	f_list;   /* for fwmark-based service table */
+	struct hlist_node	s_list;   /* for normal service table */
+	struct hlist_node	f_list;   /* for fwmark-based service table */
 	atomic_t		refcnt;   /* reference counter */
-	atomic_t		usecnt;   /* use counter */
 
 	u16			af;       /* address family */
 	__u16			protocol; /* which protocol (TCP/UDP) */
@@ -730,15 +727,16 @@ struct ip_vs_service {
 	struct list_head	destinations;  /* real server d-linked list */
 	__u32			num_dests;     /* number of servers */
 	struct ip_vs_stats      stats;         /* statistics for the service */
-	struct ip_vs_app	*inc;	  /* bind conns to this app inc */
 
 	/* for scheduling */
-	struct ip_vs_scheduler	*scheduler;    /* bound scheduler object */
+	struct ip_vs_scheduler __rcu *scheduler; /* bound scheduler object */
 	spinlock_t		sched_lock;    /* lock sched_data */
 	void			*sched_data;   /* scheduler application data */
 
 	/* alternate persistence engine */
-	struct ip_vs_pe		*pe;
+	struct ip_vs_pe __rcu	*pe;
+
+	struct rcu_head		rcu_head;
 };
 
 /* Information for cached dst */
@@ -807,8 +805,6 @@ struct ip_vs_scheduler {
 	int (*init_service)(struct ip_vs_service *svc);
 	/* scheduling service finish */
 	void (*done_service)(struct ip_vs_service *svc);
-	/* scheduler updating service */
-	int (*update_service)(struct ip_vs_service *svc);
 	/* dest is linked */
 	int (*add_dest)(struct ip_vs_service *svc, struct ip_vs_dest *dest);
 	/* dest is unlinked */
@@ -1344,8 +1340,6 @@ extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff *skb);
 extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff *skb);
 
-void ip_vs_bind_pe(struct ip_vs_service *svc, struct ip_vs_pe *pe);
-void ip_vs_unbind_pe(struct ip_vs_service *svc);
 int register_ip_vs_pe(struct ip_vs_pe *pe);
 int unregister_ip_vs_pe(struct ip_vs_pe *pe);
 struct ip_vs_pe *ip_vs_pe_getbyname(const char *name);
@@ -1392,7 +1386,8 @@ extern int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler);
 extern int unregister_ip_vs_scheduler(struct ip_vs_scheduler *scheduler);
 extern int ip_vs_bind_scheduler(struct ip_vs_service *svc,
 				struct ip_vs_scheduler *scheduler);
-extern void ip_vs_unbind_scheduler(struct ip_vs_service *svc);
+extern void ip_vs_unbind_scheduler(struct ip_vs_service *svc,
+				   struct ip_vs_scheduler *sched);
 extern struct ip_vs_scheduler *ip_vs_scheduler_get(const char *sched_name);
 extern void ip_vs_scheduler_put(struct ip_vs_scheduler *scheduler);
 extern struct ip_vs_conn *
@@ -1412,13 +1407,8 @@ extern struct ip_vs_stats ip_vs_stats;
 extern int sysctl_ip_vs_sync_ver;
 
 extern struct ip_vs_service *
-ip_vs_service_get(struct net *net, int af, __u32 fwmark, __u16 protocol,
+ip_vs_service_find(struct net *net, int af, __u32 fwmark, __u16 protocol,
 		  const union nf_inet_addr *vaddr, __be16 vport);
-
-static inline void ip_vs_service_put(struct ip_vs_service *svc)
-{
-	atomic_dec(&svc->usecnt);
-}
 
 extern bool
 ip_vs_has_real_service(struct net *net, int af, __u16 protocol,

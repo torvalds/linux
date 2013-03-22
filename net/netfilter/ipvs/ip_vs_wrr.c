@@ -261,6 +261,7 @@ static int __init ip_vs_wrr_init(void)
 static void __exit ip_vs_wrr_cleanup(void)
 {
 	unregister_ip_vs_scheduler(&ip_vs_wrr_scheduler);
+	synchronize_rcu();
 }
 
 module_init(ip_vs_wrr_init);

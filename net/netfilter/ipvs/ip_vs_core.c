@@ -203,7 +203,7 @@ ip_vs_conn_fill_param_persist(const struct ip_vs_service *svc,
 {
 	ip_vs_conn_fill_param(svc->net, svc->af, protocol, caddr, cport, vaddr,
 			      vport, p);
-	p->pe = svc->pe;
+	p->pe = rcu_dereference(svc->pe);
 	if (p->pe && p->pe->fill_param)
 		return p->pe->fill_param(p, skb);
 
@@ -296,15 +296,16 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/* Check if a template already exists */
 	ct = ip_vs_ct_in_get(&param);
 	if (!ct || !ip_vs_check_template(ct)) {
+		struct ip_vs_scheduler *sched;
+
 		/*
 		 * No template found or the dest of the connection
 		 * template is not available.
 		 * return *ignored=0 i.e. ICMP and NF_DROP
 		 */
-		rcu_read_lock();
-		dest = svc->scheduler->schedule(svc, skb);
+		sched = rcu_dereference(svc->scheduler);
+		dest = sched->schedule(svc, skb);
 		if (!dest) {
-			rcu_read_unlock();
 			IP_VS_DBG(1, "p-schedule: no dest found.\n");
 			kfree(param.pe_data);
 			*ignored = 0;
@@ -320,7 +321,6 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		 * when the template expires */
 		ct = ip_vs_conn_new(&param, &dest->addr, dport,
 				    IP_VS_CONN_F_TEMPLATE, dest, skb->mark);
-		rcu_read_unlock();
 		if (ct == NULL) {
 			kfree(param.pe_data);
 			*ignored = -1;
@@ -394,6 +394,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 {
 	struct ip_vs_protocol *pp = pd->pp;
 	struct ip_vs_conn *cp = NULL;
+	struct ip_vs_scheduler *sched;
 	struct ip_vs_dest *dest;
 	__be16 _ports[2], *pptr;
 	unsigned int flags;
@@ -449,10 +450,9 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 		return NULL;
 	}
 
-	rcu_read_lock();
-	dest = svc->scheduler->schedule(svc, skb);
+	sched = rcu_dereference(svc->scheduler);
+	dest = sched->schedule(svc, skb);
 	if (dest == NULL) {
-		rcu_read_unlock();
 		IP_VS_DBG(1, "Schedule: no dest found.\n");
 		return NULL;
 	}
@@ -473,7 +473,6 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 		cp = ip_vs_conn_new(&p, &dest->addr,
 				    dest->port ? dest->port : pptr[1],
 				    flags, dest, skb->mark);
-		rcu_read_unlock();
 		if (!cp) {
 			*ignored = -1;
 			return NULL;
@@ -510,7 +509,6 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 
 	pptr = frag_safe_skb_hp(skb, iph->len, sizeof(_ports), _ports, iph);
 	if (pptr == NULL) {
-		ip_vs_service_put(svc);
 		return NF_DROP;
 	}
 
@@ -535,8 +533,6 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 				      iph->protocol == IPPROTO_UDP) ?
 				      IP_VS_CONN_F_ONE_PACKET : 0;
 		union nf_inet_addr daddr =  { .all = { 0, 0, 0, 0 } };
-
-		ip_vs_service_put(svc);
 
 		/* create a new connection entry */
 		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);
@@ -574,12 +570,8 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	 * listed in the ipvs table), pass the packets, because it is
 	 * not ipvs job to decide to drop the packets.
 	 */
-	if ((svc->port == FTPPORT) && (pptr[1] != FTPPORT)) {
-		ip_vs_service_put(svc);
+	if ((svc->port == FTPPORT) && (pptr[1] != FTPPORT))
 		return NF_ACCEPT;
-	}
-
-	ip_vs_service_put(svc);
 
 	/*
 	 * Notify the client that the destination is unreachable, and

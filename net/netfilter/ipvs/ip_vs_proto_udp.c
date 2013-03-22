@@ -44,8 +44,9 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		return 0;
 	}
 	net = skb_net(skb);
-	svc = ip_vs_service_get(net, af, skb->mark, iph->protocol,
-				&iph->daddr, uh->dest);
+	rcu_read_lock();
+	svc = ip_vs_service_find(net, af, skb->mark, iph->protocol,
+				 &iph->daddr, uh->dest);
 	if (svc) {
 		int ignored;
 
@@ -54,7 +55,7 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(
 			 */
-			ip_vs_service_put(svc);
+			rcu_read_unlock();
 			*verdict = NF_DROP;
 			return 0;
 		}
@@ -67,14 +68,13 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		if (!*cpp && ignored <= 0) {
 			if (!ignored)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
-			else {
-				ip_vs_service_put(svc);
+			else
 				*verdict = NF_DROP;
-			}
+			rcu_read_unlock();
 			return 0;
 		}
-		ip_vs_service_put(svc);
 	}
+	rcu_read_unlock();
 	/* NF_ACCEPT */
 	return 1;
 }

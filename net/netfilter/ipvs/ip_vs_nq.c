@@ -133,6 +133,7 @@ static int __init ip_vs_nq_init(void)
 static void __exit ip_vs_nq_cleanup(void)
 {
 	unregister_ip_vs_scheduler(&ip_vs_nq_scheduler);
+	synchronize_rcu();
 }
 
 module_init(ip_vs_nq_init);

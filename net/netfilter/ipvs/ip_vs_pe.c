@@ -16,18 +16,6 @@ static LIST_HEAD(ip_vs_pe);
 /* semaphore for IPVS PEs. */
 static DEFINE_MUTEX(ip_vs_pe_mutex);
 
-/* Bind a service with a pe */
-void ip_vs_bind_pe(struct ip_vs_service *svc, struct ip_vs_pe *pe)
-{
-	svc->pe = pe;
-}
-
-/* Unbind a service from its pe */
-void ip_vs_unbind_pe(struct ip_vs_service *svc)
-{
-	svc->pe = NULL;
-}
-
 /* Get pe in the pe list by name */
 struct ip_vs_pe *__ip_vs_pe_getbyname(const char *pe_name)
 {
