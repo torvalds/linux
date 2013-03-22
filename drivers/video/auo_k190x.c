@@ -60,6 +60,46 @@ static void auok190x_issue_cmd(struct auok190xfb_par *par, u16 data)
 	par->board->set_ctl(par, AUOK190X_I80_DC, 1);
 }
 
+/**
+ * Conversion of 16bit color to 4bit grayscale
+ * does roughly (0.3 * R + 0.6 G + 0.1 B) / 2
+ */
+static inline int rgb565_to_gray4(u16 data, struct fb_var_screeninfo *var)
+{
+	return ((((data & 0xF800) >> var->red.offset) * 77 +
+		 ((data & 0x07E0) >> (var->green.offset + 1)) * 151 +
+		 ((data & 0x1F) >> var->blue.offset) * 28) >> 8 >> 1);
+}
+
+static int auok190x_issue_pixels_rgb565(struct auok190xfb_par *par, int size,
+					u16 *data)
+{
+	struct fb_var_screeninfo *var = &par->info->var;
+	struct device *dev = par->info->device;
+	int i;
+	u16 tmp;
+
+	if (size & 7) {
+		dev_err(dev, "issue_pixels: size %d must be a multiple of 8\n",
+			size);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < (size >> 2); i++) {
+		par->board->set_ctl(par, AUOK190X_I80_WR, 0);
+
+		tmp  = (rgb565_to_gray4(data[4*i], var) & 0x000F);
+		tmp |= (rgb565_to_gray4(data[4*i+1], var) << 4) & 0x00F0;
+		tmp |= (rgb565_to_gray4(data[4*i+2], var) << 8) & 0x0F00;
+		tmp |= (rgb565_to_gray4(data[4*i+3], var) << 12) & 0xF000;
+
+		par->board->set_hdb(par, tmp);
+		par->board->set_ctl(par, AUOK190X_I80_WR, 1);
+	}
+
+	return 0;
+}
+
 static int auok190x_issue_pixels_gray8(struct auok190xfb_par *par, int size,
 				       u16 *data)
 {
@@ -99,6 +139,8 @@ static int auok190x_issue_pixels(struct auok190xfb_par *par, int size,
 
 	if (info->var.bits_per_pixel == 8 && info->var.grayscale)
 		auok190x_issue_pixels_gray8(par, size, data);
+	else if (info->var.bits_per_pixel == 16)
+		auok190x_issue_pixels_rgb565(par, size, data);
 	else
 		dev_err(dev, "unsupported color mode (bits: %d, gray: %d)\n",
 			info->var.bits_per_pixel, info->var.grayscale);
@@ -419,6 +461,22 @@ static int auok190xfb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 0;
 		var->transp.offset = 0;
 		var->transp.msb_right = 0;
+	} else if (var->bits_per_pixel == 16) {
+		var->red.length = 5;
+		var->red.offset = 11;
+		var->red.msb_right = 0;
+
+		var->green.length = 6;
+		var->green.offset = 5;
+		var->green.msb_right = 0;
+
+		var->blue.length = 5;
+		var->blue.offset = 0;
+		var->blue.msb_right = 0;
+
+		var->transp.length = 0;
+		var->transp.offset = 0;
+		var->transp.msb_right = 0;
 	} else {
 		dev_warn(dev, "unsupported color mode (bits: %d, grayscale: %d)\n",
 			info->var.bits_per_pixel, info->var.grayscale);
@@ -472,6 +530,15 @@ static int auok190xfb_set_fix(struct fb_info *info)
 	return 0;
 }
 
+static int auok190xfb_set_par(struct fb_info *info)
+{
+	struct auok190xfb_par *par = info->par;
+
+	auok190xfb_set_fix(info);
+
+	return 0;
+}
+
 static struct fb_ops auok190xfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_read	= fb_sys_read,
@@ -480,6 +547,7 @@ static struct fb_ops auok190xfb_ops = {
 	.fb_copyarea	= auok190xfb_copyarea,
 	.fb_imageblit	= auok190xfb_imageblit,
 	.fb_check_var	= auok190xfb_check_var,
+	.fb_set_par     = auok190xfb_set_par,
 };
 
 /*
@@ -966,8 +1034,7 @@ int auok190x_common_probe(struct platform_device *pdev,
 
 	/* videomemory handling */
 
-	videomemorysize = roundup((panel->w * panel->h) *
-				info->var.bits_per_pixel / 8, PAGE_SIZE);
+	videomemorysize = roundup((panel->w * panel->h) * 2, PAGE_SIZE);
 	videomemory = vmalloc(videomemorysize);
 	if (!videomemory) {
 		ret = -ENOMEM;
