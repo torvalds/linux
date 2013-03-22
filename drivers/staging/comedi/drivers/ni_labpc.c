@@ -289,6 +289,20 @@ static const int dma_buffer_size = 0xff00;
 /* 2 bytes per sample */
 static const int sample_size = 2;
 
+static int labpc_counter_load(struct comedi_device *dev,
+			      unsigned long base_address,
+			      unsigned int counter_number,
+			      unsigned int count, unsigned int mode)
+{
+	const struct labpc_boardinfo *board = comedi_board(dev);
+
+	if (board->has_mmio)
+		return i8254_mm_load((void __iomem *)base_address, 0,
+				     counter_number, count, mode);
+	else
+		return i8254_load(base_address, 0, counter_number, count, mode);
+}
+
 static int labpc_counter_set_mode(struct comedi_device *dev,
 				  unsigned long base_address,
 				  unsigned int counter_number,
@@ -855,20 +869,6 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-static int labpc_counter_load(struct comedi_device *dev,
-			      unsigned long base_address,
-			      unsigned int counter_number,
-			      unsigned int count, unsigned int mode)
-{
-	const struct labpc_boardinfo *board = comedi_board(dev);
-
-	if (board->has_mmio)
-		return i8254_mm_load((void __iomem *)base_address, 0,
-				     counter_number, count, mode);
-	else
-		return i8254_load(base_address, 0, counter_number, count, mode);
-}
-
 static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
@@ -900,7 +900,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * (pc+ manual says this is minimum allowed) using mode 0
 		 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
-					 1, 3, 0);
+					 1, 3, I8254_MODE0);
 		if (ret < 0) {
 			comedi_error(dev, "error loading counter a1");
 			return -1;
@@ -961,7 +961,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		labpc_adc_timing(dev, cmd, mode);
 		/*  load counter b0 in mode 3 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
-					 0, devpriv->divisor_b0, 3);
+					 0, devpriv->divisor_b0, I8254_MODE3);
 		if (ret < 0) {
 			comedi_error(dev, "error loading counter b0");
 			return -1;
@@ -971,7 +971,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (labpc_ai_convert_period(cmd, mode)) {
 		/*  load counter a0 in mode 2 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
-					 0, devpriv->divisor_a0, 2);
+					 0, devpriv->divisor_a0, I8254_MODE2);
 		if (ret < 0) {
 			comedi_error(dev, "error loading counter a0");
 			return -1;
@@ -986,7 +986,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (labpc_ai_scan_period(cmd, mode)) {
 		/*  load counter b1 in mode 2 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
-					 1, devpriv->divisor_b1, 2);
+					 1, devpriv->divisor_b1, I8254_MODE2);
 		if (ret < 0) {
 			comedi_error(dev, "error loading counter b1");
 			return -1;
