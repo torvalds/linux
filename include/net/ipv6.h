@@ -478,6 +478,7 @@ struct ip6_create_arg {
 	u32 user;
 	const struct in6_addr *src;
 	const struct in6_addr *dst;
+	u8 ecn;
 };
 
 void ip6_frag_init(struct inet_frag_queue *q, void *a);
@@ -497,6 +498,7 @@ struct frag_queue {
 	int			iif;
 	unsigned int		csum;
 	__u16			nhoffset;
+	u8			ecn;
 };
 
 void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
