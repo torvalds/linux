@@ -389,6 +389,9 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 		dev_spec->eee_disable = false;
 	else
 		dev_spec->eee_disable = true;
+	/* Allow a single clear of the SW semaphore on I210 and newer */
+	if (mac->type >= e1000_i210)
+		dev_spec->clear_semaphore_once = true;
 	/* physical interface link setup */
 	mac->ops.setup_physical_interface =
 		(hw->phy.media_type == e1000_media_type_copper)

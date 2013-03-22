@@ -44,9 +44,41 @@
 static s32 igb_get_hw_semaphore_i210(struct e1000_hw *hw)
 {
 	u32 swsm;
-	s32 ret_val = E1000_SUCCESS;
 	s32 timeout = hw->nvm.word_size + 1;
 	s32 i = 0;
+
+	/* Get the SW semaphore */
+	while (i < timeout) {
+		swsm = rd32(E1000_SWSM);
+		if (!(swsm & E1000_SWSM_SMBI))
+			break;
+
+		udelay(50);
+		i++;
+	}
+
+	if (i == timeout) {
+		/* In rare circumstances, the SW semaphore may already be held
+		 * unintentionally. Clear the semaphore once before giving up.
+		 */
+		if (hw->dev_spec._82575.clear_semaphore_once) {
+			hw->dev_spec._82575.clear_semaphore_once = false;
+			igb_put_hw_semaphore(hw);
+			for (i = 0; i < timeout; i++) {
+				swsm = rd32(E1000_SWSM);
+				if (!(swsm & E1000_SWSM_SMBI))
+					break;
+
+				udelay(50);
+			}
+		}
+
+		/* If we do not have the semaphore here, we have to give up. */
+		if (i == timeout) {
+			hw_dbg("Driver can't access device - SMBI bit is set.\n");
+			return -E1000_ERR_NVM;
+		}
+	}
 
 	/* Get the FW semaphore. */
 	for (i = 0; i < timeout; i++) {
@@ -64,12 +96,10 @@ static s32 igb_get_hw_semaphore_i210(struct e1000_hw *hw)
 		/* Release semaphores */
 		igb_put_hw_semaphore(hw);
 		hw_dbg("Driver can't access the NVM\n");
-		ret_val = -E1000_ERR_NVM;
-		goto out;
+		return -E1000_ERR_NVM;
 	}
 
-out:
-	return ret_val;
+	return E1000_SUCCESS;
 }
 
 /**
@@ -99,23 +129,6 @@ void igb_release_nvm_i210(struct e1000_hw *hw)
 }
 
 /**
- *  igb_put_hw_semaphore_i210 - Release hardware semaphore
- *  @hw: pointer to the HW structure
- *
- *  Release hardware semaphore used to access the PHY or NVM
- **/
-static void igb_put_hw_semaphore_i210(struct e1000_hw *hw)
-{
-	u32 swsm;
-
-	swsm = rd32(E1000_SWSM);
-
-	swsm &= ~E1000_SWSM_SWESMBI;
-
-	wr32(E1000_SWSM, swsm);
-}
-
-/**
  *  igb_acquire_swfw_sync_i210 - Acquire SW/FW semaphore
  *  @hw: pointer to the HW structure
  *  @mask: specifies which semaphore to acquire
@@ -138,11 +151,11 @@ s32 igb_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 		}
 
 		swfw_sync = rd32(E1000_SW_FW_SYNC);
-		if (!(swfw_sync & fwmask))
+		if (!(swfw_sync & (fwmask | swmask)))
 			break;
 
 		/* Firmware currently using resource (fwmask) */
-		igb_put_hw_semaphore_i210(hw);
+		igb_put_hw_semaphore(hw);
 		mdelay(5);
 		i++;
 	}
@@ -156,7 +169,7 @@ s32 igb_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	swfw_sync |= swmask;
 	wr32(E1000_SW_FW_SYNC, swfw_sync);
 
-	igb_put_hw_semaphore_i210(hw);
+	igb_put_hw_semaphore(hw);
 out:
 	return ret_val;
 }
@@ -180,7 +193,7 @@ void igb_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	swfw_sync &= ~mask;
 	wr32(E1000_SW_FW_SYNC, swfw_sync);
 
-	igb_put_hw_semaphore_i210(hw);
+	igb_put_hw_semaphore(hw);
 }
 
 /**

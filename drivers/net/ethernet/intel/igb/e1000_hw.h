@@ -529,6 +529,7 @@ struct e1000_dev_spec_82575 {
 	bool sgmii_active;
 	bool global_device_reset;
 	bool eee_disable;
+	bool clear_semaphore_once;
 };
 
 struct e1000_hw {
