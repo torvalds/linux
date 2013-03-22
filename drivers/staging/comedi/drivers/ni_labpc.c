@@ -2106,20 +2106,20 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 }
 
 static struct comedi_driver labpc_driver = {
-	.driver_name = DRV_NAME,
-	.module = THIS_MODULE,
-	.attach = labpc_attach,
-	.auto_attach = labpc_auto_attach,
-	.detach = labpc_common_detach,
-	.num_names = ARRAY_SIZE(labpc_boards),
-	.board_name = &labpc_boards[0].name,
-	.offset = sizeof(struct labpc_boardinfo),
+	.driver_name	= DRV_NAME,
+	.module		= THIS_MODULE,
+	.attach		= labpc_attach,
+	.auto_attach	= labpc_auto_attach,
+	.detach		= labpc_common_detach,
+	.num_names	= ARRAY_SIZE(labpc_boards),
+	.board_name	= &labpc_boards[0].name,
+	.offset		= sizeof(struct labpc_boardinfo),
 };
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x161)},
-	{0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x161) },
+	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, labpc_pci_table);
 
@@ -2130,9 +2130,9 @@ static int labpc_pci_probe(struct pci_dev *dev,
 }
 
 static struct pci_driver labpc_pci_driver = {
-	.name = DRV_NAME,
-	.id_table = labpc_pci_table,
-	.probe = labpc_pci_probe,
+	.name		= DRV_NAME,
+	.id_table	= labpc_pci_table,
+	.probe		= labpc_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(labpc_driver, labpc_pci_driver);
