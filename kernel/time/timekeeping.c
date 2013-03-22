@@ -1627,6 +1627,17 @@ int do_adjtimex(struct timex *txc)
 	if (ret)
 		return ret;
 
+	if (txc->modes & ADJ_SETOFFSET) {
+		struct timespec delta;
+		delta.tv_sec  = txc->time.tv_sec;
+		delta.tv_nsec = txc->time.tv_usec;
+		if (!(txc->modes & ADJ_NANO))
+			delta.tv_nsec *= 1000;
+		ret = timekeeping_inject_offset(&delta);
+		if (ret)
+			return ret;
+	}
+
 	getnstimeofday(&ts);
 	orig_tai = tai = timekeeping_get_tai_offset();
 
