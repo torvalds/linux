@@ -519,16 +519,13 @@ static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
 }
 #endif
 
-static int labpc_use_continuous_mode(const struct comedi_cmd *cmd,
-				     enum scan_mode mode)
+static bool labpc_use_continuous_mode(const struct comedi_cmd *cmd,
+				      enum scan_mode mode)
 {
-	if (mode == MODE_SINGLE_CHAN)
-		return 1;
+	if (mode == MODE_SINGLE_CHAN || cmd->scan_begin_src == TRIG_FOLLOW)
+		return true;
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW)
-		return 1;
-
-	return 0;
+	return false;
 }
 
 static unsigned int labpc_ai_convert_period(const struct comedi_cmd *cmd,
@@ -1042,7 +1039,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->cmd4 |= CMD4_ECLKRCV;
 	/* XXX should discard first scan when using interval scanning
 	 * since manual says it is not synced with scan clock */
-	if (labpc_use_continuous_mode(cmd, mode) == 0) {
+	if (!labpc_use_continuous_mode(cmd, mode)) {
 		devpriv->cmd4 |= CMD4_INTSCAN;
 		if (cmd->scan_begin_src == TRIG_EXT)
 			devpriv->cmd4 |= CMD4_EOIRCV;
