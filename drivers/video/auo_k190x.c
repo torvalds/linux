@@ -40,6 +40,14 @@ static struct panel_info panel_table[] = {
 		.w = 1024,
 		.h = 768,
 	},
+	[AUOK190X_RESOLUTION_600_800] = {
+		.w = 600,
+		.h = 800,
+	},
+	[AUOK190X_RESOLUTION_768_1024] = {
+		.w = 768,
+		.h = 1024,
+	},
 };
 
 /*
