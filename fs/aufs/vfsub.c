@@ -540,8 +540,10 @@ int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 {
 	int err;
 	struct inode *h_inode;
+	struct super_block *h_sb;
 
 	h_inode = h_path->dentry->d_inode;
+	h_sb = h_inode->i_sb;
 	if (!h_file) {
 		err = vfsub_mnt_want_write(h_path->mnt);
 		if (err)
@@ -555,6 +557,10 @@ int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 		err = break_lease(h_inode, O_WRONLY);
 		if (err)
 			goto out_inode;
+	} else {
+		lockdep_off();
+		sb_start_write(h_sb);
+		lockdep_on();
 	}
 
 	err = locks_verify_truncate(h_inode, h_file, length);
@@ -563,6 +569,11 @@ int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 	if (!err) {
 		lockdep_off();
 		err = do_truncate(h_path->dentry, length, attr, h_file);
+		lockdep_on();
+	}
+	if (h_file) {
+		lockdep_off();
+		sb_end_write(h_sb);
 		lockdep_on();
 	}
 
