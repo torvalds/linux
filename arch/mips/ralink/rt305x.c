@@ -124,6 +124,8 @@ struct ralink_pinmux gpio_pinmux = {
 void __init ralink_clk_init(void)
 {
 	unsigned long cpu_rate, sys_rate, wdt_rate, uart_rate;
+	unsigned long wmac_rate = 40000000;
+
 	u32 t = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG);
 
 	if (soc_is_rt305x() || soc_is_rt3350()) {
@@ -176,11 +178,21 @@ void __init ralink_clk_init(void)
 		BUG();
 	}
 
+	if (soc_is_rt3352() || soc_is_rt5350()) {
+		u32 val = rt_sysc_r32(RT3352_SYSC_REG_SYSCFG0);
+
+		if (!(val & RT3352_CLKCFG0_XTAL_SEL))
+			wmac_rate = 20000000;
+	}
+
 	ralink_clk_add("cpu", cpu_rate);
 	ralink_clk_add("10000b00.spi", sys_rate);
 	ralink_clk_add("10000100.timer", wdt_rate);
+	ralink_clk_add("10000120.watchdog", wdt_rate);
 	ralink_clk_add("10000500.uart", uart_rate);
 	ralink_clk_add("10000c00.uartlite", uart_rate);
+	ralink_clk_add("10100000.ethernet", sys_rate);
+	ralink_clk_add("10180000.wmac", wmac_rate);
 }
 
 void __init ralink_of_remap(void)
