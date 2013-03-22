@@ -1000,7 +1000,8 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->write_byte(INTERVAL_LOAD_BITS,
 			    dev->iobase + INTERVAL_LOAD_REG);
 
-	if (cmd->convert_src == TRIG_TIMER || cmd->scan_begin_src == TRIG_TIMER) {
+	if (cmd->convert_src == TRIG_TIMER ||
+	    cmd->scan_begin_src == TRIG_TIMER) {
 		/*  set up pacing */
 		labpc_adc_timing(dev, cmd, mode);
 		/*  load counter b0 in mode 3 */
