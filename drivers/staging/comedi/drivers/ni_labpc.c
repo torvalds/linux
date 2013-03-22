@@ -479,11 +479,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 #endif
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((struct labpc_boardinfo *)dev->board_ptr)
-
 /* size in bytes of dma buffer */
 static const int dma_buffer_size = 0xff00;
 /* 2 bytes per sample */
@@ -494,6 +489,8 @@ static inline int labpc_counter_load(struct comedi_device *dev,
 				     unsigned int counter_number,
 				     unsigned int count, unsigned int mode)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
+
 	if (thisboard->memory_mapped_io)
 		return i8254_mm_load((void __iomem *)base_address, 0,
 				     counter_number, count, mode);
@@ -504,6 +501,7 @@ static inline int labpc_counter_load(struct comedi_device *dev,
 int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 			unsigned int irq, unsigned int dma_chan)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int i;
@@ -733,6 +731,7 @@ static int labpc_auto_attach(struct comedi_device *dev,
 
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
@@ -780,6 +779,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 void labpc_common_detach(struct comedi_device *dev)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 
@@ -995,6 +995,7 @@ static void labpc_set_ai_scan_period(struct comedi_cmd *cmd,
 static int labpc_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	int err = 0;
 	int tmp, tmp2;
 	unsigned int stop_mask;
@@ -1092,6 +1093,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 
 static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	int channel, range, aref;
 #ifdef CONFIG_ISA_DMA_API
@@ -1362,6 +1364,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t labpc_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
@@ -1569,6 +1572,7 @@ static void labpc_drain_dregs(struct comedi_device *dev)
 static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	int i, n;
 	int chan, range;
@@ -1659,6 +1663,7 @@ static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int labpc_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	const struct labpc_boardinfo *thisboard = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	int channel, range;
 	unsigned long flags;
