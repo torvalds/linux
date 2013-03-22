@@ -802,7 +802,6 @@ static int palmas_regulators_remove(struct platform_device *pdev)
 
 static struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas-pmic", },
-	{ .compatible = "ti,palmas-charger-pmic", },
 	{ .compatible = "ti,twl6035-pmic", },
 	{ .compatible = "ti,twl6036-pmic", },
 	{ .compatible = "ti,twl6037-pmic", },
