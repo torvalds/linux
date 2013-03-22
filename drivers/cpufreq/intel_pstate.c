@@ -752,6 +752,29 @@ static struct cpufreq_driver intel_pstate_driver = {
 
 static int __initdata no_load;
 
+static int intel_pstate_msrs_not_valid(void)
+{
+	/* Check that all the msr's we are using are valid. */
+	u64 aperf, mperf, tmp;
+
+	rdmsrl(MSR_IA32_APERF, aperf);
+	rdmsrl(MSR_IA32_MPERF, mperf);
+
+	if (!intel_pstate_min_pstate() ||
+		!intel_pstate_max_pstate() ||
+		!intel_pstate_turbo_pstate())
+		return -ENODEV;
+
+	rdmsrl(MSR_IA32_APERF, tmp);
+	if (!(tmp - aperf))
+		return -ENODEV;
+
+	rdmsrl(MSR_IA32_MPERF, tmp);
+	if (!(tmp - mperf))
+		return -ENODEV;
+
+	return 0;
+}
 static int __init intel_pstate_init(void)
 {
 	int cpu, rc = 0;
@@ -762,6 +785,9 @@ static int __init intel_pstate_init(void)
 
 	id = x86_match_cpu(intel_pstate_cpu_ids);
 	if (!id)
+		return -ENODEV;
+
+	if (intel_pstate_msrs_not_valid())
 		return -ENODEV;
 
 	pr_info("Intel P-state driver initializing.\n");
