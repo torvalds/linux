@@ -111,15 +111,6 @@ static int ux500_pcm_open(struct snd_pcm_substream *substream)
 		snd_soc_set_runtime_hwparams(substream,
 					&ux500_pcm_hw_capture);
 
-	/* ensure that buffer size is a multiple of period size */
-	ret = snd_pcm_hw_constraint_integer(runtime,
-					SNDRV_PCM_HW_PARAM_PERIODS);
-	if (ret < 0) {
-		dev_err(dev, "%s: Error: snd_pcm_hw_constraints failed (%d)\n",
-			__func__, ret);
-		return ret;
-	}
-
 	dev_dbg(dev, "%s: Set hw-struct for %s.\n", __func__,
 		snd_pcm_stream_str(substream));
 	runtime->hw = (stream_id == SNDRV_PCM_STREAM_PLAYBACK) ?
