@@ -236,6 +236,16 @@ long vfsub_splice_to(struct file *in, loff_t *ppos,
 		     unsigned int flags);
 long vfsub_splice_from(struct pipe_inode_info *pipe, struct file *out,
 		       loff_t *ppos, size_t len, unsigned int flags);
+
+static inline long vfsub_truncate(struct path *path, loff_t length)
+{
+	long err;
+	lockdep_off();
+	err = vfs_truncate(path, length);
+	lockdep_on();
+	return err;
+}
+
 int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 		struct file *h_file);
 int vfsub_fsync(struct file *file, struct path *path, int datasync);
