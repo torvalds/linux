@@ -212,6 +212,8 @@ static int process_ep_req(struct mv_udc *udc, int index,
  * request is still in progress.
  */
 static void done(struct mv_ep *ep, struct mv_req *req, int status)
+	__releases(&ep->udc->lock)
+	__acquires(&ep->udc->lock)
 {
 	struct mv_udc *udc = NULL;
 	unsigned char stopped = ep->stopped;
@@ -1651,6 +1653,8 @@ out:
 
 static void handle_setup_packet(struct mv_udc *udc, u8 ep_num,
 	struct usb_ctrlrequest *setup)
+	__releases(&ep->udc->lock)
+	__acquires(&ep->udc->lock)
 {
 	bool delegate = false;
 
@@ -1847,7 +1851,7 @@ static void irq_process_tr_complete(struct mv_udc *udc)
 	}
 }
 
-void irq_process_reset(struct mv_udc *udc)
+static void irq_process_reset(struct mv_udc *udc)
 {
 	u32 tmp;
 	unsigned int loops;
