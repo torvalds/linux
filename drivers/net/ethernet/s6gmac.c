@@ -998,6 +998,7 @@ static int s6gmac_probe(struct platform_device *pdev)
 	mb = mdiobus_alloc();
 	if (!mb) {
 		printk(KERN_ERR DRV_PRMT "error allocating mii bus\n");
+		res = -ENOMEM;
 		goto errmii;
 	}
 	mb->name = "s6gmac_mii";
