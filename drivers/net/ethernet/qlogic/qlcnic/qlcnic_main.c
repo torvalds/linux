@@ -1923,6 +1923,12 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			module_name(THIS_MODULE),
 			board_name, adapter->ahw->revision_id);
 	}
+
+	if (qlcnic_83xx_check(adapter) && !qlcnic_use_msi_x &&
+	    !!qlcnic_use_msi)
+		dev_warn(&pdev->dev,
+			 "83xx adapter do not support MSI interrupts\n");
+
 	err = qlcnic_setup_intr(adapter, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to setup interrupt\n");
