@@ -27,6 +27,7 @@
 #include "r600_dpm.h"
 #include "ni_dpm.h"
 #include "atom.h"
+#include <linux/math64.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -732,50 +733,25 @@ struct ni_ps *ni_get_ps(struct radeon_ps *rps)
 	return ps;
 }
 
-/* XXX: fix for kernel use  */
-#if 0
-static double ni_exp(double x)
-{
-	int count = 1;
-	double sum = 1.0, term, tolerance = 0.000000001, y = x;
-
-	if (x < 0)
-		y = -1 * x;
-	term  = y;
-
-	while (term >= tolerance) {
-		sum = sum + term;
-		count = count + 1;
-		term  = term * (y / count);
-	}
-
-	if (x < 0)
-		sum = 1.0 / sum;
-
-	return sum;
-}
-#endif
-
 static void ni_calculate_leakage_for_v_and_t_formula(const struct ni_leakage_coeffients *coeff,
 						     u16 v, s32 t,
 						     u32 ileakage,
 						     u32 *leakage)
 {
-/* XXX: fix for kernel use  */
-#if 0
-	double kt, kv, leakage_w, i_leakage, vddc, temperature;
+	s64 kt, kv, leakage_w, i_leakage, vddc, temperature;
 
-	i_leakage   = ((double)ileakage) / 1000;
-	vddc        = ((double)v) / 1000;
-	temperature = ((double)t) / 1000;
+	i_leakage = div64_s64(drm_int2fixp(ileakage), 1000);
+	vddc = div64_s64(drm_int2fixp(v), 1000);
+	temperature = div64_s64(drm_int2fixp(t), 1000);
 
-	kt = (((double)(coeff->at)) / 1000) * ni_exp((((double)(coeff->bt)) / 1000) * temperature);
-	kv = (((double)(coeff->av)) / 1000) * ni_exp((((double)(coeff->bv)) / 1000) * vddc);
+	kt = drm_fixp_mul(div64_s64(drm_int2fixp(coeff->at), 1000),
+			  drm_fixp_exp(drm_fixp_mul(div64_s64(drm_int2fixp(coeff->bt), 1000), temperature)));
+	kv = drm_fixp_mul(div64_s64(drm_int2fixp(coeff->av), 1000),
+			  drm_fixp_exp(drm_fixp_mul(div64_s64(drm_int2fixp(coeff->bv), 1000), vddc)));
 
-	leakage_w = i_leakage * kt * kv * vddc;
+	leakage_w = drm_fixp_mul(drm_fixp_mul(drm_fixp_mul(i_leakage, kt), kv), vddc);
 
-	*leakage = (u32)(leakage_w * 1000);
-#endif
+	*leakage = drm_fixp2int(leakage_w * 1000);
 }
 
 static void ni_calculate_leakage_for_v_and_t(struct radeon_device *rdev,
