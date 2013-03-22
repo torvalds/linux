@@ -510,14 +510,16 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (qh = ehci->async->qh_next.qh; size > 0 && qh; qh = qh->qh_next.qh)
 		qh_lines (ehci, qh, &next, &size);
-	if (ehci->async_unlink && size > 0) {
+	if (!list_empty(&ehci->async_unlink) && size > 0) {
 		temp = scnprintf(next, size, "\nunlink =\n");
 		size -= temp;
 		next += temp;
 
-		for (qh = ehci->async_unlink; size > 0 && qh;
-				qh = qh->unlink_next)
-			qh_lines (ehci, qh, &next, &size);
+		list_for_each_entry(qh, &ehci->async_unlink, unlink_node) {
+			if (size <= 0)
+				break;
+			qh_lines(ehci, qh, &next, &size);
+		}
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
@@ -814,9 +816,10 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		}
 	}
 
-	if (ehci->async_unlink) {
+	if (!list_empty(&ehci->async_unlink)) {
 		temp = scnprintf(next, size, "async unlink qh %p\n",
-				ehci->async_unlink);
+				list_first_entry(&ehci->async_unlink,
+						struct ehci_qh, unlink_node));
 		size -= temp;
 		next += temp;
 	}

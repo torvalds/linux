@@ -620,17 +620,13 @@ static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->unlink_cycle = ehci->intr_unlink_cycle;
 
 	/* New entries go at the end of the intr_unlink list */
-	if (ehci->intr_unlink)
-		ehci->intr_unlink_last->unlink_next = qh;
-	else
-		ehci->intr_unlink = qh;
-	ehci->intr_unlink_last = qh;
+	list_add_tail(&qh->unlink_node, &ehci->intr_unlink);
 
 	if (ehci->intr_unlinking)
 		;	/* Avoid recursive calls */
 	else if (ehci->rh_state < EHCI_RH_RUNNING)
 		ehci_handle_intr_unlinks(ehci);
-	else if (ehci->intr_unlink == qh) {
+	else if (ehci->intr_unlink.next == &qh->unlink_node) {
 		ehci_enable_event(ehci, EHCI_HRTIMER_UNLINK_INTR, true);
 		++ehci->intr_unlink_cycle;
 	}

@@ -128,9 +128,8 @@ struct ehci_hcd {			/* one per controller */
 	/* async schedule support */
 	struct ehci_qh		*async;
 	struct ehci_qh		*dummy;		/* For AMD quirk use */
-	struct ehci_qh		*async_unlink;
-	struct ehci_qh		*async_unlink_last;
-	struct ehci_qh		*async_iaa;
+	struct list_head	async_unlink;
+	struct list_head	async_iaa;
 	unsigned		async_unlink_cycle;
 	unsigned		async_count;	/* async activity count */
 
@@ -143,8 +142,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		i_thresh;	/* uframes HC might cache */
 
 	union ehci_shadow	*pshadow;	/* mirror hw periodic table */
-	struct ehci_qh		*intr_unlink;
-	struct ehci_qh		*intr_unlink_last;
+	struct list_head	intr_unlink;
 	unsigned		intr_unlink_cycle;
 	unsigned		now_frame;	/* frame from HC hardware */
 	unsigned		last_iso_frame;	/* last frame scanned for iso */
@@ -380,7 +378,7 @@ struct ehci_qh {
 	struct list_head	qtd_list;	/* sw qtd list */
 	struct list_head	intr_node;	/* list of intr QHs */
 	struct ehci_qtd		*dummy;
-	struct ehci_qh		*unlink_next;	/* next on unlink list */
+	struct list_head	unlink_node;
 
 	unsigned		unlink_cycle;
 

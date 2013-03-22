@@ -229,18 +229,19 @@ static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
 	 * process all the QHs on the list.
 	 */
 	ehci->intr_unlinking = true;
-	while (ehci->intr_unlink) {
-		struct ehci_qh	*qh = ehci->intr_unlink;
+	while (!list_empty(&ehci->intr_unlink)) {
+		struct ehci_qh	*qh;
 
+		qh = list_first_entry(&ehci->intr_unlink, struct ehci_qh,
+				unlink_node);
 		if (!stopped && qh->unlink_cycle == ehci->intr_unlink_cycle)
 			break;
-		ehci->intr_unlink = qh->unlink_next;
-		qh->unlink_next = NULL;
+		list_del(&qh->unlink_node);
 		end_unlink_intr(ehci, qh);
 	}
 
 	/* Handle remaining entries later */
-	if (ehci->intr_unlink) {
+	if (!list_empty(&ehci->intr_unlink)) {
 		ehci_enable_event(ehci, EHCI_HRTIMER_UNLINK_INTR, true);
 		++ehci->intr_unlink_cycle;
 	}
