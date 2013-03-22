@@ -661,10 +661,7 @@ config MACH_RX1950
 	help
 	   Say Y here if you're using HP iPAQ rx1950
 
-config SMDK2440_CPU2442
-	bool "SMDM2440 with S3C2442 CPU module"
-
-endif	# CPU_S3C2440
+endif	# CPU_S3C2442
 
 if CPU_S3C2443 || CPU_S3C2416
 
