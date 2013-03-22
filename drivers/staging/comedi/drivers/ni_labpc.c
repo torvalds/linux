@@ -350,7 +350,7 @@ static const struct labpc_boardinfo labpc_boards[] = {
 		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
 		.ai_scan_up		= 1,
-		.memory_mapped_io	= 1,
+		.has_mmio		= 1,
 	},
 #endif
 };
@@ -843,7 +843,7 @@ static inline int labpc_counter_load(struct comedi_device *dev,
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 
-	if (board->memory_mapped_io)
+	if (board->has_mmio)
 		return i8254_mm_load((void __iomem *)base_address, 0,
 				     counter_number, count, mode);
 	else
@@ -1688,7 +1688,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	}
 	dev->iobase = iobase;
 
-	if (board->memory_mapped_io) {
+	if (board->has_mmio) {
 		devpriv->read_byte = labpc_readb;
 		devpriv->write_byte = labpc_writeb;
 	} else {
@@ -1798,7 +1798,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	s = &dev->subdevices[2];
 	/*  if board uses io memory we have to give a custom callback
 	 * function to the 8255 driver */
-	if (board->memory_mapped_io)
+	if (board->has_mmio)
 		subdev_8255_init(dev, s, labpc_dio_mem_callback,
 				 (unsigned long)(dev->iobase + DIO_BASE_REG));
 	else

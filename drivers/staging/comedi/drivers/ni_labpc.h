@@ -50,7 +50,7 @@ struct labpc_boardinfo {
 	unsigned ai_scan_up:1;
 
 	/* uses memory mapped io instead of ioports */
-	unsigned memory_mapped_io:1;
+	unsigned has_mmio:1;
 };
 
 struct labpc_private {
