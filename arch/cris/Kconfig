@@ -99,9 +99,6 @@ config ETRAX_KMALLOCED_MODULES
 	help
 	  Enable module allocation with kmalloc instead of vmalloc.
 
-config OOM_REBOOT
-       bool "Enable reboot at out of memory"
-
 source "kernel/Kconfig.preempt"
 
 source mm/Kconfig
