@@ -1127,11 +1127,11 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	}
 
 	switch(magic_ver) {
-	case MAGIC_VER_A:
-	case MAGIC_VER_B:
+	case SUNXI_VER_A10A:
+	case SUNXI_VER_A10B:
 		sensor_write_array(sd, sensor_default_regs_49p5M , ARRAY_SIZE(sensor_default_regs_49p5M));
 		break;
-	case MAGIC_VER_C:
+	case SUNXI_VER_A10C:
 		sensor_write_array(sd, sensor_default_regs_24M , ARRAY_SIZE(sensor_default_regs_24M));
 		break;
 	default:
@@ -2339,11 +2339,11 @@ static int sensor_probe(struct i2c_client *client,
 
 	magic_ver = sw_get_ic_ver();
   switch(magic_ver) {
-  case MAGIC_VER_A:
-  case MAGIC_VER_B:
+  case SUNXI_VER_A10A:
+  case SUNXI_VER_A10B:
   	info->ccm_info->mclk = MCLK_VER_B;
   	break;
-  case MAGIC_VER_C:
+  case SUNXI_VER_A10C:
   	info->ccm_info->mclk = MCLK_VER_C;
   	break;
   default:

@@ -325,16 +325,14 @@ int codec_rd_control(u32 reg, u32 bit, u32 *val)
 static  int codec_init(void)
 {
 	enum sw_ic_ver  codec_chip_ver = sw_get_ic_ver();
-	int rc;
 
 	//enable dac digital
 	codec_wr_control(SUN4I_DAC_DPC, 0x1, DAC_EN, 0x1);
 
 	codec_wr_control(SUN4I_DAC_FIFOC ,  0x1,28, 0x1);
 	//set digital volume to maximum
-	if (machine_is_sun4i() && codec_chip_ver == MAGIC_VER_A) {
+	if (codec_chip_ver == SUNXI_VER_A10A)
 		codec_wr_control(SUN4I_DAC_DPC, 0x6, DIGITAL_VOL, 0x0);
-	}
 	//pa mute
 	codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x0);
 	//enable PA
@@ -342,14 +340,15 @@ static  int codec_init(void)
 	codec_wr_control(SUN4I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
 	//set volume
 	if (machine_is_sun4i()) {
+		int rc;
 		int device_lr_change = 0;
-		if (codec_chip_ver == MAGIC_VER_A) {
+		if (codec_chip_ver == SUNXI_VER_A10A)
 			codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x01);
-		} else if (codec_chip_ver == MAGIC_VER_B ||
-			   codec_chip_ver == MAGIC_VER_C) {
+		else if (codec_chip_ver == SUNXI_VER_A10B ||
+			 codec_chip_ver == SUNXI_VER_A10C)
 			codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x3b);
-		} else {
-			pr_err("[audio codec] chip version is unknown!\n");
+		else {
+			printk("[audio codec] chip version is unknown!\n");
 			return -1;
 		}
 		rc = script_parser_fetch("audio_para", "audio_lr_change",
@@ -531,7 +530,7 @@ int __devinit snd_chip_codec_mixer_new(struct snd_card *card)
 	*/
 	enum sw_ic_ver  codec_chip_ver = sw_get_ic_ver();
 
-	if (machine_is_sun4i() && codec_chip_ver == MAGIC_VER_A) {
+	if (codec_chip_ver == SUNXI_VER_A10A) {
 		if (has_playback)
 			for (idx = 0; idx < ARRAY_SIZE(sun4ia_dac); idx++)
 				if ((err = snd_ctl_add(card, snd_ctl_new1(&sun4ia_dac[idx], clnt))) < 0)
@@ -540,7 +539,9 @@ int __devinit snd_chip_codec_mixer_new(struct snd_card *card)
 			for (idx = 0; idx < ARRAY_SIZE(codec_adc_controls); idx++)
 				if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_adc_controls[idx], clnt))) < 0)
 					return err;
-	} else if (machine_is_sun5i() || codec_chip_ver == MAGIC_VER_B || codec_chip_ver == MAGIC_VER_C) {
+	} else if (machine_is_sun5i() ||
+		   codec_chip_ver == SUNXI_VER_A10B ||
+		   codec_chip_ver == SUNXI_VER_A10C) {
 		if (has_playback)
 			for (idx = 0; idx < ARRAY_SIZE(sun4ibc_dac); idx++)
 				if ((err = snd_ctl_add(card, snd_ctl_new1(&sun4ibc_dac[idx], clnt))) < 0)

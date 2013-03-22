@@ -783,10 +783,8 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 
 #ifdef CONFIG_ARCH_SUN4I
 {
-    enum sw_ic_ver ic_version = MAGIC_VER_A;
-
-    ic_version = sw_get_ic_ver();
-    if(ic_version == MAGIC_VER_A || ic_version == MAGIC_VER_B){
+	enum sw_ic_ver ic_version = sw_get_ic_ver();
+    if (ic_version == SUNXI_VER_A10A || ic_version == SUNXI_VER_A10B) {
         __u32 HcRhPortStatus = ohci_readl(ohci, &regs->roothub.portstatus[0]);
 
         if((HcRhPortStatus & RH_PS_CSC) && (ints & OHCI_INTR_RHSC)){

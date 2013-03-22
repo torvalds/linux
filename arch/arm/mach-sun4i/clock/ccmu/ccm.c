@@ -52,7 +52,7 @@ __s32 aw_ccu_init(void)
     aw_ccu_reg = (__ccmu_reg_list_t *)SW_VA_CCM_IO_BASE;
 
     /* config the CCU to default status */
-    if(MAGIC_VER_C == sw_get_ic_ver()) {
+    if (SUNXI_VER_A10C == sw_get_ic_ver()) {
         /* switch PLL4 to PLL6 */
         #if(USE_PLL6M_REPLACE_PLL4)
         aw_ccu_reg->Pll4Ctl.PllSwitch = 1;

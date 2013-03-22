@@ -37,9 +37,12 @@ static inline void arch_idle(void)
 }
 
 enum sw_ic_ver {
-	MAGIC_VER_A = 0,
-	MAGIC_VER_B,
-	MAGIC_VER_C
+	SUNXI_VER_A10A = 0,
+	SUNXI_VER_A10B,
+	SUNXI_VER_A10C,
+
+	SUNXI_VER_A13A = 0,
+	SUNXI_VER_A13B,
 };
 
 enum sw_ic_ver sw_get_ic_ver(void);

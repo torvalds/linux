@@ -584,18 +584,18 @@ enum sw_ic_ver sw_get_ic_ver(void)
 	if (machine_is_sun4i()) {
 		switch (val) {
 		case 0x00:
-			return MAGIC_VER_A;
+			return SUNXI_VER_A10A;
 		case 0x03:
-			return MAGIC_VER_B;
+			return SUNXI_VER_A10B;
 		default:
-			return MAGIC_VER_C;
+			return SUNXI_VER_A10C;
 		}
 	} else {
 		switch (val) {
 		case 0x03:
-			return MAGIC_VER_B;
+			return SUNXI_VER_A13B;
 		default:
-			return MAGIC_VER_A;
+			return SUNXI_VER_A13A;
 		}
 	}
 }

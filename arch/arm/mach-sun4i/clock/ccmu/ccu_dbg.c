@@ -87,9 +87,8 @@ void clk_dbg_inf(void)
     print_clk_inf(Pll4Ctl, VCOBias      );
     print_clk_inf(Pll4Ctl, PLLBypass    );
     print_clk_inf(Pll4Ctl, PLLEn        );
-    if(MAGIC_VER_C == sw_get_ic_ver()) {
+    if (SUNXI_VER_A10C == sw_get_ic_ver())
         print_clk_inf(Pll4Ctl, PllSwitch    );
-    }
 
     printk("\nPLL5 infor:\n");
     print_clk_inf(Pll5Ctl, FactorM      );
@@ -521,9 +520,8 @@ static int ccmu_stats_show(struct seq_file *m, void *unused)
     sprintf_clk_inf(m, Pll4Ctl, VCOBias      );
     sprintf_clk_inf(m, Pll4Ctl, PLLBypass    );
     sprintf_clk_inf(m, Pll4Ctl, PLLEn        );
-    if(MAGIC_VER_C == sw_get_ic_ver()) {
+    if (SUNXI_VER_A10C == sw_get_ic_ver())
         sprintf_clk_inf(m, Pll4Ctl, PllSwitch   );
-    }
 
     seq_printf(m, "\nPLL5 infor:\n");
     sprintf_clk_inf(m, Pll5Ctl, FactorM      );

@@ -667,9 +667,8 @@ static __aw_ccu_clk_onff_e mod_clk_get_status(__aw_ccu_mod_clk_e id)
         case AW_MOD_CLK_SATA:
             return aw_ccu_reg->SataClk.SpecClkGate? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_USBPHY:
-            if(MAGIC_VER_C == sw_get_ic_ver()) {
+            if (SUNXI_VER_A10C == sw_get_ic_ver())
                 aw_ccu_reg->UsbClk.ClkSwich = 1;
-            }
             return aw_ccu_reg->UsbClk.PhySpecClkGate? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
         case AW_MOD_CLK_USBPHY0:
             return aw_ccu_reg->UsbClk.UsbPhy0Rst? AW_CCU_CLK_ON : AW_CCU_CLK_OFF;
@@ -1562,9 +1561,8 @@ static __s32 mod_clk_set_status(__aw_ccu_mod_clk_e id, __aw_ccu_clk_onff_e statu
         }
         case AW_MOD_CLK_USBPHY:
         {
-            if(MAGIC_VER_C == sw_get_ic_ver()) {
+            if (SUNXI_VER_A10C == sw_get_ic_ver())
                 aw_ccu_reg->UsbClk.ClkSwich = 1;
-            }
             aw_ccu_reg->UsbClk.PhySpecClkGate = (status == AW_CCU_CLK_OFF)? 0 : 1;
             return 0;
         }

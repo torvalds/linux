@@ -224,7 +224,7 @@ void disp_free(void *p)
 int sunxi_is_version_A(void)
 {
 #ifdef CONFIG_ARCH_SUN4I
-	if (sw_get_ic_ver() == MAGIC_VER_A)
+	if (sw_get_ic_ver() == SUNXI_VER_A10A)
 		return 1;
 #endif
 

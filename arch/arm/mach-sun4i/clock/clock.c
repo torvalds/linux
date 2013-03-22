@@ -164,7 +164,7 @@ int clk_init(void)
 
 	/* initiate PLL4 */
 #if(USE_PLL6M_REPLACE_PLL4)
-	if(MAGIC_VER_C == sw_get_ic_ver()) {
+	if (SUNXI_VER_A10C == sw_get_ic_ver()) {
         tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL4];
         tmpSclk->clk->onoff = AW_CCU_CLK_OFF;
         tmpSclk->set_clk(tmpSclk->clk);

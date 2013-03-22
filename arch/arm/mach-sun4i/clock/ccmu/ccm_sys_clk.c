@@ -254,7 +254,7 @@ static __s64 sys_clk_get_rate(__aw_ccu_sys_clk_e id)
         {
             enum sw_ic_ver  chip_ver = sw_get_ic_ver();
 
-            if(chip_ver == MAGIC_VER_A){
+            if (chip_ver == SUNXI_VER_A10A) {
                 /* chip is version A */
                 if((aw_ccu_reg->Pll2Ctl.VCOBias == 10) &&(aw_ccu_reg->Pll2Ctl.FactorN == 94))
                 {
@@ -271,8 +271,7 @@ static __s64 sys_clk_get_rate(__aw_ccu_sys_clk_e id)
                     aw_ccu_reg->Pll2Ctl.FactorN = 83;
                     return 24576000;
                 }
-            }
-            else if((chip_ver == MAGIC_VER_B) || (chip_ver == MAGIC_VER_C)){
+            } else if ((chip_ver == SUNXI_VER_A10B) || (chip_ver == SUNXI_VER_A10C)) {
                 /* chip is version B:
                     FactorN=79, PreDiv=21, PostDiv=4, output=24*79/21/4=22.571mhz, 44.1k series fs
                     FactorN=86, PreDiv=21, PostDiv=4, output=24*86/21/4=24.571mhz, 48k series fs */
@@ -352,9 +351,8 @@ static __s64 sys_clk_get_rate(__aw_ccu_sys_clk_e id)
         case AW_SYS_CLK_PLL4:
         {
             #if(USE_PLL6M_REPLACE_PLL4)
-            if(MAGIC_VER_C == sw_get_ic_ver()) {
+            if (SUNXI_VER_A10C == sw_get_ic_ver())
                 return sys_clk_get_rate(AW_SYS_CLK_PLL6);
-            }
             #endif
 
             return ccu_clk_uldiv(((__s64)24000000*aw_ccu_reg->Pll4Ctl.FactorN * (aw_ccu_reg->Pll4Ctl.FactorK + 1)   \
@@ -765,12 +763,12 @@ static __s32 sys_clk_set_rate(__aw_ccu_sys_clk_e id, __s64 rate)
 
             if(rate == 22579200)
             {
-                if(chip_ver == MAGIC_VER_A){
+                if (chip_ver == SUNXI_VER_A10A) {
                     /* chip is version A */
                     aw_ccu_reg->Pll2Ctl.VCOBias = 10;
                     aw_ccu_reg->Pll2Ctl.FactorN = 94;
                 }
-                else if((chip_ver == MAGIC_VER_B) || (chip_ver == MAGIC_VER_C)){
+                else if ((chip_ver == SUNXI_VER_A10B) || (chip_ver == SUNXI_VER_A10C)) {
                     /* chip is version B, FactorN=79, PreDiv=21, PostDiv=4,
                        output=24*79/21/4=22.571mhz, 44.1k series fs     */
                     __u32   tmpReg;
@@ -787,12 +785,11 @@ static __s32 sys_clk_set_rate(__aw_ccu_sys_clk_e id, __s64 rate)
             }
             else if(rate == 24576000)
             {
-                if(chip_ver == MAGIC_VER_A){
+                if (chip_ver == SUNXI_VER_A10A) {
                     /* chip is version A */
                     aw_ccu_reg->Pll2Ctl.VCOBias = 9;
                     aw_ccu_reg->Pll2Ctl.FactorN = 83;
-                }
-                else if((chip_ver == MAGIC_VER_B) || (chip_ver == MAGIC_VER_C)){
+                } else if ((chip_ver == SUNXI_VER_A10B) || (chip_ver == SUNXI_VER_A10C)) {
                     /* chip is version B, FactorN=86, PreDiv=21, PostDiv=4,
                        output=24*86/21/4=24.571mhz, 48k series fs       */
                     __u32   tmpReg;
@@ -866,7 +863,7 @@ static __s32 sys_clk_set_rate(__aw_ccu_sys_clk_e id, __s64 rate)
             __u32   tmpDly = ccu_clk_uldiv(sys_clk_get_rate(AW_SYS_CLK_CPU), 1000000) * 200;
 
             #if(USE_PLL6M_REPLACE_PLL4)
-            if(MAGIC_VER_C == sw_get_ic_ver()) {
+            if (SUNXI_VER_A10C == sw_get_ic_ver()) {
                 CCU_ERR("PLL4 clock rate should not be set!\n");
                 return -1;
             }
