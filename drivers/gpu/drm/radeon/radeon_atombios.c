@@ -1243,6 +1243,7 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 			}
 			rdev->clock.dp_extclk =
 				le16_to_cpu(firmware_info->info_21.usUniphyDPModeExtClkFreq);
+			rdev->clock.current_dispclk = rdev->clock.default_dispclk;
 		}
 		*dcpll = *p1pll;
 

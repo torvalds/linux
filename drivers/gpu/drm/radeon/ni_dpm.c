@@ -866,7 +866,9 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 		btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
 						   ps->performance_levels[i].mclk,
 						   max_limits->vddc,  &ps->performance_levels[i].vddc);
-		/* XXX validate the voltage required for display */
+		btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk,
+						   rdev->clock.current_dispclk,
+						   max_limits->vddc,  &ps->performance_levels[i].vddc);
 	}
 
 	for (i = 0; i < ps->performance_level_count; i++) {
@@ -3910,6 +3912,22 @@ int ni_dpm_init(struct radeon_device *rdev)
 	if (ret)
 		return ret;
 
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
+		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
+	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
+		r600_free_extended_power_table(rdev);
+		return -ENOMEM;
+	}
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.count = 4;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[0].clk = 0;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[0].v = 0;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[1].clk = 36000;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[1].v = 720;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[2].clk = 54000;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[2].v = 810;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[3].clk = 72000;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[3].v = 900;
+
 	ni_patch_dependency_tables_based_on_leakage(rdev);
 
 	if (rdev->pm.dpm.voltage_response_time == 0)
@@ -4094,6 +4112,7 @@ void ni_dpm_fini(struct radeon_device *rdev)
 	}
 	kfree(rdev->pm.dpm.ps);
 	kfree(rdev->pm.dpm.priv);
+	kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries);
 	r600_free_extended_power_table(rdev);
 }
 

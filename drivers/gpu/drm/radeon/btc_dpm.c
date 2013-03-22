@@ -2178,21 +2178,26 @@ static void btc_apply_state_adjust_rules(struct radeon_device *rdev,
 					   ps->low.mclk, max_limits->vddci, &ps->low.vddci);
 	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
 					   ps->low.mclk, max_limits->vddc, &ps->low.vddc);
-	/* XXX validate the voltage required for display */
+	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk,
+					   rdev->clock.current_dispclk, max_limits->vddc, &ps->low.vddc);
+
 	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
 					   ps->medium.sclk, max_limits->vddc, &ps->medium.vddc);
 	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
 					   ps->medium.mclk, max_limits->vddci, &ps->medium.vddci);
 	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
 					   ps->medium.mclk, max_limits->vddc, &ps->medium.vddc);
-	/* XXX validate the voltage required for display */
+	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk,
+					   rdev->clock.current_dispclk, max_limits->vddc, &ps->medium.vddc);
+
 	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
 					   ps->high.sclk, max_limits->vddc, &ps->high.vddc);
 	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
 					   ps->high.mclk, max_limits->vddci, &ps->high.vddci);
 	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
 					   ps->high.mclk, max_limits->vddc, &ps->high.vddc);
-	/* XXX validate the voltage required for display */
+	btc_apply_voltage_dependency_rules(&rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk,
+					   rdev->clock.current_dispclk, max_limits->vddc, &ps->high.vddc);
 
 	btc_apply_voltage_delta_rules(rdev, max_limits->vddc, max_limits->vddci,
 				      &ps->low.vddc, &ps->low.vddci);
@@ -2495,6 +2500,22 @@ int btc_dpm_init(struct radeon_device *rdev)
 	if (ret)
 		return ret;
 
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
+		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
+	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
+		r600_free_extended_power_table(rdev);
+		return -ENOMEM;
+	}
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.count = 4;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[0].clk = 0;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[0].v = 0;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[1].clk = 36000;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[1].v = 800;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[2].clk = 54000;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[2].v = 800;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[3].clk = 72000;
+	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries[3].v = 800;
+
 	if (rdev->pm.dpm.voltage_response_time == 0)
 		rdev->pm.dpm.voltage_response_time = R600_VOLTAGERESPONSETIME_DFLT;
 	if (rdev->pm.dpm.backbias_response_time == 0)
@@ -2628,6 +2649,7 @@ void btc_dpm_fini(struct radeon_device *rdev)
 	}
 	kfree(rdev->pm.dpm.ps);
 	kfree(rdev->pm.dpm.priv);
+	kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries);
 	r600_free_extended_power_table(rdev);
 }
 

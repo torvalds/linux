@@ -200,6 +200,7 @@ struct radeon_clock {
 	uint32_t default_mclk;
 	uint32_t default_sclk;
 	uint32_t default_dispclk;
+	uint32_t current_dispclk;
 	uint32_t dp_extclk;
 	uint32_t max_pixel_clock;
 };
@@ -1298,6 +1299,7 @@ struct radeon_dpm_dynamic_state {
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_sclk;
 	struct radeon_clock_voltage_dependency_table vddci_dependency_on_mclk;
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_mclk;
+	struct radeon_clock_voltage_dependency_table vddc_dependency_on_dispclk;
 	struct radeon_clock_array valid_sclk_values;
 	struct radeon_clock_array valid_mclk_values;
 	struct radeon_clock_and_voltage_limits max_clock_voltage_on_dc;
