@@ -2060,7 +2060,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 		return;
 
 	/* manual DMA queue advance after short OUT */
-	if (likely (ep->dma != 0)) {
+	if (likely (ep->dma)) {
 		if (t & (1 << SHORT_PACKET_TRANSFERRED_INTERRUPT)) {
 			u32	count;
 			int	stopped = ep->stopped;
@@ -2318,7 +2318,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 			/* hw handles device and interface status */
 			if (u.r.bRequestType != (USB_DIR_IN|USB_RECIP_ENDPOINT))
 				goto delegate;
-			if ((e = get_ep_by_addr (dev, w_index)) == 0
+			if ((e = get_ep_by_addr (dev, w_index)) == NULL
 					|| w_length > 2)
 				goto do_stall;
 
@@ -2346,7 +2346,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 			if (w_value != USB_ENDPOINT_HALT
 					|| w_length != 0)
 				goto do_stall;
-			if ((e = get_ep_by_addr (dev, w_index)) == 0)
+			if ((e = get_ep_by_addr (dev, w_index)) == NULL)
 				goto do_stall;
 			if (e->wedged) {
 				VDEBUG(dev, "%s wedged, halt not cleared\n",
@@ -2368,7 +2368,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 			if (w_value != USB_ENDPOINT_HALT
 					|| w_length != 0)
 				goto do_stall;
-			if ((e = get_ep_by_addr (dev, w_index)) == 0)
+			if ((e = get_ep_by_addr (dev, w_index)) == NULL)
 				goto do_stall;
 			if (e->ep.name == ep0name)
 				goto do_stall;
