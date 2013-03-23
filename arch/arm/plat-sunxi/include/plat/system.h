@@ -59,6 +59,56 @@ enum sw_ic_ver {
 
 enum sw_ic_ver sw_get_ic_ver(void);
 
+#ifdef CONFIG_ARCH_SUN4I
+static inline int sunxi_is_a10(void)
+{
+	switch (sw_get_ic_ver()) {
+	case SUNXI_VER_A10A:
+	case SUNXI_VER_A10B:
+	case SUNXI_VER_A10C:
+		return 1;
+	default:
+		return 0;
+	}
+}
+#define sunxi_is_a13()	(0)
+#define sunxi_is_a12()	(0)
+#define sunxi_is_a10s()	(0)
+
+#elif defined(CONFIG_ARCH_SUN5I)
+static inline int sunxi_is_a13(void)
+{
+	switch (sw_get_ic_ver()) {
+	case SUNXI_VER_A13A:
+	case SUNXI_VER_A13B:
+		return 1;
+	default:
+		return 0;
+	}
+}
+static inline int sunxi_is_a12(void)
+{
+	switch (sw_get_ic_ver()) {
+	case SUNXI_VER_A12A:
+	case SUNXI_VER_A12B:
+		return 1;
+	default:
+		return 0;
+	}
+}
+static inline int sunxi_is_a10s(void)
+{
+	switch (sw_get_ic_ver()) {
+	case SUNXI_VER_A10SA:
+	case SUNXI_VER_A10SB:
+		return 1;
+	default:
+		return 0;
+	}
+}
+#define sunxi_is_a10()	(0)
+#endif
+
 #ifdef CONFIG_ARCH_SUN5I
 struct sw_chip_id
 {
