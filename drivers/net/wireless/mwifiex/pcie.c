@@ -2111,7 +2111,8 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 	}
 	dev_dbg(adapter->dev, "info: cmd_sent=%d data_sent=%d\n",
 		adapter->cmd_sent, adapter->data_sent);
-	mwifiex_pcie_enable_host_int(adapter);
+	if (adapter->ps_state != PS_STATE_SLEEP)
+		mwifiex_pcie_enable_host_int(adapter);
 
 	return 0;
 }
