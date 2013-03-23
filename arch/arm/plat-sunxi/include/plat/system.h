@@ -109,16 +109,14 @@ static inline int sunxi_is_a10s(void)
 #define sunxi_is_a10()	(0)
 #endif
 
-#ifdef CONFIG_ARCH_SUN5I
 struct sw_chip_id
 {
-    unsigned int sid_rkey0;
-    unsigned int sid_rkey1;
-    unsigned int sid_rkey2;
-    unsigned int sid_rkey3;
+	unsigned int sid_rkey0;
+	unsigned int sid_rkey1;
+	unsigned int sid_rkey2;
+	unsigned int sid_rkey3;
 };
 
 int sw_get_chip_id(struct sw_chip_id *);
-#endif
 
 #endif

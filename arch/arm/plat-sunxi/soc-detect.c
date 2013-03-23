@@ -181,3 +181,14 @@ done:
 	return ver;
 }
 EXPORT_SYMBOL(sw_get_ic_ver);
+
+int sw_get_chip_id(struct sw_chip_id *chip_id)
+{
+	chip_id->sid_rkey0 = readl(SW_VA_SID_IO_BASE);
+	chip_id->sid_rkey1 = readl(SW_VA_SID_IO_BASE+0x04);
+	chip_id->sid_rkey2 = readl(SW_VA_SID_IO_BASE+0x08);
+	chip_id->sid_rkey3 = readl(SW_VA_SID_IO_BASE+0x0C);
+
+	return 0;
+}
+EXPORT_SYMBOL(sw_get_chip_id);
