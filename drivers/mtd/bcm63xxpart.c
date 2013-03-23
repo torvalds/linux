@@ -27,6 +27,7 @@
 #include <linux/crc32.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
@@ -37,7 +38,7 @@
 
 #define BCM63XX_EXTENDED_SIZE	0xBFC00000	/* Extended flash address */
 
-#define BCM63XX_CFE_BLOCK_SIZE	0x10000		/* always at least 64KiB */
+#define BCM63XX_CFE_BLOCK_SIZE	SZ_64K		/* always at least 64KiB */
 
 #define BCM63XX_CFE_MAGIC_OFFSET 0x4e0
 
