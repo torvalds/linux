@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define pr_fmt(fmt) "sunxi: " fmt
+
 #include <linux/module.h>
 #include <linux/io.h>
 
@@ -53,7 +55,7 @@ int sunxi_pr_brom(void)
 			brom->platform);
 		return 1;
 	}
-	pr_err("SUNXI BROM not found");
+	pr_err("BROM not found\n");
 	return 0;
 }
 
@@ -72,28 +74,41 @@ u32 sunxi_chip_id(void)
 	return 0;
 }
 
-int sunxi_pr_chip_id()
+static inline void _pr_ic_ver(enum sw_ic_ver ver)
 {
-	u32 chip_id = sunxi_chip_id();
-	const char *name;
+	const char *name = NULL;
+	int rev;
 
-	switch (chip_id) {
-	case SUNXI_CHIP_ID_A10:
-		name = "A10"; break;
-	case SUNXI_CHIP_ID_A13:
-		name = "A13"; break;
-	default:
-		name = "Unknown";
+	switch (ver) {
+	/* sun4i */
+	case SUNXI_VER_A10A:
+	case SUNXI_VER_A10B:
+	case SUNXI_VER_A10C:
+		name = "A10";
+		rev = ver - SUNXI_VER_A10A;
+		break;
+	/* sun5i */
+	case SUNXI_VER_A13A:
+	case SUNXI_VER_A13B:
+		name = "A13";
+		rev = ver - SUNXI_VER_A13A;
+		break;
+	case SUNXI_VER_A12A:
+	case SUNXI_VER_A12B:
+		name = "A12";
+		rev = ver - SUNXI_VER_A12A;
+		break;
+	case SUNXI_VER_A10SA:
+	case SUNXI_VER_A10SB:
+		name = "A10S";
+		rev = ver - SUNXI_VER_A10SA;
+		break;
+	case SUNXI_VER_UNKNOWN:
+		return;
 	}
 
-	if (machine_is_sun4i()) {
-		int rev = sw_get_ic_ver() - SUNXI_VER_A10A;
-		pr_info("chip-id: %s (AW%u revision %c)\n", name,
-			chip_id, 'A' + rev);
-	} else
-		pr_info("chip-id: %s (AW%u)\n", name, chip_id);
-
-	return (chip_id != 0);
+	pr_info("Allwinner %s revision %c detected.\n",
+		name, 'A' + rev);
 }
 
 enum sw_ic_ver sw_get_ic_ver(void)
@@ -101,7 +116,7 @@ enum sw_ic_ver sw_get_ic_ver(void)
 	static enum sw_ic_ver ver;
 
 	if (likely(ver))
-		goto done;
+		return ver;
 
 	if (machine_is_sun4i()) {
 		u32 val = readl(SW_VA_TIMERC_IO_BASE + 0x13c);
@@ -148,7 +163,7 @@ enum sw_ic_ver sw_get_ic_ver(void)
 			else
 				name = "A10S";
 
-			pr_err("sunxi: unrecongnized %s revision (%x)\n",
+			pr_err("unrecongnized %s revision (%x)\n",
 			       name, val);
 
 			goto unknown;
@@ -158,10 +173,11 @@ enum sw_ic_ver sw_get_ic_ver(void)
 	goto done;
 
 unknown_chip:
-	pr_err("sunxi: unrecognized IC\n");
+	pr_err("unrecognized IC\n");
 unknown:
 	ver = SUNXI_VER_UNKNOWN;
 done:
+	_pr_ic_ver(ver);
 	return ver;
 }
 EXPORT_SYMBOL(sw_get_ic_ver);

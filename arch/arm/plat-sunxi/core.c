@@ -135,7 +135,8 @@ void __init sw_core_map_io(void)
 {
 	iotable_init(sw_io_desc, ARRAY_SIZE(sw_io_desc));
 
-	sunxi_pr_chip_id();
+	sunxi_pr_brom();
+	(void)sw_get_ic_ver();
 }
 
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
