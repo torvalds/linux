@@ -210,6 +210,6 @@ config RK_TIMER
 config RK_USB_DETECT_BY_OTG_BVALID
 	bool "Wakeup system by OTG BVALID interrupt when USB OTG conneted"
 	depends on USB_GADGET && (ARCH_RK2928 || ARCH_RK3188)
-	default y if ARCH_RK2928
+	default y if ARCH_RK2928 || ARCH_RK3188
 
 endif

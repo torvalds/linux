@@ -477,7 +477,7 @@ struct rk_hdmi_platform_data {
 int board_boot_mode(void);
 
 /* for USB detection */
-#ifdef CONFIG_USB_GADGET
+#if defined(CONFIG_USB_GADGET) && !defined(CONFIG_RK_USB_DETECT_BY_OTG_BVALID)
 int __init board_usb_detect_init(unsigned gpio);
 #else
 static int inline board_usb_detect_init(unsigned gpio) { return 0; }

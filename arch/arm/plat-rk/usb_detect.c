@@ -37,6 +37,7 @@ static irqreturn_t usb_detect_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_RK_USB_DETECT_BY_OTG_BVALID
 int __init board_usb_detect_init(unsigned gpio)
 {
 	int ret;
@@ -75,6 +76,7 @@ int __init board_usb_detect_init(unsigned gpio)
 
 	return 0;
 }
+#endif
 
 #ifdef IRQ_OTG_BVALID
 #include <linux/io.h>
