@@ -287,18 +287,13 @@ static int mwifiex_read_reg(struct mwifiex_adapter *adapter, int reg, u32 *data)
 }
 
 /*
- * This function wakes up the card.
- *
- * A host power up command is written to the card configuration
- * register to wake up the card.
+ * This function adds delay loop to ensure FW is awake before proceeding.
  */
-static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
+static void mwifiex_pcie_dev_wakeup_delay(struct mwifiex_adapter *adapter)
 {
 	int i = 0;
-	struct pcie_service_card *card = adapter->card;
-	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	while (reg->sleep_cookie && mwifiex_pcie_ok_to_access_hw(adapter)) {
+	while (mwifiex_pcie_ok_to_access_hw(adapter)) {
 		i++;
 		usleep_range(10, 20);
 		/* 50ms max wait */
@@ -306,16 +301,32 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 			break;
 	}
 
+	return;
+}
+
+/* This function wakes up the card by reading fw_status register. */
+static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
+{
+	u32 fw_status;
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+
 	dev_dbg(adapter->dev, "event: Wakeup device...\n");
 
-	/* Enable interrupts or any chip access will wakeup device */
-	if (mwifiex_write_reg(adapter, PCIE_HOST_INT_MASK, HOST_INTR_MASK)) {
-		dev_warn(adapter->dev, "Enable host interrupt failed\n");
+	if (reg->sleep_cookie)
+		mwifiex_pcie_dev_wakeup_delay(adapter);
+
+	/* Reading fw_status register will wakeup device */
+	if (mwifiex_read_reg(adapter, reg->fw_status, &fw_status)) {
+		dev_warn(adapter->dev, "Reading fw_status register failed\n");
 		return -1;
 	}
 
-	dev_dbg(adapter->dev, "PCIE wakeup: Setting PS_STATE_AWAKE\n");
-	adapter->ps_state = PS_STATE_AWAKE;
+	if (reg->sleep_cookie) {
+		mwifiex_pcie_dev_wakeup_delay(adapter);
+		dev_dbg(adapter->dev, "PCIE wakeup: Setting PS_STATE_AWAKE\n");
+		adapter->ps_state = PS_STATE_AWAKE;
+	}
 
 	return 0;
 }
