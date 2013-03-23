@@ -1310,17 +1310,19 @@ static u32 b43_jssi_read(struct b43_wldev *dev)
 {
 	u32 val = 0;
 
-	val = b43_shm_read16(dev, B43_SHM_SHARED, 0x08A);
+	val = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_JSSI1);
 	val <<= 16;
-	val |= b43_shm_read16(dev, B43_SHM_SHARED, 0x088);
+	val |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_JSSI0);
 
 	return val;
 }
 
 static void b43_jssi_write(struct b43_wldev *dev, u32 jssi)
 {
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x088, (jssi & 0x0000FFFF));
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x08A, (jssi & 0xFFFF0000) >> 16);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_JSSI0,
+			(jssi & 0x0000FFFF));
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_JSSI1,
+			(jssi & 0xFFFF0000) >> 16);
 }
 
 static void b43_generate_noise_sample(struct b43_wldev *dev)
@@ -1623,7 +1625,7 @@ static void b43_upload_beacon0(struct b43_wldev *dev)
 
 	if (wl->beacon0_uploaded)
 		return;
-	b43_write_beacon_template(dev, 0x68, 0x18);
+	b43_write_beacon_template(dev, B43_SHM_SH_BT_BASE0, B43_SHM_SH_BTL0);
 	wl->beacon0_uploaded = true;
 }
 
@@ -1633,7 +1635,7 @@ static void b43_upload_beacon1(struct b43_wldev *dev)
 
 	if (wl->beacon1_uploaded)
 		return;
-	b43_write_beacon_template(dev, 0x468, 0x1A);
+	b43_write_beacon_template(dev, B43_SHM_SH_BT_BASE1, B43_SHM_SH_BTL1);
 	wl->beacon1_uploaded = true;
 }
 
@@ -3113,7 +3115,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 
 	/* Probe Response Timeout value */
 	/* FIXME: Default to 0, has to be set by ioctl probably... :-/ */
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x0074, 0x0000);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRMAXTIME, 0);
 
 	/* Initially set the wireless operation mode. */
 	b43_adjust_opmode(dev);
