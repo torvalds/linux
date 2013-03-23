@@ -69,6 +69,10 @@
 			status = "okay";
 			nr-ports = <1>;
 		};
+
+		mvsdio@90000 {
+			status = "okay";
+		};
 	};
 
 	gpio-leds {
