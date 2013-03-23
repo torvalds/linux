@@ -778,19 +778,21 @@ static int efi_pstore_write(enum pstore_type_id type,
 
 	spin_lock_irqsave(&efivars->lock, flags);
 
-	/*
-	 * Check if there is a space enough to log.
-	 * size: a size of logging data
-	 * DUMP_NAME_LEN * 2: a maximum size of variable name
-	 */
+	if (size) {
+		/*
+		 * Check if there is a space enough to log.
+		 * size: a size of logging data
+		 * DUMP_NAME_LEN * 2: a maximum size of variable name
+		 */
 
-	status = check_var_size_locked(efivars, PSTORE_EFI_ATTRIBUTES,
-					 size + DUMP_NAME_LEN * 2);
+		status = check_var_size_locked(efivars, PSTORE_EFI_ATTRIBUTES,
+					       size + DUMP_NAME_LEN * 2);
 
-	if (status) {
-		spin_unlock_irqrestore(&efivars->lock, flags);
-		*id = part;
-		return -ENOSPC;
+		if (status) {
+			spin_unlock_irqrestore(&efivars->lock, flags);
+			*id = part;
+			return -ENOSPC;
+		}
 	}
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
