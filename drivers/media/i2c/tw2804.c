@@ -53,7 +53,7 @@ static const u8 global_registers[] = {
 	0x3d, 0x80,
 	0x3e, 0x82,
 	0x3f, 0x82,
-	0x78, 0x0f,
+	0x78, 0x00,
 	0xff, 0xff, /* Terminator (reg 0xff does not exist) */
 };
 
@@ -337,20 +337,6 @@ static int tw2804_s_video_routing(struct v4l2_subdev *sd, u32 input, u32 output,
 	return 0;
 }
 
-static int tw2804_s_stream(struct v4l2_subdev *sd, int enable)
-{
-	struct tw2804 *dec = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u32 reg = read_reg(client, 0x78, 0);
-
-	if (enable == 1)
-		write_reg(client, 0x78, reg & ~(1 << dec->channel), 0);
-	else
-		write_reg(client, 0x78, reg | (1 << dec->channel), 0);
-
-	return 0;
-}
-
 static const struct v4l2_ctrl_ops tw2804_ctrl_ops = {
 	.g_volatile_ctrl = tw2804_g_volatile_ctrl,
 	.s_ctrl = tw2804_s_ctrl,
@@ -358,7 +344,6 @@ static const struct v4l2_ctrl_ops tw2804_ctrl_ops = {
 
 static const struct v4l2_subdev_video_ops tw2804_video_ops = {
 	.s_routing = tw2804_s_video_routing,
-	.s_stream = tw2804_s_stream,
 };
 
 static const struct v4l2_subdev_core_ops tw2804_core_ops = {
