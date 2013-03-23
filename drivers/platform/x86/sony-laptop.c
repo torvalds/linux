@@ -4121,7 +4121,7 @@ static int sony_pic_enable(struct acpi_device *device,
 		resource->res3.data.irq.sharable = ACPI_SHARED;
 
 		resource->res4.type = ACPI_RESOURCE_TYPE_END_TAG;
-
+		resource->res4.length = sizeof(struct acpi_resource);
 	}
 	/* setup Type 2/3 resources */
 	else {
@@ -4140,6 +4140,7 @@ static int sony_pic_enable(struct acpi_device *device,
 		resource->res2.data.irq.sharable = ACPI_SHARED;
 
 		resource->res3.type = ACPI_RESOURCE_TYPE_END_TAG;
+		resource->res3.length = sizeof(struct acpi_resource);
 	}
 
 	/* Attempt to set the resource */
