@@ -57,7 +57,7 @@ enum sw_ic_ver {
 	SUNXI_VER_A10SB,
 };
 
-enum sw_ic_ver sw_get_ic_ver(void);
+enum sw_ic_ver sw_get_ic_ver(void) __pure;
 
 #ifdef CONFIG_ARCH_SUN4I
 static inline int sunxi_is_a10(void)
