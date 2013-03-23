@@ -22,6 +22,7 @@
 
 #include <asm/mach-types.h>
 
+#include <plat/platform.h>
 #include <plat/system.h>
 
 struct brom_header {
@@ -97,26 +98,70 @@ int sunxi_pr_chip_id()
 
 enum sw_ic_ver sw_get_ic_ver(void)
 {
-	volatile u32 val = readl(SW_VA_TIMERC_IO_BASE + 0x13c);
+	static enum sw_ic_ver ver;
 
-	val = (val >> 6) & 0x3;
+	if (likely(ver))
+		goto done;
 
 	if (machine_is_sun4i()) {
-		switch (val) {
-		case 0x00:
-			return SUNXI_VER_A10A;
-		case 0x03:
-			return SUNXI_VER_A10B;
-		default:
-			return SUNXI_VER_A10C;
+		u32 val = readl(SW_VA_TIMERC_IO_BASE + 0x13c);
+		val = (val >> 6) & 0x3;
+
+		if (val == 0)
+			ver = SUNXI_VER_A10A;
+		else if (val == 3)
+			ver = SUNXI_VER_A10B;
+		else
+			ver = SUNXI_VER_A10C;
+		goto done;
+
+	} else if (machine_is_sun5i()) {
+		u32 val = readl(SW_VA_SSE_IO_BASE);
+		val = (val >> 16) & 0x07;
+
+		if (val == 0)
+			ver = SUNXI_VER_A13A;
+		else if (val == 1) {
+			val = readl(SW_VA_SID_IO_BASE+0x08);
+			val = (val >> 12) & 0xf;
+
+			if (val == 0 || val == 3)
+				ver = SUNXI_VER_A12A;
+			else if (val == 7)
+				ver = SUNXI_VER_A10SA;
 		}
-	} else {
-		switch (val) {
-		case 0x03:
-			return SUNXI_VER_A13B;
-		default:
-			return SUNXI_VER_A13A;
+
+		if (!ver)
+			goto unknown_chip;
+
+		val = readl(SW_VA_SID_IO_BASE+0x00);
+		val = (val >> 8) & 0xffffff;
+
+		if (val == 0 || val == 0x162541)
+			; /* rev A */
+		else if (val == 0x162542)
+			ver++; /* rev B */
+		else {
+			const char *name;
+			if (ver == SUNXI_VER_A13A)
+				name = "A13";
+			else if (ver == SUNXI_VER_A12A)
+				name = "A12";
+			else
+				name = "A10S";
+
+			pr_err("sunxi: unrecongnized %s revision (%x)\n",
+			       name, val);
+
+			goto unknown;
 		}
 	}
+
+unknown_chip:
+	pr_err("sunxi: unrecognized IC\n");
+unknown:
+	ver = SUNXI_VER_UNKNOWN;
+done:
+	return ver;
 }
 EXPORT_SYMBOL(sw_get_ic_ver);

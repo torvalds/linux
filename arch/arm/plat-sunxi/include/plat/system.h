@@ -47,12 +47,20 @@ int sunxi_pr_chip_id(void);
 int sunxi_pr_brom(void);
 
 enum sw_ic_ver {
-	SUNXI_VER_A10A = 0,
+	SUNXI_VER_UNKNOWN = 0xffffffff,
+
+	/* sun4i */
+	SUNXI_VER_A10A = 0xA100,
 	SUNXI_VER_A10B,
 	SUNXI_VER_A10C,
 
-	SUNXI_VER_A13A = 0,
+	/* sun5i */
+	SUNXI_VER_A13A = 0xA13A,
 	SUNXI_VER_A13B,
+	SUNXI_VER_A12A = 0xA12A,
+	SUNXI_VER_A12B,
+	SUNXI_VER_A10SA = 0xA10A,
+	SUNXI_VER_A10SB,
 };
 
 enum sw_ic_ver sw_get_ic_ver(void);
