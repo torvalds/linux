@@ -22,8 +22,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/sunxi_timer.h>
-#include <linux/clk/sunxi.h>
 
 #define TIMER_IRQ_EN_REG	0x00
 #define TIMER_IRQ_EN(val)		(1 << val)
@@ -98,22 +96,12 @@ static struct irqaction sunxi_timer_irq = {
 	.dev_id = &sunxi_clockevent,
 };
 
-static struct of_device_id sunxi_timer_dt_ids[] = {
-	{ .compatible = "allwinner,sunxi-timer" },
-	{ }
-};
-
-void __init sunxi_timer_init(void)
+static void __init sunxi_timer_init(struct device_node *node)
 {
-	struct device_node *node;
 	unsigned long rate = 0;
 	struct clk *clk;
 	int ret, irq;
 	u32 val;
-
-	node = of_find_matching_node(NULL, sunxi_timer_dt_ids);
-	if (!node)
-		panic("No sunxi timer node");
 
 	timer_base = of_iomap(node, 0);
 	if (!timer_base)
@@ -122,8 +110,6 @@ void __init sunxi_timer_init(void)
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0)
 		panic("Can't parse IRQ");
-
-	sunxi_init_clocks();
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk))
@@ -158,3 +144,5 @@ void __init sunxi_timer_init(void)
 	clockevents_config_and_register(&sunxi_clockevent, rate / TIMER_SCAL,
 					0x1, 0xff);
 }
+CLOCKSOURCE_OF_DECLARE(sunxi, "allwinner,sunxi-timer",
+		       sunxi_timer_init);

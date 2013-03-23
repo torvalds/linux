@@ -10,6 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/clocksource.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -17,8 +18,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
-#include <linux/sunxi_timer.h>
 
+#include <linux/clk/sunxi.h>
 #include <linux/irqchip/sunxi.h>
 
 #include <asm/mach/arch.h>
@@ -81,6 +82,12 @@ void __init sunxi_map_io(void)
 	iotable_init(sunxi_io_desc, ARRAY_SIZE(sunxi_io_desc));
 }
 
+static void __init sunxi_timer_init(void)
+{
+	sunxi_init_clocks();
+	clocksource_of_init();
+}
+
 static void __init sunxi_dt_init(void)
 {
 	sunxi_setup_restart();
@@ -100,6 +107,6 @@ DT_MACHINE_START(SUNXI_DT, "Allwinner A1X (Device Tree)")
 	.init_irq	= sunxi_init_irq,
 	.handle_irq	= sunxi_handle_irq,
 	.restart	= sunxi_restart,
-	.init_time	= &sunxi_timer_init,
+	.init_time	= sunxi_timer_init,
 	.dt_compat	= sunxi_board_dt_compat,
 MACHINE_END
