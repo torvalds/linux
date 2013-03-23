@@ -575,31 +575,6 @@ void __init sw_core_init(void)
 {
 	sw_pdev_init();
 }
-enum sw_ic_ver sw_get_ic_ver(void)
-{
-	volatile u32 val = readl(SW_VA_TIMERC_IO_BASE + 0x13c);
-
-	val = (val >> 6) & 0x3;
-
-	if (machine_is_sun4i()) {
-		switch (val) {
-		case 0x00:
-			return SUNXI_VER_A10A;
-		case 0x03:
-			return SUNXI_VER_A10B;
-		default:
-			return SUNXI_VER_A10C;
-		}
-	} else {
-		switch (val) {
-		case 0x03:
-			return SUNXI_VER_A13B;
-		default:
-			return SUNXI_VER_A13A;
-		}
-	}
-}
-EXPORT_SYMBOL(sw_get_ic_ver);
 
 MACHINE_START(SUN4I, "sun4i")
 	.atag_offset	= 0x100,
