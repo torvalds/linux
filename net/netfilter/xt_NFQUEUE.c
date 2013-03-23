@@ -76,22 +76,31 @@ static u32 hash_v6(const struct sk_buff *skb)
 }
 #endif
 
+static u32
+nfqueue_hash(const struct sk_buff *skb, const struct xt_action_param *par)
+{
+	const struct xt_NFQ_info_v1 *info = par->targinfo;
+	u32 queue = info->queuenum;
+
+	if (par->family == NFPROTO_IPV4)
+		queue += ((u64) hash_v4(skb) * info->queues_total) >> 32;
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	else if (par->family == NFPROTO_IPV6)
+		queue += ((u64) hash_v6(skb) * info->queues_total) >> 32;
+#endif
+
+	return queue;
+}
+
 static unsigned int
 nfqueue_tg_v1(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_NFQ_info_v1 *info = par->targinfo;
 	u32 queue = info->queuenum;
 
-	if (info->queues_total > 1) {
-		if (par->family == NFPROTO_IPV4)
-			queue = (((u64) hash_v4(skb) * info->queues_total) >>
-				 32) + queue;
-#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
-		else if (par->family == NFPROTO_IPV6)
-			queue = (((u64) hash_v6(skb) * info->queues_total) >>
-				 32) + queue;
-#endif
-	}
+	if (info->queues_total > 1)
+		queue = nfqueue_hash(skb, par);
+
 	return NF_QUEUE_NR(queue);
 }
 
@@ -144,17 +153,10 @@ nfqueue_tg_v3(struct sk_buff *skb, const struct xt_action_param *par)
 			int cpu = smp_processor_id();
 
 			queue = info->queuenum + cpu % info->queues_total;
-		} else {
-			if (par->family == NFPROTO_IPV4)
-				queue = (((u64) hash_v4(skb) * info->queues_total) >>
-						 32) + queue;
-#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
-			else if (par->family == NFPROTO_IPV6)
-				queue = (((u64) hash_v6(skb) * info->queues_total) >>
-						 32) + queue;
-#endif
-		}
+		} else
+			queue = nfqueue_hash(skb, par);
 	}
+
 	return NF_QUEUE_NR(queue);
 }
 
