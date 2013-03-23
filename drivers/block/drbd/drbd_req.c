@@ -1160,6 +1160,35 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 	drbd_send_and_submit(mdev, req);
 }
 
+void __drbd_make_request_from_worker(struct drbd_conf *mdev, struct drbd_request *req)
+{
+	const int rw = bio_rw(req->master_bio);
+
+	if (rw == WRITE && req->private_bio && req->i.size
+	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
+		drbd_al_begin_io(mdev, &req->i, false);
+		req->rq_state |= RQ_IN_ACT_LOG;
+	}
+	drbd_send_and_submit(mdev, req);
+}
+
+
+void do_submit(struct work_struct *ws)
+{
+	struct drbd_conf *mdev = container_of(ws, struct drbd_conf, submit.worker);
+	LIST_HEAD(writes);
+	struct drbd_request *req, *tmp;
+
+	spin_lock(&mdev->submit.lock);
+	list_splice_init(&mdev->submit.writes, &writes);
+	spin_unlock(&mdev->submit.lock);
+
+	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
+		list_del_init(&req->tl_requests);
+		__drbd_make_request_from_worker(mdev, req);
+	}
+}
+
 void drbd_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
