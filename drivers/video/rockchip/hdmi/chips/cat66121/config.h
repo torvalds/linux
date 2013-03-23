@@ -74,7 +74,7 @@
     #endif // INPUT_COLOR_MODE
     #define INPUT_COLOR_MODE F_MODE_YUV422
 #else
-    #pragma message ("Defined seperated sync.")
+//    #pragma message ("Defined seperated sync.")
     #define INPUT_SIGNAL_TYPE 0 // 24 bit sync seperate
     //#define INPUT_SIGNAL_TYPE ( T_MODE_DEGEN )
     //#define INPUT_SIGNAL_TYPE ( T_MODE_INDDR)

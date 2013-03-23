@@ -26,7 +26,7 @@
 #define HDMI_TX_I2C_SLAVE_ADDR 0x98
 #define CEC_I2C_SLAVE_ADDR 0x9C
 
-#define DISABLE_HDMITX_CSC
+//#define DISABLE_HDMITX_CSC
 ///////////////////////////////////////////////////////////////////////
 // Register offset
 ///////////////////////////////////////////////////////////////////////
@@ -646,18 +646,19 @@ typedef enum {
 /////////////////////////////////////////////////////////////////////////////////////
 // HDMITX function prototype
 /////////////////////////////////////////////////////////////////////////////////////
-void InitHDMITX();
+void InitHDMITX(void);
 void HDMITX_InitTxDev(HDMITXDEV *pInstance);
 BYTE CheckHDMITX(BYTE *pHPD,BYTE *pHPDChange);
-BOOL getHDMITX_LinkStatus();
-void HDMITX_PowerOn();
-void HDMITX_PowerDown();
+BOOL getHDMITX_LinkStatus(void);
+BOOL getHDMI_PowerStatus(void);
+void HDMITX_PowerOn(void);
+void HDMITX_PowerDown(void);
 
 void hdmitx_LoadRegSetting(RegSetEntry table[]);
 /////////////////////////////////////////////////////////////////////////////////////
 // HDMITX video function prototype
 /////////////////////////////////////////////////////////////////////////////////////
-void HDMITX_DisableVideoOutput();
+void HDMITX_DisableVideoOutput(void);
 BOOL HDMITX_EnableVideoOutput(VIDEOPCLKLEVEL level,BYTE inputColorMode,BYTE outputColorMode,BYTE bHDMI);
 BOOL setHDMITX_VideoSignalType(BYTE inputSignalType);
 void setHDMITX_ColorDepthPhase(BYTE ColorDepth,BYTE bPhase);
@@ -675,31 +676,31 @@ void setHDMITX_ColorDepthPhase(BYTE ColorDepth,BYTE bPhase);
 void hdmitx_SetInputMode(BYTE InputMode,BYTE bInputSignalType);
 void hdmitx_SetCSCScale(BYTE bInputMode,BYTE bOutputMode);
 void hdmitx_SetupAFE(VIDEOPCLKLEVEL level);
-void hdmitx_FireAFE();
+void hdmitx_FireAFE(void);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // HDMITX audio function prototype
 /////////////////////////////////////////////////////////////////////////////////////
-void HDMITX_DisableAudioOutput();
+void HDMITX_DisableAudioOutput(void);
 void HDMITX_EnableAudioOutput(BYTE AudioType, BOOL bSPDIF,  ULONG SampleFreq,  BYTE ChNum, BYTE *pIEC60958ChStat, ULONG TMDSClock);
 
 void setHDMITX_AudioChannelEnable(BOOL EnableAudio_b);
 void setHDMITX_ChStat(BYTE ucIEC60958ChStat[]);
-void setHDMITX_DSDAudio();
+void setHDMITX_DSDAudio(void);
 void setHDMITX_HBRAudio(BOOL bSPDIF);
 void setHDMITX_LPCMAudio(BYTE AudioSrcNum, BYTE AudSWL, BOOL bSPDIF);
 void setHDMITX_NCTS(BYTE Fs);
 void setHDMITX_NLPCMAudio(BOOL bSPDIF);
 void setHDMITX_UpdateChStatFs(ULONG Fs);
 
-BOOL hdmitx_IsAudioChang();
-void hdmitx_AutoAdjustAudio();
+BOOL hdmitx_IsAudioChang(void);
+void hdmitx_AutoAdjustAudio(void);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // HDMITX hdcp function prototype
 /////////////////////////////////////////////////////////////////////////////////////
 BOOL HDMITX_EnableHDCP(BYTE bEnable);
-BOOL getHDMITX_AuthenticationDone();
+BOOL getHDMITX_AuthenticationDone(void);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // HDMITX pkt/infoframe function prototype
@@ -721,12 +722,12 @@ SYS_STATUS hdmitx_Set_GeneralPurpose_PKT(BYTE *pData);
 BOOL getHDMITX_EDIDBlock(int EDIDBlockID,BYTE *pEDIDData);
 SYS_STATUS getHDMITX_EDIDBytes(BYTE *pData,BYTE bSegment,BYTE offset,SHORT Count);
 
-void hdmitx_GenerateDDCSCLK();
-void hdmitx_ClearDDCFIFO();
-void hdmitx_AbortDDC();
+void hdmitx_GenerateDDCSCLK(void);
+void hdmitx_ClearDDCFIFO(void);
+void hdmitx_AbortDDC(void);
 
 #if defined(Debug_message) && (Debug_message==1)
-    void DumpHDMITXReg();
+    void DumpHDMITXReg(void);
 #else
     #define DumpHDMITXReg()
 #endif

@@ -341,6 +341,7 @@ _CODE RegSetEntry HDMITX_PwrOn_Table[] = {
 #ifdef DETECT_VSYNC_CHG_IN_SAV
 BOOL EnSavVSync = FALSE ;
 #endif
+static bool PowerStatus=FALSE;
 
 //////////////////////////////////////////////////////////////////////
 // Function Prototype
@@ -399,6 +400,7 @@ BOOL getHDMITX_LinkStatus()
     return FALSE;
 }
 
+#if 0
 BYTE CheckHDMITX(BYTE *pHPD,BYTE *pHPDChange)
 {
     BYTE intdata1,intdata2,intdata3,sysstat;
@@ -529,12 +531,13 @@ BYTE CheckHDMITX(BYTE *pHPD,BYTE *pHPDChange)
                 (intdata3&0x2)? "No audio input interrupt  \n":"",
                 (intdata3&0x1)? "Audio decode error interrupt \n":""));
         }
-        HDMITX_WriteI2C_Byte(REG_TX_INT_CLR0,0xFF);
-        HDMITX_WriteI2C_Byte(REG_TX_INT_CLR1,0xFF);
-        intclr3 = (HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS))|B_TX_CLR_AUD_CTS | B_TX_INTACTDONE ;
-        HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,intclr3); // clear interrupt.
-        intclr3 &= ~(B_TX_INTACTDONE);
-        HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,intclr3); // INTACTDONE reset to zero.
+
+	intclr3 = (HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS))|B_TX_CLR_AUD_CTS | B_TX_INTACTDONE ;
+	HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,intclr3); // clear interrupt.
+	HDMITX_WriteI2C_Byte(REG_TX_INT_CLR0,0xFF);
+	HDMITX_WriteI2C_Byte(REG_TX_INT_CLR1,0xFF);
+	intclr3 &= ~(B_TX_INTACTDONE);
+	HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,intclr3); // INTACTDONE reset to zero.
     }
     //
     // else
@@ -565,15 +568,21 @@ BYTE CheckHDMITX(BYTE *pHPD,BYTE *pHPDChange)
     hdmiTxDev[0].bHPD = HPD ;
     return HPD ;
 }
-
+#endif
 void HDMITX_PowerOn()
 {
+	PowerStatus = TRUE;
     hdmitx_LoadRegSetting(HDMITX_PwrOn_Table);
 }
 
 void HDMITX_PowerDown()
 {
+	PowerStatus = FALSE;
     hdmitx_LoadRegSetting(HDMITX_PwrDown_Table);
+}
+BOOL getHDMI_PowerStatus()
+{
+	return PowerStatus;
 }
 
 void setHDMITX_AVMute(BYTE bEnable)
@@ -632,6 +641,16 @@ BOOL getHDMITX_EDIDBlock(int EDIDBlockID,BYTE *pEDIDData)
     {
         return FALSE ;
     }
+#if Debug_message
+    {
+	    int j=0;
+	    EDID_DEBUG_PRINTF(("------BlockID=%d------\n",EDIDBlockID));
+	    for( j = 0 ; j < 128 ; j++ )
+	    {
+		    EDID_DEBUG_PRINTF(("%02X%c",(int)pEDIDData[j],(7 == (j&7))?'\n':' '));
+	    }
+    }
+#endif
     return TRUE ;
 }
 
@@ -726,7 +745,7 @@ SYS_STATUS getHDMITX_EDIDBytes(BYTE *pData,BYTE bSegment,BYTE offset,SHORT Count
         }
         if(TimeOut == 0)
         {
-            HDMITX_DEBUG_PRINTF(("getHDMITX_EDIDBytes(): DDC TimeOut. \n",(int)ucdata));
+            HDMITX_DEBUG_PRINTF(("getHDMITX_EDIDBytes(): DDC TimeOut %d . \n",(int)ucdata));
             // HDMITX_AndReg_Byte(REG_TX_INT_CTRL,~(1<<1));
             return ER_FAIL ;
         }
@@ -817,11 +836,11 @@ void hdmitx_AbortDDC()
 
 extern HDMITXDEV hdmiTxDev[HDMITX_MAX_DEV_COUNT] ;
 
-void WaitTxVidStable();
+void WaitTxVidStable(void);
 void hdmitx_SetInputMode(BYTE InputMode,BYTE bInputSignalType);
 void hdmitx_SetCSCScale(BYTE bInputMode,BYTE bOutputMode);
 void hdmitx_SetupAFE(VIDEOPCLKLEVEL PCLKLevel);
-void hdmitx_FireAFE();
+void hdmitx_FireAFE(void);
 
 //////////////////////////////////////////////////////////////////////
 // utility function for main..
@@ -1301,7 +1320,7 @@ void hdmitx_SetInputMode(BYTE InputColorMode,BYTE bInputSignalType)
 
 void hdmitx_SetCSCScale(BYTE bInputMode,BYTE bOutputMode)
 {
-    BYTE ucData,csc ;
+    BYTE ucData = 0,csc = B_HDMITX_CSC_BYPASS ;
     BYTE i ;
     BYTE filter = 0 ; // filter is for Video CTRL DN_FREE_GO,EN_DITHER,and ENUDFILT
 
@@ -1904,7 +1923,7 @@ void HDMITX_EnableAudioOutput(BYTE AudioType, BOOL bSPDIF,  ULONG SampleFreq,  B
                 ucIEC60958ChStat[2] = 4 ;
             }
             ucIEC60958ChStat[3] = Fs ;
-            ucIEC60958ChStat[4] = ((~Fs)<<4) & 0xF0 | CHTSTS_SWCODE ; // Fs | 24bit word length
+            ucIEC60958ChStat[4] = (((~Fs)<<4) & 0xF0) | CHTSTS_SWCODE ; // Fs | 24bit word length
             pIEC60958ChStat = ucIEC60958ChStat ;
         }
     }
@@ -2531,6 +2550,7 @@ void DumpHDMITXReg()
     int i,j ;
     BYTE ucData ;
 
+	printk( "[%s]\n", __FUNCTION__);
     HDMITX_DEBUG_PRINTF(("       "));
     for(j = 0 ; j < 16 ; j++)
     {
@@ -2556,7 +2576,7 @@ void DumpHDMITXReg()
             }
             else
             {
-                HDMITX_DEBUG_PRINTF((" XX",(int)ucData)); // for DDC FIFO
+                HDMITX_DEBUG_PRINTF((" XX")); // for DDC FIFO
             }
             if((j == 3)||(j==7)||(j==11))
             {

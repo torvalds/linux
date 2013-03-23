@@ -2,8 +2,9 @@
 #define _CAT6611_HDMI_HW_H
 
 #include "typedef.h"
+#include "config.h"
+#include "debug.h"
 #include "hdmitx_drv.h"
-#include "hdmitx_sys.h"
 #define CAT6611_SCL_RATE	100 * 1000
 #define I2S 0
 #define SPDIF 1
@@ -42,7 +43,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Internal Data Type
 ////////////////////////////////////////////////////////////////////////////////
-
+enum {
+		OUTPUT_DVI = 0,
+		OUTPUT_HDMI
+	};
 typedef enum tagHDMI_Video_Type {
     HDMI_Unkown = 0 ,
     HDMI_640x480p60 = 1 ,
@@ -248,13 +252,14 @@ SYS_STATUS HDMITX_ReadI2C_ByteN(BYTE RegAddr,BYTE *pData,int N);
 SYS_STATUS HDMITX_WriteI2C_ByteN(BYTE RegAddr,BYTE *pData,int N);
 SYS_STATUS HDMITX_SetI2C_Byte(BYTE Reg,BYTE Mask,BYTE Value);
 
-void InitHDMITX_Variable();
-void HDMITX_ChangeDisplayOption(HDMI_Video_Type VideoMode, HDMI_OutputColorMode OutputColorMode);
-void HDMITX_SetOutput();
-int  HDMITX_DevLoopProc();
-void ConfigfHdmiVendorSpecificInfoFrame(BYTE _3D_Stru);
+void InitHDMITX_Variable(void);
+#if 0
+//void HDMITX_ChangeDisplayOption(HDMI_Video_Type VideoMode, HDMI_OutputColorMode OutputColorMode);
+//void HDMITX_SetOutput();
+//int  HDMITX_DevLoopProc();
+//void ConfigfHdmiVendorSpecificInfoFrame(BYTE _3D_Stru);
 void HDMITX_ChangeAudioOption(BYTE Option, BYTE channelNum, BYTE AudioFs);
 void HDMITX_SetAudioOutput();
 void HDMITX_ChangeColorDepth(BYTE colorDepth);
-
+#endif
 #endif

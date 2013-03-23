@@ -9,7 +9,7 @@
 #endif
 
 //#define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC0
-//#define HDMI_USE_IRQ
+#define HDMI_USE_IRQ
 
 struct cat66121_hdmi_pdata {
 	int gpio;

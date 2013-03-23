@@ -22,7 +22,7 @@
     #define _IDATA idata
     typedef bit BOOL ;
 #else
-    #define _CODE const
+    #define _CODE //const
     #define _DATA
     #define _IDATA
     #define _XDATA

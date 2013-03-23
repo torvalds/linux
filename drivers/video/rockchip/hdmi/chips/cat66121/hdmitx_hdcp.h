@@ -63,25 +63,25 @@
 // Function Prototype
 ////////////////////////////////////////////////////
 
-BOOL getHDMITX_AuthenticationDone();
-void hdmitx_hdcp_ClearAuthInterrupt();
-void hdmitx_hdcp_ResetAuth();
-void hdmitx_hdcp_Auth_Fire();
-void hdmitx_hdcp_StartAnCipher();
-void hdmitx_hdcp_StopAnCipher();
-void hdmitx_hdcp_GenerateAn();
+BOOL getHDMITX_AuthenticationDone(void);
+void hdmitx_hdcp_ClearAuthInterrupt(void);
+void hdmitx_hdcp_ResetAuth(void);
+void hdmitx_hdcp_Auth_Fire(void);
+void hdmitx_hdcp_StartAnCipher(void);
+void hdmitx_hdcp_StopAnCipher(void);
+void hdmitx_hdcp_GenerateAn(void);
 SYS_STATUS hdmitx_hdcp_GetBCaps(PBYTE pBCaps ,PUSHORT pBStatus);
 SYS_STATUS hdmitx_hdcp_GetBKSV(BYTE *pBKSV);
 
-void hdmitx_hdcp_Reset();
-SYS_STATUS hdmitx_hdcp_Authenticate();
-SYS_STATUS hdmitx_hdcp_VerifyIntegration();
-void hdmitx_hdcp_CancelRepeaterAuthenticate();
-void hdmitx_hdcp_ResumeRepeaterAuthenticate();
+void hdmitx_hdcp_Reset(void);
+SYS_STATUS hdmitx_hdcp_Authenticate(void);
+SYS_STATUS hdmitx_hdcp_VerifyIntegration(void);
+void hdmitx_hdcp_CancelRepeaterAuthenticate(void);
+void hdmitx_hdcp_ResumeRepeaterAuthenticate(void);
 SYS_STATUS hdmitx_hdcp_CheckSHA(BYTE pM0[],USHORT BStatus,BYTE pKSVList[],int cDownStream,BYTE Vr[]);
 SYS_STATUS hdmitx_hdcp_GetKSVList(BYTE *pKSVList,BYTE cDownStream);
 SYS_STATUS hdmitx_hdcp_GetVr(BYTE *pVr);
 SYS_STATUS hdmitx_hdcp_GetM0(BYTE *pM0);
-SYS_STATUS hdmitx_hdcp_Authenticate_Repeater();
-void hdmitx_hdcp_ResumeAuthentication();
+SYS_STATUS hdmitx_hdcp_Authenticate_Repeater(void);
+void hdmitx_hdcp_ResumeAuthentication(void);
 #endif // _HDMITX_HDCP_H_

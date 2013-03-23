@@ -7,6 +7,7 @@
 #include <mach/iomux.h>
 #include <linux/i2c.h>
 #include "cat66121_hdmi.h"
+#include "cat66121_hdmi_hw.h"
 
 struct cat66121_hdmi_pdata *cat66121_hdmi = NULL;
 struct hdmi *hdmi=NULL;
@@ -14,7 +15,18 @@ struct hdmi *hdmi=NULL;
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
 extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
+static void check_status_func(struct work_struct *work);
+static void cat66121_irq_work_func(struct work_struct *work);
+static DECLARE_DELAYED_WORK(check_status_work,check_status_func);
 
+static void check_status_func(struct work_struct *work)
+{
+	if(HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS) & B_TX_INT_ACTIVE){
+		cat66121_irq_work_func(NULL);
+	}
+	schedule_delayed_work(&check_status_work, msecs_to_jiffies(5000));
+}
+#if 0
 int cat66121_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 					 void (*hdcp_irq_cb)(int status),
 					 int (*hdcp_power_on_cb)(void),
@@ -27,7 +39,7 @@ int cat66121_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 	
 	return HDMI_ERROR_SUCESS;
 }
-
+#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void hdmi_early_suspend(struct early_suspend *h)
 {
@@ -53,6 +65,7 @@ static void hdmi_early_suspend(struct early_suspend *h)
 	wait_for_completion_interruptible_timeout(&hdmi->complete,
 							msecs_to_jiffies(5000));
 	flush_delayed_work(&hdmi->delay_work);
+	cancel_delayed_work_sync(&check_status_work);
 	return;
 }
 
@@ -70,6 +83,7 @@ static void hdmi_early_resume(struct early_suspend *h)
 	queue_delayed_work(cat66121_hdmi->workqueue, &cat66121_hdmi->delay_work, 100);
 	#endif
 	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+	schedule_delayed_work(&check_status_work, msecs_to_jiffies(5000));
 	mutex_unlock(&hdmi->enable_mutex);
 	return;
 }
@@ -221,6 +235,10 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 	
 
 	cat66121_hdmi_sys_init();
+#ifdef HDMI_DEBUG
+	device_create_file(&(client->dev), &hdmi_attrs[0]);
+#endif
+
 #ifdef HDMI_USE_IRQ
 	if(client->irq != INVALID_GPIO) {
 		INIT_WORK(&cat66121_hdmi->irq_work, cat66121_irq_work_func);
@@ -230,11 +248,13 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 	        dev_err(&client->dev, "fail to request gpio %d\n", client->irq);
 	        goto err_request_lcdc;
 	    }
+
+		schedule_delayed_work(&check_status_work, msecs_to_jiffies(5000));
 	    hdmi->irq = gpio_to_irq(client->irq);
 		cat66121_hdmi->gpio = client->irq;
 	    gpio_pull_updown(client->irq, GPIOPullUp);
 	    gpio_direction_input(client->irq);
-	    if((rc = request_irq(hdmi->irq, cat66121_irq, IRQF_TRIGGER_RISING, NULL, hdmi)) < 0)
+	    if((rc = request_irq(hdmi->irq, cat66121_irq, IRQF_TRIGGER_FALLING, NULL, hdmi)) < 0)
 	    {
 	        dev_err(&client->dev, "fail to request hdmi irq\n");
 	        goto err_request_irq;
@@ -249,9 +269,6 @@ static int cat66121_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_de
 	}
 #endif
 
-#ifdef HDMI_DEBUG
-	device_create_file(&(client->dev), &hdmi_attrs[0]);
-#endif
 	dev_info(&client->dev, "cat66121 hdmi i2c probe ok\n");
 	
     return 0;

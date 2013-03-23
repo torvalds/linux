@@ -31,7 +31,7 @@ BOOL HDMITX_EnableHDCP(BYTE bEnable)
     {
         if(ER_FAIL == hdmitx_hdcp_Authenticate())
         {
-            printk("ER_FAIL == hdmitx_hdcp_Authenticate\n");
+            HDCP_DEBUG_PRINTF(("ER_FAIL == hdmitx_hdcp_Authenticate\n"));
             hdmitx_hdcp_ResetAuth();
 			return FALSE ;
         }
@@ -48,7 +48,7 @@ BOOL HDMITX_EnableHDCP(BYTE bEnable)
 
 #ifdef SUPPORT_HDCP
 
-BOOL getHDMITX_AuthenticationDone()
+BOOL getHDMITX_AuthenticationDone(void)
 {
     //HDCP_DEBUG_PRINTF((" getHDMITX_AuthenticationDone() = %s\n",hdmiTxDev[0].bAuthenticated?"TRUE":"FALSE" ));
     return hdmiTxDev[0].bAuthenticated;
@@ -57,7 +57,7 @@ BOOL getHDMITX_AuthenticationDone()
 //////////////////////////////////////////////////////////////////////
 // Authentication
 //////////////////////////////////////////////////////////////////////
-void hdmitx_hdcp_ClearAuthInterrupt()
+void hdmitx_hdcp_ClearAuthInterrupt(void)
 {
     // BYTE uc ;
     // uc = HDMITX_ReadI2C_Byte(REG_TX_INT_MASK2) & (~(B_TX_KSVLISTCHK_MASK|B_TX_AUTH_DONE_MASK|B_TX_AUTH_FAIL_MASK));
@@ -67,7 +67,7 @@ void hdmitx_hdcp_ClearAuthInterrupt()
     HDMITX_WriteI2C_Byte(REG_TX_SYS_STATUS,B_TX_INTACTDONE);
 }
 
-void hdmitx_hdcp_ResetAuth()
+void hdmitx_hdcp_ResetAuth(void)
 {
     HDMITX_WriteI2C_Byte(REG_TX_LISTCTRL,0);
     HDMITX_WriteI2C_Byte(REG_TX_HDCP_DESIRE,0);
@@ -85,7 +85,7 @@ void hdmitx_hdcp_ResetAuth()
 // Side-Effect: N/A
 //////////////////////////////////////////////////////////////////////
 
-void hdmitx_hdcp_Auth_Fire()
+void hdmitx_hdcp_Auth_Fire(void)
 {
     // HDCP_DEBUG_PRINTF(("hdmitx_hdcp_Auth_Fire():\n"));
     HDMITX_WriteI2C_Byte(REG_TX_DDC_MASTER_CTRL,B_TX_MASTERDDC|B_TX_MASTERHDCP); // MASTERHDCP,no need command but fire.
@@ -101,7 +101,7 @@ void hdmitx_hdcp_Auth_Fire()
 // Side-Effect: N/A
 //////////////////////////////////////////////////////////////////////
 
-void hdmitx_hdcp_StartAnCipher()
+void hdmitx_hdcp_StartAnCipher(void)
 {
     HDMITX_WriteI2C_Byte(REG_TX_AN_GENERATE,B_TX_START_CIPHER_GEN);
     delay1ms(1); // delay 1 ms
@@ -114,7 +114,7 @@ void hdmitx_hdcp_StartAnCipher()
 // Side-Effect: N/A
 //////////////////////////////////////////////////////////////////////
 
-void hdmitx_hdcp_StopAnCipher()
+void hdmitx_hdcp_StopAnCipher(void)
 {
     HDMITX_WriteI2C_Byte(REG_TX_AN_GENERATE,B_TX_STOP_CIPHER_GEN);
 }
@@ -128,7 +128,7 @@ void hdmitx_hdcp_StopAnCipher()
 // Side-Effect:
 //////////////////////////////////////////////////////////////////////
 
-void hdmitx_hdcp_GenerateAn()
+void hdmitx_hdcp_GenerateAn(void)
 {
     BYTE Data[8];
     BYTE i=0;
@@ -280,7 +280,7 @@ static BYTE countbit(BYTE b)
     return count ;
 }
 
-void hdmitx_hdcp_Reset()
+void hdmitx_hdcp_Reset(void)
 {
     BYTE uc ;
     uc = HDMITX_ReadI2C_Byte(REG_TX_SW_RST) | B_TX_HDCP_RST_HDMITX ;
@@ -299,13 +299,14 @@ SYS_STATUS hdmitx_hdcp_Authenticate()
     USHORT BStatus ;
     USHORT TimeOut ;
 
-    BYTE revoked = FALSE ;
+ //   BYTE revoked = FALSE ;
     BYTE BKSV[5] ;
 
     hdmiTxDev[0].bAuthenticated = FALSE ;
     if(0==(B_TXVIDSTABLE&HDMITX_ReadI2C_Byte(REG_TX_SYS_STATUS)))
     {
-        return ER_FAIL;
+	    HDCP_DEBUG_PRINTF(("hdmitx_hdcp_Authenticate(): Video not stable\n"));
+	    return ER_FAIL;
     }
     // Authenticate should be called after AFE setup up.
 
@@ -388,6 +389,7 @@ SYS_STATUS hdmitx_hdcp_Authenticate()
             if(ucdata & B_TX_AUTH_DONE)
             {
                 hdmiTxDev[0].bAuthenticated = TRUE ;
+                HDCP_DEBUG_PRINTF(("hdmitx_hdcp_Authenticate()-receiver: Authenticate SUCESS\n"));
                 break ;
             }
             ucdata = HDMITX_ReadI2C_Byte(REG_TX_INT_STAT2);
@@ -994,6 +996,7 @@ SYS_STATUS hdmitx_hdcp_Authenticate_Repeater()
     }
 #endif // SUPPORT_SHA
 
+    HDCP_DEBUG_PRINTF(("hdmitx_hdcp_Authenticate()-receiver: Authenticate SUCESS\n"));
     hdmitx_hdcp_ResumeRepeaterAuthenticate();
     hdmiTxDev[0].bAuthenticated = TRUE ;
     return ER_SUCCESS ;
