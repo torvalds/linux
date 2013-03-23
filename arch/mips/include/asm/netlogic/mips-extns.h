@@ -38,10 +38,6 @@
 /*
  * XLR and XLP interrupt request and interrupt mask registers
  */
-#define read_c0_eirr()		__read_64bit_c0_register($9, 6)
-#define read_c0_eimr()		__read_64bit_c0_register($9, 7)
-#define write_c0_eirr(val)	__write_64bit_c0_register($9, 6, val)
-
 /*
  * NOTE: Do not save/restore flags around write_c0_eimr().
  * On non-R2 platforms the flags has part of EIMR that is shadowed in STATUS
@@ -125,7 +121,7 @@ static inline uint64_t read_c0_eirr_and_eimr(void)
 	uint64_t val;
 
 #ifdef CONFIG_64BIT
-	val = read_c0_eimr() & read_c0_eirr();
+	val = __read_64bit_c0_register($9, 6) & __read_64bit_c0_register($9, 7);
 #else
 	__asm__ __volatile__(
 		".set	push\n\t"
@@ -140,7 +136,6 @@ static inline uint64_t read_c0_eirr_and_eimr(void)
 		".set	pop"
 		: "=r" (val));
 #endif
-
 	return val;
 }
 
