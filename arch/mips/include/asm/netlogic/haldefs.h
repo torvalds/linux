@@ -42,34 +42,6 @@
  * and will provide a way to read 32/64 bit memory mapped registers in
  * all ABIs
  */
-/*
- * For o32 compilation, we have to disable interrupts and enable KX bit to
- * access 64 bit addresses or data.
- *
- * We need to disable interrupts because we save just the lower 32 bits of
- * registers in	 interrupt handling. So if we get hit by an interrupt while
- * using the upper 32 bits of a register, we lose.
- */
-static inline uint32_t nlm_save_flags_kx(void)
-{
-	return change_c0_status(ST0_KX | ST0_IE, ST0_KX);
-}
-
-static inline uint32_t nlm_save_flags_cop2(void)
-{
-	return change_c0_status(ST0_CU2 | ST0_IE, ST0_CU2);
-}
-
-static inline void nlm_restore_flags(uint32_t sr)
-{
-	write_c0_status(sr);
-}
-
-/*
- * The n64 implementations are simple, the o32 implementations when they
- * are added, will have to disable interrupts and enable KX before doing
- * 64 bit ops.
- */
 static inline uint32_t
 nlm_read_reg(uint64_t base, uint32_t reg)
 {
@@ -187,14 +159,6 @@ nlm_pcicfg_base(uint32_t devoffset)
 	return nlm_io_base + devoffset;
 }
 
-static inline uint64_t
-nlm_xkphys_map_pcibar0(uint64_t pcibase)
-{
-	uint64_t paddr;
-
-	paddr = nlm_read_reg(pcibase, 0x4) & ~0xfu;
-	return (uint64_t)0x9000000000000000 | paddr;
-}
 #elif defined(CONFIG_CPU_XLR)
 
 static inline uint64_t
