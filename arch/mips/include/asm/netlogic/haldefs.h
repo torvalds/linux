@@ -35,14 +35,13 @@
 #ifndef __NLM_HAL_HALDEFS_H__
 #define __NLM_HAL_HALDEFS_H__
 
+#include <linux/irqflags.h>	/* for local_irq_disable */
+
 /*
  * This file contains platform specific memory mapped IO implementation
  * and will provide a way to read 32/64 bit memory mapped registers in
  * all ABIs
  */
-#if !defined(CONFIG_64BIT) && defined(CONFIG_CPU_XLP)
-#error "o32 compile not supported on XLP yet"
-#endif
 /*
  * For o32 compilation, we have to disable interrupts and enable KX bit to
  * access 64 bit addresses or data.
@@ -87,13 +86,40 @@ nlm_write_reg(uint64_t base, uint32_t reg, uint32_t val)
 	*addr = val;
 }
 
+/*
+ * For o32 compilation, we have to disable interrupts to access 64 bit
+ * registers
+ *
+ * We need to disable interrupts because we save just the lower 32 bits of
+ * registers in  interrupt handling. So if we get hit by an interrupt while
+ * using the upper 32 bits of a register, we lose.
+ */
+
 static inline uint64_t
 nlm_read_reg64(uint64_t base, uint32_t reg)
 {
 	uint64_t addr = base + (reg >> 1) * sizeof(uint64_t);
 	volatile uint64_t *ptr = (volatile uint64_t *)(long)addr;
+	uint64_t val;
 
-	return *ptr;
+	if (sizeof(unsigned long) == 4) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		__asm__ __volatile__(
+			".set	push"			"\n\t"
+			".set	mips64"			"\n\t"
+			"ld	%L0, %1"		"\n\t"
+			"dsra32	%M0, %L0, 0"		"\n\t"
+			"sll	%L0, %L0, 0"		"\n\t"
+			".set	pop"			"\n"
+			: "=r" (val)
+			: "m" (*ptr));
+		local_irq_restore(flags);
+	} else
+		val = *ptr;
+
+	return val;
 }
 
 static inline void
@@ -102,7 +128,25 @@ nlm_write_reg64(uint64_t base, uint32_t reg, uint64_t val)
 	uint64_t addr = base + (reg >> 1) * sizeof(uint64_t);
 	volatile uint64_t *ptr = (volatile uint64_t *)(long)addr;
 
-	*ptr = val;
+	if (sizeof(unsigned long) == 4) {
+		unsigned long flags;
+		uint64_t tmp;
+
+		local_irq_save(flags);
+		__asm__ __volatile__(
+			".set	push"			"\n\t"
+			".set	mips64"			"\n\t"
+			"dsll32	%L0, %L0, 0"		"\n\t"
+			"dsrl32	%L0, %L0, 0"		"\n\t"
+			"dsll32	%M0, %M0, 0"		"\n\t"
+			"or	%L0, %L0, %M0"		"\n\t"
+			"sd	%L0, %2"		"\n\t"
+			".set	pop"			"\n"
+			: "=r" (tmp)
+			: "0" (val), "m" (*ptr));
+		local_irq_restore(flags);
+	} else
+		*ptr = val;
 }
 
 /*
