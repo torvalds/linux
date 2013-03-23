@@ -377,7 +377,7 @@ static void blk_drain_queue(struct request_queue *q)
 		 * multiple places and there's no single counter which can
 		 * be drained.  Check all the queues and counters.
 		 */
-		drain |= !list_empty(&q->queue_head);
+//		drain |= !list_empty(&q->queue_head);
 		for (i = 0; i < 2; i++) {
 			drain |= q->rq.count[i];
 			drain |= q->in_flight[i];
