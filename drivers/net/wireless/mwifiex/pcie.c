@@ -1983,12 +1983,13 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 				}
 			}
 		} else if (!adapter->pps_uapsd_mode &&
-			   adapter->ps_state == PS_STATE_SLEEP) {
+			   adapter->ps_state == PS_STATE_SLEEP &&
+			   mwifiex_pcie_ok_to_access_hw(adapter)) {
 				/* Potentially for PCIe we could get other
 				 * interrupts like shared. Don't change power
 				 * state until cookie is set */
-				if (mwifiex_pcie_ok_to_access_hw(adapter))
-					adapter->ps_state = PS_STATE_AWAKE;
+				adapter->ps_state = PS_STATE_AWAKE;
+				adapter->pm_wakeup_fw_try = false;
 		}
 	}
 }
