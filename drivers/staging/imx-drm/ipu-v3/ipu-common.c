@@ -225,7 +225,8 @@ int ipu_cpmem_set_format_passthrough(struct ipu_ch_param __iomem *p,
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_format_passthrough);
 
-void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format)
+void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param __iomem *p,
+				   u32 pixel_format)
 {
 	switch (pixel_format) {
 	case V4L2_PIX_FMT_UYVY:
