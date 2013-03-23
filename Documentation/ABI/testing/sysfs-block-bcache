@@ -1,0 +1,156 @@
+What:		/sys/block/<disk>/bcache/unregister
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		A write to this file causes the backing device or cache to be
+		unregistered. If a backing device had dirty data in the cache,
+		writeback mode is automatically disabled and all dirty data is
+		flushed before the device is unregistered. Caches unregister
+		all associated backing devices before unregistering themselves.
+
+What:		/sys/block/<disk>/bcache/clear_stats
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		Writing to this file resets all the statistics for the device.
+
+What:		/sys/block/<disk>/bcache/cache
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For a backing device that has cache, a symlink to
+		the bcache/ dir of that cache.
+
+What:		/sys/block/<disk>/bcache/cache_hits
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For backing devices: integer number of full cache hits,
+		counted per bio. A partial cache hit counts as a miss.
+
+What:		/sys/block/<disk>/bcache/cache_misses
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For backing devices: integer number of cache misses.
+
+What:		/sys/block/<disk>/bcache/cache_hit_ratio
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For backing devices: cache hits as a percentage.
+
+What:		/sys/block/<disk>/bcache/sequential_cutoff
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For backing devices: Threshold past which sequential IO will
+		skip the cache. Read and written as bytes in human readable
+		units (i.e. echo 10M > sequntial_cutoff).
+
+What:		/sys/block/<disk>/bcache/bypassed
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		Sum of all reads and writes that have bypassed the cache (due
+		to the sequential cutoff).  Expressed as bytes in human
+		readable units.
+
+What:		/sys/block/<disk>/bcache/writeback
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For backing devices: When on, writeback caching is enabled and
+		writes will be buffered in the cache. When off, caching is in
+		writethrough mode; reads and writes will be added to the
+		cache but no write buffering will take place.
+
+What:		/sys/block/<disk>/bcache/writeback_running
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For backing devices: when off, dirty data will not be written
+		from the cache to the backing device. The cache will still be
+		used to buffer writes until it is mostly full, at which point
+		writes transparently revert to writethrough mode. Intended only
+		for benchmarking/testing.
+
+What:		/sys/block/<disk>/bcache/writeback_delay
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For backing devices: In writeback mode, when dirty data is
+		written to the cache and the cache held no dirty data for that
+		backing device, writeback from cache to backing device starts
+		after this delay, expressed as an integer number of seconds.
+
+What:		/sys/block/<disk>/bcache/writeback_percent
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For backing devices: If nonzero, writeback from cache to
+		backing device only takes place when more than this percentage
+		of the cache is used, allowing more write coalescing to take
+		place and reducing total number of writes sent to the backing
+		device. Integer between 0 and 40.
+
+What:		/sys/block/<disk>/bcache/synchronous
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For a cache, a boolean that allows synchronous mode to be
+		switched on and off. In synchronous mode all writes are ordered
+		such that the cache can reliably recover from unclean shutdown;
+		if disabled bcache will not generally wait for writes to
+		complete but if the cache is not shut down cleanly all data
+		will be discarded from the cache. Should not be turned off with
+		writeback caching enabled.
+
+What:		/sys/block/<disk>/bcache/discard
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For a cache, a boolean allowing discard/TRIM to be turned off
+		or back on if the device supports it.
+
+What:		/sys/block/<disk>/bcache/bucket_size
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For a cache, bucket size in human readable units, as set at
+		cache creation time; should match the erase block size of the
+		SSD for optimal performance.
+
+What:		/sys/block/<disk>/bcache/nbuckets
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For a cache, the number of usable buckets.
+
+What:		/sys/block/<disk>/bcache/tree_depth
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For a cache, height of the btree excluding leaf nodes (i.e. a
+		one node tree will have a depth of 0).
+
+What:		/sys/block/<disk>/bcache/btree_cache_size
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		Number of btree buckets/nodes that are currently cached in
+		memory; cache dynamically grows and shrinks in response to
+		memory pressure from the rest of the system.
+
+What:		/sys/block/<disk>/bcache/written
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For a cache, total amount of data in human readable units
+		written to the cache, excluding all metadata.
+
+What:		/sys/block/<disk>/bcache/btree_written
+Date:		November 2010
+Contact:	Kent Overstreet <kent.overstreet@gmail.com>
+Description:
+		For a cache, sum of all btree writes in human readable units.
