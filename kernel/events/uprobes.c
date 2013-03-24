@@ -255,7 +255,6 @@ static int write_opcode(struct mm_struct *mm, unsigned long vaddr,
 			uprobe_opcode_t opcode)
 {
 	struct page *old_page, *new_page;
-	void *vaddr_old, *vaddr_new;
 	struct vm_area_struct *vma;
 	int ret;
 
@@ -276,15 +275,8 @@ retry:
 
 	__SetPageUptodate(new_page);
 
-	/* copy the page now that we've got it stable */
-	vaddr_old = kmap_atomic(old_page);
-	vaddr_new = kmap_atomic(new_page);
-
-	memcpy(vaddr_new, vaddr_old, PAGE_SIZE);
-	memcpy(vaddr_new + (vaddr & ~PAGE_MASK), &opcode, UPROBE_SWBP_INSN_SIZE);
-
-	kunmap_atomic(vaddr_new);
-	kunmap_atomic(vaddr_old);
+	copy_highpage(new_page, old_page);
+	copy_to_page(new_page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
 
 	ret = anon_vma_prepare(vma);
 	if (ret)
