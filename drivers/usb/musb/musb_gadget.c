@@ -1848,9 +1848,8 @@ static int musb_gadget_start(struct usb_gadget *g,
 		goto err;
 	}
 
-	if ((musb->xceiv->last_event == USB_EVENT_ID)
-				&& otg->set_vbus)
-		otg_set_vbus(otg, 1);
+	if (musb->xceiv->last_event == USB_EVENT_ID)
+		musb_platform_set_vbus(musb, 1);
 
 	hcd->self.uses_pio_for_control = 1;
 
