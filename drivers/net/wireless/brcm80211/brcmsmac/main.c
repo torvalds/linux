@@ -4325,7 +4325,6 @@ static void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 
 	/* WME QoS mode is Auto by default */
 	wlc->pub->_ampdu = AMPDU_AGG_HOST;
-	wlc->pub->bcmerror = 0;
 }
 
 static uint brcms_c_attach_module(struct brcms_c_info *wlc)

@@ -164,8 +164,6 @@ struct brcms_pub {
 
 	u8 cur_etheraddr[ETH_ALEN];	/* our local ethernet address */
 
-	int bcmerror;		/* last bcm error */
-
 	u32 radio_disabled;	/* bit vector for radio disabled reasons */
 
 	u16 boardrev;	/* version # of particular board */
