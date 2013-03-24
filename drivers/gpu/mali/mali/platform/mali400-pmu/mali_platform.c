@@ -83,7 +83,7 @@ _mali_osk_errcode_t mali_platform_init(void)
 		MALI_PRINT(("try to reset release failed!\n"));
 	}
 
-	MALI_PRINT(("mali clock set completed, clock is  %d Mhz\n", rate));
+	MALI_PRINT(("mali clock set completed, clock is  %d Hz\n", rate));
 
 
 	/*enable mali axi/apb clock*/
