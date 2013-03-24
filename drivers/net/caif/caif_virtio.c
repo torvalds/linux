@@ -670,6 +670,10 @@ static int cfv_probe(struct virtio_device *vdev)
 	spin_lock_init(&cfv->tx_lock);
 
 	/* Get the RX virtio ring. This is a "host side vring". */
+	err = -ENODEV;
+	if (!vdev->vringh_config || !vdev->vringh_config->find_vrhs)
+		goto err;
+
 	err = vdev->vringh_config->find_vrhs(vdev, 1, &cfv->vr_rx, &vrh_cbs);
 	if (err)
 		goto err;
