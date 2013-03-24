@@ -132,7 +132,6 @@ static int ak8975_read_data(struct i2c_client *client,
 	struct i2c_msg msg[2] = {
 		{
 			.addr = client->addr,
-			.flags = I2C_M_NOSTART,
 			.len = 1,
 			.buf = &reg,
 		}, {
