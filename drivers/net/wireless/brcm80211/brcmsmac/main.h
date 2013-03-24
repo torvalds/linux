@@ -567,6 +567,7 @@ struct brcms_c_info {
 	struct sk_buff *beacon;
 	u16 beacon_tim_offset;
 	u16 beacon_dtim_period;
+	struct sk_buff *probe_resp;
 };
 
 /* antsel module specific state */

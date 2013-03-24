@@ -539,6 +539,15 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		spin_unlock_bh(&wl->lock);
 	}
 
+	if (changed & BSS_CHANGED_AP_PROBE_RESP) {
+		struct sk_buff *probe_resp;
+
+		spin_lock_bh(&wl->lock);
+		probe_resp = ieee80211_proberesp_get(hw, vif);
+		brcms_c_set_new_probe_resp(wl->wlc, probe_resp);
+		spin_unlock_bh(&wl->lock);
+	}
+
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		/* Beaconing should be enabled/disabled (beaconing modes) */
 		brcms_err(core, "%s: Beacon enabled: %s\n", __func__,
@@ -1037,6 +1046,8 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	/* channel change time is dependent on chip and band  */
 	hw->channel_change_time = 7 * 1000;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+
+	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 
 	hw->rate_control_algorithm = "minstrel_ht";
 

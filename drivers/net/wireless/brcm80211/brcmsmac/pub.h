@@ -336,6 +336,8 @@ extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
 extern void brcms_c_set_new_beacon(struct brcms_c_info *wlc,
 				   struct sk_buff *beacon, u16 tim_offset,
 				   u16 dtim_period);
+extern void brcms_c_set_new_probe_resp(struct brcms_c_info *wlc,
+				       struct sk_buff *probe_resp);
 extern void brcms_c_set_ssid(struct brcms_c_info *wlc, u8 *ssid,
 			     size_t ssid_len);
 

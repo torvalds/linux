@@ -451,6 +451,8 @@ static void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 	kfree(wlc->hw);
 	if (wlc->beacon)
 		dev_kfree_skb_any(wlc->beacon);
+	if (wlc->probe_resp)
+		dev_kfree_skb_any(wlc->probe_resp);
 
 	/* free the wlc */
 	kfree(wlc);
@@ -7323,69 +7325,6 @@ brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc, uint frame_len)
 	}
 }
 
-/*	Max buffering needed for beacon template/prb resp template is 142 bytes.
- *
- *	PLCP header is 6 bytes.
- *	802.11 A3 header is 24 bytes.
- *	Max beacon frame body template length is 112 bytes.
- *	Max probe resp frame body template length is 110 bytes.
- *
- *      *len on input contains the max length of the packet available.
- *
- *	The *len value is set to the number of bytes in buf used, and starts
- *	with the PLCP and included up to, but not including, the 4 byte FCS.
- */
-static void
-brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
-			 u32 bcn_rspec,
-			 struct brcms_bss_cfg *cfg, u16 *buf, int *len)
-{
-	static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
-	struct cck_phy_hdr *plcp;
-	struct ieee80211_mgmt *h;
-	int hdr_len, body_len;
-
-	hdr_len = D11_PHY_HDR_LEN + DOT11_MAC_HDR_LEN;
-
-	/* calc buffer size provided for frame body */
-	body_len = *len - hdr_len;
-	/* return actual size */
-	*len = hdr_len + body_len;
-
-	/* format PHY and MAC headers */
-	memset(buf, 0, hdr_len);
-
-	plcp = (struct cck_phy_hdr *) buf;
-
-	/*
-	 * PLCP for Probe Response frames are filled in from
-	 * core's rate table
-	 */
-	if (type == IEEE80211_STYPE_BEACON)
-		/* fill in PLCP */
-		brcms_c_compute_plcp(wlc, bcn_rspec,
-				 (DOT11_MAC_HDR_LEN + body_len + FCS_LEN),
-				 (u8 *) plcp);
-
-	/* "Regular" and 16 MBSS but not for 4 MBSS */
-	/* Update the phytxctl for the beacon based on the rspec */
-	brcms_c_beacon_phytxctl_txant_upd(wlc, bcn_rspec);
-
-	h = (struct ieee80211_mgmt *)&plcp[1];
-
-	/* fill in 802.11 header */
-	h->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | type);
-
-	/* DUR is 0 for multicast bcn, or filled in by MAC for prb resp */
-	/* A1 filled in by MAC for prb resp, broadcast for bcn */
-	if (type == IEEE80211_STYPE_BEACON)
-		memcpy(&h->da, &ether_bcast, ETH_ALEN);
-	memcpy(&h->sa, &wlc->pub->cur_etheraddr, ETH_ALEN);
-	memcpy(&h->bssid, &cfg->BSSID, ETH_ALEN);
-
-	/* SEQ filled in by MAC */
-}
-
 int brcms_c_get_header_len(void)
 {
 	return TXOFF;
@@ -7527,6 +7466,20 @@ void brcms_c_set_new_beacon(struct brcms_c_info *wlc, struct sk_buff *beacon,
 	brcms_c_update_beacon(wlc);
 }
 
+void brcms_c_set_new_probe_resp(struct brcms_c_info *wlc,
+				struct sk_buff *probe_resp)
+{
+	if (!probe_resp)
+		return;
+	if (wlc->probe_resp)
+		dev_kfree_skb_any(wlc->probe_resp);
+	wlc->probe_resp = probe_resp;
+
+	/* add PLCP */
+	skb_push(wlc->probe_resp, D11_PHY_HDR_LEN);
+	brcms_c_update_probe_resp(wlc, false);
+}
+
 /* Write ssid into shared memory */
 static void
 brcms_c_shm_ssid_upd(struct brcms_c_info *wlc, struct brcms_bss_cfg *cfg)
@@ -7546,30 +7499,19 @@ brcms_c_shm_ssid_upd(struct brcms_c_info *wlc, struct brcms_bss_cfg *cfg)
 static void
 brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
 			      struct brcms_bss_cfg *cfg,
+			      struct sk_buff *probe_resp,
 			      bool suspend)
 {
-	u16 *prb_resp;
-	int len = BCN_TMPL_LEN;
+	int len;
 
-	prb_resp = kmalloc(BCN_TMPL_LEN, GFP_ATOMIC);
-	if (!prb_resp)
-		return;
-
-	/*
-	 * write the probe response to hardware, or save in
-	 * the config structure
-	 */
-
-	/* create the probe response template */
-	brcms_c_bcn_prb_template(wlc, IEEE80211_STYPE_PROBE_RESP, 0,
-				 cfg, prb_resp, &len);
+	len = min_t(size_t, probe_resp->len, BCN_TMPL_LEN);
 
 	if (suspend)
 		brcms_c_suspend_mac_and_wait(wlc);
 
 	/* write the probe response into the template region */
 	brcms_b_write_template_ram(wlc->hw, T_PRS_TPL_BASE,
-				    (len + 3) & ~3, prb_resp);
+				    (len + 3) & ~3, probe_resp->data);
 
 	/* write the length of the probe response frame (+PLCP/-FCS) */
 	brcms_b_write_shm(wlc->hw, M_PRB_RESP_FRM_LEN, (u16) len);
@@ -7583,13 +7525,11 @@ brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
 	 * PLCP header for the call to brcms_c_mod_prb_rsp_rate_table()
 	 * by subtracting the PLCP len and adding the FCS.
 	 */
-	len += (-D11_PHY_HDR_LEN + FCS_LEN);
-	brcms_c_mod_prb_rsp_rate_table(wlc, (u16) len);
+	brcms_c_mod_prb_rsp_rate_table(wlc,
+				      (u16)len + FCS_LEN - D11_PHY_HDR_LEN);
 
 	if (suspend)
 		brcms_c_enable_mac(wlc);
-
-	kfree(prb_resp);
 }
 
 void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend)
@@ -7598,8 +7538,12 @@ void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend)
 
 	/* update AP or IBSS probe responses */
 	if (wlc->pub->up && (bsscfg->type == BRCMS_TYPE_AP ||
-			     bsscfg->type == BRCMS_TYPE_ADHOC))
-		brcms_c_bss_update_probe_resp(wlc, bsscfg, suspend);
+			     bsscfg->type == BRCMS_TYPE_ADHOC)) {
+		if (!wlc->probe_resp)
+			return;
+		brcms_c_bss_update_probe_resp(wlc, bsscfg, wlc->probe_resp,
+					      suspend);
+	}
 }
 
 int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
