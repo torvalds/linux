@@ -579,6 +579,24 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
 		   int event)
 {
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		switch (w->shift) {
+		case ARIZONA_OUT1L_ENA_SHIFT:
+		case ARIZONA_OUT1R_ENA_SHIFT:
+		case ARIZONA_OUT2L_ENA_SHIFT:
+		case ARIZONA_OUT2R_ENA_SHIFT:
+		case ARIZONA_OUT3L_ENA_SHIFT:
+		case ARIZONA_OUT3R_ENA_SHIFT:
+			msleep(17);
+			break;
+
+		default:
+			break;
+		}
+		break;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_out_ev);
