@@ -5065,9 +5065,8 @@ int brcms_c_up(struct brcms_c_info *wlc)
 				struct brcms_bss_cfg *bsscfg = wlc->bsscfg;
 				mboolset(wlc->pub->radio_disabled,
 					 WL_RADIO_HW_DISABLE);
-				if (bsscfg->enable &&
-				    (bsscfg->type == BRCMS_TYPE_STATION ||
-				     bsscfg->type == BRCMS_TYPE_ADHOC))
+				if (bsscfg->type == BRCMS_TYPE_STATION ||
+				    bsscfg->type == BRCMS_TYPE_ADHOC)
 					brcms_err(wlc->hw->d11core,
 						  "wl%d: up: rfdisable -> "
 						  "bsscfg_disable()\n",
