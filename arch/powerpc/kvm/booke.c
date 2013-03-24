@@ -222,8 +222,7 @@ void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
 	kvmppc_booke_queue_irqprio(vcpu, prio);
 }
 
-void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
-                                  struct kvm_interrupt *irq)
+void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu)
 {
 	clear_bit(BOOKE_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
 	clear_bit(BOOKE_IRQPRIO_EXTERNAL_LEVEL, &vcpu->arch.pending_exceptions);
@@ -1148,6 +1147,18 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return r;
 }
 
+static void kvmppc_set_tsr(struct kvm_vcpu *vcpu, u32 new_tsr)
+{
+	u32 old_tsr = vcpu->arch.tsr;
+
+	vcpu->arch.tsr = new_tsr;
+
+	if ((old_tsr ^ vcpu->arch.tsr) & (TSR_ENW | TSR_WIS))
+		arm_next_watchdog(vcpu);
+
+	update_timer_ints(vcpu);
+}
+
 /* Initial guest state: 16MB mapping 0 -> 0, PC = 0, MSR = 0, R1 = 16MB */
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
@@ -1287,16 +1298,8 @@ static int set_sregs_base(struct kvm_vcpu *vcpu,
 		kvmppc_emulate_dec(vcpu);
 	}
 
-	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_TSR) {
-		u32 old_tsr = vcpu->arch.tsr;
-
-		vcpu->arch.tsr = sregs->u.e.tsr;
-
-		if ((old_tsr ^ vcpu->arch.tsr) & (TSR_ENW | TSR_WIS))
-			arm_next_watchdog(vcpu);
-
-		update_timer_ints(vcpu);
-	}
+	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_TSR)
+		kvmppc_set_tsr(vcpu, sregs->u.e.tsr);
 
 	return 0;
 }
@@ -1438,6 +1441,12 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		r = put_user(vcpu->arch.epcr, (u32 __user *)(long)reg->addr);
 		break;
 #endif
+	case KVM_REG_PPC_TCR:
+		r = put_user(vcpu->arch.tcr, (u32 __user *)(long)reg->addr);
+		break;
+	case KVM_REG_PPC_TSR:
+		r = put_user(vcpu->arch.tsr, (u32 __user *)(long)reg->addr);
+		break;
 	default:
 		break;
 	}
@@ -1481,6 +1490,30 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		break;
 	}
 #endif
+	case KVM_REG_PPC_OR_TSR: {
+		u32 tsr_bits;
+		r = get_user(tsr_bits, (u32 __user *)(long)reg->addr);
+		kvmppc_set_tsr_bits(vcpu, tsr_bits);
+		break;
+	}
+	case KVM_REG_PPC_CLEAR_TSR: {
+		u32 tsr_bits;
+		r = get_user(tsr_bits, (u32 __user *)(long)reg->addr);
+		kvmppc_clr_tsr_bits(vcpu, tsr_bits);
+		break;
+	}
+	case KVM_REG_PPC_TSR: {
+		u32 tsr;
+		r = get_user(tsr, (u32 __user *)(long)reg->addr);
+		kvmppc_set_tsr(vcpu, tsr);
+		break;
+	}
+	case KVM_REG_PPC_TCR: {
+		u32 tcr;
+		r = get_user(tcr, (u32 __user *)(long)reg->addr);
+		kvmppc_set_tcr(vcpu, tcr);
+		break;
+	}
 	default:
 		break;
 	}

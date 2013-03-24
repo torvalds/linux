@@ -160,8 +160,7 @@ void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
 	kvmppc_book3s_queue_irqprio(vcpu, vec);
 }
 
-void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
-                                  struct kvm_interrupt *irq)
+void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu)
 {
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL);
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL_LEVEL);

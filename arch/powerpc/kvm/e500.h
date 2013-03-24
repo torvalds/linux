@@ -26,17 +26,20 @@
 #define E500_PID_NUM   3
 #define E500_TLB_NUM   2
 
-#define E500_TLB_VALID 1
-#define E500_TLB_BITMAP 2
+/* entry is mapped somewhere in host TLB */
+#define E500_TLB_VALID		(1 << 0)
+/* TLB1 entry is mapped by host TLB1, tracked by bitmaps */
+#define E500_TLB_BITMAP		(1 << 1)
+/* TLB1 entry is mapped by host TLB0 */
 #define E500_TLB_TLB0		(1 << 2)
 
 struct tlbe_ref {
-	pfn_t pfn;
-	unsigned int flags; /* E500_TLB_* */
+	pfn_t pfn;		/* valid only for TLB0, except briefly */
+	unsigned int flags;	/* E500_TLB_* */
 };
 
 struct tlbe_priv {
-	struct tlbe_ref ref; /* TLB0 only -- TLB1 uses tlb_refs */
+	struct tlbe_ref ref;
 };
 
 #ifdef CONFIG_KVM_E500V2
@@ -63,17 +66,6 @@ struct kvmppc_vcpu_e500 {
 
 	unsigned int gtlb_nv[E500_TLB_NUM];
 
-	/*
-	 * information associated with each host TLB entry --
-	 * TLB1 only for now.  If/when guest TLB1 entries can be
-	 * mapped with host TLB0, this will be used for that too.
-	 *
-	 * We don't want to use this for guest TLB0 because then we'd
-	 * have the overhead of doing the translation again even if
-	 * the entry is still in the guest TLB (e.g. we swapped out
-	 * and back, and our host TLB entries got evicted).
-	 */
-	struct tlbe_ref *tlb_refs[E500_TLB_NUM];
 	unsigned int host_tlb1_nv;
 
 	u32 svr;
