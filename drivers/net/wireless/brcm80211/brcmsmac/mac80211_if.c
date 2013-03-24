@@ -552,6 +552,12 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		/* Beaconing should be enabled/disabled (beaconing modes) */
 		brcms_err(core, "%s: Beacon enabled: %s\n", __func__,
 			  info->enable_beacon ? "true" : "false");
+		if (info->enable_beacon &&
+		    hw->wiphy->flags & WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD) {
+			brcms_c_enable_probe_resp(wl->wlc, true);
+		} else {
+			brcms_c_enable_probe_resp(wl->wlc, false);
+		}
 	}
 
 	if (changed & BSS_CHANGED_CQM) {
@@ -1047,7 +1053,12 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	hw->channel_change_time = 7 * 1000;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
+	/*
+	 * deactivate sending probe responses by ucude, because this will
+	 * cause problems when WPS is used.
+	 *
+	 * hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
+	 */
 
 	hw->rate_control_algorithm = "minstrel_ht";
 

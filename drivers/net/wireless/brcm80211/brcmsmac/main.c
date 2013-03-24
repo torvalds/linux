@@ -7480,6 +7480,17 @@ void brcms_c_set_new_probe_resp(struct brcms_c_info *wlc,
 	brcms_c_update_probe_resp(wlc, false);
 }
 
+void brcms_c_enable_probe_resp(struct brcms_c_info *wlc, bool enable)
+{
+	/*
+	 * prevent ucode from sending probe responses by setting the timeout
+	 * to 1, it can not send it in that time frame.
+	 */
+	wlc->prb_resp_timeout = enable ? BRCMS_PRB_RESP_TIMEOUT : 1;
+	brcms_b_write_shm(wlc->hw, M_PRS_MAXTIME, wlc->prb_resp_timeout);
+	/* TODO: if (enable) => also deactivate receiving of probe request */
+}
+
 /* Write ssid into shared memory */
 static void
 brcms_c_shm_ssid_upd(struct brcms_c_info *wlc, struct brcms_bss_cfg *cfg)
