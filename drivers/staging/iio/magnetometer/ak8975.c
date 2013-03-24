@@ -94,7 +94,6 @@ struct ak8975_data {
 	long			raw_to_gauss[3];
 	u8			reg_cache[AK8975_MAX_REGS];
 	int			eoc_gpio;
-	int			eoc_irq;
 };
 
 static const int ak8975_index_to_reg[] = {
@@ -452,7 +451,6 @@ static int ak8975_probe(struct i2c_client *client,
 
 	data->client = client;
 	mutex_init(&data->lock);
-	data->eoc_irq = client->irq;
 	data->eoc_gpio = eoc_gpio;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = ak8975_channels;
