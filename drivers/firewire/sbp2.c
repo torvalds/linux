@@ -1144,8 +1144,8 @@ static int sbp2_probe(struct device *dev)
 		return -ENODEV;
 
 	if (dma_get_max_seg_size(device->card->device) > SBP2_MAX_SEG_SIZE)
-		BUG_ON(dma_set_max_seg_size(device->card->device,
-					    SBP2_MAX_SEG_SIZE));
+		WARN_ON(dma_set_max_seg_size(device->card->device,
+					     SBP2_MAX_SEG_SIZE));
 
 	shost = scsi_host_alloc(&scsi_driver_template, sizeof(*tgt));
 	if (shost == NULL)
