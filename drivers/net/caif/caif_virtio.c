@@ -318,7 +318,7 @@ exit:
 
 		/* Really out of patckets? (stolen from virtio_net)*/
 		napi_complete(napi);
-		if (unlikely(vringh_notify_enable_kern(cfv->vr_rx)) &&
+		if (unlikely(!vringh_notify_enable_kern(cfv->vr_rx)) &&
 		    napi_schedule_prep(napi)) {
 			vringh_notify_disable_kern(cfv->vr_rx);
 			__napi_schedule(napi);
