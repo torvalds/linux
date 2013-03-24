@@ -2174,6 +2174,18 @@ void brcms_c_start_station(struct brcms_c_info *wlc, u8 *addr)
 	wlc->bsscfg->type = BRCMS_TYPE_STATION;
 }
 
+void brcms_c_start_ap(struct brcms_c_info *wlc, u8 *addr, const u8 *bssid,
+		      u8 *ssid, size_t ssid_len)
+{
+	brcms_c_set_ssid(wlc, ssid, ssid_len);
+
+	memcpy(wlc->pub->cur_etheraddr, addr, sizeof(wlc->pub->cur_etheraddr));
+	memcpy(wlc->bsscfg->BSSID, bssid, sizeof(wlc->bsscfg->BSSID));
+	wlc->bsscfg->type = BRCMS_TYPE_AP;
+
+	brcms_b_mctrl(wlc->hw, MCTL_AP | MCTL_INFRA, MCTL_AP | MCTL_INFRA);
+}
+
 /* Initialize GPIOs that are controlled by D11 core */
 static void brcms_c_gpio_init(struct brcms_c_info *wlc)
 {
@@ -3060,6 +3072,9 @@ static bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 
 	/* disallow PS when one of these meets when not scanning */
 	if (wlc->filter_flags & FIF_PROMISC_IN_BSS)
+		return false;
+
+	if (wlc->bsscfg->type == BRCMS_TYPE_AP)
 		return false;
 
 	return true;
