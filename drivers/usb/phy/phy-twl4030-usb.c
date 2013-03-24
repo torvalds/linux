@@ -248,6 +248,25 @@ twl4030_usb_clear_bits(struct twl4030_usb *twl, u8 reg, u8 bits)
 
 /*-------------------------------------------------------------------------*/
 
+static bool twl4030_is_driving_vbus(struct twl4030_usb *twl)
+{
+	int ret;
+
+	ret = twl4030_usb_read(twl, PHY_CLK_CTRL_STS);
+	if (ret < 0 || !(ret & PHY_DPLL_CLK))
+		/*
+		 * if clocks are off, registers are not updated,
+		 * but we can assume we don't drive VBUS in this case
+		 */
+		return false;
+
+	ret = twl4030_usb_read(twl, ULPI_OTG_CTRL);
+	if (ret < 0)
+		return false;
+
+	return (ret & (ULPI_OTG_DRVVBUS | ULPI_OTG_CHRGVBUS)) ? true : false;
+}
+
 static enum omap_musb_vbus_id_status
 	twl4030_usb_linkstat(struct twl4030_usb *twl)
 {
@@ -270,13 +289,19 @@ static enum omap_musb_vbus_id_status
 	if (status < 0)
 		dev_err(twl->dev, "USB link status err %d\n", status);
 	else if (status & (BIT(7) | BIT(2))) {
-		if (status & (BIT(7)))
-                        twl->vbus_supplied = true;
+		if (status & BIT(7)) {
+			if (twl4030_is_driving_vbus(twl))
+				status &= ~BIT(7);
+			else
+				twl->vbus_supplied = true;
+		}
 
 		if (status & BIT(2))
 			linkstat = OMAP_MUSB_ID_GROUND;
-		else
+		else if (status & BIT(7))
 			linkstat = OMAP_MUSB_VBUS_VALID;
+		else
+			linkstat = OMAP_MUSB_VBUS_OFF;
 	} else {
 		if (twl->linkstat != OMAP_MUSB_UNKNOWN)
 			linkstat = OMAP_MUSB_VBUS_OFF;
