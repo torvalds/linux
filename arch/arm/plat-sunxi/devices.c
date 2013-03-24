@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-sun4i/devices.c
+ * arch/arm/plat-sunxi/devices.c
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -24,7 +24,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
 #include <linux/platform_data/ram_console.h>
+#endif
 #include <linux/serial_8250.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -39,8 +41,11 @@
 #include <asm/pmu.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
 #include <plat/ramconsole.h>
+#endif
 
+#if 0
 /* uart */
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
@@ -63,6 +68,7 @@ static struct platform_device debug_uart = {
 		.platform_data = debug_uart_platform_data,
 	},
 };
+#endif
 
 /* dma */
 static struct platform_device sw_pdev_dmac = {
@@ -86,14 +92,18 @@ struct platform_device sw_pdev_nand =
 };
 
 /* twi0 */
-static struct sun4i_i2c_platform_data sun4i_twi0_pdata[] = {
+#if defined CONFIG_ARCH_SUN4I
+static struct sun4i_i2c_platform_data sunxi_twi0_pdata[] = {
+#elif defined CONFIG_ARCH_SUN5I
+static struct sun5i_i2c_platform_data sunxi_twi0_pdata[] = {
+#endif
 	{
 		.bus_num   = 0,
 		.frequency = I2C0_TRANSFER_SPEED,
 	},
 };
 
-static struct resource sun4i_twi0_resources[] = {
+static struct resource sunxi_twi0_resources[] = {
 	{
 		.start	= TWI0_BASE_ADDR_START,
 		.end	= TWI0_BASE_ADDR_END,
@@ -105,25 +115,33 @@ static struct resource sun4i_twi0_resources[] = {
 	},
 };
 
-struct platform_device sun4i_twi0_device = {
+struct platform_device sunxi_twi0_device = {
+#if defined CONFIG_ARCH_SUN4I
 	.name		= "sun4i-i2c",
+#elif defined CONFIG_ARCH_SUN5I
+	.name		= "sun5i-i2c",
+#endif
 	.id		    = 0,
-	.resource	= sun4i_twi0_resources,
-	.num_resources	= ARRAY_SIZE(sun4i_twi0_resources),
+	.resource	= sunxi_twi0_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_twi0_resources),
 	.dev = {
-		.platform_data = sun4i_twi0_pdata,
+		.platform_data = sunxi_twi0_pdata,
 	},
 };
 
 /* twi1 */
-static struct sun4i_i2c_platform_data sun4i_twi1_pdata[] = {
+#if defined CONFIG_ARCH_SUN4I
+static struct sun4i_i2c_platform_data sunxi_twi1_pdata[] = {
+#elif defined CONFIG_ARCH_SUN5I
+static struct sun5i_i2c_platform_data sunxi_twi1_pdata[] = {
+#endif
 	{
 		.bus_num   = 1,
     	.frequency = I2C1_TRANSFER_SPEED,
 	},
 };
 
-static struct resource sun4i_twi1_resources[] = {
+static struct resource sunxi_twi1_resources[] = {
 	{
 		.start	= TWI1_BASE_ADDR_START,
 		.end	= TWI1_BASE_ADDR_END,
@@ -135,25 +153,33 @@ static struct resource sun4i_twi1_resources[] = {
 	},
 };
 
-struct platform_device sun4i_twi1_device = {
+struct platform_device sunxi_twi1_device = {
+#if defined CONFIG_ARCH_SUN4I
 	.name		= "sun4i-i2c",
+#elif defined CONFIG_ARCH_SUN5I
+	.name		= "sun5i-i2c",
+#endif
 	.id		    = 1,
-	.resource	= sun4i_twi1_resources,
-	.num_resources	= ARRAY_SIZE(sun4i_twi1_resources),
+	.resource	= sunxi_twi1_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_twi1_resources),
 	.dev = {
-		.platform_data = sun4i_twi1_pdata,
+		.platform_data = sunxi_twi1_pdata,
 	},
 };
 
 /* twi2 */
-static struct sun4i_i2c_platform_data sun4i_twi2_pdata[] = {
+#if defined CONFIG_ARCH_SUN4I
+static struct sun4i_i2c_platform_data sunxi_twi2_pdata[] = {
+#elif defined CONFIG_ARCH_SUN5I
+static struct sun5i_i2c_platform_data sunxi_twi2_pdata[] = {
+#endif
 	{
 		.bus_num   = 2,
     	.frequency = I2C2_TRANSFER_SPEED,
 	},
 };
 
-static struct resource sun4i_twi2_resources[] = {
+static struct resource sunxi_twi2_resources[] = {
 	{
 		.start	= TWI2_BASE_ADDR_START,
 		.end	= TWI2_BASE_ADDR_END,
@@ -165,17 +191,21 @@ static struct resource sun4i_twi2_resources[] = {
 	},
 };
 
-struct platform_device sun4i_twi2_device = {
+struct platform_device sunxi_twi2_device = {
+#if defined CONFIG_ARCH_SUN4I
 	.name		= "sun4i-i2c",
+#elif defined CONFIG_ARCH_SUN5I
+	.name		= "sun5i-i2c",
+#endif
 	.id		    = 2,
-	.resource	= sun4i_twi2_resources,
-	.num_resources	= ARRAY_SIZE(sun4i_twi2_resources),
+	.resource	= sunxi_twi2_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_twi2_resources),
 	.dev = {
-		.platform_data = sun4i_twi2_pdata,
+		.platform_data = sunxi_twi2_pdata,
 	},
 };
 
-static struct resource sun4i_pmu_resources[] = {
+static struct resource sunxi_pmu_resources[] = {
 	{
 		.start	= SW_INT_IRQNO_PLE_PFM,
 		.end	= SW_INT_IRQNO_PLE_PFM,
@@ -183,15 +213,16 @@ static struct resource sun4i_pmu_resources[] = {
 	},
 };
 
-struct platform_device sun4i_pmu_device = {
+struct platform_device sunxi_pmu_device = {
 	.name		= "arm-pmu",
 	.id		= ARM_PMU_DEVICE_CPU,
-	.resource	= sun4i_pmu_resources,
-	.num_resources	= ARRAY_SIZE(sun4i_pmu_resources),
+	.resource	= sunxi_pmu_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_pmu_resources),
 };
 
+
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
-static struct platform_device sun4i_device_mali_drm = {
+static struct platform_device sunxi_device_mali_drm = {
 	.name = "mali_drm",
 	.id   = -1,
 };
@@ -222,15 +253,17 @@ static struct platform_device sun4i_ramconsole = {
 #endif
 
 static struct platform_device *sw_pdevs[] __initdata = {
+#if 0
 	&debug_uart,
+#endif
 	&sw_pdev_dmac,
 	&sw_pdev_nand,
-	&sun4i_twi0_device,
-	&sun4i_twi1_device,
-	&sun4i_twi2_device,
-	&sun4i_pmu_device,
+	&sunxi_twi0_device,
+	&sunxi_twi1_device,
+	&sunxi_twi2_device,
+	&sunxi_pmu_device,
 #if defined(CONFIG_MALI_DRM) || defined(CONFIG_MALI_DRM_MODULE)
-	&sun4i_device_mali_drm,
+	&sunxi_device_mali_drm,
 #endif
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
 	&sun4i_ramconsole,
