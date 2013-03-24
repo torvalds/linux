@@ -357,11 +357,12 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct brcms_info *wl = hw->priv;
 
-	/* Just STA and AP for now */
+	/* Just STA, AP and ADHOC for now */
 	if (vif->type != NL80211_IFTYPE_STATION &&
-	    vif->type != NL80211_IFTYPE_AP) {
+	    vif->type != NL80211_IFTYPE_AP &&
+	    vif->type != NL80211_IFTYPE_ADHOC) {
 		brcms_err(wl->wlc->hw->d11core,
-			  "%s: Attempt to add type %d, only STA and AP for now\n",
+			  "%s: Attempt to add type %d, only STA, AP and AdHoc for now\n",
 			  __func__, vif->type);
 		return -EOPNOTSUPP;
 	}
@@ -374,6 +375,8 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	else if (vif->type == NL80211_IFTYPE_AP)
 		brcms_c_start_ap(wl->wlc, vif->addr, vif->bss_conf.bssid,
 				 vif->bss_conf.ssid, vif->bss_conf.ssid_len);
+	else if (vif->type == NL80211_IFTYPE_ADHOC)
+		brcms_c_start_adhoc(wl->wlc, vif->addr);
 	spin_unlock_bh(&wl->lock);
 
 	return 0;
@@ -1056,7 +1059,8 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	/* channel change time is dependent on chip and band  */
 	hw->channel_change_time = 7 * 1000;
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-				     BIT(NL80211_IFTYPE_AP);
+				     BIT(NL80211_IFTYPE_AP) |
+				     BIT(NL80211_IFTYPE_ADHOC);
 
 	/*
 	 * deactivate sending probe responses by ucude, because this will

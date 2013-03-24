@@ -2186,6 +2186,14 @@ void brcms_c_start_ap(struct brcms_c_info *wlc, u8 *addr, const u8 *bssid,
 	brcms_b_mctrl(wlc->hw, MCTL_AP | MCTL_INFRA, MCTL_AP | MCTL_INFRA);
 }
 
+void brcms_c_start_adhoc(struct brcms_c_info *wlc, u8 *addr)
+{
+	memcpy(wlc->pub->cur_etheraddr, addr, sizeof(wlc->pub->cur_etheraddr));
+	wlc->bsscfg->type = BRCMS_TYPE_ADHOC;
+
+	brcms_b_mctrl(wlc->hw, MCTL_AP | MCTL_INFRA, 0);
+}
+
 /* Initialize GPIOs that are controlled by D11 core */
 static void brcms_c_gpio_init(struct brcms_c_info *wlc)
 {
@@ -3075,6 +3083,9 @@ static bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 		return false;
 
 	if (wlc->bsscfg->type == BRCMS_TYPE_AP)
+		return false;
+
+	if (wlc->bsscfg->type == BRCMS_TYPE_ADHOC)
 		return false;
 
 	return true;

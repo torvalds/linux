@@ -334,6 +334,7 @@ extern bool brcms_c_tx_flush_completed(struct brcms_c_info *wlc);
 extern void brcms_c_start_station(struct brcms_c_info *wlc, u8 *addr);
 extern void brcms_c_start_ap(struct brcms_c_info *wlc, u8 *addr,
 			     const u8 *bssid, u8 *ssid, size_t ssid_len);
+extern void brcms_c_start_adhoc(struct brcms_c_info *wlc, u8 *addr);
 extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
 extern void brcms_c_set_new_beacon(struct brcms_c_info *wlc,
 				   struct sk_buff *beacon, u16 tim_offset,
