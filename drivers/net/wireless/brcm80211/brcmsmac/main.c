@@ -7373,8 +7373,8 @@ void brcms_c_update_beacon(struct brcms_c_info *wlc)
 {
 	struct brcms_bss_cfg *bsscfg = wlc->bsscfg;
 
-	if (bsscfg->up && (bsscfg->type == BRCMS_TYPE_AP ||
-			   bsscfg->type == BRCMS_TYPE_ADHOC))
+	if (wlc->pub->up && (bsscfg->type == BRCMS_TYPE_AP ||
+			     bsscfg->type == BRCMS_TYPE_ADHOC))
 		/* Clear the soft intmask */
 		wlc->defmacintmask &= ~MI_BCNTPL;
 }
@@ -7449,8 +7449,8 @@ void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend)
 	struct brcms_bss_cfg *bsscfg = wlc->bsscfg;
 
 	/* update AP or IBSS probe responses */
-	if (bsscfg->up && (bsscfg->type == BRCMS_TYPE_AP ||
-			   bsscfg->type == BRCMS_TYPE_ADHOC))
+	if (wlc->pub->up && (bsscfg->type == BRCMS_TYPE_AP ||
+			     bsscfg->type == BRCMS_TYPE_ADHOC))
 		brcms_c_bss_update_probe_resp(wlc, bsscfg, suspend);
 }
 
@@ -7803,7 +7803,7 @@ void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
 	brcms_c_set_bssid(wlc->bsscfg);
 
 	/* Update tsf_cfprep if associated and up */
-	if (wlc->pub->associated && wlc->bsscfg->up) {
+	if (wlc->pub->associated && wlc->pub->up) {
 		u32 bi;
 
 		/* get beacon period and convert to uS */

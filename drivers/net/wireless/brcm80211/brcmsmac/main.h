@@ -587,7 +587,6 @@ enum brcms_bss_type {
  *
  * wlc: wlc to which this bsscfg belongs to.
  * type: interface type
- * up: is this configuration up operational
  * SSID_len: the length of SSID
  * SSID: SSID string
  *
@@ -604,7 +603,6 @@ enum brcms_bss_type {
 struct brcms_bss_cfg {
 	struct brcms_c_info *wlc;
 	enum brcms_bss_type type;
-	bool up;
 	u8 SSID_len;
 	u8 SSID[IEEE80211_MAX_SSID_LEN];
 	u8 BSSID[ETH_ALEN];
