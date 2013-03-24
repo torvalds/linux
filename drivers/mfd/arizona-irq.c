@@ -189,6 +189,7 @@ int arizona_irq_init(struct arizona *arizona)
 	int ret, i;
 	const struct regmap_irq_chip *aod, *irq;
 	bool ctrlif_error = true;
+	struct irq_data *irq_data;
 
 	switch (arizona->type) {
 #ifdef CONFIG_MFD_WM5102
@@ -215,8 +216,30 @@ int arizona_irq_init(struct arizona *arizona)
 	/* Disable all wake sources by default */
 	regmap_write(arizona->regmap, ARIZONA_WAKE_CONTROL, 0);
 
-	if (!arizona->pdata.irq_flags)
-		arizona->pdata.irq_flags = IRQF_TRIGGER_LOW;
+	/* Read the flags from the interrupt controller if not specified */
+	if (!arizona->pdata.irq_flags) {
+		irq_data = irq_get_irq_data(arizona->irq);
+		if (!irq_data) {
+			dev_err(arizona->dev, "Invalid IRQ: %d\n",
+				arizona->irq);
+			return -EINVAL;
+		}
+
+		arizona->pdata.irq_flags = irqd_get_trigger_type(irq_data);
+		switch (arizona->pdata.irq_flags) {
+		case IRQF_TRIGGER_LOW:
+		case IRQF_TRIGGER_HIGH:
+		case IRQF_TRIGGER_RISING:
+		case IRQF_TRIGGER_FALLING:
+			break;
+
+		case IRQ_TYPE_NONE:
+		default:
+			/* Device default */
+			arizona->pdata.irq_flags = IRQF_TRIGGER_LOW;
+			break;
+		}
+	}
 
 	if (arizona->pdata.irq_flags & (IRQF_TRIGGER_HIGH |
 					IRQF_TRIGGER_RISING)) {
