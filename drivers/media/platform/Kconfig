@@ -122,7 +122,7 @@ config VIDEO_S3C_CAMIF
 	  will be called s3c-camif.
 
 source "drivers/media/platform/soc_camera/Kconfig"
-source "drivers/media/platform/s5p-fimc/Kconfig"
+source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/s5p-tv/Kconfig"
 
 endif # V4L_PLATFORM_DRIVERS

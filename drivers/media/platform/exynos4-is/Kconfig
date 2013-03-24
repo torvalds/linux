@@ -1,13 +1,13 @@
 
-config VIDEO_SAMSUNG_S5P_FIMC
-	bool "Samsung S5P/EXYNOS SoC camera interface driver (experimental)"
+config VIDEO_SAMSUNG_EXYNOS4_IS
+	bool "Samsung S5P/EXYNOS4 SoC series Camera Subsystem driver"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && PLAT_S5P && PM_RUNTIME
 	depends on MFD_SYSCON
 	help
 	  Say Y here to enable camera host interface devices for
 	  Samsung S5P and EXYNOS SoC series.
 
-if VIDEO_SAMSUNG_S5P_FIMC
+if VIDEO_SAMSUNG_EXYNOS4_IS
 
 config VIDEO_S5P_FIMC
 	tristate "S5P/EXYNOS4 FIMC/CAMIF camera interface driver"
@@ -16,7 +16,7 @@ config VIDEO_S5P_FIMC
 	select V4L2_MEM2MEM_DEV
 	help
 	  This is a V4L2 driver for Samsung S5P and EXYNOS4 SoC camera host
-	  interface and video postprocessor (FIMC and FIMC-LITE) devices.
+	  interface and video postprocessor (FIMC) devices.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5p-fimc.

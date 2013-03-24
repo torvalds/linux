@@ -29,8 +29,7 @@
 
 #include "fimc-core.h"
 #include "fimc-reg.h"
-#include "fimc-mdevice.h"
-
+#include "media-dev.h"
 
 static unsigned int get_m2m_fmt_flags(unsigned int stream_type)
 {

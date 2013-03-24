@@ -31,7 +31,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/s5p_fimc.h>
 
-#include "fimc-mdevice.h"
+#include "media-dev.h"
 #include "fimc-lite.h"
 #include "fimc-lite-reg.h"
 

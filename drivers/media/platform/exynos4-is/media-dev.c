@@ -30,9 +30,9 @@
 #include <media/media-device.h>
 #include <media/s5p_fimc.h>
 
+#include "media-dev.h"
 #include "fimc-core.h"
 #include "fimc-lite.h"
-#include "fimc-mdevice.h"
 #include "mipi-csis.h"
 
 static int __fimc_md_set_camclk(struct fimc_md *fmd,

@@ -32,7 +32,7 @@
 
 #include "fimc-core.h"
 #include "fimc-reg.h"
-#include "fimc-mdevice.h"
+#include "media-dev.h"
 
 static char *fimc_clocks[MAX_FIMC_CLOCKS] = {
 	"sclk_fimc", "fimc"

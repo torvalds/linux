@@ -14,7 +14,7 @@
 #include <linux/regmap.h>
 
 #include <media/s5p_fimc.h>
-#include "fimc-mdevice.h"
+#include "media-dev.h"
 
 #include "fimc-reg.h"
 #include "fimc-core.h"
