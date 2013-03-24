@@ -99,10 +99,6 @@ ifeq ($(config),1)
 include config/Makefile
 endif
 
-ifdef NO_NEWT
-	NO_SLANG=1
-endif
-
 # Among the variables below, these:
 #   perfexecdir
 #   template_dir
@@ -509,28 +505,19 @@ ifndef NO_LIBAUDIT
 endif
 
 ifndef NO_SLANG
-	FLAGS_SLANG=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) -I/usr/include/slang -lslang
-	ifneq ($(call try-cc,$(SOURCE_SLANG),$(FLAGS_SLANG),libslang),y)
-		msg := $(warning slang not found, disables TUI support. Please install slang-devel or libslang-dev);
-	else
-		# Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h
-		BASIC_CFLAGS += -I/usr/include/slang
-		BASIC_CFLAGS += -DSLANG_SUPPORT
-		EXTLIBS += -lslang
-		LIB_OBJS += $(OUTPUT)ui/browser.o
-		LIB_OBJS += $(OUTPUT)ui/browsers/annotate.o
-		LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
-		LIB_OBJS += $(OUTPUT)ui/browsers/map.o
-		LIB_OBJS += $(OUTPUT)ui/browsers/scripts.o
-		LIB_OBJS += $(OUTPUT)ui/tui/setup.o
-		LIB_OBJS += $(OUTPUT)ui/tui/util.o
-		LIB_OBJS += $(OUTPUT)ui/tui/helpline.o
-		LIB_OBJS += $(OUTPUT)ui/tui/progress.o
-		LIB_H += ui/browser.h
-		LIB_H += ui/browsers/map.h
-		LIB_H += ui/keysyms.h
-		LIB_H += ui/libslang.h
-	endif
+	LIB_OBJS += $(OUTPUT)ui/browser.o
+	LIB_OBJS += $(OUTPUT)ui/browsers/annotate.o
+	LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
+	LIB_OBJS += $(OUTPUT)ui/browsers/map.o
+	LIB_OBJS += $(OUTPUT)ui/browsers/scripts.o
+	LIB_OBJS += $(OUTPUT)ui/tui/setup.o
+	LIB_OBJS += $(OUTPUT)ui/tui/util.o
+	LIB_OBJS += $(OUTPUT)ui/tui/helpline.o
+	LIB_OBJS += $(OUTPUT)ui/tui/progress.o
+	LIB_H += ui/browser.h
+	LIB_H += ui/browsers/map.h
+	LIB_H += ui/keysyms.h
+	LIB_H += ui/libslang.h
 endif
 
 ifndef NO_GTK2
