@@ -72,11 +72,25 @@ module_param_named(modeset, nouveau_modeset, int, 0400);
 static struct drm_driver driver;
 
 static int
+nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
+{
+	struct nouveau_drm *drm =
+		container_of(event, struct nouveau_drm, vblank[head]);
+	drm_handle_vblank(drm->dev, head);
+	return NVKM_EVENT_KEEP;
+}
+
+static int
 nouveau_drm_vblank_enable(struct drm_device *dev, int head)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-	nouveau_event_get(pdisp->vblank, head, &drm->vblank);
+
+	if (WARN_ON_ONCE(head > ARRAY_SIZE(drm->vblank)))
+		return -EIO;
+	WARN_ON_ONCE(drm->vblank[head].func);
+	drm->vblank[head].func = nouveau_drm_vblank_handler;
+	nouveau_event_get(pdisp->vblank, head, &drm->vblank[head]);
 	return 0;
 }
 
@@ -85,16 +99,11 @@ nouveau_drm_vblank_disable(struct drm_device *dev, int head)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-	nouveau_event_put(pdisp->vblank, head, &drm->vblank);
-}
-
-static int
-nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
-{
-	struct nouveau_drm *drm =
-		container_of(event, struct nouveau_drm, vblank);
-	drm_handle_vblank(drm->dev, head);
-	return NVKM_EVENT_KEEP;
+	if (drm->vblank[head].func)
+		nouveau_event_put(pdisp->vblank, head, &drm->vblank[head]);
+	else
+		WARN_ON_ONCE(1);
+	drm->vblank[head].func = NULL;
 }
 
 static u64
@@ -292,7 +301,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = drm;
 	drm->dev = dev;
-	drm->vblank.func = nouveau_drm_vblank_handler;
 
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
