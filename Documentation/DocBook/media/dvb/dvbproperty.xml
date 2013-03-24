@@ -1,6 +1,6 @@
 <section id="FE_GET_SET_PROPERTY">
 <title><constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></title>
-<para>This section describes the DVB version 5 extention of the DVB-API, also
+<para>This section describes the DVB version 5 extension of the DVB-API, also
 called "S2API", as this API were added to provide support for DVB-S2. It was
 designed to be able to replace the old frontend API. Yet, the DISEQC and
 the capability ioctls weren't implemented yet via the new way.</para>
@@ -952,7 +952,7 @@ enum fe_interleaving {
 		<para>Measures the amount of bits received before the inner code block, during the same period as
 		<link linkend="DTV-STAT-PRE-ERROR-BIT-COUNT"><constant>DTV_STAT_PRE_ERROR_BIT_COUNT</constant></link> measurement was taken.</para>
 		<para>It should be noticed that this measurement can be smaller than the total amount of bits on the transport stream,
-		      as the frontend may need to manually restart the measurement, loosing some data between each measurement interval.</para>
+		      as the frontend may need to manually restart the measurement, losing some data between each measurement interval.</para>
 		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
 		      The frontend may reset it when a channel/transponder is tuned.</para>
 		<para>Possible scales for this metric are:</para>
@@ -981,7 +981,7 @@ enum fe_interleaving {
 		<para>Measures the amount of bits received after the inner coding, during the same period as
 		<link linkend="DTV-STAT-POST-ERROR-BIT-COUNT"><constant>DTV_STAT_POST_ERROR_BIT_COUNT</constant></link> measurement was taken.</para>
 		<para>It should be noticed that this measurement can be smaller than the total amount of bits on the transport stream,
-		      as the frontend may need to manually restart the measurement, loosing some data between each measurement interval.</para>
+		      as the frontend may need to manually restart the measurement, losing some data between each measurement interval.</para>
 		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
 		      The frontend may reset it when a channel/transponder is tuned.</para>
 		<para>Possible scales for this metric are:</para>
