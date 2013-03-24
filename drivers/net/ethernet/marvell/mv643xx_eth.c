@@ -2681,7 +2681,7 @@ static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 	}
 
 	/* Attempt to connect to the PHY using orion-mdio */
-	phydev = NULL;
+	phydev = ERR_PTR(-ENODEV);
 	for (i = 0; i < num; i++) {
 		int addr = (start + i) & 0x1f;
 
@@ -2812,11 +2812,17 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	netif_set_real_num_tx_queues(dev, mp->txq_count);
 	netif_set_real_num_rx_queues(dev, mp->rxq_count);
 
-	if (pd->phy_addr != MV643XX_ETH_PHY_NONE)
+	if (pd->phy_addr != MV643XX_ETH_PHY_NONE) {
 		mp->phy = phy_scan(mp, pd->phy_addr);
 
-	if (mp->phy != NULL)
+		if (IS_ERR(mp->phy)) {
+			err = PTR_ERR(mp->phy);
+			if (err == -ENODEV)
+				err = -EPROBE_DEFER;
+			goto out;
+		}
 		phy_init(mp, pd->speed, pd->duplex);
+	}
 
 	SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
 
