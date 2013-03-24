@@ -2763,6 +2763,27 @@ bool current_chrooted(void)
 	return chrooted;
 }
 
+void update_mnt_policy(struct user_namespace *userns)
+{
+	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	struct mount *mnt;
+
+	down_read(&namespace_sem);
+	list_for_each_entry(mnt, &ns->list, mnt_list) {
+		switch (mnt->mnt.mnt_sb->s_magic) {
+		case SYSFS_MAGIC:
+			userns->may_mount_sysfs = true;
+			break;
+		case PROC_SUPER_MAGIC:
+			userns->may_mount_proc = true;
+			break;
+		}
+		if (userns->may_mount_sysfs && userns->may_mount_proc)
+			break;
+	}
+	up_read(&namespace_sem);
+}
+
 static void *mntns_get(struct task_struct *task)
 {
 	struct mnt_namespace *ns = NULL;
