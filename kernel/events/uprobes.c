@@ -194,6 +194,13 @@ static void copy_from_page(struct page *page, unsigned long vaddr, void *dst, in
 	kunmap_atomic(kaddr);
 }
 
+static void copy_to_page(struct page *page, unsigned long vaddr, const void *src, int len)
+{
+	void *kaddr = kmap_atomic(page);
+	memcpy(kaddr + (vaddr & ~PAGE_MASK), src, len);
+	kunmap_atomic(kaddr);
+}
+
 static int verify_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t *new_opcode)
 {
 	uprobe_opcode_t old_opcode;
@@ -1227,9 +1234,7 @@ static unsigned long xol_take_insn_slot(struct xol_area *area)
 static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 {
 	struct xol_area *area;
-	unsigned long offset;
 	unsigned long xol_vaddr;
-	void *vaddr;
 
 	area = get_xol_area();
 	if (!area)
@@ -1240,10 +1245,7 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 		return 0;
 
 	/* Initialize the slot */
-	offset = xol_vaddr & ~PAGE_MASK;
-	vaddr = kmap_atomic(area->page);
-	memcpy(vaddr + offset, uprobe->arch.insn, MAX_UINSN_BYTES);
-	kunmap_atomic(vaddr);
+	copy_to_page(area->page, xol_vaddr, uprobe->arch.insn, MAX_UINSN_BYTES);
 	/*
 	 * We probably need flush_icache_user_range() but it needs vma.
 	 * This should work on supported architectures too.
