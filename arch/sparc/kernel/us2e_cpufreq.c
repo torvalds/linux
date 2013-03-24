@@ -248,8 +248,10 @@ static unsigned int us2e_freq_get(unsigned int cpu)
 	return clock_tick / estar_to_divisor(estar);
 }
 
-static void us2e_set_cpu_divider_index(unsigned int cpu, unsigned int index)
+static void us2e_set_cpu_divider_index(struct cpufreq_policy *policy,
+		unsigned int index)
 {
+	unsigned int cpu = policy->cpu;
 	unsigned long new_bits, new_freq;
 	unsigned long clock_tick, divisor, old_divisor, estar;
 	cpumask_t cpus_allowed;
@@ -272,14 +274,13 @@ static void us2e_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 
 	freqs.old = clock_tick / old_divisor;
 	freqs.new = new_freq;
-	freqs.cpu = cpu;
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	if (old_divisor != divisor)
 		us2e_transition(estar, new_bits, clock_tick * 1000,
 				old_divisor, divisor);
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	set_cpus_allowed_ptr(current, &cpus_allowed);
 }
@@ -295,7 +296,7 @@ static int us2e_freq_target(struct cpufreq_policy *policy,
 					   target_freq, relation, &new_index))
 		return -EINVAL;
 
-	us2e_set_cpu_divider_index(policy->cpu, new_index);
+	us2e_set_cpu_divider_index(policy, new_index);
 
 	return 0;
 }
@@ -335,7 +336,7 @@ static int __init us2e_freq_cpu_init(struct cpufreq_policy *policy)
 static int us2e_freq_cpu_exit(struct cpufreq_policy *policy)
 {
 	if (cpufreq_us2e_driver)
-		us2e_set_cpu_divider_index(policy->cpu, 0);
+		us2e_set_cpu_divider_index(policy, 0);
 
 	return 0;
 }

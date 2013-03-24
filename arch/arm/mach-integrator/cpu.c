@@ -123,14 +123,12 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	vco = icst_hz_to_vco(&cclk_params, target_freq * 1000);
 	freqs.new = icst_hz(&cclk_params, vco) / 1000;
 
-	freqs.cpu = policy->cpu;
-
 	if (freqs.old == freqs.new) {
 		set_cpus_allowed(current, cpus_allowed);
 		return 0;
 	}
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	cm_osc = __raw_readl(CM_OSC);
 
@@ -151,7 +149,7 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	 */
 	set_cpus_allowed(current, cpus_allowed);
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }

@@ -90,7 +90,6 @@ static int davinci_target(struct cpufreq_policy *policy,
 
 	freqs.old = davinci_getspeed(0);
 	freqs.new = clk_round_rate(armclk, target_freq * 1000) / 1000;
-	freqs.cpu = 0;
 
 	if (freqs.old == freqs.new)
 		return ret;
@@ -102,7 +101,7 @@ static int davinci_target(struct cpufreq_policy *policy,
 	if (ret)
 		return -EINVAL;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* if moving to higher frequency, up the voltage beforehand */
 	if (pdata->set_voltage && freqs.new > freqs.old) {
@@ -126,7 +125,7 @@ static int davinci_target(struct cpufreq_policy *policy,
 		pdata->set_voltage(idx);
 
 out:
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
 }

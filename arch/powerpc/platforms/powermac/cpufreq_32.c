@@ -335,7 +335,8 @@ static int pmu_set_cpu_speed(int low_speed)
 	return 0;
 }
 
-static int do_set_cpu_speed(int speed_mode, int notify)
+static int do_set_cpu_speed(struct cpufreq_policy *policy, int speed_mode,
+		int notify)
 {
 	struct cpufreq_freqs freqs;
 	unsigned long l3cr;
@@ -343,13 +344,12 @@ static int do_set_cpu_speed(int speed_mode, int notify)
 
 	freqs.old = cur_freq;
 	freqs.new = (speed_mode == CPUFREQ_HIGH) ? hi_freq : low_freq;
-	freqs.cpu = smp_processor_id();
 
 	if (freqs.old == freqs.new)
 		return 0;
 
 	if (notify)
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+		cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	if (speed_mode == CPUFREQ_LOW &&
 	    cpu_has_feature(CPU_FTR_L3CR)) {
 		l3cr = _get_L3CR();
@@ -366,7 +366,7 @@ static int do_set_cpu_speed(int speed_mode, int notify)
 			_set_L3CR(prev_l3cr);
 	}
 	if (notify)
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+		cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	cur_freq = (speed_mode == CPUFREQ_HIGH) ? hi_freq : low_freq;
 
 	return 0;
@@ -393,7 +393,7 @@ static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
 			target_freq, relation, &newstate))
 		return -EINVAL;
 
-	rc = do_set_cpu_speed(newstate, 1);
+	rc = do_set_cpu_speed(policy, newstate, 1);
 
 	ppc_proc_freq = cur_freq * 1000ul;
 	return rc;
@@ -442,7 +442,7 @@ static int pmac_cpufreq_suspend(struct cpufreq_policy *policy)
 	no_schedule = 1;
 	sleep_freq = cur_freq;
 	if (cur_freq == low_freq && !is_pmu_based)
-		do_set_cpu_speed(CPUFREQ_HIGH, 0);
+		do_set_cpu_speed(policy, CPUFREQ_HIGH, 0);
 	return 0;
 }
 
@@ -458,7 +458,7 @@ static int pmac_cpufreq_resume(struct cpufreq_policy *policy)
 	 * is that we force a switch to whatever it was, which is
 	 * probably high speed due to our suspend() routine
 	 */
-	do_set_cpu_speed(sleep_freq == low_freq ?
+	do_set_cpu_speed(policy, sleep_freq == low_freq ?
 			 CPUFREQ_LOW : CPUFREQ_HIGH, 0);
 
 	ppc_proc_freq = cur_freq * 1000ul;

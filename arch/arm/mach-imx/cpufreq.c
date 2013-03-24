@@ -87,13 +87,12 @@ static int mxc_set_target(struct cpufreq_policy *policy,
 
 	freqs.old = clk_get_rate(cpu_clk) / 1000;
 	freqs.new = freq_Hz / 1000;
-	freqs.cpu = 0;
 	freqs.flags = 0;
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	ret = set_cpu_freq(freq_Hz);
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
 }

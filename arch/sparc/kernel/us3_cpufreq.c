@@ -96,8 +96,10 @@ static unsigned int us3_freq_get(unsigned int cpu)
 	return ret;
 }
 
-static void us3_set_cpu_divider_index(unsigned int cpu, unsigned int index)
+static void us3_set_cpu_divider_index(struct cpufreq_policy *policy,
+		unsigned int index)
 {
+	unsigned int cpu = policy->cpu;
 	unsigned long new_bits, new_freq, reg;
 	cpumask_t cpus_allowed;
 	struct cpufreq_freqs freqs;
@@ -131,14 +133,13 @@ static void us3_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 
 	freqs.old = get_current_freq(cpu, reg);
 	freqs.new = new_freq;
-	freqs.cpu = cpu;
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	reg &= ~SAFARI_CFG_DIV_MASK;
 	reg |= new_bits;
 	write_safari_cfg(reg);
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	set_cpus_allowed_ptr(current, &cpus_allowed);
 }
@@ -156,7 +157,7 @@ static int us3_freq_target(struct cpufreq_policy *policy,
 					   &new_index))
 		return -EINVAL;
 
-	us3_set_cpu_divider_index(policy->cpu, new_index);
+	us3_set_cpu_divider_index(policy, new_index);
 
 	return 0;
 }
@@ -192,7 +193,7 @@ static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 static int us3_freq_cpu_exit(struct cpufreq_policy *policy)
 {
 	if (cpufreq_us3_driver)
-		us3_set_cpu_divider_index(policy->cpu, 0);
+		us3_set_cpu_divider_index(policy, 0);
 
 	return 0;
 }

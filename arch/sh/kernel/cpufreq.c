@@ -69,15 +69,14 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 
 	dev_dbg(dev, "requested frequency %u Hz\n", target_freq * 1000);
 
-	freqs.cpu	= cpu;
 	freqs.old	= sh_cpufreq_get(cpu);
 	freqs.new	= (freq + 500) / 1000;
 	freqs.flags	= 0;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	set_cpus_allowed_ptr(current, &cpus_allowed);
 	clk_set_rate(cpuclk, freq);
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	dev_dbg(dev, "set frequency %lu Hz\n", freq);
 

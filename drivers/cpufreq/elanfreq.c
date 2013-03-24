@@ -117,15 +117,15 @@ static unsigned int elanfreq_get_cpu_frequency(unsigned int cpu)
  *	There is no return value.
  */
 
-static void elanfreq_set_cpu_state(unsigned int state)
+static void elanfreq_set_cpu_state(struct cpufreq_policy *policy,
+		unsigned int state)
 {
 	struct cpufreq_freqs    freqs;
 
 	freqs.old = elanfreq_get_cpu_frequency(0);
 	freqs.new = elan_multiplier[state].clock;
-	freqs.cpu = 0; /* elanfreq.c is UP only driver */
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	printk(KERN_INFO "elanfreq: attempting to set frequency to %i kHz\n",
 			elan_multiplier[state].clock);
@@ -161,7 +161,7 @@ static void elanfreq_set_cpu_state(unsigned int state)
 	udelay(10000);
 	local_irq_enable();
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 };
 
 
@@ -188,7 +188,7 @@ static int elanfreq_target(struct cpufreq_policy *policy,
 				target_freq, relation, &newstate))
 		return -EINVAL;
 
-	elanfreq_set_cpu_state(newstate);
+	elanfreq_set_cpu_state(policy, newstate);
 
 	return 0;
 }

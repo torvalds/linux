@@ -61,7 +61,6 @@ static int at32_set_target(struct cpufreq_policy *policy,
 
 	freqs.old = at32_get_speed(0);
 	freqs.new = (freq + 500) / 1000;
-	freqs.cpu = 0;
 	freqs.flags = 0;
 
 	if (!ref_freq) {
@@ -69,7 +68,7 @@ static int at32_set_target(struct cpufreq_policy *policy,
 		loops_per_jiffy_ref = boot_cpu_data.loops_per_jiffy;
 	}
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	if (freqs.old < freqs.new)
 		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
 				loops_per_jiffy_ref, ref_freq, freqs.new);
@@ -77,7 +76,7 @@ static int at32_set_target(struct cpufreq_policy *policy,
 	if (freqs.new < freqs.old)
 		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
 				loops_per_jiffy_ref, ref_freq, freqs.new);
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	pr_debug("cpufreq: set frequency %lu Hz\n", freq);
 

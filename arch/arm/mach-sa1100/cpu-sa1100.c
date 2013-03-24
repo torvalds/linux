@@ -201,9 +201,8 @@ static int sa1100_target(struct cpufreq_policy *policy,
 
 	freqs.old = cur;
 	freqs.new = sa11x0_ppcr_to_freq(new_ppcr);
-	freqs.cpu = 0;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	if (freqs.new > cur)
 		sa1100_update_dram_timings(cur, freqs.new);
@@ -213,7 +212,7 @@ static int sa1100_target(struct cpufreq_policy *policy,
 	if (freqs.new < cur)
 		sa1100_update_dram_timings(cur, freqs.new);
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }
