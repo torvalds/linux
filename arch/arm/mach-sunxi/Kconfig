@@ -7,5 +7,5 @@ config ARCH_SUNXI
 	select GENERIC_IRQ_CHIP
 	select PINCTRL
 	select SPARSE_IRQ
-	select SUNXI_TIMER
+	select SUN4I_TIMER
 	select PINCTRL_SUNXI
