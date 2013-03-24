@@ -739,6 +739,28 @@ static void brcms_ops_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 			   "ret=%d\n", jiffies_to_msecs(ret));
 }
 
+static u64 brcms_ops_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct brcms_info *wl = hw->priv;
+	u64 tsf;
+
+	spin_lock_bh(&wl->lock);
+	tsf = brcms_c_tsf_get(wl->wlc);
+	spin_unlock_bh(&wl->lock);
+
+	return tsf;
+}
+
+static void brcms_ops_set_tsf(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif, u64 tsf)
+{
+	struct brcms_info *wl = hw->priv;
+
+	spin_lock_bh(&wl->lock);
+	brcms_c_tsf_set(wl->wlc, tsf);
+	spin_unlock_bh(&wl->lock);
+}
+
 static const struct ieee80211_ops brcms_ops = {
 	.tx = brcms_ops_tx,
 	.start = brcms_ops_start,
@@ -755,6 +777,8 @@ static const struct ieee80211_ops brcms_ops = {
 	.ampdu_action = brcms_ops_ampdu_action,
 	.rfkill_poll = brcms_ops_rfkill_poll,
 	.flush = brcms_ops_flush,
+	.get_tsf = brcms_ops_get_tsf,
+	.set_tsf = brcms_ops_set_tsf,
 };
 
 void brcms_dpc(unsigned long data)

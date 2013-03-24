@@ -5543,6 +5543,20 @@ int brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcm_rateset *rs)
 	return bcmerror;
 }
 
+static void brcms_c_time_lock(struct brcms_c_info *wlc)
+{
+	bcma_set32(wlc->hw->d11core, D11REGOFFS(maccontrol), MCTL_TBTTHOLD);
+	/* Commit the write */
+	bcma_read32(wlc->hw->d11core, D11REGOFFS(maccontrol));
+}
+
+static void brcms_c_time_unlock(struct brcms_c_info *wlc)
+{
+	bcma_mask32(wlc->hw->d11core, D11REGOFFS(maccontrol), ~MCTL_TBTTHOLD);
+	/* Commit the write */
+	bcma_read32(wlc->hw->d11core, D11REGOFFS(maccontrol));
+}
+
 int brcms_c_set_beacon_period(struct brcms_c_info *wlc, u16 period)
 {
 	if (period == 0)
@@ -7524,6 +7538,36 @@ void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc, u8 interval)
 	wlc->bcn_li_bcn = interval;
 	if (wlc->pub->up)
 		brcms_c_bcn_li_upd(wlc);
+}
+
+u64 brcms_c_tsf_get(struct brcms_c_info *wlc)
+{
+	u32 tsf_h, tsf_l;
+	u64 tsf;
+
+	brcms_b_read_tsf(wlc->hw, &tsf_l, &tsf_h);
+
+	tsf = tsf_h;
+	tsf <<= 32;
+	tsf |= tsf_l;
+
+	return tsf;
+}
+
+void brcms_c_tsf_set(struct brcms_c_info *wlc, u64 tsf)
+{
+	u32 tsf_h, tsf_l;
+
+	brcms_c_time_lock(wlc);
+
+	tsf_l = tsf;
+	tsf_h = (tsf >> 32);
+
+	/* read the tsf timer low, then high to get an atomic read */
+	bcma_write32(wlc->hw->d11core, D11REGOFFS(tsf_timerlow), tsf_l);
+	bcma_write32(wlc->hw->d11core, D11REGOFFS(tsf_timerhigh), tsf_h);
+
+	brcms_c_time_unlock(wlc);
 }
 
 int brcms_c_set_tx_power(struct brcms_c_info *wlc, int txpwr)
