@@ -34,6 +34,12 @@
 #include <mach/irqs.h>
 #include "gpio-sunxi.h"
 
+#define GPIO_IRQ_NO SW_INT_IRQNO_PIO
+#define EINT_NUM gpio_eint_count
+
+static struct gpio_eint_data *gpio_eint_list;
+static u32 gpio_eint_count;
+
 static inline struct sunxi_gpio_chip *to_sunxi_gpio(struct gpio_chip *chip)
 {
 	return container_of(chip, struct sunxi_gpio_chip, chip);
@@ -310,6 +316,59 @@ static struct irq_chip sunxi_gpio_irq_chip = {
 	.irq_set_type		= sunxi_gpio_irq_set_type,
 };
 
+static void __devinit sunxi_gpio_eint_probe(void)
+{
+	if (sunxi_is_a10()) {
+		/* Pins that can be used as interrupt source  */
+		/* PH0 - PH21, PI10 - PI19 (all in mux6 mode) */
+		/* A-0 B-1 C-2 D-3 E-4 F-5 G-6 H-7 I-8 S-9    */
+
+		static struct gpio_eint_data a10[] = {
+		{7,  0, 6, -1}, {7,  1, 6, -1}, {7,  2, 6, -1}, {7,  3, 6, -1},
+		{7,  4, 6, -1}, {7,  5, 6, -1}, {7,  6, 6, -1}, {7,  7, 6, -1},
+		{7,  8, 6, -1}, {7,  9, 6, -1}, {7, 10, 6, -1}, {7, 11, 6, -1},
+		{7, 12, 6, -1}, {7, 13, 6, -1}, {7, 14, 6, -1}, {7, 15, 6, -1},
+		{7, 16, 6, -1}, {7, 17, 6, -1}, {7, 18, 6, -1}, {7, 19, 6, -1},
+		{7, 20, 6, -1}, {7, 21, 6, -1},
+		{8, 10, 6, -1}, {8, 11, 6, -1}, {8, 12, 6, -1}, {8, 13, 6, -1},
+		{8, 14, 6, -1}, {8, 15, 6, -1}, {8, 16, 6, -1}, {8, 17, 6, -1},
+		{8, 18, 6, -1}, {8, 19, 6, -1},
+
+		{-1, -1, -1, -1},
+		};
+
+		gpio_eint_list = a10;
+		gpio_eint_count = 32;
+	} else if (sunxi_is_a13()) {
+		/* Pins that can be used as interrupt source  */
+		/* PG00 - PG04, PG09 - PG12, PE00 - PE01, PB02 - PB04, PB10 (all in mux6 mode) */
+		/* A-0 B-1 C-2 D-3 E-4 F-5 G-6 H-7 I-8 S-9    */
+
+		static struct gpio_eint_data a13[] = {
+		{6,  0, 6,  0}, {6,  1, 6,  1}, {6,  2, 6,  2}, {6,  3, 6,  3},
+		{6,  4, 6,  4}, {-1,-1,-1,  5}, {-1,-1,-1,  6}, {-1,-1,-1,  7},
+		{-1,-1,-1,  8}, {6,  9, 6,  9}, {6, 10, 6, 10}, {6, 11, 6, 11},
+		{6, 12, 6, 12}, {-1,-1,-1, 13}, {4,  0, 6, 14}, {4,  1, 6, 15},
+		{1,  2, 6, 16}, {1,  3, 6, 17}, {1,  4, 6, 18}, {-1,-1,-1, 19},
+		{-1,-1,-1, 20}, {-1,-1,-1, 21}, {-1,-1,-1, 22}, {-1,-1,-1, 23},
+		{1, 10, 6, 24}, {-1,-1,-1, 25}, {-1,-1,-1, 26}, {-1,-1,-1, 27},
+		{-1,-1,-1, 28}, {-1,-1,-1, 29}, {-1,-1,-1, 30}, {-1,-1,-1, 31},
+
+		{-1, -1, -1, -1},
+		};
+
+		gpio_eint_list = a13;
+		gpio_eint_count = 32;
+	} else {
+		static struct gpio_eint_data none[] = {
+		{-1, -1, -1, -1},
+		};
+
+		gpio_eint_list = none;
+		gpio_eint_count = 0;
+	}
+}
+
 /* IRQ handler - redirect interrupts to virtual irq chip */
 static irqreturn_t sunxi_gpio_irq_handler(int irq, void *devid)
 {
@@ -475,8 +534,11 @@ static int __devinit sunxi_gpio_probe(struct platform_device *pdev)
 	sunxi_chip->chip.names	= (const char *const *)pnames;
 	sunxi_chip->irq_base	= -1;
 
+	/* configure EINTs for the detected SoC */
+	sunxi_gpio_eint_probe();
+
 	/* This needs additional system irq numbers (NR_IRQ=NR_IRQ+EINT_NUM) */
-	if (GPIO_IRQ_NO >= 0) {
+	if (EINT_NUM > 0) {
 		sunxi_chip->irq_base = irq_alloc_descs(-1, 0, EINT_NUM, 0);
 		if (sunxi_chip->irq_base < 0) {
 			pr_err("Couldn't allocate virq numbers. GPIO irq support disabled\n");
