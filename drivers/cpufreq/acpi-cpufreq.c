@@ -730,7 +730,6 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
 		cpumask_copy(policy->cpus, perf->shared_cpu_map);
 	}
-	cpumask_copy(policy->related_cpus, perf->shared_cpu_map);
 
 #ifdef CONFIG_SMP
 	dmi_check_system(sw_any_bug_dmi_table);
@@ -742,7 +741,6 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (check_amd_hwpstate_cpu(cpu) && !acpi_pstate_strict) {
 		cpumask_clear(policy->cpus);
 		cpumask_set_cpu(cpu, policy->cpus);
-		cpumask_copy(policy->related_cpus, cpu_sibling_mask(cpu));
 		policy->shared_type = CPUFREQ_SHARED_TYPE_HW;
 		pr_info_once(PFX "overriding BIOS provided _PSD data\n");
 	}
