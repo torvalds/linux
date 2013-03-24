@@ -501,9 +501,6 @@ __copy_insn(struct address_space *mapping, struct file *filp, char *insn,
 {
 	struct page *page;
 
-	if (!filp)
-		return -EINVAL;
-
 	if (!mapping->a_ops->readpage)
 		return -EIO;
 	/*
