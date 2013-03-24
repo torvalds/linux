@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
@@ -11,6 +12,57 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Serial flash driver for BCMA bus");
 
 static const char * const probes[] = { "bcm47xxpart", NULL };
+
+/**************************************************
+ * Various helpers
+ **************************************************/
+
+static void bcm47xxsflash_cmd(struct bcm47xxsflash *b47s, u32 opcode)
+{
+	int i;
+
+	b47s->cc_write(b47s, BCMA_CC_FLASHCTL, BCMA_CC_FLASHCTL_START | opcode);
+	for (i = 0; i < 1000; i++) {
+		if (!(b47s->cc_read(b47s, BCMA_CC_FLASHCTL) &
+		      BCMA_CC_FLASHCTL_BUSY))
+			return;
+		cpu_relax();
+	}
+	pr_err("Control command failed (timeout)!\n");
+}
+
+static int bcm47xxsflash_poll(struct bcm47xxsflash *b47s, int timeout)
+{
+	unsigned long deadline = jiffies + timeout;
+
+	do {
+		switch (b47s->type) {
+		case BCM47XXSFLASH_TYPE_ST:
+			bcm47xxsflash_cmd(b47s, OPCODE_ST_RDSR);
+			if (!(b47s->cc_read(b47s, BCMA_CC_FLASHDATA) &
+			      SR_ST_WIP))
+				return 0;
+			break;
+		case BCM47XXSFLASH_TYPE_ATMEL:
+			bcm47xxsflash_cmd(b47s, OPCODE_AT_STATUS);
+			if (b47s->cc_read(b47s, BCMA_CC_FLASHDATA) &
+			    SR_AT_READY)
+				return 0;
+			break;
+		}
+
+		cpu_relax();
+		udelay(1);
+	} while (!time_after_eq(jiffies, deadline));
+
+	pr_err("Timeout waiting for flash to be ready!\n");
+
+	return -EBUSY;
+}
+
+/**************************************************
+ * MTD ops
+ **************************************************/
 
 static int bcm47xxsflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			      size_t *retlen, u_char *buf)
@@ -96,6 +148,9 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 		pr_err("Failed to register MTD device: %d\n", err);
 		goto err_dev_reg;
 	}
+
+	if (bcm47xxsflash_poll(b47s, HZ / 10))
+		pr_warn("Serial flash busy\n");
 
 	return 0;
 
