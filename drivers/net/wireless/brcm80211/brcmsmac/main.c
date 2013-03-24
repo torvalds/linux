@@ -3764,7 +3764,7 @@ static int brcms_c_set_mac(struct brcms_bss_cfg *bsscfg)
 	struct brcms_c_info *wlc = bsscfg->wlc;
 
 	/* enter the MAC addr into the RXE match registers */
-	brcms_c_set_addrmatch(wlc, RCM_MAC_OFFSET, bsscfg->cur_etheraddr);
+	brcms_c_set_addrmatch(wlc, RCM_MAC_OFFSET, wlc->pub->cur_etheraddr);
 
 	brcms_c_ampdu_macaddr_upd(wlc);
 
@@ -7355,7 +7355,7 @@ brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
 	/* A1 filled in by MAC for prb resp, broadcast for bcn */
 	if (type == IEEE80211_STYPE_BEACON)
 		memcpy(&h->da, &ether_bcast, ETH_ALEN);
-	memcpy(&h->sa, &cfg->cur_etheraddr, ETH_ALEN);
+	memcpy(&h->sa, &wlc->pub->cur_etheraddr, ETH_ALEN);
 	memcpy(&h->bssid, &cfg->BSSID, ETH_ALEN);
 
 	/* SEQ filled in by MAC */
