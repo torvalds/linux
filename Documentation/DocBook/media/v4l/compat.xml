@@ -2493,6 +2493,19 @@ that used it. It was originally scheduled for removal in 2.6.35.
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.10</title>
+      <orderedlist>
+        <listitem>
+	  <para>Removed obsolete and unused DV_PRESET ioctls
+	  VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_QUERY_DV_PRESET and
+	  VIDIOC_ENUM_DV_PRESET. Remove the related v4l2_input/output capability
+	  flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 
