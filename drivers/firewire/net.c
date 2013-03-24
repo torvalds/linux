@@ -1116,6 +1116,62 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 	return 0;
 }
 
+static void fwnet_fifo_stop(struct fwnet_device *dev)
+{
+	if (dev->local_fifo == FWNET_NO_FIFO_ADDR)
+		return;
+
+	fw_core_remove_address_handler(&dev->handler);
+	dev->local_fifo = FWNET_NO_FIFO_ADDR;
+}
+
+static int fwnet_fifo_start(struct fwnet_device *dev)
+{
+	int retval;
+
+	if (dev->local_fifo != FWNET_NO_FIFO_ADDR)
+		return 0;
+
+	dev->handler.length = 4096;
+	dev->handler.address_callback = fwnet_receive_packet;
+	dev->handler.callback_data = dev;
+
+	retval = fw_core_add_address_handler(&dev->handler,
+					     &fw_high_memory_region);
+	if (retval < 0)
+		return retval;
+
+	dev->local_fifo = dev->handler.offset;
+
+	return 0;
+}
+
+static void __fwnet_broadcast_stop(struct fwnet_device *dev)
+{
+	unsigned u;
+
+	if (dev->broadcast_state != FWNET_BROADCAST_ERROR) {
+		for (u = 0; u < FWNET_ISO_PAGE_COUNT; u++)
+			kunmap(dev->broadcast_rcv_buffer.pages[u]);
+		fw_iso_buffer_destroy(&dev->broadcast_rcv_buffer, dev->card);
+	}
+	if (dev->broadcast_rcv_context) {
+		fw_iso_context_destroy(dev->broadcast_rcv_context);
+		dev->broadcast_rcv_context = NULL;
+	}
+	kfree(dev->broadcast_rcv_buffer_ptrs);
+	dev->broadcast_rcv_buffer_ptrs = NULL;
+	dev->broadcast_state = FWNET_BROADCAST_ERROR;
+}
+
+static void fwnet_broadcast_stop(struct fwnet_device *dev)
+{
+	if (dev->broadcast_state == FWNET_BROADCAST_ERROR)
+		return;
+	fw_iso_context_stop(dev->broadcast_rcv_context);
+	__fwnet_broadcast_stop(dev);
+}
+
 static int fwnet_broadcast_start(struct fwnet_device *dev)
 {
 	struct fw_iso_context *context;
@@ -1124,60 +1180,47 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	unsigned max_receive;
 	struct fw_iso_packet packet;
 	unsigned long offset;
+	void **ptrptr;
 	unsigned u;
 
-	if (dev->local_fifo == FWNET_NO_FIFO_ADDR) {
-		dev->handler.length = 4096;
-		dev->handler.address_callback = fwnet_receive_packet;
-		dev->handler.callback_data = dev;
-
-		retval = fw_core_add_address_handler(&dev->handler,
-					&fw_high_memory_region);
-		if (retval < 0)
-			goto failed_initial;
-
-		dev->local_fifo = dev->handler.offset;
-	}
+	if (dev->broadcast_state != FWNET_BROADCAST_ERROR)
+		return 0;
 
 	max_receive = 1U << (dev->card->max_receive + 1);
 	num_packets = (FWNET_ISO_PAGE_COUNT * PAGE_SIZE) / max_receive;
 
-	if (!dev->broadcast_rcv_context) {
-		void **ptrptr;
-
-		context = fw_iso_context_create(dev->card,
-		    FW_ISO_CONTEXT_RECEIVE, IEEE1394_BROADCAST_CHANNEL,
-		    dev->card->link_speed, 8, fwnet_receive_broadcast, dev);
-		if (IS_ERR(context)) {
-			retval = PTR_ERR(context);
-			goto failed_context_create;
-		}
-
-		retval = fw_iso_buffer_init(&dev->broadcast_rcv_buffer,
-		    dev->card, FWNET_ISO_PAGE_COUNT, DMA_FROM_DEVICE);
-		if (retval < 0)
-			goto failed_buffer_init;
-
-		ptrptr = kmalloc(sizeof(void *) * num_packets, GFP_KERNEL);
-		if (!ptrptr) {
-			retval = -ENOMEM;
-			goto failed_ptrs_alloc;
-		}
-
-		dev->broadcast_rcv_buffer_ptrs = ptrptr;
-		for (u = 0; u < FWNET_ISO_PAGE_COUNT; u++) {
-			void *ptr;
-			unsigned v;
-
-			ptr = kmap(dev->broadcast_rcv_buffer.pages[u]);
-			for (v = 0; v < num_packets / FWNET_ISO_PAGE_COUNT; v++)
-				*ptrptr++ = (void *)
-						((char *)ptr + v * max_receive);
-		}
-		dev->broadcast_rcv_context = context;
-	} else {
-		context = dev->broadcast_rcv_context;
+	ptrptr = kmalloc(sizeof(void *) * num_packets, GFP_KERNEL);
+	if (!ptrptr) {
+		retval = -ENOMEM;
+		goto failed;
 	}
+	dev->broadcast_rcv_buffer_ptrs = ptrptr;
+
+	context = fw_iso_context_create(dev->card, FW_ISO_CONTEXT_RECEIVE,
+					IEEE1394_BROADCAST_CHANNEL,
+					dev->card->link_speed, 8,
+					fwnet_receive_broadcast, dev);
+	if (IS_ERR(context)) {
+		retval = PTR_ERR(context);
+		goto failed;
+	}
+
+	retval = fw_iso_buffer_init(&dev->broadcast_rcv_buffer, dev->card,
+				    FWNET_ISO_PAGE_COUNT, DMA_FROM_DEVICE);
+	if (retval < 0)
+		goto failed;
+
+	dev->broadcast_state = FWNET_BROADCAST_STOPPED;
+
+	for (u = 0; u < FWNET_ISO_PAGE_COUNT; u++) {
+		void *ptr;
+		unsigned v;
+
+		ptr = kmap(dev->broadcast_rcv_buffer.pages[u]);
+		for (v = 0; v < num_packets / FWNET_ISO_PAGE_COUNT; v++)
+			*ptrptr++ = (void *) ((char *)ptr + v * max_receive);
+	}
+	dev->broadcast_rcv_context = context;
 
 	packet.payload_length = max_receive;
 	packet.interrupt = 1;
@@ -1191,7 +1234,7 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 		retval = fw_iso_context_queue(context, &packet,
 				&dev->broadcast_rcv_buffer, offset);
 		if (retval < 0)
-			goto failed_rcv_queue;
+			goto failed;
 
 		offset += max_receive;
 	}
@@ -1201,7 +1244,7 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	retval = fw_iso_context_start(context, -1, 0,
 			FW_ISO_CONTEXT_MATCH_ALL_TAGS); /* ??? sync */
 	if (retval < 0)
-		goto failed_rcv_queue;
+		goto failed;
 
 	/* FIXME: adjust it according to the min. speed of all known peers? */
 	dev->broadcast_xmt_max_payload = IEEE1394_MAX_PAYLOAD_S100
@@ -1210,19 +1253,8 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 
 	return 0;
 
- failed_rcv_queue:
-	kfree(dev->broadcast_rcv_buffer_ptrs);
-	dev->broadcast_rcv_buffer_ptrs = NULL;
- failed_ptrs_alloc:
-	fw_iso_buffer_destroy(&dev->broadcast_rcv_buffer, dev->card);
- failed_buffer_init:
-	fw_iso_context_destroy(context);
-	dev->broadcast_rcv_context = NULL;
- failed_context_create:
-	fw_core_remove_address_handler(&dev->handler);
- failed_initial:
-	dev->local_fifo = FWNET_NO_FIFO_ADDR;
-
+ failed:
+	__fwnet_broadcast_stop(dev);
 	return retval;
 }
 
@@ -1240,11 +1272,14 @@ static int fwnet_open(struct net_device *net)
 	struct fwnet_device *dev = netdev_priv(net);
 	int ret;
 
-	if (dev->broadcast_state == FWNET_BROADCAST_ERROR) {
-		ret = fwnet_broadcast_start(dev);
-		if (ret)
-			return ret;
-	}
+	ret = fwnet_fifo_start(dev);
+	if (ret)
+		return ret;
+
+	ret = fwnet_broadcast_start(dev);
+	if (ret)
+		goto out;
+
 	netif_start_queue(net);
 
 	spin_lock_irq(&dev->lock);
@@ -1252,14 +1287,20 @@ static int fwnet_open(struct net_device *net)
 	spin_unlock_irq(&dev->lock);
 
 	return 0;
+out:
+	fwnet_fifo_stop(dev);
+	return ret;
 }
 
 /* ifdown */
 static int fwnet_stop(struct net_device *net)
 {
+	struct fwnet_device *dev = netdev_priv(net);
+
 	netif_stop_queue(net);
 
-	/* Deallocate iso context for use by other applications? */
+	fwnet_broadcast_stop(dev);
+	fwnet_fifo_stop(dev);
 
 	return 0;
 }
@@ -1600,14 +1641,6 @@ static int fwnet_remove(struct device *_dev)
 	if (list_empty(&dev->peer_list)) {
 		unregister_netdev(net);
 
-		if (dev->local_fifo != FWNET_NO_FIFO_ADDR)
-			fw_core_remove_address_handler(&dev->handler);
-		if (dev->broadcast_rcv_context) {
-			fw_iso_context_stop(dev->broadcast_rcv_context);
-			fw_iso_buffer_destroy(&dev->broadcast_rcv_buffer,
-					      dev->card);
-			fw_iso_context_destroy(dev->broadcast_rcv_context);
-		}
 		for (i = 0; dev->queued_datagrams && i < 5; i++)
 			ssleep(1);
 		WARN_ON(dev->queued_datagrams);
