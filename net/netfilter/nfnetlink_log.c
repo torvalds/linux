@@ -767,6 +767,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	u_int16_t group_num = ntohs(nfmsg->res_id);
 	struct nfulnl_instance *inst;
 	struct nfulnl_msg_config_cmd *cmd = NULL;
+	struct net *net = sock_net(ctnl);
 	int ret = 0;
 
 	if (nfula[NFULA_CFG_CMD]) {
@@ -776,9 +777,9 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		/* Commands without queue context */
 		switch (cmd->command) {
 		case NFULNL_CFG_CMD_PF_BIND:
-			return nf_log_bind_pf(pf, &nfulnl_logger);
+			return nf_log_bind_pf(net, pf, &nfulnl_logger);
 		case NFULNL_CFG_CMD_PF_UNBIND:
-			nf_log_unbind_pf(pf);
+			nf_log_unbind_pf(net, pf);
 			return 0;
 		}
 	}
