@@ -2625,8 +2625,8 @@ interfaces and should not be implemented in new drivers.</para>
 <xref linkend="extended-controls" />.</para>
         </listitem>
         <listitem>
-	  <para>&VIDIOC-G-DV-PRESET;, &VIDIOC-S-DV-PRESET;, &VIDIOC-ENUM-DV-PRESETS; and
-	  &VIDIOC-QUERY-DV-PRESET; ioctls. Use the DV Timings API (<xref linkend="dv-timings" />).</para>
+	  <para>VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_ENUM_DV_PRESETS and
+	  VIDIOC_QUERY_DV_PRESET ioctls. Use the DV Timings API (<xref linkend="dv-timings" />).</para>
         </listitem>
         <listitem>
 	  <para><constant>VIDIOC_SUBDEV_G_CROP</constant> and

@@ -544,7 +544,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-encoder-cmd;
     &sub-enumaudio;
     &sub-enumaudioout;
-    &sub-enum-dv-presets;
     &sub-enum-dv-timings;
     &sub-enum-fmt;
     &sub-enum-framesizes;
@@ -558,7 +557,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-g-audioout;
     &sub-g-crop;
     &sub-g-ctrl;
-    &sub-g-dv-preset;
     &sub-g-dv-timings;
     &sub-g-enc-index;
     &sub-g-ext-ctrls;
@@ -582,7 +580,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-querybuf;
     &sub-querycap;
     &sub-queryctrl;
-    &sub-query-dv-preset;
     &sub-query-dv-timings;
     &sub-querystd;
     &sub-reqbufs;
