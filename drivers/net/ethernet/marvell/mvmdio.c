@@ -295,3 +295,4 @@ module_platform_driver(orion_mdio_driver);
 MODULE_DESCRIPTION("Marvell MDIO interface driver");
 MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:orion-mdio");
