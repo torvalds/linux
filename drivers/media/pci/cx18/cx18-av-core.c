@@ -1266,7 +1266,7 @@ static int cx18_av_g_register(struct v4l2_subdev *sd,
 }
 
 static int cx18_av_s_register(struct v4l2_subdev *sd,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 

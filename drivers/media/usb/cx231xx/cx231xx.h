@@ -949,7 +949,7 @@ int cx231xx_g_chip_ident(struct file *file, void *fh, struct v4l2_dbg_chip_ident
 int cx231xx_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg);
 int cx231xx_s_register(struct file *file, void *priv,
-			     struct v4l2_dbg_register *reg);
+			     const struct v4l2_dbg_register *reg);
 
 /* Provided by cx231xx-cards.c */
 extern void cx231xx_pre_card_setup(struct cx231xx *dev);

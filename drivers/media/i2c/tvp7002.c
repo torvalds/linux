@@ -768,7 +768,7 @@ static int tvp7002_g_register(struct v4l2_subdev *sd,
  * -EPERM if call not allowed.
  */
 static int tvp7002_s_register(struct v4l2_subdev *sd,
-						struct v4l2_dbg_register *reg)
+						const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

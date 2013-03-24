@@ -1924,7 +1924,8 @@ static int vpif_dbg_g_register(struct file *file, void *priv,
  * Returns zero or -EINVAL if write operations fails.
  */
 static int vpif_dbg_s_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg){
+		const struct v4l2_dbg_register *reg)
+{
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 

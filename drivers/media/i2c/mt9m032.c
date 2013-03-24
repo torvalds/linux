@@ -548,7 +548,7 @@ static int mt9m032_g_register(struct v4l2_subdev *sd,
 }
 
 static int mt9m032_s_register(struct v4l2_subdev *sd,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct mt9m032 *sensor = to_mt9m032(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->subdev);

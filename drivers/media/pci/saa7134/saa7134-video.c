@@ -2300,7 +2300,7 @@ static int vidioc_g_register (struct file *file, void *priv,
 }
 
 static int vidioc_s_register (struct file *file, void *priv,
-				struct v4l2_dbg_register *reg)
+				const struct v4l2_dbg_register *reg)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;

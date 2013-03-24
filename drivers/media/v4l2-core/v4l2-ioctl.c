@@ -1813,7 +1813,7 @@ static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	struct v4l2_dbg_register *p = arg;
+	const struct v4l2_dbg_register *p = arg;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;

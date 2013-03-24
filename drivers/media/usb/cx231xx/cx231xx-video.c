@@ -1404,7 +1404,7 @@ int cx231xx_g_register(struct file *file, void *priv,
 }
 
 int cx231xx_s_register(struct file *file, void *priv,
-			     struct v4l2_dbg_register *reg)
+			     const struct v4l2_dbg_register *reg)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;

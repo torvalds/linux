@@ -840,7 +840,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
-			struct v4l2_dbg_register *reg)
+			const struct v4l2_dbg_register *reg)
 {
 	u8 index;
 	u8 value;

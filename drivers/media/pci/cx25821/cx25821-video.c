@@ -1364,7 +1364,7 @@ int cx25821_vidioc_g_register(struct file *file, void *fh,
 }
 
 int cx25821_vidioc_s_register(struct file *file, void *fh,
-		      struct v4l2_dbg_register *reg)
+		      const struct v4l2_dbg_register *reg)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)fh)->dev;
 

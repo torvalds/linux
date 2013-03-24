@@ -175,7 +175,7 @@ static int upd64031a_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register
 	return 0;
 }
 
-static int upd64031a_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+static int upd64031a_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

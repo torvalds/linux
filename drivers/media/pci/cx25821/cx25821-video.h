@@ -155,7 +155,7 @@ extern int cx25821_vidioc_s_frequency(struct file *file, void *priv,
 extern int cx25821_vidioc_g_register(struct file *file, void *fh,
 				     struct v4l2_dbg_register *reg);
 extern int cx25821_vidioc_s_register(struct file *file, void *fh,
-				     struct v4l2_dbg_register *reg);
+				     const struct v4l2_dbg_register *reg);
 extern int cx25821_vidioc_g_tuner(struct file *file, void *priv,
 				  struct v4l2_tuner *t);
 extern int cx25821_vidioc_s_tuner(struct file *file, void *priv,

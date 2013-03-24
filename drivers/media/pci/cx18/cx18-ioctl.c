@@ -415,42 +415,34 @@ static int cx18_g_chip_ident(struct file *file, void *fh,
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int cx18_cxc(struct cx18 *cx, unsigned int cmd, void *arg)
-{
-	struct v4l2_dbg_register *regs = arg;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-	if (regs->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
-		return -EINVAL;
-
-	regs->size = 4;
-	if (cmd == VIDIOC_DBG_S_REGISTER)
-		cx18_write_enc(cx, regs->val, regs->reg);
-	else
-		regs->val = cx18_read_enc(cx, regs->reg);
-	return 0;
-}
-
 static int cx18_g_register(struct file *file, void *fh,
 				struct v4l2_dbg_register *reg)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (v4l2_chip_match_host(&reg->match))
-		return cx18_cxc(cx, VIDIOC_DBG_G_REGISTER, reg);
+	if (v4l2_chip_match_host(&reg->match)) {
+		if (reg->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
+			return -EINVAL;
+		reg->size = 4;
+		reg->val = cx18_read_enc(cx, reg->reg);
+		return 0;
+	}
 	/* FIXME - errors shouldn't be ignored */
 	cx18_call_all(cx, core, g_register, reg);
 	return 0;
 }
 
 static int cx18_s_register(struct file *file, void *fh,
-				struct v4l2_dbg_register *reg)
+				const struct v4l2_dbg_register *reg)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (v4l2_chip_match_host(&reg->match))
-		return cx18_cxc(cx, VIDIOC_DBG_S_REGISTER, reg);
+	if (v4l2_chip_match_host(&reg->match)) {
+		if (reg->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
+			return -EINVAL;
+		cx18_write_enc(cx, reg->val, reg->reg);
+		return 0;
+	}
 	/* FIXME - errors shouldn't be ignored */
 	cx18_call_all(cx, core, s_register, reg);
 	return 0;

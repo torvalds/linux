@@ -1313,7 +1313,7 @@ static int saa7164_g_register(struct file *file, void *fh,
 }
 
 static int saa7164_s_register(struct file *file, void *fh,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct saa7164_port *port = ((struct saa7164_encoder_fh *)fh)->port;
 	struct saa7164_dev *dev = port->dev;

@@ -1380,7 +1380,7 @@ static int vidioc_g_register (struct file *file, void *fh,
 }
 
 static int vidioc_s_register (struct file *file, void *fh,
-				struct v4l2_dbg_register *reg)
+				const struct v4l2_dbg_register *reg)
 {
 	struct cx88_core *core = ((struct cx8800_fh*)fh)->dev->core;
 

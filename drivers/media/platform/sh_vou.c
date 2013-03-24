@@ -1266,7 +1266,7 @@ static int sh_vou_g_register(struct file *file, void *fh,
 }
 
 static int sh_vou_s_register(struct file *file, void *fh,
-				 struct v4l2_dbg_register *reg)
+				 const struct v4l2_dbg_register *reg)
 {
 	struct sh_vou_device *vou_dev = video_drvdata(file);
 

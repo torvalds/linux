@@ -890,7 +890,7 @@ static int bcap_dbg_g_register(struct file *file, void *priv,
 }
 
 static int bcap_dbg_s_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg)
+		const struct v4l2_dbg_register *reg)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 

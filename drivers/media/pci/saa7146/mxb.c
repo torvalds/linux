@@ -680,7 +680,7 @@ static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_regist
 	return 0;
 }
 
-static int vidioc_s_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
+static int vidioc_s_register(struct file *file, void *fh, const struct v4l2_dbg_register *reg)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
@@ -688,7 +688,6 @@ static int vidioc_s_register(struct file *file, void *fh, struct v4l2_dbg_regist
 		return -EPERM;
 	if (v4l2_chip_match_host(&reg->match)) {
 		saa7146_write(dev, reg->reg, reg->val);
-		reg->size = 4;
 		return 0;
 	}
 	return call_all(dev, core, s_register, reg);

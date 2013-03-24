@@ -497,7 +497,7 @@ static int mt9v022_g_register(struct v4l2_subdev *sd,
 }
 
 static int mt9v022_s_register(struct v4l2_subdev *sd,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

@@ -1042,7 +1042,7 @@ static int soc_camera_g_register(struct file *file, void *fh,
 }
 
 static int soc_camera_s_register(struct file *file, void *fh,
-				 struct v4l2_dbg_register *reg)
+				 const struct v4l2_dbg_register *reg)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);

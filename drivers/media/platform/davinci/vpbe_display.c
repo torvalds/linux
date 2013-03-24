@@ -1597,7 +1597,7 @@ static int vpbe_display_g_register(struct file *file, void *priv,
 }
 
 static int vpbe_display_s_register(struct file *file, void *priv,
-			struct v4l2_dbg_register *reg)
+			const struct v4l2_dbg_register *reg)
 {
 	return 0;
 }

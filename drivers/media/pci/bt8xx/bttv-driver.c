@@ -1945,7 +1945,7 @@ static int bttv_g_register(struct file *file, void *f,
 }
 
 static int bttv_s_register(struct file *file, void *f,
-					struct v4l2_dbg_register *reg)
+					const struct v4l2_dbg_register *reg)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -1961,8 +1961,7 @@ static int bttv_s_register(struct file *file, void *f,
 	}
 
 	/* bt848 has a 12-bit register space */
-	reg->reg &= 0xfff;
-	btwrite(reg->val, reg->reg);
+	btwrite(reg->val, reg->reg & 0xfff);
 
 	return 0;
 }

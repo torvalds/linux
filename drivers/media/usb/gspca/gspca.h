@@ -74,8 +74,10 @@ typedef int (*cam_get_jpg_op) (struct gspca_dev *,
 				struct v4l2_jpegcompression *);
 typedef int (*cam_set_jpg_op) (struct gspca_dev *,
 				const struct v4l2_jpegcompression *);
-typedef int (*cam_reg_op) (struct gspca_dev *,
+typedef int (*cam_get_reg_op) (struct gspca_dev *,
 				struct v4l2_dbg_register *);
+typedef int (*cam_set_reg_op) (struct gspca_dev *,
+				const struct v4l2_dbg_register *);
 typedef int (*cam_ident_op) (struct gspca_dev *,
 				struct v4l2_dbg_chip_ident *);
 typedef void (*cam_streamparm_op) (struct gspca_dev *,
@@ -108,8 +110,8 @@ struct sd_desc {
 	cam_streamparm_op get_streamparm;
 	cam_streamparm_op set_streamparm;
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	cam_reg_op set_register;
-	cam_reg_op get_register;
+	cam_set_reg_op set_register;
+	cam_get_reg_op get_register;
 #endif
 	cam_ident_op get_chip_ident;
 #if IS_ENABLED(CONFIG_INPUT)

@@ -815,7 +815,7 @@ static int pvr2_g_register(struct file *file, void *priv, struct v4l2_dbg_regist
 	return ret;
 }
 
-static int pvr2_s_register(struct file *file, void *priv, struct v4l2_dbg_register *req)
+static int pvr2_s_register(struct file *file, void *priv, const struct v4l2_dbg_register *req)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;

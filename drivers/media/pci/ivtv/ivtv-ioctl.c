@@ -748,12 +748,15 @@ static int ivtv_g_register(struct file *file, void *fh, struct v4l2_dbg_register
 	return 0;
 }
 
-static int ivtv_s_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
+static int ivtv_s_register(struct file *file, void *fh, const struct v4l2_dbg_register *reg)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	if (v4l2_chip_match_host(&reg->match))
-		return ivtv_itvc(itv, false, reg->reg, &reg->val);
+	if (v4l2_chip_match_host(&reg->match)) {
+		u64 val = reg->val;
+
+		return ivtv_itvc(itv, false, reg->reg, &val);
+	}
 	/* TODO: subdev errors should not be ignored, this should become a
 	   subdev helper function. */
 	ivtv_call_all(itv, core, s_register, reg);

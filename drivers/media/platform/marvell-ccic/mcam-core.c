@@ -1445,7 +1445,7 @@ static int mcam_vidioc_g_register(struct file *file, void *priv,
 }
 
 static int mcam_vidioc_s_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg)
+		const struct v4l2_dbg_register *reg)
 {
 	struct mcam_camera *cam = priv;
 
