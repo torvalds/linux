@@ -589,7 +589,6 @@ enum brcms_bss_type {
  * type: interface type
  * up: is this configuration up operational
  * enable: is this configuration enabled
- * associated: is BSS in ASSOCIATED state
  * SSID_len: the length of SSID
  * SSID: SSID string
  *
@@ -608,7 +607,6 @@ struct brcms_bss_cfg {
 	enum brcms_bss_type type;
 	bool up;
 	bool enable;
-	bool associated;
 	u8 SSID_len;
 	u8 SSID[IEEE80211_MAX_SSID_LEN];
 	u8 BSSID[ETH_ALEN];

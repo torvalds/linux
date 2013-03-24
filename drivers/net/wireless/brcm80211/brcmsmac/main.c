@@ -3049,17 +3049,12 @@ static void brcms_b_antsel_set(struct brcms_hardware *wlc_hw, u32 antsel_avail)
  */
 static bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 {
-	struct brcms_bss_cfg *cfg = wlc->bsscfg;
-
 	/* disallow PS when one of the following global conditions meets */
 	if (!wlc->pub->associated)
 		return false;
 
 	/* disallow PS when one of these meets when not scanning */
 	if (wlc->filter_flags & FIF_PROMISC_IN_BSS)
-		return false;
-
-	if (cfg->associated)
 		return false;
 
 	return true;
@@ -3819,7 +3814,7 @@ static void brcms_c_set_home_chanspec(struct brcms_c_info *wlc, u16 chanspec)
 	if (wlc->home_chanspec != chanspec) {
 		wlc->home_chanspec = chanspec;
 
-		if (wlc->bsscfg->associated)
+		if (wlc->pub->associated)
 			wlc->bsscfg->current_bss->chanspec = chanspec;
 	}
 }
@@ -5433,7 +5428,7 @@ static void brcms_c_ofdm_rateset_war(struct brcms_c_info *wlc)
 	u8 r;
 	bool war = false;
 
-	if (wlc->bsscfg->associated)
+	if (wlc->pub->associated)
 		r = wlc->bsscfg->current_bss->rateset.rates[0];
 	else
 		r = wlc->default_bss->rateset.rates[0];
@@ -5527,7 +5522,7 @@ int brcms_c_set_rateset(struct brcms_c_info *wlc, struct brcm_rateset *rs)
 	/* merge rateset coming in with the current mcsset */
 	if (wlc->pub->_n_enab & SUPPORT_11N) {
 		struct brcms_bss_info *mcsset_bss;
-		if (wlc->bsscfg->associated)
+		if (wlc->pub->associated)
 			mcsset_bss = wlc->bsscfg->current_bss;
 		else
 			mcsset_bss = wlc->default_bss;
@@ -7496,7 +7491,6 @@ void brcms_c_scan_stop(struct brcms_c_info *wlc)
 void brcms_c_associate_upd(struct brcms_c_info *wlc, bool state)
 {
 	wlc->pub->associated = state;
-	wlc->bsscfg->associated = state;
 }
 
 /*
