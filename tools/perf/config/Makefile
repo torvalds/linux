@@ -32,3 +32,13 @@ endif
 ifeq ($(NO_PERF_REGS),0)
         BASIC_CFLAGS += -DHAVE_PERF_REGS
 endif
+
+-include config/feature-tests.mak
+
+ifeq ($(call get-executable,$(FLEX)),)
+	dummy := $(error Error: $(FLEX) is missing on this system, please install it)
+endif
+
+ifeq ($(call get-executable,$(BISON)),)
+	dummy := $(error Error: $(BISON) is missing on this system, please install it)
+endif
