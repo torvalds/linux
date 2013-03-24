@@ -48,6 +48,17 @@ static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s)
  * BCMA
  **************************************************/
 
+static int bcm47xxsflash_bcma_cc_read(struct bcm47xxsflash *b47s, u16 offset)
+{
+	return bcma_cc_read32(b47s->bcma_cc, offset);
+}
+
+static void bcm47xxsflash_bcma_cc_write(struct bcm47xxsflash *b47s, u16 offset,
+					u32 value)
+{
+	bcma_cc_write32(b47s->bcma_cc, offset, value);
+}
+
 static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 {
 	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
@@ -62,6 +73,8 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	sflash->priv = b47s;
 
 	b47s->bcma_cc = container_of(sflash, struct bcma_drv_cc, sflash);
+	b47s->cc_read = bcm47xxsflash_bcma_cc_read;
+	b47s->cc_write = bcm47xxsflash_bcma_cc_write;
 
 	switch (b47s->bcma_cc->capabilities & BCMA_CC_CAP_FLASHT) {
 	case BCMA_CC_FLASHT_STSER:
