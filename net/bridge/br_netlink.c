@@ -357,7 +357,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 	struct nlattr *afspec;
 	struct net_bridge_port *p;
 	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
-	int err;
+	int err = 0;
 
 	ifm = nlmsg_data(nlh);
 
@@ -370,7 +370,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 	/* We want to accept dev as bridge itself if the AF_SPEC
 	 * is set to see if someone is setting vlan info on the brigde
 	 */
-	if (!p && ((dev->priv_flags & IFF_EBRIDGE) && !afspec))
+	if (!p && !afspec)
 		return -EINVAL;
 
 	if (p && protinfo) {
