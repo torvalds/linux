@@ -500,30 +500,21 @@ __copy_insn(struct address_space *mapping, struct file *filp, char *insn,
 			unsigned long nbytes, loff_t offset)
 {
 	struct page *page;
-	void *vaddr;
-	unsigned long off;
-	pgoff_t idx;
 
 	if (!filp)
 		return -EINVAL;
 
 	if (!mapping->a_ops->readpage)
 		return -EIO;
-
-	idx = offset >> PAGE_CACHE_SHIFT;
-	off = offset & ~PAGE_MASK;
-
 	/*
 	 * Ensure that the page that has the original instruction is
 	 * populated and in page-cache.
 	 */
-	page = read_mapping_page(mapping, idx, filp);
+	page = read_mapping_page(mapping, offset >> PAGE_CACHE_SHIFT, filp);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
-	vaddr = kmap_atomic(page);
-	memcpy(insn, vaddr + off, nbytes);
-	kunmap_atomic(vaddr);
+	copy_from_page(page, offset, insn, nbytes);
 	page_cache_release(page);
 
 	return 0;
