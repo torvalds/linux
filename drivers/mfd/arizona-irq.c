@@ -94,6 +94,7 @@ static irqreturn_t arizona_ctrlif_err(int irq, void *data)
 static irqreturn_t arizona_irq_thread(int irq, void *data)
 {
 	struct arizona *arizona = data;
+	bool poll;
 	unsigned int val;
 	int ret;
 
@@ -103,20 +104,39 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	/* Always handle the AoD domain */
-	handle_nested_irq(irq_find_mapping(arizona->virq, 0));
+	do {
+		poll = false;
 
-	/*
-	 * Check if one of the main interrupts is asserted and only
-	 * check that domain if it is.
-	 */
-	ret = regmap_read(arizona->regmap, ARIZONA_IRQ_PIN_STATUS, &val);
-	if (ret == 0 && val & ARIZONA_IRQ1_STS) {
-		handle_nested_irq(irq_find_mapping(arizona->virq, 1));
-	} else if (ret != 0) {
-		dev_err(arizona->dev, "Failed to read main IRQ status: %d\n",
-			ret);
-	}
+		/* Always handle the AoD domain */
+		handle_nested_irq(irq_find_mapping(arizona->virq, 0));
+
+		/*
+		 * Check if one of the main interrupts is asserted and only
+		 * check that domain if it is.
+		 */
+		ret = regmap_read(arizona->regmap, ARIZONA_IRQ_PIN_STATUS,
+				  &val);
+		if (ret == 0 && val & ARIZONA_IRQ1_STS) {
+			handle_nested_irq(irq_find_mapping(arizona->virq, 1));
+		} else if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to read main IRQ status: %d\n", ret);
+		}
+
+		/*
+		 * Poll the IRQ pin status to see if we're really done
+		 * if the interrupt controller can't do it for us.
+		 */
+		if (!arizona->pdata.irq_gpio) {
+			break;
+		} else if (arizona->pdata.irq_flags & IRQF_TRIGGER_RISING &&
+			   gpio_get_value_cansleep(arizona->pdata.irq_gpio)) {
+			poll = true;
+		} else if (arizona->pdata.irq_flags & IRQF_TRIGGER_FALLING &&
+			   !gpio_get_value_cansleep(arizona->pdata.irq_gpio)) {
+			poll = true;
+		}
+	} while (poll);
 
 	pm_runtime_mark_last_busy(arizona->dev);
 	pm_runtime_put_autosuspend(arizona->dev);
@@ -259,6 +279,26 @@ int arizona_irq_init(struct arizona *arizona)
 				"Failed to request CTRLIF_ERR %d: %d\n",
 				arizona->irq, ret);
 			goto err_ctrlif;
+		}
+	}
+
+	/* Used to emulate edge trigger and to work around broken pinmux */
+	if (arizona->pdata.irq_gpio) {
+		if (gpio_to_irq(arizona->pdata.irq_gpio) != arizona->irq) {
+			dev_warn(arizona->dev, "IRQ %d is not GPIO %d (%d)\n",
+				 arizona->irq, arizona->pdata.irq_gpio,
+				 gpio_to_irq(arizona->pdata.irq_gpio));
+			arizona->irq = gpio_to_irq(arizona->pdata.irq_gpio);
+		}
+
+		ret = devm_gpio_request_one(arizona->dev,
+					    arizona->pdata.irq_gpio,
+					    GPIOF_IN, "arizona IRQ");
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to request IRQ GPIO %d:: %d\n",
+				arizona->pdata.irq_gpio, ret);
+			arizona->pdata.irq_gpio = 0;
 		}
 	}
 
