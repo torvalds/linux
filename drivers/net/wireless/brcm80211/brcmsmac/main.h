@@ -576,10 +576,17 @@ struct antsel_info {
 	struct brcms_antselcfg antcfg_cur; /* current antenna config (auto) */
 };
 
+enum brcms_bss_type {
+	BRCMS_TYPE_STATION,
+	BRCMS_TYPE_AP,
+	BRCMS_TYPE_ADHOC,
+};
+
 /*
  * BSS configuration state
  *
  * wlc: wlc to which this bsscfg belongs to.
+ * type: interface type
  * up: is this configuration up operational
  * enable: is this configuration enabled
  * associated: is BSS in ASSOCIATED state
@@ -599,6 +606,7 @@ struct antsel_info {
  */
 struct brcms_bss_cfg {
 	struct brcms_c_info *wlc;
+	enum brcms_bss_type type;
 	bool up;
 	bool enable;
 	bool associated;
