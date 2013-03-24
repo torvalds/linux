@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2010 Broadcom Corporation
+ * Copyright (c) 2013 Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -520,9 +521,17 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		brcms_c_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET, info->bssid);
 		spin_unlock_bh(&wl->lock);
 	}
-	if (changed & BSS_CHANGED_BEACON)
+	if (changed & BSS_CHANGED_BEACON) {
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
-		brcms_err(core, "%s: beacon changed\n", __func__);
+		struct sk_buff *beacon;
+		u16 tim_offset = 0;
+
+		spin_lock_bh(&wl->lock);
+		beacon = ieee80211_beacon_get_tim(hw, vif, &tim_offset, NULL);
+		brcms_c_set_new_beacon(wl->wlc, beacon, tim_offset,
+				       info->dtim_period);
+		spin_unlock_bh(&wl->lock);
+	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		/* Beaconing should be enabled/disabled (beaconing modes) */

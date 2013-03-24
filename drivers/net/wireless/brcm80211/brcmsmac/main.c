@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2010 Broadcom Corporation
+ * Copyright (c) 2013 Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -448,6 +449,8 @@ static void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 	kfree(wlc->corestate);
 	kfree(wlc->hw->bandstate[0]);
 	kfree(wlc->hw);
+	if (wlc->beacon)
+		dev_kfree_skb_any(wlc->beacon);
 
 	/* free the wlc */
 	kfree(wlc);
@@ -4084,10 +4087,14 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 					  *shm_entry++);
 	}
 
-	if (suspend) {
+	if (suspend)
 		brcms_c_suspend_mac_and_wait(wlc);
+
+	brcms_c_update_beacon(wlc);
+	brcms_c_update_probe_resp(wlc, false);
+
+	if (suspend)
 		brcms_c_enable_mac(wlc);
-	}
 }
 
 static void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
@@ -7375,6 +7382,107 @@ int brcms_c_get_header_len(void)
 	return TXOFF;
 }
 
+static void brcms_c_beacon_write(struct brcms_c_info *wlc,
+				 struct sk_buff *beacon, u16 tim_offset,
+				 u16 dtim_period, bool bcn0, bool bcn1)
+{
+	size_t len;
+	struct ieee80211_tx_info *tx_info;
+	struct brcms_hardware *wlc_hw = wlc->hw;
+	struct ieee80211_hw *ieee_hw = brcms_c_pub(wlc)->ieee_hw;
+
+	/* Get tx_info */
+	tx_info = IEEE80211_SKB_CB(beacon);
+
+	len = min_t(size_t, beacon->len, BCN_TMPL_LEN);
+	wlc->bcn_rspec = ieee80211_get_tx_rate(ieee_hw, tx_info)->hw_value;
+
+	brcms_c_compute_plcp(wlc, wlc->bcn_rspec,
+			     len + FCS_LEN - D11_PHY_HDR_LEN, beacon->data);
+
+	/* "Regular" and 16 MBSS but not for 4 MBSS */
+	/* Update the phytxctl for the beacon based on the rspec */
+	brcms_c_beacon_phytxctl_txant_upd(wlc, wlc->bcn_rspec);
+
+	if (bcn0) {
+		/* write the probe response into the template region */
+		brcms_b_write_template_ram(wlc_hw, T_BCN0_TPL_BASE,
+					    (len + 3) & ~3, beacon->data);
+
+		/* write beacon length to SCR */
+		brcms_b_write_shm(wlc_hw, M_BCN0_FRM_BYTESZ, (u16) len);
+	}
+	if (bcn1) {
+		/* write the probe response into the template region */
+		brcms_b_write_template_ram(wlc_hw, T_BCN1_TPL_BASE,
+					    (len + 3) & ~3, beacon->data);
+
+		/* write beacon length to SCR */
+		brcms_b_write_shm(wlc_hw, M_BCN1_FRM_BYTESZ, (u16) len);
+	}
+
+	if (tim_offset != 0) {
+		brcms_b_write_shm(wlc_hw, M_TIMBPOS_INBEACON,
+				  tim_offset + D11B_PHY_HDR_LEN);
+		brcms_b_write_shm(wlc_hw, M_DOT11_DTIMPERIOD, dtim_period);
+	} else {
+		brcms_b_write_shm(wlc_hw, M_TIMBPOS_INBEACON,
+				  len + D11B_PHY_HDR_LEN);
+		brcms_b_write_shm(wlc_hw, M_DOT11_DTIMPERIOD, 0);
+	}
+}
+
+static void brcms_c_update_beacon_hw(struct brcms_c_info *wlc,
+				     struct sk_buff *beacon, u16 tim_offset,
+				     u16 dtim_period)
+{
+	struct brcms_hardware *wlc_hw = wlc->hw;
+	struct bcma_device *core = wlc_hw->d11core;
+
+	/* Hardware beaconing for this config */
+	u32 both_valid = MCMD_BCN0VLD | MCMD_BCN1VLD;
+
+	/* Check if both templates are in use, if so sched. an interrupt
+	 *      that will call back into this routine
+	 */
+	if ((bcma_read32(core, D11REGOFFS(maccommand)) & both_valid) == both_valid)
+		/* clear any previous status */
+		bcma_write32(core, D11REGOFFS(macintstatus), MI_BCNTPL);
+
+	if (wlc->beacon_template_virgin) {
+		wlc->beacon_template_virgin = false;
+		brcms_c_beacon_write(wlc, beacon, tim_offset, dtim_period, true,
+				     true);
+		/* mark beacon0 valid */
+		bcma_set32(core, D11REGOFFS(maccommand), MCMD_BCN0VLD);
+		return;
+	}
+
+	/* Check that after scheduling the interrupt both of the
+	 *      templates are still busy. if not clear the int. & remask
+	 */
+	if ((bcma_read32(core, D11REGOFFS(maccommand)) & both_valid) == both_valid) {
+		wlc->defmacintmask |= MI_BCNTPL;
+		return;
+	}
+
+	if (!(bcma_read32(core, D11REGOFFS(maccommand)) & MCMD_BCN0VLD)) {
+		brcms_c_beacon_write(wlc, beacon, tim_offset, dtim_period, true,
+				     false);
+		/* mark beacon0 valid */
+		bcma_set32(core, D11REGOFFS(maccommand), MCMD_BCN0VLD);
+		return;
+	}
+	if (!(bcma_read32(core, D11REGOFFS(maccommand)) & MCMD_BCN1VLD)) {
+		brcms_c_beacon_write(wlc, beacon, tim_offset, dtim_period,
+				     false, true);
+		/* mark beacon0 valid */
+		bcma_set32(core, D11REGOFFS(maccommand), MCMD_BCN1VLD);
+		return;
+	}
+	return;
+}
+
 /*
  * Update all beacons for the system.
  */
@@ -7383,9 +7491,31 @@ void brcms_c_update_beacon(struct brcms_c_info *wlc)
 	struct brcms_bss_cfg *bsscfg = wlc->bsscfg;
 
 	if (wlc->pub->up && (bsscfg->type == BRCMS_TYPE_AP ||
-			     bsscfg->type == BRCMS_TYPE_ADHOC))
+			     bsscfg->type == BRCMS_TYPE_ADHOC)) {
 		/* Clear the soft intmask */
 		wlc->defmacintmask &= ~MI_BCNTPL;
+		if (!wlc->beacon)
+			return;
+		brcms_c_update_beacon_hw(wlc, wlc->beacon,
+					 wlc->beacon_tim_offset,
+					 wlc->beacon_dtim_period);
+	}
+}
+
+void brcms_c_set_new_beacon(struct brcms_c_info *wlc, struct sk_buff *beacon,
+			    u16 tim_offset, u16 dtim_period)
+{
+	if (!beacon)
+		return;
+	if (wlc->beacon)
+		dev_kfree_skb_any(wlc->beacon);
+	wlc->beacon = beacon;
+
+	/* add PLCP */
+	skb_push(wlc->beacon, D11_PHY_HDR_LEN);
+	wlc->beacon_tim_offset = tim_offset;
+	wlc->beacon_dtim_period = dtim_period;
+	brcms_c_update_beacon(wlc);
 }
 
 /* Write ssid into shared memory */
@@ -7784,6 +7914,10 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 		brcms_rfkill_set_hw_state(wlc->wl);
 	}
 
+	/* BCN template is available */
+	if (macintstatus & MI_BCNTPL)
+		brcms_c_update_beacon(wlc);
+
 	/* it isn't done and needs to be resched if macintstatus is non-zero */
 	return wlc->macintstatus != 0;
 
@@ -7920,6 +8054,7 @@ brcms_c_attach(struct brcms_info *wl, struct bcma_device *core, uint unit,
 	pub->unit = unit;
 	pub->_piomode = piomode;
 	wlc->bandinit_pending = false;
+	wlc->beacon_template_virgin = true;
 
 	/* populate struct brcms_c_info with default values  */
 	brcms_c_info_init(wlc, unit);

@@ -492,6 +492,8 @@ struct brcms_c_info {
 	bool radio_monitor;
 	bool going_down;
 
+	bool beacon_template_virgin;
+
 	struct brcms_timer *wdtimer;
 	struct brcms_timer *radio_timer;
 
@@ -561,6 +563,10 @@ struct brcms_c_info {
 
 	struct wiphy *wiphy;
 	struct scb pri_scb;
+
+	struct sk_buff *beacon;
+	u16 beacon_tim_offset;
+	u16 beacon_dtim_period;
 };
 
 /* antsel module specific state */
@@ -630,7 +636,6 @@ extern u16 brcms_c_compute_rtscts_dur(struct brcms_c_info *wlc, bool cts_only,
 extern void brcms_c_inval_dma_pkts(struct brcms_hardware *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn));
-extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
 extern void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend);
 extern int brcms_c_set_nmode(struct brcms_c_info *wlc);
 extern void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
