@@ -521,6 +521,12 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		brcms_c_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET, info->bssid);
 		spin_unlock_bh(&wl->lock);
 	}
+	if (changed & BSS_CHANGED_SSID) {
+		/* BSSID changed, for whatever reason (IBSS and managed mode) */
+		spin_lock_bh(&wl->lock);
+		brcms_c_set_ssid(wl->wlc, info->ssid, info->ssid_len);
+		spin_unlock_bh(&wl->lock);
+	}
 	if (changed & BSS_CHANGED_BEACON) {
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
 		struct sk_buff *beacon;

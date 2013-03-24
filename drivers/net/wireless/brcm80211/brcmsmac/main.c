@@ -3783,6 +3783,15 @@ static void brcms_c_set_bssid(struct brcms_bss_cfg *bsscfg)
 	brcms_c_set_addrmatch(bsscfg->wlc, RCM_BSSID_OFFSET, bsscfg->BSSID);
 }
 
+void brcms_c_set_ssid(struct brcms_c_info *wlc, u8 *ssid, size_t ssid_len)
+{
+	u8 len = min_t(u8, sizeof(wlc->bsscfg->SSID), ssid_len);
+	memset(wlc->bsscfg->SSID, 0, sizeof(wlc->bsscfg->SSID));
+
+	memcpy(wlc->bsscfg->SSID, ssid, len);
+	wlc->bsscfg->SSID_len = len;
+}
+
 static void brcms_b_set_shortslot(struct brcms_hardware *wlc_hw, bool shortslot)
 {
 	wlc_hw->shortslot = shortslot;
