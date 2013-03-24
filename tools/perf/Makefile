@@ -52,6 +52,20 @@ include config/utilities.mak
 #
 # Define NO_LIBNUMA if you do not want numa perf benchmark
 
+ifeq ($(srctree),)
+srctree := $(patsubst %/,%,$(dir $(shell pwd)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+#$(info Determined 'srctree' to be $(srctree))
+endif
+
+ifneq ($(objtree),)
+#$(info Determined 'objtree' to be $(objtree))
+endif
+
+ifneq ($(OUTPUT),)
+#$(info Determined 'OUTPUT' to be $(OUTPUT))
+endif
+
 $(OUTPUT)PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
 	@$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
 
@@ -65,6 +79,9 @@ INSTALL = install
 FLEX    = flex
 BISON   = bison
 STRIP  ?= strip
+
+LK_DIR = ../lib/lk/
+TRACE_EVENT_DIR = ../lib/traceevent/
 
 # include config/Makefile by default and rule out
 # non-config cases
@@ -82,32 +99,9 @@ ifeq ($(config),1)
 include config/Makefile
 endif
 
-# Treat warnings as errors unless directed not to
-ifneq ($(WERROR),0)
-  CFLAGS_WERROR := -Werror
-endif
-
-ifeq ("$(origin DEBUG)", "command line")
-  PERF_DEBUG = $(DEBUG)
-endif
-ifndef PERF_DEBUG
-  CFLAGS_OPTIMIZE = -O6
-endif
-
-ifdef PARSER_DEBUG
-	PARSER_DEBUG_BISON  := -t
-	PARSER_DEBUG_FLEX   := -d
-	PARSER_DEBUG_CFLAGS := -DPARSER_DEBUG
-endif
-
 ifdef NO_NEWT
 	NO_SLANG=1
 endif
-
-CFLAGS = -fno-omit-frame-pointer -ggdb3 -funwind-tables -Wall -Wextra -std=gnu99 $(CFLAGS_WERROR) $(CFLAGS_OPTIMIZE) $(EXTRA_WARNINGS) $(EXTRA_CFLAGS) $(PARSER_DEBUG_CFLAGS)
-EXTLIBS = -lpthread -lrt -lelf -lm
-ALL_CFLAGS = $(CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
-ALL_LDFLAGS = $(LDFLAGS)
 
 # Among the variables below, these:
 #   perfexecdir
@@ -148,71 +142,6 @@ export prefix bindir sharedir sysconfdir
 # explicitly what architecture to check for. Fix this up for yours..
 SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 
-ifneq ($(MAKECMDGOALS),clean)
-ifneq ($(MAKECMDGOALS),tags)
--include config/feature-tests.mak
-
-ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -fstack-protector-all,-fstack-protector-all),y)
-	CFLAGS := $(CFLAGS) -fstack-protector-all
-endif
-
-ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -Wstack-protector,-Wstack-protector),y)
-       CFLAGS := $(CFLAGS) -Wstack-protector
-endif
-
-ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -Wvolatile-register-var,-Wvolatile-register-var),y)
-       CFLAGS := $(CFLAGS) -Wvolatile-register-var
-endif
-
-ifndef PERF_DEBUG
-	ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -D_FORTIFY_SOURCE=2,-D_FORTIFY_SOURCE=2),y)
-		CFLAGS := $(CFLAGS) -D_FORTIFY_SOURCE=2
-	endif
-endif
-
-### --- END CONFIGURATION SECTION ---
-
-ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(shell pwd)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-#$(info Determined 'srctree' to be $(srctree))
-endif
-
-ifneq ($(objtree),)
-#$(info Determined 'objtree' to be $(objtree))
-endif
-
-ifneq ($(OUTPUT),)
-#$(info Determined 'OUTPUT' to be $(OUTPUT))
-endif
-
-BASIC_CFLAGS += \
-	-Iutil/include \
-	-Iarch/$(ARCH)/include \
-	$(if $(objtree),-I$(objtree)/arch/$(ARCH)/include/generated/uapi) \
-	-I$(srctree)/arch/$(ARCH)/include/uapi \
-	-I$(srctree)/arch/$(ARCH)/include \
-	$(if $(objtree),-I$(objtree)/include/generated/uapi) \
-	-I$(srctree)/include/uapi \
-	-I$(srctree)/include \
-	-I$(OUTPUT)util \
-	-Iutil \
-	-I. \
-	-I$(TRACE_EVENT_DIR) \
-	-I../lib/ \
-	-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
-
-BASIC_LDFLAGS =
-
-ifeq ($(call try-cc,$(SOURCE_BIONIC),$(CFLAGS),bionic),y)
-	BIONIC := 1
-	EXTLIBS := $(filter-out -lrt,$(EXTLIBS))
-	EXTLIBS := $(filter-out -lpthread,$(EXTLIBS))
-	BASIC_CFLAGS += -I.
-endif
-endif # MAKECMDGOALS != tags
-endif # MAKECMDGOALS != clean
-
 # Guard against environment variables
 BUILTIN_OBJS =
 LIB_H =
@@ -224,9 +153,6 @@ SCRIPT_SH += perf-archive.sh
 
 grep-libs = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
-
-LK_DIR = ../lib/lk/
-TRACE_EVENT_DIR = ../lib/traceevent/
 
 LK_PATH=$(LK_DIR)
 
@@ -540,6 +466,8 @@ PERFLIBS = $(LIB_FILE) $(LIBLK) $(LIBTRACEEVENT)
 #
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),tags)
+
+-include config/feature-tests.mak
 
 # We choose to avoid "if .. else if .. else .. endif endif"
 # because maintaining the nesting to match is a pain.  If
