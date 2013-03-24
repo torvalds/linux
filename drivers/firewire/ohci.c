@@ -3711,9 +3711,6 @@ static int pci_probe(struct pci_dev *dev,
 	kfree(ohci);
 	pmac_ohci_off(dev);
  fail:
-	if (err == -ENOMEM)
-		dev_err(&dev->dev, "out of memory\n");
-
 	return err;
 }
 

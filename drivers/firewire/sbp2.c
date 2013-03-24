@@ -1475,10 +1475,8 @@ static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
 	}
 
 	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
-	if (orb == NULL) {
-		dev_notice(lu_dev(lu), "failed to alloc ORB\n");
+	if (orb == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;
-	}
 
 	/* Initialize rcode to something not RCODE_COMPLETE. */
 	orb->base.rcode = -1;
