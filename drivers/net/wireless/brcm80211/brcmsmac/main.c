@@ -1069,7 +1069,7 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 
 static void brcms_c_tbtt(struct brcms_c_info *wlc)
 {
-	if (!wlc->bsscfg->BSS)
+	if (wlc->bsscfg->type == BRCMS_TYPE_ADHOC)
 		/*
 		 * DirFrmQ is now valid...defer setting until end
 		 * of ATIM window
@@ -3059,16 +3059,8 @@ static bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 	if (wlc->filter_flags & FIF_PROMISC_IN_BSS)
 		return false;
 
-	if (cfg->associated) {
-		/*
-		 * disallow PS when one of the following
-		 * bsscfg specific conditions meets
-		 */
-		if (!cfg->BSS)
-			return false;
-
+	if (cfg->associated)
 		return false;
-	}
 
 	return true;
 }
@@ -5078,8 +5070,9 @@ int brcms_c_up(struct brcms_c_info *wlc)
 				struct brcms_bss_cfg *bsscfg = wlc->bsscfg;
 				mboolset(wlc->pub->radio_disabled,
 					 WL_RADIO_HW_DISABLE);
-
-				if (bsscfg->enable && bsscfg->BSS)
+				if (bsscfg->enable &&
+				    (bsscfg->type == BRCMS_TYPE_STATION ||
+				     bsscfg->type == BRCMS_TYPE_ADHOC))
 					brcms_err(wlc->hw->d11core,
 						  "wl%d: up: rfdisable -> "
 						  "bsscfg_disable()\n",
@@ -7386,7 +7379,8 @@ void brcms_c_update_beacon(struct brcms_c_info *wlc)
 {
 	struct brcms_bss_cfg *bsscfg = wlc->bsscfg;
 
-	if (bsscfg->up && !bsscfg->BSS)
+	if (bsscfg->up && (bsscfg->type == BRCMS_TYPE_AP ||
+			   bsscfg->type == BRCMS_TYPE_ADHOC))
 		/* Clear the soft intmask */
 		wlc->defmacintmask &= ~MI_BCNTPL;
 }
@@ -7461,7 +7455,8 @@ void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend)
 	struct brcms_bss_cfg *bsscfg = wlc->bsscfg;
 
 	/* update AP or IBSS probe responses */
-	if (bsscfg->up && !bsscfg->BSS)
+	if (bsscfg->up && (bsscfg->type == BRCMS_TYPE_AP ||
+			   bsscfg->type == BRCMS_TYPE_ADHOC))
 		brcms_c_bss_update_probe_resp(wlc, bsscfg, suspend);
 }
 
