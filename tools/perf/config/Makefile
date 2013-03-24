@@ -197,3 +197,14 @@ ifndef NO_LIBUNWIND
 	BASIC_CFLAGS := $(LIBUNWIND_CFLAGS) $(BASIC_CFLAGS)
 	BASIC_LDFLAGS := $(LIBUNWIND_LDFLAGS) $(BASIC_LDFLAGS)
 endif # NO_LIBUNWIND
+
+ifndef NO_LIBAUDIT
+	FLAGS_LIBAUDIT = $(ALL_CFLAGS) $(ALL_LDFLAGS) -laudit
+	ifneq ($(call try-cc,$(SOURCE_LIBAUDIT),$(FLAGS_LIBAUDIT),libaudit),y)
+		msg := $(warning No libaudit.h found, disables 'trace' tool, please install audit-libs-devel or libaudit-dev);
+		NO_LIBAUDIT := 1
+	else
+		BASIC_CFLAGS += -DLIBAUDIT_SUPPORT
+		EXTLIBS += -laudit
+	endif
+endif
