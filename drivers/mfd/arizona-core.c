@@ -16,6 +16,9 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -462,6 +465,70 @@ const struct dev_pm_ops arizona_pm_ops = {
 };
 EXPORT_SYMBOL_GPL(arizona_pm_ops);
 
+#ifdef CONFIG_OF
+int arizona_of_get_type(struct device *dev)
+{
+	const struct of_device_id *id = of_match_device(arizona_of_match, dev);
+
+	if (id)
+		return (int)id->data;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_of_get_type);
+
+static int arizona_of_get_core_pdata(struct arizona *arizona)
+{
+	int ret, i;
+
+	arizona->pdata.reset = of_get_named_gpio(arizona->dev->of_node,
+						 "wlf,reset", 0);
+	if (arizona->pdata.reset < 0)
+		arizona->pdata.reset = 0;
+
+	arizona->pdata.ldoena = of_get_named_gpio(arizona->dev->of_node,
+						  "wlf,ldoena", 0);
+	if (arizona->pdata.ldoena < 0)
+		arizona->pdata.ldoena = 0;
+
+	ret = of_property_read_u32_array(arizona->dev->of_node,
+					 "wlf,gpio-defaults",
+					 arizona->pdata.gpio_defaults,
+					 ARRAY_SIZE(arizona->pdata.gpio_defaults));
+	if (ret >= 0) {
+		/*
+		 * All values are literal except out of range values
+		 * which are chip default, translate into platform
+		 * data which uses 0 as chip default and out of range
+		 * as zero.
+		 */
+		for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
+			if (arizona->pdata.gpio_defaults[i] > 0xffff)
+				arizona->pdata.gpio_defaults[i] = 0;
+			if (arizona->pdata.gpio_defaults[i] == 0)
+				arizona->pdata.gpio_defaults[i] = 0x10000;
+		}
+	} else {
+		dev_err(arizona->dev, "Failed to parse GPIO defaults: %d\n",
+			ret);
+	}
+
+	return 0;
+}
+
+const struct of_device_id arizona_of_match[] = {
+	{ .compatible = "wlf,wm5102", .data = (void *)WM5102 },
+	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
+	{},
+};
+EXPORT_SYMBOL_GPL(arizona_of_match);
+#else
+static inline int arizona_of_get_core_pdata(struct arizona *arizona)
+{
+	return 0;
+}
+#endif
+
 static struct mfd_cell early_devs[] = {
 	{ .name = "arizona-ldo1" },
 };
@@ -494,6 +561,8 @@ int arizona_dev_init(struct arizona *arizona)
 
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);
+
+	arizona_of_get_core_pdata(arizona);
 
 	if (dev_get_platdata(arizona->dev))
 		memcpy(&arizona->pdata, dev_get_platdata(arizona->dev),
