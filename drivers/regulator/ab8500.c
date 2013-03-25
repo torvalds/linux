@@ -494,10 +494,14 @@ static struct ab8500_regulator_info
 		.update_val_idle	= 0x82,
 		.update_val_normal	= 0x02,
 	},
+
+	/*
+	 * Regulators with fixed voltage and normal mode
+	 */
 	[AB8500_LDO_USB] = {
 		.desc = {
 			.name           = "LDO-USB",
-			.ops            = &ab8500_regulator_fixed_ops,
+			.ops            = &ab8500_regulator_ops,
 			.type           = REGULATOR_VOLTAGE,
 			.id             = AB8500_LDO_USB,
 			.owner          = THIS_MODULE,
@@ -508,10 +512,6 @@ static struct ab8500_regulator_info
 		.update_reg             = 0x82,
 		.update_mask            = 0x03,
 	},
-
-	/*
-	 * Regulators with fixed voltage and normal mode
-	 */
 	[AB8500_LDO_AUDIO] = {
 		.desc = {
 			.name		= "LDO-AUDIO",
