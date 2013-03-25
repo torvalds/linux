@@ -84,6 +84,11 @@ struct fwnet_header {
 	__be16 h_proto;		/* packet type ID field */
 } __packed;
 
+static bool fwnet_hwaddr_is_multicast(u8 *ha)
+{
+	return !!(*ha & 1);
+}
+
 /* IPv4 and IPv6 encapsulation header */
 struct rfc2734_header {
 	u32 w0;
@@ -626,7 +631,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 		skb_reset_mac_header(skb);
 		skb_pull(skb, sizeof(*eth));
 		eth = (struct fwnet_header *)skb_mac_header(skb);
-		if (*eth->h_dest & 1) {
+		if (fwnet_hwaddr_is_multicast(eth->h_dest)) {
 			if (memcmp(eth->h_dest, net->broadcast,
 				   net->addr_len) == 0)
 				skb->pkt_type = PACKET_BROADCAST;
@@ -1366,10 +1371,7 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	 * Set the transmission type for the packet.  ARP packets and IP
 	 * broadcast packets are sent via GASP.
 	 */
-	if (memcmp(hdr_buf.h_dest, net->broadcast, FWNET_ALEN) == 0
-	    || proto == htons(ETH_P_ARP)
-	    || (proto == htons(ETH_P_IP)
-		&& IN_MULTICAST(ntohl(ip_hdr(skb)->daddr)))) {
+	if (fwnet_hwaddr_is_multicast(hdr_buf.h_dest)) {
 		max_payload        = dev->broadcast_xmt_max_payload;
 		datagram_label_ptr = &dev->broadcast_xmt_datagramlabel;
 
