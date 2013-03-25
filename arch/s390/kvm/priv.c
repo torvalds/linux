@@ -255,7 +255,7 @@ static void handle_new_psw(struct kvm_vcpu *vcpu)
 
 #define PSW_MASK_ADDR_MODE (PSW_MASK_EA | PSW_MASK_BA)
 #define PSW_MASK_UNASSIGNED 0xb80800fe7fffffffUL
-#define PSW_ADDR_24 0x00000000000fffffUL
+#define PSW_ADDR_24 0x0000000000ffffffUL
 #define PSW_ADDR_31 0x000000007fffffffUL
 
 int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
