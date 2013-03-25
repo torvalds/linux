@@ -584,6 +584,10 @@ static int lowpan_header_create(struct sk_buff *skb,
 
 		mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA;
 
+		/* request acknowledgment when possible */
+		if (!lowpan_is_addr_broadcast(daddr))
+			mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
+
 		return dev_hard_header(skb, lowpan_dev_info(dev)->real_dev,
 				type, (void *)&da, (void *)&sa, skb->len);
 	}
