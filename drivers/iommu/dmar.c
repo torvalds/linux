@@ -1204,7 +1204,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 
 	/* TBD: ignore advanced fault log currently */
 	if (!(fault_status & DMA_FSTS_PPF))
-		goto clear_rest;
+		goto unlock_exit;
 
 	fault_index = dma_fsts_fault_record_index(fault_status);
 	reg = cap_fault_reg_offset(iommu->cap);
@@ -1245,11 +1245,10 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 			fault_index = 0;
 		raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	}
-clear_rest:
-	/* clear all the other faults */
-	fault_status = readl(iommu->reg + DMAR_FSTS_REG);
-	writel(fault_status, iommu->reg + DMAR_FSTS_REG);
 
+	writel(DMA_FSTS_PFO | DMA_FSTS_PPF, iommu->reg + DMAR_FSTS_REG);
+
+unlock_exit:
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 	return IRQ_HANDLED;
 }
@@ -1297,6 +1296,7 @@ int __init enable_drhd_fault_handling(void)
 	for_each_drhd_unit(drhd) {
 		int ret;
 		struct intel_iommu *iommu = drhd->iommu;
+		u32 fault_status;
 		ret = dmar_set_interrupt(iommu);
 
 		if (ret) {
@@ -1309,6 +1309,8 @@ int __init enable_drhd_fault_handling(void)
 		 * Clear any previous faults.
 		 */
 		dmar_fault(iommu->irq, iommu);
+		fault_status = readl(iommu->reg + DMAR_FSTS_REG);
+		writel(fault_status, iommu->reg + DMAR_FSTS_REG);
 	}
 
 	return 0;
