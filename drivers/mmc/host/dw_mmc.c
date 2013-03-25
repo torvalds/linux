@@ -1373,8 +1373,9 @@ static void dw_mci_push_data64(struct dw_mci *host, void *buf, int cnt)
 		int len = dw_mci_push_part_bytes(host, buf, cnt);
 		buf += len;
 		cnt -= len;
+
 		if (host->part_buf_count == 8) {
-			mci_writew(host, DATA(host->data_offset),
+			mci_writeq(host, DATA(host->data_offset),
 					host->part_buf);
 			host->part_buf_count = 0;
 		}
