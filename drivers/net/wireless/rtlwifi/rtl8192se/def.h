@@ -36,9 +36,6 @@
 #define SHORT_SLOT_TIME				9
 #define NON_SHORT_SLOT_TIME			20
 
-/* Rx smooth factor */
-#define	RX_SMOOTH_FACTOR			20
-
 /* Queue Select Value in TxDesc */
 #define QSLT_BK					0x2
 #define QSLT_BE					0x0
@@ -48,10 +45,6 @@
 #define QSLT_HIGH				0x11
 #define QSLT_MGNT				0x12
 #define QSLT_CMD				0x13
-
-#define	PHY_RSSI_SLID_WIN_MAX			100
-#define	PHY_LINKQUALITY_SLID_WIN_MAX		20
-#define	PHY_BEACON_RSSI_SLID_WIN_MAX		10
 
 /* Tx Desc */
 #define TX_DESC_SIZE_RTL8192S			(16 * 4)
