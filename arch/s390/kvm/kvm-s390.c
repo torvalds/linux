@@ -1007,6 +1007,16 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 {
 	int rc;
 
+	/* If the basics of the memslot do not change, we do not want
+	 * to update the gmap. Every update causes several unnecessary
+	 * segment translation exceptions. This is usually handled just
+	 * fine by the normal fault handler + gmap, but it will also
+	 * cause faults on the prefix page of running guest CPUs.
+	 */
+	if (old->userspace_addr == mem->userspace_addr &&
+	    old->base_gfn * PAGE_SIZE == mem->guest_phys_addr &&
+	    old->npages * PAGE_SIZE == mem->memory_size)
+		return;
 
 	rc = gmap_map_segment(kvm->arch.gmap, mem->userspace_addr,
 		mem->guest_phys_addr, mem->memory_size);
