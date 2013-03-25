@@ -174,7 +174,7 @@ static DEFINE_MUTEX(mp_mutex);
 #define DEBUG_INTR(fmt...)  do { } while (0)
 #endif
 
-#if defined(__i386__) && (defined(CONFIG_M386) || defined(CONFIG_M486))
+#if defined(__i386__) && defined(CONFIG_M486)
 #define SERIAL_INLINE
 #endif
 #ifdef SERIAL_INLINE
