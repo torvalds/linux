@@ -1338,12 +1338,6 @@ S:	Maintained
 F:	drivers/platform/x86/asus*.c
 F:	drivers/platform/x86/eeepc*.c
 
-ASUS ASB100 HARDWARE MONITOR DRIVER
-M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
-L:	lm-sensors@lm-sensors.org
-S:	Maintained
-F:	drivers/hwmon/asb100.c
-
 ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 M:	Dan Williams <djbw@fb.com>
 W:	http://sourceforge.net/projects/xscaleiop
@@ -1466,6 +1460,12 @@ S:	Supported
 F:	drivers/dma/at_hdmac.c
 F:	drivers/dma/at_hdmac_regs.h
 F:	include/linux/platform_data/dma-atmel.h
+
+ATMEL I2C DRIVER
+M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+L:	linux-i2c@vger.kernel.org
+S:	Supported
+F:	drivers/i2c/busses/i2c-at91.c
 
 ATMEL ISI DRIVER
 M:	Josh Wu <josh.wu@atmel.com>
@@ -2629,7 +2629,7 @@ F:	include/uapi/drm/
 
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
 M:	Daniel Vetter <daniel.vetter@ffwll.ch>
-L:	intel-gfx@lists.freedesktop.org (subscribers-only)
+L:	intel-gfx@lists.freedesktop.org
 L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~danvet/drm-intel
 S:	Supported
@@ -3851,7 +3851,7 @@ F:	drivers/i2c/busses/i2c-ismt.c
 F:	Documentation/i2c/busses/i2c-ismt
 
 I2C/SMBUS STUB DRIVER
-M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
+M:	Jean Delvare <khali@linux-fr.org>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/i2c-stub.c
@@ -5647,6 +5647,14 @@ S:	Maintained
 F:	drivers/video/riva/
 F:	drivers/video/nvidia/
 
+NVM EXPRESS DRIVER
+M:	Matthew Wilcox <willy@linux.intel.com>
+L:	linux-nvme@lists.infradead.org
+T:	git git://git.infradead.org/users/willy/linux-nvme.git
+S:	Supported
+F:	drivers/block/nvme.c
+F:	include/linux/nvme.h
+
 OMAP SUPPORT
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
@@ -7198,13 +7206,6 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/sis/sis900.*
 
-SIS 96X I2C/SMBUS DRIVER
-M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	Documentation/i2c/busses/i2c-sis96x
-F:	drivers/i2c/busses/i2c-sis96x.c
-
 SIS FRAMEBUFFER DRIVER
 M:	Thomas Winischhofer <thomas@winischhofer.net>
 W:	http://www.winischhofer.net/linuxsisvga.shtml
@@ -7282,7 +7283,7 @@ F:	Documentation/hwmon/sch5627
 F:	drivers/hwmon/sch5627.c
 
 SMSC47B397 HARDWARE MONITOR DRIVER
-M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
+M:	Jean Delvare <khali@linux-fr.org>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/smsc47b397

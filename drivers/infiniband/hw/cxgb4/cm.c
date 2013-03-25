@@ -1575,6 +1575,12 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 
 	neigh = dst_neigh_lookup(ep->dst,
 			&ep->com.cm_id->remote_addr.sin_addr.s_addr);
+	if (!neigh) {
+		pr_err("%s - cannot alloc neigh.\n", __func__);
+		err = -ENOMEM;
+		goto fail4;
+	}
+
 	/* get a l2t entry */
 	if (neigh->dev->flags & IFF_LOOPBACK) {
 		PDBG("%s LOOPBACK\n", __func__);
@@ -3052,6 +3058,12 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	dst = &rt->dst;
 	neigh = dst_neigh_lookup_skb(dst, skb);
+
+	if (!neigh) {
+		pr_err("%s - failed to allocate neigh!\n",
+		       __func__);
+		goto free_dst;
+	}
 
 	if (neigh->dev->flags & IFF_LOOPBACK) {
 		pdev = ip_dev_find(&init_net, iph->daddr);
