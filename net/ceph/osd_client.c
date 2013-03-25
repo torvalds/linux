@@ -2136,6 +2136,11 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 							auth);
 		if (ret)
 			return ERR_PTR(ret);
+	} else if (ac->ops && ac->ops->update_authorizer) {
+		int ret = ac->ops->update_authorizer(ac, CEPH_ENTITY_TYPE_OSD,
+						     auth);
+		if (ret)
+			return ERR_PTR(ret);
 	}
 	*proto = ac->protocol;
 

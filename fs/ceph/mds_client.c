@@ -3425,7 +3425,12 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 	}
 	if (!auth->authorizer && ac->ops && ac->ops->create_authorizer) {
 		int ret = ac->ops->create_authorizer(ac, CEPH_ENTITY_TYPE_MDS,
-							auth);
+						     auth);
+		if (ret)
+			return ERR_PTR(ret);
+	} else if (ac->ops && ac->ops_update_authorizer) {
+		int ret = ac->ops->update_authorizer(ac, CEPH_ENTITY_TYPE_MDS,
+						     auth);
 		if (ret)
 			return ERR_PTR(ret);
 	}
