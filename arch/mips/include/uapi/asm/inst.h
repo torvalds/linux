@@ -424,6 +424,11 @@ enum mm_16d_minor_op {
 };
 
 /*
+ * (microMIPS & MIPS16e) NOP instruction.
+ */
+#define MM_NOP16	0x0c00
+
+/*
  * Damn ...  bitfields depend from byteorder :-(
  */
 #ifdef __MIPSEB__
