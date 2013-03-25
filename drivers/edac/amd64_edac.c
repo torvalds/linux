@@ -2048,12 +2048,18 @@ static int init_csrows(struct mem_ctl_info *mci)
 		edac_dbg(1, "MC node: %d, csrow: %d\n",
 			    pvt->mc_node_id, i);
 
-		if (row_dct0)
+		if (row_dct0) {
 			nr_pages = amd64_csrow_nr_pages(pvt, 0, i);
+			csrow->channels[0]->dimm->nr_pages = nr_pages;
+		}
 
 		/* K8 has only one DCT */
-		if (boot_cpu_data.x86 != 0xf && row_dct1)
-			nr_pages += amd64_csrow_nr_pages(pvt, 1, i);
+		if (boot_cpu_data.x86 != 0xf && row_dct1) {
+			int row_dct1_pages = amd64_csrow_nr_pages(pvt, 1, i);
+
+			csrow->channels[1]->dimm->nr_pages = row_dct1_pages;
+			nr_pages += row_dct1_pages;
+		}
 
 		mtype = amd64_determine_memory_type(pvt, i);
 
@@ -2072,9 +2078,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 			dimm = csrow->channels[j]->dimm;
 			dimm->mtype = mtype;
 			dimm->edac_mode = edac_mode;
-			dimm->nr_pages = nr_pages;
 		}
-		csrow->nr_pages = nr_pages;
 	}
 
 	return empty;
@@ -2419,7 +2423,6 @@ static int amd64_init_one_instance(struct pci_dev *F2)
 
 	mci->pvt_info = pvt;
 	mci->pdev = &pvt->F2->dev;
-	mci->csbased = 1;
 
 	setup_mci_misc_attrs(mci, fam_type);
 

@@ -845,15 +845,8 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return err;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		int error;
-
-		error = inode_newsize_ok(inode, attr->ia_size);
-		if (error)
-			return error;
-
+	    attr->ia_size != i_size_read(inode))
 		truncate_setsize(inode, attr->ia_size);
-	}
 
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
@@ -993,6 +986,7 @@ static struct file_system_type hostfs_type = {
 	.kill_sb	= hostfs_kill_sb,
 	.fs_flags 	= 0,
 };
+MODULE_ALIAS_FS("hostfs");
 
 static int __init init_hostfs(void)
 {

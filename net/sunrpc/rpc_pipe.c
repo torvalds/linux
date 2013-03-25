@@ -1175,6 +1175,7 @@ static struct file_system_type rpc_pipe_fs_type = {
 	.kill_sb	= rpc_kill_sb,
 };
 MODULE_ALIAS_FS("rpc_pipefs");
+MODULE_ALIAS("rpc_pipefs");
 
 static void
 init_once(void *foo)

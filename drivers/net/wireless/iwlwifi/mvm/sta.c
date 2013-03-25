@@ -770,6 +770,16 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	u16 txq_id;
 	int err;
 
+
+	/*
+	 * If mac80211 is cleaning its state, then say that we finished since
+	 * our state has been cleared anyway.
+	 */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		return 0;
+	}
+
 	spin_lock_bh(&mvmsta->lock);
 
 	txq_id = tid_data->txq_id;

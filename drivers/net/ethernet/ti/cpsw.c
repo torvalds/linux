@@ -905,7 +905,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	/* If there is no more tx desc left free then we need to
 	 * tell the kernel to stop sending us tx frames.
 	 */
-	if (unlikely(cpdma_check_free_tx_desc(priv->txch)))
+	if (unlikely(!cpdma_check_free_tx_desc(priv->txch)))
 		netif_stop_queue(ndev);
 
 	return NETDEV_TX_OK;

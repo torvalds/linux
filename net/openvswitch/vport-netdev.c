@@ -43,8 +43,7 @@ static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
 
 	/* Make our own copy of the packet.  Otherwise we will mangle the
 	 * packet for anyone who came before us (e.g. tcpdump via AF_PACKET).
-	 * (No one comes after us, since we tell handle_bridge() that we took
-	 * the packet.) */
+	 */
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return;
