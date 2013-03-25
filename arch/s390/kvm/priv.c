@@ -269,20 +269,14 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 
 	addr = kvm_s390_get_base_disp_s(vcpu);
 
-	if (addr & 7) {
-		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-		goto out;
-	}
+	if (addr & 7)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	if (copy_from_guest(vcpu, &new_psw, addr, sizeof(new_psw))) {
-		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		goto out;
-	}
+	if (copy_from_guest(vcpu, &new_psw, addr, sizeof(new_psw)))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 
-	if (!(new_psw.mask & PSW32_MASK_BASE)) {
-		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-		goto out;
-	}
+	if (!(new_psw.mask & PSW32_MASK_BASE))
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	vcpu->arch.sie_block->gpsw.mask =
 		(new_psw.mask & ~PSW32_MASK_BASE) << 32;
@@ -293,13 +287,10 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 	    (!(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) &&
 	     (vcpu->arch.sie_block->gpsw.addr & ~PSW_ADDR_24)) ||
 	    ((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) ==
-	     PSW_MASK_EA)) {
-		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-		goto out;
-	}
+	     PSW_MASK_EA))
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	handle_new_psw(vcpu);
-out:
 	return 0;
 }
 
@@ -310,15 +301,11 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 
 	addr = kvm_s390_get_base_disp_s(vcpu);
 
-	if (addr & 7) {
-		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-		goto out;
-	}
+	if (addr & 7)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	if (copy_from_guest(vcpu, &new_psw, addr, sizeof(new_psw))) {
-		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		goto out;
-	}
+	if (copy_from_guest(vcpu, &new_psw, addr, sizeof(new_psw)))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 
 	vcpu->arch.sie_block->gpsw.mask = new_psw.mask;
 	vcpu->arch.sie_block->gpsw.addr = new_psw.addr;
@@ -330,13 +317,10 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 	    (!(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) &&
 	     (vcpu->arch.sie_block->gpsw.addr & ~PSW_ADDR_24)) ||
 	    ((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) ==
-	     PSW_MASK_EA)) {
-		kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-		goto out;
-	}
+	     PSW_MASK_EA))
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	handle_new_psw(vcpu);
-out:
 	return 0;
 }
 
