@@ -510,4 +510,7 @@ void tegra30_clock_init(struct device_node *np);
 static inline void tegra30_clock_init(struct device_node *np) {}
 #endif /* CONFIG_ARCH_TEGRA_3x_SOC */
 
+typedef void (*tegra_clk_apply_init_table_func)(void);
+extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
+
 #endif /* TEGRA_CLK_H */

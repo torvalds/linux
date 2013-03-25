@@ -1252,6 +1252,11 @@ static __initdata struct tegra_clk_init_table init_table[] = {
 	{clk_max, clk_max, 0, 0}, /* This MUST be the last entry */
 };
 
+static void __init tegra20_clock_apply_init_table(void)
+{
+	tegra_init_from_table(init_table, clks, clk_max);
+}
+
 /*
  * Some clocks may be used by different drivers depending on the board
  * configuration.  List those here to register them twice in the clock lookup
@@ -1318,7 +1323,7 @@ void __init tegra20_clock_init(struct device_node *np)
 	clk_data.clk_num = ARRAY_SIZE(clks);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
-	tegra_init_from_table(init_table, clks, clk_max);
+	tegra_clk_apply_init_table = tegra20_clock_apply_init_table;
 
 	tegra_cpu_car_ops = &tegra20_cpu_car_ops;
 }

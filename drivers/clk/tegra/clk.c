@@ -83,3 +83,13 @@ void __init tegra_clocks_init(void)
 {
 	of_clk_init(tegra_dt_clk_match);
 }
+
+tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
+
+void __init tegra_clocks_apply_init_table(void)
+{
+	if (!tegra_clk_apply_init_table)
+		return;
+
+	tegra_clk_apply_init_table();
+}
