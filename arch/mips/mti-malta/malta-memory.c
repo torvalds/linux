@@ -29,8 +29,6 @@
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
 
-#include <asm/mips-boards/prom.h>
-
 static fw_memblock_t mdesc[FW_MAX_MEMBLOCKS];
 
 /* determined physical memory size, not overridden by command line args	 */

@@ -12,7 +12,6 @@
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-boards/prom.h>
 #include <asm/fw/fw.h>
 
 extern char except_vec_nmi;

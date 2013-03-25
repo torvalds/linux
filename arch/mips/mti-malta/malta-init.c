@@ -30,7 +30,6 @@
 #include <asm/traps.h>
 #include <asm/fw/fw.h>
 #include <asm/gcmpregs.h>
-#include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/bonito64.h>
 #include <asm/mips-boards/msc01_pci.h>

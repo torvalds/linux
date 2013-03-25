@@ -11,7 +11,6 @@
 #include <linux/bootmem.h>
 
 #include <asm/mips-boards/generic.h>
-#include <asm/prom.h>
 
 const char *get_system_type(void)
 {
