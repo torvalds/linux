@@ -472,13 +472,13 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 				digtable->back_val = DM_DIG_BACKOFF;
 
 			if ((digtable->rssi_val + 10 - digtable->back_val) >
-				digtable->rx_gain_range_max)
+				digtable->rx_gain_max)
 				digtable->cur_igvalue =
-						digtable->rx_gain_range_max;
+						digtable->rx_gain_max;
 			else if ((digtable->rssi_val + 10 - digtable->back_val)
-				 < digtable->rx_gain_range_min)
+				 < digtable->rx_gain_min)
 				digtable->cur_igvalue =
-						digtable->rx_gain_range_min;
+						digtable->rx_gain_min;
 			else
 				digtable->cur_igvalue = digtable->rssi_val + 10
 					- digtable->back_val;
@@ -490,7 +490,7 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 
 			if (falsealm_cnt->cnt_all > 16000)
 				digtable->cur_igvalue =
-						 digtable->rx_gain_range_max;
+						 digtable->rx_gain_max;
 		/* connected -> connected or disconnected -> disconnected  */
 		} else {
 			/* Firmware control DIG, do nothing in driver dm */
@@ -692,9 +692,9 @@ static void _rtl92s_dm_init_dig(struct ieee80211_hw *hw)
 	/* for dig debug rssi value */
 	digtable->rssi_val = 50;
 	digtable->back_val = DM_DIG_BACKOFF;
-	digtable->rx_gain_range_max = DM_DIG_MAX;
+	digtable->rx_gain_max = DM_DIG_MAX;
 
-	digtable->rx_gain_range_min = DM_DIG_MIN;
+	digtable->rx_gain_min = DM_DIG_MIN;
 
 	digtable->backoffval_range_max = DM_DIG_BACKOFF_MAX;
 	digtable->backoffval_range_min = DM_DIG_BACKOFF_MIN;

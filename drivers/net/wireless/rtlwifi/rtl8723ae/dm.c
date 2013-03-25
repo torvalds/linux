@@ -166,8 +166,8 @@ static void rtl8723ae_dm_diginit(struct ieee80211_hw *hw)
 	dm_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
 	dm_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
 	dm_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
-	dm_digtable->rx_gain_range_max = DM_DIG_MAX;
-	dm_digtable->rx_gain_range_min = DM_DIG_MIN;
+	dm_digtable->rx_gain_max = DM_DIG_MAX;
+	dm_digtable->rx_gain_min = DM_DIG_MIN;
 	dm_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
 	dm_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
 	dm_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
@@ -291,11 +291,11 @@ static void rtl92c_dm_ctrl_initgain_by_rssi(struct ieee80211_hw *hw)
 	}
 
 	if ((dgtbl->rssi_val_min + 10 - dgtbl->back_val) >
-	    dgtbl->rx_gain_range_max)
-		dgtbl->cur_igvalue = dgtbl->rx_gain_range_max;
+	    dgtbl->rx_gain_max)
+		dgtbl->cur_igvalue = dgtbl->rx_gain_max;
 	else if ((dgtbl->rssi_val_min + 10 -
-		  dgtbl->back_val) < dgtbl->rx_gain_range_min)
-		dgtbl->cur_igvalue = dgtbl->rx_gain_range_min;
+		  dgtbl->back_val) < dgtbl->rx_gain_min)
+		dgtbl->cur_igvalue = dgtbl->rx_gain_min;
 	else
 		dgtbl->cur_igvalue = dgtbl->rssi_val_min + 10 - dgtbl->back_val;
 

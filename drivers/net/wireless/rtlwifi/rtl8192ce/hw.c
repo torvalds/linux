@@ -1503,7 +1503,7 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		}
 
 		for (i = 0; i < 14; i++) {
-			RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+			RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 				"RF(%d)-Ch(%d) [CCK / HT40_1S / HT40_2S] = [0x%x / 0x%x / 0x%x]\n",
 				rf_path, i,
 				rtlefuse->txpwrlevel_cck[rf_path][i],
@@ -1544,11 +1544,11 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 				      & 0xf0) >> 4);
 			}
 
-			RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+			RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 				"RF-%d pwrgroup_ht20[%d] = 0x%x\n",
 				rf_path, i,
 				rtlefuse->pwrgroup_ht20[rf_path][i]);
-			RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+			RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 				"RF-%d pwrgroup_ht40[%d] = 0x%x\n",
 				rf_path, i,
 				rtlefuse->pwrgroup_ht40[rf_path][i]);
@@ -1589,19 +1589,19 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 	    rtlefuse->txpwr_legacyhtdiff[RF90_PATH_A][7];
 
 	for (i = 0; i < 14; i++)
-		RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+		RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 			"RF-A Ht20 to HT40 Diff[%d] = 0x%x\n",
 			i, rtlefuse->txpwr_ht20diff[RF90_PATH_A][i]);
 	for (i = 0; i < 14; i++)
-		RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+		RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 			"RF-A Legacy to Ht40 Diff[%d] = 0x%x\n",
 			i, rtlefuse->txpwr_legacyhtdiff[RF90_PATH_A][i]);
 	for (i = 0; i < 14; i++)
-		RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+		RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 			"RF-B Ht20 to HT40 Diff[%d] = 0x%x\n",
 			i, rtlefuse->txpwr_ht20diff[RF90_PATH_B][i]);
 	for (i = 0; i < 14; i++)
-		RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+		RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 			"RF-B Legacy to HT40 Diff[%d] = 0x%x\n",
 			i, rtlefuse->txpwr_legacyhtdiff[RF90_PATH_B][i]);
 
@@ -1609,7 +1609,7 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		rtlefuse->eeprom_regulatory = (hwinfo[RF_OPTION1] & 0x7);
 	else
 		rtlefuse->eeprom_regulatory = 0;
-	RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 		"eeprom_regulatory = 0x%x\n", rtlefuse->eeprom_regulatory);
 
 	if (!autoload_fail) {
@@ -1619,7 +1619,7 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		rtlefuse->eeprom_tssi[RF90_PATH_A] = EEPROM_DEFAULT_TSSI;
 		rtlefuse->eeprom_tssi[RF90_PATH_B] = EEPROM_DEFAULT_TSSI;
 	}
-	RTPRINT(rtlpriv, FINIT, INIT_TxPower, "TSSI_A = 0x%x, TSSI_B = 0x%x\n",
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER, "TSSI_A = 0x%x, TSSI_B = 0x%x\n",
 		rtlefuse->eeprom_tssi[RF90_PATH_A],
 		rtlefuse->eeprom_tssi[RF90_PATH_B]);
 
@@ -1633,7 +1633,7 @@ static void _rtl92ce_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		rtlefuse->apk_thermalmeterignore = true;
 
 	rtlefuse->thermalmeter[0] = rtlefuse->eeprom_thermalmeter;
-	RTPRINT(rtlpriv, FINIT, INIT_TxPower,
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
 		"thermalmeter = 0x%x\n", rtlefuse->eeprom_thermalmeter);
 }
 

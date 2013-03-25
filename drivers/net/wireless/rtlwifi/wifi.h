@@ -99,11 +99,35 @@
 #define	CHANNEL_GROUP_MAX_5G		9
 #define CHANNEL_MAX_NUMBER_2G		14
 #define AVG_THERMAL_NUM			8
+#define AVG_THERMAL_NUM_88E		4
 #define MAX_TID_COUNT			9
 
 /* for early mode */
 #define FCS_LEN				4
 #define EM_HDR_LEN			8
+
+#define MAX_TX_COUNT			4
+#define	MAX_RF_PATH			4
+#define	MAX_CHNL_GROUP_24G		6
+#define	MAX_CHNL_GROUP_5G		14
+
+struct txpower_info_2g {
+	u8 index_cck_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
+	u8 index_bw40_base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
+	/*If only one tx, only BW20 and OFDM are used.*/
+	u8 cck_diff[MAX_RF_PATH][MAX_TX_COUNT];
+	u8 ofdm_diff[MAX_RF_PATH][MAX_TX_COUNT];
+	u8 bw20_diff[MAX_RF_PATH][MAX_TX_COUNT];
+	u8 bw40_diff[MAX_RF_PATH][MAX_TX_COUNT];
+};
+
+struct txpower_info_5g {
+	u8 index_bw40_base[MAX_RF_PATH][MAX_CHNL_GROUP_5G];
+	/*If only one tx, only BW20, OFDM, BW80 and BW160 are used.*/
+	u8 ofdm_diff[MAX_RF_PATH][MAX_TX_COUNT];
+	u8 bw20_diff[MAX_RF_PATH][MAX_TX_COUNT];
+	u8 bw40_diff[MAX_RF_PATH][MAX_TX_COUNT];
+};
 
 enum intf_type {
 	INTF_PCI = 0,
@@ -499,7 +523,7 @@ enum rtl_var_map {
 	RTL_IMR_TIMEOUT1,	/*Timeout interrupt 1 */
 	RTL_IMR_TXFOVW,		/*Transmit FIFO Overflow */
 	RTL_IMR_PSTIMEOUT,	/*Power save time out interrupt */
-	RTL_IMR_BcnInt,		/*Beacon DMA Interrupt 0 */
+	RTL_IMR_BCNINT,		/*Beacon DMA Interrupt 0 */
 	RTL_IMR_RXFOVW,		/*Receive FIFO Overflow */
 	RTL_IMR_RDU,		/*Receive Descriptor Unavailable */
 	RTL_IMR_ATIMEND,	/*For 92C,ATIM Window End Interrupt */
@@ -514,7 +538,7 @@ enum rtl_var_map {
 	RTL_IMR_VIDOK,		/*AC_VI DMA OK Interrupt */
 	RTL_IMR_VODOK,		/*AC_VO DMA Interrupt */
 	RTL_IMR_ROK,		/*Receive DMA OK Interrupt */
-	RTL_IBSS_INT_MASKS,	/*(RTL_IMR_BcnInt | RTL_IMR_TBDOK |
+	RTL_IBSS_INT_MASKS,	/*(RTL_IMR_BCNINT | RTL_IMR_TBDOK |
 				 * RTL_IMR_TBDER) */
 	RTL_IMR_C2HCMD,		/*fw interrupt*/
 
@@ -959,7 +983,7 @@ struct rtl_phy {
 
 	/* Dual mac */
 	bool need_iqk;
-	struct iqk_matrix_regs iqk_matrix_regsetting[IQK_MATRIX_SETTINGS_NUM];
+	struct iqk_matrix_regs iqk_matrix[IQK_MATRIX_SETTINGS_NUM];
 
 	bool rfpi_enable;
 
@@ -1278,6 +1302,29 @@ struct rtl_security {
 	u8 *pairwise_key;
 };
 
+#define ASSOCIATE_ENTRY_NUM	33
+
+struct fast_ant_training {
+	u8	bssid[6];
+	u8	antsel_rx_keep_0;
+	u8	antsel_rx_keep_1;
+	u8	antsel_rx_keep_2;
+	u32	ant_sum[7];
+	u32	ant_cnt[7];
+	u32	ant_ave[7];
+	u8	fat_state;
+	u32	train_idx;
+	u8	antsel_a[ASSOCIATE_ENTRY_NUM];
+	u8	antsel_b[ASSOCIATE_ENTRY_NUM];
+	u8	antsel_c[ASSOCIATE_ENTRY_NUM];
+	u32	main_ant_sum[ASSOCIATE_ENTRY_NUM];
+	u32	aux_ant_sum[ASSOCIATE_ENTRY_NUM];
+	u32	main_ant_cnt[ASSOCIATE_ENTRY_NUM];
+	u32	aux_ant_cnt[ASSOCIATE_ENTRY_NUM];
+	u8	rx_idle_ant;
+	bool	becomelinked;
+};
+
 struct rtl_dm {
 	/*PHY status for Dynamic Management */
 	long entry_min_undec_sm_pwdb;
@@ -1314,9 +1361,24 @@ struct rtl_dm {
 	bool disable_tx_int;
 	char ofdm_index[2];
 	char cck_index;
+	char delta_power_index;
+	char delta_power_index_last;
+	char power_index_offset;
+
+	/*88e tx power tracking*/
+	u8	swing_idx_ofdm[2];
+	u8	swing_idx_ofdm_cur;
+	u8	swing_idx_ofdm_base;
+	bool	swing_flag_ofdm;
+	u8	swing_idx_cck;
+	u8	swing_idx_cck_cur;
+	u8	swing_idx_cck_base;
+	bool	swing_flag_cck;
 
 	/* DMSP */
 	bool supp_phymode_switch;
+
+	struct fast_ant_training fat_table;
 };
 
 #define	EFUSE_MAX_LOGICAL_SIZE			256
@@ -1349,6 +1411,9 @@ struct rtl_efuse {
 	u8 external_pa;
 
 	u8 dev_addr[6];
+	u8 wowlan_enable;
+	u8 antenna_div_cfg;
+	u8 antenna_div_type;
 
 	bool txpwr_fromeprom;
 	u8 eeprom_crystalcap;
@@ -1404,14 +1469,12 @@ struct rtl_ps_ctl {
 	bool rfchange_inprogress;
 	bool swrf_processing;
 	bool hwradiooff;
-
 	/*
 	 * just for PCIE ASPM
 	 * If it supports ASPM, Offset[560h] = 0x40,
 	 * otherwise Offset[560h] = 0x00.
 	 * */
 	bool support_aspm;
-
 	bool support_backdoor;
 
 	/*for LPS */
@@ -1472,7 +1535,7 @@ struct rtl_stats {
 	s8 rssi;
 	u8 signal;
 	u8 noise;
-	u16 rate;		/*in 100 kbps */
+	u8 rate;		/* hw desc rate */
 	u8 received_channel;
 	u8 control;
 	u8 mask;
@@ -1514,7 +1577,15 @@ struct rtl_stats {
 	bool packet_toself;
 	bool packet_beacon;	/*for rssi */
 	char cck_adc_pwdb[4];	/*for rx path selection */
+
+	u8 packet_report_type;
+
+	u32 macid;
+	u8 wake_match;
+	u32 bt_rx_rssi_percentage;
+	u32 macid_valid_entry[2];
 };
+
 
 struct rt_link_detect {
 	/* count for roaming */
@@ -1568,7 +1639,8 @@ struct rtl_tcb_desc {
 	/* early mode */
 	u8 empkt_num;
 	/* The max value by HW */
-	u32 empkt_len[5];
+	u32 empkt_len[10];
+	bool btx_enable_sw_calc_duration;
 };
 
 struct rtl_hal_ops {
@@ -1781,7 +1853,6 @@ struct rtl_works {
 	struct timer_list dualmac_easyconcurrent_retrytimer;
 	struct timer_list fw_clockoff_timer;
 	struct timer_list fast_antenna_training_timer;
-
 	/*task */
 	struct tasklet_struct irq_tasklet;
 	struct tasklet_struct irq_prepare_bcn_tasklet;
@@ -1866,10 +1937,12 @@ struct dig_t {
 	char back_val;
 	char back_range_max;
 	char back_range_min;
-	u8 rx_gain_range_max;
-	u8 rx_gain_range_min;
+	u8 rx_gain_max;
+	u8 rx_gain_min;
 	u8 min_undec_pwdb_for_dm;
 	u8 rssi_val_min;
+	u8 pre_cck_cca_thres;
+	u8 cur_cck_cca_thres;
 	u8 pre_cck_pd_state;
 	u8 cur_cck_pd_state;
 	u8 pre_cck_fa_state;
@@ -1891,6 +1964,13 @@ struct dig_t {
 	u8 backoff_enable_flag;
 	char backoffval_range_max;
 	char backoffval_range_min;
+	u8 dig_min_0;
+	u8 dig_min_1;
+	bool media_connect_0;
+	bool media_connect_1;
+
+	u32 antdiv_rssi_max;
+	u32 rssi_max;
 };
 
 struct rtl_global_var {
@@ -2228,6 +2308,7 @@ value to host byte ordering.*/
 #define WLAN_FC_GET_TYPE(fc)	(le16_to_cpu(fc) & IEEE80211_FCTL_FTYPE)
 #define WLAN_FC_GET_STYPE(fc)	(le16_to_cpu(fc) & IEEE80211_FCTL_STYPE)
 #define WLAN_FC_MORE_DATA(fc)	(le16_to_cpu(fc) & IEEE80211_FCTL_MOREDATA)
+#define rtl_dm(rtlpriv)		(&((rtlpriv)->dm))
 
 #define	RT_RF_OFF_LEVL_ASPM		BIT(0)	/*PCI ASPM */
 #define	RT_RF_OFF_LEVL_CLK_REQ		BIT(1)	/*PCI clock request */

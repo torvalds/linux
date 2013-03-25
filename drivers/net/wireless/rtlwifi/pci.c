@@ -861,7 +861,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE, "beacon interrupt!\n");
 	}
 
-	if (inta & rtlpriv->cfg->maps[RTL_IMR_BcnInt]) {
+	if (inta & rtlpriv->cfg->maps[RTL_IMR_BCNINT]) {
 		RT_TRACE(rtlpriv, COMP_INTR, DBG_TRACE,
 			 "prepare beacon for interrupt!\n");
 		tasklet_schedule(&rtlpriv->works.irq_prepare_bcn_tasklet);

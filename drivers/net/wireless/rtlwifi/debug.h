@@ -115,11 +115,11 @@
 /* Define EEPROM and EFUSE  check module bit*/
 #define EEPROM_W			BIT(0)
 #define EFUSE_PG			BIT(1)
-#define EFUSE_READ_ALL		BIT(2)
+#define EFUSE_READ_ALL			BIT(2)
 
 /* Define init check for module bit*/
 #define	INIT_EEPROM			BIT(0)
-#define	INIT_TxPower		BIT(1)
+#define	INIT_TXPOWER			BIT(1)
 #define	INIT_IQK			BIT(2)
 #define	INIT_RF				BIT(3)
 
@@ -141,6 +141,8 @@
 #define DM_MONITOR			BIT(2)
 #define DM_DIG				BIT(3)
 #define DM_EDCA_TURBO			BIT(4)
+
+#define DM_PWDB				BIT(1)
 
 enum dbgp_flag_e {
 	FQOS = 0,
