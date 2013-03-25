@@ -504,6 +504,10 @@ enum iscsi_host_param {
 	ISCSI_HOST_PARAM_MAX,
 };
 
+/* portal type */
+#define PORTAL_TYPE_IPV4	"ipv4"
+#define PORTAL_TYPE_IPV6	"ipv6"
+
 /* iSCSI Flash Target params */
 enum iscsi_flashnode_param {
 	ISCSI_FLASHNODE_IS_FW_ASSIGNED_IPV6,
