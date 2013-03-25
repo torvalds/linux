@@ -619,7 +619,7 @@ static void __kick_osd_requests(struct ceph_osd_client *osdc,
 		BUG_ON(!list_empty(&req->r_req_lru_item));
 		__register_request(osdc, req);
 		list_add_tail(&req->r_req_lru_item, &osdc->req_unsent);
-		list_add(&req->r_osd_item, &req->r_osd->o_requests);
+		list_add_tail(&req->r_osd_item, &req->r_osd->o_requests);
 		__unregister_linger_request(osdc, req);
 		dout("requeued lingering %p tid %llu osd%d\n", req, req->r_tid,
 		     osd->o_osd);
@@ -1035,10 +1035,10 @@ static int __map_request(struct ceph_osd_client *osdc,
 
 	if (req->r_osd) {
 		__remove_osd_from_lru(req->r_osd);
-		list_add(&req->r_osd_item, &req->r_osd->o_requests);
-		list_move(&req->r_req_lru_item, &osdc->req_unsent);
+		list_add_tail(&req->r_osd_item, &req->r_osd->o_requests);
+		list_move_tail(&req->r_req_lru_item, &osdc->req_unsent);
 	} else {
-		list_move(&req->r_req_lru_item, &osdc->req_notarget);
+		list_move_tail(&req->r_req_lru_item, &osdc->req_notarget);
 	}
 	err = 1;   /* osd or pg changed */
 
