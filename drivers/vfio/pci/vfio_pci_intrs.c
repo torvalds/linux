@@ -286,7 +286,8 @@ void vfio_pci_intx_mask(struct vfio_pci_device *vdev)
  * a signal is necessary, which can then be handled via a work queue
  * or directly depending on the caller.
  */
-int vfio_pci_intx_unmask_handler(struct vfio_pci_device *vdev, void *unused)
+static int vfio_pci_intx_unmask_handler(struct vfio_pci_device *vdev,
+					void *unused)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	unsigned long flags;
