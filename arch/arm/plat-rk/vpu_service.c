@@ -250,11 +250,11 @@ static void vpu_get_clk(void)
 	}
 	aclk_ddr_vepu 	= clk_get(NULL, "aclk_ddr_vepu");
 	if (IS_ERR(aclk_ddr_vepu)) {
-		pr_err("failed on clk_get aclk_ddr_vepu\n");
+		;//pr_err("failed on clk_get aclk_ddr_vepu\n");
 	}
 	hclk_cpu_vcodec	= clk_get(NULL, "hclk_cpu_vcodec");
 	if (IS_ERR(hclk_cpu_vcodec)) {
-		pr_err("failed on clk_get hclk_cpu_vcodec\n");
+		;//pr_err("failed on clk_get hclk_cpu_vcodec\n");
 	}
 }
 
@@ -459,17 +459,19 @@ static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long s
 	mutex_unlock(&service.lock);
 
 	if (service.auto_freq) {
-		if (reg->type == VPU_DEC || reg->type == VPU_DEC_PP) {
-			if (reg_check_rmvb_wmv(reg)) {
-				reg->freq = VPU_FREQ_200M;
-			} else {
-				if (reg_check_interlace(reg)) {
-					reg->freq = VPU_FREQ_400M;
+		if (!soc_is_rk2928g()) {
+			if (reg->type == VPU_DEC || reg->type == VPU_DEC_PP) {
+				if (reg_check_rmvb_wmv(reg)) {
+					reg->freq = VPU_FREQ_200M;
+				} else {
+					if (reg_check_interlace(reg)) {
+						reg->freq = VPU_FREQ_400M;
+					}
 				}
 			}
-		}
-		if (reg->type == VPU_PP) {
-			reg->freq = VPU_FREQ_400M;
+			if (reg->type == VPU_PP) {
+				reg->freq = VPU_FREQ_400M;
+			}
 		}
 	}
 
@@ -569,7 +571,11 @@ static void vpu_service_set_freq(vpu_reg *reg)
 		//printk("default: 400M\n");
 	} break;
 	default : {
-		clk_set_rate(aclk_vepu, 300*MHZ);
+		if (soc_is_rk2928g()) {
+			clk_set_rate(aclk_vepu, 400*MHZ);
+		} else {
+			clk_set_rate(aclk_vepu, 300*MHZ);
+		}
 		//printk("default: 300M\n");
 	} break;
 	}
