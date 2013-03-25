@@ -111,7 +111,7 @@
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
 #include <net/net_namespace.h>

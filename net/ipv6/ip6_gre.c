@@ -38,6 +38,7 @@
 
 #include <net/sock.h>
 #include <net/ip.h>
+#include <net/ip_tunnels.h>
 #include <net/icmp.h>
 #include <net/protocol.h>
 #include <net/addrconf.h>

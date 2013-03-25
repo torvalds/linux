@@ -33,7 +33,7 @@
 #include <net/arp.h>
 #include <net/ndisc.h>
 #include <net/ip.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/icmp.h>
 #include <net/udp.h>
 #include <net/rtnetlink.h>
