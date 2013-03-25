@@ -2826,6 +2826,8 @@ unlock:
 int fcoe_libfc_config(struct fc_lport *lport, struct fcoe_ctlr *fip,
 		      const struct libfc_function_template *tt, int init_fcp)
 {
+	void *priv = lport;
+
 	/* Set the function pointers set by the LLDD */
 	memcpy(&lport->tt, tt, sizeof(*tt));
 	if (init_fcp && fc_fcp_init(lport))
@@ -2842,12 +2844,11 @@ int fcoe_libfc_config(struct fc_lport *lport, struct fcoe_ctlr *fip,
 		lport->tt.disc_start = fcoe_ctlr_disc_start;
 		lport->tt.disc_stop = fcoe_ctlr_disc_stop;
 		lport->tt.disc_stop_final = fcoe_ctlr_disc_stop_final;
-		mutex_init(&lport->disc.disc_mutex);
-		INIT_LIST_HEAD(&lport->disc.rports);
-		lport->disc.priv = fip;
-	} else {
-		fc_disc_init(lport);
+		priv = fip;
 	}
+
+	fc_disc_init(lport, priv);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fcoe_libfc_config);

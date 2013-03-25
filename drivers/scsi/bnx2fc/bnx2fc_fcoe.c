@@ -939,7 +939,7 @@ static int bnx2fc_libfc_config(struct fc_lport *lport)
 	fc_elsct_init(lport);
 	fc_exch_init(lport);
 	fc_rport_init(lport);
-	fc_disc_init(lport);
+	fc_disc_init(lport, lport);
 	return 0;
 }
 

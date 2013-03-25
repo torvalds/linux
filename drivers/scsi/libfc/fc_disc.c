@@ -714,8 +714,9 @@ static void fc_disc_stop_final(struct fc_lport *lport)
 /**
  * fc_disc_init() - Initialize the discovery layer for a local port
  * @lport: The local port that needs the discovery layer to be initialized
+ * @priv: Private data structre for users of the discovery layer
  */
-int fc_disc_init(struct fc_lport *lport)
+int fc_disc_init(struct fc_lport *lport, void *priv)
 {
 	struct fc_disc *disc;
 
@@ -736,7 +737,7 @@ int fc_disc_init(struct fc_lport *lport)
 	mutex_init(&disc->disc_mutex);
 	INIT_LIST_HEAD(&disc->rports);
 
-	disc->priv = lport;
+	disc->priv = priv;
 
 	return 0;
 }
