@@ -162,13 +162,7 @@ static struct i2c_board_info ttc_dkb_i2c_info[] = {
 #ifdef CONFIG_USB_SUPPORT
 #if defined(CONFIG_USB_MV_UDC) || defined(CONFIG_USB_EHCI_MV_U2O)
 
-static char *pxa910_usb_clock_name[] = {
-	[0] = "U2OCLK",
-};
-
 static struct mv_usb_platform_data ttc_usb_pdata = {
-	.clknum		= 1,
-	.clkname	= pxa910_usb_clock_name,
 	.vbus		= NULL,
 	.mode		= MV_USB_MODE_OTG,
 	.otg_force_a_bus_req = 1,
