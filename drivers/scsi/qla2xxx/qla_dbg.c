@@ -402,7 +402,7 @@ qla2xxx_copy_atioqueues(struct qla_hw_data *ha, void *ptr,
 		void *ring;
 	} aq, *aqp;
 
-	if (!ha->tgt.atio_q_length)
+	if (!ha->tgt.atio_ring)
 		return ptr;
 
 	num_queues = 1;
