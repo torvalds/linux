@@ -302,7 +302,7 @@ static inline int picolcd_init_cir(struct picolcd_data *data, struct hid_report 
 static inline void picolcd_exit_cir(struct picolcd_data *data)
 {
 }
-#endif /* CONFIG_HID_PICOLCD_LIRC */
+#endif /* CONFIG_HID_PICOLCD_CIR */
 
 int picolcd_reset(struct hid_device *hdev);
 struct picolcd_pending *picolcd_send_and_wait(struct hid_device *hdev,
