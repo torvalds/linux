@@ -2175,8 +2175,8 @@ static void rv7xx_parse_pplib_clock_info(struct radeon_device *rdev,
 
 	/* patch up boot state */
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_BOOT) {
-		u16 vddc, vddci;
-		radeon_atombios_get_default_voltages(rdev, &vddc, &vddci);
+		u16 vddc, vddci, mvdd;
+		radeon_atombios_get_default_voltages(rdev, &vddc, &vddci, &mvdd);
 		pl->mclk = rdev->clock.default_mclk;
 		pl->sclk = rdev->clock.default_sclk;
 		pl->vddc = vddc;
