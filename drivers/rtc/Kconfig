@@ -1116,4 +1116,10 @@ config  TPS65910_RTC
 	help
 		enable tps65910 rtc for system
 
+config  RK808_RTC
+	tristate "rk808 rtc for rk"
+	depends on MFD_RK808
+	help
+		enable rk808 rtc for system
+
 endif # RTC_CLASS

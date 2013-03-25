@@ -46,6 +46,7 @@
 #include <linux/sensor-dev.h>
 #include <linux/mfd/tps65910.h>
 #include <linux/regulator/act8846.h>
+#include <linux/mfd/rk808.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
 
 #ifdef CONFIG_CW2015_BATTERY
@@ -1784,6 +1785,92 @@ static  struct pmu_info  act8846_ldo_info[] = {
 #include "board-pmu-act8846.c"
 #endif
 
+#ifdef CONFIG_MFD_RK808
+#define PMU_POWER_SLEEP RK30_PIN0_PA1
+#define RK808_HOST_IRQ        RK30_PIN0_PB3
+
+static struct pmu_info  rk808_dcdc_info[] = {
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
+		.suspend_vol  =  900000,
+	},
+	{
+		.name          = "vdd_core",    //logic
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
+		.suspend_vol  =  900000,
+	},
+	{
+		.name          = "rk_dcdc3",   //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+		.suspend_vol  =  1200000,
+	},
+	{
+		.name          = "rk_dcdc4",   //vccio
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		.suspend_vol  =  3000000,
+	},
+	
+};
+static  struct pmu_info  rk808_ldo_info[] = {
+	{
+		.name          = "rk_ldo1",   //vcc33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		.suspend_vol   = 3300000,
+	},
+	{
+		.name          = "rk_ldo2",    //vcctp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		 .suspend_vol   = 3300000,
+
+	},
+	{
+		.name          = "rk_ldo3",   //vdd10
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		 .suspend_vol   = 1000000,
+	},
+	{
+		.name          = "rk_ldo4",   //vcc18
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+		 .suspend_vol   = 1800000,
+	},
+	{
+		.name          = "rk_ldo5",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+		 .suspend_vol   = 2800000,
+	},
+	{
+		.name          = "rk_ldo6",   //vdd12
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+		 .suspend_vol   = 1200000,
+	},
+	{
+		.name          = "rk_ldo7",   //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+		 .suspend_vol   = 1800000,
+	},
+	{
+		.name          = "rk_ldo8",   //vcca_33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		 .suspend_vol   = 3300000,
+	},
+ };
+
+#include "board-pmu-rk808.c"
+#endif
+
 
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
@@ -1814,6 +1901,16 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		.platform_data=&act8846_data,
 	},
 #endif
+#if defined (CONFIG_MFD_RK808)
+	{
+		.type    		= "rk808",
+		.addr           = 0x1b, 
+		.flags			= 0,
+	//	.irq            = ACT8846_HOST_IRQ,
+		.platform_data=&rk808_data,
+	},
+#endif
+
 #if defined (CONFIG_RTC_HYM8563)
 	{
 		.type                   = "rtc_hym8563",
@@ -1848,6 +1945,10 @@ void __sramfunc board_pmu_suspend(void)
        if(pmic_is_act8846())
        board_pmu_act8846_suspend(); 
        #endif   
+	#if defined (CONFIG_MFD_RK808)
+       if(pmic_is_rk808())
+       board_pmu_rk808_suspend();
+       #endif
 
 }
 
@@ -1864,7 +1965,12 @@ void __sramfunc board_pmu_resume(void)
 	#if defined (CONFIG_REGULATOR_ACT8846)
        if(pmic_is_act8846())
        board_pmu_act8846_resume(); 
-       #endif   
+       #endif 
+	 #if defined (CONFIG_MFD_RK808)
+       if(pmic_is_rk808())
+       board_pmu_rk808_resume();
+       #endif
+  
 }
 
  int __sramdata gpio3d6_iomux,gpio3d6_do,gpio3d6_dir,gpio3d6_en;
@@ -2083,6 +2189,13 @@ static void rk30_pm_power_off(void)
 		tps65910_device_shutdown();//tps65910 shutdown
 	}
 	#endif
+	
+	 #if defined(CONFIG_MFD_RK808)        
+        if(pmic_is_rk808())
+       {
+                rk808_device_shutdown();//rk808 shutdown
+        }
+        #endif
 
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
 	while (1);

@@ -116,3 +116,4 @@ obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
 obj-$(CONFIG_RTC_HYM8563)	+= rtc-HYM8563.o
 obj-$(CONFIG_RTC_M41T66)	+= rtc-m41t66.o
 obj-$(CONFIG_TPS65910_RTC)  += rtc-tps65910.o
+obj-$(CONFIG_RK808_RTC)  += rtc-rk808.o
