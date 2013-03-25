@@ -266,7 +266,8 @@ static void __init mxs_timer_init(struct device_node *np)
 
 	/* get timrot version */
 	timrot_major_version = __raw_readl(mxs_timrot_base +
-				(cpu_is_mx23() ? MX23_TIMROT_VERSION_OFFSET :
+			(of_device_is_compatible(np, "fsl,imx23-timrot") ?
+						MX23_TIMROT_VERSION_OFFSET :
 						MX28_TIMROT_VERSION_OFFSET));
 	timrot_major_version >>= BP_TIMROT_MAJOR_VERSION;
 
