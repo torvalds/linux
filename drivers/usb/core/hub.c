@@ -1317,6 +1317,10 @@ static int hub_configure(struct usb_hub *hub,
 		message = "hub has too many ports!";
 		ret = -ENODEV;
 		goto fail;
+	} else if (hub->descriptor->bNbrPorts == 0) {
+		message = "hub doesn't have any ports!";
+		ret = -ENODEV;
+		goto fail;
 	}
 
 	hdev->maxchild = hub->descriptor->bNbrPorts;
