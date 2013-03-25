@@ -12,8 +12,4 @@ s2250-y := s2250-board.o
 #obj-$(CONFIG_VIDEO_SAA7134) += saa7134-go7007.o
 #ccflags-$(CONFIG_VIDEO_SAA7134:m=y) += -Idrivers/media/pci/saa7134
 
-# go7007-loader needs cypress ezusb loader from dvb-usb-v2
-ccflags-$(CONFIG_VIDEO_GO7007_LOADER:m=y) += -Idrivers/media/usb/dvb-usb-v2
-
-ccflags-y += -Idrivers/media/dvb-frontends
-ccflags-y += -Idrivers/media/dvb-core
+ccflags-$(CONFIG_VIDEO_GO7007_LOADER:m=y) += -Idrivers/media/common

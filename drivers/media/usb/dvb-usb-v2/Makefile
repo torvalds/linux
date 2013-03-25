@@ -1,9 +1,6 @@
 dvb_usb_v2-objs := dvb_usb_core.o dvb_usb_urb.o usb_urb.o
 obj-$(CONFIG_DVB_USB_V2) += dvb_usb_v2.o
 
-dvb_usb_cypress_firmware-objs := cypress_firmware.o
-obj-$(CONFIG_DVB_USB_CYPRESS_FIRMWARE) += dvb_usb_cypress_firmware.o
-
 dvb-usb-af9015-objs := af9015.o
 obj-$(CONFIG_DVB_USB_AF9015) += dvb-usb-af9015.o
 
@@ -46,4 +43,4 @@ obj-$(CONFIG_DVB_USB_RTL28XXU) += dvb-usb-rtl28xxu.o
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
 ccflags-y += -I$(srctree)/drivers/media/tuners
-
+ccflags-y += -I$(srctree)/drivers/media/common

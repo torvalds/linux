@@ -8,7 +8,10 @@
  *
  */
 
-#include "dvb_usb.h"
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/usb.h>
+#include <linux/firmware.h>
 #include "cypress_firmware.h"
 
 struct usb_cypress_controller {
@@ -30,14 +33,42 @@ static const struct usb_cypress_controller cypress[] = {
 static int usb_cypress_writemem(struct usb_device *udev, u16 addr, u8 *data,
 		u8 len)
 {
-	dvb_usb_dbg_usb_control_msg(udev,
-			0xa0, USB_TYPE_VENDOR, addr, 0x00, data, len);
-
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			0xa0, USB_TYPE_VENDOR, addr, 0x00, data, len, 5000);
 }
 
-int usbv2_cypress_load_firmware(struct usb_device *udev,
+static int cypress_get_hexline(const struct firmware *fw,
+				struct hexline *hx, int *pos)
+{
+	u8 *b = (u8 *) &fw->data[*pos];
+	int data_offs = 4;
+
+	if (*pos >= fw->size)
+		return 0;
+
+	memset(hx, 0, sizeof(struct hexline));
+	hx->len = b[0];
+
+	if ((*pos + hx->len + 4) >= fw->size)
+		return -EINVAL;
+
+	hx->addr = b[1] | (b[2] << 8);
+	hx->type = b[3];
+
+	if (hx->type == 0x04) {
+		/* b[4] and b[5] are the Extended linear address record data
+		 * field */
+		hx->addr |= (b[4] << 24) | (b[5] << 16);
+	}
+
+	memcpy(hx->data, &b[data_offs], hx->len);
+	hx->chk = b[hx->len + data_offs];
+	*pos += hx->len + 5;
+
+	return *pos;
+}
+
+int cypress_load_firmware(struct usb_device *udev,
 		const struct firmware *fw, int type)
 {
 	struct hexline *hx;
@@ -61,7 +92,7 @@ int usbv2_cypress_load_firmware(struct usb_device *udev,
 
 	/* write firmware to memory */
 	for (;;) {
-		ret = dvb_usbv2_get_hexline(fw, hx, &pos);
+		ret = cypress_get_hexline(fw, hx, &pos);
 		if (ret < 0)
 			goto err_kfree;
 		else if (ret == 0)
@@ -94,39 +125,7 @@ err_kfree:
 	kfree(hx);
 	return ret;
 }
-EXPORT_SYMBOL(usbv2_cypress_load_firmware);
-
-int dvb_usbv2_get_hexline(const struct firmware *fw, struct hexline *hx,
-		int *pos)
-{
-	u8 *b = (u8 *) &fw->data[*pos];
-	int data_offs = 4;
-
-	if (*pos >= fw->size)
-		return 0;
-
-	memset(hx, 0, sizeof(struct hexline));
-	hx->len = b[0];
-
-	if ((*pos + hx->len + 4) >= fw->size)
-		return -EINVAL;
-
-	hx->addr = b[1] | (b[2] << 8);
-	hx->type = b[3];
-
-	if (hx->type == 0x04) {
-		/* b[4] and b[5] are the Extended linear address record data
-		 * field */
-		hx->addr |= (b[4] << 24) | (b[5] << 16);
-	}
-
-	memcpy(hx->data, &b[data_offs], hx->len);
-	hx->chk = b[hx->len + data_offs];
-	*pos += hx->len + 5;
-
-	return *pos;
-}
-EXPORT_SYMBOL(dvb_usbv2_get_hexline);
+EXPORT_SYMBOL(cypress_load_firmware);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Cypress firmware download");

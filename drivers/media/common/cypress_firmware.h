@@ -1,5 +1,4 @@
-/* cypress_firmware.h is part of the DVB USB library.
- *
+/*
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
  * see dvb-usb-init.c for copyright information.
  *
@@ -23,9 +22,7 @@ struct hexline {
 	u8 data[255];
 	u8 chk;
 };
-extern int usbv2_cypress_load_firmware(struct usb_device *,
-		const struct firmware *, int);
-extern int dvb_usbv2_get_hexline(const struct firmware *,
-		struct hexline *, int *);
+
+int cypress_load_firmware(struct usb_device *, const struct firmware *, int);
 
 #endif

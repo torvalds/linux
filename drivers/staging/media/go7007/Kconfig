@@ -4,6 +4,7 @@ config VIDEO_GO7007
 	depends on SND
 	select VIDEOBUF2_VMALLOC
 	select VIDEO_TUNER
+	select CYPRESS_FIRMWARE
 	select SND_PCM
 	select VIDEO_SONY_BTF_MPX if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_SAA711X if MEDIA_SUBDRV_AUTOSELECT
@@ -33,7 +34,7 @@ config VIDEO_GO7007_USB
 
 config VIDEO_GO7007_LOADER
 	tristate "WIS GO7007 Loader support"
-	depends on VIDEO_GO7007 && DVB_USB
+	depends on VIDEO_GO7007
 	default y
 	---help---
 	  This is a go7007 firmware loader driver for the WIS GO7007
