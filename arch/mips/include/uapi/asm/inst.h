@@ -424,6 +424,47 @@ enum mm_16d_minor_op {
 };
 
 /*
+ * (MIPS16e) opcodes.
+ */
+enum MIPS16e_ops {
+	MIPS16e_jal_op = 003,
+	MIPS16e_ld_op = 007,
+	MIPS16e_i8_op = 014,
+	MIPS16e_sd_op = 017,
+	MIPS16e_lb_op = 020,
+	MIPS16e_lh_op = 021,
+	MIPS16e_lwsp_op = 022,
+	MIPS16e_lw_op = 023,
+	MIPS16e_lbu_op = 024,
+	MIPS16e_lhu_op = 025,
+	MIPS16e_lwpc_op = 026,
+	MIPS16e_lwu_op = 027,
+	MIPS16e_sb_op = 030,
+	MIPS16e_sh_op = 031,
+	MIPS16e_swsp_op = 032,
+	MIPS16e_sw_op = 033,
+	MIPS16e_rr_op = 035,
+	MIPS16e_extend_op = 036,
+	MIPS16e_i64_op = 037,
+};
+
+enum MIPS16e_i64_func {
+	MIPS16e_ldsp_func,
+	MIPS16e_sdsp_func,
+	MIPS16e_sdrasp_func,
+	MIPS16e_dadjsp_func,
+	MIPS16e_ldpc_func,
+};
+
+enum MIPS16e_rr_func {
+	MIPS16e_jr_func,
+};
+
+enum MIPS6e_i8_func {
+	MIPS16e_swrasp_func = 02,
+};
+
+/*
  * (microMIPS & MIPS16e) NOP instruction.
  */
 #define MM_NOP16	0x0c00
@@ -745,6 +786,64 @@ struct mm16_r5_format {		/* Load/store from stack pointer format */
 	;))))
 };
 
+/*
+ * MIPS16e instruction formats (16-bit length)
+ */
+struct m16e_rr {
+	BITFIELD_FIELD(unsigned int opcode : 5,
+	BITFIELD_FIELD(unsigned int rx : 3,
+	BITFIELD_FIELD(unsigned int nd : 1,
+	BITFIELD_FIELD(unsigned int l : 1,
+	BITFIELD_FIELD(unsigned int ra : 1,
+	BITFIELD_FIELD(unsigned int func : 5,
+	;))))))
+};
+
+struct m16e_jal {
+	BITFIELD_FIELD(unsigned int opcode : 5,
+	BITFIELD_FIELD(unsigned int x : 1,
+	BITFIELD_FIELD(unsigned int imm20_16 : 5,
+	BITFIELD_FIELD(signed int imm25_21 : 5,
+	;))))
+};
+
+struct m16e_i64 {
+	BITFIELD_FIELD(unsigned int opcode : 5,
+	BITFIELD_FIELD(unsigned int func : 3,
+	BITFIELD_FIELD(unsigned int imm : 8,
+	;)))
+};
+
+struct m16e_ri64 {
+	BITFIELD_FIELD(unsigned int opcode : 5,
+	BITFIELD_FIELD(unsigned int func : 3,
+	BITFIELD_FIELD(unsigned int ry : 3,
+	BITFIELD_FIELD(unsigned int imm : 5,
+	;))))
+};
+
+struct m16e_ri {
+	BITFIELD_FIELD(unsigned int opcode : 5,
+	BITFIELD_FIELD(unsigned int rx : 3,
+	BITFIELD_FIELD(unsigned int imm : 8,
+	;)))
+};
+
+struct m16e_rri {
+	BITFIELD_FIELD(unsigned int opcode : 5,
+	BITFIELD_FIELD(unsigned int rx : 3,
+	BITFIELD_FIELD(unsigned int ry : 3,
+	BITFIELD_FIELD(unsigned int imm : 5,
+	;))))
+};
+
+struct m16e_i8 {
+	BITFIELD_FIELD(unsigned int opcode : 5,
+	BITFIELD_FIELD(unsigned int func : 3,
+	BITFIELD_FIELD(unsigned int imm : 8,
+	;)))
+};
+
 union mips_instruction {
 	unsigned int word;
 	unsigned short halfword[2];
@@ -780,6 +879,17 @@ union mips_instruction {
 	struct mm16_rb_format mm16_rb_format;
 	struct mm16_r3_format mm16_r3_format;
 	struct mm16_r5_format mm16_r5_format;
+};
+
+union mips16e_instruction {
+	unsigned int full : 16;
+	struct m16e_rr rr;
+	struct m16e_jal jal;
+	struct m16e_i64 i64;
+	struct m16e_ri64 ri64;
+	struct m16e_ri ri;
+	struct m16e_rri rri;
+	struct m16e_i8 i8;
 };
 
 #endif /* _UAPI_ASM_INST_H */
