@@ -988,7 +988,7 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 	struct batadv_neigh_node *orig_neigh_router = NULL;
 	int has_directlink_flag;
 	int is_my_addr = 0, is_my_orig = 0, is_my_oldorig = 0;
-	int is_broadcast = 0, is_bidirect;
+	int is_bidirect;
 	bool is_single_hop_neigh = false;
 	bool is_from_best_next_hop = false;
 	int is_duplicate, sameseq, simlar_ttl;
@@ -1051,9 +1051,6 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 		if (batadv_compare_eth(batadv_ogm_packet->prev_sender,
 				       hard_iface->net_dev->dev_addr))
 			is_my_oldorig = 1;
-
-		if (is_broadcast_ether_addr(ethhdr->h_source))
-			is_broadcast = 1;
 	}
 	rcu_read_unlock();
 
@@ -1067,13 +1064,6 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 	if (is_my_addr) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: received my own broadcast (sender: %pM)\n",
-			   ethhdr->h_source);
-		return;
-	}
-
-	if (is_broadcast) {
-		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Drop packet: ignoring all packets with broadcast source addr (sender: %pM)\n",
 			   ethhdr->h_source);
 		return;
 	}
