@@ -363,8 +363,7 @@ static struct regulator_ops ab8500_regulator_mode_ops = {
 	.set_mode		= ab8500_regulator_set_mode,
 	.get_mode		= ab8500_regulator_get_mode,
 	.get_voltage_sel 	= ab8500_regulator_get_voltage_sel,
-	.list_voltage		= regulator_list_voltage_table,
-	.set_voltage_time_sel	= ab8500_regulator_set_voltage_time_sel,
+	.list_voltage		= regulator_list_voltage_linear,
 };
 
 static struct regulator_ops ab8500_regulator_ops = {
@@ -372,7 +371,7 @@ static struct regulator_ops ab8500_regulator_ops = {
 	.disable		= ab8500_regulator_disable,
 	.is_enabled		= ab8500_regulator_is_enabled,
 	.get_voltage_sel 	= ab8500_regulator_get_voltage_sel,
-	.list_voltage		= regulator_list_voltage_table,
+	.list_voltage		= regulator_list_voltage_linear,
 };
 
 static struct ab8500_regulator_info
