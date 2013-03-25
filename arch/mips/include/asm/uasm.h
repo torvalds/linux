@@ -26,15 +26,29 @@
 #define _UASM_ISA_MICROMIPS	1
 
 #ifndef UASM_ISA
+#ifdef CONFIG_CPU_MICROMIPS
+#define UASM_ISA	_UASM_ISA_MICROMIPS
+#else
 #define UASM_ISA	_UASM_ISA_CLASSIC
+#endif
 #endif
 
 #if (UASM_ISA == _UASM_ISA_CLASSIC)
+#ifdef CONFIG_CPU_MICROMIPS
+#define ISAOPC(op)	CL_uasm_i##op
+#define ISAFUNC(x)	CL_##x
+#else
 #define ISAOPC(op)	uasm_i##op
 #define ISAFUNC(x)	x
+#endif
 #elif (UASM_ISA == _UASM_ISA_MICROMIPS)
+#ifdef CONFIG_CPU_MICROMIPS
+#define ISAOPC(op)	uasm_i##op
+#define ISAFUNC(x)	x
+#else
 #define ISAOPC(op)	MM_uasm_i##op
 #define ISAFUNC(x)	MM_##x
+#endif
 #else
 #error Unsupported micro-assembler ISA!!!
 #endif
@@ -160,9 +174,9 @@ void ISAFUNC(UASM_i_LA_mostly)(u32 **buf, unsigned int rs, long addr);
 void ISAFUNC(UASM_i_LA)(u32 **buf, unsigned int rs, long addr);
 
 #define UASM_L_LA(lb)							\
-static inline void __uasminit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
+static inline void __uasminit ISAFUNC(uasm_l##lb)(struct uasm_label **lab, u32 *addr) \
 {									\
-	uasm_build_label(lab, addr, label##lb);				\
+	ISAFUNC(uasm_build_label)(lab, addr, label##lb);		\
 }
 
 /* convenience macros for instructions */

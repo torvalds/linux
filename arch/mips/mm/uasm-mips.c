@@ -20,6 +20,7 @@
 #include <asm/inst.h>
 #include <asm/elf.h>
 #include <asm/bugs.h>
+#define UASM_ISA	_UASM_ISA_CLASSIC
 #include <asm/uasm.h>
 
 #define RS_MASK		0x1f
@@ -37,6 +38,14 @@
 	 | (d) << RD_SH						\
 	 | (e) << RE_SH						\
 	 | (f) << FUNC_SH)
+
+/* Define these when we are not the ISA the kernel is being compiled with. */
+#ifdef CONFIG_CPU_MICROMIPS
+#define CL_uasm_i_b(buf, off) ISAOPC(_beq)(buf, 0, 0, off)
+#define CL_uasm_i_beqz(buf, rs, off) ISAOPC(_beq)(buf, rs, 0, off)
+#define CL_uasm_i_beqzl(buf, rs, off) ISAOPC(_beql)(buf, rs, 0, off)
+#define CL_uasm_i_bnez(buf, rs, off) ISAOPC(_bne)(buf, rs, 0, off)
+#endif
 
 #include "uasm.c"
 
