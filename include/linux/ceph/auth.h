@@ -78,6 +78,8 @@ struct ceph_auth_client {
 	u64 global_id;          /* our unique id in system */
 	const struct ceph_crypto_key *key;     /* our secret key */
 	unsigned want_keys;     /* which services we want */
+
+	struct mutex mutex;
 };
 
 extern struct ceph_auth_client *ceph_auth_init(const char *name,
