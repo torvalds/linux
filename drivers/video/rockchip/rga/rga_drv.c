@@ -77,8 +77,6 @@
 ktime_t rga_start;
 ktime_t rga_end;
 
-int rga_num = 0;
-
 rga_session rga_session_global;
 
 struct rga_drvdata {
@@ -126,11 +124,11 @@ static void print_info(struct rga_req *req)
             req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr, req->src.format);
     printk("src : act_w = %d, act_h = %d, vir_w = %d, vir_h = %d\n",
         req->src.act_w, req->src.act_h, req->src.vir_w, req->src.vir_h);
-    printk("src : x_offset = %.8x y_offset = %.8x\n", req->src.x_offset, req->src.y_offset);
+    printk("src : x_off = %.8x y_off = %.8x\n", req->src.x_offset, req->src.y_offset);
 
     printk("dst : yrgb_addr = %.8x, dst.uv_addr = %.8x, dst.v_addr = %.8x\n",
             req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr);
-    printk("dst : x_offset = %.8x y_offset = %.8x\n", req->dst.x_offset, req->dst.y_offset);
+    printk("dst : x_off = %.8x y_off = %.8x\n", req->dst.x_offset, req->dst.y_offset);
     printk("dst : act_w = %d, act_h = %d, vir_w = %d, vir_h = %d\n",
         req->dst.act_w, req->dst.act_h, req->dst.vir_w, req->dst.vir_h);
 
@@ -350,7 +348,6 @@ static int rga_get_result(rga_session *session, unsigned long arg)
 
 	if (unlikely(copy_to_user((void __user *)arg, &num_done, sizeof(int)))) {
 			printk("copy_to_user failed\n");
-			ERR("copy_to_user failed\n");
 			ret =  -EFAULT;
 		}
 	return ret;
@@ -366,7 +363,7 @@ static int rga_check_param(const struct rga_req *req)
     {
     	if (unlikely((req->src.act_w <= 0) || (req->src.act_w > 8191) || (req->src.act_h <= 0) || (req->src.act_h > 8191)))
         {
-    		ERR("invalid source resolution act_w = %d, act_h = %d\n", req->src.act_w, req->src.act_h);
+    		printk("invalid source resolution act_w = %d, act_h = %d\n", req->src.act_w, req->src.act_h);
     		return  -EINVAL;
     	}
     }
@@ -375,7 +372,7 @@ static int rga_check_param(const struct rga_req *req)
     {
     	if (unlikely((req->src.vir_w <= 0) || (req->src.vir_w > 8191) || (req->src.vir_h <= 0) || (req->src.vir_h > 8191)))
         {
-    		ERR("invalid source resolution vir_w = %d, vir_h = %d\n", req->src.vir_w, req->src.vir_h);
+    		printk("invalid source resolution vir_w = %d, vir_h = %d\n", req->src.vir_w, req->src.vir_h);
     		return  -EINVAL;
     	}
     }
@@ -383,26 +380,29 @@ static int rga_check_param(const struct rga_req *req)
 	//check dst width and height
 	if (unlikely((req->dst.act_w <= 0) || (req->dst.act_w > 2048) || (req->dst.act_h <= 0) || (req->dst.act_h > 2048)))
     {
-		ERR("invalid destination resolution act_w = %d, act_h = %d\n", req->dst.act_w, req->dst.act_h);
+		printk("invalid destination resolution act_w = %d, act_h = %d\n", req->dst.act_w, req->dst.act_h);
 		return	-EINVAL;
 	}
 
     if (unlikely((req->dst.vir_w <= 0) || (req->dst.vir_w > 4096) || (req->dst.vir_h <= 0) || (req->dst.vir_h > 2048)))
     {
-		ERR("invalid destination resolution vir_w = %d, vir_h = %d\n", req->dst.vir_w, req->dst.vir_h);
+		printk("invalid destination resolution vir_w = %d, vir_h = %d\n", req->dst.vir_w, req->dst.vir_h);
 		return	-EINVAL;
 	}
 
 	//check src_vir_w
 	if(unlikely(req->src.vir_w < req->src.act_w)){
-		ERR("invalid src_vir_w act_w = %d, vir_w = %d\n", req->src.act_w, req->src.vir_w);
+		printk("invalid src_vir_w act_w = %d, vir_w = %d\n", req->src.act_w, req->src.vir_w);
 		return	-EINVAL;
 	}
 
 	//check dst_vir_w
 	if(unlikely(req->dst.vir_w < req->dst.act_w)){
-		ERR("invalid dst_vir_w act_h = %d, vir_h = %d\n", req->dst.act_w, req->dst.vir_w);
-		return	-EINVAL;
+        if(req->rotate_mode != 1)
+        {
+		    printk("invalid dst_vir_w act_h = %d, vir_h = %d\n", req->dst.act_w, req->dst.vir_w);
+		    return	-EINVAL;
+        }
 	}
 
 	return 0;
@@ -787,7 +787,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
     sah = req->src.act_h;
     daw = req->dst.act_w;
     dah = req->dst.act_h;
-     
+    
     do
     {
         if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah)))
@@ -849,7 +849,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
         atomic_add(num, &rga_service.total_running);
         rga_try_set_reg();
         mutex_unlock(&rga_service.lock);
-
+        
         return 0;
     }
     while(0);
@@ -1333,6 +1333,7 @@ void rga_test_0(void)
     uint32_t i, j;
     uint8_t *p;
     uint8_t t;
+    uint32_t *dst0, *dst1, *dst2;    
 
     struct fb_info *fb;
 
@@ -1353,10 +1354,10 @@ void rga_test_0(void)
     src = src_buf;
     dst = dst_buf;
 
-    memset(src_buf, 0x80, 1280*480*4);
+    memset(src_buf, 0x55, 800*4*300);
 
-    dmac_flush_range(&src_buf[0], &src_buf[1280*480]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1280*480]));
+    dmac_flush_range(&src_buf[0], &src_buf[800*600]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[800*600]));
 
    
     #if 0
@@ -1367,88 +1368,108 @@ void rga_test_0(void)
     outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
     #endif
 
+    dst0 = &dst_buf[0];
+    dst1 = &dst_buf[800*600*4];
+    dst2 = &dst_buf[800*600*4*2];
+
+    i = j = 0;
+
     printk("\n********************************\n");
     printk("************ RGA_TEST ************\n");
     printk("********************************\n\n");
 
-    req.src.act_w = 1920;
-    req.src.act_h = 1080;
+    while( j < 1000)
+    {
+        req.src.act_w = 800;
+        req.src.act_h = 600;
 
-    req.src.vir_w = 1920;
-    req.src.vir_h = 1080;
-    req.src.yrgb_addr = ((uint32_t)(virt_to_phys(src + 1024)) & 0xfffff000);// & 0xffffffc0;
-    req.src.uv_addr = (uint32_t)(req.src.yrgb_addr + 1080*1920);
-    req.src.v_addr = (uint32_t)virt_to_phys(src);
-    req.src.format = RK_FORMAT_YCbCr_420_SP;
+        req.src.vir_w = 800;
+        req.src.vir_h = 600;
+        req.src.yrgb_addr = (uint32_t)virt_to_phys(src);
+        req.src.uv_addr = (uint32_t)(req.src.yrgb_addr + 1080*1920);
+        req.src.v_addr = (uint32_t)virt_to_phys(src);
+        req.src.format = RK_FORMAT_RGBA_8888;
 
-    req.dst.act_w = 1920;
-    req.dst.act_h = 1080;
+        req.dst.act_w = 800;
+        req.dst.act_h = 600;
 
-    req.dst.vir_w = 1920;
-    req.dst.vir_h = 1080;
-    req.dst.x_offset = 0;
-    req.dst.y_offset = 0;
-    req.dst.yrgb_addr = ((uint32_t)virt_to_phys(dst + 256)) & 0xfffff000;
+        req.dst.vir_w = 800;
+        req.dst.vir_h = 600;
+        req.dst.x_offset = 0;
+        req.dst.y_offset = 0;
 
-    //req.dst.format = RK_FORMAT_RGB_565;
+        if((i&3) == 0)            
+            dst = dst0;            
+        else if ((i&3) == 1)
+            dst = dst1;
+        else
+            dst = dst2;
 
-    req.clip.xmin = 0;
-    req.clip.xmax = 1919;
-    req.clip.ymin = 0;
-    req.clip.ymax = 1079;
+        req.dst.yrgb_addr = ((uint32_t)virt_to_phys(dst));
 
-    //req.render_mode = color_fill_mode;
-    //req.fg_color = 0x80ffffff;
+        //req.dst.format = RK_FORMAT_RGB_565;
 
-    //req.rotate_mode = 1;
-    //req.scale_mode = 2;
+        req.clip.xmin = 0;
+        req.clip.xmax = 799;
+        req.clip.ymin = 0;
+        req.clip.ymax = 599;
 
-    //req.alpha_rop_flag = 1;
-    //req.alpha_rop_mode = 0x19;
-    req.PD_mode = 3;
+        //req.render_mode = color_fill_mode;
+        //req.fg_color = 0x80ffffff;
 
-    req.sina = 0;
-    req.cosa = 65536;
+        //req.rotate_mode = 1;
+        //req.scale_mode = 2;
 
-    //req.mmu_info.mmu_flag = 0x21;
-    //req.mmu_info.mmu_en = 1;
+        //req.alpha_rop_flag = 0;
+        //req.alpha_rop_mode = 0x19;
+        //req.PD_mode = 3;
 
-    printk("src = %.8x\n", req.src.yrgb_addr);
-    printk("src = %.8x\n", req.src.uv_addr);
-    printk("dst = %.8x\n", req.dst.yrgb_addr);
+        //req.sina = 0;
+        //req.cosa = 65536;
 
-    rga_blit_sync(&session, &req);
-    
-    #if 0
-    fb->var.bits_per_pixel = 32;
-    
-    fb->var.xres = 1280;
-    fb->var.yres = 800;
+        //req.mmu_info.mmu_flag = 0x21;
+        //req.mmu_info.mmu_en = 1;
 
-    fb->var.red.length = 8;
-    fb->var.red.offset = 0;
-    fb->var.red.msb_right = 0;
+        printk("src = %.8x\n", req.src.yrgb_addr);
+        printk("src = %.8x\n", req.src.uv_addr);
+        printk("dst = %.8x\n", req.dst.yrgb_addr);
 
-    fb->var.green.length = 8;
-    fb->var.green.offset = 8;
-    fb->var.green.msb_right = 0;
+        rga_blit_sync(&session, &req);
+        
+        #if 1
+        fb->var.bits_per_pixel = 32;
+        
+        fb->var.xres = 800;
+        fb->var.yres = 600;
 
-    fb->var.blue.length = 8;
+        fb->var.red.length = 8;
+        fb->var.red.offset = 0;
+        fb->var.red.msb_right = 0;
 
-    fb->var.blue.offset = 16;
-    fb->var.blue.msb_right = 0;
+        fb->var.green.length = 8;
+        fb->var.green.offset = 8;
+        fb->var.green.msb_right = 0;
 
-    fb->var.transp.length = 8;
-    fb->var.transp.offset = 24;
-    fb->var.transp.msb_right = 0;
+        fb->var.blue.length = 8;
 
-    fb->var.nonstd &= (~0xff);
-    fb->var.nonstd |= 1;
+        fb->var.blue.offset = 16;
+        fb->var.blue.msb_right = 0;
 
-    fb->fix.smem_start = virt_to_phys(dst);
+        fb->var.transp.length = 8;
+        fb->var.transp.offset = 24;
+        fb->var.transp.msb_right = 0;
 
-    rk_direct_fb_show(fb);
-    #endif
+        fb->var.nonstd &= (~0xff);
+        fb->var.nonstd |= 1;
+
+        fb->fix.smem_start = virt_to_phys(dst);
+
+        rk_direct_fb_show(fb);
+
+        i++;
+        j++;
+        #endif
+    }
 
 }
 
