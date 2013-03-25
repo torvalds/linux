@@ -918,9 +918,11 @@ lowpan_process_data(struct sk_buff *skb)
 	}
 
 	/* UDP data uncompression */
-	if (iphc0 & LOWPAN_IPHC_NH_C)
+	if (iphc0 & LOWPAN_IPHC_NH_C) {
 		if (lowpan_uncompress_udp_header(skb))
 			goto drop;
+		hdr.nexthdr = UIP_PROTO_UDP;
+	}
 
 	/* Not fragmented package */
 	hdr.payload_len = htons(skb->len);
