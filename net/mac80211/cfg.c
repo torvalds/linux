@@ -805,8 +805,7 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 					IEEE80211_CHANCTX_EXCLUSIVE);
 		}
 	} else if (local->open_count == local->monitors) {
-		local->_oper_channel = chandef->chan;
-		local->_oper_channel_type = cfg80211_get_chandef_type(chandef);
+		local->_oper_chandef = *chandef;
 		ieee80211_hw_config(local, 0);
 	}
 
@@ -3373,9 +3372,7 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 		if (local->use_chanctx)
 			*chandef = local->monitor_chandef;
 		else
-			cfg80211_chandef_create(chandef,
-						local->_oper_channel,
-						local->_oper_channel_type);
+			*chandef = local->_oper_chandef;
 		ret = 0;
 	}
 	rcu_read_unlock();

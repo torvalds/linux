@@ -384,7 +384,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 {
 	int i;
 	struct ieee80211_sub_if_data *sdata;
-	enum ieee80211_band band = local->hw.conf.channel->band;
+	enum ieee80211_band band = local->hw.conf.chandef.chan->band;
 	u32 tx_flags;
 
 	tx_flags = IEEE80211_TX_INTFL_OFFCHAN_TX_OK;
@@ -401,7 +401,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 			local->scan_req->ssids[i].ssid_len,
 			local->scan_req->ie, local->scan_req->ie_len,
 			local->scan_req->rates[band], false,
-			tx_flags, local->hw.conf.channel, true);
+			tx_flags, local->hw.conf.chandef.chan, true);
 
 	/*
 	 * After sending probe requests, wait for probe responses
@@ -467,7 +467,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->ops->hw_scan) {
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
 	} else if ((req->n_channels == 1) &&
-		   (req->channels[0] == local->_oper_channel)) {
+		   (req->channels[0] == local->_oper_chandef.chan)) {
 		/*
 		 * If we are scanning only on the operating channel
 		 * then we do not need to stop normal activities

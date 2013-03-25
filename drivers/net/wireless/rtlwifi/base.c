@@ -691,7 +691,7 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
 	int rate_idx;
 
 	if (false == isht) {
-		if (IEEE80211_BAND_2GHZ == hw->conf.channel->band) {
+		if (IEEE80211_BAND_2GHZ == hw->conf.chandef.chan->band) {
 			switch (desc_rate) {
 			case DESC92_RATE1M:
 				rate_idx = 0;
@@ -1365,7 +1365,7 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
 
 		info->control.rates[0].idx = 0;
-		info->band = hw->conf.channel->band;
+		info->band = hw->conf.chandef.chan->band;
 		rtlpriv->intf_ops->adapter_tx(hw, sta, skb, &tcb_desc);
 	}
 err_free:

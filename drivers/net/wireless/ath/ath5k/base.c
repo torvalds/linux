@@ -2639,7 +2639,7 @@ int ath5k_start(struct ieee80211_hw *hw)
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
 	 */
-	ah->curchan = ah->hw->conf.channel;
+	ah->curchan = ah->hw->conf.chandef.chan;
 	ah->imask = AR5K_INT_RXOK
 		| AR5K_INT_RXERR
 		| AR5K_INT_RXEOL

@@ -2171,8 +2171,7 @@ void ieee80211_dfs_radar_detected_work(struct work_struct *work)
 		/* currently not handled */
 		WARN_ON(1);
 	else {
-		cfg80211_chandef_create(&chandef, local->hw.conf.channel,
-					local->hw.conf.channel_type);
+		chandef = local->hw.conf.chandef;
 		cfg80211_radar_event(local->hw.wiphy, &chandef, GFP_KERNEL);
 	}
 }

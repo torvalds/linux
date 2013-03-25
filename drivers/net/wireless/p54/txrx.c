@@ -354,13 +354,13 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 	rx_status->signal = p54_rssi_to_dbm(priv, hdr->rssi);
 	if (hdr->rate & 0x10)
 		rx_status->flag |= RX_FLAG_SHORTPRE;
-	if (priv->hw->conf.channel->band == IEEE80211_BAND_5GHZ)
+	if (priv->hw->conf.chandef.chan->band == IEEE80211_BAND_5GHZ)
 		rx_status->rate_idx = (rate < 4) ? 0 : rate - 4;
 	else
 		rx_status->rate_idx = rate;
 
 	rx_status->freq = freq;
-	rx_status->band =  priv->hw->conf.channel->band;
+	rx_status->band =  priv->hw->conf.chandef.chan->band;
 	rx_status->antenna = hdr->antenna;
 
 	tsf32 = le32_to_cpu(hdr->tsf32);

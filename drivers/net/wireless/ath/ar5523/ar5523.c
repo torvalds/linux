@@ -457,14 +457,14 @@ static int ar5523_set_chan(struct ar5523 *ar)
 	memset(&reset, 0, sizeof(reset));
 	reset.flags |= cpu_to_be32(UATH_CHAN_2GHZ);
 	reset.flags |= cpu_to_be32(UATH_CHAN_OFDM);
-	reset.freq = cpu_to_be32(conf->channel->center_freq);
+	reset.freq = cpu_to_be32(conf->chandef.chan->center_freq);
 	reset.maxrdpower = cpu_to_be32(50);	/* XXX */
 	reset.channelchange = cpu_to_be32(1);
 	reset.keeprccontent = cpu_to_be32(0);
 
 	ar5523_dbg(ar, "set chan flags 0x%x freq %d\n",
 		   be32_to_cpu(reset.flags),
-		   conf->channel->center_freq);
+		   conf->chandef.chan->center_freq);
 	return ar5523_cmd_write(ar, WDCMSG_RESET, &reset, sizeof(reset), 0);
 }
 
@@ -594,7 +594,7 @@ static void ar5523_data_rx_cb(struct urb *urb)
 	rx_status = IEEE80211_SKB_RXCB(data->skb);
 	memset(rx_status, 0, sizeof(*rx_status));
 	rx_status->freq = be32_to_cpu(desc->channel);
-	rx_status->band = hw->conf.channel->band;
+	rx_status->band = hw->conf.chandef.chan->band;
 	rx_status->signal = -95 + be32_to_cpu(desc->rssi);
 
 	ieee80211_rx_irqsafe(hw, data->skb);
@@ -1153,13 +1153,13 @@ static int ar5523_get_wlan_mode(struct ar5523 *ar,
 	struct ieee80211_sta *sta;
 	u32 sta_rate_set;
 
-	band = ar->hw->wiphy->bands[ar->hw->conf.channel->band];
+	band = ar->hw->wiphy->bands[ar->hw->conf.chandef.chan->band];
 	sta = ieee80211_find_sta(ar->vif, bss_conf->bssid);
 	if (!sta) {
 		ar5523_info(ar, "STA not found!\n");
 		return WLAN_MODE_11b;
 	}
-	sta_rate_set = sta->supp_rates[ar->hw->conf.channel->band];
+	sta_rate_set = sta->supp_rates[ar->hw->conf.chandef.chan->band];
 
 	for (bit = 0; bit < band->n_bitrates; bit++) {
 		if (sta_rate_set & 1) {
@@ -1197,11 +1197,11 @@ static void ar5523_create_rateset(struct ar5523 *ar,
 		ar5523_info(ar, "STA not found. Cannot set rates\n");
 		sta_rate_set = bss_conf->basic_rates;
 	} else
-		sta_rate_set = sta->supp_rates[ar->hw->conf.channel->band];
+		sta_rate_set = sta->supp_rates[ar->hw->conf.chandef.chan->band];
 
 	ar5523_dbg(ar, "sta rate_set = %08x\n", sta_rate_set);
 
-	band = ar->hw->wiphy->bands[ar->hw->conf.channel->band];
+	band = ar->hw->wiphy->bands[ar->hw->conf.chandef.chan->band];
 	for (bit = 0; bit < band->n_bitrates; bit++) {
 		BUG_ON(i >= AR5523_MAX_NRATES);
 		ar5523_dbg(ar, "Considering rate %d : %d\n",

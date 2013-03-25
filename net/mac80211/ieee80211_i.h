@@ -1021,8 +1021,7 @@ struct ieee80211_local {
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
 	struct ieee80211_channel *csa_channel;
 	/* For backward compatibility only -- do not use */
-	struct ieee80211_channel *_oper_channel;
-	enum nl80211_channel_type _oper_channel_type;
+	struct cfg80211_chan_def _oper_chandef;
 
 	/* Temporary remain-on-channel for off-channel operations */
 	struct ieee80211_channel *tmp_channel;

@@ -1709,7 +1709,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	if (chanctx_conf)
 		chan = chanctx_conf->def.chan;
 	else if (!local->use_chanctx)
-		chan = local->_oper_channel;
+		chan = local->_oper_chandef.chan;
 	else
 		goto fail_rcu;
 
@@ -1843,7 +1843,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		 * This is the exception! WDS style interfaces are prohibited
 		 * when channel contexts are in used so this must be valid
 		 */
-		band = local->hw.conf.channel->band;
+		band = local->hw.conf.chandef.chan->band;
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:

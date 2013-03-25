@@ -974,8 +974,7 @@ enum ieee80211_smps_mode {
  * @power_level: requested transmit power (in dBm), backward compatibility
  *	value only that is set to the minimum of all interfaces
  *
- * @channel: the channel to tune to
- * @channel_type: the channel (HT) type
+ * @chandef: the channel definition to tune to
  * @radar_enabled: whether radar detection is enabled
  *
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
@@ -1001,8 +1000,7 @@ struct ieee80211_conf {
 
 	u8 long_frame_max_tx_count, short_frame_max_tx_count;
 
-	struct ieee80211_channel *channel;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
 	bool radar_enabled;
 	enum ieee80211_smps_mode smps_mode;
 };
@@ -4216,31 +4214,33 @@ void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
 static inline bool
 conf_is_ht20(struct ieee80211_conf *conf)
 {
-	return conf->channel_type == NL80211_CHAN_HT20;
+	return conf->chandef.width == NL80211_CHAN_WIDTH_20;
 }
 
 static inline bool
 conf_is_ht40_minus(struct ieee80211_conf *conf)
 {
-	return conf->channel_type == NL80211_CHAN_HT40MINUS;
+	return conf->chandef.width == NL80211_CHAN_WIDTH_40 &&
+	       conf->chandef.center_freq1 < conf->chandef.chan->center_freq;
 }
 
 static inline bool
 conf_is_ht40_plus(struct ieee80211_conf *conf)
 {
-	return conf->channel_type == NL80211_CHAN_HT40PLUS;
+	return conf->chandef.width == NL80211_CHAN_WIDTH_40 &&
+	       conf->chandef.center_freq1 > conf->chandef.chan->center_freq;
 }
 
 static inline bool
 conf_is_ht40(struct ieee80211_conf *conf)
 {
-	return conf_is_ht40_minus(conf) || conf_is_ht40_plus(conf);
+	return conf->chandef.width == NL80211_CHAN_WIDTH_40;
 }
 
 static inline bool
 conf_is_ht(struct ieee80211_conf *conf)
 {
-	return conf->channel_type != NL80211_CHAN_NO_HT;
+	return conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT;
 }
 
 static inline enum nl80211_iftype

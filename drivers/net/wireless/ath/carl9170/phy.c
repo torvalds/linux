@@ -1331,7 +1331,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 	 * CTL_ETSI for 2GHz and CTL_FCC for 5GHz.
 	 */
 	ctl_grp = ath_regd_get_band_ctl(&ar->common.regulatory,
-					ar->hw->conf.channel->band);
+					ar->hw->conf.chandef.chan->band);
 
 	/* ctl group not found - either invalid band (NO_CTL) or ww roaming */
 	if (ctl_grp == NO_CTL || ctl_grp == SD_NO_CTL)
@@ -1341,7 +1341,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 		/* skip CTL and heavy clip for CTL_MKK and CTL_ETSI */
 		return;
 
-	if (ar->hw->conf.channel->band == IEEE80211_BAND_2GHZ) {
+	if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ) {
 		modes = mode_list_2ghz;
 		nr_modes = ARRAY_SIZE(mode_list_2ghz);
 	} else {

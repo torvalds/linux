@@ -988,6 +988,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data, u.mgd.chswitch_work);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	if (!ieee80211_sdata_running(sdata))
@@ -997,21 +998,30 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	if (!ifmgd->associated)
 		goto out;
 
-	sdata->local->_oper_channel = sdata->local->csa_channel;
-	if (!sdata->local->ops->channel_switch) {
+	/*
+	 * FIXME: Here we are downgrading to NL80211_CHAN_WIDTH_20_NOHT
+	 * and don't adjust our ht/vht settings
+	 * This is wrong - we should behave according to the CSA params
+	 */
+	local->_oper_chandef.chan = local->csa_channel;
+	local->_oper_chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+	local->_oper_chandef.center_freq1 =
+		local->_oper_chandef.chan->center_freq;
+	local->_oper_chandef.center_freq2 = 0;
+
+	if (!local->ops->channel_switch) {
 		/* call "hw_config" only if doing sw channel switch */
-		ieee80211_hw_config(sdata->local,
-			IEEE80211_CONF_CHANGE_CHANNEL);
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 	} else {
 		/* update the device channel directly */
-		sdata->local->hw.conf.channel = sdata->local->_oper_channel;
+		local->hw.conf.chandef = local->_oper_chandef;
 	}
 
 	/* XXX: shouldn't really modify cfg80211-owned data! */
-	ifmgd->associated->channel = sdata->local->_oper_channel;
+	ifmgd->associated->channel = local->_oper_chandef.chan;
 
 	/* XXX: wait for a beacon first? */
-	ieee80211_wake_queues_by_reason(&sdata->local->hw,
+	ieee80211_wake_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
  out:
