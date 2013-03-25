@@ -247,7 +247,7 @@ static void __init mxs_timer_init(struct device_node *np)
 	struct clk *timer_clk;
 	int irq;
 
-	timer_clk = clk_get_sys("timrot", NULL);
+	timer_clk = of_clk_get(np, 0);
 	if (IS_ERR(timer_clk)) {
 		pr_err("%s: failed to get clk\n", __func__);
 		return;

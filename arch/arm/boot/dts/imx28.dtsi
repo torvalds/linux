@@ -838,6 +838,7 @@
 				compatible = "fsl,imx28-timrot", "fsl,timrot";
 				reg = <0x80068000 0x2000>;
 				interrupts = <48 49 50 51>;
+				clocks = <&clks 26>;
 			};
 
 			auart0: serial@8006a000 {

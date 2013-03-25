@@ -426,6 +426,7 @@
 				compatible = "fsl,imx23-timrot", "fsl,timrot";
 				reg = <0x80068000 0x2000>;
 				interrupts = <28 29 30 31>;
+				clocks = <&clks 28>;
 			};
 
 			auart0: serial@8006c000 {

@@ -159,8 +159,6 @@ int __init mx23_clocks_init(void)
 		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 	}
 
-	clk_register_clkdev(clks[clk32k], NULL, "timrot");
-
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
 
