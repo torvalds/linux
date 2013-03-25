@@ -350,9 +350,11 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 
 	for (i = 0; i < pd->nr_chips; i++) {
 		port_index = 0;
-		while (pd->chip[i].port_names &&
-			pd->chip[i].port_names[++port_index])
-			kfree(pd->chip[i].port_names[port_index]);
+		while (port_index < DSA_MAX_PORTS) {
+			if (pd->chip[i].port_names[port_index])
+				kfree(pd->chip[i].port_names[port_index]);
+			port_index++;
+		}
 		kfree(pd->chip[i].rtable);
 	}
 	kfree(pd->chip);
