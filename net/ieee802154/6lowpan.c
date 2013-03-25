@@ -572,21 +572,28 @@ static int lowpan_header_create(struct sk_buff *skb,
 	 * this isn't implemented in mainline yet, so currently we assign 0xff
 	 */
 	{
+		mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA;
+
 		/* prepare wpan address data */
 		sa.addr_type = IEEE802154_ADDR_LONG;
 		sa.pan_id = 0xff;
-
-		da.addr_type = IEEE802154_ADDR_LONG;
-		da.pan_id = 0xff;
-
-		memcpy(&(da.hwaddr), daddr, 8);
 		memcpy(&(sa.hwaddr), saddr, 8);
 
-		mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA;
+		da.pan_id = 0xff;
+		/*
+		 * if the destination address is the broadcast address, use the
+		 * corresponding short address
+		 */
+		if (lowpan_is_addr_broadcast(daddr)) {
+			da.addr_type = IEEE802154_ADDR_SHORT;
+			da.short_addr = IEEE802154_ADDR_BROADCAST;
+		} else {
+			da.addr_type = IEEE802154_ADDR_LONG;
+			memcpy(&(da.hwaddr), daddr, 8);
 
-		/* request acknowledgment when possible */
-		if (!lowpan_is_addr_broadcast(daddr))
+			/* request acknowledgment */
 			mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
+		}
 
 		return dev_hard_header(skb, lowpan_dev_info(dev)->real_dev,
 				type, (void *)&da, (void *)&sa, skb->len);
