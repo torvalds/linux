@@ -38,6 +38,7 @@ static inline void arch_idle(void)
 
 /* BROM access only possible after iomap()s */
 u32 sunxi_chip_id(void);
+int sunxi_pr_chip_id(void);
 int sunxi_pr_brom(void);
 
 enum sw_ic_ver {

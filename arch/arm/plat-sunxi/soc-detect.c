@@ -74,10 +74,20 @@ u32 sunxi_chip_id(void)
 	return 0;
 }
 
-static inline void _pr_ic_ver(enum sw_ic_ver ver)
+int sunxi_pr_chip_id(void)
 {
+	u32 chip_id = sunxi_chip_id();
+	enum sw_ic_ver ver = sw_get_ic_ver();
+	const char *soc_family = NULL;
 	const char *name = NULL;
 	int rev;
+
+	if (machine_is_sun4i())
+		soc_family = "sun4i";
+	else if (machine_is_sun5i())
+		soc_family = "sun5i";
+	else
+		soc_family = "sunNi?";
 
 	switch (ver) {
 	/* sun4i */
@@ -103,12 +113,14 @@ static inline void _pr_ic_ver(enum sw_ic_ver ver)
 		name = "A10S";
 		rev = ver - SUNXI_VER_A10SA;
 		break;
-	case SUNXI_VER_UNKNOWN:
-		return;
+	default:
+		break;
 	}
 
-	pr_info("Allwinner %s revision %c detected.\n",
-		name, 'A' + rev);
+	pr_info("Allwinner %s revision %c (AW%u, %s) detected.\n",
+		name?name:"A??", 'A' + rev, chip_id, soc_family);
+
+	return name?1:0;
 }
 
 enum sw_ic_ver sw_get_ic_ver(void)
@@ -177,7 +189,6 @@ unknown_chip:
 unknown:
 	ver = SUNXI_VER_UNKNOWN;
 done:
-	_pr_ic_ver(ver);
 	return ver;
 }
 EXPORT_SYMBOL(sw_get_ic_ver);
