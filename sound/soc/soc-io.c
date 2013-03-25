@@ -158,10 +158,7 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 		return -EINVAL;
 	}
 
-	if (IS_ERR(codec->control_data))
-		return PTR_ERR(codec->control_data);
-
-	return 0;
+	return PTR_RET(codec->control_data);
 }
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_cache_io);
 #else
