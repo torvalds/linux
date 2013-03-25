@@ -1,7 +1,9 @@
 TI SOC EHRPWM based PWM controller
 
 Required properties:
-- compatible : Must be "ti,am33xx-ehrpwm"
+- compatible: Must be "ti,<soc>-ehrpwm".
+  for am33xx - compatible = "ti,am33xx-ehrpwm";
+  for da850  - compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
 - #pwm-cells: Should be 3. Number of cells being used to specify PWM property.
   First cell specifies the per-chip index of the PWM to use, the second
   cell is the period in nanoseconds and bit 0 in the third cell is used to
@@ -15,9 +17,15 @@ Optional properties:
 
 Example:
 
-ehrpwm0: ehrpwm@0 {
+ehrpwm0: ehrpwm@0 { /* EHRPWM on am33xx */
 	compatible = "ti,am33xx-ehrpwm";
 	#pwm-cells = <3>;
 	reg = <0x48300200 0x100>;
 	ti,hwmods = "ehrpwm0";
+};
+
+ehrpwm0: ehrpwm@0 { /* EHRPWM on da850 */
+	compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+	#pwm-cells = <3>;
+	reg = <0x300000 0x2000>;
 };
