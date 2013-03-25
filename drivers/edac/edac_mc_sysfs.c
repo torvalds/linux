@@ -87,7 +87,7 @@ static struct device *mci_pdev;
 /*
  * various constants for Memory Controllers
  */
-static const char *mem_types[] = {
+static const char * const mem_types[] = {
 	[MEM_EMPTY] = "Empty",
 	[MEM_RESERVED] = "Reserved",
 	[MEM_UNKNOWN] = "Unknown",
@@ -107,7 +107,7 @@ static const char *mem_types[] = {
 	[MEM_RDDR3] = "Registered-DDR3"
 };
 
-static const char *dev_types[] = {
+static const char * const dev_types[] = {
 	[DEV_UNKNOWN] = "Unknown",
 	[DEV_X1] = "x1",
 	[DEV_X2] = "x2",
@@ -118,7 +118,7 @@ static const char *dev_types[] = {
 	[DEV_X64] = "x64"
 };
 
-static const char *edac_caps[] = {
+static const char * const edac_caps[] = {
 	[EDAC_UNKNOWN] = "Unknown",
 	[EDAC_NONE] = "None",
 	[EDAC_RESERVED] = "Reserved",
