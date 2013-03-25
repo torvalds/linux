@@ -742,8 +742,10 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
 				 "BSS_CHANGED_ASSOC\n");
 		} else {
-			if (mac->link_state == MAC80211_LINKED)
-				schedule_work(&rtlpriv->works.lps_leave_work);
+			if (mac->link_state == MAC80211_LINKED) {
+				rtlpriv->enter_ps = false;
+				schedule_work(&rtlpriv->works.lps_change_work);
+			}
 
 			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_NONE)
 				rtl_p2p_ps_cmd(hw, P2P_PS_DISABLE);
@@ -1018,7 +1020,8 @@ static void rtl_op_sw_scan_start(struct ieee80211_hw *hw)
 			rtlpriv->cfg->ops->chk_switch_dmdp(hw);
 	}
 	if (mac->link_state == MAC80211_LINKED) {
-		schedule_work(&rtlpriv->works.lps_leave_work);
+		rtlpriv->enter_ps = false;
+		schedule_work(&rtlpriv->works.lps_change_work);
 		mac->link_state = MAC80211_LINKED_SCANNING;
 	} else {
 		rtl_ips_nic_on(hw);

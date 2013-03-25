@@ -1088,8 +1088,9 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 					 is_tx ? "Tx" : "Rx");
 
 				if (is_tx) {
+					rtlpriv->enter_ps = false;
 					schedule_work(&rtlpriv->
-						      works.lps_leave_work);
+						      works.lps_change_work);
 					ppsc->last_delaylps_stamp_jiffies =
 					    jiffies;
 				}
@@ -1099,7 +1100,8 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 		}
 	} else if (ETH_P_ARP == ether_type) {
 		if (is_tx) {
-			schedule_work(&rtlpriv->works.lps_leave_work);
+			rtlpriv->enter_ps = false;
+			schedule_work(&rtlpriv->works.lps_change_work);
 			ppsc->last_delaylps_stamp_jiffies = jiffies;
 		}
 
@@ -1109,7 +1111,8 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 			 "802.1X %s EAPOL pkt!!\n", is_tx ? "Tx" : "Rx");
 
 		if (is_tx) {
-			schedule_work(&rtlpriv->works.lps_leave_work);
+			rtlpriv->enter_ps = false;
+			schedule_work(&rtlpriv->works.lps_change_work);
 			ppsc->last_delaylps_stamp_jiffies = jiffies;
 		}
 
@@ -1318,7 +1321,6 @@ void rtl_watchdog_wq_callback(void *data)
 	u32 aver_tx_cnt_inperiod = 0;
 	u32 aver_tidtx_inperiod[MAX_TID_COUNT] = {0};
 	u32 tidtx_inp4eriod[MAX_TID_COUNT] = {0};
-	bool enter_ps = false;
 
 	if (is_hal_stop(rtlhal))
 		return;
@@ -1400,15 +1402,12 @@ void rtl_watchdog_wq_callback(void *data)
 		if (((rtlpriv->link_info.num_rx_inperiod +
 		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
 		    (rtlpriv->link_info.num_rx_inperiod > 2))
-			enter_ps = false;
+			rtlpriv->enter_ps = true;
 		else
-			enter_ps = true;
+			rtlpriv->enter_ps = false;
 
 		/* LeisurePS only work in infra mode. */
-		if (enter_ps)
-			rtl_lps_enter(hw);
-		else
-			schedule_work(&rtlpriv->works.lps_leave_work);
+		schedule_work(&rtlpriv->works.lps_change_work);
 	}
 
 	rtlpriv->link_info.num_rx_inperiod = 0;

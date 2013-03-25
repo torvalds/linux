@@ -1796,7 +1796,7 @@ struct rtl_works {
 	struct delayed_work ps_rfon_wq;
 	struct delayed_work fwevt_wq;
 
-	struct work_struct lps_leave_work;
+	struct work_struct lps_change_work;
 };
 
 struct rtl_debug {
@@ -1966,6 +1966,7 @@ struct rtl_priv {
 			bool bt_operation_on;
 		};
 	};
+	bool enter_ps;	/* true when entering PS */
 
 	/*This must be the last item so
 	   that it points to the data allocated
