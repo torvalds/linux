@@ -286,7 +286,8 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.sie_block->gpsw.mask =
 		(new_psw.mask & ~PSW32_MASK_BASE) << 32;
-	vcpu->arch.sie_block->gpsw.addr = new_psw.addr;
+	vcpu->arch.sie_block->gpsw.mask |= new_psw.addr & PSW32_ADDR_AMODE;
+	vcpu->arch.sie_block->gpsw.addr = new_psw.addr & ~PSW32_ADDR_AMODE;
 
 	if ((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_UNASSIGNED) ||
 	    (!(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_ADDR_MODE) &&
