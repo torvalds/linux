@@ -977,7 +977,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n)
 	struct tcmsg *tcm = nlmsg_data(n);
 	struct nlattr *tca[TCA_MAX + 1];
 	struct net_device *dev;
-	u32 clid = tcm->tcm_parent;
+	u32 clid;
 	struct Qdisc *q = NULL;
 	struct Qdisc *p = NULL;
 	int err;
@@ -985,14 +985,15 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n)
 	if ((n->nlmsg_type != RTM_GETQDISC) && !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
-	if (!dev)
-		return -ENODEV;
-
 	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, NULL);
 	if (err < 0)
 		return err;
 
+	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
+	if (!dev)
+		return -ENODEV;
+
+	clid = tcm->tcm_parent;
 	if (clid) {
 		if (clid != TC_H_ROOT) {
 			if (TC_H_MAJ(clid) != TC_H_MAJ(TC_H_INGRESS)) {
@@ -1053,6 +1054,10 @@ static int tc_modify_qdisc(struct sk_buff *skb, struct nlmsghdr *n)
 
 replay:
 	/* Reinit, just in case something touches this. */
+	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, NULL);
+	if (err < 0)
+		return err;
+
 	tcm = nlmsg_data(n);
 	clid = tcm->tcm_parent;
 	q = p = NULL;
@@ -1061,9 +1066,6 @@ replay:
 	if (!dev)
 		return -ENODEV;
 
-	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, NULL);
-	if (err < 0)
-		return err;
 
 	if (clid) {
 		if (clid != TC_H_ROOT) {
@@ -1382,21 +1384,21 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n)
 	const struct Qdisc_class_ops *cops;
 	unsigned long cl = 0;
 	unsigned long new_cl;
-	u32 portid = tcm->tcm_parent;
-	u32 clid = tcm->tcm_handle;
-	u32 qid = TC_H_MAJ(clid);
+	u32 portid;
+	u32 clid;
+	u32 qid;
 	int err;
 
 	if ((n->nlmsg_type != RTM_GETTCLASS) && !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
-	if (!dev)
-		return -ENODEV;
-
 	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, NULL);
 	if (err < 0)
 		return err;
+
+	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
+	if (!dev)
+		return -ENODEV;
 
 	/*
 	   parent == TC_H_UNSPEC - unspecified parent.
@@ -1412,6 +1414,10 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n)
 	 */
 
 	/* Step 1. Determine qdisc handle X:0 */
+
+	portid = tcm->tcm_parent;
+	clid = tcm->tcm_handle;
+	qid = TC_H_MAJ(clid);
 
 	if (portid != TC_H_ROOT) {
 		u32 qid1 = TC_H_MAJ(portid);

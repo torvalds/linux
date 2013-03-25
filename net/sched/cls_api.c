@@ -141,7 +141,12 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
 
 	if ((n->nlmsg_type != RTM_GETTFILTER) && !capable(CAP_NET_ADMIN))
 		return -EPERM;
+
 replay:
+	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL);
+	if (err < 0)
+		return err;
+
 	t = nlmsg_data(n);
 	protocol = TC_H_MIN(t->tcm_info);
 	prio = TC_H_MAJ(t->tcm_info);
@@ -163,10 +168,6 @@ replay:
 	dev = __dev_get_by_index(net, t->tcm_ifindex);
 	if (dev == NULL)
 		return -ENODEV;
-
-	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL);
-	if (err < 0)
-		return err;
 
 	/* Find qdisc */
 	if (!parent) {
