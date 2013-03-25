@@ -82,7 +82,7 @@ static void __iomem *imx3_ioremap_caller(unsigned long phys_addr, size_t size,
 	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
 }
 
-void __init imx3_init_l2x0(void)
+static void __init imx3_init_l2x0(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	void __iomem *l2x0_base;
