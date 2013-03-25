@@ -573,6 +573,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 	 */
 	{
 		mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA;
+		mac_cb(skb)->seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
 
 		/* prepare wpan address data */
 		sa.addr_type = IEEE802154_ADDR_LONG;
@@ -1127,6 +1128,12 @@ static u16 lowpan_get_short_addr(const struct net_device *dev)
 	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);
 }
 
+static u8 lowpan_get_dsn(const struct net_device *dev)
+{
+	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	return ieee802154_mlme_ops(real_dev)->get_dsn(real_dev);
+}
+
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
@@ -1140,6 +1147,7 @@ static struct ieee802154_mlme_ops lowpan_mlme = {
 	.get_pan_id = lowpan_get_pan_id,
 	.get_phy = lowpan_get_phy,
 	.get_short_addr = lowpan_get_short_addr,
+	.get_dsn = lowpan_get_dsn,
 };
 
 static void lowpan_setup(struct net_device *dev)
