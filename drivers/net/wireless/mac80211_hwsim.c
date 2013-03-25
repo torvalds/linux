@@ -2310,9 +2310,6 @@ static int __init init_mac80211_hwsim(void)
 
 			hw->wiphy->bands[band] = sband;
 
-			if (channels == 1)
-				continue;
-
 			sband->vht_cap.vht_supported = true;
 			sband->vht_cap.cap =
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
