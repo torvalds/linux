@@ -1304,6 +1304,250 @@ sigill:
 	force_sig(SIGILL, current);
 }
 
+static void emulate_load_store_MIPS16e(struct pt_regs *regs, void __user * addr)
+{
+	unsigned long value;
+	unsigned int res;
+	int reg;
+	unsigned long orig31;
+	u16 __user *pc16;
+	unsigned long origpc;
+	union mips16e_instruction mips16inst, oldinst;
+
+	origpc = regs->cp0_epc;
+	orig31 = regs->regs[31];
+	pc16 = (unsigned short __user *)msk_isa16_mode(origpc);
+	/*
+	 * This load never faults.
+	 */
+	__get_user(mips16inst.full, pc16);
+	oldinst = mips16inst;
+
+	/* skip EXTEND instruction */
+	if (mips16inst.ri.opcode == MIPS16e_extend_op) {
+		pc16++;
+		__get_user(mips16inst.full, pc16);
+	} else if (delay_slot(regs)) {
+		/*  skip jump instructions */
+		/*  JAL/JALX are 32 bits but have OPCODE in first short int */
+		if (mips16inst.ri.opcode == MIPS16e_jal_op)
+			pc16++;
+		pc16++;
+		if (get_user(mips16inst.full, pc16))
+			goto sigbus;
+	}
+
+	switch (mips16inst.ri.opcode) {
+	case MIPS16e_i64_op:	/* I64 or RI64 instruction */
+		switch (mips16inst.i64.func) {	/* I64/RI64 func field check */
+		case MIPS16e_ldpc_func:
+		case MIPS16e_ldsp_func:
+			reg = reg16to32[mips16inst.ri64.ry];
+			goto loadDW;
+
+		case MIPS16e_sdsp_func:
+			reg = reg16to32[mips16inst.ri64.ry];
+			goto writeDW;
+
+		case MIPS16e_sdrasp_func:
+			reg = 29;	/* GPRSP */
+			goto writeDW;
+		}
+
+		goto sigbus;
+
+	case MIPS16e_swsp_op:
+	case MIPS16e_lwpc_op:
+	case MIPS16e_lwsp_op:
+		reg = reg16to32[mips16inst.ri.rx];
+		break;
+
+	case MIPS16e_i8_op:
+		if (mips16inst.i8.func != MIPS16e_swrasp_func)
+			goto sigbus;
+		reg = 29;	/* GPRSP */
+		break;
+
+	default:
+		reg = reg16to32[mips16inst.rri.ry];
+		break;
+	}
+
+	switch (mips16inst.ri.opcode) {
+
+	case MIPS16e_lb_op:
+	case MIPS16e_lbu_op:
+	case MIPS16e_sb_op:
+		goto sigbus;
+
+	case MIPS16e_lh_op:
+		if (!access_ok(VERIFY_READ, addr, 2))
+			goto sigbus;
+
+		LoadHW(addr, value, res);
+		if (res)
+			goto fault;
+		MIPS16e_compute_return_epc(regs, &oldinst);
+		regs->regs[reg] = value;
+		break;
+
+	case MIPS16e_lhu_op:
+		if (!access_ok(VERIFY_READ, addr, 2))
+			goto sigbus;
+
+		LoadHWU(addr, value, res);
+		if (res)
+			goto fault;
+		MIPS16e_compute_return_epc(regs, &oldinst);
+		regs->regs[reg] = value;
+		break;
+
+	case MIPS16e_lw_op:
+	case MIPS16e_lwpc_op:
+	case MIPS16e_lwsp_op:
+		if (!access_ok(VERIFY_READ, addr, 4))
+			goto sigbus;
+
+		LoadW(addr, value, res);
+		if (res)
+			goto fault;
+		MIPS16e_compute_return_epc(regs, &oldinst);
+		regs->regs[reg] = value;
+		break;
+
+	case MIPS16e_lwu_op:
+#ifdef CONFIG_64BIT
+		/*
+		 * A 32-bit kernel might be running on a 64-bit processor.  But
+		 * if we're on a 32-bit processor and an i-cache incoherency
+		 * or race makes us see a 64-bit instruction here the sdl/sdr
+		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * instructions on 32-bit kernels.
+		 */
+		if (!access_ok(VERIFY_READ, addr, 4))
+			goto sigbus;
+
+		LoadWU(addr, value, res);
+		if (res)
+			goto fault;
+		MIPS16e_compute_return_epc(regs, &oldinst);
+		regs->regs[reg] = value;
+		break;
+#endif /* CONFIG_64BIT */
+
+		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		goto sigill;
+
+	case MIPS16e_ld_op:
+loadDW:
+#ifdef CONFIG_64BIT
+		/*
+		 * A 32-bit kernel might be running on a 64-bit processor.  But
+		 * if we're on a 32-bit processor and an i-cache incoherency
+		 * or race makes us see a 64-bit instruction here the sdl/sdr
+		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * instructions on 32-bit kernels.
+		 */
+		if (!access_ok(VERIFY_READ, addr, 8))
+			goto sigbus;
+
+		LoadDW(addr, value, res);
+		if (res)
+			goto fault;
+		MIPS16e_compute_return_epc(regs, &oldinst);
+		regs->regs[reg] = value;
+		break;
+#endif /* CONFIG_64BIT */
+
+		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		goto sigill;
+
+	case MIPS16e_sh_op:
+		if (!access_ok(VERIFY_WRITE, addr, 2))
+			goto sigbus;
+
+		MIPS16e_compute_return_epc(regs, &oldinst);
+		value = regs->regs[reg];
+		StoreHW(addr, value, res);
+		if (res)
+			goto fault;
+		break;
+
+	case MIPS16e_sw_op:
+	case MIPS16e_swsp_op:
+	case MIPS16e_i8_op:	/* actually - MIPS16e_swrasp_func */
+		if (!access_ok(VERIFY_WRITE, addr, 4))
+			goto sigbus;
+
+		MIPS16e_compute_return_epc(regs, &oldinst);
+		value = regs->regs[reg];
+		StoreW(addr, value, res);
+		if (res)
+			goto fault;
+		break;
+
+	case MIPS16e_sd_op:
+writeDW:
+#ifdef CONFIG_64BIT
+		/*
+		 * A 32-bit kernel might be running on a 64-bit processor.  But
+		 * if we're on a 32-bit processor and an i-cache incoherency
+		 * or race makes us see a 64-bit instruction here the sdl/sdr
+		 * would blow up, so for now we don't handle unaligned 64-bit
+		 * instructions on 32-bit kernels.
+		 */
+		if (!access_ok(VERIFY_WRITE, addr, 8))
+			goto sigbus;
+
+		MIPS16e_compute_return_epc(regs, &oldinst);
+		value = regs->regs[reg];
+		StoreDW(addr, value, res);
+		if (res)
+			goto fault;
+		break;
+#endif /* CONFIG_64BIT */
+
+		/* Cannot handle 64-bit instructions in 32-bit kernel */
+		goto sigill;
+
+	default:
+		/*
+		 * Pheeee...  We encountered an yet unknown instruction or
+		 * cache coherence problem.  Die sucker, die ...
+		 */
+		goto sigill;
+	}
+
+#ifdef CONFIG_DEBUG_FS
+	unaligned_instructions++;
+#endif
+
+	return;
+
+fault:
+	/* roll back jump/branch */
+	regs->cp0_epc = origpc;
+	regs->regs[31] = orig31;
+	/* Did we have an exception handler installed? */
+	if (fixup_exception(regs))
+		return;
+
+	die_if_kernel("Unhandled kernel unaligned access", regs);
+	force_sig(SIGSEGV, current);
+
+	return;
+
+sigbus:
+	die_if_kernel("Unhandled kernel unaligned access", regs);
+	force_sig(SIGBUS, current);
+
+	return;
+
+sigill:
+	die_if_kernel
+	    ("Unhandled kernel unaligned access or invalid instruction", regs);
+	force_sig(SIGILL, current);
+}
 asmlinkage void do_ade(struct pt_regs *regs)
 {
 	unsigned int __user *pc;
@@ -1350,6 +1594,17 @@ asmlinkage void do_ade(struct pt_regs *regs)
 
 			return;
 		}
+
+		if (cpu_has_mips16) {
+			seg = get_fs();
+			if (!user_mode(regs))
+				set_fs(KERNEL_DS);
+			emulate_load_store_MIPS16e(regs,
+				(void __user *)regs->cp0_badvaddr);
+			set_fs(seg);
+
+			return;
+	}
 
 		goto sigbus;
 	}
