@@ -28,6 +28,7 @@
 
 #include <asm/unaligned.h>
 #include <net/arp.h>
+#include <net/firewire.h>
 
 /* rx limits */
 #define FWNET_MAX_FRAGMENTS		30 /* arbitrary, > TX queue depth */
@@ -56,33 +57,6 @@
 #define RFC2374_HDR_FIRSTFRAG	1	/* first fragment	*/
 #define RFC2374_HDR_LASTFRAG	2	/* last fragment	*/
 #define RFC2374_HDR_INTFRAG	3	/* interior fragment	*/
-
-#define RFC2734_HW_ADDR_LEN	16
-
-struct rfc2734_arp {
-	__be16 hw_type;		/* 0x0018	*/
-	__be16 proto_type;	/* 0x0806       */
-	u8 hw_addr_len;		/* 16		*/
-	u8 ip_addr_len;		/* 4		*/
-	__be16 opcode;		/* ARP Opcode	*/
-	/* Above is exactly the same format as struct arphdr */
-
-	__be64 s_uniq_id;	/* Sender's 64bit EUI			*/
-	u8 max_rec;		/* Sender's max packet size		*/
-	u8 sspd;		/* Sender's max speed			*/
-	__be16 fifo_hi;		/* hi 16bits of sender's FIFO addr	*/
-	__be32 fifo_lo;		/* lo 32bits of sender's FIFO addr	*/
-	__be32 sip;		/* Sender's IP Address			*/
-	__be32 tip;		/* IP Address of requested hw addr	*/
-} __packed;
-
-/* This header format is specific to this driver implementation. */
-#define FWNET_ALEN	8
-#define FWNET_HLEN	10
-struct fwnet_header {
-	u8 h_dest[FWNET_ALEN];	/* destination address */
-	__be16 h_proto;		/* packet type ID field */
-} __packed;
 
 static bool fwnet_hwaddr_is_multicast(u8 *ha)
 {
@@ -196,8 +170,6 @@ struct fwnet_peer {
 	struct list_head peer_link;
 	struct fwnet_device *dev;
 	u64 guid;
-	u64 fifo;
-	__be32 ip;
 
 	/* guarded by dev->lock */
 	struct list_head pd_list; /* received partial datagrams */
@@ -225,6 +197,15 @@ struct fwnet_packet_task {
 	u8 speed;
 	u8 enqueued;
 };
+
+/*
+ * Get fifo address embedded in hwaddr
+ */
+static __u64 fwnet_hwaddr_fifo(union fwnet_hwaddr *ha)
+{
+	return (u64)get_unaligned_be16(&ha->uc.fifo_hi) << 32
+	       | get_unaligned_be32(&ha->uc.fifo_lo);
+}
 
 /*
  * saddr == NULL means use device source address.
@@ -518,7 +499,6 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 					bool is_broadcast, u16 ether_type)
 {
 	struct fwnet_device *dev;
-	static const __be64 broadcast_hw = cpu_to_be64(~0ULL);
 	int status;
 	__be64 guid;
 
@@ -537,76 +517,11 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 
 	/*
 	 * Parse the encapsulation header. This actually does the job of
-	 * converting to an ethernet frame header, as well as arp
-	 * conversion if needed. ARP conversion is easier in this
-	 * direction, since we are using ethernet as our backend.
+	 * converting to an ethernet-like pseudo frame header.
 	 */
-	/*
-	 * If this is an ARP packet, convert it. First, we want to make
-	 * use of some of the fields, since they tell us a little bit
-	 * about the sending machine.
-	 */
-	if (ether_type == ETH_P_ARP) {
-		struct rfc2734_arp *arp1394;
-		struct arphdr *arp;
-		unsigned char *arp_ptr;
-		u64 fifo_addr;
-		u64 peer_guid;
-		struct fwnet_peer *peer;
-		unsigned long flags;
-
-		arp1394   = (struct rfc2734_arp *)skb->data;
-		arp       = (struct arphdr *)skb->data;
-		arp_ptr   = (unsigned char *)(arp + 1);
-		peer_guid = get_unaligned_be64(&arp1394->s_uniq_id);
-		fifo_addr = (u64)get_unaligned_be16(&arp1394->fifo_hi) << 32
-				| get_unaligned_be32(&arp1394->fifo_lo);
-
-		spin_lock_irqsave(&dev->lock, flags);
-		peer = fwnet_peer_find_by_guid(dev, peer_guid);
-		if (peer) {
-			peer->fifo = fifo_addr;
-			peer->ip = arp1394->sip;
-		}
-		spin_unlock_irqrestore(&dev->lock, flags);
-
-		if (!peer) {
-			dev_notice(&net->dev,
-				   "no peer for ARP packet from %016llx\n",
-				   (unsigned long long)peer_guid);
-			goto no_peer;
-		}
-
-		/*
-		 * Now that we're done with the 1394 specific stuff, we'll
-		 * need to alter some of the data.  Believe it or not, all
-		 * that needs to be done is sender_IP_address needs to be
-		 * moved, the destination hardware address get stuffed
-		 * in and the hardware address length set to 8.
-		 *
-		 * IMPORTANT: The code below overwrites 1394 specific data
-		 * needed above so keep the munging of the data for the
-		 * higher level IP stack last.
-		 */
-
-		arp->ar_hln = 8;
-		/* skip over sender unique id */
-		arp_ptr += arp->ar_hln;
-		/* move sender IP addr */
-		put_unaligned(arp1394->sip, (u32 *)arp_ptr);
-		/* skip over sender IP addr */
-		arp_ptr += arp->ar_pln;
-
-		if (arp->ar_op == htons(ARPOP_REQUEST))
-			memset(arp_ptr, 0, sizeof(u64));
-		else
-			memcpy(arp_ptr, net->dev_addr, sizeof(u64));
-	}
-
-	/* Now add the ethernet header. */
 	guid = cpu_to_be64(dev->card->guid);
 	if (dev_hard_header(skb, net, ether_type,
-			   is_broadcast ? &broadcast_hw : &guid,
+			   is_broadcast ? net->broadcast : net->dev_addr,
 			   NULL, skb->len) >= 0) {
 		struct fwnet_header *eth;
 		u16 *rawp;
@@ -649,7 +564,6 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 
 	return 0;
 
- no_peer:
  err:
 	net->stats.rx_errors++;
 	net->stats.rx_dropped++;
@@ -1355,11 +1269,12 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 		ptask->dest_node   = IEEE1394_ALL_NODES;
 		ptask->speed       = SCODE_100;
 	} else {
-		__be64 guid = get_unaligned((__be64 *)hdr_buf.h_dest);
+		union fwnet_hwaddr *ha = (union fwnet_hwaddr *)hdr_buf.h_dest;
+		__be64 guid = get_unaligned(&ha->uc.uniq_id);
 		u8 generation;
 
 		peer = fwnet_peer_find_by_guid(dev, be64_to_cpu(guid));
-		if (!peer || peer->fifo == FWNET_NO_FIFO_ADDR)
+		if (!peer)
 			goto fail;
 
 		generation         = peer->generation;
@@ -1367,30 +1282,10 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 		max_payload        = peer->max_payload;
 		datagram_label_ptr = &peer->datagram_label;
 
-		ptask->fifo_addr   = peer->fifo;
+		ptask->fifo_addr   = fwnet_hwaddr_fifo(ha);
 		ptask->generation  = generation;
 		ptask->dest_node   = dest_node;
 		ptask->speed       = peer->speed;
-	}
-
-	/* If this is an ARP packet, convert it */
-	if (proto == htons(ETH_P_ARP)) {
-		struct arphdr *arp = (struct arphdr *)skb->data;
-		unsigned char *arp_ptr = (unsigned char *)(arp + 1);
-		struct rfc2734_arp *arp1394 = (struct rfc2734_arp *)skb->data;
-		__be32 ipaddr;
-
-		ipaddr = get_unaligned((__be32 *)(arp_ptr + FWNET_ALEN));
-
-		arp1394->hw_addr_len    = RFC2734_HW_ADDR_LEN;
-		arp1394->max_rec        = dev->card->max_receive;
-		arp1394->sspd		= dev->card->link_speed;
-
-		put_unaligned_be16(dev->local_fifo >> 32,
-				   &arp1394->fifo_hi);
-		put_unaligned_be32(dev->local_fifo & 0xffffffff,
-				   &arp1394->fifo_lo);
-		put_unaligned(ipaddr, &arp1394->sip);
 	}
 
 	ptask->hdr.w0 = 0;
@@ -1507,8 +1402,6 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 
 	peer->dev = dev;
 	peer->guid = (u64)device->config_rom[3] << 32 | device->config_rom[4];
-	peer->fifo = FWNET_NO_FIFO_ADDR;
-	peer->ip = 0;
 	INIT_LIST_HEAD(&peer->pd_list);
 	peer->pdg_size = 0;
 	peer->datagram_label = 0;
@@ -1538,6 +1431,7 @@ static int fwnet_probe(struct device *_dev)
 	struct fwnet_device *dev;
 	unsigned max_mtu;
 	int ret;
+	union fwnet_hwaddr *ha;
 
 	mutex_lock(&fwnet_device_mutex);
 
@@ -1582,8 +1476,15 @@ static int fwnet_probe(struct device *_dev)
 	net->mtu = min(1500U, max_mtu);
 
 	/* Set our hardware address while we're at it */
-	put_unaligned_be64(card->guid, net->dev_addr);
-	put_unaligned_be64(~0ULL, net->broadcast);
+	ha = (union fwnet_hwaddr *)net->dev_addr;
+	put_unaligned_be64(card->guid, &ha->uc.uniq_id);
+	ha->uc.max_rec = dev->card->max_receive;
+	ha->uc.sspd = dev->card->link_speed;
+	put_unaligned_be16(dev->local_fifo >> 32, &ha->uc.fifo_hi);
+	put_unaligned_be32(dev->local_fifo & 0xffffffff, &ha->uc.fifo_lo);
+
+	memset(net->broadcast, -1, net->addr_len);
+
 	ret = register_netdev(net);
 	if (ret)
 		goto out;
@@ -1632,8 +1533,6 @@ static int fwnet_remove(struct device *_dev)
 	mutex_lock(&fwnet_device_mutex);
 
 	net = dev->netdev;
-	if (net && peer->ip)
-		arp_invalidate(net, peer->ip);
 
 	fwnet_remove_peer(peer, dev);
 
