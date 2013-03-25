@@ -220,18 +220,20 @@ static void fe_standby(struct dvb_frontend *fe)
 
 static int fe_has_signal(struct dvb_frontend *fe)
 {
-	u16 strength = 0;
+	u16 strength;
 
-	fe->ops.tuner_ops.get_rf_strength(fe, &strength);
+	if (fe->ops.tuner_ops.get_rf_strength(fe, &strength) < 0)
+		return 0;
 
 	return strength;
 }
 
 static int fe_get_afc(struct dvb_frontend *fe)
 {
-	s32 afc = 0;
+	s32 afc;
 
-	fe->ops.tuner_ops.get_afc(fe, &afc);
+	if (fe->ops.tuner_ops.get_afc(fe, &afc) < 0)
+		return 0;
 
 	return afc;
 }
