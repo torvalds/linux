@@ -140,8 +140,8 @@ static int at91_adc_channel_init(struct iio_dev *idev)
 		chan->scan_type.sign = 'u';
 		chan->scan_type.realbits = 10;
 		chan->scan_type.storagebits = 16;
-		chan->info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_RAW_SEPARATE_BIT;
+		chan->info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
+		chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
 		idx++;
 	}
 	timestamp = chan_array + idx;

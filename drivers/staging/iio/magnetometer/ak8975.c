@@ -395,8 +395,8 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
-			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+			     BIT(IIO_CHAN_INFO_SCALE),			\
 		.address = index,					\
 	}
 

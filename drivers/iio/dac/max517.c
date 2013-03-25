@@ -146,8 +146,8 @@ static const struct iio_info max517_info = {
 	.indexed = 1,					\
 	.output = 1,					\
 	.channel = (chan),				\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-	IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
+	BIT(IIO_CHAN_INFO_SCALE),			\
 	.scan_type = IIO_ST('u', 8, 8, 0),		\
 }
 

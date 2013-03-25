@@ -544,8 +544,8 @@ static int inv_mpu6050_validate_trigger(struct iio_dev *indio_dev,
 		.type = _type,                                        \
 		.modified = 1,                                        \
 		.channel2 = _channel2,                                \
-		.info_mask =  IIO_CHAN_INFO_SCALE_SHARED_BIT          \
-				| IIO_CHAN_INFO_RAW_SEPARATE_BIT,     \
+		.info_mask_shared_by_type =  BIT(IIO_CHAN_INFO_SCALE), \
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),         \
 		.scan_index = _index,                                 \
 		.scan_type = {                                        \
 				.sign = 's',                          \
@@ -564,9 +564,9 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 	 */
 	{
 		.type = IIO_TEMP,
-		.info_mask =  IIO_CHAN_INFO_RAW_SEPARATE_BIT
-				| IIO_CHAN_INFO_OFFSET_SEPARATE_BIT
-				| IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask_separate =  BIT(IIO_CHAN_INFO_RAW)
+				| BIT(IIO_CHAN_INFO_OFFSET)
+				| BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index = -1,
 	},
 	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_X, INV_MPU6050_SCAN_GYRO_X),

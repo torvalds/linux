@@ -133,9 +133,9 @@ int ad_sd_validate_trigger(struct iio_dev *indio_dev, struct iio_trigger *trig);
 		.channel2 = (_channel2), \
 		.address = (_address), \
 		.extend_name = (_extend_name), \
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
-			IIO_CHAN_INFO_SCALE_SHARED_BIT | \
-			IIO_CHAN_INFO_OFFSET_SEPARATE_BIT, \
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
+			BIT(IIO_CHAN_INFO_OFFSET), \
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 		.scan_index = (_si), \
 		.scan_type = { \
 			.sign = 'u', \

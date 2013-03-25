@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/hwmon.h>
+#include <linux/of.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/types.h>
@@ -58,7 +59,12 @@ static ssize_t iio_hwmon_read_val(struct device *dev,
 static ssize_t show_name(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	return sprintf(buf, "iio_hwmon\n");
+	const char *name = "iio_hwmon";
+
+	if (dev->of_node && dev->of_node->name)
+		name = dev->of_node->name;
+
+	return sprintf(buf, "%s\n", name);
 }
 
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);

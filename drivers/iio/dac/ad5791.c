@@ -302,9 +302,9 @@ static const struct iio_chan_spec_ext_info ad5791_ext_info[] = {
 	.indexed = 1,					\
 	.address = AD5791_ADDR_DAC0,			\
 	.channel = 0,					\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-		IIO_CHAN_INFO_SCALE_SHARED_BIT |	\
-		IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
+		BIT(IIO_CHAN_INFO_OFFSET),		\
 	.scan_type = IIO_ST('u', bits, 24, shift),	\
 	.ext_info = ad5791_ext_info,			\
 }

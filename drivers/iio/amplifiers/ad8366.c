@@ -125,7 +125,7 @@ static const struct iio_info ad8366_info = {
 	.output = 1,					\
 	.indexed = 1,					\
 	.channel = _channel,				\
-	.info_mask = IIO_CHAN_INFO_HARDWAREGAIN_SEPARATE_BIT,\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_HARDWAREGAIN),\
 }
 
 static const struct iio_chan_spec ad8366_channels[] = {
