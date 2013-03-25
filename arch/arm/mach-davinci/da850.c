@@ -383,6 +383,49 @@ static struct clk dsp_clk = {
 	.flags		= PSC_LRST | PSC_FORCE,
 };
 
+static struct clk ehrpwm_clk = {
+	.name		= "ehrpwm",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA8XX_LPSC1_PWM,
+	.gpsc		= 1,
+	.flags		= DA850_CLK_ASYNC3,
+};
+
+#define DA8XX_EHRPWM_TBCLKSYNC	BIT(12)
+
+static void ehrpwm_tblck_enable(struct clk *clk)
+{
+	u32 val;
+
+	val = readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
+	val |= DA8XX_EHRPWM_TBCLKSYNC;
+	writel(val, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
+}
+
+static void ehrpwm_tblck_disable(struct clk *clk)
+{
+	u32 val;
+
+	val = readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
+	val &= ~DA8XX_EHRPWM_TBCLKSYNC;
+	writel(val, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
+}
+
+static struct clk ehrpwm_tbclk = {
+	.name		= "ehrpwm_tbclk",
+	.parent		= &ehrpwm_clk,
+	.clk_enable	= ehrpwm_tblck_enable,
+	.clk_disable	= ehrpwm_tblck_disable,
+};
+
+static struct clk ecap_clk = {
+	.name		= "ecap",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA8XX_LPSC1_ECAP,
+	.gpsc		= 1,
+	.flags		= DA850_CLK_ASYNC3,
+};
+
 static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
@@ -430,6 +473,9 @@ static struct clk_lookup da850_clks[] = {
 	CLK("vpif",		NULL,		&vpif_clk),
 	CLK("ahci",		NULL,		&sata_clk),
 	CLK("davinci-rproc.0",	NULL,		&dsp_clk),
+	CLK("ehrpwm",		"fck",		&ehrpwm_clk),
+	CLK("ehrpwm",		"tbclk",	&ehrpwm_tbclk),
+	CLK("ecap",		"fck",		&ecap_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
