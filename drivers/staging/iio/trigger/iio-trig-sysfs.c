@@ -103,7 +103,7 @@ static ssize_t iio_sysfs_trigger_poll(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
-	struct iio_sysfs_trig *sysfs_trig = trig->private_data;
+	struct iio_sysfs_trig *sysfs_trig = iio_trigger_get_drvdata(trig);
 
 	irq_work_queue(&sysfs_trig->work);
 
@@ -160,7 +160,7 @@ static int iio_sysfs_trigger_probe(int id)
 	t->trig->dev.groups = iio_sysfs_trigger_attr_groups;
 	t->trig->ops = &iio_sysfs_trigger_ops;
 	t->trig->dev.parent = &iio_sysfs_trig_dev;
-	t->trig->private_data = t;
+	iio_trigger_set_drvdata(t->trig, t);
 
 	init_irq_work(&t->work, iio_sysfs_trigger_work);
 

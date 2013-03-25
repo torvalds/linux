@@ -646,7 +646,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 
 static int mxs_lradc_configure_trigger(struct iio_trigger *trig, bool state)
 {
-	struct iio_dev *iio = trig->private_data;
+	struct iio_dev *iio = iio_trigger_get_drvdata(trig);
 	struct mxs_lradc *lradc = iio_priv(iio);
 	const uint32_t st = state ? STMP_OFFSET_REG_SET : STMP_OFFSET_REG_CLR;
 
@@ -670,7 +670,7 @@ static int mxs_lradc_trigger_init(struct iio_dev *iio)
 		return -ENOMEM;
 
 	trig->dev.parent = iio->dev.parent;
-	trig->private_data = iio;
+	iio_trigger_set_drvdata(trig, iio);
 	trig->ops = &mxs_lradc_trigger_ops;
 
 	ret = iio_trigger_register(trig);

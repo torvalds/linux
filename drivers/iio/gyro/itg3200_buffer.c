@@ -81,7 +81,7 @@ void itg3200_buffer_unconfigure(struct iio_dev *indio_dev)
 static int itg3200_data_rdy_trigger_set_state(struct iio_trigger *trig,
 		bool state)
 {
-	struct iio_dev *indio_dev = trig->private_data;
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	int ret;
 	u8 msc;
 
@@ -129,7 +129,7 @@ int itg3200_probe_trigger(struct iio_dev *indio_dev)
 
 	st->trig->dev.parent = &st->i2c->dev;
 	st->trig->ops = &itg3200_trigger_ops;
-	st->trig->private_data = indio_dev;
+	iio_trigger_set_drvdata(st->trig, indio_dev);
 	ret = iio_trigger_register(st->trig);
 	if (ret)
 		goto error_free_irq;

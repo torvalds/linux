@@ -92,6 +92,30 @@ static inline void iio_trigger_get(struct iio_trigger *trig)
 }
 
 /**
+ * iio_device_set_drvdata() - Set trigger driver data
+ * @trig: IIO trigger structure
+ * @data: Driver specific data
+ *
+ * Allows to attach an arbitrary pointer to an IIO trigger, which can later be
+ * retrieved by iio_trigger_get_drvdata().
+ */
+static inline void iio_trigger_set_drvdata(struct iio_trigger *trig, void *data)
+{
+	trig->private_data = data;
+}
+
+/**
+ * iio_trigger_get_drvdata() - Get trigger driver data
+ * @trig: IIO trigger structure
+ *
+ * Returns the data previously set with iio_trigger_set_drvdata()
+ */
+static inline void *iio_trigger_get_drvdata(struct iio_trigger *trig)
+{
+	return trig->private_data;
+}
+
+/**
  * iio_trigger_register() - register a trigger with the IIO core
  * @trig_info:	trigger to be registered
  **/
