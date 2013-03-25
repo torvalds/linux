@@ -110,12 +110,12 @@ enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
 void kvm_s390_tasklet(unsigned long parm);
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu);
 void kvm_s390_deliver_pending_machine_checks(struct kvm_vcpu *vcpu);
-int kvm_s390_inject_vm(struct kvm *kvm,
-		struct kvm_s390_interrupt *s390int);
-int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
-		struct kvm_s390_interrupt *s390int);
-int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
-int kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action);
+int __must_check kvm_s390_inject_vm(struct kvm *kvm,
+				    struct kvm_s390_interrupt *s390int);
+int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
+				      struct kvm_s390_interrupt *s390int);
+int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
+int __must_check kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action);
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 						    u64 cr6, u64 schid);
 

@@ -633,8 +633,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		} else {
 			VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
 			trace_kvm_s390_sie_fault(vcpu);
-			kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-			rc = 0;
+			rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		}
 	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
