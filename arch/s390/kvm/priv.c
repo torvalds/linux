@@ -343,8 +343,8 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	int fc = (vcpu->run->s.regs.gprs[0] & 0xf0000000) >> 28;
 	int sel1 = vcpu->run->s.regs.gprs[0] & 0xff;
 	int sel2 = vcpu->run->s.regs.gprs[1] & 0xffff;
+	unsigned long mem = 0;
 	u64 operand2;
-	unsigned long mem;
 	int rc = 0;
 
 	vcpu->stat.instruction_stsi++;
@@ -364,36 +364,36 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	case 2:
 		mem = get_zeroed_page(GFP_KERNEL);
 		if (!mem)
-			goto out_fail;
+			goto out_no_data;
 		if (stsi((void *) mem, fc, sel1, sel2))
-			goto out_mem;
+			goto out_no_data;
 		break;
 	case 3:
 		if (sel1 != 2 || sel2 != 2)
-			goto out_fail;
+			goto out_no_data;
 		mem = get_zeroed_page(GFP_KERNEL);
 		if (!mem)
-			goto out_fail;
+			goto out_no_data;
 		handle_stsi_3_2_2(vcpu, (void *) mem);
 		break;
 	default:
-		goto out_fail;
+		goto out_no_data;
 	}
 
 	if (copy_to_guest_absolute(vcpu, operand2, (void *) mem, PAGE_SIZE)) {
 		rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-		goto out_mem;
+		goto out_exception;
 	}
 	trace_kvm_s390_handle_stsi(vcpu, fc, sel1, sel2, operand2);
 	free_page(mem);
 	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
 	vcpu->run->s.regs.gprs[0] = 0;
 	return 0;
-out_mem:
-	free_page(mem);
-out_fail:
+out_no_data:
 	/* condition code 3 */
 	vcpu->arch.sie_block->gpsw.mask |= 3ul << 44;
+out_exception:
+	free_page(mem);
 	return rc;
 }
 
