@@ -218,4 +218,9 @@ bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor);
 int r600_parse_extended_power_table(struct radeon_device *rdev);
 void r600_free_extended_power_table(struct radeon_device *rdev);
 
+enum radeon_pcie_gen r600_get_pcie_gen_support(struct radeon_device *rdev,
+					       u32 sys_mask,
+					       enum radeon_pcie_gen asic_gen,
+					       enum radeon_pcie_gen default_gen);
+
 #endif
