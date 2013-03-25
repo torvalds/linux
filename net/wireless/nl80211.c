@@ -4702,14 +4702,19 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->scan)
 		return -EOPNOTSUPP;
 
-	if (rdev->scan_req)
-		return -EBUSY;
+	mutex_lock(&rdev->sched_scan_mtx);
+	if (rdev->scan_req) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
 		n_channels = validate_scan_freqs(
 				info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]);
-		if (!n_channels)
-			return -EINVAL;
+		if (!n_channels) {
+			err = -EINVAL;
+			goto unlock;
+		}
 	} else {
 		enum ieee80211_band band;
 		n_channels = 0;
@@ -4723,23 +4728,29 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		nla_for_each_nested(attr, info->attrs[NL80211_ATTR_SCAN_SSIDS], tmp)
 			n_ssids++;
 
-	if (n_ssids > wiphy->max_scan_ssids)
-		return -EINVAL;
+	if (n_ssids > wiphy->max_scan_ssids) {
+		err = -EINVAL;
+		goto unlock;
+	}
 
 	if (info->attrs[NL80211_ATTR_IE])
 		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	else
 		ie_len = 0;
 
-	if (ie_len > wiphy->max_scan_ie_len)
-		return -EINVAL;
+	if (ie_len > wiphy->max_scan_ie_len) {
+		err = -EINVAL;
+		goto unlock;
+	}
 
 	request = kzalloc(sizeof(*request)
 			+ sizeof(*request->ssids) * n_ssids
 			+ sizeof(*request->channels) * n_channels
 			+ ie_len, GFP_KERNEL);
-	if (!request)
-		return -ENOMEM;
+	if (!request) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	if (n_ssids)
 		request->ssids = (void *)&request->channels[n_channels];
@@ -4876,6 +4887,8 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		kfree(request);
 	}
 
+ unlock:
+	mutex_unlock(&rdev->sched_scan_mtx);
 	return err;
 }
 
@@ -7749,20 +7762,9 @@ static int nl80211_stop_p2p_device(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->stop_p2p_device)
 		return -EOPNOTSUPP;
 
-	if (!wdev->p2p_started)
-		return 0;
-
-	rdev_stop_p2p_device(rdev, wdev);
-	wdev->p2p_started = false;
-
-	mutex_lock(&rdev->devlist_mtx);
-	rdev->opencount--;
-	mutex_unlock(&rdev->devlist_mtx);
-
-	if (WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev)) {
-		rdev->scan_req->aborted = true;
-		___cfg80211_scan_done(rdev, true);
-	}
+	mutex_lock(&rdev->sched_scan_mtx);
+	cfg80211_stop_p2p_device(rdev, wdev);
+	mutex_unlock(&rdev->sched_scan_mtx);
 
 	return 0;
 }
@@ -8486,7 +8488,7 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	struct nlattr *nest;
 	int i;
 
-	ASSERT_RDEV_LOCK(rdev);
+	lockdep_assert_held(&rdev->sched_scan_mtx);
 
 	if (WARN_ON(!req))
 		return 0;
