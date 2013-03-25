@@ -459,7 +459,7 @@ struct ip_vs_estimator {
 struct ip_vs_stats {
 	struct ip_vs_stats_user	ustats;		/* statistics */
 	struct ip_vs_estimator	est;		/* estimator */
-	struct ip_vs_cpu_stats	*cpustats;	/* per cpu counters */
+	struct ip_vs_cpu_stats __percpu	*cpustats;	/* per cpu counters */
 	spinlock_t		lock;		/* spin lock */
 	struct ip_vs_stats_user	ustats0;	/* reset values */
 };

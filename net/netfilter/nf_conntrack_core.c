@@ -48,6 +48,7 @@
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
+#include <net/netfilter/nf_nat_helper.h>
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
@@ -1364,30 +1365,48 @@ void nf_conntrack_cleanup_end(void)
  */
 void nf_conntrack_cleanup_net(struct net *net)
 {
+	LIST_HEAD(single);
+
+	list_add(&net->exit_list, &single);
+	nf_conntrack_cleanup_net_list(&single);
+}
+
+void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
+{
+	int busy;
+	struct net *net;
+
 	/*
 	 * This makes sure all current packets have passed through
 	 *  netfilter framework.  Roll on, two-stage module
 	 *  delete...
 	 */
 	synchronize_net();
- i_see_dead_people:
-	nf_ct_iterate_cleanup(net, kill_all, NULL);
-	nf_ct_release_dying_list(net);
-	if (atomic_read(&net->ct.count) != 0) {
+i_see_dead_people:
+	busy = 0;
+	list_for_each_entry(net, net_exit_list, exit_list) {
+		nf_ct_iterate_cleanup(net, kill_all, NULL);
+		nf_ct_release_dying_list(net);
+		if (atomic_read(&net->ct.count) != 0)
+			busy = 1;
+	}
+	if (busy) {
 		schedule();
 		goto i_see_dead_people;
 	}
 
-	nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
-	nf_conntrack_proto_pernet_fini(net);
-	nf_conntrack_helper_pernet_fini(net);
-	nf_conntrack_ecache_pernet_fini(net);
-	nf_conntrack_tstamp_pernet_fini(net);
-	nf_conntrack_acct_pernet_fini(net);
-	nf_conntrack_expect_pernet_fini(net);
-	kmem_cache_destroy(net->ct.nf_conntrack_cachep);
-	kfree(net->ct.slabname);
-	free_percpu(net->ct.stat);
+	list_for_each_entry(net, net_exit_list, exit_list) {
+		nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
+		nf_conntrack_proto_pernet_fini(net);
+		nf_conntrack_helper_pernet_fini(net);
+		nf_conntrack_ecache_pernet_fini(net);
+		nf_conntrack_tstamp_pernet_fini(net);
+		nf_conntrack_acct_pernet_fini(net);
+		nf_conntrack_expect_pernet_fini(net);
+		kmem_cache_destroy(net->ct.nf_conntrack_cachep);
+		kfree(net->ct.slabname);
+		free_percpu(net->ct.stat);
+	}
 }
 
 void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)

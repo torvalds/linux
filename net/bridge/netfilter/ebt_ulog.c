@@ -319,12 +319,11 @@ static void __exit ebt_ulog_fini(void)
 	for (i = 0; i < EBT_ULOG_MAXNLGROUPS; i++) {
 		ub = &ulog_buffers[i];
 		del_timer(&ub->timer);
-		spin_lock_bh(&ub->lock);
+
 		if (ub->skb) {
 			kfree_skb(ub->skb);
 			ub->skb = NULL;
 		}
-		spin_unlock_bh(&ub->lock);
 	}
 	netlink_kernel_release(ebtulognl);
 }
