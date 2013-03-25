@@ -974,18 +974,12 @@ static struct usb_ep_ops mv_ep_ops = {
 
 static void udc_clock_enable(struct mv_udc *udc)
 {
-	unsigned int i;
-
-	for (i = 0; i < udc->clknum; i++)
-		clk_prepare_enable(udc->clk[i]);
+	clk_prepare_enable(udc->clk);
 }
 
 static void udc_clock_disable(struct mv_udc *udc)
 {
-	unsigned int i;
-
-	for (i = 0; i < udc->clknum; i++)
-		clk_disable_unprepare(udc->clk[i]);
+	clk_disable_unprepare(udc->clk);
 }
 
 static void udc_stop(struct mv_udc *udc)
@@ -2109,7 +2103,6 @@ static int mv_udc_probe(struct platform_device *pdev)
 	struct mv_usb_platform_data *pdata = pdev->dev.platform_data;
 	struct mv_udc *udc;
 	int retval = 0;
-	int clk_i = 0;
 	struct resource *r;
 	size_t size;
 
@@ -2118,8 +2111,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	size = sizeof(*udc) + sizeof(struct clk *) * pdata->clknum;
-	udc = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
 	if (udc == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory for udc\n");
 		return -ENOMEM;
@@ -2145,15 +2137,10 @@ static int mv_udc_probe(struct platform_device *pdev)
 		}
 	}
 
-	udc->clknum = pdata->clknum;
-	for (clk_i = 0; clk_i < udc->clknum; clk_i++) {
-		udc->clk[clk_i] = devm_clk_get(&pdev->dev,
-					pdata->clkname[clk_i]);
-		if (IS_ERR(udc->clk[clk_i])) {
-			retval = PTR_ERR(udc->clk[clk_i]);
-			return retval;
-		}
-	}
+	/* udc only have one sysclk. */
+	udc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(udc->clk))
+		return PTR_ERR(udc->clk);
 
 	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "capregs");
 	if (r == NULL) {
