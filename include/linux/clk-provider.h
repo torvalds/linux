@@ -284,7 +284,7 @@ struct clk *clk_register_divider_table(struct device *dev, const char *name,
  * @reg:	register controlling multiplexer
  * @shift:	shift to multiplexer bit field
  * @width:	width of mutliplexer bit field
- * @num_clks:	number of parent clocks
+ * @flags:	hardware-specific flags
  * @lock:	register lock
  *
  * Clock with multiple selectable parents.  Implements .get_parent, .set_parent
