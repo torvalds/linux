@@ -1117,11 +1117,13 @@ static void add_sequential(struct task_struct *t)
 	t->sequential_io = 0;
 }
 
+static struct hlist_head *iohash(struct cached_dev *dc, uint64_t k)
+{
+	return &dc->io_hash[hash_64(k, RECENT_IO_BITS)];
+}
+
 static void check_should_skip(struct cached_dev *dc, struct search *s)
 {
-	struct hlist_head *iohash(uint64_t k)
-	{ return &dc->io_hash[hash_64(k, RECENT_IO_BITS)]; }
-
 	struct cache_set *c = s->op.c;
 	struct bio *bio = &s->bio.bio;
 
@@ -1162,7 +1164,7 @@ static void check_should_skip(struct cached_dev *dc, struct search *s)
 
 		spin_lock(&dc->io_lock);
 
-		hlist_for_each_entry(i, iohash(bio->bi_sector), hash)
+		hlist_for_each_entry(i, iohash(dc, bio->bi_sector), hash)
 			if (i->last == bio->bi_sector &&
 			    time_before(jiffies, i->jiffies))
 				goto found;
@@ -1180,7 +1182,7 @@ found:
 		s->task->sequential_io	 = i->sequential;
 
 		hlist_del(&i->hash);
-		hlist_add_head(&i->hash, iohash(i->last));
+		hlist_add_head(&i->hash, iohash(dc, i->last));
 		list_move_tail(&i->lru, &dc->io_lru);
 
 		spin_unlock(&dc->io_lock);

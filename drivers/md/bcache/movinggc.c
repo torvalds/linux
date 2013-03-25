@@ -183,22 +183,22 @@ err:		if (!IS_ERR_OR_NULL(w->private))
 	closure_return(cl);
 }
 
+static bool bucket_cmp(struct bucket *l, struct bucket *r)
+{
+	return GC_SECTORS_USED(l) < GC_SECTORS_USED(r);
+}
+
+static unsigned bucket_heap_top(struct cache *ca)
+{
+	return GC_SECTORS_USED(heap_peek(&ca->heap));
+}
+
 void bch_moving_gc(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, gc.cl);
 	struct cache *ca;
 	struct bucket *b;
 	unsigned i;
-
-	bool bucket_cmp(struct bucket *l, struct bucket *r)
-	{
-		return GC_SECTORS_USED(l) < GC_SECTORS_USED(r);
-	}
-
-	unsigned top(struct cache *ca)
-	{
-		return GC_SECTORS_USED(heap_peek(&ca->heap));
-	}
 
 	if (!c->copy_gc_enabled)
 		closure_return(cl);
@@ -220,7 +220,7 @@ void bch_moving_gc(struct closure *cl)
 				sectors_to_move += GC_SECTORS_USED(b);
 				heap_add(&ca->heap, b, bucket_cmp);
 			} else if (bucket_cmp(b, heap_peek(&ca->heap))) {
-				sectors_to_move -= top(ca);
+				sectors_to_move -= bucket_heap_top(ca);
 				sectors_to_move += GC_SECTORS_USED(b);
 
 				ca->heap.data[0] = b;
@@ -233,7 +233,7 @@ void bch_moving_gc(struct closure *cl)
 			sectors_to_move -= GC_SECTORS_USED(b);
 		}
 
-		ca->gc_move_threshold = top(ca);
+		ca->gc_move_threshold = bucket_heap_top(ca);
 
 		pr_debug("threshold %u", ca->gc_move_threshold);
 	}

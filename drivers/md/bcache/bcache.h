@@ -644,8 +644,8 @@ struct gc_stat {
  * we'll continue to run normally for awhile with CACHE_SET_STOPPING set (i.e.
  * flushing dirty data).
  *
- * CACHE_SET_STOPPING_2 gets set at the last phase, when it's time to shut down the
- * allocation thread.
+ * CACHE_SET_STOPPING_2 gets set at the last phase, when it's time to shut down
+ * the allocation thread.
  */
 #define CACHE_SET_UNREGISTERING		0
 #define	CACHE_SET_STOPPING		1
@@ -1012,11 +1012,11 @@ static inline struct bucket *PTR_BUCKET(struct cache_set *c,
  * searches - it told you where a key started. It's not used anymore,
  * and can probably be safely dropped.
  */
-#define KEY(dev, sector, len)	(struct bkey)				\
-{									\
+#define KEY(dev, sector, len)						\
+((struct bkey) {							\
 	.high = (1ULL << 63) | ((uint64_t) (len) << 20) | (dev),	\
 	.low = (sector)							\
-}
+})
 
 static inline void bkey_init(struct bkey *k)
 {

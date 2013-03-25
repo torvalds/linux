@@ -293,9 +293,9 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list,
 		BUG_ON(i->pin && atomic_read(i->pin) != 1);
 
 		if (n != i->j.seq)
-			pr_err("journal entries %llu-%llu "
-			       "missing! (replaying %llu-%llu)\n",
-			       n, i->j.seq - 1, start, end);
+			pr_err(
+		"journal entries %llu-%llu missing! (replaying %llu-%llu)\n",
+		n, i->j.seq - 1, start, end);
 
 		for (k = i->j.start;
 		     k < end(&i->j);
@@ -439,7 +439,7 @@ static void do_journal_discard(struct cache *ca)
 
 		bio_init(bio);
 		bio->bi_sector		= bucket_to_sector(ca->set,
-							   ca->sb.d[ja->discard_idx]);
+						ca->sb.d[ja->discard_idx]);
 		bio->bi_bdev		= ca->bdev;
 		bio->bi_rw		= REQ_WRITE|REQ_DISCARD;
 		bio->bi_max_vecs	= 1;

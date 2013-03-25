@@ -526,7 +526,8 @@ void bch_prio_write(struct cache *ca)
 	for (i = prio_buckets(ca) - 1; i >= 0; --i) {
 		long bucket;
 		struct prio_set *p = ca->disk_buckets;
-		struct bucket_disk *d = p->data, *end = d + prios_per_bucket(ca);
+		struct bucket_disk *d = p->data;
+		struct bucket_disk *end = d + prios_per_bucket(ca);
 
 		for (b = ca->buckets + i * prios_per_bucket(ca);
 		     b < ca->buckets + ca->sb.nbuckets && d < end;
@@ -865,8 +866,8 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 
 	if (dc->sb.block_size < c->sb.block_size) {
 		/* Will die */
-		pr_err("Couldn't attach %s: block size "
-		       "less than set's block size", buf);
+		pr_err("Couldn't attach %s: block size less than set's block size",
+		       buf);
 		return -EINVAL;
 	}
 

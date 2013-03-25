@@ -95,7 +95,8 @@ static KTYPE(bch_stats);
 
 static void scale_accounting(unsigned long data);
 
-void bch_cache_accounting_init(struct cache_accounting *acc, struct closure *parent)
+void bch_cache_accounting_init(struct cache_accounting *acc,
+			       struct closure *parent)
 {
 	kobject_init(&acc->total.kobj,		&bch_stats_ktype);
 	kobject_init(&acc->five_minute.kobj,	&bch_stats_ktype);

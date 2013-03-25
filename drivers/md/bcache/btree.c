@@ -1021,8 +1021,8 @@ retry:
 		goto err_free;
 
 	if (!b) {
-		cache_bug(c, "Tried to allocate bucket"
-			  " that was in btree cache");
+		cache_bug(c,
+			"Tried to allocate bucket that was in btree cache");
 		__bkey_put(c, &k.key);
 		goto retry;
 	}

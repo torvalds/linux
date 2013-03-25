@@ -217,8 +217,8 @@ void bch_data_verify(struct search *s)
 		if (memcmp(p1 + bv->bv_offset,
 			   p2 + bv->bv_offset,
 			   bv->bv_len))
-			printk(KERN_ERR "bcache (%s): verify failed"
-			       " at sector %llu\n",
+			printk(KERN_ERR
+			       "bcache (%s): verify failed at sector %llu\n",
 			       bdevname(dc->bdev, name),
 			       (uint64_t) s->orig_bio->bi_sector);
 
@@ -525,8 +525,8 @@ static ssize_t btree_fuzz(struct kobject *k, struct kobj_attribute *a,
 			     k = bkey_next(k), l = bkey_next(l))
 				if (bkey_cmp(k, l) ||
 				    KEY_SIZE(k) != KEY_SIZE(l))
-					pr_err("key %zi differs: %s "
-					       "!= %s", (uint64_t *) k - i->d,
+					pr_err("key %zi differs: %s != %s",
+					       (uint64_t *) k - i->d,
 					       pkey(k), pkey(l));
 
 			for (j = 0; j < 3; j++) {

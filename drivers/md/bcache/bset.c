@@ -161,9 +161,9 @@ bool bch_ptr_bad(struct btree *b, const struct bkey *k)
 #ifdef CONFIG_BCACHE_EDEBUG
 bug:
 	mutex_unlock(&b->c->bucket_lock);
-	btree_bug(b, "inconsistent pointer %s: bucket %zu pin %i "
-		  "prio %i gen %i last_gc %i mark %llu gc_gen %i", pkey(k),
-		  PTR_BUCKET_NR(b->c, k, i), atomic_read(&g->pin),
+	btree_bug(b,
+"inconsistent pointer %s: bucket %zu pin %i prio %i gen %i last_gc %i mark %llu gc_gen %i",
+		  pkey(k), PTR_BUCKET_NR(b->c, k, i), atomic_read(&g->pin),
 		  g->prio, g->gen, g->last_gc, GC_MARK(g), g->gc_gen);
 	return true;
 #endif
@@ -1049,7 +1049,8 @@ void bch_btree_sort_partial(struct btree *b, unsigned start)
 		for (i = start; i <= b->nsets; i++)
 			keys += b->sets[i].data->keys;
 
-		order = roundup_pow_of_two(__set_bytes(b->sets->data, keys)) / PAGE_SIZE;
+		order = roundup_pow_of_two(__set_bytes(b->sets->data,
+						       keys)) / PAGE_SIZE;
 		if (order)
 			order = ilog2(order);
 	}
