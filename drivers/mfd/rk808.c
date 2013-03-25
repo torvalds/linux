@@ -1,8 +1,6 @@
 /*
- * Regulator driver for Active-semi rk808 PMIC chip for rk29xx
+ * Regulator driver for rk808 PMIC chip for rk31xx
  *
- * Copyright (C) 2010, 2011 ROCKCHIP, Inc.
-
  * Based on rk808.c that is work by zhangqing<zhangqing@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -752,9 +750,8 @@ int rk808_bulk_read(struct rk808 *rk808, u8 reg,
 {
 	int ret;
                     
-//#if defined(CONFIG_MFD_RK610)    
-#if 0 
-	int i;             //Solve communication conflict when rk610 and 65910 on the same i2c 
+#if defined(CONFIG_MFD_RK610)    
+	int i;             //Solve communication conflict when rk610 and 808 on the same i2c 
 
 	mutex_lock(&rk808->io_lock);
 	for(i=0; i<count; i++){
@@ -785,9 +782,8 @@ int rk808_bulk_write(struct rk808 *rk808, u8 reg,
 {
 	int ret;
 	
-//#if defined(CONFIG_MFD_RK610)    
-#if 0
-	int i;       // //Solve communication conflict when rk610 and 65910 on the same i2c 
+#if defined(CONFIG_MFD_RK610)    
+	int i;       // //Solve communication conflict when rk610 and 808 on the same i2c 
 
 	mutex_lock(&rk808->io_lock);
 	for(i=0; i<count; i++){

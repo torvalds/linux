@@ -520,7 +520,6 @@ void __sramfunc board_pmu_rk808_suspend(void)
 {	
 	#ifdef CONFIG_CLK_SWITCH_TO_32K
 	 sram_gpio_set_value(pmic_sleep, GPIO_HIGH);  
-	while(1);
 	#endif
 }
 void __sramfunc board_pmu_rk808_resume(void)

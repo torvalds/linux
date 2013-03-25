@@ -1,10 +1,7 @@
 /*
- * rk808-irq.c  --  TI TPS6591x
+ * rk808-irq.c 
  *
- * Copyright 2010 Texas Instruments Inc.
- *
- * Author: Graeme Gregory <gg@slimlogic.co.uk>
- * Author: Jorge Eduardo Candelaria <jedu@slimlogic.co.uk>
+ * Author: zhangqing <zhangqing@rock-chips.com>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under  the terms of the GNU General  Public License as published by the

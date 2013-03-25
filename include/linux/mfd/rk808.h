@@ -1,7 +1,5 @@
 /* include/linux/regulator/rk808.h
  *
- * Copyright (C) 2011 ROCKCHIP, Inc.
- *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.

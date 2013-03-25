@@ -1,9 +1,7 @@
 /*
- *	Real Time Clock driver for Wolfson Microelectronics rk808
+ *	Real Time Clock driver for  rk808
  *
- *	Copyright (C) 2009 Wolfson Microelectronics PLC.
- *
- *  Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
+ *  Author: zhangqing <zhangqing@rock-chips.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
