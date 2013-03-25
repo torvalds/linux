@@ -22,9 +22,9 @@
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <asm/exception.h>
-#include <mach/mxs.h>
 #include <mach/common.h>
 
 #define HW_ICOLL_VECTOR				0x0000
@@ -38,7 +38,7 @@
 
 #define ICOLL_NUM_IRQS		128
 
-static void __iomem *icoll_base = MXS_IO_ADDRESS(MXS_ICOLL_BASE_ADDR);
+static void __iomem *icoll_base;
 static struct irq_domain *icoll_domain;
 
 static void icoll_ack_irq(struct irq_data *d)
@@ -103,6 +103,9 @@ static struct irq_domain_ops icoll_irq_domain_ops = {
 static void __init icoll_of_init(struct device_node *np,
 			  struct device_node *interrupt_parent)
 {
+	icoll_base = of_iomap(np, 0);
+	WARN_ON(!icoll_base);
+
 	/*
 	 * Interrupt Collector reset, which initializes the priority
 	 * for each irq to level 0.
