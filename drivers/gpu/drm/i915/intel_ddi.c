@@ -1160,7 +1160,7 @@ static uint32_t intel_ddi_get_crtc_pll(struct drm_i915_private *dev_priv,
 				       enum pipe pipe)
 {
 	uint32_t temp, ret;
-	enum port port;
+	enum port port = I915_MAX_PORTS;
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
 	int i;
@@ -1176,10 +1176,16 @@ static uint32_t intel_ddi_get_crtc_pll(struct drm_i915_private *dev_priv,
 				port = i;
 	}
 
-	ret = I915_READ(PORT_CLK_SEL(port));
-
-	DRM_DEBUG_KMS("Pipe %c connected to port %c using clock 0x%08x\n",
-		      pipe_name(pipe), port_name(port), ret);
+	if (port == I915_MAX_PORTS) {
+		WARN(1, "Pipe %c enabled on an unknown port\n",
+		     pipe_name(pipe));
+		ret = PORT_CLK_SEL_NONE;
+	} else {
+		ret = I915_READ(PORT_CLK_SEL(port));
+		DRM_DEBUG_KMS("Pipe %c connected to port %c using clock "
+			      "0x%08x\n", pipe_name(pipe), port_name(port),
+			      ret);
+	}
 
 	return ret;
 }
