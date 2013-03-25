@@ -1,7 +1,9 @@
 TI SOC ECAP based APWM controller
 
 Required properties:
-- compatible: Must be "ti,am33xx-ecap"
+- compatible: Must be "ti,<soc>-ecap".
+  for am33xx - compatible = "ti,am33xx-ecap";
+  for da850  - compatible = "ti,da850-ecap", "ti,am33xx-ecap";
 - #pwm-cells: Should be 3. Number of cells being used to specify PWM property.
   First cell specifies the per-chip index of the PWM to use, the second
   cell is the period in nanoseconds and bit 0 in the third cell is used to
@@ -15,9 +17,15 @@ Optional properties:
 
 Example:
 
-ecap0: ecap@0 {
+ecap0: ecap@0 { /* ECAP on am33xx */
 	compatible = "ti,am33xx-ecap";
 	#pwm-cells = <3>;
 	reg = <0x48300100 0x80>;
 	ti,hwmods = "ecap0";
+};
+
+ecap0: ecap@0 { /* ECAP on da850 */
+	compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+	#pwm-cells = <3>;
+	reg = <0x306000 0x80>;
 };
