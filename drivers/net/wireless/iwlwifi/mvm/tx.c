@@ -417,7 +417,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	spin_unlock(&mvmsta->lock);
 
 	if (mvmsta->vif->type == NL80211_IFTYPE_AP &&
-	    txq_id < IWL_FIRST_AMPDU_QUEUE)
+	    txq_id < IWL_MVM_FIRST_AGG_QUEUE)
 		atomic_inc(&mvmsta->pending_frames);
 
 	return 0;
@@ -606,7 +606,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 					     info);
 
 		/* Single frame failure in an AMPDU queue => send BAR */
-		if (txq_id >= IWL_FIRST_AMPDU_QUEUE &&
+		if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE &&
 		    !(info->flags & IEEE80211_TX_STAT_ACK))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
@@ -619,7 +619,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		ieee80211_tx_status_ni(mvm->hw, skb);
 	}
 
-	if (txq_id >= IWL_FIRST_AMPDU_QUEUE) {
+	if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE) {
 		/* If this is an aggregation queue, we use the ssn since:
 		 * ssn = wifi seq_num % 256.
 		 * The seq_ctl is the sequence control of the packet to which
@@ -681,7 +681,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	 * If there are no pending frames for this STA, notify mac80211 that
 	 * this station can go to sleep in its STA table.
 	 */
-	if (txq_id < IWL_FIRST_AMPDU_QUEUE && mvmsta &&
+	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE && mvmsta &&
 	    !WARN_ON(skb_freed > 1) &&
 	    mvmsta->vif->type == NL80211_IFTYPE_AP &&
 	    atomic_sub_and_test(skb_freed, &mvmsta->pending_frames)) {
@@ -750,7 +750,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct ieee80211_sta *sta;
 
-	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < IWL_FIRST_AMPDU_QUEUE))
+	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < IWL_MVM_FIRST_AGG_QUEUE))
 		return;
 
 	if (WARN_ON_ONCE(tid == IWL_TID_NON_QOS))

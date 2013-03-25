@@ -125,15 +125,15 @@ enum iwl_bt_kill_msk {
 };
 
 static const u32 iwl_bt_ack_kill_msk[BT_KILL_MSK_MAX] = {
-	0xffffffff,
-	0xfffffc00,
-	0,
+	[BT_KILL_MSK_DEFAULT] = 0xffff0000,
+	[BT_KILL_MSK_SCO_HID_A2DP] = 0xffffffff,
+	[BT_KILL_MSK_REDUCED_TXPOW] = 0,
 };
 
 static const u32 iwl_bt_cts_kill_msk[BT_KILL_MSK_MAX] = {
-	0xffffffff,
-	0xfffffc00,
-	0,
+	[BT_KILL_MSK_DEFAULT] = 0xffff0000,
+	[BT_KILL_MSK_SCO_HID_A2DP] = 0xffffffff,
+	[BT_KILL_MSK_REDUCED_TXPOW] = 0,
 };
 
 #define IWL_BT_DEFAULT_BOOST (0xf0f0f0f0)
@@ -188,6 +188,8 @@ static const __le32 iwl_concurrent_lookup[BT_COEX_LUT_SIZE] = {
 
 /* BT Antenna Coupling Threshold (dB) */
 #define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)
+#define IWL_BT_LOAD_FORCE_SISO_THRESHOLD	(3)
+
 
 int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 {
@@ -201,8 +203,7 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	cmd.flags = iwlwifi_mod_params.bt_coex_active ?
 			BT_COEX_NW : BT_COEX_DISABLE;
-	cmd.flags |= iwlwifi_mod_params.bt_ch_announce ?
-			BT_CH_PRIMARY_EN | BT_CH_SECONDARY_EN : 0;
+	cmd.flags |= iwlwifi_mod_params.bt_ch_announce ? BT_CH_PRIMARY_EN : 0;
 	cmd.flags |= BT_SYNC_2_BT_DISABLE;
 
 	cmd.valid_bit_msk = cpu_to_le16(BT_VALID_ENABLE |
@@ -275,7 +276,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (data->notif->bt_status)
 		smps_mode = IEEE80211_SMPS_DYNAMIC;
 
-	if (data->notif->bt_traffic_load)
+	if (data->notif->bt_traffic_load >= IWL_BT_LOAD_FORCE_SISO_THRESHOLD)
 		smps_mode = IEEE80211_SMPS_STATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
@@ -327,7 +328,7 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 		return 0;
 
 	IWL_DEBUG_COEX(mvm,
-		       "Udpate kill_msk: %d\n\t SCO %sactive A2DP %sactive SNIFF %sactive\n",
+		       "Update kill_msk: %d - SCO %sactive A2DP %sactive SNIFF %sactive\n",
 		       bt_kill_msk,
 		       BT_MBOX_MSG(notif, 3, SCO_STATE) ? "" : "in",
 		       BT_MBOX_MSG(notif, 3, A2DP_STATE) ? "" : "in",

@@ -537,6 +537,12 @@ struct iwl_mac_beacon_cmd {
 	struct ieee80211_hdr frame[0];
 } __packed;
 
+struct iwl_beacon_notif {
+	struct iwl_mvm_tx_resp beacon_notify_hdr;
+	__le64 tsf;
+	__le32 ibss_mgr_status;
+} __packed;
+
 /**
  * enum iwl_dump_control - dump (flush) control flags
  * @DUMP_TX_FIFO_FLUSH: Dump MSDUs until the the FIFO is empty

@@ -154,6 +154,19 @@ struct iwl_tlv_calib_ctrl {
 	__le32 event_trigger;
 } __packed;
 
+enum iwl_fw_phy_cfg {
+	FW_PHY_CFG_RADIO_TYPE_POS = 0,
+	FW_PHY_CFG_RADIO_TYPE = 0x3 << FW_PHY_CFG_RADIO_TYPE_POS,
+	FW_PHY_CFG_RADIO_STEP_POS = 2,
+	FW_PHY_CFG_RADIO_STEP = 0x3 << FW_PHY_CFG_RADIO_STEP_POS,
+	FW_PHY_CFG_RADIO_DASH_POS = 4,
+	FW_PHY_CFG_RADIO_DASH = 0x3 << FW_PHY_CFG_RADIO_DASH_POS,
+	FW_PHY_CFG_TX_CHAIN_POS = 16,
+	FW_PHY_CFG_TX_CHAIN = 0xf << FW_PHY_CFG_TX_CHAIN_POS,
+	FW_PHY_CFG_RX_CHAIN_POS = 20,
+	FW_PHY_CFG_RX_CHAIN = 0xf << FW_PHY_CFG_RX_CHAIN_POS,
+};
+
 /**
  * struct iwl_fw - variables associated with the firmware
  *
@@ -189,5 +202,17 @@ struct iwl_fw {
 
 	bool mvm_fw;
 };
+
+static inline u8 iwl_fw_valid_tx_ant(const struct iwl_fw *fw)
+{
+	return (fw->phy_config & FW_PHY_CFG_TX_CHAIN) >>
+		FW_PHY_CFG_TX_CHAIN_POS;
+}
+
+static inline u8 iwl_fw_valid_rx_ant(const struct iwl_fw *fw)
+{
+	return (fw->phy_config & FW_PHY_CFG_RX_CHAIN) >>
+		FW_PHY_CFG_RX_CHAIN_POS;
+}
 
 #endif  /* __iwl_fw_h__ */
