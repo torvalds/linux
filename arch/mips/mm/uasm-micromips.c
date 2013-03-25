@@ -130,7 +130,8 @@ static inline __uasminit u32 build_bimm(s32 arg)
 
 static inline __uasminit u32 build_jimm(u32 arg)
 {
-	WARN(arg & ~(JIMM_MASK << 2),
+
+	WARN(arg & ~((JIMM_MASK << 2) | 1),
 	     KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg >> 1) & JIMM_MASK;
