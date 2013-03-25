@@ -3,6 +3,7 @@
 #include <linux/io.h>
 
 #include "hardware.h"
+#include "common.h"
 
 unsigned int __mxc_cpu_type;
 EXPORT_SYMBOL(__mxc_cpu_type);
