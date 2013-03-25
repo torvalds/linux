@@ -35,7 +35,7 @@
 #include <asm/time.h>
 #endif
 
-#include "cbe_cpufreq.h"
+#include "ppc_cbe_cpufreq.h"
 
 static u8 pmi_slow_mode_limit[MAX_CBE];
 

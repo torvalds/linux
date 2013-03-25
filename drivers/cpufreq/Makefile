@@ -73,6 +73,9 @@ obj-$(CONFIG_ARCH_TEGRA)		+= tegra-cpufreq.o
 
 ##################################################################################
 # PowerPC platform drivers
+obj-$(CONFIG_CPU_FREQ_CBE)		+= ppc-cbe-cpufreq.o
+ppc-cbe-cpufreq-y			+= ppc_cbe_cpufreq_pervasive.o ppc_cbe_cpufreq.o
+obj-$(CONFIG_CPU_FREQ_CBE_PMI)		+= ppc_cbe_cpufreq_pmi.o
 obj-$(CONFIG_CPU_FREQ_MAPLE)		+= maple-cpufreq.o
 
 ##################################################################################

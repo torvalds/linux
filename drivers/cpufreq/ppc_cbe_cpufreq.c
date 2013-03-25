@@ -27,7 +27,8 @@
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/cell-regs.h>
-#include "cbe_cpufreq.h"
+
+#include "ppc_cbe_cpufreq.h"
 
 static DEFINE_MUTEX(cbe_switch_mutex);
 
