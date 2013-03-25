@@ -25,9 +25,8 @@
 #include <linux/screen_info.h>
 #include <linux/time.h>
 
-#include <asm/bootinfo.h>
+#include <asm/fw/fw.h>
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/malta.h>
 #include <asm/mips-boards/maltaint.h>
 #include <asm/dma.h>
@@ -176,7 +175,7 @@ static void __init pci_clock_check(void)
 		33, 20, 25, 30, 12, 16, 37, 10
 	};
 	int pciclock = pciclocks[jmpr];
-	char *argptr = prom_getcmdline();
+	char *argptr = fw_getcmdline();
 
 	if (pciclock != 33 && !strstr(argptr, "idebus=")) {
 		printk(KERN_WARNING "WARNING: PCI clock is %dMHz, "
@@ -214,7 +213,7 @@ static void __init bonito_quirks_setup(void)
 {
 	char *argptr;
 
-	argptr = prom_getcmdline();
+	argptr = fw_getcmdline();
 	if (strstr(argptr, "debug")) {
 		BONITO_BONGENCFG |= BONITO_BONGENCFG_DEBUGMODE;
 		printk(KERN_INFO "Enabled Bonito debug mode\n");
@@ -226,7 +225,7 @@ static void __init bonito_quirks_setup(void)
 		BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_CPUCOH_EN;
 		printk(KERN_INFO "Enabled Bonito CPU coherency\n");
 
-		argptr = prom_getcmdline();
+		argptr = fw_getcmdline();
 		if (strstr(argptr, "iobcuncached")) {
 			BONITO_PCICACHECTRL &= ~BONITO_PCICACHECTRL_IOBCCOH_EN;
 			BONITO_PCIMEMBASECFG = BONITO_PCIMEMBASECFG &

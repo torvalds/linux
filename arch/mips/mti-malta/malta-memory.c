@@ -27,30 +27,16 @@
 #include <asm/bootinfo.h>
 #include <asm/page.h>
 #include <asm/sections.h>
+#include <asm/fw/fw.h>
 
 #include <asm/mips-boards/prom.h>
 
-/*#define DEBUG*/
-
-enum yamon_memtypes {
-	yamon_dontuse,
-	yamon_prom,
-	yamon_free,
-};
-static struct prom_pmemblock mdesc[PROM_MAX_PMEMBLOCKS];
-
-#ifdef DEBUG
-static char *mtypes[3] = {
-	"Dont use memory",
-	"YAMON PROM memory",
-	"Free memory",
-};
-#endif
+static fw_memblock_t mdesc[FW_MAX_MEMBLOCKS];
 
 /* determined physical memory size, not overridden by command line args	 */
 unsigned long physical_memsize = 0L;
 
-static struct prom_pmemblock * __init prom_getmdesc(void)
+fw_memblock_t * __init fw_getmdesc(void)
 {
 	char *memsize_str;
 	unsigned int memsize;
@@ -58,15 +44,12 @@ static struct prom_pmemblock * __init prom_getmdesc(void)
 	static char cmdline[COMMAND_LINE_SIZE] __initdata;
 
 	/* otherwise look in the environment */
-	memsize_str = prom_getenv("memsize");
+	memsize_str = fw_getenv("memsize");
 	if (!memsize_str) {
 		printk(KERN_WARNING
 		       "memsize not set in boot prom, set to default (32Mb)\n");
 		physical_memsize = 0x02000000;
 	} else {
-#ifdef DEBUG
-		pr_debug("prom_memsize = %s\n", memsize_str);
-#endif
 		physical_memsize = simple_strtol(memsize_str, NULL, 0);
 	}
 
@@ -90,11 +73,11 @@ static struct prom_pmemblock * __init prom_getmdesc(void)
 
 	memset(mdesc, 0, sizeof(mdesc));
 
-	mdesc[0].type = yamon_dontuse;
+	mdesc[0].type = fw_dontuse;
 	mdesc[0].base = 0x00000000;
 	mdesc[0].size = 0x00001000;
 
-	mdesc[1].type = yamon_prom;
+	mdesc[1].type = fw_code;
 	mdesc[1].base = 0x00001000;
 	mdesc[1].size = 0x000ef000;
 
@@ -105,55 +88,44 @@ static struct prom_pmemblock * __init prom_getmdesc(void)
 	 * This mean that this area can't be used as DMA memory for PCI
 	 * devices.
 	 */
-	mdesc[2].type = yamon_dontuse;
+	mdesc[2].type = fw_dontuse;
 	mdesc[2].base = 0x000f0000;
 	mdesc[2].size = 0x00010000;
 
-	mdesc[3].type = yamon_dontuse;
+	mdesc[3].type = fw_dontuse;
 	mdesc[3].base = 0x00100000;
 	mdesc[3].size = CPHYSADDR(PFN_ALIGN((unsigned long)&_end)) - mdesc[3].base;
 
-	mdesc[4].type = yamon_free;
+	mdesc[4].type = fw_free;
 	mdesc[4].base = CPHYSADDR(PFN_ALIGN(&_end));
 	mdesc[4].size = memsize - mdesc[4].base;
 
 	return &mdesc[0];
 }
 
-static int __init prom_memtype_classify(unsigned int type)
+static int __init fw_memtype_classify(unsigned int type)
 {
 	switch (type) {
-	case yamon_free:
+	case fw_free:
 		return BOOT_MEM_RAM;
-	case yamon_prom:
+	case fw_code:
 		return BOOT_MEM_ROM_DATA;
 	default:
 		return BOOT_MEM_RESERVED;
 	}
 }
 
-void __init prom_meminit(void)
+void __init fw_meminit(void)
 {
-	struct prom_pmemblock *p;
+	fw_memblock_t *p;
 
-#ifdef DEBUG
-	pr_debug("YAMON MEMORY DESCRIPTOR dump:\n");
-	p = prom_getmdesc();
-	while (p->size) {
-		int i = 0;
-		pr_debug("[%d,%p]: base<%08lx> size<%08lx> type<%s>\n",
-			 i, p, p->base, p->size, mtypes[p->type]);
-		p++;
-		i++;
-	}
-#endif
-	p = prom_getmdesc();
+	p = fw_getmdesc();
 
 	while (p->size) {
 		long type;
 		unsigned long base, size;
 
-		type = prom_memtype_classify(p->type);
+		type = fw_memtype_classify(p->type);
 		base = p->base;
 		size = p->size;
 
