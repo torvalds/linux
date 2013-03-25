@@ -27,6 +27,8 @@
 #include <linux/stmp_device.h>
 #include <asm/exception.h>
 
+#include "irqchip.h"
+
 #define HW_ICOLL_VECTOR				0x0000
 #define HW_ICOLL_LEVELACK			0x0010
 #define HW_ICOLL_CTRL				0x0020
@@ -116,13 +118,4 @@ static void __init icoll_of_init(struct device_node *np,
 					     &icoll_irq_domain_ops, NULL);
 	WARN_ON(!icoll_domain);
 }
-
-static const struct of_device_id icoll_of_match[] __initconst = {
-	{.compatible = "fsl,icoll", .data = icoll_of_init},
-	{ /* sentinel */ }
-};
-
-void __init icoll_init_irq(void)
-{
-	of_irq_init(icoll_of_match);
-}
+IRQCHIP_DECLARE(mxs, "fsl,icoll", icoll_of_init);

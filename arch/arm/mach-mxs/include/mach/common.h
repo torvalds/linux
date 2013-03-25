@@ -22,7 +22,4 @@ extern void mx23_map_io(void);
 extern int mx28_clocks_init(void);
 extern void mx28_map_io(void);
 
-extern void icoll_init_irq(void);
-extern void icoll_handle_irq(struct pt_regs *);
-
 #endif /* __MACH_MXS_COMMON_H__ */
