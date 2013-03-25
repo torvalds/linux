@@ -7663,10 +7663,8 @@ static int remove_and_add_spares(struct mddev *mddev)
 				removed++;
 			}
 		}
-	if (removed)
-		sysfs_notify(&mddev->kobj, NULL,
-			     "degraded");
-
+	if (removed && mddev->kobj.sd)
+		sysfs_notify(&mddev->kobj, NULL, "degraded");
 
 	rdev_for_each(rdev, mddev) {
 		if (rdev->raid_disk >= 0 &&

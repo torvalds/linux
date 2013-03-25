@@ -4469,6 +4469,7 @@ int si_resume(struct radeon_device *rdev)
 
 int si_suspend(struct radeon_device *rdev)
 {
+	radeon_vm_manager_fini(rdev);
 	si_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
 	si_irq_suspend(rdev);

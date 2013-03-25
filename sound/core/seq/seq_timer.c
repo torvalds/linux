@@ -290,10 +290,10 @@ int snd_seq_timer_open(struct snd_seq_queue *q)
 			tid.device = SNDRV_TIMER_GLOBAL_SYSTEM;
 			err = snd_timer_open(&t, str, &tid, q->queue);
 		}
-		if (err < 0) {
-			snd_printk(KERN_ERR "seq fatal error: cannot create timer (%i)\n", err);
-			return err;
-		}
+	}
+	if (err < 0) {
+		snd_printk(KERN_ERR "seq fatal error: cannot create timer (%i)\n", err);
+		return err;
 	}
 	t->callback = snd_seq_timer_interrupt;
 	t->callback_data = q;

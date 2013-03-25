@@ -118,7 +118,7 @@ EXPORT_SYMBOL_GPL(twl4030_audio_enable_resource);
  * Disable the resource.
  * The function returns with error or the content of the register
  */
-int twl4030_audio_disable_resource(unsigned id)
+int twl4030_audio_disable_resource(enum twl4030_audio_res id)
 {
 	struct twl4030_audio *audio = platform_get_drvdata(twl4030_audio_dev);
 	int val;

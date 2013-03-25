@@ -1924,7 +1924,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 err_func:
 	device_remove_file (&dev->pdev->dev, &dev_attr_function);
 err_unbind:
-	driver->unbind (&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 	return retval;
@@ -1945,6 +1944,13 @@ stop_activity (struct net2280 *dev, struct usb_gadget_driver *driver)
 	usb_reset (dev);
 	for (i = 0; i < 7; i++)
 		nuke (&dev->ep [i]);
+
+	/* report disconnect; the driver is already quiesced */
+	if (driver) {
+		spin_unlock(&dev->lock);
+		driver->disconnect(&dev->gadget);
+		spin_lock(&dev->lock);
+	}
 
 	usb_reinit (dev);
 }

@@ -1467,8 +1467,11 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	if (ret && !insert) {
 		err = -ENOENT;
 		goto out;
+	} else if (ret) {
+		err = -EIO;
+		WARN_ON(1);
+		goto out;
 	}
-	BUG_ON(ret); /* Corruption */
 
 	leaf = path->nodes[0];
 	item_size = btrfs_item_size_nr(leaf, path->slots[0]);

@@ -480,7 +480,7 @@ static void __cpuinit broadcast_timer_setup(struct clock_event_device *evt)
 	evt->features	= CLOCK_EVT_FEAT_ONESHOT |
 			  CLOCK_EVT_FEAT_PERIODIC |
 			  CLOCK_EVT_FEAT_DUMMY;
-	evt->rating	= 400;
+	evt->rating	= 100;
 	evt->mult	= 1;
 	evt->set_mode	= broadcast_timer_set_mode;
 

@@ -422,7 +422,7 @@ static u8 abx500_get_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 	}
 
 	/* check if pin use AlternateFunction register */
-	if ((af.alt_bit1 == UNUSED) && (af.alt_bit1 == UNUSED))
+	if ((af.alt_bit1 == UNUSED) && (af.alt_bit2 == UNUSED))
 		return mode;
 	/*
 	 * if pin GPIOSEL bit is set and pin supports alternate function,
