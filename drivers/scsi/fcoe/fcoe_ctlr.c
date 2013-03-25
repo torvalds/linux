@@ -2847,7 +2847,8 @@ int fcoe_libfc_config(struct fc_lport *lport, struct fcoe_ctlr *fip,
 		priv = fip;
 	}
 
-	fc_disc_init(lport, priv);
+	fc_disc_init(lport);
+	fc_disc_config(lport, priv);
 
 	return 0;
 }
