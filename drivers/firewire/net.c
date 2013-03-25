@@ -552,8 +552,6 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 		unsigned char *arp_ptr;
 		u64 fifo_addr;
 		u64 peer_guid;
-		unsigned sspd;
-		u16 max_payload;
 		struct fwnet_peer *peer;
 		unsigned long flags;
 
@@ -564,24 +562,10 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 		fifo_addr = (u64)get_unaligned_be16(&arp1394->fifo_hi) << 32
 				| get_unaligned_be32(&arp1394->fifo_lo);
 
-		sspd = arp1394->sspd;
-		/* Sanity check.  OS X 10.3 PPC reportedly sends 131. */
-		if (sspd > SCODE_3200) {
-			dev_notice(&net->dev, "sspd %x out of range\n", sspd);
-			sspd = SCODE_3200;
-		}
-		max_payload = fwnet_max_payload(arp1394->max_rec, sspd);
-
 		spin_lock_irqsave(&dev->lock, flags);
 		peer = fwnet_peer_find_by_guid(dev, peer_guid);
 		if (peer) {
 			peer->fifo = fifo_addr;
-
-			if (peer->speed > sspd)
-				peer->speed = sspd;
-			if (peer->max_payload > max_payload)
-				peer->max_payload = max_payload;
-
 			peer->ip = arp1394->sip;
 		}
 		spin_unlock_irqrestore(&dev->lock, flags);
