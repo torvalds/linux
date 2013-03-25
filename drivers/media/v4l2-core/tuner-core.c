@@ -235,7 +235,7 @@ static int fe_get_afc(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.get_afc)
 		fe->ops.tuner_ops.get_afc(fe, &afc);
 
-	return 0;
+	return afc;
 }
 
 static int fe_set_config(struct dvb_frontend *fe, void *priv_cfg)
