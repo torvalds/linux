@@ -127,15 +127,22 @@ static int tw9903_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 {
 	struct tw9903 *dec = to_state(sd);
 	bool is_60hz = norm & V4L2_STD_525_60;
-	u8 regs[] = {
-		0x05, is_60hz ? 0x80 : 0x00,
-		0x07, is_60hz ? 0x02 : 0x12,
-		0x08, is_60hz ? 0x14 : 0x18,
-		0x09, is_60hz ? 0xf0 : 0x20,
+	static const u8 config_60hz[] = {
+		0x05, 0x80,
+		0x07, 0x02,
+		0x08, 0x14,
+		0x09, 0xf0,
+		0,    0,
+	};
+	static const u8 config_50hz[] = {
+		0x05, 0x00,
+		0x07, 0x12,
+		0x08, 0x18,
+		0x09, 0x20,
 		0,    0,
 	};
 
-	write_regs(sd, regs);
+	write_regs(sd, is_60hz ? config_60hz : config_50hz);
 	dec->norm = norm;
 	return 0;
 }
