@@ -551,6 +551,7 @@ unlock:
 static int fimc_capture_release(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
+	struct fimc_vid_cap *vc = &fimc->vid_cap;
 	int ret;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
@@ -558,6 +559,10 @@ static int fimc_capture_release(struct file *file)
 	mutex_lock(&fimc->lock);
 
 	if (v4l2_fh_is_singular_file(file)) {
+		if (vc->streaming) {
+			media_entity_pipeline_stop(&vc->vfd.entity);
+			vc->streaming = false;
+		}
 		clear_bit(ST_CAPT_BUSY, &fimc->state);
 		fimc_stop_capture(fimc, false);
 		fimc_pipeline_call(fimc, close, &fimc->pipeline);
@@ -1243,8 +1248,10 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	}
 
 	ret = vb2_ioctl_streamon(file, priv, type);
-	if (!ret)
+	if (!ret) {
+		vc->streaming = true;
 		return ret;
+	}
 
 err_p_stop:
 	media_entity_pipeline_stop(entity);
@@ -1258,11 +1265,12 @@ static int fimc_cap_streamoff(struct file *file, void *priv,
 	int ret;
 
 	ret = vb2_ioctl_streamoff(file, priv, type);
+	if (ret < 0)
+		return ret;
 
-	if (ret == 0)
-		media_entity_pipeline_stop(&fimc->vid_cap.vfd.entity);
-
-	return ret;
+	media_entity_pipeline_stop(&fimc->vid_cap.vfd.entity);
+	fimc->vid_cap.streaming = false;
+	return 0;
 }
 
 static int fimc_cap_reqbufs(struct file *file, void *priv,

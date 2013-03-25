@@ -319,6 +319,7 @@ struct fimc_vid_cap {
 	int				buf_index;
 	unsigned int			frame_count;
 	unsigned int			reqbufs_count;
+	bool				streaming;
 	int				input_index;
 	int				refcnt;
 	u32				input;

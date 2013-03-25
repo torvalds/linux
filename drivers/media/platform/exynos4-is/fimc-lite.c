@@ -507,6 +507,10 @@ static int fimc_lite_release(struct file *file)
 
 	if (v4l2_fh_is_singular_file(file) &&
 	    atomic_read(&fimc->out_path) == FIMC_IO_DMA) {
+		if (fimc->streaming) {
+			media_entity_pipeline_stop(&fimc->vfd.entity);
+			fimc->streaming = false;
+		}
 		clear_bit(ST_FLITE_IN_USE, &fimc->state);
 		fimc_lite_stop_capture(fimc, false);
 		fimc_pipeline_call(fimc, close, &fimc->pipeline);
@@ -798,8 +802,11 @@ static int fimc_lite_streamon(struct file *file, void *priv,
 		goto err_p_stop;
 
 	ret = vb2_ioctl_streamon(file, priv, type);
-	if (!ret)
+	if (!ret) {
+		fimc->streaming = true;
 		return ret;
+	}
+
 err_p_stop:
 	media_entity_pipeline_stop(entity);
 	return 0;
@@ -812,9 +819,12 @@ static int fimc_lite_streamoff(struct file *file, void *priv,
 	int ret;
 
 	ret = vb2_ioctl_streamoff(file, priv, type);
-	if (ret == 0)
-		media_entity_pipeline_stop(&fimc->vfd.entity);
-	return ret;
+	if (ret < 0)
+		return ret;
+
+	media_entity_pipeline_stop(&fimc->vfd.entity);
+	fimc->streaming = false;
+	return 0;
 }
 
 static int fimc_lite_reqbufs(struct file *file, void *priv,

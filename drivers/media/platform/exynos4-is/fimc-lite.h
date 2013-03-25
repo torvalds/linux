@@ -166,6 +166,7 @@ struct fimc_lite {
 	int			ref_count;
 
 	struct fimc_lite_events	events;
+	bool			streaming;
 };
 
 static inline bool fimc_lite_active(struct fimc_lite *fimc)
