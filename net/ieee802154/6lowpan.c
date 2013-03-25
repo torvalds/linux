@@ -742,10 +742,16 @@ lowpan_process_data(struct sk_buff *skb)
 		/* adds the 3 MSB to the 8 LSB to retrieve the 11 bits length */
 		len = ((iphc0 & 7) << 8) | slen;
 
-		/* FRAGN */
-		if ((iphc0 & LOWPAN_DISPATCH_MASK) != LOWPAN_DISPATCH_FRAG1) {
+		if ((iphc0 & LOWPAN_DISPATCH_MASK) == LOWPAN_DISPATCH_FRAG1) {
+			pr_debug("%s received a FRAG1 packet (tag: %d, "
+				 "size of the entire IP packet: %d)",
+				 __func__, tag, len);
+		} else { /* FRAGN */
 			if (lowpan_fetch_skb_u8(skb, &offset))
 				goto unlock_and_drop;
+			pr_debug("%s received a FRAGN packet (tag: %d, "
+				 "size of the entire IP packet: %d, "
+				 "offset: %d)", __func__, tag, len, offset * 8);
 		}
 
 		/*
@@ -762,6 +768,8 @@ lowpan_process_data(struct sk_buff *skb)
 
 		/* alloc new frame structure */
 		if (!found) {
+			pr_debug("%s first fragment received for tag %d, "
+				 "begin packet reassembly", __func__, tag);
 			frame = lowpan_alloc_new_frame(skb, len, tag);
 			if (!frame)
 				goto unlock_and_drop;
@@ -783,6 +791,9 @@ lowpan_process_data(struct sk_buff *skb)
 			del_timer_sync(&frame->timer);
 			list_del(&frame->list);
 			spin_unlock_bh(&flist_lock);
+
+			pr_debug("%s successfully reassembled fragment "
+				 "(tag %d)", __func__, tag);
 
 			dev_kfree_skb(skb);
 			skb = frame->skb;
@@ -1034,8 +1045,11 @@ lowpan_skb_fragmentation(struct sk_buff *skb)
 	err = lowpan_fragment_xmit(skb, head, header_length, LOWPAN_FRAG_SIZE,
 				   0, LOWPAN_DISPATCH_FRAG1);
 
-	if (err)
+	if (err) {
+		pr_debug("%s unable to send FRAG1 packet (tag: %d)",
+			 __func__, tag);
 		goto exit;
+	}
 
 	offset = LOWPAN_FRAG_SIZE;
 
@@ -1053,8 +1067,11 @@ lowpan_skb_fragmentation(struct sk_buff *skb)
 
 		err = lowpan_fragment_xmit(skb, head, header_length,
 					   len, offset, LOWPAN_DISPATCH_FRAGN);
-		if (err)
+		if (err) {
+			pr_debug("%s unable to send a subsequent FRAGN packet "
+				 "(tag: %d, offset: %d", __func__, tag, offset);
 			goto exit;
+		}
 
 		offset += len;
 	}
