@@ -1750,6 +1750,10 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 			 "8192D PCI-E is found - vid/did=%x/%x\n",
 			 venderid, deviceid);
+	} else if (deviceid == RTL_PCI_8188EE_DID) {
+		rtlhal->hw_type = HARDWARE_TYPE_RTL8188EE;
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+			 "Find adapter, Hardware type is 8188EE\n");
 	} else {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Err: Unknown device - vid/did=%x/%x\n",
