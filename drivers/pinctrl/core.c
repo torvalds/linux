@@ -930,7 +930,7 @@ static int pinctrl_select_state_locked(struct pinctrl *p,
 		}
 	}
 
-	p->state = state;
+	p->state = NULL;
 
 	/* Apply all the settings for the new state */
 	list_for_each_entry(setting, &state->settings, node) {
@@ -946,13 +946,35 @@ static int pinctrl_select_state_locked(struct pinctrl *p,
 			ret = -EINVAL;
 			break;
 		}
+
 		if (ret < 0) {
-			/* FIXME: Difficult to return to prev state */
-			return ret;
+			goto unapply_new_state;
 		}
 	}
 
+	p->state = state;
+
 	return 0;
+
+unapply_new_state:
+	pr_info("Error applying setting, reverse things back\n");
+
+	/*
+	 * If the loop stopped on the 1st entry, nothing has been enabled,
+	 * so jump directly to the 2nd phase
+	 */
+	if (list_entry(&setting->node, typeof(*setting), node) ==
+	    list_first_entry(&state->settings, typeof(*setting), node))
+		goto reapply_old_state;
+
+	list_for_each_entry(setting2, &state->settings, node) {
+		if (&setting2->node == &setting->node)
+			break;
+		pinctrl_free_setting(true, setting2);
+	}
+reapply_old_state:
+	/* FIXME: re-enable old setting */
+	return ret;
 }
 
 /**
