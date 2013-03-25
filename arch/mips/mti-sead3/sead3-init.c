@@ -13,37 +13,51 @@
 #include <asm/traps.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
-
-extern void prom_init_early_console(char port);
+#include <asm/fw/fw.h>
 
 extern char except_vec_nmi;
 extern char except_vec_ejtag_debug;
 
-int prom_argc;
-int *_prom_argv, *_prom_envp;
-
-#define prom_envp(index) ((char *)(long)_prom_envp[(index)])
-
-char *prom_getenv(char *envname)
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+static void __init console_config(void)
 {
-	/*
-	 * Return a pointer to the given environment variable.
-	 * In 64-bit mode: we're using 64-bit pointers, but all pointers
-	 * in the PROM structures are only 32-bit, so we need some
-	 * workarounds, if we are running in 64-bit mode.
-	 */
-	int i, index = 0;
+	char console_string[40];
+	int baud = 0;
+	char parity = '\0', bits = '\0', flow = '\0';
+	char *s;
 
-	i = strlen(envname);
-
-	while (prom_envp(index)) {
-		if (strncmp(envname, prom_envp(index), i) == 0)
-			return prom_envp(index+1);
-		index += 2;
+	if ((strstr(fw_getcmdline(), "console=")) == NULL) {
+		s = fw_getenv("modetty0");
+		if (s) {
+			while (*s >= '0' && *s <= '9')
+				baud = baud*10 + *s++ - '0';
+			if (*s == ',')
+				s++;
+			if (*s)
+				parity = *s++;
+			if (*s == ',')
+				s++;
+			if (*s)
+				bits = *s++;
+			if (*s == ',')
+				s++;
+			if (*s == 'h')
+				flow = 'r';
+		}
+		if (baud == 0)
+			baud = 38400;
+		if (parity != 'n' && parity != 'o' && parity != 'e')
+			parity = 'n';
+		if (bits != '7' && bits != '8')
+			bits = '8';
+		if (flow == '\0')
+			flow = 'r';
+		sprintf(console_string, " console=ttyS0,%d%c%c%c", baud,
+			parity, bits, flow);
+		strcat(fw_getcmdline(), console_string);
 	}
-
-	return NULL;
 }
+#endif
 
 static void __init mips_nmi_setup(void)
 {
@@ -69,23 +83,20 @@ static void __init mips_ejtag_setup(void)
 
 void __init prom_init(void)
 {
-	prom_argc = fw_arg0;
-	_prom_argv = (int *) fw_arg1;
-	_prom_envp = (int *) fw_arg2;
-
 	board_nmi_handler_setup = mips_nmi_setup;
 	board_ejtag_handler_setup = mips_ejtag_setup;
 
-	prom_init_cmdline();
+	fw_init_cmdline();
 #ifdef CONFIG_EARLY_PRINTK
-	if ((strstr(prom_getcmdline(), "console=ttyS0")) != NULL)
-		prom_init_early_console(0);
-	else if ((strstr(prom_getcmdline(), "console=ttyS1")) != NULL)
-		prom_init_early_console(1);
+	if ((strstr(fw_getcmdline(), "console=ttyS0")) != NULL)
+		fw_init_early_console(0);
+	else if ((strstr(fw_getcmdline(), "console=ttyS1")) != NULL)
+		fw_init_early_console(1);
 #endif
 #ifdef CONFIG_SERIAL_8250_CONSOLE
-	if ((strstr(prom_getcmdline(), "console=")) == NULL)
-		strcat(prom_getcmdline(), " console=ttyS0,38400n8r");
+	if ((strstr(fw_getcmdline(), "console=")) == NULL)
+		strcat(fw_getcmdline(), " console=ttyS0,38400n8r");
+	console_config();
 #endif
 }
 
