@@ -977,18 +977,10 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_userspace_memory_region *mem,
 				   enum kvm_mr_change change)
 {
-	/* A few sanity checks. We can have exactly one memory slot which has
-	   to start at guest virtual zero and which has to be located at a
-	   page boundary in userland and which has to end at a page boundary.
-	   The memory in userland is ok to be fragmented into various different
-	   vmas. It is okay to mmap() and munmap() stuff in this slot after
-	   doing this call at any time */
-
-	if (mem->slot)
-		return -EINVAL;
-
-	if (mem->guest_phys_addr)
-		return -EINVAL;
+	/* A few sanity checks. We can have memory slots which have to be
+	   located/ended at a segment boundary (1MB). The memory in userland is
+	   ok to be fragmented into various different vmas. It is okay to mmap()
+	   and munmap() stuff in this slot after doing this call at any time */
 
 	if (mem->userspace_addr & 0xffffful)
 		return -EINVAL;
