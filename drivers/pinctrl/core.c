@@ -794,6 +794,24 @@ struct pinctrl *pinctrl_get(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pinctrl_get);
 
+static void pinctrl_free_setting(bool disable_setting,
+				 struct pinctrl_setting *setting)
+{
+	switch (setting->type) {
+	case PIN_MAP_TYPE_MUX_GROUP:
+		if (disable_setting)
+			pinmux_disable_setting(setting);
+		pinmux_free_setting(setting);
+		break;
+	case PIN_MAP_TYPE_CONFIGS_PIN:
+	case PIN_MAP_TYPE_CONFIGS_GROUP:
+		pinconf_free_setting(setting);
+		break;
+	default:
+		break;
+	}
+}
+
 static void pinctrl_put_locked(struct pinctrl *p, bool inlist)
 {
 	struct pinctrl_state *state, *n1;
@@ -801,19 +819,7 @@ static void pinctrl_put_locked(struct pinctrl *p, bool inlist)
 
 	list_for_each_entry_safe(state, n1, &p->states, node) {
 		list_for_each_entry_safe(setting, n2, &state->settings, node) {
-			switch (setting->type) {
-			case PIN_MAP_TYPE_MUX_GROUP:
-				if (state == p->state)
-					pinmux_disable_setting(setting);
-				pinmux_free_setting(setting);
-				break;
-			case PIN_MAP_TYPE_CONFIGS_PIN:
-			case PIN_MAP_TYPE_CONFIGS_GROUP:
-				pinconf_free_setting(setting);
-				break;
-			default:
-				break;
-			}
+			pinctrl_free_setting(state == p->state, setting);
 			list_del(&setting->node);
 			kfree(setting);
 		}
