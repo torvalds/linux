@@ -33,7 +33,7 @@
 #include <linux/slab.h>
 
 #include "solo6x10.h"
-#include "tw28.h"
+#include "solo6x10-tw28.h"
 
 MODULE_DESCRIPTION("Softlogic 6x10 MPEG4/H.264/G.723 CODEC V4L2/ALSA Driver");
 MODULE_AUTHOR("Bluecherry <maintainers@bluecherrydvr.com>");

@@ -33,7 +33,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "solo6x10.h"
-#include "tw28.h"
+#include "solo6x10-tw28.h"
 
 /* Image size is two fields, SOLO_HW_BPL is one horizontal line in hardware */
 #define SOLO_HW_BPL		2048
