@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <mach/common.h>
 #include <mach/mx23.h>
 #include "clk.h"
 
@@ -164,8 +163,6 @@ int __init mx23_clocks_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
-
-	mxs_timer_init();
 
 	return 0;
 }

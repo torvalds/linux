@@ -12,6 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/clocksource.h>
 #include <linux/can/platform/flexcan.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -168,11 +169,13 @@ static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
 static void __init imx23_timer_init(void)
 {
 	mx23_clocks_init();
+	clocksource_of_init();
 }
 
 static void __init imx28_timer_init(void)
 {
 	mx28_clocks_init();
+	clocksource_of_init();
 }
 
 enum mac_oui {
