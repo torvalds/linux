@@ -79,7 +79,7 @@ static void __init setup_node_to_cpumask_map(void)
 	dbg("Node to cpumask map for %d nodes\n", nr_node_ids);
 }
 
-static int __cpuinit fake_numa_create_new_node(unsigned long end_pfn,
+static int __init fake_numa_create_new_node(unsigned long end_pfn,
 						unsigned int *nid)
 {
 	unsigned long long mem;
