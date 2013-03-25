@@ -570,21 +570,46 @@ static void __kick_osd_requests(struct ceph_osd_client *osdc,
 				struct ceph_osd *osd)
 {
 	struct ceph_osd_request *req, *nreq;
+	LIST_HEAD(resend);
 	int err;
 
 	dout("__kick_osd_requests osd%d\n", osd->o_osd);
 	err = __reset_osd(osdc, osd);
 	if (err)
 		return;
-
+	/*
+	 * Build up a list of requests to resend by traversing the
+	 * osd's list of requests.  Requests for a given object are
+	 * sent in tid order, and that is also the order they're
+	 * kept on this list.  Therefore all requests that are in
+	 * flight will be found first, followed by all requests that
+	 * have not yet been sent.  And to resend requests while
+	 * preserving this order we will want to put any sent
+	 * requests back on the front of the osd client's unsent
+	 * list.
+	 *
+	 * So we build a separate ordered list of already-sent
+	 * requests for the affected osd and splice it onto the
+	 * front of the osd client's unsent list.  Once we've seen a
+	 * request that has not yet been sent we're done.  Those
+	 * requests are already sitting right where they belong.
+	 */
 	list_for_each_entry(req, &osd->o_requests, r_osd_item) {
-		list_move(&req->r_req_lru_item, &osdc->req_unsent);
-		dout("requeued %p tid %llu osd%d\n", req, req->r_tid,
+		if (!req->r_sent)
+			break;
+		list_move_tail(&req->r_req_lru_item, &resend);
+		dout("requeueing %p tid %llu osd%d\n", req, req->r_tid,
 		     osd->o_osd);
 		if (!req->r_linger)
 			req->r_flags |= CEPH_OSD_FLAG_RETRY;
 	}
+	list_splice(&resend, &osdc->req_unsent);
 
+	/*
+	 * Linger requests are re-registered before sending, which
+	 * sets up a new tid for each.  We add them to the unsent
+	 * list at the end to keep things in tid order.
+	 */
 	list_for_each_entry_safe(req, nreq, &osd->o_linger_requests,
 				 r_linger_osd) {
 		/*
@@ -593,7 +618,7 @@ static void __kick_osd_requests(struct ceph_osd_client *osdc,
 		 */
 		BUG_ON(!list_empty(&req->r_req_lru_item));
 		__register_request(osdc, req);
-		list_add(&req->r_req_lru_item, &osdc->req_unsent);
+		list_add_tail(&req->r_req_lru_item, &osdc->req_unsent);
 		list_add(&req->r_osd_item, &req->r_osd->o_requests);
 		__unregister_linger_request(osdc, req);
 		dout("requeued lingering %p tid %llu osd%d\n", req, req->r_tid,
