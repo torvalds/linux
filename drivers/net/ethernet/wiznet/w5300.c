@@ -666,7 +666,7 @@ static int w5300_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int w5300_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -699,7 +699,7 @@ static int w5300_resume(struct device *dev)
 	}
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(w5300_pm_ops, w5300_suspend, w5300_resume);
 
