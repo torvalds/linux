@@ -1988,13 +1988,15 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (beacon)
+	if (beacon) {
 		mlme_dbg_ratelimited(sdata,
 				     "detected beacon loss from AP (missed %d beacons) - probing\n",
 				     beacon_loss_count);
 
-	ieee80211_cqm_rssi_notify(&sdata->vif,
-		NL80211_CQM_RSSI_BEACON_LOSS_EVENT, GFP_KERNEL);
+		ieee80211_cqm_rssi_notify(&sdata->vif,
+					  NL80211_CQM_RSSI_BEACON_LOSS_EVENT,
+					  GFP_KERNEL);
+	}
 
 	/*
 	 * The driver/our work has already reported this event or the
