@@ -24,7 +24,11 @@ obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 obj-$(CONFIG_LOCAL_TIMERS) += localtimer.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_CPU_IDLE) += cpuidle.o
+ifeq ($(CONFIG_DVFS_WITH_UOC),y)
+obj-$(CONFIG_DVFS) += dvfs-rk3066b.o
+else
 obj-$(CONFIG_DVFS) += dvfs.o
+endif
 obj-$(CONFIG_RK30_I2C_INSRAM) += i2c_sram.o
 
 obj-$(CONFIG_ARCH_RK30XX) += board.o
