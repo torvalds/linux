@@ -178,13 +178,12 @@ static void __init pci_clock_check(void)
 	char *argptr = fw_getcmdline();
 
 	if (pciclock != 33 && !strstr(argptr, "idebus=")) {
-		printk(KERN_WARNING "WARNING: PCI clock is %dMHz, "
-				"setting idebus\n", pciclock);
+		pr_warn("WARNING: PCI clock is %dMHz, setting idebus\n",
+			pciclock);
 		argptr += strlen(argptr);
 		sprintf(argptr, " idebus=%d", pciclock);
 		if (pciclock < 20 || pciclock > 66)
-			printk(KERN_WARNING "WARNING: IDE timing "
-					"calculations will be incorrect\n");
+			pr_warn("WARNING: IDE timing calculations will be incorrect\n");
 	}
 }
 #endif
@@ -216,14 +215,14 @@ static void __init bonito_quirks_setup(void)
 	argptr = fw_getcmdline();
 	if (strstr(argptr, "debug")) {
 		BONITO_BONGENCFG |= BONITO_BONGENCFG_DEBUGMODE;
-		printk(KERN_INFO "Enabled Bonito debug mode\n");
+		pr_info("Enabled Bonito debug mode\n");
 	} else
 		BONITO_BONGENCFG &= ~BONITO_BONGENCFG_DEBUGMODE;
 
 #ifdef CONFIG_DMA_COHERENT
 	if (BONITO_PCICACHECTRL & BONITO_PCICACHECTRL_CPUCOH_PRES) {
 		BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_CPUCOH_EN;
-		printk(KERN_INFO "Enabled Bonito CPU coherency\n");
+		pr_info("Enabled Bonito CPU coherency\n");
 
 		argptr = fw_getcmdline();
 		if (strstr(argptr, "iobcuncached")) {
@@ -231,13 +230,13 @@ static void __init bonito_quirks_setup(void)
 			BONITO_PCIMEMBASECFG = BONITO_PCIMEMBASECFG &
 				~(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
 					BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
-			printk(KERN_INFO "Disabled Bonito IOBC coherency\n");
+			pr_info("Disabled Bonito IOBC coherency\n");
 		} else {
 			BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_IOBCCOH_EN;
 			BONITO_PCIMEMBASECFG |=
 				(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
 					BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
-			printk(KERN_INFO "Enabled Bonito IOBC coherency\n");
+			pr_info("Enabled Bonito IOBC coherency\n");
 		}
 	} else
 		panic("Hardware DMA cache coherency not supported");

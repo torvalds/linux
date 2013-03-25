@@ -1,31 +1,21 @@
 /*
- * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  *
  * PROM library functions for acquiring/using memory descriptors given to
  * us from the YAMON.
+ *
+ * Copyright (C) 1999,2000,2012  MIPS Technologies, Inc.
+ * All rights reserved.
+ * Authors: Carsten Langgaard <carstenl@mips.com>
+ *          Steven J. Hill <sjhill@mips.com>
  */
 #include <linux/init.h>
-#include <linux/mm.h>
 #include <linux/bootmem.h>
-#include <linux/pfn.h>
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
-#include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
 
@@ -36,19 +26,20 @@ unsigned long physical_memsize = 0L;
 
 fw_memblock_t * __init fw_getmdesc(void)
 {
-	char *memsize_str;
+	char *memsize_str, *ptr;
 	unsigned int memsize;
-	char *ptr;
 	static char cmdline[COMMAND_LINE_SIZE] __initdata;
+	long val;
+	int tmp;
 
 	/* otherwise look in the environment */
 	memsize_str = fw_getenv("memsize");
 	if (!memsize_str) {
-		printk(KERN_WARNING
-		       "memsize not set in boot prom, set to default (32Mb)\n");
+		pr_warn("memsize not set in YAMON, set to default (32Mb)\n");
 		physical_memsize = 0x02000000;
 	} else {
-		physical_memsize = simple_strtol(memsize_str, NULL, 0);
+		tmp = kstrtol(memsize_str, 0, &val);
+		physical_memsize = (unsigned long)val;
 	}
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -92,7 +83,8 @@ fw_memblock_t * __init fw_getmdesc(void)
 
 	mdesc[3].type = fw_dontuse;
 	mdesc[3].base = 0x00100000;
-	mdesc[3].size = CPHYSADDR(PFN_ALIGN((unsigned long)&_end)) - mdesc[3].base;
+	mdesc[3].size = CPHYSADDR(PFN_ALIGN((unsigned long)&_end)) -
+		mdesc[3].base;
 
 	mdesc[4].type = fw_free;
 	mdesc[4].base = CPHYSADDR(PFN_ALIGN(&_end));
@@ -142,7 +134,7 @@ void __init prom_free_prom_memory(void)
 			continue;
 
 		addr = boot_mem_map.map[i].addr;
-		free_init_pages("prom memory",
+		free_init_pages("YAMON memory",
 				addr, addr + boot_mem_map.map[i].size);
 	}
 }
