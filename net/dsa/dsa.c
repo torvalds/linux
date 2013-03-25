@@ -343,6 +343,21 @@ out:
 	return ret;
 }
 
+static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
+{
+	int i;
+	int port_index;
+
+	for (i = 0; i < pd->nr_chips; i++) {
+		port_index = 0;
+		while (pd->chip[i].port_names &&
+			pd->chip[i].port_names[++port_index])
+			kfree(pd->chip[i].port_names[port_index]);
+		kfree(pd->chip[i].rtable);
+	}
+	kfree(pd->chip);
+}
+
 static int dsa_of_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -354,7 +369,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 	const char *port_name;
 	int chip_index, port_index;
 	const unsigned int *sw_addr, *port_reg;
-	int ret, i;
+	int ret;
 
 	mdio = of_parse_phandle(np, "dsa,mii-bus", 0);
 	if (!mdio)
@@ -439,14 +454,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 	return 0;
 
 out_free_chip:
-	for (i = 0; i < pd->nr_chips; i++) {
-		port_index = 0;
-		while (pd->chip[i].port_names &&
-			pd->chip[i].port_names[++port_index])
-			kfree(pd->chip[i].port_names[port_index]);
-		kfree(pd->chip[i].rtable);
-	}
-	kfree(pd->chip);
+	dsa_of_free_platform_data(pd);
 out_free:
 	kfree(pd);
 	pdev->dev.platform_data = NULL;
@@ -456,21 +464,11 @@ out_free:
 static void dsa_of_remove(struct platform_device *pdev)
 {
 	struct dsa_platform_data *pd = pdev->dev.platform_data;
-	int i;
-	int port_index;
 
 	if (!pdev->dev.of_node)
 		return;
 
-	for (i = 0; i < pd->nr_chips; i++) {
-		port_index = 0;
-		while (pd->chip[i].port_names &&
-			pd->chip[i].port_names[++port_index])
-			kfree(pd->chip[i].port_names[port_index]);
-		kfree(pd->chip[i].rtable);
-	}
-
-	kfree(pd->chip);
+	dsa_of_free_platform_data(pd);
 	kfree(pd);
 }
 #else
