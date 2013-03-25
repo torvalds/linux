@@ -166,6 +166,7 @@ config IP_PNP_RARP
 config NET_IPIP
 	tristate "IP: tunneling"
 	select INET_TUNNEL
+	select NET_IP_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
