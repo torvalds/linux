@@ -175,7 +175,7 @@ static const struct sdhci_ops pxav3_sdhci_ops = {
 };
 
 static struct sdhci_pltfm_data sdhci_pxav3_pdata = {
-	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
+	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK
 		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
 		| SDHCI_QUIRK_32BIT_ADMA_SIZE
 		| SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
