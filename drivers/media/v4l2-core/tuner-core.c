@@ -253,7 +253,7 @@ static int fe_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 static void tuner_status(struct dvb_frontend *fe);
 
-static struct analog_demod_ops tuner_analog_ops = {
+static const struct analog_demod_ops tuner_analog_ops = {
 	.set_params     = fe_set_params,
 	.standby        = fe_standby,
 	.has_signal     = fe_has_signal,
@@ -452,6 +452,11 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		t->fe.analog_demod_priv = t;
 		memcpy(analog_ops, &tuner_analog_ops,
 		       sizeof(struct analog_demod_ops));
+
+		if (fe_tuner_ops->get_rf_strength == NULL)
+			analog_ops->has_signal = NULL;
+		if (fe_tuner_ops->get_afc == NULL)
+			analog_ops->get_afc = NULL;
 
 	} else {
 		t->name = analog_ops->info.name;
