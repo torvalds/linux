@@ -577,10 +577,12 @@ static int lowpan_header_create(struct sk_buff *skb,
 
 		/* prepare wpan address data */
 		sa.addr_type = IEEE802154_ADDR_LONG;
-		sa.pan_id = 0xff;
-		memcpy(&(sa.hwaddr), saddr, 8);
+		sa.pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
 
-		da.pan_id = 0xff;
+		memcpy(&(sa.hwaddr), saddr, 8);
+		/* intra-PAN communications */
+		da.pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
+
 		/*
 		 * if the destination address is the broadcast address, use the
 		 * corresponding short address
