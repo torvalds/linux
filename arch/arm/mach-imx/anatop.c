@@ -15,6 +15,7 @@
 #include <linux/of_address.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include "common.h"
 
 #define REG_SET		0x4
 #define REG_CLR		0x8
