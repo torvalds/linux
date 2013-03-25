@@ -3247,6 +3247,10 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->tx_loadsz		= up->tx_loadsz;
 		uart->capabilities	= up->capabilities;
 
+		/* Take tx_loadsz from fifosize if it wasn't set separately */
+		if (uart->port.fifosize && !uart->tx_loadsz)
+			uart->tx_loadsz = uart->port.fifosize;
+
 		if (up->port.dev)
 			uart->port.dev = up->port.dev;
 
