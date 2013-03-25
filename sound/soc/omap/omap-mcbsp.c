@@ -62,15 +62,13 @@ enum {
  * Stream DMA parameters. DMA request line and port address are set runtime
  * since they are different between OMAP1 and later OMAPs
  */
-static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
+static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream,
+		unsigned int packet_size)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
-	struct omap_pcm_dma_data *dma_data;
 	int words;
-
-	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	/*
 	 * Configure McBSP threshold based on either:
@@ -78,8 +76,8 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
 	 * period size in THRESHOLD mode, otherwise use McBSP threshold = 1
 	 * for mono streams.
 	 */
-	if (dma_data->packet_size)
-		words = dma_data->packet_size;
+	if (packet_size)
+		words = packet_size;
 	else
 		words = 1;
 
@@ -245,7 +243,6 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 	if (mcbsp->pdata->buffer_size) {
-		dma_data->set_threshold = omap_mcbsp_set_threshold;
 		if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD) {
 			int period_words, max_thrsh;
 			int divider = 0;
@@ -276,6 +273,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 			/* Use packet mode for non mono streams */
 			pkt_size = channels;
 		}
+		omap_mcbsp_set_threshold(substream, pkt_size);
 	}
 
 	dma_data->packet_size = pkt_size;

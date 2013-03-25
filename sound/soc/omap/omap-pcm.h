@@ -31,7 +31,6 @@ struct omap_pcm_dma_data {
 	char		*name;		/* stream identifier */
 	int		dma_req;	/* DMA request line */
 	unsigned long	port_addr;	/* transmit/receive register */
-	void (*set_threshold)(struct snd_pcm_substream *substream);
 	int		data_type;	/* 8, 16, 32 (bits) or 0 to let omap-pcm
 					 * to decide the sDMA data type */
 	int		packet_size;	/* packet size only in PACKET mode */
