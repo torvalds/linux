@@ -831,14 +831,6 @@ static void __register_request(struct ceph_osd_client *osdc,
 	}
 }
 
-static void register_request(struct ceph_osd_client *osdc,
-			     struct ceph_osd_request *req)
-{
-	mutex_lock(&osdc->request_mutex);
-	__register_request(osdc, req);
-	mutex_unlock(&osdc->request_mutex);
-}
-
 /*
  * called under osdc->request_mutex
  */
@@ -1785,8 +1777,6 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	ceph_osdc_msg_data_set(req->r_reply, &req->r_data_in);
 	ceph_osdc_msg_data_set(req->r_request, &req->r_data_out);
 
-	register_request(osdc, req);
-
 	down_read(&osdc->map_sem);
 	mutex_lock(&osdc->request_mutex);
 	/*
@@ -1794,6 +1784,7 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	 * while we dropped request_mutex above, so only send now if
 	 * the request still han't been touched yet.
 	 */
+	__register_request(osdc, req);
 	if (req->r_sent == 0) {
 		rc = __map_request(osdc, req, 0);
 		if (rc < 0) {
