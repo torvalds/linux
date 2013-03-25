@@ -386,9 +386,12 @@ ENDPROC(_DebugInterruptVector)
 	.if	XCHAL_EXCM_LEVEL >= \level
 	.section .Level\level\()InterruptVector.text, "ax"
 ENTRY(_Level\level\()InterruptVector)
-	wsr	a0, epc1
+	wsr	a0, excsave2
 	rsr	a0, epc\level
-	xsr	a0, epc1
+	wsr	a0, epc1
+	movi	a0, EXCCAUSE_LEVEL1_INTERRUPT
+	wsr	a0, exccause
+	rsr	a0, eps\level
 					# branch to user or kernel vector
 	j	_SimulateUserKernelVectorException
 	.endif
@@ -440,10 +443,8 @@ ENDPROC(_WindowOverflow4)
 	 */
 	.align 4
 _SimulateUserKernelVectorException:
-	wsr	a0, excsave2
-	movi	a0, 4			# LEVEL1_INTERRUPT cause
-	wsr	a0, exccause
-	rsr	a0, ps
+	addi	a0, a0, (1 << PS_EXCM_BIT)
+	wsr	a0, ps
 	bbsi.l	a0, PS_UM_BIT, 1f	# branch if user mode
 	rsr	a0, excsave2		# restore a0
 	j	_KernelExceptionVector	# simulate kernel vector exception

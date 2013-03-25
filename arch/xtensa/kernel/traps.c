@@ -196,7 +196,6 @@ void do_multihit(struct pt_regs *regs, unsigned long exccause)
 
 /*
  * IRQ handler.
- * PS.INTLEVEL is the current IRQ priority level.
  */
 
 extern void do_IRQ(int, struct pt_regs *);
@@ -213,18 +212,21 @@ void do_interrupt(struct pt_regs *regs)
 		XCHAL_INTLEVEL6_MASK,
 		XCHAL_INTLEVEL7_MASK,
 	};
-	unsigned level = get_sr(ps) & PS_INTLEVEL_MASK;
-
-	if (WARN_ON_ONCE(level >= ARRAY_SIZE(int_level_mask)))
-		return;
 
 	for (;;) {
 		unsigned intread = get_sr(interrupt);
 		unsigned intenable = get_sr(intenable);
-		unsigned int_at_level = intread & intenable &
-			int_level_mask[level];
+		unsigned int_at_level = intread & intenable;
+		unsigned level;
 
-		if (!int_at_level)
+		for (level = LOCKLEVEL; level > 0; --level) {
+			if (int_at_level & int_level_mask[level]) {
+				int_at_level &= int_level_mask[level];
+				break;
+			}
+		}
+
+		if (level == 0)
 			return;
 
 		/*
