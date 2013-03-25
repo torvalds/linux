@@ -1,6 +1,11 @@
 /*
- * Copyright (C) 2010 Bluecherry, LLC www.bluecherrydvr.com
- * Copyright (C) 2010 Ben Collins <bcollins@bluecherry.net>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ *
+ * Original author:
+ * Ben Collins <bcollins@ubuntu.com>
+ *
+ * Additional work by:
+ * John Brooks <john.brooks@bluecherry.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,28 +23,38 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/scatterlist.h>
+
 #include "solo6x10.h"
 
-/* #define SOLO_TEST_P2M */
+static int multi_p2m;
+module_param(multi_p2m, uint, 0644);
+MODULE_PARM_DESC(multi_p2m,
+		 "Use multiple P2M DMA channels (default: no, 6010-only)");
 
-int solo_p2m_dma(struct solo_dev *solo_dev, u8 id, int wr,
-		 void *sys_addr, u32 ext_addr, u32 size)
+static int desc_mode;
+module_param(desc_mode, uint, 0644);
+MODULE_PARM_DESC(desc_mode,
+		 "Allow use of descriptor mode DMA (default: no, 6010-only)");
+
+int solo_p2m_dma(struct solo_dev *solo_dev, int wr,
+		 void *sys_addr, u32 ext_addr, u32 size,
+		 int repeat, u32 ext_size)
 {
 	dma_addr_t dma_addr;
 	int ret;
 
-	WARN_ON(!size);
-	BUG_ON(id >= SOLO_NR_P2M);
-
-	if (!size)
+	if (WARN_ON_ONCE((unsigned long)sys_addr & 0x03))
+		return -EINVAL;
+	if (WARN_ON_ONCE(!size))
 		return -EINVAL;
 
 	dma_addr = pci_map_single(solo_dev->pdev, sys_addr, size,
 				  wr ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
 
-	ret = solo_p2m_dma_t(solo_dev, id, wr, dma_addr, ext_addr, size);
+	ret = solo_p2m_dma_t(solo_dev, wr, dma_addr, ext_addr, size,
+			     repeat, ext_size);
 
 	pci_unmap_single(solo_dev->pdev, dma_addr, size,
 			 wr ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
@@ -47,221 +62,141 @@ int solo_p2m_dma(struct solo_dev *solo_dev, u8 id, int wr,
 	return ret;
 }
 
-int solo_p2m_dma_t(struct solo_dev *solo_dev, u8 id, int wr,
-		   dma_addr_t dma_addr, u32 ext_addr, u32 size)
-{
-	struct p2m_desc *desc = kzalloc(sizeof(*desc) * 2, GFP_DMA);
-	int ret;
-
-	if (desc == NULL)
-		return -ENOMEM;
-
-	solo_p2m_push_desc(&desc[1], wr, dma_addr, ext_addr, size, 0, 0);
-	ret = solo_p2m_dma_desc(solo_dev, id, desc, 2);
-	kfree(desc);
-
-	return ret;
-}
-
-void solo_p2m_push_desc(struct p2m_desc *desc, int wr, dma_addr_t dma_addr,
-			u32 ext_addr, u32 size, int repeat, u32 ext_size)
-{
-	desc->ta = cpu_to_le32(dma_addr);
-	desc->fa = cpu_to_le32(ext_addr);
-
-	desc->ext = cpu_to_le32(SOLO_P2M_COPY_SIZE(size >> 2));
-	desc->ctrl = cpu_to_le32(SOLO_P2M_BURST_SIZE(SOLO_P2M_BURST_256) |
-				 (wr ? SOLO_P2M_WRITE : 0) | SOLO_P2M_TRANS_ON);
-
-	/* Ext size only matters when we're repeating */
-	if (repeat) {
-		desc->ext |= cpu_to_le32(SOLO_P2M_EXT_INC(ext_size >> 2));
-		desc->ctrl |=  cpu_to_le32(SOLO_P2M_PCI_INC(size >> 2) |
-					   SOLO_P2M_REPEAT(repeat));
-	}
-}
-
-int solo_p2m_dma_desc(struct solo_dev *solo_dev, u8 id,
-		      struct p2m_desc *desc, int desc_count)
+/* Mutex must be held for p2m_id before calling this!! */
+int solo_p2m_dma_desc(struct solo_dev *solo_dev,
+		      struct solo_p2m_desc *desc, dma_addr_t desc_dma,
+		      int desc_cnt)
 {
 	struct solo_p2m_dev *p2m_dev;
 	unsigned int timeout;
+	unsigned int config = 0;
 	int ret = 0;
-	u32 config = 0;
-	dma_addr_t desc_dma = 0;
+	int p2m_id = 0;
 
-	BUG_ON(id >= SOLO_NR_P2M);
-	BUG_ON(!desc_count || desc_count > SOLO_NR_P2M_DESC);
+	/* Get next ID. According to Softlogic, 6110 has problems on !=0 P2M */
+	if (solo_dev->type != SOLO_DEV_6110 && multi_p2m) {
+		p2m_id = atomic_inc_return(&solo_dev->p2m_count) % SOLO_NR_P2M;
+		if (p2m_id < 0)
+			p2m_id = -p2m_id;
+	}
 
-	p2m_dev = &solo_dev->p2m_dev[id];
+	p2m_dev = &solo_dev->p2m_dev[p2m_id];
 
-	mutex_lock(&p2m_dev->mutex);
-
-	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), 0);
+	if (mutex_lock_interruptible(&p2m_dev->mutex))
+		return -EINTR;
 
 	INIT_COMPLETION(p2m_dev->completion);
 	p2m_dev->error = 0;
 
-	/* Enable the descriptors */
-	config = solo_reg_read(solo_dev, SOLO_P2M_CONFIG(id));
-	desc_dma = pci_map_single(solo_dev->pdev, desc,
-				  desc_count * sizeof(*desc),
-				  PCI_DMA_TODEVICE);
-	solo_reg_write(solo_dev, SOLO_P2M_DES_ADR(id), desc_dma);
-	solo_reg_write(solo_dev, SOLO_P2M_DESC_ID(id), desc_count - 1);
-	solo_reg_write(solo_dev, SOLO_P2M_CONFIG(id), config |
-		       SOLO_P2M_DESC_MODE);
+	if (desc_cnt > 1 && solo_dev->type != SOLO_DEV_6110 && desc_mode) {
+		/* For 6010 with more than one desc, we can do a one-shot */
+		p2m_dev->desc_count = p2m_dev->desc_idx = 0;
+		config = solo_reg_read(solo_dev, SOLO_P2M_CONFIG(p2m_id));
 
-	/* Should have all descriptors completed from one interrupt */
-	timeout = wait_for_completion_timeout(&p2m_dev->completion, HZ);
+		solo_reg_write(solo_dev, SOLO_P2M_DES_ADR(p2m_id), desc_dma);
+		solo_reg_write(solo_dev, SOLO_P2M_DESC_ID(p2m_id), desc_cnt);
+		solo_reg_write(solo_dev, SOLO_P2M_CONFIG(p2m_id), config |
+			       SOLO_P2M_DESC_MODE);
+	} else {
+		/* For single descriptors and 6110, we need to run each desc */
+		p2m_dev->desc_count = desc_cnt;
+		p2m_dev->desc_idx = 1;
+		p2m_dev->descs = desc;
 
-	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), 0);
+		solo_reg_write(solo_dev, SOLO_P2M_TAR_ADR(p2m_id),
+			       desc[1].dma_addr);
+		solo_reg_write(solo_dev, SOLO_P2M_EXT_ADR(p2m_id),
+			       desc[1].ext_addr);
+		solo_reg_write(solo_dev, SOLO_P2M_EXT_CFG(p2m_id),
+			       desc[1].cfg);
+		solo_reg_write(solo_dev, SOLO_P2M_CONTROL(p2m_id),
+			       desc[1].ctrl);
+	}
 
-	/* Reset back to non-descriptor mode */
-	solo_reg_write(solo_dev, SOLO_P2M_CONFIG(id), config);
-	solo_reg_write(solo_dev, SOLO_P2M_DESC_ID(id), 0);
-	solo_reg_write(solo_dev, SOLO_P2M_DES_ADR(id), 0);
-	pci_unmap_single(solo_dev->pdev, desc_dma,
-			 desc_count * sizeof(*desc),
-			 PCI_DMA_TODEVICE);
+	timeout = wait_for_completion_timeout(&p2m_dev->completion,
+					      solo_dev->p2m_jiffies);
 
-	if (p2m_dev->error)
+	if (WARN_ON_ONCE(p2m_dev->error))
 		ret = -EIO;
-	else if (timeout == 0)
+	else if (timeout == 0) {
+		solo_dev->p2m_timeouts++;
 		ret = -EAGAIN;
+	}
+
+	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(p2m_id), 0);
+
+	/* Don't write here for the no_desc_mode case, because config is 0.
+	 * We can't test no_desc_mode again, it might race. */
+	if (desc_cnt > 1 && solo_dev->type != SOLO_DEV_6110 && config)
+		solo_reg_write(solo_dev, SOLO_P2M_CONFIG(p2m_id), config);
 
 	mutex_unlock(&p2m_dev->mutex);
-
-	WARN_ON_ONCE(ret);
 
 	return ret;
 }
 
-int solo_p2m_dma_sg(struct solo_dev *solo_dev, u8 id,
-		    struct p2m_desc *pdesc, int wr,
-		    struct scatterlist *sg, u32 sg_off,
-		    u32 ext_addr, u32 size)
+void solo_p2m_fill_desc(struct solo_p2m_desc *desc, int wr,
+			dma_addr_t dma_addr, u32 ext_addr, u32 size,
+			int repeat, u32 ext_size)
 {
-	int i;
-	int idx;
+	WARN_ON_ONCE(dma_addr & 0x03);
+	WARN_ON_ONCE(!size);
 
-	BUG_ON(id >= SOLO_NR_P2M);
+	desc->cfg = SOLO_P2M_COPY_SIZE(size >> 2);
+	desc->ctrl = SOLO_P2M_BURST_SIZE(SOLO_P2M_BURST_256) |
+		(wr ? SOLO_P2M_WRITE : 0) | SOLO_P2M_TRANS_ON;
 
-	if (WARN_ON_ONCE(!size))
-		return -EINVAL;
-
-	memset(pdesc, 0, sizeof(*pdesc));
-
-	/* Should rewrite this to handle > SOLO_NR_P2M_DESC transactions */
-	for (i = 0, idx = 1; idx < SOLO_NR_P2M_DESC && sg && size > 0;
-	     i++, sg = sg_next(sg)) {
-		struct p2m_desc *desc = &pdesc[idx];
-		u32 sg_len = sg_dma_len(sg);
-		u32 len;
-
-		if (sg_off >= sg_len) {
-			sg_off -= sg_len;
-			continue;
-		}
-
-		sg_len -= sg_off;
-		len = min(sg_len, size);
-
-		solo_p2m_push_desc(desc, wr, sg_dma_address(sg) + sg_off,
-				   ext_addr, len, 0, 0);
-
-		size -= len;
-		ext_addr += len;
-		idx++;
-
-		sg_off = 0;
+	if (repeat) {
+		desc->cfg |= SOLO_P2M_EXT_INC(ext_size >> 2);
+		desc->ctrl |=  SOLO_P2M_PCI_INC(size >> 2) |
+			 SOLO_P2M_REPEAT(repeat);
 	}
 
-	WARN_ON_ONCE(size || i >= SOLO_NR_P2M_DESC);
-
-	return solo_p2m_dma_desc(solo_dev, id, pdesc, idx);
+	desc->dma_addr = dma_addr;
+	desc->ext_addr = ext_addr;
 }
 
-#ifdef SOLO_TEST_P2M
-
-#define P2M_TEST_CHAR		0xbe
-
-static unsigned long long p2m_test(struct solo_dev *solo_dev, u8 id,
-				   u32 base, int size)
+int solo_p2m_dma_t(struct solo_dev *solo_dev, int wr,
+		   dma_addr_t dma_addr, u32 ext_addr, u32 size,
+		   int repeat, u32 ext_size)
 {
-	u8 *wr_buf;
-	u8 *rd_buf;
-	int i;
-	unsigned long long err_cnt = 0;
+	struct solo_p2m_desc desc[2];
 
-	wr_buf = kmalloc(size, GFP_KERNEL);
-	if (!wr_buf) {
-		printk(SOLO6X10_NAME ": Failed to malloc for p2m_test\n");
-		return size;
-	}
+	solo_p2m_fill_desc(&desc[1], wr, dma_addr, ext_addr, size, repeat,
+			   ext_size);
 
-	rd_buf = kmalloc(size, GFP_KERNEL);
-	if (!rd_buf) {
-		printk(SOLO6X10_NAME ": Failed to malloc for p2m_test\n");
-		kfree(wr_buf);
-		return size;
-	}
-
-	memset(wr_buf, P2M_TEST_CHAR, size);
-	memset(rd_buf, P2M_TEST_CHAR + 1, size);
-
-	solo_p2m_dma(solo_dev, id, 1, wr_buf, base, size);
-	solo_p2m_dma(solo_dev, id, 0, rd_buf, base, size);
-
-	for (i = 0; i < size; i++)
-		if (wr_buf[i] != rd_buf[i])
-			err_cnt++;
-
-	kfree(wr_buf);
-	kfree(rd_buf);
-
-	return err_cnt;
+	/* No need for desc_dma since we know it is a single-shot */
+	return solo_p2m_dma_desc(solo_dev, desc, 0, 1);
 }
-
-#define TEST_CHUNK_SIZE		(8 * 1024)
-
-static void run_p2m_test(struct solo_dev *solo_dev)
-{
-	unsigned long long errs = 0;
-	u32 size = SOLO_JPEG_EXT_ADDR(solo_dev) + SOLO_JPEG_EXT_SIZE(solo_dev);
-	int i, d;
-
-	dev_warn(&solo_dev->pdev->dev, "Testing %u bytes of external ram\n",
-		 size);
-
-	for (i = 0; i < size; i += TEST_CHUNK_SIZE)
-		for (d = 0; d < 4; d++)
-			errs += p2m_test(solo_dev, d, i, TEST_CHUNK_SIZE);
-
-	dev_warn(&solo_dev->pdev->dev, "Found %llu errors during p2m test\n",
-		 errs);
-
-	return;
-}
-#else
-#define run_p2m_test(__solo)	do {} while (0)
-#endif
 
 void solo_p2m_isr(struct solo_dev *solo_dev, int id)
 {
 	struct solo_p2m_dev *p2m_dev = &solo_dev->p2m_dev[id];
+	struct solo_p2m_desc *desc;
 
-	solo_reg_write(solo_dev, SOLO_IRQ_STAT, SOLO_IRQ_P2M(id));
+	if (p2m_dev->desc_count <= p2m_dev->desc_idx) {
+		complete(&p2m_dev->completion);
+		return;
+	}
 
-	complete(&p2m_dev->completion);
+	/* Setup next descriptor */
+	p2m_dev->desc_idx++;
+	desc = &p2m_dev->descs[p2m_dev->desc_idx];
+
+	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), 0);
+	solo_reg_write(solo_dev, SOLO_P2M_TAR_ADR(id), desc->dma_addr);
+	solo_reg_write(solo_dev, SOLO_P2M_EXT_ADR(id), desc->ext_addr);
+	solo_reg_write(solo_dev, SOLO_P2M_EXT_CFG(id), desc->cfg);
+	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), desc->ctrl);
 }
 
-void solo_p2m_error_isr(struct solo_dev *solo_dev, u32 status)
+void solo_p2m_error_isr(struct solo_dev *solo_dev)
 {
+	unsigned int err = solo_reg_read(solo_dev, SOLO_PCI_ERR);
 	struct solo_p2m_dev *p2m_dev;
 	int i;
 
-	if (!(status & SOLO_PCI_ERR_P2M))
+	if (!(err & SOLO_PCI_ERR_P2M))
 		return;
 
 	for (i = 0; i < SOLO_NR_P2M; i++) {
@@ -280,6 +215,52 @@ void solo_p2m_exit(struct solo_dev *solo_dev)
 		solo_irq_off(solo_dev, SOLO_IRQ_P2M(i));
 }
 
+static int solo_p2m_test(struct solo_dev *solo_dev, int base, int size)
+{
+	u32 *wr_buf;
+	u32 *rd_buf;
+	int i;
+	int ret = -EIO;
+	int order = get_order(size);
+
+	wr_buf = (u32 *)__get_free_pages(GFP_KERNEL, order);
+	if (wr_buf == NULL)
+		return -1;
+
+	rd_buf = (u32 *)__get_free_pages(GFP_KERNEL, order);
+	if (rd_buf == NULL) {
+		free_pages((unsigned long)wr_buf, order);
+		return -1;
+	}
+
+	for (i = 0; i < (size >> 3); i++)
+		*(wr_buf + i) = (i << 16) | (i + 1);
+
+	for (i = (size >> 3); i < (size >> 2); i++)
+		*(wr_buf + i) = ~((i << 16) | (i + 1));
+
+	memset(rd_buf, 0x55, size);
+
+	if (solo_p2m_dma(solo_dev, 1, wr_buf, base, size, 0, 0))
+		goto test_fail;
+
+	if (solo_p2m_dma(solo_dev, 0, rd_buf, base, size, 0, 0))
+		goto test_fail;
+
+	for (i = 0; i < (size >> 2); i++) {
+		if (*(wr_buf + i) != *(rd_buf + i))
+			goto test_fail;
+	}
+
+	ret = 0;
+
+test_fail:
+	free_pages((unsigned long)wr_buf, order);
+	free_pages((unsigned long)rd_buf, order);
+
+	return ret;
+}
+
 int solo_p2m_init(struct solo_dev *solo_dev)
 {
 	struct solo_p2m_dev *p2m_dev;
@@ -294,13 +275,57 @@ int solo_p2m_init(struct solo_dev *solo_dev)
 		solo_reg_write(solo_dev, SOLO_P2M_CONTROL(i), 0);
 		solo_reg_write(solo_dev, SOLO_P2M_CONFIG(i),
 			       SOLO_P2M_CSC_16BIT_565 |
-			       SOLO_P2M_DMA_INTERVAL(3) |
 			       SOLO_P2M_DESC_INTR_OPT |
+			       SOLO_P2M_DMA_INTERVAL(0) |
 			       SOLO_P2M_PCI_MASTER_MODE);
 		solo_irq_on(solo_dev, SOLO_IRQ_P2M(i));
 	}
 
-	run_p2m_test(solo_dev);
+	/* Find correct SDRAM size */
+	for (solo_dev->sdram_size = 0, i = 2; i >= 0; i--) {
+		solo_reg_write(solo_dev, SOLO_DMA_CTRL,
+			       SOLO_DMA_CTRL_REFRESH_CYCLE(1) |
+			       SOLO_DMA_CTRL_SDRAM_SIZE(i) |
+			       SOLO_DMA_CTRL_SDRAM_CLK_INVERT |
+			       SOLO_DMA_CTRL_READ_CLK_SELECT |
+			       SOLO_DMA_CTRL_LATENCY(1));
+
+		solo_reg_write(solo_dev, SOLO_SYS_CFG, solo_dev->sys_config |
+			       SOLO_SYS_CFG_RESET);
+		solo_reg_write(solo_dev, SOLO_SYS_CFG, solo_dev->sys_config);
+
+		switch (i) {
+		case 2:
+			if (solo_p2m_test(solo_dev, 0x07ff0000, 0x00010000) ||
+			    solo_p2m_test(solo_dev, 0x05ff0000, 0x00010000))
+				continue;
+			break;
+
+		case 1:
+			if (solo_p2m_test(solo_dev, 0x03ff0000, 0x00010000))
+				continue;
+			break;
+
+		default:
+			if (solo_p2m_test(solo_dev, 0x01ff0000, 0x00010000))
+				continue;
+		}
+
+		solo_dev->sdram_size = (32 << 20) << i;
+		break;
+	}
+
+	if (!solo_dev->sdram_size) {
+		dev_err(&solo_dev->pdev->dev, "Error detecting SDRAM size\n");
+		return -EIO;
+	}
+
+	if (SOLO_SDRAM_END(solo_dev) > solo_dev->sdram_size) {
+		dev_err(&solo_dev->pdev->dev,
+			"SDRAM is not large enough (%u < %u)\n",
+			solo_dev->sdram_size, SOLO_SDRAM_END(solo_dev));
+		return -EIO;
+	}
 
 	return 0;
 }

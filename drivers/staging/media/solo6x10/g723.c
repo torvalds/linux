@@ -1,6 +1,11 @@
 /*
- * Copyright (C) 2010 Bluecherry, LLC www.bluecherrydvr.com
- * Copyright (C) 2010 Ben Collins <bcollins@bluecherry.net>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ *
+ * Original author:
+ * Ben Collins <bcollins@ubuntu.com>
+ *
+ * Additional work by:
+ * John Brooks <john.brooks@bluecherry.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,17 +26,18 @@
 #include <linux/mempool.h>
 #include <linux/poll.h>
 #include <linux/kthread.h>
-#include <linux/slab.h>
 #include <linux/freezer.h>
-#include <linux/export.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
+
 #include "solo6x10.h"
 #include "tw28.h"
 
-#define G723_INTR_ORDER		0
 #define G723_FDMA_PAGES		32
 #define G723_PERIOD_BYTES	48
 #define G723_PERIOD_BLOCK	1024
@@ -46,36 +52,40 @@
 /* The solo writes to 1k byte pages, 32 pages, in the dma. Each 1k page
  * is broken down to 20 * 48 byte regions (one for each channel possible)
  * with the rest of the page being dummy data. */
-#define MAX_BUFFER		(G723_PERIOD_BYTES * PERIODS_MAX)
-#define IRQ_PAGES		4 /* 0 - 4 */
-#define PERIODS_MIN		(1 << IRQ_PAGES)
+#define G723_MAX_BUFFER		(G723_PERIOD_BYTES * PERIODS_MAX)
+#define G723_INTR_ORDER		4 /* 0 - 4 */
+#define PERIODS_MIN		(1 << G723_INTR_ORDER)
 #define PERIODS_MAX		G723_FDMA_PAGES
 
 struct solo_snd_pcm {
-	int		on;
-	spinlock_t	lock;
-	struct solo_dev	*solo_dev;
-	unsigned char	g723_buf[G723_PERIOD_BYTES];
+	int				on;
+	spinlock_t			lock;
+	struct solo_dev		*solo_dev;
+	unsigned char			*g723_buf;
+	dma_addr_t			g723_dma;
 };
 
 static void solo_g723_config(struct solo_dev *solo_dev)
 {
 	int clk_div;
 
-	clk_div = SOLO_CLOCK_MHZ / (SAMPLERATE * (BITRATE * 2) * 2);
+	clk_div = (solo_dev->clock_mhz * 1000000)
+		/ (SAMPLERATE * (BITRATE * 2) * 2);
 
 	solo_reg_write(solo_dev, SOLO_AUDIO_SAMPLE,
-		       SOLO_AUDIO_BITRATE(BITRATE) |
-		       SOLO_AUDIO_CLK_DIV(clk_div));
+		       SOLO_AUDIO_BITRATE(BITRATE)
+		       | SOLO_AUDIO_CLK_DIV(clk_div));
 
 	solo_reg_write(solo_dev, SOLO_AUDIO_FDMA_INTR,
-		      SOLO_AUDIO_FDMA_INTERVAL(IRQ_PAGES) |
-		      SOLO_AUDIO_INTR_ORDER(G723_INTR_ORDER) |
-		      SOLO_AUDIO_FDMA_BASE(SOLO_G723_EXT_ADDR(solo_dev) >> 16));
+		       SOLO_AUDIO_FDMA_INTERVAL(1)
+		       | SOLO_AUDIO_INTR_ORDER(G723_INTR_ORDER)
+		       | SOLO_AUDIO_FDMA_BASE(SOLO_G723_EXT_ADDR(solo_dev) >> 16));
 
 	solo_reg_write(solo_dev, SOLO_AUDIO_CONTROL,
-		       SOLO_AUDIO_ENABLE | SOLO_AUDIO_I2S_MODE |
-		       SOLO_AUDIO_I2S_MULTI(3) | SOLO_AUDIO_MODE(OUTMODE_MASK));
+		       SOLO_AUDIO_ENABLE
+		       | SOLO_AUDIO_I2S_MODE
+		       | SOLO_AUDIO_I2S_MULTI(3)
+		       | SOLO_AUDIO_MODE(OUTMODE_MASK));
 }
 
 void solo_g723_isr(struct solo_dev *solo_dev)
@@ -84,8 +94,6 @@ void solo_g723_isr(struct solo_dev *solo_dev)
 		&solo_dev->snd_pcm->streams[SNDRV_PCM_STREAM_CAPTURE];
 	struct snd_pcm_substream *ss;
 	struct solo_snd_pcm *solo_pcm;
-
-	solo_reg_write(solo_dev, SOLO_IRQ_STAT, SOLO_IRQ_G723);
 
 	for (ss = pstr->substream; ss != NULL; ss = ss->next) {
 		if (snd_pcm_substream_chip(ss) == NULL)
@@ -115,18 +123,18 @@ static int snd_solo_hw_free(struct snd_pcm_substream *ss)
 	return snd_pcm_lib_free_pages(ss);
 }
 
-static struct snd_pcm_hardware snd_solo_pcm_hw = {
+static const struct snd_pcm_hardware snd_solo_pcm_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 				   SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				   SNDRV_PCM_INFO_MMAP_VALID),
 	.formats		= SNDRV_PCM_FMTBIT_U8,
 	.rates			= SNDRV_PCM_RATE_8000,
-	.rate_min		= 8000,
-	.rate_max		= 8000,
+	.rate_min		= SAMPLERATE,
+	.rate_max		= SAMPLERATE,
 	.channels_min		= 1,
 	.channels_max		= 1,
-	.buffer_bytes_max	= MAX_BUFFER,
+	.buffer_bytes_max	= G723_MAX_BUFFER,
 	.period_bytes_min	= G723_PERIOD_BYTES,
 	.period_bytes_max	= G723_PERIOD_BYTES,
 	.periods_min		= PERIODS_MIN,
@@ -140,7 +148,13 @@ static int snd_solo_pcm_open(struct snd_pcm_substream *ss)
 
 	solo_pcm = kzalloc(sizeof(*solo_pcm), GFP_KERNEL);
 	if (solo_pcm == NULL)
-		return -ENOMEM;
+		goto oom;
+
+	solo_pcm->g723_buf = pci_alloc_consistent(solo_dev->pdev,
+						  G723_PERIOD_BYTES,
+						  &solo_pcm->g723_dma);
+	if (solo_pcm->g723_buf == NULL)
+		goto oom;
 
 	spin_lock_init(&solo_pcm->lock);
 	solo_pcm->solo_dev = solo_dev;
@@ -149,6 +163,10 @@ static int snd_solo_pcm_open(struct snd_pcm_substream *ss)
 	snd_pcm_substream_chip(ss) = solo_pcm;
 
 	return 0;
+
+oom:
+	kfree(solo_pcm);
+	return -ENOMEM;
 }
 
 static int snd_solo_pcm_close(struct snd_pcm_substream *ss)
@@ -156,6 +174,8 @@ static int snd_solo_pcm_close(struct snd_pcm_substream *ss)
 	struct solo_snd_pcm *solo_pcm = snd_pcm_substream_chip(ss);
 
 	snd_pcm_substream_chip(ss) = solo_pcm->solo_dev;
+	pci_free_consistent(solo_pcm->solo_dev->pdev, G723_PERIOD_BYTES,
+			    solo_pcm->g723_buf, solo_pcm->g723_dma);
 	kfree(solo_pcm);
 
 	return 0;
@@ -220,12 +240,11 @@ static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
 	for (i = 0; i < (count / G723_FRAMES_PER_PAGE); i++) {
 		int page = (pos / G723_FRAMES_PER_PAGE) + i;
 
-		err = solo_p2m_dma(solo_dev, SOLO_P2M_DMA_ID_G723E, 0,
-				   solo_pcm->g723_buf,
-				   SOLO_G723_EXT_ADDR(solo_dev) +
-				   (page * G723_PERIOD_BLOCK) +
-				   (ss->number * G723_PERIOD_BYTES),
-				   G723_PERIOD_BYTES);
+		err = solo_p2m_dma_t(solo_dev, 0, solo_pcm->g723_dma,
+				     SOLO_G723_EXT_ADDR(solo_dev) +
+				     (page * G723_PERIOD_BLOCK) +
+				     (ss->number * G723_PERIOD_BYTES),
+				     G723_PERIOD_BYTES, 0, 0);
 		if (err)
 			return err;
 
@@ -325,7 +344,7 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 	ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
 					SNDRV_DMA_TYPE_CONTINUOUS,
 					snd_dma_continuous_data(GFP_KERNEL),
-					MAX_BUFFER, MAX_BUFFER);
+					G723_MAX_BUFFER, G723_MAX_BUFFER);
 	if (ret < 0)
 		return ret;
 
@@ -368,6 +387,7 @@ int solo_g723_init(struct solo_dev *solo_dev)
 	strcpy(card->mixername, "SOLO-6x10");
 	kctl = snd_solo_capture_volume;
 	kctl.count = solo_dev->nr_chans;
+
 	ret = snd_ctl_add(card, snd_ctl_new1(&kctl, solo_dev));
 	if (ret < 0)
 		return ret;
@@ -393,8 +413,12 @@ snd_error:
 
 void solo_g723_exit(struct solo_dev *solo_dev)
 {
+	if (!solo_dev->snd_card)
+		return;
+
 	solo_reg_write(solo_dev, SOLO_AUDIO_CONTROL, 0);
 	solo_irq_off(solo_dev, SOLO_IRQ_G723);
 
 	snd_card_free(solo_dev->snd_card);
+	solo_dev->snd_card = NULL;
 }

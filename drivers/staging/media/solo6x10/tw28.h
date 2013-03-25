@@ -1,6 +1,11 @@
 /*
- * Copyright (C) 2010 Bluecherry, LLC www.bluecherrydvr.com
- * Copyright (C) 2010 Ben Collins <bcollins@bluecherry.net>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ *
+ * Original author:
+ * Ben Collins <bcollins@ubuntu.com>
+ *
+ * Additional work by:
+ * John Brooks <john.brooks@bluecherry.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +41,7 @@
 #define TW_AUDIO_INPUT_GAIN_ADDR(n)		(0x60 + ((n > 1) ? 1 : 0))
 
 /* tw286x */
-#define TW286X_AV_STAT_ADDR			0xfd
+#define TW286x_AV_STAT_ADDR			0xfd
 #define TW286x_HUE_ADDR(n)			(0x06 | ((n) << 4))
 #define TW286x_SATURATIONU_ADDR(n)		(0x04 | ((n) << 4))
 #define TW286x_SATURATIONV_ADDR(n)		(0x05 | ((n) << 4))

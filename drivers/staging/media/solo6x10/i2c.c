@@ -1,6 +1,11 @@
 /*
- * Copyright (C) 2010 Bluecherry, LLC www.bluecherrydvr.com
- * Copyright (C) 2010 Ben Collins <bcollins@bluecherry.net>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ *
+ * Original author:
+ * Ben Collins <bcollins@ubuntu.com>
+ *
+ * Additional work by:
+ * John Brooks <john.brooks@bluecherry.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +31,7 @@
  * thread context, ACK the interrupt, and move on. -- BenC */
 
 #include <linux/kernel.h>
+
 #include "solo6x10.h"
 
 u8 solo_i2c_readbyte(struct solo_dev *solo_dev, int id, u8 addr, u8 off)
@@ -173,10 +179,9 @@ int solo_i2c_isr(struct solo_dev *solo_dev)
 	u32 status = solo_reg_read(solo_dev, SOLO_IIC_CTRL);
 	int ret = -EINVAL;
 
-	solo_reg_write(solo_dev, SOLO_IRQ_STAT, SOLO_IRQ_IIC);
 
-	if (status & (SOLO_IIC_STATE_TRNS | SOLO_IIC_STATE_SIG_ERR) ||
-	    solo_dev->i2c_id < 0) {
+	if (CHK_FLAGS(status, SOLO_IIC_STATE_TRNS | SOLO_IIC_STATE_SIG_ERR)
+	    || solo_dev->i2c_id < 0) {
 		solo_i2c_stop(solo_dev);
 		return -ENXIO;
 	}
@@ -239,7 +244,8 @@ static int solo_i2c_master_xfer(struct i2c_adapter *adap,
 	timeout = HZ / 2;
 
 	for (;;) {
-		prepare_to_wait(&solo_dev->i2c_wait, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(&solo_dev->i2c_wait, &wait,
+				TASK_INTERRUPTIBLE);
 
 		if (solo_dev->i2c_state == IIC_STATE_STOP)
 			break;
@@ -267,7 +273,7 @@ static u32 solo_i2c_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm solo_i2c_algo = {
+static const struct i2c_algorithm solo_i2c_algo = {
 	.master_xfer	= solo_i2c_master_xfer,
 	.functionality	= solo_i2c_functionality,
 };
@@ -288,7 +294,8 @@ int solo_i2c_init(struct solo_dev *solo_dev)
 	for (i = 0; i < SOLO_I2C_ADAPTERS; i++) {
 		struct i2c_adapter *adap = &solo_dev->i2c_adap[i];
 
-		snprintf(adap->name, I2C_NAME_SIZE, "%s I2C %d", SOLO6X10_NAME, i);
+		snprintf(adap->name, I2C_NAME_SIZE, "%s I2C %d",
+			 SOLO6X10_NAME, i);
 		adap->algo = &solo_i2c_algo;
 		adap->algo_data = solo_dev;
 		adap->retries = 1;
@@ -310,9 +317,6 @@ int solo_i2c_init(struct solo_dev *solo_dev)
 		}
 		return ret;
 	}
-
-	dev_info(&solo_dev->pdev->dev, "Enabled %d i2c adapters\n",
-		 SOLO_I2C_ADAPTERS);
 
 	return 0;
 }

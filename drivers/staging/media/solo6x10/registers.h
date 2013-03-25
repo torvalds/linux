@@ -1,6 +1,11 @@
 /*
- * Copyright (C) 2010 Bluecherry, LLC www.bluecherrydvr.com
- * Copyright (C) 2010 Ben Collins <bcollins@bluecherry.net>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ *
+ * Original author:
+ * Ben Collins <bcollins@ubuntu.com>
+ *
+ * Additional work by:
+ * John Brooks <john.brooks@bluecherry.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,18 +27,18 @@
 
 #include "offsets.h"
 
-/* Global 6X10 system configuration */
+/* Global 6010 system configuration */
 #define SOLO_SYS_CFG				0x0000
-#define   SOLO6010_SYS_CFG_FOUT_EN		0x00000001 /* 6010 only */
-#define   SOLO6010_SYS_CFG_PLL_BYPASS		0x00000002 /* 6010 only */
-#define   SOLO6010_SYS_CFG_PLL_PWDN		0x00000004 /* 6010 only */
-#define   SOLO6010_SYS_CFG_OUTDIV(__n)		(((__n) & 0x003) << 3) /* 6010 only */
-#define   SOLO6010_SYS_CFG_FEEDBACKDIV(__n)	(((__n) & 0x1ff) << 5) /* 6010 only */
-#define   SOLO6010_SYS_CFG_INPUTDIV(__n)	(((__n) & 0x01f) << 14) /* 6010 only */
+#define   SOLO_SYS_CFG_FOUT_EN			0x00000001
+#define   SOLO_SYS_CFG_PLL_BYPASS		0x00000002
+#define   SOLO_SYS_CFG_PLL_PWDN			0x00000004
+#define   SOLO_SYS_CFG_OUTDIV(__n)		(((__n) & 0x003) << 3)
+#define   SOLO_SYS_CFG_FEEDBACKDIV(__n)		(((__n) & 0x1ff) << 5)
+#define   SOLO_SYS_CFG_INPUTDIV(__n)		(((__n) & 0x01f) << 14)
 #define   SOLO_SYS_CFG_CLOCK_DIV		0x00080000
 #define   SOLO_SYS_CFG_NCLK_DELAY(__n)		(((__n) & 0x003) << 24)
 #define   SOLO_SYS_CFG_PCLK_DELAY(__n)		(((__n) & 0x00f) << 26)
-#define   SOLO_SYS_CFG_SDRAM64BIT		0x40000000 /* 6110: must be set */
+#define   SOLO_SYS_CFG_SDRAM64BIT		0x40000000
 #define   SOLO_SYS_CFG_RESET			0x80000000
 
 #define	SOLO_DMA_CTRL				0x0004
@@ -45,7 +50,9 @@
 #define	  SOLO_DMA_CTRL_READ_DATA_SELECT	(1<<3)
 #define	  SOLO_DMA_CTRL_READ_CLK_SELECT		(1<<2)
 #define	  SOLO_DMA_CTRL_LATENCY(n)		((n)<<0)
-#define	SOLO_DMA_CTRL1				0x0008
+
+/* Some things we set in this are undocumented. Why Softlogic?!?! */
+#define SOLO_DMA_CTRL1				0x0008
 
 #define SOLO_SYS_VCLK				0x000C
 #define	  SOLO_VCLK_INVERT			(1<<22)
@@ -61,7 +68,7 @@
 #define	  SOLO_VCLK_VIN0001_DELAY(n)		((n)<<0)
 
 #define SOLO_IRQ_STAT				0x0010
-#define SOLO_IRQ_ENABLE				0x0014
+#define SOLO_IRQ_MASK				0x0014
 #define	  SOLO_IRQ_P2M(n)			(1<<((n)+17))
 #define	  SOLO_IRQ_GPIO				(1<<16)
 #define	  SOLO_IRQ_VIDEO_LOSS			(1<<15)
@@ -82,22 +89,7 @@
 #define SOLO_CHIP_OPTION			0x001C
 #define   SOLO_CHIP_ID_MASK			0x00000007
 
-#define SOLO6110_PLL_CONFIG			0x0020
-#define   SOLO6110_PLL_RANGE_BYPASS		(0 << 20)
-#define   SOLO6110_PLL_RANGE_5_10MHZ		(1 << 20)
-#define   SOLO6110_PLL_RANGE_8_16MHZ		(2 << 20)
-#define   SOLO6110_PLL_RANGE_13_26MHZ		(3 << 20)
-#define   SOLO6110_PLL_RANGE_21_42MHZ		(4 << 20)
-#define   SOLO6110_PLL_RANGE_34_68MHZ		(5 << 20)
-#define   SOLO6110_PLL_RANGE_54_108MHZ		(6 << 20)
-#define   SOLO6110_PLL_RANGE_88_200MHZ		(7 << 20)
-#define   SOLO6110_PLL_DIVR(x)			(((x) - 1) << 15)
-#define   SOLO6110_PLL_DIVQ_EXP(x)		((x) << 12)
-#define   SOLO6110_PLL_DIVF(x)			(((x) - 1) << 4)
-#define   SOLO6110_PLL_RESET			(1 << 3)
-#define   SOLO6110_PLL_BYPASS			(1 << 2)
-#define   SOLO6110_PLL_FSEN			(1 << 1)
-#define   SOLO6110_PLL_FB			(1 << 0)
+#define SOLO_PLL_CONFIG				0x0020 /* 6110 Only */
 
 #define SOLO_EEPROM_CTRL			0x0060
 #define	  SOLO_EEPROM_ACCESS_EN			(1<<7)
@@ -105,7 +97,7 @@
 #define	  SOLO_EEPROM_CLK			(1<<2)
 #define	  SOLO_EEPROM_DO			(1<<1)
 #define	  SOLO_EEPROM_DI			(1<<0)
-#define	  SOLO_EEPROM_ENABLE			(EEPROM_ACCESS_EN | EEPROM_CS)
+#define	  SOLO_EEPROM_ENABLE (SOLO_EEPROM_ACCESS_EN | SOLO_EEPROM_CS)
 
 #define SOLO_PCI_ERR				0x0070
 #define   SOLO_PCI_ERR_FATAL			0x00000001
@@ -274,8 +266,8 @@
 #define	  SOLO_VO_FI_CHANGE			(1<<20)
 #define	  SOLO_VO_USER_COLOR_SET_VSYNC		(1<<19)
 #define	  SOLO_VO_USER_COLOR_SET_HSYNC		(1<<18)
-#define	  SOLO_VO_USER_COLOR_SET_NAV		(1<<17)
-#define	  SOLO_VO_USER_COLOR_SET_NAH		(1<<16)
+#define	  SOLO_VO_USER_COLOR_SET_NAH		(1<<17)
+#define	  SOLO_VO_USER_COLOR_SET_NAV		(1<<16)
 #define	  SOLO_VO_NA_COLOR_Y(Y)			((Y)<<8)
 #define	  SOLO_VO_NA_COLOR_CB(CB)		(((CB)/16)<<4)
 #define	  SOLO_VO_NA_COLOR_CR(CR)		(((CR)/16)<<0)
@@ -401,12 +393,13 @@
 #define	  SOLO_VE_BLOCK_BASE(n)			((n)<<0)
 
 #define SOLO_VE_CFG1				0x0614
-#define   SOLO6110_VE_MPEG_SIZE_H(n)		((n)<<28) /* 6110 only */
-#define	  SOLO6010_VE_BYTE_ALIGN(n)		((n)<<24) /* 6010 only */
-#define   SOLO6110_VE_JPEG_SIZE_H(n)		((n)<<20) /* 6110 only */
+#define	  SOLO_VE_BYTE_ALIGN(n)			((n)<<24)
 #define	  SOLO_VE_INSERT_INDEX			(1<<18)
 #define	  SOLO_VE_MOTION_MODE(n)		((n)<<16)
 #define	  SOLO_VE_MOTION_BASE(n)		((n)<<0)
+#define   SOLO_VE_MPEG_SIZE_H(n)		((n)<<28) /* 6110 Only */
+#define   SOLO_VE_JPEG_SIZE_H(n)		((n)<<20) /* 6110 Only */
+#define   SOLO_VE_INSERT_INDEX_JPEG		(1<<19)   /* 6110 Only */
 
 #define SOLO_VE_WMRK_POLY			0x061C
 #define SOLO_VE_VMRK_INIT_KEY			0x0620
@@ -420,6 +413,7 @@
 #define	  SOLO_COMP_TIME_INC(n)			((n)<<25)
 #define	  SOLO_COMP_TIME_WIDTH(n)		((n)<<21)
 #define	  SOLO_DCT_INTERVAL(n)			((n)<<16)
+#define SOLO_VE_COMPT_MOT			0x0634 /* 6110 Only */
 
 #define SOLO_VE_STATE(n)			(0x0640+((n)*4))
 
@@ -428,14 +422,21 @@
 #define SOLO_VE_JPEG_QP_CH_H			0x0678
 #define SOLO_VE_JPEG_CFG			0x067C
 #define SOLO_VE_JPEG_CTRL			0x0680
-
+#define SOLO_VE_CODE_ENCRYPT			0x0684 /* 6110 Only */
+#define SOLO_VE_JPEG_CFG1			0x0688 /* 6110 Only */
+#define SOLO_VE_WMRK_ENABLE			0x068C /* 6110 Only */
 #define SOLO_VE_OSD_CH				0x0690
 #define SOLO_VE_OSD_BASE			0x0694
 #define SOLO_VE_OSD_CLR				0x0698
 #define SOLO_VE_OSD_OPT				0x069C
+#define   SOLO_VE_OSD_V_DOUBLE			(1<<16) /* 6110 Only */
+#define   SOLO_VE_OSD_H_SHADOW			(1<<15)
+#define   SOLO_VE_OSD_V_SHADOW			(1<<14)
+#define   SOLO_VE_OSD_H_OFFSET(n)		((n & 0x7f)<<7)
+#define   SOLO_VE_OSD_V_OFFSET(n)		(n & 0x7f)
 
 #define SOLO_VE_CH_INTL(ch)			(0x0700+((ch)*4))
-#define SOLO6010_VE_CH_MOT(ch)			(0x0740+((ch)*4)) /* 6010 only */
+#define SOLO_VE_CH_MOT(ch)			(0x0740+((ch)*4))
 #define SOLO_VE_CH_QP(ch)			(0x0780+((ch)*4))
 #define SOLO_VE_CH_QP_E(ch)			(0x07C0+((ch)*4))
 #define SOLO_VE_CH_GOP(ch)			(0x0800+((ch)*4))
@@ -447,7 +448,7 @@
 #define SOLO_VE_JPEG_QUE(n)			(0x0A04+((n)*8))
 
 #define SOLO_VD_CFG0				0x0900
-#define	  SOLO6010_VD_CFG_NO_WRITE_NO_WINDOW	(1<<24) /* 6010 only */
+#define	  SOLO_VD_CFG_NO_WRITE_NO_WINDOW	(1<<24)
 #define	  SOLO_VD_CFG_BUSY_WIAT_CODE		(1<<23)
 #define	  SOLO_VD_CFG_BUSY_WIAT_REF		(1<<22)
 #define	  SOLO_VD_CFG_BUSY_WIAT_RES		(1<<21)
@@ -599,9 +600,9 @@
 #define	  SOLO_UART_RX_DATA_POP			(1<<8)
 
 #define SOLO_TIMER_CLOCK_NUM			0x0be0
-#define SOLO_TIMER_WATCHDOG			0x0be4
 #define SOLO_TIMER_USEC				0x0be8
 #define SOLO_TIMER_SEC				0x0bec
+#define SOLO_TIMER_USEC_LSB			0x0d20 /* 6110 Only */
 
 #define SOLO_AUDIO_CONTROL			0x0D00
 #define	  SOLO_AUDIO_ENABLE			(1<<31)
@@ -629,9 +630,10 @@
 #define	  SOLO_AUDIO_EVOL(ch, value)		((value)<<((ch)%10))
 #define SOLO_AUDIO_STA				0x0D14
 
-
-#define SOLO_WATCHDOG				0x0BE4
-#define WATCHDOG_STAT(status)			(status<<8)
-#define WATCHDOG_TIME(sec)			(sec&0xff)
+/*
+ * Watchdog configuration
+ */
+#define SOLO_WATCHDOG				0x0be4
+#define SOLO_WATCHDOG_SET(status, sec)		(status << 8 | (sec & 0xff))
 
 #endif /* __SOLO6X10_REGISTERS_H */

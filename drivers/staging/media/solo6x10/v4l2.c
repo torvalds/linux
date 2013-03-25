@@ -1,6 +1,11 @@
 /*
- * Copyright (C) 2010 Bluecherry, LLC www.bluecherrydvr.com
- * Copyright (C) 2010 Ben Collins <bcollins@bluecherry.net>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ *
+ * Original author:
+ * Ben Collins <bcollins@ubuntu.com>
+ *
+ * Additional work by:
+ * John Brooks <john.brooks@bluecherry.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,47 +26,43 @@
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-dma-contig.h>
+
 #include "solo6x10.h"
 #include "tw28.h"
 
-#define SOLO_HW_BPL		2048
 #define SOLO_DISP_PIX_FIELD	V4L2_FIELD_INTERLACED
 
-/* Image size is two fields, SOLO_HW_BPL is one horizontal line */
+/* Image size is two fields, SOLO_HW_BPL is one horizontal line in hardware */
+#define SOLO_HW_BPL		2048
 #define solo_vlines(__solo)	(__solo->video_vsize * 2)
 #define solo_image_size(__solo) (solo_bytesperline(__solo) * \
 				 solo_vlines(__solo))
 #define solo_bytesperline(__solo) (__solo->video_hsize * 2)
 
-#define MIN_VID_BUFFERS		4
+#define MIN_VID_BUFFERS		2
 
 /* Simple file handle */
 struct solo_filehandle {
-	struct solo_dev		*solo_dev;
+	struct solo_dev	*solo_dev;
 	struct videobuf_queue	vidq;
 	struct task_struct      *kthread;
 	spinlock_t		slock;
 	int			old_write;
 	struct list_head	vidq_active;
-	struct p2m_desc		desc[SOLO_NR_P2M_DESC];
-	int			desc_idx;
 };
 
-unsigned video_nr = -1;
-module_param(video_nr, uint, 0644);
-MODULE_PARM_DESC(video_nr, "videoX start number, -1 is autodetect (default)");
-
-static void erase_on(struct solo_dev *solo_dev)
+static inline void erase_on(struct solo_dev *solo_dev)
 {
 	solo_reg_write(solo_dev, SOLO_VO_DISP_ERASE, SOLO_VO_DISP_ERASE_ON);
 	solo_dev->erasing = 1;
 	solo_dev->frame_blank = 0;
 }
 
-static int erase_off(struct solo_dev *solo_dev)
+static inline int erase_off(struct solo_dev *solo_dev)
 {
 	if (!solo_dev->erasing)
 		return 0;
@@ -78,8 +79,7 @@ static int erase_off(struct solo_dev *solo_dev)
 
 void solo_video_in_isr(struct solo_dev *solo_dev)
 {
-	solo_reg_write(solo_dev, SOLO_IRQ_STAT, SOLO_IRQ_VIDEO_IN);
-	wake_up_interruptible(&solo_dev->disp_thread_wait);
+	wake_up_interruptible_all(&solo_dev->disp_thread_wait);
 }
 
 static void solo_win_setup(struct solo_dev *solo_dev, u8 ch,
@@ -202,165 +202,61 @@ static int solo_v4l2_set_ch(struct solo_dev *solo_dev, u8 ch)
 	return 0;
 }
 
-static void disp_reset_desc(struct solo_filehandle *fh)
-{
-	/* We use desc mode, which ignores desc 0 */
-	memset(fh->desc, 0, sizeof(*fh->desc));
-	fh->desc_idx = 1;
-}
-
-static int disp_flush_descs(struct solo_filehandle *fh)
-{
-	int ret;
-
-	if (!fh->desc_idx)
-		return 0;
-
-	ret = solo_p2m_dma_desc(fh->solo_dev, SOLO_P2M_DMA_ID_DISP,
-				fh->desc, fh->desc_idx);
-	disp_reset_desc(fh);
-
-	return ret;
-}
-
-static int disp_push_desc(struct solo_filehandle *fh, dma_addr_t dma_addr,
-		      u32 ext_addr, int size, int repeat, int ext_size)
-{
-	if (fh->desc_idx >= SOLO_NR_P2M_DESC) {
-		int ret = disp_flush_descs(fh);
-		if (ret)
-			return ret;
-	}
-
-	solo_p2m_push_desc(&fh->desc[fh->desc_idx], 0, dma_addr, ext_addr,
-			   size, repeat, ext_size);
-	fh->desc_idx++;
-
-	return 0;
-}
-
 static void solo_fillbuf(struct solo_filehandle *fh,
 			 struct videobuf_buffer *vb)
 {
 	struct solo_dev *solo_dev = fh->solo_dev;
-	struct videobuf_dmabuf *vbuf;
+	dma_addr_t vbuf;
 	unsigned int fdma_addr;
-	int error = 1;
+	int error = -1;
 	int i;
-	struct scatterlist *sg;
-	dma_addr_t sg_dma;
-	int sg_size_left;
 
-	vbuf = videobuf_to_dma(vb);
+	vbuf = videobuf_to_dma_contig(vb);
 	if (!vbuf)
 		goto finish_buf;
 
 	if (erase_off(solo_dev)) {
-		int i;
-
-		/* Just blit to the entire sg list, ignoring size */
-		for_each_sg(vbuf->sglist, sg, vbuf->sglen, i) {
-			void *p = sg_virt(sg);
-			size_t len = sg_dma_len(sg);
-
-			for (i = 0; i < len; i += 2) {
-				((u8 *)p)[i] = 0x80;
-				((u8 *)p)[i + 1] = 0x00;
-			}
+		void *p = videobuf_queue_to_vaddr(&fh->vidq, vb);
+		int image_size = solo_image_size(solo_dev);
+		for (i = 0; i < image_size; i += 2) {
+			((u8 *)p)[i] = 0x80;
+			((u8 *)p)[i + 1] = 0x00;
 		}
-
 		error = 0;
-		goto finish_buf;
+	} else {
+		fdma_addr = SOLO_DISP_EXT_ADDR + (fh->old_write *
+				(SOLO_HW_BPL * solo_vlines(solo_dev)));
+
+		error = solo_p2m_dma_t(solo_dev, 0, vbuf, fdma_addr,
+				       solo_bytesperline(solo_dev),
+				       solo_vlines(solo_dev), SOLO_HW_BPL);
 	}
-
-	disp_reset_desc(fh);
-	sg = vbuf->sglist;
-	sg_dma = sg_dma_address(sg);
-	sg_size_left = sg_dma_len(sg);
-
-	fdma_addr = SOLO_DISP_EXT_ADDR + (fh->old_write *
-			(SOLO_HW_BPL * solo_vlines(solo_dev)));
-
-	for (i = 0; i < solo_vlines(solo_dev); i++) {
-		int line_len = solo_bytesperline(solo_dev);
-		int lines;
-
-		if (!sg_size_left) {
-			sg = sg_next(sg);
-			if (sg == NULL)
-				goto finish_buf;
-			sg_dma = sg_dma_address(sg);
-			sg_size_left = sg_dma_len(sg);
-		}
-
-		/* No room for an entire line, so chunk it up */
-		if (sg_size_left < line_len) {
-			int this_addr = fdma_addr;
-
-			while (line_len > 0) {
-				int this_write;
-
-				if (!sg_size_left) {
-					sg = sg_next(sg);
-					if (sg == NULL)
-						goto finish_buf;
-					sg_dma = sg_dma_address(sg);
-					sg_size_left = sg_dma_len(sg);
-				}
-
-				this_write = min(sg_size_left, line_len);
-
-				if (disp_push_desc(fh, sg_dma, this_addr,
-						   this_write, 0, 0))
-					goto finish_buf;
-
-				line_len -= this_write;
-				sg_size_left -= this_write;
-				sg_dma += this_write;
-				this_addr += this_write;
-			}
-
-			fdma_addr += SOLO_HW_BPL;
-			continue;
-		}
-
-		/* Shove as many lines into a repeating descriptor as possible */
-		lines = min(sg_size_left / line_len,
-			    solo_vlines(solo_dev) - i);
-
-		if (disp_push_desc(fh, sg_dma, fdma_addr, line_len,
-				   lines - 1, SOLO_HW_BPL))
-			goto finish_buf;
-
-		i += lines - 1;
-		fdma_addr += SOLO_HW_BPL * lines;
-		sg_dma += lines * line_len;
-		sg_size_left -= lines * line_len;
-	}
-
-	error = disp_flush_descs(fh);
 
 finish_buf:
 	if (error) {
 		vb->state = VIDEOBUF_ERROR;
 	} else {
-		vb->size = solo_vlines(solo_dev) * solo_bytesperline(solo_dev);
 		vb->state = VIDEOBUF_DONE;
 		vb->field_count++;
-		do_gettimeofday(&vb->ts);
 	}
 
 	wake_up(&vb->done);
-
-	return;
 }
 
 static void solo_thread_try(struct solo_filehandle *fh)
 {
 	struct videobuf_buffer *vb;
-	unsigned int cur_write;
 
+	/* Only "break" from this loop if slock is held, otherwise
+	 * just return. */
 	for (;;) {
+		unsigned int cur_write;
+
+		cur_write = SOLO_VI_STATUS0_PAGE(
+			solo_reg_read(fh->solo_dev, SOLO_VI_STATUS0));
+		if (cur_write == fh->old_write)
+			return;
+
 		spin_lock(&fh->slock);
 
 		if (list_empty(&fh->vidq_active))
@@ -372,13 +268,9 @@ static void solo_thread_try(struct solo_filehandle *fh)
 		if (!waitqueue_active(&vb->done))
 			break;
 
-		cur_write = SOLO_VI_STATUS0_PAGE(solo_reg_read(fh->solo_dev,
-						 SOLO_VI_STATUS0));
-		if (cur_write == fh->old_write)
-			break;
-
 		fh->old_write = cur_write;
 		list_del(&vb->queue);
+		vb->state = VIDEOBUF_ACTIVE;
 
 		spin_unlock(&fh->slock);
 
@@ -413,17 +305,31 @@ static int solo_thread(void *data)
 
 static int solo_start_thread(struct solo_filehandle *fh)
 {
+	int ret = 0;
+
+	if (atomic_inc_return(&fh->solo_dev->disp_users) == 1)
+		solo_irq_on(fh->solo_dev, SOLO_IRQ_VIDEO_IN);
+
 	fh->kthread = kthread_run(solo_thread, fh, SOLO6X10_NAME "_disp");
 
-	return PTR_RET(fh->kthread);
+	if (IS_ERR(fh->kthread)) {
+		ret = PTR_ERR(fh->kthread);
+		fh->kthread = NULL;
+	}
+
+	return ret;
 }
 
 static void solo_stop_thread(struct solo_filehandle *fh)
 {
-	if (fh->kthread) {
-		kthread_stop(fh->kthread);
-		fh->kthread = NULL;
-	}
+	if (!fh->kthread)
+		return;
+
+	kthread_stop(fh->kthread);
+	fh->kthread = NULL;
+
+	if (atomic_dec_return(&fh->solo_dev->disp_users) == 0)
+		solo_irq_off(fh->solo_dev, SOLO_IRQ_VIDEO_IN);
 }
 
 static int solo_buf_setup(struct videobuf_queue *vq, unsigned int *count,
@@ -459,9 +365,7 @@ static int solo_buf_prepare(struct videobuf_queue *vq,
 	if (vb->state == VIDEOBUF_NEEDS_INIT) {
 		int rc = videobuf_iolock(vq, vb, NULL);
 		if (rc < 0) {
-			struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
-			videobuf_dma_unmap(vq->dev, dma);
-			videobuf_dma_free(dma);
+			videobuf_dma_contig_free(vq, vb);
 			vb->state = VIDEOBUF_NEEDS_INIT;
 			return rc;
 		}
@@ -485,14 +389,11 @@ static void solo_buf_queue(struct videobuf_queue *vq,
 static void solo_buf_release(struct videobuf_queue *vq,
 			     struct videobuf_buffer *vb)
 {
-	struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
-
-	videobuf_dma_unmap(vq->dev, dma);
-	videobuf_dma_free(dma);
+	videobuf_dma_contig_free(vq, vb);
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
 
-static struct videobuf_queue_ops solo_video_qops = {
+static const struct videobuf_queue_ops solo_video_qops = {
 	.buf_setup	= solo_buf_setup,
 	.buf_prepare	= solo_buf_prepare,
 	.buf_queue	= solo_buf_queue,
@@ -535,12 +436,12 @@ static int solo_v4l2_open(struct file *file)
 		return ret;
 	}
 
-	videobuf_queue_sg_init(&fh->vidq, &solo_video_qops,
-			       &solo_dev->pdev->dev, &fh->slock,
-			       V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			       SOLO_DISP_PIX_FIELD,
-			       sizeof(struct videobuf_buffer), fh, NULL);
-
+	videobuf_queue_dma_contig_init(&fh->vidq, &solo_video_qops,
+				       &solo_dev->pdev->dev, &fh->slock,
+				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
+				       SOLO_DISP_PIX_FIELD,
+				       sizeof(struct videobuf_buffer),
+				       fh, NULL);
 	return 0;
 }
 
@@ -557,9 +458,11 @@ static int solo_v4l2_release(struct file *file)
 {
 	struct solo_filehandle *fh = file->private_data;
 
+	solo_stop_thread(fh);
+
 	videobuf_stop(&fh->vidq);
 	videobuf_mmap_free(&fh->vidq);
-	solo_stop_thread(fh);
+
 	kfree(fh);
 
 	return 0;
@@ -585,12 +488,12 @@ static int solo_querycap(struct file *file, void  *priv,
 static int solo_enum_ext_input(struct solo_dev *solo_dev,
 			       struct v4l2_input *input)
 {
-	static const char *dispnames_1[] = { "4UP" };
-	static const char *dispnames_2[] = { "4UP-1", "4UP-2" };
-	static const char *dispnames_5[] = {
+	static const char * const dispnames_1[] = { "4UP" };
+	static const char * const dispnames_2[] = { "4UP-1", "4UP-2" };
+	static const char * const dispnames_5[] = {
 		"4UP-1", "4UP-2", "4UP-3", "4UP-4", "16UP"
 	};
-	const char **dispnames;
+	const char * const *dispnames;
 
 	if (input->index >= (solo_dev->nr_chans + solo_dev->nr_ext))
 		return -EINVAL;
@@ -640,8 +543,14 @@ static int solo_enum_input(struct file *file, void *priv,
 static int solo_set_input(struct file *file, void *priv, unsigned int index)
 {
 	struct solo_filehandle *fh = priv;
+	int ret = solo_v4l2_set_ch(fh->solo_dev, index);
 
-	return solo_v4l2_set_ch(fh->solo_dev, index);
+	if (!ret) {
+		while (erase_off(fh->solo_dev))
+			/* Do nothing */;
+	}
+
+	return ret;
 }
 
 static int solo_get_input(struct file *file, void *priv, unsigned int *index)
@@ -732,7 +641,8 @@ static int solo_reqbufs(struct file *file, void *priv,
 	return videobuf_reqbufs(&fh->vidq, req);
 }
 
-static int solo_querybuf(struct file *file, void *priv, struct v4l2_buffer *buf)
+static int solo_querybuf(struct file *file, void *priv,
+			 struct v4l2_buffer *buf)
 {
 	struct solo_filehandle *fh = priv;
 
@@ -901,11 +811,12 @@ static struct video_device solo_v4l2_template = {
 	.current_norm		= V4L2_STD_NTSC_M,
 };
 
-int solo_v4l2_init(struct solo_dev *solo_dev)
+int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 {
 	int ret;
 	int i;
 
+	atomic_set(&solo_dev->disp_users, 0);
 	init_waitqueue_head(&solo_dev->disp_thread_wait);
 
 	solo_dev->vfd = video_device_alloc();
@@ -915,7 +826,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev)
 	*solo_dev->vfd = solo_v4l2_template;
 	solo_dev->vfd->parent = &solo_dev->pdev->dev;
 
-	ret = video_register_device(solo_dev->vfd, VFL_TYPE_GRABBER, video_nr);
+	ret = video_register_device(solo_dev->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0) {
 		video_device_release(solo_dev->vfd);
 		solo_dev->vfd = NULL;
@@ -927,35 +838,30 @@ int solo_v4l2_init(struct solo_dev *solo_dev)
 	snprintf(solo_dev->vfd->name, sizeof(solo_dev->vfd->name), "%s (%i)",
 		 SOLO6X10_NAME, solo_dev->vfd->num);
 
-	if (video_nr != -1)
-		video_nr++;
-
-	dev_info(&solo_dev->pdev->dev, "Display as /dev/video%d with "
-		 "%d inputs (%d extended)\n", solo_dev->vfd->num,
-		 solo_dev->nr_chans, solo_dev->nr_ext);
+	dev_info(&solo_dev->pdev->dev,
+		 "Display as /dev/video%d with %d inputs (%d extended)\n",
+		 solo_dev->vfd->num, solo_dev->nr_chans, solo_dev->nr_ext);
 
 	/* Cycle all the channels and clear */
 	for (i = 0; i < solo_dev->nr_chans; i++) {
 		solo_v4l2_set_ch(solo_dev, i);
 		while (erase_off(solo_dev))
-			;/* Do nothing */
+			/* Do nothing */;
 	}
 
 	/* Set the default display channel */
 	solo_v4l2_set_ch(solo_dev, 0);
 	while (erase_off(solo_dev))
-		;/* Do nothing */
-
-	solo_irq_on(solo_dev, SOLO_IRQ_VIDEO_IN);
+		/* Do nothing */;
 
 	return 0;
 }
 
 void solo_v4l2_exit(struct solo_dev *solo_dev)
 {
-	solo_irq_off(solo_dev, SOLO_IRQ_VIDEO_IN);
-	if (solo_dev->vfd) {
-		video_unregister_device(solo_dev->vfd);
-		solo_dev->vfd = NULL;
-	}
+	if (solo_dev->vfd == NULL)
+		return;
+
+	video_unregister_device(solo_dev->vfd);
+	solo_dev->vfd = NULL;
 }
