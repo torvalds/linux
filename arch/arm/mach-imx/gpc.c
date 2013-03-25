@@ -16,6 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/irqchip/arm-gic.h>
+#include "common.h"
 
 #define GPC_IMR1		0x008
 #define GPC_PGC_CPU_PDN		0x2a0
