@@ -1779,31 +1779,24 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 
 	down_read(&osdc->map_sem);
 	mutex_lock(&osdc->request_mutex);
-	/*
-	 * a racing kick_requests() may have sent the message for us
-	 * while we dropped request_mutex above, so only send now if
-	 * the request still han't been touched yet.
-	 */
 	__register_request(osdc, req);
-	if (req->r_sent == 0) {
-		rc = __map_request(osdc, req, 0);
-		if (rc < 0) {
-			if (nofail) {
-				dout("osdc_start_request failed map, "
-				     " will retry %lld\n", req->r_tid);
-				rc = 0;
-			}
-			goto out_unlock;
+	WARN_ON(req->r_sent);
+	rc = __map_request(osdc, req, 0);
+	if (rc < 0) {
+		if (nofail) {
+			dout("osdc_start_request failed map, "
+				" will retry %lld\n", req->r_tid);
+			rc = 0;
 		}
-		if (req->r_osd == NULL) {
-			dout("send_request %p no up osds in pg\n", req);
-			ceph_monc_request_next_osdmap(&osdc->client->monc);
-		} else {
-			__send_request(osdc, req);
-		}
-		rc = 0;
+		goto out_unlock;
 	}
-
+	if (req->r_osd == NULL) {
+		dout("send_request %p no up osds in pg\n", req);
+		ceph_monc_request_next_osdmap(&osdc->client->monc);
+	} else {
+		__send_request(osdc, req);
+	}
+	rc = 0;
 out_unlock:
 	mutex_unlock(&osdc->request_mutex);
 	up_read(&osdc->map_sem);
