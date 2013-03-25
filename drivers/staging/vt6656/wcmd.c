@@ -340,29 +340,7 @@ void vRunCommand(struct vnt_private *pDevice)
                 pMgmt->uScanChannel = pDevice->byMinChannel;
             }
             if (pMgmt->uScanChannel > pDevice->byMaxChannel) {
-                pMgmt->eScanState = WMAC_NO_SCANNING;
-
-                if (pDevice->byBBType != pDevice->byScanBBType) {
-                    pDevice->byBBType = pDevice->byScanBBType;
-                    CARDvSetBSSMode(pDevice);
-                }
-
-                if (pDevice->bUpdateBBVGA) {
-                    BBvSetShortSlotTime(pDevice);
-                    BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
-                    BBvUpdatePreEDThreshold(pDevice, false);
-                }
-                // Set channel back
-                vAdHocBeaconRestart(pDevice);
-                // Set channel back
-                CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
-                // Set Filter
-                if (pMgmt->bCurrBSSIDFilterOn) {
-                    MACvRegBitsOn(pDevice, MAC_REG_RCR, RCR_BSSID);
-                    pDevice->byRxMode |= RCR_BSSID;
-                }
-                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Scanning, set back to channel: [%d]\n", pMgmt->uCurrChannel);
-                pDevice->bStopDataPkt = false;
+		pDevice->eCommandState = WLAN_CMD_SCAN_END;
                 s_bCommandComplete(pDevice);
                 spin_unlock_irq(&pDevice->lock);
                 return;
@@ -370,6 +348,7 @@ void vRunCommand(struct vnt_private *pDevice)
             } else {
                 if (!ChannelValid(pDevice->byZoneType, pMgmt->uScanChannel)) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d \n",pMgmt->uScanChannel);
+			pMgmt->uScanChannel++;
                     s_bCommandComplete(pDevice);
                     spin_unlock_irq(&pDevice->lock);
                     return;
@@ -466,6 +445,7 @@ void vRunCommand(struct vnt_private *pDevice)
                 pDevice->byRxMode |= RCR_BSSID;
             }
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Scanning, set back to channel: [%d]\n", pMgmt->uCurrChannel);
+		pMgmt->uScanChannel = 0;
             pMgmt->eScanState = WMAC_NO_SCANNING;
             pDevice->bStopDataPkt = false;
 
