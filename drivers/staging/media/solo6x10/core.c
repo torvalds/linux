@@ -181,6 +181,7 @@ static void free_solo_dev(struct solo_dev *solo_dev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
+	v4l2_device_unregister(&solo_dev->v4l2_dev);
 	pci_set_drvdata(pdev, NULL);
 
 	kfree(solo_dev);
@@ -511,7 +512,9 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	solo_dev->type = id->driver_data;
 	solo_dev->pdev = pdev;
 	spin_lock_init(&solo_dev->reg_io_lock);
-	pci_set_drvdata(pdev, solo_dev);
+	ret = v4l2_device_register(&pdev->dev, &solo_dev->v4l2_dev);
+	if (ret)
+		goto fail_probe;
 
 	/* Only for during init */
 	solo_dev->p2m_jiffies = msecs_to_jiffies(100);
@@ -678,7 +681,8 @@ fail_probe:
 
 static void solo_pci_remove(struct pci_dev *pdev)
 {
-	struct solo_dev *solo_dev = pci_get_drvdata(pdev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pdev);
+	struct solo_dev *solo_dev = container_of(v4l2_dev, struct solo_dev, v4l2_dev);
 
 	free_solo_dev(solo_dev);
 }

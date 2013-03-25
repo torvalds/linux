@@ -37,6 +37,7 @@
 #include <linux/videodev2.h>
 
 #include <media/v4l2-dev.h>
+#include <media/v4l2-device.h>
 #include <media/videobuf-core.h>
 
 #include "registers.h"
@@ -178,6 +179,7 @@ struct solo_dev {
 	u32			irq_mask;
 	u32			motion_mask;
 	spinlock_t		reg_io_lock;
+	struct v4l2_device	v4l2_dev;
 
 	/* tw28xx accounting */
 	u8			tw2865, tw2864, tw2815;

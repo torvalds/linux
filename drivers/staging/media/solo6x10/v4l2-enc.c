@@ -1670,7 +1670,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	solo_enc->ch = ch;
 
 	*solo_enc->vfd = solo_enc_template;
-	solo_enc->vfd->parent = &solo_dev->pdev->dev;
+	solo_enc->vfd->v4l2_dev = &solo_dev->v4l2_dev;
 	ret = video_register_device(solo_enc->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0) {
 		video_device_release(solo_enc->vfd);

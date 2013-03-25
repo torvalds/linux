@@ -823,7 +823,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 		return -ENOMEM;
 
 	*solo_dev->vfd = solo_v4l2_template;
-	solo_dev->vfd->parent = &solo_dev->pdev->dev;
+	solo_dev->vfd->v4l2_dev = &solo_dev->v4l2_dev;
 
 	ret = video_register_device(solo_dev->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0) {
