@@ -2041,6 +2041,13 @@ config CPU_HAS_SMARTMIPS
 	  you don't know you probably don't have SmartMIPS and should say N
 	  here.
 
+config CPU_MICROMIPS
+	depends on SYS_SUPPORTS_MICROMIPS
+	bool "Build kernel using microMIPS ISA"
+	help
+	  When this option is enabled the kernel will be built using the
+	  microMIPS ISA
+
 config CPU_HAS_WB
 	bool
 
