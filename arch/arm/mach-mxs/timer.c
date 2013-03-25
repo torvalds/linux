@@ -28,11 +28,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/stmp_device.h>
 
 #include <asm/mach/time.h>
 #include <asm/sched_clock.h>
-#include <mach/mxs.h>
-#include <mach/common.h>
 
 /*
  * There are 2 versions of the timrot on Freescale MXS-based SoCs.
@@ -85,20 +84,20 @@ static u32 timrot_major_version;
 
 static inline void timrot_irq_disable(void)
 {
-	__mxs_clrl(BM_TIMROT_TIMCTRLn_IRQ_EN,
-			mxs_timrot_base + HW_TIMROT_TIMCTRLn(0));
+	__raw_writel(BM_TIMROT_TIMCTRLn_IRQ_EN, mxs_timrot_base +
+		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_CLR);
 }
 
 static inline void timrot_irq_enable(void)
 {
-	__mxs_setl(BM_TIMROT_TIMCTRLn_IRQ_EN,
-			mxs_timrot_base + HW_TIMROT_TIMCTRLn(0));
+	__raw_writel(BM_TIMROT_TIMCTRLn_IRQ_EN, mxs_timrot_base +
+		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_SET);
 }
 
 static void timrot_irq_acknowledge(void)
 {
-	__mxs_clrl(BM_TIMROT_TIMCTRLn_IRQ,
-			mxs_timrot_base + HW_TIMROT_TIMCTRLn(0));
+	__raw_writel(BM_TIMROT_TIMCTRLn_IRQ, mxs_timrot_base +
+		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_CLR);
 }
 
 static cycle_t timrotv1_get_cycles(struct clocksource *cs)
@@ -262,7 +261,7 @@ static void __init mxs_timer_init(struct device_node *np)
 	/*
 	 * Initialize timers to a known state
 	 */
-	mxs_reset_block(mxs_timrot_base + HW_TIMROT_ROTCTRL);
+	stmp_reset_block(mxs_timrot_base + HW_TIMROT_ROTCTRL);
 
 	/* get timrot version */
 	timrot_major_version = __raw_readl(mxs_timrot_base +
