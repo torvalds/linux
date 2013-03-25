@@ -708,7 +708,7 @@ static void dwc2_release_channel(struct dwc2_hsotg *hsotg,
 		free_qtd = 1;
 		break;
 	case DWC2_HC_XFER_XACT_ERR:
-		if (qtd->error_count >= 3) {
+		if (qtd && qtd->error_count >= 3) {
 			dev_vdbg(hsotg->dev,
 				 "  Complete URB with transaction error\n");
 			free_qtd = 1;
@@ -729,7 +729,7 @@ static void dwc2_release_channel(struct dwc2_hsotg *hsotg,
 	case DWC2_HC_XFER_PERIODIC_INCOMPLETE:
 		dev_vdbg(hsotg->dev, "  Complete URB with I/O error\n");
 		free_qtd = 1;
-		if (qtd->urb) {
+		if (qtd && qtd->urb) {
 			qtd->urb->status = -EIO;
 			dwc2_host_complete(hsotg, qtd->urb->priv, qtd->urb,
 					   -EIO);
@@ -1708,8 +1708,9 @@ static bool dwc2_halt_status_ok(struct dwc2_hsotg *hsotg,
 		dev_dbg(hsotg->dev,
 			"hcint 0x%08x, hcintmsk 0x%08x, hcsplt 0x%08x,\n",
 			chan->hcint, hcintmsk, hcsplt);
-		dev_dbg(hsotg->dev, "qtd->complete_split %d\n",
-			qtd->complete_split);
+		if (qtd)
+			dev_dbg(hsotg->dev, "qtd->complete_split %d\n",
+				qtd->complete_split);
 		dev_warn(hsotg->dev,
 			 "%s: no halt status, channel %d, ignoring interrupt\n",
 			 __func__, chnum);
@@ -1937,7 +1938,31 @@ static void dwc2_hc_n_intr(struct dwc2_hsotg *hsotg, int chnum)
 	chan->hcint = hcint;
 	hcint &= hcintmsk;
 
+	/*
+	 * If the channel was halted due to a dequeue, the qtd list might
+	 * be empty or at least the first entry will not be the active qtd.
+	 * In this case, take a shortcut and just release the channel.
+	 */
+	if (chan->halt_status == DWC2_HC_XFER_URB_DEQUEUE) {
+		/*
+		 * If the channel was halted, this should be the only
+		 * interrupt unmasked
+		 */
+		WARN_ON(hcint != HCINTMSK_CHHLTD);
+		if (hsotg->core_params->dma_desc_enable > 0)
+			dwc2_hcd_complete_xfer_ddma(hsotg, chan, chnum,
+						    chan->halt_status);
+		else
+			dwc2_release_channel(hsotg, chan, NULL,
+					     chan->halt_status);
+		return;
+	}
+
 	if (list_empty(&chan->qh->qtd_list)) {
+		/*
+		 * TODO: Will this ever happen with the
+		 * DWC2_HC_XFER_URB_DEQUEUE handling above?
+		 */
 		dev_dbg(hsotg->dev, "## no QTD queued for channel %d ##\n",
 			chnum);
 		dev_dbg(hsotg->dev,
