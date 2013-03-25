@@ -50,11 +50,21 @@ void ext4_exit_pageio(void)
 	kmem_cache_destroy(io_page_cachep);
 }
 
-void ext4_ioend_wait(struct inode *inode)
+/*
+ * This function is called by ext4_evict_inode() to make sure there is
+ * no more pending I/O completion work left to do.
+ */
+void ext4_ioend_shutdown(struct inode *inode)
 {
 	wait_queue_head_t *wq = ext4_ioend_wq(inode);
 
 	wait_event(*wq, (atomic_read(&EXT4_I(inode)->i_ioend_count) == 0));
+	/*
+	 * We need to make sure the work structure is finished being
+	 * used before we let the inode get destroyed.
+	 */
+	if (work_pending(&EXT4_I(inode)->i_unwritten_work))
+		cancel_work_sync(&EXT4_I(inode)->i_unwritten_work);
 }
 
 static void put_io_page(struct ext4_io_page *io_page)

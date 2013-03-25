@@ -103,7 +103,7 @@ static const char *cache_level_str(int type)
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	seq_printf(m, "%p: %s%s %8zdKiB %02x %02x %d %d %d%s%s%s",
+	seq_printf(m, "%pK: %s%s %8zdKiB %02x %02x %d %d %d%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),

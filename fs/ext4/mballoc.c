@@ -2804,8 +2804,8 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi,
 							  ac->ac_b_ex.fe_group);
-		atomic_sub(ac->ac_b_ex.fe_len,
-			   &sbi->s_flex_groups[flex_group].free_clusters);
+		atomic64_sub(ac->ac_b_ex.fe_len,
+			     &sbi->s_flex_groups[flex_group].free_clusters);
 	}
 
 	err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
@@ -3692,11 +3692,7 @@ repeat:
 	if (free < needed && busy) {
 		busy = 0;
 		ext4_unlock_group(sb, group);
-		/*
-		 * Yield the CPU here so that we don't get soft lockup
-		 * in non preempt case.
-		 */
-		yield();
+		cond_resched();
 		goto repeat;
 	}
 
@@ -4246,7 +4242,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 			ext4_claim_free_clusters(sbi, ar->len, ar->flags)) {
 
 			/* let others to free the space */
-			yield();
+			cond_resched();
 			ar->len = ar->len >> 1;
 		}
 		if (!ar->len) {
@@ -4464,7 +4460,6 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	struct buffer_head *bitmap_bh = NULL;
 	struct super_block *sb = inode->i_sb;
 	struct ext4_group_desc *gdp;
-	unsigned long freed = 0;
 	unsigned int overflow;
 	ext4_grpblk_t bit;
 	struct buffer_head *gd_bh;
@@ -4666,13 +4661,11 @@ do_more:
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
-		atomic_add(count_clusters,
-			   &sbi->s_flex_groups[flex_group].free_clusters);
+		atomic64_add(count_clusters,
+			     &sbi->s_flex_groups[flex_group].free_clusters);
 	}
 
 	ext4_mb_unload_buddy(&e4b);
-
-	freed += count;
 
 	if (!(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
 		dquot_free_block(inode, EXT4_C2B(sbi, count_clusters));
@@ -4811,8 +4804,8 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
-		atomic_add(EXT4_NUM_B2C(sbi, blocks_freed),
-			   &sbi->s_flex_groups[flex_group].free_clusters);
+		atomic64_add(EXT4_NUM_B2C(sbi, blocks_freed),
+			     &sbi->s_flex_groups[flex_group].free_clusters);
 	}
 
 	ext4_mb_unload_buddy(&e4b);

@@ -390,7 +390,6 @@ extern struct pid *session_of_pgrp(struct pid *pgrp);
 unsigned long int_sqrt(unsigned long);
 
 extern void bust_spinlocks(int yes);
-extern void wake_up_klogd(void);
 extern int oops_in_progress;		/* If set, an oops, panic(), BUG() or die() is in progress */
 extern int panic_timeout;
 extern int panic_on_oops;
