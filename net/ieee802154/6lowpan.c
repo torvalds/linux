@@ -284,6 +284,9 @@ lowpan_compress_udp_header(u8 **hc06_ptr, struct sk_buff *skb)
 	/* checksum is always inline */
 	memcpy(*hc06_ptr, &uh->check, 2);
 	*hc06_ptr += 2;
+
+	/* skip the UDP header */
+	skb_pull(skb, sizeof(struct udphdr));
 }
 
 static inline int lowpan_fetch_skb_u8(struct sk_buff *skb, u8 *val)
@@ -309,9 +312,8 @@ static inline int lowpan_fetch_skb_u16(struct sk_buff *skb, u16 *val)
 }
 
 static int
-lowpan_uncompress_udp_header(struct sk_buff *skb)
+lowpan_uncompress_udp_header(struct sk_buff *skb, struct udphdr *uh)
 {
-	struct udphdr *uh = udp_hdr(skb);
 	u8 tmp;
 
 	if (!uh)
@@ -358,6 +360,14 @@ lowpan_uncompress_udp_header(struct sk_buff *skb)
 		/* copy checksum */
 		memcpy(&uh->check, &skb->data[0], 2);
 		skb_pull(skb, 2);
+
+		/*
+		 * UDP lenght needs to be infered from the lower layers
+		 * here, we obtain the hint from the remaining size of the
+		 * frame
+		 */
+		uh->len = htons(skb->len + sizeof(struct udphdr));
+		pr_debug("uncompressed UDP length: src = %d", uh->len);
 	} else {
 		pr_debug("ERROR: unsupported NH format\n");
 		goto err;
@@ -944,8 +954,31 @@ lowpan_process_data(struct sk_buff *skb)
 
 	/* UDP data uncompression */
 	if (iphc0 & LOWPAN_IPHC_NH_C) {
-		if (lowpan_uncompress_udp_header(skb))
+		struct udphdr uh;
+		struct sk_buff *new;
+		if (lowpan_uncompress_udp_header(skb, &uh))
 			goto drop;
+
+		/*
+		 * replace the compressed UDP head by the uncompressed UDP
+		 * header
+		 */
+		new = skb_copy_expand(skb, sizeof(struct udphdr),
+				      skb_tailroom(skb), GFP_ATOMIC);
+		kfree_skb(skb);
+
+		if (!new)
+			return -ENOMEM;
+
+		skb = new;
+
+		skb_push(skb, sizeof(struct udphdr));
+		skb_reset_transport_header(skb);
+		skb_copy_to_linear_data(skb, &uh, sizeof(struct udphdr));
+
+		lowpan_raw_dump_table(__func__, "raw UDP header dump",
+				      (u8 *)&uh, sizeof(uh));
+
 		hdr.nexthdr = UIP_PROTO_UDP;
 	}
 
