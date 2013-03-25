@@ -28,12 +28,15 @@
 #include <linux/i2c.h>
 #include <asm/byteorder.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-subdev.h>
 
-#include "saa7134-reg.h"
 #include "saa7134.h"
+#include "saa7134-reg.h"
+#include "go7007.h"
 #include "go7007-priv.h"
 
-#define GO7007_HPI_DEBUG
+/*#define GO7007_HPI_DEBUG*/
 
 enum hpi_address {
 	HPI_ADDR_VIDEO_BUFFER = 0xe4,
@@ -57,12 +60,18 @@ enum gpio_command {
 };
 
 struct saa7134_go7007 {
+	struct v4l2_subdev sd;
 	struct saa7134_dev *dev;
 	u8 *top;
 	u8 *bottom;
 	dma_addr_t top_dma;
 	dma_addr_t bottom_dma;
 };
+
+static inline struct saa7134_go7007 *to_state(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct saa7134_go7007, sd);
+}
 
 static const struct go7007_board_info board_voyager = {
 	.flags		 = 0,
@@ -83,7 +92,6 @@ static const struct go7007_board_info board_voyager = {
 		},
 	},
 };
-MODULE_FIRMWARE("go7007tv.bin");
 
 /********************* Driver for GPIO HPI interface *********************/
 
@@ -379,47 +387,6 @@ static int saa7134_go7007_send_firmware(struct go7007 *go, u8 *data, int len)
 	return 0;
 }
 
-static int saa7134_go7007_send_command(struct go7007 *go, unsigned int cmd,
-					void *arg)
-{
-	struct saa7134_go7007 *saa = go->hpi_context;
-	struct saa7134_dev *dev = saa->dev;
-
-	switch (cmd) {
-	case VIDIOC_S_STD:
-	{
-		v4l2_std_id *std = arg;
-		return saa7134_s_std_internal(dev, NULL, std);
-	}
-	case VIDIOC_G_STD:
-	{
-		v4l2_std_id *std = arg;
-		*std = dev->tvnorm->id;
-		return 0;
-	}
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *ctrl = arg;
-		if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_USER)
-			return saa7134_queryctrl(NULL, NULL, ctrl);
-	}
-	case VIDIOC_G_CTRL:
-	{
-		struct v4l2_control *ctrl = arg;
-		if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_USER)
-			return saa7134_g_ctrl_internal(dev, NULL, ctrl);
-	}
-	case VIDIOC_S_CTRL:
-	{
-		struct v4l2_control *ctrl = arg;
-		if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_USER)
-			return saa7134_s_ctrl_internal(dev, NULL, ctrl);
-	}
-	}
-	return -EINVAL;
-
-}
-
 static struct go7007_hpi_ops saa7134_go7007_hpi_ops = {
 	.interface_reset	= saa7134_go7007_interface_reset,
 	.write_interrupt	= saa7134_go7007_write_interrupt,
@@ -427,9 +394,55 @@ static struct go7007_hpi_ops saa7134_go7007_hpi_ops = {
 	.stream_start		= saa7134_go7007_stream_start,
 	.stream_stop		= saa7134_go7007_stream_stop,
 	.send_firmware		= saa7134_go7007_send_firmware,
-	.send_command		= saa7134_go7007_send_command,
 };
 MODULE_FIRMWARE("go7007/go7007tv.bin");
+
+/* --------------------------------------------------------------------------*/
+
+static int saa7134_go7007_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+{
+	struct saa7134_go7007 *saa = to_state(sd);
+	struct saa7134_dev *dev = saa->dev;
+
+	return saa7134_s_std_internal(dev, NULL, norm);
+}
+
+static int saa7134_go7007_queryctrl(struct v4l2_subdev *sd,
+				    struct v4l2_queryctrl *query)
+{
+	return saa7134_queryctrl(NULL, NULL, query);
+}
+static int saa7134_go7007_s_ctrl(struct v4l2_subdev *sd,
+				 struct v4l2_control *ctrl)
+{
+	struct saa7134_go7007 *saa = to_state(sd);
+	struct saa7134_dev *dev = saa->dev;
+	return saa7134_s_ctrl_internal(dev, NULL, ctrl);
+}
+
+static int saa7134_go7007_g_ctrl(struct v4l2_subdev *sd,
+				 struct v4l2_control *ctrl)
+{
+	struct saa7134_go7007 *saa = to_state(sd);
+	struct saa7134_dev *dev = saa->dev;
+	return saa7134_g_ctrl_internal(dev, NULL, ctrl);
+}
+
+/* --------------------------------------------------------------------------*/
+
+static const struct v4l2_subdev_core_ops saa7134_go7007_core_ops = {
+	.g_ctrl = saa7134_go7007_g_ctrl,
+	.s_ctrl = saa7134_go7007_s_ctrl,
+	.queryctrl = saa7134_go7007_queryctrl,
+	.s_std = saa7134_go7007_s_std,
+};
+
+static const struct v4l2_subdev_ops saa7134_go7007_sd_ops = {
+	.core = &saa7134_go7007_core_ops,
+};
+
+/* --------------------------------------------------------------------------*/
+
 
 /********************* Add/remove functions *********************/
 
@@ -437,12 +450,19 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 {
 	struct go7007 *go;
 	struct saa7134_go7007 *saa;
+	struct v4l2_subdev *sd;
 
 	printk(KERN_DEBUG "saa7134-go7007: probing new SAA713X board\n");
 
 	saa = kzalloc(sizeof(struct saa7134_go7007), GFP_KERNEL);
 	if (saa == NULL)
 		return -ENOMEM;
+
+	/* Init the subdevice interface */
+	sd = &saa->sd;
+	v4l2_subdev_init(sd, &saa7134_go7007_sd_ops);
+	v4l2_set_subdevdata(sd, saa);
+	strncpy(sd->name, "saa7134-go7007", sizeof(sd->name));
 
 	/* Allocate a couple pages for receiving the compressed stream */
 	saa->top = (u8 *)get_zeroed_page(GFP_KERNEL);
@@ -471,8 +491,12 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 	 * V4L2 and ALSA interfaces */
 	if (go7007_register_encoder(go, go->board_info->num_i2c_devs) < 0)
 		goto initfail;
+
+	/* Register the subdevice interface with the go7007 device */
+	if (v4l2_device_register_subdev(&go->v4l2_dev, sd) < 0)
+		printk(KERN_INFO "saa7134-go7007: register subdev failed\n");
+
 	dev->empress_dev = &go->vdev;
-	video_set_drvdata(dev->empress_dev, go);
 
 	go->status = STATUS_ONLINE;
 	return 0;
@@ -506,6 +530,7 @@ static int saa7134_go7007_fini(struct saa7134_dev *dev)
 	go->status = STATUS_SHUTDOWN;
 	free_page((unsigned long)saa->top);
 	free_page((unsigned long)saa->bottom);
+	v4l2_device_unregister_subdev(&saa->sd);
 	kfree(saa);
 	video_unregister_device(&go->vdev);
 
