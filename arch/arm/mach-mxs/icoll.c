@@ -24,8 +24,8 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/stmp_device.h>
 #include <asm/exception.h>
-#include <mach/common.h>
 
 #define HW_ICOLL_VECTOR				0x0000
 #define HW_ICOLL_LEVELACK			0x0010
@@ -110,7 +110,7 @@ static void __init icoll_of_init(struct device_node *np,
 	 * Interrupt Collector reset, which initializes the priority
 	 * for each irq to level 0.
 	 */
-	mxs_reset_block(icoll_base + HW_ICOLL_CTRL);
+	stmp_reset_block(icoll_base + HW_ICOLL_CTRL);
 
 	icoll_domain = irq_domain_add_linear(np, ICOLL_NUM_IRQS,
 					     &icoll_irq_domain_ops, NULL);
