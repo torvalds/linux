@@ -2460,10 +2460,14 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	if (val == dev_priv->rps.cur_delay)
 		return;
 
-	I915_WRITE(GEN6_RPNSWREQ,
-		   GEN6_FREQUENCY(val) |
-		   GEN6_OFFSET(0) |
-		   GEN6_AGGRESSIVE_TURBO);
+	if (IS_HASWELL(dev))
+		I915_WRITE(GEN6_RPNSWREQ,
+			   HSW_FREQUENCY(val));
+	else
+		I915_WRITE(GEN6_RPNSWREQ,
+			   GEN6_FREQUENCY(val) |
+			   GEN6_OFFSET(0) |
+			   GEN6_AGGRESSIVE_TURBO);
 
 	/* Make sure we continue to get interrupts
 	 * until we hit the minimum or maximum frequencies.
@@ -2601,12 +2605,19 @@ static void gen6_enable_rps(struct drm_device *dev)
 		   GEN6_RC_CTL_EI_MODE(1) |
 		   GEN6_RC_CTL_HW_ENABLE);
 
-	I915_WRITE(GEN6_RPNSWREQ,
-		   GEN6_FREQUENCY(10) |
-		   GEN6_OFFSET(0) |
-		   GEN6_AGGRESSIVE_TURBO);
-	I915_WRITE(GEN6_RC_VIDEO_FREQ,
-		   GEN6_FREQUENCY(12));
+	if (IS_HASWELL(dev)) {
+		I915_WRITE(GEN6_RPNSWREQ,
+			   HSW_FREQUENCY(10));
+		I915_WRITE(GEN6_RC_VIDEO_FREQ,
+			   HSW_FREQUENCY(12));
+	} else {
+		I915_WRITE(GEN6_RPNSWREQ,
+			   GEN6_FREQUENCY(10) |
+			   GEN6_OFFSET(0) |
+			   GEN6_AGGRESSIVE_TURBO);
+		I915_WRITE(GEN6_RC_VIDEO_FREQ,
+			   GEN6_FREQUENCY(12));
+	}
 
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
 	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
