@@ -685,6 +685,16 @@ struct ieee80211_ext_chansw_ie {
 } __packed;
 
 /**
+ * struct ieee80211_sec_chan_offs_ie - secondary channel offset IE
+ * @sec_chan_offs: secondary channel offset, uses IEEE80211_HT_PARAM_CHA_SEC_*
+ *	values here
+ * This structure represents the "Secondary Channel Offset element"
+ */
+struct ieee80211_sec_chan_offs_ie {
+	u8 sec_chan_offs;
+} __packed;
+
+/**
  * struct ieee80211_tim
  *
  * This structure refers to "Traffic Indication Map information element"
@@ -1648,6 +1658,7 @@ enum ieee80211_eid {
 
 	WLAN_EID_HT_CAPABILITY = 45,
 	WLAN_EID_HT_OPERATION = 61,
+	WLAN_EID_SECONDARY_CHANNEL_OFFSET = 62,
 
 	WLAN_EID_RSN = 48,
 	WLAN_EID_MMIE = 76,

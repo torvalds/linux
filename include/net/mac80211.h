@@ -1017,13 +1017,13 @@ struct ieee80211_conf {
  *	the driver passed into mac80211.
  * @block_tx: Indicates whether transmission must be blocked before the
  *	scheduled channel switch, as indicated by the AP.
- * @channel: the new channel to switch to
+ * @chandef: the new channel to switch to
  * @count: the number of TBTT's until the channel switch event
  */
 struct ieee80211_channel_switch {
 	u64 timestamp;
 	bool block_tx;
-	struct ieee80211_channel *channel;
+	struct cfg80211_chan_def chandef;
 	u8 count;
 };
 

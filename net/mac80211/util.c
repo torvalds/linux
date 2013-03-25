@@ -716,6 +716,7 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		case WLAN_EID_COUNTRY:
 		case WLAN_EID_PWR_CONSTRAINT:
 		case WLAN_EID_TIMEOUT_INTERVAL:
+		case WLAN_EID_SECONDARY_CHANNEL_OFFSET:
 			if (test_bit(id, seen_elems)) {
 				elems->parse_error = true;
 				left -= elen;
@@ -869,6 +870,13 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 				break;
 			}
 			elems->ext_chansw_ie = (void *)pos;
+			break;
+		case WLAN_EID_SECONDARY_CHANNEL_OFFSET:
+			if (elen != sizeof(struct ieee80211_sec_chan_offs_ie)) {
+				elem_parse_failed = true;
+				break;
+			}
+			elems->sec_chan_offs = (void *)pos;
 			break;
 		case WLAN_EID_COUNTRY:
 			elems->country_elem = pos;

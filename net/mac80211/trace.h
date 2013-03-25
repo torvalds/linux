@@ -990,23 +990,23 @@ TRACE_EVENT(drv_channel_switch,
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		CHANDEF_ENTRY
 		__field(u64, timestamp)
 		__field(bool, block_tx)
-		__field(u16, freq)
 		__field(u8, count)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		CHANDEF_ASSIGN(&ch_switch->chandef)
 		__entry->timestamp = ch_switch->timestamp;
 		__entry->block_tx = ch_switch->block_tx;
-		__entry->freq = ch_switch->channel->center_freq;
 		__entry->count = ch_switch->count;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " new freq:%u count:%d",
-		LOCAL_PR_ARG, __entry->freq, __entry->count
+		LOCAL_PR_FMT " new " CHANDEF_PR_FMT " count:%d",
+		LOCAL_PR_ARG, CHANDEF_PR_ARG, __entry->count
 	)
 );
 

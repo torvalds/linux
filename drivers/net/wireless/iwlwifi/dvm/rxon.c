@@ -1160,7 +1160,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 }
 
 void iwlagn_config_ht40(struct ieee80211_conf *conf,
-	struct iwl_rxon_context *ctx)
+			struct iwl_rxon_context *ctx)
 {
 	if (conf_is_ht40_minus(conf)) {
 		ctx->ht.extension_chan_offset =

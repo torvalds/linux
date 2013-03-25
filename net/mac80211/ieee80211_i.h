@@ -1019,7 +1019,7 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
-	struct ieee80211_channel *csa_channel;
+	struct cfg80211_chan_def csa_chandef;
 	/* For backward compatibility only -- do not use */
 	struct cfg80211_chan_def _oper_chandef;
 
@@ -1183,6 +1183,7 @@ struct ieee802_11_elems {
 	const u8 *pwr_constr_elem;
 	const struct ieee80211_timeout_interval_ie *timeout_int;
 	const u8 *opmode_notif;
+	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 
 	/* length of them, respectively */
 	u8 ssid_len;

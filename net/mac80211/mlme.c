@@ -289,6 +289,8 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	} else {
 		/* 40 MHz (and 80 MHz) must be supported for VHT */
 		ret = IEEE80211_STA_DISABLE_VHT;
+		/* also mark 40 MHz disabled */
+		ret |= IEEE80211_STA_DISABLE_40MHZ;
 		goto out;
 	}
 
@@ -964,16 +966,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	if (!ifmgd->associated)
 		goto out;
 
-	/*
-	 * FIXME: Here we are downgrading to NL80211_CHAN_WIDTH_20_NOHT
-	 * and don't adjust our ht/vht settings
-	 * This is wrong - we should behave according to the CSA params
-	 */
-	local->_oper_chandef.chan = local->csa_channel;
-	local->_oper_chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
-	local->_oper_chandef.center_freq1 =
-		local->_oper_chandef.chan->center_freq;
-	local->_oper_chandef.center_freq2 = 0;
+	local->_oper_chandef = local->csa_chandef;
 
 	if (!local->ops->channel_switch) {
 		/* call "hw_config" only if doing sw channel switch */
@@ -1028,13 +1021,14 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct cfg80211_bss *cbss = ifmgd->associated;
 	struct ieee80211_bss *bss;
-	struct ieee80211_channel *new_ch;
 	struct ieee80211_chanctx *chanctx;
 	enum ieee80211_band new_band;
 	int new_freq;
 	u8 new_chan_no;
 	u8 count;
 	u8 mode;
+	struct cfg80211_chan_def new_chandef = {};
+	int secondary_channel_offset = -1;
 
 	ASSERT_MGD_MTX(ifmgd);
 
@@ -1047,6 +1041,19 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	/* disregard subsequent announcements if we are already processing */
 	if (ifmgd->flags & IEEE80211_STA_CSA_RECEIVED)
 		return;
+
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT)) {
+		/* if HT is enabled and the IE not present, it's still HT */
+		secondary_channel_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		if (elems->sec_chan_offs)
+			secondary_channel_offset =
+				elems->sec_chan_offs->sec_chan_offs;
+	}
+
+	if (ifmgd->flags & IEEE80211_STA_DISABLE_40MHZ &&
+	    (secondary_channel_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE ||
+	     secondary_channel_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW))
+		secondary_channel_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 
 	if (elems->ext_chansw_ie) {
 		if (!ieee80211_operating_class_to_band(
@@ -1074,11 +1081,45 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	bss = (void *)cbss->priv;
 
 	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);
-	new_ch = ieee80211_get_channel(local->hw.wiphy, new_freq);
-	if (!new_ch || new_ch->flags & IEEE80211_CHAN_DISABLED) {
+	new_chandef.chan = ieee80211_get_channel(sdata->local->hw.wiphy, new_freq);
+	if (!new_chandef.chan ||
+	    new_chandef.chan->flags & IEEE80211_CHAN_DISABLED) {
 		sdata_info(sdata,
 			   "AP %pM switches to unsupported channel (%d MHz), disconnecting\n",
 			   ifmgd->associated->bssid, new_freq);
+		ieee80211_queue_work(&local->hw,
+				     &ifmgd->csa_connection_drop_work);
+		return;
+	}
+
+	switch (secondary_channel_offset) {
+	default:
+		/* secondary_channel_offset was present but is invalid */
+	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
+		cfg80211_chandef_create(&new_chandef, new_chandef.chan,
+					NL80211_CHAN_HT20);
+		break;
+	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+		cfg80211_chandef_create(&new_chandef, new_chandef.chan,
+					NL80211_CHAN_HT40PLUS);
+		break;
+	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+		cfg80211_chandef_create(&new_chandef, new_chandef.chan,
+					NL80211_CHAN_HT40MINUS);
+		break;
+	case -1:
+		cfg80211_chandef_create(&new_chandef, new_chandef.chan,
+					NL80211_CHAN_NO_HT);
+		break;
+	}
+
+	if (!cfg80211_chandef_usable(local->hw.wiphy, &new_chandef,
+				     IEEE80211_CHAN_DISABLED)) {
+		sdata_info(sdata,
+			   "AP %pM switches to unsupported channel (%d MHz, width:%d, CF1/2: %d/%d MHz), disconnecting\n",
+			   ifmgd->associated->bssid, new_freq,
+			   new_chandef.width, new_chandef.center_freq1,
+			   new_chandef.center_freq2);
 		ieee80211_queue_work(&local->hw,
 				     &ifmgd->csa_connection_drop_work);
 		return;
@@ -1111,7 +1152,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 	mutex_unlock(&local->chanctx_mtx);
 
-	local->csa_channel = new_ch;
+	local->csa_chandef = new_chandef;
 
 	if (mode)
 		ieee80211_stop_queues_by_reason(&local->hw,
@@ -1123,7 +1164,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_channel_switch ch_switch = {
 			.timestamp = timestamp,
 			.block_tx = mode,
-			.channel = new_ch,
+			.chandef = new_chandef,
 			.count = count,
 		};
 
