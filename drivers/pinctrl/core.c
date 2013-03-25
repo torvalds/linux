@@ -897,6 +897,7 @@ static int pinctrl_select_state_locked(struct pinctrl *p,
 				       struct pinctrl_state *state)
 {
 	struct pinctrl_setting *setting, *setting2;
+	struct pinctrl_state *old_state = p->state;
 	int ret;
 
 	if (p->state == state)
@@ -973,7 +974,24 @@ unapply_new_state:
 		pinctrl_free_setting(true, setting2);
 	}
 reapply_old_state:
-	/* FIXME: re-enable old setting */
+	if (old_state) {
+		list_for_each_entry(setting, &old_state->settings, node) {
+			bool found = false;
+			if (setting->type != PIN_MAP_TYPE_MUX_GROUP)
+				continue;
+			list_for_each_entry(setting2, &state->settings, node) {
+				if (setting2->type != PIN_MAP_TYPE_MUX_GROUP)
+					continue;
+				if (setting2->data.mux.group ==
+						setting->data.mux.group) {
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				pinmux_enable_setting(setting);
+		}
+	}
 	return ret;
 }
 
