@@ -104,6 +104,7 @@ static const u8 lowpan_llprefix[] = {0xfe, 0x80};
 struct lowpan_dev_info {
 	struct net_device	*real_dev; /* real WPAN device ptr */
 	struct mutex		dev_list_mtx; /* mutex for list ops */
+	unsigned short fragment_tag;
 };
 
 struct lowpan_dev_record {
@@ -120,7 +121,6 @@ struct lowpan_fragment {
 	struct list_head	list;		/* fragments list */
 };
 
-static unsigned short fragment_tag;
 static LIST_HEAD(lowpan_fragments);
 static DEFINE_SPINLOCK(flist_lock);
 
@@ -1027,14 +1027,14 @@ lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
 }
 
 static int
-lowpan_skb_fragmentation(struct sk_buff *skb)
+lowpan_skb_fragmentation(struct sk_buff *skb, struct net_device *dev)
 {
 	int  err, header_length, payload_length, tag, offset = 0;
 	u8 head[5];
 
 	header_length = lowpan_get_mac_header_length(skb);
 	payload_length = skb->len - header_length;
-	tag = fragment_tag++;
+	tag = lowpan_dev_info(dev)->fragment_tag++;
 
 	/* first fragment header */
 	head[0] = LOWPAN_DISPATCH_FRAG1 | ((payload_length >> 8) & 0x7);
@@ -1099,7 +1099,7 @@ static netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	pr_debug("frame is too big, fragmentation is needed\n");
-	err = lowpan_skb_fragmentation(skb);
+	err = lowpan_skb_fragmentation(skb, dev);
 error:
 	dev_kfree_skb(skb);
 out:
@@ -1243,6 +1243,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 		return -ENODEV;
 
 	lowpan_dev_info(dev)->real_dev = real_dev;
+	lowpan_dev_info(dev)->fragment_tag = 0;
 	mutex_init(&lowpan_dev_info(dev)->dev_list_mtx);
 
 	entry = kzalloc(sizeof(struct lowpan_dev_record), GFP_KERNEL);
