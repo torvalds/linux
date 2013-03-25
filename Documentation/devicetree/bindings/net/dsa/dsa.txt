@@ -43,7 +43,7 @@ Example:
 
 	dsa@0 {
 		compatible = "marvell,dsa";
-		#address-cells = <1>;
+		#address-cells = <2>;
 		#size-cells = <0>;
 
 		interrupts = <10>;
