@@ -33,25 +33,17 @@ struct ehci_hcd_mv {
 
 	struct mv_usb_platform_data *pdata;
 
-	/* clock source and total clock number */
-	unsigned int clknum;
-	struct clk *clk[0];
+	struct clk *clk;
 };
 
 static void ehci_clock_enable(struct ehci_hcd_mv *ehci_mv)
 {
-	unsigned int i;
-
-	for (i = 0; i < ehci_mv->clknum; i++)
-		clk_prepare_enable(ehci_mv->clk[i]);
+	clk_prepare_enable(ehci_mv->clk);
 }
 
 static void ehci_clock_disable(struct ehci_hcd_mv *ehci_mv)
 {
-	unsigned int i;
-
-	for (i = 0; i < ehci_mv->clknum; i++)
-		clk_disable_unprepare(ehci_mv->clk[i]);
+	clk_disable_unprepare(ehci_mv->clk);
 }
 
 static int mv_ehci_enable(struct ehci_hcd_mv *ehci_mv)
@@ -144,9 +136,8 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	struct ehci_hcd *ehci;
 	struct ehci_hcd_mv *ehci_mv;
 	struct resource *r;
-	int clk_i, retval = -ENODEV;
+	int retval = -ENODEV;
 	u32 offset;
-	size_t size;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "missing platform_data\n");
@@ -160,8 +151,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
-	size = sizeof(*ehci_mv) + sizeof(struct clk *) * pdata->clknum;
-	ehci_mv = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	ehci_mv = devm_kzalloc(&pdev->dev, sizeof(*ehci_mv), GFP_KERNEL);
 	if (ehci_mv == NULL) {
 		dev_err(&pdev->dev, "cannot allocate ehci_hcd_mv\n");
 		retval = -ENOMEM;
@@ -172,16 +162,11 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	ehci_mv->pdata = pdata;
 	ehci_mv->hcd = hcd;
 
-	ehci_mv->clknum = pdata->clknum;
-	for (clk_i = 0; clk_i < ehci_mv->clknum; clk_i++) {
-		ehci_mv->clk[clk_i] =
-		    devm_clk_get(&pdev->dev, pdata->clkname[clk_i]);
-		if (IS_ERR(ehci_mv->clk[clk_i])) {
-			dev_err(&pdev->dev, "error get clck \"%s\"\n",
-				pdata->clkname[clk_i]);
-			retval = PTR_ERR(ehci_mv->clk[clk_i]);
-			goto err_clear_drvdata;
-		}
+	ehci_mv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(ehci_mv->clk)) {
+		dev_err(&pdev->dev, "error getting clock\n");
+		retval = PTR_ERR(ehci_mv->clk);
+		goto err_clear_drvdata;
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phyregs");
