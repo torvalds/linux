@@ -699,10 +699,8 @@ out_free:
 static int
 ieee80211_mesh_rebuild_beacon(struct ieee80211_if_mesh *ifmsh)
 {
-	struct ieee80211_sub_if_data *sdata;
 	struct beacon_data *old_bcn;
 	int ret;
-	sdata = container_of(ifmsh, struct ieee80211_sub_if_data, u.mesh);
 
 	mutex_lock(&ifmsh->mtx);
 
@@ -833,9 +831,8 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *hdr;
 	struct ieee802_11_elems elems;
 	size_t baselen;
-	u8 *pos, *end;
+	u8 *pos;
 
-	end = ((u8 *) mgmt) + len;
 	pos = mgmt->u.probe_req.variable;
 	baselen = (u8 *) pos - (u8 *) mgmt;
 	if (baselen > len)

@@ -758,7 +758,6 @@ struct ieee80211_sub_if_data {
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
-		struct dentry *dir;
 		struct dentry *subdir_stations;
 		struct dentry *default_unicast_key;
 		struct dentry *default_multicast_key;
@@ -800,11 +799,6 @@ enum sdata_queue_type {
 enum {
 	IEEE80211_RX_MSG	= 1,
 	IEEE80211_TX_STATUS_MSG	= 2,
-	IEEE80211_EOSP_MSG	= 3,
-};
-
-struct skb_eosp_msg_data {
-	u8 sta[ETH_ALEN], iface[ETH_ALEN];
 };
 
 enum queue_stop_reason {
@@ -815,6 +809,7 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_SUSPEND,
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
 	IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL,
+	IEEE80211_QUEUE_STOP_REASON_FLUSH,
 };
 
 #ifdef CONFIG_MAC80211_LEDS
@@ -1528,8 +1523,10 @@ void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr, bool ack);
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
+				     unsigned long queues,
 				     enum queue_stop_reason reason);
 void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
+				     unsigned long queues,
 				     enum queue_stop_reason reason);
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
 				    enum queue_stop_reason reason);
@@ -1546,6 +1543,8 @@ static inline void ieee80211_add_pending_skbs(struct ieee80211_local *local,
 {
 	ieee80211_add_pending_skbs_fn(local, skbs, NULL, NULL);
 }
+void ieee80211_flush_queues(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata);
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
