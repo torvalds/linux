@@ -142,12 +142,12 @@ applications. -->
 
       <revision>
 	<revnumber>3.10</revnumber>
-	<date>2013-03-24</date>
+	<date>2013-03-25</date>
 	<authorinitials>hv</authorinitials>
 	<revremark>Remove obsolete and unused DV_PRESET ioctls:
 	VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_QUERY_DV_PRESET and
 	VIDIOC_ENUM_DV_PRESET. Remove the related v4l2_input/output capability
-	flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS.
+	flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS. Added VIDIOC_DBG_G_CHIP_NAME.
 	</revremark>
       </revision>
 

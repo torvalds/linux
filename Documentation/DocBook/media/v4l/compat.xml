@@ -2503,6 +2503,10 @@ that used it. It was originally scheduled for removal in 2.6.35.
 	  flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS.
 	  </para>
         </listitem>
+        <listitem>
+	  <para>Added new debugging ioctl &VIDIOC-DBG-G-CHIP-NAME;.
+	  </para>
+        </listitem>
       </orderedlist>
     </section>
 
