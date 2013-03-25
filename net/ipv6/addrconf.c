@@ -70,6 +70,7 @@
 #include <net/snmp.h>
 
 #include <net/af_ieee802154.h>
+#include <net/firewire.h>
 #include <net/ipv6.h>
 #include <net/protocol.h>
 #include <net/ndisc.h>
@@ -1738,6 +1739,20 @@ static int addrconf_ifid_eui64(u8 *eui, struct net_device *dev)
 	return 0;
 }
 
+static int addrconf_ifid_ieee1394(u8 *eui, struct net_device *dev)
+{
+	union fwnet_hwaddr *ha;
+
+	if (dev->addr_len != FWNET_ALEN)
+		return -1;
+
+	ha = (union fwnet_hwaddr *)dev->dev_addr;
+
+	memcpy(eui, &ha->uc.uniq_id, sizeof(ha->uc.uniq_id));
+	eui[0] ^= 2;
+	return 0;
+}
+
 static int addrconf_ifid_arcnet(u8 *eui, struct net_device *dev)
 {
 	/* XXX: inherit EUI-64 from other interface -- yoshfuji */
@@ -1802,6 +1817,8 @@ static int ipv6_generate_eui64(u8 *eui, struct net_device *dev)
 		return addrconf_ifid_gre(eui, dev);
 	case ARPHRD_IEEE802154:
 		return addrconf_ifid_eui64(eui, dev);
+	case ARPHRD_IEEE1394:
+		return addrconf_ifid_ieee1394(eui, dev);
 	}
 	return -1;
 }
@@ -2643,7 +2660,8 @@ static void addrconf_dev_config(struct net_device *dev)
 	    (dev->type != ARPHRD_FDDI) &&
 	    (dev->type != ARPHRD_ARCNET) &&
 	    (dev->type != ARPHRD_INFINIBAND) &&
-	    (dev->type != ARPHRD_IEEE802154)) {
+	    (dev->type != ARPHRD_IEEE802154) &&
+	    (dev->type != ARPHRD_IEEE1394)) {
 		/* Alas, we support only Ethernet autoconfiguration. */
 		return;
 	}

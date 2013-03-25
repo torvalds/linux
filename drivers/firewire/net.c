@@ -1,5 +1,6 @@
 /*
  * IPv4 over IEEE 1394, per RFC 2734
+ * IPv6 over IEEE 1394, per RFC 3146
  *
  * Copyright (C) 2009 Jay Fenlason <fenlason@redhat.com>
  *
@@ -46,6 +47,7 @@
 
 #define IANA_SPECIFIER_ID		0x00005eU
 #define RFC2734_SW_VERSION		0x000001U
+#define RFC3146_SW_VERSION		0x000002U
 
 #define IEEE1394_GASP_HDR_SIZE	8
 
@@ -505,6 +507,9 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 	switch (ether_type) {
 	case ETH_P_ARP:
 	case ETH_P_IP:
+#if IS_ENABLED(CONFIG_IPV6)
+	case ETH_P_IPV6:
+#endif
 		break;
 	default:
 		goto err;
@@ -768,7 +773,12 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 	ver = be32_to_cpu(buf_ptr[1]) & 0xffffff;
 	source_node_id = be32_to_cpu(buf_ptr[0]) >> 16;
 
-	if (specifier_id == IANA_SPECIFIER_ID && ver == RFC2734_SW_VERSION) {
+	if (specifier_id == IANA_SPECIFIER_ID &&
+	    (ver == RFC2734_SW_VERSION
+#if IS_ENABLED(CONFIG_IPV6)
+	     || ver == RFC3146_SW_VERSION
+#endif
+	    )) {
 		buf_ptr += 2;
 		length -= IEEE1394_GASP_HDR_SIZE;
 		fwnet_incoming_packet(dev, buf_ptr, length, source_node_id,
@@ -971,16 +981,27 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 		u8 *p;
 		int generation;
 		int node_id;
+		unsigned int sw_version;
 
 		/* ptask->generation may not have been set yet */
 		generation = dev->card->generation;
 		smp_rmb();
 		node_id = dev->card->node_id;
 
+		switch (ptask->skb->protocol) {
+		default:
+			sw_version = RFC2734_SW_VERSION;
+			break;
+#if IS_ENABLED(CONFIG_IPV6)
+		case htons(ETH_P_IPV6):
+			sw_version = RFC3146_SW_VERSION;
+#endif
+		}
+
 		p = skb_push(ptask->skb, IEEE1394_GASP_HDR_SIZE);
 		put_unaligned_be32(node_id << 16 | IANA_SPECIFIER_ID >> 8, p);
 		put_unaligned_be32((IANA_SPECIFIER_ID & 0xff) << 24
-						| RFC2734_SW_VERSION, &p[4]);
+						| sw_version, &p[4]);
 
 		/* We should not transmit if broadcast_channel.valid == 0. */
 		fw_send_request(dev->card, &ptask->transaction,
@@ -1248,6 +1269,9 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	switch (proto) {
 	case htons(ETH_P_ARP):
 	case htons(ETH_P_IP):
+#if IS_ENABLED(CONFIG_IPV6)
+	case htons(ETH_P_IPV6):
+#endif
 		break;
 	default:
 		goto fail;
@@ -1490,7 +1514,7 @@ static int fwnet_probe(struct device *_dev)
 		goto out;
 
 	list_add_tail(&dev->dev_link, &fwnet_device_list);
-	dev_notice(&net->dev, "IPv4 over IEEE 1394 on card %s\n",
+	dev_notice(&net->dev, "IP over IEEE 1394 on card %s\n",
 		   dev_name(card->device));
  have_dev:
 	ret = fwnet_add_peer(dev, unit, device);
@@ -1579,6 +1603,14 @@ static const struct ieee1394_device_id fwnet_id_table[] = {
 		.specifier_id = IANA_SPECIFIER_ID,
 		.version      = RFC2734_SW_VERSION,
 	},
+#if IS_ENABLED(CONFIG_IPV6)
+	{
+		.match_flags  = IEEE1394_MATCH_SPECIFIER_ID |
+				IEEE1394_MATCH_VERSION,
+		.specifier_id = IANA_SPECIFIER_ID,
+		.version      = RFC3146_SW_VERSION,
+	},
+#endif
 	{ }
 };
 
@@ -1616,6 +1648,30 @@ static struct fw_descriptor rfc2374_unit_directory = {
 	.data   = rfc2374_unit_directory_data
 };
 
+#if IS_ENABLED(CONFIG_IPV6)
+static const u32 rfc3146_unit_directory_data[] = {
+	0x00040000,	/* directory_length		*/
+	0x1200005e,	/* unit_specifier_id: IANA	*/
+	0x81000003,	/* textual descriptor offset	*/
+	0x13000002,	/* unit_sw_version: RFC 3146	*/
+	0x81000005,	/* textual descriptor offset	*/
+	0x00030000,	/* descriptor_length		*/
+	0x00000000,	/* text				*/
+	0x00000000,	/* minimal ASCII, en		*/
+	0x49414e41,	/* I A N A			*/
+	0x00030000,	/* descriptor_length		*/
+	0x00000000,	/* text				*/
+	0x00000000,	/* minimal ASCII, en		*/
+	0x49507636,	/* I P v 6			*/
+};
+
+static struct fw_descriptor rfc3146_unit_directory = {
+	.length = ARRAY_SIZE(rfc3146_unit_directory_data),
+	.key    = (CSR_DIRECTORY | CSR_UNIT) << 24,
+	.data   = rfc3146_unit_directory_data
+};
+#endif
+
 static int __init fwnet_init(void)
 {
 	int err;
@@ -1624,11 +1680,17 @@ static int __init fwnet_init(void)
 	if (err)
 		return err;
 
+#if IS_ENABLED(CONFIG_IPV6)
+	err = fw_core_add_descriptor(&rfc3146_unit_directory);
+	if (err)
+		goto out;
+#endif
+
 	fwnet_packet_task_cache = kmem_cache_create("packet_task",
 			sizeof(struct fwnet_packet_task), 0, 0, NULL);
 	if (!fwnet_packet_task_cache) {
 		err = -ENOMEM;
-		goto out;
+		goto out2;
 	}
 
 	err = driver_register(&fwnet_driver.driver);
@@ -1636,7 +1698,11 @@ static int __init fwnet_init(void)
 		return 0;
 
 	kmem_cache_destroy(fwnet_packet_task_cache);
+out2:
+#if IS_ENABLED(CONFIG_IPV6)
+	fw_core_remove_descriptor(&rfc3146_unit_directory);
 out:
+#endif
 	fw_core_remove_descriptor(&rfc2374_unit_directory);
 
 	return err;
@@ -1647,11 +1713,14 @@ static void __exit fwnet_cleanup(void)
 {
 	driver_unregister(&fwnet_driver.driver);
 	kmem_cache_destroy(fwnet_packet_task_cache);
+#if IS_ENABLED(CONFIG_IPV6)
+	fw_core_remove_descriptor(&rfc3146_unit_directory);
+#endif
 	fw_core_remove_descriptor(&rfc2374_unit_directory);
 }
 module_exit(fwnet_cleanup);
 
 MODULE_AUTHOR("Jay Fenlason <fenlason@redhat.com>");
-MODULE_DESCRIPTION("IPv4 over IEEE1394 as per RFC 2734");
+MODULE_DESCRIPTION("IP over IEEE1394 as per RFC 2734/3146");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(ieee1394, fwnet_id_table);
