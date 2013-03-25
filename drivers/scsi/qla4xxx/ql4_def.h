@@ -159,9 +159,6 @@
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
-#define DEV_TYPE_IPV4	"ipv4"
-#define DEV_TYPE_IPV6	"ipv6"
-
 #define DEV_DB_NON_PERSISTENT	0
 #define DEV_DB_PERSISTENT	1
 
