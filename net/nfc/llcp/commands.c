@@ -694,8 +694,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 	remaining_len = len;
 	msg_ptr = msg_data;
 
-	while (remaining_len > 0) {
-
+	do {
 		frag_len = min_t(size_t, sock->remote_miu, remaining_len);
 
 		pr_debug("Fragment %zd bytes remaining %zd",
@@ -708,7 +707,8 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 		skb_put(pdu, LLCP_SEQUENCE_SIZE);
 
-		memcpy(skb_put(pdu, frag_len), msg_ptr, frag_len);
+		if (likely(frag_len > 0))
+			memcpy(skb_put(pdu, frag_len), msg_ptr, frag_len);
 
 		skb_queue_tail(&sock->tx_queue, pdu);
 
@@ -720,7 +720,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 		remaining_len -= frag_len;
 		msg_ptr += frag_len;
-	}
+	} while (remaining_len > 0);
 
 	kfree(msg_data);
 
@@ -754,8 +754,7 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 	remaining_len = len;
 	msg_ptr = msg_data;
 
-	while (remaining_len > 0) {
-
+	do {
 		frag_len = min_t(size_t, sock->remote_miu, remaining_len);
 
 		pr_debug("Fragment %zd bytes remaining %zd",
@@ -770,14 +769,15 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 
 		pdu = llcp_add_header(pdu, dsap, ssap, LLCP_PDU_UI);
 
-		memcpy(skb_put(pdu, frag_len), msg_ptr, frag_len);
+		if (likely(frag_len > 0))
+			memcpy(skb_put(pdu, frag_len), msg_ptr, frag_len);
 
 		/* No need to check for the peer RW for UI frames */
 		skb_queue_tail(&local->tx_queue, pdu);
 
 		remaining_len -= frag_len;
 		msg_ptr += frag_len;
-	}
+	} while (remaining_len > 0);
 
 	kfree(msg_data);
 
