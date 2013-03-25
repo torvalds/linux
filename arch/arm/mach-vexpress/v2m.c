@@ -61,9 +61,6 @@ static void __init v2m_sp804_init(void __iomem *base, unsigned int irq)
 	if (WARN_ON(!base || irq == NO_IRQ))
 		return;
 
-	writel(0, base + TIMER_1_BASE + TIMER_CTRL);
-	writel(0, base + TIMER_2_BASE + TIMER_CTRL);
-
 	sp804_clocksource_init(base + TIMER_2_BASE, "v2m-timer1");
 	sp804_clockevents_init(base + TIMER_1_BASE, irq, "v2m-timer0");
 }
