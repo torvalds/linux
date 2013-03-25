@@ -3331,12 +3331,17 @@ void ceph_msg_last_put(struct kref *kref)
 	if (ceph_msg_has_pages(m)) {
 		m->p.length = 0;
 		m->p.pages = NULL;
+		m->p.type = CEPH_OSD_DATA_TYPE_NONE;
 	}
-
 	if (ceph_msg_has_pagelist(m)) {
 		ceph_pagelist_release(m->l.pagelist);
 		kfree(m->l.pagelist);
 		m->l.pagelist = NULL;
+		m->l.type = CEPH_OSD_DATA_TYPE_NONE;
+	}
+	if (ceph_msg_has_bio(m)) {
+		m->b.bio = NULL;
+		m->b.type = CEPH_OSD_DATA_TYPE_NONE;
 	}
 
 	if (m->pool)
