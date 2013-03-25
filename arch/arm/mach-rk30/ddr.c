@@ -2857,17 +2857,17 @@ uint32_t __sramlocalfunc ddr_update_timing(void)
     }
     else if(mem_type == LPDDR2)
     {
-        switch(p_publ_timing->mr[1] & 0x7)
+        if(((p_publ_timing->mr[1]) & 0x7) == LPDDR2_BL4)
         {
-            case LPDDR2_BL4:
-                bl_tmp = mddr_lpddr2_bl_4;
-                break;
-            case LPDDR2_BL8:
-                bl_tmp = mddr_lpddr2_bl_8;
-                break;
-            case LPDDR2_BL16:
-                bl_tmp = mddr_lpddr2_bl_16;
-                break;
+            bl_tmp = mddr_lpddr2_bl_8;
+        }
+        else if(((p_publ_timing->mr[1]) & 0x7) == LPDDR2_BL4)
+        {
+            bl_tmp = mddr_lpddr2_bl_4;
+        }
+        else //if(((p_publ_timing->mr[1]) & 0x7) == LPDDR2_BL16)
+        {
+            bl_tmp = mddr_lpddr2_bl_16;
         }
         if(ddr_freq>=200)
         {
@@ -3602,7 +3602,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20130307 \n");
+    ddr_print("version 1.00 20130325 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
