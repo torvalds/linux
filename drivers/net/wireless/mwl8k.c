@@ -4807,16 +4807,14 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 	struct mwl8k_priv *priv = hw->priv;
 	int rc;
 
-	if (conf->flags & IEEE80211_CONF_IDLE) {
-		mwl8k_cmd_radio_disable(hw);
-		return 0;
-	}
-
 	rc = mwl8k_fw_lock(hw);
 	if (rc)
 		return rc;
 
-	rc = mwl8k_cmd_radio_enable(hw);
+	if (conf->flags & IEEE80211_CONF_IDLE)
+		rc = mwl8k_cmd_radio_disable(hw);
+	else
+		rc = mwl8k_cmd_radio_enable(hw);
 	if (rc)
 		goto out;
 
