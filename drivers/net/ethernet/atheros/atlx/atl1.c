@@ -2774,7 +2774,7 @@ static int atl1_close(struct net_device *netdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atl1_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
