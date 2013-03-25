@@ -1221,10 +1221,10 @@ struct rtl_hal {
 	bool set_fwcmd_inprogress;
 	u8 current_fwcmd_io;
 
+	struct p2p_ps_offload_t p2p_ps_offload;
 	bool fw_clk_change_in_progress;
 	bool allow_sw_to_change_hwclc;
 	u8 fw_ps_state;
-	struct p2p_ps_offload_t p2p_ps_offload;
 	/**/
 	bool driver_going2unload;
 
