@@ -313,11 +313,13 @@ void __closure_flush_sync(struct closure *cl, struct timer_list *timer);
 
 #ifdef CONFIG_BCACHE_CLOSURES_DEBUG
 
+void closure_debug_init(void);
 void closure_debug_create(struct closure *cl);
 void closure_debug_destroy(struct closure *cl);
 
 #else
 
+static inline void closure_debug_init(void) {}
 static inline void closure_debug_create(struct closure *cl) {}
 static inline void closure_debug_destroy(struct closure *cl) {}
 

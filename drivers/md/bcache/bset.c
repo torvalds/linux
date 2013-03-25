@@ -161,7 +161,7 @@ bool bch_ptr_bad(struct btree *b, const struct bkey *k)
 #ifdef CONFIG_BCACHE_EDEBUG
 bug:
 	mutex_unlock(&b->c->bucket_lock);
-	btree_bug(b, "inconsistent pointer %s: bucket %li pin %i "
+	btree_bug(b, "inconsistent pointer %s: bucket %zu pin %i "
 		  "prio %i gen %i last_gc %i mark %llu gc_gen %i", pkey(k),
 		  PTR_BUCKET_NR(b->c, k, i), atomic_read(&g->pin),
 		  g->prio, g->gen, g->last_gc, GC_MARK(g), g->gc_gen);

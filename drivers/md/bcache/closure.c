@@ -334,13 +334,11 @@ static const struct file_operations debug_ops = {
 	.release	= single_release
 };
 
-int __init closure_debug_init(void)
+void __init closure_debug_init(void)
 {
 	debug = debugfs_create_file("closures", 0400, NULL, NULL, &debug_ops);
 	return 0;
 }
-
-module_init(closure_debug_init);
 
 #endif
 
