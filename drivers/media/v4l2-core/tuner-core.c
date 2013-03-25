@@ -222,8 +222,7 @@ static int fe_has_signal(struct dvb_frontend *fe)
 {
 	u16 strength = 0;
 
-	if (fe->ops.tuner_ops.get_rf_strength)
-		fe->ops.tuner_ops.get_rf_strength(fe, &strength);
+	fe->ops.tuner_ops.get_rf_strength(fe, &strength);
 
 	return strength;
 }
@@ -232,8 +231,7 @@ static int fe_get_afc(struct dvb_frontend *fe)
 {
 	s32 afc = 0;
 
-	if (fe->ops.tuner_ops.get_afc)
-		fe->ops.tuner_ops.get_afc(fe, &afc);
+	fe->ops.tuner_ops.get_afc(fe, &afc);
 
 	return afc;
 }
@@ -256,8 +254,6 @@ static void tuner_status(struct dvb_frontend *fe);
 static const struct analog_demod_ops tuner_analog_ops = {
 	.set_params     = fe_set_params,
 	.standby        = fe_standby,
-	.has_signal     = fe_has_signal,
-	.get_afc        = fe_get_afc,
 	.set_config     = fe_set_config,
 	.tuner_status   = tuner_status
 };
@@ -453,10 +449,10 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		memcpy(analog_ops, &tuner_analog_ops,
 		       sizeof(struct analog_demod_ops));
 
-		if (fe_tuner_ops->get_rf_strength == NULL)
-			analog_ops->has_signal = NULL;
-		if (fe_tuner_ops->get_afc == NULL)
-			analog_ops->get_afc = NULL;
+		if (fe_tuner_ops->get_rf_strength)
+			analog_ops->has_signal = fe_has_signal;
+		if (fe_tuner_ops->get_afc)
+			analog_ops->get_afc = fe_get_afc;
 
 	} else {
 		t->name = analog_ops->info.name;
