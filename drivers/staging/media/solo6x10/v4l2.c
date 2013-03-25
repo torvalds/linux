@@ -687,64 +687,14 @@ static int solo_s_std(struct file *file, void *priv, v4l2_std_id i)
 	return 0;
 }
 
-static const u32 solo_motion_ctrls[] = {
-	V4L2_CID_MOTION_TRACE,
-	0
-};
-
-static const u32 *solo_ctrl_classes[] = {
-	solo_motion_ctrls,
-	NULL
-};
-
-static int solo_disp_queryctrl(struct file *file, void *priv,
-			       struct v4l2_queryctrl *qc)
+static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	qc->id = v4l2_ctrl_next(solo_ctrl_classes, qc->id);
-	if (!qc->id)
-		return -EINVAL;
-
-	switch (qc->id) {
-#ifdef PRIVATE_CIDS
-	case V4L2_CID_MOTION_TRACE:
-		qc->type = V4L2_CTRL_TYPE_BOOLEAN;
-		qc->minimum = 0;
-		qc->maximum = qc->step = 1;
-		qc->default_value = 0;
-		strlcpy(qc->name, "Motion Detection Trace", sizeof(qc->name));
-		return 0;
-#else
-	case V4L2_CID_MOTION_TRACE:
-		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
-#endif
-	}
-	return -EINVAL;
-}
-
-static int solo_disp_g_ctrl(struct file *file, void *priv,
-			    struct v4l2_control *ctrl)
-{
-	struct solo_filehandle *fh = priv;
-	struct solo_dev *solo_dev = fh->solo_dev;
+	struct solo_dev *solo_dev =
+		container_of(ctrl->handler, struct solo_dev, disp_hdl);
 
 	switch (ctrl->id) {
 	case V4L2_CID_MOTION_TRACE:
-		ctrl->value = solo_reg_read(solo_dev, SOLO_VI_MOTION_BAR)
-			? 1 : 0;
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static int solo_disp_s_ctrl(struct file *file, void *priv,
-			    struct v4l2_control *ctrl)
-{
-	struct solo_filehandle *fh = priv;
-	struct solo_dev *solo_dev = fh->solo_dev;
-
-	switch (ctrl->id) {
-	case V4L2_CID_MOTION_TRACE:
-		if (ctrl->value) {
+		if (ctrl->val) {
 			solo_reg_write(solo_dev, SOLO_VI_MOTION_BORDER,
 					SOLO_VI_MOTION_Y_ADD |
 					SOLO_VI_MOTION_Y_VALUE(0x20) |
@@ -760,6 +710,8 @@ static int solo_disp_s_ctrl(struct file *file, void *priv,
 			solo_reg_write(solo_dev, SOLO_VI_MOTION_BAR, 0);
 		}
 		return 0;
+	default:
+		break;
 	}
 	return -EINVAL;
 }
@@ -793,10 +745,6 @@ static const struct v4l2_ioctl_ops solo_v4l2_ioctl_ops = {
 	.vidioc_dqbuf			= solo_dqbuf,
 	.vidioc_streamon		= solo_streamon,
 	.vidioc_streamoff		= solo_streamoff,
-	/* Controls */
-	.vidioc_queryctrl		= solo_disp_queryctrl,
-	.vidioc_g_ctrl			= solo_disp_g_ctrl,
-	.vidioc_s_ctrl			= solo_disp_s_ctrl,
 };
 
 static struct video_device solo_v4l2_template = {
@@ -808,6 +756,19 @@ static struct video_device solo_v4l2_template = {
 
 	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL_B,
 	.current_norm		= V4L2_STD_NTSC_M,
+};
+
+static const struct v4l2_ctrl_ops solo_ctrl_ops = {
+	.s_ctrl = solo_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config solo_motion_trace_ctrl = {
+	.ops = &solo_ctrl_ops,
+	.id = V4L2_CID_MOTION_TRACE,
+	.name = "Motion Detection Trace",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.max = 1,
+	.step = 1,
 };
 
 int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
@@ -824,6 +785,11 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 
 	*solo_dev->vfd = solo_v4l2_template;
 	solo_dev->vfd->v4l2_dev = &solo_dev->v4l2_dev;
+	v4l2_ctrl_handler_init(&solo_dev->disp_hdl, 1);
+	v4l2_ctrl_new_custom(&solo_dev->disp_hdl, &solo_motion_trace_ctrl, NULL);
+	if (solo_dev->disp_hdl.error)
+		return solo_dev->disp_hdl.error;
+	solo_dev->vfd->ctrl_handler = &solo_dev->disp_hdl;
 
 	ret = video_register_device(solo_dev->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0) {
@@ -862,5 +828,6 @@ void solo_v4l2_exit(struct solo_dev *solo_dev)
 		return;
 
 	video_unregister_device(solo_dev->vfd);
+	v4l2_ctrl_handler_free(&solo_dev->disp_hdl);
 	solo_dev->vfd = NULL;
 }

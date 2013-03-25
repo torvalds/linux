@@ -660,6 +660,11 @@ u16 tw28_get_audio_status(struct solo_dev *solo_dev)
 }
 #endif
 
+bool tw28_has_sharpness(struct solo_dev *solo_dev, u8 ch)
+{
+	return is_tw286x(solo_dev, ch / 4);
+}
+
 int tw28_set_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch,
 		      s32 val)
 {
@@ -676,8 +681,6 @@ int tw28_set_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch,
 	switch (ctrl) {
 	case V4L2_CID_SHARPNESS:
 		/* Only 286x has sharpness */
-		if (val > 0x0f || val < 0)
-			return -ERANGE;
 		if (is_tw286x(solo_dev, chip_num)) {
 			u8 v = solo_i2c_readbyte(solo_dev, SOLO_I2C_TW,
 						 TW_CHIP_OFFSET_ADDR(chip_num),
@@ -687,8 +690,9 @@ int tw28_set_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch,
 			solo_i2c_writebyte(solo_dev, SOLO_I2C_TW,
 					   TW_CHIP_OFFSET_ADDR(chip_num),
 					   TW286x_SHARPNESS(chip_num), v);
-		} else if (val != 0)
-			return -ERANGE;
+		} else {
+			return -EINVAL;
+		}
 		break;
 
 	case V4L2_CID_HUE:

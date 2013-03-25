@@ -55,6 +55,7 @@ int solo_tw28_init(struct solo_dev *solo_dev);
 
 int tw28_set_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch, s32 val);
 int tw28_get_ctrl_val(struct solo_dev *solo_dev, u32 ctrl, u8 ch, s32 *val);
+bool tw28_has_sharpness(struct solo_dev *solo_dev, u8 ch);
 
 u8 tw28_get_audio_gain(struct solo_dev *solo_dev, u8 ch);
 void tw28_set_audio_gain(struct solo_dev *solo_dev, u8 ch, u8 val);

@@ -119,41 +119,6 @@ static unsigned char vop_6110_pal_cif[] = {
 	0x01, 0x68, 0xce, 0x32, 0x28, 0x00, 0x00, 0x00,
 };
 
-
-static const u32 solo_user_ctrls[] = {
-	V4L2_CID_BRIGHTNESS,
-	V4L2_CID_CONTRAST,
-	V4L2_CID_SATURATION,
-	V4L2_CID_HUE,
-	V4L2_CID_SHARPNESS,
-	0
-};
-
-static const u32 solo_mpeg_ctrls[] = {
-	V4L2_CID_MPEG_VIDEO_ENCODING,
-	V4L2_CID_MPEG_VIDEO_GOP_SIZE,
-	0
-};
-
-static const u32 solo_private_ctrls[] = {
-	V4L2_CID_MOTION_ENABLE,
-	V4L2_CID_MOTION_THRESHOLD,
-	0
-};
-
-static const u32 solo_fmtx_ctrls[] = {
-	V4L2_CID_RDS_TX_RADIO_TEXT,
-	0
-};
-
-static const u32 *solo_ctrl_classes[] = {
-	solo_user_ctrls,
-	solo_mpeg_ctrls,
-	solo_fmtx_ctrls,
-	solo_private_ctrls,
-	NULL
-};
-
 struct vop_header {
 	/* VE_STATUS0 */
 	u32 mpeg_size:20, sad_motion_flag:1, video_motion_flag:1, vop_type:2,
@@ -1341,127 +1306,12 @@ static int solo_s_parm(struct file *file, void *priv,
 	return 0;
 }
 
-static int solo_queryctrl(struct file *file, void *priv,
-			  struct v4l2_queryctrl *qc)
+static int solo_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct solo_enc_fh *fh = priv;
-	struct solo_enc_dev *solo_enc = fh->enc;
+	struct solo_enc_dev *solo_enc =
+		container_of(ctrl->handler, struct solo_enc_dev, hdl);
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
-
-	qc->id = v4l2_ctrl_next(solo_ctrl_classes, qc->id);
-	if (!qc->id)
-		return -EINVAL;
-
-	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-	case V4L2_CID_CONTRAST:
-	case V4L2_CID_SATURATION:
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(qc, 0x00, 0xff, 1, 0x80);
-	case V4L2_CID_SHARPNESS:
-		return v4l2_ctrl_query_fill(qc, 0x00, 0x0f, 1, 0x00);
-	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		return v4l2_ctrl_query_fill(
-			qc, V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 1,
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC);
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		return v4l2_ctrl_query_fill(qc, 1, 255, 1, solo_dev->fps);
-#ifdef PRIVATE_CIDS
-	case V4L2_CID_MOTION_THRESHOLD:
-		qc->flags |= V4L2_CTRL_FLAG_SLIDER;
-		qc->type = V4L2_CTRL_TYPE_INTEGER;
-		qc->minimum = 0;
-		qc->maximum = 0xffff;
-		qc->step = 1;
-		qc->default_value = SOLO_DEF_MOT_THRESH;
-		strlcpy(qc->name, "Motion Detection Threshold",
-			sizeof(qc->name));
-		return 0;
-	case V4L2_CID_MOTION_ENABLE:
-		qc->type = V4L2_CTRL_TYPE_BOOLEAN;
-		qc->minimum = 0;
-		qc->maximum = qc->step = 1;
-		qc->default_value = 0;
-		strlcpy(qc->name, "Motion Detection Enable", sizeof(qc->name));
-		return 0;
-#else
-	case V4L2_CID_MOTION_THRESHOLD:
-		return v4l2_ctrl_query_fill(qc, 0, 0xffff, 1,
-					    SOLO_DEF_MOT_THRESH);
-	case V4L2_CID_MOTION_ENABLE:
-		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
-#endif
-	case V4L2_CID_RDS_TX_RADIO_TEXT:
-		qc->type = V4L2_CTRL_TYPE_STRING;
-		qc->minimum = 0;
-		qc->maximum = OSD_TEXT_MAX;
-		qc->step = 1;
-		qc->default_value = 0;
-		strlcpy(qc->name, "OSD Text", sizeof(qc->name));
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-static int solo_querymenu(struct file *file, void *priv,
-			  struct v4l2_querymenu *qmenu)
-{
-	struct v4l2_queryctrl qctrl;
 	int err;
-
-	qctrl.id = qmenu->id;
-
-	err = solo_queryctrl(file, priv, &qctrl);
-	if (err)
-		return err;
-
-	return v4l2_ctrl_query_menu(qmenu, &qctrl, NULL);
-}
-
-static int solo_g_ctrl(struct file *file, void *priv,
-		       struct v4l2_control *ctrl)
-{
-	struct solo_enc_fh *fh = priv;
-	struct solo_enc_dev *solo_enc = fh->enc;
-	struct solo_dev *solo_dev = solo_enc->solo_dev;
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-	case V4L2_CID_CONTRAST:
-	case V4L2_CID_SATURATION:
-	case V4L2_CID_HUE:
-	case V4L2_CID_SHARPNESS:
-		return tw28_get_ctrl_val(solo_dev, ctrl->id, solo_enc->ch,
-					 &ctrl->value);
-	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		ctrl->value = V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC;
-		break;
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		if (atomic_read(&solo_enc->readers) > 0)
-			return -EBUSY;
-		ctrl->value = solo_enc->gop;
-		break;
-	case V4L2_CID_MOTION_THRESHOLD:
-		ctrl->value = solo_enc->motion_thresh;
-		break;
-	case V4L2_CID_MOTION_ENABLE:
-		ctrl->value = solo_is_motion_on(solo_enc);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int solo_s_ctrl(struct file *file, void *priv,
-		       struct v4l2_control *ctrl)
-{
-	struct solo_enc_fh *fh = priv;
-	struct solo_enc_dev *solo_enc = fh->enc;
-	struct solo_dev *solo_dev = solo_enc->solo_dev;
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -1470,20 +1320,15 @@ static int solo_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_HUE:
 	case V4L2_CID_SHARPNESS:
 		return tw28_set_ctrl_val(solo_dev, ctrl->id, solo_enc->ch,
-					 ctrl->value);
+					 ctrl->val);
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		if (ctrl->value != V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC)
-			return -ERANGE;
-		break;
+		return 0;
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
-		if (ctrl->value < 1 || ctrl->value > 255)
-			return -ERANGE;
-		solo_enc->gop = ctrl->value;
-		break;
-	case V4L2_CID_MOTION_THRESHOLD:
-	{
-		u16 block = (ctrl->value >> 16) & 0xffff;
-		u16 value = ctrl->value & 0xffff;
+		solo_enc->gop = ctrl->val;
+		return 0;
+	case V4L2_CID_MOTION_THRESHOLD: {
+		u16 block = (ctrl->val >> 16) & 0xffff;
+		u16 value = ctrl->val & 0xffff;
 
 		/* Motion thresholds are in a table of 64x64 samples, with
 		 * each sample representing 16x16 pixels of the source. In
@@ -1492,104 +1337,27 @@ static int solo_s_ctrl(struct file *file, void *priv,
 		 *
 		 * Block is 0 to set the threshold globally, or any positive
 		 * number under 2049 to set block-1 individually. */
-		if (block > 2049)
-			return -ERANGE;
-
+		/* Currently we limit support to block 0 only. A later patch
+		 * will add a new ioctl to set all other blocks. */
 		if (block == 0) {
 			solo_enc->motion_thresh = value;
 			return solo_set_motion_threshold(solo_dev,
 							 solo_enc->ch, value);
-		} else {
-			return solo_set_motion_block(solo_dev, solo_enc->ch,
-						     value, block - 1);
 		}
-		break;
+		return solo_set_motion_block(solo_dev, solo_enc->ch,
+						     value, block - 1);
 	}
 	case V4L2_CID_MOTION_ENABLE:
-		solo_motion_toggle(solo_enc, ctrl->value);
-		break;
+		solo_motion_toggle(solo_enc, ctrl->val);
+		return 0;
+	case V4L2_CID_OSD_TEXT:
+		mutex_lock(&solo_enc->enable_lock);
+		strcpy(solo_enc->osd_text, ctrl->string);
+		err = solo_osd_print(solo_enc);
+		mutex_unlock(&solo_enc->enable_lock);
+		return err;
 	default:
 		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int solo_s_ext_ctrls(struct file *file, void *priv,
-			    struct v4l2_ext_controls *ctrls)
-{
-	struct solo_enc_fh *fh = priv;
-	struct solo_enc_dev *solo_enc = fh->enc;
-	int i;
-
-	for (i = 0; i < ctrls->count; i++) {
-		struct v4l2_ext_control *ctrl = (ctrls->controls + i);
-		int err;
-
-		switch (ctrl->id) {
-		case V4L2_CID_RDS_TX_RADIO_TEXT:
-			if (ctrl->size - 1 > OSD_TEXT_MAX)
-				err = -ERANGE;
-			else {
-				mutex_lock(&solo_enc->enable_lock);
-				err = copy_from_user(solo_enc->osd_text,
-						     ctrl->string,
-						     OSD_TEXT_MAX);
-				solo_enc->osd_text[OSD_TEXT_MAX] = '\0';
-				if (!err)
-					err = solo_osd_print(solo_enc);
-				else
-					err = -EFAULT;
-				mutex_unlock(&solo_enc->enable_lock);
-			}
-			break;
-		default:
-			err = -EINVAL;
-		}
-
-		if (err < 0) {
-			ctrls->error_idx = i;
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-static int solo_g_ext_ctrls(struct file *file, void *priv,
-			    struct v4l2_ext_controls *ctrls)
-{
-	struct solo_enc_fh *fh = priv;
-	struct solo_enc_dev *solo_enc = fh->enc;
-	int i;
-
-	for (i = 0; i < ctrls->count; i++) {
-		struct v4l2_ext_control *ctrl = (ctrls->controls + i);
-		int err;
-
-		switch (ctrl->id) {
-		case V4L2_CID_RDS_TX_RADIO_TEXT:
-			if (ctrl->size < OSD_TEXT_MAX) {
-				ctrl->size = OSD_TEXT_MAX;
-				err = -ENOSPC;
-			} else {
-				mutex_lock(&solo_enc->enable_lock);
-				err = copy_to_user(ctrl->string,
-						   solo_enc->osd_text,
-						   OSD_TEXT_MAX);
-				if (err)
-					err = -EFAULT;
-				mutex_unlock(&solo_enc->enable_lock);
-			}
-			break;
-		default:
-			err = -EINVAL;
-		}
-
-		if (err < 0) {
-			ctrls->error_idx = i;
-			return err;
-		}
 	}
 
 	return 0;
@@ -1630,13 +1398,6 @@ static const struct v4l2_ioctl_ops solo_enc_ioctl_ops = {
 	/* Video capture parameters */
 	.vidioc_s_parm			= solo_s_parm,
 	.vidioc_g_parm			= solo_g_parm,
-	/* Controls */
-	.vidioc_queryctrl		= solo_queryctrl,
-	.vidioc_querymenu		= solo_querymenu,
-	.vidioc_g_ctrl			= solo_g_ctrl,
-	.vidioc_s_ctrl			= solo_s_ctrl,
-	.vidioc_g_ext_ctrls		= solo_g_ext_ctrls,
-	.vidioc_s_ext_ctrls		= solo_s_ext_ctrls,
 };
 
 static const struct video_device solo_enc_template = {
@@ -1650,18 +1411,82 @@ static const struct video_device solo_enc_template = {
 	.current_norm		= V4L2_STD_NTSC_M,
 };
 
+static const struct v4l2_ctrl_ops solo_ctrl_ops = {
+	.s_ctrl = solo_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config solo_motion_threshold_ctrl = {
+	.ops = &solo_ctrl_ops,
+	.id = V4L2_CID_MOTION_THRESHOLD,
+	.name = "Motion Detection Threshold",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.max = 0xffff,
+	.def = SOLO_DEF_MOT_THRESH,
+	.step = 1,
+	.flags = V4L2_CTRL_FLAG_SLIDER,
+};
+
+static const struct v4l2_ctrl_config solo_motion_enable_ctrl = {
+	.ops = &solo_ctrl_ops,
+	.id = V4L2_CID_MOTION_ENABLE,
+	.name = "Motion Detection Enable",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.max = 1,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config solo_osd_text_ctrl = {
+	.ops = &solo_ctrl_ops,
+	.id = V4L2_CID_OSD_TEXT,
+	.name = "OSD Text",
+	.type = V4L2_CTRL_TYPE_STRING,
+	.max = OSD_TEXT_MAX,
+	.step = 1,
+};
+
 static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 					   u8 ch, unsigned nr)
 {
 	struct solo_enc_dev *solo_enc;
+	struct v4l2_ctrl_handler *hdl;
 	int ret;
 
 	solo_enc = kzalloc(sizeof(*solo_enc), GFP_KERNEL);
 	if (!solo_enc)
 		return ERR_PTR(-ENOMEM);
 
+	hdl = &solo_enc->hdl;
+	v4l2_ctrl_handler_init(hdl, 10);
+	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
+			V4L2_CID_HUE, 0, 255, 1, 128);
+	if (tw28_has_sharpness(solo_dev, ch))
+		v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0, 15, 1, 0);
+	v4l2_ctrl_new_std_menu(hdl, &solo_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_ENCODING,
+			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 3,
+			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC);
+	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_GOP_SIZE, 1, 255, 1, solo_dev->fps);
+	v4l2_ctrl_new_custom(hdl, &solo_motion_threshold_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &solo_motion_enable_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &solo_osd_text_ctrl, NULL);
+	if (hdl->error) {
+		ret = hdl->error;
+		v4l2_ctrl_handler_free(hdl);
+		kfree(solo_enc);
+		return ERR_PTR(ret);
+	}
+
 	solo_enc->vfd = video_device_alloc();
 	if (!solo_enc->vfd) {
+		v4l2_ctrl_handler_free(hdl);
 		kfree(solo_enc);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1671,9 +1496,11 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 
 	*solo_enc->vfd = solo_enc_template;
 	solo_enc->vfd->v4l2_dev = &solo_dev->v4l2_dev;
+	solo_enc->vfd->ctrl_handler = hdl;
 	ret = video_register_device(solo_enc->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0) {
 		video_device_release(solo_enc->vfd);
+		v4l2_ctrl_handler_free(hdl);
 		kfree(solo_enc);
 		return ERR_PTR(ret);
 	}
@@ -1714,6 +1541,7 @@ static void solo_enc_free(struct solo_enc_dev *solo_enc)
 		return;
 
 	video_unregister_device(solo_enc->vfd);
+	v4l2_ctrl_handler_free(&solo_enc->hdl);
 	kfree(solo_enc);
 }
 

@@ -38,6 +38,7 @@
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/videobuf-core.h>
 
 #include "registers.h"
@@ -100,12 +101,12 @@
 #define V4L2_BUF_FLAG_MOTION_ON		0x0400
 #define V4L2_BUF_FLAG_MOTION_DETECTED	0x0800
 #endif
-#ifndef V4L2_CID_MOTION_ENABLE
-#define PRIVATE_CIDS
-#define V4L2_CID_MOTION_ENABLE		(V4L2_CID_PRIVATE_BASE+0)
-#define V4L2_CID_MOTION_THRESHOLD	(V4L2_CID_PRIVATE_BASE+1)
-#define V4L2_CID_MOTION_TRACE		(V4L2_CID_PRIVATE_BASE+2)
-#endif
+
+#define SOLO_CID_CUSTOM_BASE		(V4L2_CID_USER_BASE | 0xf000)
+#define V4L2_CID_MOTION_ENABLE		(SOLO_CID_CUSTOM_BASE+0)
+#define V4L2_CID_MOTION_THRESHOLD	(SOLO_CID_CUSTOM_BASE+1)
+#define V4L2_CID_MOTION_TRACE		(SOLO_CID_CUSTOM_BASE+2)
+#define V4L2_CID_OSD_TEXT		(SOLO_CID_CUSTOM_BASE+3)
 
 enum SOLO_I2C_STATE {
 	IIC_STATE_IDLE,
@@ -137,6 +138,7 @@ struct solo_p2m_dev {
 struct solo_enc_dev {
 	struct solo_dev	*solo_dev;
 	/* V4L2 Items */
+	struct v4l2_ctrl_handler hdl;
 	struct video_device	*vfd;
 	/* General accounting */
 	struct mutex		enable_lock;
@@ -207,6 +209,7 @@ struct solo_dev {
 	unsigned int		frame_blank;
 	u8			cur_disp_ch;
 	wait_queue_head_t	disp_thread_wait;
+	struct v4l2_ctrl_handler disp_hdl;
 
 	/* V4L2 Encoder items */
 	struct solo_enc_dev	*v4l2_enc[SOLO_MAX_CHANNELS];
