@@ -171,7 +171,7 @@ static struct cpuidle_driver omap4_idle_driver = {
 			.flags = CPUIDLE_FLAG_TIME_VALID,
 			.enter = omap4_enter_idle_simple,
 			.name = "C1",
-			.desc = "MPUSS ON"
+			.desc = "CPUx ON, MPUSS ON"
 		},
 		{
 			/* C2 - CPU0 OFF + CPU1 OFF + MPU CSWR */
@@ -181,7 +181,7 @@ static struct cpuidle_driver omap4_idle_driver = {
 			         CPUIDLE_FLAG_TIMER_STOP,
 			.enter = omap4_enter_idle_coupled,
 			.name = "C2",
-			.desc = "MPUSS CSWR",
+			.desc = "CPUx OFF, MPUSS CSWR",
 		},
 		{
 			/* C3 - CPU0 OFF + CPU1 OFF + MPU OSWR */
@@ -191,7 +191,7 @@ static struct cpuidle_driver omap4_idle_driver = {
 			         CPUIDLE_FLAG_TIMER_STOP,
 			.enter = omap4_enter_idle_coupled,
 			.name = "C3",
-			.desc = "MPUSS OSWR",
+			.desc = "CPUx OFF, MPUSS OSWR",
 		},
 	},
 	.state_count = ARRAY_SIZE(omap4_idle_data),
