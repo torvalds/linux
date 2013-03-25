@@ -517,6 +517,14 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 	int status;
 	__be64 guid;
 
+	switch (ether_type) {
+	case ETH_P_ARP:
+	case ETH_P_IP:
+		break;
+	default:
+		goto err;
+	}
+
 	dev = netdev_priv(net);
 	/* Write metadata, and then pass to the receive level */
 	skb->dev = net;
@@ -653,6 +661,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 	return 0;
 
  no_peer:
+ err:
 	net->stats.rx_errors++;
 	net->stats.rx_dropped++;
 
@@ -1340,9 +1349,17 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	 * We might need to rebuild the header on tx failure.
 	 */
 	memcpy(&hdr_buf, skb->data, sizeof(hdr_buf));
-	skb_pull(skb, sizeof(hdr_buf));
-
 	proto = hdr_buf.h_proto;
+
+	switch (proto) {
+	case htons(ETH_P_ARP):
+	case htons(ETH_P_IP):
+		break;
+	default:
+		goto fail;
+	}
+
+	skb_pull(skb, sizeof(hdr_buf));
 	dg_size = skb->len;
 
 	/*
