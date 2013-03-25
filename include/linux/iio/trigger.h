@@ -44,7 +44,6 @@ struct iio_trigger_ops {
  * @id:			[INTERN] unique id number
  * @name:		[DRIVER] unique name
  * @dev:		[DRIVER] associated device (if relevant)
- * @private_data:	[DRIVER] device specific data
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
  * @use_count:		use count for the trigger
@@ -60,7 +59,6 @@ struct iio_trigger {
 	const char			*name;
 	struct device			dev;
 
-	void				*private_data;
 	struct list_head		list;
 	struct list_head		alloc_list;
 	int use_count;
@@ -101,7 +99,7 @@ static inline void iio_trigger_get(struct iio_trigger *trig)
  */
 static inline void iio_trigger_set_drvdata(struct iio_trigger *trig, void *data)
 {
-	trig->private_data = data;
+	dev_set_drvdata(&trig->dev, data);
 }
 
 /**
@@ -112,7 +110,7 @@ static inline void iio_trigger_set_drvdata(struct iio_trigger *trig, void *data)
  */
 static inline void *iio_trigger_get_drvdata(struct iio_trigger *trig)
 {
-	return trig->private_data;
+	return dev_get_drvdata(&trig->dev);
 }
 
 /**
