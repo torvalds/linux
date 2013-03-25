@@ -22,7 +22,6 @@
 #ifndef __ASSEMBLER__
 #include <linux/io.h>
 #endif
-#include <asm/mach-types.h>
 #include <mach/digctl.h>
 #include <mach/hardware.h>
 
