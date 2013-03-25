@@ -1819,7 +1819,7 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 		dout("send_request %p no up osds in pg\n", req);
 		ceph_monc_request_next_osdmap(&osdc->client->monc);
 	} else {
-		__send_request(osdc, req);
+		__send_queued(osdc);
 	}
 	rc = 0;
 out_unlock:
