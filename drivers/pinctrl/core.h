@@ -72,7 +72,7 @@ struct pinctrl {
 
 /**
  * struct pinctrl_state - a pinctrl state for a device
- * @node: list not for struct pinctrl's @states field
+ * @node: list node for struct pinctrl's @states field
  * @name: the name of this state
  * @settings: a list of settings for this state
  */
