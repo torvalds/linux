@@ -939,7 +939,7 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 
 		err = carl9170_set_channel(ar, hw->conf.channel,
-			hw->conf.channel_type, CARL9170_RFI_NONE);
+					   hw->conf.channel_type);
 		if (err)
 			goto out;
 

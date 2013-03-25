@@ -1569,16 +1569,14 @@ static enum carl9170_bw nl80211_to_carl(enum nl80211_channel_type type)
 }
 
 int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
-			 enum nl80211_channel_type _bw,
-			 enum carl9170_rf_init_mode rfi)
+			 enum nl80211_channel_type _bw)
 {
 	const struct carl9170_phy_freq_params *freqpar;
 	struct carl9170_rf_init_result rf_res;
 	struct carl9170_rf_init rf;
-	u32 cmd, tmp, offs = 0, new_ht = 0;
+	u32 tmp, offs = 0, new_ht = 0;
 	int err;
 	enum carl9170_bw bw;
-	bool warm_reset;
 	struct ieee80211_channel *old_channel = NULL;
 
 	bw = nl80211_to_carl(_bw);
@@ -1592,51 +1590,27 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	/* may be NULL at first setup */
 	if (ar->channel) {
 		old_channel = ar->channel;
-		warm_reset = (old_channel->band != channel->band) ||
-			     (old_channel->center_freq ==
-			      channel->center_freq) ||
-			     (ar->ht_settings != new_ht);
-
 		ar->channel = NULL;
-	} else {
-		warm_reset = true;
 	}
 
-	/* HW workaround */
-	if (!ar->hw->wiphy->bands[IEEE80211_BAND_5GHZ] &&
-	    channel->center_freq <= 2417)
-		warm_reset = true;
+	/* cold reset BB/ADDA */
+	err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET,
+				 AR9170_PWR_RESET_BB_COLD_RESET);
+	if (err)
+		return err;
 
-	if (rfi != CARL9170_RFI_NONE || warm_reset) {
-		u32 val;
+	err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET, 0x0);
+	if (err)
+		return err;
 
-		if (rfi == CARL9170_RFI_COLD)
-			val = AR9170_PWR_RESET_BB_COLD_RESET;
-		else
-			val = AR9170_PWR_RESET_BB_WARM_RESET;
+	err = carl9170_init_phy(ar, channel->band);
+	if (err)
+		return err;
 
-		/* warm/cold reset BB/ADDA */
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET, val);
-		if (err)
-			return err;
-
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET, 0x0);
-		if (err)
-			return err;
-
-		err = carl9170_init_phy(ar, channel->band);
-		if (err)
-			return err;
-
-		err = carl9170_init_rf_banks_0_7(ar,
-			channel->band == IEEE80211_BAND_5GHZ);
-		if (err)
-			return err;
-
-		cmd = CARL9170_CMD_RF_INIT;
-	} else {
-		cmd = CARL9170_CMD_FREQUENCY;
-	}
+	err = carl9170_init_rf_banks_0_7(ar,
+					 channel->band == IEEE80211_BAND_5GHZ);
+	if (err)
+		return err;
 
 	err = carl9170_exec_cmd(ar, CARL9170_CMD_FREQ_START, 0, NULL, 0, NULL);
 	if (err)
@@ -1648,8 +1622,8 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 		return err;
 
 	err = carl9170_init_rf_bank4_pwr(ar,
-		channel->band == IEEE80211_BAND_5GHZ,
-		channel->center_freq, bw);
+					 channel->band == IEEE80211_BAND_5GHZ,
+					 channel->center_freq, bw);
 	if (err)
 		return err;
 
@@ -1703,13 +1677,8 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	rf.delta_slope_coeff_man = cpu_to_le32(freqpar->coeff_man);
 	rf.delta_slope_coeff_exp_shgi = cpu_to_le32(freqpar->coeff_exp_shgi);
 	rf.delta_slope_coeff_man_shgi = cpu_to_le32(freqpar->coeff_man_shgi);
-
-	if (rfi != CARL9170_RFI_NONE)
-		rf.finiteLoopCount = cpu_to_le32(2000);
-	else
-		rf.finiteLoopCount = cpu_to_le32(1000);
-
-	err = carl9170_exec_cmd(ar, cmd, sizeof(rf), &rf,
+	rf.finiteLoopCount = cpu_to_le32(2000);
+	err = carl9170_exec_cmd(ar, CARL9170_CMD_RF_INIT, sizeof(rf), &rf,
 				sizeof(rf_res), &rf_res);
 	if (err)
 		return err;
@@ -1724,9 +1693,8 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			  old_channel->center_freq : -1, channel->center_freq,
 			  err);
 
-		if ((rfi == CARL9170_RFI_COLD) || (ar->chan_fail > 3)) {
-			/*
-			 * We have tried very hard to change to _another_
+		if (ar->chan_fail > 3) {
+			/* We have tried very hard to change to _another_
 			 * channel and we've failed to do so!
 			 * Chances are that the PHY/RF is no longer
 			 * operable (due to corruptions/fatal events/bugs?)
@@ -1736,8 +1704,7 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			return 0;
 		}
 
-		err = carl9170_set_channel(ar, channel, _bw,
-					   CARL9170_RFI_COLD);
+		err = carl9170_set_channel(ar, channel, _bw);
 		if (err)
 			return err;
 	} else {
