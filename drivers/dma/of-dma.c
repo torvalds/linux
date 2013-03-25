@@ -36,11 +36,6 @@ static struct of_dma *of_dma_get_controller(struct of_phandle_args *dma_spec)
 
 	spin_lock(&of_dma_lock);
 
-	if (list_empty(&of_dma_list)) {
-		spin_unlock(&of_dma_lock);
-		return NULL;
-	}
-
 	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
 		if ((ofdma->of_node == dma_spec->np) &&
 		    (ofdma->of_dma_nbcells == dma_spec->args_count)) {
