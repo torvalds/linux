@@ -174,7 +174,8 @@ static struct class dma_devclass = {
 #define dma_device_satisfies_mask(device, mask) \
 	__dma_device_satisfies_mask((device), &(mask))
 static int
-__dma_device_satisfies_mask(struct dma_device *device, dma_cap_mask_t *want)
+__dma_device_satisfies_mask(struct dma_device *device,
+			    const dma_cap_mask_t *want)
 {
 	dma_cap_mask_t has;
 
@@ -463,7 +464,8 @@ static void dma_channel_rebalance(void)
 		}
 }
 
-static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_device *dev,
+static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
+					  struct dma_device *dev,
 					  dma_filter_fn fn, void *fn_param)
 {
 	struct dma_chan *chan;
@@ -505,7 +507,8 @@ static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_devic
  * @fn: optional callback to disposition available channels
  * @fn_param: opaque parameter to pass to dma_filter_fn
  */
-struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, void *fn_param)
+struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
+				       dma_filter_fn fn, void *fn_param)
 {
 	struct dma_device *device, *_d;
 	struct dma_chan *chan = NULL;
