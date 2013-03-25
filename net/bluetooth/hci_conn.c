@@ -117,7 +117,7 @@ static void hci_acl_create_connection_cancel(struct hci_conn *conn)
 	hci_send_cmd(conn->hdev, HCI_OP_CREATE_CONN_CANCEL, sizeof(cp), &cp);
 }
 
-void hci_acl_disconn(struct hci_conn *conn, __u8 reason)
+void hci_disconnect(struct hci_conn *conn, __u8 reason)
 {
 	struct hci_cp_disconnect cp;
 
@@ -253,7 +253,7 @@ static void hci_conn_disconnect(struct hci_conn *conn)
 		hci_amp_disconn(conn, reason);
 		break;
 	default:
-		hci_acl_disconn(conn, reason);
+		hci_disconnect(conn, reason);
 		break;
 	}
 }

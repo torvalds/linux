@@ -264,8 +264,6 @@ error:
 void cmtp_cleanup_sockets(void)
 {
 	bt_procfs_cleanup(&init_net, "cmtp");
-	if (bt_sock_unregister(BTPROTO_CMTP) < 0)
-		BT_ERR("Can't unregister CMTP socket");
-
+	bt_sock_unregister(BTPROTO_CMTP);
 	proto_unregister(&cmtp_proto);
 }

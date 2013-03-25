@@ -304,8 +304,6 @@ error:
 void __exit hidp_cleanup_sockets(void)
 {
 	bt_procfs_cleanup(&init_net, "hidp");
-	if (bt_sock_unregister(BTPROTO_HIDP) < 0)
-		BT_ERR("Can't unregister HIDP socket");
-
+	bt_sock_unregister(BTPROTO_HIDP);
 	proto_unregister(&hidp_proto);
 }
