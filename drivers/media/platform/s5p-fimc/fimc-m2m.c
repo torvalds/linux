@@ -667,16 +667,15 @@ static int fimc_m2m_open(struct file *file)
 	struct fimc_ctx *ctx;
 	int ret = -EBUSY;
 
-	dbg("pid: %d, state: 0x%lx, refcnt: %d",
-	    task_pid_nr(current), fimc->state, fimc->vid_cap.refcnt);
+	pr_debug("pid: %d, state: %#lx\n", task_pid_nr(current), fimc->state);
 
 	if (mutex_lock_interruptible(&fimc->lock))
 		return -ERESTARTSYS;
 	/*
-	 * Return if the corresponding video capture node
-	 * is already opened.
+	 * Don't allow simultaneous open() of the mem-to-mem and the
+	 * capture video node that belong to same FIMC IP instance.
 	 */
-	if (fimc->vid_cap.refcnt > 0)
+	if (test_bit(ST_CAPT_BUSY, &fimc->state))
 		goto unlock;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
