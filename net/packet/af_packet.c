@@ -88,6 +88,7 @@
 #include <linux/virtio_net.h>
 #include <linux/errqueue.h>
 #include <linux/net_tstamp.h>
+#include <net/flow_keys.h>
 
 #ifdef CONFIG_INET
 #include <net/inet_common.h>
@@ -1412,6 +1413,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	__be16 proto = 0;
 	int err;
 	int extra_len = 0;
+	struct flow_keys keys;
 
 	/*
 	 *	Get and verify the address.
@@ -1511,6 +1513,11 @@ retry:
 
 	if (unlikely(extra_len == 4))
 		skb->no_fcs = 1;
+
+	if (skb_flow_dissect(skb, &keys))
+		skb_set_transport_header(skb, keys.thoff);
+	else
+		skb_reset_transport_header(skb);
 
 	dev_queue_xmit(skb);
 	rcu_read_unlock();
@@ -1918,6 +1925,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	struct page *page;
 	void *data;
 	int err;
+	struct flow_keys keys;
 
 	ph.raw = frame;
 
@@ -1942,6 +1950,11 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 
 	skb_reserve(skb, hlen);
 	skb_reset_network_header(skb);
+
+	if (skb_flow_dissect(skb, &keys))
+		skb_set_transport_header(skb, keys.thoff);
+	else
+		skb_reset_transport_header(skb);
 
 	if (po->tp_tx_has_off) {
 		int off_min, off_max, off;
@@ -2199,6 +2212,7 @@ static int packet_snd(struct socket *sock,
 	unsigned short gso_type = 0;
 	int hlen, tlen;
 	int extra_len = 0;
+	struct flow_keys keys;
 
 	/*
 	 *	Get and verify the address.
@@ -2350,6 +2364,13 @@ static int packet_snd(struct socket *sock,
 
 		len += vnet_hdr_len;
 	}
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		skb_set_transport_header(skb, skb_checksum_start_offset(skb));
+	else if (skb_flow_dissect(skb, &keys))
+		skb_set_transport_header(skb, keys.thoff);
+	else
+		skb_set_transport_header(skb, reserve);
 
 	if (unlikely(extra_len == 4))
 		skb->no_fcs = 1;
