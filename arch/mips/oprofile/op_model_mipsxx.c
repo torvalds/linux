@@ -41,7 +41,7 @@ static int (*save_perf_irq)(void);
  * first hardware thread in the core for setup and init.
  * Skip CPUs with non-zero hardware thread id (4 hwt per core)
  */
-#ifdef CONFIG_CPU_XLR
+#if defined(CONFIG_CPU_XLR) && defined(CONFIG_SMP)
 #define oprofile_skip_cpu(c)	((cpu_logical_map(c) & 0x3) != 0)
 #else
 #define oprofile_skip_cpu(c)	0
