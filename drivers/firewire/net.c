@@ -1286,13 +1286,9 @@ static int fwnet_open(struct net_device *net)
 	struct fwnet_device *dev = netdev_priv(net);
 	int ret;
 
-	ret = fwnet_fifo_start(dev);
-	if (ret)
-		return ret;
-
 	ret = fwnet_broadcast_start(dev);
 	if (ret)
-		goto out;
+		return ret;
 
 	netif_start_queue(net);
 
@@ -1301,9 +1297,6 @@ static int fwnet_open(struct net_device *net)
 	spin_unlock_irq(&dev->lock);
 
 	return 0;
-out:
-	fwnet_fifo_stop(dev);
-	return ret;
 }
 
 /* ifdown */
@@ -1312,9 +1305,7 @@ static int fwnet_stop(struct net_device *net)
 	struct fwnet_device *dev = netdev_priv(net);
 
 	netif_stop_queue(net);
-
 	fwnet_broadcast_stop(dev);
-	fwnet_fifo_stop(dev);
 
 	return 0;
 }
@@ -1593,6 +1584,11 @@ static int fwnet_probe(struct device *_dev)
 	dev->card = card;
 	dev->netdev = net;
 
+	ret = fwnet_fifo_start(dev);
+	if (ret < 0)
+		goto out;
+	dev->local_fifo = dev->handler.offset;
+
 	/*
 	 * Use the RFC 2734 default 1500 octets or the maximum payload
 	 * as initial MTU
@@ -1616,10 +1612,10 @@ static int fwnet_probe(struct device *_dev)
 	if (ret && allocated_netdev) {
 		unregister_netdev(net);
 		list_del(&dev->dev_link);
-	}
  out:
-	if (ret && allocated_netdev)
+		fwnet_fifo_stop(dev);
 		free_netdev(net);
+	}
 
 	mutex_unlock(&fwnet_device_mutex);
 
@@ -1659,6 +1655,8 @@ static int fwnet_remove(struct device *_dev)
 
 	if (list_empty(&dev->peer_list)) {
 		unregister_netdev(net);
+
+		fwnet_fifo_stop(dev);
 
 		for (i = 0; dev->queued_datagrams && i < 5; i++)
 			ssleep(1);
