@@ -26,6 +26,7 @@
 #include <linux/clockchips.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
@@ -79,7 +80,7 @@
 static struct clock_event_device mxs_clockevent_device;
 static enum clock_event_mode mxs_clockevent_mode = CLOCK_EVT_MODE_UNUSED;
 
-static void __iomem *mxs_timrot_base = MXS_IO_ADDRESS(MXS_TIMROT_BASE_ADDR);
+static void __iomem *mxs_timrot_base;
 static u32 timrot_major_version;
 
 static inline void timrot_irq_disable(void)
@@ -246,6 +247,9 @@ static void __init mxs_timer_init(struct device_node *np)
 {
 	struct clk *timer_clk;
 	int irq;
+
+	mxs_timrot_base = of_iomap(np, 0);
+	WARN_ON(!mxs_timrot_base);
 
 	timer_clk = of_clk_get(np, 0);
 	if (IS_ERR(timer_clk)) {
