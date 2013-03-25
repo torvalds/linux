@@ -1260,6 +1260,32 @@ static bool is_ivb_ioat(struct pci_dev *pdev)
 
 }
 
+static bool is_hsw_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW0:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW1:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW2:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW3:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW4:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW5:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW6:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW7:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW8:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW9:
+		return true;
+	default:
+		return false;
+	}
+
+}
+
+static bool is_xeon_cb32(struct pci_dev *pdev)
+{
+	return is_jf_ioat(pdev) || is_snb_ioat(pdev) || is_ivb_ioat(pdev) ||
+		is_hsw_ioat(pdev);
+}
+
 int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
@@ -1280,7 +1306,7 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_alloc_chan_resources = ioat2_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat2_free_chan_resources;
 
-	if (is_jf_ioat(pdev) || is_snb_ioat(pdev) || is_ivb_ioat(pdev))
+	if (is_xeon_cb32(pdev))
 		dma->copy_align = 6;
 
 	dma_cap_set(DMA_INTERRUPT, dma->cap_mask);
