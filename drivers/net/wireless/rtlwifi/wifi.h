@@ -104,6 +104,7 @@
 /* for early mode */
 #define FCS_LEN				4
 #define EM_HDR_LEN			8
+
 enum intf_type {
 	INTF_PCI = 0,
 	INTF_USB = 1,
@@ -263,7 +264,7 @@ enum hw_variables {
 	HW_VAR_RATR_0,
 	HW_VAR_RRSR,
 	HW_VAR_CPU_RST,
-	HW_VAR_CECHK_BSSID,
+	HW_VAR_CHECK_BSSID,
 	HW_VAR_LBK_MODE,
 	HW_VAR_AES_11N_FIX,
 	HW_VAR_USB_RX_AGGR,
@@ -278,7 +279,10 @@ enum hw_variables {
 	HW_VAR_SET_RPWM,
 	HW_VAR_H2C_FW_PWRMODE,
 	HW_VAR_H2C_FW_JOINBSSRPT,
+	HW_VAR_H2C_FW_P2P_PS_OFFLOAD,
 	HW_VAR_FW_PSMODE_STATUS,
+	HW_VAR_RESUME_CLK_ON,
+	HW_VAR_FW_LPS_ACTION,
 	HW_VAR_1X1_RECV_COMBINE,
 	HW_VAR_STOP_SEND_BEACON,
 	HW_VAR_TSF_TIMER,
@@ -305,6 +309,7 @@ enum hw_variables {
 	HW_VAR_INT_AC,
 	HW_VAR_RF_TIMING,
 
+	HAL_DEF_WOWLAN,
 	HW_VAR_MRC,
 
 	HW_VAR_MGT_FILTER,
@@ -461,6 +466,7 @@ enum rtl_var_map {
 	EFUSE_MAX_SECTION_MAP,
 	EFUSE_REAL_CONTENT_SIZE,
 	EFUSE_OOB_PROTECT_BYTES_LEN,
+	EFUSE_ACCESS,
 
 	/*CAM map */
 	RWCAM,
@@ -742,6 +748,11 @@ struct false_alarm_statistics {
 	u32 cnt_ofdm_fail;
 	u32 cnt_cck_fail;
 	u32 cnt_all;
+	u32 cnt_ofdm_cca;
+	u32 cnt_cck_cca;
+	u32 cnt_cca_all;
+	u32 cnt_bw_usc;
+	u32 cnt_bw_lsc;
 };
 
 struct init_gain {
@@ -826,8 +837,67 @@ struct rtl_rfkill {
 	bool rfkill_state;	/*0 is off, 1 is on */
 };
 
+/*for P2P PS**/
+#define	P2P_MAX_NOA_NUM		2
+
+enum p2p_role {
+	P2P_ROLE_DISABLE = 0,
+	P2P_ROLE_DEVICE = 1,
+	P2P_ROLE_CLIENT = 2,
+	P2P_ROLE_GO = 3
+};
+
+enum p2p_ps_state {
+	P2P_PS_DISABLE = 0,
+	P2P_PS_ENABLE = 1,
+	P2P_PS_SCAN = 2,
+	P2P_PS_SCAN_DONE = 3,
+	P2P_PS_ALLSTASLEEP = 4, /* for P2P GO */
+};
+
+enum p2p_ps_mode {
+	P2P_PS_NONE = 0,
+	P2P_PS_CTWINDOW = 1,
+	P2P_PS_NOA	 = 2,
+	P2P_PS_MIX = 3, /* CTWindow and NoA */
+};
+
+struct rtl_p2p_ps_info {
+	enum p2p_ps_mode p2p_ps_mode; /* indicate p2p ps mode */
+	enum p2p_ps_state p2p_ps_state; /*  indicate p2p ps state */
+	u8 noa_index; /*  Identifies instance of Notice of Absence timing. */
+	/*  Client traffic window. A period of time in TU after TBTT. */
+	u8 ctwindow;
+	u8 opp_ps; /*  opportunistic power save. */
+	u8 noa_num; /*  number of NoA descriptor in P2P IE. */
+	/*  Count for owner, Type of client. */
+	u8 noa_count_type[P2P_MAX_NOA_NUM];
+	/*  Max duration for owner, preferred or min acceptable duration
+	 * for client.
+	 */
+	u32 noa_duration[P2P_MAX_NOA_NUM];
+	/*  Length of interval for owner, preferred or max acceptable intervali
+	 * of client.
+	 */
+	u32 noa_interval[P2P_MAX_NOA_NUM];
+	/*  schedule in terms of the lower 4 bytes of the TSF timer. */
+	u32 noa_start_time[P2P_MAX_NOA_NUM];
+};
+
+struct p2p_ps_offload_t {
+	u8 offload_en:1;
+	u8 role:1; /* 1: Owner, 0: Client */
+	u8 ctwindow_en:1;
+	u8 noa0_en:1;
+	u8 noa1_en:1;
+	u8 allstasleep:1;
+	u8 discovery:1;
+	u8 reserved:1;
+};
+
 #define IQK_MATRIX_REG_NUM	8
 #define IQK_MATRIX_SETTINGS_NUM	(1 + 24 + 21)
+
 struct iqk_matrix_regs {
 	bool iqk_done;
 	long value[1][IQK_MATRIX_REG_NUM];
@@ -902,6 +972,8 @@ struct rtl_phy {
 	/* the current Tx power level */
 	u8 cur_cck_txpwridx;
 	u8 cur_ofdm24g_txpwridx;
+	u8 cur_bw20_txpwridx;
+	u8 cur_bw40_txpwridx;
 
 	u32 rfreg_chnlval[2];
 	bool apk_done;
@@ -940,13 +1012,13 @@ struct rtl_ht_agg {
 	u8 rx_agg_state;
 };
 
+struct rssi_sta {
+	long undec_sm_pwdb;
+};
+
 struct rtl_tid_data {
 	u16 seq_number;
 	struct rtl_ht_agg agg;
-};
-
-struct rssi_sta {
-	long undec_sm_pwdb;
 };
 
 struct rtl_sta_info {
@@ -954,6 +1026,7 @@ struct rtl_sta_info {
 	u8 ratr_index;
 	u8 wireless_mode;
 	u8 mimo_ps;
+	u8 mac_addr[ETH_ALEN];
 	struct rtl_tid_data tids[MAX_TID_COUNT];
 
 	/* just used for ap adhoc or mesh*/
@@ -1005,6 +1078,8 @@ struct rtl_mac {
 	int n_bitrates;
 
 	bool offchan_delay;
+	u8 p2p;	/*using p2p role*/
+	bool p2p_in_use;
 
 	/*filters */
 	u32 rx_conf;
@@ -1014,11 +1089,11 @@ struct rtl_mac {
 
 	bool act_scanning;
 	u8 cnt_after_linked;
+	bool skip_scan;
 
 	/* early mode */
 	/* skb wait queue */
 	struct sk_buff_head skb_waitq[MAX_TID_COUNT];
-	u8 earlymode_threshold;
 
 	/*RDG*/
 	bool rdg_en;
@@ -1042,6 +1117,7 @@ struct rtl_mac {
 	u8 retry_short;
 	u8 retry_long;
 	u16 assoc_id;
+	bool hiddenssid;
 
 	/*IBSS*/
 	int beacon_interval;
@@ -1111,10 +1187,13 @@ struct bt_coexist_8723 {
 
 struct rtl_hal {
 	struct ieee80211_hw *hw;
-	struct bt_coexist_8723 hal_coex_8723;
+	bool driver_is_goingto_unload;
 	bool up_first_time;
+	bool first_init;
 	bool being_init_adapter;
 	bool bbrf_ready;
+	bool mac_func_enable;
+	struct bt_coexist_8723 hal_coex_8723;
 
 	enum intf_type interface;
 	u16 hw_type;		/*92c or 92d or 92s and so on */
@@ -1122,6 +1201,7 @@ struct rtl_hal {
 	u8 oem_id;
 	u32 version;		/*version of chip */
 	u8 state;		/*stop 0, start 1 */
+	u8 board_type;
 
 	/*firmware */
 	u32 fwsize;
@@ -1141,6 +1221,10 @@ struct rtl_hal {
 	bool set_fwcmd_inprogress;
 	u8 current_fwcmd_io;
 
+	bool fw_clk_change_in_progress;
+	bool allow_sw_to_change_hwclc;
+	u8 fw_ps_state;
+	struct p2p_ps_offload_t p2p_ps_offload;
 	/**/
 	bool driver_going2unload;
 
@@ -1157,6 +1241,7 @@ struct rtl_hal {
 	/* just for DualMac S3S4 */
 	u8 macphyctl_reg;
 	bool earlymode_enable;
+	u8 max_earlymode_num;
 	/* Dual mac*/
 	bool during_mac0init_radiob;
 	bool during_mac1init_radioa;
@@ -1341,6 +1426,7 @@ struct rtl_ps_ctl {
 	bool fw_current_inpsmode;
 	u8 reg_max_lps_awakeintvl;
 	bool report_linked;
+	bool low_power_enable;/*for 32k*/
 
 	/*for IPS */
 	bool inactiveps;
@@ -1373,6 +1459,11 @@ struct rtl_ps_ctl {
 	unsigned long last_beacon;
 	unsigned long last_action;
 	unsigned long last_slept;
+
+	/*For P2P PS */
+	struct rtl_p2p_ps_info p2p_ps_info;
+	u8 pwr_mode;
+	u8 smart_ps;
 };
 
 struct rtl_stats {
@@ -1553,7 +1644,7 @@ struct rtl_hal_ops {
 	void (*allow_all_destaddr)(struct ieee80211_hw *hw,
 		bool allow_all_da, bool write_into_reg);
 	void (*linked_set_reg) (struct ieee80211_hw *hw);
-	void (*check_switch_to_dmdp) (struct ieee80211_hw *hw);
+	void (*chk_switch_dmdp) (struct ieee80211_hw *hw);
 	void (*dualmac_easy_concurrent) (struct ieee80211_hw *hw);
 	void (*dualmac_switch_to_dmdp) (struct ieee80211_hw *hw);
 	bool (*phy_rf6052_config) (struct ieee80211_hw *hw);
@@ -1662,6 +1753,8 @@ struct rtl_locks {
 	/*spin lock */
 	spinlock_t ips_lock;
 	spinlock_t irq_th_lock;
+	spinlock_t irq_pci_lock;
+	spinlock_t tx_lock;
 	spinlock_t h2c_lock;
 	spinlock_t rf_ps_lock;
 	spinlock_t rf_lock;
@@ -1669,6 +1762,9 @@ struct rtl_locks {
 	spinlock_t waitq_lock;
 	spinlock_t entry_list_lock;
 	spinlock_t usb_lock;
+
+	/*FW clock change */
+	spinlock_t fw_ps_lock;
 
 	/*Dual mac*/
 	spinlock_t cck_and_rw_pagea_lock;
@@ -1683,6 +1779,8 @@ struct rtl_works {
 	/*timer */
 	struct timer_list watchdog_timer;
 	struct timer_list dualmac_easyconcurrent_retrytimer;
+	struct timer_list fw_clockoff_timer;
+	struct timer_list fast_antenna_training_timer;
 
 	/*task */
 	struct tasklet_struct irq_tasklet;
@@ -1696,6 +1794,7 @@ struct rtl_works {
 	/* For SW LPS */
 	struct delayed_work ps_work;
 	struct delayed_work ps_rfon_wq;
+	struct delayed_work fwevt_wq;
 
 	struct work_struct lps_leave_work;
 };
@@ -1802,6 +1901,7 @@ struct rtl_global_var {
 };
 
 struct rtl_priv {
+	struct ieee80211_hw *hw;
 	struct completion firmware_loading_complete;
 	struct list_head list;
 	struct rtl_priv *buddy_priv;
