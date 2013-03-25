@@ -309,13 +309,32 @@ static int check_for_high_segbits __cpuinitdata;
 static void __cpuinit insn_fixup(unsigned int **start, unsigned int **stop,
 					unsigned int i_const)
 {
-	unsigned int **p, *ip;
+	unsigned int **p;
 
 	for (p = start; p < stop; p++) {
+#ifndef CONFIG_CPU_MICROMIPS
+		unsigned int *ip;
+
 		ip = *p;
 		*ip = (*ip & 0xffff0000) | i_const;
+#else
+		unsigned short *ip;
+
+		ip = ((unsigned short *)((unsigned int)*p - 1));
+		if ((*ip & 0xf000) == 0x4000) {
+			*ip &= 0xfff1;
+			*ip |= (i_const << 1);
+		} else if ((*ip & 0xf000) == 0x6000) {
+			*ip &= 0xfff1;
+			*ip |= ((i_const >> 2) << 1);
+		} else {
+			ip++;
+			*ip = i_const;
+		}
+#endif
+		local_flush_icache_range((unsigned long)ip,
+					 (unsigned long)ip + sizeof(*ip));
 	}
-	local_flush_icache_range((unsigned long)*p, (unsigned long)((*p) + 1));
 }
 
 #define asid_insn_fixup(section, const)					\
@@ -335,6 +354,14 @@ static void __cpuinit setup_asid(unsigned int inc, unsigned int mask,
 	extern asmlinkage void handle_ri_rdhwr_vivt(void);
 	unsigned long *vivt_exc;
 
+#ifdef CONFIG_CPU_MICROMIPS
+	/*
+	 * Worst case optimised microMIPS addiu instructions support
+	 * only a 3-bit immediate value.
+	 */
+	if(inc > 7)
+		panic("Invalid ASID increment value!");
+#endif
 	asid_insn_fixup(__asid_inc, inc);
 	asid_insn_fixup(__asid_mask, mask);
 	asid_insn_fixup(__asid_version_mask, version_mask);
@@ -342,6 +369,9 @@ static void __cpuinit setup_asid(unsigned int inc, unsigned int mask,
 
 	/* Patch up the 'handle_ri_rdhwr_vivt' handler. */
 	vivt_exc = (unsigned long *) &handle_ri_rdhwr_vivt;
+#ifdef CONFIG_CPU_MICROMIPS
+	vivt_exc = (unsigned long *)((unsigned long) vivt_exc - 1);
+#endif
 	vivt_exc++;
 	*vivt_exc = (*vivt_exc & ~mask) | mask;
 
