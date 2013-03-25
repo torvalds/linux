@@ -14,9 +14,92 @@
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
 #include <asm/fpu.h>
+#include <asm/fpu_emulator.h>
 #include <asm/inst.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
+
+/*
+ * Calculate and return exception PC in case of branch delay
+ * slot for microMIPS. It does not clear the ISA mode bit.
+ */
+int __isa_exception_epc(struct pt_regs *regs)
+{
+	long epc = regs->cp0_epc;
+	unsigned short inst;
+
+	/* Calculate exception PC in branch delay slot. */
+	if (__get_user(inst, (u16 __user *) msk_isa16_mode(epc))) {
+		/* This should never happen because delay slot was checked. */
+		force_sig(SIGSEGV, current);
+		return epc;
+	}
+
+	if (mm_insn_16bit(inst))
+		epc += 2;
+	else
+		epc += 4;
+
+	return epc;
+}
+
+/*
+ * Compute return address and emulate branch in microMIPS mode after an
+ * exception only. It does not handle compact branches/jumps and cannot
+ * be used in interrupt context. (Compact branches/jumps do not cause
+ * exceptions.)
+ */
+int __microMIPS_compute_return_epc(struct pt_regs *regs)
+{
+	u16 __user *pc16;
+	u16 halfword;
+	unsigned int word;
+	unsigned long contpc;
+	struct mm_decoded_insn mminsn = { 0 };
+
+	mminsn.micro_mips_mode = 1;
+
+	/* This load never faults. */
+	pc16 = (unsigned short __user *)msk_isa16_mode(regs->cp0_epc);
+	__get_user(halfword, pc16);
+	pc16++;
+	contpc = regs->cp0_epc + 2;
+	word = ((unsigned int)halfword << 16);
+	mminsn.pc_inc = 2;
+
+	if (!mm_insn_16bit(halfword)) {
+		__get_user(halfword, pc16);
+		pc16++;
+		contpc = regs->cp0_epc + 4;
+		mminsn.pc_inc = 4;
+		word |= halfword;
+	}
+	mminsn.insn = word;
+
+	if (get_user(halfword, pc16))
+		goto sigsegv;
+	mminsn.next_pc_inc = 2;
+	word = ((unsigned int)halfword << 16);
+
+	if (!mm_insn_16bit(halfword)) {
+		pc16++;
+		if (get_user(halfword, pc16))
+			goto sigsegv;
+		mminsn.next_pc_inc = 4;
+		word |= halfword;
+	}
+	mminsn.next_insn = word;
+
+	mm_isBranchInstr(regs, mminsn, &contpc);
+
+	regs->cp0_epc = contpc;
+
+	return 0;
+
+sigsegv:
+	force_sig(SIGSEGV, current);
+	return -EFAULT;
+}
 
 /**
  * __compute_return_epc_for_insn - Computes the return address and do emulate
@@ -129,6 +212,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		epc <<= 28;
 		epc |= (insn.j_format.target << 2);
 		regs->cp0_epc = epc;
+		if (insn.i_format.opcode == jalx_op)
+			set_isa16_mode(regs->cp0_epc);
 		break;
 
 	/*
