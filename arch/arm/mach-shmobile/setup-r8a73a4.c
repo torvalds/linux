@@ -155,6 +155,20 @@ static const struct resource irqc1_resources[] = {
 					  &irqc##idx##_data,		\
 					  sizeof(struct renesas_irqc_config))
 
+/* Thermal0 -> Thermal2 */
+static const struct resource thermal0_resources[] = {
+	DEFINE_RES_MEM(0xe61f0000, 0x14),
+	DEFINE_RES_MEM(0xe61f0100, 0x38),
+	DEFINE_RES_MEM(0xe61f0200, 0x38),
+	DEFINE_RES_MEM(0xe61f0300, 0x38),
+	DEFINE_RES_IRQ(gic_spi(69)),
+};
+
+#define r8a73a4_register_thermal()					\
+	platform_device_register_simple("rcar_thermal", -1,		\
+					thermal0_resources,		\
+					ARRAY_SIZE(thermal0_resources))
+
 void __init r8a73a4_add_standard_devices(void)
 {
 	r8a73a4_register_scif(SCIFA0);
@@ -165,6 +179,7 @@ void __init r8a73a4_add_standard_devices(void)
 	r8a73a4_register_scif(SCIFB3);
 	r8a73a4_register_irqc(0);
 	r8a73a4_register_irqc(1);
+	r8a73a4_register_thermal();
 }
 
 #ifdef CONFIG_USE_OF

@@ -29,6 +29,7 @@
 
 #define MPCKCR 0xe6150080
 #define SMSTPCR2 0xe6150138
+#define SMSTPCR5 0xe6150144
 
 static struct clk_mapping cpg_mapping = {
 	.phys   = CPG_BASE,
@@ -56,7 +57,12 @@ static struct clk *main_clks[] = {
 	&extal2_clk,
 };
 
-enum { MSTP217, MSTP216, MSTP207, MSTP206, MSTP204, MSTP203, MSTP_NR };
+enum {
+	MSTP217, MSTP216, MSTP207, MSTP206, MSTP204, MSTP203,
+	MSTP522,
+	MSTP_NR
+};
+
 static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP204] = SH_CLK_MSTP32(&extal2_clk, SMSTPCR2, 4, 0), /* SCIFA0 */
 	[MSTP203] = SH_CLK_MSTP32(&extal2_clk, SMSTPCR2, 3, 0), /* SCIFA1 */
@@ -64,6 +70,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP207] = SH_CLK_MSTP32(&extal2_clk, SMSTPCR2, 7, 0), /* SCIFB1 */
 	[MSTP216] = SH_CLK_MSTP32(&extal2_clk, SMSTPCR2, 16, 0), /* SCIFB2 */
 	[MSTP217] = SH_CLK_MSTP32(&extal2_clk, SMSTPCR2, 17, 0), /* SCIFB3 */
+	[MSTP522] = SH_CLK_MSTP32(&extal2_clk, SMSTPCR5, 22, 0), /* Thermal */
 };
 
 static struct clk_lookup lookups[] = {
@@ -73,6 +80,10 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-sci.3", &mstp_clks[MSTP207]),
 	CLKDEV_DEV_ID("sh-sci.4", &mstp_clks[MSTP216]),
 	CLKDEV_DEV_ID("sh-sci.5", &mstp_clks[MSTP217]),
+	CLKDEV_DEV_ID("rcar_thermal", &mstp_clks[MSTP522]),
+
+	/* for DT */
+	CLKDEV_DEV_ID("e61f0000.thermal", &mstp_clks[MSTP522]),
 };
 
 void __init r8a73a4_clock_init(void)
