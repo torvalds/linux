@@ -49,8 +49,8 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		desc->des2 = dma_map_single(priv->device, skb->data,
 					    bmax, DMA_TO_DEVICE);
 		desc->des3 = desc->des2 + BUF_SIZE_4KiB;
-		priv->hw->desc->prepare_tx_desc(desc, 1, bmax,
-						csum);
+		priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum,
+						STMMAC_RING_MODE);
 		wmb();
 		entry = (++priv->cur_tx) % txsize;
 		desc = priv->dma_tx + entry;
@@ -58,7 +58,8 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		desc->des2 = dma_map_single(priv->device, skb->data + bmax,
 					    len, DMA_TO_DEVICE);
 		desc->des3 = desc->des2 + BUF_SIZE_4KiB;
-		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum);
+		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
+						STMMAC_RING_MODE);
 		wmb();
 		priv->hw->desc->set_tx_owner(desc);
 		priv->tx_skbuff[entry] = NULL;
@@ -66,7 +67,8 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		desc->des2 = dma_map_single(priv->device, skb->data,
 					    nopaged_len, DMA_TO_DEVICE);
 		desc->des3 = desc->des2 + BUF_SIZE_4KiB;
-		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len, csum);
+		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len, csum,
+						STMMAC_RING_MODE);
 	}
 
 	return entry;
@@ -89,17 +91,10 @@ static void stmmac_refill_desc3(int bfsize, struct dma_desc *p)
 		p->des3 = p->des2 + BUF_SIZE_8KiB;
 }
 
-/* In ring mode we need to fill the desc3 because it is used
- * as buffer */
-static void stmmac_init_desc3(int des3_as_data_buf, struct dma_desc *p)
+/* In ring mode we need to fill the desc3 because it is used as buffer */
+static void stmmac_init_desc3(struct dma_desc *p)
 {
-	if (unlikely(des3_as_data_buf))
-		p->des3 = p->des2 + BUF_SIZE_8KiB;
-}
-
-static void stmmac_init_dma_chain(struct dma_desc *des, dma_addr_t phy_addr,
-				  unsigned int size)
-{
+	p->des3 = p->des2 + BUF_SIZE_8KiB;
 }
 
 static void stmmac_clean_desc3(struct dma_desc *p)
@@ -121,7 +116,6 @@ const struct stmmac_ring_mode_ops ring_mode_ops = {
 	.jumbo_frm = stmmac_jumbo_frm,
 	.refill_desc3 = stmmac_refill_desc3,
 	.init_desc3 = stmmac_init_desc3,
-	.init_dma_chain = stmmac_init_dma_chain,
 	.clean_desc3 = stmmac_clean_desc3,
 	.set_16kib_bfsize = stmmac_set_16kib_bfsize,
 };

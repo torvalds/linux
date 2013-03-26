@@ -28,7 +28,7 @@
 
 #include "stmmac.h"
 
-unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
+static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *) p;
 	unsigned int txsize = priv->dma_tx_size;
@@ -47,7 +47,7 @@ unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 
 	desc->des2 = dma_map_single(priv->device, skb->data,
 				    bmax, DMA_TO_DEVICE);
-	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum);
+	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum, STMMAC_CHAIN_MODE);
 
 	while (len != 0) {
 		entry = (++priv->cur_tx) % txsize;
@@ -57,8 +57,8 @@ unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			desc->des2 = dma_map_single(priv->device,
 						    (skb->data + bmax * i),
 						    bmax, DMA_TO_DEVICE);
-			priv->hw->desc->prepare_tx_desc(desc, 0, bmax,
-							csum);
+			priv->hw->desc->prepare_tx_desc(desc, 0, bmax, csum,
+							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
 			priv->tx_skbuff[entry] = NULL;
 			len -= bmax;
@@ -67,8 +67,8 @@ unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			desc->des2 = dma_map_single(priv->device,
 						    (skb->data + bmax * i), len,
 						    DMA_TO_DEVICE);
-			priv->hw->desc->prepare_tx_desc(desc, 0, len,
-							csum);
+			priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
+							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
 			priv->tx_skbuff[entry] = NULL;
 			len = 0;
@@ -87,18 +87,6 @@ static unsigned int stmmac_is_jumbo_frm(int len, int enh_desc)
 	}
 
 	return ret;
-}
-
-static void stmmac_refill_desc3(int bfsize, struct dma_desc *p)
-{
-}
-
-static void stmmac_init_desc3(int des3_as_data_buf, struct dma_desc *p)
-{
-}
-
-static void stmmac_clean_desc3(struct dma_desc *p)
-{
 }
 
 static void stmmac_init_dma_chain(struct dma_desc *des, dma_addr_t phy_addr,
@@ -120,18 +108,8 @@ static void stmmac_init_dma_chain(struct dma_desc *des, dma_addr_t phy_addr,
 	p->des3 = (unsigned int)phy_addr;
 }
 
-static int stmmac_set_16kib_bfsize(int mtu)
-{
-	/* Not supported */
-	return 0;
-}
-
-const struct stmmac_ring_mode_ops ring_mode_ops = {
+const struct stmmac_chain_mode_ops chain_mode_ops = {
 	.is_jumbo_frm = stmmac_is_jumbo_frm,
 	.jumbo_frm = stmmac_jumbo_frm,
-	.refill_desc3 = stmmac_refill_desc3,
-	.init_desc3 = stmmac_init_desc3,
 	.init_dma_chain = stmmac_init_dma_chain,
-	.clean_desc3 = stmmac_clean_desc3,
-	.set_16kib_bfsize = stmmac_set_16kib_bfsize,
 };

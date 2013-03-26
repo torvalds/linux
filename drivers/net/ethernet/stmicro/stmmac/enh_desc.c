@@ -229,14 +229,17 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 }
 
 static void enh_desc_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
-				  int disable_rx_ic)
+				  int disable_rx_ic, int mode)
 {
 	int i;
 	for (i = 0; i < ring_size; i++) {
 		p->des01.erx.own = 1;
 		p->des01.erx.buffer1_size = BUF_SIZE_8KiB - 1;
 
-		ehn_desc_rx_set_on_ring_chain(p, (i == ring_size - 1));
+		if (mode == STMMAC_CHAIN_MODE)
+			ehn_desc_rx_set_on_chain(p, (i == ring_size - 1));
+		else
+			ehn_desc_rx_set_on_ring(p, (i == ring_size - 1));
 
 		if (disable_rx_ic)
 			p->des01.erx.disable_ic = 1;
@@ -244,13 +247,17 @@ static void enh_desc_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 	}
 }
 
-static void enh_desc_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
+static void enh_desc_init_tx_desc(struct dma_desc *p, unsigned int ring_size,
+				  int mode)
 {
 	int i;
 
 	for (i = 0; i < ring_size; i++) {
 		p->des01.etx.own = 0;
-		ehn_desc_tx_set_on_ring_chain(p, (i == ring_size - 1));
+		if (mode == STMMAC_CHAIN_MODE)
+			ehn_desc_tx_set_on_chain(p, (i == ring_size - 1));
+		else
+			ehn_desc_tx_set_on_ring(p, (i == ring_size - 1));
 		p++;
 	}
 }
@@ -280,20 +287,26 @@ static int enh_desc_get_tx_ls(struct dma_desc *p)
 	return p->des01.etx.last_segment;
 }
 
-static void enh_desc_release_tx_desc(struct dma_desc *p)
+static void enh_desc_release_tx_desc(struct dma_desc *p, int mode)
 {
 	int ter = p->des01.etx.end_ring;
 
 	memset(p, 0, offsetof(struct dma_desc, des2));
-	enh_desc_end_tx_desc(p, ter);
+	if (mode == STMMAC_CHAIN_MODE)
+		enh_desc_end_tx_desc_on_chain(p, ter);
+	else
+		enh_desc_end_tx_desc_on_ring(p, ter);
 }
 
 static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
-				     int csum_flag)
+				     int csum_flag, int mode)
 {
 	p->des01.etx.first_segment = is_fs;
 
-	enh_set_tx_desc_len(p, len);
+	if (mode == STMMAC_CHAIN_MODE)
+		enh_set_tx_desc_len_on_chain(p, len);
+	else
+		enh_set_tx_desc_len_on_ring(p, len);
 
 	if (likely(csum_flag))
 		p->des01.etx.checksum_insertion = cic_full;

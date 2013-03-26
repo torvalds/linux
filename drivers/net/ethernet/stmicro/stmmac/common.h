@@ -255,23 +255,27 @@ struct dma_features {
 #define STMMAC_DEFAULT_LIT_LS_TIMER	0x3E8
 #define STMMAC_DEFAULT_TWT_LS_TIMER	0x0
 
+#define STMMAC_CHAIN_MODE	0x1
+#define STMMAC_RING_MODE	0x2
+
 struct stmmac_desc_ops {
 	/* DMA RX descriptor ring initialization */
 	void (*init_rx_desc) (struct dma_desc *p, unsigned int ring_size,
-			      int disable_rx_ic);
+			      int disable_rx_ic, int mode);
 	/* DMA TX descriptor ring initialization */
-	void (*init_tx_desc) (struct dma_desc *p, unsigned int ring_size);
+	void (*init_tx_desc) (struct dma_desc *p, unsigned int ring_size,
+			      int mode);
 
 	/* Invoked by the xmit function to prepare the tx descriptor */
 	void (*prepare_tx_desc) (struct dma_desc *p, int is_fs, int len,
-				 int csum_flag);
+				 int csum_flag, int mode);
 	/* Set/get the owner of the descriptor */
 	void (*set_tx_owner) (struct dma_desc *p);
 	int (*get_tx_owner) (struct dma_desc *p);
 	/* Invoked by the xmit function to close the tx descriptor */
 	void (*close_tx_desc) (struct dma_desc *p);
 	/* Clean the tx descriptor as soon as the tx irq is received */
-	void (*release_tx_desc) (struct dma_desc *p);
+	void (*release_tx_desc) (struct dma_desc *p, int mode);
 	/* Clear interrupt on tx frame completion. When this bit is
 	 * set an interrupt happens as soon as the frame is transmitted */
 	void (*clear_tx_ic) (struct dma_desc *p);
@@ -361,11 +365,16 @@ struct stmmac_ring_mode_ops {
 	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
 	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
 	void (*refill_desc3) (int bfsize, struct dma_desc *p);
-	void (*init_desc3) (int des3_as_data_buf, struct dma_desc *p);
-	void (*init_dma_chain) (struct dma_desc *des, dma_addr_t phy_addr,
-				unsigned int size);
+	void (*init_desc3) (struct dma_desc *p);
 	void (*clean_desc3) (struct dma_desc *p);
 	int (*set_16kib_bfsize) (int mtu);
+};
+
+struct stmmac_chain_mode_ops {
+	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
+	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
+	void (*init_dma_chain) (struct dma_desc *des, dma_addr_t phy_addr,
+				unsigned int size);
 };
 
 struct mac_device_info {
@@ -373,6 +382,7 @@ struct mac_device_info {
 	const struct stmmac_desc_ops	*desc;
 	const struct stmmac_dma_ops	*dma;
 	const struct stmmac_ring_mode_ops	*ring;
+	const struct stmmac_chain_mode_ops	*chain;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 	unsigned int synopsys_uid;
@@ -390,5 +400,6 @@ extern void stmmac_set_mac(void __iomem *ioaddr, bool enable);
 
 extern void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
 extern const struct stmmac_ring_mode_ops ring_mode_ops;
+extern const struct stmmac_chain_mode_ops chain_mode_ops;
 
 #endif /* __COMMON_H__ */
