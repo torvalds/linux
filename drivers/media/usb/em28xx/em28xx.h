@@ -482,6 +482,7 @@ struct em28xx {
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
 	enum em28xx_chip_id chip_id;
+	unsigned int is_em25xx:1;	/* em25xx/em276x/7x/8x family bridge */
 
 	unsigned char disconnected:1;	/* device has been diconnected */
 

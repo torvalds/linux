@@ -3041,6 +3041,12 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		case CHIP_ID_EM2750:
 			chip_name = "em2750";
 			break;
+		case CHIP_ID_EM2765:
+			chip_name = "em2765";
+			dev->wait_after_write = 0;
+			dev->is_em25xx = 1;
+			dev->eeprom_addrwidth_16bit = 1;
+			break;
 		case CHIP_ID_EM2820:
 			chip_name = "em2710/2820";
 			break;
@@ -3151,7 +3157,12 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 
 	/* register i2c bus 1 */
 	if (dev->def_i2c_bus) {
-		retval = em28xx_i2c_register(dev, 1, EM28XX_I2C_ALGO_EM28XX);
+		if (dev->is_em25xx)
+			retval = em28xx_i2c_register(dev, 1,
+						  EM28XX_I2C_ALGO_EM25XX_BUS_B);
+		else
+			retval = em28xx_i2c_register(dev, 1,
+							EM28XX_I2C_ALGO_EM28XX);
 		if (retval < 0) {
 			em28xx_errdev("%s: em28xx_i2c_register bus 1 - error [%d]!\n",
 				__func__, retval);
