@@ -10070,8 +10070,8 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 			/* If Path is marked by EEH, ignore unload status */
 			aer = !!(bnx2x_prev_path_get_entry(bp) &&
 				 bnx2x_prev_path_get_entry(bp)->aer);
+			up(&bnx2x_prev_sem);
 		}
-		up(&bnx2x_prev_sem);
 
 		if (fw == FW_MSG_CODE_DRV_UNLOAD_COMMON || aer) {
 			rc = bnx2x_prev_unload_common(bp);
