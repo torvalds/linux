@@ -409,9 +409,6 @@ struct rtdPrivate {
 	/* read back data */
 	unsigned int aoValue[2];	/* Used for AO read back */
 
-	/* timer gate (when enabled) */
-	u8 utcGate[4];		/* 1 extra allows simple range check */
-
 	unsigned fifoLen;
 };
 
