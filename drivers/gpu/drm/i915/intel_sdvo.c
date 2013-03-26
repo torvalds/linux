@@ -1048,6 +1048,9 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	struct drm_display_mode *mode = &pipe_config->requested_mode;
 
+	DRM_DEBUG_KMS("forcing bpc to 8 for SDVO\n");
+	pipe_config->pipe_bpp = 8*3;
+
 	if (HAS_PCH_SPLIT(encoder->base.dev))
 		pipe_config->has_pch_encoder = true;
 
