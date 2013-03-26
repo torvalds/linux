@@ -219,6 +219,39 @@ static int ndesc_get_rx_frame_len(struct dma_desc *p, int rx_coe_type)
 		return p->des01.rx.frame_length;
 }
 
+static void ndesc_enable_tx_timestamp(struct dma_desc *p)
+{
+	p->des01.tx.time_stamp_enable = 1;
+}
+
+static int ndesc_get_tx_timestamp_status(struct dma_desc *p)
+{
+	return p->des01.tx.time_stamp_status;
+}
+
+static u64 ndesc_get_timestamp(void *desc, u32 ats)
+{
+	struct dma_desc *p = (struct dma_desc *)desc;
+	u64 ns;
+
+	ns = p->des2;
+	/* convert high/sec time stamp value to nanosecond */
+	ns += p->des3 * 1000000000ULL;
+
+	return ns;
+}
+
+static int ndesc_get_rx_timestamp_status(void *desc, u32 ats)
+{
+	struct dma_desc *p = (struct dma_desc *)desc;
+
+	if ((p->des2 == 0xffffffff) && (p->des3 == 0xffffffff))
+		/* timestamp is corrupted, hence don't store it */
+		return 0;
+	else
+		return 1;
+}
+
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
@@ -235,4 +268,8 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.set_tx_owner = ndesc_set_tx_owner,
 	.set_rx_owner = ndesc_set_rx_owner,
 	.get_rx_frame_len = ndesc_get_rx_frame_len,
+	.enable_tx_timestamp = ndesc_enable_tx_timestamp,
+	.get_tx_timestamp_status = ndesc_get_tx_timestamp_status,
+	.get_timestamp = ndesc_get_timestamp,
+	.get_rx_timestamp_status = ndesc_get_rx_timestamp_status,
 };

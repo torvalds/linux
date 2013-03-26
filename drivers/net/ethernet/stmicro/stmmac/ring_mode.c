@@ -87,11 +87,14 @@ static unsigned int stmmac_is_jumbo_frm(int len, int enh_desc)
 	return ret;
 }
 
-static void stmmac_refill_desc3(int bfsize, struct dma_desc *p)
+static void stmmac_refill_desc3(void *priv_ptr, struct dma_desc *p)
 {
-	/* Fill DES3 in case of RING mode */
-	if (bfsize >= BUF_SIZE_8KiB)
-		p->des3 = p->des2 + BUF_SIZE_8KiB;
+	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
+
+	if (unlikely(priv->plat->has_gmac))
+		/* Fill DES3 in case of RING mode */
+		if (priv->dma_buf_sz >= BUF_SIZE_8KiB)
+			p->des3 = p->des2 + BUF_SIZE_8KiB;
 }
 
 /* In ring mode we need to fill the desc3 because it is used as buffer */
@@ -100,7 +103,7 @@ static void stmmac_init_desc3(struct dma_desc *p)
 	p->des3 = p->des2 + BUF_SIZE_8KiB;
 }
 
-static void stmmac_clean_desc3(struct dma_desc *p)
+static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 {
 	if (unlikely(p->des3))
 		p->des3 = 0;

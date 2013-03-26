@@ -339,6 +339,14 @@ struct stmmac_desc_ops {
 			  struct dma_desc *p);
 	void (*rx_extended_status) (void *data, struct stmmac_extra_stats *x,
 				    struct dma_extended_desc *p);
+	/* Set tx timestamp enable bit */
+	void (*enable_tx_timestamp) (struct dma_desc *p);
+	/* get tx timestamp status */
+	int (*get_tx_timestamp_status) (struct dma_desc *p);
+	/* get timestamp value */
+	u64 (*get_timestamp) (void *desc, u32 ats);
+	/* get rx timestamp status */
+	int (*get_rx_timestamp_status) (void *desc, u32 ats);
 };
 
 struct stmmac_dma_ops {
@@ -398,6 +406,13 @@ struct stmmac_ops {
 	void (*get_adv) (void __iomem *ioaddr, struct rgmii_adv *adv);
 };
 
+struct stmmac_hwtimestamp {
+	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
+	void (*config_sub_second_increment) (void __iomem *ioaddr);
+	int (*init_systime) (void __iomem *ioaddr, u32 sec, u32 nsec);
+	int (*config_addend)(void __iomem *ioaddr, u32 addend);
+};
+
 struct mac_link {
 	int port;
 	int duplex;
@@ -412,9 +427,9 @@ struct mii_regs {
 struct stmmac_ring_mode_ops {
 	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
 	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
-	void (*refill_desc3) (int bfsize, struct dma_desc *p);
+	void (*refill_desc3) (void *priv, struct dma_desc *p);
 	void (*init_desc3) (struct dma_desc *p);
-	void (*clean_desc3) (struct dma_desc *p);
+	void (*clean_desc3) (void *priv, struct dma_desc *p);
 	int (*set_16kib_bfsize) (int mtu);
 };
 
@@ -423,6 +438,8 @@ struct stmmac_chain_mode_ops {
 		      unsigned int extend_desc);
 	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
 	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
+	void (*refill_desc3) (void *priv, struct dma_desc *p);
+	void (*clean_desc3) (void *priv, struct dma_desc *p);
 };
 
 struct mac_device_info {
@@ -431,6 +448,7 @@ struct mac_device_info {
 	const struct stmmac_dma_ops	*dma;
 	const struct stmmac_ring_mode_ops	*ring;
 	const struct stmmac_chain_mode_ops	*chain;
+	const struct stmmac_hwtimestamp *ptp;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 	unsigned int synopsys_uid;

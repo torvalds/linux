@@ -47,6 +47,8 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #endif
+#include <linux/net_tstamp.h>
+#include "stmmac_ptp.h"
 #include "stmmac.h"
 
 #undef STMMAC_DEBUG
@@ -309,6 +311,327 @@ static void stmmac_eee_adjust(struct stmmac_priv *priv)
 	 */
 	if (priv->eee_enabled)
 		priv->hw->mac->set_eee_pls(priv->ioaddr, priv->phydev->link);
+}
+
+/* stmmac_get_tx_hwtstamp:
+ * @priv : pointer to private device structure.
+ * @entry : descriptor index to be used.
+ * @skb : the socket buffer
+ * Description :
+ * This function will read timestamp from the descriptor & pass it to stack.
+ * and also perform some sanity checks.
+ */
+static void stmmac_get_tx_hwtstamp(struct stmmac_priv *priv,
+				   unsigned int entry,
+				   struct sk_buff *skb)
+{
+	struct skb_shared_hwtstamps shhwtstamp;
+	u64 ns;
+	void *desc = NULL;
+
+	if (!priv->hwts_tx_en)
+		return;
+
+	/* if skb doesn't support hw tstamp */
+	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)))
+		return;
+
+	if (priv->adv_ts)
+		desc = (priv->dma_etx + entry);
+	else
+		desc = (priv->dma_tx + entry);
+
+	/* check tx tstamp status */
+	if (!priv->hw->desc->get_tx_timestamp_status((struct dma_desc *)desc))
+		return;
+
+	/* get the valid tstamp */
+	ns = priv->hw->desc->get_timestamp(desc, priv->adv_ts);
+
+	memset(&shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
+	shhwtstamp.hwtstamp = ns_to_ktime(ns);
+	/* pass tstamp to stack */
+	skb_tstamp_tx(skb, &shhwtstamp);
+
+	return;
+}
+
+/* stmmac_get_rx_hwtstamp:
+ * @priv : pointer to private device structure.
+ * @entry : descriptor index to be used.
+ * @skb : the socket buffer
+ * Description :
+ * This function will read received packet's timestamp from the descriptor
+ * and pass it to stack. It also perform some sanity checks.
+ */
+static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv,
+				   unsigned int entry,
+				   struct sk_buff *skb)
+{
+	struct skb_shared_hwtstamps *shhwtstamp = NULL;
+	u64 ns;
+	void *desc = NULL;
+
+	if (!priv->hwts_rx_en)
+		return;
+
+	if (priv->adv_ts)
+		desc = (priv->dma_erx + entry);
+	else
+		desc = (priv->dma_rx + entry);
+
+	/* if rx tstamp is not valid */
+	if (!priv->hw->desc->get_rx_timestamp_status(desc, priv->adv_ts))
+		return;
+
+	/* get valid tstamp */
+	ns = priv->hw->desc->get_timestamp(desc, priv->adv_ts);
+	shhwtstamp = skb_hwtstamps(skb);
+	memset(shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
+	shhwtstamp->hwtstamp = ns_to_ktime(ns);
+}
+
+/**
+ *  stmmac_hwtstamp_ioctl - control hardware timestamping.
+ *  @dev: device pointer.
+ *  @ifr: An IOCTL specefic structure, that can contain a pointer to
+ *  a proprietary structure used to pass information to the driver.
+ *  Description:
+ *  This function configures the MAC to enable/disable both outgoing(TX)
+ *  and incoming(RX) packets time stamping based on user input.
+ *  Return Value:
+ *  0 on success and an appropriate -ve integer on failure.
+ */
+static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	struct hwtstamp_config config;
+	struct timespec now;
+	u64 temp = 0;
+	u32 ptp_v2 = 0;
+	u32 tstamp_all = 0;
+	u32 ptp_over_ipv4_udp = 0;
+	u32 ptp_over_ipv6_udp = 0;
+	u32 ptp_over_ethernet = 0;
+	u32 snap_type_sel = 0;
+	u32 ts_master_en = 0;
+	u32 ts_event_en = 0;
+	u32 value = 0;
+
+	if (!(priv->dma_cap.time_stamp || priv->adv_ts)) {
+		netdev_alert(priv->dev, "No support for HW time stamping\n");
+		priv->hwts_tx_en = 0;
+		priv->hwts_rx_en = 0;
+
+		return -EOPNOTSUPP;
+	}
+
+	if (copy_from_user(&config, ifr->ifr_data,
+		sizeof(struct hwtstamp_config)))
+		return -EFAULT;
+
+	pr_debug("%s config flags:0x%x, tx_type:0x%x, rx_filter:0x%x\n",
+		 __func__, config.flags, config.tx_type, config.rx_filter);
+
+	/* reserved for future extensions */
+	if (config.flags)
+		return -EINVAL;
+
+	switch (config.tx_type) {
+	case HWTSTAMP_TX_OFF:
+		priv->hwts_tx_en = 0;
+		break;
+	case HWTSTAMP_TX_ON:
+		priv->hwts_tx_en = 1;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	if (priv->adv_ts) {
+		switch (config.rx_filter) {
+		/* time stamp no incoming packet at all */
+		case HWTSTAMP_FILTER_NONE:
+			config.rx_filter = HWTSTAMP_FILTER_NONE;
+			break;
+
+		/* PTP v1, UDP, any kind of event packet */
+		case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
+			/* take time stamp for all event messages */
+			snap_type_sel = PTP_TCR_SNAPTYPSEL_1;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			break;
+
+		/* PTP v1, UDP, Sync packet */
+		case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_SYNC;
+			/* take time stamp for SYNC messages only */
+			ts_event_en = PTP_TCR_TSEVNTENA;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			break;
+
+		/* PTP v1, UDP, Delay_req packet */
+		case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ;
+			/* take time stamp for Delay_Req messages only */
+			ts_master_en = PTP_TCR_TSMSTRENA;
+			ts_event_en = PTP_TCR_TSEVNTENA;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			break;
+
+		/* PTP v2, UDP, any kind of event packet */
+		case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+			ptp_v2 = PTP_TCR_TSVER2ENA;
+			/* take time stamp for all event messages */
+			snap_type_sel = PTP_TCR_SNAPTYPSEL_1;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			break;
+
+		/* PTP v2, UDP, Sync packet */
+		case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_SYNC;
+			ptp_v2 = PTP_TCR_TSVER2ENA;
+			/* take time stamp for SYNC messages only */
+			ts_event_en = PTP_TCR_TSEVNTENA;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			break;
+
+		/* PTP v2, UDP, Delay_req packet */
+		case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ;
+			ptp_v2 = PTP_TCR_TSVER2ENA;
+			/* take time stamp for Delay_Req messages only */
+			ts_master_en = PTP_TCR_TSMSTRENA;
+			ts_event_en = PTP_TCR_TSEVNTENA;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			break;
+
+		/* PTP v2/802.AS1, any layer, any kind of event packet */
+		case HWTSTAMP_FILTER_PTP_V2_EVENT:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+			ptp_v2 = PTP_TCR_TSVER2ENA;
+			/* take time stamp for all event messages */
+			snap_type_sel = PTP_TCR_SNAPTYPSEL_1;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			ptp_over_ethernet = PTP_TCR_TSIPENA;
+			break;
+
+		/* PTP v2/802.AS1, any layer, Sync packet */
+		case HWTSTAMP_FILTER_PTP_V2_SYNC:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_SYNC;
+			ptp_v2 = PTP_TCR_TSVER2ENA;
+			/* take time stamp for SYNC messages only */
+			ts_event_en = PTP_TCR_TSEVNTENA;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			ptp_over_ethernet = PTP_TCR_TSIPENA;
+			break;
+
+		/* PTP v2/802.AS1, any layer, Delay_req packet */
+		case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V2_DELAY_REQ;
+			ptp_v2 = PTP_TCR_TSVER2ENA;
+			/* take time stamp for Delay_Req messages only */
+			ts_master_en = PTP_TCR_TSMSTRENA;
+			ts_event_en = PTP_TCR_TSEVNTENA;
+
+			ptp_over_ipv4_udp = PTP_TCR_TSIPV4ENA;
+			ptp_over_ipv6_udp = PTP_TCR_TSIPV6ENA;
+			ptp_over_ethernet = PTP_TCR_TSIPENA;
+			break;
+
+		/* time stamp any incoming packet */
+		case HWTSTAMP_FILTER_ALL:
+			config.rx_filter = HWTSTAMP_FILTER_ALL;
+			tstamp_all = PTP_TCR_TSENALL;
+			break;
+
+		default:
+			return -ERANGE;
+		}
+	} else {
+		switch (config.rx_filter) {
+		case HWTSTAMP_FILTER_NONE:
+			config.rx_filter = HWTSTAMP_FILTER_NONE;
+			break;
+		default:
+			/* PTP v1, UDP, any kind of event packet */
+			config.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
+			break;
+		}
+	}
+	priv->hwts_rx_en = ((config.rx_filter == HWTSTAMP_FILTER_NONE) ? 0 : 1);
+
+	if (!priv->hwts_tx_en && !priv->hwts_rx_en)
+		priv->hw->ptp->config_hw_tstamping(priv->ioaddr, 0);
+	else {
+		value = (PTP_TCR_TSENA | PTP_TCR_TSCFUPDT | PTP_TCR_TSCTRLSSR |
+			tstamp_all | ptp_v2 | ptp_over_ethernet |
+			ptp_over_ipv6_udp | ptp_over_ipv4_udp | ts_event_en |
+			ts_master_en | snap_type_sel);
+
+		priv->hw->ptp->config_hw_tstamping(priv->ioaddr, value);
+
+		/* program Sub Second Increment reg */
+		priv->hw->ptp->config_sub_second_increment(priv->ioaddr);
+
+		/* calculate default added value:
+		 * formula is :
+		 * addend = (2^32)/freq_div_ratio;
+		 * where, freq_div_ratio = STMMAC_SYSCLOCK/50MHz
+		 * hence, addend = ((2^32) * 50MHz)/STMMAC_SYSCLOCK;
+		 * NOTE: STMMAC_SYSCLOCK should be >= 50MHz to
+		 *       achive 20ns accuracy.
+		 *
+		 * 2^x * y == (y << x), hence
+		 * 2^32 * 50000000 ==> (50000000 << 32)
+		 */
+		temp = (u64)(50000000ULL << 32);
+		priv->default_addend = div_u64(temp, STMMAC_SYSCLOCK);
+		priv->hw->ptp->config_addend(priv->ioaddr,
+					     priv->default_addend);
+
+		/* initialize system time */
+		getnstimeofday(&now);
+		priv->hw->ptp->init_systime(priv->ioaddr, now.tv_sec,
+					    now.tv_nsec);
+	}
+
+	return copy_to_user(ifr->ifr_data, &config,
+			    sizeof(struct hwtstamp_config)) ? -EFAULT : 0;
+}
+
+static void stmmac_init_ptp(struct stmmac_priv *priv)
+{
+	if (priv->dma_cap.time_stamp) {
+		pr_debug("IEEE 1588-2002 Time Stamp supported\n");
+		priv->adv_ts = 0;
+	}
+	if (priv->dma_cap.atime_stamp && priv->extend_desc) {
+		pr_debug("IEEE 1588-2008 Advanced Time Stamp supported\n");
+		priv->adv_ts = 1;
+	}
+
+	priv->hw->ptp = &stmmac_ptp;
+	priv->hwts_tx_en = 0;
+	priv->hwts_rx_en = 0;
 }
 
 /**
@@ -856,6 +1179,8 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 				priv->xstats.tx_pkt_n++;
 			} else
 				priv->dev->stats.tx_errors++;
+
+			stmmac_get_tx_hwtstamp(priv, entry, skb);
 		}
 		TX_DBG("%s: curr %d, dirty %d\n", __func__,
 			priv->cur_tx, priv->dirty_tx);
@@ -867,8 +1192,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 					 DMA_TO_DEVICE);
 			priv->tx_skbuff_dma[entry] = 0;
 		}
-		if (priv->mode == STMMAC_RING_MODE)
-			priv->hw->ring->clean_desc3(p);
+		priv->hw->ring->clean_desc3(priv, p);
 
 		if (likely(skb != NULL)) {
 			dev_kfree_skb(skb);
@@ -1243,6 +1567,8 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_mmc_setup(priv);
 
+	stmmac_init_ptp(priv);
+
 #ifdef CONFIG_STMMAC_DEBUG_FS
 	ret = stmmac_init_fs(dev);
 	if (ret < 0)
@@ -1507,7 +1833,15 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->stats.tx_bytes += skb->len;
 
-	skb_tx_timestamp(skb);
+	if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+		     priv->hwts_tx_en)) {
+		/* declare that device is doing timestamping */
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		priv->hw->desc->enable_tx_timestamp(first);
+	}
+
+	if (!priv->hwts_tx_en)
+		skb_tx_timestamp(skb);
 
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr);
 
@@ -1545,9 +1879,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 
 			p->des2 = priv->rx_skbuff_dma[entry];
 
-			if (unlikely((priv->mode == STMMAC_RING_MODE) &&
-				     (priv->plat->has_gmac)))
-				priv->hw->ring->refill_desc3(bfsize, p);
+			priv->hw->ring->refill_desc3(priv, p);
 
 			RX_DBG(KERN_INFO "\trefill entry #%d\n", entry);
 		}
@@ -1604,9 +1936,20 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 							   &priv->xstats,
 							   priv->dma_erx +
 							   entry);
-		if (unlikely(status == discard_frame))
+		if (unlikely(status == discard_frame)) {
 			priv->dev->stats.rx_errors++;
-		else {
+			if (priv->hwts_rx_en && !priv->extend_desc) {
+				/* DESC2 & DESC3 will be overwitten by device
+				 * with timestamp value, hence reinitialize
+				 * them in stmmac_rx_refill() function so that
+				 * device can reuse it.
+				 */
+				priv->rx_skbuff[entry] = NULL;
+				dma_unmap_single(priv->device,
+					priv->rx_skbuff_dma[entry],
+					priv->dma_buf_sz, DMA_FROM_DEVICE);
+			}
+		} else {
 			struct sk_buff *skb;
 			int frame_len;
 
@@ -1634,6 +1977,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			}
 			prefetch(skb->data - NET_IP_ALIGN);
 			priv->rx_skbuff[entry] = NULL;
+
+			stmmac_get_rx_hwtstamp(priv, entry, skb);
 
 			skb_put(skb, frame_len);
 			dma_unmap_single(priv->device,
@@ -1855,21 +2200,30 @@ static void stmmac_poll_controller(struct net_device *dev)
  *  a proprietary structure used to pass information to the driver.
  *  @cmd: IOCTL command
  *  Description:
- *  Currently there are no special functionality supported in IOCTL, just the
- *  phy_mii_ioctl(...) can be invoked.
+ *  Currently it supports just the phy_mii_ioctl(...) and HW time stamping.
  */
 static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	int ret;
+	int ret = -EOPNOTSUPP;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	if (!priv->phydev)
-		return -EINVAL;
-
-	ret = phy_mii_ioctl(priv->phydev, rq, cmd);
+	switch (cmd) {
+	case SIOCGMIIPHY:
+	case SIOCGMIIREG:
+	case SIOCSMIIREG:
+		if (!priv->phydev)
+			return -EINVAL;
+		ret = phy_mii_ioctl(priv->phydev, rq, cmd);
+		break;
+	case SIOCSHWTSTAMP:
+		ret = stmmac_hwtstamp_ioctl(dev, rq);
+		break;
+	default:
+		break;
+	}
 
 	return ret;
 }

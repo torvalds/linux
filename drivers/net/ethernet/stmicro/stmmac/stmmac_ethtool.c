@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/net_tstamp.h>
 #include <asm/io.h>
 
 #include "stmmac.h"
@@ -725,6 +726,35 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
+static int stmmac_get_ts_info(struct net_device *dev,
+			      struct ethtool_ts_info *info)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	if ((priv->hwts_tx_en) && (priv->hwts_rx_en)) {
+
+		info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
+					SOF_TIMESTAMPING_RX_HARDWARE |
+					SOF_TIMESTAMPING_RAW_HARDWARE;
+
+		info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+
+		info->rx_filters = ((1 << HWTSTAMP_FILTER_NONE) |
+				    (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
+				    (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+				    (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+				    (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+				    (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+				    (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+				    (1 << HWTSTAMP_FILTER_PTP_V2_EVENT) |
+				    (1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
+				    (1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
+				    (1 << HWTSTAMP_FILTER_ALL));
+		return 0;
+	} else
+		return ethtool_op_get_ts_info(dev, info);
+}
+
 static const struct ethtool_ops stmmac_ethtool_ops = {
 	.begin = stmmac_check_if_running,
 	.get_drvinfo = stmmac_ethtool_getdrvinfo,
@@ -744,7 +774,7 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 	.get_eee = stmmac_ethtool_op_get_eee,
 	.set_eee = stmmac_ethtool_op_set_eee,
 	.get_sset_count	= stmmac_get_sset_count,
-	.get_ts_info = ethtool_op_get_ts_info,
+	.get_ts_info = stmmac_get_ts_info,
 	.get_coalesce = stmmac_get_coalesce,
 	.set_coalesce = stmmac_set_coalesce,
 };

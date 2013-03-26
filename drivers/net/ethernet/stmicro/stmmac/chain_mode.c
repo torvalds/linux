@@ -122,8 +122,40 @@ static void stmmac_init_dma_chain(void *des, dma_addr_t phy_addr,
 	}
 }
 
+static void stmmac_refill_desc3(void *priv_ptr, struct dma_desc *p)
+{
+	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
+
+	if (priv->hwts_rx_en && !priv->extend_desc)
+		/* NOTE: Device will overwrite des3 with timestamp value if
+		 * 1588-2002 time stamping is enabled, hence reinitialize it
+		 * to keep explicit chaining in the descriptor.
+		 */
+		p->des3 = (unsigned int)(priv->dma_rx_phy +
+					 (((priv->dirty_rx) + 1) %
+					 priv->dma_rx_size) *
+					 sizeof(struct dma_desc));
+}
+
+static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
+{
+	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
+
+	if (priv->hw->desc->get_tx_ls(p) && !priv->extend_desc)
+		/* NOTE: Device will overwrite des3 with timestamp value if
+		 * 1588-2002 time stamping is enabled, hence reinitialize it
+		 * to keep explicit chaining in the descriptor.
+		 */
+		p->des3 = (unsigned int)(priv->dma_tx_phy +
+					 (((priv->dirty_tx + 1) %
+					 priv->dma_tx_size) *
+					 sizeof(struct dma_desc)));
+}
+
 const struct stmmac_chain_mode_ops chain_mode_ops = {
 	.init = stmmac_init_dma_chain,
 	.is_jumbo_frm = stmmac_is_jumbo_frm,
 	.jumbo_frm = stmmac_jumbo_frm,
+	.refill_desc3 = stmmac_refill_desc3,
+	.clean_desc3 = stmmac_clean_desc3,
 };

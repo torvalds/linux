@@ -378,6 +378,49 @@ static int enh_desc_get_rx_frame_len(struct dma_desc *p, int rx_coe_type)
 		return p->des01.erx.frame_length;
 }
 
+static void enh_desc_enable_tx_timestamp(struct dma_desc *p)
+{
+	p->des01.etx.time_stamp_enable = 1;
+}
+
+static int enh_desc_get_tx_timestamp_status(struct dma_desc *p)
+{
+	return p->des01.etx.time_stamp_status;
+}
+
+static u64 enh_desc_get_timestamp(void *desc, u32 ats)
+{
+	u64 ns;
+
+	if (ats) {
+		struct dma_extended_desc *p = (struct dma_extended_desc *)desc;
+		ns = p->des6;
+		/* convert high/sec time stamp value to nanosecond */
+		ns += p->des7 * 1000000000ULL;
+	} else {
+		struct dma_desc *p = (struct dma_desc *)desc;
+		ns = p->des2;
+		ns += p->des3 * 1000000000ULL;
+	}
+
+	return ns;
+}
+
+static int enh_desc_get_rx_timestamp_status(void *desc, u32 ats)
+{
+	if (ats) {
+		struct dma_extended_desc *p = (struct dma_extended_desc *)desc;
+		return p->basic.des01.erx.ipc_csum_error;
+	} else {
+		struct dma_desc *p = (struct dma_desc *)desc;
+		if ((p->des2 == 0xffffffff) && (p->des3 == 0xffffffff))
+			/* timestamp is corrupted, hence don't store it */
+			return 0;
+		else
+			return 1;
+	}
+}
+
 const struct stmmac_desc_ops enh_desc_ops = {
 	.tx_status = enh_desc_get_tx_status,
 	.rx_status = enh_desc_get_rx_status,
@@ -395,4 +438,8 @@ const struct stmmac_desc_ops enh_desc_ops = {
 	.set_rx_owner = enh_desc_set_rx_owner,
 	.get_rx_frame_len = enh_desc_get_rx_frame_len,
 	.rx_extended_status = enh_desc_get_ext_status,
+	.enable_tx_timestamp = enh_desc_enable_tx_timestamp,
+	.get_tx_timestamp_status = enh_desc_get_tx_timestamp_status,
+	.get_timestamp = enh_desc_get_timestamp,
+	.get_rx_timestamp_status = enh_desc_get_rx_timestamp_status,
 };
