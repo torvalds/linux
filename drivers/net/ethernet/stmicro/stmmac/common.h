@@ -144,6 +144,9 @@ struct stmmac_extra_stats {
 	unsigned long irq_pcs_ane_n;
 	unsigned long irq_pcs_link_n;
 	unsigned long irq_rgmii_n;
+	unsigned long pcs_link;
+	unsigned long pcs_duplex;
+	unsigned long pcs_speed;
 };
 
 /* CSR Frequency Access Defines*/
@@ -164,6 +167,12 @@ struct stmmac_extra_stats {
 #define FLOW_RX		1
 #define FLOW_TX		2
 #define FLOW_AUTO	(FLOW_TX | FLOW_RX)
+
+/* PCS defines */
+#define STMMAC_PCS_RGMII	(1 << 0)
+#define STMMAC_PCS_SGMII	(1 << 1)
+#define STMMAC_PCS_TBI		(1 << 2)
+#define STMMAC_PCS_RTBI		(1 << 3)
 
 #define SF_DMA_MODE 1 /* DMA STORE-AND-FORWARD Operation Mode */
 
@@ -229,6 +238,16 @@ enum dma_irq_status {
 #define	CORE_PCS_ANE_COMPLETE		(1 << 5)
 #define	CORE_PCS_LINK_STATUS		(1 << 6)
 #define	CORE_RGMII_IRQ			(1 << 7)
+
+struct rgmii_adv {
+	unsigned int pause;
+	unsigned int duplex;
+	unsigned int lp_pause;
+	unsigned int lp_duplex;
+};
+
+#define STMMAC_PCS_PAUSE	1
+#define STMMAC_PCS_ASYM_PAUSE	2
 
 /* DMA HW capabilities */
 struct dma_features {
@@ -375,6 +394,8 @@ struct stmmac_ops {
 	void (*reset_eee_mode) (void __iomem *ioaddr);
 	void (*set_eee_timer) (void __iomem *ioaddr, int ls, int tw);
 	void (*set_eee_pls) (void __iomem *ioaddr, int link);
+	void (*ctrl_ane) (void __iomem *ioaddr, bool restart);
+	void (*get_adv) (void __iomem *ioaddr, struct rgmii_adv *adv);
 };
 
 struct mac_link {

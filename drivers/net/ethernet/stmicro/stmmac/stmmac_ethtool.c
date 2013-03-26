@@ -246,6 +246,70 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phy = priv->phydev;
 	int rc;
+
+	if ((priv->pcs & STMMAC_PCS_RGMII) || (priv->pcs & STMMAC_PCS_SGMII)) {
+		struct rgmii_adv adv;
+
+		if (!priv->xstats.pcs_link) {
+			ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+			cmd->duplex = DUPLEX_UNKNOWN;
+			return 0;
+		}
+		cmd->duplex = priv->xstats.pcs_duplex;
+
+		ethtool_cmd_speed_set(cmd, priv->xstats.pcs_speed);
+
+		/* Get and convert ADV/LP_ADV from the HW AN registers */
+		if (priv->hw->mac->get_adv)
+			priv->hw->mac->get_adv(priv->ioaddr, &adv);
+		else
+			return -EOPNOTSUPP;	/* should never happen indeed */
+
+		/* Encoding of PSE bits is defined in 802.3z, 37.2.1.4 */
+
+		if (adv.pause & STMMAC_PCS_PAUSE)
+			cmd->advertising |= ADVERTISED_Pause;
+		if (adv.pause & STMMAC_PCS_ASYM_PAUSE)
+			cmd->advertising |= ADVERTISED_Asym_Pause;
+		if (adv.lp_pause & STMMAC_PCS_PAUSE)
+			cmd->lp_advertising |= ADVERTISED_Pause;
+		if (adv.lp_pause & STMMAC_PCS_ASYM_PAUSE)
+			cmd->lp_advertising |= ADVERTISED_Asym_Pause;
+
+		/* Reg49[3] always set because ANE is always supported */
+		cmd->autoneg = ADVERTISED_Autoneg;
+		cmd->supported |= SUPPORTED_Autoneg;
+		cmd->advertising |= ADVERTISED_Autoneg;
+		cmd->lp_advertising |= ADVERTISED_Autoneg;
+
+		if (adv.duplex) {
+			cmd->supported |= (SUPPORTED_1000baseT_Full |
+					   SUPPORTED_100baseT_Full |
+					   SUPPORTED_10baseT_Full);
+			cmd->advertising |= (ADVERTISED_1000baseT_Full |
+					     ADVERTISED_100baseT_Full |
+					     ADVERTISED_10baseT_Full);
+		} else {
+			cmd->supported |= (SUPPORTED_1000baseT_Half |
+					   SUPPORTED_100baseT_Half |
+					   SUPPORTED_10baseT_Half);
+			cmd->advertising |= (ADVERTISED_1000baseT_Half |
+					     ADVERTISED_100baseT_Half |
+					     ADVERTISED_10baseT_Half);
+		}
+		if (adv.lp_duplex)
+			cmd->lp_advertising |= (ADVERTISED_1000baseT_Full |
+						ADVERTISED_100baseT_Full |
+						ADVERTISED_10baseT_Full);
+		else
+			cmd->lp_advertising |= (ADVERTISED_1000baseT_Half |
+						ADVERTISED_100baseT_Half |
+						ADVERTISED_10baseT_Half);
+		cmd->port = PORT_OTHER;
+
+		return 0;
+	}
+
 	if (phy == NULL) {
 		pr_err("%s: %s: PHY is not registered\n",
 		       __func__, dev->name);
@@ -269,6 +333,30 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phy = priv->phydev;
 	int rc;
+
+	if ((priv->pcs & STMMAC_PCS_RGMII) || (priv->pcs & STMMAC_PCS_SGMII)) {
+		u32 mask = ADVERTISED_Autoneg | ADVERTISED_Pause;
+
+		/* Only support ANE */
+		if (cmd->autoneg != AUTONEG_ENABLE)
+			return -EINVAL;
+
+		if (cmd->autoneg == AUTONEG_ENABLE) {
+			mask &= (ADVERTISED_1000baseT_Half |
+			ADVERTISED_1000baseT_Full |
+			ADVERTISED_100baseT_Half |
+			ADVERTISED_100baseT_Full |
+			ADVERTISED_10baseT_Half |
+			ADVERTISED_10baseT_Full);
+
+			spin_lock(&priv->lock);
+			if (priv->hw->mac->ctrl_ane)
+				priv->hw->mac->ctrl_ane(priv->ioaddr, 1);
+			spin_unlock(&priv->lock);
+		}
+
+		return 0;
+	}
 
 	spin_lock(&priv->lock);
 	rc = phy_ethtool_sset(phy, cmd);
@@ -339,6 +427,9 @@ stmmac_get_pauseparam(struct net_device *netdev,
 {
 	struct stmmac_priv *priv = netdev_priv(netdev);
 
+	if (priv->pcs)	/* FIXME */
+		return;
+
 	spin_lock(&priv->lock);
 
 	pause->rx_pause = 0;
@@ -361,6 +452,9 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	struct phy_device *phy = priv->phydev;
 	int new_pause = FLOW_OFF;
 	int ret = 0;
+
+	if (priv->pcs)	/* FIXME */
+		return -EOPNOTSUPP;
 
 	spin_lock(&priv->lock);
 

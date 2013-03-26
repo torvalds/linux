@@ -97,6 +97,7 @@ struct stmmac_priv {
 	u32 rx_riwt;
 	unsigned int mode;
 	int extend_desc;
+	int pcs;
 };
 
 extern int phyaddr;

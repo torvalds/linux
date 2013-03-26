@@ -28,6 +28,7 @@
 
 #include <linux/crc32.h>
 #include <linux/slab.h>
+#include <linux/ethtool.h>
 #include <asm/io.h>
 #include "dwmac1000.h"
 
@@ -193,7 +194,6 @@ static void dwmac1000_pmt(void __iomem *ioaddr, unsigned long mode)
 	writel(pmt, ioaddr + GMAC_PMT);
 }
 
-
 static int dwmac1000_irq_status(void __iomem *ioaddr,
 				struct stmmac_extra_stats *x)
 {
@@ -252,9 +252,30 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 		x->irq_pcs_ane_n++;
 	}
 	if (intr_status & rgmii_irq) {
-		CHIP_DBG(KERN_INFO "GMAC RGMII IRQ status\n");
-		readl(ioaddr + GMAC_S_R_GMII);
+		u32 status  = readl(ioaddr + GMAC_S_R_GMII);
+		CHIP_DBG(KERN_INFO "GMAC RGMII/SGMII interrupt\n");
 		x->irq_rgmii_n++;
+
+		/* Save and dump the link status. */
+		if (status & GMAC_S_R_GMII_LINK) {
+			int speed_value = (status & GMAC_S_R_GMII_SPEED) >>
+					  GMAC_S_R_GMII_SPEED_SHIFT;
+			x->pcs_duplex = (status & GMAC_S_R_GMII_MODE);
+
+			if (speed_value == GMAC_S_R_GMII_SPEED_125)
+				x->pcs_speed = SPEED_1000;
+			else if (speed_value == GMAC_S_R_GMII_SPEED_25)
+				x->pcs_speed = SPEED_100;
+			else
+				x->pcs_speed = SPEED_10;
+
+			x->pcs_link = 1;
+			pr_debug("Link is Up - %d/%s\n", (int) x->pcs_speed,
+				 x->pcs_duplex ? "Full" : "Half");
+		} else {
+			x->pcs_link = 0;
+			pr_debug("Link is Down\n");
+		}
 	}
 
 	return ret;
@@ -309,6 +330,41 @@ static void  dwmac1000_set_eee_timer(void __iomem *ioaddr, int ls, int tw)
 	writel(value, ioaddr + LPI_TIMER_CTRL);
 }
 
+static void dwmac1000_ctrl_ane(void __iomem *ioaddr, bool restart)
+{
+	u32 value;
+
+	value = readl(ioaddr + GMAC_AN_CTRL);
+	/* auto negotiation enable and External Loopback enable */
+	value = GMAC_AN_CTRL_ANE | GMAC_AN_CTRL_ELE;
+
+	if (restart)
+		value |= GMAC_AN_CTRL_RAN;
+
+	writel(value, ioaddr + GMAC_AN_CTRL);
+}
+
+static void dwmac1000_get_adv(void __iomem *ioaddr, struct rgmii_adv *adv)
+{
+	u32 value = readl(ioaddr + GMAC_ANE_ADV);
+
+	if (value & GMAC_ANE_FD)
+		adv->duplex = DUPLEX_FULL;
+	if (value & GMAC_ANE_HD)
+		adv->duplex |= DUPLEX_HALF;
+
+	adv->pause = (value & GMAC_ANE_PSE) >> GMAC_ANE_PSE_SHIFT;
+
+	value = readl(ioaddr + GMAC_ANE_LPA);
+
+	if (value & GMAC_ANE_FD)
+		adv->lp_duplex = DUPLEX_FULL;
+	if (value & GMAC_ANE_HD)
+		adv->lp_duplex = DUPLEX_HALF;
+
+	adv->lp_pause = (value & GMAC_ANE_PSE) >> GMAC_ANE_PSE_SHIFT;
+}
+
 static const struct stmmac_ops dwmac1000_ops = {
 	.core_init = dwmac1000_core_init,
 	.rx_ipc = dwmac1000_rx_ipc_enable,
@@ -323,6 +379,8 @@ static const struct stmmac_ops dwmac1000_ops = {
 	.reset_eee_mode =  dwmac1000_reset_eee_mode,
 	.set_eee_timer =  dwmac1000_set_eee_timer,
 	.set_eee_pls =  dwmac1000_set_eee_pls,
+	.ctrl_ane = dwmac1000_ctrl_ane,
+	.get_adv = dwmac1000_get_adv,
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr)

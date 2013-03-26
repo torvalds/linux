@@ -405,6 +405,24 @@ static void stmmac_adjust_link(struct net_device *dev)
 	DBG(probe, DEBUG, "stmmac_adjust_link: exiting\n");
 }
 
+static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
+{
+	int interface = priv->plat->interface;
+
+	if (priv->dma_cap.pcs) {
+		if ((interface & PHY_INTERFACE_MODE_RGMII) ||
+		    (interface & PHY_INTERFACE_MODE_RGMII_ID) ||
+		    (interface & PHY_INTERFACE_MODE_RGMII_RXID) ||
+		    (interface & PHY_INTERFACE_MODE_RGMII_TXID)) {
+			pr_debug("STMMAC: PCS RGMII support enable\n");
+			priv->pcs = STMMAC_PCS_RGMII;
+		} else if (interface & PHY_INTERFACE_MODE_SGMII) {
+			pr_debug("STMMAC: PCS SGMII support enable\n");
+			priv->pcs = STMMAC_PCS_SGMII;
+		}
+	}
+}
+
 /**
  * stmmac_init_phy - PHY initialization
  * @dev: net device structure
@@ -1141,10 +1159,13 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_check_ether_addr(priv);
 
-	ret = stmmac_init_phy(dev);
-	if (unlikely(ret)) {
-		pr_err("%s: Cannot attach to PHY (error: %d)\n", __func__, ret);
-		goto open_error;
+	if (!priv->pcs) {
+		ret = stmmac_init_phy(dev);
+		if (ret) {
+			pr_err("%s: Cannot attach to PHY (error: %d)\n",
+			       __func__, ret);
+			goto open_error;
+		}
 	}
 
 	/* Create and initialize the TX/RX descriptors chains. */
@@ -1233,7 +1254,12 @@ static int stmmac_open(struct net_device *dev)
 		phy_start(priv->phydev);
 
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS_TIMER;
-	priv->eee_enabled = stmmac_eee_init(priv);
+
+	/* Using PCS we cannot dial with the phy registers at this stage
+	 * so we do not support extra feature like EEE.
+	 */
+	if (!priv->pcs)
+		priv->eee_enabled = stmmac_eee_init(priv);
 
 	stmmac_init_tx_coalesce(priv);
 
@@ -1241,6 +1267,9 @@ static int stmmac_open(struct net_device *dev)
 		priv->rx_riwt = MAX_DMA_RIWT;
 		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
 	}
+
+	if (priv->pcs && priv->hw->mac->ctrl_ane)
+		priv->hw->mac->ctrl_ane(priv->ioaddr, 0);
 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
@@ -2225,12 +2254,16 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	else
 		priv->clk_csr = priv->plat->clk_csr;
 
-	/* MDIO bus Registration */
-	ret = stmmac_mdio_register(ndev);
-	if (ret < 0) {
-		pr_debug("%s: MDIO bus (id: %d) registration failed",
-			 __func__, priv->plat->bus_id);
-		goto error_mdio_register;
+	stmmac_check_pcs_mode(priv);
+
+	if (!priv->pcs) {
+		/* MDIO bus Registration */
+		ret = stmmac_mdio_register(ndev);
+		if (ret < 0) {
+			pr_debug("%s: MDIO bus (id: %d) registration failed",
+				 __func__, priv->plat->bus_id);
+			goto error_mdio_register;
+		}
 	}
 
 	return priv;
@@ -2263,7 +2296,8 @@ int stmmac_dvr_remove(struct net_device *ndev)
 	priv->hw->dma->stop_tx(priv->ioaddr);
 
 	stmmac_set_mac(priv->ioaddr, false);
-	stmmac_mdio_unregister(ndev);
+	if (!priv->pcs)
+		stmmac_mdio_unregister(ndev);
 	netif_carrier_off(ndev);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
