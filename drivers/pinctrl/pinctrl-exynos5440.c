@@ -670,8 +670,10 @@ static int exynos5440_pinctrl_parse_dt(struct platform_device *pdev,
 
 		ret = exynos5440_pinctrl_parse_dt_pins(pdev, cfg_np,
 					&pin_list, &npins);
-		if (ret)
-			return ret;
+		if (ret) {
+			gname = NULL;
+			goto skip_to_pin_function;
+		}
 
 		/* derive pin group name from the node name */
 		gname = devm_kzalloc(dev, strlen(cfg_np->name) + GSUFFIX_LEN,
@@ -687,6 +689,7 @@ static int exynos5440_pinctrl_parse_dt(struct platform_device *pdev,
 		grp->num_pins = npins;
 		grp++;
 
+skip_to_pin_function:
 		ret = of_property_read_u32(cfg_np, "samsung,exynos5440-pin-function",
 						&function);
 		if (ret)
@@ -709,7 +712,7 @@ static int exynos5440_pinctrl_parse_dt(struct platform_device *pdev,
 			return -ENOMEM;
 		}
 		func->groups[0] = gname;
-		func->num_groups = 1;
+		func->num_groups = gname ? 1 : 0;
 		func->function = function;
 		func++;
 		func_idx++;
