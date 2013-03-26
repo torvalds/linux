@@ -35,7 +35,6 @@
 #include "control.h"
 #include "rndis.h"
 
-
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
@@ -43,12 +42,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 #define FIRMWARE_NAME		"vntwusb.fw"
 
 #define FIRMWARE_CHUNK_SIZE	0x400
-
-
-
-
-
-
 
 int FIRMWAREbDownload(struct vnt_private *pDevice)
 {
@@ -59,7 +52,6 @@ int FIRMWAREbDownload(struct vnt_private *pDevice)
 	bool result = false;
 	u16 wLength;
 	int ii, rc;
-
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Download firmware\n");
 	spin_unlock_irq(&pDevice->lock);
@@ -125,7 +117,6 @@ int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
         return (true);
     }
 }
-
 
 int FIRMWAREbCheckVersion(struct vnt_private *pDevice)
 {

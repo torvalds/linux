@@ -54,22 +54,17 @@
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
-
 #define USB_CTL_WAIT   500 //ms
 
 #ifndef URB_ASYNC_UNLINK
 #define URB_ASYNC_UNLINK    0
 #endif
 
-
-
 static void s_nsInterruptUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb);
 static void s_nsBulkOutIoCompleteWrite(struct urb *urb);
 static void s_nsControlInUsbIoCompleteRead(struct urb *urb);
 static void s_nsControlInUsbIoCompleteWrite(struct urb *urb);
-
-
 
 int PIPEnsControlOutAsyn(struct vnt_private *pDevice, u8 byRequest,
 	u16 wValue, u16 wIndex, u16 wLength, u8 *pbyBuffer)
@@ -245,8 +240,6 @@ static void s_nsControlInUsbIoCompleteWrite(struct urb *urb)
     MP_CLEAR_FLAG(pDevice, fMP_CONTROL_WRITES);
 }
 
-
-
 /*
  * Description:
  *      Complete function of usb Control callback
@@ -281,9 +274,6 @@ static void s_nsControlInUsbIoCompleteRead(struct urb *urb)
 
     MP_CLEAR_FLAG(pDevice, fMP_CONTROL_READS);
 }
-
-
-
 
 /*
  * Description:
@@ -334,7 +324,6 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----s_nsStartInterruptUsbRead Return(%x)\n",ntStatus);
     return ntStatus;
 }
-
 
 /*
  * Description:
@@ -397,7 +386,6 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
 
     STAvUpdateUSBCounter(&pDevice->scStatistic.USB_InterruptStat, ntStatus);
 
-
     if (pDevice->fKillEventPollingThread != true) {
        usb_fill_bulk_urb(pDevice->pInterruptURB,
 		      pDevice->usb,
@@ -438,14 +426,12 @@ int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, PRCB pRCB)
 	int ntStatus = 0;
 	struct urb *pUrb;
 
-
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsStartBulkInUsbRead\n");
 
     if (pDevice->Flags & fMP_DISCONNECTED)
         return STATUS_FAILURE;
 
     pDevice->ulBulkInPosted++;
-
 
 	pUrb = pRCB->pUrb;
     //
@@ -475,9 +461,6 @@ int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, PRCB pRCB)
 
     return ntStatus;
 }
-
-
-
 
 /*
  * Description:
@@ -529,7 +512,6 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
            pDevice->scStatistic.RxOkCnt ++;
     }
 
-
     STAvUpdateUSBCounter(&pDevice->scStatistic.USB_BulkInStat, status);
 
     if (bIndicateReceive) {
@@ -546,7 +528,6 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
         RXvFreeRCB(pRCB, bReAllocSkb);
         spin_unlock(&pDevice->lock);
     }
-
 
     return;
 }
@@ -569,8 +550,6 @@ int PIPEnsSendBulkOut(struct vnt_private *pDevice, PUSB_SEND_CONTEXT pContext)
 {
 	int status;
 	struct urb          *pUrb;
-
-
 
     pDevice->bPWBitOn = false;
 
@@ -651,7 +630,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	unsigned long ulBufLen;
 	PUSB_SEND_CONTEXT pContext;
 
-
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsBulkOutIoCompleteWrite\n");
     //
     // The context given to IoSetCompletionRoutine is an USB_CONTEXT struct
@@ -698,7 +676,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	    }
 
         pDevice->dev->trans_start = jiffies;
-
 
         if (status == STATUS_SUCCESS) {
             pDevice->packetsSent++;

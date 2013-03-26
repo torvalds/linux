@@ -32,8 +32,6 @@
 #include "tether.h"
 #include "desc.h"
 
-
-
 //
 // USB counter
 //
@@ -42,12 +40,9 @@ typedef struct tagSUSBCounter {
 
 } SUSBCounter, *PSUSBCounter;
 
-
-
 //
 // 802.11 counter
 //
-
 
 typedef struct tagSDot11Counters {
   /* unsigned long Length; // Length of structure */
@@ -78,7 +73,6 @@ typedef struct tagSDot11Counters {
    * unsigned long long   DecryptFailureCount;
    */
 } SDot11Counters, *PSDot11Counters;
-
 
 //
 // MIB2 counter
@@ -116,7 +110,6 @@ typedef struct tagSMib2Counter {
 #define UP                  1           //
 #define DOWN                2           //
 #define TESTING             3           //
-
 
 //
 // RMON counter
@@ -183,7 +176,6 @@ typedef struct tagSCustomCounters {
 
 } SCustomCounters, *PSCustomCounters;
 
-
 //
 // Custom counter
 //
@@ -214,13 +206,11 @@ typedef struct tagSISRCounters {
     /////////////////////////////////////
 } SISRCounters, *PSISRCounters;
 
-
 // Value in the etherStatsStatus entry
 #define VALID               1           //
 #define CREATE_REQUEST      2           //
 #define UNDER_CREATION      3           //
 #define INVALID             4           //
-
 
 //
 // Tx packet information
@@ -231,7 +221,6 @@ typedef struct tagSTxPktInfo {
     u16    wFIFOCtl;
     u8    abyDestAddr[ETH_ALEN];
 } STxPktInfo, *PSTxPktInfo;
-
 
 #define MAX_RATE            12
 //
@@ -319,13 +308,10 @@ typedef struct tagSStatCounter {
     u8    abyCntRxPattern[16];
     u8    abyCntTxPattern[16];
 
-
-
     // Software check....
     u32   dwCntRxDataErr;             // rx buffer data software compare CRC err count
     u32   dwCntDecryptErr;            // rx buffer data software compare CRC err count
     u32   dwCntRxICVErr;              // rx buffer data software compare CRC err count
-
 
     // 64-bit OID
     unsigned long long   ullTsrOK;
@@ -364,9 +350,6 @@ typedef struct tagSStatCounter {
     unsigned long LinkQuality;
 
 } SStatCounter, *PSStatCounter;
-
-
-
 
 void STAvUpdateIsrStatCounter(PSStatCounter pStatistic,
 			      u8 byIsr0,

@@ -32,12 +32,8 @@
 #include "80211hdr.h"
 #include "80211mgr.h"
 
-
-
-
 #define AUTHENTICATE_TIMEOUT   1000 //ms
 #define ASSOCIATE_TIMEOUT      1000 //ms
-
 
 // Command code
 typedef enum tagCMD_CODE {
@@ -102,9 +98,6 @@ typedef enum tagCMD_STATE {
     WLAN_CMD_11H_CHSW_START,
     WLAN_CMD_IDLE
 } CMD_STATE, *PCMD_STATE;
-
-
-
 
 struct vnt_private;
 

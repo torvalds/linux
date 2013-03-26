@@ -36,7 +36,6 @@
 #include "tether.h"
 #include "device.h"
 
-
 #define PREAMBLE_LONG   0
 #define PREAMBLE_SHORT  1
 
@@ -81,12 +80,6 @@
 #define TOP_RATE_55M        0x00400000
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
-
-
-
-
-
-
 
 unsigned int
 BBuGetFrameTime(

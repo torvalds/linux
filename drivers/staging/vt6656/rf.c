@@ -61,11 +61,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 #define VT3342_PWR_IDX_LEN    64
 //}}
 
-
-
-
-
-
 u8 abyAL2230InitTable[CB_AL2230_INIT_SEQ][3] = {
     {0x03, 0xF7, 0x90},
     {0x03, 0x33, 0x31},
@@ -385,7 +380,6 @@ u8 abyVT3226D0_InitTable[CB_VT3226_INIT_SEQ][3] = {
     {0x02, 0x01, 0xAA}  //RobertYu:20060523
     };
 
-
 u8 abyVT3226_ChannelTable0[CB_MAX_CHANNEL_24G][3] = {
     {0x01, 0x97, 0x83}, // channel = 1, Tf = 2412MHz
     {0x01, 0x97, 0x83}, // channel = 2, Tf = 2417MHz
@@ -421,7 +415,6 @@ u8 abyVT3226_ChannelTable1[CB_MAX_CHANNEL_24G][3] = {
     };
 ///}}RobertYu
 
-
 //{{RobertYu:20060502, TWIF 1.14, LO Current for 11b mode
 u32 dwVT3226D0LoCurrentTable[CB_MAX_CHANNEL_24G] = {
     0x0135C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW, // channel = 1, Tf = 2412MHz
@@ -440,7 +433,6 @@ u32 dwVT3226D0LoCurrentTable[CB_MAX_CHANNEL_24G] = {
     0x0135C600+(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW  // channel = 14, Tf = 2484MHz
 };
 //}}
-
 
 //{{RobertYu:20060609
 u8 abyVT3342A0_InitTable[CB_VT3342_INIT_SEQ][3] = { /* 11b/g mode */
@@ -596,7 +588,6 @@ u8 abyVT3342_ChannelTable1[CB_MAX_CHANNEL][3] = {
     {0x03, 0x00, 0x04}  // channel = 165, Tf = 5825MHz (56), TBD
     };
 
-
 /*+
  *
  * Power Table
@@ -670,8 +661,6 @@ const u32 dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
     0x0407F900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW
     };
 
-
-
 //{{ RobertYu:20050103, Channel 11a Number To Index
 // 4.9G => Ch 183, 184, 185, 187, 188, 189, 192, 196  (Value:15 ~ 22)
 // 5G => Ch 7, 8, 9, 11, 12, 16, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64,
@@ -703,7 +692,6 @@ const u8 RFaby11aChannelIndex[200] = {
 };
 //}} RobertYu
 
-
 /*
  * Description: Write to IF/RF, by embedded programming
  *
@@ -728,10 +716,8 @@ int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
 	CONTROLnsRequestOut(pDevice,
 		MESSAGE_TYPE_WRITE_IFRF, 0, 0, 4, pbyData);
 
-
 	return true;
 }
-
 
 /*
  * Description: Set Tx power
@@ -784,7 +770,6 @@ int RFbSetPower(struct vnt_private *pDevice, u32 uRATE, u32 uCH)
     return bResult;
 }
 
-
 /*
  * Description: Set Tx power
  *
@@ -832,7 +817,6 @@ int RFbRawSetPower(struct vnt_private *pDevice, u8 byPwr, u32 uRATE)
                 bResult &= IFRFbWriteEmbedded(pDevice, 0x00099B00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW);
             }
             break;
-
 
         case RF_AIROHA7230:
             {
@@ -969,8 +953,6 @@ void RFvRSSITodBm(struct vnt_private *pDevice, u8 byCurrRSSI, long *pldBm)
 
     *pldBm = -1 * (a + b * 2);
 }
-
-
 
 void RFbRFTableDownload(struct vnt_private *pDevice)
 {

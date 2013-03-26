@@ -42,14 +42,8 @@
 #include "rndis.h"
 #include "control.h"
 
-
-
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-
-
-
-
 
 static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
 	PSKeyManagement pTable)
@@ -85,9 +79,6 @@ static void s_vCheckKeyTableValid(struct vnt_private *pDevice,
     }
 
 }
-
-
-
 
 /*
  * Description: Init Key management table
@@ -135,7 +126,6 @@ void KeyvInitTable(struct vnt_private *pDevice, PSKeyManagement pTable)
 
     return;
 }
-
 
 /*
  * Description: Get Key from table
@@ -186,7 +176,6 @@ int KeybGetKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyIndex,
     }
     return (false);
 }
-
 
 /*
  * Description: Set Key to table
@@ -360,7 +349,6 @@ int KeybSetKey(struct vnt_private *pDevice, PSKeyManagement pTable,
     return (false);
 }
 
-
 /*
  * Description: Remove Key from table
  *
@@ -435,9 +423,7 @@ int KeybRemoveKey(struct vnt_private *pDevice, PSKeyManagement pTable,
     s_vCheckKeyTableValid(pDevice,pTable);
     return bReturnValue;
 
-
 }
-
 
 /*
  * Description: Remove Key from table
@@ -507,7 +493,6 @@ int KeybGetTransmitKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyType,
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%x ", pTable->KeyTable[i].abyBSSID[ii]);
                     }
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
-
 
                     return (true);
                 }
@@ -636,10 +621,8 @@ int KeybSetDefaultKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 		else
 			pKey->KeyRSC = *KeyRSC;
 
-
     pKey->dwTSC47_16 = 0;
     pKey->wTSC15_0 = 0;
-
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(R): \n");
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n", pKey->bKeyValid);
@@ -658,7 +641,6 @@ int KeybSetDefaultKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 
     return (true);
 }
-
 
 /*
  * Description: Set Key to table
@@ -687,7 +669,6 @@ int KeybSetAllGroupKey(struct vnt_private *pDevice, PSKeyManagement pTable,
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetAllGroupKey: %X\n",
 		dwKeyIndex);
-
 
     if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
         return (false);

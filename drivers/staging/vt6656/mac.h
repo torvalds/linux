@@ -37,7 +37,6 @@
 #include "device.h"
 #include "tmacro.h"
 
-
 #define REV_ID_VT3253_A0    0x00
 #define REV_ID_VT3253_A1    0x01
 #define REV_ID_VT3253_B0    0x08
@@ -153,7 +152,6 @@
 #define MAC_REG_RSPINF_A_48 0xF8
 #define MAC_REG_RSPINF_A_54 0xFA
 #define MAC_REG_RSPINF_A_72 0xFC
-
 
 //
 // Bits in the I2MCFG EEPROM register
@@ -279,7 +277,6 @@
 #define TCR_SYNCDCFOPT      0x02        //
 #define TCR_AUTOBCNTX       0x01        // Beacon automatically transmit enable
 
-
 //ISR1
 #define ISR_GPIO3           0x40
 #define ISR_RXNOBUF         0x08
@@ -375,7 +372,6 @@
 //
 #define MISCFFCTL_WRITE     0x0001      //
 
-
 // Loopback mode
 #define MAC_LB_EXT          0x02        //
 #define MAC_LB_INTERNAL     0x01        //
@@ -406,12 +402,6 @@
 
 #define MAC_REVISION_A0     0x00
 #define MAC_REVISION_A1     0x01
-
-
-
-
-
-
 
 void MACvWriteMultiAddr(struct vnt_private *, u32, u8);
 void MACbShutdown(struct vnt_private *);

@@ -30,8 +30,6 @@
 #define __CARD_H__
 #include "device.h"
 
-
-
 /* init card type */
 
 typedef enum _CARD_PHY_TYPE {
@@ -51,7 +49,6 @@ typedef enum _CARD_OP_MODE {
 #define CB_MAX_CHANNEL_24G  14
 #define CB_MAX_CHANNEL_5G       42 /* add channel9(5045MHz), 41==>42 */
 #define CB_MAX_CHANNEL      (CB_MAX_CHANNEL_24G+CB_MAX_CHANNEL_5G)
-
 
 struct vnt_private;
 

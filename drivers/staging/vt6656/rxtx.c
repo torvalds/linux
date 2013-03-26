@@ -63,11 +63,7 @@
 #include "usbpipe.h"
 #include "iocmd.h"
 
-
-
 static int          msglevel                = MSG_LEVEL_INFO;
-
-
 
 const u16 wTimeStampOff[2][MAX_RATE] = {
         {384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23}, // Long Preamble
@@ -82,7 +78,6 @@ const u16 wFB_Opt1[2][5] = {
         {RATE_12M, RATE_18M, RATE_24M, RATE_24M, RATE_36M}, // fallback_rate0
         {RATE_6M , RATE_6M,  RATE_12M, RATE_12M, RATE_18M}, // fallback_rate1
     };
-
 
 #define RTSDUR_BB       0
 #define RTSDUR_BA       1
@@ -99,7 +94,6 @@ const u16 wFB_Opt1[2][5] = {
 #define DATADUR_A_F0    12
 #define DATADUR_A_F1    13
 
-
 static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 	u8 *pbyDestAddr, u16 wPktLength, u16 wFIFOCtl);
 
@@ -114,7 +108,6 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate, void *pTxDataHead, u32 cbFrameLength,
 	u32 uDMAIdx, int bNeedAck, u32 uFragIdx, u32 cbLastFragmentSize,
 	u32 uMACfragNum, u8 byFBOption);
-
 
 static void s_vGenerateMACHeader(struct vnt_private *pDevice,
 	u8 *pbyBufferAddr, u16 wDuration, struct ethhdr *psEthHeader,
@@ -150,8 +143,6 @@ static unsigned int s_uGetRTSCTSDuration(struct vnt_private *pDevice,
 	u8 byDurType, u32 cbFrameLength, u8 byPktType, u16 wRate,
 	int bNeedAck, u8 byFBOption);
 
-
-
 static void *s_vGetFreeContext(struct vnt_private *pDevice)
 {
 	PUSB_SEND_CONTEXT pContext = NULL;
@@ -173,7 +164,6 @@ static void *s_vGetFreeContext(struct vnt_private *pDevice)
     }
     return (void *) pReturnContext;
 }
-
 
 static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 	u8 *pbyDestAddr, u16 wPktLength, u16 wFIFOCtl)
@@ -203,7 +193,6 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
 	u16 wValue;
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyHdrBuf;
 	u32 dwRevIVCounter;
-
 
     //Fill TXKEY
     if (pTransmitKey == NULL)
@@ -302,7 +291,6 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
     }
 }
 
-
 static void s_vSWencryption(struct vnt_private *pDevice,
 	PSKeyItem pTransmitKey, u8 *pbyPayloadHead, u16 wPayloadSize)
 {
@@ -338,9 +326,6 @@ static void s_vSWencryption(struct vnt_private *pDevice,
     }
 }
 
-
-
-
 /*byPktType : PK_TYPE_11A     0
              PK_TYPE_11B     1
              PK_TYPE_11GB    2
@@ -373,7 +358,6 @@ static u32 s_uGetRTSCTSRsvTime(struct vnt_private *pDevice,
 	u32 uRrvTime, uRTSTime, uCTSTime, uAckTime, uDataTime;
 
     uRrvTime = uRTSTime = uCTSTime = uAckTime = uDataTime = 0;
-
 
     uDataTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, cbFrameLength, wCurrentRate);
     if (byRTSRsvType == 0) { //RTSTxRrvTime_bb
@@ -439,7 +423,6 @@ static u32 s_uGetDataDuration(struct vnt_private *pDevice, u8 byDurType,
             }
         }
         break;
-
 
     case DATADUR_A:    //DATADUR_A
         if (((uMACfragNum==1)) || (bLastFrag==1)) {//Non Frag or Last Frag
@@ -559,14 +542,12 @@ static u32 s_uGetDataDuration(struct vnt_private *pDevice, u8 byDurType,
 	return 0;
 }
 
-
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
 static u32 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
 	u32 cbFrameLength, u8 byPktType, u16 wRate, int bNeedAck,
 	u8 byFBOption)
 {
 	u32 uCTSTime = 0, uDurTime = 0;
-
 
     switch (byDurType) {
 
@@ -1319,7 +1300,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         }
     }
 
-
     if ((bNeedEncryption) && (pTransmitKey != NULL))  {
         if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) {
             cbIVlen = 4;
@@ -1434,7 +1414,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     pbyIVHead = (u8 *)(pbyMacHdr + cbMACHdLen + uPadding);
     pbyPayloadHead = (u8 *)(pbyMacHdr + cbMACHdLen + uPadding + cbIVlen);
 
-
     //=========================
     //    No Fragmentation
     //=========================
@@ -1442,7 +1421,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     byFragType = FRAGCTL_NONFRAG;
     //uDMAIdx = TYPE_AC0DMA;
     //pTxBufHead = (PSTxBufHead) &(pTxBufHead->adwTxKey[0]);
-
 
     //Fill FIFO,RrvTime,RTS,and CTS
     s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
@@ -1484,7 +1462,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         }
 
     }
-
 
     if (pPacket != NULL) {
         // Copy the Packet into a tx Buffer
@@ -1550,7 +1527,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MIC:%lX, %lX\n", *pdwMIC_L, *pdwMIC_R);
     }
 
-
     if (bSoftWEP == true) {
 
         s_vSWencryption(pDevice, pTransmitKey, (pbyPayloadHead), (u16)(cbFrameBodySize + cbMIClen));
@@ -1581,15 +1557,12 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     *pcbHeaderLen = cbHeaderLength;
     *pcbTotalLen = cbHeaderLength + cbFrameSize ;
 
-
     //Set FragCtl in TxBufferHead
     pTxBufHead->wFragCtl |= (u16)byFragType;
-
 
     return true;
 
 }
-
 
 /*+
  *
@@ -1684,8 +1657,6 @@ static void s_vGenerateMACHeader(struct vnt_private *pDevice,
     }
 }
 
-
-
 /*+
  *
  * Description:
@@ -1723,8 +1694,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	u32 cbMacHdLen;
 	u16 wCurrentRate = RATE_1M;
 
-
-
     pContext = (PUSB_SEND_CONTEXT)s_vGetFreeContext(pDevice);
 
     if (NULL == pContext) {
@@ -1757,7 +1726,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         RFbSetPower(pDevice, wCurrentRate, pMgmt->uCurrChannel);
     }
     pDevice->wCurrentRate = wCurrentRate;
-
 
     //Set packet type
     if (byPktType == PK_TYPE_11A) {//0000 0000 0000 0000
@@ -1881,7 +1849,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     //=========================
     pTxBufHead->wFragCtl |= (u16)FRAGCTL_NONFRAG;
 
-
     //Fill FIFO,RrvTime,RTS,and CTS
     s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,  pbyTxBufferAddr, pvRrvTime, pvRTS, pCTS,
                            cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader);
@@ -1959,7 +1926,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         }
     }
 
-
     pTX_Buffer->wTxByteCount = cpu_to_le16((u16)(cbReqCount));
     pTX_Buffer->byPKTNO = (u8) (((wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
     pTX_Buffer->byType = 0x00;
@@ -1979,7 +1945,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     return CMD_STATUS_PENDING;
 }
 
-
 CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	struct vnt_tx_mgmt *pPacket)
 {
@@ -1996,7 +1961,6 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	u8 *pbyTxBufferAddr;
 	PUSB_SEND_CONTEXT pContext;
 	CMD_STATUS status;
-
 
     pContext = (PUSB_SEND_CONTEXT)s_vGetFreeContext(pDevice);
     if (NULL == pContext) {
@@ -2065,7 +2029,6 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 
 }
 
-
 void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
@@ -2098,7 +2061,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 	u32 cbExtSuppRate = 0;
 	PTX_BUFFER pTX_Buffer;
 	PUSB_SEND_CONTEXT pContext;
-
 
     pvRrvTime = pMICHDR = pvRTS = pvCTS = pvTxDataHd = NULL;
 
@@ -2216,7 +2178,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
          }
     }
 
-
     //Set FRAGCTL_MACHDCNT
     pTxBufHead->wFragCtl |= cpu_to_le16((u16)cbMacHdLen << 10);
 
@@ -2224,7 +2185,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     // Although spec says MMPDU can be fragmented; In most case,
     // no one will send a MMPDU under fragmentation. With RTS may occur.
     pDevice->bAES = false;  //Set FRAGCTL_WEPTYP
-
 
     if (WLAN_GET_FC_ISWEP(p80211Header->sA4.wFrameCtl) != 0) {
         if (pDevice->eEncryptionStatus == Ndis802_11Encryption1Enabled) {
@@ -2261,7 +2221,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     }
     //the rest of pTxBufHead->wFragCtl:FragTyp will be set later in s_vFillFragParameter()
 
-
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
 
         pvRrvTime = (PSRrvTime_gCTS) (pbyTxBufferAddr + wTxBufSize);
@@ -2293,7 +2252,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     //    No Fragmentation
     //=========================
     pTxBufHead->wFragCtl |= (u16)FRAGCTL_NONFRAG;
-
 
     //Fill FIFO,RrvTime,RTS,and CTS
     s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate, pbyTxBufferAddr, pvRrvTime, pvRTS, pvCTS,
@@ -2404,7 +2362,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     if (pDevice->wSeqCounter > 0x0fff)
         pDevice->wSeqCounter = 0;
 
-
     if (bIsPSPOLL) {
         // The MAC will automatically replace the Duration-field of MAC header by Duration-field
         // of  FIFO control header.
@@ -2437,9 +2394,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     return ;
 
 }
-
-
-
 
 //TYPE_AC0DMA data tx
 /*
@@ -2480,7 +2434,6 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 	u32 status;
 	u16 wKeepRate = pDevice->wCurrentRate;
 	int bTxeapol_key = false;
-
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
 
@@ -2836,8 +2789,6 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 
 }
 
-
-
 /*
  * Description:
  *      Relay packet send (AC1DMA) from rx dpc.
@@ -2869,8 +2820,6 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
 	PTX_BUFFER pTX_Buffer;
 	u32 status;
 	u16 wKeepRate = pDevice->wCurrentRate;
-
-
 
     pContext = (PUSB_SEND_CONTEXT)s_vGetFreeContext(pDevice);
 

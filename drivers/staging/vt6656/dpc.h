@@ -32,10 +32,6 @@
 #include "device.h"
 #include "wcmd.h"
 
-
-
-
-
 void RXvWorkItem(void *Context);
 
 void RXvMngWorkItem(void *Context);

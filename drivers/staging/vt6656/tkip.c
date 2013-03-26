@@ -35,14 +35,6 @@
 #include "tmacro.h"
 #include "tkip.h"
 
-
-
-
-
-
-
-
-
 /* The Sbox is reduced to 2 16-bit wide tables, each with 256 entries. */
 /* The 2nd table is the same as the 1st but with the upper and lower   */
 /* bytes swapped. To allow an endian tolerant implementation, the byte */
@@ -117,10 +109,7 @@ const u8 TKIP_Sbox_Upper[256] = {
     0x82,0x29,0x5A,0x1E,0x7B,0xA8,0x6D,0x2C
 };
 
-
 //STKIPKeyManagement  sTKIPKeyTable[MAX_TKIP_KEY];
-
-
 
 /************************************************************/
 /* tkip_sbox()                                              */
@@ -142,7 +131,6 @@ static unsigned int tkip_sbox(unsigned int index)
     return (left ^ right);
 };
 
-
 static unsigned int rotr1(unsigned int a)
 {
     unsigned int b;
@@ -155,7 +143,6 @@ static unsigned int rotr1(unsigned int a)
     b = b % 65536;
     return b;
 }
-
 
 /*
  * Description: Calculate RC4Key fom TK, TA, and TSC

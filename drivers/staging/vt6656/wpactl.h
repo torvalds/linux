@@ -32,8 +32,6 @@
 #include "device.h"
 #include "iowpa.h"
 
-
-
 //WPA related
 
 typedef enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP } wpa_alg;
@@ -42,11 +40,7 @@ typedef enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP } wpa_alg;
 #define AUTH_ALG_SHARED_KEY	0x02
 #define AUTH_ALG_LEAP		0x04
 
-
 typedef unsigned long long NDIS_802_11_KEY_RSC;
-
-
-
 
 int wpa_set_keys(struct vnt_private *, void *ctx);
 

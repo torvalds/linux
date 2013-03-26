@@ -42,7 +42,6 @@
 #include "control.h"
 #include "rndis.h"
 
-
 static const long frequency_list[] = {
 	2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484,
 	4915, 4920, 4925, 4935, 4940, 4945, 4960, 4980,
@@ -357,7 +356,6 @@ int iwctl_giwfreq(struct net_device *dev, struct iw_request_info *info,
 	if (pMgmt == NULL)
 		return -EFAULT;
 
-
 #ifdef WEXT_USECHANNELS
 	wrq->m = (int)pMgmt->uCurrChannel;
 	wrq->e = 0;
@@ -481,7 +479,6 @@ int iwctl_siwmode(struct net_device *dev, struct iw_request_info *info,
 		}
 		pDevice->bCommit = false;
 	}
-
 
 	return rc;
 }

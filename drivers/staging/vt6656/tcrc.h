@@ -31,12 +31,6 @@
 
 #include <linux/types.h>
 
-
-
-
-
-
-
 u32 CRCdwCrc32(u8 * pbyData, unsigned int cbByte, u32 dwCrcSeed);
 u32 CRCdwGetCrc32(u8 * pbyData, unsigned int cbByte);
 u32 CRCdwGetCrc32Ex(u8 * pbyData, unsigned int cbByte, u32 dwPreCRC);

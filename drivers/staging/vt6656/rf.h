@@ -53,9 +53,6 @@
 #define RF_EMU              0x80
 #define RF_MASK             0x7F
 
-
-
-
 extern const u8 RFaby11aChannelIndex[200];
 
 int IFRFbWriteEmbedded(struct vnt_private *, u32 dwData);

@@ -56,19 +56,8 @@
 #include "80211hdr.h"
 #include "wpa.h"
 
-
-
-
-
-
 static int          msglevel                = MSG_LEVEL_INFO;
 /*static int          msglevel                =MSG_LEVEL_DEBUG;*/
-
-
-
-
-
-
 
 /*+
  *
@@ -111,7 +100,6 @@ vMgrEncodeBeacon(
  *    None.
  *
 -*/
-
 
 void
 vMgrDecodeBeacon(
@@ -237,13 +225,11 @@ vMgrEncodeDisassociation(
 {
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
-
     /* Fixed Fields */
     pFrame->pwReason = (u16 *)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
                                + WLAN_DISASSOC_OFF_REASON);
     pFrame->len = WLAN_HDR_ADDR3_LEN + WLAN_DISASSOC_OFF_REASON + sizeof(*(pFrame->pwReason));
 }
-
 
 /*+
  *
@@ -279,7 +265,6 @@ vMgrDecodeDisassociation(
  *
 -*/
 
-
 void
 vMgrEncodeAssocRequest(
       PWLAN_FR_ASSOCREQ  pFrame
@@ -293,7 +278,6 @@ vMgrEncodeAssocRequest(
                                        + WLAN_ASSOCREQ_OFF_LISTEN_INT);
     pFrame->len = WLAN_HDR_ADDR3_LEN + WLAN_ASSOCREQ_OFF_LISTEN_INT + sizeof(*(pFrame->pwListenInterval));
 }
-
 
 /*+
  *
@@ -388,7 +372,6 @@ vMgrEncodeAssocResponse(
                   + sizeof(*(pFrame->pwAid));
 }
 
-
 /*+
  *
  * Routine Description:
@@ -431,7 +414,6 @@ vMgrDecodeAssocResponse(
         pFrame->pExtSuppRates = NULL;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -460,7 +442,6 @@ vMgrEncodeReassocRequest(
     pFrame->len = WLAN_HDR_ADDR3_LEN + WLAN_REASSOCREQ_OFF_CURR_AP + sizeof(*(pFrame->pAddrCurrAP));
 }
 
-
 /*+
  *
  * Routine Description: (AP)
@@ -471,7 +452,6 @@ vMgrEncodeReassocRequest(
  *    None.
  *
 -*/
-
 
 void
 vMgrDecodeReassocRequest(
@@ -528,8 +508,6 @@ vMgrDecodeReassocRequest(
     }
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -540,7 +518,6 @@ vMgrDecodeReassocRequest(
  *    None.
  *
 -*/
-
 
 void
 vMgrEncodeProbeRequest(
@@ -601,7 +578,6 @@ vMgrDecodeProbeRequest(
     }
 }
 
-
 /*+
  *
  * Routine Description:
@@ -612,7 +588,6 @@ vMgrDecodeProbeRequest(
  *    None.
  *
 -*/
-
 
 void
 vMgrEncodeProbeResponse(
@@ -634,8 +609,6 @@ vMgrEncodeProbeResponse(
                   sizeof(*(pFrame->pwCapInfo));
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -653,7 +626,6 @@ vMgrDecodeProbeResponse(
     )
 {
     PWLAN_IE    pItem;
-
 
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
 
@@ -748,7 +720,6 @@ vMgrDecodeProbeResponse(
     }
 }
 
-
 /*+
  *
  * Routine Description:
@@ -776,7 +747,6 @@ vMgrEncodeAuthen(
                                + WLAN_AUTHEN_OFF_STATUS);
     pFrame->len = WLAN_HDR_ADDR3_LEN + WLAN_AUTHEN_OFF_STATUS + sizeof(*(pFrame->pwStatus));
 }
-
 
 /*+
  *
@@ -814,7 +784,6 @@ vMgrDecodeAuthen(
         pFrame->pChallenge = (PWLAN_IE_CHALLENGE)pItem;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -839,7 +808,6 @@ vMgrEncodeDeauthen(
     pFrame->len = WLAN_HDR_ADDR3_LEN + WLAN_DEAUTHEN_OFF_REASON + sizeof(*(pFrame->pwReason));
 }
 
-
 /*+
  *
  * Routine Description:
@@ -862,7 +830,6 @@ vMgrDecodeDeauthen(
     pFrame->pwReason = (u16 *)(WLAN_HDR_A3_DATA_PTR(&(pFrame->pHdr->sA3))
                                + WLAN_DEAUTHEN_OFF_REASON);
 }
-
 
 /*+
  *

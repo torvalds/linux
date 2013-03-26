@@ -32,7 +32,6 @@
 #include "tether.h"
 #include "device.h"
 
-
 #define IS_TYPE_DATA(pMACHeader)                                                        \
     ((((struct ieee80211_hdr *) pMACHeader)->frame_control & TYPE_802_11_MASK) == TYPE_802_11_DATA)
 
@@ -80,16 +79,12 @@
 #define IS_CTL_PSPOLL(pMACHeader)                                                       \
     ((((struct ieee80211_hdr *) pMACHeader)->frame_control & TYPE_SUBTYPE_MASK) == TYPE_CTL_PSPOLL)
 
-
 #define ADD_ONE_WITH_WRAP_AROUND(uVar, uModulo) {   \
     if ((uVar) >= ((uModulo) - 1))                  \
         (uVar) = 0;                                 \
     else                                            \
         (uVar)++;                                   \
 }
-
-
-
 
 bool WCTLbIsDuplicate(PSCache pCache, struct ieee80211_hdr *pMACHeader);
 bool WCTLbHandleFragment(struct vnt_private *, struct ieee80211_hdr *pMACHeader, unsigned int cbFrameLength, bool bWEP, bool bExtIV);

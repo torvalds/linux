@@ -41,10 +41,6 @@
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
-
-
-
-
 /*
  * Description:
  *      Write MAC Multicast Address Mask
@@ -72,7 +68,6 @@ void MACvWriteMultiAddr(struct vnt_private *pDevice, u32 uByteIdx, u8 byData)
                         &byData1);
 }
 
-
 /*
  * Description:
  *      Shut Down MAC
@@ -98,7 +93,6 @@ void MACbShutdown(struct vnt_private *pDevice)
 void MACvSetBBType(struct vnt_private *pDevice, u8 byType)
 {
 	u8 pbyData[2];
-
 
     pbyData[0] = byType;
     pbyData[1] = EnCFG_BBType_MASK;
@@ -131,7 +125,6 @@ void MACvDisableKeyEntry(struct vnt_private *pDevice, u32 uEntryIdx)
 	u16 wOffset;
 	u8 byData;
 
-
     byData = (u8) uEntryIdx;
 
     wOffset = MISCFIFO_KEYETRY0;
@@ -150,7 +143,6 @@ void MACvDisableKeyEntry(struct vnt_private *pDevice, u32 uEntryIdx)
                         &byData
                         );
 }
-
 
 /*
  * Description:
@@ -244,9 +236,7 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
                         pbyData
                         );
 
-
 }
-
 
 void MACvRegBitsOff(struct vnt_private *pDevice, u8 byRegOfs, u8 byBits)
 {
@@ -264,11 +254,9 @@ void MACvRegBitsOff(struct vnt_private *pDevice, u8 byRegOfs, u8 byBits)
                         );
 }
 
-
 void MACvRegBitsOn(struct vnt_private *pDevice, u8 byRegOfs, u8 byBits)
 {
 	u8 pbyData[2];
-
 
     pbyData[0] = byBits;
     pbyData[1] = byBits;
@@ -286,7 +274,6 @@ void MACvWriteWord(struct vnt_private *pDevice, u8 byRegOfs, u16 wData)
 {
 	u8 pbyData[2];
 
-
     pbyData[0] = (u8)(wData & 0xff);
     pbyData[1] = (u8)(wData >> 8);
 
@@ -303,7 +290,6 @@ void MACvWriteWord(struct vnt_private *pDevice, u8 byRegOfs, u16 wData)
 void MACvWriteBSSIDAddress(struct vnt_private *pDevice, u8 *pbyEtherAddr)
 {
 	u8 pbyData[6];
-
 
     pbyData[0] = *((u8 *)pbyEtherAddr);
     pbyData[1] = *((u8 *)pbyEtherAddr+1);
@@ -325,7 +311,6 @@ void MACvEnableProtectMD(struct vnt_private *pDevice)
 {
 	u8 pbyData[2];
 
-
     pbyData[0] = EnCFG_ProtectMd;
     pbyData[1] = EnCFG_ProtectMd;
 
@@ -341,7 +326,6 @@ void MACvEnableProtectMD(struct vnt_private *pDevice)
 void MACvDisableProtectMD(struct vnt_private *pDevice)
 {
 	u8 pbyData[2];
-
 
     pbyData[0] = 0;
     pbyData[1] = EnCFG_ProtectMd;
@@ -359,7 +343,6 @@ void MACvEnableBarkerPreambleMd(struct vnt_private *pDevice)
 {
 	u8 pbyData[2];
 
-
     pbyData[0] = EnCFG_BarkerPream;
     pbyData[1] = EnCFG_BarkerPream;
 
@@ -376,7 +359,6 @@ void MACvDisableBarkerPreambleMd(struct vnt_private *pDevice)
 {
 	u8 pbyData[2];
 
-
     pbyData[0] = 0;
     pbyData[1] = EnCFG_BarkerPream;
 
@@ -388,7 +370,6 @@ void MACvDisableBarkerPreambleMd(struct vnt_private *pDevice)
                         pbyData
                         );
 }
-
 
 void MACvWriteBeaconInterval(struct vnt_private *pDevice, u16 wInterval)
 {

@@ -42,9 +42,6 @@
 static int          msglevel                = MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
-
-
-
 static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
 {
   {0,   0,    false},
@@ -105,8 +102,6 @@ static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
   {161, 5805, true}, //55
   {165, 5825, true}  //56
 };
-
-
 
 /************************************************************************
  * The Radar regulation rules for each country

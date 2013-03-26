@@ -42,12 +42,7 @@
 #include "rndis.h"
 #include "rf.h"
 
-
-
 static int msglevel = MSG_LEVEL_INFO;
-
-
-
 
 /*
  * Description:
@@ -122,7 +117,6 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 		return ret;
 	}
 
-
 	if (param->u.wpa_key.seq && param->u.wpa_key.seq_len > sizeof(abySeq))
 		return -EINVAL;
 
@@ -153,7 +147,6 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 
 	if (param->u.wpa_key.set_tx)
 		dwKeyIndex |= (1 << 31);
-
 
 	if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled)
 		byKeyDecMode = KEY_CTL_CCMP;
@@ -252,5 +245,4 @@ int wpa_set_keys(struct vnt_private *pDevice, void *ctx)
 
 	return ret;
 }
-
 

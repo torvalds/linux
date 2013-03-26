@@ -81,13 +81,8 @@
 #include "control.h"
 #include "rndis.h"
 
-
-
-
-
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-
 
 static int ChannelExceedZoneType(struct vnt_private *, u8 byCurrChannel);
 
@@ -154,7 +149,6 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
 	u8 *pCurrBSSID, PWLAN_IE_SUPP_RATES pCurrSuppRates,
 	PWLAN_IE_SUPP_RATES pCurrExtSuppRates);
 
-
 /* Association response */
 static struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wAssocStatus,
@@ -178,10 +172,8 @@ static struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *,
 /* received status */
 static void s_vMgrLogStatus(struct vnt_manager *pMgmt, u16 wStatus);
 
-
 static void s_vMgrSynchBSS(struct vnt_private *, u32 uBSSMode,
 	PKnownBSS pCurr, PCMD_STATUS  pStatus);
-
 
 static bool
 s_bCipherMatch (
@@ -192,8 +184,6 @@ s_bCipherMatch (
     );
 
 static void Encyption_Rebuild(struct vnt_private *, PKnownBSS pCurr);
-
-
 
 /*+
  *
@@ -209,7 +199,6 @@ void vMgrObjectInit(struct vnt_private *pDevice)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	int ii;
-
 
     pMgmt->pbyPSPacketPool = &pMgmt->byPSPacketPool[0];
     pMgmt->pbyMgmtPacketPool = &pMgmt->byMgmtPacketPool[0];
@@ -268,7 +257,6 @@ void vMgrAssocBeginSta(struct vnt_private *pDevice,
 {
 	struct vnt_tx_mgmt *pTxPacket;
 
-
     pMgmt->wCurrCapInfo = 0;
     pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_ESS(1);
     if (pDevice->bEncryptionEnable) {
@@ -323,7 +311,6 @@ void vMgrAssocBeginSta(struct vnt_private *pDevice,
     return ;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -353,7 +340,6 @@ void vMgrReAssocBeginSta(struct vnt_private *pDevice,
     if (pMgmt->wListenInterval == 0)
         pMgmt->wListenInterval = 1;    // at least one.
 
-
     // ERP Phy (802.11g) should support short preamble.
     if (pMgmt->eCurrentPHYMode == PHY_TYPE_11G) {
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SHORTPREAMBLE(1);
@@ -367,7 +353,6 @@ void vMgrReAssocBeginSta(struct vnt_private *pDevice,
     }
     if (pMgmt->b11hEnable == true)
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_SPECTRUMMNG(1);
-
 
     pTxPacket = s_MgrMakeReAssocRequest
                 (
@@ -391,7 +376,6 @@ void vMgrReAssocBeginSta(struct vnt_private *pDevice,
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Reassociation tx sending.\n");
         }
     }
-
 
     return ;
 }
@@ -452,8 +436,6 @@ void vMgrDisassocBeginSta(struct vnt_private *pDevice,
     return;
 }
 
-
-
 /*+
  *
  * Routine Description:(AP function)
@@ -476,7 +458,6 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
 	u32 uRateLen = WLAN_RATES_MAXLEN;
 	u8 abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
 	u8 abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
-
 
     if (pMgmt->eCurrMode != WMAC_MODE_ESS_AP)
         return;
@@ -516,7 +497,6 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
         } else {
             abyCurrExtSuppRates[1] = 0;
         }
-
 
 	RATEvParseMaxRate((void *)pDevice,
                            (PWLAN_IE_SUPP_RATES)abyCurrSuppRates,
@@ -566,7 +546,6 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
                    pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate);
     }
 
-
     // assoc response reply..
     pTxPacket = s_MgrMakeAssocResponse
                 (
@@ -597,7 +576,6 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
 
     return;
 }
-
 
 /*+
  *
@@ -665,7 +643,6 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
             abyCurrExtSuppRates[1] = 0;
         }
 
-
 	RATEvParseMaxRate((void *)pDevice,
                           (PWLAN_IE_SUPP_RATES)abyCurrSuppRates,
                           (PWLAN_IE_SUPP_RATES)abyCurrExtSuppRates,
@@ -716,7 +693,6 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
 
     }
 
-
     // assoc response reply..
     pTxPacket = s_MgrMakeReAssocResponse
                 (
@@ -746,7 +722,6 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
     return;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -764,8 +739,6 @@ static void s_vMgrRxAssocResponse(struct vnt_private *pDevice,
 	WLAN_FR_ASSOCRESP   sFrame;
 	PWLAN_IE_SSID   pItemSSID;
 	u8 *pbyIEs;
-
-
 
     if (pMgmt->eCurrState == WMAC_STATE_ASSOCPENDING ||
          pMgmt->eCurrState == WMAC_STATE_ASSOC) {
@@ -978,10 +951,8 @@ void vMgrDeAuthenBeginSta(struct vnt_private *pDevice,
         *pStatus = CMD_STATUS_SUCCESS;
     }
 
-
     return ;
 }
-
 
 /*+
  *
@@ -1031,8 +1002,6 @@ static void s_vMgrRxAuthentication(struct vnt_private *pDevice,
     return;
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -1044,7 +1013,6 @@ static void s_vMgrRxAuthentication(struct vnt_private *pDevice,
  *    None.
  *
 -*/
-
 
 static void s_vMgrRxAuthenSequence_1(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, PWLAN_FR_AUTHEN pFrame)
@@ -1136,8 +1104,6 @@ static void s_vMgrRxAuthenSequence_1(struct vnt_private *pDevice,
     return;
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -1155,7 +1121,6 @@ static void s_vMgrRxAuthenSequence_2(struct vnt_private *pDevice,
 {
 	WLAN_FR_AUTHEN sFrame;
 	struct vnt_tx_mgmt *pTxPacket = NULL;
-
 
     switch (cpu_to_le16((*(pFrame->pwAuthAlgorithm))))
     {
@@ -1234,8 +1199,6 @@ static void s_vMgrRxAuthenSequence_2(struct vnt_private *pDevice,
     }
     return;
 }
-
-
 
 /*+
  *
@@ -1322,8 +1285,6 @@ reply:
     return;
 
 }
-
-
 
 /*+
  *
@@ -1424,7 +1385,6 @@ static void s_vMgrRxDisassociation(struct vnt_private *pDevice,
     return;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -1441,7 +1401,6 @@ static void s_vMgrRxDeauthentication(struct vnt_private *pDevice,
 {
 	WLAN_FR_DEAUTHEN sFrame;
 	u32 uNodeIndex = 0;
-
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP ){
         //Todo:
@@ -1562,8 +1521,6 @@ static void s_vMgrRxBeacon(struct vnt_private *pDevice,
 	u32 uRateLen = WLAN_RATES_MAXLEN;
 	int bChannelHit = false;
 	u8 byOldPreambleType;
-
-
 
      if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)
         return;
@@ -1833,7 +1790,6 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
 	if (qwTSFOffset > TRIVIAL_SYNC_DIFFERENCE)
 		bTSFLargeDiff = true;
 
-
     // if infra mode
     if (bIsAPBeacon == true) {
 
@@ -2005,7 +1961,6 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                     if (pDevice->byPreambleType != byOldPreambleType)
                         CARDvSetRSPINF(pDevice, (u8)pDevice->byBBType);
 
-
                      // MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
                      // set highest basic rate
                      // s_vSetHighestBasicRate(pDevice, (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates);
@@ -2055,8 +2010,6 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 	u8 abyOFDM_RATE[] = {0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
 	u16 wSuppRate;
 
-
-
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Create Basic Service Set .......\n");
 
     if (pMgmt->eConfigMode == WMAC_CONFIG_IBSS_STA) {
@@ -2095,7 +2048,6 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
             pMgmt->abyCurrSuppRates[2+ii] = abyRATE[ii];
     }
 
-
     if (pMgmt->eCurrentPHYMode == PHY_TYPE_11G) {
         pMgmt->abyCurrSuppRates[1] = 8;
         pMgmt->abyCurrExtSuppRates[1] = 4;
@@ -2106,7 +2058,6 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
         for (ii = 0; ii < 4; ii++)
             pMgmt->abyCurrExtSuppRates[2+ii] =  abyOFDM_RATE[ii+4];
     }
-
 
     // Disable Protect Mode
     pDevice->bProtectMode = 0;
@@ -2149,8 +2100,6 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
                       (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates, true,
                       &wMaxBasicRate, &wMaxSuppRate, &wSuppRate,
                       &byTopCCKBasicRate, &byTopOFDMBasicRate);
-
-
 
     if (pDevice->byBBType == BB_TYPE_11A) {
         pDevice->bShortSlotTime = true;
@@ -2214,7 +2163,6 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
         pMgmt->abyCurrBSSID[0] ^= pMgmt->abyMACAddr[5];
         pMgmt->abyCurrBSSID[0] &= ~IEEE_ADDR_GROUP;
         pMgmt->abyCurrBSSID[0] |= IEEE_ADDR_UNIVERSAL;
-
 
 		DBG_PRT(MSG_LEVEL_INFO, KERN_INFO"Adhoc beacon created bssid:"
 			"%pM\n", pMgmt->abyCurrBSSID);
@@ -2306,7 +2254,6 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 	u8 byTopCCKBasicRate = RATE_1M;
 	u8 byTopOFDMBasicRate = RATE_1M;
 	u8 bShortSlotTime = false;
-
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
         if (pMgmt->sBSSList[ii].bActive == true)
@@ -2513,7 +2460,6 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
             pMgmt->eCurrState = WMAC_STATE_IDLE;
         };
 
-
      }
      else {
         // ad-hoc mode BSS
@@ -2552,7 +2498,6 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
             // Adopt this BSS state vars in Mgmt Object
             // TODO: check if CapInfo privacy on, but we don't..
             pMgmt->uCurrChannel = pCurr->uChannel;
-
 
             // Parse Support Rate IE
             pMgmt->abyCurrSuppRates[0] = WLAN_EID_SUPP_RATES;
@@ -2602,8 +2547,6 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
      };
     return;
 }
-
-
 
 /*+
  *
@@ -2800,7 +2743,6 @@ static void Encyption_Rebuild(struct vnt_private *pDevice, PKnownBSS pCurr)
       return;
  }
 
-
 /*+
  *
  * Routine Description:
@@ -2822,7 +2764,6 @@ static void s_vMgrFormatTIM(struct vnt_manager *pMgmt, PWLAN_IE_TIM pTIM)
 	u16 wStartIndex = 0;
 	u16 wEndIndex = 0;
 
-
     // Find size of partial virtual bitmap
     for (ii = 0; ii < (MAX_NODE_NUM + 1); ii++) {
         byMap = pMgmt->abyPSTxMap[ii];
@@ -2842,7 +2783,6 @@ static void s_vMgrFormatTIM(struct vnt_manager *pMgmt, PWLAN_IE_TIM pTIM)
             wEndIndex = (u16)ii;
         }
     }
-
 
     // Round start index down to nearest even number
     wStartIndex &=  ~BIT0;
@@ -2870,7 +2810,6 @@ static void s_vMgrFormatTIM(struct vnt_manager *pMgmt, PWLAN_IE_TIM pTIM)
     pTIM->byVirtBitMap[0]  &= ~BIT0;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -2891,7 +2830,6 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
 	struct vnt_tx_mgmt *pTxPacket = NULL;
 	WLAN_FR_BEACON sFrame;
 	u8 abyBroadcastAddr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 
 	/* prepare beacon frame */
 	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyMgmtPacketPool;
@@ -2992,7 +2930,6 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
         }
     }
 
-
     if (pMgmt->eCurrentPHYMode == PHY_TYPE_11G) {
         sFrame.pERP = (PWLAN_IE_ERP)(sFrame.pBuf + sFrame.len);
         sFrame.len += 1 + WLAN_IEHDR_LEN;
@@ -3032,10 +2969,6 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
     return pTxPacket;
 }
 
-
-
-
-
 /*+
  *
  * Routine Description:
@@ -3047,9 +2980,6 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
  *
 -*/
 
-
-
-
 struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wCurrBeaconPeriod,
 	u32 uCurrChannel, u16 wCurrATIMWinodw, u8 *pDstAddr,
@@ -3059,7 +2989,6 @@ struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
 {
 	struct vnt_tx_mgmt *pTxPacket = NULL;
 	WLAN_FR_PROBERESP sFrame;
-
 
 	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyMgmtPacketPool;
 	memset(pTxPacket, 0, sizeof(struct vnt_tx_mgmt)
@@ -3160,8 +3089,6 @@ struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
     return pTxPacket;
 }
 
-
-
 /*+
  *
  * Routine Description:
@@ -3172,7 +3099,6 @@ struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
  *    A ptr to frame or NULL on allocation failue
  *
 -*/
-
 
 struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u8 *pDAddr, u16 wCurrCapInfo,
@@ -3185,7 +3111,6 @@ struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
 	WLAN_FR_ASSOCREQ sFrame;
 	u8 *pbyIEs;
 	u8 *pbyRSN;
-
 
 	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyMgmtPacketPool;
 	memset(pTxPacket, 0, sizeof(struct vnt_tx_mgmt)
@@ -3240,7 +3165,6 @@ struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
     pMgmt->sAssocInfo.AssocInfo.RequestIELength += pCurrRates->len + WLAN_IEHDR_LEN;
     memcpy(pbyIEs, pCurrRates, pCurrRates->len + WLAN_IEHDR_LEN);
     pbyIEs += pCurrRates->len + WLAN_IEHDR_LEN;
-
 
     if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA) ||
          (pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) ||
@@ -3407,19 +3331,11 @@ struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
         pbyIEs += sFrame.pRSN->len + WLAN_IEHDR_LEN;
     }
 
-
     // Adjust the length fields
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     return pTxPacket;
 }
-
-
-
-
-
-
-
 
 /*+
  *
@@ -3432,7 +3348,6 @@ struct vnt_tx_mgmt *s_MgrMakeAssocRequest(struct vnt_private *pDevice,
  *
 -*/
 
-
 struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u8 *pDAddr, u16 wCurrCapInfo,
 	u16 wListenInterval, PWLAN_IE_SSID pCurrSSID,
@@ -3443,7 +3358,6 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
 	WLAN_FR_REASSOCREQ  sFrame;
 	u8 *pbyIEs;
 	u8 *pbyRSN;
-
 
 	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyMgmtPacketPool;
 	memset(pTxPacket, 0, sizeof(struct vnt_tx_mgmt)
@@ -3663,8 +3577,6 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocRequest(struct vnt_private *pDevice,
         pbyIEs += sFrame.pRSN->len + WLAN_IEHDR_LEN;
     }
 
-
-
     /* Adjust the length fields */
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
@@ -3690,7 +3602,6 @@ struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
 {
 	struct vnt_tx_mgmt *pTxPacket = NULL;
 	WLAN_FR_ASSOCRESP   sFrame;
-
 
 	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyMgmtPacketPool;
 	memset(pTxPacket, 0, sizeof(struct vnt_tx_mgmt)
@@ -3739,7 +3650,6 @@ struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
     return pTxPacket;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -3751,7 +3661,6 @@ struct vnt_tx_mgmt *s_MgrMakeAssocResponse(struct vnt_private *pDevice,
  *
 -*/
 
-
 struct vnt_tx_mgmt *s_MgrMakeReAssocResponse(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u16 wCurrCapInfo, u16 wAssocStatus,
 	u16 wAssocAID, u8 *pDstAddr, PWLAN_IE_SUPP_RATES pCurrSuppRates,
@@ -3759,7 +3668,6 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocResponse(struct vnt_private *pDevice,
 {
 	struct vnt_tx_mgmt *pTxPacket = NULL;
 	WLAN_FR_REASSOCRESP sFrame;
-
 
 	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyMgmtPacketPool;
 	memset(pTxPacket, 0, sizeof(struct vnt_tx_mgmt)
@@ -3808,7 +3716,6 @@ struct vnt_tx_mgmt *s_MgrMakeReAssocResponse(struct vnt_private *pDevice,
     return pTxPacket;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -3828,7 +3735,6 @@ static void s_vMgrRxProbeResponse(struct vnt_private *pDevice,
 	u8 byCurrChannel = pRxPacket->byRxChannel;
 	ERPObject sERP;
 	int bChannelHit = true;
-
 
     memset(&sFrame, 0, sizeof(WLAN_FR_PROBERESP));
     // decode the frame
@@ -3850,7 +3756,6 @@ static void s_vMgrRxProbeResponse(struct vnt_private *pDevice,
 
     if(sFrame.pSSID->len == 0)
        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Rx Probe resp: SSID len = 0 \n");
-
 
     //{{ RobertYu:20050201, 11a  byCurrChannel != sFrame.pDSParms->byCurrChannel mapping
     if( byCurrChannel > CB_MAX_CHANNEL_24G )
@@ -3885,7 +3790,6 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
         sERP.bERPExist = false;
         sERP.byERP = 0;
     }
-
 
     // update or insert the bss
     pBSSList = BSSpAddrIsInBSSList((void *) pDevice,
@@ -3945,7 +3849,6 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
  *    none.
  *
 -*/
-
 
 static void s_vMgrRxProbeRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, struct vnt_rx_mgmt *pRxPacket)
@@ -4035,7 +3938,6 @@ void vMgrRxManagePacket(struct vnt_private *pDevice, struct vnt_manager *pMgmt,
 	u32 uNodeIndex = 0;
 	NODE_STATE eNodeState = 0;
 	CMD_STATUS Status;
-
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
         if (BSSbIsSTAInNodeDB(pDevice, pRxPacket->p80211Header->sA3.abyAddr2, &uNodeIndex))
@@ -4208,9 +4110,6 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
     return true;
 }
 
-
-
-
 /*+
  *
  * Routine Description:
@@ -4301,8 +4200,6 @@ int bAdd_PMKID_Candidate(struct vnt_private *pDevice, u8 *pbyBSSID,
 
     if (pDevice->gsPMKIDCandidate.NumCandidates >= MAX_PMKIDLIST)
         return false;
-
-
 
     // Update Old Candidate
     for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
@@ -4508,5 +4405,4 @@ s_bCipherMatch (
     }
     return true;
 }
-
 

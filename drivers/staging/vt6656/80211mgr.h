@@ -33,7 +33,6 @@
 
 #include "80211hdr.h"
 
-
 #define WLAN_MIN_ARRAY          1
 
 /* Information Element ID value */
@@ -210,9 +209,6 @@
 #define MEASURE_MODE_LATE       0x01
 #define MEASURE_MODE_INCAPABLE  0x02
 #define MEASURE_MODE_REFUSED    0x04
-
-
-
 
 /* Information Element types */
 
@@ -477,7 +473,6 @@ typedef struct _WLAN_IE_TPC_REP {
     u8                byLinkMargin;
 } WLAN_IE_TPC_REP, *PWLAN_IE_TPC_REP;
 
-
 typedef struct _WLAN_IE_IBSS_DFS {
     u8                byElementID;
     u8                len;
@@ -714,7 +709,6 @@ typedef struct tagWLAN_FR_DEAUTHEN {
     /* info elements */
 
 } WLAN_FR_DEAUTHEN, *PWLAN_FR_DEAUTHEN;
-
 
 void
 vMgrEncodeBeacon(

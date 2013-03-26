@@ -56,17 +56,11 @@
 #include "datarate.h"
 #include "usbpipe.h"
 
-
-
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
 const u8 acbyRxRate[MAX_RATE] =
 {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
-
-
-
-
 
 static u8 s_byGetRateIdx(u8 byRate);
 
@@ -96,7 +90,6 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
 	u32 FrameSize, u8 *pbyRsr, int bOnFly, PSKeyItem pKey, u8 *pbyNewRsr,
 	s32 *pbExtIV, u16 *pwRxTSC15_0, u32 *pdwRxTSC47_16);
 
-
 /*+
  *
  * Description:
@@ -124,7 +117,6 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
 	u16 *pwType;
 	struct ieee80211_hdr *pMACHeader;
 	int ii;
-
 
     pMACHeader = (struct ieee80211_hdr *) (pbyRxBufferAddr + cbHeaderSize);
 
@@ -190,9 +182,6 @@ static void s_vProcessRxMACHeader(struct vnt_private *pDevice,
     *pcbHeadSize = cbHeaderSize;
 }
 
-
-
-
 static u8 s_byGetRateIdx(u8 byRate)
 {
     u8    byRateIdx;
@@ -203,7 +192,6 @@ static u8 s_byGetRateIdx(u8 byRate)
     }
     return 0;
 }
-
 
 static
 void
@@ -258,7 +246,6 @@ s_vGetDASA (
     *pcbHeaderSize = cbHeaderSize;
 }
 
-
 int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 	unsigned long BytesToIndicate)
 {
@@ -292,7 +279,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 	u16 wPLCPwithPadding;
 	struct ieee80211_hdr *pMACHeader;
 	int bRxeapol_key = false;
-
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- RXbBulkInProcessData---\n");
 
@@ -370,7 +356,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
                             FrameSize
                             );
 
-
     pMACHeader = (struct ieee80211_hdr *) pbyFrame;
 
 //mike add: to judge if current AP is activated?
@@ -396,7 +381,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         }
     }
 
-
     // Use for TKIP MIC
     s_vGetDASA(pbyFrame, &cbHeaderSize, &pDevice->sRxEthHeader);
 
@@ -420,7 +404,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             return false;
         }
     }
-
 
     if (IS_FC_WEP(pbyFrame)) {
         bool     bRxDecryOK = false;
@@ -489,7 +472,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         else
             FrameSize -= 4;         // 4 is ICV
     }
-
 
     //
     // RX OK
@@ -646,9 +628,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         }
     }
 
-
 // Data frame Handle
-
 
     if (pDevice->bEnablePSMode) {
         if (IS_FC_MOREDATA((pbyFrame))) {
@@ -692,7 +672,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
     }
 */
 
-
     // -----------------------------------------------
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnable8021x == true)){
@@ -732,7 +711,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             return false;
     }
 
-
     if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_TKIP)) {
         if (bIsWEP) {
             FrameSize -= 8;  //MIC
@@ -749,7 +727,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
             u32           dwMICKey0 = 0, dwMICKey1 = 0;
             u32           dwLocalMIC_L = 0;
             u32           dwLocalMIC_R = 0;
-
 
             if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
                 dwMICKey0 = cpu_to_le32(*(u32 *)(&pKey->abyKey[24]));
@@ -780,7 +757,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 
             pdwMIC_L = (u32 *)(skb->data + 8 + FrameSize);
             pdwMIC_R = (u32 *)(skb->data + 8 + FrameSize + 4);
-
 
             if ((cpu_to_le32(*pdwMIC_L) != dwLocalMIC_L) || (cpu_to_le32(*pdwMIC_R) != dwLocalMIC_R) ||
                 (pDevice->bRxMICFail == true)) {
@@ -869,7 +845,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
         }
     } // ----- End of Reply Counter Check --------------------------
 
-
     s_vProcessRxMACHeader(pDevice, (u8 *)(skb->data+8), FrameSize, bIsWEP, bExtIV, &cbHeaderOffset);
     FrameSize -= cbHeaderOffset;
     cbHeaderOffset += 8;        // 8 is Rcv buffer header
@@ -923,7 +898,6 @@ static int s_bAPModeRxCtl(struct vnt_private *pDevice, u8 *pbyFrame,
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct ieee80211_hdr *p802_11Header;
 	CMD_STATUS Status;
-
 
     if (IS_CTL_PSPOLL(pbyFrame) || !IS_TYPE_CONTROL(pbyFrame)) {
 
@@ -1034,7 +1008,6 @@ static int s_bHandleRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
 	u8 byKeyIdx;
 	PSKeyItem pKey = NULL;
 	u8 byDecMode = KEY_CTL_WEP;
-
 
     *pwRxTSC15_0 = 0;
     *pdwRxTSC47_16 = 0;
@@ -1185,7 +1158,6 @@ static int s_bHostWepRxEncryption(struct vnt_private *pDevice, u8 *pbyFrame,
     byKeyIdx >>= 6;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\nKeyIdx: %d\n", byKeyIdx);
 
-
     if (pMgmt->byCSSGK == KEY_CTL_TKIP)
         byDecMode = KEY_CTL_TKIP;
     else if (pMgmt->byCSSGK == KEY_CTL_CCMP)
@@ -1290,7 +1262,6 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
 	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	u16 wAID;
 
-
     if (FrameSize > CB_MAX_BUF_SIZE)
         return false;
     // check DA
@@ -1363,9 +1334,6 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
     return true;
 }
 
-
-
-
 void RXvWorkItem(struct vnt_private *pDevice)
 {
 	int ntStatus;
@@ -1388,11 +1356,9 @@ void RXvWorkItem(struct vnt_private *pDevice)
 
 }
 
-
 void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
 {
 	struct vnt_private *pDevice = pRCB->pDevice;
-
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->RXvFreeRCB\n");
 
@@ -1419,7 +1385,6 @@ void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
     EnqueueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList, pRCB);
     pDevice->NumRecvFreeList++;
 
-
     if ((pDevice->Flags & fMP_POST_READS) && MP_IS_READY(pDevice) &&
         (pDevice->bIsRxWorkItemQueued == false) ) {
 
@@ -1428,7 +1393,6 @@ void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
     }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",pDevice->NumRecvFreeList, pDevice->NumRecvMngList);
 }
-
 
 void RXvMngWorkItem(struct vnt_private *pDevice)
 {
@@ -1463,5 +1427,4 @@ void RXvMngWorkItem(struct vnt_private *pDevice)
 	spin_unlock_irq(&pDevice->lock);
 
 }
-
 

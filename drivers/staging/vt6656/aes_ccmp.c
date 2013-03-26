@@ -33,9 +33,6 @@
 #include "device.h"
 #include "80211hdr.h"
 
-
-
-
 /*
  * SBOX Table
  */
@@ -97,9 +94,6 @@ u8 dot3_table[256] = {
 	0x0b, 0x08, 0x0d, 0x0e, 0x07, 0x04, 0x01, 0x02, 0x13, 0x10, 0x15, 0x16, 0x1f, 0x1c, 0x19, 0x1a
 };
 
-
-
-
 static void xor_128(u8 *a, u8 *b, u8 *out)
 {
 	u32 * dwPtrA = (u32 *) a;
@@ -111,7 +105,6 @@ static void xor_128(u8 *a, u8 *b, u8 *out)
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 	(*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 }
-
 
 static void xor_32(u8 *a, u8 *b, u8 *out)
 {

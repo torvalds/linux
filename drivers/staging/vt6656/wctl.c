@@ -39,12 +39,7 @@
 #include "card.h"
 #include "tmacro.h"
 
-
-
 // static int          msglevel                =MSG_LEVEL_INFO;
-
-
-
 
 /*
  * Description:
@@ -160,7 +155,6 @@ unsigned int WCTLuInsertDFCB(struct vnt_private *pDevice,
     return(pDevice->cbDFCB);
 }
 
-
 /*
  * Description:
  *      Handle received fragment packet
@@ -180,7 +174,6 @@ unsigned int WCTLuInsertDFCB(struct vnt_private *pDevice,
 bool WCTLbHandleFragment(struct vnt_private *pDevice, struct ieee80211_hdr *pMACHeader,	unsigned int cbFrameLength, bool bWEP, bool bExtIV)
 {
 	unsigned int uHeaderSize;
-
 
     if (bWEP == true) {
         uHeaderSize = 28;
@@ -249,5 +242,4 @@ bool WCTLbHandleFragment(struct vnt_private *pDevice, struct ieee80211_hdr *pMAC
         return(false);
     }
 }
-
 

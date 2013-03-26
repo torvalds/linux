@@ -36,7 +36,6 @@
 #include "card.h"
 #include "mib.h"
 
-
 #define MAX_NODE_NUM             64
 #define MAX_BSS_NUM              42
 #define LOST_BEACON_COUNT        10   /* 10 sec, XP defined */
@@ -65,11 +64,6 @@
 
 #define MAX_WPA_IE_LEN      64
 
-
-
-
-
-
 //
 // IEEE 802.11 Structures and definitions
 //
@@ -78,7 +72,6 @@ typedef struct tagSERPObject {
     bool    bERPExist;
     u8    byERP;
 } ERPObject, *PERPObject;
-
 
 typedef struct tagSRSNCapObject {
     bool    bRSNCapExist;
@@ -149,8 +142,6 @@ typedef struct tagKnownBSS {
 } __attribute__ ((__packed__))
 KnownBSS , *PKnownBSS;
 
-
-
 typedef enum tagNODE_STATE {
     NODE_FREE,
     NODE_AGED,
@@ -158,7 +149,6 @@ typedef enum tagNODE_STATE {
     NODE_AUTH,
     NODE_ASSOC
 } NODE_STATE, *PNODE_STATE;
-
 
 // STA node info
 typedef struct tagKnownNodeDB {
@@ -218,7 +208,6 @@ typedef struct tagKnownNodeDB {
     unsigned int            uTimeCount;
 
 } KnownNodeDB, *PKnownNodeDB;
-
 
 PKnownBSS BSSpSearchBSSList(struct vnt_private *, u8 *pbyDesireBSSID,
 	u8 *pbyDesireSSID, CARD_PHY_TYPE ePhyType);

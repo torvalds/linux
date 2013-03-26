@@ -30,7 +30,6 @@
 #ifndef __SROM_H__
 #define __SROM_H__
 
-
 #define EEP_MAX_CONTEXT_SIZE    256
 
 #define CB_EEPROM_READBYTE_WAIT 900     //us
@@ -52,7 +51,6 @@
 #define EEP_OFS_PWR_CCK     0x20
 #define EEP_OFS_SETPT_CCK   0x21
 #define EEP_OFS_PWR_OFDMG   0x23
-
 
 #define EEP_OFS_CALIB_TX_IQ 0x24
 #define EEP_OFS_CALIB_TX_DC 0x25
@@ -76,7 +74,6 @@
 // Bits in EEP_OFS_RADIOCTL
 //
 #define EEP_RADIOCTL_ENABLE 0x80
-
 
 // AT24C02 eeprom contents
 //      2048 bits = 256 bytes = 128 words
@@ -111,9 +108,5 @@ typedef struct tagSSromReg {
     u8    abyReserved0[96];           // 0x10 (u16)
     u8    abyCIS[128];                // 0x80 (u16)
 } SSromReg, *PSSromReg;
-
-
-
-
 
 #endif /* __EEPROM_H__ */

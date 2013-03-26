@@ -50,7 +50,6 @@ const u8 abyOUI03[4] = { 0x00, 0x50, 0xf2, 0x03 };
 const u8 abyOUI04[4] = { 0x00, 0x50, 0xf2, 0x04 };
 const u8 abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
 
-
 /*+
  *
  * Description:
@@ -85,7 +84,6 @@ WPA_ClearRSN(
     pBSSList->sRSNCapObj.wRSNCap = 0;
     pBSSList->bWPAValid = false;
 }
-
 
 /*+
  *

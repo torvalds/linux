@@ -42,11 +42,6 @@
 
 static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
 
-
-
-
-
-
 /*+
  *
  *  Function:   InterruptPollingThread

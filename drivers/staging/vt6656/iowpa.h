@@ -29,7 +29,6 @@
 #ifndef __IOWPA_H__
 #define __IOWPA_H__
 
-
 #define WPA_IE_LEN 64
 
 //WPA related
@@ -54,7 +53,6 @@ enum {
 	VIAWGET_SET_DISASSOCIATE = 10
 };
 
-
 enum {
 	VIAWGET_ASSOC_MSG = 1,
 	VIAWGET_DISASSOC_MSG = 2,
@@ -63,8 +61,6 @@ enum {
 	VIAWGET_CCKM_ROAM_MSG = 5,
 	VIAWGET_DEVICECLOSE_MSG = 6
 };
-
-
 
 typedef struct viawget_wpa_header {
 	u8 type;
@@ -128,9 +124,5 @@ struct viawget_scan_result {
 	int level;
 	int maxrate;
 } __packed;
-
-
-
-
 
 #endif /* __IOWPA_H__ */

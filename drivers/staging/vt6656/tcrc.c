@@ -35,9 +35,6 @@
 
 #include "tcrc.h"
 
-
-
-
 /* 32-bit CRC table */
 static const u32 s_adwCrc32Table[256] = {
     0x00000000L, 0x77073096L, 0xEE0E612CL, 0x990951BAL,
@@ -106,11 +103,6 @@ static const u32 s_adwCrc32Table[256] = {
     0xB40BBE37L, 0xC30C8EA1L, 0x5A05DF1BL, 0x2D02EF8DL
 };
 
-
-
-
-
-
 /*+
  *
  * Description:
@@ -141,7 +133,6 @@ u32 CRCdwCrc32(u8 * pbyData, unsigned int cbByte, u32 dwCrcSeed)
 	return dwCrc;
 }
 
-
 /*+
  *
  * Description:
@@ -164,7 +155,6 @@ u32 CRCdwGetCrc32(u8 * pbyData, unsigned int cbByte)
 {
     return ~CRCdwCrc32(pbyData, cbByte, 0xFFFFFFFFL);
 }
-
 
 /*+
  *
@@ -190,5 +180,4 @@ u32 CRCdwGetCrc32Ex(u8 * pbyData, unsigned int cbByte, u32 dwPreCRC)
 {
     return CRCdwCrc32(pbyData, cbByte, dwPreCRC);
 }
-
 

@@ -34,11 +34,6 @@
 
 #define TKIP_KEY_LEN        16
 
-
-
-
-
-
 void TKIPvMixKey(
     u8 *   pbyTKey,
     u8 *   pbyTA,

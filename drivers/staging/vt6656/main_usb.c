@@ -94,13 +94,11 @@ MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
 #define RX_DESC_DEF0     64
 DEVICE_PARAM(RxDescriptors0,"Number of receive usb desc buffer");
 
-
 #define TX_DESC_DEF0     64
 DEVICE_PARAM(TxDescriptors0,"Number of transmit usb desc buffer");
 
 #define CHANNEL_DEF     6
 DEVICE_PARAM(Channel, "Channel number");
-
 
 /* PreambleType[] is the preamble length used for transmit.
    0: indicate allows long preamble type
@@ -116,7 +114,6 @@ DEVICE_PARAM(RTSThreshold, "RTS threshold");
 
 #define FRAG_THRESH_DEF     2346
 DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
-
 
 #define DATA_RATE_DEF     13
 /* datarate[] index
@@ -147,7 +144,6 @@ DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
    2: indicate AP mode used
 */
 
-
 /* PSMode[]
    0: indicate disable power saving mode
    1: indicate enable power saving mode
@@ -155,7 +151,6 @@ DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
 
 #define PS_MODE_DEF     0
 DEVICE_PARAM(PSMode, "Power saving mode");
-
 
 #define SHORT_RETRY_DEF     8
 DEVICE_PARAM(ShortRetryLimit, "Short frame retry limits");
@@ -172,8 +167,6 @@ DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 #define BBP_TYPE_DEF     2
 DEVICE_PARAM(BasebandType, "baseband type");
 
-
-
 /* 80211hEnable[]
    0: indicate disable 802.11h
    1: indicate enable 802.11h
@@ -182,7 +175,6 @@ DEVICE_PARAM(BasebandType, "baseband type");
 #define X80211h_MODE_DEF     0
 
 DEVICE_PARAM(b80211hEnable, "802.11h mode");
-
 
 /*
  * Static vars definitions
@@ -203,10 +195,8 @@ static const long frequency_list[] = {
     5700, 5745, 5765, 5785, 5805, 5825
 	};
 
-
 static const struct iw_handler_def	iwctl_handler_def;
 */
-
 
 static int vt6656_probe(struct usb_interface *intf,
 			const struct usb_device_id *id);
@@ -243,13 +233,7 @@ static int Config_FileGetParameter(unsigned char *string,
 				   unsigned char *dest,
 				   unsigned char *source);
 
-
 static void usb_device_reset(struct vnt_private *pDevice);
-
-
-
-
-
 
 static void
 device_set_options(struct vnt_private *pDevice) {
@@ -289,7 +273,6 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->bDiversityRegCtlON = false;
 }
 
-
 static void device_init_diversity_timer(struct vnt_private *pDevice)
 {
     init_timer(&pDevice->TimerSQ3Tmax1);
@@ -309,7 +292,6 @@ static void device_init_diversity_timer(struct vnt_private *pDevice)
 
     return;
 }
-
 
 /*
  * initialization of MAC & BBP registers
@@ -767,7 +749,6 @@ static void device_free_tx_bufs(struct vnt_private *pDevice)
     return;
 }
 
-
 static void device_free_rx_bufs(struct vnt_private *pDevice)
 {
     PRCB pRCB;
@@ -805,14 +786,12 @@ static void device_free_int_bufs(struct vnt_private *pDevice)
     return;
 }
 
-
 static bool device_alloc_bufs(struct vnt_private *pDevice)
 {
 
     PUSB_SEND_CONTEXT pTxContext;
     PRCB pRCB;
     int ii;
-
 
     for (ii = 0; ii < pDevice->cbTD; ii++) {
 
@@ -838,7 +817,6 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
         DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : alloc rx usb context failed\n", pDevice->dev->name);
         goto free_tx;
     }
-
 
     pDevice->FirstRecvFreeList = NULL;
     pDevice->LastRecvFreeList = NULL;
@@ -869,7 +847,6 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
         pDevice->NumRecvFreeList++;
         pRCB++;
     }
-
 
 	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
 	if (pDevice->pControlURB == NULL) {
@@ -903,9 +880,6 @@ free_tx:
 	return false;
 }
 
-
-
-
 static bool device_init_defrag_cb(struct vnt_private *pDevice)
 {
 	int i;
@@ -929,8 +903,6 @@ free_frag:
     return false;
 }
 
-
-
 static void device_free_frag_bufs(struct vnt_private *pDevice)
 {
 	PSDeFragControlBlock pDeF;
@@ -945,8 +917,6 @@ static void device_free_frag_bufs(struct vnt_private *pDevice)
     }
 }
 
-
-
 int device_alloc_frag_buf(struct vnt_private *pDevice,
 		PSDeFragControlBlock pDeF)
 {
@@ -960,8 +930,6 @@ int device_alloc_frag_buf(struct vnt_private *pDevice,
     return true;
 }
 
-
-
 static int  device_open(struct net_device *dev)
 {
 	struct vnt_private *pDevice = netdev_priv(dev);
@@ -969,7 +937,6 @@ static int  device_open(struct net_device *dev)
      pDevice->fWPA_Authened = false;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_open...\n");
-
 
     pDevice->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
 
@@ -1056,7 +1023,6 @@ static int  device_open(struct net_device *dev)
 	else
 		bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 
-
     netif_stop_queue(pDevice->dev);
     pDevice->flags |= DEVICE_FLAGS_OPENED;
 
@@ -1078,8 +1044,6 @@ free_rx_tx:
     return -ENOMEM;
 }
 
-
-
 static int device_close(struct net_device *dev)
 {
 	struct vnt_private *pDevice = netdev_priv(dev);
@@ -1094,7 +1058,6 @@ static int device_close(struct net_device *dev)
 	bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
         mdelay(30);
     }
-
 
         memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
         pMgmt->bShareKeyAlgorithm = false;
@@ -1159,7 +1122,6 @@ static void vt6656_disconnect(struct usb_interface *intf)
 
 	if (!device)
 		return;
-
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
@@ -1425,7 +1387,6 @@ static void device_set_multi(struct net_device *dev)
 	u8 byTmpMode = 0;
 	int rc;
 
-
 	spin_lock_irq(&pDevice->lock);
     rc = CONTROLnsRequestIn(pDevice,
                             MESSAGE_TYPE_READ,
@@ -1512,7 +1473,6 @@ static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	return rc;
 }
-
 
 static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 {

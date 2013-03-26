@@ -64,8 +64,6 @@
 #define TYPE_CTL_CTS        0xc400
 #define TYPE_CTL_ACK        0xd400
 
-
-
 #else //if LITTLE_ENDIAN
 //
 // wType field in the SEthernetHeader
@@ -97,8 +95,6 @@
 #define TYPE_CTL_CTS        0x00c4
 #define TYPE_CTL_ACK        0x00d4
 
-
-
 #endif //#ifdef __BIG_ENDIAN
 
 #define WEP_IV_MASK         0x00FFFFFF
@@ -112,10 +108,6 @@ typedef struct tagS802_3Header {
     u16    wLen;
 } __attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
-
-
-
-
 
 //u8 ETHbyGetHashIndexByCrc(u8 * pbyMultiAddr);
 bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength);

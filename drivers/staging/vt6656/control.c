@@ -46,10 +46,6 @@
 /* static int          msglevel                =MSG_LEVEL_INFO;  */
 /* static int          msglevel                =MSG_LEVEL_DEBUG; */
 
-
-
-
-
 void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
 			u8 data)
 {

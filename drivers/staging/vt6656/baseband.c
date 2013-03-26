@@ -48,14 +48,6 @@
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
-
-
-
-
-
-
-
-
 u8 abyVT3184_AGC[] = {
     0x00,   //0
     0x00,   //1
@@ -122,7 +114,6 @@ u8 abyVT3184_AGC[] = {
     0x3E,   //3E
     0x3E    //3F
 };
-
 
 u8 abyVT3184_AL2230[] = {
         0x31,//00
@@ -382,8 +373,6 @@ u8 abyVT3184_AL2230[] = {
         0x00,
         0x00
 };
-
-
 
 //{{RobertYu:20060515, new BB setting for VT3226D0
 u8 abyVT3184_VT3226D0[] = {
@@ -648,7 +637,6 @@ u8 abyVT3184_VT3226D0[] = {
 const u16 awcFrameTime[MAX_RATE] =
 {10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216};
 
-
 /*
 static
 unsigned long
@@ -690,7 +678,6 @@ BBuGetFrameTime(
     unsigned int uTmp;
     unsigned int uRateIdx = (unsigned int)wRate;
     unsigned int uRate = 0;
-
 
     if (uRateIdx > RATE_54M) {
         ASSERT(0);
@@ -896,7 +883,6 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
     }
 }
 
-
 /*
  * Description: Set Antenna mode
  *
@@ -924,7 +910,6 @@ void BBvSetAntennaMode(struct vnt_private *pDevice, u8 byAntennaMode)
             pDevice->byBBRxConf |= 0x02;
             break;
     }
-
 
     CONTROLnsRequestOut(pDevice,
                     MESSAGE_TYPE_SET_ANTMD,
@@ -966,7 +951,6 @@ int BBbVT3184Init(struct vnt_private *pDevice)
     if (ntStatus != STATUS_SUCCESS) {
         return false;
     }
-
 
 //    if ((pDevice->abyEEPROM[EEP_OFS_RADIOCTL]&0x06)==0x04)
 //        return false;
@@ -1106,7 +1090,6 @@ else {
                     abyArray
                     );
 
-
     if ((pDevice->byRFType == RF_VT3226) || //RobertYu:20051116, 20060111 remove VT3226D0
          (pDevice->byRFType == RF_VT3342A0)  //RobertYu:20060609
          ) {
@@ -1118,7 +1101,6 @@ else {
         ControlvWriteByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_ITRTMSET,0x11);
         MACvRegBitsOn(pDevice,MAC_REG_PAPEDELAY,0x01);
     }
-
 
     ControlvWriteByte(pDevice,MESSAGE_REQUEST_BBREG,0x04,0x7F);
     ControlvWriteByte(pDevice,MESSAGE_REQUEST_BBREG,0x0D,0x01);
@@ -1154,7 +1136,6 @@ void BBvSetShortSlotTime(struct vnt_private *pDevice)
 
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0A, pDevice->byBBRxConf);
 }
-
 
 void BBvSetVGAGainOffset(struct vnt_private *pDevice, u8 byData)
 {
@@ -1193,7 +1174,6 @@ void BBvExitDeepSleep(struct vnt_private *pDevice)
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0C, 0x00);//CR12
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0D, 0x01);//CR13
 }
-
 
 static unsigned long s_ulGetLowSQ3(struct vnt_private *pDevice)
 {
@@ -1241,7 +1221,6 @@ static unsigned long s_ulGetRatio(struct vnt_private *pDevice)
     return ulRatio;
 }
 
-
 static void s_vClearSQ3Value(struct vnt_private *pDevice)
 {
     int ii;
@@ -1252,7 +1231,6 @@ static void s_vClearSQ3Value(struct vnt_private *pDevice)
         pDevice->aulSQ3Val[ii] = 0;
     }
 }
-
 
 /*
  * Description: Antenna Diversity
@@ -1385,7 +1363,6 @@ void BBvAntennaDiversity(struct vnt_private *pDevice,
     } //byAntennaState
 }
 
-
 /*+
  *
  * Description:
@@ -1418,10 +1395,8 @@ void TimerSQ3CallBack(struct vnt_private *pDevice)
     add_timer(&pDevice->TimerSQ3Tmax3);
     add_timer(&pDevice->TimerSQ3Tmax2);
 
-
     spin_unlock_irq(&pDevice->lock);
 }
-
 
 /*+
  *
@@ -1470,7 +1445,6 @@ void TimerSQ3Tmax3CallBack(struct vnt_private *pDevice)
 
 void BBvUpdatePreEDThreshold(struct vnt_private *pDevice, int bScanning)
 {
-
 
     switch(pDevice->byRFType)
     {

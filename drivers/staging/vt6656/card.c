@@ -60,20 +60,14 @@
 #include "rndis.h"
 #include "control.h"
 
-
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
-
-
-
 
 //const u16 cwRXBCNTSFOff[MAX_RATE] =
 //{17, 34, 96, 192, 34, 23, 17, 11, 8, 5, 4, 3};
 
 const u16 cwRXBCNTSFOff[MAX_RATE] =
 {192, 96, 34, 17, 34, 23, 17, 11, 8, 5, 4, 3};
-
-
 
 /*
  * Description: Set NIC media channel
@@ -630,7 +624,6 @@ u8 CARDbyGetPktType(struct vnt_private *pDevice)
     }
 }
 
-
 /*
  * Description: Calculate TSF offset of two TSF input
  *              Get TSF Offset from RxBCN's TSF and local TSF
@@ -660,8 +653,6 @@ u64 CARDqGetTSFOffset(u8 byRxRate, u64 qwTSF1, u64 qwTSF2)
 	return qwTSFOffset;
 }
 
-
-
 /*
  * Description: Sync. TSF counter to BSS
  *              Get TSF offset and write to HW
@@ -682,7 +673,6 @@ void CARDvAdjustTSF(struct vnt_private *pDevice, u8 byRxRate,
 {
 	u64 qwTSFOffset = 0;
 	u8 pbyData[8];
-
 
     qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp, qwLocalTSF);
     // adjust TSF
@@ -726,7 +716,6 @@ bool CARDbGetCurrentTSF(struct vnt_private *pDevice, u64 *pqwCurrTSF)
 
 	return true;
 }
-
 
 /*
  * Description: Clear NIC TSF counter
@@ -789,7 +778,6 @@ u64 CARDqGetNextTBTT(u64 qwTSF, u16 wBeaconInterval)
     return (qwTSF);
 }
 
-
 /*
  * Description: Set NIC TSF counter for first Beacon time
  *              Get NEXTTBTT from adjusted TSF and Beacon Interval
@@ -834,7 +822,6 @@ void CARDvSetFirstNextTBTT(struct vnt_private *pDevice, u16 wBeaconInterval)
     return;
 }
 
-
 /*
  * Description: Sync NIC TSF counter for Beacon time
  *              Get NEXTTBTT and write to HW
@@ -875,7 +862,6 @@ void CARDvUpdateNextTBTT(struct vnt_private *pDevice, u64 qwTSF,
                         8,
                         pbyData
                         );
-
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 		"Card:Update Next TBTT[%8lx]\n", (unsigned long)qwTSF);
@@ -921,7 +907,6 @@ int CARDbRadioPowerOff(struct vnt_private *pDevice)
 
     return bResult;
 }
-
 
 /*
  * Description: Turn on Radio power

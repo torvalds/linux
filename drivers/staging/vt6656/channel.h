@@ -32,15 +32,11 @@
 
 #include "device.h"
 
-
-
 typedef struct tagSChannelTblElement {
     u8    byChannelNumber;
     unsigned int    uFrequency;
     bool    bValid;
 } SChannelTblElement, *PSChannelTblElement;
-
-
 
 bool    ChannelValid(unsigned int CountryCode, unsigned int ChannelNum);
 void    CHvInitChannelTable(struct vnt_private *pDevice);

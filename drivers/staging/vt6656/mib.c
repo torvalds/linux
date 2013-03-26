@@ -43,10 +43,6 @@
 
 static int          msglevel                =MSG_LEVEL_INFO;
 
-
-
-
-
 /*
  * Description: Update Isr Statistic Counter
  *
@@ -71,7 +67,6 @@ void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, u8 byIsr0, u8 byIsr1)
         return;
     }
 
-
     if (byIsr0 & ISR_ACTX)              // ISR, bit0
         pStatistic->ISRStat.dwIsrTx0OK++;           // TXDMA0 successful
 
@@ -90,7 +85,6 @@ void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, u8 byIsr0, u8 byIsr1)
     if (byIsr0 & ISR_WATCHDOG)          // ISR, bit7
         pStatistic->ISRStat.dwIsrWatchDog++;
 
-
     if (byIsr1 & ISR_FETALERR)              // ISR, bit8
         pStatistic->ISRStat.dwIsrUnrecoverableError++;
 
@@ -104,7 +98,6 @@ void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, u8 byIsr0, u8 byIsr1)
         pStatistic->ISRStat.dwIsrRxNoBuf++;             // Rx No Buff
 
 }
-
 
 /*
  * Description: Update Rx Statistic Counter
@@ -298,7 +291,6 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
     pStatistic->dwRsrRxPacket++;
     pStatistic->dwRsrRxOctet += cbFrameLength;
 
-
     if (IS_TYPE_DATA(pbyBuffer)) {
         pStatistic->dwRsrRxData++;
     } else if (IS_TYPE_MGMT(pbyBuffer)){
@@ -429,8 +421,6 @@ STAvUpdateTDStatCounter (
         pStatistic->dwTsrDirected++;
     }
 }
-
-
 
 /*
  * Description: Update 802.11 mib counter

@@ -32,10 +32,6 @@
 
 #include "device.h"
 
-
-
-
-
 int PIPEnsControlOut(struct vnt_private *, u8 byRequest, u16 wValue,
 		u16 wIndex, u16 wLength, u8 *pbyBuffer);
 int PIPEnsControlOutAsyn(struct vnt_private *, u8 byRequest,

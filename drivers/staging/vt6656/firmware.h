@@ -32,10 +32,6 @@
 
 #include "device.h"
 
-
-
-
-
 int FIRMWAREbDownload(struct vnt_private *);
 int FIRMWAREbBrach2Sram(struct vnt_private *);
 int FIRMWAREbCheckVersion(struct vnt_private *);

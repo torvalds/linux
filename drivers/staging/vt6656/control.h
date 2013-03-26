@@ -33,7 +33,6 @@
 #include "device.h"
 #include "usbpipe.h"
 
-
 #define CONTROLnsRequestOut(Device, Request, Value, Index, Length, Buffer) \
 	PIPEnsControlOut(Device, Request, Value, Index, Length, Buffer)
 
@@ -43,9 +42,6 @@
 #define CONTROLnsRequestIn(Device, Request, Value, Index, Length, Buffer) \
 	PIPEnsControlIn(Device, Request, Value, Index, Length, Buffer)
 
-
-
-
 void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
 			u8 data);
 
@@ -54,6 +50,5 @@ void ControlvReadByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
 
 void ControlvMaskByte(struct vnt_private *pDevice, u8 reg_type, u8 reg_off,
 			u8 reg_mask, u8 data);
-
 
 #endif /* __CONTROL_H__ */

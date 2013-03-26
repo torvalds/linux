@@ -43,14 +43,6 @@
 #include "srom.h"
 #include "rf.h"
 
-
-
-
-
-
-
-
-
 /* static int msglevel = MSG_LEVEL_DEBUG; */
 static int          msglevel                =MSG_LEVEL_INFO;
 const u8 acbyIERate[MAX_RATE] =
@@ -59,7 +51,6 @@ const u8 acbyIERate[MAX_RATE] =
 #define AUTORATE_TXOK_CNT       0x0400
 #define AUTORATE_TXFAIL_CNT     0x0064
 #define AUTORATE_TIMEOUT        10
-
 
 void s_vResetCounter(PKnownNodeDB psNodeDBTable);
 
@@ -73,9 +64,6 @@ void s_vResetCounter(PKnownNodeDB psNodeDBTable)
         psNodeDBTable->uTxFail[ii] = 0;
     }
 }
-
-
-
 
 /*+
  *
@@ -94,9 +82,6 @@ void s_vResetCounter(PKnownNodeDB psNodeDBTable)
 -*/
 #define AUTORATE_TXCNT_THRESHOLD        20
 #define AUTORATE_INC_THRESHOLD          30
-
-
-
 
 /*+
  *
@@ -240,7 +225,6 @@ void RATEvParseMaxRate(struct vnt_private *pDevice,
 
      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Exit ParseMaxRate\n");
 }
-
 
 /*+
  *

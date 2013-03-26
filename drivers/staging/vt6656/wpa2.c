@@ -37,7 +37,6 @@
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
-
 const u8 abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
 const u8 abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
 const u8 abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
@@ -46,10 +45,6 @@ const u8 abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
 
 const u8 abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
 const u8 abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
-
-
-
-
 
 /*+
  *

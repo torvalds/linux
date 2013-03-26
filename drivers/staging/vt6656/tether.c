@@ -36,11 +36,6 @@
 #include "tcrc.h"
 #include "tether.h"
 
-
-
-
-
-
 /*
  * Description: Check CRC value of the buffer if Ok or not
  *

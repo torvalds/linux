@@ -27,7 +27,6 @@
  *
  */
 
-
 #ifndef __RNDIS_H__
 #define __RNDIS_H__
 
@@ -65,10 +64,7 @@
 #define MESSAGE_REQUEST_RF_CH1          0x0C
 #define MESSAGE_REQUEST_RF_CH2          0x0D
 
-
 #define VIAUSB20_PACKET_HEADER          0x04
-
-
 
 typedef struct _CMD_MESSAGE
 {
@@ -148,9 +144,6 @@ typedef struct _CMD_CHANGE_BBTYPE
     u16        wRSPINF_a[9];
 } CMD_CHANGE_BBTYPE, *PCMD_CHANGE_BBTYPE;
 
-
 #define EXCH_WORD(w) ((u16)((u16)(w)<<8) | (u16)((u16)(w)>>8))
-
-
 
 #endif /* _RNDIS_H_ */

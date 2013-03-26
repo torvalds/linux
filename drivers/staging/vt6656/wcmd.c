@@ -55,11 +55,6 @@
 #include "channel.h"
 #include "iowpa.h"
 
-
-
-
-
-
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
@@ -69,13 +64,9 @@ static struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *,
 	struct vnt_manager *pMgmt, u8 *pScanBSSID, PWLAN_IE_SSID pSSID,
 	PWLAN_IE_SUPP_RATES pCurrRates, PWLAN_IE_SUPP_RATES pCurrExtSuppRates);
 
-
 static int s_bCommandComplete(struct vnt_private *);
 
-
 static int s_bClearBSSID_SCAN(struct vnt_private *);
-
-
 
 /*
  * Description:
@@ -131,7 +122,6 @@ static void vAdHocBeaconStop(struct vnt_private *pDevice)
 
 } /* vAdHocBeaconStop */
 
-
 /*
  * Description:
  *      Restart AdHoc beacon after scan process complete
@@ -164,7 +154,6 @@ static void vAdHocBeaconRestart(struct vnt_private *pDevice)
 
 }
 
-
 /*+
  *
  * Routine Description:
@@ -192,7 +181,6 @@ static void s_vProbeChannel(struct vnt_private *pDevice)
 			4, 0x02, 0x04, 0x0B, 0x16};
 	u8 *pbyRate;
 	int ii;
-
 
     if (pDevice->byBBType == BB_TYPE_11A) {
         pbyRate = &abyCurrSuppRatesA[0];
@@ -225,9 +213,6 @@ static void s_vProbeChannel(struct vnt_private *pDevice)
 
 }
 
-
-
-
 /*+
  *
  * Routine Description:
@@ -239,14 +224,12 @@ static void s_vProbeChannel(struct vnt_private *pDevice)
  *
 -*/
 
-
 struct vnt_tx_mgmt *s_MgrMakeProbeRequest(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt, u8 *pScanBSSID, PWLAN_IE_SSID pSSID,
 	PWLAN_IE_SUPP_RATES pCurrRates, PWLAN_IE_SUPP_RATES pCurrExtSuppRates)
 {
 	struct vnt_tx_mgmt *pTxPacket = NULL;
 	WLAN_FR_PROBEREQ sFrame;
-
 
 	pTxPacket = (struct vnt_tx_mgmt *)pMgmt->pbyMgmtPacketPool;
 	memset(pTxPacket, 0, sizeof(struct vnt_tx_mgmt)
@@ -308,7 +291,6 @@ void vRunCommand(struct vnt_private *pDevice)
 	int ii;
 	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	u8 byData;
-
 
     if (pDevice->dwDiagRefCount != 0)
         return;
@@ -495,7 +477,6 @@ void vRunCommand(struct vnt_private *pDevice)
                 CARDbRadioPowerOff(pDevice);
             s_bCommandComplete(pDevice);
             break;
-
 
         case WLAN_CMD_SSID_START:
 
@@ -903,7 +884,6 @@ void vRunCommand(struct vnt_private *pDevice)
             s_bCommandComplete(pDevice);
             break;
 
-
         case WLAN_CMD_CHANGE_BBSENSITIVITY_START:
 
             pDevice->bStopDataPkt = true;
@@ -954,7 +934,6 @@ void vRunCommand(struct vnt_private *pDevice)
             s_bCommandComplete(pDevice);
             break;
 
-
         case WLAN_CMD_MAC_DISPOWERSAVING_START:
             ControlvReadByte (pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
             if ( (byData & PSCTL_PS) != 0 ) {
@@ -987,14 +966,12 @@ void vRunCommand(struct vnt_private *pDevice)
     return;
 }
 
-
 static int s_bCommandComplete(struct vnt_private *pDevice)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	PWLAN_IE_SSID pSSID;
 	int bRadioCmd = false;
 	int bForceSCAN = true;
-
 
     pDevice->eCommandState = WLAN_CMD_IDLE;
     if (pDevice->cbFreeCmdQueue == CMD_Q_SIZE) {
@@ -1175,7 +1152,6 @@ static int s_bClearBSSID_SCAN(struct vnt_private *pDevice)
     }
     return true;
 }
-
 
 //mike add:reset command timer
 void vResetCommandTimer(struct vnt_private *pDevice)

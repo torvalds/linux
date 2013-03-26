@@ -45,7 +45,6 @@
 #include <linux/timer.h>
 #include <linux/usb.h>
 
-
 #ifdef SIOCETHTOOL
 #define DEVICE_ETHTOOL_IOCTL_SUPPORT
 #include <linux/ethtool.h>
@@ -120,7 +119,6 @@
 #define ANT_RXA                 2
 #define ANT_RXB                 3
 
-
 #define MAXCHECKHANGCNT         4
 
 /* Packet type */
@@ -139,7 +137,6 @@
 #define RESERV_AC0DMA                   4
 
 #define PRIVATE_Message                 0
-
 
 #define DBG_PRT(l, p, args...) { if (l <= msglevel) printk(p, ##args); }
 #define PRINT_K(p, args...) { if (PRIVATE_Message) printk(p, ##args); }
@@ -248,7 +245,6 @@ typedef enum __DEVICE_NDIS_STATUS {
 /* PMKID Structures */
 typedef unsigned char   NDIS_802_11_PMKID_VALUE[16];
 
-
 typedef enum _NDIS_802_11_WEP_STATUS
 {
     Ndis802_11WEPEnabled,
@@ -266,7 +262,6 @@ typedef enum _NDIS_802_11_WEP_STATUS
 } NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
   NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
 
-
 typedef enum _NDIS_802_11_STATUS_TYPE
 {
 	Ndis802_11StatusType_Authentication,
@@ -280,7 +275,6 @@ typedef struct _PMKID_CANDIDATE {
     NDIS_802_11_MAC_ADDRESS BSSID;
     unsigned long Flags;
 } PMKID_CANDIDATE, *PPMKID_CANDIDATE;
-
 
 typedef struct _BSSID_INFO
 {
@@ -368,7 +362,6 @@ typedef struct tagSDeFragControlBlock
 /* for device_set_media_duplex */
 #define     DEVICE_LINK_CHANGE           0x00000001UL
 
-
 typedef struct __device_opt {
 	int nRxDescs0;  /* number of RX descriptors 0 */
 	int nTxDescs0;  /* number of TX descriptors 0, 1, 2, 3 */
@@ -382,7 +375,6 @@ typedef struct __device_opt {
     int         bbp_type;
     u32         flags;
 } OPTIONS, *POPTIONS;
-
 
 struct vnt_private {
 	/* netdev */
@@ -417,7 +409,6 @@ struct vnt_private {
 	u32 cbFreeDFCB;
 	u32 uCurrentDFCBIdx;
 
-
 	/* USB */
 	struct urb *pControlURB;
 	struct urb *pInterruptURB;
@@ -450,7 +441,6 @@ struct vnt_private {
 	/* default config from file by user setting */
 	DEFAULT_CONFIG config_file;
 
-
 	/* Statistic for USB */
 	unsigned long ulBulkInPosted;
 	unsigned long ulBulkInError;
@@ -467,13 +457,11 @@ struct vnt_private {
 	unsigned long ulIntInContCRCError;
 	unsigned long ulIntInBytesRead;
 
-
 	/* Version control */
 	u16 wFirmwareVersion;
 	u8 byLocalID;
 	u8 byRFType;
 	u8 byBBRxConf;
-
 
 	u8 byZoneType;
 	int bZoneRegExist;
@@ -567,7 +555,6 @@ struct vnt_private {
 	u8 byACKRate;
 	u8 byTopOFDMBasicRate;
 	u8 byTopCCKBasicRate;
-
 
 	u32 dwAotoRateTxOkCnt;
 	u32 dwAotoRateTxFailCnt;
@@ -681,7 +668,6 @@ struct vnt_private {
 	SKeyManagement sKey;
 	u32 dwIVCounter;
 
-
 	RC4Ext SBox;
 	u8 abyPRNG[WLAN_WEPMAX_KEYLEN+3];
 	u8 byKeyIndex;
@@ -698,12 +684,10 @@ struct vnt_private {
 	/* QoS */
 	int bGrpAckPolicy;
 
-
 	u8 byAutoFBCtrl;
 
 	int bTxMICFail;
 	int bRxMICFail;
-
 
 	/* For Update BaseBand VGA Gain Offset */
 	int bUpdateBBVGA;
@@ -715,7 +699,6 @@ struct vnt_private {
 
 	u8 byBBPreEDRSSI;
 	u8 byBBPreEDIndex;
-
 
 	int bRadioCmd;
 	u32 dwDiagRefCount;
@@ -754,7 +737,6 @@ struct vnt_private {
 	SPMKID gsPMKID;
 	SPMKIDCandidateEvent gsPMKIDCandidate;
 
-
 	/* for 802.11h */
 	int b11hEnable;
 
@@ -785,9 +767,6 @@ struct vnt_private {
 
 };
 
-
-
-
 #define EnqueueRCB(_Head, _Tail, _RCB)                  \
 {                                                       \
     if (!_Head) {                                       \
@@ -809,14 +788,12 @@ struct vnt_private {
     Head = RCB->Next;                                   \
 }
 
-
 #define ADD_ONE_WITH_WRAP_AROUND(uVar, uModulo) {   \
     if ((uVar) >= ((uModulo) - 1))                  \
         (uVar) = 0;                                 \
     else                                            \
         (uVar)++;                                   \
 }
-
 
 #define fMP_RESET_IN_PROGRESS               0x00000001
 #define fMP_DISCONNECTED                    0x00000002
@@ -837,7 +814,6 @@ struct vnt_private {
 
 #define MP_IS_READY(_M)        (((_M)->Flags & \
                                  (fMP_DISCONNECTED | fMP_RESET_IN_PROGRESS | fMP_HALT_IN_PROGRESS | fMP_INIT_IN_PROGRESS | fMP_SURPRISE_REMOVED)) == 0)
-
 
 int device_alloc_frag_buf(struct vnt_private *, PSDeFragControlBlock pDeF);
 

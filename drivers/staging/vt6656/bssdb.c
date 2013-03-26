@@ -58,15 +58,8 @@
 #include "rndis.h"
 #include "iowpa.h"
 
-
-
-
-
-
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
-
-
 
 const u16             awHWRetry0[5][5] = {
                                             {RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
@@ -83,19 +76,9 @@ const u16             awHWRetry1[5][5] = {
                                             {RATE_54M, RATE_54M, RATE_36M, RATE_18M, RATE_18M}
                                            };
 
-
-
-
 static void s_vCheckSensitivity(struct vnt_private *pDevice);
 static void s_vCheckPreEDThreshold(struct vnt_private *pDevice);
 static void s_uCalculateLinkQual(struct vnt_private *pDevice);
-
-
-
-
-
-
-
 
 /*+
  *
@@ -214,7 +197,6 @@ PKnownBSS BSSpSearchBSSList(struct vnt_private *pDevice,
 			pCurrBSS->abyBSSID);
         jj++;
 
-
                 if (pSelect == NULL) {
                     pSelect = pCurrBSS;
                 } else {
@@ -242,7 +224,6 @@ pDevice->bSameBSSMaxNum = jj;
 
 }
 
-
 /*+
  *
  * Routine Description:
@@ -252,7 +233,6 @@ pDevice->bSameBSSMaxNum = jj;
  *    None.
  *
 -*/
-
 
 void BSSvClearBSSList(struct vnt_private *pDevice, int bKeepCurrBSSID)
 {
@@ -277,8 +257,6 @@ void BSSvClearBSSList(struct vnt_private *pDevice, int bKeepCurrBSSID)
     }
     BSSvClearAnyBSSJoinRecord(pDevice);
 }
-
-
 
 /*+
  *
@@ -312,8 +290,6 @@ PKnownBSS BSSpAddrIsInBSSList(struct vnt_private *pDevice,
 
     return NULL;
 };
-
-
 
 /*+
  *
@@ -349,7 +325,6 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 	PKnownBSS pBSSList = NULL;
 	unsigned int ii;
 	bool bParsingQuiet = false;
-
 
     pBSSList = (PKnownBSS)&(pMgmt->sBSSList[0]);
 
@@ -491,7 +466,6 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
     return true;
 }
 
-
 /*+
  *
  * Routine Description:
@@ -531,7 +505,6 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
 
     if (pBSSList == NULL)
         return false;
-
 
 	pBSSList->qwBSSTimestamp = cpu_to_le64(qwTimestamp);
 
@@ -631,10 +604,6 @@ int BSSbUpdateToBSSList(struct vnt_private *pDevice,
     return true;
 }
 
-
-
-
-
 /*+
  *
  * Routine Description:
@@ -664,8 +633,6 @@ int BSSbIsSTAInNodeDB(struct vnt_private *pDevice,
 
    return false;
 };
-
-
 
 /*+
  *
@@ -724,8 +691,6 @@ void BSSvCreateOneNode(struct vnt_private *pDevice, u32 *puNodeIndex)
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Create node index = %d\n", ii);
 };
 
-
-
 /*+
  *
  * Routine Description:
@@ -742,7 +707,6 @@ void BSSvRemoveOneNode(struct vnt_private *pDevice, u32 uNodeIndex)
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	u8 byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	struct sk_buff  *skb;
-
 
     while ((skb = skb_dequeue(&pMgmt->sNodeDBTable[uNodeIndex].sTxPSQueue)) != NULL)
             dev_kfree_skb(skb);
@@ -941,7 +905,6 @@ if(pDevice->byReAssocCount > 0) {
                 if (pMgmt->sNodeDBTable[ii].bPSEnable)
                     uSleepySTACnt++;
 
-
             }
 
             // Rate fallback check
@@ -973,7 +936,6 @@ if(pDevice->byReAssocCount > 0) {
         }
 
     }
-
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->byBBType == BB_TYPE_11G)) {
 
@@ -1023,7 +985,6 @@ if(pDevice->byReAssocCount > 0) {
         }
 
     }
-
 
     // Check if any STA in PS mode, enable DTIM multicast deliver
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {

@@ -33,7 +33,6 @@
 
 #include "80211hdr.h"
 
-
 #define WPA_NONE            0
 #define WPA_WEP40           1
 #define WPA_TKIP            2
@@ -46,11 +45,6 @@
 #define WPA_GROUPFLAG       0x02
 #define WPA_REPLAYBITSSHIFT 2
 #define WPA_REPLAYBITS      0x03
-
-
-
-
-
 
 void
 WPA_ClearRSN(

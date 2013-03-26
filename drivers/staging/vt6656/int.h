@@ -56,9 +56,6 @@ typedef struct tagSINTData {
 } __attribute__ ((__packed__))
 SINTData, *PSINTData;
 
-
-
-
 void INTvWorkItem(struct vnt_private *);
 void INTnsProcessData(struct vnt_private *);
 

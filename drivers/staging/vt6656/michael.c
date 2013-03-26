@@ -42,8 +42,6 @@
 #include "tmacro.h"
 #include "michael.h"
 
-
-
 /*
  * static u32 s_dwGetUINT32(u8 * p);         Get u32 from
  *							4 bytes LSByte first
@@ -61,7 +59,6 @@ static u32  L, R;		/* Current state */
 static u32  K0, K1;		/* Key */
 static u32  M;		/* Message accumulator (single word) */
 static unsigned int   nBytesInM;	/* # bytes in M */
-
 
 /*
 static u32 s_dwGetUINT32 (u8 * p)
@@ -130,7 +127,6 @@ void MIC_vInit(u32 dwK0, u32 dwK1)
 	/* Set the key */
 	s_vSetKey(dwK0, dwK1);
 }
-
 
 void MIC_vUnInit(void)
 {

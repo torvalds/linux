@@ -47,11 +47,6 @@ typedef struct tagSPMKIDCache {
 	PMKIDInfo BSSIDInfo[MAX_PMKID_CACHE];
 } SPMKIDCache, *PSPMKIDCache;
 
-
-
-
-
-
 void WPA2_ClearRSN(PKnownBSS pBSSNode);
 void WPA2vParseRSN(PKnownBSS pBSSNode, PWLAN_IE_RSN pRSN);
 
