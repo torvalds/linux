@@ -1097,6 +1097,17 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 	return ret;
 }
 
+/**
+ * regmap_can_raw_write - Test if regmap_raw_write() is supported
+ *
+ * @map: Map to check.
+ */
+bool regmap_can_raw_write(struct regmap *map)
+{
+	return map->bus && map->format.format_val && map->format.format_reg;
+}
+EXPORT_SYMBOL_GPL(regmap_can_raw_write);
+
 static int _regmap_bus_formatted_write(void *context, unsigned int reg,
 				       unsigned int val)
 {
@@ -1220,11 +1231,9 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 {
 	int ret;
 
-	if (!map->bus)
+	if (!regmap_can_raw_write(map))
 		return -EINVAL;
 	if (val_len % map->format.val_bytes)
-		return -EINVAL;
-	if (reg % map->reg_stride)
 		return -EINVAL;
 
 	map->lock(map->lock_arg);
