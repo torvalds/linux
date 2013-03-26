@@ -1364,7 +1364,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		struct platform_device *mdio;
 
 		parp = of_get_property(slave_node, "phy_id", &lenp);
-		if ((parp == NULL) && (lenp != (sizeof(void *) * 2))) {
+		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
 			pr_err("Missing slave[%d] phy_id property\n", i);
 			ret = -EINVAL;
 			goto error_ret;

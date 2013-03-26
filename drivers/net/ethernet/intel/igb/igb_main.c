@@ -2542,8 +2542,8 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211))
 		return;
 
-	igb_enable_sriov(pdev, max_vfs);
 	pci_sriov_set_totalvfs(pdev, 7);
+	igb_enable_sriov(pdev, max_vfs);
 
 #endif /* CONFIG_PCI_IOV */
 }
@@ -2652,7 +2652,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 		if (max_vfs > 7) {
 			dev_warn(&pdev->dev,
 				 "Maximum of 7 VFs per PF, using max\n");
-			adapter->vfs_allocated_count = 7;
+			max_vfs = adapter->vfs_allocated_count = 7;
 		} else
 			adapter->vfs_allocated_count = max_vfs;
 		if (adapter->vfs_allocated_count)
