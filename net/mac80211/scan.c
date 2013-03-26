@@ -181,7 +181,7 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 	if (baselen > skb->len)
 		return;
 
-	ieee802_11_parse_elems(elements, skb->len - baselen, &elems);
+	ieee802_11_parse_elems(elements, skb->len - baselen, false, &elems);
 
 	channel = ieee80211_get_channel(local->hw.wiphy, rx_status->freq);
 

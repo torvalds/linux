@@ -687,7 +687,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		baseaddr += 4;
 		baselen += 4;
 	}
-	ieee802_11_parse_elems(baseaddr, len - baselen, &elems);
+	ieee802_11_parse_elems(baseaddr, len - baselen, true, &elems);
 
 	if (!elems.peering) {
 		mpl_dbg(sdata,

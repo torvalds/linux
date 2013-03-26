@@ -1179,6 +1179,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_rann_ie *rann;
 	const struct ieee80211_channel_sw_ie *ch_switch_ie;
 	const struct ieee80211_ext_chansw_ie *ext_chansw_ie;
+	const struct ieee80211_wide_bw_chansw_ie *wide_bw_chansw_ie;
 	const u8 *country_elem;
 	const u8 *pwr_constr_elem;
 	const struct ieee80211_timeout_interval_ie *timeout_int;
@@ -1490,13 +1491,13 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb_tid(sdata, skb, 7);
 }
 
-u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
+u32 ieee802_11_parse_elems_crc(u8 *start, size_t len, bool action,
 			       struct ieee802_11_elems *elems,
 			       u64 filter, u32 crc);
-static inline void ieee802_11_parse_elems(u8 *start, size_t len,
+static inline void ieee802_11_parse_elems(u8 *start, size_t len, bool action,
 					  struct ieee802_11_elems *elems)
 {
-	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
+	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0);
 }
 
 u32 ieee80211_mandatory_rates(struct ieee80211_local *local,

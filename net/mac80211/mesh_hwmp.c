@@ -880,7 +880,7 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 
 	baselen = (u8 *) mgmt->u.action.u.mesh_action.variable - (u8 *) mgmt;
 	ieee802_11_parse_elems(mgmt->u.action.u.mesh_action.variable,
-			len - baselen, &elems);
+			       len - baselen, false, &elems);
 
 	if (elems.preq) {
 		if (elems.preq_len != 37)
