@@ -1021,7 +1021,7 @@ static int solo_s_parm(struct file *file, void *priv,
 }
 
 static long solo_enc_default(struct file *file, void *fh,
-			bool valid_prio, int cmd, void *arg)
+			bool valid_prio, unsigned int cmd, void *arg)
 {
 	struct solo_enc_dev *solo_enc = video_drvdata(file);
 	struct solo_dev *solo_dev = solo_enc->solo_dev;

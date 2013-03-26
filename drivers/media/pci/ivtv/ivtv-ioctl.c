@@ -1807,7 +1807,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 }
 
 static long ivtv_default(struct file *file, void *fh, bool valid_prio,
-			 int cmd, void *arg)
+			 unsigned int cmd, void *arg)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 

@@ -1110,7 +1110,7 @@ static int cx18_log_status(struct file *file, void *fh)
 }
 
 static long cx18_default(struct file *file, void *fh, bool valid_prio,
-							int cmd, void *arg)
+			 unsigned int cmd, void *arg)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 

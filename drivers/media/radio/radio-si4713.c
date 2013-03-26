@@ -222,7 +222,7 @@ static int radio_si4713_s_frequency(struct file *file, void *p,
 }
 
 static long radio_si4713_default(struct file *file, void *p,
-				 bool valid_prio, int cmd, void *arg)
+				 bool valid_prio, unsigned int cmd, void *arg)
 {
 	return v4l2_device_call_until_err(get_v4l2_dev(file), 0, core,
 					  ioctl, cmd, arg);

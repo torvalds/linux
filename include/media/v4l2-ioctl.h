@@ -275,7 +275,7 @@ struct v4l2_ioctl_ops {
 
 	/* For other private ioctls */
 	long (*vidioc_default)	       (struct file *file, void *fh,
-					bool valid_prio, int cmd, void *arg);
+					bool valid_prio, unsigned int cmd, void *arg);
 };
 
 
