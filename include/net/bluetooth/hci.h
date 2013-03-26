@@ -119,9 +119,15 @@ enum {
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
 	HCI_LINK_SECURITY,
-	HCI_PENDING_CLASS,
 	HCI_PERIODIC_INQ,
+	HCI_FAST_CONNECTABLE,
 };
+
+/* A mask for the flags that are supposed to remain when a reset happens
+ * or the HCI device is closed.
+ */
+#define HCI_PERSISTENT_MASK (BIT(HCI_LE_SCAN) | BIT(HCI_PERIODIC_INQ) | \
+			      BIT(HCI_FAST_CONNECTABLE))
 
 /* HCI ioctl defines */
 #define HCIDEVUP	_IOW('H', 201, int)
@@ -881,10 +887,23 @@ struct hci_rp_read_data_block_size {
 	__le16   num_blocks;
 } __packed;
 
+#define HCI_OP_READ_PAGE_SCAN_ACTIVITY	0x0c1b
+struct hci_rp_read_page_scan_activity {
+	__u8     status;
+	__le16   interval;
+	__le16   window;
+} __packed;
+
 #define HCI_OP_WRITE_PAGE_SCAN_ACTIVITY	0x0c1c
 struct hci_cp_write_page_scan_activity {
 	__le16   interval;
 	__le16   window;
+} __packed;
+
+#define HCI_OP_READ_PAGE_SCAN_TYPE	0x0c46
+struct hci_rp_read_page_scan_type {
+	__u8     status;
+	__u8     type;
 } __packed;
 
 #define HCI_OP_WRITE_PAGE_SCAN_TYPE	0x0c47

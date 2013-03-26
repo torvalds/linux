@@ -2780,9 +2780,7 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_cc_write32(&dev->dev->bdev->bus->drv_cc, BCMA_CC_GPIOCTL,
-				(bcma_cc_read32(&dev->dev->bdev->bus->drv_cc,
-					BCMA_CC_GPIOCTL) & ~mask) | set);
+		bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc, mask, set);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
@@ -2807,8 +2805,7 @@ static void b43_gpio_cleanup(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_cc_write32(&dev->dev->bdev->bus->drv_cc, BCMA_CC_GPIOCTL,
-				0);
+		bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc, ~0, 0);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB

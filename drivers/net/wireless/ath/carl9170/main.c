@@ -1703,7 +1703,7 @@ found:
 	return 0;
 }
 
-static void carl9170_op_flush(struct ieee80211_hw *hw, bool drop)
+static void carl9170_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	struct ar9170 *ar = hw->priv;
 	unsigned int vid;

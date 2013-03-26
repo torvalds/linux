@@ -248,11 +248,11 @@ void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
 }
 
 
-static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
-				    struct sta_info *sta,
-				    bool pairwise,
-				    struct ieee80211_key *old,
-				    struct ieee80211_key *new)
+static void ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
+				  struct sta_info *sta,
+				  bool pairwise,
+				  struct ieee80211_key *old,
+				  struct ieee80211_key *new)
 {
 	int idx;
 	bool defunikey, defmultikey, defmgmtkey;
@@ -397,25 +397,21 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 	return key;
 }
 
-static void __ieee80211_key_destroy(struct ieee80211_key *key,
-				    bool delay_tailroom)
+static void ieee80211_key_free_common(struct ieee80211_key *key)
 {
-	if (!key)
-		return;
-
-	/*
-	 * Synchronize so the TX path can no longer be using
-	 * this key before we free/remove it.
-	 */
-	synchronize_net();
-
-	if (key->local)
-		ieee80211_key_disable_hw_accel(key);
-
 	if (key->conf.cipher == WLAN_CIPHER_SUITE_CCMP)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
 	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
+	kfree(key);
+}
+
+static void __ieee80211_key_destroy(struct ieee80211_key *key,
+				    bool delay_tailroom)
+{
+	if (key->local)
+		ieee80211_key_disable_hw_accel(key);
+
 	if (key->local) {
 		struct ieee80211_sub_if_data *sdata = key->sdata;
 
@@ -431,7 +427,28 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key,
 		}
 	}
 
-	kfree(key);
+	ieee80211_key_free_common(key);
+}
+
+static void ieee80211_key_destroy(struct ieee80211_key *key,
+				  bool delay_tailroom)
+{
+	if (!key)
+		return;
+
+	/*
+	 * Synchronize so the TX path can no longer be using
+	 * this key before we free/remove it.
+	 */
+	synchronize_net();
+
+	__ieee80211_key_destroy(key, delay_tailroom);
+}
+
+void ieee80211_key_free_unused(struct ieee80211_key *key)
+{
+	WARN_ON(key->sdata || key->local);
+	ieee80211_key_free_common(key);
 }
 
 int ieee80211_key_link(struct ieee80211_key *key,
@@ -462,19 +479,22 @@ int ieee80211_key_link(struct ieee80211_key *key,
 
 	increment_tailroom_need_count(sdata);
 
-	__ieee80211_key_replace(sdata, sta, pairwise, old_key, key);
-	__ieee80211_key_destroy(old_key, true);
+	ieee80211_key_replace(sdata, sta, pairwise, old_key, key);
+	ieee80211_key_destroy(old_key, true);
 
 	ieee80211_debugfs_key_add(key);
 
 	ret = ieee80211_key_enable_hw_accel(key);
+
+	if (ret)
+		ieee80211_key_free(key, true);
 
 	mutex_unlock(&sdata->local->key_mtx);
 
 	return ret;
 }
 
-void __ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
+void ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
 {
 	if (!key)
 		return;
@@ -483,18 +503,10 @@ void __ieee80211_key_free(struct ieee80211_key *key, bool delay_tailroom)
 	 * Replace key with nothingness if it was ever used.
 	 */
 	if (key->sdata)
-		__ieee80211_key_replace(key->sdata, key->sta,
+		ieee80211_key_replace(key->sdata, key->sta,
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
-	__ieee80211_key_destroy(key, delay_tailroom);
-}
-
-void ieee80211_key_free(struct ieee80211_local *local,
-			struct ieee80211_key *key)
-{
-	mutex_lock(&local->key_mtx);
-	__ieee80211_key_free(key, true);
-	mutex_unlock(&local->key_mtx);
+	ieee80211_key_destroy(key, delay_tailroom);
 }
 
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
@@ -554,6 +566,7 @@ EXPORT_SYMBOL(ieee80211_iter_keys);
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key, *tmp;
+	LIST_HEAD(keys);
 
 	cancel_delayed_work_sync(&sdata->dec_tailroom_needed_wk);
 
@@ -565,15 +578,63 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 
 	ieee80211_debugfs_key_remove_mgmt_default(sdata);
 
-	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
-		__ieee80211_key_free(key, false);
+	list_for_each_entry_safe(key, tmp, &sdata->key_list, list) {
+		ieee80211_key_replace(key->sdata, key->sta,
+				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
+				key, NULL);
+		list_add_tail(&key->list, &keys);
+	}
 
 	ieee80211_debugfs_key_update_default(sdata);
+
+	if (!list_empty(&keys)) {
+		synchronize_net();
+		list_for_each_entry_safe(key, tmp, &keys, list)
+			__ieee80211_key_destroy(key, false);
+	}
 
 	WARN_ON_ONCE(sdata->crypto_tx_tailroom_needed_cnt ||
 		     sdata->crypto_tx_tailroom_pending_dec);
 
 	mutex_unlock(&sdata->local->key_mtx);
+}
+
+void ieee80211_free_sta_keys(struct ieee80211_local *local,
+			     struct sta_info *sta)
+{
+	struct ieee80211_key *key, *tmp;
+	LIST_HEAD(keys);
+	int i;
+
+	mutex_lock(&local->key_mtx);
+	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+		key = key_mtx_dereference(local, sta->gtk[i]);
+		if (!key)
+			continue;
+		ieee80211_key_replace(key->sdata, key->sta,
+				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
+				key, NULL);
+		list_add(&key->list, &keys);
+	}
+
+	key = key_mtx_dereference(local, sta->ptk);
+	if (key) {
+		ieee80211_key_replace(key->sdata, key->sta,
+				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
+				key, NULL);
+		list_add(&key->list, &keys);
+	}
+
+	/*
+	 * NB: the station code relies on this being
+	 * done even if there aren't any keys
+	 */
+	synchronize_net();
+
+	list_for_each_entry_safe(key, tmp, &keys, list)
+		__ieee80211_key_destroy(key, true);
+
+	mutex_unlock(&local->key_mtx);
 }
 
 void ieee80211_delayed_tailroom_dec(struct work_struct *wk)

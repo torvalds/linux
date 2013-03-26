@@ -1111,8 +1111,7 @@ void __exit sco_exit(void)
 
 	debugfs_remove(sco_debugfs);
 
-	if (bt_sock_unregister(BTPROTO_SCO) < 0)
-		BT_ERR("SCO socket unregistration failed");
+	bt_sock_unregister(BTPROTO_SCO);
 
 	proto_unregister(&sco_proto);
 }

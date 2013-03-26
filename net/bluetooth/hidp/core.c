@@ -311,6 +311,9 @@ static int hidp_get_raw_report(struct hid_device *hid,
 	int numbered_reports = hid->report_enum[report_type].numbered;
 	int ret;
 
+	if (atomic_read(&session->terminate))
+		return -EIO;
+
 	switch (report_type) {
 	case HID_FEATURE_REPORT:
 		report_type = HIDP_TRANS_GET_REPORT | HIDP_DATA_RTYPE_FEATURE;
@@ -722,6 +725,7 @@ static int hidp_session(void *arg)
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	set_current_state(TASK_RUNNING);
+	atomic_inc(&session->terminate);
 	remove_wait_queue(sk_sleep(intr_sk), &intr_wait);
 	remove_wait_queue(sk_sleep(ctrl_sk), &ctrl_wait);
 

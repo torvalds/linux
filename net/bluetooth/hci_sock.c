@@ -854,6 +854,11 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			skb_queue_tail(&hdev->raw_q, skb);
 			queue_work(hdev->workqueue, &hdev->tx_work);
 		} else {
+			/* Stand-alone HCI commands must be flaged as
+			 * single-command requests.
+			 */
+			bt_cb(skb)->req.start = true;
+
 			skb_queue_tail(&hdev->cmd_q, skb);
 			queue_work(hdev->workqueue, &hdev->cmd_work);
 		}
@@ -1121,8 +1126,6 @@ error:
 void hci_sock_cleanup(void)
 {
 	bt_procfs_cleanup(&init_net, "hci");
-	if (bt_sock_unregister(BTPROTO_HCI) < 0)
-		BT_ERR("HCI socket unregistration failed");
-
+	bt_sock_unregister(BTPROTO_HCI);
 	proto_unregister(&hci_sk_proto);
 }

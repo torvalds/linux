@@ -136,11 +136,14 @@ struct rtl_usb {
 	void (*usb_tx_cleanup)(struct ieee80211_hw *, struct sk_buff *);
 
 	/* Rx */
-	u8 in_ep_nums ;
+	u8 in_ep_nums;
 	u32 in_ep;		/* Bulk IN endpoint number */
 	u32 rx_max_size;	/* Bulk IN max buffer size */
 	u32 rx_urb_num;		/* How many Bulk INs are submitted to host. */
 	struct usb_anchor	rx_submitted;
+	struct usb_anchor	rx_cleanup_urbs;
+	struct tasklet_struct   rx_work_tasklet;
+	struct sk_buff_head	rx_queue;
 	void (*usb_rx_segregate_hdl)(struct ieee80211_hw *, struct sk_buff *,
 				     struct sk_buff_head *);
 	void (*usb_rx_hdl)(struct ieee80211_hw *, struct sk_buff *);

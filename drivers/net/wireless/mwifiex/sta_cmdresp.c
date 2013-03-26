@@ -907,6 +907,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_REMAIN_ON_CHAN:
 		ret = mwifiex_ret_remain_on_chan(priv, resp, data_buf);
 		break;
+	case HostCmd_CMD_11AC_CFG:
+		break;
 	case HostCmd_CMD_P2P_MODE_CFG:
 		ret = mwifiex_ret_p2p_mode_cfg(priv, resp, data_buf);
 		break;

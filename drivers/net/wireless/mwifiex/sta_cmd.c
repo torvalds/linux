@@ -24,6 +24,7 @@
 #include "main.h"
 #include "wmm.h"
 #include "11n.h"
+#include "11ac.h"
 
 /*
  * This function prepares command to set/get RSSI information.
@@ -1257,6 +1258,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		cmd_ptr->size =
 		      cpu_to_le16(sizeof(struct host_cmd_ds_remain_on_chan) +
 				  S_DS_GEN);
+		break;
+	case HostCmd_CMD_11AC_CFG:
+		ret = mwifiex_cmd_11ac_cfg(priv, cmd_ptr, cmd_action, data_buf);
 		break;
 	case HostCmd_CMD_P2P_MODE_CFG:
 		cmd_ptr->command = cpu_to_le16(cmd_no);

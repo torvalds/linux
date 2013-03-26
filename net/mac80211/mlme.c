@@ -1009,6 +1009,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 
 	/* XXX: wait for a beacon first? */
 	ieee80211_wake_queues_by_reason(&sdata->local->hw,
+					IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
  out:
 	ifmgd->flags &= ~IEEE80211_STA_CSA_RECEIVED;
@@ -1108,6 +1109,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 
 	if (sw_elem->mode)
 		ieee80211_stop_queues_by_reason(&sdata->local->hw,
+				IEEE80211_MAX_QUEUE_MAP,
 				IEEE80211_QUEUE_STOP_REASON_CSA);
 
 	if (sdata->local->ops->channel_switch) {
@@ -1375,6 +1377,7 @@ void ieee80211_dynamic_ps_disable_work(struct work_struct *work)
 	}
 
 	ieee80211_wake_queues_by_reason(&local->hw,
+					IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_PS);
 }
 
@@ -1436,7 +1439,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		else {
 			ieee80211_send_nullfunc(local, sdata, 1);
 			/* Flush to get the tx status of nullfunc frame */
-			drv_flush(local, false);
+			ieee80211_flush_queues(local, sdata);
 		}
 	}
 
@@ -1767,7 +1770,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	/* flush out any pending frame (e.g. DELBA) before deauth/disassoc */
 	if (tx)
-		drv_flush(local, false);
+		ieee80211_flush_queues(local, sdata);
 
 	/* deauthenticate/disassociate now */
 	if (tx || frame_buf)
@@ -1776,7 +1779,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	/* flush out frame */
 	if (tx)
-		drv_flush(local, false);
+		ieee80211_flush_queues(local, sdata);
 
 	/* clear bssid only after building the needed mgmt frames */
 	memset(ifmgd->bssid, 0, ETH_ALEN);
@@ -1948,7 +1951,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	ifmgd->probe_timeout = jiffies + msecs_to_jiffies(probe_wait_ms);
 	run_again(ifmgd, ifmgd->probe_timeout);
 	if (sdata->local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
-		drv_flush(sdata->local, false);
+		ieee80211_flush_queues(sdata->local, sdata);
 }
 
 static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
@@ -2071,6 +2074,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 			       true, frame_buf);
 	ifmgd->flags &= ~IEEE80211_STA_CSA_RECEIVED;
 	ieee80211_wake_queues_by_reason(&sdata->local->hw,
+					IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
 	mutex_unlock(&ifmgd->mtx);
 
