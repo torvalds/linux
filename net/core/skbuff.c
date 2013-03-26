@@ -3370,6 +3370,7 @@ bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off)
 	skb->ip_summed = CHECKSUM_PARTIAL;
 	skb->csum_start = skb_headroom(skb) + start;
 	skb->csum_offset = off;
+	skb_set_transport_header(skb, start);
 	return true;
 }
 EXPORT_SYMBOL_GPL(skb_partial_csum_set);
