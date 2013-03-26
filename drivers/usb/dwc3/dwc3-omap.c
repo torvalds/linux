@@ -410,7 +410,7 @@ static const struct of_device_id of_dwc3_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_dwc3_match);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int dwc3_omap_prepare(struct device *dev)
 {
 	struct dwc3_omap	*omap = dev_get_drvdata(dev);
@@ -461,7 +461,7 @@ static const struct dev_pm_ops dwc3_omap_dev_pm_ops = {
 #define DEV_PM_OPS	(&dwc3_omap_dev_pm_ops)
 #else
 #define DEV_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct platform_driver dwc3_omap_driver = {
 	.probe		= dwc3_omap_probe,
