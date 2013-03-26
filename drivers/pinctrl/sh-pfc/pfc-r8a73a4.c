@@ -1424,6 +1424,20 @@ static struct sh_pfc_pin pinmux_pins[] = {
 	GPIO_PORT_ALL(),
 };
 
+static const struct pinmux_range pinmux_ranges[] = {
+	{.begin = 0, .end = 30,},
+	{.begin = 32, .end = 40,},
+	{.begin = 64, .end = 85,},
+	{.begin = 96, .end = 126,},
+	{.begin = 128, .end = 134,},
+	{.begin = 160, .end = 178,},
+	{.begin = 192, .end = 222,},
+	{.begin = 224, .end = 250,},
+	{.begin = 256, .end = 283,},
+	{.begin = 288, .end = 308,},
+	{.begin = 320, .end = 329,},
+};
+
 #define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
 
 static const struct pinmux_func pinmux_func_gpios[] = {
@@ -2815,6 +2829,8 @@ const struct sh_pfc_soc_info r8a73a4_pinmux_info = {
 
 	.pins = pinmux_pins,
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.ranges = pinmux_ranges,
+	.nr_ranges = ARRAY_SIZE(pinmux_ranges),
 	.func_gpios = pinmux_func_gpios,
 	.nr_func_gpios = ARRAY_SIZE(pinmux_func_gpios),
 
