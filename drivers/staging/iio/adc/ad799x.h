@@ -87,7 +87,6 @@ struct ad799x_state;
  * struct ad799x_chip_info - chip specifc information
  * @channel:		channel specification
  * @num_channels:	number of channels
- * @int_vref_mv:	the internal reference voltage
  * @monitor_mode:	whether the chip supports monitor interrupts
  * @default_config:	device default configuration
  * @event_attrs:	pointer to the monitor event attribute group
@@ -96,7 +95,6 @@ struct ad799x_state;
 struct ad799x_chip_info {
 	struct iio_chan_spec		channel[9];
 	int				num_channels;
-	u16				int_vref_mv;
 	u16				default_config;
 	const struct iio_info		*info;
 };

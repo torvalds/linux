@@ -498,7 +498,6 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 4096,
 		.info = &ad7991_info,
 	},
 	[ad7995] = {
@@ -538,7 +537,6 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 1024,
 		.info = &ad7991_info,
 	},
 	[ad7999] = {
@@ -578,7 +576,6 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 1024,
 		.info = &ad7991_info,
 	},
 	[ad7992] = {
@@ -604,7 +601,6 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 			[2] = IIO_CHAN_SOFT_TIMESTAMP(2),
 		},
 		.num_channels = 3,
-		.int_vref_mv = 4096,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7992_info,
 	},
@@ -649,7 +645,6 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 1024,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7993_4_7_8_info,
 	},
@@ -694,7 +689,6 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 			[4] = IIO_CHAN_SOFT_TIMESTAMP(4),
 		},
 		.num_channels = 5,
-		.int_vref_mv = 4096,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7993_4_7_8_info,
 	},
@@ -771,7 +765,6 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 			[8] = IIO_CHAN_SOFT_TIMESTAMP(8),
 		},
 		.num_channels = 9,
-		.int_vref_mv = 1024,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7993_4_7_8_info,
 	},
@@ -848,7 +841,6 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 			[8] = IIO_CHAN_SOFT_TIMESTAMP(8),
 		},
 		.num_channels = 9,
-		.int_vref_mv = 4096,
 		.default_config = AD7998_ALERT_EN,
 		.info = &ad7993_4_7_8_info,
 	},
@@ -875,10 +867,10 @@ static int ad799x_probe(struct i2c_client *client,
 
 	/* TODO: Add pdata options for filtering and bit delay */
 
-	if (pdata)
-		st->int_vref_mv = pdata->vref_mv;
-	else
-		st->int_vref_mv = st->chip_info->int_vref_mv;
+	if (!pdata)
+		return -EINVAL;
+
+	st->int_vref_mv = pdata->vref_mv;
 
 	st->reg = regulator_get(&client->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
