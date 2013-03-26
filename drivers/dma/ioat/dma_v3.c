@@ -1521,10 +1521,14 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		dma_cap_set(DMA_XOR_VAL, dma->cap_mask);
 		dma->device_prep_dma_xor_val = ioat3_prep_xor_val;
 	}
+
 	if (cap & IOAT_CAP_PQ) {
 		is_raid_device = true;
 		dma_set_maxpq(dma, 8, 0);
-		dma->pq_align = 6;
+		if (is_xeon_cb32(pdev))
+			dma->pq_align = 6;
+		else
+			dma->pq_align = 0;
 
 		dma_cap_set(DMA_PQ, dma->cap_mask);
 		dma->device_prep_dma_pq = ioat3_prep_pq;
@@ -1534,7 +1538,10 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 
 		if (!(cap & IOAT_CAP_XOR)) {
 			dma->max_xor = 8;
-			dma->xor_align = 6;
+			if (is_xeon_cb32(pdev))
+				dma->xor_align = 6;
+			else
+				dma->xor_align = 0;
 
 			dma_cap_set(DMA_XOR, dma->cap_mask);
 			dma->device_prep_dma_xor = ioat3_prep_pqxor;
@@ -1543,6 +1550,7 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 			dma->device_prep_dma_xor_val = ioat3_prep_pqxor_val;
 		}
 	}
+
 	if (is_raid_device && (cap & IOAT_CAP_FILL_BLOCK)) {
 		dma_cap_set(DMA_MEMSET, dma->cap_mask);
 		dma->device_prep_dma_memset = ioat3_prep_memset_lock;
