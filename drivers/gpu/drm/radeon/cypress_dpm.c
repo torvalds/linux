@@ -1802,6 +1802,7 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
+	int ret;
 
 	if (pi->gfx_clock_gating)
 		rv770_restore_cgcg(rdev);
@@ -1811,16 +1812,23 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 
 	if (pi->voltage_control) {
 		rv770_enable_voltage_control(rdev, true);
-		cypress_construct_voltage_tables(rdev);
+		ret = cypress_construct_voltage_tables(rdev);
+		if (ret)
+			return ret;
 	}
 
-	if (pi->mvdd_control)
-		cypress_get_mvdd_configuration(rdev);
+	if (pi->mvdd_control) {
+		ret = cypress_get_mvdd_configuration(rdev);
+		if (ret)
+			return ret;
+	}
 
 	if (eg_pi->dynamic_ac_timing) {
 		cypress_set_mc_reg_address_table(rdev);
 		cypress_force_mc_use_s0(rdev, boot_ps);
-		cypress_initialize_mc_reg_table(rdev);
+		ret = cypress_initialize_mc_reg_table(rdev);
+		if (ret)
+			eg_pi->dynamic_ac_timing = false;
 		cypress_force_mc_use_s1(rdev, boot_ps);
 	}
 
@@ -1845,22 +1853,31 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 	if (pi->dynamic_pcie_gen2)
 		cypress_enable_dynamic_pcie_gen2(rdev, true);
 
-	if (rv770_upload_firmware(rdev))
-		return -EINVAL;
+	ret = rv770_upload_firmware(rdev);
+	if (ret)
+		return ret;
 
-	cypress_get_table_locations(rdev);
+	ret = cypress_get_table_locations(rdev);
+	if (ret)
+		return ret;
 
-	if (cypress_init_smc_table(rdev, boot_ps))
-		return -EINVAL;
+	ret = cypress_init_smc_table(rdev, boot_ps);
+	if (ret)
+		return ret;
 
-	if (eg_pi->dynamic_ac_timing)
-		cypress_populate_mc_reg_table(rdev, boot_ps);
+	if (eg_pi->dynamic_ac_timing) {
+		ret = cypress_populate_mc_reg_table(rdev, boot_ps);
+		if (ret)
+			return ret;
+	}
 
 	cypress_program_response_times(rdev);
 
 	r7xx_start_smc(rdev);
 
-	cypress_notify_smc_display_change(rdev, false);
+	ret = cypress_notify_smc_display_change(rdev, false);
+	if (ret)
+		return ret;
 
 	cypress_enable_sclk_control(rdev, true);
 
@@ -1879,7 +1896,9 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		PPSMC_Result result;
 
-		rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		ret = rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret)
+			return ret;
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 		result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
@@ -1938,29 +1957,45 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
 	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
+	int ret;
 
-	rv770_restrict_performance_levels_before_switch(rdev);
+	ret = rv770_restrict_performance_levels_before_switch(rdev);
+	if (ret)
+		return ret;
 
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
-	rv770_halt_smc(rdev);
-	cypress_upload_sw_state(rdev, new_ps);
+	ret = rv770_halt_smc(rdev);
+	if (ret)
+		return ret;
+	ret = cypress_upload_sw_state(rdev, new_ps);
+	if (ret)
+		return ret;
 
-	if (eg_pi->dynamic_ac_timing)
-		cypress_upload_mc_reg_table(rdev, new_ps);
+	if (eg_pi->dynamic_ac_timing) {
+		ret = cypress_upload_mc_reg_table(rdev, new_ps);
+		if (ret)
+			return ret;
+	}
 
 	cypress_program_memory_timing_parameters(rdev, new_ps);
 
-	rv770_resume_smc(rdev);
-	rv770_set_sw_state(rdev);
+	ret = rv770_resume_smc(rdev);
+	if (ret)
+		return ret;
+	ret = rv770_set_sw_state(rdev);
+	if (ret)
+		return ret;
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
-	rv770_unrestrict_performance_levels_after_switch(rdev);
+	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
+	if (ret)
+		return ret;
 
 	return 0;
 }
