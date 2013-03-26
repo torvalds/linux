@@ -196,42 +196,50 @@ static irqreturn_t arizona_overclocked(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int arizona_poll_reg(struct arizona *arizona,
+			    int timeout, unsigned int reg,
+			    unsigned int mask, unsigned int target)
+{
+	unsigned int val = 0;
+	int ret, i;
+
+	for (i = 0; i < timeout; i++) {
+		ret = regmap_read(arizona->regmap, reg, &val);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to read reg %u: %d\n",
+				reg, ret);
+			continue;
+		}
+
+		if ((val & mask) == target)
+			return 0;
+
+		msleep(1);
+	}
+
+	dev_err(arizona->dev, "Polling reg %u timed out: %x\n", reg, val);
+	return -ETIMEDOUT;
+}
+
 static int arizona_wait_for_boot(struct arizona *arizona)
 {
-	unsigned int reg;
-	int ret, i;
+	int ret;
 
 	/*
 	 * We can't use an interrupt as we need to runtime resume to do so,
 	 * we won't race with the interrupt handler as it'll be blocked on
 	 * runtime resume.
 	 */
-	for (i = 0; i < 5; i++) {
-		msleep(1);
+	ret = arizona_poll_reg(arizona, 5, ARIZONA_INTERRUPT_RAW_STATUS_5,
+			       ARIZONA_BOOT_DONE_STS, ARIZONA_BOOT_DONE_STS);
 
-		ret = regmap_read(arizona->regmap,
-				  ARIZONA_INTERRUPT_RAW_STATUS_5, &reg);
-		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to read boot state: %d\n",
-				ret);
-			continue;
-		}
-
-		if (reg & ARIZONA_BOOT_DONE_STS)
-			break;
-	}
-
-	if (reg & ARIZONA_BOOT_DONE_STS) {
+	if (!ret)
 		regmap_write(arizona->regmap, ARIZONA_INTERRUPT_STATUS_5,
 			     ARIZONA_BOOT_DONE_STS);
-	} else {
-		dev_err(arizona->dev, "Device boot timed out: %x\n", reg);
-		return -ETIMEDOUT;
-	}
 
 	pm_runtime_mark_last_busy(arizona->dev);
 
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_PM_RUNTIME
