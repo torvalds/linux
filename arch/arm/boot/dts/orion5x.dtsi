@@ -100,6 +100,25 @@
 			status = "disabled";
 		};
 
+		xor@60900 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60900 0x100
+			       0x60b00 0x100>;
+			status = "okay";
+
+			xor00 {
+			      interrupts = <30>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			};
+			xor01 {
+			      interrupts = <31>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			      dmacap,memset;
+			};
+		};
+
 		crypto@90000 {
 			compatible = "marvell,orion-crypto";
 			reg = <0x90000 0x10000>,
