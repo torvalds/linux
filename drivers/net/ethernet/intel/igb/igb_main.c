@@ -3736,6 +3736,10 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_VFE);
 
 	if (netdev->flags & IFF_PROMISC) {
+		u32 mrqc = rd32(E1000_MRQC);
+		/* retain VLAN HW filtering if in VT mode */
+		if (mrqc & E1000_MRQC_ENABLE_VMDQ)
+			rctl |= E1000_RCTL_VFE;
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		vmolr |= (E1000_VMOLR_ROPE | E1000_VMOLR_MPME);
 	} else {
@@ -5520,12 +5524,75 @@ out:
 	return err;
 }
 
+static int igb_find_vlvf_entry(struct igb_adapter *adapter, int vid)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	int i;
+	u32 reg;
+
+	/* Find the vlan filter for this id */
+	for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
+		reg = rd32(E1000_VLVF(i));
+		if ((reg & E1000_VLVF_VLANID_ENABLE) &&
+		    vid == (reg & E1000_VLVF_VLANID_MASK))
+			break;
+	}
+
+	if (i >= E1000_VLVF_ARRAY_SIZE)
+		i = -1;
+
+	return i;
+}
+
 static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	int add = (msgbuf[0] & E1000_VT_MSGINFO_MASK) >> E1000_VT_MSGINFO_SHIFT;
 	int vid = (msgbuf[1] & E1000_VLVF_VLANID_MASK);
+	int err = 0;
 
-	return igb_vlvf_set(adapter, vid, add, vf);
+	/* If in promiscuous mode we need to make sure the PF also has
+	 * the VLAN filter set.
+	 */
+	if (add && (adapter->netdev->flags & IFF_PROMISC))
+		err = igb_vlvf_set(adapter, vid, add,
+				   adapter->vfs_allocated_count);
+	if (err)
+		goto out;
+
+	err = igb_vlvf_set(adapter, vid, add, vf);
+
+	if (err)
+		goto out;
+
+	/* Go through all the checks to see if the VLAN filter should
+	 * be wiped completely.
+	 */
+	if (!add && (adapter->netdev->flags & IFF_PROMISC)) {
+		u32 vlvf, bits;
+
+		int regndx = igb_find_vlvf_entry(adapter, vid);
+		if (regndx < 0)
+			goto out;
+		/* See if any other pools are set for this VLAN filter
+		 * entry other than the PF.
+		 */
+		vlvf = bits = rd32(E1000_VLVF(regndx));
+		bits &= 1 << (E1000_VLVF_POOLSEL_SHIFT +
+			      adapter->vfs_allocated_count);
+		/* If the filter was removed then ensure PF pool bit
+		 * is cleared if the PF only added itself to the pool
+		 * because the PF is in promiscuous mode.
+		 */
+		if ((vlvf & VLAN_VID_MASK) == vid &&
+		    !test_bit(vid, adapter->active_vlans) &&
+		    !bits)
+			igb_vlvf_set(adapter, vid, add,
+				     adapter->vfs_allocated_count);
+	}
+
+out:
+	return err;
 }
 
 static inline void igb_vf_reset(struct igb_adapter *adapter, u32 vf)
