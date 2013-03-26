@@ -2039,11 +2039,11 @@ static void __init rk30_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct cpufreq_frequency_table dvfs_arm_table[] = {
-	{.frequency = 312 * 1000,       .index = 900 * 1000},
-	{.frequency = 504 * 1000,       .index = 950 * 1000},
-	{.frequency = 816 * 1000,       .index = 1000 * 1000},
-	{.frequency = 1008 * 1000,      .index = 1075 * 1000},
-	{.frequency = 1200 * 1000,      .index = 1150 * 1000},
+	{.frequency = 312 * 1000,       .index = 950 * 1000},
+	{.frequency = 504 * 1000,       .index = 1000 * 1000},
+	{.frequency = 816 * 1000,       .index = 1050 * 1000},
+	{.frequency = 1008 * 1000,      .index = 1125 * 1000},
+	{.frequency = 1200 * 1000,      .index = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
@@ -2051,14 +2051,14 @@ static struct cpufreq_frequency_table dvfs_gpu_table[] = {
 	{.frequency = 100 * 1000,	.index = 1000 * 1000},
 	{.frequency = 200 * 1000,	.index = 1000 * 1000},
 	{.frequency = 266 * 1000,	.index = 1050 * 1000},
-	{.frequency = 300 * 1000,	.index = 1050 * 1000},
-	{.frequency = 400 * 1000,	.index = 1100 * 1000},
+	//{.frequency = 300 * 1000,	.index = 1050 * 1000},
+	{.frequency = 400 * 1000,	.index = 1125 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
-	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,      .index = 1000 * 1000},
+	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 1000 * 1000},
+	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,      .index = 1050 * 1000},
 	{.frequency = 400 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
