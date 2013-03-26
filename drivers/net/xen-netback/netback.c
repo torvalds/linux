@@ -39,7 +39,6 @@
 #include <linux/udp.h>
 
 #include <net/tcp.h>
-#include <net/flow_keys.h>
 
 #include <xen/xen.h>
 #include <xen/events.h>
@@ -1506,14 +1505,7 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 			continue;
 		}
 
-		if (!skb_transport_header_was_set(skb)) {
-			struct flow_keys keys;
-
-			if (skb_flow_dissect(skb, &keys))
-				skb_set_transport_header(skb, keys.thoff);
-			else
-				skb_reset_transport_header(skb);
-		}
+		skb_probe_transport_header(skb, 0);
 
 		vif->dev->stats.rx_bytes += skb->len;
 		vif->dev->stats.rx_packets++;
