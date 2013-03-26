@@ -81,6 +81,7 @@
 			reg = <0>;
 			cluster = <&cluster0>;
 			core = <&core0>;
+			clock-frequency = <1000000000>;
 		};
 
 		cpu1: cpu@1 {
@@ -89,6 +90,7 @@
 			reg = <1>;
 			cluster = <&cluster0>;
 			core = <&core1>;
+			clock-frequency = <1000000000>;
 		};
 
 		cpu2: cpu@2 {
@@ -97,6 +99,7 @@
 			reg = <0x100>;
 			cluster = <&cluster1>;
 			core = <&core2>;
+			clock-frequency = <800000000>;
 		};
 
 		cpu3: cpu@3 {
@@ -105,6 +108,7 @@
 			reg = <0x101>;
 			cluster = <&cluster1>;
 			core = <&core3>;
+			clock-frequency = <800000000>;
 		};
 
 		cpu4: cpu@4 {
@@ -113,6 +117,7 @@
 			reg = <0x102>;
 			cluster = <&cluster1>;
 			core = <&core4>;
+			clock-frequency = <800000000>;
 		};
 	};
 
