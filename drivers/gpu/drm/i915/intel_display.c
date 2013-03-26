@@ -7485,10 +7485,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		}
 	}
 
-	/* temporary hack until the DP code doesn't use the 6BPC flag any more */
-	if (pipe_config->adjusted_mode.private_flags & INTEL_MODE_DP_FORCE_6BPC)
-		pipe_config->pipe_bpp = 6*8;
-
 	if (!(intel_crtc_compute_config(crtc, pipe_config))) {
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
 		goto fail;

@@ -101,9 +101,6 @@
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
 
-/* drm_display_mode->private_flags */
-#define INTEL_MODE_DP_FORCE_6BPC (0x10)
-
 struct intel_framebuffer {
 	struct drm_framebuffer base;
 	struct drm_i915_gem_object *obj;
