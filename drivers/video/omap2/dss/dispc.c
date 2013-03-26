@@ -69,6 +69,8 @@ struct dispc_features {
 	u8 mgr_height_start;
 	u16 mgr_width_max;
 	u16 mgr_height_max;
+	unsigned long max_lcd_pclk;
+	unsigned long max_tv_pclk;
 	int (*calc_scaling) (unsigned long pclk, unsigned long lclk,
 		const struct omap_video_timings *mgr_timings,
 		u16 width, u16 height, u16 out_width, u16 out_height,
@@ -2823,6 +2825,15 @@ static bool _dispc_lcd_timings_ok(int hsw, int hfp, int hbp,
 	return true;
 }
 
+static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
+		unsigned long pclk)
+{
+	if (dss_mgr_is_lcd(channel))
+		return pclk <= dispc.feat->max_lcd_pclk ? true : false;
+	else
+		return pclk <= dispc.feat->max_tv_pclk ? true : false;
+}
+
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
@@ -2830,11 +2841,13 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 
 	timings_ok = _dispc_mgr_size_ok(timings->x_res, timings->y_res);
 
-	if (dss_mgr_is_lcd(channel))
-		timings_ok =  timings_ok && _dispc_lcd_timings_ok(timings->hsw,
-						timings->hfp, timings->hbp,
-						timings->vsw, timings->vfp,
-						timings->vbp);
+	timings_ok &= _dispc_mgr_pclk_ok(channel, timings->pixel_clock * 1000);
+
+	if (dss_mgr_is_lcd(channel)) {
+		timings_ok &= _dispc_lcd_timings_ok(timings->hsw, timings->hfp,
+				timings->hbp, timings->vsw, timings->vfp,
+				timings->vbp);
+	}
 
 	return timings_ok;
 }
@@ -3479,6 +3492,7 @@ static const struct dispc_features omap24xx_dispc_feats __initconst = {
 	.mgr_height_start	=	26,
 	.mgr_width_max		=	2048,
 	.mgr_height_max		=	2048,
+	.max_lcd_pclk		=	66500000,
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
@@ -3496,6 +3510,8 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
 	.mgr_height_start	=	26,
 	.mgr_width_max		=	2048,
 	.mgr_height_max		=	2048,
+	.max_lcd_pclk		=	173000000,
+	.max_tv_pclk		=	59000000,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
@@ -3513,6 +3529,8 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
 	.mgr_height_start	=	26,
 	.mgr_width_max		=	2048,
 	.mgr_height_max		=	2048,
+	.max_lcd_pclk		=	173000000,
+	.max_tv_pclk		=	59000000,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
@@ -3530,6 +3548,8 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.mgr_height_start	=	26,
 	.mgr_width_max		=	2048,
 	.mgr_height_max		=	2048,
+	.max_lcd_pclk		=	170000000,
+	.max_tv_pclk		=	185625000,
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
@@ -3547,6 +3567,8 @@ static const struct dispc_features omap54xx_dispc_feats __initconst = {
 	.mgr_height_start	=	27,
 	.mgr_width_max		=	4096,
 	.mgr_height_max		=	4096,
+	.max_lcd_pclk		=	170000000,
+	.max_tv_pclk		=	186000000,
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
