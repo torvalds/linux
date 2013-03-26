@@ -280,6 +280,10 @@ static int au_br_init_wh(struct super_block *sb, struct au_branch *br,
 	struct au_wbr *wbr;
 	struct au_hinode *hdir;
 
+	err = vfsub_mnt_want_write(br->br_mnt);
+	if (unlikely(err))
+		goto out;
+
 	wbr = br->br_wbr;
 	old_perm = br->br_perm;
 	br->br_perm = new_perm;
@@ -304,6 +308,7 @@ static int au_br_init_wh(struct super_block *sb, struct au_branch *br,
 		au_hn_imtx_unlock(hdir);
 	else
 		mutex_unlock(h_mtx);
+	vfsub_mnt_drop_write(br->br_mnt);
 	br->br_perm = old_perm;
 
 	if (!err && wbr && !au_br_writable(new_perm)) {
@@ -311,6 +316,7 @@ static int au_br_init_wh(struct super_block *sb, struct au_branch *br,
 		br->br_wbr = NULL;
 	}
 
+out:
 	return err;
 }
 
