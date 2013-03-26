@@ -555,7 +555,8 @@ EXPORT_SYMBOL_GPL(platform_driver_unregister);
 /**
  * platform_driver_probe - register driver for non-hotpluggable device
  * @drv: platform driver structure
- * @probe: the driver probe routine, probably from an __init section
+ * @probe: the driver probe routine, probably from an __init section,
+ *         must not return -EPROBE_DEFER.
  *
  * Use this instead of platform_driver_register() when you know the device
  * is not hotpluggable and has already been registered, and you want to
@@ -565,6 +566,9 @@ EXPORT_SYMBOL_GPL(platform_driver_unregister);
  * One typical use for this would be with drivers for controllers integrated
  * into system-on-chip processors, where the controller devices have been
  * configured as part of board setup.
+ *
+ * This is incompatible with deferred probing so probe() must not
+ * return -EPROBE_DEFER.
  *
  * Returns zero if the driver registered and bound to a device, else returns
  * a negative error code and with the driver not registered.
