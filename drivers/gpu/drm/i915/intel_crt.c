@@ -206,10 +206,14 @@ static int intel_crt_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool intel_crt_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
+static bool intel_crt_compute_config(struct intel_encoder *encoder,
+				     struct intel_crtc_config *pipe_config)
 {
+	struct drm_device *dev = encoder->base.dev;
+
+	if (HAS_PCH_SPLIT(dev))
+		pipe_config->has_pch_encoder = true;
+
 	return true;
 }
 
@@ -683,7 +687,6 @@ static void intel_crt_reset(struct drm_connector *connector)
  */
 
 static const struct drm_encoder_helper_funcs crt_encoder_funcs = {
-	.mode_fixup = intel_crt_mode_fixup,
 	.mode_set = intel_crt_mode_set,
 };
 
@@ -774,6 +777,7 @@ void intel_crt_init(struct drm_device *dev)
 	else
 		crt->adpa_reg = ADPA;
 
+	crt->base.compute_config = intel_crt_compute_config;
 	crt->base.disable = intel_disable_crt;
 	crt->base.enable = intel_enable_crt;
 	if (I915_HAS_HOTPLUG(dev))

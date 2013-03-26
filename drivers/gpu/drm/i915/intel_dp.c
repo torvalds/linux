@@ -689,18 +689,22 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 }
 
 bool
-intel_dp_mode_fixup(struct drm_encoder *encoder,
-		    const struct drm_display_mode *mode,
-		    struct drm_display_mode *adjusted_mode)
+intel_dp_compute_config(struct intel_encoder *encoder,
+			struct intel_crtc_config *pipe_config)
 {
-	struct drm_device *dev = encoder->dev;
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
+	struct drm_display_mode *mode = &pipe_config->requested_mode;
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int lane_count, clock;
 	int max_lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
 	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
 	int bpp, mode_rate;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
+
+	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && !is_cpu_edp(intel_dp))
+		pipe_config->has_pch_encoder = true;
 
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
 		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
@@ -2527,7 +2531,6 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
-	.mode_fixup = intel_dp_mode_fixup,
 	.mode_set = intel_dp_mode_set,
 };
 
@@ -2947,6 +2950,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->base, &intel_dp_helper_funcs);
 
+	intel_encoder->compute_config = intel_dp_compute_config;
 	intel_encoder->enable = intel_enable_dp;
 	intel_encoder->pre_enable = intel_pre_enable_dp;
 	intel_encoder->disable = intel_disable_dp;

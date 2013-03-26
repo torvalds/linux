@@ -1047,6 +1047,9 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	struct drm_display_mode *mode = &pipe_config->requested_mode;
 
+	if (HAS_PCH_SPLIT(encoder->base.dev))
+		pipe_config->has_pch_encoder = true;
+
 	/* We need to construct preferred input timings based on our
 	 * output timings.  To do that, we have to set the output
 	 * timings, even though this isn't really the right place in

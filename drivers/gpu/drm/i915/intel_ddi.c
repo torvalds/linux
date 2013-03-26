@@ -1476,19 +1476,17 @@ static void intel_ddi_destroy(struct drm_encoder *encoder)
 	intel_dp_encoder_destroy(encoder);
 }
 
-static bool intel_ddi_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
+static bool intel_ddi_compute_config(struct intel_encoder *encoder,
+				     struct intel_crtc_config *pipe_config)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
-	int type = intel_encoder->type;
+	int type = encoder->type;
 
-	WARN(type == INTEL_OUTPUT_UNKNOWN, "mode_fixup() on unknown output!\n");
+	WARN(type == INTEL_OUTPUT_UNKNOWN, "compute_config() on unknown output!\n");
 
 	if (type == INTEL_OUTPUT_HDMI)
-		return intel_hdmi_mode_fixup(encoder, mode, adjusted_mode);
+		return intel_hdmi_compute_config(encoder, pipe_config);
 	else
-		return intel_dp_mode_fixup(encoder, mode, adjusted_mode);
+		return intel_dp_compute_config(encoder, pipe_config);
 }
 
 static const struct drm_encoder_funcs intel_ddi_funcs = {
@@ -1496,7 +1494,6 @@ static const struct drm_encoder_funcs intel_ddi_funcs = {
 };
 
 static const struct drm_encoder_helper_funcs intel_ddi_helper_funcs = {
-	.mode_fixup = intel_ddi_mode_fixup,
 	.mode_set = intel_ddi_mode_set,
 };
 
@@ -1536,6 +1533,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(encoder, &intel_ddi_helper_funcs);
 
+	intel_encoder->compute_config = intel_ddi_compute_config;
 	intel_encoder->enable = intel_enable_ddi;
 	intel_encoder->pre_enable = intel_ddi_pre_enable;
 	intel_encoder->disable = intel_disable_ddi;

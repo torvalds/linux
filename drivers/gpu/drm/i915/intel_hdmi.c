@@ -768,11 +768,12 @@ static int intel_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
-			   const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode)
+bool intel_hdmi_compute_config(struct intel_encoder *encoder,
+			       struct intel_crtc_config *pipe_config)
 {
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 
 	if (intel_hdmi->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
@@ -785,6 +786,9 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 
 	if (intel_hdmi->color_range)
 		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+
+	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev))
+		pipe_config->has_pch_encoder = true;
 
 	return true;
 }
@@ -937,7 +941,6 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
-	.mode_fixup = intel_hdmi_mode_fixup,
 	.mode_set = intel_hdmi_mode_set,
 };
 
@@ -1066,6 +1069,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
 
+	intel_encoder->compute_config = intel_hdmi_compute_config;
 	intel_encoder->enable = intel_enable_hdmi;
 	intel_encoder->disable = intel_disable_hdmi;
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;

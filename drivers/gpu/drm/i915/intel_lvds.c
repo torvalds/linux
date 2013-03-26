@@ -331,6 +331,8 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 			       adjusted_mode);
 
 	if (HAS_PCH_SPLIT(dev)) {
+		pipe_config->has_pch_encoder = true;
+
 		intel_pch_panel_fitting(dev,
 					intel_connector->panel.fitting_mode,
 					mode, adjusted_mode);

@@ -2977,27 +2977,6 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static bool ironlake_crtc_driving_pch(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_encoder *intel_encoder;
-
-	/*
-	 * If there's a non-PCH eDP on this crtc, it must be DP_A, and that
-	 * must be driven by its own crtc; no sharing is possible.
-	 */
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
-		switch (intel_encoder->type) {
-		case INTEL_OUTPUT_EDP:
-			if (!intel_encoder_is_pch_edp(&intel_encoder->base))
-				return false;
-			continue;
-		}
-	}
-
-	return true;
-}
-
 static bool haswell_crtc_driving_pch(struct drm_crtc *crtc)
 {
 	return intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG);
@@ -3338,7 +3317,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	u32 temp;
-	bool is_pch_port;
 
 	WARN_ON(!crtc->enabled);
 
@@ -3354,9 +3332,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
 	}
 
-	is_pch_port = ironlake_crtc_driving_pch(crtc);
 
-	if (is_pch_port) {
+	if (intel_crtc->config.has_pch_encoder) {
 		/* Note: FDI PLL enabling _must_ be done before we enable the
 		 * cpu pipes, hence this is separate from all the other fdi/pch
 		 * enabling. */
@@ -3393,10 +3370,11 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	 */
 	intel_crtc_load_lut(crtc);
 
-	intel_enable_pipe(dev_priv, pipe, is_pch_port);
+	intel_enable_pipe(dev_priv, pipe,
+			  intel_crtc->config.has_pch_encoder);
 	intel_enable_plane(dev_priv, plane, pipe);
 
-	if (is_pch_port)
+	if (intel_crtc->config.has_pch_encoder)
 		ironlake_pch_enable(crtc);
 
 	mutex_lock(&dev->struct_mutex);
@@ -3430,7 +3408,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	bool is_pch_port;
 
 	WARN_ON(!crtc->enabled);
 
@@ -3440,9 +3417,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
-	is_pch_port = haswell_crtc_driving_pch(crtc);
-
-	if (is_pch_port)
+	if (intel_crtc->config.has_pch_encoder)
 		dev_priv->display.fdi_link_train(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
@@ -3473,10 +3448,11 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_ddi_set_pipe_settings(crtc);
 	intel_ddi_enable_transcoder_func(crtc);
 
-	intel_enable_pipe(dev_priv, pipe, is_pch_port);
+	intel_enable_pipe(dev_priv, pipe,
+			  intel_crtc->config.has_pch_encoder);
 	intel_enable_plane(dev_priv, plane, pipe);
 
-	if (is_pch_port)
+	if (intel_crtc->config.has_pch_encoder)
 		lpt_pch_enable(crtc);
 
 	mutex_lock(&dev->struct_mutex);

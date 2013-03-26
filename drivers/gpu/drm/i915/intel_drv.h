@@ -190,6 +190,9 @@ struct intel_crtc_config {
 	 * changes the crtc timings in the mode to prevent the crtc fixup from
 	 * overwriting them.  Currently only lvds needs that. */
 	bool timings_set;
+	/* Whether to set up the PCH/FDI. Note that we never allow sharing
+	 * between pch encoders and cpu encoders. */
+	bool has_pch_encoder;
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
 };
@@ -449,9 +452,8 @@ extern void intel_hdmi_init(struct drm_device *dev,
 extern void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 				      struct intel_connector *intel_connector);
 extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
-extern bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode);
+extern bool intel_hdmi_compute_config(struct intel_encoder *encoder,
+				      struct intel_crtc_config *pipe_config);
 extern void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 			    bool is_sdvob);
@@ -475,9 +477,8 @@ extern void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 extern void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
 extern void intel_dp_encoder_destroy(struct drm_encoder *encoder);
 extern void intel_dp_check_link_status(struct intel_dp *intel_dp);
-extern bool intel_dp_mode_fixup(struct drm_encoder *encoder,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode);
+extern bool intel_dp_compute_config(struct intel_encoder *encoder,
+				    struct intel_crtc_config *pipe_config);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void ironlake_edp_backlight_on(struct intel_dp *intel_dp);
 extern void ironlake_edp_backlight_off(struct intel_dp *intel_dp);
