@@ -121,7 +121,11 @@ void usb20otg_hw_init(void)
 #endif
 #endif
         // usb phy config init
-    
+#ifdef CONFIG_ARCH_RK3188
+        //usb phy enter usb mode
+        unsigned int * otg_phy_con3 = (unsigned int*)(USBGRF_UOC0_CON0);
+        *otg_phy_con3 = (0x0300 << 16);
+#endif    
         // other haredware init
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         //GPIO init

@@ -1159,13 +1159,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	int irq;
 	struct dwc_otg_platform_data *pldata = dev->platform_data;
 
-
-#ifdef CONFIG_ARCH_RK3188
-	unsigned int * USB_GRF_UOC0_CON0 = (unsigned int*)(RK30_GRF_BASE+0x10c);
-	/* usb phy enter usb mode  */
-	* USB_GRF_UOC0_CON0 = (0x0300 << 16);
-#endif
-
     // clock and hw init
     if(pldata->hw_init)
         pldata->hw_init();
