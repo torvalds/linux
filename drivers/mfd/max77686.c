@@ -156,6 +156,10 @@ int max77686_rtc_settime(struct rtc_time *tm)
 
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_SEC	 , tm->tm_sec);
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_MIN	 , tm->tm_min);
+	
+	if(tm->tm_hour > 11)    {
+	    tm->tm_hour = (tm->tm_hour % 12) | 0x40;    // PM
+	}
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_HOUR , tm->tm_hour);
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_DOM	 , tm->tm_mday);
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_MONTH, tm->tm_mon + 1);
