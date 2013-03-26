@@ -100,6 +100,55 @@ static const char *arizona_cable[] = {
 	NULL,
 };
 
+static void arizona_extcon_do_magic(struct arizona_extcon_info *info,
+				    unsigned int magic)
+{
+	struct arizona *arizona = info->arizona;
+	int ret;
+
+	mutex_lock(&arizona->dapm->card->dapm_mutex);
+
+	arizona->hpdet_magic = magic;
+
+	/* Keep the HP output stages disabled while doing the magic */
+	if (magic) {
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_OUTPUT_ENABLES_1,
+					 ARIZONA_OUT1L_ENA |
+					 ARIZONA_OUT1R_ENA, 0);
+		if (ret != 0)
+			dev_warn(arizona->dev,
+				"Failed to disable headphone outputs: %d\n",
+				 ret);
+	}
+
+	ret = regmap_update_bits(arizona->regmap, 0x225, 0x4000,
+				 magic);
+	if (ret != 0)
+		dev_warn(arizona->dev, "Failed to do magic: %d\n",
+				 ret);
+
+	ret = regmap_update_bits(arizona->regmap, 0x226, 0x4000,
+				 magic);
+	if (ret != 0)
+		dev_warn(arizona->dev, "Failed to do magic: %d\n",
+			 ret);
+
+	/* Restore the desired state while not doing the magic */
+	if (!magic) {
+		ret = regmap_update_bits(arizona->regmap,
+					 ARIZONA_OUTPUT_ENABLES_1,
+					 ARIZONA_OUT1L_ENA |
+					 ARIZONA_OUT1R_ENA, arizona->hp_ena);
+		if (ret != 0)
+			dev_warn(arizona->dev,
+				 "Failed to restore headphone outputs: %d\n",
+				 ret);
+	}
+
+	mutex_unlock(&arizona->dapm->card->dapm_mutex);
+}
+
 static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 {
 	struct arizona *arizona = info->arizona;
@@ -484,7 +533,6 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 	struct arizona *arizona = info->arizona;
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
 	int report = ARIZONA_CABLE_HEADPHONE;
-	unsigned int val;
 	int ret, reading;
 
 	mutex_lock(&info->lock);
@@ -539,28 +587,7 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 		dev_err(arizona->dev, "Failed to report HP/line: %d\n",
 			ret);
 
-	mutex_lock(&arizona->dapm->card->dapm_mutex);
-
-	ret = regmap_read(arizona->regmap, ARIZONA_OUTPUT_ENABLES_1, &val);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to read output enables: %d\n",
-			ret);
-		val = 0;
-	}
-
-	if (!(val & (ARIZONA_OUT1L_ENA | ARIZONA_OUT1R_ENA))) {
-		ret = regmap_update_bits(arizona->regmap, 0x225, 0x4000, 0);
-		if (ret != 0)
-			dev_warn(arizona->dev, "Failed to undo magic: %d\n",
-				 ret);
-
-		ret = regmap_update_bits(arizona->regmap, 0x226, 0x4000, 0);
-		if (ret != 0)
-			dev_warn(arizona->dev, "Failed to undo magic: %d\n",
-				 ret);
-	}
-
-	mutex_unlock(&arizona->dapm->card->dapm_mutex);
+	arizona_extcon_do_magic(info, 0);
 
 done:
 	if (id_gpio)
@@ -606,13 +633,7 @@ static void arizona_identify_headphone(struct arizona_extcon_info *info)
 	if (info->mic)
 		arizona_stop_mic(info);
 
-	ret = regmap_update_bits(arizona->regmap, 0x225, 0x4000, 0x4000);
-	if (ret != 0)
-		dev_warn(arizona->dev, "Failed to do magic: %d\n", ret);
-
-	ret = regmap_update_bits(arizona->regmap, 0x226, 0x4000, 0x4000);
-	if (ret != 0)
-		dev_warn(arizona->dev, "Failed to do magic: %d\n", ret);
+	arizona_extcon_do_magic(info, 0x4000);
 
 	ret = regmap_update_bits(arizona->regmap,
 				 ARIZONA_ACCESSORY_DETECT_MODE_1,
@@ -653,7 +674,6 @@ err:
 static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info)
 {
 	struct arizona *arizona = info->arizona;
-	unsigned int val;
 	int ret;
 
 	dev_dbg(arizona->dev, "Starting identification via HPDET\n");
@@ -665,30 +685,7 @@ static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info)
 
 	arizona_extcon_pulse_micbias(info);
 
-	mutex_lock(&arizona->dapm->card->dapm_mutex);
-
-	ret = regmap_read(arizona->regmap, ARIZONA_OUTPUT_ENABLES_1, &val);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to read output enables: %d\n",
-			ret);
-		val = 0;
-	}
-
-	if (!(val & (ARIZONA_OUT1L_ENA | ARIZONA_OUT1R_ENA))) {
-		ret = regmap_update_bits(arizona->regmap, 0x225, 0x4000,
-					 0x4000);
-		if (ret != 0)
-			dev_warn(arizona->dev, "Failed to do magic: %d\n",
-				 ret);
-
-		ret = regmap_update_bits(arizona->regmap, 0x226, 0x4000,
-					 0x4000);
-		if (ret != 0)
-			dev_warn(arizona->dev, "Failed to do magic: %d\n",
-				 ret);
-	}
-
-	mutex_unlock(&arizona->dapm->card->dapm_mutex);
+	arizona_extcon_do_magic(info, 0x4000);
 
 	ret = regmap_update_bits(arizona->regmap,
 				 ARIZONA_ACCESSORY_DETECT_MODE_1,
