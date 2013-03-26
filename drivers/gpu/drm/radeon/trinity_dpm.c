@@ -1062,6 +1062,7 @@ static void trinity_update_requested_ps(struct radeon_device *rdev,
 int trinity_dpm_enable(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	int ret;
 
 	trinity_acquire_mutex(rdev);
 
@@ -1085,7 +1086,11 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		trinity_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		ret = trinity_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret) {
+			trinity_release_mutex(rdev);
+			return ret;
+		}
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 	}
