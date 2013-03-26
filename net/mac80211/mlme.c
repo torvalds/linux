@@ -1443,13 +1443,11 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
 	    !(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)) {
-		netif_tx_stop_all_queues(sdata->dev);
-
-		if (drv_tx_frames_pending(local))
+		if (drv_tx_frames_pending(local)) {
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 				  msecs_to_jiffies(
 				  local->hw.conf.dynamic_ps_timeout));
-		else {
+		} else {
 			ieee80211_send_nullfunc(local, sdata, 1);
 			/* Flush to get the tx status of nullfunc frame */
 			ieee80211_flush_queues(local, sdata);
@@ -1463,9 +1461,6 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		local->hw.conf.flags |= IEEE80211_CONF_PS;
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
-
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-		netif_tx_wake_all_queues(sdata->dev);
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)
@@ -1725,7 +1720,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_smps(sdata);
 	ieee80211_recalc_ps_vif(sdata);
 
-	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
 }
 
@@ -1748,22 +1742,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_stop_poll(sdata);
 
 	ifmgd->associated = NULL;
-
-	/*
-	 * we need to commit the associated = NULL change because the
-	 * scan code uses that to determine whether this iface should
-	 * go to/wake up from powersave or not -- and could otherwise
-	 * wake the queues erroneously.
-	 */
-	smp_mb();
-
-	/*
-	 * Thus, we can only afterwards stop the queues -- to account
-	 * for the case where another CPU is finishing a scan at this
-	 * time -- we don't want the scan code to enable queues.
-	 */
-
-	netif_tx_stop_all_queues(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
 	/*
