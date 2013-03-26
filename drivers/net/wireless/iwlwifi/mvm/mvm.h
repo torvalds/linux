@@ -212,6 +212,7 @@ struct iwl_mvm_vif {
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct dentry *dbgfs_dir;
+	struct dentry *dbgfs_slink;
 	void *dbgfs_data;
 #endif
 };
@@ -471,8 +472,8 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
 /* MVM debugfs */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir);
-int iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       struct dentry *dbgfs_dir);
+void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_power_get_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			  struct iwl_powertable_cmd *cmd);
 #else
@@ -480,6 +481,14 @@ static inline int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm,
 					 struct dentry *dbgfs_dir)
 {
 	return 0;
+}
+static inline void
+iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+}
+static inline void
+iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
 }
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 

@@ -562,6 +562,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvm->p2p_device_vif = vif;
 	}
 
+	iwl_mvm_vif_dbgfs_register(mvm, vif);
 	goto out_unlock;
 
  out_unbind:
@@ -639,6 +640,8 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	iwl_mvm_prepare_mac_removal(mvm, vif);
 
 	mutex_lock(&mvm->mutex);
+
+	iwl_mvm_vif_dbgfs_clean(mvm, vif);
 
 	/*
 	 * For AP/GO interface, the tear down of the resources allocated to the
