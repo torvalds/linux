@@ -169,7 +169,7 @@ struct clk *imx_clk_busy_mux(const char *name, void __iomem *reg, u8 shift,
 
 	busy->mux.reg = reg;
 	busy->mux.shift = shift;
-	busy->mux.width = width;
+	busy->mux.mask = BIT(width) - 1;
 	busy->mux.lock = &imx_ccm_lock;
 	busy->mux_ops = &clk_mux_ops;
 
