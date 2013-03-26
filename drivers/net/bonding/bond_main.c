@@ -796,9 +796,8 @@ static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    mcast_work.work);
-	rcu_read_lock();
+
 	bond_resend_igmp_join_requests(bond);
-	rcu_read_unlock();
 }
 
 /*
