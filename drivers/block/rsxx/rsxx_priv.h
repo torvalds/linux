@@ -381,7 +381,7 @@ int rsxx_dma_queue_bio(struct rsxx_cardinfo *card,
 			   rsxx_dma_cb cb,
 			   void *cb_data);
 int rsxx_hw_buffers_init(struct pci_dev *dev, struct rsxx_dma_ctrl *ctrl);
-void rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card);
+int rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card);
 void rsxx_eeh_cancel_dmas(struct rsxx_cardinfo *card);
 int rsxx_eeh_remap_dmas(struct rsxx_cardinfo *card);
 

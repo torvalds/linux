@@ -323,10 +323,11 @@ static int card_shutdown(struct rsxx_cardinfo *card)
 	return 0;
 }
 
-static void rsxx_eeh_frozen(struct pci_dev *dev)
+static int rsxx_eeh_frozen(struct pci_dev *dev)
 {
 	struct rsxx_cardinfo *card = pci_get_drvdata(dev);
 	int i;
+	int st;
 
 	dev_warn(&dev->dev, "IBM FlashSystem PCI: preparing for slot reset.\n");
 
@@ -342,7 +343,9 @@ static void rsxx_eeh_frozen(struct pci_dev *dev)
 
 	pci_disable_device(dev);
 
-	rsxx_eeh_save_issued_dmas(card);
+	st = rsxx_eeh_save_issued_dmas(card);
+	if (st)
+		return st;
 
 	rsxx_eeh_save_issued_creg(card);
 
@@ -356,6 +359,8 @@ static void rsxx_eeh_frozen(struct pci_dev *dev)
 					    card->ctrl[i].cmd.buf,
 					    card->ctrl[i].cmd.dma_addr);
 	}
+
+	return 0;
 }
 
 static void rsxx_eeh_failure(struct pci_dev *dev)
@@ -399,6 +404,8 @@ static int rsxx_eeh_fifo_flush_poll(struct rsxx_cardinfo *card)
 static pci_ers_result_t rsxx_error_detected(struct pci_dev *dev,
 					    enum pci_channel_state error)
 {
+	int st;
+
 	if (dev->revision < RSXX_EEH_SUPPORT)
 		return PCI_ERS_RESULT_NONE;
 
@@ -407,7 +414,13 @@ static pci_ers_result_t rsxx_error_detected(struct pci_dev *dev,
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
-	rsxx_eeh_frozen(dev);
+	st = rsxx_eeh_frozen(dev);
+	if (st) {
+		dev_err(&dev->dev, "Slot reset setup failed\n");
+		rsxx_eeh_failure(dev);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
