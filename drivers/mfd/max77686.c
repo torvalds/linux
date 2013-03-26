@@ -128,8 +128,10 @@ int max77686_rtc_gettime(struct rtc_time *rtc_tm)
     max77686_write_reg(gMax77686->rtc, MAX77686_RTC_UPDATE0, 0x10);  mdelay(100);
     max77686_read_reg(gMax77686->rtc, MAX77686_RTC_SEC	, &tmp );   rtc_tm->tm_sec  = tmp;
     max77686_read_reg(gMax77686->rtc, MAX77686_RTC_MIN	, &tmp );   rtc_tm->tm_min  = tmp;
-    max77686_read_reg(gMax77686->rtc, MAX77686_RTC_HOUR	, &tmp );   rtc_tm->tm_hour = tmp & 0x3F;
-    if(tmp & 0x40)  rtc_tm->tm_hour += 12;  // pm
+    max77686_read_reg(gMax77686->rtc, MAX77686_RTC_HOUR	, &tmp );   rtc_tm->tm_hour = tmp & 0x1F;
+
+    if ((tmp & 0x40) && (tmp != 0x4C)) rtc_tm->tm_hour += 12;  // pm
+    if (tmp == 0x0C) rtc_tm->tm_hour = 0; // midnight
 
     max77686_read_reg(gMax77686->rtc, MAX77686_RTC_DOM	, &tmp );   rtc_tm->tm_mday = tmp;
     max77686_read_reg(gMax77686->rtc, MAX77686_RTC_MONTH, &tmp );   rtc_tm->tm_mon  = tmp;
@@ -140,9 +142,9 @@ int max77686_rtc_gettime(struct rtc_time *rtc_tm)
 		 __func__, 1900 + rtc_tm->tm_year, rtc_tm->tm_mon, rtc_tm->tm_mday,
 		 rtc_tm->tm_hour, rtc_tm->tm_min, rtc_tm->tm_sec);
 
-	rtc_tm->tm_mon -= 1;
-	
-	return  0;
+    rtc_tm->tm_mon -= 1;
+
+    return  0;
 }
 EXPORT_SYMBOL_GPL(max77686_rtc_gettime);
 
@@ -156,16 +158,17 @@ int max77686_rtc_settime(struct rtc_time *tm)
 
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_SEC	 , tm->tm_sec);
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_MIN	 , tm->tm_min);
-	
-	if(tm->tm_hour > 11)    {
-	    tm->tm_hour = (tm->tm_hour % 12) | 0x40;    // PM
-	}
+
+	if (tm->tm_hour > 12) { tm->tm_hour = (tm->tm_hour % 12) | 0x40; } // pm
+	if (tm->tm_hour == 12) { tm->tm_hour |= 0x40; } // midday
+	if (tm->tm_hour == 0) tm->tm_hour = 0x0C; // midnight
+		
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_HOUR , tm->tm_hour);
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_DOM	 , tm->tm_mday);
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_MONTH, tm->tm_mon + 1);
 	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_YEAR , year);
 
-    max77686_write_reg(gMax77686->rtc, MAX77686_RTC_UPDATE0, 0x01);  mdelay(100);
+	max77686_write_reg(gMax77686->rtc, MAX77686_RTC_UPDATE0, 0x01);  mdelay(100);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(max77686_rtc_settime);
