@@ -109,7 +109,7 @@ drm_clflush_sg(struct sg_table *st)
 
 		mb();
 		for_each_sg_page(st->sgl, &sg_iter, st->nents, 0)
-			drm_clflush_page(sg_iter.page);
+			drm_clflush_page(sg_page_iter_page(&sg_iter));
 		mb();
 
 		return;

@@ -1543,7 +1543,7 @@ static inline struct page *i915_gem_object_get_page(struct drm_i915_gem_object *
 	struct sg_page_iter sg_iter;
 
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, n)
-		return sg_iter.page;
+		return sg_page_iter_page(&sg_iter);
 
 	return NULL;
 }

@@ -130,7 +130,7 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 
 	i = 0;
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0);
-		pages[i++] = sg_iter.page;
+		pages[i++] = sg_page_iter_page(&sg_iter);
 
 	obj->dma_buf_vmapping = vmap(pages, i, 0, PAGE_KERNEL);
 	drm_free_large(pages);
