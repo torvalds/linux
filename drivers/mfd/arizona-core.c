@@ -242,6 +242,90 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 	return ret;
 }
 
+static int arizona_apply_hardware_patch(struct arizona* arizona)
+{
+	unsigned int fll, sysclk;
+	int ret, err;
+
+	regcache_cache_bypass(arizona->regmap, true);
+
+	/* Cache existing FLL and SYSCLK settings */
+	ret = regmap_read(arizona->regmap, ARIZONA_FLL1_CONTROL_1, &fll);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to cache FLL settings: %d\n",
+			ret);
+		return ret;
+	}
+	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &sysclk);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to cache SYSCLK settings: %d\n",
+			ret);
+		return ret;
+	}
+
+	/* Start up SYSCLK using the FLL in free running mode */
+	ret = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1,
+			ARIZONA_FLL1_ENA | ARIZONA_FLL1_FREERUN);
+	if (ret != 0) {
+		dev_err(arizona->dev,
+			"Failed to start FLL in freerunning mode: %d\n",
+			ret);
+		return ret;
+	}
+	ret = arizona_poll_reg(arizona, 25, ARIZONA_INTERRUPT_RAW_STATUS_5,
+			       ARIZONA_FLL1_CLOCK_OK_STS,
+			       ARIZONA_FLL1_CLOCK_OK_STS);
+	if (ret != 0) {
+		ret = -ETIMEDOUT;
+		goto err_fll;
+	}
+
+	ret = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, 0x0144);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to start SYSCLK: %d\n", ret);
+		goto err_fll;
+	}
+
+	/* Start the write sequencer and wait for it to finish */
+	ret = regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_0,
+			ARIZONA_WSEQ_ENA | ARIZONA_WSEQ_START | 160);
+	if (ret != 0) {
+		dev_err(arizona->dev, "Failed to start write sequencer: %d\n",
+			ret);
+		goto err_sysclk;
+	}
+	ret = arizona_poll_reg(arizona, 5, ARIZONA_WRITE_SEQUENCER_CTRL_1,
+			       ARIZONA_WSEQ_BUSY, 0);
+	if (ret != 0) {
+		regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_0,
+				ARIZONA_WSEQ_ABORT);
+		ret = -ETIMEDOUT;
+	}
+
+err_sysclk:
+	err = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, sysclk);
+	if (err != 0) {
+		dev_err(arizona->dev,
+			"Failed to re-apply old SYSCLK settings: %d\n",
+			err);
+	}
+
+err_fll:
+	err = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1, fll);
+	if (err != 0) {
+		dev_err(arizona->dev,
+			"Failed to re-apply old FLL settings: %d\n",
+			err);
+	}
+
+	regcache_cache_bypass(arizona->regmap, false);
+
+	if (ret != 0)
+		return ret;
+	else
+		return err;
+}
+
 #ifdef CONFIG_PM_RUNTIME
 static int arizona_runtime_resume(struct device *dev)
 {
@@ -271,6 +355,17 @@ static int arizona_runtime_resume(struct device *dev)
 				ret);
 			goto err;
 		}
+
+		ret = arizona_apply_hardware_patch(arizona);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to apply hardware patch: %d\n",
+				ret);
+			goto err;
+		}
+		break;
+	default:
+		break;
 	}
 
 	ret = regcache_sync(arizona->regmap);
@@ -512,6 +607,20 @@ int arizona_dev_init(struct arizona *arizona)
 			dev_err(arizona->dev, "Failed to apply patch: %d\n",
 				ret);
 			goto err_reset;
+		}
+
+		switch (arizona->type) {
+		case WM5102:
+			ret = arizona_apply_hardware_patch(arizona);
+			if (ret != 0) {
+				dev_err(arizona->dev,
+					"Failed to apply hardware patch: %d\n",
+					ret);
+				goto err_reset;
+			}
+			break;
+		default:
+			break;
 		}
 	}
 
