@@ -1198,11 +1198,14 @@ static void sumo_update_requested_ps(struct radeon_device *rdev,
 int sumo_dpm_enable(struct radeon_device *rdev)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	int ret;
 
 	if (sumo_dpm_enabled(rdev))
 		return -EINVAL;
 
-	sumo_enable_clock_power_gating(rdev);
+	ret = sumo_enable_clock_power_gating(rdev);
+	if (ret)
+		return ret;
 	sumo_program_bootup_state(rdev);
 	sumo_init_bsp(rdev);
 	sumo_reset_am(rdev);
@@ -1228,7 +1231,9 @@ int sumo_dpm_enable(struct radeon_device *rdev)
 
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		sumo_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		ret = sumo_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret)
+			return ret;
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 	}
