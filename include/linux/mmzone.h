@@ -450,7 +450,7 @@ struct zone {
 	 *
 	 * present_pages is physical pages existing within the zone, which
 	 * is calculated as:
-	 *	present_pages = spanned_pages - absent_pages(pags in holes);
+	 *	present_pages = spanned_pages - absent_pages(pages in holes);
 	 *
 	 * managed_pages is present pages managed by the buddy system, which
 	 * is calculated as (reserved_pages includes pages allocated by the
