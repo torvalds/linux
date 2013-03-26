@@ -1828,7 +1828,7 @@ static int dw_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		err = of_dma_controller_register(pdev->dev.of_node,
 						 dw_dma_of_xlate, dw);
-		if (err && err != -ENODEV)
+		if (err)
 			dev_err(&pdev->dev,
 				"could not register of_dma_controller\n");
 	}
