@@ -38,6 +38,7 @@ struct stmmac_priv {
 	struct dma_extended_desc *dma_etx;	/* Extended TX descriptor */
 	dma_addr_t dma_tx_phy;
 	struct sk_buff **tx_skbuff;
+	dma_addr_t *tx_skbuff_dma;
 	unsigned int cur_tx;
 	unsigned int dirty_tx;
 	unsigned int dma_tx_size;

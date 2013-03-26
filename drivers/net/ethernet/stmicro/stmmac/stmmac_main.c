@@ -661,6 +661,8 @@ static void init_dma_desc_rings(struct net_device *dev)
 					    GFP_KERNEL);
 	priv->rx_skbuff = kmalloc_array(rxsize, sizeof(struct sk_buff *),
 					GFP_KERNEL);
+	priv->tx_skbuff_dma = kmalloc_array(txsize, sizeof(dma_addr_t),
+					GFP_KERNEL);
 	priv->tx_skbuff = kmalloc_array(txsize, sizeof(struct sk_buff *),
 					GFP_KERNEL);
 	if (netif_msg_drv(priv))
@@ -710,6 +712,7 @@ static void init_dma_desc_rings(struct net_device *dev)
 		else
 			p = priv->dma_tx + i;
 		p->des2 = 0;
+		priv->tx_skbuff_dma[i] = 0;
 		priv->tx_skbuff[i] = NULL;
 	}
 
@@ -748,12 +751,14 @@ static void dma_free_tx_skbufs(struct stmmac_priv *priv)
 			else
 				p = priv->dma_tx + i;
 
-			if (p->des2)
-				dma_unmap_single(priv->device, p->des2,
+			if (priv->tx_skbuff_dma[i])
+				dma_unmap_single(priv->device,
+						 priv->tx_skbuff_dma[i],
 						 priv->hw->desc->get_tx_len(p),
 						 DMA_TO_DEVICE);
 			dev_kfree_skb_any(priv->tx_skbuff[i]);
 			priv->tx_skbuff[i] = NULL;
+			priv->tx_skbuff_dma[i] = 0;
 		}
 	}
 }
@@ -783,6 +788,7 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
 	}
 	kfree(priv->rx_skbuff_dma);
 	kfree(priv->rx_skbuff);
+	kfree(priv->tx_skbuff_dma);
 	kfree(priv->tx_skbuff);
 }
 
@@ -854,10 +860,13 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		TX_DBG("%s: curr %d, dirty %d\n", __func__,
 			priv->cur_tx, priv->dirty_tx);
 
-		if (likely(p->des2))
-			dma_unmap_single(priv->device, p->des2,
+		if (likely(priv->tx_skbuff_dma[entry])) {
+			dma_unmap_single(priv->device,
+					 priv->tx_skbuff_dma[entry],
 					 priv->hw->desc->get_tx_len(p),
 					 DMA_TO_DEVICE);
+			priv->tx_skbuff_dma[entry] = 0;
+		}
 		if (priv->mode == STMMAC_RING_MODE)
 			priv->hw->ring->clean_desc3(p);
 
@@ -1423,6 +1432,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(!is_jumbo)) {
 		desc->des2 = dma_map_single(priv->device, skb->data,
 					nopaged_len, DMA_TO_DEVICE);
+		priv->tx_skbuff_dma[entry] = desc->des2;
 		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len,
 						csum_insertion, priv->mode);
 	} else
@@ -1441,6 +1451,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		TX_DBG("\t[entry %d] segment len: %d\n", entry, len);
 		desc->des2 = skb_frag_dma_map(priv->device, frag, 0, len,
 					      DMA_TO_DEVICE);
+		priv->tx_skbuff_dma[entry] = desc->des2;
 		priv->tx_skbuff[entry] = NULL;
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum_insertion,
 						priv->mode);
