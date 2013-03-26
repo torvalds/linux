@@ -440,7 +440,7 @@ static struct platform_driver exynos_adc_driver = {
 	.driver		= {
 		.name	= "exynos-adc",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(exynos_adc_match),
+		.of_match_table = exynos_adc_match,
 		.pm	= &exynos_adc_pm_ops,
 	},
 };
