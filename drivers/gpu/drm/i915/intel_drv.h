@@ -105,10 +105,6 @@
 #define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
 #define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)
 #define INTEL_MODE_DP_FORCE_6BPC (0x10)
-/* This flag must be set by the encoder's mode_fixup if it changes the crtc
- * timings in the mode to prevent the crtc fixup from overwriting them.
- * Currently only lvds needs that. */
-#define INTEL_MODE_CRTC_TIMINGS_SET (0x20)
 /*
  * Set when limited 16-235 (as opposed to full 0-255) RGB color range is
  * to be used.
@@ -158,6 +154,8 @@ struct intel_encoder {
 	bool cloneable;
 	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
+	bool (*compute_config)(struct intel_encoder *,
+			       struct intel_crtc_config *);
 	void (*pre_pll_enable)(struct intel_encoder *);
 	void (*pre_enable)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
@@ -203,6 +201,10 @@ struct intel_connector {
 struct intel_crtc_config {
 	struct drm_display_mode requested_mode;
 	struct drm_display_mode adjusted_mode;
+	/* This flag must be set by the encoder's compute_config callback if it
+	 * changes the crtc timings in the mode to prevent the crtc fixup from
+	 * overwriting them.  Currently only lvds needs that. */
+	bool timings_set;
 };
 
 struct intel_crtc {

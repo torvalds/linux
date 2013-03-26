@@ -3987,7 +3987,7 @@ static bool intel_crtc_compute_config(struct drm_crtc *crtc,
 	/* All interlaced capable intel hw wants timings in frames. Note though
 	 * that intel_lvds_mode_fixup does some funny tricks with the crtc
 	 * timings, so we need to be careful not to clobber these.*/
-	if (!(adjusted_mode->private_flags & INTEL_MODE_CRTC_TIMINGS_SET))
+	if (!pipe_config->timings_set)
 		drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	/* WaPruneModeWithIncorrectHsyncOffset: Cantiga+ cannot handle modes
@@ -7560,6 +7560,16 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 		if (&encoder->new_crtc->base != crtc)
 			continue;
+
+		if (encoder->compute_config) {
+			if (!(encoder->compute_config(encoder, pipe_config))) {
+				DRM_DEBUG_KMS("Encoder config failure\n");
+				goto fail;
+			}
+
+			continue;
+		}
+
 		encoder_funcs = encoder->base.helper_private;
 		if (!(encoder_funcs->mode_fixup(&encoder->base,
 						&pipe_config->requested_mode,
