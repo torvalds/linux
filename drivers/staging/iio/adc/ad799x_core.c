@@ -465,6 +465,7 @@ static const struct iio_info ad7993_4_7_8_info = {
 	.indexed = 1, \
 	.channel = (_index), \
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
 	.scan_index = (_index), \
 	.scan_type = IIO_ST('u', _realbits, 16, 12 - (_realbits)), \
 	.event_mask = (_evmask), \
