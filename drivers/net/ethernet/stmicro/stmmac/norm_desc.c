@@ -122,37 +122,28 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static void ndesc_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
-			       int disable_rx_ic, int mode)
+static void ndesc_init_rx_desc(struct dma_desc *p, int disable_rx_ic, int mode,
+			       int end)
 {
-	int i;
-	for (i = 0; i < ring_size; i++) {
-		p->des01.rx.own = 1;
-		p->des01.rx.buffer1_size = BUF_SIZE_2KiB - 1;
+	p->des01.rx.own = 1;
+	p->des01.rx.buffer1_size = BUF_SIZE_2KiB - 1;
 
-		if (mode == STMMAC_CHAIN_MODE)
-			ndesc_rx_set_on_chain(p, (i == ring_size - 1));
-		else
-			ndesc_rx_set_on_ring(p, (i == ring_size - 1));
+	if (mode == STMMAC_CHAIN_MODE)
+		ndesc_rx_set_on_chain(p, end);
+	else
+		ndesc_rx_set_on_ring(p, end);
 
-		if (disable_rx_ic)
-			p->des01.rx.disable_ic = 1;
-		p++;
-	}
+	if (disable_rx_ic)
+		p->des01.rx.disable_ic = 1;
 }
 
-static void ndesc_init_tx_desc(struct dma_desc *p, unsigned int ring_size,
-			       int mode)
+static void ndesc_init_tx_desc(struct dma_desc *p, int mode, int end)
 {
-	int i;
-	for (i = 0; i < ring_size; i++) {
-		p->des01.tx.own = 0;
-		if (mode == STMMAC_CHAIN_MODE)
-			ndesc_tx_set_on_chain(p, (i == (ring_size - 1)));
-		else
-			ndesc_tx_set_on_ring(p, (i == (ring_size - 1)));
-		p++;
-	}
+	p->des01.tx.own = 0;
+	if (mode == STMMAC_CHAIN_MODE)
+		ndesc_tx_set_on_chain(p, end);
+	else
+		ndesc_tx_set_on_ring(p, end);
 }
 
 static int ndesc_get_tx_owner(struct dma_desc *p)

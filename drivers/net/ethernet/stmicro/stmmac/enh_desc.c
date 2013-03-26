@@ -150,6 +150,57 @@ static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 	return ret;
 }
 
+static void enh_desc_get_ext_status(void *data, struct stmmac_extra_stats *x,
+				    struct dma_extended_desc *p)
+{
+	if (unlikely(p->basic.des01.erx.rx_mac_addr)) {
+		if (p->des4.erx.ip_hdr_err)
+			x->ip_hdr_err++;
+		if (p->des4.erx.ip_payload_err)
+			x->ip_payload_err++;
+		if (p->des4.erx.ip_csum_bypassed)
+			x->ip_csum_bypassed++;
+		if (p->des4.erx.ipv4_pkt_rcvd)
+			x->ipv4_pkt_rcvd++;
+		if (p->des4.erx.ipv6_pkt_rcvd)
+			x->ipv6_pkt_rcvd++;
+		if (p->des4.erx.msg_type == RDES_EXT_SYNC)
+			x->rx_msg_type_sync++;
+		else if (p->des4.erx.msg_type == RDES_EXT_FOLLOW_UP)
+			x->rx_msg_type_follow_up++;
+		else if (p->des4.erx.msg_type == RDES_EXT_DELAY_REQ)
+			x->rx_msg_type_delay_req++;
+		else if (p->des4.erx.msg_type == RDES_EXT_DELAY_RESP)
+			x->rx_msg_type_delay_resp++;
+		else if (p->des4.erx.msg_type == RDES_EXT_DELAY_REQ)
+			x->rx_msg_type_pdelay_req++;
+		else if (p->des4.erx.msg_type == RDES_EXT_PDELAY_RESP)
+			x->rx_msg_type_pdelay_resp++;
+		else if (p->des4.erx.msg_type == RDES_EXT_PDELAY_FOLLOW_UP)
+			x->rx_msg_type_pdelay_follow_up++;
+		else
+			x->rx_msg_type_ext_no_ptp++;
+		if (p->des4.erx.ptp_frame_type)
+			x->ptp_frame_type++;
+		if (p->des4.erx.ptp_ver)
+			x->ptp_ver++;
+		if (p->des4.erx.timestamp_dropped)
+			x->timestamp_dropped++;
+		if (p->des4.erx.av_pkt_rcvd)
+			x->av_pkt_rcvd++;
+		if (p->des4.erx.av_tagged_pkt_rcvd)
+			x->av_tagged_pkt_rcvd++;
+		if (p->des4.erx.vlan_tag_priority_val)
+			x->vlan_tag_priority_val++;
+		if (p->des4.erx.l3_filter_match)
+			x->l3_filter_match++;
+		if (p->des4.erx.l4_filter_match)
+			x->l4_filter_match++;
+		if (p->des4.erx.l3_l4_filter_no_match)
+			x->l3_l4_filter_no_match++;
+	}
+}
+
 static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 				  struct dma_desc *p)
 {
@@ -198,7 +249,7 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	 * At any rate, we need to understand if the CSUM hw computation is ok
 	 * and report this info to the upper layers. */
 	ret = enh_desc_coe_rdes0(p->des01.erx.ipc_csum_error,
-		p->des01.erx.frame_type, p->des01.erx.payload_csum_error);
+		p->des01.erx.frame_type, p->des01.erx.rx_mac_addr);
 
 	if (unlikely(p->des01.erx.dribbling)) {
 		CHIP_DBG(KERN_ERR "GMAC RX: dribbling error\n");
@@ -225,41 +276,32 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 		x->rx_vlan++;
 	}
 #endif
+
 	return ret;
 }
 
-static void enh_desc_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
-				  int disable_rx_ic, int mode)
+static void enh_desc_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
+				  int mode, int end)
 {
-	int i;
-	for (i = 0; i < ring_size; i++) {
-		p->des01.erx.own = 1;
-		p->des01.erx.buffer1_size = BUF_SIZE_8KiB - 1;
+	p->des01.erx.own = 1;
+	p->des01.erx.buffer1_size = BUF_SIZE_8KiB - 1;
 
-		if (mode == STMMAC_CHAIN_MODE)
-			ehn_desc_rx_set_on_chain(p, (i == ring_size - 1));
-		else
-			ehn_desc_rx_set_on_ring(p, (i == ring_size - 1));
+	if (mode == STMMAC_CHAIN_MODE)
+		ehn_desc_rx_set_on_chain(p, end);
+	else
+		ehn_desc_rx_set_on_ring(p, end);
 
-		if (disable_rx_ic)
-			p->des01.erx.disable_ic = 1;
-		p++;
-	}
+	if (disable_rx_ic)
+		p->des01.erx.disable_ic = 1;
 }
 
-static void enh_desc_init_tx_desc(struct dma_desc *p, unsigned int ring_size,
-				  int mode)
+static void enh_desc_init_tx_desc(struct dma_desc *p, int mode, int end)
 {
-	int i;
-
-	for (i = 0; i < ring_size; i++) {
-		p->des01.etx.own = 0;
-		if (mode == STMMAC_CHAIN_MODE)
-			ehn_desc_tx_set_on_chain(p, (i == ring_size - 1));
-		else
-			ehn_desc_tx_set_on_ring(p, (i == ring_size - 1));
-		p++;
-	}
+	p->des01.etx.own = 0;
+	if (mode == STMMAC_CHAIN_MODE)
+		ehn_desc_tx_set_on_chain(p, end);
+	else
+		ehn_desc_tx_set_on_ring(p, end);
 }
 
 static int enh_desc_get_tx_owner(struct dma_desc *p)
@@ -352,4 +394,5 @@ const struct stmmac_desc_ops enh_desc_ops = {
 	.set_tx_owner = enh_desc_set_tx_owner,
 	.set_rx_owner = enh_desc_set_rx_owner,
 	.get_rx_frame_len = enh_desc_get_rx_frame_len,
+	.rx_extended_status = enh_desc_get_ext_status,
 };

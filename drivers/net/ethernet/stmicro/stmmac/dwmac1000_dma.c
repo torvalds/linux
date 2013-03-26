@@ -30,8 +30,8 @@
 #include "dwmac1000.h"
 #include "dwmac_dma.h"
 
-static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb,
-			      int mb, int burst_len, u32 dma_tx, u32 dma_rx)
+static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
+			      int burst_len, u32 dma_tx, u32 dma_rx, int atds)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 	int limit;
@@ -73,6 +73,10 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb,
 #ifdef CONFIG_STMMAC_DA
 	value |= DMA_BUS_MODE_DA;	/* Rx has priority over tx */
 #endif
+
+	if (atds)
+		value |= DMA_BUS_MODE_ATDS;
+
 	writel(value, ioaddr + DMA_BUS_MODE);
 
 	/* In case of GMAC AXI configuration, program the DMA_AXI_BUS_MODE

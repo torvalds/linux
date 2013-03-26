@@ -117,6 +117,29 @@ struct stmmac_extra_stats {
 	unsigned long irq_rx_path_in_lpi_mode_n;
 	unsigned long irq_rx_path_exit_lpi_mode_n;
 	unsigned long phy_eee_wakeup_error_n;
+	/* Extended RDES status */
+	unsigned long ip_hdr_err;
+	unsigned long ip_payload_err;
+	unsigned long ip_csum_bypassed;
+	unsigned long ipv4_pkt_rcvd;
+	unsigned long ipv6_pkt_rcvd;
+	unsigned long rx_msg_type_ext_no_ptp;
+	unsigned long rx_msg_type_sync;
+	unsigned long rx_msg_type_follow_up;
+	unsigned long rx_msg_type_delay_req;
+	unsigned long rx_msg_type_delay_resp;
+	unsigned long rx_msg_type_pdelay_req;
+	unsigned long rx_msg_type_pdelay_resp;
+	unsigned long rx_msg_type_pdelay_follow_up;
+	unsigned long ptp_frame_type;
+	unsigned long ptp_ver;
+	unsigned long timestamp_dropped;
+	unsigned long av_pkt_rcvd;
+	unsigned long av_tagged_pkt_rcvd;
+	unsigned long vlan_tag_priority_val;
+	unsigned long l3_filter_match;
+	unsigned long l4_filter_match;
+	unsigned long l3_l4_filter_no_match;
 };
 
 /* CSR Frequency Access Defines*/
@@ -260,11 +283,10 @@ struct dma_features {
 
 struct stmmac_desc_ops {
 	/* DMA RX descriptor ring initialization */
-	void (*init_rx_desc) (struct dma_desc *p, unsigned int ring_size,
-			      int disable_rx_ic, int mode);
+	void (*init_rx_desc) (struct dma_desc *p, int disable_rx_ic, int mode,
+			      int end);
 	/* DMA TX descriptor ring initialization */
-	void (*init_tx_desc) (struct dma_desc *p, unsigned int ring_size,
-			      int mode);
+	void (*init_tx_desc) (struct dma_desc *p, int mode, int end);
 
 	/* Invoked by the xmit function to prepare the tx descriptor */
 	void (*prepare_tx_desc) (struct dma_desc *p, int is_fs, int len,
@@ -294,12 +316,14 @@ struct stmmac_desc_ops {
 	/* Return the reception status looking at the RDES1 */
 	int (*rx_status) (void *data, struct stmmac_extra_stats *x,
 			  struct dma_desc *p);
+	void (*rx_extended_status) (void *data, struct stmmac_extra_stats *x,
+				    struct dma_extended_desc *p);
 };
 
 struct stmmac_dma_ops {
 	/* DMA core initialization */
 	int (*init) (void __iomem *ioaddr, int pbl, int fb, int mb,
-		     int burst_len, u32 dma_tx, u32 dma_rx);
+		     int burst_len, u32 dma_tx, u32 dma_rx, int atds);
 	/* Dump DMA registers */
 	void (*dump_regs) (void __iomem *ioaddr);
 	/* Set tx/rx threshold in the csr6 register
@@ -371,10 +395,10 @@ struct stmmac_ring_mode_ops {
 };
 
 struct stmmac_chain_mode_ops {
+	void (*init) (void *des, dma_addr_t phy_addr, unsigned int size,
+		      unsigned int extend_desc);
 	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
 	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
-	void (*init_dma_chain) (struct dma_desc *des, dma_addr_t phy_addr,
-				unsigned int size);
 };
 
 struct mac_device_info {

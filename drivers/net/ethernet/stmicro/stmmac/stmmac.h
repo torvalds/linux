@@ -34,7 +34,8 @@
 
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
-	struct dma_desc *dma_tx ____cacheline_aligned;
+	struct dma_desc *dma_tx ____cacheline_aligned;	/* Basic TX desc */
+	struct dma_extended_desc *dma_etx;	/* Extended TX descriptor */
 	dma_addr_t dma_tx_phy;
 	struct sk_buff **tx_skbuff;
 	unsigned int cur_tx;
@@ -42,7 +43,8 @@ struct stmmac_priv {
 	unsigned int dma_tx_size;
 	int tx_coalesce;
 
-	struct dma_desc *dma_rx ;
+	struct dma_desc *dma_rx;		/* Basic RX descriptor */
+	struct dma_extended_desc *dma_erx;	/* Extended RX descriptor */
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
 	struct sk_buff **rx_skbuff;
@@ -94,6 +96,7 @@ struct stmmac_priv {
 	int use_riwt;
 	u32 rx_riwt;
 	unsigned int mode;
+	int extend_desc;
 };
 
 extern int phyaddr;

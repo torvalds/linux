@@ -468,26 +468,53 @@ static int stmmac_init_phy(struct net_device *dev)
 }
 
 /**
- * display_ring
+ * stmmac_display_ring
  * @p: pointer to the ring.
  * @size: size of the ring.
- * Description: display all the descriptors within the ring.
+ * Description: display the control/status and buffer descriptors.
  */
-static void display_ring(struct dma_desc *p, int size)
+static void stmmac_display_ring(void *head, int size, int extend_desc)
 {
-	struct tmp_s {
-		u64 a;
-		unsigned int b;
-		unsigned int c;
-	};
 	int i;
+	struct dma_extended_desc *ep = (struct dma_extended_desc *) head;
+	struct dma_desc *p = (struct dma_desc *) head;
+
 	for (i = 0; i < size; i++) {
-		struct tmp_s *x = (struct tmp_s *)(p + i);
-		pr_info("\t%d [0x%x]: DES0=0x%x DES1=0x%x BUF1=0x%x BUF2=0x%x",
-		       i, (unsigned int)virt_to_phys(&p[i]),
-		       (unsigned int)(x->a), (unsigned int)((x->a) >> 32),
-		       x->b, x->c);
+		u64 x;
+		if (extend_desc) {
+			x = *(u64 *) ep;
+			pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
+				i, (unsigned int) virt_to_phys(ep),
+				(unsigned int) x, (unsigned int) (x >> 32),
+				ep->basic.des2, ep->basic.des3);
+			ep++;
+		} else {
+			x = *(u64 *) p;
+			pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x",
+				i, (unsigned int) virt_to_phys(p),
+				(unsigned int) x, (unsigned int) (x >> 32),
+				p->des2, p->des3);
+			p++;
+		}
 		pr_info("\n");
+	}
+}
+
+static void stmmac_display_rings(struct stmmac_priv *priv)
+{
+	unsigned int txsize = priv->dma_tx_size;
+	unsigned int rxsize = priv->dma_rx_size;
+
+	if (priv->extend_desc) {
+		pr_info("Extended RX descriptor ring:\n");
+		stmmac_display_ring((void *) priv->dma_erx, rxsize, 1);
+		pr_info("Extended TX descriptor ring:\n");
+		stmmac_display_ring((void *) priv->dma_etx, txsize, 1);
+	} else {
+		pr_info("RX descriptor ring:\n");
+		stmmac_display_ring((void *)priv->dma_rx, rxsize, 0);
+		pr_info("TX descriptor ring:\n");
+		stmmac_display_ring((void *)priv->dma_tx, txsize, 0);
 	}
 }
 
@@ -507,6 +534,59 @@ static int stmmac_set_bfsize(int mtu, int bufsize)
 	return ret;
 }
 
+static void stmmac_clear_descriptors(struct stmmac_priv *priv)
+{
+	int i;
+	unsigned int txsize = priv->dma_tx_size;
+	unsigned int rxsize = priv->dma_rx_size;
+
+	/* Clear the Rx/Tx descriptors */
+	for (i = 0; i < rxsize; i++)
+		if (priv->extend_desc)
+			priv->hw->desc->init_rx_desc(&priv->dma_erx[i].basic,
+						     priv->use_riwt, priv->mode,
+						     (i == rxsize - 1));
+		else
+			priv->hw->desc->init_rx_desc(&priv->dma_rx[i],
+						     priv->use_riwt, priv->mode,
+						     (i == rxsize - 1));
+	for (i = 0; i < txsize; i++)
+		if (priv->extend_desc)
+			priv->hw->desc->init_tx_desc(&priv->dma_etx[i].basic,
+						     priv->mode,
+						     (i == txsize - 1));
+		else
+			priv->hw->desc->init_tx_desc(&priv->dma_tx[i],
+						     priv->mode,
+						     (i == txsize - 1));
+}
+
+static int stmmac_init_rx_buffers(struct stmmac_priv *priv, struct dma_desc *p,
+				  int i)
+{
+	struct sk_buff *skb;
+
+	skb = __netdev_alloc_skb(priv->dev, priv->dma_buf_sz + NET_IP_ALIGN,
+				 GFP_KERNEL);
+	if (unlikely(skb == NULL)) {
+		pr_err("%s: Rx init fails; skb is NULL\n", __func__);
+		return 1;
+	}
+	skb_reserve(skb, NET_IP_ALIGN);
+	priv->rx_skbuff[i] = skb;
+	priv->rx_skbuff_dma[i] = dma_map_single(priv->device, skb->data,
+						priv->dma_buf_sz,
+						DMA_FROM_DEVICE);
+
+	p->des2 = priv->rx_skbuff_dma[i];
+
+	if ((priv->mode == STMMAC_RING_MODE) &&
+	    (priv->dma_buf_sz == BUF_SIZE_16KiB))
+		priv->hw->ring->init_desc3(p);
+
+	return 0;
+}
+
 /**
  * init_dma_desc_rings - init the RX/TX descriptor rings
  * @dev: net device structure
@@ -518,11 +598,9 @@ static void init_dma_desc_rings(struct net_device *dev)
 {
 	int i;
 	struct stmmac_priv *priv = netdev_priv(dev);
-	struct sk_buff *skb;
 	unsigned int txsize = priv->dma_tx_size;
 	unsigned int rxsize = priv->dma_rx_size;
 	unsigned int bfsize = 0;
-	int dis_ic = 0;
 
 	/* Set the max buffer size according to the DESC mode
 	 * and the MTU. Note that RING mode allows 16KiB bsize. */
@@ -535,50 +613,53 @@ static void init_dma_desc_rings(struct net_device *dev)
 	DBG(probe, INFO, "stmmac: txsize %d, rxsize %d, bfsize %d\n",
 	    txsize, rxsize, bfsize);
 
+	if (priv->extend_desc) {
+		priv->dma_erx = dma_alloc_coherent(priv->device, rxsize *
+						   sizeof(struct
+							  dma_extended_desc),
+						   &priv->dma_rx_phy,
+						   GFP_KERNEL);
+		priv->dma_etx = dma_alloc_coherent(priv->device, txsize *
+						   sizeof(struct
+							  dma_extended_desc),
+						   &priv->dma_tx_phy,
+						   GFP_KERNEL);
+		if ((!priv->dma_erx) || (!priv->dma_etx))
+			return;
+	} else {
+		priv->dma_rx = dma_alloc_coherent(priv->device, rxsize *
+						  sizeof(struct dma_desc),
+						  &priv->dma_rx_phy,
+						  GFP_KERNEL);
+		priv->dma_tx = dma_alloc_coherent(priv->device, txsize *
+						  sizeof(struct dma_desc),
+						  &priv->dma_tx_phy,
+						  GFP_KERNEL);
+		if ((!priv->dma_rx) || (!priv->dma_tx))
+			return;
+	}
+
 	priv->rx_skbuff_dma = kmalloc_array(rxsize, sizeof(dma_addr_t),
 					    GFP_KERNEL);
 	priv->rx_skbuff = kmalloc_array(rxsize, sizeof(struct sk_buff *),
 					GFP_KERNEL);
-	priv->dma_rx = dma_alloc_coherent(priv->device,
-					  rxsize * sizeof(struct dma_desc),
-					  &priv->dma_rx_phy, GFP_KERNEL);
 	priv->tx_skbuff = kmalloc_array(txsize, sizeof(struct sk_buff *),
 					GFP_KERNEL);
-	priv->dma_tx = dma_alloc_coherent(priv->device,
-					  txsize * sizeof(struct dma_desc),
-					  &priv->dma_tx_phy, GFP_KERNEL);
-
-	if ((priv->dma_rx == NULL) || (priv->dma_tx == NULL))
-		return;
-
-	DBG(probe, INFO, "stmmac (%s) DMA desc: virt addr (Rx %p, "
-	    "Tx %p)\n\tDMA phy addr (Rx 0x%08x, Tx 0x%08x)\n",
-	    dev->name, priv->dma_rx, priv->dma_tx,
-	    (unsigned int)priv->dma_rx_phy, (unsigned int)priv->dma_tx_phy);
+	if (netif_msg_drv(priv))
+		pr_debug("(%s) dma_rx_phy=0x%08x dma_tx_phy=0x%08x\n", __func__,
+			 (u32) priv->dma_rx_phy, (u32) priv->dma_tx_phy);
 
 	/* RX INITIALIZATION */
-	DBG(probe, INFO, "stmmac: SKB addresses:\n"
-			 "skb\t\tskb data\tdma data\n");
-
+	DBG(probe, INFO, "stmmac: SKB addresses:\nskb\t\tskb data\tdma data\n");
 	for (i = 0; i < rxsize; i++) {
-		struct dma_desc *p = priv->dma_rx + i;
+		struct dma_desc *p;
+		if (priv->extend_desc)
+			p = &((priv->dma_erx + i)->basic);
+		else
+			p = priv->dma_rx + i;
 
-		skb = __netdev_alloc_skb(dev, bfsize + NET_IP_ALIGN,
-					 GFP_KERNEL);
-		if (unlikely(skb == NULL)) {
-			pr_err("%s: Rx init fails; skb is NULL\n", __func__);
+		if (stmmac_init_rx_buffers(priv, p, i))
 			break;
-		}
-		skb_reserve(skb, NET_IP_ALIGN);
-		priv->rx_skbuff[i] = skb;
-		priv->rx_skbuff_dma[i] = dma_map_single(priv->device, skb->data,
-						bfsize, DMA_FROM_DEVICE);
-
-		p->des2 = priv->rx_skbuff_dma[i];
-
-		if ((priv->mode == STMMAC_RING_MODE) &&
-		    (bfsize == BUF_SIZE_16KiB))
-			priv->hw->ring->init_desc3(p);
 
 		DBG(probe, INFO, "[%p]\t[%p]\t[%x]\n", priv->rx_skbuff[i],
 			priv->rx_skbuff[i]->data, priv->rx_skbuff_dma[i]);
@@ -588,35 +669,39 @@ static void init_dma_desc_rings(struct net_device *dev)
 	priv->dma_buf_sz = bfsize;
 	buf_sz = bfsize;
 
-	/* TX INITIALIZATION */
-	for (i = 0; i < txsize; i++) {
-		priv->tx_skbuff[i] = NULL;
-		priv->dma_tx[i].des2 = 0;
+	/* Setup the chained descriptor addresses */
+	if (priv->mode == STMMAC_CHAIN_MODE) {
+		if (priv->extend_desc) {
+			priv->hw->chain->init(priv->dma_erx, priv->dma_rx_phy,
+					      rxsize, 1);
+			priv->hw->chain->init(priv->dma_etx, priv->dma_tx_phy,
+					      txsize, 1);
+		} else {
+			priv->hw->chain->init(priv->dma_rx, priv->dma_rx_phy,
+					      rxsize, 0);
+			priv->hw->chain->init(priv->dma_tx, priv->dma_tx_phy,
+					      txsize, 0);
+		}
 	}
 
-	/* In case of Chained mode this sets the des3 to the next
-	 * element in the chain */
-	if (priv->mode == STMMAC_CHAIN_MODE) {
-		priv->hw->chain->init_dma_chain(priv->dma_rx, priv->dma_rx_phy,
-						rxsize);
-		priv->hw->chain->init_dma_chain(priv->dma_tx, priv->dma_tx_phy,
-						txsize);
+	/* TX INITIALIZATION */
+	for (i = 0; i < txsize; i++) {
+		struct dma_desc *p;
+		if (priv->extend_desc)
+			p = &((priv->dma_etx + i)->basic);
+		else
+			p = priv->dma_tx + i;
+		p->des2 = 0;
+		priv->tx_skbuff[i] = NULL;
 	}
+
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
 
-	if (priv->use_riwt)
-		dis_ic = 1;
-	/* Clear the Rx/Tx descriptors */
-	priv->hw->desc->init_rx_desc(priv->dma_rx, rxsize, dis_ic, priv->mode);
-	priv->hw->desc->init_tx_desc(priv->dma_tx, txsize, priv->mode);
+	stmmac_clear_descriptors(priv);
 
-	if (netif_msg_hw(priv)) {
-		pr_info("RX descriptor ring:\n");
-		display_ring(priv->dma_rx, rxsize);
-		pr_info("TX descriptor ring:\n");
-		display_ring(priv->dma_tx, txsize);
-	}
+	if (netif_msg_hw(priv))
+		stmmac_display_rings(priv);
 }
 
 static void dma_free_rx_skbufs(struct stmmac_priv *priv)
@@ -639,7 +724,12 @@ static void dma_free_tx_skbufs(struct stmmac_priv *priv)
 
 	for (i = 0; i < priv->dma_tx_size; i++) {
 		if (priv->tx_skbuff[i] != NULL) {
-			struct dma_desc *p = priv->dma_tx + i;
+			struct dma_desc *p;
+			if (priv->extend_desc)
+				p = &((priv->dma_etx + i)->basic);
+			else
+				p = priv->dma_tx + i;
+
 			if (p->des2)
 				dma_unmap_single(priv->device, p->des2,
 						 priv->hw->desc->get_tx_len(p),
@@ -658,12 +748,21 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
 
 	/* Free the region of consistent memory previously allocated for
 	 * the DMA */
-	dma_free_coherent(priv->device,
-			  priv->dma_tx_size * sizeof(struct dma_desc),
-			  priv->dma_tx, priv->dma_tx_phy);
-	dma_free_coherent(priv->device,
-			  priv->dma_rx_size * sizeof(struct dma_desc),
-			  priv->dma_rx, priv->dma_rx_phy);
+	if (!priv->extend_desc) {
+		dma_free_coherent(priv->device,
+				  priv->dma_tx_size * sizeof(struct dma_desc),
+				  priv->dma_tx, priv->dma_tx_phy);
+		dma_free_coherent(priv->device,
+				  priv->dma_rx_size * sizeof(struct dma_desc),
+				  priv->dma_rx, priv->dma_rx_phy);
+	} else {
+		dma_free_coherent(priv->device, priv->dma_tx_size *
+				  sizeof(struct dma_extended_desc),
+				  priv->dma_etx, priv->dma_tx_phy);
+		dma_free_coherent(priv->device, priv->dma_rx_size *
+				  sizeof(struct dma_extended_desc),
+				  priv->dma_erx, priv->dma_rx_phy);
+	}
 	kfree(priv->rx_skbuff_dma);
 	kfree(priv->rx_skbuff);
 	kfree(priv->tx_skbuff);
@@ -710,13 +809,18 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		int last;
 		unsigned int entry = priv->dirty_tx % txsize;
 		struct sk_buff *skb = priv->tx_skbuff[entry];
-		struct dma_desc *p = priv->dma_tx + entry;
+		struct dma_desc *p;
+
+		if (priv->extend_desc)
+			p = (struct dma_desc *) (priv->dma_etx + entry);
+		else
+			p = priv->dma_tx + entry;
 
 		/* Check if the descriptor is owned by the DMA. */
 		if (priv->hw->desc->get_tx_owner(p))
 			break;
 
-		/* Verify tx error by looking at the last segment */
+		/* Verify tx error by looking at the last segment. */
 		last = priv->hw->desc->get_tx_ls(p);
 		if (likely(last)) {
 			int tx_error =
@@ -785,12 +889,21 @@ static inline void stmmac_disable_dma_irq(struct stmmac_priv *priv)
  */
 static void stmmac_tx_err(struct stmmac_priv *priv)
 {
+	int i;
+	int txsize = priv->dma_tx_size;
 	netif_stop_queue(priv->dev);
 
 	priv->hw->dma->stop_tx(priv->ioaddr);
 	dma_free_tx_skbufs(priv);
-	priv->hw->desc->init_tx_desc(priv->dma_tx, priv->dma_tx_size,
-				     priv->mode);
+	for (i = 0; i < txsize; i++)
+		if (priv->extend_desc)
+			priv->hw->desc->init_tx_desc(&priv->dma_etx[i].basic,
+						     priv->mode,
+						     (i == txsize - 1));
+		else
+			priv->hw->desc->init_tx_desc(&priv->dma_tx[i],
+						     priv->mode,
+						     (i == txsize - 1));
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
 	priv->hw->dma->start_tx(priv->ioaddr);
@@ -864,6 +977,14 @@ static void stmmac_selec_desc_mode(struct stmmac_priv *priv)
 {
 	if (priv->plat->enh_desc) {
 		pr_info(" Enhanced/Alternate descriptors\n");
+
+		/* GMAC older than 3.50 has no extended descriptors */
+		if (priv->synopsys_id >= DWMAC_CORE_3_50) {
+			pr_info("\tEnabled extended descriptors\n");
+			priv->extend_desc = 1;
+		} else
+			pr_warn("Extended descriptors not supported\n");
+
 		priv->hw->desc = &enh_desc_ops;
 	} else {
 		pr_info(" Normal descriptors\n");
@@ -950,6 +1071,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 {
 	int pbl = DEFAULT_DMA_PBL, fixed_burst = 0, burst_len = 0;
 	int mixed_burst = 0;
+	int atds = 0;
 
 	/* Some DMA parameters can be passed from the platform;
 	 * in case of these are not passed we keep a default
@@ -961,9 +1083,12 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		burst_len = priv->plat->dma_cfg->burst_len;
 	}
 
+	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
+		atds = 1;
+
 	return priv->hw->dma->init(priv->ioaddr, pbl, fixed_burst, mixed_burst,
 				   burst_len, priv->dma_tx_phy,
-				   priv->dma_rx_phy);
+				   priv->dma_rx_phy, atds);
 }
 
 /**
@@ -1237,7 +1362,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	csum_insertion = (skb->ip_summed == CHECKSUM_PARTIAL);
 
-	desc = priv->dma_tx + entry;
+	if (priv->extend_desc)
+		desc = (struct dma_desc *) (priv->dma_etx + entry);
+	else
+		desc = priv->dma_tx + entry;
+
 	first = desc;
 
 #ifdef STMMAC_XMIT_DEBUG
@@ -1268,14 +1397,17 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len,
 						csum_insertion, priv->mode);
 	} else
-		desc = priv->dma_tx + entry;
+		desc = first;
 
 	for (i = 0; i < nfrags; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		int len = skb_frag_size(frag);
 
 		entry = (++priv->cur_tx) % txsize;
-		desc = priv->dma_tx + entry;
+		if (priv->extend_desc)
+			desc = (struct dma_desc *) (priv->dma_etx + entry);
+		else
+			desc = priv->dma_tx + entry;
 
 		TX_DBG("\t[entry %d] segment len: %d\n", entry, len);
 		desc->des2 = skb_frag_dma_map(priv->device, frag, 0, len,
@@ -1319,7 +1451,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		       "first=%p, nfrags=%d\n",
 		       (priv->cur_tx % txsize), (priv->dirty_tx % txsize),
 		       entry, first, nfrags);
-		display_ring(priv->dma_tx, txsize);
+		if (priv->extend_desc)
+			stmmac_display_ring((void *)priv->dma_etx, txsize, 1);
+		else
+			stmmac_display_ring((void *)priv->dma_tx, txsize, 0);
+
 		pr_info(">>> frame to be transmitted: ");
 		print_pkt(skb->data, skb->len);
 	}
@@ -1344,10 +1480,16 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 {
 	unsigned int rxsize = priv->dma_rx_size;
 	int bfsize = priv->dma_buf_sz;
-	struct dma_desc *p = priv->dma_rx;
 
 	for (; priv->cur_rx - priv->dirty_rx > 0; priv->dirty_rx++) {
 		unsigned int entry = priv->dirty_rx % rxsize;
+		struct dma_desc *p;
+
+		if (priv->extend_desc)
+			p = (struct dma_desc *) (priv->dma_erx + entry);
+		else
+			p = priv->dma_rx + entry;
+
 		if (likely(priv->rx_skbuff[entry] == NULL)) {
 			struct sk_buff *skb;
 
@@ -1361,16 +1503,16 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 			    dma_map_single(priv->device, skb->data, bfsize,
 					   DMA_FROM_DEVICE);
 
-			(p + entry)->des2 = priv->rx_skbuff_dma[entry];
+			p->des2 = priv->rx_skbuff_dma[entry];
 
 			if (unlikely((priv->mode == STMMAC_RING_MODE) &&
 				     (priv->plat->has_gmac)))
-				priv->hw->ring->refill_desc3(bfsize, p + entry);
+				priv->hw->ring->refill_desc3(bfsize, p);
 
 			RX_DBG(KERN_INFO "\trefill entry #%d\n", entry);
 		}
 		wmb();
-		priv->hw->desc->set_rx_owner(p + entry);
+		priv->hw->desc->set_rx_owner(p);
 		wmb();
 	}
 }
@@ -1381,30 +1523,47 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 	unsigned int entry = priv->cur_rx % rxsize;
 	unsigned int next_entry;
 	unsigned int count = 0;
-	struct dma_desc *p = priv->dma_rx + entry;
-	struct dma_desc *p_next;
 
 #ifdef STMMAC_RX_DEBUG
 	if (netif_msg_hw(priv)) {
 		pr_debug(">>> stmmac_rx: descriptor ring:\n");
-		display_ring(priv->dma_rx, rxsize);
+		if (priv->extend_desc)
+			stmmac_display_ring((void *) priv->dma_erx, rxsize, 1);
+		else
+			stmmac_display_ring((void *)priv->dma_rx, rxsize, 0);
 	}
 #endif
-	while (!priv->hw->desc->get_rx_owner(p)) {
+	while (count < limit) {
 		int status;
+		struct dma_desc *p, *p_next;
 
-		if (count >= limit)
+		if (priv->extend_desc)
+			p = (struct dma_desc *) (priv->dma_erx + entry);
+		else
+			p = priv->dma_rx + entry ;
+
+		if (priv->hw->desc->get_rx_owner(p))
 			break;
 
 		count++;
 
 		next_entry = (++priv->cur_rx) % rxsize;
-		p_next = priv->dma_rx + next_entry;
+		if (priv->extend_desc)
+			p_next = (struct dma_desc *) (priv->dma_erx +
+						      next_entry);
+		else
+			p_next = priv->dma_rx + next_entry;
+
 		prefetch(p_next);
 
 		/* read the status of the incoming frame */
-		status = (priv->hw->desc->rx_status(&priv->dev->stats,
-						    &priv->xstats, p));
+		status = priv->hw->desc->rx_status(&priv->dev->stats,
+						   &priv->xstats, p);
+		if ((priv->extend_desc) && (priv->hw->desc->rx_extended_status))
+			priv->hw->desc->rx_extended_status(&priv->dev->stats,
+							   &priv->xstats,
+							   priv->dma_erx +
+							   entry);
 		if (unlikely(status == discard_frame))
 			priv->dev->stats.rx_errors++;
 		else {
@@ -1459,7 +1618,6 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			priv->dev->stats.rx_bytes += frame_len;
 		}
 		entry = next_entry;
-		p = p_next;	/* use prefetched values */
 	}
 
 	stmmac_rx_refill(priv);
@@ -1697,40 +1855,51 @@ static struct dentry *stmmac_fs_dir;
 static struct dentry *stmmac_rings_status;
 static struct dentry *stmmac_dma_cap;
 
-static int stmmac_sysfs_ring_read(struct seq_file *seq, void *v)
+static void sysfs_display_ring(void *head, int size, int extend_desc,
+				struct seq_file *seq)
 {
-	struct tmp_s {
-		u64 a;
-		unsigned int b;
-		unsigned int c;
-	};
 	int i;
-	struct net_device *dev = seq->private;
-	struct stmmac_priv *priv = netdev_priv(dev);
+	struct dma_extended_desc *ep = (struct dma_extended_desc *) head;
+	struct dma_desc *p = (struct dma_desc *) head;
 
-	seq_printf(seq, "=======================\n");
-	seq_printf(seq, " RX descriptor ring\n");
-	seq_printf(seq, "=======================\n");
-
-	for (i = 0; i < priv->dma_rx_size; i++) {
-		struct tmp_s *x = (struct tmp_s *)(priv->dma_rx + i);
-		seq_printf(seq, "[%d] DES0=0x%x DES1=0x%x BUF1=0x%x BUF2=0x%x",
-			   i, (unsigned int)(x->a),
-			   (unsigned int)((x->a) >> 32), x->b, x->c);
+	for (i = 0; i < size; i++) {
+		u64 x;
+		if (extend_desc) {
+			x = *(u64 *) ep;
+			seq_printf(seq, "%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
+				   i, (unsigned int) virt_to_phys(ep),
+				   (unsigned int) x, (unsigned int) (x >> 32),
+				   ep->basic.des2, ep->basic.des3);
+			ep++;
+		} else {
+			x = *(u64 *) p;
+			seq_printf(seq, "%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
+				   i, (unsigned int) virt_to_phys(ep),
+				   (unsigned int) x, (unsigned int) (x >> 32),
+				   p->des2, p->des3);
+			p++;
+		}
 		seq_printf(seq, "\n");
 	}
+}
 
-	seq_printf(seq, "\n");
-	seq_printf(seq, "=======================\n");
-	seq_printf(seq, "  TX descriptor ring\n");
-	seq_printf(seq, "=======================\n");
+static int stmmac_sysfs_ring_read(struct seq_file *seq, void *v)
+{
+	struct net_device *dev = seq->private;
+	struct stmmac_priv *priv = netdev_priv(dev);
+	unsigned int txsize = priv->dma_tx_size;
+	unsigned int rxsize = priv->dma_rx_size;
 
-	for (i = 0; i < priv->dma_tx_size; i++) {
-		struct tmp_s *x = (struct tmp_s *)(priv->dma_tx + i);
-		seq_printf(seq, "[%d] DES0=0x%x DES1=0x%x BUF1=0x%x BUF2=0x%x",
-			   i, (unsigned int)(x->a),
-			   (unsigned int)((x->a) >> 32), x->b, x->c);
-		seq_printf(seq, "\n");
+	if (priv->extend_desc) {
+		seq_printf(seq, "Extended RX descriptor ring:\n");
+		sysfs_display_ring((void *) priv->dma_erx, rxsize, 1, seq);
+		seq_printf(seq, "Extended TX descriptor ring:\n");
+		sysfs_display_ring((void *) priv->dma_etx, txsize, 1, seq);
+	} else {
+		seq_printf(seq, "RX descriptor ring:\n");
+		sysfs_display_ring((void *)priv->dma_rx, rxsize, 0, seq);
+		seq_printf(seq, "TX descriptor ring:\n");
+		sysfs_display_ring((void *)priv->dma_tx, txsize, 0, seq);
 	}
 
 	return 0;
@@ -1895,7 +2064,7 @@ static const struct net_device_ops stmmac_netdev_ops = {
  */
 static int stmmac_hw_init(struct stmmac_priv *priv)
 {
-	int ret = 0;
+	int ret;
 	struct mac_device_info *mac;
 
 	/* Identify the MAC HW device */
@@ -1912,6 +2081,9 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 
 	/* Get and dump the chip ID */
 	priv->synopsys_id = stmmac_get_synopsys_id(priv);
+
+	/* To use alternate (extended) or normal descriptor structures */
+	stmmac_selec_desc_mode(priv);
 
 	/* To use the chained or ring mode */
 	if (chain_mode)	{
@@ -1947,9 +2119,6 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	} else
 		pr_info(" No HW DMA feature register supported");
 
-	/* Select the enhnaced/normal descriptor structures */
-	stmmac_selec_desc_mode(priv);
-
 	/* Enable the IPC (Checksum Offload) and check if the feature has been
 	 * enabled during the core configuration. */
 	ret = priv->hw->mac->rx_ipc(priv->ioaddr);
@@ -1969,7 +2138,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		device_set_wakeup_capable(priv->device, 1);
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -2015,7 +2184,9 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		priv->plat->phy_addr = phyaddr;
 
 	/* Init MAC and get the capabilities */
-	stmmac_hw_init(priv);
+	ret = stmmac_hw_init(priv);
+	if (ret)
+		goto error_free_netdev;
 
 	ndev->netdev_ops = &stmmac_netdev_ops;
 
@@ -2086,6 +2257,7 @@ error_clk_get:
 	unregister_netdev(ndev);
 error_netdev_register:
 	netif_napi_del(&priv->napi);
+error_free_netdev:
 	free_netdev(ndev);
 
 	return NULL;
@@ -2119,7 +2291,6 @@ int stmmac_dvr_remove(struct net_device *ndev)
 int stmmac_suspend(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	int dis_ic = 0;
 	unsigned long flags;
 
 	if (!ndev || !netif_running(ndev))
@@ -2133,19 +2304,13 @@ int stmmac_suspend(struct net_device *ndev)
 	netif_device_detach(ndev);
 	netif_stop_queue(ndev);
 
-	if (priv->use_riwt)
-		dis_ic = 1;
-
 	napi_disable(&priv->napi);
 
 	/* Stop TX/RX DMA */
 	priv->hw->dma->stop_tx(priv->ioaddr);
 	priv->hw->dma->stop_rx(priv->ioaddr);
-	/* Clear the Rx/Tx descriptors */
-	priv->hw->desc->init_rx_desc(priv->dma_rx, priv->dma_rx_size,
-				     dis_ic, priv->mode);
-	priv->hw->desc->init_tx_desc(priv->dma_tx, priv->dma_tx_size,
-				     priv->mode);
+
+	stmmac_clear_descriptors(priv);
 
 	/* Enable Power down mode by programming the PMT regs */
 	if (device_may_wakeup(priv->device))
