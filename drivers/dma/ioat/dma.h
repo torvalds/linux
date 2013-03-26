@@ -201,7 +201,7 @@ ioat_chan_by_index(struct ioatdma_device *device, int index)
 	return device->idx[index];
 }
 
-static inline u64 ioat_chansts(struct ioat_chan_common *chan)
+static inline u64 ioat_chansts_32(struct ioat_chan_common *chan)
 {
 	u8 ver = chan->device->version;
 	u64 status;
@@ -217,6 +217,26 @@ static inline u64 ioat_chansts(struct ioat_chan_common *chan)
 
 	return status;
 }
+
+#if BITS_PER_LONG == 64
+
+static inline u64 ioat_chansts(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+	u64 status;
+
+	 /* With IOAT v3.3 the status register is 64bit.  */
+	if (ver >= IOAT_VER_3_3)
+		status = readq(chan->reg_base + IOAT_CHANSTS_OFFSET(ver));
+	else
+		status = ioat_chansts_32(chan);
+
+	return status;
+}
+
+#else
+#define ioat_chansts ioat_chansts_32
+#endif
 
 static inline void ioat_start(struct ioat_chan_common *chan)
 {
