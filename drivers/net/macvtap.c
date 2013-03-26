@@ -21,6 +21,7 @@
 #include <net/rtnetlink.h>
 #include <net/sock.h>
 #include <linux/virtio_net.h>
+#include <net/flow_keys.h>
 
 /*
  * A macvtap queue is the central object of this driver, it connects
@@ -645,6 +646,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	int vnet_hdr_len = 0;
 	int copylen = 0;
 	bool zerocopy = false;
+	struct flow_keys keys;
 
 	if (q->flags & IFF_VNET_HDR) {
 		vnet_hdr_len = q->vnet_hdr_sz;
@@ -724,6 +726,13 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 		if (err)
 			goto err_kfree;
 	}
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		skb_set_transport_header(skb, skb_checksum_start_offset(skb));
+	else if (skb_flow_dissect(skb, &keys))
+		skb_set_transport_header(skb, keys.thoff);
+	else
+		skb_set_transport_header(skb, ETH_HLEN);
 
 	rcu_read_lock_bh();
 	vlan = rcu_dereference_bh(q->vlan);

@@ -39,6 +39,7 @@
 #include <linux/udp.h>
 
 #include <net/tcp.h>
+#include <net/flow_keys.h>
 
 #include <xen/xen.h>
 #include <xen/events.h>
@@ -1184,6 +1185,7 @@ static int checksum_setup(struct xenvif *vif, struct sk_buff *skb)
 	if (th >= skb_tail_pointer(skb))
 		goto out;
 
+	skb_set_transport_header(skb, 4 * iph->ihl);
 	skb->csum_start = th - skb->head;
 	switch (iph->protocol) {
 	case IPPROTO_TCP:
@@ -1495,12 +1497,22 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 
 		skb->dev      = vif->dev;
 		skb->protocol = eth_type_trans(skb, skb->dev);
+		skb_reset_network_header(skb);
 
 		if (checksum_setup(vif, skb)) {
 			netdev_dbg(vif->dev,
 				   "Can't setup checksum in net_tx_action\n");
 			kfree_skb(skb);
 			continue;
+		}
+
+		if (!skb_transport_header_was_set(skb)) {
+			struct flow_keys keys;
+
+			if (skb_flow_dissect(skb, &keys))
+				skb_set_transport_header(skb, keys.thoff);
+			else
+				skb_reset_transport_header(skb);
 		}
 
 		vif->dev->stats.rx_bytes += skb->len;
