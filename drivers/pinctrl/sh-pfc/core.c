@@ -72,6 +72,7 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 	}
 
 	BUG();
+	return NULL;
 }
 
 int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin)
