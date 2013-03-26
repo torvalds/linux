@@ -99,7 +99,6 @@ int thermal_register_governor(struct thermal_governor *governor)
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(thermal_register_governor);
 
 void thermal_unregister_governor(struct thermal_governor *governor)
 {
@@ -127,7 +126,6 @@ exit:
 	mutex_unlock(&thermal_governor_lock);
 	return;
 }
-EXPORT_SYMBOL_GPL(thermal_unregister_governor);
 
 static int get_idr(struct idr *idr, struct mutex *lock, int *id)
 {
@@ -1858,30 +1856,69 @@ static inline int genetlink_init(void) { return 0; }
 static inline void genetlink_exit(void) {}
 #endif /* !CONFIG_NET */
 
+static int __init thermal_register_governors(void)
+{
+	int result;
+
+	result = thermal_gov_step_wise_register();
+	if (result)
+		return result;
+
+	result = thermal_gov_fair_share_register();
+	if (result)
+		return result;
+
+	return thermal_gov_user_space_register();
+}
+
+static void thermal_unregister_governors(void)
+{
+	thermal_gov_step_wise_unregister();
+	thermal_gov_fair_share_unregister();
+	thermal_gov_user_space_unregister();
+}
+
 static int __init thermal_init(void)
 {
-	int result = 0;
+	int result;
+
+	result = thermal_register_governors();
+	if (result)
+		goto error;
 
 	result = class_register(&thermal_class);
-	if (result) {
-		idr_destroy(&thermal_tz_idr);
-		idr_destroy(&thermal_cdev_idr);
-		mutex_destroy(&thermal_idr_lock);
-		mutex_destroy(&thermal_list_lock);
-		return result;
-	}
+	if (result)
+		goto unregister_governors;
+
 	result = genetlink_init();
+	if (result)
+		goto unregister_class;
+
+	return 0;
+
+unregister_governors:
+	thermal_unregister_governors();
+unregister_class:
+	class_unregister(&thermal_class);
+error:
+	idr_destroy(&thermal_tz_idr);
+	idr_destroy(&thermal_cdev_idr);
+	mutex_destroy(&thermal_idr_lock);
+	mutex_destroy(&thermal_list_lock);
+	mutex_destroy(&thermal_governor_lock);
 	return result;
 }
 
 static void __exit thermal_exit(void)
 {
+	genetlink_exit();
 	class_unregister(&thermal_class);
+	thermal_unregister_governors();
 	idr_destroy(&thermal_tz_idr);
 	idr_destroy(&thermal_cdev_idr);
 	mutex_destroy(&thermal_idr_lock);
 	mutex_destroy(&thermal_list_lock);
-	genetlink_exit();
+	mutex_destroy(&thermal_governor_lock);
 }
 
 fs_initcall(thermal_init);

@@ -6,9 +6,9 @@ obj-$(CONFIG_THERMAL)		+= thermal_sys.o
 thermal_sys-y			+= thermal_core.o
 
 # governors
-obj-$(CONFIG_THERMAL_GOV_FAIR_SHARE)	+= fair_share.o
-obj-$(CONFIG_THERMAL_GOV_STEP_WISE)	+= step_wise.o
-obj-$(CONFIG_THERMAL_GOV_USER_SPACE)	+= user_space.o
+thermal_sys-$(CONFIG_THERMAL_GOV_FAIR_SHARE)	+= fair_share.o
+thermal_sys-$(CONFIG_THERMAL_GOV_STEP_WISE)	+= step_wise.o
+thermal_sys-$(CONFIG_THERMAL_GOV_USER_SPACE)	+= user_space.o
 
 # cpufreq cooling
 obj-$(CONFIG_CPU_THERMAL)	+= cpu_cooling.o
