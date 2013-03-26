@@ -128,13 +128,26 @@ int omap_encoder_update(struct drm_encoder *encoder,
 
 	dssdev->output->manager = mgr;
 
-	ret = dssdrv->check_timings(dssdev, timings);
+	if (dssdrv->check_timings) {
+		ret = dssdrv->check_timings(dssdev, timings);
+	} else {
+		struct omap_video_timings t = {0};
+
+		dssdrv->get_timings(dssdev, &t);
+
+		if (memcmp(timings, &t, sizeof(struct omap_video_timings)))
+			ret = -EINVAL;
+		else
+			ret = 0;
+	}
+
 	if (ret) {
 		dev_err(dev->dev, "could not set timings: %d\n", ret);
 		return ret;
 	}
 
-	dssdrv->set_timings(dssdev, timings);
+	if (dssdrv->set_timings)
+		dssdrv->set_timings(dssdev, timings);
 
 	return 0;
 }
