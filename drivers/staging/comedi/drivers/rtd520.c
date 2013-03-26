@@ -1128,33 +1128,22 @@ static int rtd_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
-/*
-   Write a masked set of bits and the read back the port.
-   We track what the bits should be (i.e. we don't read the port first).
-
-   DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write
- */
 static int rtd_dio_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	struct rtdPrivate *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-		/* Write out the new digital output lines */
 		writew(s->state & 0xff, devpriv->las0 + LAS0_DIO0);
 	}
-	/* on return, data[1] contains the value of the digital
-	 * input lines. */
+
 	data[1] = readw(devpriv->las0 + LAS0_DIO0) & 0xff;
 
 	return insn->n;
