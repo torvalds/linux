@@ -1,105 +1,103 @@
 /*
-    comedi/drivers/rtd520.c
-    Comedi driver for Real Time Devices (RTD) PCI4520/DM7520
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2001 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
-/*
-Driver: rtd520
-Description: Real Time Devices PCI4520/DM7520
-Author: Dan Christian
-Devices: [Real Time Devices] DM7520HR-1 (rtd520), DM7520HR-8,
-  PCI4520, PCI4520-8
-Status: Works.  Only tested on DM7520-8.  Not SMP safe.
-
-Configuration options:
-  [0] - PCI bus of device (optional)
-	If bus / slot is not specified, the first available PCI
-	device will be used.
-  [1] - PCI slot of device (optional)
-*/
-/*
-    Created by Dan Christian, NASA Ames Research Center.
-
-    The PCI4520 is a PCI card.  The DM7520 is a PC/104-plus card.
-    Both have:
-    8/16 12 bit ADC with FIFO and channel gain table
-    8 bits high speed digital out (for external MUX) (or 8 in or 8 out)
-    8 bits high speed digital in with FIFO and interrupt on change (or 8 IO)
-    2 12 bit DACs with FIFOs
-    2 bits output
-    2 bits input
-    bus mastering DMA
-    timers: ADC sample, pacer, burst, about, delay, DA1, DA2
-    sample counter
-    3 user timer/counters (8254)
-    external interrupt
-
-    The DM7520 has slightly fewer features (fewer gain steps).
-
-    These boards can support external multiplexors and multi-board
-    synchronization, but this driver doesn't support that.
-
-    Board docs: http://www.rtdusa.com/PC104/DM/analog%20IO/dm7520.htm
-    Data sheet: http://www.rtdusa.com/pdf/dm7520.pdf
-    Example source: http://www.rtdusa.com/examples/dm/dm7520.zip
-    Call them and ask for the register level manual.
-    PCI chip: http://www.plxtech.com/products/io/pci9080
-
-    Notes:
-    This board is memory mapped.  There is some IO stuff, but it isn't needed.
-
-    I use a pretty loose naming style within the driver (rtd_blah).
-    All externally visible names should be rtd520_blah.
-    I use camelCase for structures (and inside them).
-    I may also use upper CamelCase for function names (old habit).
-
-    This board is somewhat related to the RTD PCI4400 board.
-
-    I borrowed heavily from the ni_mio_common, ni_atmio16d, mite, and
-    das1800, since they have the best documented code.  Driver
-    cb_pcidas64.c uses the same DMA controller.
-
-    As far as I can tell, the About interrupt doesn't work if Sample is
-    also enabled.  It turns out that About really isn't needed, since
-    we always count down samples read.
-
-    There was some timer/counter code, but it didn't follow the right API.
-
-*/
+ * comedi/drivers/rtd520.c
+ * Comedi driver for Real Time Devices (RTD) PCI4520/DM7520
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2001 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 /*
-  driver status:
+ * Driver: rtd520
+ * Description: Real Time Devices PCI4520/DM7520
+ * Devices: (Real Time Devices) DM7520HR-1 [DM7520]
+ *	    (Real Time Devices) DM7520HR-8 [DM7520]
+ *	    (Real Time Devices) PCI4520 [PCI4520]
+ *	    (Real Time Devices) PCI4520-8 [PCI4520]
+ * Author: Dan Christian
+ * Status: Works. Only tested on DM7520-8. Not SMP safe.
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ */
 
-  Analog-In supports instruction and command mode.
+/*
+ * Created by Dan Christian, NASA Ames Research Center.
+ *
+ * The PCI4520 is a PCI card. The DM7520 is a PC/104-plus card.
+ * Both have:
+ *   8/16 12 bit ADC with FIFO and channel gain table
+ *   8 bits high speed digital out (for external MUX) (or 8 in or 8 out)
+ *   8 bits high speed digital in with FIFO and interrupt on change (or 8 IO)
+ *   2 12 bit DACs with FIFOs
+ *   2 bits output
+ *   2 bits input
+ *   bus mastering DMA
+ *   timers: ADC sample, pacer, burst, about, delay, DA1, DA2
+ *   sample counter
+ *   3 user timer/counters (8254)
+ *   external interrupt
+ *
+ * The DM7520 has slightly fewer features (fewer gain steps).
+ *
+ * These boards can support external multiplexors and multi-board
+ * synchronization, but this driver doesn't support that.
+ *
+ * Board docs: http://www.rtdusa.com/PC104/DM/analog%20IO/dm7520.htm
+ * Data sheet: http://www.rtdusa.com/pdf/dm7520.pdf
+ * Example source: http://www.rtdusa.com/examples/dm/dm7520.zip
+ * Call them and ask for the register level manual.
+ * PCI chip: http://www.plxtech.com/products/io/pci9080
+ *
+ * Notes:
+ * This board is memory mapped. There is some IO stuff, but it isn't needed.
+ *
+ * I use a pretty loose naming style within the driver (rtd_blah).
+ * All externally visible names should be rtd520_blah.
+ * I use camelCase for structures (and inside them).
+ * I may also use upper CamelCase for function names (old habit).
+ *
+ * This board is somewhat related to the RTD PCI4400 board.
+ *
+ * I borrowed heavily from the ni_mio_common, ni_atmio16d, mite, and
+ * das1800, since they have the best documented code. Driver cb_pcidas64.c
+ * uses the same DMA controller.
+ *
+ * As far as I can tell, the About interrupt doesn't work if Sample is
+ * also enabled. It turns out that About really isn't needed, since
+ * we always count down samples read.
+ *
+ * There was some timer/counter code, but it didn't follow the right API.
+ */
 
-  With DMA, you can sample at 1.15Mhz with 70% idle on a 400Mhz K6-2
-  (single channel, 64K read buffer).  I get random system lockups when
-  using DMA with ALI-15xx based systems.  I haven't been able to test
-  any other chipsets.  The lockups happen soon after the start of an
-  acquistion, not in the middle of a long run.
-
-  Without DMA, you can do 620Khz sampling with 20% idle on a 400Mhz K6-2
-  (with a 256K read buffer).
-
-  Digital-IO and Analog-Out only support instruction mode.
-
-*/
+/*
+ * driver status:
+ *
+ * Analog-In supports instruction and command mode.
+ *
+ * With DMA, you can sample at 1.15Mhz with 70% idle on a 400Mhz K6-2
+ * (single channel, 64K read buffer). I get random system lockups when
+ * using DMA with ALI-15xx based systems. I haven't been able to test
+ * any other chipsets. The lockups happen soon after the start of an
+ * acquistion, not in the middle of a long run.
+ *
+ * Without DMA, you can do 620Khz sampling with 20% idle on a 400Mhz K6-2
+ * (with a 256K read buffer).
+ *
+ * Digital-IO and Analog-Out only support instruction mode.
+ */
 
 #include <linux/pci.h>
 #include <linux/delay.h>
