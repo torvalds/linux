@@ -125,6 +125,11 @@ static inline void hlist_bl_unlock(struct hlist_bl_head *b)
 	__bit_spin_unlock(0, (unsigned long *)b);
 }
 
+static inline bool hlist_bl_is_locked(struct hlist_bl_head *b)
+{
+	return bit_spin_is_locked(0, (unsigned long *)b);
+}
+
 /**
  * hlist_bl_for_each_entry	- iterate over list of given type
  * @tpos:	the type * to use as a loop cursor.
