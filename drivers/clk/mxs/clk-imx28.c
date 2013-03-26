@@ -15,10 +15,13 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <mach/mx28.h>
 #include "clk.h"
 
-#define CLKCTRL			MX28_IO_ADDRESS(MX28_CLKCTRL_BASE_ADDR)
+static void __iomem *clkctrl;
+#define CLKCTRL clkctrl
+
 #define PLL0CTRL0		(CLKCTRL + 0x0000)
 #define PLL1CTRL0		(CLKCTRL + 0x0020)
 #define PLL2CTRL0		(CLKCTRL + 0x0040)
@@ -52,7 +55,8 @@
 #define BP_FRAC0_IO1FRAC	16
 #define BP_FRAC0_IO0FRAC	24
 
-#define DIGCTRL			MX28_IO_ADDRESS(MX28_DIGCTL_BASE_ADDR)
+static void __iomem *digctrl;
+#define DIGCTRL digctrl
 #define BP_SAIF_CLKMUX		10
 
 /*
@@ -155,6 +159,14 @@ int __init mx28_clocks_init(void)
 	struct device_node *np;
 	u32 i;
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx28-digctl");
+	digctrl = of_iomap(np, 0);
+	WARN_ON(!digctrl);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx28-clkctrl");
+	clkctrl = of_iomap(np, 0);
+	WARN_ON(!clkctrl);
+
 	clk_misc_init();
 
 	clks[ref_xtal] = mxs_clk_fixed("ref_xtal", 24000000);
@@ -230,12 +242,9 @@ int __init mx28_clocks_init(void)
 			return PTR_ERR(clks[i]);
 		}
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx28-clkctrl");
-	if (np) {
-		clk_data.clks = clks;
-		clk_data.clk_num = ARRAY_SIZE(clks);
-		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-	}
+	clk_data.clks = clks;
+	clk_data.clk_num = ARRAY_SIZE(clks);
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
 	clk_register_clkdev(clks[enet_out], NULL, "enet_out");
 

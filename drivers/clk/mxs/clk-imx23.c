@@ -15,11 +15,16 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <mach/mx23.h>
 #include "clk.h"
 
-#define DIGCTRL			MX23_IO_ADDRESS(MX23_DIGCTL_BASE_ADDR)
-#define CLKCTRL			MX23_IO_ADDRESS(MX23_CLKCTRL_BASE_ADDR)
+static void __iomem *clkctrl;
+static void __iomem *digctrl;
+
+#define CLKCTRL clkctrl
+#define DIGCTRL digctrl
+
 #define PLLCTRL0		(CLKCTRL + 0x0000)
 #define CPU			(CLKCTRL + 0x0020)
 #define HBUS			(CLKCTRL + 0x0030)
@@ -100,6 +105,14 @@ int __init mx23_clocks_init(void)
 	struct device_node *np;
 	u32 i;
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-digctl");
+	digctrl = of_iomap(np, 0);
+	WARN_ON(!digctrl);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-clkctrl");
+	clkctrl = of_iomap(np, 0);
+	WARN_ON(!clkctrl);
+
 	clk_misc_init();
 
 	clks[ref_xtal] = mxs_clk_fixed("ref_xtal", 24000000);
@@ -152,12 +165,9 @@ int __init mx23_clocks_init(void)
 			return PTR_ERR(clks[i]);
 		}
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-clkctrl");
-	if (np) {
-		clk_data.clks = clks;
-		clk_data.clk_num = ARRAY_SIZE(clks);
-		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-	}
+	clk_data.clks = clks;
+	clk_data.clk_num = ARRAY_SIZE(clks);
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
