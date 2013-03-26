@@ -102,28 +102,12 @@
 #define INTEL_DVO_CHIP_TVOUT 4
 
 /* drm_display_mode->private_flags */
-#define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
-#define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)
 #define INTEL_MODE_DP_FORCE_6BPC (0x10)
 /*
  * Set when limited 16-235 (as opposed to full 0-255) RGB color range is
  * to be used.
  */
 #define INTEL_MODE_LIMITED_COLOR_RANGE (0x40)
-
-static inline void
-intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,
-				int multiplier)
-{
-	mode->clock *= multiplier;
-	mode->private_flags |= multiplier;
-}
-
-static inline int
-intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
-{
-	return (mode->private_flags & INTEL_MODE_PIXEL_MULTIPLIER_MASK) >> INTEL_MODE_PIXEL_MULTIPLIER_SHIFT;
-}
 
 struct intel_framebuffer {
 	struct drm_framebuffer base;
@@ -159,6 +143,7 @@ struct intel_encoder {
 	void (*pre_pll_enable)(struct intel_encoder *);
 	void (*pre_enable)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
+	void (*mode_set)(struct intel_encoder *intel_encoder);
 	void (*disable)(struct intel_encoder *);
 	void (*post_disable)(struct intel_encoder *);
 	/* Read out the current hw state of this connector, returning true if
@@ -205,6 +190,8 @@ struct intel_crtc_config {
 	 * changes the crtc timings in the mode to prevent the crtc fixup from
 	 * overwriting them.  Currently only lvds needs that. */
 	bool timings_set;
+	/* Used by SDVO (and if we ever fix it, HDMI). */
+	unsigned pixel_multiplier;
 };
 
 struct intel_crtc {

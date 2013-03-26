@@ -4337,14 +4337,15 @@ static void i9xx_update_pll_dividers(struct drm_crtc *crtc,
 }
 
 static void vlv_update_pll(struct drm_crtc *crtc,
-			   struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode,
 			   intel_clock_t *clock, intel_clock_t *reduced_clock,
 			   int num_connectors)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	u32 dpll, mdiv, pdiv;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
@@ -4411,11 +4412,11 @@ static void vlv_update_pll(struct drm_crtc *crtc,
 
 	temp = 0;
 	if (is_sdvo) {
-		temp = intel_mode_get_pixel_multiplier(adjusted_mode);
-		if (temp > 1)
-			temp = (temp - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
-		else
-			temp = 0;
+		temp = 0;
+		if (intel_crtc->config.pixel_multiplier > 1) {
+			temp = (intel_crtc->config.pixel_multiplier - 1)
+				<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
+		}
 	}
 	I915_WRITE(DPLL_MD(pipe), temp);
 	POSTING_READ(DPLL_MD(pipe));
@@ -4441,14 +4442,15 @@ static void vlv_update_pll(struct drm_crtc *crtc,
 }
 
 static void i9xx_update_pll(struct drm_crtc *crtc,
-			    struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode,
 			    intel_clock_t *clock, intel_clock_t *reduced_clock,
 			    int num_connectors)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	u32 dpll;
@@ -4465,11 +4467,12 @@ static void i9xx_update_pll(struct drm_crtc *crtc,
 		dpll |= DPLLB_MODE_LVDS;
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
+
 	if (is_sdvo) {
-		int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
-		if (pixel_multiplier > 1) {
-			if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-				dpll |= (pixel_multiplier - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+		if ((intel_crtc->config.pixel_multiplier > 1) &&
+		    (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))) {
+			dpll |= (intel_crtc->config.pixel_multiplier - 1)
+				<< SDVO_MULTIPLIER_SHIFT_HIRES;
 		}
 		dpll |= DPLL_DVO_HIGH_SPEED;
 	}
@@ -4534,11 +4537,11 @@ static void i9xx_update_pll(struct drm_crtc *crtc,
 	if (INTEL_INFO(dev)->gen >= 4) {
 		u32 temp = 0;
 		if (is_sdvo) {
-			temp = intel_mode_get_pixel_multiplier(adjusted_mode);
-			if (temp > 1)
-				temp = (temp - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
-			else
-				temp = 0;
+			temp = 0;
+			if (intel_crtc->config.pixel_multiplier > 1) {
+				temp = (intel_crtc->config.pixel_multiplier - 1)
+					<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
+			}
 		}
 		I915_WRITE(DPLL_MD(pipe), temp);
 	} else {
@@ -4748,11 +4751,11 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 				has_reduced_clock ? &reduced_clock : NULL,
 				num_connectors);
 	else if (IS_VALLEYVIEW(dev))
-		vlv_update_pll(crtc, mode, adjusted_mode, &clock,
+		vlv_update_pll(crtc, &clock,
 				has_reduced_clock ? &reduced_clock : NULL,
 				num_connectors);
 	else
-		i9xx_update_pll(crtc, mode, adjusted_mode, &clock,
+		i9xx_update_pll(crtc, &clock,
 				has_reduced_clock ? &reduced_clock : NULL,
 				num_connectors);
 
@@ -5466,17 +5469,18 @@ int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
 	return bps / (link_bw * 8) + 1;
 }
 
-static void ironlake_set_m_n(struct drm_crtc *crtc,
-			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adjusted_mode)
+static void ironlake_set_m_n(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	struct intel_encoder *intel_encoder, *edp_encoder = NULL;
 	struct intel_link_m_n m_n = {0};
-	int target_clock, pixel_multiplier, lane, link_bw;
+	int target_clock, lane, link_bw;
 	bool is_dp = false, is_cpu_edp = false;
 
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
@@ -5494,7 +5498,6 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 	}
 
 	/* FDI link */
-	pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
 	lane = 0;
 	/* CPU eDP doesn't require FDI link, so just set DP M/N
 	   according to current link config */
@@ -5525,8 +5528,8 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 
 	intel_crtc->fdi_lanes = lane;
 
-	if (pixel_multiplier > 1)
-		link_bw *= pixel_multiplier;
+	if (intel_crtc->config.pixel_multiplier > 1)
+		link_bw *= intel_crtc->config.pixel_multiplier;
 	intel_link_compute_m_n(intel_crtc->bpp, lane, target_clock, link_bw, &m_n);
 
 	I915_WRITE(PIPE_DATA_M1(cpu_transcoder), TU_SIZE(m_n.tu) | m_n.gmch_m);
@@ -5536,7 +5539,6 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 }
 
 static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
-				      struct drm_display_mode *adjusted_mode,
 				      intel_clock_t *clock, u32 fp)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
@@ -5544,7 +5546,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *intel_encoder;
 	uint32_t dpll;
-	int factor, pixel_multiplier, num_connectors = 0;
+	int factor, num_connectors = 0;
 	bool is_lvds = false, is_sdvo = false, is_tv = false;
 	bool is_dp = false, is_cpu_edp = false;
 
@@ -5595,9 +5597,9 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
 	if (is_sdvo) {
-		pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
-		if (pixel_multiplier > 1) {
-			dpll |= (pixel_multiplier - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
+		if (intel_crtc->config.pixel_multiplier > 1) {
+			dpll |= (intel_crtc->config.pixel_multiplier - 1)
+				<< PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 		}
 		dpll |= DPLL_DVO_HIGH_SPEED;
 	}
@@ -5701,7 +5703,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
 			reduced_clock.m2;
 
-	dpll = ironlake_compute_dpll(intel_crtc, adjusted_mode, &clock, fp);
+	dpll = ironlake_compute_dpll(intel_crtc, &clock, fp);
 
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
@@ -5755,7 +5757,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Note, this also computes intel_crtc->fdi_lanes which is used below in
 	 * ironlake_check_fdi_lanes. */
-	ironlake_set_m_n(crtc, mode, adjusted_mode);
+	ironlake_set_m_n(crtc);
 
 	fdi_config_ok = ironlake_check_fdi_lanes(intel_crtc);
 
@@ -5871,7 +5873,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
 	if (!is_dp || is_cpu_edp)
-		ironlake_set_m_n(crtc, mode, adjusted_mode);
+		ironlake_set_m_n(crtc);
 
 	haswell_set_pipeconf(crtc, adjusted_mode, dither);
 
@@ -5924,8 +5926,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			encoder->base.base.id,
 			drm_get_encoder_name(&encoder->base),
 			mode->base.id, mode->name);
-		encoder_funcs = encoder->base.helper_private;
-		encoder_funcs->mode_set(&encoder->base, mode, adjusted_mode);
+		if (encoder->mode_set) {
+			encoder->mode_set(encoder);
+		} else {
+			encoder_funcs = encoder->base.helper_private;
+			encoder_funcs->mode_set(&encoder->base, mode, adjusted_mode);
+		}
 	}
 
 	return 0;
