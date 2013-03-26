@@ -77,7 +77,6 @@ static const struct hc_driver ehci_sh_hc_driver = {
 
 static int ehci_hcd_sh_probe(struct platform_device *pdev)
 {
-	const struct hc_driver *driver = &ehci_sh_hc_driver;
 	struct resource *res;
 	struct ehci_sh_priv *priv;
 	struct ehci_sh_platdata *pdata;
