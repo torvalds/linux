@@ -65,7 +65,7 @@ static int fimc_capture_hw_init(struct fimc_dev *fimc)
 		fimc_hw_set_effect(ctx);
 		fimc_hw_set_output_path(ctx);
 		fimc_hw_set_out_dma(ctx);
-		if (fimc->variant->has_alpha)
+		if (fimc->drv_data->alpha_color)
 			fimc_hw_set_rgb_alpha(ctx);
 		clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	}
@@ -168,7 +168,7 @@ static int fimc_capture_config_update(struct fimc_ctx *ctx)
 	fimc_hw_set_effect(ctx);
 	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 	fimc_hw_set_out_dma(ctx);
-	if (fimc->variant->has_alpha)
+	if (fimc->drv_data->alpha_color)
 		fimc_hw_set_rgb_alpha(ctx);
 
 	clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
@@ -1802,7 +1802,7 @@ int fimc_initialize_capture_subdev(struct fimc_dev *fimc)
 
 	v4l2_subdev_init(sd, &fimc_subdev_ops);
 	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-	snprintf(sd->name, sizeof(sd->name), "FIMC.%d", fimc->pdev->id);
+	snprintf(sd->name, sizeof(sd->name), "FIMC.%d", fimc->id);
 
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;

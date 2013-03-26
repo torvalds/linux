@@ -35,7 +35,7 @@ void fimc_hw_reset(struct fimc_dev *dev)
 	cfg &= ~FIMC_REG_CIGCTRL_SWRST;
 	writel(cfg, dev->regs + FIMC_REG_CIGCTRL);
 
-	if (dev->variant->out_buf_count > 4)
+	if (dev->drv_data->out_buf_count > 4)
 		fimc_hw_set_dma_seq(dev, 0xF);
 }
 
@@ -747,7 +747,7 @@ s32 fimc_hw_get_frame_index(struct fimc_dev *dev)
 {
 	s32 reg;
 
-	if (dev->variant->has_cistatus2) {
+	if (dev->drv_data->cistatus2) {
 		reg = readl(dev->regs + FIMC_REG_CISTATUS2) & 0x3f;
 		return reg - 1;
 	}
@@ -763,7 +763,7 @@ s32 fimc_hw_get_prev_frame_index(struct fimc_dev *dev)
 {
 	s32 reg;
 
-	if (!dev->variant->has_cistatus2)
+	if (!dev->drv_data->cistatus2)
 		return -1;
 
 	reg = readl(dev->regs + FIMC_REG_CISTATUS2);

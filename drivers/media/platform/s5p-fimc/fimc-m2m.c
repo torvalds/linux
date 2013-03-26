@@ -152,7 +152,7 @@ static void fimc_device_run(void *priv)
 		fimc_hw_set_rotation(ctx);
 		fimc_hw_set_effect(ctx);
 		fimc_hw_set_out_dma(ctx);
-		if (fimc->variant->has_alpha)
+		if (fimc->drv_data->alpha_color)
 			fimc_hw_set_rgb_alpha(ctx);
 		fimc_hw_set_output_path(ctx);
 	}

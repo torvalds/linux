@@ -42,6 +42,10 @@
 #define FIMC_CAMIF_MAX_HEIGHT	0x2000
 #define FIMC_MAX_JPEG_BUF_SIZE	(10 * SZ_1M)
 #define FIMC_MAX_PLANES		3
+#define FIMC_PIX_LIMITS_MAX	4
+#define FIMC_DEF_MIN_SIZE	16
+#define FIMC_DEF_HEIGHT_ALIGN	2
+#define FIMC_DEF_HOR_OFFS_ALIGN	1
 
 /* indices to the clocks array */
 enum {
@@ -365,10 +369,8 @@ struct fimc_pix_limit {
 
 /**
  * struct fimc_variant - FIMC device variant information
- * @pix_hoff: indicate whether horizontal offset is in pixels or in bytes
  * @has_inp_rot: set if has input rotator
  * @has_out_rot: set if has output rotator
- * @has_cistatus2: 1 if CISTATUS2 register is present in this IP revision
  * @has_mainscaler_ext: 1 if extended mainscaler ratios in CIEXTEN register
  *			 are present in this IP revision
  * @has_cam_if: set if this instance has a camera input interface
@@ -378,23 +380,18 @@ struct fimc_pix_limit {
  * @min_out_pixsize: minimum output pixel size
  * @hor_offs_align: horizontal pixel offset aligment
  * @min_vsize_align: minimum vertical pixel size alignment
- * @out_buf_count: the number of buffers in output DMA sequence
  */
 struct fimc_variant {
-	unsigned int	pix_hoff:1;
 	unsigned int	has_inp_rot:1;
 	unsigned int	has_out_rot:1;
-	unsigned int	has_cistatus2:1;
 	unsigned int	has_mainscaler_ext:1;
 	unsigned int	has_cam_if:1;
 	unsigned int	has_isp_wb:1;
-	unsigned int	has_alpha:1;
 	const struct fimc_pix_limit *pix_limit;
 	u16		min_inp_pixsize;
 	u16		min_out_pixsize;
 	u16		hor_offs_align;
 	u16		min_vsize_align;
-	u16		out_buf_count;
 };
 
 /**
@@ -402,11 +399,20 @@ struct fimc_variant {
  * @variant: variant information for this device
  * @num_entities: number of fimc instances available in a SoC
  * @lclk_frequency: local bus clock frequency
+ * @cistatus2: 1 if the FIMC IPs have CISTATUS2 register
+ * @dma_pix_hoff: the horizontal DMA offset unit: 1 - pixels, 0 - bytes
+ * @alpha_color: 1 if alpha color component is supported
+ * @out_buf_count: maximum number of output DMA buffers supported
  */
 struct fimc_drvdata {
 	const struct fimc_variant *variant[FIMC_MAX_DEVS];
 	int num_entities;
 	unsigned long lclk_frequency;
+	/* Fields common to all FIMC IP instances */
+	u8 cistatus2;
+	u8 dma_pix_hoff;
+	u8 alpha_color;
+	u8 out_buf_count;
 };
 
 #define fimc_get_drvdata(_pdev) \
@@ -438,6 +444,7 @@ struct fimc_dev {
 	struct platform_device		*pdev;
 	struct s5p_platform_fimc	*pdata;
 	const struct fimc_variant	*variant;
+	const struct fimc_drvdata	*drv_data;
 	u16				id;
 	struct clk			*clock[MAX_FIMC_CLOCKS];
 	void __iomem			*regs;

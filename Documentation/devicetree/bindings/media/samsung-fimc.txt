@@ -1,0 +1,101 @@
+Samsung S5P/EXYNOS SoC Camera Subsystem (FIMC)
+----------------------------------------------
+
+The S5P/Exynos SoC Camera subsystem comprises of multiple sub-devices
+represented by separate device tree nodes. Currently this includes: FIMC (in
+the S5P SoCs series known as CAMIF), MIPI CSIS, FIMC-LITE and FIMC-IS (ISP).
+
+The sub-subdevices are defined as child nodes of the common 'camera' node which
+also includes common properties of the whole subsystem not really specific to
+any single sub-device, like common camera port pins or the CAMCLK clock outputs
+for external image sensors attached to an SoC.
+
+Common 'camera' node
+--------------------
+
+Required properties:
+
+- compatible	: must be "samsung,fimc", "simple-bus"
+- clocks	: list of clock specifiers, corresponding to entries in
+		  clock-names property;
+- clock-names	: must contain "fimc", "sclk_fimc" entries, matching entries
+		  in the clocks property.
+
+The 'camera' node must include at least one 'fimc' child node.
+
+
+'fimc' device nodes
+-------------------
+
+Required properties:
+
+- compatible: "samsung,s5pv210-fimc" for S5PV210, "samsung,exynos4210-fimc"
+  for Exynos4210 and "samsung,exynos4212-fimc" for Exynos4x12 SoCs;
+- reg: physical base address and length of the registers set for the device;
+- interrupts: should contain FIMC interrupt;
+- clocks: list of clock specifiers, must contain an entry for each required
+  entry in clock-names;
+- clock-names: must include "fimc", "sclk_fimc", "mux" entries and optionally
+  "parent" entry.
+- samsung,pix-limits: an array of maximum supported image sizes in pixels, for
+  details refer to Table 2-1 in the S5PV210 SoC User Manual; The meaning of
+  each cell is as follows:
+  0 - scaler input horizontal size,
+  1 - input horizontal size for the scaler bypassed,
+  2 - REAL_WIDTH without input rotation,
+  3 - REAL_HEIGHT with input rotation,
+- samsung,sysreg: a phandle to the SYSREG node.
+
+Each FIMC device should have an alias in the aliases node, in the form of
+fimc<n>, where <n> is an integer specifying the IP block instance.
+
+Optional properties:
+
+- clock-frequency: maximum FIMC local clock (LCLK) frequency;
+- samsung,min-pix-sizes: an array specyfing minimum image size in pixels at
+  the FIMC input and output DMA, in the first and second cell respectively.
+  Default value when this property is not present is <16 16>;
+- samsung,min-pix-alignment: minimum supported image height alignment (first
+  cell) and the horizontal image offset (second cell). The values are in pixels
+  and default to <2 1> when this property is not present;
+- samsung,mainscaler-ext: a boolean property indicating whether the FIMC IP
+  supports extended image size and has CIEXTEN register;
+- samsung,rotators: a bitmask specifying whether this IP has the input and
+  the output rotator. Bits 4 and 0 correspond to input and output rotator
+  respectively. If a rotator is present its corresponding bit should be set.
+  Default value when this property is not specified is 0x11.
+- samsung,cam-if: a bolean property indicating whether the IP block includes
+  the camera input interface.
+- samsung,isp-wb: this property must be present if the IP block has the ISP
+  writeback input.
+- samsung,lcd-wb: this property must be present if the IP block has the LCD
+  writeback input.
+
+
+Example:
+
+	aliases {
+		fimc0 = &fimc_0;
+	};
+
+	camera {
+		compatible = "samsung,fimc", "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		status = "okay";
+
+		fimc_0: fimc@11800000 {
+			compatible = "samsung,exynos4210-fimc";
+			reg = <0x11800000 0x1000>;
+			interrupts = <0 85 0>;
+			status = "okay";
+		};
+
+		csis_0: csis@11880000 {
+			compatible = "samsung,exynos4210-csis";
+			reg = <0x11880000 0x1000>;
+			interrupts = <0 78 0>;
+		};
+	};
+
+The MIPI-CSIS device binding is defined in samsung-mipi-csis.txt.
