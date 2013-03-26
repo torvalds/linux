@@ -86,6 +86,10 @@ config THERMAL_EMULATION
 	  user can manually input temperature and test the different trip
 	  threshold behaviour for simulation purpose.
 
+	  WARNING: Be careful while enabling this option on production systems,
+	  because userland can easily disable the thermal policy by simply
+	  flooding this sysfs node with low temperature values.
+
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR

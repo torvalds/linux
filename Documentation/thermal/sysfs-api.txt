@@ -265,6 +265,10 @@ emul_temp
 	Unit: millidegree Celsius
 	WO, Optional
 
+	  WARNING: Be careful while enabling this option on production systems,
+	  because userland can easily disable the thermal policy by simply
+	  flooding this sysfs node with low temperature values.
+
 *****************************
 * Cooling device attributes *
 *****************************
