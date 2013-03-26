@@ -839,6 +839,11 @@ int arizona_dev_exit(struct arizona *arizona)
 	arizona_free_irq(arizona, ARIZONA_IRQ_CLKGEN_ERR, arizona);
 	pm_runtime_disable(arizona->dev);
 	arizona_irq_exit(arizona);
+	if (arizona->pdata.reset)
+		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+	regulator_disable(arizona->dcvdd);
+	regulator_bulk_disable(ARRAY_SIZE(arizona->core_supplies),
+			       arizona->core_supplies);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_dev_exit);
