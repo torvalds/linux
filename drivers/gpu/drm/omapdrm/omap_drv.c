@@ -121,7 +121,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		if (!dssdev->driver) {
 			dev_warn(dev->dev, "%s has no driver.. skipping it\n",
 					dssdev->name);
-			return 0;
+			continue;
 		}
 
 		if (!(dssdev->driver->get_timings ||
@@ -129,7 +129,7 @@ static int omap_modeset_init(struct drm_device *dev)
 			dev_warn(dev->dev, "%s driver does not support "
 				"get_timings or read_edid.. skipping it!\n",
 				dssdev->name);
-			return 0;
+			continue;
 		}
 
 		encoder = omap_encoder_init(dev, dssdev);
