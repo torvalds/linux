@@ -197,6 +197,13 @@ static inline long __vmintop_clear(long i)
  * Constants for virtual instruction parameters and return values
  */
 
+/* vmnewmap arguments */
+
+#define VM_TRANS_TYPE_LINEAR 0
+#define VM_TRANS_TYPE_TABLE 1
+#define VM_TLB_INVALIDATE_FALSE 0
+#define VM_TLB_INVALIDATE_TRUE 1
+
 /* vmsetie arguments */
 
 #define VM_INT_DISABLE	0
