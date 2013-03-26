@@ -151,5 +151,11 @@
 			status = "disabled";
 		};
 
+		thermal@d00182b0 {
+			compatible = "marvell,armadaxp-thermal";
+			reg = <0xd00182b0 0x4
+			       0xd00184d0 0x4>;
+			status = "okay";
+		};
 	};
 };
