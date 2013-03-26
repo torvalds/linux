@@ -239,12 +239,13 @@ static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata)
  * specifies bits that are to be preserved, wdata is new value to be
  * or'd with the masked original.
  */
-static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
-			uint16_t wdata)
+static void DEBIreplace(struct comedi_device *dev, unsigned int addr,
+			unsigned int mask, unsigned int wdata)
 {
 	struct s626_private *devpriv = dev->private;
 	unsigned int val;
 
+	addr &= 0xffff;
 	writel(DEBI_CMD_RDWORD | addr, devpriv->mmio + P_DEBICMD);
 	DEBItransfer(dev);
 
@@ -252,7 +253,7 @@ static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
 	val = readl(devpriv->mmio + P_DEBIAD);
 	val &= mask;
 	val |= wdata;
-	writel(val, devpriv->mmio + P_DEBIAD);
+	writel(val & 0xffff, devpriv->mmio + P_DEBIAD);
 	DEBItransfer(dev);
 }
 
@@ -594,8 +595,8 @@ static void SetLatchSource(struct comedi_device *dev, struct enc_private *k,
 			   uint16_t value)
 {
 	DEBIreplace(dev, k->MyCRB,
-		    (uint16_t) (~(CRBMSK_INTCTRL | CRBMSK_LATCHSRC)),
-		    (uint16_t) (value << CRBBIT_LATCHSRC));
+		    ~(CRBMSK_INTCTRL | CRBMSK_LATCHSRC),
+		    value << CRBBIT_LATCHSRC);
 }
 
 /*  Write value into counter preload register. */
@@ -1815,13 +1816,13 @@ static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
 
 static void ResetCapFlags_A(struct comedi_device *dev, struct enc_private *k)
 {
-	DEBIreplace(dev, k->MyCRB, (uint16_t) (~CRBMSK_INTCTRL),
+	DEBIreplace(dev, k->MyCRB, ~CRBMSK_INTCTRL,
 		    CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A);
 }
 
 static void ResetCapFlags_B(struct comedi_device *dev, struct enc_private *k)
 {
-	DEBIreplace(dev, k->MyCRB, (uint16_t) (~CRBMSK_INTCTRL),
+	DEBIreplace(dev, k->MyCRB, ~CRBMSK_INTCTRL,
 		    CRBMSK_INTRESETCMD | CRBMSK_INTRESET_B);
 }
 
@@ -1966,8 +1967,7 @@ static void SetMode_A(struct comedi_device *dev, struct enc_private *k,
 	/*  While retaining CounterB and LatchSrc configurations, program the */
 	/*  new counter operating mode. */
 	DEBIreplace(dev, k->MyCRA, CRAMSK_INDXSRC_B | CRAMSK_CLKSRC_B, cra);
-	DEBIreplace(dev, k->MyCRB,
-		    (uint16_t) (~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A)), crb);
+	DEBIreplace(dev, k->MyCRB, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A), crb);
 }
 
 static void SetMode_B(struct comedi_device *dev, struct enc_private *k,
@@ -2028,8 +2028,7 @@ static void SetMode_B(struct comedi_device *dev, struct enc_private *k,
 
 	/*  While retaining CounterA and LatchSrc configurations, program the */
 	/*  new counter operating mode. */
-	DEBIreplace(dev, k->MyCRA,
-		    (uint16_t) (~(CRAMSK_INDXSRC_B | CRAMSK_CLKSRC_B)), cra);
+	DEBIreplace(dev, k->MyCRA, ~(CRAMSK_INDXSRC_B | CRAMSK_CLKSRC_B), cra);
 	DEBIreplace(dev, k->MyCRB, CRBMSK_CLKENAB_A | CRBMSK_LATCHSRC, crb);
 }
 
@@ -2038,17 +2037,15 @@ static void SetMode_B(struct comedi_device *dev, struct enc_private *k,
 static void SetEnable_A(struct comedi_device *dev, struct enc_private *k,
 			uint16_t enab)
 {
-	DEBIreplace(dev, k->MyCRB,
-		    (uint16_t) (~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A)),
-		    (uint16_t) (enab << CRBBIT_CLKENAB_A));
+	DEBIreplace(dev, k->MyCRB, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_A),
+		    enab << CRBBIT_CLKENAB_A);
 }
 
 static void SetEnable_B(struct comedi_device *dev, struct enc_private *k,
 			uint16_t enab)
 {
-	DEBIreplace(dev, k->MyCRB,
-		    (uint16_t) (~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_B)),
-		    (uint16_t) (enab << CRBBIT_CLKENAB_B));
+	DEBIreplace(dev, k->MyCRB, ~(CRBMSK_INTCTRL | CRBMSK_CLKENAB_B),
+		    enab << CRBBIT_CLKENAB_B);
 }
 
 static uint16_t GetEnable_A(struct comedi_device *dev, struct enc_private *k)
@@ -2077,16 +2074,15 @@ static uint16_t GetEnable_B(struct comedi_device *dev, struct enc_private *k)
 static void SetLoadTrig_A(struct comedi_device *dev, struct enc_private *k,
 			  uint16_t Trig)
 {
-	DEBIreplace(dev, k->MyCRA, (uint16_t) (~CRAMSK_LOADSRC_A),
-		    (uint16_t) (Trig << CRABIT_LOADSRC_A));
+	DEBIreplace(dev, k->MyCRA, ~CRAMSK_LOADSRC_A,
+		    Trig << CRABIT_LOADSRC_A);
 }
 
 static void SetLoadTrig_B(struct comedi_device *dev, struct enc_private *k,
 			  uint16_t Trig)
 {
-	DEBIreplace(dev, k->MyCRB,
-		    (uint16_t) (~(CRBMSK_LOADSRC_B | CRBMSK_INTCTRL)),
-		    (uint16_t) (Trig << CRBBIT_LOADSRC_B));
+	DEBIreplace(dev, k->MyCRB, ~(CRBMSK_LOADSRC_B | CRBMSK_INTCTRL),
+		    Trig << CRBBIT_LOADSRC_B);
 }
 
 static uint16_t GetLoadTrig_A(struct comedi_device *dev, struct enc_private *k)
@@ -2110,12 +2106,12 @@ static void SetIntSrc_A(struct comedi_device *dev, struct enc_private *k,
 	struct s626_private *devpriv = dev->private;
 
 	/*  Reset any pending counter overflow or index captures. */
-	DEBIreplace(dev, k->MyCRB, (uint16_t) (~CRBMSK_INTCTRL),
+	DEBIreplace(dev, k->MyCRB, ~CRBMSK_INTCTRL,
 		    CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A);
 
 	/*  Program counter interrupt source. */
 	DEBIreplace(dev, k->MyCRA, ~CRAMSK_INTSRC_A,
-		    (uint16_t) (IntSource << CRABIT_INTSRC_A));
+		    IntSource << CRABIT_INTSRC_A);
 
 	/*  Update MISC2 interrupt enable mask. */
 	devpriv->CounterIntEnabs =
