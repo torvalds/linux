@@ -89,13 +89,46 @@ enum power_event {
 				(reg * 8))
 #define GMAC_MAX_PERFECT_ADDRESSES	32
 
+/* PCS registers (AN/TBI/SGMII/RGMII) offset */
 #define GMAC_AN_CTRL	0x000000c0	/* AN control */
 #define GMAC_AN_STATUS	0x000000c4	/* AN status */
 #define GMAC_ANE_ADV	0x000000c8	/* Auto-Neg. Advertisement */
-#define GMAC_ANE_LINK	0x000000cc	/* Auto-Neg. link partener ability */
+#define GMAC_ANE_LPA	0x000000cc	/* Auto-Neg. link partener ability */
 #define GMAC_ANE_EXP	0x000000d0	/* ANE expansion */
 #define GMAC_TBI	0x000000d4	/* TBI extend status */
-#define GMAC_GMII_STATUS 0x000000d8	/* S/R-GMII status */
+#define GMAC_S_R_GMII	0x000000d8	/* SGMII RGMII status */
+
+/* AN Configuration defines */
+#define GMAC_AN_CTRL_RAN	0x00000200 /* Restart Auto-Negotiation */
+#define GMAC_AN_CTRL_ANE	0x00001000 /* Auto-Negotiation Enable */
+#define GMAC_AN_CTRL_ELE	0x00004000 /* External Loopback Enable */
+#define GMAC_AN_CTRL_ECD	0x00010000 /* Enable Comma Detect */
+#define GMAC_AN_CTRL_LR	0x00020000 /* Lock to Reference */
+#define GMAC_AN_CTRL_SGMRAL	0x00040000 /* SGMII RAL Control */
+
+/* AN Status defines */
+#define GMAC_AN_STATUS_LS	0x00000004 /* Link Status 0:down 1:up */
+#define GMAC_AN_STATUS_ANA	0x00000008 /* Auto-Negotiation Ability */
+#define GMAC_AN_STATUS_ANC	0x00000020 /* Auto-Negotiation Complete */
+#define GMAC_AN_STATUS_ES	0x00000100 /* Extended Status */
+
+/* Register 54 (SGMII/RGMII status register) */
+#define GMAC_S_R_GMII_LINK		0x8
+#define GMAC_S_R_GMII_SPEED		0x5
+#define GMAC_S_R_GMII_SPEED_SHIFT	0x1
+#define GMAC_S_R_GMII_MODE		0x1
+#define GMAC_S_R_GMII_SPEED_125		2
+#define GMAC_S_R_GMII_SPEED_25		1
+
+/* Common ADV and LPA defines */
+#define GMAC_ANE_FD		(1 << 5)
+#define GMAC_ANE_HD		(1 << 6)
+#define GMAC_ANE_PSE		(3 << 7)
+#define GMAC_ANE_PSE_SHIFT	7
+
+ /* GMAC Configuration defines */
+#define GMAC_CONTROL_TC	0x01000000 /* Transmit Conf. in RGMII/SGMII */
+#define GMAC_CONTROL_WD	0x00800000 /* Disable Watchdog on receive */
 
 /* GMAC Configuration defines */
 #define GMAC_CONTROL_TC	0x01000000	/* Transmit Conf. in RGMII/SGMII */
@@ -155,6 +188,7 @@ enum inter_frame_gap {
 /* Programmable burst length (passed thorugh platform)*/
 #define DMA_BUS_MODE_PBL_MASK	0x00003f00	/* Programmable Burst Len */
 #define DMA_BUS_MODE_PBL_SHIFT	8
+#define DMA_BUS_MODE_ATDS	0x00000080	/* Alternate Descriptor Size */
 
 enum rx_tx_priority_ratio {
 	double_ratio = 0x00004000,	/*2:1 */
@@ -229,6 +263,8 @@ enum rtc_control {
 #define GMAC_MMC_RX_INTR   0x104
 #define GMAC_MMC_TX_INTR   0x108
 #define GMAC_MMC_RX_CSUM_OFFLOAD   0x208
+
+
 
 extern const struct stmmac_dma_ops dwmac1000_dma_ops;
 #endif /* __DWMAC1000_H__ */

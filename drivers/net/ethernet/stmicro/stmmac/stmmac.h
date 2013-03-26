@@ -24,25 +24,29 @@
 #define __STMMAC_H__
 
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
-#define DRV_MODULE_VERSION	"Nov_2012"
+#define DRV_MODULE_VERSION	"March_2013"
 
 #include <linux/clk.h>
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 #include <linux/pci.h>
 #include "common.h"
+#include <linux/ptp_clock_kernel.h>
 
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
-	struct dma_desc *dma_tx ____cacheline_aligned;
+	struct dma_desc *dma_tx ____cacheline_aligned;	/* Basic TX desc */
+	struct dma_extended_desc *dma_etx;	/* Extended TX descriptor */
 	dma_addr_t dma_tx_phy;
 	struct sk_buff **tx_skbuff;
+	dma_addr_t *tx_skbuff_dma;
 	unsigned int cur_tx;
 	unsigned int dirty_tx;
 	unsigned int dma_tx_size;
 	int tx_coalesce;
 
-	struct dma_desc *dma_rx ;
+	struct dma_desc *dma_rx;		/* Basic RX descriptor */
+	struct dma_extended_desc *dma_erx;	/* Extended RX descriptor */
 	unsigned int cur_rx;
 	unsigned int dirty_rx;
 	struct sk_buff **rx_skbuff;
@@ -93,6 +97,16 @@ struct stmmac_priv {
 	u32 tx_coal_timer;
 	int use_riwt;
 	u32 rx_riwt;
+	unsigned int mode;
+	int extend_desc;
+	int pcs;
+	int hwts_tx_en;
+	int hwts_rx_en;
+	unsigned int default_addend;
+	u32 adv_ts;
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_ops;
+	spinlock_t ptp_lock;
 };
 
 extern int phyaddr;
@@ -102,6 +116,9 @@ extern int stmmac_mdio_register(struct net_device *ndev);
 extern void stmmac_set_ethtool_ops(struct net_device *netdev);
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
+extern const struct stmmac_hwtimestamp stmmac_ptp;
+extern int stmmac_ptp_register(struct stmmac_priv *priv);
+extern void stmmac_ptp_unregister(struct stmmac_priv *priv);
 int stmmac_freeze(struct net_device *ndev);
 int stmmac_restore(struct net_device *ndev);
 int stmmac_resume(struct net_device *ndev);
