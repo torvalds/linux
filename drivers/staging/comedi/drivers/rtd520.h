@@ -113,25 +113,6 @@
 #define LAS1_DAC1_FIFO		0x0008	/* D/A1 FIFO (16bit) */
 #define LAS1_DAC2_FIFO		0x000c	/* D/A2 FIFO (16bit) */
 
-/*
- * PLX 9080 local config & runtime registers
- */
-#define LCFG_ITCSR		0x0068	/* Interrupt Control/Status */
-#define LCFG_DMAMODE0		0x0080	/* DMA0 Mode */
-#define LCFG_DMAPADR0		0x0084	/* DMA0 PCI Address */
-#define LCFG_DMALADR0		0x0088	/* DMA0 Local Address */
-#define LCFG_DMASIZ0		0x008c	/* DMA0 Transfer Size (Bytes) */
-#define LCFG_DMADPR0		0x0090	/* DMA0 Descriptor Pointer */
-#define LCFG_DMAMODE1		0x0094	/* DMA1 Mode */
-#define LCFG_DMAPADR1		0x0098	/* DMA1 PCI Address */
-#define LCFG_DMALADR1		0x009c	/* DMA1 Local Address */
-#define LCFG_DMASIZ1		0x00a0	/* DMA1 Transfer Size (Bytes) */
-#define LCFG_DMADPR1		0x00a4	/* DMA1 Descriptor Pointer */
-#define LCFG_DMACSR0		0x00a8	/* DMA0 Command/Status */
-#define LCFG_DMACSR1		0x00a9	/* DMA0 Command/Status */
-#define LCFG_DMAARB		0x00ac	/* DMA Arbitration */
-#define LCFG_DMATHR		0x00b0	/* DMA Threshold */
-
 /*  FIFO Status Word Bits (RtdFifoStatus) */
 #define FS_DAC1_NOT_EMPTY	(1 << 0)  /* DAC1 FIFO not empty */
 #define FS_DAC1_HEMPTY		(1 << 1)  /* DAC1 FIFO half empty */

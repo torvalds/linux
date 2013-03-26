@@ -1210,7 +1210,7 @@ static void rtd_reset(struct comedi_device *dev)
 
 	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
 	udelay(100);		/* needed? */
-	writel(0, devpriv->lcfg + LCFG_ITCSR);
+	writel(0, devpriv->lcfg + PLX_INTRCS_REG);
 	devpriv->intMask = 0;
 	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
 	devpriv->intClearMask = ~0;
@@ -1362,7 +1362,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	devpriv->fifoLen = ret;
 
 	if (dev->irq)
-		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + LCFG_ITCSR);
+		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + PLX_INTRCS_REG);
 
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
@@ -1378,9 +1378,9 @@ static void rtd_detach(struct comedi_device *dev)
 		if (devpriv->las0 && devpriv->lcfg)
 			rtd_reset(dev);
 		if (dev->irq) {
-			writel(readl(devpriv->lcfg + LCFG_ITCSR) &
+			writel(readl(devpriv->lcfg + PLX_INTRCS_REG) &
 				~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E),
-				devpriv->lcfg + LCFG_ITCSR);
+				devpriv->lcfg + PLX_INTRCS_REG);
 			free_irq(dev->irq, dev);
 		}
 		if (devpriv->las0)
