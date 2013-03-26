@@ -1056,7 +1056,6 @@ void rsxx_eeh_cancel_dmas(struct rsxx_cardinfo *card)
 int rsxx_eeh_remap_dmas(struct rsxx_cardinfo *card)
 {
 	struct rsxx_dma *dma;
-	struct rsxx_dma *tmp;
 	int i;
 
 	for (i = 0; i < card->n_targets; i++) {
