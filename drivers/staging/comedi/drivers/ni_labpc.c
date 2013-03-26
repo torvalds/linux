@@ -1539,10 +1539,16 @@ static int labpc_calib_insn_write(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	int channel = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	write_caldac(dev, channel, data[0]);
-	return 1;
+	/*
+	 * Only write the last data value to the caldac. Preceding
+	 * data would be overwritten anyway.
+	 */
+	if (insn->n > 0)
+		write_caldac(dev, chan, data[insn->n - 1]);
+
+	return insn->n;
 }
 
 static int labpc_calib_insn_read(struct comedi_device *dev,
