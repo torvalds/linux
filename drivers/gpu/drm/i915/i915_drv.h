@@ -284,6 +284,8 @@ struct drm_i915_error_state {
 	struct intel_display_error_state *display;
 };
 
+struct intel_crtc_config;
+
 struct drm_i915_display_funcs {
 	bool (*fbc_enabled)(struct drm_device *dev);
 	void (*enable_fbc)(struct drm_crtc *crtc, unsigned long interval);
@@ -297,8 +299,6 @@ struct drm_i915_display_funcs {
 				 struct drm_display_mode *mode);
 	void (*modeset_global_resources)(struct drm_device *dev);
 	int (*crtc_mode_set)(struct drm_crtc *crtc,
-			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adjusted_mode,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);
 	void (*crtc_enable)(struct drm_crtc *crtc);

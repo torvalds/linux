@@ -200,6 +200,11 @@ struct intel_connector {
 	struct edid *edid;
 };
 
+struct intel_crtc_config {
+	struct drm_display_mode requested_mode;
+	struct drm_display_mode adjusted_mode;
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -232,6 +237,8 @@ struct intel_crtc {
 	int16_t cursor_width, cursor_height;
 	bool cursor_visible;
 	unsigned int bpp;
+
+	struct intel_crtc_config config;
 
 	/* We can share PLLs across outputs if the timings match */
 	struct intel_pch_pll *pch_pll;

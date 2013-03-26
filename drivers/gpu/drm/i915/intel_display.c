@@ -3971,15 +3971,16 @@ bool intel_connector_get_hw_state(struct intel_connector *connector)
 	return encoder->get_hw_state(encoder, &pipe);
 }
 
-static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
+static bool intel_crtc_compute_config(struct drm_crtc *crtc,
+				      struct intel_crtc_config *pipe_config)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		/* FDI link clock is fixed at 2.7G */
-		if (mode->clock * 3 > IRONLAKE_FDI_FREQ * 4)
+		if (pipe_config->requested_mode.clock * 3
+		    > IRONLAKE_FDI_FREQ * 4)
 			return false;
 	}
 
@@ -4665,14 +4666,15 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 }
 
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
-			      struct drm_display_mode *mode,
-			      struct drm_display_mode *adjusted_mode,
 			      int x, int y,
 			      struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
@@ -5637,14 +5639,15 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 }
 
 static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode,
 				  int x, int y,
 				  struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	int num_connectors = 0;
@@ -5803,14 +5806,15 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 }
 
 static int haswell_crtc_mode_set(struct drm_crtc *crtc,
-				 struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode,
 				 int x, int y,
 				 struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	int num_connectors = 0;
@@ -5887,8 +5891,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 }
 
 static int intel_crtc_mode_set(struct drm_crtc *crtc,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode,
 			       int x, int y,
 			       struct drm_framebuffer *fb)
 {
@@ -5897,6 +5899,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_display_mode *adjusted_mode =
+		&intel_crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	int ret;
 
@@ -5907,8 +5912,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	drm_vblank_pre_modeset(dev, pipe);
 
-	ret = dev_priv->display.crtc_mode_set(crtc, mode, adjusted_mode,
-					      x, y, fb);
+	ret = dev_priv->display.crtc_mode_set(crtc, x, y, fb);
+
 	drm_vblank_post_modeset(dev, pipe);
 
 	if (ret != 0)
@@ -7530,18 +7535,21 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 	}
 }
 
-static struct drm_display_mode *
-intel_modeset_adjusted_mode(struct drm_crtc *crtc,
-			    struct drm_display_mode *mode)
+static struct intel_crtc_config *
+intel_modeset_pipe_config(struct drm_crtc *crtc,
+			  struct drm_display_mode *mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_display_mode *adjusted_mode;
 	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct intel_encoder *encoder;
+	struct intel_crtc_config *pipe_config;
 
-	adjusted_mode = drm_mode_duplicate(dev, mode);
-	if (!adjusted_mode)
+	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
+	if (!pipe_config)
 		return ERR_PTR(-ENOMEM);
+
+	drm_mode_copy(&pipe_config->adjusted_mode, mode);
+	drm_mode_copy(&pipe_config->requested_mode, mode);
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
@@ -7553,22 +7561,23 @@ intel_modeset_adjusted_mode(struct drm_crtc *crtc,
 		if (&encoder->new_crtc->base != crtc)
 			continue;
 		encoder_funcs = encoder->base.helper_private;
-		if (!(encoder_funcs->mode_fixup(&encoder->base, mode,
-						adjusted_mode))) {
+		if (!(encoder_funcs->mode_fixup(&encoder->base,
+						&pipe_config->requested_mode,
+						&pipe_config->adjusted_mode))) {
 			DRM_DEBUG_KMS("Encoder fixup failed\n");
 			goto fail;
 		}
 	}
 
-	if (!(intel_crtc_mode_fixup(crtc, mode, adjusted_mode))) {
+	if (!(intel_crtc_compute_config(crtc, pipe_config))) {
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
 		goto fail;
 	}
 	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
-	return adjusted_mode;
+	return pipe_config;
 fail:
-	drm_mode_destroy(dev, adjusted_mode);
+	kfree(pipe_config);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -7834,7 +7843,8 @@ int intel_set_mode(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_display_mode *adjusted_mode, *saved_mode, *saved_hwmode;
+	struct drm_display_mode *saved_mode, *saved_hwmode;
+	struct intel_crtc_config *pipe_config = NULL;
 	struct intel_crtc *intel_crtc;
 	unsigned disable_pipes, prepare_pipes, modeset_pipes;
 	int ret = 0;
@@ -7861,11 +7871,12 @@ int intel_set_mode(struct drm_crtc *crtc,
 	 * Hence simply check whether any bit is set in modeset_pipes in all the
 	 * pieces of code that are not yet converted to deal with mutliple crtcs
 	 * changing their mode at the same time. */
-	adjusted_mode = NULL;
 	if (modeset_pipes) {
-		adjusted_mode = intel_modeset_adjusted_mode(crtc, mode);
-		if (IS_ERR(adjusted_mode)) {
-			ret = PTR_ERR(adjusted_mode);
+		pipe_config = intel_modeset_pipe_config(crtc, mode);
+		if (IS_ERR(pipe_config)) {
+			ret = PTR_ERR(pipe_config);
+			pipe_config = NULL;
+
 			goto out;
 		}
 	}
@@ -7878,8 +7889,12 @@ int intel_set_mode(struct drm_crtc *crtc,
 	/* crtc->mode is already used by the ->mode_set callbacks, hence we need
 	 * to set it here already despite that we pass it down the callchain.
 	 */
-	if (modeset_pipes)
+	if (modeset_pipes) {
 		crtc->mode = *mode;
+		/* mode_set/enable/disable functions rely on a correct pipe
+		 * config. */
+		to_intel_crtc(crtc)->config = *pipe_config;
+	}
 
 	/* Only after disabling all output pipelines that will be changed can we
 	 * update the the output configuration. */
@@ -7893,7 +7908,6 @@ int intel_set_mode(struct drm_crtc *crtc,
 	 */
 	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
 		ret = intel_crtc_mode_set(&intel_crtc->base,
-					  mode, adjusted_mode,
 					  x, y, fb);
 		if (ret)
 			goto done;
@@ -7905,7 +7919,7 @@ int intel_set_mode(struct drm_crtc *crtc,
 
 	if (modeset_pipes) {
 		/* Store real post-adjustment hardware mode. */
-		crtc->hwmode = *adjusted_mode;
+		crtc->hwmode = pipe_config->adjusted_mode;
 
 		/* Calculate and store various constants which
 		 * are later needed by vblank and swap-completion
@@ -7916,7 +7930,6 @@ int intel_set_mode(struct drm_crtc *crtc,
 
 	/* FIXME: add subpixel order */
 done:
-	drm_mode_destroy(dev, adjusted_mode);
 	if (ret && crtc->enabled) {
 		crtc->hwmode = *saved_hwmode;
 		crtc->mode = *saved_mode;
@@ -7925,6 +7938,7 @@ done:
 	}
 
 out:
+	kfree(pipe_config);
 	kfree(saved_mode);
 	return ret;
 }
