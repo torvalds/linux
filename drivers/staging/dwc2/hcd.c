@@ -2682,7 +2682,7 @@ static void dwc2_set_uninitialized(int *p, int size)
  * USB bus with the core and calls the hc_driver->start() function. It returns
  * a negative error on failure.
  */
-int dwc2_hcd_init(struct device *dev, struct dwc2_hsotg *hsotg, int irq,
+int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 		  struct dwc2_core_params *params)
 {
 	struct usb_hcd *hcd;
@@ -2691,7 +2691,7 @@ int dwc2_hcd_init(struct device *dev, struct dwc2_hsotg *hsotg, int irq,
 	int i, num_channels;
 	int retval = -ENOMEM;
 
-	dev_dbg(dev, "DWC OTG HCD INIT\n");
+	dev_dbg(hsotg->dev, "DWC OTG HCD INIT\n");
 
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
@@ -2702,12 +2702,12 @@ int dwc2_hcd_init(struct device *dev, struct dwc2_hsotg *hsotg, int irq,
 	snpsid = readl(hsotg->regs + GSNPSID);
 	if ((snpsid & 0xfffff000) != 0x4f542000 &&
 	    (snpsid & 0xfffff000) != 0x4f543000) {
-		dev_err(dev, "Bad value for GSNPSID: 0x%08x\n", snpsid);
+		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n", snpsid);
 		retval = -ENODEV;
 		goto error1;
 	}
 
-	hcd = usb_create_hcd(&dwc2_hc_driver, dev, dev_name(dev));
+	hcd = usb_create_hcd(&dwc2_hc_driver, hsotg->dev, dev_name(hsotg->dev));
 	if (!hcd)
 		goto error1;
 
@@ -2716,7 +2716,6 @@ int dwc2_hcd_init(struct device *dev, struct dwc2_hsotg *hsotg, int irq,
 	spin_lock_init(&hsotg->lock);
 	((struct wrapper_priv_data *) &hcd->hcd_priv)->hsotg = hsotg;
 	hsotg->priv = hcd;
-	hsotg->dev = dev;
 
 	/*
 	 * Store the contents of the hardware configuration registers here for
@@ -2913,7 +2912,7 @@ error2:
 
 	usb_put_hcd(hcd);
 error1:
-	dev_err(dev, "%s() FAILED, returning %d\n", __func__, retval);
+	dev_err(hsotg->dev, "%s() FAILED, returning %d\n", __func__, retval);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(dwc2_hcd_init);
@@ -2922,17 +2921,17 @@ EXPORT_SYMBOL_GPL(dwc2_hcd_init);
  * Removes the HCD.
  * Frees memory and resources associated with the HCD and deregisters the bus.
  */
-void dwc2_hcd_remove(struct device *dev, struct dwc2_hsotg *hsotg)
+void dwc2_hcd_remove(struct dwc2_hsotg *hsotg)
 {
 	struct usb_hcd *hcd;
 
-	dev_dbg(dev, "DWC OTG HCD REMOVE\n");
+	dev_dbg(hsotg->dev, "DWC OTG HCD REMOVE\n");
 
 	hcd = dwc2_hsotg_to_hcd(hsotg);
-	dev_dbg(dev, "hsotg->hcd = %p\n", hcd);
+	dev_dbg(hsotg->dev, "hsotg->hcd = %p\n", hcd);
 
 	if (!hcd) {
-		dev_dbg(dev, "%s: dwc2_hsotg_to_hcd(hsotg) NULL!\n",
+		dev_dbg(hsotg->dev, "%s: dwc2_hsotg_to_hcd(hsotg) NULL!\n",
 			__func__);
 		return;
 	}

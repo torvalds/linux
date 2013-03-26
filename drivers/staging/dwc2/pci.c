@@ -103,7 +103,7 @@ static void dwc2_driver_remove(struct pci_dev *dev)
 
 	dev_dbg(&dev->dev, "%s(%p)\n", __func__, dev);
 
-	dwc2_hcd_remove(&dev->dev, hsotg);
+	dwc2_hcd_remove(hsotg);
 	pci_disable_device(dev);
 }
 
@@ -133,6 +133,7 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 
 	pci_set_power_state(dev, PCI_D0);
 
+	hsotg->dev = &dev->dev;
 	hsotg->regs = devm_request_and_ioremap(&dev->dev, &dev->resource[0]);
 	if (!hsotg->regs)
 		return -ENOMEM;
@@ -157,7 +158,7 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 		pci_set_consistent_dma_mask(dev, 0);
 	}
 
-	retval = dwc2_hcd_init(&dev->dev, hsotg, dev->irq, &dwc2_module_params);
+	retval = dwc2_hcd_init(hsotg, dev->irq, &dwc2_module_params);
 	if (retval) {
 		pci_disable_device(dev);
 		return retval;
@@ -171,7 +172,7 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 				  IRQF_SHARED | IRQ_LEVEL, dev_name(&dev->dev),
 				  hsotg);
 	if (retval)
-		dwc2_hcd_remove(&dev->dev, hsotg);
+		dwc2_hcd_remove(hsotg);
 
 	return retval;
 }
