@@ -44,6 +44,20 @@
 				0x154 0x27	/* spi0_d0.gpio0_3, INPUT | MODE7 */
 			>;
 		};
+
+		i2c0_pins: pinmux_i2c0_pins {
+			pinctrl-single,pins = <
+				0x188 0x30	/* i2c0_sda.i2c0_sda PULLUP | INPUTENABLE | MODE0 */
+				0x18c 0x30	/* i2c0_scl.i2c0_scl PULLUP | INPUTENABLE | MODE0 */
+			>;
+		};
+
+		i2c1_pins: pinmux_i2c1_pins {
+			pinctrl-single,pins = <
+				0x158 0x32	/* spi0_d1.i2c1_sda PULLUP | INPUTENABLE | MODE2 */
+				0x15c 0x32	/* spi0_cs0.i2c1_scl PULLUP | INPUTENABLE | MODE2 */
+			>;
+		};
 	};
 
 	ocp {
@@ -52,6 +66,9 @@
 		};
 
 		i2c0: i2c@44e0b000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_pins>;
+
 			status = "okay";
 			clock-frequency = <400000>;
 
@@ -61,6 +78,9 @@
 		};
 
 		i2c1: i2c@4802a000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c1_pins>;
+
 			status = "okay";
 			clock-frequency = <100000>;
 

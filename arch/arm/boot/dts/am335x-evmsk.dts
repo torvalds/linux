@@ -51,6 +51,13 @@
 				0x9c 0x27	/* gpmc_ben0_cle.gpio2_5, INPUT | MODE7 */
 			>;
 		};
+
+		i2c0_pins: pinmux_i2c0_pins {
+			pinctrl-single,pins = <
+				0x188 0x30	/* i2c0_sda.i2c0_sda PULLUP | INPUTENABLE | MODE0 */
+				0x18c 0x30	/* i2c0_scl.i2c0_scl PULLUP | INPUTENABLE | MODE0 */
+			>;
+		};
 	};
 
 	ocp {
@@ -59,6 +66,9 @@
 		};
 
 		i2c0: i2c@44e0b000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_pins>;
+
 			status = "okay";
 			clock-frequency = <400000>;
 
