@@ -1,5 +1,5 @@
 /*
- * Interface handling (except master interface)
+ * Interface handling
  *
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
