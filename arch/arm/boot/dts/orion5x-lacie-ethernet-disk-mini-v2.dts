@@ -11,7 +11,7 @@
 
 / {
 	model = "LaCie Ethernet Disk mini V2";
-	compatible = "lacie,ethernet-disk-mini-v2", "marvell-orion5x-88f5182", "marvell,orion5x";
+	compatible = "lacie,ethernet-disk-mini-v2", "marvell,orion5x-88f5182", "marvell,orion5x";
 
 	memory {
 		reg = <0x00000000 0x4000000>; /* 64 MB */

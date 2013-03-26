@@ -1361,11 +1361,16 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	switch (hw->phy.type) {
 	case e1000_phy_i210:
 	case e1000_phy_m88:
-		if (hw->phy.id == I347AT4_E_PHY_ID ||
-		    hw->phy.id == M88E1112_E_PHY_ID)
+		switch (hw->phy.id) {
+		case I347AT4_E_PHY_ID:
+		case M88E1112_E_PHY_ID:
+		case I210_I_PHY_ID:
 			ret_val = igb_copper_link_setup_m88_gen2(hw);
-		else
+			break;
+		default:
 			ret_val = igb_copper_link_setup_m88(hw);
+			break;
+		}
 		break;
 	case e1000_phy_igp_3:
 		ret_val = igb_copper_link_setup_igp(hw);
