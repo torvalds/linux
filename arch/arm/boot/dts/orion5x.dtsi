@@ -96,7 +96,7 @@
 			reg = <0x90000 0x10000>,
 			      <0xf2200000 0x800>;
 			reg-names = "regs", "sram";
-			interrupts = <22>;
+			interrupts = <28>;
 			status = "okay";
 		};
 	};
