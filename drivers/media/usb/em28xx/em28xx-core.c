@@ -767,6 +767,13 @@ static void em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 	em28xx_write_regs(dev, EM28XX_R1E_CWIDTH, &cwidth, 1);
 	em28xx_write_regs(dev, EM28XX_R1F_CHEIGHT, &cheight, 1);
 	em28xx_write_regs(dev, EM28XX_R1B_OFLOW, &overflow, 1);
+
+	/* FIXME: function/meaning of these registers ? */
+	/* FIXME: align width+height to multiples of 4 ?! */
+	if (dev->is_em25xx) {
+		em28xx_write_reg(dev, 0x34, width >> 4);
+		em28xx_write_reg(dev, 0x35, height >> 4);
+	}
 }
 
 static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)

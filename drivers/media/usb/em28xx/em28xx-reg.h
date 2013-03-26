@@ -48,7 +48,7 @@
 #define EM28XX_CHIPCFG2_TS_PACKETSIZE_752	0x03
 
 
-	/* GPIO/GPO registers */
+/* GPIO/GPO registers */
 #define EM2880_R04_GPO	0x04    /* em2880-em2883 only */
 #define EM28XX_R08_GPIO	0x08	/* em2820 or upper */
 
@@ -167,6 +167,13 @@
 
 #define EM28XX_R34_VBI_START_H	0x34
 #define EM28XX_R35_VBI_START_V	0x35
+/*
+ * NOTE: the EM276x (and EM25xx, EM277x/8x ?) (camera bridges) use these
+ * registers for a different unknown purpose.
+ *   => register 0x34 is set to capture width / 16
+ *   => register 0x35 is set to capture height / 16
+ */
+
 #define EM28XX_R36_VBI_WIDTH	0x36
 #define EM28XX_R37_VBI_HEIGHT	0x37
 
