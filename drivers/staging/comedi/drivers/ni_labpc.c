@@ -320,13 +320,7 @@ static int labpc_counter_set_mode(struct comedi_device *dev,
 static bool labpc_range_is_unipolar(struct comedi_subdevice *s,
 				    unsigned int range)
 {
-	const struct comedi_lrange *lrange = s->range_table;
-	const struct comedi_krange *krange = &lrange->range[range];
-
-	if (krange->min < 0)
-		return false;
-	else
-		return true;
+	return s->range_table->range[range].min >= 0;
 }
 
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
