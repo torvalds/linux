@@ -9,6 +9,8 @@
 
 /dts-v1/;
 
+/memreserve/ 0xff000000 0x01000000;
+
 / {
 	model = "V2P-CA15_CA7";
 	arm,hbi = <0x249>;
@@ -81,6 +83,8 @@
 		compatible = "arm,hdlcd";
 		reg = <0 0x2b000000 0 0x1000>;
 		interrupts = <0 85 4>;
+		mode = "1024x768-16@60";
+		framebuffer = <0 0xff000000 0 0x01000000>;
 		clocks = <&oscclk5>;
 		clock-names = "pxlclk";
 	};
