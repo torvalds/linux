@@ -1875,6 +1875,7 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
+	int ret;
 
 	if (pi->gfx_clock_gating)
 		rv770_restore_cgcg(rdev);
@@ -1884,14 +1885,19 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 
 	if (pi->voltage_control) {
 		rv770_enable_voltage_control(rdev, true);
-		rv770_construct_vddc_table(rdev);
+		ret = rv770_construct_vddc_table(rdev);
+		if (ret)
+			return ret;
 	}
 
 	if (pi->dcodt)
 		rv770_retrieve_odt_values(rdev);
 
-	if (pi->mvdd_control)
-		rv770_get_mvdd_configuration(rdev);
+	if (pi->mvdd_control) {
+		ret = rv770_get_mvdd_configuration(rdev);
+		if (ret)
+			return ret;
+	}
 
 	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_BACKBIAS)
 		rv770_enable_backbias(rdev, true);
@@ -1914,11 +1920,14 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 	if (pi->dynamic_pcie_gen2)
 		rv770_enable_dynamic_pcie_gen2(rdev, true);
 
-	if (rv770_upload_firmware(rdev))
-		return -EINVAL;
-	/* get ucode version ?  */
-	if (rv770_init_smc_table(rdev, boot_ps))
-		return -EINVAL;
+	ret = rv770_upload_firmware(rdev);
+	if (ret)
+		return ret;
+
+	ret = rv770_init_smc_table(rdev, boot_ps);
+	if (ret)
+		return ret;
+
 	rv770_program_response_times(rdev);
 	r7xx_start_smc(rdev);
 
@@ -1937,7 +1946,9 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		PPSMC_Result result;
 
-		rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		ret = rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret)
+			return ret;
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 		result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
@@ -1994,20 +2005,33 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
 	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
+	int ret;
 
-	rv770_restrict_performance_levels_before_switch(rdev);
+	ret = rv770_restrict_performance_levels_before_switch(rdev);
+	if (ret)
+		return ret;
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
-	rv770_halt_smc(rdev);
-	rv770_upload_sw_state(rdev, new_ps);
+	ret = rv770_halt_smc(rdev);
+	if (ret)
+		return ret;
+	ret = rv770_upload_sw_state(rdev, new_ps);
+	if (ret)
+		return ret;
 	r7xx_program_memory_timing_parameters(rdev, new_ps);
 	if (pi->dcodt)
 		rv770_program_dcodt_before_state_switch(rdev, new_ps, old_ps);
-	rv770_resume_smc(rdev);
-	rv770_set_sw_state(rdev);
+	ret = rv770_resume_smc(rdev);
+	if (ret)
+		return ret;
+	ret = rv770_set_sw_state(rdev);
+	if (ret)
+		return ret;
 	if (pi->dcodt)
 		rv770_program_dcodt_after_state_switch(rdev, new_ps, old_ps);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
-	rv770_unrestrict_performance_levels_after_switch(rdev);
+	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
+	if (ret)
+		return ret;
 
 	return 0;
 }
