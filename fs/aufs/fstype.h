@@ -411,7 +411,6 @@ static inline int au_test_fs_no_limit_nlink(struct super_block *sb)
 		|| au_test_ramfs(sb)
 #endif
 		|| au_test_ubifs(sb)
-		|| au_test_btrfs(sb)
 		|| au_test_hfsplus(sb);
 }
 
