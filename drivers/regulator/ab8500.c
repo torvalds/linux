@@ -117,9 +117,11 @@ static int ab8500_regulator_enable(struct regulator_dev *rdev)
 	ret = abx500_mask_and_set_register_interruptible(info->dev,
 		info->update_bank, info->update_reg,
 		info->update_mask, info->update_val);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(rdev_get_dev(rdev),
 			"couldn't set enable bits for regulator\n");
+		return ret;
+	}
 
 	info->is_enabled = true;
 
@@ -144,9 +146,11 @@ static int ab8500_regulator_disable(struct regulator_dev *rdev)
 	ret = abx500_mask_and_set_register_interruptible(info->dev,
 		info->update_bank, info->update_reg,
 		info->update_mask, 0x0);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(rdev_get_dev(rdev),
 			"couldn't set disable bits for regulator\n");
+		return ret;
+	}
 
 	info->is_enabled = false;
 
