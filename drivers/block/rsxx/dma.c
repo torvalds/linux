@@ -986,7 +986,10 @@ void rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
 	int j;
 	int cnt;
 	struct rsxx_dma *dma;
-	struct list_head issued_dmas[card->n_targets];
+	struct list_head *issued_dmas;
+
+	issued_dmas = kzalloc(sizeof(*issued_dmas) * card->n_targets,
+			      GFP_KERNEL);
 
 	for (i = 0; i < card->n_targets; i++) {
 		INIT_LIST_HEAD(&issued_dmas[i]);
@@ -1025,6 +1028,8 @@ void rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
 		}
 		spin_unlock(&card->ctrl[i].queue_lock);
 	}
+
+	kfree(issued_dmas);
 }
 
 void rsxx_eeh_cancel_dmas(struct rsxx_cardinfo *card)
