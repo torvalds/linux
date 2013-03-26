@@ -155,6 +155,7 @@ static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,in
 	struct rk29_ipp_req ipp_req;
 
  	uint32_t  rotation = 0;
+	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 #if defined(CONFIG_FB_ROTATE)
 	int orientation = orientation = 270 - CONFIG_ROTATE_ORIENTATION;
 	switch(orientation)
@@ -177,23 +178,22 @@ static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,in
 			
 	}
 #endif
-	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 	ipp_req.src0.YrgbMst = src_info->fix.smem_start + offset;
 	ipp_req.src0.w = src_info->var.xres;
 	ipp_req.src0.h = src_info->var.yres;
-
-	ipp_req.dst0.YrgbMst = dst_info->fix.smem_start + offset;
-	ipp_req.dst0.w = src_info->var.xres;
-	ipp_req.dst0.h = src_info->var.yres;
-
 	ipp_req.src_vir_w = src_info->var.xres_virtual;
-	ipp_req.dst_vir_w = src_info->var.xres_virtual;
+	
+	ipp_req.dst0.YrgbMst = dst_info->fix.smem_start + offset;
+	ipp_req.dst0.w = dst_info->var.xres;
+	ipp_req.dst0.h = dst_info->var.yres;
+	ipp_req.dst_vir_w = dst_info->var.xres_virtual;
+
+	
 	ipp_req.timeout = 100;
 	ipp_req.flag = rotation;
 	ipp_blit_sync(&ipp_req);
 	
 }
-
 
 #if 0
 
@@ -602,10 +602,19 @@ static int rk_fb_set_par(struct fb_info *info)
 			{
 				if(info != info2)
 				{
-					par2->xact = par->xact;
-					par2->yact = par->yact;
+					if(par->xact < par->yact)
+					{
+						par2->xact = par->yact;
+						par2->yact = par->xact;
+						par2->xvir = par->yact;
+					}
+					else
+					{
+						par2->xact = par->xact;
+						par2->yact = par->yact;
+						par2->xvir = par->xvir;
+					}
 					par2->format = par->format;
-					par2->xvir = par->xvir;
 					info2->var.nonstd &= 0xffffff00;
 					info2->var.nonstd |= data_format;
 					dev_drv1->set_par(dev_drv1,layer_id);
@@ -754,6 +763,25 @@ void rk_direct_fb_show(struct fb_info * fbi)
 EXPORT_SYMBOL(rk_direct_fb_show);
 
 
+static int set_xact_yact_for_hdmi(struct fb_var_screeninfo *pmy_var,
+					struct fb_var_screeninfo *hdmi_var)
+{
+	if(pmy_var->xres < pmy_var->yres)  //vertical  lcd screen
+	{
+		hdmi_var->xres = pmy_var->yres;
+		hdmi_var->yres = pmy_var->xres;
+		hdmi_var->xres_virtual = pmy_var->yres;
+	}
+	else
+	{
+		hdmi_var->xres = pmy_var->xres;
+		hdmi_var->yres = pmy_var->yres;
+		hdmi_var->xres_virtual = pmy_var->xres_virtual;
+	}
+
+	return 0;
+		
+}
 
 /******************************************
 function:this function will be called by hdmi,when 
@@ -870,10 +898,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		{
 			pmy_var = &inf->fb[0]->var;
 			pmy_fix = &inf->fb[0]->fix;
-			hdmi_var->xres = pmy_var->xres;
-			hdmi_var->yres = pmy_var->yres;
-			hdmi_var->xres_virtual = pmy_var->xres_virtual;
-			hdmi_var->yres_virtual = pmy_var->yres_virtual;
+			set_xact_yact_for_hdmi(pmy_var,hdmi_var);
 			hdmi_var->nonstd &= 0xffffff00;
 			hdmi_var->nonstd |= (pmy_var->nonstd & 0xff); //use the same format as primary screen
 		}
@@ -884,7 +909,6 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	#endif
 	hdmi_var->grayscale &= 0xff;
 	hdmi_var->grayscale |= (dev_drv->cur_screen->x_res<<8) + (dev_drv->cur_screen->y_res<<20);
-
 	if(dev_drv->screen1)  //device like rk2928,whic have one lcdc but two outputs
 	{
 	//	info->var.nonstd &= 0xff;
@@ -950,7 +974,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	char name[6];
 	int i;
 	sprintf(name, "lcdc%d",lcdc_id);
-
+	
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 		dev_drv = inf->lcdc_dev_drv[0];
 #else
