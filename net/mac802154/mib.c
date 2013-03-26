@@ -159,6 +159,15 @@ void mac802154_dev_set_pan_id(struct net_device *dev, u16 val)
 	}
 }
 
+u8 mac802154_dev_get_dsn(const struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	return priv->dsn++;
+}
+
 static void phy_chan_notify(struct work_struct *work)
 {
 	struct phy_chan_notify_work *nw = container_of(work,

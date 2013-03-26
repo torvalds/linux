@@ -145,6 +145,8 @@ static int mac802154_header_create(struct sk_buff *skb,
 
 	head[pos++] = mac_cb(skb)->seq; /* DSN/BSN */
 	fc = mac_cb_type(skb);
+	if (mac_cb_is_ackreq(skb))
+		fc |= IEEE802154_FC_ACK_REQ;
 
 	if (!saddr) {
 		spin_lock_bh(&priv->mib_lock);
