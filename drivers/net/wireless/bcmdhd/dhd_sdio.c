@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 390859 2013-03-14 01:09:31Z $
+ * $Id: dhd_sdio.c 392661 2013-03-22 23:17:02Z $
  */
 
 #include <typedefs.h>
@@ -389,6 +389,9 @@ int dhd_dongle_ramsize;
 
 uint dhd_doflow = TRUE;
 uint dhd_dpcpoll = FALSE;
+
+module_param(dhd_doflow, uint, 0644);
+module_param(dhd_dpcpoll, uint, 0644);
 
 static bool dhd_alignctl;
 
@@ -2330,25 +2333,25 @@ dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 	bcm_bprintf(strbuf, "Bus SDIO structure:\n");
 	bcm_bprintf(strbuf, "hostintmask 0x%08x intstatus 0x%08x sdpcm_ver %d\n",
 	            bus->hostintmask, bus->intstatus, bus->sdpcm_ver);
-	bcm_bprintf(strbuf, "fcstate %d qlen %d tx_seq %d, max %d, rxskip %d rxlen %d rx_seq %d\n",
+	bcm_bprintf(strbuf, "fcstate %d qlen %u tx_seq %d, max %d, rxskip %d rxlen %u rx_seq %d\n",
 	            bus->fcstate, pktq_len(&bus->txq), bus->tx_seq, bus->tx_max, bus->rxskip,
 	            bus->rxlen, bus->rx_seq);
-	bcm_bprintf(strbuf, "intr %d intrcount %d lastintrs %d spurious %d\n",
+	bcm_bprintf(strbuf, "intr %d intrcount %u lastintrs %u spurious %u\n",
 	            bus->intr, bus->intrcount, bus->lastintrs, bus->spurious);
-	bcm_bprintf(strbuf, "pollrate %d pollcnt %d regfails %d\n",
+	bcm_bprintf(strbuf, "pollrate %u pollcnt %u regfails %u\n",
 	            bus->pollrate, bus->pollcnt, bus->regfails);
 
 	bcm_bprintf(strbuf, "\nAdditional counters:\n");
-	bcm_bprintf(strbuf, "tx_sderrs %d fcqueued %d rxrtx %d rx_toolong %d rxc_errors %d\n",
+	bcm_bprintf(strbuf, "tx_sderrs %u fcqueued %u rxrtx %u rx_toolong %u rxc_errors %u\n",
 	            bus->tx_sderrs, bus->fcqueued, bus->rxrtx, bus->rx_toolong,
 	            bus->rxc_errors);
-	bcm_bprintf(strbuf, "rx_hdrfail %d badhdr %d badseq %d\n",
+	bcm_bprintf(strbuf, "rx_hdrfail %u badhdr %u badseq %u\n",
 	            bus->rx_hdrfail, bus->rx_badhdr, bus->rx_badseq);
-	bcm_bprintf(strbuf, "fc_rcvd %d, fc_xoff %d, fc_xon %d\n",
+	bcm_bprintf(strbuf, "fc_rcvd %u, fc_xoff %u, fc_xon %u\n",
 	            bus->fc_rcvd, bus->fc_xoff, bus->fc_xon);
-	bcm_bprintf(strbuf, "rxglomfail %d, rxglomframes %d, rxglompkts %d\n",
+	bcm_bprintf(strbuf, "rxglomfail %u, rxglomframes %u, rxglompkts %u\n",
 	            bus->rxglomfail, bus->rxglomframes, bus->rxglompkts);
-	bcm_bprintf(strbuf, "f2rx (hdrs/data) %d (%d/%d), f2tx %d f1regs %d\n",
+	bcm_bprintf(strbuf, "f2rx (hdrs/data) %u (%u/%u), f2tx %u f1regs %u\n",
 	            (bus->f2rxhdrs + bus->f2rxdata), bus->f2rxhdrs, bus->f2rxdata,
 	            bus->f2txdata, bus->f1regdata);
 	{
@@ -2388,17 +2391,17 @@ dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 #ifdef SDTEST
 	if (bus->pktgen_count) {
 		bcm_bprintf(strbuf, "pktgen config and count:\n");
-		bcm_bprintf(strbuf, "freq %d count %d print %d total %d min %d len %d\n",
+		bcm_bprintf(strbuf, "freq %u count %u print %u total %u min %u len %u\n",
 		            bus->pktgen_freq, bus->pktgen_count, bus->pktgen_print,
 		            bus->pktgen_total, bus->pktgen_minlen, bus->pktgen_maxlen);
-		bcm_bprintf(strbuf, "send attempts %d rcvd %d fail %d\n",
+		bcm_bprintf(strbuf, "send attempts %u rcvd %u fail %u\n",
 		            bus->pktgen_sent, bus->pktgen_rcvd, bus->pktgen_fail);
 	}
 #endif /* SDTEST */
 #ifdef DHD_DEBUG
 	bcm_bprintf(strbuf, "dpc_sched %d host interrupt%spending\n",
 	            bus->dpc_sched, (bcmsdh_intr_pending(bus->sdh) ? " " : " not "));
-	bcm_bprintf(strbuf, "blocksize %d roundup %d\n", bus->blocksize, bus->roundup);
+	bcm_bprintf(strbuf, "blocksize %u roundup %u\n", bus->blocksize, bus->roundup);
 #endif /* DHD_DEBUG */
 	bcm_bprintf(strbuf, "clkstate %d activity %d idletime %d idlecount %d sleeping %d\n",
 	            bus->clkstate, bus->activity, bus->idletime, bus->idlecount, bus->sleeping);

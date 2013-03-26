@@ -148,9 +148,6 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_UNICAST_DECODE_ERROR	50	/* Unsupported unicast encrypted frame */
 #define WLC_E_MULTICAST_DECODE_ERROR	51	/* Unsupported multicast encrypted frame */
 #define WLC_E_TRACE		52
-#ifdef WLBTAMP
-#define WLC_E_BTA_HCI_EVENT	53	/* BT-AMP HCI event */
-#endif
 #define WLC_E_IF		54	/* I/F change (for dongle host notification) */
 #define WLC_E_P2P_DISC_LISTEN_COMPLETE	55	/* listen state expires */
 #define WLC_E_RSSI		56	/* indicate RSSI change based on configured levels */
@@ -352,10 +349,6 @@ typedef struct wl_event_data_if {
 #define WLC_E_IF_ROLE_WDS		2	/* WDS link */
 #define WLC_E_IF_ROLE_P2P_GO		3	/* P2P Group Owner */
 #define WLC_E_IF_ROLE_P2P_CLIENT	4	/* P2P Client */
-#ifdef WLBTAMP
-#define WLC_E_IF_ROLE_BTA_CREATOR	5	/* BT-AMP Creator */
-#define WLC_E_IF_ROLE_BTA_ACCEPTOR	6	/* BT-AMP Acceptor */
-#endif
 
 /* WLC_E_RSSI event data */
 typedef struct wl_event_data_rssi {

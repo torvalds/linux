@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 390879 2013-03-14 02:39:27Z $
+ * $Id: dhd_common.c 392661 2013-03-22 23:17:02Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -44,10 +44,6 @@
 
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
-#endif
-#ifdef WLBTAMP
-#include <proto/bt_amp_hci.h>
-#include <dhd_bta.h>
 #endif
 #ifdef SET_RANDOM_MAC_SOFTAP
 #include <linux/random.h>
@@ -123,10 +119,6 @@ enum {
 	IOV_LOGSTAMP,
 	IOV_GPIOOB,
 	IOV_IOCTLTIMEOUT,
-#ifdef WLBTAMP
-	IOV_HCI_CMD,		/* HCI command */
-	IOV_HCI_ACL_DATA,	/* HCI data packet */
-#endif
 #if defined(DHD_DEBUG)
 	IOV_CONS,
 	IOV_DCONSOLE_POLL,
@@ -161,10 +153,6 @@ const bcm_iovar_t dhd_iovars[] = {
 	{"clearcounts", IOV_CLEARCOUNTS, 0, IOVT_VOID,	0 },
 	{"gpioob",	IOV_GPIOOB,	0,	IOVT_UINT32,	0 },
 	{"ioctl_timeout",	IOV_IOCTLTIMEOUT,	0,	IOVT_UINT32,	0 },
-#ifdef WLBTAMP
-	{"HCI_cmd",	IOV_HCI_CMD,	0,	IOVT_BUFFER,	0},
-	{"HCI_ACL_data", IOV_HCI_ACL_DATA, 0,	IOVT_BUFFER,	0},
-#endif
 #ifdef PROP_TXSTATUS
 	{"proptx",	IOV_PROPTXSTATUS_ENABLE,	0,	IOVT_UINT32,	0 },
 	/*
@@ -241,7 +229,7 @@ dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	bcm_bprintf(strbuf, "\n");
 	bcm_bprintf(strbuf, "pub.up %d pub.txoff %d pub.busstate %d\n",
 	            dhdp->up, dhdp->txoff, dhdp->busstate);
-	bcm_bprintf(strbuf, "pub.hdrlen %u pub.maxctl %d pub.rxsz %d\n",
+	bcm_bprintf(strbuf, "pub.hdrlen %u pub.maxctl %u pub.rxsz %u\n",
 	            dhdp->hdrlen, dhdp->maxctl, dhdp->rxsz);
 	bcm_bprintf(strbuf, "pub.iswl %d pub.drv_version %ld pub.mac %s\n",
 	            dhdp->iswl, dhdp->drv_version, bcm_ether_ntoa(&dhdp->mac, eabuf));
@@ -439,37 +427,6 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		break;
 	}
 
-#ifdef WLBTAMP
-	case IOV_SVAL(IOV_HCI_CMD): {
-		amp_hci_cmd_t *cmd = (amp_hci_cmd_t *)arg;
-
-		/* sanity check: command preamble present */
-		if (len < HCI_CMD_PREAMBLE_SIZE)
-			return BCME_BUFTOOSHORT;
-
-		/* sanity check: command parameters are present */
-		if (len < (int)(HCI_CMD_PREAMBLE_SIZE + cmd->plen))
-			return BCME_BUFTOOSHORT;
-
-		dhd_bta_docmd(dhd_pub, cmd, len);
-		break;
-	}
-
-	case IOV_SVAL(IOV_HCI_ACL_DATA): {
-		amp_hci_ACL_data_t *ACL_data = (amp_hci_ACL_data_t *)arg;
-
-		/* sanity check: HCI header present */
-		if (len < HCI_ACL_DATA_PREAMBLE_SIZE)
-			return BCME_BUFTOOSHORT;
-
-		/* sanity check: ACL data is present */
-		if (len < (int)(HCI_ACL_DATA_PREAMBLE_SIZE + ACL_data->dlen))
-			return BCME_BUFTOOSHORT;
-
-		dhd_bta_tx_hcidata(dhd_pub, ACL_data, len);
-		break;
-	}
-#endif /* WLBTAMP */
 
 #ifdef PROP_TXSTATUS
 	case IOV_GVAL(IOV_PROPTXSTATUS_ENABLE):
@@ -1737,10 +1694,6 @@ void
 dhd_sendup_event_common(dhd_pub_t *dhdp, wl_event_msg_t *event, void *data)
 {
 	switch (ntoh32(event->event_type)) {
-#ifdef WLBTAMP
-	case WLC_E_BTA_HCI_EVENT:
-		break;
-#endif /* WLBTAMP */
 	default:
 		break;
 	}

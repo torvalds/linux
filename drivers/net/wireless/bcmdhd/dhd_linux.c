@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 390940 2013-03-14 13:36:09Z $
+ * $Id: dhd_linux.c 392405 2013-03-21 22:01:06Z $
  */
 
 #include <typedefs.h>
@@ -65,11 +65,6 @@
 #include <wl_cfg80211.h>
 #endif
 
-#ifdef WLBTAMP
-#include <proto/802.11_bta.h>
-#include <proto/bt_amp_hci.h>
-#include <dhd_bta.h>
-#endif
 
 #ifdef WLMEDIA_HTSF
 #include <linux/time.h>
@@ -394,11 +389,6 @@ module_param(dhd_watchdog_ms, uint, 0);
 uint dhd_console_ms = 0;
 module_param(dhd_console_ms, uint, 0644);
 #endif /* defined(DHD_DEBUG) */
-
-extern uint dhd_doflow;
-extern uint dhd_dpcpoll;
-module_param(dhd_doflow, uint, 0644);
-module_param(dhd_dpcpoll, uint, 0644);
 
 uint dhd_slpauto = TRUE;
 module_param(dhd_slpauto, uint, 0);
@@ -1701,10 +1691,6 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	for (i = 0; pktbuf && i < numpkt; i++, pktbuf = pnext) {
-#ifdef WLBTAMP
-		struct ether_header *eh;
-		struct dot11_llc_snap_header *lsh;
-#endif
 
 		pnext = PKTNEXT(dhdp->osh, pktbuf);
 		PKTSETNEXT(wl->sh.osh, pktbuf, NULL);
@@ -1730,19 +1716,6 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 		}
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) */
 
-#ifdef WLBTAMP
-		eh = (struct ether_header *)PKTDATA(wl->sh.osh, pktbuf);
-		lsh = (struct dot11_llc_snap_header *)&eh[1];
-
-		if ((ntoh16(eh->ether_type) < ETHER_TYPE_MIN) &&
-		    (PKTLEN(wl->sh.osh, pktbuf) >= RFC1042_HDR_LEN) &&
-		    bcmp(lsh, BT_SIG_SNAP_MPROT, DOT11_LLC_SNAP_HDR_LEN - 2) == 0 &&
-		    lsh->type == HTON16(BTA_PROT_L2CAP)) {
-			amp_hci_ACL_data_t *ACL_data = (amp_hci_ACL_data_t *)
-			        ((uint8 *)eh + RFC1042_HDR_LEN);
-			ACL_data = NULL;
-		}
-#endif /* WLBTAMP */
 
 #ifdef PROP_TXSTATUS
 		if (dhdp->wlfc_state && PKTLEN(wl->sh.osh, pktbuf) == 0) {
@@ -1843,15 +1816,9 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			&event,
 			&data);
 
-#if defined(WLBTAMP) || defined(PNO_SUPPORT)
 			wl_event_to_host_order(&event);
 			if (!tout_ctrl)
 				tout_ctrl = DHD_PACKET_TIMEOUT_MS;
-#ifdef WLBTAMP
-			if (event.event_type == WLC_E_BTA_HCI_EVENT) {
-				dhd_bta_doevt(dhdp, data, event.datalen);
-			}
-#endif /* WLBTAMP */
 
 #if defined(PNO_SUPPORT)
 			if (event.event_type == WLC_E_PFN_NET_FOUND) {
@@ -1859,7 +1826,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 				tout_ctrl = CUSTOM_PNO_EVENT_LOCK_xTIME * DHD_PACKET_TIMEOUT_MS;
 			}
 #endif /* PNO_SUPPORT */
-#endif /* defined(WLBTAMP) || defined(PNO_SUPPORT) */
+
 #ifdef DHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT
 			PKTFREE(dhdp->osh, pktbuf, TRUE);
 			continue;
@@ -1929,9 +1896,6 @@ dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 	dhd_info_t *dhd = (dhd_info_t *)(dhdp->info);
 	struct ether_header *eh;
 	uint16 type;
-#ifdef WLBTAMP
-	uint len;
-#endif
 
 	dhd_prot_hdrpull(dhdp, NULL, txp, NULL, NULL);
 
@@ -1941,23 +1905,6 @@ dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 	if (type == ETHER_TYPE_802_1X)
 		atomic_dec(&dhd->pend_8021x_cnt);
 
-#ifdef WLBTAMP
-	/* Crack open the packet and check to see if it is BT HCI ACL data packet.
-	 * If yes generate packet completion event.
-	 */
-	len = PKTLEN(dhdp->osh, txp);
-
-	/* Generate ACL data tx completion event locally to avoid SDIO bus transaction */
-	if ((type < ETHER_TYPE_MIN) && (len >= RFC1042_HDR_LEN)) {
-		struct dot11_llc_snap_header *lsh = (struct dot11_llc_snap_header *)&eh[1];
-
-		if (bcmp(lsh, BT_SIG_SNAP_MPROT, DOT11_LLC_SNAP_HDR_LEN - 2) == 0 &&
-		    ntoh16(lsh->type) == BTA_PROT_L2CAP) {
-
-			dhd_bta_tx_hcidata_complete(dhdp, txp, success);
-		}
-	}
-#endif /* WLBTAMP */
 }
 
 static struct net_device_stats *
@@ -4542,9 +4489,11 @@ dhd_module_init(void)
 			break;
 
 		DHD_ERROR(("Invalid module parameters.\n"));
-		return -EINVAL;
+		error = -EINVAL;
 	} while (0);
 #endif 
+	if (error)
+		goto fail_0;
 
 #if defined(BCMLXSDMMC) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	do {
@@ -4574,7 +4523,8 @@ dhd_module_init(void)
 
 	if (!chip_up) {
 		DHD_ERROR(("\nfailed to power up wifi chip, max retry reached, exits **\n\n"));
-		return -ENODEV;
+		error = -ENODEV;
+		goto fail_0;
 	}
 #else
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_ON);
@@ -4585,7 +4535,7 @@ dhd_module_init(void)
 
 #endif 
 
-#if defined(CONFIG_WIFI_CONTROL_FUNC)
+#if defined(CONFIG_WIFI_CONTROL_FUNC) && defined(BCMLXSDMMC)
 	/* If the wifi_set_power() is failed,
 	 * we need to jump error handling routines.
 	 */
@@ -4610,7 +4560,7 @@ dhd_module_init(void)
 		goto fail_1;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(BCMLXSDMMC)
 	/*
 	 * Wait till MMC sdio_register_driver callback called and made driver attach.
 	 * It's needed to make sync up exit from dhd insmod  and
@@ -4630,7 +4580,7 @@ dhd_module_init(void)
 
 	return error;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(BCMLXSDMMC)
 fail_2:
 	dhd_bus_unregister();
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) */
@@ -4643,6 +4593,9 @@ fail_1:
 
 	/* Call customer gpio to turn off power with WL_REG_ON signal */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
+
+fail_0:
+	wl_android_exit();
 
 	return error;
 }
@@ -5008,103 +4961,6 @@ void
 dhd_sendup_event(dhd_pub_t *dhdp, wl_event_msg_t *event, void *data)
 {
 	switch (ntoh32(event->event_type)) {
-#ifdef WLBTAMP
-	/* Send up locally generated AMP HCI Events */
-	case WLC_E_BTA_HCI_EVENT: {
-		struct sk_buff *p, *skb;
-		bcm_event_t *msg;
-		wl_event_msg_t *p_bcm_event;
-		char *ptr;
-		uint32 len;
-		uint32 pktlen;
-		dhd_if_t *ifp;
-		dhd_info_t *dhd;
-		uchar *eth;
-		int ifidx;
-
-		len = ntoh32(event->datalen);
-		pktlen = sizeof(bcm_event_t) + len + 2;
-		dhd = dhdp->info;
-		ifidx = dhd_ifname2idx(dhd, event->ifname);
-
-		if ((p = PKTGET(dhdp->osh, pktlen, FALSE))) {
-			ASSERT(ISALIGNED((uintptr)PKTDATA(dhdp->osh, p), sizeof(uint32)));
-
-			msg = (bcm_event_t *) PKTDATA(dhdp->osh, p);
-
-			bcopy(&dhdp->mac, &msg->eth.ether_dhost, ETHER_ADDR_LEN);
-			bcopy(&dhdp->mac, &msg->eth.ether_shost, ETHER_ADDR_LEN);
-			ETHER_TOGGLE_LOCALADDR(&msg->eth.ether_shost);
-
-			msg->eth.ether_type = hton16(ETHER_TYPE_BRCM);
-
-			/* BCM Vendor specific header... */
-			msg->bcm_hdr.subtype = hton16(BCMILCP_SUBTYPE_VENDOR_LONG);
-			msg->bcm_hdr.version = BCMILCP_BCM_SUBTYPEHDR_VERSION;
-			bcopy(BRCM_OUI, &msg->bcm_hdr.oui[0], DOT11_OUI_LEN);
-
-			/* vendor spec header length + pvt data length (private indication
-			 *  hdr + actual message itself)
-			 */
-			msg->bcm_hdr.length = hton16(BCMILCP_BCM_SUBTYPEHDR_MINLENGTH +
-				BCM_MSG_LEN + sizeof(wl_event_msg_t) + (uint16)len);
-			msg->bcm_hdr.usr_subtype = hton16(BCMILCP_BCM_SUBTYPE_EVENT);
-
-			PKTSETLEN(dhdp->osh, p, (sizeof(bcm_event_t) + len + 2));
-
-			/* copy  wl_event_msg_t into sk_buf */
-
-			/* pointer to wl_event_msg_t in sk_buf */
-			p_bcm_event = &msg->event;
-			bcopy(event, p_bcm_event, sizeof(wl_event_msg_t));
-
-			/* copy hci event into sk_buf */
-			bcopy(data, (p_bcm_event + 1), len);
-
-			msg->bcm_hdr.length  = hton16(sizeof(wl_event_msg_t) +
-				ntoh16(msg->bcm_hdr.length));
-			PKTSETLEN(dhdp->osh, p, (sizeof(bcm_event_t) + len + 2));
-
-			ptr = (char *)(msg + 1);
-			/* Last 2 bytes of the message are 0x00 0x00 to signal that there
-			 * are no ethertypes which are following this
-			 */
-			ptr[len+0] = 0x00;
-			ptr[len+1] = 0x00;
-
-			skb = PKTTONATIVE(dhdp->osh, p);
-			eth = skb->data;
-			len = skb->len;
-
-			ifp = dhd->iflist[ifidx];
-			if (ifp == NULL)
-			     ifp = dhd->iflist[0];
-
-			ASSERT(ifp);
-			skb->dev = ifp->net;
-			skb->protocol = eth_type_trans(skb, skb->dev);
-
-			skb->data = eth;
-			skb->len = len;
-
-			/* Strip header, count, deliver upward */
-			skb_pull(skb, ETH_HLEN);
-
-			/* Send the packet */
-			if (in_interrupt()) {
-				netif_rx(skb);
-			} else {
-				netif_rx_ni(skb);
-			}
-		}
-		else {
-			/* Could not allocate a sk_buf */
-			DHD_ERROR(("%s: unable to alloc sk_buf", __FUNCTION__));
-		}
-		break;
-	} /* case WLC_E_BTA_HCI_EVENT */
-#endif /* WLBTAMP */
-
 	default:
 		break;
 	}

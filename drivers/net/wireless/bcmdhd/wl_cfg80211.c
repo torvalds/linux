@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c 390496 2013-03-12 11:17:18Z $
+ * $Id: wl_cfg80211.c 392554 2013-03-22 16:42:12Z $
  */
 #include <typedefs.h>
 #include <linuxver.h>
@@ -2883,14 +2883,14 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	wl_update_prof(wl, dev, NULL, &ext_join_params->ssid, WL_PROF_SSID);
 	ext_join_params->ssid.SSID_len = htod32(ext_join_params->ssid.SSID_len);
 	/* increate dwell time to receive probe response or detect Beacon
-	* from target AP at a noisy air only during connect command
+	* from target AP at a noisy air only when channel info is provided in connect command
 	*/
-	ext_join_params->scan.active_time = WL_SCAN_JOIN_ACTIVE_DWELL_TIME_MS;
-	ext_join_params->scan.passive_time = WL_SCAN_JOIN_PASSIVE_DWELL_TIME_MS;
+	ext_join_params->scan.active_time = chan_cnt ? WL_SCAN_JOIN_ACTIVE_DWELL_TIME_MS : -1;
+	ext_join_params->scan.passive_time = chan_cnt ? WL_SCAN_JOIN_PASSIVE_DWELL_TIME_MS : -1;
 	/* Set up join scan parameters */
 	ext_join_params->scan.scan_type = -1;
-	ext_join_params->scan.nprobes
-		= (ext_join_params->scan.active_time/WL_SCAN_JOIN_PROBE_INTERVAL_MS);
+	ext_join_params->scan.nprobes = chan_cnt ?
+		(ext_join_params->scan.active_time/WL_SCAN_JOIN_PROBE_INTERVAL_MS) : -1;
 	ext_join_params->scan.home_time = -1;
 
 	if (sme->bssid)

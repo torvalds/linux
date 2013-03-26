@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_android.c 390503 2013-03-12 12:25:00Z $
+ * $Id: wl_android.c 392222 2013-03-21 06:29:33Z $
  */
 
 #include <linux/module.h>
@@ -143,7 +143,9 @@ int wl_cfg80211_set_p2p_ps(struct net_device *net, char* buf, int len)
 { return 0; }
 #endif /* WK_CFG80211 */
 extern int dhd_os_check_if_up(void *dhdp);
+#ifdef BCMLXSDMMC
 extern void *bcmsdh_get_drvdata(void);
+#endif /* BCMLXSDMMC */
 #if defined(PROP_TXSTATUS) && !defined(PROP_TXSTATUS_VSDB)
 extern int dhd_wlfc_init(dhd_pub_t *dhd);
 extern void dhd_wlfc_deinit(dhd_pub_t *dhd);
@@ -431,7 +433,7 @@ int wl_android_wifi_on(struct net_device *dev)
 			if (dhd_dev_init_ioctl(dev) < 0)
 				ret = -EFAULT;
 		}
-#if defined(PROP_TXSTATUS) && !defined(PROP_TXSTATUS_VSDB)
+#if defined(PROP_TXSTATUS) && !defined(PROP_TXSTATUS_VSDB) && defined(BCMLXSDMMC)
 		dhd_wlfc_init(bcmsdh_get_drvdata());
 #endif
 		g_wifi_on = TRUE;
@@ -455,7 +457,7 @@ int wl_android_wifi_off(struct net_device *dev)
 
 	dhd_net_if_lock(dev);
 	if (g_wifi_on) {
-#if defined(PROP_TXSTATUS) && !defined(PROP_TXSTATUS_VSDB)
+#if defined(PROP_TXSTATUS) && !defined(PROP_TXSTATUS_VSDB) && defined(BCMLXSDMMC)
 		dhd_wlfc_deinit(bcmsdh_get_drvdata());
 #endif
 		ret = dhd_dev_reset(dev, TRUE);

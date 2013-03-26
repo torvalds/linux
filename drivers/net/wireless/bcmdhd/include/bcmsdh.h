@@ -23,7 +23,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.h 365575 2012-10-30 05:25:07Z $
+ * $Id: bcmsdh.h 391577 2013-03-18 21:28:17Z $
  */
 
 /**
@@ -57,13 +57,7 @@ extern struct device *pm_dev;
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
-
-#if 0 && (0>= 0x0630) && 1
-extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl,
-	void **regsva, uint irq, shared_info_t *sh);
-#else
 extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq);
-#endif
 
 /* Detach - freeup resources allocated in attach */
 extern int bcmsdh_detach(osl_t *osh, void *sdh);

@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 390859 2013-03-14 01:09:31Z $
+ * $Id: dhd.h 391294 2013-03-15 22:09:01Z $
  */
 
 /****************
@@ -281,9 +281,6 @@ typedef struct dhd_pub {
 	struct mutex 	wl_softap_lock;		 /* lock/unlock for any SoftAP/STA settings */
 #endif 
 
-#ifdef WLBTAMP
-	uint16	maxdatablks;
-#endif /* WLBTAMP */
 #ifdef PROP_TXSTATUS
 	int	wlfc_enabled;
 	void*	wlfc_state;
