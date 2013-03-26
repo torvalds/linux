@@ -1107,15 +1107,6 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 	/*  End of RPS program build */
 }
 
-/* TO COMPLETE, IF NECESSARY */
-static int s626_ai_insn_config(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-
-	return -EINVAL;
-}
-
 #ifdef unused_code
 static int s626_ai_rinsn(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
@@ -2657,7 +2648,6 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0x3fff;
 	s->range_table	= &s626_range_table;
 	s->len_chanlist	= S626_ADC_CHANNELS;
-	s->insn_config	= s626_ai_insn_config;
 	s->insn_read	= s626_ai_insn_read;
 	s->do_cmd	= s626_ai_cmd;
 	s->do_cmdtest	= s626_ai_cmdtest;
