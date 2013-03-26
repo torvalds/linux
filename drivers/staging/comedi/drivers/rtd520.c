@@ -414,7 +414,6 @@ struct rtdPrivate {
 
 	/* shadow registers affect other registers, but can't be read back */
 	/* The macros below update these on writes */
-	u16 intClearMask;	/* interrupt clear mask */
 	u8 utcCtrl[4];		/* crtl mode for 3 utc + read back */
 	unsigned fifoLen;
 };
@@ -782,8 +781,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		goto abortTransfer;
 
 	/* clear the interrupt */
-	devpriv->intClearMask = status;
-	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
+	writew(status, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 	return IRQ_HANDLED;
 
@@ -810,8 +808,7 @@ transferDone:
 
 	/* clear the interrupt */
 	status = readw(devpriv->las0 + LAS0_IT);
-	devpriv->intClearMask = status;
-	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
+	writew(status, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 
 	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
@@ -1122,8 +1119,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* This doesn't seem to work.  There is no way to clear an interrupt
 	   that the priority controller has queued! */
-	devpriv->intClearMask = ~0;
-	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
+	writew(~0, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 
 	/* TODO: allow multiple interrupt sources */
@@ -1308,8 +1304,7 @@ static void rtd_reset(struct comedi_device *dev)
 	udelay(100);		/* needed? */
 	writel(0, devpriv->lcfg + PLX_INTRCS_REG);
 	writew(0, devpriv->las0 + LAS0_IT);
-	devpriv->intClearMask = ~0;
-	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
+	writew(~0, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 }
 
