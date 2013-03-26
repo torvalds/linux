@@ -112,9 +112,15 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	struct super_block *sb;
 	int error;
 
-	if (!(flags & MS_KERNMOUNT) && !capable(CAP_SYS_ADMIN) &&
-	    !fs_fully_visible(fs_type))
-		return ERR_PTR(-EPERM);
+	if (!(flags & MS_KERNMOUNT)) {
+		if (!capable(CAP_SYS_ADMIN) && !fs_fully_visible(fs_type))
+			return ERR_PTR(-EPERM);
+
+		for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++) {
+			if (!kobj_ns_current_may_mount(type))
+				return ERR_PTR(-EPERM);
+		}
+	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)

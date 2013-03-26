@@ -1157,6 +1157,13 @@ static void remove_queue_kobjects(struct net_device *net)
 #endif
 }
 
+static bool net_current_may_mount(void)
+{
+	struct net *net = current->nsproxy->net_ns;
+
+	return ns_capable(net->user_ns, CAP_SYS_ADMIN);
+}
+
 static void *net_grab_current_ns(void)
 {
 	struct net *ns = current->nsproxy->net_ns;
@@ -1179,6 +1186,7 @@ static const void *net_netlink_ns(struct sock *sk)
 
 struct kobj_ns_type_operations net_ns_type_operations = {
 	.type = KOBJ_NS_TYPE_NET,
+	.current_may_mount = net_current_may_mount,
 	.grab_current_ns = net_grab_current_ns,
 	.netlink_ns = net_netlink_ns,
 	.initial_ns = net_initial_ns,
