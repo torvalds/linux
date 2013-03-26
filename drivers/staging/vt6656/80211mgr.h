@@ -727,16 +727,6 @@ vMgrDecodeBeacon(
     );
 
 void
-vMgrEncodeIBSSATIM(
-      PWLAN_FR_IBSSATIM   pFrame
-    );
-
-void
-vMgrDecodeIBSSATIM(
-      PWLAN_FR_IBSSATIM   pFrame
-    );
-
-void
 vMgrEncodeDisassociation(
       PWLAN_FR_DISASSOC  pFrame
     );
@@ -818,11 +808,6 @@ vMgrDecodeDeauthen(
 
 void
 vMgrEncodeReassocResponse(
-      PWLAN_FR_REASSOCRESP  pFrame
-    );
-
-void
-vMgrDecodeReassocResponse(
       PWLAN_FR_REASSOCRESP  pFrame
     );
 

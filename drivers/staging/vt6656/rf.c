@@ -1115,20 +1115,3 @@ void RFbRFTableDownload(struct vnt_private *pDevice)
     }
 
 }
-
-int s_bVT3226D0_11bLoCurrentAdjust(struct vnt_private *pDevice, u8 byChannel,
-	int b11bMode)
-{
-	int bResult = true;
-
-	if (b11bMode)
-		bResult &= IFRFbWriteEmbedded(pDevice,
-			dwVT3226D0LoCurrentTable[byChannel-1]);
-	else
-		bResult &= IFRFbWriteEmbedded(pDevice, 0x016bc600 +
-			(BY_VT3226_REG_LEN << 3) + IFREGCTL_REGW);
-
-	return bResult;
-}
-
-

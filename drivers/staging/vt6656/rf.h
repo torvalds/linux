@@ -63,7 +63,5 @@ int RFbSetPower(struct vnt_private *, u32 uRATE, u32 uCH);
 int RFbRawSetPower(struct vnt_private *, u8 byPwr, u32 uRATE);
 void RFvRSSITodBm(struct vnt_private *, u8 byCurrRSSI, long *pldBm);
 void RFbRFTableDownload(struct vnt_private *pDevice);
-int s_bVT3226D0_11bLoCurrentAdjust(struct vnt_private *, u8 byChannel,
-	int b11bMode);
 
 #endif /* __RF_H__ */

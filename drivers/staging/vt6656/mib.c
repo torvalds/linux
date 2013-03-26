@@ -25,10 +25,8 @@
  * Date: May 21, 1996
  *
  * Functions:
- *      STAvClearAllCounter - Clear All MIB Counter
  *      STAvUpdateIstStatCounter - Update ISR statistic counter
  *      STAvUpdateRDStatCounter - Update Rx statistic counter
- *      STAvUpdateRDStatCounterEx - Update Rx statistic counter and copy rcv data
  *      STAvUpdateTDStatCounter - Update Tx statistic counter
  *      STAvUpdateTDStatCounterEx - Update Tx statistic counter and copy tx data
  *      STAvUpdate802_11Counter - Update 802.11 mib counter
@@ -47,27 +45,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 
-
-
-
-
-/*
- * Description: Clear All Statistic Counter
- *
- * Parameters:
- *  In:
- *      pStatistic  - Pointer to Statistic Counter Data Structure
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void STAvClearAllCounter (PSStatCounter pStatistic)
-{
-    // set memory to zero
-	memset(pStatistic, 0, sizeof(SStatCounter));
-}
 
 
 /*
@@ -365,51 +342,6 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
 }
 
 /*
- * Description: Update Rx Statistic Counter and copy Rx buffer
- *
- * Parameters:
- *  In:
- *      pStatistic      - Pointer to Statistic Counter Data Structure
- *      byRSR           - Rx Status
- *      byNewRSR        - Rx Status
- *      pbyBuffer       - Rx Buffer
- *      cbFrameLength   - Rx Length
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-
-void
-STAvUpdateRDStatCounterEx (
-    PSStatCounter   pStatistic,
-    u8            byRSR,
-    u8            byNewRSR,
-    u8            byRxSts,
-    u8            byRxRate,
-    u8 *           pbyBuffer,
-    unsigned int            cbFrameLength
-    )
-{
-    STAvUpdateRDStatCounter(
-                    pStatistic,
-                    byRSR,
-                    byNewRSR,
-                    byRxSts,
-                    byRxRate,
-                    pbyBuffer,
-                    cbFrameLength
-                    );
-
-    // rx length
-    pStatistic->dwCntRxFrmLength = cbFrameLength;
-    // rx pattern, we just see 10 bytes for sample
-    memcpy(pStatistic->abyCntRxPattern, (u8 *)pbyBuffer, 10);
-}
-
-
-/*
  * Description: Update Tx Statistic Counter
  *
  * Parameters:
@@ -541,25 +473,6 @@ STAvUpdate802_11Counter(
     p802_11Counter->MulticastReceivedFrameCount =
       (unsigned long long) (pStatistic->dwRsrBroadcast +
 			    pStatistic->dwRsrMulticast);
-}
-
-/*
- * Description: Clear 802.11 mib counter
- *
- * Parameters:
- *  In:
- *      p802_11Counter  - Pointer to 802.11 mib counter
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void
-STAvClear802_11Counter(PSDot11Counters p802_11Counter)
-{
-    // set memory to zero
-	memset(p802_11Counter, 0, sizeof(SDot11Counters));
 }
 
 /*

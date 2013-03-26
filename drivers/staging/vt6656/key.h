@@ -105,15 +105,8 @@ int KeybRemoveKey(struct vnt_private *, PSKeyManagement pTable,
 int KeybRemoveAllKey(struct vnt_private *, PSKeyManagement pTable,
 	u8 *pbyBSSID);
 
-void KeyvRemoveWEPKey(struct vnt_private *, PSKeyManagement pTable,
-	u32 dwKeyIndex);
-
-void KeyvRemoveAllWEPKey(struct vnt_private *, PSKeyManagement pTable);
-
 int KeybGetTransmitKey(PSKeyManagement pTable, u8 *pbyBSSID, u32 dwKeyType,
 	PSKeyItem *pKey);
-
-int KeybCheckPairewiseKey(PSKeyManagement pTable, PSKeyItem *pKey);
 
 int KeybSetDefaultKey(struct vnt_private *, PSKeyManagement pTable,
 	u32 dwKeyIndex, u32 uKeyLength, u64 *KeyRSC, u8 *pbyKey,

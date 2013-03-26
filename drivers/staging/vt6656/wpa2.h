@@ -55,6 +55,4 @@ typedef struct tagSPMKIDCache {
 void WPA2_ClearRSN(PKnownBSS pBSSNode);
 void WPA2vParseRSN(PKnownBSS pBSSNode, PWLAN_IE_RSN pRSN);
 
-unsigned int WPA2uSetIEs(void *pMgmtHandle, PWLAN_IE_RSN pRSNIEs);
-
 #endif /* __WPA2_H__ */

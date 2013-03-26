@@ -29,8 +29,6 @@
  *      BBuGetFrameTime        - Calculate data frame transmitting time
  *      BBvCalculateParameter   - Calculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
  *      BBbVT3184Init          - VIA VT3184 baseband chip init code
- *      BBvLoopbackOn          - Turn on BaseBand Loopback mode
- *      BBvLoopbackOff         - Turn off BaseBand Loopback mode
  *
  * Revision History:
  *
@@ -1129,96 +1127,6 @@ else {
     return true;//ntStatus;
 }
 
-
-/*
- * Description: Turn on BaseBand Loopback mode
- *
- * Parameters:
- *  In:
- *      pDevice         - Device Structure
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void BBvLoopbackOn(struct vnt_private *pDevice)
-{
-    u8      byData;
-
-    //CR C9 = 0x00
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0xC9, &pDevice->byBBCRc9);//CR201
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xC9, 0);
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x4D, &pDevice->byBBCR4d);//CR77
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x4D, 0x90);
-
-    //CR 88 = 0x02(CCK), 0x03(OFDM)
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x88, &pDevice->byBBCR88);//CR136
-
-    if (pDevice->wCurrentRate <= RATE_11M) { //CCK
-        // Enable internal digital loopback: CR33 |= 0000 0001
-        ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x21, &byData);//CR33
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x21, (u8)(byData | 0x01));//CR33
-        // CR154 = 0x00
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9A, 0);   //CR154
-
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, 0x02);//CR239
-    }
-    else { //OFDM
-        // Enable internal digital loopback:CR154 |= 0000 0001
-        ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x9A, &byData);//CR154
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9A, (u8)(byData | 0x01));//CR154
-        // CR33 = 0x00
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x21, 0);   //CR33
-
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, 0x03);//CR239
-    }
-
-    //CR14 = 0x00
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0E, 0);//CR14
-
-    // Disable TX_IQUN
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x09, &pDevice->byBBCR09);
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x09, (u8)(pDevice->byBBCR09 & 0xDE));
-}
-
-/*
- * Description: Turn off BaseBand Loopback mode
- *
- * Parameters:
- *  In:
- *      pDevice         - Device Structure
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void BBvLoopbackOff(struct vnt_private *pDevice)
-{
-	u8 byData;
-
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xC9, pDevice->byBBCRc9);//CR201
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, pDevice->byBBCR88);//CR136
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x09, pDevice->byBBCR09);//CR136
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x4D, pDevice->byBBCR4d);//CR77
-
-    if (pDevice->wCurrentRate <= RATE_11M) { // CCK
-        // Set the CR33 Bit2 to disable internal Loopback.
-        ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x21, &byData);//CR33
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x21, (u8)(byData & 0xFE));//CR33
-	} else { /* OFDM */
-        ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x9A, &byData);//CR154
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9A, (u8)(byData & 0xFE));//CR154
-    }
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x0E, &byData);//CR14
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0E, (u8)(byData | 0x80));//CR14
-
-}
-
-
 /*
  * Description: Set ShortSlotTime mode
  *
@@ -1260,27 +1168,6 @@ void BBvSetVGAGainOffset(struct vnt_private *pDevice, u8 byData)
 		pDevice->byBBRxConf |= 0x20; /* 0010 0000 */
 
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0A, pDevice->byBBRxConf);//CR10
-}
-
-
-/*
- * Description: Baseband SoftwareReset
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void BBvSoftwareReset(struct vnt_private *pDevice)
-{
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x50, 0x40);
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x50, 0);
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9C, 0x01);
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9C, 0);
 }
 
 /*

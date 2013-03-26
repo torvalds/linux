@@ -106,9 +106,6 @@ void TimerSQ3CallBack(struct vnt_private *);
 void TimerSQ3Tmax3CallBack(struct vnt_private *);
 
 void BBvAntennaDiversity(struct vnt_private *, u8 byRxRate, u8 bySQ3);
-void BBvLoopbackOn(struct vnt_private *);
-void BBvLoopbackOff(struct vnt_private *);
-void BBvSoftwareReset(struct vnt_private *);
 
 void BBvSetShortSlotTime(struct vnt_private *);
 void BBvSetVGAGainOffset(struct vnt_private *, u8 byData);

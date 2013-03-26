@@ -368,8 +368,6 @@ typedef struct tagSStatCounter {
 
 
 
-void STAvClearAllCounter(PSStatCounter pStatistic);
-
 void STAvUpdateIsrStatCounter(PSStatCounter pStatistic,
 			      u8 byIsr0,
 			      u8 byIsr1);
@@ -378,11 +376,6 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
 			     u8 byRSR, u8 byNewRSR, u8 byRxSts,
 			     u8 byRxRate, u8 * pbyBuffer,
 			     unsigned int cbFrameLength);
-
-void STAvUpdateRDStatCounterEx(PSStatCounter pStatistic,
-			       u8 byRSR, u8 byNewRSR, u8 byRxSts,
-			       u8 byRxRate, u8 * pbyBuffer,
-			       unsigned int cbFrameLength);
 
 void STAvUpdateTDStatCounter(PSStatCounter pStatistic, u8 byPktNum,
 			     u8 byRate, u8 byTSR);
@@ -397,7 +390,6 @@ STAvUpdate802_11Counter(
     u8                    byFCSErr
     );
 
-void STAvClear802_11Counter(PSDot11Counters p802_11Counter);
 void STAvUpdateUSBCounter(PSUSBCounter pUsbCounter, int ntStatus);
 
 #endif /* __MIB_H__ */

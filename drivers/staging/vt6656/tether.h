@@ -117,7 +117,6 @@ S802_3Header, *PS802_3Header;
 
 
 
-u8 ETHbyGetHashIndexByCrc32(u8 * pbyMultiAddr);
 //u8 ETHbyGetHashIndexByCrc(u8 * pbyMultiAddr);
 bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength);
 

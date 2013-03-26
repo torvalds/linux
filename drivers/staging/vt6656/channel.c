@@ -406,32 +406,6 @@ exit:
 
 } /* end ChannelValid */
 
-/************************************************************************
- * CHvChannelGetList
- * Get Available Channel List for a given country
- * Input:
- *      CountryCode     =   The country code defined in country.h
- * Output:
- *      ChannelBitMask  =   (QWORD *) correspondent bit mask
- *                          of available channels
- *                          0x0000000000000001 means channel 1 is supported
- *                          0x0000000000000003 means channel 1,2 are supported
- *                          0x000000000000000F means channel 1,2,..15 are supported
- ************************************************************************/
-bool
-CHvChannelGetList (
-      unsigned int       uCountryCodeIdx,
-     u8 *      pbyChannelTable
-    )
-{
-    if (uCountryCodeIdx >= CCODE_MAX) {
-        return (false);
-    }
-    memcpy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
-    return (true);
-}
-
-
 void CHvInitChannelTable(struct vnt_private *pDevice)
 {
 	int bMultiBand = false;
@@ -502,16 +476,4 @@ void CHvInitChannelTable(struct vnt_private *pDevice)
             pDevice->abyLocalPwr[ii+1] = pDevice->abyOFDMDefaultPwr[ii+1];
         }*/
     }
-}
-
-u8 CHbyGetChannelMapping(u8 byChannelNumber)
-{
-u8    ii;
-u8    byCHMapping = 0;
-
-	for (ii = 1; ii <= CB_MAX_CHANNEL; ii++) {
-		if (sChannelTbl[ii].byChannelNumber == byChannelNumber)
-			byCHMapping = ii;
-    }
-    return byCHMapping;
 }

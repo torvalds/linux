@@ -77,40 +77,6 @@ void s_vResetCounter(PKnownNodeDB psNodeDBTable)
 
 
 
-
-/*+
- *
- * Description:
- *      Get RateIdx from the value in SuppRates IE or ExtSuppRates IE
- *
- * Parameters:
- *  In:
- *      u8    - Rate value in SuppRates IE or ExtSuppRates IE
- *  Out:
- *      none
- *
- * Return Value: RateIdx
- *
--*/
-u8
-DATARATEbyGetRateIdx (
-     u8 byRate
-    )
-{
-    u8    ii;
-
-    /* erase BasicRate flag */
-    byRate = byRate & 0x7F;
-
-    for (ii = 0; ii < MAX_RATE; ii ++) {
-        if (acbyIERate[ii] == byRate)
-            return ii;
-    }
-    return 0;
-}
-
-
-
 /*+
  *
  * Routine Description:

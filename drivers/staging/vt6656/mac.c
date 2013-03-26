@@ -45,51 +45,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 
-
-
-
-
-/*
- * Description:
- *      Set this hash index into multicast address register bit
- *
- * Parameters:
- *  In:
- *      byHashIdx   - Hash index to set
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void MACvSetMultiAddrByHash(struct vnt_private *pDevice, u8 byHashIdx)
-{
-	u8 uByteIdx;
-	u8 byBitMask;
-	u8 pbyData[2];
-
-
-    // calculate byte position
-    uByteIdx = byHashIdx / 8;
-
-    // calculate bit position
-    byBitMask = 1;
-    byBitMask <<= (byHashIdx % 8);
-    // turn on the bit
-
-    pbyData[0] = byBitMask;
-    pbyData[1] = byBitMask;
-
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE_MASK,
-                        (u16) (MAC_REG_MAR0 + uByteIdx),
-                        MESSAGE_REQUEST_MACREG,
-                        2,
-                        pbyData);
-}
-
-
-
 /*
  * Description:
  *      Write MAC Multicast Address Mask
@@ -153,26 +108,6 @@ void MACvSetBBType(struct vnt_private *pDevice, u8 byType)
                         MAC_REG_ENCFG0,
                         MESSAGE_REQUEST_MACREG,
                         2,
-                        pbyData
-                        );
-}
-
-void MACvSetMISCFifo(struct vnt_private *pDevice, u16 wOffset, u32 dwData)
-{
-	u8 pbyData[4];
-
-    if (wOffset > 273)
-        return;
-    pbyData[0] = (u8)dwData;
-    pbyData[1] = (u8)(dwData>>8);
-    pbyData[2] = (u8)(dwData>>16);
-    pbyData[3] = (u8)(dwData>>24);
-
-    CONTROLnsRequestOut(pDevice,
-                        MESSAGE_TYPE_WRITE_MISCFF,
-                        wOffset,
-                        0,
-                        4,
                         pbyData
                         );
 }

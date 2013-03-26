@@ -84,10 +84,4 @@ RATEwGetRateIdx(
      u8 byRate
     );
 
-
-u8
-DATARATEbyGetRateIdx(
-     u8 byRate
-    );
-
 #endif /* __DATARATE_H__ */

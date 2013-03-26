@@ -74,7 +74,5 @@ int CARDbRadioPowerOff(struct vnt_private *pDevice);
 int CARDbRadioPowerOn(struct vnt_private *pDevice);
 u8 CARDbyGetPktType(struct vnt_private *pDevice);
 void CARDvSetBSSMode(struct vnt_private *pDevice);
-int CARDbChannelSwitch(struct vnt_private *pDevice, u8 byMode,
-	u8 byNewChannel, u8 byCount);
 
 #endif /* __CARD_H__ */

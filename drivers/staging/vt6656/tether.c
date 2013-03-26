@@ -25,7 +25,6 @@
  * Date: May 21, 1996
  *
  * Functions:
- *      ETHbyGetHashIndexByCrc32 - Calculate multicast hash value by CRC32
  *      ETHbIsBufferCrc32Ok - Check CRC value of the buffer if Ok or not
  *
  * Revision History:
@@ -40,42 +39,6 @@
 
 
 
-
-
-
-
-/*
- * Description: Calculate multicast hash value by CRC32
- *
- * Parameters:
- *  In:
- *		pbyMultiAddr    - Multicast Address
- *  Out:
- *      none
- *
- * Return Value: Hash value
- *
- */
-u8 ETHbyGetHashIndexByCrc32(u8 * pbyMultiAddr)
-{
-	int     ii;
-	u8    byTmpHash;
-	u8    byHash = 0;
-
-	/* get the least 6-bits from CRC generator */
-	byTmpHash = (u8)(CRCdwCrc32(pbyMultiAddr, ETH_ALEN,
-			0xFFFFFFFFL) & 0x3F);
-	/* reverse most bit to least bit */
-	for (ii = 0; ii < (sizeof(byTmpHash) * 8); ii++) {
-		byHash <<= 1;
-		if (byTmpHash & 0x01)
-			byHash |= 1;
-		byTmpHash >>= 1;
-	}
-
-	/* adjust 6-bits to the right most */
-	return byHash >> 2;
-}
 
 
 /*
