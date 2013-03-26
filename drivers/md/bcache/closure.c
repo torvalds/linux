@@ -337,7 +337,6 @@ static const struct file_operations debug_ops = {
 void __init closure_debug_init(void)
 {
 	debug = debugfs_create_file("closures", 0400, NULL, NULL, &debug_ops);
-	return 0;
 }
 
 #endif
