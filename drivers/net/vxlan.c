@@ -468,15 +468,15 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		vni = vxlan->vni;
 
 	if (tb[NDA_IFINDEX]) {
-		struct net_device *dev;
+		struct net_device *tdev;
 
 		if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))
 			return -EINVAL;
 		ifindex = nla_get_u32(tb[NDA_IFINDEX]);
-		dev = dev_get_by_index(net, ifindex);
-		if (!dev)
+		tdev = dev_get_by_index(net, ifindex);
+		if (!tdev)
 			return -EADDRNOTAVAIL;
-		dev_put(dev);
+		dev_put(tdev);
 	} else
 		ifindex = 0;
 
@@ -792,7 +792,6 @@ static int arp_reduce(struct net_device *dev, struct sk_buff *skb)
 	n = neigh_lookup(&arp_tbl, &tip, dev);
 
 	if (n) {
-		struct vxlan_dev *vxlan = netdev_priv(dev);
 		struct vxlan_fdb *f;
 		struct sk_buff	*reply;
 
