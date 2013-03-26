@@ -4665,6 +4665,10 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	const intel_limit_t *limit;
 	int ret;
 
+	/* temporary hack */
+	intel_crtc->config.dither =
+		adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC;
+
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
@@ -4765,7 +4769,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	/* default to 8bpc */
 	pipeconf &= ~(PIPECONF_BPC_MASK | PIPECONF_DITHER_EN);
 	if (is_dp) {
-		if (adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
+		if (intel_crtc->config.dither) {
 			pipeconf |= PIPECONF_6BPC |
 				    PIPECONF_DITHER_EN |
 				    PIPECONF_DITHER_TYPE_SP;
@@ -4773,7 +4777,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (IS_VALLEYVIEW(dev) && intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
-		if (adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
+		if (intel_crtc->config.dither) {
 			pipeconf |= PIPECONF_6BPC |
 					PIPECONF_ENABLE |
 					I965_PIPECONF_ACTIVE;
@@ -5162,7 +5166,7 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 	val = I915_READ(PIPECONF(pipe));
 
 	val &= ~PIPECONF_BPC_MASK;
-	switch (intel_crtc->bpp) {
+	switch (intel_crtc->config.pipe_bpp) {
 	case 18:
 		val |= PIPECONF_6BPC;
 		break;
@@ -5499,13 +5503,14 @@ static void ironlake_set_m_n(struct drm_crtc *crtc)
 
 	if (!lane)
 		lane = ironlake_get_lanes_required(target_clock, link_bw,
-						   intel_crtc->bpp);
+						   intel_crtc->config.pipe_bpp);
 
 	intel_crtc->fdi_lanes = lane;
 
 	if (intel_crtc->config.pixel_multiplier > 1)
 		link_bw *= intel_crtc->config.pixel_multiplier;
-	intel_link_compute_m_n(intel_crtc->bpp, lane, target_clock, link_bw, &m_n);
+	intel_link_compute_m_n(intel_crtc->config.pipe_bpp, lane, target_clock,
+			       link_bw, &m_n);
 
 	I915_WRITE(PIPE_DATA_M1(cpu_transcoder), TU_SIZE(m_n.tu) | m_n.gmch_m);
 	I915_WRITE(PIPE_DATA_N1(cpu_transcoder), m_n.gmch_n);
@@ -5668,8 +5673,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	intel_crtc_update_cursor(crtc, true);
 
 	/* determine panel color depth */
-	dither = intel_choose_pipe_bpp_dither(crtc, fb, &intel_crtc->bpp,
+	dither = intel_choose_pipe_bpp_dither(crtc, fb,
+					      &intel_crtc->config.pipe_bpp,
 					      adjusted_mode);
+	intel_crtc->config.dither = dither;
 	if (is_lvds && dev_priv->lvds_dither)
 		dither = true;
 
@@ -5834,8 +5841,10 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	intel_crtc_update_cursor(crtc, true);
 
 	/* determine panel color depth */
-	dither = intel_choose_pipe_bpp_dither(crtc, fb, &intel_crtc->bpp,
+	dither = intel_choose_pipe_bpp_dither(crtc, fb,
+					      &intel_crtc->config.pipe_bpp,
 					      adjusted_mode);
+	intel_crtc->config.dither = dither;
 
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
@@ -8296,7 +8305,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
-	intel_crtc->bpp = 24; /* default for pre-Ironlake */
+	intel_crtc->config.pipe_bpp = 24; /* default for pre-Ironlake */
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 }
