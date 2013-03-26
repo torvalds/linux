@@ -169,10 +169,6 @@ static bool s626_mc_test(struct comedi_device *dev,
 	return (val & cmd) ? true : false;
 }
 
-/* #define WR7146(REGARDS,CTRLWORD)
-    writel(CTRLWORD,(uint32_t)(devpriv->base_addr+(REGARDS))) */
-#define WR7146(REGARDS, CTRLWORD) writel(CTRLWORD, devpriv->base_addr+(REGARDS))
-
 /* #define RR7146(REGARDS)
     readl((uint32_t)(devpriv->base_addr+(REGARDS))) */
 #define RR7146(REGARDS)		readl(devpriv->base_addr+(REGARDS))
@@ -181,7 +177,6 @@ static bool s626_mc_test(struct comedi_device *dev,
 
 /*  Write a time slot control record to TSL2. */
 #define VECTPORT(VECTNUM)		(P_TSL2 + ((VECTNUM) << 2))
-#define SETVECT(VECTNUM, VECTVAL)	WR7146(VECTPORT(VECTNUM), (VECTVAL))
 
 /*  Code macros used for constructing I2C command bytes. */
 #define I2C_B2(ATTR, VAL)	(((ATTR) << 6) | ((VAL) << 24))
@@ -223,8 +218,8 @@ static uint16_t DEBIread(struct comedi_device *dev, uint16_t addr)
 	struct s626_private *devpriv = dev->private;
 	uint16_t retval;
 
-	/*  Set up DEBI control register value in shadow RAM. */
-	WR7146(P_DEBICMD, DEBI_CMD_RDWORD | addr);
+	/* Set up DEBI control register value in shadow RAM */
+	writel(DEBI_CMD_RDWORD | addr, devpriv->base_addr + P_DEBICMD);
 
 	/*  Execute the DEBI transfer. */
 	DEBItransfer(dev);
@@ -241,9 +236,9 @@ static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata)
 {
 	struct s626_private *devpriv = dev->private;
 
-	/*  Set up DEBI control register value in shadow RAM. */
-	WR7146(P_DEBICMD, DEBI_CMD_WRWORD | addr);
-	WR7146(P_DEBIAD, wdata);
+	/* Set up DEBI control register value in shadow RAM */
+	writel(DEBI_CMD_WRWORD | addr, devpriv->base_addr + P_DEBICMD);
+	writel(wdata, devpriv->base_addr + P_DEBIAD);
 
 	/*  Execute the DEBI transfer. */
 	DEBItransfer(dev);
@@ -258,16 +253,16 @@ static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
 {
 	struct s626_private *devpriv = dev->private;
 
-	/*  Copy target gate array register into P_DEBIAD register. */
-	WR7146(P_DEBICMD, DEBI_CMD_RDWORD | addr);
+	/* Copy target gate array register into P_DEBIAD register */
+	writel(DEBI_CMD_RDWORD | addr, devpriv->base_addr + P_DEBICMD);
 	/* Set up DEBI control reg value in shadow RAM. */
 	DEBItransfer(dev);	/*  Execute the DEBI Read transfer. */
 
-	/*  Write back the modified image. */
-	WR7146(P_DEBICMD, DEBI_CMD_WRWORD | addr);
-	/* Set up DEBI control reg value in shadow  RAM. */
-
-	WR7146(P_DEBIAD, wdata | ((uint16_t) RR7146(P_DEBIAD) & mask));
+	/* Write back the modified image */
+	writel(DEBI_CMD_WRWORD | addr, devpriv->base_addr + P_DEBICMD);
+	/* Set up DEBI control reg value in shadow RAM */
+	writel(wdata | ((uint16_t) RR7146(P_DEBIAD) & mask),
+	       devpriv->base_addr + P_DEBIAD);
 	/* Modify the register image. */
 	DEBItransfer(dev);	/*  Execute the DEBI Write transfer. */
 }
@@ -278,8 +273,8 @@ static uint32_t I2Chandshake(struct comedi_device *dev, uint32_t val)
 {
 	struct s626_private *devpriv = dev->private;
 
-	/*  Write I2C command to I2C Transfer Control shadow register. */
-	WR7146(P_I2CCTRL, val);
+	/* Write I2C command to I2C Transfer Control shadow register */
+	writel(val, devpriv->base_addr + P_I2CCTRL);
 
 	/*
 	 * Upload I2C shadow registers into working registers and
@@ -372,7 +367,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 
 	/* Copy DAC setpoint value to DAC's output DMA buffer. */
 
-	/* WR7146( (uint32_t)devpriv->pDacWBuf, val ); */
+	/* writel(val, devpriv->base_addr + (uint32_t)devpriv->pDacWBuf); */
 	*devpriv->pDacWBuf = val;
 
 	/*
@@ -385,11 +380,12 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 
 	/*  While the DMA transfer is executing ... */
 
-	/* Reset Audio2 output FIFO's underflow flag (along with any other
-	 * FIFO underflow/overflow flags).  When set, this flag will
-	 * indicate that we have emerged from slot 0.
+	/*
+	 * Reset Audio2 output FIFO's underflow flag (along with any
+	 * other FIFO underflow/overflow flags). When set, this flag
+	 * will indicate that we have emerged from slot 0.
 	 */
-	WR7146(P_ISR, ISR_AFOU);
+	writel(ISR_AFOU, devpriv->base_addr + P_ISR);
 
 	/* Wait for the DMA transfer to finish so that there will be data
 	 * available in the FIFO when time slot 1 tries to transfer a DWORD
@@ -407,7 +403,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * will be shifted in and stored in FB_BUFFER2 for end-of-slot-list
 	 * detection.
 	 */
-	SETVECT(0, XSD2 | RSD3 | SIB_A2);
+	writel(XSD2 | RSD3 | SIB_A2, devpriv->base_addr + VECTPORT(0));
 
 	/* Wait for slot 1 to execute to ensure that the Packet will be
 	 * transmitted.  This is detected by polling the Audio2 output FIFO
@@ -424,7 +420,8 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * stored in the last byte to be shifted out of the FIFO's DWORD
 	 * buffer register.
 	 */
-	SETVECT(0, XSD2 | XFIFO_2 | RSD2 | SIB_A2 | EOS);
+	writel(XSD2 | XFIFO_2 | RSD2 | SIB_A2 | EOS,
+	       devpriv->base_addr + VECTPORT(0));
 
 	/* WAIT FOR THE TRANSACTION TO FINISH ----------------------- */
 
@@ -463,7 +460,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * In order to do this, we reprogram slot 0 so that it will shift in
 	 * SD3, which is driven only by a pull-up resistor.
 	 */
-	SETVECT(0, RSD3 | SIB_A2 | EOS);
+	writel(RSD3 | SIB_A2 | EOS, devpriv->base_addr + VECTPORT(0));
 
 	/* Wait for slot 0 to execute, at which time the TSL is setup for
 	 * the next DAC write.  This is detected when FB_BUFFER2 MSB changes
@@ -503,16 +500,16 @@ static void SetDAC(struct comedi_device *dev, uint16_t chan, short dacdata)
 	 * disables gating for the DAC clock and all DAC chip selects.
 	 */
 
+	/* Choose DAC chip select to be asserted */
 	WSImage = (chan & 2) ? WS1 : WS2;
-	/* Choose DAC chip select to be asserted. */
-	SETVECT(2, XSD2 | XFIFO_1 | WSImage);
-	/* Slot 2: Transmit high data byte to target DAC. */
-	SETVECT(3, XSD2 | XFIFO_0 | WSImage);
-	/* Slot 3: Transmit low data byte to target DAC. */
-	SETVECT(4, XSD2 | XFIFO_3 | WS3);
+	/* Slot 2: Transmit high data byte to target DAC */
+	writel(XSD2 | XFIFO_1 | WSImage, devpriv->base_addr + VECTPORT(2));
+	/* Slot 3: Transmit low data byte to target DAC */
+	writel(XSD2 | XFIFO_0 | WSImage, devpriv->base_addr + VECTPORT(3));
 	/* Slot 4: Transmit to non-existent TrimDac channel to keep clock */
-	SETVECT(5, XSD2 | XFIFO_2 | WS3 | EOS);
-	/* Slot 5: running after writing target DAC's low data byte. */
+	writel(XSD2 | XFIFO_3 | WS3, devpriv->base_addr + VECTPORT(4));
+	/* Slot 5: running after writing target DAC's low data byte */
+	writel(XSD2 | XFIFO_2 | WS3 | EOS, devpriv->base_addr + VECTPORT(5));
 
 	/*  Construct and transmit target DAC's serial packet:
 	 * ( A10D DDDD ),( DDDD DDDD ),( 0x0F ),( 0x00 ) where A is chan<0>,
@@ -548,14 +545,14 @@ static void WriteTrimDAC(struct comedi_device *dev, uint8_t LogicalChan,
 	 * can be detected.
 	 */
 
-	SETVECT(2, XSD2 | XFIFO_1 | WS3);
-	/* Slot 2: Send high uint8_t to target TrimDac. */
-	SETVECT(3, XSD2 | XFIFO_0 | WS3);
-	/* Slot 3: Send low uint8_t to target TrimDac. */
-	SETVECT(4, XSD2 | XFIFO_3 | WS1);
-	/* Slot 4: Send NOP high uint8_t to DAC0 to keep clock running. */
-	SETVECT(5, XSD2 | XFIFO_2 | WS1 | EOS);
-	/* Slot 5: Send NOP low  uint8_t to DAC0. */
+	/* Slot 2: Send high uint8_t to target TrimDac */
+	writel(XSD2 | XFIFO_1 | WS3, devpriv->base_addr + VECTPORT(2));
+	/* Slot 3: Send low uint8_t to target TrimDac */
+	writel(XSD2 | XFIFO_0 | WS3, devpriv->base_addr + VECTPORT(3));
+	/* Slot 4: Send NOP high uint8_t to DAC0 to keep clock running */
+	writel(XSD2 | XFIFO_3 | WS1, devpriv->base_addr + VECTPORT(4));
+	/* Slot 5: Send NOP low  uint8_t to DAC0 */
+	writel(XSD2 | XFIFO_2 | WS1 | EOS, devpriv->base_addr + VECTPORT(5));
 
 	/* Construct and transmit target DAC's serial packet:
 	 * ( 0000 AAAA ), ( DDDD DDDD ),( 0x00 ),( 0x00 ) where A<3:0> is the
@@ -949,8 +946,9 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 	/*  Set starting logical address to write RPS commands. */
 	pRPS = (uint32_t *) devpriv->RPSBuf.LogicalBase;
 
-	/*  Initialize RPS instruction pointer. */
-	WR7146(P_RPSADDR1, (uint32_t) devpriv->RPSBuf.PhysicalBase);
+	/* Initialize RPS instruction pointer */
+	writel((uint32_t)devpriv->RPSBuf.PhysicalBase,
+	       devpriv->base_addr + P_RPSADDR1);
 
 	/*  Construct RPS program in RPSBuf DMA buffer */
 
@@ -1204,13 +1202,13 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 
 		/*  Start ADC by pulsing GPIO1 low. */
 		GpioImage = RR7146(P_GPIO);
-		/*  Assert ADC Start command */
-		WR7146(P_GPIO, GpioImage & ~GPIO1_HI);
-		/*    and stretch it out. */
-		WR7146(P_GPIO, GpioImage & ~GPIO1_HI);
-		WR7146(P_GPIO, GpioImage & ~GPIO1_HI);
-		/*  Negate ADC Start command. */
-		WR7146(P_GPIO, GpioImage | GPIO1_HI);
+		/* Assert ADC Start command */
+		writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+		/* and stretch it out */
+		writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+		writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+		/* Negate ADC Start command */
+		writel(GpioImage | GPIO1_HI, devpriv->base_addr + P_GPIO);
 
 		/*  Wait for ADC to complete (GPIO2 is asserted high when */
 		/*  ADC not busy) and for data from previous conversion to */
@@ -1240,12 +1238,12 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	GpioImage = RR7146(P_GPIO);
 
 	/* Assert ADC Start command */
-	WR7146(P_GPIO, GpioImage & ~GPIO1_HI);
-	/*    and stretch it out. */
-	WR7146(P_GPIO, GpioImage & ~GPIO1_HI);
-	WR7146(P_GPIO, GpioImage & ~GPIO1_HI);
-	/*  Negate ADC Start command. */
-	WR7146(P_GPIO, GpioImage | GPIO1_HI);
+	writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+	/* and stretch it out */
+	writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+	writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+	/* Negate ADC Start command */
+	writel(GpioImage | GPIO1_HI, devpriv->base_addr + P_GPIO);
 
 	/*  Wait for the data to arrive in FB BUFFER 1 register. */
 
@@ -2404,15 +2402,16 @@ static void s626_initialize(struct comedi_device *dev)
 	 *   Set up byte lane steering
 	 *   Intel-compatible local bus (DEBI never times out)
 	 */
-	WR7146(P_DEBICFG, DEBI_CFG_SLAVE16 |
-			  (DEBI_TOUT << DEBI_CFG_TOUT_BIT) |
-			  DEBI_SWAP | DEBI_CFG_INTEL);
+	writel(DEBI_CFG_SLAVE16 |
+	       (DEBI_TOUT << DEBI_CFG_TOUT_BIT) |
+	       DEBI_SWAP | DEBI_CFG_INTEL,
+	       devpriv->base_addr + P_DEBICFG);
 
 	/* Disable MMU paging */
-	WR7146(P_DEBIPAGE, DEBI_PAGE_DISABLE);
+	writel(DEBI_PAGE_DISABLE, devpriv->base_addr + P_DEBIPAGE);
 
 	/* Init GPIO so that ADC Start* is negated */
-	WR7146(P_GPIO, GPIO_BASE | GPIO1_HI);
+	writel(GPIO_BASE | GPIO1_HI, devpriv->base_addr + P_GPIO);
 
 	/* I2C device address for onboard eeprom (revb) */
 	devpriv->I2CAdrs = 0xA0;
@@ -2421,7 +2420,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * Issue an I2C ABORT command to halt any I2C
 	 * operation in progress and reset BUSY flag.
 	 */
-	WR7146(P_I2CSTAT, I2C_CLKSEL | I2C_ABORT);
+	writel(I2C_CLKSEL | I2C_ABORT, devpriv->base_addr + P_I2CSTAT);
 	s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
 	while ((RR7146(P_MC2) & MC2_UPLD_IIC) == 0)
 		;
@@ -2431,7 +2430,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * reg twice to reset all  I2C error flags.
 	 */
 	for (i = 0; i < 2; i++) {
-		WR7146(P_I2CSTAT, I2C_CLKSEL);
+		writel(I2C_CLKSEL, devpriv->base_addr + P_I2CSTAT);
 		s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
 		while (!s626_mc_test(dev, MC2_UPLD_IIC, P_MC2))
 			;
@@ -2443,7 +2442,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * DAC data setup times are satisfied, enable DAC serial
 	 * clock out.
 	 */
-	WR7146(P_ACON2, ACON2_INIT);
+	writel(ACON2_INIT, devpriv->base_addr + P_ACON2);
 
 	/*
 	 * Set up TSL1 slot list, which is used to control the
@@ -2451,22 +2450,23 @@ static void s626_initialize(struct comedi_device *dev)
 	 * SIB_A1  = store data uint8_t at next available location
 	 * in FB BUFFER1 register.
 	 */
-	WR7146(P_TSL1, RSD1 | SIB_A1);
-	WR7146(P_TSL1 + 4, RSD1 | SIB_A1 | EOS);
+	writel(RSD1 | SIB_A1, devpriv->base_addr + P_TSL1);
+	writel(RSD1 | SIB_A1 | EOS, devpriv->base_addr + P_TSL1 + 4);
 
 	/* Enable TSL1 slot list so that it executes all the time */
-	WR7146(P_ACON1, ACON1_ADCSTART);
+	writel(ACON1_ADCSTART, devpriv->base_addr + P_ACON1);
 
 	/*
 	 * Initialize RPS registers used for ADC
 	 */
 
 	/* Physical start of RPS program */
-	WR7146(P_RPSADDR1, (uint32_t)devpriv->RPSBuf.PhysicalBase);
+	writel((uint32_t)devpriv->RPSBuf.PhysicalBase,
+	       devpriv->base_addr + P_RPSADDR1);
 	/* RPS program performs no explicit mem writes */
-	WR7146(P_RPSPAGE1, 0);
+	writel(0, devpriv->base_addr + P_RPSPAGE1);
 	/* Disable RPS timeouts */
-	WR7146(P_RPS1_TOUT, 0);
+	writel(0, devpriv->base_addr + P_RPS1_TOUT);
 
 #if 0
 	/*
@@ -2522,7 +2522,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 *   burst length = 1 DWORD
 	 *   threshold = 1 DWORD.
 	 */
-	WR7146(P_PCI_BT_A, 0);
+	writel(0, devpriv->base_addr + P_PCI_BT_A);
 
 	/*
 	 * Init Audio2's output DMA physical addresses.  The protection
@@ -2532,8 +2532,9 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 	pPhysBuf = devpriv->ANABuf.PhysicalBase +
 		   (DAC_WDMABUF_OS * sizeof(uint32_t));
-	WR7146(P_BASEA2_OUT, (uint32_t) pPhysBuf);
-	WR7146(P_PROTA2_OUT, (uint32_t) (pPhysBuf + sizeof(uint32_t)));
+	writel((uint32_t)pPhysBuf, devpriv->base_addr + P_BASEA2_OUT);
+	writel((uint32_t)(pPhysBuf + sizeof(uint32_t)),
+	       devpriv->base_addr + P_PROTA2_OUT);
 
 	/*
 	 * Cache Audio2's output DMA buffer logical address.  This is
@@ -2548,7 +2549,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * DMAC will automatically halt and its PCI address pointer
 	 * will be reset when the protection address is reached.
 	 */
-	WR7146(P_PAGEA2_OUT, 8);
+	writel(8, devpriv->base_addr + P_PAGEA2_OUT);
 
 	/*
 	 * Initialize time slot list 2 (TSL2), which is used to control
@@ -2563,7 +2564,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Slot 0: Trap TSL execution, shift 0xFF into FB_BUFFER2 */
-	SETVECT(0, XSD2 | RSD3 | SIB_A2 | EOS);
+	writel(XSD2 | RSD3 | SIB_A2 | EOS, devpriv->base_addr + VECTPORT(0));
 
 	/*
 	 * Initialize slot 1, which is constant.  Slot 1 causes a
@@ -2575,10 +2576,10 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Slot 1: Fetch DWORD from Audio2's output FIFO */
-	SETVECT(1, LF_A2);
+	writel(LF_A2, devpriv->base_addr + VECTPORT(1));
 
 	/* Start DAC's audio interface (TSL2) running */
-	WR7146(P_ACON1, ACON1_DACSTART);
+	writel(ACON1_DACSTART, devpriv->base_addr + P_ACON1);
 
 	/*
 	 * Init Trim DACs to calibrated values.  Do it twice because the
@@ -2761,15 +2762,18 @@ static void s626_detach(struct comedi_device *dev)
 
 		if (devpriv->base_addr) {
 			/* interrupt mask */
-			WR7146(P_IER, 0);	/*  Disable master interrupt. */
-			WR7146(P_ISR, IRQ_GPIO3 | IRQ_RPS1);	/*  Clear board's IRQ status flag. */
+			/* Disable master interrupt */
+			writel(0, devpriv->base_addr + P_IER);
+			/* Clear board's IRQ status flag */
+			writel(IRQ_GPIO3 | IRQ_RPS1,
+			       devpriv->base_addr + P_ISR);
 
 			/*  Disable the watchdog timer and battery charger. */
 			WriteMISC2(dev, 0);
 
-			/*  Close all interfaces on 7146 device. */
-			WR7146(P_MC1, MC1_SHUTDOWN);
-			WR7146(P_ACON1, ACON1_BASE);
+			/* Close all interfaces on 7146 device */
+			writel(MC1_SHUTDOWN, devpriv->base_addr + P_MC1);
+			writel(ACON1_BASE, devpriv->base_addr + P_ACON1);
 
 			CloseDMAB(dev, &devpriv->RPSBuf, DMABUF_SIZE);
 			CloseDMAB(dev, &devpriv->ANABuf, DMABUF_SIZE);
