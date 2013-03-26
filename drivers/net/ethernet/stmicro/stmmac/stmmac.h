@@ -31,6 +31,7 @@
 #include <linux/phy.h>
 #include <linux/pci.h>
 #include "common.h"
+#include <linux/ptp_clock_kernel.h>
 
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
@@ -103,6 +104,9 @@ struct stmmac_priv {
 	int hwts_rx_en;
 	unsigned int default_addend;
 	u32 adv_ts;
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_ops;
+	spinlock_t ptp_lock;
 };
 
 extern int phyaddr;
@@ -113,6 +117,8 @@ extern void stmmac_set_ethtool_ops(struct net_device *netdev);
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
 extern const struct stmmac_hwtimestamp stmmac_ptp;
+extern int stmmac_ptp_register(struct stmmac_priv *priv);
+extern void stmmac_ptp_unregister(struct stmmac_priv *priv);
 int stmmac_freeze(struct net_device *ndev);
 int stmmac_restore(struct net_device *ndev);
 int stmmac_resume(struct net_device *ndev);

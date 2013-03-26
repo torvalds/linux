@@ -737,6 +737,9 @@ static int stmmac_get_ts_info(struct net_device *dev,
 					SOF_TIMESTAMPING_RX_HARDWARE |
 					SOF_TIMESTAMPING_RAW_HARDWARE;
 
+		if (priv->ptp_clock)
+			info->phc_index = ptp_clock_index(priv->ptp_clock);
+
 		info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 
 		info->rx_filters = ((1 << HWTSTAMP_FILTER_NONE) |

@@ -618,20 +618,32 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 			    sizeof(struct hwtstamp_config)) ? -EFAULT : 0;
 }
 
-static void stmmac_init_ptp(struct stmmac_priv *priv)
+static int stmmac_init_ptp(struct stmmac_priv *priv)
 {
-	if (priv->dma_cap.time_stamp) {
-		pr_debug("IEEE 1588-2002 Time Stamp supported\n");
-		priv->adv_ts = 0;
-	}
-	if (priv->dma_cap.atime_stamp && priv->extend_desc) {
-		pr_debug("IEEE 1588-2008 Advanced Time Stamp supported\n");
-		priv->adv_ts = 1;
+	if (!(priv->dma_cap.time_stamp || priv->dma_cap.atime_stamp))
+		return -EOPNOTSUPP;
+
+	if (netif_msg_hw(priv)) {
+		if (priv->dma_cap.time_stamp) {
+			pr_debug("IEEE 1588-2002 Time Stamp supported\n");
+			priv->adv_ts = 0;
+		}
+		if (priv->dma_cap.atime_stamp && priv->extend_desc) {
+			pr_debug("IEEE 1588-2008 Advanced Time Stamp supported\n");
+			priv->adv_ts = 1;
+		}
 	}
 
 	priv->hw->ptp = &stmmac_ptp;
 	priv->hwts_tx_en = 0;
 	priv->hwts_rx_en = 0;
+
+	return stmmac_ptp_register(priv);
+}
+
+static void stmmac_release_ptp(struct stmmac_priv *priv)
+{
+	stmmac_ptp_unregister(priv);
 }
 
 /**
@@ -1567,7 +1579,9 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_mmc_setup(priv);
 
-	stmmac_init_ptp(priv);
+	ret = stmmac_init_ptp(priv);
+	if (ret)
+		pr_warn("%s: failed PTP initialisation\n", __func__);
 
 #ifdef CONFIG_STMMAC_DEBUG_FS
 	ret = stmmac_init_fs(dev);
@@ -1676,6 +1690,8 @@ static int stmmac_release(struct net_device *dev)
 	stmmac_exit_fs();
 #endif
 	clk_disable_unprepare(priv->stmmac_clk);
+
+	stmmac_release_ptp(priv);
 
 	return 0;
 }

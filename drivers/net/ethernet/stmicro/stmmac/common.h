@@ -411,6 +411,9 @@ struct stmmac_hwtimestamp {
 	void (*config_sub_second_increment) (void __iomem *ioaddr);
 	int (*init_systime) (void __iomem *ioaddr, u32 sec, u32 nsec);
 	int (*config_addend)(void __iomem *ioaddr, u32 addend);
+	int (*adjust_systime)(void __iomem *ioaddr, u32 sec, u32 nsec,
+			      int add_sub);
+	u64 (*get_systime)(void __iomem *ioaddr);
 };
 
 struct mac_link {

@@ -100,9 +100,49 @@ static int stmmac_config_addend(void __iomem *ioaddr, u32 addend)
 	return 0;
 }
 
+static int stmmac_adjust_systime(void __iomem *ioaddr, u32 sec, u32 nsec,
+				 int add_sub)
+{
+	u32 value;
+	int limit;
+
+	writel(sec, ioaddr + PTP_STSUR);
+	writel(((add_sub << PTP_STNSUR_ADDSUB_SHIFT) | nsec),
+		ioaddr + PTP_STNSUR);
+	/* issue command to initialize the system time value */
+	value = readl(ioaddr + PTP_TCR);
+	value |= PTP_TCR_TSUPDT;
+	writel(value, ioaddr + PTP_TCR);
+
+	/* wait for present system time adjust/update to complete */
+	limit = 10;
+	while (limit--) {
+		if (!(readl(ioaddr + PTP_TCR) & PTP_TCR_TSUPDT))
+			break;
+		mdelay(10);
+	}
+	if (limit < 0)
+		return -EBUSY;
+
+	return 0;
+}
+
+static u64 stmmac_get_systime(void __iomem *ioaddr)
+{
+	u64 ns;
+
+	ns = readl(ioaddr + PTP_STNSR);
+	/* convert sec time value to nanosecond */
+	ns += readl(ioaddr + PTP_STSR) * 1000000000ULL;
+
+	return ns;
+}
+
 const struct stmmac_hwtimestamp stmmac_ptp = {
 	.config_hw_tstamping = stmmac_config_hw_tstamping,
 	.init_systime = stmmac_init_systime,
 	.config_sub_second_increment = stmmac_config_sub_second_increment,
 	.config_addend = stmmac_config_addend,
+	.adjust_systime = stmmac_adjust_systime,
+	.get_systime = stmmac_get_systime,
 };
