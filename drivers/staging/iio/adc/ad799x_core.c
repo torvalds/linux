@@ -48,13 +48,13 @@ static int ad799x_i2c_read16(struct ad799x_state *st, u8 reg, u16 *data)
 	struct i2c_client *client = st->client;
 	int ret = 0;
 
-	ret = i2c_smbus_read_word_data(client, reg);
+	ret = i2c_smbus_read_word_swapped(client, reg);
 	if (ret < 0) {
 		dev_err(&client->dev, "I2C read error\n");
 		return ret;
 	}
 
-	*data = swab16((u16)ret);
+	*data = (u16)ret;
 
 	return 0;
 }
@@ -80,7 +80,7 @@ static int ad799x_i2c_write16(struct ad799x_state *st, u8 reg, u16 data)
 	struct i2c_client *client = st->client;
 	int ret = 0;
 
-	ret = i2c_smbus_write_word_data(client, reg, swab16(data));
+	ret = i2c_smbus_write_word_swapped(client, reg, data);
 	if (ret < 0)
 		dev_err(&client->dev, "I2C write error\n");
 
