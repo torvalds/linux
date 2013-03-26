@@ -2641,7 +2641,6 @@ static int s626_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	/* analog input subdevice */
-	dev->read_subdev = s;
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
 	s->n_chan	= S626_ADC_CHANNELS;
@@ -2649,9 +2648,12 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->range_table	= &s626_range_table;
 	s->len_chanlist	= S626_ADC_CHANNELS;
 	s->insn_read	= s626_ai_insn_read;
-	s->do_cmd	= s626_ai_cmd;
-	s->do_cmdtest	= s626_ai_cmdtest;
-	s->cancel	= s626_ai_cancel;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->do_cmd	= s626_ai_cmd;
+		s->do_cmdtest	= s626_ai_cmdtest;
+		s->cancel	= s626_ai_cancel;
+	}
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
