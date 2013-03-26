@@ -2269,38 +2269,55 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct radeon_ps *new_ps = &eg_pi->requested_rps;
 	struct radeon_ps *old_ps = &eg_pi->current_rps;
+	int ret;
 
-	btc_disable_ulv(rdev);
+	ret = btc_disable_ulv(rdev);
 	btc_set_boot_state_timing(rdev);
-	rv770_restrict_performance_levels_before_switch(rdev);
-
+	ret = rv770_restrict_performance_levels_before_switch(rdev);
+	if (ret)
+		return ret;
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
-	rv770_halt_smc(rdev);
+	ret = rv770_halt_smc(rdev);
+	if (ret)
+		return ret;
 	btc_set_at_for_uvd(rdev, new_ps);
 	if (eg_pi->smu_uvd_hs)
 		btc_notify_uvd_to_smc(rdev, new_ps);
-	cypress_upload_sw_state(rdev, new_ps);
+	ret = cypress_upload_sw_state(rdev, new_ps);
+	if (ret)
+		return ret;
 
-	if (eg_pi->dynamic_ac_timing)
-		cypress_upload_mc_reg_table(rdev, new_ps);
+	if (eg_pi->dynamic_ac_timing) {
+		ret = cypress_upload_mc_reg_table(rdev, new_ps);
+		if (ret)
+			return ret;
+	}
 
 	cypress_program_memory_timing_parameters(rdev, new_ps);
 
-	rv770_resume_smc(rdev);
-	rv770_set_sw_state(rdev);
+	ret = rv770_resume_smc(rdev);
+	if (ret)
+		return ret;
+	ret = rv770_set_sw_state(rdev);
+	if (ret)
+		return ret;
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
-	btc_set_power_state_conditionally_enable_ulv(rdev, new_ps);
+	ret = btc_set_power_state_conditionally_enable_ulv(rdev, new_ps);
+	if (ret)
+		return ret;
 
 #if 0
 	/* XXX */
-	rv770_unrestrict_performance_levels_after_switch(rdev);
+	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
+	if (ret)
+		return ret;
 #endif
 
 	return 0;
@@ -2319,6 +2336,7 @@ int btc_dpm_enable(struct radeon_device *rdev)
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
+	int ret;
 
 	if (pi->gfx_clock_gating)
 		btc_cg_clock_gating_default(rdev);
@@ -2334,14 +2352,22 @@ int btc_dpm_enable(struct radeon_device *rdev)
 
 	if (pi->voltage_control) {
 		rv770_enable_voltage_control(rdev, true);
-		cypress_construct_voltage_tables(rdev);
+		ret = cypress_construct_voltage_tables(rdev);
+		if (ret)
+			return ret;
 	}
 
-	if (pi->mvdd_control)
-		cypress_get_mvdd_configuration(rdev);
+	if (pi->mvdd_control) {
+		ret = cypress_get_mvdd_configuration(rdev);
+		if (ret)
+			return ret;
+	}
 
-	if (eg_pi->dynamic_ac_timing)
-		btc_initialize_mc_reg_table(rdev);
+	if (eg_pi->dynamic_ac_timing) {
+		ret = btc_initialize_mc_reg_table(rdev);
+		if (ret)
+			eg_pi->dynamic_ac_timing = false;
+	}
 
 	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_BACKBIAS)
 		rv770_enable_backbias(rdev, true);
@@ -2364,18 +2390,28 @@ int btc_dpm_enable(struct radeon_device *rdev)
 	if (pi->dynamic_pcie_gen2)
 		btc_enable_dynamic_pcie_gen2(rdev, true);
 
-	if (rv770_upload_firmware(rdev))
-		return -EINVAL;
+	ret = rv770_upload_firmware(rdev);
+	if (ret)
+		return ret;
 
-	cypress_get_table_locations(rdev);
-	btc_init_smc_table(rdev, boot_ps);
+	ret = cypress_get_table_locations(rdev);
+	if (ret)
+		return ret;
+	ret = btc_init_smc_table(rdev, boot_ps);
+	if (ret)
+		return ret;
 
-	if (eg_pi->dynamic_ac_timing)
-		cypress_populate_mc_reg_table(rdev, boot_ps);
+	if (eg_pi->dynamic_ac_timing) {
+		ret = cypress_populate_mc_reg_table(rdev, boot_ps);
+		if (ret)
+			return ret;
+	}
 
 	cypress_program_response_times(rdev);
 	r7xx_start_smc(rdev);
-	cypress_notify_smc_display_change(rdev, false);
+	ret = cypress_notify_smc_display_change(rdev, false);
+	if (ret)
+		return ret;
 	cypress_enable_sclk_control(rdev, true);
 
 	if (eg_pi->memory_transition)
@@ -2396,7 +2432,9 @@ int btc_dpm_enable(struct radeon_device *rdev)
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
 		PPSMC_Result result;
 
-		rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		ret = rv770_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret)
+			return ret;
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 		result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
