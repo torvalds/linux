@@ -1511,6 +1511,7 @@ int rv6xx_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv6xx_power_info *pi = rv6xx_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
+	int ret;
 
 	if (r600_dynamicpm_enabled(rdev))
 		return -EINVAL;
@@ -1560,7 +1561,9 @@ int rv6xx_dpm_enable(struct radeon_device *rdev)
 
 	if (rdev->irq.installed &&
 	    r600_is_internal_thermal_sensor(rdev->pm.int_thermal_type)) {
-		r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		ret = r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret)
+			return ret;
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 	}
@@ -1630,6 +1633,7 @@ int rv6xx_dpm_set_power_state(struct radeon_device *rdev)
 	struct rv6xx_power_info *pi = rv6xx_get_pi(rdev);
 	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
 	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
+	int ret;
 
 	rv6xx_clear_vc(rdev);
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_LOW, true);
@@ -1684,8 +1688,11 @@ int rv6xx_dpm_set_power_state(struct radeon_device *rdev)
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_MEDIUM, false);
 
 	if (pi->voltage_control) {
-		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_STEPVDDC)
-			rv6xx_step_voltage_if_decreasing(rdev, new_ps, old_ps);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_STEPVDDC) {
+			ret = rv6xx_step_voltage_if_decreasing(rdev, new_ps, old_ps);
+			if (ret)
+				return ret;
+		}
 		rv6xx_enable_dynamic_voltage_control(rdev, true);
 	}
 
