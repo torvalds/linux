@@ -27,11 +27,6 @@
 
 static const struct gre_protocol __rcu *gre_proto[GREPROTO_MAX] __read_mostly;
 static DEFINE_SPINLOCK(gre_proto_lock);
-struct gre_base_hdr {
-	__be16 flags;
-	__be16 protocol;
-};
-#define GRE_HEADER_SECTION 4
 
 int gre_add_protocol(const struct gre_protocol *proto, u8 version)
 {

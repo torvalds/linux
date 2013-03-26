@@ -33,7 +33,7 @@
 #include <net/arp.h>
 #include <net/ndisc.h>
 #include <net/ip.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/icmp.h>
 #include <net/udp.h>
 #include <net/rtnetlink.h>
@@ -101,20 +101,10 @@ struct vxlan_fdb {
 	u8		  eth_addr[ETH_ALEN];
 };
 
-/* Per-cpu network traffic stats */
-struct vxlan_stats {
-	u64			rx_packets;
-	u64			rx_bytes;
-	u64			tx_packets;
-	u64			tx_bytes;
-	struct u64_stats_sync	syncp;
-};
-
 /* Pseudo network device */
 struct vxlan_dev {
 	struct hlist_node hlist;
 	struct net_device *dev;
-	struct vxlan_stats __percpu *stats;
 	__u32		  vni;		/* virtual network id */
 	__be32	          gaddr;	/* multicast group */
 	__be32		  saddr;	/* source address */
@@ -667,7 +657,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	struct iphdr *oip;
 	struct vxlanhdr *vxh;
 	struct vxlan_dev *vxlan;
-	struct vxlan_stats *stats;
+	struct pcpu_tstats *stats;
 	__u32 vni;
 	int err;
 
@@ -743,7 +733,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		}
 	}
 
-	stats = this_cpu_ptr(vxlan->stats);
+	stats = this_cpu_ptr(vxlan->dev->tstats);
 	u64_stats_update_begin(&stats->syncp);
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
@@ -874,28 +864,6 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 	return false;
 }
 
-/* Extract dsfield from inner protocol */
-static inline u8 vxlan_get_dsfield(const struct iphdr *iph,
-				   const struct sk_buff *skb)
-{
-	if (skb->protocol == htons(ETH_P_IP))
-		return iph->tos;
-	else if (skb->protocol == htons(ETH_P_IPV6))
-		return ipv6_get_dsfield((const struct ipv6hdr *)iph);
-	else
-		return 0;
-}
-
-/* Propogate ECN bits out */
-static inline u8 vxlan_ecn_encap(u8 tos,
-				 const struct iphdr *iph,
-				 const struct sk_buff *skb)
-{
-	u8 inner = vxlan_get_dsfield(iph, skb);
-
-	return INET_ECN_encapsulate(tos, inner);
-}
-
 static void vxlan_sock_free(struct sk_buff *skb)
 {
 	sock_put(skb->sk);
@@ -974,8 +942,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 			/* short-circuited back to local bridge */
 			if (netif_rx(skb) == NET_RX_SUCCESS) {
-				struct vxlan_stats *stats =
-						this_cpu_ptr(vxlan->stats);
+				struct pcpu_tstats *stats = this_cpu_ptr(dev->tstats);
 
 				u64_stats_update_begin(&stats->syncp);
 				stats->tx_packets++;
@@ -1007,7 +974,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 	tos = vxlan->tos;
 	if (tos == 1)
-		tos = vxlan_get_dsfield(old_iph, skb);
+		tos = ip_tunnel_get_dsfield(old_iph, skb);
 
 	src_port = vxlan_src_port(vxlan, skb);
 
@@ -1058,7 +1025,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	iph->ihl	= sizeof(struct iphdr) >> 2;
 	iph->frag_off	= df;
 	iph->protocol	= IPPROTO_UDP;
-	iph->tos	= vxlan_ecn_encap(tos, old_iph, skb);
+	iph->tos	= ip_tunnel_ecn_encap(tos, old_iph, skb);
 	iph->daddr	= dst;
 	iph->saddr	= fl4.saddr;
 	iph->ttl	= ttl ? : ip4_dst_hoplimit(&rt->dst);
@@ -1183,10 +1150,8 @@ static void vxlan_cleanup(unsigned long arg)
 /* Setup stats when device is created */
 static int vxlan_init(struct net_device *dev)
 {
-	struct vxlan_dev *vxlan = netdev_priv(dev);
-
-	vxlan->stats = alloc_percpu(struct vxlan_stats);
-	if (!vxlan->stats)
+	dev->tstats = alloc_percpu(struct pcpu_tstats);
+	if (!dev->tstats)
 		return -ENOMEM;
 
 	return 0;
@@ -1242,49 +1207,6 @@ static int vxlan_stop(struct net_device *dev)
 	return 0;
 }
 
-/* Merge per-cpu statistics */
-static struct rtnl_link_stats64 *vxlan_stats64(struct net_device *dev,
-					       struct rtnl_link_stats64 *stats)
-{
-	struct vxlan_dev *vxlan = netdev_priv(dev);
-	struct vxlan_stats tmp, sum = { 0 };
-	unsigned int cpu;
-
-	for_each_possible_cpu(cpu) {
-		unsigned int start;
-		const struct vxlan_stats *stats
-			= per_cpu_ptr(vxlan->stats, cpu);
-
-		do {
-			start = u64_stats_fetch_begin_bh(&stats->syncp);
-			memcpy(&tmp, stats, sizeof(tmp));
-		} while (u64_stats_fetch_retry_bh(&stats->syncp, start));
-
-		sum.tx_bytes   += tmp.tx_bytes;
-		sum.tx_packets += tmp.tx_packets;
-		sum.rx_bytes   += tmp.rx_bytes;
-		sum.rx_packets += tmp.rx_packets;
-	}
-
-	stats->tx_bytes   = sum.tx_bytes;
-	stats->tx_packets = sum.tx_packets;
-	stats->rx_bytes   = sum.rx_bytes;
-	stats->rx_packets = sum.rx_packets;
-
-	stats->multicast = dev->stats.multicast;
-	stats->rx_length_errors = dev->stats.rx_length_errors;
-	stats->rx_frame_errors = dev->stats.rx_frame_errors;
-	stats->rx_errors = dev->stats.rx_errors;
-
-	stats->tx_dropped = dev->stats.tx_dropped;
-	stats->tx_carrier_errors  = dev->stats.tx_carrier_errors;
-	stats->tx_aborted_errors  = dev->stats.tx_aborted_errors;
-	stats->collisions  = dev->stats.collisions;
-	stats->tx_errors = dev->stats.tx_errors;
-
-	return stats;
-}
-
 /* Stub, nothing needs to be done. */
 static void vxlan_set_multicast_list(struct net_device *dev)
 {
@@ -1295,7 +1217,7 @@ static const struct net_device_ops vxlan_netdev_ops = {
 	.ndo_open		= vxlan_open,
 	.ndo_stop		= vxlan_stop,
 	.ndo_start_xmit		= vxlan_xmit,
-	.ndo_get_stats64	= vxlan_stats64,
+	.ndo_get_stats64	= ip_tunnel_get_stats64,
 	.ndo_set_rx_mode	= vxlan_set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1312,9 +1234,7 @@ static struct device_type vxlan_type = {
 
 static void vxlan_free(struct net_device *dev)
 {
-	struct vxlan_dev *vxlan = netdev_priv(dev);
-
-	free_percpu(vxlan->stats);
+	free_percpu(dev->tstats);
 	free_netdev(dev);
 }
 

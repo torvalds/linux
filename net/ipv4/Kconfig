@@ -166,6 +166,7 @@ config IP_PNP_RARP
 config NET_IPIP
 	tristate "IP: tunneling"
 	select INET_TUNNEL
+	select NET_IP_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -186,9 +187,14 @@ config NET_IPGRE_DEMUX
 	 This is helper module to demultiplex GRE packets on GRE version field criteria.
 	 Required by ip_gre and pptp modules.
 
+config NET_IP_TUNNEL
+	tristate
+	default n
+
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
 	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
+	select NET_IP_TUNNEL
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -313,6 +319,7 @@ config SYN_COOKIES
 config NET_IPVTI
 	tristate "Virtual (secure) IP: tunneling"
 	select INET_TUNNEL
+	select NET_IP_TUNNEL
 	depends on INET_XFRM_MODE_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within

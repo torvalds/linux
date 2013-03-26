@@ -111,7 +111,6 @@
 #include <net/sock.h>
 #include <net/raw.h>
 #include <net/icmp.h>
-#include <net/ipip.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
 #include <net/net_namespace.h>

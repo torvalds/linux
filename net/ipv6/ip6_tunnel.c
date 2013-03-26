@@ -47,6 +47,7 @@
 
 #include <net/icmp.h>
 #include <net/ip.h>
+#include <net/ip_tunnels.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>

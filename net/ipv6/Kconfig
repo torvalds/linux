@@ -156,6 +156,7 @@ config INET6_XFRM_MODE_ROUTEOPTIMIZATION
 config IPV6_SIT
 	tristate "IPv6: IPv6-in-IPv4 tunnel (SIT driver)"
 	select INET_TUNNEL
+	select NET_IP_TUNNEL
 	select IPV6_NDISC_NODETYPE
 	default y
 	---help---
@@ -201,6 +202,7 @@ config IPV6_TUNNEL
 config IPV6_GRE
 	tristate "IPv6: GRE tunnel"
 	select IPV6_TUNNEL
+	select NET_IP_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
