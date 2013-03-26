@@ -1331,20 +1331,28 @@ static int ioat3_reset_hw(struct ioat_chan_common *chan)
 	chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
 	writel(chanerr, chan->reg_base + IOAT_CHANERR_OFFSET);
 
-	/* clear any pending errors */
-	err = pci_read_config_dword(pdev, IOAT_PCI_CHANERR_INT_OFFSET, &chanerr);
-	if (err) {
-		dev_err(&pdev->dev, "channel error register unreachable\n");
-		return err;
-	}
-	pci_write_config_dword(pdev, IOAT_PCI_CHANERR_INT_OFFSET, chanerr);
+	if (device->version < IOAT_VER_3_3) {
+		/* clear any pending errors */
+		err = pci_read_config_dword(pdev,
+				IOAT_PCI_CHANERR_INT_OFFSET, &chanerr);
+		if (err) {
+			dev_err(&pdev->dev,
+				"channel error register unreachable\n");
+			return err;
+		}
+		pci_write_config_dword(pdev,
+				IOAT_PCI_CHANERR_INT_OFFSET, chanerr);
 
-	/* Clear DMAUNCERRSTS Cfg-Reg Parity Error status bit
-	 * (workaround for spurious config parity error after restart)
-	 */
-	pci_read_config_word(pdev, IOAT_PCI_DEVICE_ID_OFFSET, &dev_id);
-	if (dev_id == PCI_DEVICE_ID_INTEL_IOAT_TBG0)
-		pci_write_config_dword(pdev, IOAT_PCI_DMAUNCERRSTS_OFFSET, 0x10);
+		/* Clear DMAUNCERRSTS Cfg-Reg Parity Error status bit
+		 * (workaround for spurious config parity error after restart)
+		 */
+		pci_read_config_word(pdev, IOAT_PCI_DEVICE_ID_OFFSET, &dev_id);
+		if (dev_id == PCI_DEVICE_ID_INTEL_IOAT_TBG0) {
+			pci_write_config_dword(pdev,
+					       IOAT_PCI_DMAUNCERRSTS_OFFSET,
+					       0x10);
+		}
+	}
 
 	err = ioat2_reset_sync(chan, msecs_to_jiffies(200));
 	if (err) {
