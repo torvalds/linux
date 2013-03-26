@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <mach/mx28.h>
 #include "clk.h"
 
 static void __iomem *clkctrl;
@@ -75,8 +74,8 @@ int mxs_saif_clkmux_select(unsigned int clkmux)
 	if (clkmux > 0x3)
 		return -EINVAL;
 
-	__mxs_clrl(0x3 << BP_SAIF_CLKMUX, DIGCTRL);
-	__mxs_setl(clkmux << BP_SAIF_CLKMUX, DIGCTRL);
+	writel_relaxed(0x3 << BP_SAIF_CLKMUX, DIGCTRL + CLR);
+	writel_relaxed(clkmux << BP_SAIF_CLKMUX, DIGCTRL + SET);
 
 	return 0;
 }
@@ -86,13 +85,13 @@ static void __init clk_misc_init(void)
 	u32 val;
 
 	/* Gate off cpu clock in WFI for power saving */
-	__mxs_setl(1 << BP_CPU_INTERRUPT_WAIT, CPU);
+	writel_relaxed(1 << BP_CPU_INTERRUPT_WAIT, CPU + SET);
 
 	/* 0 is a bad default value for a divider */
-	__mxs_setl(1 << BP_ENET_DIV_TIME, ENET);
+	writel_relaxed(1 << BP_ENET_DIV_TIME, ENET + SET);
 
 	/* Clear BYPASS for SAIF */
-	__mxs_clrl(0x3 << BP_CLKSEQ_BYPASS_SAIF0, CLKSEQ);
+	writel_relaxed(0x3 << BP_CLKSEQ_BYPASS_SAIF0, CLKSEQ + CLR);
 
 	/* SAIF has to use frac div for functional operation */
 	val = readl_relaxed(SAIF0);
@@ -112,7 +111,7 @@ static void __init clk_misc_init(void)
 	 * Source ssp clock from ref_io than ref_xtal,
 	 * as ref_xtal only provides 24 MHz as maximum.
 	 */
-	__mxs_clrl(0xf << BP_CLKSEQ_BYPASS_SSP0, CLKSEQ);
+	writel_relaxed(0xf << BP_CLKSEQ_BYPASS_SSP0, CLKSEQ + CLR);
 
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,

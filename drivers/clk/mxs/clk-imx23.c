@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <mach/mx23.h>
 #include "clk.h"
 
 static void __iomem *clkctrl;
@@ -52,10 +51,10 @@ static void __init clk_misc_init(void)
 	u32 val;
 
 	/* Gate off cpu clock in WFI for power saving */
-	__mxs_setl(1 << BP_CPU_INTERRUPT_WAIT, CPU);
+	writel_relaxed(1 << BP_CPU_INTERRUPT_WAIT, CPU + SET);
 
 	/* Clear BYPASS for SAIF */
-	__mxs_clrl(1 << BP_CLKSEQ_BYPASS_SAIF, CLKSEQ);
+	writel_relaxed(1 << BP_CLKSEQ_BYPASS_SAIF, CLKSEQ + CLR);
 
 	/* SAIF has to use frac div for functional operation */
 	val = readl_relaxed(SAIF);
@@ -66,14 +65,14 @@ static void __init clk_misc_init(void)
 	 * Source ssp clock from ref_io than ref_xtal,
 	 * as ref_xtal only provides 24 MHz as maximum.
 	 */
-	__mxs_clrl(1 << BP_CLKSEQ_BYPASS_SSP, CLKSEQ);
+	writel_relaxed(1 << BP_CLKSEQ_BYPASS_SSP, CLKSEQ + CLR);
 
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,
 	 * so set frac to get a 288 MHz ref_io.
 	 */
-	__mxs_clrl(0x3f << BP_FRAC_IOFRAC, FRAC);
-	__mxs_setl(30 << BP_FRAC_IOFRAC, FRAC);
+	writel_relaxed(0x3f << BP_FRAC_IOFRAC, FRAC + CLR);
+	writel_relaxed(30 << BP_FRAC_IOFRAC, FRAC + SET);
 }
 
 static const char *sel_pll[]  __initconst = { "pll", "ref_xtal", };
