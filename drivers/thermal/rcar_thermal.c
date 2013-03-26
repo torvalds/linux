@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -377,6 +378,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	spin_lock_init(&common->lock);
 	common->dev = dev;
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq) {
 		int ret;
@@ -465,12 +469,16 @@ error_unregister:
 			rcar_thermal_irq_disable(priv);
 	}
 
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
+
 	return ret;
 }
 
 static int rcar_thermal_remove(struct platform_device *pdev)
 {
 	struct rcar_thermal_common *common = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
 	struct rcar_thermal_priv *priv;
 
 	rcar_thermal_for_each_priv(priv, common) {
@@ -480,6 +488,9 @@ static int rcar_thermal_remove(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, NULL);
+
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 
 	return 0;
 }
