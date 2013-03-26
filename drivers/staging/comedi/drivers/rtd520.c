@@ -1287,12 +1287,9 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->las0 = ioremap_nocache(pci_resource_start(pcidev, 2),
-					pci_resource_len(pcidev, 2));
-	devpriv->las1 = ioremap_nocache(pci_resource_start(pcidev, 3),
-					pci_resource_len(pcidev, 3));
-	devpriv->lcfg = ioremap_nocache(pci_resource_start(pcidev, 0),
-					pci_resource_len(pcidev, 0));
+	devpriv->las0 = pci_ioremap_bar(pcidev, 2);
+	devpriv->las1 = pci_ioremap_bar(pcidev, 3);
+	devpriv->lcfg = pci_ioremap_bar(pcidev, 0);
 	if (!devpriv->las0 || !devpriv->las1 || !devpriv->lcfg)
 		return -ENOMEM;
 
