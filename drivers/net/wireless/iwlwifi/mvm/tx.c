@@ -607,12 +607,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 
 		/* Single frame failure in an AMPDU queue => send BAR */
 		if (txq_id >= IWL_FIRST_AMPDU_QUEUE &&
-		    !(info->flags & IEEE80211_TX_STAT_ACK)) {
-			/* there must be only one skb in the skb_list */
-			WARN_ON_ONCE(skb_freed > 1 ||
-				     !skb_queue_empty(&skbs));
+		    !(info->flags & IEEE80211_TX_STAT_ACK))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
-		}
 
 		/* W/A FW bug: seq_ctl is wrong when the queue is flushed */
 		if (status == TX_STATUS_FAIL_FIFO_FLUSHED) {

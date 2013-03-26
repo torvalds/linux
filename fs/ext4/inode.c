@@ -185,8 +185,6 @@ void ext4_evict_inode(struct inode *inode)
 
 	trace_ext4_evict_inode(inode);
 
-	ext4_ioend_wait(inode);
-
 	if (inode->i_nlink) {
 		/*
 		 * When journalling data dirty buffers are tracked only in the
@@ -207,7 +205,8 @@ void ext4_evict_inode(struct inode *inode)
 		 * don't use page cache.
 		 */
 		if (ext4_should_journal_data(inode) &&
-		    (S_ISLNK(inode->i_mode) || S_ISREG(inode->i_mode))) {
+		    (S_ISLNK(inode->i_mode) || S_ISREG(inode->i_mode)) &&
+		    inode->i_ino != EXT4_JOURNAL_INO) {
 			journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
 			tid_t commit_tid = EXT4_I(inode)->i_datasync_tid;
 
@@ -216,6 +215,7 @@ void ext4_evict_inode(struct inode *inode)
 			filemap_write_and_wait(&inode->i_data);
 		}
 		truncate_inode_pages(&inode->i_data, 0);
+		ext4_ioend_shutdown(inode);
 		goto no_delete;
 	}
 
@@ -225,6 +225,7 @@ void ext4_evict_inode(struct inode *inode)
 	if (ext4_should_order_data(inode))
 		ext4_begin_ordered_truncate(inode, 0);
 	truncate_inode_pages(&inode->i_data, 0);
+	ext4_ioend_shutdown(inode);
 
 	if (is_bad_inode(inode))
 		goto no_delete;
@@ -482,6 +483,58 @@ static pgoff_t ext4_num_dirty_pages(struct inode *inode, pgoff_t idx,
 	return num;
 }
 
+#ifdef ES_AGGRESSIVE_TEST
+static void ext4_map_blocks_es_recheck(handle_t *handle,
+				       struct inode *inode,
+				       struct ext4_map_blocks *es_map,
+				       struct ext4_map_blocks *map,
+				       int flags)
+{
+	int retval;
+
+	map->m_flags = 0;
+	/*
+	 * There is a race window that the result is not the same.
+	 * e.g. xfstests #223 when dioread_nolock enables.  The reason
+	 * is that we lookup a block mapping in extent status tree with
+	 * out taking i_data_sem.  So at the time the unwritten extent
+	 * could be converted.
+	 */
+	if (!(flags & EXT4_GET_BLOCKS_NO_LOCK))
+		down_read((&EXT4_I(inode)->i_data_sem));
+	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
+		retval = ext4_ext_map_blocks(handle, inode, map, flags &
+					     EXT4_GET_BLOCKS_KEEP_SIZE);
+	} else {
+		retval = ext4_ind_map_blocks(handle, inode, map, flags &
+					     EXT4_GET_BLOCKS_KEEP_SIZE);
+	}
+	if (!(flags & EXT4_GET_BLOCKS_NO_LOCK))
+		up_read((&EXT4_I(inode)->i_data_sem));
+	/*
+	 * Clear EXT4_MAP_FROM_CLUSTER and EXT4_MAP_BOUNDARY flag
+	 * because it shouldn't be marked in es_map->m_flags.
+	 */
+	map->m_flags &= ~(EXT4_MAP_FROM_CLUSTER | EXT4_MAP_BOUNDARY);
+
+	/*
+	 * We don't check m_len because extent will be collpased in status
+	 * tree.  So the m_len might not equal.
+	 */
+	if (es_map->m_lblk != map->m_lblk ||
+	    es_map->m_flags != map->m_flags ||
+	    es_map->m_pblk != map->m_pblk) {
+		printk("ES cache assertation failed for inode: %lu "
+		       "es_cached ex [%d/%d/%llu/%x] != "
+		       "found ex [%d/%d/%llu/%x] retval %d flags %x\n",
+		       inode->i_ino, es_map->m_lblk, es_map->m_len,
+		       es_map->m_pblk, es_map->m_flags, map->m_lblk,
+		       map->m_len, map->m_pblk, map->m_flags,
+		       retval, flags);
+	}
+}
+#endif /* ES_AGGRESSIVE_TEST */
+
 /*
  * The ext4_map_blocks() function tries to look up the requested blocks,
  * and returns if the blocks are already mapped.
@@ -509,6 +562,11 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 {
 	struct extent_status es;
 	int retval;
+#ifdef ES_AGGRESSIVE_TEST
+	struct ext4_map_blocks orig_map;
+
+	memcpy(&orig_map, map, sizeof(*map));
+#endif
 
 	map->m_flags = 0;
 	ext_debug("ext4_map_blocks(): inode %lu, flag %d, max_blocks %u,"
@@ -531,6 +589,10 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		} else {
 			BUG_ON(1);
 		}
+#ifdef ES_AGGRESSIVE_TEST
+		ext4_map_blocks_es_recheck(handle, inode, map,
+					   &orig_map, flags);
+#endif
 		goto found;
 	}
 
@@ -550,6 +612,15 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	if (retval > 0) {
 		int ret;
 		unsigned long long status;
+
+#ifdef ES_AGGRESSIVE_TEST
+		if (retval != map->m_len) {
+			printk("ES len assertation failed for inode: %lu "
+			       "retval %d != map->m_len %d "
+			       "in %s (lookup)\n", inode->i_ino, retval,
+			       map->m_len, __func__);
+		}
+#endif
 
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
@@ -643,6 +714,24 @@ found:
 		int ret;
 		unsigned long long status;
 
+#ifdef ES_AGGRESSIVE_TEST
+		if (retval != map->m_len) {
+			printk("ES len assertation failed for inode: %lu "
+			       "retval %d != map->m_len %d "
+			       "in %s (allocation)\n", inode->i_ino, retval,
+			       map->m_len, __func__);
+		}
+#endif
+
+		/*
+		 * If the extent has been zeroed out, we don't need to update
+		 * extent status tree.
+		 */
+		if ((flags & EXT4_GET_BLOCKS_PRE_IO) &&
+		    ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
+			if (ext4_es_is_written(&es))
+				goto has_zeroout;
+		}
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
 		if (!(flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) &&
@@ -655,6 +744,7 @@ found:
 			retval = ret;
 	}
 
+has_zeroout:
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
 		int ret = check_block_validity(inode, map);
@@ -1216,6 +1306,55 @@ static int ext4_journalled_write_end(struct file *file,
 }
 
 /*
+ * Reserve a metadata for a single block located at lblock
+ */
+static int ext4_da_reserve_metadata(struct inode *inode, ext4_lblk_t lblock)
+{
+	int retries = 0;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	unsigned int md_needed;
+	ext4_lblk_t save_last_lblock;
+	int save_len;
+
+	/*
+	 * recalculate the amount of metadata blocks to reserve
+	 * in order to allocate nrblocks
+	 * worse case is one extent per block
+	 */
+repeat:
+	spin_lock(&ei->i_block_reservation_lock);
+	/*
+	 * ext4_calc_metadata_amount() has side effects, which we have
+	 * to be prepared undo if we fail to claim space.
+	 */
+	save_len = ei->i_da_metadata_calc_len;
+	save_last_lblock = ei->i_da_metadata_calc_last_lblock;
+	md_needed = EXT4_NUM_B2C(sbi,
+				 ext4_calc_metadata_amount(inode, lblock));
+	trace_ext4_da_reserve_space(inode, md_needed);
+
+	/*
+	 * We do still charge estimated metadata to the sb though;
+	 * we cannot afford to run out of free blocks.
+	 */
+	if (ext4_claim_free_clusters(sbi, md_needed, 0)) {
+		ei->i_da_metadata_calc_len = save_len;
+		ei->i_da_metadata_calc_last_lblock = save_last_lblock;
+		spin_unlock(&ei->i_block_reservation_lock);
+		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
+			cond_resched();
+			goto repeat;
+		}
+		return -ENOSPC;
+	}
+	ei->i_reserved_meta_blocks += md_needed;
+	spin_unlock(&ei->i_block_reservation_lock);
+
+	return 0;       /* success */
+}
+
+/*
  * Reserve a single cluster located at lblock
  */
 static int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
@@ -1263,7 +1402,7 @@ repeat:
 		ei->i_da_metadata_calc_last_lblock = save_last_lblock;
 		spin_unlock(&ei->i_block_reservation_lock);
 		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
-			yield();
+			cond_resched();
 			goto repeat;
 		}
 		dquot_release_reservation_block(inode, EXT4_C2B(sbi, 1));
@@ -1768,6 +1907,11 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 	struct extent_status es;
 	int retval;
 	sector_t invalid_block = ~((sector_t) 0xffff);
+#ifdef ES_AGGRESSIVE_TEST
+	struct ext4_map_blocks orig_map;
+
+	memcpy(&orig_map, map, sizeof(*map));
+#endif
 
 	if (invalid_block < ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es))
 		invalid_block = ~0;
@@ -1809,6 +1953,9 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 		else
 			BUG_ON(1);
 
+#ifdef ES_AGGRESSIVE_TEST
+		ext4_map_blocks_es_recheck(NULL, inode, map, &orig_map, 0);
+#endif
 		return retval;
 	}
 
@@ -1843,10 +1990,20 @@ add_delayed:
 		 * XXX: __block_prepare_write() unmaps passed block,
 		 * is it OK?
 		 */
-		/* If the block was allocated from previously allocated cluster,
-		 * then we dont need to reserve it again. */
+		/*
+		 * If the block was allocated from previously allocated cluster,
+		 * then we don't need to reserve it again. However we still need
+		 * to reserve metadata for every block we're going to write.
+		 */
 		if (!(map->m_flags & EXT4_MAP_FROM_CLUSTER)) {
 			ret = ext4_da_reserve_space(inode, iblock);
+			if (ret) {
+				/* not enough space to reserve */
+				retval = ret;
+				goto out_unlock;
+			}
+		} else {
+			ret = ext4_da_reserve_metadata(inode, iblock);
 			if (ret) {
 				/* not enough space to reserve */
 				retval = ret;
@@ -1872,6 +2029,15 @@ add_delayed:
 	} else if (retval > 0) {
 		int ret;
 		unsigned long long status;
+
+#ifdef ES_AGGRESSIVE_TEST
+		if (retval != map->m_len) {
+			printk("ES len assertation failed for inode: %lu "
+			       "retval %d != map->m_len %d "
+			       "in %s (lookup)\n", inode->i_ino, retval,
+			       map->m_len, __func__);
+		}
+#endif
 
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
@@ -2908,8 +3074,8 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
 
 	trace_ext4_releasepage(page);
 
-	WARN_ON(PageChecked(page));
-	if (!page_has_buffers(page))
+	/* Page has dirty journalled data -> cannot release */
+	if (PageChecked(page))
 		return 0;
 	if (journal)
 		return jbd2_journal_try_to_free_buffers(journal, page, wait);

@@ -3679,6 +3679,25 @@ int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(qeth_get_priority_queue);
 
+int qeth_get_elements_for_frags(struct sk_buff *skb)
+{
+	int cnt, length, e, elements = 0;
+	struct skb_frag_struct *frag;
+	char *data;
+
+	for (cnt = 0; cnt < skb_shinfo(skb)->nr_frags; cnt++) {
+		frag = &skb_shinfo(skb)->frags[cnt];
+		data = (char *)page_to_phys(skb_frag_page(frag)) +
+			frag->page_offset;
+		length = frag->size;
+		e = PFN_UP((unsigned long)data + length - 1) -
+			PFN_DOWN((unsigned long)data);
+		elements += e;
+	}
+	return elements;
+}
+EXPORT_SYMBOL_GPL(qeth_get_elements_for_frags);
+
 int qeth_get_elements_no(struct qeth_card *card, void *hdr,
 		     struct sk_buff *skb, int elems)
 {
@@ -3686,7 +3705,8 @@ int qeth_get_elements_no(struct qeth_card *card, void *hdr,
 	int elements_needed = PFN_UP((unsigned long)skb->data + dlen - 1) -
 		PFN_DOWN((unsigned long)skb->data);
 
-	elements_needed += skb_shinfo(skb)->nr_frags;
+	elements_needed += qeth_get_elements_for_frags(skb);
+
 	if ((elements_needed + elems) > QETH_MAX_BUFFER_ELEMENTS(card)) {
 		QETH_DBF_MESSAGE(2, "Invalid size of IP packet "
 			"(Number=%d / Length=%d). Discarded.\n",
@@ -3771,12 +3791,23 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 
 	for (cnt = 0; cnt < skb_shinfo(skb)->nr_frags; cnt++) {
 		frag = &skb_shinfo(skb)->frags[cnt];
-		buffer->element[element].addr = (char *)
-			page_to_phys(skb_frag_page(frag))
-			+ frag->page_offset;
-		buffer->element[element].length = frag->size;
-		buffer->element[element].eflags = SBAL_EFLAGS_MIDDLE_FRAG;
-		element++;
+		data = (char *)page_to_phys(skb_frag_page(frag)) +
+			frag->page_offset;
+		length = frag->size;
+		while (length > 0) {
+			length_here = PAGE_SIZE -
+				((unsigned long) data % PAGE_SIZE);
+			if (length < length_here)
+				length_here = length;
+
+			buffer->element[element].addr = data;
+			buffer->element[element].length = length_here;
+			buffer->element[element].eflags =
+				SBAL_EFLAGS_MIDDLE_FRAG;
+			length -= length_here;
+			data += length_here;
+			element++;
+		}
 	}
 
 	if (buffer->element[element - 1].eflags)

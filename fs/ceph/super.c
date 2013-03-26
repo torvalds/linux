@@ -952,6 +952,7 @@ static struct file_system_type ceph_fs_type = {
 	.kill_sb	= ceph_kill_sb,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE,
 };
+MODULE_ALIAS_FS("ceph");
 
 #define _STRINGIFY(x) #x
 #define STRINGIFY(x) _STRINGIFY(x)

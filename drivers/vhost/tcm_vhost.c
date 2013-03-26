@@ -850,7 +850,7 @@ static int vhost_scsi_clear_endpoint(
 	for (index = 0; index < vs->dev.nvqs; ++index) {
 		if (!vhost_vq_access_ok(&vs->vqs[index])) {
 			ret = -EFAULT;
-			goto err;
+			goto err_dev;
 		}
 	}
 	for (i = 0; i < VHOST_SCSI_MAX_TARGET; i++) {
@@ -860,10 +860,11 @@ static int vhost_scsi_clear_endpoint(
 		if (!tv_tpg)
 			continue;
 
+		mutex_lock(&tv_tpg->tv_tpg_mutex);
 		tv_tport = tv_tpg->tport;
 		if (!tv_tport) {
 			ret = -ENODEV;
-			goto err;
+			goto err_tpg;
 		}
 
 		if (strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
@@ -872,16 +873,19 @@ static int vhost_scsi_clear_endpoint(
 				tv_tport->tport_name, tv_tpg->tport_tpgt,
 				t->vhost_wwpn, t->vhost_tpgt);
 			ret = -EINVAL;
-			goto err;
+			goto err_tpg;
 		}
 		tv_tpg->tv_tpg_vhost_count--;
 		vs->vs_tpg[target] = NULL;
 		vs->vs_endpoint = false;
+		mutex_unlock(&tv_tpg->tv_tpg_mutex);
 	}
 	mutex_unlock(&vs->dev.mutex);
 	return 0;
 
-err:
+err_tpg:
+	mutex_unlock(&tv_tpg->tv_tpg_mutex);
+err_dev:
 	mutex_unlock(&vs->dev.mutex);
 	return ret;
 }
@@ -937,6 +941,7 @@ static void vhost_scsi_flush(struct vhost_scsi *vs)
 
 	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
 		vhost_scsi_flush_vq(vs, i);
+	vhost_work_flush(&vs->dev, &vs->vs_completion_work);
 }
 
 static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)

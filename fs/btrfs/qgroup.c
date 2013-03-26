@@ -1525,21 +1525,23 @@ int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 
 		if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_RFER) &&
 		    qg->reserved + qg->rfer + num_bytes >
-		    qg->max_rfer)
+		    qg->max_rfer) {
 			ret = -EDQUOT;
+			goto out;
+		}
 
 		if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL) &&
 		    qg->reserved + qg->excl + num_bytes >
-		    qg->max_excl)
+		    qg->max_excl) {
 			ret = -EDQUOT;
+			goto out;
+		}
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
 			ulist_add(ulist, glist->group->qgroupid,
 				  (uintptr_t)glist->group, GFP_ATOMIC);
 		}
 	}
-	if (ret)
-		goto out;
 
 	/*
 	 * no limits exceeded, now record the reservation into all qgroups

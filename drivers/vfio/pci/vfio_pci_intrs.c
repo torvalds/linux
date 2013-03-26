@@ -22,6 +22,7 @@
 #include <linux/vfio.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #include "vfio_pci_private.h"
 

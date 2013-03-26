@@ -701,7 +701,7 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 de_iir, gt_iir, de_ier, pm_iir;
+	u32 de_iir, gt_iir, de_ier, pm_iir, sde_ier;
 	irqreturn_t ret = IRQ_NONE;
 	int i;
 
@@ -710,6 +710,15 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
 	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
+
+	/* Disable south interrupts. We'll only write to SDEIIR once, so further
+	 * interrupts will will be stored on its back queue, and then we'll be
+	 * able to process them after we restore SDEIER (as soon as we restore
+	 * it, we'll get an interrupt if SDEIIR still has something to process
+	 * due to its back queue). */
+	sde_ier = I915_READ(SDEIER);
+	I915_WRITE(SDEIER, 0);
+	POSTING_READ(SDEIER);
 
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
@@ -759,6 +768,8 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
+	I915_WRITE(SDEIER, sde_ier);
+	POSTING_READ(SDEIER);
 
 	return ret;
 }
@@ -778,7 +789,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
-	u32 de_iir, gt_iir, de_ier, pm_iir;
+	u32 de_iir, gt_iir, de_ier, pm_iir, sde_ier;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -786,6 +797,15 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	de_ier = I915_READ(DEIER);
 	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
 	POSTING_READ(DEIER);
+
+	/* Disable south interrupts. We'll only write to SDEIIR once, so further
+	 * interrupts will will be stored on its back queue, and then we'll be
+	 * able to process them after we restore SDEIER (as soon as we restore
+	 * it, we'll get an interrupt if SDEIIR still has something to process
+	 * due to its back queue). */
+	sde_ier = I915_READ(SDEIER);
+	I915_WRITE(SDEIER, 0);
+	POSTING_READ(SDEIER);
 
 	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
@@ -849,6 +869,8 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 done:
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
+	I915_WRITE(SDEIER, sde_ier);
+	POSTING_READ(SDEIER);
 
 	return ret;
 }

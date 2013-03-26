@@ -999,8 +999,8 @@ out:
 	return rc;
 }
 
-int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
-			  struct kstat *stat)
+static int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
+				 struct kstat *stat)
 {
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	int rc = 0;
@@ -1021,8 +1021,8 @@ int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
 	return rc;
 }
 
-int ecryptfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		     struct kstat *stat)
+static int ecryptfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+			    struct kstat *stat)
 {
 	struct kstat lower_stat;
 	int rc;

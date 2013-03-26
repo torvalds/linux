@@ -557,11 +557,9 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif)
+static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 tfd_msk = 0, ac;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
@@ -594,12 +592,21 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		 */
 		flush_work(&mvm->sta_drained_wk);
 	}
+}
+
+static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	iwl_mvm_prepare_mac_removal(mvm, vif);
 
 	mutex_lock(&mvm->mutex);
 
 	/*
 	 * For AP/GO interface, the tear down of the resources allocated to the
-	 * interface should be handled as part of the bss_info_changed flow.
+	 * interface is be handled as part of the stop_ap flow.
 	 */
 	if (vif->type == NL80211_IFTYPE_AP) {
 		iwl_mvm_dealloc_int_sta(mvm, &mvmvif->bcast_sta);
@@ -762,6 +769,8 @@ static void iwl_mvm_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	iwl_mvm_prepare_mac_removal(mvm, vif);
 
 	mutex_lock(&mvm->mutex);
 

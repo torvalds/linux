@@ -1025,6 +1025,8 @@ void dm_bufio_prefetch(struct dm_bufio_client *c,
 {
 	struct blk_plug plug;
 
+	BUG_ON(dm_bufio_in_request());
+
 	blk_start_plug(&plug);
 	dm_bufio_lock(c);
 

@@ -1266,6 +1266,7 @@ static struct file_system_type ocfs2_fs_type = {
 	.fs_flags       = FS_REQUIRES_DEV|FS_RENAME_DOES_D_MOVE,
 	.next           = NULL
 };
+MODULE_ALIAS_FS("ocfs2");
 
 static int ocfs2_check_set_options(struct super_block *sb,
 				   struct mount_options *options)

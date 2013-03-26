@@ -464,8 +464,11 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
-		if (!ops->execute_sync_cache)
-			return TCM_UNSUPPORTED_SCSI_OPCODE;
+		if (!ops->execute_sync_cache) {
+			size = 0;
+			cmd->execute_cmd = sbc_emulate_noop;
+			break;
+		}
 
 		/*
 		 * Extract LBA and range to be flushed for emulated SYNCHRONIZE_CACHE

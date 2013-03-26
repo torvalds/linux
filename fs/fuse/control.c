@@ -341,6 +341,7 @@ static struct file_system_type fuse_ctl_fs_type = {
 	.mount		= fuse_ctl_mount,
 	.kill_sb	= fuse_ctl_kill_sb,
 };
+MODULE_ALIAS_FS("fusectl");
 
 int __init fuse_ctl_init(void)
 {

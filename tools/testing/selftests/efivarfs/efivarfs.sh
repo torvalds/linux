@@ -125,6 +125,63 @@ test_open_unlink()
 	./open-unlink $file
 }
 
+# test that we can create a range of filenames
+test_valid_filenames()
+{
+	local attrs='\x07\x00\x00\x00'
+	local ret=0
+
+	local file_list="abc dump-type0-11-1-1362436005 1234 -"
+	for f in $file_list; do
+		local file=$efivarfs_mount/$f-$test_guid
+
+		printf "$attrs\x00" > $file
+
+		if [ ! -e $file ]; then
+			echo "$file could not be created" >&2
+			ret=1
+		else
+			rm $file
+		fi
+	done
+
+	exit $ret
+}
+
+test_invalid_filenames()
+{
+	local attrs='\x07\x00\x00\x00'
+	local ret=0
+
+	local file_list="
+		-1234-1234-1234-123456789abc
+		foo
+		foo-bar
+		-foo-
+		foo-barbazba-foob-foob-foob-foobarbazfoo
+		foo-------------------------------------
+		-12345678-1234-1234-1234-123456789abc
+		a-12345678=1234-1234-1234-123456789abc
+		a-12345678-1234=1234-1234-123456789abc
+		a-12345678-1234-1234=1234-123456789abc
+		a-12345678-1234-1234-1234=123456789abc
+		1112345678-1234-1234-1234-123456789abc"
+
+	for f in $file_list; do
+		local file=$efivarfs_mount/$f
+
+		printf "$attrs\x00" 2>/dev/null > $file
+
+		if [ -e $file ]; then
+			echo "Creating $file should have failed" >&2
+			rm $file
+			ret=1
+		fi
+	done
+
+	exit $ret
+}
+
 check_prereqs
 
 rc=0
@@ -135,5 +192,7 @@ run_test test_create_read
 run_test test_delete
 run_test test_zero_size_delete
 run_test test_open_unlink
+run_test test_valid_filenames
+run_test test_invalid_filenames
 
 exit $rc
