@@ -1037,7 +1037,7 @@ static int go7007_usb_i2c_master_xfer(struct i2c_adapter *adapter,
 						buf, buf_len, 0) < 0)
 			goto i2c_done;
 		if (msgs[i].flags & I2C_M_RD) {
-			memset(buf, 0, sizeof(buf));
+			memset(buf, 0, msgs[i].len + 1);
 			if (go7007_usb_vendor_request(go, 0x25, 0, 0, buf,
 						msgs[i].len + 1, 1) < 0)
 				goto i2c_done;
