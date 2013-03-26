@@ -186,6 +186,13 @@ static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
+/*
+ * Worst case string length in chunks of CPU range seems 2 steps
+ * separations: 0,2,4,6,...
+ * This is NR_CPUS + sizeof('\0')
+ */
+static char __initdata nohz_ext_buf[NR_CPUS + 1];
+
 static int __init init_tick_nohz_extended(void)
 {
 	cpumask_var_t online_nohz;
@@ -224,6 +231,9 @@ static int __init init_tick_nohz_extended(void)
 	}
 	put_online_cpus();
 	free_cpumask_var(online_nohz);
+
+	cpulist_scnprintf(nohz_ext_buf, sizeof(nohz_ext_buf), nohz_extended_mask);
+	pr_info("NO_HZ: Full dynticks CPUs: %s.\n", nohz_ext_buf);
 
 	return 0;
 }
