@@ -697,12 +697,23 @@ int em28xx_vbi_supported(struct em28xx *dev)
 int em28xx_set_outfmt(struct em28xx *dev)
 {
 	int ret;
-	u8 vinctrl;
+	u8 fmt, vinctrl;
 
-	ret = em28xx_write_reg_bits(dev, EM28XX_R27_OUTFMT,
-				dev->format->reg | 0x20, 0xff);
+	fmt = dev->format->reg;
+	if (!dev->is_em25xx)
+		fmt |= 0x20;
+	/*
+	 * NOTE: it's not clear if this is really needed !
+	 * The datasheets say bit 5 is a reserved bit and devices seem to work
+	 * fine without it. But the Windows driver sets it for em2710/50+em28xx
+	 * devices and we've always been setting it, too.
+	 *
+	 * em2765 (em25xx, em276x/7x/8x) devices do NOT work with this bit set,
+	 * it's likely used for an additional (compressed ?) format there.
+	 */
+	ret = em28xx_write_reg(dev, EM28XX_R27_OUTFMT, fmt);
 	if (ret < 0)
-			return ret;
+		return ret;
 
 	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, dev->vinmode);
 	if (ret < 0)
