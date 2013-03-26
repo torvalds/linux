@@ -1374,7 +1374,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
 		break;
 	default:
-		WARN_ON("ERROR: unexpected command state");
+		WARN(1, "Unexpected command state (%d)", state);
 		break;
 	}
 
