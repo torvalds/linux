@@ -791,6 +791,19 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev))
 		pipe_config->has_pch_encoder = true;
 
+	/*
+	 * HDMI is either 12 or 8, so if the display lets 10bpc sneak
+	 * through, clamp it down. Note that g4x/vlv don't support 12bpc hdmi
+	 * outputs.
+	 */
+	if (pipe_config->pipe_bpp > 8*3 && HAS_PCH_SPLIT(dev)) {
+		DRM_DEBUG_KMS("forcing bpc to 12 for HDMI\n");
+		pipe_config->pipe_bpp = 12*3;
+	} else {
+		DRM_DEBUG_KMS("forcing bpc to 8 for HDMI\n");
+		pipe_config->pipe_bpp = 8*3;
+	}
+
 	return true;
 }
 

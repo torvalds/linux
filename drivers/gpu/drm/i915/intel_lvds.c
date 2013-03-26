@@ -310,6 +310,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct drm_display_mode *mode = &pipe_config->requested_mode;
 	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
+	unsigned int lvds_bpp;
 	int pipe;
 
 	/* Should never happen!! */
@@ -321,6 +322,17 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	if (intel_encoder_check_is_cloned(&lvds_encoder->base))
 		return false;
 
+	if ((I915_READ(lvds_encoder->reg) & LVDS_A3_POWER_MASK) ==
+	    LVDS_A3_POWER_UP)
+		lvds_bpp = 8*3;
+	else
+		lvds_bpp = 6*3;
+
+	if (lvds_bpp != pipe_config->pipe_bpp) {
+		DRM_DEBUG_KMS("forcing display bpp (was %d) to LVDS (%d)\n",
+			      pipe_config->pipe_bpp, lvds_bpp);
+		pipe_config->pipe_bpp = lvds_bpp;
+	}
 	/*
 	 * We have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,

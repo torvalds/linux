@@ -4076,142 +4076,6 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
-/**
- * intel_choose_pipe_bpp_dither - figure out what color depth the pipe should send
- * @crtc: CRTC structure
- * @mode: requested mode
- *
- * A pipe may be connected to one or more outputs.  Based on the depth of the
- * attached framebuffer, choose a good color depth to use on the pipe.
- *
- * If possible, match the pipe depth to the fb depth.  In some cases, this
- * isn't ideal, because the connected output supports a lesser or restricted
- * set of depths.  Resolve that here:
- *    LVDS typically supports only 6bpc, so clamp down in that case
- *    HDMI supports only 8bpc or 12bpc, so clamp to 8bpc with dither for 10bpc
- *    Displays may support a restricted set as well, check EDID and clamp as
- *      appropriate.
- *    DP may want to dither down to 6bpc to fit larger modes
- *
- * RETURNS:
- * Dithering requirement (i.e. false if display bpc and pipe bpc match,
- * true if they don't match).
- */
-static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
-					 struct drm_framebuffer *fb,
-					 unsigned int *pipe_bpp,
-					 struct drm_display_mode *mode)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_connector *connector;
-	struct intel_encoder *intel_encoder;
-	unsigned int display_bpc = UINT_MAX, bpc;
-
-	/* Walk the encoders & connectors on this crtc, get min bpc */
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
-
-		if (intel_encoder->type == INTEL_OUTPUT_LVDS) {
-			unsigned int lvds_bpc;
-
-			if ((I915_READ(PCH_LVDS) & LVDS_A3_POWER_MASK) ==
-			    LVDS_A3_POWER_UP)
-				lvds_bpc = 8;
-			else
-				lvds_bpc = 6;
-
-			if (lvds_bpc < display_bpc) {
-				DRM_DEBUG_KMS("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
-				display_bpc = lvds_bpc;
-			}
-			continue;
-		}
-
-		/* Not one of the known troublemakers, check the EDID */
-		list_for_each_entry(connector, &dev->mode_config.connector_list,
-				    head) {
-			if (connector->encoder != &intel_encoder->base)
-				continue;
-
-			/* Don't use an invalid EDID bpc value */
-			if (connector->display_info.bpc &&
-			    connector->display_info.bpc < display_bpc) {
-				DRM_DEBUG_KMS("clamping display bpc (was %d) to EDID reported max of %d\n", display_bpc, connector->display_info.bpc);
-				display_bpc = connector->display_info.bpc;
-			}
-		}
-
-		if (intel_encoder->type == INTEL_OUTPUT_EDP) {
-			/* Use VBT settings if we have an eDP panel */
-			unsigned int edp_bpc = dev_priv->edp.bpp / 3;
-
-			if (edp_bpc && edp_bpc < display_bpc) {
-				DRM_DEBUG_KMS("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
-				display_bpc = edp_bpc;
-			}
-			continue;
-		}
-
-		/*
-		 * HDMI is either 12 or 8, so if the display lets 10bpc sneak
-		 * through, clamp it down.  (Note: >12bpc will be caught below.)
-		 */
-		if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
-			if (display_bpc > 8 && display_bpc < 12) {
-				DRM_DEBUG_KMS("forcing bpc to 12 for HDMI\n");
-				display_bpc = 12;
-			} else {
-				DRM_DEBUG_KMS("forcing bpc to 8 for HDMI\n");
-				display_bpc = 8;
-			}
-		}
-	}
-
-	if (mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
-		DRM_DEBUG_KMS("Dithering DP to 6bpc\n");
-		display_bpc = 6;
-	}
-
-	/*
-	 * We could just drive the pipe at the highest bpc all the time and
-	 * enable dithering as needed, but that costs bandwidth.  So choose
-	 * the minimum value that expresses the full color range of the fb but
-	 * also stays within the max display bpc discovered above.
-	 */
-
-	switch (fb->depth) {
-	case 8:
-		bpc = 8; /* since we go through a colormap */
-		break;
-	case 15:
-	case 16:
-		bpc = 6; /* min is 18bpp */
-		break;
-	case 24:
-		bpc = 8;
-		break;
-	case 30:
-		bpc = 10;
-		break;
-	case 48:
-		bpc = 12;
-		break;
-	default:
-		DRM_DEBUG("unsupported depth, assuming 24 bits\n");
-		bpc = min((unsigned int)8, display_bpc);
-		break;
-	}
-
-	display_bpc = min(display_bpc, bpc);
-
-	DRM_DEBUG_KMS("setting pipe bpc to %d (max display bpc %d)\n",
-		      bpc, display_bpc);
-
-	*pipe_bpp = display_bpc * 3;
-
-	return display_bpc != bpc;
-}
-
 static int vlv_get_refclk(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -4664,10 +4528,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
-
-	/* temporary hack */
-	intel_crtc->config.dither =
-		adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
@@ -5673,10 +5533,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	intel_crtc_update_cursor(crtc, true);
 
 	/* determine panel color depth */
-	dither = intel_choose_pipe_bpp_dither(crtc, fb,
-					      &intel_crtc->config.pipe_bpp,
-					      adjusted_mode);
-	intel_crtc->config.dither = dither;
+	dither = intel_crtc->config.dither;
 	if (is_lvds && dev_priv->lvds_dither)
 		dither = true;
 
@@ -5841,10 +5698,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	intel_crtc_update_cursor(crtc, true);
 
 	/* determine panel color depth */
-	dither = intel_choose_pipe_bpp_dither(crtc, fb,
-					      &intel_crtc->config.pipe_bpp,
-					      adjusted_mode);
-	intel_crtc->config.dither = dither;
+	dither = intel_crtc->config.dither;
 
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
@@ -7525,14 +7379,72 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 	}
 }
 
+static int
+pipe_config_set_bpp(struct drm_crtc *crtc,
+		    struct drm_framebuffer *fb,
+		    struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_connector *connector;
+	int bpp;
+
+	switch (fb->depth) {
+	case 8:
+		bpp = 8*3; /* since we go through a colormap */
+		break;
+	case 15:
+	case 16:
+		bpp = 6*3; /* min is 18bpp */
+		break;
+	case 24:
+		bpp = 8*3;
+		break;
+	case 30:
+		bpp = 10*3;
+		break;
+	case 48:
+		bpp = 12*3;
+		break;
+	default:
+		DRM_DEBUG_KMS("unsupported depth\n");
+		return -EINVAL;
+	}
+
+	if (fb->depth > 24 && !HAS_PCH_SPLIT(dev)) {
+		DRM_DEBUG_KMS("high depth not supported on gmch platforms\n");
+		return -EINVAL;
+	}
+
+	pipe_config->pipe_bpp = bpp;
+
+	/* Clamp display bpp to EDID value */
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    head) {
+		if (connector->encoder && connector->encoder->crtc != crtc)
+			continue;
+
+		/* Don't use an invalid EDID bpc value */
+		if (connector->display_info.bpc &&
+		    connector->display_info.bpc * 3 < bpp) {
+			DRM_DEBUG_KMS("clamping display bpp (was %d) to EDID reported max of %d\n",
+				      bpp, connector->display_info.bpc*3);
+			pipe_config->pipe_bpp = connector->display_info.bpc*3;
+		}
+	}
+
+	return bpp;
+}
+
 static struct intel_crtc_config *
 intel_modeset_pipe_config(struct drm_crtc *crtc,
+			  struct drm_framebuffer *fb,
 			  struct drm_display_mode *mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct intel_encoder *encoder;
 	struct intel_crtc_config *pipe_config;
+	int plane_bpp;
 
 	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
 	if (!pipe_config)
@@ -7540,6 +7452,10 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 	drm_mode_copy(&pipe_config->adjusted_mode, mode);
 	drm_mode_copy(&pipe_config->requested_mode, mode);
+
+	plane_bpp = pipe_config_set_bpp(crtc, fb, pipe_config);
+	if (plane_bpp < 0)
+		goto fail;
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
@@ -7569,11 +7485,19 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		}
 	}
 
+	/* temporary hack until the DP code doesn't use the 6BPC flag any more */
+	if (pipe_config->adjusted_mode.private_flags & INTEL_MODE_DP_FORCE_6BPC)
+		pipe_config->pipe_bpp = 6*8;
+
 	if (!(intel_crtc_compute_config(crtc, pipe_config))) {
 		DRM_DEBUG_KMS("CRTC fixup failed\n");
 		goto fail;
 	}
 	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
+
+	pipe_config->dither = pipe_config->pipe_bpp != plane_bpp;
+	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
+		      plane_bpp, pipe_config->pipe_bpp, pipe_config->dither);
 
 	return pipe_config;
 fail:
@@ -7866,7 +7790,7 @@ int intel_set_mode(struct drm_crtc *crtc,
 	 * pieces of code that are not yet converted to deal with mutliple crtcs
 	 * changing their mode at the same time. */
 	if (modeset_pipes) {
-		pipe_config = intel_modeset_pipe_config(crtc, mode);
+		pipe_config = intel_modeset_pipe_config(crtc, fb, mode);
 		if (IS_ERR(pipe_config)) {
 			ret = PTR_ERR(pipe_config);
 			pipe_config = NULL;
@@ -8304,8 +8228,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
 	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
-
-	intel_crtc->config.pipe_bpp = 24; /* default for pre-Ironlake */
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 }
