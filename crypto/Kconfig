@@ -481,6 +481,17 @@ config CRYPTO_SHA256_SSSE3
 	  Extensions version 1 (AVX1), or Advanced Vector Extensions
 	  version 2 (AVX2) instructions, when available.
 
+config CRYPTO_SHA512_SSSE3
+	tristate "SHA512 digest algorithm (SSSE3/AVX/AVX2)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA512
+	select CRYPTO_HASH
+	help
+	  SHA-512 secure hash standard (DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions, or Advanced Vector
+	  Extensions version 1 (AVX1), or Advanced Vector Extensions
+	  version 2 (AVX2) instructions, when available.
+
 config CRYPTO_SHA1_SPARC64
 	tristate "SHA1 digest algorithm (SPARC64)"
 	depends on SPARC64
