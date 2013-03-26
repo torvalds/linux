@@ -1650,33 +1650,22 @@ static void s626_dio_init(struct comedi_device *dev)
 	}
 }
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The comedi
- * core can convert between insn_bits and insn_read/write */
-
 static int s626_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	unsigned long group = (unsigned long)s->private;
+	unsigned long mask = data[0];
+	unsigned long bits = data[1];
 
-	/*
-	 * The insn data consists of a mask in data[0] and the new data in
-	 * data[1]. The mask defines which bits we are concerning about.
-	 * The new data must be anded with the mask.  Each channel
-	 * corresponds to a bit.
-	 */
-	if (data[0]) {
-		/* Check if requested ports are configured for output */
-		if ((s->io_bits & data[0]) != data[0])
+	if (mask) {
+		/* Check if requested channels are configured for output */
+		if ((s->io_bits & mask) != mask)
 			return -EIO;
 
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-
-		/* Write out the new digital output lines */
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
 		DEBIwrite(dev, LP_WRDOUT(group), s->state);
 	}
