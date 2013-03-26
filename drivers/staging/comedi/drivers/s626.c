@@ -2648,7 +2648,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	/* we support single-ended (ground) and differential */
@@ -2664,7 +2664,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->do_cmdtest = s626_ai_cmdtest;
 	s->cancel = s626_ai_cancel;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -2674,7 +2674,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->insn_write = s626_ao_winsn;
 	s->insn_read = s626_ao_rinsn;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital I/O subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -2686,7 +2686,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->insn_config = s626_dio_insn_config;
 	s->insn_bits = s626_dio_insn_bits;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* digital I/O subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -2698,7 +2698,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->insn_config = s626_dio_insn_config;
 	s->insn_bits = s626_dio_insn_bits;
 
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	/* digital I/O subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -2710,7 +2710,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->insn_config = s626_dio_insn_config;
 	s->insn_bits = s626_dio_insn_bits;
 
-	s = dev->subdevices + 5;
+	s = &dev->subdevices[5];
 	/* encoder (counter) subdevice */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
