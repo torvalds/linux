@@ -1020,33 +1020,37 @@ static void ieee80211_chswitch_timer(unsigned long data)
 	ieee80211_queue_work(&sdata->local->hw, &sdata->u.mgd.chswitch_work);
 }
 
-void
+static void
 ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
-				 const struct ieee80211_channel_sw_ie *sw_elem,
-				 struct ieee80211_bss *bss, u64 timestamp)
+				 u64 timestamp, struct ieee802_11_elems *elems)
 {
-	struct cfg80211_bss *cbss =
-		container_of((void *)bss, struct cfg80211_bss, priv);
-	struct ieee80211_channel *new_ch;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	int new_freq = ieee80211_channel_to_frequency(sw_elem->new_ch_num,
-						      cbss->channel->band);
+	struct cfg80211_bss *cbss = ifmgd->associated;
+	struct ieee80211_bss *bss;
+	struct ieee80211_channel *new_ch;
+	int new_freq;
 	struct ieee80211_chanctx *chanctx;
 
 	ASSERT_MGD_MTX(ifmgd);
 
-	if (!ifmgd->associated)
+	if (!cbss)
 		return;
 
 	if (sdata->local->scanning)
 		return;
 
-	/* Disregard subsequent beacons if we are already running a timer
-	   processing a CSA */
-
+	/* disregard subsequent announcements if we are already processing */
 	if (ifmgd->flags & IEEE80211_STA_CSA_RECEIVED)
 		return;
 
+	if (!elems->ch_switch_ie)
+		return;
+
+	bss = (void *)cbss->priv;
+
+	new_freq = ieee80211_channel_to_frequency(
+			elems->ch_switch_ie->new_ch_num,
+			cbss->channel->band);
 	new_ch = ieee80211_get_channel(sdata->local->hw.wiphy, new_freq);
 	if (!new_ch || new_ch->flags & IEEE80211_CHAN_DISABLED) {
 		sdata_info(sdata,
@@ -1086,7 +1090,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 
 	sdata->local->csa_channel = new_ch;
 
-	if (sw_elem->mode)
+	if (elems->ch_switch_ie->mode)
 		ieee80211_stop_queues_by_reason(&sdata->local->hw,
 				IEEE80211_MAX_QUEUE_MAP,
 				IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -1095,9 +1099,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		/* use driver's channel switch callback */
 		struct ieee80211_channel_switch ch_switch = {
 			.timestamp = timestamp,
-			.block_tx = sw_elem->mode,
+			.block_tx = elems->ch_switch_ie->mode,
 			.channel = new_ch,
-			.count = sw_elem->count,
+			.count = elems->ch_switch_ie->count,
 		};
 
 		drv_channel_switch(sdata->local, &ch_switch);
@@ -1105,11 +1109,11 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* channel switch handled in software */
-	if (sw_elem->count <= 1)
+	if (elems->ch_switch_ie->count <= 1)
 		ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
 	else
 		mod_timer(&ifmgd->chswitch_timer,
-			  TU_TO_EXP_TIME(sw_elem->count *
+			  TU_TO_EXP_TIME(elems->ch_switch_ie->count *
 					 cbss->beacon_interval));
 }
 
@@ -2655,7 +2659,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	if (bss)
 		ieee80211_rx_bss_put(local, bss);
 
-	if (!sdata->u.mgd.associated)
+	if (!sdata->u.mgd.associated ||
+	    !ether_addr_equal(mgmt->bssid, sdata->u.mgd.associated->bssid))
 		return;
 
 	if (need_ps) {
@@ -2664,10 +2669,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		mutex_unlock(&local->iflist_mtx);
 	}
 
-	if (elems->ch_switch_ie &&
-	    memcmp(mgmt->bssid, sdata->u.mgd.associated->bssid, ETH_ALEN) == 0)
-		ieee80211_sta_process_chanswitch(sdata, elems->ch_switch_ie,
-						 bss, rx_status->mactime);
+	ieee80211_sta_process_chanswitch(sdata, rx_status->mactime, elems);
 }
 
 
@@ -3061,14 +3063,27 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		rma = ieee80211_rx_mgmt_assoc_resp(sdata, mgmt, skb->len, &bss);
 		break;
 	case IEEE80211_STYPE_ACTION:
-		switch (mgmt->u.action.category) {
-		case WLAN_CATEGORY_SPECTRUM_MGMT:
+		if (mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT) {
+			struct ieee802_11_elems elems;
+			int ies_len = skb->len -
+				      offsetof(struct ieee80211_mgmt,
+					       u.action.u.chan_switch.variable);
+
+			if (ies_len < 0)
+				break;
+
+			ieee802_11_parse_elems(
+				mgmt->u.action.u.chan_switch.variable,
+				ies_len, &elems);
+
+			if (elems.parse_error)
+				break;
+
 			ieee80211_sta_process_chanswitch(sdata,
-					&mgmt->u.action.u.chan_switch.sw_elem,
-					(void *)ifmgd->associated->priv,
-					rx_status->mactime);
-			break;
+							 rx_status->mactime,
+							 &elems);
 		}
+		break;
 	}
 	mutex_unlock(&ifmgd->mtx);
 

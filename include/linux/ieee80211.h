@@ -840,9 +840,7 @@ struct ieee80211_mgmt {
 				} __packed wme_action;
 				struct{
 					u8 action_code;
-					u8 element_id;
-					u8 length;
-					struct ieee80211_channel_sw_ie sw_elem;
+					u8 variable[0];
 				} __packed chan_switch;
 				struct{
 					u8 action_code;

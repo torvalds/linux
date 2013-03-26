@@ -2507,10 +2507,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			ieee80211_process_measurement_req(sdata, mgmt, len);
 			goto handled;
 		case WLAN_ACTION_SPCT_CHL_SWITCH:
-			if (len < (IEEE80211_MIN_ACTION_SIZE +
-				   sizeof(mgmt->u.action.u.chan_switch)))
-				break;
-
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 

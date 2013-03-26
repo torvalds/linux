@@ -1252,10 +1252,6 @@ void ieee80211_recalc_ps_vif(struct ieee80211_sub_if_data *sdata);
 int ieee80211_max_network_latency(struct notifier_block *nb,
 				  unsigned long data, void *dummy);
 int ieee80211_set_arp_filter(struct ieee80211_sub_if_data *sdata);
-void
-ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
-				 const struct ieee80211_channel_sw_ie *sw_elem,
-				 struct ieee80211_bss *bss, u64 timestamp);
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb);
