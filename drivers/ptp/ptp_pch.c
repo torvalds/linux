@@ -725,7 +725,7 @@ module_exit(ptp_pch_exit);
 
 module_param_string(station, pch_param.station, sizeof pch_param.station, 0444);
 MODULE_PARM_DESC(station,
-	 "IEEE 1588 station address to use - column separated hex values");
+	 "IEEE 1588 station address to use - colon separated hex values");
 
 MODULE_AUTHOR("LAPIS SEMICONDUCTOR, <tshimizu818@gmail.com>");
 MODULE_DESCRIPTION("PTP clock using the EG20T timer");
