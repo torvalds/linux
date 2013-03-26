@@ -20,8 +20,8 @@ config SND_SOC_UX500_PLAT_DMA
 	help
 		Say Y if you want to enable the Ux500 platform-driver.
 
-+config SND_SOC_UX500_MACH_MOP500
-+	tristate "Machine - MOP500 (Ux500 + AB8500)"
+config SND_SOC_UX500_MACH_MOP500
+	tristate "Machine - MOP500 (Ux500 + AB8500)"
 	depends on AB8500_CORE && AB8500_GPADC && SND_SOC_UX500
 	select SND_SOC_AB8500_CODEC
 	select SND_SOC_UX500_PLAT_MSP_I2S
