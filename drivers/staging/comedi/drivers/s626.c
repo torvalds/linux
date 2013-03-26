@@ -1687,23 +1687,23 @@ static int s626_dio_insn_bits(struct comedi_device *dev,
 
 static int s626_dio_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	unsigned long group = (unsigned long)s->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask = 1 << chan;
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->
-		     io_bits & (1 << CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT :
-		    COMEDI_INPUT;
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	case COMEDI_INPUT:
-		s->io_bits &= ~(1 << CR_CHAN(insn->chanspec));
+		s->io_bits &= ~mask;
 		break;
 	case COMEDI_OUTPUT:
-		s->io_bits |= 1 << CR_CHAN(insn->chanspec);
+		s->io_bits |= mask;
 		break;
 	default:
 		return -EINVAL;
@@ -1711,7 +1711,7 @@ static int s626_dio_insn_config(struct comedi_device *dev,
 	}
 	DEBIwrite(dev, LP_WRDOUT(group), s->io_bits);
 
-	return 1;
+	return insn->n;
 }
 
 /* Now this function initializes the value of the counter (data[0])
