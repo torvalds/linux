@@ -1568,21 +1568,24 @@ static int labpc_eeprom_insn_write(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	int channel = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int ret;
 
-	/*  only allow writes to user area of eeprom */
-	if (channel < 16 || channel > 127) {
-		dev_dbg(dev->class_dev,
-			"eeprom writes are only allowed to channels 16 through 127 (the pointer and user areas)\n");
+	/* only allow writes to user area of eeprom */
+	if (chan < 16 || chan > 127)
 		return -EINVAL;
+
+	/*
+	 * Only write the last data value to the eeprom. Preceding
+	 * data would be overwritten anyway.
+	 */
+	if (insn->n > 0) {
+		ret = labpc_eeprom_write(dev, chan, data[insn->n - 1]);
+		if (ret)
+			return ret;
 	}
 
-	ret = labpc_eeprom_write(dev, channel, data[0]);
-	if (ret < 0)
-		return ret;
-
-	return 1;
+	return insn->n;
 }
 
 static int labpc_eeprom_insn_read(struct comedi_device *dev,
