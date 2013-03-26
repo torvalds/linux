@@ -98,7 +98,6 @@ extern const char _sb_findmap[];
 #endif /* CONFIG_64BIT */
 
 #define __BITOPS_WORDS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
-#define __BITOPS_BARRIER() asm volatile("" : : : "memory")
 
 #ifdef CONFIG_SMP
 /*
@@ -164,7 +163,7 @@ test_and_set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_OR);
-	__BITOPS_BARRIER();
+	barrier();
 	return (old & mask) != 0;
 }
 
@@ -183,7 +182,7 @@ test_and_clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_AND);
-	__BITOPS_BARRIER();
+	barrier();
 	return (old ^ new) != 0;
 }
 
@@ -202,7 +201,7 @@ test_and_change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
 	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_XOR);
-	__BITOPS_BARRIER();
+	barrier();
 	return (old & mask) != 0;
 }
 #endif /* CONFIG_SMP */
