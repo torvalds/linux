@@ -79,6 +79,8 @@ static const u8 xor_idx_to_field[] = { 1, 4, 5, 6, 7, 0, 1, 2 };
 static const u8 pq_idx_to_desc = 0xf8;
 static const u8 pq_idx_to_field[] = { 1, 4, 5, 0, 1, 2, 4, 5 };
 
+static void ioat3_eh(struct ioat2_dma_chan *ioat);
+
 static dma_addr_t xor_get_src(struct ioat_raw_descriptor *descs[2], int idx)
 {
 	struct ioat_raw_descriptor *raw = descs[xor_idx_to_desc >> idx & 1];
@@ -347,6 +349,33 @@ static bool desc_has_ext(struct ioat_ring_ent *desc)
 	return false;
 }
 
+static u64 ioat3_get_current_completion(struct ioat_chan_common *chan)
+{
+	u64 phys_complete;
+	u64 completion;
+
+	completion = *chan->completion;
+	phys_complete = ioat_chansts_to_addr(completion);
+
+	dev_dbg(to_dev(chan), "%s: phys_complete: %#llx\n", __func__,
+		(unsigned long long) phys_complete);
+
+	return phys_complete;
+}
+
+static bool ioat3_cleanup_preamble(struct ioat_chan_common *chan,
+				   u64 *phys_complete)
+{
+	*phys_complete = ioat3_get_current_completion(chan);
+	if (*phys_complete == chan->last_completion)
+		return false;
+
+	clear_bit(IOAT_COMPLETION_ACK, &chan->state);
+	mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
+
+	return true;
+}
+
 /**
  * __cleanup - reclaim used descriptors
  * @ioat: channel (ring) to clean
@@ -364,6 +393,16 @@ static void __cleanup(struct ioat2_dma_chan *ioat, dma_addr_t phys_complete)
 
 	dev_dbg(to_dev(chan), "%s: head: %#x tail: %#x issued: %#x\n",
 		__func__, ioat->head, ioat->tail, ioat->issued);
+
+	/*
+	 * At restart of the channel, the completion address and the
+	 * channel status will be 0 due to starting a new chain. Since
+	 * it's new chain and the first descriptor "fails", there is
+	 * nothing to clean up. We do not want to reap the entire submitted
+	 * chain due to this 0 address value and then BUG.
+	 */
+	if (!phys_complete)
+		return;
 
 	active = ioat2_ring_active(ioat);
 	for (i = 0; i < active && !seen_current; i++) {
@@ -411,11 +450,22 @@ static void __cleanup(struct ioat2_dma_chan *ioat, dma_addr_t phys_complete)
 static void ioat3_cleanup(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
-	dma_addr_t phys_complete;
+	u64 phys_complete;
 
 	spin_lock_bh(&chan->cleanup_lock);
-	if (ioat_cleanup_preamble(chan, &phys_complete))
+
+	if (ioat3_cleanup_preamble(chan, &phys_complete))
 		__cleanup(ioat, phys_complete);
+
+	if (is_ioat_halted(*chan->completion)) {
+		u32 chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
+
+		if (chanerr & IOAT_CHANERR_HANDLE_MASK) {
+			mod_timer(&chan->timer, jiffies + IDLE_TIMEOUT);
+			ioat3_eh(ioat);
+		}
+	}
+
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
@@ -430,13 +480,75 @@ static void ioat3_cleanup_event(unsigned long data)
 static void ioat3_restart_channel(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
-	dma_addr_t phys_complete;
+	u64 phys_complete;
 
 	ioat2_quiesce(chan, 0);
-	if (ioat_cleanup_preamble(chan, &phys_complete))
+	if (ioat3_cleanup_preamble(chan, &phys_complete))
 		__cleanup(ioat, phys_complete);
 
 	__ioat2_restart_chan(ioat);
+}
+
+static void ioat3_eh(struct ioat2_dma_chan *ioat)
+{
+	struct ioat_chan_common *chan = &ioat->base;
+	struct pci_dev *pdev = to_pdev(chan);
+	struct ioat_dma_descriptor *hw;
+	u64 phys_complete;
+	struct ioat_ring_ent *desc;
+	u32 err_handled = 0;
+	u32 chanerr_int;
+	u32 chanerr;
+
+	/* cleanup so tail points to descriptor that caused the error */
+	if (ioat3_cleanup_preamble(chan, &phys_complete))
+		__cleanup(ioat, phys_complete);
+
+	chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
+	pci_read_config_dword(pdev, IOAT_PCI_CHANERR_INT_OFFSET, &chanerr_int);
+
+	dev_dbg(to_dev(chan), "%s: error = %x:%x\n",
+		__func__, chanerr, chanerr_int);
+
+	desc = ioat2_get_ring_ent(ioat, ioat->tail);
+	hw = desc->hw;
+	dump_desc_dbg(ioat, desc);
+
+	switch (hw->ctl_f.op) {
+	case IOAT_OP_XOR_VAL:
+		if (chanerr & IOAT_CHANERR_XOR_P_OR_CRC_ERR) {
+			*desc->result |= SUM_CHECK_P_RESULT;
+			err_handled |= IOAT_CHANERR_XOR_P_OR_CRC_ERR;
+		}
+		break;
+	case IOAT_OP_PQ_VAL:
+		if (chanerr & IOAT_CHANERR_XOR_P_OR_CRC_ERR) {
+			*desc->result |= SUM_CHECK_P_RESULT;
+			err_handled |= IOAT_CHANERR_XOR_P_OR_CRC_ERR;
+		}
+		if (chanerr & IOAT_CHANERR_XOR_Q_ERR) {
+			*desc->result |= SUM_CHECK_Q_RESULT;
+			err_handled |= IOAT_CHANERR_XOR_Q_ERR;
+		}
+		break;
+	}
+
+	/* fault on unhandled error or spurious halt */
+	if (chanerr ^ err_handled || chanerr == 0) {
+		dev_err(to_dev(chan), "%s: fatal error (%x:%x)\n",
+			__func__, chanerr, err_handled);
+		BUG();
+	}
+
+	writel(chanerr, chan->reg_base + IOAT_CHANERR_OFFSET);
+	pci_write_config_dword(pdev, IOAT_PCI_CHANERR_INT_OFFSET, chanerr_int);
+
+	/* mark faulting descriptor as complete */
+	*chan->completion = desc->txd.phys;
+
+	spin_lock_bh(&ioat->prep_lock);
+	ioat3_restart_channel(ioat);
+	spin_unlock_bh(&ioat->prep_lock);
 }
 
 static void check_active(struct ioat2_dma_chan *ioat)
@@ -1441,15 +1553,13 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	device->cleanup_fn = ioat3_cleanup_event;
 	device->timer_fn = ioat3_timer_event;
 
-	#ifdef CONFIG_ASYNC_TX_DISABLE_PQ_VAL_DMA
-	dma_cap_clear(DMA_PQ_VAL, dma->cap_mask);
-	dma->device_prep_dma_pq_val = NULL;
-	#endif
+	if (is_xeon_cb32(pdev)) {
+		dma_cap_clear(DMA_XOR_VAL, dma->cap_mask);
+		dma->device_prep_dma_xor_val = NULL;
 
-	#ifdef CONFIG_ASYNC_TX_DISABLE_XOR_VAL_DMA
-	dma_cap_clear(DMA_XOR_VAL, dma->cap_mask);
-	dma->device_prep_dma_xor_val = NULL;
-	#endif
+		dma_cap_clear(DMA_PQ_VAL, dma->cap_mask);
+		dma->device_prep_dma_pq_val = NULL;
+	}
 
 	err = ioat_probe(device);
 	if (err)

@@ -39,6 +39,7 @@
 #define to_ioat_desc(lh) container_of(lh, struct ioat_desc_sw, node)
 #define tx_to_ioat_desc(tx) container_of(tx, struct ioat_desc_sw, txd)
 #define to_dev(ioat_chan) (&(ioat_chan)->device->pdev->dev)
+#define to_pdev(ioat_chan) ((ioat_chan)->device->pdev)
 
 #define chan_num(ch) ((int)((ch)->reg_base - (ch)->device->reg_base) / 0x80)
 
