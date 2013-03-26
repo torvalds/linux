@@ -1156,12 +1156,6 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	int tmp;
 	int n;
 
-	/* interrupt call test  */
-/*   writel(IRQ_GPIO3,devpriv->mmio+P_PSR); */
-	/* Writing a logical 1 into any of the RPS_PSR bits causes the
-	 * corresponding interrupt to be generated if enabled
-	 */
-
 	/* Convert application's ADC specification into form
 	 *  appropriate for register programming.
 	 */
@@ -2586,9 +2580,6 @@ static void s626_initialize(struct comedi_device *dev)
 
 	/* Initialize the digital I/O subsystem */
 	s626_dio_init(dev);
-
-	/* enable interrupt test */
-	/* writel(IRQ_GPIO3 | IRQ_RPS1, devpriv->mmio + P_IER); */
 }
 
 static int s626_auto_attach(struct comedi_device *dev,
