@@ -866,6 +866,11 @@ struct ieee80211_mgmt {
 				} __packed chan_switch;
 				struct{
 					u8 action_code;
+					struct ieee80211_ext_chansw_ie data;
+					u8 variable[0];
+				} __packed ext_chan_switch;
+				struct{
+					u8 action_code;
 					u8 dialog_token;
 					u8 element_id;
 					u8 length;
@@ -1816,6 +1821,7 @@ enum ieee80211_key_len {
 
 /* Public action codes */
 enum ieee80211_pub_actioncode {
+	WLAN_PUB_ACTION_EXT_CHANSW_ANN = 4,
 	WLAN_PUB_ACTION_TDLS_DISCOVER_RES = 14,
 };
 

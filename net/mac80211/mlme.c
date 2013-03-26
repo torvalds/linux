@@ -3100,6 +3100,8 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	enum rx_mgmt_action rma = RX_MGMT_NONE;
 	u8 deauth_buf[IEEE80211_DEAUTH_FRAME_LEN];
 	u16 fc;
+	struct ieee802_11_elems elems;
+	int ies_len;
 
 	rx_status = (struct ieee80211_rx_status *) skb->cb;
 	mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -3130,10 +3132,9 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		break;
 	case IEEE80211_STYPE_ACTION:
 		if (mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT) {
-			struct ieee802_11_elems elems;
-			int ies_len = skb->len -
-				      offsetof(struct ieee80211_mgmt,
-					       u.action.u.chan_switch.variable);
+			ies_len = skb->len -
+				  offsetof(struct ieee80211_mgmt,
+					   u.action.u.chan_switch.variable);
 
 			if (ies_len < 0)
 				break;
@@ -3144,6 +3145,28 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 			if (elems.parse_error)
 				break;
+
+			ieee80211_sta_process_chanswitch(sdata,
+							 rx_status->mactime,
+							 &elems);
+		} else if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC) {
+			ies_len = skb->len -
+				  offsetof(struct ieee80211_mgmt,
+					   u.action.u.ext_chan_switch.variable);
+
+			if (ies_len < 0)
+				break;
+
+			ieee802_11_parse_elems(
+				mgmt->u.action.u.ext_chan_switch.variable,
+				ies_len, &elems);
+
+			if (elems.parse_error)
+				break;
+
+			/* for the handling code pretend this was also an IE */
+			elems.ext_chansw_ie =
+				&mgmt->u.action.u.ext_chan_switch.data;
 
 			ieee80211_sta_process_chanswitch(sdata,
 							 rx_status->mactime,
