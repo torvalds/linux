@@ -82,6 +82,7 @@
 			cci-control-port = <&cci_control1>;
 			cluster = <&cluster0>;
 			core = <&core0>;
+			clock-frequency = <1000000000>;
 		};
 
 		cpu1: cpu@1 {
@@ -91,6 +92,7 @@
 			cci-control-port = <&cci_control1>;
 			cluster = <&cluster0>;
 			core = <&core1>;
+			clock-frequency = <1000000000>;
 		};
 
 		cpu2: cpu@2 {
@@ -100,6 +102,7 @@
 			cci-control-port = <&cci_control2>;
 			cluster = <&cluster1>;
 			core = <&core2>;
+			clock-frequency = <800000000>;
 		};
 
 		cpu3: cpu@3 {
@@ -109,6 +112,7 @@
 			cci-control-port = <&cci_control2>;
 			cluster = <&cluster1>;
 			core = <&core3>;
+			clock-frequency = <800000000>;
 		};
 
 		cpu4: cpu@4 {
@@ -118,6 +122,7 @@
 			cci-control-port = <&cci_control2>;
 			cluster = <&cluster1>;
 			core = <&core4>;
+			clock-frequency = <800000000>;
 		};
 	};
 
