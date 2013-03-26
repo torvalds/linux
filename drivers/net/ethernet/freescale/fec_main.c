@@ -1391,7 +1391,7 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 
 		if (fep->bufdesc_ex) {
 			struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
-			ebdp->cbd_esc = BD_ENET_RX_INT;
+			ebdp->cbd_esc = BD_ENET_TX_INT;
 		}
 
 		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
