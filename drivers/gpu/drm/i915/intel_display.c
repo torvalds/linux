@@ -4701,7 +4701,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
-	u32 temp;
+	u32 val, final;
 	bool has_lvds = false;
 	bool has_cpu_edp = false;
 	bool has_pch_edp = false;
@@ -4744,70 +4744,109 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	 * PCH B stepping, previous chipset stepping should be
 	 * ignoring this setting.
 	 */
-	temp = I915_READ(PCH_DREF_CONTROL);
-	/* Always enable nonspread source */
-	temp &= ~DREF_NONSPREAD_SOURCE_MASK;
+	val = I915_READ(PCH_DREF_CONTROL);
 
+	/* As we must carefully and slowly disable/enable each source in turn,
+	 * compute the final state we want first and check if we need to
+	 * make any changes at all.
+	 */
+	final = val;
+	final &= ~DREF_NONSPREAD_SOURCE_MASK;
 	if (has_ck505)
-		temp |= DREF_NONSPREAD_CK505_ENABLE;
+		final |= DREF_NONSPREAD_CK505_ENABLE;
 	else
-		temp |= DREF_NONSPREAD_SOURCE_ENABLE;
+		final |= DREF_NONSPREAD_SOURCE_ENABLE;
+
+	final &= ~DREF_SSC_SOURCE_MASK;
+	final &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
+	final &= ~DREF_SSC1_ENABLE;
 
 	if (has_panel) {
-		temp &= ~DREF_SSC_SOURCE_MASK;
-		temp |= DREF_SSC_SOURCE_ENABLE;
+		final |= DREF_SSC_SOURCE_ENABLE;
+
+		if (intel_panel_use_ssc(dev_priv) && can_ssc)
+			final |= DREF_SSC1_ENABLE;
+
+		if (has_cpu_edp) {
+			if (intel_panel_use_ssc(dev_priv) && can_ssc)
+				final |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+			else
+				final |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+		} else
+			final |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
+	} else {
+		final |= DREF_SSC_SOURCE_DISABLE;
+		final |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
+	}
+
+	if (final == val)
+		return;
+
+	/* Always enable nonspread source */
+	val &= ~DREF_NONSPREAD_SOURCE_MASK;
+
+	if (has_ck505)
+		val |= DREF_NONSPREAD_CK505_ENABLE;
+	else
+		val |= DREF_NONSPREAD_SOURCE_ENABLE;
+
+	if (has_panel) {
+		val &= ~DREF_SSC_SOURCE_MASK;
+		val |= DREF_SSC_SOURCE_ENABLE;
 
 		/* SSC must be turned on before enabling the CPU output  */
 		if (intel_panel_use_ssc(dev_priv) && can_ssc) {
 			DRM_DEBUG_KMS("Using SSC on panel\n");
-			temp |= DREF_SSC1_ENABLE;
+			val |= DREF_SSC1_ENABLE;
 		} else
-			temp &= ~DREF_SSC1_ENABLE;
+			val &= ~DREF_SSC1_ENABLE;
 
 		/* Get SSC going before enabling the outputs */
-		I915_WRITE(PCH_DREF_CONTROL, temp);
+		I915_WRITE(PCH_DREF_CONTROL, val);
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 
-		temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
+		val &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 
 		/* Enable CPU source on CPU attached eDP */
 		if (has_cpu_edp) {
 			if (intel_panel_use_ssc(dev_priv) && can_ssc) {
 				DRM_DEBUG_KMS("Using SSC on eDP\n");
-				temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+				val |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
 			}
 			else
-				temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+				val |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
 		} else
-			temp |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
+			val |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
 
-		I915_WRITE(PCH_DREF_CONTROL, temp);
+		I915_WRITE(PCH_DREF_CONTROL, val);
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 	} else {
 		DRM_DEBUG_KMS("Disabling SSC entirely\n");
 
-		temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
+		val &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 
 		/* Turn off CPU output */
-		temp |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
+		val |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
 
-		I915_WRITE(PCH_DREF_CONTROL, temp);
+		I915_WRITE(PCH_DREF_CONTROL, val);
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 
 		/* Turn off the SSC source */
-		temp &= ~DREF_SSC_SOURCE_MASK;
-		temp |= DREF_SSC_SOURCE_DISABLE;
+		val &= ~DREF_SSC_SOURCE_MASK;
+		val |= DREF_SSC_SOURCE_DISABLE;
 
 		/* Turn off SSC1 */
-		temp &= ~ DREF_SSC1_ENABLE;
+		val &= ~DREF_SSC1_ENABLE;
 
-		I915_WRITE(PCH_DREF_CONTROL, temp);
+		I915_WRITE(PCH_DREF_CONTROL, val);
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 	}
+
+	BUG_ON(val != final);
 }
 
 /* Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O. */
