@@ -417,7 +417,6 @@ struct rtdPrivate {
 	u16 intMask;		/* interrupt mask */
 	u16 intClearMask;	/* interrupt clear mask */
 	u8 utcCtrl[4];		/* crtl mode for 3 utc + read back */
-	u8 dioStatus;		/* could be read back (dio0Ctrl) */
 	unsigned fifoLen;
 };
 
@@ -1292,11 +1291,13 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	}
 
 	/* TODO support digital match interrupts and strobes */
-	devpriv->dioStatus = 0x01;	/* set direction */
-	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
+
+	/* set direction */
+	writew(0x01, devpriv->las0 + LAS0_DIO_STATUS);
 	writew(s->io_bits & 0xff, devpriv->las0 + LAS0_DIO0_CTRL);
-	devpriv->dioStatus = 0x00;	/* clear interrupts */
-	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
+
+	/* clear interrupts */
+	writew(0x00, devpriv->las0 + LAS0_DIO_STATUS);
 
 	/* port1 can only be all input or all output */
 
@@ -1335,8 +1336,7 @@ static void rtd_init_board(struct comedi_device *dev)
 	writel(0, devpriv->las0 + LAS0_DAC1_RESET);
 	writel(0, devpriv->las0 + LAS0_DAC2_RESET);
 	/* clear digital IO fifo */
-	devpriv->dioStatus = 0;
-	writew(devpriv->dioStatus, devpriv->las0 + LAS0_DIO_STATUS);
+	writew(0, devpriv->las0 + LAS0_DIO_STATUS);
 	devpriv->utcCtrl[0] = (0 << 6) | 0x30;
 	devpriv->utcCtrl[1] = (1 << 6) | 0x30;
 	devpriv->utcCtrl[2] = (2 << 6) | 0x30;
