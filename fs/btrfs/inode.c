@@ -3693,11 +3693,9 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	 * 1 for the dir item
 	 * 1 for the dir index
 	 * 1 for the inode ref
-	 * 1 for the inode ref in the tree log
-	 * 2 for the dir entries in the log
 	 * 1 for the inode
 	 */
-	trans = btrfs_start_transaction(root, 8);
+	trans = btrfs_start_transaction(root, 5);
 	if (!IS_ERR(trans) || PTR_ERR(trans) != -ENOSPC)
 		return trans;
 
@@ -8141,7 +8139,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * inodes.  So 5 * 2 is 10, plus 1 for the new link, so 11 total items
 	 * should cover the worst case number of items we'll modify.
 	 */
-	trans = btrfs_start_transaction(root, 20);
+	trans = btrfs_start_transaction(root, 11);
 	if (IS_ERR(trans)) {
                 ret = PTR_ERR(trans);
                 goto out_notrans;
