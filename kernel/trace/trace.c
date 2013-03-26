@@ -744,8 +744,11 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	if (WARN_ON_ONCE(!current_trace->allocated_snapshot))
+	if (!current_trace->allocated_snapshot) {
+		/* Only the nop tracer should hit this when disabling */
+		WARN_ON_ONCE(current_trace != &nop_trace);
 		return;
+	}
 
 	arch_spin_lock(&ftrace_max_lock);
 
