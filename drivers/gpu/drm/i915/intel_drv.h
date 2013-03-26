@@ -103,11 +103,6 @@
 
 /* drm_display_mode->private_flags */
 #define INTEL_MODE_DP_FORCE_6BPC (0x10)
-/*
- * Set when limited 16-235 (as opposed to full 0-255) RGB color range is
- * to be used.
- */
-#define INTEL_MODE_LIMITED_COLOR_RANGE (0x40)
 
 struct intel_framebuffer {
 	struct drm_framebuffer base;
@@ -193,6 +188,13 @@ struct intel_crtc_config {
 	/* Whether to set up the PCH/FDI. Note that we never allow sharing
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;
+
+	/*
+	 * Use reduced/limited/broadcast rbg range, compressing from the full
+	 * range fed into the crtcs.
+	 */
+	bool limited_color_range;
+
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
 };

@@ -5190,7 +5190,7 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 	else
 		val |= PIPECONF_PROGRESSIVE;
 
-	if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+	if (intel_crtc->config.limited_color_range)
 		val |= PIPECONF_COLOR_RANGE_SELECT;
 	else
 		val &= ~PIPECONF_COLOR_RANGE_SELECT;
@@ -5206,8 +5206,7 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
  * is supported, but eventually this should handle various
  * RGB<->YCbCr scenarios as well.
  */
-static void intel_set_pipe_csc(struct drm_crtc *crtc,
-			       const struct drm_display_mode *adjusted_mode)
+static void intel_set_pipe_csc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5222,7 +5221,7 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc,
 	 * consideration.
 	 */
 
-	if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+	if (intel_crtc->config.limited_color_range)
 		coeff = ((235 - 16) * (1 << 12) / 255) & 0xff8; /* 0.xxx... */
 
 	/*
@@ -5246,7 +5245,7 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc,
 	if (INTEL_INFO(dev)->gen > 6) {
 		uint16_t postoff = 0;
 
-		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+		if (intel_crtc->config.limited_color_range)
 			postoff = (16 * (1 << 13) / 255) & 0x1fff;
 
 		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), postoff);
@@ -5257,7 +5256,7 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc,
 	} else {
 		uint32_t mode = CSC_MODE_YUV_TO_RGB;
 
-		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+		if (intel_crtc->config.limited_color_range)
 			mode |= CSC_BLACK_SCREEN_OFFSET;
 
 		I915_WRITE(PIPE_CSC_MODE(pipe), mode);
@@ -5853,7 +5852,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	haswell_set_pipeconf(crtc, adjusted_mode, dither);
 
-	intel_set_pipe_csc(crtc, adjusted_mode);
+	intel_set_pipe_csc(crtc);
 
 	/* Set up the display plane register */
 	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE | DISPPLANE_PIPE_CSC_ENABLE);

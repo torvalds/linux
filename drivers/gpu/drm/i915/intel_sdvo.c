@@ -956,9 +956,10 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 		.len = DIP_LEN_AVI,
 	};
 	uint8_t sdvo_data[4 + sizeof(avi_if.body.avi)];
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_sdvo->base.base.crtc);
 
 	if (intel_sdvo->rgb_quant_range_selectable) {
-		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+		if (intel_crtc->config.limited_color_range)
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
 		else
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
@@ -1091,7 +1092,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	}
 
 	if (intel_sdvo->color_range)
-		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+		pipe_config->limited_color_range = true;
 
 	return true;
 }

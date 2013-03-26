@@ -333,6 +333,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					 struct drm_display_mode *adjusted_mode)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct dip_infoframe avi_if = {
 		.type = DIP_TYPE_AVI,
 		.ver = DIP_VERSION_AVI,
@@ -343,7 +344,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 		avi_if.body.avi.YQ_CN_PR |= DIP_AVI_PR_2;
 
 	if (intel_hdmi->rgb_quant_range_selectable) {
-		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+		if (intel_crtc->config.limited_color_range)
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
 		else
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
@@ -785,7 +786,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	}
 
 	if (intel_hdmi->color_range)
-		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+		pipe_config->limited_color_range = true;
 
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev))
 		pipe_config->has_pch_encoder = true;

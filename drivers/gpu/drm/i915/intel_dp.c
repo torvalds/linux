@@ -739,7 +739,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	}
 
 	if (intel_dp->color_range)
-		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+		pipe_config->limited_color_range = true;
 
 	mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
 
