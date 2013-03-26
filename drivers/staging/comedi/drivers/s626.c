@@ -80,7 +80,7 @@ INSN_CONFIG instructions:
 #define PCI_SUBDEVICE_ID_S626 0x0272
 
 struct s626_private {
-	void __iomem *base_addr;
+	void __iomem *mmio;
 	uint8_t ai_cmd_running;	/*  ai_cmd is running */
 	uint8_t ai_continous;	/*  continous acquisition */
 	int ai_sample_count;	/*  number of samples to acquire */
@@ -147,7 +147,7 @@ static void s626_mc_enable(struct comedi_device *dev,
 	struct s626_private *devpriv = dev->private;
 	unsigned int val = (cmd << 16) | cmd;
 
-	writel(val, devpriv->base_addr + reg);
+	writel(val, devpriv->mmio + reg);
 }
 
 static void s626_mc_disable(struct comedi_device *dev,
@@ -155,7 +155,7 @@ static void s626_mc_disable(struct comedi_device *dev,
 {
 	struct s626_private *devpriv = dev->private;
 
-	writel(cmd << 16 , devpriv->base_addr + reg);
+	writel(cmd << 16 , devpriv->mmio + reg);
 }
 
 static bool s626_mc_test(struct comedi_device *dev,
@@ -164,7 +164,7 @@ static bool s626_mc_test(struct comedi_device *dev,
 	struct s626_private *devpriv = dev->private;
 	unsigned int val;
 
-	val = readl(devpriv->base_addr + reg);
+	val = readl(devpriv->mmio + reg);
 
 	return (val & cmd) ? true : false;
 }
@@ -203,7 +203,7 @@ static void DEBItransfer(struct comedi_device *dev)
 		;
 
 	/* Wait until DEBI transfer is done */
-	while (readl(devpriv->base_addr + P_PSR) & PSR_DEBI_S)
+	while (readl(devpriv->mmio + P_PSR) & PSR_DEBI_S)
 		;
 }
 
@@ -214,12 +214,12 @@ static uint16_t DEBIread(struct comedi_device *dev, uint16_t addr)
 	struct s626_private *devpriv = dev->private;
 
 	/* Set up DEBI control register value in shadow RAM */
-	writel(DEBI_CMD_RDWORD | addr, devpriv->base_addr + P_DEBICMD);
+	writel(DEBI_CMD_RDWORD | addr, devpriv->mmio + P_DEBICMD);
 
 	/*  Execute the DEBI transfer. */
 	DEBItransfer(dev);
 
-	return readl(devpriv->base_addr + P_DEBIAD);
+	return readl(devpriv->mmio + P_DEBIAD);
 }
 
 /*  Write a value to a gate array register. */
@@ -228,8 +228,8 @@ static void DEBIwrite(struct comedi_device *dev, uint16_t addr, uint16_t wdata)
 	struct s626_private *devpriv = dev->private;
 
 	/* Set up DEBI control register value in shadow RAM */
-	writel(DEBI_CMD_WRWORD | addr, devpriv->base_addr + P_DEBICMD);
-	writel(wdata, devpriv->base_addr + P_DEBIAD);
+	writel(DEBI_CMD_WRWORD | addr, devpriv->mmio + P_DEBICMD);
+	writel(wdata, devpriv->mmio + P_DEBIAD);
 
 	/*  Execute the DEBI transfer. */
 	DEBItransfer(dev);
@@ -245,14 +245,14 @@ static void DEBIreplace(struct comedi_device *dev, uint16_t addr, uint16_t mask,
 	struct s626_private *devpriv = dev->private;
 	unsigned int val;
 
-	writel(DEBI_CMD_RDWORD | addr, devpriv->base_addr + P_DEBICMD);
+	writel(DEBI_CMD_RDWORD | addr, devpriv->mmio + P_DEBICMD);
 	DEBItransfer(dev);
 
-	writel(DEBI_CMD_WRWORD | addr, devpriv->base_addr + P_DEBICMD);
-	val = readl(devpriv->base_addr + P_DEBIAD);
+	writel(DEBI_CMD_WRWORD | addr, devpriv->mmio + P_DEBICMD);
+	val = readl(devpriv->mmio + P_DEBIAD);
 	val &= mask;
 	val |= wdata;
-	writel(val, devpriv->base_addr + P_DEBIAD);
+	writel(val, devpriv->mmio + P_DEBIAD);
 	DEBItransfer(dev);
 }
 
@@ -264,7 +264,7 @@ static uint32_t I2Chandshake(struct comedi_device *dev, uint32_t val)
 	unsigned int ctrl;
 
 	/* Write I2C command to I2C Transfer Control shadow register */
-	writel(val, devpriv->base_addr + P_I2CCTRL);
+	writel(val, devpriv->mmio + P_I2CCTRL);
 
 	/*
 	 * Upload I2C shadow registers into working registers and
@@ -276,7 +276,7 @@ static uint32_t I2Chandshake(struct comedi_device *dev, uint32_t val)
 
 	/* Wait until I2C bus transfer is finished or an error occurs */
 	do {
-		ctrl = readl(devpriv->base_addr + P_I2CCTRL);
+		ctrl = readl(devpriv->mmio + P_I2CCTRL);
 	} while ((ctrl & (I2C_BUSY | I2C_ERR)) == I2C_BUSY);
 
 	/* Return non-zero if I2C error occurred */
@@ -315,7 +315,7 @@ static uint8_t I2Cread(struct comedi_device *dev, uint8_t addr)
 		return 0;
 	}
 
-	return (readl(devpriv->base_addr + P_I2CCTRL) >> 16) & 0xff;
+	return (readl(devpriv->mmio + P_I2CCTRL) >> 16) & 0xff;
 }
 
 /* ***********  DAC FUNCTIONS *********** */
@@ -355,7 +355,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 
 	/* Copy DAC setpoint value to DAC's output DMA buffer. */
 
-	/* writel(val, devpriv->base_addr + (uint32_t)devpriv->pDacWBuf); */
+	/* writel(val, devpriv->mmio + (uint32_t)devpriv->pDacWBuf); */
 	*devpriv->pDacWBuf = val;
 
 	/*
@@ -373,7 +373,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * other FIFO underflow/overflow flags). When set, this flag
 	 * will indicate that we have emerged from slot 0.
 	 */
-	writel(ISR_AFOU, devpriv->base_addr + P_ISR);
+	writel(ISR_AFOU, devpriv->mmio + P_ISR);
 
 	/* Wait for the DMA transfer to finish so that there will be data
 	 * available in the FIFO when time slot 1 tries to transfer a DWORD
@@ -381,7 +381,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * Done by polling the DMAC enable flag; this flag is automatically
 	 * cleared when the transfer has finished.
 	 */
-	while (readl(devpriv->base_addr + P_MC1) & MC1_A2OUT)
+	while (readl(devpriv->mmio + P_MC1) & MC1_A2OUT)
 		;
 
 	/* START THE OUTPUT STREAM TO THE TARGET DAC -------------------- */
@@ -391,7 +391,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * will be shifted in and stored in FB_BUFFER2 for end-of-slot-list
 	 * detection.
 	 */
-	writel(XSD2 | RSD3 | SIB_A2, devpriv->base_addr + VECTPORT(0));
+	writel(XSD2 | RSD3 | SIB_A2, devpriv->mmio + VECTPORT(0));
 
 	/* Wait for slot 1 to execute to ensure that the Packet will be
 	 * transmitted.  This is detected by polling the Audio2 output FIFO
@@ -399,7 +399,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * finished transferring the DAC's data DWORD from the output FIFO
 	 * to the output buffer register.
 	 */
-	while (!(readl(devpriv->base_addr + P_SSR) & SSR_AF2_OUT))
+	while (!(readl(devpriv->mmio + P_SSR) & SSR_AF2_OUT))
 		;
 
 	/* Set up to trap execution at slot 0 when the TSL sequencer cycles
@@ -409,7 +409,7 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * buffer register.
 	 */
 	writel(XSD2 | XFIFO_2 | RSD2 | SIB_A2 | EOS,
-	       devpriv->base_addr + VECTPORT(0));
+	       devpriv->mmio + VECTPORT(0));
 
 	/* WAIT FOR THE TRANSACTION TO FINISH ----------------------- */
 
@@ -430,14 +430,14 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 *    we test for the FB_BUFFER2 MSB contents to be equal to 0xFF.  If
 	 *    the TSL has not yet finished executing slot 5 ...
 	 */
-	if (readl(devpriv->base_addr + P_FB_BUFFER2) & 0xff000000) {
+	if (readl(devpriv->mmio + P_FB_BUFFER2) & 0xff000000) {
 		/* The trap was set on time and we are still executing somewhere
 		 * in slots 2-5, so we now wait for slot 0 to execute and trap
 		 * TSL execution.  This is detected when FB_BUFFER2 MSB changes
 		 * from 0xFF to 0x00, which slot 0 causes to happen by shifting
 		 * out/in on SD2 the 0x00 that is always referenced by slot 5.
 		 */
-		while (readl(devpriv->base_addr + P_FB_BUFFER2) & 0xff000000)
+		while (readl(devpriv->mmio + P_FB_BUFFER2) & 0xff000000)
 			;
 	}
 	/* Either (1) we were too late setting the slot 0 trap; the TSL
@@ -448,13 +448,13 @@ static void SendDAC(struct comedi_device *dev, uint32_t val)
 	 * In order to do this, we reprogram slot 0 so that it will shift in
 	 * SD3, which is driven only by a pull-up resistor.
 	 */
-	writel(RSD3 | SIB_A2 | EOS, devpriv->base_addr + VECTPORT(0));
+	writel(RSD3 | SIB_A2 | EOS, devpriv->mmio + VECTPORT(0));
 
 	/* Wait for slot 0 to execute, at which time the TSL is setup for
 	 * the next DAC write.  This is detected when FB_BUFFER2 MSB changes
 	 * from 0x00 to 0xFF.
 	 */
-	while (!(readl(devpriv->base_addr + P_FB_BUFFER2) & 0xff000000))
+	while (!(readl(devpriv->mmio + P_FB_BUFFER2) & 0xff000000))
 		;
 }
 
@@ -491,13 +491,13 @@ static void SetDAC(struct comedi_device *dev, uint16_t chan, short dacdata)
 	/* Choose DAC chip select to be asserted */
 	WSImage = (chan & 2) ? WS1 : WS2;
 	/* Slot 2: Transmit high data byte to target DAC */
-	writel(XSD2 | XFIFO_1 | WSImage, devpriv->base_addr + VECTPORT(2));
+	writel(XSD2 | XFIFO_1 | WSImage, devpriv->mmio + VECTPORT(2));
 	/* Slot 3: Transmit low data byte to target DAC */
-	writel(XSD2 | XFIFO_0 | WSImage, devpriv->base_addr + VECTPORT(3));
+	writel(XSD2 | XFIFO_0 | WSImage, devpriv->mmio + VECTPORT(3));
 	/* Slot 4: Transmit to non-existent TrimDac channel to keep clock */
-	writel(XSD2 | XFIFO_3 | WS3, devpriv->base_addr + VECTPORT(4));
+	writel(XSD2 | XFIFO_3 | WS3, devpriv->mmio + VECTPORT(4));
 	/* Slot 5: running after writing target DAC's low data byte */
-	writel(XSD2 | XFIFO_2 | WS3 | EOS, devpriv->base_addr + VECTPORT(5));
+	writel(XSD2 | XFIFO_2 | WS3 | EOS, devpriv->mmio + VECTPORT(5));
 
 	/*  Construct and transmit target DAC's serial packet:
 	 * ( A10D DDDD ),( DDDD DDDD ),( 0x0F ),( 0x00 ) where A is chan<0>,
@@ -534,13 +534,13 @@ static void WriteTrimDAC(struct comedi_device *dev, uint8_t LogicalChan,
 	 */
 
 	/* Slot 2: Send high uint8_t to target TrimDac */
-	writel(XSD2 | XFIFO_1 | WS3, devpriv->base_addr + VECTPORT(2));
+	writel(XSD2 | XFIFO_1 | WS3, devpriv->mmio + VECTPORT(2));
 	/* Slot 3: Send low uint8_t to target TrimDac */
-	writel(XSD2 | XFIFO_0 | WS3, devpriv->base_addr + VECTPORT(3));
+	writel(XSD2 | XFIFO_0 | WS3, devpriv->mmio + VECTPORT(3));
 	/* Slot 4: Send NOP high uint8_t to DAC0 to keep clock running */
-	writel(XSD2 | XFIFO_3 | WS1, devpriv->base_addr + VECTPORT(4));
+	writel(XSD2 | XFIFO_3 | WS1, devpriv->mmio + VECTPORT(4));
 	/* Slot 5: Send NOP low  uint8_t to DAC0 */
-	writel(XSD2 | XFIFO_2 | WS1 | EOS, devpriv->base_addr + VECTPORT(5));
+	writel(XSD2 | XFIFO_2 | WS1 | EOS, devpriv->mmio + VECTPORT(5));
 
 	/* Construct and transmit target DAC's serial packet:
 	 * ( 0000 AAAA ), ( DDDD DDDD ),( 0x00 ),( 0x00 ) where A<3:0> is the
@@ -885,16 +885,16 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 	spin_lock_irqsave(&dev->spinlock, flags);
 
 	/* save interrupt enable register state */
-	irqstatus = readl(devpriv->base_addr + P_IER);
+	irqstatus = readl(devpriv->mmio + P_IER);
 
 	/* read interrupt type */
-	irqtype = readl(devpriv->base_addr + P_ISR);
+	irqtype = readl(devpriv->mmio + P_ISR);
 
 	/* disable master interrupt */
-	writel(0, devpriv->base_addr + P_IER);
+	writel(0, devpriv->mmio + P_IER);
 
 	/* clear interrupt */
-	writel(irqtype, devpriv->base_addr + P_ISR);
+	writel(irqtype, devpriv->mmio + P_ISR);
 
 	switch (irqtype) {
 	case IRQ_RPS1:		/*  end_of_scan occurs */
@@ -909,7 +909,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 	}
 
 	/* enable interrupt */
-	writel(irqstatus, devpriv->base_addr + P_IER);
+	writel(irqstatus, devpriv->mmio + P_IER);
 
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
@@ -936,7 +936,7 @@ static void ResetADC(struct comedi_device *dev, uint8_t *ppl)
 
 	/* Initialize RPS instruction pointer */
 	writel((uint32_t)devpriv->RPSBuf.PhysicalBase,
-	       devpriv->base_addr + P_RPSADDR1);
+	       devpriv->mmio + P_RPSADDR1);
 
 	/*  Construct RPS program in RPSBuf DMA buffer */
 
@@ -1165,7 +1165,7 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	int n;
 
 	/* interrupt call test  */
-/*   writel(IRQ_GPIO3,devpriv->base_addr+P_PSR); */
+/*   writel(IRQ_GPIO3,devpriv->mmio+P_PSR); */
 	/* Writing a logical 1 into any of the RPS_PSR bits causes the
 	 * corresponding interrupt to be generated if enabled
 	 */
@@ -1190,26 +1190,26 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 		udelay(10);
 
 		/* Start ADC by pulsing GPIO1 low */
-		GpioImage = readl(devpriv->base_addr + P_GPIO);
+		GpioImage = readl(devpriv->mmio + P_GPIO);
 		/* Assert ADC Start command */
-		writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+		writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
 		/* and stretch it out */
-		writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
-		writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+		writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
+		writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
 		/* Negate ADC Start command */
-		writel(GpioImage | GPIO1_HI, devpriv->base_addr + P_GPIO);
+		writel(GpioImage | GPIO1_HI, devpriv->mmio + P_GPIO);
 
 		/*  Wait for ADC to complete (GPIO2 is asserted high when */
 		/*  ADC not busy) and for data from previous conversion to */
 		/*  shift into FB BUFFER 1 register. */
 
 		/* Wait for ADC done */
-		while (!(readl(devpriv->base_addr + P_PSR) & PSR_GPIO2))
+		while (!(readl(devpriv->mmio + P_PSR) & PSR_GPIO2))
 			;
 
 		/* Fetch ADC data */
 		if (n != 0) {
-			tmp = readl(devpriv->base_addr + P_FB_BUFFER1);
+			tmp = readl(devpriv->mmio + P_FB_BUFFER1);
 			data[n - 1] = s626_ai_reg_to_uint(tmp);
 		}
 
@@ -1226,26 +1226,26 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 
 	/* Start a dummy conversion to cause the data from the
 	 * previous conversion to be shifted in. */
-	GpioImage = readl(devpriv->base_addr + P_GPIO);
+	GpioImage = readl(devpriv->mmio + P_GPIO);
 	/* Assert ADC Start command */
-	writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+	writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
 	/* and stretch it out */
-	writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
-	writel(GpioImage & ~GPIO1_HI, devpriv->base_addr + P_GPIO);
+	writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
+	writel(GpioImage & ~GPIO1_HI, devpriv->mmio + P_GPIO);
 	/* Negate ADC Start command */
-	writel(GpioImage | GPIO1_HI, devpriv->base_addr + P_GPIO);
+	writel(GpioImage | GPIO1_HI, devpriv->mmio + P_GPIO);
 
 	/*  Wait for the data to arrive in FB BUFFER 1 register. */
 
 	/* Wait for ADC done */
-	while (!(readl(devpriv->base_addr + P_PSR) & PSR_GPIO2))
+	while (!(readl(devpriv->mmio + P_PSR) & PSR_GPIO2))
 		;
 
 	/*  Fetch ADC data from audio interface's input shift register. */
 
 	/* Fetch ADC data */
 	if (n != 0) {
-		tmp = readl(devpriv->base_addr + P_FB_BUFFER1);
+		tmp = readl(devpriv->mmio + P_FB_BUFFER1);
 		data[n - 1] = s626_ai_reg_to_uint(tmp);
 	}
 
@@ -1360,10 +1360,10 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EBUSY;
 	}
 	/* disable interrupt */
-	writel(0, devpriv->base_addr + P_IER);
+	writel(0, devpriv->mmio + P_IER);
 
 	/* clear interrupt request */
-	writel(IRQ_RPS1 | IRQ_GPIO3, devpriv->base_addr + P_ISR);
+	writel(IRQ_RPS1 | IRQ_GPIO3, devpriv->mmio + P_ISR);
 
 	/* clear any pending interrupt */
 	s626_dio_clear_irq(dev);
@@ -1464,7 +1464,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* enable interrupt */
-	writel(IRQ_GPIO3 | IRQ_RPS1, devpriv->base_addr + P_IER);
+	writel(IRQ_GPIO3 | IRQ_RPS1, devpriv->mmio + P_IER);
 
 	return 0;
 }
@@ -1585,7 +1585,7 @@ static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	s626_mc_disable(dev, MC1_ERPS1, P_MC1);
 
 	/* disable master interrupt */
-	writel(0, devpriv->base_addr + P_IER);
+	writel(0, devpriv->mmio + P_IER);
 
 	devpriv->ai_cmd_running = 0;
 
@@ -2397,13 +2397,13 @@ static void s626_initialize(struct comedi_device *dev)
 	writel(DEBI_CFG_SLAVE16 |
 	       (DEBI_TOUT << DEBI_CFG_TOUT_BIT) |
 	       DEBI_SWAP | DEBI_CFG_INTEL,
-	       devpriv->base_addr + P_DEBICFG);
+	       devpriv->mmio + P_DEBICFG);
 
 	/* Disable MMU paging */
-	writel(DEBI_PAGE_DISABLE, devpriv->base_addr + P_DEBIPAGE);
+	writel(DEBI_PAGE_DISABLE, devpriv->mmio + P_DEBIPAGE);
 
 	/* Init GPIO so that ADC Start* is negated */
-	writel(GPIO_BASE | GPIO1_HI, devpriv->base_addr + P_GPIO);
+	writel(GPIO_BASE | GPIO1_HI, devpriv->mmio + P_GPIO);
 
 	/* I2C device address for onboard eeprom (revb) */
 	devpriv->I2CAdrs = 0xA0;
@@ -2412,9 +2412,9 @@ static void s626_initialize(struct comedi_device *dev)
 	 * Issue an I2C ABORT command to halt any I2C
 	 * operation in progress and reset BUSY flag.
 	 */
-	writel(I2C_CLKSEL | I2C_ABORT, devpriv->base_addr + P_I2CSTAT);
+	writel(I2C_CLKSEL | I2C_ABORT, devpriv->mmio + P_I2CSTAT);
 	s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
-	while (!(readl(devpriv->base_addr + P_MC2) & MC2_UPLD_IIC))
+	while (!(readl(devpriv->mmio + P_MC2) & MC2_UPLD_IIC))
 		;
 
 	/*
@@ -2422,7 +2422,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * reg twice to reset all  I2C error flags.
 	 */
 	for (i = 0; i < 2; i++) {
-		writel(I2C_CLKSEL, devpriv->base_addr + P_I2CSTAT);
+		writel(I2C_CLKSEL, devpriv->mmio + P_I2CSTAT);
 		s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
 		while (!s626_mc_test(dev, MC2_UPLD_IIC, P_MC2))
 			;
@@ -2434,7 +2434,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * DAC data setup times are satisfied, enable DAC serial
 	 * clock out.
 	 */
-	writel(ACON2_INIT, devpriv->base_addr + P_ACON2);
+	writel(ACON2_INIT, devpriv->mmio + P_ACON2);
 
 	/*
 	 * Set up TSL1 slot list, which is used to control the
@@ -2442,11 +2442,11 @@ static void s626_initialize(struct comedi_device *dev)
 	 * SIB_A1  = store data uint8_t at next available location
 	 * in FB BUFFER1 register.
 	 */
-	writel(RSD1 | SIB_A1, devpriv->base_addr + P_TSL1);
-	writel(RSD1 | SIB_A1 | EOS, devpriv->base_addr + P_TSL1 + 4);
+	writel(RSD1 | SIB_A1, devpriv->mmio + P_TSL1);
+	writel(RSD1 | SIB_A1 | EOS, devpriv->mmio + P_TSL1 + 4);
 
 	/* Enable TSL1 slot list so that it executes all the time */
-	writel(ACON1_ADCSTART, devpriv->base_addr + P_ACON1);
+	writel(ACON1_ADCSTART, devpriv->mmio + P_ACON1);
 
 	/*
 	 * Initialize RPS registers used for ADC
@@ -2454,11 +2454,11 @@ static void s626_initialize(struct comedi_device *dev)
 
 	/* Physical start of RPS program */
 	writel((uint32_t)devpriv->RPSBuf.PhysicalBase,
-	       devpriv->base_addr + P_RPSADDR1);
+	       devpriv->mmio + P_RPSADDR1);
 	/* RPS program performs no explicit mem writes */
-	writel(0, devpriv->base_addr + P_RPSPAGE1);
+	writel(0, devpriv->mmio + P_RPSPAGE1);
 	/* Disable RPS timeouts */
-	writel(0, devpriv->base_addr + P_RPS1_TOUT);
+	writel(0, devpriv->mmio + P_RPS1_TOUT);
 
 #if 0
 	/*
@@ -2514,7 +2514,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 *   burst length = 1 DWORD
 	 *   threshold = 1 DWORD.
 	 */
-	writel(0, devpriv->base_addr + P_PCI_BT_A);
+	writel(0, devpriv->mmio + P_PCI_BT_A);
 
 	/*
 	 * Init Audio2's output DMA physical addresses.  The protection
@@ -2524,9 +2524,9 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 	pPhysBuf = devpriv->ANABuf.PhysicalBase +
 		   (DAC_WDMABUF_OS * sizeof(uint32_t));
-	writel((uint32_t)pPhysBuf, devpriv->base_addr + P_BASEA2_OUT);
+	writel((uint32_t)pPhysBuf, devpriv->mmio + P_BASEA2_OUT);
 	writel((uint32_t)(pPhysBuf + sizeof(uint32_t)),
-	       devpriv->base_addr + P_PROTA2_OUT);
+	       devpriv->mmio + P_PROTA2_OUT);
 
 	/*
 	 * Cache Audio2's output DMA buffer logical address.  This is
@@ -2541,7 +2541,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 * DMAC will automatically halt and its PCI address pointer
 	 * will be reset when the protection address is reached.
 	 */
-	writel(8, devpriv->base_addr + P_PAGEA2_OUT);
+	writel(8, devpriv->mmio + P_PAGEA2_OUT);
 
 	/*
 	 * Initialize time slot list 2 (TSL2), which is used to control
@@ -2556,7 +2556,7 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Slot 0: Trap TSL execution, shift 0xFF into FB_BUFFER2 */
-	writel(XSD2 | RSD3 | SIB_A2 | EOS, devpriv->base_addr + VECTPORT(0));
+	writel(XSD2 | RSD3 | SIB_A2 | EOS, devpriv->mmio + VECTPORT(0));
 
 	/*
 	 * Initialize slot 1, which is constant.  Slot 1 causes a
@@ -2568,10 +2568,10 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Slot 1: Fetch DWORD from Audio2's output FIFO */
-	writel(LF_A2, devpriv->base_addr + VECTPORT(1));
+	writel(LF_A2, devpriv->mmio + VECTPORT(1));
 
 	/* Start DAC's audio interface (TSL2) running */
-	writel(ACON1_DACSTART, devpriv->base_addr + P_ACON1);
+	writel(ACON1_DACSTART, devpriv->mmio + P_ACON1);
 
 	/*
 	 * Init Trim DACs to calibrated values.  Do it twice because the
@@ -2612,7 +2612,7 @@ static void s626_initialize(struct comedi_device *dev)
 	s626_dio_init(dev);
 
 	/* enable interrupt test */
-	/* writel(IRQ_GPIO3 | IRQ_RPS1, devpriv->base_addr + P_IER); */
+	/* writel(IRQ_GPIO3 | IRQ_RPS1, devpriv->mmio + P_IER); */
 }
 
 static int s626_auto_attach(struct comedi_device *dev,
@@ -2634,16 +2634,16 @@ static int s626_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->base_addr = ioremap(pci_resource_start(pcidev, 0),
-				     pci_resource_len(pcidev, 0));
-	if (!devpriv->base_addr)
+	devpriv->mmio = ioremap(pci_resource_start(pcidev, 0),
+				pci_resource_len(pcidev, 0));
+	if (!devpriv->mmio)
 		return -ENOMEM;
 
 	/* disable master interrupt */
-	writel(0, devpriv->base_addr + P_IER);
+	writel(0, devpriv->mmio + P_IER);
 
 	/* soft reset */
-	writel(MC1_SOFT_RESET, devpriv->base_addr + P_MC1);
+	writel(MC1_SOFT_RESET, devpriv->mmio + P_MC1);
 
 	/* DMA FIXME DMA// */
 
@@ -2752,20 +2752,20 @@ static void s626_detach(struct comedi_device *dev)
 		/* stop ai_command */
 		devpriv->ai_cmd_running = 0;
 
-		if (devpriv->base_addr) {
+		if (devpriv->mmio) {
 			/* interrupt mask */
 			/* Disable master interrupt */
-			writel(0, devpriv->base_addr + P_IER);
+			writel(0, devpriv->mmio + P_IER);
 			/* Clear board's IRQ status flag */
 			writel(IRQ_GPIO3 | IRQ_RPS1,
-			       devpriv->base_addr + P_ISR);
+			       devpriv->mmio + P_ISR);
 
 			/*  Disable the watchdog timer and battery charger. */
 			WriteMISC2(dev, 0);
 
 			/* Close all interfaces on 7146 device */
-			writel(MC1_SHUTDOWN, devpriv->base_addr + P_MC1);
-			writel(ACON1_BASE, devpriv->base_addr + P_ACON1);
+			writel(MC1_SHUTDOWN, devpriv->mmio + P_MC1);
+			writel(ACON1_BASE, devpriv->mmio + P_ACON1);
 
 			CloseDMAB(dev, &devpriv->RPSBuf, DMABUF_SIZE);
 			CloseDMAB(dev, &devpriv->ANABuf, DMABUF_SIZE);
@@ -2773,8 +2773,8 @@ static void s626_detach(struct comedi_device *dev)
 
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->base_addr)
-			iounmap(devpriv->base_addr);
+		if (devpriv->mmio)
+			iounmap(devpriv->mmio);
 	}
 	comedi_pci_disable(dev);
 }
