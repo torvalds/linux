@@ -146,18 +146,6 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 
 	pci_set_master(dev);
 
-	if (dwc2_module_params.dma_enable > 0) {
-		if (pci_set_dma_mask(dev, DMA_BIT_MASK(31)) < 0)
-			dev_warn(&dev->dev,
-				 "can't enable workaround for >2GB RAM\n");
-		if (pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(31)) < 0)
-			dev_warn(&dev->dev,
-				 "can't enable workaround for >2GB RAM\n");
-	} else {
-		pci_set_dma_mask(dev, 0);
-		pci_set_consistent_dma_mask(dev, 0);
-	}
-
 	retval = dwc2_hcd_init(hsotg, dev->irq, &dwc2_module_params);
 	if (retval) {
 		pci_disable_device(dev);

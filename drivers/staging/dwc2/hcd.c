@@ -2707,16 +2707,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 		goto error1;
 	}
 
-	hcd = usb_create_hcd(&dwc2_hc_driver, hsotg->dev, dev_name(hsotg->dev));
-	if (!hcd)
-		goto error1;
-
-	hcd->has_tt = 1;
-
-	spin_lock_init(&hsotg->lock);
-	((struct wrapper_priv_data *) &hcd->hcd_priv)->hsotg = hsotg;
-	hsotg->priv = hcd;
-
 	/*
 	 * Store the contents of the hardware configuration registers here for
 	 * easy access later
@@ -2775,24 +2765,47 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	hsotg->frame_num_array = kzalloc(sizeof(*hsotg->frame_num_array) *
 					 FRAME_NUM_ARRAY_SIZE, GFP_KERNEL);
 	if (!hsotg->frame_num_array)
-		goto error2;
+		goto error1;
 	hsotg->last_frame_num_array = kzalloc(
 			sizeof(*hsotg->last_frame_num_array) *
 			FRAME_NUM_ARRAY_SIZE, GFP_KERNEL);
 	if (!hsotg->last_frame_num_array)
-		goto error2;
+		goto error1;
 	hsotg->last_frame_num = HFNUM_MAX_FRNUM;
 #endif
 
 	hsotg->core_params = kzalloc(sizeof(*hsotg->core_params), GFP_KERNEL);
 	if (!hsotg->core_params)
-		goto error2;
+		goto error1;
 
 	dwc2_set_uninitialized((int *)hsotg->core_params,
 			       sizeof(*hsotg->core_params) / sizeof(int));
 
 	/* Validate parameter values */
 	dwc2_set_parameters(hsotg, params);
+
+	/* Set device flags indicating whether the HCD supports DMA */
+	if (hsotg->core_params->dma_enable > 0) {
+		if (dma_set_mask(hsotg->dev, DMA_BIT_MASK(31)) < 0)
+			dev_warn(hsotg->dev,
+				 "can't enable workaround for >2GB RAM\n");
+		if (dma_set_coherent_mask(hsotg->dev, DMA_BIT_MASK(31)) < 0)
+			dev_warn(hsotg->dev,
+				 "can't enable workaround for >2GB RAM\n");
+	} else {
+		dma_set_mask(hsotg->dev, 0);
+		dma_set_coherent_mask(hsotg->dev, 0);
+	}
+
+	hcd = usb_create_hcd(&dwc2_hc_driver, hsotg->dev, dev_name(hsotg->dev));
+	if (!hcd)
+		goto error1;
+
+	hcd->has_tt = 1;
+
+	spin_lock_init(&hsotg->lock);
+	((struct wrapper_priv_data *) &hcd->hcd_priv)->hsotg = hsotg;
+	hsotg->priv = hcd;
 
 	/* Initialize the DWC_otg core, and select the Phy type */
 	retval = dwc2_core_init(hsotg, true);
@@ -2903,6 +2916,8 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 error3:
 	dwc2_hcd_release(hsotg);
 error2:
+	usb_put_hcd(hcd);
+error1:
 	kfree(hsotg->core_params);
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
@@ -2910,8 +2925,6 @@ error2:
 	kfree(hsotg->frame_num_array);
 #endif
 
-	usb_put_hcd(hcd);
-error1:
 	dev_err(hsotg->dev, "%s() FAILED, returning %d\n", __func__, retval);
 	return retval;
 }
@@ -2939,12 +2952,11 @@ void dwc2_hcd_remove(struct dwc2_hsotg *hsotg)
 	usb_remove_hcd(hcd);
 	hsotg->priv = NULL;
 	dwc2_hcd_release(hsotg);
+	usb_put_hcd(hcd);
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 	kfree(hsotg->last_frame_num_array);
 	kfree(hsotg->frame_num_array);
 #endif
-
-	usb_put_hcd(hcd);
 }
 EXPORT_SYMBOL_GPL(dwc2_hcd_remove);
