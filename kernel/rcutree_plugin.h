@@ -2167,7 +2167,7 @@ static int __init parse_rcu_nocb_poll(char *arg)
 early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
 
 /* Is the specified CPU a no-CPUs CPU? */
-static bool is_nocb_cpu(int cpu)
+bool rcu_is_nocb_cpu(int cpu)
 {
 	if (have_rcu_nocb_mask)
 		return cpumask_test_cpu(cpu, rcu_nocb_mask);
@@ -2225,7 +2225,7 @@ static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 			    bool lazy)
 {
 
-	if (!is_nocb_cpu(rdp->cpu))
+	if (!rcu_is_nocb_cpu(rdp->cpu))
 		return 0;
 	__call_rcu_nocb_enqueue(rdp, rhp, &rhp->next, 1, lazy);
 	return 1;
@@ -2242,7 +2242,7 @@ static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
 	long qll = rsp->qlen_lazy;
 
 	/* If this is not a no-CBs CPU, tell the caller to do it the old way. */
-	if (!is_nocb_cpu(smp_processor_id()))
+	if (!rcu_is_nocb_cpu(smp_processor_id()))
 		return 0;
 	rsp->qlen = 0;
 	rsp->qlen_lazy = 0;
@@ -2282,7 +2282,7 @@ static bool nocb_cpu_expendable(int cpu)
 	 * If there are no no-CB CPUs or if this CPU is not a no-CB CPU,
 	 * then offlining this CPU is harmless.  Let it happen.
 	 */
-	if (!have_rcu_nocb_mask || is_nocb_cpu(cpu))
+	if (!have_rcu_nocb_mask || rcu_is_nocb_cpu(cpu))
 		return 1;
 
 	/* If no memory, play it safe and keep the CPU around. */
@@ -2463,11 +2463,6 @@ static void __init rcu_init_nocb(void)
 }
 
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
-
-static bool is_nocb_cpu(int cpu)
-{
-	return false;
-}
 
 static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 			    bool lazy)

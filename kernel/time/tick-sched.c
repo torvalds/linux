@@ -203,17 +203,27 @@ static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
  */
 static char __initdata nohz_full_buf[NR_CPUS + 1];
 
-static int __init init_tick_nohz_full(void)
+void __init tick_nohz_init(void)
 {
-	if (have_nohz_full_mask)
-		cpu_notifier(tick_nohz_cpu_down_callback, 0);
+	int cpu;
+
+	if (!have_nohz_full_mask)
+		return;
+
+	cpu_notifier(tick_nohz_cpu_down_callback, 0);
+
+	/* Make sure full dynticks CPU are also RCU nocbs */
+	for_each_cpu(cpu, nohz_full_mask) {
+		if (!rcu_is_nocb_cpu(cpu)) {
+			pr_warning("NO_HZ: CPU %d is not RCU nocb: "
+				   "cleared from nohz_full range", cpu);
+			cpumask_clear_cpu(cpu, nohz_full_mask);
+		}
+	}
 
 	cpulist_scnprintf(nohz_full_buf, sizeof(nohz_full_buf), nohz_full_mask);
 	pr_info("NO_HZ: Full dynticks CPUs: %s.\n", nohz_full_buf);
-
-	return 0;
 }
-core_initcall(init_tick_nohz_full);
 #else
 #define have_nohz_full_mask (0)
 #endif
