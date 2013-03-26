@@ -89,13 +89,14 @@ enum power_event {
 				(reg * 8))
 #define GMAC_MAX_PERFECT_ADDRESSES	32
 
+/* PCS registers (AN/TBI/SGMII/RGMII) offset */
 #define GMAC_AN_CTRL	0x000000c0	/* AN control */
 #define GMAC_AN_STATUS	0x000000c4	/* AN status */
 #define GMAC_ANE_ADV	0x000000c8	/* Auto-Neg. Advertisement */
-#define GMAC_ANE_LINK	0x000000cc	/* Auto-Neg. link partener ability */
+#define GMAC_ANE_LPA	0x000000cc	/* Auto-Neg. link partener ability */
 #define GMAC_ANE_EXP	0x000000d0	/* ANE expansion */
 #define GMAC_TBI	0x000000d4	/* TBI extend status */
-#define GMAC_GMII_STATUS 0x000000d8	/* S/R-GMII status */
+#define GMAC_S_R_GMII	0x000000d8	/* SGMII RGMII status */
 
 /* GMAC Configuration defines */
 #define GMAC_CONTROL_TC	0x01000000	/* Transmit Conf. in RGMII/SGMII */

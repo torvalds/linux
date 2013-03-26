@@ -140,6 +140,10 @@ struct stmmac_extra_stats {
 	unsigned long l3_filter_match;
 	unsigned long l4_filter_match;
 	unsigned long l3_l4_filter_no_match;
+	/* PCS */
+	unsigned long irq_pcs_ane_n;
+	unsigned long irq_pcs_link_n;
+	unsigned long irq_rgmii_n;
 };
 
 /* CSR Frequency Access Defines*/
@@ -217,16 +221,14 @@ enum dma_irq_status {
 	handle_tx = 0x8,
 };
 
-enum core_specific_irq_mask {
-	core_mmc_tx_irq = 1,
-	core_mmc_rx_irq = 2,
-	core_mmc_rx_csum_offload_irq = 4,
-	core_irq_receive_pmt_irq = 8,
-	core_irq_tx_path_in_lpi_mode = 16,
-	core_irq_tx_path_exit_lpi_mode = 32,
-	core_irq_rx_path_in_lpi_mode = 64,
-	core_irq_rx_path_exit_lpi_mode = 128,
-};
+#define	CORE_IRQ_TX_PATH_IN_LPI_MODE	(1 << 1)
+#define	CORE_IRQ_TX_PATH_EXIT_LPI_MODE	(1 << 2)
+#define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 3)
+#define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 4)
+
+#define	CORE_PCS_ANE_COMPLETE		(1 << 5)
+#define	CORE_PCS_LINK_STATUS		(1 << 6)
+#define	CORE_RGMII_IRQ			(1 << 7)
 
 /* DMA HW capabilities */
 struct dma_features {
@@ -355,7 +357,8 @@ struct stmmac_ops {
 	/* Dump MAC registers */
 	void (*dump_regs) (void __iomem *ioaddr);
 	/* Handle extra events on specific interrupts hw dependent */
-	int (*host_irq_status) (void __iomem *ioaddr);
+	int (*host_irq_status) (void __iomem *ioaddr,
+				struct stmmac_extra_stats *x);
 	/* Multicast filter setting */
 	void (*set_filter) (struct net_device *dev, int id);
 	/* Flow control setting */

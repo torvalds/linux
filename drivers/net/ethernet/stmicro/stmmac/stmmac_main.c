@@ -1780,30 +1780,14 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 	/* To handle GMAC own interrupts */
 	if (priv->plat->has_gmac) {
 		int status = priv->hw->mac->host_irq_status((void __iomem *)
-							    dev->base_addr);
+							    dev->base_addr,
+							    &priv->xstats);
 		if (unlikely(status)) {
-			if (status & core_mmc_tx_irq)
-				priv->xstats.mmc_tx_irq_n++;
-			if (status & core_mmc_rx_irq)
-				priv->xstats.mmc_rx_irq_n++;
-			if (status & core_mmc_rx_csum_offload_irq)
-				priv->xstats.mmc_rx_csum_offload_irq_n++;
-			if (status & core_irq_receive_pmt_irq)
-				priv->xstats.irq_receive_pmt_irq_n++;
-
 			/* For LPI we need to save the tx status */
-			if (status & core_irq_tx_path_in_lpi_mode) {
-				priv->xstats.irq_tx_path_in_lpi_mode_n++;
+			if (status & CORE_IRQ_TX_PATH_IN_LPI_MODE)
 				priv->tx_path_in_lpi_mode = true;
-			}
-			if (status & core_irq_tx_path_exit_lpi_mode) {
-				priv->xstats.irq_tx_path_exit_lpi_mode_n++;
+			if (status & CORE_IRQ_TX_PATH_EXIT_LPI_MODE)
 				priv->tx_path_in_lpi_mode = false;
-			}
-			if (status & core_irq_rx_path_in_lpi_mode)
-				priv->xstats.irq_rx_path_in_lpi_mode_n++;
-			if (status & core_irq_rx_path_exit_lpi_mode)
-				priv->xstats.irq_rx_path_exit_lpi_mode_n++;
 		}
 	}
 

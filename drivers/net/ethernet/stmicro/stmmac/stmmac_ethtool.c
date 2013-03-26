@@ -131,6 +131,10 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(l3_filter_match),
 	STMMAC_STAT(l4_filter_match),
 	STMMAC_STAT(l3_l4_filter_no_match),
+	/* PCS */
+	STMMAC_STAT(irq_pcs_ane_n),
+	STMMAC_STAT(irq_pcs_link_n),
+	STMMAC_STAT(irq_rgmii_n),
 };
 #define STMMAC_STATS_LEN ARRAY_SIZE(stmmac_gstrings_stats)
 

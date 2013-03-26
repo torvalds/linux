@@ -194,58 +194,70 @@ static void dwmac1000_pmt(void __iomem *ioaddr, unsigned long mode)
 }
 
 
-static int dwmac1000_irq_status(void __iomem *ioaddr)
+static int dwmac1000_irq_status(void __iomem *ioaddr,
+				struct stmmac_extra_stats *x)
 {
 	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
-	int status = 0;
+	int ret = 0;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
 	if ((intr_status & mmc_tx_irq)) {
 		CHIP_DBG(KERN_INFO "GMAC: MMC tx interrupt: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_TX_INTR));
-		status |= core_mmc_tx_irq;
+		x->mmc_tx_irq_n++;
 	}
 	if (unlikely(intr_status & mmc_rx_irq)) {
 		CHIP_DBG(KERN_INFO "GMAC: MMC rx interrupt: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_RX_INTR));
-		status |= core_mmc_rx_irq;
+		x->mmc_rx_irq_n++;
 	}
 	if (unlikely(intr_status & mmc_rx_csum_offload_irq)) {
 		CHIP_DBG(KERN_INFO "GMAC: MMC rx csum offload: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_RX_CSUM_OFFLOAD));
-		status |= core_mmc_rx_csum_offload_irq;
+		x->mmc_rx_csum_offload_irq_n++;
 	}
 	if (unlikely(intr_status & pmt_irq)) {
 		CHIP_DBG(KERN_INFO "GMAC: received Magic frame\n");
 		/* clear the PMT bits 5 and 6 by reading the PMT
 		 * status register. */
 		readl(ioaddr + GMAC_PMT);
-		status |= core_irq_receive_pmt_irq;
+		x->irq_receive_pmt_irq_n++;
 	}
 	/* MAC trx/rx EEE LPI entry/exit interrupts */
 	if (intr_status & lpiis_irq) {
 		/* Clean LPI interrupt by reading the Reg 12 */
-		u32 lpi_status = readl(ioaddr + LPI_CTRL_STATUS);
+		ret = readl(ioaddr + LPI_CTRL_STATUS);
 
-		if (lpi_status & LPI_CTRL_STATUS_TLPIEN) {
+		if (ret & LPI_CTRL_STATUS_TLPIEN) {
 			CHIP_DBG(KERN_INFO "GMAC TX entered in LPI\n");
-			status |= core_irq_tx_path_in_lpi_mode;
+			x->irq_tx_path_in_lpi_mode_n++;
 		}
-		if (lpi_status & LPI_CTRL_STATUS_TLPIEX) {
+		if (ret & LPI_CTRL_STATUS_TLPIEX) {
 			CHIP_DBG(KERN_INFO "GMAC TX exit from LPI\n");
-			status |= core_irq_tx_path_exit_lpi_mode;
+			x->irq_tx_path_exit_lpi_mode_n++;
 		}
-		if (lpi_status & LPI_CTRL_STATUS_RLPIEN) {
+		if (ret & LPI_CTRL_STATUS_RLPIEN) {
 			CHIP_DBG(KERN_INFO "GMAC RX entered in LPI\n");
-			status |= core_irq_rx_path_in_lpi_mode;
+			x->irq_rx_path_in_lpi_mode_n++;
 		}
-		if (lpi_status & LPI_CTRL_STATUS_RLPIEX) {
+		if (ret & LPI_CTRL_STATUS_RLPIEX) {
 			CHIP_DBG(KERN_INFO "GMAC RX exit from LPI\n");
-			status |= core_irq_rx_path_exit_lpi_mode;
+			x->irq_rx_path_exit_lpi_mode_n++;
 		}
 	}
 
-	return status;
+	if ((intr_status & pcs_ane_irq) || (intr_status & pcs_link_irq)) {
+		CHIP_DBG(KERN_INFO "GMAC PCS ANE IRQ\n");
+		readl(ioaddr + GMAC_AN_STATUS);
+		x->irq_pcs_ane_n++;
+	}
+	if (intr_status & rgmii_irq) {
+		CHIP_DBG(KERN_INFO "GMAC RGMII IRQ status\n");
+		readl(ioaddr + GMAC_S_R_GMII);
+		x->irq_rgmii_n++;
+	}
+
+	return ret;
 }
 
 static void  dwmac1000_set_eee_mode(void __iomem *ioaddr)
