@@ -104,7 +104,7 @@ static const u8 lowpan_llprefix[] = {0xfe, 0x80};
 struct lowpan_dev_info {
 	struct net_device	*real_dev; /* real WPAN device ptr */
 	struct mutex		dev_list_mtx; /* mutex for list ops */
-	unsigned short fragment_tag;
+	unsigned short		fragment_tag;
 };
 
 struct lowpan_dev_record {
