@@ -21,6 +21,7 @@
 #include <linux/irqchip.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/serial_sci.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
@@ -63,6 +64,87 @@ static inline void r8a73a4_register_scif(int idx)
 				      sizeof(struct plat_sci_port));
 }
 
+static const struct renesas_irqc_config irqc0_data = {
+	.irq_base = irq_pin(0), /* IRQ0 -> IRQ31 */
+};
+
+static const struct resource irqc0_resources[] = {
+	DEFINE_RES_MEM(0xe61c0000, 0x200), /* IRQC Event Detector Block_0 */
+	DEFINE_RES_IRQ(gic_spi(0)), /* IRQ0 */
+	DEFINE_RES_IRQ(gic_spi(1)), /* IRQ1 */
+	DEFINE_RES_IRQ(gic_spi(2)), /* IRQ2 */
+	DEFINE_RES_IRQ(gic_spi(3)), /* IRQ3 */
+	DEFINE_RES_IRQ(gic_spi(4)), /* IRQ4 */
+	DEFINE_RES_IRQ(gic_spi(5)), /* IRQ5 */
+	DEFINE_RES_IRQ(gic_spi(6)), /* IRQ6 */
+	DEFINE_RES_IRQ(gic_spi(7)), /* IRQ7 */
+	DEFINE_RES_IRQ(gic_spi(8)), /* IRQ8 */
+	DEFINE_RES_IRQ(gic_spi(9)), /* IRQ9 */
+	DEFINE_RES_IRQ(gic_spi(10)), /* IRQ10 */
+	DEFINE_RES_IRQ(gic_spi(11)), /* IRQ11 */
+	DEFINE_RES_IRQ(gic_spi(12)), /* IRQ12 */
+	DEFINE_RES_IRQ(gic_spi(13)), /* IRQ13 */
+	DEFINE_RES_IRQ(gic_spi(14)), /* IRQ14 */
+	DEFINE_RES_IRQ(gic_spi(15)), /* IRQ15 */
+	DEFINE_RES_IRQ(gic_spi(16)), /* IRQ16 */
+	DEFINE_RES_IRQ(gic_spi(17)), /* IRQ17 */
+	DEFINE_RES_IRQ(gic_spi(18)), /* IRQ18 */
+	DEFINE_RES_IRQ(gic_spi(19)), /* IRQ19 */
+	DEFINE_RES_IRQ(gic_spi(20)), /* IRQ20 */
+	DEFINE_RES_IRQ(gic_spi(21)), /* IRQ21 */
+	DEFINE_RES_IRQ(gic_spi(22)), /* IRQ22 */
+	DEFINE_RES_IRQ(gic_spi(23)), /* IRQ23 */
+	DEFINE_RES_IRQ(gic_spi(24)), /* IRQ24 */
+	DEFINE_RES_IRQ(gic_spi(25)), /* IRQ25 */
+	DEFINE_RES_IRQ(gic_spi(26)), /* IRQ26 */
+	DEFINE_RES_IRQ(gic_spi(27)), /* IRQ27 */
+	DEFINE_RES_IRQ(gic_spi(28)), /* IRQ28 */
+	DEFINE_RES_IRQ(gic_spi(29)), /* IRQ29 */
+	DEFINE_RES_IRQ(gic_spi(30)), /* IRQ30 */
+	DEFINE_RES_IRQ(gic_spi(31)), /* IRQ31 */
+};
+
+static const struct renesas_irqc_config irqc1_data = {
+	.irq_base = irq_pin(32), /* IRQ32 -> IRQ57 */
+};
+
+static const struct resource irqc1_resources[] = {
+	DEFINE_RES_MEM(0xe61c0200, 0x200), /* IRQC Event Detector Block_1 */
+	DEFINE_RES_IRQ(gic_spi(32)), /* IRQ32 */
+	DEFINE_RES_IRQ(gic_spi(33)), /* IRQ33 */
+	DEFINE_RES_IRQ(gic_spi(34)), /* IRQ34 */
+	DEFINE_RES_IRQ(gic_spi(35)), /* IRQ35 */
+	DEFINE_RES_IRQ(gic_spi(36)), /* IRQ36 */
+	DEFINE_RES_IRQ(gic_spi(37)), /* IRQ37 */
+	DEFINE_RES_IRQ(gic_spi(38)), /* IRQ38 */
+	DEFINE_RES_IRQ(gic_spi(39)), /* IRQ39 */
+	DEFINE_RES_IRQ(gic_spi(40)), /* IRQ40 */
+	DEFINE_RES_IRQ(gic_spi(41)), /* IRQ41 */
+	DEFINE_RES_IRQ(gic_spi(42)), /* IRQ42 */
+	DEFINE_RES_IRQ(gic_spi(43)), /* IRQ43 */
+	DEFINE_RES_IRQ(gic_spi(44)), /* IRQ44 */
+	DEFINE_RES_IRQ(gic_spi(45)), /* IRQ45 */
+	DEFINE_RES_IRQ(gic_spi(46)), /* IRQ46 */
+	DEFINE_RES_IRQ(gic_spi(47)), /* IRQ47 */
+	DEFINE_RES_IRQ(gic_spi(48)), /* IRQ48 */
+	DEFINE_RES_IRQ(gic_spi(49)), /* IRQ49 */
+	DEFINE_RES_IRQ(gic_spi(50)), /* IRQ50 */
+	DEFINE_RES_IRQ(gic_spi(51)), /* IRQ51 */
+	DEFINE_RES_IRQ(gic_spi(52)), /* IRQ52 */
+	DEFINE_RES_IRQ(gic_spi(53)), /* IRQ53 */
+	DEFINE_RES_IRQ(gic_spi(54)), /* IRQ54 */
+	DEFINE_RES_IRQ(gic_spi(55)), /* IRQ55 */
+	DEFINE_RES_IRQ(gic_spi(56)), /* IRQ56 */
+	DEFINE_RES_IRQ(gic_spi(57)), /* IRQ57 */
+};
+
+#define r8a73a4_register_irqc(idx)					\
+	platform_device_register_resndata(&platform_bus, "renesas_irqc", \
+					  idx, irqc##idx##_resources,	\
+					  ARRAY_SIZE(irqc##idx##_resources), \
+					  &irqc##idx##_data,		\
+					  sizeof(struct renesas_irqc_config))
+
 void __init r8a73a4_add_standard_devices(void)
 {
 	r8a73a4_register_scif(SCIFA0);
@@ -71,6 +153,8 @@ void __init r8a73a4_add_standard_devices(void)
 	r8a73a4_register_scif(SCIFB1);
 	r8a73a4_register_scif(SCIFB2);
 	r8a73a4_register_scif(SCIFB3);
+	r8a73a4_register_irqc(0);
+	r8a73a4_register_irqc(1);
 }
 
 #ifdef CONFIG_USE_OF
