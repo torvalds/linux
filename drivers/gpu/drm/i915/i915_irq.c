@@ -46,6 +46,7 @@ static const u32 hpd_ibx[] = {
 
 static const u32 hpd_cpt[] = {
 	[HPD_CRT] = SDE_CRT_HOTPLUG_CPT,
+	[HPD_SDVO_B] = SDE_SDVOB_HOTPLUG_CPT,
 	[HPD_PORT_B] = SDE_PORTB_HOTPLUG_CPT,
 	[HPD_PORT_C] = SDE_PORTC_HOTPLUG_CPT,
 	[HPD_PORT_D] = SDE_PORTD_HOTPLUG_CPT
