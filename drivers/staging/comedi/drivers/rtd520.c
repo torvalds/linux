@@ -414,7 +414,6 @@ struct rtdPrivate {
 
 	/* shadow registers affect other registers, but can't be read back */
 	/* The macros below update these on writes */
-	u16 intMask;		/* interrupt mask */
 	u16 intClearMask;	/* interrupt clear mask */
 	u8 utcCtrl[4];		/* crtl mode for 3 utc + read back */
 	unsigned fifoLen;
@@ -799,8 +798,7 @@ transferDone:
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	devpriv->intMask = 0;
-	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
+	writew(0, devpriv->las0 + LAS0_IT);
 
 	if (devpriv->aiCount > 0) {	/* there shouldn't be anything left */
 		fifoStatus = readl(devpriv->las0 + LAS0_ADC);
@@ -998,8 +996,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	devpriv->intMask = 0;
-	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
+	writew(0, devpriv->las0 + LAS0_IT);
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	writel(0, devpriv->las0 + LAS0_OVERRUN);
 
@@ -1131,11 +1128,9 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* TODO: allow multiple interrupt sources */
 	if (devpriv->transCount > 0) {	/* transfer every N samples */
-		devpriv->intMask = IRQM_ADC_ABOUT_CNT;
-		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
+		writew(IRQM_ADC_ABOUT_CNT, devpriv->las0 + LAS0_IT);
 	} else {		/* 1/2 FIFO transfers */
-		devpriv->intMask = IRQM_ADC_ABOUT_CNT;
-		writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
+		writew(IRQM_ADC_ABOUT_CNT, devpriv->las0 + LAS0_IT);
 	}
 
 	/* BUG: start_src is ASSUMED to be TRIG_NOW */
@@ -1157,8 +1152,7 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
-	devpriv->intMask = 0;
-	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
+	writew(0, devpriv->las0 + LAS0_IT);
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
 	status = readw(devpriv->las0 + LAS0_IT);
 	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
@@ -1313,8 +1307,7 @@ static void rtd_reset(struct comedi_device *dev)
 	writel(0, devpriv->las0 + LAS0_BOARD_RESET);
 	udelay(100);		/* needed? */
 	writel(0, devpriv->lcfg + PLX_INTRCS_REG);
-	devpriv->intMask = 0;
-	writew(devpriv->intMask, devpriv->las0 + LAS0_IT);
+	writew(0, devpriv->las0 + LAS0_IT);
 	devpriv->intClearMask = ~0;
 	writew(devpriv->intClearMask, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
