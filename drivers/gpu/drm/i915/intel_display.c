@@ -2113,8 +2113,7 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		dspcntr |= DISPPLANE_RGBX101010;
 		break;
 	default:
-		DRM_ERROR("Unknown pixel format 0x%08x\n", fb->pixel_format);
-		return -EINVAL;
+		BUG();
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -2207,8 +2206,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_RGBX101010;
 		break;
 	default:
-		DRM_ERROR("Unknown pixel format 0x%08x\n", fb->pixel_format);
-		return -EINVAL;
+		BUG();
 	}
 
 	if (obj->tiling_mode != I915_TILING_NONE)
@@ -7400,18 +7398,16 @@ pipe_config_set_bpp(struct drm_crtc *crtc,
 		bpp = 8*3;
 		break;
 	case 30:
+		if (INTEL_INFO(dev)->gen < 4) {
+			DRM_DEBUG_KMS("10 bpc not supported on gen2/3\n");
+			return -EINVAL;
+		}
+
 		bpp = 10*3;
 		break;
-	case 48:
-		bpp = 12*3;
-		break;
+	/* TODO: gen4+ supports 16 bpc floating point, too. */
 	default:
 		DRM_DEBUG_KMS("unsupported depth\n");
-		return -EINVAL;
-	}
-
-	if (fb->depth > 24 && !HAS_PCH_SPLIT(dev)) {
-		DRM_DEBUG_KMS("high depth not supported on gmch platforms\n");
 		return -EINVAL;
 	}
 
