@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/device.h>
 #include <linux/module.h>
 
 #include <linux/mfd/arizona/core.h>
@@ -77,16 +78,34 @@ static const struct reg_default wm5102_revb_patch[] = {
 /* We use a function so we can use ARRAY_SIZE() */
 int wm5102_patch(struct arizona *arizona)
 {
+	const struct reg_default *wm5102_patch;
+	int ret = 0;
+	int i, patch_size;
+
 	switch (arizona->rev) {
 	case 0:
-		return regmap_register_patch(arizona->regmap,
-					     wm5102_reva_patch,
-					     ARRAY_SIZE(wm5102_reva_patch));
+		wm5102_patch = wm5102_reva_patch;
+		patch_size = ARRAY_SIZE(wm5102_reva_patch);
 	default:
-		return regmap_register_patch(arizona->regmap,
-					     wm5102_revb_patch,
-					     ARRAY_SIZE(wm5102_revb_patch));
+		wm5102_patch = wm5102_revb_patch;
+		patch_size = ARRAY_SIZE(wm5102_revb_patch);
 	}
+
+	regcache_cache_bypass(arizona->regmap, true);
+
+	for (i = 0; i < patch_size; i++) {
+		ret = regmap_write(arizona->regmap, wm5102_patch[i].reg,
+				   wm5102_patch[i].def);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to write %x = %x: %d\n",
+				wm5102_patch[i].reg, wm5102_patch[i].def, ret);
+			goto out;
+		}
+	}
+
+out:
+	regcache_cache_bypass(arizona->regmap, false);
+	return ret;
 }
 
 static const struct regmap_irq wm5102_aod_irqs[ARIZONA_NUM_IRQ] = {

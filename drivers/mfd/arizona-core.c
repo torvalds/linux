@@ -255,6 +255,16 @@ static int arizona_runtime_resume(struct device *dev)
 		goto err;
 	}
 
+	switch (arizona->type) {
+	case WM5102:
+		ret = wm5102_patch(arizona);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to apply patch: %d\n",
+				ret);
+			goto err;
+		}
+	}
+
 	ret = regcache_sync(arizona->regmap);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to restore register cache\n");
