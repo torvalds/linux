@@ -3,6 +3,7 @@
 #
 
 obj-$(CONFIG_THERMAL)		+= thermal_sys.o
+thermal_sys-y			+= thermal_core.o
 
 # governors
 obj-$(CONFIG_THERMAL_GOV_FAIR_SHARE)	+= fair_share.o
