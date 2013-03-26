@@ -1178,6 +1178,7 @@ struct ieee802_11_elems {
 	const u8 *perr;
 	const struct ieee80211_rann_ie *rann;
 	const struct ieee80211_channel_sw_ie *ch_switch_ie;
+	const struct ieee80211_ext_chansw_ie *ext_chansw_ie;
 	const u8 *country_elem;
 	const u8 *pwr_constr_elem;
 	const struct ieee80211_timeout_interval_ie *timeout_int;
