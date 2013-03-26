@@ -602,7 +602,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 			da.short_addr = IEEE802154_ADDR_BROADCAST;
 		} else {
 			da.addr_type = IEEE802154_ADDR_LONG;
-			memcpy(&(da.hwaddr), daddr, 8);
+			memcpy(&(da.hwaddr), daddr, IEEE802154_ADDR_LEN);
 
 			/* request acknowledgment */
 			mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
