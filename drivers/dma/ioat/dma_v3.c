@@ -111,6 +111,103 @@ static void pq_set_src(struct ioat_raw_descriptor *descs[2],
 	pq->coef[idx] = coef;
 }
 
+static bool is_jf_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF0:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF1:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF2:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF3:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF4:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF5:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF6:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF7:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF8:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF9:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_snb_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB0:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB1:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB2:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB3:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB4:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB5:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB6:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB7:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB8:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB9:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_ivb_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB0:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB1:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB2:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB3:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB4:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB5:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB6:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB7:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB8:
+	case PCI_DEVICE_ID_INTEL_IOAT_IVB9:
+		return true;
+	default:
+		return false;
+	}
+
+}
+
+static bool is_hsw_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW0:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW1:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW2:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW3:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW4:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW5:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW6:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW7:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW8:
+	case PCI_DEVICE_ID_INTEL_IOAT_HSW9:
+		return true;
+	default:
+		return false;
+	}
+
+}
+
+static bool is_xeon_cb32(struct pci_dev *pdev)
+{
+	return is_jf_ioat(pdev) || is_snb_ioat(pdev) || is_ivb_ioat(pdev) ||
+		is_hsw_ioat(pdev);
+}
+
+static bool is_bwd_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_BWD0:
+	case PCI_DEVICE_ID_INTEL_IOAT_BWD1:
+	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
+	case PCI_DEVICE_ID_INTEL_IOAT_BWD3:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void ioat3_dma_unmap(struct ioat2_dma_chan *ioat,
 			    struct ioat_ring_ent *desc, int idx)
 {
@@ -1168,6 +1265,56 @@ static int ioat3_dma_self_test(struct ioatdma_device *device)
 	return 0;
 }
 
+static int ioat3_irq_reinit(struct ioatdma_device *device)
+{
+	int msixcnt = device->common.chancnt;
+	struct pci_dev *pdev = device->pdev;
+	int i;
+	struct msix_entry *msix;
+	struct ioat_chan_common *chan;
+	int err = 0;
+
+	switch (device->irq_mode) {
+	case IOAT_MSIX:
+
+		for (i = 0; i < msixcnt; i++) {
+			msix = &device->msix_entries[i];
+			chan = ioat_chan_by_index(device, i);
+			devm_free_irq(&pdev->dev, msix->vector, chan);
+		}
+
+		pci_disable_msix(pdev);
+		break;
+
+	case IOAT_MSIX_SINGLE:
+		msix = &device->msix_entries[0];
+		chan = ioat_chan_by_index(device, 0);
+		devm_free_irq(&pdev->dev, msix->vector, chan);
+		pci_disable_msix(pdev);
+		break;
+
+	case IOAT_MSI:
+		chan = ioat_chan_by_index(device, 0);
+		devm_free_irq(&pdev->dev, pdev->irq, chan);
+		pci_disable_msi(pdev);
+		break;
+
+	case IOAT_INTX:
+		chan = ioat_chan_by_index(device, 0);
+		devm_free_irq(&pdev->dev, pdev->irq, chan);
+		break;
+
+	default:
+		return 0;
+	}
+
+	device->irq_mode = IOAT_NOIRQ;
+
+	err = ioat_dma_setup_interrupts(device);
+
+	return err;
+}
+
 static int ioat3_reset_hw(struct ioat_chan_common *chan)
 {
 	/* throw away whatever the channel was doing and get it
@@ -1199,91 +1346,16 @@ static int ioat3_reset_hw(struct ioat_chan_common *chan)
 	if (dev_id == PCI_DEVICE_ID_INTEL_IOAT_TBG0)
 		pci_write_config_dword(pdev, IOAT_PCI_DMAUNCERRSTS_OFFSET, 0x10);
 
-	return ioat2_reset_sync(chan, msecs_to_jiffies(200));
-}
-
-static bool is_jf_ioat(struct pci_dev *pdev)
-{
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF0:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF1:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF2:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF3:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF4:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF5:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF6:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF7:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF8:
-	case PCI_DEVICE_ID_INTEL_IOAT_JSF9:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static bool is_snb_ioat(struct pci_dev *pdev)
-{
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB0:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB1:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB2:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB3:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB4:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB5:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB6:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB7:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB8:
-	case PCI_DEVICE_ID_INTEL_IOAT_SNB9:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static bool is_ivb_ioat(struct pci_dev *pdev)
-{
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB0:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB1:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB2:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB3:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB4:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB5:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB6:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB7:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB8:
-	case PCI_DEVICE_ID_INTEL_IOAT_IVB9:
-		return true;
-	default:
-		return false;
+	err = ioat2_reset_sync(chan, msecs_to_jiffies(200));
+	if (err) {
+		dev_err(&pdev->dev, "Failed to reset!\n");
+		return err;
 	}
 
-}
+	if (device->irq_mode != IOAT_NOIRQ && is_bwd_ioat(pdev))
+		err = ioat3_irq_reinit(device);
 
-static bool is_hsw_ioat(struct pci_dev *pdev)
-{
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW0:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW1:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW2:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW3:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW4:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW5:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW6:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW7:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW8:
-	case PCI_DEVICE_ID_INTEL_IOAT_HSW9:
-		return true;
-	default:
-		return false;
-	}
-
-}
-
-static bool is_xeon_cb32(struct pci_dev *pdev)
-{
-	return is_jf_ioat(pdev) || is_snb_ioat(pdev) || is_ivb_ioat(pdev) ||
-		is_hsw_ioat(pdev);
+	return err;
 }
 
 int ioat3_dma_probe(struct ioatdma_device *device, int dca)
