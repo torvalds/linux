@@ -563,6 +563,7 @@ static void journal_write_done(struct closure *cl)
 }
 
 static void journal_write_unlocked(struct closure *cl)
+	__releases(c->journal.lock)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, journal.io.cl);
 	struct cache *ca;
@@ -652,6 +653,7 @@ static void journal_write(struct closure *cl)
 }
 
 static void __journal_try_write(struct cache_set *c, bool noflush)
+	__releases(c->journal.lock)
 {
 	struct closure *cl = &c->journal.io.cl;
 

@@ -130,7 +130,7 @@ static uint64_t btree_csum_set(struct btree *b, struct bset *i)
 	void *data = (void *) i + 8, *end = end(i);
 
 	crc = bch_crc64_update(crc, data, end - data);
-	return crc ^ 0xffffffffffffffff;
+	return crc ^ 0xffffffffffffffffULL;
 }
 
 static void btree_bio_endio(struct bio *bio, int error)

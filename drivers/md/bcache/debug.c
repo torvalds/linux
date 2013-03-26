@@ -82,7 +82,7 @@ struct keyprint_hack bch_pbtree(const struct btree *b)
 {
 	struct keyprint_hack r;
 
-	snprintf(r.s, 40, "%li level %i/%i", PTR_BUCKET_NR(b->c, &b->key, 0),
+	snprintf(r.s, 40, "%zu level %i/%i", PTR_BUCKET_NR(b->c, &b->key, 0),
 		 b->level, b->c->root ? b->c->root->level : -1);
 	return r;
 }
