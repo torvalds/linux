@@ -185,6 +185,16 @@ dev_t name_to_dev_t(char *name)
 	if (res)
 		goto done;
 
+#ifdef CONFIG_SUNXI_NAND_COMPAT_DEV
+#include <plat/mbr.h>
+	if (!strncmp(name, "nand", 4)
+	    && name[4] >='a' && name[4] < 'a' + MAX_PART_COUNT  && name[5] == 0) {
+		res = blk_lookup_devt("nand", name[4] - 'a' + 1);
+	if (res)
+		goto done;
+	}
+#endif
+
 	/*
 	 * try non-existent, but valid partition, which may only exist
 	 * after revalidating the disk, like partitioned md devices
