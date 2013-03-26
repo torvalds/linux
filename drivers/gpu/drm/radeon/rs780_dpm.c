@@ -546,14 +546,16 @@ int rs780_dpm_enable(struct radeon_device *rdev)
 {
 	struct igp_power_info *pi = rs780_get_pi(rdev);
 	struct radeon_ps *boot_ps = rdev->pm.dpm.boot_ps;
+	int ret;
 
 	rs780_get_pm_mode_parameters(rdev);
 	rs780_disable_vbios_powersaving(rdev);
 
 	if (r600_dynamicpm_enabled(rdev))
 		return -EINVAL;
-	if (rs780_initialize_dpm_parameters(rdev, boot_ps))
-		return -EINVAL;
+	ret = rs780_initialize_dpm_parameters(rdev, boot_ps);
+	if (ret)
+		return ret;
 	rs780_start_dpm(rdev);
 
 	rs780_preset_ranges_slow_clk_fbdiv_en(rdev);
@@ -571,7 +573,9 @@ int rs780_dpm_enable(struct radeon_device *rdev)
 		r600_gfx_clockgating_enable(rdev, true);
 
 	if (rdev->irq.installed && (rdev->pm.int_thermal_type == THERMAL_TYPE_RV6XX)) {
-		r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		ret = r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		if (ret)
+			return ret;
 		rdev->irq.dpm_thermal = true;
 		radeon_irq_set(rdev);
 	}
@@ -603,6 +607,7 @@ int rs780_dpm_set_power_state(struct radeon_device *rdev)
 	struct igp_power_info *pi = rs780_get_pi(rdev);
 	struct radeon_ps *new_ps = rdev->pm.dpm.requested_ps;
 	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
+	int ret;
 
 	rs780_get_pm_mode_parameters(rdev);
 
@@ -611,7 +616,9 @@ int rs780_dpm_set_power_state(struct radeon_device *rdev)
 		mdelay(5);
 	}
 
-	rs780_set_engine_clock_scaling(rdev, new_ps, old_ps);
+	ret = rs780_set_engine_clock_scaling(rdev, new_ps, old_ps);
+	if (ret)
+		return ret;
 	rs780_set_engine_clock_spc(rdev, new_ps, old_ps);
 
 	rs780_activate_engine_clk_scaling(rdev, new_ps, old_ps);
