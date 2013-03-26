@@ -357,7 +357,7 @@ static int vpfe_pipeline_disable(struct vpfe_pipeline *pipe)
  *
  * Set the pipeline to the given stream state.
  *
- * Return 0 if successfull, or the return value of the failed video::s_stream
+ * Return 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise.
  */
 static int vpfe_pipeline_set_stream(struct vpfe_pipeline *pipe,
@@ -644,7 +644,7 @@ static int vpfe_g_fmt(struct file *file, void *priv,
  * fills v4l2_fmtdesc structure with output format set on adjacent subdev,
  * only one format is enumearted as subdevs are already configured
  *
- * Return 0 if successfull, error code otherwise
+ * Return 0 if successful, error code otherwise
  */
 static int vpfe_enum_fmt(struct file *file, void  *priv,
 				   struct v4l2_fmtdesc *fmt)
@@ -769,7 +769,7 @@ static int vpfe_try_fmt(struct file *file, void *priv,
  * fills v4l2_input structure with input available on media chain,
  * only one input is enumearted as media chain is setup by this time
  *
- * Return 0 if successfull, -EINVAL is media chain is invalid
+ * Return 0 if successful, -EINVAL is media chain is invalid
  */
 static int vpfe_enum_input(struct file *file, void *priv,
 				 struct v4l2_input *inp)
@@ -779,7 +779,7 @@ static int vpfe_enum_input(struct file *file, void *priv,
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_enum_input\n");
-	/* enumerate from the subdev user has choosen through mc */
+	/* enumerate from the subdev user has chosen through mc */
 	if (inp->index < sdinfo->num_inputs) {
 		memcpy(inp, &sdinfo->inputs[inp->index],
 		       sizeof(struct v4l2_input));
