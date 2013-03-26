@@ -158,7 +158,16 @@ static void s626_mc_disable(struct comedi_device *dev,
 	writel(cmd << 16 , devpriv->base_addr + reg);
 }
 
-#define MC_TEST(REGADRS, CTRLWORD)	((readl(devpriv->base_addr+(REGADRS)) & CTRLWORD) != 0)
+static bool s626_mc_test(struct comedi_device *dev,
+			 unsigned int cmd, unsigned int reg)
+{
+	struct s626_private *devpriv = dev->private;
+	unsigned int val;
+
+	val = readl(devpriv->base_addr + reg);
+
+	return (val & cmd) ? true : false;
+}
 
 /* #define WR7146(REGARDS,CTRLWORD)
     writel(CTRLWORD,(uint32_t)(devpriv->base_addr+(REGARDS))) */
@@ -195,9 +204,11 @@ static void DEBItransfer(struct comedi_device *dev)
 	/* Initiate upload of shadow RAM to DEBI control register */
 	s626_mc_enable(dev, MC2_UPLD_DEBI, P_MC2);
 
-	/*  Wait for completion of upload from shadow RAM to DEBI control */
-	/*  register. */
-	while (!MC_TEST(P_MC2, MC2_UPLD_DEBI))
+	/*
+	 * Wait for completion of upload from shadow RAM to
+	 * DEBI control register.
+	 */
+	while (!s626_mc_test(dev, MC2_UPLD_DEBI, P_MC2))
 		;
 
 	/*  Wait until DEBI transfer is done. */
@@ -275,7 +286,7 @@ static uint32_t I2Chandshake(struct comedi_device *dev, uint32_t val)
 	 * wait for upload confirmation.
 	 */
 	s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
-	while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
+	while (!s626_mc_test(dev, MC2_UPLD_IIC, P_MC2))
 		;
 
 	/*  Wait until I2C bus transfer is finished or an error occurs. */
@@ -1132,7 +1143,7 @@ static int s626_ai_rinsn(struct comedi_device *dev,
 	s626_mc_enable(dev, MC2_ADC_RPS, P_MC2);
 
 	/* Wait until ADC scan loop is finished (RPS Signal 0 reset) */
-	while (MC_TEST(P_MC2, MC2_ADC_RPS))
+	while (s626_mc_test(dev, MC2_ADC_RPS, P_MC2))
 		;
 
 	/*
@@ -2422,7 +2433,7 @@ static void s626_initialize(struct comedi_device *dev)
 	for (i = 0; i < 2; i++) {
 		WR7146(P_I2CSTAT, I2C_CLKSEL);
 		s626_mc_enable(dev, MC2_UPLD_IIC, P_MC2);
-		while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
+		while (!s626_mc_test(dev, MC2_UPLD_IIC, P_MC2))
 			;
 	}
 
