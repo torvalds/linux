@@ -104,6 +104,13 @@ static int ad7997_8_update_scan_mode(struct iio_dev *indio_dev,
 {
 	struct ad799x_state *st = iio_priv(indio_dev);
 
+	kfree(st->rx_buf);
+	st->rx_buf = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
+	if (!st->rx_buf)
+		return -ENOMEM;
+
+	st->transfer_size = bitmap_weight(scan_mask, indio_dev->masklength) * 2;
+
 	switch (st->id) {
 	case ad7997:
 	case ad7998:
@@ -665,6 +672,7 @@ static int ad799x_remove(struct i2c_client *client)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
+	kfree(st->rx_buf);
 	iio_device_free(indio_dev);
 
 	return 0;

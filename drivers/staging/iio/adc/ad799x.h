@@ -106,6 +106,9 @@ struct ad799x_state {
 	u16				int_vref_mv;
 	unsigned			id;
 	u16				config;
+
+	u8				*rx_buf;
+	unsigned int			transfer_size;
 };
 
 /*
