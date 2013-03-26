@@ -1,6 +1,6 @@
 Samsung Exynos Analog to Digital Converter bindings
 
-This devicetree binding are for the new adc driver written fori
+The devicetree bindings are for the new ADC driver written for
 Exynos4 and upward SoCs from Samsung.
 
 New driver handles the following
@@ -49,4 +49,4 @@ adc@12D10000 {
 };
 
 Note: Does not apply to ADC driver under arch/arm/plat-samsung/
-Note: The child node can be added under the adc node or seperately.
+Note: The child node can be added under the adc node or separately.
