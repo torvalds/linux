@@ -412,9 +412,6 @@ struct rtdPrivate {
 	/* timer gate (when enabled) */
 	u8 utcGate[4];		/* 1 extra allows simple range check */
 
-	/* shadow registers affect other registers, but can't be read back */
-	/* The macros below update these on writes */
-	u8 utcCtrl[4];		/* crtl mode for 3 utc + read back */
 	unsigned fifoLen;
 };
 
@@ -1325,14 +1322,10 @@ static void rtd_init_board(struct comedi_device *dev)
 	writel(0, devpriv->las0 + LAS0_DAC2_RESET);
 	/* clear digital IO fifo */
 	writew(0, devpriv->las0 + LAS0_DIO_STATUS);
-	devpriv->utcCtrl[0] = (0 << 6) | 0x30;
-	devpriv->utcCtrl[1] = (1 << 6) | 0x30;
-	devpriv->utcCtrl[2] = (2 << 6) | 0x30;
-	devpriv->utcCtrl[3] = (3 << 6) | 0x00;
-	writeb(devpriv->utcCtrl[0], devpriv->las0 + LAS0_UTC_CTRL);
-	writeb(devpriv->utcCtrl[1], devpriv->las0 + LAS0_UTC_CTRL);
-	writeb(devpriv->utcCtrl[2], devpriv->las0 + LAS0_UTC_CTRL);
-	writeb(devpriv->utcCtrl[3], devpriv->las0 + LAS0_UTC_CTRL);
+	writeb((0 << 6) | 0x30, devpriv->las0 + LAS0_UTC_CTRL);
+	writeb((1 << 6) | 0x30, devpriv->las0 + LAS0_UTC_CTRL);
+	writeb((2 << 6) | 0x30, devpriv->las0 + LAS0_UTC_CTRL);
+	writeb((3 << 6) | 0x00, devpriv->las0 + LAS0_UTC_CTRL);
 	/* TODO: set user out source ??? */
 }
 
