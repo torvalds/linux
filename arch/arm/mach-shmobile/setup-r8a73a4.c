@@ -21,13 +21,56 @@
 #include <linux/irqchip.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
+#include <linux/serial_sci.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a73a4.h>
 #include <asm/mach/arch.h>
 
+#define SCIF_COMMON(scif_type, baseaddr, irq)			\
+	.type		= scif_type,				\
+	.mapbase	= baseaddr,				\
+	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,	\
+	.scbrr_algo_id	= SCBRR_ALGO_4,				\
+	.irqs		= SCIx_IRQ_MUXED(irq)
+
+#define SCIFA_DATA(index, baseaddr, irq)		\
+[index] = {						\
+	SCIF_COMMON(PORT_SCIFA, baseaddr, irq),		\
+	.scscr = SCSCR_RE | SCSCR_TE | SCSCR_CKE0,	\
+}
+
+#define SCIFB_DATA(index, baseaddr, irq)	\
+[index] = {					\
+	SCIF_COMMON(PORT_SCIFB, baseaddr, irq),	\
+	.scscr = SCSCR_RE | SCSCR_TE,		\
+}
+
+enum { SCIFA0, SCIFA1, SCIFB0, SCIFB1, SCIFB2, SCIFB3 };
+
+static const struct plat_sci_port scif[] = {
+	SCIFA_DATA(SCIFA0, 0xe6c40000, gic_spi(144)), /* SCIFA0 */
+	SCIFA_DATA(SCIFA1, 0xe6c50000, gic_spi(145)), /* SCIFA1 */
+	SCIFB_DATA(SCIFB0, 0xe6c50000, gic_spi(145)), /* SCIFB0 */
+	SCIFB_DATA(SCIFB1, 0xe6c30000, gic_spi(149)), /* SCIFB1 */
+	SCIFB_DATA(SCIFB2, 0xe6ce0000, gic_spi(150)), /* SCIFB2 */
+	SCIFB_DATA(SCIFB3, 0xe6cf0000, gic_spi(151)), /* SCIFB3 */
+};
+
+static inline void r8a73a4_register_scif(int idx)
+{
+	platform_device_register_data(&platform_bus, "sh-sci", idx, &scif[idx],
+				      sizeof(struct plat_sci_port));
+}
+
 void __init r8a73a4_add_standard_devices(void)
 {
+	r8a73a4_register_scif(SCIFA0);
+	r8a73a4_register_scif(SCIFA1);
+	r8a73a4_register_scif(SCIFB0);
+	r8a73a4_register_scif(SCIFB1);
+	r8a73a4_register_scif(SCIFB2);
+	r8a73a4_register_scif(SCIFB3);
 }
 
 #ifdef CONFIG_USE_OF
