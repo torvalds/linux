@@ -2651,76 +2651,75 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	dev->read_subdev = s;
-	/* we support single-ended (ground) and differential */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = S626_ADC_CHANNELS;
-	s->maxdata = (0xffff >> 2);
-	s->range_table = &s626_range_table;
-	s->len_chanlist = S626_ADC_CHANNELS;
-	s->insn_config = s626_ai_insn_config;
-	s->insn_read = s626_ai_insn_read;
-	s->do_cmd = s626_ai_cmd;
-	s->do_cmdtest = s626_ai_cmdtest;
-	s->cancel = s626_ai_cancel;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
+	s->n_chan	= S626_ADC_CHANNELS;
+	s->maxdata	= 0x3fff;
+	s->range_table	= &s626_range_table;
+	s->len_chanlist	= S626_ADC_CHANNELS;
+	s->insn_config	= s626_ai_insn_config;
+	s->insn_read	= s626_ai_insn_read;
+	s->do_cmd	= s626_ai_cmd;
+	s->do_cmdtest	= s626_ai_cmdtest;
+	s->cancel	= s626_ai_cancel;
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = S626_DAC_CHANNELS;
-	s->maxdata = (0x3fff);
-	s->range_table = &range_bipolar10;
-	s->insn_write = s626_ao_winsn;
-	s->insn_read = s626_ao_rinsn;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= S626_DAC_CHANNELS;
+	s->maxdata	= 0x3fff;
+	s->range_table	= &range_bipolar10;
+	s->insn_write	= s626_ao_winsn;
+	s->insn_read	= s626_ao_rinsn;
 
 	s = &dev->subdevices[2];
 	/* digital I/O subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->io_bits = 0xffff;
-	s->private = (void *)0;		/* DIO group 0 */
-	s->range_table = &range_digital;
-	s->insn_config = s626_dio_insn_config;
-	s->insn_bits = s626_dio_insn_bits;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->io_bits	= 0xffff;
+	s->private	= (void *)0;	/* DIO group 0 */
+	s->range_table	= &range_digital;
+	s->insn_config	= s626_dio_insn_config;
+	s->insn_bits	= s626_dio_insn_bits;
 
 	s = &dev->subdevices[3];
 	/* digital I/O subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->io_bits = 0xffff;
-	s->private = (void *)1;		/* DIO group 1 */
-	s->range_table = &range_digital;
-	s->insn_config = s626_dio_insn_config;
-	s->insn_bits = s626_dio_insn_bits;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->io_bits	= 0xffff;
+	s->private	= (void *)1;	/* DIO group 1 */
+	s->range_table	= &range_digital;
+	s->insn_config	= s626_dio_insn_config;
+	s->insn_bits	= s626_dio_insn_bits;
 
 	s = &dev->subdevices[4];
 	/* digital I/O subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->io_bits = 0xffff;
-	s->private = (void *)2;		/* DIO group 2 */
-	s->range_table = &range_digital;
-	s->insn_config = s626_dio_insn_config;
-	s->insn_bits = s626_dio_insn_bits;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->io_bits	= 0xffff;
+	s->private	= (void *)2;	/* DIO group 2 */
+	s->range_table	= &range_digital;
+	s->insn_config 	= s626_dio_insn_config;
+	s->insn_bits	= s626_dio_insn_bits;
 
 	s = &dev->subdevices[5];
 	/* encoder (counter) subdevice */
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = S626_ENCODER_CHANNELS;
-	s->private = enc_private_data;
-	s->insn_config = s626_enc_insn_config;
-	s->insn_read = s626_enc_insn_read;
-	s->insn_write = s626_enc_insn_write;
-	s->maxdata = 0xffffff;
-	s->range_table = &range_unknown;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
+	s->n_chan	= S626_ENCODER_CHANNELS;
+	s->maxdata	= 0xffffff;
+	s->private	= enc_private_data;
+	s->range_table	= &range_unknown;
+	s->insn_config	= s626_enc_insn_config;
+	s->insn_read	= s626_enc_insn_read;
+	s->insn_write	= s626_enc_insn_write;
 
 	s626_initialize(dev);
 
