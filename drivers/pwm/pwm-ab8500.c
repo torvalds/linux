@@ -66,7 +66,7 @@ static int ab8500_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 				AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
 				1 << (chip->base - 1), ENABLE_PWM);
 	if (ret < 0)
-		dev_err(chip->dev, "%s: Failed to disable PWM, Error %d\n",
+		dev_err(chip->dev, "%s: Failed to enable PWM, Error %d\n",
 							pwm->label, ret);
 	return ret;
 }
