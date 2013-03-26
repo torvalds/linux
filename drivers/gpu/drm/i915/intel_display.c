@@ -7857,12 +7857,6 @@ int intel_set_mode(struct drm_crtc *crtc,
 	intel_modeset_affected_pipes(crtc, &modeset_pipes,
 				     &prepare_pipes, &disable_pipes);
 
-	DRM_DEBUG_KMS("set mode pipe masks: modeset: %x, prepare: %x, disable: %x\n",
-		      modeset_pipes, prepare_pipes, disable_pipes);
-
-	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
-		intel_crtc_disable(&intel_crtc->base);
-
 	*saved_hwmode = crtc->hwmode;
 	*saved_mode = crtc->mode;
 
@@ -7880,6 +7874,12 @@ int intel_set_mode(struct drm_crtc *crtc,
 			goto out;
 		}
 	}
+
+	DRM_DEBUG_KMS("set mode pipe masks: modeset: %x, prepare: %x, disable: %x\n",
+		      modeset_pipes, prepare_pipes, disable_pipes);
+
+	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
+		intel_crtc_disable(&intel_crtc->base);
 
 	for_each_intel_crtc_masked(dev, prepare_pipes, intel_crtc) {
 		if (intel_crtc->base.enabled)
