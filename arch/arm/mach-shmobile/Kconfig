@@ -18,6 +18,13 @@ config ARCH_SH73A0
 	select SH_CLK_CPG
 	select RENESAS_INTC_IRQPIN
 
+config ARCH_R8A73A4
+	bool "R-Mobile APE6 (R8A73A40)"
+	select ARM_GIC
+	select CPU_V7
+	select ARM_ARCH_TIMER
+	select SH_CLK_CPG
+
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
