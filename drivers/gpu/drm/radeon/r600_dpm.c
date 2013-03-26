@@ -720,6 +720,7 @@ bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor)
 	case THERMAL_TYPE_EVERGREEN:
 	case THERMAL_TYPE_SUMO:
 	case THERMAL_TYPE_NI:
+	case THERMAL_TYPE_SI:
 		return true;
 	case THERMAL_TYPE_ADT7473_WITH_INTERNAL:
 	case THERMAL_TYPE_EMC2103_WITH_INTERNAL:
