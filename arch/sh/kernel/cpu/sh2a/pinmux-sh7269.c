@@ -9,7 +9,9 @@
  * for more details.
  */
 
+#include <linux/bug.h>
 #include <linux/init.h>
+#include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <cpu/pfc.h>
 
