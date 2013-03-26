@@ -1310,7 +1310,7 @@ static int bh1770_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int bh1770_suspend(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
@@ -1346,11 +1346,6 @@ static int bh1770_resume(struct device *dev)
 	}
 	return ret;
 }
-
-#else
-#define bh1770_suspend	NULL
-#define bh1770_shutdown NULL
-#define bh1770_resume	NULL
 #endif
 
 #ifdef CONFIG_PM_RUNTIME
