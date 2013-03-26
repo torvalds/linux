@@ -446,6 +446,8 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 
 	/* Clear pending interrupts and mask all interrupts */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
+		free_irq(port->irq, ourport);
+
 		wr_regl(port, S3C64XX_UINTP, 0xf);
 		wr_regl(port, S3C64XX_UINTM, 0xf);
 	}
@@ -504,6 +506,8 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 
 	dbg("s3c64xx_serial_startup: port=%p (%08lx,%p)\n",
 	    port->mapbase, port->membase);
+
+	wr_regl(port, S3C64XX_UINTM, 0xf);
 
 	ret = request_irq(port->irq, s3c64xx_serial_handle_irq, IRQF_SHARED,
 			  s3c24xx_serial_portname(port), ourport);
