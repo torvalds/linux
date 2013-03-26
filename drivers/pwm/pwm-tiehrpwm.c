@@ -533,7 +533,7 @@ static int ehrpwm_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pc->chip);
 }
 
-void ehrpwm_pwm_save_context(struct ehrpwm_pwm_chip *pc)
+static void ehrpwm_pwm_save_context(struct ehrpwm_pwm_chip *pc)
 {
 	pm_runtime_get_sync(pc->chip.dev);
 	pc->ctx.tbctl = ehrpwm_read(pc->mmio_base, TBCTL);
@@ -547,7 +547,7 @@ void ehrpwm_pwm_save_context(struct ehrpwm_pwm_chip *pc)
 	pm_runtime_put_sync(pc->chip.dev);
 }
 
-void ehrpwm_pwm_restore_context(struct ehrpwm_pwm_chip *pc)
+static void ehrpwm_pwm_restore_context(struct ehrpwm_pwm_chip *pc)
 {
 	ehrpwm_write(pc->mmio_base, TBPRD, pc->ctx.tbprd);
 	ehrpwm_write(pc->mmio_base, CMPA, pc->ctx.cmpa);
