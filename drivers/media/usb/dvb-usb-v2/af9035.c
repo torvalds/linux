@@ -57,7 +57,7 @@ static int af9035_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 		dev_err(&d->udev->dev, "%s: too much data wlen=%d rlen=%d\n",
 				__func__, req->wlen, req->rlen);
 		ret = -EINVAL;
-		goto err;
+		goto exit;
 	}
 
 	state->buf[0] = REQ_HDR_LEN + req->wlen + CHECKSUM_LEN - 1;
@@ -81,7 +81,7 @@ static int af9035_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 	ret = dvb_usbv2_generic_rw_locked(d,
 			state->buf, wlen, state->buf, rlen);
 	if (ret)
-		goto err;
+		goto exit;
 
 	/* no ack for those packets */
 	if (req->cmd == CMD_FW_DL)
@@ -95,28 +95,29 @@ static int af9035_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 				"(%04x != %04x)\n", KBUILD_MODNAME, req->cmd,
 				tmp_checksum, checksum);
 		ret = -EIO;
-		goto err;
+		goto exit;
 	}
 
 	/* check status */
 	if (state->buf[2]) {
 		/* fw returns status 1 when IR code was not received */
-		if (req->cmd == CMD_IR_GET || state->buf[2] == 1)
-			return 1;
+		if (req->cmd == CMD_IR_GET || state->buf[2] == 1) {
+			ret = 1;
+			goto exit;
+		}
 
 		dev_dbg(&d->udev->dev, "%s: command=%02x failed fw error=%d\n",
 				__func__, req->cmd, state->buf[2]);
 		ret = -EIO;
-		goto err;
+		goto exit;
 	}
 
 	/* read request, copy returned data to return buf */
 	if (req->rlen)
 		memcpy(req->rbuf, &state->buf[ACK_HDR_LEN], req->rlen);
 exit:
-err:
 	mutex_unlock(&d->usb_mutex);
-	if (ret)
+	if (ret < 0)
 		dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
