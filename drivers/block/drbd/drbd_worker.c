@@ -1426,7 +1426,7 @@ static int _drbd_may_sync_now(struct drbd_conf *mdev)
 	int resync_after;
 
 	while (1) {
-		if (!odev->ldev)
+		if (!odev->ldev || odev->state.disk == D_DISKLESS)
 			return 1;
 		rcu_read_lock();
 		resync_after = rcu_dereference(odev->ldev->disk_conf)->resync_after;
@@ -1434,7 +1434,7 @@ static int _drbd_may_sync_now(struct drbd_conf *mdev)
 		if (resync_after == -1)
 			return 1;
 		odev = minor_to_mdev(resync_after);
-		if (!expect(odev))
+		if (!odev)
 			return 1;
 		if ((odev->state.conn >= C_SYNC_SOURCE &&
 		     odev->state.conn <= C_PAUSED_SYNC_T) ||
@@ -1516,7 +1516,7 @@ enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor)
 
 	if (o_minor == -1)
 		return NO_ERROR;
-	if (o_minor < -1 || minor_to_mdev(o_minor) == NULL)
+	if (o_minor < -1 || o_minor > MINORMASK)
 		return ERR_RESYNC_AFTER;
 
 	/* check for loops */
@@ -1524,6 +1524,15 @@ enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor)
 	while (1) {
 		if (odev == mdev)
 			return ERR_RESYNC_AFTER_CYCLE;
+
+		/* You are free to depend on diskless, non-existing,
+		 * or not yet/no longer existing minors.
+		 * We only reject dependency loops.
+		 * We cannot follow the dependency chain beyond a detached or
+		 * missing minor.
+		 */
+		if (!odev || !odev->ldev || odev->state.disk == D_DISKLESS)
+			return NO_ERROR;
 
 		rcu_read_lock();
 		resync_after = rcu_dereference(odev->ldev->disk_conf)->resync_after;

@@ -1381,6 +1381,12 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
+	write_lock_irq(&global_state_lock);
+	retcode = drbd_resync_after_valid(mdev, new_disk_conf->resync_after);
+	write_unlock_irq(&global_state_lock);
+	if (retcode != NO_ERROR)
+		goto fail;
+
 	rcu_read_lock();
 	nc = rcu_dereference(mdev->tconn->net_conf);
 	if (nc) {
