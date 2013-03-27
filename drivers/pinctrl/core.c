@@ -27,7 +27,11 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/machine.h>
+
+#ifdef CONFIG_GPIOLIB
 #include <asm-generic/gpio.h>
+#endif
+
 #include "core.h"
 #include "devicetree.h"
 #include "pinmux.h"
@@ -290,6 +294,7 @@ pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
  * certain GPIO pin doesn't have back-end pinctrl device. If the return value
  * is false, it means that pinctrl device may not be ready.
  */
+#ifdef CONFIG_GPIOLIB
 static bool pinctrl_ready_for_gpio_range(unsigned gpio)
 {
 	struct pinctrl_dev *pctldev;
@@ -309,6 +314,9 @@ static bool pinctrl_ready_for_gpio_range(unsigned gpio)
 	}
 	return false;
 }
+#else
+static bool pinctrl_ready_for_gpio_range(unsigned gpio) { return true; }
+#endif
 
 /**
  * pinctrl_get_device_gpio_range() - find device for GPIO range
