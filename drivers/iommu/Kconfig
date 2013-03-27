@@ -130,7 +130,7 @@ config IRQ_REMAP
 # OMAP IOMMU support
 config OMAP_IOMMU
 	bool "OMAP IOMMU Support"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP2PLUS
 	select IOMMU_API
 
 config OMAP_IOVMM
