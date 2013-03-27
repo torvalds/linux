@@ -55,6 +55,7 @@ static int max_decnet_no_fc_max_cwnd[] = { NSP_MAX_WINDOW };
 static char node_name[7] = "???";
 
 static struct ctl_table_header *dn_table_header = NULL;
+static struct ctl_table_header *dn_skeleton_table_header = NULL;
 
 /*
  * ctype.h :-)
@@ -356,6 +357,27 @@ static struct ctl_path dn_path[] = {
 	{ }
 };
 
+static struct ctl_table empty[1];
+
+static struct ctl_table dn_skeleton[] = {
+	{
+		.procname = "conf",
+		.mode = 0555,
+		.child = empty,
+	},
+	{ }
+};
+
+void dn_register_sysctl_skeleton(void)
+{
+	dn_skeleton_table_header = register_sysctl_paths(dn_path, dn_skeleton);
+}
+
+void dn_unregister_sysctl_skeleton(void)
+{
+	unregister_sysctl_table(dn_skeleton_table_header);
+}
+
 void dn_register_sysctl(void)
 {
 	dn_table_header = register_sysctl_paths(dn_path, dn_table);
@@ -367,6 +389,12 @@ void dn_unregister_sysctl(void)
 }
 
 #else  /* CONFIG_SYSCTL */
+void dn_register_sysctl_skeleton(void)
+{
+}
+void dn_unregister_sysctl_skeleton(void)
+{
+}
 void dn_unregister_sysctl(void)
 {
 }
