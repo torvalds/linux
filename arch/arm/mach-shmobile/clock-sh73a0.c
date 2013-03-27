@@ -269,7 +269,7 @@ static struct clk_div4_table div4_table = {
 };
 
 enum { DIV4_I, DIV4_ZG, DIV4_M3, DIV4_B, DIV4_M1, DIV4_M2,
-	DIV4_Z, DIV4_ZTR, DIV4_ZT, DIV4_ZX, DIV4_HP, DIV4_NR };
+	DIV4_Z, DIV4_ZX, DIV4_HP, DIV4_NR };
 
 #define DIV4(_reg, _bit, _mask, _flags) \
 	SH_CLK_DIV4(&pll1_clk, _reg, _bit, _mask, _flags)
@@ -282,8 +282,6 @@ static struct clk div4_clks[DIV4_NR] = {
 	[DIV4_M1] = DIV4(FRQCRA, 4, 0x1dff, 0),
 	[DIV4_M2] = DIV4(FRQCRA, 0, 0x1dff, 0),
 	[DIV4_Z] = SH_CLK_DIV4(&pll0_clk, FRQCRB, 24, 0x97f, 0),
-	[DIV4_ZTR] = DIV4(FRQCRB, 20, 0xdff, 0),
-	[DIV4_ZT] = DIV4(FRQCRB, 16, 0xdff, 0),
 	[DIV4_ZX] = DIV4(FRQCRB, 12, 0xdff, 0),
 	[DIV4_HP] = DIV4(FRQCRB, 4, 0xdff, 0),
 };
