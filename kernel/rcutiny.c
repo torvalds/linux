@@ -44,7 +44,6 @@
 
 /* Forward declarations for rcutiny_plugin.h. */
 struct rcu_ctrlblk;
-static void invoke_rcu_callbacks(void);
 static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp);
 static void rcu_process_callbacks(struct softirq_action *unused);
 static void __call_rcu(struct rcu_head *head,
@@ -227,7 +226,7 @@ void rcu_sched_qs(int cpu)
 	local_irq_save(flags);
 	if (rcu_qsctr_help(&rcu_sched_ctrlblk) +
 	    rcu_qsctr_help(&rcu_bh_ctrlblk))
-		invoke_rcu_callbacks();
+		raise_softirq(RCU_SOFTIRQ);
 	local_irq_restore(flags);
 }
 
@@ -240,7 +239,7 @@ void rcu_bh_qs(int cpu)
 
 	local_irq_save(flags);
 	if (rcu_qsctr_help(&rcu_bh_ctrlblk))
-		invoke_rcu_callbacks();
+		raise_softirq(RCU_SOFTIRQ);
 	local_irq_restore(flags);
 }
 
@@ -277,7 +276,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 					      ACCESS_ONCE(rcp->rcucblist),
 					      need_resched(),
 					      is_idle_task(current),
-					      rcu_is_callbacks_kthread()));
+					      false));
 		return;
 	}
 
@@ -307,7 +306,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count));
 	RCU_TRACE(trace_rcu_batch_end(rcp->name, cb_count, 0, need_resched(),
 				      is_idle_task(current),
-				      rcu_is_callbacks_kthread()));
+				      false));
 }
 
 static void rcu_process_callbacks(struct softirq_action *unused)
@@ -379,3 +378,8 @@ void call_rcu_bh(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 	__call_rcu(head, func, &rcu_bh_ctrlblk);
 }
 EXPORT_SYMBOL_GPL(call_rcu_bh);
+
+void rcu_init(void)
+{
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
+}

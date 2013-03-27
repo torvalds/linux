@@ -102,39 +102,6 @@ static void check_cpu_stalls(void)
 	RCU_TRACE(check_cpu_stall_preempt());
 }
 
-/* Hold off callback invocation until early_initcall() time. */
-static int rcu_scheduler_fully_active __read_mostly;
-
-/*
- * Start up softirq processing of callbacks.
- */
-void invoke_rcu_callbacks(void)
-{
-	if (rcu_scheduler_fully_active)
-		raise_softirq(RCU_SOFTIRQ);
-}
-
-#ifdef CONFIG_RCU_TRACE
-
-/*
- * There is no callback kthread, so this thread is never it.
- */
-static bool rcu_is_callbacks_kthread(void)
-{
-	return false;
-}
-
-#endif /* #ifdef CONFIG_RCU_TRACE */
-
-static int __init rcu_scheduler_really_started(void)
-{
-	rcu_scheduler_fully_active = 1;
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
-	raise_softirq(RCU_SOFTIRQ);  /* Invoke any callbacks from early boot. */
-	return 0;
-}
-early_initcall(rcu_scheduler_really_started);
-
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #include <linux/kernel_stat.h>
 

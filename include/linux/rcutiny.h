@@ -27,10 +27,6 @@
 
 #include <linux/cache.h>
 
-static inline void rcu_init(void)
-{
-}
-
 static inline void rcu_barrier_bh(void)
 {
 	wait_rcu_gp(call_rcu_bh);
