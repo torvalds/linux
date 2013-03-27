@@ -1932,20 +1932,22 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 
 	/* SRIOV can be enabled only with MSIX */
 	if (int_mode_param == BNX2X_INT_MODE_MSI ||
-	    int_mode_param == BNX2X_INT_MODE_INTX)
+	    int_mode_param == BNX2X_INT_MODE_INTX) {
 		BNX2X_ERR("Forced MSI/INTx mode is incompatible with SRIOV\n");
+		return 0;
+	}
 
 	err = -EIO;
 	/* verify ari is enabled */
 	if (!bnx2x_ari_enabled(bp->pdev)) {
-		BNX2X_ERR("ARI not supported, SRIOV can not be enabled\n");
-		return err;
+		BNX2X_ERR("ARI not supported (check pci bridge ARI forwarding), SRIOV can not be enabled\n");
+		return 0;
 	}
 
 	/* verify igu is in normal mode */
 	if (CHIP_INT_MODE_IS_BC(bp)) {
 		BNX2X_ERR("IGU not normal mode,  SRIOV can not be enabled\n");
-		return err;
+		return 0;
 	}
 
 	/* allocate the vfs database */
