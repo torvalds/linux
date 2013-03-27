@@ -66,7 +66,7 @@
 
 static struct ftrace_ops ftrace_list_end __read_mostly = {
 	.func		= ftrace_stub,
-	.flags		= FTRACE_OPS_FL_RECURSION_SAFE,
+	.flags		= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_STUB,
 };
 
 /* ftrace_enabled is a method to turn ftrace on or off */
@@ -4131,7 +4131,8 @@ ftrace_ops_control_func(unsigned long ip, unsigned long parent_ip,
 	preempt_disable_notrace();
 	trace_recursion_set(TRACE_CONTROL_BIT);
 	do_for_each_ftrace_op(op, ftrace_control_list) {
-		if (!ftrace_function_local_disabled(op) &&
+		if (!(op->flags & FTRACE_OPS_FL_STUB) &&
+		    !ftrace_function_local_disabled(op) &&
 		    ftrace_ops_test(op, ip))
 			op->func(ip, parent_ip, op, regs);
 	} while_for_each_ftrace_op(op);
