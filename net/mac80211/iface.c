@@ -693,7 +693,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	if (sdata->dev)
 		netif_tx_stop_all_queues(sdata->dev);
 
-	ieee80211_roc_purge(sdata);
+	ieee80211_roc_purge(local, sdata);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		ieee80211_mgd_stop(sdata);
