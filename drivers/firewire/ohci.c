@@ -1911,7 +1911,7 @@ static void bus_reset_work(struct work_struct *work)
 
 	reg = reg_read(ohci, OHCI1394_SelfIDCount);
 	if (reg & OHCI1394_SelfIDCount_selfIDError) {
-		ohci_notice(ohci, "inconsistent self IDs\n");
+		ohci_notice(ohci, "self ID receive error\n");
 		return;
 	}
 	/*
@@ -1923,7 +1923,7 @@ static void bus_reset_work(struct work_struct *work)
 	self_id_count = (reg >> 3) & 0xff;
 
 	if (self_id_count > 252) {
-		ohci_notice(ohci, "inconsistent self IDs\n");
+		ohci_notice(ohci, "bad selfIDSize (%08x)\n", reg);
 		return;
 	}
 
@@ -1931,7 +1931,10 @@ static void bus_reset_work(struct work_struct *work)
 	rmb();
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
-		if (ohci->self_id_cpu[i] != ~ohci->self_id_cpu[i + 1]) {
+		u32 id  = cond_le32_to_cpu(ohci->self_id_cpu[i]);
+		u32 id2 = cond_le32_to_cpu(ohci->self_id_cpu[i + 1]);
+
+		if (id != ~id2) {
 			/*
 			 * If the invalid data looks like a cycle start packet,
 			 * it's likely to be the result of the cycle master
@@ -1939,19 +1942,17 @@ static void bus_reset_work(struct work_struct *work)
 			 * so far are valid and should be processed so that the
 			 * bus manager can then correct the gap count.
 			 */
-			if (cond_le32_to_cpu(ohci->self_id_cpu[i])
-							== 0xffff008f) {
-				ohci_notice(ohci,
-					    "ignoring spurious self IDs\n");
+			if (id == 0xffff008f) {
+				ohci_notice(ohci, "ignoring spurious self IDs\n");
 				self_id_count = j;
 				break;
-			} else {
-				ohci_notice(ohci, "inconsistent self IDs\n");
-				return;
 			}
+
+			ohci_notice(ohci, "bad self ID %d/%d (%08x != ~%08x)\n",
+				    j, self_id_count, id, id2);
+			return;
 		}
-		ohci->self_id_buffer[j] =
-				cond_le32_to_cpu(ohci->self_id_cpu[i]);
+		ohci->self_id_buffer[j] = id;
 	}
 
 	if (ohci->quirks & QUIRK_TI_SLLZ059) {
@@ -1964,7 +1965,7 @@ static void bus_reset_work(struct work_struct *work)
 	}
 
 	if (self_id_count == 0) {
-		ohci_notice(ohci, "inconsistent self IDs\n");
+		ohci_notice(ohci, "no self IDs\n");
 		return;
 	}
 	rmb();
