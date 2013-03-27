@@ -568,6 +568,7 @@ static int __init nf_conntrack_standalone_init(void)
 		register_net_sysctl(&init_net, "net", nf_ct_netfilter_table);
 	if (!nf_ct_netfilter_header) {
 		pr_err("nf_conntrack: can't register to sysctl.\n");
+		ret = -ENOMEM;
 		goto out_sysctl;
 	}
 #endif
