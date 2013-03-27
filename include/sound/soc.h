@@ -804,7 +804,7 @@ struct snd_soc_platform_driver {
 	const struct snd_pcm_ops *ops;
 
 	/* platform stream compress ops */
-	struct snd_compr_ops *compr_ops;
+	const struct snd_compr_ops *compr_ops;
 
 	/* platform stream completion event */
 	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
