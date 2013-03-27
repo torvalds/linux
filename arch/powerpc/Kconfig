@@ -647,14 +647,14 @@ menu "Bus options"
 
 config ISA
 	bool "Support for ISA-bus hardware"
-	depends on PPC_PREP || PPC_CHRP
+	depends on PPC_CHRP
 	select PPC_I8259
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
 	  inside your box.  If you have an Apple machine, say N here; if you
-	  have an IBM RS/6000 or pSeries machine or a PReP machine, say Y.  If
-	  you have an embedded board, consult your board documentation.
+	  have an IBM RS/6000 or pSeries machine, say Y.  If you have an
+	  embedded board, consult your board documentation.
 
 config ZONE_DMA
 	bool
@@ -968,7 +968,7 @@ config TASK_SIZE_BOOL
 
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
-	default "0x80000000" if PPC_PREP || PPC_8xx
+	default "0x80000000" if PPC_8xx
 	default "0xc0000000"
 
 config CONSISTENT_SIZE_BOOL

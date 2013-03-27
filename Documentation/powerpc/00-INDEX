@@ -14,10 +14,6 @@ hvcs.txt
 	- IBM "Hypervisor Virtual Console Server" Installation Guide
 mpc52xx.txt
 	- Linux 2.6.x on MPC52xx family
-sound.txt
-	- info on sound support under Linux/PPC
-zImage_layout.txt
-	- info on the kernel images for Linux/PPC
 qe_firmware.txt
 	- describes the layout of firmware binaries for the Freescale QUICC
 	  Engine and the code that parses and uploads the microcode therein.
