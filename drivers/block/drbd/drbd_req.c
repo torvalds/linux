@@ -263,8 +263,7 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 		else
 			root = &mdev->read_requests;
 		drbd_remove_request_interval(root, req);
-	} else if (!(s & RQ_POSTPONED))
-		D_ASSERT((s & (RQ_NET_MASK & ~RQ_NET_DONE)) == 0);
+	}
 
 	/* Before we can signal completion to the upper layers,
 	 * we may need to close the current transfer log epoch.
@@ -755,6 +754,11 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		mod_rq_state(req, m, RQ_NET_PENDING, RQ_NET_OK|RQ_NET_DONE);
 		break;
+
+	case QUEUE_AS_DRBD_BARRIER:
+		start_new_tl_epoch(mdev->tconn);
+		mod_rq_state(req, m, 0, RQ_NET_OK|RQ_NET_DONE);
+		break;
 	};
 
 	return rv;
@@ -975,8 +979,8 @@ static int drbd_process_write_request(struct drbd_request *req)
 		/* The only size==0 bios we expect are empty flushes. */
 		D_ASSERT(req->master_bio->bi_rw & REQ_FLUSH);
 		if (remote)
-			start_new_tl_epoch(mdev->tconn);
-		return 0;
+			_req_mod(req, QUEUE_AS_DRBD_BARRIER);
+		return remote;
 	}
 
 	if (!remote && !send_oos)
