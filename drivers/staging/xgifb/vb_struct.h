@@ -151,7 +151,6 @@ struct vb_device_info {
 
 	struct SiS_MCLKData const *MCLKData;
 
-	unsigned char   *pXGINew_DRAMTypeDefinition;
 	unsigned char   XGINew_CR97;
 
 	struct XGI330_LCDCapStruct const *LCDCapList;
