@@ -15,6 +15,7 @@
  */
 
 
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
@@ -78,6 +79,7 @@ void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *compl_list)
 			mei_cl_complete_handler(cl, cb);
 	}
 }
+EXPORT_SYMBOL_GPL(mei_irq_compl_handler);
 /**
  * _mei_irq_thread_state_ok - checks if mei header matches file private data
  *
@@ -440,6 +442,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 end:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mei_irq_read_handler);
 
 
 /**
@@ -590,6 +593,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mei_irq_write_handler);
 
 
 

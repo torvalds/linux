@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -67,6 +68,7 @@ void mei_device_init(struct mei_device *dev)
 	mei_io_list_init(&dev->amthif_rd_complete_list);
 
 }
+EXPORT_SYMBOL_GPL(mei_device_init);
 
 /**
  * mei_start - initializes host and fw to start work.
@@ -136,6 +138,7 @@ err:
 	mutex_unlock(&dev->device_lock);
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(mei_start);
 
 /**
  * mei_reset - resets host and fw.
@@ -203,6 +206,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	/* remove all waiting requests */
 	mei_cl_all_write_clear(dev);
 }
+EXPORT_SYMBOL_GPL(mei_reset);
 
 void mei_stop(struct mei_device *dev)
 {
@@ -222,9 +226,8 @@ void mei_stop(struct mei_device *dev)
 	flush_scheduled_work();
 
 	mei_watchdog_unregister(dev);
-
 }
-
+EXPORT_SYMBOL_GPL(mei_stop);
 
 
 

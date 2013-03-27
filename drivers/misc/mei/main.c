@@ -758,12 +758,16 @@ int mei_register(struct device *dev)
 	mei_misc_device.parent = dev;
 	return misc_register(&mei_misc_device);
 }
+EXPORT_SYMBOL_GPL(mei_register);
 
 void mei_deregister(void)
 {
 	misc_deregister(&mei_misc_device);
 	mei_misc_device.parent = NULL;
 }
+EXPORT_SYMBOL_GPL(mei_deregister);
 
+MODULE_AUTHOR("Intel Corporation");
+MODULE_DESCRIPTION("Intel(R) Management Engine Interface");
 MODULE_LICENSE("GPL v2");
 
