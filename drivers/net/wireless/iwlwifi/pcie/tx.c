@@ -1264,7 +1264,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 		int copy = 0;
 
-		if (!cmd->len)
+		if (!cmd->len[i])
 			continue;
 
 		/* need at least IWL_HCMD_SCRATCHBUF_SIZE copied */
