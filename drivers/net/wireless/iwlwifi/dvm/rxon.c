@@ -1419,6 +1419,14 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	if (changes & BSS_CHANGED_IDLE && bss_conf->idle) {
+		/*
+		 * If we go idle, then clearly no "passive-no-rx"
+		 * workaround is needed any more, this is a reset.
+		 */
+		iwlagn_lift_passive_no_rx(priv);
+	}
+
 	if (unlikely(!iwl_is_ready(priv))) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		mutex_unlock(&priv->mutex);
@@ -1450,16 +1458,6 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			priv->timestamp = bss_conf->sync_tsf;
 			ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		} else {
-			/*
-			 * If we disassociate while there are pending
-			 * frames, just wake up the queues and let the
-			 * frames "escape" ... This shouldn't really
-			 * be happening to start with, but we should
-			 * not get stuck in this case either since it
-			 * can happen if userspace gets confused.
-			 */
-			iwlagn_lift_passive_no_rx(priv);
-
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
 			if (ctx->ctxid == IWL_RXON_CTX_BSS)
