@@ -976,6 +976,18 @@ config MFD_WL1273_CORE
 	  driver connects the radio-wl1273 V4L2 module and the wl1273
 	  audio codec.
 
+config MFD_SI476X_CORE
+	tristate "Support for Silicon Laboratories 4761/64/68 AM/FM radio."
+	depends on I2C
+	select MFD_CORE
+	help
+	  This is the core driver for the SI476x series of AM/FM
+	  radio. This MFD driver connects the radio-si476x V4L2 module
+	  and the si476x audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called si476x-core.
+
 config MFD_OMAP_USB_HOST
 	bool "Support OMAP USBHS core and TLL driver"
 	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3
