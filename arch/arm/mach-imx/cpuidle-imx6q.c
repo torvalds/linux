@@ -6,7 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/clockchips.h>
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <asm/cpuidle.h>
@@ -43,17 +42,6 @@ done:
 	return index;
 }
 
-/*
- * For each cpu, setup the broadcast timer because local timer
- * stops for the states other than WFI.
- */
-static void imx6q_setup_broadcast_timer(void *arg)
-{
-	int cpu = smp_processor_id();
-
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ON, &cpu);
-}
-
 static struct cpuidle_driver imx6q_cpuidle_driver = {
 	.name = "imx6q_cpuidle",
 	.owner = THIS_MODULE,
@@ -83,9 +71,6 @@ int __init imx6q_cpuidle_init(void)
 
 	/* Set chicken bit to get a reliable WAIT mode support */
 	imx6q_set_chicken_bit();
-
-	/* Configure the broadcast timer on each cpu */
-	on_each_cpu(imx6q_setup_broadcast_timer, NULL, 1);
 
 	return imx_cpuidle_init(&imx6q_cpuidle_driver);
 }
