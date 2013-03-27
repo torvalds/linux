@@ -62,10 +62,6 @@
 #define EnableVBCLKDRVLOW    0x4000
 #define EnablePLLSPLOW       0x8000
 
-#define LCDBToA              0x20   /* LCD SetFlag */
-#define StLCDBToA            0x40
-#define LockLCDBToA          0x80
-#define   LCDToFull          0x10
 #define AVIDEOSense          0x01   /* CR32 */
 #define SVIDEOSense          0x02
 #define SCARTSense           0x04

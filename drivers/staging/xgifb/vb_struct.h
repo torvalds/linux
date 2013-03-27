@@ -81,7 +81,6 @@ struct XGI_XG21CRT1Struct {
 struct XGI330_LCDCapStruct {
 	unsigned char	LCD_ID;
 	unsigned short	LCD_Capability;
-	unsigned char	LCD_SetFlag;
 	unsigned char	LCD_HSyncWidth;
 	unsigned char	LCD_VSyncWidth;
 	unsigned char	LCD_VCLK;
