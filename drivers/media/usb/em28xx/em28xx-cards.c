@@ -2309,11 +2309,10 @@ static int em28xx_initialize_mt9m001(struct em28xx *dev)
 	return 0;
 }
 
-/* HINT method: webcam I2C chips
- *
+/*
  * This method works for webcams with Micron sensors
  */
-static int em28xx_hint_sensor(struct em28xx *dev)
+static int em28xx_detect_sensor(struct em28xx *dev)
 {
 	int rc;
 	char *sensor_name;
@@ -2746,7 +2745,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 	 * If sensor is not found, then it isn't a webcam.
 	 */
 	if (dev->board.is_webcam) {
-		if (em28xx_hint_sensor(dev) < 0)
+		if (em28xx_detect_sensor(dev) < 0)
 			dev->board.is_webcam = 0;
 		else
 			dev->progressive = 1;
