@@ -20,6 +20,7 @@
 */
 
 #include <linux/i2c.h>
+#include <media/soc_camera.h>
 #include <media/mt9v011.h>
 #include <media/v4l2-common.h>
 
@@ -39,6 +40,13 @@ static unsigned short omnivision_sensor_addrs[] = {
 	0x42 >> 1,   /* OV7725, OV7670/60/48 */
 	0x60 >> 1,   /* OV2640, OV9650/53/55 */
 	I2C_CLIENT_END
+};
+
+
+static struct soc_camera_link camlink = {
+	.bus_id = 0,
+	.flags = 0,
+	.module_name = "em28xx",
 };
 
 
@@ -246,6 +254,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 		switch (id) {
 		case 0x2642:
 			name = "OV2640";
+			dev->em28xx_sensor = EM28XX_OV2640;
 			break;
 		case 0x7648:
 			name = "OV7648";
@@ -376,6 +385,46 @@ int em28xx_init_camera(struct em28xx *dev)
 		dev->vinctl = 0x00;
 
 		break;
+	case EM28XX_OV2640:
+	{
+		struct v4l2_subdev *subdev;
+		struct i2c_board_info ov2640_info = {
+			.type = "ov2640",
+			.flags = I2C_CLIENT_SCCB,
+			.addr = dev->i2c_client[dev->def_i2c_bus].addr,
+			.platform_data = &camlink,
+		};
+		struct v4l2_mbus_framefmt fmt;
+
+		/*
+		 * FIXME: sensor supports resolutions up to 1600x1200, but
+		 * resolution setting/switching needs to be modified to
+		 * - switch sensor output resolution (including further
+		 *   configuration changes)
+		 * - adjust bridge xclk
+		 * - disable 16 bit (12 bit) output formats on high resolutions
+		 */
+		dev->sensor_xres = 640;
+		dev->sensor_yres = 480;
+
+		subdev =
+		     v4l2_i2c_new_subdev_board(&dev->v4l2_dev,
+					       &dev->i2c_adap[dev->def_i2c_bus],
+					       &ov2640_info, NULL);
+
+		fmt.code = V4L2_MBUS_FMT_YUYV8_2X8;
+		fmt.width = 640;
+		fmt.height = 480;
+		v4l2_subdev_call(subdev, video, s_mbus_fmt, &fmt);
+
+		/* NOTE: for UXGA=1600x1200 switch to 12MHz */
+		dev->board.xclk = EM28XX_XCLK_FREQUENCY_24MHZ;
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk);
+		dev->vinmode = 0x08;
+		dev->vinctl = 0x00;
+
+		break;
+	}
 	case EM28XX_NOSENSOR:
 	default:
 		return -EINVAL;
