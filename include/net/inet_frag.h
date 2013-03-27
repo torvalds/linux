@@ -143,6 +143,7 @@ static inline void inet_frag_lru_del(struct inet_frag_queue *q)
 {
 	spin_lock(&q->net->lru_lock);
 	list_del(&q->lru_list);
+	q->net->nqueues--;
 	spin_unlock(&q->net->lru_lock);
 }
 
@@ -151,6 +152,7 @@ static inline void inet_frag_lru_add(struct netns_frags *nf,
 {
 	spin_lock(&nf->lru_lock);
 	list_add_tail(&q->lru_list, &nf->lru_list);
+	q->net->nqueues++;
 	spin_unlock(&nf->lru_lock);
 }
 
