@@ -1036,6 +1036,8 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 			kfree(async->work_buf);
 			kfree(async);
 		}
+
+		return ret;
 	}
 
 	trace_regmap_hw_write_start(map->dev, reg,
