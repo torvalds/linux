@@ -1377,13 +1377,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			&drbd_bmio_set_n_write, &abw_start_sync,
 			"set_n_write from StartingSync", BM_LOCKED_TEST_ALLOWED);
 
-	/* We are invalidating our self... */
-	if (os.conn < C_CONNECTED && ns.conn < C_CONNECTED &&
-	    os.disk > D_INCONSISTENT && ns.disk == D_INCONSISTENT)
-		/* other bitmap operation expected during this phase */
-		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, NULL,
-			"set_n_write from invalidate", BM_LOCKED_MASK);
-
 	/* first half of local IO error, failure to attach,
 	 * or administrative detach */
 	if (os.disk != D_FAILED && ns.disk == D_FAILED) {
