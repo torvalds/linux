@@ -41,6 +41,12 @@ static unsigned int		payload_misses;
 /* amount of memory (in bytes) currently consumed by the DRC */
 static unsigned int		drc_mem_usage;
 
+/* longest hash chain seen */
+static unsigned int		longest_chain;
+
+/* size of cache when we saw the longest hash chain */
+static unsigned int		longest_chain_cachesize;
+
 /*
  * Calculate the hash index from an XID.
  */
@@ -319,15 +325,30 @@ nfsd_cache_match(struct svc_rqst *rqstp, __wsum csum, struct svc_cacherep *rp)
 static struct svc_cacherep *
 nfsd_cache_search(struct svc_rqst *rqstp, __wsum csum)
 {
-	struct svc_cacherep	*rp;
+	struct svc_cacherep	*rp, *ret = NULL;
 	struct hlist_head 	*rh;
+	unsigned int		entries = 0;
 
 	rh = &cache_hash[request_hash(rqstp->rq_xid)];
 	hlist_for_each_entry(rp, rh, c_hash) {
-		if (nfsd_cache_match(rqstp, csum, rp))
-			return rp;
+		++entries;
+		if (nfsd_cache_match(rqstp, csum, rp)) {
+			ret = rp;
+			break;
+		}
 	}
-	return NULL;
+
+	/* tally hash chain length stats */
+	if (entries > longest_chain) {
+		longest_chain = entries;
+		longest_chain_cachesize = num_drc_entries;
+	} else if (entries == longest_chain) {
+		/* prefer to keep the smallest cachesize possible here */
+		longest_chain_cachesize = min(longest_chain_cachesize,
+						num_drc_entries);
+	}
+
+	return ret;
 }
 
 /*
@@ -573,6 +594,8 @@ static int nfsd_reply_cache_stats_show(struct seq_file *m, void *v)
 	seq_printf(m, "cache misses:          %u\n", nfsdstats.rcmisses);
 	seq_printf(m, "not cached:            %u\n", nfsdstats.rcnocache);
 	seq_printf(m, "payload misses:        %u\n", payload_misses);
+	seq_printf(m, "longest chain len:     %u\n", longest_chain);
+	seq_printf(m, "cachesize at longest:  %u\n", longest_chain_cachesize);
 	spin_unlock(&cache_lock);
 	return 0;
 }
