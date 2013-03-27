@@ -232,7 +232,7 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
 {
 	struct clk *clk;
 	const char *clk_name = node->name;
-	const char **parents = kmalloc(sizeof(char *) * 5, GFP_KERNEL);
+	const char *parents[5];
 	void *reg;
 	int i = 0;
 
