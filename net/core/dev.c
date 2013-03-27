@@ -1624,7 +1624,6 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	skb_orphan(skb);
-	nf_reset(skb);
 
 	if (unlikely(!is_skb_forwardable(dev, skb))) {
 		atomic_long_inc(&dev->rx_dropped);
