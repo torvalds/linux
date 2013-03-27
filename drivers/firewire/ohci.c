@@ -572,7 +572,8 @@ static int read_phy_reg(struct fw_ohci *ohci, int addr)
 		if (i >= 3)
 			msleep(1);
 	}
-	ohci_err(ohci, "failed to read phy reg\n");
+	ohci_err(ohci, "failed to read phy reg %d\n", addr);
+	dump_stack();
 
 	return -EBUSY;
 }
@@ -594,7 +595,8 @@ static int write_phy_reg(const struct fw_ohci *ohci, int addr, u32 val)
 		if (i >= 3)
 			msleep(1);
 	}
-	ohci_err(ohci, "failed to write phy reg\n");
+	ohci_err(ohci, "failed to write phy reg %d, val %u\n", addr, val);
+	dump_stack();
 
 	return -EBUSY;
 }
