@@ -27,6 +27,10 @@
 #include "bnx2x.h"
 #include "bnx2x_cmn.h"
 
+typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
+					     struct link_params *params,
+					     u8 dev_addr, u16 addr, u8 byte_cnt,
+					     u8 *o_buf, u8);
 /********************************************************/
 #define ETH_HLEN			14
 /* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
@@ -3127,11 +3131,6 @@ static int bnx2x_bsc_read(struct link_params *params,
 	u32 val, i;
 	int rc = 0;
 	struct bnx2x *bp = params->bp;
-
-	if ((sl_devid != 0xa0) && (sl_devid != 0xa2)) {
-		DP(NETIF_MSG_LINK, "invalid sl_devid 0x%x\n", sl_devid);
-		return -EINVAL;
-	}
 
 	if (xfer_cnt > 16) {
 		DP(NETIF_MSG_LINK, "invalid xfer_cnt %d. Max is 16 bytes\n",
@@ -7770,7 +7769,8 @@ static void bnx2x_sfp_set_transmitter(struct link_params *params,
 
 static int bnx2x_8726_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 					     struct link_params *params,
-					     u16 addr, u8 byte_cnt, u8 *o_buf)
+					     u8 dev_addr, u16 addr, u8 byte_cnt,
+					     u8 *o_buf, u8 is_init)
 {
 	struct bnx2x *bp = params->bp;
 	u16 val = 0;
@@ -7783,7 +7783,7 @@ static int bnx2x_8726_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	/* Set the read command byte count */
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD, MDIO_PMA_REG_SFP_TWO_WIRE_BYTE_CNT,
-			 (byte_cnt | 0xa000));
+			 (byte_cnt | (dev_addr << 8)));
 
 	/* Set the read command address */
 	bnx2x_cl45_write(bp, phy,
@@ -7857,6 +7857,7 @@ static void bnx2x_warpcore_power_module(struct link_params *params,
 }
 static int bnx2x_warpcore_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 						 struct link_params *params,
+						 u8 dev_addr,
 						 u16 addr, u8 byte_cnt,
 						 u8 *o_buf, u8 is_init)
 {
@@ -7881,7 +7882,7 @@ static int bnx2x_warpcore_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 			usleep_range(1000, 2000);
 			bnx2x_warpcore_power_module(params, 1);
 		}
-		rc = bnx2x_bsc_read(params, phy, 0xa0, addr32, 0, byte_cnt,
+		rc = bnx2x_bsc_read(params, phy, dev_addr, addr32, 0, byte_cnt,
 				    data_array);
 	} while ((rc != 0) && (++cnt < I2C_WA_RETRY_CNT));
 
@@ -7897,7 +7898,8 @@ static int bnx2x_warpcore_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 
 static int bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 					     struct link_params *params,
-					     u16 addr, u8 byte_cnt, u8 *o_buf)
+					     u8 dev_addr, u16 addr, u8 byte_cnt,
+					     u8 *o_buf, u8 is_init)
 {
 	struct bnx2x *bp = params->bp;
 	u16 val, i;
@@ -7907,6 +7909,15 @@ static int bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 		   "Reading from eeprom is limited to 0xf\n");
 		return -EINVAL;
 	}
+
+	/* Set 2-wire transfer rate of SFP+ module EEPROM
+	 * to 100Khz since some DACs(direct attached cables) do
+	 * not work at 400Khz.
+	 */
+	bnx2x_cl45_write(bp, phy,
+			 MDIO_PMA_DEVAD,
+			 MDIO_PMA_REG_8727_TWO_WIRE_SLAVE_ADDR,
+			 ((dev_addr << 8) | 1));
 
 	/* Need to read from 1.8000 to clear it */
 	bnx2x_cl45_read(bp, phy,
@@ -7980,26 +7991,44 @@ static int bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 
 	return -EINVAL;
 }
-
 int bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
-				 struct link_params *params, u16 addr,
-				 u8 byte_cnt, u8 *o_buf)
+				 struct link_params *params, u8 dev_addr,
+				 u16 addr, u16 byte_cnt, u8 *o_buf)
 {
-	int rc = -EOPNOTSUPP;
+	int rc = 0;
+	struct bnx2x *bp = params->bp;
+	u8 xfer_size;
+	u8 *user_data = o_buf;
+	read_sfp_module_eeprom_func_p read_func;
+
+	if ((dev_addr != 0xa0) && (dev_addr != 0xa2)) {
+		DP(NETIF_MSG_LINK, "invalid dev_addr 0x%x\n", dev_addr);
+		return -EINVAL;
+	}
+
 	switch (phy->type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
-		rc = bnx2x_8726_read_sfp_module_eeprom(phy, params, addr,
-						       byte_cnt, o_buf);
-	break;
+		read_func = bnx2x_8726_read_sfp_module_eeprom;
+		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8722:
-		rc = bnx2x_8727_read_sfp_module_eeprom(phy, params, addr,
-						       byte_cnt, o_buf);
-	break;
+		read_func = bnx2x_8727_read_sfp_module_eeprom;
+		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
-		rc = bnx2x_warpcore_read_sfp_module_eeprom(phy, params, addr,
-							   byte_cnt, o_buf, 0);
-	break;
+		read_func = bnx2x_warpcore_read_sfp_module_eeprom;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	while (!rc && (byte_cnt > 0)) {
+		xfer_size = (byte_cnt > SFP_EEPROM_PAGE_SIZE) ?
+			SFP_EEPROM_PAGE_SIZE : byte_cnt;
+		rc = read_func(phy, params, dev_addr, addr, xfer_size,
+			       user_data, 0);
+		byte_cnt -= xfer_size;
+		user_data += xfer_size;
+		addr += xfer_size;
 	}
 	return rc;
 }
@@ -8016,6 +8045,7 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 	/* First check for copper cable */
 	if (bnx2x_read_sfp_module_eeprom(phy,
 					 params,
+					 I2C_DEV_ADDR_A0,
 					 SFP_EEPROM_CON_TYPE_ADDR,
 					 2,
 					 (u8 *)val) != 0) {
@@ -8033,6 +8063,7 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		 */
 		if (bnx2x_read_sfp_module_eeprom(phy,
 					       params,
+					       I2C_DEV_ADDR_A0,
 					       SFP_EEPROM_FC_TX_TECH_ADDR,
 					       1,
 					       &copper_module_type) != 0) {
@@ -8117,6 +8148,7 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		u8 options[SFP_EEPROM_OPTIONS_SIZE];
 		if (bnx2x_read_sfp_module_eeprom(phy,
 						 params,
+						 I2C_DEV_ADDR_A0,
 						 SFP_EEPROM_OPTIONS_ADDR,
 						 SFP_EEPROM_OPTIONS_SIZE,
 						 options) != 0) {
@@ -8183,6 +8215,7 @@ static int bnx2x_verify_sfp_module(struct bnx2x_phy *phy,
 	/* Format the warning message */
 	if (bnx2x_read_sfp_module_eeprom(phy,
 					 params,
+					 I2C_DEV_ADDR_A0,
 					 SFP_EEPROM_VENDOR_NAME_ADDR,
 					 SFP_EEPROM_VENDOR_NAME_SIZE,
 					 (u8 *)vendor_name))
@@ -8191,6 +8224,7 @@ static int bnx2x_verify_sfp_module(struct bnx2x_phy *phy,
 		vendor_name[SFP_EEPROM_VENDOR_NAME_SIZE] = '\0';
 	if (bnx2x_read_sfp_module_eeprom(phy,
 					 params,
+					 I2C_DEV_ADDR_A0,
 					 SFP_EEPROM_PART_NO_ADDR,
 					 SFP_EEPROM_PART_NO_SIZE,
 					 (u8 *)vendor_pn))
@@ -8221,12 +8255,13 @@ static int bnx2x_wait_for_sfp_module_initialized(struct bnx2x_phy *phy,
 
 	for (timeout = 0; timeout < 60; timeout++) {
 		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)
-			rc = bnx2x_warpcore_read_sfp_module_eeprom(phy,
-								   params, 1,
-								   1, &val, 1);
+			rc = bnx2x_warpcore_read_sfp_module_eeprom(
+				phy, params, I2C_DEV_ADDR_A0, 1, 1, &val,
+				1);
 		else
-			rc = bnx2x_read_sfp_module_eeprom(phy, params, 1, 1,
-							  &val);
+			rc = bnx2x_read_sfp_module_eeprom(phy, params,
+							  I2C_DEV_ADDR_A0,
+							  1, 1, &val);
 		if (rc == 0) {
 			DP(NETIF_MSG_LINK,
 			   "SFP+ module initialization took %d ms\n",
@@ -8235,7 +8270,8 @@ static int bnx2x_wait_for_sfp_module_initialized(struct bnx2x_phy *phy,
 		}
 		usleep_range(5000, 10000);
 	}
-	rc = bnx2x_read_sfp_module_eeprom(phy, params, 1, 1, &val);
+	rc = bnx2x_read_sfp_module_eeprom(phy, params, I2C_DEV_ADDR_A0,
+					  1, 1, &val);
 	return rc;
 }
 
@@ -8392,15 +8428,6 @@ static void bnx2x_8727_specific_func(struct bnx2x_phy *phy,
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_PMA_DEVAD, MDIO_PMA_REG_8727_PCS_OPT_CTRL,
 				 val);
-
-		/* Set 2-wire transfer rate of SFP+ module EEPROM
-		 * to 100Khz since some DACs(direct attached cables) do
-		 * not work at 400Khz.
-		 */
-		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD,
-				 MDIO_PMA_REG_8727_TWO_WIRE_SLAVE_ADDR,
-				 0xa001);
 		break;
 	default:
 		DP(NETIF_MSG_LINK, "Function 0x%x not supported by 8727\n",
