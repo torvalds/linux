@@ -3322,32 +3322,6 @@ call_complete:
 		req_complete(hdev, status);
 }
 
-void hci_req_cmd_status(struct hci_dev *hdev, u16 opcode, u8 status)
-{
-	hci_req_complete_t req_complete = NULL;
-
-	BT_DBG("opcode 0x%04x status 0x%02x", opcode, status);
-
-	if (status) {
-		hci_req_cmd_complete(hdev, opcode, status);
-		return;
-	}
-
-	/* No need to handle success status if there are more commands */
-	if (!hci_req_is_complete(hdev))
-		return;
-
-	if (hdev->sent_cmd)
-		req_complete = bt_cb(hdev->sent_cmd)->req.complete;
-
-	/* If the request doesn't have a complete callback or there
-	 * are other commands/requests in the hdev queue we consider
-	 * this request as completed.
-	 */
-	if (!req_complete || !skb_queue_empty(&hdev->cmd_q))
-		hci_req_cmd_complete(hdev, opcode, status);
-}
-
 static void hci_rx_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev, rx_work);
