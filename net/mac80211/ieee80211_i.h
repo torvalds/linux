@@ -1180,7 +1180,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_channel_sw_ie *ch_switch_ie;
 	const u8 *country_elem;
 	const u8 *pwr_constr_elem;
-	const u8 *timeout_int;
+	const struct ieee80211_timeout_interval_ie *timeout_int;
 	const u8 *opmode_notif;
 
 	/* length of them, respectively */
@@ -1198,7 +1198,6 @@ struct ieee802_11_elems {
 	u8 prep_len;
 	u8 perr_len;
 	u8 country_elem_len;
-	u8 timeout_int_len;
 
 	/* whether a parse error occurred while retrieving these elements */
 	bool parse_error;

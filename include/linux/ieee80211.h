@@ -1955,6 +1955,16 @@ enum ieee80211_timeout_interval_type {
 	WLAN_TIMEOUT_ASSOC_COMEBACK = 3 /* 802.11w */,
 };
 
+/**
+ * struct ieee80211_timeout_interval_ie - Timeout Interval element
+ * @type: type, see &enum ieee80211_timeout_interval_type
+ * @value: timeout interval value
+ */
+struct ieee80211_timeout_interval_ie {
+	u8 type;
+	__le32 value;
+} __packed;
+
 /* BACK action code */
 enum ieee80211_back_actioncode {
 	WLAN_ACTION_ADDBA_REQ = 0,

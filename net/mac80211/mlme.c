@@ -2629,10 +2629,10 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	ieee802_11_parse_elems(pos, len - (pos - (u8 *) mgmt), &elems);
 
 	if (status_code == WLAN_STATUS_ASSOC_REJECTED_TEMPORARILY &&
-	    elems.timeout_int && elems.timeout_int_len == 5 &&
-	    elems.timeout_int[0] == WLAN_TIMEOUT_ASSOC_COMEBACK) {
+	    elems.timeout_int &&
+	    elems.timeout_int->type == WLAN_TIMEOUT_ASSOC_COMEBACK) {
 		u32 tu, ms;
-		tu = get_unaligned_le32(elems.timeout_int + 1);
+		tu = le32_to_cpu(elems.timeout_int->value);
 		ms = tu * 1024 / 1000;
 		sdata_info(sdata,
 			   "%pM rejected association temporarily; comeback duration %u TU (%u ms)\n",

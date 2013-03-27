@@ -874,8 +874,10 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->pwr_constr_elem = pos;
 			break;
 		case WLAN_EID_TIMEOUT_INTERVAL:
-			elems->timeout_int = pos;
-			elems->timeout_int_len = elen;
+			if (elen >= sizeof(struct ieee80211_timeout_interval_ie))
+				elems->timeout_int = (void *)pos;
+			else
+				elem_parse_failed = true;
 			break;
 		default:
 			break;
