@@ -22,13 +22,68 @@
 #include <linux/irqchip.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
+#include <linux/serial_sci.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
 
+#define SCIF_COMMON(scif_type, baseaddr, irq)			\
+	.type		= scif_type,				\
+	.mapbase	= baseaddr,				\
+	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,	\
+	.irqs		= SCIx_IRQ_MUXED(irq)
+
+#define SCIFA_DATA(index, baseaddr, irq)		\
+[index] = {						\
+	SCIF_COMMON(PORT_SCIFA, baseaddr, irq),		\
+	.scbrr_algo_id	= SCBRR_ALGO_4,			\
+	.scscr = SCSCR_RE | SCSCR_TE | SCSCR_CKE0,	\
+}
+
+#define SCIFB_DATA(index, baseaddr, irq)	\
+[index] = {					\
+	SCIF_COMMON(PORT_SCIFB, baseaddr, irq),	\
+	.scbrr_algo_id	= SCBRR_ALGO_4,		\
+	.scscr = SCSCR_RE | SCSCR_TE,		\
+}
+
+#define SCIF_DATA(index, baseaddr, irq)		\
+[index] = {						\
+	SCIF_COMMON(PORT_SCIF, baseaddr, irq),		\
+	.scbrr_algo_id	= SCBRR_ALGO_2,			\
+	.scscr = SCSCR_RE | SCSCR_TE | SCSCR_CKE1,	\
+}
+
+enum { SCIFA0, SCIFA1, SCIFB0, SCIFB1, SCIFB2, SCIFA2, SCIF0, SCIF1 };
+
+static const struct plat_sci_port scif[] = {
+	SCIFA_DATA(SCIFA0, 0xe6c40000, gic_spi(144)), /* SCIFA0 */
+	SCIFA_DATA(SCIFA1, 0xe6c50000, gic_spi(145)), /* SCIFA1 */
+	SCIFB_DATA(SCIFB0, 0xe6c20000, gic_spi(148)), /* SCIFB0 */
+	SCIFB_DATA(SCIFB1, 0xe6c30000, gic_spi(149)), /* SCIFB1 */
+	SCIFB_DATA(SCIFB2, 0xe6ce0000, gic_spi(150)), /* SCIFB2 */
+	SCIFA_DATA(SCIFA2, 0xe6c60000, gic_spi(151)), /* SCIFA2 */
+	SCIF_DATA(SCIF0, 0xe6e60000, gic_spi(152)), /* SCIF0 */
+	SCIF_DATA(SCIF1, 0xe6e68000, gic_spi(153)), /* SCIF1 */
+};
+
+static inline void r8a7790_register_scif(int idx)
+{
+	platform_device_register_data(&platform_bus, "sh-sci", idx, &scif[idx],
+				      sizeof(struct plat_sci_port));
+}
+
 void __init r8a7790_add_standard_devices(void)
 {
+	r8a7790_register_scif(SCIFA0);
+	r8a7790_register_scif(SCIFA1);
+	r8a7790_register_scif(SCIFB0);
+	r8a7790_register_scif(SCIFB1);
+	r8a7790_register_scif(SCIFB2);
+	r8a7790_register_scif(SCIFA2);
+	r8a7790_register_scif(SCIF0);
+	r8a7790_register_scif(SCIF1);
 }
 
 #ifdef CONFIG_USE_OF

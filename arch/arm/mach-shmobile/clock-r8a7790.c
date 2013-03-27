@@ -27,19 +27,51 @@
 #define CPG_BASE 0xe6150000
 #define CPG_LEN 0x1000
 
+#define SMSTPCR2 0xe6150138
+#define SMSTPCR7 0xe615014c
+
 static struct clk_mapping cpg_mapping = {
 	.phys   = CPG_BASE,
 	.len    = CPG_LEN,
 };
 
-static struct clk *main_clks[] = {
+static struct clk p_clk = {
+	.rate	= 65000000, /* shortcut for now */
+	.mapping	= &cpg_mapping,
 };
 
-enum { MSTP_NR };
+static struct clk mp_clk = {
+	.rate	= 52000000,  /* shortcut for now */
+	.mapping	= &cpg_mapping,
+};
+
+static struct clk *main_clks[] = {
+	&p_clk,
+	&mp_clk,
+};
+
+enum { MSTP721, MSTP720,
+	MSTP216, MSTP207, MSTP206, MSTP204, MSTP203, MSTP202, MSTP_NR };
 static struct clk mstp_clks[MSTP_NR] = {
+	[MSTP721] = SH_CLK_MSTP32(&p_clk, SMSTPCR7, 21, 0), /* SCIF0 */
+	[MSTP720] = SH_CLK_MSTP32(&p_clk, SMSTPCR7, 20, 0), /* SCIF1 */
+	[MSTP216] = SH_CLK_MSTP32(&mp_clk, SMSTPCR2, 16, 0), /* SCIFB2 */
+	[MSTP207] = SH_CLK_MSTP32(&mp_clk, SMSTPCR2, 7, 0), /* SCIFB1 */
+	[MSTP206] = SH_CLK_MSTP32(&mp_clk, SMSTPCR2, 6, 0), /* SCIFB0 */
+	[MSTP204] = SH_CLK_MSTP32(&mp_clk, SMSTPCR2, 4, 0), /* SCIFA0 */
+	[MSTP203] = SH_CLK_MSTP32(&mp_clk, SMSTPCR2, 3, 0), /* SCIFA1 */
+	[MSTP202] = SH_CLK_MSTP32(&mp_clk, SMSTPCR2, 2, 0), /* SCIFA2 */
 };
 
 static struct clk_lookup lookups[] = {
+	CLKDEV_DEV_ID("sh-sci.0", &mstp_clks[MSTP204]),
+	CLKDEV_DEV_ID("sh-sci.1", &mstp_clks[MSTP203]),
+	CLKDEV_DEV_ID("sh-sci.2", &mstp_clks[MSTP206]),
+	CLKDEV_DEV_ID("sh-sci.3", &mstp_clks[MSTP207]),
+	CLKDEV_DEV_ID("sh-sci.4", &mstp_clks[MSTP216]),
+	CLKDEV_DEV_ID("sh-sci.5", &mstp_clks[MSTP202]),
+	CLKDEV_DEV_ID("sh-sci.6", &mstp_clks[MSTP721]),
+	CLKDEV_DEV_ID("sh-sci.7", &mstp_clks[MSTP720]),
 };
 
 void __init r8a7790_clock_init(void)
