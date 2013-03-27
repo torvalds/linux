@@ -507,9 +507,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 		xgifb_reg_set(P3d4, 0xB0, 0x80); /* DDRII Dual frequency mode */
 		XGINew_DDR2_DefaultRegister(HwDeviceExtension, P3d4, pVBInfo);
 	}
-	xgifb_reg_set(P3c4,
-		      0x1B,
-		      pVBInfo->SR15[3][pVBInfo->ram_type]); /* SR1B */
+	xgifb_reg_set(P3c4, 0x1B, 0x03); /* SR1B */
 }
 
 
