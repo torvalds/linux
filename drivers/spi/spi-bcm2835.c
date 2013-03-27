@@ -182,23 +182,6 @@ static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static int bcm2835_spi_check_transfer(struct spi_device *spi,
-		struct spi_transfer *tfr)
-{
-	/* tfr==NULL when called from bcm2835_spi_setup() */
-	u32 bpw = tfr ? tfr->bits_per_word : spi->bits_per_word;
-
-	switch (bpw) {
-	case 8:
-		break;
-	default:
-		dev_err(&spi->dev, "unsupported bits_per_word=%d\n", bpw);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int bcm2835_spi_start_transfer(struct spi_device *spi,
 		struct spi_transfer *tfr)
 {
@@ -273,19 +256,6 @@ static int bcm2835_spi_finish_transfer(struct spi_device *spi,
 	return 0;
 }
 
-static int bcm2835_spi_setup(struct spi_device *spi)
-{
-	int ret;
-
-	ret = bcm2835_spi_check_transfer(spi, NULL);
-	if (ret) {
-		dev_err(&spi->dev, "setup: invalid message\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int bcm2835_spi_transfer_one(struct spi_master *master,
 		struct spi_message *mesg)
 {
@@ -297,10 +267,6 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 	bool cs_change;
 
 	list_for_each_entry(tfr, &mesg->transfers, transfer_list) {
-		err = bcm2835_spi_check_transfer(spi, tfr);
-		if (err)
-			goto out;
-
 		err = bcm2835_spi_start_transfer(spi, tfr);
 		if (err)
 			goto out;
@@ -348,9 +314,9 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	master->mode_bits = BCM2835_SPI_MODE_BITS;
+	master->bits_per_word_mask = BIT(8 - 1);
 	master->bus_num = -1;
 	master->num_chipselect = 3;
-	master->setup = bcm2835_spi_setup;
 	master->transfer_one_message = bcm2835_spi_transfer_one;
 	master->dev.of_node = pdev->dev.of_node;
 
