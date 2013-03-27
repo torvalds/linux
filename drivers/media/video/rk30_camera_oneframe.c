@@ -288,8 +288,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *         2. fix 2928 digitzoom erro(arm crop scale) of selected zone;
 *v0.x.1f:
 *         1. support rk3188; Must soft reset cif controller after each frame irq;
+*v0.2.21:
+*         1. fix ctrl register capture bit may be turn on in rk_videobuf_capture function
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x1f)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x21)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -651,13 +653,16 @@ static void rk_camera_store_register(struct rk_camera_dev *pcdev)
 static void rk_camera_restore_register(struct rk_camera_dev *pcdev)
 {
 #if defined(CONFIG_ARCH_RK3188)
-	write_cif_reg(pcdev->base,CIF_CIF_CTRL, pcdev->reginfo_suspend.cifCtrl&~ENABLE_CAPTURE);
+    if (pcdev->reginfo_suspend.cifCtrl&ENABLE_CAPTURE)
+        write_cif_reg(pcdev->base,CIF_CIF_CTRL, pcdev->reginfo_suspend.cifCtrl&~ENABLE_CAPTURE);
 	write_cif_reg(pcdev->base,CIF_CIF_INTEN, pcdev->reginfo_suspend.cifIntEn);
 	write_cif_reg(pcdev->base,CIF_CIF_CROP, pcdev->reginfo_suspend.cifCrop);
 	write_cif_reg(pcdev->base,CIF_CIF_SET_SIZE, pcdev->reginfo_suspend.cifFs);
 	write_cif_reg(pcdev->base,CIF_CIF_FOR, pcdev->reginfo_suspend.cifFmt);
 	write_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH,pcdev->reginfo_suspend.cifVirWidth);
 	write_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL, pcdev->reginfo_suspend.cifScale);
+    if (pcdev->reginfo_suspend.cifCtrl&ENABLE_CAPTURE)
+        write_cif_reg(pcdev->base,CIF_CIF_CTRL, pcdev->reginfo_suspend.cifCtrl);
 #endif
 }
 static inline void rk_videobuf_capture(struct videobuf_buffer *vb,struct rk_camera_dev *rk_pcdev)
@@ -687,9 +692,6 @@ static inline void rk_videobuf_capture(struct videobuf_buffer *vb,struct rk_came
         write_cif_reg(pcdev->base,CIF_CIF_FRM1_ADDR_Y, y_addr);
         write_cif_reg(pcdev->base,CIF_CIF_FRM1_ADDR_UV, uv_addr);
         write_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS,  0x00000002);//frame1 has been ready to receive data,frame 2 is not used
-#if defined(CONFIG_ARCH_RK3188)	
-		write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL) | ENABLE_CAPTURE));
-#endif
     }
 }
 /* Locking: Caller holds q->irqlock */
@@ -1220,7 +1222,7 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
 	struct timeval tv;
     unsigned long tmp_intstat;
     unsigned long tmp_cifctrl; 
- 
+     
     tmp_intstat = read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);
     tmp_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
     if(pcdev->stop_cif == true)
