@@ -435,7 +435,6 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx)
 	/* calculate queue flags */
 	flags |= VFPF_QUEUE_FLG_STATS;
 	flags |= VFPF_QUEUE_FLG_CACHE_ALIGN;
-	flags |= IS_MF_SD(bp) ? VFPF_QUEUE_FLG_OV : 0;
 	flags |= VFPF_QUEUE_FLG_VLAN;
 	DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
 
@@ -1004,7 +1003,7 @@ static void bnx2x_vf_mbx_init_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
 }
 
 /* convert MBX queue-flags to standard SP queue-flags */
-static void bnx2x_vf_mbx_set_q_flags(u32 mbx_q_flags,
+static void bnx2x_vf_mbx_set_q_flags(struct bnx2x *bp, u32 mbx_q_flags,
 				     unsigned long *sp_q_flags)
 {
 	if (mbx_q_flags & VFPF_QUEUE_FLG_TPA)
@@ -1015,8 +1014,6 @@ static void bnx2x_vf_mbx_set_q_flags(u32 mbx_q_flags,
 		__set_bit(BNX2X_Q_FLG_TPA_GRO, sp_q_flags);
 	if (mbx_q_flags & VFPF_QUEUE_FLG_STATS)
 		__set_bit(BNX2X_Q_FLG_STATS, sp_q_flags);
-	if (mbx_q_flags & VFPF_QUEUE_FLG_OV)
-		__set_bit(BNX2X_Q_FLG_OV, sp_q_flags);
 	if (mbx_q_flags & VFPF_QUEUE_FLG_VLAN)
 		__set_bit(BNX2X_Q_FLG_VLAN, sp_q_flags);
 	if (mbx_q_flags & VFPF_QUEUE_FLG_COS)
@@ -1025,6 +1022,10 @@ static void bnx2x_vf_mbx_set_q_flags(u32 mbx_q_flags,
 		__set_bit(BNX2X_Q_FLG_HC, sp_q_flags);
 	if (mbx_q_flags & VFPF_QUEUE_FLG_DHC)
 		__set_bit(BNX2X_Q_FLG_DHC, sp_q_flags);
+
+	/* outer vlan removal is set according to the PF's multi fuction mode */
+	if (IS_MF_SD(bp))
+		__set_bit(BNX2X_Q_FLG_OV, sp_q_flags);
 }
 
 static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
@@ -1075,11 +1076,11 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			init_p->tx.hc_rate = setup_q->txq.hc_rate;
 			init_p->tx.sb_cq_index = setup_q->txq.sb_index;
 
-			bnx2x_vf_mbx_set_q_flags(setup_q->txq.flags,
+			bnx2x_vf_mbx_set_q_flags(bp, setup_q->txq.flags,
 						 &init_p->tx.flags);
 
 			/* tx setup - flags */
-			bnx2x_vf_mbx_set_q_flags(setup_q->txq.flags,
+			bnx2x_vf_mbx_set_q_flags(bp, setup_q->txq.flags,
 						 &setup_p->flags);
 
 			/* tx setup - general, nothing */
@@ -1107,11 +1108,11 @@ static void bnx2x_vf_mbx_setup_q(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			/* rx init */
 			init_p->rx.hc_rate = setup_q->rxq.hc_rate;
 			init_p->rx.sb_cq_index = setup_q->rxq.sb_index;
-			bnx2x_vf_mbx_set_q_flags(setup_q->rxq.flags,
+			bnx2x_vf_mbx_set_q_flags(bp, setup_q->rxq.flags,
 						 &init_p->rx.flags);
 
 			/* rx setup - flags */
-			bnx2x_vf_mbx_set_q_flags(setup_q->rxq.flags,
+			bnx2x_vf_mbx_set_q_flags(bp, setup_q->rxq.flags,
 						 &setup_p->flags);
 
 			/* rx setup - general */
