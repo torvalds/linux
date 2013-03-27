@@ -302,6 +302,82 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 }
 
 
+
+/**
+ * sunxi_gates_clk_setup() - Setup function for leaf gates on clocks
+ */
+
+#define SUNXI_GATES_MAX_SIZE	64
+
+struct gates_data {
+	DECLARE_BITMAP(mask, SUNXI_GATES_MAX_SIZE);
+};
+
+static const __initconst struct gates_data axi_gates_data = {
+	.mask = {1},
+};
+
+static const __initconst struct gates_data ahb_gates_data = {
+	.mask = {0x7F77FFF, 0x14FB3F},
+};
+
+static const __initconst struct gates_data apb0_gates_data = {
+	.mask = {0x4EF},
+};
+
+static const __initconst struct gates_data apb1_gates_data = {
+	.mask = {0xFF00F7},
+};
+
+static void __init sunxi_gates_clk_setup(struct device_node *node,
+					 struct gates_data *data)
+{
+	struct clk_onecell_data *clk_data;
+	const char *clk_parent;
+	const char *clk_name;
+	void *reg;
+	int qty;
+	int i = 0;
+	int j = 0;
+	int ignore;
+
+	reg = of_iomap(node, 0);
+
+	clk_parent = of_clk_get_parent_name(node, 0);
+
+	/* Worst-case size approximation and memory allocation */
+	qty = find_last_bit(data->mask, SUNXI_GATES_MAX_SIZE);
+	clk_data = kmalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
+	if (!clk_data)
+		return;
+	clk_data->clks = kzalloc((qty+1) * sizeof(struct clk *), GFP_KERNEL);
+	if (!clk_data->clks) {
+		kfree(clk_data);
+		return;
+	}
+
+	for_each_set_bit(i, data->mask, SUNXI_GATES_MAX_SIZE) {
+		of_property_read_string_index(node, "clock-output-names",
+					      j, &clk_name);
+
+		/* No driver claims this clock, but it should remain gated */
+		ignore = !strcmp("ahb_sdram", clk_name) ? CLK_IGNORE_UNUSED : 0;
+
+		clk_data->clks[i] = clk_register_gate(NULL, clk_name,
+						      clk_parent, ignore,
+						      reg + 4 * (i/32), i % 32,
+						      0, &clk_lock);
+		WARN_ON(IS_ERR(clk_data->clks[i]));
+
+		j++;
+	}
+
+	/* Adjust to the real max */
+	clk_data->clk_num = i;
+
+	of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+}
+
 /* Matches for of_clk_init */
 static const __initconst struct of_device_id clk_match[] = {
 	{.compatible = "fixed-clock", .data = of_fixed_clk_setup,},
@@ -328,6 +404,15 @@ static const __initconst struct of_device_id clk_div_match[] = {
 static const __initconst struct of_device_id clk_mux_match[] = {
 	{.compatible = "allwinner,sun4i-cpu-clk", .data = &cpu_data,},
 	{.compatible = "allwinner,sun4i-apb1-mux-clk", .data = &apb1_mux_data,},
+	{}
+};
+
+/* Matches for gate clocks */
+static const __initconst struct of_device_id clk_gates_match[] = {
+	{.compatible = "allwinner,sun4i-axi-gates-clk", .data = &axi_gates_data,},
+	{.compatible = "allwinner,sun4i-ahb-gates-clk", .data = &ahb_gates_data,},
+	{.compatible = "allwinner,sun4i-apb0-gates-clk", .data = &apb0_gates_data,},
+	{.compatible = "allwinner,sun4i-apb1-gates-clk", .data = &apb1_gates_data,},
 	{}
 };
 
@@ -359,4 +444,7 @@ void __init sunxi_init_clocks(void)
 
 	/* Register mux clocks */
 	of_sunxi_table_clock_setup(clk_mux_match, sunxi_mux_clk_setup);
+
+	/* Register gate clocks */
+	of_sunxi_table_clock_setup(clk_gates_match, sunxi_gates_clk_setup);
 }
