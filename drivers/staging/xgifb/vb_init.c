@@ -888,7 +888,7 @@ done:
 	return rom_copy;
 }
 
-static void xgifb_read_vbios(struct pci_dev *pdev,
+static bool xgifb_read_vbios(struct pci_dev *pdev,
 			      struct vb_device_info *pVBInfo)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
@@ -899,13 +899,10 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	size_t vbios_size;
 	int entry;
 
-	if (xgifb_info->chip != XG21)
-		return;
-	pVBInfo->IF_DEF_LVDS = 0;
 	vbios = xgifb_copy_rom(pdev, &vbios_size);
 	if (vbios == NULL) {
 		dev_err(&pdev->dev, "Video BIOS not available\n");
-		return;
+		return false;
 	}
 	if (vbios_size <= 0x65)
 		goto error;
@@ -917,7 +914,7 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	    (!xgifb_info->display2_force ||
 	     xgifb_info->display2 != XGIFB_DISP_LCD)) {
 		vfree(vbios);
-		return;
+		return false;
 	}
 	if (vbios_size <= 0x317)
 		goto error;
@@ -956,11 +953,11 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	lvds->PSC_S4		= vbios[i + 23];
 	lvds->PSC_S5		= vbios[i + 24];
 	vfree(vbios);
-	pVBInfo->IF_DEF_LVDS = 1;
-	return;
+	return true;
 error:
 	dev_err(&pdev->dev, "Video BIOS corrupted\n");
 	vfree(vbios);
+	return false;
 }
 
 static void XGINew_ChkSenseStatus(struct xgi_hw_device_info *HwDeviceExtension,
@@ -1132,12 +1129,13 @@ static unsigned short XGINew_SenseLCD(struct xgi_hw_device_info
 	}
 }
 
-static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGINew_GetXG21Sense(struct pci_dev *pdev,
 		struct vb_device_info *pVBInfo)
 {
+	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	unsigned char Temp;
 
-	if (pVBInfo->IF_DEF_LVDS) { /* For XG21 LVDS */
+	if (xgifb_read_vbios(pdev, pVBInfo)) { /* For XG21 LVDS */
 		xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 		/* LVDS on chip */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);
@@ -1146,7 +1144,7 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x03, 0x03);
 		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0xC0;
 		if (Temp == 0xC0) { /* DVI & DVO GPIOA/B pull high */
-			XGINew_SenseLCD(HwDeviceExtension, pVBInfo);
+			XGINew_SenseLCD(&xgifb_info->hw_info, pVBInfo);
 			xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 			/* Enable read GPIOF */
 			xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x20, 0x20);
@@ -1172,7 +1170,6 @@ static void XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension,
 {
 	unsigned char Temp, bCR4A;
 
-	pVBInfo->IF_DEF_LVDS = 0;
 	bCR4A = xgifb_reg_get(pVBInfo->P3d4, 0x4A);
 	/* Enable GPIOA/B/C read  */
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x07, 0x07);
@@ -1254,14 +1251,12 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	InitTo330Pointer(HwDeviceExtension->jChipType, pVBInfo);
 
-	xgifb_read_vbios(pdev, pVBInfo);
-
 	/* Openkey */
 	xgifb_reg_set(pVBInfo->P3c4, 0x05, 0x86);
 
 	/* GetXG21Sense (GPIO) */
 	if (HwDeviceExtension->jChipType == XG21)
-		XGINew_GetXG21Sense(HwDeviceExtension, pVBInfo);
+		XGINew_GetXG21Sense(pdev, pVBInfo);
 
 	if (HwDeviceExtension->jChipType == XG27)
 		XGINew_GetXG27Sense(HwDeviceExtension, pVBInfo);
