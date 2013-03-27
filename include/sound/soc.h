@@ -801,7 +801,7 @@ struct snd_soc_platform_driver {
 		struct snd_soc_dai *);
 
 	/* platform stream pcm ops */
-	struct snd_pcm_ops *ops;
+	const struct snd_pcm_ops *ops;
 
 	/* platform stream compress ops */
 	struct snd_compr_ops *compr_ops;
