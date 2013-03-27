@@ -461,6 +461,18 @@ int mei_cl_register_event_cb(struct mei_cl_device *device,
 }
 EXPORT_SYMBOL_GPL(mei_cl_register_event_cb);
 
+void *mei_cl_get_drvdata(const struct mei_cl_device *device)
+{
+	return dev_get_drvdata(&device->dev);
+}
+EXPORT_SYMBOL_GPL(mei_cl_get_drvdata);
+
+void mei_cl_set_drvdata(struct mei_cl_device *device, void *data)
+{
+	dev_set_drvdata(&device->dev, data);
+}
+EXPORT_SYMBOL_GPL(mei_cl_set_drvdata);
+
 void mei_cl_bus_rx_event(struct mei_cl *cl)
 {
 	struct mei_cl_device *device = cl->device;

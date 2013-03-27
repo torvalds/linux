@@ -35,4 +35,7 @@ int mei_cl_register_event_cb(struct mei_cl_device *device,
 #define MEI_CL_EVENT_RX 0
 #define MEI_CL_EVENT_TX 1
 
+void *mei_cl_get_drvdata(const struct mei_cl_device *device);
+void mei_cl_set_drvdata(struct mei_cl_device *device, void *data);
+
 #endif /* _LINUX_MEI_CL_BUS_H */
