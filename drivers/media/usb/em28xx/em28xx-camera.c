@@ -83,9 +83,9 @@ static int em28xx_initialize_mt9m001(struct em28xx *dev)
 
 
 /*
- * This method works for webcams with Micron sensors
+ * Probes Micron sensors with 8 bit address and 16 bit register width
  */
-int em28xx_detect_sensor(struct em28xx *dev)
+static int em28xx_probe_sensor_micron(struct em28xx *dev)
 {
 	int ret, i;
 	char *name;
@@ -96,7 +96,6 @@ int em28xx_detect_sensor(struct em28xx *dev)
 	struct i2c_client client = dev->i2c_client[dev->def_i2c_bus];
 
 	dev->em28xx_sensor = EM28XX_NOSENSOR;
-	/* Probe Micron sensors with 8 bit address and 16 bit register width */
 	for (i = 0; micron_sensor_addrs[i] != I2C_CLIENT_END; i++) {
 		client.addr = micron_sensor_addrs[i];
 		/* NOTE: i2c_smbus_read_word_data() doesn't work with BE data */
@@ -167,7 +166,7 @@ int em28xx_detect_sensor(struct em28xx *dev)
 		default:
 			em28xx_info("unknown Micron sensor detected: 0x%04x\n",
 				    id);
-			return -EINVAL;
+			return 0;
 		}
 
 		if (dev->em28xx_sensor == EM28XX_NOSENSOR)
@@ -180,6 +179,22 @@ int em28xx_detect_sensor(struct em28xx *dev)
 	}
 
 	return -ENODEV;
+}
+
+/*
+ * This method works for webcams with Micron sensors
+ */
+int em28xx_detect_sensor(struct em28xx *dev)
+{
+	int ret;
+
+	ret = em28xx_probe_sensor_micron(dev);
+	if (dev->em28xx_sensor == EM28XX_NOSENSOR && ret < 0) {
+		em28xx_info("No sensor detected\n");
+		return -ENODEV;
+	}
+
+	return 0;
 }
 
 int em28xx_init_camera(struct em28xx *dev)
