@@ -456,6 +456,59 @@ int __init obex_bind_config(struct usb_configuration *c, u8 port_num)
 
 #else
 
+static inline struct f_serial_opts *to_f_serial_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_serial_opts,
+			    func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_serial_opts);
+static ssize_t f_obex_attr_show(struct config_item *item,
+				struct configfs_attribute *attr,
+				char *page)
+{
+	struct f_serial_opts *opts = to_f_serial_opts(item);
+	struct f_serial_opts_attribute *f_serial_opts_attr =
+		container_of(attr, struct f_serial_opts_attribute, attr);
+	ssize_t ret = 0;
+
+	if (f_serial_opts_attr->show)
+		ret = f_serial_opts_attr->show(opts, page);
+
+	return ret;
+}
+
+static void obex_attr_release(struct config_item *item)
+{
+	struct f_serial_opts *opts = to_f_serial_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations obex_item_ops = {
+	.release	= obex_attr_release,
+	.show_attribute = f_obex_attr_show,
+};
+
+static ssize_t f_obex_port_num_show(struct f_serial_opts *opts, char *page)
+{
+	return sprintf(page, "%u\n", opts->port_num);
+}
+
+static struct f_serial_opts_attribute f_obex_port_num =
+	__CONFIGFS_ATTR_RO(port_num, f_obex_port_num_show);
+
+static struct configfs_attribute *acm_attrs[] = {
+	&f_obex_port_num.attr,
+	NULL,
+};
+
+static struct config_item_type obex_func_type = {
+	.ct_item_ops	= &obex_item_ops,
+	.ct_attrs	= acm_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void obex_free_inst(struct usb_function_instance *f)
 {
 	struct f_serial_opts *opts;
@@ -480,6 +533,8 @@ static struct usb_function_instance *obex_alloc_inst(void)
 		kfree(opts);
 		return ERR_PTR(ret);
 	}
+	config_group_init_type_name(&opts->func_inst.group, "",
+				    &obex_func_type);
 
 	return &opts->func_inst;
 }
