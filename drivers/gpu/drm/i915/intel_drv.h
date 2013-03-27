@@ -33,12 +33,21 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_dp_helper.h>
 
+/**
+ * _wait_for - magic (register) wait macro
+ *
+ * Does the right thing for modeset paths when run under kdgb or similar atomic
+ * contexts. Note that it's important that we check the condition again after
+ * having timed out, since the timeout could be due to preemption or similar and
+ * we've never had a chance to check the condition before the timeout.
+ */
 #define _wait_for(COND, MS, W) ({ \
-	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
+	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS) + 1;	\
 	int ret__ = 0;							\
 	while (!(COND)) {						\
 		if (time_after(jiffies, timeout__)) {			\
-			ret__ = -ETIMEDOUT;				\
+			if (!(COND))					\
+				ret__ = -ETIMEDOUT;			\
 			break;						\
 		}							\
 		if (W && drm_can_sleep())  {				\
