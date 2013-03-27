@@ -582,6 +582,8 @@ intel_disable_plane(struct drm_plane *plane)
 	if (!intel_plane->obj)
 		goto out;
 
+	intel_wait_for_vblank(dev, intel_plane->pipe);
+
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(intel_plane->obj);
 	intel_plane->obj = NULL;
