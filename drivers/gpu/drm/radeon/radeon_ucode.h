@@ -32,6 +32,9 @@
 #define EVERGREEN_PM4_UCODE_SIZE     1376
 #define CAYMAN_PFP_UCODE_SIZE        2176
 #define CAYMAN_PM4_UCODE_SIZE        2176
+#define SI_PFP_UCODE_SIZE            2144
+#define SI_PM4_UCODE_SIZE            2144
+#define SI_CE_UCODE_SIZE             2144
 
 /* RLC */
 #define R600_RLC_UCODE_SIZE          768
@@ -39,10 +42,13 @@
 #define EVERGREEN_RLC_UCODE_SIZE     768
 #define CAYMAN_RLC_UCODE_SIZE        1024
 #define ARUBA_RLC_UCODE_SIZE         1536
+#define SI_RLC_UCODE_SIZE            2048
 
 /* MC */
 #define BTC_MC_UCODE_SIZE            6024
 #define CAYMAN_MC_UCODE_SIZE         6037
+#define SI_MC_UCODE_SIZE             7769
+#define OLAND_MC_UCODE_SIZE          7863
 
 /* SMC */
 #define RV770_SMC_UCODE_START        0x0100
