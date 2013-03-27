@@ -170,3 +170,29 @@ void mei_cl_remove_device(struct mei_cl_device *device)
 	device_unregister(&device->dev);
 }
 EXPORT_SYMBOL_GPL(mei_cl_remove_device);
+
+int __mei_cl_driver_register(struct mei_cl_driver *driver, struct module *owner)
+{
+	int err;
+
+	driver->driver.name = driver->name;
+	driver->driver.owner = owner;
+	driver->driver.bus = &mei_cl_bus_type;
+
+	err = driver_register(&driver->driver);
+	if (err)
+		return err;
+
+	pr_debug("mei: driver [%s] registered\n", driver->driver.name);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__mei_cl_driver_register);
+
+void mei_cl_driver_unregister(struct mei_cl_driver *driver)
+{
+	driver_unregister(&driver->driver);
+
+	pr_debug("mei: driver [%s] unregistered\n", driver->driver.name);
+}
+EXPORT_SYMBOL_GPL(mei_cl_driver_unregister);

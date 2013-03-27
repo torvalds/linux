@@ -17,4 +17,11 @@ struct mei_cl_driver {
 	int (*remove)(struct mei_cl_device *dev);
 };
 
+int __mei_cl_driver_register(struct mei_cl_driver *driver,
+				struct module *owner);
+#define mei_cl_driver_register(driver)             \
+	__mei_cl_driver_register(driver, THIS_MODULE)
+
+void mei_cl_driver_unregister(struct mei_cl_driver *driver);
+
 #endif /* _LINUX_MEI_CL_BUS_H */
