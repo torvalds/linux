@@ -3712,11 +3712,16 @@ static int pci_probe(struct pci_dev *dev,
 
 static void pci_remove(struct pci_dev *dev)
 {
-	struct fw_ohci *ohci;
+	struct fw_ohci *ohci = pci_get_drvdata(dev);
 
-	ohci = pci_get_drvdata(dev);
-	reg_write(ohci, OHCI1394_IntMaskClear, ~0);
-	flush_writes(ohci);
+	/*
+	 * If the removal is happening from the suspend state, LPS won't be
+	 * enabled and host registers (eg., IntMaskClear) won't be accessible.
+	 */
+	if (reg_read(ohci, OHCI1394_HCControlSet) & OHCI1394_HCControl_LPS) {
+		reg_write(ohci, OHCI1394_IntMaskClear, ~0);
+		flush_writes(ohci);
+	}
 	cancel_work_sync(&ohci->bus_reset_work);
 	fw_core_remove_card(&ohci->card);
 
