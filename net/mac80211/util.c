@@ -898,12 +898,6 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 	return crc;
 }
 
-void ieee802_11_parse_elems(u8 *start, size_t len,
-			    struct ieee802_11_elems *elems)
-{
-	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
-}
-
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 			       bool bss_notify)
 {
