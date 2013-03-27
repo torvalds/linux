@@ -583,14 +583,6 @@ struct mei_device *mei_me_dev_init(struct pci_dev *pdev)
 
 	mei_device_init(dev);
 
-	INIT_LIST_HEAD(&dev->wd_cl.link);
-	INIT_LIST_HEAD(&dev->iamthif_cl.link);
-	mei_io_list_init(&dev->amthif_cmd_list);
-	mei_io_list_init(&dev->amthif_rd_complete_list);
-
-	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
-	INIT_WORK(&dev->init_work, mei_host_client_init);
-
 	dev->ops = &mei_me_hw_ops;
 
 	dev->pdev = pdev;

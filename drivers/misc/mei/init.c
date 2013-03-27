@@ -57,6 +57,15 @@ void mei_device_init(struct mei_device *dev)
 	mei_io_list_init(&dev->write_waiting_list);
 	mei_io_list_init(&dev->ctrl_wr_list);
 	mei_io_list_init(&dev->ctrl_rd_list);
+
+	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
+	INIT_WORK(&dev->init_work, mei_host_client_init);
+
+	INIT_LIST_HEAD(&dev->wd_cl.link);
+	INIT_LIST_HEAD(&dev->iamthif_cl.link);
+	mei_io_list_init(&dev->amthif_cmd_list);
+	mei_io_list_init(&dev->amthif_rd_complete_list);
+
 }
 
 /**
