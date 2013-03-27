@@ -556,3 +556,28 @@ nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *data)
 	vec->iov_len += data->iov_len;
 	return 1;
 }
+
+/*
+ * Note that fields may be added, removed or reordered in the future. Programs
+ * scraping this file for info should test the labels to ensure they're
+ * getting the correct field.
+ */
+static int nfsd_reply_cache_stats_show(struct seq_file *m, void *v)
+{
+	spin_lock(&cache_lock);
+	seq_printf(m, "max entries:           %u\n", max_drc_entries);
+	seq_printf(m, "num entries:           %u\n", num_drc_entries);
+	seq_printf(m, "hash buckets:          %u\n", HASHSIZE);
+	seq_printf(m, "mem usage:             %u\n", drc_mem_usage);
+	seq_printf(m, "cache hits:            %u\n", nfsdstats.rchits);
+	seq_printf(m, "cache misses:          %u\n", nfsdstats.rcmisses);
+	seq_printf(m, "not cached:            %u\n", nfsdstats.rcnocache);
+	seq_printf(m, "payload misses:        %u\n", payload_misses);
+	spin_unlock(&cache_lock);
+	return 0;
+}
+
+int nfsd_reply_cache_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, nfsd_reply_cache_stats_show, NULL);
+}
