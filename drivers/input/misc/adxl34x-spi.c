@@ -94,7 +94,7 @@ static int adxl34x_spi_remove(struct spi_device *spi)
 	return adxl34x_remove(ac);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int adxl34x_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
