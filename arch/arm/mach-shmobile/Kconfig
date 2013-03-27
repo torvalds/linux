@@ -51,6 +51,13 @@ config ARCH_R8A7779
 	select USB_ARCH_HAS_OHCI
 	select RENESAS_INTC_IRQPIN
 
+config ARCH_R8A7790
+	bool "R-Car H2 (R8A77900)"
+	select ARM_GIC
+	select CPU_V7
+	select ARM_ARCH_TIMER
+	select SH_CLK_CPG
+
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
