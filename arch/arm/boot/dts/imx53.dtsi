@@ -520,6 +520,33 @@
 				reg = <0x53fa8000 0xc>;
 			};
 
+			ldb: ldb@53fa8008 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx53-ldb";
+				reg = <0x53fa8008 0x4>;
+				gpr = <&gpr>;
+				clocks = <&clks 122>, <&clks 120>,
+					 <&clks 115>, <&clks 116>,
+					 <&clks 123>, <&clks 85>;
+				clock-names = "di0_pll", "di1_pll",
+					      "di0_sel", "di1_sel",
+					      "di0", "di1";
+				status = "disabled";
+
+				lvds-channel@0 {
+					reg = <0>;
+					crtcs = <&ipu 0>;
+					status = "disabled";
+				};
+
+				lvds-channel@1 {
+					reg = <1>;
+					crtcs = <&ipu 1>;
+					status = "disabled";
+				};
+			};
+
 			pwm1: pwm@53fb4000 {
 				#pwm-cells = <2>;
 				compatible = "fsl,imx53-pwm", "fsl,imx27-pwm";
