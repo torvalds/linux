@@ -253,7 +253,7 @@ enum dio200_pci_model {
 };
 
 static const struct dio200_board dio200_pci_boards[] = {
-	[pci215_model] {
+	[pci215_model] = {
 		.name = "pci215",
 		.bustype = pci_bustype,
 		.mainbar = 2,
@@ -266,7 +266,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 			.has_clk_gat_sce = true,
 		},
 	},
-	[pci272_model] {
+	[pci272_model] = {
 		.name = "pci272",
 		.bustype = pci_bustype,
 		.mainbar = 2,
@@ -278,7 +278,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 			.has_int_sce = true,
 		},
 	},
-	[pcie215_model] {
+	[pcie215_model] = {
 		.name = "pcie215",
 		.bustype = pci_bustype,
 		.mainbar = 1,
@@ -295,7 +295,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 			.has_enhancements = true,
 		},
 	},
-	[pcie236_model] {
+	[pcie236_model] = {
 		.name = "pcie236",
 		.bustype = pci_bustype,
 		.mainbar = 1,
@@ -312,7 +312,7 @@ static const struct dio200_board dio200_pci_boards[] = {
 			.has_enhancements = true,
 		},
 	},
-	[pcie296_model] {
+	[pcie296_model] = {
 		.name = "pcie296",
 		.bustype = pci_bustype,
 		.mainbar = 1,
