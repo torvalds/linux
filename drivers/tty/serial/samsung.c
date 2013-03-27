@@ -1367,6 +1367,13 @@ s3c24xx_serial_console_txrdy(struct uart_port *port, unsigned int ufcon)
 	return (utrstat & S3C2410_UTRSTAT_TXE) ? 1 : 0;
 }
 
+static bool
+s3c24xx_port_configured(unsigned int ucon)
+{
+	/* consider the serial port configured if the tx/rx mode set */
+	return (ucon & 0xf) != 0;
+}
+
 #ifdef CONFIG_CONSOLE_POLL
 /*
  * Console polling routines for writing and reading from the uart while
@@ -1389,6 +1396,11 @@ static void s3c24xx_serial_put_poll_char(struct uart_port *port,
 		unsigned char c)
 {
 	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
+	unsigned int ucon = rd_regl(cons_uart, S3C2410_UCON);
+
+	/* not possible to xmit on unconfigured port */
+	if (!s3c24xx_port_configured(ucon))
+		return;
 
 	while (!s3c24xx_serial_console_txrdy(port, ufcon))
 		cpu_relax();
@@ -1401,6 +1413,12 @@ static void
 s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
 {
 	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
+	unsigned int ucon = rd_regl(cons_uart, S3C2410_UCON);
+
+	/* not possible to xmit on unconfigured port */
+	if (!s3c24xx_port_configured(ucon))
+		return;
+
 	while (!s3c24xx_serial_console_txrdy(port, ufcon))
 		barrier();
 	wr_regb(cons_uart, S3C2410_UTXH, ch);
@@ -1433,9 +1451,7 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 	    "registers: ulcon=%08x, ucon=%08x, ubdriv=%08x\n",
 	    port, ulcon, ucon, ubrdiv);
 
-	if ((ucon & 0xf) != 0) {
-		/* consider the serial port configured if the tx/rx mode set */
-
+	if (s3c24xx_port_configured(ucon)) {
 		switch (ulcon & S3C2410_LCON_CSMASK) {
 		case S3C2410_LCON_CS5:
 			*bits = 5;
