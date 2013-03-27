@@ -1653,7 +1653,9 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	clear_bit(B_RS_H_DONE, &mdev->flags);
 
 	write_lock_irq(&global_state_lock);
-	if (!get_ldev_if_state(mdev, D_NEGOTIATING)) {
+	/* Did some connection breakage or IO error race with us? */
+	if (mdev->state.conn < C_CONNECTED
+	|| !get_ldev_if_state(mdev, D_NEGOTIATING)) {
 		write_unlock_irq(&global_state_lock);
 		mutex_unlock(mdev->state_mutex);
 		return;
