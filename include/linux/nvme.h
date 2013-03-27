@@ -393,6 +393,16 @@ struct nvme_download_firmware {
 	__u32			rsvd12[4];
 };
 
+struct nvme_format_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd2[4];
+	__le32			cdw10;
+	__u32			rsvd11[5];
+};
+
 struct nvme_command {
 	union {
 		struct nvme_common_command common;
@@ -403,6 +413,7 @@ struct nvme_command {
 		struct nvme_create_sq create_sq;
 		struct nvme_delete_queue delete_queue;
 		struct nvme_download_firmware dlfw;
+		struct nvme_format_cmd format;
 		struct nvme_dsm_cmd dsm;
 	};
 };
@@ -420,6 +431,7 @@ enum {
 	NVME_SC_FUSED_FAIL		= 0x9,
 	NVME_SC_FUSED_MISSING		= 0xa,
 	NVME_SC_INVALID_NS		= 0xb,
+	NVME_SC_CMD_SEQ_ERROR		= 0xc,
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,
 	NVME_SC_NS_NOT_READY		= 0x82,
