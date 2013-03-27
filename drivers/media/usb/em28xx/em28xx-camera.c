@@ -301,6 +301,11 @@ int em28xx_detect_sensor(struct em28xx *dev)
 	if (dev->em28xx_sensor == EM28XX_NOSENSOR && ret < 0)
 		ret = em28xx_probe_sensor_omnivision(dev);
 
+	/*
+	 * NOTE: the Windows driver also probes i2c addresses
+	 *       0x22 (Samsung ?) and 0x66 (Kodak ?)
+	 */
+
 	if (dev->em28xx_sensor == EM28XX_NOSENSOR && ret < 0) {
 		em28xx_info("No sensor detected\n");
 		return -ENODEV;
