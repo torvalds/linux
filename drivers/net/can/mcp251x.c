@@ -1138,9 +1138,11 @@ static int mcp251x_can_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mcp251x_can_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+
+static int mcp251x_can_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
 	struct net_device *net = priv->net;
@@ -1170,8 +1172,9 @@ static int mcp251x_can_suspend(struct spi_device *spi, pm_message_t state)
 	return 0;
 }
 
-static int mcp251x_can_resume(struct spi_device *spi)
+static int mcp251x_can_resume(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
 
@@ -1191,9 +1194,13 @@ static int mcp251x_can_resume(struct spi_device *spi)
 	enable_irq(spi->irq);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(mcp251x_can_pm_ops, mcp251x_can_suspend,
+	mcp251x_can_resume);
+#define MCP251X_PM_OPS (&mcp251x_can_pm_ops)
+
 #else
-#define mcp251x_can_suspend NULL
-#define mcp251x_can_resume NULL
+#define MCP251X_PM_OPS NULL
 #endif
 
 static const struct spi_device_id mcp251x_id_table[] = {
@@ -1207,29 +1214,15 @@ MODULE_DEVICE_TABLE(spi, mcp251x_id_table);
 static struct spi_driver mcp251x_can_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
+		.pm = MCP251X_PM_OPS,
 	},
 
 	.id_table = mcp251x_id_table,
 	.probe = mcp251x_can_probe,
 	.remove = mcp251x_can_remove,
-	.suspend = mcp251x_can_suspend,
-	.resume = mcp251x_can_resume,
 };
-
-static int __init mcp251x_can_init(void)
-{
-	return spi_register_driver(&mcp251x_can_driver);
-}
-
-static void __exit mcp251x_can_exit(void)
-{
-	spi_unregister_driver(&mcp251x_can_driver);
-}
-
-module_init(mcp251x_can_init);
-module_exit(mcp251x_can_exit);
+module_spi_driver(mcp251x_can_driver);
 
 MODULE_AUTHOR("Chris Elston <celston@katalix.com>, "
 	      "Christian Pellegrin <chripell@evolware.org>");
