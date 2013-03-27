@@ -515,6 +515,11 @@
 
 			};
 
+			gpr: iomuxc-gpr@53fa8000 {
+				compatible = "fsl,imx53-iomuxc-gpr", "syscon";
+				reg = <0x53fa8000 0xc>;
+			};
+
 			pwm1: pwm@53fb4000 {
 				#pwm-cells = <2>;
 				compatible = "fsl,imx53-pwm", "fsl,imx27-pwm";
