@@ -88,11 +88,6 @@ struct XGI330_LCDCapStruct {
 	unsigned char	LCDA_VCLKData2;
 	unsigned char	LCUCHAR_VCLKData1;
 	unsigned char	LCUCHAR_VCLKData2;
-	unsigned char	PWD_2B;
-	unsigned char	PWD_2C;
-	unsigned char	PWD_2D;
-	unsigned char	PWD_2E;
-	unsigned char	PWD_2F;
 	unsigned char	Spectrum_31;
 	unsigned char	Spectrum_32;
 	unsigned char	Spectrum_33;
