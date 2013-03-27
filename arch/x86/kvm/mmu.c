@@ -1501,10 +1501,15 @@ static void drop_parent_pte(struct kvm_mmu_page *sp,
 	mmu_spte_clear_no_track(parent_pte);
 }
 
+static void make_mmu_pages_available(struct kvm_vcpu *vcpu);
+
 static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 					       u64 *parent_pte, int direct)
 {
 	struct kvm_mmu_page *sp;
+
+	make_mmu_pages_available(vcpu);
+
 	sp = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_header_cache);
 	sp->spt = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache);
 	if (!direct)
@@ -2842,7 +2847,6 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, u32 error_code,
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
-	kvm_mmu_free_some_pages(vcpu);
 	if (likely(!force_pt_level))
 		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
 	r = __direct_map(vcpu, v, write, map_writable, level, gfn, pfn,
@@ -2920,7 +2924,6 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		spin_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_free_some_pages(vcpu);
 		sp = kvm_mmu_get_page(vcpu, 0, 0, PT64_ROOT_LEVEL,
 				      1, ACC_ALL, NULL);
 		++sp->root_count;
@@ -2932,7 +2935,6 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 
 			ASSERT(!VALID_PAGE(root));
 			spin_lock(&vcpu->kvm->mmu_lock);
-			kvm_mmu_free_some_pages(vcpu);
 			sp = kvm_mmu_get_page(vcpu, i << (30 - PAGE_SHIFT),
 					      i << 30,
 					      PT32_ROOT_LEVEL, 1, ACC_ALL,
@@ -2971,7 +2973,6 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		ASSERT(!VALID_PAGE(root));
 
 		spin_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_free_some_pages(vcpu);
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0, PT64_ROOT_LEVEL,
 				      0, ACC_ALL, NULL);
 		root = __pa(sp->spt);
@@ -3005,7 +3006,6 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 				return 1;
 		}
 		spin_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_free_some_pages(vcpu);
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 				      PT32_ROOT_LEVEL, 0,
 				      ACC_ALL, NULL);
@@ -3311,7 +3311,6 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
-	kvm_mmu_free_some_pages(vcpu);
 	if (likely(!force_pt_level))
 		transparent_hugepage_adjust(vcpu, &gfn, &pfn, &level);
 	r = __direct_map(vcpu, gpa, write, map_writable,
@@ -4013,9 +4012,12 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page_virt);
 
-void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
+static void make_mmu_pages_available(struct kvm_vcpu *vcpu)
 {
 	LIST_HEAD(invalid_list);
+
+	if (likely(kvm_mmu_available_pages(vcpu->kvm) >= KVM_MIN_FREE_MMU_PAGES))
+		return;
 
 	while (kvm_mmu_available_pages(vcpu->kvm) < KVM_REFILL_PAGES) {
 		if (!prepare_zap_oldest_mmu_page(vcpu->kvm, &invalid_list))
