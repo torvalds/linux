@@ -112,7 +112,7 @@ config DVFS
 config DVFS_WITH_UOC
 	bool "Use dvfs with uoc, no voltage difference"
 	depends on DVFS && ARCH_RK3066B
-	default y
+	default n
 
 config RK_CLOCK_PROC
 	bool "/proc/clocks support"
