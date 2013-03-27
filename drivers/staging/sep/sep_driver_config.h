@@ -219,7 +219,7 @@ held by the process (struct file) */
 /* maximum number of entries in the caller id table */
 #define SEP_CALLER_ID_TABLE_NUM_ENTRIES                       20
 
-/* maximum number of symetric operation (that require DMA resource)
+/* maximum number of symmetric operation (that require DMA resource)
 	per one message */
 #define SEP_MAX_NUM_SYNC_DMA_OPS			16
 
