@@ -292,6 +292,11 @@ struct mei_cl_transport_ops {
 	int (*recv)(struct mei_cl_device *device, u8 *buf, size_t length);
 };
 
+void mei_cl_bus_rx_event(struct mei_cl *cl);
+int mei_cl_bus_init(void);
+void mei_cl_bus_exit(void);
+
+
 /**
  * struct mei_cl_device - MEI device handle
  * An mei_cl_device pointer is returned from mei_add_device()
@@ -450,7 +455,6 @@ static inline u32 mei_data2slots(size_t length)
 {
 	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
 }
-
 
 /*
  * mei init function prototypes

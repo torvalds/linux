@@ -50,6 +50,8 @@ static void mei_cl_complete_handler(struct mei_cl *cl, struct mei_cl_cb *cb)
 		cl->reading_state = MEI_READ_COMPLETE;
 		if (waitqueue_active(&cl->rx_wait))
 			wake_up_interruptible(&cl->rx_wait);
+		else
+			mei_cl_bus_rx_event(cl);
 
 	}
 }
