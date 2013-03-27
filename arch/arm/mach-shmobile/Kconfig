@@ -57,6 +57,7 @@ config ARCH_R8A7790
 	select CPU_V7
 	select ARM_ARCH_TIMER
 	select SH_CLK_CPG
+	select RENESAS_IRQC
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
