@@ -1104,8 +1104,8 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 	#endif
 		.pwm_voltage = 1100000,
 		.suspend_voltage = 1000000,
-		.min_uV = 1000000,
-		.max_uV	= 1450000,
+		.min_uV = 950000,
+		.max_uV	= 1400000,
 		.coefficient = 504,	//57.5%
 		.pwm_voltage_map = pwm_voltage_map,
 		.init_data	= &pwm_regulator_init_dcdc[0],
@@ -2124,13 +2124,13 @@ static void __init rk30_reserve(void)
  * @cpu_volt	: arm voltage depend on frequency
  */
 static struct cpufreq_frequency_table dvfs_arm_table[] = {
-        {.frequency = 312 * 1000,       .index = 850 * 1000},
-        {.frequency = 504 * 1000,       .index = 900 * 1000},
-        {.frequency = 816 * 1000,       .index = 950 * 1000},
-        {.frequency = 1008 * 1000,      .index = 1200 * 1000},
-       // {.frequency = 1200 * 1000,      .index = 1200 * 1000},
-      //  {.frequency = 1416 * 1000,      .index = 1200 * 1000},
-      //  {.frequency = 1608 * 1000,      .index = 1300 * 1000},
+        {.frequency = 312 * 1000,       .index = 900 * 1000},
+        {.frequency = 504 * 1000,       .index = 950 * 1000},
+        {.frequency = 816 * 1000,       .index = 1000 * 1000},
+        {.frequency = 1008 * 1000,      .index = 1100 * 1000},
+        //{.frequency = 1200 * 1000,      .index = 1100 * 1000},
+        //{.frequency = 1416 * 1000,      .index = 1200 * 1000},
+        //{.frequency = 1608 * 1000,      .index = 1300 * 1000},
         {.frequency = CPUFREQ_TABLE_END},
 };
 
