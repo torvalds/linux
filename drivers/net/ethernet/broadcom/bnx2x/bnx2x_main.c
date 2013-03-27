@@ -12522,7 +12522,6 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	 */
 	if (IS_VF(bp)) {
 		bp->doorbells = bnx2x_vf_doorbells(bp);
-		mutex_init(&bp->vf2pf_mutex);
 		rc = bnx2x_vf_pci_alloc(bp);
 		if (rc)
 			goto init_one_exit;

@@ -3425,6 +3425,8 @@ void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
 
 int bnx2x_vf_pci_alloc(struct bnx2x *bp)
 {
+	mutex_init(&bp->vf2pf_mutex);
+
 	/* allocate vf2pf mailbox for vf to pf channel */
 	BNX2X_PCI_ALLOC(bp->vf2pf_mbox, &bp->vf2pf_mbox_mapping,
 			sizeof(struct bnx2x_vf_mbx_msg));
