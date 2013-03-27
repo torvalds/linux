@@ -564,6 +564,16 @@ int log_wait_commit(journal_t *journal, tid_t tid)
 	spin_unlock(&journal->j_state_lock);
 #endif
 	spin_lock(&journal->j_state_lock);
+	/*
+	 * Not running or committing trans? Must be already committed. This
+	 * saves us from waiting for a *long* time when tid overflows.
+	 */
+	if (!((journal->j_running_transaction &&
+	       journal->j_running_transaction->t_tid == tid) ||
+	      (journal->j_committing_transaction &&
+	       journal->j_committing_transaction->t_tid == tid)))
+		goto out_unlock;
+
 	if (!tid_geq(journal->j_commit_waited, tid))
 		journal->j_commit_waited = tid;
 	while (tid_gt(tid, journal->j_commit_sequence)) {
@@ -575,6 +585,7 @@ int log_wait_commit(journal_t *journal, tid_t tid)
 				!tid_gt(tid, journal->j_commit_sequence));
 		spin_lock(&journal->j_state_lock);
 	}
+out_unlock:
 	spin_unlock(&journal->j_state_lock);
 
 	if (unlikely(is_journal_aborted(journal))) {
