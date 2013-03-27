@@ -2827,7 +2827,7 @@ void usb_enable_ltm(struct usb_device *udev)
 }
 EXPORT_SYMBOL_GPL(usb_enable_ltm);
 
-#ifdef	CONFIG_USB_SUSPEND
+#ifdef	CONFIG_PM
 /*
  * usb_disable_function_remotewakeup - disable usb3.0
  * device's function remote wakeup
@@ -2886,7 +2886,7 @@ static int usb_disable_function_remotewakeup(struct usb_device *udev)
  * Linux (2.6) currently has NO mechanisms to initiate that:  no khubd
  * timer, no SRP, no requests through sysfs.
  *
- * If CONFIG_USB_SUSPEND isn't enabled, non-SuperSpeed devices really get
+ * If Runtime PM isn't enabled or used, non-SuperSpeed devices really get
  * suspended only when their bus goes into global suspend (i.e., the root
  * hub is suspended).  Nevertheless, we change @udev->state to
  * USB_STATE_SUSPENDED as this is the device's "logical" state.  The actual
@@ -3247,6 +3247,10 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	return status;
 }
 
+#endif	/* CONFIG_PM */
+
+#ifdef	CONFIG_PM_RUNTIME
+
 /* caller has locked udev */
 int usb_remote_wakeup(struct usb_device *udev)
 {
@@ -3259,38 +3263,6 @@ int usb_remote_wakeup(struct usb_device *udev)
 			/* Let the drivers do their thing, then... */
 			usb_autosuspend_device(udev);
 		}
-	}
-	return status;
-}
-
-#else	/* CONFIG_USB_SUSPEND */
-
-/* When CONFIG_USB_SUSPEND isn't set, we never suspend or resume any ports. */
-
-int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
-{
-	return 0;
-}
-
-/* However we may need to do a reset-resume */
-
-int usb_port_resume(struct usb_device *udev, pm_message_t msg)
-{
-	struct usb_hub	*hub = usb_hub_to_struct_hub(udev->parent);
-	int		port1 = udev->portnum;
-	int		status;
-	u16		portchange, portstatus;
-
-	status = hub_port_status(hub, port1, &portstatus, &portchange);
-	status = check_port_resume_type(udev,
-			hub, port1, status, portchange, portstatus);
-
-	if (status) {
-		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
-		hub_port_logical_disconnect(hub, port1);
-	} else if (udev->reset_resume) {
-		dev_dbg(&udev->dev, "reset-resume\n");
-		status = usb_reset_and_verify_device(udev);
 	}
 	return status;
 }
@@ -4356,7 +4328,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		if (portstatus & USB_PORT_STAT_ENABLE) {
 			status = 0;		/* Nothing to do */
 
-#ifdef CONFIG_USB_SUSPEND
+#ifdef CONFIG_PM_RUNTIME
 		} else if (udev->state == USB_STATE_SUSPENDED &&
 				udev->persist_enabled) {
 			/* For a suspended device, treat this as a

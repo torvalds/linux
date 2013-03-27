@@ -1755,7 +1755,7 @@ sl811h_probe(struct platform_device *dev)
 
 /* for this device there's no useful distinction between the controller
  * and its root hub, except that the root hub only gets direct PM calls
- * when CONFIG_USB_SUSPEND is enabled.
+ * when CONFIG_PM_RUNTIME is enabled.
  */
 
 static int
