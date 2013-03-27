@@ -121,7 +121,7 @@ static char *dentry_name(struct dentry *dentry)
 	if (!name)
 		return NULL;
 
-	return __dentry_name(dentry, name); /* will unlock */
+	return __dentry_name(dentry, name);
 }
 
 static char *inode_name(struct inode *ino)
