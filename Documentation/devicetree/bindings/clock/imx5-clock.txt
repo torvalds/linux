@@ -172,6 +172,11 @@ clocks and IDs.
 	can1_serial_gate	157
 	can1_ipg_gate		158
 	owire_gate		159
+	gpu3d_s			160
+	gpu2d_s			161
+	gpu3d_gate		162
+	gpu2d_gate		163
+	garb_gate		164
 
 Examples (for mx53):
 
