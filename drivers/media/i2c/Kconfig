@@ -1,16 +1,4 @@
 #
-# Generic video config states
-#
-
-config VIDEO_BTCX
-	depends on PCI
-	tristate
-
-config VIDEO_TVEEPROM
-	tristate
-	depends on I2C
-
-#
 # Multimedia Video device configuration
 #
 
@@ -317,20 +305,6 @@ config VIDEO_SAA717X
 
 source "drivers/media/i2c/cx25840/Kconfig"
 
-comment "MPEG video encoders"
-
-config VIDEO_CX2341X
-	tristate "Conexant CX2341x MPEG encoders"
-	depends on VIDEO_V4L2
-	---help---
-	  Support for the Conexant CX23416 MPEG encoders
-	  and CX23415 MPEG encoder/decoders.
-
-	  This module currently supports the encoding functions only.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cx2341x.
-
 comment "Video encoders"
 
 config VIDEO_SAA7127
@@ -421,6 +395,13 @@ config VIDEO_OV7670
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
+config VIDEO_OV9650
+	tristate "OmniVision OV9650/OV9652 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a V4L2 sensor-level driver for the Omnivision
+	  OV9650 and OV9652 camera sensors.
+
 config VIDEO_VS6624
 	tristate "ST VS6624 sensor support"
 	depends on VIDEO_V4L2 && I2C
@@ -477,7 +458,7 @@ config VIDEO_MT9V032
 
 config VIDEO_TCM825X
 	tristate "TCM825x camera sensor support"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_INT_DEVICE
 	depends on MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a driver for the Toshiba TCM825x VGA camera sensor.
@@ -515,6 +496,13 @@ config VIDEO_S5K4ECGX
           camera sensor with an embedded SoC image signal processor.
 
 source "drivers/media/i2c/smiapp/Kconfig"
+
+config VIDEO_S5C73M3
+	tristate "Samsung S5C73M3 sensor support"
+	depends on I2C && SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	This is a V4L2 sensor-level driver for Samsung S5C73M3
+	8 Mpixel camera.
 
 comment "Flash devices"
 

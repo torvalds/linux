@@ -203,29 +203,6 @@ and should not be used in new drivers and applications.</entry>
 	    <entry>boolean</entry>
 	    <entry>Mirror the picture vertically.</entry>
 	  </row>
-	<row>
-	  <entry><constant>V4L2_CID_HCENTER_DEPRECATED</constant> (formerly <constant>V4L2_CID_HCENTER</constant>)</entry>
-	    <entry>integer</entry>
-	    <entry>Horizontal image centering. This control is
-deprecated. New drivers and applications should use the <link
-linkend="camera-controls">Camera class controls</link>
-<constant>V4L2_CID_PAN_ABSOLUTE</constant>,
-<constant>V4L2_CID_PAN_RELATIVE</constant> and
-<constant>V4L2_CID_PAN_RESET</constant> instead.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CID_VCENTER_DEPRECATED</constant>
-	    (formerly <constant>V4L2_CID_VCENTER</constant>)</entry>
-	    <entry>integer</entry>
-	    <entry>Vertical image centering. Centering is intended to
-<emphasis>physically</emphasis> adjust cameras. For image cropping see
-<xref linkend="crop" />, for clipping <xref linkend="overlay" />. This
-control is deprecated. New drivers and applications should use the
-<link linkend="camera-controls">Camera class controls</link>
-<constant>V4L2_CID_TILT_ABSOLUTE</constant>,
-<constant>V4L2_CID_TILT_RELATIVE</constant> and
-<constant>V4L2_CID_TILT_RESET</constant> instead.</entry>
-	  </row>
 	  <row id="v4l2-power-line-frequency">
 	    <entry><constant>V4L2_CID_POWER_LINE_FREQUENCY</constant></entry>
 	    <entry>enum</entry>

@@ -176,7 +176,7 @@ out:
 
 /* torch pin config for lm3642*/
 static ssize_t lm3642_torch_pin_store(struct device *dev,
-				      struct device_attribute *devAttr,
+				      struct device_attribute *attr,
 				      const char *buf, size_t size)
 {
 	ssize_t ret;
@@ -233,7 +233,7 @@ static void lm3642_torch_brightness_set(struct led_classdev *cdev,
 
 /* strobe pin config for lm3642*/
 static ssize_t lm3642_strobe_pin_store(struct device *dev,
-				       struct device_attribute *devAttr,
+				       struct device_attribute *attr,
 				       const char *buf, size_t size)
 {
 	ssize_t ret;

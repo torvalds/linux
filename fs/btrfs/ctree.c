@@ -1138,6 +1138,7 @@ __tree_mod_log_rewind(struct extent_buffer *eb, u64 time_seq,
 		switch (tm->op) {
 		case MOD_LOG_KEY_REMOVE_WHILE_FREEING:
 			BUG_ON(tm->slot < n);
+			/* Fallthrough */
 		case MOD_LOG_KEY_REMOVE_WHILE_MOVING:
 		case MOD_LOG_KEY_REMOVE:
 			btrfs_set_node_key(eb, &tm->key, tm->slot);
@@ -1222,7 +1223,7 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 
 	__tree_mod_log_rewind(eb_rewin, time_seq, tm);
 	WARN_ON(btrfs_header_nritems(eb_rewin) >
-		BTRFS_NODEPTRS_PER_BLOCK(fs_info->fs_root));
+		BTRFS_NODEPTRS_PER_BLOCK(fs_info->tree_root));
 
 	return eb_rewin;
 }
@@ -1441,7 +1442,7 @@ int btrfs_comp_cpu_keys(struct btrfs_key *k1, struct btrfs_key *k2)
  */
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct extent_buffer *parent,
-		       int start_slot, int cache_only, u64 *last_ret,
+		       int start_slot, u64 *last_ret,
 		       struct btrfs_key *progress)
 {
 	struct extent_buffer *cur;
@@ -1461,8 +1462,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	struct btrfs_disk_key disk_key;
 
 	parent_level = btrfs_header_level(parent);
-	if (cache_only && parent_level != 1)
-		return 0;
 
 	WARN_ON(trans->transaction != root->fs_info->running_transaction);
 	WARN_ON(trans->transid != root->fs_info->generation);
@@ -1508,10 +1507,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		else
 			uptodate = 0;
 		if (!cur || !uptodate) {
-			if (cache_only) {
-				free_extent_buffer(cur);
-				continue;
-			}
 			if (!cur) {
 				cur = read_tree_block(root, blocknr,
 							 blocksize, gen);
@@ -4825,8 +4820,8 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 
 /*
  * A helper function to walk down the tree starting at min_key, and looking
- * for nodes or leaves that are either in cache or have a minimum
- * transaction id.  This is used by the btree defrag code, and tree logging
+ * for nodes or leaves that are have a minimum transaction id.
+ * This is used by the btree defrag code, and tree logging
  *
  * This does not cow, but it does stuff the starting key it finds back
  * into min_key, so you can call btrfs_search_slot with cow=1 on the
@@ -4847,7 +4842,7 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
  */
 int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 			 struct btrfs_key *max_key,
-			 struct btrfs_path *path, int cache_only,
+			 struct btrfs_path *path,
 			 u64 min_trans)
 {
 	struct extent_buffer *cur;
@@ -4887,15 +4882,12 @@ again:
 		if (sret && slot > 0)
 			slot--;
 		/*
-		 * check this node pointer against the cache_only and
-		 * min_trans parameters.  If it isn't in cache or is too
-		 * old, skip to the next one.
+		 * check this node pointer against the min_trans parameters.
+		 * If it is too old, old, skip to the next one.
 		 */
 		while (slot < nritems) {
 			u64 blockptr;
 			u64 gen;
-			struct extent_buffer *tmp;
-			struct btrfs_disk_key disk_key;
 
 			blockptr = btrfs_node_blockptr(cur, slot);
 			gen = btrfs_node_ptr_generation(cur, slot);
@@ -4903,27 +4895,7 @@ again:
 				slot++;
 				continue;
 			}
-			if (!cache_only)
-				break;
-
-			if (max_key) {
-				btrfs_node_key(cur, &disk_key, slot);
-				if (comp_keys(&disk_key, max_key) >= 0) {
-					ret = 1;
-					goto out;
-				}
-			}
-
-			tmp = btrfs_find_tree_block(root, blockptr,
-					    btrfs_level_size(root, level - 1));
-
-			if (tmp && btrfs_buffer_uptodate(tmp, gen, 1) > 0) {
-				free_extent_buffer(tmp);
-				break;
-			}
-			if (tmp)
-				free_extent_buffer(tmp);
-			slot++;
+			break;
 		}
 find_next_key:
 		/*
@@ -4934,7 +4906,7 @@ find_next_key:
 			path->slots[level] = slot;
 			btrfs_set_path_blocking(path);
 			sret = btrfs_find_next_key(root, path, min_key, level,
-						  cache_only, min_trans);
+						  min_trans);
 			if (sret == 0) {
 				btrfs_release_path(path);
 				goto again;
@@ -5399,8 +5371,7 @@ out:
 /*
  * this is similar to btrfs_next_leaf, but does not try to preserve
  * and fixup the path.  It looks for and returns the next key in the
- * tree based on the current path and the cache_only and min_trans
- * parameters.
+ * tree based on the current path and the min_trans parameters.
  *
  * 0 is returned if another key is found, < 0 if there are any errors
  * and 1 is returned if there are no higher keys in the tree
@@ -5409,8 +5380,7 @@ out:
  * calling this function.
  */
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
-			struct btrfs_key *key, int level,
-			int cache_only, u64 min_trans)
+			struct btrfs_key *key, int level, u64 min_trans)
 {
 	int slot;
 	struct extent_buffer *c;
@@ -5461,22 +5431,8 @@ next:
 		if (level == 0)
 			btrfs_item_key_to_cpu(c, key, slot);
 		else {
-			u64 blockptr = btrfs_node_blockptr(c, slot);
 			u64 gen = btrfs_node_ptr_generation(c, slot);
 
-			if (cache_only) {
-				struct extent_buffer *cur;
-				cur = btrfs_find_tree_block(root, blockptr,
-					    btrfs_level_size(root, level - 1));
-				if (!cur ||
-				    btrfs_buffer_uptodate(cur, gen, 1) <= 0) {
-					slot++;
-					if (cur)
-						free_extent_buffer(cur);
-					goto next;
-				}
-				free_extent_buffer(cur);
-			}
 			if (gen < min_trans) {
 				slot++;
 				goto next;

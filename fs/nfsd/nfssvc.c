@@ -59,8 +59,8 @@ DEFINE_MUTEX(nfsd_mutex);
  * nfsd_drc_pages_used tracks the current version 4.1 DRC memory usage.
  */
 spinlock_t	nfsd_drc_lock;
-unsigned int	nfsd_drc_max_mem;
-unsigned int	nfsd_drc_mem_used;
+unsigned long	nfsd_drc_max_mem;
+unsigned long	nfsd_drc_mem_used;
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 static struct svc_stat	nfsd_acl_svcstats;
@@ -342,7 +342,7 @@ static void set_max_drc(void)
 					>> NFSD_DRC_SIZE_SHIFT) * PAGE_SIZE;
 	nfsd_drc_mem_used = 0;
 	spin_lock_init(&nfsd_drc_lock);
-	dprintk("%s nfsd_drc_max_mem %u \n", __func__, nfsd_drc_max_mem);
+	dprintk("%s nfsd_drc_max_mem %lu \n", __func__, nfsd_drc_max_mem);
 }
 
 static int nfsd_get_default_max_blksize(void)
@@ -652,7 +652,6 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 
 	/* Check whether we have this call in the cache. */
 	switch (nfsd_cache_lookup(rqstp)) {
-	case RC_INTR:
 	case RC_DROPIT:
 		return 0;
 	case RC_REPLY:
@@ -703,8 +702,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 {
 	int ret;
-	struct net *net = &init_net;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(inode->i_sb->s_fs_info, nfsd_net_id);
 
 	mutex_lock(&nfsd_mutex);
 	if (nn->nfsd_serv == NULL) {
@@ -721,7 +719,7 @@ int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 int nfsd_pool_stats_release(struct inode *inode, struct file *file)
 {
 	int ret = seq_release(inode, file);
-	struct net *net = &init_net;
+	struct net *net = inode->i_sb->s_fs_info;
 
 	mutex_lock(&nfsd_mutex);
 	/* this function really, really should have been called svc_put() */

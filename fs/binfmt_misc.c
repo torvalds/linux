@@ -531,7 +531,7 @@ static void kill_node(Node *e)
 static ssize_t
 bm_entry_read(struct file * file, char __user * buf, size_t nbytes, loff_t *ppos)
 {
-	Node *e = file->f_path.dentry->d_inode->i_private;
+	Node *e = file_inode(file)->i_private;
 	ssize_t res;
 	char *page;
 
@@ -550,7 +550,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
 	struct dentry *root;
-	Node *e = file->f_path.dentry->d_inode->i_private;
+	Node *e = file_inode(file)->i_private;
 	int res = parse_command(buffer, count);
 
 	switch (res) {

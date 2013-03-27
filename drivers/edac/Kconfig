@@ -80,6 +80,29 @@ config EDAC_MM_EDAC
 	  occurred so that a particular failing memory module can be
 	  replaced.  If unsure, select 'Y'.
 
+config EDAC_GHES
+	bool "Output ACPI APEI/GHES BIOS detected errors via EDAC"
+	depends on ACPI_APEI_GHES && (EDAC_MM_EDAC=y)
+	default y
+	help
+	  Not all machines support hardware-driven error report. Some of those
+	  provide a BIOS-driven error report mechanism via ACPI, using the
+	  APEI/GHES driver. By enabling this option, the error reports provided
+	  by GHES are sent to userspace via the EDAC API.
+
+	  When this option is enabled, it will disable the hardware-driven
+	  mechanisms, if a GHES BIOS is detected, entering into the
+	  "Firmware First" mode.
+
+	  It should be noticed that keeping both GHES and a hardware-driven
+	  error mechanism won't work well, as BIOS will race with OS, while
+	  reading the error registers. So, if you want to not use "Firmware
+	  first" GHES error mechanism, you should disable GHES either at
+	  compilation time or by passing "ghes.disable=1" Kernel parameter
+	  at boot time.
+
+	  In doubt, say 'Y'.
+
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64) K8, F10h"
 	depends on EDAC_MM_EDAC && AMD_NB && X86_64 && EDAC_DECODE_MCE

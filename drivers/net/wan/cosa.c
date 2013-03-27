@@ -938,14 +938,14 @@ static int cosa_open(struct inode *inode, struct file *file)
 	int ret = 0;
 
 	mutex_lock(&cosa_chardev_mutex);
-	if ((n=iminor(file->f_path.dentry->d_inode)>>CARD_MINOR_BITS)
+	if ((n=iminor(file_inode(file))>>CARD_MINOR_BITS)
 		>= nr_cards) {
 		ret = -ENODEV;
 		goto out;
 	}
 	cosa = cosa_cards+n;
 
-	if ((n=iminor(file->f_path.dentry->d_inode)
+	if ((n=iminor(file_inode(file))
 		& ((1<<CARD_MINOR_BITS)-1)) >= cosa->nchannels) {
 		ret = -ENODEV;
 		goto out;

@@ -50,7 +50,7 @@ struct xc4000_config {
  * it's passed back to a bridge during tuner_callback().
  */
 
-#if defined(CONFIG_MEDIA_TUNER_XC4000) || (defined(CONFIG_MEDIA_TUNER_XC4000_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_XC4000)
 extern struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
 					  struct xc4000_config *cfg);

@@ -445,7 +445,7 @@ static struct entropy_store input_pool = {
 	.poolinfo = &poolinfo_table[0],
 	.name = "input",
 	.limit = 1,
-	.lock = __SPIN_LOCK_UNLOCKED(&input_pool.lock),
+	.lock = __SPIN_LOCK_UNLOCKED(input_pool.lock),
 	.pool = input_pool_data
 };
 
@@ -454,7 +454,7 @@ static struct entropy_store blocking_pool = {
 	.name = "blocking",
 	.limit = 1,
 	.pull = &input_pool,
-	.lock = __SPIN_LOCK_UNLOCKED(&blocking_pool.lock),
+	.lock = __SPIN_LOCK_UNLOCKED(blocking_pool.lock),
 	.pool = blocking_pool_data
 };
 
@@ -462,7 +462,7 @@ static struct entropy_store nonblocking_pool = {
 	.poolinfo = &poolinfo_table[1],
 	.name = "nonblocking",
 	.pull = &input_pool,
-	.lock = __SPIN_LOCK_UNLOCKED(&nonblocking_pool.lock),
+	.lock = __SPIN_LOCK_UNLOCKED(nonblocking_pool.lock),
 	.pool = nonblocking_pool_data
 };
 
@@ -852,6 +852,7 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 		      int reserved)
 {
 	unsigned long flags;
+	int wakeup_write = 0;
 
 	/* Hold lock while accounting */
 	spin_lock_irqsave(&r->lock, flags);
@@ -873,16 +874,19 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 		else
 			r->entropy_count = reserved;
 
-		if (r->entropy_count < random_write_wakeup_thresh) {
-			wake_up_interruptible(&random_write_wait);
-			kill_fasync(&fasync, SIGIO, POLL_OUT);
-		}
+		if (r->entropy_count < random_write_wakeup_thresh)
+			wakeup_write = 1;
 	}
 
 	DEBUG_ENT("debiting %zu entropy credits from %s%s\n",
 		  nbytes * 8, r->name, r->limit ? "" : " (unlimited)");
 
 	spin_unlock_irqrestore(&r->lock, flags);
+
+	if (wakeup_write) {
+		wake_up_interruptible(&random_write_wait);
+		kill_fasync(&fasync, SIGIO, POLL_OUT);
+	}
 
 	return nbytes;
 }

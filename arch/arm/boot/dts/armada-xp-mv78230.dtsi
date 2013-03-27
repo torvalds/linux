@@ -47,6 +47,12 @@
 		pinctrl {
 			compatible = "marvell,mv78230-pinctrl";
 			reg = <0xd0018000 0x38>;
+
+			sdio_pins: sdio-pins {
+				marvell,pins = "mpp30", "mpp31", "mpp32",
+					       "mpp33", "mpp34", "mpp35";
+				marvell,function = "sd0";
+			};
 		};
 
 		gpio0: gpio@d0018100 {

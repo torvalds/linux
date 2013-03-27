@@ -72,10 +72,10 @@ static void xfrm_hash_transfer(struct hlist_head *list,
 			       struct hlist_head *nspitable,
 			       unsigned int nhashmask)
 {
-	struct hlist_node *entry, *tmp;
+	struct hlist_node *tmp;
 	struct xfrm_state *x;
 
-	hlist_for_each_entry_safe(x, entry, tmp, list, bydst) {
+	hlist_for_each_entry_safe(x, tmp, list, bydst) {
 		unsigned int h;
 
 		h = __xfrm_dst_hash(&x->id.daddr, &x->props.saddr,
@@ -368,14 +368,14 @@ static void xfrm_state_gc_task(struct work_struct *work)
 {
 	struct net *net = container_of(work, struct net, xfrm.state_gc_work);
 	struct xfrm_state *x;
-	struct hlist_node *entry, *tmp;
+	struct hlist_node *tmp;
 	struct hlist_head gc_list;
 
 	spin_lock_bh(&xfrm_state_gc_lock);
 	hlist_move_list(&net->xfrm.state_gc_list, &gc_list);
 	spin_unlock_bh(&xfrm_state_gc_lock);
 
-	hlist_for_each_entry_safe(x, entry, tmp, &gc_list, gclist)
+	hlist_for_each_entry_safe(x, tmp, &gc_list, gclist)
 		xfrm_state_gc_destroy(x);
 
 	wake_up(&net->xfrm.km_waitq);
@@ -577,10 +577,9 @@ xfrm_state_flush_secctx_check(struct net *net, u8 proto, struct xfrm_audit *audi
 	int i, err = 0;
 
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
-		struct hlist_node *entry;
 		struct xfrm_state *x;
 
-		hlist_for_each_entry(x, entry, net->xfrm.state_bydst+i, bydst) {
+		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			if (xfrm_id_proto_match(x->id.proto, proto) &&
 			   (err = security_xfrm_state_delete(x)) != 0) {
 				xfrm_audit_state_delete(x, 0,
@@ -613,10 +612,9 @@ int xfrm_state_flush(struct net *net, u8 proto, struct xfrm_audit *audit_info)
 
 	err = -ESRCH;
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
-		struct hlist_node *entry;
 		struct xfrm_state *x;
 restart:
-		hlist_for_each_entry(x, entry, net->xfrm.state_bydst+i, bydst) {
+		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			if (!xfrm_state_kern(x) &&
 			    xfrm_id_proto_match(x->id.proto, proto)) {
 				xfrm_state_hold(x);
@@ -685,9 +683,8 @@ static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark,
 {
 	unsigned int h = xfrm_spi_hash(net, daddr, spi, proto, family);
 	struct xfrm_state *x;
-	struct hlist_node *entry;
 
-	hlist_for_each_entry(x, entry, net->xfrm.state_byspi+h, byspi) {
+	hlist_for_each_entry(x, net->xfrm.state_byspi+h, byspi) {
 		if (x->props.family != family ||
 		    x->id.spi       != spi ||
 		    x->id.proto     != proto ||
@@ -710,9 +707,8 @@ static struct xfrm_state *__xfrm_state_lookup_byaddr(struct net *net, u32 mark,
 {
 	unsigned int h = xfrm_src_hash(net, daddr, saddr, family);
 	struct xfrm_state *x;
-	struct hlist_node *entry;
 
-	hlist_for_each_entry(x, entry, net->xfrm.state_bysrc+h, bysrc) {
+	hlist_for_each_entry(x, net->xfrm.state_bysrc+h, bysrc) {
 		if (x->props.family != family ||
 		    x->id.proto     != proto ||
 		    !xfrm_addr_equal(&x->id.daddr, daddr, family) ||
@@ -798,7 +794,6 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 	static xfrm_address_t saddr_wildcard = { };
 	struct net *net = xp_net(pol);
 	unsigned int h, h_wildcard;
-	struct hlist_node *entry;
 	struct xfrm_state *x, *x0, *to_put;
 	int acquire_in_progress = 0;
 	int error = 0;
@@ -810,7 +805,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 
 	spin_lock_bh(&xfrm_state_lock);
 	h = xfrm_dst_hash(net, daddr, saddr, tmpl->reqid, encap_family);
-	hlist_for_each_entry(x, entry, net->xfrm.state_bydst+h, bydst) {
+	hlist_for_each_entry(x, net->xfrm.state_bydst+h, bydst) {
 		if (x->props.family == encap_family &&
 		    x->props.reqid == tmpl->reqid &&
 		    (mark & x->mark.m) == x->mark.v &&
@@ -826,7 +821,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		goto found;
 
 	h_wildcard = xfrm_dst_hash(net, daddr, &saddr_wildcard, tmpl->reqid, encap_family);
-	hlist_for_each_entry(x, entry, net->xfrm.state_bydst+h_wildcard, bydst) {
+	hlist_for_each_entry(x, net->xfrm.state_bydst+h_wildcard, bydst) {
 		if (x->props.family == encap_family &&
 		    x->props.reqid == tmpl->reqid &&
 		    (mark & x->mark.m) == x->mark.v &&
@@ -906,11 +901,10 @@ xfrm_stateonly_find(struct net *net, u32 mark,
 {
 	unsigned int h;
 	struct xfrm_state *rx = NULL, *x = NULL;
-	struct hlist_node *entry;
 
 	spin_lock(&xfrm_state_lock);
 	h = xfrm_dst_hash(net, daddr, saddr, reqid, family);
-	hlist_for_each_entry(x, entry, net->xfrm.state_bydst+h, bydst) {
+	hlist_for_each_entry(x, net->xfrm.state_bydst+h, bydst) {
 		if (x->props.family == family &&
 		    x->props.reqid == reqid &&
 		    (mark & x->mark.m) == x->mark.v &&
@@ -972,12 +966,11 @@ static void __xfrm_state_bump_genids(struct xfrm_state *xnew)
 	unsigned short family = xnew->props.family;
 	u32 reqid = xnew->props.reqid;
 	struct xfrm_state *x;
-	struct hlist_node *entry;
 	unsigned int h;
 	u32 mark = xnew->mark.v & xnew->mark.m;
 
 	h = xfrm_dst_hash(net, &xnew->id.daddr, &xnew->props.saddr, reqid, family);
-	hlist_for_each_entry(x, entry, net->xfrm.state_bydst+h, bydst) {
+	hlist_for_each_entry(x, net->xfrm.state_bydst+h, bydst) {
 		if (x->props.family	== family &&
 		    x->props.reqid	== reqid &&
 		    (mark & x->mark.m) == x->mark.v &&
@@ -1004,11 +997,10 @@ static struct xfrm_state *__find_acq_core(struct net *net, struct xfrm_mark *m,
 					  const xfrm_address_t *saddr, int create)
 {
 	unsigned int h = xfrm_dst_hash(net, daddr, saddr, reqid, family);
-	struct hlist_node *entry;
 	struct xfrm_state *x;
 	u32 mark = m->v & m->m;
 
-	hlist_for_each_entry(x, entry, net->xfrm.state_bydst+h, bydst) {
+	hlist_for_each_entry(x, net->xfrm.state_bydst+h, bydst) {
 		if (x->props.reqid  != reqid ||
 		    x->props.mode   != mode ||
 		    x->props.family != family ||
@@ -1215,12 +1207,11 @@ struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m)
 {
 	unsigned int h;
 	struct xfrm_state *x;
-	struct hlist_node *entry;
 
 	if (m->reqid) {
 		h = xfrm_dst_hash(&init_net, &m->old_daddr, &m->old_saddr,
 				  m->reqid, m->old_family);
-		hlist_for_each_entry(x, entry, init_net.xfrm.state_bydst+h, bydst) {
+		hlist_for_each_entry(x, init_net.xfrm.state_bydst+h, bydst) {
 			if (x->props.mode != m->mode ||
 			    x->id.proto != m->proto)
 				continue;
@@ -1237,7 +1228,7 @@ struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m)
 	} else {
 		h = xfrm_src_hash(&init_net, &m->old_daddr, &m->old_saddr,
 				  m->old_family);
-		hlist_for_each_entry(x, entry, init_net.xfrm.state_bysrc+h, bysrc) {
+		hlist_for_each_entry(x, init_net.xfrm.state_bysrc+h, bysrc) {
 			if (x->props.mode != m->mode ||
 			    x->id.proto != m->proto)
 				continue;
@@ -1466,10 +1457,9 @@ static struct xfrm_state *__xfrm_find_acq_byseq(struct net *net, u32 mark, u32 s
 	int i;
 
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
-		struct hlist_node *entry;
 		struct xfrm_state *x;
 
-		hlist_for_each_entry(x, entry, net->xfrm.state_bydst+i, bydst) {
+		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			if (x->km.seq == seq &&
 			    (mark & x->mark.m) == x->mark.v &&
 			    x->km.state == XFRM_STATE_ACQ) {

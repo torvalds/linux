@@ -21,11 +21,11 @@
  *
  * For now I enable fixing of address errors by default to make life easier.
  * I however intend to disable this somewhen in the future when the alignment
- * problems with user programs have been fixed.  For programmers this is the
+ * problems with user programs have been fixed.	 For programmers this is the
  * right way to go.
  *
  * Fixing address errors is a per process option.  The option is inherited
- * across fork(2) and execve(2) calls.  If you really want to use the
+ * across fork(2) and execve(2) calls.	If you really want to use the
  * option in your user programs - I discourage the use of the software
  * emulation strongly - use the following code in your userland stuff:
  *
@@ -43,34 +43,34 @@
  * #include <sys/sysmips.h>
  *
  * struct foo {
- *         unsigned char bar[8];
+ *	   unsigned char bar[8];
  * };
  *
  * main(int argc, char *argv[])
  * {
- *         struct foo x = {0, 1, 2, 3, 4, 5, 6, 7};
- *         unsigned int *p = (unsigned int *) (x.bar + 3);
- *         int i;
+ *	   struct foo x = {0, 1, 2, 3, 4, 5, 6, 7};
+ *	   unsigned int *p = (unsigned int *) (x.bar + 3);
+ *	   int i;
  *
- *         if (argc > 1)
- *                 sysmips(MIPS_FIXADE, atoi(argv[1]));
+ *	   if (argc > 1)
+ *		   sysmips(MIPS_FIXADE, atoi(argv[1]));
  *
- *         printf("*p = %08lx\n", *p);
+ *	   printf("*p = %08lx\n", *p);
  *
- *         *p = 0xdeadface;
+ *	   *p = 0xdeadface;
  *
- *         for(i = 0; i <= 7; i++)
- *         printf("%02x ", x.bar[i]);
- *         printf("\n");
+ *	   for(i = 0; i <= 7; i++)
+ *	   printf("%02x ", x.bar[i]);
+ *	   printf("\n");
  * }
  *
  * Coprocessor loads are not supported; I think this case is unimportant
  * in the practice.
  *
  * TODO: Handle ndc (attempted store to doubleword in uncached memory)
- *       exception for the R6000.
- *       A store crossing a page boundary might be executed only partially.
- *       Undo the partial store in this case.
+ *	 exception for the R6000.
+ *	 A store crossing a page boundary might be executed only partially.
+ *	 Undo the partial store in this case.
  */
 #include <linux/mm.h>
 #include <linux/signal.h>
@@ -86,7 +86,7 @@
 #include <asm/inst.h>
 #include <asm/uaccess.h>
 
-#define STR(x)  __STR(x)
+#define STR(x)	__STR(x)
 #define __STR(x)  #x
 
 enum {

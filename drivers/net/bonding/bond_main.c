@@ -1629,7 +1629,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* If this is the first slave, then we need to set the master's hardware
 	 * address to be the same as the slave's. */
-	if (bond->dev_addr_from_first)
+	if (bond->slave_cnt == 0 && bond->dev_addr_from_first)
 		bond_set_dev_addr(bond->dev, slave_dev);
 
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);

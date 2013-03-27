@@ -46,11 +46,10 @@ static struct vmci_resource *vmci_resource_lookup(struct vmci_handle handle,
 						  enum vmci_resource_type type)
 {
 	struct vmci_resource *r, *resource = NULL;
-	struct hlist_node *node;
 	unsigned int idx = vmci_resource_hash(handle);
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(r, node,
+	hlist_for_each_entry_rcu(r,
 				 &vmci_resource_table.entries[idx], node) {
 		u32 cid = r->handle.context;
 		u32 rid = r->handle.resource;
@@ -146,12 +145,11 @@ void vmci_resource_remove(struct vmci_resource *resource)
 	struct vmci_handle handle = resource->handle;
 	unsigned int idx = vmci_resource_hash(handle);
 	struct vmci_resource *r;
-	struct hlist_node *node;
 
 	/* Remove resource from hash table. */
 	spin_lock(&vmci_resource_table.lock);
 
-	hlist_for_each_entry(r, node, &vmci_resource_table.entries[idx], node) {
+	hlist_for_each_entry(r, &vmci_resource_table.entries[idx], node) {
 		if (vmci_handle_is_equal(r->handle, resource->handle)) {
 			hlist_del_init_rcu(&r->node);
 			break;

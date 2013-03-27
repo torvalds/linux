@@ -69,7 +69,7 @@ int acpi_suspend_lowlevel(void)
 
 #ifndef CONFIG_64BIT
 	header->pmode_entry = (u32)&wakeup_pmode_return;
-	header->pmode_cr3 = (u32)__pa(&initial_page_table);
+	header->pmode_cr3 = (u32)__pa_symbol(initial_page_table);
 	saved_magic = 0x12345678;
 #else /* CONFIG_64BIT */
 #ifdef CONFIG_SMP

@@ -862,6 +862,12 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 			   filename, emu->firmware->size);
 	}
 
+	err = snd_emu1010_load_firmware(emu);
+	if (err != 0) {
+		snd_printk(KERN_INFO "emu1010: Loading Firmware failed\n");
+		return err;
+	}
+
 	/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
 	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg);
 	if ((reg & 0x3f) != 0x15) {

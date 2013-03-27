@@ -217,34 +217,34 @@ exuberant()
 emacs()
 {
 	all_target_sources | xargs $1 -a                        \
-	--regex='/^(ENTRY|_GLOBAL)(\([^)]*\)).*/\2/'            \
+	--regex='/^\(ENTRY\|_GLOBAL\)(\([^)]*\)).*/\2/'         \
 	--regex='/^SYSCALL_DEFINE[0-9]?(\([^,)]*\).*/sys_\1/'   \
 	--regex='/^TRACE_EVENT(\([^,)]*\).*/trace_\1/'		\
 	--regex='/^DEFINE_EVENT([^,)]*, *\([^,)]*\).*/trace_\1/' \
-	--regex='/PAGEFLAG\(([^,)]*).*/Page\1/'			\
-	--regex='/PAGEFLAG\(([^,)]*).*/SetPage\1/'		\
-	--regex='/PAGEFLAG\(([^,)]*).*/ClearPage\1/'		\
-	--regex='/TESTSETFLAG\(([^,)]*).*/TestSetPage\1/'	\
-	--regex='/TESTPAGEFLAG\(([^,)]*).*/Page\1/'		\
-	--regex='/SETPAGEFLAG\(([^,)]*).*/SetPage\1/'		\
-	--regex='/__SETPAGEFLAG\(([^,)]*).*/__SetPage\1/'	\
-	--regex='/TESTCLEARFLAG\(([^,)]*).*/TestClearPage\1/'	\
-	--regex='/__TESTCLEARFLAG\(([^,)]*).*/TestClearPage\1/'	\
-	--regex='/CLEARPAGEFLAG\(([^,)]*).*/ClearPage\1/'	\
-	--regex='/__CLEARPAGEFLAG\(([^,)]*).*/__ClearPage\1/'	\
-	--regex='/__PAGEFLAG\(([^,)]*).*/__SetPage\1/'		\
-	--regex='/__PAGEFLAG\(([^,)]*).*/__ClearPage\1/'	\
-	--regex='/PAGEFLAG_FALSE\(([^,)]*).*/Page\1/'		\
-	--regex='/TESTSCFLAG\(([^,)]*).*/TestSetPage\1/'	\
-	--regex='/TESTSCFLAG\(([^,)]*).*/TestClearPage\1/'	\
-	--regex='/SETPAGEFLAG_NOOP\(([^,)]*).*/SetPage\1/'	\
-	--regex='/CLEARPAGEFLAG_NOOP\(([^,)]*).*/ClearPage\1/'	\
-	--regex='/__CLEARPAGEFLAG_NOOP\(([^,)]*).*/__ClearPage\1/' \
-	--regex='/TESTCLEARFLAG_FALSE\(([^,)]*).*/TestClearPage\1/' \
-	--regex='/__TESTCLEARFLAG_FALSE\(([^,)]*).*/__TestClearPage\1/' \
-	--regex='/_PE\(([^,)]*).*/PEVENT_ERRNO__\1/'		\
-	--regex='/PCI_OP_READ\(([a-z]*[a-z]).*[1-4]\)/pci_bus_read_config_\1/' \
-	--regex='/PCI_OP_WRITE\(([a-z]*[a-z]).*[1-4]\)/pci_bus_write_config_\1/'
+	--regex='/PAGEFLAG(\([^,)]*\).*/Page\1/'			\
+	--regex='/PAGEFLAG(\([^,)]*\).*/SetPage\1/'		\
+	--regex='/PAGEFLAG(\([^,)]*\).*/ClearPage\1/'		\
+	--regex='/TESTSETFLAG(\([^,)]*\).*/TestSetPage\1/'	\
+	--regex='/TESTPAGEFLAG(\([^,)]*\).*/Page\1/'		\
+	--regex='/SETPAGEFLAG(\([^,)]*\).*/SetPage\1/'		\
+	--regex='/__SETPAGEFLAG(\([^,)]*\).*/__SetPage\1/'	\
+	--regex='/TESTCLEARFLAG(\([^,)]*\).*/TestClearPage\1/'	\
+	--regex='/__TESTCLEARFLAG(\([^,)]*\).*/TestClearPage\1/'	\
+	--regex='/CLEARPAGEFLAG(\([^,)]*\).*/ClearPage\1/'	\
+	--regex='/__CLEARPAGEFLAG(\([^,)]*\).*/__ClearPage\1/'	\
+	--regex='/__PAGEFLAG(\([^,)]*\).*/__SetPage\1/'		\
+	--regex='/__PAGEFLAG(\([^,)]*\).*/__ClearPage\1/'	\
+	--regex='/PAGEFLAG_FALSE(\([^,)]*\).*/Page\1/'		\
+	--regex='/TESTSCFLAG(\([^,)]*\).*/TestSetPage\1/'	\
+	--regex='/TESTSCFLAG(\([^,)]*\).*/TestClearPage\1/'	\
+	--regex='/SETPAGEFLAG_NOOP(\([^,)]*\).*/SetPage\1/'	\
+	--regex='/CLEARPAGEFLAG_NOOP(\([^,)]*\).*/ClearPage\1/'	\
+	--regex='/__CLEARPAGEFLAG_NOOP(\([^,)]*\).*/__ClearPage\1/' \
+	--regex='/TESTCLEARFLAG_FALSE(\([^,)]*\).*/TestClearPage\1/' \
+	--regex='/__TESTCLEARFLAG_FALSE(\([^,)]*\).*/__TestClearPage\1/' \
+	--regex='/_PE(\([^,)]*\).*/PEVENT_ERRNO__\1/'		\
+	--regex='/PCI_OP_READ(\([a-z]*[a-z]\).*[1-4])/pci_bus_read_config_\1/' \
+	--regex='/PCI_OP_WRITE(\([a-z]*[a-z]\).*[1-4])/pci_bus_write_config_\1/'
 
 	all_kconfigs | xargs $1 -a                              \
 	--regex='/^[ \t]*\(\(menu\)*config\)[ \t]+\([a-zA-Z0-9_]+\)/\3/'

@@ -47,56 +47,6 @@
 #include <asm/ucontext.h>
 
 /*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int
-sys_sigsuspend(int unused1, int unused2, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-asmlinkage int 
-sys_sigaction(int sig, const struct old_sigaction *act,
-	      struct old_sigaction *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	if (act) {
-		old_sigset_t mask;
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
-asmlinkage int
-sys_sigaltstack(const stack_t *uss, stack_t *uoss)
-{
-	return do_sigaltstack(uss, uoss, rdusp());
-}
-
-
-/*
  * Do a signal return; undo the signal stack.
  *
  * Keep the return code on the stack quadword aligned!
@@ -136,9 +86,9 @@ struct rt_sigframe
 } __attribute__((aligned(2),packed));
 
 static inline int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc,
-		   int *pd0)
+restore_sigcontext(struct sigcontext *usc, int *pd0)
 {
+	struct pt_regs *regs = current_pt_regs();
 	int err = 0;
 	unsigned int ccr;
 	unsigned int usp;
@@ -167,9 +117,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc,
 	return err;
 }
 
-asmlinkage int do_sigreturn(unsigned long __unused,...)
+asmlinkage int sys_sigreturn(void)
 {
-	struct pt_regs *regs = (struct pt_regs *) (&__unused - 1);
 	unsigned long usp = rdusp();
 	struct sigframe *frame = (struct sigframe *)(usp - 4);
 	sigset_t set;
@@ -185,7 +134,7 @@ asmlinkage int do_sigreturn(unsigned long __unused,...)
 
 	set_current_blocked(&set);
 	
-	if (restore_sigcontext(regs, &frame->sc, &er0))
+	if (restore_sigcontext(&frame->sc, &er0))
 		goto badframe;
 	return er0;
 
@@ -194,9 +143,8 @@ badframe:
 	return 0;
 }
 
-asmlinkage int do_rt_sigreturn(unsigned long __unused,...)
+asmlinkage int sys_rt_sigreturn(void)
 {
-	struct pt_regs *regs = (struct pt_regs *) &__unused;
 	unsigned long usp = rdusp();
 	struct rt_sigframe *frame = (struct rt_sigframe *)(usp - 4);
 	sigset_t set;
@@ -209,10 +157,10 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused,...)
 
 	set_current_blocked(&set);
 	
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &er0))
+	if (restore_sigcontext(&frame->uc.uc_mcontext, &er0))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, usp) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return er0;
@@ -358,11 +306,7 @@ static int setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
-			  &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(rdusp()),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, rdusp());
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, set->sig[0]);
 	err |= copy_to_user (&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)

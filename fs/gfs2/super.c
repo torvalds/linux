@@ -673,8 +673,8 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
 	str->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
 	str->di_mode = cpu_to_be32(ip->i_inode.i_mode);
-	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
-	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
+	str->di_uid = cpu_to_be32(i_uid_read(&ip->i_inode));
+	str->di_gid = cpu_to_be32(i_gid_read(&ip->i_inode));
 	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
 	str->di_size = cpu_to_be64(i_size_read(&ip->i_inode));
 	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
@@ -1376,7 +1376,7 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	if (error)
 		return error;
 
-	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	error = gfs2_quota_hold(ip, NO_UID_QUOTA_CHANGE, NO_GID_QUOTA_CHANGE);
 	if (error)
 		return error;
 

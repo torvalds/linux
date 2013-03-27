@@ -132,6 +132,104 @@ TRACE_EVENT(jbd2_submit_inode_data,
 		  (unsigned long) __entry->ino)
 );
 
+TRACE_EVENT(jbd2_handle_start,
+	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
+		 unsigned int line_no, int requested_blocks),
+
+	TP_ARGS(dev, tid, type, line_no, requested_blocks),
+
+	TP_STRUCT__entry(
+		__field(		dev_t,	dev		)
+		__field(	unsigned long,	tid		)
+		__field(	 unsigned int,	type		)
+		__field(	 unsigned int,	line_no		)
+		__field(		  int,	requested_blocks)
+	),
+
+	TP_fast_assign(
+		__entry->dev		  = dev;
+		__entry->tid		  = tid;
+		__entry->type		  = type;
+		__entry->line_no	  = line_no;
+		__entry->requested_blocks = requested_blocks;
+	),
+
+	TP_printk("dev %d,%d tid %lu type %u line_no %u "
+		  "requested_blocks %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->tid,
+		  __entry->type, __entry->line_no, __entry->requested_blocks)
+);
+
+TRACE_EVENT(jbd2_handle_extend,
+	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
+		 unsigned int line_no, int buffer_credits,
+		 int requested_blocks),
+
+	TP_ARGS(dev, tid, type, line_no, buffer_credits, requested_blocks),
+
+	TP_STRUCT__entry(
+		__field(		dev_t,	dev		)
+		__field(	unsigned long,	tid		)
+		__field(	 unsigned int,	type		)
+		__field(	 unsigned int,	line_no		)
+		__field(		  int,	buffer_credits  )
+		__field(		  int,	requested_blocks)
+	),
+
+	TP_fast_assign(
+		__entry->dev		  = dev;
+		__entry->tid		  = tid;
+		__entry->type		  = type;
+		__entry->line_no	  = line_no;
+		__entry->buffer_credits   = buffer_credits;
+		__entry->requested_blocks = requested_blocks;
+	),
+
+	TP_printk("dev %d,%d tid %lu type %u line_no %u "
+		  "buffer_credits %d requested_blocks %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->tid,
+		  __entry->type, __entry->line_no, __entry->buffer_credits,
+		  __entry->requested_blocks)
+);
+
+TRACE_EVENT(jbd2_handle_stats,
+	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
+		 unsigned int line_no, int interval, int sync,
+		 int requested_blocks, int dirtied_blocks),
+
+	TP_ARGS(dev, tid, type, line_no, interval, sync,
+		requested_blocks, dirtied_blocks),
+
+	TP_STRUCT__entry(
+		__field(		dev_t,	dev		)
+		__field(	unsigned long,	tid		)
+		__field(	 unsigned int,	type		)
+		__field(	 unsigned int,	line_no		)
+		__field(		  int,	interval	)
+		__field(		  int,	sync		)
+		__field(		  int,	requested_blocks)
+		__field(		  int,	dirtied_blocks	)
+	),
+
+	TP_fast_assign(
+		__entry->dev		  = dev;
+		__entry->tid		  = tid;
+		__entry->type		  = type;
+		__entry->line_no	  = line_no;
+		__entry->interval	  = interval;
+		__entry->sync		  = sync;
+		__entry->requested_blocks = requested_blocks;
+		__entry->dirtied_blocks	  = dirtied_blocks;
+	),
+
+	TP_printk("dev %d,%d tid %lu type %u line_no %u interval %d "
+		  "sync %d requested_blocks %d dirtied_blocks %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->tid,
+		  __entry->type, __entry->line_no, __entry->interval,
+		  __entry->sync, __entry->requested_blocks,
+		  __entry->dirtied_blocks)
+);
+
 TRACE_EVENT(jbd2_run_stats,
 	TP_PROTO(dev_t dev, unsigned long tid,
 		 struct transaction_run_stats_s *stats),
@@ -142,6 +240,7 @@ TRACE_EVENT(jbd2_run_stats,
 		__field(		dev_t,	dev		)
 		__field(	unsigned long,	tid		)
 		__field(	unsigned long,	wait		)
+		__field(	unsigned long,	request_delay	)
 		__field(	unsigned long,	running		)
 		__field(	unsigned long,	locked		)
 		__field(	unsigned long,	flushing	)
@@ -155,6 +254,7 @@ TRACE_EVENT(jbd2_run_stats,
 		__entry->dev		= dev;
 		__entry->tid		= tid;
 		__entry->wait		= stats->rs_wait;
+		__entry->request_delay	= stats->rs_request_delay;
 		__entry->running	= stats->rs_running;
 		__entry->locked		= stats->rs_locked;
 		__entry->flushing	= stats->rs_flushing;
@@ -164,10 +264,12 @@ TRACE_EVENT(jbd2_run_stats,
 		__entry->blocks_logged	= stats->rs_blocks_logged;
 	),
 
-	TP_printk("dev %d,%d tid %lu wait %u running %u locked %u flushing %u "
-		  "logging %u handle_count %u blocks %u blocks_logged %u",
+	TP_printk("dev %d,%d tid %lu wait %u request_delay %u running %u "
+		  "locked %u flushing %u logging %u handle_count %u "
+		  "blocks %u blocks_logged %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->tid,
 		  jiffies_to_msecs(__entry->wait),
+		  jiffies_to_msecs(__entry->request_delay),
 		  jiffies_to_msecs(__entry->running),
 		  jiffies_to_msecs(__entry->locked),
 		  jiffies_to_msecs(__entry->flushing),

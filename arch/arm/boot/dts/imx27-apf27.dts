@@ -32,58 +32,54 @@
 			clock-frequency = <0>;
 		};
 	};
+};
 
-	soc {
-		aipi@10000000 {
-			serial@1000a000 {
-				status = "okay";
-			};
+&uart1 {
+	status = "okay";
+};
 
-			ethernet@1002b000 {
-				status = "okay";
-			};
-		};
+&fec {
+	status = "okay";
+};
 
-		nand@d8000000 {
-			status = "okay";
-			nand-bus-width = <16>;
-			nand-ecc-mode = "hw";
-			nand-on-flash-bbt;
+&nfc {
+	status = "okay";
+	nand-bus-width = <16>;
+	nand-ecc-mode = "hw";
+	nand-on-flash-bbt;
 
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0 0x100000>;
-			};
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0 0x100000>;
+	};
 
-			partition@100000 {
-				label = "env";
-				reg = <0x100000 0x80000>;
-			};
+	partition@100000 {
+		label = "env";
+		reg = <0x100000 0x80000>;
+	};
 
-			partition@180000 {
-				label = "env2";
-				reg = <0x180000 0x80000>;
-			};
+	partition@180000 {
+		label = "env2";
+		reg = <0x180000 0x80000>;
+	};
 
-			partition@200000 {
-				label = "firmware";
-				reg = <0x200000 0x80000>;
-			};
+	partition@200000 {
+		label = "firmware";
+		reg = <0x200000 0x80000>;
+	};
 
-			partition@280000 {
-				label = "dtb";
-				reg = <0x280000 0x80000>;
-			};
+	partition@280000 {
+		label = "dtb";
+		reg = <0x280000 0x80000>;
+	};
 
-			partition@300000 {
-				label = "kernel";
-				reg = <0x300000 0x500000>;
-			};
+	partition@300000 {
+		label = "kernel";
+		reg = <0x300000 0x500000>;
+	};
 
-			partition@800000 {
-				label = "rootfs";
-				reg = <0x800000 0xf800000>;
-			};
-		};
+	partition@800000 {
+		label = "rootfs";
+		reg = <0x800000 0xf800000>;
 	};
 };

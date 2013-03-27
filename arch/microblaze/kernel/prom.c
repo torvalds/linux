@@ -14,6 +14,7 @@
  */
 
 #include <stdarg.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -25,7 +26,6 @@
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/bitops.h>
-#include <linux/module.h>
 #include <linux/kexec.h>
 #include <linux/debugfs.h>
 #include <linux/irq.h>

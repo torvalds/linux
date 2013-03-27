@@ -334,7 +334,7 @@ static int flock_to_posix_lock(struct file *filp, struct file_lock *fl,
 		start = filp->f_pos;
 		break;
 	case SEEK_END:
-		start = i_size_read(filp->f_path.dentry->d_inode);
+		start = i_size_read(file_inode(filp));
 		break;
 	default:
 		return -EINVAL;
@@ -384,7 +384,7 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 		start = filp->f_pos;
 		break;
 	case SEEK_END:
-		start = i_size_read(filp->f_path.dentry->d_inode);
+		start = i_size_read(file_inode(filp));
 		break;
 	default:
 		return -EINVAL;
@@ -627,7 +627,7 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 	struct file_lock *cfl;
 
 	lock_flocks();
-	for (cfl = filp->f_path.dentry->d_inode->i_flock; cfl; cfl = cfl->fl_next) {
+	for (cfl = file_inode(filp)->i_flock; cfl; cfl = cfl->fl_next) {
 		if (!IS_POSIX(cfl))
 			continue;
 		if (posix_locks_conflict(fl, cfl))
@@ -708,7 +708,7 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 {
 	struct file_lock *new_fl = NULL;
 	struct file_lock **before;
-	struct inode * inode = filp->f_path.dentry->d_inode;
+	struct inode * inode = file_inode(filp);
 	int error = 0;
 	int found = 0;
 
@@ -1002,7 +1002,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 int posix_lock_file(struct file *filp, struct file_lock *fl,
 			struct file_lock *conflock)
 {
-	return __posix_lock_file(filp->f_path.dentry->d_inode, fl, conflock);
+	return __posix_lock_file(file_inode(filp), fl, conflock);
 }
 EXPORT_SYMBOL(posix_lock_file);
 
@@ -1326,8 +1326,8 @@ int fcntl_getlease(struct file *filp)
 	int type = F_UNLCK;
 
 	lock_flocks();
-	time_out_leases(filp->f_path.dentry->d_inode);
-	for (fl = filp->f_path.dentry->d_inode->i_flock; fl && IS_LEASE(fl);
+	time_out_leases(file_inode(filp));
+	for (fl = file_inode(filp)->i_flock; fl && IS_LEASE(fl);
 			fl = fl->fl_next) {
 		if (fl->fl_file == filp) {
 			type = target_leasetype(fl);
@@ -1843,7 +1843,7 @@ int fcntl_setlk(unsigned int fd, struct file *filp, unsigned int cmd,
 	if (copy_from_user(&flock, l, sizeof(flock)))
 		goto out;
 
-	inode = filp->f_path.dentry->d_inode;
+	inode = file_inode(filp);
 
 	/* Don't allow mandatory locks on files that may be memory mapped
 	 * and shared.
@@ -1961,7 +1961,7 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 	if (copy_from_user(&flock, l, sizeof(flock)))
 		goto out;
 
-	inode = filp->f_path.dentry->d_inode;
+	inode = file_inode(filp);
 
 	/* Don't allow mandatory locks on files that may be memory mapped
 	 * and shared.
@@ -2030,7 +2030,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	 * posix_lock_file().  Another process could be setting a lock on this
 	 * file at the same time, but we wouldn't remove that lock anyway.
 	 */
-	if (!filp->f_path.dentry->d_inode->i_flock)
+	if (!file_inode(filp)->i_flock)
 		return;
 
 	lock.fl_type = F_UNLCK;
@@ -2056,7 +2056,7 @@ EXPORT_SYMBOL(locks_remove_posix);
  */
 void locks_remove_flock(struct file *filp)
 {
-	struct inode * inode = filp->f_path.dentry->d_inode;
+	struct inode * inode = file_inode(filp);
 	struct file_lock *fl;
 	struct file_lock **before;
 
@@ -2152,7 +2152,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 		fl_pid = fl->fl_pid;
 
 	if (fl->fl_file != NULL)
-		inode = fl->fl_file->f_path.dentry->d_inode;
+		inode = file_inode(fl->fl_file);
 
 	seq_printf(f, "%lld:%s ", id, pfx);
 	if (IS_POSIX(fl)) {

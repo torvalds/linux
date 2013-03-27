@@ -238,6 +238,17 @@ config MMC_SDHCI_S3C_DMA
 
 	  YMMV.
 
+config MMC_SDHCI_BCM2835
+	tristate "SDHCI platform support for the BCM2835 SD/MMC Controller"
+	depends on ARCH_BCM2835
+	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the BCM2835 SD/MMC controller. If you have a BCM2835
+	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
 	depends on ARCH_OMAP
@@ -360,6 +371,13 @@ config MMC_DAVINCI
           This selects the TI DAVINCI Multimedia card Interface.
           If you have an DAVINCI board with a Multimedia Card slot,
           say Y or M here.  If unsure, say N.
+
+config MMC_GOLDFISH
+	tristate "goldfish qemu Multimedia Card Interface support"
+	depends on GOLDFISH
+	help
+	  This selects the Goldfish Multimedia card Interface emulation
+	  found on the Goldfish Android virtual device emulation.
 
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"

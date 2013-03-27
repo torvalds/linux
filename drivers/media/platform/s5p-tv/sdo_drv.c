@@ -301,7 +301,7 @@ static int sdo_probe(struct platform_device *pdev)
 	struct clk *sclk_vpll;
 
 	dev_info(dev, "probe start\n");
-	sdev = devm_kzalloc(&pdev->dev, sizeof *sdev, GFP_KERNEL);
+	sdev = devm_kzalloc(&pdev->dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
 		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;
@@ -341,47 +341,50 @@ static int sdo_probe(struct platform_device *pdev)
 
 	/* acquire clocks */
 	sdev->sclk_dac = clk_get(dev, "sclk_dac");
-	if (IS_ERR_OR_NULL(sdev->sclk_dac)) {
+	if (IS_ERR(sdev->sclk_dac)) {
 		dev_err(dev, "failed to get clock 'sclk_dac'\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(sdev->sclk_dac);
 		goto fail;
 	}
 	sdev->dac = clk_get(dev, "dac");
-	if (IS_ERR_OR_NULL(sdev->dac)) {
+	if (IS_ERR(sdev->dac)) {
 		dev_err(dev, "failed to get clock 'dac'\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(sdev->dac);
 		goto fail_sclk_dac;
 	}
 	sdev->dacphy = clk_get(dev, "dacphy");
-	if (IS_ERR_OR_NULL(sdev->dacphy)) {
+	if (IS_ERR(sdev->dacphy)) {
 		dev_err(dev, "failed to get clock 'dacphy'\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(sdev->dacphy);
 		goto fail_dac;
 	}
 	sclk_vpll = clk_get(dev, "sclk_vpll");
-	if (IS_ERR_OR_NULL(sclk_vpll)) {
+	if (IS_ERR(sclk_vpll)) {
 		dev_err(dev, "failed to get clock 'sclk_vpll'\n");
-		ret = -ENXIO;
+		ret = PTR_ERR(sclk_vpll);
 		goto fail_dacphy;
 	}
 	clk_set_parent(sdev->sclk_dac, sclk_vpll);
 	clk_put(sclk_vpll);
 	sdev->fout_vpll = clk_get(dev, "fout_vpll");
-	if (IS_ERR_OR_NULL(sdev->fout_vpll)) {
+	if (IS_ERR(sdev->fout_vpll)) {
 		dev_err(dev, "failed to get clock 'fout_vpll'\n");
+		ret = PTR_ERR(sdev->fout_vpll);
 		goto fail_dacphy;
 	}
 	dev_info(dev, "fout_vpll.rate = %lu\n", clk_get_rate(sclk_vpll));
 
 	/* acquire regulator */
 	sdev->vdac = devm_regulator_get(dev, "vdd33a_dac");
-	if (IS_ERR_OR_NULL(sdev->vdac)) {
+	if (IS_ERR(sdev->vdac)) {
 		dev_err(dev, "failed to get regulator 'vdac'\n");
+		ret = PTR_ERR(sdev->vdac);
 		goto fail_fout_vpll;
 	}
 	sdev->vdet = devm_regulator_get(dev, "vdet");
-	if (IS_ERR_OR_NULL(sdev->vdet)) {
+	if (IS_ERR(sdev->vdet)) {
 		dev_err(dev, "failed to get regulator 'vdet'\n");
+		ret = PTR_ERR(sdev->vdet);
 		goto fail_fout_vpll;
 	}
 
@@ -394,7 +397,7 @@ static int sdo_probe(struct platform_device *pdev)
 	/* configuration of interface subdevice */
 	v4l2_subdev_init(&sdev->sd, &sdo_sd_ops);
 	sdev->sd.owner = THIS_MODULE;
-	strlcpy(sdev->sd.name, "s5p-sdo", sizeof sdev->sd.name);
+	strlcpy(sdev->sd.name, "s5p-sdo", sizeof(sdev->sd.name));
 
 	/* set default format */
 	sdev->fmt = sdo_find_format(SDO_DEFAULT_STD);

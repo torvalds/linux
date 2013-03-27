@@ -2906,21 +2906,23 @@ static void gfar_netpoll(struct net_device *dev)
 	/* If the device has multiple interrupts, run tx/rx */
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
 		for (i = 0; i < priv->num_grps; i++) {
-			disable_irq(priv->gfargrp[i].interruptTransmit);
-			disable_irq(priv->gfargrp[i].interruptReceive);
-			disable_irq(priv->gfargrp[i].interruptError);
-			gfar_interrupt(priv->gfargrp[i].interruptTransmit,
-				       &priv->gfargrp[i]);
-			enable_irq(priv->gfargrp[i].interruptError);
-			enable_irq(priv->gfargrp[i].interruptReceive);
-			enable_irq(priv->gfargrp[i].interruptTransmit);
+			struct gfar_priv_grp *grp = &priv->gfargrp[i];
+
+			disable_irq(gfar_irq(grp, TX)->irq);
+			disable_irq(gfar_irq(grp, RX)->irq);
+			disable_irq(gfar_irq(grp, ER)->irq);
+			gfar_interrupt(gfar_irq(grp, TX)->irq, grp);
+			enable_irq(gfar_irq(grp, ER)->irq);
+			enable_irq(gfar_irq(grp, RX)->irq);
+			enable_irq(gfar_irq(grp, TX)->irq);
 		}
 	} else {
 		for (i = 0; i < priv->num_grps; i++) {
-			disable_irq(priv->gfargrp[i].interruptTransmit);
-			gfar_interrupt(priv->gfargrp[i].interruptTransmit,
-				       &priv->gfargrp[i]);
-			enable_irq(priv->gfargrp[i].interruptTransmit);
+			struct gfar_priv_grp *grp = &priv->gfargrp[i];
+
+			disable_irq(gfar_irq(grp, TX)->irq);
+			gfar_interrupt(gfar_irq(grp, TX)->irq, grp);
+			enable_irq(gfar_irq(grp, TX)->irq);
 		}
 	}
 }

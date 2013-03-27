@@ -30,7 +30,7 @@ static inline struct hostfs_inode_info *HOSTFS_I(struct inode *inode)
 	return list_entry(inode, struct hostfs_inode_info, vfs_inode);
 }
 
-#define FILE_HOSTFS_I(file) HOSTFS_I((file)->f_path.dentry->d_inode)
+#define FILE_HOSTFS_I(file) HOSTFS_I(file_inode(file))
 
 static int hostfs_d_delete(const struct dentry *dentry)
 {
@@ -861,14 +861,6 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 }
 
 static const struct inode_operations hostfs_iops = {
-	.create		= hostfs_create,
-	.link		= hostfs_link,
-	.unlink		= hostfs_unlink,
-	.symlink	= hostfs_symlink,
-	.mkdir		= hostfs_mkdir,
-	.rmdir		= hostfs_rmdir,
-	.mknod		= hostfs_mknod,
-	.rename		= hostfs_rename,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 };

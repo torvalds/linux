@@ -88,6 +88,7 @@
 #define PS_UM_BIT		5
 #define PS_EXCM_BIT		4
 #define PS_INTLEVEL_SHIFT	0
+#define PS_INTLEVEL_WIDTH	4
 #define PS_INTLEVEL_MASK	0x0000000F
 
 /*  DBREAKCn register fields.  */

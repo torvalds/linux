@@ -4615,8 +4615,10 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 	switch (ifevent->action) {
 	case BRCMF_E_IF_ADD:
 		/* waiting process may have timed out */
-		if (!cfg->vif_event.vif)
+		if (!cfg->vif_event.vif) {
+			mutex_unlock(&event->vif_event_lock);
 			return -EBADF;
+		}
 
 		ifp->vif = vif;
 		vif->ifp = ifp;

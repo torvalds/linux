@@ -357,7 +357,7 @@ static int dgrp_gen_proc_open(struct inode *inode, struct file *file)
 	struct dgrp_proc_entry *entry;
 	int ret = 0;
 
-	de = (struct proc_dir_entry *) PDE(file->f_dentry->d_inode);
+	de = (struct proc_dir_entry *) PDE(file_inode(file));
 	if (!de || !de->data) {
 		ret = -ENXIO;
 		goto done;
@@ -387,7 +387,7 @@ static int dgrp_gen_proc_close(struct inode *inode, struct file *file)
 	struct proc_dir_entry *de;
 	struct dgrp_proc_entry *entry;
 
-	de = (struct proc_dir_entry *) PDE(file->f_dentry->d_inode);
+	de = (struct proc_dir_entry *) PDE(file_inode(file));
 	if (!de || !de->data)
 		goto done;
 

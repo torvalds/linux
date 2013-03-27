@@ -40,12 +40,15 @@ config SPARC
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select MODULES_USE_ELF_RELA
+	select ODD_RT_SIGACTION
+	select OLD_SIGSUSPEND
 
 config SPARC32
 	def_bool !64BIT
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
 	select HAVE_UID16
+	select OLD_SIGACTION
 
 config SPARC64
 	def_bool 64BIT
@@ -142,9 +145,6 @@ config GENERIC_GPIO
 	bool
 	help
 	  Generic GPIO API support
-
-config ARCH_NO_VIRT_TO_BUS
-	def_bool y
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y if SPARC64
@@ -543,6 +543,7 @@ config COMPAT
 	select COMPAT_BINFMT_ELF
 	select HAVE_UID16
 	select ARCH_WANT_OLD_COMPAT_IPC
+	select COMPAT_OLD_SIGACTION
 
 config SYSVIPC_COMPAT
 	bool

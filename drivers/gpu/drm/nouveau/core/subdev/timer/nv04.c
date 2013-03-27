@@ -79,7 +79,7 @@ nv04_timer_alarm_trigger(struct nouveau_timer *ptimer)
 
 	/* execute any pending alarm handlers */
 	list_for_each_entry_safe(alarm, atemp, &exec, head) {
-		list_del(&alarm->head);
+		list_del_init(&alarm->head);
 		alarm->func(alarm);
 	}
 }

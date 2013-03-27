@@ -145,6 +145,7 @@ enum dentry_d_lock_class
 
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
+	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, const struct inode *,
 			struct qstr *);
 	int (*d_compare)(const struct dentry *, const struct inode *,
@@ -191,6 +192,8 @@ struct dentry_operations {
 #define DCACHE_CANT_MOUNT	0x0100
 #define DCACHE_GENOCIDE		0x0200
 #define DCACHE_SHRINK_LIST	0x0400
+
+#define DCACHE_OP_WEAK_REVALIDATE	0x0800
 
 #define DCACHE_NFSFS_RENAMED	0x1000
      /* this dentry has been "silly renamed" and has to be deleted on the last
@@ -293,9 +296,9 @@ extern void d_move(struct dentry *, struct dentry *);
 extern struct dentry *d_ancestor(struct dentry *, struct dentry *);
 
 /* appendix may either be NULL or be used for transname suffixes */
-extern struct dentry *d_lookup(struct dentry *, struct qstr *);
+extern struct dentry *d_lookup(const struct dentry *, const struct qstr *);
 extern struct dentry *d_hash_and_lookup(struct dentry *, struct qstr *);
-extern struct dentry *__d_lookup(struct dentry *, struct qstr *);
+extern struct dentry *__d_lookup(const struct dentry *, const struct qstr *);
 extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
 				const struct qstr *name,
 				unsigned *seq, struct inode *inode);
@@ -333,7 +336,6 @@ extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
 extern char *__d_path(const struct path *, const struct path *, char *, int);
 extern char *d_absolute_path(const struct path *, char *, int);
 extern char *d_path(const struct path *, char *, int);
-extern char *d_path_with_unreachable(const struct path *, char *, int);
 extern char *dentry_path_raw(struct dentry *, char *, int);
 extern char *dentry_path(struct dentry *, char *, int);
 

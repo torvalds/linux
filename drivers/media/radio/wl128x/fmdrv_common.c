@@ -1563,8 +1563,7 @@ int fmc_prepare(struct fmdev *fmdev)
 	fmdev->irq_info.mask = FM_MAL_EVENT;
 
 	/* Region info */
-	memcpy(&fmdev->rx.region, &region_configs[default_radio_region],
-			sizeof(struct region_info));
+	fmdev->rx.region = region_configs[default_radio_region];
 
 	fmdev->rx.mute_mode = FM_MUTE_OFF;
 	fmdev->rx.rf_depend_mute = FM_RX_RF_DEPENDENT_MUTE_OFF;

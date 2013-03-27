@@ -40,7 +40,7 @@
 #include <sound/tpa6130a2-plat.h>
 #include <media/radio-si4713.h>
 #include <media/si4713.h>
-#include <linux/leds-lp5523.h>
+#include <linux/platform_data/leds-lp55xx.h>
 
 #include <linux/platform_data/tsl2563.h>
 #include <linux/lis3lv02d.h>
@@ -160,7 +160,7 @@ static struct tsl2563_platform_data rx51_tsl2563_platform_data = {
 #endif
 
 #if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
-static struct lp5523_led_config rx51_lp5523_led_config[] = {
+static struct lp55xx_led_config rx51_lp5523_led_config[] = {
 	{
 		.name		= "lp5523:kb1",
 		.chan_nr	= 0,
@@ -216,10 +216,10 @@ static void rx51_lp5523_enable(bool state)
 	gpio_set_value(RX51_LP5523_CHIP_EN_GPIO, !!state);
 }
 
-static struct lp5523_platform_data rx51_lp5523_platform_data = {
+static struct lp55xx_platform_data rx51_lp5523_platform_data = {
 	.led_config		= rx51_lp5523_led_config,
 	.num_channels		= ARRAY_SIZE(rx51_lp5523_led_config),
-	.clock_mode		= LP5523_CLOCK_AUTO,
+	.clock_mode		= LP55XX_CLOCK_AUTO,
 	.setup_resources	= rx51_lp5523_setup,
 	.release_resources	= rx51_lp5523_release,
 	.enable			= rx51_lp5523_enable,

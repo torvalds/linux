@@ -3187,8 +3187,7 @@ int __init amd_iommu_init_dma_ops(void)
 free_domains:
 
 	for_each_iommu(iommu) {
-		if (iommu->default_dom)
-			dma_ops_domain_free(iommu->default_dom);
+		dma_ops_domain_free(iommu->default_dom);
 	}
 
 	return ret;

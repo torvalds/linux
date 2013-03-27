@@ -76,4 +76,10 @@
 			gpios = <&gpio0 12 0>;
 		};
 	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 31 0>;
+	};
+
 };

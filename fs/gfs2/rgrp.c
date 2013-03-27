@@ -1257,7 +1257,7 @@ fail:
 
 int gfs2_fitrim(struct file *filp, void __user *argp)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct request_queue *q = bdev_get_queue(sdp->sd_vfs->s_bdev);
 	struct buffer_head *bh;

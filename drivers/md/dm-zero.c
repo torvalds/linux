@@ -25,7 +25,7 @@ static int zero_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	/*
 	 * Silently drop discards, avoiding -EOPNOTSUPP.
 	 */
-	ti->num_discard_requests = 1;
+	ti->num_discard_bios = 1;
 
 	return 0;
 }

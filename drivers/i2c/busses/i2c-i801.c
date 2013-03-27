@@ -53,6 +53,11 @@
   Panther Point (PCH)   0x1e22     32     hard     yes     yes     yes
   Lynx Point (PCH)      0x8c22     32     hard     yes     yes     yes
   Lynx Point-LP (PCH)   0x9c22     32     hard     yes     yes     yes
+  Avoton (SOC)          0x1f3c     32     hard     yes     yes     yes
+  Wellsburg (PCH)       0x8d22     32     hard     yes     yes     yes
+  Wellsburg (PCH) MS    0x8d7d     32     hard     yes     yes     yes
+  Wellsburg (PCH) MS    0x8d7e     32     hard     yes     yes     yes
+  Wellsburg (PCH) MS    0x8d7f     32     hard     yes     yes     yes
 
   Features supported by this driver:
   Software PEC                     no
@@ -162,9 +167,14 @@
 #define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1	0x1d71
 #define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2	0x1d72
 #define PCI_DEVICE_ID_INTEL_PANTHERPOINT_SMBUS	0x1e22
+#define PCI_DEVICE_ID_INTEL_AVOTON_SMBUS	0x1f3c
 #define PCI_DEVICE_ID_INTEL_DH89XXCC_SMBUS	0x2330
 #define PCI_DEVICE_ID_INTEL_5_3400_SERIES_SMBUS	0x3b30
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_SMBUS	0x8c22
+#define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS	0x8d22
+#define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0	0x8d7d
+#define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1	0x8d7e
+#define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2	0x8d7f
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS	0x9c22
 
 struct i801_mux_config {
@@ -798,6 +808,11 @@ static DEFINE_PCI_DEVICE_TABLE(i801_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PANTHERPOINT_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_AVOTON_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2) },
 	{ 0, }
 };
 
@@ -1103,6 +1118,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF0:
 	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1:
 	case PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2:
+	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS0:
+	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS1:
+	case PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS_MS2:
 		priv->features |= FEATURE_IDF;
 		/* fall through */
 	default:
@@ -1236,7 +1254,6 @@ static void i801_remove(struct pci_dev *dev)
 		free_irq(dev->irq, priv);
 	pci_release_region(dev, SMBBAR);
 
-	pci_set_drvdata(dev, NULL);
 	kfree(priv);
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on

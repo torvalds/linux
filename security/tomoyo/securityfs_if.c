@@ -135,7 +135,7 @@ static const struct file_operations tomoyo_self_operations = {
  */
 static int tomoyo_open(struct inode *inode, struct file *file)
 {
-	const int key = ((u8 *) file->f_path.dentry->d_inode->i_private)
+	const int key = ((u8 *) file_inode(file)->i_private)
 		- ((u8 *) NULL);
 	return tomoyo_open_control(key, file);
 }

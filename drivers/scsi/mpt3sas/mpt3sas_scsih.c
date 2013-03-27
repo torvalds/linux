@@ -41,7 +41,6 @@
  * USA.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -2755,13 +2754,11 @@ _scsih_block_io_to_children_attached_directly(struct MPT3SAS_ADAPTER *ioc,
 	int i;
 	u16 handle;
 	u16 reason_code;
-	u8 phy_number;
 
 	for (i = 0; i < event_data->NumEntries; i++) {
 		handle = le16_to_cpu(event_data->PHY[i].AttachedDevHandle);
 		if (!handle)
 			continue;
-		phy_number = event_data->StartPhyNum + i;
 		reason_code = event_data->PHY[i].PhyStatus &
 		    MPI2_EVENT_SAS_TOPO_RC_MASK;
 		if (reason_code == MPI2_EVENT_SAS_TOPO_RC_DELAY_NOT_RESPONDING)

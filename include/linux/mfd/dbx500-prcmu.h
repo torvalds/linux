@@ -151,6 +151,18 @@ enum prcmu_clock {
 };
 
 /**
+ * enum prcmu_wdog_id - PRCMU watchdog IDs
+ * @PRCMU_WDOG_ALL: use all timers
+ * @PRCMU_WDOG_CPU1: use first CPU timer only
+ * @PRCMU_WDOG_CPU2: use second CPU timer conly
+ */
+enum prcmu_wdog_id {
+	PRCMU_WDOG_ALL = 0x00,
+	PRCMU_WDOG_CPU1 = 0x01,
+	PRCMU_WDOG_CPU2 = 0x02,
+};
+
+/**
  * enum ape_opp - APE OPP states definition
  * @APE_OPP_INIT:
  * @APE_NO_CHANGE: The APE operating point is unchanged

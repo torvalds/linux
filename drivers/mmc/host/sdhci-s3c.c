@@ -332,14 +332,14 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 }
 
 /**
- * sdhci_s3c_platform_8bit_width - support 8bit buswidth
+ * sdhci_s3c_platform_bus_width - support 8bit buswidth
  * @host: The SDHCI host being queried
  * @width: MMC_BUS_WIDTH_ macro for the bus width being requested
  *
  * We have 8-bit width support but is not a v3 controller.
- * So we add platform_8bit_width() and support 8bit width.
+ * So we add platform_bus_width() and support 8bit width.
  */
-static int sdhci_s3c_platform_8bit_width(struct sdhci_host *host, int width)
+static int sdhci_s3c_platform_bus_width(struct sdhci_host *host, int width)
 {
 	u8 ctrl;
 
@@ -369,7 +369,7 @@ static struct sdhci_ops sdhci_s3c_ops = {
 	.get_max_clock		= sdhci_s3c_get_max_clk,
 	.set_clock		= sdhci_s3c_set_clock,
 	.get_min_clock		= sdhci_s3c_get_min_clock,
-	.platform_8bit_width	= sdhci_s3c_platform_8bit_width,
+	.platform_bus_width	= sdhci_s3c_platform_bus_width,
 };
 
 static void sdhci_s3c_notify_change(struct platform_device *dev, int state)

@@ -605,7 +605,6 @@ static int __exit i2c_imx_remove(struct platform_device *pdev)
 	/* remove adapter */
 	dev_dbg(&i2c_imx->adapter.dev, "adapter removed\n");
 	i2c_del_adapter(&i2c_imx->adapter);
-	platform_set_drvdata(pdev, NULL);
 
 	/* setup chip registers to defaults */
 	writeb(0, i2c_imx->base + IMX_I2C_IADR);

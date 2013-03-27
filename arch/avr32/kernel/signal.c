@@ -21,12 +21,6 @@
 #include <asm/ucontext.h>
 #include <asm/syscalls.h>
 
-asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-			       struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->sp);
-}
-
 struct rt_sigframe
 {
 	struct siginfo info;
@@ -91,7 +85,7 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->sp) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	pr_debug("Context restored: pc = %08lx, lr = %08lx, sp = %08lx\n",
@@ -175,12 +169,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up the ucontext */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(NULL, &frame->uc.uc_link);
-	err |= __put_user((void __user *)current->sas_ss_sp,
-			  &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->sp),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size,
-			  &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 

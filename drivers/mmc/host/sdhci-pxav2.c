@@ -111,17 +111,10 @@ static int pxav2_mmc_set_width(struct sdhci_host *host, int width)
 	return 0;
 }
 
-static u32 pxav2_get_max_clock(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-
-	return clk_get_rate(pltfm_host->clk);
-}
-
 static struct sdhci_ops pxav2_sdhci_ops = {
-	.get_max_clock = pxav2_get_max_clock,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.platform_reset_exit = pxav2_set_private_registers,
-	.platform_8bit_width = pxav2_mmc_set_width,
+	.platform_bus_width = pxav2_mmc_set_width,
 };
 
 #ifdef CONFIG_OF

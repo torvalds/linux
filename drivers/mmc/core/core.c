@@ -319,9 +319,43 @@ out:
 }
 EXPORT_SYMBOL(mmc_start_bkops);
 
+/*
+ * mmc_wait_data_done() - done callback for data request
+ * @mrq: done data request
+ *
+ * Wakes up mmc context, passed as a callback to host controller driver
+ */
+static void mmc_wait_data_done(struct mmc_request *mrq)
+{
+	mrq->host->context_info.is_done_rcv = true;
+	wake_up_interruptible(&mrq->host->context_info.wait);
+}
+
 static void mmc_wait_done(struct mmc_request *mrq)
 {
 	complete(&mrq->completion);
+}
+
+/*
+ *__mmc_start_data_req() - starts data request
+ * @host: MMC host to start the request
+ * @mrq: data request to start
+ *
+ * Sets the done callback to be called when request is completed by the card.
+ * Starts data mmc request execution
+ */
+static int __mmc_start_data_req(struct mmc_host *host, struct mmc_request *mrq)
+{
+	mrq->done = mmc_wait_data_done;
+	mrq->host = host;
+	if (mmc_card_removed(host->card)) {
+		mrq->cmd->error = -ENOMEDIUM;
+		mmc_wait_data_done(mrq);
+		return -ENOMEDIUM;
+	}
+	mmc_start_request(host, mrq);
+
+	return 0;
 }
 
 static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
@@ -335,6 +369,62 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 	}
 	mmc_start_request(host, mrq);
 	return 0;
+}
+
+/*
+ * mmc_wait_for_data_req_done() - wait for request completed
+ * @host: MMC host to prepare the command.
+ * @mrq: MMC request to wait for
+ *
+ * Blocks MMC context till host controller will ack end of data request
+ * execution or new request notification arrives from the block layer.
+ * Handles command retries.
+ *
+ * Returns enum mmc_blk_status after checking errors.
+ */
+static int mmc_wait_for_data_req_done(struct mmc_host *host,
+				      struct mmc_request *mrq,
+				      struct mmc_async_req *next_req)
+{
+	struct mmc_command *cmd;
+	struct mmc_context_info *context_info = &host->context_info;
+	int err;
+	unsigned long flags;
+
+	while (1) {
+		wait_event_interruptible(context_info->wait,
+				(context_info->is_done_rcv ||
+				 context_info->is_new_req));
+		spin_lock_irqsave(&context_info->lock, flags);
+		context_info->is_waiting_last_req = false;
+		spin_unlock_irqrestore(&context_info->lock, flags);
+		if (context_info->is_done_rcv) {
+			context_info->is_done_rcv = false;
+			context_info->is_new_req = false;
+			cmd = mrq->cmd;
+			if (!cmd->error || !cmd->retries ||
+			    mmc_card_removed(host->card)) {
+				err = host->areq->err_check(host->card,
+							    host->areq);
+				break; /* return err */
+			} else {
+				pr_info("%s: req failed (CMD%u): %d, retrying...\n",
+					mmc_hostname(host),
+					cmd->opcode, cmd->error);
+				cmd->retries--;
+				cmd->error = 0;
+				host->ops->request(host, mrq);
+				continue; /* wait for done/new event again */
+			}
+		} else if (context_info->is_new_req) {
+			context_info->is_new_req = false;
+			if (!next_req) {
+				err = MMC_BLK_NEW_REQUEST;
+				break; /* return err */
+			}
+		}
+	}
+	return err;
 }
 
 static void mmc_wait_for_req_done(struct mmc_host *host,
@@ -426,8 +516,16 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		mmc_pre_req(host, areq->mrq, !host->areq);
 
 	if (host->areq) {
-		mmc_wait_for_req_done(host, host->areq->mrq);
-		err = host->areq->err_check(host->card, host->areq);
+		err = mmc_wait_for_data_req_done(host, host->areq->mrq,	areq);
+		if (err == MMC_BLK_NEW_REQUEST) {
+			if (error)
+				*error = err;
+			/*
+			 * The previous request was not completed,
+			 * nothing to return
+			 */
+			return NULL;
+		}
 		/*
 		 * Check BKOPS urgency for each R1 response
 		 */
@@ -439,14 +537,14 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 	}
 
 	if (!err && areq)
-		start_err = __mmc_start_req(host, areq->mrq);
+		start_err = __mmc_start_data_req(host, areq->mrq);
 
 	if (host->areq)
 		mmc_post_req(host, host->areq->mrq, 0);
 
 	 /* Cancel a prepared request if it was not started. */
 	if ((err || start_err) && areq)
-			mmc_post_req(host, areq->mrq, -EINVAL);
+		mmc_post_req(host, areq->mrq, -EINVAL);
 
 	if (err)
 		host->areq = NULL;
@@ -1137,7 +1235,7 @@ int mmc_regulator_set_ocr(struct mmc_host *mmc,
 		 */
 		voltage = regulator_get_voltage(supply);
 
-		if (regulator_count_voltages(supply) == 1)
+		if (!regulator_can_change_voltage(supply))
 			min_uV = max_uV = voltage;
 
 		if (voltage < 0)
@@ -1219,10 +1317,30 @@ u32 mmc_select_voltage(struct mmc_host *host, u32 ocr)
 	return ocr;
 }
 
-int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, bool cmd11)
+int __mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
+{
+	int err = 0;
+	int old_signal_voltage = host->ios.signal_voltage;
+
+	host->ios.signal_voltage = signal_voltage;
+	if (host->ops->start_signal_voltage_switch) {
+		mmc_host_clk_hold(host);
+		err = host->ops->start_signal_voltage_switch(host, &host->ios);
+		mmc_host_clk_release(host);
+	}
+
+	if (err)
+		host->ios.signal_voltage = old_signal_voltage;
+
+	return err;
+
+}
+
+int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
 {
 	struct mmc_command cmd = {0};
 	int err = 0;
+	u32 clock;
 
 	BUG_ON(!host);
 
@@ -1230,26 +1348,80 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, bool cmd11
 	 * Send CMD11 only if the request is to switch the card to
 	 * 1.8V signalling.
 	 */
-	if ((signal_voltage != MMC_SIGNAL_VOLTAGE_330) && cmd11) {
-		cmd.opcode = SD_SWITCH_VOLTAGE;
-		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+	if (signal_voltage == MMC_SIGNAL_VOLTAGE_330)
+		return __mmc_set_signal_voltage(host, signal_voltage);
 
-		err = mmc_wait_for_cmd(host, &cmd, 0);
-		if (err)
-			return err;
+	/*
+	 * If we cannot switch voltages, return failure so the caller
+	 * can continue without UHS mode
+	 */
+	if (!host->ops->start_signal_voltage_switch)
+		return -EPERM;
+	if (!host->ops->card_busy)
+		pr_warning("%s: cannot verify signal voltage switch\n",
+				mmc_hostname(host));
 
-		if (!mmc_host_is_spi(host) && (cmd.resp[0] & R1_ERROR))
-			return -EIO;
+	cmd.opcode = SD_SWITCH_VOLTAGE;
+	cmd.arg = 0;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+
+	err = mmc_wait_for_cmd(host, &cmd, 0);
+	if (err)
+		return err;
+
+	if (!mmc_host_is_spi(host) && (cmd.resp[0] & R1_ERROR))
+		return -EIO;
+
+	mmc_host_clk_hold(host);
+	/*
+	 * The card should drive cmd and dat[0:3] low immediately
+	 * after the response of cmd11, but wait 1 ms to be sure
+	 */
+	mmc_delay(1);
+	if (host->ops->card_busy && !host->ops->card_busy(host)) {
+		err = -EAGAIN;
+		goto power_cycle;
+	}
+	/*
+	 * During a signal voltage level switch, the clock must be gated
+	 * for 5 ms according to the SD spec
+	 */
+	clock = host->ios.clock;
+	host->ios.clock = 0;
+	mmc_set_ios(host);
+
+	if (__mmc_set_signal_voltage(host, signal_voltage)) {
+		/*
+		 * Voltages may not have been switched, but we've already
+		 * sent CMD11, so a power cycle is required anyway
+		 */
+		err = -EAGAIN;
+		goto power_cycle;
 	}
 
-	host->ios.signal_voltage = signal_voltage;
+	/* Keep clock gated for at least 5 ms */
+	mmc_delay(5);
+	host->ios.clock = clock;
+	mmc_set_ios(host);
 
-	if (host->ops->start_signal_voltage_switch) {
-		mmc_host_clk_hold(host);
-		err = host->ops->start_signal_voltage_switch(host, &host->ios);
-		mmc_host_clk_release(host);
+	/* Wait for at least 1 ms according to spec */
+	mmc_delay(1);
+
+	/*
+	 * Failure to switch is indicated by the card holding
+	 * dat[0:3] low
+	 */
+	if (host->ops->card_busy && host->ops->card_busy(host))
+		err = -EAGAIN;
+
+power_cycle:
+	if (err) {
+		pr_debug("%s: Signal voltage switch failed, "
+			"power cycling card\n", mmc_hostname(host));
+		mmc_power_cycle(host);
 	}
+
+	mmc_host_clk_release(host);
 
 	return err;
 }
@@ -1314,7 +1486,7 @@ static void mmc_power_up(struct mmc_host *host)
 	mmc_set_ios(host);
 
 	/* Set signal voltage to 3.3V */
-	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, false);
+	__mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
 
 	/*
 	 * This delay should be sufficient to allow the power supply
@@ -1370,6 +1542,14 @@ void mmc_power_off(struct mmc_host *host)
 	mmc_delay(1);
 
 	mmc_host_clk_release(host);
+}
+
+void mmc_power_cycle(struct mmc_host *host)
+{
+	mmc_power_off(host);
+	/* Wait at least 1 ms according to SD spec */
+	mmc_delay(1);
+	mmc_power_up(host);
 }
 
 /*
@@ -2388,6 +2568,7 @@ EXPORT_SYMBOL(mmc_flush_cache);
  * Turn the cache ON/OFF.
  * Turning the cache OFF shall trigger flushing of the data
  * to the non-volatile storage.
+ * This function should be called with host claimed
  */
 int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 {
@@ -2399,7 +2580,6 @@ int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 			mmc_card_is_removable(host))
 		return err;
 
-	mmc_claim_host(host);
 	if (card && mmc_card_mmc(card) &&
 			(card->ext_csd.cache_size > 0)) {
 		enable = !!enable;
@@ -2417,7 +2597,6 @@ int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 				card->ext_csd.cache_ctrl = enable;
 		}
 	}
-	mmc_release_host(host);
 
 	return err;
 }
@@ -2435,10 +2614,6 @@ int mmc_suspend_host(struct mmc_host *host)
 
 	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
-
-	err = mmc_cache_ctrl(host, 0);
-	if (err)
-		goto out;
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
@@ -2580,6 +2755,23 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 	return 0;
 }
 #endif
+
+/**
+ * mmc_init_context_info() - init synchronization context
+ * @host: mmc host
+ *
+ * Init struct context_info needed to implement asynchronous
+ * request mechanism, used by mmc core, host driver and mmc requests
+ * supplier.
+ */
+void mmc_init_context_info(struct mmc_host *host)
+{
+	spin_lock_init(&host->context_info.lock);
+	host->context_info.is_new_req = false;
+	host->context_info.is_done_rcv = false;
+	host->context_info.is_waiting_last_req = false;
+	init_waitqueue_head(&host->context_info.wait);
+}
 
 static int __init mmc_init(void)
 {

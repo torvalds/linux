@@ -19,9 +19,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * Author:       David VomLehn <dvomlehn@cisco.com>
+ * Author:	 David VomLehn <dvomlehn@cisco.com>
  *
- * Description:  Defines the platform resources for the SA settop.
+ * Description:	 Defines the platform resources for the SA settop.
  *
  * NOTE: The bootloader allocates persistent memory at an address which is
  * 16 MiB below the end of the highest address in KSEG0. All fixed

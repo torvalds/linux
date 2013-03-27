@@ -128,6 +128,10 @@
 #define		GUI_ACTIVE					(1<<31)
 #define	GRBM_STATUS2					0x8014
 
+#define CG_CLKPIN_CNTL                                    0x660
+#       define MUX_TCLK_TO_XCLK                           (1 << 8)
+#       define XTALIN_DIVIDE                              (1 << 9)
+
 #define	CG_MULT_THERMAL_STATUS				0x740
 #define		ASIC_T(x)			        ((x) << 16)
 #define		ASIC_T_MASK			        0x3FF0000

@@ -34,6 +34,7 @@
 #include <asm/syscalls.h>
 #include <asm/vdso.h>
 #include <asm/switch_to.h>
+#include <asm/tm.h>
 
 #include "signal.h"
 
@@ -56,6 +57,9 @@
 struct rt_sigframe {
 	/* sys_rt_sigreturn requires the ucontext be the first field */
 	struct ucontext uc;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	struct ucontext uc_transact;
+#endif
 	unsigned long _unused[2];
 	unsigned int tramp[TRAMP_SIZE];
 	struct siginfo __user *pinfo;
@@ -144,6 +148,145 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 
 	return err;
 }
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+/*
+ * As above, but Transactional Memory is in use, so deliver sigcontexts
+ * containing checkpointed and transactional register states.
+ *
+ * To do this, we treclaim to gather both sets of registers and set up the
+ * 'normal' sigcontext registers with rolled-back register values such that a
+ * simple signal handler sees a correct checkpointed register state.
+ * If interested, a TM-aware sighandler can examine the transactional registers
+ * in the 2nd sigcontext to determine the real origin of the signal.
+ */
+static long setup_tm_sigcontexts(struct sigcontext __user *sc,
+				 struct sigcontext __user *tm_sc,
+				 struct pt_regs *regs,
+				 int signr, sigset_t *set, unsigned long handler)
+{
+	/* When CONFIG_ALTIVEC is set, we _always_ setup v_regs even if the
+	 * process never used altivec yet (MSR_VEC is zero in pt_regs of
+	 * the context). This is very important because we must ensure we
+	 * don't lose the VRSAVE content that may have been set prior to
+	 * the process doing its first vector operation
+	 * Userland shall check AT_HWCAP to know wether it can rely on the
+	 * v_regs pointer or not.
+	 */
+#ifdef CONFIG_ALTIVEC
+	elf_vrreg_t __user *v_regs = (elf_vrreg_t __user *)
+		(((unsigned long)sc->vmx_reserve + 15) & ~0xful);
+	elf_vrreg_t __user *tm_v_regs = (elf_vrreg_t __user *)
+		(((unsigned long)tm_sc->vmx_reserve + 15) & ~0xful);
+#endif
+	unsigned long msr = regs->msr;
+	long err = 0;
+
+	BUG_ON(!MSR_TM_ACTIVE(regs->msr));
+
+	/* tm_reclaim rolls back all reg states, saving checkpointed (older)
+	 * GPRs to thread.ckpt_regs and (if used) FPRs to (newer)
+	 * thread.transact_fp and/or VRs to (newer) thread.transact_vr.
+	 * THEN we save out FP/VRs, if necessary, to the checkpointed (older)
+	 * thread.fr[]/vr[]s.  The transactional (newer) GPRs are on the
+	 * stack, in *regs.
+	 */
+	tm_enable();
+	tm_reclaim(&current->thread, msr, TM_CAUSE_SIGNAL);
+
+	flush_fp_to_thread(current);
+
+#ifdef CONFIG_ALTIVEC
+	err |= __put_user(v_regs, &sc->v_regs);
+	err |= __put_user(tm_v_regs, &tm_sc->v_regs);
+
+	/* save altivec registers */
+	if (current->thread.used_vr) {
+		flush_altivec_to_thread(current);
+		/* Copy 33 vec registers (vr0..31 and vscr) to the stack */
+		err |= __copy_to_user(v_regs, current->thread.vr,
+				      33 * sizeof(vector128));
+		/* If VEC was enabled there are transactional VRs valid too,
+		 * else they're a copy of the checkpointed VRs.
+		 */
+		if (msr & MSR_VEC)
+			err |= __copy_to_user(tm_v_regs,
+					      current->thread.transact_vr,
+					      33 * sizeof(vector128));
+		else
+			err |= __copy_to_user(tm_v_regs,
+					      current->thread.vr,
+					      33 * sizeof(vector128));
+
+		/* set MSR_VEC in the MSR value in the frame to indicate
+		 * that sc->v_reg contains valid data.
+		 */
+		msr |= MSR_VEC;
+	}
+	/* We always copy to/from vrsave, it's 0 if we don't have or don't
+	 * use altivec.
+	 */
+	err |= __put_user(current->thread.vrsave, (u32 __user *)&v_regs[33]);
+	if (msr & MSR_VEC)
+		err |= __put_user(current->thread.transact_vrsave,
+				  (u32 __user *)&tm_v_regs[33]);
+	else
+		err |= __put_user(current->thread.vrsave,
+				  (u32 __user *)&tm_v_regs[33]);
+
+#else /* CONFIG_ALTIVEC */
+	err |= __put_user(0, &sc->v_regs);
+	err |= __put_user(0, &tm_sc->v_regs);
+#endif /* CONFIG_ALTIVEC */
+
+	/* copy fpr regs and fpscr */
+	err |= copy_fpr_to_user(&sc->fp_regs, current);
+	if (msr & MSR_FP)
+		err |= copy_transact_fpr_to_user(&tm_sc->fp_regs, current);
+	else
+		err |= copy_fpr_to_user(&tm_sc->fp_regs, current);
+
+#ifdef CONFIG_VSX
+	/*
+	 * Copy VSX low doubleword to local buffer for formatting,
+	 * then out to userspace.  Update v_regs to point after the
+	 * VMX data.
+	 */
+	if (current->thread.used_vsr) {
+		__giveup_vsx(current);
+		v_regs += ELF_NVRREG;
+		tm_v_regs += ELF_NVRREG;
+
+		err |= copy_vsx_to_user(v_regs, current);
+
+		if (msr & MSR_VSX)
+			err |= copy_transact_vsx_to_user(tm_v_regs, current);
+		else
+			err |= copy_vsx_to_user(tm_v_regs, current);
+
+		/* set MSR_VSX in the MSR value in the frame to
+		 * indicate that sc->vs_reg) contains valid data.
+		 */
+		msr |= MSR_VSX;
+	}
+#endif /* CONFIG_VSX */
+
+	err |= __put_user(&sc->gp_regs, &sc->regs);
+	err |= __put_user(&tm_sc->gp_regs, &tm_sc->regs);
+	WARN_ON(!FULL_REGS(regs));
+	err |= __copy_to_user(&tm_sc->gp_regs, regs, GP_REGS_SIZE);
+	err |= __copy_to_user(&sc->gp_regs,
+			      &current->thread.ckpt_regs, GP_REGS_SIZE);
+	err |= __put_user(msr, &tm_sc->gp_regs[PT_MSR]);
+	err |= __put_user(msr, &sc->gp_regs[PT_MSR]);
+	err |= __put_user(signr, &sc->signal);
+	err |= __put_user(handler, &sc->handler);
+	if (set != NULL)
+		err |=  __put_user(set->sig[0], &sc->oldmask);
+
+	return err;
+}
+#endif
 
 /*
  * Restore the sigcontext from the signal frame.
@@ -240,6 +383,153 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 #endif
 	return err;
 }
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+/*
+ * Restore the two sigcontexts from the frame of a transactional processes.
+ */
+
+static long restore_tm_sigcontexts(struct pt_regs *regs,
+				   struct sigcontext __user *sc,
+				   struct sigcontext __user *tm_sc)
+{
+#ifdef CONFIG_ALTIVEC
+	elf_vrreg_t __user *v_regs, *tm_v_regs;
+#endif
+	unsigned long err = 0;
+	unsigned long msr;
+#ifdef CONFIG_VSX
+	int i;
+#endif
+	/* copy the GPRs */
+	err |= __copy_from_user(regs->gpr, tm_sc->gp_regs, sizeof(regs->gpr));
+	err |= __copy_from_user(&current->thread.ckpt_regs, sc->gp_regs,
+				sizeof(regs->gpr));
+
+	/*
+	 * TFHAR is restored from the checkpointed 'wound-back' ucontext's NIP.
+	 * TEXASR was set by the signal delivery reclaim, as was TFIAR.
+	 * Users doing anything abhorrent like thread-switching w/ signals for
+	 * TM-Suspended code will have to back TEXASR/TFIAR up themselves.
+	 * For the case of getting a signal and simply returning from it,
+	 * we don't need to re-copy them here.
+	 */
+	err |= __get_user(regs->nip, &tm_sc->gp_regs[PT_NIP]);
+	err |= __get_user(current->thread.tm_tfhar, &sc->gp_regs[PT_NIP]);
+
+	/* get MSR separately, transfer the LE bit if doing signal return */
+	err |= __get_user(msr, &sc->gp_regs[PT_MSR]);
+	regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
+
+	/* The following non-GPR non-FPR non-VR state is also checkpointed: */
+	err |= __get_user(regs->ctr, &tm_sc->gp_regs[PT_CTR]);
+	err |= __get_user(regs->link, &tm_sc->gp_regs[PT_LNK]);
+	err |= __get_user(regs->xer, &tm_sc->gp_regs[PT_XER]);
+	err |= __get_user(regs->ccr, &tm_sc->gp_regs[PT_CCR]);
+	err |= __get_user(current->thread.ckpt_regs.ctr,
+			  &sc->gp_regs[PT_CTR]);
+	err |= __get_user(current->thread.ckpt_regs.link,
+			  &sc->gp_regs[PT_LNK]);
+	err |= __get_user(current->thread.ckpt_regs.xer,
+			  &sc->gp_regs[PT_XER]);
+	err |= __get_user(current->thread.ckpt_regs.ccr,
+			  &sc->gp_regs[PT_CCR]);
+
+	/* These regs are not checkpointed; they can go in 'regs'. */
+	err |= __get_user(regs->trap, &sc->gp_regs[PT_TRAP]);
+	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
+	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);
+	err |= __get_user(regs->result, &sc->gp_regs[PT_RESULT]);
+
+	/*
+	 * Do this before updating the thread state in
+	 * current->thread.fpr/vr.  That way, if we get preempted
+	 * and another task grabs the FPU/Altivec, it won't be
+	 * tempted to save the current CPU state into the thread_struct
+	 * and corrupt what we are writing there.
+	 */
+	discard_lazy_cpu_state();
+
+	/*
+	 * Force reload of FP/VEC.
+	 * This has to be done before copying stuff into current->thread.fpr/vr
+	 * for the reasons explained in the previous comment.
+	 */
+	regs->msr &= ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC | MSR_VSX);
+
+#ifdef CONFIG_ALTIVEC
+	err |= __get_user(v_regs, &sc->v_regs);
+	err |= __get_user(tm_v_regs, &tm_sc->v_regs);
+	if (err)
+		return err;
+	if (v_regs && !access_ok(VERIFY_READ, v_regs, 34 * sizeof(vector128)))
+		return -EFAULT;
+	if (tm_v_regs && !access_ok(VERIFY_READ,
+				    tm_v_regs, 34 * sizeof(vector128)))
+		return -EFAULT;
+	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
+	if (v_regs != 0 && tm_v_regs != 0 && (msr & MSR_VEC) != 0) {
+		err |= __copy_from_user(current->thread.vr, v_regs,
+					33 * sizeof(vector128));
+		err |= __copy_from_user(current->thread.transact_vr, tm_v_regs,
+					33 * sizeof(vector128));
+	}
+	else if (current->thread.used_vr) {
+		memset(current->thread.vr, 0, 33 * sizeof(vector128));
+		memset(current->thread.transact_vr, 0, 33 * sizeof(vector128));
+	}
+	/* Always get VRSAVE back */
+	if (v_regs != 0 && tm_v_regs != 0) {
+		err |= __get_user(current->thread.vrsave,
+				  (u32 __user *)&v_regs[33]);
+		err |= __get_user(current->thread.transact_vrsave,
+				  (u32 __user *)&tm_v_regs[33]);
+	}
+	else {
+		current->thread.vrsave = 0;
+		current->thread.transact_vrsave = 0;
+	}
+#endif /* CONFIG_ALTIVEC */
+	/* restore floating point */
+	err |= copy_fpr_from_user(current, &sc->fp_regs);
+	err |= copy_transact_fpr_from_user(current, &tm_sc->fp_regs);
+#ifdef CONFIG_VSX
+	/*
+	 * Get additional VSX data. Update v_regs to point after the
+	 * VMX data.  Copy VSX low doubleword from userspace to local
+	 * buffer for formatting, then into the taskstruct.
+	 */
+	if (v_regs && ((msr & MSR_VSX) != 0)) {
+		v_regs += ELF_NVRREG;
+		tm_v_regs += ELF_NVRREG;
+		err |= copy_vsx_from_user(current, v_regs);
+		err |= copy_transact_vsx_from_user(current, tm_v_regs);
+	} else {
+		for (i = 0; i < 32 ; i++) {
+			current->thread.fpr[i][TS_VSRLOWOFFSET] = 0;
+			current->thread.transact_fpr[i][TS_VSRLOWOFFSET] = 0;
+		}
+	}
+#endif
+	tm_enable();
+	/* This loads the checkpointed FP/VEC state, if used */
+	tm_recheckpoint(&current->thread, msr);
+	/* The task has moved into TM state S, so ensure MSR reflects this: */
+	regs->msr = (regs->msr & ~MSR_TS_MASK) | __MASK(33);
+
+	/* This loads the speculative FP/VEC state, if used */
+	if (msr & MSR_FP) {
+		do_load_up_transact_fpu(&current->thread);
+		regs->msr |= (MSR_FP | current->thread.fpexc_mode);
+	}
+	if (msr & MSR_VEC) {
+		do_load_up_transact_altivec(&current->thread);
+		regs->msr |= MSR_VEC;
+	}
+
+	return err;
+}
+#endif
 
 /*
  * Setup the trampoline code on the stack
@@ -355,6 +645,9 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 {
 	struct ucontext __user *uc = (struct ucontext __user *)regs->gpr[1];
 	sigset_t set;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	unsigned long msr;
+#endif
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
@@ -365,13 +658,26 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 	if (__copy_from_user(&set, &uc->uc_sigmask, sizeof(set)))
 		goto badframe;
 	set_current_blocked(&set);
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
+		goto badframe;
+	if (MSR_TM_SUSPENDED(msr)) {
+		/* We recheckpoint on return. */
+		struct ucontext __user *uc_transact;
+		if (__get_user(uc_transact, &uc->uc_link))
+			goto badframe;
+		if (restore_tm_sigcontexts(regs, &uc->uc_mcontext,
+					   &uc_transact->uc_mcontext))
+			goto badframe;
+	}
+	else
+	/* Fall through, for non-TM restore */
+#endif
 	if (restore_sigcontext(regs, NULL, 1, &uc->uc_mcontext))
 		goto badframe;
 
-	/* do_sigaltstack expects a __user pointer and won't modify
-	 * what's in there anyway
-	 */
-	do_sigaltstack(&uc->uc_stack, NULL, regs->gpr[1]);
+	if (restore_altstack(&uc->uc_stack))
+		goto badframe;
 
 	set_thread_flag(TIF_RESTOREALL);
 	return 0;
@@ -415,19 +721,39 @@ int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->gpr[1]),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, signr, NULL,
-				(unsigned long)ka->sa.sa_handler, 1);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->gpr[1]);
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (MSR_TM_ACTIVE(regs->msr)) {
+		/* The ucontext_t passed to userland points to the second
+		 * ucontext_t (for transactional state) with its uc_link ptr.
+		 */
+		err |= __put_user(&frame->uc_transact, &frame->uc.uc_link);
+		err |= setup_tm_sigcontexts(&frame->uc.uc_mcontext,
+					    &frame->uc_transact.uc_mcontext,
+					    regs, signr,
+					    NULL,
+					    (unsigned long)ka->sa.sa_handler);
+	} else
+#endif
+	{
+		err |= __put_user(0, &frame->uc.uc_link);
+		err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, signr,
+					NULL, (unsigned long)ka->sa.sa_handler,
+					1);
+	}
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
 		goto badframe;
 
 	/* Make sure signal handler doesn't get spurious FP exceptions */
 	current->thread.fpscr.val = 0;
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
+	 * just indicates to userland that we were doing a transaction, but we
+	 * don't want to return in transactional state:
+	 */
+	regs->msr &= ~MSR_TS_MASK;
+#endif
 
 	/* Set up to return from userspace. */
 	if (vdso64_rt_sigtramp && current->mm->context.vdso_base) {

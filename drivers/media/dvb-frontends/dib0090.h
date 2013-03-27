@@ -75,7 +75,7 @@ struct dib0090_config {
 	u8 force_crystal_mode;
 };
 
-#if defined(CONFIG_DVB_TUNER_DIB0090) || (defined(CONFIG_DVB_TUNER_DIB0090_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_TUNER_DIB0090)
 extern struct dvb_frontend *dib0090_register(struct dvb_frontend *fe, struct i2c_adapter *i2c, const struct dib0090_config *config);
 extern struct dvb_frontend *dib0090_fw_register(struct dvb_frontend *fe, struct i2c_adapter *i2c, const struct dib0090_config *config);
 extern void dib0090_dcc_freq(struct dvb_frontend *fe, u8 fast);

@@ -14,6 +14,9 @@
 struct pci_sysdata {
 	int		domain;		/* PCI domain */
 	int		node;		/* NUMA node */
+#ifdef CONFIG_ACPI
+	void		*acpi;		/* ACPI-specific data */
+#endif
 #ifdef CONFIG_X86_64
 	void		*iommu;		/* IOMMU private data */
 #endif

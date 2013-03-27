@@ -203,8 +203,8 @@ extern int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 				struct resource *res, unsigned int reg);
 extern int pci_resource_bar(struct pci_dev *dev, int resno,
 			    enum pci_bar_type *type);
-extern int pci_bus_add_child(struct pci_bus *bus);
-extern void pci_enable_ari(struct pci_dev *dev);
+extern void pci_configure_ari(struct pci_dev *dev);
+
 /**
  * pci_ari_enabled - query ARI forwarding status
  * @bus: the PCI bus

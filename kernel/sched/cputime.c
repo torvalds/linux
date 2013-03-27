@@ -604,7 +604,7 @@ static unsigned long long vtime_delta(struct task_struct *tsk)
 {
 	unsigned long long clock;
 
-	clock = sched_clock();
+	clock = local_clock();
 	if (clock < tsk->vtime_snap)
 		return 0;
 

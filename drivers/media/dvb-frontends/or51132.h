@@ -34,7 +34,7 @@ struct or51132_config
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);
 };
 
-#if defined(CONFIG_DVB_OR51132) || (defined(CONFIG_DVB_OR51132_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_OR51132)
 extern struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 					   struct i2c_adapter* i2c);
 #else

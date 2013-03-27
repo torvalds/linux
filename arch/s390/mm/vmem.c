@@ -85,11 +85,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
-	pte_t  pte;
 	int ret = -ENOMEM;
 
 	while (address < end) {
-		pte = mk_pte_phys(address, __pgprot(ro ? _PAGE_RO : 0));
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
 			pu_dir = vmem_pud_alloc();
@@ -101,9 +99,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 #if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end)) {
-			pte_val(pte) |= _REGION3_ENTRY_LARGE;
-			pte_val(pte) |= _REGION_ENTRY_TYPE_R3;
-			pud_val(*pu_dir) = pte_val(pte);
+			pud_val(*pu_dir) = __pa(address) |
+				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
+				(ro ? _REGION_ENTRY_RO : 0);
 			address += PUD_SIZE;
 			continue;
 		}
@@ -118,8 +116,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 #if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end)) {
-			pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
-			pmd_val(*pm_dir) = pte_val(pte);
+			pmd_val(*pm_dir) = __pa(address) |
+				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
+				(ro ? _SEGMENT_ENTRY_RO : 0);
 			address += PMD_SIZE;
 			continue;
 		}
@@ -132,7 +131,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		*pt_dir = pte;
+		pte_val(*pt_dir) = __pa(address) | (ro ? _PAGE_RO : 0);
 		address += PAGE_SIZE;
 	}
 	ret = 0;
@@ -199,7 +198,6 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
-	pte_t  pte;
 	int ret = -ENOMEM;
 
 	start_addr = (unsigned long) start;
@@ -237,9 +235,9 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 				new_page = vmemmap_alloc_block(PMD_SIZE, node);
 				if (!new_page)
 					goto out;
-				pte = mk_pte_phys(__pa(new_page), PAGE_RW);
-				pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
-				pmd_val(*pm_dir) = pte_val(pte);
+				pmd_val(*pm_dir) = __pa(new_page) |
+					_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
+					_SEGMENT_ENTRY_CO;
 				address = (address + PMD_SIZE) & PMD_MASK;
 				continue;
 			}
@@ -260,8 +258,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 			new_page =__pa(vmem_alloc_pages(0));
 			if (!new_page)
 				goto out;
-			pte = pfn_pte(new_page >> PAGE_SHIFT, PAGE_KERNEL);
-			*pt_dir = pte;
+			pte_val(*pt_dir) = __pa(new_page);
 		}
 		address += PAGE_SIZE;
 	}
@@ -270,6 +267,10 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 out:
 	flush_tlb_kernel_range(start_addr, end_addr);
 	return ret;
+}
+
+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+{
 }
 
 /*

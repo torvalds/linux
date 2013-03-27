@@ -116,15 +116,15 @@
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 #define LDFIRST LOADR
-#define LDREST  LOADL
+#define LDREST	LOADL
 #define STFIRST STORER
-#define STREST  STOREL
+#define STREST	STOREL
 #define SHIFT_DISCARD SLLV
 #else
 #define LDFIRST LOADL
-#define LDREST  LOADR
+#define LDREST	LOADR
 #define STFIRST STOREL
-#define STREST  STORER
+#define STREST	STORER
 #define SHIFT_DISCARD SRLV
 #endif
 
@@ -316,9 +316,9 @@ EXC(	 STORE	t0, -8(dst),		s_exc_p1u)
 
 src_unaligned:
 #define rem t8
-	SRL	t0, len, LOG_NBYTES+2    # +2 for 4 units/iter
+	SRL	t0, len, LOG_NBYTES+2	 # +2 for 4 units/iter
 	beqz	t0, cleanup_src_unaligned
-	 and	rem, len, (4*NBYTES-1)   # rem = len % 4*NBYTES
+	 and	rem, len, (4*NBYTES-1)	 # rem = len % 4*NBYTES
 1:
 /*
  * Avoid consecutive LD*'s to the same register since some mips
@@ -326,13 +326,13 @@ src_unaligned:
  * It's OK to load FIRST(N+1) before REST(N) because the two addresses
  * are to the same unit (unless src is aligned, but it's not).
  */
-EXC(	LDFIRST	t0, FIRST(0)(src),	l_exc)
-EXC(	LDFIRST	t1, FIRST(1)(src),	l_exc_copy)
-	SUB     len, len, 4*NBYTES
+EXC(	LDFIRST t0, FIRST(0)(src),	l_exc)
+EXC(	LDFIRST t1, FIRST(1)(src),	l_exc_copy)
+	SUB	len, len, 4*NBYTES
 EXC(	LDREST	t0, REST(0)(src),	l_exc_copy)
 EXC(	LDREST	t1, REST(1)(src),	l_exc_copy)
-EXC(	LDFIRST	t2, FIRST(2)(src),	l_exc_copy)
-EXC(	LDFIRST	t3, FIRST(3)(src),	l_exc_copy)
+EXC(	LDFIRST t2, FIRST(2)(src),	l_exc_copy)
+EXC(	LDFIRST t3, FIRST(3)(src),	l_exc_copy)
 EXC(	LDREST	t2, REST(2)(src),	l_exc_copy)
 EXC(	LDREST	t3, REST(3)(src),	l_exc_copy)
 	ADD	src, src, 4*NBYTES

@@ -2400,8 +2400,10 @@ int ata_dev_configure(struct ata_device *dev)
 			dma_dir_string = ", DMADIR";
 		}
 
-		if (ata_id_has_da(dev->id))
+		if (ata_id_has_da(dev->id)) {
 			dev->flags |= ATA_DFLAG_DA;
+			zpodd_init(dev);
+		}
 
 		/* print device info to dmesg */
 		if (ata_msg_drv(ap) && print_info)
@@ -5331,9 +5333,6 @@ static int ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
 
 static int __ata_port_suspend_common(struct ata_port *ap, pm_message_t mesg, int *async)
 {
-	unsigned int ehi_flags = ATA_EHI_QUIET;
-	int rc;
-
 	/*
 	 * On some hardware, device fails to respond after spun down
 	 * for suspend.  As the device won't be used before being
@@ -5342,11 +5341,9 @@ static int __ata_port_suspend_common(struct ata_port *ap, pm_message_t mesg, int
 	 *
 	 * http://thread.gmane.org/gmane.linux.ide/46764
 	 */
-	if (mesg.event == PM_EVENT_SUSPEND)
-		ehi_flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_NO_RECOVERY;
-
-	rc = ata_port_request_pm(ap, mesg, 0, ehi_flags, async);
-	return rc;
+	unsigned int ehi_flags = ATA_EHI_QUIET | ATA_EHI_NO_AUTOPSY |
+				 ATA_EHI_NO_RECOVERY;
+	return ata_port_request_pm(ap, mesg, 0, ehi_flags, async);
 }
 
 static int ata_port_suspend_common(struct device *dev, pm_message_t mesg)
@@ -5367,40 +5364,38 @@ static int ata_port_suspend(struct device *dev)
 static int ata_port_do_freeze(struct device *dev)
 {
 	if (pm_runtime_suspended(dev))
-		pm_runtime_resume(dev);
+		return 0;
 
 	return ata_port_suspend_common(dev, PMSG_FREEZE);
 }
 
 static int ata_port_poweroff(struct device *dev)
 {
-	if (pm_runtime_suspended(dev))
-		return 0;
-
 	return ata_port_suspend_common(dev, PMSG_HIBERNATE);
 }
 
-static int __ata_port_resume_common(struct ata_port *ap, int *async)
+static int __ata_port_resume_common(struct ata_port *ap, pm_message_t mesg,
+				    int *async)
 {
 	int rc;
 
-	rc = ata_port_request_pm(ap, PMSG_ON, ATA_EH_RESET,
+	rc = ata_port_request_pm(ap, mesg, ATA_EH_RESET,
 		ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, async);
 	return rc;
 }
 
-static int ata_port_resume_common(struct device *dev)
+static int ata_port_resume_common(struct device *dev, pm_message_t mesg)
 {
 	struct ata_port *ap = to_ata_port(dev);
 
-	return __ata_port_resume_common(ap, NULL);
+	return __ata_port_resume_common(ap, mesg, NULL);
 }
 
 static int ata_port_resume(struct device *dev)
 {
 	int rc;
 
-	rc = ata_port_resume_common(dev);
+	rc = ata_port_resume_common(dev, PMSG_RESUME);
 	if (!rc) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
@@ -5410,9 +5405,38 @@ static int ata_port_resume(struct device *dev)
 	return rc;
 }
 
+/*
+ * For ODDs, the upper layer will poll for media change every few seconds,
+ * which will make it enter and leave suspend state every few seconds. And
+ * as each suspend will cause a hard/soft reset, the gain of runtime suspend
+ * is very little and the ODD may malfunction after constantly being reset.
+ * So the idle callback here will not proceed to suspend if a non-ZPODD capable
+ * ODD is attached to the port.
+ */
 static int ata_port_runtime_idle(struct device *dev)
 {
+	struct ata_port *ap = to_ata_port(dev);
+	struct ata_link *link;
+	struct ata_device *adev;
+
+	ata_for_each_link(link, ap, HOST_FIRST) {
+		ata_for_each_dev(adev, link, ENABLED)
+			if (adev->class == ATA_DEV_ATAPI &&
+			    !zpodd_dev_enabled(adev))
+				return -EBUSY;
+	}
+
 	return pm_runtime_suspend(dev);
+}
+
+static int ata_port_runtime_suspend(struct device *dev)
+{
+	return ata_port_suspend_common(dev, PMSG_AUTO_SUSPEND);
+}
+
+static int ata_port_runtime_resume(struct device *dev)
+{
+	return ata_port_resume_common(dev, PMSG_AUTO_RESUME);
 }
 
 static const struct dev_pm_ops ata_port_pm_ops = {
@@ -5423,8 +5447,8 @@ static const struct dev_pm_ops ata_port_pm_ops = {
 	.poweroff = ata_port_poweroff,
 	.restore = ata_port_resume,
 
-	.runtime_suspend = ata_port_suspend,
-	.runtime_resume = ata_port_resume_common,
+	.runtime_suspend = ata_port_runtime_suspend,
+	.runtime_resume = ata_port_runtime_resume,
 	.runtime_idle = ata_port_runtime_idle,
 };
 
@@ -5441,7 +5465,7 @@ EXPORT_SYMBOL_GPL(ata_sas_port_async_suspend);
 
 int ata_sas_port_async_resume(struct ata_port *ap, int *async)
 {
-	return __ata_port_resume_common(ap, async);
+	return __ata_port_resume_common(ap, PMSG_RESUME, async);
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_async_resume);
 

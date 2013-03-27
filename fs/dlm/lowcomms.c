@@ -177,12 +177,11 @@ static inline int nodeid_hash(int nodeid)
 static struct connection *__find_con(int nodeid)
 {
 	int r;
-	struct hlist_node *h;
 	struct connection *con;
 
 	r = nodeid_hash(nodeid);
 
-	hlist_for_each_entry(con, h, &connection_hash[r], list) {
+	hlist_for_each_entry(con, &connection_hash[r], list) {
 		if (con->nodeid == nodeid)
 			return con;
 	}
@@ -232,13 +231,12 @@ static struct connection *__nodeid2con(int nodeid, gfp_t alloc)
 static void foreach_conn(void (*conn_func)(struct connection *c))
 {
 	int i;
-	struct hlist_node *h, *n;
+	struct hlist_node *n;
 	struct connection *con;
 
 	for (i = 0; i < CONN_HASH_SIZE; i++) {
-		hlist_for_each_entry_safe(con, h, n, &connection_hash[i], list){
+		hlist_for_each_entry_safe(con, n, &connection_hash[i], list)
 			conn_func(con);
-		}
 	}
 }
 
@@ -257,13 +255,12 @@ static struct connection *nodeid2con(int nodeid, gfp_t allocation)
 static struct connection *assoc2con(int assoc_id)
 {
 	int i;
-	struct hlist_node *h;
 	struct connection *con;
 
 	mutex_lock(&connections_lock);
 
 	for (i = 0 ; i < CONN_HASH_SIZE; i++) {
-		hlist_for_each_entry(con, h, &connection_hash[i], list) {
+		hlist_for_each_entry(con, &connection_hash[i], list) {
 			if (con->sctp_assoc == assoc_id) {
 				mutex_unlock(&connections_lock);
 				return con;

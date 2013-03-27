@@ -42,7 +42,7 @@
  *
  */
 
-#define	MAX_SLOT_NUM 10
+#define MAX_SLOT_NUM 10
 static unsigned char irq_map[][5] __initdata = {
 	[3] = {0, MARKEINS_PCI_IRQ_INTB, MARKEINS_PCI_IRQ_INTC,
 	       MARKEINS_PCI_IRQ_INTD, 0,},

@@ -589,13 +589,6 @@ static int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 	qlcnic_83xx_register_nic_idc_func(adapter, 1);
 
 	qlcnic_83xx_enable_mbx_intrpt(adapter);
-	if ((adapter->flags & QLCNIC_MSIX_ENABLED)) {
-		if (qlcnic_83xx_config_intrpt(adapter, 1)) {
-			netdev_err(adapter->netdev,
-				   "Failed to enable mbx intr\n");
-			return -EIO;
-		}
-	}
 
 	if (qlcnic_83xx_configure_opmode(adapter)) {
 		qlcnic_83xx_idc_enter_failed_state(adapter, 1);

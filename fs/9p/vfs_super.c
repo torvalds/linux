@@ -363,5 +363,5 @@ struct file_system_type v9fs_fs_type = {
 	.mount = v9fs_mount,
 	.kill_sb = v9fs_kill_super,
 	.owner = THIS_MODULE,
-	.fs_flags = FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT,
+	.fs_flags = FS_RENAME_DOES_D_MOVE,
 };

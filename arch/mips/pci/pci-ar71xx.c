@@ -18,26 +18,11 @@
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/ath79.h>
-#include <asm/mach-ath79/pci.h>
-
-#define AR71XX_PCI_MEM_BASE	0x10000000
-#define AR71XX_PCI_MEM_SIZE	0x07000000
-
-#define AR71XX_PCI_WIN0_OFFS		0x10000000
-#define AR71XX_PCI_WIN1_OFFS		0x11000000
-#define AR71XX_PCI_WIN2_OFFS		0x12000000
-#define AR71XX_PCI_WIN3_OFFS		0x13000000
-#define AR71XX_PCI_WIN4_OFFS		0x14000000
-#define AR71XX_PCI_WIN5_OFFS		0x15000000
-#define AR71XX_PCI_WIN6_OFFS		0x16000000
-#define AR71XX_PCI_WIN7_OFFS		0x07000000
-
-#define AR71XX_PCI_CFG_BASE		\
-	(AR71XX_PCI_MEM_BASE + AR71XX_PCI_WIN7_OFFS + 0x10000)
-#define AR71XX_PCI_CFG_SIZE		0x100
 
 #define AR71XX_PCI_REG_CRP_AD_CBE	0x00
 #define AR71XX_PCI_REG_CRP_WRDATA	0x04
@@ -63,8 +48,15 @@
 
 #define AR71XX_PCI_IRQ_COUNT		5
 
-static DEFINE_SPINLOCK(ar71xx_pci_lock);
-static void __iomem *ar71xx_pcicfg_base;
+struct ar71xx_pci_controller {
+	void __iomem *cfg_base;
+	spinlock_t lock;
+	int irq;
+	int irq_base;
+	struct pci_controller pci_ctrl;
+	struct resource io_res;
+	struct resource mem_res;
+};
 
 /* Byte lane enable bits */
 static const u8 ar71xx_pci_ble_table[4][4] = {
@@ -107,9 +99,18 @@ static inline u32 ar71xx_pci_bus_addr(struct pci_bus *bus, unsigned int devfn,
 	return ret;
 }
 
-static int ar71xx_pci_check_error(int quiet)
+static inline struct ar71xx_pci_controller *
+pci_bus_to_ar71xx_controller(struct pci_bus *bus)
 {
-	void __iomem *base = ar71xx_pcicfg_base;
+	struct pci_controller *hose;
+
+	hose = (struct pci_controller *) bus->sysdata;
+	return container_of(hose, struct ar71xx_pci_controller, pci_ctrl);
+}
+
+static int ar71xx_pci_check_error(struct ar71xx_pci_controller *apc, int quiet)
+{
+	void __iomem *base = apc->cfg_base;
 	u32 pci_err;
 	u32 ahb_err;
 
@@ -144,9 +145,10 @@ static int ar71xx_pci_check_error(int quiet)
 	return !!(ahb_err | pci_err);
 }
 
-static inline void ar71xx_pci_local_write(int where, int size, u32 value)
+static inline void ar71xx_pci_local_write(struct ar71xx_pci_controller *apc,
+					  int where, int size, u32 value)
 {
-	void __iomem *base = ar71xx_pcicfg_base;
+	void __iomem *base = apc->cfg_base;
 	u32 ad_cbe;
 
 	value = value << (8 * (where & 3));
@@ -162,7 +164,8 @@ static inline int ar71xx_pci_set_cfgaddr(struct pci_bus *bus,
 					 unsigned int devfn,
 					 int where, int size, u32 cmd)
 {
-	void __iomem *base = ar71xx_pcicfg_base;
+	struct ar71xx_pci_controller *apc = pci_bus_to_ar71xx_controller(bus);
+	void __iomem *base = apc->cfg_base;
 	u32 addr;
 
 	addr = ar71xx_pci_bus_addr(bus, devfn, where);
@@ -171,13 +174,14 @@ static inline int ar71xx_pci_set_cfgaddr(struct pci_bus *bus,
 	__raw_writel(cmd | ar71xx_pci_get_ble(where, size, 0),
 		     base + AR71XX_PCI_REG_CFG_CBE);
 
-	return ar71xx_pci_check_error(1);
+	return ar71xx_pci_check_error(apc, 1);
 }
 
 static int ar71xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 				  int where, int size, u32 *value)
 {
-	void __iomem *base = ar71xx_pcicfg_base;
+	struct ar71xx_pci_controller *apc = pci_bus_to_ar71xx_controller(bus);
+	void __iomem *base = apc->cfg_base;
 	unsigned long flags;
 	u32 data;
 	int err;
@@ -186,7 +190,7 @@ static int ar71xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	ret = PCIBIOS_SUCCESSFUL;
 	data = ~0;
 
-	spin_lock_irqsave(&ar71xx_pci_lock, flags);
+	spin_lock_irqsave(&apc->lock, flags);
 
 	err = ar71xx_pci_set_cfgaddr(bus, devfn, where, size,
 				     AR71XX_PCI_CFG_CMD_READ);
@@ -195,7 +199,7 @@ static int ar71xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	else
 		data = __raw_readl(base + AR71XX_PCI_REG_CFG_RDDATA);
 
-	spin_unlock_irqrestore(&ar71xx_pci_lock, flags);
+	spin_unlock_irqrestore(&apc->lock, flags);
 
 	*value = (data >> (8 * (where & 3))) & ar71xx_pci_read_mask[size & 7];
 
@@ -205,7 +209,8 @@ static int ar71xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 static int ar71xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 				   int where, int size, u32 value)
 {
-	void __iomem *base = ar71xx_pcicfg_base;
+	struct ar71xx_pci_controller *apc = pci_bus_to_ar71xx_controller(bus);
+	void __iomem *base = apc->cfg_base;
 	unsigned long flags;
 	int err;
 	int ret;
@@ -213,7 +218,7 @@ static int ar71xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	value = value << (8 * (where & 3));
 	ret = PCIBIOS_SUCCESSFUL;
 
-	spin_lock_irqsave(&ar71xx_pci_lock, flags);
+	spin_lock_irqsave(&apc->lock, flags);
 
 	err = ar71xx_pci_set_cfgaddr(bus, devfn, where, size,
 				     AR71XX_PCI_CFG_CMD_WRITE);
@@ -222,7 +227,7 @@ static int ar71xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	else
 		__raw_writel(value, base + AR71XX_PCI_REG_CFG_WRDATA);
 
-	spin_unlock_irqrestore(&ar71xx_pci_lock, flags);
+	spin_unlock_irqrestore(&apc->lock, flags);
 
 	return ret;
 }
@@ -232,45 +237,28 @@ static struct pci_ops ar71xx_pci_ops = {
 	.write	= ar71xx_pci_write_config,
 };
 
-static struct resource ar71xx_pci_io_resource = {
-	.name		= "PCI IO space",
-	.start		= 0,
-	.end		= 0,
-	.flags		= IORESOURCE_IO,
-};
-
-static struct resource ar71xx_pci_mem_resource = {
-	.name		= "PCI memory space",
-	.start		= AR71XX_PCI_MEM_BASE,
-	.end		= AR71XX_PCI_MEM_BASE + AR71XX_PCI_MEM_SIZE - 1,
-	.flags		= IORESOURCE_MEM
-};
-
-static struct pci_controller ar71xx_pci_controller = {
-	.pci_ops	= &ar71xx_pci_ops,
-	.mem_resource	= &ar71xx_pci_mem_resource,
-	.io_resource	= &ar71xx_pci_io_resource,
-};
-
 static void ar71xx_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
+	struct ar71xx_pci_controller *apc;
 	void __iomem *base = ath79_reset_base;
 	u32 pending;
+
+	apc = irq_get_handler_data(irq);
 
 	pending = __raw_readl(base + AR71XX_RESET_REG_PCI_INT_STATUS) &
 		  __raw_readl(base + AR71XX_RESET_REG_PCI_INT_ENABLE);
 
 	if (pending & AR71XX_PCI_INT_DEV0)
-		generic_handle_irq(ATH79_PCI_IRQ(0));
+		generic_handle_irq(apc->irq_base + 0);
 
 	else if (pending & AR71XX_PCI_INT_DEV1)
-		generic_handle_irq(ATH79_PCI_IRQ(1));
+		generic_handle_irq(apc->irq_base + 1);
 
 	else if (pending & AR71XX_PCI_INT_DEV2)
-		generic_handle_irq(ATH79_PCI_IRQ(2));
+		generic_handle_irq(apc->irq_base + 2);
 
 	else if (pending & AR71XX_PCI_INT_CORE)
-		generic_handle_irq(ATH79_PCI_IRQ(4));
+		generic_handle_irq(apc->irq_base + 4);
 
 	else
 		spurious_interrupt();
@@ -278,9 +266,13 @@ static void ar71xx_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 static void ar71xx_pci_irq_unmask(struct irq_data *d)
 {
-	unsigned int irq = d->irq - ATH79_PCI_IRQ_BASE;
+	struct ar71xx_pci_controller *apc;
+	unsigned int irq;
 	void __iomem *base = ath79_reset_base;
 	u32 t;
+
+	apc = irq_data_get_irq_chip_data(d);
+	irq = d->irq - apc->irq_base;
 
 	t = __raw_readl(base + AR71XX_RESET_REG_PCI_INT_ENABLE);
 	__raw_writel(t | (1 << irq), base + AR71XX_RESET_REG_PCI_INT_ENABLE);
@@ -291,9 +283,13 @@ static void ar71xx_pci_irq_unmask(struct irq_data *d)
 
 static void ar71xx_pci_irq_mask(struct irq_data *d)
 {
-	unsigned int irq = d->irq - ATH79_PCI_IRQ_BASE;
+	struct ar71xx_pci_controller *apc;
+	unsigned int irq;
 	void __iomem *base = ath79_reset_base;
 	u32 t;
+
+	apc = irq_data_get_irq_chip_data(d);
+	irq = d->irq - apc->irq_base;
 
 	t = __raw_readl(base + AR71XX_RESET_REG_PCI_INT_ENABLE);
 	__raw_writel(t & ~(1 << irq), base + AR71XX_RESET_REG_PCI_INT_ENABLE);
@@ -309,7 +305,7 @@ static struct irq_chip ar71xx_pci_irq_chip = {
 	.irq_mask_ack	= ar71xx_pci_irq_mask,
 };
 
-static __init void ar71xx_pci_irq_init(void)
+static void ar71xx_pci_irq_init(struct ar71xx_pci_controller *apc)
 {
 	void __iomem *base = ath79_reset_base;
 	int i;
@@ -319,15 +315,19 @@ static __init void ar71xx_pci_irq_init(void)
 
 	BUILD_BUG_ON(ATH79_PCI_IRQ_COUNT < AR71XX_PCI_IRQ_COUNT);
 
-	for (i = ATH79_PCI_IRQ_BASE;
-	     i < ATH79_PCI_IRQ_BASE + AR71XX_PCI_IRQ_COUNT; i++)
+	apc->irq_base = ATH79_PCI_IRQ_BASE;
+	for (i = apc->irq_base;
+	     i < apc->irq_base + AR71XX_PCI_IRQ_COUNT; i++) {
 		irq_set_chip_and_handler(i, &ar71xx_pci_irq_chip,
 					 handle_level_irq);
+		irq_set_chip_data(i, apc);
+	}
 
-	irq_set_chained_handler(ATH79_CPU_IRQ_IP2, ar71xx_pci_irq_handler);
+	irq_set_handler_data(apc->irq, apc);
+	irq_set_chained_handler(apc->irq, ar71xx_pci_irq_handler);
 }
 
-static __init void ar71xx_pci_reset(void)
+static void ar71xx_pci_reset(void)
 {
 	void __iomem *ddr_base = ath79_ddr_base;
 
@@ -349,27 +349,83 @@ static __init void ar71xx_pci_reset(void)
 	mdelay(100);
 }
 
-__init int ar71xx_pcibios_init(void)
+static int ar71xx_pci_probe(struct platform_device *pdev)
 {
+	struct ar71xx_pci_controller *apc;
+	struct resource *res;
 	u32 t;
 
-	ar71xx_pcicfg_base = ioremap(AR71XX_PCI_CFG_BASE, AR71XX_PCI_CFG_SIZE);
-	if (ar71xx_pcicfg_base == NULL)
+	apc = devm_kzalloc(&pdev->dev, sizeof(struct ar71xx_pci_controller),
+			   GFP_KERNEL);
+	if (!apc)
 		return -ENOMEM;
+
+	spin_lock_init(&apc->lock);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_base");
+	if (!res)
+		return -EINVAL;
+
+	apc->cfg_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!apc->cfg_base)
+		return -ENOMEM;
+
+	apc->irq = platform_get_irq(pdev, 0);
+	if (apc->irq < 0)
+		return -EINVAL;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_IO, "io_base");
+	if (!res)
+		return -EINVAL;
+
+	apc->io_res.parent = res;
+	apc->io_res.name = "PCI IO space";
+	apc->io_res.start = res->start;
+	apc->io_res.end = res->end;
+	apc->io_res.flags = IORESOURCE_IO;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mem_base");
+	if (!res)
+		return -EINVAL;
+
+	apc->mem_res.parent = res;
+	apc->mem_res.name = "PCI memory space";
+	apc->mem_res.start = res->start;
+	apc->mem_res.end = res->end;
+	apc->mem_res.flags = IORESOURCE_MEM;
 
 	ar71xx_pci_reset();
 
 	/* setup COMMAND register */
 	t = PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE
 	  | PCI_COMMAND_PARITY | PCI_COMMAND_SERR | PCI_COMMAND_FAST_BACK;
-	ar71xx_pci_local_write(PCI_COMMAND, 4, t);
+	ar71xx_pci_local_write(apc, PCI_COMMAND, 4, t);
 
 	/* clear bus errors */
-	ar71xx_pci_check_error(1);
+	ar71xx_pci_check_error(apc, 1);
 
-	ar71xx_pci_irq_init();
+	ar71xx_pci_irq_init(apc);
 
-	register_pci_controller(&ar71xx_pci_controller);
+	apc->pci_ctrl.pci_ops = &ar71xx_pci_ops;
+	apc->pci_ctrl.mem_resource = &apc->mem_res;
+	apc->pci_ctrl.io_resource = &apc->io_res;
+
+	register_pci_controller(&apc->pci_ctrl);
 
 	return 0;
 }
+
+static struct platform_driver ar71xx_pci_driver = {
+	.probe = ar71xx_pci_probe,
+	.driver = {
+		.name = "ar71xx-pci",
+		.owner = THIS_MODULE,
+	},
+};
+
+static int __init ar71xx_pci_init(void)
+{
+	return platform_driver_register(&ar71xx_pci_driver);
+}
+
+postcore_initcall(ar71xx_pci_init);

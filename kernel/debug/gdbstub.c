@@ -783,7 +783,10 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 			len = len / 2;
 			remcom_out_buffer[len++] = 0;
 
+			kdb_common_init_state(ks);
 			kdb_parse(remcom_out_buffer);
+			kdb_common_deinit_state();
+
 			strcpy(remcom_out_buffer, "OK");
 		}
 		break;

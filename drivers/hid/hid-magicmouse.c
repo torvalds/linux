@@ -19,7 +19,6 @@
 #include <linux/input/mt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 
 #include "hid-ids.h"
 

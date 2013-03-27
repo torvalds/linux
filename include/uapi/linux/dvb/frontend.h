@@ -365,7 +365,17 @@ struct dvb_frontend_event {
 #define DTV_INTERLEAVING			60
 #define DTV_LNA					61
 
-#define DTV_MAX_COMMAND				DTV_LNA
+/* Quality parameters */
+#define DTV_STAT_SIGNAL_STRENGTH	62
+#define DTV_STAT_CNR			63
+#define DTV_STAT_PRE_ERROR_BIT_COUNT	64
+#define DTV_STAT_PRE_TOTAL_BIT_COUNT	65
+#define DTV_STAT_POST_ERROR_BIT_COUNT	66
+#define DTV_STAT_POST_TOTAL_BIT_COUNT	67
+#define DTV_STAT_ERROR_BLOCK_COUNT	68
+#define DTV_STAT_TOTAL_BLOCK_COUNT	69
+
+#define DTV_MAX_COMMAND		DTV_STAT_TOTAL_BLOCK_COUNT
 
 typedef enum fe_pilot {
 	PILOT_ON,
@@ -452,11 +462,78 @@ struct dtv_cmds_h {
 	__u32	reserved:30;	/* Align */
 };
 
+/**
+ * Scale types for the quality parameters.
+ * @FE_SCALE_NOT_AVAILABLE: That QoS measure is not available. That
+ *			    could indicate a temporary or a permanent
+ *			    condition.
+ * @FE_SCALE_DECIBEL: The scale is measured in 0.0001 dB steps, typically
+ *		  used on signal measures.
+ * @FE_SCALE_RELATIVE: The scale is a relative percentual measure,
+ *			ranging from 0 (0%) to 0xffff (100%).
+ * @FE_SCALE_COUNTER: The scale counts the occurrence of an event, like
+ *			bit error, block error, lapsed time.
+ */
+enum fecap_scale_params {
+	FE_SCALE_NOT_AVAILABLE = 0,
+	FE_SCALE_DECIBEL,
+	FE_SCALE_RELATIVE,
+	FE_SCALE_COUNTER
+};
+
+/**
+ * struct dtv_stats - Used for reading a DTV status property
+ *
+ * @value:	value of the measure. Should range from 0 to 0xffff;
+ * @scale:	Filled with enum fecap_scale_params - the scale
+ *		in usage for that parameter
+ *
+ * For most delivery systems, this will return a single value for each
+ * parameter.
+ * It should be noticed, however, that new OFDM delivery systems like
+ * ISDB can use different modulation types for each group of carriers.
+ * On such standards, up to 8 groups of statistics can be provided, one
+ * for each carrier group (called "layer" on ISDB).
+ * In order to be consistent with other delivery systems, the first
+ * value refers to the entire set of carriers ("global").
+ * dtv_status:scale should use the value FE_SCALE_NOT_AVAILABLE when
+ * the value for the entire group of carriers or from one specific layer
+ * is not provided by the hardware.
+ * st.len should be filled with the latest filled status + 1.
+ *
+ * In other words, for ISDB, those values should be filled like:
+ *	u.st.stat.svalue[0] = global statistics;
+ *	u.st.stat.scale[0] = FE_SCALE_DECIBELS;
+ *	u.st.stat.value[1] = layer A statistics;
+ *	u.st.stat.scale[1] = FE_SCALE_NOT_AVAILABLE (if not available);
+ *	u.st.stat.svalue[2] = layer B statistics;
+ *	u.st.stat.scale[2] = FE_SCALE_DECIBELS;
+ *	u.st.stat.svalue[3] = layer C statistics;
+ *	u.st.stat.scale[3] = FE_SCALE_DECIBELS;
+ *	u.st.len = 4;
+ */
+struct dtv_stats {
+	__u8 scale;	/* enum fecap_scale_params type */
+	union {
+		__u64 uvalue;	/* for counters and relative scales */
+		__s64 svalue;	/* for 0.0001 dB measures */
+	};
+} __attribute__ ((packed));
+
+
+#define MAX_DTV_STATS   4
+
+struct dtv_fe_stats {
+	__u8 len;
+	struct dtv_stats stat[MAX_DTV_STATS];
+} __attribute__ ((packed));
+
 struct dtv_property {
 	__u32 cmd;
 	__u32 reserved[3];
 	union {
 		__u32 data;
+		struct dtv_fe_stats st;
 		struct {
 			__u8 data[32];
 			__u32 len;

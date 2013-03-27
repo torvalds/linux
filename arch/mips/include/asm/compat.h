@@ -120,7 +120,7 @@ struct compat_statfs {
 
 typedef u32		compat_old_sigset_t;	/* at least 32 bits */
 
-#define _COMPAT_NSIG		128		/* Don't ask !$@#% ...  */
+#define _COMPAT_NSIG		128		/* Don't ask !$@#% ...	*/
 #define _COMPAT_NSIG_BPW	32
 
 typedef u32		compat_sigset_word;
@@ -168,7 +168,7 @@ typedef struct compat_siginfo {
 			s32 _addr; /* faulting insn/memory ref. */
 		} _sigfault;
 
-		/* SIGPOLL, SIGXFSZ (To do ...)  */
+		/* SIGPOLL, SIGXFSZ (To do ...)	 */
 		struct {
 			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
 			int _fd;
@@ -179,7 +179,7 @@ typedef struct compat_siginfo {
 			timer_t _tid;		/* timer id */
 			int _overrun;		/* overrun count */
 			compat_sigval_t _sigval;/* same as below */
-			int _sys_private;       /* not to be passed to user */
+			int _sys_private;	/* not to be passed to user */
 		} _timer;
 
 		/* POSIX.1b signals */
@@ -287,6 +287,14 @@ struct compat_shmid64_ds {
 	compat_ulong_t	__unused1;
 	compat_ulong_t	__unused2;
 };
+
+/* MIPS has unusual order of fields in stack_t */
+typedef struct compat_sigaltstack {
+	compat_uptr_t			ss_sp;
+	compat_size_t			ss_size;
+	int				ss_flags;
+} compat_stack_t;
+#define compat_sigaltstack compat_sigaltstack
 
 static inline int is_compat_task(void)
 {

@@ -99,3 +99,13 @@ nouveau_client_fini(struct nouveau_client *client, bool suspend)
 	nv_debug(client, "%s completed with %d\n", name[suspend], ret);
 	return ret;
 }
+
+const char *
+nouveau_client_name(void *obj)
+{
+	const char *client_name = "unknown";
+	struct nouveau_client *client = nouveau_client(obj);
+	if (client)
+		client_name = client->name;
+	return client_name;
+}

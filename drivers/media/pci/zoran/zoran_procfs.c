@@ -137,7 +137,7 @@ static int zoran_open(struct inode *inode, struct file *file)
 static ssize_t zoran_write(struct file *file, const char __user *buffer,
 			size_t count, loff_t *ppos)
 {
-	struct zoran *zr = PDE(file->f_path.dentry->d_inode)->data;
+	struct zoran *zr = PDE(file_inode(file))->data;
 	char *string, *sp;
 	char *line, *ldelim, *varname, *svar, *tdelim;
 

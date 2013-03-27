@@ -322,6 +322,8 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	return 0;
 }
 
+#ifndef elf_map
+
 static unsigned long elf_map(struct file *filep, unsigned long addr,
 		struct elf_phdr *eppnt, int prot, int type,
 		unsigned long total_size)
@@ -355,6 +357,8 @@ static unsigned long elf_map(struct file *filep, unsigned long addr,
 
 	return(map_addr);
 }
+
+#endif /* !elf_map */
 
 static unsigned long total_mapping_size(struct elf_phdr *cmds, int nr)
 {
@@ -1141,7 +1145,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
 
 	/* By default, dump shared memory if mapped from an anonymous file. */
 	if (vma->vm_flags & VM_SHARED) {
-		if (vma->vm_file->f_path.dentry->d_inode->i_nlink == 0 ?
+		if (file_inode(vma->vm_file)->i_nlink == 0 ?
 		    FILTER(ANON_SHARED) : FILTER(MAPPED_SHARED))
 			goto whole;
 		return 0;

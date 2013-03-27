@@ -79,6 +79,17 @@ config ASUS_LAPTOP
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
+config CHROMEOS_LAPTOP
+	tristate "Chrome OS Laptop"
+	depends on I2C
+	depends on DMI
+	---help---
+	  This driver instantiates i2c and smbus devices such as
+	  light sensors and touchpads.
+
+	  If you have a supported Chromebook, choose Y or M here.
+	  The module will be called chromeos_laptop.
+
 config DELL_LAPTOP
 	tristate "Dell Laptop Extras"
 	depends on X86
@@ -288,9 +299,11 @@ config IDEAPAD_LAPTOP
 	depends on ACPI
 	depends on RFKILL && INPUT
 	depends on SERIO_I8042
+	depends on BACKLIGHT_CLASS_DEVICE
 	select INPUT_SPARSEKMAP
 	help
-	  This is a driver for the rfkill switches on Lenovo IdeaPad netbooks.
+	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
+	  rfkill switch, hotkey, fan control and backlight control.
 
 config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"

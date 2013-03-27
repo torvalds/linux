@@ -139,10 +139,9 @@ struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 	u32 hash = inet_addr_hash(net, addr);
 	struct net_device *result = NULL;
 	struct in_ifaddr *ifa;
-	struct hlist_node *node;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(ifa, node, &inet_addr_lst[hash], hash) {
+	hlist_for_each_entry_rcu(ifa, &inet_addr_lst[hash], hash) {
 		if (ifa->ifa_local == addr) {
 			struct net_device *dev = ifa->ifa_dev->dev;
 
@@ -588,7 +587,6 @@ static void check_lifetime(struct work_struct *work)
 {
 	unsigned long now, next, next_sec, next_sched;
 	struct in_ifaddr *ifa;
-	struct hlist_node *node;
 	int i;
 
 	now = jiffies;
@@ -596,8 +594,7 @@ static void check_lifetime(struct work_struct *work)
 
 	rcu_read_lock();
 	for (i = 0; i < IN4_ADDR_HSIZE; i++) {
-		hlist_for_each_entry_rcu(ifa, node,
-					 &inet_addr_lst[i], hash) {
+		hlist_for_each_entry_rcu(ifa, &inet_addr_lst[i], hash) {
 			unsigned long age;
 
 			if (ifa->ifa_flags & IFA_F_PERMANENT)
@@ -1493,7 +1490,6 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
 	struct hlist_head *head;
-	struct hlist_node *node;
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
@@ -1503,7 +1499,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 		idx = 0;
 		head = &net->dev_index_head[h];
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(dev, node, head, index_hlist) {
+		hlist_for_each_entry_rcu(dev, head, index_hlist) {
 			if (idx < s_idx)
 				goto cont;
 			if (h > s_h || idx > s_idx)

@@ -246,14 +246,13 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct bufdesc *bdp;
 	void *bufaddr;
 	unsigned short	status;
-	unsigned long flags;
+	unsigned int index;
 
 	if (!fep->link) {
 		/* Link is down or autonegotiation is in progress. */
 		return NETDEV_TX_BUSY;
 	}
 
-	spin_lock_irqsave(&fep->hw_lock, flags);
 	/* Fill in a Tx ring entry */
 	bdp = fep->cur_tx;
 
@@ -264,7 +263,6 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		 * This should not happen, since ndev->tbusy should be set.
 		 */
 		printk("%s: tx queue full!.\n", ndev->name);
-		spin_unlock_irqrestore(&fep->hw_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -280,13 +278,13 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	 * 4-byte boundaries. Use bounce buffers to copy data
 	 * and get it aligned. Ugh.
 	 */
+	if (fep->bufdesc_ex)
+		index = (struct bufdesc_ex *)bdp -
+			(struct bufdesc_ex *)fep->tx_bd_base;
+	else
+		index = bdp - fep->tx_bd_base;
+
 	if (((unsigned long) bufaddr) & FEC_ALIGNMENT) {
-		unsigned int index;
-		if (fep->bufdesc_ex)
-			index = (struct bufdesc_ex *)bdp -
-				(struct bufdesc_ex *)fep->tx_bd_base;
-		else
-			index = bdp - fep->tx_bd_base;
 		memcpy(fep->tx_bounce[index], skb->data, skb->len);
 		bufaddr = fep->tx_bounce[index];
 	}
@@ -300,10 +298,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		swap_buffer(bufaddr, skb->len);
 
 	/* Save skb pointer */
-	fep->tx_skbuff[fep->skb_cur] = skb;
-
-	ndev->stats.tx_bytes += skb->len;
-	fep->skb_cur = (fep->skb_cur+1) & TX_RING_MOD_MASK;
+	fep->tx_skbuff[index] = skb;
 
 	/* Push the data cache so the CPM does not get stale memory
 	 * data.
@@ -331,25 +326,21 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			ebdp->cbd_esc = BD_ENET_TX_INT;
 		}
 	}
-	/* Trigger transmission start */
-	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
-
 	/* If this was the last BD in the ring, start at the beginning again. */
 	if (status & BD_ENET_TX_WRAP)
 		bdp = fep->tx_bd_base;
 	else
 		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
 
-	if (bdp == fep->dirty_tx) {
-		fep->tx_full = 1;
-		netif_stop_queue(ndev);
-	}
-
 	fep->cur_tx = bdp;
 
-	skb_tx_timestamp(skb);
+	if (fep->cur_tx == fep->dirty_tx)
+		netif_stop_queue(ndev);
 
-	spin_unlock_irqrestore(&fep->hw_lock, flags);
+	/* Trigger transmission start */
+	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
+
+	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -406,11 +397,8 @@ fec_restart(struct net_device *ndev, int duplex)
 		writel((unsigned long)fep->bd_dma + sizeof(struct bufdesc)
 			* RX_RING_SIZE,	fep->hwp + FEC_X_DES_START);
 
-	fep->dirty_tx = fep->cur_tx = fep->tx_bd_base;
 	fep->cur_rx = fep->rx_bd_base;
 
-	/* Reset SKB transmit buffers. */
-	fep->skb_cur = fep->skb_dirty = 0;
 	for (i = 0; i <= TX_RING_MOD_MASK; i++) {
 		if (fep->tx_skbuff[i]) {
 			dev_kfree_skb_any(fep->tx_skbuff[i]);
@@ -573,20 +561,35 @@ fec_enet_tx(struct net_device *ndev)
 	struct bufdesc *bdp;
 	unsigned short status;
 	struct	sk_buff	*skb;
+	int	index = 0;
 
 	fep = netdev_priv(ndev);
-	spin_lock(&fep->hw_lock);
 	bdp = fep->dirty_tx;
 
+	/* get next bdp of dirty_tx */
+	if (bdp->cbd_sc & BD_ENET_TX_WRAP)
+		bdp = fep->tx_bd_base;
+	else
+		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+
 	while (((status = bdp->cbd_sc) & BD_ENET_TX_READY) == 0) {
-		if (bdp == fep->cur_tx && fep->tx_full == 0)
+
+		/* current queue is empty */
+		if (bdp == fep->cur_tx)
 			break;
+
+		if (fep->bufdesc_ex)
+			index = (struct bufdesc_ex *)bdp -
+				(struct bufdesc_ex *)fep->tx_bd_base;
+		else
+			index = bdp - fep->tx_bd_base;
 
 		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
 				FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
 		bdp->cbd_bufaddr = 0;
 
-		skb = fep->tx_skbuff[fep->skb_dirty];
+		skb = fep->tx_skbuff[index];
+
 		/* Check for errors. */
 		if (status & (BD_ENET_TX_HB | BD_ENET_TX_LC |
 				   BD_ENET_TX_RL | BD_ENET_TX_UN |
@@ -631,8 +634,9 @@ fec_enet_tx(struct net_device *ndev)
 
 		/* Free the sk buffer associated with this last transmit */
 		dev_kfree_skb_any(skb);
-		fep->tx_skbuff[fep->skb_dirty] = NULL;
-		fep->skb_dirty = (fep->skb_dirty + 1) & TX_RING_MOD_MASK;
+		fep->tx_skbuff[index] = NULL;
+
+		fep->dirty_tx = bdp;
 
 		/* Update pointer to next buffer descriptor to be transmitted */
 		if (status & BD_ENET_TX_WRAP)
@@ -642,14 +646,12 @@ fec_enet_tx(struct net_device *ndev)
 
 		/* Since we have freed up a buffer, the ring is no longer full
 		 */
-		if (fep->tx_full) {
-			fep->tx_full = 0;
+		if (fep->dirty_tx != fep->cur_tx) {
 			if (netif_queue_stopped(ndev))
 				netif_wake_queue(ndev);
 		}
 	}
-	fep->dirty_tx = bdp;
-	spin_unlock(&fep->hw_lock);
+	return;
 }
 
 
@@ -816,7 +818,7 @@ fec_enet_interrupt(int irq, void *dev_id)
 		int_events = readl(fep->hwp + FEC_IEVENT);
 		writel(int_events, fep->hwp + FEC_IEVENT);
 
-		if (int_events & FEC_ENET_RXF) {
+		if (int_events & (FEC_ENET_RXF | FEC_ENET_TXF)) {
 			ret = IRQ_HANDLED;
 
 			/* Disable the RX interrupt */
@@ -825,15 +827,6 @@ fec_enet_interrupt(int irq, void *dev_id)
 					fep->hwp + FEC_IMASK);
 				__napi_schedule(&fep->napi);
 			}
-		}
-
-		/* Transmit OK, or non-fatal error. Update the buffer
-		 * descriptors. FEC handles all errors, we just discover
-		 * them as part of the transmit process.
-		 */
-		if (int_events & FEC_ENET_TXF) {
-			ret = IRQ_HANDLED;
-			fec_enet_tx(ndev);
 		}
 
 		if (int_events & FEC_ENET_MII) {
@@ -850,6 +843,8 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	struct net_device *ndev = napi->dev;
 	int pkts = fec_enet_rx(ndev, budget);
 	struct fec_enet_private *fep = netdev_priv(ndev);
+
+	fec_enet_tx(ndev);
 
 	if (pkts < budget) {
 		napi_complete(napi);
@@ -1646,6 +1641,7 @@ static int fec_enet_init(struct net_device *ndev)
 
 	/* ...and the same for transmit */
 	bdp = fep->tx_bd_base;
+	fep->cur_tx = bdp;
 	for (i = 0; i < TX_RING_SIZE; i++) {
 
 		/* Initialize the BD for every fragment in the page. */
@@ -1657,6 +1653,7 @@ static int fec_enet_init(struct net_device *ndev)
 	/* Set the last buffer to wrap */
 	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
 	bdp->cbd_sc |= BD_SC_WRAP;
+	fep->dirty_tx = bdp;
 
 	fec_restart(ndev, 0);
 
@@ -1782,24 +1779,6 @@ fec_probe(struct platform_device *pdev)
 		fep->phy_interface = ret;
 	}
 
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		irq = platform_get_irq(pdev, i);
-		if (irq < 0) {
-			if (i)
-				break;
-			ret = irq;
-			goto failed_irq;
-		}
-		ret = request_irq(irq, fec_enet_interrupt, IRQF_DISABLED, pdev->name, ndev);
-		if (ret) {
-			while (--i >= 0) {
-				irq = platform_get_irq(pdev, i);
-				free_irq(irq, ndev);
-			}
-			goto failed_irq;
-		}
-	}
-
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
@@ -1850,6 +1829,24 @@ fec_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_init;
 
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		irq = platform_get_irq(pdev, i);
+		if (irq < 0) {
+			if (i)
+				break;
+			ret = irq;
+			goto failed_irq;
+		}
+		ret = request_irq(irq, fec_enet_interrupt, IRQF_DISABLED, pdev->name, ndev);
+		if (ret) {
+			while (--i >= 0) {
+				irq = platform_get_irq(pdev, i);
+				free_irq(irq, ndev);
+			}
+			goto failed_irq;
+		}
+	}
+
 	ret = fec_enet_mii_init(pdev);
 	if (ret)
 		goto failed_mii_init;
@@ -1867,6 +1864,12 @@ failed_register:
 	fec_enet_mii_remove(fep);
 failed_mii_init:
 failed_init:
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		irq = platform_get_irq(pdev, i);
+		if (irq > 0)
+			free_irq(irq, ndev);
+	}
+failed_irq:
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
@@ -1874,12 +1877,6 @@ failed_regulator:
 		clk_disable_unprepare(fep->clk_ptp);
 failed_pin:
 failed_clk:
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		irq = platform_get_irq(pdev, i);
-		if (irq > 0)
-			free_irq(irq, ndev);
-	}
-failed_irq:
 	iounmap(fep->hwp);
 failed_ioremap:
 	free_netdev(ndev);
@@ -1899,17 +1896,17 @@ fec_drv_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		int irq = platform_get_irq(pdev, i);
-		if (irq > 0)
-			free_irq(irq, ndev);
-	}
 	del_timer_sync(&fep->time_keep);
 	clk_disable_unprepare(fep->clk_ptp);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		int irq = platform_get_irq(pdev, i);
+		if (irq > 0)
+			free_irq(irq, ndev);
+	}
 	iounmap(fep->hwp);
 	free_netdev(ndev);
 

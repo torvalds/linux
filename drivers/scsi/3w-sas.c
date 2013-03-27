@@ -757,7 +757,7 @@ static long twl_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	dma_addr_t dma_handle;
 	int request_id = 0;
 	TW_Ioctl_Driver_Command driver_command;
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	TW_Ioctl_Buf_Apache *tw_ioctl;
 	TW_Command_Full *full_command_packet;
 	TW_Device_Extension *tw_dev = twl_device_extension_list[iminor(inode)];

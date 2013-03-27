@@ -10422,6 +10422,28 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x0);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Disable MI_INT interrupt before setting LED4
+				 * source to constant off.
+				 */
+				if (REG_RD(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+					   params->port*4) &
+				    NIG_MASK_MI_INT) {
+					params->link_flags |=
+					LINK_FLAGS_INT_DISABLED;
+
+					bnx2x_bits_dis(
+						bp,
+						NIG_REG_MASK_INTERRUPT_PORT0 +
+						params->port*4,
+						NIG_MASK_MI_INT);
+				}
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x0);
+			}
 		}
 		break;
 	case LED_MODE_ON:
@@ -10468,6 +10490,28 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x20);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Disable MI_INT interrupt before setting LED4
+				 * source to constant on.
+				 */
+				if (REG_RD(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+					   params->port*4) &
+				    NIG_MASK_MI_INT) {
+					params->link_flags |=
+					LINK_FLAGS_INT_DISABLED;
+
+					bnx2x_bits_dis(
+						bp,
+						NIG_REG_MASK_INTERRUPT_PORT0 +
+						params->port*4,
+						NIG_MASK_MI_INT);
+				}
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x20);
+			}
 		}
 		break;
 
@@ -10532,6 +10576,22 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LINK_SIGNAL,
 					 val);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Restore LED4 source to external link,
+				 * and re-enable interrupts.
+				 */
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x40);
+				if (params->link_flags &
+				    LINK_FLAGS_INT_DISABLED) {
+					bnx2x_link_int_enable(params);
+					params->link_flags &=
+						~LINK_FLAGS_INT_DISABLED;
+				}
+			}
 		}
 		break;
 	}
@@ -11791,6 +11851,8 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 			phy->media_type = ETH_PHY_KR;
 			phy->flags |= FLAGS_WC_DUAL_MODE;
 			phy->supported &= (SUPPORTED_20000baseKR2_Full |
+					   SUPPORTED_10000baseT_Full |
+					   SUPPORTED_1000baseT_Full |
 					   SUPPORTED_Autoneg |
 					   SUPPORTED_FIBRE |
 					   SUPPORTED_Pause |
@@ -13013,64 +13075,6 @@ static int bnx2x_84833_common_init_phy(struct bnx2x *bp,
 	return 0;
 }
 
-static int bnx2x_84833_pre_init_phy(struct bnx2x *bp,
-				    struct bnx2x_phy *phy,
-				    u8 port)
-{
-	u16 val, cnt;
-	/* Wait for FW completing its initialization. */
-	for (cnt = 0; cnt < 1500; cnt++) {
-		bnx2x_cl45_read(bp, phy,
-				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_CTRL, &val);
-		if (!(val & (1<<15)))
-			break;
-		usleep_range(1000, 2000);
-	}
-	if (cnt >= 1500) {
-		DP(NETIF_MSG_LINK, "84833 reset timeout\n");
-		return -EINVAL;
-	}
-
-	/* Put the port in super isolate mode. */
-	bnx2x_cl45_read(bp, phy,
-			MDIO_CTL_DEVAD,
-			MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val);
-	val |= MDIO_84833_SUPER_ISOLATE;
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_CTL_DEVAD,
-			 MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
-
-	/* Save spirom version */
-	bnx2x_save_848xx_spirom_version(phy, bp, port);
-	return 0;
-}
-
-int bnx2x_pre_init_phy(struct bnx2x *bp,
-				  u32 shmem_base,
-				  u32 shmem2_base,
-				  u32 chip_id,
-				  u8 port)
-{
-	int rc = 0;
-	struct bnx2x_phy phy;
-	if (bnx2x_populate_phy(bp, EXT_PHY1, shmem_base, shmem2_base,
-			       port, &phy) != 0) {
-		DP(NETIF_MSG_LINK, "populate_phy failed\n");
-		return -EINVAL;
-	}
-	bnx2x_set_mdio_clk(bp, chip_id, phy.mdio_ctrl);
-	switch (phy.type) {
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834:
-		rc = bnx2x_84833_pre_init_phy(bp, &phy, port);
-		break;
-	default:
-		break;
-	}
-	return rc;
-}
-
 static int bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
 				     u32 shmem2_base_path[], u8 phy_index,
 				     u32 ext_phy_type, u32 chip_id)
@@ -13495,7 +13499,7 @@ void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 		struct bnx2x_phy *phy = &params->phy[INT_PHY];
 		bnx2x_set_aer_mmd(params, phy);
 		if ((phy->supported & SUPPORTED_20000baseKR2_Full) &&
-		    (phy->speed_cap_mask & SPEED_20000))
+		    (phy->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_20G))
 			bnx2x_check_kr2_wa(params, vars, phy);
 		bnx2x_check_over_curr(params, vars);
 		if (vars->rx_tx_asic_rst)

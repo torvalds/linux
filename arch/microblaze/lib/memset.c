@@ -24,10 +24,10 @@
  * not any responsibility to update it.
  */
 
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/compiler.h>
-#include <linux/module.h>
 #include <linux/string.h>
 
 #ifdef __HAVE_ARCH_MEMSET

@@ -59,22 +59,22 @@ static struct platform_device pcit_cplus_serial8250_device = {
 };
 
 static struct resource pcit_cmos_rsrc[] = {
-        {
-                .start = 0x70,
-                .end   = 0x71,
-                .flags = IORESOURCE_IO
-        },
-        {
-                .start = 8,
-                .end   = 8,
-                .flags = IORESOURCE_IRQ
-        }
+	{
+		.start = 0x70,
+		.end   = 0x71,
+		.flags = IORESOURCE_IO
+	},
+	{
+		.start = 8,
+		.end   = 8,
+		.flags = IORESOURCE_IRQ
+	}
 };
 
 static struct platform_device pcit_cmos_device = {
-        .name           = "rtc_cmos",
-        .num_resources  = ARRAY_SIZE(pcit_cmos_rsrc),
-        .resource       = pcit_cmos_rsrc
+	.name		= "rtc_cmos",
+	.num_resources	= ARRAY_SIZE(pcit_cmos_rsrc),
+	.resource	= pcit_cmos_rsrc
 };
 
 static struct platform_device pcit_pcspeaker_pdev = {
@@ -153,7 +153,7 @@ static struct pci_controller sni_pcit_controller = {
 	.mem_offset	= 0x00000000UL,
 	.io_resource	= &sni_io_resource,
 	.io_offset	= 0x00000000UL,
-	.io_map_base    = SNI_PORT_BASE
+	.io_map_base	= SNI_PORT_BASE
 };
 
 static void enable_pcit_irq(struct irq_data *d)
@@ -272,16 +272,16 @@ static int __init snirm_pcit_setup_devinit(void)
 {
 	switch (sni_brd_type) {
 	case SNI_BRD_PCI_TOWER:
-	        platform_device_register(&pcit_serial8250_device);
-	        platform_device_register(&pcit_cmos_device);
+		platform_device_register(&pcit_serial8250_device);
+		platform_device_register(&pcit_cmos_device);
 		platform_device_register(&pcit_pcspeaker_pdev);
-	        break;
+		break;
 
 	case SNI_BRD_PCI_TOWER_CPLUS:
-	        platform_device_register(&pcit_cplus_serial8250_device);
-	        platform_device_register(&pcit_cmos_device);
+		platform_device_register(&pcit_cplus_serial8250_device);
+		platform_device_register(&pcit_cmos_device);
 		platform_device_register(&pcit_pcspeaker_pdev);
-	        break;
+		break;
 	}
 	return 0;
 }

@@ -69,7 +69,7 @@ extern void __mnt_drop_write_file(struct file *);
 /*
  * fs_struct.c
  */
-extern void chroot_fs_refs(struct path *, struct path *);
+extern void chroot_fs_refs(const struct path *, const struct path *);
 
 /*
  * file_table.c

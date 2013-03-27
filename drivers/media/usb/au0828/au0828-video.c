@@ -304,7 +304,7 @@ static inline void buffer_filled(struct au0828_dev *dev,
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	do_gettimeofday(&buf->vb.ts);
+	v4l2_get_timestamp(&buf->vb.ts);
 
 	dev->isoc_ctl.buf = NULL;
 
@@ -321,7 +321,7 @@ static inline void vbi_buffer_filled(struct au0828_dev *dev,
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	do_gettimeofday(&buf->vb.ts);
+	v4l2_get_timestamp(&buf->vb.ts);
 
 	dev->isoc_ctl.vbi_buf = NULL;
 

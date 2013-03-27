@@ -697,7 +697,7 @@ int ceph_monc_delete_snapid(struct ceph_mon_client *monc,
 			    u32 pool, u64 snapid)
 {
 	return do_poolop(monc,  POOL_OP_CREATE_UNMANAGED_SNAP,
-				   pool, snapid, 0, 0);
+				   pool, snapid, NULL, 0);
 
 }
 

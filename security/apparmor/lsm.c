@@ -379,7 +379,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 	struct aa_profile *profile;
 	int error = 0;
 
-	if (!mediated_filesystem(file->f_path.dentry->d_inode))
+	if (!mediated_filesystem(file_inode(file)))
 		return 0;
 
 	/* If in exec, permission is handled by bprm hooks.
@@ -394,7 +394,7 @@ static int apparmor_file_open(struct file *file, const struct cred *cred)
 
 	profile = aa_cred_profile(cred);
 	if (!unconfined(profile)) {
-		struct inode *inode = file->f_path.dentry->d_inode;
+		struct inode *inode = file_inode(file);
 		struct path_cond cond = { inode->i_uid, inode->i_mode };
 
 		error = aa_path_perm(OP_OPEN, profile, &file->f_path, 0,
@@ -432,7 +432,7 @@ static int common_file_perm(int op, struct file *file, u32 mask)
 	BUG_ON(!fprofile);
 
 	if (!file->f_path.mnt ||
-	    !mediated_filesystem(file->f_path.dentry->d_inode))
+	    !mediated_filesystem(file_inode(file)))
 		return 0;
 
 	profile = __aa_current_profile();

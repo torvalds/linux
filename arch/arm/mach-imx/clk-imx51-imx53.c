@@ -83,6 +83,7 @@ enum imx5_clks {
 	ssi2_root_gate, ssi3_root_gate, ssi_ext1_gate, ssi_ext2_gate,
 	epit1_ipg_gate, epit1_hf_gate, epit2_ipg_gate, epit2_hf_gate,
 	can_sel, can1_serial_gate, can1_ipg_gate,
+	owire_gate,
 	clk_max
 };
 
@@ -233,12 +234,13 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk[epit1_hf_gate] = imx_clk_gate2("epit1_hf_gate", "per_root", MXC_CCM_CCGR2, 4);
 	clk[epit2_ipg_gate] = imx_clk_gate2("epit2_ipg_gate", "ipg", MXC_CCM_CCGR2, 6);
 	clk[epit2_hf_gate] = imx_clk_gate2("epit2_hf_gate", "per_root", MXC_CCM_CCGR2, 8);
+	clk[owire_gate] = imx_clk_gate2("owire_gate", "per_root", MXC_CCM_CCGR2, 22);
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
 			pr_err("i.MX5 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
-	
+
 	clk_register_clkdev(clk[gpt_hf_gate], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[gpt_ipg_gate], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[uart1_per_gate], "per", "imx21-uart.0");

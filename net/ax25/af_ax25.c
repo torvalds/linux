@@ -81,14 +81,13 @@ static void ax25_kill_by_device(struct net_device *dev)
 {
 	ax25_dev *ax25_dev;
 	ax25_cb *s;
-	struct hlist_node *node;
 
 	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL)
 		return;
 
 	spin_lock_bh(&ax25_list_lock);
 again:
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if (s->ax25_dev == ax25_dev) {
 			s->ax25_dev = NULL;
 			spin_unlock_bh(&ax25_list_lock);
@@ -158,10 +157,9 @@ struct sock *ax25_find_listener(ax25_address *addr, int digi,
 	struct net_device *dev, int type)
 {
 	ax25_cb *s;
-	struct hlist_node *node;
 
 	spin_lock(&ax25_list_lock);
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if ((s->iamdigi && !digi) || (!s->iamdigi && digi))
 			continue;
 		if (s->sk && !ax25cmp(&s->source_addr, addr) &&
@@ -187,10 +185,9 @@ struct sock *ax25_get_socket(ax25_address *my_addr, ax25_address *dest_addr,
 {
 	struct sock *sk = NULL;
 	ax25_cb *s;
-	struct hlist_node *node;
 
 	spin_lock(&ax25_list_lock);
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if (s->sk && !ax25cmp(&s->source_addr, my_addr) &&
 		    !ax25cmp(&s->dest_addr, dest_addr) &&
 		    s->sk->sk_type == type) {
@@ -213,10 +210,9 @@ ax25_cb *ax25_find_cb(ax25_address *src_addr, ax25_address *dest_addr,
 	ax25_digi *digi, struct net_device *dev)
 {
 	ax25_cb *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&ax25_list_lock);
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if (s->sk && s->sk->sk_type != SOCK_SEQPACKET)
 			continue;
 		if (s->ax25_dev == NULL)
@@ -248,10 +244,9 @@ void ax25_send_to_raw(ax25_address *addr, struct sk_buff *skb, int proto)
 {
 	ax25_cb *s;
 	struct sk_buff *copy;
-	struct hlist_node *node;
 
 	spin_lock(&ax25_list_lock);
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if (s->sk != NULL && ax25cmp(&s->source_addr, addr) == 0 &&
 		    s->sk->sk_type == SOCK_RAW &&
 		    s->sk->sk_protocol == proto &&

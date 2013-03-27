@@ -2055,6 +2055,23 @@ static int _omap4_get_context_lost(struct omap_hwmod *oh)
 }
 
 /**
+ * _enable_preprogram - Pre-program an IP block during the _enable() process
+ * @oh: struct omap_hwmod *
+ *
+ * Some IP blocks (such as AESS) require some additional programming
+ * after enable before they can enter idle.  If a function pointer to
+ * do so is present in the hwmod data, then call it and pass along the
+ * return value; otherwise, return 0.
+ */
+static int __init _enable_preprogram(struct omap_hwmod *oh)
+{
+	if (!oh->class->enable_preprogram)
+		return 0;
+
+	return oh->class->enable_preprogram(oh);
+}
+
+/**
  * _enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -2160,6 +2177,7 @@ static int _enable(struct omap_hwmod *oh)
 				_update_sysc_cache(oh);
 			_enable_sysc(oh);
 		}
+		r = _enable_preprogram(oh);
 	} else {
 		if (soc_ops.disable_module)
 			soc_ops.disable_module(oh);
@@ -3049,11 +3067,8 @@ static int _am33xx_assert_hardreset(struct omap_hwmod *oh,
 static int _am33xx_deassert_hardreset(struct omap_hwmod *oh,
 				     struct omap_hwmod_rst_info *ohri)
 {
-	if (ohri->st_shift)
-		pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
-		       oh->name, ohri->name);
-
 	return am33xx_prm_deassert_hardreset(ohri->rst_shift,
+				ohri->st_shift,
 				oh->clkdm->pwrdm.ptr->prcm_offs,
 				oh->prcm.omap4.rstctrl_offs,
 				oh->prcm.omap4.rstst_offs);

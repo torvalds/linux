@@ -35,7 +35,7 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <bcm47xx.h>
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 
 union bcm47xx_bus bcm47xx_bus;
 EXPORT_SYMBOL(bcm47xx_bus);
@@ -115,7 +115,7 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 	memset(&iv->sprom, 0, sizeof(struct ssb_sprom));
 	bcm47xx_fill_sprom(&iv->sprom, NULL, false);
 
-	if (nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
+	if (bcm47xx_nvram_getenv("cardbus", buf, sizeof(buf)) >= 0)
 		iv->has_cardbus_slot = !!simple_strtoul(buf, NULL, 10);
 
 	return 0;
@@ -138,7 +138,7 @@ static void __init bcm47xx_register_ssb(void)
 		panic("Failed to initialize SSB bus (err %d)", err);
 
 	mcore = &bcm47xx_bus.ssb.mipscore;
-	if (nvram_getenv("kernel_args", buf, sizeof(buf)) >= 0) {
+	if (bcm47xx_nvram_getenv("kernel_args", buf, sizeof(buf)) >= 0) {
 		if (strstr(buf, "console=ttyS1")) {
 			struct ssb_serial_port port;
 

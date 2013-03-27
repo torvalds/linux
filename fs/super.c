@@ -447,14 +447,13 @@ struct super_block *sget(struct file_system_type *type,
 			void *data)
 {
 	struct super_block *s = NULL;
-	struct hlist_node *node;
 	struct super_block *old;
 	int err;
 
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
-		hlist_for_each_entry(old, node, &type->fs_supers, s_instances) {
+		hlist_for_each_entry(old, &type->fs_supers, s_instances) {
 			if (!test(old, data))
 				continue;
 			if (!grab_super(old))
@@ -554,10 +553,9 @@ void iterate_supers_type(struct file_system_type *type,
 	void (*f)(struct super_block *, void *), void *arg)
 {
 	struct super_block *sb, *p = NULL;
-	struct hlist_node *node;
 
 	spin_lock(&sb_lock);
-	hlist_for_each_entry(sb, node, &type->fs_supers, s_instances) {
+	hlist_for_each_entry(sb, &type->fs_supers, s_instances) {
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 
@@ -842,7 +840,7 @@ int get_anon_bdev(dev_t *p)
 	else if (error)
 		return -EAGAIN;
 
-	if ((dev & MAX_IDR_MASK) == (1 << MINORBITS)) {
+	if (dev == (1 << MINORBITS)) {
 		spin_lock(&unnamed_dev_lock);
 		ida_remove(&unnamed_dev_ida, dev);
 		if (unnamed_dev_start > dev)

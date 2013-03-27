@@ -60,6 +60,11 @@ void dreamplug_init(void);
 #else
 static inline void dreamplug_init(void) {};
 #endif
+#ifdef CONFIG_MACH_GURUPLUG_DT
+void guruplug_dt_init(void);
+#else
+static inline void guruplug_dt_init(void) {};
+#endif
 #ifdef CONFIG_MACH_TS219_DT
 void qnap_dt_ts219_init(void);
 #else
@@ -128,12 +133,6 @@ static inline void mplcec4_init(void) {};
 void ns2_init(void);
 #else
 static inline void ns2_init(void) {};
-#endif
-
-#ifdef CONFIG_MACH_NSA310_DT
-void nsa310_init(void);
-#else
-static inline void nsa310_init(void) {};
 #endif
 
 #ifdef CONFIG_MACH_OPENBLOCKS_A6_DT

@@ -16,11 +16,6 @@
 #include "f2fs.h"
 #include "node.h"
 
-struct f2fs_iget_args {
-	u64 ino;
-	int on_free;
-};
-
 void f2fs_set_inode_flags(struct inode *inode)
 {
 	unsigned int flags = F2FS_I(inode)->i_flags;
@@ -38,34 +33,6 @@ void f2fs_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_NOATIME;
 	if (flags & FS_DIRSYNC_FL)
 		inode->i_flags |= S_DIRSYNC;
-}
-
-static int f2fs_iget_test(struct inode *inode, void *data)
-{
-	struct f2fs_iget_args *args = data;
-
-	if (inode->i_ino != args->ino)
-		return 0;
-	if (inode->i_state & (I_FREEING | I_WILL_FREE)) {
-		args->on_free = 1;
-		return 0;
-	}
-	return 1;
-}
-
-struct inode *f2fs_iget_nowait(struct super_block *sb, unsigned long ino)
-{
-	struct f2fs_iget_args args = {
-		.ino = ino,
-		.on_free = 0
-	};
-	struct inode *inode = ilookup5(sb, ino, f2fs_iget_test, &args);
-
-	if (inode)
-		return inode;
-	if (!args.on_free)
-		return f2fs_iget(sb, ino);
-	return ERR_PTR(-ENOENT);
 }
 
 static int do_read_inode(struct inode *inode)
@@ -100,6 +67,10 @@ static int do_read_inode(struct inode *inode)
 	inode->i_ctime.tv_nsec = le32_to_cpu(ri->i_ctime_nsec);
 	inode->i_mtime.tv_nsec = le32_to_cpu(ri->i_mtime_nsec);
 	inode->i_generation = le32_to_cpu(ri->i_generation);
+	if (ri->i_addr[0])
+		inode->i_rdev = old_decode_dev(le32_to_cpu(ri->i_addr[0]));
+	else
+		inode->i_rdev = new_decode_dev(le32_to_cpu(ri->i_addr[1]));
 
 	fi->i_current_depth = le32_to_cpu(ri->i_current_depth);
 	fi->i_xattr_nid = le32_to_cpu(ri->i_xattr_nid);
@@ -203,6 +174,20 @@ void update_inode(struct inode *inode, struct page *node_page)
 	ri->i_flags = cpu_to_le32(F2FS_I(inode)->i_flags);
 	ri->i_pino = cpu_to_le32(F2FS_I(inode)->i_pino);
 	ri->i_generation = cpu_to_le32(inode->i_generation);
+
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
+		if (old_valid_dev(inode->i_rdev)) {
+			ri->i_addr[0] =
+				cpu_to_le32(old_encode_dev(inode->i_rdev));
+			ri->i_addr[1] = 0;
+		} else {
+			ri->i_addr[0] = 0;
+			ri->i_addr[1] =
+				cpu_to_le32(new_encode_dev(inode->i_rdev));
+			ri->i_addr[2] = 0;
+		}
+	}
+
 	set_cold_node(inode, node_page);
 	set_page_dirty(node_page);
 }
@@ -260,6 +245,7 @@ void f2fs_evict_inode(struct inode *inode)
 	if (inode->i_nlink || is_bad_inode(inode))
 		goto no_delete;
 
+	sb_start_intwrite(inode->i_sb);
 	set_inode_flag(F2FS_I(inode), FI_NO_ALLOC);
 	i_size_write(inode, 0);
 
@@ -267,6 +253,7 @@ void f2fs_evict_inode(struct inode *inode)
 		f2fs_truncate(inode);
 
 	remove_inode_page(inode);
+	sb_end_intwrite(inode->i_sb);
 no_delete:
 	clear_inode(inode);
 }

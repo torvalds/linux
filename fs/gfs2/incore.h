@@ -392,7 +392,6 @@ struct gfs2_revoke_replay {
 };
 
 enum {
-	QDF_USER		= 0,
 	QDF_CHANGE		= 1,
 	QDF_LOCKED		= 2,
 	QDF_REFRESH		= 3,
@@ -404,7 +403,7 @@ struct gfs2_quota_data {
 
 	atomic_t qd_count;
 
-	u32 qd_id;
+	struct kqid qd_id;
 	unsigned long qd_flags;		/* QDF_... */
 
 	s64 qd_change;

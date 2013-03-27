@@ -545,7 +545,7 @@ static void qdisc_class_hash_free(struct hlist_head *h, unsigned int n)
 void qdisc_class_hash_grow(struct Qdisc *sch, struct Qdisc_class_hash *clhash)
 {
 	struct Qdisc_class_common *cl;
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 	struct hlist_head *nhash, *ohash;
 	unsigned int nsize, nmask, osize;
 	unsigned int i, h;
@@ -564,7 +564,7 @@ void qdisc_class_hash_grow(struct Qdisc *sch, struct Qdisc_class_hash *clhash)
 
 	sch_tree_lock(sch);
 	for (i = 0; i < osize; i++) {
-		hlist_for_each_entry_safe(cl, n, next, &ohash[i], hnode) {
+		hlist_for_each_entry_safe(cl, next, &ohash[i], hnode) {
 			h = qdisc_class_hash(cl->classid, nmask);
 			hlist_add_head(&cl->hnode, &nhash[h]);
 		}

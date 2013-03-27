@@ -700,23 +700,24 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	struct Scsi_Host *shost = target->scsi_host;
 	int i, ret;
 
-	if (target->state != SRP_TARGET_LIVE)
-		return -EAGAIN;
-
 	scsi_target_block(&shost->shost_gendev);
 
 	srp_disconnect_target(target);
 	/*
-	 * Now get a new local CM ID so that we avoid confusing the
-	 * target in case things are really fouled up.
+	 * Now get a new local CM ID so that we avoid confusing the target in
+	 * case things are really fouled up. Doing so also ensures that all CM
+	 * callbacks will have finished before a new QP is allocated.
 	 */
 	ret = srp_new_cm_id(target);
-	if (ret)
-		goto unblock;
-
-	ret = srp_create_target_ib(target);
-	if (ret)
-		goto unblock;
+	/*
+	 * Whether or not creating a new CM ID succeeded, create a new
+	 * QP. This guarantees that all completion callback function
+	 * invocations have finished before request resetting starts.
+	 */
+	if (ret == 0)
+		ret = srp_create_target_ib(target);
+	else
+		srp_create_target_ib(target);
 
 	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		struct srp_request *req = &target->req_ring[i];
@@ -728,11 +729,12 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	for (i = 0; i < SRP_SQ_SIZE; ++i)
 		list_add(&target->tx_ring[i]->list, &target->free_tx);
 
-	ret = srp_connect_target(target);
+	if (ret == 0)
+		ret = srp_connect_target(target);
 
-unblock:
 	scsi_target_unblock(&shost->shost_gendev, ret == 0 ? SDEV_RUNNING :
 			    SDEV_TRANSPORT_OFFLINE);
+	target->transport_offline = !!ret;
 
 	if (ret)
 		goto err;
@@ -1352,6 +1354,12 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 	unsigned long flags;
 	int len;
 
+	if (unlikely(target->transport_offline)) {
+		scmnd->result = DID_NO_CONNECT << 16;
+		scmnd->scsi_done(scmnd);
+		return 0;
+	}
+
 	spin_lock_irqsave(&target->lock, flags);
 	iu = __srp_get_tx_iu(target, SRP_IU_CMD);
 	if (!iu)
@@ -1695,6 +1703,9 @@ static int srp_send_tsk_mgmt(struct srp_target_port *target,
 	struct srp_iu *iu;
 	struct srp_tsk_mgmt *tsk_mgmt;
 
+	if (!target->connected || target->qp_in_error)
+		return -1;
+
 	init_completion(&target->tsk_mgmt_done);
 
 	spin_lock_irq(&target->lock);
@@ -1736,7 +1747,7 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP abort called\n");
 
-	if (!req || target->qp_in_error || !srp_claim_req(target, req, scmnd))
+	if (!req || !srp_claim_req(target, req, scmnd))
 		return FAILED;
 	srp_send_tsk_mgmt(target, req->index, scmnd->device->lun,
 			  SRP_TSK_ABORT_TASK);
@@ -1754,8 +1765,6 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP reset_device called\n");
 
-	if (target->qp_in_error)
-		return FAILED;
 	if (srp_send_tsk_mgmt(target, SRP_TAG_NO_REQ, scmnd->device->lun,
 			      SRP_TSK_LUN_RESET))
 		return FAILED;
@@ -1972,7 +1981,6 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	spin_unlock(&host->target_lock);
 
 	target->state = SRP_TARGET_LIVE;
-	target->connected = false;
 
 	scsi_scan_target(&target->scsi_host->shost_gendev,
 			 0, target->scsi_id, SCAN_WILD_CARD, 0);

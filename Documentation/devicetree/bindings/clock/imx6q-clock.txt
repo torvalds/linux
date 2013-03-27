@@ -203,6 +203,8 @@ clocks and IDs.
 	pcie_ref		188
 	pcie_ref_125m		189
 	enet_ref		190
+	usbphy1_gate		191
+	usbphy2_gate		192
 
 Examples:
 

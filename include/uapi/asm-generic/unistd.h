@@ -402,9 +402,9 @@ __SC_COMP(__NR_rt_sigsuspend, sys_rt_sigsuspend, compat_sys_rt_sigsuspend)
 #define __NR_rt_sigaction 134
 __SC_COMP(__NR_rt_sigaction, sys_rt_sigaction, compat_sys_rt_sigaction)
 #define __NR_rt_sigprocmask 135
-__SYSCALL(__NR_rt_sigprocmask, sys_rt_sigprocmask)
+__SC_COMP(__NR_rt_sigprocmask, sys_rt_sigprocmask, compat_sys_rt_sigprocmask)
 #define __NR_rt_sigpending 136
-__SYSCALL(__NR_rt_sigpending, sys_rt_sigpending)
+__SC_COMP(__NR_rt_sigpending, sys_rt_sigpending, compat_sys_rt_sigpending)
 #define __NR_rt_sigtimedwait 137
 __SC_COMP(__NR_rt_sigtimedwait, sys_rt_sigtimedwait, \
 	  compat_sys_rt_sigtimedwait)

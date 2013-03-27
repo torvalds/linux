@@ -609,7 +609,7 @@ static int sync_serial_release(struct inode *inode, struct file *file)
 
 static unsigned int sync_serial_poll(struct file *file, poll_table *wait)
 {
-	int dev = iminor(file->f_path.dentry->d_inode);
+	int dev = iminor(file_inode(file));
 	unsigned int mask = 0;
 	sync_port *port;
 	DEBUGPOLL( static unsigned int prev_mask = 0; );
@@ -657,7 +657,7 @@ static int sync_serial_ioctl(struct file *file,
 {
 	int return_val = 0;
 	int dma_w_size = regk_dma_set_w_size1;
-	int dev = iminor(file->f_path.dentry->d_inode);
+	int dev = iminor(file_inode(file));
 	sync_port *port;
 	reg_sser_rw_tr_cfg tr_cfg;
 	reg_sser_rw_rec_cfg rec_cfg;
@@ -979,7 +979,7 @@ static long sync_serial_ioctl(struct file *file,
 static ssize_t sync_serial_write(struct file *file, const char *buf,
 				 size_t count, loff_t *ppos)
 {
-	int dev = iminor(file->f_path.dentry->d_inode);
+	int dev = iminor(file_inode(file));
 	DECLARE_WAITQUEUE(wait, current);
 	struct sync_port *port;
 	int trunc_count;
@@ -1102,7 +1102,7 @@ static ssize_t sync_serial_write(struct file *file, const char *buf,
 static ssize_t sync_serial_read(struct file * file, char * buf,
 				size_t count, loff_t *ppos)
 {
-	int dev = iminor(file->f_path.dentry->d_inode);
+	int dev = iminor(file_inode(file));
 	int avail;
 	sync_port *port;
 	unsigned char* start;

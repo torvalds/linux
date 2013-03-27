@@ -45,6 +45,7 @@
 #include <linux/cpuidle.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/memory_hotplug.h>
 
 #include <asm/io.h>
 #include <asm/cpu.h>
@@ -558,7 +559,7 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 		return 0;
 #endif
 
-	BUG_ON((pr->id >= nr_cpu_ids) || (pr->id < 0));
+	BUG_ON(pr->id >= nr_cpu_ids);
 
 	/*
 	 * Buggy BIOS check
@@ -641,6 +642,7 @@ static int acpi_processor_remove(struct acpi_device *device)
 
 	per_cpu(processors, pr->id) = NULL;
 	per_cpu(processor_device_array, pr->id) = NULL;
+	try_offline_node(cpu_to_node(pr->id));
 
 free:
 	free_cpumask_var(pr->throttling.shared_cpu_map);

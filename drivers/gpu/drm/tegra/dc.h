@@ -58,6 +58,8 @@
 #define DC_CMD_SIGNAL_RAISE3			0x03e
 
 #define DC_CMD_STATE_ACCESS			0x040
+#define READ_MUX  (1 << 0)
+#define WRITE_MUX (1 << 2)
 
 #define DC_CMD_STATE_CONTROL			0x041
 #define GENERAL_ACT_REQ (1 <<  0)
@@ -290,8 +292,18 @@
 #define DC_DISP_SD_HW_K_VALUES			0x4dd
 #define DC_DISP_SD_MAN_K_VALUES			0x4de
 
+#define DC_WIN_CSC_YOF				0x611
+#define DC_WIN_CSC_KYRGB			0x612
+#define DC_WIN_CSC_KUR				0x613
+#define DC_WIN_CSC_KVR				0x614
+#define DC_WIN_CSC_KUG				0x615
+#define DC_WIN_CSC_KVG				0x616
+#define DC_WIN_CSC_KUB				0x617
+#define DC_WIN_CSC_KVB				0x618
+
 #define DC_WIN_WIN_OPTIONS			0x700
 #define COLOR_EXPAND (1 <<  6)
+#define CSC_ENABLE   (1 << 18)
 #define WIN_ENABLE   (1 << 30)
 
 #define DC_WIN_BYTE_SWAP			0x701
@@ -359,7 +371,7 @@
 #define DC_WIN_BLEND_1WIN			0x710
 #define DC_WIN_BLEND_2WIN_X			0x711
 #define DC_WIN_BLEND_2WIN_Y			0x712
-#define DC_WIN_BLEND32WIN_XY			0x713
+#define DC_WIN_BLEND_3WIN_XY			0x713
 
 #define DC_WIN_HP_FETCH_CONTROL			0x714
 

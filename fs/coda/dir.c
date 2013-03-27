@@ -397,7 +397,7 @@ static int coda_readdir(struct file *coda_file, void *buf, filldir_t filldir)
 		 * We can't use vfs_readdir because we have to keep the file
 		 * position in sync between the coda_file and the host_file.
 		 * and as such we need grab the inode mutex. */
-		struct inode *host_inode = host_file->f_path.dentry->d_inode;
+		struct inode *host_inode = file_inode(host_file);
 
 		mutex_lock(&host_inode->i_mutex);
 		host_file->f_pos = coda_file->f_pos;

@@ -21,8 +21,6 @@ source "drivers/gpu/vga/Kconfig"
 
 source "drivers/gpu/drm/Kconfig"
 
-source "drivers/gpu/stub/Kconfig"
-
 config VGASTATE
        tristate
        default n
@@ -32,6 +30,30 @@ config VIDEO_OUTPUT_CONTROL
 	help
 	  This framework adds support for low-level control of the video 
 	  output switch.
+
+config DISPLAY_TIMING
+       bool
+
+config VIDEOMODE
+       bool
+
+config OF_DISPLAY_TIMING
+	bool "Enable device tree display timing support"
+	depends on OF
+	select DISPLAY_TIMING
+	help
+	  helper to parse display timings from the devicetree
+
+config OF_VIDEOMODE
+	bool "Enable device tree videomode support"
+	depends on OF
+	select VIDEOMODE
+	select OF_DISPLAY_TIMING
+	help
+	  helper to get videomodes from the devicetree
+
+config HDMI
+	bool
 
 menuconfig FB
 	tristate "Support for frame buffer devices"

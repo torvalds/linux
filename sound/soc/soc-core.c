@@ -251,7 +251,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 		return -EINVAL;
 
 	/* Userspace has been fiddling around behind the kernel's back */
-	add_taint(TAINT_USER);
+	add_taint(TAINT_USER, LOCKDEP_NOW_UNRELIABLE);
 
 	snd_soc_write(codec, reg, value);
 	return buf_size;

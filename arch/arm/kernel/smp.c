@@ -285,6 +285,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * switch away from it before attempting any exclusive accesses.
 	 */
 	cpu_switch_mm(mm->pgd, mm);
+	local_flush_bp_all();
 	enter_lazy_tlb(mm, current);
 	local_flush_tlb_all();
 
@@ -466,8 +467,6 @@ void tick_broadcast(const struct cpumask *mask)
 {
 	smp_cross_call(mask, IPI_TIMER);
 }
-#else
-#define smp_timer_broadcast	NULL
 #endif
 
 static void broadcast_timer_set_mode(enum clock_event_mode mode,
@@ -672,6 +671,9 @@ static int cpufreq_callback(struct notifier_block *nb,
 	int cpu = freq->cpu;
 
 	if (freq->flags & CPUFREQ_CONST_LOOPS)
+		return NOTIFY_OK;
+
+	if (arm_delay_ops.const_clock)
 		return NOTIFY_OK;
 
 	if (!per_cpu(l_p_j_ref, cpu)) {

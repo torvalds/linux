@@ -18,8 +18,8 @@
 #include <linux/cred.h>
 
 struct svc_cred {
-	uid_t			cr_uid;
-	gid_t			cr_gid;
+	kuid_t			cr_uid;
+	kgid_t			cr_gid;
 	struct group_info	*cr_group_info;
 	u32			cr_flavor; /* pseudoflavor */
 	char			*cr_principal; /* for gss */

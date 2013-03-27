@@ -260,20 +260,21 @@ static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 				 void *handle, u32 id, int lock)
 {
 	int ret;
-	int newid;
 
-	do {
-		if (!idr_pre_get(idr, lock ? GFP_KERNEL : GFP_ATOMIC))
-			return -ENOMEM;
-		if (lock)
-			spin_lock_irq(&rhp->lock);
-		ret = idr_get_new_above(idr, handle, id, &newid);
-		BUG_ON(!ret && newid != id);
-		if (lock)
-			spin_unlock_irq(&rhp->lock);
-	} while (ret == -EAGAIN);
+	if (lock) {
+		idr_preload(GFP_KERNEL);
+		spin_lock_irq(&rhp->lock);
+	}
 
-	return ret;
+	ret = idr_alloc(idr, handle, id, id + 1, GFP_ATOMIC);
+
+	if (lock) {
+		spin_unlock_irq(&rhp->lock);
+		idr_preload_end();
+	}
+
+	BUG_ON(ret == -ENOSPC);
+	return ret < 0 ? ret : 0;
 }
 
 static inline int insert_handle(struct c4iw_dev *rhp, struct idr *idr,
@@ -716,6 +717,8 @@ enum c4iw_ep_flags {
 	ABORT_REQ_IN_PROGRESS	= 1,
 	RELEASE_RESOURCES	= 2,
 	CLOSE_SENT		= 3,
+	TIMEOUT                 = 4,
+	QP_REFERENCED           = 5,
 };
 
 enum c4iw_ep_history {
@@ -866,7 +869,7 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(
 					int page_list_len);
 struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth);
 int c4iw_dealloc_mw(struct ib_mw *mw);
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd);
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);

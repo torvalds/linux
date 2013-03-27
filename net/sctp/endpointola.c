@@ -155,7 +155,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	/* SCTP-AUTH extensions*/
 	INIT_LIST_HEAD(&ep->endpoint_shared_keys);
-	null_key = sctp_auth_shkey_create(0, GFP_KERNEL);
+	null_key = sctp_auth_shkey_create(0, gfp);
 	if (!null_key)
 		goto nomem;
 
@@ -332,7 +332,6 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	struct sctp_transport *t = NULL;
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
-	struct hlist_node *node;
 	int hash;
 	int rport;
 
@@ -350,7 +349,7 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 				 rport);
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		tmp = sctp_assoc(epb);
 		if (tmp->ep != ep || rport != tmp->peer.port)
 			continue;

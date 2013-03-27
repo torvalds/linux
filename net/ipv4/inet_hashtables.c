@@ -120,13 +120,12 @@ int __inet_inherit_port(struct sock *sk, struct sock *child)
 		 * that the listener socket's icsk_bind_hash is the same
 		 * as that of the child socket. We have to look up or
 		 * create a new bind bucket for the child here. */
-		struct hlist_node *node;
-		inet_bind_bucket_for_each(tb, node, &head->chain) {
+		inet_bind_bucket_for_each(tb, &head->chain) {
 			if (net_eq(ib_net(tb), sock_net(sk)) &&
 			    tb->port == port)
 				break;
 		}
-		if (!node) {
+		if (!tb) {
 			tb = inet_bind_bucket_create(table->bind_bucket_cachep,
 						     sock_net(sk), head, port);
 			if (!tb) {
@@ -493,7 +492,6 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		int i, remaining, low, high, port;
 		static u32 hint;
 		u32 offset = hint + port_offset;
-		struct hlist_node *node;
 		struct inet_timewait_sock *tw = NULL;
 
 		inet_get_local_port_range(&low, &high);
@@ -512,7 +510,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			 * because the established check is already
 			 * unique enough.
 			 */
-			inet_bind_bucket_for_each(tb, node, &head->chain) {
+			inet_bind_bucket_for_each(tb, &head->chain) {
 				if (net_eq(ib_net(tb), net) &&
 				    tb->port == port) {
 					if (tb->fastreuse >= 0 ||

@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -798,20 +798,8 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		case FLT_REG_BOOTLOAD_82XX:
 			ha->flt_region_bootload = start;
 			break;
-		case FLT_REG_VPD_82XX:
-			ha->flt_region_vpd = start;
-			break;
-		case FLT_REG_FCOE_VPD_0:
-			if (!IS_QLA8031(ha))
-				break;
-			ha->flt_region_vpd_nvram = start;
-			if (ha->flags.port0)
-				ha->flt_region_vpd = start;
-			break;
-		case FLT_REG_FCOE_VPD_1:
-			if (!IS_QLA8031(ha))
-				break;
-			if (!ha->flags.port0)
+		case FLT_REG_VPD_8XXX:
+			if (IS_CNA_CAPABLE(ha))
 				ha->flt_region_vpd = start;
 			break;
 		case FLT_REG_FCOE_NVRAM_0:

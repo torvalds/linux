@@ -327,6 +327,14 @@ static int demod_attach_drxd(struct ngene_channel *chan)
 		pr_err("No DRXD found!\n");
 		return -ENODEV;
 	}
+	return 0;
+}
+
+static int tuner_attach_dtt7520x(struct ngene_channel *chan)
+{
+	struct drxd_config *feconf;
+
+	feconf = chan->dev->card_info->fe_config[chan->number];
 
 	if (!dvb_attach(dvb_pll_attach, chan->fe, feconf->pll_address,
 			&chan->i2c_adapter,
@@ -724,6 +732,7 @@ static struct ngene_info ngene_info_terratec = {
 	.name           = "Terratec Integra/Cinergy2400i Dual DVB-T",
 	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN},
 	.demod_attach   = {demod_attach_drxd, demod_attach_drxd},
+	.tuner_attach	= {tuner_attach_dtt7520x, tuner_attach_dtt7520x},
 	.fe_config      = {&fe_terratec_dvbt_0, &fe_terratec_dvbt_1},
 	.i2c_access     = 1,
 };

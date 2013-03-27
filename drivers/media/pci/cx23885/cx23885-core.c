@@ -439,7 +439,7 @@ void cx23885_wakeup(struct cx23885_tsport *port,
 		if ((s16) (count - buf->count) < 0)
 			break;
 
-		do_gettimeofday(&buf->vb.ts);
+		v4l2_get_timestamp(&buf->vb.ts);
 		dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf, buf->vb.i,
 			count, buf->count);
 		buf->vb.state = VIDEOBUF_DONE;

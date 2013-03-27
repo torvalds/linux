@@ -171,7 +171,7 @@ static int mwifiex_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct mwifiex_adapter *adapter;
 	struct pcie_service_card *card;
-	int hs_actived, i;
+	int hs_actived;
 
 	if (pdev) {
 		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
@@ -191,9 +191,6 @@ static int mwifiex_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* Indicate device suspended */
 	adapter->is_suspended = true;
 
-	for (i = 0; i < adapter->priv_num; i++)
-		netif_carrier_off(adapter->priv[i]->netdev);
-
 	return 0;
 }
 
@@ -209,7 +206,6 @@ static int mwifiex_pcie_resume(struct pci_dev *pdev)
 {
 	struct mwifiex_adapter *adapter;
 	struct pcie_service_card *card;
-	int i;
 
 	if (pdev) {
 		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
@@ -230,10 +226,6 @@ static int mwifiex_pcie_resume(struct pci_dev *pdev)
 	}
 
 	adapter->is_suspended = false;
-
-	for (i = 0; i < adapter->priv_num; i++)
-		if (adapter->priv[i]->media_connected)
-			netif_carrier_on(adapter->priv[i]->netdev);
 
 	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
 			  MWIFIEX_ASYNC_CMD);
@@ -310,7 +302,7 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 		i++;
 		usleep_range(10, 20);
 		/* 50ms max wait */
-		if (i == 50000)
+		if (i == 5000)
 			break;
 	}
 
@@ -916,17 +908,8 @@ static int mwifiex_pcie_delete_sleep_cookie_buf(struct mwifiex_adapter *adapter)
 static int mwifiex_clean_pcie_ring_buf(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
-	u32 rdptr;
 
-	/* Read the TX ring read pointer set by firmware */
-	if (mwifiex_read_reg(adapter, reg->tx_rdptr, &rdptr)) {
-		dev_err(adapter->dev,
-			"Flush TXBD: failed to read reg->tx_rdptr\n");
-		return -1;
-	}
-
-	if (!mwifiex_pcie_txbd_empty(card, rdptr)) {
+	if (!mwifiex_pcie_txbd_empty(card, card->txbd_rdptr)) {
 		card->txbd_flush = 1;
 		/* write pointer already set at last send
 		 * send dnld-rdy intr again, wait for completion.

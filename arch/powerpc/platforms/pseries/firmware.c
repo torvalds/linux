@@ -33,6 +33,11 @@ typedef struct {
     char * name;
 } firmware_feature_t;
 
+/*
+ * The names in this table match names in rtas/ibm,hypertas-functions.  If the
+ * entry ends in a '*', only upto the '*' is matched.  Otherwise the entire
+ * string must match.
+ */
 static __initdata firmware_feature_t
 firmware_features_table[FIRMWARE_MAX_FEATURES] = {
 	{FW_FEATURE_PFT,		"hcall-pft"},
@@ -57,6 +62,7 @@ firmware_features_table[FIRMWARE_MAX_FEATURES] = {
 	{FW_FEATURE_SPLPAR,		"hcall-splpar"},
 	{FW_FEATURE_VPHN,		"hcall-vphn"},
 	{FW_FEATURE_SET_MODE,		"hcall-set-mode"},
+	{FW_FEATURE_BEST_ENERGY,	"hcall-best-energy-1*"},
 };
 
 /* Build up the firmware features bitmask using the contents of
@@ -72,9 +78,20 @@ void __init fw_feature_init(const char *hypertas, unsigned long len)
 
 	for (s = hypertas; s < hypertas + len; s += strlen(s) + 1) {
 		for (i = 0; i < FIRMWARE_MAX_FEATURES; i++) {
+			const char *name = firmware_features_table[i].name;
+			size_t size;
 			/* check value against table of strings */
-			if (!firmware_features_table[i].name ||
-			    strcmp(firmware_features_table[i].name, s))
+			if (!name)
+				continue;
+			/*
+			 * If there is a '*' at the end of name, only check
+			 * upto there
+			 */
+			size = strlen(name);
+			if (size && name[size - 1] == '*') {
+				if (strncmp(name, s, size - 1))
+					continue;
+			} else if (strcmp(name, s))
 				continue;
 
 			/* we have a match */

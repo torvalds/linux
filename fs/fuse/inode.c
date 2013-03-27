@@ -679,7 +679,7 @@ static int fuse_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 
 	if (*max_len < len) {
 		*max_len = len;
-		return  255;
+		return  FILEID_INVALID;
 	}
 
 	nodeid = get_fuse_inode(inode)->nodeid;

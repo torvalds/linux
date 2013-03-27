@@ -3571,6 +3571,26 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 }
 
+static void svm_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
+{
+	return;
+}
+
+static int svm_vm_has_apicv(struct kvm *kvm)
+{
+	return 0;
+}
+
+static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
+{
+	return;
+}
+
+static void svm_hwapic_isr_update(struct kvm *kvm, int isr)
+{
+	return;
+}
+
 static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -4290,6 +4310,10 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.enable_nmi_window = enable_nmi_window,
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
+	.set_virtual_x2apic_mode = svm_set_virtual_x2apic_mode,
+	.vm_has_apicv = svm_vm_has_apicv,
+	.load_eoi_exitmap = svm_load_eoi_exitmap,
+	.hwapic_isr_update = svm_hwapic_isr_update,
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,

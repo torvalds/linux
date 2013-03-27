@@ -42,7 +42,6 @@
  * USA.
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -1310,7 +1309,6 @@ _base_build_sg_scmd_ieee(struct MPT3SAS_ADAPTER *ioc,
 	void *sg_local, *chain;
 	u32 chain_offset;
 	u32 chain_length;
-	u32 chain_flags;
 	int sges_left;
 	u32 sges_in_segment;
 	u8 simple_sgl_flags;
@@ -1356,8 +1354,7 @@ _base_build_sg_scmd_ieee(struct MPT3SAS_ADAPTER *ioc,
 		sges_in_segment--;
 	}
 
-	/* initializing the chain flags and pointers */
-	chain_flags = MPI2_SGE_FLAGS_CHAIN_ELEMENT << MPI2_SGE_FLAGS_SHIFT;
+	/* initializing the pointers */
 	chain_req = _base_get_chain_buffer_tracker(ioc, smid);
 	if (!chain_req)
 		return -1;

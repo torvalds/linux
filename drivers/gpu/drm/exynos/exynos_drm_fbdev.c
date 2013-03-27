@@ -226,36 +226,8 @@ out:
 	return ret;
 }
 
-static int exynos_drm_fbdev_probe(struct drm_fb_helper *helper,
-				   struct drm_fb_helper_surface_size *sizes)
-{
-	int ret = 0;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	/*
-	 * with !helper->fb, it means that this funcion is called first time
-	 * and after that, the helper->fb would be used as clone mode.
-	 */
-	if (!helper->fb) {
-		ret = exynos_drm_fbdev_create(helper, sizes);
-		if (ret < 0) {
-			DRM_ERROR("failed to create fbdev.\n");
-			return ret;
-		}
-
-		/*
-		 * fb_helper expects a value more than 1 if succeed
-		 * because register_framebuffer() should be called.
-		 */
-		ret = 1;
-	}
-
-	return ret;
-}
-
 static struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
-	.fb_probe =	exynos_drm_fbdev_probe,
+	.fb_probe =	exynos_drm_fbdev_create,
 };
 
 int exynos_drm_fbdev_init(struct drm_device *dev)
@@ -295,6 +267,9 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	}
 
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	ret = drm_fb_helper_initial_config(helper, PREFERRED_BPP);
 	if (ret < 0) {
 		DRM_ERROR("failed to set up hw configuration.\n");
@@ -326,8 +301,10 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {
 		fb = fb_helper->fb;
-		if (fb)
+		if (fb) {
+			drm_framebuffer_unregister_private(fb);
 			drm_framebuffer_remove(fb);
+		}
 	}
 
 	/* release linux framebuffer */
@@ -374,5 +351,7 @@ void exynos_drm_fbdev_restore_mode(struct drm_device *dev)
 	if (!private || !private->fb_helper)
 		return;
 
+	drm_modeset_lock_all(dev);
 	drm_fb_helper_restore_fbdev_mode(private->fb_helper);
+	drm_modeset_unlock_all(dev);
 }

@@ -182,12 +182,6 @@ static void rsi_request(struct cache_detail *cd,
 	(*bpp)[-1] = '\n';
 }
 
-static int rsi_upcall(struct cache_detail *cd, struct cache_head *h)
-{
-	return sunrpc_cache_pipe_upcall(cd, h, rsi_request);
-}
-
-
 static int rsi_parse(struct cache_detail *cd,
 		    char *mesg, int mlen)
 {
@@ -275,7 +269,7 @@ static struct cache_detail rsi_cache_template = {
 	.hash_size	= RSI_HASHMAX,
 	.name           = "auth.rpcsec.init",
 	.cache_put      = rsi_put,
-	.cache_upcall   = rsi_upcall,
+	.cache_request  = rsi_request,
 	.cache_parse    = rsi_parse,
 	.match		= rsi_match,
 	.init		= rsi_init,
@@ -418,6 +412,7 @@ static int rsc_parse(struct cache_detail *cd,
 {
 	/* contexthandle expiry [ uid gid N <n gids> mechname ...mechdata... ] */
 	char *buf = mesg;
+	int id;
 	int len, rv;
 	struct rsc rsci, *rscp = NULL;
 	time_t expiry;
@@ -444,7 +439,7 @@ static int rsc_parse(struct cache_detail *cd,
 		goto out;
 
 	/* uid, or NEGATIVE */
-	rv = get_int(&mesg, &rsci.cred.cr_uid);
+	rv = get_int(&mesg, &id);
 	if (rv == -EINVAL)
 		goto out;
 	if (rv == -ENOENT)
@@ -452,8 +447,16 @@ static int rsc_parse(struct cache_detail *cd,
 	else {
 		int N, i;
 
+		/* uid */
+		rsci.cred.cr_uid = make_kuid(&init_user_ns, id);
+		if (!uid_valid(rsci.cred.cr_uid))
+			goto out;
+
 		/* gid */
-		if (get_int(&mesg, &rsci.cred.cr_gid))
+		if (get_int(&mesg, &id))
+			goto out;
+		rsci.cred.cr_gid = make_kgid(&init_user_ns, id);
+		if (!gid_valid(rsci.cred.cr_gid))
 			goto out;
 
 		/* number of additional gid's */
@@ -467,11 +470,10 @@ static int rsc_parse(struct cache_detail *cd,
 		/* gid's */
 		status = -EINVAL;
 		for (i=0; i<N; i++) {
-			gid_t gid;
 			kgid_t kgid;
-			if (get_int(&mesg, &gid))
+			if (get_int(&mesg, &id))
 				goto out;
-			kgid = make_kgid(&init_user_ns, gid);
+			kgid = make_kgid(&init_user_ns, id);
 			if (!gid_valid(kgid))
 				goto out;
 			GROUP_AT(rsci.cred.cr_group_info, i) = kgid;
@@ -817,12 +819,16 @@ read_u32_from_xdr_buf(struct xdr_buf *buf, int base, u32 *obj)
  *	The server uses base of head iovec as read pointer, while the
  *	client uses separate pointer. */
 static int
-unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
+unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 {
 	int stat = -EINVAL;
 	u32 integ_len, maj_stat;
 	struct xdr_netobj mic;
 	struct xdr_buf integ_buf;
+
+	/* Did we already verify the signature on the original pass through? */
+	if (rqstp->rq_deferred)
+		return 0;
 
 	integ_len = svc_getnl(&buf->head[0]);
 	if (integ_len & 3)
@@ -846,6 +852,8 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 		goto out;
 	if (svc_getnl(&buf->head[0]) != seq)
 		goto out;
+	/* trim off the mic at the end before returning */
+	xdr_buf_trim(buf, mic.len + 4);
 	stat = 0;
 out:
 	kfree(mic.data);
@@ -1190,7 +1198,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 			/* placeholders for length and seq. number: */
 			svc_putnl(resv, 0);
 			svc_putnl(resv, 0);
-			if (unwrap_integ_data(&rqstp->rq_arg,
+			if (unwrap_integ_data(rqstp, &rqstp->rq_arg,
 					gc->gc_seq, rsci->mechctx))
 				goto garbage_args;
 			break;

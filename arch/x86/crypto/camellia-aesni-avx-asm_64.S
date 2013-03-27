@@ -15,6 +15,8 @@
  *	http://koti.mbnet.fi/axh/crypto/camellia-BSD-1.2.0-aesni1.tar.xz
  */
 
+#include <linux/linkage.h>
+
 #define CAMELLIA_TABLE_BYTE_LEN 272
 
 /* struct camellia_ctx: */
@@ -190,6 +192,7 @@ roundsm16_x0_x1_x2_x3_x4_x5_x6_x7_y0_y1_y2_y3_y4_y5_y6_y7_cd:
 		  %xmm8, %xmm9, %xmm10, %xmm11, %xmm12, %xmm13, %xmm14, %xmm15,
 		  %rcx, (%r9));
 	ret;
+ENDPROC(roundsm16_x0_x1_x2_x3_x4_x5_x6_x7_y0_y1_y2_y3_y4_y5_y6_y7_cd)
 
 .align 8
 roundsm16_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab:
@@ -197,6 +200,7 @@ roundsm16_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab:
 		  %xmm12, %xmm13, %xmm14, %xmm15, %xmm8, %xmm9, %xmm10, %xmm11,
 		  %rax, (%r9));
 	ret;
+ENDPROC(roundsm16_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
 
 /*
  * IN/OUT:
@@ -709,8 +713,6 @@ roundsm16_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab:
 .text
 
 .align 8
-.type   __camellia_enc_blk16,@function;
-
 __camellia_enc_blk16:
 	/* input:
 	 *	%rdi: ctx, CTX
@@ -793,10 +795,9 @@ __camellia_enc_blk16:
 		     %xmm15, %rax, %rcx, 24);
 
 	jmp .Lenc_done;
+ENDPROC(__camellia_enc_blk16)
 
 .align 8
-.type   __camellia_dec_blk16,@function;
-
 __camellia_dec_blk16:
 	/* input:
 	 *	%rdi: ctx, CTX
@@ -877,12 +878,9 @@ __camellia_dec_blk16:
 	      ((key_table + (24) * 8) + 4)(CTX));
 
 	jmp .Ldec_max24;
+ENDPROC(__camellia_dec_blk16)
 
-.align 8
-.global camellia_ecb_enc_16way
-.type   camellia_ecb_enc_16way,@function;
-
-camellia_ecb_enc_16way:
+ENTRY(camellia_ecb_enc_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -903,12 +901,9 @@ camellia_ecb_enc_16way:
 		     %xmm8, %rsi);
 
 	ret;
+ENDPROC(camellia_ecb_enc_16way)
 
-.align 8
-.global camellia_ecb_dec_16way
-.type   camellia_ecb_dec_16way,@function;
-
-camellia_ecb_dec_16way:
+ENTRY(camellia_ecb_dec_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -934,12 +929,9 @@ camellia_ecb_dec_16way:
 		     %xmm8, %rsi);
 
 	ret;
+ENDPROC(camellia_ecb_dec_16way)
 
-.align 8
-.global camellia_cbc_dec_16way
-.type   camellia_cbc_dec_16way,@function;
-
-camellia_cbc_dec_16way:
+ENTRY(camellia_cbc_dec_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -986,6 +978,7 @@ camellia_cbc_dec_16way:
 		     %xmm8, %rsi);
 
 	ret;
+ENDPROC(camellia_cbc_dec_16way)
 
 #define inc_le128(x, minus_one, tmp) \
 	vpcmpeqq minus_one, x, tmp; \
@@ -993,11 +986,7 @@ camellia_cbc_dec_16way:
 	vpslldq $8, tmp, tmp; \
 	vpsubq tmp, x, x;
 
-.align 8
-.global camellia_ctr_16way
-.type   camellia_ctr_16way,@function;
-
-camellia_ctr_16way:
+ENTRY(camellia_ctr_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -1100,3 +1089,4 @@ camellia_ctr_16way:
 		     %xmm8, %rsi);
 
 	ret;
+ENDPROC(camellia_ctr_16way)

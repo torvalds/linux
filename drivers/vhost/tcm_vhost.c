@@ -47,6 +47,8 @@
 #include <linux/vhost.h>
 #include <linux/virtio_net.h> /* TODO vhost.h currently depends on this */
 #include <linux/virtio_scsi.h>
+#include <linux/llist.h>
+#include <linux/bitmap.h>
 
 #include "vhost.c"
 #include "vhost.h"
@@ -58,14 +60,20 @@ enum {
 	VHOST_SCSI_VQ_IO = 2,
 };
 
+#define VHOST_SCSI_MAX_TARGET	256
+#define VHOST_SCSI_MAX_VQ	128
+
 struct vhost_scsi {
-	struct tcm_vhost_tpg *vs_tpg;	/* Protected by vhost_scsi->dev.mutex */
+	/* Protected by vhost_scsi->dev.mutex */
+	struct tcm_vhost_tpg *vs_tpg[VHOST_SCSI_MAX_TARGET];
+	char vs_vhost_wwpn[TRANSPORT_IQN_LEN];
+	bool vs_endpoint;
+
 	struct vhost_dev dev;
-	struct vhost_virtqueue vqs[3];
+	struct vhost_virtqueue vqs[VHOST_SCSI_MAX_VQ];
 
 	struct vhost_work vs_completion_work; /* cmd completion work item */
-	struct list_head vs_completion_list;  /* cmd completion queue */
-	spinlock_t vs_completion_lock;        /* protects s_completion_list */
+	struct llist_head vs_completion_list; /* cmd completion queue */
 };
 
 /* Local pointer to allocated TCM configfs fabric module */
@@ -76,6 +84,12 @@ static struct workqueue_struct *tcm_vhost_workqueue;
 /* Global spinlock to protect tcm_vhost TPG list for vhost IOCTL access */
 static DEFINE_MUTEX(tcm_vhost_mutex);
 static LIST_HEAD(tcm_vhost_list);
+
+static int iov_num_pages(struct iovec *iov)
+{
+	return (PAGE_ALIGN((unsigned long)iov->iov_base + iov->iov_len) -
+	       ((unsigned long)iov->iov_base & PAGE_MASK)) >> PAGE_SHIFT;
+}
 
 static int tcm_vhost_check_true(struct se_portal_group *se_tpg)
 {
@@ -301,9 +315,7 @@ static void vhost_scsi_complete_cmd(struct tcm_vhost_cmd *tv_cmd)
 {
 	struct vhost_scsi *vs = tv_cmd->tvc_vhost;
 
-	spin_lock_bh(&vs->vs_completion_lock);
-	list_add_tail(&tv_cmd->tvc_completion_list, &vs->vs_completion_list);
-	spin_unlock_bh(&vs->vs_completion_lock);
+	llist_add(&tv_cmd->tvc_completion_list, &vs->vs_completion_list);
 
 	vhost_work_queue(&vs->dev, &vs->vs_completion_work);
 }
@@ -347,27 +359,6 @@ static void vhost_scsi_free_cmd(struct tcm_vhost_cmd *tv_cmd)
 	kfree(tv_cmd);
 }
 
-/* Dequeue a command from the completion list */
-static struct tcm_vhost_cmd *vhost_scsi_get_cmd_from_completion(
-	struct vhost_scsi *vs)
-{
-	struct tcm_vhost_cmd *tv_cmd = NULL;
-
-	spin_lock_bh(&vs->vs_completion_lock);
-	if (list_empty(&vs->vs_completion_list)) {
-		spin_unlock_bh(&vs->vs_completion_lock);
-		return NULL;
-	}
-
-	list_for_each_entry(tv_cmd, &vs->vs_completion_list,
-			    tvc_completion_list) {
-		list_del(&tv_cmd->tvc_completion_list);
-		break;
-	}
-	spin_unlock_bh(&vs->vs_completion_lock);
-	return tv_cmd;
-}
-
 /* Fill in status and signal that we are done processing this command
  *
  * This is scheduled in the vhost work queue so we are called with the owner
@@ -377,12 +368,20 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 {
 	struct vhost_scsi *vs = container_of(work, struct vhost_scsi,
 					vs_completion_work);
+	DECLARE_BITMAP(signal, VHOST_SCSI_MAX_VQ);
+	struct virtio_scsi_cmd_resp v_rsp;
 	struct tcm_vhost_cmd *tv_cmd;
+	struct llist_node *llnode;
+	struct se_cmd *se_cmd;
+	int ret, vq;
 
-	while ((tv_cmd = vhost_scsi_get_cmd_from_completion(vs))) {
-		struct virtio_scsi_cmd_resp v_rsp;
-		struct se_cmd *se_cmd = &tv_cmd->tvc_se_cmd;
-		int ret;
+	bitmap_zero(signal, VHOST_SCSI_MAX_VQ);
+	llnode = llist_del_all(&vs->vs_completion_list);
+	while (llnode) {
+		tv_cmd = llist_entry(llnode, struct tcm_vhost_cmd,
+				     tvc_completion_list);
+		llnode = llist_next(llnode);
+		se_cmd = &tv_cmd->tvc_se_cmd;
 
 		pr_debug("%s tv_cmd %p resid %u status %#02x\n", __func__,
 			tv_cmd, se_cmd->residual_count, se_cmd->scsi_status);
@@ -395,15 +394,20 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 		memcpy(v_rsp.sense, tv_cmd->tvc_sense_buf,
 		       v_rsp.sense_len);
 		ret = copy_to_user(tv_cmd->tvc_resp, &v_rsp, sizeof(v_rsp));
-		if (likely(ret == 0))
-			vhost_add_used(&vs->vqs[2], tv_cmd->tvc_vq_desc, 0);
-		else
+		if (likely(ret == 0)) {
+			vhost_add_used(tv_cmd->tvc_vq, tv_cmd->tvc_vq_desc, 0);
+			vq = tv_cmd->tvc_vq - vs->vqs;
+			__set_bit(vq, signal);
+		} else
 			pr_err("Faulted on virtio_scsi_cmd_resp\n");
 
 		vhost_scsi_free_cmd(tv_cmd);
 	}
 
-	vhost_signal(&vs->dev, &vs->vqs[2]);
+	vq = -1;
+	while ((vq = find_next_bit(signal, VHOST_SCSI_MAX_VQ, vq + 1))
+		< VHOST_SCSI_MAX_VQ)
+		vhost_signal(&vs->dev, &vs->vqs[vq]);
 }
 
 static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
@@ -426,7 +430,6 @@ static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
 		pr_err("Unable to allocate struct tcm_vhost_cmd\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	INIT_LIST_HEAD(&tv_cmd->tvc_completion_list);
 	tv_cmd->tvc_tag = v_req->tag;
 	tv_cmd->tvc_task_attr = v_req->task_attr;
 	tv_cmd->tvc_exp_data_len = exp_data_len;
@@ -442,40 +445,47 @@ static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
  * Returns the number of scatterlist entries used or -errno on error.
  */
 static int vhost_scsi_map_to_sgl(struct scatterlist *sgl,
-	unsigned int sgl_count, void __user *ptr, size_t len, int write)
+	unsigned int sgl_count, struct iovec *iov, int write)
 {
+	unsigned int npages = 0, pages_nr, offset, nbytes;
 	struct scatterlist *sg = sgl;
-	unsigned int npages = 0;
-	int ret;
+	void __user *ptr = iov->iov_base;
+	size_t len = iov->iov_len;
+	struct page **pages;
+	int ret, i;
+
+	pages_nr = iov_num_pages(iov);
+	if (pages_nr > sgl_count)
+		return -ENOBUFS;
+
+	pages = kmalloc(pages_nr * sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	ret = get_user_pages_fast((unsigned long)ptr, pages_nr, write, pages);
+	/* No pages were pinned */
+	if (ret < 0)
+		goto out;
+	/* Less pages pinned than wanted */
+	if (ret != pages_nr) {
+		for (i = 0; i < ret; i++)
+			put_page(pages[i]);
+		ret = -EFAULT;
+		goto out;
+	}
 
 	while (len > 0) {
-		struct page *page;
-		unsigned int offset = (uintptr_t)ptr & ~PAGE_MASK;
-		unsigned int nbytes = min_t(unsigned int,
-				PAGE_SIZE - offset, len);
-
-		if (npages == sgl_count) {
-			ret = -ENOBUFS;
-			goto err;
-		}
-
-		ret = get_user_pages_fast((unsigned long)ptr, 1, write, &page);
-		BUG_ON(ret == 0); /* we should either get our page or fail */
-		if (ret < 0)
-			goto err;
-
-		sg_set_page(sg, page, nbytes, offset);
+		offset = (uintptr_t)ptr & ~PAGE_MASK;
+		nbytes = min_t(unsigned int, PAGE_SIZE - offset, len);
+		sg_set_page(sg, pages[npages], nbytes, offset);
 		ptr += nbytes;
 		len -= nbytes;
 		sg++;
 		npages++;
 	}
-	return npages;
 
-err:
-	/* Put pages that we hold */
-	for (sg = sgl; sg != &sgl[npages]; sg++)
-		put_page(sg_page(sg));
+out:
+	kfree(pages);
 	return ret;
 }
 
@@ -491,11 +501,9 @@ static int vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *tv_cmd,
 	 * Find out how long sglist needs to be
 	 */
 	sgl_count = 0;
-	for (i = 0; i < niov; i++) {
-		sgl_count += (((uintptr_t)iov[i].iov_base + iov[i].iov_len +
-				PAGE_SIZE - 1) >> PAGE_SHIFT) -
-				((uintptr_t)iov[i].iov_base >> PAGE_SHIFT);
-	}
+	for (i = 0; i < niov; i++)
+		sgl_count += iov_num_pages(&iov[i]);
+
 	/* TODO overflow checking */
 
 	sg = kmalloc(sizeof(tv_cmd->tvc_sgl[0]) * sgl_count, GFP_ATOMIC);
@@ -510,8 +518,7 @@ static int vhost_scsi_map_iov_to_sgl(struct tcm_vhost_cmd *tv_cmd,
 
 	pr_debug("Mapping %u iovecs for %u pages\n", niov, sgl_count);
 	for (i = 0; i < niov; i++) {
-		ret = vhost_scsi_map_to_sgl(sg, sgl_count, iov[i].iov_base,
-					iov[i].iov_len, write);
+		ret = vhost_scsi_map_to_sgl(sg, sgl_count, &iov[i], write);
 		if (ret < 0) {
 			for (i = 0; i < tv_cmd->tvc_sgl_count; i++)
 				put_page(sg_page(&tv_cmd->tvc_sgl[i]));
@@ -563,19 +570,19 @@ static void tcm_vhost_submission_work(struct work_struct *work)
 	}
 }
 
-static void vhost_scsi_handle_vq(struct vhost_scsi *vs)
+static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
+	struct vhost_virtqueue *vq)
 {
-	struct vhost_virtqueue *vq = &vs->vqs[2];
 	struct virtio_scsi_cmd_req v_req;
 	struct tcm_vhost_tpg *tv_tpg;
 	struct tcm_vhost_cmd *tv_cmd;
 	u32 exp_data_len, data_first, data_num, data_direction;
 	unsigned out, in, i;
 	int head, ret;
+	u8 target;
 
 	/* Must use ioctl VHOST_SCSI_SET_ENDPOINT */
-	tv_tpg = vs->vs_tpg;
-	if (unlikely(!tv_tpg))
+	if (unlikely(!vs->vs_endpoint))
 		return;
 
 	mutex_lock(&vq->mutex);
@@ -643,6 +650,28 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs)
 			break;
 		}
 
+		/* Extract the tpgt */
+		target = v_req.lun[1];
+		tv_tpg = vs->vs_tpg[target];
+
+		/* Target does not exist, fail the request */
+		if (unlikely(!tv_tpg)) {
+			struct virtio_scsi_cmd_resp __user *resp;
+			struct virtio_scsi_cmd_resp rsp;
+
+			memset(&rsp, 0, sizeof(rsp));
+			rsp.response = VIRTIO_SCSI_S_BAD_TARGET;
+			resp = vq->iov[out].iov_base;
+			ret = __copy_to_user(resp, &rsp, sizeof(rsp));
+			if (!ret)
+				vhost_add_used_and_signal(&vs->dev,
+							  vq, head, 0);
+			else
+				pr_err("Faulted on virtio_scsi_cmd_resp\n");
+
+			continue;
+		}
+
 		exp_data_len = 0;
 		for (i = 0; i < data_num; i++)
 			exp_data_len += vq->iov[data_first + i].iov_len;
@@ -658,6 +687,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs)
 			": %d\n", tv_cmd, exp_data_len, data_direction);
 
 		tv_cmd->tvc_vhost = vs;
+		tv_cmd->tvc_vq = vq;
 
 		if (unlikely(vq->iov[out].iov_len !=
 				sizeof(struct virtio_scsi_cmd_resp))) {
@@ -738,7 +768,7 @@ static void vhost_scsi_handle_kick(struct vhost_work *work)
 						poll.work);
 	struct vhost_scsi *vs = container_of(vq->dev, struct vhost_scsi, dev);
 
-	vhost_scsi_handle_vq(vs);
+	vhost_scsi_handle_vq(vs, vq);
 }
 
 /*
@@ -751,7 +781,8 @@ static int vhost_scsi_set_endpoint(
 {
 	struct tcm_vhost_tport *tv_tport;
 	struct tcm_vhost_tpg *tv_tpg;
-	int index;
+	bool match = false;
+	int index, ret;
 
 	mutex_lock(&vs->dev.mutex);
 	/* Verify that ring has been setup correctly. */
@@ -762,7 +793,6 @@ static int vhost_scsi_set_endpoint(
 			return -EFAULT;
 		}
 	}
-	mutex_unlock(&vs->dev.mutex);
 
 	mutex_lock(&tcm_vhost_mutex);
 	list_for_each_entry(tv_tpg, &tcm_vhost_list, tv_tpg_list) {
@@ -777,30 +807,33 @@ static int vhost_scsi_set_endpoint(
 		}
 		tv_tport = tv_tpg->tport;
 
-		if (!strcmp(tv_tport->tport_name, t->vhost_wwpn) &&
-		    (tv_tpg->tport_tpgt == t->vhost_tpgt)) {
-			tv_tpg->tv_tpg_vhost_count++;
-			mutex_unlock(&tv_tpg->tv_tpg_mutex);
-			mutex_unlock(&tcm_vhost_mutex);
-
-			mutex_lock(&vs->dev.mutex);
-			if (vs->vs_tpg) {
-				mutex_unlock(&vs->dev.mutex);
-				mutex_lock(&tv_tpg->tv_tpg_mutex);
-				tv_tpg->tv_tpg_vhost_count--;
+		if (!strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
+			if (vs->vs_tpg[tv_tpg->tport_tpgt]) {
 				mutex_unlock(&tv_tpg->tv_tpg_mutex);
+				mutex_unlock(&tcm_vhost_mutex);
+				mutex_unlock(&vs->dev.mutex);
 				return -EEXIST;
 			}
-
-			vs->vs_tpg = tv_tpg;
+			tv_tpg->tv_tpg_vhost_count++;
+			vs->vs_tpg[tv_tpg->tport_tpgt] = tv_tpg;
 			smp_mb__after_atomic_inc();
-			mutex_unlock(&vs->dev.mutex);
-			return 0;
+			match = true;
 		}
 		mutex_unlock(&tv_tpg->tv_tpg_mutex);
 	}
 	mutex_unlock(&tcm_vhost_mutex);
-	return -EINVAL;
+
+	if (match) {
+		memcpy(vs->vs_vhost_wwpn, t->vhost_wwpn,
+		       sizeof(vs->vs_vhost_wwpn));
+		vs->vs_endpoint = true;
+		ret = 0;
+	} else {
+		ret = -EEXIST;
+	}
+
+	mutex_unlock(&vs->dev.mutex);
+	return ret;
 }
 
 static int vhost_scsi_clear_endpoint(
@@ -809,7 +842,8 @@ static int vhost_scsi_clear_endpoint(
 {
 	struct tcm_vhost_tport *tv_tport;
 	struct tcm_vhost_tpg *tv_tpg;
-	int index, ret;
+	int index, ret, i;
+	u8 target;
 
 	mutex_lock(&vs->dev.mutex);
 	/* Verify that ring has been setup correctly. */
@@ -819,27 +853,32 @@ static int vhost_scsi_clear_endpoint(
 			goto err;
 		}
 	}
+	for (i = 0; i < VHOST_SCSI_MAX_TARGET; i++) {
+		target = i;
 
-	if (!vs->vs_tpg) {
-		ret = -ENODEV;
-		goto err;
-	}
-	tv_tpg = vs->vs_tpg;
-	tv_tport = tv_tpg->tport;
+		tv_tpg = vs->vs_tpg[target];
+		if (!tv_tpg)
+			continue;
 
-	if (strcmp(tv_tport->tport_name, t->vhost_wwpn) ||
-	    (tv_tpg->tport_tpgt != t->vhost_tpgt)) {
-		pr_warn("tv_tport->tport_name: %s, tv_tpg->tport_tpgt: %hu"
-			" does not match t->vhost_wwpn: %s, t->vhost_tpgt: %hu\n",
-			tv_tport->tport_name, tv_tpg->tport_tpgt,
-			t->vhost_wwpn, t->vhost_tpgt);
-		ret = -EINVAL;
-		goto err;
+		tv_tport = tv_tpg->tport;
+		if (!tv_tport) {
+			ret = -ENODEV;
+			goto err;
+		}
+
+		if (strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
+			pr_warn("tv_tport->tport_name: %s, tv_tpg->tport_tpgt: %hu"
+				" does not match t->vhost_wwpn: %s, t->vhost_tpgt: %hu\n",
+				tv_tport->tport_name, tv_tpg->tport_tpgt,
+				t->vhost_wwpn, t->vhost_tpgt);
+			ret = -EINVAL;
+			goto err;
+		}
+		tv_tpg->tv_tpg_vhost_count--;
+		vs->vs_tpg[target] = NULL;
+		vs->vs_endpoint = false;
 	}
-	tv_tpg->tv_tpg_vhost_count--;
-	vs->vs_tpg = NULL;
 	mutex_unlock(&vs->dev.mutex);
-
 	return 0;
 
 err:
@@ -850,20 +889,19 @@ err:
 static int vhost_scsi_open(struct inode *inode, struct file *f)
 {
 	struct vhost_scsi *s;
-	int r;
+	int r, i;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
 
 	vhost_work_init(&s->vs_completion_work, vhost_scsi_complete_cmd_work);
-	INIT_LIST_HEAD(&s->vs_completion_list);
-	spin_lock_init(&s->vs_completion_lock);
 
 	s->vqs[VHOST_SCSI_VQ_CTL].handle_kick = vhost_scsi_ctl_handle_kick;
 	s->vqs[VHOST_SCSI_VQ_EVT].handle_kick = vhost_scsi_evt_handle_kick;
-	s->vqs[VHOST_SCSI_VQ_IO].handle_kick = vhost_scsi_handle_kick;
-	r = vhost_dev_init(&s->dev, s->vqs, 3);
+	for (i = VHOST_SCSI_VQ_IO; i < VHOST_SCSI_MAX_VQ; i++)
+		s->vqs[i].handle_kick = vhost_scsi_handle_kick;
+	r = vhost_dev_init(&s->dev, s->vqs, VHOST_SCSI_MAX_VQ);
 	if (r < 0) {
 		kfree(s);
 		return r;
@@ -876,16 +914,12 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 static int vhost_scsi_release(struct inode *inode, struct file *f)
 {
 	struct vhost_scsi *s = f->private_data;
+	struct vhost_scsi_target t;
 
-	if (s->vs_tpg && s->vs_tpg->tport) {
-		struct vhost_scsi_target backend;
-
-		memcpy(backend.vhost_wwpn, s->vs_tpg->tport->tport_name,
-				sizeof(backend.vhost_wwpn));
-		backend.vhost_tpgt = s->vs_tpg->tport_tpgt;
-		vhost_scsi_clear_endpoint(s, &backend);
-	}
-
+	mutex_lock(&s->dev.mutex);
+	memcpy(t.vhost_wwpn, s->vs_vhost_wwpn, sizeof(t.vhost_wwpn));
+	mutex_unlock(&s->dev.mutex);
+	vhost_scsi_clear_endpoint(s, &t);
 	vhost_dev_stop(&s->dev);
 	vhost_dev_cleanup(&s->dev, false);
 	kfree(s);
@@ -899,9 +933,10 @@ static void vhost_scsi_flush_vq(struct vhost_scsi *vs, int index)
 
 static void vhost_scsi_flush(struct vhost_scsi *vs)
 {
-	vhost_scsi_flush_vq(vs, VHOST_SCSI_VQ_CTL);
-	vhost_scsi_flush_vq(vs, VHOST_SCSI_VQ_EVT);
-	vhost_scsi_flush_vq(vs, VHOST_SCSI_VQ_IO);
+	int i;
+
+	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
+		vhost_scsi_flush_vq(vs, i);
 }
 
 static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)

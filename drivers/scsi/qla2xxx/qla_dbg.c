@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -11,20 +11,21 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0125       | 0x4b,0xba,0xfa |
- * | Mailbox commands             |       0x114f       | 0x111a-0x111b  |
+ * | Module Init and Probe        |       0x0126       | 0x4b,0xba,0xfa |
+ * | Mailbox commands             |       0x115b       | 0x111a-0x111b  |
  * |                              |                    | 0x112c-0x112e  |
  * |                              |                    | 0x113a         |
  * | Device Discovery             |       0x2087       | 0x2020-0x2022, |
  * |                              |                    | 0x2016         |
- * | Queue Command and IO tracing |       0x3030       | 0x3006-0x300b  |
+ * | Queue Command and IO tracing |       0x3031       | 0x3006-0x300b  |
  * |                              |                    | 0x3027-0x3028  |
  * |                              |                    | 0x302d-0x302e  |
  * | DPC Thread                   |       0x401d       | 0x4002,0x4013  |
  * | Async Events                 |       0x5071       | 0x502b-0x502f  |
  * |                              |                    | 0x5047,0x5052  |
  * | Timer Routines               |       0x6011       |                |
- * | User Space Interactions      |       0x70c3       | 0x7018,0x702e, |
+ * | User Space Interactions      |       0x70c4       | 0x7018,0x702e, |
+ * |                              |                    | 0x7020,0x7024, |
  * |                              |                    | 0x7039,0x7045, |
  * |                              |                    | 0x7073-0x7075, |
  * |                              |                    | 0x708c,        |
@@ -35,11 +36,11 @@
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x9011       |		|
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb084       | 0xb002,0xb024  |
+ * | ISP82XX Specific             |       0xb086       | 0xb002,0xb024  |
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
- * | Target Mode		  |	  0xe06f       |		|
- * | Target Mode Management	  |	  0xf071       |		|
+ * | Target Mode		  |	  0xe070       |		|
+ * | Target Mode Management	  |	  0xf072       |		|
  * | Target Mode Task Management  |	  0x1000b      |		|
  * ----------------------------------------------------------------------
  */

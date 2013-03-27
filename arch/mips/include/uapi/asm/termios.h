@@ -31,12 +31,12 @@ struct tchars {
 };
 
 struct ltchars {
-        char    t_suspc;        /* stop process signal */
-        char    t_dsuspc;       /* delayed stop process signal */
-        char    t_rprntc;       /* reprint line */
-        char    t_flushc;       /* flush output (toggles) */
-        char    t_werasc;       /* word erase */
-        char    t_lnextc;       /* literal next character */
+	char	t_suspc;	/* stop process signal */
+	char	t_dsuspc;	/* delayed stop process signal */
+	char	t_rprntc;	/* reprint line */
+	char	t_flushc;	/* flush output (toggles) */
+	char	t_werasc;	/* word erase */
+	char	t_lnextc;	/* literal next character */
 };
 
 /* TIOCGSIZE, TIOCSSIZE not defined yet.  Only needed for SunOS source

@@ -25,7 +25,7 @@
 16	i386	lchown			sys_lchown16
 17	i386	break
 18	i386	oldstat			sys_stat
-19	i386	lseek			sys_lseek			sys32_lseek
+19	i386	lseek			sys_lseek			compat_sys_lseek
 20	i386	getpid			sys_getpid
 21	i386	mount			sys_mount			compat_sys_mount
 22	i386	umount			sys_oldumount
@@ -73,12 +73,12 @@
 64	i386	getppid			sys_getppid
 65	i386	getpgrp			sys_getpgrp
 66	i386	setsid			sys_setsid
-67	i386	sigaction		sys_sigaction			sys32_sigaction
+67	i386	sigaction		sys_sigaction			compat_sys_sigaction
 68	i386	sgetmask		sys_sgetmask
 69	i386	ssetmask		sys_ssetmask
 70	i386	setreuid		sys_setreuid16
 71	i386	setregid		sys_setregid16
-72	i386	sigsuspend		sys_sigsuspend			sys32_sigsuspend
+72	i386	sigsuspend		sys_sigsuspend			sys_sigsuspend
 73	i386	sigpending		sys_sigpending			compat_sys_sigpending
 74	i386	sethostname		sys_sethostname
 75	i386	setrlimit		sys_setrlimit			compat_sys_setrlimit
@@ -98,8 +98,8 @@
 89	i386	readdir			sys_old_readdir			compat_sys_old_readdir
 90	i386	mmap			sys_old_mmap			sys32_mmap
 91	i386	munmap			sys_munmap
-92	i386	truncate		sys_truncate
-93	i386	ftruncate		sys_ftruncate
+92	i386	truncate		sys_truncate			compat_sys_truncate
+93	i386	ftruncate		sys_ftruncate			compat_sys_ftruncate
 94	i386	fchmod			sys_fchmod
 95	i386	fchown			sys_fchown16
 96	i386	getpriority		sys_getpriority
@@ -116,16 +116,16 @@
 107	i386	lstat			sys_newlstat			compat_sys_newlstat
 108	i386	fstat			sys_newfstat			compat_sys_newfstat
 109	i386	olduname		sys_uname
-110	i386	iopl			ptregs_iopl			stub32_iopl
+110	i386	iopl			sys_iopl
 111	i386	vhangup			sys_vhangup
 112	i386	idle
-113	i386	vm86old			ptregs_vm86old			sys32_vm86_warning
+113	i386	vm86old			sys_vm86old			sys32_vm86_warning
 114	i386	wait4			sys_wait4			compat_sys_wait4
 115	i386	swapoff			sys_swapoff
 116	i386	sysinfo			sys_sysinfo			compat_sys_sysinfo
 117	i386	ipc			sys_ipc				sys32_ipc
 118	i386	fsync			sys_fsync
-119	i386	sigreturn		ptregs_sigreturn		stub32_sigreturn
+119	i386	sigreturn		sys_sigreturn			stub32_sigreturn
 120	i386	clone			sys_clone			stub32_clone
 121	i386	setdomainname		sys_setdomainname
 122	i386	uname			sys_newuname
@@ -167,24 +167,24 @@
 158	i386	sched_yield		sys_sched_yield
 159	i386	sched_get_priority_max	sys_sched_get_priority_max
 160	i386	sched_get_priority_min	sys_sched_get_priority_min
-161	i386	sched_rr_get_interval	sys_sched_rr_get_interval	sys32_sched_rr_get_interval
+161	i386	sched_rr_get_interval	sys_sched_rr_get_interval	compat_sys_sched_rr_get_interval
 162	i386	nanosleep		sys_nanosleep			compat_sys_nanosleep
 163	i386	mremap			sys_mremap
 164	i386	setresuid		sys_setresuid16
 165	i386	getresuid		sys_getresuid16
-166	i386	vm86			ptregs_vm86			sys32_vm86_warning
+166	i386	vm86			sys_vm86			sys32_vm86_warning
 167	i386	query_module
 168	i386	poll			sys_poll
 169	i386	nfsservctl
 170	i386	setresgid		sys_setresgid16
 171	i386	getresgid		sys_getresgid16
 172	i386	prctl			sys_prctl
-173	i386	rt_sigreturn		ptregs_rt_sigreturn		stub32_rt_sigreturn
-174	i386	rt_sigaction		sys_rt_sigaction		sys32_rt_sigaction
+173	i386	rt_sigreturn		sys_rt_sigreturn		stub32_rt_sigreturn
+174	i386	rt_sigaction		sys_rt_sigaction		compat_sys_rt_sigaction
 175	i386	rt_sigprocmask		sys_rt_sigprocmask
-176	i386	rt_sigpending		sys_rt_sigpending		sys32_rt_sigpending
+176	i386	rt_sigpending		sys_rt_sigpending		compat_sys_rt_sigpending
 177	i386	rt_sigtimedwait		sys_rt_sigtimedwait		compat_sys_rt_sigtimedwait
-178	i386	rt_sigqueueinfo		sys_rt_sigqueueinfo		sys32_rt_sigqueueinfo
+178	i386	rt_sigqueueinfo		sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
 179	i386	rt_sigsuspend		sys_rt_sigsuspend
 180	i386	pread64			sys_pread64			sys32_pread
 181	i386	pwrite64		sys_pwrite64			sys32_pwrite

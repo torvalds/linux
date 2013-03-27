@@ -52,9 +52,13 @@ static int vv6410_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
+		if (!gspca_dev->streaming)
+			return 0;
 		err = vv6410_set_hflip(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_VFLIP:
+		if (!gspca_dev->streaming)
+			return 0;
 		err = vv6410_set_vflip(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_GAIN:
@@ -94,11 +98,14 @@ static int vv6410_init_controls(struct sd *sd)
 {
 	struct v4l2_ctrl_handler *hdl = &sd->gspca_dev.ctrl_handler;
 
-	v4l2_ctrl_handler_init(hdl, 4);
-	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,
-			V4L2_CID_HFLIP, 0, 1, 1, 0);
-	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,
-			V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_handler_init(hdl, 2);
+	/* Disable the hardware VFLIP and HFLIP as we currently lack a
+	   mechanism to adjust the image offset in such a way that
+	   we don't need to renegotiate the announced format */
+	/* v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops, */
+	/*		V4L2_CID_HFLIP, 0, 1, 1, 0); */
+	/* v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops, */
+	/*		V4L2_CID_VFLIP, 0, 1, 1, 0); */
 	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,
 			V4L2_CID_EXPOSURE, 0, 32768, 1, 20000);
 	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,

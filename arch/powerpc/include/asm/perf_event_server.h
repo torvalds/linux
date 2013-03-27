@@ -47,11 +47,11 @@ struct power_pmu {
 /*
  * Values for power_pmu.flags
  */
-#define PPMU_LIMITED_PMC5_6	1	/* PMC5/6 have limited function */
-#define PPMU_ALT_SIPR		2	/* uses alternate posn for SIPR/HV */
-#define PPMU_NO_SIPR		4	/* no SIPR/HV in MMCRA at all */
-#define PPMU_NO_CONT_SAMPLING	8	/* no continuous sampling */
-#define PPMU_SIAR_VALID		16	/* Processor has SIAR Valid bit */
+#define PPMU_LIMITED_PMC5_6	0x00000001 /* PMC5/6 have limited function */
+#define PPMU_ALT_SIPR		0x00000002 /* uses alternate posn for SIPR/HV */
+#define PPMU_NO_SIPR		0x00000004 /* no SIPR/HV in MMCRA at all */
+#define PPMU_NO_CONT_SAMPLING	0x00000008 /* no continuous sampling */
+#define PPMU_SIAR_VALID		0x00000010 /* Processor has SIAR Valid bit */
 
 /*
  * Values for flags to get_alternatives()

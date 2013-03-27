@@ -198,7 +198,7 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 
 	flush_workqueue(mdev->workqueue);
 	destroy_workqueue(mdev->workqueue);
-	mlx4_mr_free(dev, &mdev->mr);
+	(void) mlx4_mr_free(dev, &mdev->mr);
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
@@ -303,7 +303,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	return mdev;
 
 err_mr:
-	mlx4_mr_free(dev, &mdev->mr);
+	(void) mlx4_mr_free(dev, &mdev->mr);
 err_map:
 	if (!mdev->uar_map)
 		iounmap(mdev->uar_map);

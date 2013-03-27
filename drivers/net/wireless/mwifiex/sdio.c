@@ -161,7 +161,6 @@ static int mwifiex_sdio_suspend(struct device *dev)
 	struct sdio_mmc_card *card;
 	struct mwifiex_adapter *adapter;
 	mmc_pm_flag_t pm_flag = 0;
-	int i;
 	int ret = 0;
 
 	if (func) {
@@ -198,9 +197,6 @@ static int mwifiex_sdio_suspend(struct device *dev)
 	/* Indicate device suspended */
 	adapter->is_suspended = true;
 
-	for (i = 0; i < adapter->priv_num; i++)
-		netif_carrier_off(adapter->priv[i]->netdev);
-
 	return ret;
 }
 
@@ -220,7 +216,6 @@ static int mwifiex_sdio_resume(struct device *dev)
 	struct sdio_mmc_card *card;
 	struct mwifiex_adapter *adapter;
 	mmc_pm_flag_t pm_flag = 0;
-	int i;
 
 	if (func) {
 		pm_flag = sdio_get_host_pm_caps(func);
@@ -242,10 +237,6 @@ static int mwifiex_sdio_resume(struct device *dev)
 	}
 
 	adapter->is_suspended = false;
-
-	for (i = 0; i < adapter->priv_num; i++)
-		if (adapter->priv[i]->media_connected)
-			netif_carrier_on(adapter->priv[i]->netdev);
 
 	/* Disable Host Sleep */
 	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),

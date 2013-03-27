@@ -93,7 +93,7 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 	if (!access_ok(VERIFY_WRITE, buf, nbytes))
 		return -EFAULT;
 
-	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	mutex_lock(&file_inode(file)->i_mutex);
 	list_for_each_entry_safe(req, tmp_req, queue, queue) {
 		len = snprintf(tmpbuf, sizeof(tmpbuf),
 				"%8p %08x %c%c%c %5d %c%c%c\n",
@@ -120,7 +120,7 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 		nbytes -= len;
 		buf += len;
 	}
-	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&file_inode(file)->i_mutex);
 
 	return actual;
 }
@@ -168,13 +168,13 @@ out:
 static ssize_t regs_dbg_read(struct file *file, char __user *buf,
 		size_t nbytes, loff_t *ppos)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int ret;
 
 	mutex_lock(&inode->i_mutex);
 	ret = simple_read_from_buffer(buf, nbytes, ppos,
 			file->private_data,
-			file->f_dentry->d_inode->i_size);
+			file_inode(file)->i_size);
 	mutex_unlock(&inode->i_mutex);
 
 	return ret;

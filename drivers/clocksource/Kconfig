@@ -62,3 +62,8 @@ config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 
 config ARM_ARCH_TIMER
 	bool
+
+config CLKSRC_METAG_GENERIC
+	def_bool y if METAG
+	help
+	  This option enables support for the Meta per-thread timers.

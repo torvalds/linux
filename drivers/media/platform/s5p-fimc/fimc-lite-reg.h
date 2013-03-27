@@ -131,9 +131,9 @@ void flite_hw_set_interrupt_mask(struct fimc_lite *dev);
 void flite_hw_capture_start(struct fimc_lite *dev);
 void flite_hw_capture_stop(struct fimc_lite *dev);
 void flite_hw_set_camera_bus(struct fimc_lite *dev,
-			     struct s5p_fimc_isp_info *s_info);
+			     struct fimc_source_info *s_info);
 void flite_hw_set_camera_polarity(struct fimc_lite *dev,
-				  struct s5p_fimc_isp_info *cam);
+				  struct fimc_source_info *cam);
 void flite_hw_set_window_offset(struct fimc_lite *dev, struct flite_frame *f);
 void flite_hw_set_source_format(struct fimc_lite *dev, struct flite_frame *f);
 

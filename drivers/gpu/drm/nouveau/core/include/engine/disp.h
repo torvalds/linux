@@ -4,18 +4,11 @@
 #include <core/object.h>
 #include <core/engine.h>
 #include <core/device.h>
+#include <core/event.h>
 
 struct nouveau_disp {
 	struct nouveau_engine base;
-
-	struct {
-		struct list_head list;
-		spinlock_t lock;
-		void (*notify)(void *, int);
-		void (*get)(void *, int);
-		void (*put)(void *, int);
-		void *data;
-	} vblank;
+	struct nouveau_event *vblank;
 };
 
 static inline struct nouveau_disp *
@@ -24,16 +17,22 @@ nouveau_disp(void *obj)
 	return (void *)nv_device(obj)->subdev[NVDEV_ENGINE_DISP];
 }
 
-#define nouveau_disp_create(p,e,c,i,x,d)                                       \
-	nouveau_engine_create((p), (e), (c), true, (i), (x), (d))
-#define nouveau_disp_destroy(d)                                                \
-	nouveau_engine_destroy(&(d)->base)
+#define nouveau_disp_create(p,e,c,h,i,x,d)                                     \
+	nouveau_disp_create_((p), (e), (c), (h), (i), (x),                     \
+			     sizeof(**d), (void **)d)
+#define nouveau_disp_destroy(d) ({                                             \
+	struct nouveau_disp *disp = (d);                                       \
+	_nouveau_disp_dtor(nv_object(disp));                                   \
+})
 #define nouveau_disp_init(d)                                                   \
 	nouveau_engine_init(&(d)->base)
 #define nouveau_disp_fini(d,s)                                                 \
 	nouveau_engine_fini(&(d)->base, (s))
 
-#define _nouveau_disp_dtor _nouveau_engine_dtor
+int  nouveau_disp_create_(struct nouveau_object *, struct nouveau_object *,
+			  struct nouveau_oclass *, int heads,
+			  const char *, const char *, int, void **);
+void _nouveau_disp_dtor(struct nouveau_object *);
 #define _nouveau_disp_init _nouveau_engine_init
 #define _nouveau_disp_fini _nouveau_engine_fini
 

@@ -955,7 +955,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 					kvm_mem.guest_phys_addr;
 		kvm_userspace_mem.memory_size = kvm_mem.memory_size;
 		r = kvm_vm_ioctl_set_memory_region(kvm,
-					&kvm_userspace_mem, 0);
+					&kvm_userspace_mem, false);
 		if (r)
 			goto out;
 		break;
@@ -1580,7 +1580,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		struct kvm_memory_slot *memslot,
 		struct kvm_memory_slot old,
 		struct kvm_userspace_memory_region *mem,
-		int user_alloc)
+		bool user_alloc)
 {
 	unsigned long i;
 	unsigned long pfn;
@@ -1611,7 +1611,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 		struct kvm_userspace_memory_region *mem,
 		struct kvm_memory_slot old,
-		int user_alloc)
+		bool user_alloc)
 {
 	return;
 }
@@ -1834,7 +1834,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	mutex_lock(&kvm->slots_lock);
 
 	r = -EINVAL;
-	if (log->slot >= KVM_MEMORY_SLOTS)
+	if (log->slot >= KVM_USER_MEM_SLOTS)
 		goto out;
 
 	memslot = id_to_memslot(kvm->memslots, log->slot);

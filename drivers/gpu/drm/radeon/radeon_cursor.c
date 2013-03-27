@@ -246,8 +246,14 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		int i = 0;
 		struct drm_crtc *crtc_p;
 
-		/* avivo cursor image can't end on 128 pixel boundary or
+		/*
+		 * avivo cursor image can't end on 128 pixel boundary or
 		 * go past the end of the frame if both crtcs are enabled
+		 *
+		 * NOTE: It is safe to access crtc->enabled of other crtcs
+		 * without holding either the mode_config lock or the other
+		 * crtc's lock as long as write access to this flag _always_
+		 * grabs all locks.
 		 */
 		list_for_each_entry(crtc_p, &crtc->dev->mode_config.crtc_list, head) {
 			if (crtc_p->enabled)
