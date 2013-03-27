@@ -102,18 +102,6 @@ static void check_cpu_stalls(void)
 	RCU_TRACE(check_cpu_stall_preempt());
 }
 
-#ifdef CONFIG_RCU_TRACE
-
-/*
- * Because preemptible RCU does not exist, it is not necessary to
- * dump out its statistics.
- */
-static void show_tiny_preempt_stats(struct seq_file *m)
-{
-}
-
-#endif /* #ifdef CONFIG_RCU_TRACE */
-
 /*
  * Because preemptible RCU does not exist, it never has any callbacks
  * to check.
@@ -202,7 +190,6 @@ static void rcu_trace_sub_qlen(struct rcu_ctrlblk *rcp, int n)
  */
 static int show_tiny_stats(struct seq_file *m, void *unused)
 {
-	show_tiny_preempt_stats(m);
 	seq_printf(m, "rcu_sched: qlen: %ld\n", rcu_sched_ctrlblk.qlen);
 	seq_printf(m, "rcu_bh: qlen: %ld\n", rcu_bh_ctrlblk.qlen);
 	return 0;
