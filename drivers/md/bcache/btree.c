@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/hash.h>
+#include <linux/prefetch.h>
 #include <linux/random.h>
 #include <linux/rcupdate.h>
 #include <trace/events/bcache.h>

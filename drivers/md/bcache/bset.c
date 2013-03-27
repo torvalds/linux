@@ -10,6 +10,7 @@
 #include "debug.h"
 
 #include <linux/random.h>
+#include <linux/prefetch.h>
 
 /* Keylists */
 
