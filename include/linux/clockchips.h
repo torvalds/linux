@@ -8,6 +8,20 @@
 #ifndef _LINUX_CLOCKCHIPS_H
 #define _LINUX_CLOCKCHIPS_H
 
+/* Clock event notification values */
+enum clock_event_nofitiers {
+	CLOCK_EVT_NOTIFY_ADD,
+	CLOCK_EVT_NOTIFY_BROADCAST_ON,
+	CLOCK_EVT_NOTIFY_BROADCAST_OFF,
+	CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
+	CLOCK_EVT_NOTIFY_BROADCAST_ENTER,
+	CLOCK_EVT_NOTIFY_BROADCAST_EXIT,
+	CLOCK_EVT_NOTIFY_SUSPEND,
+	CLOCK_EVT_NOTIFY_RESUME,
+	CLOCK_EVT_NOTIFY_CPU_DYING,
+	CLOCK_EVT_NOTIFY_CPU_DEAD,
+};
+
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BUILD
 
 #include <linux/clocksource.h>
@@ -24,20 +38,6 @@ enum clock_event_mode {
 	CLOCK_EVT_MODE_PERIODIC,
 	CLOCK_EVT_MODE_ONESHOT,
 	CLOCK_EVT_MODE_RESUME,
-};
-
-/* Clock event notification values */
-enum clock_event_nofitiers {
-	CLOCK_EVT_NOTIFY_ADD,
-	CLOCK_EVT_NOTIFY_BROADCAST_ON,
-	CLOCK_EVT_NOTIFY_BROADCAST_OFF,
-	CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
-	CLOCK_EVT_NOTIFY_BROADCAST_ENTER,
-	CLOCK_EVT_NOTIFY_BROADCAST_EXIT,
-	CLOCK_EVT_NOTIFY_SUSPEND,
-	CLOCK_EVT_NOTIFY_RESUME,
-	CLOCK_EVT_NOTIFY_CPU_DYING,
-	CLOCK_EVT_NOTIFY_CPU_DEAD,
 };
 
 /*
@@ -173,7 +173,7 @@ extern int tick_receive_broadcast(void);
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 extern void clockevents_notify(unsigned long reason, void *arg);
 #else
-# define clockevents_notify(reason, arg) do { } while (0)
+static inline void clockevents_notify(unsigned long reason, void *arg) {}
 #endif
 
 #else /* CONFIG_GENERIC_CLOCKEVENTS_BUILD */
@@ -181,7 +181,7 @@ extern void clockevents_notify(unsigned long reason, void *arg);
 static inline void clockevents_suspend(void) {}
 static inline void clockevents_resume(void) {}
 
-#define clockevents_notify(reason, arg) do { } while (0)
+static inline void clockevents_notify(unsigned long reason, void *arg) {}
 
 #endif
 
