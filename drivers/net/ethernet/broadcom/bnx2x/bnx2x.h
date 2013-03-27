@@ -1277,6 +1277,8 @@ struct bnx2x {
 #define BP_FW_MB_IDX(bp)		BP_FW_MB_IDX_VN(bp, BP_VN(bp))
 
 #ifdef CONFIG_BNX2X_SRIOV
+	/* protects vf2pf mailbox from simultaneous access */
+	struct mutex		vf2pf_mutex;
 	/* vf pf channel mailbox contains request and response buffers */
 	struct bnx2x_vf_mbx_msg	*vf2pf_mbox;
 	dma_addr_t		vf2pf_mbox_mapping;

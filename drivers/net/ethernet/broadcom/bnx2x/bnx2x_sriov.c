@@ -2388,8 +2388,8 @@ int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem)
 		goto get_vf;
 	case EVENT_RING_OPCODE_MALICIOUS_VF:
 		abs_vfid = elem->message.data.malicious_vf_event.vf_id;
-		DP(BNX2X_MSG_IOV, "Got VF MALICIOUS notification abs_vfid=%d\n",
-		   abs_vfid);
+		DP(BNX2X_MSG_IOV, "Got VF MALICIOUS notification abs_vfid=%d err_id=0x%x\n",
+		   abs_vfid, elem->message.data.malicious_vf_event.err_id);
 		goto get_vf;
 	default:
 		return 1;
@@ -2446,8 +2446,8 @@ get_vf:
 		/* Do nothing for now */
 		break;
 	case EVENT_RING_OPCODE_MALICIOUS_VF:
-		DP(BNX2X_MSG_IOV, "got VF [%d] MALICIOUS notification\n",
-		   vf->abs_vfid);
+		DP(BNX2X_MSG_IOV, "Got VF MALICIOUS notification abs_vfid=%d error id %x\n",
+		   abs_vfid, elem->message.data.malicious_vf_event.err_id);
 		/* Do nothing for now */
 		break;
 	}
@@ -3417,10 +3417,10 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 	return PFVF_BULLETIN_UPDATED;
 }
 
-void bnx2x_vf_map_doorbells(struct bnx2x *bp)
+void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
 {
 	/* vf doorbells are embedded within the regview */
-	bp->doorbells = bp->regview + PXP_VF_ADDR_DB_START;
+	return bp->regview + PXP_VF_ADDR_DB_START;
 }
 
 int bnx2x_vf_pci_alloc(struct bnx2x *bp)
