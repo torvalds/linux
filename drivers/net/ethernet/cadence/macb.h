@@ -173,6 +173,8 @@
 /* Bitfields in DMACFG. */
 #define GEM_FBLDO_OFFSET			0
 #define GEM_FBLDO_SIZE				5
+#define GEM_ENDIA_OFFSET			7
+#define GEM_ENDIA_SIZE				1
 #define GEM_RXBMS_OFFSET			8
 #define GEM_RXBMS_SIZE				2
 #define GEM_TXPBMS_OFFSET			10
