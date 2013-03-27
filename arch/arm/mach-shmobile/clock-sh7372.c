@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
+#include <mach/clock.h>
 #include <mach/common.h>
 
 /* SH7372 registers */
@@ -83,39 +84,12 @@ struct clk sh7372_extal2_clk = {
 	.rate		= 48000000,
 };
 
-/* A fixed divide-by-2 block */
-static unsigned long div2_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 2;
-}
+SH_CLK_RATIO(div2, 1, 2);
 
-static struct sh_clk_ops div2_clk_ops = {
-	.recalc		= div2_recalc,
-};
-
-/* Divide dv_clki by two */
-struct clk sh7372_dv_clki_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_dv_clki_clk,
-};
-
-/* Divide extal1 by two */
-static struct clk extal1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_extal1_clk,
-};
-
-/* Divide extal2 by two */
-static struct clk extal2_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_extal2_clk,
-};
-
-/* Divide extal2 by four */
-static struct clk extal2_div4_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &extal2_div2_clk,
-};
+SH_FIXED_RATIO_CLKg(sh7372_dv_clki_div2_clk,	sh7372_dv_clki_clk,	div2);
+SH_FIXED_RATIO_CLK(extal1_div2_clk,		sh7372_extal1_clk,	div2);
+SH_FIXED_RATIO_CLK(extal2_div2_clk,		sh7372_extal2_clk,	div2);
+SH_FIXED_RATIO_CLK(extal2_div4_clk,		extal2_div2_clk,	div2);
 
 /* PLLC0 and PLLC1 */
 static unsigned long pllc01_recalc(struct clk *clk)
@@ -147,10 +121,7 @@ static struct clk pllc1_clk = {
 };
 
 /* Divide PLLC1 by two */
-static struct clk pllc1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &pllc1_clk,
-};
+SH_FIXED_RATIO_CLK(pllc1_div2_clk,	pllc1_clk,	div2);
 
 /* PLLC2 */
 
@@ -650,5 +621,4 @@ void __init sh7372_clock_init(void)
 		shmobile_clk_init();
 	else
 		panic("failed to setup sh7372 clocks\n");
-
 }
