@@ -3357,14 +3357,15 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 						dev->analog_ep_bulk =
 							    e->bEndpointAddress;
 					} else {
-						has_dvb = true;
 						if (usb_endpoint_xfer_isoc(e)) {
 							dev->dvb_ep_isoc = e->bEndpointAddress;
 							if (size > dev->dvb_max_pkt_size_isoc) {
+								has_dvb = true; /* see NOTE (~) */
 								dev->dvb_max_pkt_size_isoc = size;
 								dev->dvb_alt_isoc = i;
 							}
 						} else {
+							has_dvb = true;
 							dev->dvb_ep_bulk = e->bEndpointAddress;
 						}
 					}
@@ -3390,6 +3391,12 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			 * reflects the endpoint configurations we have seen
 			 * so far. But there might be devices for which this
 			 * logic is not sufficient...
+			 */
+			/*
+			 * NOTE (~): some manufacturers (e.g. Terratec) disable
+			 * endpoints by setting wMaxPacketSize to 0 bytes for
+			 * all alt settings. So far, we've seen this for
+			 * DVB isoc endpoints only.
 			 */
 		}
 	}
