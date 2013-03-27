@@ -2335,50 +2335,14 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	case 0x8243:		/* mt9v011 rev B 640x480 1.3 Mpix sensor */
 		sensor_name = "mt9v011";
 		dev->em28xx_sensor = EM28XX_MT9V011;
-		dev->sensor_xres = 640;
-		dev->sensor_yres = 480;
-		/*
-		 * FIXME: mt9v011 uses I2S speed as xtal clk - at least with
-		 * the Silvercrest cam I have here for testing - for higher
-		 * resolutions, a high clock cause horizontal artifacts, so we
-		 * need to use a lower xclk frequency.
-		 * Yet, it would be possible to adjust xclk depending on the
-		 * desired resolution, since this affects directly the
-		 * frame rate.
-		 */
-		dev->board.xclk = EM28XX_XCLK_FREQUENCY_4_3MHZ;
-		dev->sensor_xtal = 4300000;
-
-		/* probably means GRGB 16 bit bayer */
-		dev->vinmode = 0x0d;
-		dev->vinctl = 0x00;
-
 		break;
-
 	case 0x143a:    /* MT9M111 as found in the ECS G200 */
 		sensor_name = "mt9m111";
-		dev->board.xclk = EM28XX_XCLK_FREQUENCY_48MHZ;
 		dev->em28xx_sensor = EM28XX_MT9M111;
-		em28xx_initialize_mt9m111(dev);
-		dev->sensor_xres = 640;
-		dev->sensor_yres = 512;
-
-		dev->vinmode = 0x0a;
-		dev->vinctl = 0x00;
-
 		break;
-
 	case 0x8431:
 		sensor_name = "mt9m001";
 		dev->em28xx_sensor = EM28XX_MT9M001;
-		em28xx_initialize_mt9m001(dev);
-		dev->sensor_xres = 1280;
-		dev->sensor_yres = 1024;
-
-		/* probably means BGGR 16 bit bayer */
-		dev->vinmode = 0x0c;
-		dev->vinctl = 0x00;
-
 		break;
 	default:
 		printk("Unknown Micron Sensor 0x%04x\n", version);
@@ -2609,6 +2573,76 @@ static void em28xx_tuner_setup(struct em28xx *dev)
 	f.frequency = 9076;     /* just a magic number */
 	dev->ctl_freq = f.frequency;
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
+}
+
+static int em28xx_init_camera(struct em28xx *dev)
+{
+	switch (dev->em28xx_sensor) {
+	case EM28XX_MT9V011:
+	{
+		struct mt9v011_platform_data pdata;
+		struct i2c_board_info mt9v011_info = {
+			.type = "mt9v011",
+			.addr = dev->i2c_client[dev->def_i2c_bus].addr,
+			.platform_data = &pdata,
+		};
+
+		dev->sensor_xres = 640;
+		dev->sensor_yres = 480;
+
+		/*
+		 * FIXME: mt9v011 uses I2S speed as xtal clk - at least with
+		 * the Silvercrest cam I have here for testing - for higher
+		 * resolutions, a high clock cause horizontal artifacts, so we
+		 * need to use a lower xclk frequency.
+		 * Yet, it would be possible to adjust xclk depending on the
+		 * desired resolution, since this affects directly the
+		 * frame rate.
+		 */
+		dev->board.xclk = EM28XX_XCLK_FREQUENCY_4_3MHZ;
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk);
+		dev->sensor_xtal = 4300000;
+		pdata.xtal = dev->sensor_xtal;
+		if (NULL ==
+		    v4l2_i2c_new_subdev_board(&dev->v4l2_dev,
+					      &dev->i2c_adap[dev->def_i2c_bus],
+					      &mt9v011_info, NULL))
+			return -ENODEV;
+		/* probably means GRGB 16 bit bayer */
+		dev->vinmode = 0x0d;
+		dev->vinctl = 0x00;
+
+		break;
+	}
+	case EM28XX_MT9M001:
+		dev->sensor_xres = 1280;
+		dev->sensor_yres = 1024;
+
+		em28xx_initialize_mt9m001(dev);
+
+		/* probably means BGGR 16 bit bayer */
+		dev->vinmode = 0x0c;
+		dev->vinctl = 0x00;
+
+		break;
+	case EM28XX_MT9M111:
+		dev->sensor_xres = 640;
+		dev->sensor_yres = 512;
+
+		dev->board.xclk = EM28XX_XCLK_FREQUENCY_48MHZ;
+		em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk);
+		em28xx_initialize_mt9m111(dev);
+
+		dev->vinmode = 0x0a;
+		dev->vinctl = 0x00;
+
+		break;
+	case EM28XX_NOSENSOR:
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int em28xx_hint_board(struct em28xx *dev)
@@ -2878,20 +2912,6 @@ static void em28xx_card_setup(struct em28xx *dev)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 			"tvp5150", 0, tvp5150_addrs);
 
-	if (dev->em28xx_sensor == EM28XX_MT9V011) {
-		struct mt9v011_platform_data pdata;
-		struct i2c_board_info mt9v011_info = {
-			.type = "mt9v011",
-			.addr = 0xba >> 1,
-			.platform_data = &pdata,
-		};
-
-		pdata.xtal = dev->sensor_xtal;
-		v4l2_i2c_new_subdev_board(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
-				&mt9v011_info, NULL);
-	}
-
-
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap[dev->def_i2c_bus],
 			"tvaudio", dev->board.tvaudio_addr, NULL);
@@ -2925,6 +2945,8 @@ static void em28xx_card_setup(struct em28xx *dev)
 	}
 
 	em28xx_tuner_setup(dev);
+
+	em28xx_init_camera(dev);
 }
 
 
