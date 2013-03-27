@@ -41,8 +41,8 @@ static void __init sunxi_osc_clk_setup(struct device_node *node)
 
 	parent = of_clk_get_parent_name(node, 0);
 
-	clk = clk_register_gate(NULL, clk_name, parent, CLK_IGNORE_UNUSED,
-				reg, SUNXI_OSC24M_GATE, 0, &clk_lock);
+	clk = clk_register_gate(NULL, clk_name, parent, 0, reg,
+				SUNXI_OSC24M_GATE, 0, &clk_lock);
 
 	if (clk) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
@@ -198,8 +198,8 @@ static void __init sunxi_factors_clk_setup(struct device_node *node,
 
 	parent = of_clk_get_parent_name(node, 0);
 
-	clk = clk_register_factors(NULL, clk_name, parent, CLK_IGNORE_UNUSED,
-				   reg, data->table, data->getter, &clk_lock);
+	clk = clk_register_factors(NULL, clk_name, parent, 0, reg,
+				   data->table, data->getter, &clk_lock);
 
 	if (clk) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
