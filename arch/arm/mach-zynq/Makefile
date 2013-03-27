@@ -3,4 +3,4 @@
 #
 
 # Common support
-obj-y				:= common.o
+obj-y				:= common.o slcr.o

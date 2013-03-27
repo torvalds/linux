@@ -61,15 +61,7 @@ static void __init xilinx_init_machine(void)
 
 static void __init xilinx_zynq_timer_init(void)
 {
-	struct device_node *np;
-	void __iomem *slcr;
-
-	np = of_find_compatible_node(NULL, NULL, "xlnx,zynq-slcr");
-	slcr = of_iomap(np, 0);
-	WARN_ON(!slcr);
-
-	xilinx_zynq_clocks_init(slcr);
-
+	zynq_slcr_init();
 	clocksource_of_init();
 }
 

@@ -17,6 +17,9 @@
 #ifndef __MACH_ZYNQ_COMMON_H__
 #define __MACH_ZYNQ_COMMON_H__
 
+extern int zynq_slcr_init(void);
+
+extern void __iomem *zynq_slcr_base;
 extern void __iomem *zynq_scu_base;
 
 #endif
