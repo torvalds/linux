@@ -1067,6 +1067,10 @@ static const char *register_bdev(struct cache_sb *sb, struct page *sb_page,
 
 	set_capacity(g, dc->bdev->bd_part->nr_sects - dc->sb.data_offset);
 
+	g->queue->backing_dev_info.ra_pages =
+		max(g->queue->backing_dev_info.ra_pages,
+		    bdev->bd_queue->backing_dev_info.ra_pages);
+
 	bch_cached_dev_request_init(dc);
 
 	err = "error creating kobject";
