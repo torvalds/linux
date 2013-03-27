@@ -393,7 +393,7 @@ static inline u32 mei_data2slots(size_t length)
  */
 void mei_device_init(struct mei_device *dev);
 void mei_reset(struct mei_device *dev, int interrupts);
-int mei_hw_init(struct mei_device *dev);
+int mei_start(struct mei_device *dev);
 void mei_stop(struct mei_device *dev);
 
 /*

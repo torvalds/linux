@@ -184,7 +184,7 @@ static int mei_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto disable_msi;
 	}
 
-	if (mei_hw_init(dev)) {
+	if (mei_start(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");
 		err = -ENODEV;
 		goto release_irq;

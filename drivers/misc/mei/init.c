@@ -69,13 +69,13 @@ void mei_device_init(struct mei_device *dev)
 }
 
 /**
- * mei_hw_init - initializes host and fw to start work.
+ * mei_start - initializes host and fw to start work.
  *
  * @dev: the device structure
  *
  * returns 0 on success, <0 on failure.
  */
-int mei_hw_init(struct mei_device *dev)
+int mei_start(struct mei_device *dev)
 {
 	int ret = 0;
 
