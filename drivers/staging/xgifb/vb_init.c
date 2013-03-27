@@ -1369,17 +1369,14 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	if (HwDeviceExtension->jChipType < XG20) {
 		if (XGI_BridgeIsOn(pVBInfo) == 1) {
-			if (pVBInfo->IF_DEF_LVDS == 0) {
-				xgifb_reg_set(pVBInfo->Part2Port, 0x00, 0x1C);
-				xgifb_reg_set(pVBInfo->Part4Port,
-					      0x0D, XGI330_CRT2Data_4_D);
-				xgifb_reg_set(pVBInfo->Part4Port,
-					      0x0E, XGI330_CRT2Data_4_E);
-				xgifb_reg_set(pVBInfo->Part4Port,
-					      0x10, XGI330_CRT2Data_4_10);
-				xgifb_reg_set(pVBInfo->Part4Port, 0x0F, 0x3F);
-			}
-
+			xgifb_reg_set(pVBInfo->Part2Port, 0x00, 0x1C);
+			xgifb_reg_set(pVBInfo->Part4Port,
+				      0x0D, XGI330_CRT2Data_4_D);
+			xgifb_reg_set(pVBInfo->Part4Port,
+				      0x0E, XGI330_CRT2Data_4_E);
+			xgifb_reg_set(pVBInfo->Part4Port,
+				      0x10, XGI330_CRT2Data_4_10);
+			xgifb_reg_set(pVBInfo->Part4Port, 0x0F, 0x3F);
 			XGI_LockCRT2(HwDeviceExtension, pVBInfo);
 		}
 	} /* != XG20 */
