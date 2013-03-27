@@ -9,6 +9,7 @@
 
 #ifdef __KERNEL__
 #include <linux/types.h>
+#include <linux/uuid.h>
 typedef unsigned long kernel_ulong_t;
 #endif
 
@@ -566,6 +567,14 @@ struct ipack_device_id {
 	__u8  format;			/* Format version or IPACK_ANY_ID */
 	__u32 vendor;			/* Vendor ID or IPACK_ANY_ID */
 	__u32 device;			/* Device ID or IPACK_ANY_ID */
+};
+
+#define MEI_CL_MODULE_PREFIX "mei:"
+#define MEI_CL_NAME_SIZE 32
+
+struct mei_cl_device_id {
+	char name[MEI_CL_NAME_SIZE];
+	kernel_ulong_t driver_info;
 };
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

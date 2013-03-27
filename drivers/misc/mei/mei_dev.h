@@ -21,6 +21,7 @@
 #include <linux/watchdog.h>
 #include <linux/poll.h>
 #include <linux/mei.h>
+#include <linux/mei_cl_bus.h>
 
 #include "hw.h"
 #include "hw-me-regs.h"
@@ -260,6 +261,31 @@ struct mei_hw_ops {
 	u32 (*read_hdr)(const struct mei_device *dev);
 	int (*read) (struct mei_device *dev,
 		     unsigned char *buf, unsigned long len);
+};
+
+/* MEI bus API*/
+struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
+				  uuid_le uuid, char *name);
+void mei_cl_remove_device(struct mei_cl_device *device);
+
+/**
+ * struct mei_cl_device - MEI device handle
+ * An mei_cl_device pointer is returned from mei_add_device()
+ * and links MEI bus clients to their actual ME host client pointer.
+ * Drivers for MEI devices will get an mei_cl_device pointer
+ * when being probed and shall use it for doing ME bus I/O.
+ *
+ * @dev: linux driver model device pointer
+ * @uuid: me client uuid
+ * @cl: mei client
+ * @priv_data: client private data
+ */
+struct mei_cl_device {
+	struct device dev;
+
+	struct mei_cl *cl;
+
+	void *priv_data;
 };
 
 /**
