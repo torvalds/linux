@@ -29,6 +29,16 @@
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
 
+static const struct resource pfc_resources[] = {
+	DEFINE_RES_MEM(0xe6060000, 0x250),
+};
+
+void __init r8a7790_pinmux_init(void)
+{
+	platform_device_register_simple("pfc-r8a7790", -1, pfc_resources,
+					ARRAY_SIZE(pfc_resources));
+}
+
 #define SCIF_COMMON(scif_type, baseaddr, irq)			\
 	.type		= scif_type,				\
 	.mapbase	= baseaddr,				\
