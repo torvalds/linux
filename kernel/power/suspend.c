@@ -76,8 +76,20 @@ EXPORT_SYMBOL_GPL(suspend_set_ops);
 
 bool valid_state(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_FREEZE)
-		return true;
+	if (state == PM_SUSPEND_FREEZE) {
+#ifdef CONFIG_PM_DEBUG
+		if (pm_test_level != TEST_NONE &&
+		    pm_test_level != TEST_FREEZER &&
+		    pm_test_level != TEST_DEVICES &&
+		    pm_test_level != TEST_PLATFORM) {
+			printk(KERN_WARNING "Unsupported pm_test mode for "
+					"freeze state, please choose "
+					"none/freezer/devices/platform.\n");
+			return false;
+		}
+#endif
+			return true;
+	}
 	/*
 	 * PM_SUSPEND_STANDBY and PM_SUSPEND_MEMORY states need lowlevel
 	 * support and need to be valid to the lowlevel
