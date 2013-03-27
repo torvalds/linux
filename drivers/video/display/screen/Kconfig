@@ -142,7 +142,8 @@ config LCD_DS1006H
           bool "Lvds screen for ds1006h(RK3168)"
 config LCD_B101UANO_1920x1200
           bool "Lvds screen B101UANO for u30gt2"
-
+config LCD_E242868_1024X600
+          bool "RK3168 86v RGB 1024*600 "
 config LCD_WY_800X480
 	bool "lcd for 760"
 config LCD_HH070D_LVDS

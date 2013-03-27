@@ -57,5 +57,6 @@ obj-$(CONFIG_LCD_TL5001_MIPI)    += lcd_tl5001_mipi.o
 obj-$(CONFIG_LCD_LP097QX1)    += lcd_LP097QX1.o
 obj-$(CONFIG_LCD_DS1006H)    += lcd_ds1006h.o
 obj-$(CONFIG_LCD_B101UANO_1920x1200)	+= lcd_b101uano_1920x1200.o
+obj-$(CONFIG_LCD_E242868_1024X600) += lcd_E242868_rk3168_86v.o
 obj-$(CONFIG_LCD_WY_800X480)    += lcd_wy_800x480.o
 obj-$(CONFIG_LCD_HH070D_LVDS)   += lcd_hh070d_lvds.o

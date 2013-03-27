@@ -101,6 +101,7 @@ obj-$(CONFIG_TOUCHSCREEN_I30)	+= i30_ts.o
 obj-$(CONFIG_TOUCHSCREEN_BYD693X)	+= byd693x_ts.o
 obj-$(CONFIG_TOUCHSCREEN_FT5X0X)	+= ft5x0x.o
 obj-$(CONFIG_TOUCHSCREEN_GSLX680)	+= rockchip_gslX680.o
+obj-$(CONFIG_TOUCHSCREEN_GSLX680_RK3168)	+= rockchip_gslX680_rk3168.o
 # Make VTL TouchScreen Driver
 obj-$(CONFIG_TOUCHSCREEN_CT36X)		+= ct36x_ts/
 obj-$(CONFIG_TP_760_TS)                    += tp_760_ts.o

@@ -76,6 +76,9 @@
 #include "board-rk3168-86v-camera.c"
 #include <plat/key.h>
 
+#define RK3168_86V_CODEC
+
+
 static struct rk29_keys_button key_button[] = {
 	{
 		.desc	= "play",
@@ -165,6 +168,41 @@ struct ts_hw_data     gslx680_info = {
 };
 #endif
 
+
+#if defined(CONFIG_TOUCHSCREEN_GSLX680_RK3168)
+#define TOUCH_RESET_PIN RK30_PIN0_PB6
+#define TOUCH_EN_PIN NULL
+#define TOUCH_INT_PIN RK30_PIN1_PB7
+
+int gslx680_init_platform_hw(void)
+{
+
+       if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+                gpio_free(TOUCH_RESET_PIN);
+                printk("gslx680_init_platform_hw gpio_request error\n");
+                return -EIO;
+        }
+        if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+                gpio_free(TOUCH_INT_PIN);
+                printk("gslx680_init_platform_hw  gpio_request error\n");
+                return -EIO;
+        }
+        gpio_direction_output(TOUCH_RESET_PIN, GPIO_HIGH);
+        mdelay(10);
+        gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+        mdelay(10);
+        gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+        msleep(300);
+        return 0;
+
+}
+
+struct ts_hw_data     gslx680_info = {
+	.reset_gpio = TOUCH_RESET_PIN,
+	.touch_en_gpio = TOUCH_INT_PIN,
+	.init_platform_hw = gslx680_init_platform_hw,
+};
+#endif
 
 #if defined (CONFIG_TOUCHSCREEN_86V_GT811_IIC)
 #define TOUCH_RESET_PIN  RK30_PIN0_PB6
@@ -404,8 +442,11 @@ static struct sensor_platform_data mma7660_info = {
 	.irq_enable = 1,
 	.poll_delay_ms = 30,
     .init_platform_hw = mma7660_init_platform_hw,
+	#ifdef RK3168_86V_CODEC
+	.orientation = {-1, 0, 0, 0, -1, 0, 0, 0, 1},
+	#else
     .orientation = {0, -1, 0, -1, 0, 0, 0, 0, -1},
-      
+    #endif  
 };
 #endif
 
@@ -1819,6 +1860,14 @@ static struct i2c_board_info __initdata i2c2_info[] = {
         .platform_data =&gslx680_info,
     },
 #endif
+#if defined (CONFIG_TOUCHSCREEN_GSLX680_RK3168)
+    {
+        .type           = "gslX680",
+        .addr           = 0x40,
+        .flags          = 0,
+        .platform_data =&gslx680_info,
+    },
+#endif
 #if defined (CONFIG_TOUCHSCREEN_86V_GT811_IIC)	
 {		
 	.type          = "gt811_ts",		
@@ -2038,6 +2087,8 @@ static void __init rk30_reserve(void)
  * @logic_volt	: logic voltage arm requests depend on frequency
  * comments	: min arm/logic voltage
  */
+#ifdef CONFIG_DVFS_WITH_UOC
+//chenxing uoc
 static struct cpufreq_frequency_table dvfs_arm_table[] = {
 	{.frequency = 312 * 1000,       .index = 950 * 1000},
 	{.frequency = 504 * 1000,       .index = 1000 * 1000},
@@ -2062,7 +2113,33 @@ static struct cpufreq_frequency_table dvfs_ddr_table[] = {
 	{.frequency = 400 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
+#else 
+//chenliang
+static struct cpufreq_frequency_table dvfs_arm_table[] = {
+	{.frequency = 312 * 1000,       .index = 950 * 1000},
+	{.frequency = 504 * 1000,       .index = 1000 * 1000},
+	{.frequency = 816 * 1000,       .index = 1050 * 1000},
+	{.frequency = 1008 * 1000,      .index = 1125 * 1000},
+	{.frequency = 1200 * 1000,      .index = 1200 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
 
+static struct cpufreq_frequency_table dvfs_gpu_table[] = {
+	{.frequency = 100 * 1000,	.index = 1000 * 1000},
+	{.frequency = 200 * 1000,	.index = 1000 * 1000},
+	{.frequency = 266 * 1000,	.index = 1050 * 1000},
+	{.frequency = 300 * 1000,	.index = 1050 * 1000},
+	{.frequency = 400 * 1000,	.index = 1100 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
+static struct cpufreq_frequency_table dvfs_ddr_table[] = {
+	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 1000 * 1000},
+	{.frequency = 240 * 1000 + DDR_FREQ_VIDEO,      .index = 1000 * 1000},
+	{.frequency = 300 * 1000 + DDR_FREQ_NORMAL,     .index = 1000 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+#endif
 //#define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
 //static struct cpufreq_frequency_table cpu_dvfs_table[DVFS_CPU_TABLE_SIZE];
 //static struct cpufreq_frequency_table dep_cpu2core_table[DVFS_CPU_TABLE_SIZE];
