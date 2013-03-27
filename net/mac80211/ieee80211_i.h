@@ -1186,7 +1186,6 @@ struct ieee802_11_elems {
 	/* length of them, respectively */
 	u8 ssid_len;
 	u8 supp_rates_len;
-	u8 ds_params_len;
 	u8 tim_len;
 	u8 challenge_len;
 	u8 rsn_len;

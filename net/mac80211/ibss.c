@@ -463,7 +463,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 	bool rates_updated = false;
 
-	if (elems->ds_params && elems->ds_params_len == 1)
+	if (elems->ds_params)
 		freq = ieee80211_channel_to_frequency(elems->ds_params[0],
 						      band);
 	else
