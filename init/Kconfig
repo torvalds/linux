@@ -459,18 +459,10 @@ config TINY_RCU
 	  is not required.  This option greatly reduces the
 	  memory footprint of RCU.
 
-config TINY_PREEMPT_RCU
-	bool "Preemptible UP-only small-memory-footprint RCU"
-	depends on PREEMPT && !SMP
-	help
-	  This option selects the RCU implementation that is designed
-	  for real-time UP systems.  This option greatly reduces the
-	  memory footprint of RCU.
-
 endchoice
 
 config PREEMPT_RCU
-	def_bool ( TREE_PREEMPT_RCU || TINY_PREEMPT_RCU )
+	def_bool TREE_PREEMPT_RCU
 	help
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
