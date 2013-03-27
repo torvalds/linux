@@ -24,10 +24,9 @@
 #include <linux/skbuff.h>
 #include <asm/uaccess.h>
 #include <net/sock.h>
-#include <net/netlink.h>
 #include <linux/init.h>
 
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/netfilter/nfnetlink.h>
 
 MODULE_LICENSE("GPL");
@@ -144,7 +143,7 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EPERM;
 
 	/* All the messages must at least contain nfgenmsg */
-	if (nlh->nlmsg_len < NLMSG_LENGTH(sizeof(struct nfgenmsg)))
+	if (nlmsg_len(nlh) < sizeof(struct nfgenmsg))
 		return 0;
 
 	type = nlh->nlmsg_type;
@@ -172,7 +171,7 @@ replay:
 	}
 
 	{
-		int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
+		int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
 		u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
 		struct nlattr *cda[ss->cb[cb_id].attr_count + 1];
 		struct nlattr *attr = (void *)nlh + min_len;

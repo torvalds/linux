@@ -37,7 +37,7 @@
 #include <linux/skbuff.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/netdevice.h>
 #include <linux/mm.h>
 #include <linux/moduleparam.h>
@@ -172,7 +172,7 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	else
 		copy_len = loginfo->copy_range;
 
-	size = NLMSG_SPACE(sizeof(*pm) + copy_len);
+	size = nlmsg_total_size(sizeof(*pm) + copy_len);
 
 	ub = &ulog_buffers[groupnum];
 

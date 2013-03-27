@@ -19,7 +19,7 @@
 #include <linux/ipv6.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_log.h>
 #include <linux/spinlock.h>
@@ -609,7 +609,7 @@ nfulnl_log_packet(u_int8_t pf,
 	/* FIXME: do we want to make the size calculation conditional based on
 	 * what is actually present?  way more branches and checks, but more
 	 * memory efficient... */
-	size =    NLMSG_SPACE(sizeof(struct nfgenmsg))
+	size =    nlmsg_total_size(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hdr))
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */

@@ -22,7 +22,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <net/net_namespace.h>
@@ -428,7 +428,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	const struct Qdisc_class_ops *cops;
 	struct tcf_dump_args arg;
 
-	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
+	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return skb->len;
 	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
 	if (!dev)

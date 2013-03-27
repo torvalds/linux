@@ -2613,10 +2613,10 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	type -= RTM_BASE;
 
 	/* All the messages must have at least 1 byte length */
-	if (nlh->nlmsg_len < NLMSG_LENGTH(sizeof(struct rtgenmsg)))
+	if (nlmsg_len(nlh) < sizeof(struct rtgenmsg))
 		return 0;
 
-	family = ((struct rtgenmsg *)NLMSG_DATA(nlh))->rtgen_family;
+	family = ((struct rtgenmsg *)nlmsg_data(nlh))->rtgen_family;
 	sz_idx = type>>2;
 	kind = type&3;
 

@@ -957,8 +957,8 @@ static void nl_fib_input(struct sk_buff *skb)
 
 	net = sock_net(skb->sk);
 	nlh = nlmsg_hdr(skb);
-	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
-	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn)))
+	if (skb->len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len ||
+	    nlmsg_len(nlh) < sizeof(*frn))
 		return;
 
 	skb = skb_clone(skb, GFP_KERNEL);
@@ -966,7 +966,7 @@ static void nl_fib_input(struct sk_buff *skb)
 		return;
 	nlh = nlmsg_hdr(skb);
 
-	frn = (struct fib_result_nl *) NLMSG_DATA(nlh);
+	frn = (struct fib_result_nl *) nlmsg_data(nlh);
 	tb = fib_get_table(net, frn->tb_id_in);
 
 	nl_fib_lookup(frn, tb);

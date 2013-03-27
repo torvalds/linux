@@ -1642,7 +1642,7 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net_device *dev;
 	int t, s_t;
 
-	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
+	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return 0;
 	dev = dev_get_by_index(net, tcm->tcm_ifindex);
 	if (!dev)

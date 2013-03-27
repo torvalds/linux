@@ -19,7 +19,7 @@
 #include <linux/sockios.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/proc_fs.h>
 #include <linux/netdevice.h>
@@ -492,7 +492,7 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!net_eq(net, &init_net))
 		return 0;
 
-	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
+	if (nlmsg_len(cb->nlh) >= sizeof(struct rtmsg) &&
 		((struct rtmsg *)nlmsg_data(cb->nlh))->rtm_flags&RTM_F_CLONED)
 			return dn_cache_dump(skb, cb);
 

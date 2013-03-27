@@ -1646,7 +1646,7 @@ struct nlmsghdr *
 __nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq, int type, int len, int flags)
 {
 	struct nlmsghdr *nlh;
-	int size = NLMSG_LENGTH(len);
+	int size = nlmsg_msg_size(len);
 
 	nlh = (struct nlmsghdr*)skb_put(skb, NLMSG_ALIGN(size));
 	nlh->nlmsg_type = type;
@@ -1655,7 +1655,7 @@ __nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq, int type, int len, int fla
 	nlh->nlmsg_pid = portid;
 	nlh->nlmsg_seq = seq;
 	if (!__builtin_constant_p(size) || NLMSG_ALIGN(size) - size != 0)
-		memset(NLMSG_DATA(nlh) + len, 0, NLMSG_ALIGN(size) - size);
+		memset(nlmsg_data(nlh) + len, 0, NLMSG_ALIGN(size) - size);
 	return nlh;
 }
 EXPORT_SYMBOL(__nlmsg_put);

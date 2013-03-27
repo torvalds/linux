@@ -15,7 +15,6 @@
 #include <linux/ip.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
-#include <linux/netlink.h>
 #include <linux/rculist.h>
 #include <net/netlink.h>
 
@@ -1085,7 +1084,7 @@ static int
 dump_init(struct netlink_callback *cb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(cb->skb);
-	int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
+	int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
 	struct nlattr *cda[IPSET_ATTR_CMD_MAX+1];
 	struct nlattr *attr = (void *)nlh + min_len;
 	u32 dump_type;
@@ -1301,7 +1300,7 @@ call_ad(struct sock *ctnl, struct sk_buff *skb, struct ip_set *set,
 		struct sk_buff *skb2;
 		struct nlmsgerr *errmsg;
 		size_t payload = sizeof(*errmsg) + nlmsg_len(nlh);
-		int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
+		int min_len = nlmsg_total_size(sizeof(struct nfgenmsg));
 		struct nlattr *cda[IPSET_ATTR_CMD_MAX+1];
 		struct nlattr *cmdattr;
 		u32 *errline;
