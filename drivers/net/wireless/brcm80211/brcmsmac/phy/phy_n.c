@@ -19321,14 +19321,13 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 	     (pi->sh->chippkg == BCMA_PKG_ID_BCM4718))) {
 		if ((pi->sh->boardflags & BFL_EXTLNA) &&
 		    (CHSPEC_IS2G(pi->radio_chanspec)))
-			ai_cc_reg(pi->sh->sih,
-				  offsetof(struct chipcregs, chipcontrol),
-				  0x40, 0x40);
+			bcma_cc_set32(&pi->d11core->bus->drv_cc,
+				      BCMA_CC_CHIPCTL, 0x40);
 	}
 
 	if ((!PHY_IPA(pi)) && (pi->sh->chip == BCMA_CHIP_ID_BCM5357))
-		si_pmu_chipcontrol(pi->sh->sih, 1, CCTRL5357_EXTPA,
-				   CCTRL5357_EXTPA);
+		bcma_chipco_chipctl_maskset(&pi->d11core->bus->drv_cc, 1,
+					    ~CCTRL5357_EXTPA, CCTRL5357_EXTPA);
 
 	if ((pi->nphy_gband_spurwar2_en) && CHSPEC_IS2G(pi->radio_chanspec) &&
 	    CHSPEC_IS40(pi->radio_chanspec)) {
@@ -21133,7 +21132,6 @@ wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chanspec,
 			    const struct nphy_sfo_cfg *ci)
 {
 	u16 val;
-	struct si_info *sii = container_of(pi->sh->sih, struct si_info, pub);
 
 	val = read_phy_reg(pi, 0x09) & NPHY_BandControl_currentBand;
 	if (CHSPEC_IS5G(chanspec) && !val) {
@@ -21221,11 +21219,11 @@ wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chanspec,
 
 		if ((pi->sh->chip == BCMA_CHIP_ID_BCM4716) ||
 		    (pi->sh->chip == BCMA_CHIP_ID_BCM43225)) {
-			bcma_pmu_spuravoid_pllupdate(&sii->icbus->drv_cc,
+			bcma_pmu_spuravoid_pllupdate(&pi->d11core->bus->drv_cc,
 						     spuravoid);
 		} else {
 			wlapi_bmac_core_phypll_ctl(pi->sh->physhim, false);
-			bcma_pmu_spuravoid_pllupdate(&sii->icbus->drv_cc,
+			bcma_pmu_spuravoid_pllupdate(&pi->d11core->bus->drv_cc,
 						     spuravoid);
 			wlapi_bmac_core_phypll_ctl(pi->sh->physhim, true);
 		}
