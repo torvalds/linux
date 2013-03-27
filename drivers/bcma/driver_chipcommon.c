@@ -214,6 +214,7 @@ u32 bcma_chipco_gpio_out(struct bcma_drv_cc *cc, u32 mask, u32 value)
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(bcma_chipco_gpio_out);
 
 u32 bcma_chipco_gpio_outen(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
@@ -226,6 +227,7 @@ u32 bcma_chipco_gpio_outen(struct bcma_drv_cc *cc, u32 mask, u32 value)
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(bcma_chipco_gpio_outen);
 
 /*
  * If the bit is set to 0, chipcommon controlls this GPIO,
