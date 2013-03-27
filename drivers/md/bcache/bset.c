@@ -883,7 +883,7 @@ struct bkey *bch_btree_iter_next(struct btree_iter *iter)
 		iter->data->k = bkey_next(iter->data->k);
 
 		if (iter->data->k > iter->data->end) {
-			__WARN();
+			WARN_ONCE(1, "bset was corrupt!\n");
 			iter->data->k = iter->data->end;
 		}
 
