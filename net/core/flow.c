@@ -328,7 +328,7 @@ static void flow_cache_flush_per_cpu(void *data)
 	struct flow_flush_info *info = data;
 	struct tasklet_struct *tasklet;
 
-	tasklet = this_cpu_ptr(&info->cache->percpu->flush_tasklet);
+	tasklet = &this_cpu_ptr(info->cache->percpu)->flush_tasklet;
 	tasklet->data = (unsigned long)info;
 	tasklet_schedule(tasklet);
 }
