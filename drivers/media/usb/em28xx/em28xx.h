@@ -722,6 +722,10 @@ void em28xx_release_resources(struct em28xx *dev);
 /* Provided by em28xx-vbi.c */
 extern struct vb2_ops em28xx_vbi_qops;
 
+/* Provided by em28xx-camera.c */
+int em28xx_detect_sensor(struct em28xx *dev);
+int em28xx_init_camera(struct em28xx *dev);
+
 /* printk macros */
 
 #define em28xx_err(fmt, arg...) do {\
