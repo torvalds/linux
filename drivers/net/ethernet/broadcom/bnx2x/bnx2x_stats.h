@@ -540,8 +540,8 @@ struct bnx2x_fw_port_stats_old {
 /* forward */
 struct bnx2x;
 
+void bnx2x_memset_stats(struct bnx2x *bp);
 void bnx2x_stats_init(struct bnx2x *bp);
-
 void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event);
 
 /**
