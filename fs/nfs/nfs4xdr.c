@@ -3496,8 +3496,11 @@ static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 	if (n == 0)
 		goto root_path;
 	dprintk("pathname4: ");
-	path->ncomponents = 0;
-	while (path->ncomponents < n) {
+	if (n > NFS4_PATHNAME_MAXCOMPONENTS) {
+		dprintk("cannot parse %d components in path\n", n);
+		goto out_eio;
+	}
+	for (path->ncomponents = 0; path->ncomponents < n; path->ncomponents++) {
 		struct nfs4_string *component = &path->components[path->ncomponents];
 		status = decode_opaque_inline(xdr, &component->len, &component->data);
 		if (unlikely(status != 0))
@@ -3506,12 +3509,6 @@ static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 			pr_cont("%s%.*s ",
 				(path->ncomponents != n ? "/ " : ""),
 				component->len, component->data);
-		if (path->ncomponents < NFS4_PATHNAME_MAXCOMPONENTS)
-			path->ncomponents++;
-		else {
-			dprintk("cannot parse %d components in path\n", n);
-			goto out_eio;
-		}
 	}
 out:
 	return status;
@@ -3556,27 +3553,23 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 	n = be32_to_cpup(p);
 	if (n <= 0)
 		goto out_eio;
-	res->nlocations = 0;
-	while (res->nlocations < n) {
+	for (res->nlocations = 0; res->nlocations < n; res->nlocations++) {
 		u32 m;
-		struct nfs4_fs_location *loc = &res->locations[res->nlocations];
+		struct nfs4_fs_location *loc;
 
+		if (res->nlocations == NFS4_FS_LOCATIONS_MAXENTRIES)
+			break;
+		loc = &res->locations[res->nlocations];
 		p = xdr_inline_decode(xdr, 4);
 		if (unlikely(!p))
 			goto out_overflow;
 		m = be32_to_cpup(p);
 
-		loc->nservers = 0;
 		dprintk("%s: servers:\n", __func__);
-		while (loc->nservers < m) {
-			struct nfs4_string *server = &loc->servers[loc->nservers];
-			status = decode_opaque_inline(xdr, &server->len, &server->data);
-			if (unlikely(status != 0))
-				goto out_eio;
-			dprintk("%s ", server->data);
-			if (loc->nservers < NFS4_FS_LOCATION_MAXSERVERS)
-				loc->nservers++;
-			else {
+		for (loc->nservers = 0; loc->nservers < m; loc->nservers++) {
+			struct nfs4_string *server;
+
+			if (loc->nservers == NFS4_FS_LOCATION_MAXSERVERS) {
 				unsigned int i;
 				dprintk("%s: using first %u of %u servers "
 					"returned for location %u\n",
@@ -3590,13 +3583,17 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 					if (unlikely(status != 0))
 						goto out_eio;
 				}
+				break;
 			}
+			server = &loc->servers[loc->nservers];
+			status = decode_opaque_inline(xdr, &server->len, &server->data);
+			if (unlikely(status != 0))
+				goto out_eio;
+			dprintk("%s ", server->data);
 		}
 		status = decode_pathname(xdr, &loc->rootpath);
 		if (unlikely(status != 0))
 			goto out_eio;
-		if (res->nlocations < NFS4_FS_LOCATIONS_MAXENTRIES)
-			res->nlocations++;
 	}
 	if (res->nlocations != 0)
 		status = NFS_ATTR_FATTR_V4_LOCATIONS;
