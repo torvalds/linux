@@ -38,6 +38,9 @@ static unsigned int		num_drc_entries;
 /* cache misses due only to checksum comparison failures */
 static unsigned int		payload_misses;
 
+/* amount of memory (in bytes) currently consumed by the DRC */
+static unsigned int		drc_mem_usage;
+
 /*
  * Calculate the hash index from an XID.
  */
@@ -112,12 +115,15 @@ nfsd_reply_cache_alloc(void)
 static void
 nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
 {
-	if (rp->c_type == RC_REPLBUFF)
+	if (rp->c_type == RC_REPLBUFF && rp->c_replvec.iov_base) {
+		drc_mem_usage -= rp->c_replvec.iov_len;
 		kfree(rp->c_replvec.iov_base);
+	}
 	if (!hlist_unhashed(&rp->c_hash))
 		hlist_del(&rp->c_hash);
 	list_del(&rp->c_lru);
 	--num_drc_entries;
+	drc_mem_usage -= sizeof(*rp);
 	kmem_cache_free(drc_slab, rp);
 }
 
@@ -372,8 +378,10 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	spin_unlock(&cache_lock);
 	rp = nfsd_reply_cache_alloc();
 	spin_lock(&cache_lock);
-	if (likely(rp))
+	if (likely(rp)) {
 		++num_drc_entries;
+		drc_mem_usage += sizeof(*rp);
+	}
 
 search_cache:
 	found = nfsd_cache_search(rqstp, csum);
@@ -415,6 +423,7 @@ search_cache:
 
 	/* release any buffer */
 	if (rp->c_type == RC_REPLBUFF) {
+		drc_mem_usage -= rp->c_replvec.iov_len;
 		kfree(rp->c_replvec.iov_base);
 		rp->c_replvec.iov_base = NULL;
 	}
@@ -483,6 +492,7 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 	struct svc_cacherep *rp = rqstp->rq_cacherep;
 	struct kvec	*resv = &rqstp->rq_res.head[0], *cachv;
 	int		len;
+	size_t		bufsize = 0;
 
 	if (!rp)
 		return;
@@ -504,19 +514,21 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 		break;
 	case RC_REPLBUFF:
 		cachv = &rp->c_replvec;
-		cachv->iov_base = kmalloc(len << 2, GFP_KERNEL);
+		bufsize = len << 2;
+		cachv->iov_base = kmalloc(bufsize, GFP_KERNEL);
 		if (!cachv->iov_base) {
 			nfsd_reply_cache_free(rp);
 			return;
 		}
-		cachv->iov_len = len << 2;
-		memcpy(cachv->iov_base, statp, len << 2);
+		cachv->iov_len = bufsize;
+		memcpy(cachv->iov_base, statp, bufsize);
 		break;
 	case RC_NOCACHE:
 		nfsd_reply_cache_free(rp);
 		return;
 	}
 	spin_lock(&cache_lock);
+	drc_mem_usage += bufsize;
 	lru_put_end(rp);
 	rp->c_secure = rqstp->rq_secure;
 	rp->c_type = cachetype;
