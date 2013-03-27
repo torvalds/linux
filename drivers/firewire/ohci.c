@@ -2246,7 +2246,6 @@ static int ohci_enable(struct fw_card *card,
 		       const __be32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	struct pci_dev *dev = to_pci_dev(card->device);
 	u32 lps, version, irqs;
 	int i, ret;
 
@@ -2381,24 +2380,6 @@ static int ohci_enable(struct fw_card *card,
 	reg_write(ohci, OHCI1394_ConfigROMmap, ohci->next_config_rom_bus);
 
 	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
-
-	if (!(ohci->quirks & QUIRK_NO_MSI))
-		pci_enable_msi(dev);
-	if (request_irq(dev->irq, irq_handler,
-			pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED,
-			ohci_driver_name, ohci)) {
-		dev_err(card->device, "failed to allocate interrupt %d\n",
-			dev->irq);
-		pci_disable_msi(dev);
-
-		if (config_rom) {
-			dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-					  ohci->next_config_rom,
-					  ohci->next_config_rom_bus);
-			ohci->next_config_rom = NULL;
-		}
-		return -EIO;
-	}
 
 	irqs =	OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		OHCI1394_RQPkt | OHCI1394_RSPkt |
@@ -3675,9 +3656,20 @@ static int pci_probe(struct pci_dev *dev,
 	guid = ((u64) reg_read(ohci, OHCI1394_GUIDHi) << 32) |
 		reg_read(ohci, OHCI1394_GUIDLo);
 
+	if (!(ohci->quirks & QUIRK_NO_MSI))
+		pci_enable_msi(dev);
+	if (request_irq(dev->irq, irq_handler,
+			pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED,
+			ohci_driver_name, ohci)) {
+		dev_err(&dev->dev, "failed to allocate interrupt %d\n",
+			dev->irq);
+		err = -EIO;
+		goto fail_msi;
+	}
+
 	err = fw_card_add(&ohci->card, max_receive, link_speed, guid);
 	if (err)
-		goto fail_contexts;
+		goto fail_irq;
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	dev_notice(&dev->dev,
@@ -3688,6 +3680,10 @@ static int pci_probe(struct pci_dev *dev,
 
 	return 0;
 
+ fail_irq:
+	free_irq(dev->irq, ohci);
+ fail_msi:
+	pci_disable_msi(dev);
  fail_contexts:
 	kfree(ohci->ir_context_list);
 	kfree(ohci->it_context_list);
@@ -3763,8 +3759,6 @@ static int pci_suspend(struct pci_dev *dev, pm_message_t state)
 	int err;
 
 	software_reset(ohci);
-	free_irq(dev->irq, ohci);
-	pci_disable_msi(dev);
 	err = pci_save_state(dev);
 	if (err) {
 		dev_err(&dev->dev, "pci_save_state failed\n");
