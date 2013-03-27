@@ -1461,6 +1461,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* add interfaces */
 	sdata = rtnl_dereference(local->monitor_sdata);
 	if (sdata) {
+		/* in HW restart it exists already */
+		WARN_ON(local->resuming);
 		res = drv_add_interface(local, sdata);
 		if (WARN_ON(res)) {
 			rcu_assign_pointer(local->monitor_sdata, NULL);
@@ -1649,6 +1651,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
  wake_up:
 	local->in_reconfig = false;
 	barrier();
+
+	if (local->monitors == local->open_count && local->monitors > 0)
+		ieee80211_add_virtual_monitor(local);
 
 	/*
 	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
