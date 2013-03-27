@@ -169,4 +169,6 @@ int  nvc0_graph_context_ctor(struct nouveau_object *, struct nouveau_object *,
 			     struct nouveau_object **);
 void nvc0_graph_context_dtor(struct nouveau_object *);
 
+u64 nvc0_graph_units(struct nouveau_graph *);
+
 #endif

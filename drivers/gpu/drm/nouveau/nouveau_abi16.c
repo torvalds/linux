@@ -30,6 +30,7 @@
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 #include <subdev/instmem.h>
+#include <engine/graph.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -168,6 +169,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_timer *ptimer = nouveau_timer(device);
+	struct nouveau_graph *graph = (void *)nouveau_engine(device, NVDEV_ENGINE_GR);
 	struct drm_nouveau_getparam *getparam = data;
 
 	switch (getparam->param) {
@@ -208,14 +210,8 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = 1;
 		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
-		/* NV40 and NV50 versions are quite different, but register
-		 * address is the same. User is supposed to know the card
-		 * family anyway... */
-		if (device->chipset >= 0x40) {
-			getparam->value = nv_rd32(device, 0x001540);
-			break;
-		}
-		/* FALLTHRU */
+		getparam->value = graph->units ? graph->units(graph) : 0;
+		break;
 	default:
 		nv_debug(device, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;

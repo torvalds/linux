@@ -60,6 +60,19 @@ nvc8_graph_sclass[] = {
 	{}
 };
 
+u64
+nvc0_graph_units(struct nouveau_graph *graph)
+{
+	struct nvc0_graph_priv *priv = (void *)graph;
+	u64 cfg;
+
+	cfg  = (u32)priv->gpc_nr;
+	cfg |= (u32)priv->tpc_total << 8;
+	cfg |= (u64)priv->rop_nr << 32;
+
+	return cfg;
+}
+
 /*******************************************************************************
  * PGRAPH context
  ******************************************************************************/
@@ -528,6 +541,8 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->unit = 0x18001000;
 	nv_subdev(priv)->intr = nvc0_graph_intr;
 	nv_engine(priv)->cclass = &nvc0_graph_cclass;
+
+	priv->base.units = nvc0_graph_units;
 
 	if (nouveau_boolopt(device->cfgopt, "NvGrUseFW", false)) {
 		nv_info(priv, "using external firmware\n");
