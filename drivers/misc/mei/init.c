@@ -211,6 +211,9 @@ void mei_stop(struct mei_device *dev)
 	mutex_unlock(&dev->device_lock);
 
 	flush_scheduled_work();
+
+	mei_watchdog_unregister(dev);
+
 }
 
 

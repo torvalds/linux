@@ -253,8 +253,6 @@ static void mei_remove(struct pci_dev *pdev)
 
 	mei_pdev = NULL;
 
-	mei_watchdog_unregister(dev);
-
 	/* disable interrupts */
 	mei_disable_interrupts(dev);
 
