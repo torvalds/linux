@@ -18,11 +18,11 @@ const struct XGI_ECLKDataStruct XGI340_ECLKData[] = {
 	{0x7C, 0x08, 0x01, 200},
 };
 
-static const unsigned char XG27_SR13[3] = {
+static const unsigned char XG27_SR18[3] = {
 	0x32, 0x32, 0x42 /* SR18 */
 };
 
-static const unsigned char XGI340_SR13[3] = {
+static const unsigned char XGI340_SR18[3] = {
 	0x31, 0x42, 0x42 /* SR18 */
 };
 

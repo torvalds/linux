@@ -146,7 +146,7 @@ struct vb_device_info {
 
 	void __iomem *FBAddr;
 
-	unsigned char const *SR15;
+	unsigned char const *SR18;
 	unsigned char const (*CR40)[3];
 
 	struct SiS_MCLKData const *MCLKData;

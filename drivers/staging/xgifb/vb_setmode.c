@@ -32,7 +32,7 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->VBInfo = 0;
 	pVBInfo->TVInfo = 0;
 
-	pVBInfo->SR15 = XGI340_SR13;
+	pVBInfo->SR18 = XGI340_SR18;
 	pVBInfo->CR40 = XGI340_cr41;
 
 	/* 310 customization related */
@@ -49,7 +49,7 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 		pVBInfo->MCLKData = XGI27New_MCLKData;
 		pVBInfo->CR40 = XGI27_cr41;
 		pVBInfo->XGINew_CR97 = 0xc1;
-		pVBInfo->SR15 = XG27_SR13;
+		pVBInfo->SR18 = XG27_SR18;
 
 		/*Z11m DDR*/
 		temp = xgifb_reg_get(pVBInfo->P3c4, 0x3B);
