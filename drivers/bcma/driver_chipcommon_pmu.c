@@ -174,19 +174,35 @@ u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc)
 	struct bcma_bus *bus = cc->core->bus;
 
 	switch (bus->chipinfo.id) {
-	case BCMA_CHIP_ID_BCM4716:
-	case BCMA_CHIP_ID_BCM4748:
-	case BCMA_CHIP_ID_BCM47162:
 	case BCMA_CHIP_ID_BCM4313:
-	case BCMA_CHIP_ID_BCM5357:
+	case BCMA_CHIP_ID_BCM43224:
+	case BCMA_CHIP_ID_BCM43225:
+	case BCMA_CHIP_ID_BCM43227:
+	case BCMA_CHIP_ID_BCM43228:
+	case BCMA_CHIP_ID_BCM4331:
+	case BCMA_CHIP_ID_BCM43421:
+	case BCMA_CHIP_ID_BCM43428:
+	case BCMA_CHIP_ID_BCM43431:
+	case BCMA_CHIP_ID_BCM4716:
+	case BCMA_CHIP_ID_BCM47162:
+	case BCMA_CHIP_ID_BCM4748:
 	case BCMA_CHIP_ID_BCM4749:
+	case BCMA_CHIP_ID_BCM5357:
 	case BCMA_CHIP_ID_BCM53572:
+	case BCMA_CHIP_ID_BCM6362:
 		/* always 20Mhz */
 		return 20000 * 1000;
-	case BCMA_CHIP_ID_BCM5356:
 	case BCMA_CHIP_ID_BCM4706:
+	case BCMA_CHIP_ID_BCM5356:
 		/* always 25Mhz */
 		return 25000 * 1000;
+	case BCMA_CHIP_ID_BCM43460:
+	case BCMA_CHIP_ID_BCM4352:
+	case BCMA_CHIP_ID_BCM4360:
+		if (cc->status & BCMA_CC_CHIPST_4360_XTAL_40MZ)
+			return 40000 * 1000;
+		else
+			return 20000 * 1000;
 	default:
 		bcma_warn(bus, "No ALP clock specified for %04X device, pmu rev. %d, using default %d Hz\n",
 			  bus->chipinfo.id, cc->pmu.rev, BCMA_CC_PMU_ALP_CLOCK);
