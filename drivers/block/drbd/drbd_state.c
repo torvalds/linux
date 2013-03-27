@@ -642,6 +642,10 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_t
 	    && os.conn < C_WF_REPORT_PARAMS)
 		rv = SS_NEED_CONNECTION; /* No NetworkFailure -> SyncTarget etc... */
 
+	if (ns.conn == C_DISCONNECTING && ns.pdsk == D_OUTDATED &&
+	    os.conn < C_CONNECTED && os.pdsk > D_OUTDATED)
+		rv = SS_OUTDATE_WO_CONN;
+
 	return rv;
 }
 
@@ -1748,13 +1752,9 @@ _conn_rq_cond(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state 
 	if (test_and_clear_bit(CONN_WD_ST_CHG_FAIL, &tconn->flags))
 		return SS_CW_FAILED_BY_PEER;
 
-	rv = tconn->cstate != C_WF_REPORT_PARAMS ? SS_CW_NO_NEED : SS_UNKNOWN_ERROR;
-
-	if (rv == SS_UNKNOWN_ERROR)
-		rv = conn_is_valid_transition(tconn, mask, val, 0);
-
-	if (rv == SS_SUCCESS)
-		rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
+	rv = conn_is_valid_transition(tconn, mask, val, 0);
+	if (rv == SS_SUCCESS && tconn->cstate == C_WF_REPORT_PARAMS)
+		rv = SS_UNKNOWN_ERROR; /* continue waiting */
 
 	return rv;
 }
