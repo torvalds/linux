@@ -203,12 +203,31 @@ static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
  */
 static char __initdata nohz_full_buf[NR_CPUS + 1];
 
+static int tick_nohz_init_all(void)
+{
+	int err = -1;
+
+#ifdef CONFIG_NO_HZ_FULL_ALL
+	if (!alloc_cpumask_var(&nohz_full_mask, GFP_KERNEL)) {
+		pr_err("NO_HZ: Can't allocate full dynticks cpumask\n");
+		return err;
+	}
+	err = 0;
+	cpumask_setall(nohz_full_mask);
+	cpumask_clear_cpu(smp_processor_id(), nohz_full_mask);
+	have_nohz_full_mask = true;
+#endif
+	return err;
+}
+
 void __init tick_nohz_init(void)
 {
 	int cpu;
 
-	if (!have_nohz_full_mask)
-		return;
+	if (!have_nohz_full_mask) {
+		if (tick_nohz_init_all() < 0)
+			return;
+	}
 
 	cpu_notifier(tick_nohz_cpu_down_callback, 0);
 
