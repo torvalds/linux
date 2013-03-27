@@ -373,7 +373,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		tmp |= (bcm5357_bcm43236_ndiv[spuravoid]) << BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_SHIFT;
 		bcma_cc_write32(cc, BCMA_CC_PLLCTL_DATA, tmp);
 
-		tmp = 1 << 10;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 
 	case BCMA_CHIP_ID_BCM4331:
@@ -394,7 +394,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL2,
 						     0x03000a08);
 		}
-		tmp = 1 << 10;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 
 	case BCMA_CHIP_ID_BCM43224:
@@ -427,7 +427,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL5,
 						     0x88888815);
 		}
-		tmp = 1 << 10;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 
 	case BCMA_CHIP_ID_BCM4716:
@@ -461,7 +461,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 						     0x88888815);
 		}
 
-		tmp = 3 << 9;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD | BCMA_CC_PMU_CTL_NOILPONW;
 		break;
 
 	case BCMA_CHIP_ID_BCM43227:
@@ -497,7 +497,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL5,
 						     0x88888815);
 		}
-		tmp = 1 << 10;
+		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 	default:
 		bcma_err(bus, "Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
