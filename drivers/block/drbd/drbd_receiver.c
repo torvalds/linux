@@ -849,6 +849,7 @@ int drbd_connected(struct drbd_conf *mdev)
 		err = drbd_send_current_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
 	clear_bit(RESIZE_PENDING, &mdev->flags);
+	atomic_set(&mdev->ap_in_flight, 0);
 	mod_timer(&mdev->request_timer, jiffies + HZ); /* just start it here. */
 	return err;
 }
