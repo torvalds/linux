@@ -101,6 +101,94 @@ but all the cached data will be invalidated. If there was dirty data in the
 cache, don't expect the filesystem to be recoverable - you will have massive
 filesystem corruption, though ext4's fsck does work miracles.
 
+ERROR HANDLING:
+
+Bcache tries to transparently handle IO errors to/from the cache device without
+affecting normal operation; if it sees too many errors (the threshold is
+configurable, and defaults to 0) it shuts down the cache device and switches all
+the backing devices to passthrough mode.
+
+ - For reads from the cache, if they error we just retry the read from the
+   backing device.
+
+ - For writethrough writes, if the write to the cache errors we just switch to
+   invalidating the data at that lba in the cache (i.e. the same thing we do for
+   a write that bypasses the cache)
+
+ - For writeback writes, we currently pass that error back up to the
+   filesystem/userspace. This could be improved - we could retry it as a write
+   that skips the cache so we don't have to error the write.
+
+ - When we detach, we first try to flush any dirty data (if we were running in
+   writeback mode). It currently doesn't do anything intelligent if it fails to
+   read some of the dirty data, though.
+
+TROUBLESHOOTING PERFORMANCE:
+
+Bcache has a bunch of config options and tunables. The defaults are intended to
+be reasonable for typical desktop and server workloads, but they're not what you
+want for getting the best possible numbers when benchmarking.
+
+ - Bad write performance
+
+   If write performance is not what you expected, you probably wanted to be
+   running in writeback mode, which isn't the default (not due to a lack of
+   maturity, but simply because in writeback mode you'll lose data if something
+   happens to your SSD)
+
+   # echo writeback > /sys/block/bcache0/cache_mode
+
+ - Bad performance, or traffic not going to the SSD that you'd expect
+
+   By default, bcache doesn't cache everything. It tries to skip sequential IO -
+   because you really want to be caching the random IO, and if you copy a 10
+   gigabyte file you probably don't want that pushing 10 gigabytes of randomly
+   accessed data out of your cache.
+
+   But if you want to benchmark reads from cache, and you start out with fio
+   writing an 8 gigabyte test file - so you want to disable that.
+
+   # echo 0 > /sys/block/bcache0/bcache/sequential_cutoff
+
+   To set it back to the default (4 mb), do
+
+   # echo 4M > /sys/block/bcache0/bcache/sequential_cutoff
+
+ - Traffic's still going to the spindle/still getting cache misses
+
+   In the real world, SSDs don't always keep up with disks - particularly with
+   slower SSDs, many disks being cached by one SSD, or mostly sequential IO. So
+   you want to avoid being bottlenecked by the SSD and having it slow everything
+   down.
+
+   To avoid that bcache tracks latency to the cache device, and gradually
+   throttles traffic if the latency exceeds a threshold (it does this by
+   cranking down the sequential bypass).
+
+   You can disable this if you need to by setting the thresholds to 0:
+
+   # echo 0 > /sys/fs/bcache/<cache set>/congested_read_threshold_us
+   # echo 0 > /sys/fs/bcache/<cache set>/congested_write_threshold_us
+
+   The default is 2000 us (2 milliseconds) for reads, and 20000 for writes.
+
+ - Still getting cache misses, of the same data
+
+   One last issue that sometimes trips people up is actually an old bug, due to
+   the way cache coherency is handled for cache misses. If a btree node is full,
+   a cache miss won't be able to insert a key for the new data and the data
+   won't be written to the cache.
+
+   In practice this isn't an issue because as soon as a write comes along it'll
+   cause the btree node to be split, and you need almost no write traffic for
+   this to not show up enough to be noticable (especially since bcache's btree
+   nodes are huge and index large regions of the device). But when you're
+   benchmarking, if you're trying to warm the cache by reading a bunch of data
+   and there's no other traffic - that can be a problem.
+
+   Solution: warm the cache by doing writes, or use the testing branch (there's
+   a fix for the issue there).
+
 SYSFS - BACKING DEVICE:
 
 attach
