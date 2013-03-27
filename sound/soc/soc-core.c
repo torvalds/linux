@@ -3906,7 +3906,7 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_dais);
  * @platform: platform to register
  */
 int snd_soc_register_platform(struct device *dev,
-		struct snd_soc_platform_driver *platform_drv)
+		const struct snd_soc_platform_driver *platform_drv)
 {
 	struct snd_soc_platform *platform;
 

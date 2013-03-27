@@ -371,7 +371,7 @@ int snd_soc_suspend(struct device *dev);
 int snd_soc_resume(struct device *dev);
 int snd_soc_poweroff(struct device *dev);
 int snd_soc_register_platform(struct device *dev,
-		struct snd_soc_platform_driver *platform_drv);
+		const struct snd_soc_platform_driver *platform_drv);
 void snd_soc_unregister_platform(struct device *dev);
 int snd_soc_register_codec(struct device *dev,
 		const struct snd_soc_codec_driver *codec_drv,
@@ -823,7 +823,7 @@ struct snd_soc_platform {
 	const char *name;
 	int id;
 	struct device *dev;
-	struct snd_soc_platform_driver *driver;
+	const struct snd_soc_platform_driver *driver;
 	struct mutex mutex;
 
 	unsigned int suspended:1; /* platform is suspended */
