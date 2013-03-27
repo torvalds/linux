@@ -608,6 +608,8 @@ void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
 
 extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
 
+extern u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc);
+
 void bcma_chipco_irq_mask(struct bcma_drv_cc *cc, u32 mask, u32 value);
 
 u32 bcma_chipco_irq_status(struct bcma_drv_cc *cc, u32 mask);

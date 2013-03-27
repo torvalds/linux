@@ -25,13 +25,14 @@ static inline u32 bcma_cc_write32_masked(struct bcma_drv_cc *cc, u16 offset,
 	return value;
 }
 
-static u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc)
+u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc)
 {
 	if (cc->capabilities & BCMA_CC_CAP_PMU)
 		return bcma_pmu_get_alp_clock(cc);
 
 	return 20000000;
 }
+EXPORT_SYMBOL_GPL(bcma_chipco_get_alp_clock);
 
 static u32 bcma_chipco_watchdog_get_max_timer(struct bcma_drv_cc *cc)
 {
