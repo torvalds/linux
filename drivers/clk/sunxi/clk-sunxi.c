@@ -305,29 +305,29 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 /* Matches for of_clk_init */
 static const __initconst struct of_device_id clk_match[] = {
 	{.compatible = "fixed-clock", .data = of_fixed_clk_setup,},
-	{.compatible = "allwinner,sunxi-osc-clk", .data = sunxi_osc_clk_setup,},
+	{.compatible = "allwinner,sun4i-osc-clk", .data = sunxi_osc_clk_setup,},
 	{}
 };
 
 /* Matches for factors clocks */
 static const __initconst struct of_device_id clk_factors_match[] = {
-	{.compatible = "allwinner,sunxi-pll1-clk", .data = &pll1_data,},
-	{.compatible = "allwinner,sunxi-apb1-clk", .data = &apb1_data,},
+	{.compatible = "allwinner,sun4i-pll1-clk", .data = &pll1_data,},
+	{.compatible = "allwinner,sun4i-apb1-clk", .data = &apb1_data,},
 	{}
 };
 
 /* Matches for divider clocks */
 static const __initconst struct of_device_id clk_div_match[] = {
-	{.compatible = "allwinner,sunxi-axi-clk", .data = &axi_data,},
-	{.compatible = "allwinner,sunxi-ahb-clk", .data = &ahb_data,},
-	{.compatible = "allwinner,sunxi-apb0-clk", .data = &apb0_data,},
+	{.compatible = "allwinner,sun4i-axi-clk", .data = &axi_data,},
+	{.compatible = "allwinner,sun4i-ahb-clk", .data = &ahb_data,},
+	{.compatible = "allwinner,sun4i-apb0-clk", .data = &apb0_data,},
 	{}
 };
 
 /* Matches for mux clocks */
 static const __initconst struct of_device_id clk_mux_match[] = {
-	{.compatible = "allwinner,sunxi-cpu-clk", .data = &cpu_data,},
-	{.compatible = "allwinner,sunxi-apb1-mux-clk", .data = &apb1_mux_data,},
+	{.compatible = "allwinner,sun4i-cpu-clk", .data = &cpu_data,},
+	{.compatible = "allwinner,sun4i-apb1-mux-clk", .data = &apb1_mux_data,},
 	{}
 };
 
