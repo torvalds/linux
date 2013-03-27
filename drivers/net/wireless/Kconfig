@@ -132,6 +132,10 @@ choice
 		bool "AP6493"
 		depends on RKWIFI && WLAN_80211
 
+	config GB86302I
+		bool "GB86302I"
+		depends on RKWIFI && WLAN_80211
+
 endchoice
 
 choice	
