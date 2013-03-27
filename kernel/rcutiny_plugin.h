@@ -104,14 +104,6 @@ static void check_cpu_stalls(void)
 
 /*
  * Because preemptible RCU does not exist, it never has any callbacks
- * to check.
- */
-static void rcu_preempt_check_callbacks(void)
-{
-}
-
-/*
- * Because preemptible RCU does not exist, it never has any callbacks
  * to remove.
  */
 static void rcu_preempt_remove_callbacks(struct rcu_ctrlblk *rcp)
