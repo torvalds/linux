@@ -17,11 +17,11 @@ obj-y += board.o
 
 board-$(CONFIG_MACH_RK2928) := board-rk2928.o
 
-obj-$(CONFIG_MACH_RK2928_SDK) += board-rk2928-sdk.o
-obj-$(CONFIG_MACH_RK2926_SDK) += board-rk2926-sdk.o
+board-$(CONFIG_MACH_RK2928_SDK) := board-rk2928-sdk.o
+board-$(CONFIG_MACH_RK2926_SDK) := board-rk2926-sdk.o
 board-$(CONFIG_MACH_RK2928_PHONEPAD) := board-rk2928-phonepad.o
 board-$(CONFIG_MACH_RK2928_PHONEPAD_760) := board-rk2928-phonepad-760.o
-obj-$(CONFIG_MACH_RK2928_A720) += board-rk2928-a720.o
-obj-$(CONFIG_MACH_RK2928_TB) += board-rk2928-tb.o
-obj-$(CONFIG_MACH_RK2926_TB) += board-rk2928-tb.o
-obj-$(CONFIG_MACH_RK2928_FPGA) += board-rk2928-fpga.o
+board-$(CONFIG_MACH_RK2928_A720) := board-rk2928-a720.o
+board-$(CONFIG_MACH_RK2928_TB) := board-rk2928-tb.o
+board-$(CONFIG_MACH_RK2926_TB) := board-rk2928-tb.o
+board-$(CONFIG_MACH_RK2928_FPGA) := board-rk2928-fpga.o
