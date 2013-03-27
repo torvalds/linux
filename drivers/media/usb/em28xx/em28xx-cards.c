@@ -2333,9 +2333,6 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	switch (version) {
 	case 0x8232:		/* mt9v011 640x480 1.3 Mpix sensor */
 	case 0x8243:		/* mt9v011 rev B 640x480 1.3 Mpix sensor */
-		dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
-		em28xx_set_model(dev);
-
 		sensor_name = "mt9v011";
 		dev->em28xx_sensor = EM28XX_MT9V011;
 		dev->sensor_xres = 640;
@@ -2359,9 +2356,6 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		break;
 
 	case 0x143a:    /* MT9M111 as found in the ECS G200 */
-		dev->model = EM2750_BOARD_UNKNOWN;
-		em28xx_set_model(dev);
-
 		sensor_name = "mt9m111";
 		dev->board.xclk = EM28XX_XCLK_FREQUENCY_48MHZ;
 		dev->em28xx_sensor = EM28XX_MT9M111;
@@ -2375,9 +2369,6 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		break;
 
 	case 0x8431:
-		dev->model = EM2750_BOARD_UNKNOWN;
-		em28xx_set_model(dev);
-
 		sensor_name = "mt9m001";
 		dev->em28xx_sensor = EM28XX_MT9M001;
 		em28xx_initialize_mt9m001(dev);
@@ -2394,11 +2385,7 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		return -EINVAL;
 	}
 
-	/* Setup webcam defaults */
-	em28xx_pre_card_setup(dev);
-
-	em28xx_errdev("Sensor is %s, using model %s entry.\n",
-		      sensor_name, em28xx_boards[dev->model].name);
+	em28xx_info("sensor %s detected\n", sensor_name);
 
 	return 0;
 }
@@ -2628,6 +2615,18 @@ static int em28xx_hint_board(struct em28xx *dev)
 {
 	int i;
 
+	if (dev->board.is_webcam) {
+		if (dev->em28xx_sensor == EM28XX_MT9V011) {
+			dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
+		} else if (dev->em28xx_sensor == EM28XX_MT9M001 ||
+			   dev->em28xx_sensor == EM28XX_MT9M111) {
+			dev->model = EM2750_BOARD_UNKNOWN;
+		}
+		/* FIXME: IMPROVE ! */
+
+		return 0;
+	}
+
 	/* HINT method: EEPROM
 	 *
 	 * This method works only for boards with eeprom.
@@ -2719,10 +2718,10 @@ static void em28xx_card_setup(struct em28xx *dev)
 			dev->progressive = 1;
 	}
 
-	if (!dev->board.is_webcam) {
-		switch (dev->model) {
-		case EM2820_BOARD_UNKNOWN:
-		case EM2800_BOARD_UNKNOWN:
+	switch (dev->model) {
+	case EM2750_BOARD_UNKNOWN:
+	case EM2820_BOARD_UNKNOWN:
+	case EM2800_BOARD_UNKNOWN:
 		/*
 		 * The K-WORLD DVB-T 310U is detected as an MSI Digivox AD.
 		 *
@@ -2743,9 +2742,8 @@ static void em28xx_card_setup(struct em28xx *dev)
 			em28xx_pre_card_setup(dev);
 		}
 		break;
-		default:
-			em28xx_set_model(dev);
-		}
+	default:
+		em28xx_set_model(dev);
 	}
 
 	em28xx_info("Identified as %s (card=%d)\n",
