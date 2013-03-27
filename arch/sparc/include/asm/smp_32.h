@@ -46,7 +46,6 @@ void sun4m_init_smp(void);
 void sun4d_init_smp(void);
 
 void smp_callin(void);
-void smp_boot_cpus(void);
 void smp_store_cpu_info(int);
 
 void smp_resched_interrupt(void);
