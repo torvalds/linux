@@ -228,6 +228,11 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	every chipselect is connected to a slave.
  * @dma_alignment: SPI controller constraint on DMA buffers alignment.
  * @mode_bits: flags understood by this controller driver
+ * @bits_per_word_mask: A mask indicating which values of bits_per_word are
+ *	supported by the driver. Bit n indicates that a bits_per_word n+1 is
+ *	suported. If set, the SPI core will reject any transfer with an
+ *	unsupported bits_per_word. If not set, this value is simply ignored,
+ *	and it's up to the individual driver to perform any validation.
  * @flags: other constraints relevant to this driver
  * @bus_lock_spinlock: spinlock for SPI bus locking
  * @bus_lock_mutex: mutex for SPI bus locking
@@ -300,6 +305,9 @@ struct spi_master {
 
 	/* spi_device.mode flags understood by this controller driver */
 	u16			mode_bits;
+
+	/* bitmask of supported bits_per_word for transfers */
+	u32			bits_per_word_mask;
 
 	/* other constraints relevant to this driver */
 	u16			flags;
