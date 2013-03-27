@@ -2775,6 +2775,7 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 		*/
 		if (IS_G4X(dev))
 			hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
+		hotplug_en &= ~CRT_HOTPLUG_VOLTAGE_COMPARE_MASK;
 		hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 
 		/* Ignore TV since it's buggy */
