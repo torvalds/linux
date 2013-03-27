@@ -39,7 +39,7 @@
 #include "cpuidle.h"
 #include "hardware.h"
 
-static int imx6q_revision(void)
+int imx6q_revision(void)
 {
 	static u32 rev;
 
