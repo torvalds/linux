@@ -102,14 +102,6 @@ static void check_cpu_stalls(void)
 	RCU_TRACE(check_cpu_stall_preempt());
 }
 
-/*
- * Because preemptible RCU does not exist, it never has any callbacks
- * to process.
- */
-static void rcu_preempt_process_callbacks(void)
-{
-}
-
 /* Hold off callback invocation until early_initcall() time. */
 static int rcu_scheduler_fully_active __read_mostly;
 
