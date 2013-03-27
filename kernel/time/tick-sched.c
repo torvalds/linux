@@ -158,11 +158,21 @@ int tick_nohz_full_cpu(int cpu)
 /* Parse the boot-time nohz CPU list from the kernel parameters. */
 static int __init tick_nohz_full_setup(char *str)
 {
+	int cpu;
+
 	alloc_bootmem_cpumask_var(&nohz_full_mask);
-	if (cpulist_parse(str, nohz_full_mask) < 0)
+	if (cpulist_parse(str, nohz_full_mask) < 0) {
 		pr_warning("NOHZ: Incorrect nohz_full cpumask\n");
-	else
-		have_nohz_full_mask = true;
+		return 1;
+	}
+
+	cpu = smp_processor_id();
+	if (cpumask_test_cpu(cpu, nohz_full_mask)) {
+		pr_warning("NO_HZ: Clearing %d from nohz_full range for timekeeping\n", cpu);
+		cpumask_clear_cpu(cpu, nohz_full_mask);
+	}
+	have_nohz_full_mask = true;
+
 	return 1;
 }
 __setup("nohz_full=", tick_nohz_full_setup);
@@ -195,42 +205,8 @@ static char __initdata nohz_full_buf[NR_CPUS + 1];
 
 static int __init init_tick_nohz_full(void)
 {
-	cpumask_var_t online_nohz;
-	int cpu;
-
-	if (!have_nohz_full_mask)
-		return 0;
-
-	cpu_notifier(tick_nohz_cpu_down_callback, 0);
-
-	if (!zalloc_cpumask_var(&online_nohz, GFP_KERNEL)) {
-		pr_warning("NO_HZ: Not enough memory to check full nohz mask\n");
-		return -ENOMEM;
-	}
-
-	/*
-	 * CPUs can probably not be concurrently offlined on initcall time.
-	 * But we are paranoid, aren't we?
-	 */
-	get_online_cpus();
-
-	/* Ensure we keep a CPU outside the dynticks range for timekeeping */
-	cpumask_and(online_nohz, cpu_online_mask, nohz_full_mask);
-	if (cpumask_equal(online_nohz, cpu_online_mask)) {
-		pr_warning("NO_HZ: Must keep at least one online CPU "
-			   "out of nohz_full range\n");
-		/*
-		 * We know the current CPU doesn't have its tick stopped.
-		 * Let's use it for the timekeeping duty.
-		 */
-		preempt_disable();
-		cpu = smp_processor_id();
-		pr_warning("NO_HZ: Clearing %d from nohz_full range\n", cpu);
-		cpumask_clear_cpu(cpu, nohz_full_mask);
-		preempt_enable();
-	}
-	put_online_cpus();
-	free_cpumask_var(online_nohz);
+	if (have_nohz_full_mask)
+		cpu_notifier(tick_nohz_cpu_down_callback, 0);
 
 	cpulist_scnprintf(nohz_full_buf, sizeof(nohz_full_buf), nohz_full_mask);
 	pr_info("NO_HZ: Full dynticks CPUs: %s.\n", nohz_full_buf);
