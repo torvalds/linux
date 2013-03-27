@@ -1157,11 +1157,8 @@ struct ieee802_11_elems {
 	/* pointers to IEs */
 	const u8 *ssid;
 	const u8 *supp_rates;
-	const u8 *fh_params;
 	const u8 *ds_params;
-	const u8 *cf_params;
 	const struct ieee80211_tim_ie *tim;
-	const u8 *ibss_params;
 	const u8 *challenge;
 	const u8 *rsn;
 	const u8 *erp_info;
@@ -1183,18 +1180,14 @@ struct ieee802_11_elems {
 	const struct ieee80211_channel_sw_ie *ch_switch_ie;
 	const u8 *country_elem;
 	const u8 *pwr_constr_elem;
-	const u8 *quiet_elem;	/* first quite element */
 	const u8 *timeout_int;
 	const u8 *opmode_notif;
 
 	/* length of them, respectively */
 	u8 ssid_len;
 	u8 supp_rates_len;
-	u8 fh_params_len;
 	u8 ds_params_len;
-	u8 cf_params_len;
 	u8 tim_len;
-	u8 ibss_params_len;
 	u8 challenge_len;
 	u8 rsn_len;
 	u8 erp_info_len;
@@ -1207,8 +1200,6 @@ struct ieee802_11_elems {
 	u8 prep_len;
 	u8 perr_len;
 	u8 country_elem_len;
-	u8 quiet_elem_len;
-	u8 num_of_quiet_elem;	/* can be more the one */
 	u8 timeout_int_len;
 
 	/* whether a parse error occurred while retrieving these elements */

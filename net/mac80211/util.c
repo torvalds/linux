@@ -738,17 +738,9 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->supp_rates = pos;
 			elems->supp_rates_len = elen;
 			break;
-		case WLAN_EID_FH_PARAMS:
-			elems->fh_params = pos;
-			elems->fh_params_len = elen;
-			break;
 		case WLAN_EID_DS_PARAMS:
 			elems->ds_params = pos;
 			elems->ds_params_len = elen;
-			break;
-		case WLAN_EID_CF_PARAMS:
-			elems->cf_params = pos;
-			elems->cf_params_len = elen;
 			break;
 		case WLAN_EID_TIM:
 			if (elen >= sizeof(struct ieee80211_tim_ie)) {
@@ -756,10 +748,6 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 				elems->tim_len = elen;
 			} else
 				elem_parse_failed = true;
-			break;
-		case WLAN_EID_IBSS_PARAMS:
-			elems->ibss_params = pos;
-			elems->ibss_params_len = elen;
 			break;
 		case WLAN_EID_CHALLENGE:
 			elems->challenge = pos;
@@ -869,13 +857,6 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 				break;
 			}
 			elems->ch_switch_ie = (void *)pos;
-			break;
-		case WLAN_EID_QUIET:
-			if (!elems->quiet_elem) {
-				elems->quiet_elem = pos;
-				elems->quiet_elem_len = elen;
-			}
-			elems->num_of_quiet_elem++;
 			break;
 		case WLAN_EID_COUNTRY:
 			elems->country_elem = pos;
