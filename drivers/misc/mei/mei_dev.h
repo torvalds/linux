@@ -273,6 +273,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 				  uuid_le uuid, char *name);
 void mei_cl_remove_device(struct mei_cl_device *device);
 
+int __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length);
 int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length);
 int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
 

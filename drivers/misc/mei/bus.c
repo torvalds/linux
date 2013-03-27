@@ -222,7 +222,8 @@ void mei_cl_driver_unregister(struct mei_cl_driver *driver)
 }
 EXPORT_SYMBOL_GPL(mei_cl_driver_unregister);
 
-int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length)
+static int ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
+			bool blocking)
 {
 	struct mei_device *dev;
 	struct mei_msg_hdr mei_hdr;
@@ -273,11 +274,8 @@ int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length)
 		cb->buf_idx = 0;
 		mei_hdr.msg_complete = 0;
 		cl->writing_state = MEI_WRITING;
-		list_add_tail(&cb->list, &dev->write_list.list);
 
-		mutex_unlock(&dev->device_lock);
-
-		return length;
+		goto out;
 	}
 
 	dev->hbuf_is_ready = false;
@@ -303,18 +301,29 @@ int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length)
 	cl->writing_state = MEI_WRITING;
 	cb->buf_idx = mei_hdr.length;
 
-	if (!mei_hdr.msg_complete) {
-		list_add_tail(&cb->list, &dev->write_list.list);
-	} else {
+out:
+	if (mei_hdr.msg_complete) {
 		if (mei_cl_flow_ctrl_reduce(cl)) {
-			err = -EIO;
+			err = -ENODEV;
 			goto out_err;
 		}
-
 		list_add_tail(&cb->list, &dev->write_waiting_list.list);
+	} else {
+		list_add_tail(&cb->list, &dev->write_list.list);
 	}
 
 	mutex_unlock(&dev->device_lock);
+
+	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {
+		if (wait_event_interruptible(cl->tx_wait,
+			cl->writing_state == MEI_WRITE_COMPLETE)) {
+				if (signal_pending(current))
+					err = -EINTR;
+			err = -ERESTARTSYS;
+			mutex_lock(&dev->device_lock);
+			goto out_err;
+		}
+	}
 
 	return mei_hdr.length;
 
@@ -380,6 +389,16 @@ out:
 	mutex_unlock(&dev->device_lock);
 
 	return r_length;
+}
+
+inline int __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length)
+{
+	return ___mei_cl_send(cl, buf, length, 0);
+}
+
+inline int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length)
+{
+	return ___mei_cl_send(cl, buf, length, 1);
 }
 
 int mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length)
