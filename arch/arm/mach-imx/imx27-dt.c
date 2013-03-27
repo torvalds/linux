@@ -20,7 +20,11 @@
 
 static void __init imx27_dt_init(void)
 {
+	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", };
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+
+	platform_device_register_full(&devinfo);
 }
 
 static const char * const imx27_dt_board_compat[] __initconst = {
