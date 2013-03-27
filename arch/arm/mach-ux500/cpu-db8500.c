@@ -312,9 +312,10 @@ static void __init u8500_init_machine(void)
 	/* Pinmaps must be in place before devices register */
 	if (of_machine_is_compatible("st-ericsson,mop500"))
 		mop500_pinmaps_init();
-	else if (of_machine_is_compatible("calaosystems,snowball-a9500"))
+	else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
 		snowball_pinmaps_init();
-	else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
+		mop500_snowball_ethernet_clock_enable();
+	} else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
 		hrefv60_pinmaps_init();
 	else if (of_machine_is_compatible("st-ericsson,ccu9540")) {}
 		/* TODO: Add pinmaps for ccu9540 board. */
