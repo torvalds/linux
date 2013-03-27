@@ -424,6 +424,9 @@ ssize_t __kernel_write(struct file *file, const char *buf, size_t count, loff_t 
 	const char __user *p;
 	ssize_t ret;
 
+	if (!file->f_op || (!file->f_op->write && !file->f_op->aio_write))
+		return -EINVAL;
+
 	old_fs = get_fs();
 	set_fs(get_ds());
 	p = (__force const char __user *)buf;
