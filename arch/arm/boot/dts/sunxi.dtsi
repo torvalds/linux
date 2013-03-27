@@ -191,7 +191,7 @@
 			interrupts = <2>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc>;
+			clocks = <&apb1_gates 17>;
 			status = "disabled";
 		};
 
@@ -201,7 +201,7 @@
 			interrupts = <4>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc>;
+			clocks = <&apb1_gates 19>;
 			status = "disabled";
 		};
 	};

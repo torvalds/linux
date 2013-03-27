@@ -54,7 +54,7 @@
 			interrupts = <1>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc>;
+			clocks = <&apb1_gates 16>;
 			status = "disabled";
 		};
 
@@ -64,7 +64,7 @@
 			interrupts = <3>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc>;
+			clocks = <&apb1_gates 18>;
 			status = "disabled";
 		};
 
@@ -74,7 +74,7 @@
 			interrupts = <17>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc>;
+			clocks = <&apb1_gates 20>;
 			status = "disabled";
 		};
 
@@ -84,7 +84,7 @@
 			interrupts = <18>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc>;
+			clocks = <&apb1_gates 21>;
 			status = "disabled";
 		};
 
@@ -94,7 +94,7 @@
 			interrupts = <19>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc>;
+			clocks = <&apb1_gates 22>;
 			status = "disabled";
 		};
 
@@ -104,7 +104,7 @@
 			interrupts = <20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc>;
+			clocks = <&apb1_gates 23>;
 			status = "disabled";
 		};
 	};
