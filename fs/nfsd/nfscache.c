@@ -318,53 +318,51 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	__wsum			csum;
 	unsigned long		age;
 	int type = rqstp->rq_cachetype;
-	int rtn;
+	int rtn = RC_DOIT;
 
 	rqstp->rq_cacherep = NULL;
 	if (type == RC_NOCACHE) {
 		nfsdstats.rcnocache++;
-		return RC_DOIT;
+		return rtn;
 	}
 
 	csum = nfsd_cache_csum(rqstp);
 
+	/*
+	 * Since the common case is a cache miss followed by an insert,
+	 * preallocate an entry. First, try to reuse the first entry on the LRU
+	 * if it works, then go ahead and prune the LRU list.
+	 */
 	spin_lock(&cache_lock);
-	rtn = RC_DOIT;
-
-	rp = nfsd_cache_search(rqstp, csum);
-	if (rp)
-		goto found_entry;
-
-	/* Try to use the first entry on the LRU */
 	if (!list_empty(&lru_head)) {
 		rp = list_first_entry(&lru_head, struct svc_cacherep, c_lru);
 		if (nfsd_cache_entry_expired(rp) ||
 		    num_drc_entries >= max_drc_entries) {
 			lru_put_end(rp);
 			prune_cache_entries();
-			goto setup_entry;
+			goto search_cache;
 		}
 	}
 
-	/* Drop the lock and allocate a new entry */
+	/* No expired ones available, allocate a new one. */
 	spin_unlock(&cache_lock);
 	rp = nfsd_reply_cache_alloc();
-	if (!rp) {
-		dprintk("nfsd: unable to allocate DRC entry!\n");
-		return RC_DOIT;
-	}
 	spin_lock(&cache_lock);
-	++num_drc_entries;
+	if (likely(rp))
+		++num_drc_entries;
 
-	/*
-	 * Must search again just in case someone inserted one
-	 * after we dropped the lock above.
-	 */
+search_cache:
 	found = nfsd_cache_search(rqstp, csum);
 	if (found) {
-		nfsd_reply_cache_free_locked(rp);
+		if (likely(rp))
+			nfsd_reply_cache_free_locked(rp);
 		rp = found;
 		goto found_entry;
+	}
+
+	if (!rp) {
+		dprintk("nfsd: unable to allocate DRC entry!\n");
+		goto out;
 	}
 
 	/*
@@ -376,7 +374,6 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 		nfsd_reply_cache_free_locked(list_first_entry(&lru_head,
 						struct svc_cacherep, c_lru));
 
-setup_entry:
 	nfsdstats.rcmisses++;
 	rqstp->rq_cacherep = rp;
 	rp->c_state = RC_INPROG;
