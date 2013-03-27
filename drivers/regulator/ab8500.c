@@ -42,7 +42,6 @@
  * @voltage_reg: register to control regulator voltage
  * @voltage_mask: mask to control regulator voltage
  * @voltage_shift: shift to control regulator voltage
- * @delay: startup/set voltage delay in us
  */
 struct ab8500_regulator_info {
 	struct device		*dev;
@@ -60,7 +59,6 @@ struct ab8500_regulator_info {
 	u8 voltage_reg;
 	u8 voltage_mask;
 	u8 voltage_shift;
-	unsigned int delay;
 };
 
 /* voltage tables for the vauxn/vintcore supplies */
@@ -337,15 +335,6 @@ static int ab8500_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int ab8500_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
-					     unsigned int old_sel,
-					     unsigned int new_sel)
-{
-	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return info->delay;
-}
-
 static struct regulator_ops ab8500_regulator_volt_mode_ops = {
 	.enable			= ab8500_regulator_enable,
 	.disable		= ab8500_regulator_disable,
@@ -356,7 +345,6 @@ static struct regulator_ops ab8500_regulator_volt_mode_ops = {
 	.get_voltage_sel 	= ab8500_regulator_get_voltage_sel,
 	.set_voltage_sel	= ab8500_regulator_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_table,
-	.set_voltage_time_sel	= ab8500_regulator_set_voltage_time_sel,
 };
 
 static struct regulator_ops ab8500_regulator_mode_ops = {
@@ -492,7 +480,6 @@ static struct ab8500_regulator_info
 			.min_uV		= 2000000,
 			.enable_time	= 10000,
 		},
-		.delay			= 10000,
 		.load_lp_uA		= 1000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
