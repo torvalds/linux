@@ -591,8 +591,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_G_FREQUENCY, vidioc_g_frequency);
 	SET_VALID_IOCTL(ops, VIDIOC_S_FREQUENCY, vidioc_s_frequency);
 	SET_VALID_IOCTL(ops, VIDIOC_LOG_STATUS, vidioc_log_status);
-	set_bit(_IOC_NR(VIDIOC_DBG_G_CHIP_NAME), valid_ioctls);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+	set_bit(_IOC_NR(VIDIOC_DBG_G_CHIP_NAME), valid_ioctls);
 	set_bit(_IOC_NR(VIDIOC_DBG_G_REGISTER), valid_ioctls);
 	set_bit(_IOC_NR(VIDIOC_DBG_S_REGISTER), valid_ioctls);
 #endif

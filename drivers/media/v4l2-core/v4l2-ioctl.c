@@ -1873,6 +1873,7 @@ static int v4l_dbg_g_chip_ident(const struct v4l2_ioctl_ops *ops,
 static int v4l_dbg_g_chip_name(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_dbg_chip_name *p = arg;
 	struct v4l2_subdev *sd;
@@ -1880,12 +1881,10 @@ static int v4l_dbg_g_chip_name(const struct v4l2_ioctl_ops *ops,
 
 	switch (p->match.type) {
 	case V4L2_CHIP_MATCH_BRIDGE:
-#ifdef CONFIG_VIDEO_ADV_DEBUG
 		if (ops->vidioc_s_register)
 			p->flags |= V4L2_CHIP_FL_WRITABLE;
 		if (ops->vidioc_g_register)
 			p->flags |= V4L2_CHIP_FL_READABLE;
-#endif
 		if (ops->vidioc_g_chip_name)
 			return ops->vidioc_g_chip_name(file, fh, arg);
 		if (p->match.addr)
@@ -1904,12 +1903,10 @@ static int v4l_dbg_g_chip_name(const struct v4l2_ioctl_ops *ops,
 			break;
 		v4l2_device_for_each_subdev(sd, vfd->v4l2_dev) {
 			if (v4l_dbg_found_match(&p->match, sd, idx++)) {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
 				if (sd->ops->core && sd->ops->core->s_register)
 					p->flags |= V4L2_CHIP_FL_WRITABLE;
 				if (sd->ops->core && sd->ops->core->g_register)
 					p->flags |= V4L2_CHIP_FL_READABLE;
-#endif
 				strlcpy(p->name, sd->name, sizeof(p->name));
 				return 0;
 			}
@@ -1917,6 +1914,9 @@ static int v4l_dbg_g_chip_name(const struct v4l2_ioctl_ops *ops,
 		break;
 	}
 	return -EINVAL;
+#else
+	return -ENOTTY;
+#endif
 }
 
 static int v4l_dqevent(const struct v4l2_ioctl_ops *ops,

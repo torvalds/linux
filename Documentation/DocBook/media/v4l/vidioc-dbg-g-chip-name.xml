@@ -63,6 +63,9 @@ card. Regular applications must not use it. When you found a chip
 specific bug, please contact the linux-media mailing list (&v4l-ml;)
 so it can be fixed.</para>
 
+    <para>Additionally the Linux kernel must be compiled with the
+<constant>CONFIG_VIDEO_ADV_DEBUG</constant> option to enable this ioctl.</para>
+
     <para>To query the driver applications must initialize the
 <structfield>match.type</structfield> and
 <structfield>match.addr</structfield> or <structfield>match.name</structfield>
