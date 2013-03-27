@@ -780,8 +780,10 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->rsn_len = elen;
 			break;
 		case WLAN_EID_ERP_INFO:
-			elems->erp_info = pos;
-			elems->erp_info_len = elen;
+			if (elen >= 1)
+				elems->erp_info = pos;
+			else
+				elem_parse_failed = true;
 			break;
 		case WLAN_EID_EXT_SUPP_RATES:
 			elems->ext_supp_rates = pos;

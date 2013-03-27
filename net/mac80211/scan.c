@@ -98,9 +98,8 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	}
 
 	/* save the ERP value so that it is available at association time */
-	if (elems->erp_info && elems->erp_info_len >= 1 &&
-			(!elems->parse_error ||
-			 !(bss->valid_data & IEEE80211_BSS_VALID_ERP))) {
+	if (elems->erp_info && (!elems->parse_error ||
+				!(bss->valid_data & IEEE80211_BSS_VALID_ERP))) {
 		bss->erp_value = elems->erp_info[0];
 		bss->has_erp_value = true;
 		if (!elems->parse_error)

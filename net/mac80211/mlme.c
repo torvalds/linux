@@ -3038,7 +3038,7 @@ ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		changed |= BSS_CHANGED_DTIM_PERIOD;
 	}
 
-	if (elems.erp_info && elems.erp_info_len >= 1) {
+	if (elems.erp_info) {
 		erp_valid = true;
 		erp_value = elems.erp_info[0];
 	} else {
