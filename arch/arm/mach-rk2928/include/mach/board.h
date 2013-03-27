@@ -23,6 +23,17 @@ void __init rk2928_fixup(struct machine_desc *desc, struct tag *tags, char **cmd
 void __init rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags);
 void __init rk2928_iomux_init(void);
 extern struct sys_timer rk2928_timer;
+#if defined (CONFIG_TOUCHSCREEN_I30) || defined (CONFIG_TP_760_TS)
+struct ft5306_platform_data {
+    int rest_pin;
+    int irq_pin ;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+#endif
 
 enum _periph_pll {
 	periph_pll_1485mhz = 148500000,

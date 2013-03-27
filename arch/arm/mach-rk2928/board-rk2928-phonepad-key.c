@@ -16,20 +16,39 @@ static struct rk29_keys_button key_button[] = {
 		//.code_long_press = EV_ENCALL,
 		.wakeup	= 1,
 	},
+#if defined(CONFIG_MACH_RK2928_PHONEPAD_760)
 	{
 		.desc	= "vol+",
-		.code	= KEY_VOLUMEUP,
+		.code	= KEY_VOLUMEDOWN,
 		.gpio = INVALID_GPIO,
 		.adc_value	= 1,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "vol-",
-		.code	= KEY_VOLUMEDOWN,
+		.code	= KEY_VOLUMEUP,
 		.gpio = INVALID_GPIO,
 		.adc_value	= 512,
 		.active_low = PRESS_LEV_LOW,
 	},
+#else
+        {
+                .desc   = "vol+",
+                .code   = KEY_VOLUMEUP,
+                .gpio = INVALID_GPIO,
+                .adc_value      = 1,
+                .active_low = PRESS_LEV_LOW,
+        },
+        {
+                .desc   = "vol-",
+                .code   = KEY_VOLUMEDOWN,
+                .gpio = INVALID_GPIO,
+                .adc_value      = 512,
+                .active_low = PRESS_LEV_LOW,
+        },
+
+#endif
+
 };
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,

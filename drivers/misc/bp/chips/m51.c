@@ -157,6 +157,37 @@ static int bp_resume(struct bp_private_data *bp)
 
 
 struct bp_operate bp_m51_ops = {
+#if defined(CONFIG_ARCH_RK2928)
+	.name			= "m51",
+	.bp_id			= BP_ID_M50,
+	.bp_bus			= BP_BUS_TYPE_UART,		
+	.bp_pid			= 0,	
+	.bp_vid			= 0,	
+	.bp_power		= RK2928_PIN3_PC2, 	// 3g_power
+	.bp_en			= RK2928_PIN3_PC5,//BP_UNKNOW_DATA,	// 3g_en
+	.bp_reset			= RK2928_PIN0_PB6,
+	.ap_ready		= RK2928_PIN0_PD6,	//
+	.bp_ready		= RK2928_PIN0_PD0,
+	.ap_wakeup_bp	= RK2928_PIN3_PC4,
+	.bp_wakeup_ap	= RK2928_PIN3_PC3,	//
+	.bp_assert		= BP_UNKNOW_DATA,
+	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
+	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
+	.trig				= IRQF_TRIGGER_FALLING,
+
+	.active			= bp_active,
+	.init				= bp_init,
+	.reset			= bp_reset,
+	.ap_wake_bp		= NULL,
+	.bp_wake_ap		= bp_wake_ap,
+	.shutdown		= bp_shutdown,
+	.read_status		= NULL,
+	.write_status		= NULL,
+	.suspend 		= bp_suspend,
+	.resume			= bp_resume,
+	.misc_name		= NULL,
+	.private_miscdev	= NULL,
+#elif defined(CONFIG_ARCH_RK30)
 	.name			= "m51",
 	.bp_id			= BP_ID_M50,
 	.bp_bus			= BP_BUS_TYPE_UART,		
@@ -186,6 +217,38 @@ struct bp_operate bp_m51_ops = {
 	.resume			= bp_resume,
 	.misc_name		= NULL,
 	.private_miscdev	= NULL,
+#else
+	.name			= "m51",
+	.bp_id			= BP_ID_M50,
+	.bp_bus			= BP_BUS_TYPE_UART,		
+	.bp_pid			= 0,	
+	.bp_vid			= 0,	
+	.bp_power		= BP_UNKNOW_DATA,	// RK2928_PIN3_PC2, 	// 3g_power
+	.bp_en			= BP_UNKNOW_DATA,	// RK2928_PIN3_PC5,//BP_UNKNOW_DATA,	// 3g_en
+	.bp_reset			= BP_UNKNOW_DATA,	// RK2928_PIN0_PB6,
+	.ap_ready		= BP_UNKNOW_DATA,	// RK2928_PIN0_PD6,	//
+	.bp_ready		= BP_UNKNOW_DATA,	// RK2928_PIN0_PD0,
+	.ap_wakeup_bp	= BP_UNKNOW_DATA,	// RK2928_PIN3_PC4,
+	.bp_wakeup_ap	= BP_UNKNOW_DATA,	// RK2928_PIN3_PC3,	//
+	.bp_assert		= BP_UNKNOW_DATA,
+	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
+	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
+	.trig				= IRQF_TRIGGER_FALLING,
+
+	.active			= bp_active,
+	.init				= bp_init,
+	.reset			= bp_reset,
+	.ap_wake_bp		= NULL,
+	.bp_wake_ap		= bp_wake_ap,
+	.shutdown		= bp_shutdown,
+	.read_status		= NULL,
+	.write_status		= NULL,
+	.suspend 		= bp_suspend,
+	.resume			= bp_resume,
+	.misc_name		= NULL,
+	.private_miscdev	= NULL,
+#endif
+
 };
 
 /****************operate according to bp chip:end************/

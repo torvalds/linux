@@ -35,7 +35,7 @@
 	#define v_PD_DAC_L(n)		(n << 5)
 	#define v_PD_ADC(n)			(v_PD_ADC_L(n) | v_PD_ADC_R(n))
 	#define v_PD_DAC(n)			(v_PD_DAC_L(n) | v_PD_DAC_R(n))
-	#define v_PWR_OFF			v_PD_DAC_L(1) | v_PD_DAC_R(1) | v_PD_ADC_L(1) | v_PD_ADC_R(1) | v_PD_MIC_BIAS(1) | v_PD_CODEC(1)
+	#define v_PWR_OFF			v_PD_DAC_L(1) | v_PD_DAC_R(1) | v_PD_ADC_L(1) | v_PD_ADC_R(1) | v_PD_MIC_BIAS(0) | v_PD_CODEC(1) //²»¹Ø±Õmic_bias for phone_pad
 	
 #define CODEC_REG_VCM_BIAS		0x0d
 	#define v_MIC_BIAS(n)		(n)
@@ -81,6 +81,9 @@
 #define DBG(format, ...)
 #endif
 
-
+struct rk2928_codec_pdata {
+	int	hpctl;
+	int (*hpctl_io_init)(void);	
+};
 
 #endif /* __RK2928_CODEC_H__ */

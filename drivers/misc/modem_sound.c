@@ -14,7 +14,7 @@
 #include <asm/uaccess.h>
 #include <linux/wait.h>
 #include "modem_sound.h"
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -24,7 +24,7 @@
 
 static struct modem_sound_data *modem_sound;
 #ifdef CONFIG_SND_RK_SOC_RK2928
-extern void call_set_spk(bool on);
+extern void call_set_spk(int on);
 #endif
 int modem_sound_spkctl(int status)
 {
@@ -78,33 +78,32 @@ static long modem_sound_ioctl(struct file *filp, unsigned int cmd, unsigned long
 	switch (cmd){
 		case IOCTL_MODEM_EAR_PHOEN:
 			DBG("modem_sound_ioctl: MODEM_EAR_PHONE\n");
-			call_set_spk(0);
+			call_set_spk(3);
 			modem_sound_spkctl(DISABLE);
 			break;
 		case IOCTL_MODEM_SPK_PHONE:
 			DBG("modem_sound_ioctl: MODEM_SPK_PHONE\n");
-			call_set_spk(0);
+			call_set_spk(1);
 			modem_sound_spkctl(ENABLE);
 			break;
 	  	case IOCTL_MODEM_HP_PHONE:
 	  		DBG("modem_sound_ioctl: MODEM_HP_PHONE\n");
-	  		call_set_spk(0);
+	  		call_set_spk(2);
 			modem_sound_spkctl(DISABLE);
 			break;
 			
 		case IOCTL_MODEM_BT_PHONE:
-			call_set_spk(0);
+			call_set_spk(3);
 			modem_sound_spkctl(DISABLE);
 			DBG("modem_sound_ioctl: MODEM_BT_PHONE\n");
 			break;
 		case IOCTL_MODEM_STOP_PHONE:
 		  	DBG("modem_sound_ioctl: MODEM_STOP_PHONE\n");
-			call_set_spk(1);
+			call_set_spk(0);
 			break;
 
 		default:
 			printk("unknown ioctl cmd!\n");
-			up(&pdata->power_sem);
 			ret = -EINVAL;
 			break;
 	}

@@ -13,13 +13,14 @@ obj-$(CONFIG_DVFS) += dvfs.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_RK30_I2C_INSRAM) += i2c_sram.o
 
-board-y := board-rk2928.o
-obj-$(CONFIG_MACH_RK2928) += board.o
+obj-y += board.o
+
+board-$(CONFIG_MACH_RK2928) := board-rk2928.o
 
 obj-$(CONFIG_MACH_RK2928_SDK) += board-rk2928-sdk.o
 obj-$(CONFIG_MACH_RK2926_SDK) += board-rk2926-sdk.o
-obj-$(CONFIG_MACH_RK2928_PHONEPAD) += board-rk2928-phonepad.o
-
+board-$(CONFIG_MACH_RK2928_PHONEPAD) := board-rk2928-phonepad.o
+board-$(CONFIG_MACH_RK2928_PHONEPAD_760) := board-rk2928-phonepad-760.o
 obj-$(CONFIG_MACH_RK2928_A720) += board-rk2928-a720.o
 obj-$(CONFIG_MACH_RK2928_TB) += board-rk2928-tb.o
 obj-$(CONFIG_MACH_RK2926_TB) += board-rk2928-tb.o

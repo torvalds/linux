@@ -78,6 +78,7 @@ obj-$(CONFIG_TOUCHSCREEN_GT801_IIC)	+= gt801_ts.o
 obj-$(CONFIG_TOUCHSCREEN_GT811_IIC)	+= gt811_ts.o
 obj-$(CONFIG_TOUCHSCREEN_86V_GT811_IIC)	+= 86v_gt811_ts.o
 obj-$(CONFIG_TOUCHSCREEN_GT82X_IIC)	+= goodix_touch_82x.o
+obj-$(CONFIG_TOUCHSCREEN_GT82X_IIC_760)	+= goodix_touch_82x_760.o
 obj-$(CONFIG_TOUCHSCREEN_GT818_IIC)	+= gt818_ts.o
 obj-$(CONFIG_TOUCHSCREEN_GT8110)        += gt8110_ts.o
 obj-$(CONFIG_TOUCHSCREEN_CT360_IIC)	+= ct360_ts.o
@@ -102,4 +103,4 @@ obj-$(CONFIG_TOUCHSCREEN_FT5X0X)	+= ft5x0x.o
 obj-$(CONFIG_TOUCHSCREEN_GSLX680)	+= rockchip_gslX680.o
 # Make VTL TouchScreen Driver
 obj-$(CONFIG_TOUCHSCREEN_CT36X)		+= ct36x_ts/
-
+obj-$(CONFIG_TP_760_TS)                    += tp_760_ts.o

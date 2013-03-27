@@ -992,7 +992,10 @@ config TOUCHSCREEN_86V_GT811_IIC
 config TOUCHSCREEN_GT82X_IIC
 	tristate "GT82x_IIC based touchscreens"
 	depends on I2C2_RK30
-
+		
+config TOUCHSCREEN_GT82X_IIC_760
+	tristate "GT82x_IIC based touchscreens for 760"
+	depends on I2C2_RK30
 config TOUCHSCREEN_GT818_IIC
 	tristate "GT818_IIC based touchscreens"
 	depends on I2C2_RK29
@@ -1022,7 +1025,9 @@ config TOUCHSCREEN_GT819
 config TOUCHSCREEN_GT8110
         tristate "GT8110 based touchscreens"
         depends on I2C2_RK29 || I2C_RK30
-
+config TP_760_TS
+	tristate "tp for 760"
+	depends on I2C2_RK29 || I2C_RK30
 config TOUCHSCREEN_CT360_IIC
 	tristate "CT360 based touchscreens"
 	depends on I2C_RK29 || I2C_RK30

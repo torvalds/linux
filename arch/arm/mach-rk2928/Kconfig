@@ -22,6 +22,8 @@ config MACH_RK2926_SDK
 
 config MACH_RK2928_PHONEPAD
 	bool "RK2928_PhonePad board"
+config MACH_RK2928_PHONEPAD_760
+	bool "RK2928_PhonePad board 760"
 
 config MACH_RK2928_A720
 	bool "RK2928 A720 board"

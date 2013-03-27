@@ -143,6 +143,10 @@ config LCD_DS1006H
 config LCD_B101UANO_1920x1200
           bool "Lvds screen B101UANO for u30gt2"
 
+config LCD_WY_800X480
+	bool "lcd for 760"
+config LCD_HH070D_LVDS
+	bool "lcd lvds for 760"
 
 endchoice
 

@@ -174,6 +174,7 @@ static int bp_resume(struct bp_private_data *bp)
 
 
 struct bp_operate bp_mt6229_ops = {
+#if defined(CONFIG_ARCH_RK2928)
 	.name			= "mt6229",
 	.bp_id			= BP_ID_MT6229,
 	.bp_bus			= BP_BUS_TYPE_USB_UART,		
@@ -201,6 +202,63 @@ struct bp_operate bp_mt6229_ops = {
 	.resume			= bp_resume,
 	.misc_name		= NULL,
 	.private_miscdev	= NULL,
+#elif defined(CONFIG_ARCH_RK30)
+	.name			= "mt6229",
+	.bp_id			= BP_ID_MT6229,
+	.bp_bus			= BP_BUS_TYPE_USB_UART,		
+	.bp_pid			= 0,	
+	.bp_vid			= 0,	
+	.bp_power		= BP_UNKNOW_DATA, 	// 3g_power
+	.bp_en			= BP_UNKNOW_DATA,	// 3g_en
+	.bp_reset			= BP_UNKNOW_DATA,
+	.ap_ready		= BP_UNKNOW_DATA,	//
+	.bp_ready		= BP_UNKNOW_DATA,
+	.ap_wakeup_bp		= BP_UNKNOW_DATA,
+	.bp_wakeup_ap		= BP_UNKNOW_DATA,	//
+	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
+	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
+	.trig			= IRQF_TRIGGER_RISING,
+
+	.active			= bp_active,
+	.init			= bp_init,
+	.ap_wake_bp		= ap_wake_bp,
+	.bp_wake_ap		= bp_wake_ap,
+	.shutdown		= bp_shutdown,
+	.read_status		= NULL,
+	.write_status		= NULL,
+	.suspend 		= bp_suspend,
+	.resume			= bp_resume,
+	.misc_name		= NULL,
+	.private_miscdev	= NULL,
+#else
+	.name			= "mt6229",
+	.bp_id			= BP_ID_MT6229,
+	.bp_bus			= BP_BUS_TYPE_USB_UART,		
+	.bp_pid			= 0,	
+	.bp_vid			= 0,	
+	.bp_power		= BP_UNKNOW_DATA, 	// 3g_power
+	.bp_en			= BP_UNKNOW_DATA,	// 3g_en
+	.bp_reset			= BP_UNKNOW_DATA,
+	.ap_ready		= BP_UNKNOW_DATA,	//
+	.bp_ready		= BP_UNKNOW_DATA,
+	.ap_wakeup_bp		= BP_UNKNOW_DATA,
+	.bp_wakeup_ap		= BP_UNKNOW_DATA,	//
+	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
+	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
+	.trig			= IRQF_TRIGGER_RISING,
+
+	.active			= bp_active,
+	.init			= bp_init,
+	.ap_wake_bp		= ap_wake_bp,
+	.bp_wake_ap		= bp_wake_ap,
+	.shutdown		= bp_shutdown,
+	.read_status		= NULL,
+	.write_status		= NULL,
+	.suspend 		= bp_suspend,
+	.resume			= bp_resume,
+	.misc_name		= NULL,
+	.private_miscdev	= NULL,
+#endif
 };
 
 /****************operate according to bp chip:end************/
