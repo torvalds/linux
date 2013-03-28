@@ -991,6 +991,8 @@ unapply_new_state:
 				pinmux_enable_setting(setting);
 		}
 	}
+
+	p->state = old_state;
 	return ret;
 }
 
