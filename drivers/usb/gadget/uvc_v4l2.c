@@ -339,6 +339,18 @@ uvc_v4l2_poll(struct file *file, poll_table *wait)
 	return uvc_queue_poll(&uvc->video.queue, file, wait);
 }
 
+#ifndef CONFIG_MMU
+static unsigned long uvc_v4l2_get_unmapped_area(struct file *file,
+		unsigned long addr, unsigned long len, unsigned long pgoff,
+		unsigned long flags)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct uvc_device *uvc = video_get_drvdata(vdev);
+
+	return uvc_queue_get_unmapped_area(&uvc->video.queue, pgoff);
+}
+#endif
+
 static struct v4l2_file_operations uvc_v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uvc_v4l2_open,
@@ -346,5 +358,8 @@ static struct v4l2_file_operations uvc_v4l2_fops = {
 	.ioctl		= uvc_v4l2_ioctl,
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,
+#ifndef CONFIG_MMU
+	.get_unmapped_area = uvc_v4l2_get_unmapped_area,
+#endif
 };
 

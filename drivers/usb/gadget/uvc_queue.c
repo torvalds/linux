@@ -232,6 +232,24 @@ static int uvc_queue_mmap(struct uvc_video_queue *queue,
 	return ret;
 }
 
+#ifndef CONFIG_MMU
+/*
+ * Get unmapped area.
+ *
+ * NO-MMU arch need this function to make mmap() work correctly.
+ */
+static unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,
+		unsigned long pgoff)
+{
+	unsigned long ret;
+
+	mutex_lock(&queue->mutex);
+	ret = vb2_get_unmapped_area(&queue->queue, 0, 0, pgoff, 0);
+	mutex_unlock(&queue->mutex);
+	return ret;
+}
+#endif
+
 /*
  * Cancel the video buffers queue.
  *
