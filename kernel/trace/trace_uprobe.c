@@ -531,13 +531,7 @@ print_uprobe_event(struct trace_iterator *iter, int flags, struct trace_event *e
 	field = (struct uprobe_trace_entry_head *)iter->ent;
 	tu = container_of(event, struct trace_uprobe, call.event);
 
-	if (!trace_seq_printf(s, "%s: (", tu->call.name))
-		goto partial;
-
-	if (!seq_print_ip_sym(s, field->ip, flags | TRACE_ITER_SYM_OFFSET))
-		goto partial;
-
-	if (!trace_seq_puts(s, ")"))
+	if (!trace_seq_printf(s, "%s: (0x%lx)", tu->call.name, field->ip))
 		goto partial;
 
 	data = (u8 *)&field[1];
