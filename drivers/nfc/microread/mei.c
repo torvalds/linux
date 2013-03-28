@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
-#include <linux/mei_bus.h>
+#include <linux/mei_cl_bus.h>
 
 #include <linux/nfc.h>
 #include <net/nfc/hci.h>
@@ -31,9 +31,6 @@
 #include "microread.h"
 
 #define MICROREAD_DRIVER_NAME "microread"
-
-#define MICROREAD_UUID UUID_LE(0x0bb17a78, 0x2a8e, 0x4c50, 0x94, \
-			       0xd4, 0x50, 0x26, 0x67, 0x23, 0x77, 0x5c)
 
 struct mei_nfc_hdr {
 	u8 cmd;
@@ -48,7 +45,7 @@ struct mei_nfc_hdr {
 #define MEI_NFC_MAX_READ (MEI_NFC_HEADER_SIZE + MEI_NFC_MAX_HCI_PAYLOAD)
 
 struct microread_mei_phy {
-	struct mei_device *mei_device;
+	struct mei_cl_device *device;
 	struct nfc_hci_dev *hdev;
 
 	int powered;
@@ -105,14 +102,14 @@ static int microread_mei_write(void *phy_id, struct sk_buff *skb)
 
 	MEI_DUMP_SKB_OUT("mei frame sent", skb);
 
-	r = mei_send(phy->device, skb->data, skb->len);
+	r = mei_cl_send(phy->device, skb->data, skb->len);
 	if (r > 0)
 		r = 0;
 
 	return r;
 }
 
-static void microread_event_cb(struct mei_device *device, u32 events,
+static void microread_event_cb(struct mei_cl_device *device, u32 events,
 			       void *context)
 {
 	struct microread_mei_phy *phy = context;
@@ -120,7 +117,7 @@ static void microread_event_cb(struct mei_device *device, u32 events,
 	if (phy->hard_fault != 0)
 		return;
 
-	if (events & BIT(MEI_EVENT_RX)) {
+	if (events & BIT(MEI_CL_EVENT_RX)) {
 		struct sk_buff *skb;
 		int reply_size;
 
@@ -128,7 +125,7 @@ static void microread_event_cb(struct mei_device *device, u32 events,
 		if (!skb)
 			return;
 
-		reply_size = mei_recv(device, skb->data, MEI_NFC_MAX_READ);
+		reply_size = mei_cl_recv(device, skb->data, MEI_NFC_MAX_READ);
 		if (reply_size < MEI_NFC_HEADER_SIZE) {
 			kfree(skb);
 			return;
@@ -149,8 +146,8 @@ static struct nfc_phy_ops mei_phy_ops = {
 	.disable = microread_mei_disable,
 };
 
-static int microread_mei_probe(struct mei_device *device,
-			       const struct mei_id *id)
+static int microread_mei_probe(struct mei_cl_device *device,
+			       const struct mei_cl_device_id *id)
 {
 	struct microread_mei_phy *phy;
 	int r;
@@ -164,9 +161,9 @@ static int microread_mei_probe(struct mei_device *device,
 	}
 
 	phy->device = device;
-	mei_set_clientdata(device, phy);
+	mei_cl_set_drvdata(device, phy);
 
-	r = mei_register_event_cb(device, microread_event_cb, phy);
+	r = mei_cl_register_event_cb(device, microread_event_cb, phy);
 	if (r) {
 		pr_err(MICROREAD_DRIVER_NAME ": event cb registration failed\n");
 		goto err_out;
@@ -186,9 +183,9 @@ err_out:
 	return r;
 }
 
-static int microread_mei_remove(struct mei_device *device)
+static int microread_mei_remove(struct mei_cl_device *device)
 {
-	struct microread_mei_phy *phy = mei_get_clientdata(device);
+	struct microread_mei_phy *phy = mei_cl_get_drvdata(device);
 
 	pr_info("Removing microread\n");
 
@@ -202,16 +199,15 @@ static int microread_mei_remove(struct mei_device *device)
 	return 0;
 }
 
-static struct mei_id microread_mei_tbl[] = {
-	{ MICROREAD_DRIVER_NAME, MICROREAD_UUID },
+static struct mei_cl_device_id microread_mei_tbl[] = {
+	{ MICROREAD_DRIVER_NAME },
 
 	/* required last entry */
 	{ }
 };
-
 MODULE_DEVICE_TABLE(mei, microread_mei_tbl);
 
-static struct mei_driver microread_driver = {
+static struct mei_cl_driver microread_driver = {
 	.id_table = microread_mei_tbl,
 	.name = MICROREAD_DRIVER_NAME,
 
@@ -225,7 +221,7 @@ static int microread_mei_init(void)
 
 	pr_debug(DRIVER_DESC ": %s\n", __func__);
 
-	r = mei_driver_register(&microread_driver);
+	r = mei_cl_driver_register(&microread_driver);
 	if (r) {
 		pr_err(MICROREAD_DRIVER_NAME ": driver registration failed\n");
 		return r;
@@ -236,7 +232,7 @@ static int microread_mei_init(void)
 
 static void microread_mei_exit(void)
 {
-	mei_driver_unregister(&microread_driver);
+	mei_cl_driver_unregister(&microread_driver);
 }
 
 module_init(microread_mei_init);
