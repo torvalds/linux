@@ -4518,7 +4518,8 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp)
 			goto done;
 
 		ql_log(ql_log_warn, vha, 0x10c9,
-		    "Thermal not supported by I2C.\n");
+		    "Thermal not supported through I2C bus, trying alternate "
+		    "method (ISP access).\n");
 		ha->thermal_support &= ~THERMAL_SUPPORT_I2C;
 	}
 
@@ -4528,7 +4529,7 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp)
 			goto done;
 
 		ql_log(ql_log_warn, vha, 0x1019,
-		    "Thermal not supported by ISP.\n");
+		    "Thermal not supported through ISP.\n");
 		ha->thermal_support &= ~THERMAL_SUPPORT_ISP;
 	}
 
