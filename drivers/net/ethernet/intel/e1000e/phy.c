@@ -165,7 +165,7 @@ s32 e1000e_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 	 * the lower time out
 	 */
 	for (i = 0; i < (E1000_GEN_POLL_TIMEOUT * 3); i++) {
-		usleep_range(50, 100);
+		udelay(50);
 		mdic = er32(MDIC);
 		if (mdic & E1000_MDIC_READY)
 			break;
@@ -178,13 +178,19 @@ s32 e1000e_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 		e_dbg("MDI Error\n");
 		return -E1000_ERR_PHY;
 	}
+	if (((mdic & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT) != offset) {
+		e_dbg("MDI Read offset error - requested %d, returned %d\n",
+		      offset,
+		      (mdic & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT);
+		return -E1000_ERR_PHY;
+	}
 	*data = (u16)mdic;
 
 	/* Allow some time after each MDIC transaction to avoid
 	 * reading duplicate data in the next MDIC transaction.
 	 */
 	if (hw->mac.type == e1000_pch2lan)
-		usleep_range(100, 200);
+		udelay(100);
 
 	return 0;
 }
@@ -223,7 +229,7 @@ s32 e1000e_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 	 * the lower time out
 	 */
 	for (i = 0; i < (E1000_GEN_POLL_TIMEOUT * 3); i++) {
-		usleep_range(50, 100);
+		udelay(50);
 		mdic = er32(MDIC);
 		if (mdic & E1000_MDIC_READY)
 			break;
@@ -236,12 +242,18 @@ s32 e1000e_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 		e_dbg("MDI Error\n");
 		return -E1000_ERR_PHY;
 	}
+	if (((mdic & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT) != offset) {
+		e_dbg("MDI Write offset error - requested %d, returned %d\n",
+		      offset,
+		      (mdic & E1000_MDIC_REG_MASK) >> E1000_MDIC_REG_SHIFT);
+		return -E1000_ERR_PHY;
+	}
 
 	/* Allow some time after each MDIC transaction to avoid
 	 * reading duplicate data in the next MDIC transaction.
 	 */
 	if (hw->mac.type == e1000_pch2lan)
-		usleep_range(100, 200);
+		udelay(100);
 
 	return 0;
 }

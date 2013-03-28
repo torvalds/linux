@@ -55,7 +55,7 @@
 
 #define DRV_EXTRAVERSION "-k"
 
-#define DRV_VERSION "2.2.14" DRV_EXTRAVERSION
+#define DRV_VERSION "2.3.2" DRV_EXTRAVERSION
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -3875,6 +3875,38 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	/* initialize systim and reset the ns time counter */
 	e1000e_config_hwtstamp(adapter);
 
+	/* Set EEE advertisement as appropriate */
+	if (adapter->flags2 & FLAG2_HAS_EEE) {
+		s32 ret_val;
+		u16 adv_addr;
+
+		switch (hw->phy.type) {
+		case e1000_phy_82579:
+			adv_addr = I82579_EEE_ADVERTISEMENT;
+			break;
+		case e1000_phy_i217:
+			adv_addr = I217_EEE_ADVERTISEMENT;
+			break;
+		default:
+			dev_err(&adapter->pdev->dev,
+				"Invalid PHY type setting EEE advertisement\n");
+			return;
+		}
+
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val) {
+			dev_err(&adapter->pdev->dev,
+				"EEE advertisement - unable to acquire PHY\n");
+			return;
+		}
+
+		e1000_write_emi_reg_locked(hw, adv_addr,
+					   hw->dev_spec.ich8lan.eee_disable ?
+					   0 : adapter->eee_advert);
+
+		hw->phy.ops.release(hw);
+	}
+
 	if (!netif_running(adapter->netdev) &&
 	    !test_bit(__E1000_TESTING, &adapter->state)) {
 		e1000_power_down_phy(adapter);
@@ -6539,6 +6571,10 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (!adapter->hw.flash_address)
 			goto err_flashmap;
 	}
+
+	/* Set default EEE advertisement */
+	if (adapter->flags2 & FLAG2_HAS_EEE)
+		adapter->eee_advert = MDIO_EEE_100TX | MDIO_EEE_1000T;
 
 	/* construct the net_device struct */
 	netdev->netdev_ops		= &e1000e_netdev_ops;

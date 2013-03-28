@@ -142,6 +142,7 @@ static void e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index);
 static void e1000_rar_set_pch_lpt(struct e1000_hw *hw, u8 *addr, u32 index);
 static s32 e1000_k1_workaround_lv(struct e1000_hw *hw);
 static void e1000_gate_hw_phy_config_ich8lan(struct e1000_hw *hw, bool gate);
+static s32 e1000_setup_copper_link_pch_lpt(struct e1000_hw *hw);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -636,6 +637,8 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 	if (mac->type == e1000_pch_lpt) {
 		mac->rar_entry_count = E1000_PCH_LPT_RAR_ENTRIES;
 		mac->ops.rar_set = e1000_rar_set_pch_lpt;
+		mac->ops.setup_physical_interface =
+		    e1000_setup_copper_link_pch_lpt;
 	}
 
 	/* Enable PCS Lock-loss workaround for ICH8 */
@@ -692,7 +695,7 @@ s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data)
  *
  *  Assumes the SW/FW/HW Semaphore is already acquired.
  **/
-static s32 e1000_write_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 data)
+s32 e1000_write_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 data)
 {
 	return __e1000_access_emi_reg_locked(hw, addr, &data, false);
 }
@@ -709,11 +712,22 @@ static s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
 	s32 ret_val;
-	u16 lpi_ctrl;
+	u16 lpa, pcs_status, adv, adv_addr, lpi_ctrl, data;
 
-	if ((hw->phy.type != e1000_phy_82579) &&
-	    (hw->phy.type != e1000_phy_i217))
+	switch (hw->phy.type) {
+	case e1000_phy_82579:
+		lpa = I82579_EEE_LP_ABILITY;
+		pcs_status = I82579_EEE_PCS_STATUS;
+		adv_addr = I82579_EEE_ADVERTISEMENT;
+		break;
+	case e1000_phy_i217:
+		lpa = I217_EEE_LP_ABILITY;
+		pcs_status = I217_EEE_PCS_STATUS;
+		adv_addr = I217_EEE_ADVERTISEMENT;
+		break;
+	default:
 		return 0;
+	}
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
@@ -728,34 +742,24 @@ static s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 
 	/* Enable EEE if not disabled by user */
 	if (!dev_spec->eee_disable) {
-		u16 lpa, pcs_status, data;
-
 		/* Save off link partner's EEE ability */
-		switch (hw->phy.type) {
-		case e1000_phy_82579:
-			lpa = I82579_EEE_LP_ABILITY;
-			pcs_status = I82579_EEE_PCS_STATUS;
-			break;
-		case e1000_phy_i217:
-			lpa = I217_EEE_LP_ABILITY;
-			pcs_status = I217_EEE_PCS_STATUS;
-			break;
-		default:
-			ret_val = -E1000_ERR_PHY;
-			goto release;
-		}
 		ret_val = e1000_read_emi_reg_locked(hw, lpa,
 						    &dev_spec->eee_lp_ability);
 		if (ret_val)
 			goto release;
 
+		/* Read EEE advertisement */
+		ret_val = e1000_read_emi_reg_locked(hw, adv_addr, &adv);
+		if (ret_val)
+			goto release;
+
 		/* Enable EEE only for speeds in which the link partner is
-		 * EEE capable.
+		 * EEE capable and for which we advertise EEE.
 		 */
-		if (dev_spec->eee_lp_ability & I82579_EEE_1000_SUPPORTED)
+		if (adv & dev_spec->eee_lp_ability & I82579_EEE_1000_SUPPORTED)
 			lpi_ctrl |= I82579_LPI_CTRL_1000_ENABLE;
 
-		if (dev_spec->eee_lp_ability & I82579_EEE_100_SUPPORTED) {
+		if (adv & dev_spec->eee_lp_ability & I82579_EEE_100_SUPPORTED) {
 			e1e_rphy_locked(hw, MII_LPA, &data);
 			if (data & LPA_100FULL)
 				lpi_ctrl |= I82579_LPI_CTRL_100_ENABLE;
@@ -767,12 +771,12 @@ static s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 				dev_spec->eee_lp_ability &=
 				    ~I82579_EEE_100_SUPPORTED;
 		}
-
-		/* R/Clr IEEE MMD 3.1 bits 11:10 - Tx/Rx LPI Received */
-		ret_val = e1000_read_emi_reg_locked(hw, pcs_status, &data);
-		if (ret_val)
-			goto release;
 	}
+
+	/* R/Clr IEEE MMD 3.1 bits 11:10 - Tx/Rx LPI Received */
+	ret_val = e1000_read_emi_reg_locked(hw, pcs_status, &data);
+	if (ret_val)
+		goto release;
 
 	ret_val = e1e_wphy_locked(hw, I82579_LPI_CTRL, lpi_ctrl);
 release:
@@ -835,6 +839,94 @@ release:
 }
 
 /**
+ *  e1000_platform_pm_pch_lpt - Set platform power management values
+ *  @hw: pointer to the HW structure
+ *  @link: bool indicating link status
+ *
+ *  Set the Latency Tolerance Reporting (LTR) values for the "PCIe-like"
+ *  GbE MAC in the Lynx Point PCH based on Rx buffer size and link speed
+ *  when link is up (which must not exceed the maximum latency supported
+ *  by the platform), otherwise specify there is no LTR requirement.
+ *  Unlike true-PCIe devices which set the LTR maximum snoop/no-snoop
+ *  latencies in the LTR Extended Capability Structure in the PCIe Extended
+ *  Capability register set, on this device LTR is set by writing the
+ *  equivalent snoop/no-snoop latencies in the LTRV register in the MAC and
+ *  set the SEND bit to send an Intel On-chip System Fabric sideband (IOSF-SB)
+ *  message to the PMC.
+ **/
+static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
+{
+	u32 reg = link << (E1000_LTRV_REQ_SHIFT + E1000_LTRV_NOSNOOP_SHIFT) |
+	    link << E1000_LTRV_REQ_SHIFT | E1000_LTRV_SEND;
+	u16 lat_enc = 0;	/* latency encoded */
+
+	if (link) {
+		u16 speed, duplex, scale = 0;
+		u16 max_snoop, max_nosnoop;
+		u16 max_ltr_enc;	/* max LTR latency encoded */
+		s64 lat_ns;	/* latency (ns) */
+		s64 value;
+		u32 rxa;
+
+		if (!hw->adapter->max_frame_size) {
+			e_dbg("max_frame_size not set.\n");
+			return -E1000_ERR_CONFIG;
+		}
+
+		hw->mac.ops.get_link_up_info(hw, &speed, &duplex);
+		if (!speed) {
+			e_dbg("Speed not set.\n");
+			return -E1000_ERR_CONFIG;
+		}
+
+		/* Rx Packet Buffer Allocation size (KB) */
+		rxa = er32(PBA) & E1000_PBA_RXA_MASK;
+
+		/* Determine the maximum latency tolerated by the device.
+		 *
+		 * Per the PCIe spec, the tolerated latencies are encoded as
+		 * a 3-bit encoded scale (only 0-5 are valid) multiplied by
+		 * a 10-bit value (0-1023) to provide a range from 1 ns to
+		 * 2^25*(2^10-1) ns.  The scale is encoded as 0=2^0ns,
+		 * 1=2^5ns, 2=2^10ns,...5=2^25ns.
+		 */
+		lat_ns = ((s64)rxa * 1024 -
+			  (2 * (s64)hw->adapter->max_frame_size)) * 8 * 1000;
+		if (lat_ns < 0)
+			lat_ns = 0;
+		else
+			do_div(lat_ns, speed);
+
+		value = lat_ns;
+		while (value > PCI_LTR_VALUE_MASK) {
+			scale++;
+			value = DIV_ROUND_UP(value, (1 << 5));
+		}
+		if (scale > E1000_LTRV_SCALE_MAX) {
+			e_dbg("Invalid LTR latency scale %d\n", scale);
+			return -E1000_ERR_CONFIG;
+		}
+		lat_enc = (u16)((scale << PCI_LTR_SCALE_SHIFT) | value);
+
+		/* Determine the maximum latency tolerated by the platform */
+		pci_read_config_word(hw->adapter->pdev, E1000_PCI_LTR_CAP_LPT,
+				     &max_snoop);
+		pci_read_config_word(hw->adapter->pdev,
+				     E1000_PCI_LTR_CAP_LPT + 2, &max_nosnoop);
+		max_ltr_enc = max_t(u16, max_snoop, max_nosnoop);
+
+		if (lat_enc > max_ltr_enc)
+			lat_enc = max_ltr_enc;
+	}
+
+	/* Set Snoop and No-Snoop latencies the same */
+	reg |= lat_enc | (lat_enc << E1000_LTRV_NOSNOOP_SHIFT);
+	ew32(LTRV, reg);
+
+	return 0;
+}
+
+/**
  *  e1000_check_for_copper_link_ich8lan - Check for link (Copper)
  *  @hw: pointer to the HW structure
  *
@@ -871,10 +963,47 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			return ret_val;
 	}
 
+	/* When connected at 10Mbps half-duplex, 82579 parts are excessively
+	 * aggressive resulting in many collisions. To avoid this, increase
+	 * the IPG and reduce Rx latency in the PHY.
+	 */
+	if ((hw->mac.type == e1000_pch2lan) && link) {
+		u32 reg;
+		reg = er32(STATUS);
+		if (!(reg & (E1000_STATUS_FD | E1000_STATUS_SPEED_MASK))) {
+			reg = er32(TIPG);
+			reg &= ~E1000_TIPG_IPGT_MASK;
+			reg |= 0xFF;
+			ew32(TIPG, reg);
+
+			/* Reduce Rx latency in analog PHY */
+			ret_val = hw->phy.ops.acquire(hw);
+			if (ret_val)
+				return ret_val;
+
+			ret_val =
+			    e1000_write_emi_reg_locked(hw, I82579_RX_CONFIG, 0);
+
+			hw->phy.ops.release(hw);
+
+			if (ret_val)
+				return ret_val;
+		}
+	}
+
 	/* Work-around I218 hang issue */
 	if ((hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_LM) ||
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_LPTLP_I218_V)) {
 		ret_val = e1000_k1_workaround_lpt_lp(hw, link);
+		if (ret_val)
+			return ret_val;
+	}
+
+	if (hw->mac.type == e1000_pch_lpt) {
+		/* Set platform power management values for
+		 * Latency Tolerance Reporting (LTR)
+		 */
+		ret_val = e1000_platform_pm_pch_lpt(hw, link);
 		if (ret_val)
 			return ret_val;
 	}
@@ -1001,10 +1130,6 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	if ((adapter->hw.mac.type == e1000_pch2lan) &&
 	    (er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
 		adapter->flags2 |= FLAG2_PCIM2PCI_ARBITER_WA;
-
-	/* Disable EEE by default until IEEE802.3az spec is finalized */
-	if (adapter->flags2 & FLAG2_HAS_EEE)
-		adapter->hw.dev_spec.ich8lan.eee_disable = true;
 
 	return 0;
 }
@@ -3760,7 +3885,6 @@ static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 		break;
 	case e1000_phy_82577:
 	case e1000_phy_82579:
-	case e1000_phy_i217:
 		ret_val = e1000_copper_link_setup_82577(hw);
 		if (ret_val)
 			return ret_val;
@@ -3791,6 +3915,31 @@ static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 	default:
 		break;
 	}
+
+	return e1000e_setup_copper_link(hw);
+}
+
+/**
+ *  e1000_setup_copper_link_pch_lpt - Configure MAC/PHY interface
+ *  @hw: pointer to the HW structure
+ *
+ *  Calls the PHY specific link setup function and then calls the
+ *  generic setup_copper_link to finish configuring the link for
+ *  Lynxpoint PCH devices
+ **/
+static s32 e1000_setup_copper_link_pch_lpt(struct e1000_hw *hw)
+{
+	u32 ctrl;
+	s32 ret_val;
+
+	ctrl = er32(CTRL);
+	ctrl |= E1000_CTRL_SLU;
+	ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
+	ew32(CTRL, ctrl);
+
+	ret_val = e1000_copper_link_setup_82577(hw);
+	if (ret_val)
+		return ret_val;
 
 	return e1000e_setup_copper_link(hw);
 }
