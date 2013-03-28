@@ -178,4 +178,18 @@ inline int ab8500_ext_regulator_exit(struct platform_device *pdev)
 }
 #endif
 
+#ifdef CONFIG_REGULATOR_AB8500_DEBUG
+int ab8500_regulator_debug_init(struct platform_device *pdev);
+int ab8500_regulator_debug_exit(struct platform_device *pdev);
+#else
+static inline int ab8500_regulator_debug_init(struct platform_device *pdev)
+{
+	return 0;
+}
+static inline int ab8500_regulator_debug_exit(struct platform_device *pdev)
+{
+	return 0;
+}
+#endif
+
 #endif

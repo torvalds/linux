@@ -911,6 +911,11 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	/* initialize debug (initial state is recorded with this call) */
+	err = ab8500_regulator_debug_init(pdev);
+	if (err)
+		return err;
+
 	/* initialize registers */
 	for (i = 0; i < pdata->num_reg_init; i++) {
 		int id, mask, value;
@@ -958,6 +963,11 @@ static int ab8500_regulator_remove(struct platform_device *pdev)
 
 	/* remove external regulators (after Vaux1, 2 and 3) */
 	err = ab8500_ext_regulator_exit(pdev);
+	if (err)
+		return err;
+
+	/* remove regulator debug */
+	err = ab8500_regulator_debug_exit(pdev);
 	if (err)
 		return err;
 
