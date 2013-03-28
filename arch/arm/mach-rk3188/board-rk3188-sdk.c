@@ -2109,7 +2109,7 @@ static struct rk29_keys_button key_button[] = {
         {
                 .desc   = "vol-",
                 .code   = KEY_VOLUMEDOWN,
-		.adc_value      = 900,
+		.adc_value      = 174,
                 .gpio   = INVALID_GPIO,
                 .active_low = PRESS_LEV_LOW,
         },
@@ -2130,21 +2130,21 @@ static struct rk29_keys_button key_button[] = {
 	{
                 .desc   = "menu",
                 .code   = EV_MENU,
-                .adc_value      = 133,
+                .adc_value      = 360,
                 .gpio = INVALID_GPIO,
                 .active_low = PRESS_LEV_LOW,
         },
         {
                 .desc   = "home",
                 .code   = KEY_HOME,
-                .adc_value      = 550,
+                .adc_value      = 750,
                 .gpio = INVALID_GPIO,
                 .active_low = PRESS_LEV_LOW,
         },
         {
                 .desc   = "esc",
                 .code   = KEY_BACK,
-                .adc_value      = 333,
+                .adc_value      = 564,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
