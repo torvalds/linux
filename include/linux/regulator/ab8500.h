@@ -143,6 +143,10 @@ enum ab9540_regulator_reg {
 };
 
 /* AB8500 external regulators */
+struct ab8500_ext_regulator_cfg {
+	bool hwreq; /* requires hw mode or high power mode */
+};
+
 enum ab8500_ext_regulator_id {
 	AB8500_EXT_SUPPLY1,
 	AB8500_EXT_SUPPLY2,
