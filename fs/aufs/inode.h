@@ -101,6 +101,12 @@ struct au_pin {
 	struct dentry *parent;
 	struct au_hinode *hdir;
 	struct vfsmount *h_mnt;
+
+	/* temporary unlock/relock for copyup */
+	struct dentry *h_dentry, *h_parent;
+	struct au_branch *br;
+	void (*hdir_unlock)(struct au_pin *p);
+	int (*hdir_relock)(struct au_pin *p);
 };
 
 /* ---------------------------------------------------------------------- */

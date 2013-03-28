@@ -366,6 +366,36 @@ out:
 
 /* ---------------------------------------------------------------------- */
 
+static void au_pin_hdir_unlock(struct au_pin *p)
+{
+	if (p->hdir)
+		au_hn_imtx_unlock(p->hdir);
+}
+
+static int au_pin_hdir_relock(struct au_pin *p)
+{
+	int err;
+
+	err = 0;
+	if (!p->hdir)
+		goto out;
+
+	/* even if an error happens later, keep this lock */
+	au_hn_imtx_lock_nested(p->hdir, p->lsc_hi);
+
+	err = -EBUSY;
+	if (unlikely(p->hdir->hi_inode != p->h_parent->d_inode))
+		goto out;
+
+	err = 0;
+	if (p->h_dentry)
+		err = au_h_verify(p->h_dentry, p->udba, p->hdir->hi_inode,
+				  p->h_parent, p->br);
+
+out:
+	return err;
+}
+
 struct dentry *au_pinned_h_parent(struct au_pin *pin)
 {
 	if (pin && pin->parent)
@@ -380,7 +410,7 @@ void au_unpin(struct au_pin *p)
 	if (!p->hdir)
 		return;
 
-	au_hn_imtx_unlock(p->hdir);
+	p->hdir_unlock(p);
 	if (!au_ftest_pin(p->flags, DI_LOCKED))
 		di_read_unlock(p->parent, AuLock_IR);
 	iput(p->hdir->hi_inode);
@@ -394,16 +424,14 @@ int au_do_pin(struct au_pin *p)
 {
 	int err;
 	struct super_block *sb;
-	struct dentry *h_dentry, *h_parent;
-	struct au_branch *br;
 	struct inode *h_dir;
 
 	err = 0;
 	sb = p->dentry->d_sb;
-	br = au_sbr(sb, p->bindex);
+	p->br = au_sbr(sb, p->bindex);
 	if (IS_ROOT(p->dentry)) {
 		if (au_ftest_pin(p->flags, MNT_WRITE)) {
-			p->h_mnt = br->br_mnt;
+			p->h_mnt = p->br->br_mnt;
 			err = mnt_want_write(p->h_mnt);
 			if (unlikely(err)) {
 				au_fclr_pin(p->flags, MNT_WRITE);
@@ -413,16 +441,16 @@ int au_do_pin(struct au_pin *p)
 		goto out;
 	}
 
-	h_dentry = NULL;
+	p->h_dentry = NULL;
 	if (p->bindex <= au_dbend(p->dentry))
-		h_dentry = au_h_dptr(p->dentry, p->bindex);
+		p->h_dentry = au_h_dptr(p->dentry, p->bindex);
 
 	p->parent = dget_parent(p->dentry);
 	if (!au_ftest_pin(p->flags, DI_LOCKED))
 		di_read_lock(p->parent, AuLock_IR, p->lsc_di);
 
 	h_dir = NULL;
-	h_parent = au_h_dptr(p->parent, p->bindex);
+	p->h_parent = au_h_dptr(p->parent, p->bindex);
 	p->hdir = au_hi(p->parent->d_inode, p->bindex);
 	if (p->hdir)
 		h_dir = p->hdir->hi_inode;
@@ -432,7 +460,7 @@ int au_do_pin(struct au_pin *p)
 	 * if DI_LOCKED is not set, then p->parent may be different
 	 * and h_parent can be NULL.
 	 */
-	if (unlikely(!p->hdir || !h_dir || !h_parent)) {
+	if (unlikely(!p->hdir || !h_dir || !p->h_parent)) {
 		err = -EBUSY;
 		if (!au_ftest_pin(p->flags, DI_LOCKED))
 			di_read_unlock(p->parent, AuLock_IR);
@@ -442,22 +470,12 @@ int au_do_pin(struct au_pin *p)
 	}
 
 	au_igrab(h_dir);
-	au_hn_imtx_lock_nested(p->hdir, p->lsc_hi);
-
-	if (unlikely(p->hdir->hi_inode != h_parent->d_inode)) {
-		err = -EBUSY;
+	err = p->hdir_relock(p);
+	if (unlikely(err))
 		goto out_unpin;
-	}
-	if (h_dentry) {
-		err = au_h_verify(h_dentry, p->udba, h_dir, h_parent, br);
-		if (unlikely(err)) {
-			au_fclr_pin(p->flags, MNT_WRITE);
-			goto out_unpin;
-		}
-	}
 
 	if (au_ftest_pin(p->flags, MNT_WRITE)) {
-		p->h_mnt = br->br_mnt;
+		p->h_mnt = p->br->br_mnt;
 		err = mnt_want_write(p->h_mnt);
 		if (unlikely(err)) {
 			au_fclr_pin(p->flags, MNT_WRITE);
@@ -489,6 +507,12 @@ void au_pin_init(struct au_pin *p, struct dentry *dentry,
 	p->parent = NULL;
 	p->hdir = NULL;
 	p->h_mnt = NULL;
+
+	p->h_dentry = NULL;
+	p->h_parent = NULL;
+	p->br = NULL;
+	p->hdir_unlock = au_pin_hdir_unlock;
+	p->hdir_relock = au_pin_hdir_relock;
 }
 
 int au_pin(struct au_pin *pin, struct dentry *dentry, aufs_bindex_t bindex,
