@@ -488,25 +488,6 @@ static struct ab8500_regulator_info
 		.update_val_idle	= 0x82,
 		.update_val_normal	= 0x02,
 	},
-
-	/*
-	 * Regulators with fixed voltage and normal mode
-	 */
-	[AB8500_LDO_USB] = {
-		.desc = {
-			.name           = "LDO-USB",
-			.ops            = &ab8500_regulator_ops,
-			.type           = REGULATOR_VOLTAGE,
-			.id             = AB8500_LDO_USB,
-			.owner          = THIS_MODULE,
-			.n_voltages     = 1,
-			.min_uV		= 3300000,
-			.enable_time	= 150,
-		},
-		.update_bank            = 0x03,
-		.update_reg             = 0x82,
-		.update_mask            = 0x03,
-	},
 	[AB8500_LDO_AUDIO] = {
 		.desc = {
 			.name		= "LDO-AUDIO",
@@ -862,7 +843,6 @@ static struct of_regulator_match ab8500_regulator_matches[] = {
 	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB8500_LDO_AUX3, },
 	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB8500_LDO_INTCORE, },
 	{ .name	= "ab8500_ldo_tvout",   .driver_data = (void *) AB8500_LDO_TVOUT, },
-	{ .name = "ab8500_ldo_usb",     .driver_data = (void *) AB8500_LDO_USB, },
 	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB8500_LDO_AUDIO, },
 	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB8500_LDO_ANAMIC1, },
 	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB8500_LDO_ANAMIC2, },
