@@ -2995,11 +2995,6 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-static bool haswell_crtc_driving_pch(struct drm_crtc *crtc)
-{
-	return intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG);
-}
-
 /* Program iCLKIP clock to the desired frequency */
 static void lpt_program_iclkip(struct drm_crtc *crtc)
 {
@@ -3582,12 +3577,9 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
-	bool is_pch_port;
 
 	if (!intel_crtc->active)
 		return;
-
-	is_pch_port = haswell_crtc_driving_pch(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->disable(encoder);
@@ -3615,7 +3607,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	if (is_pch_port) {
+	if (intel_crtc->config.has_pch_encoder) {
 		lpt_disable_pch_transcoder(dev_priv);
 		intel_ddi_fdi_disable(crtc);
 	}
@@ -5694,6 +5686,9 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
 
+	if (I915_READ(TRANSCONF(crtc->pipe)) & TRANS_ENABLE)
+		pipe_config->has_pch_encoder = true;
+
 	return true;
 }
 
@@ -5821,6 +5816,17 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	tmp = I915_READ(PIPECONF(crtc->cpu_transcoder));
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
+
+	/*
+	 * aswell has only FDI/PCH transcoder A. It is which is connected to
+	 * DDI E. So just check whether this pipe is wired to DDI E and whether
+	 * the PCH transcoder is on.
+	 */
+	tmp = I915_READ(TRANS_DDI_FUNC_CTL(crtc->pipe));
+	if ((tmp & TRANS_DDI_PORT_MASK) == TRANS_DDI_SELECT_PORT(PORT_E) &&
+	    I915_READ(TRANSCONF(PIPE_A)) & TRANS_ENABLE)
+		pipe_config->has_pch_encoder = true;
+
 
 	return true;
 }
@@ -7762,6 +7768,14 @@ static bool
 intel_pipe_config_compare(struct intel_crtc_config *current_config,
 			  struct intel_crtc_config *pipe_config)
 {
+	if (current_config->has_pch_encoder != pipe_config->has_pch_encoder) {
+		DRM_ERROR("mismatch in has_pch_encoder "
+			  "(expected %i, found %i)\n",
+			  current_config->has_pch_encoder,
+			  pipe_config->has_pch_encoder);
+		return false;
+	}
+
 	return true;
 }
 
@@ -7861,6 +7875,7 @@ intel_modeset_check_state(struct drm_device *dev)
 		     "crtc's computed enabled state doesn't match tracked enabled state "
 		     "(expected %i, found %i)\n", enabled, crtc->base.enabled);
 
+		memset(&pipe_config, 0, sizeof(pipe_config));
 		active = dev_priv->display.get_pipe_config(crtc,
 							   &pipe_config);
 		WARN(crtc->active != active,
@@ -9226,6 +9241,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 setup_pipes:
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 			    base.head) {
+		memset(&crtc->config, 0, sizeof(crtc->config));
 		crtc->active = dev_priv->display.get_pipe_config(crtc,
 								 &crtc->config);
 
