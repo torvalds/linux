@@ -22,6 +22,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/seq_file.h>
@@ -168,6 +169,7 @@ err_clk:
 err_power:
 	return ret;
 }
+EXPORT_SYMBOL(tegra_powergate_sequence_power_up);
 
 int tegra_cpu_powergate_id(int cpuid)
 {
