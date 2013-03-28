@@ -206,8 +206,7 @@ static int eeti_ts_probe(struct i2c_client *client,
 	if (err < 0)
 		goto err1;
 
-	if (pdata)
-		priv->irq_active_high = pdata->irq_active_high;
+	priv->irq_active_high = pdata->irq_active_high;
 
 	irq_flags = priv->irq_active_high ?
 		IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
