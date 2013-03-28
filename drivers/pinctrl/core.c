@@ -956,9 +956,8 @@ static int pinctrl_select_state_locked(struct pinctrl *p,
 			break;
 		}
 
-		if (ret < 0) {
+		if (ret < 0)
 			goto unapply_new_state;
-		}
 	}
 
 	p->state = state;
@@ -966,7 +965,7 @@ static int pinctrl_select_state_locked(struct pinctrl *p,
 	return 0;
 
 unapply_new_state:
-	pr_info("Error applying setting, reverse things back\n");
+	dev_err(p->dev, "Error applying setting, reverse things back\n");
 
 	/*
 	 * If the loop stopped on the 1st entry, nothing has been enabled,
