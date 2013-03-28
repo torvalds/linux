@@ -103,6 +103,7 @@ static usb_parameter skip_device_list[] = {
         {0x0af0, 0xd157, NULL, NULL, NULL},      
 	    {0x19d2, 0x1216, NULL, NULL, NULL},         
 		{0x19d2, 0x1218, NULL, NULL, NULL},
+		{0x05c6, 0x9000, NULL, NULL, NULL},
    //end xxh		 
 };
 
