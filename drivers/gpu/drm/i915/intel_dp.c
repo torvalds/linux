@@ -762,6 +762,7 @@ found:
 	intel_dp->lane_count = lane_count;
 	adjusted_mode->clock = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
 	pipe_config->pipe_bpp = bpp;
+	pipe_config->pixel_target_clock = target_clock;
 
 	DRM_DEBUG_KMS("DP link bw %02x lane count %d clock %d bpp %d\n",
 		      intel_dp->link_bw, intel_dp->lane_count,

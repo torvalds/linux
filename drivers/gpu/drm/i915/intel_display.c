@@ -5415,25 +5415,9 @@ static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
-	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
-	struct intel_encoder *intel_encoder, *edp_encoder = NULL;
 	struct intel_link_m_n m_n = {0};
 	int target_clock, lane, link_bw;
-	bool is_dp = false, is_cpu_edp = false;
-
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
-		switch (intel_encoder->type) {
-		case INTEL_OUTPUT_DISPLAYPORT:
-			is_dp = true;
-			break;
-		case INTEL_OUTPUT_EDP:
-			is_dp = true;
-			if (!intel_encoder_is_pch_edp(&intel_encoder->base))
-				is_cpu_edp = true;
-			edp_encoder = intel_encoder;
-			break;
-		}
-	}
+	uint32_t bps;
 
 	/* FDI is a binary signal running at ~2.7GHz, encoding
 	 * each output octet as 10 bits. The actual frequency
@@ -5444,11 +5428,8 @@ static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
 	 */
 	link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
 
-	/* [e]DP over FDI requires target mode clock instead of link clock. */
-	if (edp_encoder)
-		target_clock = intel_edp_target_clock(edp_encoder, mode);
-	else if (is_dp)
-		target_clock = mode->clock;
+	if (intel_crtc->config.pixel_target_clock)
+		target_clock = intel_crtc->config.pixel_target_clock;
 	else
 		target_clock = adjusted_mode->clock;
 

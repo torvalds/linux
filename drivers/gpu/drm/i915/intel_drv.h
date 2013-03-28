@@ -196,7 +196,12 @@ struct intel_crtc_config {
 	bool dither;
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
-
+	/**
+	 * This is currently used by DP and HDMI encoders since those can have a
+	 * target pixel clock != the port link clock (which is currently stored
+	 * in adjusted_mode->clock).
+	 */
+	int pixel_target_clock;
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
 };
