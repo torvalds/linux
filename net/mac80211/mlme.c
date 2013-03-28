@@ -303,12 +303,6 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 					       channel->band);
 	vht_chandef.center_freq2 = 0;
 
-	if (vht_oper->center_freq_seg2_idx)
-		vht_chandef.center_freq2 =
-			ieee80211_channel_to_frequency(
-				vht_oper->center_freq_seg2_idx,
-				channel->band);
-
 	switch (vht_oper->chan_width) {
 	case IEEE80211_VHT_CHANWIDTH_USE_HT:
 		vht_chandef.width = chandef->width;
@@ -321,6 +315,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 		break;
 	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
 		vht_chandef.width = NL80211_CHAN_WIDTH_80P80;
+		vht_chandef.center_freq2 =
+			ieee80211_channel_to_frequency(
+				vht_oper->center_freq_seg2_idx,
+				channel->band);
 		break;
 	default:
 		if (verbose)
