@@ -490,7 +490,7 @@ static struct ab8500_regulator_info
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
 			.min_uV		= 2000000,
-			.enable_time	= 10000,
+			.enable_time	= 500,
 		},
 		.load_lp_uA		= 1000,
 		.update_bank		= 0x03,
