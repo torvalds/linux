@@ -1288,6 +1288,25 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
+				    enum pipe pipe)
+{
+	int reg, i;
+	u32 val;
+
+	if (!IS_VALLEYVIEW(dev_priv->dev))
+		return;
+
+	/* Need to check both planes against the pipe */
+	for (i = 0; i < dev_priv->num_plane; i++) {
+		reg = SPCNTR(pipe, i);
+		val = I915_READ(reg);
+		WARN((val & SP_ENABLE),
+		     "sprite %d assertion failure, should be off on pipe %c but is still active\n",
+		     pipe * 2 + i, pipe_name(pipe));
+	}
+}
+
 static void assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 {
 	u32 val;
@@ -1872,6 +1891,7 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 	 * or we might hang the display.
 	 */
 	assert_planes_disabled(dev_priv, pipe);
+	assert_sprites_disabled(dev_priv, pipe);
 
 	/* Don't disable pipe A or pipe A PLLs if needed */
 	if (pipe == PIPE_A && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
