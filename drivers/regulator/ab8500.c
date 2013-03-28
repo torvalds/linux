@@ -184,8 +184,8 @@ static unsigned int ab8500_regulator_get_optimum_mode(
 static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 				     unsigned int mode)
 {
-	int ret = 0;
-
+	int ret;
+	u8 update_val;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
 
 	if (info == NULL) {
@@ -195,31 +195,42 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
-		info->update_val = info->update_val_normal;
+		update_val = info->update_val_normal;
 		break;
 	case REGULATOR_MODE_IDLE:
-		info->update_val = info->update_val_idle;
+		update_val = info->update_val_idle;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	/* ab8500 regulators share mode and enable in the same register bits.
+	   off = 0b00
+	   low power mode= 0b11
+	   full powermode = 0b01
+	   (HW control mode = 0b10)
+	   Thus we don't write to the register when regulator is disabled.
+	*/
 	if (info->is_enabled) {
 		ret = abx500_mask_and_set_register_interruptible(info->dev,
 			info->update_bank, info->update_reg,
-			info->update_mask, info->update_val);
-		if (ret < 0)
+			info->update_mask, update_val);
+		if (ret < 0) {
 			dev_err(rdev_get_dev(rdev),
 				"couldn't set regulator mode\n");
+			return ret;
+		}
 
 		dev_vdbg(rdev_get_dev(rdev),
 			"%s-set_mode (bank, reg, mask, value): "
 			"0x%x, 0x%x, 0x%x, 0x%x\n",
 			info->desc.name, info->update_bank, info->update_reg,
-			info->update_mask, info->update_val);
+			info->update_mask, update_val);
 	}
 
-	return ret;
+	info->update_val = update_val;
+
+	return 0;
 }
 
 static unsigned int ab8500_regulator_get_mode(struct regulator_dev *rdev)
