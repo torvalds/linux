@@ -118,8 +118,10 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 		csums_in_item = btrfs_item_size_nr(leaf, path->slots[0]);
 		csums_in_item /= csum_size;
 
-		if (csum_offset >= csums_in_item) {
+		if (csum_offset == csums_in_item) {
 			ret = -EFBIG;
+			goto fail;
+		} else if (csum_offset > csums_in_item) {
 			goto fail;
 		}
 	}
