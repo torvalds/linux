@@ -259,13 +259,13 @@ static struct ab8500_regulator_reg_init ab8500_reg_init[] = {
 	 */
 	INIT_REGULATOR_REGISTER(AB8500_VREFDDR,                0x03, 0x00),
 	/*
-	 * VextSupply1Regu          = HW control
-	 * VextSupply2Regu          = HW control
-	 * VextSupply3Regu          = HW control
+	 * VextSupply1Regu          = force LP
+	 * VextSupply2Regu          = force OFF
+	 * VextSupply3Regu          = force HP (-> STBB2=LP and TPS=LP)
 	 * ExtSupply2Bypass         = ExtSupply12LPn ball is 0 when Ena is 0
 	 * ExtSupply3Bypass         = ExtSupply3LPn ball is 0 when Ena is 0
 	 */
-	INIT_REGULATOR_REGISTER(AB8500_EXTSUPPLYREGU,          0xff, 0x1a),
+	INIT_REGULATOR_REGISTER(AB8500_EXTSUPPLYREGU,          0xff, 0x13),
 	/*
 	 * Vaux1Regu                = force HP
 	 * Vaux2Regu                = force off
@@ -419,9 +419,60 @@ static struct regulator_init_data ab8500_regulators[AB8500_NUM_REGULATORS] = {
 	},
 };
 
+/* supply for VextSupply3 */
+static struct regulator_consumer_supply ab8500_ext_supply3_consumers[] = {
+	/* SIM supply for 3 V SIM cards */
+	REGULATOR_SUPPLY("vinvsim", "sim-detect.0"),
+};
+
+/* extended configuration for VextSupply2, only used for HREFP_V20 boards */
+static struct ab8500_ext_regulator_cfg ab8500_ext_supply2 = {
+	.hwreq = true,
+};
+
+/*
+ * AB8500 external regulators
+ */
+static struct regulator_init_data ab8500_ext_regulators[] = {
+	/* fixed Vbat supplies VSMPS1_EXT_1V8 */
+	[AB8500_EXT_SUPPLY1] = {
+		.constraints = {
+			.name = "ab8500-ext-supply1",
+			.min_uV = 1800000,
+			.max_uV = 1800000,
+			.initial_mode = REGULATOR_MODE_IDLE,
+			.boot_on = 1,
+			.always_on = 1,
+		},
+	},
+	/* fixed Vbat supplies VSMPS2_EXT_1V36 and VSMPS5_EXT_1V15 */
+	[AB8500_EXT_SUPPLY2] = {
+		.constraints = {
+			.name = "ab8500-ext-supply2",
+			.min_uV = 1360000,
+			.max_uV = 1360000,
+		},
+	},
+	/* fixed Vbat supplies VSMPS3_EXT_3V4 and VSMPS4_EXT_3V4 */
+	[AB8500_EXT_SUPPLY3] = {
+		.constraints = {
+			.name = "ab8500-ext-supply3",
+			.min_uV = 3400000,
+			.max_uV = 3400000,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+			.boot_on = 1,
+		},
+		.num_consumer_supplies =
+			ARRAY_SIZE(ab8500_ext_supply3_consumers),
+		.consumer_supplies = ab8500_ext_supply3_consumers,
+	},
+};
+
 struct ab8500_regulator_platform_data ab8500_regulator_plat_data = {
 	.reg_init               = ab8500_reg_init,
 	.num_reg_init           = ARRAY_SIZE(ab8500_reg_init),
 	.regulator              = ab8500_regulators,
 	.num_regulator          = ARRAY_SIZE(ab8500_regulators),
+	.ext_regulator          = ab8500_ext_regulators,
+	.num_ext_regulator      = ARRAY_SIZE(ab8500_ext_regulators),
 };
