@@ -318,13 +318,16 @@ static int u300_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct u300_gpio_port *port = NULL;
 	struct list_head *p;
 	int retirq;
+	bool found = false;
 
 	list_for_each(p, &gpio->port_list) {
 		port = list_entry(p, struct u300_gpio_port, node);
-		if (port->number == portno)
+		if (port->number == portno) {
+			found = true;
 			break;
+		}
 	}
-	if (port == NULL) {
+	if (!found) {
 		dev_err(gpio->dev, "could not locate port for GPIO %d IRQ\n",
 			offset);
 		return -EINVAL;
