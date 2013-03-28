@@ -53,6 +53,11 @@
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
+
+#ifdef CONFIG_SND_SOC_RK2928
+#include "../../../sound/soc/codecs/rk2928_codec.h"
+#endif
+
 #if defined(CONFIG_GPS_RK)
 #include "../../../drivers/misc/gps/rk_gps/rk_gps.h"
 #endif
@@ -685,6 +690,17 @@ static struct platform_device device_rfkill_rk = {
 #endif
 
 #ifdef CONFIG_SND_SOC_RK2928
+static int hpctl_io_init(void)
+{
+    int ret=0;
+    return ret;
+}
+
+struct rk2928_codec_pdata rk2928_codec_pdata_info={
+    .hpctl = INVALID_GPIO,
+    .hpctl_io_init = hpctl_io_init,
+};
+
 static struct resource resources_acodec[] = {
 	{
 		.start 	= RK2928_ACODEC_PHYS,
@@ -708,6 +724,9 @@ static struct platform_device device_acodec = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(resources_acodec),
 	.resource	= resources_acodec,
+    .dev = {
+        .platform_data = &rk2928_codec_pdata_info,
+    }
 };
 #endif
 
