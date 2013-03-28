@@ -173,3 +173,15 @@ Description:	Processor frequency boosting control
 		Boosting allows the CPU and the firmware to run at a frequency
 		beyound it's nominal limit.
 		More details can be found in Documentation/cpu-freq/boost.txt
+
+
+What:		/sys/devices/system/cpu/cpu#/crash_notes
+		/sys/devices/system/cpu/cpu#/crash_notes_size
+Date:		April 2013
+Contact:	kexec@lists.infradead.org
+Description:	address and size of the percpu note.
+
+		crash_notes: the physical address of the memory that holds the
+		note of cpu#.
+
+		crash_notes_size: size of the note of cpu#.
