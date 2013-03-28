@@ -664,7 +664,7 @@ static struct resource da8xx_mmcsd0_resources[] = {
 };
 
 static struct platform_device da8xx_mmcsd0_device = {
-	.name		= "davinci_mmc",
+	.name		= "da830-mmc",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(da8xx_mmcsd0_resources),
 	.resource	= da8xx_mmcsd0_resources,
@@ -701,7 +701,7 @@ static struct resource da850_mmcsd1_resources[] = {
 };
 
 static struct platform_device da850_mmcsd1_device = {
-	.name		= "davinci_mmc",
+	.name		= "da830-mmc",
 	.id		= 1,
 	.num_resources	= ARRAY_SIZE(da850_mmcsd1_resources),
 	.resource	= da850_mmcsd1_resources,

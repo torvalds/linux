@@ -1157,6 +1157,18 @@ static void __init init_mmcsd_host(struct mmc_davinci_host *host)
 	mmc_davinci_reset_ctrl(host, 0);
 }
 
+static struct platform_device_id davinci_mmc_devtype[] = {
+	{
+		.name	= "dm6441-mmc",
+		.driver_data = MMC_CTLR_VERSION_1,
+	}, {
+		.name	= "da830-mmc",
+		.driver_data = MMC_CTLR_VERSION_2,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, davinci_mmc_devtype);
+
 static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 {
 	struct davinci_mmc_config *pdata = pdev->dev.platform_data;
@@ -1165,6 +1177,7 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 	struct resource *r, *mem = NULL;
 	int ret = 0, irq = 0;
 	size_t mem_size;
+	const struct platform_device_id *id_entry;
 
 	/* REVISIT:  when we're fully converted, fail if pdata is NULL */
 
@@ -1237,7 +1250,9 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 	if (pdata && (pdata->wires == 8))
 		mmc->caps |= (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA);
 
-	host->version = pdata->version;
+	id_entry = platform_get_device_id(pdev);
+	if (id_entry)
+		host->version = id_entry->driver_data;
 
 	mmc->ops = &mmc_davinci_ops;
 	mmc->f_min = 312500;
@@ -1408,6 +1423,7 @@ static struct platform_driver davinci_mmcsd_driver = {
 		.pm	= davinci_mmcsd_pm_ops,
 	},
 	.remove		= __exit_p(davinci_mmcsd_remove),
+	.id_table	= davinci_mmc_devtype,
 };
 
 static int __init davinci_mmcsd_init(void)

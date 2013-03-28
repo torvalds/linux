@@ -136,7 +136,6 @@ static struct davinci_mmc_config da850_mmc_config = {
 	.wires		= 4,
 	.max_freq	= 50000000,
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version	= MMC_CTLR_VERSION_2,
 };
 
 static __init void omapl138_hawk_mmc_init(void)
