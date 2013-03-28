@@ -2800,7 +2800,7 @@ static const struct nphy_rf_control_override_rev7
 	{ 0x0010, 0x344, 0x345, 0x0010, 4 },
 };
 
-struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_wa_phy6_radio11_ghz2 = {
+static struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_wa_phy6_radio11_ghz2 = {
 	{ 10, 14, 19, 27 },
 	{ -5, 6, 10, 15 },
 	{ 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA },
@@ -2811,7 +2811,7 @@ struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_wa_phy6_radio11_ghz2 = {
 	0x18, 0x18, 0x18,
 	0x01D0, 0x5,
 };
-struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][4] = {
+static struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][4] = {
 	{ /* 2GHz */
 		{ /* PHY rev 3 */
 			{ 7, 11, 16, 23 },

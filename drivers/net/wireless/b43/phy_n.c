@@ -2789,10 +2789,6 @@ static void b43_nphy_iq_cal_gain_params(struct b43_wldev *dev, u16 core,
  * Tx and Rx
  **************************************************/
 
-void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna)
-{//TODO
-}
-
 static void b43_nphy_op_adjust_txpower(struct b43_wldev *dev)
 {//TODO
 }
@@ -4892,7 +4888,7 @@ static void b43_nphy_superswitch_init(struct b43_wldev *dev, bool init)
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/Init/N */
-int b43_phy_initn(struct b43_wldev *dev)
+static int b43_phy_initn(struct b43_wldev *dev)
 {
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy *phy = &dev->phy;
