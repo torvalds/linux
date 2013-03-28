@@ -50,21 +50,10 @@
 	ret__;								\
 })
 
-#define wait_for_atomic_us(COND, US) ({ \
-	unsigned long timeout__ = jiffies + usecs_to_jiffies(US);	\
-	int ret__ = 0;							\
-	while (!(COND)) {						\
-		if (time_after(jiffies, timeout__)) {			\
-			ret__ = -ETIMEDOUT;				\
-			break;						\
-		}							\
-		cpu_relax();						\
-	}								\
-	ret__;								\
-})
-
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 #define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0)
+#define wait_for_atomic_us(COND, US) _wait_for((COND), \
+					       DIV_ROUND_UP((US), 1000), 0)
 
 #define KHz(x) (1000*x)
 #define MHz(x) KHz(1000*x)
