@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 ARM Limited
+ * Copyright (C) 2013 ARM Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,13 +13,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef __ASM_STRING_H
+#define __ASM_STRING_H
 
-#include <linux/kernel.h>
-#include <linux/spinlock.h>
-#include <linux/atomic.h>
+#define __HAVE_ARCH_STRRCHR
+extern char *strrchr(const char *, int c);
 
-#ifdef CONFIG_SMP
-arch_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned = {
-       [0 ... (ATOMIC_HASH_SIZE-1)]  = __ARCH_SPIN_LOCK_UNLOCKED
-};
+#define __HAVE_ARCH_STRCHR
+extern char *strchr(const char *, int c);
+
+#define __HAVE_ARCH_MEMCPY
+extern void *memcpy(void *, const void *, __kernel_size_t);
+
+#define __HAVE_ARCH_MEMMOVE
+extern void *memmove(void *, const void *, __kernel_size_t);
+
+#define __HAVE_ARCH_MEMCHR
+extern void *memchr(const void *, int, __kernel_size_t);
+
+#define __HAVE_ARCH_MEMSET
+extern void *memset(void *, int, __kernel_size_t);
+
 #endif
