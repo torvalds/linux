@@ -119,7 +119,7 @@ static int rx51_battery_read_temperature(struct rx51_device_info *di)
 
 	/* First check for temperature in first direct table */
 	if (raw < ARRAY_SIZE(rx51_temp_table1))
-		return rx51_temp_table1[raw] * 100;
+		return rx51_temp_table1[raw] * 10;
 
 	/* Binary search RAW value in second inverse table */
 	while (max - min > 1) {
@@ -132,7 +132,7 @@ static int rx51_battery_read_temperature(struct rx51_device_info *di)
 			break;
 	}
 
-	return (rx51_temp_table2_first - min) * 100;
+	return (rx51_temp_table2_first - min) * 10;
 }
 
 /*
