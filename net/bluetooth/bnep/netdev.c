@@ -136,7 +136,7 @@ static u16 bnep_net_eth_proto(struct sk_buff *skb)
 	struct ethhdr *eh = (void *) skb->data;
 	u16 proto = ntohs(eh->h_proto);
 
-	if (proto >= 1536)
+	if (proto >= ETH_P_802_3_MIN)
 		return proto;
 
 	if (get_unaligned((__be16 *) skb->data) == htons(0xFFFF))

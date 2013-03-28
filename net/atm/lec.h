@@ -58,7 +58,7 @@ struct lane2_ops {
  *    field in h_type field. Data follows immediately after header.
  * 2. LLC Data frames whose total length, including LLC field and data,
  *    but not padding required to meet the minimum data frame length,
- *    is less than 1536(0x0600) MUST be encoded by placing that length
+ *    is less than ETH_P_802_3_MIN MUST be encoded by placing that length
  *    in the h_type field. The LLC field follows header immediately.
  * 3. LLC data frames longer than this maximum MUST be encoded by placing
  *    the value 0 in the h_type field.

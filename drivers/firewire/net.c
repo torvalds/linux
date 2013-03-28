@@ -547,7 +547,7 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 			if (memcmp(eth->h_dest, net->dev_addr, net->addr_len))
 				skb->pkt_type = PACKET_OTHERHOST;
 		}
-		if (ntohs(eth->h_proto) >= 1536) {
+		if (ntohs(eth->h_proto) >= ETH_P_802_3_MIN) {
 			protocol = eth->h_proto;
 		} else {
 			rawp = (u16 *)skb->data;

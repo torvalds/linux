@@ -6618,7 +6618,7 @@ static u64 niu_compute_tx_flags(struct sk_buff *skb, struct ethhdr *ehdr,
 	       (len << TXHDR_LEN_SHIFT) |
 	       ((l3off / 2) << TXHDR_L3START_SHIFT) |
 	       (ihl << TXHDR_IHL_SHIFT) |
-	       ((eth_proto_inner < 1536) ? TXHDR_LLC : 0) |
+	       ((eth_proto_inner < ETH_P_802_3_MIN) ? TXHDR_LLC : 0) |
 	       ((eth_proto == ETH_P_8021Q) ? TXHDR_VLAN : 0) |
 	       (ipv6 ? TXHDR_IP_VER : 0) |
 	       csum_bits);

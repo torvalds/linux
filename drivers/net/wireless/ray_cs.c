@@ -953,7 +953,7 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx,
 			   unsigned char *data, int len)
 {
 	__be16 proto = ((struct ethhdr *)data)->h_proto;
-	if (ntohs(proto) >= 1536) { /* DIX II ethernet frame */
+	if (ntohs(proto) >= ETH_P_802_3_MIN) { /* DIX II ethernet frame */
 		pr_debug("ray_cs translate_frame DIX II\n");
 		/* Copy LLC header to card buffer */
 		memcpy_toio(&ptx->var, eth2_llc, sizeof(eth2_llc));

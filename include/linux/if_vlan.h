@@ -339,7 +339,7 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 	 */
 
 	proto = vhdr->h_vlan_encapsulated_proto;
-	if (ntohs(proto) >= 1536) {
+	if (ntohs(proto) >= ETH_P_802_3_MIN) {
 		skb->protocol = proto;
 		return;
 	}

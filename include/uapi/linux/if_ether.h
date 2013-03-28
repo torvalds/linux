@@ -94,6 +94,9 @@
 #define ETH_P_EDSA	0xDADA		/* Ethertype DSA [ NOT AN OFFICIALLY REGISTERED ID ] */
 #define ETH_P_AF_IUCV   0xFBFB		/* IBM af_iucv [ NOT AN OFFICIALLY REGISTERED ID ] */
 
+#define ETH_P_802_3_MIN	0x0600		/* If the value in the ethernet type is less than this value
+					 * then the frame is Ethernet II. Else it is 802.3 */
+
 /*
  *	Non DIX types. Won't clash for 1500 types.
  */

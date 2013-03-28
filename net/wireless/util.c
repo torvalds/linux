@@ -511,7 +511,7 @@ int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 		encaps_data = bridge_tunnel_header;
 		encaps_len = sizeof(bridge_tunnel_header);
 		skip_header_bytes -= 2;
-	} else if (ethertype > 0x600) {
+	} else if (ethertype >= ETH_P_802_3_MIN) {
 		encaps_data = rfc1042_header;
 		encaps_len = sizeof(rfc1042_header);
 		skip_header_bytes -= 2;

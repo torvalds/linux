@@ -2085,7 +2085,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		encaps_data = bridge_tunnel_header;
 		encaps_len = sizeof(bridge_tunnel_header);
 		skip_header_bytes -= 2;
-	} else if (ethertype >= 0x600) {
+	} else if (ethertype >= ETH_P_802_3_MIN) {
 		encaps_data = rfc1042_header;
 		encaps_len = sizeof(rfc1042_header);
 		skip_header_bytes -= 2;
