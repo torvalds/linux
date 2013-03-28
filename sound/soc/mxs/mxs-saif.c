@@ -33,10 +33,11 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <mach/mxs.h>
 
 #include "mxs-saif.h"
+
+#define MXS_SET_ADDR	0x4
+#define MXS_CLR_ADDR	0x8
 
 static struct mxs_saif *mxs_saif[2];
 
