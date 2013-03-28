@@ -1476,6 +1476,8 @@ restart:
 				 */
 				nfs4_state_mark_recovery_failed(state, status);
 				break;
+			case -EAGAIN:
+				ssleep(1);
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_BAD_STATEID:
