@@ -967,20 +967,12 @@ static int pinctrl_select_state_locked(struct pinctrl *p,
 unapply_new_state:
 	dev_err(p->dev, "Error applying setting, reverse things back\n");
 
-	/*
-	 * If the loop stopped on the 1st entry, nothing has been enabled,
-	 * so jump directly to the 2nd phase
-	 */
-	if (list_entry(&setting->node, typeof(*setting), node) ==
-	    list_first_entry(&state->settings, typeof(*setting), node))
-		goto reapply_old_state;
-
 	list_for_each_entry(setting2, &state->settings, node) {
 		if (&setting2->node == &setting->node)
 			break;
 		pinctrl_free_setting(true, setting2);
 	}
-reapply_old_state:
+
 	if (old_state) {
 		list_for_each_entry(setting, &old_state->settings, node) {
 			bool found = false;
