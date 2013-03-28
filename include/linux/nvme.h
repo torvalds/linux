@@ -566,6 +566,11 @@ struct nvme_iod {
 	struct scatterlist sg[0];
 };
 
+static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
+{
+	return (sector >> (ns->lba_shift - 9));
+}
+
 /**
  * nvme_free_iod - frees an nvme_iod
  * @dev: The device that the I/O was submitted to

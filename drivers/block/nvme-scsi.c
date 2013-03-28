@@ -2040,7 +2040,7 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	struct nvme_command c;
 	u8 opcode = (is_write ? nvme_cmd_write : nvme_cmd_read);
 	u16 control;
-	u32 max_blocks = (dev->max_hw_sectors << 9) >> ns->lba_shift;
+	u32 max_blocks = nvme_block_nr(ns, dev->max_hw_sectors);
 
 	num_cmds = nvme_trans_io_get_num_cmds(hdr, cdb_info, max_blocks);
 
