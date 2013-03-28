@@ -194,6 +194,18 @@ struct intel_crtc_config {
 	 * accordingly. */
 	bool has_dp_encoder;
 	bool dither;
+
+	/* Controls for the clock computation, to override various stages. */
+	bool clock_set;
+
+	/* Settings for the intel dpll used on pretty much everything but
+	 * haswell. */
+	struct dpll {
+		unsigned n;
+		unsigned m1, m2;
+		unsigned p1, p2;
+	} dpll;
+
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
 	/**
