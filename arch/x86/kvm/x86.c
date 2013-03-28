@@ -2040,7 +2040,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_P6_EVNTSEL0:
 	case MSR_P6_EVNTSEL1:
 		if (kvm_pmu_msr(vcpu, msr))
-			return kvm_pmu_set_msr(vcpu, msr, data);
+			return kvm_pmu_set_msr(vcpu, msr_info);
 
 		if (pr || data != 0)
 			vcpu_unimpl(vcpu, "disabled perfctr wrmsr: "
@@ -2086,7 +2086,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (msr && (msr == vcpu->kvm->arch.xen_hvm_config.msr))
 			return xen_hvm_config(vcpu, data);
 		if (kvm_pmu_msr(vcpu, msr))
-			return kvm_pmu_set_msr(vcpu, msr, data);
+			return kvm_pmu_set_msr(vcpu, msr_info);
 		if (!ignore_msrs) {
 			vcpu_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n",
 				    msr, data);
