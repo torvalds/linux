@@ -1109,7 +1109,7 @@ static u8 config_info[SIZE_BATINFO] = {
 
 static struct cw_bat_platform_data cw_bat_platdata = {
 	.dc_det_pin      = RK30_PIN0_PB2,
-        .bat_low_pin    = RK30_PIN0_PB1,
+        .bat_low_pin    = INVALID_GPIO,//RK30_PIN0_PB1,
         .chg_ok_pin   = RK30_PIN0_PA6,
         .dc_det_level    = GPIO_LOW,
         .bat_low_level  = GPIO_LOW,   
@@ -1541,6 +1541,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 #endif
 
+#if defined (CONFIG_CW2015_BATTERY)
+        {
+                .type           = "cw201x",
+                .addr           = 0x62,
+                .flags          = 0,
+                .platform_data  = &cw_bat_platdata,
+        },
+#endif
+
 };
 #endif
 
@@ -1944,14 +1953,6 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		.flags                  = 0,
 		.irq            = RK30_PIN1_PA4,
 	},
-#if defined (CONFIG_CW2015_BATTERY)
-        {
-                .type           = "cw201x",
-                .addr           = 0x62,
-                .flags          = 0,
-                .platform_data  = &cw_bat_platdata,
-        },
-#endif
 #endif
 
 };
