@@ -3530,8 +3530,10 @@ int ni_dpm_enable(struct radeon_device *rdev)
 	if (pi->voltage_control) {
 		rv770_enable_voltage_control(rdev, true);
 		ret = cypress_construct_voltage_tables(rdev);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("cypress_construct_voltage_tables failed\n");
 			return ret;
+		}
 	}
 	if (eg_pi->dynamic_ac_timing) {
 		ret = ni_initialize_mc_reg_table(rdev);
@@ -3552,42 +3554,64 @@ int ni_dpm_enable(struct radeon_device *rdev)
 	if (pi->dynamic_pcie_gen2)
 		ni_enable_dynamic_pcie_gen2(rdev, true);
 	ret = rv770_upload_firmware(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_upload_firmware failed\n");
 		return ret;
+	}
 	ret = ni_process_firmware_header(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_process_firmware_header failed\n");
 		return ret;
+	}
 	ret = ni_initial_switch_from_arb_f0_to_f1(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_initial_switch_from_arb_f0_to_f1 failed\n");
 		return ret;
+	}
 	ret = ni_init_smc_table(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_init_smc_table failed\n");
 		return ret;
+	}
 	ret = ni_init_smc_spll_table(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_init_smc_spll_table failed\n");
 		return ret;
+	}
 	ret = ni_init_arb_table_index(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_init_arb_table_index failed\n");
 		return ret;
+	}
 	if (eg_pi->dynamic_ac_timing) {
 		ret = ni_populate_mc_reg_table(rdev, boot_ps);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("ni_populate_mc_reg_table failed\n");
 			return ret;
+		}
 	}
 	ret = ni_initialize_smc_cac_tables(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_initialize_smc_cac_tables failed\n");
 		return ret;
+	}
 	ret = ni_initialize_hardware_cac_manager(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_initialize_hardware_cac_manager failed\n");
 		return ret;
+	}
 	ret = ni_populate_smc_tdp_limits(rdev, boot_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_populate_smc_tdp_limits failed\n");
 		return ret;
+	}
 	ni_program_response_times(rdev);
 	r7xx_start_smc(rdev);
 	ret = cypress_notify_smc_display_change(rdev, false);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("cypress_notify_smc_display_change failed\n");
 		return ret;
+	}
 	cypress_enable_sclk_control(rdev, true);
 	if (eg_pi->memory_transition)
 		cypress_enable_mclk_control(rdev, true);

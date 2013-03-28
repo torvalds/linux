@@ -1886,8 +1886,10 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 	if (pi->voltage_control) {
 		rv770_enable_voltage_control(rdev, true);
 		ret = rv770_construct_vddc_table(rdev);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("rv770_construct_vddc_table failed\n");
 			return ret;
+		}
 	}
 
 	if (pi->dcodt)
@@ -1895,8 +1897,10 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 
 	if (pi->mvdd_control) {
 		ret = rv770_get_mvdd_configuration(rdev);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("rv770_get_mvdd_configuration failed\n");
 			return ret;
+		}
 	}
 
 	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_BACKBIAS)
@@ -1921,12 +1925,15 @@ int rv770_dpm_enable(struct radeon_device *rdev)
 		rv770_enable_dynamic_pcie_gen2(rdev, true);
 
 	ret = rv770_upload_firmware(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_upload_firmware failed\n");
 		return ret;
-
+	}
 	ret = rv770_init_smc_table(rdev, boot_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_init_smc_table failed\n");
 		return ret;
+	}
 
 	rv770_program_response_times(rdev);
 	r7xx_start_smc(rdev);

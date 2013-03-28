@@ -1813,14 +1813,18 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 	if (pi->voltage_control) {
 		rv770_enable_voltage_control(rdev, true);
 		ret = cypress_construct_voltage_tables(rdev);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("cypress_construct_voltage_tables failed\n");
 			return ret;
+		}
 	}
 
 	if (pi->mvdd_control) {
 		ret = cypress_get_mvdd_configuration(rdev);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("cypress_get_mvdd_configuration failed\n");
 			return ret;
+		}
 	}
 
 	if (eg_pi->dynamic_ac_timing) {
@@ -1854,21 +1858,27 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 		cypress_enable_dynamic_pcie_gen2(rdev, true);
 
 	ret = rv770_upload_firmware(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_upload_firmware failed\n");
 		return ret;
+	}
 
 	ret = cypress_get_table_locations(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("cypress_get_table_locations failed\n");
 		return ret;
-
+	}
 	ret = cypress_init_smc_table(rdev, boot_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("cypress_init_smc_table failed\n");
 		return ret;
-
+	}
 	if (eg_pi->dynamic_ac_timing) {
 		ret = cypress_populate_mc_reg_table(rdev, boot_ps);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("cypress_populate_mc_reg_table failed\n");
 			return ret;
+		}
 	}
 
 	cypress_program_response_times(rdev);
@@ -1876,9 +1886,10 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 	r7xx_start_smc(rdev);
 
 	ret = cypress_notify_smc_display_change(rdev, false);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("cypress_notify_smc_display_change failed\n");
 		return ret;
-
+	}
 	cypress_enable_sclk_control(rdev, true);
 
 	if (eg_pi->memory_transition)
