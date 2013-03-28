@@ -123,6 +123,35 @@
 			};
 		};
 
+		fb0: fb@0x00500000 {
+			display = <&display0>;
+			status = "okay";
+
+			display0: display {
+				bits-per-pixel = <32>;
+				atmel,lcdcon-backlight;
+				atmel,dmacon = <0x1>;
+				atmel,lcdcon2 = <0x80008002>;
+				atmel,guard-time = <9>;
+				atmel,lcd-wiring-mode = "RGB";
+
+				display-timings {
+					native-mode = <&timing0>;
+					timing0: timing0 {
+						clock-frequency = <9000000>;
+						hactive = <480>;
+						vactive = <272>;
+						hback-porch = <1>;
+						hfront-porch = <1>;
+						vback-porch = <40>;
+						vfront-porch = <1>;
+						hsync-len = <45>;
+						vsync-len = <1>;
+					};
+				};
+			};
+		};
+
 		nand0: nand@40000000 {
 			nand-bus-width = <8>;
 			nand-ecc-mode = "soft";
