@@ -420,8 +420,6 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info)
 		qgroup = rb_entry(n, struct btrfs_qgroup, node);
 		rb_erase(n, &fs_info->qgroup_tree);
 
-		WARN_ON(!list_empty(&qgroup->dirty));
-
 		while (!list_empty(&qgroup->groups)) {
 			list = list_first_entry(&qgroup->groups,
 						struct btrfs_qgroup_list,
