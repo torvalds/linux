@@ -62,7 +62,7 @@
 #include <plat/sys_config.h>
 
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
-#include <mach/ramconsole.h>
+#include <plat/ramconsole.h>
 #endif
 
 struct brom_header {
@@ -419,8 +419,8 @@ static void __init sw_core_reserve(void)
 	 * See drivers/staging/android/ram_console.c
 	 */
 
-	memblock_remove(SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
-	pr_reserve_info("RAMCONSOLE", SUN4I_RAMCONSOLE_START, SUN4I_RAMCONSOLE_SIZE);
+	memblock_remove(SUNXI_RAMCONSOLE_START, SUNXI_RAMCONSOLE_SIZE);
+	pr_reserve_info("RAMCONSOLE", SUNXI_RAMCONSOLE_START, SUNXI_RAMCONSOLE_SIZE);
 #endif
 }
 

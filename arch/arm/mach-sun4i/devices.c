@@ -39,7 +39,7 @@
 #include <asm/pmu.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
-#include <mach/ramconsole.h>
+#include <plat/ramconsole.h>
 
 /* uart */
 static struct plat_serial8250_port debug_uart_platform_data[] = {
@@ -203,8 +203,8 @@ static struct platform_device sun4i_device_mali_drm = {
 static struct resource sun4i_ramconsole_resources[] = {
 	{
 		.flags  = IORESOURCE_MEM,
-		.start  = SUN4I_RAMCONSOLE_START,
-		.end    = SUN4I_RAMCONSOLE_START + SUN4I_RAMCONSOLE_SIZE - 1,
+		.start  = SUNXI_RAMCONSOLE_START,
+		.end    = SUNXI_RAMCONSOLE_START + SUNXI_RAMCONSOLE_SIZE - 1,
 	},
 };
 
