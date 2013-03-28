@@ -1196,7 +1196,7 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 
 	_snd_printd(SND_PR_VERBOSE,
 		"HDMI status: Codec=%d Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
-		codec->addr, pin_nid, eld->monitor_present, eld->eld_valid);
+		codec->addr, pin_nid, pin_eld->monitor_present, eld->eld_valid);
 
 	if (eld->eld_valid) {
 		if (snd_hdmi_get_eld(codec, pin_nid, eld->eld_buffer,
