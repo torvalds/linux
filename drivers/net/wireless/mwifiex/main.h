@@ -924,6 +924,7 @@ void
 mwifiex_set_wmm_params(struct mwifiex_private *priv,
 		       struct mwifiex_uap_bss_param *bss_cfg,
 		       struct cfg80211_ap_settings *params);
+void mwifiex_set_ba_params(struct mwifiex_private *priv);
 
 /*
  * This function checks if the queuing is RA based or not.

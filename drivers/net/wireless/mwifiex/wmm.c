@@ -436,10 +436,7 @@ mwifiex_wmm_init(struct mwifiex_adapter *adapter)
 					= priv->aggr_prio_tbl[7].ampdu_user
 					= BA_STREAM_NOT_ALLOWED;
 
-		priv->add_ba_param.timeout = MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT;
-		priv->add_ba_param.tx_win_size = MWIFIEX_AMPDU_DEF_TXWINSIZE;
-		priv->add_ba_param.rx_win_size = MWIFIEX_AMPDU_DEF_RXWINSIZE;
-
+		mwifiex_set_ba_params(priv);
 		mwifiex_reset_11n_rx_seq_num(priv);
 
 		atomic_set(&priv->wmm.tx_pkts_queued, 0);
