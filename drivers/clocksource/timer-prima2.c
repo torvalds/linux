@@ -16,12 +16,10 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_address.h>
-#include <mach/map.h>
 #include <asm/sched_clock.h>
 #include <asm/mach/time.h>
-
-#include "common.h"
 
 #define SIRFSOC_TIMER_COUNTER_LO	0x0000
 #define SIRFSOC_TIMER_COUNTER_HI	0x0004
@@ -55,7 +53,6 @@ static const u32 sirfsoc_timer_reg_list[SIRFSOC_TIMER_REG_CNT] = {
 static u32 sirfsoc_timer_reg_val[SIRFSOC_TIMER_REG_CNT];
 
 static void __iomem *sirfsoc_timer_base;
-static void __init sirfsoc_of_timer_map(void);
 
 /* timer0 interrupt handler */
 static irqreturn_t sirfsoc_timer_interrupt(int irq, void *dev_id)
@@ -181,13 +178,10 @@ static void __init sirfsoc_clockevent_init(void)
 }
 
 /* initialize the kernel jiffy timer source */
-void __init sirfsoc_prima2_timer_init(void)
+static void __init sirfsoc_prima2_timer_init(struct device_node *np)
 {
 	unsigned long rate;
 	struct clk *clk;
-
-	/* initialize clocking early, we want to set the OS timer */
-	sirfsoc_of_clk_init();
 
 	/* timer's input clock is io clock */
 	clk = clk_get_sys("io", NULL);
@@ -199,7 +193,11 @@ void __init sirfsoc_prima2_timer_init(void)
 	BUG_ON(rate < CLOCK_TICK_RATE);
 	BUG_ON(rate % CLOCK_TICK_RATE);
 
-	sirfsoc_of_timer_map();
+	sirfsoc_timer_base = of_iomap(np, 0);
+	if (!sirfsoc_timer_base)
+		panic("unable to map timer cpu registers\n");
+
+	sirfsoc_timer_irq.irq = irq_of_parse_and_map(np, 0);
 
 	writel_relaxed(rate / CLOCK_TICK_RATE / 2 - 1, sirfsoc_timer_base + SIRFSOC_TIMER_DIV);
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_LO);
@@ -214,28 +212,4 @@ void __init sirfsoc_prima2_timer_init(void)
 
 	sirfsoc_clockevent_init();
 }
-
-static struct of_device_id timer_ids[] = {
-	{ .compatible = "sirf,prima2-tick" },
-	{},
-};
-
-static void __init sirfsoc_of_timer_map(void)
-{
-	struct device_node *np;
-	const unsigned int *intspec;
-
-	np = of_find_matching_node(NULL, timer_ids);
-	if (!np)
-		return;
-	sirfsoc_timer_base = of_iomap(np, 0);
-	if (!sirfsoc_timer_base)
-		panic("unable to map timer cpu registers\n");
-
-	/* Get the interrupts property */
-	intspec = of_get_property(np, "interrupts", NULL);
-	BUG_ON(!intspec);
-	sirfsoc_timer_irq.irq = be32_to_cpup(intspec);
-
-	of_node_put(np);
-}
+CLOCKSOURCE_OF_DECLARE(sirfsoc_prima2_timer, "sirf,prima2-tick", sirfsoc_prima2_timer_init);

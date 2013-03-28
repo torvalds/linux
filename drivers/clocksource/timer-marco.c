@@ -21,8 +21,6 @@
 #include <asm/localtimer.h>
 #include <asm/mach/time.h>
 
-#include "common.h"
-
 #define SIRFSOC_TIMER_32COUNTER_0_CTRL			0x0000
 #define SIRFSOC_TIMER_32COUNTER_1_CTRL			0x0004
 #define SIRFSOC_TIMER_MATCH_0				0x0018
@@ -53,7 +51,6 @@ static const u32 sirfsoc_timer_reg_list[SIRFSOC_TIMER_REG_CNT] = {
 static u32 sirfsoc_timer_reg_val[SIRFSOC_TIMER_REG_CNT];
 
 static void __iomem *sirfsoc_timer_base;
-static void __init sirfsoc_of_timer_map(void);
 
 /* disable count and interrupt */
 static inline void sirfsoc_timer_count_disable(int idx)
@@ -242,14 +239,11 @@ static void __init sirfsoc_clockevent_init(void)
 }
 
 /* initialize the kernel jiffy timer source */
-void __init sirfsoc_marco_timer_init(void)
+static void __init sirfsoc_marco_timer_init(void)
 {
 	unsigned long rate;
 	u32 timer_div;
 	struct clk *clk;
-
-	/* initialize clocking early, we want to set the OS timer */
-	sirfsoc_of_clk_init();
 
 	/* timer's input clock is io clock */
 	clk = clk_get_sys("io", NULL);
@@ -259,8 +253,6 @@ void __init sirfsoc_marco_timer_init(void)
 
 	BUG_ON(rate < CLOCK_TICK_RATE);
 	BUG_ON(rate % CLOCK_TICK_RATE);
-
-	sirfsoc_of_timer_map();
 
 	/* Initialize the timer dividers */
 	timer_div = rate / CLOCK_TICK_RATE - 1;
@@ -286,18 +278,8 @@ void __init sirfsoc_marco_timer_init(void)
 	sirfsoc_clockevent_init();
 }
 
-static struct of_device_id timer_ids[] = {
-	{ .compatible = "sirf,marco-tick" },
-	{},
-};
-
-static void __init sirfsoc_of_timer_map(void)
+static void __init sirfsoc_of_timer_init(struct device_node *np)
 {
-	struct device_node *np;
-
-	np = of_find_matching_node(NULL, timer_ids);
-	if (!np)
-		return;
 	sirfsoc_timer_base = of_iomap(np, 0);
 	if (!sirfsoc_timer_base)
 		panic("unable to map timer cpu registers\n");
@@ -312,5 +294,6 @@ static void __init sirfsoc_of_timer_map(void)
 		panic("No irq passed for timer1 via DT\n");
 #endif
 
-	of_node_put(np);
+	sirfsoc_marco_timer_init();
 }
+CLOCKSOURCE_OF_DECLARE(sirfsoc_marco_timer, "sirf,marco-tick", sirfsoc_of_timer_init );
