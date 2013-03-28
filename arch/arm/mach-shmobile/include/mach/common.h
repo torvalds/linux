@@ -19,22 +19,6 @@ extern int shmobile_enter_wfi(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv, int index);
 extern void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv);
 
-extern void sh73a0_init_delay(void);
-extern void sh73a0_init_irq(void);
-extern void sh73a0_init_irq_dt(void);
-extern void sh73a0_map_io(void);
-extern void sh73a0_earlytimer_init(void);
-extern void sh73a0_add_early_devices(void);
-extern void sh73a0_add_standard_devices(void);
-extern void sh73a0_add_standard_devices_dt(void);
-extern void sh73a0_clock_init(void);
-extern void sh73a0_pinmux_init(void);
-extern void sh73a0_pm_init(void);
-extern struct clk sh73a0_extal1_clk;
-extern struct clk sh73a0_extal2_clk;
-extern struct clk sh73a0_extcki_clk;
-extern struct clk sh73a0_extalr_clk;
-
 extern void r8a7740_meram_workaround(void);
 extern void r8a7740_init_irq(void);
 extern void r8a7740_map_io(void);
