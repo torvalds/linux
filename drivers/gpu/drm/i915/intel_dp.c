@@ -936,7 +936,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		else
 			intel_dp->DP |= DP_PLL_FREQ_270MHZ;
 	} else if (!HAS_PCH_CPT(dev) || is_cpu_edp(intel_dp)) {
-		if (!HAS_PCH_SPLIT(dev))
+		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
 			intel_dp->DP |= intel_dp->color_range;
 
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -951,7 +951,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		if (intel_crtc->pipe == 1)
 			intel_dp->DP |= DP_PIPEB_SELECT;
 
-		if (is_cpu_edp(intel_dp)) {
+		if (is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
 			/* don't miss out required setting for eDP */
 			if (adjusted_mode->clock < 200000)
 				intel_dp->DP |= DP_PLL_FREQ_160MHZ;
@@ -1383,10 +1383,12 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 static void intel_post_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
 
 	if (is_cpu_edp(intel_dp)) {
 		intel_dp_link_down(intel_dp);
-		ironlake_edp_pll_off(intel_dp);
+		if (!IS_VALLEYVIEW(dev))
+			ironlake_edp_pll_off(intel_dp);
 	}
 }
 
@@ -1412,8 +1414,9 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 static void intel_pre_enable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
 
-	if (is_cpu_edp(intel_dp))
+	if (is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev))
 		ironlake_edp_pll_on(intel_dp);
 }
 
