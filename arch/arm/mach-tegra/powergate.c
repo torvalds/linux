@@ -76,7 +76,7 @@ static int tegra_powergate_set(int id, bool new_state)
 
 	if (status == new_state) {
 		spin_unlock_irqrestore(&tegra_powergate_lock, flags);
-		return -EINVAL;
+		return 0;
 	}
 
 	pmc_write(PWRGATE_TOGGLE_START | id, PWRGATE_TOGGLE);
