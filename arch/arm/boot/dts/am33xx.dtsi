@@ -15,12 +15,12 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
-		serial0 = &uart1;
-		serial1 = &uart2;
-		serial2 = &uart3;
-		serial3 = &uart4;
-		serial4 = &uart5;
-		serial5 = &uart6;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
 		d_can0 = &dcan0;
 		d_can1 = &dcan1;
 	};
@@ -133,7 +133,7 @@
 			interrupts = <62>;
 		};
 
-		uart1: serial@44e09000 {
+		uart0: serial@44e09000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
@@ -142,7 +142,7 @@
 			status = "disabled";
 		};
 
-		uart2: serial@48022000 {
+		uart1: serial@48022000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
@@ -151,7 +151,7 @@
 			status = "disabled";
 		};
 
-		uart3: serial@48024000 {
+		uart2: serial@48024000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
@@ -160,7 +160,7 @@
 			status = "disabled";
 		};
 
-		uart4: serial@481a6000 {
+		uart3: serial@481a6000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
@@ -169,7 +169,7 @@
 			status = "disabled";
 		};
 
-		uart5: serial@481a8000 {
+		uart4: serial@481a8000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart5";
 			clock-frequency = <48000000>;
@@ -178,7 +178,7 @@
 			status = "disabled";
 		};
 
-		uart6: serial@481aa000 {
+		uart5: serial@481aa000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart6";
 			clock-frequency = <48000000>;
