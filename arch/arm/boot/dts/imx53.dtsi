@@ -75,6 +75,7 @@
 			interrupts = <11 10>;
 			clocks = <&clks 59>, <&clks 110>, <&clks 61>;
 			clock-names = "bus", "di0", "di1";
+			resets = <&src 2>;
 		};
 
 		aips@50000000 { /* AIPS1 */
@@ -599,6 +600,12 @@
 				clocks = <&clks 87>, <&clks 86>;
 				clock-names = "ipg", "per";
 				status = "disabled";
+			};
+
+			src: src@53fd0000 {
+				compatible = "fsl,imx53-src", "fsl,imx51-src";
+				reg = <0x53fd0000 0x4000>;
+				#reset-cells = <1>;
 			};
 
 			clks: ccm@53fd4000{
