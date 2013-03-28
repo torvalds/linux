@@ -278,3 +278,25 @@ int mwifiex_cmd_11ac_cfg(struct mwifiex_private *priv,
 
 	return 0;
 }
+
+/* This function initializes the BlockACK setup information for given
+ * mwifiex_private structure for 11ac enabled networks.
+ */
+void mwifiex_set_11ac_ba_params(struct mwifiex_private *priv)
+{
+	priv->add_ba_param.timeout = MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		priv->add_ba_param.tx_win_size =
+					   MWIFIEX_11AC_UAP_AMPDU_DEF_TXWINSIZE;
+		priv->add_ba_param.rx_win_size =
+					   MWIFIEX_11AC_UAP_AMPDU_DEF_RXWINSIZE;
+	} else {
+		priv->add_ba_param.tx_win_size =
+					   MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE;
+		priv->add_ba_param.rx_win_size =
+					   MWIFIEX_11AC_STA_AMPDU_DEF_RXWINSIZE;
+	}
+
+	return;
+}

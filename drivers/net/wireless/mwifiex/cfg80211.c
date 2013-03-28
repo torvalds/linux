@@ -1381,6 +1381,11 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 				      priv->ap_11ac_enabled);
 	}
 
+	if (priv->ap_11ac_enabled)
+		mwifiex_set_11ac_ba_params(priv);
+	else
+		mwifiex_set_ba_params(priv);
+
 	mwifiex_set_wmm_params(priv, bss_cfg, params);
 
 	if (params->inactivity_timeout > 0) {
