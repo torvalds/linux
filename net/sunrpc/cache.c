@@ -201,7 +201,7 @@ static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
 	return sunrpc_cache_pipe_upcall(cd, h);
 }
 
-static inline int cache_is_valid(struct cache_detail *detail, struct cache_head *h)
+static inline int cache_is_valid(struct cache_head *h)
 {
 	if (!test_bit(CACHE_VALID, &h->flags))
 		return -EAGAIN;
@@ -227,7 +227,7 @@ static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h
 	int rv;
 
 	write_lock(&detail->hash_lock);
-	rv = cache_is_valid(detail, h);
+	rv = cache_is_valid(h);
 	if (rv != -EAGAIN) {
 		write_unlock(&detail->hash_lock);
 		return rv;
@@ -260,7 +260,7 @@ int cache_check(struct cache_detail *detail,
 	long refresh_age, age;
 
 	/* First decide return status as best we can */
-	rv = cache_is_valid(detail, h);
+	rv = cache_is_valid(h);
 
 	/* now see if we want to start an upcall */
 	refresh_age = (h->expiry_time - h->last_refresh);
@@ -293,7 +293,7 @@ int cache_check(struct cache_detail *detail,
 			 * Request was not deferred; handle it as best
 			 * we can ourselves:
 			 */
-			rv = cache_is_valid(detail, h);
+			rv = cache_is_valid(h);
 			if (rv == -EAGAIN)
 				rv = -ETIMEDOUT;
 		}
