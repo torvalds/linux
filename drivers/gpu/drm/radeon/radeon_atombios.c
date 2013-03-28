@@ -3168,7 +3168,7 @@ radeon_atom_is_voltage_gpio(struct radeon_device *rdev,
 			switch (crev) {
 			case 1:
 				num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
-					sizeof(ATOM_VOLTAGE_OBJECT_INFO_V3_1);
+					sizeof(ATOM_VOLTAGE_OBJECT_V3);
 
 				for (i = 0; i < num_indices; i++) {
 					if ((voltage_info->v3.asVoltageObj[i].asGpioVoltageObj.sHeader.ucVoltageType ==
@@ -3439,7 +3439,7 @@ int radeon_atom_get_voltage_table(struct radeon_device *rdev,
 			switch (crev) {
 			case 1:
 				num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
-					sizeof(ATOM_VOLTAGE_OBJECT_INFO_V3_1);
+					sizeof(ATOM_VOLTAGE_OBJECT_V3);
 
 				for (i = 0; i < num_indices; i++) {
 					if ((voltage_info->v3.asVoltageObj[i].asGpioVoltageObj.sHeader.ucVoltageType ==
