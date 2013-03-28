@@ -11,28 +11,31 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0126       | 0x4b,0xba,0xfa |
- * | Mailbox commands             |       0x115b       | 0x111a-0x111b  |
- * |                              |                    | 0x112c-0x112e  |
- * |                              |                    | 0x113a         |
+ * | Module Init and Probe        |       0x014f       | 0x4b,0xba,0xfa |
+ * | Mailbox commands             |       0x1179       | 0x111a-0x111b  |
  * |                              |                    | 0x1155-0x1158  |
- * | Device Discovery             |       0x2087       | 0x2020-0x2022, |
+ * | Device Discovery             |       0x2095       | 0x2020-0x2022, |
  * |                              |                    | 0x2016         |
- * | Queue Command and IO tracing |       0x3031       | 0x3006-0x300b  |
+ * | Queue Command and IO tracing |       0x3058       | 0x3006-0x300b  |
  * |                              |                    | 0x3027-0x3028  |
- * |                              |                    | 0x302d-0x302e  |
- * | DPC Thread                   |       0x401d       | 0x4002,0x4013  |
- * | Async Events                 |       0x5071       | 0x502b-0x502f  |
+ * |                              |                    | 0x303d-0x3041  |
+ * |                              |                    | 0x302d,0x3033  |
+ * |                              |                    | 0x3036,0x3038  |
+ * |                              |                    | 0x303a		|
+ * | DPC Thread                   |       0x4022       | 0x4002,0x4013  |
+ * | Async Events                 |       0x5081       | 0x502b-0x502f  |
  * |                              |                    | 0x5047,0x5052  |
+ * |                              |                    | 0x5040,0x5075  |
  * | Timer Routines               |       0x6011       |                |
- * | User Space Interactions      |       0x70c4       | 0x7018,0x702e, |
+ * | User Space Interactions      |       0x70dd       | 0x7018,0x702e, |
  * |                              |                    | 0x7020,0x7024, |
  * |                              |                    | 0x7039,0x7045, |
  * |                              |                    | 0x7073-0x7075, |
- * |                              |                    | 0x708c,        |
+ * |                              |                    | 0x707b,0x708c, |
  * |                              |                    | 0x70a5,0x70a6, |
  * |                              |                    | 0x70a8,0x70ab, |
- * |                              |                    | 0x70ad-0x70ae  |
+ * |                              |                    | 0x70ad-0x70ae, |
+ * |                              |                    | 0x70d1-0x70da  |
  * | Task Management              |       0x803c       | 0x8025-0x8026  |
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x9011       |		|
