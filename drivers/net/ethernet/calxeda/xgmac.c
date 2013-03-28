@@ -163,6 +163,7 @@
 #define XGMAC_FLOW_CTRL_FCB_BPA	0x00000001	/* Flow Control Busy ... */
 
 /* XGMAC_INT_STAT reg */
+#define XGMAC_INT_STAT_PMTIM	0x00800000	/* PMT Interrupt Mask */
 #define XGMAC_INT_STAT_PMT	0x0080		/* PMT Interrupt Status */
 #define XGMAC_INT_STAT_LPI	0x0040		/* LPI Interrupt Status */
 
@@ -959,6 +960,9 @@ static int xgmac_hw_init(struct net_device *dev)
 	/* Enable interrupts */
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + XGMAC_DMA_STATUS);
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + XGMAC_DMA_INTR_ENA);
+
+	/* Mask power mgt interrupt */
+	writel(XGMAC_INT_STAT_PMTIM, ioaddr + XGMAC_INT_STAT);
 
 	/* XGMAC requires AXI bus init. This is a 'magic number' for now */
 	writel(0x0077000E, ioaddr + XGMAC_DMA_AXI_BUS);
@@ -1828,7 +1832,7 @@ static void xgmac_pmt(void __iomem *ioaddr, unsigned long mode)
 	unsigned int pmt = 0;
 
 	if (mode & WAKE_MAGIC)
-		pmt |= XGMAC_PMT_POWERDOWN | XGMAC_PMT_MAGIC_PKT;
+		pmt |= XGMAC_PMT_POWERDOWN | XGMAC_PMT_MAGIC_PKT_EN;
 	if (mode & WAKE_UCAST)
 		pmt |= XGMAC_PMT_POWERDOWN | XGMAC_PMT_GLBL_UNICAST;
 
