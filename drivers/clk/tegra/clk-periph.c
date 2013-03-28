@@ -16,6 +16,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 
@@ -128,6 +129,7 @@ void tegra_periph_reset_deassert(struct clk *c)
 
 	tegra_periph_reset(gate, 0);
 }
+EXPORT_SYMBOL(tegra_periph_reset_deassert);
 
 void tegra_periph_reset_assert(struct clk *c)
 {
@@ -147,6 +149,7 @@ void tegra_periph_reset_assert(struct clk *c)
 
 	tegra_periph_reset(gate, 1);
 }
+EXPORT_SYMBOL(tegra_periph_reset_assert);
 
 const struct clk_ops tegra_clk_periph_ops = {
 	.get_parent = clk_periph_get_parent,
