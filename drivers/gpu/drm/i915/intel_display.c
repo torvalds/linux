@@ -7394,23 +7394,34 @@ pipe_config_set_bpp(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	int bpp;
 
-	switch (fb->depth) {
-	case 8:
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_C8:
 		bpp = 8*3; /* since we go through a colormap */
 		break;
-	case 15:
-	case 16:
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_ARGB1555:
+		/* checked in intel_framebuffer_init already */
+		if (WARN_ON(INTEL_INFO(dev)->gen > 3))
+			return -EINVAL;
+	case DRM_FORMAT_RGB565:
 		bpp = 6*3; /* min is 18bpp */
 		break;
-	case 24:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		/* checked in intel_framebuffer_init already */
+		if (WARN_ON(INTEL_INFO(dev)->gen < 4))
+			return -EINVAL;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
 		bpp = 8*3;
 		break;
-	case 30:
-		if (INTEL_INFO(dev)->gen < 4) {
-			DRM_DEBUG_KMS("10 bpc not supported on gen2/3\n");
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		/* checked in intel_framebuffer_init already */
+		if (WARN_ON(INTEL_INFO(dev)->gen < 4))
 			return -EINVAL;
-		}
-
 		bpp = 10*3;
 		break;
 	/* TODO: gen4+ supports 16 bpc floating point, too. */
