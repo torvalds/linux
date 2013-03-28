@@ -1403,10 +1403,9 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 	bitmap_size = __bitmap_size(sbi, SIT_BITMAP);
 	src_bitmap = __bitmap_ptr(sbi, SIT_BITMAP);
 
-	dst_bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+	dst_bitmap = kmemdup(src_bitmap, bitmap_size, GFP_KERNEL);
 	if (!dst_bitmap)
 		return -ENOMEM;
-	memcpy(dst_bitmap, src_bitmap, bitmap_size);
 
 	/* init SIT information */
 	sit_i->s_ops = &default_salloc_ops;

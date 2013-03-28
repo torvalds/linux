@@ -1666,19 +1666,17 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	spin_lock_init(&nm_i->free_nid_list_lock);
 	rwlock_init(&nm_i->nat_tree_lock);
 
-	nm_i->bitmap_size = __bitmap_size(sbi, NAT_BITMAP);
 	nm_i->init_scan_nid = le32_to_cpu(sbi->ckpt->next_free_nid);
 	nm_i->next_scan_nid = le32_to_cpu(sbi->ckpt->next_free_nid);
-
-	nm_i->nat_bitmap = kzalloc(nm_i->bitmap_size, GFP_KERNEL);
-	if (!nm_i->nat_bitmap)
-		return -ENOMEM;
+	nm_i->bitmap_size = __bitmap_size(sbi, NAT_BITMAP);
 	version_bitmap = __bitmap_ptr(sbi, NAT_BITMAP);
 	if (!version_bitmap)
 		return -EFAULT;
 
-	/* copy version bitmap */
-	memcpy(nm_i->nat_bitmap, version_bitmap, nm_i->bitmap_size);
+	nm_i->nat_bitmap = kmemdup(version_bitmap, nm_i->bitmap_size,
+					GFP_KERNEL);
+	if (!nm_i->nat_bitmap)
+		return -ENOMEM;
 	return 0;
 }
 
