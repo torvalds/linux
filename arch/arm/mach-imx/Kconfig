@@ -76,6 +76,7 @@ config HAVE_IMX_MMDC
 
 config HAVE_IMX_SRC
 	def_bool y if SMP
+	select ARCH_HAS_RESET_CONTROLLER
 
 config IMX_HAVE_IOMUX_V1
 	bool
