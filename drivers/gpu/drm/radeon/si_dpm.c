@@ -5712,8 +5712,10 @@ int si_dpm_enable(struct radeon_device *rdev)
 		si_get_mvdd_configuration(rdev);
 	if (pi->voltage_control) {
 		ret = si_construct_voltage_tables(rdev);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("si_construct_voltage_tables failed\n");
 			return ret;
+		}
 	}
 	if (eg_pi->dynamic_ac_timing) {
 		ret = si_initialize_mc_reg_table(rdev);
@@ -5732,49 +5734,75 @@ int si_dpm_enable(struct radeon_device *rdev)
 	si_enable_display_gap(rdev);
 	si_program_vc(rdev);
 	ret = si_upload_firmware(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_upload_firmware failed\n");
 		return ret;
+	}
 	ret = si_process_firmware_header(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_process_firmware_header failed\n");
 		return ret;
+	}
 	ret = si_initial_switch_from_arb_f0_to_f1(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_initial_switch_from_arb_f0_to_f1 failed\n");
 		return ret;
+	}
 	ret = si_init_smc_table(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_init_smc_table failed\n");
 		return ret;
+	}
 	ret = si_init_smc_spll_table(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_init_smc_spll_table failed\n");
 		return ret;
+	}
 	ret = si_init_arb_table_index(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_init_arb_table_index failed\n");
 		return ret;
+	}
 	if (eg_pi->dynamic_ac_timing) {
 		ret = si_populate_mc_reg_table(rdev, boot_ps);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("si_populate_mc_reg_table failed\n");
 			return ret;
+		}
 	}
 	ret = si_initialize_smc_cac_tables(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_initialize_smc_cac_tables failed\n");
 		return ret;
+	}
 	ret = si_initialize_hardware_cac_manager(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_initialize_hardware_cac_manager failed\n");
 		return ret;
+	}
 	ret = si_initialize_smc_dte_tables(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_initialize_smc_dte_tables failed\n");
 		return ret;
+	}
 	ret = si_populate_smc_tdp_limits(rdev, boot_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_populate_smc_tdp_limits failed\n");
 		return ret;
+	}
 	ret = si_populate_smc_tdp_limits_2(rdev, boot_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_populate_smc_tdp_limits_2 failed\n");
 		return ret;
+	}
 	si_program_response_times(rdev);
 	si_program_ds_registers(rdev);
 	si_dpm_start_smc(rdev);
 	ret = si_notify_smc_display_change(rdev, false);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("si_notify_smc_display_change failed\n");
 		return ret;
+	}
 	si_enable_sclk_control(rdev, true);
 	si_start_dpm(rdev);
 
