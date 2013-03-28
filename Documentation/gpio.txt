@@ -72,11 +72,11 @@ in this document, but drivers acting as clients to the GPIO interface must
 not care how it's implemented.)
 
 That said, if the convention is supported on their platform, drivers should
-use it when possible.  Platforms must declare GENERIC_GPIO support in their
-Kconfig (boolean true), and provide an <asm/gpio.h> file.  Drivers that can't
-work without standard GPIO calls should have Kconfig entries which depend
-on GENERIC_GPIO.  The GPIO calls are available, either as "real code" or as
-optimized-away stubs, when drivers use the include file:
+use it when possible.  Platforms must select ARCH_REQUIRE_GPIOLIB or
+ARCH_WANT_OPTIONAL_GPIOLIB in their Kconfig.  Drivers that can't work without
+standard GPIO calls should have Kconfig entries which depend on GPIOLIB.  The
+GPIO calls are available, either as "real code" or as optimized-away stubs,
+when drivers use the include file:
 
 	#include <linux/gpio.h>
 

@@ -255,7 +255,7 @@ static int __get_gpo_state_p3(struct lpc32xx_gpio_chip *group,
 }
 
 /*
- * GENERIC_GPIO primitives.
+ * GPIO primitives.
  */
 static int lpc32xx_gpio_dir_input_p012(struct gpio_chip *chip,
 	unsigned pin)

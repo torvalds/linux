@@ -23,9 +23,6 @@ config UNICORE32
 	  designs licensed by PKUnity Ltd.
 	  Please see web page at <http://www.pkunity.com/>.
 
-config GENERIC_GPIO
-	bool
-
 config GENERIC_CSUM
 	def_bool y
 

@@ -1004,9 +1004,6 @@ config GENERIC_ISA_DMA_SUPPORT_BROKEN
 config ISA_DMA_API
 	bool
 
-config GENERIC_GPIO
-	bool
-
 config HOLES_IN_ZONE
 	bool
 

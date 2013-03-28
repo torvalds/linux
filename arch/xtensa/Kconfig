@@ -33,9 +33,6 @@ config RWSEM_XCHGADD_ALGORITHM
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_GPIO
-	bool
-
 config ARCH_HAS_ILOG2_U32
 	def_bool n
 
