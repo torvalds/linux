@@ -76,12 +76,15 @@
 #ifndef CONFIG_THUMB2_KERNEL
 	.macro	svc_exit, rpsr, irq = 0
 	.if	\irq != 0
+	@ IRQs already off
 #ifdef CONFIG_TRACE_IRQFLAGS
 	@ The parent context IRQs must have been enabled to get here in
 	@ the first place, so there's no point checking the PSR I bit.
 	bl	trace_hardirqs_on
 #endif
 	.else
+	@ IRQs off again before pulling preserved data off the stack
+	disable_irq_notrace
 #ifdef CONFIG_TRACE_IRQFLAGS
 	tst	\rpsr, #PSR_I_BIT
 	bleq	trace_hardirqs_on
@@ -136,12 +139,15 @@
 #else	/* CONFIG_THUMB2_KERNEL */
 	.macro	svc_exit, rpsr, irq = 0
 	.if	\irq != 0
+	@ IRQs already off
 #ifdef CONFIG_TRACE_IRQFLAGS
 	@ The parent context IRQs must have been enabled to get here in
 	@ the first place, so there's no point checking the PSR I bit.
 	bl	trace_hardirqs_on
 #endif
 	.else
+	@ IRQs off again before pulling preserved data off the stack
+	disable_irq_notrace
 #ifdef CONFIG_TRACE_IRQFLAGS
 	tst	\rpsr, #PSR_I_BIT
 	bleq	trace_hardirqs_on
