@@ -19,7 +19,7 @@ if USB || USB_GADGET
 #
 config USB_GPIO_VBUS
 	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select USB_OTG_UTILS
 	help
 	  Provides simple GPIO VBUS sensing for controllers with an

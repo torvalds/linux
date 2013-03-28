@@ -156,7 +156,7 @@ source "mm/Kconfig"
 
 config LEDS
 	def_bool y
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 
 config ALIGNMENT_TRAP
 	def_bool y

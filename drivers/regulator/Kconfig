@@ -66,7 +66,7 @@ config REGULATOR_USERSPACE_CONSUMER
 
 config REGULATOR_GPIO
 	tristate "GPIO regulator support"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  This driver provides support for regulators that can be
 	  controlled via gpios.
