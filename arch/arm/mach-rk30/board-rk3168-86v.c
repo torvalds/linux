@@ -76,7 +76,6 @@
 #include "board-rk3168-86v-camera.c"
 #include <plat/key.h>
 
-#define RK3168_86V_CODEC
 
 
 static struct rk29_keys_button key_button[] = {
@@ -442,7 +441,7 @@ static struct sensor_platform_data mma7660_info = {
 	.irq_enable = 1,
 	.poll_delay_ms = 30,
     .init_platform_hw = mma7660_init_platform_hw,
-	#ifdef RK3168_86V_CODEC
+	#ifdef CONFIG_TOUCHSCREEN_GSLX680_RK3168
 	.orientation = {-1, 0, 0, 0, -1, 0, 0, 0, 1},
 	#else
     .orientation = {0, -1, 0, -1, 0, 0, 0, 0, -1},
