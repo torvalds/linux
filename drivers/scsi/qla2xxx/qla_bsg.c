@@ -768,6 +768,8 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	elreq.transfer_size = req_data_len;
 
 	elreq.options = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
+	elreq.iteration_count =
+	    bsg_job->request->rqst_data.h_vendor.vendor_cmd[2];
 
 	if (atomic_read(&vha->loop_state) == LOOP_READY &&
 	    (ha->current_topology == ISP_CFG_F ||

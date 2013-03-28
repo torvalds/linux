@@ -417,6 +417,7 @@ struct msg_echo_lb {
 	uint16_t rsp_sg_cnt;
 	uint16_t options;
 	uint32_t transfer_size;
+	uint32_t iteration_count;
 };
 
 /*
