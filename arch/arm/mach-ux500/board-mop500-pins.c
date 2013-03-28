@@ -78,9 +78,6 @@ BIAS(out_wkup_pdis, PIN_SLPM_DIR_OUTPUT|PIN_SLPM_WAKEUP_ENABLE|
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-db8500", group, func)
 #define DB8500_PIN_HOG(pin,conf) \
 	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-db8500", pin, conf)
-#define DB8500_PIN_SLEEP(pin, conf, dev) \
-	PIN_MAP_CONFIGS_PIN(dev, PINCTRL_STATE_SLEEP, "pinctrl-db8500",	\
-			    pin, conf)
 
 /* These are default states associated with device and changed runtime */
 #define DB8500_MUX(group,func,dev) \
