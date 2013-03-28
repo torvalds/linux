@@ -36,9 +36,6 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 
-#include <mach/mxs.h>
-#include <mach/common.h>
-
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger.h>
