@@ -3726,47 +3726,71 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 	int ret;
 
 	ret = ni_restrict_performance_levels_before_switch(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_restrict_performance_levels_before_switch failed\n");
 		return ret;
+	}
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = ni_enable_power_containment(rdev, new_ps, false);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_enable_power_containment failed\n");
 		return ret;
+	}
 	ret = ni_enable_smc_cac(rdev, new_ps, false);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_enable_smc_cac failed\n");
 		return ret;
+	}
 	ret = rv770_halt_smc(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_halt_smc failed\n");
 		return ret;
+	}
 	if (eg_pi->smu_uvd_hs)
 		btc_notify_uvd_to_smc(rdev, new_ps);
 	ret = ni_upload_sw_state(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_upload_sw_state failed\n");
 		return ret;
+	}
 	if (eg_pi->dynamic_ac_timing) {
 		ret = ni_upload_mc_reg_table(rdev, new_ps);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("ni_upload_mc_reg_table failed\n");
 			return ret;
+		}
 	}
 	ret = ni_program_memory_timing_parameters(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_program_memory_timing_parameters failed\n");
 		return ret;
+	}
 	ret = ni_populate_smc_tdp_limits(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_populate_smc_tdp_limits failed\n");
 		return ret;
+	}
 	ret = rv770_resume_smc(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_resume_smc failed\n");
 		return ret;
+	}
 	ret = rv770_set_sw_state(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_set_sw_state failed\n");
 		return ret;
+	}
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 	ret = ni_enable_smc_cac(rdev, new_ps, true);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_enable_smc_cac failed\n");
 		return ret;
+	}
 	ret = ni_enable_power_containment(rdev, new_ps, true);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("ni_enable_power_containment failed\n");
 		return ret;
+	}
 
 #if 0
 	/* XXX */

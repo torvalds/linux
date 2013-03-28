@@ -2015,24 +2015,34 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 	int ret;
 
 	ret = rv770_restrict_performance_levels_before_switch(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_restrict_performance_levels_before_switch failed\n");
 		return ret;
+	}
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = rv770_halt_smc(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_halt_smc failed\n");
 		return ret;
+	}
 	ret = rv770_upload_sw_state(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_upload_sw_state failed\n");
 		return ret;
+	}
 	r7xx_program_memory_timing_parameters(rdev, new_ps);
 	if (pi->dcodt)
 		rv770_program_dcodt_before_state_switch(rdev, new_ps, old_ps);
 	ret = rv770_resume_smc(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_resume_smc failed\n");
 		return ret;
+	}
 	ret = rv770_set_sw_state(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_set_sw_state failed\n");
 		return ret;
+	}
 	if (pi->dcodt)
 		rv770_program_dcodt_after_state_switch(rdev, new_ps, old_ps);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);

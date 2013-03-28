@@ -1971,34 +1971,44 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 	int ret;
 
 	ret = rv770_restrict_performance_levels_before_switch(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_restrict_performance_levels_before_switch failed\n");
 		return ret;
-
+	}
 	if (eg_pi->pcie_performance_request)
 		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = rv770_halt_smc(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_halt_smc failed\n");
 		return ret;
+	}
 	ret = cypress_upload_sw_state(rdev, new_ps);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("cypress_upload_sw_state failed\n");
 		return ret;
-
+	}
 	if (eg_pi->dynamic_ac_timing) {
 		ret = cypress_upload_mc_reg_table(rdev, new_ps);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("cypress_upload_mc_reg_table failed\n");
 			return ret;
+		}
 	}
 
 	cypress_program_memory_timing_parameters(rdev, new_ps);
 
 	ret = rv770_resume_smc(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_resume_smc failed\n");
 		return ret;
+	}
 	ret = rv770_set_sw_state(rdev);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("rv770_set_sw_state failed\n");
 		return ret;
+	}
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
