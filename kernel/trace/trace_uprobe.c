@@ -492,17 +492,13 @@ static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	u8 *data;
-	int size, i, pc;
-	unsigned long irq_flags;
+	int size, i;
 	struct ftrace_event_call *call = &tu->call;
-
-	local_save_flags(irq_flags);
-	pc = preempt_count();
 
 	size = sizeof(*entry) + tu->size;
 
 	event = trace_current_buffer_lock_reserve(&buffer, call->event.type,
-						  size, irq_flags, pc);
+						  size, 0, 0);
 	if (!event)
 		return 0;
 
@@ -513,7 +509,7 @@ static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 		call_fetch(&tu->args[i].fetch, regs, data + tu->args[i].offset);
 
 	if (!filter_current_check_discard(buffer, call, entry, event))
-		trace_buffer_unlock_commit(buffer, event, irq_flags, pc);
+		trace_buffer_unlock_commit(buffer, event, 0, 0);
 
 	return 0;
 }
