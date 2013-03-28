@@ -285,6 +285,7 @@ struct drm_i915_error_state {
 };
 
 struct intel_crtc_config;
+struct intel_crtc;
 
 struct drm_i915_display_funcs {
 	bool (*fbc_enabled)(struct drm_device *dev);
@@ -298,6 +299,10 @@ struct drm_i915_display_funcs {
 	void (*update_linetime_wm)(struct drm_device *dev, int pipe,
 				 struct drm_display_mode *mode);
 	void (*modeset_global_resources)(struct drm_device *dev);
+	/* Returns the active state of the crtc, and if the crtc is active,
+	 * fills out the pipe-config with the hw state. */
+	bool (*get_pipe_config)(struct intel_crtc *,
+				struct intel_crtc_config *);
 	int (*crtc_mode_set)(struct drm_crtc *crtc,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);

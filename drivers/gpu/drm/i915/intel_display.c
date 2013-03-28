@@ -4715,6 +4715,20 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	return ret;
 }
 
+static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
+				 struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
+
+	tmp = I915_READ(PIPECONF(crtc->pipe));
+	if (!(tmp & PIPECONF_ENABLE))
+		return false;
+
+	return true;
+}
+
 static void ironlake_init_pch_refclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5414,7 +5428,6 @@ static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
 		&intel_crtc->config.adjusted_mode;
 	struct intel_link_m_n m_n = {0};
 	int target_clock, lane, link_bw;
-	uint32_t bps;
 
 	/* FDI is a binary signal running at ~2.7GHz, encoding
 	 * each output octet as 10 bits. The actual frequency
@@ -5670,6 +5683,20 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	return fdi_config_ok ? ret : -EINVAL;
 }
 
+static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
+				     struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
+
+	tmp = I915_READ(PIPECONF(crtc->pipe));
+	if (!(tmp & PIPECONF_ENABLE))
+		return false;
+
+	return true;
+}
+
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5782,6 +5809,20 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	intel_update_linetime_watermarks(dev, pipe, adjusted_mode);
 
 	return ret;
+}
+
+static bool haswell_get_pipe_config(struct intel_crtc *crtc,
+				    struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
+
+	tmp = I915_READ(PIPECONF(crtc->cpu_transcoder));
+	if (!(tmp & PIPECONF_ENABLE))
+		return false;
+
+	return true;
 }
 
 static int intel_crtc_mode_set(struct drm_crtc *crtc,
@@ -7717,12 +7758,21 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 			    base.head) \
 		if (mask & (1 <<(intel_crtc)->pipe)) \
 
+static bool
+intel_pipe_config_compare(struct intel_crtc_config *current_config,
+			  struct intel_crtc_config *pipe_config)
+{
+	return true;
+}
+
 void
 intel_modeset_check_state(struct drm_device *dev)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
+	struct intel_crtc_config pipe_config;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    base.head) {
@@ -7811,7 +7861,15 @@ intel_modeset_check_state(struct drm_device *dev)
 		     "crtc's computed enabled state doesn't match tracked enabled state "
 		     "(expected %i, found %i)\n", enabled, crtc->base.enabled);
 
-		assert_pipe(dev->dev_private, crtc->pipe, crtc->active);
+		active = dev_priv->display.get_pipe_config(crtc,
+							   &pipe_config);
+		WARN(crtc->active != active,
+		     "crtc active state doesn't match with hw state "
+		     "(expected %i, found %i)\n", crtc->active, active);
+
+		WARN(active &&
+		     !intel_pipe_config_compare(&crtc->config, &pipe_config),
+		     "pipe state doesn't match!\n");
 	}
 }
 
@@ -8617,18 +8675,21 @@ static void intel_init_display(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (HAS_DDI(dev)) {
+		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
 		dev_priv->display.crtc_mode_set = haswell_crtc_mode_set;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
 		dev_priv->display.off = haswell_crtc_off;
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
+		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
 		dev_priv->display.crtc_mode_set = ironlake_crtc_mode_set;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
 		dev_priv->display.off = ironlake_crtc_off;
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else {
+		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.crtc_mode_set = i9xx_crtc_mode_set;
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
@@ -9163,14 +9224,10 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 setup_pipes:
-	for_each_pipe(pipe) {
-		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-
-		tmp = I915_READ(PIPECONF(crtc->cpu_transcoder));
-		if (tmp & PIPECONF_ENABLE)
-			crtc->active = true;
-		else
-			crtc->active = false;
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
+			    base.head) {
+		crtc->active = dev_priv->display.get_pipe_config(crtc,
+								 &crtc->config);
 
 		crtc->base.enabled = crtc->active;
 
