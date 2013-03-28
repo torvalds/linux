@@ -274,16 +274,20 @@ static bool ironlake_edp_have_panel_power(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_stat_reg;
 
-	return (I915_READ(PCH_PP_STATUS) & PP_ON) != 0;
+	pp_stat_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_STATUS : PCH_PP_STATUS;
+	return (I915_READ(pp_stat_reg) & PP_ON) != 0;
 }
 
 static bool ironlake_edp_have_panel_vdd(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_ctrl_reg;
 
-	return (I915_READ(PCH_PP_CONTROL) & EDP_FORCE_VDD) != 0;
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+	return (I915_READ(pp_ctrl_reg) & EDP_FORCE_VDD) != 0;
 }
 
 static void
@@ -291,14 +295,19 @@ intel_dp_check_edp(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_stat_reg, pp_ctrl_reg;
 
 	if (!is_edp(intel_dp))
 		return;
+
+	pp_stat_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_STATUS : PCH_PP_STATUS;
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+
 	if (!ironlake_edp_have_panel_power(intel_dp) && !ironlake_edp_have_panel_vdd(intel_dp)) {
 		WARN(1, "eDP powered off while attempting aux channel communication.\n");
 		DRM_DEBUG_KMS("Status 0x%08x Control 0x%08x\n",
-			      I915_READ(PCH_PP_STATUS),
-			      I915_READ(PCH_PP_CONTROL));
+				I915_READ(pp_stat_reg),
+				I915_READ(pp_ctrl_reg));
 	}
 }
 
@@ -981,16 +990,20 @@ static void ironlake_wait_panel_status(struct intel_dp *intel_dp,
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp_stat_reg, pp_ctrl_reg;
+
+	pp_stat_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_STATUS : PCH_PP_STATUS;
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
 
 	DRM_DEBUG_KMS("mask %08x value %08x status %08x control %08x\n",
-		      mask, value,
-		      I915_READ(PCH_PP_STATUS),
-		      I915_READ(PCH_PP_CONTROL));
+			mask, value,
+			I915_READ(pp_stat_reg),
+			I915_READ(pp_ctrl_reg));
 
-	if (_wait_for((I915_READ(PCH_PP_STATUS) & mask) == value, 5000, 10)) {
+	if (_wait_for((I915_READ(pp_stat_reg) & mask) == value, 5000, 10)) {
 		DRM_ERROR("Panel status timeout: status %08x control %08x\n",
-			  I915_READ(PCH_PP_STATUS),
-			  I915_READ(PCH_PP_CONTROL));
+				I915_READ(pp_stat_reg),
+				I915_READ(pp_ctrl_reg));
 	}
 }
 
@@ -1017,9 +1030,15 @@ static void ironlake_wait_panel_power_cycle(struct intel_dp *intel_dp)
  * is locked
  */
 
-static  u32 ironlake_get_pp_control(struct drm_i915_private *dev_priv)
+static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 {
-	u32	control = I915_READ(PCH_PP_CONTROL);
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 control;
+	u32 pp_ctrl_reg;
+
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+	control = I915_READ(pp_ctrl_reg);
 
 	control &= ~PANEL_UNLOCK_MASK;
 	control |= PANEL_UNLOCK_REGS;
@@ -1031,6 +1050,7 @@ void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
+	u32 pp_stat_reg, pp_ctrl_reg;
 
 	if (!is_edp(intel_dp))
 		return;
@@ -1049,13 +1069,16 @@ void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (!ironlake_edp_have_panel_power(intel_dp))
 		ironlake_wait_panel_power_cycle(intel_dp);
 
-	pp = ironlake_get_pp_control(dev_priv);
+	pp = ironlake_get_pp_control(intel_dp);
 	pp |= EDP_FORCE_VDD;
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
-	DRM_DEBUG_KMS("PCH_PP_STATUS: 0x%08x PCH_PP_CONTROL: 0x%08x\n",
-		      I915_READ(PCH_PP_STATUS), I915_READ(PCH_PP_CONTROL));
 
+	pp_stat_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_STATUS : PCH_PP_STATUS;
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+
+	I915_WRITE(pp_ctrl_reg, pp);
+	POSTING_READ(pp_ctrl_reg);
+	DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
+			I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 	/*
 	 * If the panel wasn't on, delay before accessing aux channel
 	 */
@@ -1070,19 +1093,23 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
+	u32 pp_stat_reg, pp_ctrl_reg;
 
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	if (!intel_dp->want_panel_vdd && ironlake_edp_have_panel_vdd(intel_dp)) {
-		pp = ironlake_get_pp_control(dev_priv);
+		pp = ironlake_get_pp_control(intel_dp);
 		pp &= ~EDP_FORCE_VDD;
-		I915_WRITE(PCH_PP_CONTROL, pp);
-		POSTING_READ(PCH_PP_CONTROL);
+
+		pp_stat_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_STATUS : PCH_PP_STATUS;
+		pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+
+		I915_WRITE(pp_ctrl_reg, pp);
+		POSTING_READ(pp_ctrl_reg);
 
 		/* Make sure sequencer is idle before allowing subsequent activity */
-		DRM_DEBUG_KMS("PCH_PP_STATUS: 0x%08x PCH_PP_CONTROL: 0x%08x\n",
-			      I915_READ(PCH_PP_STATUS), I915_READ(PCH_PP_CONTROL));
-
+		DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
+		I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 		msleep(intel_dp->panel_power_down_delay);
 	}
 }
@@ -1126,6 +1153,7 @@ void ironlake_edp_panel_on(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
+	u32 pp_ctrl_reg;
 
 	if (!is_edp(intel_dp))
 		return;
@@ -1139,7 +1167,7 @@ void ironlake_edp_panel_on(struct intel_dp *intel_dp)
 
 	ironlake_wait_panel_power_cycle(intel_dp);
 
-	pp = ironlake_get_pp_control(dev_priv);
+	pp = ironlake_get_pp_control(intel_dp);
 	if (IS_GEN5(dev)) {
 		/* ILK workaround: disable reset around power sequence */
 		pp &= ~PANEL_POWER_RESET;
@@ -1151,8 +1179,10 @@ void ironlake_edp_panel_on(struct intel_dp *intel_dp)
 	if (!IS_GEN5(dev))
 		pp |= PANEL_POWER_RESET;
 
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+
+	I915_WRITE(pp_ctrl_reg, pp);
+	POSTING_READ(pp_ctrl_reg);
 
 	ironlake_wait_panel_on(intel_dp);
 
@@ -1168,6 +1198,7 @@ void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
+	u32 pp_ctrl_reg;
 
 	if (!is_edp(intel_dp))
 		return;
@@ -1176,12 +1207,15 @@ void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 
 	WARN(!intel_dp->want_panel_vdd, "Need VDD to turn off panel\n");
 
-	pp = ironlake_get_pp_control(dev_priv);
+	pp = ironlake_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
 	 * panels get very unhappy and cease to work. */
 	pp &= ~(POWER_TARGET_ON | EDP_FORCE_VDD | PANEL_POWER_RESET | EDP_BLC_ENABLE);
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
+
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+
+	I915_WRITE(pp_ctrl_reg, pp);
+	POSTING_READ(pp_ctrl_reg);
 
 	intel_dp->want_panel_vdd = false;
 
@@ -1195,6 +1229,7 @@ void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = to_intel_crtc(intel_dig_port->base.base.crtc)->pipe;
 	u32 pp;
+	u32 pp_ctrl_reg;
 
 	if (!is_edp(intel_dp))
 		return;
@@ -1207,10 +1242,13 @@ void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	 * allowing it to appear.
 	 */
 	msleep(intel_dp->backlight_on_delay);
-	pp = ironlake_get_pp_control(dev_priv);
+	pp = ironlake_get_pp_control(intel_dp);
 	pp |= EDP_BLC_ENABLE;
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
+
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+
+	I915_WRITE(pp_ctrl_reg, pp);
+	POSTING_READ(pp_ctrl_reg);
 
 	intel_panel_enable_backlight(dev, pipe);
 }
@@ -1220,6 +1258,7 @@ void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
+	u32 pp_ctrl_reg;
 
 	if (!is_edp(intel_dp))
 		return;
@@ -1227,10 +1266,13 @@ void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
 	intel_panel_disable_backlight(dev);
 
 	DRM_DEBUG_KMS("\n");
-	pp = ironlake_get_pp_control(dev_priv);
+	pp = ironlake_get_pp_control(intel_dp);
 	pp &= ~EDP_BLC_ENABLE;
-	I915_WRITE(PCH_PP_CONTROL, pp);
-	POSTING_READ(PCH_PP_CONTROL);
+
+	pp_ctrl_reg = IS_VALLEYVIEW(dev) ? PIPEA_PP_CONTROL : PCH_PP_CONTROL;
+
+	I915_WRITE(pp_ctrl_reg, pp);
+	POSTING_READ(pp_ctrl_reg);
 	msleep(intel_dp->backlight_off_delay);
 }
 
@@ -2620,15 +2662,28 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edp_power_seq cur, vbt, spec, final;
 	u32 pp_on, pp_off, pp_div, pp;
+	int pp_control_reg, pp_on_reg, pp_off_reg, pp_div_reg;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		pp_control_reg = PCH_PP_CONTROL;
+		pp_on_reg = PCH_PP_ON_DELAYS;
+		pp_off_reg = PCH_PP_OFF_DELAYS;
+		pp_div_reg = PCH_PP_DIVISOR;
+	} else {
+		pp_control_reg = PIPEA_PP_CONTROL;
+		pp_on_reg = PIPEA_PP_ON_DELAYS;
+		pp_off_reg = PIPEA_PP_OFF_DELAYS;
+		pp_div_reg = PIPEA_PP_DIVISOR;
+	}
 
 	/* Workaround: Need to write PP_CONTROL with the unlock key as
 	 * the very first thing. */
-	pp = ironlake_get_pp_control(dev_priv);
-	I915_WRITE(PCH_PP_CONTROL, pp);
+	pp = ironlake_get_pp_control(intel_dp);
+	I915_WRITE(pp_control_reg, pp);
 
-	pp_on = I915_READ(PCH_PP_ON_DELAYS);
-	pp_off = I915_READ(PCH_PP_OFF_DELAYS);
-	pp_div = I915_READ(PCH_PP_DIVISOR);
+	pp_on = I915_READ(pp_on_reg);
+	pp_off = I915_READ(pp_off_reg);
+	pp_div = I915_READ(pp_div_reg);
 
 	/* Pull timing values out of registers */
 	cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
@@ -2703,7 +2758,22 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 					      struct edp_power_seq *seq)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_on, pp_off, pp_div;
+	u32 pp_on, pp_off, pp_div, port_sel = 0;
+	int div = HAS_PCH_SPLIT(dev) ? intel_pch_rawclk(dev) : intel_hrawclk(dev);
+	int pp_on_reg, pp_off_reg, pp_div_reg;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		pp_on_reg = PCH_PP_ON_DELAYS;
+		pp_off_reg = PCH_PP_OFF_DELAYS;
+		pp_div_reg = PCH_PP_DIVISOR;
+	} else {
+		pp_on_reg = PIPEA_PP_ON_DELAYS;
+		pp_off_reg = PIPEA_PP_OFF_DELAYS;
+		pp_div_reg = PIPEA_PP_DIVISOR;
+	}
+
+	if (IS_VALLEYVIEW(dev))
+		port_sel = I915_READ(pp_on_reg) & 0xc0000000;
 
 	/* And finally store the new values in the power sequencer. */
 	pp_on = (seq->t1_t3 << PANEL_POWER_UP_DELAY_SHIFT) |
@@ -2712,8 +2782,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		 (seq->t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
 	/* Compute the divisor for the pp clock, simply match the Bspec
 	 * formula. */
-	pp_div = ((100 * intel_pch_rawclk(dev))/2 - 1)
-			<< PP_REFERENCE_DIVIDER_SHIFT;
+	pp_div = ((100 * div)/2 - 1) << PP_REFERENCE_DIVIDER_SHIFT;
 	pp_div |= (DIV_ROUND_UP(seq->t11_t12, 1000)
 			<< PANEL_POWER_CYCLE_DELAY_SHIFT);
 
@@ -2721,19 +2790,21 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	 * power sequencer any more. */
 	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
 		if (is_cpu_edp(intel_dp))
-			pp_on |= PANEL_POWER_PORT_DP_A;
+			port_sel = PANEL_POWER_PORT_DP_A;
 		else
-			pp_on |= PANEL_POWER_PORT_DP_D;
+			port_sel = PANEL_POWER_PORT_DP_D;
 	}
 
-	I915_WRITE(PCH_PP_ON_DELAYS, pp_on);
-	I915_WRITE(PCH_PP_OFF_DELAYS, pp_off);
-	I915_WRITE(PCH_PP_DIVISOR, pp_div);
+	pp_on |= port_sel;
+
+	I915_WRITE(pp_on_reg, pp_on);
+	I915_WRITE(pp_off_reg, pp_off);
+	I915_WRITE(pp_div_reg, pp_div);
 
 	DRM_DEBUG_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
-		      I915_READ(PCH_PP_ON_DELAYS),
-		      I915_READ(PCH_PP_OFF_DELAYS),
-		      I915_READ(PCH_PP_DIVISOR));
+		      I915_READ(pp_on_reg),
+		      I915_READ(pp_off_reg),
+		      I915_READ(pp_div_reg));
 }
 
 void
