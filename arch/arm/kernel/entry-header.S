@@ -164,6 +164,34 @@
 #endif	/* !CONFIG_THUMB2_KERNEL */
 
 /*
+ * Context tracking subsystem.  Used to instrument transitions
+ * between user and kernel mode.
+ */
+	.macro ct_user_exit, save = 1
+#ifdef CONFIG_CONTEXT_TRACKING
+	.if	\save
+	stmdb   sp!, {r0-r3, ip, lr}
+	bl	user_exit
+	ldmia	sp!, {r0-r3, ip, lr}
+	.else
+	bl	user_exit
+	.endif
+#endif
+	.endm
+
+	.macro ct_user_enter, save = 1
+#ifdef CONFIG_CONTEXT_TRACKING
+	.if	\save
+	stmdb   sp!, {r0-r3, ip, lr}
+	bl	user_enter
+	ldmia	sp!, {r0-r3, ip, lr}
+	.else
+	bl	user_enter
+	.endif
+#endif
+	.endm
+
+/*
  * These are the registers used in the syscall handler, and allow us to
  * have in theory up to 7 arguments to a function - r0 to r6.
  *
