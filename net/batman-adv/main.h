@@ -26,7 +26,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2013.1.0"
+#define BATADV_SOURCE_VERSION "2013.2.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -152,6 +152,7 @@ enum batadv_uev_type {
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <net/sock.h>		/* struct sock */
+#include <net/rtnetlink.h>
 #include <linux/jiffies.h>
 #include <linux/seq_file.h>
 #include "types.h"

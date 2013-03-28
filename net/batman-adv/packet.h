@@ -308,7 +308,7 @@ struct batadv_coded_packet {
 	uint8_t  second_source[ETH_ALEN];
 	uint8_t  second_orig_dest[ETH_ALEN];
 	__be32   second_crc;
-	uint16_t coded_len;
+	__be16   coded_len;
 };
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

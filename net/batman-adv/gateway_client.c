@@ -500,7 +500,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 	rcu_read_unlock();
 
 	if (gw_count == 0)
-		seq_printf(seq, "No gateways in range ...\n");
+		seq_puts(seq, "No gateways in range ...\n");
 
 out:
 	if (primary_if)
