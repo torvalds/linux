@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/ab8500.h>
+#include <mach/id.h> /* to identify older boards for fixes */
 #include "board-mop500-regulators.h"
 
 static struct regulator_consumer_supply gpio_en_3v3_consumers[] = {
@@ -493,4 +494,20 @@ static void ab8500_modify_reg_init(int id, u8 mask, u8 value)
 	}
 
 	BUG_ON(1);
+}
+
+void mop500_regulator_init(void)
+{
+	struct regulator_init_data *regulator;
+
+	/*
+	 * Handle VextSupply1 on older boards than HREFP_V22_V1x
+	 * (turn off in suspend)
+	 */
+	if (cpu_is_u8500v20() || cpu_is_u8500v21()) {
+		/* disable VextSupply1 in suspend */
+		regulator = &ab8500_ext_regulators[AB8500_EXT_SUPPLY1];
+		regulator->constraints.state_mem.disabled = 1;
+		regulator->constraints.state_standby.disabled = 1;
+	}
 }
