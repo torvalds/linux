@@ -111,7 +111,7 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 		return -ENOMEM;
 
 	/*
-	 * In the newt browser, we are doing integrated annotation,
+	 * In the TUI browser, we are doing integrated annotation,
 	 * so we don't allocate the extra space needed because the stdio
 	 * code will not use it.
 	 */
@@ -263,7 +263,7 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 			return err;
 	}
 	/*
-	 * Only in the newt browser we are doing integrated annotation,
+	 * Only in the TUI browser we are doing integrated annotation,
 	 * so we don't allocated the extra space needed because the stdio
 	 * code will not use it.
 	 */
@@ -877,7 +877,7 @@ repeat:
 		usage_with_options(report_usage, options);
 
 	/*
-	 * Only in the newt browser we are doing integrated annotation,
+	 * Only in the TUI browser we are doing integrated annotation,
 	 * so don't allocate extra space that won't be used in the stdio
 	 * implementation.
 	 */

@@ -10,7 +10,6 @@
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
 #include <pthread.h>
-#include <newt.h>
 
 struct browser_disasm_line {
 	struct rb_node	rb_node;

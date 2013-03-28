@@ -192,7 +192,7 @@ struct hist_browser_timer {
 	int refresh;
 };
 
-#ifdef NEWT_SUPPORT
+#ifdef SLANG_SUPPORT
 #include "../ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt);
