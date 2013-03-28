@@ -4552,7 +4552,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	intel_clock_t clock, reduced_clock;
 	u32 dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false;
-	bool is_lvds = false, is_tv = false, is_dp = false;
+	bool is_lvds = false, is_tv = false;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
@@ -4570,9 +4570,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			break;
 		case INTEL_OUTPUT_TVOUT:
 			is_tv = true;
-			break;
-		case INTEL_OUTPUT_DISPLAYPORT:
-			is_dp = true;
 			break;
 		}
 
@@ -4656,7 +4653,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* default to 8bpc */
 	pipeconf &= ~(PIPECONF_BPC_MASK | PIPECONF_DITHER_EN);
-	if (is_dp) {
+	if (intel_crtc->config.has_dp_encoder) {
 		if (intel_crtc->config.dither) {
 			pipeconf |= PIPECONF_6BPC |
 				    PIPECONF_DITHER_EN |
@@ -5456,7 +5453,6 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	uint32_t dpll;
 	int factor, num_connectors = 0;
 	bool is_lvds = false, is_sdvo = false, is_tv = false;
-	bool is_dp = false, is_cpu_edp = false;
 
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
 		switch (intel_encoder->type) {
@@ -5471,14 +5467,6 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 			break;
 		case INTEL_OUTPUT_TVOUT:
 			is_tv = true;
-			break;
-		case INTEL_OUTPUT_DISPLAYPORT:
-			is_dp = true;
-			break;
-		case INTEL_OUTPUT_EDP:
-			is_dp = true;
-			if (!intel_encoder_is_pch_edp(&intel_encoder->base))
-				is_cpu_edp = true;
 			break;
 		}
 
@@ -5511,7 +5499,8 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		}
 		dpll |= DPLL_DVO_HIGH_SPEED;
 	}
-	if (is_dp && !is_cpu_edp)
+	if (intel_crtc->config.has_dp_encoder &&
+	    intel_crtc->config.has_pch_encoder)
 		dpll |= DPLL_DVO_HIGH_SPEED;
 
 	/* compute bitmask from p1 value */
@@ -5564,7 +5553,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	intel_clock_t clock, reduced_clock;
 	u32 dpll, fp = 0, fp2 = 0;
 	bool ok, has_reduced_clock = false;
-	bool is_lvds = false, is_dp = false, is_cpu_edp = false;
+	bool is_lvds = false;
 	struct intel_encoder *encoder;
 	int ret;
 	bool dither, fdi_config_ok;
@@ -5573,14 +5562,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
-			break;
-		case INTEL_OUTPUT_DISPLAYPORT:
-			is_dp = true;
-			break;
-		case INTEL_OUTPUT_EDP:
-			is_dp = true;
-			if (!intel_encoder_is_pch_edp(&encoder->base))
-				is_cpu_edp = true;
 			break;
 		}
 
@@ -5618,7 +5599,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	drm_mode_debug_printmodeline(mode);
 
 	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
-	if (!is_cpu_edp) {
+	if (intel_crtc->config.has_pch_encoder) {
 		struct intel_pch_pll *pll;
 
 		pll = intel_get_pch_pll(intel_crtc, dpll, fp);
@@ -5731,18 +5712,14 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	int num_connectors = 0;
-	bool is_dp = false, is_cpu_edp = false;
+	bool is_cpu_edp = false;
 	struct intel_encoder *encoder;
 	int ret;
 	bool dither;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
-		case INTEL_OUTPUT_DISPLAYPORT:
-			is_dp = true;
-			break;
 		case INTEL_OUTPUT_EDP:
-			is_dp = true;
 			if (!intel_encoder_is_pch_edp(&encoder->base))
 				is_cpu_edp = true;
 			break;
