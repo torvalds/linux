@@ -476,6 +476,11 @@ static void option_instat_callback(struct urb *urb);
 /* Changhong products */
 #define CHANGHONG_VENDOR_ID			0x2077
 #define CHANGHONG_PRODUCT_CH690			0x7001
+/* Strong Rising WCDMA modem*/
+#define STRONG_RISING_VENDOR_ID     0x21F5
+#define STRONG_RISING_PRODUCT_SPW9S  0x2012
+/* Strong Rising EVDO modem*/
+#define STRONG_RISING_PRODUCT_SP8J  0x2009
 
 /* some devices interfaces need special handling due to a number of reasons */
 enum option_blacklist_reason {
@@ -1340,7 +1345,9 @@ static const struct usb_device_id option_ids[] = {
    { USB_DEVICE(0x19d2, 0xffe8) },
    { USB_DEVICE(0x19D2,0x1177) },//K3770-Z
    { USB_DEVICE(0x230D, 0x000c) },
-   { USB_DEVICE(0x21F5, 0x2009) },
+ //  { USB_DEVICE(0x21F5, 0x2009) },
+   {USB_DEVICE(STRONG_RISING_VENDOR_ID,STRONG_RISING_PRODUCT_SP8J)},
+   {USB_DEVICE(STRONG_RISING_VENDOR_ID,STRONG_RISING_PRODUCT_SPW9S)},
    { USB_DEVICE(0x15eb,0x0001)},
    { USB_DEVICE(0x12d1,0x14db) },
    { USB_DEVICE(0x15EB,0x7152)},
@@ -1350,9 +1357,17 @@ static const struct usb_device_id option_ids[] = {
    { USB_DEVICE(0x1C9E,0x9915)},
    { USB_DEVICE(0x1C9E,0x9800)},
    { USB_DEVICE(0x05c6,0x0016)},
+   { USB_DEVICE(0x0B3C,0xC00A)},
+   { USB_DEVICE(0x230D, 0x0103)},
+   { USB_DEVICE(0x1DBC,0x0669)},
+   { USB_DEVICE(0x2020,0x4000)},
    { USB_DEVICE(0x230D, 0x0003)},
    { USB_DEVICE(0x230D, 0x000C)},
    { USB_DEVICE(0x12d1,0x1506)},
+   { USB_DEVICE(0x2001,0x7D00)},//D-Link DWM-156
+   { USB_DEVICE(0x0af0,0xd157)}, 
+   { USB_DEVICE(0x0421,0x0612)},
+   { USB_DEVICE(0x19d2,0x1218)},
 //xxh end
 
 
