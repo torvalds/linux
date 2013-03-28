@@ -279,7 +279,7 @@ static size_t gart_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 }
 
 static phys_addr_t gart_iommu_iova_to_phys(struct iommu_domain *domain,
-					   unsigned long iova)
+					   dma_addr_t iova)
 {
 	struct gart_device *gart = domain->priv;
 	unsigned long pte;

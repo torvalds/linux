@@ -1027,7 +1027,7 @@ done:
 }
 
 static phys_addr_t exynos_iommu_iova_to_phys(struct iommu_domain *domain,
-					  unsigned long iova)
+					  dma_addr_t iova)
 {
 	struct exynos_iommu_domain *priv = domain->priv;
 	unsigned long *entry;

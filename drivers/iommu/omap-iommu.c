@@ -1219,7 +1219,7 @@ static void omap_iommu_domain_destroy(struct iommu_domain *domain)
 }
 
 static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
-					  unsigned long da)
+					  dma_addr_t da)
 {
 	struct omap_iommu_domain *omap_domain = domain->priv;
 	struct omap_iommu *oiommu = omap_domain->iommu_dev;

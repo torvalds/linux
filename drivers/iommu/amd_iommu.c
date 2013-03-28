@@ -3410,7 +3410,7 @@ static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 }
 
 static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
-					  unsigned long iova)
+					  dma_addr_t iova)
 {
 	struct protection_domain *domain = dom->priv;
 	unsigned long offset_mask;

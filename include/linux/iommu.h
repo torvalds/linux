@@ -91,8 +91,7 @@ struct iommu_ops {
 		   phys_addr_t paddr, size_t size, int prot);
 	size_t (*unmap)(struct iommu_domain *domain, unsigned long iova,
 		     size_t size);
-	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain,
-				    unsigned long iova);
+	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
 	int (*domain_has_cap)(struct iommu_domain *domain,
 			      unsigned long cap);
 	int (*add_device)(struct device *dev);
@@ -134,8 +133,7 @@ extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
 		     phys_addr_t paddr, size_t size, int prot);
 extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 		       size_t size);
-extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,
-				      unsigned long iova);
+extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova);
 extern int iommu_domain_has_cap(struct iommu_domain *domain,
 				unsigned long cap);
 extern void iommu_set_fault_handler(struct iommu_domain *domain,
@@ -267,8 +265,7 @@ static inline void iommu_domain_window_disable(struct iommu_domain *domain,
 {
 }
 
-static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,
-					     unsigned long iova)
+static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
 {
 	return 0;
 }
