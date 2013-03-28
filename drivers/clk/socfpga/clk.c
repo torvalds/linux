@@ -66,7 +66,7 @@ static DEFINE_SPINLOCK(_lock);
 #define SOCFPGA_PLL_DIVF_MASK 0x0000FFF8
 #define SOCFPGA_PLL_DIVF_SHIFT 3
 #define SOCFPGA_PLL_DIVQ_MASK 0x003F0000
-#define SOCFPGA_PLL_DIVQ_SHIFT 15
+#define SOCFPGA_PLL_DIVQ_SHIFT 16
 
 extern void __iomem *clk_mgr_base_addr;
 
@@ -115,7 +115,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 	divf = (reg & SOCFPGA_PLL_DIVF_MASK) >> SOCFPGA_PLL_DIVF_SHIFT;
 	divq = (reg & SOCFPGA_PLL_DIVQ_MASK) >> SOCFPGA_PLL_DIVQ_SHIFT;
 	vco_freq = parent_rate * (divf + 1);
-	return vco_freq / (1 << divq);
+	return vco_freq / (1 + divq);
 }
 
 
