@@ -2052,6 +2052,15 @@ static struct i2c_board_info __initdata i2c3_info[] = {
 
 #ifdef CONFIG_I2C4_RK30
 static struct i2c_board_info __initdata i2c4_info[] = {
+    #if defined (CONFIG_SND_SOC_RT5616)
+    {
+                .type                   = "rt5616",
+                .addr                   = 0x1b,
+                .flags                  = 0,
+
+     },
+    #endif
+
 };
 #endif
 
