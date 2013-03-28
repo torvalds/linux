@@ -27,8 +27,14 @@ static void rk30_arch_reset(char mode, const char *cmd)
 	writel_relaxed(boot_flag, RK30_PMU_BASE + PMU_SYS_REG0);	// for loader
 	writel_relaxed(boot_mode, RK30_PMU_BASE + PMU_SYS_REG1);	// for linux
 	dsb();
-	/* disable remap */
-	writel_relaxed(1 << (12 + 16), RK30_GRF_BASE + GRF_SOC_CON0);
+
+	/* restore clk_cpu:aclk_cpu to default value for RK3168 */
+#if defined(CONFIG_ARCH_RK3066B)
+	writel_relaxed(0x00070001 , RK30_CRU_BASE + CRU_CLKSELS_CON(1));
+#endif
+
+        /* disable remap */
+        writel_relaxed(1 << (12 + 16), RK30_GRF_BASE + GRF_SOC_CON0);
 	/* pll enter slow mode */
 	writel_relaxed(PLL_MODE_SLOW(APLL_ID) | PLL_MODE_SLOW(CPLL_ID) | PLL_MODE_SLOW(GPLL_ID), RK30_CRU_BASE + CRU_MODE_CON);
 	dsb();
