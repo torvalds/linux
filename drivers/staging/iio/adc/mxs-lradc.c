@@ -983,6 +983,9 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_trig;
 
+	/* Configure the hardware. */
+	mxs_lradc_hw_init(lradc);
+
 	/* Register the touchscreen input device. */
 	ret = mxs_lradc_ts_register(lradc);
 	if (ret)
@@ -994,9 +997,6 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register IIO device\n");
 		goto err_ts;
 	}
-
-	/* Configure the hardware. */
-	mxs_lradc_hw_init(lradc);
 
 	return 0;
 
