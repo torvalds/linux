@@ -80,12 +80,20 @@ static int map_browser__run(struct map_browser *self)
 	while (1) {
 		key = ui_browser__run(&self->b, 0);
 
-		if (verbose && key == '/')
-			map_browser__search(self);
-		else
+		switch (key) {
+		case '/':
+			if (verbose)
+				map_browser__search(self);
+		default:
 			break;
+                case K_LEFT:
+                case K_ESC:
+                case 'q':
+                case CTRL('c'):
+                        goto out;
+		}
 	}
-
+out:
 	ui_browser__hide(&self->b);
 	return key;
 }
