@@ -77,7 +77,7 @@ typedef int16_t aufs_bindex_t;
 #define AUFS_WH_PFX		".wh."
 #define AUFS_WH_PFX_LEN		((int)sizeof(AUFS_WH_PFX) - 1)
 #define AUFS_WH_TMP_LEN		4
-/* a limit for rmdir/rename a dir */
+/* a limit for rmdir/rename a dir and copyup */
 #define AUFS_MAX_NAMELEN	(NAME_MAX \
 				- AUFS_WH_PFX_LEN * 2	/* doubly whiteouted */\
 				- 1			/* dot */\

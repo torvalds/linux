@@ -268,7 +268,8 @@ static int au_wr_dir_cpup(struct dentry *dentry, struct dentry *parent,
 		h_parent = au_h_dptr(parent, bcpup);
 		h_dir = h_parent->d_inode;
 		mutex_lock_nested(&h_dir->i_mutex, AuLsc_I_PARENT);
-		err = au_lkup_neg(dentry, bcpup);
+		err = au_lkup_neg(dentry, bcpup,
+				  au_ftest_wrdir(add_entry, TMP_WHENTRY));
 		/* todo: no unlock here */
 		mutex_unlock(&h_dir->i_mutex);
 
@@ -299,8 +300,9 @@ int au_wr_dir(struct dentry *dentry, struct dentry *src_dentry,
 {
 	int err;
 	aufs_bindex_t bcpup, bstart, src_bstart;
-	const unsigned char add_entry = !!au_ftest_wrdir(args->flags,
-							 ADD_ENTRY);
+	const unsigned char add_entry
+		= au_ftest_wrdir(args->flags, ADD_ENTRY)
+		| au_ftest_wrdir(args->flags, TMP_WHENTRY);
 	struct super_block *sb;
 	struct dentry *parent;
 	struct au_sbinfo *sbinfo;

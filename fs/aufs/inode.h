@@ -144,7 +144,8 @@ extern struct inode_operations aufs_iop, aufs_symlink_iop, aufs_dir_iop;
 
 /* au_wr_dir flags */
 #define AuWrDir_ADD_ENTRY	1
-#define AuWrDir_ISDIR		(1 << 1)
+#define AuWrDir_TMP_WHENTRY	(1 << 1)
+#define AuWrDir_ISDIR		(1 << 2)
 #define au_ftest_wrdir(flags, name)	((flags) & AuWrDir_##name)
 #define au_fset_wrdir(flags, name) \
 	do { (flags) |= AuWrDir_##name; } while (0)

@@ -125,7 +125,7 @@ static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
 	AuDebugOn(h_dir != au_h_iptr(dir, bdst));
 	IMustLock(h_dir);
 
-	err = au_lkup_neg(dentry, bdst);
+	err = au_lkup_neg(dentry, bdst, /*wh*/0);
 	if (unlikely(err < 0))
 		goto out;
 	h_path.dentry = au_h_dptr(dentry, bdst);

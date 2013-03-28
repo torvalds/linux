@@ -308,15 +308,19 @@ struct dentry *au_sio_lkup_one(struct qstr *name, struct dentry *parent,
 /*
  * lookup @dentry on @bindex which should be negative.
  */
-int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex)
+int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex, int wh)
 {
 	int err;
 	struct dentry *parent, *h_parent, *h_dentry;
+	struct au_branch *br;
 
 	parent = dget_parent(dentry);
 	h_parent = au_h_dptr(parent, bindex);
-	h_dentry = au_sio_lkup_one(&dentry->d_name, h_parent,
-				   au_sbr(dentry->d_sb, bindex));
+	br = au_sbr(dentry->d_sb, bindex);
+	if (wh)
+		h_dentry = au_whtmp_lkup(h_parent, br, &dentry->d_name);
+	else
+		h_dentry = au_sio_lkup_one(&dentry->d_name, h_parent, br);
 	err = PTR_ERR(h_dentry);
 	if (IS_ERR(h_dentry))
 		goto out;

@@ -43,6 +43,7 @@ void au_cpup_attr_all(struct inode *inode, int force);
 #define AuCpup_DTIME	1		/* do dtime_store/revert */
 #define AuCpup_KEEPLINO	(1 << 1)	/* do not clear the lower xino,
 					   for link(2) */
+#define AuCpup_RENAME	(1 << 2)	/* rename after cpup */
 #define au_ftest_cpup(flags, name)	((flags) & AuCpup_##name)
 #define au_fset_cpup(flags, name) \
 	do { (flags) |= AuCpup_##name; } while (0)

@@ -331,7 +331,7 @@ static int do_rename(struct au_ren_args *a)
 
 		d = a->dst_dentry;
 		au_set_h_dptr(d, a->btgt, NULL);
-		err = au_lkup_neg(d, a->btgt);
+		err = au_lkup_neg(d, a->btgt, /*wh*/0);
 		if (unlikely(err))
 			goto out_whtmp;
 		a->dst_h_dentry = au_h_dptr(d, a->btgt);
