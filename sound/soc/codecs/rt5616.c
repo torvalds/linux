@@ -62,6 +62,8 @@ static struct rt5616_init_reg init_list[] = {
 };
 #define RT5616_INIT_REG_LEN ARRAY_SIZE(init_list)
 
+static struct snd_soc_codec *rt5616_codec;
+
 static int rt5616_reg_init(struct snd_soc_codec *codec)
 {
 	int i;
@@ -1478,6 +1480,28 @@ static int rt5616_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+void codec_set_spk(bool on)
+{
+
+	struct snd_soc_codec *codec = rt5616_codec;
+	printk("%s: %d\n", __func__, on);
+
+	if(!codec)
+		return;
+
+	mutex_lock(&codec->mutex);
+	if(on){
+		printk(">>>> snd_soc_dapm_enable_pin\n");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
+	}else{
+		printk(">>>> snd_soc_dapm_disable_pin\n");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
+	}
+	snd_soc_dapm_sync(&codec->dapm);
+	mutex_unlock(&codec->mutex);
+}
 static int rt5616_probe(struct snd_soc_codec *codec)
 {
 	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
@@ -1507,6 +1531,8 @@ static int rt5616_probe(struct snd_soc_codec *codec)
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	rt5616->codec = codec;
 
+      rt5616_codec = codec;
+      
 	snd_soc_add_controls(codec, rt5616_snd_controls,
 			ARRAY_SIZE(rt5616_snd_controls));
 	snd_soc_dapm_new_controls(&codec->dapm, rt5616_dapm_widgets,
