@@ -69,6 +69,7 @@ static struct mv_sata_platform_data rd88f6281_sata_data = {
 
 static struct mvsdio_platform_data rd88f6281_mvsdio_data = {
 	.gpio_card_detect = 28,
+	.gpio_write_protect = -1,
 };
 
 static unsigned int rd88f6281_mpp_config[] __initdata = {
