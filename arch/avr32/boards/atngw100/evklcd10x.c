@@ -58,7 +58,7 @@ static struct fb_monspecs __initdata atevklcd10x_default_monspecs = {
 	.dclkmax		= 28330000,
 };
 
-static struct atmel_lcdfb_info __initdata atevklcd10x_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata atevklcd10x_lcdc_data = {
 	.default_bpp		= 16,
 	.default_dmacon		= ATMEL_LCDC_DMAEN | ATMEL_LCDC_DMA2DEN,
 	.default_lcdcon2	= (ATMEL_LCDC_DISTYPE_TFT
@@ -96,7 +96,7 @@ static struct fb_monspecs __initdata atevklcd10x_default_monspecs = {
 	.dclkmax		= 7000000,
 };
 
-static struct atmel_lcdfb_info __initdata atevklcd10x_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata atevklcd10x_lcdc_data = {
 	.default_bpp		= 16,
 	.default_dmacon		= ATMEL_LCDC_DMAEN | ATMEL_LCDC_DMA2DEN,
 	.default_lcdcon2	= (ATMEL_LCDC_DISTYPE_TFT
@@ -134,7 +134,7 @@ static struct fb_monspecs __initdata atevklcd10x_default_monspecs = {
 	.dclkmax		= 6400000,
 };
 
-static struct atmel_lcdfb_info __initdata atevklcd10x_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata atevklcd10x_lcdc_data = {
 	.default_bpp		= 16,
 	.default_dmacon		= ATMEL_LCDC_DMAEN | ATMEL_LCDC_DMA2DEN,
 	.default_lcdcon2	= (ATMEL_LCDC_DISTYPE_TFT

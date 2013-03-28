@@ -281,7 +281,7 @@ static void at91_lcdc_power_control(int on)
 }
 
 /* Driver datas */
-static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data = {
 	.lcdcon_is_backlight		= true,
 	.default_bpp			= 16,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
@@ -292,7 +292,7 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 };
 
 #else
-static struct atmel_lcdfb_info __initdata ek_lcdc_data;
+static struct atmel_lcdfb_pdata __initdata ek_lcdc_data;
 #endif
 
 

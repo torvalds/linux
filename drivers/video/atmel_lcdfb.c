@@ -20,11 +20,43 @@
 #include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/platform_data/atmel.h>
+#include <video/of_display_timing.h>
 
 #include <mach/cpu.h>
 #include <asm/gpio.h>
 
 #include <video/atmel_lcdc.h>
+
+struct atmel_lcdfb_config {
+	bool have_alt_pixclock;
+	bool have_hozval;
+	bool have_intensity_bit;
+};
+
+ /* LCD Controller info data structure, stored in device platform_data */
+struct atmel_lcdfb_info {
+	spinlock_t		lock;
+	struct fb_info		*info;
+	void __iomem		*mmio;
+	int			irq_base;
+	struct work_struct	task;
+
+	unsigned int		smem_len;
+	struct platform_device	*pdev;
+	struct clk		*bus_clk;
+	struct clk		*lcdc_clk;
+
+	struct backlight_device	*backlight;
+	u8			bl_power;
+	u8			saved_lcdcon;
+
+	u32			pseudo_palette[16];
+	bool			have_intensity_bit;
+
+	struct atmel_lcdfb_pdata pdata;
+
+	struct atmel_lcdfb_config *config;
+};
 
 #define lcdc_readl(sinfo, reg)		__raw_readl((sinfo)->mmio+(reg))
 #define lcdc_writel(sinfo, reg, val)	__raw_writel((val), (sinfo)->mmio+(reg))
@@ -33,12 +65,6 @@
 #define ATMEL_LCDC_CVAL_DEFAULT		0xc8
 #define ATMEL_LCDC_DMA_BURST_LEN	8	/* words */
 #define ATMEL_LCDC_FIFO_SIZE		512	/* words */
-
-struct atmel_lcdfb_config {
-	bool have_alt_pixclock;
-	bool have_hozval;
-	bool have_intensity_bit;
-};
 
 static struct atmel_lcdfb_config at91sam9261_config = {
 	.have_hozval		= true,
@@ -248,15 +274,17 @@ static void exit_backlight(struct atmel_lcdfb_info *sinfo)
 
 static void init_contrast(struct atmel_lcdfb_info *sinfo)
 {
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
+
 	/* contrast pwm can be 'inverted' */
-	if (sinfo->lcdcon_pol_negative)
+	if (pdata->lcdcon_pol_negative)
 			contrast_ctr &= ~(ATMEL_LCDC_POL_POSITIVE);
 
 	/* have some default contrast/backlight settings */
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, contrast_ctr);
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_VAL, ATMEL_LCDC_CVAL_DEFAULT);
 
-	if (sinfo->lcdcon_is_backlight)
+	if (pdata->lcdcon_is_backlight)
 		init_backlight(sinfo);
 }
 
@@ -299,9 +327,11 @@ static unsigned long compute_hozval(struct atmel_lcdfb_info *sinfo,
 
 static void atmel_lcdfb_stop_nowait(struct atmel_lcdfb_info *sinfo)
 {
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
+
 	/* Turn off the LCD controller and the DMA controller */
 	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON,
-			sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET);
+			pdata->guard_time << ATMEL_LCDC_GUARDT_OFFSET);
 
 	/* Wait for the LCDC core to become idle */
 	while (lcdc_readl(sinfo, ATMEL_LCDC_PWRCON) & ATMEL_LCDC_BUSY)
@@ -321,9 +351,11 @@ static void atmel_lcdfb_stop(struct atmel_lcdfb_info *sinfo)
 
 static void atmel_lcdfb_start(struct atmel_lcdfb_info *sinfo)
 {
-	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, sinfo->default_dmacon);
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
+
+	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, pdata->default_dmacon);
 	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON,
-		(sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET)
+		(pdata->guard_time << ATMEL_LCDC_GUARDT_OFFSET)
 		| ATMEL_LCDC_PWR);
 }
 
@@ -424,6 +456,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 {
 	struct device *dev = info->device;
 	struct atmel_lcdfb_info *sinfo = info->par;
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 	unsigned long clk_value_khz;
 
 	clk_value_khz = clk_get_rate(sinfo->lcdc_clk) / 1000;
@@ -510,7 +543,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 		else
 			var->green.length = 6;
 
-		if (sinfo->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
+		if (pdata->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
 			/* RGB:5X5 mode */
 			var->red.offset = var->green.length + 5;
 			var->blue.offset = 0;
@@ -527,7 +560,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 8;
 		/* fall through */
 	case 24:
-		if (sinfo->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
+		if (pdata->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
 			/* RGB:888 mode */
 			var->red.offset = 16;
 			var->blue.offset = 0;
@@ -576,6 +609,7 @@ static void atmel_lcdfb_reset(struct atmel_lcdfb_info *sinfo)
 static int atmel_lcdfb_set_par(struct fb_info *info)
 {
 	struct atmel_lcdfb_info *sinfo = info->par;
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 	unsigned long hozval_linesz;
 	unsigned long value;
 	unsigned long clk_value_khz;
@@ -637,7 +671,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 
 
 	/* Initialize control register 2 */
-	value = sinfo->default_lcdcon2;
+	value = pdata->default_lcdcon2;
 
 	if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
 		value |= ATMEL_LCDC_INVLINE_INVERTED;
@@ -741,6 +775,7 @@ static int atmel_lcdfb_setcolreg(unsigned int regno, unsigned int red,
 			     unsigned int transp, struct fb_info *info)
 {
 	struct atmel_lcdfb_info *sinfo = info->par;
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 	unsigned int val;
 	u32 *pal;
 	int ret = 1;
@@ -777,8 +812,7 @@ static int atmel_lcdfb_setcolreg(unsigned int regno, unsigned int red,
 				 */
 			} else {
 				/* new style BGR:565 / RGB:565 */
-				if (sinfo->lcd_wiring_mode ==
-				    ATMEL_LCDC_WIRING_RGB) {
+				if (pdata->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
 					val  = ((blue >> 11) & 0x001f);
 					val |= ((red  >>  0) & 0xf800);
 				} else {
@@ -918,7 +952,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct fb_info *info;
 	struct atmel_lcdfb_info *sinfo;
-	struct atmel_lcdfb_info *pdata_sinfo;
+	struct atmel_lcdfb_pdata *pdata;
 	struct fb_videomode fbmode;
 	struct resource *regs = NULL;
 	struct resource *map = NULL;
@@ -936,17 +970,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	sinfo = info->par;
 
 	if (dev_get_platdata(dev)) {
-		pdata_sinfo = dev_get_platdata(dev);
-		sinfo->default_bpp = pdata_sinfo->default_bpp;
-		sinfo->default_dmacon = pdata_sinfo->default_dmacon;
-		sinfo->default_lcdcon2 = pdata_sinfo->default_lcdcon2;
-		sinfo->default_monspecs = pdata_sinfo->default_monspecs;
-		sinfo->atmel_lcdfb_power_control = pdata_sinfo->atmel_lcdfb_power_control;
-		sinfo->guard_time = pdata_sinfo->guard_time;
-		sinfo->smem_len = pdata_sinfo->smem_len;
-		sinfo->lcdcon_is_backlight = pdata_sinfo->lcdcon_is_backlight;
-		sinfo->lcdcon_pol_negative = pdata_sinfo->lcdcon_pol_negative;
-		sinfo->lcd_wiring_mode = pdata_sinfo->lcd_wiring_mode;
+		pdata = dev_get_platdata(dev);
+		sinfo->pdata = *pdata;
 	} else {
 		dev_err(dev, "cannot get default configuration\n");
 		goto free_info;
@@ -962,7 +987,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	info->pseudo_palette = sinfo->pseudo_palette;
 	info->fbops = &atmel_lcdfb_ops;
 
-	memcpy(&info->monspecs, sinfo->default_monspecs, sizeof(info->monspecs));
+	memcpy(&info->monspecs, pdata->default_monspecs, sizeof(info->monspecs));
 	info->fix = atmel_lcdfb_fix;
 
 	/* Enable LCDC Clocks */
@@ -980,7 +1005,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 
 	ret = fb_find_mode(&info->var, info, NULL, info->monspecs.modedb,
 			info->monspecs.modedb_len, info->monspecs.modedb,
-			sinfo->default_bpp);
+			pdata->default_bpp);
 	if (!ret) {
 		dev_err(dev, "no suitable video mode found\n");
 		goto stop_clk;
@@ -1097,8 +1122,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	fb_add_videomode(&fbmode, &info->modelist);
 
 	/* Power up the LCDC screen */
-	if (sinfo->atmel_lcdfb_power_control)
-		sinfo->atmel_lcdfb_power_control(1);
+	if (pdata->atmel_lcdfb_power_control)
+		pdata->atmel_lcdfb_power_control(1);
 
 	dev_info(dev, "fb%d: Atmel LCDC at 0x%08lx (mapped at %p), irq %d\n",
 		       info->node, info->fix.mmio_start, sinfo->mmio, sinfo->irq_base);
@@ -1141,15 +1166,17 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct atmel_lcdfb_info *sinfo;
+	struct atmel_lcdfb_pdata *pdata;
 
 	if (!info || !info->par)
 		return 0;
 	sinfo = info->par;
+	pdata = &sinfo->pdata;
 
 	cancel_work_sync(&sinfo->task);
 	exit_backlight(sinfo);
-	if (sinfo->atmel_lcdfb_power_control)
-		sinfo->atmel_lcdfb_power_control(0);
+	if (pdata->atmel_lcdfb_power_control)
+		pdata->atmel_lcdfb_power_control(0);
 	unregister_framebuffer(info);
 	atmel_lcdfb_stop_clock(sinfo);
 	clk_put(sinfo->lcdc_clk);
@@ -1176,6 +1203,7 @@ static int atmel_lcdfb_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct atmel_lcdfb_info *sinfo = info->par;
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 
 	/*
 	 * We don't want to handle interrupts while the clock is
@@ -1185,8 +1213,8 @@ static int atmel_lcdfb_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 	sinfo->saved_lcdcon = lcdc_readl(sinfo, ATMEL_LCDC_CONTRAST_CTR);
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, 0);
-	if (sinfo->atmel_lcdfb_power_control)
-		sinfo->atmel_lcdfb_power_control(0);
+	if (pdata->atmel_lcdfb_power_control)
+		pdata->atmel_lcdfb_power_control(0);
 
 	atmel_lcdfb_stop(sinfo);
 	atmel_lcdfb_stop_clock(sinfo);
@@ -1198,11 +1226,12 @@ static int atmel_lcdfb_resume(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct atmel_lcdfb_info *sinfo = info->par;
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 
 	atmel_lcdfb_start_clock(sinfo);
 	atmel_lcdfb_start(sinfo);
-	if (sinfo->atmel_lcdfb_power_control)
-		sinfo->atmel_lcdfb_power_control(1);
+	if (pdata->atmel_lcdfb_power_control)
+		pdata->atmel_lcdfb_power_control(1);
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, sinfo->saved_lcdcon);
 
 	/* Enable FIFO & DMA errors */
