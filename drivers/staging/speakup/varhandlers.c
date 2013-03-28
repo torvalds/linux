@@ -319,38 +319,10 @@ char *spk_strlwr(char *s)
 	return s;
 }
 
-char *speakup_s2i(char *start, int *dest)
-{
-	int val;
-	char ch = *start;
-	if (ch == '-' || ch == '+')
-		start++;
-	if (*start < '0' || *start > '9')
-		return start;
-	val = (*start) - '0';
-	start++;
-	while (*start >= '0' && *start <= '9') {
-		val *= 10;
-		val += (*start) - '0';
-		start++;
-	}
-	if (ch == '-')
-		*dest = -val;
-	else
-		*dest = val;
-	return start;
-}
-
 char *spk_s2uchar(char *start, char *dest)
 {
 	int val = 0;
-	while (*start && *start <= SPACE)
-		start++;
-	while (*start >= '0' && *start <= '9') {
-		val *= 10;
-		val += (*start) - '0';
-		start++;
-	}
+	val = simple_strtoul(skip_spaces(start), &start, 10);
 	if (*start == ',')
 		start++;
 	*dest = (u_char)val;

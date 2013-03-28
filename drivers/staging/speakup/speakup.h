@@ -58,7 +58,6 @@ void spk_reset_index_count(int sc);
 void spk_get_index_count(int *linecount, int *sentcount);
 extern int spk_set_key_info(const u_char *key_info, u_char *k_buffer);
 extern char *spk_strlwr(char *s);
-extern char *speakup_s2i(char *start, int *dest);
 extern char *spk_s2uchar(char *start, char *dest);
 extern char *spk_xlate(char *s);
 extern int speakup_kobj_init(void);

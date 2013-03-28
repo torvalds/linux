@@ -617,7 +617,7 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 			len = E_INC;
 		else
 			len = E_SET;
-		speakup_s2i(cp, &value);
+		value = simple_strtol(cp, NULL, 10);
 		ret = spk_set_num_var(value, param, len);
 		if (ret == E_RANGE) {
 			var_data = param->data;
