@@ -246,14 +246,14 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	#endif
 	#endif
 	
-	/**********************set arm in pwm ****************/
+	/*****************set arm  and logic (dc1&dc2)in pwm ****************/
 	  val = tps65910_reg_read(tps65910, TPS65910_DCDCCTRL);
         if (val<0) {
                 printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return val;
         }
 	
-	val &= ~(1<<4);
+	val &= ~(3<<4);
 	err = tps65910_reg_write(tps65910, TPS65910_DCDCCTRL, val);
 	if (err) {
 		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
