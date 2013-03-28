@@ -1189,7 +1189,7 @@ int set_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
 int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 			struct extent_state **cached_state, gfp_t mask)
 {
-	return set_extent_bit(tree, start, end, EXTENT_UPTODATE, 0,
+	return set_extent_bit(tree, start, end, EXTENT_UPTODATE, NULL,
 			      cached_state, mask);
 }
 
