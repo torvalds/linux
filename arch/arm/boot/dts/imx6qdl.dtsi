@@ -536,6 +536,26 @@
 				reg = <0x020e0000 0x38>;
 			};
 
+			ldb: ldb@020e0008 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
+				gpr = <&gpr>;
+				status = "disabled";
+
+				lvds-channel@0 {
+					reg = <0>;
+					crtcs = <&ipu1 0>;
+					status = "disabled";
+				};
+
+				lvds-channel@1 {
+					reg = <1>;
+					crtcs = <&ipu1 1>;
+					status = "disabled";
+				};
+			};
+
 			dcic1: dcic@020e4000 {
 				reg = <0x020e4000 0x4000>;
 				interrupts = <0 124 0x04>;
