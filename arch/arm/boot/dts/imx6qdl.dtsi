@@ -520,7 +520,7 @@
 			};
 
 			src: src@020d8000 {
-				compatible = "fsl,imx6q-src";
+				compatible = "fsl,imx6q-src", "fsl,imx51-src";
 				reg = <0x020d8000 0x4000>;
 				interrupts = <0 91 0x04 0 96 0x04>;
 				#reset-cells = <1>;
