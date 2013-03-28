@@ -7954,10 +7954,8 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 			config->mode_changed = true;
 		} else if (set->fb == NULL) {
 			config->mode_changed = true;
-		} else if (set->fb->depth != set->crtc->fb->depth) {
-			config->mode_changed = true;
-		} else if (set->fb->bits_per_pixel !=
-			   set->crtc->fb->bits_per_pixel) {
+		} else if (set->fb->pixel_format !=
+			   set->crtc->fb->pixel_format) {
 			config->mode_changed = true;
 		} else
 			config->fb_changed = true;
