@@ -19,9 +19,16 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 
 static DEFINE_SPINLOCK(enable_lock);
 static DEFINE_MUTEX(prepare_lock);
+
+static struct task_struct *prepare_owner;
+static struct task_struct *enable_owner;
+
+static int prepare_refcnt;
+static int enable_refcnt;
 
 static HLIST_HEAD(clk_root_list);
 static HLIST_HEAD(clk_orphan_list);
@@ -30,23 +37,56 @@ static LIST_HEAD(clk_notifier_list);
 /***           locking             ***/
 static void clk_prepare_lock(void)
 {
-	mutex_lock(&prepare_lock);
+	if (!mutex_trylock(&prepare_lock)) {
+		if (prepare_owner == current) {
+			prepare_refcnt++;
+			return;
+		}
+		mutex_lock(&prepare_lock);
+	}
+	WARN_ON_ONCE(prepare_owner != NULL);
+	WARN_ON_ONCE(prepare_refcnt != 0);
+	prepare_owner = current;
+	prepare_refcnt = 1;
 }
 
 static void clk_prepare_unlock(void)
 {
+	WARN_ON_ONCE(prepare_owner != current);
+	WARN_ON_ONCE(prepare_refcnt == 0);
+
+	if (--prepare_refcnt)
+		return;
+	prepare_owner = NULL;
 	mutex_unlock(&prepare_lock);
 }
 
 static unsigned long clk_enable_lock(void)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&enable_lock, flags);
+
+	if (!spin_trylock_irqsave(&enable_lock, flags)) {
+		if (enable_owner == current) {
+			enable_refcnt++;
+			return flags;
+		}
+		spin_lock_irqsave(&enable_lock, flags);
+	}
+	WARN_ON_ONCE(enable_owner != NULL);
+	WARN_ON_ONCE(enable_refcnt != 0);
+	enable_owner = current;
+	enable_refcnt = 1;
 	return flags;
 }
 
 static void clk_enable_unlock(unsigned long flags)
 {
+	WARN_ON_ONCE(enable_owner != current);
+	WARN_ON_ONCE(enable_refcnt == 0);
+
+	if (--enable_refcnt)
+		return;
+	enable_owner = NULL;
 	spin_unlock_irqrestore(&enable_lock, flags);
 }
 
