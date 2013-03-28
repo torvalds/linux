@@ -509,12 +509,12 @@ static struct sensor_platform_data mma7660_info = {
         .init_platform_hw = mma7660_init_platform_hw,
         #if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
            #if defined(V86_VERSION_1_0)
-           .orientation = {1, 0, 0, 0, 0, -1, 0, -1, 0},
+           .orientation = {1, 0, 0, 0, -1, 0, 0, 0, -1},
             #else if defined(V86_VERSION_1_1)
-            .orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
+            .orientation = {0, 1, 0, 1, 0, 0, 0, 0, -1},
             #endif
         #else 
-        .orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
+        .orientation = {-1, 0, 0, 0, 1, 0, 0, 0, -1},
         #endif
 };
 #endif
