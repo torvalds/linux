@@ -44,11 +44,6 @@
 #define IS_CHAR(x, type) (spk_chartab[((u_char)x)]&type)
 #define IS_TYPE(x, type) ((spk_chartab[((u_char)x)]&type) == type)
 
-#define SET_DEFAULT -4
-#define E_RANGE -3
-#define E_TOOLONG -2
-#define E_UNDEF -1
-
 extern int speakup_thread(void *data);
 extern void spk_reset_default_chars(void);
 extern void spk_reset_default_chartab(void);

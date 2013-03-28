@@ -184,19 +184,19 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	char buf[32];
 	char *cp;
 	struct var_t *var_data = var->data;
+
 	if (var_data == NULL)
-		return E_UNDEF;
+		return -ENODATA;
 
 	if (how == E_NEW_DEFAULT) {
 		if (input < var_data->u.n.low || input > var_data->u.n.high)
-			ret = E_RANGE;
-		else
-			var_data->u.n.default_val = input;
-		return ret;
+			return -ERANGE;
+		var_data->u.n.default_val = input;
+		return 0;
 	}
 	if (how == E_DEFAULT) {
 		val = var_data->u.n.default_val;
-		ret = SET_DEFAULT;
+		ret = -ERESTART;
 	} else {
 		if (how == E_SET)
 			val = input;
@@ -207,7 +207,7 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 		else if (how == E_DEC)
 			val -= input;
 		if (val < var_data->u.n.low || val > var_data->u.n.high)
-			return E_RANGE;
+			return -ERANGE;
 	}
 	var_data->u.n.value = val;
 	if (var->var_type == VAR_TIME && p_val != NULL) {
@@ -246,25 +246,25 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 
 int spk_set_string_var(const char *page, struct st_var_header *var, int len)
 {
-	int ret = 0;
 	struct var_t *var_data = var->data;
+
 	if (var_data == NULL)
-		return E_UNDEF;
+		return -ENODATA;
 	if (len > MAXVARLEN)
-		return -E_TOOLONG;
+		return -E2BIG;
 	if (!len) {
 		if (!var_data->u.s.default_val)
 			return 0;
-		ret = SET_DEFAULT;
 		if (!var->p_val)
 			var->p_val = var_data->u.s.default_val;
 		if (var->p_val != var_data->u.s.default_val)
 			strcpy((char *)var->p_val, var_data->u.s.default_val);
+		return -ERESTART;
 	} else if (var->p_val)
 		strcpy((char *)var->p_val, page);
 	else
-		return -E_TOOLONG;
-	return ret;
+		return -E2BIG;
+	return 0;
 }
 
 /* spk_set_mask_bits sets or clears the punc/delim/repeat bits,
