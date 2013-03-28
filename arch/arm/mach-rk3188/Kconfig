@@ -14,6 +14,9 @@ choice
 config MACH_RK3188_TB
 	bool "RK3188 Top Board"
 
+config MACH_RK3188_SDK
+	bool "RK3188 sdk Board"
+
 config MACH_RK3188_FPGA
 	bool "RK3188 FPGA board"
 	select RK_FPGA
