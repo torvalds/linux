@@ -1016,7 +1016,7 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 
 	if (sprom->revision < 4)
 		workaround = (dev->dev->board_vendor != PCI_VENDOR_ID_BROADCOM
-			      && dev->dev->board_type == 0x46D
+			      && dev->dev->board_type == SSB_BOARD_CB2_4321
 			      && dev->dev->board_rev >= 0x41);
 	else
 		workaround =
@@ -2616,7 +2616,7 @@ static void b43_nphy_workarounds_rev1_2(struct b43_wldev *dev)
 	u8 delays2[7] = { 0x8, 0x6, 0x2, 0x4, 0x4, 0x6, 0x1 };
 
 	if (sprom->boardflags2_lo & B43_BFL2_SKWRKFEM_BRD ||
-	    dev->dev->board_type == 0x8B) {
+	    dev->dev->board_type == BCMA_BOARD_TYPE_BCM943224M93) {
 		delays1[0] = 0x1;
 		delays1[5] = 0x14;
 	}
@@ -5002,7 +5002,7 @@ static int b43_phy_initn(struct b43_wldev *dev)
 
 	if (sprom->boardflags2_lo & B43_BFL2_SKWRKFEM_BRD ||
 	    (dev->dev->board_vendor == PCI_VENDOR_ID_APPLE &&
-	     dev->dev->board_type == 0x8B))
+	     dev->dev->board_type == BCMA_BOARD_TYPE_BCM943224M93))
 		b43_phy_write(dev, B43_NPHY_TXREALFD, 0xA0);
 	else
 		b43_phy_write(dev, B43_NPHY_TXREALFD, 0xB8);
