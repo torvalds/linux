@@ -142,7 +142,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		goto err;
 
 	err = "Bad UUID";
-	if (is_zero(sb->uuid, 16))
+	if (bch_is_zero(sb->uuid, 16))
 		goto err;
 
 	err = "Unsupported superblock version";
@@ -170,7 +170,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 		goto out;
 
 	err = "Bad UUID";
-	if (is_zero(sb->set_uuid, 16))
+	if (bch_is_zero(sb->set_uuid, 16))
 		goto err;
 
 	err = "Bad cache device number in set";
@@ -218,7 +218,7 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
 	bio->bi_sector	= SB_SECTOR;
 	bio->bi_rw	= REQ_SYNC|REQ_META;
 	bio->bi_size	= SB_SIZE;
-	bio_map(bio, NULL);
+	bch_bio_map(bio, NULL);
 
 	out->offset		= cpu_to_le64(sb->offset);
 	out->version		= cpu_to_le64(sb->version);
@@ -332,7 +332,7 @@ static void uuid_io(struct cache_set *c, unsigned long rw,
 
 		bio->bi_end_io	= uuid_endio;
 		bio->bi_private = cl;
-		bio_map(bio, c->uuids);
+		bch_bio_map(bio, c->uuids);
 
 		bch_submit_bbio(bio, c, k, i);
 
@@ -344,7 +344,7 @@ static void uuid_io(struct cache_set *c, unsigned long rw,
 		 pkey(&c->uuid_bucket));
 
 	for (u = c->uuids; u < c->uuids + c->nr_uuids; u++)
-		if (!is_zero(u->uuid, 16))
+		if (!bch_is_zero(u->uuid, 16))
 			pr_debug("Slot %zi: %pU: %s: 1st: %u last: %u inv: %u",
 				 u - c->uuids, u->uuid, u->label,
 				 u->first_reg, u->last_reg, u->invalidated);
@@ -491,7 +491,7 @@ static void prio_io(struct cache *ca, uint64_t bucket, unsigned long rw)
 
 	bio->bi_end_io	= prio_endio;
 	bio->bi_private = ca;
-	bio_map(bio, ca->disk_buckets);
+	bch_bio_map(bio, ca->disk_buckets);
 
 	closure_bio_submit(bio, &ca->prio, ca);
 	closure_sync(cl);
@@ -538,7 +538,7 @@ void bch_prio_write(struct cache *ca)
 
 		p->next_bucket	= ca->prio_buckets[i + 1];
 		p->magic	= pset_magic(ca);
-		p->csum		= crc64(&p->magic, bucket_bytes(ca) - 8);
+		p->csum		= bch_crc64(&p->magic, bucket_bytes(ca) - 8);
 
 		bucket = bch_bucket_alloc(ca, WATERMARK_PRIO, &cl);
 		BUG_ON(bucket == -1);
@@ -585,7 +585,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 
 			prio_io(ca, bucket, READ_SYNC);
 
-			if (p->csum != crc64(&p->magic, bucket_bytes(ca) - 8))
+			if (p->csum != bch_crc64(&p->magic, bucket_bytes(ca) - 8))
 				pr_warn("bad csum reading priorities");
 
 			if (p->magic != pset_magic(ca))
@@ -898,7 +898,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	sysfs_remove_file(&dc->kobj, &sysfs_attach);
 	 */
 
-	if (is_zero(u->uuid, 16)) {
+	if (bch_is_zero(u->uuid, 16)) {
 		struct closure cl;
 		closure_init_stack(&cl);
 

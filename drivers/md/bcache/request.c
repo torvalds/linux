@@ -58,8 +58,8 @@ static ssize_t cache_mode_read(struct cgroup *cgrp, struct cftype *cft,
 			char __user *buf, size_t nbytes, loff_t *ppos)
 {
 	char tmp[1024];
-	int len = snprint_string_list(tmp, PAGE_SIZE, bch_cache_modes,
-				      cgroup_to_bcache(cgrp)->cache_mode + 1);
+	int len = bch_snprint_string_list(tmp, PAGE_SIZE, bch_cache_modes,
+					  cgroup_to_bcache(cgrp)->cache_mode + 1);
 
 	if (len < 0)
 		return len;
@@ -70,7 +70,7 @@ static ssize_t cache_mode_read(struct cgroup *cgrp, struct cftype *cft,
 static int cache_mode_write(struct cgroup *cgrp, struct cftype *cft,
 			    const char *buf)
 {
-	int v = read_string_list(buf, bch_cache_modes);
+	int v = bch_read_string_list(buf, bch_cache_modes);
 	if (v < 0)
 		return v;
 
@@ -205,7 +205,7 @@ static void bio_csum(struct bio *bio, struct bkey *k)
 
 	bio_for_each_segment(bv, bio, i) {
 		void *d = kmap(bv->bv_page) + bv->bv_offset;
-		csum = crc64_update(csum, d, bv->bv_len);
+		csum = bch_crc64_update(csum, d, bv->bv_len);
 		kunmap(bv->bv_page);
 	}
 
@@ -835,7 +835,7 @@ static void request_read_done(struct closure *cl)
 		s->op.cache_bio->bi_sector	= s->cache_miss->bi_sector;
 		s->op.cache_bio->bi_bdev	= s->cache_miss->bi_bdev;
 		s->op.cache_bio->bi_size	= s->cache_bio_sectors << 9;
-		bio_map(s->op.cache_bio, NULL);
+		bch_bio_map(s->op.cache_bio, NULL);
 
 		src = bio_iovec(s->op.cache_bio);
 		dst = bio_iovec(s->cache_miss);
@@ -962,8 +962,8 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	if (!bch_btree_insert_check_key(b, &s->op, s->op.cache_bio))
 		goto out_put;
 
-	bio_map(s->op.cache_bio, NULL);
-	if (bio_alloc_pages(s->op.cache_bio, __GFP_NOWARN|GFP_NOIO))
+	bch_bio_map(s->op.cache_bio, NULL);
+	if (bch_bio_alloc_pages(s->op.cache_bio, __GFP_NOWARN|GFP_NOIO))
 		goto out_put;
 
 	s->cache_miss = miss;

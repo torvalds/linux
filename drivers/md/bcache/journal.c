@@ -54,7 +54,7 @@ reread:		left = ca->sb.bucket_size - offset;
 
 		bio->bi_end_io	= journal_read_endio;
 		bio->bi_private = &op->cl;
-		bio_map(bio, data);
+		bch_bio_map(bio, data);
 
 		closure_bio_submit(bio, &op->cl, ca);
 		closure_sync(&op->cl);
@@ -621,7 +621,7 @@ static void journal_write_unlocked(struct closure *cl)
 
 		bio->bi_end_io	= journal_write_endio;
 		bio->bi_private = w;
-		bio_map(bio, w->data);
+		bch_bio_map(bio, w->data);
 
 		trace_bcache_journal_write(bio);
 		bio_list_add(&list, bio);

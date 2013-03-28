@@ -1026,7 +1026,7 @@ static void __btree_sort(struct btree *b, struct btree_iter *iter,
 
 	if (!start) {
 		spin_lock(&b->c->sort_time_lock);
-		time_stats_update(&b->c->sort_time, start_time);
+		bch_time_stats_update(&b->c->sort_time, start_time);
 		spin_unlock(&b->c->sort_time_lock);
 	}
 }
@@ -1076,7 +1076,7 @@ void bch_btree_sort_into(struct btree *b, struct btree *new)
 	btree_mergesort(b, new->sets->data, &iter, false, true);
 
 	spin_lock(&b->c->sort_time_lock);
-	time_stats_update(&b->c->sort_time, start_time);
+	bch_time_stats_update(&b->c->sort_time, start_time);
 	spin_unlock(&b->c->sort_time_lock);
 
 	bkey_copy_key(&new->key, &b->key);

@@ -85,7 +85,7 @@ static void moving_init(struct moving_io *io)
 					       PAGE_SECTORS);
 	bio->bi_private		= &io->s.cl;
 	bio->bi_io_vec		= bio->bi_inline_vecs;
-	bio_map(bio, NULL);
+	bch_bio_map(bio, NULL);
 }
 
 static void write_moving(struct closure *cl)
@@ -159,7 +159,7 @@ static void read_moving(struct closure *cl)
 		bio->bi_rw	= READ;
 		bio->bi_end_io	= read_moving_endio;
 
-		if (bio_alloc_pages(bio, GFP_KERNEL))
+		if (bch_bio_alloc_pages(bio, GFP_KERNEL))
 			goto err;
 
 		pr_debug("%s", pkey(&w->key));

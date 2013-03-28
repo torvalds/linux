@@ -307,42 +307,42 @@ do {									\
 #define ANYSINT_MAX(t)							\
 	((((t) 1 << (sizeof(t) * 8 - 2)) - (t) 1) * (t) 2 + (t) 1)
 
-int strtoint_h(const char *, int *);
-int strtouint_h(const char *, unsigned int *);
-int strtoll_h(const char *, long long *);
-int strtoull_h(const char *, unsigned long long *);
+int bch_strtoint_h(const char *, int *);
+int bch_strtouint_h(const char *, unsigned int *);
+int bch_strtoll_h(const char *, long long *);
+int bch_strtoull_h(const char *, unsigned long long *);
 
-static inline int strtol_h(const char *cp, long *res)
+static inline int bch_strtol_h(const char *cp, long *res)
 {
 #if BITS_PER_LONG == 32
-	return strtoint_h(cp, (int *) res);
+	return bch_strtoint_h(cp, (int *) res);
 #else
-	return strtoll_h(cp, (long long *) res);
+	return bch_strtoll_h(cp, (long long *) res);
 #endif
 }
 
-static inline int strtoul_h(const char *cp, long *res)
+static inline int bch_strtoul_h(const char *cp, long *res)
 {
 #if BITS_PER_LONG == 32
-	return strtouint_h(cp, (unsigned int *) res);
+	return bch_strtouint_h(cp, (unsigned int *) res);
 #else
-	return strtoull_h(cp, (unsigned long long *) res);
+	return bch_strtoull_h(cp, (unsigned long long *) res);
 #endif
 }
 
 #define strtoi_h(cp, res)						\
 	(__builtin_types_compatible_p(typeof(*res), int)		\
-	? strtoint_h(cp, (void *) res)					\
+	? bch_strtoint_h(cp, (void *) res)				\
 	: __builtin_types_compatible_p(typeof(*res), long)		\
-	? strtol_h(cp, (void *) res)					\
+	? bch_strtol_h(cp, (void *) res)				\
 	: __builtin_types_compatible_p(typeof(*res), long long)		\
-	? strtoll_h(cp, (void *) res)					\
+	? bch_strtoll_h(cp, (void *) res)				\
 	: __builtin_types_compatible_p(typeof(*res), unsigned int)	\
-	? strtouint_h(cp, (void *) res)					\
+	? bch_strtouint_h(cp, (void *) res)				\
 	: __builtin_types_compatible_p(typeof(*res), unsigned long)	\
-	? strtoul_h(cp, (void *) res)					\
+	? bch_strtoul_h(cp, (void *) res)				\
 	: __builtin_types_compatible_p(typeof(*res), unsigned long long)\
-	? strtoull_h(cp, (void *) res) : -EINVAL)
+	? bch_strtoull_h(cp, (void *) res) : -EINVAL)
 
 #define strtoul_safe(cp, var)						\
 ({									\
@@ -379,15 +379,15 @@ static inline int strtoul_h(const char *cp, long *res)
 		__builtin_types_compatible_p(typeof(var), const char *)	\
 		     ? "%s\n" : "%i\n", var)
 
-ssize_t hprint(char *buf, int64_t v);
+ssize_t bch_hprint(char *buf, int64_t v);
 
-bool is_zero(const char *p, size_t n);
-int parse_uuid(const char *s, char *uuid);
+bool bch_is_zero(const char *p, size_t n);
+int bch_parse_uuid(const char *s, char *uuid);
 
-ssize_t snprint_string_list(char *buf, size_t size, const char * const list[],
+ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[],
 			    size_t selected);
 
-ssize_t read_string_list(const char *buf, const char * const list[]);
+ssize_t bch_read_string_list(const char *buf, const char * const list[]);
 
 struct time_stats {
 	/*
@@ -400,7 +400,7 @@ struct time_stats {
 	uint64_t	last;
 };
 
-void time_stats_update(struct time_stats *stats, uint64_t time);
+void bch_time_stats_update(struct time_stats *stats, uint64_t time);
 
 #define NSEC_PER_ns			1L
 #define NSEC_PER_us			NSEC_PER_USEC
@@ -462,7 +462,7 @@ static inline void ratelimit_reset(struct ratelimit *d)
 	d->next = local_clock();
 }
 
-unsigned next_delay(struct ratelimit *d, uint64_t done);
+unsigned bch_next_delay(struct ratelimit *d, uint64_t done);
 
 #define __DIV_SAFE(n, d, zero)						\
 ({									\
@@ -568,9 +568,9 @@ static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
 
 #define bio_end(bio)	((bio)->bi_sector + bio_sectors(bio))
 
-void bio_map(struct bio *bio, void *base);
+void bch_bio_map(struct bio *bio, void *base);
 
-int bio_alloc_pages(struct bio *bio, gfp_t gfp);
+int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp);
 
 static inline sector_t bdev_sectors(struct block_device *bdev)
 {
@@ -583,7 +583,7 @@ do {									\
 	bch_generic_make_request(bio, &(dev)->bio_split_hook);		\
 } while (0)
 
-uint64_t crc64_update(uint64_t, const void *, size_t);
-uint64_t crc64(const void *, size_t);
+uint64_t bch_crc64_update(uint64_t, const void *, size_t);
+uint64_t bch_crc64(const void *, size_t);
 
 #endif /* _BCACHE_UTIL_H */

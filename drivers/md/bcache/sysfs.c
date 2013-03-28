@@ -105,9 +105,9 @@ SHOW(__bch_cached_dev)
 #define var(stat)		(dc->stat)
 
 	if (attr == &sysfs_cache_mode)
-		return snprint_string_list(buf, PAGE_SIZE,
-					   bch_cache_modes + 1,
-					   BDEV_CACHE_MODE(&dc->sb));
+		return bch_snprint_string_list(buf, PAGE_SIZE,
+					       bch_cache_modes + 1,
+					       BDEV_CACHE_MODE(&dc->sb));
 
 	sysfs_printf(data_csum,		"%i", dc->disk.data_csum);
 	var_printf(verify,		"%i");
@@ -126,10 +126,10 @@ SHOW(__bch_cached_dev)
 		char dirty[20];
 		char derivative[20];
 		char target[20];
-		hprint(dirty,
+		bch_hprint(dirty,
 		       atomic_long_read(&dc->disk.sectors_dirty) << 9);
-		hprint(derivative,	dc->writeback_rate_derivative << 9);
-		hprint(target,		dc->writeback_rate_target << 9);
+		bch_hprint(derivative,	dc->writeback_rate_derivative << 9);
+		bch_hprint(target,	dc->writeback_rate_target << 9);
 
 		return sprintf(buf,
 			       "rate:\t\t%u\n"
@@ -202,7 +202,7 @@ STORE(__cached_dev)
 		bch_cached_dev_run(dc);
 
 	if (attr == &sysfs_cache_mode) {
-		ssize_t v = read_string_list(buf, bch_cache_modes + 1);
+		ssize_t v = bch_read_string_list(buf, bch_cache_modes + 1);
 
 		if (v < 0)
 			return v;
@@ -224,7 +224,7 @@ STORE(__cached_dev)
 	}
 
 	if (attr == &sysfs_attach) {
-		if (parse_uuid(buf, dc->sb.set_uuid) < 16)
+		if (bch_parse_uuid(buf, dc->sb.set_uuid) < 16)
 			return -EINVAL;
 
 		list_for_each_entry(c, &bch_cache_sets, list) {
@@ -657,9 +657,9 @@ SHOW(__bch_cache)
 		    ((size_t) ca->sb.nbuckets));
 
 	if (attr == &sysfs_cache_replacement_policy)
-		return snprint_string_list(buf, PAGE_SIZE,
-					   cache_replacement_policies,
-					   CACHE_REPLACEMENT(&ca->sb));
+		return bch_snprint_string_list(buf, PAGE_SIZE,
+					       cache_replacement_policies,
+					       CACHE_REPLACEMENT(&ca->sb));
 
 	if (attr == &sysfs_priority_stats) {
 		int cmp(const void *l, const void *r)
@@ -747,7 +747,7 @@ STORE(__bch_cache)
 	}
 
 	if (attr == &sysfs_cache_replacement_policy) {
-		ssize_t v = read_string_list(buf, cache_replacement_policies);
+		ssize_t v = bch_read_string_list(buf, cache_replacement_policies);
 
 		if (v < 0)
 			return v;

@@ -129,7 +129,7 @@ static uint64_t btree_csum_set(struct btree *b, struct bset *i)
 	uint64_t crc = b->key.ptr[0];
 	void *data = (void *) i + 8, *end = end(i);
 
-	crc = crc64_update(crc, data, end - data);
+	crc = bch_crc64_update(crc, data, end - data);
 	return crc ^ 0xffffffffffffffff;
 }
 
@@ -231,7 +231,7 @@ out:
 	mutex_unlock(&b->c->fill_lock);
 
 	spin_lock(&b->c->btree_read_time_lock);
-	time_stats_update(&b->c->btree_read_time, b->io_start_time);
+	bch_time_stats_update(&b->c->btree_read_time, b->io_start_time);
 	spin_unlock(&b->c->btree_read_time_lock);
 
 	smp_wmb(); /* read_done is our write lock */
@@ -259,7 +259,7 @@ void bch_btree_read(struct btree *b)
 	b->bio->bi_rw	= REQ_META|READ_SYNC;
 	b->bio->bi_size	= KEY_SIZE(&b->key) << 9;
 
-	bio_map(b->bio, b->sets[0].data);
+	bch_bio_map(b->bio, b->sets[0].data);
 
 	pr_debug("%s", pbtree(b));
 	trace_bcache_btree_read(b->bio);
@@ -327,12 +327,12 @@ static void do_btree_write(struct btree *b)
 	btree_bio_init(b);
 	b->bio->bi_rw	= REQ_META|WRITE_SYNC;
 	b->bio->bi_size	= set_blocks(i, b->c) * block_bytes(b->c);
-	bio_map(b->bio, i);
+	bch_bio_map(b->bio, i);
 
 	bkey_copy(&k.key, &b->key);
 	SET_PTR_OFFSET(&k.key, 0, PTR_OFFSET(&k.key, 0) + bset_offset(b, i));
 
-	if (!bio_alloc_pages(b->bio, GFP_NOIO)) {
+	if (!bch_bio_alloc_pages(b->bio, GFP_NOIO)) {
 		int j;
 		struct bio_vec *bv;
 		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
@@ -347,7 +347,7 @@ static void do_btree_write(struct btree *b)
 		continue_at(cl, btree_write_done, NULL);
 	} else {
 		b->bio->bi_vcnt = 0;
-		bio_map(b->bio, i);
+		bch_bio_map(b->bio, i);
 
 		trace_bcache_btree_write(b->bio);
 		bch_submit_bbio(b->bio, b->c, &k.key, 0);
@@ -815,7 +815,7 @@ retry:
 void bch_cannibalize_unlock(struct cache_set *c, struct closure *cl)
 {
 	if (c->try_harder == cl) {
-		time_stats_update(&c->try_harder_time, c->try_harder_start);
+		bch_time_stats_update(&c->try_harder_time, c->try_harder_start);
 		c->try_harder = NULL;
 		__closure_wake_up(&c->try_wait);
 	}
@@ -1536,7 +1536,7 @@ static void bch_btree_gc(struct closure *cl)
 
 	available = bch_btree_gc_finish(c);
 
-	time_stats_update(&c->btree_gc_time, start_time);
+	bch_time_stats_update(&c->btree_gc_time, start_time);
 
 	stats.key_bytes *= sizeof(uint64_t);
 	stats.dirty	<<= 9;
@@ -2007,7 +2007,7 @@ static int btree_split(struct btree *b, struct btree_op *op)
 	rw_unlock(true, n1);
 	btree_node_free(b, op);
 
-	time_stats_update(&b->c->btree_split_time, start_time);
+	bch_time_stats_update(&b->c->btree_split_time, start_time);
 
 	return 0;
 err_free2:

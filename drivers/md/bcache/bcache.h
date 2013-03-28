@@ -1033,7 +1033,7 @@ static inline void bkey_init(struct bkey *k)
  * jset: The checksum is _always_ the first 8 bytes of these structs
  */
 #define csum_set(i)							\
-	crc64(((void *) (i)) + sizeof(uint64_t),			\
+	bch_crc64(((void *) (i)) + sizeof(uint64_t),			\
 	      ((void *) end(i)) - (((void *) (i)) + sizeof(uint64_t)))
 
 /* Error handling macros */

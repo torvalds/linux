@@ -19,7 +19,7 @@
 #define simple_strtouint(c, end, base)	simple_strtoul(c, end, base)
 
 #define STRTO_H(name, type)					\
-int name ## _h(const char *cp, type *res)		        \
+int bch_ ## name ## _h(const char *cp, type *res)		\
 {								\
 	int u = 0;						\
 	char *e;						\
@@ -67,14 +67,13 @@ int name ## _h(const char *cp, type *res)		        \
 	*res = i;						\
 	return 0;						\
 }								\
-EXPORT_SYMBOL_GPL(name ## _h);
 
 STRTO_H(strtoint, int)
 STRTO_H(strtouint, unsigned int)
 STRTO_H(strtoll, long long)
 STRTO_H(strtoull, unsigned long long)
 
-ssize_t hprint(char *buf, int64_t v)
+ssize_t bch_hprint(char *buf, int64_t v)
 {
 	static const char units[] = "?kMGTPEZY";
 	char dec[3] = "";
@@ -93,9 +92,8 @@ ssize_t hprint(char *buf, int64_t v)
 
 	return sprintf(buf, "%lli%s%c", v, dec, units[u]);
 }
-EXPORT_SYMBOL_GPL(hprint);
 
-ssize_t snprint_string_list(char *buf, size_t size, const char * const list[],
+ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[],
 			    size_t selected)
 {
 	char *out = buf;
@@ -108,9 +106,8 @@ ssize_t snprint_string_list(char *buf, size_t size, const char * const list[],
 	out[-1] = '\n';
 	return out - buf;
 }
-EXPORT_SYMBOL_GPL(snprint_string_list);
 
-ssize_t read_string_list(const char *buf, const char * const list[])
+ssize_t bch_read_string_list(const char *buf, const char * const list[])
 {
 	size_t i;
 	char *s, *d = kstrndup(buf, PAGE_SIZE - 1, GFP_KERNEL);
@@ -130,9 +127,8 @@ ssize_t read_string_list(const char *buf, const char * const list[])
 
 	return i;
 }
-EXPORT_SYMBOL_GPL(read_string_list);
 
-bool is_zero(const char *p, size_t n)
+bool bch_is_zero(const char *p, size_t n)
 {
 	size_t i;
 
@@ -141,9 +137,8 @@ bool is_zero(const char *p, size_t n)
 			return false;
 	return true;
 }
-EXPORT_SYMBOL_GPL(is_zero);
 
-int parse_uuid(const char *s, char *uuid)
+int bch_parse_uuid(const char *s, char *uuid)
 {
 	size_t i, j, x;
 	memset(uuid, 0, 16);
@@ -170,9 +165,8 @@ int parse_uuid(const char *s, char *uuid)
 	}
 	return i;
 }
-EXPORT_SYMBOL_GPL(parse_uuid);
 
-void time_stats_update(struct time_stats *stats, uint64_t start_time)
+void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 {
 	uint64_t now		= local_clock();
 	uint64_t duration	= time_after64(now, start_time)
@@ -195,9 +189,8 @@ void time_stats_update(struct time_stats *stats, uint64_t start_time)
 
 	stats->last = now ?: 1;
 }
-EXPORT_SYMBOL_GPL(time_stats_update);
 
-unsigned next_delay(struct ratelimit *d, uint64_t done)
+unsigned bch_next_delay(struct ratelimit *d, uint64_t done)
 {
 	uint64_t now = local_clock();
 
@@ -207,9 +200,8 @@ unsigned next_delay(struct ratelimit *d, uint64_t done)
 		? div_u64(d->next - now, NSEC_PER_SEC / HZ)
 		: 0;
 }
-EXPORT_SYMBOL_GPL(next_delay);
 
-void bio_map(struct bio *bio, void *base)
+void bch_bio_map(struct bio *bio, void *base)
 {
 	size_t size = bio->bi_size;
 	struct bio_vec *bv = bio->bi_io_vec;
@@ -235,9 +227,8 @@ start:		bv->bv_len	= min_t(size_t, PAGE_SIZE - bv->bv_offset,
 		size -= bv->bv_len;
 	}
 }
-EXPORT_SYMBOL_GPL(bio_map);
 
-int bio_alloc_pages(struct bio *bio, gfp_t gfp)
+int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp)
 {
 	int i;
 	struct bio_vec *bv;
@@ -253,7 +244,6 @@ int bio_alloc_pages(struct bio *bio, gfp_t gfp)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(bio_alloc_pages);
 
 /*
  * Portions Copyright (c) 1996-2001, PostgreSQL Global Development Group (Any
@@ -365,7 +355,7 @@ static const uint64_t crc_table[256] = {
 	0x9AFCE626CE85B507
 };
 
-uint64_t crc64_update(uint64_t crc, const void *_data, size_t len)
+uint64_t bch_crc64_update(uint64_t crc, const void *_data, size_t len)
 {
 	const unsigned char *data = _data;
 
@@ -376,14 +366,12 @@ uint64_t crc64_update(uint64_t crc, const void *_data, size_t len)
 
 	return crc;
 }
-EXPORT_SYMBOL(crc64_update);
 
-uint64_t crc64(const void *data, size_t len)
+uint64_t bch_crc64(const void *data, size_t len)
 {
 	uint64_t crc = 0xffffffffffffffff;
 
-	crc = crc64_update(crc, data, len);
+	crc = bch_crc64_update(crc, data, len);
 
 	return crc ^ 0xffffffffffffffff;
 }
-EXPORT_SYMBOL(crc64);

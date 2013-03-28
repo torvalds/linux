@@ -62,7 +62,7 @@ do {									\
 #define sysfs_hprint(file, val)						\
 do {									\
 	if (attr == &sysfs_ ## file) {					\
-		ssize_t ret = hprint(buf, val);				\
+		ssize_t ret = bch_hprint(buf, val);			\
 		strcat(buf, "\n");					\
 		return ret + 1;						\
 	}								\
