@@ -293,7 +293,7 @@ static inline void atmel_lcdfb_power_control(struct atmel_lcdfb_info *sinfo, int
 	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 
 	if (pdata->atmel_lcdfb_power_control)
-		pdata->atmel_lcdfb_power_control(on);
+		pdata->atmel_lcdfb_power_control(pdata, on);
 }
 
 static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {

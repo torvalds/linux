@@ -170,7 +170,7 @@ static struct fb_monspecs at91fb_default_monspecs = {
 					| ATMEL_LCDC_DISTYPE_TFT \
 					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
 
-static void at91_lcdc_power_control(int on)
+static void at91_lcdc_power_control(struct atmel_lcdfb_pdata *pdata, int on)
 {
 	if (on)
 		at91_set_gpio_value(AT91_PIN_PC1, 0);	/* power up */

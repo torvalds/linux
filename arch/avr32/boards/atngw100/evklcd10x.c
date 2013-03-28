@@ -145,7 +145,7 @@ static struct atmel_lcdfb_pdata __initdata atevklcd10x_lcdc_data = {
 };
 #endif
 
-static void atevklcd10x_lcdc_power_control(int on)
+static void atevklcd10x_lcdc_power_control(struct atmel_lcdfb_pdata *pdata, int on)
 {
 	gpio_set_value(GPIO_PIN_PB(15), on);
 }

@@ -41,8 +41,10 @@ struct atmel_lcdfb_pdata {
 	u8			lcd_wiring_mode;
 	unsigned int		default_lcdcon2;
 	unsigned int		default_dmacon;
-	void (*atmel_lcdfb_power_control)(int on);
+	void (*atmel_lcdfb_power_control)(struct atmel_lcdfb_pdata *pdata, int on);
 	struct fb_monspecs	*default_monspecs;
+
+	struct list_head	pwr_gpios;
 };
 
 #define ATMEL_LCDC_DMABADDR1	0x00
