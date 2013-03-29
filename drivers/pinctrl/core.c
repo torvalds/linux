@@ -970,7 +970,15 @@ unapply_new_state:
 	list_for_each_entry(setting2, &state->settings, node) {
 		if (&setting2->node == &setting->node)
 			break;
-		pinctrl_free_setting(true, setting2);
+		/*
+		 * All we can do here is pinmux_disable_setting.
+		 * That means that some pins are muxed differently now
+		 * than they were before applying the setting (We can't
+		 * "unmux a pin"!), but it's not a big deal since the pins
+		 * are free to be muxed by another apply_setting.
+		 */
+		if (setting2->type == PIN_MAP_TYPE_MUX_GROUP)
+			pinmux_disable_setting(setting2);
 	}
 
 	if (old_state) {
