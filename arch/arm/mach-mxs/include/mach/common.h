@@ -12,8 +12,6 @@
 #define __MACH_MXS_COMMON_H__
 
 extern const u32 *mxs_get_ocotp(void);
-extern int mxs_reset_block(void __iomem *);
-extern void mxs_restart(char, const char *);
 extern int mxs_saif_clkmux_select(unsigned int clkmux);
 
 extern int mx23_clocks_init(void);

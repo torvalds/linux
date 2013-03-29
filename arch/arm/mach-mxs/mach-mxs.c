@@ -22,11 +22,13 @@
 #include <linux/irqchip/mxs.h>
 #include <linux/micrel_phy.h>
 #include <linux/mxsfb.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/pinctrl/consumer.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/system_misc.h>
 #include <mach/common.h>
 #include <mach/digctl.h>
 #include <mach/mxs.h>
@@ -457,6 +459,41 @@ static void __init mxs_machine_init(void)
 
 	if (of_machine_is_compatible("fsl,imx28-evk"))
 		imx28_evk_post_init();
+}
+
+#define MX23_CLKCTRL_RESET_OFFSET	0x120
+#define MX28_CLKCTRL_RESET_OFFSET	0x1e0
+#define MXS_CLKCTRL_RESET_CHIP		(1 << 1)
+
+/*
+ * Reset the system. It is called by machine_restart().
+ */
+static void mxs_restart(char mode, const char *cmd)
+{
+	struct device_node *np;
+	void __iomem *reset_addr;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
+	reset_addr = of_iomap(np, 0);
+	if (!reset_addr)
+		goto soft;
+
+	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
+		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
+	else
+		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+
+	/* reset the chip */
+	__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
+
+	pr_err("Failed to assert the chip reset\n");
+
+	/* Delay to allow the serial port to show the message */
+	mdelay(50);
+
+soft:
+	/* We'll take a jump through zero as a poor second */
+	soft_restart(0);
 }
 
 static const char *imx23_dt_compat[] __initdata = {
