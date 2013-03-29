@@ -137,6 +137,7 @@ int qlcnic_sriov_vf_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	spin_lock_init(&ahw->mbx_lock);
 	set_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status);
 	ahw->msix_supported = 1;
+	adapter->flags |= QLCNIC_TX_INTR_SHARED;
 
 	if (qlcnic_sriov_setup_vf(adapter, pci_using_dac))
 		return -EIO;

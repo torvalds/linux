@@ -400,7 +400,15 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	int err = -1, i;
-	int max_tx_rings;
+	int max_tx_rings, tx_vector;
+
+	if (adapter->flags & QLCNIC_TX_INTR_SHARED) {
+		max_tx_rings = 0;
+		tx_vector = 0;
+	} else {
+		max_tx_rings = adapter->max_drv_tx_rings;
+		tx_vector = 1;
+	}
 
 	if (!adapter->msix_entries) {
 		adapter->msix_entries = kcalloc(num_msix,
@@ -423,7 +431,6 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 			if (qlcnic_83xx_check(adapter)) {
 				adapter->ahw->num_msix = num_msix;
 				/* subtract mail box and tx ring vectors */
-				max_tx_rings = adapter->max_drv_tx_rings;
 				adapter->max_sds_rings = num_msix -
 							 max_tx_rings - 1;
 			} else {
@@ -436,11 +443,11 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 				 "Unable to allocate %d MSI-X interrupt vectors\n",
 				 num_msix);
 			if (qlcnic_83xx_check(adapter)) {
-				if (err < QLC_83XX_MINIMUM_VECTOR)
+				if (err < (QLC_83XX_MINIMUM_VECTOR - tx_vector))
 					return err;
-				err -= (adapter->max_drv_tx_rings + 1);
+				err -= (max_tx_rings + 1);
 				num_msix = rounddown_pow_of_two(err);
-				num_msix += (adapter->max_drv_tx_rings + 1);
+				num_msix += (max_tx_rings + 1);
 			} else {
 				num_msix = rounddown_pow_of_two(err);
 			}
@@ -1285,7 +1292,8 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 			}
 		}
 		if (qlcnic_83xx_check(adapter) &&
-		    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
+		    (adapter->flags & QLCNIC_MSIX_ENABLED) &&
+		    !(adapter->flags & QLCNIC_TX_INTR_SHARED)) {
 			handler = qlcnic_msix_tx_intr;
 			for (ring = 0; ring < adapter->max_drv_tx_rings;
 			     ring++) {
@@ -1321,7 +1329,8 @@ qlcnic_free_irq(struct qlcnic_adapter *adapter)
 				free_irq(sds_ring->irq, sds_ring);
 			}
 		}
-		if (qlcnic_83xx_check(adapter)) {
+		if (qlcnic_83xx_check(adapter) &&
+		    !(adapter->flags & QLCNIC_TX_INTR_SHARED)) {
 			for (ring = 0; ring < adapter->max_drv_tx_rings;
 			     ring++) {
 				tx_ring = &adapter->tx_ring[ring];

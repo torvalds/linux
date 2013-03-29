@@ -410,7 +410,10 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
 					      num_intr));
 	/* account for AEN interrupt MSI-X based interrupts */
 	num_msix += 1;
-	num_msix += adapter->max_drv_tx_rings;
+
+	if (!(adapter->flags & QLCNIC_TX_INTR_SHARED))
+		num_msix += adapter->max_drv_tx_rings;
+
 	err = qlcnic_enable_msix(adapter, num_msix);
 	if (err == -ENOMEM)
 		return err;
@@ -1243,6 +1246,7 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 	struct qlcnic_tx_mbx mbx;
 	struct qlcnic_tx_mbx_out *mbx_out;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u32 msix_vector;
 
 	/* Reset host resources */
 	tx->producer = 0;
@@ -1257,10 +1261,16 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 	mbx.cnsmr_index_low = LSD(tx->hw_cons_phys_addr);
 	mbx.cnsmr_index_high = MSD(tx->hw_cons_phys_addr);
 	mbx.size = tx->num_desc;
-	if (adapter->flags & QLCNIC_MSIX_ENABLED)
-		msix_id = ahw->intr_tbl[adapter->max_sds_rings + ring].id;
-	else
+	if (adapter->flags & QLCNIC_MSIX_ENABLED) {
+		if (!(adapter->flags & QLCNIC_TX_INTR_SHARED))
+			msix_vector = adapter->max_sds_rings + ring;
+		else
+			msix_vector = adapter->max_sds_rings - 1;
+		msix_id = ahw->intr_tbl[msix_vector].id;
+	} else {
 		msix_id = QLCRDX(ahw, QLCNIC_DEF_INT_ID);
+	}
+
 	if (adapter->ahw->diag_test != QLCNIC_LOOPBACK_TEST)
 		mbx.intr_id = msix_id;
 	else
@@ -1282,7 +1292,8 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 	mbx_out = (struct qlcnic_tx_mbx_out *)&cmd.rsp.arg[2];
 	tx->crb_cmd_producer = ahw->pci_base0 + mbx_out->host_prod;
 	tx->ctx_id = mbx_out->ctx_id;
-	if (adapter->flags & QLCNIC_MSIX_ENABLED) {
+	if ((adapter->flags & QLCNIC_MSIX_ENABLED) &&
+	    !(adapter->flags & QLCNIC_TX_INTR_SHARED)) {
 		intr_mask = ahw->intr_tbl[adapter->max_sds_rings + ring].src;
 		tx->crb_intr_mask = ahw->pci_base0 + intr_mask;
 	}
