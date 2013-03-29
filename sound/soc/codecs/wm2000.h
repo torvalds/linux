@@ -30,6 +30,8 @@
 #define WM2000_REG_SYS_CTL2         0xf004
 #define WM2000_REG_ANC_STAT         0xf005
 #define WM2000_REG_IF_CTL           0xf006
+#define WM2000_REG_ANA_MIC_CTL      0xf028
+#define WM2000_REG_SPK_CTL          0xf034
 
 /* SPEECH_CLARITY */
 #define WM2000_SPEECH_CLARITY   0x01

@@ -761,6 +761,8 @@ static bool wm2000_readable_reg(struct device *dev, unsigned int reg)
 	case WM2000_REG_SYS_CTL2:
 	case WM2000_REG_ANC_STAT:
 	case WM2000_REG_IF_CTL:
+	case WM2000_REG_ANA_MIC_CTL:
+	case WM2000_REG_SPK_CTL:
 		return true;
 	default:
 		return false;
@@ -771,7 +773,7 @@ static const struct regmap_config wm2000_regmap = {
 	.reg_bits = 16,
 	.val_bits = 8,
 
-	.max_register = WM2000_REG_IF_CTL,
+	.max_register = WM2000_REG_SPK_CTL,
 	.readable_reg = wm2000_readable_reg,
 };
 
