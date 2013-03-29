@@ -164,21 +164,6 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			ecmd->advertising |= hw->phy.autoneg_advertised;
 		}
 
-		if (hw->mac.autoneg != 1)
-			ecmd->advertising &= ~(ADVERTISED_Pause |
-					       ADVERTISED_Asym_Pause);
-
-		if (hw->fc.requested_mode == e1000_fc_full)
-			ecmd->advertising |= ADVERTISED_Pause;
-		else if (hw->fc.requested_mode == e1000_fc_rx_pause)
-			ecmd->advertising |= (ADVERTISED_Pause |
-					      ADVERTISED_Asym_Pause);
-		else if (hw->fc.requested_mode == e1000_fc_tx_pause)
-			ecmd->advertising |=  ADVERTISED_Asym_Pause;
-		else
-			ecmd->advertising &= ~(ADVERTISED_Pause |
-					       ADVERTISED_Asym_Pause);
-
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy.addr;
 		ecmd->transceiver = XCVR_INTERNAL;
@@ -205,6 +190,21 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->port = PORT_FIBRE;
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
+
+	if (hw->mac.autoneg != 1)
+		ecmd->advertising &= ~(ADVERTISED_Pause |
+				       ADVERTISED_Asym_Pause);
+
+	if (hw->fc.requested_mode == e1000_fc_full)
+		ecmd->advertising |= ADVERTISED_Pause;
+	else if (hw->fc.requested_mode == e1000_fc_rx_pause)
+		ecmd->advertising |= (ADVERTISED_Pause |
+				      ADVERTISED_Asym_Pause);
+	else if (hw->fc.requested_mode == e1000_fc_tx_pause)
+		ecmd->advertising |=  ADVERTISED_Asym_Pause;
+	else
+		ecmd->advertising &= ~(ADVERTISED_Pause |
+				       ADVERTISED_Asym_Pause);
 
 	status = rd32(E1000_STATUS);
 
@@ -385,6 +385,10 @@ static int igb_set_pauseparam(struct net_device *netdev,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	int retval = 0;
+
+	/* 100basefx does not support setting link flow control */
+	if (hw->dev_spec._82575.eth_flags.e100_base_fx)
+		return -EINVAL;
 
 	adapter->fc_autoneg = pause->autoneg;
 
